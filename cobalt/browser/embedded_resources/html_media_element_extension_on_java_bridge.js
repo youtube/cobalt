@@ -4,5 +4,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 if (typeof HTMLMediaElementExtension !== 'undefined') {
-    HTMLMediaElement.prototype.canPlayType = HTMLMediaElementExtension.canPlayType;
+        HTMLMediaElement.prototype.canPlayType = (mimeType, keySystem) =>
+        HTMLMediaElementExtension.canPlayType(mimeType, keySystem);
+    console.log("HTMLMediaElement.canPlayType has been overwritten");
 }

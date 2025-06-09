@@ -14,6 +14,9 @@
 #include "content/renderer/java/gin_java_bridge_value_converter.h"
 #include "v8/include/v8-exception.h"
 
+// For BUILDFLAG(USE_STARBOARD_MEDIA)
+#include "build/build_config.h"
+
 namespace content {
 
 namespace {
@@ -40,22 +43,46 @@ GinJavaFunctionInvocationHelper::~GinJavaFunctionInvocationHelper() {
 
 v8::Local<v8::Value> GinJavaFunctionInvocationHelper::Invoke(
     gin::Arguments* args) {
+#if BUILDFLAG(USE_STARBOARD_MEDIA)
+  std::string error_message;
+#endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
   if (!dispatcher_) {
+#if BUILDFLAG(USE_STARBOARD_MEDIA)
+    error_message = "Error calling " + method_name_ + ": " +
+                    std::string(kMethodInvocationErrorMessage);
+    args->isolate()->ThrowException(v8::Exception::Error(
+        gin::StringToV8(args->isolate(), error_message.c_str())));
+#else   // BUILDFLAG(USE_STARBOARD_MEDIA)
     args->isolate()->ThrowException(v8::Exception::Error(gin::StringToV8(
         args->isolate(), kMethodInvocationErrorMessage)));
+#endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
     return v8::Undefined(args->isolate());
   }
 
   if (args->IsConstructCall()) {
+#if BUILDFLAG(USE_STARBOARD_MEDIA)
+    error_message = "Error calling " + method_name_ + ": " +
+                    std::string(kMethodInvocationAsConstructorDisallowed);
+    args->isolate()->ThrowException(v8::Exception::Error(
+        gin::StringToV8(args->isolate(), error_message.c_str())));
+#else   // BUILDFLAG(USE_STARBOARD_MEDIA)
     args->isolate()->ThrowException(v8::Exception::Error(gin::StringToV8(
         args->isolate(), kMethodInvocationAsConstructorDisallowed)));
+#endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
     return v8::Undefined(args->isolate());
   }
 
   content::GinJavaBridgeObject* object = nullptr;
   if (!args->GetHolder(&object) || !object) {
+#if BUILDFLAG(USE_STARBOARD_MEDIA)
+    error_message = "Error calling " + method_name_ + ": " +
+                    std::string(kMethodInvocationOnNonInjectedObjectDisallowed);
+    args->isolate()->ThrowException(v8::Exception::Error(
+        gin::StringToV8(args->isolate(), error_message.c_str())));
+#else   // BUILDFLAG(USE_STARBOARD_MEDIA)
     args->isolate()->ThrowException(v8::Exception::Error(gin::StringToV8(
         args->isolate(), kMethodInvocationOnNonInjectedObjectDisallowed)));
+#endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
     return v8::Undefined(args->isolate());
   }
 
@@ -78,8 +105,15 @@ v8::Local<v8::Value> GinJavaFunctionInvocationHelper::Invoke(
   std::unique_ptr<base::Value> result = dispatcher_->InvokeJavaMethod(
       object->object_id(), method_name_, arguments, &error);
   if (!result.get()) {
+#if BUILDFLAG(USE_STARBOARD_MEDIA)
+    error_message = "Error calling " + method_name_ + ": " +
+                    GinJavaBridgeErrorToString(error);
+    args->isolate()->ThrowException(v8::Exception::Error(
+        gin::StringToV8(args->isolate(), error_message.c_str())));
+#else   // BUILDFLAG(USE_STARBOARD_MEDIA)
     args->isolate()->ThrowException(v8::Exception::Error(gin::StringToV8(
         args->isolate(), GinJavaBridgeErrorToString(error))));
+#endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
     return v8::Undefined(args->isolate());
   }
   if (!result->is_blob()) {

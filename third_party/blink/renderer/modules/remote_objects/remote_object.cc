@@ -13,6 +13,13 @@
 #include "third_party/blink/renderer/platform/bindings/v8_binding.h"
 #include "third_party/blink/renderer/platform/bindings/v8_private_property.h"
 
+// For BUILDFLAG(USE_STARBOARD_MEDIA)
+#include "build/build_config.h"
+#if BUILDFLAG(USE_STARBOARD_MEDIA)
+#include "base/strings/string_util.h"
+#include "starboard/media.h"  // nogncheck
+#endif                        // BUILDFLAG(USE_STARBOARD_MEDIA)
+
 namespace blink {
 
 gin::WrapperInfo RemoteObject::kWrapperInfo = {gin::kEmbedderNativeGin};
@@ -332,21 +339,40 @@ gin::ObjectTemplateBuilder RemoteObject::GetObjectTemplateBuilder(
 void RemoteObject::RemoteObjectInvokeCallback(
     const v8::FunctionCallbackInfo<v8::Value>& info) {
   v8::Isolate* isolate = info.GetIsolate();
+#if BUILDFLAG(USE_STARBOARD_MEDIA)
+  String function_name = ToCoreString(info.Data().As<v8::String>());
+  String message;
+#endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
+
   if (info.IsConstructCall()) {
     // This is not a constructor. Throw and return.
+#if BUILDFLAG(USE_STARBOARD_MEDIA)
+    message =
+        String::Format("Error calling '%s': %s", function_name.Utf8().c_str(),
+                       kMethodInvocationAsConstructorDisallowed);
+    isolate->ThrowException(v8::Exception::Error(V8String(isolate, message)));
+#else   // BUILDFLAG(USE_STARBOARD_MEDIA)
     isolate->ThrowException(v8::Exception::Error(
         V8String(isolate, kMethodInvocationAsConstructorDisallowed)));
     UMA_HISTOGRAM_ENUMERATION(
         "Blink.JavaJsBridge.MethodInvocationError",
         JavaJsBridgeMethodInvocationError::kAsConstructorDisallowed);
+#endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
     return;
   }
 
   RemoteObject* remote_object;
   if (!gin::ConvertFromV8(isolate, info.Holder(), &remote_object)) {
     // Someone messed with the |this| pointer. Throw and return.
+#if BUILDFLAG(USE_STARBOARD_MEDIA)
+    message =
+        String::Format("Error calling '%s': %s", function_name.Utf8().c_str(),
+                       kMethodInvocationOnNonInjectedObjectDisallowed);
+    isolate->ThrowException(v8::Exception::Error(V8String(isolate, message)));
+#else   // BUILDFLAG(USE_STARBOARD_MEDIA)
     isolate->ThrowException(v8::Exception::Error(
         V8String(isolate, kMethodInvocationOnNonInjectedObjectDisallowed)));
+#endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
     UMA_HISTOGRAM_ENUMERATION(
         "Blink.JavaJsBridge.MethodInvocationError",
         JavaJsBridgeMethodInvocationError::kOnNonInjectedObjectDisallowed);
@@ -366,8 +392,15 @@ void RemoteObject::RemoteObjectInvokeCallback(
           .ToLocalChecked();
 
   if (cached_method->IsUndefined()) {
+#if BUILDFLAG(USE_STARBOARD_MEDIA)
+    message =
+        String::Format("Error calling '%s': %s", function_name.Utf8().c_str(),
+                       kMethodInvocationNonexistentMethod);
+    isolate->ThrowException(v8::Exception::Error(V8String(isolate, message)));
+#else   // BUILDFLAG(USE_STARBOARD_MEDIA)
     isolate->ThrowException(v8::Exception::Error(
         V8String(isolate, kMethodInvocationNonexistentMethod)));
+#endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
     UMA_HISTOGRAM_ENUMERATION(
         "Blink.JavaJsBridge.MethodInvocationError",
         JavaJsBridgeMethodInvocationError::kNonexistentMethod);
@@ -391,9 +424,17 @@ void RemoteObject::RemoteObjectInvokeCallback(
                                        &result);
 
   if (result->error != mojom::blink::RemoteInvocationError::OK) {
+#if BUILDFLAG(USE_STARBOARD_MEDIA)
+    message = String::Format(
+        "Error calling '%s': %s: %s", method_name.Utf8().c_str(),
+        kMethodInvocationErrorMessage,
+        RemoteInvocationErrorToString(result->error).Utf8().c_str());
+    isolate->ThrowException(v8::Exception::Error(V8String(isolate, message)));
+#else   // BUILDFLAG(USE_STARBOARD_MEDIA)
     String message = String::Format("%s : ", kMethodInvocationErrorMessage) +
                      RemoteInvocationErrorToString(result->error);
     isolate->ThrowException(v8::Exception::Error(V8String(isolate, message)));
+#endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
     UMA_HISTOGRAM_ENUMERATION("Blink.JavaJsBridge.MethodInvocationError",
                               JavaJsBridgeMethodInvocationError::kErrorMessage);
     return;
