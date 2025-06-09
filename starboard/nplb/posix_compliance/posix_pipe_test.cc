@@ -204,7 +204,6 @@ TEST(PosixPipeTest, WriteToFullPipeWithNonBlockFlagImmediatelyReturnsError) {
   TestContext context(pipe_fds[0], timeout_s);
   pthread_t read_thread;
   EXPECT_EQ(pthread_create(&read_thread, NULL, DoDelayedRead, &context), 0);
-  EXPECT_EQ(pthread_detach(read_thread), 0);
 
   int write_result = 0;
   while (true) {
@@ -226,6 +225,7 @@ TEST(PosixPipeTest, WriteToFullPipeWithNonBlockFlagImmediatelyReturnsError) {
   EXPECT_EQ(write_result, -1);
   EXPECT_EQ(EAGAIN, errno);
 
+  EXPECT_EQ(pthread_join(read_thread, NULL), 0);
   close(pipe_fds[0]);
   close(pipe_fds[1]);
 }
