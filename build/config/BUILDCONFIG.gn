@@ -168,8 +168,10 @@ declare_args() {
 if (is_cobalt) {
   declare_args() {
     # TODO: b/423038377 - Fully fix debug builds and remove this flag.
-    cobalt_debugging_enabled = is_debug
+    cobalt_debugging_enabled = false
   }
+  assert(!(cobalt_debugging_enabled && is_debug),
+         "Fix b/423038377 instead of enabling is_debug with cobalt_debugging_enabled.")
 }
 
 declare_args() {
