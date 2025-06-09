@@ -186,8 +186,8 @@ void* DoDelayedRead(void* parameter) {
   // build.
   int estimated_page_size = 4096;
   char buffer[estimated_page_size];
-  EXPECT_EQ(
-      estimated_page_size, read(context->read_fd, buffer, estimated_page_size));
+  EXPECT_EQ(estimated_page_size,
+            read(context->read_fd, buffer, estimated_page_size));
   return NULL;
 }
 
@@ -210,12 +210,16 @@ TEST(PosixPipeTest, WriteToFullPipeWithNonBlockFlagImmediatelyReturnsError) {
   while (true) {
     write_result = write(pipe_fds[1], kTestData, kTestDataSize);
 
-    if (write_result == -1) break;  // Expected termination
+    if (write_result == -1) {
+      break;  // Expected termination
+    }
 
     pthread_mutex_lock(&context.out_of_time_mutex);
     bool out_of_time = context.out_of_time;
     pthread_mutex_unlock(&context.out_of_time_mutex);
-    if (out_of_time) break;  // Unexpected termination
+    if (out_of_time) {
+      break;  // Unexpected termination
+    }
   }
 
   // A timed out test won't meet these expectations.
