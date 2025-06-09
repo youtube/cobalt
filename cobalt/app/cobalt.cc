@@ -28,7 +28,7 @@
 #include "base/path_service.h"
 #include "build/build_config.h"
 #include "cobalt/app/cobalt_main_delegate.h"
-#include "cobalt/app/cobalt_switch_defaults.h"
+#include "cobalt/app/cobalt_switch_defaults_linux.h"
 #include "content/public/app/content_main.h"
 #include "content/public/app/content_main_runner.h"
 #include "content/shell/browser/shell.h"
