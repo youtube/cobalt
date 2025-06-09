@@ -16,23 +16,30 @@
 // - ENFILE: This error indicates the system file table is full, which is
 //   difficult to trigger from a user-space test without impacting the system
 //   or requiring specific, non-standard system configurations.
-//
-// For pipe2(), it would also be nice to test the non-blocking behavior on the
-// write end of the pipe, i.e., that write() immediately returns -1 and sets
-// errno to EAGAIN when the pipe cannot accept data. However, there doesn't seem
-// to be a portable, efficient way to do this (the F_SETPIPE_SZ option for
-// fcntl() is Linux-specific). Note that there is a test for the non-blocking
-// behavior on the read side on an empty pipe.
 
 #include <errno.h>
 #include <fcntl.h>
+#include <pthread.h>
 #include <unistd.h>
 
+#include "starboard/common/time.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
 namespace starboard {
 namespace nplb {
 namespace {
+
+// Only used by the WriteToFullPipeWithNonBlockFlagImmediatelyReturnsError test.
+struct TestContext {
+  TestContext(int read_fd, int timeout_s)
+      : out_of_time(false), read_fd(read_fd), timeout_s(timeout_s) {
+    EXPECT_EQ(pthread_mutex_init(&out_of_time_mutex, NULL), 0);
+  }
+  bool out_of_time;
+  pthread_mutex_t out_of_time_mutex;
+  int read_fd;
+  int timeout_s;
+};
 
 const char kTestData[] = "Hello, POSIX Pipe!";
 const size_t kTestDataSize = sizeof(kTestData);  // Include null terminator
@@ -161,6 +168,67 @@ TEST(PosixPipeTest, ReadFromEmptyPipeCreatedWithNonBlockFlagDoesNotBlock) {
   // The error should be EAGAIN, indicating the operation would have blocked.
   EXPECT_EQ(EAGAIN, errno);
 
+  close(pipe_fds[0]);
+  close(pipe_fds[1]);
+}
+
+void* DoDelayedRead(void* parameter) {
+  TestContext* context = static_cast<TestContext*>(parameter);
+
+  // TODO: b/412690906 - Consider using sem_timedwait() or
+  // pthread_cond_timedwait() instead so that the test can avoid a forced delay
+  // in the passing case.
+  sleep(context->timeout_s);
+  pthread_mutex_lock(&context->out_of_time_mutex);
+  context->out_of_time = true;
+  pthread_mutex_unlock(&context->out_of_time_mutex);
+
+  // Reading one page worth of bytes should be sufficient to unblock writing to
+  // the pipe, and 4096 bytes should cover this. We can consider using sysconf()
+  // to query for the page size if/when that symbol is added to the hermetic
+  // build.
+  int estimated_page_size = 4096;
+  char buffer[estimated_page_size];
+  EXPECT_EQ(estimated_page_size,
+            read(context->read_fd, buffer, estimated_page_size));
+  return NULL;
+}
+
+TEST(PosixPipeTest, WriteToFullPipeWithNonBlockFlagImmediatelyReturnsError) {
+  int pipe_fds[2];
+
+  ASSERT_EQ(pipe2(pipe_fds, O_NONBLOCK), 0);
+
+  // This thread is used to time out the test for noncompliant platforms that
+  // have blocked while writing to the pipe: the large read should provide
+  // sufficient space in the pipe to unblock the main thread's write() call so
+  // that the test can fail rather than hang.
+  int timeout_s = 5;
+  TestContext context(pipe_fds[0], timeout_s);
+  pthread_t read_thread;
+  EXPECT_EQ(pthread_create(&read_thread, NULL, DoDelayedRead, &context), 0);
+
+  int write_result = 0;
+  while (true) {
+    write_result = write(pipe_fds[1], kTestData, kTestDataSize);
+
+    if (write_result == -1) {
+      break;  // Expected termination
+    }
+
+    pthread_mutex_lock(&context.out_of_time_mutex);
+    bool out_of_time = context.out_of_time;
+    pthread_mutex_unlock(&context.out_of_time_mutex);
+    if (out_of_time) {
+      break;  // Unexpected termination
+    }
+  }
+
+  // A timed out test won't meet these expectations.
+  EXPECT_EQ(write_result, -1);
+  EXPECT_EQ(EAGAIN, errno);
+
+  EXPECT_EQ(pthread_join(read_thread, NULL), 0);
   close(pipe_fds[0]);
   close(pipe_fds[1]);
 }
