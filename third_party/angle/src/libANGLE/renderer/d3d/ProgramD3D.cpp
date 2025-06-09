@@ -1512,50 +1512,6 @@ void ProgramD3D::setBinaryRetrievableHint(bool /* retrievable */) {}
 
 void ProgramD3D::setSeparable(bool /* separable */) {}
 
-#if defined(STARBOARD)
-angle::Result ProgramD3D::getPixelExecutableForCachedHdrOutputLayout(
-    d3d::Context *context,
-    ShaderExecutableD3D **outExecutable,
-    gl::InfoLog *infoLog)
-{
-    if (mPixelHdrExecutable)
-    {
-        *outExecutable = mPixelHdrExecutable->shaderExecutable();
-        return angle::Result::Continue;
-    }
-
-    std::string finalPixelHLSL = mDynamicHLSL->generatePixelShaderForHdrOutputSignature(
-        mShaderHLSL[gl::ShaderType::Fragment], mPixelShaderKey, mUsesFragDepth,
-        mPixelShaderOutputLayoutCache);
-
-    // Generate new pixel executable
-    ShaderExecutableD3D *pixelExecutable = nullptr;
-
-    gl::InfoLog tempInfoLog;
-    gl::InfoLog *currentInfoLog = infoLog ? infoLog : &tempInfoLog;
-
-    ANGLE_TRY(mRenderer->compileToExecutable(
-        context, *currentInfoLog, finalPixelHLSL, gl::ShaderType::Fragment, mStreamOutVaryings,
-        (mState.getTransformFeedbackBufferMode() == GL_SEPARATE_ATTRIBS),
-        mShaderWorkarounds[gl::ShaderType::Fragment], &pixelExecutable));
-
-    if (pixelExecutable)
-    {
-        mPixelHdrExecutable =
-            std::unique_ptr<PixelExecutable>(
-                new PixelExecutable(mPixelShaderOutputLayoutCache, pixelExecutable));
-    }
-    else if (!infoLog)
-    {
-        ERR() << "Error compiling dynamic pixel executable:" << std::endl
-              << tempInfoLog.str() << std::endl;
-    }
-
-    *outExecutable = pixelExecutable;
-    return angle::Result::Continue;
-}
-#endif  // STARBOARD
-
 angle::Result ProgramD3D::getPixelExecutableForCachedOutputLayout(
     d3d::Context *context,
     ShaderExecutableD3D **outExecutable,

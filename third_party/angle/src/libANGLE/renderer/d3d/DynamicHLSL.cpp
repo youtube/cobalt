@@ -28,85 +28,6 @@ namespace rx
 namespace
 {
 
-#if defined(STARBOARD)
-// The following numbers are received from Recommendation ITU - R BT .2100 - 2(07 / 2018),
-// table 4 - PQ system reference non linear transfer functions
-// c1 = 0.8359375;
-// c2 = 18.8515625;
-// c3 = 18.6875;
-// m1 = 0.159301758125;
-// m2 = 78.84375;
-const std::string BT709_TO_BT2020_SHADER =
-    "struct PS_OUTPUT\n"
-    "{\n"
-    "    float4 gl_Color0 : SV_TARGET0;\n"
-    "};\n"
-    "#define kRefWhiteLevelSRGB 100.0f\n" // The reference white point luminance 100 nits.
-    "#define kLinearLuminanceCoeff 10000.0f\n"
-    "#define kGamma 2.2f\n"
-    "#define kMinNits 0.0f\n"
-    "#define kMaxNits 325.0f\n"  //"Common" TVs usually interpret 1.0 to 250-400 nits.
-    "static const float3x3 BT709_TO_BT2020 = { // ref: ARIB STD-B62 and BT.2087\n"
-    " 0.6274038959, 0.3292830384, 0.0433130657,\n"
-    " 0.0690972894, 0.9195403951, 0.0113623156,\n"
-    " 0.0163914389, 0.0880133079, 0.8955952532\n"
-    "};\n"
-    "float3 SRGB_EOTF(float3 E)\n"
-    "{\n"
-    "  float3 dark = E/12.92;\n"
-    "  float3 light = pow((E+0.055)/(1+0.055), 2.4);\n"
-    "  bool3  cri = E <= 0.04045;\n"
-    "  float3 cri_float = (float3)cri;\n"
-    "  float3 r = lerp(light, dark, cri_float);\n"
-    "  return r;\n"
-    "}\n"
-    "float3 SRGB_OETF(float3 L) {\n"
-    "  float3 dark  = L * 12.92;\n"
-    "  float3 light = 1.055 * pow(L, 1.0 / 2.4) - 0.055;\n"
-    "  bool3  cri = L <= 0.0031308;\n"
-    "  float3 cri_float = (float3)cri;\n"
-    "  float3 r = lerp(light, dark, cri_float);\n"
-    "  return r;\n"
-    "}\n"
-    "float3 BT2100_OOTF(float3 L, float minLNits, float maxLNits, float gamma) {\n"
-    "  float3 nits = L * kRefWhiteLevelSRGB;\n"
-    "  bool3 cri   = nits >= minLNits && nits < maxLNits;\n"
-    "  float3 i    = (nits - minLNits) / (maxLNits - minLNits);\n"
-    "  float3 j    = pow(SRGB_OETF(i), gamma);\n"
-    "  float3 adj  = (minLNits + (maxLNits - minLNits) * j) / kRefWhiteLevelSRGB;\n"
-    "  float3 cri_float = (float3)cri;\n"
-    "  float3 ret = lerp(L, adj, cri_float);\n"
-    "  return ret;\n"
-    "}\n"
-    "//input: normalized L in units of RefWhite (1.0=100nits), output: normalized E\n"
-    "float3 PQ_OETF(float3 L)\n"
-    "{\n"
-    "  const float c1 = 0.8359375;\n"
-    "  const float c2 = 18.8515625;\n"
-    "  const float c3 = 18.6875;\n"
-    "  const float m1 = 0.159301758125;\n"
-    "  const float m2 = 78.84375;\n"
-    "  L = BT2100_OOTF(L, kMinNits, kMaxNits, kGamma);\n"
-    "  L = L * kRefWhiteLevelSRGB / kLinearLuminanceCoeff;\n"
-    "  float3 Lm1 = pow(L, m1);\n"
-    "  float3 X = (c1 + c2 * Lm1) / (1 + c3 * Lm1);\n"
-    "  float3 res = pow(X, m2);\n"
-    "  return res;\n"
-    "}\n"
-    "PS_OUTPUT generateOutput()\n"
-    "{\n"
-    "    PS_OUTPUT output;\n"
-    "   \n"
-    "    float3 input_colors = max(gl_Color[0].rgb, 0);\n"
-    "    float3 lin_osd_graphics = SRGB_EOTF(input_colors);\n"
-    "    lin_osd_graphics =  mul(BT709_TO_BT2020, lin_osd_graphics);\n"
-    "    lin_osd_graphics *=  kMaxNits/kRefWhiteLevelSRGB;\n"
-    "    output.gl_Color0.rgb = PQ_OETF(lin_osd_graphics);\n"
-    "    output.gl_Color0.a = gl_Color[0].a;\n"
-    "    return output;\n"
-    "}\n";
-#endif  // STARBOARD
-
 const char *HLSLComponentTypeString(GLenum componentType)
 {
     switch (componentType)
@@ -431,21 +352,6 @@ std::string DynamicHLSL::generatePixelShaderForOutputSignature(
 
     return pixelHLSL;
 }
-
-#if defined(STARBOARD)
-std::string DynamicHLSL::generatePixelShaderForHdrOutputSignature(
-    const std::string &sourceShader,
-    const std::vector<PixelShaderOutputVariable> &outputVariables,
-    bool usesFragDepth,
-    const std::vector<GLenum> &outputLayout) const
-{
-    std::string pixelHLSL(sourceShader);
-    size_t outputInsertionPos = pixelHLSL.find(PIXEL_OUTPUT_STUB_STRING);
-    pixelHLSL.replace(outputInsertionPos, strlen(PIXEL_OUTPUT_STUB_STRING), BT709_TO_BT2020_SHADER);
-
-    return pixelHLSL;
-}
-#endif  // STARBOARD
 
 std::string DynamicHLSL::generateComputeShaderForImage2DBindSignature(
     const d3d::Context *context,
