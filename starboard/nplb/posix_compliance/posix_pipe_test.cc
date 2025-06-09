@@ -175,6 +175,9 @@ TEST(PosixPipeTest, ReadFromEmptyPipeCreatedWithNonBlockFlagDoesNotBlock) {
 void* DoDelayedRead(void* parameter) {
   TestContext* context = static_cast<TestContext*>(parameter);
 
+  // TODO: b/412690906 - Consider using sem_timedwait() or
+  // pthread_cond_timedwait() instead so that the test can avoid a forced delay
+  // in the passing case.
   sleep(context->timeout_s);
   pthread_mutex_lock(&context->out_of_time_mutex);
   context->out_of_time = true;
