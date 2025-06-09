@@ -24,7 +24,6 @@
 #if SB_IS(EVERGREEN_COMPATIBLE)
 #include "starboard/extension/loader_app_metrics.h"
 #endif
-#include "starboard/extension/time_zone.h"
 #include "starboard/linux/shared/time_zone.h"
 #include "starboard/raspi/shared/configuration.h"
 #include "starboard/raspi/shared/graphics.h"
@@ -54,9 +53,6 @@ const void* SbSystemGetExtension(const char* name) {
   }
   if (strcmp(name, kCobaltExtensionCrashHandlerName) == 0) {
     return starboard::common::GetCrashHandlerApi();
-  }
-  if (strcmp(name, kStarboardExtensionTimeZoneName) == 0) {
-    return starboard::shared::GetTimeZoneApi();
   }
 #if SB_IS(EVERGREEN_COMPATIBLE)
   if (strcmp(name, kStarboardExtensionLoaderAppMetricsName) == 0) {
