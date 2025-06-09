@@ -391,8 +391,8 @@ int __abi_wrap_pthread_once(musl_pthread_once_t* once_control,
   }
 
   if (!EnsureInitialized(&(INTERNAL_ONCE(once_control)->initialized_state))) {
-    init_routine();
     SetInitialized(&(INTERNAL_ONCE(once_control)->initialized_state));
+    init_routine();
   }
   return 0;
 }
