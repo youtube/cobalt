@@ -1204,12 +1204,8 @@ class MediaCodecBridge {
     void onMediaCodecOutputFormatChanged(long mediaCodecBridge);
 
     void onMediaCodecFrameRendered(
-<<<<<<< HEAD
       long mediaCodecBridge, long presentationTimeUs, long renderAtSystemTimeNs);
-=======
-        long mediaCodecBridge, long presentationTimeUs, long renderAtSystemTimeNs);
-
+    
     void OnMediaCodecFirstTunnelFrameReady(long mediaCodecBridge);
->>>>>>> a2c10c35107 ([android] Support OnFirstTunnelFrameReady callback (#5996))
   }
 }
