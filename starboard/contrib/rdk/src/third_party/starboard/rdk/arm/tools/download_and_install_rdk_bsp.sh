@@ -2,13 +2,13 @@
 
 # // TODO: b/415859457 - Cobalt: Change the script once we have a publicly available BSP
 
-# Script to download and extract RDK BSP
+# Script to download and extract RDK BSP(Binary Support Package)
 
 # --- Configuration ---
 # The Google Cloud Storage URL for the BSP
-BSP_GS_URL="gs://temp_rdk_bsp_private/mesonsc2-5.15-lib32-ah212-RNE-SDK-2.0.sh"
+BSP_GS_URL="gs://temp_rdk_bsp_private/bsp_archive.tar.gz"
 # The expected filename of the BSP
-BSP_FILENAME="mesonsc2-5.15-lib32-ah212-RNE-SDK-2.0.sh"
+BSP_FILENAME="bsp_archive.tar.gz"
 
 # --- Helper Functions for Logging ---
 log_error() {
@@ -52,21 +52,21 @@ else
 fi
 
 # Define the full path for the downloaded BSP file
-LOCAL_BSP_PATH="$DOWNLOAD_FOLDER/$BSP_FILENAME"
+LOCAL_BSP_ARCHIVE="$DOWNLOAD_FOLDER/$BSP_FILENAME"
 
 # 5. Copy the BSP using gcloud
-log_info "Attempting to download BSP from '$BSP_GS_URL' to '$LOCAL_BSP_PATH'..."
+log_info "Attempting to download BSP from '$BSP_GS_URL' to '$LOCAL_BSP_ARCHIVE'..."
 # A pre-requisite to running this command is getting access to gcs bucket
 # if you dont have access, ask cobalt team for access to RDK BSP found here:
 # http://dr/drive/folders/1P9CkVlriQ1GYu0mC4nufBcxcn5kwpVza
-gcloud storage cp "$BSP_GS_URL" "$LOCAL_BSP_PATH"
+gcloud storage cp "$BSP_GS_URL" "$LOCAL_BSP_ARCHIVE"
 
 # 7. Run the BSP shell script to extract files to RDK_HOME
-log_info "Attempting to extract BSP '$LOCAL_BSP_PATH' to RDK_HOME ('$RDK_HOME')..."
-sh "$LOCAL_BSP_PATH" -d "$RDK_HOME"
+log_info "Attempting to extract BSP '$LOCAL_BSP_ARCHIVE' to RDK_HOME ('$RDK_HOME')..."
+tar -xvf "$LOCAL_BSP_ARCHIVE" -C "$RDK_HOME"
 
 # Remove the temporarily downloaded RDK BSP installer
-rm $LOCAL_BSP_PATH
+rm $LOCAL_BSP_ARCHIVE
 
 log_info "RDK BSP download and extraction process finished."
 exit 0
