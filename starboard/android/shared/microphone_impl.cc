@@ -20,16 +20,19 @@
 #include <algorithm>
 #include <cstddef>
 #include <memory>
+#include <mutex>
 #include <queue>
 
-#include "starboard/android/shared/jni_env_ext.h"
+#include "starboard/android/shared/audio_permission_requester.h"
+#include "starboard/android/shared/starboard_bridge.h"
 #include "starboard/common/log.h"
-#include "starboard/common/mutex.h"
 #include "starboard/shared/starboard/thread_checker.h"
 
-using starboard::android::shared::JniEnvExt;
-
 namespace starboard::android::shared {
+
+// TODO: (cobalt b/372559388) Update namespace to jni_zero.
+using base::android::AttachCurrentThread;
+
 namespace {
 
 const int kSampleRateInHz = 16000;
@@ -82,10 +85,10 @@ class SbMicrophoneImpl : public SbMicrophonePrivate {
   // Keeps track of the microphone's current state.
   State state_;
   // Audio data that has been delivered to the buffer queue.
-  Mutex delivered_queue_mutex_;
+  std::mutex delivered_queue_mutex_;
   std::queue<int16_t*> delivered_queue_;
   // Audio data that is ready to be read.
-  Mutex ready_queue_mutex_;
+  std::mutex ready_queue_mutex_;
   std::queue<int16_t*> ready_queue_;
 };
 
@@ -103,31 +106,23 @@ SbMicrophoneImpl::~SbMicrophoneImpl() {
 }
 
 bool SbMicrophoneImpl::RequestAudioPermission() {
-  JniEnvExt* env = JniEnvExt::Get();
-  jobject j_audio_permission_requester =
-      static_cast<jobject>(env->CallStarboardObjectMethodOrAbort(
-          "getAudioPermissionRequester",
-          "()Ldev/cobalt/coat/AudioPermissionRequester;"));
-  jboolean j_permission = env->CallBooleanMethodOrAbort(
-      j_audio_permission_requester, "requestRecordAudioPermission", "(J)Z",
-      reinterpret_cast<intptr_t>(this));
-  return j_permission;
+  JNIEnv* env = AttachCurrentThread();
+  return RequestRecordAudioPermission(env);
 }
 
 // static
 bool SbMicrophoneImpl::IsMicrophoneDisconnected() {
-  JniEnvExt* env = JniEnvExt::Get();
+  JNIEnv* env = AttachCurrentThread();
   jboolean j_microphone =
-      env->CallStarboardBooleanMethodOrAbort("isMicrophoneDisconnected", "()Z");
-  return j_microphone;
+      StarboardBridge::GetInstance()->IsMicrophoneDisconnected(env);
+  return j_microphone == JNI_TRUE;
 }
 
 // static
 bool SbMicrophoneImpl::IsMicrophoneMute() {
-  JniEnvExt* env = JniEnvExt::Get();
-  jboolean j_microphone =
-      env->CallStarboardBooleanMethodOrAbort("isMicrophoneMute", "()Z");
-  return j_microphone;
+  JNIEnv* env = AttachCurrentThread();
+  jboolean j_microphone = StarboardBridge::GetInstance()->IsMicrophoneMute(env);
+  return j_microphone == JNI_TRUE;
 }
 
 bool SbMicrophoneImpl::Open() {
@@ -171,7 +166,7 @@ bool SbMicrophoneImpl::StartRecording() {
     int16_t* buffer = new int16_t[kSamplesPerBuffer];
     memset(buffer, 0, kBufferSizeInBytes);
     {
-      ScopedLock lock(delivered_queue_mutex_);
+      std::scoped_lock lock(delivered_queue_mutex_);
       delivered_queue_.push(buffer);
     }
     SLresult result =
@@ -250,7 +245,7 @@ int SbMicrophoneImpl::Read(void* out_audio_data, int audio_data_size) {
   int read_bytes = 0;
   std::unique_ptr<int16_t> buffer;
   {
-    ScopedLock lock(ready_queue_mutex_);
+    std::scoped_lock lock(ready_queue_mutex_);
     // Go through the ready queue, reading and sending audio data.
     while (!ready_queue_.empty() &&
            audio_data_size - read_bytes >= kBufferSizeInBytes) {
@@ -281,7 +276,7 @@ void SbMicrophoneImpl::SwapAndPublishBuffer(
 void SbMicrophoneImpl::SwapAndPublishBuffer() {
   int16_t* buffer = nullptr;
   {
-    ScopedLock lock(delivered_queue_mutex_);
+    std::scoped_lock lock(delivered_queue_mutex_);
     if (!delivered_queue_.empty()) {
       // The front item in the delivered queue already has the buffered data, so
       // move it from the delivered queue to the ready queue for future reads.
@@ -291,7 +286,7 @@ void SbMicrophoneImpl::SwapAndPublishBuffer() {
   }
 
   if (buffer != NULL) {
-    ScopedLock lock(ready_queue_mutex_);
+    std::scoped_lock lock(ready_queue_mutex_);
     ready_queue_.push(buffer);
   }
 
@@ -299,7 +294,7 @@ void SbMicrophoneImpl::SwapAndPublishBuffer() {
     int16_t* buffer = new int16_t[kSamplesPerBuffer];
     memset(buffer, 0, kBufferSizeInBytes);
     {
-      ScopedLock lock(delivered_queue_mutex_);
+      std::scoped_lock lock(delivered_queue_mutex_);
       delivered_queue_.push(buffer);
     }
     SLresult result =
@@ -456,7 +451,7 @@ void SbMicrophoneImpl::ClearBuffer() {
   }
 
   {
-    ScopedLock lock(delivered_queue_mutex_);
+    std::scoped_lock lock(delivered_queue_mutex_);
     while (!delivered_queue_.empty()) {
       delete[] delivered_queue_.front();
       delivered_queue_.pop();
@@ -464,7 +459,7 @@ void SbMicrophoneImpl::ClearBuffer() {
   }
 
   {
-    ScopedLock lock(ready_queue_mutex_);
+    std::scoped_lock lock(ready_queue_mutex_);
     while (!ready_queue_.empty()) {
       delete[] ready_queue_.front();
       ready_queue_.pop();

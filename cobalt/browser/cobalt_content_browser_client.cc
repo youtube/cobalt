@@ -488,6 +488,10 @@ void CobaltContentBrowserClient::CreateFeatureListAndFieldTrials() {
   SetUpCobaltFeaturesAndParams(feature_list.get());
 
   base::FeatureList::SetInstance(std::move(feature_list));
+  LOG(INFO) << "CobaltCommandLine "
+            << command_line.GetSwitchValueASCII(::switches::kEnableFeatures);
+  LOG(INFO) << "CobaltCommandLine "
+            << command_line.GetSwitchValueASCII(::switches::kDisableFeatures);
 }
 
 }  // namespace cobalt

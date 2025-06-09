@@ -1,0 +1,423 @@
+# Copyright 2025 The Cobalt Authors. All Rights Reserved.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+import("//build/config/chromecast_build.gni")
+import("//build/config/ui.gni")
+import("//starboard/build/buildflags.gni")
+
+# TODO(crbug.com/1336055, spang): Investigate using shell_views with cast builds as
+# true.
+if (use_aura) {
+  shell_use_toolkit_views = toolkit_views && !is_castos
+}
+
+# Web test support only built for the linux-x64x11-no-starboard target.
+support_web_tests = !is_android && !is_starboard
+
+# TODO(b/384748332): Changes below are for removing dependency on content shell
+config("content_shell_lib_warnings") {
+  if (is_clang) {
+    # TODO(thakis): Remove this once http://crbug.com/383820 is figured out
+    cflags = [ "-Wno-nonnull" ]
+  }
+}
+
+# TODO(b/384748332): Remove dependency on content shell
+group("content_shell_lib_deps") {
+  testonly = true
+  public_deps = [
+    "//content/shell:android_shell_descriptors",
+
+    # content_shell_lib also exposes all public content APIs.
+    "//base",
+    "//base:base_static",
+    "//base/third_party/dynamic_annotations",
+    "//build:chromeos_buildflags",
+    "//cc/base",
+    "//components/cdm/renderer",
+    "//components/custom_handlers",
+    "//components/custom_handlers:test_support",
+    "//components/keyed_service/content",
+    "//components/metrics",
+    "//components/metrics:net",
+    "//components/metrics:test_support",
+    "//components/network_hints/browser:browser",
+    "//components/network_hints/renderer",
+    "//components/network_session_configurator/common",
+    "//components/origin_trials:browser",
+    "//components/origin_trials:common",
+    "//components/performance_manager",
+    "//components/permissions",
+    "//components/prefs",
+    "//components/services/storage/test_api",
+    "//components/url_formatter",
+    "//components/variations",
+    "//components/variations/service",
+    "//components/web_cache/renderer",
+    "//content:content_resources",
+    "//content:dev_ui_content_resources",
+    "//content/common:main_frame_counter",
+    "//content/public/app",
+    "//content/public/browser",
+    "//content/public/child",
+    "//content/public/common",
+    "//content/public/gpu",
+    "//content/public/renderer",
+    "//content/public/utility",
+    "//content/shell:content_browsertests_mojom",
+    "//content/shell:resources",
+    "//content/shell:shell_controller_mojom",
+    "//content/test:content_test_mojo_bindings",
+    "//content/test:test_support",
+    "//device/bluetooth",
+    "//media",
+    "//media/mojo:buildflags",
+    "//net",
+    "//net:net_resources",
+    "//ppapi/buildflags",
+    "//services/device/public/cpp:test_support",
+    "//services/network:network_service",
+    "//services/network/public/cpp",
+    "//services/test/echo:lib",
+    "//services/test/echo/public/mojom",
+    "//third_party/blink/public:blink",
+    "//third_party/blink/public:image_resources",
+    "//third_party/blink/public:resources",
+    "//third_party/blink/public/strings",
+    "//third_party/blink/public/strings:accessibility_strings",
+    "//ui/base",
+    "//ui/base/clipboard",
+    "//ui/base/ime/init",
+    "//ui/gfx",
+    "//ui/gfx/geometry",
+    "//ui/platform_window",
+    "//url",
+    "//v8",
+  ]
+
+  if (is_fuchsia) {
+    public_deps += [
+      "//third_party/fuchsia-sdk/sdk/fidl/fuchsia.element:fuchsia.element_hlcpp",
+      "//third_party/fuchsia-sdk/sdk/fidl/fuchsia.ui.policy:fuchsia.ui.policy_hlcpp",
+    ]
+  } else {
+    public_deps += [
+      "//components/crash/content/browser",
+      "//components/crash/core/app",
+    ]
+  }
+
+  if (enable_cast_renderer) {
+    public_deps += [ "//media/mojo/services" ]
+  }
+
+  if (is_win) {
+    public_deps += [ "//gin" ]
+  }
+
+  if (is_linux) {
+    public_deps += [ "//ui/linux:linux_ui_factory" ]
+  }
+
+  if (is_mac) {
+    public_deps += [ "//ui/display:test_support" ]
+  }
+
+  if (is_ios) {
+    public_deps += [
+      "//components/permissions",
+      "//services/tracing/public/cpp",
+      "//services/tracing/public/mojom:mojom",
+      "//ui/shell_dialogs",
+    ]
+  }
+
+  if (is_android) {
+    public_deps += [
+      "//components/embedder_support/android:view",
+      "//content/shell/android:content_shell_jni_headers",
+      "//mojo/public/java/system:test_support",
+      "//ui/android",
+    ]
+  }
+
+  if (use_aura) {
+    public_deps += [
+      "//ui/aura",
+      "//ui/aura:test_support",
+      "//ui/events",
+      "//ui/wm",
+    ]
+
+    if (shell_use_toolkit_views) {
+      public_deps += [
+        "//ui/color:color_headers",
+        "//ui/native_theme",
+        "//ui/resources",
+        "//ui/views:test_support",
+        "//ui/views/controls/webview",
+        "//ui/wm:test_support",
+      ]
+    }
+  }
+
+  if (is_chromeos_ash) {
+    public_deps += [ "//chromeos/ash/components/dbus" ]
+  }
+
+  if (is_chromeos_lacros) {
+    public_deps += [
+      "//chromeos/dbus/constants",
+      "//chromeos/lacros/dbus",
+    ]
+  }
+
+  if (is_linux || is_chromeos) {
+    public_deps += [ "//build/config/freetype" ]
+  }
+
+  if (use_ozone) {
+    public_deps += [ "//ui/ozone" ]
+  }
+
+  if (is_cobalt && use_starboard_media) {
+    public_deps += [ "//starboard:starboard_group" ]
+    if (is_android) {
+      public_deps += [ "//starboard/android/shared:starboard_platform" ]
+    }
+  }
+}
+
+# TODO(b/422171398): Refactor source set to not depend on content shell
+static_library("content_shell_lib") {
+  testonly = true
+  public_deps = [ ":content_shell_lib_deps" ]
+  sources = [
+    "//content/shell/browser/shell.cc",
+    "//content/shell/browser/shell.h",
+    "//content/shell/browser/shell_browser_context.cc",
+    "//content/shell/browser/shell_browser_context.h",
+    "//content/shell/browser/shell_browser_main_parts.cc",
+    "//content/shell/browser/shell_browser_main_parts.h",
+    "//content/shell/browser/shell_content_browser_client.cc",
+    "//content/shell/browser/shell_content_browser_client.h",
+    "//content/shell/browser/shell_content_index_provider.cc",
+    "//content/shell/browser/shell_content_index_provider.h",
+    "//content/shell/browser/shell_devtools_bindings.cc",
+    "//content/shell/browser/shell_devtools_bindings.h",
+    "//content/shell/browser/shell_devtools_frontend.cc",
+    "//content/shell/browser/shell_devtools_frontend.h",
+    "//content/shell/browser/shell_devtools_manager_delegate.cc",
+    "//content/shell/browser/shell_devtools_manager_delegate.h",
+    "//content/shell/browser/shell_download_manager_delegate.cc",
+    "//content/shell/browser/shell_download_manager_delegate.h",
+    "//content/shell/browser/shell_federated_permission_context.cc",
+    "//content/shell/browser/shell_federated_permission_context.h",
+    "//content/shell/browser/shell_javascript_dialog.h",
+    "//content/shell/browser/shell_javascript_dialog_manager.cc",
+    "//content/shell/browser/shell_javascript_dialog_manager.h",
+    "//content/shell/browser/shell_paths.cc",
+    "//content/shell/browser/shell_paths.h",
+    "//content/shell/browser/shell_permission_manager.cc",
+    "//content/shell/browser/shell_permission_manager.h",
+    "//content/shell/browser/shell_platform_data_aura.cc",
+    "//content/shell/browser/shell_platform_data_aura.h",
+    "//content/shell/browser/shell_platform_delegate.cc",
+    "//content/shell/browser/shell_platform_delegate.h",
+    "//content/shell/browser/shell_speech_recognition_manager_delegate.cc",
+    "//content/shell/browser/shell_speech_recognition_manager_delegate.h",
+    "//content/shell/browser/shell_web_contents_view_delegate.h",
+    "//content/shell/browser/shell_web_contents_view_delegate_creator.h",
+    "//content/shell/common/main_frame_counter_test_impl.cc",
+    "//content/shell/common/main_frame_counter_test_impl.h",
+    "//content/shell/common/power_monitor_test_impl.cc",
+    "//content/shell/common/power_monitor_test_impl.h",
+    "//content/shell/common/shell_content_client.cc",
+    "//content/shell/common/shell_content_client.h",
+    "//content/shell/common/shell_origin_trial_policy.cc",
+    "//content/shell/common/shell_origin_trial_policy.h",
+    "//content/shell/common/shell_switches.cc",
+    "//content/shell/common/shell_switches.h",
+    "//content/shell/gpu/shell_content_gpu_client.cc",
+    "//content/shell/gpu/shell_content_gpu_client.h",
+    "//content/shell/renderer/render_frame_test_helper.cc",
+    "//content/shell/renderer/render_frame_test_helper.h",
+    "//content/shell/renderer/shell_content_renderer_client.cc",
+    "//content/shell/renderer/shell_content_renderer_client.h",
+    "//content/shell/renderer/shell_render_frame_observer.cc",
+    "//content/shell/renderer/shell_render_frame_observer.h",
+    "//content/shell/utility/shell_content_utility_client.cc",
+    "//content/shell/utility/shell_content_utility_client.h",
+  ]
+
+  if (is_android) {
+    sources += [
+      "//content/shell/android/shell_manager.cc",
+      "//content/shell/android/shell_manager.h",
+      "//content/shell/browser/shell_platform_delegate_android.cc",
+      "//content/shell/browser/shell_web_contents_view_delegate_android.cc",
+    ]
+  }
+
+  if (is_mac) {
+    sources += [
+      "//content/shell/browser/renderer_host/shell_render_widget_host_view_mac_delegate.h",
+      "//content/shell/browser/renderer_host/shell_render_widget_host_view_mac_delegate.mm",
+      "//content/shell/browser/shell_application_mac.h",
+      "//content/shell/browser/shell_application_mac.mm",
+      "//content/shell/browser/shell_browser_main_parts_mac.mm",
+      "//content/shell/browser/shell_javascript_dialog_mac.mm",
+      "//content/shell/browser/shell_platform_delegate_mac.mm",
+      "//content/shell/browser/shell_web_contents_view_delegate_mac.mm",
+    ]
+    configs += [ "//build/config/compiler:enable_arc" ]
+  }
+
+  if (is_ios) {
+    sources += [
+      "//content/shell/browser/bluetooth/shell_bluetooth_delegate_impl_client.cc",
+      "//content/shell/browser/bluetooth/shell_bluetooth_delegate_impl_client.h",
+      "//content/shell/browser/shell_file_select_helper.cc",
+      "//content/shell/browser/shell_file_select_helper.h",
+      "//content/shell/browser/shell_platform_delegate_ios.mm",
+      "//content/shell/browser/shell_web_contents_view_delegate_ios.mm",
+    ]
+    configs += [ "//build/config/compiler:enable_arc" ]
+  }
+
+  if (is_win) {
+    sources += [ "//content/shell/browser/shell_javascript_dialog_win.cc" ]
+  }
+
+  configs += [
+    ":content_shell_lib_warnings",
+    "//build/config:precompiled_headers",
+  ]
+
+  defines = [
+    "CONTENT_SHELL_VERSION=\"1.0.0\"",
+    "CONTENT_SHELL_MAJOR_VERSION=\"1\"",
+  ]
+
+  # This is to support our dependency on //content/browser.
+  # See comment at the top of //content/BUILD.gn for why this is disabled in
+  # component builds.
+  if (is_component_build) {
+    check_includes = false
+  }
+
+  if (is_fuchsia) {
+    sources += [
+      "//content/shell/browser/fuchsia_view_presenter.cc",
+      "//content/shell/browser/fuchsia_view_presenter.h",
+    ]
+  }
+
+  if (is_win) {
+    sources += [
+      "//content/shell/common/v8_crashpad_support_win.cc",
+      "//content/shell/common/v8_crashpad_support_win.h",
+    ]
+  }
+
+  if (use_aura) {
+    if (shell_use_toolkit_views) {
+      sources += [
+        "//content/shell/browser/shell_platform_delegate_views.cc",
+        "//content/shell/browser/shell_web_contents_view_delegate_views.cc",
+      ]
+    } else {
+      sources += [
+        "//content/shell/browser/shell_platform_delegate_aura.cc",
+        "//content/shell/browser/shell_web_contents_view_delegate_aura.cc",
+      ]
+    }
+  } else {
+    sources -= [
+      "//content/shell/browser/shell_platform_data_aura.cc",
+      "//content/shell/browser/shell_platform_data_aura.h",
+    ]
+  }
+}
+
+# This component provides a ContentMainDelegate for Content Shell and derived
+# applications. This delegate is the central place that creates interfaces for
+# each type of process (browser, renderer, etc). This implementation of
+# ContentMainDelegate will create either production or test-based
+# implementations.
+#
+# This component needs to be linked into every process in a Content Shell-based
+# application that wants to use ShellMainDelegate.
+#
+# TODO(danakj): This component will depend on {renderer,browser}/web_test. The
+# content_shell_lib component will not, to avoid circular deps, as web_test
+# inherits from things in content_shell_lib.
+static_library("content_shell_app") {
+  testonly = true
+  sources = [
+    "//content/shell/app/shell_crash_reporter_client.cc",
+    "//content/shell/app/shell_crash_reporter_client.h",
+    "//content/shell/app/shell_main_delegate.cc",
+    "//content/shell/app/shell_main_delegate.h",
+  ]
+  public_deps = [ ":content_shell_app_deps" ]
+  if (is_apple) {
+    configs += [ "//build/config/compiler:enable_arc" ]
+    sources += [
+      "app/paths_mac.h",
+      "app/paths_mac.mm",
+    ]
+  }
+  if (is_mac) {
+    sources += [
+      "app/shell_main_delegate_mac.h",
+      "app/shell_main_delegate_mac.mm",
+    ]
+  }
+  if (is_ios) {
+    sources += [
+      "app/ios/shell_application_ios.h",
+      "app/ios/shell_application_ios.mm",
+    ]
+  }
+  defines = [
+    "CONTENT_SHELL_VERSION=\"1.0.0\"",
+    "CONTENT_SHELL_MAJOR_VERSION=\"1\"",
+  ]
+}
+
+group("content_shell_app_deps") {
+  testonly = true
+  public_deps = [
+    ":content_shell_lib",
+    "//components/crash/core/common:crash_key",
+    "//components/memory_system",
+    "//content/public/app",
+    "//content/public/renderer",
+    "//v8",
+  ]
+  if (support_web_tests) {
+    public_deps += [
+      "//content/web_test:web_test_browser",
+      "//content/web_test:web_test_common",
+      "//content/web_test:web_test_renderer",
+    ]
+  }
+  if (!is_fuchsia) {
+    public_deps += [
+      "//components/crash/core/app",
+      "//components/crash/core/app:test_support",
+    ]
+  }
+}
