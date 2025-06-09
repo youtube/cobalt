@@ -56,6 +56,10 @@
 #include "third_party/blink/public/common/associated_interfaces/associated_interface_registry.h"
 #include "third_party/blink/public/common/web_preferences/web_preferences.h"
 
+#if BUILDFLAG(IS_ANDROID)
+#include "base/android/locale_utils.h"
+#endif  // BUILDFLAG(IS_ANDROID)
+
 namespace cobalt {
 
 namespace {
@@ -184,7 +188,11 @@ CobaltContentBrowserClient::GetGeneratedCodeCacheSettings(
 
 std::string CobaltContentBrowserClient::GetApplicationLocale() {
   DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
+#if BUILDFLAG(IS_ANDROID)
+  return base::android::GetDefaultLocaleString();
+#else
   return base::i18n::GetConfiguredLocale();
+#endif
 }
 
 std::string CobaltContentBrowserClient::GetUserAgent() {
