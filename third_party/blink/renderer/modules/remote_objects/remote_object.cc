@@ -350,10 +350,10 @@ void RemoteObject::RemoteObjectInvokeCallback(
 #else   // BUILDFLAG(USE_STARBOARD_MEDIA)
     isolate->ThrowException(v8::Exception::Error(
         V8String(isolate, kMethodInvocationAsConstructorDisallowed)));
-    UMA_HISTOGRAM_ENUMERATION(
+#endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
+        UMA_HISTOGRAM_ENUMERATION(
         "Blink.JavaJsBridge.MethodInvocationError",
         JavaJsBridgeMethodInvocationError::kAsConstructorDisallowed);
-#endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
     return;
   }
 
