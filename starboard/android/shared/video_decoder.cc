@@ -740,6 +740,7 @@ bool VideoDecoder::InitializeCodec(const VideoStreamInfo& video_stream_info,
       j_output_surface, drm_system_,
       color_metadata_ ? &*color_metadata_ : nullptr, require_software_codec_,
       std::bind(&VideoDecoder::OnFrameRendered, this, _1),
+      std::bind(&VideoDecoder::OnFirstTunnelFrameReady, this),
       tunnel_mode_audio_session_id_, force_big_endian_hdr_metadata_,
       max_video_input_size_, error_message));
   if (media_decoder_->is_valid()) {
@@ -881,14 +882,8 @@ void VideoDecoder::WriteInputBuffersInternal(
       bool prerolled = tunnel_mode_frame_rendered_.load() > 0 ||
                        enough_buffers_written_to_media_codec || cache_full;
 
-      if (prerolled && tunnel_mode_prerolling_.exchange(false)) {
-        SB_LOG(INFO)
-            << "Tunnel mode preroll finished on enqueuing input buffer "
-            << max_timestamp << ", for seek time "
-            << video_frame_tracker_->seek_to_time();
-        decoder_status_cb_(
-            kNeedMoreInput,
-            new VideoFrame(video_frame_tracker_->seek_to_time()));
+      if (prerolled) {
+        TryToSignalPrerollForTunnelMode();
       }
     }
   }
@@ -1177,6 +1172,18 @@ void VideoDecoder::OnNewTextureAvailable() {
   has_new_texture_available_.store(true);
 }
 
+void VideoDecoder::TryToSignalPrerollForTunnelMode() {
+  if (tunnel_mode_prerolling_.exchange(false)) {
+    SB_LOG(ERROR) << "Tunnel mode preroll finished.";
+    // TODO: Currently the decoder sends a dummy frame to the renderer to signal
+    //       preroll finish.  We should investigate a better way for prerolling
+    //       when the video is rendered directly by the decoder, maybe by always
+    //       sending placeholder frames.
+    decoder_status_cb_(kNeedMoreInput,
+                       new VideoFrame(video_frame_tracker_->seek_to_time()));
+  }
+}
+
 bool VideoDecoder::IsFrameRenderedCallbackEnabled() {
   return MediaCodecBridge::IsFrameRenderedCallbackEnabled() == JNI_TRUE;
 }
@@ -1191,19 +1198,17 @@ void VideoDecoder::OnFrameRendered(int64_t frame_timestamp) {
   video_frame_tracker_->OnFrameRendered(frame_timestamp);
 }
 
+void VideoDecoder::OnFirstTunnelFrameReady() {
+  SB_DCHECK(tunnel_mode_audio_session_id_ != -1);
+
+  TryToSignalPrerollForTunnelMode();
+}
+
 void VideoDecoder::OnTunnelModePrerollTimeout() {
   SB_DCHECK(BelongsToCurrentThread());
   SB_DCHECK(tunnel_mode_audio_session_id_ != -1);
 
-  if (tunnel_mode_prerolling_.exchange(false)) {
-    SB_LOG(INFO) << "Tunnel mode preroll finished due to timeout.";
-    // TODO: Currently the decoder sends a dummy frame to the renderer to signal
-    //       preroll finish.  We should investigate a better way for prerolling
-    //       when the video is rendered directly by the decoder, maybe by always
-    //       sending placeholder frames.
-    decoder_status_cb_(kNeedMoreInput,
-                       new VideoFrame(video_frame_tracker_->seek_to_time()));
-  }
+  TryToSignalPrerollForTunnelMode();
 }
 
 void VideoDecoder::OnTunnelModeCheckForNeedMoreInput() {
