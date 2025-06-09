@@ -108,29 +108,33 @@ MediaDecoder::MediaDecoder(Host* host,
   }
 }
 
-MediaDecoder::MediaDecoder(Host* host,
-                           SbMediaVideoCodec video_codec,
-                           int width_hint,
-                           int height_hint,
-                           std::optional<int> max_width,
-                           std::optional<int> max_height,
-                           int fps,
-                           jobject j_output_surface,
-                           SbDrmSystem drm_system,
-                           const SbMediaColorMetadata* color_metadata,
-                           bool require_software_codec,
-                           const FrameRenderedCB& frame_rendered_cb,
-                           int tunnel_mode_audio_session_id,
-                           bool force_big_endian_hdr_metadata,
-                           int max_video_input_size,
-                           std::string* error_message)
+MediaDecoder::MediaDecoder(
+    Host* host,
+    SbMediaVideoCodec video_codec,
+    int width_hint,
+    int height_hint,
+    std::optional<int> max_width,
+    std::optional<int> max_height,
+    int fps,
+    jobject j_output_surface,
+    SbDrmSystem drm_system,
+    const SbMediaColorMetadata* color_metadata,
+    bool require_software_codec,
+    const FrameRenderedCB& frame_rendered_cb,
+    const FirstTunnelFrameReadyCB& first_tunnel_frame_ready_cb,
+    int tunnel_mode_audio_session_id,
+    bool force_big_endian_hdr_metadata,
+    int max_video_input_size,
+    std::string* error_message)
     : media_type_(kSbMediaTypeVideo),
       host_(host),
       drm_system_(static_cast<DrmSystem*>(drm_system)),
       frame_rendered_cb_(frame_rendered_cb),
+      first_tunnel_frame_ready_cb_(first_tunnel_frame_ready_cb),
       tunnel_mode_enabled_(tunnel_mode_audio_session_id != -1),
       condition_variable_(mutex_) {
   SB_DCHECK(frame_rendered_cb_);
+  SB_DCHECK(first_tunnel_frame_ready_cb_);
 
   jobject j_media_crypto = drm_system_ ? drm_system_->GetMediaCrypto() : NULL;
   const bool require_secured_decoder =
@@ -677,6 +681,12 @@ void MediaDecoder::OnMediaCodecOutputFormatChanged() {
 
 void MediaDecoder::OnMediaCodecFrameRendered(int64_t frame_timestamp) {
   frame_rendered_cb_(frame_timestamp);
+}
+
+void MediaDecoder::OnMediaCodecFirstTunnelFrameReady() {
+  SB_DCHECK(tunnel_mode_enabled_);
+
+  first_tunnel_frame_ready_cb_();
 }
 
 bool MediaDecoder::Flush() {
