@@ -81,7 +81,14 @@ public class StarboardBridge {
       new Runnable() {
         @Override
         public void run() {
-          requestSuspend();
+          // When the platform locale setting is updated, the application needs
+          // to exit or the Accept-Language request header configuration needs
+          // to be updated. The Accept-Language header configuration is set on
+          // application start.
+          //
+          // To match cobalt 25, we're exiting the application.
+          // https://source.corp.google.com/piper///depot/google3/third_party/cobalt/app/android/coat/branch_25_lts/java/dev/cobalt/coat/StarboardBridge.java;l=96
+          afterStopped();
         }
       };
 
