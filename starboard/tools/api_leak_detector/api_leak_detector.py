@@ -133,6 +133,7 @@ _ALLOWED_SB_GE_16_POSIX_SYMBOLS = [
     'open',
     'opendir',
     'pipe',
+    'pipe2',
     'posix_memalign',
     'pread',
     'pthread_attr_destroy',
