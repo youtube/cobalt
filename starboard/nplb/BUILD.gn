@@ -220,7 +220,6 @@ test("nplb") {
     "thread_priority_test.cc",
     "thread_sampler_test.cc",
     "thread_test.cc",
-    "time_zone_get_current_test.cc",
     "time_zone_get_name_test.cc",
     "ui_navigation_test.cc",
     "undefined_behavior_test.cc",
