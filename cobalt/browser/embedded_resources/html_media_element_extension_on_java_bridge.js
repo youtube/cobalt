@@ -6,5 +6,4 @@
 if (typeof HTMLMediaElementExtension !== 'undefined') {
         HTMLMediaElement.prototype.canPlayType = (mimeType, keySystem) =>
         HTMLMediaElementExtension.canPlayType(mimeType, keySystem);
-    console.log("HTMLMediaElement.canPlayType has been overwritten");
 }
