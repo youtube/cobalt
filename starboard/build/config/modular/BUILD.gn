@@ -40,7 +40,7 @@ config("modular") {
     "EGL_NO_X11",
   ]
 
-  if (is_debug) {
+  if (is_debug || cobalt_debugging_enabled) {
     cflags += [
       "-O0",
       "-frtti",
