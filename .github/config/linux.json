@@ -14,6 +14,12 @@
     "dump_syms",
     "minidump_stackwalk"
   ],
+  "build_configs": [
+    "debug",
+    "devel",
+    "qa",
+    "gold"
+  ],
   "includes": [
     {
       "name": "x64",
