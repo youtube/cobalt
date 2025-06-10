@@ -2915,34 +2915,7 @@ angle::Result StateManager11::syncProgram(const gl::Context *context, gl::Primit
     ANGLE_TRY(mProgramD3D->getVertexExecutableForCachedInputLayout(context11, &vertexExe, nullptr));
 
     ShaderExecutableD3D *pixelExe = nullptr;
-#if defined(STARBOARD)
-    // While 10-bit HDR video is playing we run the pixel shader to apply color space for all UI
-    // elements conversion from 8-bit to 10-bit for all draw calls that do not involve the HDR video
-    // texture (look at spec ITU - R BT .2100 - 2(07 / 2018) for BT709 to BT2020 transform). This
-    // conversion  is applicable only once when we draw to the display - drawFramebuffer->id() is 0.
-    const gl::Framebuffer *drawFramebuffer = context->getState().getDrawFramebuffer();
-    if (IsHdrAngleModeEnabled() && drawFramebuffer->id().value == 0)
-    {
-        if (GetTextureFormatId(context, mProgramD3D) == angle::FormatID::R10G10B10A2_UNORM ||
-            GetTextureFormatId(context, mProgramD3D) == angle::FormatID::R16_UNORM)
-        {
-            ANGLE_TRY(mProgramD3D->getPixelExecutableForCachedOutputLayout(context11, &pixelExe,
-                                                                           nullptr));
-        }
-        else
-        {
-            ANGLE_TRY(mProgramD3D->getPixelExecutableForCachedHdrOutputLayout(context11, &pixelExe,
-                                                                              nullptr));
-        }
-    }
-    else
-    {
-        ANGLE_TRY(
-            mProgramD3D->getPixelExecutableForCachedOutputLayout(context11, &pixelExe, nullptr));
-    }
-#else
     ANGLE_TRY(mProgramD3D->getPixelExecutableForCachedOutputLayout(context11, &pixelExe, nullptr));
-#endif  // STARBOARD
 
     ShaderExecutableD3D *geometryExe = nullptr;
     ANGLE_TRY(mProgramD3D->getGeometryExecutableForPrimitiveType(context11, glState, drawMode,

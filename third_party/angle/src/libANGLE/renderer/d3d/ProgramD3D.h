@@ -206,11 +206,6 @@ class ProgramD3D : public ProgramImpl
     angle::Result getPixelExecutableForCachedOutputLayout(d3d::Context *context,
                                                           ShaderExecutableD3D **outExectuable,
                                                           gl::InfoLog *infoLog);
-#if defined(STARBOARD)
-    angle::Result getPixelExecutableForCachedHdrOutputLayout(d3d::Context *context,
-                                                             ShaderExecutableD3D **outExectuable,
-                                                             gl::InfoLog *infoLog);
-#endif  // STARBOARD
     angle::Result getComputeExecutableForImage2DBindLayout(d3d::Context *context,
                                                            ShaderExecutableD3D **outExecutable,
                                                            gl::InfoLog *infoLog);
