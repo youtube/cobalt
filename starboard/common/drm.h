@@ -1,4 +1,4 @@
-// Copyright 2014 The Cobalt Authors. All Rights Reserved.
+// Copyright 2025 The Cobalt Authors. All Rights Reserved.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -12,11 +12,24 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include "starboard/common/optional.h"
+#ifndef STARBOARD_COMMON_DRM_H_
+#define STARBOARD_COMMON_DRM_H_
+
+#include <ostream>
+
+#include "starboard/drm.h"
 
 namespace starboard {
-nullopt_t::nullopt_t() {}
-in_place_t::in_place_t() {}
-const nullopt_t nullopt;
-const in_place_t in_place;
+
+const char* GetSbDrmSessionRequestTypeName(
+    SbDrmSessionRequestType request_type);
+
+const char* GetSbDrmStatusName(SbDrmStatus status);
+
 }  // namespace starboard
+
+std::ostream& operator<<(std::ostream& os, SbDrmSessionRequestType type);
+
+std::ostream& operator<<(std::ostream& os, SbDrmStatus status);
+
+#endif  // STARBOARD_COMMON_DRM_H_

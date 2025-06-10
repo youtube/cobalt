@@ -48,7 +48,7 @@ using base::TimeDelta;
 class MEDIA_EXPORT StarboardRenderer final : public Renderer,
                                              private SbPlayerBridge::Host {
  public:
-  StarboardRenderer(scoped_refptr<base::SequencedTaskRunner> task_runner,
+  StarboardRenderer(const scoped_refptr<base::SequencedTaskRunner>& task_runner,
                     std::unique_ptr<MediaLog> media_log,
                     const base::UnguessableToken& overlay_plane_id,
                     TimeDelta audio_write_duration_local,
