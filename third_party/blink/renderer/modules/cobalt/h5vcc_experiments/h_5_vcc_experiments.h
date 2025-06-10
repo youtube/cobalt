@@ -45,9 +45,9 @@ class MODULES_EXPORT H5vccExperiments final
                                    const ExperimentConfiguration*,
                                    ExceptionState&);
   ScriptPromise resetExperimentState(ScriptState*, ExceptionState&);
-  // WTF::Vector<uint32_t> activeExperimentIds();
-  // String getFeature(const String&);
-  // const String& getFeatureParam(const String&);
+  WTF::Vector<uint32_t> activeExperimentIds();
+  String getFeature(const String&);
+  const String& getFeatureParam(const String&);
 
   void Trace(Visitor*) const override;
 

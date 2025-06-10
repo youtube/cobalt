@@ -2,19 +2,15 @@
 // META: script=/resources/test-only-api.js
 // META: script=resources/automation.js
 h5vcc_experiments_tests(async (t, mockH5vccExperiments) => {
-  let resetExperimentStateCalled = false;
-  try {
-    await window.h5vcc.experiments.resetExperimentState();
-    resetExperimentStateCalled = true;
-  } finally {
-    assert_true(resetExperimentStateCalled);
-  }
+  await window.h5vcc.experiments.resetExperimentState();
+  assert_true(mockH5vccExperiments.hasCalledResetExperimentState());
 }, 'exercises H5vccExperiments.resetExperimentState()');
 
-promise_test(async (t, mockH5vccExperiments) => {
-  const mocks = await import('./resources/mock-h5vcc-experiments.js');
+promise_test(async (t) => {
+  const { H5vccExperiments } = await import(
+    '/gen/cobalt/browser/h5vcc_experiments/public/mojom/h5vcc_experiments.mojom.m.js');
   let interceptor =
-    new MojoInterfaceInterceptor(mocks.mockH5vccExperiments.$interfaceName);
+    new MojoInterfaceInterceptor(H5vccExperiments.$interfaceName);
   interceptor.oninterfacerequest = e => e.handle.close();
   interceptor.start();
   return promise_rejects_exactly(
