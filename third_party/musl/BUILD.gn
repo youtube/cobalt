@@ -103,6 +103,7 @@ static_library("c_internal") {
     "src/ctype/wcswidth.c",
     "src/ctype/wctrans.c",
     "src/ctype/wcwidth.c",
+    "src/env/__stack_chk_fail.c",
     "src/errno/strerror.c",
     "src/exit/assert.c",
     "src/exit/atexit.c",
