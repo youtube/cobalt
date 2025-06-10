@@ -43,13 +43,10 @@ GinJavaFunctionInvocationHelper::~GinJavaFunctionInvocationHelper() {
 
 v8::Local<v8::Value> GinJavaFunctionInvocationHelper::Invoke(
     gin::Arguments* args) {
-#if BUILDFLAG(USE_STARBOARD_MEDIA)
-  std::string error_message;
-#endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
   if (!dispatcher_) {
 #if BUILDFLAG(USE_STARBOARD_MEDIA)
-    error_message = "Error calling " + method_name_ + ": " +
-                    std::string(kMethodInvocationErrorMessage);
+    auto error_message = "Error calling " + method_name_ + ": " +
+                         std::string(kMethodInvocationErrorMessage);
     args->isolate()->ThrowException(v8::Exception::Error(
         gin::StringToV8(args->isolate(), error_message.c_str())));
 #else   // BUILDFLAG(USE_STARBOARD_MEDIA)
@@ -61,8 +58,8 @@ v8::Local<v8::Value> GinJavaFunctionInvocationHelper::Invoke(
 
   if (args->IsConstructCall()) {
 #if BUILDFLAG(USE_STARBOARD_MEDIA)
-    error_message = "Error calling " + method_name_ + ": " +
-                    std::string(kMethodInvocationAsConstructorDisallowed);
+    auto error_message = "Error calling " + method_name_ + ": " +
+                         std::string(kMethodInvocationAsConstructorDisallowed);
     args->isolate()->ThrowException(v8::Exception::Error(
         gin::StringToV8(args->isolate(), error_message.c_str())));
 #else   // BUILDFLAG(USE_STARBOARD_MEDIA)
@@ -75,8 +72,9 @@ v8::Local<v8::Value> GinJavaFunctionInvocationHelper::Invoke(
   content::GinJavaBridgeObject* object = nullptr;
   if (!args->GetHolder(&object) || !object) {
 #if BUILDFLAG(USE_STARBOARD_MEDIA)
-    error_message = "Error calling " + method_name_ + ": " +
-                    std::string(kMethodInvocationOnNonInjectedObjectDisallowed);
+    auto error_message =
+        "Error calling " + method_name_ + ": " +
+        std::string(kMethodInvocationOnNonInjectedObjectDisallowed);
     args->isolate()->ThrowException(v8::Exception::Error(
         gin::StringToV8(args->isolate(), error_message.c_str())));
 #else   // BUILDFLAG(USE_STARBOARD_MEDIA)
@@ -106,8 +104,8 @@ v8::Local<v8::Value> GinJavaFunctionInvocationHelper::Invoke(
       object->object_id(), method_name_, arguments, &error);
   if (!result.get()) {
 #if BUILDFLAG(USE_STARBOARD_MEDIA)
-    error_message = "Error calling " + method_name_ + ": " +
-                    GinJavaBridgeErrorToString(error);
+    auto error_message = "Error calling " + method_name_ + ": " +
+                         GinJavaBridgeErrorToString(error);
     args->isolate()->ThrowException(v8::Exception::Error(
         gin::StringToV8(args->isolate(), error_message.c_str())));
 #else   // BUILDFLAG(USE_STARBOARD_MEDIA)

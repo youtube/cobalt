@@ -4,6 +4,10 @@
 
 import("//third_party/blink/renderer/modules/modules.gni")
 
+if (is_cobalt) {
+  import("//starboard/build/buildflags.gni")
+}
+
 blink_modules_sources("remote_objects") {
   sources = [
     "remote_object.cc",

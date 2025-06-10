@@ -335,15 +335,11 @@ gin::ObjectTemplateBuilder RemoteObject::GetObjectTemplateBuilder(
 void RemoteObject::RemoteObjectInvokeCallback(
     const v8::FunctionCallbackInfo<v8::Value>& info) {
   v8::Isolate* isolate = info.GetIsolate();
-#if BUILDFLAG(USE_STARBOARD_MEDIA)
-  String function_name = ToCoreString(info.Data().As<v8::String>());
-  String message;
-#endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
-
   if (info.IsConstructCall()) {
     // This is not a constructor. Throw and return.
 #if BUILDFLAG(USE_STARBOARD_MEDIA)
-    message =
+    String function_name = ToCoreString(info.Data().As<v8::String>());
+    String message =
         String::Format("Error calling '%s': %s", function_name.Utf8().c_str(),
                        kMethodInvocationAsConstructorDisallowed);
     isolate->ThrowException(v8::Exception::Error(V8String(isolate, message)));
@@ -351,7 +347,7 @@ void RemoteObject::RemoteObjectInvokeCallback(
     isolate->ThrowException(v8::Exception::Error(
         V8String(isolate, kMethodInvocationAsConstructorDisallowed)));
 #endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
-        UMA_HISTOGRAM_ENUMERATION(
+    UMA_HISTOGRAM_ENUMERATION(
         "Blink.JavaJsBridge.MethodInvocationError",
         JavaJsBridgeMethodInvocationError::kAsConstructorDisallowed);
     return;
@@ -361,7 +357,8 @@ void RemoteObject::RemoteObjectInvokeCallback(
   if (!gin::ConvertFromV8(isolate, info.Holder(), &remote_object)) {
     // Someone messed with the |this| pointer. Throw and return.
 #if BUILDFLAG(USE_STARBOARD_MEDIA)
-    message =
+    String function_name = ToCoreString(info.Data().As<v8::String>());
+    String message =
         String::Format("Error calling '%s': %s", function_name.Utf8().c_str(),
                        kMethodInvocationOnNonInjectedObjectDisallowed);
     isolate->ThrowException(v8::Exception::Error(V8String(isolate, message)));
@@ -389,7 +386,8 @@ void RemoteObject::RemoteObjectInvokeCallback(
 
   if (cached_method->IsUndefined()) {
 #if BUILDFLAG(USE_STARBOARD_MEDIA)
-    message =
+    String function_name = ToCoreString(info.Data().As<v8::String>());
+    String message =
         String::Format("Error calling '%s': %s", function_name.Utf8().c_str(),
                        kMethodInvocationNonexistentMethod);
     isolate->ThrowException(v8::Exception::Error(V8String(isolate, message)));
@@ -421,7 +419,8 @@ void RemoteObject::RemoteObjectInvokeCallback(
 
   if (result->error != mojom::blink::RemoteInvocationError::OK) {
 #if BUILDFLAG(USE_STARBOARD_MEDIA)
-    message = String::Format(
+    String function_name = ToCoreString(info.Data().As<v8::String>());
+    String message = String::Format(
         "Error calling '%s': %s: %s", method_name.Utf8().c_str(),
         kMethodInvocationErrorMessage,
         RemoteInvocationErrorToString(result->error).Utf8().c_str());
