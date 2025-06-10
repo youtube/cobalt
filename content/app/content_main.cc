@@ -314,6 +314,10 @@ NO_STACK_PROTECTOR int RunContentProcess(
 #if BUILDFLAG(IS_IOS_TVOS)
     // Set tvOS to single-process mode by default.
     command_line->AppendSwitch(switches::kSingleProcess);
+
+    // Enable spatial navigation; we interpret remote control swipes as arrow
+    // keys.
+    command_line->AppendSwitch(switches::kEnableSpatialNavigation);
 #endif
 #endif
 
