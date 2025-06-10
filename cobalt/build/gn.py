@@ -26,7 +26,11 @@ _BUILDS_DIRECTORY = 'out'
 _BUILD_TYPES = {
     'debug': {
         'symbol_level': 2,
-        'is_debug': 'true'
+
+        # TODO: b/423038377 - Set is_debug to true and remove
+        # cobalt_debugging_enabled once the debug build is fixed.
+        'is_debug': 'false',
+        'cobalt_debugging_enabled': 'true'
     },
     'devel': {
         'symbol_level': 1,
