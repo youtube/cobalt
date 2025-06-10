@@ -18,7 +18,6 @@ static_assert(
 #include "src/base/optional.h"
 #include "src/heap/cppgc-js/cross-heap-remembered-set.h"
 #include "src/heap/cppgc/heap-base.h"
-#include "src/heap/cppgc/marker.h"
 #include "src/heap/cppgc/stats-collector.h"
 #include "src/logging/metrics.h"
 #include "src/objects/js-objects.h"
@@ -93,15 +92,6 @@ class V8_EXPORT_PRIVATE CppHeap final
         last_young_gc_event_;
     base::Optional<cppgc::internal::MetricRecorder::MainThreadIncrementalMark>
         last_incremental_mark_event_;
-  };
-
-  class PauseConcurrentMarkingScope final {
-   public:
-    explicit PauseConcurrentMarkingScope(CppHeap*);
-
-   private:
-    base::Optional<cppgc::internal::MarkerBase::PauseConcurrentMarkingScope>
-        pause_scope_;
   };
 
   static void InitializeOncePerProcess();
