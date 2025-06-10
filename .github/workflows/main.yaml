@@ -19,6 +19,11 @@ on:
         required: false
         type: boolean
         default: false
+      leak_manifest_filename:
+        description: 'Path to the leak manifest.'
+        required: false
+        type: string
+        default: ""
     secrets:
       datadog_api_key:
         required: false
@@ -322,6 +327,8 @@ jobs:
       - name: Run API Leak Detector
         uses: ./src/.github/actions/api_leak_detector
         if: inputs.run_api_leak_detector
+        with:
+          relative_manifest_path: ${{ inputs.leak_manifest_filename }}
 
   on-device-test:
     needs: [initialize, build]
