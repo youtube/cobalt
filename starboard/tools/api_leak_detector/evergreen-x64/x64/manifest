@@ -8,7 +8,6 @@ OPENSSL_memory_get_size
 __nl_langinfo_l
 __res_state
 __sched_cpucount
-__stack_chk_fail
 _exit
 access
 catclose
