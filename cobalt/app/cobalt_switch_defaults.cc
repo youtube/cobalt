@@ -61,8 +61,6 @@ const base::CommandLine::SwitchMap GetCobaltParamSwitchDefaults() {
 #if BUILDFLAG(IS_OZONE)
         {switches::kUseGL, "angle"}, {switches::kUseANGLE, "gles-egl"},
 #endif
-        // Use passthrough command decoder.
-        {switches::kUseCmdDecoder, "passthrough"},
         // Set the default size for the content shell/starboard window.
         {switches::kContentShellHostWindowSize, "1920x1080"},
         // Enable remote Devtools access.
