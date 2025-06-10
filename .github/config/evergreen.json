@@ -41,6 +41,12 @@
     "zlib_unittests"
 >>>>>>> 557d5b61857 (Fix target names being built according to alphabetical order (#5580))
   ],
+  "build_configs": [
+    "debug",
+    "devel",
+    "qa",
+    "gold"
+  ],
   "includes": [
     {
       "name": "x64",
