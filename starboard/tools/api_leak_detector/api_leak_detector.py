@@ -133,6 +133,7 @@ _ALLOWED_SB_GE_16_POSIX_SYMBOLS = [
     'munmap',
     'open',
     'opendir',
+    'perror',
     'pipe',
     'pipe2',
     'posix_memalign',
