@@ -46,17 +46,7 @@ if (!is_android) {
       "//content/public/app",
       "//content/shell:content_shell_app",
       "//content/shell:content_shell_lib",
-<<<<<<< HEAD
-      "//content/shell:pak",
-      "//gpu/command_buffer/service",
-      "//sandbox",
-      "//starboard:starboard_group",
-      "//third_party/blink/public/common",
-      "//ui/ozone:ozone_switches",
-      "//ui/ozone/platform/starboard:starboard",
-=======
       "//starboard:starboard_headers_only",
->>>>>>> cc63091511f (cobalt: Move top-level //cobalt files to //cobalt/app (#5892))
     ]
 
     data_deps = [
