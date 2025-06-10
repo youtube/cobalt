@@ -11,10 +11,11 @@ h5vcc_experiments_tests(async (t, mockH5vccExperiments) => {
   }
 }, 'exercises H5vccExperiments.resetExperimentState()');
 
-promise_test(async (t, mockH5vccExperiments) => {
-  const mocks = await import('./resources/mock-h5vcc-experiments.js');
+promise_test(async (t) => {
+  const { H5vccExperiments } = await import(
+    '/gen/cobalt/browser/h5vcc_experiments/public/mojom/h5vcc_experiments.mojom.m.js');
   let interceptor =
-    new MojoInterfaceInterceptor(mocks.mockH5vccExperiments.$interfaceName);
+    new MojoInterfaceInterceptor(H5vccExperiments.$interfaceName);
   interceptor.oninterfacerequest = e => e.handle.close();
   interceptor.start();
   return promise_rejects_exactly(
