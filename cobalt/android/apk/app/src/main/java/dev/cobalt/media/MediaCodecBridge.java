@@ -514,7 +514,12 @@ class MediaCodecBridge {
   public static boolean isFrameRenderedCallbackEnabled() {
     // Starting with Android 14, onFrameRendered should be called accurately for each rendered
     // frame.
-    return Build.VERSION.SDK_INT >= 34;
+    return isVersionSDKGreaterOrEqual(34);
+  }
+
+  @CalledByNative
+  public static boolean isVersionSDKGreaterOrEqual(int sdk_version) {
+    return Build.VERSION.SDK_INT >= sdk_version;
   }
 
   @CalledByNative

@@ -577,4 +577,9 @@ jboolean MediaCodecBridge::IsFrameRenderedCallbackEnabled() {
   return Java_MediaCodecBridge_isFrameRenderedCallbackEnabled(env);
 }
 
+jboolean MediaCodecBridge::IsVersionSDKGreaterOrEqual(int sdk_version) {
+  JNIEnv* env = AttachCurrentThread();
+  return Java_MediaCodecBridge_isVersionSDKGreaterOrEqual(env, sdk_version);
+}
+
 }  // namespace starboard::android::shared
