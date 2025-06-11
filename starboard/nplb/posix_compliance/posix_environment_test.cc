@@ -14,10 +14,13 @@
 
 #include <unistd.h>
 
+#include <algorithm>
 #include <cerrno>
 #include <cstring>
+#include <iterator>
 #include <string>
 #include <type_traits>
+#include <vector>
 
 #include "testing/gtest/include/gtest/gtest.h"
 
@@ -54,7 +57,50 @@ static_assert(
     "'int (const char*, const char*, int)'");
 #endif
 
-class PosixEnvironmentGetenvTests : public ::testing::Test {
+// This test fixture base class is designed to be inherited by the other test
+// harnesses. It captures a snapshot of the environment variables
+// at the beginning of SetUp and verifies that the environment is identical
+// at the end of TearDown. This ensures that tests do not have side effects
+// on the process environment.
+class EnvironmentTestBase : public ::testing::Test {
+ public:
+  EnvironmentTestBase() {
+    // This runs BEFORE any SetUp() method.
+    // We snapshot the initial environment state.
+    for (char** env = environ; *env != nullptr; ++env) {
+      initial_environ_.push_back(*env);
+    }
+    std::sort(initial_environ_.begin(), initial_environ_.end());
+  }
+
+  ~EnvironmentTestBase() override {
+    // This runs AFTER any TearDown() method.
+    // We take a final snapshot and verify it against the initial one.
+    if (!HasFatalFailure()) {
+      std::vector<std::string> final_environ;
+      for (char** env = environ; *env != nullptr; ++env) {
+        final_environ.push_back(*env);
+      }
+      std::sort(final_environ.begin(), final_environ.end());
+
+      EXPECT_EQ(initial_environ_.size(), final_environ.size())
+          << "The environment size changed during the test. Some variables "
+             "might have been added or removed without proper cleanup.";
+
+      if (initial_environ_.size() == final_environ.size()) {
+        for (size_t i = 0; i < initial_environ_.size(); ++i) {
+          EXPECT_EQ(initial_environ_[i], final_environ[i])
+              << "Environment mismatch detected at index " << i
+              << ". A variable was likely modified or not cleaned up properly.";
+        }
+      }
+    }
+  }
+
+ private:
+  std::vector<std::string> initial_environ_;
+};
+class PosixEnvironmentGetenvTests : public EnvironmentTestBase {
  protected:
   static constexpr const char* kVarNameExisting = "POSIX_GETENV_EXISTING";
   static constexpr const char* kVarValueExisting = "hello_getenv";
@@ -75,7 +121,7 @@ class PosixEnvironmentGetenvTests : public ::testing::Test {
 };
 
 TEST_F(PosixEnvironmentGetenvTests, GetExistingVariableReturnsCorrectValue) {
-  ASSERT_EQ(0, setenv(kVarNameExisting, kVarValueExisting, 1 /* overwrite */));
+  ASSERT_EQ(0, setenv(kVarNameExisting, kVarValueExisting, /*overwrite=*/1));
 
   char* retrieved_value = getenv(kVarNameExisting);
   ASSERT_NE(nullptr, retrieved_value)
@@ -108,7 +154,7 @@ TEST_F(PosixEnvironmentGetenvTests, GetVariableAfterItsValueIsChangedBySetenv) {
 }
 
 TEST_F(PosixEnvironmentGetenvTests, GetVariableSetToEmptyString) {
-  ASSERT_EQ(0, setenv(kVarNameEmptyVal, "", 1 /* overwrite */));
+  ASSERT_EQ(0, setenv(kVarNameEmptyVal, "", /*overwrite=*/1));
   char* retrieved_value = getenv(kVarNameEmptyVal);
   ASSERT_NE(nullptr, retrieved_value)
       << "getenv should return non-null for a variable set to an empty string.";
@@ -116,7 +162,7 @@ TEST_F(PosixEnvironmentGetenvTests, GetVariableSetToEmptyString) {
       << "The retrieved value should be an empty string.";
 }
 
-class PosixEnvironmentSetenvTests : public ::testing::Test {
+class PosixEnvironmentSetenvTests : public EnvironmentTestBase {
  protected:
   static constexpr const char* kVarNew = "POSIX_SETENV_NEW_VAR";
   static constexpr const char* kVarOverwrite = "POSIX_SETENV_OVERWRITE_VAR";
@@ -144,7 +190,7 @@ class PosixEnvironmentSetenvTests : public ::testing::Test {
 
 TEST_F(PosixEnvironmentSetenvTests, SetNewVariable) {
   ASSERT_EQ(nullptr, getenv(kVarNew)) << "Variable should not exist initially.";
-  ASSERT_EQ(0, setenv(kVarNew, "value1", 1 /* overwrite */))
+  ASSERT_EQ(0, setenv(kVarNew, "value1", /*overwrite=*/1))
       << "setenv should succeed for a new variable.";
 
   char* retrieved = getenv(kVarNew);
@@ -167,7 +213,7 @@ TEST_F(PosixEnvironmentSetenvTests,
   ASSERT_EQ(0, setenv(kVarOverwrite, kInitialVal, 1));
   ASSERT_STREQ(kInitialVal, getenv(kVarOverwrite));
 
-  ASSERT_EQ(0, setenv(kVarOverwrite, kNewVal, 1 /* overwrite */))
+  ASSERT_EQ(0, setenv(kVarOverwrite, kNewVal, /*overwrite=*/1))
       << "setenv should succeed when overwriting.";
 
   char* retrieved = getenv(kVarOverwrite);
@@ -192,7 +238,7 @@ TEST_F(PosixEnvironmentSetenvTests, SetValueToEmptyString) {
   ASSERT_EQ(0, setenv(kVarEmptyValue, "non-empty", 1));
   ASSERT_STREQ("non-empty", getenv(kVarEmptyValue));
 
-  ASSERT_EQ(0, setenv(kVarEmptyValue, "", 1 /* overwrite */))
+  ASSERT_EQ(0, setenv(kVarEmptyValue, "", /*overwrite=*/1))
       << "setenv should succeed when setting an empty string value.";
 
   char* retrieved = getenv(kVarEmptyValue);
@@ -205,13 +251,15 @@ TEST_F(PosixEnvironmentSetenvTests, SetValueToNullptrIsTreatedAsEmptyString) {
   // where a nullptr value for setenv is treated as an empty string.
   // TODO: b/390675141 - Remove this after non-hermetic linux build is removed.
 #if !BUILDFLAG(IS_COBALT_HERMETIC_BUILD)
+  // glibc crashes when setenv is called this way, which is not preferred
+  // behavior for our application.
   GTEST_SKIP() << "Non-hermetic builds fail this test.";
 #endif
   ASSERT_EQ(0, setenv(kVarNullValue, "non-empty", 1));
   ASSERT_STREQ("non-empty", getenv(kVarNullValue));
 
   const char* value = nullptr;
-  ASSERT_EQ(0, setenv(kVarNullValue, value, 1 /* overwrite */))
+  ASSERT_EQ(0, setenv(kVarNullValue, value, /*overwrite=*/1))
       << "setenv should succeed when value is nullptr (treated as empty).";
 
   char* retrieved = getenv(kVarNullValue);
@@ -247,7 +295,7 @@ TEST_F(PosixEnvironmentSetenvTests, ErrorWhenNameContainsEqualsSign) {
 // environment. This error condition is difficult to reliably trigger in a
 // portable unit test.
 
-class PosixEnvironmentEnvironTests : public ::testing::Test {
+class PosixEnvironmentEnvironTests : public EnvironmentTestBase {
  protected:
   static constexpr const char* kTestVarName = "POSIX_ENVIRON_TEST_VAR";
   static constexpr const char* kTestVarValue = "environ_rocks";
@@ -261,7 +309,11 @@ class PosixEnvironmentEnvironTests : public ::testing::Test {
                  // values.
   }
 
-  void TearDown() override { unsetenv(kTestVarName); }
+  void TearDown() override {
+    unsetenv(kTestVarName);
+    unsetenv(kVarEmptyValue);
+    unsetenv(kVarNullValue);
+  }
 };
 
 TEST_F(PosixEnvironmentEnvironTests, EnvironIsNullTerminated) {
@@ -269,7 +321,16 @@ TEST_F(PosixEnvironmentEnvironTests, EnvironIsNullTerminated) {
   char** current = environ;
   // Iterate a reasonable number of times to avoid an infinite loop
   // if environ is not NULL-terminated.
-  static constexpr int kMaxEnvVarsToCheck = 1000;
+
+  // Since this tests a hermetically implemented environment, it is completely
+  // under control of the application code. It is extremely
+  // unlikely that we will need more than kMaxEnvVarsToCheck environment
+  // variables.
+
+  // The only environment variables that can be in there during this test are
+  // ones added by our code before this test runs (e.g. with global static
+  // initializers, or at the test main entry point, etc).
+  static constexpr int kMaxEnvVarsToCheck = 1'000'000;
   int count = 0;
   while (*current != nullptr && count < kMaxEnvVarsToCheck) {
     current++;
@@ -283,7 +344,7 @@ TEST_F(PosixEnvironmentEnvironTests, EnvironIsNullTerminated) {
 }
 
 TEST_F(PosixEnvironmentEnvironTests, EnvironReflectsVariableSetBySetenv) {
-  ASSERT_EQ(0, setenv(kTestVarName, kTestVarValue, 1 /* overwrite */));
+  ASSERT_EQ(0, setenv(kTestVarName, kTestVarValue, /*overwrite=*/1));
 
   ASSERT_NE(nullptr, environ);
   bool found = false;
@@ -306,15 +367,15 @@ TEST_F(PosixEnvironmentEnvironTests,
   }
 
   // Set some values to be tested.
-  ASSERT_EQ(0, setenv(kTestVarName, kTestVarValue, 1 /* overwrite */));
+  ASSERT_EQ(0, setenv(kTestVarName, kTestVarValue, /*overwrite=*/1));
   // TODO: b/390675141 - Remove this after non-hermetic linux build is removed.
   // Non-hermetic builds crash when passing a null pointer as the value to
   // setenv.
 #if BUILDFLAG(IS_COBALT_HERMETIC_BUILD)
   const char* value = nullptr;
-  ASSERT_EQ(0, setenv(kVarNullValue, value, 1 /* overwrite */));
+  ASSERT_EQ(0, setenv(kVarNullValue, value, /*overwrite=*/1));
 #endif
-  ASSERT_EQ(0, setenv(kVarEmptyValue, "", 1 /* overwrite */));
+  ASSERT_EQ(0, setenv(kVarEmptyValue, "", /*overwrite=*/1));
 
   // Check the first few entries for the expected "NAME=VALUE" format.
   // Iterate a reasonable number of times to avoid an infinite loop

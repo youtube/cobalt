@@ -117,23 +117,19 @@ int Environment::setenv(const char* name, const char* value, int overwrite) {
   }
 
   std::string new_entry = std::string(name) + "=" + std::string(value);
-  bool changed_in_storage = false;
 
   auto [it, unused_pos] = FindEnvironmentVariable(name);
 
   if (it != stored_environment_->end()) {
     if (overwrite) {
       *it = new_entry;
-      changed_in_storage = true;
+      RebuildAndSetGlobalEnviron();
     }
   } else {
     stored_environment_->push_back(new_entry);
-    changed_in_storage = true;
-  }
-
-  if (changed_in_storage) {
     RebuildAndSetGlobalEnviron();
   }
+
   return 0;
 }
 
@@ -143,17 +139,13 @@ int Environment::unsetenv(const char* name) {
     return -1;
   }
 
-  bool changed_in_storage = false;
   auto [it, unused_pos] = FindEnvironmentVariable(name);
 
   if (it != stored_environment_->end()) {
     stored_environment_->erase(it);
-    changed_in_storage = true;
-  }
-
-  if (changed_in_storage) {
     RebuildAndSetGlobalEnviron();
   }
+
   return 0;
 }
 
@@ -162,6 +154,23 @@ int Environment::unsetenv(const char* name) {
 #ifdef __cplusplus
 extern "C" {
 #endif
+
+// This file provides a hermetic environment implementation, including the
+// global |environ| variable and the |getenv|, |setenv|, and |unsetenv|
+// functions.
+//
+// By isolating the application from the host OS's environment, this ensures
+// its behavior is not influenced by external settings. The application does
+// not inherit the parent process's environment by design.
+//
+// This approach guarantees that platform-specific environment requirements or
+// limitations do not affect the application. To use environment variables from
+// the host, they must be passed to the application separately through a
+// dedicated configuration API (for example SbSystemGetLocaleId).
+//
+// Note that this hermetic environment is scoped to the application. Code
+// operating below the Starboard layer remains free to use the platform's
+// native environment directly.
 
 char** environ = Environment::InitializeGlobalEnviron();
 
