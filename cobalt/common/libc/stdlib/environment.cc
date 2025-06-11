@@ -26,6 +26,11 @@
 // it here.
 #include "base/no_destructor.h"  // nogncheck
 
+namespace cobalt {
+namespace common {
+namespace libc {
+namespace stdlib {
+
 namespace {
 
 class Environment {
@@ -150,6 +155,13 @@ int Environment::unsetenv(const char* name) {
 }
 
 }  // namespace
+
+}  // namespace stdlib
+}  // namespace libc
+}  // namespace common
+}  // namespace cobalt
+
+using cobalt::common::libc::stdlib::Environment;
 
 #ifdef __cplusplus
 extern "C" {
