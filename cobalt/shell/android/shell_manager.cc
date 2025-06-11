@@ -9,11 +9,18 @@
 #include "base/android/scoped_java_ref.h"
 #include "base/functional/bind.h"
 #include "base/lazy_instance.h"
+<<<<<<< HEAD
 #include "cobalt/android/jni_headers/ShellManager_jni.h"
+=======
+>>>>>>> a4576a23458 (Copy content/shell/browser/ to cobalt/shell/browser (#5978))
 #include "cobalt/shell/browser/shell.h"
 #include "cobalt/shell/browser/shell_browser_context.h"
 #include "cobalt/shell/browser/shell_content_browser_client.h"
 #include "content/public/browser/web_contents.h"
+<<<<<<< HEAD
+=======
+#include "content/shell/android/content_shell_jni_headers/ShellManager_jni.h"
+>>>>>>> a4576a23458 (Copy content/shell/browser/ to cobalt/shell/browser (#5978))
 #include "url/gurl.h"
 
 using base::android::JavaParamRef;

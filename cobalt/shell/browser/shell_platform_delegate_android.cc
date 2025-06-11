@@ -1,3 +1,4 @@
+<<<<<<< HEAD
 // Copyright 2025 The Cobalt Authors. All Rights Reserved.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
@@ -11,6 +12,11 @@
 // WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 // See the License for the specific language governing permissions and
 // limitations under the License.
+=======
+// Copyright 2025 The Cobalt Authors
+// Use of this source code is governed by a BSD-style license that can be
+// found in the LICENSE file.
+>>>>>>> a4576a23458 (Copy content/shell/browser/ to cobalt/shell/browser (#5978))
 
 #include "cobalt/shell/browser/shell_platform_delegate.h"
 
@@ -22,12 +28,19 @@
 #include "base/containers/contains.h"
 #include "base/notreached.h"
 #include "base/strings/string_piece.h"
+<<<<<<< HEAD
 #include "cobalt/android/jni_headers/Shell_jni.h"
+=======
+>>>>>>> a4576a23458 (Copy content/shell/browser/ to cobalt/shell/browser (#5978))
 #include "cobalt/shell/android/shell_manager.h"
 #include "cobalt/shell/browser/shell.h"
 #include "content/public/browser/render_widget_host_view.h"
 #include "content/public/browser/web_contents.h"
 #include "content/public/common/content_switches.h"
+<<<<<<< HEAD
+=======
+#include "content/shell/android/content_shell_jni_headers/Shell_jni.h"
+>>>>>>> a4576a23458 (Copy content/shell/browser/ to cobalt/shell/browser (#5978))
 
 using base::android::AttachCurrentThread;
 using base::android::ConvertUTF8ToJavaString;
