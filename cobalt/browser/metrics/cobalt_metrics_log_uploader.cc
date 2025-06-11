@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include "cobalt/browser/metrics/cobalt_metrics_logs_uploader.h"
+#include "cobalt/browser/metrics/cobalt_metrics_log_uploader.h"
 
 #include "base/base64url.h"
 #include "base/functional/bind.h"

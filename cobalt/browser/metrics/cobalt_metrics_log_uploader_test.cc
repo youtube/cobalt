@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include "cobalt/browser/metrics/cobalt_metrics_logs_uploader.h"
+#include "cobalt/browser/metrics/cobalt_metrics_log_uploader.h"
 
 #include "base/base64url.h"
 #include "base/functional/bind.h"
@@ -31,6 +31,7 @@
 #include "third_party/metrics_proto/cobalt_uma_event.pb.h"
 #include "third_party/metrics_proto/reporting_info.pb.h"
 #include "third_party/zlib/google/compression_utils.h"
+
 namespace cobalt {
 
 using ::testing::_;
