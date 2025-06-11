@@ -13,6 +13,7 @@
 #ifndef V8_BASE_CPU_H_
 #define V8_BASE_CPU_H_
 
+#include "build/build_config.h"
 #include "src/base/base-export.h"
 #include "src/base/macros.h"
 
@@ -134,7 +135,7 @@ class V8_BASE_EXPORT CPU final {
   bool has_rvv() const { return has_rvv_; }
 
  private:
-#if defined(V8_OS_STARBOARD)
+#if BUILDFLAG(IS_STARBOARD)
   bool StarboardDetectCPU();
 #endif
   char vendor_[13];
