@@ -26,6 +26,12 @@
       "url_unittests",
       "zlib_unittests"
     ],
+    "build_configs": [
+      "debug",
+      "devel",
+      "qa",
+      "gold"
+    ],
     "includes": [
       {
         "name": "x64",
