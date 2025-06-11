@@ -50,6 +50,7 @@
 #include "content/public/common/content_switch_dependent_feature_overrides.h"
 #include "content/public/common/user_agent.h"
 #include "content/shell/common/shell_switches.h"
+#include "gpu/config/gpu_finch_features.h"
 #include "services/network/public/cpp/features.h"
 #include "services/network/public/mojom/network_context.mojom.h"
 #include "services/service_manager/public/cpp/binder_registry.h"
@@ -464,6 +465,15 @@ void CobaltContentBrowserClient::CreateFeatureListAndFieldTrials() {
   feature_list->InitializeFromCommandLine(
       command_line.GetSwitchValueASCII(::switches::kEnableFeatures),
       command_line.GetSwitchValueASCII(::switches::kDisableFeatures));
+
+  // Android specific overrides that needs to be in place during initialization.
+  // This needs to happen before feature overrides from the experiment
+  // configuration because these overrides should never be overridden by
+  // experiments.
+#if BUILDFLAG(IS_ANDROID)
+  feature_overrides.emplace_back(std::cref(features::kAImageReader),
+                                 base::FeatureList::OVERRIDE_DISABLE_FEATURE);
+#endif
 
   // This needs to happen here: After the InitFromCommandLine() call,
   // because the explicit cmdline --disable-features and --enable-features
