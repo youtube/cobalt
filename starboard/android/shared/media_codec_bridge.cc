@@ -107,6 +107,16 @@ JNI_MediaCodecBridge_OnMediaCodecFrameRendered(JNIEnv* env,
   media_codec_bridge->OnMediaCodecFrameRendered(presentation_time_us);
 }
 
+extern "C" SB_EXPORT_PLATFORM void
+JNI_MediaCodecBridge_OnMediaCodecFirstTunnelFrameReady(
+    JNIEnv* env,
+    jlong native_media_codec_bridge) {
+  MediaCodecBridge* media_codec_bridge =
+      reinterpret_cast<MediaCodecBridge*>(native_media_codec_bridge);
+  SB_DCHECK(media_codec_bridge);
+  media_codec_bridge->OnMediaCodecFirstTunnelFrameReady();
+}
+
 extern "C" SB_EXPORT_PLATFORM void JNI_MediaCodecBridge_OnMediaCodecError(
     JNIEnv* env,
     jlong native_media_codec_bridge,
@@ -537,6 +547,10 @@ void MediaCodecBridge::OnMediaCodecOutputFormatChanged() {
 
 void MediaCodecBridge::OnMediaCodecFrameRendered(int64_t frame_timestamp) {
   handler_->OnMediaCodecFrameRendered(frame_timestamp);
+}
+
+void MediaCodecBridge::OnMediaCodecFirstTunnelFrameReady() {
+  handler_->OnMediaCodecFirstTunnelFrameReady();
 }
 
 MediaCodecBridge::MediaCodecBridge(Handler* handler) : handler_(handler) {

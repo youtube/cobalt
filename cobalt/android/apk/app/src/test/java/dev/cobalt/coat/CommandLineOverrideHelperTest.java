@@ -36,8 +36,8 @@ public class CommandLineOverrideHelperTest {
     @Test
     public void testDefaultCommandLineOverridesList() {
         List<String> overrides = CommandLineOverrideHelper.getDefaultCommandLineOverridesList();
-        assertThat(overrides.contains("--disable-fre")).isTrue();
         assertThat(overrides.contains("--enable-low-end-device-mode")).isTrue();
+        assertThat(overrides.contains("--force-gpu-mem-available-mb=32")).isTrue();
     }
 
     @Test
@@ -51,7 +51,7 @@ public class CommandLineOverrideHelperTest {
     public void testDefaultEnableFeatureOverridesList() {
         String overrides = CommandLineOverrideHelper.getDefaultEnableFeatureOverridesList().toString();
         assertThat(overrides.contains("LogJsConsoleMessages")).isTrue();
-        assertThat(overrides.contains("LimitImageDecodeCacheSize:mb/32")).isTrue();
+        assertThat(overrides.contains("LimitImageDecodeCacheSize:mb/24")).isTrue();
     }
 
     @Test
@@ -70,8 +70,6 @@ public class CommandLineOverrideHelperTest {
     public void testFlagOverrides_NullParam() {
       CommandLineOverrideHelper.getFlagOverrides(null);
 
-      Assert.assertTrue(CommandLine.getInstance().hasSwitch("disable-fre"));
-      Assert.assertTrue(CommandLine.getInstance().hasSwitch("no-first-run"));
       Assert.assertTrue(CommandLine.getInstance().hasSwitch("single-process"));
       Assert.assertTrue(CommandLine.getInstance().hasSwitch("force-video-overlays"));
       Assert.assertTrue(CommandLine.getInstance().hasSwitch("user-level-memory-pressure-signal-params"));
@@ -90,8 +88,12 @@ public class CommandLineOverrideHelperTest {
       actual = CommandLine.getInstance().getSwitchValue("use-cmd-decoder");
       Assert.assertEquals(expected, actual);
 
+      expected = "32";
+      actual = CommandLine.getInstance().getSwitchValue("force-gpu-mem-available-mb");
+      Assert.assertEquals(expected, actual);
+
       actual = CommandLine.getInstance().getSwitchValue("enable-features");
-      expected = "LogJsConsoleMessages,LimitImageDecodeCacheSize:mb/32";
+      expected = "LogJsConsoleMessages,LimitImageDecodeCacheSize:mb/24";
       Assert.assertEquals(expected, actual);
 
       actual = CommandLine.getInstance().getSwitchValue("disable-features");

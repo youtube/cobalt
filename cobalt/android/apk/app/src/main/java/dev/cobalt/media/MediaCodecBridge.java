@@ -78,6 +78,7 @@ class MediaCodecBridge {
   private final boolean mIsTunnelingPlayback;
 
   private MediaCodec.OnFrameRenderedListener mFrameRendererListener;
+  private MediaCodec.OnFirstTunnelFrameReadyListener mFirstTunnelFrameReadyListener;
 
   // Functions that require this will be called frequently in a tight loop.
   // Only create one of these and reuse it to avoid excessive allocations,
@@ -1074,6 +1075,7 @@ class MediaCodecBridge {
   }
 
   private void setupTunnelingPlayback() {
+    // PARAMETER_KEY_TUNNEL_PEEK is added in Android 12.
     if (Build.VERSION.SDK_INT >= 31) {
       // |PARAMETER_KEY_TUNNEL_PEEK| should be default to enabled according to the API
       // documentation, but some devices don't adhere to the documentation and we need to set the
@@ -1089,6 +1091,30 @@ class MediaCodecBridge {
       Log.w(
           TAG,
           "MediaCodec PARAMETER_KEY_TUNNEL_PEEK is not supported in SDK version < 31: SDK version="
+              + Build.VERSION.SDK_INT);
+    }
+
+    // OnFirstTunnelFrameReadyListener is added in Android 12.
+    if (Build.VERSION.SDK_INT >= 31) {
+      mFirstTunnelFrameReadyListener =
+          new MediaCodec.OnFirstTunnelFrameReadyListener() {
+            @Override
+            public void onFirstTunnelFrameReady(MediaCodec codec) {
+              synchronized (this) {
+                if (mNativeMediaCodecBridge == 0) {
+                  return;
+                }
+                MediaCodecBridgeJni.get()
+                    .OnMediaCodecFirstTunnelFrameReady(mNativeMediaCodecBridge);
+              }
+            }
+          };
+      mMediaCodec.get().setOnFirstTunnelFrameReadyListener(null, mFirstTunnelFrameReadyListener);
+    } else {
+      Log.w(
+          TAG,
+          "MediaCodec OnFirstTunnelFrameReadyListener is not supported in SDK version < 31: SDK"
+              + " version="
               + Build.VERSION.SDK_INT);
     }
   }
@@ -1153,5 +1179,7 @@ class MediaCodecBridge {
 
     void onMediaCodecFrameRendered(
         long mediaCodecBridge, long presentationTimeUs, long renderAtSystemTimeNs);
+
+    void OnMediaCodecFirstTunnelFrameReady(long mediaCodecBridge);
   }
 }

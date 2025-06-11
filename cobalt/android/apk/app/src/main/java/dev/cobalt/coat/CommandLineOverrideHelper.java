@@ -75,6 +75,9 @@ public final class CommandLineOverrideHelper {
         paramOverrides.add("--disable-rgba-4444-textures");
         // Use passthrough command decoder.
         paramOverrides.add("--use-cmd-decoder=passthrough");
+        // Limit the total amount of memory that may be allocated for GPU
+        // resources.
+        paramOverrides.add("--force-gpu-mem-available-mb=32");
 
         return paramOverrides;
     }
@@ -96,7 +99,7 @@ public final class CommandLineOverrideHelper {
         // Pass javascript console log to adb log.
         paramOverrides.add("LogJsConsoleMessages");
         // Limit decoded image cache to 32 mbytes.
-        paramOverrides.add("LimitImageDecodeCacheSize:mb/32");
+        paramOverrides.add("LimitImageDecodeCacheSize:mb/24");
 
         return paramOverrides;
     }

@@ -276,7 +276,6 @@ vs-chromium-project.txt
 /net/net_unittests_run.xml
 /net/Release
 /net/testserver.log
-/net/third_party/quiche/src
 /orderfiles
 /out*/
 /ppapi/native_client/nacl_irt.xml
