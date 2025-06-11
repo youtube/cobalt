@@ -41,9 +41,10 @@ group("content_shell_lib_deps") {
     "//base",
     "//base:base_static",
     "//base/third_party/dynamic_annotations",
-    "//build:chromeos_buildflags",
     "//cc/base",
     "//components/cdm/renderer",
+    "//components/crash/content/browser",
+    "//components/crash/core/app",
     "//components/custom_handlers",
     "//components/custom_handlers:test_support",
     "//components/keyed_service/content",
@@ -104,32 +105,12 @@ group("content_shell_lib_deps") {
     "//v8",
   ]
 
-  if (is_fuchsia) {
-    public_deps += [
-      "//third_party/fuchsia-sdk/sdk/fidl/fuchsia.element:fuchsia.element_hlcpp",
-      "//third_party/fuchsia-sdk/sdk/fidl/fuchsia.ui.policy:fuchsia.ui.policy_hlcpp",
-    ]
-  } else {
-    public_deps += [
-      "//components/crash/content/browser",
-      "//components/crash/core/app",
-    ]
-  }
-
   if (enable_cast_renderer) {
     public_deps += [ "//media/mojo/services" ]
   }
 
-  if (is_win) {
-    public_deps += [ "//gin" ]
-  }
-
   if (is_linux) {
     public_deps += [ "//ui/linux:linux_ui_factory" ]
-  }
-
-  if (is_mac) {
-    public_deps += [ "//ui/display:test_support" ]
   }
 
   if (is_ios) {
@@ -174,18 +155,7 @@ group("content_shell_lib_deps") {
     public_deps += [ "//ui/views" ]
   }
 
-  if (is_chromeos_ash) {
-    public_deps += [ "//chromeos/ash/components/dbus" ]
-  }
-
-  if (is_chromeos_lacros) {
-    public_deps += [
-      "//chromeos/dbus/constants",
-      "//chromeos/lacros/dbus",
-    ]
-  }
-
-  if (is_linux || is_chromeos) {
+  if (is_linux) {
     public_deps += [ "//build/config/freetype" ]
   }
 
@@ -272,20 +242,6 @@ static_library("content_shell_lib") {
     ]
   }
 
-  if (is_mac) {
-    sources += [
-      "browser/renderer_host/shell_render_widget_host_view_mac_delegate.h",
-      "browser/renderer_host/shell_render_widget_host_view_mac_delegate.mm",
-      "browser/shell_application_mac.h",
-      "browser/shell_application_mac.mm",
-      "browser/shell_browser_main_parts_mac.mm",
-      "browser/shell_javascript_dialog_mac.mm",
-      "browser/shell_platform_delegate_mac.mm",
-      "browser/shell_web_contents_view_delegate_mac.mm",
-    ]
-    configs += [ "//build/config/compiler:enable_arc" ]
-  }
-
   if (is_ios) {
     sources += [
       "browser/bluetooth/shell_bluetooth_delegate_impl_client.cc",
@@ -296,10 +252,6 @@ static_library("content_shell_lib") {
       "browser/shell_web_contents_view_delegate_ios.mm",
     ]
     configs += [ "//build/config/compiler:enable_arc" ]
-  }
-
-  if (is_win) {
-    sources += [ "browser/shell_javascript_dialog_win.cc" ]
   }
 
   configs += [
@@ -325,20 +277,6 @@ static_library("content_shell_lib") {
   # component builds.
   if (is_component_build) {
     check_includes = false
-  }
-
-  if (is_fuchsia) {
-    sources += [
-      "browser/fuchsia_view_presenter.cc",
-      "browser/fuchsia_view_presenter.h",
-    ]
-  }
-
-  if (is_win) {
-    sources += [
-      "//content/shell/common/v8_crashpad_support_win.cc",
-      "//content/shell/common/v8_crashpad_support_win.h",
-    ]
   }
 
   if (use_aura) {
@@ -389,12 +327,6 @@ static_library("content_shell_app") {
       "app/paths_mac.mm",
     ]
   }
-  if (is_mac) {
-    sources += [
-      "app/shell_main_delegate_mac.h",
-      "app/shell_main_delegate_mac.mm",
-    ]
-  }
   if (is_ios) {
     sources += [
       "app/ios/shell_application_ios.h",
@@ -411,6 +343,8 @@ group("content_shell_app_deps") {
   testonly = true
   public_deps = [
     ":content_shell_lib",
+    "//components/crash/core/app",
+    "//components/crash/core/app:test_support",
     "//components/crash/core/common:crash_key",
     "//components/memory_system",
     "//content/public/app",
@@ -422,12 +356,6 @@ group("content_shell_app_deps") {
       "//content/web_test:web_test_browser",
       "//content/web_test:web_test_common",
       "//content/web_test:web_test_renderer",
-    ]
-  }
-  if (!is_fuchsia) {
-    public_deps += [
-      "//components/crash/core/app",
-      "//components/crash/core/app:test_support",
     ]
   }
 }
