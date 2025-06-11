@@ -29,7 +29,7 @@
 #include "base/version.h"
 #include "cobalt/browser/h5vcc_metrics/public/mojom/h5vcc_metrics.mojom.h"
 #include "cobalt/browser/metrics/cobalt_enabled_state_provider.h"
-#include "cobalt/browser/metrics/cobalt_metrics_logs_uploader.h"
+#include "cobalt/browser/metrics/cobalt_metrics_log_uploader.h"
 #include "components/metrics/metrics_pref_names.h"
 #include "components/metrics/metrics_service.h"
 #include "components/metrics/metrics_state_manager.h"
