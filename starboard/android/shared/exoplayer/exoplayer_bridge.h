@@ -117,9 +117,9 @@ class ExoPlayerBridge final : private VideoSurfaceHolder {
   starboard::shared::starboard::media::AudioStreamInfo audio_stream_info_;
   starboard::shared::starboard::media::VideoStreamInfo video_stream_info_;
 
-  int64_t last_media_time_;
-  int dropped_video_frames_;
-  bool is_progressing_;
+  int64_t last_media_time_ = 0;
+  int dropped_video_frames_ = 0;
+  bool is_progressing_ = false;
   bool ended_ = false;
 
   JobQueue::JobToken update_job_token_;

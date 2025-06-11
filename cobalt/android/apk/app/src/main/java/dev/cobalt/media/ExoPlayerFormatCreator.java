@@ -17,9 +17,9 @@ public class ExoPlayerFormatCreator {
   static public Format createAudioFormat(String mime, byte[] audioConfigurationData, int sampleRate, int channelCount) {
     Format audioFormat = null;
     Log.i(TAG, String.format("Checking audio mime %s", mime));
+    List<byte[]> csdsList = null;
     if (mime.equals("audio/opus")) {
       Log.i(TAG, "Creating opus audio format");
-      List<byte[]> csdsList = null;
       if (audioConfigurationData != null) {
         Log.i(TAG, "Setting Opus config info in ExoPlayer");
         byte[][] csds = {};
@@ -32,26 +32,28 @@ public class ExoPlayerFormatCreator {
           csdsList = Arrays.asList(csds);
         }
       }
+    }
       audioFormat = new Format.Builder()
-          .setSampleMimeType(MimeTypes.AUDIO_OPUS)
+          .setSampleMimeType(mime)
           .setSampleRate(sampleRate)
           .setChannelCount(channelCount)
-          .setCodecs("opus")
+          // .setCodecs("opus")
           .setPcmEncoding(C.ENCODING_PCM_FLOAT)
           .setInitializationData(csdsList)
           .build();
-    } else if (mime.equals("audio/mp4a-latm")) {
-      Log.i(TAG, "Creating AAC audio format");
-      audioFormat = new Format.Builder()
-          .setSampleMimeType(MimeTypes.AUDIO_AAC)
-          .setSampleRate(sampleRate)
-          .setChannelCount(channelCount)
-          .setCodecs("aac")
-          .setPcmEncoding(C.ENCODING_PCM_FLOAT)
-          .build();
-    } else {
-      Log.i(TAG, String.format("Unsupported audio format %s", mime));
-    }
+    // else if (mime.equals("audio/mp4a-latm")) {
+    //   Log.i(TAG, "Creating AAC audio format");
+    //   audioFormat = new Format.Builder()
+    //       .setSampleMimeType(MimeTypes.AUDIO_AAC)
+    //       .setSampleRate(sampleRate)
+    //       .setChannelCount(channelCount)
+    //       .setCodecs("aac")
+    //       .setPcmEncoding(C.ENCODING_PCM_FLOAT)
+    //       .build();
+    // }
+    // else {
+    //   Log.i(TAG, String.format("Unsupported audio format %s", mime));
+    // }
   return audioFormat;
   }
 
@@ -68,55 +70,16 @@ public class ExoPlayerFormatCreator {
       builder.setAverageBitrate(bitrate);
     }
 
-    if (fps > 0.0) {
-      Log.i(TAG, String.format("Setting fps to %f", fps));
-      builder.setFrameRate(fps);
-    } else {
-      Log.i(TAG, "Defaulting to 30 fps");
-      builder.setFrameRate(30.0f);
-    }
+    // if (fps > 0.0) {
+    //   Log.i(TAG, String.format("Setting fps to %f", fps));
+    //   builder.setFrameRate(fps);
+    // } else {
+    //   Log.i(TAG, "Defaulting to 30 fps");
+    //   builder.setFrameRate(30.0f);
+    // }
 
     videoFormat = builder.build();
     return videoFormat;
-
-    // if (mime.equals(MimeTypes.VIDEO_H264)) {
-    //   Log.i(TAG, "Creating H264 video format");
-    //   builder
-    //       .setSampleMimeType(MimeTypes.VIDEO_H264)
-    //       .setPeakBitrate(7000000)
-    //       .setWidth(width)
-    //       .setHeight(height);
-    //
-    //   if (fps > 0.0) {
-    //     builder.setFrameRate(fps);
-    //   } else {
-    //     builder.setFrameRate(30);
-    //   }
-    //   if (bitrate > 0) {
-    //     builder.setAverageBitrate(bitrate);
-    //   }
-    //
-    //   videoFormat = builder.build();
-    // } else if (mime.equals(MimeTypes.VIDEO_VP9)) {
-    //   Log.i(TAG, "Creating VP9 video format");
-    //   builder
-    //       .setSampleMimeType(MimeTypes.VIDEO_VP9)
-    //       .setPeakBitrate(30000000)
-    //       .setWidth(width)
-    //       .setHeight(height);
-    //   if (fps > 0.0) {
-    //     builder.setFrameRate(fps);
-    //   } else {
-    //     builder.setFrameRate(30);
-    //   }
-    //   if (bitrate > 0) {
-    //     builder.setAverageBitrate(bitrate);
-    //   }
-    //   videoFormat = builder.build();
-    // } else {
-    //   Log.i(TAG, String.format("Unsupported video format %s", mime));
-    // }
-    // return videoFormat;
   }
 
   // static public Format createFormat(String mimeType, boolean mustSupportSecure, boolean mustSupportHdr, boolean mustSupportTunnelMode, int frameHeight, int frameWidth, int bitrate, float fps) {

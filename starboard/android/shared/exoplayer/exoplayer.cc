@@ -152,11 +152,16 @@ void ExoPlayer::GetInfo(SbPlayerInfo* out_player_info) const {
   if (is_paused_ || !is_progressing_) {
     // SB_LOG(INFO) << "Paused: " << is_paused_ << " progressing: " <<
     // is_progressing_;
+    SB_LOG(INFO) << "No calc: paused: " << is_paused_
+                 << " progressing: " << is_progressing_;
     out_player_info->current_media_timestamp = media_time_;
   } else {
+    SB_LOG(INFO) << "Calculating media time: paused: " << is_paused_
+                 << " progressing: " << is_progressing_;
     out_player_info->current_media_timestamp =
         CalculateMediaTime(media_time_, media_time_updated_at_, playback_rate_);
   }
+  SB_LOG(INFO) << "Media time is: " << out_player_info->current_media_timestamp;
   out_player_info->duration = SB_PLAYER_NO_DURATION;
   out_player_info->frame_width = frame_width_;
   out_player_info->frame_height = frame_height_;
@@ -206,4 +211,3 @@ void ExoPlayer::UpdateMediaInfo(int64_t media_time,
 }
 
 }  // namespace starboard::android::shared::exoplayer
-                                                     

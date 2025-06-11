@@ -21,7 +21,6 @@
 #include "starboard/shared/starboard/player/player_internal.h"
 
 // TODO: (cobalt b/372559388) Update namespace to jni_zero.
-using base::android::AttachCurrentThread;
 
 void SbPlayerSetBounds(SbPlayer player,
                        int z_index,

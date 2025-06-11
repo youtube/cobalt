@@ -155,6 +155,7 @@ void SbPlayerPrivateImpl::GetInfo(SbPlayerInfo* out_player_info) {
         CalculateMediaTime(media_time_, media_time_updated_at_, playback_rate_);
   }
 
+  SB_LOG(INFO) << "Media time is: " << out_player_info->current_media_timestamp;
   out_player_info->frame_width = frame_width_;
   out_player_info->frame_height = frame_height_;
   out_player_info->is_paused = is_paused_;

@@ -22,6 +22,7 @@ import android.os.HandlerThread;
 import android.os.Looper;
 import android.os.Process;
 import android.view.Surface;
+import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
 import androidx.media3.common.AudioAttributes;
 import androidx.media3.common.Format;
@@ -31,8 +32,10 @@ import androidx.media3.common.PlaybackParameters;
 import androidx.media3.common.Player;
 import androidx.media3.common.Player.State;
 import androidx.media3.common.util.UnstableApi;
+import androidx.media3.exoplayer.analytics.AnalyticsListener;
 import androidx.media3.exoplayer.DefaultLoadControl;
 import androidx.media3.exoplayer.DefaultRenderersFactory;
+import androidx.media3.exoplayer.trackselection.DefaultTrackSelector;
 import androidx.media3.exoplayer.ExoPlaybackException;
 import androidx.media3.exoplayer.ExoPlayer;
 import androidx.media3.exoplayer.LoadControl;
@@ -64,6 +67,7 @@ public class ExoPlayerBridge {
   private LoadControl loadControl;
   private boolean audioPrerolled = false;
   private boolean videoPrerolled = false;
+  private boolean firedEOS = false;
   public ExoPlayerBridge(Context context) {
     this.context = context;
   }
@@ -77,6 +81,7 @@ public class ExoPlayerBridge {
   private volatile boolean stopped = false;
   private boolean notifiedPrerolled = false;
   private volatile boolean destroying = false;
+  private int droppedFramesOnPlayerThread = 0;
 
   private class ExoPlayerListener implements Player.Listener {
 
@@ -97,13 +102,19 @@ public class ExoPlayerBridge {
           break;
         case Player.STATE_READY:
           Log.i(TAG, "ExoPlayer state changed to ready");
+          if (player.isTunnelingEnabled()) {
+            Log.i(TAG, "TUNNEL MODE ENABLED");
+          } else {
+            Log.i(TAG, "TUNNEL MODE DISABLED");
+          }
           if (!stopped) {
             // nativeOnPlaybackStateChanged(mNativeExoPlayerBridge, playbackState);
           }
           break;
         case Player.STATE_ENDED:
           Log.i(TAG, "ExoPlayer state changed to ended");
-          if (!stopped) {
+          if (!stopped && !firedEOS) {
+            firedEOS = true;
             nativeOnPlaybackStateChanged(mNativeExoPlayerBridge, playbackState);
           }
           break;
@@ -143,6 +154,20 @@ public class ExoPlayerBridge {
     }
   }
 
+  private final class ExoPlayerEventLogger extends EventLogger {
+
+    @Override
+    public void onDroppedVideoFrames(
+        AnalyticsListener.EventTime eventTime,
+        int droppedFrames,
+        long elapsedMs
+    ) {
+      Log.i(TAG, String.format("REPORTING %d DROPPED VIDEO FRAMES", droppedFrames));
+      droppedFramesOnPlayerThread += droppedFrames;
+    }
+
+  }
+
   @SuppressWarnings("unused")
   @UsedByNative
   public void createExoPlayer(long nativeExoPlayerBridge, Surface surface, byte[] audioConfigurationData, boolean isAudioOnly, boolean isVideoOnly, int sampleRate, int channelCount, int width, int height, int fps, int videoBitrate, String audioMime, String videoMime) {
@@ -159,7 +184,16 @@ public class ExoPlayerBridge {
     this.isAudioOnly = isAudioOnly;
     mNativeExoPlayerBridge = nativeExoPlayerBridge;
     // loadControl = new DefaultLoadControl.Builder().setBufferDurationsMs(0, 4000, 0, 0).build();
-    player = new ExoPlayer.Builder(context).setLoadControl(createLoadControl()).setLooper(exoplayerThread.getLooper()).build();
+
+    boolean preferTunnelMode = false;
+    if (preferTunnelMode) {
+      Log.i(TAG, "Tunnel mode is preferred for this playback.");
+    }
+    DefaultTrackSelector trackSelector = new DefaultTrackSelector(context);
+    trackSelector.setParameters(
+        new DefaultTrackSelector.ParametersBuilder(context).setTunnelingEnabled(preferTunnelMode).build());
+
+    player = new ExoPlayer.Builder(context).setLoadControl(createLoadControl()).setLooper(exoplayerThread.getLooper()).setTrackSelector(trackSelector).setReleaseTimeoutMs(1000).build();
     // player = new ExoPlayer.Builder(context).build();
     exoplayerHandler.post(() -> {
       player.addListener(new ExoPlayerListener());
@@ -188,7 +222,7 @@ public class ExoPlayerBridge {
         // player.setMediaSource(mergingMediaSource);
       }
       player.setMediaSource(playbackMediaSource);
-      player.addAnalyticsListener(new EventLogger());
+      player.addAnalyticsListener(new ExoPlayerEventLogger());
       Log.i(TAG, "Created ExoPlayer");
       // player.setPlayWhenReady(true);
       player.prepare();
@@ -202,9 +236,9 @@ public class ExoPlayerBridge {
       return;
     }
     lastPlaybackPos = player.getCurrentPosition() * 1000;
-    // Log.i(TAG, String.format("Updated playback pos to %d", lastPlaybackPos));
+    Log.i(TAG, String.format("Updated playback pos to %d", lastPlaybackPos));
     if (!stopped) {
-      exoplayerHandler.postDelayed(this::updatePlaybackPos, 25);
+      exoplayerHandler.postDelayed(this::updatePlaybackPos, 75);
     } else {
       Log.i(TAG, "Stopped, not posting delayed updateplaybackpos");
     }
@@ -217,12 +251,12 @@ public class ExoPlayerBridge {
       Log.e(TAG, "Unable to destroy player with NULL ExoPlayer.");
       return;
     }
-    // exoplayerHandler.removeCallbacksAndMessages(null);
+    Log.i(TAG, "Removing callbacks");
+    exoplayerHandler.removeCallbacksAndMessages(null);
     exoplayerHandler.removeCallbacks(this::updatePlaybackPos);
     destroying = true;
     exoplayerHandler.post(() -> {
       // if (!stopped) {
-        Log.i(TAG, "Removing callbacks");
         stopped = true;
         // Log.i(TAG, "Signalling player stop");
         // player.stop();
@@ -243,12 +277,12 @@ public class ExoPlayerBridge {
       destroying = false;
       stopped = false;
       notifiedPrerolled = false;
-      exoplayerHandler.getLooper().quit();
+      exoplayerHandler.getLooper().quitSafely();
       Log.i(TAG, "Destroyed ExoPlayer");
     });
-    exoplayerThread.join(5000);
+    exoplayerThread.join(10000);
     if (exoplayerThread.isAlive()) {
-      Log.e(TAG, "ExoPlayer thread did not join after 5 seconds.");
+      Log.i(TAG, "ExoPlayer thread did not join after 10 seconds.");
     }
     exoplayerHandler = null;
     exoplayerThread = null;
@@ -263,8 +297,9 @@ public class ExoPlayerBridge {
       return false;
     }
     exoplayerHandler.post(() -> {
-      player.seekTo(seekToTimeUs * 1000);
+      player.seekTo(seekToTimeUs / 1000);
       Log.i(TAG, String.format("ExoPlayer seeked to %d microseconds.", seekToTimeUs));
+      droppedFramesOnPlayerThread = 0;
     });
     return true;
   }
@@ -366,6 +401,11 @@ public class ExoPlayerBridge {
     return lastPlaybackPos; // getCurrentPosition returns milliseconds.
   }
 
+  @UsedByNative
+  private synchronized int getDroppedFrames() {
+    return droppedFramesOnPlayerThread;
+  }
+
   public void onStreamCreated() {
     if (!isAbleToProcessCommands()) {
       Log.i(TAG, "Destroying player, cannot create new stream");
@@ -403,5 +443,13 @@ public class ExoPlayerBridge {
 
   private boolean isAbleToProcessCommands() {
     return !destroying && (player != null) && (exoplayerThread != null) && (exoplayerHandler != null);
+  }
+
+  public void notifyEOS() {
+    // Called from the MediaSource after it's released an EOS frame.
+    if (!firedEOS) {
+      nativeOnPlaybackStateChanged(mNativeExoPlayerBridge, Player.STATE_ENDED);
+      firedEOS = true;
+    }
   }
 };

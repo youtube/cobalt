@@ -145,6 +145,8 @@ public final class CobaltMediaSource extends BaseMediaSource {
     private boolean firstCall = true;
     private Callback callback = null;
     private boolean isAudio = false;
+    private boolean pendingDiscontinuity = false;
+    private long discontinuityPositionUs;
 
     private static class SampleData {
       public final byte[] data;
@@ -190,35 +192,7 @@ public final class CobaltMediaSource extends BaseMediaSource {
       // Publish all the tracks in the media. Formats in the same group are "adaptive", so that the
       // player can choose between them based on network conditions. If this is not needed, just
       // publish single-Format TrackGroups.
-      return new TrackGroupArray(
-          // new TrackGroup(
-          //     new Format.Builder()
-          //         .setSampleMimeType(MimeTypes.VIDEO_VP9)
-          //         .setAverageBitrate(100_000)
-          //         .setWidth(1024)
-          //         .setHeight(768)
-          //         .setFrameRate(30f)
-          //         .build(),
-          //     new Format.Builder()
-          //         .setSampleMimeType(MimeTypes.VIDEO_VP9)
-          //         .setAverageBitrate(200_000)
-          //         .setWidth(2048)
-          //         .setHeight(1440)
-          //         .setFrameRate(30f)
-          //         .build()),
-          // new TrackGroup(
-          //     new Format.Builder()
-          //         .setSampleMimeType(MimeTypes.AUDIO_OPUS)
-          //         .setSampleRate(48000)
-          //         .setChannelCount(2)
-          //         .setLanguage("en-GB")
-          //         .build()),
-          // new TrackGroup(
-          //     new Format.Builder()
-          //         .setSampleMimeType(MimeTypes.TEXT_VTT)
-          //         .setLanguage("it")
-          //         .build()),
-          new TrackGroup(format));
+      return new TrackGroupArray(new TrackGroup(format));
     }
 
     @Override
@@ -256,8 +230,14 @@ public final class CobaltMediaSource extends BaseMediaSource {
 
     @Override
     public long readDiscontinuity() {
-      // Ignorable, just return this value.
       // Log.i(TAG, "Called readDiscontinuity()");
+      if (pendingDiscontinuity) {
+        long positionToReport = discontinuityPositionUs;
+        pendingDiscontinuity = false;
+        discontinuityPositionUs = C.TIME_UNSET;
+        Log.i(TAG, String.format("readDiscontinuity() reporting discontinuity at: %d", positionToReport));
+        return positionToReport;
+      }
       return C.TIME_UNSET;
     }
 
@@ -268,6 +248,8 @@ public final class CobaltMediaSource extends BaseMediaSource {
       Log.i(TAG, String.format("Seeking to timestamp %dd (not really)", positionUs));
       stream.clearStream();
       reachedEos = false;
+      pendingDiscontinuity = true;
+      discontinuityPositionUs = positionUs;
       return positionUs;
     }
 

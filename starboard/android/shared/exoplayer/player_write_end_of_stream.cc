@@ -32,4 +32,3 @@ void SbPlayerWriteEndOfStream(SbPlayer player, SbMediaType stream_type) {
     SB_LOG(WARNING) << "Invalid ExoPlayer";
   }
 }
- 

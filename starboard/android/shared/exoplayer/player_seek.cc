@@ -29,4 +29,3 @@ void SbPlayerSeek(SbPlayer player, int64_t seek_to_timestamp, int ticket) {
   SB_DCHECK(exoplayer);
   exoplayer->Seek(seek_to_timestamp, ticket);
 }
- 

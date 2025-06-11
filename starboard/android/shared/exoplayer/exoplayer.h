@@ -75,7 +75,7 @@ class ExoPlayer final {
   int64_t media_time_ = 0;
   int64_t media_time_updated_at_ = 0;
   int dropped_video_frames_ = 0;
-  bool is_paused_;
+  bool is_paused_ = true;
 
   // A reference to the ExoPlayer as an SbPlayer.
   const SbPlayer player_;

@@ -29,4 +29,3 @@ void SbPlayerGetInfo(SbPlayer player, SbPlayerInfo* out_player_info) {
   SB_DCHECK(exoplayer);
   exoplayer->GetInfo(out_player_info);
 }
- 

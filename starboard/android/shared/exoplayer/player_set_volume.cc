@@ -29,4 +29,3 @@ void SbPlayerSetVolume(SbPlayer player, double volume) {
   SB_DCHECK(exoplayer);
   exoplayer->SetVolume(volume);
 }
- 

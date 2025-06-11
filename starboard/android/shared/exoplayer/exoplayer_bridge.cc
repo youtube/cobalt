@@ -124,9 +124,6 @@ ExoPlayerBridge::ExoPlayerBridge(
       video_stream_info_(creation_param->video_stream_info) {
   exoplayer_thread_.reset(new JobThread("exoplayer"));
   SB_DCHECK(exoplayer_thread_);
-  // pthread_create(&exoplayer_pthread_, nullptr,
-  //                &AudioTrackAudioSink::ThreadEntryPoint, this);
-  // SB_DCHECK(exoplayer_pthread_ != 0);
 
   update_job_ = std::bind(&ExoPlayerBridge::Update, this);
   exoplayer_thread_->job_queue()->ScheduleAndWait(
@@ -138,9 +135,7 @@ ExoPlayerBridge::~ExoPlayerBridge() {
   ON_INSTANCE_RELEASED(ExoPlayerBridge);
   JniEnvExt* env = JniEnvExt::Get();
   SB_LOG(INFO) << "Started exoplayer destructor";
-  // if (exoplayer_pthread_ != 0) {
-  //   pthread_join(exoplayer_pthread_, NULL);
-  // }
+
   exoplayer_thread_->job_queue()->ScheduleAndWait(
       std::bind(&ExoPlayerBridge::TearDownExoPlayer, this));
   exoplayer_thread_->job_queue()->StopSoon();
@@ -433,8 +428,8 @@ void ExoPlayerBridge::DoWriteEndOfStream(SbMediaType stream_type) {
   int buffer_size = 1;
   bool is_key_frame = false;
   bool is_eos = true;
-  env->SetByteArrayRegion(static_cast<jbyteArray>(j_sample_data_), kNoOffset, 1,
-                          reinterpret_cast<const jbyte*>(&trash));
+  env->SetByteArrayRegion(static_cast<jbyteArray>(j_sample_data_), kNoOffset,
+                          buffer_size, reinterpret_cast<const jbyte*>(&trash));
   env->CallVoidMethodOrAbort(j_exoplayer_bridge_, "writeSample", "([BIJZZZ)V",
                              j_sample_data_, buffer_size, timestamp, is_audio,
                              is_key_frame, is_eos);
@@ -498,6 +493,8 @@ void ExoPlayerBridge::Update() {
     JniEnvExt* env = JniEnvExt::Get();
     jlong media_time = env->CallLongMethodOrAbort(
         j_exoplayer_bridge_, "getCurrentPositionUs", "()J");
+    jint dropped_frames = env->CallLongMethodOrAbort(j_exoplayer_bridge_,
+                                                     "getDroppedFrames", "()I");
     // SB_LOG(INFO) << "Sampled media time is "
     //              << static_cast<int64_t>(media_time);
     update_media_info_cb_(static_cast<int64_t>(media_time), 0, ticket_,
@@ -517,7 +514,7 @@ void ExoPlayerBridge::TearDownExoPlayer() {
   env->CallVoidMethodOrAbort(j_exoplayer_bridge_, "destroyExoPlayer", "()V");
   ended_ = true;
   exoplayer_thread_->job_queue()->RemoveJobByToken(update_job_token_);
-  ClearVideoWindow(false);
+  ClearVideoWindow(true);
   ReleaseVideoSurface();
   // UpdatePlayerState(kSbPlayerStateDestroyed);
   // exoplayer_thread_.reset();
@@ -530,7 +527,7 @@ void ExoPlayerBridge::UpdatePlayingStatus(bool is_playing) {
     SB_LOG(WARNING) << "Playing status is updated after an error.";
     return;
   }
-  SB_LOG(INFO) << "Chaning is_progressing_ to " << is_playing;
+  SB_LOG(INFO) << "Changing is_progressing_ to " << is_playing;
   is_progressing_ = is_playing;
 }
 
@@ -569,4 +566,3 @@ void ExoPlayerBridge::UpdatePlayerError(SbPlayerError error,
 }
 
 }  // namespace starboard::android::shared::exoplayer
-                                                     

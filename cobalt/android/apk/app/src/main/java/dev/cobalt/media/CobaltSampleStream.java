@@ -40,8 +40,6 @@ public class CobaltSampleStream implements SampleStream {
 
   CobaltSampleStream(Allocator allocator, Format format) {
     this.allocator = allocator;
-    // audioAllocator = new DefaultAllocator(true, 4000000 /* 4 MB */);
-    // videoAllocator = new DefaultAllocator(true, 10000000 /* 10 MB */);
     sampleQueue = SampleQueue.createWithoutDrm(allocator);
     sampleQueue.format(format);
   }
@@ -84,13 +82,13 @@ public class CobaltSampleStream implements SampleStream {
     if (!prerolled) {
       if (sampleQueue.getUpstreamFormat().sampleRate != Format.NO_VALUE) {
         // Audio stream
-        prerolled = (prerolled || sampleQueue.getLargestQueuedTimestampUs() > 500) || endOfStream;
+        prerolled = (prerolled || sampleQueue.getLargestQueuedTimestampUs() > 500000) || endOfStream;
         if (prerolled) {
           Log.i(TAG, "Prerolled audio stream");
         }
       } else {
         // Video stream
-        prerolled = (prerolled || sampleQueue.getLargestQueuedTimestampUs() > 500) || endOfStream;
+        prerolled = (prerolled || sampleQueue.getLargestQueuedTimestampUs() > 500000) || endOfStream;
         if (prerolled) {
           Log.i(TAG, "Prerolled video stream");
         }
@@ -155,6 +153,12 @@ public class CobaltSampleStream implements SampleStream {
 
     // Log.i(TAG, String.format("Buffer time for %s sample is %d, is key frame %b", (sampleQueue.getUpstreamFormat().sampleRate != Format.NO_VALUE ? "audio" : "video"), buffer.timeUs, buffer.isKeyFrame()));
     // Log.i(TAG, String.format("Allocated bytes is %d", allocator.getTotalBytesAllocated()));
+    if (buffer.timeUs == 0L && endOfStream) {
+      Log.i(TAG, "Setting EOS buffer flag");
+      buffer.addFlag(C.BUFFER_FLAG_END_OF_STREAM);
+    } else if (endOfStream) {
+      Log.i(TAG, String.format("Buffer time: %d, is data null: %b", buffer.timeUs, buffer.data == null));
+    }
     return read;
   }
 
