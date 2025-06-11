@@ -21,7 +21,7 @@
 #include "base/posix/file_descriptor_shuffle.h"
 #include "base/time/time.h"
 #include "base/version.h"
-#include "cobalt/browser/metrics/cobalt_metrics_logs_uploader.h"
+#include "cobalt/browser/metrics/cobalt_metrics_log_uploader.h"
 #include "components/metrics/metrics_service.h"
 #include "components/metrics/metrics_state_manager.h"
 #include "components/prefs/pref_service.h"

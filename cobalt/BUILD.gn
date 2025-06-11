@@ -145,7 +145,7 @@ test("cobalt_unittests") {
     "//cobalt/browser/global_features_unittest.cc",
     "//cobalt/browser/h5vcc_runtime/deep_link_manager_unittest.cc",
     "//cobalt/browser/metrics/cobalt_enabled_state_provider_test.cc",
-    "//cobalt/browser/metrics/cobalt_metrics_logs_uploader_test.cc",
+    "//cobalt/browser/metrics/cobalt_metrics_log_uploader_test.cc",
     "//cobalt/browser/metrics/cobalt_metrics_service_client_test.cc",
     "//cobalt/browser/metrics/cobalt_metrics_services_manager_client_test.cc",
     "//cobalt/browser/user_agent/user_agent_platform_info_test.cc",

@@ -20,7 +20,7 @@
 #include "base/memory/weak_ptr.h"
 #include "base/threading/thread_checker.h"
 #include "base/time/time.h"
-#include "cobalt/browser/metrics/cobalt_metrics_logs_uploader.h"
+#include "cobalt/browser/metrics/cobalt_metrics_log_uploader.h"
 #include "components/metrics/metrics_service_client.h"
 #include "mojo/public/cpp/bindings/pending_remote.h"
 
