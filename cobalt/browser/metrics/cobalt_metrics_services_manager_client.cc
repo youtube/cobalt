@@ -20,6 +20,7 @@
 #include "base/path_service.h"
 #include "cobalt/browser/metrics/cobalt_enabled_state_provider.h"
 #include "cobalt/browser/metrics/cobalt_metrics_service_client.h"
+#include "cobalt/shell/browser/shell_paths.h"
 #include "components/metrics/client_info.h"
 #include "components/metrics/metrics_service.h"
 #include "components/metrics/metrics_service_client.h"
@@ -30,7 +31,6 @@
 #include "components/prefs/pref_service_factory.h"
 #include "components/variations/service/variations_service.h"
 #include "components/variations/synthetic_trial_registry.h"
-#include "content/shell/browser/shell_paths.h"
 
 namespace cobalt {
 

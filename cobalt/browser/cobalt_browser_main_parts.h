@@ -19,7 +19,7 @@
 
 // TODO(b/390021478): Remove this include when CobaltBrowserMainParts stops
 // being a ShellBrowserMainParts.
-#include "content/shell/browser/shell_browser_main_parts.h"
+#include "cobalt/shell/browser/shell_browser_main_parts.h"
 
 class PrefService;
 

@@ -19,8 +19,8 @@
 #include "cobalt/browser/cobalt_content_browser_client.h"
 #include "cobalt/gpu/cobalt_content_gpu_client.h"
 #include "cobalt/renderer/cobalt_content_renderer_client.h"
+#include "cobalt/shell/app/shell_main_delegate.h"
 #include "content/public/browser/browser_main_runner.h"
-#include "content/shell/app/shell_main_delegate.h"
 #include "third_party/abseil-cpp/absl/types/optional.h"
 
 namespace cobalt {
