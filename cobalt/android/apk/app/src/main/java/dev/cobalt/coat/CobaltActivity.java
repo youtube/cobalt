@@ -153,13 +153,15 @@ public abstract class CobaltActivity extends Activity {
       getStarboardBridge().handleDeepLink(startDeepLink);
     }
 
-    setContentView(R.layout.content_shell_activity);
-    mShellManager = findViewById(R.id.shell_container);
+    // setContentView(R.layout.content_shell_activity);
+    // mShellManager = findViewById(R.id.shell_container);
+    mShellManager = new ShellManager(this);
     final boolean listenToActivityState = true;
     mIntentRequestTracker = IntentRequestTracker.createFromActivity(this);
     mWindowAndroid = new ActivityWindowAndroid(this, listenToActivityState, mIntentRequestTracker);
     mIntentRequestTracker.restoreInstanceState(savedInstanceState);
     mShellManager.setWindow(mWindowAndroid);
+    setContentView(mShellManager.getContentViewRenderView().getSurfaceView());
     // Set up the animation placeholder to be the SurfaceView. This disables the
     // SurfaceView's 'hole' clipping during animations that are notified to the window.
     mWindowAndroid.setAnimationPlaceholderView(
