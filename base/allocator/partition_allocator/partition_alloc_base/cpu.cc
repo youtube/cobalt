@@ -16,8 +16,9 @@
 
 #include "build/build_config.h"
 
+//hack
 #if defined(ARCH_CPU_ARM_FAMILY) && \
-    (BUILDFLAG(IS_ANDROID) || BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_CHROMEOS))
+    (BUILDFLAG(IS_ANDROID) || (BUILDFLAG(IS_LINUX)&& !BUILDFLAG(IS_STARBOARD))|| BUILDFLAG(IS_CHROMEOS))
 #include <asm/hwcap.h>
 #include <sys/auxv.h>
 

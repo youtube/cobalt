@@ -4,8 +4,7 @@
 
 #include "src/base/cpu.h"
 
-#include "build/build_config.h"
-#if defined(V8_OS_STARBOARD)
+#if BUILDFLAG(IS_STARBOARD)
 #include "starboard/cpu_features.h"
 #endif
 
@@ -187,10 +186,13 @@ static uint32_t ReadELFHWCaps() {
       if (n == 0 || (entry.tag == 0 && entry.value == 0)) {
         break;
       }
+// hack
+#if 0
       if (entry.tag == AT_HWCAP) {
         result = entry.value;
         break;
       }
+#endif
     }
     base::Fclose(fp);
   }
@@ -321,7 +323,7 @@ static bool HasListItem(const char* list, const char* item) {
 #endif  // V8_HOST_ARCH_ARM || V8_HOST_ARCH_ARM64 ||
         // V8_HOST_ARCH_MIPS64 || V8_HOST_ARCH_RISCV64
 
-#if defined(V8_OS_STARBOARD)
+#if BUILDFLAG(IS_STARBOARD)
 
 bool CPU::StarboardDetectCPU() {
   SbCPUFeatures features;
@@ -415,7 +417,7 @@ CPU::CPU()
       has_rvv_(false) {
   memcpy(vendor_, "Unknown", 8);
 
-#if defined(V8_OS_STARBOARD)
+#if BUILDFLAG(IS_STARBOARD)
   if (StarboardDetectCPU()) {
     return;
   }

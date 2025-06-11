@@ -77,7 +77,11 @@ config("buildflag_defines") {
   # when calling Starboard OS-replacement functions. Note that
   # use_starboard_media should be used instead for Starboard media functions.
   if (is_starboard) {
-    defines += [ "OS_STARBOARD" ]
+    defines += [
+      "OS_STARBOARD",
+      "__linux__",
+      "__linux",
+    ]
   }
 
   # TODO: b/390675141 - Replace IS_COBALT_HERMETIC_BUILD with IS_STARBOARD.
