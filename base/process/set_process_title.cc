@@ -44,7 +44,11 @@ namespace base {
 
 // TODO(jrg): Find out if setproctitle or equivalent is available on Android.
 #if BUILDFLAG(IS_POSIX) && !BUILDFLAG(IS_APPLE) && !BUILDFLAG(IS_SOLARIS) && \
+<<<<<<< HEAD:base/process/set_process_title.cc
     !BUILDFLAG(IS_ANDROID) && !BUILDFLAG(IS_FUCHSIA) && !BUILDFLAG(IS_NACL)
+=======
+    !BUILDFLAG(IS_ANDROID) && !BUILDFLAG(IS_FUCHSIA) && !BUILDFLAG(IS_STARBOARD)
+>>>>>>> 4f3f53385ef (Remove program_invocation_short_name (#6065)):content/common/set_process_title.cc
 
 void SetProcessTitleFromCommandLine(const char** main_argv) {
   // Build a single string which consists of all the arguments separated
