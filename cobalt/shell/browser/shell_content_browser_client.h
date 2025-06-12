@@ -124,12 +124,12 @@ class ShellContentBrowserClient : public ContentBrowserClient {
       const url::Origin& origin,
       bool is_for_isolated_world,
       network::mojom::URLLoaderFactoryParams* factory_params) override;
-#if BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_CHROMEOS) || BUILDFLAG(IS_ANDROID)
+#if BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_ANDROID)
   void GetAdditionalMappedFilesForChildProcess(
       const base::CommandLine& command_line,
       int child_process_id,
       content::PosixFileDescriptorInfo* mappings) override;
-#endif  // BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_CHROMEOS) ||
+#endif  // BUILDFLAG(IS_LINUX) ||
         // BUILDFLAG(IS_ANDROID)
   device::GeolocationManager* GetGeolocationManager() override;
   void ConfigureNetworkContextParams(

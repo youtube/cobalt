@@ -15,10 +15,6 @@
 #include "ui/gfx/geometry/size.h"
 #include "ui/gfx/native_widget_types.h"
 
-#if BUILDFLAG(IS_MAC)
-#include "content/public/browser/native_web_keyboard_event.h"
-#endif
-
 #if BUILDFLAG(IS_APPLE)
 #include "ui/display/screen.h"
 #endif
@@ -115,18 +111,6 @@ class ShellPlatformDelegate {
 #if !BUILDFLAG(IS_ANDROID)
   // Returns the native window. Valid after calling CreatePlatformWindow().
   virtual gfx::NativeWindow GetNativeWindow(Shell* shell);
-#endif
-
-#if BUILDFLAG(IS_MAC)
-  // Activate (make key) the native window, and focus the web contents.
-  virtual void ActivateContents(Shell* shell, WebContents* contents);
-
-  virtual void DidNavigatePrimaryMainFramePostCommit(Shell* shell,
-                                                     WebContents* contents);
-
-  virtual bool HandleKeyboardEvent(Shell* shell,
-                                   WebContents* source,
-                                   const NativeWebKeyboardEvent& event);
 #endif
 
 #if BUILDFLAG(IS_ANDROID) || BUILDFLAG(IS_IOS)

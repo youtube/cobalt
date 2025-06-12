@@ -8,11 +8,6 @@
 
 #include "build/build_config.h"
 
-#if BUILDFLAG(IS_WIN)
-#include <commdlg.h>
-#include <windows.h>
-#endif
-
 #include "base/check_op.h"
 #include "base/command_line.h"
 #include "base/cxx17_backports.h"
@@ -30,11 +25,6 @@
 #include "content/public/browser/web_contents.h"
 #include "content/shell/common/shell_switches.h"
 #include "net/base/filename_util.h"
-
-#if BUILDFLAG(IS_WIN)
-#include "ui/aura/window.h"
-#include "ui/aura/window_tree_host.h"
-#endif
 
 namespace content {
 
@@ -162,38 +152,7 @@ void ShellDownloadManagerDelegate::ChooseDownloadPath(
   }
 
   base::FilePath result;
-#if BUILDFLAG(IS_WIN)
-  std::wstring file_part = base::FilePath(suggested_path).BaseName().value();
-  wchar_t file_name[MAX_PATH];
-  base::wcslcpy(file_name, file_part.c_str(), std::size(file_name));
-  OPENFILENAME save_as;
-  ZeroMemory(&save_as, sizeof(save_as));
-  save_as.lStructSize = sizeof(OPENFILENAME);
-  WebContents* web_contents = DownloadItemUtils::GetWebContents(item);
-  // |web_contents| could be null if the tab was quickly closed.
-  if (!web_contents) {
-    return;
-  }
-  save_as.hwndOwner =
-      web_contents->GetNativeView()->GetHost()->GetAcceleratedWidget();
-  save_as.lpstrFile = file_name;
-  save_as.nMaxFile = std::size(file_name);
-
-  std::wstring directory;
-  if (!suggested_path.empty()) {
-    directory = suggested_path.DirName().value();
-  }
-
-  save_as.lpstrInitialDir = directory.c_str();
-  save_as.Flags = OFN_OVERWRITEPROMPT | OFN_EXPLORER | OFN_ENABLESIZING |
-                  OFN_NOCHANGEDIR | OFN_PATHMUSTEXIST;
-
-  if (GetSaveFileName(&save_as)) {
-    result = base::FilePath(std::wstring(save_as.lpstrFile));
-  }
-#else
   NOTIMPLEMENTED();
-#endif
 
   std::move(callback).Run(
       result, download::DownloadItem::TARGET_DISPOSITION_PROMPT,

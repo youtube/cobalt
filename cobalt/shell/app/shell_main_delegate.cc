@@ -64,7 +64,7 @@
 #include "content/shell/android/shell_descriptors.h"
 #endif
 
-#if !BUILDFLAG(IS_FUCHSIA) && !BUILDFLAG(IS_ANDROIDTV)
+#if !BUILDFLAG(IS_ANDROIDTV)
 #include "components/crash/core/app/crashpad.h"  // nogncheck
 #endif
 
@@ -72,19 +72,7 @@
 #include "content/shell/app/paths_mac.h"
 #endif
 
-#if BUILDFLAG(IS_MAC)
-#include "content/shell/app/shell_main_delegate_mac.h"
-#endif  // BUILDFLAG(IS_MAC)
-
-#if BUILDFLAG(IS_WIN)
-#include <windows.h>
-
-#include <initguid.h>
-#include "base/logging_win.h"
-#include "content/shell/common/v8_crashpad_support_win.h"
-#endif
-
-#if BUILDFLAG(IS_POSIX) && !BUILDFLAG(IS_MAC) && !BUILDFLAG(IS_ANDROID)
+#if BUILDFLAG(IS_POSIX) && !BUILDFLAG(IS_ANDROID)
 #include "v8/include/v8-wasm-trap-handler-posix.h"
 #endif
 
@@ -94,35 +82,16 @@
 
 namespace {
 
-#if !BUILDFLAG(IS_FUCHSIA) && !BUILDFLAG(IS_ANDROIDTV)
+#if !BUILDFLAG(IS_ANDROIDTV)
 base::LazyInstance<content::ShellCrashReporterClient>::Leaky
     g_shell_crash_client = LAZY_INSTANCE_INITIALIZER;
-#endif
-
-#if BUILDFLAG(IS_WIN)
-// If "Content Shell" doesn't show up in your list of trace providers in
-// Sawbuck, add these registry entries to your machine (NOTE the optional
-// Wow6432Node key for x64 machines):
-// 1. Find:  HKLM\SOFTWARE\[Wow6432Node\]Google\Sawbuck\Providers
-// 2. Add a subkey with the name "{6A3E50A4-7E15-4099-8413-EC94D8C2A4B6}"
-// 3. Add these values:
-//    "default_flags"=dword:00000001
-//    "default_level"=dword:00000004
-//    @="Content Shell"
-
-// {6A3E50A4-7E15-4099-8413-EC94D8C2A4B6}
-const GUID kContentShellProviderName = {
-    0x6a3e50a4,
-    0x7e15,
-    0x4099,
-    {0x84, 0x13, 0xec, 0x94, 0xd8, 0xc2, 0xa4, 0xb6}};
 #endif
 
 void InitLogging(const base::CommandLine& command_line) {
   base::FilePath log_filename =
       command_line.GetSwitchValuePath(switches::kLogFile);
   if (log_filename.empty()) {
-#if BUILDFLAG(IS_FUCHSIA) || BUILDFLAG(IS_IOS)
+#if BUILDFLAG(IS_IOS)
     base::PathService::Get(base::DIR_TEMP, &log_filename);
 #else
     base::PathService::Get(base::DIR_EXE, &log_filename);
@@ -162,23 +131,6 @@ absl::optional<int> ShellMainDelegate::BasicStartupComplete() {
   Compositor::Initialize();
 #endif
 
-#if BUILDFLAG(IS_WIN)
-  // Enable trace control and transport through event tracing for Windows.
-  logging::LogEventProvider::Initialize(kContentShellProviderName);
-
-  v8_crashpad_support::SetUp();
-#endif
-
-#if BUILDFLAG(IS_MAC)
-  // Needs to happen before InitializeResourceBundle().
-  OverrideFrameworkBundlePath();
-  OverrideOuterBundlePath();
-  OverrideChildProcessPath();
-  OverrideSourceRootPath();
-  EnsureCorrectResolutionSettings();
-  OverrideBundleID();
-#endif  // BUILDFLAG(IS_MAC)
-
   InitLogging(command_line);
 
 #if !BUILDFLAG(IS_ANDROID) && !BUILDFLAG(IS_STARBOARD)
@@ -207,7 +159,7 @@ bool ShellMainDelegate::ShouldInitializeMojo(InvokedIn invoked_in) {
 
 void ShellMainDelegate::PreSandboxStartup() {
 #if defined(ARCH_CPU_ARM_FAMILY) && \
-    (BUILDFLAG(IS_ANDROID) || BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_CHROMEOS))
+    (BUILDFLAG(IS_ANDROID) || BUILDFLAG(IS_LINUX))
   // Create an instance of the CPU class to parse /proc/cpuinfo and cache
   // cpu_brand info.
   base::CPU cpu_info;
@@ -216,7 +168,7 @@ void ShellMainDelegate::PreSandboxStartup() {
 // Disable platform crash handling and initialize the crash reporter, if
 // requested.
 // TODO(crbug.com/1226159): Implement crash reporter integration for Fuchsia.
-#if !BUILDFLAG(IS_FUCHSIA) && !BUILDFLAG(IS_ANDROIDTV)
+#if !BUILDFLAG(IS_ANDROIDTV)
   if (base::CommandLine::ForCurrentProcess()->HasSwitch(
           switches::kEnableCrashReporter)) {
     std::string process_type =
@@ -226,13 +178,13 @@ void ShellMainDelegate::PreSandboxStartup() {
     // Reporting for sub-processes will be initialized in ZygoteForked.
     if (process_type != switches::kZygoteProcess) {
       crash_reporter::InitializeCrashpad(process_type.empty(), process_type);
-#if BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_CHROMEOS)
+#if BUILDFLAG(IS_LINUX)
       crash_reporter::SetFirstChanceExceptionHandler(
           v8::TryHandleWebAssemblyTrapPosix);
 #endif
     }
   }
-#endif  // !BUILDFLAG(IS_FUCHSIA) && !BUILDFLAG(IS_ANDROIDTV)
+#endif  // !BUILDFLAG(IS_ANDROIDTV)
 
 #if !BUILDFLAG(IS_ANDROIDTV)
   crash_reporter::InitializeCrashKeys();
@@ -289,7 +241,7 @@ absl::variant<int, MainFunctionParams> ShellMainDelegate::RunProcess(
 #endif
 }
 
-#if BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_CHROMEOS)
+#if BUILDFLAG(IS_LINUX)
 void ShellMainDelegate::ZygoteForked() {
 #if !BUILDFLAG(IS_ANDROIDTV)
   if (base::CommandLine::ForCurrentProcess()->HasSwitch(
@@ -303,7 +255,7 @@ void ShellMainDelegate::ZygoteForked() {
   }
 #endif  // !BUILDFLAG(IS_ANDROIDTV)
 }
-#endif  // BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_CHROMEOS)
+#endif  // BUILDFLAG(IS_LINUX)
 
 void ShellMainDelegate::InitializeResourceBundle() {
 #if BUILDFLAG(IS_ANDROID)
@@ -357,9 +309,6 @@ absl::optional<int> ShellMainDelegate::PreBrowserMain() {
     return exit_code;
   }
 
-#if BUILDFLAG(IS_MAC)
-  RegisterShellCrApp();
-#endif
   return absl::nullopt;
 }
 
