@@ -14,4 +14,7 @@
 
 static_library("libc") {
   sources = [ "stdlib/environment.cc" ]
+  deps = [
+    "//base",
+  ]
 }

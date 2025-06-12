@@ -21,10 +21,7 @@
 #include <utility>
 #include <vector>
 
-// This file can not depend on //base since that indirectly depends on this
-// file, but since base::NoDestructor is a header-only class, we can safely use
-// it here.
-#include "base/no_destructor.h"  // nogncheck
+#include "base/no_destructor.h"
 
 #ifndef __cplusplus
 #error This file must be compiled as a C++ file.
