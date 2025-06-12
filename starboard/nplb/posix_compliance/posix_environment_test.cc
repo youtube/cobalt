@@ -131,7 +131,6 @@ TEST_F(PosixEnvironmentGetenvTests, GetExistingVariableReturnsCorrectValue) {
 }
 
 TEST_F(PosixEnvironmentGetenvTests, GetNonExistentVariableReturnsNullptr) {
-  unsetenv(kVarNameNonExistent);  // Ensure it's not set
   char* retrieved_value = getenv(kVarNameNonExistent);
   ASSERT_EQ(nullptr, retrieved_value)
       << "getenv should return nullptr for a non-existent variable.";
@@ -189,7 +188,6 @@ class PosixEnvironmentSetenvTests : public EnvironmentTestBase {
 };
 
 TEST_F(PosixEnvironmentSetenvTests, SetNewVariable) {
-  ASSERT_EQ(nullptr, getenv(kVarNew)) << "Variable should not exist initially.";
   ASSERT_EQ(0, setenv(kVarNew, "value1", /*overwrite=*/1))
       << "setenv should succeed for a new variable.";
 
@@ -199,7 +197,6 @@ TEST_F(PosixEnvironmentSetenvTests, SetNewVariable) {
 }
 
 TEST_F(PosixEnvironmentSetenvTests, SetNewVariableWithNoOverwriteFlag) {
-  ASSERT_EQ(nullptr, getenv(kVarNew)) << "Variable should not exist initially.";
   ASSERT_EQ(0, setenv(kVarNew, "value_no_overwrite_flag", 0 /* no overwrite */))
       << "setenv should succeed for a new variable even with overwrite=0.";
 
@@ -235,6 +232,15 @@ TEST_F(PosixEnvironmentSetenvTests,
 }
 
 TEST_F(PosixEnvironmentSetenvTests, SetValueToEmptyString) {
+  ASSERT_EQ(0, setenv(kVarEmptyValue, "", /*overwrite=*/1))
+      << "setenv should succeed when setting an empty string value.";
+
+  char* retrieved = getenv(kVarEmptyValue);
+  ASSERT_NE(nullptr, retrieved);
+  ASSERT_STREQ("", retrieved) << "Value should be an empty string.";
+}
+
+TEST_F(PosixEnvironmentSetenvTests, SetNonEmptyValueToEmptyString) {
   ASSERT_EQ(0, setenv(kVarEmptyValue, "non-empty", 1));
   ASSERT_STREQ("non-empty", getenv(kVarEmptyValue));
 
@@ -361,10 +367,6 @@ TEST_F(PosixEnvironmentEnvironTests, EnvironReflectsVariableSetBySetenv) {
 TEST_F(PosixEnvironmentEnvironTests,
        EnvironEntriesAreGenerallyInNameEqualsValueFormat) {
   ASSERT_NE(nullptr, environ);
-  if (*environ == nullptr) {
-    GTEST_SKIP() << "Skipping test as environment is empty.";
-    return;
-  }
 
   // Set some values to be tested.
   ASSERT_EQ(0, setenv(kTestVarName, kTestVarValue, /*overwrite=*/1));
