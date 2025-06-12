@@ -50,7 +50,6 @@ group("content_shell_lib_deps") {
     "//components/keyed_service/content",
     "//components/metrics",
     "//components/metrics:net",
-    "//components/metrics:test_support",
     "//components/network_hints/browser:browser",
     "//components/network_hints/renderer",
     "//components/network_session_configurator/common",

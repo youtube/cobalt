@@ -41,7 +41,6 @@
 #include "components/metrics/client_info.h"
 #include "components/metrics/metrics_service.h"
 #include "components/metrics/metrics_state_manager.h"
-#include "components/metrics/test/test_enabled_state_provider.h"
 #include "components/network_hints/browser/simple_network_hints_handler_impl.h"
 #include "components/performance_manager/embedder/performance_manager_registry.h"
 #include "components/prefs/json_pref_store.h"
@@ -747,78 +746,7 @@ void ShellContentBrowserClient::CreateFeatureListAndFieldTrials() {
   GetSharedState().local_state->CommitPendingWrite();
 }
 
-void ShellContentBrowserClient::SetUpFieldTrials() {
-  metrics::TestEnabledStateProvider enabled_state_provider(/*consent=*/false,
-                                                           /*enabled=*/false);
-  base::FilePath path;
-  base::PathService::Get(SHELL_DIR_USER_DATA, &path);
-  std::unique_ptr<metrics::MetricsStateManager> metrics_state_manager =
-      metrics::MetricsStateManager::Create(
-          GetSharedState().local_state.get(), &enabled_state_provider,
-          std::wstring(), path, metrics::StartupVisibility::kUnknown,
-          {
-              .force_benchmarking_mode =
-                  base::CommandLine::ForCurrentProcess()->HasSwitch(
-                      cc::switches::kEnableGpuBenchmarking),
-          });
-  metrics_state_manager->InstantiateFieldTrialList();
-
-  std::vector<std::string> variation_ids;
-  auto feature_list = std::make_unique<base::FeatureList>();
-
-  std::unique_ptr<variations::SeedResponse> initial_seed;
-#if BUILDFLAG(IS_ANDROID)
-  if (!GetSharedState().local_state->HasPrefPath(
-          variations::prefs::kVariationsSeedSignature)) {
-    DVLOG(1) << "Importing first run seed from Java preferences.";
-    initial_seed = variations::android::GetVariationsFirstRunSeed();
-  }
-#endif
-
-  ShellVariationsServiceClient variations_service_client;
-  variations::VariationsFieldTrialCreator field_trial_creator(
-      &variations_service_client,
-      std::make_unique<variations::VariationsSeedStore>(
-          GetSharedState().local_state.get(), std::move(initial_seed),
-          /*signature_verification_enabled=*/true),
-      variations::UIStringOverrider());
-
-  variations::SafeSeedManager safe_seed_manager(
-      GetSharedState().local_state.get());
-
-  const base::CommandLine& command_line =
-      *base::CommandLine::ForCurrentProcess();
-
-  // Overrides for content/common and lower layers' switches.
-  std::vector<base::FeatureList::FeatureOverrideInfo> feature_overrides =
-      content::GetSwitchDependentFeatureOverrides(command_line);
-
-  // Overrides for content/shell switches.
-
-  // Overrides for --run-web-tests.
-  if (switches::IsRunWebTestsSwitchPresent()) {
-    // Disable artificial timeouts for PNA-only preflights in warning-only mode
-    // for web tests. We do not exercise this behavior with web tests as it is
-    // intended to be a temporary rollout stage, and the short timeout causes
-    // flakiness when the test server takes just a tad too long to respond.
-    feature_overrides.emplace_back(
-        std::cref(
-            network::features::kPrivateNetworkAccessPreflightShortTimeout),
-        base::FeatureList::OVERRIDE_DISABLE_FEATURE);
-  }
-
-  // Since this is a test-only code path, some arguments to SetUpFieldTrials are
-  // null.
-  // TODO(crbug/1248066): Consider passing a low entropy source.
-  variations::PlatformFieldTrials platform_field_trials;
-  field_trial_creator.SetUpFieldTrials(
-      variation_ids,
-      command_line.GetSwitchValueASCII(
-          variations::switches::kForceVariationIds),
-      feature_overrides, std::move(feature_list), metrics_state_manager.get(),
-      &platform_field_trials, &safe_seed_manager,
-      /*add_entropy_source_to_variations_ids=*/false);
-}
+void ShellContentBrowserClient::SetUpFieldTrials() {}
 
 absl::optional<blink::ParsedPermissionsPolicy>
 ShellContentBrowserClient::GetPermissionsPolicyForIsolatedWebApp(
