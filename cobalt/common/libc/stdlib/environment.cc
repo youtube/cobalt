@@ -21,7 +21,7 @@
 #include <utility>
 #include <vector>
 
-#include "base/no_destructor.h"
+#include "cobalt/common/libc/no_destructor.h"
 
 namespace cobalt {
 namespace common {
@@ -40,8 +40,8 @@ class Environment {
   static char** InitializeGlobalEnviron();
 
  private:
-  static base::NoDestructor<Strings> stored_environment_;
-  static base::NoDestructor<std::vector<char*>> environ_pointers_;
+  static NoDestructor<Strings> stored_environment_;
+  static NoDestructor<std::vector<char*>> environ_pointers_;
 
   static void RebuildAndSetGlobalEnviron();
 
@@ -55,8 +55,8 @@ class Environment {
       const char* name);
 };
 
-base::NoDestructor<Environment::Strings> Environment::stored_environment_;
-base::NoDestructor<std::vector<char*>> Environment::environ_pointers_;
+NoDestructor<Environment::Strings> Environment::stored_environment_;
+NoDestructor<std::vector<char*>> Environment::environ_pointers_;
 
 std::pair<Environment::Strings::iterator, size_t>
 Environment::FindEnvironmentVariable(const char* name) {
