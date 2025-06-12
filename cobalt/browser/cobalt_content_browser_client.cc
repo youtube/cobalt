@@ -359,11 +359,19 @@ void CobaltContentBrowserClient::SetUpCobaltFeaturesAndParams(
   CHECK(cobalt_field_trial) << "Unexpected name conflict.";
 
   auto experiment_config = GlobalFeatures::GetInstance()->experiment_config();
+  auto config_type = GlobalFeatures::GetInstance()->GetExperimentConfigType();
+  if (config_type == ExperimentConfigType::kEmptyConfig) {
+    return;
+  }
 
   const base::Value::Dict& feature_map =
-      experiment_config->GetDict(kExperimentConfigFeatures);
+      config_type == ExperimentConfigType::kSafeConfig
+          ? experiment_config->GetDict(kSafeConfigFeatures)
+          : experiment_config->GetDict(kExperimentConfigFeatures);
   const base::Value::Dict& param_map =
-      experiment_config->GetDict(kExperimentConfigFeatureParams);
+      config_type == ExperimentConfigType::kSafeConfig
+          ? experiment_config->GetDict(kSafeConfigFeatureParams)
+          : experiment_config->GetDict(kExperimentConfigFeatureParams);
 
   for (const auto feature_name_and_value : feature_map) {
     if (feature_name_and_value.second.is_bool()) {
@@ -396,6 +404,7 @@ void CobaltContentBrowserClient::SetUpCobaltFeaturesAndParams(
   }
   base::AssociateFieldTrialParams(kCobaltExperimentName, kCobaltGroupName,
                                   params);
+  // experiment_config->SetString(kExperimentConfig,"");
 }
 
 void CobaltContentBrowserClient::CreateFeatureListAndFieldTrials() {

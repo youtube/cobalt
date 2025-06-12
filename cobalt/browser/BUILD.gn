@@ -127,6 +127,7 @@ source_set("global_features") {
     "//components/metrics",
     "//components/metrics_services_manager",
     "//components/prefs",
+    "//components/variations",
   ]
 }
 

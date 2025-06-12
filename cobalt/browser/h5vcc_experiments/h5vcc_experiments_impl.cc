@@ -22,6 +22,7 @@
 #include "cobalt/browser/constants/cobalt_experiment_names.h"
 #include "cobalt/browser/global_features.h"
 #include "components/prefs/pref_service.h"
+#include "components/variations/pref_names.h"
 
 namespace h5vcc_experiments {
 
@@ -61,6 +62,9 @@ void H5vccExperimentsImpl::SetExperimentState(
     SetExperimentStateCallback callback) {
   auto* experiment_config_ptr =
       cobalt::GlobalFeatures::GetInstance()->experiment_config();
+  // A valid experiment config is supplied by h5vcc and we store the current
+  // config as the safe config.
+  cobalt::GlobalFeatures::GetInstance()->StoreSafeConfig();
 
   experiment_config_ptr->SetDict(
       cobalt::kExperimentConfigFeatures,
@@ -74,6 +78,12 @@ void H5vccExperimentsImpl::SetExperimentState(
       cobalt::kExperimentConfigExpIds,
       std::move(
           experiment_config.Find(cobalt::kExperimentConfigExpIds)->GetList()));
+
+  // Note: It's important to clear the crash streak. Crashes that occur after a
+  // successful config fetch do not prevent updating to a new update, and
+  // therefore do not necessitate falling back to a safe config.
+  experiment_config_ptr->SetInteger(variations::prefs::kVariationsCrashStreak,
+                                    0);
   experiment_config_ptr->CommitPendingWrite();
   std::move(callback).Run();
 }
