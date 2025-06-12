@@ -189,6 +189,7 @@ test("nplb") {
     "posix_compliance/posix_time_gettimeofday_test.cc",
     "posix_compliance/posix_time_test.cc",
     "posix_compliance/posix_time_time_test.cc",
+    "posix_compliance/posix_unistd_sysconf_test.cc",
     "posix_compliance/posix_usleep_test.cc",
     "random_helpers.cc",
     "recursive_mutex_test.cc",
