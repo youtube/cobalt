@@ -106,12 +106,6 @@ class Shell : public WebContentsDelegate, public WebContentsObserver {
   gfx::NativeWindow window();
 #endif
 
-#if BUILDFLAG(IS_MAC)
-  // Public to be called by an ObjC bridge object.
-  void ActionPerformed(int control);
-  void URLEntered(const std::string& url_string);
-#endif
-
   // WebContentsDelegate
   WebContents* OpenURLFromTab(WebContents* source,
                               const OpenURLParams& params) override;
@@ -149,10 +143,6 @@ class Shell : public WebContentsDelegate, public WebContentsObserver {
                               InvalidateTypes changed_flags) override;
   JavaScriptDialogManager* GetJavaScriptDialogManager(
       WebContents* source) override;
-#if BUILDFLAG(IS_MAC)
-  bool HandleKeyboardEvent(WebContents* source,
-                           const NativeWebKeyboardEvent& event) override;
-#endif
   bool DidAddMessageToConsole(WebContents* source,
                               blink::mojom::ConsoleMessageLevel log_level,
                               const std::u16string& message,
@@ -222,9 +212,6 @@ class Shell : public WebContentsDelegate, public WebContentsObserver {
 #endif
   void TitleWasSet(NavigationEntry* entry) override;
   void RenderFrameCreated(RenderFrameHost* frame_host) override;
-#if BUILDFLAG(IS_MAC)
-  void PrimaryPageChanged(Page& page) override;
-#endif
 
   std::unique_ptr<JavaScriptDialogManager> dialog_manager_;
 
