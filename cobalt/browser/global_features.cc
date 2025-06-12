@@ -25,6 +25,7 @@
 #include "components/prefs/json_pref_store.h"
 #include "components/prefs/pref_service.h"
 #include "components/prefs/pref_service_factory.h"
+#include "components/variations/pref_names.h"
 
 namespace cobalt {
 
@@ -78,6 +79,50 @@ PrefService* GlobalFeatures::metrics_local_state() {
 void GlobalFeatures::set_accessor(
     std::unique_ptr<base::FeatureList::Accessor> accessor) {
   accessor_ = std::move(accessor);
+}
+
+ExperimentConfigType GlobalFeatures::GetExperimentConfigType() {
+  DCHECK(experiment_config_);
+  DCHECK(!called_store_safe_config_);
+  int num_crashes =
+      experiment_config_->GetInteger(variations::prefs::kVariationsCrashStreak);
+  if (num_crashes >= kCrashStreakEmptyConfigThreshold) {
+    return ExperimentConfigType::kEmptyConfig;
+  }
+  if (num_crashes >= kCrashStreakSafeConfigThreshold) {
+    return ExperimentConfigType::kSafeConfig;
+  }
+  return ExperimentConfigType::kRegularConfig;
+}
+
+void GlobalFeatures::StoreSafeConfig() {
+  // This should only be called upon the first setExperimentState call from
+  // h5vcc. Active config would be stored as the safe config.
+  // Note that it's sufficient to do this only upon receiving the first
+  // experiment config from h5vcc call because the active configuration does
+  // not change while Cobalt is running. Also, note that it's a noop if running
+  // in safe mode.
+  DCHECK(experiment_config_);
+  DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
+  if (called_store_safe_config_) {
+    return;
+  }
+  auto experiment_config_type = GetExperimentConfigType();
+  if (experiment_config_type != ExperimentConfigType::kRegularConfig) {
+    return;
+  }
+
+  experiment_config_->SetDict(
+      kSafeConfigFeatures,
+      experiment_config_->GetDict(kExperimentConfigFeatures).Clone());
+  experiment_config_->SetDict(
+      kSafeConfigFeatureParams,
+      experiment_config_->GetDict(kExperimentConfigFeatureParams).Clone());
+  experiment_config_->SetList(
+      kSafeConfigExpIds,
+      experiment_config_->GetList(kExperimentConfigExpIds).Clone());
+  experiment_config_->CommitPendingWrite();
+  called_store_safe_config_ = true;
 }
 
 void GlobalFeatures::CreateExperimentConfig() {
@@ -135,8 +180,14 @@ void GlobalFeatures::CreateMetricsLocalState() {
 
 void GlobalFeatures::InitializeActiveExperimentIds() {
   DCHECK(experiment_config_);
-  const auto& experiments =
-      experiment_config_->GetList(kExperimentConfigExpIds);
+  auto experiment_config_type = GetExperimentConfigType();
+  if (experiment_config_type == ExperimentConfigType::kEmptyConfig) {
+    return;
+  }
+  const base::Value::List& experiments =
+      experiment_config_type == ExperimentConfigType::kSafeConfig
+          ? experiment_config_->GetList(kSafeConfigExpIds)
+          : experiment_config_->GetList(kExperimentConfigExpIds);
   active_experiment_ids_.reserve(experiments.size());
   for (const auto& experiment_id : experiments) {
     active_experiment_ids_.push_back(experiment_id.GetInt());
@@ -149,6 +200,10 @@ void GlobalFeatures::RegisterPrefs(PrefRegistrySimple* registry) {
   registry->RegisterDictionaryPref(kExperimentConfigFeatures);
   registry->RegisterDictionaryPref(kExperimentConfigFeatureParams);
   registry->RegisterListPref(kExperimentConfigExpIds);
+  registry->RegisterDictionaryPref(kSafeConfig);
+  registry->RegisterDictionaryPref(kSafeConfigFeatures);
+  registry->RegisterDictionaryPref(kSafeConfigFeatureParams);
+  registry->RegisterListPref(kSafeConfigExpIds);
   metrics::MetricsService::RegisterPrefs(registry);
 }
 
