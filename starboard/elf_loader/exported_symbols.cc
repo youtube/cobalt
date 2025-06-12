@@ -18,6 +18,8 @@
 
 #include <dirent.h>
 
+#include <semaphore.h>
+#include <sys/timerfd.h>
 // TODO: Cobalt b/421944504 - Cleanup once we are done with all the symbols.
 #if BUILDFLAG(ENABLE_COBALT_HERMETIC_HACKS)
 #include <dlfcn.h>
@@ -76,6 +78,7 @@
     map_[#s] = reinterpret_cast<const void*>(&__abi_wrap_##s); \
   } while (0)
 
+static void stub() {}
 namespace starboard {
 namespace elf_loader {
 
@@ -363,6 +366,21 @@ ExportedSymbols::ExportedSymbols() {
   REGISTER_WRAPPER(shutdown);
   REGISTER_WRAPPER(stat);
   REGISTER_WRAPPER(writev);
+
+  map_["__lstat_time64"] = reinterpret_cast<const void*>(&lstat);
+  map_["__dlsym_time64"] = reinterpret_cast<const void*>(&dlsym);
+  map_["__futimes_time64"] = reinterpret_cast<const void*>(&futimes);
+  map_["__gmtime64"] = reinterpret_cast<const void*>(&gmtime);
+  map_["__localtime64"] = reinterpret_cast<const void*>(&localtime);
+  map_["__localtime64_r"] = reinterpret_cast<const void*>(&localtime_r);
+  map_["__mktime64"] = reinterpret_cast<const void*>(&mktime);
+  map_["__select_time64"] = reinterpret_cast<const void*>(&select);
+  map_["__sem_timedwait_time64"] =
+      reinterpret_cast<const void*>(&sem_timedwait);
+  map_["__timegm_time64"] = reinterpret_cast<const void*>(&timegm);
+  map_["__timerfd_settime64"] = reinterpret_cast<const void*>(&timerfd_settime);
+  map_["__utimes_time64"] = reinterpret_cast<const void*>(&utimes);
+  map_["Cr_z_cpu_check_features"] = reinterpret_cast<const void*>(&stub);
 
 }  // NOLINT
 
