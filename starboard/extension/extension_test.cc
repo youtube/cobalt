@@ -18,6 +18,7 @@
 #include "starboard/extension/configuration.h"
 #include "starboard/extension/crash_handler.h"
 #include "starboard/extension/enhanced_audio.h"
+#include "starboard/extension/features.h"
 #include "starboard/extension/font.h"
 #include "starboard/extension/free_space.h"
 #include "starboard/extension/graphics.h"
@@ -592,6 +593,17 @@ TEST(ExtensionTest, StarboardSystemInfoExtension) {
       static_cast<const ExtensionApi*>(SbSystemGetExtension(kExtensionName));
   EXPECT_EQ(second_extension_api, extension_api)
       << "Extension struct should be a singleton";
+}
+
+TEST(ExtensionTest, StarboardFeaturesExtension) {
+  typedef StarboardExtensionFeaturesApi ExtensionApi;
+  const char* kExtensionName = kStarboardExtensionFeaturesName;
+
+  const ExtensionApi* extension_api =
+      static_cast<const ExtensionApi*>(SbSystemGetExtension(kExtensionName));
+
+  // TODO: When the extension is fully implemented, test SbSystemGetExtension
+  // function to ensure the retrieved object is obtained.
 }
 
 }  // namespace extension
