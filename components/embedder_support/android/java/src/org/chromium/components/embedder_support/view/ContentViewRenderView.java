@@ -11,7 +11,7 @@ import android.view.Surface;
 import android.view.SurfaceHolder;
 import android.view.SurfaceView;
 import android.view.View;
-import android.widget.FrameLayout;
+// import android.widget.FrameLayout;
 
 import org.chromium.base.annotations.CalledByNative;
 import org.chromium.base.annotations.JNINamespace;
@@ -26,7 +26,7 @@ import org.chromium.ui.base.WindowAndroid;
  * Note that only one WebContents can be shown at a time.
  */
 @JNINamespace("embedder_support")
-public class ContentViewRenderView extends FrameLayout {
+public class ContentViewRenderView {
     // The native side of this object.
     private long mNativeContentViewRenderView;
     private WindowAndroid mWindowAndroid;
@@ -37,6 +37,8 @@ public class ContentViewRenderView extends FrameLayout {
     private int mWidth;
     private int mHeight;
 
+    private Context mContext;
+
     /**
      * Constructs a new ContentViewRenderView.
      * This should be called and the {@link ContentViewRenderView} should be added to the view
@@ -45,10 +47,15 @@ public class ContentViewRenderView extends FrameLayout {
      * @param context The context used to create this.
      */
     public ContentViewRenderView(Context context) {
-        super(context);
+        // super(context);
+        mContext = context;
 
         mSurfaceBridge = createSurfaceBridge();
         mSurfaceBridge.initialize(this);
+    }
+
+    public Context getContext() {
+        return mContext;
     }
 
     protected SurfaceBridge createSurfaceBridge() {
@@ -107,19 +114,19 @@ public class ContentViewRenderView extends FrameLayout {
         mSurfaceBridge.connect(surfaceCallback);
     }
 
-    @Override
-    protected void onSizeChanged(int w, int h, int oldw, int oldh) {
-        mWidth = w;
-        mHeight = h;
-        if (mWebContents != null) mWebContents.setSize(w, h);
-    }
+    // @Override
+    // protected void onSizeChanged(int w, int h, int oldw, int oldh) {
+    //     mWidth = w;
+    //     mHeight = h;
+    //     if (mWebContents != null) mWebContents.setSize(w, h);
+    // }
 
     /**
      * View's method override to notify WindowAndroid about changes in its visibility.
      */
-    @Override
+    // @Override
     protected void onWindowVisibilityChanged(int visibility) {
-        super.onWindowVisibilityChanged(visibility);
+        // super.onWindowVisibilityChanged(visibility);
 
         if (mWindowAndroid == null) return;
 
@@ -212,7 +219,7 @@ public class ContentViewRenderView extends FrameLayout {
     @CalledByNative
     private void didSwapFrame() {
         if (getSurfaceView().getBackground() != null) {
-            post(new Runnable() {
+            getSurfaceView().post(new Runnable() {
                 @Override
                 public void run() {
                     getSurfaceView().setBackgroundResource(0);
@@ -233,17 +240,17 @@ public class ContentViewRenderView extends FrameLayout {
             mSurfaceView = renderView.createSurfaceView(renderView.getContext());
             mSurfaceView.setZOrderMediaOverlay(true);
 
-            renderView.setSurfaceViewBackgroundColor(Color.WHITE);
-            renderView.addView(mSurfaceView,
-                    new FrameLayout.LayoutParams(FrameLayout.LayoutParams.MATCH_PARENT,
-                            FrameLayout.LayoutParams.MATCH_PARENT));
-            mSurfaceView.setVisibility(GONE);
+            // renderView.setSurfaceViewBackgroundColor(Color.WHITE);
+            // renderView.addView(mSurfaceView,
+            //         new FrameLayout.LayoutParams(FrameLayout.LayoutParams.MATCH_PARENT,
+            //                 FrameLayout.LayoutParams.MATCH_PARENT));
+            mSurfaceView.setVisibility(View.GONE);
         }
 
         protected void connect(SurfaceHolder.Callback surfaceCallback) {
             mSurfaceCallback = surfaceCallback;
             mSurfaceView.getHolder().addCallback(mSurfaceCallback);
-            mSurfaceView.setVisibility(VISIBLE);
+            mSurfaceView.setVisibility(View.VISIBLE);
         }
 
         protected void disconnect() {
