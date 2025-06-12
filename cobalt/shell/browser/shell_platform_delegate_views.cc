@@ -13,7 +13,6 @@
 #include "base/memory/raw_ptr.h"
 #include "base/strings/utf_string_conversions.h"
 #include "build/build_config.h"
-#include "build/chromeos_buildflags.h"
 #include "cobalt/shell/browser/shell.h"
 #include "cobalt/shell/browser/shell_platform_delegate.h"
 #include "content/public/browser/context_factory.h"
@@ -28,6 +27,7 @@
 #include "ui/base/metadata/metadata_impl_macros.h"
 #include "ui/base/resource/resource_bundle.h"
 #include "ui/color/color_id.h"
+#include "ui/display/screen.h"
 #include "ui/events/event.h"
 #include "ui/views/background.h"
 #include "ui/views/controls/button/md_text_button.h"
@@ -40,21 +40,10 @@
 #include "ui/views/test/desktop_test_views_delegate.h"
 #include "ui/views/view.h"
 #include "ui/views/view_class_properties.h"
+#include "ui/views/widget/desktop_aura/desktop_screen.h"
 #include "ui/views/widget/widget.h"
 #include "ui/views/widget/widget_delegate.h"
-
-#if BUILDFLAG(IS_CHROMEOS_ASH)
-#include "ui/wm/test/wm_test_helper.h"
-#else  // !BUILDFLAG(IS_CHROMEOS_ASH)
-#include "ui/display/screen.h"
-#include "ui/views/widget/desktop_aura/desktop_screen.h"
 #include "ui/wm/core/wm_state.h"
-#endif
-
-#if BUILDFLAG(IS_WIN)
-#include <fcntl.h>
-#include <io.h>
-#endif
 
 namespace content {
 
@@ -65,12 +54,8 @@ struct ShellPlatformDelegate::ShellData {
 };
 
 struct ShellPlatformDelegate::PlatformData {
-#if BUILDFLAG(IS_CHROMEOS_ASH)
-  std::unique_ptr<wm::WMTestHelper> wm_test_helper;
-#else
   std::unique_ptr<wm::WMState> wm_state;
   std::unique_ptr<display::Screen> screen;
-#endif
 
   // TODO(danakj): This looks unused?
   std::unique_ptr<views::ViewsDelegate> views_delegate;
@@ -118,12 +103,6 @@ class ShellView : public views::BoxLayoutView,
     gfx::Rect bounds = GetWidget()->GetWindowBoundsInScreen();
     bounds.set_size(GetWidget()->GetRootView()->GetPreferredSize());
     GetWidget()->SetBounds(bounds);
-
-    // Resizing a widget on chromeos doesn't automatically resize the root, need
-    // to explicitly do that.
-#if BUILDFLAG(IS_CHROMEOS_ASH)
-    GetWidget()->GetNativeWindow()->GetHost()->SetBoundsInPixels(bounds);
-#endif
   }
 
   void EnableUIControl(UIControl control, bool is_enabled) {
@@ -321,23 +300,13 @@ ShellView* ShellViewForWidget(views::Widget* widget) {
 ShellPlatformDelegate::ShellPlatformDelegate() = default;
 
 void ShellPlatformDelegate::Initialize(const gfx::Size& default_window_size) {
-#if BUILDFLAG(IS_WIN)
-  _setmode(_fileno(stdout), _O_BINARY);
-  _setmode(_fileno(stderr), _O_BINARY);
-#endif
-
   platform_ = std::make_unique<PlatformData>();
 
-#if BUILDFLAG(IS_CHROMEOS_ASH)
-  platform_->wm_test_helper =
-      std::make_unique<wm::WMTestHelper>(default_window_size);
-#else
   platform_->wm_state = std::make_unique<wm::WMState>();
   // FakeScreen tests create their own screen.
   if (!display::Screen::HasScreen()) {
     platform_->screen = views::CreateDesktopScreen();
   }
-#endif
 
   platform_->views_delegate =
       std::make_unique<views::DesktopTestViewsDelegate>();
@@ -358,12 +327,6 @@ void ShellPlatformDelegate::CreatePlatformWindow(
   delegate->SetHasWindowSizeControls(true);
   delegate->SetOwnedByWidget(true);
 
-#if BUILDFLAG(IS_CHROMEOS_ASH)
-  shell_data.window_widget = views::Widget::CreateWindowWithContext(
-      std::move(delegate),
-      platform_->wm_test_helper->GetDefaultParent(nullptr, gfx::Rect()),
-      gfx::Rect(initial_size));
-#else
   shell_data.window_widget = new views::Widget();
   views::Widget::InitParams params;
   params.bounds = gfx::Rect(initial_size);
@@ -371,7 +334,6 @@ void ShellPlatformDelegate::CreatePlatformWindow(
   params.wm_class_class = "chromium-content_shell";
   params.wm_class_name = params.wm_class_class;
   shell_data.window_widget->Init(std::move(params));
-#endif
 
   // |window_widget| is made visible in PlatformSetContents(), so that the
   // platform-window size does not need to change due to layout again.
