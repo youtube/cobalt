@@ -26,6 +26,10 @@
 // it here.
 #include "base/no_destructor.h"  // nogncheck
 
+#ifndef __cplusplus
+#error This file must be compiled as a C++ file.
+#endif
+
 namespace cobalt {
 namespace common {
 namespace libc {
@@ -163,9 +167,8 @@ int Environment::unsetenv(const char* name) {
 
 using cobalt::common::libc::stdlib::Environment;
 
-#ifdef __cplusplus
+// The symbols below must have C linkage.
 extern "C" {
-#endif
 
 // This file provides a hermetic environment implementation, including the
 // global |environ| variable and the |getenv|, |setenv|, and |unsetenv|
@@ -198,6 +201,4 @@ int unsetenv(const char* name) {
   return Environment::unsetenv(name);
 }
 
-#ifdef __cplusplus
 }  // extern "C"
-#endif
