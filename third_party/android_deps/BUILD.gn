@@ -963,7 +963,7 @@ if (!limit_android_deps) {
 
   # This is generated, do not edit. Update BuildConfigGenerator.groovy instead.
   android_aar_prebuilt("google_play_services_ads_identifier_java") {
-    aar_path = "libs/com_google_android_gms_play_services_ads_identifier/play-services-ads-identifier-17.0.0.aar"
+    aar_path = "libs/com_google_android_gms_play_services_ads_identifier/play-services-ads-identifier-18.1.0.aar"
     info_path = "libs/com_google_android_gms_play_services_ads_identifier/com_google_android_gms_play_services_ads_identifier.info"
     deps = [ ":google_play_services_basement_java" ]
   }
@@ -1023,7 +1023,7 @@ if (!limit_android_deps) {
 
   # This is generated, do not edit. Update BuildConfigGenerator.groovy instead.
   android_aar_prebuilt("google_play_services_basement_java") {
-    aar_path = "libs/com_google_android_gms_play_services_basement/play-services-basement-18.1.0.aar"
+    aar_path = "libs/com_google_android_gms_play_services_basement/play-services-basement-18.4.0.aar"
     info_path = "libs/com_google_android_gms_play_services_basement/com_google_android_gms_play_services_basement.info"
     deps = [
       "//third_party/androidx:androidx_collection_collection_java",
