@@ -40,6 +40,10 @@ using base::android::AttachCurrentThread;
 using base::android::ConvertJavaStringToUTF8;
 using base::android::GetClass;
 
+// Global pointer to hold the single instance of ApplicationAndroid.
+ApplicationAndroid* g_native_app_instance = nullptr;
+static pthread_mutex_t g_native_app_init_mutex PTHREAD_MUTEX_INITIALIZER;
+
 namespace {
 #if SB_IS(EVERGREEN_COMPATIBLE)
 void StarboardThreadLaunch() {
@@ -92,12 +96,16 @@ JNI_StarboardBridge_StartNativeStarboard(JNIEnv* env) {
 #if SB_IS(EVERGREEN_COMPATIBLE)
   StarboardThreadLaunch();
 #else
-  auto command_line = std::make_unique<CommandLine>(GetArgs());
-  LogInit(*command_line);
-  auto* native_app = new ApplicationAndroid(std::move(command_line));
-  // Ensure application init happens here
-  ApplicationAndroid::Get();
-  return reinterpret_cast<jlong>(native_app);
+  pthread_mutex_lock(&g_native_app_init_mutex);
+  if (g_native_app_instance == nullptr) {
+    auto command_line = std::make_unique<CommandLine>(GetArgs());
+    LogInit(*command_line);
+    g_native_app_instance = new ApplicationAndroid(std::move(command_line));
+    // Ensure application init happens here
+    ApplicationAndroid::Get();
+  }
+  pthread_mutex_unlock(&g_native_app_init_mutex);
+  return reinterpret_cast<jlong>(g_native_app_instance);
 #endif  // SB_IS(EVERGREEN_COMPATIBLE)
 }
 
