@@ -111,6 +111,7 @@ _ALLOWED_SB_GE_16_POSIX_SYMBOLS = [
     'ftruncate',
     'getaddrinfo',
     'getifaddrs',
+    'getpagesize',
     'getpeername',
     'getsockname',
     'getsockopt',
