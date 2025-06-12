@@ -28,6 +28,11 @@ namespace starboard {
 namespace nplb {
 namespace {
 
+// Note: Direct modification of 'environ' is discouraged and can lead to
+// undefined behavior. These tests only observe 'environ' after calls to
+// 'setenv' or 'unsetenv'. The 'environ' variable itself is often considered
+// legacy; getenv/setenv/unsetenv are preferred.
+
 // This test is placed first to verify the state of 'environ' before
 // any other tests (especially those using fixtures with SetUp/TearDown
 // that might call setenv/getenv/unsetenv) are run.
@@ -108,16 +113,14 @@ class PosixEnvironmentGetenvTests : public EnvironmentTestBase {
       "POSIX_GETENV_NON_EXISTENT_VAR_UNIQUE";
   static constexpr const char* kVarNameEmptyVal = "POSIX_GETENV_EMPTY_VAL";
 
-  void SetUp() override {
-    TearDown();  // Guarantee to start with an environment without the test
-                 // values.
-  }
-
-  void TearDown() override {
+  void UnsetVariables() {
     unsetenv(kVarNameExisting);
     unsetenv(kVarNameNonExistent);
     unsetenv(kVarNameEmptyVal);
   }
+
+  void SetUp() override { UnsetVariables(); }
+  void TearDown() override { UnsetVariables(); }
 };
 
 TEST_F(PosixEnvironmentGetenvTests, GetExistingVariableReturnsCorrectValue) {
@@ -173,18 +176,16 @@ class PosixEnvironmentSetenvTests : public EnvironmentTestBase {
   static constexpr const char* kInitialVal = "initial";
   static constexpr const char* kNewVal = "new";
 
-  void SetUp() override {
-    TearDown();  // Guarantee to start with an environment without the test
-                 // values.
-  }
-
-  void TearDown() override {
+  void UnsetVariables() {
     unsetenv(kVarNew);
     unsetenv(kVarOverwrite);
     unsetenv(kVarNoOverwrite);
     unsetenv(kVarEmptyValue);
     unsetenv(kVarNullValue);
   }
+
+  void SetUp() override { UnsetVariables(); }
+  void TearDown() override { UnsetVariables(); }
 };
 
 TEST_F(PosixEnvironmentSetenvTests, SetNewVariable) {
@@ -310,16 +311,14 @@ class PosixEnvironmentEnvironTests : public EnvironmentTestBase {
   static constexpr const char* kVarEmptyValue = "POSIX_SETENV_EMPTY_VALUE_VAR";
   static constexpr const char* kVarNullValue = "POSIX_SETENV_NULL_VALUE_VAR";
 
-  void SetUp() override {
-    TearDown();  // Guarantee to start with an environment without the test
-                 // values.
-  }
-
-  void TearDown() override {
+  void UnsetVariables() {
     unsetenv(kTestVarName);
     unsetenv(kVarEmptyValue);
     unsetenv(kVarNullValue);
   }
+
+  void SetUp() override { UnsetVariables(); }
+  void TearDown() override { UnsetVariables(); }
 };
 
 TEST_F(PosixEnvironmentEnvironTests, EnvironIsNullTerminated) {
@@ -404,14 +403,13 @@ TEST_F(PosixEnvironmentEnvironTests, EnvironReflectsVariableUnset) {
 
   bool found_before_unset = false;
   for (char** env_ptr = environ; *env_ptr != nullptr; ++env_ptr) {
-    if (std::string(*env_ptr) == kTestVarEntry) {  // Use kTestVarEntry
+    if (std::string(*env_ptr) == kTestVarEntry) {
       found_before_unset = true;
       break;
     }
   }
-  ASSERT_TRUE(found_before_unset)
-      << "The variable " << kTestVarEntry  // Use kTestVarEntry
-      << " should be in environ before unset.";
+  ASSERT_TRUE(found_before_unset) << "The variable " << kTestVarEntry
+                                  << " should be in environ before unset.";
 
   ASSERT_EQ(0, unsetenv(kTestVarName));
 
@@ -422,8 +420,7 @@ TEST_F(PosixEnvironmentEnvironTests, EnvironReflectsVariableUnset) {
     for (char** env_ptr = environ; *env_ptr != nullptr; ++env_ptr) {
       // Check if the string starts with "kTestVarName="
       // The length for strncmp should be kTestVarName + '='
-      if (strncmp(*env_ptr, kTestVarEntry,  // Use kTestVarEntry for comparison
-                  strlen(kTestVarName) + 1) == 0) {
+      if (strncmp(*env_ptr, kTestVarEntry, strlen(kTestVarName) + 1) == 0) {
         found_after_unset = true;
         break;
       }
@@ -434,10 +431,6 @@ TEST_F(PosixEnvironmentEnvironTests, EnvironReflectsVariableUnset) {
       << " should NOT be in environ after unsetenv.";
 }
 
-// Note: Direct modification of 'environ' is discouraged and can lead to
-// undefined behavior. These tests only observe 'environ' after calls to
-// 'setenv' or 'unsetenv'. The 'environ' variable itself is often considered
-// legacy; getenv/setenv/unsetenv are preferred.
 }  // namespace
 }  // namespace nplb
 }  // namespace starboard

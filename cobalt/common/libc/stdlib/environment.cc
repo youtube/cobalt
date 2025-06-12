@@ -23,10 +23,6 @@
 
 #include "base/no_destructor.h"
 
-#ifndef __cplusplus
-#error This file must be compiled as a C++ file.
-#endif
-
 namespace cobalt {
 namespace common {
 namespace libc {
