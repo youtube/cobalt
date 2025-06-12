@@ -630,16 +630,31 @@ public abstract class CobaltActivity extends Activity {
     ViewParent parent = videoSurfaceView.getParent();
     if (parent instanceof FrameLayout) {
       FrameLayout frameLayout = (FrameLayout) parent;
+      Log.i(TAG, "createNewSurfaceView, before removing videoSurfaceView, all Layout Views:");
+      printFrameLayoutViews(frameLayout);
+
       int index = frameLayout.indexOfChild(videoSurfaceView);
       frameLayout.removeView(videoSurfaceView);
+      Log.i(TAG, "removed videoSurfaceView at index:" + index);
+
       videoSurfaceView = new VideoSurfaceView(this);
       a11yHelper = new CobaltA11yHelper(this, videoSurfaceView);
       frameLayout.addView(
           videoSurfaceView,
           index,
           new LayoutParams(LayoutParams.MATCH_PARENT, LayoutParams.MATCH_PARENT));
+      Log.i(TAG, "inserted new videoSurfaceView at index:" + index);
+      Log.i(TAG, "after createNewSurfaceView, all Layout Views:");
+      printFrameLayoutViews(frameLayout);
     } else {
       Log.w(TAG, "Unexpected surface view parent class " + parent.getClass().getName());
+    }
+  }
+
+  private void printFrameLayoutViews(FrameLayout frameLayout) {
+    for (int i = 0; i < frameLayout.getChildCount(); i++) {
+      View child = frameLayout.getChildAt(i);
+      Log.i(TAG, "FrameLayout Child at index " + i + " is: " + child.getClass().getName());
     }
   }
 
