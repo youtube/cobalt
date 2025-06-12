@@ -117,6 +117,7 @@ static_library("c_internal") {
     "src/internal/floatscan.c",
     "src/internal/intscan.c",
     "src/internal/shgetc.c",
+    "src/legacy/getpagesize.c",
     "src/locale/strcoll.c",
     "src/locale/strxfrm.c",
     "src/locale/wcscoll.c",
