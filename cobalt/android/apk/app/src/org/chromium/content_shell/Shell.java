@@ -8,13 +8,14 @@ import android.content.Context;
 import android.graphics.Rect;
 import android.text.TextUtils;
 import android.util.AttributeSet;
+import android.util.Log;
 import android.view.ActionMode;
 import android.view.Menu;
 import android.view.MenuItem;
 import android.view.View;
+import android.view.ViewGroup;
 import android.widget.FrameLayout;
 import android.widget.LinearLayout;
-
 import org.chromium.base.Callback;
 import org.chromium.base.annotations.CalledByNative;
 import org.chromium.base.annotations.JNINamespace;
@@ -36,6 +37,7 @@ import org.chromium.ui.base.WindowAndroid;
  */
 @JNINamespace("content")
 public class Shell extends LinearLayout {
+    private static final String TAG = "cobalt";
 
     private static final long COMPLETED_PROGRESS_TIMEOUT_MS = 200;
 
@@ -71,6 +73,9 @@ public class Shell extends LinearLayout {
      */
     public void setContentViewRenderView(ContentViewRenderView contentViewRenderView) {
         FrameLayout contentViewHolder = (FrameLayout) findViewById(R.id.contentview_holder);
+
+        Log.i(TAG, "Shell.setContentViewRenderView(), FrameLayout Views before operation.");
+        printRootViewHierarchy(contentViewHolder);
         if (contentViewRenderView == null) {
             if (mContentViewRenderView != null) {
                 contentViewHolder.removeView(mContentViewRenderView);
@@ -82,6 +87,8 @@ public class Shell extends LinearLayout {
                             FrameLayout.LayoutParams.MATCH_PARENT));
         }
         mContentViewRenderView = contentViewRenderView;
+        Log.i(TAG, "Shell.setContentViewRenderView(), FrameLayout Views after operation.");
+        printRootViewHierarchy(contentViewHolder);
     }
 
     /**
@@ -196,13 +203,52 @@ public class Shell extends LinearLayout {
                 .setActionModeCallback(defaultActionCallback());
         mNavigationController = mWebContents.getNavigationController();
         if (getParent() != null) mWebContents.onShow();
-        ((FrameLayout) findViewById(R.id.contentview_holder)).addView(cv,
+
+        FrameLayout contentViewHolder = (FrameLayout)findViewById(R.id.contentview_holder);
+
+        Log.i(TAG, "Shell.initFromNativeTabContents, before addView, all Layout Views:");
+        printRootViewHierarchy(contentViewHolder);
+
+        contentViewHolder.addView(cv,
                 new FrameLayout.LayoutParams(
                         FrameLayout.LayoutParams.MATCH_PARENT,
                         FrameLayout.LayoutParams.MATCH_PARENT));
+
+        Log.i(TAG, "Shell.initFromNativeTabContents, after addView, all Layout Views:");
+        printRootViewHierarchy(contentViewHolder);
+
         cv.requestFocus();
         mContentViewRenderView.setCurrentWebContents(mWebContents);
     }
+
+  public static void printRootViewHierarchy(View rootView) {
+    Log.i(TAG, "========== Dumping View Hierarchy ==========");
+    printViewHierarchy(rootView, 0);
+    Log.i(TAG, "==========================================");
+  }
+
+  private static void printViewHierarchy(View view, int depth) {
+    // Build the indent string for nice formatting
+    StringBuilder indent = new StringBuilder();
+    for (int i = 0; i < depth; i++) {
+        indent.append("  ");
+    }
+
+    // Get the unique identifier for the view object and format it as a hex string
+    String address = Integer.toHexString(System.identityHashCode(view));
+
+    // Log the view's class name and ID
+    Log.i(TAG, indent + "- " + view.getClass().getSimpleName() + "@" + address);
+
+    // If the view is a ViewGroup, recursively call this method for its children
+    if (view instanceof ViewGroup) {
+        ViewGroup viewGroup = (ViewGroup) view;
+        for (int i = 0; i < viewGroup.getChildCount(); i++) {
+            View child = viewGroup.getChildAt(i);
+            printViewHierarchy(child, depth + 1);
+        }
+    }
+  }
 
     /**
      * {link @ActionMode.Callback} that uses the default implementation in
