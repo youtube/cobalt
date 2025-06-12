@@ -18,6 +18,7 @@
 #include <cerrno>
 #include <cstring>
 #include <iterator>
+#include <ostream>
 #include <string>
 #include <type_traits>
 #include <vector>
@@ -62,6 +63,43 @@ static_assert(
     "'int (const char*, const char*, int)'");
 #endif
 
+// Helper struct and operator to log environment differences.
+struct EnvironmentDifference {
+  const std::vector<std::string>& start_environ;
+  const std::vector<std::string>& end_environ;
+};
+
+std::ostream& operator<<(std::ostream& os,
+                         const EnvironmentDifference& env_diff) {
+  std::vector<std::string> added;
+  std::vector<std::string> removed;
+
+  std::set_difference(env_diff.end_environ.begin(), env_diff.end_environ.end(),
+                      env_diff.start_environ.begin(),
+                      env_diff.start_environ.end(), std::back_inserter(added));
+
+  std::set_difference(env_diff.start_environ.begin(),
+                      env_diff.start_environ.end(),
+                      env_diff.end_environ.begin(), env_diff.end_environ.end(),
+                      std::back_inserter(removed));
+
+  if (!added.empty()) {
+    os << "\n  Entries Added:";
+    for (const auto& var : added) {
+      os << "\n    - " << var;
+    }
+  }
+
+  if (!removed.empty()) {
+    os << "\n  Entries Removed:";
+    for (const auto& var : removed) {
+      os << "\n    - " << var;
+    }
+  }
+
+  return os;
+}
+
 // This test fixture base class is designed to be inherited by the other test
 // harnesses. It captures a snapshot of the environment variables
 // at the beginning of SetUp and verifies that the environment is identical
@@ -73,37 +111,29 @@ class EnvironmentTestBase : public ::testing::Test {
     // This runs BEFORE any SetUp() method.
     // We snapshot the initial environment state.
     for (char** env = environ; *env != nullptr; ++env) {
-      initial_environ_.push_back(*env);
+      start_environ_.push_back(*env);
     }
-    std::sort(initial_environ_.begin(), initial_environ_.end());
+    std::sort(start_environ_.begin(), start_environ_.end());
   }
 
   ~EnvironmentTestBase() override {
     // This runs AFTER any TearDown() method.
     // We take a final snapshot and verify it against the initial one.
     if (!HasFatalFailure()) {
-      std::vector<std::string> final_environ;
+      std::vector<std::string> end_environ;
       for (char** env = environ; *env != nullptr; ++env) {
-        final_environ.push_back(*env);
+        end_environ.push_back(*env);
       }
-      std::sort(final_environ.begin(), final_environ.end());
+      std::sort(end_environ.begin(), end_environ.end());
 
-      EXPECT_EQ(initial_environ_.size(), final_environ.size())
-          << "The environment size changed during the test. Some variables "
-             "might have been added or removed without proper cleanup.";
-
-      if (initial_environ_.size() == final_environ.size()) {
-        for (size_t i = 0; i < initial_environ_.size(); ++i) {
-          EXPECT_EQ(initial_environ_[i], final_environ[i])
-              << "Environment mismatch detected at index " << i
-              << ". A variable was likely modified or not cleaned up properly.";
-        }
-      }
+      EXPECT_EQ(start_environ_, end_environ)
+          << "The environment was modified during the test."
+          << EnvironmentDifference{start_environ_, end_environ};
     }
   }
 
  private:
-  std::vector<std::string> initial_environ_;
+  std::vector<std::string> start_environ_;
 };
 class PosixEnvironmentGetenvTests : public EnvironmentTestBase {
  protected:

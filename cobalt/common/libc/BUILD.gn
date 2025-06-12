@@ -13,5 +13,8 @@
 # limitations under the License.
 
 static_library("libc") {
-  sources = [ "no_destructor.h", "stdlib/environment.cc" ]
+  sources = [
+    "no_destructor.h",
+    "stdlib/environment.cc",
+  ]
 }
