@@ -17,6 +17,7 @@
 #include "starboard/android/shared/accessibility_extension.h"
 #include "starboard/android/shared/android_media_session_client.h"
 #include "starboard/android/shared/configuration.h"
+#include "starboard/android/shared/features.h"
 #include "starboard/android/shared/graphics.h"
 #include "starboard/android/shared/platform_info.h"
 #include "starboard/android/shared/platform_service.h"
@@ -34,6 +35,7 @@
 #endif
 #include "starboard/extension/configuration.h"
 #include "starboard/extension/crash_handler.h"
+#include "starboard/extension/features.h"
 #include "starboard/extension/graphics.h"
 #include "starboard/extension/media_session.h"
 #include "starboard/extension/platform_info.h"
@@ -63,6 +65,9 @@ const void* SbSystemGetExtension(const char* name) {
     // TODO(b/377019873): Re-enable
     // return starboard::android::shared::GetMediaSessionApi();
     return NULL;
+  }
+  if (strcmp(name, kStarboardExtensionFeaturesName) == 0) {
+    return starboard::android::shared::GetFeaturesApi();
   }
   if (strcmp(name, kCobaltExtensionGraphicsName) == 0) {
     // TODO(b/377052944): Check if this is needed, likely can be
