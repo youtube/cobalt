@@ -391,35 +391,6 @@ gfx::NativeWindow Shell::window() {
 }
 #endif
 
-#if BUILDFLAG(IS_MAC)
-void Shell::ActionPerformed(int control) {
-  switch (control) {
-    case IDC_NAV_BACK:
-      GoBackOrForward(-1);
-      break;
-    case IDC_NAV_FORWARD:
-      GoBackOrForward(1);
-      break;
-    case IDC_NAV_RELOAD:
-      Reload();
-      break;
-    case IDC_NAV_STOP:
-      Stop();
-      break;
-  }
-}
-
-void Shell::URLEntered(const std::string& url_string) {
-  if (!url_string.empty()) {
-    GURL url(url_string);
-    if (!url.has_scheme()) {
-      url = GURL("http://" + url_string);
-    }
-    LoadURL(url);
-  }
-}
-#endif
-
 WebContents* Shell::OpenURLFromTab(WebContents* source,
                                    const OpenURLParams& params) {
   WebContents* target = nullptr;
@@ -626,18 +597,6 @@ JavaScriptDialogManager* Shell::GetJavaScriptDialogManager(
   return dialog_manager_.get();
 }
 
-#if BUILDFLAG(IS_MAC)
-void Shell::PrimaryPageChanged(Page& page) {
-  g_platform->DidNavigatePrimaryMainFramePostCommit(
-      this, WebContents::FromRenderFrameHost(&page.GetMainDocument()));
-}
-
-bool Shell::HandleKeyboardEvent(WebContents* source,
-                                const NativeWebKeyboardEvent& event) {
-  return g_platform->HandleKeyboardEvent(this, source, event);
-}
-#endif
-
 bool Shell::DidAddMessageToConsole(WebContents* source,
                                    blink::mojom::ConsoleMessageLevel log_level,
                                    const std::u16string& message,
@@ -658,16 +617,8 @@ void Shell::RendererUnresponsive(
 }
 
 void Shell::ActivateContents(WebContents* contents) {
-#if !BUILDFLAG(IS_MAC)
   // TODO(danakj): Move this to ShellPlatformDelegate.
   contents->Focus();
-#else
-  // Mac headless mode is quite different than other platforms. Normally
-  // focusing the WebContents would cause the OS to focus the window. Because
-  // headless mac doesn't actually have system windows, we can't go down the
-  // normal path and have to fake it out in the browser process.
-  g_platform->ActivateContents(this, contents);
-#endif
 }
 
 void Shell::RunFileChooser(RenderFrameHost* render_frame_host,

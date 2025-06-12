@@ -28,7 +28,6 @@
 #include "base/strings/utf_string_conversions.h"
 #include "base/threading/sequence_local_storage_slot.h"
 #include "build/build_config.h"
-#include "build/chromeos_buildflags.h"
 #include "cc/base/switches.h"
 #include "cobalt/shell/browser/shell.h"
 #include "cobalt/shell/browser/shell_browser_context.h"
@@ -102,11 +101,7 @@
 #include "components/crash/content/browser/crash_handler_host_linux.h"
 #endif
 
-#if BUILDFLAG(IS_MAC)
-#include "services/device/public/cpp/test/fake_geolocation_manager.h"
-#endif
-
-#if BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_CHROMEOS) || BUILDFLAG(IS_ANDROID)
+#if BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_ANDROID)
 #include "components/crash/core/app/crash_switches.h"
 #include "components/crash/core/app/crashpad.h"
 #include "content/public/common/content_descriptors.h"
@@ -141,7 +136,7 @@ GetShellContentBrowserClientInstancesImpl() {
 int GetCrashSignalFD(const base::CommandLine& command_line) {
   return crashpad::CrashHandlerHost::Get()->GetDeathSignalSocket();
 }
-#elif BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_CHROMEOS)
+#elif BUILDFLAG(IS_LINUX)
 int GetCrashSignalFD(const base::CommandLine& command_line) {
   int fd;
   pid_t pid;
@@ -255,17 +250,7 @@ base::flat_set<url::Origin> GetIsolatedContextOriginSetFromFlag() {
 // to be created (actually, ContentBrowserTestContentBrowserClient). Any state
 // needed should be added here so that it's shared between the instances.
 struct SharedState {
-  SharedState() {
-#if BUILDFLAG(IS_MAC)
-    location_manager = std::make_unique<device::FakeGeolocationManager>();
-    location_manager->SetSystemPermission(
-        device::LocationSystemPermissionStatus::kAllowed);
-#endif
-  }
-
-#if BUILDFLAG(IS_MAC)
-  std::unique_ptr<device::FakeGeolocationManager> location_manager;
-#endif
+  SharedState() {}
 
   // Owned by content::BrowserMainLoop.
   raw_ptr<ShellBrowserMainParts, DanglingUntriaged> shell_browser_main_parts =
@@ -414,22 +399,16 @@ void ShellContentBrowserClient::AppendExtraCommandLineSwitches(
     base::CommandLine* command_line,
     int child_process_id) {
   static const char* kForwardSwitches[] = {
-#if BUILDFLAG(IS_MAC)
-    // Needed since on Mac, content_browsertests doesn't use
-    // content_test_launcher.cc and instead uses shell_main.cc. So give a signal
-    // to shell_main.cc that it's a browser test.
-    switches::kBrowserTest,
-#endif
-    switches::kCrashDumpsDir,
-    switches::kEnableCrashReporter,
-    switches::kExposeInternalsForTesting,
-    switches::kRunWebTests,
+      switches::kCrashDumpsDir,
+      switches::kEnableCrashReporter,
+      switches::kExposeInternalsForTesting,
+      switches::kRunWebTests,
   };
 
   command_line->CopySwitchesFrom(*base::CommandLine::ForCurrentProcess(),
                                  kForwardSwitches, std::size(kForwardSwitches));
 
-#if BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_CHROMEOS)
+#if BUILDFLAG(IS_LINUX)
   if (base::CommandLine::ForCurrentProcess()->HasSwitch(
           switches::kEnableCrashReporter)) {
     int fd;
@@ -440,15 +419,11 @@ void ShellContentBrowserClient::AppendExtraCommandLineSwitches(
           base::NumberToString(pid));
     }
   }
-#endif  // BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_CHROMEOS)
+#endif  // BUILDFLAG(IS_LINUX)
 }
 
 device::GeolocationManager* ShellContentBrowserClient::GetGeolocationManager() {
-#if BUILDFLAG(IS_MAC)
-  return GetSharedState().location_manager.get();
-#else
   return nullptr;
-#endif
 }
 
 std::string ShellContentBrowserClient::GetAcceptLangs(BrowserContext* context) {
@@ -614,11 +589,7 @@ base::Value::Dict ShellContentBrowserClient::GetNetLogConstants() {
   client_constants.Set("name", "content_shell");
   base::CommandLine::StringType command_line =
       base::CommandLine::ForCurrentProcess()->GetCommandLineString();
-#if BUILDFLAG(IS_WIN)
-  client_constants.Set("command_line", base::WideToUTF8(command_line));
-#else
   client_constants.Set("command_line", command_line);
-#endif
   base::Value::Dict constants;
   constants.Set("clientInfo", std::move(client_constants));
   return constants;
@@ -660,7 +631,7 @@ void ShellContentBrowserClient::OverrideURLLoaderFactoryParams(
   }
 }
 
-#if BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_CHROMEOS) || BUILDFLAG(IS_ANDROID)
+#if BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_ANDROID)
 void ShellContentBrowserClient::GetAdditionalMappedFilesForChildProcess(
     const base::CommandLine& command_line,
     int child_process_id,
@@ -676,7 +647,7 @@ void ShellContentBrowserClient::GetAdditionalMappedFilesForChildProcess(
     mappings->Share(kCrashDumpSignal, crash_signal_fd);
   }
 }
-#endif  // BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_CHROMEOS) ||
+#endif  // BUILDFLAG(IS_LINUX) ||
         // BUILDFLAG(IS_ANDROID)
 
 void ShellContentBrowserClient::ConfigureNetworkContextParams(

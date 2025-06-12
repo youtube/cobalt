@@ -10,14 +10,6 @@
 #include "build/build_config.h"
 #include "content/public/browser/javascript_dialog_manager.h"
 
-#if BUILDFLAG(IS_MAC)
-#if __OBJC__
-@class ShellJavaScriptDialogHelper;
-#else
-class ShellJavaScriptDialogHelper;
-#endif  // __OBJC__
-#endif  // BUILDFLAG(IS_MAC)
-
 namespace content {
 
 class ShellJavaScriptDialogManager;
@@ -40,20 +32,6 @@ class ShellJavaScriptDialog {
   void Cancel();
 
  private:
-#if BUILDFLAG(IS_MAC)
-  ShellJavaScriptDialogHelper* helper_;  // owned
-#elif BUILDFLAG(IS_WIN)
-  JavaScriptDialogManager::DialogClosedCallback callback_;
-  raw_ptr<ShellJavaScriptDialogManager> manager_;
-  JavaScriptDialogType dialog_type_;
-  HWND dialog_win_;
-  std::u16string message_text_;
-  std::u16string default_prompt_text_;
-  static INT_PTR CALLBACK DialogProc(HWND dialog,
-                                     UINT message,
-                                     WPARAM wparam,
-                                     LPARAM lparam);
-#endif
 };
 
 }  // namespace content

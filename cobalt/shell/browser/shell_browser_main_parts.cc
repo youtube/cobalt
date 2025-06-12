@@ -18,7 +18,6 @@
 #include "base/threading/thread.h"
 #include "base/threading/thread_restrictions.h"
 #include "build/build_config.h"
-#include "build/chromeos_buildflags.h"
 #include "cc/base/switches.h"
 #include "cobalt/shell/browser/shell.h"
 #include "cobalt/shell/browser/shell_browser_context.h"
@@ -50,30 +49,17 @@
 #include "net/base/network_change_notifier.h"
 #endif
 
-#if defined(USE_AURA) && (BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_CHROMEOS_LACROS))
+#if defined(USE_AURA) && (BUILDFLAG(IS_LINUX))
 #include "ui/base/ime/init/input_method_initializer.h"
 #endif
 
-#if BUILDFLAG(IS_CHROMEOS)
-#include "chromeos/ash/components/dbus/dbus_thread_manager.h"
-#include "device/bluetooth/dbus/bluez_dbus_manager.h"
-#include "device/bluetooth/floss/floss_dbus_manager.h"
-#include "device/bluetooth/floss/floss_features.h"
-#elif BUILDFLAG(IS_LINUX)
+#if BUILDFLAG(IS_LINUX)
 #include "device/bluetooth/dbus/dbus_bluez_manager_wrapper_linux.h"
-#endif
-
-#if BUILDFLAG(IS_CHROMEOS_LACROS)
-#include "chromeos/lacros/dbus/lacros_dbus_thread_manager.h"
 #endif
 
 #if BUILDFLAG(IS_LINUX)
 #include "ui/linux/linux_ui.h"          // nogncheck
 #include "ui/linux/linux_ui_factory.h"  // nogncheck
-#endif
-
-#if BUILDFLAG(IS_FUCHSIA)
-#include "cobalt/shell/browser/fuchsia_view_presenter.h"
 #endif
 
 namespace content {
@@ -94,11 +80,7 @@ GURL GetStartupURL() {
     return GURL("https://www.google.com/");
   }
 
-#if BUILDFLAG(IS_WIN)
-  GURL url(base::WideToUTF16(args[0]));
-#else
   GURL url(args[0]);
-#endif
   if (url.is_valid() && url.has_scheme()) {
     return url;
   }
@@ -123,25 +105,13 @@ ShellBrowserMainParts::ShellBrowserMainParts() = default;
 ShellBrowserMainParts::~ShellBrowserMainParts() = default;
 
 void ShellBrowserMainParts::PostCreateMainMessageLoop() {
-#if BUILDFLAG(IS_CHROMEOS_ASH)
-  ash::DBusThreadManager::Initialize();
-#elif BUILDFLAG(IS_CHROMEOS_LACROS)
-  chromeos::LacrosDBusThreadManager::Initialize();
-#endif
-
-#if BUILDFLAG(IS_CHROMEOS)
-  if (floss::features::IsFlossEnabled()) {
-    floss::FlossDBusManager::InitializeFake();
-  } else {
-    bluez::BluezDBusManager::InitializeFake();
-  }
-#elif BUILDFLAG(IS_LINUX)
+#if BUILDFLAG(IS_LINUX)
   bluez::DBusBluezManagerWrapperLinux::Initialize();
 #endif
 }
 
 int ShellBrowserMainParts::PreEarlyInitialization() {
-#if defined(USE_AURA) && (BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_CHROMEOS_LACROS))
+#if defined(USE_AURA) && (BUILDFLAG(IS_LINUX))
   ui::InitializeInputMethodForTesting();
 #endif
 #if BUILDFLAG(IS_ANDROID)
@@ -196,10 +166,6 @@ void ShellBrowserMainParts::PostCreateThreads() {
 }
 
 int ShellBrowserMainParts::PreMainMessageLoopRun() {
-#if BUILDFLAG(IS_FUCHSIA)
-  fuchsia_view_presenter_ = std::make_unique<FuchsiaViewPresenter>();
-#endif
-
   InitializeBrowserContexts();
   Shell::Initialize(CreateShellPlatformDelegate());
   net::NetModule::SetResourceProvider(PlatformResourceProvider);
@@ -222,28 +188,12 @@ void ShellBrowserMainParts::PostMainMessageLoopRun() {
   ui::LinuxUi::SetInstance(nullptr);
 #endif
   performance_manager_lifetime_.reset();
-#if BUILDFLAG(IS_FUCHSIA)
-  fuchsia_view_presenter_.reset();
-#endif
 }
 
 void ShellBrowserMainParts::PostDestroyThreads() {
-#if BUILDFLAG(IS_CHROMEOS)
-  device::BluetoothAdapterFactory::Shutdown();
-  if (floss::features::IsFlossEnabled()) {
-    floss::FlossDBusManager::Shutdown();
-  } else {
-    bluez::BluezDBusManager::Shutdown();
-  }
-#elif BUILDFLAG(IS_LINUX)
+#if BUILDFLAG(IS_LINUX)
   device::BluetoothAdapterFactory::Shutdown();
   bluez::DBusBluezManagerWrapperLinux::Shutdown();
-#endif
-
-#if BUILDFLAG(IS_CHROMEOS_ASH)
-  ash::DBusThreadManager::Shutdown();
-#elif BUILDFLAG(IS_CHROMEOS_LACROS)
-  chromeos::LacrosDBusThreadManager::Shutdown();
 #endif
 }
 
