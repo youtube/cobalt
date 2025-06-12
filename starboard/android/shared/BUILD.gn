@@ -408,6 +408,6 @@ source_set("starboard_platform_tests") {
   ]
 }
 
-java_cpp_enum("media_codec_status_enums") {
+java_cpp_enum("java_enums") {
   sources = [ "media_codec_bridge.h" ]
 }

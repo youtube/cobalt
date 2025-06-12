@@ -155,7 +155,7 @@ android_library("cobalt_main_java") {
     ]
   }
 
-  srcjar_deps = [ "//starboard/android/shared:media_codec_status_enums" ]
+  srcjar_deps = [ "//starboard/android/shared:java_enums" ]
 
   sources = [
     "apk/app/src/main/java/dev/cobalt/coat/AdvertisingId.java",
