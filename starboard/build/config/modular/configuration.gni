@@ -22,7 +22,7 @@ nasm_exists = true
 
 # Override that omits the "data" subdirectory.
 # TODO: Remove when omitted for all platforms in base_configuration.gni.
-sb_static_contents_output_data_dir = "$root_out_dir/content"
+sb_static_contents_output_data_dir = "$root_out_dir"
 
 final_executable_type = "shared_library"
 gtest_target_type = "shared_library"
