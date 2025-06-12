@@ -34,18 +34,8 @@ class ShellWebContentsViewDelegate : public WebContentsViewDelegate {
   void ShowContextMenu(RenderFrameHost& render_frame_host,
                        const ContextMenuParams& params) override;
 
-#if BUILDFLAG(IS_MAC)
-  void ActionPerformed(int id);
-  NSObject<RenderWidgetHostViewMacDelegate>* GetDelegateForHost(
-      content::RenderWidgetHost* render_widget_host,
-      bool is_popup) override;
-#endif
-
  private:
   raw_ptr<WebContents> web_contents_;
-#if BUILDFLAG(IS_MAC)
-  ContextMenuParams params_;
-#endif
 
 #if defined(SHELL_USE_TOOLKIT_VIEWS)
   std::unique_ptr<ui::SimpleMenuModel> context_menu_model_;

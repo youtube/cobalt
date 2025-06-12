@@ -37,29 +37,9 @@ void ShellJavaScriptDialogManager::RunJavaScriptDialog(
     return;
   }
 
-#if BUILDFLAG(IS_MAC) || BUILDFLAG(IS_WIN)
-  *did_suppress_message = false;
-
-  if (dialog_) {
-    // One dialog at a time, please.
-    *did_suppress_message = true;
-    return;
-  }
-
-  std::u16string new_message_text =
-      url_formatter::FormatUrl(
-          render_frame_host->GetLastCommittedOrigin().GetURL()) +
-      u"\n\n" + message_text;
-  gfx::NativeWindow parent_window = web_contents->GetTopLevelNativeWindow();
-
-  dialog_ = std::make_unique<ShellJavaScriptDialog>(
-      this, parent_window, dialog_type, new_message_text, default_prompt_text,
-      std::move(callback));
-#else
   // TODO: implement ShellJavaScriptDialog for other platforms, drop this #if
   *did_suppress_message = true;
   return;
-#endif
 }
 
 void ShellJavaScriptDialogManager::RunBeforeUnloadDialog(
@@ -80,38 +60,14 @@ void ShellJavaScriptDialogManager::RunBeforeUnloadDialog(
     return;
   }
 
-#if BUILDFLAG(IS_MAC) || BUILDFLAG(IS_WIN)
-  if (dialog_) {
-    // Seriously!?
-    std::move(callback).Run(true, std::u16string());
-    return;
-  }
-
-  std::u16string message_text = u"Is it OK to leave/reload this page?";
-
-  gfx::NativeWindow parent_window = web_contents->GetTopLevelNativeWindow();
-
-  dialog_ = std::make_unique<ShellJavaScriptDialog>(
-      this, parent_window, JAVASCRIPT_DIALOG_TYPE_CONFIRM, message_text,
-      std::u16string(),  // default
-      std::move(callback));
-#else
   // TODO: implement ShellJavaScriptDialog for other platforms, drop this #if
   std::move(callback).Run(true, std::u16string());
   return;
-#endif
 }
 
 void ShellJavaScriptDialogManager::CancelDialogs(WebContents* web_contents,
                                                  bool reset_state) {
-#if BUILDFLAG(IS_MAC) || BUILDFLAG(IS_WIN)
-  if (dialog_) {
-    dialog_->Cancel();
-    dialog_.reset();
-  }
-#else
   // TODO: implement ShellJavaScriptDialog for other platforms, drop this #if
-#endif
 
   if (before_unload_callback_.is_null()) {
     return;
@@ -123,12 +79,7 @@ void ShellJavaScriptDialogManager::CancelDialogs(WebContents* web_contents,
 }
 
 void ShellJavaScriptDialogManager::DialogClosed(ShellJavaScriptDialog* dialog) {
-#if BUILDFLAG(IS_MAC) || BUILDFLAG(IS_WIN)
-  DCHECK_EQ(dialog, dialog_.get());
-  dialog_.reset();
-#else
   // TODO: implement ShellJavaScriptDialog for other platforms, drop this #if
-#endif
 }
 
 }  // namespace content

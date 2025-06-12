@@ -11,9 +11,7 @@
 #include "base/threading/thread_restrictions.h"
 #include "build/build_config.h"
 
-#if BUILDFLAG(IS_FUCHSIA)
-#include "base/fuchsia/file_utils.h"
-#elif BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_CHROMEOS)
+#if BUILDFLAG(IS_LINUX)
 #include "base/nix/xdg_util.h"
 #endif
 
@@ -22,10 +20,7 @@ namespace content {
 namespace {
 
 bool GetDefaultUserDataDirectory(base::FilePath* result) {
-#if BUILDFLAG(IS_WIN)
-  CHECK(base::PathService::Get(base::DIR_LOCAL_APP_DATA, result));
-  *result = result->Append(std::wstring(L"content_shell"));
-#elif BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_CHROMEOS)
+#if BUILDFLAG(IS_LINUX)
   std::unique_ptr<base::Environment> env(base::Environment::Create());
   base::FilePath config_dir(base::nix::GetXDGDirectory(
       env.get(), base::nix::kXdgConfigHomeEnvVar, base::nix::kDotConfigDir));
@@ -36,9 +31,6 @@ bool GetDefaultUserDataDirectory(base::FilePath* result) {
 #elif BUILDFLAG(IS_ANDROID)
   CHECK(base::PathService::Get(base::DIR_ANDROID_APP_DATA, result));
   *result = result->Append(FILE_PATH_LITERAL("content_shell"));
-#elif BUILDFLAG(IS_FUCHSIA)
-  *result = base::FilePath(base::kPersistedDataDirectoryPath)
-                .Append(FILE_PATH_LITERAL("content_shell"));
 #else
   NOTIMPLEMENTED();
   return false;
