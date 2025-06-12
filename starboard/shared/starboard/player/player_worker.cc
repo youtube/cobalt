@@ -26,6 +26,9 @@
 #include "starboard/memory.h"
 #include "starboard/shared/pthread/thread_create_priority.h"
 
+#include "starboard/android/shared/jni_env_ext.h"
+#include "starboard/android/shared/jni_utils.h"
+
 namespace starboard {
 namespace shared {
 namespace starboard {
@@ -62,6 +65,19 @@ struct ThreadParam {
   ConditionVariable condition_variable;
   PlayerWorker* player_worker;
 };
+
+// Function to control screen keep-on state via JNI
+void SetKeepScreenOn(bool keep_on) {
+  using ::starboard::android::shared::JniEnvExt;
+  JniEnvExt* env = JniEnvExt::Get();
+  if (!env) {
+    SB_DLOG(INFO) << "Failed to get JNI environment for screen control";
+    return;
+  }
+
+  env->CallStarboardVoidMethodOrAbort("setKeepScreenOn", "(Z)V", static_cast<jboolean>(keep_on));
+  SB_DLOG(INFO) << "Successfully called setKeepScreenOn(" << keep_on << ")";
+}
 
 }  // namespace
 
@@ -160,6 +176,16 @@ void PlayerWorker::UpdatePlayerState(SbPlayerState player_state) {
     SB_LOG(WARNING) << "Player state is updated after an error.";
     return;
   }
+
+  // Android screen wake control based on player state
+  if (player_state == kSbPlayerStatePresenting && player_state_ != kSbPlayerStatePresenting) {
+    // Entering presenting state - keep screen on
+    SetKeepScreenOn(true);
+  } else if (player_state_ == kSbPlayerStatePresenting && player_state != kSbPlayerStatePresenting) {
+    // Leaving presenting state - allow screen to turn off
+    SetKeepScreenOn(false);
+  }
+
   player_state_ = player_state;
 
   if (!player_status_func_) {
@@ -406,6 +432,13 @@ void PlayerWorker::DoSetVolume(double volume) {
 
 void PlayerWorker::DoStop() {
   SB_DCHECK(job_queue_->BelongsToCurrentThread());
+
+  SB_DLOG(INFO) << "[PlayStatus] PlayerWorker::DoStop() starting player stop process";
+
+  // Ensure screen keep-on is disabled when stopping
+  if (player_state_ == kSbPlayerStatePresenting) {
+    SetKeepScreenOn(false);
+  }
 
   handler_->Stop();
   handler_.reset();
