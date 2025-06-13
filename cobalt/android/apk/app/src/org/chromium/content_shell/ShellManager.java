@@ -104,7 +104,7 @@ public class ShellManager extends FrameLayout {
         frameLayout.setId(R.id.contentview_holder);
 
         Log.i(TAG, "ShellManager.createShell, after creating FrameLayout, all Layout Views:");
-        Shell.printRootViewHierarchy(frameLayout);
+        Util.printRootViewHierarchy(frameLayout);
 
         shellView.addView(frameLayout);
 
@@ -116,7 +116,7 @@ public class ShellManager extends FrameLayout {
         showShell(shellView);
 
         Log.i(TAG, "ShellManager.createShell, after showShell, all Layout Views:");
-        Shell.printRootViewHierarchy(frameLayout);
+        Util.printRootViewHierarchy(frameLayout);
 
         return shellView;
     }

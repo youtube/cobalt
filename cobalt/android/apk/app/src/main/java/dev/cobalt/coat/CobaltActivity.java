@@ -29,7 +29,6 @@ import android.os.SystemClock;
 import android.text.TextUtils;
 import android.view.KeyEvent;
 import android.view.View;
-import android.view.ViewGroup;
 import android.view.ViewGroup.LayoutParams;
 import android.view.ViewParent;
 import android.view.WindowManager;
@@ -61,6 +60,7 @@ import org.chromium.content_public.browser.JavascriptInjector;
 import org.chromium.content_public.browser.WebContents;
 import org.chromium.content_shell.Shell;
 import org.chromium.content_shell.ShellManager;
+import org.chromium.content_shell.Util;
 import org.chromium.ui.base.ActivityWindowAndroid;
 import org.chromium.ui.base.IntentRequestTracker;
 
@@ -352,36 +352,7 @@ public abstract class CobaltActivity extends Activity {
 
     Log.i(TAG, "CobaltActivity onCreate, all Layout Views:");
     View rootView = getWindow().getDecorView().getRootView();
-    printRootViewHierarchy(rootView);
-  }
-
-  private static void printRootViewHierarchy(View rootView) {
-    Log.i(TAG, "========== Dumping View Hierarchy ==========");
-    printViewHierarchy(rootView, 0);
-    Log.i(TAG, "==========================================");
-  }
-
-  private static void printViewHierarchy(View view, int depth) {
-    // Build the indent string for nice formatting
-    StringBuilder indent = new StringBuilder();
-    for (int i = 0; i < depth; i++) {
-        indent.append("  ");
-    }
-
-    // Get the unique identifier for the view object and format it as a hex string
-    String address = Integer.toHexString(System.identityHashCode(view));
-
-    // Log the view's class name and ID
-    Log.i(TAG, indent + "- " + view.getClass().getSimpleName() + "@" + address);
-
-    // If the view is a ViewGroup, recursively call this method for its children
-    if (view instanceof ViewGroup) {
-        ViewGroup viewGroup = (ViewGroup) view;
-        for (int i = 0; i < viewGroup.getChildCount(); i++) {
-            View child = viewGroup.getChildAt(i);
-            printViewHierarchy(child, depth + 1);
-        }
-    }
+    Util.printRootViewHierarchy(rootView);
   }
 
   /**
@@ -666,7 +637,7 @@ public abstract class CobaltActivity extends Activity {
       FrameLayout frameLayout = (FrameLayout) parent;
       Log.i(TAG, "createNewSurfaceView, before removing videoSurfaceView, all Views:");
       View rootView = getWindow().getDecorView().getRootView();
-      printRootViewHierarchy(rootView);
+      Util.printRootViewHierarchy(rootView);
 
       int index = frameLayout.indexOfChild(videoSurfaceView);
       frameLayout.removeView(videoSurfaceView);
@@ -680,7 +651,7 @@ public abstract class CobaltActivity extends Activity {
           new LayoutParams(LayoutParams.MATCH_PARENT, LayoutParams.MATCH_PARENT));
       Log.i(TAG, "inserted new videoSurfaceView at index:" + index);
       Log.i(TAG, "after createNewSurfaceView, all Views:");
-      printRootViewHierarchy(rootView);
+      Util.printRootViewHierarchy(rootView);
     } else {
       Log.w(TAG, "Unexpected surface view parent class " + parent.getClass().getName());
     }

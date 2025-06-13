@@ -75,7 +75,7 @@ public class Shell extends LinearLayout {
         FrameLayout contentViewHolder = (FrameLayout) findViewById(R.id.contentview_holder);
 
         Log.i(TAG, "Shell.setContentViewRenderView(), FrameLayout Views before operation.");
-        printRootViewHierarchy(contentViewHolder);
+        Util.printRootViewHierarchy(contentViewHolder);
         if (contentViewRenderView == null) {
             if (mContentViewRenderView != null) {
                 contentViewHolder.removeView(mContentViewRenderView);
@@ -88,7 +88,7 @@ public class Shell extends LinearLayout {
         }
         mContentViewRenderView = contentViewRenderView;
         Log.i(TAG, "Shell.setContentViewRenderView(), FrameLayout Views after operation.");
-        printRootViewHierarchy(contentViewHolder);
+        Util.printRootViewHierarchy(contentViewHolder);
     }
 
     /**
@@ -207,7 +207,7 @@ public class Shell extends LinearLayout {
         FrameLayout contentViewHolder = (FrameLayout)findViewById(R.id.contentview_holder);
 
         Log.i(TAG, "Shell.initFromNativeTabContents, before addView, all Layout Views:");
-        printRootViewHierarchy(contentViewHolder);
+        Util.printRootViewHierarchy(contentViewHolder);
 
         contentViewHolder.addView(cv,
                 new FrameLayout.LayoutParams(
@@ -215,40 +215,11 @@ public class Shell extends LinearLayout {
                         FrameLayout.LayoutParams.MATCH_PARENT));
 
         Log.i(TAG, "Shell.initFromNativeTabContents, after addView, all Layout Views:");
-        printRootViewHierarchy(contentViewHolder);
+        Util.printRootViewHierarchy(contentViewHolder);
 
         cv.requestFocus();
         mContentViewRenderView.setCurrentWebContents(mWebContents);
     }
-
-  public static void printRootViewHierarchy(View rootView) {
-    Log.i(TAG, "========== Dumping View Hierarchy ==========");
-    printViewHierarchy(rootView, 0);
-    Log.i(TAG, "==========================================");
-  }
-
-  private static void printViewHierarchy(View view, int depth) {
-    // Build the indent string for nice formatting
-    StringBuilder indent = new StringBuilder();
-    for (int i = 0; i < depth; i++) {
-        indent.append("  ");
-    }
-
-    // Get the unique identifier for the view object and format it as a hex string
-    String address = Integer.toHexString(System.identityHashCode(view));
-
-    // Log the view's class name and ID
-    Log.i(TAG, indent + "- " + view.getClass().getSimpleName() + "@" + address);
-
-    // If the view is a ViewGroup, recursively call this method for its children
-    if (view instanceof ViewGroup) {
-        ViewGroup viewGroup = (ViewGroup) view;
-        for (int i = 0; i < viewGroup.getChildCount(); i++) {
-            View child = viewGroup.getChildAt(i);
-            printViewHierarchy(child, depth + 1);
-        }
-    }
-  }
 
     /**
      * {link @ActionMode.Callback} that uses the default implementation in
