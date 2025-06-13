@@ -24,7 +24,7 @@ import java.util.Locale;
  * <p>The implementation is using reflection.
  */
 public final class Log {
-  public static final String TAG = "cobalt";
+  public static final String TAG = "starboard";
 
   private static Method logV;
   private static Method logD;
