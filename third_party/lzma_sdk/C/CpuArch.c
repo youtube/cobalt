@@ -421,6 +421,8 @@ BoolInt CPU_IsSupported_AES (void) { return APPLE_CRYPTO_SUPPORT_VAL; }
 #define USE_HWCAP
 #endif // !defined(ARMV8_OS_FUCHSIA)
 
+//hack
+#undef USE_HWCAP
 #ifdef USE_HWCAP
 
 #include <asm/hwcap.h>
