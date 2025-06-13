@@ -294,8 +294,13 @@ inline constexpr int kDefaultIetfLossDelayShift = 3;
 
 // Maximum number of retransmittable packets received before sending an ack.
 inline constexpr QuicPacketCount kDefaultRetransmittablePacketsBeforeAck = 2;
+#if BUILDFLAG(IS_COBALT)
+// Wait for up to 50 retransmittable packets before sending an ack.
+inline constexpr QuicPacketCount kMaxRetransmittablePacketsBeforeAck = 50;
+#else
 // Wait for up to 10 retransmittable packets before sending an ack.
 inline constexpr QuicPacketCount kMaxRetransmittablePacketsBeforeAck = 10;
+#endif
 // Minimum number of packets received before ack decimation is enabled.
 // This intends to avoid the beginning of slow start, when CWNDs may be
 // rapidly increasing.
