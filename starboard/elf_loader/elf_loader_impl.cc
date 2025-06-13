@@ -28,6 +28,9 @@
 #include "starboard/extension/loader_app_metrics.h"
 #include "starboard/system.h"
 
+#undef SB_DLOG
+#define SB_DLOG SB_LOG
+
 namespace starboard {
 namespace elf_loader {
 
@@ -179,7 +182,7 @@ bool ElfLoaderImpl::Load(const char* name,
   SB_DLOG(INFO) << "Published Evergreen Info";
 
   SB_DLOG(INFO) << "Call constructors";
-  dynamic_section_->CallConstructors();
+  // dynamic_section_->CallConstructors();
 
   SB_DLOG(INFO) << "Finished loading";
 
