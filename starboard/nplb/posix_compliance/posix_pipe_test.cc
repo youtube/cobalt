@@ -209,7 +209,7 @@ void* DoReadOnTimeout(void* parameter) {
   EXPECT_EQ(pthread_mutex_unlock(&context->had_expected_failed_write_mutex), 0);
 
   if (!assume_main_thread_blocked_on_write) {
-    return NULL;
+    return nullptr;
   }
 
   EXPECT_EQ(pthread_mutex_lock(&context->out_of_time_mutex), 0);
@@ -224,7 +224,7 @@ void* DoReadOnTimeout(void* parameter) {
   char buffer[estimated_page_size];
   EXPECT_EQ(estimated_page_size,
             read(context->read_fd, buffer, estimated_page_size));
-  return NULL;
+  return nullptr;
 }
 
 // A compliant platform will pass the test as soon as the pipe becomes full; a
