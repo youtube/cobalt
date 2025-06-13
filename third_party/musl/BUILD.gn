@@ -515,7 +515,11 @@ static_library("c_internal") {
     "//starboard/client_porting/eztime",
 =======
     "//cobalt/common/eztime",
+<<<<<<< HEAD
 >>>>>>> 021926dc7d9 (Add evergreen platform (#5822))
+=======
+    "//cobalt/common/libc",
+>>>>>>> b04642b2ec2 (Add setenv/getenv/environ (#5903))
     "//starboard/common:common_headers_only",
   ]
 }
