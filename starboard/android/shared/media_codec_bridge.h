@@ -224,6 +224,7 @@ class MediaCodecBridge {
   void OnMediaCodecFirstTunnelFrameReady();
 
   static jboolean IsFrameRenderedCallbackEnabled();
+  static jboolean IsVersionSDKGreaterOrEqual(int sdk_version);
 
  private:
   // |MediaCodecBridge|s must only be created through its factory methods.
