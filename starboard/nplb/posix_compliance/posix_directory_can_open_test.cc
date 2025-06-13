@@ -25,7 +25,7 @@ namespace nplb {
 namespace {
 
 TEST(PosixDirectoryCanOpenTest, SunnyDay) {
-  std::string path = starboard::nplb::GetTempDir();
+  const std::string path = starboard::nplb::GetTempDir();
   struct stat file_info;
   EXPECT_FALSE(path.empty());
   EXPECT_TRUE(stat(path.c_str(), &file_info) == 0);
@@ -34,7 +34,7 @@ TEST(PosixDirectoryCanOpenTest, SunnyDay) {
 }
 
 TEST(PosixDirectoryCanOpenTest, SunnyDayStaticContent) {
-  for (auto dir_path : GetFileTestsDirectoryPaths()) {
+  for (const auto& dir_path : GetFileTestsDirectoryPaths()) {
     struct stat file_info;
     stat(dir_path.c_str(), &file_info);
     EXPECT_TRUE(S_ISDIR(file_info.st_mode)) << "Can't open: " << dir_path;
@@ -42,8 +42,8 @@ TEST(PosixDirectoryCanOpenTest, SunnyDayStaticContent) {
 }
 
 TEST(PosixDirectoryCanOpenTest, FLAKY_FailureMissingStaticContent) {
-  std::string directory_path = GetFileTestsDataDir();
-  std::string missing_dir = directory_path + kSbFileSepChar + "missing_dir";
+  const std::string directory_path = GetFileTestsDataDir();
+  const std::string missing_dir = directory_path + kSbFileSepChar + "missing_dir";
   struct stat file_info;
   stat(missing_dir.c_str(), &file_info);
   EXPECT_FALSE(S_ISDIR(file_info.st_mode));
