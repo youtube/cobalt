@@ -61,6 +61,7 @@ import org.chromium.content_public.browser.JavascriptInjector;
 import org.chromium.content_public.browser.WebContents;
 import org.chromium.content_shell.Shell;
 import org.chromium.content_shell.ShellManager;
+import org.chromium.content_shell.Util;
 import org.chromium.ui.base.ActivityWindowAndroid;
 import org.chromium.ui.base.IntentRequestTracker;
 
@@ -374,6 +375,10 @@ public abstract class CobaltActivity extends Activity {
     videoSurfaceView.setBackgroundColor(Color.BLACK);
     a11yHelper = new CobaltA11yHelper(this, videoSurfaceView);
     addContentView(videoSurfaceView, new LayoutParams(LayoutParams.MATCH_PARENT, LayoutParams.MATCH_PARENT));
+
+    Log.i(TAG, "CobaltActivity onCreate, all Layout Views:");
+    View rootView = getWindow().getDecorView().getRootView();
+    Util.printRootViewHierarchy(rootView);
   }
 
   /**
@@ -651,6 +656,13 @@ public abstract class CobaltActivity extends Activity {
     ViewParent parent = videoSurfaceView.getParent();
     if (parent instanceof FrameLayout) {
       FrameLayout frameLayout = (FrameLayout) parent;
+<<<<<<< HEAD
+=======
+      Log.i(TAG, "createNewSurfaceView, before removing videoSurfaceView, all Views:");
+      View rootView = getWindow().getDecorView().getRootView();
+      Util.printRootViewHierarchy(rootView);
+
+>>>>>>> ab79526cf99 (Add more logs to debug View hierarchy (#6086))
       int index = frameLayout.indexOfChild(videoSurfaceView);
       frameLayout.removeView(videoSurfaceView);
       videoSurfaceView = new VideoSurfaceView(this);
@@ -659,6 +671,12 @@ public abstract class CobaltActivity extends Activity {
           videoSurfaceView,
           index,
           new LayoutParams(LayoutParams.MATCH_PARENT, LayoutParams.MATCH_PARENT));
+<<<<<<< HEAD
+=======
+      Log.i(TAG, "inserted new videoSurfaceView at index:" + index);
+      Log.i(TAG, "after createNewSurfaceView, all Views:");
+      Util.printRootViewHierarchy(rootView);
+>>>>>>> ab79526cf99 (Add more logs to debug View hierarchy (#6086))
     } else {
       Log.w(TAG, "Unexpected surface view parent class " + parent.getClass().getName());
     }
