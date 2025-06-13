@@ -170,23 +170,56 @@ def write_build_id_header(output_path):
             cobalt_build_version_number=get_build_id()))
 
 
-def write_licenses(output_path):
-  """Writes a Cobalt licenses_cobalt txt file."""
+def write_licenses(txt_path, spdx_path, json_file):
+  """Writes Cobalt licenses files if they do not already exist."""
   out_dir = os.getcwd()
   src_dir = os.path.dirname(os.path.dirname(out_dir))
-  command = [
-      'tools/licenses/licenses.py',
-      'license_file',
-      os.path.join(out_dir, output_path),
-      '--gn-target',
-      'cobalt:gn_all',
-      '--gn-out-dir',
-      out_dir,
-  ]
-  subprocess.call(command, cwd=src_dir)
+  txt_file = os.path.join(out_dir, txt_path)
+  spdx_file = os.path.join(out_dir, spdx_path)
+  json_file = os.path.join(out_dir, json_file)
+
+  if not os.path.isfile(txt_file):
+    command = [
+        'tools/licenses/licenses.py',
+        'license_file',
+        txt_file,
+        '--gn-target',
+        'cobalt:gn_all',
+        '--gn-out-dir',
+        out_dir,
+    ]
+    subprocess.call(command, cwd=src_dir)
+
+  if not os.path.isfile(spdx_file):
+    command = [
+        'tools/licenses/licenses.py',
+        'license_file',
+        spdx_file,
+        '--gn-target',
+        'cobalt:gn_all',
+        '--gn-out-dir',
+        out_dir,
+        '--format',
+        'spdx',
+    ]
+    subprocess.call(command, cwd=src_dir)
+
+  if not os.path.isfile(json_file) and os.path.isfile(spdx_file):
+    url = 'https://source.chromium.org/chromium/chromium/src/+/main:'
+    with open(spdx_file, 'r', encoding='utf-8') as f:
+      data = json.load(f)
+    licenses = []
+    for info in data['hasExtractedLicensingInfos']:
+      simple_info = {}
+      simple_info['name'] = info['name']
+      simple_info['path'] = info['crossRefs'][0]['url'][len(url):]
+      simple_info['license'] = info['extractedText']
+      licenses.append(simple_info)
+    with open(json_file, 'w', encoding='utf-8') as f:
+      json.dump({'licenses': licenses}, f, indent=4)
 
 
 if __name__ == '__main__':
   write_build_id_header(sys.argv[1])
   write_build_json(sys.argv[2])
-  write_licenses(sys.argv[3])
+  write_licenses(sys.argv[3], sys.argv[4], sys.argv[5])
