@@ -1010,6 +1010,23 @@ public class WindowAndroid
     }
 
     /**
+<<<<<<< HEAD
+=======
+     * Update whether the placeholder is 'drawn' based on whether an animation is running
+     * or touch exploration is enabled - if either of those are true, we call
+     * setWillNotDraw(false) to ensure that the animation is drawn over the SurfaceView,
+     * and otherwise we call setWillNotDraw(true).
+     */
+    private void refreshWillNotDraw() {
+        boolean willNotDraw = !mIsTouchExplorationEnabled && mAnimationsOverContent.isEmpty();
+        if (mAnimationPlaceholderView.willNotDraw() != willNotDraw) {
+            mAnimationPlaceholderView.setWillNotDraw(willNotDraw);
+            Log.i(TAG, "WindowAndroid mAnimationPlaceholderView.setWillNotDraw:" + willNotDraw);
+        }
+    }
+
+    /**
+>>>>>>> 54b27e54dfc (Add more logs to debug View hierarchy (#6086))
      * As long as there are still animations which haven't ended, this will return false.
      * @return True if all known animations have ended.
      */
