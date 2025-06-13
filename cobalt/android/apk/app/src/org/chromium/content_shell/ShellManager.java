@@ -6,8 +6,8 @@ package org.chromium.content_shell;
 
 import android.content.Context;
 import android.util.AttributeSet;
+import android.util.Log;
 import android.widget.FrameLayout;
-
 import org.chromium.base.ThreadUtils;
 import org.chromium.base.annotations.CalledByNative;
 import org.chromium.base.annotations.JNINamespace;
@@ -21,6 +21,7 @@ import org.chromium.ui.base.WindowAndroid;
  */
 @JNINamespace("content")
 public class ShellManager extends FrameLayout {
+    private static final String TAG = "cobalt";
 
     public static final String DEFAULT_SHELL_URL = "http://www.google.com";
     private WindowAndroid mWindow;
@@ -101,6 +102,10 @@ public class ShellManager extends FrameLayout {
             FrameLayout.LayoutParams.WRAP_CONTENT);
         FrameLayout frameLayout = new FrameLayout(getContext());
         frameLayout.setId(R.id.contentview_holder);
+
+        Log.i(TAG, "ShellManager.createShell, after creating FrameLayout, all Layout Views:");
+        Util.printRootViewHierarchy(frameLayout);
+
         shellView.addView(frameLayout);
 
         shellView.initialize(nativeShellPtr, mWindow);
@@ -109,6 +114,10 @@ public class ShellManager extends FrameLayout {
         if (mActiveShell != null) removeShell(mActiveShell);
 
         showShell(shellView);
+
+        Log.i(TAG, "ShellManager.createShell, after showShell, all Layout Views:");
+        Util.printRootViewHierarchy(frameLayout);
+
         return shellView;
     }
 
