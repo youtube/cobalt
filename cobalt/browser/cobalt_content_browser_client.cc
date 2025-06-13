@@ -33,9 +33,16 @@
 #include "cobalt/browser/user_agent/user_agent_platform_info.h"
 #include "cobalt/media/service/mojom/video_geometry_setter.mojom.h"
 #include "cobalt/media/service/video_geometry_setter_service.h"
+<<<<<<< HEAD
+=======
+#include "cobalt/shell/browser/shell.h"
+#include "cobalt/shell/browser/shell_browser_main_parts.h"
+#include "cobalt/shell/browser/shell_paths.h"
+>>>>>>> 64aef14e98c (cobalt/shell: Remove components/metrics:test_support & ShellContentBrowserClient (#6070))
 #include "components/metrics/metrics_state_manager.h"
-#include "components/metrics/test/test_enabled_state_provider.h"
 #include "components/metrics_services_manager/metrics_services_manager.h"
+#include "components/network_hints/browser/simple_network_hints_handler_impl.h"
+#include "components/performance_manager/embedder/performance_manager_registry.h"
 #include "components/prefs/pref_registry_simple.h"
 #include "components/prefs/pref_service.h"
 #include "components/prefs/pref_service_factory.h"
@@ -53,6 +60,7 @@
 #include "services/service_manager/public/cpp/binder_registry.h"
 #include "third_party/blink/public/common/associated_interfaces/associated_interface_registry.h"
 #include "third_party/blink/public/common/web_preferences/web_preferences.h"
+#include "ui/base/ui_base_switches.h"
 
 #if BUILDFLAG(IS_ANDROID)
 #include "base/android/locale_utils.h"
@@ -76,6 +84,55 @@ constexpr base::FilePath::CharType kTransportSecurityPersisterFilename[] =
 constexpr base::FilePath::CharType kTrustTokenFilename[] =
     FILE_PATH_LITERAL("Trust Tokens");
 
+<<<<<<< HEAD
+=======
+// Cobalt does not use variations service for field trials. This is a dummy
+// implementation for the browser client to call ApplyFieldTrialTestingConfig
+// and apply test feature overrides.
+class CobaltVariationsServiceClient
+    : public variations::VariationsServiceClient {
+ public:
+  CobaltVariationsServiceClient() = default;
+  ~CobaltVariationsServiceClient() override = default;
+
+  // variations::VariationsServiceClient:
+  base::Version GetVersionForSimulation() override { return base::Version(); }
+  scoped_refptr<network::SharedURLLoaderFactory> GetURLLoaderFactory()
+      override {
+    return nullptr;
+  }
+  network_time::NetworkTimeTracker* GetNetworkTimeTracker() override {
+    return nullptr;
+  }
+  version_info::Channel GetChannel() override {
+    return version_info::Channel::UNKNOWN;
+  }
+  bool OverridesRestrictParameter(std::string* parameter) override {
+    return false;
+  }
+  bool IsEnterprise() override { return false; }
+  // Profiles aren't supported, so nothing to do here.
+  void RemoveGoogleGroupsFromPrefsForDeletedProfiles(
+      PrefService* local_state) override {}
+};
+
+struct SharedState {
+  // Owned by content::BrowserMainLoop.
+  raw_ptr<content::ShellBrowserMainParts, DanglingUntriaged>
+      shell_browser_main_parts = nullptr;
+
+  std::unique_ptr<PrefService> local_state;
+};
+
+void BindNetworkHintsHandler(
+    content::RenderFrameHost* frame_host,
+    mojo::PendingReceiver<network_hints::mojom::NetworkHintsHandler> receiver) {
+  DCHECK(frame_host);
+  network_hints::SimpleNetworkHintsHandlerImpl::Create(frame_host,
+                                                       std::move(receiver));
+}
+
+>>>>>>> 64aef14e98c (cobalt/shell: Remove components/metrics:test_support & ShellContentBrowserClient (#6070))
 }  // namespace
 
 std::string GetCobaltUserAgent() {
@@ -129,9 +186,7 @@ std::unique_ptr<content::BrowserMainParts>
 CobaltContentBrowserClient::CreateBrowserMainParts(
     bool /* is_integration_test */) {
   DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
-  auto browser_main_parts = std::make_unique<CobaltBrowserMainParts>();
-  set_browser_main_parts(browser_main_parts.get());
-  return browser_main_parts;
+  return std::make_unique<CobaltBrowserMainParts>();
 }
 
 std::vector<std::unique_ptr<content::NavigationThrottle>>
@@ -192,7 +247,19 @@ void CobaltContentBrowserClient::OverrideWebkitPrefs(
   // testing set up. See b/377410179.
   prefs->allow_running_insecure_content = true;
 #endif  // !defined(COBALT_IS_RELEASE_BUILD)
-  content::ShellContentBrowserClient::OverrideWebkitPrefs(web_contents, prefs);
+  if (base::CommandLine::ForCurrentProcess()->HasSwitch(
+          switches::kForceDarkMode)) {
+    prefs->preferred_color_scheme = blink::mojom::PreferredColorScheme::kDark;
+  } else {
+    prefs->preferred_color_scheme = blink::mojom::PreferredColorScheme::kLight;
+  }
+
+  if (base::CommandLine::ForCurrentProcess()->HasSwitch(
+          switches::kForceHighContrast)) {
+    prefs->preferred_contrast = blink::mojom::PreferredContrast::kMore;
+  } else {
+    prefs->preferred_contrast = blink::mojom::PreferredContrast::kNoPreference;
+  }
 }
 
 content::StoragePartitionConfig
@@ -287,8 +354,10 @@ void CobaltContentBrowserClient::RegisterBrowserInterfaceBindersForFrame(
     mojo::BinderMapWithContext<content::RenderFrameHost*>* map) {
   DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
   PopulateCobaltFrameBinders(render_frame_host, map);
-  ShellContentBrowserClient::RegisterBrowserInterfaceBindersForFrame(
-      render_frame_host, map);
+  performance_manager::PerformanceManagerRegistry::GetInstance()
+      ->ExposeInterfacesToRenderFrame(map);
+  map->Add<network_hints::mojom::NetworkHintsHandler>(
+      base::BindRepeating(&BindNetworkHintsHandler));
 }
 
 void CobaltContentBrowserClient::CreateVideoGeometrySetterService() {
@@ -399,8 +468,6 @@ void CobaltContentBrowserClient::SetUpCobaltFeaturesAndParams(
 }
 
 void CobaltContentBrowserClient::CreateFeatureListAndFieldTrials() {
-  metrics::TestEnabledStateProvider enabled_state_provider(/*consent=*/false,
-                                                           /*enabled=*/false);
   GlobalFeatures::GetInstance()
       ->metrics_services_manager()
       ->InstantiateFieldTrialList();

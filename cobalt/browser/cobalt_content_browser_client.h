@@ -18,6 +18,10 @@
 #include "base/threading/thread_checker.h"
 #include "cobalt/browser/client_hint_headers/cobalt_trusted_url_loader_header_client.h"
 #include "cobalt/browser/cobalt_web_contents_delegate.h"
+<<<<<<< HEAD
+=======
+#include "content/public/browser/content_browser_client.h"
+>>>>>>> 64aef14e98c (cobalt/shell: Remove components/metrics:test_support & ShellContentBrowserClient (#6070))
 #include "content/public/browser/generated_code_cache_settings.h"
 #include "content/shell/browser/shell_content_browser_client.h"
 #include "mojo/public/cpp/bindings/pending_receiver.h"
@@ -54,7 +58,7 @@ class CobaltWebContentsObserver;
 // TODO(b/390021478): In time CobaltContentBrowserClient should derive and
 // implement ContentBrowserClient, since ShellContentBrowserClient is more like
 // a demo around Content.
-class CobaltContentBrowserClient : public content::ShellContentBrowserClient {
+class CobaltContentBrowserClient : public content::ContentBrowserClient {
  public:
   CobaltContentBrowserClient();
 
