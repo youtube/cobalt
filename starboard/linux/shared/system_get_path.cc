@@ -181,9 +181,6 @@ bool GetContentDirectory(char* out_path, int path_size) {
     return false;
   }
 #endif
-  if (starboard::strlcat(out_path, "/content", path_size) >= path_size) {
-    return false;
-  }
   return true;
 }
 }  // namespace
