@@ -17,9 +17,13 @@
 
 #include <memory>
 
+#include "base/memory/raw_ptr.h"
 #include "base/memory/weak_ptr.h"
+#include "base/threading/sequence_bound.h"
 #include "base/threading/thread_checker.h"
+#include "gpu/ipc/service/command_buffer_stub.h"
 #include "media/base/renderer.h"
+#include "media/gpu/starboard/starboard_gpu_factory_impl.h"
 #include "media/mojo/mojom/renderer_extensions.mojom.h"
 #include "media/mojo/services/gpu_mojo_media_client.h"
 #include "media/starboard/starboard_renderer.h"
@@ -34,6 +38,8 @@ class TimeDelta;
 
 namespace media {
 
+class StarboardGpuFactory;
+
 // Simple wrapper around a StarboardRenderer.
 // Wraps media::StarboardRenderer to remove its dependence on
 // media::mojom::StarboardRendererExtension interface.
@@ -41,9 +47,8 @@ namespace media {
 // StarboardRendererClient living in the Chrome_InProcRendererThread
 // (Media thread), using `renderer_extension_receiver_`
 // and `client_extension_remote_`.
-class StarboardRendererWrapper final
-    : public Renderer,
-      public mojom::StarboardRendererExtension {
+class StarboardRendererWrapper : public Renderer,
+                                 public mojom::StarboardRendererExtension {
  public:
   using RendererExtension = mojom::StarboardRendererExtension;
   using ClientExtension = mojom::StarboardRendererClientExtension;
@@ -73,19 +78,40 @@ class StarboardRendererWrapper final
   void OnGpuChannelTokenReady(
       mojom::CommandBufferIdPtr command_buffer_id) override;
 
+  StarboardRenderer* GetRenderer();
+  base::SequenceBound<StarboardGpuFactory>* GetGpuFactory();
+
  private:
   void OnPaintVideoHoleFrameByStarboard(const gfx::Size& size);
   void OnUpdateStarboardRenderingModeByStarboard(
       const StarboardRenderingMode mode);
+  void ContinueInitialization(MediaResource* media_resource,
+                              RendererClient* client,
+                              PipelineStatusCallback init_cb);
+  bool IsGpuChannelTokenAvailable() const { return !!command_buffer_id_; }
+
+  void SetRendererForTesting(StarboardRenderer* renderer) {
+    test_renderer_ = renderer;
+  }
+
+  void SetGpuFactoryForTesting(
+      base::SequenceBound<StarboardGpuFactory>* gpu_factory) {
+    test_gpu_factory_ = gpu_factory;
+  }
 
   mojo::Receiver<RendererExtension> renderer_extension_receiver_;
   mojo::Remote<ClientExtension> client_extension_remote_;
   StarboardRenderer renderer_;
   mojom::CommandBufferIdPtr command_buffer_id_;
+  base::SequenceBound<StarboardGpuFactory> gpu_factory_;
 
-  base::WeakPtrFactory<StarboardRendererWrapper> weak_factory_{this};
+  raw_ptr<StarboardRenderer> test_renderer_;
+  raw_ptr<base::SequenceBound<StarboardGpuFactory>> test_gpu_factory_;
+
+  friend class StarboardRendererWrapperTest;
 
   THREAD_CHECKER(thread_checker_);
+  base::WeakPtrFactory<StarboardRendererWrapper> weak_factory_{this};
 };
 
 }  // namespace media

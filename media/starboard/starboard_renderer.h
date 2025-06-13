@@ -45,8 +45,8 @@ using base::TimeDelta;
 // playbacks on Starboard platforms. Every Starboard renderer is usually
 // owned by StarboardRendererWrapper and must live on a single
 // thread/process/TaskRunner, usually Chrome_InProcGpuThread.
-class MEDIA_EXPORT StarboardRenderer final : public Renderer,
-                                             private SbPlayerBridge::Host {
+class MEDIA_EXPORT StarboardRenderer : public Renderer,
+                                       private SbPlayerBridge::Host {
  public:
   StarboardRenderer(const scoped_refptr<base::SequencedTaskRunner>& task_runner,
                     std::unique_ptr<MediaLog> media_log,
@@ -59,45 +59,45 @@ class MEDIA_EXPORT StarboardRenderer final : public Renderer,
   StarboardRenderer(const StarboardRenderer&) = delete;
   StarboardRenderer& operator=(const StarboardRenderer&) = delete;
 
-  ~StarboardRenderer() final;
+  ~StarboardRenderer() override;
 
   // Renderer implementation.
   void Initialize(MediaResource* media_resource,
                   RendererClient* client,
-                  PipelineStatusCallback init_cb) final;
-  void SetCdm(CdmContext* cdm_context, CdmAttachedCB cdm_attached_cb) final;
-  void SetLatencyHint(absl::optional<TimeDelta> latency_hint) final {
+                  PipelineStatusCallback init_cb) override;
+  void SetCdm(CdmContext* cdm_context, CdmAttachedCB cdm_attached_cb) override;
+  void SetLatencyHint(absl::optional<TimeDelta> latency_hint) override {
     // TODO(b/380935131): Consider to implement `LatencyHint` for SbPlayer.
     NOTIMPLEMENTED();
   }
-  void SetPreservesPitch(bool preserves_pitch) final {
+  void SetPreservesPitch(bool preserves_pitch) override {
     LOG_IF(INFO, !preserves_pitch)
         << "SetPreservesPitch() with preserves_pitch=false is not supported.";
   }
   void SetWasPlayedWithUserActivation(
-      bool was_played_with_user_activation) final {
+      bool was_played_with_user_activation) override {
     LOG_IF(INFO, was_played_with_user_activation)
         << "SetWasPlayedWithUserActivation() with "
            "was_played_with_user_activation=true is not supported.";
   }
-  void Flush(base::OnceClosure flush_cb) final;
-  void StartPlayingFrom(TimeDelta time) final;
-  void SetPlaybackRate(double playback_rate) final;
-  void SetVolume(float volume) final;
-  TimeDelta GetMediaTime() final;
+  void Flush(base::OnceClosure flush_cb) override;
+  void StartPlayingFrom(TimeDelta time) override;
+  void SetPlaybackRate(double playback_rate) override;
+  void SetVolume(float volume) override;
+  TimeDelta GetMediaTime() override;
   void OnSelectedVideoTracksChanged(
       const std::vector<DemuxerStream*>& enabled_tracks,
-      base::OnceClosure change_completed_cb) final {
+      base::OnceClosure change_completed_cb) override {
     LOG(INFO) << "Track changes are not supported.";
     std::move(change_completed_cb).Run();
   }
   void OnEnabledAudioTracksChanged(
       const std::vector<DemuxerStream*>& enabled_tracks,
-      base::OnceClosure change_completed_cb) final {
+      base::OnceClosure change_completed_cb) override {
     LOG(INFO) << "Track changes are not supported.";
     std::move(change_completed_cb).Run();
   }
-  RendererType GetRendererType() final { return RendererType::kStarboard; }
+  RendererType GetRendererType() override { return RendererType::kStarboard; }
 
   using PaintVideoHoleFrameCallback =
       base::RepeatingCallback<void(const gfx::Size&)>;
@@ -126,9 +126,9 @@ class MEDIA_EXPORT StarboardRenderer final : public Renderer,
   void OnStatisticsUpdate(const PipelineStatistics& stats);
 
   void OnNeedData(DemuxerStream::Type type,
-                  int max_number_of_buffers_to_write) final;
-  void OnPlayerStatus(SbPlayerState state) final;
-  void OnPlayerError(SbPlayerError error, const std::string& message) final;
+                  int max_number_of_buffers_to_write) override;
+  void OnPlayerStatus(SbPlayerState state) override;
+  void OnPlayerError(SbPlayerError error, const std::string& message) override;
 
   // Used to make a delayed call to OnNeedData() if |audio_read_delayed_| is
   // true. If |audio_read_delayed_| is false, that means the delayed call has
