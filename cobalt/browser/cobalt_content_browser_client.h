@@ -18,6 +18,10 @@
 #include "base/threading/thread_checker.h"
 #include "cobalt/browser/client_hint_headers/cobalt_trusted_url_loader_header_client.h"
 #include "cobalt/browser/cobalt_web_contents_delegate.h"
+<<<<<<< HEAD
+=======
+#include "cobalt/shell/browser/shell_content_browser_client.h"
+>>>>>>> 6c0d986e464 (Revert "cobalt/shell: Remove components/metrics:test_support & ShellContentBrowserClient" (#6088))
 #include "content/public/browser/generated_code_cache_settings.h"
 #include "content/shell/browser/shell_content_browser_client.h"
 #include "mojo/public/cpp/bindings/pending_receiver.h"

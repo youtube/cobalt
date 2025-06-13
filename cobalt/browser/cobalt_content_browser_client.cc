@@ -33,6 +33,11 @@
 #include "cobalt/browser/user_agent/user_agent_platform_info.h"
 #include "cobalt/media/service/mojom/video_geometry_setter.mojom.h"
 #include "cobalt/media/service/video_geometry_setter_service.h"
+<<<<<<< HEAD
+=======
+#include "cobalt/shell/browser/shell.h"
+#include "cobalt/shell/browser/shell_paths.h"
+>>>>>>> 6c0d986e464 (Revert "cobalt/shell: Remove components/metrics:test_support & ShellContentBrowserClient" (#6088))
 #include "components/metrics/metrics_state_manager.h"
 #include "components/metrics/test/test_enabled_state_provider.h"
 #include "components/metrics_services_manager/metrics_services_manager.h"
@@ -76,6 +81,39 @@ constexpr base::FilePath::CharType kTransportSecurityPersisterFilename[] =
 constexpr base::FilePath::CharType kTrustTokenFilename[] =
     FILE_PATH_LITERAL("Trust Tokens");
 
+<<<<<<< HEAD
+=======
+// Cobalt does not use variations service for field trials. This is a dummy
+// implementation for the browser client to call ApplyFieldTrialTestingConfig
+// and apply test feature overrides.
+class CobaltVariationsServiceClient
+    : public variations::VariationsServiceClient {
+ public:
+  CobaltVariationsServiceClient() = default;
+  ~CobaltVariationsServiceClient() override = default;
+
+  // variations::VariationsServiceClient:
+  base::Version GetVersionForSimulation() override { return base::Version(); }
+  scoped_refptr<network::SharedURLLoaderFactory> GetURLLoaderFactory()
+      override {
+    return nullptr;
+  }
+  network_time::NetworkTimeTracker* GetNetworkTimeTracker() override {
+    return nullptr;
+  }
+  version_info::Channel GetChannel() override {
+    return version_info::Channel::UNKNOWN;
+  }
+  bool OverridesRestrictParameter(std::string* parameter) override {
+    return false;
+  }
+  bool IsEnterprise() override { return false; }
+  // Profiles aren't supported, so nothing to do here.
+  void RemoveGoogleGroupsFromPrefsForDeletedProfiles(
+      PrefService* local_state) override {}
+};
+
+>>>>>>> 6c0d986e464 (Revert "cobalt/shell: Remove components/metrics:test_support & ShellContentBrowserClient" (#6088))
 }  // namespace
 
 std::string GetCobaltUserAgent() {
