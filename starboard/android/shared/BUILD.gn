@@ -12,6 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+import("//build/config/android/rules.gni")
 import("//starboard/android/shared/toolchain/toolchain.gni")
 import("//starboard/shared/starboard/media/media_tests.gni")
 import("//starboard/shared/starboard/player/buildfiles.gni")
@@ -405,4 +406,8 @@ source_set("starboard_platform_tests") {
     "//testing/gmock",
     "//testing/gtest",
   ]
+}
+
+java_cpp_enum("java_enums") {
+  sources = [ "media_codec_bridge.h" ]
 }
