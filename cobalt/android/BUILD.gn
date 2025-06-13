@@ -110,6 +110,7 @@ android_library("cobalt_shell_java") {
     "apk/app/src/org/chromium/content_shell/Shell.java",
     "apk/app/src/org/chromium/content_shell/ShellManager.java",
     "apk/app/src/org/chromium/content_shell/ShellViewAndroidDelegate.java",
+    "apk/app/src/org/chromium/content_shell/Util.java",
   ]
 
   annotation_processor_deps = [ "//base/android/jni_generator:jni_processor" ]
