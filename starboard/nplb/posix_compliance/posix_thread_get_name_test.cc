@@ -13,6 +13,7 @@
 // limitations under the License.
 
 #include <pthread.h>
+#include <sys/prctl.h>
 
 #include "starboard/nplb/posix_compliance/posix_thread_helpers.h"
 #include "testing/gtest/include/gtest/gtest.h"
@@ -25,7 +26,11 @@ void* GetThreadNameEntryPoint(void* context) {
   pthread_setname_np(pthread_self(), posix::kThreadName);
 
   char name[4096] = {0};
+#if __ANDROID_API__ < 26
+  prctl(PR_GET_NAME, name, 0L, 0L, 0L);
+#else
   pthread_getname_np(pthread_self(), name, SB_ARRAY_SIZE_INT(name));
+#endif  // __ANDROID_API__ < 26
   std::string* result = static_cast<std::string*>(context);
   *result = name;
   return NULL;
