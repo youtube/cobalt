@@ -13,6 +13,7 @@
 // limitations under the License.
 
 #include <pthread.h>
+#include <sys/prctl.h>
 
 #include "starboard/nplb/posix_compliance/posix_thread_helpers.h"
 #include "testing/gtest/include/gtest/gtest.h"
