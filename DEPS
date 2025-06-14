@@ -2178,6 +2178,94 @@ deps = {
       'dep_type': 'cipd',
   },
 
+  'src/third_party/android_deps/libs/androidx_media3_media3_common': {
+      'packages': [
+          {
+              'package': 'chromium/third_party/android_deps/libs/androidx_media3_media3_common',
+              'version': 'version:2@1.2.0.cr1',
+          },
+      ],
+      'condition': 'checkout_android',
+      'dep_type': 'cipd',
+  },
+
+  'src/third_party/android_deps/libs/androidx_media3_media3_container': {
+      'packages': [
+          {
+              'package': 'chromium/third_party/android_deps/libs/androidx_media3_media3_container',
+              'version': 'version:2@1.2.0.cr1',
+          },
+      ],
+      'condition': 'checkout_android',
+      'dep_type': 'cipd',
+  },
+
+  'src/third_party/android_deps/libs/androidx_media3_media3_database': {
+      'packages': [
+          {
+              'package': 'chromium/third_party/android_deps/libs/androidx_media3_media3_database',
+              'version': 'version:2@1.2.0.cr1',
+          },
+      ],
+      'condition': 'checkout_android',
+      'dep_type': 'cipd',
+  },
+
+  'src/third_party/android_deps/libs/androidx_media3_media3_datasource': {
+      'packages': [
+          {
+              'package': 'chromium/third_party/android_deps/libs/androidx_media3_media3_datasource',
+              'version': 'version:2@1.2.0.cr1',
+          },
+      ],
+      'condition': 'checkout_android',
+      'dep_type': 'cipd',
+  },
+
+  'src/third_party/android_deps/libs/androidx_media3_media3_decoder': {
+      'packages': [
+          {
+              'package': 'chromium/third_party/android_deps/libs/androidx_media3_media3_decoder',
+              'version': 'version:2@1.2.0.cr1',
+          },
+      ],
+      'condition': 'checkout_android',
+      'dep_type': 'cipd',
+  },
+
+  'src/third_party/android_deps/libs/androidx_media3_media3_exoplayer': {
+      'packages': [
+          {
+              'package': 'chromium/third_party/android_deps/libs/androidx_media3_media3_exoplayer',
+              'version': 'version:2@1.2.0.cr1',
+          },
+      ],
+      'condition': 'checkout_android',
+      'dep_type': 'cipd',
+  },
+
+  'src/third_party/android_deps/libs/androidx_media3_media3_extractor': {
+      'packages': [
+          {
+              'package': 'chromium/third_party/android_deps/libs/androidx_media3_media3_extractor',
+              'version': 'version:2@1.2.0.cr1',
+          },
+      ],
+      'condition': 'checkout_android',
+      'dep_type': 'cipd',
+  },
+
+  'src/third_party/android_deps/libs/androidx_media3_media3_session': {
+      'packages': [
+          {
+              'package': 'chromium/third_party/android_deps/libs/androidx_media3_media3_session',
+              'version': 'version:2@1.2.0.cr1',
+          },
+      ],
+      'condition': 'checkout_android',
+      'dep_type': 'cipd',
+  },
+
   'src/third_party/android_deps/libs/com_android_support_animated_vector_drawable': {
       'packages': [
           {
