@@ -194,6 +194,15 @@ dependencies {
     // Depended on by downstream guava_java rewrite.
     androidTestCompile "org.checkerframework:checker-qual:3.25.0"
 
+    String media3Version = '1.2.0'
+    compile "androidx.media3:media3-common:${media3Version}"
+    compile "androidx.media3:media3-database:${media3Version}"
+    compile "androidx.media3:media3-datasource:${media3Version}"
+    compile "androidx.media3:media3-decoder:${media3Version}"
+    compile "androidx.media3:media3-exoplayer:${media3Version}"
+    compile "androidx.media3:media3-extractor:${media3Version}"
+    compile "androidx.media3:media3-session:${media3Version}"
+
     String robolectricVersion = '4.8.1'
     // Use testCompile to avoid having support_android = true set on
     // robolectric dependencies.
