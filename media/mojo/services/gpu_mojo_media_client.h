@@ -28,6 +28,10 @@
 #include "media/gpu/starboard/starboard_gpu_factory.h"
 #endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
 
+#if BUILDFLAG(USE_STARBOARD_MEDIA)
+#include "media/gpu/starboard/starboard_gpu_factory.h"
+#endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
+
 namespace gpu {
 class GpuMemoryBufferFactory;
 }  // namespace gpu
