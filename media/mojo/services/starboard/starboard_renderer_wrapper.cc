@@ -137,6 +137,14 @@ void StarboardRendererWrapper::OnGpuChannelTokenReady(
   command_buffer_id_ = std::move(command_buffer_id);
 }
 
+void StarboardRendererWrapper::GetCurrentVideoFrame(
+    GetCurrentVideoFrameCallback callback) {
+  DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
+  // TODO(b/375070492): get SbDecodeTarget from
+  // SbPlayerBridge::GetCurrentSbDecodeTarget().
+  std::move(callback).Run(nullptr);
+}
+
 StarboardRenderer* StarboardRendererWrapper::GetRenderer() {
   if (test_renderer_) {
     return test_renderer_;
