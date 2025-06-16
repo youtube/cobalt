@@ -286,8 +286,10 @@ if (current_toolchain == starboard_toolchain) {
     }
   }
 
-  source_set("starboard_unittests") {
+  executable("starboard_unittests") {
     testonly = true
+    sources = [ "//starboard/common/test_main.cc" ]
+    defines = [ "STARBOARD_LEVEL_TEST" ]
     deps = [ "//starboard/common:common_test" ]
     if (!is_android) {
       deps += [
@@ -326,7 +328,7 @@ if (current_toolchain == starboard_toolchain) {
   }
 }
 
-test("starboard_unittests_wrapper") {
+group("starboard_unittests_wrapper") {
   testonly = true
   deps = [ ":starboard_unittests($starboard_toolchain)" ]
 }
