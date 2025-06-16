@@ -9,6 +9,10 @@ import("//third_party/dawn/scripts/dawn_features.gni")
 import("//third_party/protobuf/proto_library.gni")
 import("//ui/gl/features.gni")
 
+if (is_cobalt) {
+  import("//starboard/build/buildflags.gni")
+}
+
 group("service") {
   if (is_component_build) {
     public_deps = [ "//gpu" ]
@@ -302,6 +306,13 @@ target(link_target_type, "gles2_sources") {
       "validating_abstract_texture_impl.cc",
       "validating_abstract_texture_impl.h",
     ]
+
+    if (is_cobalt && use_starboard_media) {
+      sources += [
+        "shared_image/starboard/starboard_video_image_backing.cc",
+        "shared_image/starboard/starboard_video_image_backing.h",
+      ]
+    }
   } else {
     sources += [
       "abstract_texture_android.cc",

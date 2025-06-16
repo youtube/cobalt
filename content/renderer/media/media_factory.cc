@@ -630,7 +630,9 @@ MediaFactory::CreateRendererFactorySelector(
 #if BUILDFLAG(USE_STARBOARD_MEDIA)
   media::RendererFactoryTraits renderer_factory_traits;
   GetContentClient()->renderer()->GetStarboardRendererFactoryTraits(&renderer_factory_traits);
-  renderer_factory_traits.max_video_capabilities = max_video_capabilities;
+  // TODO(borongchen): remove this for decode-to-texture mode.
+  // renderer_factory_traits.max_video_capabilities = max_video_capabilities;
+  renderer_factory_traits.max_video_capabilities = "width=1920; height=1080; framerate=15; decode-to-texture=true";
   is_base_renderer_factory_set = true;
   factory_selector->AddBaseFactory(RendererType::kStarboard,
     std::make_unique<media::StarboardRendererClientFactory>(media_log,
