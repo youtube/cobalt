@@ -19,6 +19,14 @@ import java.util.List;
 import java.util.StringJoiner;
 import org.chromium.base.CommandLine;
 
+
+// ==========
+// IMPORTANT:
+//
+// These command line switches defaults do not affect non-AndroidTV platforms.
+// If you are making changes to these values, please check that other
+// platforms (such as Linux/Evergreen) are getting corresponding updates.
+
 /** Helper class to provide commandLine Overrides. */
 public final class CommandLineOverrideHelper {
     private CommandLineOverrideHelper() {} // Prevent instantiation.
