@@ -32,10 +32,6 @@
 #ifndef THIRD_PARTY_STARBOARD_RDK_SHARED_SYSTEM_SYSTEM_GET_PATH_H_
 #define THIRD_PARTY_STARBOARD_RDK_SHARED_SYSTEM_SYSTEM_GET_PATH_H_
 
-#include "starboard/common/log.h"
-#include "starboard/shared/starboard/audio_sink/audio_sink_internal.h"
-#include "third_party/starboard/rdk/shared/log_override.h"
-
 namespace starboard {
 namespace system {
 
