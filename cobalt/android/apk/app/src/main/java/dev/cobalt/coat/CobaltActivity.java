@@ -61,6 +61,7 @@ import org.chromium.content_public.browser.JavascriptInjector;
 import org.chromium.content_public.browser.WebContents;
 import org.chromium.content_shell.Shell;
 import org.chromium.content_shell.ShellManager;
+import org.chromium.content_shell.Util;
 import org.chromium.ui.base.ActivityWindowAndroid;
 import org.chromium.ui.base.IntentRequestTracker;
 
@@ -374,6 +375,10 @@ public abstract class CobaltActivity extends Activity {
     videoSurfaceView.setBackgroundColor(Color.BLACK);
     a11yHelper = new CobaltA11yHelper(this, videoSurfaceView);
     addContentView(videoSurfaceView, new LayoutParams(LayoutParams.MATCH_PARENT, LayoutParams.MATCH_PARENT));
+
+    Log.i(TAG, "CobaltActivity onCreate, all Layout Views:");
+    View rootView = getWindow().getDecorView().getRootView();
+    Util.printRootViewHierarchy(rootView);
   }
 
   /**
@@ -651,8 +656,9 @@ public abstract class CobaltActivity extends Activity {
     ViewParent parent = videoSurfaceView.getParent();
     if (parent instanceof FrameLayout) {
       FrameLayout frameLayout = (FrameLayout) parent;
-      Log.i(TAG, "createNewSurfaceView, before removing videoSurfaceView, all Layout Views:");
-      printFrameLayoutViews(frameLayout);
+      Log.i(TAG, "createNewSurfaceView, before removing videoSurfaceView, all Views:");
+      View rootView = getWindow().getDecorView().getRootView();
+      Util.printRootViewHierarchy(rootView);
 
       int index = frameLayout.indexOfChild(videoSurfaceView);
       frameLayout.removeView(videoSurfaceView);
@@ -665,17 +671,10 @@ public abstract class CobaltActivity extends Activity {
           index,
           new LayoutParams(LayoutParams.MATCH_PARENT, LayoutParams.MATCH_PARENT));
       Log.i(TAG, "inserted new videoSurfaceView at index:" + index);
-      Log.i(TAG, "after createNewSurfaceView, all Layout Views:");
-      printFrameLayoutViews(frameLayout);
+      Log.i(TAG, "after createNewSurfaceView, all Views:");
+      Util.printRootViewHierarchy(rootView);
     } else {
       Log.w(TAG, "Unexpected surface view parent class " + parent.getClass().getName());
-    }
-  }
-
-  private void printFrameLayoutViews(FrameLayout frameLayout) {
-    for (int i = 0; i < frameLayout.getChildCount(); i++) {
-      View child = frameLayout.getChildAt(i);
-      Log.i(TAG, "FrameLayout Child at index " + i + " is: " + child.getClass().getName());
     }
   }
 
