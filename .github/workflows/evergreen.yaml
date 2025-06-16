@@ -33,14 +33,3 @@ jobs:
       nightly: ${{ github.event.inputs.nightly }}
     secrets:
       datadog_api_key: ${{ secrets.DD_API_KEY }}
-  # This is evergreen on raspi
-  evergreen-arm-hardfp-raspi:
-    uses: ./.github/workflows/main.yaml
-    permissions:
-      packages: write
-      pull-requests: write
-    with:
-      platform: evergreen-arm-hardfp-raspi
-      nightly: ${{ github.event.inputs.nightly }}
-    secrets:
-      datadog_api_key: ${{ secrets.DD_API_KEY }}
