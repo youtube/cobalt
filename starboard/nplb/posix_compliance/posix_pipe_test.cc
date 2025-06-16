@@ -185,8 +185,8 @@ TEST(PosixPipeTest, ReadFromEmptyPipeCreatedWithNonBlockFlagDoesNotBlock) {
   close(pipe_fds[1]);
 }
 
-void* DoReadOnTimeout(void* parameter) {
-  TestContext* context = static_cast<TestContext*>(parameter);
+void* DoReadOnTimeout(void* test_context) {
+  TestContext* context = static_cast<TestContext*>(test_context);
 
   int64_t timeout_time_us =
       starboard::CurrentPosixTime() + context->timeout_duration_us;
@@ -240,26 +240,26 @@ TEST(PosixPipeTest, WriteToFullPipeWithNonBlockFlagImmediatelyReturnsError) {
   int64_t timeout_duration_us = 5'000'000;
   TestContext context(pipe_fds[0], timeout_duration_us);
   pthread_t read_thread;
-  EXPECT_EQ(pthread_create(&read_thread, NULL, DoReadOnTimeout, &context), 0);
+  ASSERT_EQ(pthread_create(&read_thread, NULL, DoReadOnTimeout, &context), 0);
 
   int write_result = 0;
   while (true) {
     write_result = write(pipe_fds[1], kTestData, kTestDataSize);
 
     if (write_result == -1 && errno == EAGAIN) {
-      EXPECT_EQ(pthread_mutex_lock(&context.had_expected_failed_write_mutex),
+      ASSERT_EQ(pthread_mutex_lock(&context.had_expected_failed_write_mutex),
                 0);
       context.had_expected_failed_write = true;
-      EXPECT_EQ(pthread_cond_signal(&context.had_expected_failed_write_cv), 0);
-      EXPECT_EQ(pthread_mutex_unlock(&context.had_expected_failed_write_mutex),
+      ASSERT_EQ(pthread_cond_signal(&context.had_expected_failed_write_cv), 0);
+      ASSERT_EQ(pthread_mutex_unlock(&context.had_expected_failed_write_mutex),
                 0);
 
       break;  // Expected termination
     }
 
-    pthread_mutex_lock(&context.out_of_time_mutex);
+    ASSERT_EQ(pthread_mutex_lock(&context.out_of_time_mutex), 0);
     bool out_of_time = context.out_of_time;
-    pthread_mutex_unlock(&context.out_of_time_mutex);
+    ASSERT_EQ(pthread_mutex_unlock(&context.out_of_time_mutex), 0);
     if (out_of_time) {
       break;  // Unexpected termination
     }
