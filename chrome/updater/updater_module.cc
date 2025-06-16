@@ -275,9 +275,7 @@ void UpdaterModule::Update() {
     return;
   }
 
-  // TODO(b/325626249): Remove the ALLOW_EVERGREEN_SIDELOADING check once we're
-  // fully launched.
-#if !defined(COBALT_BUILD_TYPE_GOLD) && ALLOW_EVERGREEN_SIDELOADING
+#if !defined(COBALT_BUILD_TYPE_GOLD)
   bool skip_verify_public_key_hash = GetAllowSelfSignedPackages();
   bool require_network_encryption = GetRequireNetworkEncryption();
 #else
@@ -300,14 +298,12 @@ void UpdaterModule::Update() {
             component.pk_hash.assign(std::begin(kCobaltPublicKeyHash),
                                      std::end(kCobaltPublicKeyHash));
             component.requires_network_encryption = true;
-            // TODO(b/325626249): Remove the ALLOW_EVERGREEN_SIDELOADING check
-            // once we're fully launched.
-#if !defined(COBALT_BUILD_TYPE_GOLD) && ALLOW_EVERGREEN_SIDELOADING
+#if !defined(COBALT_BUILD_TYPE_GOLD)
             if (skip_verify_public_key_hash) {
               component.pk_hash.clear();
             }
             component.requires_network_encryption = require_network_encryption;
-#endif // !defined(COBALT_BUILD_TYPE_GOLD) && ALLOW_EVERGREEN_SIDELOADING
+#endif // !defined(COBALT_BUILD_TYPE_GOLD)
             component.crx_format_requirement = crx_file::VerifierFormat::CRX3;
             return {component};
           },
