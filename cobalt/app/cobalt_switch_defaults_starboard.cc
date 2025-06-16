@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include "cobalt/app/cobalt_switch_defaults.h"
+#include "cobalt/app/cobalt_switch_defaults_starboard.h"
 
 #include "base/base_switches.h"
 #include "base/files/file_path.h"
@@ -31,6 +31,14 @@
 #endif
 
 namespace {
+
+// ==========
+// IMPORTANT:
+//
+// These command line switches defaults do not affect non-POSIX platforms. They
+// only affect platforms such as Linux and AOSP.
+// If you are making changes to these values, please check that other
+// platforms (such as AndroidTV) are getting corresponding updates.
 
 // List of toggleable default switches.
 static constexpr auto kCobaltToggleSwitches = std::to_array<const char*>({
