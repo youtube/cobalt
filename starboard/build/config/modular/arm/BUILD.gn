@@ -28,4 +28,6 @@ config("arm") {
     # Force char to be signed.
     "-fsigned-char",
   ]
+
+  defines = [ "TOOLCHAIN_MISS_ASM_HWCAP_H" ]
 }
