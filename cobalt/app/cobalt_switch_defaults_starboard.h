@@ -12,8 +12,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#ifndef COBALT_APP_COBALT_SWITCH_DEFAULTS_H_
-#define COBALT_APP_COBALT_SWITCH_DEFAULTS_H_
+#ifndef COBALT_APP_COBALT_SWITCH_DEFAULTS_STARBOARD_H_
+#define COBALT_APP_COBALT_SWITCH_DEFAULTS_STARBOARD_H_
 
 #include <array>
 #include <map>
@@ -47,4 +47,4 @@ class CommandLinePreprocessor {
 
 }  // namespace cobalt
 
-#endif  // COBALT_APP_COBALT_SWITCH_DEFAULTS_H_
+#endif  // COBALT_APP_COBALT_SWITCH_DEFAULTS_STARBOARD_H_
