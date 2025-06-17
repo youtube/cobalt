@@ -31,6 +31,10 @@ std::string GetInitialURL(const base::CommandLine& command_line);
 constexpr char kInitialURL[] = "url";
 constexpr char kRequireCSP[] = "require_csp";
 
+// Exposes the window.internals object to JavaScript for interactive development
+// and debugging of web tests that rely on it.
+constexpr char kExposeInternalsForTesting[] = "expose-internals-for-testing";
+
 }  // namespace switches
 }  // namespace cobalt
 

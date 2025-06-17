@@ -15,7 +15,7 @@
 #include "cobalt/renderer/cobalt_render_frame_observer.h"
 
 #include "base/command_line.h"
-#include "cobalt/common/shell_switches.h"
+#include "cobalt/browser/switches.h"
 #include "content/public/renderer/render_frame.h"
 #include "starboard/extension/graphics.h"
 #include "starboard/system.h"
