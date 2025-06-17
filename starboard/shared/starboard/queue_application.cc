@@ -120,7 +120,7 @@ int64_t QueueApplication::GetNextTimedEventTargetTime() {
 QueueApplication::TimedEventQueue::TimedEventQueue() : set_(&IsLess) {}
 
 QueueApplication::TimedEventQueue::~TimedEventQueue() {
-  ScopedLock lock(mutex_);
+  std::scoped_lock lock(mutex_);
   for (TimedEventMap::iterator i = map_.begin(); i != map_.end(); ++i) {
     delete i->second;
   }
@@ -129,7 +129,7 @@ QueueApplication::TimedEventQueue::~TimedEventQueue() {
 }
 
 bool QueueApplication::TimedEventQueue::Inject(TimedEvent* timed_event) {
-  ScopedLock lock(mutex_);
+  std::scoped_lock lock(mutex_);
   int64_t oldTime = GetTimeLocked();
   map_[timed_event->id] = timed_event;
   set_.insert(timed_event);
@@ -137,7 +137,7 @@ bool QueueApplication::TimedEventQueue::Inject(TimedEvent* timed_event) {
 }
 
 void QueueApplication::TimedEventQueue::Cancel(SbEventId event_id) {
-  ScopedLock lock(mutex_);
+  std::scoped_lock lock(mutex_);
   TimedEventMap::iterator i = map_.find(event_id);
   if (i == map_.end()) {
     return;
@@ -150,7 +150,7 @@ void QueueApplication::TimedEventQueue::Cancel(SbEventId event_id) {
 }
 
 Application::TimedEvent* QueueApplication::TimedEventQueue::Get() {
-  ScopedLock lock(mutex_);
+  std::scoped_lock lock(mutex_);
   if (set_.empty()) {
     return NULL;
   }
@@ -166,7 +166,7 @@ Application::TimedEvent* QueueApplication::TimedEventQueue::Get() {
 }
 
 int64_t QueueApplication::TimedEventQueue::GetTime() {
-  ScopedLock lock(mutex_);
+  std::scoped_lock lock(mutex_);
   return GetTimeLocked();
 }
 
