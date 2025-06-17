@@ -290,7 +290,11 @@ if (current_toolchain == starboard_toolchain) {
     testonly = true
     sources = [ "//starboard/common/test_main.cc" ]
     defines = [ "STARBOARD_LEVEL_TEST" ]
-    deps = [ "//starboard/common:common_test" ]
+    deps = [
+      "//starboard:starboard_headers_only",
+      "//starboard/common:common_test",
+      "//testing/gtest",
+    ]
     if (!is_android) {
       deps += [
         "//starboard/elf_loader:elf_loader_test",
