@@ -29,7 +29,11 @@ namespace switches {
 std::string GetInitialURL(const base::CommandLine& command_line);
 
 constexpr char kInitialURL[] = "url";
+
+// By default, CSP headers and HTTPS are only enforced in release (gold)
+// builds. This allows users to enable enforcement via the command line.
 constexpr char kRequireCSP[] = "require_csp";
+constexpr char kRequireHTTPS[] = "require_https";
 
 // Specify the initial window size: --window-size=w,h
 constexpr char kWindowSize[] = "window-size";

@@ -26,7 +26,11 @@ class CobaltSecureNavigationThrottle : public content::NavigationThrottle {
   content::NavigationThrottle::ThrottleCheckResult WillProcessResponse()
       override;
 
-  // Allow the user to disable CSP headers enforcement via a command line
+  // Allow the user to enable HTTPS enforcement via a command line parameter.
+  bool ShouldEnforceHTTPS(const base::CommandLine& command_line);
+  content::NavigationThrottle::ThrottleCheckResult EnforceHTTPS();
+
+  // Allow the user to enable CSP headers enforcement via a command line
   // parameter.
   bool ShouldEnforceCSP(const base::CommandLine& command_line);
   content::NavigationThrottle::ThrottleCheckResult EnforceCSPHeaders();
