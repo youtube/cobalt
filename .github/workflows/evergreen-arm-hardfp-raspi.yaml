@@ -1,4 +1,4 @@
-name: raspi
+name: evergreen-arm-hardfp-raspi
 permissions: read-all
 
 on:
@@ -23,13 +23,13 @@ on:
 
 jobs:
   # This is the raspi build config
-  raspi:
+  evergreen-arm-hardfp-raspi:
     uses: ./.github/workflows/main.yaml
     permissions:
       packages: write
       pull-requests: write
     with:
-      platform: raspi
+      platform: evergreen-arm-hardfp-raspi
       nightly: ${{ github.event.inputs.nightly }}
     secrets:
       datadog_api_key: ${{ secrets.DD_API_KEY }}
