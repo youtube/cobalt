@@ -89,6 +89,7 @@ _UNKNOWN_SOURCE_FILES = 'unknown_source_file(s)'
 _ALLOWED_SB_GE_16_POSIX_SYMBOLS = [
     '__errno_location',
     'accept',
+    'aligned_alloc',
     'bind',
     'calloc',
     'clock_gettime',
@@ -110,6 +111,7 @@ _ALLOWED_SB_GE_16_POSIX_SYMBOLS = [
     'ftruncate',
     'getaddrinfo',
     'getifaddrs',
+    'getpagesize',
     'getpeername',
     'getsockname',
     'getsockopt',
@@ -132,6 +134,7 @@ _ALLOWED_SB_GE_16_POSIX_SYMBOLS = [
     'open',
     'opendir',
     'pipe',
+    'pipe2',
     'posix_memalign',
     'pread',
     'pthread_attr_destroy',

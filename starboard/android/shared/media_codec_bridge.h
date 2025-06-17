@@ -16,11 +16,11 @@
 #define STARBOARD_ANDROID_SHARED_MEDIA_CODEC_BRIDGE_H_
 
 #include <memory>
+#include <optional>
 #include <string>
 
 #include "base/android/scoped_java_ref.h"
 #include "starboard/android/shared/media_common.h"
-#include "starboard/common/optional.h"
 #include "starboard/shared/starboard/media/media_util.h"
 
 namespace starboard::android::shared {
@@ -42,7 +42,9 @@ enum MediaCodecStatus {
   MEDIA_CODEC_NO_KEY,
   MEDIA_CODEC_INSUFFICIENT_OUTPUT_PROTECTION,
   MEDIA_CODEC_ABORT,
-  MEDIA_CODEC_ERROR
+  MEDIA_CODEC_ERROR,
+
+  MEDIA_CODEC_MAX = MEDIA_CODEC_ERROR,
 };
 
 const jint BUFFER_FLAG_CODEC_CONFIG = 2;
@@ -140,8 +142,11 @@ class MediaCodecBridge {
                                                    int64_t presentation_time_us,
                                                    int size) = 0;
     virtual void OnMediaCodecOutputFormatChanged() = 0;
-    // This is only called on video decoder when tunnel mode is enabled.
+    // This is called when tunnel mode is enabled or on Android 14 and newer
+    // devices.
     virtual void OnMediaCodecFrameRendered(int64_t frame_timestamp) = 0;
+    // This is only called on Android 12 and newer devices for tunnel mode.
+    virtual void OnMediaCodecFirstTunnelFrameReady() = 0;
 
    protected:
     ~Handler() {}
@@ -166,8 +171,8 @@ class MediaCodecBridge {
       int width_hint,
       int height_hint,
       int fps,
-      optional<int> max_width,
-      optional<int> max_height,
+      std::optional<int> max_width,
+      std::optional<int> max_height,
       Handler* handler,
       jobject j_surface,
       jobject j_media_crypto,
@@ -218,6 +223,7 @@ class MediaCodecBridge {
                                          int size);
   void OnMediaCodecOutputFormatChanged();
   void OnMediaCodecFrameRendered(int64_t frame_timestamp);
+  void OnMediaCodecFirstTunnelFrameReady();
 
   static jboolean IsFrameRenderedCallbackEnabled();
 

@@ -103,6 +103,7 @@ static_library("c_internal") {
     "src/ctype/wcswidth.c",
     "src/ctype/wctrans.c",
     "src/ctype/wcwidth.c",
+    "src/env/__stack_chk_fail.c",
     "src/errno/strerror.c",
     "src/exit/assert.c",
     "src/exit/atexit.c",
@@ -116,6 +117,7 @@ static_library("c_internal") {
     "src/internal/floatscan.c",
     "src/internal/intscan.c",
     "src/internal/shgetc.c",
+    "src/legacy/getpagesize.c",
     "src/locale/strcoll.c",
     "src/locale/strxfrm.c",
     "src/locale/wcscoll.c",
@@ -510,6 +512,7 @@ static_library("c_internal") {
   deps = [
     "//starboard:starboard_headers_only",
     "//cobalt/common/eztime",
+    "//cobalt/common/libc",
     "//starboard/common:common_headers_only",
   ]
 }

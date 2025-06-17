@@ -108,29 +108,33 @@ MediaDecoder::MediaDecoder(Host* host,
   }
 }
 
-MediaDecoder::MediaDecoder(Host* host,
-                           SbMediaVideoCodec video_codec,
-                           int width_hint,
-                           int height_hint,
-                           optional<int> max_width,
-                           optional<int> max_height,
-                           int fps,
-                           jobject j_output_surface,
-                           SbDrmSystem drm_system,
-                           const SbMediaColorMetadata* color_metadata,
-                           bool require_software_codec,
-                           const FrameRenderedCB& frame_rendered_cb,
-                           int tunnel_mode_audio_session_id,
-                           bool force_big_endian_hdr_metadata,
-                           int max_video_input_size,
-                           std::string* error_message)
+MediaDecoder::MediaDecoder(
+    Host* host,
+    SbMediaVideoCodec video_codec,
+    int width_hint,
+    int height_hint,
+    std::optional<int> max_width,
+    std::optional<int> max_height,
+    int fps,
+    jobject j_output_surface,
+    SbDrmSystem drm_system,
+    const SbMediaColorMetadata* color_metadata,
+    bool require_software_codec,
+    const FrameRenderedCB& frame_rendered_cb,
+    const FirstTunnelFrameReadyCB& first_tunnel_frame_ready_cb,
+    int tunnel_mode_audio_session_id,
+    bool force_big_endian_hdr_metadata,
+    int max_video_input_size,
+    std::string* error_message)
     : media_type_(kSbMediaTypeVideo),
       host_(host),
       drm_system_(static_cast<DrmSystem*>(drm_system)),
       frame_rendered_cb_(frame_rendered_cb),
+      first_tunnel_frame_ready_cb_(first_tunnel_frame_ready_cb),
       tunnel_mode_enabled_(tunnel_mode_audio_session_id != -1),
       condition_variable_(mutex_) {
   SB_DCHECK(frame_rendered_cb_);
+  SB_DCHECK(first_tunnel_frame_ready_cb_);
 
   jobject j_media_crypto = drm_system_ ? drm_system_->GetMediaCrypto() : NULL;
   const bool require_secured_decoder =
@@ -149,16 +153,8 @@ MediaDecoder::MediaDecoder(Host* host,
 
 MediaDecoder::~MediaDecoder() {
   SB_DCHECK(thread_checker_.CalledOnValidThread());
-  destroying_.store(true);
-  {
-    ScopedLock scoped_lock(mutex_);
-    condition_variable_.Signal();
-  }
 
-  if (decoder_thread_ != 0) {
-    pthread_join(decoder_thread_, NULL);
-    decoder_thread_ = 0;
-  }
+  TerminateDecoderThread();
 
   if (is_valid()) {
     host_->OnFlushing();
@@ -380,6 +376,22 @@ void MediaDecoder::DecoderThreadFunc() {
   SB_LOG(INFO) << "Destroying decoder thread.";
 }
 
+void MediaDecoder::TerminateDecoderThread() {
+  SB_DCHECK(thread_checker_.CalledOnValidThread());
+
+  destroying_.store(true);
+
+  {
+    ScopedLock scoped_lock(mutex_);
+    condition_variable_.Signal();
+  }
+
+  if (decoder_thread_ != 0) {
+    pthread_join(decoder_thread_, nullptr);
+    decoder_thread_ = 0;
+  }
+}
+
 void MediaDecoder::CollectPendingData_Locked(
     std::deque<Event>* pending_tasks,
     std::vector<int>* input_buffer_indices,
@@ -428,7 +440,7 @@ bool MediaDecoder::ProcessOneInputBuffer(
         pending_queue_input_buffer_task_->dequeue_input_result;
     SB_DCHECK(dequeue_input_result.index >= 0);
     event = pending_queue_input_buffer_task_->event;
-    pending_queue_input_buffer_task_ = nullopt_t();
+    pending_queue_input_buffer_task_ = std::nullopt;
     input_buffer_already_written = true;
   } else {
     dequeue_input_result.index = input_buffer_indices->front();
@@ -671,7 +683,15 @@ void MediaDecoder::OnMediaCodecFrameRendered(int64_t frame_timestamp) {
   frame_rendered_cb_(frame_timestamp);
 }
 
+void MediaDecoder::OnMediaCodecFirstTunnelFrameReady() {
+  SB_DCHECK(tunnel_mode_enabled_);
+
+  first_tunnel_frame_ready_cb_();
+}
+
 bool MediaDecoder::Flush() {
+  SB_DCHECK(thread_checker_.CalledOnValidThread());
+
   // Try to flush if we can, otherwise return |false| to recreate the codec
   // completely. Flush() is called by `player_worker` thread,
   // but MediaDecoder is on `audio_decoder` and `video_decoder`
@@ -679,16 +699,8 @@ bool MediaDecoder::Flush() {
   // `video_decoder` threads to clean up all pending tasks,
   // and Flush()/Start() |media_codec_bridge_|.
 
-  // 1. Destroy `audio_decoder` and `video_decoder` threads.
-  destroying_.store(true);
-  {
-    ScopedLock scoped_lock(mutex_);
-    condition_variable_.Signal();
-  }
-  if (decoder_thread_ != 0) {
-    pthread_join(decoder_thread_, NULL);
-    decoder_thread_ = 0;
-  }
+  // 1. Terminate `audio_decoder` or `video_decoder` thread.
+  TerminateDecoderThread();
 
   // 2. Flush()/Start() |media_codec_bridge_| and clean up pending tasks.
   if (is_valid()) {
@@ -705,7 +717,7 @@ bool MediaDecoder::Flush() {
     pending_tasks_.clear();
     input_buffer_indices_.clear();
     dequeue_output_results_.clear();
-    pending_queue_input_buffer_task_ = nullopt_t();
+    pending_queue_input_buffer_task_ = std::nullopt;
 
     // 2.3. Add OutputFormatChanged to get current output format after Flush().
     DequeueOutputResult dequeue_output_result = {};

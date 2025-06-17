@@ -55,12 +55,6 @@ is_gold = build_type == "gold"
 # is_debug = true for debug builds
 # assert(is_debug || is_devel || is_qa || is_gold)
 
-if (is_mac) {
-  declare_args() {
-    use_system_xcode = true
-  }
-}
-
 if (default_toolchain != "") {
   cobalt_toolchain = default_toolchain
 } else {
