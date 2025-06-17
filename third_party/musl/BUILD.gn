@@ -374,6 +374,7 @@ static_library("c_internal") {
     "src/network/ntohs.c",
     "src/network/res_init.c",
     "src/prng/rand.c",
+    "src/stdio/perror.c",
 
     # Starboardized implementations
     "src/starboard/ctype/__ctype_get_mb_cur_max.c",
