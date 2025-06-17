@@ -47,6 +47,17 @@ using VideoRenderAlgorithmBase =
 using std::placeholders::_1;
 using std::placeholders::_2;
 
+template <typename T>
+inline std::ostream& operator<<(std::ostream& stream,
+                                const std::optional<T>& maybe_value) {
+  if (maybe_value) {
+    stream << *maybe_value;
+  } else {
+    stream << "nullopt";
+  }
+  return stream;
+}
+
 bool IsSoftwareDecodeRequired(const std::string& max_video_capabilities) {
   if (max_video_capabilities.empty()) {
     SB_LOG(INFO)
@@ -99,15 +110,15 @@ bool IsSoftwareDecodeRequired(const std::string& max_video_capabilities) {
 void ParseMaxResolution(const std::string& max_video_capabilities,
                         int frame_width,
                         int frame_height,
-                        optional<int>* max_width,
-                        optional<int>* max_height) {
+                        std::optional<int>* max_width,
+                        std::optional<int>* max_height) {
   SB_DCHECK(frame_width > 0);
   SB_DCHECK(frame_height > 0);
   SB_DCHECK(max_width);
   SB_DCHECK(max_height);
 
-  *max_width = nullopt;
-  *max_height = nullopt;
+  *max_width = std::nullopt;
+  *max_height = std::nullopt;
 
   if (max_video_capabilities.empty()) {
     SB_LOG(INFO)
@@ -293,7 +304,12 @@ class VideoRenderAlgorithmTunneled : public VideoRenderAlgorithmBase {
 
   void Render(MediaTimeProvider* media_time_provider,
               std::list<scoped_refptr<VideoFrame>>* frames,
-              VideoRendererSink::DrawFrameCB draw_frame_cb) override {}
+              VideoRendererSink::DrawFrameCB draw_frame_cb) override {
+    // Clear output frames.
+    while (!frames->empty() && !frames->front()->is_end_of_stream()) {
+      frames->pop_front();
+    }
+  }
   void Seek(int64_t seek_to_time) override {
     frame_tracker_->Seek(seek_to_time);
   }
@@ -615,7 +631,7 @@ void VideoDecoder::Reset() {
   // may have invalid frames. Reset |output_format_| to null here to skip max
   // output buffers check.
   decoded_output_frames_ = 0;
-  output_format_ = starboard::nullopt;
+  output_format_ = std::nullopt;
 
   tunnel_mode_prerolling_.store(true);
   tunnel_mode_frame_rendered_.store(false);
@@ -706,15 +722,13 @@ bool VideoDecoder::InitializeCodec(const VideoStreamInfo& video_stream_info,
     return false;
   }
 
-  jobject j_media_crypto = drm_system_ ? drm_system_->GetMediaCrypto() : NULL;
-  SB_DCHECK(!drm_system_ || j_media_crypto);
   if (video_stream_info.codec == kSbMediaVideoCodecAv1) {
     SB_DCHECK(video_fps_ > 0);
   } else {
     SB_DCHECK(video_fps_ == 0);
   }
 
-  optional<int> max_width, max_height;
+  std::optional<int> max_width, max_height;
   // TODO(b/281431214): Evaluate if we should also parse the fps from
   //                    `max_video_capabilities_` and pass to MediaDecoder ctor.
   ParseMaxResolution(max_video_capabilities_, video_stream_info.frame_width,
@@ -726,6 +740,7 @@ bool VideoDecoder::InitializeCodec(const VideoStreamInfo& video_stream_info,
       j_output_surface, drm_system_,
       color_metadata_ ? &*color_metadata_ : nullptr, require_software_codec_,
       std::bind(&VideoDecoder::OnFrameRendered, this, _1),
+      std::bind(&VideoDecoder::OnFirstTunnelFrameReady, this),
       tunnel_mode_audio_session_id_, force_big_endian_hdr_metadata_,
       max_video_input_size_, error_message));
   if (media_decoder_->is_valid()) {
@@ -757,7 +772,7 @@ void VideoDecoder::TeardownCodec() {
     owns_video_surface_ = false;
   }
   media_decoder_.reset();
-  color_metadata_ = starboard::nullopt;
+  color_metadata_ = std::nullopt;
 
   SbDecodeTarget decode_target_to_release = kSbDecodeTargetInvalid;
   {
@@ -867,14 +882,8 @@ void VideoDecoder::WriteInputBuffersInternal(
       bool prerolled = tunnel_mode_frame_rendered_.load() > 0 ||
                        enough_buffers_written_to_media_codec || cache_full;
 
-      if (prerolled && tunnel_mode_prerolling_.exchange(false)) {
-        SB_LOG(INFO)
-            << "Tunnel mode preroll finished on enqueuing input buffer "
-            << max_timestamp << ", for seek time "
-            << video_frame_tracker_->seek_to_time();
-        decoder_status_cb_(
-            kNeedMoreInput,
-            new VideoFrame(video_frame_tracker_->seek_to_time()));
+      if (prerolled) {
+        TryToSignalPrerollForTunnelMode();
       }
     }
   }
@@ -927,7 +936,7 @@ void VideoDecoder::RefreshOutputFormat(MediaCodecBridge* media_codec_bridge) {
     // resolutions. In that case, it's hard to determine the max supported
     // output buffers. So, we reset |output_format_| to null here to skip max
     // output buffers check.
-    output_format_ = starboard::nullopt;
+    output_format_ = std::nullopt;
     return;
   }
   output_format_ = VideoOutputFormat(
@@ -1163,6 +1172,18 @@ void VideoDecoder::OnNewTextureAvailable() {
   has_new_texture_available_.store(true);
 }
 
+void VideoDecoder::TryToSignalPrerollForTunnelMode() {
+  if (tunnel_mode_prerolling_.exchange(false)) {
+    SB_LOG(ERROR) << "Tunnel mode preroll finished.";
+    // TODO: Currently the decoder sends a dummy frame to the renderer to signal
+    //       preroll finish.  We should investigate a better way for prerolling
+    //       when the video is rendered directly by the decoder, maybe by always
+    //       sending placeholder frames.
+    decoder_status_cb_(kNeedMoreInput,
+                       new VideoFrame(video_frame_tracker_->seek_to_time()));
+  }
+}
+
 bool VideoDecoder::IsFrameRenderedCallbackEnabled() {
   return MediaCodecBridge::IsFrameRenderedCallbackEnabled() == JNI_TRUE;
 }
@@ -1177,19 +1198,17 @@ void VideoDecoder::OnFrameRendered(int64_t frame_timestamp) {
   video_frame_tracker_->OnFrameRendered(frame_timestamp);
 }
 
+void VideoDecoder::OnFirstTunnelFrameReady() {
+  SB_DCHECK(tunnel_mode_audio_session_id_ != -1);
+
+  TryToSignalPrerollForTunnelMode();
+}
+
 void VideoDecoder::OnTunnelModePrerollTimeout() {
   SB_DCHECK(BelongsToCurrentThread());
   SB_DCHECK(tunnel_mode_audio_session_id_ != -1);
 
-  if (tunnel_mode_prerolling_.exchange(false)) {
-    SB_LOG(INFO) << "Tunnel mode preroll finished due to timeout.";
-    // TODO: Currently the decoder sends a dummy frame to the renderer to signal
-    //       preroll finish.  We should investigate a better way for prerolling
-    //       when the video is rendered directly by the decoder, maybe by always
-    //       sending placeholder frames.
-    decoder_status_cb_(kNeedMoreInput,
-                       new VideoFrame(video_frame_tracker_->seek_to_time()));
-  }
+  TryToSignalPrerollForTunnelMode();
 }
 
 void VideoDecoder::OnTunnelModeCheckForNeedMoreInput() {

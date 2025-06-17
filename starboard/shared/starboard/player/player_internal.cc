@@ -26,10 +26,7 @@
 #include SB_PLAYER_DMP_WRITER_INCLUDE_PATH
 #endif  // SB_PLAYER_ENABLE_VIDEO_DUMPER
 
-namespace starboard {
-namespace shared {
-namespace starboard {
-namespace player {
+namespace starboard::shared::starboard::player {
 namespace {
 
 using std::placeholders::_1;
@@ -95,7 +92,7 @@ SbPlayerPrivate* SbPlayerPrivateImpl::CreateInstance(
 
 void SbPlayerPrivateImpl::Seek(int64_t seek_to_time, int ticket) {
   {
-    ScopedLock lock(mutex_);
+    std::scoped_lock lock(mutex_);
     SB_DCHECK(ticket_ != ticket);
     media_time_ = seek_to_time;
     media_time_updated_at_ = CurrentMonotonicTime();
@@ -149,7 +146,7 @@ void SbPlayerPrivateImpl::SetBounds(int z_index,
 void SbPlayerPrivateImpl::GetInfo(SbPlayerInfo* out_player_info) {
   SB_DCHECK(out_player_info != NULL);
 
-  ScopedLock lock(mutex_);
+  std::scoped_lock lock(mutex_);
   out_player_info->duration = SB_PLAYER_NO_DURATION;
   if (is_paused_ || !is_progressing_) {
     out_player_info->current_media_timestamp = media_time_;
@@ -187,7 +184,7 @@ void SbPlayerPrivateImpl::UpdateMediaInfo(int64_t media_time,
                                           int dropped_video_frames,
                                           int ticket,
                                           bool is_progressing) {
-  ScopedLock lock(mutex_);
+  std::scoped_lock lock(mutex_);
   if (ticket_ != ticket) {
     return;
   }
@@ -258,7 +255,4 @@ SbPlayerPrivateImpl::~SbPlayerPrivateImpl() {
                << number_of_players_ << " players.";
 }
 
-}  // namespace player
-}  // namespace starboard
-}  // namespace shared
-}  // namespace starboard
+}  // namespace starboard::shared::starboard::player

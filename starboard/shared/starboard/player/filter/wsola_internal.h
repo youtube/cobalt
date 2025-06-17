@@ -25,38 +25,27 @@
 
 #include <utility>
 
-#include "starboard/common/ref_counted.h"
 #include "starboard/media.h"
 #include "starboard/shared/internal_only.h"
 #include "starboard/shared/starboard/player/decoded_audio_internal.h"
 
-namespace starboard {
-namespace shared {
-namespace starboard {
-namespace player {
-namespace filter {
-namespace internal {
+namespace starboard::shared::starboard::player::filter::internal {
 
 typedef std::pair<int, int> Interval;
 
 // Find the index of the block, within |search_block|, that is most similar
 // to |target_block|. Obviously, the returned index is w.r.t. |search_block|.
 // |exclude_interval| is an interval that is excluded from the search.
-int OptimalIndex(const scoped_refptr<DecodedAudio>& search_block,
-                 const scoped_refptr<DecodedAudio>& target_block,
+int OptimalIndex(const DecodedAudio* search_block,
+                 const DecodedAudio* target_block,
                  SbMediaAudioFrameStorageType storage_type,
                  Interval exclude_interval);
 
 // Return a "periodic" Hann window(https://en.wikipedia.org/wiki/Hann_function).
 // This is the first L samples of an L+1 Hann window. It is perfect
 // reconstruction for overlap-and-add.
-void GetSymmetricHanningWindow(int window_length, float* window);
+void GetPeriodicHanningWindow(int window_length, float* window);
 
-}  // namespace internal
-}  // namespace filter
-}  // namespace player
-}  // namespace starboard
-}  // namespace shared
-}  // namespace starboard
+}  // namespace starboard::shared::starboard::player::filter::internal
 
 #endif  // STARBOARD_SHARED_STARBOARD_PLAYER_FILTER_WSOLA_INTERNAL_H_

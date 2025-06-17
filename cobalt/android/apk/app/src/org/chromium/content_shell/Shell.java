@@ -8,13 +8,14 @@ import android.content.Context;
 import android.graphics.Rect;
 import android.text.TextUtils;
 import android.util.AttributeSet;
+import android.util.Log;
 import android.view.ActionMode;
 import android.view.Menu;
 import android.view.MenuItem;
 import android.view.View;
+import android.view.ViewGroup;
 import android.widget.FrameLayout;
 import android.widget.LinearLayout;
-
 import org.chromium.base.Callback;
 import org.chromium.base.annotations.CalledByNative;
 import org.chromium.base.annotations.JNINamespace;
@@ -36,6 +37,7 @@ import org.chromium.ui.base.WindowAndroid;
  */
 @JNINamespace("content")
 public class Shell extends LinearLayout {
+    private static final String TAG = "cobalt";
 
     private static final long COMPLETED_PROGRESS_TIMEOUT_MS = 200;
 
@@ -71,6 +73,9 @@ public class Shell extends LinearLayout {
      */
     public void setContentViewRenderView(ContentViewRenderView contentViewRenderView) {
         FrameLayout contentViewHolder = (FrameLayout) findViewById(R.id.contentview_holder);
+
+        Log.i(TAG, "Shell.setContentViewRenderView(), FrameLayout Views before operation.");
+        Util.printRootViewHierarchy(contentViewHolder);
         if (contentViewRenderView == null) {
             if (mContentViewRenderView != null) {
                 contentViewHolder.removeView(mContentViewRenderView);
@@ -82,6 +87,8 @@ public class Shell extends LinearLayout {
                             FrameLayout.LayoutParams.MATCH_PARENT));
         }
         mContentViewRenderView = contentViewRenderView;
+        Log.i(TAG, "Shell.setContentViewRenderView(), FrameLayout Views after operation.");
+        Util.printRootViewHierarchy(contentViewHolder);
     }
 
     /**
@@ -153,11 +160,9 @@ public class Shell extends LinearLayout {
         return url;
     }
 
-    @SuppressWarnings("unused")
     @CalledByNative
     private void onUpdateUrl(String url) {}
 
-    @SuppressWarnings("unused")
     @CalledByNative
     private void onLoadProgressChanged(double progress) {}
 
@@ -170,7 +175,6 @@ public class Shell extends LinearLayout {
         return mIsFullscreen;
     }
 
-    @SuppressWarnings("unused")
     @CalledByNative
     private void setIsLoading(boolean loading) {
         mLoading = loading;
@@ -184,7 +188,6 @@ public class Shell extends LinearLayout {
      * Initializes the ContentView based on the native tab contents pointer passed in.
      * @param webContents A {@link WebContents} object.
      */
-    @SuppressWarnings("unused")
     @CalledByNative
     private void initFromNativeTabContents(WebContents webContents) {
         Context context = getContext();
@@ -200,10 +203,20 @@ public class Shell extends LinearLayout {
                 .setActionModeCallback(defaultActionCallback());
         mNavigationController = mWebContents.getNavigationController();
         if (getParent() != null) mWebContents.onShow();
-        ((FrameLayout) findViewById(R.id.contentview_holder)).addView(cv,
+
+        FrameLayout contentViewHolder = (FrameLayout)findViewById(R.id.contentview_holder);
+
+        Log.i(TAG, "Shell.initFromNativeTabContents, before addView, all Layout Views:");
+        Util.printRootViewHierarchy(contentViewHolder);
+
+        contentViewHolder.addView(cv,
                 new FrameLayout.LayoutParams(
                         FrameLayout.LayoutParams.MATCH_PARENT,
                         FrameLayout.LayoutParams.MATCH_PARENT));
+
+        Log.i(TAG, "Shell.initFromNativeTabContents, after addView, all Layout Views:");
+        Util.printRootViewHierarchy(contentViewHolder);
+
         cv.requestFocus();
         mContentViewRenderView.setCurrentWebContents(mWebContents);
     }

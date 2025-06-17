@@ -12,6 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+import("//build/config/android/rules.gni")
 import("//starboard/android/shared/toolchain/toolchain.gni")
 import("//starboard/shared/starboard/media/media_tests.gni")
 import("//starboard/shared/starboard/player/buildfiles.gni")
@@ -31,6 +32,14 @@ shared_library("starboard_jni_state") {
 
   # Do not just hide symbols from us
   configs -= [ "//build/config/android:hide_all_but_jni_onload" ]
+}
+
+config("starboard_platform_libs") {
+  libs = [
+    "EGL",
+    "OpenSLES",
+    "mediandk",
+  ]
 }
 
 # TODO(cobalt, b/375669373): re-enable API without ApplicationAndroid
@@ -163,6 +172,8 @@ static_library("starboard_platform") {
     "audio_decoder_passthrough.h",
     "audio_output_manager.cc",
     "audio_output_manager.h",
+    "audio_permission_requester.cc",
+    "audio_permission_requester.h",
     "audio_renderer_passthrough.cc",
     "audio_renderer_passthrough.h",
     "audio_sink_get_max_channels.cc",
@@ -216,6 +227,8 @@ static_library("starboard_platform") {
     "media_common.h",
     "media_decoder.cc",
     "media_decoder.h",
+    "media_drm_bridge.cc",
+    "media_drm_bridge.h",
     "media_get_audio_configuration.cc",
     "media_get_audio_output_count.cc",
     "media_get_initial_buffer_capacity.cc",
@@ -306,7 +319,10 @@ static_library("starboard_platform") {
     "//starboard/shared/starboard/player/player_set_playback_rate.cc",
   ]
 
-  configs += [ "//starboard/build/config:starboard_implementation" ]
+  configs += [
+    "//starboard/build/config:starboard_implementation",
+    ":starboard_platform_libs",
+  ]
 
   public_deps = [
     ":starboard_base_symbolize",
@@ -390,4 +406,8 @@ source_set("starboard_platform_tests") {
     "//testing/gmock",
     "//testing/gtest",
   ]
+}
+
+java_cpp_enum("java_enums") {
+  sources = [ "media_codec_bridge.h" ]
 }

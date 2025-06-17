@@ -26,7 +26,11 @@ _BUILDS_DIRECTORY = 'out'
 _BUILD_TYPES = {
     'debug': {
         'symbol_level': 2,
-        'is_debug': 'true'
+
+        # TODO: b/423038377 - Set is_debug to true and remove
+        # cobalt_debugging_enabled once the debug build is fixed.
+        'is_debug': 'false',
+        'cobalt_debugging_enabled': 'true'
     },
     'devel': {
         'symbol_level': 1,
@@ -54,6 +58,7 @@ _COBALT_LINUX_PLATFORMS = [
     'linux-x64x11',
     'linux-x64x11-modular',
     'linux-x64x11-no-starboard',
+    'raspi-2',
 ]
 _COBALT_ANDROID_PLATFORMS = [
     'android-arm',

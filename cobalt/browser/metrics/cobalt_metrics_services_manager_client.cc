@@ -20,6 +20,7 @@
 #include "base/path_service.h"
 #include "cobalt/browser/metrics/cobalt_enabled_state_provider.h"
 #include "cobalt/browser/metrics/cobalt_metrics_service_client.h"
+#include "cobalt/shell/browser/shell_paths.h"
 #include "components/metrics/client_info.h"
 #include "components/metrics/metrics_service.h"
 #include "components/metrics/metrics_service_client.h"
@@ -30,7 +31,6 @@
 #include "components/prefs/pref_service_factory.h"
 #include "components/variations/service/variations_service.h"
 #include "components/variations/synthetic_trial_registry.h"
-#include "content/shell/browser/shell_paths.h"
 
 namespace cobalt {
 
@@ -87,7 +87,7 @@ std::unique_ptr<::metrics::ClientInfo> LoadMetricsClientInfo() {
 CobaltMetricsServicesManagerClient::GetMetricsStateManager() {
   if (!metrics_state_manager_) {
     base::FilePath user_data_dir;
-    base::PathService::Get(content::SHELL_DIR_USER_DATA, &user_data_dir);
+    base::PathService::Get(base::DIR_CACHE, &user_data_dir);
     metrics_state_manager_ = ::metrics::MetricsStateManager::Create(
         local_state_.get(), enabled_state_provider_.get(), std::wstring(),
         user_data_dir, metrics::StartupVisibility::kForeground);

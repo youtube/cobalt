@@ -33,26 +33,32 @@
 #include "cobalt/browser/user_agent/user_agent_platform_info.h"
 #include "cobalt/media/service/mojom/video_geometry_setter.mojom.h"
 #include "cobalt/media/service/video_geometry_setter_service.h"
+#include "cobalt/shell/browser/shell.h"
+#include "cobalt/shell/browser/shell_paths.h"
 #include "components/metrics/metrics_state_manager.h"
 #include "components/metrics/test/test_enabled_state_provider.h"
 #include "components/metrics_services_manager/metrics_services_manager.h"
 #include "components/prefs/pref_registry_simple.h"
 #include "components/prefs/pref_service.h"
 #include "components/prefs/pref_service_factory.h"
+#include "components/variations/pref_names.h"
+#include "components/variations/service/variations_field_trial_creator.h"
 #include "components/variations/service/variations_service.h"
 #include "content/public/browser/browser_thread.h"
 #include "content/public/browser/render_process_host.h"
 #include "content/public/browser/web_contents.h"
 #include "content/public/common/content_switch_dependent_feature_overrides.h"
 #include "content/public/common/user_agent.h"
-#include "content/shell/browser/shell.h"
-#include "content/shell/browser/shell_paths.h"
 #include "content/shell/common/shell_switches.h"
 #include "services/network/public/cpp/features.h"
 #include "services/network/public/mojom/network_context.mojom.h"
 #include "services/service_manager/public/cpp/binder_registry.h"
 #include "third_party/blink/public/common/associated_interfaces/associated_interface_registry.h"
 #include "third_party/blink/public/common/web_preferences/web_preferences.h"
+
+#if BUILDFLAG(IS_ANDROID)
+#include "base/android/locale_utils.h"
+#endif  // BUILDFLAG(IS_ANDROID)
 
 namespace cobalt {
 
@@ -71,6 +77,36 @@ constexpr base::FilePath::CharType kTransportSecurityPersisterFilename[] =
     FILE_PATH_LITERAL("TransportSecurity");
 constexpr base::FilePath::CharType kTrustTokenFilename[] =
     FILE_PATH_LITERAL("Trust Tokens");
+
+// Cobalt does not use variations service for field trials. This is a dummy
+// implementation for the browser client to call ApplyFieldTrialTestingConfig
+// and apply test feature overrides.
+class CobaltVariationsServiceClient
+    : public variations::VariationsServiceClient {
+ public:
+  CobaltVariationsServiceClient() = default;
+  ~CobaltVariationsServiceClient() override = default;
+
+  // variations::VariationsServiceClient:
+  base::Version GetVersionForSimulation() override { return base::Version(); }
+  scoped_refptr<network::SharedURLLoaderFactory> GetURLLoaderFactory()
+      override {
+    return nullptr;
+  }
+  network_time::NetworkTimeTracker* GetNetworkTimeTracker() override {
+    return nullptr;
+  }
+  version_info::Channel GetChannel() override {
+    return version_info::Channel::UNKNOWN;
+  }
+  bool OverridesRestrictParameter(std::string* parameter) override {
+    return false;
+  }
+  bool IsEnterprise() override { return false; }
+  // Profiles aren't supported, so nothing to do here.
+  void RemoveGoogleGroupsFromPrefsForDeletedProfiles(
+      PrefService* local_state) override {}
+};
 
 }  // namespace
 
@@ -152,7 +188,11 @@ CobaltContentBrowserClient::GetGeneratedCodeCacheSettings(
 
 std::string CobaltContentBrowserClient::GetApplicationLocale() {
   DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
+#if BUILDFLAG(IS_ANDROID)
+  return base::android::GetDefaultLocaleString();
+#else
   return base::i18n::GetConfiguredLocale();
+#endif
 }
 
 std::string CobaltContentBrowserClient::GetUserAgent() {
@@ -432,9 +472,26 @@ void CobaltContentBrowserClient::CreateFeatureListAndFieldTrials() {
   // instance is set.
   feature_list->RegisterExtraFeatureOverrides(feature_overrides);
 
+  CobaltVariationsServiceClient variations_service_client;
+  variations::VariationsFieldTrialCreator field_trial_creator(
+      &variations_service_client,
+      std::make_unique<variations::VariationsSeedStore>(
+          GlobalFeatures::GetInstance()->experiment_config(),
+          std::make_unique<variations::SeedResponse>(),
+          /*signature_verification_enabled=*/true),
+      variations::UIStringOverrider());
+
+#if BUILDFLAG(FIELDTRIAL_TESTING_ENABLED)
+  field_trial_creator.ApplyFieldTrialTestingConfig(feature_list.get());
+#endif  // BUILDFLAG(FIELDTRIAL_TESTING_ENABLED)
+
   SetUpCobaltFeaturesAndParams(feature_list.get());
 
   base::FeatureList::SetInstance(std::move(feature_list));
+  LOG(INFO) << "CobaltCommandLine "
+            << command_line.GetSwitchValueASCII(::switches::kEnableFeatures);
+  LOG(INFO) << "CobaltCommandLine "
+            << command_line.GetSwitchValueASCII(::switches::kDisableFeatures);
 }
 
 }  // namespace cobalt

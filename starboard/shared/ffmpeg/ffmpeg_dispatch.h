@@ -28,9 +28,7 @@ struct AVDictionary;
 struct AVFrame;
 struct AVPacket;
 
-namespace starboard {
-namespace shared {
-namespace ffmpeg {
+namespace starboard::shared::ffmpeg {
 
 inline constexpr int AvVersionInt(int major, int minor, int micro) {
   return (major << 16) | (minor << 8) | micro;
@@ -149,8 +147,6 @@ class FFMPEGDispatch {
   void FreeContext(AVCodecContext** avctx);
 };
 
-}  // namespace ffmpeg
-}  // namespace shared
-}  // namespace starboard
+}  // namespace starboard::shared::ffmpeg
 
 #endif  // STARBOARD_SHARED_FFMPEG_FFMPEG_DISPATCH_H_

@@ -21,11 +21,7 @@
 #include "starboard/common/time.h"
 #include "starboard/shared/starboard/media/media_util.h"
 
-namespace starboard {
-namespace shared {
-namespace starboard {
-namespace player {
-namespace filter {
+namespace starboard::shared::starboard::player::filter {
 
 namespace {
 
@@ -265,7 +261,7 @@ void AudioRendererPcm::Seek(int64_t seek_to_time) {
 
   if (first_input_written_) {
     decoder_->Reset();
-    decoder_sample_rate_ = nullopt;
+    decoder_sample_rate_ = std::nullopt;
     first_input_written_ = false;
   }
 
@@ -780,8 +776,4 @@ void AudioRendererPcm::CheckAudioSinkStatus() {
 }
 #endif  // SB_PLAYER_FILTER_ENABLE_STATE_CHECK
 
-}  // namespace filter
-}  // namespace player
-}  // namespace starboard
-}  // namespace shared
-}  // namespace starboard
+}  // namespace starboard::shared::starboard::player::filter
