@@ -185,16 +185,6 @@ TEST(PosixPipeTest, ReadFromEmptyPipeCreatedWithNonBlockFlagDoesNotBlock) {
   close(pipe_fds[1]);
 }
 
-void DoRead(int fd) {
-  // Reading one page worth of bytes should be sufficient to unblock writing to
-  // the pipe, and 4096 bytes should cover this. We can consider using sysconf()
-  // to query for the page size if/when that symbol is added to the hermetic
-  // build.
-  int estimated_page_size = 4096;
-  char buffer[estimated_page_size];
-  EXPECT_EQ(estimated_page_size, read(fd, buffer, estimated_page_size));
-}
-
 void* DoReadOnTimeout(void* test_context) {
   TestContext* context = static_cast<TestContext*>(test_context);
 
@@ -204,21 +194,36 @@ void* DoReadOnTimeout(void* test_context) {
   timeout_time.tv_sec = timeout_time_us / 1'000'000;
   timeout_time.tv_nsec = (timeout_time_us % 1'000'000) * 1000;
 
+  bool assume_main_thread_blocked_on_write = false;
+
   EXPECT_EQ(pthread_mutex_lock(&context->had_expected_failed_write_mutex), 0);
   while (!context->had_expected_failed_write) {
     int ret = pthread_cond_timedwait(&context->had_expected_failed_write_cv,
                                      &context->had_expected_failed_write_mutex,
                                      &timeout_time);
     if (ret == ETIMEDOUT) {
-      EXPECT_EQ(pthread_mutex_lock(&context->out_of_time_mutex), 0);
-      context->out_of_time = true;
-      EXPECT_EQ(pthread_mutex_unlock(&context->out_of_time_mutex), 0);
-
-      DoRead(context->read_fd);
+      assume_main_thread_blocked_on_write = true;
       break;
     }
   }
   EXPECT_EQ(pthread_mutex_unlock(&context->had_expected_failed_write_mutex), 0);
+
+  if (!assume_main_thread_blocked_on_write) {
+    return nullptr;
+  }
+
+  EXPECT_EQ(pthread_mutex_lock(&context->out_of_time_mutex), 0);
+  context->out_of_time = true;
+  EXPECT_EQ(pthread_mutex_unlock(&context->out_of_time_mutex), 0);
+
+  // Reading one page worth of bytes should be sufficient to unblock writing to
+  // the pipe, and 4096 bytes should cover this. We can consider using sysconf()
+  // to query for the page size if/when that symbol is added to the hermetic
+  // build.
+  int estimated_page_size = 4096;
+  char buffer[estimated_page_size];
+  EXPECT_EQ(estimated_page_size,
+            read(context->read_fd, buffer, estimated_page_size));
   return nullptr;
 }
 
