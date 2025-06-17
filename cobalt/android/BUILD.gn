@@ -137,6 +137,7 @@ android_library("cobalt_main_java") {
     "//services/media_session/public/mojom:mojom_java",
     "//third_party/android_deps:com_google_code_findbugs_jsr305_java",
     "//third_party/android_deps:google_play_services_ads_identifier_java",
+    "//third_party/android_deps:google_play_services_basement_java",
     "//third_party/androidx:androidx_annotation_annotation_java",
     "//third_party/androidx:androidx_core_core_java",
     "//third_party/androidx:androidx_customview_customview_java",
