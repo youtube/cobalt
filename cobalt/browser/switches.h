@@ -31,6 +31,16 @@ std::string GetInitialURL(const base::CommandLine& command_line);
 constexpr char kInitialURL[] = "url";
 constexpr char kRequireCSP[] = "require_csp";
 
+<<<<<<< HEAD
+=======
+// Specify the initial window size: --window-size=w,h
+constexpr char kWindowSize[] = "window-size";
+
+// Exposes the window.internals object to JavaScript for interactive development
+// and debugging of web tests that rely on it.
+constexpr char kExposeInternalsForTesting[] = "expose-internals-for-testing";
+
+>>>>>>> 3f9826fefc8 (cobalt: merge common/shell_switches into cobalt/browser/switches (#6098))
 }  // namespace switches
 }  // namespace cobalt
 
