@@ -37,7 +37,6 @@ void SbFileAndroidInitialize(ScopedJavaGlobalRef<jobject> asset_manager,
                              const std::string& cache_dir,
                              const std::string& native_library_dir) {
   JNIEnv* env = base::android::AttachCurrentThread();
-  StarboardBridge* starbooard_bridge = StarboardBridge::GetInstance();
 
   SB_DCHECK(g_java_asset_manager.is_null());
   SB_DCHECK(g_asset_manager == NULL);
