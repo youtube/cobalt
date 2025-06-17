@@ -9,12 +9,15 @@
 
 void perror(const char *msg)
 {
-	#if BUILDFLAG(ENABLE_COBALT_HERMETIC_HACKS)
+#if BUILDFLAG(ENABLE_COBALT_HERMETIC_HACKS)
+	// TODO: Explore ways to capture standard output and 
+	// standard error for testing. (b/425692168).
+
 	// Hack method to introduce the symbol into Chrobalt.
 	// Once the iobuffer has been implemented into Chrobalt, this
 	// hack method should be removed with a proper implementation.
 	printf("%s: %s", msg, strerror(errno));
-	#else // BUILDFLAG(ENABLE_COBALT_HERMETIC_HACKS)
+#else // BUILDFLAG(ENABLE_COBALT_HERMETIC_HACKS)
 	FILE *f = stderr;
 	char *errstr = strerror(errno);
 
@@ -37,5 +40,5 @@ void perror(const char *msg)
 	f->locale = old_locale;
 
 	FUNLOCK(f);
-	#endif // BUILDFLAG(ENABLE_COBALT_HERMETIC_HACKS)
+#endif // BUILDFLAG(ENABLE_COBALT_HERMETIC_HACKS)
 }
