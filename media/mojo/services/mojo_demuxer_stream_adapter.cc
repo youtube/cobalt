@@ -66,17 +66,31 @@ bool MojoDemuxerStreamAdapter::SupportsConfigChanges() {
   return true;
 }
 
+#if BUILDFLAG(USE_STARBOARD_MEDIA)
+std::string MojoDemuxerStreamAdapter::mime_type() const {
+  return mime_type_;
+}
+#endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
+
 // TODO(xhwang): Pass liveness here.
 void MojoDemuxerStreamAdapter::OnStreamReady(
     Type type,
     mojo::ScopedDataPipeConsumerHandle consumer_handle,
     const absl::optional<AudioDecoderConfig>& audio_config,
+#if BUILDFLAG(USE_STARBOARD_MEDIA)
+    const absl::optional<VideoDecoderConfig>& video_config,
+    const std::string& mime_type) {
+#else   // BUILDFLAG(USE_STARBOARD_MEDIA)
     const absl::optional<VideoDecoderConfig>& video_config) {
+#endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
   DVLOG(1) << __func__;
   DCHECK_EQ(UNKNOWN, type_);
   DCHECK(consumer_handle.is_valid());
 
   type_ = type;
+#if BUILDFLAG(USE_STARBOARD_MEDIA)
+  mime_type_ = mime_type;
+#endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
 
   mojo_decoder_buffer_reader_ =
       std::make_unique<MojoDecoderBufferReader>(std::move(consumer_handle));
