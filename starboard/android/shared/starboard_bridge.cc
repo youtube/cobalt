@@ -230,67 +230,6 @@ void StarboardBridge::RequestSuspend(JNIEnv* env) {
   Java_StarboardBridge_requestSuspend(env, j_starboard_bridge_);
 }
 
-ScopedJavaLocalRef<jobject> StarboardBridge::GetApplicationContext(
-    JNIEnv* env) {
-  SB_DCHECK(env);
-  return Java_StarboardBridge_getApplicationContext(env, j_starboard_bridge_);
-}
-
-ScopedJavaGlobalRef<jobject> StarboardBridge::GetAssetsFromContext(
-    JNIEnv* env,
-    ScopedJavaLocalRef<jobject>& context) {
-  SB_DCHECK(env);
-  ScopedJavaLocalRef<jclass> context_class(
-      GetClass(env, "android/content/Context"));
-  jmethodID get_assets_method = env->GetMethodID(
-      context_class.obj(), "getAssets", "()Landroid/content/res/AssetManager;");
-  ScopedJavaLocalRef<jobject> asset_manager(
-      env, env->CallObjectMethod(context.obj(), get_assets_method));
-  ScopedJavaGlobalRef<jobject> global_asset_manager;
-  global_asset_manager.Reset(asset_manager);
-  return global_asset_manager;
-}
-
-std::string StarboardBridge::GetNativeLibraryDirFromContext(
-    JNIEnv* env,
-    ScopedJavaLocalRef<jobject>& context) {
-  SB_DCHECK(env);
-  ScopedJavaLocalRef<jclass> context_class(
-      GetClass(env, "android/content/Context"));
-  jmethodID get_application_info_method =
-      env->GetMethodID(context_class.obj(), "getApplicationInfo",
-                       "()Landroid/content/pm/ApplicationInfo;");
-  ScopedJavaLocalRef<jobject> application_info(
-      env, env->CallObjectMethod(context.obj(), get_application_info_method));
-
-  ScopedJavaLocalRef<jclass> application_info_class(
-      env, env->GetObjectClass(application_info.obj()));
-  jfieldID native_library_dir_field = env->GetFieldID(
-      application_info_class.obj(), "nativeLibraryDir", "Ljava/lang/String;");
-  ScopedJavaLocalRef<jstring> native_library_dir_java(
-      env, static_cast<jstring>(env->GetObjectField(application_info.obj(),
-                                                    native_library_dir_field)));
-  std::string native_library_dir =
-      ConvertJavaStringToUTF8(env, native_library_dir_java.obj());
-  return native_library_dir.c_str();
-}
-
-std::string StarboardBridge::GetFilesAbsolutePath(JNIEnv* env) {
-  SB_DCHECK(env);
-  ScopedJavaLocalRef<jstring> file_path_java =
-      Java_StarboardBridge_getFilesAbsolutePath(env, j_starboard_bridge_);
-  std::string file_path = ConvertJavaStringToUTF8(env, file_path_java);
-  return file_path;
-}
-
-std::string StarboardBridge::GetCacheAbsolutePath(JNIEnv* env) {
-  SB_DCHECK(env);
-  ScopedJavaLocalRef<jstring> file_path_java =
-      Java_StarboardBridge_getCacheAbsolutePath(env, j_starboard_bridge_);
-  std::string file_path = ConvertJavaStringToUTF8(env, file_path_java);
-  return file_path;
-}
-
 ScopedJavaLocalRef<jobject> StarboardBridge::GetTextToSpeechHelper(
     JNIEnv* env) {
   SB_DCHECK(env);
