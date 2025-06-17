@@ -207,24 +207,24 @@ config("default_sanitizer_ldflags") {
       }
     }
 
-    if (is_cfi && current_toolchain == default_toolchain) {
-      ldflags += [ "-fsanitize=cfi-vcall" ]
-      if (use_cfi_cast) {
-        ldflags += [
-          "-fsanitize=cfi-derived-cast",
-          "-fsanitize=cfi-unrelated-cast",
-        ]
-      }
-      if (use_cfi_icall) {
-        ldflags += [ "-fsanitize=cfi-icall" ]
-      }
-      if (use_cfi_diag) {
-        ldflags += [ "-fno-sanitize-trap=cfi" ]
-        if (use_cfi_recover) {
-          ldflags += [ "-fsanitize-recover=cfi" ]
-        }
-      }
-    }
+    # if (is_cfi && current_toolchain == default_toolchain) {
+    #   ldflags += [ "-fsanitize=cfi-vcall" ]
+    #   if (use_cfi_cast) {
+    #     ldflags += [
+    #       "-fsanitize=cfi-derived-cast",
+    #       "-fsanitize=cfi-unrelated-cast",
+    #     ]
+    #   }
+    #   if (use_cfi_icall) {
+    #     ldflags += [ "-fsanitize=cfi-icall" ]
+    #   }
+    #   if (use_cfi_diag) {
+    #     ldflags += [ "-fno-sanitize-trap=cfi" ]
+    #     if (use_cfi_recover) {
+    #       ldflags += [ "-fsanitize-recover=cfi" ]
+    #     }
+    #   }
+    # }
   } else if (is_win) {
     # Windows directly calls link.exe instead of the compiler driver when
     # linking.  Hence, pass the runtime libraries instead of -fsanitize=address
