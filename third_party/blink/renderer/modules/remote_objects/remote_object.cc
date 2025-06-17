@@ -317,7 +317,7 @@ gin::ObjectTemplateBuilder RemoteObject::GetObjectTemplateBuilder(
 void RemoteObject::RemoteObjectInvokeCallback(
     const v8::FunctionCallbackInfo<v8::Value>& info) {
   v8::Isolate* isolate = info.GetIsolate();
-  String method_name = ToCoreString(info.Data().As<v8::String>());
+  String method_name = ToCoreString(isolate, info.Data().As<v8::String>());
   if (info.IsConstructCall()) {
     // This is not a constructor. Throw and return.
     isolate->ThrowException(v8::Exception::Error(V8String(
