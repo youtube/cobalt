@@ -71,13 +71,9 @@ if (is_android) {
 
     # The default to use for android:minSdkVersion for targets that do
     # not explicitly set it.
-    if (is_cobalt) {
-      default_min_sdk_version = 26
-    } else {
-      default_min_sdk_version = 24
-      if (is_asan) {
-        default_min_sdk_version = 27
-      }
+    default_min_sdk_version = 24
+    if (is_asan) {
+      default_min_sdk_version = 27
     }
 
     # Static analysis can be either "on" or "off" or "build_server". This

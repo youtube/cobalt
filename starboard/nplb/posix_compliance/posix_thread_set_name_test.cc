@@ -13,6 +13,7 @@
 // limitations under the License.
 
 #include <pthread.h>
+#include <sys/prctl.h>
 
 #include "starboard/nplb/posix_compliance/posix_thread_helpers.h"
 #include "testing/gtest/include/gtest/gtest.h"
@@ -32,12 +33,20 @@ void* SetThreadNameEntryPoint(void* context) {
   char name[4096] = {0};
   Context* real_context = static_cast<Context*>(context);
 
+#if __ANDROID_API__ < 26
+  prctl(PR_GET_NAME, name, 0L, 0L, 0L);
+#else
   pthread_getname_np(pthread_self(), name, SB_ARRAY_SIZE_INT(name));
+#endif  // __ANDROID_API__ < 26
   real_context->got_name1 = name;
 
   pthread_setname_np(pthread_self(), real_context->name_to_set.c_str());
 
+#if __ANDROID_API__ < 26
+  prctl(PR_GET_NAME, name, 0L, 0L, 0L);
+#else
   pthread_getname_np(pthread_self(), name, SB_ARRAY_SIZE_INT(name));
+#endif  // __ANDROID_API__ < 26
   real_context->got_name2 = name;
 
   return NULL;
