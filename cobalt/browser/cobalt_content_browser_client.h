@@ -58,7 +58,6 @@ class CobaltBrowserMainParts;
 // a demo around Content.
 class CobaltContentBrowserClient : public content::ContentBrowserClient {
  public:
-  static CobaltContentBrowserClient* GetInstance();
   CobaltContentBrowserClient();
 
   CobaltContentBrowserClient(const CobaltContentBrowserClient&) = delete;
