@@ -183,6 +183,28 @@ extern "C" {
 #define MUSL_SC_THREAD_ROBUST_PRIO_INHERIT 247
 #define MUSL_SC_THREAD_ROBUST_PRIO_PROTECT 248
 
+#define MUSL_PC_LINK_MAX 0
+#define MUSL_PC_MAX_CANON 1
+#define MUSL_PC_MAX_INPUT 2
+#define MUSL_PC_NAME_MAX 3
+#define MUSL_PC_PATH_MAX 4
+#define MUSL_PC_PIPE_BUF 5
+#define MUSL_PC_CHOWN_RESTRICTED 6
+#define MUSL_PC_NO_TRUNC 7
+#define MUSL_PC_VDISABLE 8
+#define MUSL_PC_SYNC_IO 9
+#define MUSL_PC_ASYNC_IO 10
+#define MUSL_PC_PRIO_IO 11
+#define MUSL_PC_SOCK_MAXBUF 12
+#define MUSL_PC_FILESIZEBITS 13
+#define MUSL_PC_REC_INCR_XFER_SIZE 14
+#define MUSL_PC_REC_MAX_XFER_SIZE 15
+#define MUSL_PC_REC_MIN_XFER_SIZE 16
+#define MUSL_PC_REC_XFER_ALIGN 17
+#define MUSL_PC_ALLOC_SIZE_MIN 18
+#define MUSL_PC_SYMLINK_MAX 19
+#define MUSL_PC_2_SYMLINKS 20
+
 SB_EXPORT int __abi_wrap_ftruncate(int fildes, musl_off_t length);
 
 SB_EXPORT musl_off_t __abi_wrap_lseek(int fildes,
@@ -194,6 +216,8 @@ SB_EXPORT ssize_t __abi_wrap_read(int fildes, void* buf, size_t nbyte);
 SB_EXPORT ssize_t __abi_wrap_write(int fildes, const void* buf, size_t nbyte);
 
 SB_EXPORT long __abi_wrap_sysconf(int name);
+
+SB_EXPORT long __abi_wrap_pathconf(const char* path, int name);
 
 #ifdef __cplusplus
 }  // extern "C"

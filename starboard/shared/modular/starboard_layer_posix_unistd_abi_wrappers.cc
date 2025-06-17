@@ -19,6 +19,99 @@
 #include "starboard/shared/modular/starboard_layer_posix_errno_abi_wrappers.h"
 #include "starboard/shared/modular/starboard_layer_posix_unistd_abi_wrappers.h"
 
+namespace {
+int musl_conf_to_platform_conf(int name) {
+  switch (name) {
+#if defined(_PC_LINK_MAX)
+    case MUSL_PC_LINK_MAX:
+      return _PC_LINK_MAX;
+#endif  // defined(_PC_LINK_MAX)
+#if defined(_PC_MAX_CANON)
+    case MUSL_PC_MAX_CANON:
+      return _PC_MAX_CANON;
+#endif  // defined(_PC_MAX_CANON)
+#if defined(_PC_MAX_INPUT)
+    case MUSL_PC_MAX_INPUT:
+      return _PC_MAX_INPUT;
+#endif  // defined(_PC_MAX_INPUT)
+#if defined(_PC_NAME_MAX)
+    case MUSL_PC_NAME_MAX:
+      return _PC_NAME_MAX;
+#endif  // defined(_PC_NAME_MAX)
+#if defined(_PC_PATH_MAX)
+    case MUSL_PC_PATH_MAX:
+      return _PC_PATH_MAX;
+#endif  // defined(_PC_PATH_MAX)
+#if defined(_PC_PIPE_BUF)
+    case MUSL_PC_PIPE_BUF:
+      return _PC_PIPE_BUF;
+#endif  // defined(_PC_PIPE_BUF)
+#if defined(_PC_CHOWN_RESTRICTED)
+    case MUSL_PC_CHOWN_RESTRICTED:
+      return _PC_CHOWN_RESTRICTED;
+#endif  // defined(_PC_CHOWN_RESTRICTED)
+#if defined(_PC_NO_TRUNC)
+    case MUSL_PC_NO_TRUNC:
+      return _PC_NO_TRUNC;
+#endif  // defined(_PC_NO_TRUNC)
+#if defined(_PC_VDISABLE)
+    case MUSL_PC_VDISABLE:
+      return _PC_VDISABLE;
+#endif  // defined(_PC_VDISABLE)
+#if defined(_PC_SYNC_IO)
+    case MUSL_PC_SYNC_IO:
+      return _PC_SYNC_IO;
+#endif  // defined(_PC_SYNC_IO)
+#if defined(_PC_ASYNC_IO)
+    case MUSL_PC_ASYNC_IO:
+      return _PC_ASYNC_IO;
+#endif  // defined(_PC_ASYNC_IO)
+#if defined(_PC_PRIO_IO)
+    case MUSL_PC_PRIO_IO:
+      return _PC_PRIO_IO;
+#endif  // defined(_PC_PRIO_IO)
+#if defined(_PC_SOCK_MAXBUF)
+    case MUSL_PC_SOCK_MAXBUF:
+      return _PC_SOCK_MAXBUF;
+#endif  // defined(_PC_SOCK_MAXBUF)
+#if defined(_PC_FILESIZEBITS)
+    case MUSL_PC_FILESIZEBITS:
+      return _PC_FILESIZEBITS;
+#endif  // defined(_PC_FILESIZEBITS)
+#if defined(_PC_REC_INCR_XFER_SIZE)
+    case MUSL_PC_REC_INCR_XFER_SIZE:
+      return _PC_REC_INCR_XFER_SIZE;
+#endif  // defined(_PC_REC_INCR_XFER_SIZE)
+#if defined(_PC_REC_MAX_XFER_SIZE)
+    case MUSL_PC_REC_MAX_XFER_SIZE:
+      return _PC_REC_MAX_XFER_SIZE;
+#endif  // defined(_PC_REC_MAX_XFER_SIZE)
+#if defined(_PC_REC_MIN_XFER_SIZE)
+    case MUSL_PC_REC_MIN_XFER_SIZE:
+      return _PC_REC_MIN_XFER_SIZE;
+#endif  // defined(_PC_REC_MIN_XFER_SIZE)
+#if defined(_PC_REC_XFER_ALIGN)
+    case MUSL_PC_REC_XFER_ALIGN:
+      return _PC_REC_XFER_ALIGN;
+#endif  // defined(_PC_REC_XFER_ALIGN)
+#if defined(_PC_ALLOC_SIZE_MIN)
+    case MUSL_PC_ALLOC_SIZE_MIN:
+      return _PC_ALLOC_SIZE_MIN;
+#endif  // defined(_PC_ALLOC_SIZE_MIN)
+#if defined(_PC_SYMLINK_MAX)
+    case MUSL_PC_SYMLINK_MAX:
+      return _PC_SYMLINK_MAX;
+#endif  // defined(_PC_SYMLINK_MAX)
+#if defined(_PC_2_SYMLINKS)
+    case MUSL_PC_2_SYMLINKS:
+      return _PC_2_SYMLINKS;
+#endif        // defined(_PC_2_SYMLINKS)
+    default:  // Explicitly handle unsupported names
+      return -1;
+  }
+}
+}  // namespace
+
 int __abi_wrap_ftruncate(int fildes, musl_off_t length) {
   return ftruncate(fildes, static_cast<off_t>(length));
 }
@@ -549,4 +642,8 @@ long __abi_wrap_sysconf(int name) {
       errno = EINVAL;
       return -1;
   }
+}
+
+long __abi_wrap_pathconf(const char* path, int name) {
+  return pathconf(path, musl_conf_to_platform_conf(name));
 }

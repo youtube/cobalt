@@ -259,6 +259,7 @@ ExportedSymbols::ExportedSymbols() {
   REGISTER_SYMBOL(rand_r);
   REGISTER_SYMBOL(read);
   REGISTER_SYMBOL(realloc);
+  REGISTER_SYMBOL(realpath);
   REGISTER_SYMBOL(recv);
   REGISTER_SYMBOL(recvfrom);
   REGISTER_SYMBOL(recvmsg);
@@ -304,6 +305,7 @@ ExportedSymbols::ExportedSymbols() {
   REGISTER_WRAPPER(lseek);
   REGISTER_WRAPPER(mmap);
   REGISTER_WRAPPER(opendir);
+  REGISTER_WRAPPER(pathconf);
   REGISTER_WRAPPER(pipe2);
   REGISTER_WRAPPER(pthread_attr_init);
   REGISTER_WRAPPER(pthread_attr_destroy);
