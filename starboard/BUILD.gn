@@ -290,6 +290,10 @@ if (current_toolchain == starboard_toolchain) {
     testonly = true
     sources = [ "//starboard/common/test_main.cc" ]
     defines = [ "STARBOARD_LEVEL_TEST" ]
+
+    write_runtime_deps =
+        "$root_build_dir/starboard_unittests_wrapper.runtime_deps"
+
     deps = [
       "//starboard:starboard_headers_only",
       "//starboard/common:common_test",
