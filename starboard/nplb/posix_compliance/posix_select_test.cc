@@ -18,17 +18,13 @@
   - Indefinite Wait: Testing an indefinite wait (NULL timeout) would cause the
     test to hang. While it could be implemented with a separate thread to
     signal the file descriptor, it adds complexity and potential flakiness.
-
   - nfds Exceeds Limit: Reliably testing the behavior when `nfds` exceeds the
     process's file descriptor limit is difficult to set up in a portable and
     non-disruptive way, which would trigger an `EINVAL` error.
-
   - EFAULT: Testing with an invalid `fd_set` pointer that is outside the
     process's address space is not reliably portable.
-
   - ENOMEM: Reliably simulating an out-of-memory condition is not feasible
     in a standard unit test environment.
-
   - EINTR: Reliably testing for interruption by a signal (EINTR) is prone to
     race conditions and can result in flaky tests, where the signal may arrive
     before or after the system call, instead of during.
