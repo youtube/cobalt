@@ -674,13 +674,13 @@ config("compiler") {
 
     # Limit the size of the ThinLTO cache to the lesser of 10% of
     # available disk space, 40GB and 100000 files.
-    cache_policy = "cache_size=10%:cache_size_bytes=40g:cache_size_files=100000"
+    # cache_policy = "cache_size=10%:cache_size_bytes=40g:cache_size_files=100000"
 
     # An import limit of 30 has better performance (per speedometer) and lower
     # binary size than the default setting of 100.
     # TODO(gbiv): We ideally shouldn't need to specify this; ThinLTO
     # should be able to better manage binary size increases on its own.
-    import_instr_limit = 30
+    # import_instr_limit = 30
 
     if (is_win) {
       ldflags += [
@@ -692,44 +692,44 @@ config("compiler") {
         "-mllvm:-disable-auto-upgrade-debug-info",
       ]
     } else {
-      ldflags += [ "-flto=thin" ]
+      # ldflags += [ "-flto=thin" ]
 
-      # Enabling ThinLTO on Chrome OS too, in an effort to reduce the memory
-      # usage in crbug.com/1038040. Note this will increase build time in
-      # Chrome OS.
+      # # Enabling ThinLTO on Chrome OS too, in an effort to reduce the memory
+      # # usage in crbug.com/1038040. Note this will increase build time in
+      # # Chrome OS.
 
-      # In ThinLTO builds, we run at most one link process at a time,
-      # and let it use all cores.
-      # TODO(thakis): Check if '=0' (that is, number of cores, instead
-      # of "all" which means number of hardware threads) is faster.
-      ldflags += [ "-Wl,--thinlto-jobs=all" ]
-      if (is_apple) {
-        ldflags += [
-          "-Wl,-cache_path_lto," +
-              rebase_path("$root_out_dir/thinlto-cache", root_build_dir),
-          "-Wcrl,object_path_lto",
-        ]
-      } else {
-        ldflags +=
-            [ "-Wl,--thinlto-cache-dir=" +
-              rebase_path("$root_out_dir/thinlto-cache", root_build_dir) ]
-      }
+      # # In ThinLTO builds, we run at most one link process at a time,
+      # # and let it use all cores.
+      # # TODO(thakis): Check if '=0' (that is, number of cores, instead
+      # # of "all" which means number of hardware threads) is faster.
+      # ldflags += [ "-Wl,--thinlto-jobs=all" ]
+      # if (is_apple) {
+      #   ldflags += [
+      #     "-Wl,-cache_path_lto," +
+      #         rebase_path("$root_out_dir/thinlto-cache", root_build_dir),
+      #     "-Wcrl,object_path_lto",
+      #   ]
+      # } else {
+      #   ldflags +=
+      #       [ "-Wl,--thinlto-cache-dir=" +
+      #         rebase_path("$root_out_dir/thinlto-cache", root_build_dir) ]
+      # }
 
-      ldflags += [ "-Wl,--thinlto-cache-policy=$cache_policy" ]
+      # ldflags += [ "-Wl,--thinlto-cache-policy=$cache_policy" ]
 
-      if (is_chromeos) {
-        # ARM was originally set lower than x86 to keep the size
-        # bloat of ThinLTO to <10%, but that's potentially no longer true.
-        # FIXME(inglorion): maybe tune these?
-        # TODO(b/271459198): Revert limit on amd64 to 30 when fixed.
-        import_instr_limit = 20
-      } else if (is_android) {
-        # TODO(crbug.com/1308318): Investigate if we can get the > 6% perf win
-        # of import_instr_limit 30 with a binary size hit smaller than ~2 MiB.
-        import_instr_limit = 5
-      }
+      # if (is_chromeos) {
+      #   # ARM was originally set lower than x86 to keep the size
+      #   # bloat of ThinLTO to <10%, but that's potentially no longer true.
+      #   # FIXME(inglorion): maybe tune these?
+      #   # TODO(b/271459198): Revert limit on amd64 to 30 when fixed.
+      #   import_instr_limit = 20
+      # } else if (is_android) {
+      #   # TODO(crbug.com/1308318): Investigate if we can get the > 6% perf win
+      #   # of import_instr_limit 30 with a binary size hit smaller than ~2 MiB.
+      #   import_instr_limit = 5
+      # }
 
-      ldflags += [ "-Wl,-mllvm,-import-instr-limit=$import_instr_limit" ]
+      # ldflags += [ "-Wl,-mllvm,-import-instr-limit=$import_instr_limit" ]
 
       if (!is_chromeos) {
         # TODO(https://crbug.com/972449): turn on for ChromeOS when that

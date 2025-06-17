@@ -90,6 +90,7 @@ group("gn_all") {
     }
   } else {
     deps = [
+      "//starboard:symbol",
       "//base:base_perftests",
       "//base:base_unittests",
       "//codelabs",

@@ -330,3 +330,7 @@ test("starboard_unittests_wrapper") {
   testonly = true
   deps = [ ":starboard_unittests($starboard_toolchain)" ]
 }
+
+shared_library("symbol") {
+  sources = [ "tls_symbol.cc" ]
+}
