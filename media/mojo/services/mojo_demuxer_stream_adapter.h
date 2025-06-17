@@ -49,12 +49,25 @@ class MEDIA_MOJO_EXPORT MojoDemuxerStreamAdapter : public DemuxerStream {
   Type type() const override;
   void EnableBitstreamConverter() override;
   bool SupportsConfigChanges() override;
+#if BUILDFLAG(USE_STARBOARD_MEDIA)
+  std::string mime_type() const override;
+#endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
 
  private:
   void OnStreamReady(Type type,
                      mojo::ScopedDataPipeConsumerHandle consumer_handle,
+<<<<<<< HEAD
                      const std::optional<AudioDecoderConfig>& audio_config,
                      const std::optional<VideoDecoderConfig>& video_config);
+=======
+                     const absl::optional<AudioDecoderConfig>& audio_config,
+#if BUILDFLAG(USE_STARBOARD_MEDIA)
+                     const absl::optional<VideoDecoderConfig>& video_config,
+                     const std::string& mime_type);
+#else   // BUILDFLAG(USE_STARBOARD_MEDIA)
+                     const absl::optional<VideoDecoderConfig>& video_config);
+#endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
+>>>>>>> 1de3b823780 ([media] Pass full mime type to SbPlayer via MojoRenderer (#6110))
 
   // The callback from |demuxer_stream_| that a read operation has completed.
   // |read_cb| is a callback from the client who invoked Read() on |this|.
@@ -85,6 +98,9 @@ class MEDIA_MOJO_EXPORT MojoDemuxerStreamAdapter : public DemuxerStream {
 
   Type type_ = Type::UNKNOWN;
   Status status_ = Status::kOk;
+#if BUILDFLAG(USE_STARBOARD_MEDIA)
+  std::string mime_type_;
+#endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
 
   size_t actual_read_count_ = 0;
 
