@@ -42,9 +42,7 @@
         android:id="@+id/message"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
-        android:layout_gravity="center"
-        android:maxWidth="50dp"
-        />
+        android:layout_gravity="center" />
     <Button
         android:id="@+id/button_1"
         android:layout_width="wrap_content"

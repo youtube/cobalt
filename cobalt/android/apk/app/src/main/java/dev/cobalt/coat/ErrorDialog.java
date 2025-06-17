@@ -94,11 +94,11 @@ class ErrorDialog extends Dialog {
     setContentView(R.layout.coat_error_dialog);
 
     ImageView imageView = (ImageView) findViewById(R.id.image);
-    // Drawable drawable =
-    //     getContext()
-    //         .getResources()
-    //         .getDrawable(R.drawable.lb_ic_sad_cloud, getContext().getTheme());
-    // imageView.setImageDrawable(drawable);
+    Drawable drawable =
+        getContext()
+            .getResources()
+            .getDrawable(R.drawable.lb_ic_sad_cloud, getContext().getTheme());
+    imageView.setImageDrawable(drawable);
 
     TextView messageView = (TextView) findViewById(R.id.message);
     messageView.setText(params.messageId);
