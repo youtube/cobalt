@@ -31,14 +31,27 @@ namespace {
 
 // Only used by the WriteToFullPipeWithNonBlockFlagImmediatelyReturnsError test.
 struct TestContext {
-  TestContext(int read_fd, int timeout_s)
-      : out_of_time(false), read_fd(read_fd), timeout_s(timeout_s) {
+  TestContext(int read_fd, int64_t timeout_duration_us)
+      : out_of_time(false),
+        had_expected_failed_write(false),
+        read_fd(read_fd),
+        timeout_duration_us(timeout_duration_us) {
     EXPECT_EQ(pthread_mutex_init(&out_of_time_mutex, NULL), 0);
+    EXPECT_EQ(pthread_mutex_init(&had_expected_failed_write_mutex, NULL), 0);
+    EXPECT_EQ(pthread_cond_init(&had_expected_failed_write_cv, NULL), 0);
   }
+
+  // Whether the timeout has been reached.
   bool out_of_time;
   pthread_mutex_t out_of_time_mutex;
+
+  // Whether the main thread returned from a failed write to a full pipe.
+  bool had_expected_failed_write;
+  pthread_mutex_t had_expected_failed_write_mutex;
+  pthread_cond_t had_expected_failed_write_cv;
+
   int read_fd;
-  int timeout_s;
+  int64_t timeout_duration_us;
 };
 
 const char kTestData[] = "Hello, POSIX Pipe!";
@@ -172,16 +185,36 @@ TEST(PosixPipeTest, ReadFromEmptyPipeCreatedWithNonBlockFlagDoesNotBlock) {
   close(pipe_fds[1]);
 }
 
-void* DoDelayedRead(void* parameter) {
-  TestContext* context = static_cast<TestContext*>(parameter);
+void* DoReadOnTimeout(void* test_context) {
+  TestContext* context = static_cast<TestContext*>(test_context);
 
-  // TODO: b/412690906 - Consider using sem_timedwait() or
-  // pthread_cond_timedwait() instead so that the test can avoid a forced delay
-  // in the passing case.
-  sleep(context->timeout_s);
-  pthread_mutex_lock(&context->out_of_time_mutex);
+  int64_t timeout_time_us =
+      starboard::CurrentPosixTime() + context->timeout_duration_us;
+  struct timespec timeout_time = {0};
+  timeout_time.tv_sec = timeout_time_us / 1'000'000;
+  timeout_time.tv_nsec = (timeout_time_us % 1'000'000) * 1000;
+
+  bool assume_main_thread_blocked_on_write = false;
+
+  EXPECT_EQ(pthread_mutex_lock(&context->had_expected_failed_write_mutex), 0);
+  while (!context->had_expected_failed_write) {
+    int ret = pthread_cond_timedwait(&context->had_expected_failed_write_cv,
+                                     &context->had_expected_failed_write_mutex,
+                                     &timeout_time);
+    if (ret == ETIMEDOUT) {
+      assume_main_thread_blocked_on_write = true;
+      break;
+    }
+  }
+  EXPECT_EQ(pthread_mutex_unlock(&context->had_expected_failed_write_mutex), 0);
+
+  if (!assume_main_thread_blocked_on_write) {
+    return nullptr;
+  }
+
+  EXPECT_EQ(pthread_mutex_lock(&context->out_of_time_mutex), 0);
   context->out_of_time = true;
-  pthread_mutex_unlock(&context->out_of_time_mutex);
+  EXPECT_EQ(pthread_mutex_unlock(&context->out_of_time_mutex), 0);
 
   // Reading one page worth of bytes should be sufficient to unblock writing to
   // the pipe, and 4096 bytes should cover this. We can consider using sysconf()
@@ -191,34 +224,42 @@ void* DoDelayedRead(void* parameter) {
   char buffer[estimated_page_size];
   EXPECT_EQ(estimated_page_size,
             read(context->read_fd, buffer, estimated_page_size));
-  return NULL;
+  return nullptr;
 }
 
+// A compliant platform will pass the test as soon as the pipe becomes full; a
+// noncompliant platform that blocks on a write to a full pipe will fail the
+// test after a configured timeout is reached.
 TEST(PosixPipeTest, WriteToFullPipeWithNonBlockFlagImmediatelyReturnsError) {
   int pipe_fds[2];
 
   ASSERT_EQ(pipe2(pipe_fds, O_NONBLOCK), 0);
 
-  // This thread is used to time out the test for noncompliant platforms that
-  // have blocked while writing to the pipe: the large read should provide
-  // sufficient space in the pipe to unblock the main thread's write() call so
-  // that the test can fail rather than hang.
-  int timeout_s = 5;
-  TestContext context(pipe_fds[0], timeout_s);
+  // This thread will unblock the main thread, if necessary, by reading enough
+  // data from the pipe to unblock the main thread's write() call.
+  int64_t timeout_duration_us = 5'000'000;
+  TestContext context(pipe_fds[0], timeout_duration_us);
   pthread_t read_thread;
-  EXPECT_EQ(pthread_create(&read_thread, NULL, DoDelayedRead, &context), 0);
+  ASSERT_EQ(pthread_create(&read_thread, NULL, DoReadOnTimeout, &context), 0);
 
   int write_result = 0;
   while (true) {
     write_result = write(pipe_fds[1], kTestData, kTestDataSize);
 
-    if (write_result == -1) {
+    if (write_result == -1 && errno == EAGAIN) {
+      ASSERT_EQ(pthread_mutex_lock(&context.had_expected_failed_write_mutex),
+                0);
+      context.had_expected_failed_write = true;
+      ASSERT_EQ(pthread_cond_signal(&context.had_expected_failed_write_cv), 0);
+      ASSERT_EQ(pthread_mutex_unlock(&context.had_expected_failed_write_mutex),
+                0);
+
       break;  // Expected termination
     }
 
-    pthread_mutex_lock(&context.out_of_time_mutex);
+    ASSERT_EQ(pthread_mutex_lock(&context.out_of_time_mutex), 0);
     bool out_of_time = context.out_of_time;
-    pthread_mutex_unlock(&context.out_of_time_mutex);
+    ASSERT_EQ(pthread_mutex_unlock(&context.out_of_time_mutex), 0);
     if (out_of_time) {
       break;  // Unexpected termination
     }
