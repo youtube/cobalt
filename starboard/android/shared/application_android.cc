@@ -50,7 +50,11 @@ void stubSbEventHandle(const SbEvent* event) {
 }
 
 ApplicationAndroid::ApplicationAndroid(
-    std::unique_ptr<CommandLine> command_line)
+    std::unique_ptr<CommandLine> command_line,
+    ScopedJavaGlobalRef<jobject> asset_manager,
+    const std::string& files_dir,
+    const std::string& cache_dir,
+    const std::string& native_library_dir)
     : QueueApplication(stubSbEventHandle) {
   SetCommandLine(std::move(command_line));
   // Initialize Time Zone early so that local time works correctly.
@@ -59,7 +63,8 @@ ApplicationAndroid::ApplicationAndroid(
 
   // Initialize Android asset access early so that ICU can load its tables
   // from the assets. The use ICU is used in our logging.
-  SbFileAndroidInitialize();
+  SbFileAndroidInitialize(asset_manager, files_dir, cache_dir,
+                          native_library_dir);
 
   // This effectively initializes the singleton and caches all RRO settings, if
   // they haven't yet be cached by other users of the RuntimeResourceOverlay

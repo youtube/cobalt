@@ -91,8 +91,12 @@ JNI_StarboardBridge_CurrentMonotonicTime(JNIEnv* env) {
   return CurrentMonotonicTime();
 }
 
-extern "C" SB_EXPORT_PLATFORM jlong
-JNI_StarboardBridge_StartNativeStarboard(JNIEnv* env) {
+extern "C" SB_EXPORT_PLATFORM jlong JNI_StarboardBridge_StartNativeStarboard(
+    JNIEnv* env,
+    const JavaParamRef<jobject>& j_asset_manager,
+    const JavaParamRef<jstring>& j_files_dir,
+    const JavaParamRef<jstring>& j_cache_dir,
+    const JavaParamRef<jstring>& j_native_library_dir) {
 #if SB_IS(EVERGREEN_COMPATIBLE)
   StarboardThreadLaunch();
 #else
@@ -100,7 +104,12 @@ JNI_StarboardBridge_StartNativeStarboard(JNIEnv* env) {
   if (g_native_app_instance == nullptr) {
     auto command_line = std::make_unique<CommandLine>(GetArgs());
     LogInit(*command_line);
-    g_native_app_instance = new ApplicationAndroid(std::move(command_line));
+    ScopedJavaGlobalRef<jobject> asset_manager(env, j_asset_manager.obj());
+    g_native_app_instance = new ApplicationAndroid(
+        std::move(command_line), std::move(asset_manager),
+        ConvertJavaStringToUTF8(env, j_files_dir),
+        ConvertJavaStringToUTF8(env, j_cache_dir),
+        ConvertJavaStringToUTF8(env, j_native_library_dir));
     // Ensure application init happens here
     ApplicationAndroid::Get();
   }
@@ -113,7 +122,7 @@ extern "C" SB_EXPORT_PLATFORM void JNI_StarboardBridge_HandleDeepLink(
     JNIEnv* env,
     const JavaParamRef<jstring>& jurl,
     jboolean applicationStarted) {
-  const std::string& url = base::android::ConvertJavaStringToUTF8(env, jurl);
+  const std::string& url = ConvertJavaStringToUTF8(env, jurl);
   LOG(INFO) << "StarboardBridge handling DeepLink: " << url;
 
   auto* manager = cobalt::browser::DeepLinkManager::GetInstance();
@@ -153,7 +162,7 @@ JNI_StarboardBridge_SetAndroidBuildFingerprint(
       cobalt::browser::CobaltHeaderValueProvider::GetInstance();
   header_value_provider->SetHeaderValue(
       "Sec-CH-UA-Co-Android-Build-Fingerprint",
-      base::android::ConvertJavaStringToUTF8(env, fingerprint));
+      ConvertJavaStringToUTF8(env, fingerprint));
 }
 
 // StarboardBridge::GetInstance() should not be inlined in the
