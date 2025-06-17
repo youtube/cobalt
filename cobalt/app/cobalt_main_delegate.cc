@@ -45,7 +45,8 @@ absl::optional<int> CobaltMainDelegate::BasicStartupComplete() {
 
 content::ContentBrowserClient*
 CobaltMainDelegate::CreateContentBrowserClient() {
-  return CobaltContentBrowserClient::GetInstance();
+  browser_client_ = std::make_unique<CobaltContentBrowserClient>();
+  return browser_client_.get();
 }
 
 content::ContentGpuClient* CobaltMainDelegate::CreateContentGpuClient() {

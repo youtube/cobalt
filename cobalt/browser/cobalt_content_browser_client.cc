@@ -183,11 +183,6 @@ content::BrowserContext* CobaltContentBrowserClient::GetBrowserContext() {
   return GetSharedState().shell_browser_main_parts->browser_context();
 }
 
-cobalt::CobaltContentBrowserClient* CobaltContentBrowserClient::GetInstance() {
-  static base::NoDestructor<CobaltContentBrowserClient> instance;
-  return &(*instance);
-}
-
 CobaltContentBrowserClient::CobaltContentBrowserClient()
     : video_geometry_setter_service_(
           std::unique_ptr<cobalt::media::VideoGeometrySetterService,
@@ -206,7 +201,8 @@ CobaltContentBrowserClient::CreateBrowserMainParts(
   DCHECK(!GetSharedState().shell_browser_main_parts);
 
   auto browser_main_parts = std::make_unique<CobaltBrowserMainParts>();
-  set_browser_main_parts(browser_main_parts.get());
+  GetSharedState().shell_browser_main_parts = browser_main_parts.get();
+
   return browser_main_parts;
 }
 
