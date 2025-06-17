@@ -127,7 +127,7 @@ dependencies {
 
     compile 'com.android.support:multidex:1.0.0'
     
-    compile 'com.google.android.gms:play-services-ads-identifier:18.2.0'
+    compile 'com.google.android.gms:play-services-ads-identifier:18.1.0'
     
 >>>>>>> a6de1c352f5 (Add play-services-ads-identifier-18.2.0 to the dependency and re-enable AdvertisingId.java. (#4579))
     compile 'com.google.code.findbugs:jsr305:3.0.2'

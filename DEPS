@@ -3083,6 +3083,7 @@ deps = {
   },
 
 <<<<<<< HEAD
+<<<<<<< HEAD
   'src/third_party/android_deps/cipd/libs/com_google_android_gms_play_services_auth': {
 =======
   'src/third_party/android_deps/cipd/libs/com_google_android_gms_play_services_ads_identifier': {
@@ -3096,6 +3097,8 @@ deps = {
       'dep_type': 'cipd',
   },
   
+=======
+>>>>>>> 513c3cbbc2d (Reduce minSdkVersion to 24 and Downgrade Google Ads Identifier Version (#6077))
   'src/third_party/android_deps/libs/com_google_android_gms_play_services_auth': {
 >>>>>>> a6de1c352f5 (Add play-services-ads-identifier-18.2.0 to the dependency and re-enable AdvertisingId.java. (#4579))
       'packages': [
@@ -3156,7 +3159,11 @@ deps = {
       'packages': [
           {
               'package': 'chromium/third_party/android_deps/libs/com_google_android_gms_play_services_basement',
+<<<<<<< HEAD
               'version': 'version:2@18.5.0.cr1',
+=======
+              'version': 'version:2@18.4.0.cr1',
+>>>>>>> 513c3cbbc2d (Reduce minSdkVersion to 24 and Downgrade Google Ads Identifier Version (#6077))
           },
       ],
       'condition': 'checkout_android and non_git_source',

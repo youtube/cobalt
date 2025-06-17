@@ -72,6 +72,7 @@ if (is_android) {
     # The default to use for android:minSdkVersion for targets that do
     # not explicitly set it.
 <<<<<<< HEAD
+<<<<<<< HEAD
     default_min_sdk_version = 26
 <<<<<<< HEAD
     if (is_asan) {
@@ -86,6 +87,9 @@ if (is_android) {
       default_min_sdk_version = 24
     }
 >>>>>>> e64c268670b (Fix chromium android builds (#4303))
+=======
+    default_min_sdk_version = 24
+>>>>>>> 513c3cbbc2d (Reduce minSdkVersion to 24 and Downgrade Google Ads Identifier Version (#6077))
 
     # Static analysis can be either "on" or "off" or "build_server". This
     # controls how android lint, error-prone, bytecode checks are run. This
