@@ -44,6 +44,7 @@ source_set("browser") {
   public_deps = [ "//content/public/browser" ]
 
   deps = [
+    ":embed_licenses_cobalt",
     ":embed_polyfilled_javascript",
     ":global_features",
     ":metrics",
@@ -84,6 +85,18 @@ source_set("browser") {
   } else {
     deps += [ "//cobalt/browser/crash_annotator" ]
   }
+}
+
+action("embed_licenses_cobalt") {
+  script = "//cobalt/build/generate_data_header.py"
+  inputs = [ "$root_gen_dir/licenses_cobalt.spdx" ]
+  outputs = [ "$target_gen_dir/embedded_resources/embedded_licenses.h" ]
+  args = [
+    "CobaltLicenses",
+    rebase_path(outputs[0], root_build_dir),
+    rebase_path(inputs[0], root_build_dir),
+  ]
+  deps = [ "//cobalt:cobalt_build_info" ]
 }
 
 source_set("switches") {

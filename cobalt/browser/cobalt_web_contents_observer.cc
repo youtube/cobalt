@@ -16,6 +16,7 @@
 
 #include "base/strings/utf_string_conversions.h"
 #include "cobalt/browser/embedded_resources/embedded_js.h"
+#include "cobalt/browser/embedded_resources/embedded_licenses.h"
 #include "cobalt/browser/migrate_storage_record/migration_manager.h"
 #include "content/public/browser/navigation_handle.h"
 #include "content/public/browser/web_contents.h"
