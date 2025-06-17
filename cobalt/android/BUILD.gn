@@ -110,6 +110,7 @@ android_library("cobalt_shell_java") {
     "apk/app/src/org/chromium/content_shell/Shell.java",
     "apk/app/src/org/chromium/content_shell/ShellManager.java",
     "apk/app/src/org/chromium/content_shell/ShellViewAndroidDelegate.java",
+    "apk/app/src/org/chromium/content_shell/Util.java",
   ]
 
   annotation_processor_deps = [ "//base/android/jni_generator:jni_processor" ]
@@ -136,6 +137,7 @@ android_library("cobalt_main_java") {
     "//services/media_session/public/mojom:mojom_java",
     "//third_party/android_deps:com_google_code_findbugs_jsr305_java",
     "//third_party/android_deps:google_play_services_ads_identifier_java",
+    "//third_party/android_deps:google_play_services_basement_java",
     "//third_party/androidx:androidx_annotation_annotation_java",
     "//third_party/androidx:androidx_core_core_java",
     "//third_party/androidx:androidx_customview_customview_java",
@@ -154,6 +156,8 @@ android_library("cobalt_main_java") {
       "//services/service_manager/public/java:service_manager_java",
     ]
   }
+
+  srcjar_deps = [ "//starboard/android/shared:java_enums" ]
 
   sources = [
     "apk/app/src/main/java/dev/cobalt/coat/AdvertisingId.java",
@@ -192,7 +196,6 @@ android_library("cobalt_main_java") {
     "apk/app/src/main/java/dev/cobalt/media/MediaCodecBridge.java",
     "apk/app/src/main/java/dev/cobalt/media/MediaCodecBridgeBuilder.java",
     "apk/app/src/main/java/dev/cobalt/media/MediaCodecCapabilitiesLogger.java",
-    "apk/app/src/main/java/dev/cobalt/media/MediaCodecStatus.java",
     "apk/app/src/main/java/dev/cobalt/media/MediaCodecUtil.java",
     "apk/app/src/main/java/dev/cobalt/media/MediaDrmBridge.java",
     "apk/app/src/main/java/dev/cobalt/media/MediaFormatBuilder.java",

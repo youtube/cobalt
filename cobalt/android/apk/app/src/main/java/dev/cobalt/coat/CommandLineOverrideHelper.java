@@ -19,6 +19,14 @@ import java.util.List;
 import java.util.StringJoiner;
 import org.chromium.base.CommandLine;
 
+
+// ==========
+// IMPORTANT:
+//
+// These command line switches defaults do not affect non-AndroidTV platforms.
+// If you are making changes to these values, please check that other
+// platforms (such as Linux/Evergreen) are getting corresponding updates.
+
 /** Helper class to provide commandLine Overrides. */
 public final class CommandLineOverrideHelper {
     private CommandLineOverrideHelper() {} // Prevent instantiation.
@@ -75,6 +83,9 @@ public final class CommandLineOverrideHelper {
         paramOverrides.add("--disable-rgba-4444-textures");
         // Use passthrough command decoder.
         paramOverrides.add("--use-cmd-decoder=passthrough");
+        // Limit the total amount of memory that may be allocated for GPU
+        // resources.
+        paramOverrides.add("--force-gpu-mem-available-mb=32");
 
         return paramOverrides;
     }
@@ -96,7 +107,7 @@ public final class CommandLineOverrideHelper {
         // Pass javascript console log to adb log.
         paramOverrides.add("LogJsConsoleMessages");
         // Limit decoded image cache to 32 mbytes.
-        paramOverrides.add("LimitImageDecodeCacheSize:mb/32");
+        paramOverrides.add("LimitImageDecodeCacheSize:mb/24");
 
         return paramOverrides;
     }

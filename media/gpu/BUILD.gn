@@ -12,6 +12,10 @@ import("//media/media_options.gni")
 import("//testing/test.gni")
 import("//tools/generate_stubs/rules.gni")
 
+if (is_cobalt) {
+  import("//starboard/build/buildflags.gni")
+}
+
 buildflag_header("buildflags") {
   header = "buildflags.h"
 
@@ -184,6 +188,15 @@ component("gpu") {
     if (enable_vulkan) {
       deps += [ "//gpu/vulkan:vulkan" ]
     }
+  }
+
+  if (is_cobalt && use_starboard_media) {
+    sources += [
+      "starboard/starboard_gpu_factory.cc",
+      "starboard/starboard_gpu_factory.h",
+      "starboard/starboard_gpu_factory_impl.cc",
+      "starboard/starboard_gpu_factory_impl.h",
+    ]
   }
 
   if (use_v4l2_codec) {

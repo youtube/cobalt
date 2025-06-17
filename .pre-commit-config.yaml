@@ -94,7 +94,10 @@ repos:
         language: python
         exclude: |
             (?x)^(
-                starboard/android/apk/app/src/main/java/dev/cobalt/storage/StorageProto.java
+                starboard/android/apk/app/src/main/java/dev/cobalt/storage/StorageProto.java|
+                cobalt/android/apk/app/src/org/chromium/content_shell/Util.java|
+                cobalt/android/apk/app/src/org/chromium/content_shell/Shell.java|
+                cobalt/android/apk/app/src/org/chromium/content_shell/ShellManager.java
             )
         types: [java]
     -   id: gn-format

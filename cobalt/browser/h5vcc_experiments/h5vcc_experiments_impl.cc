@@ -41,11 +41,6 @@ h5vcc_experiments::mojom::OverrideState GetFeatureInternal(
   return h5vcc_experiments::mojom::OverrideState::OVERRIDE_USE_DEFAULT;
 }
 
-std::string GetFeatureParamInternal(const std::string& feature_param_name) {
-  return base::GetFieldTrialParamValue(cobalt::kCobaltExperimentName,
-                                       feature_param_name);
-}
-
 }  // namespace
 
 // static
