@@ -27,4 +27,10 @@ off_t __abi_wrap_lseek(int fildes, off_t offset, int whence);
 off_t lseek(int fildes, off_t offset, int whence) {
   return __abi_wrap_lseek(fildes, offset, whence);
 }
+
+long __abi_wrap_sysconf(int name);
+
+long sysconf(int name) {
+  return __abi_wrap_sysconf(name);
+}
 }

@@ -165,6 +165,15 @@ declare_args() {
   is_debug = !is_official_build
 }
 
+if (is_cobalt) {
+  declare_args() {
+    # TODO: b/423038377 - Fully fix debug builds and remove this flag.
+    cobalt_debugging_enabled = false
+  }
+  assert(!(cobalt_debugging_enabled && is_debug),
+         "Fix b/423038377 instead of enabling is_debug with cobalt_debugging_enabled.")
+}
+
 declare_args() {
   # Component build. Setting to true compiles targets declared as "components"
   # as shared libraries loaded dynamically. This speeds up development time.

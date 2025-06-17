@@ -22,7 +22,7 @@ if (current_toolchain == default_toolchain &&
 
   arm_float_abi = "hard"
 
-  sb_static_contents_output_data_dir = "$root_out_dir/content"
+  sb_static_contents_output_data_dir = "$root_out_dir"
 
   no_pedantic_warnings_config_path =
       "//starboard/raspi/shared/platform_configuration:no_pedantic_warnings"

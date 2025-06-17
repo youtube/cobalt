@@ -12,6 +12,8 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+import("//tools/v8_context_snapshot/v8_context_snapshot.gni")
+
 template("loader_final_target") {
   original_target_name = target_name
   if (current_toolchain == default_toolchain) {
@@ -74,6 +76,45 @@ template("evergreen_final_target") {
   original_target_name = target_name
   group("${original_target_name}_loader") {
     forward_variables_from(invoker, TESTONLY_AND_VISIBILITY)
+    deps = [
+      ":${original_target_name}_content",
+      ":${original_target_name}_lib",
+    ]
+  }
+
+  copy("${original_target_name}_content") {
+    forward_variables_from(invoker, TESTONLY_AND_VISIBILITY)
+    sources = [
+      "$root_out_dir/content_shell.pak",
+      "$root_out_dir/icudtl.dat",
+    ]
+    outputs = [
+      "$root_out_dir/app/${original_target_name}/content/{{source_file_part}}",
+    ]
+    deps = [
+      "//content/shell:pak",
+      "//third_party/icu:icudata",
+    ]
+    if (use_v8_context_snapshot) {
+      sources += [ "$root_out_dir/$v8_context_snapshot_filename" ]
+      deps += [ "//tools/v8_context_snapshot" ]
+    }
+  }
+
+  copy("${original_target_name}_lib") {
+    forward_variables_from(invoker, TESTONLY_AND_VISIBILITY)
+
+    test_lib_name = string_replace(original_target_name, "lib", "", 1)
+    if (original_target_name == "lib${test_lib_name}" ||
+        (defined(invoker.output_prefix_override) &&
+         invoker.output_prefix_override)) {
+      lib_name = original_target_name
+    } else {
+      lib_name = "lib${original_target_name}"
+    }
+
+    sources = [ "$root_out_dir/${lib_name}.so" ]
+    outputs = [ "$root_out_dir/app/${original_target_name}/lib/${lib_name}.so" ]
     deps = [ ":${original_target_name}" ]
   }
 

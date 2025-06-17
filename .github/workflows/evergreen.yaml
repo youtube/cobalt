@@ -23,13 +23,13 @@ on:
 
 jobs:
   # This is evergreen on linux
-  evergreen:
+  evergreen-x64:
     uses: ./.github/workflows/main.yaml
     permissions:
       packages: write
       pull-requests: write
     with:
-      platform: evergreen
+      platform: evergreen-x64
       nightly: ${{ github.event.inputs.nightly }}
     secrets:
       datadog_api_key: ${{ secrets.DD_API_KEY }}

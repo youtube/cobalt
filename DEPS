@@ -882,8 +882,9 @@ deps = {
       'condition': 'checkout_nacl',
   },
 
-  'src/net/third_party/quiche/src':
-    Var('quiche_git') + '/quiche.git' + '@' +  Var('quiche_revision'),
+# Cobalt: imported
+# 'src/net/third_party/quiche/src':
+#   Var('quiche_git') + '/quiche.git' + '@' +  Var('quiche_revision'),
 
   'src/testing/rts/linux-amd64': {
       'packages': [
@@ -2595,17 +2596,6 @@ deps = {
       'dep_type': 'cipd',
   },
 
-  'src/third_party/android_deps/cipd/libs/com_google_android_gms_play_services_ads_identifier': {
-      'packages': [
-          {
-              'package': 'chromium/third_party/android_deps/libs/com_google_android_gms_play_services_ads_identifier',
-              'version': 'version:2@18.2.0.cr1',
-          },
-      ],
-      'condition': 'checkout_android',
-      'dep_type': 'cipd',
-  },
-  
   'src/third_party/android_deps/libs/com_google_android_gms_play_services_auth': {
       'packages': [
           {
@@ -2654,7 +2644,7 @@ deps = {
       'packages': [
           {
               'package': 'chromium/third_party/android_deps/libs/com_google_android_gms_play_services_basement',
-              'version': 'version:2@18.1.0.cr1',
+              'version': 'version:2@18.4.0.cr1',
           },
       ],
       'condition': 'checkout_android',

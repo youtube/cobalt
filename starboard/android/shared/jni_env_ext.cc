@@ -17,6 +17,7 @@
 #include <android/native_activity.h>
 #include <jni.h>
 
+#include <sys/prctl.h>
 #include <algorithm>
 #include <string>
 
@@ -75,7 +76,11 @@ JniEnvExt* JniEnvExt::Get() {
                                           JNI_VERSION_1_4)) {
     // Tell the JVM our thread name so it doesn't change it.
     char thread_name[16];
+#if __ANDROID_API__ < 26
+    prctl(PR_GET_NAME, thread_name, 0L, 0L, 0L);
+#else
     pthread_getname_np(pthread_self(), thread_name, sizeof(thread_name));
+#endif  // __ANDROID_API__ < 26
     JavaVMAttachArgs args{JNI_VERSION_1_4, thread_name, NULL};
     JNIState::GetVM()->AttachCurrentThread(&env, &args);
     // We don't use the value, but any non-NULL means we have to detach.

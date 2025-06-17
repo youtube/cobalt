@@ -869,6 +869,7 @@ public class WindowAndroid implements AndroidPermissionDelegate, DisplayAndroidO
         boolean willNotDraw = !mIsTouchExplorationEnabled && mAnimationsOverContent.isEmpty();
         if (mAnimationPlaceholderView.willNotDraw() != willNotDraw) {
             mAnimationPlaceholderView.setWillNotDraw(willNotDraw);
+            Log.i(TAG, "WindowAndroid mAnimationPlaceholderView.setWillNotDraw:" + willNotDraw);
         }
     }
 
