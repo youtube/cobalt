@@ -375,6 +375,12 @@ static_library("c_internal") {
     "src/network/res_init.c",
     "src/prng/rand.c",
     "src/stdio/perror.c",
+    "src/signal/sigaddset.c",
+    "src/signal/sigdelset.c",
+    "src/signal/sigemptyset.c",
+    "src/signal/sigfillset.c",
+    "src/signal/sigismember.c",
+    "src/signal/sigprocmask.c",
 
     # Starboardized implementations
     "src/starboard/ctype/__ctype_get_mb_cur_max.c",
