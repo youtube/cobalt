@@ -1,0 +1,22 @@
+--- /usr/local/google/home/kaidokert/code/2ndproject/m120/6f7e0b5/conflict/build/config/clang/clang.gni	2025-06-16 13:23:37.952786435 -0700
++++ /usr/local/google/home/kaidokert/code/2ndproject/m120/6f7e0b5/resolved/build/config/clang/clang.gni	2025-06-16 13:41:26.938857271 -0700
+@@ -17,7 +17,6 @@
+ 
+   enable_check_raw_ptr_fields =
+       build_with_chromium && !is_official_build &&
+-<<<<<<< HEAD
+       ((is_linux && !is_castos) || (is_android && !is_cast_android) || is_mac ||
+        is_win || is_chromeos_lacros || is_chromeos_ash)
+ 
+@@ -25,10 +24,7 @@
+   # checks are activated on the same set of platforms.
+   enable_check_raw_ref_fields =
+       build_with_chromium && !is_official_build &&
+-      ((is_linux && !is_castos) || (is_android && !is_cast_android) || is_win)
+-=======
+-      ((is_linux && !is_castos) || (is_android && !is_cast_android)) && !chrobalt
+->>>>>>> 6f7e0b52ca2fc (Add starboard build to android (#4259))
++      ((is_linux && !is_castos) || (is_android && !is_cast_android) || is_win) && !chrobalt
+ 
+   clang_base_path = default_clang_base_path
+ 

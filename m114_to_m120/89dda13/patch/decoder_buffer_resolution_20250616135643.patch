@@ -1,0 +1,50 @@
+--- /usr/local/google/home/kaidokert/code/2ndproject/m120/89dda13/conflict/media/base/decoder_buffer.cc	2025-06-16 13:51:24.262047080 -0700
++++ /usr/local/google/home/kaidokert/code/2ndproject/m120/89dda13/resolved/media/base/decoder_buffer.cc	2025-06-16 13:56:36.171755013 -0700
+@@ -51,18 +51,7 @@
+   memcpy(data_, data, size_);
+ #else // BUILDFLAG(USE_STARBOARD_MEDIA)
+   memcpy(data_.get(), data, size_);
+-<<<<<<< HEAD
+-=======
+ #endif // BUILDFLAG(USE_STARBOARD_MEDIA)
+-
+-  if (!side_data) {
+-    CHECK_EQ(side_data_size, 0u);
+-    return;
+-  }
+-
+-  DCHECK_GT(side_data_size_, 0u);
+-  memcpy(side_data_.get(), side_data, side_data_size_);
+->>>>>>> 89dda131beb24 ([media] Support DecoderBufferAllocator (#4348))
+ }
+ 
+ DecoderBuffer::DecoderBuffer(std::unique_ptr<uint8_t[]> data, size_t size)
+@@ -92,15 +81,7 @@
+   s_allocator->Free(data_, allocated_size_);
+ #else // BUILDFLAG(USE_STARBOARD_MEDIA)
+   data_.reset();
+-<<<<<<< HEAD
+-=======
+ #endif // BUILDFLAG(USE_STARBOARD_MEDIA)
+-  side_data_.reset();
+->>>>>>> 89dda131beb24 ([media] Support DecoderBufferAllocator (#4348))
+-}
+-
+-void DecoderBuffer::Initialize() {
+-#if BUILDFLAG(USE_STARBOARD_MEDIA)
+   DCHECK(s_allocator);
+   DCHECK(!data_);
+ 
+@@ -112,12 +93,7 @@
+   memset(data_ + size_, 0, padding);
+ #else // BUILDFLAG(USE_STARBOARD_MEDIA)
+   data_.reset(new uint8_t[size_]);
+-<<<<<<< HEAD
+-=======
+ #endif // BUILDFLAG(USE_STARBOARD_MEDIA)
+-  if (side_data_size_ > 0)
+-    side_data_.reset(new uint8_t[side_data_size_]);
+->>>>>>> 89dda131beb24 ([media] Support DecoderBufferAllocator (#4348))
+ }
+ 
+ // static

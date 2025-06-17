@@ -1,0 +1,27 @@
+--- /usr/local/google/home/kaidokert/code/2ndproject/m120/6bd4f9d/conflict/build/config/android/config.gni	2025-06-16 13:43:38.995547867 -0700
++++ /usr/local/google/home/kaidokert/code/2ndproject/m120/6bd4f9d/resolved/build/config/android/config.gni	2025-06-16 13:45:17.400069153 -0700
+@@ -117,16 +117,11 @@
+   }
+ 
+   if (!defined(default_android_ndk_root)) {
+-<<<<<<< HEAD
+     default_android_ndk_root = "//third_party/android_toolchain/ndk"
+     if (current_cpu == "riscv64") {
+       # Today (2023-08-30) only the canary Android NDK supports RISC-V64.
+       default_android_ndk_root = "//third_party/android_toolchain_canary/ndk"
+     }
+-    default_android_ndk_version = "r26"
+-    default_android_ndk_major_version = 26
+-=======
+-    default_android_ndk_root = "//third_party/android_ndk"
+     if (is_cobalt) {
+       default_android_ndk_version = "r26"
+       default_android_ndk_major_version = 26
+@@ -134,7 +129,6 @@
+       default_android_ndk_version = "r23"
+       default_android_ndk_major_version = 23
+     }
+->>>>>>> 6bd4f9db4a499 (Fix chromium android builds (#4303))
+   } else {
+     assert(defined(default_android_ndk_version))
+     assert(defined(default_android_ndk_major_version))

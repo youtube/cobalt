@@ -1,0 +1,22 @@
+To run the rebase tools...
+
+1. Install virtual environment
+
+sudo apt install python3-venv
+
+2. Activate virtual environment
+
+python3 -m venv rebase_tools
+source rebase_tools/bin/activate
+
+3. Install requirements
+
+pip install -r requirements.txt
+
+4. Run main.py
+
+python3 main.py
+
+5. Deactivate virtual environment when done
+
+deactivate

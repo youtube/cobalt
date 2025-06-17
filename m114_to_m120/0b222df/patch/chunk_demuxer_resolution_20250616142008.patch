@@ -1,0 +1,16 @@
+--- /usr/local/google/home/kaidokert/code/2ndproject/m120/0b222df/conflict/media/filters/chunk_demuxer.h	2025-06-16 14:01:51.277493264 -0700
++++ /usr/local/google/home/kaidokert/code/2ndproject/m120/0b222df/resolved/media/filters/chunk_demuxer.h	2025-06-16 14:20:08.219728139 -0700
+@@ -612,13 +612,10 @@
+ 
+   std::map<MediaTrack::Id, ChunkDemuxerStream*> track_id_to_demux_stream_map_;
+ 
+-<<<<<<< HEAD
+   bool supports_change_type_ = true;
+-=======
+ #if BUILDFLAG(USE_STARBOARD_MEDIA)
+   std::map<std::string, std::string> id_to_mime_map_;
+ #endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
+->>>>>>> 0b222df2dc79b ([media] Pass full mime type to SbPlayer (#4378))
+ };
+ 
+ }  // namespace media

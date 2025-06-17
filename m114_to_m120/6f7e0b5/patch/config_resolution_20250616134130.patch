@@ -1,0 +1,22 @@
+--- /usr/local/google/home/kaidokert/code/2ndproject/m120/6f7e0b5/conflict/build/config/android/config.gni	2025-06-16 13:23:37.952786435 -0700
++++ /usr/local/google/home/kaidokert/code/2ndproject/m120/6f7e0b5/resolved/build/config/android/config.gni	2025-06-16 13:40:52.342678359 -0700
+@@ -113,19 +113,13 @@
+   }
+ 
+   if (!defined(default_android_ndk_root)) {
+-<<<<<<< HEAD
+     default_android_ndk_root = "//third_party/android_toolchain/ndk"
+     if (current_cpu == "riscv64") {
+       # Today (2023-08-30) only the canary Android NDK supports RISC-V64.
+       default_android_ndk_root = "//third_party/android_toolchain_canary/ndk"
+     }
+-    default_android_ndk_version = "r25c"
+-    default_android_ndk_major_version = 25
+-=======
+-    default_android_ndk_root = "//third_party/android_ndk"
+     default_android_ndk_version = "r26"
+     default_android_ndk_major_version = 26
+->>>>>>> 6f7e0b52ca2fc (Add starboard build to android (#4259))
+   } else {
+     assert(defined(default_android_ndk_version))
+     assert(defined(default_android_ndk_major_version))
