@@ -107,6 +107,7 @@ _ALLOWED_SB_GE_16_POSIX_SYMBOLS = [
     'freeaddrinfo',
     'freeifaddrs',
     'fstat',
+    'fstatfs',
     'fsync',
     'ftruncate',
     'getaddrinfo',

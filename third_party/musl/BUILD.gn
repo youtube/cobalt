@@ -380,6 +380,7 @@ static_library("c_internal") {
     "src/starboard/ctype/__ctype_get_mb_cur_max.c",
     "src/starboard/exit/abort.c",
     "src/starboard/hwcap/sethwcap.c",
+    "src/starboard/statfs/statfs_stub.c",
     "src/starboard/stdlib/strtod_l.c",
     "src/starboard/time/__tz.c",
     "src/stdio/__toread.c",
