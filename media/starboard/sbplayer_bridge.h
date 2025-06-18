@@ -31,10 +31,6 @@
 #include "cobalt/media/base/cval_stats.h"
 #endif  // COBALT_MEDIA_ENABLE_CVAL
 
-#if COBALT_MEDIA_ENABLE_DECODE_TARGET_PROVIDER
-#include "cobalt/media/base/decode_target_provider.h"
-#endif  // COBALT_MEDIA_ENABLE_DECODE_TARGET_PROVIDER
-
 #if COBALT_MEDIA_ENABLE_SUSPEND_RESUME
 #include "cobalt/media/base/decoder_buffer_cache.h"
 #endif  // COBALT_MEDIA_ENABLE_SUSPEND_RESUME
@@ -93,7 +89,6 @@ class SbPlayerBridge {
                  SbPlayerOutputMode default_output_mode,
                  const OnEncryptedMediaInitDataEncounteredCB&
                      encrypted_media_init_data_encountered_cb,
-                 DecodeTargetProvider* const decode_target_provider,
                  std::string pipeline_identifier);
 #endif  // SB_HAS(PLAYER_WITH_URL)
   // Create a SbPlayerBridge with normal player
@@ -111,9 +106,6 @@ class SbPlayerBridge {
                  SbPlayerSetBoundsHelper* set_bounds_helper,
                  bool allow_resume_after_suspend,
                  SbPlayerOutputMode default_output_mode,
-#if COBALT_MEDIA_ENABLE_DECODE_TARGET_PROVIDER
-                 DecodeTargetProvider* const decode_target_provider,
-#endif  // COBALT_MEDIA_ENABLE_DECODE_TARGET_PROVIDER
                  const std::string& max_video_capabilities,
                  int max_video_input_size
 #if COBALT_MEDIA_ENABLE_CVAL
@@ -346,10 +338,6 @@ class SbPlayerBridge {
 
   // Keep track of the output mode we are supposed to output to.
   SbPlayerOutputMode output_mode_;
-
-#if COBALT_MEDIA_ENABLE_DECODE_TARGET_PROVIDER
-  DecodeTargetProvider* const decode_target_provider_;
-#endif  // COBALT_MEDIA_ENABLE_DECODE_TARGET_PROVIDER
 
   // Keep copies of the mime type strings instead of using the ones in the
   // DemuxerStreams to ensure that the strings are always valid.
