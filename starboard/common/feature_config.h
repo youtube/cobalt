@@ -49,10 +49,10 @@
 #error "FEATURE_PARAM_LIST_END has to be defined before including this file"
 #endif
 
-FEATURE_LIST_START;
-STARBOARD_FEATURE(kFeatureFoo, "foo", true);
-STARBOARD_FEATURE(kFeatureBar, "bar", false);
-FEATURE_LIST_END;
-FEATURE_PARAM_LIST_START;
-STARBOARD_FEATURE_PARAM(int, kFeatureParamBoo, kFeatureFoo, "boo", 10);
-FEATURE_PARAM_LIST_END;
+FEATURE_LIST_START
+STARBOARD_FEATURE(kFeatureFoo, "foo", true)
+STARBOARD_FEATURE(kFeatureBar, "bar", false)
+FEATURE_LIST_END
+FEATURE_PARAM_LIST_START
+STARBOARD_FEATURE_PARAM(int, kFeatureParamBoo, kFeatureFoo, "boo", "foo", 10)
+FEATURE_PARAM_LIST_END

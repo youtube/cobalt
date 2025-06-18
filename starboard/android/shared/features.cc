@@ -17,16 +17,13 @@
 #include "starboard/extension/features.h"
 #include "starboard/shared/starboard/feature_list.h"
 
-namespace starboard {
-namespace android {
-namespace shared {
-
+namespace starboard::android::shared {
 void InitializeStarboardFeatures(const SbFeature* features,
                                  size_t number_of_features,
                                  const SbFeatureParam* params,
                                  size_t number_of_params) {
-  // starboard::features::FeatureList::InitializeFeatureList(features,
-  // number_of_features, params, number_of_params);
+  starboard::features::FeatureList::InitializeFeatureList(
+      features, number_of_features, params, number_of_params);
 }
 
 constexpr StarboardExtensionFeaturesApi kFeaturesApi = {
@@ -39,6 +36,4 @@ const void* GetFeaturesApi() {
   return &kFeaturesApi;
 }
 
-}  // namespace shared
-}  // namespace android
-}  // namespace starboard
+}  // namespace starboard::android::shared

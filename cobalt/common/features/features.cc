@@ -19,9 +19,10 @@
                default_state == true ? base::FEATURE_ENABLED_BY_DEFAULT \
                                      : base::FEATURE_DISABLED_BY_DEFAULT);
 
-#define STARBOARD_FEATURE_PARAM(T, param_object_name, feature, name, \
-                                default_value)                       \
-  const base::FeatureParam<T> param_object_name{&feature, name, default_value};
+#define STARBOARD_FEATURE_PARAM(T, param_object_name, feature_object_name, \
+                                param_name, feature_name, default_value)   \
+  const base::FeatureParam<T> param_object_name{&feature_object_name,      \
+                                                param_name, default_value};
 
 #define FEATURE_LIST_START namespace cobalt::features {
 #define FEATURE_LIST_END }
