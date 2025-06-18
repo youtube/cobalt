@@ -18,6 +18,10 @@
 #include <errno.h>
 
 #include <android/asset_manager.h>
+#include <jni.h>
+#include <string>
+
+#include "starboard/android/shared/starboard_bridge.h"
 
 #include "starboard/shared/internal_only.h"
 
@@ -40,7 +44,10 @@ extern const char* g_app_files_dir;
 extern const char* g_app_cache_dir;
 extern const char* g_app_lib_dir;
 
-void SbFileAndroidInitialize();
+void SbFileAndroidInitialize(ScopedJavaGlobalRef<jobject> asset_manager,
+                             const std::string& files_dir,
+                             const std::string& cache_dir,
+                             const std::string& native_library_dir);
 void SbFileAndroidTeardown();
 
 bool IsAndroidAssetPath(const char* path);
