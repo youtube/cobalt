@@ -130,6 +130,12 @@ class StarboardRendererTest : public testing::Test {
         /*request_overlay_info_cb=*/base::DoNothing()
 #endif  // BUILDFLAG(IS_ANDROID)
     );
+    StarboardRenderer::GetDecodeTargetGraphicsContextProviderFunc
+        get_decode_target_graphics_context_provider_func = base::BindRepeating(
+            &StarboardRendererTest::GetSbDecodeTargetGraphicsContextProvider,
+            base::Unretained(this));
+    renderer_->set_decode_target_graphics_context_provider(
+        get_decode_target_graphics_context_provider_func);
 
     EXPECT_CALL(media_resource_, GetAllStreams())
         .WillRepeatedly(Invoke(this, &StarboardRendererTest::GetAllStreams));
@@ -173,6 +179,11 @@ class StarboardRendererTest : public testing::Test {
     return player;
   }
 
+  SbDecodeTargetGraphicsContextProvider*
+  GetSbDecodeTargetGraphicsContextProvider() {
+    return &decode_target_graphics_context_provider_;
+  }
+
   base::test::TaskEnvironment task_environment_;
   const std::unique_ptr<StarboardRenderer> renderer_ =
       std::make_unique<StarboardRenderer>(
@@ -198,6 +209,8 @@ class StarboardRendererTest : public testing::Test {
   SbPlayerStatusFunc player_status_cb_ = nullptr;
   SbPlayerErrorFunc player_error_cb_ = nullptr;
   void* context_ = nullptr;
+  SbDecodeTargetGraphicsContextProvider
+      decode_target_graphics_context_provider_;
 };
 
 TEST_F(StarboardRendererTest, InitializeWithClearContent) {

@@ -21,6 +21,7 @@
 #include "base/functional/callback_helpers.h"
 #include "base/memory/scoped_refptr.h"
 #include "base/task/single_thread_task_runner.h"
+#include "base/task/thread_pool.h"
 #include "base/test/gmock_callback_support.h"
 #include "base/test/mock_callback.h"
 #include "base/test/task_environment.h"
@@ -29,6 +30,7 @@
 #include "media/base/test_helpers.h"
 #include "media/gpu/starboard/starboard_gpu_factory_impl.h"
 #include "media/mojo/mojom/renderer_extensions.mojom.h"
+#include "starboard/decode_target.h"
 #include "testing/gmock/include/gmock/gmock.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
@@ -130,6 +132,30 @@ class MockStarboardGpuFactory : public StarboardGpuFactory {
     std::move(callback).Run();
   }
 
+  void RunSbDecodeTargetFunctionOnGpu(
+      SbDecodeTargetGlesContextRunnerTarget target_function,
+      void* target_function_context,
+      base::WaitableEvent* done_event) override {
+    done_event->Signal();
+  }
+
+  void RunCallbackOnGpu(base::OnceCallback<void()> callback,
+                        base::WaitableEvent* done_event) override {
+    done_event->Signal();
+  }
+
+  void CreateImageOnGpu(const gfx::Size& coded_size,
+                        const gfx::ColorSpace& color_space,
+                        int plane_count,
+                        std::vector<gpu::Mailbox>& mailboxes,
+                        std::vector<uint32_t>& texture_service_ids,
+#if BUILDFLAG(IS_ANDROID)
+                        scoped_refptr<gpu::RefCountedLock> drdc_lock,
+#endif  // BUILDFLAG(IS_ANDROID)
+                        base::WaitableEvent* done_event) override {
+    done_event->Signal();
+  }
+
  private:
   void OnWillDestroyStub(bool have_context) override {}
 };
@@ -152,7 +178,7 @@ class StarboardRendererWrapperTest : public testing::Test {
             AndroidOverlayMojoFactoryCB()
 #endif  // BUILDFLAG(IS_ANDROID)
                 )),
-        mock_gpu_factory_(task_environment_.GetMainThreadTaskRunner()) {
+        mock_gpu_factory_(dedicated_task_runner) {
     // Setup MockStarboardGpuFactory as StarboardGpuFactory so
     // it can overwrite |gpu_factory_| in StarboardRendererWrapper
     // via SetGpuFactoryForTesting().
@@ -171,8 +197,14 @@ class StarboardRendererWrapperTest : public testing::Test {
         std::move(renderer_extension_receiver),
         std::move(client_extension_remote), base::NullCallback(),
         AndroidOverlayMojoFactoryCB());
+#if BUILDFLAG(IS_ANDROID)
+    scoped_refptr<gpu::RefCountedLock> ref_counted_lock;
+    renderer_wrapper_ = std::make_unique<StarboardRendererWrapper>(
+        std::move(traits), ref_counted_lock);
+#else
     renderer_wrapper_ =
         std::make_unique<StarboardRendererWrapper>(std::move(traits));
+#endif  // BUILDFLAG(IS_ANDROID)
     renderer_wrapper_->SetRendererForTesting(mock_renderer_.get());
     renderer_wrapper_->SetGpuFactoryForTesting(&gpu_factory_);
 
@@ -201,6 +233,10 @@ class StarboardRendererWrapperTest : public testing::Test {
   }
 
   base::test::TaskEnvironment task_environment_;
+  scoped_refptr<base::SequencedTaskRunner> dedicated_task_runner =
+      base::ThreadPool::CreateSingleThreadTaskRunner(
+          {},
+          base::SingleThreadTaskRunnerThreadMode::DEDICATED);
   std::unique_ptr<StrictMock<MockStarboardRenderer>> mock_renderer_;
   base::SequenceBound<StrictMock<MockStarboardGpuFactory>> mock_gpu_factory_;
   base::SequenceBound<StarboardGpuFactory> gpu_factory_;

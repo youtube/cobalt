@@ -15,12 +15,15 @@
 #ifndef MEDIA_MOJO_SERVICES_STARBOARD_RENDERER_WRAPPER_H_
 #define MEDIA_MOJO_SERVICES_STARBOARD_RENDERER_WRAPPER_H_
 
+#include <functional>
 #include <memory>
+#include <vector>
 
 #include "base/memory/raw_ptr.h"
 #include "base/memory/weak_ptr.h"
 #include "base/threading/sequence_bound.h"
 #include "base/threading/thread_checker.h"
+#include "gpu/command_buffer/common/mailbox_holder.h"
 #include "gpu/ipc/service/command_buffer_stub.h"
 #include "media/base/renderer.h"
 #include "media/gpu/starboard/starboard_gpu_factory_impl.h"
@@ -31,8 +34,10 @@
 #include "mojo/public/cpp/bindings/pending_remote.h"
 #include "mojo/public/cpp/bindings/receiver.h"
 #include "mojo/public/cpp/bindings/remote.h"
+#include "starboard/decode_target.h"
 
 #if BUILDFLAG(IS_ANDROID)
+#include "gpu/command_buffer/service/ref_counted_lock.h"
 #include "media/base/android_overlay_mojo_factory.h"
 #endif  // BUILDFLAG(IS_ANDROID)
 
@@ -51,13 +56,23 @@ class StarboardGpuFactory;
 // StarboardRendererClient living in the Chrome_InProcRendererThread
 // (Media thread), using `renderer_extension_receiver_`
 // and `client_extension_remote_`.
-class StarboardRendererWrapper : public Renderer,
-                                 public mojom::StarboardRendererExtension {
+class StarboardRendererWrapper final
+    : public Renderer,
+#if BUILDFLAG(IS_ANDROID)
+      public gpu::RefCountedLockHelperDrDc,
+#endif  // BUILDFLAG(IS_ANDROID)
+      public mojom::StarboardRendererExtension {
  public:
   using RendererExtension = mojom::StarboardRendererExtension;
   using ClientExtension = mojom::StarboardRendererClientExtension;
+  using GetStarboardCommandBufferStubCB = StarboardGpuFactory::GetStubCB;
 
+#if BUILDFLAG(IS_ANDROID)
+  StarboardRendererWrapper(StarboardRendererTraits traits,
+                           scoped_refptr<gpu::RefCountedLock> drdc_lock);
+#else   // BUILDFLAG(IS_ANDROID)
   explicit StarboardRendererWrapper(StarboardRendererTraits traits);
+#endif  // BUILDFLAG(IS_ANDROID)
 
   StarboardRendererWrapper(const StarboardRendererWrapper&) = delete;
   StarboardRendererWrapper& operator=(const StarboardRendererWrapper&) = delete;
@@ -110,12 +125,33 @@ class StarboardRendererWrapper : public Renderer,
                               RendererClient* client,
                               PipelineStatusCallback init_cb);
   bool IsGpuChannelTokenAvailable() const { return !!command_buffer_id_; }
+  SbDecodeTargetGraphicsContextProvider*
+  GetSbDecodeTargetGraphicsContextProvider();
+  void GetCurrentDecodeTarget();
+  void CreateVideoFrame_OnImageReady(VideoPixelFormat format,
+                                     const gfx::Size& coded_size,
+                                     const gfx::Rect& visible_rect,
+                                     const gfx::Size& natural_size,
+                                     std::vector<gpu::Mailbox>& mailboxes);
+
+  static void GraphicsContextRunner(
+      SbDecodeTargetGraphicsContextProvider* graphics_context_provider,
+      SbDecodeTargetGlesContextRunnerTarget target_function,
+      void* target_function_context);
 
   mojo::Receiver<RendererExtension> renderer_extension_receiver_;
   mojo::Remote<ClientExtension> client_extension_remote_;
   StarboardRenderer renderer_;
   mojom::CommandBufferIdPtr command_buffer_id_;
   base::SequenceBound<StarboardGpuFactory> gpu_factory_;
+  scoped_refptr<base::SingleThreadTaskRunner> gpu_task_runner_;
+
+  SbDecodeTargetGraphicsContextProvider
+      decode_target_graphics_context_provider_;
+
+  bool is_gpu_factory_initialized_ = false;
+  scoped_refptr<VideoFrame> current_frame_;
+  SbDecodeTarget decode_target_ = kSbDecodeTargetInvalid;
 
   raw_ptr<StarboardRenderer> test_renderer_;
   raw_ptr<base::SequenceBound<StarboardGpuFactory>> test_gpu_factory_;

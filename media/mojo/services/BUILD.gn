@@ -120,7 +120,8 @@ component("services") {
       "starboard/starboard_renderer_wrapper.cc",
       "starboard/starboard_renderer_wrapper.h",
     ]
-    deps += [ "//starboard:starboard_headers_only" ]
+    deps += [ "//starboard/common",
+    "//starboard:starboard_headers_only" ]
   } else if (is_android) {
     sources += [ "gpu_mojo_media_client_android.cc" ]
   } else if (is_mac) {
@@ -318,6 +319,8 @@ source_set("unit_tests") {
 
   if (is_cobalt && use_starboard_media) {
     sources += [ "starboard/starboard_renderer_wrapper_unittest.cc" ]
+
+    deps += [ "//starboard/common" ]
   }
 }
 
