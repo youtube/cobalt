@@ -38,7 +38,7 @@ runs:
 
         result_xmls=(${{ inputs.results_glob }})
         if [ ${#result_xmls[@]} -ne ${{ inputs.num_gtest_shards }} ]; then
-          echo "::error::Missing test result xml. Did a test crash?"
+          echo "::error::Missing test result xml (found ${#result_xmls[@]}, expected ${{ inputs.num_gtest_shards }}). Did a test shard crash?"
           exit 1
         fi
         if [ ${{ steps.test-summary.outputs.failed }} -gt 0 ]; then
