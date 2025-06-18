@@ -143,12 +143,6 @@
          break;
      }
 
-     // Request focus on WebContents.
-     WebContents webContents = cobaltActivity.getActiveWebContents();
-     View webContentsView = webContents.getViewAndroidDelegate().getContainerView();
-     if (webContentsView != null) {
-       webContentsView.requestFocus();
-     }
      unhandledInput = false;
      focusOnCenter();
    }
@@ -172,6 +166,14 @@
     */
    @Override
    protected void onPopulateNodeForVirtualView(int virtualViewId, AccessibilityNodeInfoCompat node) {
+     // Request focus on WebContents.
+     CobaltActivity cobaltActivity = mCobaltActivityRef.get();
+     WebContents webContents = cobaltActivity.getActiveWebContents();
+     View webContentsView = webContents.getViewAndroidDelegate().getContainerView();
+     if (webContentsView != null) {
+       webContentsView.requestFocus();
+     }
+
      int focusedViewId = getAccessibilityFocusedVirtualViewId();
 
      if (focusedViewId < 1 || focusedViewId > 9) {
