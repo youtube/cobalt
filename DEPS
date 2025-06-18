@@ -503,10 +503,14 @@ vars = {
   'libcxx_revision':       'e36be6784f33c592ecc89da2a829807920d374ef',
 
   # GN CIPD package version.
+<<<<<<< HEAD
   'gn_version': 'git_revision:ed1abc107815210dc66ec439542bee2f6cbabc00',
 
   # ninja CIPD package.
   'ninja_package': 'infra/3pp/tools/ninja/',
+=======
+  'gn_version': 'git_revision:8ea3af9118a65387fe4d8428db6f59c5927dd55a',  # Cobalt: keep until updating past mid-2025
+>>>>>>> 3dbd451bf77 (Clean up runtime deps for modular build  (#6066))
 
   # ninja CIPD package version.
   # https://chrome-infra-packages.appspot.com/p/infra/3pp/tools/ninja
