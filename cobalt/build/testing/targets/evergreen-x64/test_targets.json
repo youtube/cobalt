@@ -42,7 +42,7 @@
     "ui/ozone:ozone_unittests_loader",
     "ui/wm:wm_unittests_loader",
     "url:url_perftests_loader",
-    "url:url_unittests"
+    "url:url_unittests_loader"
   ],
   "executables": []
 }

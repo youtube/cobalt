@@ -42,7 +42,7 @@
     "ui/ozone:ozone_unittests_loader",
     "ui/wm:wm_unittests_loader",
     "url:url_perftests_loader",
-    "url:url_unittests"
+    "url:url_unittests_loader"
   ],
   "executables": [
     "out/linux-x64x11_devel/base_perftests_loader",
@@ -86,6 +86,6 @@
     "out/linux-x64x11_devel/viz_unittests_loader",
     "out/linux-x64x11_devel/wm_unittests_loader",
     "out/linux-x64x11_devel/wtf_unittests_loader",
-    "out/linux-x64x11_devel/zlib_unittests"
+    "out/linux-x64x11_devel/zlib_unittests_loader"
   ]
 }

@@ -65,6 +65,7 @@ template("evergreen_final_target") {
       ":copy_${original_target_name}_content",
       ":copy_${original_target_name}_lib",
     ]
+    write_runtime_deps = "$root_build_dir/${target_name}.runtime_deps"
   }
 
   copy("copy_${original_target_name}_content") {
@@ -111,7 +112,6 @@ template("evergreen_final_target") {
     }
     data_deps +=
         [ "//starboard/loader_app:loader_assets($starboard_toolchain)" ]
-    write_runtime_deps = "$root_build_dir/${original_target_name}.runtime_deps"
   }
 }
 
