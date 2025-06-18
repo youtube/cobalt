@@ -10,7 +10,6 @@
       "cobalt:gn_all",
       "chromedriver",
       "content_shell",
-      "crashpad_handler",
       "dump_syms",
       "minidump_stackwalk"
     ],
