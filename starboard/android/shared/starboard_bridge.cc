@@ -91,8 +91,12 @@ JNI_StarboardBridge_CurrentMonotonicTime(JNIEnv* env) {
   return CurrentMonotonicTime();
 }
 
-extern "C" SB_EXPORT_PLATFORM jlong
-JNI_StarboardBridge_StartNativeStarboard(JNIEnv* env) {
+extern "C" SB_EXPORT_PLATFORM jlong JNI_StarboardBridge_StartNativeStarboard(
+    JNIEnv* env,
+    const JavaParamRef<jobject>& j_asset_manager,
+    const JavaParamRef<jstring>& j_files_dir,
+    const JavaParamRef<jstring>& j_cache_dir,
+    const JavaParamRef<jstring>& j_native_library_dir) {
 #if SB_IS(EVERGREEN_COMPATIBLE)
   StarboardThreadLaunch();
 #else
@@ -100,7 +104,12 @@ JNI_StarboardBridge_StartNativeStarboard(JNIEnv* env) {
   if (g_native_app_instance == nullptr) {
     auto command_line = std::make_unique<CommandLine>(GetArgs());
     LogInit(*command_line);
-    g_native_app_instance = new ApplicationAndroid(std::move(command_line));
+    ScopedJavaGlobalRef<jobject> asset_manager(env, j_asset_manager.obj());
+    g_native_app_instance = new ApplicationAndroid(
+        std::move(command_line), std::move(asset_manager),
+        ConvertJavaStringToUTF8(env, j_files_dir),
+        ConvertJavaStringToUTF8(env, j_cache_dir),
+        ConvertJavaStringToUTF8(env, j_native_library_dir));
     // Ensure application init happens here
     ApplicationAndroid::Get();
   }
@@ -113,7 +122,7 @@ extern "C" SB_EXPORT_PLATFORM void JNI_StarboardBridge_HandleDeepLink(
     JNIEnv* env,
     const JavaParamRef<jstring>& jurl,
     jboolean applicationStarted) {
-  const std::string& url = base::android::ConvertJavaStringToUTF8(env, jurl);
+  const std::string& url = ConvertJavaStringToUTF8(env, jurl);
   LOG(INFO) << "StarboardBridge handling DeepLink: " << url;
 
   auto* manager = cobalt::browser::DeepLinkManager::GetInstance();
@@ -153,7 +162,7 @@ JNI_StarboardBridge_SetAndroidBuildFingerprint(
       cobalt::browser::CobaltHeaderValueProvider::GetInstance();
   header_value_provider->SetHeaderValue(
       "Sec-CH-UA-Co-Android-Build-Fingerprint",
-      base::android::ConvertJavaStringToUTF8(env, fingerprint));
+      ConvertJavaStringToUTF8(env, fingerprint));
 }
 
 // StarboardBridge::GetInstance() should not be inlined in the
@@ -219,67 +228,6 @@ void StarboardBridge::RaisePlatformError(JNIEnv* env,
 void StarboardBridge::RequestSuspend(JNIEnv* env) {
   SB_DCHECK(env);
   Java_StarboardBridge_requestSuspend(env, j_starboard_bridge_);
-}
-
-ScopedJavaLocalRef<jobject> StarboardBridge::GetApplicationContext(
-    JNIEnv* env) {
-  SB_DCHECK(env);
-  return Java_StarboardBridge_getApplicationContext(env, j_starboard_bridge_);
-}
-
-ScopedJavaGlobalRef<jobject> StarboardBridge::GetAssetsFromContext(
-    JNIEnv* env,
-    ScopedJavaLocalRef<jobject>& context) {
-  SB_DCHECK(env);
-  ScopedJavaLocalRef<jclass> context_class(
-      GetClass(env, "android/content/Context"));
-  jmethodID get_assets_method = env->GetMethodID(
-      context_class.obj(), "getAssets", "()Landroid/content/res/AssetManager;");
-  ScopedJavaLocalRef<jobject> asset_manager(
-      env, env->CallObjectMethod(context.obj(), get_assets_method));
-  ScopedJavaGlobalRef<jobject> global_asset_manager;
-  global_asset_manager.Reset(asset_manager);
-  return global_asset_manager;
-}
-
-std::string StarboardBridge::GetNativeLibraryDirFromContext(
-    JNIEnv* env,
-    ScopedJavaLocalRef<jobject>& context) {
-  SB_DCHECK(env);
-  ScopedJavaLocalRef<jclass> context_class(
-      GetClass(env, "android/content/Context"));
-  jmethodID get_application_info_method =
-      env->GetMethodID(context_class.obj(), "getApplicationInfo",
-                       "()Landroid/content/pm/ApplicationInfo;");
-  ScopedJavaLocalRef<jobject> application_info(
-      env, env->CallObjectMethod(context.obj(), get_application_info_method));
-
-  ScopedJavaLocalRef<jclass> application_info_class(
-      env, env->GetObjectClass(application_info.obj()));
-  jfieldID native_library_dir_field = env->GetFieldID(
-      application_info_class.obj(), "nativeLibraryDir", "Ljava/lang/String;");
-  ScopedJavaLocalRef<jstring> native_library_dir_java(
-      env, static_cast<jstring>(env->GetObjectField(application_info.obj(),
-                                                    native_library_dir_field)));
-  std::string native_library_dir =
-      ConvertJavaStringToUTF8(env, native_library_dir_java.obj());
-  return native_library_dir.c_str();
-}
-
-std::string StarboardBridge::GetFilesAbsolutePath(JNIEnv* env) {
-  SB_DCHECK(env);
-  ScopedJavaLocalRef<jstring> file_path_java =
-      Java_StarboardBridge_getFilesAbsolutePath(env, j_starboard_bridge_);
-  std::string file_path = ConvertJavaStringToUTF8(env, file_path_java);
-  return file_path;
-}
-
-std::string StarboardBridge::GetCacheAbsolutePath(JNIEnv* env) {
-  SB_DCHECK(env);
-  ScopedJavaLocalRef<jstring> file_path_java =
-      Java_StarboardBridge_getCacheAbsolutePath(env, j_starboard_bridge_);
-  std::string file_path = ConvertJavaStringToUTF8(env, file_path_java);
-  return file_path;
 }
 
 ScopedJavaLocalRef<jobject> StarboardBridge::GetTextToSpeechHelper(
