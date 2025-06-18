@@ -6,7 +6,6 @@
 /starboard/shared/starboard/decode_target   @youtube/cobalt-media
 /starboard/shared/starboard/drm             @youtube/cobalt-media
 /starboard/shared/starboard/media           @youtube/cobalt-media
-/starboard/shared/starboard/microphone      @youtube/cobalt-media
 /starboard/shared/starboard/player          @youtube/cobalt-media
 /third_party/blink/renderer/platform/media/ @youtube/cobalt-media
 
