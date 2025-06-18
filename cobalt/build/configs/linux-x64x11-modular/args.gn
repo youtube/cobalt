@@ -16,3 +16,8 @@ use_system_libdrm = false
 # This brings in libraries we can't have in hermetic builds, and our decoding
 # is done under Starboard, so we can disable decoders at the Chromium level.
 rtc_use_h264 = false
+
+# TODO: b/425694385 - Investigate other ways to ensure emulated tls is
+# is respected with LTO.
+is_cfi = false
+use_thin_lto = false

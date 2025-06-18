@@ -1,10 +1,5 @@
 name: Run API Leak Detector
 description: Runs the API leak detector
-inputs:
-  relative_manifest_path:
-    description: "Path to leak manifest file."
-    required: false
-    default: ""
 
 runs:
   using: "composite"
@@ -22,4 +17,4 @@ runs:
         else
           SB_API_VERSION_FLAG="--sb_api_version=${{matrix.sb_api_version}}"
         fi
-        python3 src/starboard/tools/api_leak_detector/api_leak_detector.py -p ${{ matrix.platform }} -c ${{matrix.config}} --submit-check $MANIFEST_FLAG ${SB_API_VERSION_FLAG}
+        python3 src/starboard/tools/api_leak_detector/api_leak_detector.py -p ${{ matrix.platform }} -c ${{matrix.config}} --submit-check --relative-manifest-path evergreen/manifest ${SB_API_VERSION_FLAG}

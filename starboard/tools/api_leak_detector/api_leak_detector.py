@@ -226,6 +226,10 @@ _ALLOWED_SB_GE_16_POSIX_SYMBOLS = [
     'readdir_r',
     'malloc_usable_size',
     'readdir',
+
+    # Symbols below haven't been implemented yet but need to be investigated.
+    'flock',  # TODO: b/412638190
+    'putchar',  # TODO: b/406081586
 ]
 
 
@@ -577,8 +581,9 @@ def main():
   if args.submit_check:
     introduced, removed = DiffWithManifest(leaked_symbols, manifest_path)
     if introduced:
-      PrettyPrint(
-          {'Leaks introduced:': FindLeakLocations(introduced, config_path)})
+      print(introduced)
+      # PrettyPrint(
+      #     {'Leaks introduced:': FindLeakLocations(introduced, config_path)})
       print(
           '\nPlease see advice for addressing new leaks at go/cobalt-api-leaks.'
       )

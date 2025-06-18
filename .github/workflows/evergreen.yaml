@@ -32,6 +32,5 @@ jobs:
       platform: evergreen-x64
       nightly: ${{ github.event.inputs.nightly }}
       run_api_leak_detector: true
-      leak_manifest_filename: "manifest"
     secrets:
       datadog_api_key: ${{ secrets.DD_API_KEY }}
