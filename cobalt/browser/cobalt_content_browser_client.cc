@@ -31,6 +31,7 @@
 #include "cobalt/browser/constants/cobalt_experiment_names.h"
 #include "cobalt/browser/global_features.h"
 #include "cobalt/browser/user_agent/user_agent_platform_info.h"
+#include "cobalt/common/features/feature_list.h"
 #include "cobalt/media/service/mojom/video_geometry_setter.mojom.h"
 #include "cobalt/media/service/video_geometry_setter_service.h"
 #include "cobalt/shell/browser/shell.h"
@@ -447,6 +448,9 @@ void CobaltContentBrowserClient::CreateFeatureListAndFieldTrials() {
             << command_line.GetSwitchValueASCII(::switches::kEnableFeatures);
   LOG(INFO) << "CobaltCommandLine "
             << command_line.GetSwitchValueASCII(::switches::kDisableFeatures);
+
+  // Push the set up Features and Params down to the Starboard.
+  features::InitializeStarboardFeatures();
 }
 
 }  // namespace cobalt
