@@ -49,7 +49,11 @@ void MojoDemuxerStreamImpl::Initialize(InitializeCallback callback) {
       &remote_consumer_handle);
 
   std::move(callback).Run(stream_->type(), std::move(remote_consumer_handle),
+#if BUILDFLAG(USE_STARBOARD_MEDIA)
+                          audio_config, video_config, stream_->mime_type());
+#else   // BUILDFLAG(USE_STARBOARD_MEDIA)
                           audio_config, video_config);
+#endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
 }
 
 void MojoDemuxerStreamImpl::Read(uint32_t count, ReadCallback callback) {
