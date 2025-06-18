@@ -61,8 +61,7 @@ ApplicationAndroid::ApplicationAndroid(
   // Called once here to help SbTimeZoneGet*Name()
   tzset();
 
-  // Initialize Android asset access early so that ICU can load its tables
-  // from the assets. The use ICU is used in our logging.
+  // Initialize Android asset access.
   SbFileAndroidInitialize(asset_manager, files_dir, cache_dir,
                           native_library_dir);
 

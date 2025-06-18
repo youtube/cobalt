@@ -23,11 +23,27 @@
 namespace starboard::android::shared {
 
 const char* g_app_assets_dir = "/cobalt/assets";
+// Representing the absolute path to the application-specific directory
+// where persistent files should be stored
+// (Context.getFilesDir().getAbsolutePath()). This path is used
+// by Cobalt's file operations to access application-private storage.
 const char* g_app_files_dir = NULL;
+// Representing the absolute path to the application-specific cache directory
+// on the filesystem (Context.getCacheDir().getAbsolutePath()). This directory
+// is intended for temporary files that can be deleted by the system if storage
+// runs low.
 const char* g_app_cache_dir = NULL;
+// Representing the absolute path to the directory where the application's
+// native libraries are located (ApplicationInfo.nativeLibraryDir). This path
+// might be used by Cobalt or underlying libraries for dynamic loading or
+// related operations.
 const char* g_app_lib_dir = NULL;
 
 namespace {
+// A ScopedJavaGlobalRef<jobject> representing the Android AssetManager
+// instance. This global reference ensures the AssetManager Java object
+// remains valid and accessible throughout the native application's lifetime,
+// allowing native code to load assets packaged within the APK.
 ScopedJavaGlobalRef<jobject> g_java_asset_manager;
 AAssetManager* g_asset_manager;
 }  // namespace
