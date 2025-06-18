@@ -8,10 +8,6 @@ runs:
       shell: bash
       run: |
         set -x
-        MANIFEST_FLAG=""
-        if [ "${{ inputs.relative_manifest_path }}" != "" ]; then
-          MANIFEST_FLAG="--relative-manifest-path ${{ matrix.target_platform }}/${{matrix.config}}/${{ inputs.relative_manifest_path }}"
-        fi
         if [ -z "${{matrix.sb_api_version}}"]; then
           SB_API_VERSION_FLAG=""
         else
