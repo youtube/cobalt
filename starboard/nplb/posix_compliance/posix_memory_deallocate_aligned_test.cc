@@ -20,10 +20,10 @@ namespace starboard {
 namespace nplb {
 namespace {
 
-const size_t kSize = 1024 * 128;
+const size_t kSize = 1024 * 128; // kSize is already const
 
 TEST(PosixMemoryDeallocateAlignedTest, DeallocatesAligned) {
-  const size_t kMaxAlign = 4096 + 1;
+  const size_t kMaxAlign = 4096 + 1; // kMaxAlign is already const
   for (size_t align = sizeof(void*); align < kMaxAlign; align <<= 1) {
     void* memory = NULL;
     posix_memalign(&memory, align, kSize);

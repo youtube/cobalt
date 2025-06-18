@@ -29,7 +29,7 @@ namespace nplb {
 namespace {
 
 // Helper function to clean up a directory and its contents
-void RemoveDirectoryRecursively(const std::string& path) {
+void RemoveDirectoryRecursively(const std::string& path) { // path is already const&
   DIR* dir = opendir(path.c_str());
   if (dir == nullptr) {
     return;  // Directory might not exist or already cleaned up
@@ -41,7 +41,7 @@ void RemoveDirectoryRecursively(const std::string& path) {
         std::string(entry->d_name) == "..") {
       continue;
     }
-    std::string entry_path = path + "/" + entry->d_name;
+    const std::string entry_path = path + "/" + entry->d_name;
     if (entry->d_type == DT_DIR) {
       RemoveDirectoryRecursively(entry_path);
     } else {
@@ -68,7 +68,7 @@ class PosixReaddirTests : public ::testing::Test {
  protected:
   void SetUp() override {
     std::vector<char> temp_path(kSbFileMaxPath);
-    bool system_path_success = SbSystemGetPath(
+    const bool system_path_success = SbSystemGetPath(
         kSbSystemPathTempDirectory, temp_path.data(), kSbFileMaxPath);
     ASSERT_TRUE(system_path_success);
     struct stat info;
@@ -87,7 +87,7 @@ class PosixReaddirTests : public ::testing::Test {
 // Test that d_ino is populated correctly (non-zero)
 TEST_F(PosixReaddirTests, DInoPopulated) {
   // Create a file
-  std::string file_path = test_dir_ + "/inode_test_file.txt";
+  const std::string file_path = test_dir_ + "/inode_test_file.txt";
   int fd = open(file_path.c_str(), flags_, 0666);
   ASSERT_NE(fd, -1) << "Failed to create test file.";
   close(fd);
@@ -115,13 +115,13 @@ TEST_F(PosixReaddirTests, DInoPopulated) {
 // DT_DIR (directory) which are universally supported.
 TEST_F(PosixReaddirTests, DTypePopulatedRegularFileAndDirectory) {
   // Create a regular file
-  std::string regular_file_path = test_dir_ + "/regular_file.txt";
+  const std::string regular_file_path = test_dir_ + "/regular_file.txt";
   int fd = open(regular_file_path.c_str(), flags_, 0666);
   ASSERT_NE(fd, -1) << "Failed to create regular file.";
   close(fd);
 
   // Create a subdirectory
-  std::string sub_directory_path = test_dir_ + "/sub_directory";
+  const std::string sub_directory_path = test_dir_ + "/sub_directory";
   ASSERT_EQ(mkdir(sub_directory_path.c_str(), 0777), 0)
       << "Failed to create subdirectory.";
 
@@ -135,7 +135,7 @@ TEST_F(PosixReaddirTests, DTypePopulatedRegularFileAndDirectory) {
 
   struct dirent* entry;
   while ((entry = readdir(dir)) != nullptr) {
-    std::string name = entry->d_name;
+    const std::string name = entry->d_name;
     if (name == "regular_file.txt") {
       // d_type for regular files should be DT_REG or DT_UNKNOWN
       ASSERT_TRUE(entry->d_type == DT_REG || entry->d_type == DT_UNKNOWN)
@@ -206,7 +206,7 @@ TEST_F(PosixReaddirTests, ReaddirReturnsNullAtEndOfStream) {
 TEST_F(PosixReaddirTests, LargeNumberOfEntries) {
   const int kNumFiles = 1000;  // A reasonably large number of files
   for (int i = 0; i < kNumFiles; ++i) {
-    std::string file_path = test_dir_ + "/file_" + std::to_string(i);
+    const std::string file_path = test_dir_ + "/file_" + std::to_string(i);
     int fd = open(file_path.c_str(), flags_, 0666);
     ASSERT_NE(fd, -1) << "Failed to create file " << i;
     close(fd);
@@ -218,7 +218,7 @@ TEST_F(PosixReaddirTests, LargeNumberOfEntries) {
   int count = 0;
   struct dirent* entry;
   while ((entry = readdir(dir)) != nullptr) {
-    std::string name = entry->d_name;
+    const std::string name = entry->d_name;
     if (name != "." && name != "..") {
       count++;
     }
@@ -231,17 +231,17 @@ TEST_F(PosixReaddirTests, LargeNumberOfEntries) {
 // Test readdir on two separate directories and verify distinct entries.
 TEST_F(PosixReaddirTests, SeparateDirectoriesSeparateReaddir) {
   // Create first directory
-  std::string dir1_path = test_dir_ + "_dir1";
+  const std::string dir1_path = test_dir_ + "_dir1";
   ASSERT_EQ(mkdir(dir1_path.c_str(), 0777), 0) << "Failed to create dir1.";
-  std::string file1_path = dir1_path + "/file_in_dir1.txt";
+  const std::string file1_path = dir1_path + "/file_in_dir1.txt";
   int fd1 = open(file1_path.c_str(), flags_, 0666);
   ASSERT_NE(fd1, -1) << "Failed to create file in dir1.";
   close(fd1);
 
   // Create second directory
-  std::string dir2_path = test_dir_ + "_dir2";
+  const std::string dir2_path = test_dir_ + "_dir2";
   ASSERT_EQ(mkdir(dir2_path.c_str(), 0777), 0) << "Failed to create dir2.";
-  std::string file2_path = dir2_path + "/file_in_dir2.txt";
+  const std::string file2_path = dir2_path + "/file_in_dir2.txt";
   int fd2 = open(file2_path.c_str(), flags_, 0666);
   ASSERT_NE(fd2, -1) << "Failed to create file in dir2.";
   close(fd2);

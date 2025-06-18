@@ -46,7 +46,7 @@ TEST(PosixFileGetPathInfoTest, WorksOnARegularFile) {
   // in extra sensitivity to make flakiness more apparent.
   constexpr int kTrials = 100;
   for (int i = 0; i < kTrials; ++i) {
-    int64_t time_usec = CurrentPosixTime();
+    const int64_t time_usec = CurrentPosixTime();
 
     constexpr int kFileSize = 12;
     ScopedRandomFile random_file(kFileSize);
@@ -70,13 +70,14 @@ TEST(PosixFileGetPathInfoTest, WorksOnARegularFile) {
 
 TEST(PosixFileGetPathInfoTest, WorksOnADirectory) {
   std::vector<char> path(kSbFileMaxPath);
-  bool result =
+  const bool result =
       SbSystemGetPath(kSbSystemPathTempDirectory, path.data(), kSbFileMaxPath);
   EXPECT_TRUE(result);
 
   {
     struct stat file_info;
-    bool result = stat(path.data(), &file_info) == 0;
+    const bool result_stat = stat(path.data(), &file_info) == 0;
+    // EXPECT_TRUE(result_stat); // It's good practice to check the return of stat
     EXPECT_LE(0, file_info.st_size);
     EXPECT_TRUE(S_ISDIR(file_info.st_mode));
     EXPECT_FALSE(S_ISLNK(file_info.st_mode));
@@ -87,10 +88,10 @@ TEST(PosixFileGetPathInfoTest, WorksOnADirectory) {
 }
 
 TEST(PosixFileGetPathInfoTest, WorksOnStaticContentFiles) {
-  for (auto filename : GetFileTestsFilePaths()) {
+  for (const auto& filename : GetFileTestsFilePaths()) {
     struct stat info;
     EXPECT_TRUE(stat(filename.c_str(), &info) == 0);
-    size_t content_length = GetTestFileExpectedContent(filename).length();
+    const size_t content_length = GetTestFileExpectedContent(filename).length();
     EXPECT_EQ(content_length, info.st_size);
     EXPECT_FALSE(S_ISDIR(info.st_mode));
     EXPECT_FALSE(S_ISLNK(info.st_mode));
@@ -98,7 +99,7 @@ TEST(PosixFileGetPathInfoTest, WorksOnStaticContentFiles) {
 }
 
 TEST(PosixFileGetPathInfoTest, WorksOnStaticContentDirectories) {
-  for (auto path : GetFileTestsDirectoryPaths()) {
+  for (const auto& path : GetFileTestsDirectoryPaths()) {
     struct stat info;
     EXPECT_TRUE(stat(path.data(), &info) == 0);
     EXPECT_LE(0, info.st_size);
