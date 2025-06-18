@@ -112,8 +112,7 @@ static_library("starboard_platform") {
     "//starboard/shared/starboard/drm/drm_update_session.cc",
     "//starboard/shared/starboard/event_cancel.cc",
     "//starboard/shared/starboard/event_schedule.cc",
-
-    # "//starboard/shared/starboard/feature_list.cc",
+    "//starboard/shared/starboard/feature_list.cc",
     "//starboard/shared/starboard/feature_list.h",
     "//starboard/shared/starboard/file_atomic_replace_write_file.cc",
     "//starboard/shared/starboard/file_atomic_replace_write_file.h",

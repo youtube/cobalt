@@ -21,8 +21,8 @@
 #define STARBOARD_FEATURE(feature, name, default_state) \
   BASE_DECLARE_FEATURE(feature);
 
-#define STARBOARD_FEATURE_PARAM(T, param_object_name, feature, name, \
-                                default_value)                       \
+#define STARBOARD_FEATURE_PARAM(T, param_object_name, feature_object_name, \
+                                param_name, feature_name, default_value)   \
   extern const base::FeatureParam<T> param_object_name;
 
 #define FEATURE_LIST_START namespace cobalt::features {

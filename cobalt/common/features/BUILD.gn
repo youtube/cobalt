@@ -12,8 +12,10 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-source_set("features") {
+static_library("features") {
   sources = [
+    "feature_list.cc",
+    "feature_list.h",
     "features.cc",
     "features.h",
   ]
@@ -22,6 +24,12 @@ source_set("features") {
     "//base",
     "//starboard/common:common",
   ]
+
+  # TODO: Investigate if any dependencies are required for linux
+
+  if (is_android) {
+    deps += [ "//starboard/android/shared:starboard_platform" ]
+  }
 }
 
 source_set("features_test") {
