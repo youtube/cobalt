@@ -94,9 +94,7 @@ public final class CommandLineOverrideHelper {
         StringJoiner paramOverrides = new StringJoiner(",");
 
         // Trades a little V8 performance for significant memory savings.
-        paramOverrides.add("--optimize_for_size=true");
-        // Disable concurrent-marking due to b/415843979
-        paramOverrides.add("--concurrent_marking=false");
+        paramOverrides.add("--optimize-for-size");
 
         return paramOverrides;
     }
