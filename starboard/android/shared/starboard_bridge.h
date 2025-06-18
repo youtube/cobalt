@@ -55,20 +55,6 @@ class StarboardBridge {
 
   void RequestSuspend(JNIEnv* env);
 
-  ScopedJavaLocalRef<jobject> GetApplicationContext(JNIEnv* env);
-
-  ScopedJavaGlobalRef<jobject> GetAssetsFromContext(
-      JNIEnv* env,
-      ScopedJavaLocalRef<jobject>& context);
-
-  std::string GetNativeLibraryDirFromContext(
-      JNIEnv* env,
-      ScopedJavaLocalRef<jobject>& context);
-
-  std::string GetFilesAbsolutePath(JNIEnv* env);
-
-  std::string GetCacheAbsolutePath(JNIEnv* env);
-
   ScopedJavaLocalRef<jobject> GetTextToSpeechHelper(JNIEnv* env);
 
   std::string GetAdvertisingId(JNIEnv* env);
