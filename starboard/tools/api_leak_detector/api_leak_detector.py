@@ -581,9 +581,8 @@ def main():
   if args.submit_check:
     introduced, removed = DiffWithManifest(leaked_symbols, manifest_path)
     if introduced:
-      print(introduced)
-      # PrettyPrint(
-      #     {'Leaks introduced:': FindLeakLocations(introduced, config_path)})
+      PrettyPrint(
+          {'Leaks introduced:': FindLeakLocations(introduced, config_path)})
       print(
           '\nPlease see advice for addressing new leaks at go/cobalt-api-leaks.'
       )

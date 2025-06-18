@@ -22,7 +22,6 @@ dlclose
 dlerror
 dlopen
 dlsym
-environ
 epoll_wait
 eventfd
 execvp
@@ -48,7 +47,6 @@ freelocale
 fscanf
 fseek
 fseeko
-fstatfs
 ftell
 ftello
 futimes
@@ -57,19 +55,14 @@ gai_strerror
 getauxval
 getc
 getcwd
-getenv
 geteuid
 gethostname
-getpagesize
 getpid
 getrlimit
 gmtime
 in6addr_any
 in6addr_loopback
 initstate
-inotify_add_watch
-inotify_init
-inotify_rm_watch
 ioctl
 isatty
 link
@@ -84,12 +77,10 @@ newlocale
 openlog
 pathconf
 pause
-perror
 poll
 posix_fadvise
 prctl
 printf
-program_invocation_short_name
 pthread_sigmask
 puts
 raise
@@ -110,7 +101,6 @@ sem_timedwait
 sem_wait
 sendfile
 sendmsg
-setenv
 setlocale
 setpriority
 setstate
@@ -138,7 +128,6 @@ tzname
 tzset
 uname
 ungetc
-unsetenv
 uselocale
 utimes
 vfprintf
