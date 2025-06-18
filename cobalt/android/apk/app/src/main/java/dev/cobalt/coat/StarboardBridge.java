@@ -23,6 +23,7 @@ import android.app.Activity;
 import android.app.Service;
 import android.content.Context;
 import android.content.pm.PackageManager;
+import android.content.res.AssetManager;
 import android.hardware.input.InputManager;
 import android.media.AudioDeviceInfo;
 import android.media.AudioManager;
@@ -138,7 +139,11 @@ public class StarboardBridge {
     this.volumeStateReceiver = new VolumeStateReceiver(appContext);
     this.isAmatiDevice = appContext.getPackageManager().hasSystemFeature(AMATI_EXPERIENCE_FEATURE);
 
-    nativeApp = StarboardBridgeJni.get().startNativeStarboard();
+    nativeApp = StarboardBridgeJni.get().startNativeStarboard(
+      getAssetsFromContext(),
+      getFilesAbsolutePath(),
+      getCacheAbsolutePath(),
+      getNativeLibraryDir());
 
     StarboardBridgeJni.get().handleDeepLink(startDeepLink, /*applicationStarted=*/ false);
     StarboardBridgeJni.get().setAndroidBuildFingerprint(getBuildFingerprint());
@@ -156,7 +161,11 @@ public class StarboardBridge {
 
     long currentMonotonicTime();
 
-    long startNativeStarboard();
+    long startNativeStarboard(
+      AssetManager assetManager,
+      String filesDir,
+      String cacheDir,
+      String nativeLibraryDir);
     // TODO(cobalt, b/372559388): move below native methods to the Natives interface.
     // boolean initJNI();
 
@@ -329,11 +338,18 @@ public class StarboardBridge {
     StarboardBridgeJni.get().handleDeepLink(url, applicationStarted);
   }
 
+  public AssetManager getAssetsFromContext() {
+    return appContext.getAssets();
+  }
+
+  public String getNativeLibraryDir() {
+    return appContext.getApplicationInfo().nativeLibraryDir;
+  }
+
   /**
    * Returns the absolute path to the directory where application specific files should be written.
    * May be overridden for use cases that need to segregate storage.
    */
-  @CalledByNative
   protected String getFilesAbsolutePath() {
     return appContext.getFilesDir().getAbsolutePath();
   }
@@ -342,7 +358,6 @@ public class StarboardBridge {
    * Returns the absolute path to the application specific cache directory on the filesystem. May be
    * overridden for use cases that need to segregate storage.
    */
-  @CalledByNative
   protected String getCacheAbsolutePath() {
     return appContext.getCacheDir().getAbsolutePath();
   }
