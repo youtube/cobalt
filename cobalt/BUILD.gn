@@ -88,9 +88,14 @@ source_set("common") {
   sources = [
     "app/cobalt_main_delegate.cc",
     "app/cobalt_main_delegate.h",
-    "app/cobalt_switch_defaults_starboard.cc",
-    "app/cobalt_switch_defaults_starboard.h",
   ]
+
+  if (is_starboard) {
+    sources += [
+      "app/cobalt_switch_defaults_starboard.cc",
+      "app/cobalt_switch_defaults_starboard.h",
+    ]
+  }
 
   deps = [
     "//base",
