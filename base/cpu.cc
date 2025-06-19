@@ -22,7 +22,14 @@
 
 #if defined(ARCH_CPU_ARM_FAMILY) && \
     (BUILDFLAG(IS_ANDROID) || BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_CHROMEOS))
+#if BUILDFLAG(IS_STARBOARD)
+// Get the header from MUSL Libc
+// third_party/musl/arch/arm/bits/hwcap.h
+#include <bits/hwcap.h>
+#else
 #include <asm/hwcap.h>
+#endif  // BUILDFLAG(IS_STARBOARD)
+
 #include <sys/auxv.h>
 
 #include "base/files/file_util.h"

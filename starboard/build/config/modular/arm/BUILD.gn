@@ -28,4 +28,7 @@ config("arm") {
     # Force char to be signed.
     "-fsigned-char",
   ]
+
+  # Fix error in third_party/highway: ../../third_party/highway/src/hwy/targets.cc:49:10: fatal error: 'asm/hwcap.h' file not found
+  defines = [ "TOOLCHAIN_MISS_ASM_HWCAP_H" ]
 }

@@ -19,8 +19,14 @@
 /* #undef _LIBCPP_HAS_NO_THREADS */
 /* #undef _LIBCPP_HAS_NO_MONOTONIC_CLOCK */
 /* #undef _LIBCPP_HAS_MUSL_LIBC */
+// copied over from 25lts
+//#define _LIBCPP_HAS_MUSL_LIBC
 /* #undef _LIBCPP_HAS_THREAD_API_PTHREAD */
 /* #undef _LIBCPP_HAS_THREAD_API_EXTERNAL */
+// yavor mentioned we should be setting this as we use the API natively.
+//#define _LIBCPP_HAS_THREAD_API_PTHREAD
+//25lts had this, yavor mentioned we wont be needing it for main
+// #define _LIBCPP_HAS_THREAD_API_EXTERNAL
 /* #undef _LIBCPP_HAS_THREAD_API_WIN32 */
 /* #undef _LIBCPP_HAS_THREAD_LIBRARY_EXTERNAL */
 /* #undef _LIBCPP_DISABLE_VISIBILITY_ANNOTATIONS */
