@@ -35,6 +35,7 @@ int ceil_power_2(int i) {
   }
 
   SB_NOTREACHED();
+  return -1;
 }
 
 }  // namespace
