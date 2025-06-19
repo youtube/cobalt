@@ -75,6 +75,8 @@
 #else
 #define OS_MAC 1
 #endif  // defined(TARGET_OS_IPHONE) && TARGET_OS_IPHONE
+#elif defined(OS_STARBOARD)
+#define OS_LINUX 1
 #elif defined(__linux__)
 #if !defined(OS_CHROMEOS)
 // Do not define OS_LINUX on Chrome OS build.

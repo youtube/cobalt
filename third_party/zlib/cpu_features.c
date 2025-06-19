@@ -35,6 +35,11 @@ int ZLIB_INTERNAL x86_cpu_enable_avx512 = 0;
 
 #ifndef CPU_NO_SIMD
 
+#if defined(STARBOARD)
+//hack
+#undef ARMV8_OS_LINUX
+#endif
+
 #if defined(ARMV8_OS_ANDROID) || defined(ARMV8_OS_LINUX) || defined(ARMV8_OS_FUCHSIA)
 #include <pthread.h>
 #endif
@@ -56,8 +61,11 @@ int ZLIB_INTERNAL x86_cpu_enable_avx512 = 0;
 #error cpu_features.c CPU feature detection in not defined for your platform
 #endif
 
+// hack
+#if !defined(STARBOARD)
 #if !defined(CPU_NO_SIMD) && !defined(ARMV8_OS_MACOS) && !defined(ARM_OS_IOS)
 static void _cpu_check_features(void);
+#endif
 #endif
 
 #if defined(ARMV8_OS_ANDROID) || defined(ARMV8_OS_LINUX) || defined(ARMV8_OS_MACOS) || defined(ARMV8_OS_FUCHSIA) || defined(X86_NOT_WINDOWS)
@@ -98,6 +106,8 @@ void ZLIB_INTERNAL cpu_check_features(void)
  * See http://bit.ly/2CcoEsr for run-time detection of ARM features and also
  * crbug.com/931275 for android_getCpuFeatures() use in the Android sandbox.
  */
+//hack
+#if !defined(STARBOARD)
 static void _cpu_check_features(void)
 {
 #if defined(ARMV8_OS_ANDROID) && defined(__aarch64__)
@@ -129,6 +139,7 @@ static void _cpu_check_features(void)
     arm_cpu_enable_pmull = IsProcessorFeaturePresent(PF_ARM_V8_CRYPTO_INSTRUCTIONS_AVAILABLE);
 #endif
 }
+#endif
 #endif
 #elif defined(X86_NOT_WINDOWS) || defined(X86_WINDOWS)
 /*
