@@ -839,7 +839,10 @@ group("gn_all") {
     }
   }
   if (is_cobalt) {
-    deps += [ "//cobalt:gn_all" ]
+    deps += [
+      "//cobalt:gn_all",
+      "//cobalt/testing:testing",
+    ]
   }
 }
 
