@@ -286,7 +286,12 @@ if (current_toolchain == starboard_toolchain) {
     }
   }
 
-  executable("starboard_unittests") {
+  if (is_cobalt_hermetic_build) {
+    _starboard_unittests_target_type = "executable"
+  } else {
+    _starboard_unittests_target_type = "source_set"
+  }
+  target(_starboard_unittests_target_type, "starboard_unittests") {
     testonly = true
     sources = [ "//starboard/common/test_main.cc" ]
     defines = [ "STARBOARD_LEVEL_TEST" ]
@@ -336,7 +341,12 @@ if (current_toolchain == starboard_toolchain) {
   }
 }
 
-group("starboard_unittests_wrapper") {
+if (is_cobalt_hermetic_build) {
+  _wrapper_target_type = "group"
+} else {
+  _wrapper_target_type = "test"
+}
+target(_wrapper_target_type, "starboard_unittests_wrapper") {
   testonly = true
   deps = [ ":starboard_unittests($starboard_toolchain)" ]
 }
