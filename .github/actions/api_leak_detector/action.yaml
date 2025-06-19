@@ -1,0 +1,16 @@
+name: Run API Leak Detector
+description: Runs the API leak detector
+
+runs:
+  using: "composite"
+  steps:
+    - name: Run Detector
+      shell: bash
+      run: |
+        set -x
+        if [ -z "${{matrix.sb_api_version}}"]; then
+          SB_API_VERSION_FLAG=""
+        else
+          SB_API_VERSION_FLAG="--sb_api_version=${{matrix.sb_api_version}}"
+        fi
+        python3 src/starboard/tools/api_leak_detector/api_leak_detector.py -p ${{ matrix.platform }} -c ${{matrix.config}} --submit-check --relative-manifest-path evergreen/manifest ${SB_API_VERSION_FLAG}
