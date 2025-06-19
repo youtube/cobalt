@@ -14,6 +14,11 @@ on:
         required: true
         type: string
         default: 'false'
+      run_api_leak_detector:
+        description: 'Whether to run the api leak detector.'
+        required: false
+        type: boolean
+        default: false
     secrets:
       datadog_api_key:
         required: false
@@ -314,6 +319,9 @@ jobs:
           upload_on_host_test_artifacts: ${{ matrix.config == 'devel' && needs.initialize.outputs.test_on_host == 'true' }}
           upload_on_device_test_artifacts: ${{ matrix.config == 'devel' && needs.initialize.outputs.test_on_device == 'true' }}
           upload_web_test_artifacts: ${{ matrix.config == 'devel' && needs.initialize.outputs.web_tests == 'true' }}
+      - name: Run API Leak Detector
+        uses: ./src/.github/actions/api_leak_detector
+        if: inputs.run_api_leak_detector
 
   on-device-test:
     needs: [initialize, build]
