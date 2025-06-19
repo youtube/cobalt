@@ -157,7 +157,7 @@ TEST_F(PosixSleepTests, ErrorEintrCheckErrnoValue) {
 
   errno = 0;
   unsigned int time_slept_for = kLongSleepSecs;
-  unsigned int ret = sleep(time_slept_for);
+  sleep(time_slept_for);
   int saved_errno = errno;
 
   int join_ret = pthread_join(signal_thread_id, nullptr);

@@ -515,6 +515,7 @@ inline FuchsiaLogSeverity LogSeverityToFuchsiaLogSeverity(
 }
 #endif  // BUILDFLAG(IS_FUCHSIA)
 
+#if !BUILDFLAG(IS_STARBOARD)
 void WriteToFd(int fd, const char* data, size_t length) {
   size_t bytes_written = 0;
   long rv;
@@ -527,6 +528,7 @@ void WriteToFd(int fd, const char* data, size_t length) {
     bytes_written += static_cast<size_t>(rv);
   }
 }
+#endif
 
 void SetLogFatalCrashKey(LogMessage* log_message) {
 #if !BUILDFLAG(IS_NACL)
