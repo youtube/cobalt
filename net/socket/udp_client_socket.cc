@@ -110,6 +110,16 @@ void UDPClientSocket::ApplySocketTag(const SocketTag& tag) {
   socket_.ApplySocketTag(tag);
 }
 
+#if defined(STARBOARD)
+int UDPClientSocket::ReadMultiplePackets(ReadPacketResults* results,
+                                         int read_buffer_size,
+                                         CompletionOnceCallback callback) {
+  LOG(INFO) << "CHARLEY";
+  return socket_.ReadMultiplePackets(results, read_buffer_size,
+                                     std::move(callback));
+}
+#endif
+
 int UDPClientSocket::Read(IOBuffer* buf,
                           int buf_len,
                           CompletionOnceCallback callback) {
