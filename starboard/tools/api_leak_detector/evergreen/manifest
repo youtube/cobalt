@@ -43,9 +43,6 @@ initstate
 ioctl
 link
 localeconv
-localtime
-localtime_r
-mktime
 newlocale
 openlog
 prctl
