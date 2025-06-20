@@ -34,6 +34,11 @@ generate_jni("jni_headers") {
   sources = [
     "apk/app/src/main/java/dev/cobalt/coat/CobaltTextToSpeechHelper.java",
     "apk/app/src/main/java/dev/cobalt/coat/StarboardBridge.java",
+<<<<<<< HEAD
+=======
+    "apk/app/src/main/java/dev/cobalt/media/AudioOutputManager.java",
+    "apk/app/src/main/java/dev/cobalt/media/AudioTrackBridge.java",
+>>>>>>> ab136fd36d4 (Migrate AudioTrackBridge to jni_generator (#6010))
     "apk/app/src/main/java/dev/cobalt/media/MediaCodecBridge.java",
     "apk/app/src/main/java/dev/cobalt/media/MediaDrmBridge.java",
   ]

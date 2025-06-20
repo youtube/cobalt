@@ -18,7 +18,12 @@
 #include <jni.h>
 #include <optional>
 
+<<<<<<< HEAD
 #include "starboard/android/shared/jni_env_ext.h"
+=======
+#include "base/android/jni_android.h"
+#include "base/android/scoped_java_ref.h"
+>>>>>>> ab136fd36d4 (Migrate AudioTrackBridge to jni_generator (#6010))
 #include "starboard/media.h"
 #include "starboard/types.h"
 
@@ -51,37 +56,44 @@ class AudioTrackBridge {
     return j_audio_track_bridge_ != nullptr && j_audio_data_ != nullptr;
   }
 
-  void Play(JniEnvExt* env = JniEnvExt::Get());
-  void Pause(JniEnvExt* env = JniEnvExt::Get());
-  void Stop(JniEnvExt* env = JniEnvExt::Get());
-  void PauseAndFlush(JniEnvExt* env = JniEnvExt::Get());
+  void Play(JNIEnv* env = AttachCurrentThread());
+  void Pause(JNIEnv* env = AttachCurrentThread());
+  void Stop(JNIEnv* env = AttachCurrentThread());
+  void PauseAndFlush(JNIEnv* env = AttachCurrentThread());
 
   // Returns zero or the positive number of samples written, or a negative error
   // code.
   int WriteSample(const float* samples,
                   int num_of_samples,
-                  JniEnvExt* env = JniEnvExt::Get());
+                  JNIEnv* env = AttachCurrentThread());
   int WriteSample(const uint16_t* samples,
                   int num_of_samples,
                   int64_t sync_time,
-                  JniEnvExt* env = JniEnvExt::Get());
+                  JNIEnv* env = AttachCurrentThread());
   // This is used by passthrough, it treats samples as if they are in bytes.
   // Returns zero or the positive number of samples written, or a negative error
   // code.
   int WriteSample(const uint8_t* buffer,
                   int num_of_samples,
                   int64_t sync_time,
-                  JniEnvExt* env = JniEnvExt::Get());
+                  JNIEnv* env = AttachCurrentThread());
 
-  void SetVolume(double volume, JniEnvExt* env = JniEnvExt::Get());
+  void SetVolume(double volume, JNIEnv* env = AttachCurrentThread());
 
   // |updated_at| contains the timestamp when the audio timestamp is updated on
   // return.  It can be nullptr.
   int64_t GetAudioTimestamp(int64_t* updated_at,
+<<<<<<< HEAD
                             JniEnvExt* env = JniEnvExt::Get());
   bool GetAndResetHasAudioDeviceChanged(JniEnvExt* env = JniEnvExt::Get());
   int GetUnderrunCount(JniEnvExt* env = JniEnvExt::Get());
   int GetStartThresholdInFrames(JniEnvExt* env = JniEnvExt::Get());
+=======
+                            JNIEnv* env = AttachCurrentThread());
+  bool GetAndResetHasAudioDeviceChanged(JNIEnv* env = AttachCurrentThread());
+  int GetUnderrunCount(JNIEnv* env = AttachCurrentThread());
+  int GetStartThresholdInFrames(JNIEnv* env = AttachCurrentThread());
+>>>>>>> ab136fd36d4 (Migrate AudioTrackBridge to jni_generator (#6010))
 
  private:
   int max_samples_per_write_;
