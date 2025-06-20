@@ -46,6 +46,7 @@ static_library("common") {
     "drm.h",
     "experimental/concurrency_debug.cc",
     "experimental/concurrency_debug.h",
+    "feature_config.h",
     "file.cc",
     "file.h",
     "fixed_no_free_allocator.cc",

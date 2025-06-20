@@ -28,12 +28,15 @@
 #include "starboard/elf_loader/evergreen_config.h"  // nogncheck
 #include "starboard/extension/loader_app_metrics.h"
 #include "starboard/shared/starboard/crash_handler.h"
+#include "starboard/shared/starboard/features_extension.h"
 #include "starboard/shared/starboard/loader_app_metrics.h"
 #else
 #include "starboard/android/shared/crash_handler.h"
+#include "starboard/android/shared/features_extension.h"
 #endif
 #include "starboard/extension/configuration.h"
 #include "starboard/extension/crash_handler.h"
+#include "starboard/extension/features.h"
 #include "starboard/extension/graphics.h"
 #include "starboard/extension/media_session.h"
 #include "starboard/extension/platform_info.h"
@@ -63,6 +66,13 @@ const void* SbSystemGetExtension(const char* name) {
     // TODO(b/377019873): Re-enable
     // return starboard::android::shared::GetMediaSessionApi();
     return NULL;
+  }
+  if (strcmp(name, kStarboardExtensionFeaturesName) == 0) {
+#if SB_IS(EVERGREEN_COMPATIBLE)
+    return starboard::common::GetFeaturesApi();
+#else
+    return starboard::android::shared::GetFeaturesApi();
+#endif  // SB_IS(EVERGREEN_COMPATIBLE)
   }
   if (strcmp(name, kCobaltExtensionGraphicsName) == 0) {
     // TODO(b/377052944): Check if this is needed, likely can be
