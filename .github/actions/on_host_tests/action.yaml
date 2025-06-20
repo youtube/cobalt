@@ -71,8 +71,7 @@ runs:
 
           export ENTRYPOINT=./"${test_binary_path}"
           if [[ "${{ matrix.platform }}" == *evergreen* ]]; then
-            export ENTRYPOINT='./out/${{ matrix.platform }}_${{ matrix.config }}/elf_loader_sandbox \
-                                   --evergreen_library="${test_binary_path}" --evergreen_content=.'
+            export ENTRYPOINT='./out/${{ matrix.platform }}_${{ matrix.config }}/elf_loader_sandbox --evergreen_library="${test_binary_path}" --evergreen_content=.'
           fi
 
           if [ "${test_filter}" == "-*" ]; then
