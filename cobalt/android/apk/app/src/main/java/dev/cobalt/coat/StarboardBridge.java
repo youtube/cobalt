@@ -39,6 +39,7 @@ import dev.cobalt.util.DisplayUtil;
 import dev.cobalt.util.Holder;
 import dev.cobalt.util.Log;
 import dev.cobalt.util.UsedByNative;
+import java.io.File;
 import java.lang.reflect.Method;
 import java.util.Calendar;
 import java.util.HashMap;
@@ -351,7 +352,13 @@ public class StarboardBridge {
    * May be overridden for use cases that need to segregate storage.
    */
   protected String getFilesAbsolutePath() {
-    return appContext.getFilesDir().getAbsolutePath();
+    File filesDir = appContext.getFilesDir();
+    if (filesDir != null) {
+      return filesDir.getAbsolutePath();
+    } else {
+      Log.e(TAG, "Application files directory is not available.");
+      return "";
+    }
   }
 
   /**
@@ -359,7 +366,13 @@ public class StarboardBridge {
    * overridden for use cases that need to segregate storage.
    */
   protected String getCacheAbsolutePath() {
-    return appContext.getCacheDir().getAbsolutePath();
+    File filesDir = appContext.getCacheDir();
+    if (filesDir != null) {
+      return filesDir.getAbsolutePath();
+    } else {
+      Log.e(TAG, "Application cache directory is not available.");
+      return "";
+    }
   }
 
   // TODO: (cobalt b/372559388) remove or migrate JNI?
