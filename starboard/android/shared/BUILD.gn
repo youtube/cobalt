@@ -114,6 +114,8 @@ static_library("starboard_platform") {
     "//starboard/shared/starboard/event_schedule.cc",
     "//starboard/shared/starboard/feature_list.cc",
     "//starboard/shared/starboard/feature_list.h",
+    "//starboard/shared/starboard/features.cc",
+    "//starboard/shared/starboard/features.h",
     "//starboard/shared/starboard/file_atomic_replace_write_file.cc",
     "//starboard/shared/starboard/file_atomic_replace_write_file.h",
     "//starboard/shared/starboard/file_storage/storage_close_record.cc",
@@ -202,8 +204,8 @@ static_library("starboard_platform") {
     "drm_system.cc",
     "drm_system.h",
     "egl_swap_buffers.cc",
-    "features.cc",
-    "features.h",
+    "features_extension.cc",
+    "features_extension.h",
     "file_internal.cc",
     "file_internal.h",
     "get_home_directory.cc",
@@ -348,10 +350,14 @@ static_library("starboard_platform") {
     sources -= [
       "crash_handler.cc",
       "crash_handler.h",
+      "features_extension.cc",
+      "features_extension.h",
     ]
     sources += [
       "//starboard/shared/starboard/crash_handler.cc",
       "//starboard/shared/starboard/crash_handler.h",
+      "//starboard/shared/starboard/features_extension.cc",
+      "//starboard/shared/starboard/features_extension.h",
       "//starboard/shared/starboard/loader_app_metrics.cc",
       "//starboard/shared/starboard/loader_app_metrics.h",
     ]
@@ -403,6 +409,7 @@ source_set("starboard_platform_tests") {
   sources = media_tests_sources + player_tests_sources + [
               "//starboard/shared/starboard/drm/drm_test_helpers.cc",
               "//starboard/shared/starboard/drm/drm_test_helpers.h",
+              "features_test.cc",
               "jni_env_ext_test.cc",
               "model_year_test.cc",
               "player_get_preferred_output_mode_test.cc",
