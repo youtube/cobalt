@@ -61,7 +61,7 @@ def create_archive(
 ):
   """Main logic. Collects runtime dependencies for each target."""
   # TODO(oxv): Move logic behind parameters instead of using platform.
-  is_linux = platform.startswith('linux')
+  is_linux = platform.startswith('linux') or platform.startswith('evergreen')
   is_android = platform.startswith('android')
 
   tar_root = '.' if is_android else out_dir
