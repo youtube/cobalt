@@ -103,8 +103,8 @@ MediaDecoder::MediaDecoder(Host* host,
   // only when |audio_codec| == kSbMediaAudioCodecAac.
   if (audio_stream_info.codec != kSbMediaAudioCodecOpus &&
       !audio_stream_info.audio_specific_config.empty()) {
-    pending_tasks_.push_back(Event(audio_stream_info.audio_specific_config));
-    ++number_of_pending_tasks_;
+    pending_inputs_.emplace_back(audio_stream_info.audio_specific_config);
+    ++number_of_pending_inputs_;
   }
 }
 
@@ -204,10 +204,10 @@ void MediaDecoder::WriteInputBuffers(const InputBuffers& input_buffers) {
   }
 
   ScopedLock scoped_lock(mutex_);
-  bool need_signal = pending_tasks_.empty();
+  bool need_signal = pending_inputs_.empty();
   for (const auto& input_buffer : input_buffers) {
-    pending_tasks_.push_back(Event(input_buffer));
-    ++number_of_pending_tasks_;
+    pending_inputs_.emplace_back(input_buffer);
+    ++number_of_pending_inputs_;
   }
   if (need_signal) {
     condition_variable_.Signal();
@@ -219,9 +219,9 @@ void MediaDecoder::WriteEndOfStream() {
 
   stream_ended_.store(true);
   ScopedLock scoped_lock(mutex_);
-  pending_tasks_.push_back(Event(Event::kWriteEndOfStream));
-  ++number_of_pending_tasks_;
-  if (pending_tasks_.size() == 1) {
+  pending_inputs_.emplace_back(PendingInput::kWriteEndOfStream);
+  ++number_of_pending_inputs_;
+  if (pending_inputs_.size() == 1) {
     condition_variable_.Signal();
   }
 }
@@ -251,18 +251,20 @@ void MediaDecoder::DecoderThreadFunc() {
   SB_DCHECK(error_cb_);
 
   if (media_type_ == kSbMediaTypeAudio) {
-    std::deque<Event> pending_tasks;
+    std::deque<PendingInput> pending_inputs;
     std::vector<int> input_buffer_indices;
 
     while (!destroying_.load()) {
       std::vector<DequeueOutputResult> dequeue_output_results;
       {
         ScopedLock scoped_lock(mutex_);
-        bool has_input = !pending_tasks.empty() || !pending_tasks_.empty();
-        bool has_input_buffer =
+        bool has_pending_input =
+            !pending_inputs.empty() || !pending_inputs_.empty();
+        bool has_input_buffer_indices =
             !input_buffer_indices.empty() || !input_buffer_indices_.empty();
         bool can_process_input =
-            pending_queue_input_buffer_task_ || (has_input && has_input_buffer);
+            pending_input_to_retry_ ||
+            (has_pending_input && has_input_buffer_indices);
         if (dequeue_output_results_.empty() && !can_process_input) {
           if (!condition_variable_.WaitTimed(5'000'000LL)) {
             SB_LOG_IF(ERROR, !stream_ended_.load())
@@ -273,7 +275,7 @@ void MediaDecoder::DecoderThreadFunc() {
         if (destroying_.load()) {
           break;
         }
-        CollectPendingData_Locked(&pending_tasks, &input_buffer_indices,
+        CollectPendingData_Locked(&pending_inputs, &input_buffer_indices,
                                   &dequeue_output_results);
       }
 
@@ -288,12 +290,12 @@ void MediaDecoder::DecoderThreadFunc() {
 
       for (;;) {
         bool can_process_input =
-            pending_queue_input_buffer_task_ ||
-            (!pending_tasks.empty() && !input_buffer_indices.empty());
+            pending_input_to_retry_ ||
+            (!pending_inputs.empty() && !input_buffer_indices.empty());
         if (!can_process_input) {
           break;
         }
-        if (!ProcessOneInputBuffer(&pending_tasks, &input_buffer_indices)) {
+        if (!ProcessOneInputBuffer(&pending_inputs, &input_buffer_indices)) {
           break;
         }
       }
@@ -302,14 +304,16 @@ void MediaDecoder::DecoderThreadFunc() {
     // While it is possible to consolidate the logic for audio and video
     // decoders, it is easy to fine tune the behavior of video decoder if they
     // are separated.
-    std::deque<Event> pending_tasks;
+    std::deque<PendingInput> pending_inputs;
     std::vector<int> input_buffer_indices;
     std::vector<DequeueOutputResult> dequeue_output_results;
 
     while (!destroying_.load()) {
+      // TODO(b/329686979): access to `ending_input_to_retry_` should be
+      //                    synchronized.
       bool has_input =
-          pending_queue_input_buffer_task_ ||
-          (!pending_tasks.empty() && !input_buffer_indices.empty());
+          pending_input_to_retry_ ||
+          (!pending_inputs.empty() && !input_buffer_indices.empty());
       bool has_output = !dequeue_output_results.empty();
       bool collect_pending_data = false;
 
@@ -325,7 +329,7 @@ void MediaDecoder::DecoderThreadFunc() {
       }
       if (collect_pending_data) {
         ScopedLock scoped_lock(mutex_);
-        CollectPendingData_Locked(&pending_tasks, &input_buffer_indices,
+        CollectPendingData_Locked(&pending_inputs, &input_buffer_indices,
                                   &dequeue_output_results);
       }
 
@@ -345,10 +349,10 @@ void MediaDecoder::DecoderThreadFunc() {
       }
 
       bool can_process_input =
-          pending_queue_input_buffer_task_ ||
-          (!pending_tasks.empty() && !input_buffer_indices.empty());
+          pending_input_to_retry_ ||
+          (!pending_inputs.empty() && !input_buffer_indices.empty());
       if (can_process_input) {
-        ProcessOneInputBuffer(&pending_tasks, &input_buffer_indices);
+        ProcessOneInputBuffer(&pending_inputs, &input_buffer_indices);
       }
 
       bool ticked = false;
@@ -358,14 +362,14 @@ void MediaDecoder::DecoderThreadFunc() {
       }
 
       can_process_input =
-          pending_queue_input_buffer_task_ ||
-          (!pending_tasks.empty() && !input_buffer_indices.empty());
+          pending_input_to_retry_ ||
+          (!pending_inputs.empty() && !input_buffer_indices.empty());
       if (!ticked && !can_process_input && dequeue_output_results.empty()) {
         ScopedLock scoped_lock(mutex_);
-        CollectPendingData_Locked(&pending_tasks, &input_buffer_indices,
+        CollectPendingData_Locked(&pending_inputs, &input_buffer_indices,
                                   &dequeue_output_results);
         can_process_input =
-            !pending_tasks.empty() && !input_buffer_indices.empty();
+            !pending_inputs.empty() && !input_buffer_indices.empty();
         if (!can_process_input && dequeue_output_results.empty()) {
           condition_variable_.WaitTimed(1000);
         }
@@ -393,17 +397,17 @@ void MediaDecoder::TerminateDecoderThread() {
 }
 
 void MediaDecoder::CollectPendingData_Locked(
-    std::deque<Event>* pending_tasks,
+    std::deque<PendingInput>* pending_inputs,
     std::vector<int>* input_buffer_indices,
     std::vector<DequeueOutputResult>* dequeue_output_results) {
-  SB_DCHECK(pending_tasks);
+  SB_DCHECK(pending_inputs);
   SB_DCHECK(input_buffer_indices);
   SB_DCHECK(dequeue_output_results);
   mutex_.DCheckAcquired();
 
-  pending_tasks->insert(pending_tasks->end(), pending_tasks_.begin(),
-                        pending_tasks_.end());
-  pending_tasks_.clear();
+  pending_inputs->insert(pending_inputs->end(), pending_inputs_.begin(),
+                         pending_inputs_.end());
+  pending_inputs_.clear();
 
   input_buffer_indices->insert(input_buffer_indices->end(),
                                input_buffer_indices_.begin(),
@@ -417,7 +421,7 @@ void MediaDecoder::CollectPendingData_Locked(
 }
 
 bool MediaDecoder::ProcessOneInputBuffer(
-    std::deque<Event>* pending_tasks,
+    std::deque<PendingInput>* pending_inputs,
     std::vector<int>* input_buffer_indices) {
   SB_DCHECK(media_codec_bridge_);
 
@@ -433,47 +437,47 @@ bool MediaDecoder::ProcessOneInputBuffer(
   // the perspective of user application, decryption and decoding are one
   // atomic step.
   DequeueInputResult dequeue_input_result;
-  Event event;
+  PendingInput pending_input;
   bool input_buffer_already_written = false;
-  if (pending_queue_input_buffer_task_) {
-    dequeue_input_result =
-        pending_queue_input_buffer_task_->dequeue_input_result;
+  if (pending_input_to_retry_) {
+    dequeue_input_result = pending_input_to_retry_->dequeue_input_result;
     SB_DCHECK(dequeue_input_result.index >= 0);
-    event = pending_queue_input_buffer_task_->event;
-    pending_queue_input_buffer_task_ = std::nullopt;
+    pending_input = pending_input_to_retry_->pending_input;
+    pending_input_to_retry_ = std::nullopt;
     input_buffer_already_written = true;
   } else {
     dequeue_input_result.index = input_buffer_indices->front();
     input_buffer_indices->erase(input_buffer_indices->begin());
-    event = pending_tasks->front();
-    pending_tasks->pop_front();
-    --number_of_pending_tasks_;
+    pending_input = pending_inputs->front();
+    pending_inputs->pop_front();
+    --number_of_pending_inputs_;
   }
 
-  SB_DCHECK(event.type == Event::kWriteCodecConfig ||
-            event.type == Event::kWriteInputBuffer ||
-            event.type == Event::kWriteEndOfStream);
-  const scoped_refptr<InputBuffer>& input_buffer = event.input_buffer;
-  if (event.type == Event::kWriteEndOfStream) {
-    SB_DCHECK(pending_tasks->empty());
+  SB_DCHECK(pending_input.type == PendingInput::kWriteCodecConfig ||
+            pending_input.type == PendingInput::kWriteInputBuffer ||
+            pending_input.type == PendingInput::kWriteEndOfStream);
+  const scoped_refptr<InputBuffer>& input_buffer = pending_input.input_buffer;
+  if (pending_input.type == PendingInput::kWriteEndOfStream) {
+    SB_DCHECK(pending_inputs->empty());
   }
   const void* data = NULL;
   int size = 0;
-  if (event.type == Event::kWriteCodecConfig) {
+  if (pending_input.type == PendingInput::kWriteCodecConfig) {
     SB_DCHECK(media_type_ == kSbMediaTypeAudio);
-    data = event.codec_config.data();
-    size = event.codec_config.size();
-  } else if (event.type == Event::kWriteInputBuffer) {
+    data = pending_input.codec_config.data();
+    size = pending_input.codec_config.size();
+  } else if (pending_input.type == PendingInput::kWriteInputBuffer) {
     data = input_buffer->data();
     size = input_buffer->size();
-  } else if (event.type == Event::kWriteEndOfStream) {
+  } else if (pending_input.type == PendingInput::kWriteEndOfStream) {
     data = NULL;
     size = 0;
   }
 
   // Don't bother rewriting the same data if we already did it last time we
-  // were called and had it stored in |pending_queue_input_buffer_task_|.
-  if (!input_buffer_already_written && event.type != Event::kWriteEndOfStream) {
+  // were called and had it stored in |pending_input_to_retry_|.
+  if (!input_buffer_already_written &&
+      pending_input.type != PendingInput::kWriteEndOfStream) {
     ScopedJavaLocalRef<jobject> byte_buffer(
         media_codec_bridge_->GetInputBuffer(dequeue_input_result.index));
     if (byte_buffer.is_null()) {
@@ -505,11 +509,11 @@ bool MediaDecoder::ProcessOneInputBuffer(
     // Drm system initialization is asynchronous. If there's a drm system, we
     // should wait until it's initialized to avoid errors.
     status = MEDIA_CODEC_NO_KEY;
-  } else if (event.type == Event::kWriteCodecConfig) {
+  } else if (pending_input.type == PendingInput::kWriteCodecConfig) {
     status = media_codec_bridge_->QueueInputBuffer(dequeue_input_result.index,
                                                    kNoOffset, size, kNoPts,
                                                    BUFFER_FLAG_CODEC_CONFIG);
-  } else if (event.type == Event::kWriteInputBuffer) {
+  } else if (pending_input.type == PendingInput::kWriteInputBuffer) {
     jlong pts_us = input_buffer->timestamp();
     if (drm_system_ && input_buffer->drm_info()) {
       status = media_codec_bridge_->QueueSecureInputBuffer(
@@ -529,8 +533,8 @@ bool MediaDecoder::ProcessOneInputBuffer(
   if (status != MEDIA_CODEC_OK) {
     HandleError("queue(Secure)?InputBuffer", status);
     // TODO: Stop the decoding loop and call error_cb_ on fatal error.
-    SB_DCHECK(!pending_queue_input_buffer_task_);
-    pending_queue_input_buffer_task_ = {dequeue_input_result, event};
+    SB_DCHECK(!pending_input_to_retry_);
+    pending_input_to_retry_ = {dequeue_input_result, pending_input};
     return false;
   }
 
@@ -712,12 +716,12 @@ bool MediaDecoder::Flush() {
       return false;
     }
 
-    // 2.2. Clean up pending_tasks and input_buffer/output_buffer indices.
-    number_of_pending_tasks_.store(0);
-    pending_tasks_.clear();
+    // 2.2. Clean up pending_inputs and input_buffer/output_buffer indices.
+    number_of_pending_inputs_.store(0);
+    pending_inputs_.clear();
     input_buffer_indices_.clear();
     dequeue_output_results_.clear();
-    pending_queue_input_buffer_task_ = std::nullopt;
+    pending_input_to_retry_ = std::nullopt;
 
     // 2.3. Add OutputFormatChanged to get current output format after Flush().
     DequeueOutputResult dequeue_output_result = {};

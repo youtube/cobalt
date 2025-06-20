@@ -1003,10 +1003,14 @@ component("base") {
     ]
   }
 
-  if (is_linux || is_chromeos || is_android) {
+  if ((is_linux && !is_starboard) || is_chromeos || is_android) {
     sources += [
       "files/file_path_watcher_inotify.cc",
       "files/file_path_watcher_inotify.h",
+    ]
+  } else if (is_starboard) {
+    sources += [
+      "files/file_path_watcher_stub.cc",
     ]
   }
 
@@ -3641,6 +3645,7 @@ test("base_unittests") {
     sources -= [
       "debug/proc_maps_linux_unittest.cc",
       "debug/stack_trace_unittest.cc",
+      "files/file_path_watcher_unittest.cc",
       "files/file_util_unittest.cc",
       "immediate_crash_unittest.cc",
       "memory/platform_shared_memory_region_unittest.cc",

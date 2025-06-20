@@ -19,6 +19,14 @@ import java.util.List;
 import java.util.StringJoiner;
 import org.chromium.base.CommandLine;
 
+
+// ==========
+// IMPORTANT:
+//
+// These command line switches defaults do not affect non-AndroidTV platforms.
+// If you are making changes to these values, please check that other
+// platforms (such as Linux/Evergreen) are getting corresponding updates.
+
 /** Helper class to provide commandLine Overrides. */
 public final class CommandLineOverrideHelper {
     private CommandLineOverrideHelper() {} // Prevent instantiation.
@@ -86,9 +94,7 @@ public final class CommandLineOverrideHelper {
         StringJoiner paramOverrides = new StringJoiner(",");
 
         // Trades a little V8 performance for significant memory savings.
-        paramOverrides.add("--optimize_for_size=true");
-        // Disable concurrent-marking due to b/415843979
-        paramOverrides.add("--concurrent_marking=false");
+        paramOverrides.add("--optimize-for-size");
 
         return paramOverrides;
     }
