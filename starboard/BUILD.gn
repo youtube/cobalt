@@ -294,7 +294,7 @@ if (current_toolchain == starboard_toolchain) {
   target(_starboard_unittests_target_type, "starboard_unittests") {
     testonly = true
     sources = [ "//starboard/common/test_main.cc" ]
-    defines = [ "STARBOARD_LEVEL_TEST" ]
+    defines = [ "STARBOARD_IMPLEMENTATION_TEST" ]
 
     write_runtime_deps =
         "$root_build_dir/starboard_unittests_wrapper.runtime_deps"
