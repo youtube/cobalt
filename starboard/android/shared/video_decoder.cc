@@ -234,7 +234,7 @@ const int kNonInitialPrerollFrameCount = 1;
 
 const int kSeekingPrerollPendingWorkSizeInTunnelMode =
     16 + kInitialPrerollFrameCount;
-const int kMaxPendingWorkSize = 128;
+const int kMaxPendingInputsSize = 128;
 
 const int kFpsGuesstimateRequiredInputBufferCount = 3;
 
@@ -401,7 +401,7 @@ VideoDecoder::VideoDecoder(const VideoStreamInfo& video_stream_info,
 
   if (is_video_frame_tracker_enabled_) {
     video_frame_tracker_ =
-        std::make_unique<VideoFrameTracker>(kMaxPendingWorkSize * 2);
+        std::make_unique<VideoFrameTracker>(kMaxPendingInputsSize * 2);
   }
 
   if (require_software_codec_) {
@@ -842,7 +842,7 @@ void VideoDecoder::WriteInputBuffersInternal(
   }
 
   media_decoder_->WriteInputBuffers(input_buffers);
-  if (media_decoder_->GetNumberOfPendingTasks() < kMaxPendingWorkSize) {
+  if (media_decoder_->GetNumberOfPendingInputs() < kMaxPendingInputsSize) {
     decoder_status_cb_(kNeedMoreInput, NULL);
   } else if (tunnel_mode_audio_session_id_ != -1) {
     // In tunnel mode playback when need data is not signaled above, it is
@@ -865,20 +865,20 @@ void VideoDecoder::WriteInputBuffersInternal(
         // Initial playback.
         enough_buffers_written_to_media_codec =
             (input_buffer_written_ -
-             media_decoder_->GetNumberOfPendingTasks()) >
+             media_decoder_->GetNumberOfPendingInputs()) >
             kInitialPrerollFrameCount;
       } else {
         // Seeking.  Note that this branch can be eliminated once seeking in
         // tunnel mode is always aligned to the next video key frame.
         enough_buffers_written_to_media_codec =
             (input_buffer_written_ -
-             media_decoder_->GetNumberOfPendingTasks()) >
+             media_decoder_->GetNumberOfPendingInputs()) >
                 kSeekingPrerollPendingWorkSizeInTunnelMode &&
             max_timestamp >= video_frame_tracker_->seek_to_time();
       }
 
       bool cache_full =
-          media_decoder_->GetNumberOfPendingTasks() >= kMaxPendingWorkSize;
+          media_decoder_->GetNumberOfPendingInputs() >= kMaxPendingInputsSize;
       bool prerolled = tunnel_mode_frame_rendered_.load() > 0 ||
                        enough_buffers_written_to_media_codec || cache_full;
 
@@ -1224,7 +1224,7 @@ void VideoDecoder::OnTunnelModeCheckForNeedMoreInput() {
     return;
   }
 
-  if (media_decoder_->GetNumberOfPendingTasks() < kMaxPendingWorkSize) {
+  if (media_decoder_->GetNumberOfPendingInputs() < kMaxPendingInputsSize) {
     decoder_status_cb_(kNeedMoreInput, NULL);
     return;
   }
