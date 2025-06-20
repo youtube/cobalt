@@ -943,7 +943,6 @@ class MediaCodecBridge {
     }
   }
 
-  @CalledByNative
   private boolean configureVideo(
       MediaFormat format,
       Surface surface,
