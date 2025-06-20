@@ -39,6 +39,7 @@ int SbSystemGetStack(void** out_stack, int stack_size) {
   }
   // Unwind frames one by one, going up the frame stack.
   int i = 0;
+  SB_LOG(INFO) << "stack_size: " << stack_size;
   for (; i < stack_size; i++) {
     ret = unw_step(&cursor);
     if (ret <= 0) {
