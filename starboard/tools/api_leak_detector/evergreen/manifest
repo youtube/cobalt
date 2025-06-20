@@ -66,11 +66,8 @@ ioctl
 isatty
 link
 localeconv
-localtime
-localtime_r
 lstat
 mincore
-mktime
 mremap
 newlocale
 openlog
@@ -119,7 +116,6 @@ symlink
 syscall
 sysconf
 syslog
-timegm
 timerfd_create
 timerfd_settime
 tmpfile
