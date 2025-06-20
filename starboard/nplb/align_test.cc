@@ -68,14 +68,14 @@ TEST(SbAlignTest, AlignAsStructFieldOnStack) {
   char unaligned = 0;
   EXPECT_NE(1, unaligned);
   AlignedFields aligned;
-  EXPECT_LE(2, GetAlignment(&(aligned.by_2)));
-  EXPECT_LE(4, GetAlignment(&(aligned.by_4)));
-  EXPECT_LE(8, GetAlignment(&(aligned.by_8)));
-  EXPECT_LE(16, GetAlignment(&(aligned.by_16)));
-  EXPECT_LE(32, GetAlignment(&(aligned.by_32)));
-  EXPECT_LE(64, GetAlignment(&(aligned.by_64)));
-  EXPECT_LE(128, GetAlignment(&(aligned.by_128)));
-  EXPECT_LE(256, GetAlignment(&(aligned.by_256)));
+  EXPECT_LE(2u, GetAlignment(&(aligned.by_2)));
+  EXPECT_LE(4u, GetAlignment(&(aligned.by_4)));
+  EXPECT_LE(8u, GetAlignment(&(aligned.by_8)));
+  EXPECT_LE(16u, GetAlignment(&(aligned.by_16)));
+  EXPECT_LE(32u, GetAlignment(&(aligned.by_32)));
+  EXPECT_LE(64u, GetAlignment(&(aligned.by_64)));
+  EXPECT_LE(128u, GetAlignment(&(aligned.by_128)));
+  EXPECT_LE(256u, GetAlignment(&(aligned.by_256)));
 }
 
 TEST(SbAlignTest, AlignAsStackVariable) {
@@ -94,10 +94,10 @@ TEST(SbAlignTest, AlignAsStackVariable) {
   char unaligned5 = 5;
   EXPECT_NE(unaligned5, unaligned1);
 
-  EXPECT_LE(2, GetAlignment(&by_2));
-  EXPECT_LE(4, GetAlignment(&by_4));
-  EXPECT_LE(8, GetAlignment(&by_8));
-  EXPECT_LE(16, GetAlignment(&by_16));
+  EXPECT_LE(2u, GetAlignment(&by_2));
+  EXPECT_LE(4u, GetAlignment(&by_4));
+  EXPECT_LE(8u, GetAlignment(&by_8));
+  EXPECT_LE(16u, GetAlignment(&by_16));
 
   SB_ALIGNAS(32) char by_32;
   char unaligned6 = 6;
@@ -112,10 +112,10 @@ TEST(SbAlignTest, AlignAsStackVariable) {
   char unaligned9 = 9;
   EXPECT_NE(unaligned9, unaligned1);
 
-  EXPECT_LE(32, GetAlignment(&by_32));
-  EXPECT_LE(64, GetAlignment(&by_64));
-  EXPECT_LE(128, GetAlignment(&by_128));
-  EXPECT_LE(256, GetAlignment(&by_256));
+  EXPECT_LE(32u, GetAlignment(&by_32));
+  EXPECT_LE(64u, GetAlignment(&by_64));
+  EXPECT_LE(128u, GetAlignment(&by_128));
+  EXPECT_LE(256u, GetAlignment(&by_256));
 }
 
 TEST(SbAlignTest, AlignOf) {

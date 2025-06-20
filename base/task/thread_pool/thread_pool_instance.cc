@@ -101,7 +101,7 @@ void ThreadPoolInstance::StartWithDefaultParams() {
   // * The main thread is assumed to be busy, cap foreground workers at
   //   |num_cores - 1|.
 #if BUILDFLAG(IS_STARBOARD)
-  const int kMaxNumberOfThreads = kSbMaxThreads;
+  const int kMaxNumberOfThreads = static_cast<int>(kSbMaxThreads);
   const size_t max_num_foreground_threads = static_cast<size_t>(std::min(
       (std::max(3, SysInfo::NumberOfProcessors() - 1)), kMaxNumberOfThreads));
 #else

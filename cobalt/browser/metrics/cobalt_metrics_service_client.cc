@@ -35,9 +35,9 @@ CobaltMetricsServiceClient::CobaltMetricsServiceClient(
     std::unique_ptr<variations::SyntheticTrialRegistry>
         synthetic_trial_registry,
     PrefService* local_state)
-    : metrics_state_manager_(state_manager),
-      synthetic_trial_registry_(std::move(synthetic_trial_registry)),
-      local_state_(local_state) {
+    : synthetic_trial_registry_(std::move(synthetic_trial_registry)),
+      local_state_(local_state),
+      metrics_state_manager_(state_manager) {
   DETACH_FROM_THREAD(thread_checker_);
 }
 

@@ -121,7 +121,7 @@ void ProgressiveDemuxerStream::EnqueueBuffer(
   // Check for any already waiting reads, service oldest read if there
   if (read_queue_.size()) {
     // assumption here is that buffer queue is empty
-    DCHECK_EQ(buffer_queue_.size(), 0);
+    DCHECK_EQ(buffer_queue_.size(), 0u);
     ReadCB read_cb = std::move(read_queue_.front());
     read_queue_.pop_front();
     std::move(read_cb).Run(DemuxerStream::kOk, {buffer});
@@ -317,8 +317,6 @@ void ProgressiveDemuxer::Request(DemuxerStream::Type type) {
   // make sure we got back an AU of the correct type
   DCHECK(au->GetType() == type);
 
-  const char* event_type = type == DemuxerStream::AUDIO ? "audio" : "video";
-
   // don't issue allocation requests for EOS AUs
   if (au->IsEndOfStream()) {
     // enqueue EOS buffer with correct stream
@@ -363,8 +361,9 @@ void ProgressiveDemuxer::AllocateBuffer() {
     const int kEstimatedBufferCountPerSeconds = 70;
     int progressive_buffer_count_cap =
         progressive_duration_cap.InSeconds() * kEstimatedBufferCountPerSeconds;
-    if (total_buffer_size >= progressive_budget ||
-        total_buffer_count > progressive_buffer_count_cap) {
+    if (total_buffer_size >= static_cast<size_t>(progressive_budget) ||
+        total_buffer_count >
+            static_cast<size_t>(progressive_buffer_count_cap)) {
       // Retry after 100 milliseconds.
       const base::TimeDelta kDelay = base::Milliseconds(100);
       blocking_thread_.task_runner()->PostDelayedTask(
@@ -390,8 +389,6 @@ void ProgressiveDemuxer::Download(scoped_refptr<DecoderBuffer> buffer) {
   // are buffering to a new location for this to make sense
   DCHECK(requested_au_);
 
-  const char* event_type =
-      requested_au_->GetType() == DemuxerStream::AUDIO ? "audio" : "video";
   // do nothing if stopped
   if (HasStopCalled()) {
     LOG(INFO) << "aborting download task, stopped";
