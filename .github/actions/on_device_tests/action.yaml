@@ -124,7 +124,7 @@ runs:
               echo "Test result xml is missing for ${test_target}."
 
               # Try to find the crashed test in the log and create a fake junit xml for it.
-              log_path=("${test_output}"/${{ matrix.platform }}/1/"${test_target}"_log.txt)
+              log_path=("${test_output}"/${{ matrix.platform }}/**/"${test_target}"_log.txt)
               xml_path=("${test_output}"/${{ matrix.platform }}/1/"${test_target}"_testoutput.xml)
               python3 ${GITHUB_WORKSPACE}/.github/scripts/generate_crash_report.py "${log_path}" "${xml_path}"
               has_crashes="true"
