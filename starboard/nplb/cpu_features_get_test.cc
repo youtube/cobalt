@@ -51,7 +51,7 @@ void ExpectMipsInvalid(const SbCPUFeatures& features) {
 
 void ExpectX86Invalid(const SbCPUFeatures& features) {
   EXPECT_NE(nullptr, features.x86.vendor);
-  EXPECT_EQ(0, strlen(features.x86.vendor));
+  EXPECT_EQ(0u, strlen(features.x86.vendor));
   EXPECT_EQ(kFeatureValueInvalid, features.x86.family);
   EXPECT_EQ(kFeatureValueInvalid, features.x86.ext_family);
   EXPECT_EQ(kFeatureValueInvalid, features.x86.model);
@@ -99,12 +99,12 @@ TEST(SbCPUFeaturesGetTest, SunnyDay) {
   if (!result) {
     EXPECT_EQ(kSbCPUFeaturesArchitectureUnknown, features.architecture);
     EXPECT_NE(nullptr, features.brand);
-    EXPECT_EQ(0, strlen(features.brand));
+    EXPECT_EQ(0u, strlen(features.brand));
     EXPECT_EQ(kFeatureValueInvalid, features.icache_line_size);
     EXPECT_EQ(kFeatureValueInvalid, features.dcache_line_size);
     EXPECT_FALSE(features.has_fpu);
-    EXPECT_EQ(0, features.hwcap);
-    EXPECT_EQ(0, features.hwcap2);
+    EXPECT_EQ(0u, features.hwcap);
+    EXPECT_EQ(0u, features.hwcap2);
     ExpectArmInvalid(features);
     ExpectMipsInvalid(features);
     ExpectX86Invalid(features);
