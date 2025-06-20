@@ -108,8 +108,8 @@ class MediaDecoder final
 
   void SetPlaybackRate(double playback_rate);
 
-  size_t GetNumberOfPendingTasks() const {
-    return number_of_pending_tasks_.load();
+  size_t GetNumberOfPendingInputs() const {
+    return number_of_pending_inputs_.load();
   }
 
   bool is_valid() const { return media_codec_bridge_ != NULL; }
@@ -117,7 +117,9 @@ class MediaDecoder final
   bool Flush();
 
  private:
-  struct Event {
+  // Holding inputs to be processed.  They are mostly InputBuffer objects, but
+  // can also be codec configs or end of streams.
+  struct PendingInput {
     enum Type {
       kInvalid,
       kWriteCodecConfig,
@@ -125,14 +127,14 @@ class MediaDecoder final
       kWriteEndOfStream,
     };
 
-    explicit Event(Type type = kInvalid) : type(type) {
+    explicit PendingInput(Type type = kInvalid) : type(type) {
       SB_DCHECK(type != kWriteInputBuffer && type != kWriteCodecConfig);
     }
-    explicit Event(const std::vector<uint8_t>& codec_config)
+    explicit PendingInput(const std::vector<uint8_t>& codec_config)
         : type(kWriteCodecConfig), codec_config(codec_config) {
       SB_DCHECK(!this->codec_config.empty());
     }
-    explicit Event(const scoped_refptr<InputBuffer>& input_buffer)
+    explicit PendingInput(const scoped_refptr<InputBuffer>& input_buffer)
         : type(kWriteInputBuffer), input_buffer(input_buffer) {}
 
     Type type;
@@ -140,9 +142,12 @@ class MediaDecoder final
     std::vector<uint8_t> codec_config;
   };
 
-  struct QueueInputBufferTask {
+  // Holding a PendingInput and a DequeueInputResult when call to
+  // QueueInputBuffer or QueueSecureInputBuffer fails so it can be retried
+  // later.
+  struct PendingInputToRetry {
     DequeueInputResult dequeue_input_result;
-    Event event;
+    PendingInput pending_input;
   };
 
   static void* DecoderThreadEntryPoint(void* context);
@@ -151,10 +156,10 @@ class MediaDecoder final
   void TerminateDecoderThread();
 
   void CollectPendingData_Locked(
-      std::deque<Event>* pending_tasks,
+      std::deque<PendingInput>* pending_inputs,
       std::vector<int>* input_buffer_indices,
       std::vector<DequeueOutputResult>* dequeue_output_results);
-  bool ProcessOneInputBuffer(std::deque<Event>* pending_tasks,
+  bool ProcessOneInputBuffer(std::deque<PendingInput>* pending_inputs,
                              std::vector<int>* input_buffer_indices);
   void HandleError(const char* action_name, jint status);
   void ReportError(const SbPlayerError error, const std::string error_message);
@@ -194,13 +199,13 @@ class MediaDecoder final
 
   std::atomic_bool destroying_{false};
 
-  std::optional<QueueInputBufferTask> pending_queue_input_buffer_task_;
+  std::optional<PendingInputToRetry> pending_input_to_retry_;
 
-  std::atomic<int32_t> number_of_pending_tasks_{0};
+  std::atomic<int32_t> number_of_pending_inputs_{0};
 
   Mutex mutex_;
   ConditionVariable condition_variable_;
-  std::deque<Event> pending_tasks_;
+  std::deque<PendingInput> pending_inputs_;
   std::vector<int> input_buffer_indices_;
   std::vector<DequeueOutputResult> dequeue_output_results_;
 
