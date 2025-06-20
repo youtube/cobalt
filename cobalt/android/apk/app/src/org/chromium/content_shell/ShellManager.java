@@ -95,19 +95,9 @@ public class ShellManager extends FrameLayout {
             mContentViewRenderView = new ContentViewRenderView(getContext());
             mContentViewRenderView.onNativeLibraryLoaded(mWindow);
         }
+
         Shell shellView = new Shell(getContext(), null);
         shellView.setId(R.id.container);
-        FrameLayout.LayoutParams params = new FrameLayout.LayoutParams(
-            FrameLayout.LayoutParams.MATCH_PARENT,
-            FrameLayout.LayoutParams.WRAP_CONTENT);
-        FrameLayout frameLayout = new FrameLayout(getContext());
-        frameLayout.setId(R.id.contentview_holder);
-
-        Log.i(TAG, "ShellManager.createShell, after creating FrameLayout, all Layout Views:");
-        Util.printRootViewHierarchy(frameLayout);
-
-        shellView.addView(frameLayout);
-
         shellView.initialize(nativeShellPtr, mWindow);
 
         // TODO(tedchoc): Allow switching back to these inactive shells.
@@ -116,7 +106,7 @@ public class ShellManager extends FrameLayout {
         showShell(shellView);
 
         Log.i(TAG, "ShellManager.createShell, after showShell, all Layout Views:");
-        Util.printRootViewHierarchy(frameLayout);
+        Util.printRootViewHierarchy(this);
 
         return shellView;
     }
