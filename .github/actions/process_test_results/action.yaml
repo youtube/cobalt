@@ -10,6 +10,9 @@ inputs:
   results_glob:
     description: "Path (or glob) to test result xml files."
     required: true
+  num_gtest_shards:
+    description: Number of gtest shards run.
+    required: true
 runs:
   using: "composite"
   steps:
@@ -34,8 +37,8 @@ runs:
         shopt -s globstar nullglob
 
         result_xmls=(${{ inputs.results_glob }})
-        if [ ${#result_xmls[@]} -eq 0 ]; then
-          echo "::error::No test results found. Did the test crash?"
+        if [ ${#result_xmls[@]} -ne ${{ inputs.num_gtest_shards }} ]; then
+          echo "::error::Missing test result xml (found ${#result_xmls[@]}, expected ${{ inputs.num_gtest_shards }}). Did a test shard crash?"
           exit 1
         fi
         if [ ${{ steps.test-summary.outputs.failed }} -gt 0 ]; then
