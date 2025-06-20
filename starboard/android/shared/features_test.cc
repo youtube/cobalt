@@ -12,28 +12,20 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include "starboard/android/shared/features.h"
-
-#include "starboard/extension/features.h"
+#include "starboard/shared/starboard/features.h"
 #include "starboard/shared/starboard/feature_list.h"
 
+#include "testing/gtest/include/gtest/gtest.h"
+
 namespace starboard::android::shared {
-void InitializeStarboardFeatures(const SbFeature* features,
-                                 size_t number_of_features,
-                                 const SbFeatureParam* params,
-                                 size_t number_of_params) {
-  starboard::features::FeatureList::InitializeFeatureList(
-      features, number_of_features, params, number_of_params);
+
+TEST(StarboardFeatureTest, CanUseFeature) {
+  EXPECT_TRUE(features::FeatureList::IsEnabled(features::kFeatureFoo));
+  EXPECT_FALSE(features::FeatureList::IsEnabled(features::kFeatureBar));
 }
 
-constexpr StarboardExtensionFeaturesApi kFeaturesApi = {
-    kStarboardExtensionFeaturesName,
-    1u,
-    &InitializeStarboardFeatures,
-};
-
-const void* GetFeaturesApi() {
-  return &kFeaturesApi;
+TEST(StarboardFeatureTest, CanUseFeatureParam) {
+  EXPECT_EQ(10, starboard::features::kFeatureParamBoo.Get());
 }
 
 }  // namespace starboard::android::shared

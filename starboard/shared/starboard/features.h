@@ -15,7 +15,7 @@
 #ifndef STARBOARD_SHARED_STARBOARD_FEATURES_H_
 #define STARBOARD_SHARED_STARBOARD_FEATURES_H_
 
-// #include "starboard/shared/starboard/feature_list.h"
+#include "starboard/shared/starboard/feature_list.h"
 
 #define STARBOARD_FEATURE(feature, name, default_state) \
   SB_DECLARE_FEATURE(feature);

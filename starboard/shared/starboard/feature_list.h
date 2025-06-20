@@ -12,16 +12,22 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+#ifndef STARBOARD_SHARED_STARBOARD_FEATURE_LIST_H_
+#define STARBOARD_SHARED_STARBOARD_FEATURE_LIST_H_
+
 #include <optional>
 #include <string>
 #include <type_traits>
 #include <unordered_map>
-#include <vector>
+#include <variant>
 
+#include "starboard/common/mutex.h"
 #include "starboard/extension/features.h"
 
-namespace starboard {
-namespace features {
+namespace starboard::features {
+
+template <typename T>
+struct SbFeatureParamExt;
 
 class FeatureList {
  public:
@@ -33,24 +39,29 @@ class FeatureList {
                                     const SbFeatureParam* params,
                                     size_t number_of_params);
   // ...
-  // Add SB_DCHECK() to reject queries before initialized.
+  // Add SB_CHECK() for uninitialized feature.
   static bool IsEnabled(const SbFeature& feature);
   // ...
-  // Returns null if the param cannot be found.
-  // Add SB_DCHECK() to reject queries before initialized.
-  static std::optional<std::string> GetParam(const SbFeatureParam& param);
+  // Add SB_CHECK() for uninitiliazed param.
+
+  template <typename T>
+  static T GetParam(const SbFeatureParamExt<T>& param);
 
  private:
-  FeatureList();
+  FeatureList() {}
   ~FeatureList();
 
-  // Mutex mutex_;
-  std::vector<SbFeature> features_;     // TODO: Maybe store this in a map
-  std::vector<SbFeatureParam> params_;  // TODO: Store this as a 2d map
-  bool IS_INITIALIZED = 0;
+  Mutex mutex_;
+  std::unordered_map<std::string, bool> features_;
+  std::unordered_map<
+      std::string,
+      std::unordered_map<
+          std::string,
+          std::variant<bool, std::string, int, double, size_t, int64_t>>>
+      params_;
+  bool IS_INITIALIZED_ = 0;
 };
 
-/*
 // SbFeatureParamExt is a bridge structure used in starboard to support
 // params of different data types, like base::FeatureParam.
 template <typename T>
@@ -59,52 +70,43 @@ struct SbFeatureParamExt : public SbFeatureParam {
   static_assert(std::is_same_v<bool, T> || std::is_same_v<int, T> ||
                     std::is_same_v<size_t, T> || std::is_same_v<double, T> ||
                     std::is_same_v<std::string, T> ||
-                    std::is_same_v<base::int64_t, T>,
+                    std::is_same_v<int64_t, T>,
                 "Unsupported Starboard FeatureParam<> type");
 
-  constexpr SbFeatureParamExt(const SbFeature& feature,
-                                  const char* name)
-    : SbFeatureParam{feature.name, name, nullptr} {}
+  constexpr SbFeatureParamExt(const SbFeature& feature, const char* name)
+      : SbFeatureParam{feature.name, name} {}
 
-  T Get() const {
-    return FeatureList::GetParam(*this);
-  }
+  T Get() const { return FeatureList::GetParam(*this); }
 };
 
+template <>
+bool FeatureList::GetParam(const SbFeatureParamExt<bool>& param);
+template <>
+int FeatureList::GetParam(const SbFeatureParamExt<int>& param);
+template <>
+std::string FeatureList::GetParam(const SbFeatureParamExt<std::string>& param);
+template <>
+size_t FeatureList::GetParam(const SbFeatureParamExt<size_t>& param);
+template <>
+int64_t FeatureList::GetParam(const SbFeatureParamExt<int64_t>& param);
+template <>
+double FeatureList::GetParam(const SbFeatureParamExt<double>& param);
 
-#define SB_DECLARE_FEATURE(kFeature) \
-  extern const SbFeature kFeature
+#define SB_DECLARE_FEATURE(kFeature) extern const SbFeature kFeature
 
-// ...
-// Features should *not* be defined in header files; do not use this macro in //
-header files.
+// Features should *not* be defined in header files; do not use this macro in
+// header files.
 #define SB_FEATURE(feature, name, default_state) \
   constexpr SbFeature feature = {name, default_state};
 
-// ...
 #define SB_DECLARE_FEATURE_PARAM(T, kFeatureParam) \
   extern const SbFeatureParamExt<T> kFeatureParam
 
-// ...
-// It should *not* be defined in header files; do not use this macro in header
-// files.
-#define SB_FEATURE_PARAM(T, param_object_name, feature,name) \
+// Params should *not* be defined in header files; do not use this macro in
+// header files.
+#define SB_FEATURE_PARAM(T, param_object_name, feature, name, default_value) \
   constexpr SbFeatureParamExt<T> param_object_name(feature, name)
 
+}  // namespace starboard::features
 
-template <>
-bool FeatureList::GetParam(const SbFeatureParamExt<bool> &param);
-template <>
-int FeatureList::GetParam(const SbFeatureParamExt<int> &param);
-template <>
-std::string FeatureList::GetParam(const SbFeatureParamExt<std::string> &param);
-template <>
-double FeatureList::GetParam(double SbFeatureParamExt<bool> &param);
-template <>
-size_t FeatureList::GetParam(const SbFeatureParamExt<size_t> &param);
-template <>
-int64_t FeatureList::GetParam(const SbFeatureParamExt<int64_t> &param);
-*/
-
-}  // namespace features
-}  // namespace starboard
+#endif  // STARBOARD_SHARED_STARBOARD_FEATURE_LIST_H_

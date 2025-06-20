@@ -153,9 +153,9 @@ void parseFeatureParam(SbFeatureParam& sbparam,
 
 #define STARBOARD_FEATURE(feature, name, default_state) {&feature, name},
 
-#define STARBOARD_FEATURE_PARAM(T, param_object_name, feature_object_name, \
-                                param_name, feature_name, default_value)   \
-  SbParamWrapper(&feature_object_name, feature_name, param_name,           \
+#define STARBOARD_FEATURE_PARAM(T, param_object_name, feature_object_name,   \
+                                param_name, default_value)                   \
+  SbParamWrapper(&feature_object_name, feature_object_name.name, param_name, \
                  static_cast<T>(default_value)),
 
 #include "starboard/common/feature_config.h"

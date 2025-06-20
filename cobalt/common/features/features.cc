@@ -20,7 +20,7 @@
                                      : base::FEATURE_DISABLED_BY_DEFAULT);
 
 #define STARBOARD_FEATURE_PARAM(T, param_object_name, feature_object_name, \
-                                param_name, feature_name, default_value)   \
+                                param_name, default_value)                 \
   const base::FeatureParam<T> param_object_name{&feature_object_name,      \
                                                 param_name, default_value};
 
