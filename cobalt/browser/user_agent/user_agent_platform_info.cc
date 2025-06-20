@@ -279,7 +279,7 @@ void InitializeUserAgentPlatformInfoFields(UserAgentPlatformInfo& info) {
   info.set_cobalt_version(COBALT_VERSION);
   info.set_cobalt_build_version_number(COBALT_BUILD_VERSION_NUMBER);
 
-#if defined(COBALT_IS_RELEASE_BUILD)
+#if BUILDFLAG(COBALT_IS_RELEASE_BUILD)
   info.set_build_configuration("gold");
 #elif defined(OFFICIAL_BUILD)
   info.set_build_configuration("qa");
