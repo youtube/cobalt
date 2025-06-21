@@ -439,7 +439,7 @@ source_set("test_support") {
     "//ui/gfx:test_support",
   ]
 
-  if (is_linux) {
+  if (is_linux && !is_cobalt_hermetic_build) {
     sources += [
       "video/linux/fake_device_provider.cc",
       "video/linux/fake_device_provider.h",
@@ -515,7 +515,7 @@ test("capture_unittests") {
     ]
   }
 
-  if (is_linux) {
+  if (is_linux && !is_cobalt_hermetic_build) {
     sources += [
       "video/linux/v4l2_capture_delegate_unittest.cc",
       "video/linux/video_capture_device_factory_v4l2_unittest.cc",
