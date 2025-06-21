@@ -69,9 +69,9 @@ runs:
           log_path="${test_output}/${test_binary}_log.txt"
           # TODO: Investigate test_runner.py
 
-          export ENTRYPOINT=./"${test_binary_path}"
+          ENTRYPOINT=./"${test_binary_path}"
           if [[ "${{ matrix.platform }}" == *evergreen* ]]; then
-            export ENTRYPOINT='./out/${{ matrix.platform }}_${{ matrix.config }}/elf_loader_sandbox --evergreen_library=${test_binary_path} --evergreen_content=.'
+            ENTRYPOINT="./out/${{ matrix.platform }}_${{ matrix.config }}/elf_loader_sandbox --evergreen_library=${test_binary_path} --evergreen_content=."
           fi
 
           if [ "${test_filter}" == "-*" ]; then
