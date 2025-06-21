@@ -17,6 +17,9 @@ use_system_libdrm = false
 # is done under Starboard, so we can disable decoders at the Chromium level.
 rtc_use_h264 = false
 
+# Enables a loadable module, so unsupported for modular builds.
+enable_library_cdms = false
+
 # TODO: b/425694385 - Investigate other ways to ensure emulated tls is
 # is respected with LTO.
 is_cfi = false

@@ -7,24 +7,10 @@
   "test_root_target": "//cobalt:gn_all",
   "num_gtest_shards": 1,
   "targets": [
-    "base",
-    "base_perftests",
-    "base_unittests",
-    "boringssl_ssl_tests",
-    "cobalt",
-    "crypto_unittests",
-    "elf_loader_sandbox",
-    "elf_loader_sys_sandbox",
-    "ipc_tests",
-    "loader_app",
-    "net",
-    "net_unittests",
-    "nplb",
-    "skia",
-    "sql_unittests",
-    "trace_processor_minimal_smoke_tests",
-    "url_unittests",
-    "zlib_unittests"
+    "cobalt:gn_all",
+    "content_shell",
+    "dump_syms",
+    "minidump_stackwalk"
   ],
   "build_configs": [
     "debug",

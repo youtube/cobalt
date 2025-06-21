@@ -6,6 +6,10 @@
 
 #include "testing/gtest/include/gtest/gtest.h"
 
+#if BUILDFLAG(IS_COBALT)
+#include "third_party/abseil-cpp/absl/types/optional.h"
+#endif
+
 namespace blink {
 
 TEST(LayoutLocaleTest, Get) {
