@@ -93,7 +93,7 @@ const std::vector<Operation>& ReadAllocationLogFile(const std::string& name) {
     for (auto&& allocation : allocations) {
       auto tokens = base::SplitStringUsingSubstr(
           allocation, " ", base::TRIM_WHITESPACE, base::SPLIT_WANT_NONEMPTY);
-      CHECK_GE(tokens.size(), 4);
+      CHECK_GE(tokens.size(), 4u);
 
       const std::string& pointer = tokens[1];
       const DemuxerStream::Type buffer_type =
@@ -108,7 +108,7 @@ const std::vector<Operation>& ReadAllocationLogFile(const std::string& name) {
         // In the format of "allocate <pointer> <buffer_type> <size>
         // <alignment>"
         CHECK_EQ(tokens[0], "allocate");
-        CHECK_EQ(pointers.count(pointer), 0);
+        CHECK_EQ(pointers.count(pointer), 0u);
 
         int alignment = StringToInt(tokens[4]);
 
@@ -118,9 +118,9 @@ const std::vector<Operation>& ReadAllocationLogFile(const std::string& name) {
                                           buffer_type, size, alignment});
       } else {
         // In the format of "free <pointer> <buffer_type> <size>"
-        CHECK_EQ(tokens.size(), 4);
+        CHECK_EQ(tokens.size(), 4u);
         CHECK_EQ(tokens[0], "free");
-        CHECK_EQ(pointers.erase(pointer), 1);
+        CHECK_EQ(pointers.erase(pointer), 1u);
 
         operations.emplace_back(
             Operation{Operation::Type::kFree, pointer, buffer_type, size});
@@ -162,7 +162,7 @@ TEST_P(DecoderBufferAllocatorTest, CapacityUnderLimit) {
 
   for (auto&& operation : operations) {
     if (operation.operation_type == Operation::Type::kAllocate) {
-      CHECK_EQ(pointer_to_pointer_map.count(operation.pointer), 0);
+      CHECK_EQ(pointer_to_pointer_map.count(operation.pointer), 0u);
 
       void* p = allocator.Allocate(operation.buffer_type, operation.size,
                                    operation.alignment);
@@ -179,7 +179,7 @@ TEST_P(DecoderBufferAllocatorTest, CapacityUnderLimit) {
       allocator.Free(pointer_to_pointer_map[operation.pointer], operation.size);
       ++free_operations_since_last_allocate;
 
-      CHECK_EQ(pointer_to_pointer_map.erase(operation.pointer), 1);
+      CHECK_EQ(pointer_to_pointer_map.erase(operation.pointer), 1u);
     }
   }
 
@@ -211,7 +211,7 @@ TEST_P(DecoderBufferAllocatorTest, CapacityByType) {
        {4 * 1024 * 1024, 1 * 1024 * 1024, 4 * 1024 * 1024}},
   };
 
-  for (int i = 0; i < sizeof(kConfigs) / sizeof(*kConfigs); ++i) {
+  for (size_t i = 0; i < sizeof(kConfigs) / sizeof(*kConfigs); ++i) {
     size_t max_total_allocated = 0;
     size_t max_total_capacity = 0;
 
@@ -237,7 +237,7 @@ TEST_P(DecoderBufferAllocatorTest, CapacityByType) {
         }
 
         if (operation.operation_type == Operation::Type::kAllocate) {
-          CHECK_EQ(pointer_to_pointer_map.count(operation.pointer), 0);
+          CHECK_EQ(pointer_to_pointer_map.count(operation.pointer), 0u);
 
           pointer_to_pointer_map[operation.pointer] = allocator.Allocate(
               operation.buffer_type, operation.size, operation.alignment);
@@ -250,7 +250,7 @@ TEST_P(DecoderBufferAllocatorTest, CapacityByType) {
 
           allocator.Free(pointer_to_pointer_map[operation.pointer],
                          operation.size);
-          CHECK_EQ(pointer_to_pointer_map.erase(operation.pointer), 1);
+          CHECK_EQ(pointer_to_pointer_map.erase(operation.pointer), 1u);
         }
       }
 
@@ -265,7 +265,7 @@ TEST_P(DecoderBufferAllocatorTest, CapacityByType) {
   }
 }
 
-INSTANTIATE_TEST_CASE_P(
+INSTANTIATE_TEST_SUITE_P(
     DecoderBufferAllocatorTests,
     DecoderBufferAllocatorTest,
     Combine(Values("starboard/allocations_1La4QzGeaaQ.txt",
