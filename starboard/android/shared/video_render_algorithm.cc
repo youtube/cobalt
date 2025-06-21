@@ -102,6 +102,12 @@ void VideoRenderAlgorithm::Render(
 
     early_us = (adjusted_release_time_ns - system_time_ns) / 1000;
 
+    {
+      ScopedLock lock(mutex_);
+      accumlated_frames_early_us_ += early_us;
+      frames_processed_since_last_update_++;
+    }
+
     if (early_us < kBufferTooLateThreshold) {
       frames->pop_front();
       ++dropped_frames_;
@@ -126,6 +132,15 @@ int VideoRenderAlgorithm::GetDroppedFrames() {
     return frame_tracker_->UpdateAndGetDroppedFrames();
   }
   return dropped_frames_;
+}
+
+int64_t VideoRenderAlgorithm::GetAndClearAverageFrameEarlyUs() {
+  ScopedLock lock(mutex_);
+  int64_t average_frames_early_us =
+      accumlated_frames_early_us_ / frames_processed_since_last_update_;
+  accumlated_frames_early_us_ = 0;
+  frames_processed_since_last_update_ = 0;
+  return average_frames_early_us;
 }
 
 VideoRenderAlgorithm::VideoFrameReleaseTimeHelper::

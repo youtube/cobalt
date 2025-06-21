@@ -33,6 +33,7 @@ using std::placeholders::_1;
 using std::placeholders::_2;
 using std::placeholders::_3;
 using std::placeholders::_4;
+using std::placeholders::_5;
 
 int64_t CalculateMediaTime(int64_t media_time,
                            int64_t media_time_update_time,
@@ -59,7 +60,8 @@ SbPlayerPrivateImpl::SbPlayerPrivateImpl(
       media_time_updated_at_(CurrentMonotonicTime()) {
   worker_ = std::unique_ptr<PlayerWorker>(PlayerWorker::CreateInstance(
       audio_codec, video_codec, std::move(player_worker_handler),
-      std::bind(&SbPlayerPrivateImpl::UpdateMediaInfo, this, _1, _2, _3, _4),
+      std::bind(&SbPlayerPrivateImpl::UpdateMediaInfo, this, _1, _2, _3, _4,
+                _5),
       decoder_status_func, player_status_func, player_error_func, this,
       context));
 
@@ -148,13 +150,11 @@ void SbPlayerPrivateImpl::GetInfo(SbPlayerInfo* out_player_info) {
 
   std::scoped_lock lock(mutex_);
   out_player_info->duration = SB_PLAYER_NO_DURATION;
-  if (is_paused_ || !is_progressing_) {
-    out_player_info->current_media_timestamp = media_time_;
-  } else {
-    out_player_info->current_media_timestamp =
-        CalculateMediaTime(media_time_, media_time_updated_at_, playback_rate_);
-  }
-
+  out_player_info->current_media_timestamp =
+      (is_paused_ || !is_progressing_)
+          ? media_time_
+          : CalculateMediaTime(media_time_, media_time_updated_at_,
+                               playback_rate_);
   out_player_info->frame_width = frame_width_;
   out_player_info->frame_height = frame_height_;
   out_player_info->is_paused = is_paused_;
@@ -163,6 +163,28 @@ void SbPlayerPrivateImpl::GetInfo(SbPlayerInfo* out_player_info) {
   out_player_info->dropped_video_frames = dropped_video_frames_;
   out_player_info->corrupted_video_frames = 0;
   out_player_info->playback_rate = playback_rate_;
+}
+
+void SbPlayerPrivateImpl::GetInfo(
+    StarboardExtensionExtendedPlayerInfo* out_player_info) {
+  SB_DCHECK(out_player_info != NULL);
+
+  ScopedLock lock(mutex_);
+  out_player_info->duration = SB_PLAYER_NO_DURATION;
+  out_player_info->current_media_timestamp =
+      (is_paused_ || !is_progressing_)
+          ? media_time_
+          : CalculateMediaTime(media_time_, media_time_updated_at_,
+                               playback_rate_);
+  out_player_info->frame_width = frame_width_;
+  out_player_info->frame_height = frame_height_;
+  out_player_info->is_paused = is_paused_;
+  out_player_info->volume = volume_;
+  out_player_info->total_video_frames = total_video_frames_;
+  out_player_info->dropped_video_frames = dropped_video_frames_;
+  out_player_info->corrupted_video_frames = 0;
+  out_player_info->playback_rate = playback_rate_;
+  out_player_info->last_average_frame_early_us = average_video_frame_early_us_;
 }
 
 void SbPlayerPrivateImpl::SetPause(bool pause) {
@@ -180,10 +202,12 @@ void SbPlayerPrivateImpl::SetVolume(double volume) {
   worker_->SetVolume(volume_);
 }
 
-void SbPlayerPrivateImpl::UpdateMediaInfo(int64_t media_time,
-                                          int dropped_video_frames,
-                                          int ticket,
-                                          bool is_progressing) {
+void SbPlayerPrivateImpl::UpdateMediaInfo(
+    int64_t media_time,
+    int dropped_video_frames,
+    int ticket,
+    bool is_progressing,
+    int64_t average_video_frame_early_us) {
   std::scoped_lock lock(mutex_);
   if (ticket_ != ticket) {
     return;
@@ -192,6 +216,7 @@ void SbPlayerPrivateImpl::UpdateMediaInfo(int64_t media_time,
   is_progressing_ = is_progressing;
   media_time_updated_at_ = CurrentMonotonicTime();
   dropped_video_frames_ = dropped_video_frames;
+  average_video_frame_early_us_ = average_video_frame_early_us;
 }
 
 SbDecodeTarget SbPlayerPrivateImpl::GetCurrentDecodeTarget() {

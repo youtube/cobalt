@@ -487,8 +487,11 @@ void FilterBasedPlayerWorkerHandler::Update() {
 
   if (get_player_state_cb_() == kSbPlayerStatePresenting) {
     int dropped_frames = 0;
+    int64_t average_frame_early_us = -1;
     if (video_renderer_) {
       dropped_frames = video_renderer_->GetDroppedFrames();
+      average_frame_early_us =
+          video_renderer_->GetAndClearAverageFrameEarlyUs();
     }
     bool is_playing;
     bool is_eos_played;
@@ -496,7 +499,8 @@ void FilterBasedPlayerWorkerHandler::Update() {
     double playback_rate;
     auto media_time = media_time_provider_->GetCurrentMediaTime(
         &is_playing, &is_eos_played, &is_underflow, &playback_rate);
-    update_media_info_cb_(media_time, dropped_frames, !is_underflow);
+    update_media_info_cb_(media_time, dropped_frames, !is_underflow,
+                          average_frame_early_us);
   }
 
   RemoveJobByToken(update_job_token_);
