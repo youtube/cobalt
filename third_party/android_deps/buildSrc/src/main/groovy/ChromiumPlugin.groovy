@@ -43,6 +43,8 @@ class ChromiumPlugin implements Plugin<Project> {
             resolutionStrategy.eachDependency { DependencyResolveDetails details ->
                 if (project.ext.has('versionOverrideMap') && project.ext.versionOverrideMap) {
                     String module = "${details.requested.group}:${details.requested.name}"
+                    println 'austin'
+                    println module
                     String version = project.ext.versionOverrideMap[module]
                     if (version != null) {
                         details.useVersion version
