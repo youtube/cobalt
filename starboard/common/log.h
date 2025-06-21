@@ -161,7 +161,14 @@ class LogMessageVoidify {
 
 #if SB_LOGGING_IS_OFFICIAL_BUILD || \
     (defined(NDEBUG) && !defined(DCHECK_ALWAYS_ON))
-#define SB_DCHECK(condition) SB_EAT_STREAM_PARAMETERS
+class SbDcheckNoOpStream {
+ public:
+  template <typename T>
+  const SbDcheckNoOpStream& operator<<(const T&) const {
+    return *this;
+  }
+};
+#define SB_DCHECK(condition) (void)sizeof(bool(condition)), SbDcheckNoOpStream()
 #define SB_DCHECK_ENABLED 0
 #else
 #define SB_DCHECK(condition) SB_CHECK(condition)
