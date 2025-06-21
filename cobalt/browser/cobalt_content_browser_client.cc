@@ -41,8 +41,6 @@
 #include "components/prefs/pref_registry_simple.h"
 #include "components/prefs/pref_service.h"
 #include "components/prefs/pref_service_factory.h"
-#include "components/variations/pref_names.h"
-#include "components/variations/service/variations_field_trial_creator.h"
 #include "components/variations/service/variations_service.h"
 #include "content/public/browser/browser_thread.h"
 #include "content/public/browser/render_process_host.h"
@@ -77,36 +75,6 @@ constexpr base::FilePath::CharType kTransportSecurityPersisterFilename[] =
     FILE_PATH_LITERAL("TransportSecurity");
 constexpr base::FilePath::CharType kTrustTokenFilename[] =
     FILE_PATH_LITERAL("Trust Tokens");
-
-// Cobalt does not use variations service for field trials. This is a dummy
-// implementation for the browser client to call ApplyFieldTrialTestingConfig
-// and apply test feature overrides.
-class CobaltVariationsServiceClient
-    : public variations::VariationsServiceClient {
- public:
-  CobaltVariationsServiceClient() = default;
-  ~CobaltVariationsServiceClient() override = default;
-
-  // variations::VariationsServiceClient:
-  base::Version GetVersionForSimulation() override { return base::Version(); }
-  scoped_refptr<network::SharedURLLoaderFactory> GetURLLoaderFactory()
-      override {
-    return nullptr;
-  }
-  network_time::NetworkTimeTracker* GetNetworkTimeTracker() override {
-    return nullptr;
-  }
-  version_info::Channel GetChannel() override {
-    return version_info::Channel::UNKNOWN;
-  }
-  bool OverridesRestrictParameter(std::string* parameter) override {
-    return false;
-  }
-  bool IsEnterprise() override { return false; }
-  // Profiles aren't supported, so nothing to do here.
-  void RemoveGoogleGroupsFromPrefsForDeletedProfiles(
-      PrefService* local_state) override {}
-};
 
 }  // namespace
 
@@ -471,19 +439,6 @@ void CobaltContentBrowserClient::CreateFeatureListAndFieldTrials() {
   // SetInstance(), because overrides cannot be registered after the FeatureList
   // instance is set.
   feature_list->RegisterExtraFeatureOverrides(feature_overrides);
-
-  CobaltVariationsServiceClient variations_service_client;
-  variations::VariationsFieldTrialCreator field_trial_creator(
-      &variations_service_client,
-      std::make_unique<variations::VariationsSeedStore>(
-          GlobalFeatures::GetInstance()->experiment_config(),
-          std::make_unique<variations::SeedResponse>(),
-          /*signature_verification_enabled=*/true),
-      variations::UIStringOverrider());
-
-#if BUILDFLAG(FIELDTRIAL_TESTING_ENABLED)
-  field_trial_creator.ApplyFieldTrialTestingConfig(feature_list.get());
-#endif  // BUILDFLAG(FIELDTRIAL_TESTING_ENABLED)
 
   SetUpCobaltFeaturesAndParams(feature_list.get());
 
