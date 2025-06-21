@@ -16,6 +16,7 @@
 
 #include <android/api-level.h>
 #include <jni.h>
+#include <unistd.h>
 
 #include <algorithm>
 #include <cmath>
