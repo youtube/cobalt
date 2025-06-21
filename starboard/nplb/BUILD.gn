@@ -190,6 +190,8 @@ test("nplb") {
     "posix_compliance/posix_time_gettimeofday_test.cc",
     "posix_compliance/posix_time_gmtime_r_test.cc",
     "posix_compliance/posix_time_gmtime_test.cc",
+    "posix_compliance/posix_time_localtime_r_test.cc",
+    "posix_compliance/posix_time_localtime_test.cc",
     "posix_compliance/posix_time_time_test.cc",
     "posix_compliance/posix_timezone_test.cc",
     "posix_compliance/posix_unistd_sysconf_test.cc",

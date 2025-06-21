@@ -45,43 +45,10 @@ constexpr int kHour = 3600;
 // Number of seconds in a minute.
 constexpr int kMinute = 60;
 
-// Helper class to manage the TZ environment variable for test isolation.
-// Sets TZ in constructor, restores original TZ in destructor.
-// Calls tzset() after each change to TZ.
-class ScopedTZ {
- public:
-  ScopedTZ(const char* new_tz_value) {
-    const char* current_tz_env = getenv("TZ");
-    if (current_tz_env != nullptr) {
-      original_tz_value_ = current_tz_env;  // Store the original TZ string
-    }
+#include "starboard/nplb/posix_compliance/scoped_tz.h"
 
-    if (new_tz_value != nullptr) {
-      EXPECT_EQ(0, setenv("TZ", new_tz_value, 1))
-          << "ScopedTZ: Failed to set TZ environment variable to \""
-          << new_tz_value << "\"";
-    } else {
-      EXPECT_EQ(0, unsetenv("TZ"))
-          << "ScopedTZ: Failed to unset TZ environment variable.";
-    }
-    tzset();
-  }
-
-  ~ScopedTZ() {
-    if (original_tz_value_) {
-      setenv("TZ", original_tz_value_->c_str(), 1);
-    } else {
-      unsetenv("TZ");
-    }
-    tzset();
-  }
-
-  ScopedTZ(const ScopedTZ&) = delete;
-  ScopedTZ& operator=(const ScopedTZ&) = delete;
-
- private:
-  std::optional<std::string> original_tz_value_;
-};
+namespace starboard {
+namespace nplb {
 
 struct IANATestData {
   std::string iana_tz_name;
@@ -750,3 +717,6 @@ TEST(PosixTimezoneStandaloneTests, HandlesInvalidTZStringGracefully) {
   ASSERT_NE(tzname[0], nullptr);
   EXPECT_EQ(timezone, 0L);
 }
+
+}  // namespace nplb
+}  // namespace starboard
