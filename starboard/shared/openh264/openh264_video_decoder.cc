@@ -21,9 +21,7 @@
 #include "starboard/shared/starboard/player/filter/cpu_video_frame.h"
 #include "starboard/shared/starboard/player/job_queue.h"
 
-namespace starboard {
-namespace shared {
-namespace openh264 {
+namespace starboard::shared::openh264 {
 
 namespace {
 
@@ -71,7 +69,7 @@ void VideoDecoder::Reset() {
     decoder_thread_.reset();
   }
 
-  video_config_ = nullopt;
+  video_config_ = std::nullopt;
   stream_ended_ = false;
 
   CancelPendingJobs();
@@ -331,6 +329,4 @@ void VideoDecoder::ReportError(const std::string& error_message) {
   error_cb_(kSbPlayerErrorDecode, error_message);
 }
 
-}  // namespace openh264
-}  // namespace shared
-}  // namespace starboard
+}  // namespace starboard::shared::openh264

@@ -19,7 +19,7 @@
 #include "base/functional/callback.h"
 #include "base/metrics/field_trial_params.h"
 #include "build/build_config.h"
-#include "cobalt/browser/cobalt_experiment_names.h"
+#include "cobalt/browser/constants/cobalt_experiment_names.h"
 #include "cobalt/browser/global_features.h"
 #include "components/prefs/pref_service.h"
 
@@ -39,11 +39,6 @@ h5vcc_experiments::mojom::OverrideState GetFeatureInternal(
     return h5vcc_experiments::mojom::OverrideState::OVERRIDE_DISABLE_FEATURE;
   }
   return h5vcc_experiments::mojom::OverrideState::OVERRIDE_USE_DEFAULT;
-}
-
-std::string GetFeatureParamInternal(const std::string& feature_param_name) {
-  return base::GetFieldTrialParamValue(cobalt::kCobaltExperimentName,
-                                       feature_param_name);
 }
 
 }  // namespace

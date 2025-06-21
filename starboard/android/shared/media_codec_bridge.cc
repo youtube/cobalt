@@ -23,9 +23,7 @@
 #include "cobalt/android/jni_headers/MediaCodecBridgeBuilder_jni.h"
 #include "cobalt/android/jni_headers/MediaCodecBridge_jni.h"
 
-namespace starboard {
-namespace android {
-namespace shared {
+namespace starboard::android::shared {
 
 // TODO: (cobalt b/372559388) Update namespace to jni_zero.
 using base::android::AttachCurrentThread;
@@ -107,6 +105,16 @@ JNI_MediaCodecBridge_OnMediaCodecFrameRendered(JNIEnv* env,
       reinterpret_cast<MediaCodecBridge*>(native_media_codec_bridge);
   SB_DCHECK(media_codec_bridge);
   media_codec_bridge->OnMediaCodecFrameRendered(presentation_time_us);
+}
+
+extern "C" SB_EXPORT_PLATFORM void
+JNI_MediaCodecBridge_OnMediaCodecFirstTunnelFrameReady(
+    JNIEnv* env,
+    jlong native_media_codec_bridge) {
+  MediaCodecBridge* media_codec_bridge =
+      reinterpret_cast<MediaCodecBridge*>(native_media_codec_bridge);
+  SB_DCHECK(media_codec_bridge);
+  media_codec_bridge->OnMediaCodecFirstTunnelFrameReady();
 }
 
 extern "C" SB_EXPORT_PLATFORM void JNI_MediaCodecBridge_OnMediaCodecError(
@@ -225,8 +233,8 @@ std::unique_ptr<MediaCodecBridge> MediaCodecBridge::CreateVideoMediaCodecBridge(
     int width_hint,
     int height_hint,
     int fps,
-    optional<int> max_width,
-    optional<int> max_height,
+    std::optional<int> max_width,
+    std::optional<int> max_height,
     Handler* handler,
     jobject j_surface,
     jobject j_media_crypto,
@@ -238,7 +246,7 @@ std::unique_ptr<MediaCodecBridge> MediaCodecBridge::CreateVideoMediaCodecBridge(
     int max_video_input_size,
     std::string* error_message) {
   SB_DCHECK(error_message);
-  SB_DCHECK(max_width.has_engaged() == max_height.has_engaged());
+  SB_DCHECK(max_width.has_value() == max_height.has_value());
   SB_DCHECK(max_width.value_or(1920) > 0);
   SB_DCHECK(max_height.value_or(1080) > 0);
 
@@ -541,6 +549,10 @@ void MediaCodecBridge::OnMediaCodecFrameRendered(int64_t frame_timestamp) {
   handler_->OnMediaCodecFrameRendered(frame_timestamp);
 }
 
+void MediaCodecBridge::OnMediaCodecFirstTunnelFrameReady() {
+  handler_->OnMediaCodecFirstTunnelFrameReady();
+}
+
 MediaCodecBridge::MediaCodecBridge(Handler* handler) : handler_(handler) {
   SB_DCHECK(handler_);
 }
@@ -565,6 +577,4 @@ jboolean MediaCodecBridge::IsFrameRenderedCallbackEnabled() {
   return Java_MediaCodecBridge_isFrameRenderedCallbackEnabled(env);
 }
 
-}  // namespace shared
-}  // namespace android
-}  // namespace starboard
+}  // namespace starboard::android::shared

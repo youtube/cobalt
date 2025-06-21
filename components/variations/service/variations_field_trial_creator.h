@@ -189,7 +189,9 @@ class VariationsFieldTrialCreator {
 
   SeedType seed_type() const { return seed_type_; }
 
+#if !BUILDFLAG(IS_COBALT)
  protected:
+#endif  // !BUILDFLAG(IS_COBALT)
   // Get the platform we're running on, respecting OverrideVariationsPlatform().
   // Protected for testing.
   Study::Platform GetPlatform();

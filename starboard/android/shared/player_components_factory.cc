@@ -22,10 +22,10 @@
 #include <vector>
 
 #include "starboard/android/shared/audio_decoder.h"
+#include "starboard/android/shared/audio_output_manager.h"
 #include "starboard/android/shared/audio_renderer_passthrough.h"
 #include "starboard/android/shared/audio_track_audio_sink_type.h"
 #include "starboard/android/shared/drm_system.h"
-#include "starboard/android/shared/jni_env_ext.h"
 #include "starboard/android/shared/jni_utils.h"
 #include "starboard/android/shared/media_capabilities_cache.h"
 #include "starboard/android/shared/media_common.h"
@@ -48,9 +48,7 @@
 #include "starboard/shared/starboard/player/filter/video_renderer_internal_impl.h"
 #include "starboard/shared/starboard/player/filter/video_renderer_sink.h"
 
-namespace starboard {
-namespace android {
-namespace shared {
+namespace starboard::android::shared {
 
 // Tunnel mode has to be enabled explicitly by the web app via mime attributes
 // "tunnelmode", set the following variable to true to force enabling tunnel
@@ -80,6 +78,12 @@ constexpr bool kForceFlushDecoderDuringReset = false;
 // Set the following variable to true to force it reset audio decoder
 // during Reset(). This should be enabled with kForceFlushDecoderDuringReset.
 constexpr bool kForceResetAudioDecoder = false;
+
+// By default, Cobalt restarts MediaCodec after stops/flushes during
+// Reset()/Flush(). Set the following variable to > 0 to force it to
+// wait during Reset()/Flush().
+constexpr int64_t kResetDelayUsecOverride = 0;
+constexpr int64_t kFlushDelayUsecOverride = 0;
 
 // This class allows us to force int16 sample type when tunnel mode is enabled.
 class AudioRendererSinkAndroid : public ::starboard::shared::starboard::player::
@@ -532,6 +536,8 @@ class PlayerComponentsFactory : public starboard::shared::starboard::player::
       std::string* error_message) {
     bool force_big_endian_hdr_metadata = false;
     bool enable_flush_during_seek = false;
+    int64_t reset_delay_usec = 0;
+    int64_t flush_delay_usec = 0;
     // The default value of |force_reset_surface| would be true.
     bool force_reset_surface = true;
     if (creation_parameters.video_codec() != kSbMediaVideoCodecNone &&
@@ -561,6 +567,16 @@ class PlayerComponentsFactory : public starboard::shared::starboard::player::
           << " video decoder during Reset().";
       enable_flush_during_seek = true;
     }
+    if (kResetDelayUsecOverride > 0) {
+      reset_delay_usec = kResetDelayUsecOverride;
+      SB_LOG(INFO) << "`kResetDelayUsecOverride` is set to > 0, force a delay"
+                   << " of " << reset_delay_usec << "us during Reset().";
+    }
+    if (kFlushDelayUsecOverride > 0) {
+      flush_delay_usec = kFlushDelayUsecOverride;
+      SB_LOG(INFO) << "`kFlushDelayUsecOverride` is set to > 0, force a delay"
+                   << " of " << flush_delay_usec << "us during Flush().";
+    }
 
     auto video_decoder = std::make_unique<VideoDecoder>(
         creation_parameters.video_stream_info(),
@@ -570,7 +586,8 @@ class PlayerComponentsFactory : public starboard::shared::starboard::player::
         tunnel_mode_audio_session_id, force_secure_pipeline_under_tunnel_mode,
         force_reset_surface, kForceResetSurfaceUnderTunnelMode,
         force_big_endian_hdr_metadata, max_video_input_size,
-        enable_flush_during_seek, error_message);
+        enable_flush_during_seek, reset_delay_usec, flush_delay_usec,
+        error_message);
     if (creation_parameters.video_codec() == kSbMediaVideoCodecAv1 ||
         video_decoder->is_decoder_created()) {
       return video_decoder;
@@ -647,14 +664,10 @@ class PlayerComponentsFactory : public starboard::shared::starboard::player::
     SB_DCHECK(IsTunnelModeSupported(creation_parameters,
                                     &force_secure_pipeline_under_tunnel_mode));
 
-    JniEnvExt* env = JniEnvExt::Get();
-    ScopedLocalJavaRef<jobject> j_audio_output_manager(
-        env->CallStarboardObjectMethodOrAbort(
-            "getAudioOutputManager",
-            "()Ldev/cobalt/media/AudioOutputManager;"));
-    int tunnel_mode_audio_session_id = env->CallIntMethodOrAbort(
-        j_audio_output_manager.Get(), "generateTunnelModeAudioSessionId",
-        "(I)I", creation_parameters.audio_stream_info().number_of_channels);
+    JNIEnv* env = AttachCurrentThread();
+    int tunnel_mode_audio_session_id =
+        AudioOutputManager::GetInstance()->GenerateTunnelModeAudioSessionId(
+            env, creation_parameters.audio_stream_info().number_of_channels);
 
     // AudioManager.generateAudioSessionId() return ERROR (-1) to indicate a
     // failure, please see the following url for more details:
@@ -702,9 +715,7 @@ class PlayerComponentsFactory : public starboard::shared::starboard::player::
   }
 };
 
-}  // namespace shared
-}  // namespace android
-}  // namespace starboard
+}  // namespace starboard::android::shared
 
 namespace starboard::shared::starboard::player::filter {
 

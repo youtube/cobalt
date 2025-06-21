@@ -166,11 +166,11 @@ class CORE_EXPORT HTMLVideoElement final
   VideoWakeLock* wake_lock_for_tests() const { return wake_lock_; }
 
 #if BUILDFLAG(USE_STARBOARD_MEDIA)
-  void setMaxVideoCapabilities(const String& max_video_capabilities, ExceptionState& exception_state);
+  void SetMaxVideoCapabilities(const String& max_video_capabilities, ExceptionState& exception_state);
 
-  // getMaxVideoCapabilities overrides the function in web_media_player_client.h to allow
+  // GetMaxVideoCapabilities() overrides the function in web_media_player_client.h to allow
   // other cc/h files to access the max_video_capabilities_ variable.
-  std::string getMaxVideoCapabilities() const override { return max_video_capabilities_ ; }
+  std::string GetMaxVideoCapabilities() const override { return max_video_capabilities_ ; }
 
   bool HasMaxVideoCapabilities() const { return !max_video_capabilities_.empty(); }
 #endif // BUILDFLAG(USE_STARBOARD_MEDIA)

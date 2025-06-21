@@ -30,6 +30,10 @@ source_set("h5vcc_system") {
   ]
 
   if (is_starboard) {
-    deps += [ "//cobalt/configuration" ]
+    sources += [
+      "configuration.cc",
+      "configuration.h",
+    ]
+    deps += [ "//starboard:starboard_headers_only" ]
   }
 }

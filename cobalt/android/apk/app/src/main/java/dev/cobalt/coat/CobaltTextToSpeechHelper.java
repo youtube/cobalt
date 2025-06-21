@@ -94,7 +94,6 @@ class CobaltTextToSpeechHelper
   }
 
   /** Returns whether a screen reader is currently enabled */
-  @SuppressWarnings("unused")
   @CalledByNative
   public boolean isScreenReaderEnabled() {
     AccessibilityManager am =
@@ -129,7 +128,6 @@ class CobaltTextToSpeechHelper
    * Speaks the given text, enqueuing it if something is already speaking. Java-layer implementation
    * of Starboard's SbSpeechSynthesisSpeak.
    */
-  @SuppressWarnings("unused")
   @CalledByNative
   void speak(final String text) {
     handler.post(
@@ -163,7 +161,6 @@ class CobaltTextToSpeechHelper
   }
 
   /** Cancels all speaking. Java-layer implementation of Starboard's SbSpeechSynthesisCancel. */
-  @SuppressWarnings("unused")
   @CalledByNative
   void cancel() {
     handler.post(

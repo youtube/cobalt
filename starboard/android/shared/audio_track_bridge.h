@@ -16,15 +16,20 @@
 #define STARBOARD_ANDROID_SHARED_AUDIO_TRACK_BRIDGE_H_
 
 #include <jni.h>
+#include <optional>
 
-#include "starboard/android/shared/jni_env_ext.h"
-#include "starboard/common/optional.h"
+#include "base/android/jni_android.h"
+#include "base/android/scoped_java_ref.h"
 #include "starboard/media.h"
 #include "starboard/types.h"
 
-namespace starboard {
-namespace android {
-namespace shared {
+namespace starboard::android::shared {
+
+// TODO(cobalt, b/372559388): Update namespace to jni_zero.
+using base::android::AttachCurrentThread;
+using base::android::JavaParamRef;
+using base::android::ScopedJavaGlobalRef;
+using base::android::ScopedJavaLocalRef;
 
 // The C++ encapsulation of the Java class AudioTrackBridge.
 class AudioTrackBridge {
@@ -36,7 +41,7 @@ class AudioTrackBridge {
   static constexpr int kAudioTrackErrorDeadObject = -6;
 
   AudioTrackBridge(SbMediaAudioCodingType coding_type,
-                   optional<SbMediaAudioSampleType> sample_type,
+                   std::optional<SbMediaAudioSampleType> sample_type,
                    int channels,
                    int sampling_frequency_hz,
                    int preferred_buffer_size_in_bytes,
@@ -44,59 +49,52 @@ class AudioTrackBridge {
                    bool is_web_audio);
   ~AudioTrackBridge();
 
-  static int GetMinBufferSizeInFrames(SbMediaAudioSampleType sample_type,
-                                      int channels,
-                                      int sampling_frequency_hz,
-                                      JniEnvExt* env = JniEnvExt::Get());
-
   bool is_valid() const {
-    return j_audio_track_bridge_ != nullptr && j_audio_data_ != nullptr;
+    return !j_audio_track_bridge_.is_null() && !j_audio_data_.is_null();
   }
 
-  void Play(JniEnvExt* env = JniEnvExt::Get());
-  void Pause(JniEnvExt* env = JniEnvExt::Get());
-  void Stop(JniEnvExt* env = JniEnvExt::Get());
-  void PauseAndFlush(JniEnvExt* env = JniEnvExt::Get());
+  void Play(JNIEnv* env = AttachCurrentThread());
+  void Pause(JNIEnv* env = AttachCurrentThread());
+  void Stop(JNIEnv* env = AttachCurrentThread());
+  void PauseAndFlush(JNIEnv* env = AttachCurrentThread());
 
   // Returns zero or the positive number of samples written, or a negative error
   // code.
   int WriteSample(const float* samples,
                   int num_of_samples,
-                  JniEnvExt* env = JniEnvExt::Get());
+                  JNIEnv* env = AttachCurrentThread());
   int WriteSample(const uint16_t* samples,
                   int num_of_samples,
                   int64_t sync_time,
-                  JniEnvExt* env = JniEnvExt::Get());
+                  JNIEnv* env = AttachCurrentThread());
   // This is used by passthrough, it treats samples as if they are in bytes.
   // Returns zero or the positive number of samples written, or a negative error
   // code.
   int WriteSample(const uint8_t* buffer,
                   int num_of_samples,
                   int64_t sync_time,
-                  JniEnvExt* env = JniEnvExt::Get());
+                  JNIEnv* env = AttachCurrentThread());
 
-  void SetVolume(double volume, JniEnvExt* env = JniEnvExt::Get());
+  void SetVolume(double volume, JNIEnv* env = AttachCurrentThread());
 
   // |updated_at| contains the timestamp when the audio timestamp is updated on
   // return.  It can be nullptr.
   int64_t GetAudioTimestamp(int64_t* updated_at,
-                            JniEnvExt* env = JniEnvExt::Get());
-  bool GetAndResetHasAudioDeviceChanged(JniEnvExt* env = JniEnvExt::Get());
-  int GetUnderrunCount(JniEnvExt* env = JniEnvExt::Get());
-  int GetStartThresholdInFrames(JniEnvExt* env = JniEnvExt::Get());
+                            JNIEnv* env = AttachCurrentThread());
+  bool GetAndResetHasAudioDeviceChanged(JNIEnv* env = AttachCurrentThread());
+  int GetUnderrunCount(JNIEnv* env = AttachCurrentThread());
+  int GetStartThresholdInFrames(JNIEnv* env = AttachCurrentThread());
 
  private:
   int max_samples_per_write_;
 
-  jobject j_audio_track_bridge_ = nullptr;
+  ScopedJavaGlobalRef<jobject> j_audio_track_bridge_;
   // The audio data has to be copied into a Java Array before writing into the
-  // audio track.  Allocating a large array and saves as a member variable
+  // audio track. Allocating a large array and saves as a member variable
   // avoids an array being allocated repeatedly.
-  jobject j_audio_data_ = nullptr;
+  ScopedJavaGlobalRef<jobject> j_audio_data_;
 };
 
-}  // namespace shared
-}  // namespace android
-}  // namespace starboard
+}  // namespace starboard::android::shared
 
 #endif  // STARBOARD_ANDROID_SHARED_AUDIO_TRACK_BRIDGE_H_

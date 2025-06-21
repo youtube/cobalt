@@ -16,14 +16,14 @@
 #define STARBOARD_SHARED_STARBOARD_PLAYER_VIDEO_DMP_READER_H_
 
 #include <map>
+#include <mutex>
 #include <string>
 #include <utility>
 #include <vector>
 
+#include <optional>
 #include "starboard/common/file.h"
 #include "starboard/common/log.h"
-#include "starboard/common/mutex.h"
-#include "starboard/common/optional.h"
 #include "starboard/common/ref_counted.h"
 #include "starboard/media.h"
 #include "starboard/player.h"
@@ -32,11 +32,7 @@
 #include "starboard/shared/starboard/player/file_cache_reader.h"
 #include "starboard/shared/starboard/player/video_dmp_common.h"
 
-namespace starboard {
-namespace shared {
-namespace starboard {
-namespace player {
-namespace video_dmp {
+namespace starboard::shared::starboard::player::video_dmp {
 
 class VideoDmpReader {
  public:
@@ -156,7 +152,7 @@ class VideoDmpReader {
     void Register(const std::string& filename, const DmpInfo& dmp_info);
 
    private:
-    Mutex mutex_;
+    mutable std::mutex mutex_;
     std::map<std::string, DmpInfo> dmp_infos_;
   };
 
@@ -178,16 +174,12 @@ class VideoDmpReader {
   ReadCB read_cb_;
   DmpInfo dmp_info_;
 
-  optional<bool> reverse_byte_order_;
+  std::optional<bool> reverse_byte_order_;
 
   std::vector<AudioAccessUnit> audio_access_units_;
   std::vector<VideoAccessUnit> video_access_units_;
 };
 
-}  // namespace video_dmp
-}  // namespace player
-}  // namespace starboard
-}  // namespace shared
-}  // namespace starboard
+}  // namespace starboard::shared::starboard::player::video_dmp
 
 #endif  // STARBOARD_SHARED_STARBOARD_PLAYER_VIDEO_DMP_READER_H_

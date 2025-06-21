@@ -29,16 +29,18 @@
 #include "starboard/shared/starboard/queue_application.h"
 #include "starboard/types.h"
 
-namespace starboard {
-namespace android {
-namespace shared {
+namespace starboard::android::shared {
 
 using ::starboard::CommandLine;
 
 class ApplicationAndroid
     : public ::starboard::shared::starboard::QueueApplication {
  public:
-  ApplicationAndroid(std::unique_ptr<CommandLine> command_line);
+  ApplicationAndroid(std::unique_ptr<CommandLine> command_line,
+                     ScopedJavaGlobalRef<jobject> asset_manager,
+                     const std::string& files_dir,
+                     const std::string& cache_dir,
+                     const std::string& native_library_dir);
   ~ApplicationAndroid();
 
   static ApplicationAndroid* Get() {
@@ -66,8 +68,6 @@ class ApplicationAndroid
   int64_t app_start_timestamp_ = 0;
 };
 
-}  // namespace shared
-}  // namespace android
-}  // namespace starboard
+}  // namespace starboard::android::shared
 
 #endif  // STARBOARD_ANDROID_SHARED_APPLICATION_ANDROID_H_

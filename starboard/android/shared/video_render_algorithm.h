@@ -22,9 +22,7 @@
 #include "starboard/common/mutex.h"
 #include "starboard/shared/starboard/player/filter/video_render_algorithm.h"
 
-namespace starboard {
-namespace android {
-namespace shared {
+namespace starboard::android::shared {
 
 class VideoRenderAlgorithm : public ::starboard::shared::starboard::player::
                                  filter::VideoRenderAlgorithm {
@@ -64,8 +62,6 @@ class VideoRenderAlgorithm : public ::starboard::shared::starboard::player::
   int frames_processed_since_last_update_ = 0;
 };
 
-}  // namespace shared
-}  // namespace android
-}  // namespace starboard
+}  // namespace starboard::android::shared
 
 #endif  // STARBOARD_ANDROID_SHARED_VIDEO_RENDER_ALGORITHM_H_

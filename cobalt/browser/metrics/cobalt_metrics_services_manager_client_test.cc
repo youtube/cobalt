@@ -24,6 +24,7 @@
 #include "base/test/task_environment.h"
 #include "cobalt/browser/metrics/cobalt_enabled_state_provider.h"
 #include "cobalt/browser/metrics/cobalt_metrics_service_client.h"
+#include "cobalt/shell/browser/shell_paths.h"
 #include "components/metrics/metrics_pref_names.h"
 #include "components/metrics/metrics_service.h"
 #include "components/metrics/metrics_state_manager.h"
@@ -32,7 +33,6 @@
 #include "components/prefs/testing_pref_service.h"
 #include "components/variations/service/variations_service.h"
 #include "components/variations/synthetic_trial_registry.h"
-#include "content/shell/browser/shell_paths.h"
 #include "services/network/public/cpp/shared_url_loader_factory.h"
 #include "testing/gmock/include/gmock/gmock.h"
 #include "testing/gtest/include/gtest/gtest.h"
@@ -50,7 +50,7 @@ class CobaltMetricsServicesManagerClientTest : public ::testing::Test {
     temp_dir_.CreateUniqueTempDir();
 
     path_override_ = std::make_unique<base::ScopedPathOverride>(
-        content::SHELL_DIR_USER_DATA, temp_dir_.GetPath());
+        base::DIR_CACHE, temp_dir_.GetPath());
 
     metrics::MetricsService::RegisterPrefs(prefs_.registry());
     // Add any other prefs that might be accessed.

@@ -27,45 +27,90 @@ using starboard::shared::starboard::IsInitialized;
 using starboard::shared::starboard::SetInitialized;
 
 typedef struct PosixMutexPrivate {
-  InitializedState initialized_state;
+  // The underlying platform variable handle. Should always be the
+  // first field to avoid alignment issues.
   pthread_mutex_t mutex;
+  InitializedState initialized_state;
 } PosixMutexPrivate;
+
+static_assert(sizeof(musl_pthread_mutex_t) >= sizeof(PosixMutexPrivate),
+              "sizeof(musl_pthread_mutex_t) must be larger or equal to "
+              "sizeof(PosixMutexPrivate)");
 
 typedef struct PosixMutexAttrPrivate {
   pthread_mutexattr_t mutex_attr;
 } PosixMutexAttrPrivate;
 
+static_assert(sizeof(musl_pthread_mutexattr_t) >= sizeof(PosixMutexAttrPrivate),
+              "sizeof(musl_pthread_mutexattr_t) must be larger or equal to "
+              "sizeof(PosixMutexAttrPrivate)");
+
 typedef struct PosixCondPrivate {
-  InitializedState initialized_state;
+  // The underlying platform variable handle. Should always be the
+  // first field to avoid alignment issues.
   pthread_cond_t cond;
+  InitializedState initialized_state;
 } PosixCondPrivate;
+
+static_assert(sizeof(musl_pthread_cond_t) >= sizeof(PosixCondPrivate),
+              "sizeof(musl_pthread_cond_t) must be larger or equal to "
+              "sizeof(PosixCondPrivate)");
 
 typedef struct PosixCondAttrPrivate {
   pthread_condattr_t cond_attr;
 } PosixCondAttrPrivate;
 
+static_assert(sizeof(musl_pthread_condattr_t) >= sizeof(PosixCondAttrPrivate),
+              "sizeof(musl_pthread_condattr_t) must be larger or equal to "
+              "sizeof(PosixCondAttrPrivate)");
+
 typedef struct PosixAttrPrivate {
   pthread_attr_t attr;
 } PosixAttrPrivate;
 
+static_assert(sizeof(musl_pthread_attr_t) >= sizeof(PosixAttrPrivate),
+              "sizeof(musl_pthread_attr_t) must be larger or equal to "
+              "sizeof(PosixAttrPrivate)");
+
 typedef struct PosixOncePrivate {
-  InitializedState initialized_state;
+  // The underlying platform variable handle. Should always be the
+  // first field to avoid alignment issues.
   pthread_once_t once;
+  InitializedState initialized_state;
 } PosixOncePrivate;
+
+static_assert(sizeof(musl_pthread_once_t) >= sizeof(PosixOncePrivate),
+              "sizeof(musl_pthread_once_t) must be larger or equal to "
+              "sizeof(PosixOncePrivate)");
 
 typedef struct PosixThreadLocalKeyPrivate {
   // The underlying thread-local variable handle.
   pthread_key_t key;
 } PosixThreadLocalKeyPrivate;
 
+static_assert(sizeof(musl_pthread_key_t) >= sizeof(PosixThreadLocalKeyPrivate),
+              "sizeof(musl_pthread_key_t) must be larger or equal to "
+              "sizeof(PosixThreadLocalKeyPrivate)");
+
 typedef struct PosixRwLockPrivate {
-  InitializedState initialized_state;
+  // The underlying platform variable handle. Should always be the
+  // first field to avoid alignment issues.
   pthread_rwlock_t rwlock;
+  InitializedState initialized_state;
 } PosixRwLockPrivate;
+
+static_assert(sizeof(musl_pthread_rwlock_t) >= sizeof(PosixRwLockPrivate),
+              "sizeof(musl_pthread_rwlock_t) must be larger or equal to "
+              "sizeof(PosixRwLockPrivate)");
 
 typedef struct PosixRwLockAttrPrivate {
   pthread_rwlockattr_t rwlock_attr;
 } PosixRwLockAttrPrivate;
+
+static_assert(sizeof(musl_pthread_rwlockattr_t) >=
+                  sizeof(PosixRwLockAttrPrivate),
+              "sizeof(musl_pthread_rwlockattr_t) must be larger or equal to "
+              "sizeof(PosixRwLockAttrPrivate)");
 
 #define INTERNAL_MUTEX(mutex_var) \
   reinterpret_cast<PosixMutexPrivate*>((mutex_var)->mutex_buffer)
@@ -303,13 +348,16 @@ int __abi_wrap_pthread_condattr_destroy(musl_pthread_condattr_t* attr) {
 
 int __abi_wrap_pthread_condattr_getclock(const musl_pthread_condattr_t* attr,
                                          clockid_t* clock_id) {
-  if (!attr) {
+  if (!attr || !clock_id) {
     return MUSL_EINVAL;
   }
 
   int ret = pthread_condattr_getclock(
       CONST_PTHREAD_INTERNAL_CONDITION_ATTR(attr), clock_id);
   *clock_id = clock_id_to_musl_clock_id(*clock_id);
+  if (!ret && *clock_id == MUSL_CLOCK_INVALID) {
+    return MUSL_EINVAL;
+  }
   return errno_to_musl_errno(ret);
 }
 
@@ -328,6 +376,9 @@ int __abi_wrap_pthread_condattr_setclock(musl_pthread_condattr_t* attr,
   }
 
   clock_id = musl_clock_id_to_clock_id(clock_id);
+  if (clock_id == MUSL_CLOCK_INVALID) {
+    return MUSL_EINVAL;
+  }
   int ret = pthread_condattr_setclock(PTHREAD_INTERNAL_CONDITION_ATTR(attr),
                                       clock_id);
   return errno_to_musl_errno(ret);
@@ -340,8 +391,8 @@ int __abi_wrap_pthread_once(musl_pthread_once_t* once_control,
   }
 
   if (!EnsureInitialized(&(INTERNAL_ONCE(once_control)->initialized_state))) {
-    init_routine();
     SetInitialized(&(INTERNAL_ONCE(once_control)->initialized_state));
+    init_routine();
   }
   return 0;
 }
@@ -739,15 +790,15 @@ int __abi_wrap_pthread_rwlock_init(
     return MUSL_EINVAL;
   }
 
+  *PTHREAD_INTERNAL_RWLOCK(rwlock) = PTHREAD_RWLOCK_INITIALIZER;
+  SetInitialized(&(INTERNAL_RWLOCK(rwlock)->initialized_state));
+
   const pthread_rwlockattr_t* tmp = nullptr;
   if (attr) {
     tmp = CONST_PTHREAD_INTERNAL_RWLOCK_ATTR(attr);
   }
 
   const int ret = pthread_rwlock_init(PTHREAD_INTERNAL_RWLOCK(rwlock), tmp);
-  if (ret == 0) {
-    SetInitialized(&(INTERNAL_RWLOCK(rwlock)->initialized_state));
-  }
   return errno_to_musl_errno(ret);
 }
 
@@ -772,10 +823,7 @@ int __abi_wrap_pthread_rwlock_rdlock(musl_pthread_rwlock_t* rwlock) {
 
   // Ensure the rwlock is initialized. If not, lazily initialize it.
   if (!EnsureInitialized(&(INTERNAL_RWLOCK(rwlock)->initialized_state))) {
-    // If initialization fails, return an error.
-    if (pthread_rwlock_init(PTHREAD_INTERNAL_RWLOCK(rwlock), NULL) != 0) {
-      return MUSL_EINVAL;
-    }
+    *PTHREAD_INTERNAL_RWLOCK(rwlock) = PTHREAD_RWLOCK_INITIALIZER;
     SetInitialized(&(INTERNAL_RWLOCK(rwlock)->initialized_state));
   }
 
@@ -790,10 +838,7 @@ int __abi_wrap_pthread_rwlock_wrlock(musl_pthread_rwlock_t* rwlock) {
 
   // Ensure the rwlock is initialized. If not, lazily initialize it.
   if (!EnsureInitialized(&(INTERNAL_RWLOCK(rwlock)->initialized_state))) {
-    // If initialization fails, return an error.
-    if (pthread_rwlock_init(PTHREAD_INTERNAL_RWLOCK(rwlock), NULL) != 0) {
-      return MUSL_EINVAL;
-    }
+    *PTHREAD_INTERNAL_RWLOCK(rwlock) = PTHREAD_RWLOCK_INITIALIZER;
     SetInitialized(&(INTERNAL_RWLOCK(rwlock)->initialized_state));
   }
 
@@ -822,10 +867,7 @@ int __abi_wrap_pthread_rwlock_tryrdlock(musl_pthread_rwlock_t* rwlock) {
 
   // Ensure the rwlock is initialized. If not, lazily initialize it.
   if (!EnsureInitialized(&(INTERNAL_RWLOCK(rwlock)->initialized_state))) {
-    // If initialization fails, return an error.
-    if (pthread_rwlock_init(PTHREAD_INTERNAL_RWLOCK(rwlock), NULL) != 0) {
-      return MUSL_EINVAL;
-    }
+    *PTHREAD_INTERNAL_RWLOCK(rwlock) = PTHREAD_RWLOCK_INITIALIZER;
     SetInitialized(&(INTERNAL_RWLOCK(rwlock)->initialized_state));
   }
 
@@ -840,10 +882,7 @@ int __abi_wrap_pthread_rwlock_trywrlock(musl_pthread_rwlock_t* rwlock) {
 
   // Ensure the rwlock is initialized. If not, lazily initialize it.
   if (!EnsureInitialized(&(INTERNAL_RWLOCK(rwlock)->initialized_state))) {
-    // If initialization fails, return an error.
-    if (pthread_rwlock_init(PTHREAD_INTERNAL_RWLOCK(rwlock), NULL) != 0) {
-      return MUSL_EINVAL;
-    }
+    *PTHREAD_INTERNAL_RWLOCK(rwlock) = PTHREAD_RWLOCK_INITIALIZER;
     SetInitialized(&(INTERNAL_RWLOCK(rwlock)->initialized_state));
   }
 

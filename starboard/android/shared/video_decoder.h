@@ -17,6 +17,7 @@
 
 #include <atomic>
 #include <memory>
+#include <optional>
 #include <string>
 #include <vector>
 
@@ -28,7 +29,6 @@
 #include "starboard/android/shared/video_frame_tracker.h"
 #include "starboard/android/shared/video_window.h"
 #include "starboard/common/condition_variable.h"
-#include "starboard/common/optional.h"
 #include "starboard/common/ref_counted.h"
 #include "starboard/decode_target.h"
 #include "starboard/media.h"
@@ -41,9 +41,7 @@
 #include "starboard/shared/starboard/player/input_buffer_internal.h"
 #include "starboard/shared/starboard/player/job_queue.h"
 
-namespace starboard {
-namespace android {
-namespace shared {
+namespace starboard::android::shared {
 
 class VideoDecoder
     : public ::starboard::shared::starboard::player::filter::VideoDecoder,
@@ -73,6 +71,8 @@ class VideoDecoder
                bool force_big_endian_hdr_metadata,
                int max_input_size,
                bool enable_flush_during_seek,
+               int64_t reset_delay_usec,
+               int64_t flush_delay_usec,
                std::string* error_message);
   ~VideoDecoder() override;
 
@@ -120,6 +120,7 @@ class VideoDecoder
   void TryToSignalPrerollForTunnelMode();
   bool IsFrameRenderedCallbackEnabled();
   void OnFrameRendered(int64_t frame_timestamp);
+  void OnFirstTunnelFrameReady();
   void OnTunnelModePrerollTimeout();
   void OnTunnelModeCheckForNeedMoreInput();
 
@@ -154,6 +155,8 @@ class VideoDecoder
   const int max_video_input_size_;
 
   const bool enable_flush_during_seek_;
+  const int64_t reset_delay_usec_;
+  const int64_t flush_delay_usec_;
 
   // Force resetting the video surface after every playback.
   const bool force_reset_surface_;
@@ -194,7 +197,7 @@ class VideoDecoder
   double playback_rate_ = 1.0;
 
   // The last enqueued |SbMediaColorMetadata|.
-  optional<SbMediaColorMetadata> color_metadata_;
+  std::optional<SbMediaColorMetadata> color_metadata_;
 
   std::unique_ptr<MediaDecoder> media_decoder_;
 
@@ -223,12 +226,10 @@ class VideoDecoder
   int buffered_output_frames_ = 0;
   int max_buffered_output_frames_ = 0;
   bool first_output_format_changed_ = false;
-  optional<VideoOutputFormat> output_format_;
+  std::optional<VideoOutputFormat> output_format_;
   size_t number_of_preroll_frames_;
 };
 
-}  // namespace shared
-}  // namespace android
-}  // namespace starboard
+}  // namespace starboard::android::shared
 
 #endif  // STARBOARD_ANDROID_SHARED_VIDEO_DECODER_H_

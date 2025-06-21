@@ -16,17 +16,15 @@
 
 #include <cstring>
 #include <map>
+#include <mutex>
 #include <string>
 
 #include "starboard/common/log.h"
-#include "starboard/common/mutex.h"
+
 #include "starboard/common/once.h"
 #include "starboard/media.h"
 
-namespace starboard {
-namespace shared {
-namespace starboard {
-namespace media {
+namespace starboard::shared::starboard::media {
 
 namespace {
 
@@ -37,7 +35,7 @@ class KeySystemSupportabilityContainer {
     SB_DCHECK(key_system);
     SB_DCHECK(strlen(key_system) > 0);
 
-    ScopedLock scoped_lock(mutex_);
+    std::scoped_lock scoped_lock(mutex_);
     auto map_iter = key_system_supportabilities_.find(codec);
     if (map_iter == key_system_supportabilities_.end()) {
       return kSupportabilityUnknown;
@@ -57,19 +55,19 @@ class KeySystemSupportabilityContainer {
     SB_DCHECK(strlen(key_system) > 0);
     SB_DCHECK(supportability != kSupportabilityUnknown);
 
-    ScopedLock scoped_lock(mutex_);
+    std::scoped_lock scoped_lock(mutex_);
     key_system_supportabilities_[codec][key_system] = supportability;
   }
 
   void ClearContainer() {
-    ScopedLock scoped_lock(mutex_);
+    std::scoped_lock scoped_lock(mutex_);
     key_system_supportabilities_.clear();
   }
 
  private:
   typedef std::map<std::string, Supportability> KeySystemToSupportabilityMap;
 
-  Mutex mutex_;
+  std::mutex mutex_;
   std::map<T, KeySystemToSupportabilityMap> key_system_supportabilities_;
 };
 
@@ -163,7 +161,4 @@ void KeySystemSupportabilityCache::ClearCache() {
   GetContainer<SbMediaVideoCodec>()->ClearContainer();
 }
 
-}  // namespace media
-}  // namespace starboard
-}  // namespace shared
-}  // namespace starboard
+}  // namespace starboard::shared::starboard::media

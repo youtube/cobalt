@@ -72,6 +72,26 @@
 #define EGL_PLATFORM_ANGLE_TYPE_OPENGLES_ANGLE 0x320E
 #endif /* EGL_ANGLE_platform_angle_opengl */
 
+#if !defined(EGL_VERSION_1_5)
+// Lifted verbatim from egl.h.
+#if defined(_WIN32) && !defined(_WIN32_WCE) && !defined(__SCITECH_SNAP__)
+/* Win32 but not WinCE */
+#define KHRONOS_APIENTRY __stdcall
+#else
+#define KHRONOS_APIENTRY
+#endif
+
+#ifndef EGLAPIENTRY
+#define EGLAPIENTRY KHRONOS_APIENTRY
+#endif
+#define EGLAPIENTRYP EGLAPIENTRY*
+
+typedef SbEglDisplay(EGLAPIENTRYP PFNEGLGETPLATFORMDISPLAYEXTPROC)(
+    SbEglEnum platform,
+    void* native_display,
+    const EGLint* attrib_list);
+#endif  // !defined(EGL_VERSION_1_5)
+
 #define EGL_CALL(x)                                          \
   do {                                                       \
     EGL_CALL_PREFIX x;                                       \
@@ -172,18 +192,36 @@ void FakeGraphicsContextProvider::InitializeWindow() {
 }
 
 void FakeGraphicsContextProvider::InitializeEGL() {
+#if !defined(EGL_VERSION_1_5)
+  std::vector<EGLint> display_attribs = {
+#else
   std::vector<SbEglAttrib> display_attribs = {
-      EGL_PLATFORM_ANGLE_DEVICE_TYPE_ANGLE,
-      EGL_PLATFORM_ANGLE_DEVICE_TYPE_EGL_ANGLE, EGL_PLATFORM_ANGLE_TYPE_ANGLE,
-      EGL_PLATFORM_ANGLE_TYPE_OPENGLES_ANGLE,
-      EGL_NONE  // Terminate the attribute list
+#endif  // !defined(EGL_VERSION_1_5)
+    EGL_PLATFORM_ANGLE_DEVICE_TYPE_ANGLE,
+    EGL_PLATFORM_ANGLE_DEVICE_TYPE_EGL_ANGLE,
+    EGL_PLATFORM_ANGLE_TYPE_ANGLE,
+    EGL_PLATFORM_ANGLE_TYPE_OPENGLES_ANGLE,
+    EGL_NONE  // Terminate the attribute list
   };
 #if BUILDFLAG(IS_ANDROID)
   display_ = EGL_CALL_SIMPLE(eglGetDisplay(EGL_DEFAULT_DISPLAY));
 #else
+#if !defined(EGL_VERSION_1_5)
+  // Manually retrieve the eglGetPlatformDisplayEXT function pointer.
+  // This allows us to use the display platform extension without enforcing
+  // full EGL 1.5 compliance.
+  PFNEGLGETPLATFORMDISPLAYEXTPROC eglGetPlatformDisplayEXT_func =
+      reinterpret_cast<PFNEGLGETPLATFORMDISPLAYEXTPROC>(
+          EGL_CALL_SIMPLE(eglGetProcAddress("eglGetPlatformDisplayEXT")));
+  SB_CHECK(eglGetPlatformDisplayEXT_func);
+  display_ = eglGetPlatformDisplayEXT_func(
+      EGL_PLATFORM_ANGLE_ANGLE, reinterpret_cast<void*>(EGL_DEFAULT_DISPLAY),
+      display_attribs.data());
+#else
   display_ = EGL_CALL_SIMPLE(eglGetPlatformDisplay(
       EGL_PLATFORM_ANGLE_ANGLE, reinterpret_cast<void*>(EGL_DEFAULT_DISPLAY),
       display_attribs.data()));
+#endif  // !defined(EGL_VERSION_1_5)
 #endif  // BUILDFLAG(IS_ANDROID)
 
   SB_DCHECK(EGL_SUCCESS == EGL_CALL_SIMPLE(eglGetError()));

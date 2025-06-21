@@ -1,0 +1,137 @@
+name: Diff from Chromium branches
+permissions:
+  contents: read
+on:
+  workflow_dispatch:
+    inputs:
+      upstream_branches:
+        description: 'List of Chromium branches to diff from (comma separated).'
+        required: true
+        type: string
+      downstream_branch:
+        description: 'Name of the branch to perform the diff with.'
+        required: true
+        type: string
+  pull_request:
+    types:
+      - labeled
+      - synchronize
+jobs:
+  initialize:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 1
+      - name: Set upstream branches
+        id: set-upstream-branches
+        env:
+          PR_LABELS: ${{ toJson(github.event.pull_request.labels) }}
+          UPSTREAM_BRANCHES: ${{ inputs.upstream_branches }}
+        shell: bash
+        run: |
+          set -eux
+          # If upstream branches are provided as input, we are manually triggered
+          if [[ -n "${UPSTREAM_BRANCHES}" ]]; then
+            # If manually triggered, get branches from comma-separated branches from inputs
+            export DIFF_LABELS=$(echo "$UPSTREAM_BRANCHES" | jq -R 'split(",") | map(trim)')
+          else
+            # If label or synchronize Get the upstream branches from labels prefixed with $DIFF_PREFIX
+            DIFF_PREFIX=$(cat ${GITHUB_WORKSPACE}/.github/config/chromium_diffing.json | jq -r '.diff_label_prefix')
+            export DIFF_LABELS=$(echo "$PR_LABELS" | jq -c --arg prefix "$DIFF_PREFIX" '.[] | select(.name | startswith($prefix)) | .name | sub($prefix; "")')
+          fi
+          # Selected all branches objects in the chromium_diffing.json that match the diff labels
+          JQ_QUERY="[.stable_branches[] as $branch | select($diff_labels | IN($branch))]"
+          UPSTREAM_BRANCHES=$(cat ${GITHUB_WORKSPACE}/.github/config/chromium_diffing.json | jq -c -argjson diff_labels "$DIFF_LABELS" "${JQ_QUERY}")
+          echo "upstream_branches=${UPSTREAM_BRANCHES}" >> $GITHUB_OUTPUT
+      - name: Set downstream branch
+        id: set-downstream-branch
+        env:
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+          EVENT_ACTION: ${{ github.event.action }}
+        shell: bash
+        run: |
+          set -eux
+          if [[ -n "${{ inputs.downstream_branch }}" ]]; then
+            # Get the trimmed downstream branch directly from inputs
+            DOWNSTREAM_BRANCH=${{ trim(inputs.downstream_branch, ' ') }}
+          else
+            # Get the downstream branch from the labelled PR
+            DOWNSTREAM_BRANCH="${{ github.ref }}"
+          fi
+          echo "downstream_branch=${DOWNSTREAM_BRANCH}" >> $GITHUB_OUTPUT
+      - name: Set code ownership
+        id: set-code-ownership
+        shell: bash
+        run: |
+          set -eux
+          CODE_OWNERSHIP=$(cat ${GITHUB_WORKSPACE}/.github/config/chromium_diffing.json | jq -c .code_ownership)
+          echo "code_ownership=${CODE_OWNERSHIP}" >> $GITHUB_OUTPUT
+    outputs:
+      upstream_branches: ${{ fromJson(steps.set-upstream-branches.outputs.upstream_branches) }}
+      downstream_branch: ${{ steps.set-downstream-branch.outputs.downstream_branch }}
+      code_ownership: ${{ steps.set-code-ownership.outputs.code_ownership }}
+  calculate_diffs:
+    needs: [initialize]
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        upstream_branch: ${{ needs.initialize.outputs.upstream_branches }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: chromium/${{ matrix.upstream_branch.milestone }}
+      - name: Calculate main diff (excluding cobalt-owned folders)
+        env:
+          DOWNSTREAM_REF: ${{ needs.initialize.outputs.downstream_branch }}
+          CODE_OWNERSHIP: ${{ needs.initialize.outputs.code_ownership }}
+        run: |
+          set -eux
+          git fetch origin "$DOWNSTREAM_REF"
+          git config set diff.renameLimit 100000
+          EXCLUDE_PATHS_FOR_MAIN_DIFF=$(echo "$CODE_OWNERSHIP" | jq -r '
+            .ours +
+            .our_files +
+            .our_owned_dep +
+            .our_added_dep +
+            .our_deleted_dep +
+            .updated
+            | map(":(exclude)" + .) | .[]
+          ')
+          # Diff downstream to checked out branch (upstream)
+          readarray -t EXCLUDE_PATHS_ARRAY <<< "$EXCLUDE_PATHS_FOR_MAIN_DIFF"
+          git diff HEAD..FETCH_HEAD -- . "${EXCLUDE_PATHS_ARRAY[@]}" > main_diff.diff
+      - name: Check for downstream deletions in excluded folders
+        env:
+          DOWNSTREAM_REF: ${{ needs.initialize.outputs.downstream_branch }}
+          CODE_OWNERSHIP: ${{ needs.initialize.outputs.code_ownership }}
+        run: |
+          set -eux
+          DOWNSTREAM_OWNED_FOLDER_TO_CHECK=$(echo "$CODE_OWNERSHIP" | jq -r '
+            .ours +
+            .our_files +
+            .our_owned_dep +
+            .our_added_dep +
+            .updated
+            | .[]
+          ')
+          readarray -t PATHS_TO_CHECK_ARRAY <<< "$DOWNSTREAM_OWNED_FOLDER_TO_CHECK"
+          git diff --diff-filter=D HEAD..FETCH_HEAD -- ${PATHS_TO_CHECK_ARRAY[@]} > downstream_removal.diff
+      - name: Report Diffs
+        run: |
+          apt-get update
+          apt-get install -y diffstat
+          echo "This is will be replaced with proper logging later"
+          echo "--------------------------------------------------"
+          echo "SUMMARY OF MAIN DIFFS"
+          echo "--------------------------------------------------"
+          echo ""
+          diffstat main_diff.diff
+          echo ""
+          echo "--------------------------------------------------"
+          echo "SUMMARY OF ADDED DIFFS"
+          echo "--------------------------------------------------"
+          echo ""
+          diffstat downstream_removal.diff

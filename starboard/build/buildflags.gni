@@ -2,7 +2,6 @@ import("//cobalt/build/configs/cobalt.gni")
 
 declare_args() {
   use_starboard_media = is_cobalt && current_toolchain != host_toolchain
-  use_evergreen = false
 }
 
 # Differentiates our 1P ATV platform from 3P AOSP.

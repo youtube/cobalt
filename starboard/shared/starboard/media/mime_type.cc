@@ -26,10 +26,7 @@
 #include "starboard/common/log.h"
 #include "starboard/common/string.h"
 
-namespace starboard {
-namespace shared {
-namespace starboard {
-namespace media {
+namespace starboard::shared::starboard::media {
 
 namespace {
 
@@ -394,7 +391,4 @@ std::string MimeType::ToString() const {
   return ss.str();
 }
 
-}  // namespace media
-}  // namespace starboard
-}  // namespace shared
-}  // namespace starboard
+}  // namespace starboard::shared::starboard::media

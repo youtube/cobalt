@@ -15,7 +15,7 @@
 #include "third_party/blink/renderer/modules/cobalt/h5vcc_experiments/h_5_vcc_experiments.h"
 
 #include "base/values.h"
-#include "cobalt/browser/cobalt_experiment_names.h"
+#include "cobalt/browser/constants/cobalt_experiment_names.h"
 #include "cobalt/browser/h5vcc_experiments/public/mojom/h5vcc_experiments.mojom-blink.h"
 #include "third_party/blink/renderer/bindings/core/v8/script_promise.h"
 #include "third_party/blink/renderer/bindings/core/v8/script_promise_resolver.h"
@@ -23,6 +23,7 @@
 #include "third_party/blink/renderer/bindings/modules/v8/v8_experiment_configuration.h"
 #include "third_party/blink/renderer/bindings/modules/v8/v8_override_state.h"
 #include "third_party/blink/renderer/core/frame/local_dom_window.h"
+#include "third_party/blink/renderer/modules/cobalt/h5vcc_experiments/experiments_utils.h"
 
 namespace blink {
 
@@ -42,58 +43,19 @@ ScriptPromise H5vccExperiments::setExperimentState(
 
   EnsureReceiverIsBound();
 
-  if (!experiment_configuration->hasFeatures() ||
-      !experiment_configuration->hasFeatureParams() ||
-      !experiment_configuration->hasExperimentIds()) {
-    resolver->RejectWithDOMException(DOMExceptionCode::kInvalidStateError,
-                                     "Incomplete experiment configuration.");
+  std::optional<base::Value::Dict> experiment_config_dict =
+      ParseConfigToDictionary(experiment_configuration);
+
+  if (!experiment_config_dict.has_value()) {
+    resolver->RejectWithDOMException(
+        DOMExceptionCode::kInvalidStateError,
+        "Unable to parse experiment configuration.");
     return promise;
   }
 
-  base::Value::Dict experiment_config_dict;
-
-  base::Value::Dict features;
-  for (auto& feature_name_and_value : experiment_configuration->features()) {
-    features.Set(feature_name_and_value.first.Utf8(),
-                 feature_name_and_value.second);
-  }
-  experiment_config_dict.Set(cobalt::kExperimentConfigFeatures,
-                             std::move(features));
-
-  // All FieldTrialParams are stored as strings, including booleans.
-  base::Value::Dict feature_params;
-  std::string param_value;
-  for (auto& param_name_and_value : experiment_configuration->featureParams()) {
-    if (param_name_and_value.second->IsString()) {
-      param_value = param_name_and_value.second->GetAsString().Utf8();
-    } else if (param_name_and_value.second->IsLong()) {
-      param_value = std::to_string(param_name_and_value.second->GetAsLong());
-    } else if (param_name_and_value.second->GetAsBoolean()) {
-      param_value = "true";
-    } else if (!param_name_and_value.second->GetAsBoolean()) {
-      param_value = "false";
-    } else {
-      // TODO (b/416323107) - In thoery this never gets executed because
-      // wrong types are implicitly converted. We need to enforce the typing
-      // from the callsite.
-      resolver->RejectWithDOMException(DOMExceptionCode::kInvalidStateError,
-                                       "Invalid feature param type.");
-      return promise;
-    }
-    feature_params.Set(param_name_and_value.first.Utf8(), param_value);
-  }
-  experiment_config_dict.Set(cobalt::kExperimentConfigFeatureParams,
-                             std::move(feature_params));
-
-  base::Value::List experiment_ids;
-  for (int exp_id : experiment_configuration->experimentIds()) {
-    experiment_ids.Append(exp_id);
-  }
-  experiment_config_dict.Set(cobalt::kExperimentConfigExpIds,
-                             std::move(experiment_ids));
-
+  ongoing_requests_.insert(resolver);
   remote_h5vcc_experiments_->SetExperimentState(
-      std::move(experiment_config_dict),
+      std::move(experiment_config_dict.value()),
       WTF::BindOnce(&H5vccExperiments::OnSetExperimentState,
                     WrapPersistent(this), WrapPersistent(resolver)));
 
@@ -108,6 +70,7 @@ ScriptPromise H5vccExperiments::resetExperimentState(
 
   EnsureReceiverIsBound();
 
+  ongoing_requests_.insert(resolver);
   remote_h5vcc_experiments_->ResetExperimentState(
       WTF::BindOnce(&H5vccExperiments::OnResetExperimentState,
                     WrapPersistent(this), WrapPersistent(resolver)));
@@ -148,11 +111,25 @@ const String& H5vccExperiments::getFeatureParam(
 }
 
 void H5vccExperiments::OnSetExperimentState(ScriptPromiseResolver* resolver) {
+  ongoing_requests_.erase(resolver);
   resolver->Resolve();
 }
 
 void H5vccExperiments::OnResetExperimentState(ScriptPromiseResolver* resolver) {
+  ongoing_requests_.erase(resolver);
   resolver->Resolve();
+}
+
+void H5vccExperiments::OnConnectionError() {
+  remote_h5vcc_experiments_.reset();
+  HeapHashSet<Member<ScriptPromiseResolver>> h5vcc_experiments_promises;
+  // Script may execute during a call to Resolve(). Swap these sets to prevent
+  // concurrent modification.
+  ongoing_requests_.swap(h5vcc_experiments_promises);
+  for (auto& resolver : h5vcc_experiments_promises) {
+    resolver->Reject("Mojo connection error.");
+  }
+  ongoing_requests_.clear();
 }
 
 void H5vccExperiments::EnsureReceiverIsBound() {
@@ -166,10 +143,13 @@ void H5vccExperiments::EnsureReceiverIsBound() {
       GetExecutionContext()->GetTaskRunner(TaskType::kMiscPlatformAPI);
   GetExecutionContext()->GetBrowserInterfaceBroker().GetInterface(
       remote_h5vcc_experiments_.BindNewPipeAndPassReceiver(task_runner));
+  remote_h5vcc_experiments_.set_disconnect_handler(WTF::BindOnce(
+      &H5vccExperiments::OnConnectionError, WrapWeakPersistent(this)));
 }
 
 void H5vccExperiments::Trace(Visitor* visitor) const {
   visitor->Trace(remote_h5vcc_experiments_);
+  visitor->Trace(ongoing_requests_);
   ExecutionContextLifecycleObserver::Trace(visitor);
   ScriptWrappable::Trace(visitor);
 }

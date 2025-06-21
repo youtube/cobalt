@@ -21,9 +21,7 @@
 #include "base/android/scoped_java_ref.h"
 #include "base/memory/singleton.h"
 
-namespace starboard {
-namespace android {
-namespace shared {
+namespace starboard::android::shared {
 
 // TODO: (cobalt b/372559388) Update namespace to jni_zero.
 using base::android::JavaParamRef;
@@ -57,20 +55,6 @@ class StarboardBridge {
 
   void RequestSuspend(JNIEnv* env);
 
-  ScopedJavaLocalRef<jobject> GetApplicationContext(JNIEnv* env);
-
-  ScopedJavaGlobalRef<jobject> GetAssetsFromContext(
-      JNIEnv* env,
-      ScopedJavaLocalRef<jobject>& context);
-
-  std::string GetNativeLibraryDirFromContext(
-      JNIEnv* env,
-      ScopedJavaLocalRef<jobject>& context);
-
-  std::string GetFilesAbsolutePath(JNIEnv* env);
-
-  std::string GetCacheAbsolutePath(JNIEnv* env);
-
   ScopedJavaLocalRef<jobject> GetTextToSpeechHelper(JNIEnv* env);
 
   std::string GetAdvertisingId(JNIEnv* env);
@@ -88,6 +72,15 @@ class StarboardBridge {
 
   void ReportFullyDrawn(JNIEnv* env);
 
+  bool IsMicrophoneDisconnected(JNIEnv* env);
+  bool IsMicrophoneMute(JNIEnv* env);
+  ScopedJavaLocalRef<jobject> GetAudioPermissionRequester(JNIEnv* env);
+
+  void ResetVideoSurface(JNIEnv* env);
+  void SetVideoSurfaceBounds(JNIEnv* env, int x, int y, int width, int height);
+
+  ScopedJavaLocalRef<jobject> GetAudioOutputManager(JNIEnv* env);
+
  private:
   StarboardBridge() = default;
   ~StarboardBridge() = default;
@@ -102,8 +95,6 @@ class StarboardBridge {
   ScopedJavaGlobalRef<jobject> j_starboard_bridge_;
 };
 
-}  // namespace shared
-}  // namespace android
-}  // namespace starboard
+}  // namespace starboard::android::shared
 
 #endif  // STARBOARD_ANDROID_SHARED_STARBOARD_BRIDGE_H_

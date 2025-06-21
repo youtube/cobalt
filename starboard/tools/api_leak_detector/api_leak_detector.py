@@ -46,7 +46,9 @@ import re
 import subprocess
 import sys
 
-from starboard.tools import paths
+sys.path.append(os.path.join(os.path.dirname(__file__), os.pardir))
+
+import paths  # pylint: disable=wrong-import-position
 
 # pylint: disable=line-too-long
 _API_LEAK_DETECTOR_TITLE = """    ___    ____  ____   __               __      ____       __            __
@@ -89,6 +91,7 @@ _UNKNOWN_SOURCE_FILES = 'unknown_source_file(s)'
 _ALLOWED_SB_GE_16_POSIX_SYMBOLS = [
     '__errno_location',
     'accept',
+    'aligned_alloc',
     'bind',
     'calloc',
     'clock_gettime',
@@ -97,15 +100,21 @@ _ALLOWED_SB_GE_16_POSIX_SYMBOLS = [
     'connect',
     'dup',
     'dup2',
+    'epoll_create',
+    'epoll_create1',
+    'epoll_ctl',
+    'epoll_wait'
     'fcntl',
     'free',
     'freeaddrinfo',
     'freeifaddrs',
     'fstat',
+    'fstatfs',
     'fsync',
     'ftruncate',
     'getaddrinfo',
     'getifaddrs',
+    'getpagesize',
     'getpeername',
     'getsockname',
     'getsockopt',
@@ -127,6 +136,9 @@ _ALLOWED_SB_GE_16_POSIX_SYMBOLS = [
     'munmap',
     'open',
     'opendir',
+    'perror',
+    'pipe',
+    'pipe2',
     'posix_memalign',
     'pread',
     'pthread_attr_destroy',
@@ -209,6 +221,15 @@ _ALLOWED_SB_GE_16_POSIX_SYMBOLS = [
     'unlink',
     'usleep',
     'write',
+    'opendir',
+    'closedir',
+    'readdir_r',
+    'malloc_usable_size',
+    'readdir',
+
+    # Symbols below haven't been implemented yet but need to be investigated.
+    'flock',  # TODO: b/412638190
+    'putchar',  # TODO: b/406081586
 ]
 
 

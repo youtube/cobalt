@@ -1,0 +1,36 @@
+name: evergreen
+permissions: read-all
+
+on:
+  pull_request:
+    types: [opened, reopened, synchronize, labeled]
+    branches:
+      - main
+      - experimental/*
+      - feature/*
+  push:
+    branches:
+      - main
+      - experimental/*
+      - feature/*
+  workflow_dispatch:
+    inputs:
+      nightly:
+        description: 'Nightly workflow.'
+        required: true
+        type: boolean
+        default: false
+
+jobs:
+  # This is evergreen on linux
+  evergreen-x64:
+    uses: ./.github/workflows/main.yaml
+    permissions:
+      packages: write
+      pull-requests: write
+    with:
+      platform: evergreen-x64
+      nightly: ${{ github.event.inputs.nightly }}
+      run_api_leak_detector: true
+    secrets:
+      datadog_api_key: ${{ secrets.DD_API_KEY }}

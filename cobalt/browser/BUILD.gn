@@ -26,8 +26,8 @@ source_set("browser") {
     "cobalt_browser_main_parts.h",
     "cobalt_content_browser_client.cc",
     "cobalt_content_browser_client.h",
-    "cobalt_https_only_navigation_throttle.cc",
-    "cobalt_https_only_navigation_throttle.h",
+    "cobalt_secure_navigation_throttle.cc",
+    "cobalt_secure_navigation_throttle.h",
     "cobalt_web_contents_delegate.cc",
     "cobalt_web_contents_delegate.h",
     "cobalt_web_contents_observer.cc",
@@ -41,12 +41,15 @@ source_set("browser") {
     ]
   }
 
+  public_deps = [ "//content/public/browser" ]
+
   deps = [
-    ":cobalt_experiment_names",
     ":embed_polyfilled_javascript",
     ":global_features",
     ":metrics",
+    "//cobalt/browser:switches",
     "//cobalt/browser/client_hint_headers",
+    "//cobalt/browser/constants:cobalt_experiment_names",
     "//cobalt/browser/crash_annotator/public/mojom",
     "//cobalt/browser/h5vcc_accessibility",
     "//cobalt/browser/h5vcc_accessibility/public/mojom",
@@ -64,18 +67,16 @@ source_set("browser") {
     "//cobalt/browser/user_agent",
     "//cobalt/media/service",
     "//cobalt/media/service/mojom",
+    "//cobalt/shell:content_shell_lib",
     "//components/js_injection/browser:browser",
     "//components/metrics",
     "//components/metrics:test_support",
     "//components/metrics_services_manager",
     "//components/os_crypt/sync",
     "//components/prefs",
+    "//components/variations",
     "//components/variations/service:service",
-    "//content/public/browser",
     "//starboard:starboard_group",
-
-    # TODO(b/390021478): Do not depend on content_shell_lib here.
-    "//content/shell:content_shell_lib",
   ]
 
   if (is_androidtv) {
@@ -121,9 +122,9 @@ source_set("global_features") {
     "global_features.h",
   ]
   deps = [
-    ":cobalt_experiment_names",
     ":metrics",
     "//base",
+    "//cobalt/browser/constants:cobalt_experiment_names",
     "//components/metrics",
     "//components/metrics_services_manager",
     "//components/prefs",
@@ -138,8 +139,8 @@ source_set("metrics") {
   sources = [
     "metrics/cobalt_enabled_state_provider.cc",
     "metrics/cobalt_enabled_state_provider.h",
-    "metrics/cobalt_metrics_logs_uploader.cc",
-    "metrics/cobalt_metrics_logs_uploader.h",
+    "metrics/cobalt_metrics_log_uploader.cc",
+    "metrics/cobalt_metrics_log_uploader.h",
     "metrics/cobalt_metrics_service_client.cc",
     "metrics/cobalt_metrics_service_client.h",
     "metrics/cobalt_metrics_services_manager_client.cc",
@@ -147,18 +148,14 @@ source_set("metrics") {
   ]
   deps = [
     "//cobalt/browser/h5vcc_metrics/public/mojom",
+    "//cobalt/shell:content_shell_lib",
     "//components/metrics",
     "//components/metrics_services_manager",
     "//components/prefs",
     "//components/variations",
     "//components/variations/service",
     "//content/public/browser",
-    "//content/shell:content_shell_lib",
     "//third_party/metrics_proto",
     "//url",
   ]
-}
-
-source_set("cobalt_experiment_names") {
-  sources = [ "cobalt_experiment_names.h" ]
 }
