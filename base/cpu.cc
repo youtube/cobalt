@@ -17,6 +17,9 @@
 #include "base/no_destructor.h"
 #include "build/build_config.h"
 
+//hack
+#undef ARCH_CPU_ARM_FAMILY
+
 #if defined(ARCH_CPU_ARM_FAMILY) && \
     (BUILDFLAG(IS_ANDROID) || BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_CHROMEOS))
 #include <asm/hwcap.h>
