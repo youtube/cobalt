@@ -124,7 +124,7 @@ void AudioDecoder::Decode(const InputBuffers& input_buffers,
 
   std::scoped_lock lock(decoded_audios_mutex_);
   if (media_decoder_ &&
-      (media_decoder_->GetNumberOfPendingTasks() + decoded_audios_.size() <=
+      (media_decoder_->GetNumberOfPendingInputs() + decoded_audios_.size() <=
        kMaxPendingWorkSize)) {
     Schedule(consumed_cb);
   } else {
