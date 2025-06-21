@@ -14,6 +14,7 @@
 
 #include "starboard/android/shared/video_decoder.h"
 
+#include <android/api-level.h>
 #include <jni.h>
 
 #include <algorithm>
@@ -368,6 +369,8 @@ VideoDecoder::VideoDecoder(const VideoStreamInfo& video_stream_info,
                            bool force_big_endian_hdr_metadata,
                            int max_video_input_size,
                            bool enable_flush_during_seek,
+                           int64_t reset_delay_usec,
+                           int64_t flush_delay_usec,
                            std::string* error_message)
     : video_codec_(video_stream_info.codec),
       drm_system_(static_cast<DrmSystem*>(drm_system)),
@@ -380,6 +383,10 @@ VideoDecoder::VideoDecoder(const VideoStreamInfo& video_stream_info,
       tunnel_mode_audio_session_id_(tunnel_mode_audio_session_id),
       max_video_input_size_(max_video_input_size),
       enable_flush_during_seek_(enable_flush_during_seek),
+      reset_delay_usec_(android_get_device_api_level() < 34 ? reset_delay_usec
+                                                            : 0),
+      flush_delay_usec_(android_get_device_api_level() < 34 ? flush_delay_usec
+                                                            : 0),
       force_reset_surface_(force_reset_surface),
       force_reset_surface_under_tunnel_mode_(
           force_reset_surface_under_tunnel_mode),
@@ -617,6 +624,9 @@ void VideoDecoder::Reset() {
   if (!enable_flush_during_seek_ || !media_decoder_ ||
       !media_decoder_->Flush()) {
     TeardownCodec();
+    if (reset_delay_usec_ > 0) {
+      usleep(reset_delay_usec_);
+    }
 
     input_buffer_written_ = 0;
 
@@ -742,7 +752,7 @@ bool VideoDecoder::InitializeCodec(const VideoStreamInfo& video_stream_info,
       std::bind(&VideoDecoder::OnFrameRendered, this, _1),
       std::bind(&VideoDecoder::OnFirstTunnelFrameReady, this),
       tunnel_mode_audio_session_id_, force_big_endian_hdr_metadata_,
-      max_video_input_size_, error_message));
+      max_video_input_size_, flush_delay_usec_, error_message));
   if (media_decoder_->is_valid()) {
     if (error_cb_) {
       media_decoder_->Initialize(

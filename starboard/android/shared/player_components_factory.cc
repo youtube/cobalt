@@ -79,6 +79,12 @@ constexpr bool kForceFlushDecoderDuringReset = false;
 // during Reset(). This should be enabled with kForceFlushDecoderDuringReset.
 constexpr bool kForceResetAudioDecoder = false;
 
+// By default, Cobalt restarts MediaCodec after stops/flushes during
+// Reset()/Flush(). Set the following variable to > 0 to force it to
+// wait during Reset()/Flush().
+constexpr int64_t kResetDelayUsecOverride = 0;
+constexpr int64_t kFlushDelayUsecOverride = 0;
+
 // This class allows us to force int16 sample type when tunnel mode is enabled.
 class AudioRendererSinkAndroid : public ::starboard::shared::starboard::player::
                                      filter::AudioRendererSinkImpl {
@@ -530,6 +536,8 @@ class PlayerComponentsFactory : public starboard::shared::starboard::player::
       std::string* error_message) {
     bool force_big_endian_hdr_metadata = false;
     bool enable_flush_during_seek = false;
+    int64_t reset_delay_usec = 0;
+    int64_t flush_delay_usec = 0;
     // The default value of |force_reset_surface| would be true.
     bool force_reset_surface = true;
     if (creation_parameters.video_codec() != kSbMediaVideoCodecNone &&
@@ -559,6 +567,16 @@ class PlayerComponentsFactory : public starboard::shared::starboard::player::
           << " video decoder during Reset().";
       enable_flush_during_seek = true;
     }
+    if (kResetDelayUsecOverride > 0) {
+      reset_delay_usec = kResetDelayUsecOverride;
+      SB_LOG(INFO) << "`kResetDelayUsecOverride` is set to > 0, force a delay"
+                   << " of " << reset_delay_usec << "us during Reset().";
+    }
+    if (kFlushDelayUsecOverride > 0) {
+      flush_delay_usec = kFlushDelayUsecOverride;
+      SB_LOG(INFO) << "`kFlushDelayUsecOverride` is set to > 0, force a delay"
+                   << " of " << flush_delay_usec << "us during Flush().";
+    }
 
     auto video_decoder = std::make_unique<VideoDecoder>(
         creation_parameters.video_stream_info(),
@@ -568,7 +586,8 @@ class PlayerComponentsFactory : public starboard::shared::starboard::player::
         tunnel_mode_audio_session_id, force_secure_pipeline_under_tunnel_mode,
         force_reset_surface, kForceResetSurfaceUnderTunnelMode,
         force_big_endian_hdr_metadata, max_video_input_size,
-        enable_flush_during_seek, error_message);
+        enable_flush_during_seek, reset_delay_usec, flush_delay_usec,
+        error_message);
     if (creation_parameters.video_codec() == kSbMediaVideoCodecAv1 ||
         video_decoder->is_decoder_created()) {
       return video_decoder;

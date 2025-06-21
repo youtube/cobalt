@@ -71,6 +71,8 @@ class VideoDecoder
                bool force_big_endian_hdr_metadata,
                int max_input_size,
                bool enable_flush_during_seek,
+               int64_t reset_delay_usec,
+               int64_t flush_delay_usec,
                std::string* error_message);
   ~VideoDecoder() override;
 
@@ -153,6 +155,8 @@ class VideoDecoder
   const int max_video_input_size_;
 
   const bool enable_flush_during_seek_;
+  const int64_t reset_delay_usec_;
+  const int64_t flush_delay_usec_;
 
   // Force resetting the video surface after every playback.
   const bool force_reset_surface_;
