@@ -14,6 +14,7 @@
   "num_gtest_shards": 1,
 >>>>>>> c35a7661e27 (Enable base_unittests on the CI. (#5159))
   "targets": [
+<<<<<<< HEAD
     "base",
     "base_unittests",
 <<<<<<< HEAD
@@ -40,6 +41,12 @@
 =======
     "zlib_unittests"
 >>>>>>> 557d5b61857 (Fix target names being built according to alphabetical order (#5580))
+=======
+    "cobalt:gn_all",
+    "content_shell",
+    "dump_syms",
+    "minidump_stackwalk"
+>>>>>>> 25d07a9da36 (Build almost all linux targets hermetically (#6097))
   ],
   "build_configs": [
     "debug",

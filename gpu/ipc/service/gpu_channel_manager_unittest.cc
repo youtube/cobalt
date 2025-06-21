@@ -149,8 +149,18 @@ TEST_F(GpuChannelManagerTest, OnBackgroundedWithWebGL) {
 // Tests that peak memory usage is only reported for valid sequence numbers,
 // and that polling shuts down the monitoring.
 TEST_F(GpuChannelManagerTest, GpuPeakMemoryOnlyReportedForValidSequence) {
+<<<<<<< HEAD
   base::test::TestTraceProcessor ttp;
   ttp.StartTrace("gpu");
+=======
+#if BUILDFLAG(USE_PERFETTO_CLIENT_LIBRARY) && !BUILDFLAG(ENABLE_COBALT_HERMETIC_HACKS)
+  std::unique_ptr<perfetto::TracingSession> session = StartNewTraceBlocking();
+#else
+  // TODO(crbug.com/1006541): Remove trace_analyzer usage after migration to the
+  // SDK.
+  trace_analyzer::Start("gpu");
+#endif
+>>>>>>> 25d07a9da36 (Build almost all linux targets hermetically (#6097))
 
   GpuChannelManager* manager = channel_manager();
   const CommandBufferId buffer_id =
@@ -173,7 +183,15 @@ TEST_F(GpuChannelManagerTest, GpuPeakMemoryOnlyReportedForValidSequence) {
   EXPECT_EQ(0u, GetMonitorsPeakMemoryUsage(sequence_num));
   EXPECT_EQ(0u, GetManagersPeakMemoryUsage(sequence_num));
 
+<<<<<<< HEAD
   absl::Status status = ttp.StopAndParseTrace();
+=======
+#if BUILDFLAG(USE_PERFETTO_CLIENT_LIBRARY) && !BUILDFLAG(ENABLE_COBALT_HERMETIC_HACKS)
+  std::vector<char> raw_trace = StopAndReadTraceBlocking(std::move(session));
+  ASSERT_FALSE(raw_trace.empty());
+  base::test::TestTraceProcessor trace_processor;
+  auto status = trace_processor.ParseTrace(raw_trace);
+>>>>>>> 25d07a9da36 (Build almost all linux targets hermetically (#6097))
   ASSERT_TRUE(status.ok()) << status.message();
   std::string query =
       R"(
