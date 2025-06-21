@@ -44,5 +44,7 @@
     "url:url_perftests_loader",
     "url:url_unittests_loader"
   ],
-  "executables": []
+  "executables": [
+    "libnplb.so"
+  ]
 }
