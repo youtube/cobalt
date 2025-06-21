@@ -85,6 +85,7 @@ MediaDecoder::MediaDecoder(Host* host,
       host_(host),
       drm_system_(static_cast<DrmSystem*>(drm_system)),
       tunnel_mode_enabled_(false),
+      flush_delay_usec_(0),
       condition_variable_(mutex_) {
   SB_DCHECK(host_);
 
@@ -125,6 +126,7 @@ MediaDecoder::MediaDecoder(
     int tunnel_mode_audio_session_id,
     bool force_big_endian_hdr_metadata,
     int max_video_input_size,
+    int64_t flush_delay_usec,
     std::string* error_message)
     : media_type_(kSbMediaTypeVideo),
       host_(host),
@@ -132,6 +134,7 @@ MediaDecoder::MediaDecoder(
       frame_rendered_cb_(frame_rendered_cb),
       first_tunnel_frame_ready_cb_(first_tunnel_frame_ready_cb),
       tunnel_mode_enabled_(tunnel_mode_audio_session_id != -1),
+      flush_delay_usec_(flush_delay_usec),
       condition_variable_(mutex_) {
   SB_DCHECK(frame_rendered_cb_);
   SB_DCHECK(first_tunnel_frame_ready_cb_);
@@ -728,7 +731,12 @@ bool MediaDecoder::Flush() {
     dequeue_output_result.index = -1;
     dequeue_output_results_.push_back(dequeue_output_result);
 
-    // 2.4. Restart() |media_codec_bridge_|. As the codec is configured in
+    // 2.4. Wait for |flush_delay_usec_| on pre Android 13 devices.
+    if (flush_delay_usec_ > 0) {
+      usleep(flush_delay_usec_);
+    }
+
+    // 2.5. Restart() |media_codec_bridge_|. As the codec is configured in
     // asynchronous mode, call Start() after Flush() has returned to
     // resume codec operations. After Restart(), input_buffer_index should
     // start with 0.
