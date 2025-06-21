@@ -56,7 +56,6 @@ TEST(PosixTimeTest, CurrentPosixTimeHasDecentResolution) {
       // If time hasn't changed within a second, that's beyond low resolution.
       if ((CurrentMonotonicTime() - timerStart) >= 1'000'000) {
         GTEST_FAIL() << "CurrentPosixTime() hasn't changed within a second.";
-        break;
       }
     }
   }
@@ -75,7 +74,7 @@ TEST(PosixTimeTest, CurrentMonotonicTimeIsMonotonic) {
       if (initialMonotonic != newMonotonic) {
         EXPECT_GT(newMonotonic, initialMonotonic);
         EXPECT_LT(newMonotonic - initialMonotonic, 1'000'000);  // Less than 1s
-        return;
+        break;
       }
 
       // If time hasn't increased within a second, our "high-resolution"
@@ -83,7 +82,6 @@ TEST(PosixTimeTest, CurrentMonotonicTimeIsMonotonic) {
       if (CurrentPosixTime() - timerStart >= 1'000'000) {
         GTEST_FAIL() << "CurrentMonotonicTime() hasn't changed within a "
                      << "second.";
-        return;
       }
     }
   }

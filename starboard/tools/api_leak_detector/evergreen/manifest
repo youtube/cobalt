@@ -59,7 +59,6 @@ geteuid
 gethostname
 getpid
 getrlimit
-gmtime
 in6addr_any
 in6addr_loopback
 initstate
@@ -67,11 +66,8 @@ ioctl
 isatty
 link
 localeconv
-localtime
-localtime_r
 lstat
 mincore
-mktime
 mremap
 newlocale
 openlog
@@ -120,12 +116,9 @@ symlink
 syscall
 sysconf
 syslog
-timegm
 timerfd_create
 timerfd_settime
 tmpfile
-tzname
-tzset
 uname
 ungetc
 uselocale
