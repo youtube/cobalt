@@ -15,6 +15,7 @@
 #include "starboard/android/shared/media_decoder.h"
 
 #include <sched.h>
+#include <unistd.h>
 
 #include "base/android/jni_android.h"
 #include "starboard/android/shared/jni_env_ext.h"
