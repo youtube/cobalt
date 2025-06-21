@@ -286,9 +286,24 @@ if (current_toolchain == starboard_toolchain) {
     }
   }
 
-  source_set("starboard_unittests") {
+  if (is_cobalt_hermetic_build) {
+    _starboard_unittests_target_type = "executable"
+  } else {
+    _starboard_unittests_target_type = "source_set"
+  }
+  target(_starboard_unittests_target_type, "starboard_unittests") {
     testonly = true
-    deps = [ "//starboard/common:common_test" ]
+    sources = [ "//starboard/common/test_main.cc" ]
+    defines = [ "STARBOARD_IMPLEMENTATION_TEST" ]
+
+    write_runtime_deps =
+        "$root_build_dir/starboard_unittests_wrapper.runtime_deps"
+
+    deps = [
+      "//starboard:starboard_headers_only",
+      "//starboard/common:common_test",
+      "//testing/gtest",
+    ]
     if (!is_android) {
       deps += [
         "//starboard/elf_loader:elf_loader_test",
@@ -326,7 +341,12 @@ if (current_toolchain == starboard_toolchain) {
   }
 }
 
-test("starboard_unittests_wrapper") {
+if (is_cobalt_hermetic_build) {
+  _wrapper_target_type = "group"
+} else {
+  _wrapper_target_type = "test"
+}
+target(_wrapper_target_type, "starboard_unittests_wrapper") {
   testonly = true
   deps = [ ":starboard_unittests($starboard_toolchain)" ]
 }

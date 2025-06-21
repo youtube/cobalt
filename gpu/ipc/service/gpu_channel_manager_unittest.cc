@@ -149,6 +149,7 @@ TEST_F(GpuChannelManagerTest, OnBackgroundedWithWebGL) {
 // Tests that peak memory usage is only reported for valid sequence numbers,
 // and that polling shuts down the monitoring.
 TEST_F(GpuChannelManagerTest, GpuPeakMemoryOnlyReportedForValidSequence) {
+#if !BUILDFLAG(ENABLE_COBALT_HERMETIC_HACKS)
   base::test::TestTraceProcessor ttp;
   ttp.StartTrace("gpu");
 
@@ -173,6 +174,7 @@ TEST_F(GpuChannelManagerTest, GpuPeakMemoryOnlyReportedForValidSequence) {
   EXPECT_EQ(0u, GetMonitorsPeakMemoryUsage(sequence_num));
   EXPECT_EQ(0u, GetManagersPeakMemoryUsage(sequence_num));
 
+#if !BUILDFLAG(ENABLE_COBALT_HERMETIC_HACKS)
   absl::Status status = ttp.StopAndParseTrace();
   ASSERT_TRUE(status.ok()) << status.message();
   std::string query =

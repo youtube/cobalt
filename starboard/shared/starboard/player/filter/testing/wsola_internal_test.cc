@@ -19,6 +19,8 @@
 #include "starboard/shared/starboard/player/filter/wsola_internal.h"
 
 #include <gtest/gtest.h>
+
+#include <cmath>
 #include <vector>
 
 #include "starboard/media.h"
