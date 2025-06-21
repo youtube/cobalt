@@ -34,6 +34,7 @@ if (is_android) {
   import("//build/config/ios/config.gni")
 }
 if (is_cobalt) {
+  import("//cobalt/build/modular_executable.gni")
   import("//starboard/build/buildflags.gni")
 }
 
@@ -629,7 +630,12 @@ if (is_android) {
     configs += [ "//build/config/compiler:enable_arc" ]
   }
 } else {
-  executable("content_shell") {
+  if (is_cobalt && is_cobalt_hermetic_build) {
+    _target_type = "modular_executable"
+  } else {
+    _target_type = "executable"
+  }
+  target(_target_type, "content_shell") {
     testonly = true
 
     sources = [ "app/shell_main.cc" ]

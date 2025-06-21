@@ -693,9 +693,6 @@ config("compiler") {
       ]
     } else {
       ldflags += [ "-flto=thin" ]
-      if (is_cobalt_hermetic_build) {
-        # ldflags += [ "-Wl,-plugin-opt=-emulated-tls" ]
-      }
 
       # Enabling ThinLTO on Chrome OS too, in an effort to reduce the memory
       # usage in crbug.com/1038040. Note this will increase build time in
