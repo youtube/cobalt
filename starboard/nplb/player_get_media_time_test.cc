@@ -159,10 +159,10 @@ TEST_P(SbPlayerGetMediaTimeTest, TimeAfterSeek) {
                 << ".";
 }
 
-INSTANTIATE_TEST_CASE_P(SbPlayerGetMediaTimeTests,
-                        SbPlayerGetMediaTimeTest,
-                        ValuesIn(GetAllPlayerTestConfigs()),
-                        GetSbPlayerTestConfigName);
+INSTANTIATE_TEST_SUITE_P(SbPlayerGetMediaTimeTests,
+                         SbPlayerGetMediaTimeTest,
+                         ValuesIn(GetAllPlayerTestConfigs()),
+                         GetSbPlayerTestConfigName);
 
 }  // namespace
 }  // namespace nplb

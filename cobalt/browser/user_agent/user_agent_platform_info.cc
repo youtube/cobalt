@@ -256,11 +256,10 @@ void InitializeUserAgentPlatformInfoFields(UserAgentPlatformInfo& info) {
           SbSystemGetExtension(kCobaltExtensionPlatformInfoName));
   if (platform_info_extension) {
     if (platform_info_extension->version >= 1) {
-      char value[1024];
-      bool result =
-          platform_info_extension->GetFirmwareVersionDetails(value, 1024);
-      if (result) {
-        info.set_android_build_fingerprint(value);
+      char build_fingerprint[1024];
+      if (platform_info_extension->GetFirmwareVersionDetails(build_fingerprint,
+                                                             1024)) {
+        info.set_android_build_fingerprint(build_fingerprint);
       }
       info.set_android_os_experience(
           platform_info_extension->GetOsExperience());

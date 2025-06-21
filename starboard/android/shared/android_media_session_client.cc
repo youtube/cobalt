@@ -36,7 +36,6 @@ const jlong kPlaybackStateActionRewind = 1 << 3;
 const jlong kPlaybackStateActionSkipToPrevious = 1 << 4;
 const jlong kPlaybackStateActionSkipToNext = 1 << 5;
 const jlong kPlaybackStateActionFastForward = 1 << 6;
-const jlong kPlaybackStateActionSetRating = 1 << 7;  // not supported
 const jlong kPlaybackStateActionSeekTo = 1 << 8;
 
 // Converts a MediaSessionClient::AvailableActions bitset into

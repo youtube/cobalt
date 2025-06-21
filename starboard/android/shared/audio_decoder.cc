@@ -228,11 +228,12 @@ void AudioDecoder::ProcessOutputBuffer(
     int16_t* data = static_cast<int16_t*>(
         IncrementPointerByBytes(address, dequeue_output_result.offset));
     int size = dequeue_output_result.num_bytes;
-    if (2 * audio_stream_info_.samples_per_second == output_sample_rate_) {
+    if (2 * audio_stream_info_.samples_per_second ==
+        static_cast<uint32_t>(output_sample_rate_)) {
       // The audio is encoded using implicit HE-AAC.  As the audio sink has
       // been created already we try to down-mix the decoded data to half of
       // its channels so the audio sink can play it with the correct pitch.
-      for (int i = 0; i < size / sizeof(int16_t); i++) {
+      for (size_t i = 0; i < size / sizeof(int16_t); i++) {
         data[i / 2] = (static_cast<int32_t>(data[i]) +
                        static_cast<int32_t>(data[i + 1]) / 2);
       }

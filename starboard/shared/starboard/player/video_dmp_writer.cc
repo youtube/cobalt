@@ -66,7 +66,7 @@ class PlayerToWriterMap {
   std::map<SbPlayer, VideoDmpWriter*> map_;
 };
 
-SB_ONCE_INITIALIZE_FUNCTION(PlayerToWriterMap, GetOrCreatePlayerToWriterMap);
+SB_ONCE_INITIALIZE_FUNCTION(PlayerToWriterMap, GetOrCreatePlayerToWriterMap)
 
 }  // namespace
 

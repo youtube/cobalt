@@ -27,7 +27,7 @@ TEST(SbSystemSymbolizeTest, SunnyDay) {
   char buffer[1024] = {0};
   bool result = SbSystemSymbolize(stack[0], buffer, SB_ARRAY_SIZE_INT(buffer));
   if (result) {
-    EXPECT_LT(0, strlen(buffer));
+    EXPECT_LT(0u, strlen(buffer));
   }
 }
 
@@ -35,12 +35,12 @@ TEST(SbSystemSymbolizeTest, RainyDay) {
   char buffer[1024] = {0};
   bool result = SbSystemSymbolize(NULL, buffer, SB_ARRAY_SIZE_INT(buffer));
   EXPECT_FALSE(result);
-  EXPECT_EQ(0, strlen(buffer));
+  EXPECT_EQ(0u, strlen(buffer));
 
   // This stack pointer shouldn't have a symbol either.
   result = SbSystemSymbolize(buffer, buffer, SB_ARRAY_SIZE_INT(buffer));
   EXPECT_FALSE(result);
-  EXPECT_EQ(0, strlen(buffer));
+  EXPECT_EQ(0u, strlen(buffer));
 }
 
 }  // namespace

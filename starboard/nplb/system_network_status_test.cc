@@ -25,7 +25,7 @@ namespace nplb {
 namespace {
 
 TEST(SbSystemNetworkIsDisconnectedTest, SunnyDay) {
-  bool ret = SbSystemNetworkIsDisconnected();
+  SbSystemNetworkIsDisconnected();
 }
 
 }  // namespace

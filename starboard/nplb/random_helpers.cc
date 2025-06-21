@@ -58,8 +58,10 @@ void TestIsFairlyUniform(RandomFunction get_random) {
     // Don't quit too quickly for things to start converging, or we may have
     // a false positive.
     if (count > kMinAttempts &&
-        kExpectedAverage - kAllowedVariance < cumulative_average &&
-        cumulative_average < kExpectedAverage + kAllowedVariance) {
+        static_cast<double>(kExpectedAverage - kAllowedVariance) <
+            cumulative_average &&
+        cumulative_average <
+            static_cast<double>(kExpectedAverage + kAllowedVariance)) {
       break;
     }
 

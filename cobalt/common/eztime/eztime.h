@@ -128,12 +128,12 @@ static EzTimeValue EzTimeValueFromSbTime(int64_t in_time) {
 }
 
 // Converts EzTimeValue to SbTime.
-static int64_t EzTimeValueToSbTime(const EzTimeValue* value) {
+[[maybe_unused]] static int64_t EzTimeValueToSbTime(const EzTimeValue* value) {
   return EzTimeTToSbTime(value->tv_sec) + value->tv_usec;
 }
 
 // Converts EzTimeT to EzTimeValue.
-static EzTimeValue EzTimeTToEzTimeValue(EzTimeT in_time) {
+[[maybe_unused]] static EzTimeValue EzTimeTToEzTimeValue(EzTimeT in_time) {
   return EzTimeValueFromSbTime(EzTimeTToSbTime(in_time));
 }
 

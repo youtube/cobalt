@@ -48,7 +48,7 @@ TEST(PosixFileFtruncateTest, TruncateToZero) {
 
   {
     struct stat info = {0};
-    int result = fstat(file, &info);
+    fstat(file, &info);
     EXPECT_EQ(kStartSize, info.st_size);
   }
 

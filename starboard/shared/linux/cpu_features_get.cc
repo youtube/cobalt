@@ -180,7 +180,6 @@ class ProcCpuInfo {
     }
 
     // Look for first feature occurrence, and ensure it starts the line.
-    size_t feature_name_size = strlen(feature);
     const char* feature_ptr = nullptr;
     char* file_data_ptr = file_data_.get();
 
@@ -252,7 +251,7 @@ class ProcCpuInfo {
     // Get the size of the feature data
     int feature_size = line_end_ptr - feature_ptr;
 
-    if (out_feature_size < feature_size + 1) {
+    if (out_feature_size < static_cast<size_t>(feature_size + 1)) {
       SB_LOG(WARNING) << "CPU Feature " << feature << " is truncated.";
       feature_size = out_feature_size - 1;
     }

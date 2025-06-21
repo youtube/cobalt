@@ -92,7 +92,6 @@ TEST(PosixSocketSendTest, RainyDaySendToClosedSocket) {
       &listen_socket_fd, &client_socket_fd, &server_socket_fd};
 
   // Start a thread to write to the client socket.
-  const bool kJoinable = true;
   pthread_t send_thread = 0;
   pthread_create(&send_thread, NULL, PosixSocketSendToServerSocketEntryPoint,
                  static_cast<void*>(&trio_as_void_ptr));

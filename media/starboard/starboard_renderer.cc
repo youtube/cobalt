@@ -938,6 +938,7 @@ int StarboardRenderer::GetEstimatedMaxBuffers(TimeDelta write_duration,
                                  duration_to_write, is_preroll);
         break;
       }
+      [[fallthrough]];
     // TODO(b/41486346): Support multiple samples per write on the format IAMF.
     // case AudioCodec::kIAMF:
     default:

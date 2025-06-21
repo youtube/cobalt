@@ -33,15 +33,9 @@ using base::android::AttachCurrentThread;
 
 namespace {
 
-const jlong kDequeueTimeout = 0;
-
 const jint kNoOffset = 0;
 const jlong kNoPts = 0;
-const jint kNoSize = 0;
 const jint kNoBufferFlags = 0;
-
-// Delay to use after a retryable error has been encountered.
-const int64_t kErrorRetryDelay = 50'000;  // 50ms
 
 const char* GetNameForMediaCodecStatus(jint status) {
   switch (status) {

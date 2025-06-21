@@ -47,7 +47,7 @@ class CobaltMetricsServicesManagerClientTest : public ::testing::Test {
   CobaltMetricsServicesManagerClientTest() = default;
 
   void SetUp() override {
-    temp_dir_.CreateUniqueTempDir();
+    ASSERT_TRUE(temp_dir_.CreateUniqueTempDir());
 
     path_override_ = std::make_unique<base::ScopedPathOverride>(
         base::DIR_CACHE, temp_dir_.GetPath());

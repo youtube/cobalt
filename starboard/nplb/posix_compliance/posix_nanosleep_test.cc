@@ -55,7 +55,6 @@ class PosixNanosleepTests : public ::testing::Test {
     errno = 0;
     alarm(0);
 
-    struct sigaction current_sa;
     ASSERT_EQ(sigaction(SIGALRM, nullptr, &old_sa_sigalrm_), 0)
         << "Could not get old SIGALRM handler in SetUp";
   }

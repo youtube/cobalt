@@ -267,7 +267,7 @@ void FakeGraphicsContextProvider::InitializeEGL() {
   // "If configs is not NULL, up to config_size configs will be returned in the
   // array pointed to by configs. The number of configs actually returned will
   // be returned in *num_config." Assert that and resize if needed.
-  SB_CHECK(num_configs <= configs.size());
+  SB_CHECK(static_cast<size_t>(num_configs) <= configs.size());
   configs.resize(num_configs);
 
   // Find the first config that successfully allows a pBuffer surface (i.e. an

@@ -245,7 +245,6 @@ TEST_P(SbPlayerWriteSampleTest, PartialAudio) {
 TEST_P(SbPlayerWriteSampleTest, DiscardAllAudio) {
   if (!IsPartialAudioSupported()) {
     GTEST_SKIP() << "The platform doesn't support partial audio.";
-    return;
   }
   if (IsAudioPassthroughUsed(GetParam())) {
     GTEST_SKIP() << "The audio passthrough doesn't support partial audio.";
@@ -396,10 +395,10 @@ TEST_P(SbPlayerWriteSampleTest, SecondaryPlayerTest) {
   secondary_player_thread.Join();
 }
 
-INSTANTIATE_TEST_CASE_P(SbPlayerWriteSampleTests,
-                        SbPlayerWriteSampleTest,
-                        ValuesIn(GetAllPlayerTestConfigs()),
-                        GetSbPlayerTestConfigName);
+INSTANTIATE_TEST_SUITE_P(SbPlayerWriteSampleTests,
+                         SbPlayerWriteSampleTest,
+                         ValuesIn(GetAllPlayerTestConfigs()),
+                         GetSbPlayerTestConfigName);
 
 }  // namespace
 }  // namespace nplb

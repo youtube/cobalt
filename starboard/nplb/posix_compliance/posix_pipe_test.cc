@@ -316,10 +316,10 @@ TEST(PosixPipeTest, DataWrittenToPipeCanBeRead) {
   char read_buffer[kTestDataSize];
 
   ssize_t bytes_written = write(pipe_fds[1], kTestData, kTestDataSize);
-  EXPECT_EQ(bytes_written, kTestDataSize);
+  EXPECT_EQ(static_cast<size_t>(bytes_written), kTestDataSize);
 
   ssize_t bytes_read = read(pipe_fds[0], read_buffer, kTestDataSize);
-  EXPECT_EQ(bytes_read, kTestDataSize);
+  EXPECT_EQ(static_cast<size_t>(bytes_read), kTestDataSize);
   EXPECT_STREQ(read_buffer, kTestData);
 
   close(pipe_fds[0]);
@@ -335,10 +335,10 @@ TEST(PosixPipeTest, DataWrittenToPipeCreatedByPipe2CanBeRead) {
   char read_buffer[kTestDataSize];
 
   ssize_t bytes_written = write(pipe_fds[1], kTestData, kTestDataSize);
-  EXPECT_EQ(bytes_written, kTestDataSize);
+  EXPECT_EQ(static_cast<size_t>(bytes_written), kTestDataSize);
 
   ssize_t bytes_read = read(pipe_fds[0], read_buffer, kTestDataSize);
-  EXPECT_EQ(bytes_read, kTestDataSize);
+  EXPECT_EQ(static_cast<size_t>(bytes_read), kTestDataSize);
   EXPECT_STREQ(read_buffer, kTestData);
 
   close(pipe_fds[0]);

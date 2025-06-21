@@ -451,7 +451,7 @@ bool AVCParser::BuildAnnexBPrepend(uint8_t* sps,
   }
 
   // make sure we haven't wandered off into memory somewhere
-  DCHECK_EQ(prepend_offset, video_prepend_size_);
+  DCHECK_EQ(static_cast<uint32_t>(prepend_offset), video_prepend_size_);
   return true;
 }
 

@@ -63,6 +63,7 @@ std::string GetMimeFromAudioType(const ::media::AudioType& type) {
   }
 }
 
+#if BUILDFLAG(IS_ANDROID)
 ::media::SupportedCodecs GetStarboardEmeSupportedCodecs() {
   ::media::SupportedCodecs codecs =
       ::media::EME_CODEC_AAC | ::media::EME_CODEC_AVC1 |
@@ -75,6 +76,7 @@ std::string GetMimeFromAudioType(const ::media::AudioType& type) {
   // TODO(b/375232937) Add IAMF
   return codecs;
 }
+#endif
 
 void BindHostReceiverWithValuation(mojo::GenericPendingReceiver receiver) {
   content::RenderThread::Get()->BindHostReceiver(std::move(receiver));

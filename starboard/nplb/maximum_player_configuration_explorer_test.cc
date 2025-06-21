@@ -107,11 +107,11 @@ std::string GetTestConfigName(
   return name;
 }
 
-INSTANTIATE_TEST_CASE_P(MaximumPlayerConfigurationExplorerTests,
-                        MaximumPlayerConfigurationExplorerTest,
-                        Combine(ValuesIn(GetPlayerOutputModes()),
-                                ValuesIn(GetKeySystems())),
-                        GetTestConfigName);
+INSTANTIATE_TEST_SUITE_P(MaximumPlayerConfigurationExplorerTests,
+                         MaximumPlayerConfigurationExplorerTest,
+                         Combine(ValuesIn(GetPlayerOutputModes()),
+                                 ValuesIn(GetKeySystems())),
+                         GetTestConfigName);
 
 }  // namespace
 }  // namespace nplb

@@ -19,9 +19,12 @@
 #include "starboard/android/shared/media_capabilities_cache.h"
 #include "starboard/common/string.h"
 
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wunused-function"
 // Must come after all headers that specialize FromJniType() / ToJniType().
 #include "cobalt/android/jni_headers/MediaCodecBridgeBuilder_jni.h"
 #include "cobalt/android/jni_headers/MediaCodecBridge_jni.h"
+#pragma GCC diagnostic pop
 
 namespace starboard::android::shared {
 
@@ -43,12 +46,9 @@ const jint COLOR_RANGE_LIMITED = 2;
 const jint COLOR_RANGE_UNSPECIFIED = 0;
 
 const jint COLOR_STANDARD_BT2020 = 6;
-const jint COLOR_STANDARD_BT601_NTSC = 4;
-const jint COLOR_STANDARD_BT601_PAL = 2;
 const jint COLOR_STANDARD_BT709 = 1;
 
 const jint COLOR_TRANSFER_HLG = 7;
-const jint COLOR_TRANSFER_LINEAR = 1;
 const jint COLOR_TRANSFER_SDR_VIDEO = 3;
 const jint COLOR_TRANSFER_ST2084 = 6;
 

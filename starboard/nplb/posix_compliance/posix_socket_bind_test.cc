@@ -23,7 +23,6 @@ namespace nplb {
 namespace {
 
 TEST(PosixSocketBindTest, RainyDayNullSocket) {
-  int port = htons(PosixGetPortNumberForTests());
   sockaddr_in address = {};
   address.sin_family = AF_INET;
   int invalid_socket_fd = -1;

@@ -83,7 +83,6 @@ TEST(PosixTimeTest, CurrentMonotonicTimeIsMonotonic) {
       if (CurrentPosixTime() - timerStart >= 1'000'000) {
         GTEST_FAIL() << "CurrentMonotonicTime() hasn't changed within a "
                      << "second.";
-        return;
       }
     }
   }

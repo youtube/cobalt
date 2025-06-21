@@ -291,14 +291,15 @@ void SbMicrophoneImpl::SwapAndPublishBuffer() {
   }
 
   if (state_ == kOpened) {
-    int16_t* buffer = new int16_t[kSamplesPerBuffer];
-    memset(buffer, 0, kBufferSizeInBytes);
+    int16_t* open_buffer = new int16_t[kSamplesPerBuffer];
+    memset(open_buffer, 0, kBufferSizeInBytes);
     {
       std::scoped_lock lock(delivered_queue_mutex_);
-      delivered_queue_.push(buffer);
+      delivered_queue_.push(open_buffer);
     }
     SLresult result =
-        (*buffer_object_)->Enqueue(buffer_object_, buffer, kBufferSizeInBytes);
+        (*buffer_object_)
+            ->Enqueue(buffer_object_, open_buffer, kBufferSizeInBytes);
     CheckReturnValue(result);
   }
 }
