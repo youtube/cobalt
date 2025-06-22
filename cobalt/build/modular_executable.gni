@@ -61,7 +61,7 @@ template("evergreen_final_target") {
   original_target_name = target_name
   group("${original_target_name}_loader") {
     forward_variables_from(invoker, TESTONLY_AND_VISIBILITY)
-    deps = [
+    data_deps = [
       ":copy_${original_target_name}_content",
       ":copy_${original_target_name}_lib",
       "//starboard/elf_loader:elf_loader_sandbox($starboard_toolchain)",
