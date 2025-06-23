@@ -45,7 +45,8 @@ class H5vccRuntimeImpl : public content::DocumentService<mojom::H5vccRuntime> {
       GetAndClearInitialDeepLinkSyncCallback) override;
   void GetAndClearInitialDeepLink(GetAndClearInitialDeepLinkCallback) override;
 
-  void AddListener(mojo::PendingRemote<mojom::DeepLinkListener> listener);
+  void AddListener(
+      mojo::PendingRemote<mojom::DeepLinkListener> listener) override;
 
  private:
   H5vccRuntimeImpl(content::RenderFrameHost& render_frame_host,

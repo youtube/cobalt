@@ -91,7 +91,7 @@ TEST(PosixFileGetPathInfoTest, WorksOnStaticContentFiles) {
     struct stat info;
     EXPECT_TRUE(stat(filename.c_str(), &info) == 0);
     size_t content_length = GetTestFileExpectedContent(filename).length();
-    EXPECT_EQ(content_length, info.st_size);
+    EXPECT_EQ(static_cast<long>(content_length), info.st_size);
     EXPECT_FALSE(S_ISDIR(info.st_mode));
     EXPECT_FALSE(S_ISLNK(info.st_mode));
   }

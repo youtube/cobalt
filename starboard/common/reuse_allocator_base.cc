@@ -32,7 +32,7 @@ const size_t kMinBlockSizeBytes = 16;
 int ceil_power_2(int i) {
   SB_DCHECK(i >= 0);
 
-  for (int power = 0; power < sizeof(i) * 8 - 1; ++power) {
+  for (size_t power = 0; power < sizeof(i) * 8 - 1; ++power) {
     if ((1 << power) >= i) {
       return 1 << power;
     }
@@ -216,7 +216,8 @@ void ReuseAllocatorBase::PrintAllocations(bool align_allocated_size,
 
   for (auto&& iter : allocated_histogram) {
     if (lines == max_allocations_to_print - 1 &&
-        allocated_histogram.size() > max_allocations_to_print) {
+        allocated_histogram.size() >
+            static_cast<size_t>(max_allocations_to_print)) {
       SB_LOG(INFO) << "\t[" << allocated_histogram.rbegin()->second.min << ", "
                    << iter.second.max
                    << "] : " << allocated_blocks_.size() - accumulated_blocks;
@@ -250,7 +251,7 @@ void ReuseAllocatorBase::PrintAllocations(bool align_allocated_size,
 
   for (auto&& iter : free_histogram) {
     if (lines == max_allocations_to_print - 1 &&
-        free_histogram.size() > max_allocations_to_print) {
+        free_histogram.size() > static_cast<size_t>(max_allocations_to_print)) {
       SB_LOG(INFO) << "\t[" << free_histogram.rbegin()->first << ", "
                    << iter.first
                    << "] : " << free_blocks_.size() - accumulated_blocks;

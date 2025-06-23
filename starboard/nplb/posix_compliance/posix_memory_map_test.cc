@@ -56,11 +56,11 @@ TEST(PosixMemoryMapTest, CanReadWriteToResult) {
                       MAP_PRIVATE | MAP_ANON, -1, 0);
   ASSERT_NE(kFailed, memory);
   char* data = static_cast<char*>(memory);
-  for (int i = 0; i < kSize; ++i) {
+  for (size_t i = 0; i < kSize; ++i) {
     data[i] = static_cast<char>(i);
   }
 
-  for (int i = 0; i < kSize; ++i) {
+  for (size_t i = 0; i < kSize; ++i) {
     EXPECT_EQ(data[i], static_cast<char>(i));
   }
 
@@ -210,13 +210,13 @@ TEST(PosixMemoryMapTest, CanChangeMemoryProtection) {
       }
 
       if (to_flags & PROT_READ) {
-        for (int i = 0; i < kSize; i++) {
+        for (size_t i = 0; i < kSize; i++) {
           volatile uint8_t force_read = static_cast<uint8_t*>(memory)[i];
           (void)force_read;
         }
       }
       if (to_flags & PROT_WRITE) {
-        for (int i = 0; i < kSize; i++) {
+        for (size_t i = 0; i < kSize; i++) {
           static_cast<uint8_t*>(memory)[i] = 0xff;
         }
       }

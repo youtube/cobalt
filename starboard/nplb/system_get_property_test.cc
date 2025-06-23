@@ -135,7 +135,7 @@ TEST(SbSystemGetPropertyTest, SpeechApiKeyNotLeaked) {
       SbSystemGetProperty(kSbSystemPropertySpeechApiKey, speech_api_key, kSize);
 
   if (!has_speech_key) {
-    EXPECT_EQ(0, strlen(speech_api_key));
+    EXPECT_EQ(0u, strlen(speech_api_key));
     return;
   }
 

@@ -395,10 +395,10 @@ TEST_P(SbPlayerWriteSampleTest, SecondaryPlayerTest) {
   secondary_player_thread.Join();
 }
 
-INSTANTIATE_TEST_CASE_P(SbPlayerWriteSampleTests,
-                        SbPlayerWriteSampleTest,
-                        ValuesIn(GetAllPlayerTestConfigs()),
-                        GetSbPlayerTestConfigName);
+INSTANTIATE_TEST_SUITE_P(SbPlayerWriteSampleTests,
+                         SbPlayerWriteSampleTest,
+                         ValuesIn(GetAllPlayerTestConfigs()),
+                         GetSbPlayerTestConfigName);
 
 }  // namespace
 }  // namespace nplb

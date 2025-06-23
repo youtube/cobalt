@@ -57,7 +57,7 @@ uint8_t* MP4Map::TableCache::GetBytesAtEntry(uint32_t entry_number) {
     }
     // drop old data
     cache_.clear();
-    DCHECK_GE(cache_entry_count_, 0);
+    DCHECK_GE(cache_entry_count_, 0u);
     int bytes_to_read = cache_entry_count_ * entry_size_;
     cache_.resize(bytes_to_read);
     uint64_t file_offset =
@@ -547,7 +547,7 @@ bool MP4Map::ctts_AdvanceToSample(uint32_t sample_number) {
   // seeking forward. See if we've calculated these values ahead of us before,
   // and if we can slip forward to them
   int next_cache_index = (ctts_table_index_ / ctts_->GetCacheSizeEntries()) + 1;
-  if ((next_cache_index < ctts_samples_.size()) &&
+  if ((static_cast<size_t>(next_cache_index) < ctts_samples_.size()) &&
       (sample_number >= ctts_samples_[next_cache_index])) {
     if (!ctts_SlipCacheToSample(sample_number, next_cache_index)) {
       return false;
@@ -565,7 +565,7 @@ bool MP4Map::ctts_AdvanceToSample(uint32_t sample_number) {
     if (!(ctts_table_index_ % ctts_->GetCacheSizeEntries())) {
       int cache_index = ctts_table_index_ / ctts_->GetCacheSizeEntries();
       // check that this is our first time with these data
-      if (cache_index == ctts_samples_.size()) {
+      if (static_cast<size_t>(cache_index) == ctts_samples_.size()) {
         ctts_samples_.push_back(ctts_first_sample_);
       }
       // our integration at this point should always match any stored record
@@ -599,9 +599,10 @@ bool MP4Map::ctts_AdvanceToSample(uint32_t sample_number) {
 
 bool MP4Map::ctts_SlipCacheToSample(uint32_t sample_number,
                                     int starting_cache_index) {
-  DCHECK_LT(starting_cache_index, ctts_samples_.size());
+  DCHECK_LT(static_cast<size_t>(starting_cache_index), ctts_samples_.size());
   int cache_index = starting_cache_index;
-  for (; cache_index + 1 < ctts_samples_.size(); cache_index++) {
+  for (; static_cast<size_t>(cache_index + 1) < ctts_samples_.size();
+       cache_index++) {
     if (sample_number < ctts_samples_[cache_index + 1]) {
       break;
     }
@@ -700,7 +701,7 @@ bool MP4Map::stsc_AdvanceToSample(uint32_t sample_number) {
   // cache, so see if we can reuse any previously calculated summations to
   // skip to the nearest cache entry
   int next_cache_index = (stsc_table_index_ / stsc_->GetCacheSizeEntries()) + 1;
-  if ((next_cache_index < stsc_sample_sums_.size()) &&
+  if ((static_cast<size_t>(next_cache_index) < stsc_sample_sums_.size()) &&
       (sample_number >= stsc_sample_sums_[next_cache_index])) {
     if (!stsc_SlipCacheToSample(sample_number, next_cache_index)) {
       return false;
@@ -720,7 +721,7 @@ bool MP4Map::stsc_AdvanceToSample(uint32_t sample_number) {
     if (!(stsc_table_index_ % stsc_->GetCacheSizeEntries())) {
       int cache_index = stsc_table_index_ / stsc_->GetCacheSizeEntries();
       // check that this is our first time with these data
-      if (cache_index == stsc_sample_sums_.size()) {
+      if (static_cast<size_t>(cache_index) == stsc_sample_sums_.size()) {
         stsc_sample_sums_.push_back(stsc_first_chunk_sample_);
       }
       // our integration at this point should always match any stored record
@@ -763,11 +764,13 @@ bool MP4Map::stsc_AdvanceToSample(uint32_t sample_number) {
 
 bool MP4Map::stsc_SlipCacheToSample(uint32_t sample_number,
                                     int starting_cache_index) {
-  DCHECK_LT(starting_cache_index, stsc_sample_sums_.size());
+  DCHECK_LT(static_cast<size_t>(starting_cache_index),
+            stsc_sample_sums_.size());
   // look through old sample sums for the first entry that exceeds sample
   // sample_number, we want the entry right before that
   int cache_index = starting_cache_index;
-  for (; cache_index + 1 < stsc_sample_sums_.size(); cache_index++) {
+  for (; static_cast<size_t>(cache_index + 1) < stsc_sample_sums_.size();
+       cache_index++) {
     if (sample_number < stsc_sample_sums_[cache_index + 1]) {
       break;
     }
@@ -837,7 +840,7 @@ bool MP4Map::stss_AdvanceStep() {
     if (!(stss_table_index_ % stss_->GetCacheSizeEntries())) {
       int cache_index = stss_table_index_ / stss_->GetCacheSizeEntries();
       // only add if this is the first time we've encountered this number
-      if (cache_index == stss_keyframes_.size()) {
+      if (static_cast<size_t>(cache_index) == stss_keyframes_.size()) {
         stss_keyframes_.push_back(stss_next_keyframe_);
       }
       DCHECK_EQ(stss_next_keyframe_, stss_keyframes_[cache_index]);
@@ -852,7 +855,7 @@ bool MP4Map::stss_FindNearestKeyframe(uint32_t sample_number) {
   DCHECK(stss_);
   // it is assumed that there's at least one cache entry created by
   // stss_Init();
-  DCHECK_GT(stss_keyframes_.size(), 0);
+  DCHECK_GT(stss_keyframes_.size(), 0u);
   int cache_entry_number = stss_keyframes_.size() - 1;
   int total_cache_entries =
       (stss_->GetEntryCount() + stss_->GetCacheSizeEntries() - 1) /
@@ -874,7 +877,8 @@ bool MP4Map::stss_FindNearestKeyframe(uint32_t sample_number) {
         } else {  // sample_number >= stss_keyframes_[cache_entry_number]
           // if we are at end of list or next cache entry is higher than sample
           // number we consider it a match
-          if (cache_entry_number == stss_keyframes_.size() - 1 ||
+          if (static_cast<size_t>(cache_entry_number) ==
+                  stss_keyframes_.size() - 1 ||
               sample_number < stss_keyframes_[cache_entry_number + 1]) {
             break;
           }
@@ -893,7 +897,8 @@ bool MP4Map::stss_FindNearestKeyframe(uint32_t sample_number) {
     // First step is to make (b) in to (a) by advancing through cache entries
     // until last table entry in cache > sample_number or until we arrive
     // at the cache entry in the table.
-    while ((cache_entry_number == stss_keyframes_.size() - 1) &&
+    while ((static_cast<size_t>(cache_entry_number) ==
+            stss_keyframes_.size() - 1) &&
            cache_entry_number < total_cache_entries - 1) {
       // Use the first key frame in next cache as upper bound.
       int next_cached_entry_number =
@@ -924,7 +929,7 @@ bool MP4Map::stss_FindNearestKeyframe(uint32_t sample_number) {
     }
     // make sure we have an upper bound
     if (cache_entry_number != total_cache_entries - 1 &&
-        cache_entry_number == stss_keyframes_.size() - 1) {
+        static_cast<size_t>(cache_entry_number) == stss_keyframes_.size() - 1) {
       int next_cached_entry_number =
           ((cache_entry_number + 1) * stss_->GetCacheSizeEntries());
       uint32_t next_cached_keyframe;
@@ -958,7 +963,7 @@ bool MP4Map::stss_FindNearestKeyframe(uint32_t sample_number) {
     } else {  // sample_number >= last_keyframe
       lower_bound = stss_table_index_ + 1;
       // if this is the last entry in the table, we can stop here.
-      if (lower_bound == stss_->GetEntryCount()) {
+      if (static_cast<uint32_t>(lower_bound) == stss_->GetEntryCount()) {
         stss_next_keyframe_ = UINT32_MAX;
         break;
       }
@@ -1021,7 +1026,7 @@ bool MP4Map::stts_AdvanceToSample(uint32_t sample_number) {
   // sample number could also be well ahead of this cache segment, if we've
   // previously calculated summations ahead let's skip to the correct one
   int next_cache_index = (stts_table_index_ / stts_->GetCacheSizeEntries()) + 1;
-  if ((next_cache_index < stts_samples_.size()) &&
+  if ((static_cast<size_t>(next_cache_index) < stts_samples_.size()) &&
       (sample_number >= stts_samples_[next_cache_index])) {
     if (!stts_SlipCacheToSample(sample_number, next_cache_index)) {
       return false;
@@ -1042,9 +1047,10 @@ bool MP4Map::stts_AdvanceToSample(uint32_t sample_number) {
 // starting index to do the search from.
 bool MP4Map::stts_SlipCacheToSample(uint32_t sample_number,
                                     int starting_cache_index) {
-  DCHECK_LT(starting_cache_index, stts_samples_.size());
+  DCHECK_LT(static_cast<size_t>(starting_cache_index), stts_samples_.size());
   int cache_index = starting_cache_index;
-  for (; cache_index + 1 < stts_samples_.size(); cache_index++) {
+  for (; static_cast<size_t>(cache_index + 1) < stts_samples_.size();
+       cache_index++) {
     if (sample_number < stts_samples_[cache_index + 1]) {
       break;
     }
@@ -1076,7 +1082,7 @@ bool MP4Map::stts_AdvanceToTime(uint64_t timestamp) {
   // sample number could also be well ahead of this cache segment, if we've
   // previously calculated summations ahead let's skip to the correct one
   int next_cache_index = (stts_table_index_ / stts_->GetCacheSizeEntries()) + 1;
-  if ((next_cache_index < stts_timestamps_.size()) &&
+  if ((static_cast<size_t>(next_cache_index) < stts_timestamps_.size()) &&
       (timestamp >= stts_timestamps_[next_cache_index])) {
     if (!stts_SlipCacheToTime(timestamp, next_cache_index)) {
       return false;
@@ -1104,7 +1110,7 @@ bool MP4Map::stts_IntegrateStep() {
   if (!(stts_table_index_ % stts_->GetCacheSizeEntries())) {
     int cache_index = stts_table_index_ / stts_->GetCacheSizeEntries();
     // check that this is our first time with these data
-    if (cache_index == stts_samples_.size()) {
+    if (static_cast<size_t>(cache_index) == stts_samples_.size()) {
       // both tables should always grow together
       DCHECK_EQ(stts_samples_.size(), stts_timestamps_.size());
       stts_samples_.push_back(stts_first_sample_);
@@ -1138,9 +1144,10 @@ bool MP4Map::stts_IntegrateStep() {
 
 bool MP4Map::stts_SlipCacheToTime(uint64_t timestamp,
                                   int starting_cache_index) {
-  DCHECK_LT(starting_cache_index, stts_timestamps_.size());
+  DCHECK_LT(static_cast<size_t>(starting_cache_index), stts_timestamps_.size());
   int cache_index = starting_cache_index;
-  for (; cache_index + 1 < stts_timestamps_.size(); cache_index++) {
+  for (; static_cast<size_t>(cache_index + 1) < stts_timestamps_.size();
+       cache_index++) {
     if (timestamp < stts_timestamps_[cache_index + 1]) {
       break;
     }

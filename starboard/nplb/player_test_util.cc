@@ -273,7 +273,7 @@ void CallSbPlayerWriteSamples(
   if (sample_type == kSbMediaTypeAudio) {
     SB_DCHECK(discarded_durations_from_front.empty() ||
               discarded_durations_from_front.size() ==
-                  number_of_samples_to_write);
+                  static_cast<size_t>(number_of_samples_to_write));
     SB_DCHECK(discarded_durations_from_front.size() ==
               discarded_durations_from_back.size());
   } else {
