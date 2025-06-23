@@ -366,11 +366,19 @@ static_library("starboard_platform") {
   }
 }
 
+config("symbolize_config") {
+  cflags = [
+    "-Wno-unreachable-code-return",
+    "-Wno-unused-but-set-variable",
+  ]
+}
+
 static_library("starboard_base_symbolize") {
   sources = [
     "//base/third_party/symbolize/demangle.cc",
     "//base/third_party/symbolize/symbolize.cc",
   ]
+  configs += [ ":symbolize_config" ]
 
   deps = [
     "//starboard:starboard_headers_only",

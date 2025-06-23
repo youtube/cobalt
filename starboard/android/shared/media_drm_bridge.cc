@@ -166,7 +166,6 @@ bool MediaDrmBridge::UpdateSession(int ticket,
       env, static_cast<const uint8_t*>(session_id), session_id_size));
   ScopedJavaLocalRef<jbyteArray> j_response(
       ToJavaByteArray(env, static_cast<const uint8_t*>(key), key_size));
-  JniIntWrapper j_ticket = JniIntWrapper(ticket);
 
   ScopedJavaLocalRef<jobject> j_update_result(Java_MediaDrmBridge_updateSession(
       env, j_media_drm_bridge_, ticket, j_session_id, j_response));

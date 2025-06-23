@@ -54,28 +54,6 @@ SbAccessibilityCaptionCharacterEdgeStyle AndroidEdgeTypeToSbEdgeStyle(
   }
 }
 
-SbAccessibilityCaptionFontFamily AndroidFontFamilyToSbFontFamily(int family) {
-  switch (family) {
-    case 0:
-      return kSbAccessibilityCaptionFontFamilyCasual;
-    case 1:
-      return kSbAccessibilityCaptionFontFamilyCursive;
-    case 2:
-      return kSbAccessibilityCaptionFontFamilyMonospaceSansSerif;
-    case 3:
-      return kSbAccessibilityCaptionFontFamilyMonospaceSerif;
-    case 4:
-      return kSbAccessibilityCaptionFontFamilyProportionalSansSerif;
-    case 5:
-      return kSbAccessibilityCaptionFontFamilyProportionalSerif;
-    case 6:
-      return kSbAccessibilityCaptionFontFamilySmallCapitals;
-    default:
-      SB_NOTREACHED() << "Invalid font family conversion";
-      return kSbAccessibilityCaptionFontFamilyCasual;
-  }
-}
-
 SbAccessibilityCaptionState BooleanToCaptionState(bool is_set) {
   if (is_set) {
     return kSbAccessibilityCaptionStateSet;
