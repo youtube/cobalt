@@ -15,19 +15,19 @@
 #include "starboard/elf_loader/evergreen_info.h"
 
 #include <string.h>
-#include <atomic>
+
+#include "starboard/atomic.h"
+#include "starboard/common/log.h"
+#include "starboard/shared/gcc/atomic_gcc_public.h"
 
 static EvergreenInfo g_evergreen_info;
 static bool g_valid_info = false;
-static std::atomic<int32_t> g_busy{0};
+static SbAtomic32 g_busy = 0;
 
 bool SetEvergreenInfo(const EvergreenInfo* evergreen_info) {
+  SB_LOG(INFO) << "SetEvergreenInfo@";
   // Set the busy flag or bail.
-  int32_t busy_state_flag = 1;
-  int32_t ready_state_flag = 0;
-  if (g_busy.compare_exchange_weak(ready_state_flag, busy_state_flag,
-                                   std::memory_order_release,
-                                   std::memory_order_relaxed)) {
+  if (SbAtomicNoBarrier_CompareAndSwap(&g_busy, 0, 1) == 1) {
     // Bailing out is OK as the process crashed
     // before we launched the application and in that
     // case the evergreen information is not needed.
@@ -41,13 +41,10 @@ bool SetEvergreenInfo(const EvergreenInfo* evergreen_info) {
     g_valid_info = false;
   }
   // Publish local memory changes to all threads.
-  std::atomic_thread_fence(std::memory_order_seq_cst);
+  SbAtomicMemoryBarrier();
 
   // Clear the busy flag.
-  g_busy.compare_exchange_weak(busy_state_flag, ready_state_flag,
-                               std::memory_order_release,
-                               std::memory_order_relaxed);
-
+  SbAtomicNoBarrier_CompareAndSwap(&g_busy, 1, 0);
   return true;
 }
 
@@ -56,18 +53,13 @@ bool GetEvergreenInfo(EvergreenInfo* evergreen_info) {
     return false;
   }
 
-  int32_t busy_state_flag = 1;
-  int32_t ready_state_flag = 0;
-
   // Set the busy flag or bail.
-  if (g_busy.compare_exchange_weak(ready_state_flag, busy_state_flag,
-                                   std::memory_order_release,
-                                   std::memory_order_relaxed)) {
+  if (SbAtomicNoBarrier_CompareAndSwap(&g_busy, 0, 1) == 1) {
     return false;
   }
 
   // Make sure all memory changes are visible to the current thread.
-  std::atomic_thread_fence(std::memory_order_seq_cst);
+  SbAtomicMemoryBarrier();
   if (!g_valid_info) {
     return false;
   }
@@ -75,8 +67,6 @@ bool GetEvergreenInfo(EvergreenInfo* evergreen_info) {
   *evergreen_info = g_evergreen_info;
 
   // Clear the busy flag.
-  g_busy.compare_exchange_weak(busy_state_flag, ready_state_flag,
-                               std::memory_order_release,
-                               std::memory_order_relaxed);
+  SbAtomicNoBarrier_CompareAndSwap(&g_busy, 1, 0);
   return true;
 }
