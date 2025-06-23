@@ -104,8 +104,9 @@ int CobaltBrowserMainParts::PreCreateThreads() {
 int CobaltBrowserMainParts::PreMainMessageLoopRun() {
   StartMetricsRecording();
 
-  browser_context_.reset(new content::ShellBrowserContext(false));
-  off_the_record_browser_context_.reset(new content::ShellBrowserContext(true));
+  browser_context_ = std::make_unique<content::ShellBrowserContext>(false);
+  off_the_record_browser_context_ =
+      std::make_unique<content::ShellBrowserContext>(false);
   // Persistent Origin Trials needs to be instantiated as soon as possible
   // during browser startup, to ensure data is available prior to the first
   // request.
