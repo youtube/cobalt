@@ -56,6 +56,9 @@ runs:
 
         for test_binary_path in $(cat out/${{ matrix.platform }}_${{ matrix.config }}/test_targets.json | jq -cr '.executables | join(" ")'); do
           test_binary=$(basename "${test_binary_path}")
+          if [[ "${{ matrix.platform }}" == *evergreen* ]]; then
+            test_binary="nplb_loader"
+          fi
           echo "Running tests for suite: ${test_binary}"
 
           test_filter="*"
@@ -71,7 +74,7 @@ runs:
 
           ENTRYPOINT=./"${test_binary_path}"
           if [[ "${{ matrix.platform }}" == *evergreen* ]]; then
-            ENTRYPOINT="./out/${{ matrix.platform }}_${{ matrix.config }}/elf_loader_sandbox --evergreen_library=${test_binary_path} --evergreen_content=."
+            ENTRYPOINT="./out/${{ matrix.platform }}_${{ matrix.config }}/elf_loader_sandbox --evergreen_library=libnplb.so --evergreen_content=."
           fi
 
           if [ "${test_filter}" == "-*" ]; then
