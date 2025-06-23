@@ -245,7 +245,6 @@ TEST_P(SbPlayerWriteSampleTest, PartialAudio) {
 TEST_P(SbPlayerWriteSampleTest, DiscardAllAudio) {
   if (!IsPartialAudioSupported()) {
     GTEST_SKIP() << "The platform doesn't support partial audio.";
-    return;
   }
   if (IsAudioPassthroughUsed(GetParam())) {
     GTEST_SKIP() << "The audio passthrough doesn't support partial audio.";
