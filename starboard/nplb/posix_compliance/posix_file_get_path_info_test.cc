@@ -41,6 +41,14 @@ TEST(PosixFileGetPathInfoTest, InvalidFileErrors) {
   EXPECT_TRUE(stat(".", &file_info) == 0);
 }
 
+<<<<<<< HEAD
+=======
+constexpr int64_t kMicrosecond = 1'000'000;
+auto ToMicroseconds(const struct timespec& ts) {
+  return ts.tv_sec * kMicrosecond + ts.tv_nsec / 1000;
+}
+
+>>>>>>> 9b65ab2257f (Fix clang warnings for modular builds (#6138))
 TEST(PosixFileGetPathInfoTest, WorksOnARegularFile) {
   // This test is potentially flaky because it's comparing times. So, building
   // in extra sensitivity to make flakiness more apparent.
@@ -79,7 +87,7 @@ TEST(PosixFileGetPathInfoTest, WorksOnADirectory) {
 
   {
     struct stat file_info;
-    bool result = stat(path.data(), &file_info) == 0;
+    EXPECT_TRUE(stat(path.data(), &file_info) == 0);
     EXPECT_LE(0, file_info.st_size);
     EXPECT_TRUE(S_ISDIR(file_info.st_mode));
     EXPECT_FALSE(S_ISLNK(file_info.st_mode));
