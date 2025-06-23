@@ -233,6 +233,7 @@ SbPlayerBridge::SbPlayerBridge(
       decode_target_provider_(decode_target_provider),
 #endif  // COBALT_MEDIA_ENABLE_DECODE_TARGET_PROVIDER
 #if COBALT_MEDIA_ENABLE_PLAYER_SET_MAX_VIDEO_INPUT_SIZE
+      // TODO: b/326654546 - Reorder this variable once enabled.
       max_video_input_size_(max_video_input_size),
 #endif  // COBALT_MEDIA_ENABLE_PLAYER_SET_MAX_VIDEO_INPUT_SIZE
 #if COBALT_MEDIA_ENABLE_CVAL
