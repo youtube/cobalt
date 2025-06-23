@@ -77,7 +77,7 @@ TEST(PosixDirectoryCreateTest, SunnyDayTempDirectoryManySeparators) {
   ASSERT_TRUE(system_path_success);
   const int new_size = starboard::strlcat(
       temp_path.data(), kManyFileSeparators.c_str(), kSbFileMaxPath);
-  ASSERT_LT(new_size, kSbFileMaxPath);
+  ASSERT_LT(new_size, static_cast<int>(kSbFileMaxPath));
 
   struct stat info;
   EXPECT_TRUE(stat(temp_path.data(), &info) == 0 && S_ISDIR(info.st_mode));

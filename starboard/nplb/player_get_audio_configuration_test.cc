@@ -266,10 +266,10 @@ TEST_P(SbPlayerGetAudioConfigurationTest, MultipleSeeks) {
   ASSERT_EQ(configs_after_presenting, configs_after_end);
 }
 
-INSTANTIATE_TEST_CASE_P(SbPlayerGetAudioConfigurationTests,
-                        SbPlayerGetAudioConfigurationTest,
-                        ValuesIn(GetAllPlayerTestConfigs()),
-                        GetSbPlayerTestConfigName);
+INSTANTIATE_TEST_SUITE_P(SbPlayerGetAudioConfigurationTests,
+                         SbPlayerGetAudioConfigurationTest,
+                         ValuesIn(GetAllPlayerTestConfigs()),
+                         GetSbPlayerTestConfigName);
 
 }  // namespace
 }  // namespace nplb

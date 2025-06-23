@@ -47,7 +47,7 @@ TEST(PosixAlignedAllocTests,
   const size_t kValidSize = kValidAlignment * 2;
   ASSERT_TRUE((kValidAlignment > 0) &&
               ((kValidAlignment & (kValidAlignment - 1)) == 0));
-  ASSERT_EQ(0, kValidSize % kValidAlignment);
+  ASSERT_EQ(0u, kValidSize % kValidAlignment);
 
   errno = 0;
   void* ptr = aligned_alloc(kValidAlignment, kValidSize);
@@ -116,7 +116,7 @@ TEST(PosixAlignedAllocTests, AllocatesSuccessfullyWithLargeAlignmentAndSize) {
   const size_t kLargeSize = kLargeAlignment * 2;
   ASSERT_TRUE((kLargeAlignment > 0) &&
               ((kLargeAlignment & (kLargeAlignment - 1)) == 0));
-  ASSERT_EQ(0, kLargeSize % kLargeAlignment);
+  ASSERT_EQ(0u, kLargeSize % kLargeAlignment);
 
   errno = 0;
   void* ptr = aligned_alloc(kLargeAlignment, kLargeSize);

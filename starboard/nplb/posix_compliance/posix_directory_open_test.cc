@@ -66,12 +66,12 @@ TEST(PosixDirectoryOpenTest, ManySunnyDay) {
   const int kMany = kSbFileMaxOpen;
   std::vector<DIR*> directories(kMany, 0);
 
-  for (int i = 0; i < directories.size(); ++i) {
+  for (size_t i = 0; i < directories.size(); ++i) {
     directories[i] = opendir(path.c_str());
     EXPECT_TRUE(directories[i] != NULL);
   }
 
-  for (int i = 0; i < directories.size(); ++i) {
+  for (size_t i = 0; i < directories.size(); ++i) {
     EXPECT_TRUE(closedir(directories[i]) == 0);
   }
 }

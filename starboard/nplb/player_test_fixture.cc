@@ -39,11 +39,13 @@ class SbPlayerTestFixture::GroupedSamplesIterator {
       : grouped_samples_(grouped_samples) {}
 
   bool HasMoreAudio() const {
-    return audio_samples_index_ < grouped_samples_.audio_samples_.size();
+    return static_cast<size_t>(audio_samples_index_) <
+           grouped_samples_.audio_samples_.size();
   }
 
   bool HasMoreVideo() const {
-    return video_samples_index_ < grouped_samples_.video_samples_.size();
+    return static_cast<size_t>(video_samples_index_) <
+           grouped_samples_.video_samples_.size();
   }
 
   AudioSamplesDescriptor GetCurrentAudioSamplesToWrite() const {
@@ -282,7 +284,8 @@ void SbPlayerTestFixture::Write(const GroupedSamples& grouped_samples) {
         iterator.AdvanceAudio(1);
       } else {
         SB_DCHECK(descriptor.samples_count > 0);
-        SB_DCHECK(descriptor.start_index + descriptor.samples_count <
+        SB_DCHECK(static_cast<size_t>(descriptor.start_index +
+                                      descriptor.samples_count) <
                   audio_dmp_reader_->number_of_audio_buffers())
             << "Audio dmp file is not long enough to finish the test.";
 
@@ -304,7 +307,8 @@ void SbPlayerTestFixture::Write(const GroupedSamples& grouped_samples) {
         iterator.AdvanceVideo(1);
       } else {
         SB_DCHECK(descriptor.samples_count > 0);
-        SB_DCHECK(descriptor.start_index + descriptor.samples_count <
+        SB_DCHECK(static_cast<size_t>(descriptor.start_index +
+                                      descriptor.samples_count) <
                   video_dmp_reader_->number_of_video_buffers())
             << "Video dmp file is not long enough to finish the test.";
 
@@ -358,7 +362,8 @@ void SbPlayerTestFixture::SetAudioWriteDuration(int64_t duration) {
 
 int64_t SbPlayerTestFixture::GetAudioSampleTimestamp(int index) const {
   SB_DCHECK(HasAudio());
-  SB_DCHECK(index < audio_dmp_reader_->number_of_audio_buffers());
+  SB_DCHECK(static_cast<size_t>(index) <
+            audio_dmp_reader_->number_of_audio_buffers());
   return audio_dmp_reader_->GetPlayerSampleInfo(kSbMediaTypeAudio, index)
       .timestamp;
 }
@@ -522,7 +527,7 @@ void SbPlayerTestFixture::WriteAudioSamples(
   SB_DCHECK(samples_to_write > 0);
   SB_DCHECK(samples_to_write <= SbPlayerGetMaximumNumberOfSamplesPerWrite(
                                     player_, kSbMediaTypeAudio));
-  SB_DCHECK(start_index + samples_to_write + 1 <
+  SB_DCHECK(static_cast<size_t>(start_index + samples_to_write + 1) <
             audio_dmp_reader_->number_of_audio_buffers());
   SB_DCHECK(discarded_duration_from_front == 0 || samples_to_write == 1);
   SB_DCHECK(discarded_duration_from_back == 0 || samples_to_write == 1);
@@ -551,7 +556,7 @@ void SbPlayerTestFixture::WriteVideoSamples(int start_index,
   SB_DCHECK(samples_to_write <= SbPlayerGetMaximumNumberOfSamplesPerWrite(
                                     player_, kSbMediaTypeVideo));
   SB_DCHECK(video_dmp_reader_);
-  SB_DCHECK(start_index + samples_to_write <
+  SB_DCHECK(static_cast<size_t>(start_index + samples_to_write) <
             video_dmp_reader_->number_of_video_buffers());
 
   CallSbPlayerWriteSamples(player_, kSbMediaTypeVideo, video_dmp_reader_.get(),
