@@ -317,9 +317,8 @@ TEST_F(SbPlayerTest, AudioOnly) {
 
 TEST_F(SbPlayerTest, MultiPlayer) {
   auto audio_stream_info = CreateAudioStreamInfo(kSbMediaAudioCodecAac);
-  SbDrmSystem kDrmSystem = kSbDrmSystemInvalid;
 
-  constexpr SbPlayerOutputMode kOutputModes[] = {
+  constexpr SbPlayerOutputMode kMultiPlayerOutputModes[] = {
       kSbPlayerOutputModeDecodeToTexture, kSbPlayerOutputModePunchOut};
 
   // clang-format off
@@ -396,7 +395,7 @@ TEST_F(SbPlayerTest, MultiPlayer) {
   int number_of_players = 0;
 
   for (int i = 0; i < kMaxPlayersPerConfig; ++i) {
-    for (int j = 0; j < SB_ARRAY_SIZE_INT(kOutputModes); ++j) {
+    for (int j = 0; j < SB_ARRAY_SIZE_INT(kMultiPlayerOutputModes); ++j) {
       for (int k = 0; k < SB_ARRAY_SIZE_INT(kAudioCodecs); ++k) {
         for (int l = 0; l < SB_ARRAY_SIZE_INT(kVideoCodecs); ++l) {
           ++number_of_create_attempts;
@@ -413,7 +412,7 @@ TEST_F(SbPlayerTest, MultiPlayer) {
               kAudioCodecs[k], kSbDrmSystemInvalid, &audio_stream_info,
               "" /* max_video_capabilities */, DummyDeallocateSampleFunc,
               DummyDecoderStatusFunc, PlayerStatusFunc, PlayerErrorFunc, this,
-              kOutputModes[j],
+              kMultiPlayerOutputModes[j],
               fake_graphics_context_provider_.decoder_target_provider()));
 
           if (SbPlayerIsValid(created_players.back())) {

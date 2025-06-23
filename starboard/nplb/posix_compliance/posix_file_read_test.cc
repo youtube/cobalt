@@ -226,7 +226,6 @@ TYPED_TEST(PosixFileReadTest, ReadStaticContent) {
 
     // Read and check the whole file.
     std::string content;
-    int total = 0;
     int max = 0;
     while (true) {
       int bytes_read = TypeParam::Read(file, buffer, kBufferLength);
@@ -241,7 +240,6 @@ TYPED_TEST(PosixFileReadTest, ReadStaticContent) {
       EXPECT_LT(0, bytes_read);
 
       // Do some accounting to check later.
-      total += bytes_read;
       if (bytes_read > max) {
         max = bytes_read;
       }

@@ -160,7 +160,7 @@ TEST(SbMediaBufferTest, MediaTypes) {
 }
 
 TEST(SbMediaBufferTest, Alignment) {
-  for (auto type : kMediaTypes) {
+  for (int i = 0; i < SB_ARRAY_SIZE_INT(kMediaTypes); ++i) {
     // The test will be run more than once, it's redundant but allows us to keep
     // the test logic in one place.
     int alignment = SbMediaGetBufferAlignment();

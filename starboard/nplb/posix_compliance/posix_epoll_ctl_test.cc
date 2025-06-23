@@ -21,7 +21,7 @@
 #include <sys/epoll.h>
 #include <unistd.h>
 
-#include "starboard/nplb/posix_compliance/posix_epoll_test_helper.cc"
+#include "starboard/nplb/posix_compliance/posix_epoll_test_helper.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
 namespace starboard {

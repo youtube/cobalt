@@ -38,7 +38,6 @@ TEST(PosixSocketConnectTest, RainyDayNullSocket) {
 }
 
 TEST(PosixSocketConnectTest, RainyDayNullAddress) {
-  int result = -1;
   // create socket
   int socket_fd = socket(AF_INET, SOCK_STREAM, IPPROTO_TCP);
   ASSERT_TRUE(socket_fd >= 0);

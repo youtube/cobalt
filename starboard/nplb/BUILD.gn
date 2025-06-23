@@ -118,6 +118,7 @@ test("nplb") {
     "posix_compliance/posix_epoll_create_test.cc",
     "posix_compliance/posix_epoll_ctl_test.cc",
     "posix_compliance/posix_epoll_test_helper.cc",
+    "posix_compliance/posix_epoll_test_helper.h",
     "posix_compliance/posix_epoll_wait_test.cc",
     "posix_compliance/posix_file_can_open_test.cc",
     "posix_compliance/posix_file_close_test.cc",

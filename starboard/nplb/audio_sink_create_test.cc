@@ -119,13 +119,15 @@ TEST(SbAudioSinkCreateTest, SunnyDayAllCombinations) {
       SbAudioSinkDestroy(audio_sink);
 
       if (SbAudioSinkGetMaxChannels() > 2) {
-        AudioSinkTestFrameBuffers frame_buffers(2, sample_types[sample_type],
-                                                storage_types[storage_type]);
+        AudioSinkTestFrameBuffers frame_buffers_many_channels(
+            2, sample_types[sample_type], storage_types[storage_type]);
         audio_sink = SbAudioSinkCreate(
-            frame_buffers.channels(),
+            frame_buffers_many_channels.channels(),
             SbAudioSinkGetNearestSupportedSampleFrequency(44100),
-            frame_buffers.sample_type(), frame_buffers.storage_type(),
-            frame_buffers.frame_buffers(), frame_buffers.frames_per_channel(),
+            frame_buffers_many_channels.sample_type(),
+            frame_buffers_many_channels.storage_type(),
+            frame_buffers_many_channels.frame_buffers(),
+            frame_buffers_many_channels.frames_per_channel(),
             UpdateSourceStatusFuncStub, ConsumeFramesFuncStub, NULL);
         EXPECT_TRUE(SbAudioSinkIsValid(audio_sink));
         SbAudioSinkDestroy(audio_sink);

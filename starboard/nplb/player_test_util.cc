@@ -78,14 +78,6 @@ const char* kVideoTestFiles[] = {
 const SbPlayerOutputMode kOutputModes[] = {kSbPlayerOutputModeDecodeToTexture,
                                            kSbPlayerOutputModePunchOut};
 
-void ErrorFunc(SbPlayer player,
-               void* context,
-               SbPlayerError error,
-               const char* message) {
-  std::atomic_bool* error_occurred = static_cast<std::atomic_bool*>(context);
-  error_occurred->exchange(true);
-}
-
 }  // namespace
 
 std::vector<const char*> GetStereoAudioTestFiles() {

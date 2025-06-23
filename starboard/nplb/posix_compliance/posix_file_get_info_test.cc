@@ -38,7 +38,7 @@ TEST(PosixFileGetInfoTest, InvalidFileErrors) {
 constexpr int64_t kMicrosecond = 1'000'000;
 auto ToMicroseconds(const struct timespec& ts) {
   return ts.tv_sec * kMicrosecond + ts.tv_nsec / 1000;
-};
+}
 
 TEST(PosixFileGetInfoTest, WorksOnARegularFile) {
   // This test is potentially flaky because it's comparing times. So, building
@@ -56,7 +56,7 @@ TEST(PosixFileGetInfoTest, WorksOnARegularFile) {
 
     {
       struct stat info;
-      int result = fstat(file, &info);
+      fstat(file, &info);
       EXPECT_EQ(kFileSize, info.st_size);
       EXPECT_FALSE(S_ISDIR(info.st_mode));
       EXPECT_FALSE(S_ISLNK(info.st_mode));
@@ -74,7 +74,6 @@ TEST(PosixFileGetInfoTest, WorksOnARegularFile) {
 }
 
 TEST(PosixFileGetInfoTest, WorksOnStaticContentFiles) {
-  int count = 1;
   for (auto filename : GetFileTestsFilePaths()) {
     int file = open(filename.c_str(), O_RDONLY);
     ASSERT_TRUE(file >= 0);
