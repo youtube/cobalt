@@ -14,6 +14,7 @@
 
 import("//build/linux/strip_binary.gni")
 import("//testing/test.gni")
+import("//ui/base/ui_features.gni")
 
 group("gn_all") {
   testonly = true
@@ -35,44 +36,28 @@ if (!is_android) {
   executable("cobalt") {
     testonly = true
 
-    sources = [
-      "cobalt.cc",
-      "cobalt_main_delegate.cc",
-      "cobalt_main_delegate.h",
-      "cobalt_switch_defaults.cc",
-      "cobalt_switch_defaults.h",
-    ]
+    sources = [ "app/cobalt.cc" ]
 
-    defines = []
+    configs += [ "//build/config/gcc:rpath_for_built_shared_libraries" ]
 
     deps = [
-      "//chrome/common:non_code_constants",
-      "//cobalt/browser",
-      "//cobalt/browser:switches",
-      "//cobalt/gpu",
-      "//cobalt/renderer",
-      "//components/memory_system:memory_system",
-      "//components/prefs",
+      ":common",
+      "//base",
       "//content/public/app",
       "//content/shell:content_shell_app",
       "//content/shell:content_shell_lib",
-      "//content/shell:pak",
-      "//gpu/command_buffer/service",
-      "//sandbox",
-      "//starboard:starboard_group",
-      "//third_party/blink/public/common",
-      "//ui/ozone:ozone_switches",
-      "//ui/ozone/platform/starboard:starboard",
+      "//starboard:starboard_headers_only",
     ]
 
+    if (is_starboard) {
+      deps += [ "//ui/ozone/platform/starboard:starboard" ]
+    }
+
     data_deps = [
+      "//components/crash/core/app:chrome_crashpad_handler",
       "//content/shell:pak",
       "//tools/v8_context_snapshot:v8_context_snapshot",
     ]
-
-    data_deps += [ "//components/crash/core/app:chrome_crashpad_handler" ]
-
-    configs += [ "//build/config/gcc:rpath_for_built_shared_libraries" ]
   }
 
   strip_binary("strip_cobalt_binary") {
@@ -82,17 +67,58 @@ if (!is_android) {
   }
 }
 
+source_set("common") {
+  testonly = true
+
+  sources = [
+    "app/cobalt_main_delegate.cc",
+    "app/cobalt_main_delegate.h",
+    "app/cobalt_switch_defaults.cc",
+    "app/cobalt_switch_defaults.h",
+  ]
+
+  deps = [
+    "//base",
+    "//chrome/common:non_code_constants",
+    "//cobalt/browser",
+    "//cobalt/browser:switches",
+    "//cobalt/gpu",
+    "//cobalt/renderer",
+    "//components/memory_system:memory_system",
+    "//content/public/app",
+    "//content/shell:content_shell_app",
+    "//content/shell:content_shell_lib",
+    "//content/shell:pak",
+    "//gpu/command_buffer/service",
+    "//media",
+    "//sandbox/policy",
+    "//starboard:starboard_headers_only",
+    "//third_party/blink/public/common",
+    "//ui/gl",
+  ]
+
+  if (use_ozone) {
+    deps += [ "//ui/ozone:ozone_switches" ]
+  }
+
+  if (is_starboard) {
+    deps += [ "//ui/ozone/platform/starboard:starboard" ]
+  }
+}
+
 action("cobalt_build_info") {
   script = "build/build_info.py"
   outputs = [
     "$root_gen_dir/cobalt/cobalt_build_id.h",
     "$root_gen_dir/build_info.json",
     "$root_gen_dir/licenses_cobalt.txt",
+    "$root_gen_dir/licenses_cobalt.spdx",
   ]
   args = [
     rebase_path(outputs[0], root_build_dir),
     rebase_path(outputs[1], root_build_dir),
     rebase_path(outputs[2], root_build_dir),
+    rebase_path(outputs[3], root_build_dir),
   ]
 }
 
@@ -100,23 +126,22 @@ test("cobalt_unittests") {
   testonly = true
 
   sources = [
+    "//cobalt/app/cobalt_switch_defaults_test.cc",
     "//cobalt/browser/client_hint_headers/cobalt_header_value_provider_test.cc",
     "//cobalt/browser/client_hint_headers/cobalt_trusted_header_client_test.cc",
     "//cobalt/browser/client_hint_headers/cobalt_trusted_url_loader_header_client_test.cc",
     "//cobalt/browser/h5vcc_runtime/deep_link_manager_unittest.cc",
     "//cobalt/browser/metrics/cobalt_enabled_state_provider_test.cc",
-    "//cobalt/browser/metrics/cobalt_metrics_logs_uploader_test.cc",
+    "//cobalt/browser/metrics/cobalt_metrics_log_uploader_test.cc",
     "//cobalt/browser/metrics/cobalt_metrics_service_client_test.cc",
     "//cobalt/browser/metrics/cobalt_metrics_services_manager_client_test.cc",
     "//cobalt/browser/user_agent/user_agent_platform_info_test.cc",
-    "//cobalt/cobalt_switch_defaults.cc",
-    "//cobalt/cobalt_switch_defaults.h",
-    "//cobalt/cobalt_switch_defaults_test.cc",
   ]
 
   public_deps = [ "//third_party/zlib/google:compression_utils" ]
 
   deps = [
+    ":common",
     "//base/test:run_all_unittests",
     "//base/test:test_support",
     "//cobalt/browser:metrics",
