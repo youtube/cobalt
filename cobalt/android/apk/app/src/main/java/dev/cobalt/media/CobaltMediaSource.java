@@ -27,7 +27,7 @@ import androidx.media3.common.MediaMetadata;
 import androidx.media3.common.MimeTypes;
 import androidx.media3.common.Timeline;
 import androidx.media3.common.TrackGroup;
-import androidx.media3.common.util.NullableType;
+// import androidx.media3.common.util.NullableType;
 import androidx.media3.common.util.UnstableApi;
 import androidx.media3.datasource.TransferListener;
 import androidx.media3.decoder.DecoderInputBuffer;
@@ -196,8 +196,8 @@ public final class CobaltMediaSource extends BaseMediaSource {
     }
 
     @Override
-    public long selectTracks(@NullableType ExoTrackSelection[] selections,
-        boolean[] mayRetainStreamFlags, @NullableType SampleStream[] streams,
+    public long selectTracks(ExoTrackSelection[] selections,
+        boolean[] mayRetainStreamFlags, SampleStream[] streams,
         boolean[] streamResetFlags, long positionUs) {
       // The Player's TrackSelector selects a subset of getTrackGroups() for playback based on
       // device support and user preferences. This can be customized with DefaultTrackSelector
