@@ -16,7 +16,7 @@
 #include <stdlib.h>
 #include <string.h>
 
-#include "starboard/log.h"
+#include "starboard/common/log.h"
 
 namespace {
 // Corresponding arrays to for musl<->platform translation.
@@ -66,6 +66,10 @@ int musl_shuts_to_platform_shuts(int how) {
       return SHUT_WR;
     case MUSL_SHUT_RDWR:
       return SHUT_RDWR;
+    default:
+      SB_LOG(WARNING) << "Unable to convert musl flag to platform flag, "
+                      << "using value as-is.";
+      return how;
   }
 }
 

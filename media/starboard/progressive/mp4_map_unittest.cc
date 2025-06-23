@@ -189,7 +189,8 @@ class SampleTable {
 
   int BlockingRead(int64_t position, int size, uint8_t* data) {
     CHECK_GE(position, file_offset_);
-    CHECK_LE(position + size, file_offset_ + combined_.size());
+    CHECK_LE(static_cast<size_t>(position + size),
+             file_offset_ + combined_.size());
     uint32_t offset = position - file_offset_;
     memcpy(data, &combined_[0] + offset, size);
     ++read_count_;
@@ -482,12 +483,12 @@ TEST_F(MP4MapTest, GetSizeWithDefaultSize) {
 
     uint32_t returned_size;
     ASSERT_TRUE(map_->GetSize(0, &returned_size));
-    ASSERT_EQ(returned_size, 0xb0df00d);
+    ASSERT_EQ(returned_size, 0xb0df00du);
     ASSERT_FALSE(map_->GetSize(2000, &returned_size));
     ASSERT_TRUE(map_->GetSize(2, &returned_size));
-    ASSERT_EQ(returned_size, 0xb0df00d);
+    ASSERT_EQ(returned_size, 0xb0df00du);
     ASSERT_TRUE(map_->GetSize(120, &returned_size));
-    ASSERT_EQ(returned_size, 0xb0df00d);
+    ASSERT_EQ(returned_size, 0xb0df00du);
   }
 
   ASSERT_EQ(sample_table_->read_count(), 0);
@@ -534,7 +535,7 @@ TEST_F(MP4MapTest, GetSizeIterationTinyCache) {
         uint32_t table_size = GetTestSample(j).size;
         ASSERT_EQ(map_reported_size, table_size);
       }
-      ASSERT_LE(sample_table_->read_count(),
+      ASSERT_LE(static_cast<unsigned long>(sample_table_->read_count()),
                 sample_table_->sample_count() / i + 1);
       if (sample_table_->read_count()) {
         ASSERT_LE(sample_table_->read_bytes() / sample_table_->read_count(),
@@ -748,7 +749,7 @@ TEST_F(MP4MapTest, GetOffsetRandomAccessWithDefaultSize) {
     ASSERT_EQ(map_reported_offset, table_offset);
 
     // Skip by 3 through the file a few times
-    for (int i = 0; i < sample_table_->sample_count(); ++i) {
+    for (size_t i = 0; i < sample_table_->sample_count(); ++i) {
       int sample_index = (i * 3) % sample_table_->sample_count();
       ASSERT_TRUE(map_->GetOffset(sample_index, &map_reported_offset));
       table_offset = GetTestSample(sample_index).offset;
@@ -838,7 +839,7 @@ TEST_F(MP4MapTest, GetTimestampRandomAccessNoCompositionTime) {
   SetTestTable(kAtomType_stts, 10);
 
   // skip by sevens through the file, seven times
-  for (int i = 0; i < sample_table_->sample_count(); ++i) {
+  for (size_t i = 0; i < sample_table_->sample_count(); ++i) {
     uint32_t sample_number = (i * 7) % sample_table_->sample_count();
     uint64_t map_reported_timestamp = 0;
     ASSERT_TRUE(map_->GetTimestamp(sample_number, &map_reported_timestamp));
@@ -869,7 +870,7 @@ TEST_F(MP4MapTest, GetTimestampIteration) {
     SetTestTable(kAtomType_ctts, i);
     SetTestTable(kAtomType_stts, i);
 
-    for (int j = 0; j < sample_table_->sample_count(); ++j) {
+    for (size_t j = 0; j < sample_table_->sample_count(); ++j) {
       uint64_t map_reported_timestamp = 0;
       ASSERT_TRUE(map_->GetTimestamp(j, &map_reported_timestamp));
       uint64_t table_timestamp = GetTestSample(j).cts;
@@ -1018,7 +1019,7 @@ TEST_F(MP4MapTest, GetKeyframeNoKeyframeTableIteration) {
   ResetMap();
   SetTestTable(kAtomType_stts, 7);
 
-  for (int i = 0; i < sample_table_->sample_count(); ++i) {
+  for (size_t i = 0; i < sample_table_->sample_count(); ++i) {
     // get actual timestamp and duration of this sample
     uint64_t sample_timestamp = GetTestSample(i).dts;
     uint32_t sample_duration = GetTestSample(i).dts_duration;
@@ -1036,7 +1037,7 @@ TEST_F(MP4MapTest, GetKeyframeNoKeyframeTableRandomAccess) {
   SetTestTable(kAtomType_stts, 5);
 
   // backwards through the middle third of samples
-  for (int i = (sample_table_->sample_count() * 2) / 3;
+  for (size_t i = (sample_table_->sample_count() * 2) / 3;
        i >= sample_table_->sample_count() / 3; --i) {
     uint64_t sample_timestamp = GetTestSample(i).dts;
     uint32_t sample_duration = GetTestSample(i).dts_duration;
@@ -1057,7 +1058,7 @@ TEST_F(MP4MapTest, GetKeyframeNoKeyframeTableRandomAccess) {
 
   // lowest valid timestamp in file
   ASSERT_TRUE(map_->GetKeyframe(0, &map_keyframe));
-  ASSERT_EQ(map_keyframe, 0);
+  ASSERT_EQ(map_keyframe, 0u);
 
   // should fail on higher timestamps
   ASSERT_FALSE(map_->GetKeyframe(highest_timestamp + 1, &map_keyframe));
@@ -1073,7 +1074,7 @@ TEST_F(MP4MapTest, GetKeyframe) {
   // find first keyframe in file, should be first frame
   uint32_t map_keyframe = 0;
   ASSERT_TRUE(map_->GetKeyframe(0, &map_keyframe));
-  ASSERT_EQ(map_keyframe, 0);
+  ASSERT_EQ(map_keyframe, 0u);
 
   // find a first quarter keyframe in file
   uint32_t qtr_keyframe = sample_table_->sample_count() / 4;
