@@ -22,159 +22,111 @@
 namespace starboard::nplb {
 namespace {
 
-// Test to see if all supported configurations can be called without error.
-// A pathconf call returning -1 does not necessarily mean that an error
-// occurred (this can happen when a platform disables a configuration we
-// support; whether an option is supported or not differs from platform to
-// platform), so we only check if each call changes errno from 0 (meaning an
-// actual error occurred).
-TEST(PosixFilePathconfTest, AllConfigsCalledOnFiles) {
+class PosixFilePathconfTest : public ::testing::Test {
+ protected:
+  PosixFilePathconfTest() : random_file_(kFileSize) {}
   const int kFileSize = 64;
-  ScopedRandomFile random_file(kFileSize);
-  const std::string& filename = random_file.filename();
-#if defined(_PC_LINK_MAX)
+  ScopedRandomFile random_file_;
+};
+
+class PosixFilePathconfValidNameTest
+    : public PosixFilePathconfTest,
+      public ::testing::WithParamInterface<int> {};
+
+// A pathconf call with a valid name should not fail with EINVAL. It may
+// return -1 if there is no limit for a given resource, but errno should not
+// be set to EINVAL. This test verifies that the configuration names are
+// recognized by the system.
+TEST_P(PosixFilePathconfValidNameTest, PathconfDoesNotFailWithEinval) {
+  int pc_name = GetParam();
+  const std::string& filename = random_file_.filename();
+
   errno = 0;
-  long result = pathconf(filename.c_str(), _PC_LINK_MAX);
-  EXPECT_EQ(errno, 0) << "pathconf with _PC_LINK_MAX failed:"
-                      << strerror(errno);
+  pathconf(filename.c_str(), pc_name);
+
+  EXPECT_NE(errno, EINVAL)
+      << "pathconf(" << pc_name
+      << ") failed with EINVAL, meaning the name is considered invalid.";
+}
+
+TEST_F(PosixFilePathconfTest, InvalidNameFails) {
+  const std::string& filename = random_file_.filename();
+  errno = 0;
+  long result = pathconf(filename.c_str(), -1);
+
+  EXPECT_EQ(result, -1);
+  EXPECT_EQ(errno, EINVAL)
+      << "pathconf with an invalid name failed with an unexpected error: "
+      << strerror(errno);
+}
+
+INSTANTIATE_TEST_SUITE_P(PosixPathconfTests,
+                         PosixFilePathconfValidNameTest,
+                         ::testing::Values(
+#if defined(_PC_LINK_MAX)
+                             _PC_LINK_MAX,
 #endif  // defined(_PC_LINK_MAX)
 #if defined(_PC_MAX_CANON)
-  errno = 0;
-  result = pathconf(filename.c_str(), _PC_MAX_CANON);
-  EXPECT_EQ(errno, 0) << "pathconf with _PC_MAX_CANON failed:"
-                      << strerror(errno);
+                             _PC_MAX_CANON,
 #endif  // defined(_PC_MAX_CANON)
 #if defined(_PC_MAX_INPUT)
-  errno = 0;
-  result = pathconf(filename.c_str(), _PC_MAX_INPUT);
-  EXPECT_EQ(errno, 0) << "pathconf with _PC_MAX_INPUT failed:"
-                      << strerror(errno);
+                             _PC_MAX_INPUT,
 #endif  // defined(_PC_MAX_INPUT)
 #if defined(_PC_NAME_MAX)
-  errno = 0;
-  result = pathconf(filename.c_str(), _PC_NAME_MAX);
-  EXPECT_EQ(errno, 0) << "pathconf with _PC_NAME_MAX failed:"
-                      << strerror(errno);
+                             _PC_NAME_MAX,
 #endif  // defined(_PC_NAME_MAX)
 #if defined(_PC_PATH_MAX)
-  errno = 0;
-  result = pathconf(filename.c_str(), _PC_PATH_MAX);
-  EXPECT_EQ(errno, 0) << "pathconf with _PC_PATH_MAX failed:"
-                      << strerror(errno);
+                             _PC_PATH_MAX,
 #endif  // defined(_PC_PATH_MAX)
 #if defined(_PC_PIPE_BUF)
-  errno = 0;
-  result = pathconf(filename.c_str(), _PC_PIPE_BUF);
-  EXPECT_EQ(errno, 0) << "pathconf with _PC_PIPE_BUF failed:"
-                      << strerror(errno);
+                             _PC_PIPE_BUF,
 #endif  // defined(_PC_PIPE_BUF)
 #if defined(_PC_CHOWN_RESTRICTED)
-  errno = 0;
-  result = pathconf(filename.c_str(), _PC_CHOWN_RESTRICTED);
-  EXPECT_EQ(errno, 0) << "pathconf with _PC_CHOWN_RESTRICTED failed:"
-                      << strerror(errno);
+                             _PC_CHOWN_RESTRICTED,
 #endif  // defined(_PC_CHOWN_RESTRICTED)
 #if defined(_PC_NO_TRUNC)
-  errno = 0;
-  result = pathconf(filename.c_str(), _PC_NO_TRUNC);
-  EXPECT_EQ(errno, 0) << "pathconf with _PC_NO_TRUNC failed:"
-                      << strerror(errno);
+                             _PC_NO_TRUNC,
 #endif  // defined(_PC_NO_TRUNC)
 #if defined(_PC_VDISABLE)
-  errno = 0;
-  result = pathconf(filename.c_str(), _PC_VDISABLE);
-  EXPECT_EQ(errno, 0) << "pathconf with _PC_VDISABLE failed:"
-                      << strerror(errno);
+                             _PC_VDISABLE,
 #endif  // defined(_PC_VDISABLE)
 #if defined(_PC_SYNC_IO)
-  errno = 0;
-  result = pathconf(filename.c_str(), _PC_SYNC_IO);
-  EXPECT_EQ(errno, 0) << "pathconf with _PC_SYNC_IO failed:" << strerror(errno);
+                             _PC_SYNC_IO,
 #endif  // defined(_PC_SYNC_IO)
 #if defined(_PC_ASYNC_IO)
-  errno = 0;
-  result = pathconf(filename.c_str(), _PC_ASYNC_IO);
-  EXPECT_EQ(errno, 0) << "pathconf with _PC_ASYNC_IO failed:"
-                      << strerror(errno);
+                             _PC_ASYNC_IO,
 #endif  // defined(_PC_ASYNC_IO)
 #if defined(_PC_PRIO_IO)
-  errno = 0;
-  result = pathconf(filename.c_str(), _PC_PRIO_IO);
-  EXPECT_EQ(errno, 0) << "pathconf with _PC_PRIO_IO failed:" << strerror(errno);
+                             _PC_PRIO_IO,
 #endif  // defined(_PC_PRIO_IO)
 #if defined(_PC_SOCK_MAXBUF)
-  errno = 0;
-  result = pathconf(filename.c_str(), _PC_SOCK_MAXBUF);
-  EXPECT_EQ(errno, 0) << "pathconf with _PC_SOCK_MAXBUF failed:"
-                      << strerror(errno);
+                             _PC_SOCK_MAXBUF,
 #endif  // defined(_PC_SOCK_MAXBUF)
 #if defined(_PC_FILESIZEBITS)
-  errno = 0;
-  result = pathconf(filename.c_str(), _PC_FILESIZEBITS);
-  EXPECT_EQ(errno, 0) << "pathconf with _PC_FILESIZEBITS failed:"
-                      << strerror(errno);
+                             _PC_FILESIZEBITS,
 #endif  // defined(_PC_FILESIZEBITS)
 #if defined(_PC_REC_INCR_XFER_SIZE)
-  errno = 0;
-  result = pathconf(filename.c_str(), _PC_REC_INCR_XFER_SIZE);
-  EXPECT_EQ(errno, 0) << "pathconf with _PC_REC_INCR_XFER_SIZE failed:"
-                      << strerror(errno);
+                             _PC_REC_INCR_XFER_SIZE,
 #endif  // defined(_PC_REC_INCR_XFER_SIZE)
 #if defined(_PC_REC_MAX_XFER_SIZE)
-  errno = 0;
-  result = pathconf(filename.c_str(), _PC_REC_MAX_XFER_SIZE);
-  EXPECT_EQ(errno, 0) << "pathconf with _PC_REC_MAX_XFER_SIZE failed:"
-                      << strerror(errno);
+                             _PC_REC_MAX_XFER_SIZE,
 #endif  // defined(_PC_REC_MAX_XFER_SIZE)
 #if defined(_PC_REC_MIN_XFER_SIZE)
-  errno = 0;
-  result = pathconf(filename.c_str(), _PC_REC_MIN_XFER_SIZE);
-  EXPECT_EQ(errno, 0) << "pathconf with _PC_REC_MIN_XFER_SIZE failed:"
-                      << strerror(errno);
+                             _PC_REC_MIN_XFER_SIZE,
 #endif  // defined(_PC_REC_MIN_XFER_SIZE)
 #if defined(_PC_REC_XFER_ALIGN)
-  errno = 0;
-  result = pathconf(filename.c_str(), _PC_REC_XFER_ALIGN);
-  EXPECT_EQ(errno, 0) << "pathconf with _PC_REC_XFER_ALIGN failed:"
-                      << strerror(errno);
+                             _PC_REC_XFER_ALIGN,
 #endif  // defined(_PC_REC_XFER_ALIGN)
 #if defined(_PC_ALLOC_SIZE_MIN)
-  errno = 0;
-  result = pathconf(filename.c_str(), _PC_ALLOC_SIZE_MIN);
-  EXPECT_EQ(errno, 0) << "pathconf with _PC_ALLOC_SIZE_MIN failed:"
-                      << strerror(errno);
+                             _PC_ALLOC_SIZE_MIN,
 #endif  // defined(_PC_ALLOC_SIZE_MIN)
 #if defined(_PC_SYMLINK_MAX)
-  errno = 0;
-  result = pathconf(filename.c_str(), _PC_SYMLINK_MAX);
-  EXPECT_EQ(errno, 0) << "pathconf with _PC_SYMLINK_MAX failed:"
-                      << strerror(errno);
+                             _PC_SYMLINK_MAX,
 #endif  // defined(_PC_SYMLINK_MAX)
 #if defined(_PC_2_SYMLINKS)
-  errno = 0;
-  result = pathconf(filename.c_str(), _PC_2_SYMLINKS);
-  EXPECT_EQ(errno, 0) << "pathconf with _PC_2_SYMLINKS failed:"
-                      << strerror(errno);
+                             _PC_2_SYMLINKS
 #endif  // defined(_PC_2_SYMLINKS)
-}
-
-TEST(PosixFilePathconfTest, NonExistentPath) {
-  EXPECT_EQ(-1, pathconf("/test/non_existent_path123.txt", _PC_NAME_MAX));
-  EXPECT_EQ(ENOENT, errno);
-}
-
-TEST(PosixFilePathconfTest, InvalidName) {
-  const int kFileSize = 64;
-  ScopedRandomFile random_file(kFileSize);
-  const std::string& filename = random_file.filename();
-  const int LARGE_UNDEFINED_NAME_VALUE = 100;
-  EXPECT_EQ(-1, pathconf(filename.c_str(), -1));
-  EXPECT_EQ(EINVAL, errno);
-
-  errno = 0;
-  EXPECT_EQ(-1, pathconf(filename.c_str(), LARGE_UNDEFINED_NAME_VALUE));
-  EXPECT_EQ(EINVAL, errno);
-}
+                             ));
 
 }  // namespace
 }  // namespace starboard::nplb

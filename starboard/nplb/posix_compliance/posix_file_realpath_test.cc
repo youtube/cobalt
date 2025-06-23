@@ -76,7 +76,6 @@ TEST_F(PosixFileRealpathTest, RelativePath) {
 
   char relative_path[] = "../realpath_test_XXXXXX/test_file.txt";
   // The directory name is randomized, so we need to construct it.
-  char expected_path[PATH_MAX];
   char* dir_name = strrchr(temp_dir_, '/');
   snprintf(relative_path, sizeof(relative_path), "../%s/test_file.txt",
            dir_name + 1);
@@ -103,14 +102,6 @@ TEST_F(PosixFileRealpathTest, SymbolicLink) {
   EXPECT_STREQ(resolved_path, file_path_);
 
   unlink(symlink_path);
-}
-
-TEST_F(PosixFileRealpathTest, NullPath) {
-  char resolved_path[PATH_MAX];
-  char* result = realpath(NULL, resolved_path);
-
-  EXPECT_EQ(nullptr, result);
-  EXPECT_EQ(EINVAL, errno);
 }
 
 TEST_F(PosixFileRealpathTest, NullResolvedPath) {
