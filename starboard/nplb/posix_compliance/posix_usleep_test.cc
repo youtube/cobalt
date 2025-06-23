@@ -113,7 +113,7 @@ TEST_F(PosixUsleepTests, SuccessfulSleep) {
                     << ", errno: " << errno << " (" << strerror(errno) << ")";
 
   long elapsed_us = TimevalDiffToMicroseconds(&start_time, &end_time);
-  EXPECT_GE(elapsed_us, kTestSleepUs)
+  EXPECT_GE(elapsed_us, static_cast<long>(kTestSleepUs))
       << "Sleep duration was too short. Requested: " << kTestSleepUs
       << "us, Elapsed: " << elapsed_us << "us.";
 }
