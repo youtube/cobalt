@@ -28,9 +28,6 @@ namespace starboard::shared::starboard::media {
 
 namespace {
 
-const int64_t kDefaultBitRate = 0;
-const int64_t kDefaultAudioChannels = 2;
-
 template <typename StreamInfo>
 void Assign(const StreamInfo& source, AudioStreamInfo* dest) {
   SB_DCHECK(dest);

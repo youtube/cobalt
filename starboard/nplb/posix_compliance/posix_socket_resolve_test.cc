@@ -67,8 +67,6 @@ TEST(PosixSocketResolveTest, SunnyDaySocketType) {
   EXPECT_EQ(result, 0);
   ASSERT_NE(nullptr, ai);
 
-  struct sockaddr_in* ai_addr = nullptr;
-
   for (const struct addrinfo* i = ai; i != nullptr; i = i->ai_next) {
     EXPECT_EQ(i->ai_socktype, SOCK_DGRAM);
   }

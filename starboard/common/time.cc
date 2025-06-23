@@ -24,11 +24,11 @@ namespace {
 constexpr int64_t kMicrosecond = 1'000'000;
 auto ToMicroseconds(const struct timespec& ts) {
   return ts.tv_sec * kMicrosecond + ts.tv_nsec / 1000;
-};
+}
 
 auto ToMicroseconds(const struct timeval& tv) {
   return tv.tv_sec * kMicrosecond + tv.tv_usec;
-};
+}
 
 }  // namespace
 

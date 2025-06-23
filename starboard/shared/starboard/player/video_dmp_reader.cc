@@ -45,10 +45,6 @@ int64_t CalculateAverageBitrate(const std::vector<AccessUnit>& access_units) {
   return total_bitrate * 8 * 1'000'000LL / duration;
 }
 
-static void DeallocateSampleFunc(SbPlayer player,
-                                 void* context,
-                                 const void* sample_buffer) {}
-
 SbPlayerSampleInfo ConvertToPlayerSampleInfo(
     const VideoDmpReader::AudioAccessUnit& audio_unit) {
   SbPlayerSampleInfo sample_info = {};
@@ -104,9 +100,9 @@ void VideoDmpReader::Registry::Register(const std::string& filename,
 VideoDmpReader::VideoDmpReader(
     const char* filename,
     ReadOnDemandOptions read_on_demand_options /*= kDisableReadOnDemand*/)
-    : file_reader_(filename, 1024 * 1024),
-      read_cb_(std::bind(&FileCacheReader::Read, &file_reader_, _1, _2)),
-      allow_read_on_demand_(read_on_demand_options == kEnableReadOnDemand) {
+    : allow_read_on_demand_(read_on_demand_options == kEnableReadOnDemand),
+      file_reader_(filename, 1024 * 1024),
+      read_cb_(std::bind(&FileCacheReader::Read, &file_reader_, _1, _2)) {
   bool already_cached =
       GetRegistry()->GetDmpInfo(file_reader_.GetAbsolutePathName(), &dmp_info_);
 

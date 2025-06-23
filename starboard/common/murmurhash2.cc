@@ -71,8 +71,10 @@ uint32_t MurmurHash2_32_Aligned(const void* src,
   switch (size) {
     case 3:
       h ^= data[2] << 16;
+      [[fallthrough]];
     case 2:
       h ^= data[1] << 8;
+      [[fallthrough]];
     case 1:
       h ^= data[0];
       h *= m;

@@ -72,13 +72,13 @@ class KeySystemSupportabilityContainer {
 };
 
 template <typename T>
-SB_ONCE_INITIALIZE_FUNCTION(KeySystemSupportabilityContainer<T>, GetContainer);
+SB_ONCE_INITIALIZE_FUNCTION(KeySystemSupportabilityContainer<T>, GetContainer)
 
 }  // namespace
 
 // static
 SB_ONCE_INITIALIZE_FUNCTION(KeySystemSupportabilityCache,
-                            KeySystemSupportabilityCache::GetInstance);
+                            KeySystemSupportabilityCache::GetInstance)
 
 Supportability KeySystemSupportabilityCache::GetKeySystemSupportability(
     SbMediaAudioCodec codec,
