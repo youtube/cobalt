@@ -23,9 +23,12 @@
 #include "starboard/android/shared/jni_env_ext.h"
 #include "starboard/android/shared/jni_utils.h"
 #include "starboard/android/shared/video_window.h"
+#include "starboard/common/mutex.h"
 #include "starboard/media.h"
 #include "starboard/player.h"
 #include "starboard/shared/starboard/media/media_util.h"
+#include "starboard/shared/starboard/player/filter/common.h"
+#include "starboard/shared/starboard/player/input_buffer_internal.h"
 #include "starboard/shared/starboard/player/job_queue.h"
 #include "starboard/shared/starboard/player/job_thread.h"
 
@@ -33,36 +36,47 @@ namespace starboard::android::shared::exoplayer {
 
 using starboard::android::shared::JniEnvExt;
 using starboard::android::shared::VideoSurfaceHolder;
-using starboard::shared::starboard::player::JobQueue;
-using starboard::shared::starboard::player::JobThread;
+using starboard::shared::starboard::player::filter::EndedCB;
+using starboard::shared::starboard::player::filter::ErrorCB;
 
 class ExoPlayerBridge final : private VideoSurfaceHolder {
  public:
-  typedef std::function<void(int64_t media_time,
-                             int dropped_video_frames,
-                             int ticket,
-                             bool is_progressing)>
-      UpdateMediaInfoCB;
+  typedef ::starboard::shared::starboard::player::filter::PrerolledCB
+      PrerolledCB;
+  typedef ::starboard::shared::starboard::player::InputBuffer InputBuffer;
+  typedef ::starboard::shared::starboard::player::InputBuffers InputBuffers;
+  typedef ::starboard::shared::starboard::media::AudioStreamInfo
+      AudioStreamInfo;
+  typedef ::starboard::shared::starboard::media::VideoStreamInfo
+      VideoStreamInfo;
 
-  ExoPlayerBridge(const SbPlayerCreationParam* creation_param,
-                  SbPlayerDeallocateSampleFunc sample_deallocate_func,
-                  SbPlayerDecoderStatusFunc decoder_status_func,
-                  SbPlayerStatusFunc player_status_func,
-                  SbPlayerErrorFunc player_error_func,
-                  UpdateMediaInfoCB update_media_info_cb,
-                  SbPlayer player,
-                  void* context);
+  struct MediaInfo {
+    bool is_playing;
+    bool is_eos_played;
+    bool is_underflow;
+    double playback_rate;
+  };
+  //   typedef std::function<void(MediaInfo& info)>
+  //       UpdateMediaInfoCB;
+
+  ExoPlayerBridge(const AudioStreamInfo& audio_stream_info,
+                  const VideoStreamInfo& video_stream_info,
+                  const ErrorCB& error_cb,
+                  const PrerolledCB& prerolled_cb,
+                  const EndedCB& ended_cb);
   ~ExoPlayerBridge();
 
-  void Seek(int64_t seek_to_timestamp, int ticket);
-  void WriteSamples(SbMediaType sample_type,
-                    const SbPlayerSampleInfo* sample_infos,
-                    int number_of_sample_infos);
+  void Seek(int64_t seek_to_timestamp);
+  void WriteSamples(const InputBuffers& input_buffers);
   void WriteEndOfStream(SbMediaType stream_type);
   bool Play();
   bool Pause();
   bool Stop();
   bool SetVolume(double volume);
+  void SetPlaybackRate(const double playback_rate);
+
+  int GetDroppedFrames();
+  int64_t GetCurrentMediaTime(MediaInfo& info);
 
   void OnPlayerInitialized();
   void OnPlayerPrerolled();
@@ -73,57 +87,45 @@ class ExoPlayerBridge final : private VideoSurfaceHolder {
   // VideoSurfaceHolder method
   void OnSurfaceDestroyed() override {}
 
+  bool IsEndOfStreamWritten(SbMediaType type) {
+    return type == kSbMediaTypeAudio ? audio_eos_written_ : video_eos_written_;
+  }
+
   bool is_valid() const { return j_exoplayer_bridge_ != nullptr; }
 
  private:
   bool InitExoplayer();
-  void DoSeek(int64_t seek_to_timestamp, int ticket);
-  void DoWriteSamples(SbMediaType sample_type,
-                      const SbPlayerSampleInfo* sample_infos,
-                      int number_of_sample_infos);
-  void DoWriteEndOfStream(SbMediaType stream_type);
-  void DoPlay();
-  void DoPause();
-  void DoStop();
-  void DoSetVolume(double volume);
-
-  void Update();
 
   void TearDownExoPlayer();
   void UpdatePlayingStatus(bool is_playing);
-  void UpdatePlayerState(SbPlayerState player_state);
-  void UpdateDecoderState(SbMediaType type, SbPlayerDecoderState state);
-  void UpdatePlayerError(SbPlayerError error, const std::string& error_message);
-
-  SbPlayerDeallocateSampleFunc sample_deallocate_func_;
-  SbPlayerDecoderStatusFunc decoder_status_func_;
-  SbPlayerStatusFunc player_status_func_;
-  SbPlayerErrorFunc player_error_func_;
-  UpdateMediaInfoCB update_media_info_cb_;
 
   jobject j_exoplayer_bridge_ = nullptr;
   jobject j_sample_data_ = nullptr;
   jobject j_output_surface_ = nullptr;
 
-  void* context_;
-  SbPlayer player_;
   bool error_occurred_ = false;
-  int ticket_;
   bool audio_only_ = false;
   bool video_only_ = false;
   SbPlayerState player_state_;
-  std::unique_ptr<JobThread> exoplayer_thread_;
-  pthread_t exoplayer_pthread_ = 0;
   starboard::shared::starboard::media::AudioStreamInfo audio_stream_info_;
   starboard::shared::starboard::media::VideoStreamInfo video_stream_info_;
 
   int64_t last_media_time_ = 0;
+  int64_t seek_time_ = 0;
   int dropped_video_frames_ = 0;
-  bool is_progressing_ = false;
+  bool is_playing_ = false;
   bool ended_ = false;
 
-  JobQueue::JobToken update_job_token_;
-  std::function<void()> update_job_;
+  ErrorCB error_cb_;
+  PrerolledCB prerolled_cb_;
+  EndedCB ended_cb_;
+
+  Mutex mutex_;
+  bool audio_eos_written_ = false;
+  bool video_eos_written_ = false;
+  bool playback_ended_ = false;
+  double playback_rate_ = 0.0;
+  bool seeking_ = false;
 };
 
 }  // namespace starboard::android::shared::exoplayer

@@ -318,6 +318,20 @@ public class ExoPlayerBridge {
     return true;
   }
 
+  @UsedByNative
+  private void setPlaybackRate(float playbackRate) {
+    if (!isAbleToProcessCommands()) {
+      Log.e(TAG, "Cannot set playback rate with NULL ExoPlayer.");
+      return;
+    }
+    if (playbackRate > 0.0f) {
+      exoplayerHandler.post(() -> {
+        Log.i(TAG, String.format("Setting ExoPlayer playback rate to %f", playbackRate));
+        player.setPlaybackParameters(new PlaybackParameters(playbackRate));
+      });
+    }
+  }
+
   @SuppressWarnings("unused")
   @UsedByNative
   private boolean play() {

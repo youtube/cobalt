@@ -14,9 +14,6 @@
 
 #include "starboard/player.h"
 
-// TODO: Remove //media/base:base dependency cycle to use base::FeatureList
-// here. #include "media/base/media_switches.h"
-#include "starboard/android/shared/exoplayer/exoplayer.h"
 #include "starboard/common/log.h"
 #include "starboard/shared/starboard/player/player_internal.h"
 
@@ -29,18 +26,6 @@ bool SbPlayerSetPlaybackRate(SbPlayer player, double playback_rate) {
     SB_DLOG(WARNING) << "playback_rate cannot be negative but it is set to "
                      << playback_rate << '.';
     return false;
-  }
-
-  // TODO: Remove //media/base:base dependency cycle to use base::FeatureList
-  // here.
-  if (/* !base::FeatureList::IsEnabled(media::kCobaltUseExoPlayer) */ (true)) {
-    SB_DLOG(INFO)
-        << "Using ExoPlayer SbPlayerSetPlaybackRate() implementation.";
-    auto exoplayer = starboard::android::shared::exoplayer::ExoPlayer::
-        GetExoPlayerForSbPlayer(player);
-    SB_DCHECK(exoplayer);
-    exoplayer->SetPlaybackRate(playback_rate);
-    return true;
   }
 
   player->SetPlaybackRate(playback_rate);

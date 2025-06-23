@@ -14,22 +14,10 @@
 
 #include "starboard/player.h"
 
-// TODO: Remove //media/base:base dependency cycle to use base::FeatureList
-// here. #include "media/base/media_switches.h"
-#include "starboard/android/shared/exoplayer/exoplayer.h"
 #include "starboard/shared/starboard/player/player_internal.h"
 
 void SbPlayerDestroy(SbPlayer player) {
   if (!SbPlayerIsValid(player)) {
-    return;
-  }
-
-  // TODO: Remove //media/base:base dependency cycle to use base::FeatureList
-  // here.
-  if (/* base::FeatureList::IsEnabled(media::kCobaltUseExoPlayer) */ (true)) {
-    SB_LOG(INFO) << "Using ExoPlayer SbPlayerDestroy() implementation;.";
-    delete starboard::android::shared::exoplayer::ExoPlayer::
-        GetExoPlayerForSbPlayer(player);
     return;
   }
 
