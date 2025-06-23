@@ -363,7 +363,13 @@ PathString GetDefaultLogFile() {
   // On Starboard, we politely ask for the log directory, like a civilized
   // platform.
   std::vector<char> path(kSbFileMaxPath + 1);
+<<<<<<< HEAD
   SbSystemGetPath(kSbSystemPathDebugOutputDirectory, path.data(), path.size());
+=======
+  SbSystemGetPath(kSbSystemPathDebugOutputDirectory,
+                  path.data(),
+                  static_cast<int>(kSbFileMaxPath + 1));
+>>>>>>> 7bcb44f6b30 (Fix clang warnings for linux builds (#6140))
   PathString log_file = path.data();
   log_file += std::string(kSbFileSepString) + "debug.log";
   return log_file;

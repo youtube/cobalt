@@ -49,7 +49,7 @@ class AVCParser : public ProgressiveParser {
                        SPSRecord* record_out);
 
   // GetNextAU we must pass on to FLV or MP4 children.
-  virtual scoped_refptr<AvcAccessUnit> GetNextAU(DemuxerStream::Type type) = 0;
+  scoped_refptr<AvcAccessUnit> GetNextAU(DemuxerStream::Type type) override = 0;
   // Prepends are common to all AVC/AAC containers so we can do this one here.
   bool Prepend(scoped_refptr<AvcAccessUnit> au,
                scoped_refptr<DecoderBuffer> buffer) override;

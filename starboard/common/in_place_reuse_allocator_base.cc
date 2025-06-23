@@ -28,7 +28,7 @@ namespace {
 int ceil_power_2(int i) {
   SB_DCHECK(i >= 0);
 
-  for (int power = 0; power < sizeof(i) * 8 - 1; ++power) {
+  for (size_t power = 0; power < sizeof(i) * 8 - 1; ++power) {
     if ((1 << power) >= i) {
       return 1 << power;
     }
@@ -211,7 +211,7 @@ void InPlaceReuseAllocatorBase::Free(void* memory) {
       total_allocated_in_bytes_ = 0;
       total_allocated_blocks_ = 0;
 
-      for (int i = 0; i < fallback_allocations_.size(); ++i) {
+      for (int i = 0; i < static_cast<int>(fallback_allocations_.size()); ++i) {
         AddFreeBlock(MemoryBlock(i, fallback_allocations_[i].address,
                                  fallback_allocations_[i].size));
       }
@@ -273,7 +273,8 @@ void InPlaceReuseAllocatorBase::PrintAllocations(
 
   for (auto&& iter : allocated_histogram) {
     if (lines == max_allocations_to_print - 1 &&
-        allocated_histogram.size() > max_allocations_to_print) {
+        static_cast<int>(allocated_histogram.size()) >
+            max_allocations_to_print) {
       SB_LOG(INFO) << "\t[" << allocated_histogram.rbegin()->second.min << ", "
                    << iter.second.max
                    << "] : " << total_allocated_blocks_ - accumulated_blocks;
@@ -307,7 +308,7 @@ void InPlaceReuseAllocatorBase::PrintAllocations(
 
   for (auto&& iter : free_histogram) {
     if (lines == max_allocations_to_print - 1 &&
-        free_histogram.size() > max_allocations_to_print) {
+        static_cast<int>(free_histogram.size()) > max_allocations_to_print) {
       SB_LOG(INFO) << "\t[" << free_histogram.rbegin()->first << ", "
                    << iter.first
                    << "] : " << free_blocks_.size() - accumulated_blocks;
@@ -328,7 +329,8 @@ bool InPlaceReuseAllocatorBase::TryFree(void* memory) {
   BlockMetadata* metadata = static_cast<BlockMetadata*>(memory) - 1;
 
   if (metadata->signature != this || metadata->fallback_index < 0 ||
-      metadata->fallback_index >= fallback_allocations_.size()) {
+      static_cast<size_t>(metadata->fallback_index) >=
+          fallback_allocations_.size()) {
     return false;
   }
 

@@ -38,9 +38,9 @@ StarboardRendererClient::StarboardRendererClient(
     mojo::PendingReceiver<ClientExtension> client_extension_receiver,
     BindHostReceiverCallback bind_host_receiver_callback,
     GpuVideoAcceleratorFactories* gpu_factories)
-    : media_task_runner_(media_task_runner),
+    : MojoRendererWrapper(std::move(mojo_renderer)),
+      media_task_runner_(media_task_runner),
       media_log_(std::move(media_log)),
-      MojoRendererWrapper(std::move(mojo_renderer)),
       video_overlay_factory_(std::move(video_overlay_factory)),
       video_renderer_sink_(video_renderer_sink),
       pending_renderer_extension_(std::move(pending_renderer_extension)),
