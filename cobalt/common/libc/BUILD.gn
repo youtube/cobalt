@@ -26,6 +26,7 @@ static_library("libc") {
     "//third_party/icu:icui18n",
     "//third_party/icu:icuuc_public",
   ]
+  public_deps = [ "//starboard/common:common_headers_only" ]
 }
 
 source_set("libc_test") {
