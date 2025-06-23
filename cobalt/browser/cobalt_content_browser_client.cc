@@ -186,11 +186,8 @@ struct SharedState {
 };
 
 SharedState& GetSharedState() {
-  static SharedState* g_shared_state = nullptr;
-  if (!g_shared_state) {
-    g_shared_state = new SharedState();
-  }
-  return *g_shared_state;
+  static SharedState g_shared_state;
+  return g_shared_state;
 }
 
 void set_browser_main_parts(content::ShellBrowserMainParts* parts) {
