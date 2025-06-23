@@ -27,8 +27,6 @@ namespace starboard {
 namespace nplb {
 namespace {
 
-// Small duration for sleeps that should be short or return immediately.
-const useconds_t kShortSleepUs = 1'000;  // 1 millisecond (1,000 microseconds)
 // A slightly longer duration for testing actual sleep.
 const useconds_t kTestSleepUs =
     50'000;  // 50 milliseconds (50,000 microseconds)

@@ -81,8 +81,6 @@ class SbMediaSetAudioWriteDurationTest
     }
 
     SbPlayer player = pending_decoder_status_->player;
-    SbMediaType type = pending_decoder_status_->type;
-    int ticket = pending_decoder_status_->ticket;
     {
       starboard::ScopedSpinLock lock(&pending_decoder_status_lock_);
       pending_decoder_status_ = std::nullopt;
