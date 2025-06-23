@@ -148,7 +148,9 @@ long sys_rt_sigaction(int sig,
                       struct kernel_sigaction* oact) {
 #if BUILDFLAG(ENABLE_COBALT_HERMETIC_HACKS)
   COBALT_LINKER_STUB();
+#if BUILDFLAG(COBALT_IS_RELEASE_BUILD)
   return -1;
+#endif
 #else  // ENABLE_COBALT_HERMETIC_HACKS
   return syscall(SYS_rt_sigaction, sig, act, oact, sizeof(kernel_sigset_t));
 #endif  // ENABLE_COBALT_HERMETIC_HACKS

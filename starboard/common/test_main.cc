@@ -29,7 +29,7 @@ int InitAndRunAllTests(int argc, char** argv) {
 
 #if BUILDFLAG(IS_STARBOARD)
 // For the Starboard OS define SbEventHandle as the entry point
-SB_EXPORT STARBOARD_WRAP_SIMPLE_MAIN(InitAndRunAllTests);
+SB_EXPORT STARBOARD_WRAP_SIMPLE_MAIN(InitAndRunAllTests)
 
 #if !SB_IS(EVERGREEN)
 // Define main() for non-Evergreen Starboard OS.

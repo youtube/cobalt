@@ -148,7 +148,7 @@ void StripAndParseBitrate(const char* mime,
 
 // static
 SB_ONCE_INITIALIZE_FUNCTION(MimeSupportabilityCache,
-                            MimeSupportabilityCache::GetInstance);
+                            MimeSupportabilityCache::GetInstance)
 
 Supportability MimeSupportabilityCache::GetMimeSupportability(
     const char* mime,

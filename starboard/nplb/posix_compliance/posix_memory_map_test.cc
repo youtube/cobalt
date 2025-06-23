@@ -212,6 +212,7 @@ TEST(PosixMemoryMapTest, CanChangeMemoryProtection) {
       if (to_flags & PROT_READ) {
         for (int i = 0; i < kSize; i++) {
           volatile uint8_t force_read = static_cast<uint8_t*>(memory)[i];
+          (void)force_read;
         }
       }
       if (to_flags & PROT_WRITE) {

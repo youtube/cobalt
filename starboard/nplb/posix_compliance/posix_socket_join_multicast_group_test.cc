@@ -104,7 +104,6 @@ TEST(PosixSocketJoinMulticastGroupTest, SunnyDay) {
       EXPECT_NE(-1, close(send_socket));
       EXPECT_NE(-1, close(receive_socket));
       FAIL() << "Failed to send multicast packet: " << errno;
-      return;
     }
     EXPECT_EQ(sizeof(kBuf), sent);
     break;

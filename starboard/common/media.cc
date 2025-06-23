@@ -442,7 +442,6 @@ bool ParseVp09Info(const char* codec,
   const char kLongFormReference[] = "vp09.02.10.10.01.09.16.09.01";
   const size_t kShortFormSize = strlen(kShortFormReference);
   const size_t kMediumFormSize = strlen(kMediumFormReference);
-  const size_t kLongFormSize = strlen(kLongFormReference);
 
   // 1. Sanity check the format.
   if (strncmp(codec, "vp09.", 5) != 0) {

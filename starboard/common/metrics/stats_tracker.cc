@@ -19,6 +19,6 @@
 namespace starboard {
 
 SB_ONCE_INITIALIZE_FUNCTION(StatsTrackerContainer,
-                            StatsTrackerContainer::GetInstance);
+                            StatsTrackerContainer::GetInstance)
 
 }  // namespace starboard

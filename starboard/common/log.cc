@@ -144,7 +144,7 @@ std::ostream& operator<<(std::ostream& out, const std::wstring& wstr) {
 }
 
 LogMessage::LogMessage(const char* file, int line, SbLogPriority priority)
-    : priority_(priority), file_(file), line_(line) {
+    : priority_(priority) {
   Init(file, line);
 }
 
