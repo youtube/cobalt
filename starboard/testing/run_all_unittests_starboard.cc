@@ -28,7 +28,7 @@ int LaunchUnitTests(int argc, char** argv) {
 }  // namespace
 
 // For the Starboard OS define SbEventHandle as the entry point
-SB_EXPORT STARBOARD_WRAP_SIMPLE_MAIN(LaunchUnitTests);
+SB_EXPORT STARBOARD_WRAP_SIMPLE_MAIN(LaunchUnitTests)
 
 #if SB_IS(EVERGREEN)
 // If the OS is not Starboard use the regular main e.g. ATV.

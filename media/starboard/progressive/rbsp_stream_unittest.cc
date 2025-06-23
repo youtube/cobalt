@@ -63,7 +63,7 @@ class RBSPStreamTest : public testing::Test {
     // encoding calls for pow leading zeros, followed by a 1, followed
     // by pow digits of the input number - ((2^pow) - 1).
     // we move from MSb to LSb, so start by pushing back the leading 0s
-    for (int i = 0; i < pow; i++) {
+    for (uint32_t i = 0; i < pow; i++) {
       bits.push_back(false);
     }
     // now push the separating one
@@ -292,7 +292,7 @@ TEST_F(RBSPStreamTest, ReadUEVTooLarge) {
   // first call should succeed
   uint32_t uev = 0;
   ASSERT_TRUE(uev_too_big.ReadUEV(&uev));
-  ASSERT_EQ(uev, 43689);
+  ASSERT_EQ(uev, 43689u);
   // as should the second call
   ASSERT_TRUE(uev_too_big.ReadUEV(&uev));
   ASSERT_EQ(uev, 2147483648u);
@@ -466,7 +466,7 @@ TEST_F(RBSPStreamTest, ReadBits) {
                                    seventeen_ones_size);
   uint32_t seventeen_ones_word = 0;
   ASSERT_TRUE(seventeen_ones_stream.ReadBits(17, &seventeen_ones_word));
-  ASSERT_EQ(seventeen_ones_word, 0x0001ffff);
+  ASSERT_EQ(seventeen_ones_word, 0x0001ffffu);
 
   // serialize all powers of two from 2^0 to 2^31
   std::list<bool> pows;
@@ -511,7 +511,7 @@ TEST_F(RBSPStreamTest, SkipBytes) {
   RBSPStream nines_deseq_stream(nines_deseq_buff.get(), nines_deseq_size);
   // iterate through streams, skipping in one and reading in the other, always
   // comparing values.
-  for (int i = 0; i < 512; ++i) {
+  for (uint32_t i = 0; i < 512; ++i) {
     if (i % 2) {
       ASSERT_TRUE(nines_stream.SkipBytes(1));
       uint8_t bit = 0;

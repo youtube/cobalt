@@ -49,8 +49,9 @@ bool CobaltSecureNavigationThrottle::ShouldEnforceHTTPS(
   }
 #if BUILDFLAG(COBALT_IS_RELEASE_BUILD)
   return true;
-#endif  // COBALT_IS_OFFICIAL_BUILD
+#else   // COBALT_IS_OFFICIAL_BUILD
   return false;
+#endif  // COBALT_IS_OFFICIAL_BUILD
 }
 
 // Returns a Navigation ThrottleCheckResult based on
@@ -74,8 +75,9 @@ bool CobaltSecureNavigationThrottle::ShouldEnforceCSP(
   }
 #if BUILDFLAG(COBALT_IS_RELEASE_BUILD)
   return true;
-#endif  // COBALT_IS_OFFICIAL_BUILD
+#else   // COBALT_IS_OFFICIAL_BUILD
   return false;
+#endif  // COBALT_IS_OFFICIAL_BUILD
 }
 
 // Returns a Navigation ThrottleCheckResult based on the
