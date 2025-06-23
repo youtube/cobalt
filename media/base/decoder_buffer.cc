@@ -77,7 +77,7 @@ DecoderBuffer::DecoderBuffer(DemuxerStream::Type type,
                              size_t size,
                              const uint8_t* side_data,
                              size_t side_data_size)
-    : size_(size), side_data_size_(side_data_size), is_key_frame_(false) {
+    : type_(type), size_(size), side_data_size_(side_data_size), is_key_frame_(false) {
   if (!data) {
     CHECK_EQ(size_, 0u);
     CHECK(!side_data);
@@ -122,7 +122,7 @@ DecoderBuffer::DecoderBuffer(std::unique_ptr<ExternalMemory> external_memory)
 DecoderBuffer::~DecoderBuffer() {
 #if BUILDFLAG(USE_STARBOARD_MEDIA)
   DCHECK(s_allocator);
-  s_allocator->Free(data_, allocated_size_);
+  s_allocator->Free(type_, data_, allocated_size_);
 #else // BUILDFLAG(USE_STARBOARD_MEDIA)
   data_.reset();
 #endif // BUILDFLAG(USE_STARBOARD_MEDIA)
@@ -131,7 +131,9 @@ DecoderBuffer::~DecoderBuffer() {
 
 void DecoderBuffer::Initialize() {
 #if BUILDFLAG(USE_STARBOARD_MEDIA)
-  // This is used by Mojo.
+#if !defined(COBALT_BUILD_TYPE_GOLD)
+  CHECK(0) << "MojoRenderer could be still copying DecoderBuffer across.";
+#endif  // !defined(COBALT_BUILD_TYPE_GOLD)
   Initialize(DemuxerStream::UNKNOWN);
 #else // BUILDFLAG(USE_STARBOARD_MEDIA)
   data_.reset(new uint8_t[size_]);
