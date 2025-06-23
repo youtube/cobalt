@@ -42,11 +42,13 @@ class VariationsFieldTrialCreator : public VariationsFieldTrialCreatorBase {
   // Returns whether the map of the cached UI strings to override is empty.
   bool IsOverrideResourceMapEmpty() override;
 
-#if !BUILDFLAG(IS_COBALT)
  protected:
+<<<<<<< HEAD
 <<<<<<< HEAD
 =======
 #endif  // !BUILDFLAG(IS_COBALT)
+=======
+>>>>>>> 3bfc4b91027 (Revert "Fix missing Feature flags initialization" (#6092))
   // Get the platform we're running on, respecting OverrideVariationsPlatform().
   // Protected for testing.
   Study::Platform GetPlatform();
