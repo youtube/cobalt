@@ -16,18 +16,20 @@
 
 #include <string.h>
 
-#include "starboard/atomic.h"
 #include "starboard/common/log.h"
-#include "starboard/shared/gcc/atomic_gcc_public.h"
 
 static EvergreenInfo g_evergreen_info;
 static bool g_valid_info = false;
-static SbAtomic32 g_busy = 0;
+static int32_t g_busy = 0;
 
 bool SetEvergreenInfo(const EvergreenInfo* evergreen_info) {
   SB_LOG(INFO) << "SetEvergreenInfo@";
   // Set the busy flag or bail.
-  if (SbAtomicNoBarrier_CompareAndSwap(&g_busy, 0, 1) == 1) {
+  int32_t busy_state_flag1 = 1;
+  int32_t ready_state_flag1 = 0;
+  __atomic_compare_exchange_n(&g_busy, &ready_state_flag1, busy_state_flag1,
+                              false, __ATOMIC_RELAXED, __ATOMIC_RELAXED);
+  if (ready_state_flag1) {
     // Bailing out is OK as the process crashed
     // before we launched the application and in that
     // case the evergreen information is not needed.
@@ -41,10 +43,14 @@ bool SetEvergreenInfo(const EvergreenInfo* evergreen_info) {
     g_valid_info = false;
   }
   // Publish local memory changes to all threads.
-  SbAtomicMemoryBarrier();
+  __atomic_thread_fence(__ATOMIC_SEQ_CST);
 
   // Clear the busy flag.
-  SbAtomicNoBarrier_CompareAndSwap(&g_busy, 1, 0);
+  int32_t busy_state_flag2 = 1;
+  int32_t ready_state_flag2 = 0;
+  __atomic_compare_exchange_n(&g_busy, &busy_state_flag2, ready_state_flag2,
+                              false, __ATOMIC_RELAXED, __ATOMIC_RELAXED);
+
   return true;
 }
 
@@ -53,13 +59,16 @@ bool GetEvergreenInfo(EvergreenInfo* evergreen_info) {
     return false;
   }
 
-  // Set the busy flag or bail.
-  if (SbAtomicNoBarrier_CompareAndSwap(&g_busy, 0, 1) == 1) {
+  int32_t busy_state_flag1 = 1;
+  int32_t ready_state_flag1 = 0;
+  __atomic_compare_exchange_n(&g_busy, &ready_state_flag1, busy_state_flag1,
+                              false, __ATOMIC_RELAXED, __ATOMIC_RELAXED);
+  if (ready_state_flag1) {
     return false;
   }
 
   // Make sure all memory changes are visible to the current thread.
-  SbAtomicMemoryBarrier();
+  __atomic_thread_fence(__ATOMIC_SEQ_CST);
   if (!g_valid_info) {
     return false;
   }
@@ -67,6 +76,9 @@ bool GetEvergreenInfo(EvergreenInfo* evergreen_info) {
   *evergreen_info = g_evergreen_info;
 
   // Clear the busy flag.
-  SbAtomicNoBarrier_CompareAndSwap(&g_busy, 1, 0);
+  int32_t busy_state_flag2 = 1;
+  int32_t ready_state_flag2 = 0;
+  __atomic_compare_exchange_n(&g_busy, &busy_state_flag2, ready_state_flag2,
+                              false, __ATOMIC_RELAXED, __ATOMIC_RELAXED);
   return true;
 }
