@@ -74,7 +74,6 @@ source_set("browser") {
     "//components/metrics_services_manager",
     "//components/os_crypt/sync",
     "//components/prefs",
-    "//components/variations",
     "//components/variations/service:service",
     "//starboard:starboard_group",
   ]
