@@ -249,11 +249,6 @@ bool Equal(const SbMediaMasteringMetadata& lhs,
   return memcmp(&lhs, &rhs, sizeof(SbMediaMasteringMetadata)) == 0;
 }
 
-// Determine if two |SbMediaColorMetadata|s are equal.
-bool Equal(const SbMediaColorMetadata& lhs, const SbMediaColorMetadata& rhs) {
-  return memcmp(&lhs, &rhs, sizeof(SbMediaMasteringMetadata)) == 0;
-}
-
 // TODO: For whatever reason, Cobalt will always pass us this us for
 // color metadata, regardless of whether HDR is on or not.  Find out if this
 // is intentional or not.  It would make more sense if it were NULL.
@@ -589,7 +584,8 @@ void VideoDecoder::WriteEndOfStream() {
 
   if (video_codec_ == kSbMediaVideoCodecAv1 && video_fps_ == 0) {
     SB_DCHECK(!media_decoder_);
-    SB_DCHECK(pending_input_buffers_.size() == input_buffer_written_);
+    SB_DCHECK(pending_input_buffers_.size() ==
+              static_cast<size_t>(input_buffer_written_));
 
     std::string error_message;
     if (!InitializeCodec(pending_input_buffers_.front()->video_stream_info(),
@@ -994,13 +990,6 @@ void getTransformMatrix(jobject surface_texture, float* matrix4x4) {
   memcpy(matrix4x4, array_values, sizeof(float) * 16);
 
   env->DeleteLocalRef(java_array);
-}
-
-// Rounds the float to the nearest integer, and also does a DCHECK to make sure
-// that the input float was already near an integer value.
-int RoundToNearInteger(float x) {
-  int rounded = static_cast<int>(x + 0.5f);
-  return rounded;
 }
 
 // Converts a 4x4 matrix representing the texture coordinate transform into

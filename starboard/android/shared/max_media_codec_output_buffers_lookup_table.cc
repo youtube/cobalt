@@ -44,7 +44,7 @@ std::string VideoOutputFormat::ToString() const {
 }
 
 SB_ONCE_INITIALIZE_FUNCTION(MaxMediaCodecOutputBuffersLookupTable,
-                            MaxMediaCodecOutputBuffersLookupTable::GetInstance);
+                            MaxMediaCodecOutputBuffersLookupTable::GetInstance)
 
 std::string MaxMediaCodecOutputBuffersLookupTable::DumpContent() const {
   std::string table_content =

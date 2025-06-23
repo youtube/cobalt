@@ -41,7 +41,7 @@ class LocaleInfo {
   }
 };
 
-SB_ONCE_INITIALIZE_FUNCTION(LocaleInfo, GetLocale);
+SB_ONCE_INITIALIZE_FUNCTION(LocaleInfo, GetLocale)
 }  // namespace
 
 const char* SbSystemGetLocaleId() {

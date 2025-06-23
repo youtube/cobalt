@@ -113,7 +113,7 @@ void AdaptiveAudioDecoder::Decode(const InputBuffers& input_buffers,
     return;
   }
 #if !defined(COBALT_BUILD_TYPE_GOLD)
-  for (int i = 1; i < input_buffers.size(); i++) {
+  for (size_t i = 1; i < input_buffers.size(); i++) {
     if (starboard::media::IsAudioSampleInfoSubstantiallyDifferent(
             input_audio_stream_info_, input_buffers[i]->audio_stream_info())) {
       error_cb_(kSbPlayerErrorDecode,

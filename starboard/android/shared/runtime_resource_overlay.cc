@@ -21,7 +21,7 @@
 namespace starboard::android::shared {
 
 SB_ONCE_INITIALIZE_FUNCTION(RuntimeResourceOverlay,
-                            RuntimeResourceOverlay::GetInstance);
+                            RuntimeResourceOverlay::GetInstance)
 
 RuntimeResourceOverlay::RuntimeResourceOverlay() {
   JniEnvExt* env = JniEnvExt::Get();

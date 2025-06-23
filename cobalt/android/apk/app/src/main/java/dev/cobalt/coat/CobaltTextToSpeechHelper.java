@@ -128,7 +128,6 @@ class CobaltTextToSpeechHelper
    * Speaks the given text, enqueuing it if something is already speaking. Java-layer implementation
    * of Starboard's SbSpeechSynthesisSpeak.
    */
-  @CalledByNative
   void speak(final String text) {
     handler.post(
         new Runnable() {
@@ -161,7 +160,6 @@ class CobaltTextToSpeechHelper
   }
 
   /** Cancels all speaking. Java-layer implementation of Starboard's SbSpeechSynthesisCancel. */
-  @CalledByNative
   void cancel() {
     handler.post(
         new Runnable() {
