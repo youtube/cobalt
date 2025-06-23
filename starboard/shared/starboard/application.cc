@@ -36,19 +36,6 @@ const char kMinLogLevel[] = "min_log_level";
 // levels start at kSbLogPriorityInfo which is a 1.
 const char kV[] = "v";
 
-// Dispatches an event of |type| with |data| to the system event handler,
-// calling |destructor| on |data| when finished dispatching. Does all
-// appropriate NULL checks so you don't have to.
-void Dispatch(SbEventType type, void* data, SbEventDataDestructor destructor) {
-  SbEvent event;
-  event.type = type;
-  event.data = data;
-  Application::Get()->sb_event_handle_callback_(&event);
-  if (destructor) {
-    destructor(event.data);
-  }
-}
-
 void DeleteStartData(void* data) {
   SbEventStartData* start_data = static_cast<SbEventStartData*>(data);
   if (start_data) {
@@ -65,14 +52,14 @@ volatile std::atomic<int32_t> g_next_event_id{0};
 std::atomic<Application*> Application::g_instance{NULL};
 
 Application::Application(SbEventHandleCallback sb_event_handle_callback)
-    : error_level_(0),
+    : sb_event_handle_callback_(sb_event_handle_callback),
+      error_level_(0),
       thread_(pthread_self()),
-      start_link_(NULL),
-      state_(kStateUnstarted),
-      sb_event_handle_callback_(sb_event_handle_callback) {
+      start_link_(nullptr),
+      state_(kStateUnstarted) {
   SB_CHECK(sb_event_handle_callback_)
       << "sb_event_handle_callback_ has not been set.";
-  Application* old_instance = NULL;
+  Application* old_instance = nullptr;
   g_instance.compare_exchange_weak(old_instance, this,
                                    std::memory_order_acquire);
   SB_DCHECK(!old_instance);
@@ -271,7 +258,7 @@ bool Application::DispatchAndDelete(Application::Event* event) {
         case kStateFrozen:
           HandleEventAndUpdateState(
               new Event(kSbEventTypeUnfreeze, timestamp, NULL, NULL));
-        // The fall-through is intentional.
+          [[fallthrough]];
         case kStateConcealed:
           HandleEventAndUpdateState(
               new Event(kSbEventTypeReveal, timestamp, NULL, NULL));
@@ -325,7 +312,7 @@ bool Application::DispatchAndDelete(Application::Event* event) {
         case kStateStarted:
           HandleEventAndUpdateState(
               new Event(kSbEventTypeBlur, timestamp, NULL, NULL));
-        // The fall-through is intentional
+          [[fallthrough]];
         case kStateBlurred:
           HandleEventAndUpdateState(
               new Event(kSbEventTypeConceal, timestamp, NULL, NULL));
@@ -358,11 +345,11 @@ bool Application::DispatchAndDelete(Application::Event* event) {
         case kStateStarted:
           HandleEventAndUpdateState(
               new Event(kSbEventTypeBlur, timestamp, NULL, NULL));
-        // The fall-through is intentional.
+          [[fallthrough]];
         case kStateBlurred:
           HandleEventAndUpdateState(
               new Event(kSbEventTypeConceal, timestamp, NULL, NULL));
-        // The fall-through is intentional.
+          [[fallthrough]];
         case kStateConcealed:
           HandleEventAndUpdateState(
               new Event(kSbEventTypeFreeze, timestamp, NULL, NULL));

@@ -30,7 +30,7 @@ InputBuffer::~InputBuffer() {
 }
 
 void InputBuffer::SetDecryptedContent(std::vector<uint8_t> decrypted_content) {
-  SB_DCHECK(decrypted_content.size() == size_);
+  SB_DCHECK(decrypted_content.size() == static_cast<size_t>(size_));
   DeallocateSampleBuffer(data_);
 
   if (decrypted_content.empty()) {
