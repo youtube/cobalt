@@ -32,7 +32,7 @@ import androidx.media3.common.util.UnstableApi;
 import androidx.media3.datasource.TransferListener;
 import androidx.media3.decoder.DecoderInputBuffer;
 import androidx.media3.exoplayer.FormatHolder;
-import androidx.media3.exoplayer.LoadingInfo;
+// import androidx.media3.exoplayer.LoadingInfo;
 import androidx.media3.exoplayer.SeekParameters;
 import androidx.media3.exoplayer.source.BaseMediaSource;
 import androidx.media3.exoplayer.source.MediaPeriod;
@@ -289,7 +289,7 @@ public final class CobaltMediaSource extends BaseMediaSource {
     }
 
     @Override
-    public boolean continueLoading(LoadingInfo loadingInfo) {
+    public boolean continueLoading(long loadingInfo) {
       // Request to continue loading data. Will be called once initially and whenever
       // Callback.onContinueLoadingRequested is triggered from this class (this allows the player's
       // LoadControl to prevent further loading if the buffer is already full)

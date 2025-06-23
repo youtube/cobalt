@@ -494,7 +494,7 @@ void ExoPlayerBridge::Update() {
     jlong media_time = env->CallLongMethodOrAbort(
         j_exoplayer_bridge_, "getCurrentPositionUs", "()J");
     jint dropped_frames = env->CallLongMethodOrAbort(j_exoplayer_bridge_,
-                                                     "getDroppedFrames", "()I");
+                                                     "getDroppedFrames", "()J");
     // SB_LOG(INFO) << "Sampled media time is "
     //              << static_cast<int64_t>(media_time);
     update_media_info_cb_(static_cast<int64_t>(media_time), 0, ticket_,

@@ -402,7 +402,7 @@ public class ExoPlayerBridge {
   }
 
   @UsedByNative
-  private synchronized int getDroppedFrames() {
+  private synchronized long getDroppedFrames() {
     return droppedFramesOnPlayerThread;
   }
 
