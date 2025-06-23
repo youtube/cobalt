@@ -213,6 +213,7 @@ _ALLOWED_SB_GE_16_POSIX_SYMBOLS = [
     'setsockopt',
     'shutdown',
     'socket',
+    'socketpair',
     'srand',
     'stat',
     'strcasecmp',
