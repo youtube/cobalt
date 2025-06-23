@@ -118,10 +118,14 @@ bool SbFileDeleteRecursive(const char* path, bool preserve_root) {
   struct dirent dirent_buffer;
   struct dirent* dirent;
   while (true) {
-    if (entry.size() < kSbFileMaxName || !dir || !entry.data()) {
+    if (entry.size() < static_cast<size_t>(kSbFileMaxName) || !dir ||
+        !entry.data()) {
       break;
     }
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wdeprecated-declarations"
     int result = readdir_r(dir, &dirent_buffer, &dirent);
+#pragma GCC diagnostic pop
     if (result || !dirent) {
       break;
     }

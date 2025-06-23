@@ -29,7 +29,7 @@ bool ReadBytes(uint64_t offset,
                size_t size,
                uint8_t* buffer,
                DataSourceReader* reader) {
-  if (reader->BlockingRead(offset, size, buffer) != size) {
+  if (reader->BlockingRead(offset, size, buffer) != static_cast<int>(size)) {
     LOG(ERROR) << "unable to download AU";
     return false;
   }

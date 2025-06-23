@@ -426,7 +426,7 @@ TEST_F(SbPlayerTest, MultiPlayer) {
         }
       }
     }
-    if (created_players.size() == number_of_players) {
+    if (created_players.size() == static_cast<size_t>(number_of_players)) {
       break;
     }
     number_of_players = created_players.size();

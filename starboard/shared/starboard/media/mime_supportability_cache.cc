@@ -284,7 +284,7 @@ MimeSupportabilityCache::Entry& MimeSupportabilityCache::GetEntry_Locked(
 
   // Keep cached items not exceeding max size.
   fifo_queue_.push(insert_result.first);
-  while (fifo_queue_.size() > max_size_) {
+  while (fifo_queue_.size() > static_cast<size_t>(max_size_)) {
     entries_.erase(fifo_queue_.front());
     fifo_queue_.pop();
   }

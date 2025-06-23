@@ -165,7 +165,9 @@ SbPlayerBridge::SbPlayerBridge(
       window_(window),
       host_(host),
       set_bounds_helper_(set_bounds_helper),
+#if COBALT_MEDIA_ENABLE_SUSPEND_RESUME
       allow_resume_after_suspend_(allow_resume_after_suspend),
+#endif
       on_encrypted_media_init_data_encountered_cb_(
           on_encrypted_media_init_data_encountered_cb),
       decode_target_provider_(decode_target_provider),
@@ -222,22 +224,26 @@ SbPlayerBridge::SbPlayerBridge(
       drm_system_(drm_system),
       host_(host),
       set_bounds_helper_(set_bounds_helper),
+#if COBALT_MEDIA_ENABLE_SUSPEND_RESUME
       allow_resume_after_suspend_(allow_resume_after_suspend),
+#endif  // COBALT_MEDIA_ENABLE_SUSPEND_RESUME
       audio_config_(audio_config),
       video_config_(video_config),
 #if COBALT_MEDIA_ENABLE_DECODE_TARGET_PROVIDER
       decode_target_provider_(decode_target_provider),
 #endif  // COBALT_MEDIA_ENABLE_DECODE_TARGET_PROVIDER
-      max_video_capabilities_(max_video_capabilities),
-      max_video_input_size_(max_video_input_size)
+#if COBALT_MEDIA_ENABLE_PLAYER_SET_MAX_VIDEO_INPUT_SIZE
+      // TODO: b/326654546 - Reorder this variable once enabled.
+      max_video_input_size_(max_video_input_size),
+#endif  // COBALT_MEDIA_ENABLE_PLAYER_SET_MAX_VIDEO_INPUT_SIZE
 #if COBALT_MEDIA_ENABLE_CVAL
-          cval_stats_(&interface->cval_stats_),
+      cval_stats_(&interface->cval_stats_),
       pipeline_identifier_(pipeline_identifier),
 #endif  // COBALT_MEDIA_ENABLE_CVAL
 #if SB_HAS(PLAYER_WITH_URL)
       is_url_based_(false)
 #endif  // SB_HAS(PLAYER_WITH_URL
-{
+          max_video_capabilities_(max_video_capabilities) {
 #if COBALT_MEDIA_ENABLE_DECODE_TARGET_PROVIDER
   DCHECK(!get_decode_target_graphics_context_provider_func_.is_null());
 #endif  // COBALT_MEDIA_ENABLE_DECODE_TARGET_PROVIDER

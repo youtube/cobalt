@@ -52,7 +52,7 @@ bool PosetGreaterThanOrEqualTo(const std::vector<int>& a,
                                const std::vector<int>& b) {
   SB_DCHECK(a.size() == b.size());
 
-  for (int i = 0; i < a.size(); ++i) {
+  for (size_t i = 0; i < a.size(); ++i) {
     if (a[i] < b[i]) {
       return false;
     }
@@ -127,7 +127,7 @@ std::set<std::vector<int>> SearchPosetMaximalElementsDFS(
       ++index;
     } else {
       bool can_advance = false;
-      for (int i = 0; i < config.size(); ++i) {
+      for (size_t i = 0; i < config.size(); ++i) {
         if (config[i] >= max_instances_per_resource) {
           continue;
         } else {
@@ -187,7 +187,7 @@ MaximumPlayerConfigurationExplorer::CalculateMaxTestConfigs() {
     SB_DCHECK(configs_vector.size() == player_configs_.size());
 
     SbPlayerMultiplePlayerTestConfig multi_player_test_config;
-    for (int i = 0; i < configs_vector.size(); i++) {
+    for (size_t i = 0; i < configs_vector.size(); i++) {
       multi_player_test_config.insert(multi_player_test_config.end(),
                                       configs_vector[i], player_configs_[i]);
     }
@@ -208,16 +208,18 @@ bool MaximumPlayerConfigurationExplorer::IsConfigCreatable(
     return false;
   }
 
-  for (int i = 0; i < configs_to_create.size(); i++) {
+  for (size_t i = 0; i < configs_to_create.size(); i++) {
     SB_DCHECK(configs_to_create[i] >= 0);
     SB_DCHECK(configs_to_create[i] <= max_instances_per_config_);
 
     std::vector<PlayerInstance>& instances = player_instances_[i];
-    while (instances.size() > configs_to_create[i]) {
+    while (instances.size() >
+           static_cast<unsigned long>(configs_to_create[i])) {
       DestroyPlayerInstance(instances.back());
       instances.pop_back();
     }
-    while (instances.size() < configs_to_create[i]) {
+    while (instances.size() <
+           static_cast<unsigned long>(configs_to_create[i])) {
       PlayerInstance instance = CreatePlayerInstance(player_configs_[i]);
       if (instance.player == kSbPlayerInvalid) {
         return false;
@@ -225,7 +227,8 @@ bool MaximumPlayerConfigurationExplorer::IsConfigCreatable(
       instances.push_back(instance);
     }
 
-    SB_DCHECK(instances.size() == configs_to_create[i]);
+    SB_DCHECK(instances.size() ==
+              static_cast<unsigned long>(configs_to_create[i]));
   }
   return true;
 }

@@ -34,9 +34,9 @@ TEST(SbSystemGetErrorStringTest, SunnyDay) {
     char name[128] = {0};
     int len = SbSystemGetErrorString(error, name, SB_ARRAY_SIZE_INT(name));
     EXPECT_LT(0, len);
-    EXPECT_LT(0, strlen(name));
+    EXPECT_LT(0u, strlen(name));
     if (len < SB_ARRAY_SIZE_INT(name)) {
-      EXPECT_EQ(len, strlen(name));
+      EXPECT_EQ(static_cast<size_t>(len), strlen(name));
     }
   }
 
@@ -44,7 +44,7 @@ TEST(SbSystemGetErrorStringTest, SunnyDay) {
     char name[128] = {0};
     int len = SbSystemGetErrorString(error, name, 0);
     EXPECT_LT(0, len);
-    EXPECT_EQ(0, strlen(name));
+    EXPECT_EQ(0u, strlen(name));
   }
 
   {

@@ -47,11 +47,11 @@ TEST(PosixMemoryAllocateTest, CanReadWriteToResult) {
   void* memory = malloc(kSize);
   ASSERT_NE(static_cast<void*>(NULL), memory);
   char* data = static_cast<char*>(memory);
-  for (int i = 0; i < kSize; ++i) {
+  for (size_t i = 0; i < kSize; ++i) {
     data[i] = static_cast<char>(i);
   }
 
-  for (int i = 0; i < kSize; ++i) {
+  for (size_t i = 0; i < kSize; ++i) {
     EXPECT_EQ(data[i], static_cast<char>(i));
   }
 

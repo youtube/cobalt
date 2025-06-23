@@ -100,7 +100,7 @@ TEST(SbMicrophoneReadTest, SunnyDayOpenSleepCloseAndOpenRead) {
     int read_bytes =
         SbMicrophoneRead(microphone, &audio_data[0], audio_data.size());
     EXPECT_GE(read_bytes, 0);
-    EXPECT_LE(read_bytes, audio_data.size());
+    EXPECT_LE(read_bytes, static_cast<int>(audio_data.size()));
 
     SbMicrophoneDestroy(microphone);
   }
