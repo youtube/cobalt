@@ -45,7 +45,7 @@ bool SbSystemIsDebuggerAttached() {
   char buf[1024];
 
   ssize_t num_read = HANDLE_EINTR(read(status_fd, buf, sizeof(buf) - 1));
-  SB_DCHECK(num_read < sizeof(buf));
+  SB_DCHECK(num_read < static_cast<ssize_t>(sizeof(buf)));
   if (HANDLE_EINTR(close(status_fd)) < 0) {
     return false;
   }

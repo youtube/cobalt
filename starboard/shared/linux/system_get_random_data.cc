@@ -31,7 +31,7 @@ namespace {
 class URandomFile {
  public:
   URandomFile() {
-    file_ = open("/dev/urandom", O_RDONLY, S_IRUSR | S_IWUSR);
+    file_ = open("/dev/urandom", O_RDONLY);
     SB_DCHECK(starboard::IsValid(file_)) << "Cannot open /dev/urandom";
   }
 

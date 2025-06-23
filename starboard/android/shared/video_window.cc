@@ -37,7 +37,7 @@ using base::android::AttachCurrentThread;
 namespace {
 
 // Global video surface pointer mutex.
-SB_ONCE_INITIALIZE_FUNCTION(std::mutex, GetViewSurfaceMutex);
+SB_ONCE_INITIALIZE_FUNCTION(std::mutex, GetViewSurfaceMutex)
 // Global pointer to the single video surface.
 jobject g_j_video_surface = NULL;
 // Global pointer to the single video window.
