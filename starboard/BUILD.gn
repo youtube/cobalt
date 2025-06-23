@@ -186,76 +186,8 @@ source_set("starboard_headers_only") {
   all_dependent_configs = [
     "//starboard/build/config:starboard",
     "//starboard/build/config/sabi",
-    ":hacky_wnos",
     "//base/third_party/symbolize:symbolize_config",
   ]
-}
-
-# TODO: b/374302273 - Fix starboard implementation to not emit these compiler warnings.
-config("hacky_wnos") {
-  cflags = [
-    "-Wno-undefined-internal",
-
-    # Don"t warn about register variables (in base and net)
-    "-Wno-deprecated-register",
-
-    # Don"t warn about deprecated ICU methods (in googleurl and net)
-    "-Wno-deprecated-declarations",
-
-    # Skia doesn"t use overrides.
-    "-Wno-inconsistent-missing-override",
-
-    # shifting a negative signed value is undefined
-    "-Wno-shift-negative-value",
-
-    # Don"t warn for implicit sign conversions. (in v8 and protobuf)
-    "-Wno-sign-conversion",
-
-    # TODO: b/287129945 - Fix compiler warnings
-    "-Wno-implicit-const-int-float-conversion",
-
-    # TODO: b/287320271 - Fix compiler warnings
-    "-Wno-deprecated-copy",
-
-    # TODO: b/287324882 - Fix compiler warnings
-    "-Wno-unused-but-set-variable",
-
-    "-Wno-unused-private-field",
-    "-Wno-implicit-fallthrough",
-    "-Wno-c++98-compat-extra-semi",
-    "-Wno-unused-variable",
-    "-Wno-reorder-ctor",
-    "-Wno-sign-compare",
-    "-Wno-unused-but-set-variable",
-    "-Wno-unreachable-code-return",
-    "-Wno-unused-function",
-    "-Wno-missing-braces",
-    "-Wno-mismatched-tags",
-    "-Wno-return-type",
-
-    # ./../starboard/shared/modular/starboard_layer_posix_socket_abi_wrappers.cc:237:28:
-    # error: comparison of array 'ai_copy.ai_addr->sa_data' not equal
-    # to a null pointer is always true [-Werror,-Wtautological-pointer-compare]
-    "-Wno-tautological-pointer-compare",
-
-    #../../starboard/shared/ffmpeg/ffmpeg_video_decoder_impl.cc:512:3: error:
-    # ignoring return value of function declared with
-    # 'warn_unused_result' attribute [-Werror,-Wunused-result]
-    "-Wno-unused-result",
-    "-Wno-shadow",
-    "-Wno-unknown-warning-option",
-    "-Wno-user-defined-warnings",
-  ]
-
-  # Some platforms like raspi-2 using gcc won't recognize this flag.
-  if (is_clang) {
-    cflags += [
-      # Disable errors for the warning till the Android NDK r19 is fixed.
-      # The warning is trigger when compiling .c files and complains for
-      # "-stdlib=libc++" which is added by the NDK.
-      "-Wno-error=unused-command-line-argument",
-    ]
-  }
 }
 
 if (current_toolchain == starboard_toolchain) {
