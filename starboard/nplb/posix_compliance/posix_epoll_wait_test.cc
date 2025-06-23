@@ -84,7 +84,8 @@ TEST_F(PosixEpollWaitTests, EventReportedSuccessfully) {
 
   char buffer = 'x';
   const size_t buffer_length = sizeof(buffer);
-  ASSERT_EQ(write(pipe_fds_[1], &buffer, buffer_length), buffer_length)
+  ASSERT_EQ(static_cast<size_t>(write(pipe_fds_[1], &buffer, buffer_length)),
+            buffer_length)
       << "Write to pipe failed: " << strerror(errno);
 
   int nfds = epoll_wait(epfd_, events_, kMaxEvents, kModerateTimeoutMs);
@@ -250,7 +251,8 @@ TEST_F(PosixEpollWaitTests, WaitForWriteOnReadOnlyPipeEndWhenWriteEndClosed) {
   } else {
     char c_buf;
     // Attempt a read to ensure EOF is processed by the kernel for pipe_fds_[0]
-    read(pipe_fds_[0], &c_buf, 1);  // This should see EOF (return 0) or error.
+    // This should see EOF (return 0) or error.
+    std::ignore = read(pipe_fds_[0], &c_buf, 1);
 
     nfds = epoll_wait(epfd_, events_, kMaxEvents, kModerateTimeoutMs);
     ASSERT_GT(nfds, 0) << "No event reported on read-end after write-end "

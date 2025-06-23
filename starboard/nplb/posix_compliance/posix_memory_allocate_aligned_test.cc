@@ -29,7 +29,7 @@ TEST(PosixMemoryAllocateAlignedTest, AllocatesAligned) {
   const size_t kMaxAlign = 4096 + 1;
   for (size_t align = sizeof(void*); align < kMaxAlign; align <<= 1) {
     void* memory = NULL;
-    posix_memalign(&memory, align, kSize);
+    std::ignore = posix_memalign(&memory, align, kSize);
     ASSERT_NE(static_cast<void*>(NULL), memory);
     EXPECT_TRUE(starboard::common::MemoryIsAligned(memory, align));
     free(memory);
@@ -40,7 +40,7 @@ TEST(PosixMemoryAllocateAlignedTest, AllocatesAlignedZero) {
   const size_t kMaxAlign = 4096 + 1;
   for (size_t align = sizeof(void*); align < kMaxAlign; align <<= 1) {
     void* memory = NULL;
-    posix_memalign(&memory, align, 0);
+    std::ignore = posix_memalign(&memory, align, 0);
     EXPECT_NE(static_cast<void*>(NULL), memory);
     EXPECT_TRUE(starboard::common::MemoryIsAligned(memory, align));
     free(memory);
@@ -50,14 +50,14 @@ TEST(PosixMemoryAllocateAlignedTest, AllocatesAlignedZero) {
 TEST(PosixMemoryAllocateAlignedTest, CanReadWriteToResult) {
   const size_t kAlign = 4096;
   void* memory = NULL;
-  posix_memalign(&memory, kAlign, kSize);
+  std::ignore = posix_memalign(&memory, kAlign, kSize);
   ASSERT_NE(static_cast<void*>(NULL), memory);
   char* data = static_cast<char*>(memory);
-  for (int i = 0; i < kSize; ++i) {
+  for (size_t i = 0; i < kSize; ++i) {
     data[i] = static_cast<char>(i);
   }
 
-  for (int i = 0; i < kSize; ++i) {
+  for (size_t i = 0; i < kSize; ++i) {
     EXPECT_EQ(data[i], static_cast<char>(i));
   }
 

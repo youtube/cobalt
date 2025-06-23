@@ -45,14 +45,14 @@ void WriteBuffer(const char* file_path,
   ScopedFile file(file_path, O_CREAT | O_WRONLY);
   ASSERT_TRUE(file.IsValid()) << "Failed to open file for writing";
   int bytes_written = file.WriteAll(buffer, buffer_size);
-  ASSERT_EQ(kBufSize, bytes_written);
+  ASSERT_EQ(kBufSize, static_cast<size_t>(bytes_written));
 }
 
 void ReadBuffer(const char* file_path, char* buffer, size_t buffer_size) {
   ScopedFile file(file_path, 0);
   ASSERT_TRUE(file.IsValid()) << "Failed to open file for reading";
   int count = file.ReadAll(buffer, buffer_size);
-  ASSERT_EQ(kBufSize, count);
+  ASSERT_EQ(kBufSize, static_cast<size_t>(count));
 }
 
 TEST(StorageTest, VerifyStorageDirectory) {
@@ -74,7 +74,7 @@ TEST(StorageTest, VerifyStorageDirectory) {
 
   ReadBuffer(file_path.c_str(), buf.data(), kBufSize);
 
-  for (int i = 0; i < kBufSize; i++) {
+  for (size_t i = 0; i < kBufSize; i++) {
     ASSERT_EQ('A', buf[i]);
   }
 

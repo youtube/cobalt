@@ -29,6 +29,9 @@ namespace starboard {
 namespace nplb {
 namespace {
 
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wdeprecated-declarations"
+
 typedef std::set<std::string> StringSet;
 
 bool FileExists(const char* path) {
@@ -57,7 +60,8 @@ TEST(PosixDirectoryGetNextTest, SunnyDay) {
   while (true) {
     std::vector<char> entry(kSbFileMaxName, 0);
 
-    if (entry.size() < kSbFileMaxName || !directory || !entry.data()) {
+    if (entry.size() < static_cast<size_t>(kSbFileMaxName) || !directory ||
+        !entry.data()) {
       break;
     }
 
@@ -90,7 +94,7 @@ TEST(PosixDirectoryGetNextTest, SunnyDay) {
   }
 
   // Make sure we found all of our names.
-  EXPECT_EQ(0, names_to_find.size());
+  EXPECT_EQ(0u, names_to_find.size());
 
   EXPECT_TRUE(closedir(directory) == 0);
 }
@@ -123,7 +127,8 @@ TEST(PosixDirectoryGetNextTest, SunnyDayStaticContent) {
     // Iterate all entries in this directory.
     while (true) {
       std::vector<char> entry(kSbFileMaxName, 0);
-      if (entry.size() < kSbFileMaxName || !directory || !entry.data()) {
+      if (entry.size() < static_cast<size_t>(kSbFileMaxName) || !directory ||
+          !entry.data()) {
         break;
       }
 
@@ -164,7 +169,7 @@ TEST(PosixDirectoryGetNextTest, SunnyDayStaticContent) {
   }
 
   // Make sure we found all of test data directories and files.
-  EXPECT_EQ(0, paths_to_find.size());
+  EXPECT_EQ(0u, paths_to_find.size());
   for (auto it = paths_to_find.begin(); it != paths_to_find.end(); ++it) {
     ADD_FAILURE() << "Missing entry: " << *it;
   }
@@ -209,13 +214,15 @@ TEST(PosixDirectoryGetNextTest, FailureOnInsufficientSize) {
 
   EXPECT_TRUE(!result && dirent);
   starboard::strlcpy(entry.data(), dirent->d_name, 0);
-  EXPECT_EQ(entry.size(), kSbFileMaxName);
+  EXPECT_EQ(entry.size(), static_cast<size_t>(kSbFileMaxName));
   for (int i = 0; i < kSbFileMaxName; i++) {
     EXPECT_EQ(entry[i], entry_copy[i]);
   }
 
   EXPECT_TRUE(closedir(directory) == 0);
 }
+
+#pragma GCC diagnostic pop
 
 }  // namespace
 }  // namespace nplb

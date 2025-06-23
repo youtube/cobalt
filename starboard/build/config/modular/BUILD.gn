@@ -73,14 +73,6 @@ config("modular") {
 
       # Default visibility to hidden, to enable dead stripping.
       "-fvisibility=hidden",
-
-      # Warns on switches on enums that cover all enum values but
-      # also contain a default: branch. Chrome is full of that.
-      "-Wno-covered-switch-default",
-
-      # protobuf uses hash_map.
-      "-Wno-deprecated",
-
       "-fno-exceptions",
 
       # Enable unwind tables used by libunwind for stack traces.
@@ -88,33 +80,7 @@ config("modular") {
 
       # Disable usage of frame pointers.
       "-fomit-frame-pointer",
-
-      # Don"t warn about the "struct foo f = {0};" initialization pattern.
-      "-Wno-missing-field-initializers",
-
-      # Do not warn for implicit sign conversions.
-      "-Wno-sign-conversion",
-
       "-fno-strict-aliasing",  # See http://crbug.com/32204
-
-      "-Wno-unnamed-type-template-args",
-
-      # Triggered by the COMPILE_ASSERT macro.
-      "-Wno-unused-local-typedef",
-
-      # Do not warn if a function or variable cannot be implicitly
-      # instantiated.
-      "-Wno-undefined-var-template",
-
-      # Do not warn about an implicit exception spec mismatch.
-      "-Wno-implicit-exception-spec-mismatch",
-
-      # It's OK not to use some input parameters.
-      "-Wno-unused-parameter",
-      "-Wno-conversion",
-      "-Wno-bitwise-op-parentheses",
-      "-Wno-shift-op-parentheses",
-      "-Wno-shorten-64-to-32",
       "-fno-use-cxa-atexit",
 
       # Do not remove null pointer checks.
@@ -154,33 +120,4 @@ config("speed") {
 
 config("size") {
   cflags = [ "-Os" ]
-}
-
-config("pedantic_warnings") {
-  cflags = [
-    "-Wall",
-    "-Wextra",
-    "-Wunreachable-code",
-  ]
-}
-
-config("no_pedantic_warnings") {
-  cflags = [
-    # 'this' pointer cannot be NULL...pointer may be assumed
-    # to always convert to true.
-    "-Wno-undefined-bool-conversion",
-
-    # Skia doesn't use overrides.
-    "-Wno-inconsistent-missing-override",
-
-    # Do not warn for implicit type conversions that may change a value.
-    "-Wno-conversion",
-
-    # shifting a negative signed value is undefined
-    "-Wno-shift-negative-value",
-
-    # Width of bit-field exceeds width of its type- value will be truncated
-    "-Wno-bitfield-width",
-    "-Wno-undefined-var-template",
-  ]
 }

@@ -76,7 +76,7 @@ std::unique_ptr<cobalt::storage::Storage> ReadStorage() {
     }
   }
 
-  if (record->GetSize() < kRecordHeaderSize) {
+  if (record->GetSize() < static_cast<int64_t>(kRecordHeaderSize)) {
     record->Delete();
     return nullptr;
   }
@@ -85,7 +85,7 @@ std::unique_ptr<cobalt::storage::Storage> ReadStorage() {
   const int read_result =
       record->Read(reinterpret_cast<char*>(bytes.data()), bytes.size());
   record->Delete();
-  if (read_result != bytes.size()) {
+  if (static_cast<size_t>(read_result) != bytes.size()) {
     return nullptr;
   }
 

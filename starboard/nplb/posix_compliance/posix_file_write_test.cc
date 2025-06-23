@@ -50,7 +50,7 @@ class PosixFileWriterAll {
 typedef testing::Types<PosixFileWriter, PosixFileWriterAll>
     PosixFileWriteTestTypes;
 
-TYPED_TEST_CASE(PosixFileWriteTest, PosixFileWriteTestTypes);
+TYPED_TEST_SUITE(PosixFileWriteTest, PosixFileWriteTestTypes);
 
 const int kBufferLength = 16 * 1024;
 
@@ -244,16 +244,16 @@ TYPED_TEST(PosixFileWriteTest, PwriteAtDifferentOffsets) {
   ASSERT_GE(file, 0) << strerror(errno);
 
   const char data1[] = "First";
-  pwrite(file, data1, sizeof(data1) - 1, 0);
+  EXPECT_NE(pwrite(file, data1, sizeof(data1) - 1, 0), -1);
 
   const char data2[] = "Second";
-  pwrite(file, data2, sizeof(data2) - 1, 10);
+  EXPECT_NE(pwrite(file, data2, sizeof(data2) - 1, 10), -1);
 
   const char data3[] = "Third";
-  pwrite(file, data3, sizeof(data3) - 1, 5);
+  EXPECT_NE(pwrite(file, data3, sizeof(data3) - 1, 5), -1);
 
   char read_buffer[128] = {0};
-  pread(file, read_buffer, sizeof(read_buffer) - 1, 0);
+  EXPECT_NE(pread(file, read_buffer, sizeof(read_buffer) - 1, 0), -1);
   EXPECT_STREQ("FirstThirdSecond", read_buffer);
 
   EXPECT_EQ(close(file), 0);
@@ -268,14 +268,14 @@ TYPED_TEST(PosixFileWriteTest, PwriteZeroLength) {
   ASSERT_GE(file, 0) << strerror(errno);
 
   const char data[] = "SomeData";
-  pwrite(file, data, sizeof(data) - 1, 5);
+  EXPECT_NE(pwrite(file, data, sizeof(data) - 1, 5), -1);
 
   ssize_t bytes_pwritten = pwrite(file, nullptr, 0, 2);
   EXPECT_EQ(0, bytes_pwritten);
   EXPECT_EQ(0, lseek(file, 0, SEEK_CUR));  // Offset should not change
 
   char read_buffer[16] = {0};
-  pread(file, read_buffer, sizeof(read_buffer) - 1, 0);
+  EXPECT_NE(pread(file, read_buffer, sizeof(read_buffer) - 1, 0), -1);
   EXPECT_EQ('\0', read_buffer[0]);
   EXPECT_EQ('\0', read_buffer[1]);
   EXPECT_EQ(

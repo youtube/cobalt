@@ -45,7 +45,6 @@ class GLOzoneEGLStarboard : public GLOzoneEGL {
 
   void* display_type_ = nullptr;
   bool have_display_type_ = false;
-  void* window_ = nullptr;
 };
 
 }  // namespace ui

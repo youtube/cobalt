@@ -99,12 +99,12 @@ TEST_F(PosixReaddirTests, DInoPopulated) {
   bool found_file = false;
   while ((entry = readdir(dir)) != nullptr) {
     if (std::string(entry->d_name) == "inode_test_file.txt") {
-      ASSERT_NE(entry->d_ino, 0) << "d_ino for file is zero.";
+      ASSERT_NE(entry->d_ino, 0u) << "d_ino for file is zero.";
       found_file = true;
     } else if (std::string(entry->d_name) == ".") {
-      ASSERT_NE(entry->d_ino, 0) << "d_ino for '.' is zero.";
+      ASSERT_NE(entry->d_ino, 0u) << "d_ino for '.' is zero.";
     } else if (std::string(entry->d_name) == "..") {
-      ASSERT_NE(entry->d_ino, 0) << "d_ino for '..' is zero.";
+      ASSERT_NE(entry->d_ino, 0u) << "d_ino for '..' is zero.";
     }
   }
   ASSERT_EQ(closedir(dir), 0) << "Failed to close directory.";

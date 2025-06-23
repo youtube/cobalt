@@ -76,7 +76,7 @@ TEST(PosixThreadAttrTest, StackSizeAttr) {
   size_t stack_size = 0;
   ret = pthread_attr_getstacksize(&attr, &stack_size);
   EXPECT_EQ(ret, 0) << "pthread_attr_getstacksize failed: " << strerror(ret);
-  EXPECT_EQ(stack_size, kStackSize);
+  EXPECT_EQ(static_cast<int>(stack_size), kStackSize);
 
   ret = pthread_attr_destroy(&attr);
   EXPECT_EQ(ret, 0) << "pthread_attr_destroy failed: " << strerror(ret);
@@ -104,7 +104,7 @@ TEST(PosixThreadAttrTest, StackAddrAndSizeAttr) {
   EXPECT_EQ(ret_stack_addr, set_stack_addr)
       << "Retrieved stack address does not match set address.";
 
-  EXPECT_EQ(ret_stack_size, kStackSize)
+  EXPECT_EQ(ret_stack_size, static_cast<size_t>(kStackSize))
       << "Retrieved stack size (" << ret_stack_size
       << ") should be equal to set size (" << kStackSize << ").";
 
@@ -254,7 +254,7 @@ TEST(PosixThreadAttrTest, GetAttrNp) {
   ret = pthread_attr_getstacksize(&retrieved_attrs, &stack_size);
   EXPECT_EQ(ret, 0) << "pthread_attr_getstacksize (retrieved_attrs) failed: "
                     << strerror(ret);
-  EXPECT_GE(stack_size, kStackSize);
+  EXPECT_GE(stack_size, static_cast<size_t>(kStackSize));
 
   // Clean up.
   void* thread_result;

@@ -32,12 +32,12 @@ TEST(MallocUsableSizeTest, HappyPath) {
 
 TEST(MallocUsableSizeTest, NullPtrSize) {
   // If ptr is NULL, 0 should be returned.
-  EXPECT_EQ(0, malloc_usable_size(nullptr));
+  EXPECT_EQ(0u, malloc_usable_size(nullptr));
 }
 
 TEST(MallocUsableSizeTest, HappyPathAfterAllocatingZero) {
   void* memory = malloc(0);
-  EXPECT_GE(malloc_usable_size(memory), 0);
+  EXPECT_GE(malloc_usable_size(memory), 0u);
   free(memory);
 }
 
@@ -46,7 +46,7 @@ TEST(MallocUsableSizeTest, CastAndWriteDataSize) {
   void* memory = malloc(kSize);
   ASSERT_NE(static_cast<void*>(NULL), memory);
   char* data = static_cast<char*>(memory);
-  for (int i = 0; i < kSize; ++i) {
+  for (size_t i = 0; i < kSize; ++i) {
     data[i] = static_cast<char>(i);
   }
 
