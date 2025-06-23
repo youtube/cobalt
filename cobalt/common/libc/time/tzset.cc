@@ -27,6 +27,8 @@
 #include <utility>
 #include <vector>
 
+#include "starboard/common/log.h"
+#include "starboard/log.h"
 #include "unicode/basictz.h"
 #include "unicode/calendar.h"
 #include "unicode/gregocal.h"
@@ -52,6 +54,21 @@ namespace time {
 #ifndef TZNAME_MAX
 #define TZNAME_MAX 6
 #endif
+
+namespace {
+// A thread-local flag to detect re-entrant calls to tzset().
+thread_local bool g_in_tzset = false;
+
+// A scoped guard to ensure the g_in_tzset flag is reset on exit.
+class TzsetGuard {
+ public:
+  TzsetGuard() {
+    SB_CHECK(!g_in_tzset) << "tzset() re-entrancy detected.";
+    g_in_tzset = true;
+  }
+  ~TzsetGuard() { g_in_tzset = false; }
+};
+}  // namespace
 
 // A class to encapsulate timezone-related logic and state.
 class Timezone {
@@ -578,6 +595,7 @@ bool Timezone::TimezoneIsChanged(const char* timezone_name) {
 }
 
 void Timezone::TZSet() {
+  TzsetGuard guard;
   // If the TZ variable is not set, use the system provided timezone.
   const char* timezone_name = getenv("TZ");
   if (!timezone_name) {
