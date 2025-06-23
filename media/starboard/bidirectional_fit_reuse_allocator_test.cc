@@ -44,8 +44,8 @@ class BidirectionalFitReuseAllocatorTest : public ::testing::Test {
                       std::size_t small_allocation_threshold = 0,
                       std::size_t allocation_increment = 0) {
     void* tmp = nullptr;
-    posix_memalign(&tmp, starboard::common::Allocator::kMinAlignment,
-                   kBufferSize);
+    std::ignore = posix_memalign(
+        &tmp, starboard::common::Allocator::kMinAlignment, kBufferSize);
     buffer_.reset(static_cast<uint8_t*>(tmp));
 
     std::unique_ptr<starboard::common::FixedNoFreeAllocator> fallback_allocator(
@@ -90,7 +90,7 @@ TYPED_TEST(BidirectionalFitReuseAllocatorTest, SunnyDay) {
   const std::size_t kAlignment = sizeof(void*);
   const std::size_t kBlockSizes[] = {4, 97, 256, 65201};
 
-  for (int j = 0; j < SB_ARRAY_SIZE(kBlockSizes); ++j) {
+  for (size_t j = 0; j < SB_ARRAY_SIZE(kBlockSizes); ++j) {
     void* p = this->allocator_->Allocate(kBlockSizes[j], kAlignment);
     EXPECT_TRUE(p != NULL);
     EXPECT_EQ(starboard::common::IsAligned(p, kAlignment), true);
@@ -103,12 +103,12 @@ TYPED_TEST(BidirectionalFitReuseAllocatorTest, FreeFromFront) {
 
   for (int loop = 0; loop < 2; ++loop) {
     void* p[3];
-    for (int i = 0; i < sizeof(p) / sizeof(*p); ++i) {
+    for (size_t i = 0; i < sizeof(p) / sizeof(*p); ++i) {
       p[i] = this->allocator_->Allocate(128, kAlignment);
       EXPECT_TRUE(p[i] != NULL);
     }
 
-    for (int i = 0; i < sizeof(p) / sizeof(*p); ++i) {
+    for (size_t i = 0; i < sizeof(p) / sizeof(*p); ++i) {
       this->allocator_->Free(p[i]);
     }
   }
@@ -119,7 +119,7 @@ TYPED_TEST(BidirectionalFitReuseAllocatorTest, FreeFromBack) {
 
   for (int loop = 0; loop < 2; ++loop) {
     void* p[3];
-    for (int i = 0; i < sizeof(p) / sizeof(*p); ++i) {
+    for (size_t i = 0; i < sizeof(p) / sizeof(*p); ++i) {
       p[i] = this->allocator_->Allocate(128, kAlignment);
       EXPECT_TRUE(p[i] != NULL);
     }
@@ -136,7 +136,7 @@ TYPED_TEST(BidirectionalFitReuseAllocatorTest, FreeFromMiddle) {
 
   for (int loop = 0; loop < 2; ++loop) {
     void* p[3];
-    for (int i = 0; i < sizeof(p) / sizeof(*p); ++i) {
+    for (size_t i = 0; i < sizeof(p) / sizeof(*p); ++i) {
       p[i] = this->allocator_->Allocate(128, kAlignment);
       EXPECT_TRUE(p[i] != NULL);
     }

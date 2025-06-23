@@ -63,7 +63,9 @@ void NetworkChangeNotifierPassive::OnConnectionSubtypeChanged(
 NetworkChangeNotifier::ConnectionType
 NetworkChangeNotifierPassive::GetCurrentConnectionType() const {
   COBALT_LINKER_STUB();
+#if BUILDFLAG(COBALT_IS_RELEASE_BUILD)
   return NetworkChangeNotifier::CONNECTION_UNKNOWN;
+#endif
 }
 
 void NetworkChangeNotifierPassive::GetCurrentMaxBandwidthAndConnectionType(
