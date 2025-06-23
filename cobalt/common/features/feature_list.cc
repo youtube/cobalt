@@ -16,6 +16,7 @@
 
 #include <string>
 #include <utility>
+#include <variant>
 
 #include "base/strings/string_number_conversions.h"
 #include "starboard/extension/features.h"
@@ -29,14 +30,7 @@ struct SbParamWrapper {
   const char* feature_name;
   const char* param_name;
   SbFeatureParamType type;
-  union {
-    bool bool_value;
-    int int_value;
-    size_t size_value;
-    double double_value;
-    const char* string_value;
-    int64_t time_value;
-  };
+  std::variant<bool, std::string, int, double, size_t, int64_t> value;
 
   constexpr SbParamWrapper(const base::Feature* feature,
                            const char* feature_name,
@@ -46,7 +40,7 @@ struct SbParamWrapper {
         feature_name(feature_name),
         param_name(name),
         type(SbFeatureParamTypeBool),
-        bool_value(value) {}
+        value(value) {}
 
   constexpr SbParamWrapper(const base::Feature* feature,
                            const char* feature_name,
@@ -56,7 +50,7 @@ struct SbParamWrapper {
         feature_name(feature_name),
         param_name(name),
         type(SbFeatureParamTypeInt),
-        int_value(value) {}
+        value(value) {}
 
   constexpr SbParamWrapper(const base::Feature* feature,
                            const char* feature_name,
@@ -66,7 +60,7 @@ struct SbParamWrapper {
         feature_name(feature_name),
         param_name(name),
         type(SbFeatureParamTypeSize),
-        size_value(value) {}
+        value(value) {}
 
   constexpr SbParamWrapper(const base::Feature* feature,
                            const char* feature_name,
@@ -76,7 +70,7 @@ struct SbParamWrapper {
         feature_name(feature_name),
         param_name(name),
         type(SbFeatureParamTypeDouble),
-        double_value(value) {}
+        value(value) {}
 
   constexpr SbParamWrapper(const base::Feature* feature,
                            const char* feature_name,
@@ -86,7 +80,7 @@ struct SbParamWrapper {
         feature_name(feature_name),
         param_name(name),
         type(SbFeatureParamTypeString),
-        string_value(value) {}
+        value(value) {}
 
   constexpr SbParamWrapper(const base::Feature* feature,
                            const char* feature_name,
@@ -96,7 +90,7 @@ struct SbParamWrapper {
         feature_name(feature_name),
         param_name(name),
         type(SbFeatureParamTypeTime),
-        time_value(value) {}
+        value(value) {}
 };
 
 void parseFeatureParam(SbFeatureParam& sbparam,
@@ -109,32 +103,33 @@ void parseFeatureParam(SbFeatureParam& sbparam,
       } else if (param_value == "false") {
         sbparam.bool_value = false;
       } else {
-        sbparam.bool_value = wrapper_param.bool_value;
+        sbparam.bool_value = std::get<bool>(wrapper_param.value);
       }
       break;
     case (SbFeatureParamTypeInt):
       if (!base::StringToInt(param_value, &sbparam.int_value)) {
-        sbparam.int_value = wrapper_param.int_value;
+        sbparam.int_value = std::get<int>(wrapper_param.value);
       }
       break;
     case (SbFeatureParamTypeSize):
       if (!base::StringToSizeT(param_value, &sbparam.size_value)) {
-        sbparam.size_value = wrapper_param.size_value;
+        sbparam.size_value = std::get<size_t>(wrapper_param.value);
       }
       break;
     case (SbFeatureParamTypeDouble):
       if (!base::StringToDouble(param_value, &sbparam.double_value)) {
-        sbparam.double_value = wrapper_param.double_value;
+        sbparam.double_value = std::get<double>(wrapper_param.value);
       }
       break;
     case (SbFeatureParamTypeString):
       sbparam.string_value =
-          param_value == "" ? wrapper_param.string_value : param_value.c_str();
+          param_value == ""
+              ? (std::get<std::string>(wrapper_param.value).c_str())
+              : param_value.c_str();
       break;
     case (SbFeatureParamTypeTime):
-      // TODO: Maybe use uint64 instead?
       if (!base::StringToInt64(param_value, &sbparam.time_value)) {
-        sbparam.time_value = wrapper_param.time_value;
+        sbparam.time_value = std::get<int64_t>(wrapper_param.value);
       }
   }
 }
