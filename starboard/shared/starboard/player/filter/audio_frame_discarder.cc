@@ -84,7 +84,7 @@ void AudioFrameDiscarder::AdjustForDiscardedDurations(
 }
 
 void AudioFrameDiscarder::OnDecodedAudioEndOfStream() {
-  std::lock_guard lock(mutex_);
+  std::scoped_lock lock(mutex_);
   // |input_buffer_infos_| can have extra elements when the decoder skip outputs
   // due to errors (like invalid inputs).
   SB_LOG_IF(INFO, !input_buffer_infos_.empty())
@@ -93,7 +93,7 @@ void AudioFrameDiscarder::OnDecodedAudioEndOfStream() {
 }
 
 void AudioFrameDiscarder::Reset() {
-  std::lock_guard lock(mutex_);
+  std::scoped_lock lock(mutex_);
   input_buffer_infos_ = std::queue<InputBufferInfo>();
 }
 
