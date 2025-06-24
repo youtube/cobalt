@@ -10,26 +10,18 @@
 namespace starboard {
 namespace {
 
-constexpr int kTimeMillisecond = 1'000;
-constexpr int kTimeSecond = 1'000 * kTimeMillisecond;
+constexpr int kMillisInUs = 1'000;
+constexpr int kSecInUs = 1'000 * kMillisInUs;
 
 class TestObject {
  public:
-  explicit TestObject(int id) : id_(id), destroyed_(false) {}
-  ~TestObject() { destroyed_ = true; }
+  explicit TestObject(const int id) : id_(id) {}
+  ~TestObject() = default;
 
   int id() const { return id_; }
-  bool is_destroyed() const { return destroyed_; }
-
-  // Required for std::remove in Queue::Remove
-  bool operator==(const TestObject& other) const {
-    return id_ == other.id_ && !destroyed_ && !other.destroyed_;
-  }
-  bool operator!=(const TestObject& other) const { return !(*this == other); }
 
  private:
-  int id_;
-  bool destroyed_;
+  const int id_;
 };
 
 using UniqueTestObject = std::unique_ptr<TestObject>;
@@ -56,14 +48,14 @@ class PutterThread : public Thread {
         delay_microseconds_(delay_microseconds) {}
 
   void Run() override {
-    Thread::Sleep(delay_microseconds_);
+    Thread::Sleep(delay_microseconds_);  // Thread::Sleep is static
     queue_->Put(value_);
   }
 
  private:
-  Queue<int>* queue_;
-  int value_;
-  int64_t delay_microseconds_;
+  Queue<int>* const queue_;
+  const int value_;
+  const int64_t delay_microseconds_;
 };
 
 class WakerThread : public Thread {
@@ -74,13 +66,13 @@ class WakerThread : public Thread {
         delay_microseconds_(delay_microseconds) {}
 
   void Run() override {
-    Thread::Sleep(delay_microseconds_);
+    Thread::Sleep(delay_microseconds_);  // Thread::Sleep is static
     queue_->Wake();
   }
 
  private:
-  Queue<int>* queue_;
-  int64_t delay_microseconds_;
+  Queue<int>* const queue_;
+  const int64_t delay_microseconds_;
 };
 
 class ConsumerThread : public Thread {
@@ -96,19 +88,18 @@ class ConsumerThread : public Thread {
   void Run() override {
     while (consumed_count_->load() < total_items_) {
       int item = queue_->Get();
-      // Only count if it's not a default 0 returned by Wake(),
-      // or if we know all items have been put. This helps avoid
-      // prematurely incrementing if a consumer wakes up empty.
-      if (item != 0 || consumed_count_->load() < total_items_) {
+      // A non-zero item indicates a successful Get(). A zero item means the
+      // Get() was woken up empty-handed (e.g. from a Wake() call).
+      if (item != 0) {
         consumed_count_->fetch_add(1);
       }
     }
   }
 
  private:
-  Queue<int>* queue_;
-  std::atomic<int>* consumed_count_;
-  int total_items_;
+  Queue<int>* const queue_;
+  std::atomic<int>* const consumed_count_;
+  const int total_items_;
 };
 
 class ProducerConcurrentThread : public Thread {
@@ -116,7 +107,7 @@ class ProducerConcurrentThread : public Thread {
   ProducerConcurrentThread(const std::string& name,
                            Queue<int>* queue,
                            std::atomic<int>* produced_count,
-                           int items_per_producer)
+                           const int items_per_producer)
       : Thread(name),
         queue_(queue),
         produced_count_(produced_count),
@@ -124,15 +115,17 @@ class ProducerConcurrentThread : public Thread {
 
   void Run() override {
     for (int j = 0; j < items_per_producer_; ++j) {
-      queue_->Put(j);
+      // Put non-zero items so the consumer can distinguish a real item from a
+      // wake-up, as Get() returns 0 in that case.
+      queue_->Put(j + 1);
       produced_count_->fetch_add(1);
     }
   }
 
  private:
-  Queue<int>* queue_;
-  std::atomic<int>* produced_count_;
-  int items_per_producer_;
+  Queue<int>* const queue_;
+  std::atomic<int>* const produced_count_;
+  const int items_per_producer_;
 };
 
 TEST_F(QueueIntTest, PollEmptyQueueReturnsDefault) {
@@ -190,7 +183,7 @@ TEST_F(QueueUniquePointerTest, PutAndPollUniquePointers) {
 
 TEST_F(QueueIntTest, GetBlocksUntilItemIsAvailable) {
   int received_value = 0;
-  PutterThread putter_thread(&queue_, 42, kTimeMillisecond * 100);
+  PutterThread putter_thread(&queue_, 42, kMillisInUs * 100);
 
   putter_thread.Start();
   received_value = queue_.Get();
@@ -201,17 +194,17 @@ TEST_F(QueueIntTest, GetBlocksUntilItemIsAvailable) {
 }
 
 TEST_F(QueueIntTest, GetTimedReturnsDefaultOnTimeout) {
-  int received_value = queue_.GetTimed(kTimeMillisecond * 50);
+  int received_value = queue_.GetTimed(kMillisInUs * 50);
   EXPECT_EQ(0, received_value);
   EXPECT_EQ(0, queue_.Size());
 }
 
 TEST_F(QueueIntTest, GetTimedRetrievesItemWithinTimeout) {
   int received_value = 0;
-  PutterThread putter_thread(&queue_, 99, kTimeMillisecond * 10);
+  PutterThread putter_thread(&queue_, 99, kMillisInUs * 10);
 
   putter_thread.Start();
-  received_value = queue_.GetTimed(kTimeMillisecond * 500);
+  received_value = queue_.GetTimed(kMillisInUs * 500);
   putter_thread.Join();
 
   EXPECT_EQ(99, received_value);
@@ -220,7 +213,7 @@ TEST_F(QueueIntTest, GetTimedRetrievesItemWithinTimeout) {
 
 TEST_F(QueueIntTest, WakeWakesUpGetCall) {
   int received_value = 0;
-  WakerThread waker_thread(&queue_, kTimeMillisecond * 100);
+  WakerThread waker_thread(&queue_, kMillisInUs * 100);
 
   waker_thread.Start();
   received_value = queue_.Get();  // Should be woken up empty-handed
@@ -232,10 +225,10 @@ TEST_F(QueueIntTest, WakeWakesUpGetCall) {
 
 TEST_F(QueueIntTest, WakeWakesUpGetTimedCall) {
   int received_value = 0;
-  WakerThread waker_thread(&queue_, kTimeMillisecond * 100);
+  WakerThread waker_thread(&queue_, kMillisInUs * 100);
 
   waker_thread.Start();
-  received_value = queue_.GetTimed(kTimeSecond);
+  received_value = queue_.GetTimed(kSecInUs);
   waker_thread.Join();
 
   EXPECT_EQ(0, received_value);  // Default value for int
@@ -342,6 +335,14 @@ TEST_F(QueueIntTest, ConcurrentPutAndGet) {
   for (auto& thread : producer_threads) {
     thread->Join();
   }
+
+  // After all producers are done, some consumers might be blocked waiting for
+  // items that will never come. Wake them up so they can re-evaluate their
+  // loop condition and terminate gracefully.
+  for (int i = 0; i < kNumConsumers; ++i) {
+    queue_.Wake();
+  }
+
   for (auto& thread : consumer_threads) {
     thread->Join();
   }

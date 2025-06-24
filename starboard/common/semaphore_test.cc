@@ -25,7 +25,7 @@
 namespace starboard {
 namespace {
 
-constexpr int kTimeMillisecond = 1'000;
+constexpr int kMillisInUs = 1'000;
 
 // Helper thread for testing blocking Take()
 class TakerThread : public Thread {
@@ -39,16 +39,16 @@ class TakerThread : public Thread {
   }
 
  private:
-  Semaphore* semaphore_;
-  std::atomic_bool* took_permit_;
+  Semaphore* const semaphore_;
+  std::atomic_bool* const took_permit_;
 };
 
 // Helper thread for testing TakeWait() with a timeout
 class TimedTakerThread : public Thread {
  public:
   TimedTakerThread(Semaphore* semaphore,
-                   std::atomic_bool* took_permit,
-                   int64_t timeout_us)
+                   std::atomic_bool* const took_permit,
+                   const int64_t timeout_us)
       : Thread("TimedTaker"),
         semaphore_(semaphore),
         took_permit_(took_permit),
@@ -60,15 +60,17 @@ class TimedTakerThread : public Thread {
   }
 
  private:
-  Semaphore* semaphore_;
-  std::atomic_bool* took_permit_;
-  int64_t timeout_us_;
+  Semaphore* const semaphore_;
+  std::atomic_bool* const took_permit_;
+  const int64_t timeout_us_;
 };
 
 // Helper thread for putting permits
 class PutterThread : public Thread {
  public:
-  PutterThread(Semaphore* semaphore, int num_puts, int64_t delay_us = 0)
+  PutterThread(Semaphore* semaphore,
+               const int num_puts,
+               const int64_t delay_us = 0)
       : Thread("PutterThread"),
         semaphore_(semaphore),
         num_puts_(num_puts),
@@ -84,9 +86,9 @@ class PutterThread : public Thread {
   }
 
  private:
-  Semaphore* semaphore_;
-  int num_puts_;
-  int64_t delay_us_;
+  Semaphore* const semaphore_;
+  const int num_puts_;
+  const int64_t delay_us_;
 };
 
 TEST(SemaphoreTest, InitialPermitsZero) {
@@ -118,7 +120,7 @@ TEST(SemaphoreTest, TakeBlocksAndUnblocks) {
   TakerThread taker_thread(&sem, &took_permit);
 
   taker_thread.Start();
-  usleep(kTimeMillisecond * 50);     // Give taker thread time to block
+  usleep(kMillisInUs * 50);          // Give taker thread time to block
   EXPECT_FALSE(took_permit.load());  // Should still be blocked
 
   sem.Put();  // Unblock the taker thread
@@ -139,7 +141,7 @@ TEST(SemaphoreTest, TakeTryNonBlocking) {
 TEST(SemaphoreTest, TakeWaitTimeout) {
   Semaphore sem;
   std::atomic_bool took_permit(false);
-  TimedTakerThread taker_thread(&sem, &took_permit, kTimeMillisecond * 100);
+  TimedTakerThread taker_thread(&sem, &took_permit, kMillisInUs * 100);
 
   taker_thread.Start();
   taker_thread.Join();  // Should timeout
@@ -151,8 +153,8 @@ TEST(SemaphoreTest, TakeWaitTimeout) {
 TEST(SemaphoreTest, TakeWaitSuccessWithinTimeout) {
   Semaphore sem;
   std::atomic_bool took_permit(false);
-  TimedTakerThread taker_thread(&sem, &took_permit, kTimeMillisecond * 500);
-  PutterThread putter_thread(&sem, 1, kTimeMillisecond * 100);
+  TimedTakerThread taker_thread(&sem, &took_permit, kMillisInUs * 500);
+  PutterThread putter_thread(&sem, 1, kMillisInUs * 100);
 
   taker_thread.Start();
   putter_thread.Start();
@@ -240,7 +242,7 @@ TEST(SemaphoreTest, MultipleTakersSinglePutter) {
     taker_threads.back()->Start();  // Start takers, they will block
   }
 
-  usleep(kTimeMillisecond * 50);  // Give takers time to block
+  usleep(kMillisInUs * 50);  // Give takers time to block
 
   PutterThread putter_thread(&sem, kNumPuts);
   putter_thread.Start();
