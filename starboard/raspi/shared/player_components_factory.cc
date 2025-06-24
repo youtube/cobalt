@@ -70,7 +70,7 @@ class PlayerComponentsFactory : public PlayerComponents::Factory {
             return std::unique_ptr<AudioDecoder>(std::move(audio_decoder_impl));
           }
         }
-        std::unique_ptr<PlayerComponents>();
+        return std::unique_ptr<AudioDecoder>();
       };
 
       audio_decoder->reset(new AdaptiveAudioDecoder(
