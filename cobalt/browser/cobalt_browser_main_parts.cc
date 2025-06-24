@@ -78,11 +78,7 @@ GURL GetStartupURL() {
     return GURL("https://www.google.com/");
   }
 
-#if BUILDFLAG(IS_WIN)
-  GURL url(base::WideToUTF16(args[0]));
-#else
   GURL url(args[0]);
-#endif
   if (url.is_valid() && url.has_scheme()) {
     return url;
   }
@@ -105,13 +101,10 @@ int CobaltBrowserMainParts::PreMainMessageLoopRun() {
   StartMetricsRecording();
 
   browser_context_ = std::make_unique<content::ShellBrowserContext>(false);
-  off_the_record_browser_context_ =
-      std::make_unique<content::ShellBrowserContext>(false);
   // Persistent Origin Trials needs to be instantiated as soon as possible
   // during browser startup, to ensure data is available prior to the first
   // request.
   browser_context_->GetOriginTrialsControllerDelegate();
-  off_the_record_browser_context_->GetOriginTrialsControllerDelegate();
 
   content::Shell::Initialize(CreateShellPlatformDelegate());
   net::NetModule::SetResourceProvider(PlatformResourceProvider);
