@@ -5,9 +5,7 @@
 package org.chromium.content_shell;
 
 import android.content.Context;
-import android.util.AttributeSet;
 import android.util.Log;
-import android.widget.FrameLayout;
 import org.chromium.base.ThreadUtils;
 import org.chromium.base.annotations.CalledByNative;
 import org.chromium.base.annotations.JNINamespace;
@@ -20,9 +18,8 @@ import org.chromium.ui.base.WindowAndroid;
  * Container and generator of ShellViews.
  */
 @JNINamespace("content")
-public class ShellManager extends FrameLayout {
+public class ShellManager {
     private static final String TAG = "cobalt";
-
     public static final String DEFAULT_SHELL_URL = "http://www.google.com";
     private WindowAndroid mWindow;
     private Shell mActiveShell;
@@ -32,12 +29,18 @@ public class ShellManager extends FrameLayout {
     // The target for all content rendering.
     private ContentViewRenderView mContentViewRenderView;
 
+    private Context mContext;
+
     /**
      * Constructor for inflating via XML.
      */
-    public ShellManager(final Context context, AttributeSet attrs) {
-        super(context, attrs);
+    public ShellManager(final Context context) {
+        mContext = context;
         ShellManagerJni.get().init(this);
+    }
+
+    public Context getContext() {
+        return mContext;
     }
 
     /**
@@ -95,6 +98,7 @@ public class ShellManager extends FrameLayout {
             mContentViewRenderView = new ContentViewRenderView(getContext());
             mContentViewRenderView.onNativeLibraryLoaded(mWindow);
         }
+<<<<<<< HEAD
         Shell shellView = new Shell(getContext(), null);
         shellView.setId(R.id.container);
         FrameLayout.LayoutParams params = new FrameLayout.LayoutParams(
@@ -108,23 +112,28 @@ public class ShellManager extends FrameLayout {
 
         shellView.addView(frameLayout);
 
+=======
+
+        Shell shellView = new Shell(getContext());
+>>>>>>> 38323d10c71 (Remove Shell and ShellManager from native UI (#6074))
         shellView.initialize(nativeShellPtr, mWindow);
 
         // TODO(tedchoc): Allow switching back to these inactive shells.
         if (mActiveShell != null) removeShell(mActiveShell);
 
         showShell(shellView);
+<<<<<<< HEAD
 
         Log.i(TAG, "ShellManager.createShell, after showShell, all Layout Views:");
         Util.printRootViewHierarchy(frameLayout);
 
+=======
+>>>>>>> 38323d10c71 (Remove Shell and ShellManager from native UI (#6074))
         return shellView;
     }
 
     private void showShell(Shell shellView) {
         shellView.setContentViewRenderView(mContentViewRenderView);
-        addView(shellView, new FrameLayout.LayoutParams(
-                FrameLayout.LayoutParams.MATCH_PARENT, FrameLayout.LayoutParams.MATCH_PARENT));
         mActiveShell = shellView;
         WebContents webContents = mActiveShell.getWebContents();
         if (webContents != null) {
@@ -136,9 +145,7 @@ public class ShellManager extends FrameLayout {
     @CalledByNative
     private void removeShell(Shell shellView) {
         if (shellView == mActiveShell) mActiveShell = null;
-        if (shellView.getParent() == null) return;
         shellView.setContentViewRenderView(null);
-        removeView(shellView);
     }
 
     /**
