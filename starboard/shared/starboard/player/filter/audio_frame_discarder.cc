@@ -48,7 +48,7 @@ void AudioFrameDiscarder::AdjustForDiscardedDurations(
 
   InputBufferInfo input_info;
   {
-    std::lock_guard lock(mutex_);
+    std::scoped_lock lock(mutex_);
     SB_DCHECK(!input_buffer_infos_.empty());
 
     if (input_buffer_infos_.empty()) {
