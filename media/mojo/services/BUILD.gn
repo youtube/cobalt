@@ -314,6 +314,10 @@ source_set("unit_tests") {
 
     deps += [ "//third_party/fuchsia-sdk/sdk/pkg/fit-promise" ]
   }
+
+  if (is_cobalt && use_starboard_media) {
+    sources += [ "starboard/starboard_renderer_wrapper_unittest.cc" ]
+  }
 }
 
 mojolpm_fuzzer_test("webrtc_video_perf_mojolpm_fuzzer") {

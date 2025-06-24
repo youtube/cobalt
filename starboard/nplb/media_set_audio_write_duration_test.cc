@@ -81,8 +81,6 @@ class SbMediaSetAudioWriteDurationTest
     }
 
     SbPlayer player = pending_decoder_status_->player;
-    SbMediaType type = pending_decoder_status_->type;
-    int ticket = pending_decoder_status_->ticket;
     {
       starboard::ScopedSpinLock lock(&pending_decoder_status_lock_);
       pending_decoder_status_ = std::nullopt;
@@ -193,7 +191,7 @@ class SbMediaSetAudioWriteDurationTest
 
 TEST_P(SbMediaSetAudioWriteDurationTest, WriteLimitedInput) {
   ASSERT_NE(dmp_reader_.audio_codec(), kSbMediaAudioCodecNone);
-  ASSERT_GT(dmp_reader_.number_of_audio_buffers(), 0);
+  ASSERT_GT(dmp_reader_.number_of_audio_buffers(), 0u);
 
   SbPlayer player = CreatePlayer();
   WaitForPlayerState(kSbPlayerStateInitialized);
@@ -220,7 +218,7 @@ TEST_P(SbMediaSetAudioWriteDurationTest, WriteLimitedInput) {
 
 TEST_P(SbMediaSetAudioWriteDurationTest, WriteContinuedLimitedInput) {
   ASSERT_NE(dmp_reader_.audio_codec(), kSbMediaAudioCodecNone);
-  ASSERT_GT(dmp_reader_.number_of_audio_buffers(), 0);
+  ASSERT_GT(dmp_reader_.number_of_audio_buffers(), 0u);
 
   // This directly impacts the runtime of the test.
   total_duration_ = 15'000'000LL;  // 15 seconds
@@ -249,9 +247,9 @@ TEST_P(SbMediaSetAudioWriteDurationTest, WriteContinuedLimitedInput) {
   SbPlayerDestroy(player);
 }
 
-INSTANTIATE_TEST_CASE_P(SbMediaSetAudioWriteDurationTests,
-                        SbMediaSetAudioWriteDurationTest,
-                        ValuesIn(GetStereoAudioTestFiles()));
+INSTANTIATE_TEST_SUITE_P(SbMediaSetAudioWriteDurationTests,
+                         SbMediaSetAudioWriteDurationTest,
+                         ValuesIn(GetStereoAudioTestFiles()));
 }  // namespace
 }  // namespace nplb
 }  // namespace starboard

@@ -39,7 +39,7 @@ TEST(PosixFileGetPathInfoTest, InvalidFileErrors) {
 constexpr int64_t kMicrosecond = 1'000'000;
 auto ToMicroseconds(const struct timespec& ts) {
   return ts.tv_sec * kMicrosecond + ts.tv_nsec / 1000;
-};
+}
 
 TEST(PosixFileGetPathInfoTest, WorksOnARegularFile) {
   // This test is potentially flaky because it's comparing times. So, building
@@ -76,7 +76,7 @@ TEST(PosixFileGetPathInfoTest, WorksOnADirectory) {
 
   {
     struct stat file_info;
-    bool result = stat(path.data(), &file_info) == 0;
+    EXPECT_TRUE(stat(path.data(), &file_info) == 0);
     EXPECT_LE(0, file_info.st_size);
     EXPECT_TRUE(S_ISDIR(file_info.st_mode));
     EXPECT_FALSE(S_ISLNK(file_info.st_mode));
@@ -91,7 +91,7 @@ TEST(PosixFileGetPathInfoTest, WorksOnStaticContentFiles) {
     struct stat info;
     EXPECT_TRUE(stat(filename.c_str(), &info) == 0);
     size_t content_length = GetTestFileExpectedContent(filename).length();
-    EXPECT_EQ(content_length, info.st_size);
+    EXPECT_EQ(static_cast<long>(content_length), info.st_size);
     EXPECT_FALSE(S_ISDIR(info.st_mode));
     EXPECT_FALSE(S_ISLNK(info.st_mode));
   }

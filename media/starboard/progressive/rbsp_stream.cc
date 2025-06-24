@@ -81,7 +81,7 @@ bool RBSPStream::ReadBits(size_t bits, uint32_t* bits_out) {
   uint32_t result = 0;
   size_t bytes = bits >> 3;
   // read bytes first
-  for (int i = 0; i < bytes; i++) {
+  for (size_t i = 0; i < bytes; i++) {
     uint8_t new_byte = 0;
     if (!ReadRBSPByte(&new_byte)) {
       return false;
@@ -91,7 +91,7 @@ bool RBSPStream::ReadBits(size_t bits, uint32_t* bits_out) {
   }
   // scoot any leftover bits in
   bits = bits % 8;
-  for (int i = 0; i < bits; i++) {
+  for (size_t i = 0; i < bits; i++) {
     uint8_t new_bit = 0;
     if (!ReadRBSPBit(&new_bit)) {
       return false;
@@ -105,7 +105,7 @@ bool RBSPStream::ReadBits(size_t bits, uint32_t* bits_out) {
 
 // jump over bytes in the RBSP stream
 bool RBSPStream::SkipBytes(size_t bytes) {
-  for (int i = 0; i < bytes; ++i) {
+  for (size_t i = 0; i < bytes; ++i) {
     if (!ConsumeNALUByte()) {
       return false;
     }

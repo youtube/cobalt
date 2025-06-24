@@ -2217,6 +2217,10 @@ config("no_optimize") {
   } else {
     cflags = [ "-O0" ]
     ldflags = []
+    if (is_cobalt && cobalt_debugging_enabled) {
+      # Strip unused symbols to avoid linker errors.
+      ldflags += common_optimize_on_ldflags
+    }
   }
 }
 
@@ -2296,7 +2300,7 @@ config("default_optimization") {
     # The NaCl IRT is a special case and always wants its own config.
     # It gets optimized the same way regardless of the type of build.
     configs = [ "//build/config/nacl:irt_optimize" ]
-  } else if (is_debug) {
+  } else if (is_debug || is_cobalt && cobalt_debugging_enabled) {
     configs = [ ":no_optimize" ]
   } else if (optimize_for_fuzzing) {
     assert(!is_win, "Fuzzing optimize level not supported on Windows")

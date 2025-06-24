@@ -6,8 +6,8 @@ package org.chromium.content_shell;
 
 import android.content.Context;
 import android.util.AttributeSet;
+import android.util.Log;
 import android.widget.FrameLayout;
-
 import org.chromium.base.ThreadUtils;
 import org.chromium.base.annotations.CalledByNative;
 import org.chromium.base.annotations.JNINamespace;
@@ -21,6 +21,7 @@ import org.chromium.ui.base.WindowAndroid;
  */
 @JNINamespace("content")
 public class ShellManager extends FrameLayout {
+    private static final String TAG = "cobalt";
 
     public static final String DEFAULT_SHELL_URL = "http://www.google.com";
     private WindowAndroid mWindow;
@@ -94,21 +95,19 @@ public class ShellManager extends FrameLayout {
             mContentViewRenderView = new ContentViewRenderView(getContext());
             mContentViewRenderView.onNativeLibraryLoaded(mWindow);
         }
+
         Shell shellView = new Shell(getContext(), null);
         shellView.setId(R.id.container);
-        FrameLayout.LayoutParams params = new FrameLayout.LayoutParams(
-            FrameLayout.LayoutParams.MATCH_PARENT,
-            FrameLayout.LayoutParams.WRAP_CONTENT);
-        FrameLayout frameLayout = new FrameLayout(getContext());
-        frameLayout.setId(R.id.contentview_holder);
-        shellView.addView(frameLayout);
-
         shellView.initialize(nativeShellPtr, mWindow);
 
         // TODO(tedchoc): Allow switching back to these inactive shells.
         if (mActiveShell != null) removeShell(mActiveShell);
 
         showShell(shellView);
+
+        Log.i(TAG, "ShellManager.createShell, after showShell, all Layout Views:");
+        Util.printRootViewHierarchy(this);
+
         return shellView;
     }
 

@@ -78,14 +78,6 @@ const char* kVideoTestFiles[] = {
 const SbPlayerOutputMode kOutputModes[] = {kSbPlayerOutputModeDecodeToTexture,
                                            kSbPlayerOutputModePunchOut};
 
-void ErrorFunc(SbPlayer player,
-               void* context,
-               SbPlayerError error,
-               const char* message) {
-  std::atomic_bool* error_occurred = static_cast<std::atomic_bool*>(context);
-  error_occurred->exchange(true);
-}
-
 }  // namespace
 
 std::vector<const char*> GetStereoAudioTestFiles() {
@@ -281,7 +273,7 @@ void CallSbPlayerWriteSamples(
   if (sample_type == kSbMediaTypeAudio) {
     SB_DCHECK(discarded_durations_from_front.empty() ||
               discarded_durations_from_front.size() ==
-                  number_of_samples_to_write);
+                  static_cast<size_t>(number_of_samples_to_write));
     SB_DCHECK(discarded_durations_from_front.size() ==
               discarded_durations_from_back.size());
   } else {
