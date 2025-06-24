@@ -19,7 +19,7 @@
 namespace starboard::shared::starboard::player::filter {
 
 void AudioFrameDiscarder::OnInputBuffers(const InputBuffers& input_buffers) {
-  std::lock_guard lock(mutex_);
+  std::scoped_lock lock(mutex_);
   for (auto&& input_buffer : input_buffers) {
     SB_DCHECK(input_buffer);
     SB_DCHECK(input_buffer->sample_type() == kSbMediaTypeAudio);
