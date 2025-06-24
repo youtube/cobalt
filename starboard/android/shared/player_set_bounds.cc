@@ -32,11 +32,13 @@ void SbPlayerSetBounds(SbPlayer player,
     SB_DLOG(WARNING) << "player is invalid.";
     return;
   }
+  SB_LOG(INFO) << "Starting to set bounds";
   starboard::android::shared::JniEnvExt::Get()->CallStarboardVoidMethodOrAbort(
       "setVideoSurfaceBounds", "(IIII)V", x, y, width, height);
+  SB_LOG(INFO) << "Ending set bounds";
   // TODO: Remove //media/base:base dependency cycle to use base::FeatureList
   // here.
-  if (/* !base::FeatureList::IsEnabled(media::kCobaltUseExoPlayer) */ (false)) {
+  if (/* !base::FeatureList::IsEnabled(media::kCobaltUseExoPlayer) */ (true)) {
     // Skip fowarding the bounds to the ExoPlayer.
     player->SetBounds(z_index, x, y, width, height);
   }

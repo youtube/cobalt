@@ -15,6 +15,8 @@
 #include "starboard/android/shared/exoplayer/exoplayer_bridge.h"
 
 #include <jni.h>
+#include <unistd.h>
+
 #include <string>
 
 #include "starboard/android/shared/media_common.h"
@@ -37,6 +39,8 @@ using starboard::android::shared::ScopedLocalJavaRef;
 
 const jint kNoOffset = 0;
 constexpr int kUpdateIntervalUsec = 200'000;  // 200 ms
+// TODO: Ensure initialization works without waiting.
+constexpr int kWaitForInitializedTimeout = 500'000;  // 500 ms
 
 DECLARE_INSTANCE_COUNTER(ExoPlayerBridge);
 
@@ -140,6 +144,10 @@ ExoPlayerBridge::~ExoPlayerBridge() {
   if (j_sample_data_) {
     env->DeleteGlobalRef(j_sample_data_);
     j_sample_data_ = nullptr;
+  }
+  if (j_exoplayer_bridge_) {
+    env->DeleteGlobalRef(j_exoplayer_bridge_);
+    j_exoplayer_bridge_ = nullptr;
   }
   SB_LOG(INFO) << "Finished exoplayer destructor";
 }
@@ -284,8 +292,8 @@ void ExoPlayerBridge::SetPlaybackRate(const double playback_rate) {
 
 int ExoPlayerBridge::GetDroppedFrames() {
   JniEnvExt* env = JniEnvExt::Get();
-  jint dropped_frames = env->CallLongMethodOrAbort(j_exoplayer_bridge_,
-                                                   "getDroppedFrames", "()I");
+  jint dropped_frames =
+      env->CallIntMethodOrAbort(j_exoplayer_bridge_, "getDroppedFrames", "()I");
   return dropped_frames;
 }
 
@@ -309,7 +317,8 @@ int64_t ExoPlayerBridge::GetCurrentMediaTime(MediaInfo& info) {
 
 void ExoPlayerBridge::OnPlayerInitialized() {
   SB_LOG(INFO) << "Changing player state to Initialized";
-  // UpdatePlayerState(kSbPlayerStateInitialized);
+  ScopedLock lock(mutex_);
+  initialized_ = true;
 }
 
 void ExoPlayerBridge::OnPlayerPrerolled() {
@@ -434,6 +443,17 @@ bool ExoPlayerBridge::InitExoplayer() {
   SB_DCHECK(j_sample_data_) << "Failed to allocate |j_sample_data_|";
   j_sample_data_ = env->ConvertLocalRefToGlobalRef(j_sample_data_);
 
+  usleep(kUpdateIntervalUsec);
+  {
+    ScopedLock lock(mutex_);
+    if (!initialized_) {
+      SB_LOG(ERROR) << "ExoPlayer initialization took too long";
+      error_cb_(kSbPlayerErrorDecode, "ExoPlayer initialization took too long");
+
+      return false;
+    }
+  }
+  SB_LOG(INFO) << "Completed ExoPlayer initialization.";
   return true;
 }
 

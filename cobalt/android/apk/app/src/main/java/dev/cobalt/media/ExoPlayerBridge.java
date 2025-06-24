@@ -236,7 +236,7 @@ public class ExoPlayerBridge {
       return;
     }
     lastPlaybackPos = player.getCurrentPosition() * 1000;
-    Log.i(TAG, String.format("Updated playback pos to %d", lastPlaybackPos));
+    // Log.i(TAG, String.format("Updated playback pos to %d", lastPlaybackPos));
     if (!stopped) {
       exoplayerHandler.postDelayed(this::updatePlaybackPos, 75);
     } else {
@@ -416,7 +416,7 @@ public class ExoPlayerBridge {
   }
 
   @UsedByNative
-  private synchronized long getDroppedFrames() {
+  private synchronized int getDroppedFrames() {
     return droppedFramesOnPlayerThread;
   }
 

@@ -91,7 +91,9 @@ class ExoPlayerBridge final : private VideoSurfaceHolder {
     return type == kSbMediaTypeAudio ? audio_eos_written_ : video_eos_written_;
   }
 
-  bool is_valid() const { return j_exoplayer_bridge_ != nullptr; }
+  bool is_valid() const {
+    return j_exoplayer_bridge_ != nullptr && j_sample_data_ != nullptr;
+  }
 
  private:
   bool InitExoplayer();
@@ -126,6 +128,7 @@ class ExoPlayerBridge final : private VideoSurfaceHolder {
   bool playback_ended_ = false;
   double playback_rate_ = 0.0;
   bool seeking_ = false;
+  bool initialized_ = false;
 };
 
 }  // namespace starboard::android::shared::exoplayer

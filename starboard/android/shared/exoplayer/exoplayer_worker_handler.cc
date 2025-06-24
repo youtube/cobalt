@@ -69,7 +69,7 @@ HandlerResult ExoPlayerWorkerHandler::Init(
 
   update_job_token_ = Schedule(update_job_, kUpdateIntervalUsec);
 
-  return HandlerResult{true};
+  return HandlerResult{bridge_->is_valid()};
 }
 
 HandlerResult ExoPlayerWorkerHandler::Seek(int64_t seek_to_time, int ticket) {
