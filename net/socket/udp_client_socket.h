@@ -53,7 +53,7 @@ class NET_EXPORT_PRIVATE UDPClientSocket : public DatagramClientSocket {
   int Read(IOBuffer* buf,
            int buf_len,
            CompletionOnceCallback callback) override;
-#if defined(STARBOARD)
+#if BUILDFLAG(IS_COBALT)
   int ReadMultiplePackets(ReadPacketResults* results,
                           int read_buffer_size,
                           CompletionOnceCallback callback) override;

@@ -110,7 +110,7 @@ void UDPClientSocket::ApplySocketTag(const SocketTag& tag) {
   socket_.ApplySocketTag(tag);
 }
 
-#if defined(STARBOARD)
+#if BUILDFLAG(IS_COBALT)
 int UDPClientSocket::ReadMultiplePackets(ReadPacketResults* results,
                                          int read_buffer_size,
                                          CompletionOnceCallback callback) {

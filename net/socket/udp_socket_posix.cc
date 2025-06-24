@@ -75,6 +75,10 @@ const int kActivityMonitorBytesThreshold = 65535;
 const int kActivityMonitorMinimumSamplesForThroughputEstimate = 2;
 const base::TimeDelta kActivityMonitorMsThreshold = base::Milliseconds(100);
 
+// Read in larger batches to minimize recvmmsg overhead.
+inline constexpr int kNumPacketsPerReadMmsgCall = 64;
+// inline constexpr size_t kDefaultUdpPacketControlBufferSize = 512;
+
 #if BUILDFLAG(IS_APPLE) && !BUILDFLAG(CRONET_BUILD)
 
 // On macOS, the file descriptor is guarded to detect the cause of
@@ -345,6 +349,44 @@ int UDPSocketPosix::GetLocalAddress(IPEndPoint* address) const {
 
   *address = *local_address_;
   return OK;
+}
+
+int UDPSocketPosix::ReadMultiplePackets(Socket::ReadPacketResults* results,
+                                            int packet_buffer_size,
+                                            CompletionOnceCallback callback) {
+  if (!results || packet_buffer_size <= 0) {
+    return ERR_INVALID_ARGUMENT;
+  }
+
+  if (!is_connected_) {
+    // This is only implemented correctly for connected sockets.
+    return ERR_SOCKET_NOT_CONNECTED;
+  }
+  DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
+  DCHECK(results);
+  DCHECK(!callback.is_null());
+
+  // Disallow other reads to be pending.
+  DCHECK(read_callback_.is_null());
+
+  int nread = InternalReadMultiplePackets(results);
+  if (callback.is_null() || nread != ERR_IO_PENDING) {
+    return nread;
+  }
+
+  if (!base::CurrentIOThread::Get()->WatchFileDescriptor(
+          socket_, true, base::MessagePumpForIO::WATCH_READ,
+          &read_socket_watcher_, &read_watcher_)) {
+    PLOG(ERROR) << "WatchFileDescriptor failed on read";
+    int result = MapSystemError(errno);
+    LogRead(result, nullptr, 0, nullptr);
+    return result;
+  }
+
+  results_ = results;
+  read_buf_len_ = packet_buffer_size;
+  read_callback_ = std::move(callback);
+  return ERR_IO_PENDING;
 }
 
 int UDPSocketPosix::Read(IOBuffer* buf,
@@ -679,6 +721,16 @@ void UDPSocketPosix::DidCompleteRead() {
   }
 }
 
+void UDPSocketPosix::DidCompleteMultiplePacketRead() {
+  int result = InternalReadMultiplePackets(results_);
+  if (result != ERR_IO_PENDING) {
+    results_ = nullptr;
+    bool ok = read_socket_watcher_.StopWatchingFileDescriptor();
+    DCHECK(ok);
+    DoReadCallback(result);
+  }
+}
+
 void UDPSocketPosix::LogRead(int result,
                              const char* bytes,
                              socklen_t addr_len,
@@ -813,6 +865,157 @@ int UDPSocketPosix::InternalRecvFromNonConnectedSocket(IOBuffer* buf,
   LogRead(result, buf->data(), storage.addr_len, storage.addr);
   return result;
 }
+
+int UDPSocketPosix::InternalReadMultiplePackets(
+    Socket::ReadPacketResults* results) {
+  if (!socket_) {
+    results->result = net::ERR_UNEXPECTED;
+    return net::ERR_UNEXPECTED;
+  }
+
+  if (kNumPacketsPerReadMmsgCall == 0) {
+    results->result = 0;
+    return 0;
+  }
+  struct mmsghdr msgs[kNumPacketsPerReadMmsgCall];
+  struct iovec iovs[kNumPacketsPerReadMmsgCall];
+
+  // Initialize the message headers and I/O vectors.
+  for (int i = 0; i < kNumPacketsPerReadMmsgCall; ++i) {
+    iovs[i].iov_base = results->packets[i].buffer;
+    iovs[i].iov_len = results->packet_buffer_size;
+  
+    msgs[i].msg_hdr.msg_iov = &iovs[i];
+    msgs[i].msg_hdr.msg_iovlen = 1;
+    msgs[i].msg_hdr.msg_name = nullptr;
+    msgs[i].msg_hdr.msg_namelen = 0;
+    msgs[i].msg_hdr.msg_control = nullptr;
+    msgs[i].msg_hdr.msg_controllen = 0;
+    msgs[i].msg_hdr.msg_flags = 0;
+  }
+ 
+  int rv = recvmmsg(socket_, msgs, kNumPacketsPerReadMmsgCall,
+                    MSG_DONTWAIT, nullptr);
+
+  if (rv > 0) {
+    results->result = rv;
+    for (int i = 0; i < rv; ++i) {
+      auto& out_packet = results->packets[i];
+      struct mmsghdr* mmsg = &msgs[i];
+      struct msghdr* msg_hdr = &mmsg->msg_hdr;
+
+      out_packet.result = 0;
+      if (mmsg->msg_len == 0) {
+        continue;
+      }
+      if (msg_hdr->msg_flags & MSG_TRUNC) {
+        out_packet.result = -1; // Indicate truncation error.
+        continue;
+      }
+      out_packet.result = mmsg->msg_len;
+    }
+    return results->result;
+  }
+
+  // This block handles errors (when rv is less than or equal to 0).
+  if (errno != EAGAIN && errno != EWOULDBLOCK) {
+    LOG(ERROR) << "recvmmsg failed, errno = " << errno;
+  }
+
+  if (!socket_) {
+    results->result = net::ERR_UNEXPECTED;
+    return net::ERR_UNEXPECTED;
+  }
+  
+  results->result = MapSystemError(errno);
+  return results->result;
+}
+
+// int UDPSocketPosix::InternalReadMultiplePackets(
+//     Socket::ReadPacketResults* results) {
+
+//   struct mmsghdr mmsg_hdrs[kNumPacketsPerReadMmsgCall];
+//   struct iovec iov[kNumPacketsPerReadMmsgCall];
+//   struct sockaddr_storage addrs[kNumPacketsPerReadMmsgCall];
+//   scoped_refptr<IOBufferWithSize> buffers[kNumPacketsPerReadMmsgCall];
+
+//   memset(mmsg_hdrs, 0, sizeof(mmsg_hdrs));
+
+//   for (size_t packet = 0; packet < kNumPacketsPerReadMmsgCall; packet++) {
+//     buffers[packet] = new IOBufferWithSize(read_buf_len_);
+//     iov[packet].iov_base = buffers[packet]->data();
+//     iov[packet].iov_len = read_buf_len_;
+
+//     msghdr* msg_hdr = &mmsg_hdrs[packet].msg_hdr;
+//     msg_hdr->msg_iov = &iov[packet];
+//     msg_hdr->msg_iovlen = 1;
+//     msg_hdr->msg_name = &addrs[packet];
+//     msg_hdr->msg_namelen = sizeof(addrs[packet]);
+//   }
+
+//   int msgresult = recvmmsg(socket_, mmsg_hdrs, kNumPacketsPerReadMmsgCall, MSG_DONTWAIT, nullptr);
+//   CHECK(msgresult);
+
+//   results->result = msgresult ? msgresult : -1;
+//   if (results->result < 0) {
+//     if (errno == EAGAIN || errno == EWOULDBLOCK) {
+//       LOG(ERROR) << "recvmmsg failed, errno = " << errno;
+//     }
+//     results->result = net::MapSystemError(errno);
+//     if (results->result == ERR_IO_PENDING) {
+//       return results->result;
+//     }
+//   }
+
+//   else {
+//     for (int i = 0; i < msgresult; ++i) {
+//     Socket::ReadPacketResult* result_packet = &results->packets[i];
+    
+//     unsigned int bytes_received = mmsg_hdrs[i].msg_len;
+//     result_packet->result = bytes_received;
+//     result_packet->buffer = pending_read_buffers_[i]->data();
+//     //   auto result_packet = std::make_unique<Socket::ReadPacketResult>();
+//     //   result_packet->buffer = buffers[i];
+
+//     //   unsigned int bytes_received = mmsg_hdrs[i].msg_len;
+//     //   result_packet->buffer->set_size(bytes_received);
+
+//     //   msghdr* msg_hdr = &mmsg_hdrs[i].msg_hdr;
+//     //   if (!result_packet->address.FromSockAddr(
+//     //           reinterpret_cast<const sockaddr*>(msg_hdr->msg_name),
+//     //           msg_hdr->msg_namelen)) {
+//     //     // This is unexpected. Log an error and skip this packet.
+//     //     LOG(ERROR) << "Failed to convert sockaddr to IPEndPoint.";
+//     //     continue;
+//     //   }
+//     }
+//   }
+//   results->result = msgresult;
+//   return results->result;
+// }
+
+// int UDPSocketStarboard::InternalReadMultiplePackets(
+//     Socket::ReadPacketResults* results) {
+//   SbSocketReceiveMultiMsgResult* msgresult =
+//       g_socket_extension->ReceiveMultiMsg(socket_, results->buffer->data());
+//   CHECK(msgresult);
+//   results->result = msgresult ? msgresult->result : -1;
+//   if (results->result < 0) {
+//     results->result = MapLastSocketError(socket_);
+//     if (results->result == ERR_IO_PENDING) {
+//       return results->result;
+//     }
+//   }
+//   SbSocketReceiveMultiMsgPacket* packet = msgresult->packets;
+//   Socket::ReadPacketResult* out_packet = results->packets;
+//   CHECK(packet);
+//   CHECK(out_packet);
+//   for (int i = 0; i < results->result; ++i, ++packet, ++out_packet) {
+//     out_packet->buffer = packet->buffer;
+//     out_packet->result = packet->result;
+//   }
+//   return results->result;
+// }
 
 int UDPSocketPosix::InternalSendTo(IOBuffer* buf,
                                    int buf_len,

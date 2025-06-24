@@ -62,7 +62,7 @@ class NET_EXPORT_PRIVATE QuicChromiumPacketReader {
   // Return true if reading should continue.
   bool ProcessReadResult(int result);
 
-#if defined(STARBOARD)
+#if BUILDFLAG(IS_COBALT)
   // Version of StartReading that reads multiple packets per read call.
   int StartReadingMultiplePackets();
   // A completion callback invoked when a multiple packet read completes.
@@ -83,7 +83,7 @@ class NET_EXPORT_PRIVATE QuicChromiumPacketReader {
   scoped_refptr<IOBufferWithSize> read_buffer_;
   NetLogWithSource net_log_;
 
-#if defined(STARBOARD)
+#if BUILDFLAG(IS_COBALT)
   // Static flag to remember when ReadMultiplePackets has ever returned
   // ERR_NOT_IMPLEMENTED
   static bool try_reading_multiple_packets_;

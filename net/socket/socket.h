@@ -11,7 +11,7 @@
 #include <string>
 
 #include "net/base/completion_once_callback.h"
-#if defined(STARBOARD)
+#if BUILDFLAG(IS_COBALT)
 #include "net/base/io_buffer.h"
 #endif
 #include "net/base/net_export.h"
@@ -42,7 +42,7 @@ class NET_EXPORT Socket {
                    int buf_len,
                    CompletionOnceCallback callback) = 0;
 
-#if defined(STARBOARD)
+#if BUILDFLAG(IS_COBALT)
   struct ReadPacketResult {
     char* buffer;
     int result;

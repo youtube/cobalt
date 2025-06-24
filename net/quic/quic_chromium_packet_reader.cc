@@ -21,7 +21,7 @@ const size_t kReadBufferSize =
     static_cast<size_t>(quic::kMaxIncomingPacketSize + 1);
 }  // namespace
 
-#if defined(STARBOARD)
+#if BUILDFLAG(IS_COBALT)
 bool QuicChromiumPacketReader::try_reading_multiple_packets_{true};
 #endif
 
@@ -43,7 +43,7 @@ QuicChromiumPacketReader::QuicChromiumPacketReader(
 
 QuicChromiumPacketReader::~QuicChromiumPacketReader() = default;
 
-#if defined(STARBOARD)
+#if BUILDFLAG(IS_COBALT)
 int QuicChromiumPacketReader::StartReadingMultiplePackets() {
   for (;;) {
 if (read_pending_)
@@ -148,7 +148,7 @@ void QuicChromiumPacketReader::OnReadMultiplePacketComplete(int result) {
 #endif
 
 void QuicChromiumPacketReader::StartReading() {
-#if defined(STARBOARD)
+#if BUILDFLAG(IS_COBALT)
   if (try_reading_multiple_packets_) {
     int rv = StartReadingMultiplePackets();
     if (rv == OK || rv == ERR_IO_PENDING) {
