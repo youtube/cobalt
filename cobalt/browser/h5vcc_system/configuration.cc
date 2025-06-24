@@ -39,7 +39,7 @@ Configuration::Configuration() {
   DCHECK_EQ(std::string(configuration_api_->name),
             kCobaltExtensionConfigurationName)
       << "Unexpected extension name.";
-  DCHECK_GE(configuration_api_->version, 1) << "Unexpected extension version.";
+  DCHECK_GE(configuration_api_->version, 1u) << "Unexpected extension version.";
 }
 
 Configuration::UserOnExitStrategy Configuration::CobaltUserOnExitStrategy() {

@@ -107,7 +107,8 @@ TEST(SbDrmTest, MultiDrm) {
         created_drm_systems.pop_back();
       }
     }
-    if (created_drm_systems.size() == number_of_drm_systems) {
+    if (created_drm_systems.size() ==
+        static_cast<size_t>(number_of_drm_systems)) {
       break;
     }
     number_of_drm_systems = created_drm_systems.size();

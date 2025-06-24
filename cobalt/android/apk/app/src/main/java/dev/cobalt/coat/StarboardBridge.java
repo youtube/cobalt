@@ -23,6 +23,7 @@ import android.app.Activity;
 import android.app.Service;
 import android.content.Context;
 import android.content.pm.PackageManager;
+import android.content.res.AssetManager;
 import android.hardware.input.InputManager;
 import android.media.AudioDeviceInfo;
 import android.media.AudioManager;
@@ -138,9 +139,15 @@ public class StarboardBridge {
     this.volumeStateReceiver = new VolumeStateReceiver(appContext);
     this.isAmatiDevice = appContext.getPackageManager().hasSystemFeature(AMATI_EXPERIENCE_FEATURE);
 
-    nativeApp = StarboardBridgeJni.get().startNativeStarboard();
+    nativeApp =
+        StarboardBridgeJni.get()
+            .startNativeStarboard(
+                getAssetsFromContext(),
+                getFilesAbsolutePath(),
+                getCacheAbsolutePath(),
+                getNativeLibraryDir());
 
-    StarboardBridgeJni.get().handleDeepLink(startDeepLink, /*applicationStarted=*/ false);
+    StarboardBridgeJni.get().handleDeepLink(startDeepLink, /* applicationStarted= */ false);
     StarboardBridgeJni.get().setAndroidBuildFingerprint(getBuildFingerprint());
     StarboardBridgeJni.get().setAndroidOSExperience(this.isAmatiDevice);
     StarboardBridgeJni.get().setAndroidPlayServicesVersion(getPlayServicesVersion());
@@ -156,7 +163,9 @@ public class StarboardBridge {
 
     long currentMonotonicTime();
 
-    long startNativeStarboard();
+    long startNativeStarboard(
+        AssetManager assetManager, String filesDir, String cacheDir, String nativeLibraryDir);
+
     // TODO(cobalt, b/372559388): move below native methods to the Natives interface.
     // boolean initJNI();
 
@@ -165,7 +174,9 @@ public class StarboardBridge {
     void handleDeepLink(String url, boolean applicationStarted);
 
     void setAndroidBuildFingerprint(String fingerprint);
+
     void setAndroidOSExperience(boolean isAmatiDevice);
+
     void setAndroidPlayServicesVersion(long version);
   }
 
@@ -290,14 +301,6 @@ public class StarboardBridge {
   // private native boolean nativeOnSearchRequested();
 
   @CalledByNative
-  public Context getApplicationContext() {
-    if (appContext == null) {
-      throw new IllegalArgumentException("appContext cannot be null");
-    }
-    return appContext;
-  }
-
-  @CalledByNative
   void raisePlatformError(@PlatformError.ErrorType int errorType, long data) {
     PlatformError error = new PlatformError(activityHolder, errorType, data);
     error.raise();
@@ -329,11 +332,18 @@ public class StarboardBridge {
     StarboardBridgeJni.get().handleDeepLink(url, applicationStarted);
   }
 
+  public AssetManager getAssetsFromContext() {
+    return appContext.getAssets();
+  }
+
+  public String getNativeLibraryDir() {
+    return appContext.getApplicationInfo().nativeLibraryDir;
+  }
+
   /**
    * Returns the absolute path to the directory where application specific files should be written.
    * May be overridden for use cases that need to segregate storage.
    */
-  @CalledByNative
   protected String getFilesAbsolutePath() {
     return appContext.getFilesDir().getAbsolutePath();
   }
@@ -342,7 +352,6 @@ public class StarboardBridge {
    * Returns the absolute path to the application specific cache directory on the filesystem. May be
    * overridden for use cases that need to segregate storage.
    */
-  @CalledByNative
   protected String getCacheAbsolutePath() {
     return appContext.getCacheDir().getAbsolutePath();
   }
@@ -419,29 +428,6 @@ public class StarboardBridge {
     } catch (Exception e) {
       Log.e(TAG, "Failed to read system property " + name, e);
       return null;
-    }
-  }
-
-  @CalledByNative
-  Size getDeviceResolution() {
-    String displaySize =
-        android.os.Build.VERSION.SDK_INT < 28
-            ? getSystemProperty("sys.display-size")
-            : getSystemProperty("vendor.display-size");
-
-    if (displaySize == null) {
-      return getDisplaySize();
-    }
-
-    String[] sizes = displaySize.split("x");
-    if (sizes.length != 2) {
-      return getDisplaySize();
-    }
-
-    try {
-      return new Size(Integer.parseInt(sizes[0]), Integer.parseInt(sizes[1]));
-    } catch (NumberFormatException e) {
-      return getDisplaySize();
     }
   }
 
@@ -606,7 +592,8 @@ public class StarboardBridge {
 
   // Explicitly pass activity as parameter.
   // Avoid using activityHolder.get(), because onActivityStop() can set it to null.
-  public CobaltService openCobaltService(Activity activity, long nativeService, String serviceName) {
+  public CobaltService openCobaltService(
+      Activity activity, long nativeService, String serviceName) {
     if (cobaltServices.get(serviceName) != null) {
       // Attempting to re-open an already open service fails.
       Log.e(TAG, String.format("Cannot open already open service %s", serviceName));

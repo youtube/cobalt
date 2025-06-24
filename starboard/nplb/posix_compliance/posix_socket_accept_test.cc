@@ -103,7 +103,6 @@ TEST(PosixSocketAcceptTest, RainyDayNoConnection) {
 TEST(PosixSocketAcceptTest, RainyDayNotBound) {
   // Set up a socket, but don't Bind or Listen.
   int socket_fd = socket(AF_INET, SOCK_STREAM, IPPROTO_TCP);
-  int result = -1;
   ASSERT_TRUE(socket_fd >= 0);
 
   // Accept should result in an error.

@@ -72,23 +72,22 @@ public class Shell extends LinearLayout {
      * Set the SurfaceView being rendered to as soon as it is available.
      */
     public void setContentViewRenderView(ContentViewRenderView contentViewRenderView) {
-        FrameLayout contentViewHolder = (FrameLayout) findViewById(R.id.contentview_holder);
-
         Log.i(TAG, "Shell.setContentViewRenderView(), FrameLayout Views before operation.");
-        Util.printRootViewHierarchy(contentViewHolder);
+        Util.printRootViewHierarchy(this);
+
         if (contentViewRenderView == null) {
             if (mContentViewRenderView != null) {
-                contentViewHolder.removeView(mContentViewRenderView);
+                removeView(mContentViewRenderView);
             }
         } else {
-            contentViewHolder.addView(contentViewRenderView,
+            addView(contentViewRenderView,
                     new FrameLayout.LayoutParams(
                             FrameLayout.LayoutParams.MATCH_PARENT,
                             FrameLayout.LayoutParams.MATCH_PARENT));
         }
         mContentViewRenderView = contentViewRenderView;
         Log.i(TAG, "Shell.setContentViewRenderView(), FrameLayout Views after operation.");
-        Util.printRootViewHierarchy(contentViewHolder);
+        Util.printRootViewHierarchy(this);
     }
 
     /**
@@ -204,18 +203,16 @@ public class Shell extends LinearLayout {
         mNavigationController = mWebContents.getNavigationController();
         if (getParent() != null) mWebContents.onShow();
 
-        FrameLayout contentViewHolder = (FrameLayout)findViewById(R.id.contentview_holder);
-
         Log.i(TAG, "Shell.initFromNativeTabContents, before addView, all Layout Views:");
-        Util.printRootViewHierarchy(contentViewHolder);
+        Util.printRootViewHierarchy(this);
 
-        contentViewHolder.addView(cv,
+        addView(cv,
                 new FrameLayout.LayoutParams(
                         FrameLayout.LayoutParams.MATCH_PARENT,
                         FrameLayout.LayoutParams.MATCH_PARENT));
 
         Log.i(TAG, "Shell.initFromNativeTabContents, after addView, all Layout Views:");
-        Util.printRootViewHierarchy(contentViewHolder);
+        Util.printRootViewHierarchy(this);
 
         cv.requestFocus();
         mContentViewRenderView.setCurrentWebContents(mWebContents);

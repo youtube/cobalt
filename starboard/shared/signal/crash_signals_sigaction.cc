@@ -34,7 +34,7 @@ const int kStopSignalsToTrap[] = {
 };
 
 void SetSignalHandler(int signal_id, SignalHandlerFunction handler) {
-  struct sigaction action = {0};
+  struct sigaction action = {};
 
   action.sa_handler = handler;
   action.sa_flags = 0;

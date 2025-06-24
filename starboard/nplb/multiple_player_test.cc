@@ -54,7 +54,7 @@ std::string GetMultipleSbPlayerTestConfigDescription(
   const char* key_system = multiplayer_test_config[0].key_system;
 
   std::string description;
-  for (int i = 0; i < multiplayer_test_config.size(); i++) {
+  for (size_t i = 0; i < multiplayer_test_config.size(); i++) {
     const SbPlayerTestConfig& config = multiplayer_test_config[i];
     const char* audio_filename = config.audio_filename;
     const char* video_filename = config.video_filename;
@@ -63,7 +63,7 @@ std::string GetMultipleSbPlayerTestConfigDescription(
       description += "_";
     }
     description += FormatString(
-        "audio%d_%s_video%d_%s", i,
+        "audio%zu_%s_video%zu_%s", i,
         audio_filename && strlen(audio_filename) > 0 ? audio_filename : "null",
         i,
         video_filename && strlen(video_filename) > 0 ? video_filename : "null");

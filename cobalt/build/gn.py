@@ -54,11 +54,11 @@ _CHROMIUM_PLATFORMS = [
     'chromium_android-x86',
 ]
 _COBALT_LINUX_PLATFORMS = [
+    'evergreen-arm-hardfp-raspi',
     'evergreen-x64',
     'linux-x64x11',
     'linux-x64x11-modular',
     'linux-x64x11-no-starboard',
-    'raspi-2',
 ]
 _COBALT_ANDROID_PLATFORMS = [
     'android-arm',

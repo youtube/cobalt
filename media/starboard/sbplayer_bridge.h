@@ -306,7 +306,9 @@ class SbPlayerBridge {
   SbDrmSystem drm_system_ = kSbDrmSystemInvalid;
   Host* const host_;
   SbPlayerSetBoundsHelper* const set_bounds_helper_;
+#if COBALT_MEDIA_ENABLE_SUSPEND_RESUME
   const bool allow_resume_after_suspend_;
+#endif  // COBALT_MEDIA_ENABLE_SUSPEND_RESUME
 
   // The following variables are only changed or accessed from the
   // |task_runner_|.
@@ -356,8 +358,10 @@ class SbPlayerBridge {
   // A string of video maximum capabilities.
   std::string max_video_capabilities_;
 
+#if COBALT_MEDIA_ENABLE_PLAYER_SET_MAX_VIDEO_INPUT_SIZE
   // Set the maximum size in bytes of an input buffer for video.
   int max_video_input_size_;
+#endif
 
   // Keep track of errors during player creation.
   bool is_creating_player_ = false;

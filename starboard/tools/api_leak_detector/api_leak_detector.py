@@ -46,7 +46,9 @@ import re
 import subprocess
 import sys
 
-from starboard.tools import paths
+sys.path.append(os.path.join(os.path.dirname(__file__), os.pardir))
+
+import paths  # pylint: disable=wrong-import-position
 
 # pylint: disable=line-too-long
 _API_LEAK_DETECTOR_TITLE = """    ___    ____  ____   __               __      ____       __            __
@@ -107,6 +109,7 @@ _ALLOWED_SB_GE_16_POSIX_SYMBOLS = [
     'freeaddrinfo',
     'freeifaddrs',
     'fstat',
+    'fstatfs',
     'fsync',
     'ftruncate',
     'getaddrinfo',
@@ -133,6 +136,7 @@ _ALLOWED_SB_GE_16_POSIX_SYMBOLS = [
     'munmap',
     'open',
     'opendir',
+    'perror',
     'pipe',
     'pipe2',
     'posix_memalign',
@@ -222,6 +226,10 @@ _ALLOWED_SB_GE_16_POSIX_SYMBOLS = [
     'readdir_r',
     'malloc_usable_size',
     'readdir',
+
+    # Symbols below haven't been implemented yet but need to be investigated.
+    'flock',  # TODO: b/412638190
+    'putchar',  # TODO: b/406081586
 ]
 
 

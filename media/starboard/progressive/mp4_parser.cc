@@ -485,7 +485,7 @@ bool MP4Parser::ParseMP4_esds(uint64_t atom_data_size) {
   uint8_t* esds = &esds_storage[0];
   // download esds
   int bytes_read = reader_->BlockingRead(esds_offset, esds_size, esds);
-  if (bytes_read < esds_size) {
+  if (static_cast<uint64_t>(bytes_read) < esds_size) {
     LOG(WARNING) << "failed to download esds";
     return false;
   }
@@ -646,7 +646,7 @@ bool MP4Parser::ParseMP4_mvhd(uint64_t atom_data_size, uint8_t* mvhd) {
 }
 
 base::TimeDelta MP4Parser::TicksToTime(uint64_t ticks, uint32_t time_scale_hz) {
-  DCHECK_NE(time_scale_hz, 0);
+  DCHECK_NE(time_scale_hz, 0u);
 
   if (time_scale_hz == 0) {
     return base::Seconds(0);
@@ -655,7 +655,7 @@ base::TimeDelta MP4Parser::TicksToTime(uint64_t ticks, uint32_t time_scale_hz) {
 }
 
 uint64_t MP4Parser::TimeToTicks(base::TimeDelta time, uint32_t time_scale_hz) {
-  DCHECK_NE(time_scale_hz, 0);
+  DCHECK_NE(time_scale_hz, 0u);
 
   if (time_scale_hz == 0) {
     return 0;

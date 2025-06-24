@@ -119,7 +119,7 @@ TEST_F(FileTempTest, MkstempFileIsOpened) {
   // Try to write something to the file descriptor.
   const char* test_data = "test data";
   const ssize_t bytes_written = write(fd, test_data, strlen(test_data));
-  EXPECT_EQ(bytes_written, strlen(test_data))
+  EXPECT_EQ(static_cast<size_t>(bytes_written), strlen(test_data))
       << "write failed or wrote incorrect bytes for fd " << fd
       << " with error: " << strerror(errno);
 
@@ -194,7 +194,7 @@ TEST_F(FileTempTest, MkostempWriteFile) {
 
   const char test_data[] = "Hello, world!";
   const ssize_t bytes_written = write(fd, test_data, sizeof(test_data) - 1);
-  EXPECT_EQ(bytes_written, sizeof(test_data) - 1)
+  EXPECT_EQ(static_cast<size_t>(bytes_written), sizeof(test_data) - 1)
       << "write failed or wrote incorrect bytes for fd " << fd
       << " with error: " << strerror(errno);
 
