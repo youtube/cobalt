@@ -10,8 +10,8 @@
 namespace starboard {
 namespace {
 
-constexpr int kSbTimeMillisecond = 1'000;
-constexpr int kSbTimeSecond = 1'000 * kSbTimeMillisecond;
+constexpr int kTimeMillisecond = 1'000;
+constexpr int kTimeSecond = 1'000 * kTimeMillisecond;
 
 // A simple test class to use with the Queue,
 // demonstrating nullable behavior and resource management.
@@ -34,16 +34,7 @@ class TestObject {
   bool destroyed_;
 };
 
-// Custom deleter for unique_ptr to track destruction
-struct TestObjectDeleter {
-  void operator()(TestObject* obj) const {
-    if (obj) {
-      delete obj;
-    }
-  }
-};
-
-using UniqueTestObject = std::unique_ptr<TestObject, TestObjectDeleter>;
+using UniqueTestObject = std::unique_ptr<TestObject>;
 
 // Test fixture for Queue
 template <typename T>
@@ -172,8 +163,10 @@ TEST_F(QueueIntTest, PutAndPoll) {
 }
 
 TEST_F(QueuePointerTest, PutAndPollPointers) {
-  TestObject* obj1 = new TestObject(1);
-  TestObject* obj2 = new TestObject(2);
+  auto obj1_owner = std::make_unique<TestObject>(1);
+  TestObject* obj1 = obj1_owner.get();
+  auto obj2_owner = std::make_unique<TestObject>(2);
+  TestObject* obj2 = obj2_owner.get();
 
   queue_.Put(obj1);
   queue_.Put(obj2);
@@ -183,14 +176,11 @@ TEST_F(QueuePointerTest, PutAndPollPointers) {
   EXPECT_EQ(1, queue_.Size());
   EXPECT_EQ(obj2, queue_.Poll());
   EXPECT_EQ(0, queue_.Size());
-
-  delete obj1;  // Clean up allocated memory
-  delete obj2;
 }
 
 TEST_F(QueueUniquePointerTest, PutAndPollUniquePointers) {
-  UniqueTestObject obj1(new TestObject(1));
-  UniqueTestObject obj2(new TestObject(2));
+  auto obj1 = std::make_unique<TestObject>(1);
+  auto obj2 = std::make_unique<TestObject>(2);
 
   TestObject* raw_obj1 = obj1.get();
   TestObject* raw_obj2 = obj2.get();
@@ -205,15 +195,11 @@ TEST_F(QueueUniquePointerTest, PutAndPollUniquePointers) {
   UniqueTestObject retrieved_obj2 = queue_.Poll();
   EXPECT_EQ(raw_obj2, retrieved_obj2.get());
   EXPECT_EQ(0, queue_.Size());
-
-  EXPECT_TRUE(
-      retrieved_obj1->is_destroyed());  // Should be destroyed by unique_ptr
-  EXPECT_TRUE(retrieved_obj2->is_destroyed());
 }
 
 TEST_F(QueueIntTest, GetBlocksUntilItemIsAvailable) {
   int received_value = 0;
-  PutterThread putter_thread(&queue_, 42, kSbTimeMillisecond * 100);
+  PutterThread putter_thread(&queue_, 42, kTimeMillisecond * 100);
 
   putter_thread.Start();
   received_value = queue_.Get();
@@ -224,20 +210,17 @@ TEST_F(QueueIntTest, GetBlocksUntilItemIsAvailable) {
 }
 
 TEST_F(QueueIntTest, GetTimedReturnsDefaultOnTimeout) {
-  int received_value =
-      queue_.GetTimed(kSbTimeMillisecond * 50);  // Short timeout
-  EXPECT_EQ(0, received_value);  // Should timeout and return default
+  int received_value = queue_.GetTimed(kTimeMillisecond * 50);
+  EXPECT_EQ(0, received_value);
   EXPECT_EQ(0, queue_.Size());
 }
 
 TEST_F(QueueIntTest, GetTimedRetrievesItemWithinTimeout) {
   int received_value = 0;
-  PutterThread putter_thread(&queue_, 99,
-                             kSbTimeMillisecond * 10);  // Put quickly
+  PutterThread putter_thread(&queue_, 99, kTimeMillisecond * 10);
 
   putter_thread.Start();
-  received_value =
-      queue_.GetTimed(kSbTimeMillisecond * 500);  // Long enough timeout
+  received_value = queue_.GetTimed(kTimeMillisecond * 500);
   putter_thread.Join();
 
   EXPECT_EQ(99, received_value);
@@ -246,7 +229,7 @@ TEST_F(QueueIntTest, GetTimedRetrievesItemWithinTimeout) {
 
 TEST_F(QueueIntTest, WakeWakesUpGetCall) {
   int received_value = 0;
-  WakerThread waker_thread(&queue_, kSbTimeMillisecond * 100);
+  WakerThread waker_thread(&queue_, kTimeMillisecond * 100);
 
   waker_thread.Start();
   received_value = queue_.Get();  // Should be woken up empty-handed
@@ -258,10 +241,10 @@ TEST_F(QueueIntTest, WakeWakesUpGetCall) {
 
 TEST_F(QueueIntTest, WakeWakesUpGetTimedCall) {
   int received_value = 0;
-  WakerThread waker_thread(&queue_, kSbTimeMillisecond * 100);
+  WakerThread waker_thread(&queue_, kTimeMillisecond * 100);
 
   waker_thread.Start();
-  received_value = queue_.GetTimed(kSbTimeSecond);  // Long timeout
+  received_value = queue_.GetTimed(kTimeSecond);
   waker_thread.Join();
 
   EXPECT_EQ(0, received_value);  // Default value for int
@@ -292,10 +275,15 @@ TEST_F(QueueIntTest, ClearEmptiesQueue) {
 }
 
 TEST_F(QueuePointerTest, RemoveSpecificItem) {
-  TestObject* obj1 = new TestObject(1);
-  TestObject* obj2 = new TestObject(2);
-  TestObject* obj3 = new TestObject(3);
-  TestObject* obj4 = new TestObject(2);  // Duplicate id for testing
+  auto obj1_owner = std::make_unique<TestObject>(1);
+  TestObject* obj1 = obj1_owner.get();
+  auto obj2_owner = std::make_unique<TestObject>(2);
+  TestObject* obj2 = obj2_owner.get();
+  auto obj3_owner = std::make_unique<TestObject>(3);
+  TestObject* obj3 = obj3_owner.get();
+  auto obj4_owner =
+      std::make_unique<TestObject>(2);  // Duplicate id for testing
+  TestObject* obj4 = obj4_owner.get();
 
   queue_.Put(obj1);
   queue_.Put(obj2);
@@ -310,67 +298,24 @@ TEST_F(QueuePointerTest, RemoveSpecificItem) {
   EXPECT_EQ(obj3, queue_.Poll());
   EXPECT_EQ(obj4, queue_.Poll());
   EXPECT_EQ(nullptr, queue_.Poll());
-
-  delete obj1;
-  delete obj2;  // Manually delete removed object
-  delete obj3;
-  delete obj4;
 }
 
 TEST_F(QueuePointerTest, RemoveNonExistentItem) {
-  TestObject* obj1 = new TestObject(1);
-  TestObject* obj2 = new TestObject(2);
+  auto obj1_owner = std::make_unique<TestObject>(1);
+  TestObject* obj1 = obj1_owner.get();
+  auto obj2_owner = std::make_unique<TestObject>(2);
+  TestObject* obj2 = obj2_owner.get();
 
   queue_.Put(obj1);
   queue_.Put(obj2);
 
   EXPECT_EQ(2, queue_.Size());
-  TestObject* non_existent_obj = new TestObject(99);
-  queue_.Remove(non_existent_obj);  // Should do nothing
+  auto non_existent_obj_owner = std::make_unique<TestObject>(99);
+  queue_.Remove(non_existent_obj_owner.get());  // Should do nothing
 
   EXPECT_EQ(2, queue_.Size());
   EXPECT_EQ(obj1, queue_.Poll());
   EXPECT_EQ(obj2, queue_.Poll());
-
-  delete obj1;
-  delete obj2;
-  delete non_existent_obj;
-}
-
-TEST_F(QueueUniquePointerTest, RemoveDoesNotDestroyUniquePointers) {
-  UniqueTestObject obj1(new TestObject(1));
-  UniqueTestObject obj2(new TestObject(2));
-  UniqueTestObject obj3(new TestObject(3));
-
-  TestObject* raw_obj1 = obj1.get();
-  TestObject* raw_obj2 = obj2.get();
-  TestObject* raw_obj3 = obj3.get();
-
-  queue_.Put(std::move(obj1));
-  queue_.Put(std::move(obj2));
-  queue_.Put(std::move(obj3));
-
-  EXPECT_EQ(3, queue_.Size());
-  // In the case of unique_ptr, operator== for TestObject compares raw pointers.
-  // So we need to create a temporary unique_ptr to hold the raw pointer for
-  // removal. Note: This highlights the user's responsibility when using Remove
-  // with non-trivial types. The removed object's ownership is effectively lost
-  // by the Queue.
-  UniqueTestObject temp_obj2(raw_obj2, TestObjectDeleter());
-  queue_.Remove(std::move(temp_obj2));  // This will move temp_obj2 into remove,
-                                        // then compare by raw pointer
-
-  EXPECT_EQ(2, queue_.Size());
-  EXPECT_EQ(raw_obj1, queue_.Poll().get());
-  EXPECT_EQ(raw_obj3, queue_.Poll().get());
-
-  // The raw_obj2 is still alive because Queue::Remove only removes it from the
-  // deque, it doesn't call delete on the removed unique_ptr (since it was moved
-  // out). The user of Queue has to manage the lifetime of the object
-  // corresponding to the removed pointer.
-  EXPECT_FALSE(raw_obj2->is_destroyed());
-  delete raw_obj2;  // Manually delete the raw pointer that was 'removed' from
-                    // the queue.
 }
 
 // Concurrency Test: Multiple threads putting and getting
