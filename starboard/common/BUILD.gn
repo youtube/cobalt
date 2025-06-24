@@ -113,7 +113,6 @@ source_set("common_test") {
     "memory_test.cc",
     "player_test.cc",
     "socket_test.cc",
-    "test_main.cc",
   ]
   deps = [
     ":common",

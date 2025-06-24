@@ -8,13 +8,14 @@ import android.content.Context;
 import android.graphics.Rect;
 import android.text.TextUtils;
 import android.util.AttributeSet;
+import android.util.Log;
 import android.view.ActionMode;
 import android.view.Menu;
 import android.view.MenuItem;
 import android.view.View;
+import android.view.ViewGroup;
 import android.widget.FrameLayout;
 import android.widget.LinearLayout;
-
 import org.chromium.base.Callback;
 import org.chromium.base.annotations.CalledByNative;
 import org.chromium.base.annotations.JNINamespace;
@@ -36,6 +37,7 @@ import org.chromium.ui.base.WindowAndroid;
  */
 @JNINamespace("content")
 public class Shell extends LinearLayout {
+    private static final String TAG = "cobalt";
 
     private static final long COMPLETED_PROGRESS_TIMEOUT_MS = 200;
 
@@ -70,18 +72,22 @@ public class Shell extends LinearLayout {
      * Set the SurfaceView being rendered to as soon as it is available.
      */
     public void setContentViewRenderView(ContentViewRenderView contentViewRenderView) {
-        FrameLayout contentViewHolder = (FrameLayout) findViewById(R.id.contentview_holder);
+        Log.i(TAG, "Shell.setContentViewRenderView(), FrameLayout Views before operation.");
+        Util.printRootViewHierarchy(this);
+
         if (contentViewRenderView == null) {
             if (mContentViewRenderView != null) {
-                contentViewHolder.removeView(mContentViewRenderView);
+                removeView(mContentViewRenderView);
             }
         } else {
-            contentViewHolder.addView(contentViewRenderView,
+            addView(contentViewRenderView,
                     new FrameLayout.LayoutParams(
                             FrameLayout.LayoutParams.MATCH_PARENT,
                             FrameLayout.LayoutParams.MATCH_PARENT));
         }
         mContentViewRenderView = contentViewRenderView;
+        Log.i(TAG, "Shell.setContentViewRenderView(), FrameLayout Views after operation.");
+        Util.printRootViewHierarchy(this);
     }
 
     /**
@@ -196,10 +202,18 @@ public class Shell extends LinearLayout {
                 .setActionModeCallback(defaultActionCallback());
         mNavigationController = mWebContents.getNavigationController();
         if (getParent() != null) mWebContents.onShow();
-        ((FrameLayout) findViewById(R.id.contentview_holder)).addView(cv,
+
+        Log.i(TAG, "Shell.initFromNativeTabContents, before addView, all Layout Views:");
+        Util.printRootViewHierarchy(this);
+
+        addView(cv,
                 new FrameLayout.LayoutParams(
                         FrameLayout.LayoutParams.MATCH_PARENT,
                         FrameLayout.LayoutParams.MATCH_PARENT));
+
+        Log.i(TAG, "Shell.initFromNativeTabContents, after addView, all Layout Views:");
+        Util.printRootViewHierarchy(this);
+
         cv.requestFocus();
         mContentViewRenderView.setCurrentWebContents(mWebContents);
     }

@@ -23,25 +23,6 @@ namespace starboard {
 namespace nplb {
 namespace {
 
-void* PosixTakeThenSignalEntryPoint(void* context) {
-  posix::TakeThenSignalContext* test_context =
-      static_cast<posix::TakeThenSignalContext*>(context);
-
-  // Don't signal the condition variable until we are asked.
-  test_context->do_signal.Take();
-
-  if (test_context->delay_after_signal > 0) {
-    usleep(test_context->delay_after_signal);
-  }
-
-  // Signal the condition variable.
-  EXPECT_EQ(pthread_mutex_lock(&test_context->mutex), 0);
-  EXPECT_TRUE(pthread_cond_signal(&test_context->condition));
-  EXPECT_EQ(pthread_mutex_unlock(&test_context->mutex), 0);
-
-  return NULL;
-}
-
 TEST(PosixConditionVariableWaitTest, SunnyDayAutoInit) {
   posix::TakeThenSignalContext context = {posix::TestSemaphore(0),
                                           PTHREAD_MUTEX_INITIALIZER,

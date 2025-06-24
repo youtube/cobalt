@@ -23,20 +23,17 @@
 
 namespace {
 int LaunchUnitTests(int argc, char** argv) {
-  mojo::core::test::MojoTestSuiteBase test_suite(argc, argv);
-  return base::LaunchUnitTests(
-      argc, argv,
-      base::BindOnce(&base::TestSuite::Run, base::Unretained(&test_suite)));
+  return mojo::core::test::MojoTestSuiteBase(argc, argv).Run();
 }
 }  // namespace
 
 // For the Starboard OS define SbEventHandle as the entry point
-SB_EXPORT STARBOARD_WRAP_SIMPLE_MAIN(LaunchUnitTests);
+SB_EXPORT STARBOARD_WRAP_SIMPLE_MAIN(LaunchUnitTests)
 
 #if SB_IS(EVERGREEN)
 // If the OS is not Starboard use the regular main e.g. ATV.
 int main(int argc, char** argv) {
-  return LaunchUnitTests(argc, argv);
+  return SbRunStarboardMain(argc, argv, SbEventHandle);
 }
 #else
 // Define main() for non-Evergreen Starboard OS.

@@ -31,7 +31,7 @@ EGLBoolean __real_eglSwapBuffers(EGLDisplay dpy, EGLSurface surface);
 SB_EXPORT_PLATFORM EGLBoolean __wrap_eglSwapBuffers(EGLDisplay dpy,
                                                     EGLSurface surface) {
   if (starboard::android::shared::g_block_swapbuffers.load()) {
-    return;
+    return EGL_FALSE;
   }
   // Kick off the GPU while waiting for new player bounds to take effect.
   GL_CALL(glFlush());

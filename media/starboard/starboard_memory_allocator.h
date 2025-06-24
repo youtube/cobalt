@@ -32,7 +32,7 @@ class StarboardMemoryAllocator : public starboard::common::Allocator {
 
   void* Allocate(std::size_t size, std::size_t alignment) override {
     void* p = nullptr;
-    posix_memalign(&p, std::max(alignment, sizeof(void*)), size);
+    std::ignore = posix_memalign(&p, std::max(alignment, sizeof(void*)), size);
     return p;
   }
 

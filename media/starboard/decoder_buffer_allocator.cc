@@ -31,14 +31,6 @@
 
 namespace media {
 
-namespace {
-
-// Used to determine if the memory allocated is large. The underlying logic can
-// be different.
-const size_t kSmallAllocationThreshold = 512;
-
-}  // namespace
-
 DecoderBufferAllocator::DecoderBufferAllocator(Type type /*= Type::kGlobal*/)
     : DecoderBufferAllocator(type,
                              SbMediaIsBufferPoolAllocateOnDemand(),
@@ -80,7 +72,7 @@ DecoderBufferAllocator::~DecoderBufferAllocator() {
   base::AutoLock scoped_lock(mutex_);
 
   if (strategy_) {
-    DCHECK_EQ(strategy_->GetAllocated(), 0);
+    DCHECK_EQ(strategy_->GetAllocated(), 0u);
     strategy_.reset();
   }
 }
@@ -132,7 +124,7 @@ void* DecoderBufferAllocator::Allocate(DemuxerStream::Type type,
 
 void DecoderBufferAllocator::Free(void* p, size_t size) {
   if (p == nullptr) {
-    DCHECK_EQ(size, 0);
+    DCHECK_EQ(size, 0u);
     return;
   }
 

@@ -50,7 +50,8 @@ repos:
                 starboard/shared/starboard/player/testdata/|
                 starboard/android/apk/app/src/app/assets/web/link_android_splash_screen.html |
                 cobalt/demos/content|
-                cobalt/third_party/boringssl/src/include/openssl/thread.h
+                cobalt/third_party/boringssl/src/include/openssl/thread.h|
+                .github/config/chromium_diffing.json
             )
 
 -   repo: local
@@ -93,7 +94,10 @@ repos:
         language: python
         exclude: |
             (?x)^(
-                starboard/android/apk/app/src/main/java/dev/cobalt/storage/StorageProto.java
+                starboard/android/apk/app/src/main/java/dev/cobalt/storage/StorageProto.java|
+                cobalt/android/apk/app/src/org/chromium/content_shell/Util.java|
+                cobalt/android/apk/app/src/org/chromium/content_shell/Shell.java|
+                cobalt/android/apk/app/src/org/chromium/content_shell/ShellManager.java
             )
         types: [java]
     -   id: gn-format

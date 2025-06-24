@@ -136,7 +136,6 @@ TEST(SbSystemGetPathTest, CanCreateAndRemoveDirectoryInCache) {
     EXPECT_FALSE(FileExists(path.data()));
 
     // Create the directory and confirm it exists and can be opened.
-    struct stat info;
     EXPECT_TRUE(mkdir(path.data(), 0700) == 0 ||
                 (DirectoryExists(path.data())));
     EXPECT_TRUE(FileExists(path.data()));
@@ -201,7 +200,7 @@ TEST(SbSystemGetPathTest, CanWriteAndReadCache) {
 constexpr int64_t kMicrosecond = 1'000'000;
 auto ToMicroseconds(const struct timespec& ts) {
   return ts.tv_sec * kMicrosecond + ts.tv_nsec / 1000;
-};
+}
 
 TEST(SbSystemGetPath, ExecutableFileCreationTimeIsSound) {
   // Verify that the creation time of the current executable file is not
