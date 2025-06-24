@@ -55,7 +55,6 @@
     "url:url_unittests_loader"
   ],
   "build_configs": [
-    "debug",
     "devel",
     "qa",
     "gold"
