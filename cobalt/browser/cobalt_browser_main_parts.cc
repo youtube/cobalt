@@ -51,10 +51,6 @@
 
 namespace {
 
-std::unique_ptr<content::ShellPlatformDelegate> CreateShellPlatformDelegate() {
-  return std::make_unique<content::ShellPlatformDelegate>();
-}
-
 scoped_refptr<base::RefCountedMemory> PlatformResourceProvider(int key) {
   if (key == IDR_DIR_HEADER_HTML) {
     return ui::ResourceBundle::GetSharedInstance().LoadDataResourceBytes(
@@ -106,7 +102,9 @@ int CobaltBrowserMainParts::PreMainMessageLoopRun() {
   // request.
   browser_context_->GetOriginTrialsControllerDelegate();
 
-  content::Shell::Initialize(CreateShellPlatformDelegate());
+  std::unique_ptr<content::ShellPlatformDelegate> delegate =
+      std::make_unique<content::ShellPlatformDelegate>();
+  content::Shell::Initialize(std::move(delegate));
   net::NetModule::SetResourceProvider(PlatformResourceProvider);
   content::ShellDevToolsManagerDelegate::StartHttpHandler(
       browser_context_.get());
