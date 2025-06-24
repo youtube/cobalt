@@ -19,6 +19,7 @@
 
 // TODO(b/390021478): Remove this include when CobaltBrowserMainParts stops
 // being a ShellBrowserMainParts.
+#include "cobalt/shell/browser/shell_browser_context.h"
 #include "cobalt/shell/browser/shell_browser_main_parts.h"
 
 class PrefService;
@@ -69,6 +70,8 @@ class CobaltBrowserMainParts : public content::ShellBrowserMainParts {
 
   // Starts metrics recording.
   void StartMetricsRecording();
+
+  std::unique_ptr<content::ShellBrowserContext> browser_context_;
 };
 
 }  // namespace cobalt
