@@ -15,6 +15,10 @@
 #ifndef COBALT_BROWSER_COBALT_WEB_CONTENTS_OBSERVER_H_
 #define COBALT_BROWSER_COBALT_WEB_CONTENTS_OBSERVER_H_
 
+<<<<<<< HEAD
+=======
+#include "cobalt/browser/cobalt_content_browser_client.h"
+>>>>>>> e9ec26be6d8 (cobalt/shell: Removing dependency on ShellContentBrowserClient (#6076))
 #include "content/public/browser/web_contents_observer.h"
 #include "content/shell/browser/shell_content_browser_client.h"
 
