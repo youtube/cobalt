@@ -61,9 +61,11 @@ template("evergreen_final_target") {
   original_target_name = target_name
   group("${original_target_name}_loader") {
     forward_variables_from(invoker, TESTONLY_AND_VISIBILITY)
-    deps = [
+    data_deps = [
       ":copy_${original_target_name}_content",
       ":copy_${original_target_name}_lib",
+      "//starboard/elf_loader:elf_loader_sandbox($starboard_toolchain)",
+      "//starboard/loader_app($starboard_toolchain)",
     ]
     write_runtime_deps = "$root_build_dir/${target_name}.runtime_deps"
   }
@@ -106,12 +108,6 @@ template("evergreen_final_target") {
 
   shared_library(original_target_name) {
     forward_variables_from(invoker, "*")
-
-    if (!defined(data_deps)) {
-      data_deps = []
-    }
-    data_deps +=
-        [ "//starboard/loader_app:loader_assets($starboard_toolchain)" ]
   }
 }
 
