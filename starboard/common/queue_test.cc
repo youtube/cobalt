@@ -2,10 +2,10 @@
 
 #include <atomic>
 #include <memory>
-#include <string>  // Required for std::to_string
+#include <string>
 #include <vector>
 #include "gtest/gtest.h"
-#include "starboard/common/thread.h"  // Use the provided Thread declaration
+#include "starboard/common/thread.h"
 
 namespace starboard {
 namespace {
@@ -13,8 +13,6 @@ namespace {
 constexpr int kTimeMillisecond = 1'000;
 constexpr int kTimeSecond = 1'000 * kTimeMillisecond;
 
-// A simple test class to use with the Queue,
-// demonstrating nullable behavior and resource management.
 class TestObject {
  public:
   explicit TestObject(int id) : id_(id), destroyed_(false) {}
@@ -36,7 +34,6 @@ class TestObject {
 
 using UniqueTestObject = std::unique_ptr<TestObject>;
 
-// Test fixture for Queue
 template <typename T>
 class QueueTest : public ::testing::Test {
  protected:
@@ -50,9 +47,6 @@ using QueueIntTest = QueueTest<int>;
 using QueuePointerTest = QueueTest<TestObject*>;
 using QueueUniquePointerTest = QueueTest<UniqueTestObject>;
 
-// --- Helper Threads for Testing Blocking Operations ---
-
-// Thread for putting an item into the queue
 class PutterThread : public Thread {
  public:
   PutterThread(Queue<int>* queue, int value, int64_t delay_microseconds)
@@ -72,7 +66,6 @@ class PutterThread : public Thread {
   int64_t delay_microseconds_;
 };
 
-// Thread for waking up the queue
 class WakerThread : public Thread {
  public:
   WakerThread(Queue<int>* queue, int64_t delay_microseconds)
@@ -90,7 +83,6 @@ class WakerThread : public Thread {
   int64_t delay_microseconds_;
 };
 
-// Thread for consuming items from the queue in concurrent tests
 class ConsumerThread : public Thread {
  public:
   ConsumerThread(Queue<int>* queue,
@@ -119,7 +111,6 @@ class ConsumerThread : public Thread {
   int total_items_;
 };
 
-// New Helper Thread for Producers in ConcurrentPutAndGet
 class ProducerConcurrentThread : public Thread {
  public:
   ProducerConcurrentThread(const std::string& name,
@@ -326,19 +317,16 @@ TEST_F(QueueIntTest, ConcurrentPutAndGet) {
   const int kTotalItems = kNumProducers * kItemsPerProducer;
 
   std::vector<std::unique_ptr<ProducerConcurrentThread>> producer_threads;
-  std::vector<std::unique_ptr<ConsumerThread>>
-      consumer_threads;  // Using the helper ConsumerThread
+  std::vector<std::unique_ptr<ConsumerThread>> consumer_threads;
   std::atomic<int> produced_count = 0;
   std::atomic<int> consumed_count = 0;
 
-  // Producers
   for (int i = 0; i < kNumProducers; ++i) {
     producer_threads.push_back(std::make_unique<ProducerConcurrentThread>(
         "ProducerThread_" + std::to_string(i), &queue_, &produced_count,
         kItemsPerProducer));
   }
 
-  // Consumers
   for (int i = 0; i < kNumConsumers; ++i) {
     consumer_threads.push_back(std::make_unique<ConsumerThread>(
         &queue_, &consumed_count, kTotalItems));
