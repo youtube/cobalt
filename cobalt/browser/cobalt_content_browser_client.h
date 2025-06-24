@@ -18,7 +18,7 @@
 #include "base/threading/thread_checker.h"
 #include "cobalt/browser/client_hint_headers/cobalt_trusted_url_loader_header_client.h"
 #include "cobalt/browser/cobalt_web_contents_delegate.h"
-#include "cobalt/shell/browser/shell_content_browser_client.h"
+#include "content/public/browser/content_browser_client.h"
 #include "content/public/browser/generated_code_cache_settings.h"
 #include "mojo/public/cpp/bindings/pending_receiver.h"
 
@@ -28,6 +28,7 @@ namespace content {
 class BrowserMainParts;
 class RenderFrameHost;
 class RenderProcessHost;
+class ShellBrowserMainParts;
 class WebContents;
 }  // namespace content
 
@@ -48,13 +49,14 @@ class VideoGeometrySetterService;
 
 class CobaltMetricsServicesManagerClient;
 class CobaltWebContentsObserver;
+class CobaltBrowserMainParts;
 
 // This class allows Cobalt to inject specific logic in the business of the
 // browser (i.e. of Content), for example for startup or to override the UA.
 // TODO(b/390021478): In time CobaltContentBrowserClient should derive and
 // implement ContentBrowserClient, since ShellContentBrowserClient is more like
 // a demo around Content.
-class CobaltContentBrowserClient : public content::ShellContentBrowserClient {
+class CobaltContentBrowserClient : public content::ContentBrowserClient {
  public:
   CobaltContentBrowserClient();
 
@@ -121,6 +123,10 @@ class CobaltContentBrowserClient : public content::ShellContentBrowserClient {
       bool* bypass_redirect_checks,
       bool* disable_secure_dns,
       network::mojom::URLLoaderFactoryOverridePtr* factory_override) override;
+
+  std::unique_ptr<content::DevToolsManagerDelegate>
+  CreateDevToolsManagerDelegate() override;
+  content::BrowserContext* GetBrowserContext();
 
  private:
   void CreateVideoGeometrySetterService();
