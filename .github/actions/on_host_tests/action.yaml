@@ -38,6 +38,8 @@ runs:
         env
 
         # Explicitly point to libraries in extracted dir.
+        # TODO: LD_LIBRARY_PATH should not include the starboard subdirectory.
+        LD_LIBRARY_PATH="${test_dir}/out/${{ matrix.platform}}_${{ matrix.config }}/starboard"
         LD_LIBRARY_PATH="${LD_LIBRARY_PATH}:${test_dir}/out/${{ matrix.platform}}_${{ matrix.config }}"
         export LD_LIBRARY_PATH
 
