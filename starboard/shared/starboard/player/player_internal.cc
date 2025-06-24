@@ -184,7 +184,7 @@ void SbPlayerPrivateImpl::UpdateMediaInfo(int64_t media_time,
                                           int dropped_video_frames,
                                           int ticket,
                                           bool is_progressing) {
-  std::lock_guard lock(mutex_);
+  std::scoped_lock lock(mutex_);
   if (ticket_ != ticket) {
     return;
   }
