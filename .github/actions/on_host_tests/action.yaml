@@ -38,6 +38,7 @@ runs:
         env
 
         # Explicitly point to libraries in extracted dir.
+        # TODO: LD_LIBRARY_PATH should not include the starboard subdirectory.
         LD_LIBRARY_PATH="${test_dir}/out/${{ matrix.platform}}_${{ matrix.config }}/starboard"
         LD_LIBRARY_PATH="${LD_LIBRARY_PATH}:${test_dir}/out/${{ matrix.platform}}_${{ matrix.config }}"
         export LD_LIBRARY_PATH
@@ -55,8 +56,11 @@ runs:
         failed_suites=""
         cd "${test_dir}"
 
-        for test_binary_path in $(cat out/${{ matrix.platform}}_${{ matrix.config }}/test_targets.json | jq -cr '.executables | join(" ")'); do
+        for test_binary_path in $(cat out/${{ matrix.platform }}_${{ matrix.config }}/test_targets.json | jq -cr '.executables | join(" ")'); do
           test_binary=$(basename "${test_binary_path}")
+          if [[ "${{ matrix.platform }}" == *evergreen* ]]; then
+            test_binary="nplb_loader"
+          fi
           echo "Running tests for suite: ${test_binary}"
 
           test_filter="*"
@@ -70,11 +74,16 @@ runs:
           log_path="${test_output}/${test_binary}_log.txt"
           # TODO: Investigate test_runner.py
 
+          ENTRYPOINT=./"${test_binary_path}"
+          if [[ "${{ matrix.platform }}" == *evergreen* ]]; then
+            ENTRYPOINT="./out/${{ matrix.platform }}_${{ matrix.config }}/elf_loader_sandbox --evergreen_library=libnplb.so --evergreen_content=."
+          fi
+
           if [ "${test_filter}" == "-*" ]; then
             echo "Skipped due to test filter." >  ${log_path}
           else
             /usr/bin/xvfb-run -a --server-args="${XVFB_SERVER_ARGS}" \
-                stdbuf -i0 -o0 -e0 ./"${test_binary_path}" \
+                stdbuf -i0 -o0 -e0 $ENTRYPOINT \
                 --test-launcher-shard-index=${{ matrix.shard }} \
                 --test-launcher-total-shards=${{ inputs.num_gtest_shards }} \
                 --gtest_output="xml:${xml_path}" \
