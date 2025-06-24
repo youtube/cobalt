@@ -23,7 +23,7 @@
 #if !BUILDFLAG(IS_ANDROIDTV)
 #include "components/crash/core/common/crash_key.h"
 #endif
-#include "cobalt/shell/browser/shell_content_browser_client.h"
+#include "cobalt/browser/cobalt_content_browser_client.h"
 #include "cobalt/shell/browser/shell_paths.h"
 #include "components/memory_system/initializer.h"
 #include "components/memory_system/parameters.h"
@@ -354,7 +354,7 @@ ContentBrowserClient* ShellMainDelegate::CreateContentBrowserClient() {
     return browser_client_.get();
   }
 #endif
-  browser_client_ = std::make_unique<ShellContentBrowserClient>();
+  browser_client_ = std::make_unique<cobalt::CobaltContentBrowserClient>();
   return browser_client_.get();
 }
 

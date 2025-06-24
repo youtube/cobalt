@@ -18,6 +18,10 @@ class Layer;
 
 namespace content {
 
+class BrowserContext;
+
+void SetShellManagerBrowserContext(BrowserContext* context);
+
 // Creates an Android specific shell view, which is our version of a shell
 // window.  This view holds the controls and content views necessary to
 // render a shell window.  Returns the java object representing the shell view.
