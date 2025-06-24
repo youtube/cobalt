@@ -11,7 +11,6 @@
 #include "base/lazy_instance.h"
 #include "cobalt/shell/browser/shell.h"
 #include "cobalt/shell/browser/shell_browser_context.h"
-#include "cobalt/shell/browser/shell_content_browser_client.h"
 #include "content/public/browser/web_contents.h"
 #include "content/shell/android/content_shell_jni_headers/ShellManager_jni.h"
 #include "url/gurl.h"
@@ -25,6 +24,7 @@ namespace {
 struct GlobalState {
   GlobalState() {}
   base::android::ScopedJavaGlobalRef<jobject> j_shell_manager;
+  content::BrowserContext* browser_context;
 };
 
 base::LazyInstance<GlobalState>::DestructorAtExit g_global_state =
@@ -33,6 +33,10 @@ base::LazyInstance<GlobalState>::DestructorAtExit g_global_state =
 }  // namespace
 
 namespace content {
+
+void SetShellManagerBrowserContext(BrowserContext* context) {
+  g_global_state.Get().browser_context = context;
+}
 
 ScopedJavaLocalRef<jobject> CreateShellView(Shell* shell) {
   JNIEnv* env = base::android::AttachCurrentThread();
@@ -54,10 +58,9 @@ static void JNI_ShellManager_Init(JNIEnv* env,
 
 void JNI_ShellManager_LaunchShell(JNIEnv* env,
                                   const JavaParamRef<jstring>& jurl) {
-  ShellBrowserContext* browserContext =
-      ShellContentBrowserClient::Get()->browser_context();
   GURL url(base::android::ConvertJavaStringToUTF8(env, jurl));
-  Shell::CreateNewWindow(browserContext, url, nullptr, gfx::Size());
+  Shell::CreateNewWindow(g_global_state.Get().browser_context, url, nullptr,
+                         gfx::Size());
 }
 
 void DestroyShellManager() {
