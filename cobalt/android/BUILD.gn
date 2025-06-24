@@ -14,7 +14,6 @@ android_resources("cobalt_java_resources") {
     "apk/app/src/app/res/mipmap-xxhdpi/ic_app.png",
     "apk/app/src/app/res/values/strings.xml",
     "apk/app/src/main/res/layout/coat_error_dialog.xml",
-    "apk/app/src/main/res/layout/content_shell_activity.xml",
     "apk/app/src/main/res/values/colors.xml",
     "apk/app/src/main/res/values/ids.xml",
     "apk/app/src/main/res/values/overlayable.xml",
@@ -79,10 +78,7 @@ android_library("content_shell_apk_java") {
     "//url:gurl_java",
   ]
 
-  sources = [
-    "//content/shell/android/shell_apk/src/org/chromium/content_shell_apk/ContentShellActivity.java",
-    "//content/shell/android/shell_apk/src/org/chromium/content_shell_apk/ContentShellApplication.java",
-  ]
+  sources = [ "//content/shell/android/shell_apk/src/org/chromium/content_shell_apk/ContentShellApplication.java" ]
 }
 
 android_library("cobalt_shell_java") {
@@ -94,7 +90,6 @@ android_library("cobalt_shell_java") {
     "//base:jni_java",
     "//build/android:build_java",
     "//components/download/internal/common:internal_java",
-    "//components/embedder_support/android:content_view_java",
     "//components/embedder_support/android:view_java",
     "//components/viz/service:service_java",
     "//content/public/android:content_java",

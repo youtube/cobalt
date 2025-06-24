@@ -4,6 +4,7 @@
 
 package org.chromium.content_shell;
 
+import android.app.Activity;
 import android.content.Context;
 import android.graphics.Rect;
 import android.text.TextUtils;
@@ -14,13 +15,10 @@ import android.view.Menu;
 import android.view.MenuItem;
 import android.view.View;
 import android.view.ViewGroup;
-import android.widget.FrameLayout;
-import android.widget.LinearLayout;
 import org.chromium.base.Callback;
 import org.chromium.base.annotations.CalledByNative;
 import org.chromium.base.annotations.JNINamespace;
 import org.chromium.base.annotations.NativeMethods;
-import org.chromium.components.embedder_support.view.ContentView;
 import org.chromium.components.embedder_support.view.ContentViewRenderView;
 import org.chromium.content_public.browser.ActionModeCallbackHelper;
 import org.chromium.content_public.browser.LoadUrlParams;
@@ -36,9 +34,8 @@ import org.chromium.ui.base.WindowAndroid;
  * Container for the various UI components that make up a shell window.
  */
 @JNINamespace("content")
-public class Shell extends LinearLayout {
+public class Shell {
     private static final String TAG = "cobalt";
-
     private static final long COMPLETED_PROGRESS_TIMEOUT_MS = 200;
 
     // Stylus handwriting: Setting this ime option instructs stylus writing service to restrict
@@ -60,34 +57,21 @@ public class Shell extends LinearLayout {
     private boolean mIsFullscreen;
 
     private Callback<Boolean> mOverlayModeChangedCallbackForTesting;
+    private ViewGroup mRootView;
 
     /**
      * Constructor for inflating via XML.
      */
-    public Shell(Context context, AttributeSet attrs) {
-        super(context, attrs);
+    public Shell(Context context) {
+        Activity activity = (Activity) context;
+        mRootView = activity.findViewById(android.R.id.content);
     }
 
     /**
      * Set the SurfaceView being rendered to as soon as it is available.
      */
     public void setContentViewRenderView(ContentViewRenderView contentViewRenderView) {
-        Log.i(TAG, "Shell.setContentViewRenderView(), FrameLayout Views before operation.");
-        Util.printRootViewHierarchy(this);
-
-        if (contentViewRenderView == null) {
-            if (mContentViewRenderView != null) {
-                removeView(mContentViewRenderView);
-            }
-        } else {
-            addView(contentViewRenderView,
-                    new FrameLayout.LayoutParams(
-                            FrameLayout.LayoutParams.MATCH_PARENT,
-                            FrameLayout.LayoutParams.MATCH_PARENT));
-        }
         mContentViewRenderView = contentViewRenderView;
-        Log.i(TAG, "Shell.setContentViewRenderView(), FrameLayout Views after operation.");
-        Util.printRootViewHierarchy(this);
     }
 
     /**
@@ -189,32 +173,14 @@ public class Shell extends LinearLayout {
      */
     @CalledByNative
     private void initFromNativeTabContents(WebContents webContents) {
-        Context context = getContext();
-        ContentView cv =
-                ContentView.createContentView(context, null /* eventOffsetHandler */, webContents);
-        mViewAndroidDelegate = new ShellViewAndroidDelegate(cv);
+        mViewAndroidDelegate = new ShellViewAndroidDelegate(mRootView);
         assert (mWebContents != webContents);
         if (mWebContents != null) mWebContents.clearNativeReference();
         webContents.initialize(
-                "", mViewAndroidDelegate, cv, mWindow, WebContents.createDefaultInternalsHolder());
+                "", mViewAndroidDelegate, null /* ContentView */, mWindow, WebContents.createDefaultInternalsHolder());
         mWebContents = webContents;
-        SelectionPopupController.fromWebContents(webContents)
-                .setActionModeCallback(defaultActionCallback());
         mNavigationController = mWebContents.getNavigationController();
-        if (getParent() != null) mWebContents.onShow();
-
-        Log.i(TAG, "Shell.initFromNativeTabContents, before addView, all Layout Views:");
-        Util.printRootViewHierarchy(this);
-
-        addView(cv,
-                new FrameLayout.LayoutParams(
-                        FrameLayout.LayoutParams.MATCH_PARENT,
-                        FrameLayout.LayoutParams.MATCH_PARENT));
-
-        Log.i(TAG, "Shell.initFromNativeTabContents, after addView, all Layout Views:");
-        Util.printRootViewHierarchy(this);
-
-        cv.requestFocus();
+        mWebContents.onShow();
         mContentViewRenderView.setCurrentWebContents(mWebContents);
     }
 
