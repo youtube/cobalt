@@ -444,24 +444,14 @@ public abstract class CobaltActivity extends Activity {
     AudioOutputManager.addAudioDeviceListener(this);
 
     getStarboardBridge().onActivityStart(this);
+    super.onStart();
 
     WebContents webContents = getActiveWebContents();
     if (webContents != null) {
       webContents.onShow();
     }
-    super.onStart();
-  }
 
-  @Override
-  protected void onResume() {
-    super.onResume();
     getWindow().addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON);
-  }
-
-  @Override
-  protected void onPause() {
-    super.onPause();
-    getWindow().clearFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON);
   }
 
   @Override
@@ -481,6 +471,8 @@ public abstract class CobaltActivity extends Activity {
     // Set the SurfaceView to fullscreen.
     View rootView = getWindow().getDecorView();
     setVideoSurfaceBounds(0, 0, rootView.getWidth(), rootView.getHeight());
+
+    getWindow().clearFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON);
   }
 
   @Override
