@@ -12,6 +12,10 @@
 #include "content/public/app/content_main_delegate.h"
 #include "third_party/abseil-cpp/absl/types/optional.h"
 
+namespace cobalt {
+class CobaltContentBrowserClient;
+}  // namespace cobalt
+
 namespace content {
 class ShellContentClient;
 class ShellContentBrowserClient;
@@ -68,7 +72,7 @@ class ShellMainDelegate : public ContentMainDelegate {
   std::unique_ptr<WebTestBrowserMainRunner> web_test_runner_;
 #endif
 
-  std::unique_ptr<ShellContentBrowserClient> browser_client_;
+  std::unique_ptr<cobalt::CobaltContentBrowserClient> browser_client_;
   std::unique_ptr<ShellContentGpuClient> gpu_client_;
   std::unique_ptr<ShellContentRendererClient> renderer_client_;
   std::unique_ptr<ShellContentUtilityClient> utility_client_;

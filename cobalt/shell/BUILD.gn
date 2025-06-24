@@ -50,7 +50,6 @@ group("content_shell_lib_deps") {
     "//components/keyed_service/content",
     "//components/metrics",
     "//components/metrics:net",
-    "//components/metrics:test_support",
     "//components/network_hints/browser:browser",
     "//components/network_hints/renderer",
     "//components/network_session_configurator/common",
@@ -202,8 +201,6 @@ static_library("content_shell_lib") {
     "browser/shell_browser_context.h",
     "browser/shell_browser_main_parts.cc",
     "browser/shell_browser_main_parts.h",
-    "browser/shell_content_browser_client.cc",
-    "browser/shell_content_browser_client.h",
     "browser/shell_content_index_provider.cc",
     "browser/shell_content_index_provider.h",
     "browser/shell_devtools_bindings.cc",
@@ -343,6 +340,7 @@ group("content_shell_app_deps") {
   testonly = true
   public_deps = [
     ":content_shell_lib",
+    "//cobalt/browser:browser",
     "//components/crash/core/app",
     "//components/crash/core/app:test_support",
     "//components/crash/core/common:crash_key",
