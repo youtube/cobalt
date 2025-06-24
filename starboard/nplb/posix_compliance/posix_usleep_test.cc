@@ -27,8 +27,6 @@ namespace starboard {
 namespace nplb {
 namespace {
 
-// Small duration for sleeps that should be short or return immediately.
-const useconds_t kShortSleepUs = 1'000;  // 1 millisecond (1,000 microseconds)
 // A slightly longer duration for testing actual sleep.
 const useconds_t kTestSleepUs =
     50'000;  // 50 milliseconds (50,000 microseconds)
@@ -115,7 +113,7 @@ TEST_F(PosixUsleepTests, SuccessfulSleep) {
                     << ", errno: " << errno << " (" << strerror(errno) << ")";
 
   long elapsed_us = TimevalDiffToMicroseconds(&start_time, &end_time);
-  EXPECT_GE(elapsed_us, kTestSleepUs)
+  EXPECT_GE(elapsed_us, static_cast<long>(kTestSleepUs))
       << "Sleep duration was too short. Requested: " << kTestSleepUs
       << "us, Elapsed: " << elapsed_us << "us.";
 }

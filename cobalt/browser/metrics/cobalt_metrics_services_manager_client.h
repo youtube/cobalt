@@ -61,7 +61,9 @@ class CobaltMetricsServicesManagerClient
   void UpdateRunningServices(bool may_record, bool may_upload) override {}
 
   scoped_refptr<network::SharedURLLoaderFactory> GetURLLoaderFactory()
-      override {}
+      override {
+    return nullptr;
+  }
 
   CobaltEnabledStateProvider* GetEnabledStateProvider() {
     return enabled_state_provider_.get();

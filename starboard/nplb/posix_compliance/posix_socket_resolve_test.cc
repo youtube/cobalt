@@ -42,9 +42,11 @@ TEST(PosixSocketResolveTest, SunnyDay) {
     if (ai_addr == nullptr && i->ai_addr != nullptr) {
       ai_addr = reinterpret_cast<sockaddr_in*>(i->ai_addr);
       if (i->ai_family == AF_INET) {
-        EXPECT_EQ(i->ai_addrlen, sizeof(struct sockaddr_in));
+        EXPECT_EQ(static_cast<size_t>(i->ai_addrlen),
+                  sizeof(struct sockaddr_in));
       } else if (i->ai_family == AF_INET6) {
-        EXPECT_EQ(i->ai_addrlen, sizeof(struct sockaddr_in6));
+        EXPECT_EQ(static_cast<size_t>(i->ai_addrlen),
+                  sizeof(struct sockaddr_in6));
       }
       break;
     }
@@ -66,8 +68,6 @@ TEST(PosixSocketResolveTest, SunnyDaySocketType) {
   int result = getaddrinfo(kTestHostName, 0, &hints, &ai);
   EXPECT_EQ(result, 0);
   ASSERT_NE(nullptr, ai);
-
-  struct sockaddr_in* ai_addr = nullptr;
 
   for (const struct addrinfo* i = ai; i != nullptr; i = i->ai_next) {
     EXPECT_EQ(i->ai_socktype, SOCK_DGRAM);

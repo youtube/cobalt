@@ -67,7 +67,7 @@ Range ConvertJavaRangeToRange(JniEnvExt* env, jobject j_range) {
 }
 
 void ConvertStringToLowerCase(std::string* str) {
-  for (int i = 0; i < str->length(); i++) {
+  for (size_t i = 0; i < str->length(); i++) {
     (*str)[i] = std::tolower((*str)[i]);
   }
 }
@@ -246,7 +246,7 @@ bool VideoCodecCapability::AreResolutionAndRateSupported(int frame_width,
 
 // static
 SB_ONCE_INITIALIZE_FUNCTION(MediaCapabilitiesCache,
-                            MediaCapabilitiesCache::GetInstance);
+                            MediaCapabilitiesCache::GetInstance)
 
 bool MediaCapabilitiesCache::IsWidevineSupported() {
   if (!is_enabled_) {
@@ -307,7 +307,7 @@ bool MediaCapabilitiesCache::GetAudioConfiguration(
 
   ScopedLock scoped_lock(mutex_);
   UpdateMediaCapabilities_Locked();
-  if (index < audio_configurations_.size()) {
+  if (static_cast<size_t>(index) < audio_configurations_.size()) {
     *configuration = audio_configurations_[index];
     return true;
   }

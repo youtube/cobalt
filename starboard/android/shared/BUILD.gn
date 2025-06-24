@@ -12,6 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+import("//build/config/android/rules.gni")
 import("//starboard/android/shared/toolchain/toolchain.gni")
 import("//starboard/shared/starboard/media/media_tests.gni")
 import("//starboard/shared/starboard/player/buildfiles.gni")
@@ -365,11 +366,19 @@ static_library("starboard_platform") {
   }
 }
 
+config("symbolize_config") {
+  cflags = [
+    "-Wno-unreachable-code-return",
+    "-Wno-unused-but-set-variable",
+  ]
+}
+
 static_library("starboard_base_symbolize") {
   sources = [
     "//base/third_party/symbolize/demangle.cc",
     "//base/third_party/symbolize/symbolize.cc",
   ]
+  configs += [ ":symbolize_config" ]
 
   deps = [
     "//starboard:starboard_headers_only",
@@ -405,4 +414,8 @@ source_set("starboard_platform_tests") {
     "//testing/gmock",
     "//testing/gtest",
   ]
+}
+
+java_cpp_enum("java_enums") {
+  sources = [ "media_codec_bridge.h" ]
 }

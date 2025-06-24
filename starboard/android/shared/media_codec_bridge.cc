@@ -19,9 +19,12 @@
 #include "starboard/android/shared/media_capabilities_cache.h"
 #include "starboard/common/string.h"
 
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wunused-function"
 // Must come after all headers that specialize FromJniType() / ToJniType().
 #include "cobalt/android/jni_headers/MediaCodecBridgeBuilder_jni.h"
 #include "cobalt/android/jni_headers/MediaCodecBridge_jni.h"
+#pragma GCC diagnostic pop
 
 namespace starboard::android::shared {
 
@@ -43,12 +46,9 @@ const jint COLOR_RANGE_LIMITED = 2;
 const jint COLOR_RANGE_UNSPECIFIED = 0;
 
 const jint COLOR_STANDARD_BT2020 = 6;
-const jint COLOR_STANDARD_BT601_NTSC = 4;
-const jint COLOR_STANDARD_BT601_PAL = 2;
 const jint COLOR_STANDARD_BT709 = 1;
 
 const jint COLOR_TRANSFER_HLG = 7;
-const jint COLOR_TRANSFER_LINEAR = 1;
 const jint COLOR_TRANSFER_SDR_VIDEO = 3;
 const jint COLOR_TRANSFER_ST2084 = 6;
 
@@ -105,6 +105,16 @@ JNI_MediaCodecBridge_OnMediaCodecFrameRendered(JNIEnv* env,
       reinterpret_cast<MediaCodecBridge*>(native_media_codec_bridge);
   SB_DCHECK(media_codec_bridge);
   media_codec_bridge->OnMediaCodecFrameRendered(presentation_time_us);
+}
+
+extern "C" SB_EXPORT_PLATFORM void
+JNI_MediaCodecBridge_OnMediaCodecFirstTunnelFrameReady(
+    JNIEnv* env,
+    jlong native_media_codec_bridge) {
+  MediaCodecBridge* media_codec_bridge =
+      reinterpret_cast<MediaCodecBridge*>(native_media_codec_bridge);
+  SB_DCHECK(media_codec_bridge);
+  media_codec_bridge->OnMediaCodecFirstTunnelFrameReady();
 }
 
 extern "C" SB_EXPORT_PLATFORM void JNI_MediaCodecBridge_OnMediaCodecError(
@@ -537,6 +547,10 @@ void MediaCodecBridge::OnMediaCodecOutputFormatChanged() {
 
 void MediaCodecBridge::OnMediaCodecFrameRendered(int64_t frame_timestamp) {
   handler_->OnMediaCodecFrameRendered(frame_timestamp);
+}
+
+void MediaCodecBridge::OnMediaCodecFirstTunnelFrameReady() {
+  handler_->OnMediaCodecFirstTunnelFrameReady();
 }
 
 MediaCodecBridge::MediaCodecBridge(Handler* handler) : handler_(handler) {

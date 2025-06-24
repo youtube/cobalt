@@ -22,7 +22,7 @@ source_set("support") {
     "//services/service_manager/public/mojom",
   ]
 
-  if (is_linux || is_chromeos) {
+  if (is_linux && !is_cobalt_hermetic_build || is_chromeos) {
     deps += [
       "//sandbox/linux:sandbox",
       "//sandbox/linux:sandbox_services",
