@@ -122,6 +122,7 @@ _ALLOWED_SB_GE_16_POSIX_SYMBOLS = [
     'getaddrinfo',
     'getauxval',
     'geteuid',
+    'getcwd',
     'getifaddrs',
     'getpeername',
     'getpid',

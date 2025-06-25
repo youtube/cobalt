@@ -56,6 +56,7 @@ Starboard 17 fully switches to POSIX APIs.
 * `fchown`
 * `gai_strerror`
 * `getauxval`
+  `getcwd`
 * `geteuid`
 * `getpid`
 * `pathconf`

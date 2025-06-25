@@ -398,6 +398,7 @@ static_library("c_internal") {
 
     "src/stat/futimens.c",
     "src/stat/futimesat.c",
+    "src/starboard/unistd/getcwd.c",
     "src/stdio/__toread.c",
     "src/stdio/__uflow.c",
     "src/stdio/perror.c",
