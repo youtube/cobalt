@@ -17,6 +17,7 @@
 
 #include "content/public/renderer/render_frame.h"
 #include "content/public/renderer/render_frame_observer.h"
+#include "starboard/extension/graphics.h"
 
 namespace cobalt {
 
@@ -29,6 +30,9 @@ class CobaltRenderFrameObserver : public content::RenderFrameObserver {
   CobaltRenderFrameObserver(const CobaltRenderFrameObserver&) = delete;
   CobaltRenderFrameObserver& operator=(const CobaltRenderFrameObserver&) =
       delete;
+
+  void DidMeaningfulLayout(
+      blink::WebMeaningfulLayout meaningful_layout) override;
 
  private:
   // content::RenderFrameObserver impl.

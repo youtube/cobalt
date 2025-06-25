@@ -12,6 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 import("//starboard/build/buildflags.gni")
+import("//testing/test.gni")
 
 source_set("renderer") {
   sources = [
@@ -40,4 +41,17 @@ source_set("renderer") {
   if (use_starboard_media) {
     deps += [ "//media/mojo/clients" ]
   }
+}
+
+test("cobalt_renderer_unittests") {
+  testonly = true
+  sources = [ "cobalt_render_frame_observer_unittest.cc" ]
+  deps = [
+    ":renderer",
+    "//base/test:run_all_unittests",
+    "//base/test:test_support",
+    "//testing/gmock",
+    "//testing/gtest",
+    "//third_party/blink/renderer/modules/exported:test_support",
+  ]
 }
