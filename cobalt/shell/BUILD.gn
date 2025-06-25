@@ -175,6 +175,12 @@ static_library("content_shell_lib") {
   testonly = true
   public_deps = [ ":content_shell_lib_deps" ]
   sources = [
+    "//cobalt/shell/renderer/render_frame_test_helper.cc",
+    "//cobalt/shell/renderer/render_frame_test_helper.h",
+    "//cobalt/shell/renderer/shell_content_renderer_client.cc",
+    "//cobalt/shell/renderer/shell_content_renderer_client.h",
+    "//cobalt/shell/renderer/shell_render_frame_observer.cc",
+    "//cobalt/shell/renderer/shell_render_frame_observer.h",
     "//content/shell/common/main_frame_counter_test_impl.cc",
     "//content/shell/common/main_frame_counter_test_impl.h",
     "//content/shell/common/power_monitor_test_impl.cc",
@@ -187,12 +193,6 @@ static_library("content_shell_lib") {
     "//content/shell/common/shell_switches.h",
     "//content/shell/gpu/shell_content_gpu_client.cc",
     "//content/shell/gpu/shell_content_gpu_client.h",
-    "//content/shell/renderer/render_frame_test_helper.cc",
-    "//content/shell/renderer/render_frame_test_helper.h",
-    "//content/shell/renderer/shell_content_renderer_client.cc",
-    "//content/shell/renderer/shell_content_renderer_client.h",
-    "//content/shell/renderer/shell_render_frame_observer.cc",
-    "//content/shell/renderer/shell_render_frame_observer.h",
     "//content/shell/utility/shell_content_utility_client.cc",
     "//content/shell/utility/shell_content_utility_client.h",
     "browser/shell.cc",
