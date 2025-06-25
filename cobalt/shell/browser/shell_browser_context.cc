@@ -5,7 +5,6 @@
 #include "cobalt/shell/browser/shell_browser_context.h"
 
 #include <memory>
-#include <string>
 #include <utility>
 
 #include "base/command_line.h"
@@ -16,6 +15,7 @@
 #include "base/path_service.h"
 #include "base/threading/thread.h"
 #include "build/build_config.h"
+#include "cobalt/shell/browser/shell_content_browser_client.h"
 #include "cobalt/shell/browser/shell_content_index_provider.h"
 #include "cobalt/shell/browser/shell_download_manager_delegate.h"
 #include "cobalt/shell/browser/shell_federated_permission_context.h"
@@ -40,14 +40,6 @@
 #include "third_party/blink/public/common/origin_trials/trial_token_validator.h"
 
 namespace content {
-
-namespace {
-
-std::string GetShellLanguage() {
-  return "en-us,en";
-}
-
-}  // namespace
 
 ShellBrowserContext::ShellResourceContext::ShellResourceContext() {}
 
