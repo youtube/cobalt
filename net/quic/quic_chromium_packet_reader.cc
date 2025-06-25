@@ -88,8 +88,6 @@ if (read_pending_)
       }
     }
   }
-
-  return OK;
 }
 
 bool QuicChromiumPacketReader::ProcessMultiplePacketReadResult(int result) {
