@@ -26,6 +26,9 @@ ftello
 fwrite
 getc
 getcwd
+geteuid
+gethostname
+getpid
 getrlimit
 newlocale
 prctl
