@@ -168,6 +168,7 @@ android_library("cobalt_main_java") {
     "apk/app/src/main/java/dev/cobalt/libraries/services/clientloginfo/ClientLogInfoModule.java",
     "apk/app/src/main/java/dev/cobalt/media/AudioOutputManager.java",
     "apk/app/src/main/java/dev/cobalt/media/AudioTrackBridge.java",
+    "apk/app/src/main/java/dev/cobalt/media/CobaltMediaCodecSelector.java",
     "apk/app/src/main/java/dev/cobalt/media/CobaltMediaSource.java",
     "apk/app/src/main/java/dev/cobalt/media/CobaltSampleStream.java",
     "apk/app/src/main/java/dev/cobalt/media/ExoPlayerBridge.java",

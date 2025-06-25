@@ -29,10 +29,6 @@ const int64_t kUpdateIntervalUsec = 200'000;  // 200ms
 ExoPlayerWorkerHandler::ExoPlayerWorkerHandler(
     const SbPlayerCreationParam* creation_param)
     : JobOwner(kDetached),
-      has_audio_(creation_param->audio_stream_info.codec !=
-                 kSbMediaAudioCodecNone),
-      has_video_(creation_param->video_stream_info.codec !=
-                 kSbMediaVideoCodecNone),
       audio_stream_info_(creation_param->audio_stream_info),
       video_stream_info_(creation_param->video_stream_info) {
   update_job_ = std::bind(&ExoPlayerWorkerHandler::Update, this);

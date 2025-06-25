@@ -30,18 +30,16 @@
 
 namespace starboard::android::shared::exoplayer {
 
+using starboard::shared::starboard::player::JobQueue;
+using ::starboard::shared::starboard::player::filter::EndedCB;
+using ::starboard::shared::starboard::player::filter::ErrorCB;
+using ::starboard::shared::starboard::player::filter::PrerolledCB;
 typedef starboard::shared::starboard::player::PlayerWorker::Handler Handler;
 typedef starboard::shared::starboard::player::PlayerWorker::Handler::
     HandlerResult HandlerResult;
-using starboard::shared::starboard::player::JobQueue;
 
 class ExoPlayerWorkerHandler : public Handler, private JobQueue::JobOwner {
  public:
-  typedef ::starboard::shared::starboard::player::filter::EndedCB EndedCB;
-  typedef ::starboard::shared::starboard::player::filter::ErrorCB ErrorCB;
-  typedef ::starboard::shared::starboard::player::filter::PrerolledCB
-      PrerolledCB;
-
   explicit ExoPlayerWorkerHandler(const SbPlayerCreationParam* creation_param);
 
  private:
@@ -92,9 +90,6 @@ class ExoPlayerWorkerHandler : public Handler, private JobQueue::JobOwner {
 
   SbPlayerOutputMode output_mode_;
   int max_video_input_size_;
-
-  bool has_audio_ = false;
-  bool has_video_ = false;
 
   const starboard::shared::starboard::media::AudioStreamInfo audio_stream_info_;
   const starboard::shared::starboard::media::VideoStreamInfo video_stream_info_;

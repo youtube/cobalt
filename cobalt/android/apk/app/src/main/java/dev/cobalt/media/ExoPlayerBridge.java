@@ -35,21 +35,18 @@ import androidx.media3.common.util.UnstableApi;
 import androidx.media3.exoplayer.analytics.AnalyticsListener;
 import androidx.media3.exoplayer.DefaultLoadControl;
 import androidx.media3.exoplayer.DefaultRenderersFactory;
+import androidx.media3.exoplayer.mediacodec.MediaCodecSelector;
 import androidx.media3.exoplayer.trackselection.DefaultTrackSelector;
-import androidx.media3.exoplayer.ExoPlaybackException;
 import androidx.media3.exoplayer.ExoPlayer;
 import androidx.media3.exoplayer.LoadControl;
-import androidx.media3.exoplayer.RendererCapabilities;
-import androidx.media3.exoplayer.RenderersFactory;
-import androidx.media3.exoplayer.audio.MediaCodecAudioRenderer;
 import androidx.media3.exoplayer.source.MediaSource;
 import androidx.media3.exoplayer.source.MergingMediaSource;
 import androidx.media3.exoplayer.util.EventLogger;
+import dev.cobalt.media.CobaltMediaCodecSelector;
 import dev.cobalt.media.CobaltMediaSource;
 import dev.cobalt.media.ExoPlayerFormatCreator;
 import dev.cobalt.util.Log;
 import dev.cobalt.util.UsedByNative;
-import java.util.ArrayList;
 
 @UsedByNative
 @UnstableApi
@@ -192,8 +189,9 @@ public class ExoPlayerBridge {
     DefaultTrackSelector trackSelector = new DefaultTrackSelector(context);
     trackSelector.setParameters(
         new DefaultTrackSelector.ParametersBuilder(context).setTunnelingEnabled(preferTunnelMode).build());
-
-    player = new ExoPlayer.Builder(context).setLoadControl(createLoadControl()).setLooper(exoplayerThread.getLooper()).setTrackSelector(trackSelector).setReleaseTimeoutMs(1000).build();
+    MediaCodecSelector mediaCodecSelector = new CobaltMediaCodecSelector();
+    DefaultRenderersFactory renderersFactory = new DefaultRenderersFactory(context).setMediaCodecSelector(mediaCodecSelector);
+    player = new ExoPlayer.Builder(context).setRenderersFactory(renderersFactory).setLoadControl(createLoadControl()).setLooper(exoplayerThread.getLooper()).setTrackSelector(trackSelector).setReleaseTimeoutMs(1000).build();
     // player = new ExoPlayer.Builder(context).build();
     exoplayerHandler.post(() -> {
       player.addListener(new ExoPlayerListener());

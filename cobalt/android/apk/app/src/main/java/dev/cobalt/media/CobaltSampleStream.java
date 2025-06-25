@@ -25,10 +25,8 @@ import androidx.media3.exoplayer.FormatHolder;
 import androidx.media3.exoplayer.source.SampleQueue;
 import androidx.media3.exoplayer.source.SampleStream;
 import androidx.media3.exoplayer.upstream.Allocator;
-import androidx.media3.exoplayer.upstream.DefaultAllocator;
 import dev.cobalt.util.Log;
 import java.io.IOException;
-import java.util.ArrayList;
 
 @UnstableApi
 public class CobaltSampleStream implements SampleStream {
