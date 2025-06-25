@@ -11,6 +11,11 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
+<<<<<<< HEAD
+=======
+import("//starboard/build/buildflags.gni")
+import("//testing/test.gni")
+>>>>>>> 46a414c22f4 (reportFullyDrawn() to Android Performance Console (#6162))
 
 source_set("renderer") {
   sources = [
@@ -35,5 +40,18 @@ source_set("renderer") {
     "//media/mojo/clients",
     "//starboard:starboard_headers_only",
     "//v8",
+  ]
+}
+
+test("cobalt_renderer_unittests") {
+  testonly = true
+  sources = [ "cobalt_render_frame_observer_unittest.cc" ]
+  deps = [
+    ":renderer",
+    "//base/test:run_all_unittests",
+    "//base/test:test_support",
+    "//testing/gmock",
+    "//testing/gtest",
+    "//third_party/blink/renderer/modules/exported:test_support",
   ]
 }
