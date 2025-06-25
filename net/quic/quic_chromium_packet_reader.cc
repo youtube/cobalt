@@ -54,7 +54,6 @@ if (read_pending_)
 
     CHECK(socket_);
     read_pending_ = true;
-    LOG(INFO) << "CHARLEY 12";
     int rv = socket_->ReadMultiplePackets(
         &read_results_, kReadBufferSize,
         base::BindOnce(&QuicChromiumPacketReader::OnReadMultiplePacketComplete,
@@ -92,7 +91,6 @@ if (read_pending_)
 
 bool QuicChromiumPacketReader::ProcessMultiplePacketReadResult(int result) {
   read_pending_ = false;
-  LOG(INFO) << "CHARLEY";
   if (result <= 0 && net_log_.IsCapturing()) {
     net_log_.AddEventWithIntParams(NetLogEventType::QUIC_READ_ERROR,
                                    "net_error", result);
