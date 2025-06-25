@@ -75,8 +75,10 @@ const int kActivityMonitorBytesThreshold = 65535;
 const int kActivityMonitorMinimumSamplesForThroughputEstimate = 2;
 const base::TimeDelta kActivityMonitorMsThreshold = base::Milliseconds(100);
 
+#if BUILDFLAG(IS_COBALT)
 // Read in larger batches to minimize recvmmsg overhead.
 inline constexpr int kNumPacketsPerReadMmsgCall = 64;
+#endif
 
 #if BUILDFLAG(IS_APPLE) && !BUILDFLAG(CRONET_BUILD)
 
