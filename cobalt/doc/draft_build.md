@@ -46,6 +46,12 @@ gclient config --name=src git@github.com:youtube/cobalt.git
 
 ### Download and Sync Sub-repositories
 
+Continue by changing the working directory to `src/`:
+```sh
+cd src
+```
+Further instructions always assume `cobalt/src` as the working directory.
+
 ```sh
 gclient sync --no-history -r $(git rev-parse @)
 ```
@@ -55,7 +61,6 @@ gclient sync --no-history -r $(git rev-parse @)
 ### Install Build Dependencies
 
 ```sh
-cd src
 ./build/install-build-deps.sh
 ```
 
