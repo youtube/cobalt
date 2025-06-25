@@ -439,6 +439,13 @@ void StarboardRenderer::OnVideoGeometryChange(const gfx::Rect& output_rect) {
                                 output_rect.width(), output_rect.height());
 }
 
+SbPlayerInterface* StarboardRenderer::GetSbPlayerInterface() {
+  if (test_sbplayer_interface_) {
+    return test_sbplayer_interface_;
+  }
+  return &sbplayer_interface_;
+}
+
 void StarboardRenderer::CreatePlayerBridge() {
   DCHECK(task_runner_->RunsTasksInCurrentSequence());
   DCHECK(init_cb_);
@@ -488,7 +495,7 @@ void StarboardRenderer::CreatePlayerBridge() {
     LOG(INFO) << "Creating SbPlayerBridge.";
 
     player_bridge_.reset(new SbPlayerBridge(
-        &sbplayer_interface_, task_runner_,
+        GetSbPlayerInterface(), task_runner_,
         // TODO(b/375070492): Implement decode-to-texture support
         SbPlayerBridge::GetDecodeTargetGraphicsContextProviderFunc(),
         audio_config, audio_mime_type, video_config, video_mime_type,
