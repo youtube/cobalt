@@ -114,7 +114,10 @@ config("unwind_starboard_config") {
     "//starboard/build/config:starboard_implementation",
   ]
 
-  cflags = [ "-Wno-unused-command-line-argument" ]
+  cflags = [
+    "-Wno-unused-command-line-argument",
+    "-Wno-unreachable-code",
+  ]
   cflags_cc = [
     "-std=c++17",
     "-fPIC",
