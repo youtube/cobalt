@@ -108,6 +108,12 @@ class MEDIA_EXPORT StarboardRenderer : public Renderer,
       UpdateStarboardRenderingModeCallback update_starboard_rendering_mode_cb);
   void OnVideoGeometryChange(const gfx::Rect& output_rect);
 
+  SbPlayerInterface* GetSbPlayerInterface();
+
+  void SetSbPlayerInterfaceForTesting(SbPlayerInterface* sbplayer_interface) {
+    test_sbplayer_interface_ = sbplayer_interface;
+  }
+
  private:
   enum State {
     STATE_UNINITIALIZED,
@@ -125,6 +131,7 @@ class MEDIA_EXPORT StarboardRenderer : public Renderer,
                            DemuxerStream::DecoderBufferVector buffers);
   void OnStatisticsUpdate(const PipelineStatistics& stats);
 
+  // SbPlayerBridge::Host implementation.
   void OnNeedData(DemuxerStream::Type type,
                   int max_number_of_buffers_to_write) override;
   void OnPlayerStatus(SbPlayerState state) override;
@@ -218,6 +225,8 @@ class MEDIA_EXPORT StarboardRenderer : public Renderer,
 
   uint32_t last_video_frames_decoded_ = 0;
   uint32_t last_video_frames_dropped_ = 0;
+
+  raw_ptr<SbPlayerInterface> test_sbplayer_interface_;
 
   // Message to signal a capability changed error.
   // "MEDIA_ERR_CAPABILITY_CHANGED" must be in the error message to be
