@@ -34,10 +34,15 @@
 #include "cobalt/media/service/mojom/video_geometry_setter.mojom.h"
 #include "cobalt/media/service/video_geometry_setter_service.h"
 #include "cobalt/shell/browser/shell.h"
+#include "cobalt/shell/browser/shell_browser_main_parts.h"
+#include "cobalt/shell/browser/shell_devtools_manager_delegate.h"
 #include "cobalt/shell/browser/shell_paths.h"
+#include "components/metrics/metrics_service.h"
 #include "components/metrics/metrics_state_manager.h"
-#include "components/metrics/test/test_enabled_state_provider.h"
 #include "components/metrics_services_manager/metrics_services_manager.h"
+#include "components/network_hints/browser/simple_network_hints_handler_impl.h"
+#include "components/performance_manager/embedder/performance_manager_registry.h"
+#include "components/prefs/json_pref_store.h"
 #include "components/prefs/pref_registry_simple.h"
 #include "components/prefs/pref_service.h"
 #include "components/prefs/pref_service_factory.h"
@@ -53,6 +58,7 @@
 #include "services/service_manager/public/cpp/binder_registry.h"
 #include "third_party/blink/public/common/associated_interfaces/associated_interface_registry.h"
 #include "third_party/blink/public/common/web_preferences/web_preferences.h"
+#include "ui/base/ui_base_switches.h"
 
 #if BUILDFLAG(IS_ANDROID)
 #include "base/android/locale_utils.h"
@@ -75,6 +81,31 @@ constexpr base::FilePath::CharType kTransportSecurityPersisterFilename[] =
     FILE_PATH_LITERAL("TransportSecurity");
 constexpr base::FilePath::CharType kTrustTokenFilename[] =
     FILE_PATH_LITERAL("Trust Tokens");
+
+std::unique_ptr<PrefService> CreateLocalState() {
+  auto pref_registry = base::MakeRefCounted<PrefRegistrySimple>();
+
+  metrics::MetricsService::RegisterPrefs(pref_registry.get());
+  variations::VariationsService::RegisterPrefs(pref_registry.get());
+
+  base::FilePath path;
+  CHECK(base::PathService::Get(content::SHELL_DIR_USER_DATA, &path));
+  path = path.AppendASCII("Local State");
+
+  PrefServiceFactory pref_service_factory;
+  pref_service_factory.set_user_prefs(
+      base::MakeRefCounted<JsonPrefStore>(path));
+
+  return pref_service_factory.Create(pref_registry);
+}
+
+void BindNetworkHintsHandler(
+    content::RenderFrameHost* frame_host,
+    mojo::PendingReceiver<network_hints::mojom::NetworkHintsHandler> receiver) {
+  DCHECK(frame_host);
+  network_hints::SimpleNetworkHintsHandlerImpl::Create(frame_host,
+                                                       std::move(receiver));
+}
 
 }  // namespace
 
@@ -114,6 +145,27 @@ blink::UserAgentMetadata GetCobaltUserAgentMetadata() {
   return metadata;
 }
 
+struct SharedState {
+  // Owned by content::BrowserMainLoop.
+  raw_ptr<content::ShellBrowserMainParts, DanglingUntriaged>
+      shell_browser_main_parts = nullptr;
+
+  std::unique_ptr<PrefService> local_state;
+};
+
+SharedState& GetSharedState() {
+  static SharedState g_shared_state;
+  return g_shared_state;
+}
+
+void set_browser_main_parts(content::ShellBrowserMainParts* parts) {
+  GetSharedState().shell_browser_main_parts = parts;
+}
+
+content::BrowserContext* CobaltContentBrowserClient::GetBrowserContext() {
+  return GetSharedState().shell_browser_main_parts->browser_context();
+}
+
 CobaltContentBrowserClient::CobaltContentBrowserClient()
     : video_geometry_setter_service_(
           std::unique_ptr<cobalt::media::VideoGeometrySetterService,
@@ -129,8 +181,11 @@ std::unique_ptr<content::BrowserMainParts>
 CobaltContentBrowserClient::CreateBrowserMainParts(
     bool /* is_integration_test */) {
   DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
+  DCHECK(!GetSharedState().shell_browser_main_parts);
+
   auto browser_main_parts = std::make_unique<CobaltBrowserMainParts>();
-  set_browser_main_parts(browser_main_parts.get());
+  GetSharedState().shell_browser_main_parts = browser_main_parts.get();
+
   return browser_main_parts;
 }
 
@@ -192,7 +247,19 @@ void CobaltContentBrowserClient::OverrideWebkitPrefs(
   // testing set up. See b/377410179.
   prefs->allow_running_insecure_content = true;
 #endif  // !defined(COBALT_IS_RELEASE_BUILD)
-  content::ShellContentBrowserClient::OverrideWebkitPrefs(web_contents, prefs);
+  if (base::CommandLine::ForCurrentProcess()->HasSwitch(
+          switches::kForceDarkMode)) {
+    prefs->preferred_color_scheme = blink::mojom::PreferredColorScheme::kDark;
+  } else {
+    prefs->preferred_color_scheme = blink::mojom::PreferredColorScheme::kLight;
+  }
+
+  if (base::CommandLine::ForCurrentProcess()->HasSwitch(
+          switches::kForceHighContrast)) {
+    prefs->preferred_contrast = blink::mojom::PreferredContrast::kMore;
+  } else {
+    prefs->preferred_contrast = blink::mojom::PreferredContrast::kNoPreference;
+  }
 }
 
 content::StoragePartitionConfig
@@ -287,8 +354,10 @@ void CobaltContentBrowserClient::RegisterBrowserInterfaceBindersForFrame(
     mojo::BinderMapWithContext<content::RenderFrameHost*>* map) {
   DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
   PopulateCobaltFrameBinders(render_frame_host, map);
-  ShellContentBrowserClient::RegisterBrowserInterfaceBindersForFrame(
-      render_frame_host, map);
+  performance_manager::PerformanceManagerRegistry::GetInstance()
+      ->ExposeInterfacesToRenderFrame(map);
+  map->Add<network_hints::mojom::NetworkHintsHandler>(
+      base::BindRepeating(&BindNetworkHintsHandler));
 }
 
 void CobaltContentBrowserClient::CreateVideoGeometrySetterService() {
@@ -350,6 +419,12 @@ bool CobaltContentBrowserClient::WillCreateURLLoaderFactory(
   return true;
 }
 
+std::unique_ptr<content::DevToolsManagerDelegate>
+CobaltContentBrowserClient::CreateDevToolsManagerDelegate() {
+  return std::make_unique<content::ShellDevToolsManagerDelegate>(
+      GetBrowserContext());
+}
+
 void CobaltContentBrowserClient::SetUpCobaltFeaturesAndParams(
     base::FeatureList* feature_list) {
   // All Cobalt features are associated with the same field trial. This is for
@@ -399,11 +474,13 @@ void CobaltContentBrowserClient::SetUpCobaltFeaturesAndParams(
 }
 
 void CobaltContentBrowserClient::CreateFeatureListAndFieldTrials() {
-  metrics::TestEnabledStateProvider enabled_state_provider(/*consent=*/false,
-                                                           /*enabled=*/false);
+  GetSharedState().local_state = CreateLocalState();
   GlobalFeatures::GetInstance()
       ->metrics_services_manager()
       ->InstantiateFieldTrialList();
+  // Schedule a Local State write since the above function resulted in some
+  // prefs being updated.
+  GetSharedState().local_state->CommitPendingWrite();
 
   auto feature_list = std::make_unique<base::FeatureList>();
 
