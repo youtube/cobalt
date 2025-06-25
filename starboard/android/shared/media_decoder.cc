@@ -30,6 +30,7 @@ namespace starboard::android::shared {
 
 // TODO: (cobalt b/372559388) Update namespace to jni_zero.
 using base::android::AttachCurrentThread;
+using ::starboard::shared::pthread::ThreadSetPriority;
 
 namespace {
 
@@ -76,15 +77,16 @@ const char* GetDecoderName(SbMediaType media_type) {
 MediaDecoder::MediaDecoder(Host* host,
                            const AudioStreamInfo& audio_stream_info,
                            SbDrmSystem drm_system)
-    : media_type_(kSbMediaTypeAudio),
+    : enabled_video_ticking_thread_(false),
+      media_type_(kSbMediaTypeAudio),
       host_(host),
       drm_system_(static_cast<DrmSystem*>(drm_system)),
       tunnel_mode_enabled_(false),
-      flush_delay_usec_(0),
-      condition_variable_(mutex_) {
+      flush_delay_usec_(0) {
   SB_DCHECK(host_);
 
-  jobject j_media_crypto = drm_system_ ? drm_system_->GetMediaCrypto() : NULL;
+  jobject j_media_crypto =
+      drm_system_ ? drm_system_->GetMediaCrypto() : nullptr;
   SB_DCHECK(!drm_system_ || j_media_crypto);
   media_codec_bridge_ = MediaCodecBridge::CreateAudioMediaCodecBridge(
       audio_stream_info, this, j_media_crypto);
@@ -134,7 +136,8 @@ MediaDecoder::MediaDecoder(
   SB_DCHECK(frame_rendered_cb_);
   SB_DCHECK(first_tunnel_frame_ready_cb_);
 
-  jobject j_media_crypto = drm_system_ ? drm_system_->GetMediaCrypto() : NULL;
+  jobject j_media_crypto =
+      drm_system_ ? drm_system_->GetMediaCrypto() : nullptr;
   const bool require_secured_decoder =
       drm_system_ && drm_system_->require_secured_decoder();
   SB_DCHECK(!drm_system_ || j_media_crypto);
@@ -147,27 +150,36 @@ MediaDecoder::MediaDecoder(
     SB_LOG(ERROR) << "Failed to create video media codec bridge with error: "
                   << *error_message;
   }
+
+  if (enabled_video_ticking_thread_) {
+    SB_DCHECK(!tunnel_mode_enabled_);
+
+    SB_LOG(INFO) << "Video ticking thread is enabled.";
+  } else {
+    SB_LOG(INFO) << "Video ticking thread is disabled.";
+  }
 }
 
 MediaDecoder::~MediaDecoder() {
   SB_DCHECK(thread_checker_.CalledOnValidThread());
 
-  TerminateDecoderThread();
+  TerminateThreads();
 
   if (is_valid()) {
     host_->OnFlushing();
-    // After |decoder_thread_| is ended and before |media_codec_bridge_| is
-    // flushed, OnMediaCodecOutputBufferAvailable() would still be called.
-    // So that, |dequeue_output_results_| may not be empty. As
-    // DequeueOutputResult is consisted of plain data, it's fine to let
-    // destructor delete |dequeue_output_results_|.
+    // After |decoder_thread_| (and |video_ticking_thread_|, when applicable)
+    // is ended and before |media_codec_bridge_| is flushed,
+    // OnMediaCodecOutputBufferAvailable() would still be called. So that,
+    // |dequeue_output_results_| may not be empty. As DequeueOutputResult is
+    // consisted of plain data, it's fine to let destructor delete
+    // |dequeue_output_results_|.
     jint status = media_codec_bridge_->Flush();
     if (status != MEDIA_CODEC_OK) {
       SB_LOG(ERROR) << "Failed to flush media codec.";
     }
     // Call stop() here to notify MediaCodecBridge to not invoke any callbacks.
     media_codec_bridge_->Stop();
-    host_ = NULL;
+    host_ = nullptr;
   }
 }
 
@@ -201,8 +213,21 @@ void MediaDecoder::WriteInputBuffers(const InputBuffers& input_buffers) {
     SB_DCHECK(decoder_thread_ != 0);
   }
 
+  if (enabled_video_ticking_thread_) {
+    if (video_ticking_thread_ == 0) {
+      pthread_create(&video_ticking_thread_, nullptr,
+                     &MediaDecoder::VideoTickingThreadEntryPoint, this);
+      SB_DCHECK(video_ticking_thread_ != 0);
+    }
+  }
+
   ScopedLock scoped_lock(mutex_);
   bool need_signal = pending_inputs_.empty();
+
+  if (enabled_video_ticking_thread_) {
+    need_signal = number_of_pending_inputs_ == 0;
+  }
+
   for (const auto& input_buffer : input_buffers) {
     pending_inputs_.emplace_back(input_buffer);
     ++number_of_pending_inputs_;
@@ -233,16 +258,25 @@ void MediaDecoder::SetPlaybackRate(double playback_rate) {
 // static
 void* MediaDecoder::DecoderThreadEntryPoint(void* context) {
   SB_DCHECK(context);
+
   MediaDecoder* decoder = static_cast<MediaDecoder*>(context);
+
   pthread_setname_np(pthread_self(), GetDecoderName(decoder->media_type_));
+
   if (decoder->media_type_ == kSbMediaTypeAudio) {
-    ::starboard::shared::pthread::ThreadSetPriority(kSbThreadPriorityNormal);
+    ThreadSetPriority(kSbThreadPriorityNormal);
   } else {
-    ::starboard::shared::pthread::ThreadSetPriority(kSbThreadPriorityHigh);
+    if (!decoder->enabled_video_ticking_thread_) {
+      ThreadSetPriority(kSbThreadPriorityHigh);
+    }
   }
 
-  decoder->DecoderThreadFunc();
-  return NULL;
+  if (decoder->enabled_video_ticking_thread_) {
+    decoder->VideoInputProcessingThreadFunc();
+  } else {
+    decoder->DecoderThreadFunc();
+  }
+  return nullptr;
 }
 
 void MediaDecoder::DecoderThreadFunc() {
@@ -378,7 +412,104 @@ void MediaDecoder::DecoderThreadFunc() {
   SB_LOG(INFO) << "Destroying decoder thread.";
 }
 
-void MediaDecoder::TerminateDecoderThread() {
+void MediaDecoder::VideoInputProcessingThreadFunc() {
+  SB_DCHECK(error_cb_);
+  SB_DCHECK(enabled_video_ticking_thread_);
+  SB_DCHECK(media_type_ == kSbMediaTypeVideo);
+
+  std::deque<PendingInput> pending_inputs;
+  std::vector<int> input_buffer_indices;
+
+  while (!destroying_.load()) {
+    bool has_input = pending_input_to_retry_ ||
+                     (!pending_inputs.empty() && !input_buffer_indices.empty());
+
+    if (!has_input) {
+      {
+        ScopedLock scoped_lock(mutex_);
+        CollectPendingData_Locked(&pending_inputs, &input_buffer_indices,
+                                  nullptr);
+      }
+      has_input = pending_input_to_retry_ ||
+                  (!pending_inputs.empty() && !input_buffer_indices.empty());
+    }
+
+    if (has_input) {
+      ProcessOneInputBuffer(&pending_inputs, &input_buffer_indices);
+    }
+
+    has_input = pending_input_to_retry_ ||
+                (!pending_inputs.empty() && !input_buffer_indices.empty());
+    if (!has_input) {
+      ScopedLock scoped_lock(mutex_);
+      CollectPendingData_Locked(&pending_inputs, &input_buffer_indices,
+                                nullptr);
+      has_input = !pending_inputs.empty() && !input_buffer_indices.empty();
+      if (!has_input) {
+        if (!condition_variable_.WaitTimed(5'000'000LL)) {
+          SB_LOG_IF(ERROR, !stream_ended_.load())
+              << "Video input processing thread: Wait() hits timeout.";
+        }
+      }
+    }
+  }
+
+  SB_LOG(INFO) << "Destroying video input processing thread.";
+}
+
+// static
+void* MediaDecoder::VideoTickingThreadEntryPoint(void* context) {
+  SB_DCHECK(context);
+  MediaDecoder* decoder = static_cast<MediaDecoder*>(context);
+
+  SB_DCHECK(decoder->enabled_video_ticking_thread_);
+
+  pthread_setname_np(pthread_self(), "video_tick");
+
+  ThreadSetPriority(kSbThreadPriorityRealTime);
+
+  decoder->VideoTickingThreadFunc();
+  return nullptr;
+}
+
+void MediaDecoder::VideoTickingThreadFunc() {
+  SB_DCHECK(error_cb_);
+  SB_DCHECK(enabled_video_ticking_thread_);
+
+  std::vector<DequeueOutputResult> dequeue_output_results;
+
+  while (!destroying_.load()) {
+    if (dequeue_output_results.empty()) {
+      ScopedLock scoped_lock(video_ticking_mutex_);
+      CollectPendingDataForVideoTicking_Locked(&dequeue_output_results);
+    }
+
+    if (!dequeue_output_results.empty()) {
+      auto& dequeue_output_result = dequeue_output_results.front();
+      if (dequeue_output_result.index < 0) {
+        host_->RefreshOutputFormat(media_codec_bridge_.get());
+      } else {
+        host_->ProcessOutputBuffer(media_codec_bridge_.get(),
+                                   dequeue_output_result);
+      }
+      dequeue_output_results.erase(dequeue_output_results.begin());
+    }
+
+    bool ticked = host_->Tick(media_codec_bridge_.get());
+
+    if (!ticked && dequeue_output_results.empty()) {
+      ScopedLock scoped_lock(video_ticking_mutex_);
+      CollectPendingDataForVideoTicking_Locked(&dequeue_output_results);
+      if (dequeue_output_results.empty()) {
+        video_ticking_condition_variable_.WaitTimed(8000);
+      }
+    }
+  }
+
+  SB_LOG(INFO) << "Destroying video ticking thread.";
+}
+
+void MediaDecoder::TerminateThreads() {
   SB_DCHECK(thread_checker_.CalledOnValidThread());
 
   destroying_.store(true);
@@ -388,9 +519,21 @@ void MediaDecoder::TerminateDecoderThread() {
     condition_variable_.Signal();
   }
 
+  if (enabled_video_ticking_thread_) {
+    ScopedLock scoped_lock(video_ticking_mutex_);
+    video_ticking_condition_variable_.Signal();
+  }
+
   if (decoder_thread_ != 0) {
     pthread_join(decoder_thread_, nullptr);
     decoder_thread_ = 0;
+  }
+
+  if (video_ticking_thread_ != 0) {
+    SB_DCHECK(enabled_video_ticking_thread_);
+
+    pthread_join(video_ticking_thread_, nullptr);
+    video_ticking_thread_ = 0;
   }
 }
 
@@ -400,7 +543,7 @@ void MediaDecoder::CollectPendingData_Locked(
     std::vector<DequeueOutputResult>* dequeue_output_results) {
   SB_DCHECK(pending_inputs);
   SB_DCHECK(input_buffer_indices);
-  SB_DCHECK(dequeue_output_results);
+
   mutex_.DCheckAcquired();
 
   pending_inputs->insert(pending_inputs->end(), pending_inputs_.begin(),
@@ -411,6 +554,21 @@ void MediaDecoder::CollectPendingData_Locked(
                                input_buffer_indices_.begin(),
                                input_buffer_indices_.end());
   input_buffer_indices_.clear();
+
+  if (dequeue_output_results) {
+    dequeue_output_results->insert(dequeue_output_results->end(),
+                                   dequeue_output_results_.begin(),
+                                   dequeue_output_results_.end());
+    dequeue_output_results_.clear();
+  }
+}
+
+void MediaDecoder::CollectPendingDataForVideoTicking_Locked(
+    std::vector<DequeueOutputResult>* dequeue_output_results) {
+  SB_DCHECK(enabled_video_ticking_thread_);
+  SB_DCHECK(dequeue_output_results);
+
+  video_ticking_mutex_.DCheckAcquired();
 
   dequeue_output_results->insert(dequeue_output_results->end(),
                                  dequeue_output_results_.begin(),
@@ -458,7 +616,7 @@ bool MediaDecoder::ProcessOneInputBuffer(
   if (pending_input.type == PendingInput::kWriteEndOfStream) {
     SB_DCHECK(pending_inputs->empty());
   }
-  const void* data = NULL;
+  const void* data = nullptr;
   int size = 0;
   if (pending_input.type == PendingInput::kWriteCodecConfig) {
     SB_DCHECK(media_type_ == kSbMediaTypeAudio);
@@ -468,7 +626,7 @@ bool MediaDecoder::ProcessOneInputBuffer(
     data = input_buffer->data();
     size = input_buffer->size();
   } else if (pending_input.type == PendingInput::kWriteEndOfStream) {
-    data = NULL;
+    data = nullptr;
     size = 0;
   }
 
@@ -518,8 +676,18 @@ bool MediaDecoder::ProcessOneInputBuffer(
           dequeue_input_result.index, kNoOffset, *input_buffer->drm_info(),
           pts_us);
     } else {
-      status = media_codec_bridge_->QueueInputBuffer(
-          dequeue_input_result.index, kNoOffset, size, pts_us, kNoBufferFlags);
+      if (media_type_ == kSbMediaTypeVideo && pts_us >= 8583333 &&
+          pts_us < 10000000) {
+        status = media_codec_bridge_->QueueInputBuffer(
+            dequeue_input_result.index, kNoOffset, size, pts_us,
+            32);  // kNoBufferFlags
+      } else {
+        status = media_codec_bridge_->QueueInputBuffer(
+            dequeue_input_result.index, kNoOffset, size, pts_us,
+            kNoBufferFlags);
+      }
+      // status = media_codec_bridge_->QueueInputBuffer(
+      //   dequeue_input_result.index, kNoOffset, size, pts_us, kNoBufferFlags);
     }
   } else {
     status = media_codec_bridge_->QueueInputBuffer(dequeue_input_result.index,
@@ -632,7 +800,7 @@ void MediaDecoder::OnMediaCodecInputBufferAvailable(int buffer_index) {
   if (media_type_ == kSbMediaTypeVideo && first_call_on_handler_thread_) {
     // Set the thread priority of the Handler thread to dispatch the async
     // decoder callbacks to high.
-    ::starboard::shared::pthread::ThreadSetPriority(kSbThreadPriorityHigh);
+    ThreadSetPriority(kSbThreadPriorityHigh);
     first_call_on_handler_thread_ = false;
   }
   ScopedLock scoped_lock(mutex_);
@@ -651,10 +819,17 @@ void MediaDecoder::OnMediaCodecOutputBufferAvailable(
   SB_DCHECK(media_codec_bridge_);
   SB_DCHECK(buffer_index >= 0);
 
-  // TODO(b/291959069): After |decoder_thread_| is destroyed, it may still
-  // receive output buffer, discard this invalid output buffer.
-  if (destroying_.load() || decoder_thread_ == 0) {
-    return;
+  // TODO(b/291959069): After |decoder_thread_| (or |video_ticking_thread_|) is
+  // destroyed, it may still/ receive output buffer, discard this invalid output
+  // buffer.
+  if (enabled_video_ticking_thread_) {
+    if (destroying_.load() || video_ticking_thread_ == 0) {
+      return;
+    }
+  } else {
+    if (destroying_.load() || decoder_thread_ == 0) {
+      return;
+    }
   }
 
   DequeueOutputResult dequeue_output_result;
@@ -665,9 +840,18 @@ void MediaDecoder::OnMediaCodecOutputBufferAvailable(
   dequeue_output_result.presentation_time_microseconds = presentation_time_us;
   dequeue_output_result.num_bytes = size;
 
-  ScopedLock scoped_lock(mutex_);
-  dequeue_output_results_.push_back(dequeue_output_result);
-  condition_variable_.Signal();
+  // TODO(b/329686979): Consolidate with similar code below.
+  if (enabled_video_ticking_thread_) {
+    ScopedLock scoped_lock(video_ticking_mutex_);
+    dequeue_output_results_.push_back(dequeue_output_result);
+    if (dequeue_output_results_.size() == 1) {
+      video_ticking_condition_variable_.Signal();
+    }
+  } else {
+    ScopedLock scoped_lock(mutex_);
+    dequeue_output_results_.push_back(dequeue_output_result);
+    condition_variable_.Signal();
+  }
 }
 
 void MediaDecoder::OnMediaCodecOutputFormatChanged() {
@@ -676,9 +860,15 @@ void MediaDecoder::OnMediaCodecOutputFormatChanged() {
   DequeueOutputResult dequeue_output_result = {};
   dequeue_output_result.index = -1;
 
-  ScopedLock scoped_lock(mutex_);
-  dequeue_output_results_.push_back(dequeue_output_result);
-  condition_variable_.Signal();
+  if (enabled_video_ticking_thread_) {
+    ScopedLock scoped_lock(video_ticking_mutex_);
+    dequeue_output_results_.push_back(dequeue_output_result);
+    video_ticking_condition_variable_.Signal();
+  } else {
+    ScopedLock scoped_lock(mutex_);
+    dequeue_output_results_.push_back(dequeue_output_result);
+    condition_variable_.Signal();
+  }
 }
 
 void MediaDecoder::OnMediaCodecFrameRendered(int64_t frame_timestamp) {
@@ -702,7 +892,7 @@ bool MediaDecoder::Flush() {
   // and Flush()/Start() |media_codec_bridge_|.
 
   // 1. Terminate `audio_decoder` or `video_decoder` thread.
-  TerminateDecoderThread();
+  TerminateThreads();
 
   // 2. Flush()/Start() |media_codec_bridge_| and clean up pending tasks.
   if (is_valid()) {
