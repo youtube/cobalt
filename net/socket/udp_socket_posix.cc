@@ -709,8 +709,9 @@ void UDPSocketPosix::ReadWatcher::OnFileCanReadWithoutBlocking(int) {
     if(socket_->results_) {
       socket_->DidCompleteMultiplePacketRead();
     }
-#endif
+#else
     socket_->DidCompleteRead();
+#endif
   }
 }
 
