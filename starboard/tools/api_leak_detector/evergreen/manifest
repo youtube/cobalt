@@ -54,7 +54,6 @@ fwrite
 gai_strerror
 getauxval
 getc
-getcwd
 geteuid
 gethostname
 getpid

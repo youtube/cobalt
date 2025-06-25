@@ -383,6 +383,7 @@ static_library("c_internal") {
     "src/starboard/statfs/statfs_stub.c",
     "src/starboard/stdlib/strtod_l.c",
     "src/starboard/time/__tz.c",
+    "src/starboard/unistd/getcwd.c",
     "src/stdio/__toread.c",
     "src/stdio/__uflow.c",
     "src/stdio/snprintf.c",
