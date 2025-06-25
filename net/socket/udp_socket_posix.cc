@@ -77,7 +77,7 @@ const base::TimeDelta kActivityMonitorMsThreshold = base::Milliseconds(100);
 
 // Read in larger batches to minimize recvmmsg overhead.
 inline constexpr int kNumPacketsPerReadMmsgCall = 64;
-// inline constexpr size_t kDefaultUdpPacketControlBufferSize = 512;
+inline constexpr size_t kDefaultUdpPacketControlBufferSize = 512;
 
 #if BUILDFLAG(IS_APPLE) && !BUILDFLAG(CRONET_BUILD)
 
@@ -368,6 +368,26 @@ int UDPSocketPosix::ReadMultiplePackets(Socket::ReadPacketResults* results,
 
   // Disallow other reads to be pending.
   DCHECK(read_callback_.is_null());
+
+  if ((!results->buffer || results->buffer->size() == 0) ||
+      results->packet_buffer_size != packet_buffer_size ||
+      results->packets == nullptr) {
+
+    int packets_array_size = kNumPacketsPerReadMmsgCall * sizeof(Socket::ReadPacketResult);
+    int all_packet_buffers_size = kNumPacketsPerReadMmsgCall * packet_buffer_size;
+    int total_size = packets_array_size + all_packet_buffers_size;
+
+    results->buffer = base::MakeRefCounted<IOBufferWithSize>(total_size);
+    results->packet_buffer_size = packet_buffer_size;
+
+    results->packets = reinterpret_cast<Socket::ReadPacketResult*>(results->buffer->data());
+
+    char* packet_data_start = results->buffer->data() + packets_array_size;
+
+    for (int i = 0; i < kNumPacketsPerReadMmsgCall; ++i) {
+      results->packets[i].buffer = packet_data_start + (i * packet_buffer_size);
+    }
+  }
 
   int nread = InternalReadMultiplePackets(results);
   if (callback.is_null() || nread != ERR_IO_PENDING) {
@@ -681,8 +701,14 @@ int UDPSocketPosix::AllowAddressSharingForMulticast() {
 void UDPSocketPosix::ReadWatcher::OnFileCanReadWithoutBlocking(int) {
   TRACE_EVENT(NetTracingCategory(),
               "UDPSocketPosix::ReadWatcher::OnFileCanReadWithoutBlocking");
-  if (!socket_->read_callback_.is_null())
-    socket_->DidCompleteRead();
+  if (!socket_->read_callback_.is_null()) {
+    if(socket_->results_) {
+      socket_->DidCompleteMultiplePacketRead();
+    }
+    else {
+      socket_->DidCompleteRead();
+    }
+  }
 }
 
 void UDPSocketPosix::WriteWatcher::OnFileCanWriteWithoutBlocking(int) {
@@ -926,7 +952,7 @@ int UDPSocketPosix::InternalReadMultiplePackets(
     results->result = net::ERR_UNEXPECTED;
     return net::ERR_UNEXPECTED;
   }
-  
+
   results->result = MapSystemError(errno);
   return results->result;
 }

@@ -54,6 +54,7 @@ if (read_pending_)
 
     CHECK(socket_);
     read_pending_ = true;
+    LOG(INFO) << "CHARLEY 12";
     int rv = socket_->ReadMultiplePackets(
         &read_results_, kReadBufferSize,
         base::BindOnce(&QuicChromiumPacketReader::OnReadMultiplePacketComplete,
