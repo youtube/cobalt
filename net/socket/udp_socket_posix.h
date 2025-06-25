@@ -333,7 +333,9 @@ class NET_EXPORT UDPSocketPosix {
   void DoWriteCallback(int rv);
 
   void DidCompleteRead();
+#if BUILDFLAG(IS_COBALT)
   void DidCompleteMultiplePacketRead();
+#endif
   void DidCompleteWrite();
 
   // Handles stats and logging. |result| is the number of bytes transferred, on

@@ -703,12 +703,12 @@ void UDPSocketPosix::ReadWatcher::OnFileCanReadWithoutBlocking(int) {
   TRACE_EVENT(NetTracingCategory(),
               "UDPSocketPosix::ReadWatcher::OnFileCanReadWithoutBlocking");
   if (!socket_->read_callback_.is_null()) {
+#if BUILDFLAG(IS_COBALT)
     if(socket_->results_) {
       socket_->DidCompleteMultiplePacketRead();
     }
-    else {
-      socket_->DidCompleteRead();
-    }
+#endif
+    socket_->DidCompleteRead();
   }
 }
 
@@ -748,6 +748,7 @@ void UDPSocketPosix::DidCompleteRead() {
   }
 }
 
+#if BUILDFLAG(IS_COBALT)
 void UDPSocketPosix::DidCompleteMultiplePacketRead() {
   int result = InternalReadMultiplePackets(results_);
   if (result != ERR_IO_PENDING) {
@@ -757,6 +758,7 @@ void UDPSocketPosix::DidCompleteMultiplePacketRead() {
     DoReadCallback(result);
   }
 }
+#endif
 
 void UDPSocketPosix::LogRead(int result,
                              const char* bytes,
