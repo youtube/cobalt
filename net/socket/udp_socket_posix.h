@@ -118,12 +118,14 @@ class NET_EXPORT UDPSocketPosix {
   // has been connected.
   int Read(IOBuffer* buf, int buf_len, CompletionOnceCallback callback);
 
+#if BUILDFLAG(IS_COBALT)
   // Reads multiple packets from the socket.
   // Only usable from the client-side of a UDP socket, after the socket
   // has been connected.
   int ReadMultiplePackets(Socket::ReadPacketResults* results,
                           int read_buffer_size,
                           CompletionOnceCallback callback);
+#endif
 
   // Writes to the socket.
   // Only usable from the client-side of a UDP socket, after the socket
@@ -374,7 +376,9 @@ class NET_EXPORT UDPSocketPosix {
   int InternalRecvFromNonConnectedSocket(IOBuffer* buf,
                                          int buf_len,
                                          IPEndPoint* address);
-  int InternalReadMultiplePackets(Socket::ReadPacketResults* results);                                      
+#if BUILDFLAG(IS_COBALT)                                       
+  int InternalReadMultiplePackets(Socket::ReadPacketResults* results);  
+#endif                                    
   int InternalSendTo(IOBuffer* buf, int buf_len, const IPEndPoint* address);
 
   // Applies |socket_options_| to |socket_|. Should be called before
@@ -438,8 +442,10 @@ class NET_EXPORT UDPSocketPosix {
   int write_buf_len_ = 0;
   std::unique_ptr<IPEndPoint> send_to_address_;
 
+#if BUILDFLAG(IS_COBALT)
   // The buffer used by ReadMultiplePackets() to retry Read requests
-  Socket::ReadPacketResults* results_ = nullptr;
+  raw_ptr<Socket::ReadPacketResults> results_ = nullptr;
+#endif
 
   // External callback; called when read is complete.
   CompletionOnceCallback read_callback_;

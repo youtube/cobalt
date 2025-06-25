@@ -114,10 +114,8 @@ void UDPClientSocket::ApplySocketTag(const SocketTag& tag) {
 int UDPClientSocket::ReadMultiplePackets(ReadPacketResults* results,
                                          int read_buffer_size,
                                          CompletionOnceCallback callback) {
-  LOG(INFO) << "CHARLEY";
   int result = socket_.ReadMultiplePackets(results, read_buffer_size,
                                      std::move(callback));
-  LOG(INFO) << "CHARLEY 11";
   return result;
 }
 #endif

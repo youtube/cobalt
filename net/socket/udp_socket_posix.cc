@@ -77,7 +77,6 @@ const base::TimeDelta kActivityMonitorMsThreshold = base::Milliseconds(100);
 
 // Read in larger batches to minimize recvmmsg overhead.
 inline constexpr int kNumPacketsPerReadMmsgCall = 64;
-inline constexpr size_t kDefaultUdpPacketControlBufferSize = 512;
 
 #if BUILDFLAG(IS_APPLE) && !BUILDFLAG(CRONET_BUILD)
 
@@ -351,6 +350,7 @@ int UDPSocketPosix::GetLocalAddress(IPEndPoint* address) const {
   return OK;
 }
 
+#if BUILDFLAG(IS_COBALT)
 int UDPSocketPosix::ReadMultiplePackets(Socket::ReadPacketResults* results,
                                             int packet_buffer_size,
                                             CompletionOnceCallback callback) {
@@ -408,6 +408,7 @@ int UDPSocketPosix::ReadMultiplePackets(Socket::ReadPacketResults* results,
   read_callback_ = std::move(callback);
   return ERR_IO_PENDING;
 }
+#endif
 
 int UDPSocketPosix::Read(IOBuffer* buf,
                          int buf_len,
@@ -892,6 +893,7 @@ int UDPSocketPosix::InternalRecvFromNonConnectedSocket(IOBuffer* buf,
   return result;
 }
 
+#if BUILDFLAG(IS_COBALT)
 int UDPSocketPosix::InternalReadMultiplePackets(
     Socket::ReadPacketResults* results) {
   if (!socket_) {
@@ -956,92 +958,7 @@ int UDPSocketPosix::InternalReadMultiplePackets(
   results->result = MapSystemError(errno);
   return results->result;
 }
-
-// int UDPSocketPosix::InternalReadMultiplePackets(
-//     Socket::ReadPacketResults* results) {
-
-//   struct mmsghdr mmsg_hdrs[kNumPacketsPerReadMmsgCall];
-//   struct iovec iov[kNumPacketsPerReadMmsgCall];
-//   struct sockaddr_storage addrs[kNumPacketsPerReadMmsgCall];
-//   scoped_refptr<IOBufferWithSize> buffers[kNumPacketsPerReadMmsgCall];
-
-//   memset(mmsg_hdrs, 0, sizeof(mmsg_hdrs));
-
-//   for (size_t packet = 0; packet < kNumPacketsPerReadMmsgCall; packet++) {
-//     buffers[packet] = new IOBufferWithSize(read_buf_len_);
-//     iov[packet].iov_base = buffers[packet]->data();
-//     iov[packet].iov_len = read_buf_len_;
-
-//     msghdr* msg_hdr = &mmsg_hdrs[packet].msg_hdr;
-//     msg_hdr->msg_iov = &iov[packet];
-//     msg_hdr->msg_iovlen = 1;
-//     msg_hdr->msg_name = &addrs[packet];
-//     msg_hdr->msg_namelen = sizeof(addrs[packet]);
-//   }
-
-//   int msgresult = recvmmsg(socket_, mmsg_hdrs, kNumPacketsPerReadMmsgCall, MSG_DONTWAIT, nullptr);
-//   CHECK(msgresult);
-
-//   results->result = msgresult ? msgresult : -1;
-//   if (results->result < 0) {
-//     if (errno == EAGAIN || errno == EWOULDBLOCK) {
-//       LOG(ERROR) << "recvmmsg failed, errno = " << errno;
-//     }
-//     results->result = net::MapSystemError(errno);
-//     if (results->result == ERR_IO_PENDING) {
-//       return results->result;
-//     }
-//   }
-
-//   else {
-//     for (int i = 0; i < msgresult; ++i) {
-//     Socket::ReadPacketResult* result_packet = &results->packets[i];
-    
-//     unsigned int bytes_received = mmsg_hdrs[i].msg_len;
-//     result_packet->result = bytes_received;
-//     result_packet->buffer = pending_read_buffers_[i]->data();
-//     //   auto result_packet = std::make_unique<Socket::ReadPacketResult>();
-//     //   result_packet->buffer = buffers[i];
-
-//     //   unsigned int bytes_received = mmsg_hdrs[i].msg_len;
-//     //   result_packet->buffer->set_size(bytes_received);
-
-//     //   msghdr* msg_hdr = &mmsg_hdrs[i].msg_hdr;
-//     //   if (!result_packet->address.FromSockAddr(
-//     //           reinterpret_cast<const sockaddr*>(msg_hdr->msg_name),
-//     //           msg_hdr->msg_namelen)) {
-//     //     // This is unexpected. Log an error and skip this packet.
-//     //     LOG(ERROR) << "Failed to convert sockaddr to IPEndPoint.";
-//     //     continue;
-//     //   }
-//     }
-//   }
-//   results->result = msgresult;
-//   return results->result;
-// }
-
-// int UDPSocketStarboard::InternalReadMultiplePackets(
-//     Socket::ReadPacketResults* results) {
-//   SbSocketReceiveMultiMsgResult* msgresult =
-//       g_socket_extension->ReceiveMultiMsg(socket_, results->buffer->data());
-//   CHECK(msgresult);
-//   results->result = msgresult ? msgresult->result : -1;
-//   if (results->result < 0) {
-//     results->result = MapLastSocketError(socket_);
-//     if (results->result == ERR_IO_PENDING) {
-//       return results->result;
-//     }
-//   }
-//   SbSocketReceiveMultiMsgPacket* packet = msgresult->packets;
-//   Socket::ReadPacketResult* out_packet = results->packets;
-//   CHECK(packet);
-//   CHECK(out_packet);
-//   for (int i = 0; i < results->result; ++i, ++packet, ++out_packet) {
-//     out_packet->buffer = packet->buffer;
-//     out_packet->result = packet->result;
-//   }
-//   return results->result;
-// }
+#endif
 
 int UDPSocketPosix::InternalSendTo(IOBuffer* buf,
                                    int buf_len,
