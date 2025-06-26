@@ -171,7 +171,6 @@ static_library("starboard_platform_sources") {
     "//starboard/shared/pthread/thread_sampler_internal.h",
     "//starboard/shared/pthread/thread_sampler_is_supported.cc",
     "//starboard/shared/pthread/thread_sampler_thaw.cc",
-    "//starboard/shared/pthread/thread_yield.cc",
     "//starboard/shared/pulse/pulse_audio_sink_type.cc",
     "//starboard/shared/pulse/pulse_audio_sink_type.h",
     "//starboard/shared/pulse/pulse_dynamic_load_dispatcher.cc",
