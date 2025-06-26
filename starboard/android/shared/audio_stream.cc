@@ -7,16 +7,9 @@
 #include "starboard/common/log.h"
 #include "starboard/common/time.h"
 
-// Function signatures are from AAudio.h header (introduced in Android O).
-// https://cs.corp.google.com/android/frameworks/av/media/libaaudio/include/aaudio/AAudio.h
-
-// Define AAudio function signatures.
-
 namespace starboard::android::shared {
 // Anonymous namespace prevents external linkage of local aaudio symbols.
-namespace {  // NOLINT
-
-// Define AAudioStreamBuilder function signatures.
+namespace {
 
 #define DEFINE_METHOD(api_name)             \
   using PF##api_name = decltype(&api_name); \
@@ -415,7 +408,7 @@ std::string AudioStream::GetStateName() const {
 int AudioStream::GetFramesInBuffer() const {
   const int frames_read = AAudioStream_getFramesRead(stream_);
   const int frames_written = AAudioStream_getFramesWritten(stream_);
-  SB_CHECK(frames_written >= frames_read)
+  SB_DCHECK(frames_written >= frames_read)
       << ": frames_written=" << frames_written
       << ", frames_read=" << frames_read;
   return frames_written - frames_read;
