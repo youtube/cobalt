@@ -91,6 +91,8 @@ class SbPlayerPrivateImpl final : public SbPlayerPrivate {
       int index,
       SbMediaAudioConfiguration* out_audio_configuration) final;
 
+  int32_t GetNumberOfFramesToBeRendered();
+
   ~SbPlayerPrivateImpl() final;
 
  private:

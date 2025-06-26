@@ -109,6 +109,8 @@ class PlayerWorker {
 
     virtual void SetMaxVideoInputSize(int max_video_input_size) = 0;
 
+    virtual int32_t GetNumberOfFramesToBeRendered() = 0;
+
    private:
     Handler(const Handler&) = delete;
     Handler& operator=(const Handler&) = delete;
@@ -173,6 +175,10 @@ class PlayerWorker {
 
   SbDecodeTarget GetCurrentDecodeTarget() {
     return handler_->GetCurrentDecodeTarget();
+  }
+
+  int32_t GetNumberOfFramesToBeRendered() {
+    return handler_->GetNumberOfFramesToBeRendered();
   }
 
  private:

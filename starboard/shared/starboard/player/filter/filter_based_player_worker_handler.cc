@@ -539,6 +539,13 @@ SbDecodeTarget FilterBasedPlayerWorkerHandler::GetCurrentDecodeTarget() {
   return decode_target;
 }
 
+int32_t FilterBasedPlayerWorkerHandler::GetNumberOfFramesToBeRendered() {
+  if (video_renderer_) {
+    return video_renderer_->GetNumberOfFramesToBeRendered();
+  }
+  return 0;
+}
+
 void FilterBasedPlayerWorkerHandler::SetMaxVideoInputSize(
     int max_video_input_size) {
   SB_LOG(INFO) << "Set max_video_input_size from " << max_video_input_size_

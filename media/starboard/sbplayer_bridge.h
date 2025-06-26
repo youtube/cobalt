@@ -143,6 +143,7 @@ class SbPlayerBridge {
   void SetPlaybackRate(double playback_rate);
   void GetInfo(PlayerInfo* out_info);
   std::vector<SbMediaAudioConfiguration> GetAudioConfigurations();
+  int32_t GetNumberOfFramesToBeRendered();
 
 #if SB_HAS(PLAYER_WITH_URL)
   void GetUrlPlayerBufferedTimeRanges(base::TimeDelta* buffer_start_time,

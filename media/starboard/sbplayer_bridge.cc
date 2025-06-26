@@ -37,6 +37,7 @@
 #include "starboard/common/player.h"
 #include "starboard/common/string.h"
 #include "starboard/configuration.h"
+#include "starboard/extension/player_get_number_of_frames_to_be_rendered.h"
 #if COBALT_MEDIA_ENABLE_PLAYER_SET_MAX_VIDEO_INPUT_SIZE
 #include "starboard/extension/player_set_max_video_input_size.h"
 #endif  // COBALT_MEDIA_ENABLE_PLAYER_SET_MAX_VIDEO_INPUT_SIZE
@@ -489,6 +490,27 @@ SbPlayerBridge::GetAudioConfigurations() {
       << "Failed to find any audio configurations.";
 
   return configurations;
+}
+
+int32_t SbPlayerBridge::GetNumberOfFramesToBeRendered() {
+  const StarboardExtensionPlayerGetNumberOfFramesToBeRenderedApi*
+      player_get_number_of_frames_to_be_rendered_extension = static_cast<
+          const StarboardExtensionPlayerGetNumberOfFramesToBeRenderedApi*>(
+          SbSystemGetExtension(
+              kStarboardExtensionPlayerGetNumberOfFramesToBeRenderedName));
+  if (player_get_number_of_frames_to_be_rendered_extension &&
+      strcmp(player_get_number_of_frames_to_be_rendered_extension->name,
+             kStarboardExtensionPlayerGetNumberOfFramesToBeRenderedName) == 0 &&
+      player_get_number_of_frames_to_be_rendered_extension->version >= 1) {
+    if (SbPlayerIsValid(player_)) {
+      uint64_t player_address = reinterpret_cast<uint64_t>(player_);
+      return player_get_number_of_frames_to_be_rendered_extension
+          ->GetNumberOfFramesToBeRendered(player_address);
+    } else {
+      return 0;
+    }
+  }
+  return -1;
 }
 
 #if SB_HAS(PLAYER_WITH_URL)

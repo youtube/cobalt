@@ -249,6 +249,10 @@ bool SbPlayerPrivateImpl::GetAudioConfiguration(
   return false;
 }
 
+int32_t SbPlayerPrivateImpl::GetNumberOfFramesToBeRendered() {
+  return worker_->GetNumberOfFramesToBeRendered();
+}
+
 SbPlayerPrivateImpl::~SbPlayerPrivateImpl() {
   --number_of_players_;
   SB_LOG(INFO) << "Destroying SbPlayerPrivateImpl. There are "

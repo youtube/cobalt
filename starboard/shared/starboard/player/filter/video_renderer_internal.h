@@ -46,6 +46,8 @@ class VideoRenderer {
   // Both of the following two functions can be called on any threads.
   virtual void SetBounds(int z_index, int x, int y, int width, int height) = 0;
   virtual SbDecodeTarget GetCurrentDecodeTarget() = 0;
+
+  virtual int32_t GetNumberOfFramesToBeRendered() = 0;
 };
 
 }  // namespace starboard::shared::starboard::player::filter
