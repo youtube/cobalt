@@ -166,10 +166,8 @@ _ALLOWED_SB_GE_16_POSIX_SYMBOLS = [
     'pthread_key_create',
     'pthread_key_delete',
     'pthread_setspecific',
-<<<<<<< HEAD
     'pthread_setname_np',
     'pthread_getname_np',
-=======
     'pwrite',
     'rand',
     'rand_r',
@@ -193,7 +191,6 @@ _ALLOWED_SB_GE_16_POSIX_SYMBOLS = [
     'strncasecmp',
     'time',
     'unlink',
->>>>>>> 803f3b8886d (net/quic/ + net/socket/: Read multiple packets per call for QUIC connections (#6109))
     'usleep',
     'write',
     'opendir',
