@@ -86,7 +86,6 @@ static_library("starboard_platform") {
     "//starboard/shared/pthread/thread_sampler_internal.h",
     "//starboard/shared/pthread/thread_sampler_is_supported.cc",
     "//starboard/shared/pthread/thread_sampler_thaw.cc",
-    "//starboard/shared/pthread/thread_yield.cc",
     "//starboard/shared/signal/crash_signals.h",
     "//starboard/shared/signal/crash_signals_sigaction.cc",
     "//starboard/shared/signal/suspend_signals.cc",

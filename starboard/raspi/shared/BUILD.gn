@@ -121,7 +121,6 @@ static_library("starboard_platform_sources") {
     "//starboard/shared/pthread/thread_sampler_internal.h",
     "//starboard/shared/pthread/thread_sampler_is_supported.cc",
     "//starboard/shared/pthread/thread_sampler_thaw.cc",
-    "//starboard/shared/pthread/thread_yield.cc",
     "//starboard/shared/signal/crash_signals.cc",
     "//starboard/shared/signal/crash_signals.h",
     "//starboard/shared/signal/debug_signals.cc",
