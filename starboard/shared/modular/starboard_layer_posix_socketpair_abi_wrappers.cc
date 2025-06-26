@@ -35,40 +35,30 @@ int musl_domain_to_platform_domain(int domain) {
 // Returns -1, signifying an error, if type contains unknown bits or does not
 // contain a supported socket type.
 int musl_type_to_platform_type(int type) {
-  int remaining_bits = type;
-
   int platform_flags = 0;
   if (type & MUSL_SOCK_CLOEXEC) {
     platform_flags |= SOCK_CLOEXEC;
-    remaining_bits &= ~MUSL_SOCK_CLOEXEC;
   }
   if (type & MUSL_SOCK_NONBLOCK) {
     platform_flags |= SOCK_NONBLOCK;
-    remaining_bits &= ~MUSL_SOCK_NONBLOCK;
   }
 
-  int mask = ~(SOCK_CLOEXEC | SOCK_NONBLOCK);
-  int socket_type = type & mask;
+  int known_flags_mask = MUSL_SOCK_CLOEXEC | MUSL_SOCK_NONBLOCK;
+  int musl_socket_type = type & ~known_flags_mask;
   int platform_socket_type = 0;
-  switch (socket_type) {
+
+  switch (musl_socket_type) {
     case MUSL_SOCK_STREAM:
       platform_socket_type = SOCK_STREAM;
-      remaining_bits &= ~MUSL_SOCK_STREAM;
       break;
     case MUSL_SOCK_SEQPACKET:
       platform_socket_type = SOCK_SEQPACKET;
-      remaining_bits &= ~MUSL_SOCK_SEQPACKET;
       break;
     default:
       SB_LOG(WARNING) << "Unable to convert musl socket type to platform "
-                      << "socket type";
+                      << "socket type, or unknown flags are present. Value: "
+                      << musl_socket_type;
       return -1;
-  }
-
-  if (remaining_bits) {
-    SB_LOG(WARNING) << "Unexplained bits remaining in type after conversion: "
-                    << remaining_bits;
-    return -1;
   }
 
   return platform_socket_type | platform_flags;
