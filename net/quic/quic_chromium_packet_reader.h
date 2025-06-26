@@ -68,6 +68,15 @@ class NET_EXPORT_PRIVATE QuicChromiumPacketReader {
 
   std::unique_ptr<DatagramClientSocket> socket_;
 
+#if BUILDFLAG(IS_COBALT)
+  // Version of StartReading that reads multiple packets per read call.
+  int StartReadingMultiplePackets();
+  // A completion callback invoked when a multiple packet read completes.
+  void OnReadMultiplePacketComplete(int result);
+  // Return true if reading should continue.
+  bool ProcessMultiplePacketReadResult(int result);
+#endif
+
   raw_ptr<Visitor> visitor_;
   bool read_pending_ = false;
   int num_packets_read_ = 0;
@@ -78,6 +87,16 @@ class NET_EXPORT_PRIVATE QuicChromiumPacketReader {
   scoped_refptr<IOBufferWithSize> read_buffer_;
   NetLogWithSource net_log_;
 
+#if BUILDFLAG(IS_COBALT)
+  // Static flag to remember when ReadMultiplePackets has ever returned
+  // ERR_NOT_IMPLEMENTED
+  static bool try_reading_multiple_packets_;
+
+  // Results from ReadMultiplePackets.
+  Socket::ReadPacketResults read_results_;
+#endif
+
+  // Note: This has to remain the last member of the class.
   base::WeakPtrFactory<QuicChromiumPacketReader> weak_factory_{this};
 };
 
