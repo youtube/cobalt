@@ -82,6 +82,8 @@ class AudioStream {
   const int buffer_bytes_;
   const DataCallback data_callback_;
 
+  // |stream_| is guaranteed to be non-null, once AudioStream is successfully
+  // created through |AudioStream::Create|.
   AAudioStream* stream_ = nullptr;
 };
 
