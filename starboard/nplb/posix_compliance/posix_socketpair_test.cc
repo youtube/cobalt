@@ -39,7 +39,7 @@ const char kRecord1[] = "Record-1";
 const char kRecord2[] = "Record-2";
 const char kRecord3[] = "Record-3";
 
-const size_t kRecordSize = sizeof(kRecord1);
+const ssize_t kRecordSize = sizeof(kRecord1);
 static_assert(sizeof(kRecord1) == sizeof(kRecord2) &&
                   sizeof(kRecord2) == sizeof(kRecord3),
               "The test records are not of equal size");
@@ -47,7 +47,7 @@ static_assert(sizeof(kRecord1) == sizeof(kRecord2) &&
 void VerifyTransmission(int write_socket,
                         int read_socket,
                         const char* record,
-                        const size_t record_size) {
+                        const ssize_t record_size) {
   std::vector<char> buffer(record_size, 0);
   EXPECT_EQ(write(write_socket, record, record_size), record_size);
   EXPECT_EQ(read(read_socket, buffer.data(), buffer.size()), record_size);
@@ -117,7 +117,7 @@ TEST(PosixSocketpairTest, SeqPacketTypeExcessBytesAreDiscardedWhenReceived) {
 
   // Given a written record of five bytes, including the null terminator.
   const char record_1[] = "abcd";
-  size_t record_1_size = sizeof(record_1);
+  ssize_t record_1_size = sizeof(record_1);
   ASSERT_EQ(record_1_size, 5);
   EXPECT_EQ(write(sockets[0], record_1, record_1_size), record_1_size);
 
@@ -130,7 +130,7 @@ TEST(PosixSocketpairTest, SeqPacketTypeExcessBytesAreDiscardedWhenReceived) {
 
   // And a second record is then written.
   const char record_2[] = "ef";
-  size_t record_2_size = sizeof(record_2);
+  ssize_t record_2_size = sizeof(record_2);
   EXPECT_EQ(write(sockets[0], record_2, record_2_size), record_2_size);
 
   // Then the remaining two bytes from the initial record are discarded.
@@ -150,7 +150,7 @@ TEST(PosixSocketpairTest, StreamTypeExcessBytesAreNotDiscardedWhenReceived) {
 
   /// Given a written record of five bytes, including the null terminator.
   const char record_1[] = "abcd";
-  size_t record_1_size = sizeof(record_1);
+  ssize_t record_1_size = sizeof(record_1);
   ASSERT_EQ(record_1_size, 5);
   EXPECT_EQ(write(sockets[0], record_1, record_1_size), record_1_size);
 
@@ -163,7 +163,7 @@ TEST(PosixSocketpairTest, StreamTypeExcessBytesAreNotDiscardedWhenReceived) {
 
   // And a second record is then written.
   const char record_2[] = "ef";
-  size_t record_2_size = sizeof(record_2);
+  ssize_t record_2_size = sizeof(record_2);
   EXPECT_EQ(write(sockets[0], record_2, record_2_size), record_2_size);
 
   // Then the remaining two bytes from the initial record are NOT discarded.
