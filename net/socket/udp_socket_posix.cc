@@ -75,6 +75,11 @@ const int kActivityMonitorBytesThreshold = 65535;
 const int kActivityMonitorMinimumSamplesForThroughputEstimate = 2;
 const base::TimeDelta kActivityMonitorMsThreshold = base::Milliseconds(100);
 
+#if BUILDFLAG(IS_COBALT)
+// Read in larger batches to minimize recvmmsg overhead.
+inline constexpr int kNumPacketsPerReadMmsgCall = 64;
+#endif
+
 #if BUILDFLAG(IS_APPLE) && !BUILDFLAG(CRONET_BUILD)
 
 // On macOS, the file descriptor is guarded to detect the cause of
@@ -346,6 +351,66 @@ int UDPSocketPosix::GetLocalAddress(IPEndPoint* address) const {
   *address = *local_address_;
   return OK;
 }
+
+#if BUILDFLAG(IS_COBALT)
+int UDPSocketPosix::ReadMultiplePackets(Socket::ReadPacketResults* results,
+                                            int packet_buffer_size,
+                                            CompletionOnceCallback callback) {
+  if (!results || packet_buffer_size <= 0) {
+    return ERR_INVALID_ARGUMENT;
+  }
+
+  if (!is_connected_) {
+    // This is only implemented correctly for connected sockets.
+    return ERR_SOCKET_NOT_CONNECTED;
+  }
+  DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
+  DCHECK(results);
+  DCHECK(!callback.is_null());
+
+  // Disallow other reads to be pending.
+  DCHECK(read_callback_.is_null());
+
+  if ((!results->buffer || results->buffer->size() == 0) ||
+      results->packet_buffer_size != packet_buffer_size ||
+      results->packets == nullptr) {
+
+    int packets_array_size = kNumPacketsPerReadMmsgCall * sizeof(Socket::ReadPacketResult);
+    int all_packet_buffers_size = kNumPacketsPerReadMmsgCall * packet_buffer_size;
+    int total_size = packets_array_size + all_packet_buffers_size;
+
+    results->buffer = base::MakeRefCounted<IOBufferWithSize>(total_size);
+    results->packet_buffer_size = packet_buffer_size;
+
+    results->packets = reinterpret_cast<Socket::ReadPacketResult*>(results->buffer->data());
+
+    char* packet_data_start = results->buffer->data() + packets_array_size;
+
+    for (int i = 0; i < kNumPacketsPerReadMmsgCall; ++i) {
+      results->packets[i].buffer = packet_data_start + (i * packet_buffer_size);
+    }
+  }
+
+  int nread = InternalReadMultiplePackets(results);
+  if (callback.is_null() || nread != ERR_IO_PENDING) {
+    return nread;
+  }
+
+  if (!base::CurrentIOThread::Get()->WatchFileDescriptor(
+          socket_, true, base::MessagePumpForIO::WATCH_READ,
+          &read_socket_watcher_, &read_watcher_)) {
+    PLOG(ERROR) << "WatchFileDescriptor failed on read";
+    int result = MapSystemError(errno);
+    LogRead(result, nullptr, 0, nullptr);
+    return result;
+  }
+
+  results_ = results;
+  read_buf_len_ = packet_buffer_size;
+  read_callback_ = std::move(callback);
+  return ERR_IO_PENDING;
+}
+#endif
 
 int UDPSocketPosix::Read(IOBuffer* buf,
                          int buf_len,
@@ -639,8 +704,15 @@ int UDPSocketPosix::AllowAddressSharingForMulticast() {
 void UDPSocketPosix::ReadWatcher::OnFileCanReadWithoutBlocking(int) {
   TRACE_EVENT(NetTracingCategory(),
               "UDPSocketPosix::ReadWatcher::OnFileCanReadWithoutBlocking");
-  if (!socket_->read_callback_.is_null())
+  if (!socket_->read_callback_.is_null()) {
+#if BUILDFLAG(IS_COBALT)
+    if(socket_->results_) {
+      socket_->DidCompleteMultiplePacketRead();
+      return;
+    }
+#endif
     socket_->DidCompleteRead();
+  }
 }
 
 void UDPSocketPosix::WriteWatcher::OnFileCanWriteWithoutBlocking(int) {
@@ -678,6 +750,18 @@ void UDPSocketPosix::DidCompleteRead() {
     DoReadCallback(result);
   }
 }
+
+#if BUILDFLAG(IS_COBALT)
+void UDPSocketPosix::DidCompleteMultiplePacketRead() {
+  int result = InternalReadMultiplePackets(results_);
+  if (result != ERR_IO_PENDING) {
+    results_ = nullptr;
+    bool ok = read_socket_watcher_.StopWatchingFileDescriptor();
+    DCHECK(ok);
+    DoReadCallback(result);
+  }
+}
+#endif
 
 void UDPSocketPosix::LogRead(int result,
                              const char* bytes,
@@ -813,6 +897,73 @@ int UDPSocketPosix::InternalRecvFromNonConnectedSocket(IOBuffer* buf,
   LogRead(result, buf->data(), storage.addr_len, storage.addr);
   return result;
 }
+
+#if BUILDFLAG(IS_COBALT)
+int UDPSocketPosix::InternalReadMultiplePackets(
+    Socket::ReadPacketResults* results) {
+  if (!socket_) {
+    results->result = net::ERR_UNEXPECTED;
+    return net::ERR_UNEXPECTED;
+  }
+
+  if (kNumPacketsPerReadMmsgCall == 0) {
+    results->result = 0;
+    return 0;
+  }
+  struct mmsghdr msgs[kNumPacketsPerReadMmsgCall];
+  struct iovec iovs[kNumPacketsPerReadMmsgCall];
+
+  // Initialize the message headers and I/O vectors.
+  for (int i = 0; i < kNumPacketsPerReadMmsgCall; ++i) {
+    iovs[i].iov_base = results->packets[i].buffer;
+    iovs[i].iov_len = results->packet_buffer_size;
+  
+    msgs[i].msg_hdr.msg_iov = &iovs[i];
+    msgs[i].msg_hdr.msg_iovlen = 1;
+    msgs[i].msg_hdr.msg_name = nullptr;
+    msgs[i].msg_hdr.msg_namelen = 0;
+    msgs[i].msg_hdr.msg_control = nullptr;
+    msgs[i].msg_hdr.msg_controllen = 0;
+    msgs[i].msg_hdr.msg_flags = 0;
+  }
+ 
+  int rv = recvmmsg(socket_, msgs, kNumPacketsPerReadMmsgCall,
+                    MSG_DONTWAIT, nullptr);
+
+  if (rv > 0) {
+    results->result = rv;
+    for (int i = 0; i < rv; ++i) {
+      auto& out_packet = results->packets[i];
+      struct mmsghdr* mmsg = &msgs[i];
+      struct msghdr* msg_hdr = &mmsg->msg_hdr;
+
+      out_packet.result = 0;
+      if (mmsg->msg_len == 0) {
+        continue;
+      }
+      if (msg_hdr->msg_flags & MSG_TRUNC) {
+        out_packet.result = -1; // Indicate truncation error.
+        continue;
+      }
+      out_packet.result = mmsg->msg_len;
+    }
+    return results->result;
+  }
+
+  // This block handles errors (when rv is less than or equal to 0).
+  if (errno != EAGAIN && errno != EWOULDBLOCK) {
+    LOG(ERROR) << "recvmmsg failed, errno = " << errno;
+  }
+
+  if (!socket_) {
+    results->result = net::ERR_UNEXPECTED;
+    return net::ERR_UNEXPECTED;
+  }
+
+  results->result = MapSystemError(errno);
+  return results->result;
+}
+#endif
 
 int UDPSocketPosix::InternalSendTo(IOBuffer* buf,
                                    int buf_len,
