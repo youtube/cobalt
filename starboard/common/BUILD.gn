@@ -110,6 +110,8 @@ source_set("common_test") {
     "media_test.cc",
     "memory_test.cc",
     "player_test.cc",
+    "queue_test.cc",
+    "semaphore_test.cc",
     "socket_test.cc",
   ]
   deps = [
