@@ -439,7 +439,7 @@ bool MediaDecoder::ProcessOneInputBuffer(
   bool input_buffer_already_written = false;
   if (pending_input_to_retry_) {
     dequeue_input_result = pending_input_to_retry_->dequeue_input_result;
-    SB_DCHECK(dequeue_input_result.index >= 0);
+    SB_DCHECK_GE(dequeue_input_result.index, 0);
     pending_input = pending_input_to_retry_->pending_input;
     pending_input_to_retry_ = std::nullopt;
     input_buffer_already_written = true;
@@ -497,7 +497,8 @@ bool MediaDecoder::ProcessOneInputBuffer(
       return false;
     }
 
-    SB_DCHECK(size >= 0 && size <= capacity);
+    SB_DCHECK_GE(size, 0);
+    SB_DCHECK_LE(size, capacity);
     void* address = env->GetDirectBufferAddress(byte_buffer.obj());
     memcpy(address, data, size);
   }
@@ -649,7 +650,7 @@ void MediaDecoder::OnMediaCodecOutputBufferAvailable(
     int64_t presentation_time_us,
     int size) {
   SB_DCHECK(media_codec_bridge_);
-  SB_DCHECK(buffer_index >= 0);
+  SB_DCHECK_GE(buffer_index, 0);
 
   // TODO(b/291959069): After |decoder_thread_| is destroyed, it may still
   // receive output buffer, discard this invalid output buffer.

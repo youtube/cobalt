@@ -114,8 +114,8 @@ void ParseMaxResolution(const std::string& max_video_capabilities,
                         int frame_height,
                         std::optional<int>* max_width,
                         std::optional<int>* max_height) {
-  SB_DCHECK(frame_width > 0);
-  SB_DCHECK(frame_height > 0);
+  SB_DCHECK_GT(frame_width, 0);
+  SB_DCHECK_GT(frame_height, 0);
   SB_DCHECK(max_width);
   SB_DCHECK(max_height);
 
@@ -585,7 +585,7 @@ void VideoDecoder::WriteEndOfStream() {
   if (video_codec_ == kSbMediaVideoCodecAv1 && video_fps_ == 0) {
     SB_DCHECK(!media_decoder_);
     SB_DCHECK_EQ(pending_input_buffers_.size(),
-              static_cast<size_t>(input_buffer_written_));
+                 static_cast<size_t>(input_buffer_written_));
 
     std::string error_message;
     if (!InitializeCodec(pending_input_buffers_.front()->video_stream_info(),
@@ -655,9 +655,8 @@ bool VideoDecoder::InitializeCodec(const VideoStreamInfo& video_stream_info,
                                    std::string* error_message) {
   SB_DCHECK(BelongsToCurrentThread());
   SB_DCHECK(error_message);
-
   if (video_stream_info.codec == kSbMediaVideoCodecAv1) {
-    SB_DCHECK(pending_input_buffers_.size() > 0);
+    SB_DCHECK_GT(pending_input_buffers_.size(), 0);
 
     // Guesstimate the video fps.
     if (pending_input_buffers_.size() == 1) {
@@ -683,7 +682,7 @@ bool VideoDecoder::InitializeCodec(const VideoStreamInfo& video_stream_info,
         video_fps_ = 30;
       }
     }
-    SB_DCHECK(video_fps_ > 0);
+    SB_DCHECK_GT(video_fps_, 0);
   }
 
   // Setup the output surface object.  If we are in punch-out mode, target
@@ -730,7 +729,7 @@ bool VideoDecoder::InitializeCodec(const VideoStreamInfo& video_stream_info,
   }
 
   if (video_stream_info.codec == kSbMediaVideoCodecAv1) {
-    SB_DCHECK(video_fps_ > 0);
+    SB_DCHECK_GT(video_fps_, 0);
   } else {
     SB_DCHECK_EQ(video_fps_, 0);
   }
@@ -900,7 +899,7 @@ void VideoDecoder::ProcessOutputBuffer(
     MediaCodecBridge* media_codec_bridge,
     const DequeueOutputResult& dequeue_output_result) {
   SB_DCHECK(decoder_status_cb_);
-  SB_DCHECK(dequeue_output_result.index >= 0);
+  SB_DCHECK_GE(dequeue_output_result.index, 0);
 
   bool is_end_of_stream =
       dequeue_output_result.flags & BUFFER_FLAG_END_OF_STREAM;
@@ -1025,14 +1024,14 @@ SbDecodeTargetInfoContentRegion GetDecodeTargetContentRegionFromMatrix(
   float extent_x = matrix4x4[0] + matrix4x4[12];
   float extent_y = matrix4x4[5] + matrix4x4[13];
 
-  SB_DCHECK(origin_y >= 0.0f);
-  SB_DCHECK(origin_y <= 1.0f);
-  SB_DCHECK(origin_x >= 0.0f);
-  SB_DCHECK(origin_x <= 1.0f);
-  SB_DCHECK(extent_x >= 0.0f);
-  SB_DCHECK(extent_x <= 1.0f);
-  SB_DCHECK(extent_y >= 0.0f);
-  SB_DCHECK(extent_y <= 1.0f);
+  SB_DCHECK_GE(origin_y, 0.0f);
+  SB_DCHECK_LE(origin_y, 1.0f);
+  SB_DCHECK_GE(origin_x, 0.0f);
+  SB_DCHECK_LE(origin_x, 1.0f);
+  SB_DCHECK_GE(extent_x, 0.0f);
+  SB_DCHECK_LE(extent_x, 1.0f);
+  SB_DCHECK_GE(extent_y, 0.0f);
+  SB_DCHECK_LE(extent_y, 1.0f);
 
   // Flip the y-axis to match ContentRegion's coordinate system.
   origin_y = 1.0f - origin_y;
@@ -1236,7 +1235,7 @@ void VideoDecoder::OnTunnelModeCheckForNeedMoreInput() {
 void VideoDecoder::OnVideoFrameRelease() {
   if (output_format_) {
     --buffered_output_frames_;
-    SB_DCHECK(buffered_output_frames_ >= 0);
+    SB_DCHECK_GE(buffered_output_frames_, 0);
   }
 }
 

@@ -156,6 +156,20 @@ class LogMessageVoidify {
 #define SB_CHECK_NE(a, b)                                                 \
   SB_CHECK((a) != (b)) << #a << "(" << (a) << ") should be not-equal to " \
                        << #b << "(" << (b) << ")";
+#define SB_CHECK_GT(a, b)                                                      \
+  SB_CHECK((a) > (b)) << #a << "(" << (a) << ") should be greater than " << #b \
+                      << "(" << (b) << ")";
+#define SB_CHECK_GE(a, b)                                                      \
+  SB_CHECK((a) >= (b)) << #a << "(" << (a)                                     \
+                       << ") should be greater than or equal to " << #b << "(" \
+                       << (b) << ")";
+#define SB_CHECK_LT(a, b)                                                   \
+  SB_CHECK((a) < (b)) << #a << "(" << (a) << ") should be less than " << #b \
+                      << "(" << (b) << ")";
+#define SB_CHECK_LE(a, b)                                                   \
+  SB_CHECK((a) <= (b)) << #a << "(" << (a)                                  \
+                       << ") should be less than or equal to " << #b << "(" \
+                       << (b) << ")";
 
 #if SB_LOGGING_IS_OFFICIAL_BUILD || \
     (defined(NDEBUG) && !defined(COBALT_LOGGING_ENABLED))
@@ -185,10 +199,23 @@ class SbDcheckNoOpStream {
 #define SB_DCHECK_EQ(a, b)                                                    \
   SB_DCHECK((a) == (b)) << #a << "(" << (a) << ") should equal " << #b << "(" \
                         << (b) << ")";
-
 #define SB_DCHECK_NE(a, b)                                                 \
   SB_DCHECK((a) != (b)) << #a << "(" << (a) << ") should be not-equal to " \
                         << #b << "(" << (b) << ")";
+#define SB_DCHECK_GT(a, b)                                                \
+  SB_DCHECK((a) > (b)) << #a << "(" << (a) << ") should be greater than " \
+                       << #b << "(" << (b) << ")";
+#define SB_DCHECK_GE(a, b)                                               \
+  SB_DCHECK((a) >= (b)) << #a << "(" << (a)                              \
+                        << ") should be greater than or equal to " << #b \
+                        << "(" << (b) << ")";
+#define SB_DCHECK_LT(a, b)                                                   \
+  SB_DCHECK((a) < (b)) << #a << "(" << (a) << ") should be less than " << #b \
+                       << "(" << (b) << ")";
+#define SB_DCHECK_LE(a, b)                                                   \
+  SB_DCHECK((a) <= (b)) << #a << "(" << (a)                                  \
+                        << ") should be less than or equal to " << #b << "(" \
+                        << (b) << ")";
 
 #define SB_DLOG(severity) SB_DLOG_IF(severity, SB_DLOG_IS_ON(severity))
 #define SB_DSTACK(severity) SB_STACK_IF(severity, SB_DLOG_IS_ON(severity))
