@@ -230,7 +230,7 @@ void StarboardRenderer::SetCdm(CdmContext* cdm_context,
   DCHECK(cdm_context);
   TRACE_EVENT0("media", "StarboardRenderer::SetCdm");
 
-  if (SbDrmSystemIsValid(drm_system_)) {
+  if (cdm_context_ || SbDrmSystemIsValid(drm_system_)) {
     LOG(WARNING) << "Switching CDM not supported.";
     std::move(cdm_attached_cb).Run(false);
     return;
