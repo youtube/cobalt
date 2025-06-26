@@ -278,11 +278,15 @@ void AudioRendererPcm::Seek(int64_t seek_to_time) {
 int64_t AudioRendererPcm::GetCurrentMediaTime(bool* is_playing,
                                               bool* is_eos_played,
                                               bool* is_underflow,
-                                              double* playback_rate) {
+                                              double* playback_rate,
+                                              bool* has_renderer,
+                                              bool* is_audio_playing) {
   SB_DCHECK(is_playing);
   SB_DCHECK(is_eos_played);
   SB_DCHECK(is_underflow);
   SB_DCHECK(playback_rate);
+  SB_DCHECK(has_renderer);
+  SB_DCHECK(is_audio_playing);
 
   int64_t media_time = 0;
   int64_t now = -1;
@@ -296,6 +300,8 @@ int64_t AudioRendererPcm::GetCurrentMediaTime(bool* is_playing,
     *is_playing = !paused_ && !seeking_;
     *is_eos_played = IsEndOfStreamPlayed_Locked();
     *is_underflow = underflow_;
+    *has_renderer = true;
+    *is_audio_playing = is_playing_on_sink_thread_;
 
     if (seeking_ || !decoder_sample_rate_) {
       *playback_rate = playback_rate_;

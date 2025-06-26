@@ -20,6 +20,7 @@
 #include <utility>
 #include <vector>
 
+#include "starboard/common/player.h"
 #include "starboard/decode_target.h"
 #include "starboard/extension/enhanced_audio.h"
 #include "starboard/media.h"
@@ -70,6 +71,7 @@ class SbPlayerPrivateImpl final : public SbPlayerPrivate {
       SbPlayerDecoderStatusFunc decoder_status_func,
       SbPlayerStatusFunc player_status_func,
       SbPlayerErrorFunc player_error_func,
+      SbPlayerRenderStatusFunc player_render_status_func,
       void* context,
       std::unique_ptr<PlayerWorker::Handler> player_worker_handler);
 
@@ -98,15 +100,23 @@ class SbPlayerPrivateImpl final : public SbPlayerPrivate {
       SbPlayerDecoderStatusFunc decoder_status_func,
       SbPlayerStatusFunc player_status_func,
       SbPlayerErrorFunc player_error_func,
+      SbPlayerRenderStatusFunc player_render_status_func,
       void* context,
       std::unique_ptr<PlayerWorker::Handler> player_worker_handler);
 
   void UpdateMediaInfo(int64_t media_time,
                        int dropped_video_frames,
                        int ticket,
-                       bool is_progressing);
+                       bool is_progressing,
+                       bool is_audio_playing,
+                       bool has_video_renderer,
+                       int number_of_frames,
+                       bool is_video_eos_received,
+                       bool has_enough_video_data,
+                       bool has_audio_renderer);
 
   SbPlayerDeallocateSampleFunc sample_deallocate_func_;
+  SbPlayerRenderStatusFunc player_render_status_func_;
   void* context_;
 
   std::mutex mutex_;

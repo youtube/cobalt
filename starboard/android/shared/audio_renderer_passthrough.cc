@@ -298,17 +298,23 @@ void AudioRendererPassthrough::Seek(int64_t seek_to_time) {
 int64_t AudioRendererPassthrough::GetCurrentMediaTime(bool* is_playing,
                                                       bool* is_eos_played,
                                                       bool* is_underflow,
-                                                      double* playback_rate) {
+                                                      double* playback_rate,
+                                                      bool* has_renderer,
+                                                      bool* is_audio_playing) {
   SB_DCHECK(is_playing);
   SB_DCHECK(is_eos_played);
   SB_DCHECK(is_underflow);
   SB_DCHECK(playback_rate);
+  SB_DCHECK(has_renderer);
+  SB_DCHECK(is_audio_playing);
 
   std::lock_guard scoped_lock(mutex_);
   *is_playing = !paused_;
   *is_eos_played = end_of_stream_played_.load();
   *is_underflow = false;  // TODO: Support underflow
   *playback_rate = playback_rate_;
+  *has_renderer = false;
+  *is_audio_playing = false;
 
   if (!audio_track_bridge_) {
     return seek_to_time_;
