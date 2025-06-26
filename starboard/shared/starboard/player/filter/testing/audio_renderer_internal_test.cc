@@ -289,8 +289,11 @@ TEST_F(AudioRendererTest, StateAfterConstructed) {
   bool is_eos_played = true;
   bool is_underflow = true;
   double playback_rate = -1.0;
-  EXPECT_EQ(audio_renderer_->GetCurrentMediaTime(&is_playing, &is_eos_played,
-                                                 &is_underflow, &playback_rate),
+  bool has_renderer = false;
+  bool is_audio_playing = false;
+  EXPECT_EQ(audio_renderer_->GetCurrentMediaTime(
+                &is_playing, &is_eos_played, &is_underflow, &playback_rate,
+                &has_renderer, &is_audio_playing),
             0);
   EXPECT_FALSE(is_playing);
   EXPECT_FALSE(is_eos_played);
@@ -320,8 +323,11 @@ TEST_F(AudioRendererTest, SunnyDay) {
   bool is_eos_played = true;
   bool is_underflow = true;
   double playback_rate = -1.0;
-  EXPECT_EQ(audio_renderer_->GetCurrentMediaTime(&is_playing, &is_eos_played,
-                                                 &is_underflow, &playback_rate),
+  bool has_renderer = false;
+  bool is_audio_playing = false;
+  EXPECT_EQ(audio_renderer_->GetCurrentMediaTime(
+                &is_playing, &is_eos_played, &is_underflow, &playback_rate,
+                &has_renderer, &is_audio_playing),
             0);
   EXPECT_FALSE(is_playing);
   EXPECT_FALSE(is_eos_played);
@@ -333,7 +339,8 @@ TEST_F(AudioRendererTest, SunnyDay) {
   SendDecoderOutput(new DecodedAudio);
 
   int64_t media_time = audio_renderer_->GetCurrentMediaTime(
-      &is_playing, &is_eos_played, &is_underflow, &playback_rate);
+      &is_playing, &is_eos_played, &is_underflow, &playback_rate, &has_renderer,
+      &is_audio_playing);
   EXPECT_TRUE(is_playing);
   EXPECT_FALSE(is_eos_played);
   EXPECT_EQ(playback_rate, 1.0);
@@ -357,7 +364,8 @@ TEST_F(AudioRendererTest, SunnyDay) {
 
   renderer_callback_->ConsumeFrames(frames_to_consume, CurrentMonotonicTime());
   new_media_time = audio_renderer_->GetCurrentMediaTime(
-      &is_playing, &is_eos_played, &is_underflow, &playback_rate);
+      &is_playing, &is_eos_played, &is_underflow, &playback_rate, &has_renderer,
+      &is_audio_playing);
   EXPECT_TRUE(is_playing);
   EXPECT_FALSE(is_eos_played);
   EXPECT_EQ(playback_rate, 1.0);
@@ -367,7 +375,8 @@ TEST_F(AudioRendererTest, SunnyDay) {
   const int remaining_frames = frames_in_buffer - frames_to_consume;
   renderer_callback_->ConsumeFrames(remaining_frames, CurrentMonotonicTime());
   new_media_time = audio_renderer_->GetCurrentMediaTime(
-      &is_playing, &is_eos_played, &is_underflow, &playback_rate);
+      &is_playing, &is_eos_played, &is_underflow, &playback_rate, &has_renderer,
+      &is_audio_playing);
   EXPECT_TRUE(is_playing);
   EXPECT_TRUE(is_eos_played);
   EXPECT_EQ(playback_rate, 1.0);
@@ -409,9 +418,12 @@ TEST_F(AudioRendererTest, SunnyDayWithDoublePlaybackRateAndInt16Samples) {
   bool is_eos_played = true;
   bool is_underflow = true;
   double playback_rate = -1.0;
+  bool has_renderer = false;
+  bool is_audio_playing = false;
 
-  EXPECT_EQ(audio_renderer_->GetCurrentMediaTime(&is_playing, &is_eos_played,
-                                                 &is_underflow, &playback_rate),
+  EXPECT_EQ(audio_renderer_->GetCurrentMediaTime(
+                &is_playing, &is_eos_played, &is_underflow, &playback_rate,
+                &has_renderer, &is_audio_playing),
             0);
   EXPECT_FALSE(is_playing);
   EXPECT_FALSE(is_eos_played);
@@ -423,7 +435,8 @@ TEST_F(AudioRendererTest, SunnyDayWithDoublePlaybackRateAndInt16Samples) {
   SendDecoderOutput(new DecodedAudio);
 
   int64_t media_time = audio_renderer_->GetCurrentMediaTime(
-      &is_playing, &is_eos_played, &is_underflow, &playback_rate);
+      &is_playing, &is_eos_played, &is_underflow, &playback_rate, &has_renderer,
+      &is_audio_playing);
 
   int frames_in_buffer;
   int offset_in_frames;
@@ -446,14 +459,16 @@ TEST_F(AudioRendererTest, SunnyDayWithDoublePlaybackRateAndInt16Samples) {
 
   renderer_callback_->ConsumeFrames(frames_to_consume, CurrentMonotonicTime());
   new_media_time = audio_renderer_->GetCurrentMediaTime(
-      &is_playing, &is_eos_played, &is_underflow, &playback_rate);
+      &is_playing, &is_eos_played, &is_underflow, &playback_rate, &has_renderer,
+      &is_audio_playing);
   EXPECT_GT(new_media_time, media_time);
   media_time = new_media_time;
 
   const int remaining_frames = frames_in_buffer - frames_to_consume;
   renderer_callback_->ConsumeFrames(remaining_frames, CurrentMonotonicTime());
   new_media_time = audio_renderer_->GetCurrentMediaTime(
-      &is_playing, &is_eos_played, &is_underflow, &playback_rate);
+      &is_playing, &is_eos_played, &is_underflow, &playback_rate, &has_renderer,
+      &is_audio_playing);
   EXPECT_GT(new_media_time, media_time);
 
   EXPECT_TRUE(audio_renderer_->IsEndOfStreamPlayed());
@@ -486,8 +501,11 @@ TEST_F(AudioRendererTest, StartPlayBeforePreroll) {
   bool is_eos_played = true;
   bool is_underflow = true;
   double playback_rate = -1.0;
+  bool has_renderer = false;
+  bool is_audio_playing = false;
   int64_t media_time = audio_renderer_->GetCurrentMediaTime(
-      &is_playing, &is_eos_played, &is_underflow, &playback_rate);
+      &is_playing, &is_eos_played, &is_underflow, &playback_rate, &has_renderer,
+      &is_audio_playing);
 
   int frames_in_buffer;
   int offset_in_frames;
@@ -508,7 +526,8 @@ TEST_F(AudioRendererTest, StartPlayBeforePreroll) {
 
   renderer_callback_->ConsumeFrames(frames_to_consume, CurrentMonotonicTime());
   new_media_time = audio_renderer_->GetCurrentMediaTime(
-      &is_playing, &is_eos_played, &is_underflow, &playback_rate);
+      &is_playing, &is_eos_played, &is_underflow, &playback_rate, &has_renderer,
+      &is_audio_playing);
   EXPECT_TRUE(is_playing);
   EXPECT_FALSE(is_eos_played);
   EXPECT_EQ(playback_rate, 1.0);
@@ -518,7 +537,8 @@ TEST_F(AudioRendererTest, StartPlayBeforePreroll) {
   const int remaining_frames = frames_in_buffer - frames_to_consume;
   renderer_callback_->ConsumeFrames(remaining_frames, CurrentMonotonicTime());
   new_media_time = audio_renderer_->GetCurrentMediaTime(
-      &is_playing, &is_eos_played, &is_underflow, &playback_rate);
+      &is_playing, &is_eos_played, &is_underflow, &playback_rate, &has_renderer,
+      &is_audio_playing);
   EXPECT_TRUE(is_playing);
   EXPECT_TRUE(is_eos_played);
   EXPECT_EQ(playback_rate, 1.0);
@@ -562,8 +582,11 @@ TEST_F(AudioRendererTest, DecoderReturnsEOSWithoutAnyData) {
   bool is_eos_played = false;
   bool is_underflow = true;
   double playback_rate = -1.0;
-  EXPECT_EQ(audio_renderer_->GetCurrentMediaTime(&is_playing, &is_eos_played,
-                                                 &is_underflow, &playback_rate),
+  bool has_renderer = false;
+  bool is_audio_playing = false;
+  EXPECT_EQ(audio_renderer_->GetCurrentMediaTime(
+                &is_playing, &is_eos_played, &is_underflow, &playback_rate,
+                &has_renderer, &is_audio_playing),
             0);
   EXPECT_FALSE(is_playing);
   EXPECT_TRUE(is_eos_played);
@@ -613,8 +636,11 @@ TEST_F(AudioRendererTest, DecoderConsumeAllInputBeforeReturningData) {
   bool is_eos_played = false;
   bool is_underflow = true;
   double playback_rate = -1.0;
-  EXPECT_EQ(audio_renderer_->GetCurrentMediaTime(&is_playing, &is_eos_played,
-                                                 &is_underflow, &playback_rate),
+  bool has_renderer = false;
+  bool is_audio_playing = false;
+  EXPECT_EQ(audio_renderer_->GetCurrentMediaTime(
+                &is_playing, &is_eos_played, &is_underflow, &playback_rate,
+                &has_renderer, &is_audio_playing),
             0);
   EXPECT_FALSE(is_playing);
   EXPECT_TRUE(is_eos_played);
@@ -659,8 +685,11 @@ TEST_F(AudioRendererTest, MoreNumberOfOutputBuffersThanInputBuffers) {
   bool is_eos_played = true;
   bool is_underflow = true;
   double playback_rate = -1.0;
-  EXPECT_EQ(audio_renderer_->GetCurrentMediaTime(&is_playing, &is_eos_played,
-                                                 &is_underflow, &playback_rate),
+  bool has_renderer = false;
+  bool is_audio_playing = false;
+  EXPECT_EQ(audio_renderer_->GetCurrentMediaTime(
+                &is_playing, &is_eos_played, &is_underflow, &playback_rate,
+                &has_renderer, &is_audio_playing),
             0);
   EXPECT_FALSE(is_playing);
   EXPECT_FALSE(is_eos_played);
@@ -672,7 +701,8 @@ TEST_F(AudioRendererTest, MoreNumberOfOutputBuffersThanInputBuffers) {
   SendDecoderOutput(new DecodedAudio);
 
   int64_t media_time = audio_renderer_->GetCurrentMediaTime(
-      &is_playing, &is_eos_played, &is_underflow, &playback_rate);
+      &is_playing, &is_eos_played, &is_underflow, &playback_rate, &has_renderer,
+      &is_audio_playing);
 
   int frames_in_buffer;
   int offset_in_frames;
@@ -694,7 +724,8 @@ TEST_F(AudioRendererTest, MoreNumberOfOutputBuffersThanInputBuffers) {
 
   renderer_callback_->ConsumeFrames(frames_to_consume, CurrentMonotonicTime());
   new_media_time = audio_renderer_->GetCurrentMediaTime(
-      &is_playing, &is_eos_played, &is_underflow, &playback_rate);
+      &is_playing, &is_eos_played, &is_underflow, &playback_rate, &has_renderer,
+      &is_audio_playing);
   EXPECT_TRUE(is_playing);
   EXPECT_FALSE(is_eos_played);
   EXPECT_EQ(playback_rate, 1.0);
@@ -704,7 +735,8 @@ TEST_F(AudioRendererTest, MoreNumberOfOutputBuffersThanInputBuffers) {
   const int remaining_frames = frames_in_buffer - frames_to_consume;
   renderer_callback_->ConsumeFrames(remaining_frames, CurrentMonotonicTime());
   new_media_time = audio_renderer_->GetCurrentMediaTime(
-      &is_playing, &is_eos_played, &is_underflow, &playback_rate);
+      &is_playing, &is_eos_played, &is_underflow, &playback_rate, &has_renderer,
+      &is_audio_playing);
   EXPECT_TRUE(is_playing);
   EXPECT_TRUE(is_eos_played);
   EXPECT_EQ(playback_rate, 1.0);
@@ -758,8 +790,11 @@ TEST_F(AudioRendererTest, LessNumberOfOutputBuffersThanInputBuffers) {
   bool is_eos_played;
   bool is_underflow;
   double playback_rate = -1.0;
-  EXPECT_EQ(audio_renderer_->GetCurrentMediaTime(&is_playing, &is_eos_played,
-                                                 &is_underflow, &playback_rate),
+  bool has_renderer = false;
+  bool is_audio_playing = false;
+  EXPECT_EQ(audio_renderer_->GetCurrentMediaTime(
+                &is_playing, &is_eos_played, &is_underflow, &playback_rate,
+                &has_renderer, &is_audio_playing),
             0);
   EXPECT_TRUE(prerolled_);
 
@@ -768,7 +803,8 @@ TEST_F(AudioRendererTest, LessNumberOfOutputBuffersThanInputBuffers) {
   SendDecoderOutput(new DecodedAudio);
 
   int64_t media_time = audio_renderer_->GetCurrentMediaTime(
-      &is_playing, &is_eos_played, &is_underflow, &playback_rate);
+      &is_playing, &is_eos_played, &is_underflow, &playback_rate, &has_renderer,
+      &is_audio_playing);
 
   int frames_in_buffer;
   int offset_in_frames;
@@ -789,14 +825,16 @@ TEST_F(AudioRendererTest, LessNumberOfOutputBuffersThanInputBuffers) {
 
   renderer_callback_->ConsumeFrames(frames_to_consume, CurrentMonotonicTime());
   new_media_time = audio_renderer_->GetCurrentMediaTime(
-      &is_playing, &is_eos_played, &is_underflow, &playback_rate);
+      &is_playing, &is_eos_played, &is_underflow, &playback_rate, &has_renderer,
+      &is_audio_playing);
   EXPECT_GE(new_media_time, media_time);
   media_time = new_media_time;
 
   const int remaining_frames = frames_in_buffer - frames_to_consume;
   renderer_callback_->ConsumeFrames(remaining_frames, CurrentMonotonicTime());
   new_media_time = audio_renderer_->GetCurrentMediaTime(
-      &is_playing, &is_eos_played, &is_underflow, &playback_rate);
+      &is_playing, &is_eos_played, &is_underflow, &playback_rate, &has_renderer,
+      &is_audio_playing);
   EXPECT_GE(new_media_time, media_time);
 
   EXPECT_TRUE(audio_renderer_->IsEndOfStreamPlayed());
@@ -833,8 +871,11 @@ TEST_F(AudioRendererTest, Seek) {
   bool is_eos_played;
   bool is_underflow;
   double playback_rate = -1.0;
-  EXPECT_EQ(audio_renderer_->GetCurrentMediaTime(&is_playing, &is_eos_played,
-                                                 &is_underflow, &playback_rate),
+  bool has_renderer = false;
+  bool is_audio_playing = false;
+  EXPECT_EQ(audio_renderer_->GetCurrentMediaTime(
+                &is_playing, &is_eos_played, &is_underflow, &playback_rate,
+                &has_renderer, &is_audio_playing),
             0);
   EXPECT_TRUE(prerolled_);
 
@@ -843,7 +884,8 @@ TEST_F(AudioRendererTest, Seek) {
   SendDecoderOutput(new DecodedAudio);
 
   int64_t media_time = audio_renderer_->GetCurrentMediaTime(
-      &is_playing, &is_eos_played, &is_underflow, &playback_rate);
+      &is_playing, &is_eos_played, &is_underflow, &playback_rate, &has_renderer,
+      &is_audio_playing);
 
   int frames_in_buffer;
   int offset_in_frames;
@@ -864,14 +906,16 @@ TEST_F(AudioRendererTest, Seek) {
 
   renderer_callback_->ConsumeFrames(frames_to_consume, CurrentMonotonicTime());
   new_media_time = audio_renderer_->GetCurrentMediaTime(
-      &is_playing, &is_eos_played, &is_underflow, &playback_rate);
+      &is_playing, &is_eos_played, &is_underflow, &playback_rate, &has_renderer,
+      &is_audio_playing);
   EXPECT_GE(new_media_time, media_time);
   Seek(kSeekTime);
 
   frames_written += FillRendererWithDecodedAudioAndWriteEOS(kSeekTime);
 
-  EXPECT_GE(audio_renderer_->GetCurrentMediaTime(&is_playing, &is_eos_played,
-                                                 &is_underflow, &playback_rate),
+  EXPECT_GE(audio_renderer_->GetCurrentMediaTime(
+                &is_playing, &is_eos_played, &is_underflow, &playback_rate,
+                &has_renderer, &is_audio_playing),
             kSeekTime);
   EXPECT_TRUE(prerolled_);
 
@@ -886,7 +930,8 @@ TEST_F(AudioRendererTest, Seek) {
   EXPECT_TRUE(is_eos_reached);
   renderer_callback_->ConsumeFrames(frames_in_buffer, CurrentMonotonicTime());
   new_media_time = audio_renderer_->GetCurrentMediaTime(
-      &is_playing, &is_eos_played, &is_underflow, &playback_rate);
+      &is_playing, &is_eos_played, &is_underflow, &playback_rate, &has_renderer,
+      &is_audio_playing);
   EXPECT_GE(new_media_time, kSeekTime);
 
   EXPECT_TRUE(audio_renderer_->IsEndOfStreamPlayed());
