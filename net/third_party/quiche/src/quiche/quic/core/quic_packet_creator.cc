@@ -1595,10 +1595,12 @@ void QuicPacketCreator::Flush() {
           << ENDPOINT << "write_start_packet_number is not initialized";
       return;
     }
+#if !BUILDFLAG(IS_COBALT)
     QUIC_SERVER_HISTOGRAM_COUNTS(
         "quic_server_num_written_packets_per_write",
         NextSendingPacketNumber() - write_start_packet_number_, 1, 200, 50,
         "Number of QUIC packets written per write operation");
+#endif
   }
   write_start_packet_number_.Clear();
 }
