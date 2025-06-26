@@ -11,6 +11,9 @@
 #include <string>
 
 #include "net/base/completion_once_callback.h"
+#if BUILDFLAG(IS_COBALT)
+#include "net/base/io_buffer.h"
+#endif
 #include "net/base/net_export.h"
 #include "net/traffic_annotation/network_traffic_annotation.h"
 
@@ -38,6 +41,31 @@ class NET_EXPORT Socket {
   virtual int Read(IOBuffer* buf,
                    int buf_len,
                    CompletionOnceCallback callback) = 0;
+
+#if BUILDFLAG(IS_COBALT)
+  struct ReadPacketResult {
+    raw_ptr<char> buffer;
+    int result;
+  };
+  struct ReadPacketResults {
+    ReadPacketResults();
+    ~ReadPacketResults();
+
+    void clear() {
+      buffer = nullptr;
+      result = 0;
+      packet_buffer_size = 0;
+      packets = nullptr;
+    }
+    scoped_refptr<IOBufferWithSize> buffer;
+    int result = 0;
+    int packet_buffer_size = 0;
+    raw_ptr<ReadPacketResult> packets = nullptr;
+  };
+  virtual int ReadMultiplePackets(ReadPacketResults* results,
+                                  int read_buffer_size,
+                                  CompletionOnceCallback callback);
+#endif
 
   // Reads data, up to |buf_len| bytes, into |buf| without blocking. Default
   // implementation returns ERR_READ_IF_READY_NOT_IMPLEMENTED. Caller should
