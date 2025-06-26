@@ -55,6 +55,7 @@ static_library("c_internal") {
     "-isystem" + rebase_path("arch/$musl_arch", root_build_dir),
     "-isystem" + rebase_path("arch/generic", root_build_dir),
     "-w",
+
     # shgetc.c call to undeclared function '__uflow'
     "-Wno-implicit-function-declaration",
   ]
@@ -196,7 +197,6 @@ static_library("c_internal") {
     "src/math/erff.c",
     "src/math/erfl.c",
     "src/math/exp.c",
-    "src/math/exp_data.c",
     "src/math/exp10.c",
     "src/math/exp10f.c",
     "src/math/exp10l.c",
@@ -204,6 +204,7 @@ static_library("c_internal") {
     "src/math/exp2f.c",
     "src/math/exp2f_data.c",
     "src/math/exp2l.c",
+    "src/math/exp_data.c",
     "src/math/expf.c",
     "src/math/expl.c",
     "src/math/expm1.c",
@@ -262,7 +263,6 @@ static_library("c_internal") {
     "src/math/llroundf.c",
     "src/math/llroundl.c",
     "src/math/log.c",
-    "src/math/log_data.c",
     "src/math/log10.c",
     "src/math/log10f.c",
     "src/math/log10l.c",
@@ -274,6 +274,7 @@ static_library("c_internal") {
     "src/math/log2f.c",
     "src/math/log2f_data.c",
     "src/math/log2l.c",
+    "src/math/log_data.c",
     "src/math/logb.c",
     "src/math/logbf.c",
     "src/math/logbl.c",
@@ -366,10 +367,10 @@ static_library("c_internal") {
     "src/multibyte/wcsrtombs.c",
     "src/multibyte/wcstombs.c",
     "src/multibyte/wctob.c",
-    "src/network/inet_ntop.c",
-    "src/network/inet_pton.c",
     "src/network/htonl.c",
     "src/network/htons.c",
+    "src/network/inet_ntop.c",
+    "src/network/inet_pton.c",
     "src/network/ntohl.c",
     "src/network/ntohs.c",
     "src/network/res_init.c",
@@ -386,9 +387,9 @@ static_library("c_internal") {
     "src/stdio/__toread.c",
     "src/stdio/__uflow.c",
     "src/stdio/snprintf.c",
+    "src/stdio/sprintf.c",
     "src/stdio/sscanf.c",
     "src/stdio/swprintf.c",
-    "src/stdio/sprintf.c",
     "src/stdio/vasprintf.c",
     "src/stdio/vsprintf.c",
     "src/stdlib/abs.c",
@@ -513,9 +514,9 @@ static_library("c_internal") {
   }
 
   deps = [
-    "//starboard:starboard_headers_only",
     "//cobalt/common/eztime",
     "//cobalt/common/libc",
+    "//starboard:starboard_headers_only",
     "//starboard/common:common_headers_only",
   ]
 }
