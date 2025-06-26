@@ -28,7 +28,7 @@ void* AlsaOpenPlaybackDevice(int channel,
                              int frames_per_request,
                              int buffer_size_in_frames,
                              snd_pcm_format_t sample_type);
-bool AlsaStartPlay(void* playback_handle);
+
 int AlsaWriteFrames(void* playback_handle,
                     const void* buffer,
                     int frames_to_write);
