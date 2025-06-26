@@ -20,6 +20,7 @@
 #include <utility>
 #include <vector>
 
+#include "starboard/common/player.h"
 #include "starboard/decode_target.h"
 #include "starboard/extension/enhanced_audio.h"
 #include "starboard/media.h"
@@ -73,6 +74,7 @@ class SbPlayerPrivateImpl final : public SbPlayerPrivate {
       SbPlayerDecoderStatusFunc decoder_status_func,
       SbPlayerStatusFunc player_status_func,
       SbPlayerErrorFunc player_error_func,
+      SbPlayerRenderStatusFunc player_render_status_func,
       void* context,
       std::unique_ptr<PlayerWorker::Handler> player_worker_handler);
 
@@ -101,6 +103,7 @@ class SbPlayerPrivateImpl final : public SbPlayerPrivate {
       SbPlayerDecoderStatusFunc decoder_status_func,
       SbPlayerStatusFunc player_status_func,
       SbPlayerErrorFunc player_error_func,
+      SbPlayerRenderStatusFunc player_render_status_func,
       void* context,
       std::unique_ptr<PlayerWorker::Handler> player_worker_handler);
 

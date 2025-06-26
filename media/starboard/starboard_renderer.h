@@ -136,6 +136,7 @@ class MEDIA_EXPORT StarboardRenderer : public Renderer,
                   int max_number_of_buffers_to_write) override;
   void OnPlayerStatus(SbPlayerState state) override;
   void OnPlayerError(SbPlayerError error, const std::string& message) override;
+  void OnRenderStatus(SbMediaType type, int number_of_frames) override;
 
   // Used to make a delayed call to OnNeedData() if |audio_read_delayed_| is
   // true. If |audio_read_delayed_| is false, that means the delayed call has

@@ -71,12 +71,13 @@ PlayerWorker* PlayerWorker::CreateInstance(
     SbPlayerDecoderStatusFunc decoder_status_func,
     SbPlayerStatusFunc player_status_func,
     SbPlayerErrorFunc player_error_func,
+    SbPlayerRenderStatusFunc player_render_status_func,
     SbPlayer player,
     void* context) {
-  PlayerWorker* ret =
-      new PlayerWorker(audio_codec, video_codec, std::move(handler),
-                       update_media_info_cb, decoder_status_func,
-                       player_status_func, player_error_func, player, context);
+  PlayerWorker* ret = new PlayerWorker(
+      audio_codec, video_codec, std::move(handler), update_media_info_cb,
+      decoder_status_func, player_status_func, player_error_func,
+      player_render_status_func, player, context);
 
   if (ret && ret->thread_ != 0) {
     return ret;
@@ -106,6 +107,7 @@ PlayerWorker::PlayerWorker(SbMediaAudioCodec audio_codec,
                            SbPlayerDecoderStatusFunc decoder_status_func,
                            SbPlayerStatusFunc player_status_func,
                            SbPlayerErrorFunc player_error_func,
+                           SbPlayerRenderStatusFunc player_render_status_func,
                            SbPlayer player,
                            void* context)
     : thread_(0),
@@ -116,6 +118,7 @@ PlayerWorker::PlayerWorker(SbMediaAudioCodec audio_codec,
       decoder_status_func_(decoder_status_func),
       player_status_func_(player_status_func),
       player_error_func_(player_error_func),
+      player_render_status_func_(player_render_status_func),
       player_(player),
       context_(context),
       ticket_(SB_PLAYER_INITIAL_TICKET),
@@ -188,6 +191,14 @@ void PlayerWorker::UpdatePlayerError(SbPlayerError error,
   player_error_func_(player_, context_, error, complete_error_message.c_str());
 }
 
+void PlayerWorker::UpdatePlayerRenderStatus(SbMediaType type,
+                                            int number_of_frames) {
+  if (!player_render_status_func_) {
+    return;
+  }
+  player_render_status_func_(player_, context_, type, number_of_frames);
+}
+
 // static
 void* PlayerWorker::ThreadEntryPoint(void* context) {
   pthread_setname_np(pthread_self(), "player_worker");
@@ -222,7 +233,8 @@ void PlayerWorker::DoInit() {
       player_, std::bind(&PlayerWorker::UpdateMediaInfo, this, _1, _2, _3),
       std::bind(&PlayerWorker::player_state, this),
       std::bind(&PlayerWorker::UpdatePlayerState, this, _1),
-      update_player_error_cb);
+      update_player_error_cb,
+      std::bind(&PlayerWorker::UpdatePlayerRenderStatus, this, _1, _2));
   if (result.success) {
     UpdatePlayerState(kSbPlayerStateInitialized);
   } else {
