@@ -72,7 +72,20 @@ class NET_EXPORT_PRIVATE QuicChromiumPacketReader {
   // Return true if reading should continue.
   bool ProcessReadResult(int result);
 
+<<<<<<< HEAD
   std::unique_ptr<DatagramClientSocket> socket_;
+=======
+#if BUILDFLAG(IS_COBALT)
+  // Version of StartReading that reads multiple packets per read call.
+  int StartReadingMultiplePackets();
+  // A completion callback invoked when a multiple packet read completes.
+  void OnReadMultiplePacketComplete(int result);
+  // Return true if reading should continue.
+  bool ProcessMultiplePacketReadResult(int result);
+#endif
+
+  raw_ptr<DatagramClientSocket, DanglingUntriaged> socket_;
+>>>>>>> 73f2cb5895a (net/quic/ + net/socket/: Read multiple packets per call for QUIC connections (#6109))
 
   raw_ptr<Visitor> visitor_;
   bool read_pending_ = false;
@@ -87,6 +100,16 @@ class NET_EXPORT_PRIVATE QuicChromiumPacketReader {
   // the feature list for every packet.
   bool report_ecn_;
 
+#if BUILDFLAG(IS_COBALT)
+  // Static flag to remember when ReadMultiplePackets has ever returned
+  // ERR_NOT_IMPLEMENTED
+  static bool try_reading_multiple_packets_;
+
+  // Results from ReadMultiplePackets.
+  Socket::ReadPacketResults read_results_;
+#endif
+
+  // Note: This has to remain the last member of the class.
   base::WeakPtrFactory<QuicChromiumPacketReader> weak_factory_{this};
 };
 
