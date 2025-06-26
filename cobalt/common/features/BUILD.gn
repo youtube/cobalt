@@ -14,10 +14,10 @@
 
 static_library("features") {
   sources = [
-    "feature_list.cc",
-    "feature_list.h",
     "features.cc",
     "features.h",
+    "push_starboard_features.cc",
+    "push_starboard_features.h",
   ]
 
   deps = [

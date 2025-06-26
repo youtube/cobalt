@@ -21,4 +21,4 @@ const void* GetFeaturesApi();
 
 }  // namespace starboard::common
 
-#endif  // TARBOARD_SHARED_STARBOARD_FEATURES_EXTENSION_H_
+#endif  // STARBOARD_SHARED_STARBOARD_FEATURES_EXTENSION_H_

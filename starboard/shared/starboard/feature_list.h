@@ -19,6 +19,7 @@
 #include <string>
 #include <type_traits>
 #include <unordered_map>
+#include <utility>
 #include <variant>
 
 #include "starboard/common/mutex.h"
@@ -30,9 +31,12 @@ template <typename T>
 struct SbFeatureParamExt;
 
 class FeatureList {
+  typedef std::pair<
+      SbFeatureParamType,
+      std::variant<bool, std::string, int, double, size_t, int64_t>>
+      ParamTypeAndValue;
+
  public:
-  // ...
-  static FeatureList* GetInstance();
   // ...
   static void InitializeFeatureList(const SbFeature* features,
                                     size_t number_of_features,
@@ -51,15 +55,24 @@ class FeatureList {
   FeatureList() {}
   ~FeatureList();
 
+  static FeatureList* GetInstance();
+
+  // This helper function will check for the following:
+  //
+  // 1) The FeatureList Instance is initialized.
+  // 2) The feature that owns the param has been declared.
+  // 3) The param object itself has been declared in starboard.
+  bool checkFeatureAndParamExistence(const std::string& feature_name,
+                                     const std::string& param_name);
+
+  bool IsInitialized() { return GetInstance()->IS_INITIALIZED_; }
+
   Mutex mutex_;
   std::unordered_map<std::string, bool> features_;
-  std::unordered_map<
-      std::string,
-      std::unordered_map<
-          std::string,
-          std::variant<bool, std::string, int, double, size_t, int64_t>>>
+  std::unordered_map<std::string,
+                     std::unordered_map<std::string, ParamTypeAndValue>>
       params_;
-  bool IS_INITIALIZED_ = 0;
+  bool IS_INITIALIZED_ = false;
 };
 
 // SbFeatureParamExt is a bridge structure used in starboard to support
@@ -92,7 +105,7 @@ int64_t FeatureList::GetParam(const SbFeatureParamExt<int64_t>& param);
 template <>
 double FeatureList::GetParam(const SbFeatureParamExt<double>& param);
 
-#define SB_DECLARE_FEATURE(kFeature) extern const SbFeature kFeature
+#define SB_DECLARE_FEATURE(kFeature) extern const SbFeature kFeature;
 
 // Features should *not* be defined in header files; do not use this macro in
 // header files.
@@ -100,12 +113,12 @@ double FeatureList::GetParam(const SbFeatureParamExt<double>& param);
   constexpr SbFeature feature = {name, default_state};
 
 #define SB_DECLARE_FEATURE_PARAM(T, kFeatureParam) \
-  extern const SbFeatureParamExt<T> kFeatureParam
+  extern const SbFeatureParamExt<T> kFeatureParam;
 
 // Params should *not* be defined in header files; do not use this macro in
 // header files.
 #define SB_FEATURE_PARAM(T, param_object_name, feature, name, default_value) \
-  constexpr SbFeatureParamExt<T> param_object_name(feature, name)
+  constexpr SbFeatureParamExt<T> param_object_name(feature, name);
 
 }  // namespace starboard::features
 
