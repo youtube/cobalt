@@ -44,7 +44,7 @@ TEST(PosixThreadCreateTest, SunnyDayNoContext) {
 }
 
 TEST(PosixThreadCreateTest, Summertime) {
-  constexpr int kMany = kSbMaxThreads;
+  const int kMany = kSbMaxThreads;
   std::vector<pthread_t> threads(kMany);
   for (int i = 0; i < kMany; ++i) {
     EXPECT_EQ(pthread_create(&(threads[i]), NULL, posix::AddOneEntryPoint,

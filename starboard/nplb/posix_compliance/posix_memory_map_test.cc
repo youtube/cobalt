@@ -23,8 +23,8 @@ namespace starboard {
 namespace nplb {
 namespace {
 
-constexpr size_t kSize = kSbMemoryPageSize * 8;
-constexpr void* kFailed = MAP_FAILED;
+const size_t kSize = kSbMemoryPageSize * 8;
+const void* kFailed = MAP_FAILED;
 
 TEST(PosixMemoryMapTest, AllocatesNormally) {
   void* memory = mmap(nullptr, kSize, PROT_READ, MAP_PRIVATE | MAP_ANON, -1, 0);

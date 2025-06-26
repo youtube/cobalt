@@ -63,7 +63,7 @@ TEST(PosixDirectoryOpenTest, ManySunnyDay) {
   EXPECT_FALSE(path.empty());
   ExpectFileExists(path.c_str());
 
-  constexpr int kMany = kSbFileMaxOpen;
+  const int kMany = kSbFileMaxOpen;
   std::vector<DIR*> directories(kMany, 0);
 
   for (size_t i = 0; i < directories.size(); ++i) {

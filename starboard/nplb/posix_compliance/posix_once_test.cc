@@ -99,7 +99,7 @@ void* RunPosixOnceEntryPoint(void* context) {
 // times using a shared pthread_once_t object.  We then test that the
 // initialization routine got called exactly one time.
 TEST(PosixOnceTest, SunnyDayMultipleThreadsInit) {
-  constexpr int kMany = kSbMaxThreads;
+  const int kMany = kSbMaxThreads;
   std::vector<pthread_t> threads(kMany);
 
   constexpr int kIterationCount = 10;

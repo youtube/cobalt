@@ -51,7 +51,7 @@ TEST(PosixConditionVariableWaitTest, SunnyDayAutoInit) {
 }
 
 TEST(PosixConditionVariableWaitTest, SunnyDay) {
-  constexpr int kMany = kSbMaxThreads > 64 ? 64 : kSbMaxThreads;
+  const int kMany = kSbMaxThreads > 64 ? 64 : kSbMaxThreads;
   posix::WaiterContext context;
 
   std::vector<pthread_t> threads(kMany);
