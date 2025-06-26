@@ -21,6 +21,10 @@ const size_t kReadBufferSize =
     static_cast<size_t>(quic::kMaxIncomingPacketSize + 1);
 }  // namespace
 
+#if BUILDFLAG(IS_COBALT)
+bool QuicChromiumPacketReader::try_reading_multiple_packets_{true};
+#endif
+
 QuicChromiumPacketReader::QuicChromiumPacketReader(
     DatagramClientSocket* socket,
     const quic::QuicClock* clock,
@@ -39,7 +43,126 @@ QuicChromiumPacketReader::QuicChromiumPacketReader(
 
 QuicChromiumPacketReader::~QuicChromiumPacketReader() = default;
 
+#if BUILDFLAG(IS_COBALT)
+int QuicChromiumPacketReader::StartReadingMultiplePackets() {
+  for (;;) {
+if (read_pending_)
+      return OK;
+
+    if (num_packets_read_ == 0)
+      yield_after_ = clock_->Now() + yield_after_duration_;
+
+    CHECK(socket_);
+    read_pending_ = true;
+    int rv = socket_->ReadMultiplePackets(
+        &read_results_, kReadBufferSize,
+        base::BindOnce(&QuicChromiumPacketReader::OnReadMultiplePacketComplete,
+                       weak_factory_.GetWeakPtr()));
+    if (rv == ERR_NOT_IMPLEMENTED) {
+      // The platform reports that ReadMultiplePackets is not implemented.
+      read_pending_ = false;
+      return rv;
+    }
+
+    UMA_HISTOGRAM_BOOLEAN("Net.QuicSession.AsyncRead", rv == ERR_IO_PENDING);
+    if (rv == ERR_IO_PENDING) {
+      num_packets_read_ = 0;
+      return rv;
+    }
+
+    if (++num_packets_read_ > yield_after_packets_ ||
+        clock_->Now() > yield_after_) {
+      num_packets_read_ = 0;
+      // Data was read, process it.
+      // Schedule the work through the message loop to 1) prevent infinite
+      // recursion and 2) avoid blocking the thread for too long.
+      base::SingleThreadTaskRunner::GetCurrentDefault()->PostTask(
+          FROM_HERE,
+          base::BindOnce(
+              &QuicChromiumPacketReader::OnReadMultiplePacketComplete,
+              weak_factory_.GetWeakPtr(), rv));
+    } else {
+      if (!ProcessMultiplePacketReadResult(rv)) {
+        return rv < 0 ? rv : OK;
+      }
+    }
+  }
+}
+
+bool QuicChromiumPacketReader::ProcessMultiplePacketReadResult(int result) {
+  read_pending_ = false;
+  if (result <= 0 && net_log_.IsCapturing()) {
+    net_log_.AddEventWithIntParams(NetLogEventType::QUIC_READ_ERROR,
+                                   "net_error", result);
+  }
+  if (result == 0) {
+    // 0-length UDP packets are legal but useless, ignore them.
+    return true;
+  }
+  if (result == ERR_MSG_TOO_BIG) {
+    // This indicates that we received a UDP packet larger than our receive
+    // buffer, ignore it.
+    return true;
+  }
+  if (result < 0) {
+    // Report all other errors to the visitor.
+    return visitor_->OnReadError(result, socket_);
+  }
+
+  // Since we only work on connected sockets, the local and peer address don't
+  // change from packet to packet.
+  IPEndPoint local_address;
+  IPEndPoint peer_address;
+  socket_->GetLocalAddress(&local_address);
+  socket_->GetPeerAddress(&peer_address);
+  quic::QuicSocketAddress quick_local_address =
+      ToQuicSocketAddress(local_address);
+  quic::QuicSocketAddress quick_peer_address =
+      ToQuicSocketAddress(peer_address);
+
+  auto self = weak_factory_.GetWeakPtr();
+  struct Socket::ReadPacketResult* read_packet = read_results_.packets;
+  for (int p = 0; p < read_results_.result; ++p, ++read_packet) {
+    if (read_packet->result <= 0) {
+      continue;
+    }
+    quic::QuicReceivedPacket packet(read_packet->buffer, read_packet->result,
+                                    clock_->Now());
+    if (!(visitor_->OnPacket(packet, quick_local_address, quick_peer_address) &&
+          self)) {
+      return false;
+    }
+  }
+
+  return true;
+}
+
+void QuicChromiumPacketReader::OnReadMultiplePacketComplete(int result) {
+  if (ProcessMultiplePacketReadResult(result))
+    StartReadingMultiplePackets();
+}
+
+#endif
+
 void QuicChromiumPacketReader::StartReading() {
+#if BUILDFLAG(IS_COBALT)
+  if (try_reading_multiple_packets_) {
+    int rv = StartReadingMultiplePackets();
+    if (rv == OK || rv == ERR_IO_PENDING) {
+      // If there was no error, or a callback was scheduled, there is no need
+      // to attempt single packet reading.
+      return;
+    } else {
+      if (rv == ERR_NOT_IMPLEMENTED) {
+        // Remember that the platform reported that ReadMultiplePackets is not
+        // implemented.
+        try_reading_multiple_packets_ = false;
+        read_results_.clear();
+      }
+    }
+  }
+#endif
+
   for (;;) {
     if (read_pending_)
       return;
