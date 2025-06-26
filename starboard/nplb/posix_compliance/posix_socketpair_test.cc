@@ -39,7 +39,7 @@ const char kRecord1[] = "Record-1";
 const char kRecord2[] = "Record-2";
 const char kRecord3[] = "Record-3";
 
-const size_t kRecordSize = sizeof(kRecord1) - 1;  // Exclude the null terminator
+const size_t kRecordSize = sizeof(kRecord1);
 static_assert(sizeof(kRecord1) == sizeof(kRecord2) &&
                   sizeof(kRecord2) == sizeof(kRecord3),
               "The test records are not of equal size");
@@ -48,7 +48,7 @@ void VerifyTransmission(int write_socket,
                         int read_socket,
                         const char* record,
                         const size_t record_size) {
-  std::vector<char> buffer(record_size + 1, 0);  // +1 is for a null terminator
+  std::vector<char> buffer(record_size, 0);
   EXPECT_EQ(write(write_socket, record, record_size), record_size);
   EXPECT_EQ(read(read_socket, buffer.data(), buffer.size()), record_size);
   EXPECT_STREQ(buffer.data(), record);
@@ -115,27 +115,27 @@ TEST(PosixSocketpairTest, SeqPacketTypeExcessBytesAreDiscardedWhenReceived) {
 
   ASSERT_EQ(socketpair(AF_UNIX, SOCK_SEQPACKET, 0, sockets), 0);
 
-  // Given a written record of four bytes.
+  // Given a written record of five bytes, including the null terminator.
   const char record_1[] = "abcd";
-  size_t record_1_size = sizeof(record_1) - 1;  // Exclude the null terminator
-  ASSERT_EQ(record_1_size, 4);
+  size_t record_1_size = sizeof(record_1);
+  ASSERT_EQ(record_1_size, 5);
   EXPECT_EQ(write(sockets[0], record_1, record_1_size), record_1_size);
 
   // When the subsequent read is for only two bytes.
-  std::vector<char> buffer(record_1_size / 2, 0);
-  ASSERT_EQ(buffer.size(), 2);
+  std::vector<char> buffer(2, 0);
   ssize_t bytes_read = recv(sockets[1], buffer.data(), buffer.size(), 0);
-  ASSERT_EQ(bytes_read, record_1_size / 2);
+  ASSERT_EQ(bytes_read, 2);
   ASSERT_EQ(buffer.at(0), 'a');
   ASSERT_EQ(buffer.at(1), 'b');
 
+  // And a second record is then written.
   const char record_2[] = "ef";
-  size_t record_2_size = sizeof(record_2) - 1;  // Exclude the null terminator
+  size_t record_2_size = sizeof(record_2);
   EXPECT_EQ(write(sockets[0], record_2, record_2_size), record_2_size);
 
   // Then the remaining two bytes from the initial record are discarded.
   bytes_read = recv(sockets[1], buffer.data(), buffer.size(), 0);
-  ASSERT_EQ(bytes_read, record_1_size / 2);
+  ASSERT_EQ(bytes_read, 2);
   ASSERT_EQ(buffer.at(0), 'e');
   ASSERT_EQ(buffer.at(1), 'f');
 
@@ -148,27 +148,27 @@ TEST(PosixSocketpairTest, StreamTypeExcessBytesAreNotDiscardedWhenReceived) {
 
   ASSERT_EQ(socketpair(AF_UNIX, SOCK_STREAM, 0, sockets), 0);
 
-  // Given a written record of four bytes.
+  /// Given a written record of five bytes, including the null terminator.
   const char record_1[] = "abcd";
-  size_t record_1_size = sizeof(record_1) - 1;  // Exclude the null terminator
-  ASSERT_EQ(record_1_size, 4);
+  size_t record_1_size = sizeof(record_1);
+  ASSERT_EQ(record_1_size, 5);
   EXPECT_EQ(write(sockets[0], record_1, record_1_size), record_1_size);
 
   // When the subsequent read is for only two bytes.
-  std::vector<char> buffer(record_1_size / 2, 0);
-  ASSERT_EQ(buffer.size(), 2);
+  std::vector<char> buffer(2, 0);
   ssize_t bytes_read = recv(sockets[1], buffer.data(), buffer.size(), 0);
-  ASSERT_EQ(bytes_read, record_1_size / 2);
+  ASSERT_EQ(bytes_read, 2);
   ASSERT_EQ(buffer.at(0), 'a');
   ASSERT_EQ(buffer.at(1), 'b');
 
+  // And a second record is then written.
   const char record_2[] = "ef";
-  size_t record_2_size = sizeof(record_2) - 1;  // Exclude the null terminator
+  size_t record_2_size = sizeof(record_2);
   EXPECT_EQ(write(sockets[0], record_2, record_2_size), record_2_size);
 
   // Then the remaining two bytes from the initial record are NOT discarded.
   bytes_read = recv(sockets[1], buffer.data(), buffer.size(), 0);
-  ASSERT_EQ(bytes_read, record_1_size / 2);
+  ASSERT_EQ(bytes_read, 2);
   ASSERT_EQ(buffer.at(0), 'c');
   ASSERT_EQ(buffer.at(1), 'd');
 
