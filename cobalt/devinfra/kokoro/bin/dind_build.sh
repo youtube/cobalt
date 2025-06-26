@@ -66,6 +66,8 @@ pipeline () {
     --script-executable=/usr/bin/python3
   autoninja -C "out/${TARGET_PLATFORM}_${CONFIG}" ${TARGET}  # TARGET may expand to multiple args
 
+  rm -rf "${gclient_root}/.cipd"
+
   # Build bootloader config if set.
   if [ -n "${BOOTLOADER:-}" ]; then
     echo "Evergreen Loader (or Bootloader) is configured."
