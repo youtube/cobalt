@@ -708,10 +708,10 @@ void UDPSocketPosix::ReadWatcher::OnFileCanReadWithoutBlocking(int) {
 #if BUILDFLAG(IS_COBALT)
     if(socket_->results_) {
       socket_->DidCompleteMultiplePacketRead();
+      return;
     }
-#else
-    socket_->DidCompleteRead();
 #endif
+    socket_->DidCompleteRead();
   }
 }
 
