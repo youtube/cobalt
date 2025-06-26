@@ -20,29 +20,29 @@ namespace nplb {
 namespace {
 
 TEST(PosixCompareNoCaseNTest, SunnyDaySelf) {
-  const char kString[] = "0123456789";
+  constexpr char kString[] = "0123456789";
   EXPECT_EQ(0, strncasecmp(kString, kString, strlen(kString)));
   EXPECT_EQ(0, strncasecmp("", "", 0));
 }
 
 TEST(PosixCompareNoCaseNTest, SunnyDayEmptyLessThanNotEmpty) {
-  const char kString[] = "0123456789";
+  constexpr char kString[] = "0123456789";
   EXPECT_GT(0, strncasecmp("", kString, strlen(kString)));
 }
 
 TEST(PosixCompareNoCaseNTest, SunnyDayEmptyZeroNEqual) {
-  const char kString[] = "0123456789";
+  constexpr char kString[] = "0123456789";
   EXPECT_EQ(0, strncasecmp("", kString, 0));
 }
 
 TEST(PosixCompareNoCaseNTest, SunnyDayBigN) {
-  const char kString[] = "0123456789";
+  constexpr char kString[] = "0123456789";
   EXPECT_EQ(0, strncasecmp(kString, kString, strlen(kString) * 2));
 }
 
 TEST(PosixCompareNoCaseNTest, SunnyDayCase) {
-  const char kString1[] = "aBcDeFgHiJkLmNoPqRsTuVwXyZ";
-  const char kString2[] = "AbCdEfGhIjKlMnOpQrStUvWxYz";
+  constexpr char kString1[] = "aBcDeFgHiJkLmNoPqRsTuVwXyZ";
+  constexpr char kString2[] = "AbCdEfGhIjKlMnOpQrStUvWxYz";
   EXPECT_EQ(0, strncasecmp(kString1, kString2, strlen(kString1)));
   EXPECT_EQ(0, strncasecmp(kString2, kString1, strlen(kString2)));
 
@@ -55,5 +55,3 @@ TEST(PosixCompareNoCaseNTest, SunnyDayCase) {
 }
 
 }  // namespace
-}  // namespace nplb
-}  // namespace starboard

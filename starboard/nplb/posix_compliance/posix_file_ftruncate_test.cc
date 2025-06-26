@@ -38,8 +38,8 @@ TEST(PosixFileFtruncateTest, InvalidFileErrors) {
 }
 
 TEST(PosixFileFtruncateTest, TruncateToZero) {
-  const int kStartSize = 123;
-  const int kEndSize = 0;
+  constexpr int kStartSize = 123;
+  constexpr int kEndSize = 0;
   ScopedRandomFile random_file(kStartSize);
   const std::string& filename = random_file.filename();
 
@@ -67,8 +67,8 @@ TEST(PosixFileFtruncateTest, TruncateToZero) {
 
 TEST(PosixFileFtruncateTest, TruncateUpInSize) {
   // "Truncate," I don't think that word means what you think it means.
-  const int kStartSize = 123;
-  const int kEndSize = kStartSize * 2;
+  constexpr int kStartSize = 123;
+  constexpr int kEndSize = kStartSize * 2;
   ScopedRandomFile random_file(kStartSize);
   const std::string& filename = random_file.filename();
 

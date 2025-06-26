@@ -109,8 +109,8 @@ inline intptr_t FromVoid(void* value) {
 void* const kSomeContext = ToVoid(1234);
 void* const kSomeContextPlusOne = ToVoid(1235);
 
-const char* const kThreadName = "ThreadName";
-const char* const kAltThreadName = "AltThreadName";
+constexpr const char* const kThreadName = "ThreadName";
+constexpr const char* const kAltThreadName = "AltThreadName";
 
 // Does not yield, can't you read?
 void DoNotYield();

@@ -32,12 +32,12 @@ namespace starboard {
 namespace nplb {
 
 #if defined(SOMAXCONN)
-const int kMaxConn = SOMAXCONN;
+constexpr int kMaxConn = SOMAXCONN;
 #else
-const int kMaxConn = 128;
+constexpr int kMaxConn = 128;
 #endif
 
-const int64_t kSocketTimeout = 200'000;  // 200ms
+constexpr int64_t kSocketTimeout = 200'000;  // 200ms
 
 int PosixSocketCreateAndConnect(int server_domain,
                                 int client_domain,
@@ -60,9 +60,9 @@ int PosixGetPortNumberForTests();
 // int PosixCreateBoundListeningTcpSocket();
 
 #if defined(MSG_NOSIGNAL)
-const int kSendFlags = MSG_NOSIGNAL;
+constexpr int kSendFlags = MSG_NOSIGNAL;
 #else
-const int kSendFlags = 0;
+constexpr int kSendFlags = 0;
 #endif
 
 // Thread entry point to continuously write to a socket that is expected to

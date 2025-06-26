@@ -163,7 +163,7 @@ TEST_F(PosixEpollCtlTests, ErrorInvalidOperation) {
   event.events = EPOLLIN;
   event.data.fd = pipe_fds_[0];
   // An arbitrary integer that isn't a valid EPOLL_CTL operation.
-  const int kInvalidOp = 99;
+  constexpr int kInvalidOp = 99;
 
   ASSERT_EQ(epoll_ctl(epfd_, kInvalidOp, pipe_fds_[0], &event), -1);
   ASSERT_EQ(errno, EINVAL);

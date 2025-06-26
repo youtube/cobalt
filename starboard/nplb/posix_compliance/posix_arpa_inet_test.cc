@@ -22,10 +22,10 @@ namespace starboard {
 namespace nplb {
 namespace {
 
-const uint16_t kTestU16 = 0xABCD;
-const uint16_t kExpectedU16 = 0xCDAB;
-const uint32_t kTestU32 = 0xFEDCBA98;
-const uint32_t kExpectedU32 = 0x98BADCFE;
+constexpr uint16_t kTestU16 = 0xABCD;
+constexpr uint16_t kExpectedU16 = 0xCDAB;
+constexpr uint32_t kTestU32 = 0xFEDCBA98;
+constexpr uint32_t kExpectedU32 = 0x98BADCFE;
 
 #if SB_IS(BIG_ENDIAN)
 TEST(PosixArpaInetTest, BigEndian) {

@@ -25,7 +25,7 @@ namespace {
 
 void* ThreadEntryPoint(void* input) {
   int* value = static_cast<int*>(input);
-  static const int64_t kSleepTime = 10'000;  // 10 ms.
+  static constexpr int64_t kSleepTime = 10'000;  // 10 ms.
   // Wait to write the value to increase likelihood of catching
   // a race condition.
   usleep(kSleepTime);

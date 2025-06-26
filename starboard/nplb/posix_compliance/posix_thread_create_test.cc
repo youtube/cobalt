@@ -23,7 +23,7 @@ namespace nplb {
 namespace {
 
 TEST(PosixThreadCreateTest, SunnyDay) {
-  const int kTrials = 64;
+  constexpr int kTrials = 64;
   for (int i = 0; i < kTrials; ++i) {
     pthread_t thread;
     EXPECT_EQ(pthread_create(&thread, NULL, posix::AddOneEntryPoint,
@@ -44,7 +44,7 @@ TEST(PosixThreadCreateTest, SunnyDayNoContext) {
 }
 
 TEST(PosixThreadCreateTest, Summertime) {
-  const int kMany = kSbMaxThreads;
+  constexpr int kMany = kSbMaxThreads;
   std::vector<pthread_t> threads(kMany);
   for (int i = 0; i < kMany; ++i) {
     EXPECT_EQ(pthread_create(&(threads[i]), NULL, posix::AddOneEntryPoint,

@@ -28,17 +28,21 @@ namespace nplb {
 namespace {
 
 // A slightly longer duration for testing actual sleep.
-const useconds_t kTestSleepUs =
+constexpr useconds_t kTestSleepUs =
     50'000;  // 50 milliseconds (50,000 microseconds)
-// A very long duration for testing interruption.
-const useconds_t kLongSleepUs = 10'000'000;  // 10 seconds
-// Delay in the signal-sending thread before sending the signal.
-constexpr long kSignalSendDelayNs = 100'000'000L;
 
+// A very long duration for testing interruption.
+constexpr useconds_t kLongSleepUs = 10'000'000;  // 10 seconds
+
+// Delay in the signal-sending thread before sending the signal.
+
+// Duration threshold for sleeps that should return immediately.
 // Duration threshold for sleeps that should return immediately.
 constexpr long kShortDurationThresholdUs = 100'000;  // 100 milliseconds.
 
 void InterruptSignalHandler(int) {}
+
+constexpr long kSignalSendDelayNs = 100'000'000L;
 
 void* SendSigusr1Routine(void* arg) {
   pthread_t* target_thread_id = static_cast<pthread_t*>(arg);

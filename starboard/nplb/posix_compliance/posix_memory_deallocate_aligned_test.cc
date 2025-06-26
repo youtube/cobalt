@@ -20,7 +20,7 @@ namespace starboard {
 namespace nplb {
 namespace {
 
-const size_t kSize = 1024 * 128;
+constexpr size_t kSize = 1024 * 128;
 
 TEST(PosixMemoryDeallocateAlignedTest, DeallocatesAligned) {
   const size_t kMaxAlign = 4096 + 1;

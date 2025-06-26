@@ -204,7 +204,7 @@ TEST_F(PosixReaddirTests, ReaddirReturnsNullAtEndOfStream) {
 
 // Test readdir with a large number of entries to check for buffer handling
 TEST_F(PosixReaddirTests, LargeNumberOfEntries) {
-  const int kNumFiles = 1000;  // A reasonably large number of files
+  constexpr int kNumFiles = 1000;  // A reasonably large number of files
   for (int i = 0; i < kNumFiles; ++i) {
     std::string file_path = test_dir_ + "/file_" + std::to_string(i);
     int fd = open(file_path.c_str(), flags_, 0666);

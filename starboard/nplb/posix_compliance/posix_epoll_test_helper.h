@@ -28,10 +28,10 @@ bool CreatePipe(int pipe_fds[2], int flags = 0);
 // Test fixture for epoll tests
 class PosixEpollTest : public ::testing::Test {
  protected:
-  static const int kInvalidFd = -1;  // An fd value that is likely invalid.
-  static const int kMaxEvents = 10;  // Maximum number of events for epoll_wait.
-  static const int kShortTimeoutMs = 50;
-  static const int kModerateTimeoutMs = 100;
+  static constexpr int kInvalidFd = -1;  // An fd value that is likely invalid.
+  static constexpr int kMaxEvents = 10;  // Maximum number of events for epoll_wait.
+  static constexpr int kShortTimeoutMs = 50;
+  static constexpr int kModerateTimeoutMs = 100;
 };
 
 }  // namespace nplb

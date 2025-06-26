@@ -89,7 +89,7 @@ TEST(PosixSocketJoinMulticastGroupTest, SunnyDay) {
 #endif
   send_address.sin_port = local_address.sin_port;
 
-  const char kBuf[] = "01234567890123456789";
+  constexpr char kBuf[] = "01234567890123456789";
   char buf[sizeof(kBuf)] = {0};
   while (true) {
     ssize_t sent =

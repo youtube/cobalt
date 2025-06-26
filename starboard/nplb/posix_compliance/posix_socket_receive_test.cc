@@ -62,8 +62,8 @@ int Transfer(int receive_socket_fd,
 }
 
 TEST(PosixSocketReceiveTest, SunnyDay) {
-  const int kBufSize = 256 * 1024;
-  const int kSockBufSize = kBufSize / 8;
+  constexpr int kBufSize = 256 * 1024;
+  constexpr int kSockBufSize = kBufSize / 8;
   int listen_socket_fd = -1, client_socket_fd = -1, server_socket_fd = -1;
   int result = PosixSocketCreateAndConnect(
       AF_INET, AF_INET, htons(PosixGetPortNumberForTests()), kSocketTimeout,

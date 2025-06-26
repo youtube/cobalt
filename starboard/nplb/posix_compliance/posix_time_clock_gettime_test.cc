@@ -30,7 +30,7 @@ namespace {
 
 enum ClockIsRequired { REQUIRED, OPTIONAL };
 
-const int64_t kMicrosecondsPerSecond = 1'000'000LL;
+constexpr int64_t kMicrosecondsPerSecond = 1'000'000LL;
 
 // Sleep time long enough to ensure measurable time progresses on all wall
 // clocks.
@@ -275,7 +275,7 @@ TEST_P(MonotonicClock, IsMonotonic) {
   clockid_t clock_id = std::get<0>(param);
   ClockIsRequired requirement = std::get<1>(param);
   std::string clock_name = GetClockName(clock_id);
-  const int kTrials = 1'000;
+  constexpr int kTrials = 1'000;
 
   struct timespec ts_initial {};
   errno = 0;
@@ -384,13 +384,13 @@ TEST(PosixTimeClockGettimeTests, ReturnsEinvalForInvalidClockId) {
   struct timespec ts {};
 
   // A large positive integer unlikely to be a valid clock ID.
-  const clockid_t kInvalidPositiveClockId = 0xDEFEC8ED;
+  constexpr clockid_t kInvalidPositiveClockId = 0xDEFEC8ED;
   errno = 0;
   EXPECT_EQ(-1, clock_gettime(kInvalidPositiveClockId, &ts));
   EXPECT_EQ(EINVAL, errno);
 
   // A negative integer unlikely to be a valid clock ID.
-  const clockid_t kInvalidNegativeClockId = -4242;
+  constexpr clockid_t kInvalidNegativeClockId = -4242;
   errno = 0;
   EXPECT_EQ(-1, clock_gettime(kInvalidNegativeClockId, &ts));
   EXPECT_EQ(EINVAL, errno);

@@ -24,10 +24,10 @@ namespace starboard {
 namespace nplb {
 namespace {
 
-const int64_t kMicrosecondsPerSecond = 1'000'000LL;
+constexpr int64_t kMicrosecondsPerSecond = 1'000'000LL;
 
 // Work time long enough to ensure measurable CPU time usage.
-constexpr long kMinimumWorkTimeMicroseconds = 100'000;  // 100ms
+constexpr long kMinimumWorkTimeMicroseconds = 100'000; // 100ms
 
 static int64_t TimespecToMicroseconds(const struct timespec& ts) {
   return (static_cast<int64_t>(ts.tv_sec) * kMicrosecondsPerSecond) +
@@ -130,7 +130,7 @@ TEST(PosixTimeClockTests, ClocksPerSecIsPositive) {
 }
 
 TEST(PosixTimeClockTests, ClocksPerSecIsPosixStandardValue) {
-  const long kPosixClocksPerSec = 1'000'000L;
+  constexpr long kPosixClocksPerSec = 1'000'000L;
   EXPECT_EQ(CLOCKS_PER_SEC, kPosixClocksPerSec)
       << "POSIX.1-2001 requires CLOCKS_PER_SEC to be " << kPosixClocksPerSec
       << ". Actual value: " << CLOCKS_PER_SEC;
@@ -144,7 +144,7 @@ TEST(PosixTimeClockTests, ClockMeasuresCpuTimeNotWallTimeDuringSleep) {
 
   // Sleep for a noticeable duration. During sleep, the process should ideally
   // not consume significant CPU time.
-  const unsigned int kSleepDurationMicroseconds = 100 * 1'000;
+  constexpr unsigned int kSleepDurationMicroseconds = 100 * 1'000;
   usleep(kSleepDurationMicroseconds);
 
   clock_t end_clock = clock();
@@ -156,7 +156,7 @@ TEST(PosixTimeClockTests, ClockMeasuresCpuTimeNotWallTimeDuringSleep) {
                                        "sleep, which is unexpected. Start: "
                                     << start_clock << ", End: " << end_clock;
 
-  clock_t clock_delta = end_clock - start_clock;
+    clock_t clock_delta = end_clock - start_clock;
 
   // Allow for up to 10% of the wall clock sleep time to be registered as CPU
   // time, accounting for scheduler overhead, timer interrupts, etc. For 100ms

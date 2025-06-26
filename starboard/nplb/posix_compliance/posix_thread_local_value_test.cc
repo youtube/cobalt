@@ -64,8 +64,8 @@ static void* ThreadEntryPoint(void* ptr) {
   return NULL;
 }
 
-void DoSunnyDayTest(bool use_destructor) {
-  const int kThreads = 16;
+void DoSunnyDayTest(bool use_destructor ) {
+  constexpr int kThreads = 16;
   ThreadLocalValue values[kThreads];
   Context contexts[kThreads];
   pthread_t threads[kThreads];
@@ -162,7 +162,7 @@ TEST(PosixThreadLocalValueTest, SunnyDayFreshlyCreatedValuesAreNull) {
 }
 
 TEST(PosixThreadLocalValueTest, SunnyDayMany) {
-  const int kMany = (2 * kSbMaxThreadLocalKeys) / 3;
+  constexpr int kMany = (2 * kSbMaxThreadLocalKeys) / 3;
   std::vector<pthread_key_t> keys(kMany);
 
   for (int i = 0; i < kMany; ++i) {

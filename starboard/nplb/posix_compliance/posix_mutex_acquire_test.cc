@@ -28,7 +28,7 @@ struct TestContext {
   int count;
 };
 
-const int kLoops = 10000;
+constexpr int kLoops = 10000;
 
 void* EntryPoint(void* parameter) {
   TestContext* context = static_cast<TestContext*>(parameter);
@@ -47,7 +47,7 @@ void* EntryPoint(void* parameter) {
 TEST(PosixMutexAcquireTest, SunnyDayContended) {
   TestContext context;
   EXPECT_EQ(pthread_mutex_init(&context.mutex, NULL), 0);
-  const int kThreads = 4;
+  constexpr int kThreads = 4;
   pthread_t threads[kThreads];
   for (int i = 0; i < kThreads; ++i) {
     pthread_create(&threads[i], NULL, EntryPoint, &context);

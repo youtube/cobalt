@@ -76,13 +76,13 @@ void DoSunnyDay(posix::TakeThenSignalContext* context,
   pthread_t thread = 0;
   pthread_create(&thread, NULL, posix::TakeThenSignalEntryPoint, context);
 
-  const int64_t kDelayUs = 10'000;  // 10ms
+  constexpr int64_t kDelayUs = 10'000;  // 10ms
   // Allow two-millisecond-level precision.
-  const int64_t kPrecisionUs = 2'000;  // 2ms
+  constexpr int64_t kPrecisionUs = 2'000;  // 2ms
 
   // We know the thread hasn't signaled the condition variable yet, and won't
   // unless we tell it, so it should wait at least the whole delay time.
-  if (check_timeout) {
+    if (check_timeout) {
     EXPECT_EQ(pthread_mutex_lock(&context->mutex), 0);
     int64_t start = CurrentTime(use_monotonic);
 
@@ -159,10 +159,10 @@ TEST(PosixConditionVariableWaitTimedTest, FLAKY_SunnyDayAutoInit) {
   // Without the initial timeout test, the two threads will be racing to
   // auto-init the mutex and condition variable. So we run several trials in
   // this mode, hoping to have the auto-initting contend in various ways.
-  const int kTrials = 64;
+  constexpr int kTrials = 64;
   for (int i = 0; i < kTrials; ++i) {
     posix::TakeThenSignalContext context = {posix::TestSemaphore(0),
-                                            PTHREAD_MUTEX_INITIALIZER,
+                                             PTHREAD_MUTEX_INITIALIZER,
                                             PTHREAD_COND_INITIALIZER, 0};
     DoSunnyDay(&context, false, false);
   }

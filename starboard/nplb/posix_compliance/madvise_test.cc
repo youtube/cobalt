@@ -22,7 +22,7 @@ namespace starboard {
 namespace nplb {
 namespace {
 
-const size_t kSize = kSbMemoryPageSize * 8;
+constexpr size_t kSize = kSbMemoryPageSize * 8;
 
 class MadviseTest : public testing::Test {
  public:

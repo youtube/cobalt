@@ -164,7 +164,7 @@ TEST(PosixThreadKillTest, SendInvalidSignalNumber) {
   // Give the thread a moment to start.
   usleep(10000);  // 10ms
 
-  const int invalid_signal = -1;
+  constexpr int invalid_signal = -1;
   ret = pthread_kill(thread_id, invalid_signal);
   EXPECT_EQ(ret, EINVAL) << "pthread_kill with an invalid signal number did "
                             "not return EINVAL. Got: "

@@ -31,7 +31,7 @@ void* PosixSocketSendToServerSocketEntryPoint(void* trio_as_void_ptr) {
   // The contents of this buffer are inconsequential.
   struct trio_socket_fd* trio_ptr =
       reinterpret_cast<struct trio_socket_fd*>(trio_as_void_ptr);
-  const size_t kBufSize = 1024;
+  constexpr size_t kBufSize = 1024;
   char* send_buf = new char[kBufSize];
   memset(send_buf, 0, kBufSize);
 
@@ -42,7 +42,7 @@ void* PosixSocketSendToServerSocketEntryPoint(void* trio_as_void_ptr) {
   // should not terminate.
   int64_t start = CurrentMonotonicTime();
   int64_t now = start;
-  int64_t kTimeout = 1'000'000;  // 1 second
+  constexpr int64_t kTimeout = 1'000'000;  // 1 second
   int result = 0;
   while (result >= 0 && (now - start < kTimeout)) {
     result =
@@ -118,7 +118,7 @@ TEST(PosixSocketSendTest, RainyDaySendToClosedSocket) {
 // will result in that socket becoming full and thus will return a
 // kSbSocketPending status, which indicates that it is blocked.
 TEST(PosixSocketSendTest, RainyDaySendToSocketUntilBlocking) {
-  static const int kChunkSize = 1024;
+  static constexpr int kChunkSize = 1024;
   // 1GB limit for sending data.
   static const uint64_t kMaxTransferLimit = 1024 * 1024 * 1024;
 
@@ -166,7 +166,7 @@ TEST(PosixSocketSendTest, RainyDaySendToSocketUntilBlocking) {
 // support this will show up as a generic error. Otherwise this will show
 // up as a connection reset error.
 TEST(PosixSocketSendTest, RainyDaySendToSocketConnectionReset) {
-  static const int kChunkSize = 1024;
+  static constexpr int kChunkSize = 1024;
   int result = 0;
 
   // create listen socket, bind and listen on <port>
@@ -186,7 +186,7 @@ TEST(PosixSocketSendTest, RainyDaySendToSocketConnectionReset) {
 
   // Expect that after some retries the client socket will return that the
   // connection will reset.
-  int kNumRetries = 1000;
+  constexpr int kNumRetries = 1000;
   for (int i = 0; i < kNumRetries; ++i) {
     char buff[kChunkSize] = {};
     usleep(1000);

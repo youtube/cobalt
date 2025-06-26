@@ -69,17 +69,41 @@ TEST(PosixSocketBindTest, RainyDayBadInterface) {
   int socket_fd = socket(AF_INET, SOCK_STREAM, IPPROTO_TCP);
   ASSERT_TRUE(socket_fd > 0);
 
-  // Binding with an interface that doesn't exist on this device should fail
-  sockaddr_in server_address = {};
-  server_address.sin_family = AF_INET;
-  // 250.x.y.z is reserved IP address
-  server_address.sin_addr.s_addr = (((((250 << 8) | 43) << 8) | 244) << 8) | 18;
-  EXPECT_FALSE(bind(socket_fd, reinterpret_cast<sockaddr*>(&server_address),
-                    sizeof(sockaddr_in)) == 0);
+  // Binding with an interface that doesn't exist on this device should fail, so
+  // let's find an address of a well-known public website that we shouldn't be
+  // able to bind to.
+  constexpr const char* kTestHostName = "www.yahoo.com";
+
+  struct addrinfo* ai = nullptr;
+  struct addrinfo hints = {0};
+  hints.ai_family = AF_INET;
+  hints.ai_flags = AI_ADDRCONFIG;
+  hints.ai_socktype = SOCK_STREAM;
+
+  // Most likely success since it is a well known website
+  int result = getaddrinfo(kTestHostName, nullptr, &hints, &ai);
+  EXPECT_TRUE(result == 0);
+  if (result < 0) {
+    close(socket_fd);
+    return;
+  }
+
+  // Extract the address out of the addrinfo structure
+  struct sockaddr server_address = {};
+
+  if (ai != nullptr && ai->ai_addr != nullptr){
+      memcpy(&server_address, ai->ai_addr, ai->ai_addrlen);
+  }
+
+  freeaddrinfo(ai);
+
+  EXPECT_FALSE(bind(socket_fd, &server_address, sizeof(sockaddr)) == 0);
   EXPECT_TRUE(close(socket_fd) == 0);
 }
 
 TEST(PosixSocketBindTest, SunnyDayLocalInterface) {
+  // Binding with an interface that doesn't exist on this device should fail
+  sockaddr_in server_address = {};
   sockaddr_in6 address = {};
   EXPECT_TRUE(
       PosixGetLocalAddressIPv4(reinterpret_cast<sockaddr*>(&address)) == 0 ||

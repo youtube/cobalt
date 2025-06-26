@@ -53,7 +53,7 @@ size_t array_size(const T (&)[n]) {
 
 TYPED_TEST_SUITE(PosixFileReadTest, PosixFileReadTestTypes);
 
-const int kBufferLength = 16 * 1024;
+constexpr int kBufferLength = 16 * 1024;
 
 TYPED_TEST(PosixFileReadTest, InvalidFileErrors) {
   char buffer[kBufferLength];
@@ -64,7 +64,7 @@ TYPED_TEST(PosixFileReadTest, InvalidFileErrors) {
 TYPED_TEST(PosixFileReadTest, BasicReading) {
   // Create a pattern file that is not an even multiple of the buffer size,
   // but is over several times the size of the buffer.
-  const int kFileSize = kBufferLength * 16 / 3;
+  constexpr int kFileSize = kBufferLength * 16 / 3;
   ScopedRandomFile random_file(kFileSize);
   const std::string& filename = random_file.filename();
 
@@ -73,7 +73,7 @@ TYPED_TEST(PosixFileReadTest, BasicReading) {
 
   // Create a bigger buffer than necessary, so we can test the memory around
   // the portion given to SbFileRead.
-  const int kRealBufferLength = kBufferLength * 2;
+  constexpr int kRealBufferLength = kBufferLength * 2;
   char real_buffer[kRealBufferLength] = {0};
   const int kBufferOffset = kBufferLength / 2;
   char* buffer = real_buffer + kBufferOffset;
@@ -127,14 +127,14 @@ TYPED_TEST(PosixFileReadTest, BasicReading) {
 }
 
 TYPED_TEST(PosixFileReadTest, ReadZeroBytes) {
-  const int kFileSize = kBufferLength;
+  constexpr int kFileSize = kBufferLength;
   ScopedRandomFile random_file(kFileSize);
   const std::string& filename = random_file.filename();
 
   int file = open(filename.c_str(), O_RDONLY);
   ASSERT_TRUE(file >= 0);
 
-  // Create a bigger buffer than necessary, so we can test the memory around
+  // Create a bigger buffer than necessary, so we can test the memory aroun
   // the portion given to SbFileRead.
   const int kRealBufferLength = kBufferLength * 2;
   char real_buffer[kRealBufferLength] = {0};
@@ -161,14 +161,14 @@ TYPED_TEST(PosixFileReadTest, ReadZeroBytes) {
 }
 
 TYPED_TEST(PosixFileReadTest, ReadFromMiddle) {
-  const int kFileSize = kBufferLength * 2;
+  constexpr int kFileSize = kBufferLength * 2;
   ScopedRandomFile random_file(kFileSize);
   const std::string& filename = random_file.filename();
 
   int file = open(filename.c_str(), O_RDONLY);
   ASSERT_TRUE(file >= 0);
 
-  // Create a bigger buffer than necessary, so we can test the memory around
+  // Create a bigger buffer than necessary, so we can test the memory aroun
   // the portion given to SbFileRead.
   const int kRealBufferLength = kBufferLength * 2;
   char real_buffer[kRealBufferLength] = {0};
@@ -214,7 +214,7 @@ TYPED_TEST(PosixFileReadTest, ReadStaticContent) {
 
     // Create a bigger buffer than necessary, so we can test the memory around
     // the portion given to SbFileRead.
-    const int kRealBufferLength = kBufferLength * 2;
+    constexpr int kRealBufferLength = kBufferLength * 2;
     char real_buffer[kRealBufferLength] = {0};
     const int kBufferOffset = kBufferLength / 2;
     char* buffer = real_buffer + kBufferOffset;
@@ -274,7 +274,7 @@ TYPED_TEST(PosixFileReadTest, PreadSuccess) {
   unlink(buffer);  // delete the file.
 
   // Write some data to the file.
-  const char write_data[] = "Hello, pread!";
+  constexpr char write_data[] = "Hello, pread!";
   const auto bytes_written = write(fd, write_data, sizeof(write_data) - 1);
   EXPECT_NE(bytes_written, -1) << "write() failed: " << strerror(errno);
   ASSERT_EQ(static_cast<size_t>(bytes_written), sizeof(write_data) - 1);
@@ -303,7 +303,7 @@ TYPED_TEST(PosixFileReadTest, PreadOffset) {
   unlink(buffer);  // delete the file.
 
   // Write data with an offset.
-  const char write_data[] = "0123456789";
+  constexpr char write_data[] = "0123456789";
   const auto bytes_written = write(fd, write_data, sizeof(write_data) - 1);
   EXPECT_NE(bytes_written, -1) << "write() failed: " << strerror(errno);
   ASSERT_EQ(static_cast<size_t>(bytes_written), sizeof(write_data) - 1);
@@ -331,7 +331,7 @@ TYPED_TEST(PosixFileReadTest, PreadReadMore) {
   unlink(buffer);  // delete the file.
 
   // Write some data.
-  const char write_data[] = "abc";
+  constexpr char write_data[] = "abc";
   const auto bytes_written = write(fd, write_data, sizeof(write_data) - 1);
   EXPECT_NE(bytes_written, -1) << "write() failed: " << strerror(errno);
   ASSERT_EQ(static_cast<size_t>(bytes_written), sizeof(write_data) - 1);

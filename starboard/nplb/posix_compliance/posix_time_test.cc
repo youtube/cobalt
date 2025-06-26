@@ -23,22 +23,21 @@ namespace {
 
 // kReasonableMinTime represents a time (2025-01-01 00:00:00 UTC) after which
 // the current time is expected to fall.
-const time_t kReasonableMinTimeUsec =
+constexpr time_t kReasonableMinTimeUsec =
     1'735'689'600'000'000;  // 2025-01-01 00:00:00 UTC
 
 // kReasonableMaxTime represents a time (2045-01-01 00:00:00 UTC) before which
 // the current time is expected to fall. Note that this also implicitly tests
 // that the code handles timestamps past the Unix Epoch wraparound on 03:14:08
 // UTC on 19 January 2038.
-const time_t kReasonableMaxTimeUsec =
+constexpr time_t kReasonableMaxTimeUsec =
     2'366'841'600'000'000;  // 2045-01-01 00:00:00 UTC
 
 TEST(PosixTimeTest, CurrentPosixTimeIsKindOfSane) {
   int64_t now_usec = CurrentPosixTime();
 
   // Now should be after 2025-01-01 UTC (the past).
-  int64_t past_usec = kReasonableMinTimeUsec;
-  EXPECT_GT(now_usec, past_usec);
+  EXPECT_GT(now_usec, kReasonableMinTimeUsec);
 
   // Now should be before 2044-01-01 UTC (the future).
   int64_t future_usec = kReasonableMaxTimeUsec;
@@ -46,7 +45,7 @@ TEST(PosixTimeTest, CurrentPosixTimeIsKindOfSane) {
 }
 
 TEST(PosixTimeTest, CurrentPosixTimeHasDecentResolution) {
-  const int kNumIterations = 100;
+  constexpr int kNumIterations = 100;
   for (int i = 0; i < kNumIterations; ++i) {
     int64_t timerStart = CurrentMonotonicTime();
     int64_t initialTime = CurrentPosixTime();
@@ -63,7 +62,7 @@ TEST(PosixTimeTest, CurrentPosixTimeHasDecentResolution) {
 }
 
 TEST(PosixTimeTest, CurrentMonotonicTimeIsMonotonic) {
-  const int kTrials = 100;
+  constexpr int kTrials = 100;
   for (int trial = 0; trial < kTrials; ++trial) {
     int64_t timerStart = CurrentPosixTime();
     int64_t initialMonotonic = CurrentMonotonicTime();
@@ -93,7 +92,7 @@ TEST(PosixTimeTest, GmtimeRConvertsTimeCorrectly) {
   // A fixed timestamp: Wed Jul 31 23:32:59 2024 UTC.
   // This value (1'722'468'779) can be obtained via `date -d "2024-07-31
   // 23:32:59 UTC" +%s`.
-  const time_t kFixedTime = 1'722'468'779;
+  constexpr time_t kFixedTime = 1'722'468'779;
   struct tm result_tm {};
 
   struct tm* retval = gmtime_r(&kFixedTime, &result_tm);

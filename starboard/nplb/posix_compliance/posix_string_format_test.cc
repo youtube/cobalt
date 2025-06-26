@@ -31,7 +31,7 @@ int Format(char* out_buffer, size_t buffer_size, const char* format, ...) {
 }
 
 TEST(PosixFormatTest, SunnyDay) {
-  const char kExpected[] = "a1b2c3test";
+  constexpr char kExpected[] = "a1b2c3test";
   char destination[1024] = {0};
   int result = Format(destination, SB_ARRAY_SIZE(destination), "a%db%dc%d%s", 1,
                       2, 3, "test");

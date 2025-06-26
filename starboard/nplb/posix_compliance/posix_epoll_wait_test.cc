@@ -138,9 +138,9 @@ TEST_F(PosixEpollWaitTests, MaxEventsLimitsReturnedEvents) {
   ASSERT_EQ(write(pipe_fds_[1], &buffer, 1), 1);
   ASSERT_EQ(write(pipe2_write_fd, &buffer, 1), 1);
 
-  const int kMaxEventsForThisTest = 1;
+  constexpr int kMaxEventsForThisTest = 1;
   struct epoll_event single_event[kMaxEventsForThisTest];
-  int nfds = epoll_wait(epfd_, single_event, kMaxEventsForThisTest,
+  int nfds = epoll_wait(epfd_, single_event, static_cast<int>(kMaxEventsForThisTest),
                         kModerateTimeoutMs);
   ASSERT_EQ(nfds, kMaxEventsForThisTest)
       << "epoll_wait did not return max_events: " << strerror(errno);

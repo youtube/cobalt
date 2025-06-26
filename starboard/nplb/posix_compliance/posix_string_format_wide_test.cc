@@ -34,7 +34,7 @@ int Format(wchar_t* out_buffer,
 }
 
 TEST(PosixFormatWideTest, SunnyDay) {
-  const wchar_t kExpected[] = L"a1b2c3test";
+  constexpr wchar_t kExpected[] = L"a1b2c3test";
   wchar_t destination[1024] = {0};
   int result = Format(destination, SB_ARRAY_SIZE(destination), L"a%db%dc%d%s",
                       1, 2, 3, "test");
