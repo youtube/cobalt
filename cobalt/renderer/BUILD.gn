@@ -11,11 +11,8 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-<<<<<<< HEAD
-=======
-import("//starboard/build/buildflags.gni")
+
 import("//testing/test.gni")
->>>>>>> 46a414c22f4 (reportFullyDrawn() to Android Performance Console (#6162))
 
 source_set("renderer") {
   sources = [
