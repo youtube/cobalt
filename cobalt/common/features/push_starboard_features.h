@@ -12,6 +12,9 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+#ifndef COBALT_COMMON_FEATURES_PUSH_STARBOARD_FEATURES_H_
+#define COBALT_COMMON_FEATURES_PUSH_STARBOARD_FEATURES_H_
+
 namespace cobalt {
 namespace features {
 
@@ -19,3 +22,5 @@ void InitializeStarboardFeatures();
 
 }  // namespace features
 }  // namespace cobalt
+
+#endif  // COBALT_COMMON_FEATURES_PUSH_STARBOARD_FEATURES_H_

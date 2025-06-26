@@ -15,11 +15,11 @@
 #include "starboard/shared/starboard/features.h"
 
 #define STARBOARD_FEATURE(feature, name, default_state) \
-  SB_FEATURE(feature, name, default_state);
+  SB_FEATURE(feature, name, default_state)
 
 #define STARBOARD_FEATURE_PARAM(T, param_object_name, feature, name, \
                                 default_value)                       \
-  SB_FEATURE_PARAM(T, param_object_name, feature, name, default_value);
+  SB_FEATURE_PARAM(T, param_object_name, feature, name, default_value)
 
 #define FEATURE_LIST_START namespace starboard::features {
 #define FEATURE_LIST_END }
