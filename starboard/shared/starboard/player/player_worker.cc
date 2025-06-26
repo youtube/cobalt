@@ -36,6 +36,12 @@ using ::starboard::GetPlayerStateName;
 using std::placeholders::_1;
 using std::placeholders::_2;
 using std::placeholders::_3;
+using std::placeholders::_4;
+using std::placeholders::_5;
+using std::placeholders::_6;
+using std::placeholders::_7;
+using std::placeholders::_8;
+using std::placeholders::_9;
 
 typedef shared::starboard::player::PlayerWorker::Handler::HandlerResult
     HandlerResult;
@@ -150,9 +156,18 @@ PlayerWorker::PlayerWorker(SbMediaAudioCodec audio_codec,
 
 void PlayerWorker::UpdateMediaInfo(int64_t time,
                                    int dropped_video_frames,
-                                   bool is_progressing) {
+                                   bool is_progressing,
+                                   bool is_audio_playing,
+                                   bool has_video_renderer,
+                                   int number_of_frames,
+                                   bool is_video_eos_received,
+                                   bool has_enough_video_data,
+                                   bool has_audio_renderer) {
   if (player_state_ == kSbPlayerStatePresenting) {
-    update_media_info_cb_(time, dropped_video_frames, ticket_, is_progressing);
+    update_media_info_cb_(time, dropped_video_frames, ticket_, is_progressing,
+                          is_audio_playing, has_video_renderer,
+                          number_of_frames, is_video_eos_received,
+                          has_enough_video_data, has_audio_renderer);
   }
 }
 
@@ -225,11 +240,13 @@ void PlayerWorker::DoInit() {
   Handler::UpdatePlayerErrorCB update_player_error_cb;
   update_player_error_cb = std::bind(&PlayerWorker::UpdatePlayerError, this, _1,
                                      HandlerResult{false}, _2);
-  HandlerResult result = handler_->Init(
-      player_, std::bind(&PlayerWorker::UpdateMediaInfo, this, _1, _2, _3),
-      std::bind(&PlayerWorker::player_state, this),
-      std::bind(&PlayerWorker::UpdatePlayerState, this, _1),
-      update_player_error_cb);
+  HandlerResult result =
+      handler_->Init(player_,
+                     std::bind(&PlayerWorker::UpdateMediaInfo, this, _1, _2, _3,
+                               _4, _5, _6, _7, _8, _9),
+                     std::bind(&PlayerWorker::player_state, this),
+                     std::bind(&PlayerWorker::UpdatePlayerState, this, _1),
+                     update_player_error_cb);
   if (result.success) {
     UpdatePlayerState(kSbPlayerStateInitialized);
   } else {
