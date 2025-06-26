@@ -24,6 +24,7 @@
 #include "base/i18n/rtl.h"
 #include "base/metrics/field_trial_params.h"
 #include "base/path_service.h"
+#include "base/strings/string_split.h"
 #include "cobalt/browser/cobalt_browser_interface_binders.h"
 #include "cobalt/browser/cobalt_browser_main_parts.h"
 #include "cobalt/browser/cobalt_secure_navigation_throttle.h"
@@ -37,6 +38,10 @@
 #include "cobalt/shell/browser/shell_browser_main_parts.h"
 #include "cobalt/shell/browser/shell_devtools_manager_delegate.h"
 #include "cobalt/shell/browser/shell_paths.h"
+#include "cobalt/shell/browser/shell_web_contents_view_delegate.h"
+#include "components/custom_handlers/protocol_handler_registry.h"
+#include "components/custom_handlers/protocol_handler_throttle.h"
+#include "components/custom_handlers/simple_protocol_handler_registry_factory.h"
 #include "components/metrics/metrics_service.h"
 #include "components/metrics/metrics_state_manager.h"
 #include "components/metrics_services_manager/metrics_services_manager.h"
@@ -46,12 +51,16 @@
 #include "components/prefs/pref_registry_simple.h"
 #include "components/prefs/pref_service.h"
 #include "components/prefs/pref_service_factory.h"
+#include "components/ukm/scheme_constants.h"
 #include "components/variations/service/variations_service.h"
 #include "content/public/browser/browser_thread.h"
+#include "content/public/browser/posix_file_descriptor_info.h"
 #include "content/public/browser/render_process_host.h"
 #include "content/public/browser/web_contents.h"
 #include "content/public/common/content_switch_dependent_feature_overrides.h"
+#include "content/public/common/url_constants.h"
 #include "content/public/common/user_agent.h"
+#include "content/shell/browser/shell_web_contents_view_delegate_creator.h"
 #include "content/shell/common/shell_switches.h"
 #include "services/network/public/cpp/features.h"
 #include "services/network/public/mojom/network_context.mojom.h"
@@ -62,7 +71,15 @@
 
 #if BUILDFLAG(IS_ANDROID)
 #include "base/android/locale_utils.h"
+#include "components/crash/content/browser/crash_handler_host_linux.h"
+#include "content/public/common/content_descriptors.h"
 #endif  // BUILDFLAG(IS_ANDROID)
+
+#if BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_ANDROID)
+#include "components/crash/core/app/crash_switches.h"
+#include "components/crash/core/app/crashpad.h"
+#include "content/public/common/content_descriptors.h"
+#endif  // BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_ANDROID)
 
 namespace cobalt {
 
@@ -105,6 +122,51 @@ void BindNetworkHintsHandler(
   DCHECK(frame_host);
   network_hints::SimpleNetworkHintsHandlerImpl::Create(frame_host,
                                                        std::move(receiver));
+}
+
+#if BUILDFLAG(IS_ANDROID)
+int GetCrashSignalFD(const base::CommandLine& command_line) {
+  return crashpad::CrashHandlerHost::Get()->GetDeathSignalSocket();
+}
+#elif BUILDFLAG(IS_LINUX)
+int GetCrashSignalFD(const base::CommandLine& command_line) {
+  int fd;
+  pid_t pid;
+  return crash_reporter::GetHandlerSocket(&fd, &pid) ? fd : -1;
+}
+#endif
+
+#if BUILDFLAG(IS_ANDROID)
+// This is a list of global descriptor keys to be used with the
+// base::GlobalDescriptors object (see base/posix/global_descriptors.h)
+enum {
+  kShellPakDescriptor = kContentIPCDescriptorMax + 1,
+  kAndroidMinidumpDescriptor,
+};
+#endif  // BUILDFLAG(IS_ANDROID)
+
+std::string GetShellLanguage() {
+  return "en-us,en";
+}
+
+base::flat_set<url::Origin> GetIsolatedContextOriginSetFromFlag() {
+  std::string cmdline_origins(
+      base::CommandLine::ForCurrentProcess()->GetSwitchValueASCII(
+          switches::kIsolatedContextOrigins));
+
+  std::vector<base::StringPiece> origin_strings = base::SplitStringPiece(
+      cmdline_origins, ",", base::TRIM_WHITESPACE, base::SPLIT_WANT_NONEMPTY);
+
+  base::flat_set<url::Origin> origin_set;
+  for (const base::StringPiece& origin_string : origin_strings) {
+    url::Origin allowed_origin = url::Origin::Create(GURL(origin_string));
+    if (!allowed_origin.opaque()) {
+      origin_set.insert(allowed_origin);
+    } else {
+      LOG(ERROR) << "Error parsing IsolatedContext origin: " << origin_string;
+    }
+  }
+  return origin_set;
 }
 
 }  // namespace
@@ -392,6 +454,166 @@ void CobaltContentBrowserClient::BindGpuHostReceiver(
   if (auto r = receiver.As<media::mojom::VideoGeometrySetter>()) {
     video_geometry_setter_service_->GetVideoGeometrySetter(std::move(r));
   }
+}
+
+#if BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_ANDROID)
+void CobaltContentBrowserClient::GetAdditionalMappedFilesForChildProcess(
+    const base::CommandLine& command_line,
+    int child_process_id,
+    content::PosixFileDescriptorInfo* mappings) {
+#if BUILDFLAG(IS_ANDROID)
+  mappings->ShareWithRegion(
+      kShellPakDescriptor,
+      base::GlobalDescriptors::GetInstance()->Get(kShellPakDescriptor),
+      base::GlobalDescriptors::GetInstance()->GetRegion(kShellPakDescriptor));
+#endif
+  int crash_signal_fd = GetCrashSignalFD(command_line);
+  if (crash_signal_fd >= 0) {
+    mappings->Share(kCrashDumpSignal, crash_signal_fd);
+  }
+}
+#endif  // BUILDFLAG(IS_LINUX) ||
+        // BUILDFLAG(IS_ANDROID)
+
+bool CobaltContentBrowserClient::IsHandledURL(const GURL& url) {
+  if (!url.is_valid()) {
+    return false;
+  }
+  static const char* const kProtocolList[] = {
+      url::kHttpScheme,
+      url::kHttpsScheme,
+      url::kWsScheme,
+      url::kWssScheme,
+      url::kBlobScheme,
+      url::kFileSystemScheme,
+      ukm::kChromeUIScheme,
+      content::kChromeUIUntrustedScheme,
+      content::kChromeDevToolsScheme,
+      url::kDataScheme,
+      url::kFileScheme,
+  };
+  for (const char* supported_protocol : kProtocolList) {
+    if (url.scheme_piece() == supported_protocol) {
+      return true;
+    }
+  }
+  return false;
+}
+
+bool CobaltContentBrowserClient::HasCustomSchemeHandler(
+    content::BrowserContext* browser_context,
+    const std::string& scheme) {
+  if (custom_handlers::ProtocolHandlerRegistry* protocol_handler_registry =
+          custom_handlers::SimpleProtocolHandlerRegistryFactory::
+              GetForBrowserContext(browser_context)) {
+    return protocol_handler_registry->IsHandledProtocol(scheme);
+  }
+  return false;
+}
+
+std::vector<std::unique_ptr<blink::URLLoaderThrottle>>
+CobaltContentBrowserClient::CreateURLLoaderThrottles(
+    const network::ResourceRequest& request,
+    content::BrowserContext* browser_context,
+    const base::RepeatingCallback<content::WebContents*()>& wc_getter,
+    content::NavigationUIData* navigation_ui_data,
+    int frame_tree_node_id) {
+  std::vector<std::unique_ptr<blink::URLLoaderThrottle>> result;
+
+  auto* factory = custom_handlers::SimpleProtocolHandlerRegistryFactory::
+      GetForBrowserContext(browser_context);
+  // null in unit tests.
+  if (factory) {
+    result.push_back(
+        std::make_unique<custom_handlers::ProtocolHandlerThrottle>(*factory));
+  }
+
+  return result;
+}
+
+void CobaltContentBrowserClient::set_browser_main_parts(
+    content::ShellBrowserMainParts* parts) {
+  set_browser_main_parts(parts);
+}
+
+void CobaltContentBrowserClient::AppendExtraCommandLineSwitches(
+    base::CommandLine* command_line,
+    int child_process_id) {
+  static const char* kForwardSwitches[] = {
+      switches::kCrashDumpsDir,
+      switches::kEnableCrashReporter,
+      switches::kExposeInternalsForTesting,
+      switches::kRunWebTests,
+  };
+
+  command_line->CopySwitchesFrom(*base::CommandLine::ForCurrentProcess(),
+                                 kForwardSwitches, std::size(kForwardSwitches));
+
+#if BUILDFLAG(IS_LINUX)
+  if (base::CommandLine::ForCurrentProcess()->HasSwitch(
+          switches::kEnableCrashReporter)) {
+    int fd;
+    pid_t pid;
+    if (crash_reporter::GetHandlerSocket(&fd, &pid)) {
+      command_line->AppendSwitchASCII(
+          crash_reporter::switches::kCrashpadHandlerPid,
+          base::NumberToString(pid));
+    }
+  }
+#endif  // BUILDFLAG(IS_LINUX)
+}
+
+std::string CobaltContentBrowserClient::GetAcceptLangs(
+    content::BrowserContext* context) {
+  return GetShellLanguage();
+}
+
+std::string CobaltContentBrowserClient::GetDefaultDownloadName() {
+  return "download";
+}
+
+std::unique_ptr<content::WebContentsViewDelegate>
+CobaltContentBrowserClient::GetWebContentsViewDelegate(
+    content::WebContents* web_contents) {
+  performance_manager::PerformanceManagerRegistry::GetInstance()
+      ->MaybeCreatePageNodeForWebContents(web_contents);
+  return CreateShellWebContentsViewDelegate(web_contents);
+}
+
+bool CobaltContentBrowserClient::IsIsolatedContextAllowedForUrl(
+    content::BrowserContext* browser_context,
+    const GURL& lock_url) {
+  static base::flat_set<url::Origin> isolated_context_origins =
+      GetIsolatedContextOriginSetFromFlag();
+  return isolated_context_origins.contains(url::Origin::Create(lock_url));
+}
+
+bool CobaltContentBrowserClient::IsSharedStorageAllowed(
+    content::BrowserContext* browser_context,
+    content::RenderFrameHost* rfh,
+    const url::Origin& top_frame_origin,
+    const url::Origin& accessing_origin) {
+  return true;
+}
+
+bool CobaltContentBrowserClient::IsSharedStorageSelectURLAllowed(
+    content::BrowserContext* browser_context,
+    const url::Origin& top_frame_origin,
+    const url::Origin& accessing_origin) {
+  return true;
+}
+
+base::OnceClosure CobaltContentBrowserClient::SelectClientCertificate(
+    WebContents* web_contents,
+    net::SSLCertRequestInfo* cert_request_info,
+    net::ClientCertIdentityList client_certs,
+    std::unique_ptr<ClientCertificateDelegate> delegate) {
+  if (select_client_certificate_callback_) {
+    return std::move(select_client_certificate_callback_)
+        .Run(web_contents, cert_request_info, std::move(client_certs),
+             std::move(delegate));
+  }
+  return base::OnceClosure();
 }
 
 bool CobaltContentBrowserClient::WillCreateURLLoaderFactory(

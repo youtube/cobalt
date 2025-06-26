@@ -15,6 +15,9 @@
 #ifndef COBALT_BROWSER_COBALT_CONTENT_BROWSER_CLIENT_H_
 #define COBALT_BROWSER_COBALT_CONTENT_BROWSER_CLIENT_H_
 
+#include <memory>
+#include <vector>
+
 #include "base/threading/thread_checker.h"
 #include "cobalt/browser/client_hint_headers/cobalt_trusted_url_loader_header_client.h"
 #include "cobalt/browser/cobalt_web_contents_delegate.h"
@@ -24,12 +27,19 @@
 
 class PrefService;
 
+namespace blink {
+class URLLoaderThrottle;
+}  // namespace blink
+
 namespace content {
 class BrowserMainParts;
+class NavigationUIData;
+class PosixFileDescriptorInfo;
 class RenderFrameHost;
 class RenderProcessHost;
 class ShellBrowserMainParts;
 class WebContents;
+class WebContentsViewDelegate;
 }  // namespace content
 
 namespace metrics_services_manager {
@@ -69,10 +79,37 @@ class CobaltContentBrowserClient : public content::ContentBrowserClient {
   // ShellContentBrowserClient overrides.
   std::unique_ptr<content::BrowserMainParts> CreateBrowserMainParts(
       bool is_integration_test) override;
+  bool IsHandledURL(const GURL& url) override;
+  bool HasCustomSchemeHandler(content::BrowserContext* browser_context,
+                              const std::string& scheme) override;
+  std::vector<std::unique_ptr<blink::URLLoaderThrottle>>
+  CreateURLLoaderThrottles(
+      const network::ResourceRequest& request,
+      content::BrowserContext* browser_context,
+      const base::RepeatingCallback<content::WebContents*()>& wc_getter,
+      content::NavigationUIData* navigation_ui_data,
+      int frame_tree_node_id) override;
+  void AppendExtraCommandLineSwitches(base::CommandLine* command_line,
+                                      int child_process_id) override;
+  std::string GetAcceptLangs(content::BrowserContext* context) override;
+  std::string GetDefaultDownloadName() override;
+  std::unique_ptr<content::WebContentsViewDelegate> GetWebContentsViewDelegate(
+      content::WebContents* web_contents) override;
+  bool IsIsolatedContextAllowedForUrl(content::BrowserContext* browser_context,
+                                      const GURL& lock_url) override;
+  bool IsSharedStorageAllowed(content::BrowserContext* browser_context,
+                              content::RenderFrameHost* rfh,
+                              const url::Origin& top_frame_origin,
+                              const url::Origin& accessing_origin) override;
   std::vector<std::unique_ptr<content::NavigationThrottle>>
   CreateThrottlesForNavigation(content::NavigationHandle* handle) override;
   content::GeneratedCodeCacheSettings GetGeneratedCodeCacheSettings(
       content::BrowserContext* context) override;
+  base::OnceClosure SelectClientCertificate(
+      WebContents* web_contents,
+      net::SSLCertRequestInfo* cert_request_info,
+      net::ClientCertIdentityList client_certs,
+      std::unique_ptr<ClientCertificateDelegate> delegate) override;
   std::string GetApplicationLocale() override;
   std::string GetUserAgent() override;
   std::string GetFullUserAgent() override;
@@ -100,6 +137,14 @@ class CobaltContentBrowserClient : public content::ContentBrowserClient {
       blink::AssociatedInterfaceRegistry* associated_registry,
       content::RenderProcessHost* render_process_host) override;
   void BindGpuHostReceiver(mojo::GenericPendingReceiver receiver) override;
+#if BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_ANDROID)
+  void GetAdditionalMappedFilesForChildProcess(
+      const base::CommandLine& command_line,
+      int child_process_id,
+      content::PosixFileDescriptorInfo* mappings) override;
+#endif  // BUILDFLAG(IS_LINUX) ||
+        // BUILDFLAG(IS_ANDROID)
+  void set_browser_main_parts(content::ShellBrowserMainParts* parts);
 
   // Initializes all necessary parameters to create the feature list and calls
   // base::FeatureList::SetInstance() to set the global instance.
