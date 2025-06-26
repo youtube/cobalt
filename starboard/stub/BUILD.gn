@@ -147,7 +147,6 @@ static_library("stub_sources") {
     "//starboard/shared/stub/thread_sampler_is_supported.cc",
     "//starboard/shared/stub/thread_sampler_thaw.cc",
     "//starboard/shared/stub/thread_sleep.cc",
-    "//starboard/shared/stub/thread_yield.cc",
     "//starboard/shared/stub/time_zone_get_current.cc",
     "//starboard/shared/stub/time_zone_get_name.cc",
     "//starboard/shared/stub/window_create.cc",
