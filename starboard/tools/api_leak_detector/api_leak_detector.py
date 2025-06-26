@@ -206,6 +206,7 @@ _ALLOWED_SB_GE_16_POSIX_SYMBOLS = [
     'recv',
     'recvfrom',
     'recvmsg',
+    'recvmmsg',
     'rmdir',
     'sched_yield',
     'send',
