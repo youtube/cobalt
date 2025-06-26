@@ -63,7 +63,6 @@ class Socket {
              int data_size,
              const SbSocketAddress* destination);
 
-  bool GetLocalAddress(SbSocketAddress* out_address);
   bool SetBroadcast(bool value);
   bool SetReuseAddress(bool value);
   bool SetReceiveBufferSize(int32_t size);
