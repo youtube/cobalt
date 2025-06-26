@@ -54,8 +54,8 @@ struct TestContext {
   int64_t timeout_duration_us;
 };
 
-const char kTestData[] = "Hello, POSIX Pipe!";
-const size_t kTestDataSize = sizeof(kTestData);  // Include null terminator
+constexpr char kTestData[] = "Hello, POSIX Pipe!";
+constexpr size_t kTestDataSize = sizeof(kTestData);  // Include null terminator
 
 TEST(PosixPipeTest, PipePlacesTwoValidFileDescriptorsIntoFildesArray) {
   int pipe_fds[2];

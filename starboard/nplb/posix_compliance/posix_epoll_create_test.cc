@@ -79,7 +79,7 @@ TEST(PosixEpollCreate1Tests, CreateSuccessfullyWithCloExec) {
 TEST(PosixEpollCreate1Tests, ErrorInvalidFlags) {
   // An arbitrary invalid flag value.
   // EPOLL_CLOEXEC is 0x80000. We pick another bit not used by epoll_create1.
-  const int kInvalidFlag = 0x1;
+  constexpr int kInvalidFlag = 0x1;
   int epfd = epoll_create1(kInvalidFlag);
   ASSERT_EQ(epfd, -1);
   ASSERT_EQ(errno, EINVAL);

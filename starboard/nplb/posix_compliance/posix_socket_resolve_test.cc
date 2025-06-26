@@ -23,8 +23,8 @@ namespace nplb {
 namespace {
 
 // A random host name to use to test DNS resolution.
-const char kTestHostName[] = "www.example.com";
-const char kLocalhost[] = "localhost";
+constexpr char kTestHostName[] = "www.example.com";
+constexpr char kLocalhost[] = "localhost";
 
 TEST(PosixSocketResolveTest, SunnyDay) {
   struct addrinfo hints = {0};

@@ -87,7 +87,7 @@ void* RunPosixOnceEntryPoint(void* context) {
   }
 
   sched_yield();
-  static const int kIterationCount = 3;
+  static constexpr int kIterationCount = 3;
   for (int i = 0; i < kIterationCount; ++i) {
     pthread_once(&run_sbonce_context->once_control, &IncrementGlobalValue);
   }
@@ -102,7 +102,7 @@ TEST(PosixOnceTest, SunnyDayMultipleThreadsInit) {
   const int kMany = kSbMaxThreads;
   std::vector<pthread_t> threads(kMany);
 
-  const int kIterationCount = 10;
+  constexpr int kIterationCount = 10;
   for (int i = 0; i < kIterationCount; ++i) {
     RunPosixOnceContext context;
 

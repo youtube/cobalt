@@ -25,7 +25,7 @@ namespace nplb {
 namespace {
 
 TEST(PosixSocketCreateTest, ATonOfTcp) {
-  const int kATon = 4096;
+  constexpr int kATon = 4096;
   for (int i = 0; i < kATon; ++i) {
     int socket_fd = socket(AF_INET, SOCK_STREAM, IPPROTO_TCP);
 
@@ -35,7 +35,7 @@ TEST(PosixSocketCreateTest, ATonOfTcp) {
 }
 
 TEST(PosixSocketCreateTest, ManyTcpAtOnce) {
-  const int kMany = 128;
+  constexpr int kMany = 128;
   int sockets_fd[kMany] = {0};
   for (int i = 0; i < kMany; ++i) {
     sockets_fd[i] = socket(AF_INET, SOCK_STREAM, IPPROTO_TCP);
