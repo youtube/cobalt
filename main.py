@@ -13,16 +13,36 @@ def find_deepest_common_dir(paths):
     # Split directory paths into components
     split_paths = [p.split('/') for p in dir_paths]
     
-    min_len = min(len(p) for p in split_paths)
-    
-    common_path = []
-    for i in range(min_len):
-        if all(split_paths[j][i] == split_paths[0][i] for j in range(len(split_paths))):
-            common_path.append(split_paths[0][i])
-        else:
-            break
-            
-    return '/'.join(common_path) if common_path else "/"
+    # Handle absolute paths correctly
+    if split_paths and split_paths[0] and split_paths[0][0] == '':
+        # For absolute paths, the first element is an empty string.
+        # We need to preserve this to correctly join the path later.
+        for p in split_paths:
+            if not p or p[0] != '':
+                # Mixed absolute and relative paths, no common dir
+                return ""
+        
+        min_len = min(len(p) for p in split_paths)
+        common_path = [''] # Start with root
+        for i in range(1, min_len):
+            if all(split_paths[j][i] == split_paths[0][i] for j in range(len(split_paths))):
+                common_path.append(split_paths[0][i])
+            else:
+                break
+        
+        return os.path.join(*common_path) if len(common_path) > 1 else "/"
+
+    else: # Handle relative paths
+        min_len = min(len(p) for p in split_paths)
+        
+        common_path = []
+        for i in range(min_len):
+            if all(split_paths[j][i] == split_paths[0][i] for j in range(len(split_paths))):
+                common_path.append(split_paths[0][i])
+            else:
+                break
+                
+        return '/'.join(common_path) if common_path else ""
 
 def setup_mirror_repo(repo_url, mirror_path, working_path):
     """
@@ -799,7 +819,26 @@ def score_commit_for_spine(commit):
         total_score += change_score
     except:
         score_details["change_magnitude_score"] = 0
-    
+
+    # 6. Identify subtree squash commits
+    is_subtree_squash = False
+    subtree_path = None
+    if len(commit.parents) > 1:
+        for p in commit.parents:
+            if len(p.parents) == 0:
+                is_subtree_squash = True
+                break
+
+    if is_subtree_squash:
+        total_score += 50
+        files = list(commit.stats.files.keys())
+        # Filter out root-level files like DEPS, .pre-commit-yaml, etc.
+        filtered_files = [f for f in files if '/' in f]
+        subtree_path = find_deepest_common_dir(filtered_files)
+
+    score_details["is_subtree_squash"] = is_subtree_squash
+    score_details["subtree_path"] = subtree_path
+
     score_details["total"] = total_score
     return score_details
 
