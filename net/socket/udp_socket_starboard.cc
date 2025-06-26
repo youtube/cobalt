@@ -224,8 +224,7 @@ int UDPSocketStarboard::ReadMultiplePackets(Socket::ReadPacketResults* results,
   }
 
   if (!base::CurrentIOThread::Get()->Watch(
-          socket_, true, base::MessagePumpIOStarboard::WATCH_READ,
-          &socket_watcher_, this)) {
+          socket_, true, kSbSocketWaiterInterestRead, &socket_watcher_, this)) {
     PLOG(ERROR) << "WatchSocket failed on read";
     Error result = MapLastSocketError(socket_);
     if (result == ERR_IO_PENDING) {
@@ -517,15 +516,6 @@ void UDPSocketStarboard::DidCompleteMultiplePacketRead() {
   }
 }
 
-void UDPSocketStarboard::DidCompleteMultiplePacketRead() {
-  int result = InternalReadMultiplePackets(results_);
-  if (result != ERR_IO_PENDING) {
-    results_ = nullptr;
-    InternalStopWatchingSocket();
-    DoReadCallback(result);
-  }
-}
-
 void UDPSocketStarboard::LogRead(int result,
                                  const char* bytes,
                                  const IPEndPoint* address) const {
@@ -655,7 +645,7 @@ int UDPSocketStarboard::InternalSendTo(IOBuffer* buf,
     address = remote_address_.get();
     if (!address) {
       int result = ERR_FAILED;
-      LogWrite(result, NULL, NULL);
+      LogWrite(result, nullptr, nullptr);
       return result;
     }
   }

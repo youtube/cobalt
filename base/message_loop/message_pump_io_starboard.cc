@@ -41,16 +41,19 @@ MessagePumpIOStarboard::SocketWatcher::~SocketWatcher() {
 
 bool MessagePumpIOStarboard::SocketWatcher::UnregisterInterest(int interests) {
   bool result = true;
-  if (SbSocketIsValid(socket)) {
-    DCHECK(pump_);
-#if defined(STARBOARD)
+  if (SbSocketIsValid(socket_)) {
     // This may get called multiple times from TCPSocketStarboard.
     if (pump_) {
-      result = pump_->StopWatching(socket);
-    }
-#else
-    result = pump_->StopWatching(socket);
-#endif
+      result = pump_->UnregisterInterest(socket_, interests, this);
+    } else
+      Release();
+  } else {
+    interests_ = 0;
+  }
+  if (!interests_) {
+    DCHECK(!SbSocketIsValid(socket_));
+    pump_ = nullptr;
+    watcher_ = nullptr;
   }
   return result;
 }
