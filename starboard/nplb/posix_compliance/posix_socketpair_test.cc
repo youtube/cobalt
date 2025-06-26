@@ -16,15 +16,10 @@
 // - Shall fail with ENFILE if no more file descriptors are available for the
 //   system. This would be difficult to trigger from a user-space test without
 //   impacting the system.
-// - Shall fail with EPROTOTYPE if the socket type is not supported by the
-//   protocol. We can't test this because platforms are only required to support
-//   socketpair() with protocol=0, meaning the default protocol for the
-//   requested socket type should be used. If we provide some other argument for
-//   protocol, socketpair() will just fail with EPROTONOSUPPORT.
-// - The EAFNOSUPPORT, EOPNOTSUPP, and EPROTONOSUPPORT error cases could be
-//   tested but to maintain portability while supporting our modular builds we'd
-//   need to support awkward values, like -1, in our ABI compatibility wrappers.
-//   This particular test coverage probably does not justify that.
+// - Shall fail with EOPNOTSUPP if the specified protocol does not permit
+//   creation of socket pairs. It's not clear how to reproduce this error case
+//   in a portable way; for example, Linux systems generally don't support
+//   socket pairs for AF_INET sockets but some systems apparently do.
 
 #include <fcntl.h>
 #include <sys/socket.h>
@@ -233,6 +228,39 @@ TEST(PosixSocketpairTest,
   file_status_flags = fcntl(sockets[1], F_GETFL);
   EXPECT_NE(file_status_flags, -1);
   EXPECT_TRUE(file_status_flags & O_NONBLOCK);
+
+  close(sockets[0]);
+  close(sockets[1]);
+}
+
+TEST(PosixSocketpairTest, SocketpairWithInvalidDomainFails) {
+  int sockets[2];
+
+  EXPECT_EQ(socketpair(-1, SOCK_STREAM, 0, sockets), -1);
+  EXPECT_EQ(errno, EAFNOSUPPORT);
+
+  close(sockets[0]);
+  close(sockets[1]);
+}
+
+TEST(PosixSocketpairTest, SocketpairWithInvalidTypeFails) {
+  int sockets[2];
+
+  EXPECT_EQ(socketpair(AF_UNIX, -1, 0, sockets), -1);
+  // The POSIX spec seems to require EPROTOTYPE here but that behavior is not
+  // consistently implemented; some Linux systems choose EINVAL, which is not a
+  // documented error for socketpair. So, for portability, we don't make any
+  // expectation about the specific error.
+
+  close(sockets[0]);
+  close(sockets[1]);
+}
+
+TEST(PosixSocketpairTest, SocketpairWithInvalidProtocolFails) {
+  int sockets[2];
+
+  EXPECT_EQ(socketpair(AF_UNIX, SOCK_STREAM, -1, sockets), -1);
+  EXPECT_EQ(errno, EPROTONOSUPPORT);
 
   close(sockets[0]);
   close(sockets[1]);

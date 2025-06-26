@@ -14,6 +14,7 @@
 
 #include "starboard/shared/modular/starboard_layer_posix_socketpair_abi_wrappers.h"
 
+#include <errno.h>
 #include <sys/socket.h>
 
 #include "starboard/common/log.h"
@@ -22,12 +23,22 @@
 namespace {
 
 int musl_domain_to_platform_domain(int domain) {
-  if (domain == MUSL_AF_UNIX) {
-    return AF_UNIX;
-  } else {
-    SB_LOG(WARNING) << "Only AF_UNIX is supported for domain, got: " << domain;
-    return -1;
+  switch (domain) {
+    case MUSL_AF_UNIX:
+      return AF_UNIX;
+    // Report EOPNOTSUPP for the unsupported domains that are more likely to be
+    // tried.
+    case MUSL_AF_INET:
+    case MUSL_AF_INET6:
+      errno = EOPNOTSUPP;
+      break;
+    default:
+      errno = EAFNOSUPPORT;
+      break;
   }
+
+  SB_LOG(WARNING) << "Only AF_UNIX is supported for domain, got: " << domain;
+  return -1;
 }
 
 // Deconstructs, converts, and reconstructs the type, which contains a socket
@@ -55,6 +66,7 @@ int musl_type_to_platform_type(int type) {
       platform_socket_type = SOCK_SEQPACKET;
       break;
     default:
+      errno = EPROTOTYPE;
       SB_LOG(WARNING) << "Unable to convert musl socket type to platform "
                       << "socket type, or unknown flags are present. Value: "
                       << musl_socket_type;
@@ -66,6 +78,7 @@ int musl_type_to_platform_type(int type) {
 
 int musl_protocol_to_platform_protocol(int protocol) {
   if (protocol) {
+    errno = EPROTONOSUPPORT;
     SB_LOG(WARNING) << "Only the default protocol is supported, got "
                     << protocol;
     return -1;
@@ -80,6 +93,7 @@ SB_EXPORT int __abi_wrap_socketpair(int domain,
                                     int type,
                                     int protocol,
                                     int socket_vector[2]) {
+  // errno reporting is handled by the conversion helper functions.
   int platform_domain = musl_domain_to_platform_domain(domain);
   if (platform_domain == -1) {
     return -1;
