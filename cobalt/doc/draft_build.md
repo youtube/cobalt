@@ -37,7 +37,7 @@ To build Cobalt, ensure your system meets the following requirements:
 git clone git@github.com:youtube/cobalt.git cobalt/src
 ```
 
-### Configure `gclient` and Download Sub-repositories
+### Configure `gclient`
 
 ```sh
 cd cobalt
@@ -67,9 +67,11 @@ gclient sync --no-history -r $(git rev-parse @)
 ### Configure and Build Cobalt for Linux
 
 ```sh
-cobalt/build/gn.py
-autoninja -C out/linux-x64x11_devel/ cobalt
+cobalt/build/gn.py --no-rbe
+autoninja -C out/linux-x64x11_devel/ cobalt_apk
 ```
+
+Note: See note about --no-rbe at the end of this document.
 
 Cobalt can be run as:
 
@@ -82,7 +84,7 @@ out/linux-x64x11_devel/cobalt
 Change the platform parameter to:
 
 ```sh
-cobalt/build/gn.py -p android-arm
+cobalt/build/gn.py --no-rbe -p android-arm
 autoninja -C out/android-arm_devel/ cobalt
 ```
 
@@ -93,7 +95,7 @@ This will build `apks/Cobalt.apk` in the output directory.
 You can also build some of the code in the original Chromium configuration. This is helpful to cross-test and reference Cobalt-related changes.
 
 ```sh
-cobalt/build/gn.py -p chromium_linux-x64x11
+cobalt/build/gn.py --no-rbe -p chromium_linux-x64x11
 autoninja -C out/chromium_linux-x64x11_devel/ content_shell
 ```
 
@@ -106,3 +108,10 @@ Cobalt uses Github Actions for continuous integration, build, and test. While th
 steps in the Actions code found in the `.github` directory are always current and up to date.
 
 You can also find the current build status on [our build matrix page](https://github.com/youtube/cobalt/blob/main/cobalt/BUILD_STATUS.md) and refer to detailed execution logs for reproducing builds and tests.
+
+
+### Build acceleration ( RBE )
+
+Build acceleration with RBE ( Remote Build Execution ) is currently not supported. Hence all `gn` commands need the `--no-rbe` flag.
+
+It is possible to configure different build acceleration backends by using `cc_wrapper=ccache`, `cc_wrapper=sccache` or others, but this is currently not tested by Cobalt builds.
