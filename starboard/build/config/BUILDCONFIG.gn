@@ -41,7 +41,7 @@ declare_args() {
 
   use_xcode_clang = false
 
-  enable_iamf_decode = false
+  enable_iamf_decode = true
 }
 
 _is_on_pythonpath = exec_script("//starboard/build/is_on_path.py", [], "json")

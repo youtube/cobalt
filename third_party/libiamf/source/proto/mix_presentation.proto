@@ -1,0 +1,164 @@
+// Copyright (c) 2023, Alliance for Open Media. All rights reserved
+//
+// This source code is subject to the terms of the BSD 3-Clause Clear License
+// and the Alliance for Open Media Patent License 1.0. If the BSD 3-Clause Clear
+// License was not distributed with this source code in the LICENSE file, you
+// can obtain it at www.aomedia.org/license/software-license/bsd-3-c-c. If the
+// Alliance for Open Media Patent License 1.0 was not distributed with this
+// source code in the PATENTS file, you can obtain it at
+// www.aomedia.org/license/patent.
+
+syntax = "proto2";
+
+package libiamf_proto;
+
+import "obu_header.proto";
+import "param_definitions.proto";
+
+message MixPresentationAnnotations {
+  optional string mix_presentation_friendly_label = 1;
+}
+
+message MixPresentationElementAnnotations {
+  optional string audio_element_friendly_label = 1;
+}
+
+message ElementMixConfig {
+  optional MixGainParamDefinition mix_gain = 1;
+}
+
+enum HeadPhonesRenderingMode {
+  HEADPHONES_RENDERING_MODE_INVALID = 0;
+  HEADPHONES_RENDERING_MODE_STEREO = 1;
+  HEADPHONES_RENDERING_MODE_BINAURAL = 2;
+  HEADPHONES_RENDERING_MODE_RESERVED_2 = 3;
+  HEADPHONES_RENDERING_MODE_RESERVED_3 = 4;
+}
+
+message RenderingConfig {
+  optional HeadPhonesRenderingMode headphones_rendering_mode = 1;
+  optional uint32 reserved = 2;
+  optional uint32 rendering_config_extension_size = 3;
+  optional bytes rendering_config_extension_bytes = 4;
+}
+
+message SubMixAudioElement {
+  optional uint32 audio_element_id = 1;
+  reserved 2;
+  repeated MixPresentationElementAnnotations
+      mix_presentation_element_annotations_array = 4;
+  optional RenderingConfig rendering_config = 5;
+  optional ElementMixConfig element_mix_config = 3;
+}
+
+message OutputMixConfig {
+  optional MixGainParamDefinition output_mix_gain = 1;
+}
+
+enum SoundSystem {
+  SOUND_SYSTEM_INVALID = 0;
+  SOUND_SYSTEM_A_0_2_0 = 1;
+  SOUND_SYSTEM_B_0_5_0 = 2;
+  SOUND_SYSTEM_C_2_5_0 = 3;
+  SOUND_SYSTEM_D_4_5_0 = 4;
+  SOUND_SYSTEM_E_4_5_1 = 5;
+  SOUND_SYSTEM_F_3_7_0 = 6;
+  SOUND_SYSTEM_G_4_9_0 = 7;
+  SOUND_SYSTEM_H_9_10_3 = 8;
+  SOUND_SYSTEM_I_0_7_0 = 9;
+  SOUND_SYSTEM_J_4_7_0 = 10;
+  SOUND_SYSTEM_10_2_7_0 = 11;
+  SOUND_SYSTEM_11_2_3_0 = 12;
+  SOUND_SYSTEM_12_0_1_0 = 13;
+  SOUND_SYSTEM_13_6_9_0 = 14;
+}
+
+message LoudspeakersSsConventionLayout {
+  optional SoundSystem sound_system = 1;
+  optional uint32 reserved = 2;
+}
+
+message LoudspeakersReservedOrBinauralLayout {
+  optional uint32 reserved = 1;
+}
+
+enum LayoutType {
+  LAYOUT_TYPE_INVALID = 0;
+  LAYOUT_TYPE_RESERVED_0 = 1;
+  LAYOUT_TYPE_RESERVED_1 = 2;
+  LAYOUT_TYPE_LOUDSPEAKERS_SS_CONVENTION = 3;
+  LAYOUT_TYPE_BINAURAL = 4;
+}
+
+message Layout {
+  optional LayoutType layout_type = 1;
+  reserved 2;
+  oneof specific_layout {
+    LoudspeakersSsConventionLayout ss_layout = 3;
+    LoudspeakersReservedOrBinauralLayout reserved_or_binaural_layout = 4;
+  }
+}
+
+enum AnchorType {
+  ANCHOR_TYPE_INVALID = 0;
+  ANCHOR_TYPE_UNKNOWN = 1;
+  ANCHOR_TYPE_DIALOGUE = 2;
+  ANCHOR_TYPE_ALBUM = 3;
+}
+
+message AnchorElement {
+  optional AnchorType anchor_element = 1;
+  optional int32 anchored_loudness = 2;
+}
+
+message AnchoredLoudness {
+  optional uint32 num_anchored_loudness = 1;
+  repeated AnchorElement anchor_elements = 2;
+}
+
+enum LoudnessInfoTypeBitMask {
+  LOUDNESS_INFO_TYPE_INVALID = 0;
+  LOUDNESS_INFO_TYPE_TRUE_PEAK = 1;
+  LOUDNESS_INFO_TYPE_ANCHORED_LOUDNESS = 2;
+  LOUDNESS_INFO_TYPE_RESERVED_4 = 4;
+  LOUDNESS_INFO_TYPE_RESERVED_8 = 8;
+  LOUDNESS_INFO_TYPE_RESERVED_16 = 16;
+  LOUDNESS_INFO_TYPE_RESERVED_32 = 32;
+  LOUDNESS_INFO_TYPE_RESERVED_64 = 64;
+  LOUDNESS_INFO_TYPE_RESERVED_128 = 128;
+}
+
+message LoudnessInfo {
+  optional uint32 deprecated_info_type = 1 [deprecated = true];
+  repeated LoudnessInfoTypeBitMask info_type_bit_masks = 8 [packed = true];
+  optional int32 integrated_loudness = 2;
+  optional int32 digital_peak = 3;
+  optional int32 true_peak = 4;
+  optional AnchoredLoudness anchored_loudness = 5;
+  optional uint32 info_type_size = 6;
+  optional bytes info_type_bytes = 7;
+}
+
+message MixPresentationLayout {
+  optional Layout loudness_layout = 1;
+  optional LoudnessInfo loudness = 2;
+}
+
+message MixPresentationSubMix {
+  optional uint32 num_audio_elements = 1;
+  repeated SubMixAudioElement audio_elements = 2;
+  optional OutputMixConfig output_mix_config = 3;
+  optional uint32 num_layouts = 4;
+  repeated MixPresentationLayout layouts = 5;
+}
+
+message MixPresentationObuMetadata {
+  optional uint32 mix_presentation_id = 1;
+  optional uint32 count_label = 5;
+  repeated string language_labels = 6;
+  reserved 2;
+  repeated MixPresentationAnnotations mix_presentation_annotations_array = 7;
+  optional uint32 num_sub_mixes = 3;
+  repeated MixPresentationSubMix sub_mixes = 4;
+  optional ObuHeaderMetadata obu_header = 8;
+}
