@@ -41,4 +41,4 @@ RUN cd /tmp \
 
 # TODO(b/402053134): for now we only build evergreen targets, once modular builds are working this needs to updated to build modular by default
 CMD gn gen ${OUTDIR}/${PLATFORM}${SB_API_VERSION:+-sbversion-$SB_API_VERSION}_${CONFIG:-debug} --args="target_platform=\"${PLATFORM}\" build_type=\"${CONFIG:-debug}\" target_cpu=\"arm\" target_os=\"linux\" is_clang=false using_old_compiler=true rdk_build_with_yocto=false rdk_starboard_root=\"//starboard/contrib/rdk/src\" rdk_enable_securityagent=false ${SB_API_VERSION:+sb_api_version=$SB_API_VERSION}" && \
-    ninja -v -j ${NINJA_PARALLEL} -C out/${PLATFORM}_${CONFIG:-debug} loader_app_install loader_app_bin native_target/crashpad_handler elf_loader_sandbox_install elf_loader_sandbox_bin
+    ninja -v -j ${NINJA_PARALLEL} -C out/${PLATFORM}_${CONFIG:-debug} loader_app_install native_target/crashpad_handler elf_loader_sandbox_install
