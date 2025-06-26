@@ -93,7 +93,7 @@ void VideoDmpReader::Registry::Register(const std::string& filename,
   SB_DCHECK(!filename.empty());
 
   std::scoped_lock scoped_lock(mutex_);
-  SB_DCHECK_EQ(dmp_infos_.find(filename), dmp_infos_.end());
+  SB_DCHECK(dmp_infos_.find(filename) == dmp_infos_.end());
   dmp_infos_[filename] = dmp_info;
 }
 

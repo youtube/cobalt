@@ -55,29 +55,21 @@ void SbFileAndroidInitialize(ScopedJavaGlobalRef<jobject> asset_manager,
   JNIEnv* env = base::android::AttachCurrentThread();
 
   SB_DCHECK(g_java_asset_manager.is_null());
-  SB_DCHECK(g_asset_manager == NULL);
+  SB_DCHECK_EQ(g_asset_manager, nullptr);
 
-  ScopedJavaLocalRef<jobject> context =
-      starbooard_bridge->GetApplicationContext(env);
+  g_java_asset_manager = asset_manager;
+  g_asset_manager = AAssetManager_fromJava(env, asset_manager.obj());
 
-  g_java_asset_manager = starbooard_bridge->GetAssetsFromContext(env, context);
-  g_asset_manager = AAssetManager_fromJava(env, g_java_asset_manager.obj());
-
-  std::string app_files_dir = starbooard_bridge->GetFilesAbsolutePath(env);
-  SB_DCHECK(g_app_files_dir == NULL);
-  g_app_files_dir = strdup(app_files_dir.c_str());
-
+  SB_DCHECK_EQ(g_app_files_dir, nullptr);
+  g_app_files_dir = strdup(files_dir.c_str());
   SB_DLOG(INFO) << "Files dir: " << g_app_files_dir;
 
   SB_DCHECK_EQ(g_app_cache_dir, nullptr);
   g_app_cache_dir = strdup(cache_dir.c_str());
   SB_DLOG(INFO) << "Cache dir: " << g_app_cache_dir;
 
-  std::string app_lib_dir =
-      starbooard_bridge->GetNativeLibraryDirFromContext(env, context);
-  SB_DCHECK(g_app_lib_dir == NULL);
-  g_app_lib_dir = strdup(app_lib_dir.c_str());
-
+  SB_DCHECK_EQ(g_app_lib_dir, nullptr);
+  g_app_lib_dir = strdup(native_library_dir.c_str());
   SB_DLOG(INFO) << "Lib dir: " << g_app_lib_dir;
 }
 

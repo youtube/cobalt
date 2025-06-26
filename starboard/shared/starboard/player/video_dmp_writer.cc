@@ -43,7 +43,7 @@ class PlayerToWriterMap {
   bool dump_video_data() const { return dump_video_data_; }
   void Register(SbPlayer player) {
     std::scoped_lock scoped_lock(mutex_);
-    SB_DCHECK_EQ(map_.find(player), map_.end());
+    SB_DCHECK(map_.find(player) == map_.end());
     map_[player] = new VideoDmpWriter;
   }
   void Unregister(SbPlayer player) {
