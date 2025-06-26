@@ -82,15 +82,6 @@ class StarboardRendererWrapper : public Renderer,
   StarboardRenderer* GetRenderer();
   base::SequenceBound<StarboardGpuFactory>* GetGpuFactory();
 
- private:
-  void OnPaintVideoHoleFrameByStarboard(const gfx::Size& size);
-  void OnUpdateStarboardRenderingModeByStarboard(
-      const StarboardRenderingMode mode);
-  void ContinueInitialization(MediaResource* media_resource,
-                              RendererClient* client,
-                              PipelineStatusCallback init_cb);
-  bool IsGpuChannelTokenAvailable() const { return !!command_buffer_id_; }
-
   void SetRendererForTesting(StarboardRenderer* renderer) {
     test_renderer_ = renderer;
   }
@@ -100,6 +91,15 @@ class StarboardRendererWrapper : public Renderer,
     test_gpu_factory_ = gpu_factory;
   }
 
+ private:
+  void OnPaintVideoHoleFrameByStarboard(const gfx::Size& size);
+  void OnUpdateStarboardRenderingModeByStarboard(
+      const StarboardRenderingMode mode);
+  void ContinueInitialization(MediaResource* media_resource,
+                              RendererClient* client,
+                              PipelineStatusCallback init_cb);
+  bool IsGpuChannelTokenAvailable() const { return !!command_buffer_id_; }
+
   mojo::Receiver<RendererExtension> renderer_extension_receiver_;
   mojo::Remote<ClientExtension> client_extension_remote_;
   StarboardRenderer renderer_;
@@ -108,8 +108,6 @@ class StarboardRendererWrapper : public Renderer,
 
   raw_ptr<StarboardRenderer> test_renderer_;
   raw_ptr<base::SequenceBound<StarboardGpuFactory>> test_gpu_factory_;
-
-  friend class StarboardRendererWrapperTest;
 
   THREAD_CHECKER(thread_checker_);
   base::WeakPtrFactory<StarboardRendererWrapper> weak_factory_{this};

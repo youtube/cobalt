@@ -136,6 +136,7 @@ source_set("unit_tests") {
     sources += [
       "bidirectional_fit_reuse_allocator_test.cc",
       "decoder_buffer_allocator_test.cc",
+      "starboard_renderer_unittest.cc",
       "starboard_utils_test.cc",
     ]
   }

@@ -41,7 +41,8 @@ using ::testing::StrictMock;
 
 namespace media {
 
-// TODO(b/379934658): Add more unit test cases.
+namespace {
+
 class MockStarboardRenderer : public StarboardRenderer {
  public:
   MockStarboardRenderer(
@@ -123,7 +124,7 @@ class MockStarboardGpuFactory : public StarboardGpuFactory {
 };
 
 class StarboardRendererWrapperTest : public testing::Test {
- public:
+ protected:
   using RendererExtension = mojom::StarboardRendererExtension;
   using ClientExtension = mojom::StarboardRendererClientExtension;
 
@@ -158,8 +159,6 @@ class StarboardRendererWrapperTest : public testing::Test {
     renderer_wrapper_->SetRendererForTesting(mock_renderer_.get());
     renderer_wrapper_->SetGpuFactoryForTesting(&gpu_factory_);
 
-    EXPECT_CALL(*mock_renderer_, OnInitialize(_, _, _))
-        .WillOnce(RunOnceCallback<2>(PIPELINE_OK));
     EXPECT_CALL(media_resource_, GetAllStreams())
         .WillRepeatedly(
             Invoke(this, &StarboardRendererWrapperTest::GetAllStreams));
@@ -184,7 +183,6 @@ class StarboardRendererWrapperTest : public testing::Test {
     return streams;
   }
 
- protected:
   base::test::TaskEnvironment task_environment_;
   std::unique_ptr<StrictMock<MockStarboardRenderer>> mock_renderer_;
   base::SequenceBound<StrictMock<MockStarboardGpuFactory>> mock_gpu_factory_;
@@ -205,6 +203,8 @@ TEST_F(StarboardRendererWrapperTest, InitializeWithoutGpuChannelToken) {
   AddStream(DemuxerStream::AUDIO, false);
   AddStream(DemuxerStream::VIDEO, false);
 
+  EXPECT_CALL(*mock_renderer_, OnInitialize(_, _, _))
+      .WillOnce(RunOnceCallback<2>(PIPELINE_OK));
   EXPECT_CALL(renderer_init_cb_, Run(HasStatusCode(PIPELINE_OK)));
   renderer_wrapper_->Initialize(&media_resource_, &renderer_client_,
                                 renderer_init_cb_.Get());
@@ -221,11 +221,68 @@ TEST_F(StarboardRendererWrapperTest, InitializeWithGpuChannelToken) {
   command_buffer_id->route_id = 0;
   renderer_wrapper_->OnGpuChannelTokenReady(std::move(command_buffer_id));
 
+  EXPECT_CALL(*mock_renderer_, OnInitialize(_, _, _))
+      .WillOnce(RunOnceCallback<2>(PIPELINE_OK));
   EXPECT_CALL(renderer_init_cb_, Run(HasStatusCode(PIPELINE_OK)));
   renderer_wrapper_->Initialize(&media_resource_, &renderer_client_,
                                 renderer_init_cb_.Get());
 
   task_environment_.RunUntilIdle();
 }
+
+TEST_F(StarboardRendererWrapperTest, Flush) {
+  base::MockOnceClosure closure;
+  EXPECT_CALL(*mock_renderer_, OnFlush(_)).WillOnce(RunOnceCallback<0>());
+  EXPECT_CALL(closure, Run());
+  renderer_wrapper_->Flush(closure.Get());
+  task_environment_.RunUntilIdle();
+}
+
+TEST_F(StarboardRendererWrapperTest, StartPlayingFrom) {
+  const base::TimeDelta kStartTime = base::Seconds(5);
+  EXPECT_CALL(*mock_renderer_, StartPlayingFrom(kStartTime));
+  renderer_wrapper_->StartPlayingFrom(kStartTime);
+  task_environment_.RunUntilIdle();
+}
+
+TEST_F(StarboardRendererWrapperTest, SetPlaybackRate) {
+  const double kPlaybackRate = 2.5;
+  EXPECT_CALL(*mock_renderer_, SetPlaybackRate(kPlaybackRate));
+  renderer_wrapper_->SetPlaybackRate(kPlaybackRate);
+  task_environment_.RunUntilIdle();
+}
+
+TEST_F(StarboardRendererWrapperTest, SetVolume) {
+  const float kVolume = 0.75f;
+  EXPECT_CALL(*mock_renderer_, SetVolume(kVolume));
+  renderer_wrapper_->SetVolume(kVolume);
+  task_environment_.RunUntilIdle();
+}
+
+TEST_F(StarboardRendererWrapperTest, GetMediaTime) {
+  const base::TimeDelta kExpectedTime = base::Seconds(42);
+  EXPECT_CALL(*mock_renderer_, GetMediaTime()).WillOnce(Return(kExpectedTime));
+  EXPECT_EQ(renderer_wrapper_->GetMediaTime(), kExpectedTime);
+  task_environment_.RunUntilIdle();
+}
+
+TEST_F(StarboardRendererWrapperTest, SetCdm) {
+  base::MockCallback<Renderer::CdmAttachedCB> cdm_attached_cb;
+  EXPECT_CALL(*mock_renderer_, OnSetCdm(/*cdm_context=*/nullptr, _))
+      .WillOnce(RunOnceCallback<1>(true));
+  EXPECT_CALL(cdm_attached_cb, Run(true));
+  renderer_wrapper_->SetCdm(/*cdm_context=*/nullptr, cdm_attached_cb.Get());
+  task_environment_.RunUntilIdle();
+}
+
+TEST_F(StarboardRendererWrapperTest, GetCurrentVideoFrame) {
+  base::MockCallback<StarboardRendererWrapper::GetCurrentVideoFrameCallback>
+      callback;
+  EXPECT_CALL(callback, Run(testing::IsNull()));
+  renderer_wrapper_->GetCurrentVideoFrame(callback.Get());
+  task_environment_.RunUntilIdle();
+}
+
+}  // namespace
 
 }  // namespace media
