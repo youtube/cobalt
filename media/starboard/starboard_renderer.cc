@@ -185,7 +185,7 @@ void StarboardRenderer::Initialize(MediaResource* media_resource,
   if (audio_stream_ == nullptr && video_stream_ == nullptr) {
     LOG(INFO)
         << "The video has to contain at least an audio track or a video track.";
-    std::move(init_cb).Run(PipelineStatus(
+    std::move(init_cb_).Run(PipelineStatus(
         DEMUXER_ERROR_NO_SUPPORTED_STREAMS,
         "The video has to contain at least an audio track or a video track."));
     return;
