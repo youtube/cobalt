@@ -46,7 +46,10 @@ class MediaTimeProviderImpl : public MediaTimeProvider,
   int64_t GetCurrentMediaTime(bool* is_playing,
                               bool* is_eos_played,
                               bool* is_underflow,
-                              double* playback_rate) override;
+                              double* playback_rate,
+                              bool* has_renderer,
+                              int* total_frames_sent_to_sink,
+                              bool* is_eos_received) override;
 
  private:
   // When not NULL, |current_time| will be set to the current monotonic time

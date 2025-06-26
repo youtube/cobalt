@@ -121,6 +121,8 @@ StarboardRenderer::StarboardRenderer(
       set_bounds_helper_(new SbPlayerSetBoundsHelper),
       cdm_context_(nullptr),
       buffering_state_(BUFFERING_HAVE_NOTHING),
+      audio_buffering_state_(BUFFERING_HAVE_NOTHING),
+      video_buffering_state_(BUFFERING_HAVE_NOTHING),
       audio_write_duration_local_(audio_write_duration_local),
       audio_write_duration_remote_(audio_write_duration_remote),
       max_video_capabilities_(max_video_capabilities) {
@@ -249,6 +251,8 @@ void StarboardRenderer::Flush(base::OnceClosure flush_cb) {
   DCHECK(!pending_flush_cb_);
   DCHECK(flush_cb);
 
+  last_total_frames_sent_to_sink_ = 0;
+
   if (!player_bridge_) {
     return;
   }
@@ -268,6 +272,8 @@ void StarboardRenderer::Flush(base::OnceClosure flush_cb) {
 
   if (buffering_state_ != BUFFERING_HAVE_NOTHING) {
     buffering_state_ = BUFFERING_HAVE_NOTHING;
+    audio_buffering_state_ = BUFFERING_HAVE_NOTHING;
+    video_buffering_state_ = BUFFERING_HAVE_NOTHING;
     if (base::FeatureList::IsEnabled(
             media::kCobaltReportBufferingStateDuringFlush)) {
       task_runner_->PostTask(
@@ -836,6 +842,8 @@ void StarboardRenderer::OnPlayerStatus(SbPlayerState state) {
     case kSbPlayerStatePresenting:
       DCHECK(player_bridge_initialized_);
       buffering_state_ = BUFFERING_HAVE_ENOUGH;
+      audio_buffering_state_ = BUFFERING_HAVE_ENOUGH;
+      video_buffering_state_ = BUFFERING_HAVE_ENOUGH;
       task_runner_->PostTask(
           FROM_HERE,
           base::BindOnce(&StarboardRenderer::OnBufferingStateChange,
@@ -885,6 +893,72 @@ void StarboardRenderer::OnPlayerError(SbPlayerError error,
     case kSbPlayerErrorMax:
       NOTREACHED();
       break;
+  }
+}
+
+void StarboardRenderer::OnRenderStatus(bool has_video_renderer,
+                                       int number_of_frames,
+                                       bool is_video_eos_received,
+                                       bool has_audio_renderer,
+                                       int total_frames_sent_to_sink,
+                                       bool is_audio_eos_received) {
+  DCHECK(task_runner_->RunsTasksInCurrentSequence());
+  // TODO - b/307362589: Implement audio/video underrun algorithm.
+  LOG(ERROR) << "Cobalt: " << __func__ << " has_video_renderer "
+             << has_video_renderer << ", number_of_frames " << number_of_frames
+             << ", has_audio_renderer " << has_audio_renderer
+             << ", total_frames_sent_to_sink " << total_frames_sent_to_sink
+             << ", is_audio_eos_received " << is_audio_eos_received
+             << ", is_video_eos_received " << is_video_eos_received;
+  has_video_renderer_ = has_video_renderer;
+  number_of_frames_ = number_of_frames;
+  has_audio_renderer_ = has_audio_renderer;
+  frames_sent_to_sink_ =
+      total_frames_sent_to_sink - last_total_frames_sent_to_sink_;
+  last_total_frames_sent_to_sink_ = total_frames_sent_to_sink;
+  // Transit to BUFFERING_HAVE_ENOUGH when:
+  //   1. |state_| is in STATE_PLAYING,
+  //   2. |buffering_state_| is BUFFERING_HAVE_NOTHING.
+  // Additionally, either of the following meets:
+  //   1. receive audio/video end of stream, or
+  //   2. have audio/video frames available.
+  if (state_ != STATE_PLAYING) {
+    return;
+  }
+  if (buffering_state_ == BUFFERING_HAVE_NOTHING) {
+    if (has_audio_renderer_ &&
+        (frames_sent_to_sink_ > 0 || is_audio_eos_received)) {
+      LOG(ERROR) << "Cobalt: " << __func__ << " audio data enough";
+      // UpdateUnderflow(DemuxerStream::AUDIO, BUFFERING_HAVE_ENOUGH);
+    }
+    if (has_video_renderer_ &&
+        (number_of_frames_ > 0 || is_video_eos_received)) {
+      LOG(ERROR) << "Cobalt: " << __func__ << " video data enough";
+      UpdateUnderflow(DemuxerStream::VIDEO, BUFFERING_HAVE_ENOUGH);
+    }
+  }
+
+  // Transit to BUFFERING_HAVE_NOTHING when
+  //   1. |state_| is in STATE_PLAYING,
+  //   2. |buffering_state_| is not BUFFERING_HAVE_NOTHING.
+  // Additionally, for video, underflow is determined by:
+  //   1. don't have frames available,
+  //   2. haven't received end of stream,
+  //   3. it's not in BUFFERING_HAVE_NOTHING.
+  // For audio, underflow is determined by:
+  //   1. can't send frames to audio sink
+  //   2. haven't received end of stream
+  if (buffering_state_ != BUFFERING_HAVE_NOTHING) {
+    if (has_audio_renderer_ && frames_sent_to_sink_ == 0 &&
+        !is_audio_eos_received) {
+      LOG(ERROR) << "Cobalt: " << __func__ << " audio underflow";
+      // UpdateUnderflow(DemuxerStream::AUDIO, BUFFERING_HAVE_NOTHING);
+    }
+    if (has_video_renderer_ && number_of_frames_ == 0 &&
+        !is_video_eos_received) {
+      LOG(ERROR) << "Cobalt: " << __func__ << " video underflow";
+      UpdateUnderflow(DemuxerStream::VIDEO, BUFFERING_HAVE_NOTHING);
+    }
   }
 }
 
@@ -966,6 +1040,57 @@ void StarboardRenderer::OnBufferingStateChange(BufferingState buffering_state) {
   DCHECK(task_runner_->RunsTasksInCurrentSequence());
   client_->OnBufferingStateChange(buffering_state,
                                   BUFFERING_CHANGE_REASON_UNKNOWN);
+}
+
+bool StarboardRenderer::WaitingForEnoughData() const {
+  DCHECK(task_runner_->RunsTasksInCurrentSequence());
+  if (state_ != STATE_PLAYING) {
+    return false;
+  }
+  if (has_audio_renderer_ && audio_buffering_state_ != BUFFERING_HAVE_ENOUGH) {
+    return true;
+  }
+  if (has_video_renderer_ && video_buffering_state_ != BUFFERING_HAVE_ENOUGH) {
+    return true;
+  }
+  return false;
+}
+
+void StarboardRenderer::UpdateUnderflow(DemuxerStream::Type type,
+                                        BufferingState new_buffering_state) {
+  DCHECK(task_runner_->RunsTasksInCurrentSequence());
+  LOG(ERROR) << "Cobalt: " << __func__;
+  DCHECK((type == DemuxerStream::AUDIO) || (type == DemuxerStream::VIDEO));
+  BufferingState* buffering_state = type == DemuxerStream::AUDIO
+                                        ? &audio_buffering_state_
+                                        : &video_buffering_state_;
+  bool was_waiting_for_enough_data = WaitingForEnoughData();
+  *buffering_state = new_buffering_state;
+  // Renderer underflowed.
+  if (!was_waiting_for_enough_data && WaitingForEnoughData()) {
+    LOG(ERROR) << "Cobalt: " << __func__ << " stop ";
+    playback_rate_before_underflow_ = playback_rate_;
+    task_runner_->PostTask(FROM_HERE,
+                           base::BindOnce(&StarboardRenderer::SetPlaybackRate,
+                                          weak_factory_.GetWeakPtr(), 0.0f));
+    buffering_state_ = BUFFERING_HAVE_NOTHING;
+    client_->OnBufferingStateChange(buffering_state_,
+                                    BUFFERING_CHANGE_REASON_UNKNOWN);
+    return;
+  }
+  // Renderer prerolled.
+  if (was_waiting_for_enough_data && !WaitingForEnoughData()) {
+    LOG(ERROR) << "Cobalt: " << __func__ << " play "
+               << playback_rate_before_underflow_;
+    task_runner_->PostTask(FROM_HERE,
+                           base::BindOnce(&StarboardRenderer::SetPlaybackRate,
+                                          weak_factory_.GetWeakPtr(),
+                                          playback_rate_before_underflow_));
+    buffering_state_ = BUFFERING_HAVE_ENOUGH;
+    client_->OnBufferingStateChange(buffering_state_,
+                                    BUFFERING_CHANGE_REASON_UNKNOWN);
+    return;
+  }
 }
 
 }  // namespace media

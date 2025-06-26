@@ -405,8 +405,12 @@ void VideoRendererImpl::CheckForFrameLag(int64_t last_decoded_frame_timestamp) {
   bool is_eos_played;
   bool is_underflow;
   double playback_rate;
+  bool has_audio_renderer;
+  int total_frames_sent_to_sink;
+  bool is_audio_eos_received;
   int64_t media_time = media_time_provider_->GetCurrentMediaTime(
-      &is_playing, &is_eos_played, &is_underflow, &playback_rate);
+      &is_playing, &is_eos_played, &is_underflow, &playback_rate,
+      &has_audio_renderer, &total_frames_sent_to_sink, &is_audio_eos_received);
   if (is_eos_played) {
     return;
   }

@@ -277,11 +277,17 @@ void AudioRendererPcm::Seek(int64_t seek_to_time) {
 int64_t AudioRendererPcm::GetCurrentMediaTime(bool* is_playing,
                                               bool* is_eos_played,
                                               bool* is_underflow,
-                                              double* playback_rate) {
+                                              double* playback_rate,
+                                              bool* has_renderer,
+                                              int* total_frames_sent_to_sink,
+                                              bool* is_eos_received) {
   SB_DCHECK(is_playing);
   SB_DCHECK(is_eos_played);
   SB_DCHECK(is_underflow);
   SB_DCHECK(playback_rate);
+  SB_DCHECK(has_renderer);
+  SB_DCHECK(total_frames_sent_to_sink);
+  SB_DCHECK(is_eos_received);
 
   int64_t media_time = 0;
   int64_t now = -1;
@@ -335,6 +341,9 @@ int64_t AudioRendererPcm::GetCurrentMediaTime(bool* is_playing,
     }
     last_media_time_ = media_time;
   }
+  *has_renderer = true;
+  *total_frames_sent_to_sink = total_frames_sent_to_sink_;
+  *is_eos_received = eos_state_ >= kEOSWrittenToDecoder;
 
 #if SB_LOG_MEDIA_TIME_STATS
   if (system_and_media_time_offset_ < 0 && frames_played > 0) {
