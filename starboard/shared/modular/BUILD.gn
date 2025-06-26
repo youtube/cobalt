@@ -40,6 +40,7 @@ if ((sb_is_modular || sb_is_evergreen_compatible) &&
       "starboard_layer_posix_uio_abi_wrappers.h",
       "starboard_layer_posix_unistd_abi_wrappers.cc",
       "starboard_layer_posix_unistd_abi_wrappers.h",
+      "starboard_layer_posix_utsname_abi_wrappers.cc",
     ]
 
     configs += [ "//starboard/build/config:starboard_implementation" ]
