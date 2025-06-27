@@ -30,18 +30,10 @@ namespace {
 using base::android::AttachCurrentThread;
 
 bool GetFirmwareVersionDetails(char* out_value, int value_length) {
-<<<<<<< HEAD
-  JniEnvExt* env = JniEnvExt::Get();
-  ScopedLocalJavaRef<jstring> id_string(env->CallStarboardObjectMethodOrAbort(
-      "getBuildFingerprint", "()Ljava/lang/String;"));
-  std::string utf_str = env->GetStringStandardUTFOrAbort(id_string.Get());
-  if (strlen(utf_str.c_str()) + 1 > value_length) {
-=======
   JNIEnv* env = AttachCurrentThread();
   std::string utf_str =
       StarboardBridge::GetInstance()->GetBuildFingerprint(env);
   if (utf_str.length() + 1 > static_cast<size_t>(value_length)) {
->>>>>>> 68e31a670d9 (Make all JNI method calls to StarboardBridge go through starboard_bridge.h (#6157))
     return false;
   }
   starboard::strlcpy(out_value, utf_str.c_str(), value_length);
