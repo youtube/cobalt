@@ -25,6 +25,8 @@
 #define STRINGIZE(x) STRINGIZE_NO_EXPANSION(x)
 
 namespace {
+
+// TODO: b/372559388 - Update namespace to jni_zero.
 using base::android::AttachCurrentThread;
 using starboard::android::shared::StarboardBridge;
 

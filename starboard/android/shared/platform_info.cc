@@ -1,4 +1,3 @@
-
 // Copyright 2023 The Cobalt Authors. All Rights Reserved.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
@@ -27,6 +26,7 @@ namespace starboard::android::shared {
 
 namespace {
 
+// TODO: b/372559388 - Update namespace to jni_zero.
 using base::android::AttachCurrentThread;
 
 bool GetFirmwareVersionDetails(char* out_value, int value_length) {
