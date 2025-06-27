@@ -15,8 +15,6 @@
 #include "starboard/shared/modular/starboard_layer_posix_utsname_abi_wrappers.h"
 
 #include <errno.h>
-#include <stdio.h>
-#include <stdlib.h>
 #include <string.h>
 
 void copy_uts_field(char* dest,
@@ -33,7 +31,7 @@ void copy_uts_field(char* dest,
 }
 
 SB_EXPORT int __abi_wrap_uname(struct musl_utsname* musl_uts) {
-  // SEGFAULT if utsname is invalid.
+  // Set EFAULT if utsname is invalid.
   if (musl_uts == NULL) {
     errno = EFAULT;
     return -1;
