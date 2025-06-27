@@ -28,6 +28,10 @@ follows:
   Raw
     0x7efcdf1fd52b
 
+  GDB
+    #1  0x742a51b6 in ?? () from /home/pi/content/app/cobalt/lib/libcobalt.so
+
+
 The results of the symbolizer will only be included if it was able to find the
 name of the symbol, and it does not appear to be malformed. The only exception
 is when the line was matched with the |_RAW| regular expression in which case it
@@ -52,6 +56,7 @@ _RE_ASAN = re.compile(
     r'\s*(#[0-9]{1,3})\s*(0x[a-z0-9]*)\s*\(<unknown\smodule>\)')
 _RE_COBALT = re.compile(r'\s*<unknown> \[(0x[a-z0-9]*)\]\s*')
 _RE_RAW = re.compile(r'^(0x[a-z0-9]*)$')
+_RE_GDB = re.compile(r'\s*(#[0-9]{1,3})\s*(0x[a-z0-9]*)\s*')
 
 
 def _Symbolize(filename, library, base_address):
@@ -100,6 +105,16 @@ def _Symbolize(filename, library, base_address):
         if results:
           sys.stdout.write(f'{hex(offset)} {results[0]} in {results[1]}\n')
           continue
+      # GDB
+      match = _RE_GDB.match(line)
+      if match:
+        offset = int(match.group(2), 0) - int(base_address, 0)
+        results = _RunSymbolizer(library, str(offset))
+        if results and b'?' not in results[0] and b'?' not in results[1]:
+          sys.stdout.write(f'    {match.group(1)} {hex(offset)} in '
+                           f'{results[0]} {results[1]}\n')
+          continue
+
       sys.stdout.write(line)
 
 
@@ -116,7 +131,7 @@ def _RunSymbolizer(library, offset):
         stdout=subprocess.PIPE)
     results = command.communicate()
     if command.returncode == 0:
-      return results[0].split(os.linesep)
+      return results[0].split(os.linesep.encode('utf8'))
   return None
 
 
