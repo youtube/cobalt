@@ -94,7 +94,9 @@ if (read_pending_)
 }
 
 bool QuicChromiumPacketReader::ProcessMultiplePacketReadResult(int result) {
+#if BUILDFLAG(IS_COBALT)
   quic::QuicChromiumClock::GetInstance()->ZeroApproximateNow();
+#endif
   read_pending_ = false;
   if (result <= 0 && net_log_.IsCapturing()) {
     net_log_.AddEventWithIntParams(NetLogEventType::QUIC_READ_ERROR,
@@ -131,8 +133,13 @@ bool QuicChromiumPacketReader::ProcessMultiplePacketReadResult(int result) {
     if (read_packet->result <= 0) {
       continue;
     }
+#if BUILDFLAG(IS_COBALT)
     quic::QuicReceivedPacket packet(read_packet->buffer, read_packet->result,
                                     clock_->ApproximateNow());
+#else
+    quic::QuicReceivedPacket packet(read_packet->buffer, read_packet->result,
+                                    clock_->Now());
+#endif
     if (!(visitor_->OnPacket(packet, quick_local_address, quick_peer_address) &&
           self)) {
       return false;
