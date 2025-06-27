@@ -67,7 +67,7 @@ import org.chromium.ui.base.IntentRequestTracker;
 /** Native activity that has the required JNI methods called by the Starboard implementation. */
 public abstract class CobaltActivity extends Activity {
   private static final String URL_ARG = "--url=";
-  private static final java.lang.String META_DATA_APP_URL = "cobalt.APP_URL";
+  private static final String META_DATA_APP_URL = "cobalt.APP_URL";
 
   // This key differs in naming format for legacy reasons
   public static final String COMMAND_LINE_ARGS_KEY = "commandLineArgs";
@@ -97,6 +97,7 @@ public abstract class CobaltActivity extends Activity {
   private String mStartupUrl;
   private IntentRequestTracker mIntentRequestTracker;
   protected Boolean shouldSetJNIPrefix = true;
+  protected String metadataAppUrlValue;
 
   // Initially copied from ContentShellActiviy.java
   protected void createContent(final Bundle savedInstanceState) {
@@ -132,6 +133,8 @@ public abstract class CobaltActivity extends Activity {
     }
 
     DeviceUtils.addDeviceSpecificUserAgentSwitch();
+
+    metadataAppUrlValue = getMetadataAppUrlValue();
 
     // This initializes JNI and ends up calling JNI_OnLoad in native code
     LibraryLoader.getInstance().ensureInitialized();
@@ -343,11 +346,17 @@ public abstract class CobaltActivity extends Activity {
     createContent(savedInstanceState);
 
     videoSurfaceView = new VideoSurfaceView(this);
+    a11yHelper = new CobaltA11yHelper(this, videoSurfaceView);
 
     // TODO: b/408279606 - Set this to app theme primary color once we fix
     // error with it being unresolvable.
     videoSurfaceView.setBackgroundColor(Color.BLACK);
-    a11yHelper = new CobaltA11yHelper(this, videoSurfaceView);
+
+    if (!mStartupUrl.startsWith(metadataAppUrlValue)) {
+      // If not launching the designated video app, make the video surface transparent
+      // to reveal the web content underneath.
+      videoSurfaceView.setBackgroundColor(Color.TRANSPARENT);
+    }
     addContentView(videoSurfaceView, new LayoutParams(LayoutParams.MATCH_PARENT, LayoutParams.MATCH_PARENT));
 
     Log.i(TAG, "CobaltActivity onCreate, all Layout Views:");
@@ -469,6 +478,21 @@ public abstract class CobaltActivity extends Activity {
     return getStarboardBridge().onSearchRequested();
   }
 
+  // Return the value for cobalt.APP_URL defined in AndroidManifest.xml.
+  private String getMetadataAppUrlValue() {
+    try {
+      ActivityInfo ai =
+          getPackageManager()
+              .getActivityInfo(getIntent().getComponent(), PackageManager.GET_META_DATA);
+      if (ai.metaData != null) {
+        return ai.metaData.getString(META_DATA_APP_URL);
+      }
+    } catch (NameNotFoundException e) {
+      throw new RuntimeException("Error getting activity info", e);
+    }
+    return null;
+  }
+
   /** Returns true if the argument list contains an arg starting with argName. */
   private static boolean hasArg(List<String> args, String argName) {
     for (String arg : args) {
@@ -495,20 +519,8 @@ public abstract class CobaltActivity extends Activity {
     // If the URL arg isn't specified, get it from AndroidManifest.xml.
     boolean hasUrlArg = hasArg(args, URL_ARG);
     if (!hasUrlArg) {
-      try {
-        ActivityInfo ai =
-            getPackageManager()
-                .getActivityInfo(getIntent().getComponent(), PackageManager.GET_META_DATA);
-        if (ai.metaData != null) {
-          if (!hasUrlArg) {
-            String url = ai.metaData.getString(META_DATA_APP_URL);
-            if (url != null) {
-              args.add(URL_ARG + url);
-            }
-          }
-        }
-      } catch (NameNotFoundException e) {
-        throw new RuntimeException("Error getting activity info", e);
+      if (metadataAppUrlValue != null && !metadataAppUrlValue.isEmpty()) {
+        args.add(URL_ARG + metadataAppUrlValue);
       }
     }
 
