@@ -154,13 +154,13 @@ public abstract class CobaltActivity extends Activity {
       getStarboardBridge().handleDeepLink(startDeepLink);
     }
 
-    setContentView(R.layout.content_shell_activity);
-    mShellManager = findViewById(R.id.shell_container);
+    mShellManager = new ShellManager(this);
     final boolean listenToActivityState = true;
     mIntentRequestTracker = IntentRequestTracker.createFromActivity(this);
     mWindowAndroid = new ActivityWindowAndroid(this, listenToActivityState, mIntentRequestTracker);
     mIntentRequestTracker.restoreInstanceState(savedInstanceState);
     mShellManager.setWindow(mWindowAndroid);
+    setContentView(mShellManager.getContentViewRenderView());
     // Set up the animation placeholder to be the SurfaceView. This disables the
     // SurfaceView's 'hole' clipping during animations that are notified to the window.
     mWindowAndroid.setAnimationPlaceholderView(
@@ -417,6 +417,7 @@ public abstract class CobaltActivity extends Activity {
     AudioOutputManager.addAudioDeviceListener(this);
 
     getStarboardBridge().onActivityStart(this);
+    super.onStart();
 
     WebContents webContents = getActiveWebContents();
     if (webContents != null) {
@@ -425,19 +426,8 @@ public abstract class CobaltActivity extends Activity {
       // visibility:visible event
       webContents.onShow();
     }
-    super.onStart();
-  }
 
-  @Override
-  protected void onResume() {
-    super.onResume();
     getWindow().addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON);
-  }
-
-  @Override
-  protected void onPause() {
-    super.onPause();
-    getWindow().clearFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON);
   }
 
   @Override
@@ -460,6 +450,8 @@ public abstract class CobaltActivity extends Activity {
     // Set the SurfaceView to fullscreen.
     View rootView = getWindow().getDecorView();
     setVideoSurfaceBounds(0, 0, rootView.getWidth(), rootView.getHeight());
+
+    getWindow().clearFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON);
   }
 
   @Override

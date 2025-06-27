@@ -44,8 +44,6 @@ static_library("common") {
     "device_type.h",
     "drm.cc",
     "drm.h",
-    "experimental/concurrency_debug.cc",
-    "experimental/concurrency_debug.h",
     "file.cc",
     "file.h",
     "fixed_no_free_allocator.cc",
@@ -112,6 +110,8 @@ source_set("common_test") {
     "media_test.cc",
     "memory_test.cc",
     "player_test.cc",
+    "queue_test.cc",
+    "semaphore_test.cc",
     "socket_test.cc",
   ]
   deps = [

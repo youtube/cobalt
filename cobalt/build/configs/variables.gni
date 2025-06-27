@@ -17,10 +17,6 @@
 
 import("//$starboard_path/platform_configuration/configuration.gni")
 
-declare_args() {
-  use_evergreen = false
-}
-
 sb_is_evergreen = use_evergreen && current_toolchain == default_toolchain
 
 # TODO: b/400818107 - Consider deprecating sb_is_modular, or always set it to

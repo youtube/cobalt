@@ -88,9 +88,14 @@ source_set("common") {
   sources = [
     "app/cobalt_main_delegate.cc",
     "app/cobalt_main_delegate.h",
-    "app/cobalt_switch_defaults_starboard.cc",
-    "app/cobalt_switch_defaults_starboard.h",
   ]
+
+  if (is_starboard) {
+    sources += [
+      "app/cobalt_switch_defaults_starboard.cc",
+      "app/cobalt_switch_defaults_starboard.h",
+    ]
+  }
 
   deps = [
     "//base",
@@ -140,7 +145,6 @@ test("cobalt_unittests") {
   testonly = true
 
   sources = [
-    "//cobalt/app/cobalt_switch_defaults_starboard_test.cc",
     "//cobalt/browser/client_hint_headers/cobalt_header_value_provider_test.cc",
     "//cobalt/browser/client_hint_headers/cobalt_trusted_header_client_test.cc",
     "//cobalt/browser/client_hint_headers/cobalt_trusted_url_loader_header_client_test.cc",
@@ -152,6 +156,10 @@ test("cobalt_unittests") {
     "//cobalt/browser/metrics/cobalt_metrics_services_manager_client_test.cc",
     "//cobalt/browser/user_agent/user_agent_platform_info_test.cc",
   ]
+
+  if (is_starboard) {
+    sources += [ "//cobalt/app/cobalt_switch_defaults_starboard_test.cc" ]
+  }
 
   public_deps = [ "//third_party/zlib/google:compression_utils" ]
 
