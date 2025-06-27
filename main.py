@@ -4,6 +4,7 @@ import os
 import shutil
 import json
 
+
 def find_deepest_common_dir(paths):
     if not paths:
         return "/"
@@ -44,516 +45,188 @@ def find_deepest_common_dir(paths):
                 
         return '/'.join(common_path) if common_path else ""
 
-def setup_mirror_repo(repo_url, mirror_path, working_path):
-    """
-    Uses existing mirror repository and creates a working copy from it.
-    Returns a regular repository cloned from the mirror.
-    """
-    import os
-    
-    # Use existing mirror repository (don't update it)
-    if os.path.exists(mirror_path):
-        print(f"Using existing mirror at {mirror_path}")
-    else:
-        print(f"Error: Mirror not found at {mirror_path}")
-        return None
-    
-    # Clone from mirror to working directory
-    if os.path.exists(working_path):
-        import shutil
-        print(f"Removing existing working directory at {working_path}")
-        shutil.rmtree(working_path)
-    
-    print(f"Creating working repository at {working_path}")
-    working_repo = git.Repo.clone_from(mirror_path, working_path)
-    print(f"Working repository created with {len(list(working_repo.tags))} tags")
-    return working_repo
 
 def linearize_history(repo, args):
     """
-    Creates a new Git branch with a perfectly linearized history.
+    Creates a new branch with a linearized history.
     """
-    # 1. Validate Inputs
-    try:
-        start_commit = repo.commit(args.start_commit_ref)
-        end_commit = repo.commit(args.end_commit_ref)
-        # Validate that source branch exists
-        if args.source_branch not in [b.name for b in repo.branches]:
-            print(f"Error: Source branch '{args.source_branch}' not found")
-            return
-    except (git.exc.BadName, IndexError, git.exc.GitCommandError) as e:
-        print(f"Error: Invalid ref provided. {e}")
-        return
+    start_commit = repo.commit(args.start_commit_ref)
+    end_commit = repo.commit(args.end_commit_ref)
 
-    # 2. Initial Branch Setup
+    # Initial Branch Setup
     if args.new_branch_name in repo.heads:
         repo.git.checkout(args.source_branch)
         repo.delete_head(args.new_branch_name, force=True)
     new_branch = repo.create_head(args.new_branch_name, start_commit)
     repo.head.reference = new_branch
     repo.head.reset(index=True, working_tree=True)
-    print(f"Created new branch '{args.new_branch_name}' starting at {args.start_commit_ref}")
+    print(f'Created new branch "{args.new_branch_name}" at {args.start_commit_ref}')
 
-    # 3. Identify Commits to Replay
-    # Use ancestry-path to get the direct lineage
-    print("Identifying commits to replay...")
-    
-    # Get commits using ancestry-path (equivalent to git log --ancestry-path start..end)
-    print(f"Getting ancestry path from {start_commit.hexsha[:8]} to {end_commit.hexsha[:8]}...")
-    
-    try:
-        # Use git log with --ancestry-path and --topo-order to get proper ordering
-        ancestry_path_output = repo.git.log(
-            '--ancestry-path', 
-            '--topo-order',    # use topological order
-            '--reverse',       # oldest first
-            '--pretty=format:%H',
-            f'{start_commit.hexsha}..{end_commit.hexsha}'
-        )
-        
-        if ancestry_path_output.strip():
-            commit_shas = ancestry_path_output.strip().split('\n')
-            commits_to_replay = [repo.commit(sha) for sha in commit_shas]
-        else:
-            commits_to_replay = []
-            
-        print(f"Found {len(commits_to_replay)} commits in ancestry path")
-        
-    except Exception as e:
-        print(f"Error getting ancestry path: {e}")
-        print("Falling back to first-parent traversal...")
-        
-        # Fallback to original method
-        all_commits = list(repo.iter_commits(f'{start_commit.hexsha}..{end_commit.hexsha}'))
-        print(f"Found {len(all_commits)} total commits in range")
-        
-        # Build first-parent path by walking backwards from end_commit
+    # Identify Commits to Replay    
+    print(f'Getting ancestry path from {start_commit.hexsha[:8]} to {end_commit.hexsha[:8]}...')
+    ancestry_path_output = repo.git.log(
+        '--ancestry-path',
+        '--first-parent',
+        '--topo-order',
+        '--reverse',
+        '--pretty=format:%H',
+        f'{start_commit.hexsha}..{end_commit.hexsha}'
+    )
+    if ancestry_path_output.strip():
+        commit_shas = ancestry_path_output.strip().split('\n')
+        commits_to_replay = [repo.commit(sha) for sha in commit_shas]
+    else:
         commits_to_replay = []
-        current_commit = end_commit
-        visited_commits = set()  # Prevent infinite loops
-        
-        print("Building first-parent path from end commit backwards...")
-        while current_commit and current_commit != start_commit:
-            # Check for infinite loop
-            if current_commit.hexsha in visited_commits:
-                print(f"  Loop detected at {current_commit.hexsha[:8]}, stopping")
-                break
-            visited_commits.add(current_commit.hexsha)
-            
-            # Add this commit to our replay list
-            commits_to_replay.append(current_commit)
-            print(f"  Added: {current_commit.hexsha[:8]} {current_commit.summary}")
-            
-            # Move to first parent (mainline parent)
-            if current_commit.parents:
-                current_commit = current_commit.parents[0]  # First parent = mainline
-            else:
-                print(f"  No parent found for {current_commit.hexsha[:8]}, stopping")
-                break
-            
-            # Safety check - if we've gone past our start commit, stop
-            if len(commits_to_replay) > len(all_commits) * 2:  # Reasonable safety limit
-                print("  Safety limit reached, stopping traversal")
-                break
-        
-        # Reverse to get chronological order (oldest first)
-        commits_to_replay.reverse()
-    
-    print(f"Selected {len(commits_to_replay)} commits for linearization (first-parent path)")
-    print("Commits to linearize:")
+    print(f'Found {len(commits_to_replay)} commits in ancestry path')
+    print('Commits to linearize:')
     for i, commit in enumerate(commits_to_replay, 1):
-        print(f"  {i:2d}. {commit.hexsha[:8]} {commit.summary}")
+        print(f'  {i}. {commit.hexsha[:8]} {commit.summary}')
 
-    # 4. Iterative State Replication
+    # Replay Commits
     commit_mapping = []  # Track original -> new commit mappings
     
     for i, commit in enumerate(commits_to_replay, 1):
-        # Get commit size info for progress indication
-        try:
-            stats = commit.stats
-            files_count = stats.total['files']
-            insertions = stats.total['insertions']
-            deletions = stats.total['deletions']
-            size_info = f"({files_count} files, +{insertions}/-{deletions})"
-        except:
-            size_info = ""
-        
+        # Get commit size info for progress indicator
+        files = commit.stats.total['files']
+        insertions = commit.stats.total['insertions']
+        deletions = commit.stats.total['deletions']
+        size_info = f'({files} files, +{insertions}/-{deletions})'
+
         is_merge = len(commit.parents) > 1
-        commit_type = "MERGE" if is_merge else "REGULAR"
+        commit_type = 'MERGE' if is_merge else 'REGULAR'
         
-        print(f"Applying commit {i}/{len(commits_to_replay)}: {commit.hexsha[:8]} [{commit_type}] {size_info}")
-        print(f"  {commit.summary}")
-        
-        if files_count > 100000:
-            print(f"  ⚠️  Large commit detected - this may take several minutes...")
-        
+        print(f'Applying commit {i}/{len(commits_to_replay)}: {commit.hexsha[:8]} [{commit_type}] {size_info}')
+        print(f'  {commit.summary}')
+
         if is_merge:
-            # Merge commits: Use robust tree object reconstruction
-            print(f"  🔀 Merge commit - using direct tree object reconstruction...")
-            
-            try:
-                # Method 1: Direct tree object approach (most robust)
-                print(f"    🌳 Reading target tree object...")
-                target_tree = commit.tree
-                
-                # Reset index to current HEAD and then read the target tree
-                print(f"    📋 Preparing index with target tree...")
-                repo.git.read_tree(target_tree.hexsha)
-                
-                # Write the tree object directly from index (guarantees identical tree)
-                print(f"    ✍️  Writing tree object...")
-                new_tree_sha = repo.git.write_tree()
-                
-                # Verify tree equivalence
-                if new_tree_sha == target_tree.hexsha:
-                    print(f"    ✅ Tree object verified identical: {new_tree_sha}")
-                else:
-                    print(f"    ⚠️  Tree differs: expected {target_tree.hexsha}, got {new_tree_sha}")
-                
-                # Create commit object directly using commit-tree
-                commit_message = commit.message
-                author = commit.author
-                committer = commit.committer
-                author_date = int(commit.authored_datetime.timestamp())
-                commit_date = int(commit.committed_datetime.timestamp())
-                
-                # Get current HEAD as parent
-                parent_sha = repo.head.commit.hexsha
-                
-                print(f"    🏗️  Creating commit object...")
-                # Use stdin to pass message to preserve exact formatting
-                import subprocess
-                cmd = [
-                    'git', 'commit-tree', new_tree_sha, '-p', parent_sha
-                ]
-                env = {
-                    **os.environ,
-                    'GIT_AUTHOR_NAME': author.name,
-                    'GIT_AUTHOR_EMAIL': author.email,
-                    'GIT_AUTHOR_DATE': f'{author_date} +0000',
-                    'GIT_COMMITTER_NAME': committer.name,
-                    'GIT_COMMITTER_EMAIL': committer.email,
-                    'GIT_COMMITTER_DATE': f'{commit_date} +0000',
-                }
-                result = subprocess.run(cmd, input=commit_message.encode('utf-8'), 
-                                      capture_output=True, env=env, cwd=repo.working_dir)
-                if result.returncode != 0:
-                    raise Exception(f"commit-tree failed: {result.stderr.decode()}")
-                new_commit_sha = result.stdout.decode().strip()
-                
-                # Update HEAD to point to new commit
-                print(f"    🔄 Updating HEAD to new commit...")
-                repo.git.reset('--hard', new_commit_sha)
-                
-                # Clean up any untracked files left from tree reconstruction
-                print(f"    🧹 Cleaning working tree...")
-                repo.git.clean('-fdx')
-                
-                # Record commit mapping
-                commit_mapping.append({
-                    "original_commit": commit.hexsha,
-                    "new_commit": new_commit_sha,
-                    "author": commit.author.name,
-                    "author_email": commit.author.email,
-                    "date": commit.authored_datetime.isoformat(),
-                    "subject": commit.summary
-                })
-                
-                print(f"  ✅ Merge commit {i}/{len(commits_to_replay)} completed successfully (tree-object)")
-                
-            except Exception as e:
-                print(f"    ⚠️  Direct tree approach failed: {e}")
-                print(f"    🔄 Falling back to traditional method...")
-                
-                # Fallback to traditional approach
-                repo.git.reset('--hard', 'HEAD')
-                repo.git.clean('-fdx')
-                repo.git.read_tree(commit.hexsha)
-                repo.git.checkout_index('-a', '-f')
-                repo.git.add('-A')
-                
-                commit_message = commit.message
-                author = commit.author
-                committer = commit.committer
-                author_date = commit.authored_datetime.isoformat()
-                commit_date = commit.committed_datetime.isoformat()
+            # Merge commits: Use tree object reconstruction
+            print(f'  🔀 Merge commit - using tree object reconstruction...')
+            print(f'  🌳 Reading tree object...')
+            tree = commit.tree
+            repo.git.read_tree(tree.hexsha)
 
-                repo.git.commit(
-                    '--no-verify',
-                    '--message', commit_message,
-                    '--author', f'{author.name} <{author.email}>',
-                    '--date', author_date,
-                    env={
-                        'GIT_COMMITTER_NAME': committer.name,
-                        'GIT_COMMITTER_EMAIL': committer.email,
-                        'GIT_COMMITTER_DATE': commit_date,
-                    }
-                )
-                
-                # Clean up working tree after fallback merge commit
-                print(f"    🧹 Cleaning working tree...")
-                repo.git.clean('-fdx')
-                
-                # Record commit mapping for fallback
-                new_commit_sha = repo.head.commit.hexsha
-                commit_mapping.append({
-                    "original_commit": commit.hexsha,
-                    "new_commit": new_commit_sha,
-                    "author": commit.author.name,
-                    "author_email": commit.author.email,
-                    "date": commit.authored_datetime.isoformat(),
-                    "subject": commit.summary
-                })
-                
-                print(f"  ✅ Merge commit {i}/{len(commits_to_replay)} completed successfully (fallback)")
+            print(f'  🌱 Writing tree object...')
+            new_tree_hexsha = repo.git.write_tree()
+            
+            # Verify tree equivalence
+            if new_tree_hexsha == tree.hexsha:
+                print(f'    ✅ Tree object verified identical: {new_tree_hexsha}')
+            else:
+                print(f'    ⚠️ Tree differs: expected {tree.hexsha}, got {new_tree_hexsha}')
+                return
+            
+            print(f'  ✍️  Committing...')
+            git.objects.commit.Commit.create_from_tree(
+                repo=repo,
+                tree=new_tree_hexsha,
+                message=commit.message + f'\noriginal-hexsha: {commit.hexsha}',
+                parent_commits=[repo.head.commit],
+                head=True,
+                author=commit.author,
+                author_date=commit.authored_datetime,
+                committer=commit.committer,
+                commit_date=commit.committed_datetime,
+            )
+            
+            print(f'  ✅ Merge commit {i}/{len(commits_to_replay)} completed successfully')
+
+            print(f'  🧹 Cleaning working tree...')
+            repo.git.reset('--hard')
         else:
-            # Regular commits (non-merge): Use cherry-pick for speed
-            print(f"  🍒 Regular commit - using cherry-pick...")
-            
-            try:
-                # Check if this is an empty commit (no changes)
-                try:
-                    stats = commit.stats
-                    has_changes = stats.total['files'] > 0 or stats.total['insertions'] > 0 or stats.total['deletions'] > 0
-                except:
-                    has_changes = True  # Assume has changes if we can't determine
-                
-                if not has_changes:
-                    print(f"    ℹ️  Empty commit detected - creating with --allow-empty...")
-                    # Handle empty commits directly
-                    commit_message = commit.message
-                    author = commit.author
-                    committer = commit.committer
-                    author_date = commit.authored_datetime.isoformat()
-                    commit_date = commit.committed_datetime.isoformat()
-                    
-                    repo.git.commit(
-                        '--allow-empty',
-                        '--no-verify',
-                        '--message', commit_message,
-                        '--author', f'{author.name} <{author.email}>',
-                        '--date', author_date,
-                        env={
-                            'GIT_COMMITTER_NAME': committer.name,
-                            'GIT_COMMITTER_EMAIL': committer.email,
-                            'GIT_COMMITTER_DATE': commit_date,
-                        }
-                    )
-                else:
-                    print(f"    🔧 Cherry-picking {commit.hexsha[:8]}...")
-                    repo.git.cherry_pick('--no-commit', commit.hexsha)
-                    
-                    # Commit with preserved metadata
-                    commit_message = commit.message
-                    author = commit.author
-                    committer = commit.committer
-                    author_date = commit.authored_datetime.isoformat()
-                    commit_date = commit.committed_datetime.isoformat()
-                    
-                    print(f"    ✍️  Creating commit with preserved metadata...")
-                    repo.git.commit(
-                        '--no-verify',
-                        '--message', commit_message,
-                        '--author', f'{author.name} <{author.email}>',
-                        '--date', author_date,
-                        env={
-                            'GIT_COMMITTER_NAME': committer.name,
-                            'GIT_COMMITTER_EMAIL': committer.email,
-                            'GIT_COMMITTER_DATE': commit_date,
-                        }
-                    )
-                
-                # Clean up working tree after commit (defensive)
-                repo.git.clean('-fdx')
-                
-                # Record commit mapping
-                new_commit_sha = repo.head.commit.hexsha
-                commit_mapping.append({
-                    "original_commit": commit.hexsha,
-                    "new_commit": new_commit_sha,
-                    "author": commit.author.name,
-                    "author_email": commit.author.email,
-                    "date": commit.authored_datetime.isoformat(),
-                    "subject": commit.summary
-                })
-                
-                commit_type = "empty" if not has_changes else "cherry-pick"
-                print(f"  ✅ Regular commit {i}/{len(commits_to_replay)} completed successfully ({commit_type})")
-                
-            except git.exc.GitCommandError as e:
-                print(f"  ❌ CHERRY-PICK FAILED - This indicates a problem with previous state!")
-                print(f"      Error: {e}")
-                print(f"      Commit: {commit.hexsha[:8]} - {commit.summary}")
-                print(f"      This should NOT happen for non-merge commits if previous state is correct.")
-                print(f"      Stopping linearization for investigation.")
-                
-                # Clean up any partial cherry-pick state
-                try:
-                    repo.git.cherry_pick('--abort')
-                except:
-                    pass
-                
-                # Clean working tree to remove any untracked files that caused the conflict
-                try:
-                    repo.git.clean('-fdx')
-                except:
-                    pass
-                
-                # Show current state for debugging
-                print(f"\n🔍 DEBUG INFO:")
-                print(f"  Current HEAD: {repo.head.commit.hexsha[:8]}")
-                print(f"  Working tree status:")
-                try:
-                    status = repo.git.status('--porcelain')
-                    if status:
-                        print(f"    {status}")
-                    else:
-                        print(f"    Working tree clean")
-                except:
-                    print(f"    Could not get status")
-                
-                # Smart conflict resolution: Skip this commit and continue
-                print(f"🤖 SMART CONFLICT RESOLUTION:")
-                print(f"   Cherry-pick failed for {commit.hexsha[:8]} ({commit.summary})")
-                print(f"   This appears to be from a side branch that conflicts with main spine")
-                print(f"   Skipping this commit and continuing linearization...")
-                print(f"   Note: The final merge commit will preserve the correct resolution")
-                
-                # Add to skipped commits list for reporting
-                if not hasattr(linearize_history, 'skipped_commits'):
-                    linearize_history.skipped_commits = []
-                linearize_history.skipped_commits.append({
-                    "hexsha": commit.hexsha,
-                    "summary": commit.summary,
-                    "author": commit.author.name,
-                    "reason": "Cherry-pick conflict - side branch commit"
-                })
-                
-                # Continue to next commit
-                continue
-        
-        print()
+            # Regular commits: Use cherry-pick for speed
+            print(f'  🍒 Regular commit - cherry-picking...')
+            repo.git.cherry_pick('--no-commit', commit.hexsha)
 
-    # 5. Enhanced Verification
-    print()
-    print("🔍 Performing enhanced verification...")
-    
-    # Verify each individual commit's tree equivalence
+            print(f'  ✍️  Committing...')
+            repo.git.commit(
+                '--allow-empty',
+                '--no-verify',
+                '--author', f'{commit.author.name} <{commit.author.email}>',
+                '--date', commit.authored_datetime.isoformat(),
+                '--message', commit.message + f'\noriginal-hexsha: {commit.hexsha}',
+                env={
+                    'GIT_COMMITTER_NAME': commit.committer.name,
+                    'GIT_COMMITTER_EMAIL': commit.committer.email,
+                    'GIT_COMMITTER_DATE': commit.committed_datetime.isoformat(),
+                }
+            )
+
+            print(f'  ✅ Regular commit {i}/{len(commits_to_replay)} completed successfully')
+
+        # Record commit mapping
+        commit_mapping.append({
+            'original_commit': commit.hexsha,
+            'new_commit': repo.head.commit.hexsha,
+            'commit_type': commit_type,
+            'author': commit.author.name,
+            'author_email': commit.author.email,
+            'date': commit.authored_datetime.isoformat(),
+            'iso': commit.authored_datetime.isoformat(),
+            'subject': commit.summary
+        })
+  
+    # Verify each commit's tree equivalence
     linear_commits = list(repo.iter_commits(args.new_branch_name, max_count=len(commits_to_replay)))
-    linear_commits.reverse()  # Get in same order as original commits
-    
+    linear_commits.reverse()
     verification_passed = True
-    
-    print(f"📋 Verifying {len(commits_to_replay)} individual commits...")
+
+    print(f'\n🔍 Verifying {len(commits_to_replay)} commits...')
     for i, (original_commit, linear_commit) in enumerate(zip(commits_to_replay, linear_commits), 1):
-        print(f"  {i:2d}. Checking {original_commit.hexsha[:8]} → {linear_commit.hexsha[:8]}")
-        
+        print(f'  {i:2d}. Checking {original_commit.hexsha[:8]} → {linear_commit.hexsha[:8]}')
+
         # Compare tree objects (content equivalence)
         if original_commit.tree == linear_commit.tree:
-            print(f"      ✅ Tree equivalence verified")
+            print(f'      ✅ Tree equivalence verified')
         else:
-            print(f"      ❌ Tree mismatch!")
+            print(f'      ❌ Tree mismatch!')
             verification_passed = False
-            
-            # Show what differs
-            try:
-                tree_diff = repo.git.diff_tree(original_commit.tree, linear_commit.tree, '--name-status')
-                if tree_diff:
-                    print(f"      🔍 Tree differences:")
-                    for line in tree_diff.splitlines()[:10]:  # Show first 10 differences
-                        print(f"        {line}")
-                    if len(tree_diff.splitlines()) > 10:
-                        print(f"        ... and {len(tree_diff.splitlines()) - 10} more differences")
-            except:
-                print(f"      🔍 Could not compute tree diff")
-        
-        # Verify metadata preservation
-        metadata_issues = []
-        if original_commit.author.name != linear_commit.author.name:
-            metadata_issues.append(f"author name: {original_commit.author.name} → {linear_commit.author.name}")
-        if original_commit.author.email != linear_commit.author.email:
-            metadata_issues.append(f"author email: {original_commit.author.email} → {linear_commit.author.email}")
-        if original_commit.message != linear_commit.message:
-            metadata_issues.append(f"message changed")
-        if abs((original_commit.authored_datetime - linear_commit.authored_datetime).total_seconds()) > 1:
-            metadata_issues.append(f"author date changed")
-            
-        if metadata_issues:
-            print(f"      ⚠️  Metadata issues: {', '.join(metadata_issues)}")
-            verification_passed = False
-        else:
-            print(f"      ✅ Metadata preserved")
-    
-    print()
-    print("📊 Final content verification...")
+            tree_diff = repo.git.diff_tree(original_commit.tree, linear_commit.tree, '--name-status')
+            if tree_diff:
+                diff_lines = tree_diff.splitlines()
+                print(f'      {len(diff_lines)} tree differences:')
+                for line in diff_lines[:10]:  # Show first 10 differences
+                    print(f'        {line}')
+                if len(diff_lines) > 10:
+                    print(f'        ... and {len(diff_lines) - 10} more differences')
+
+    print('\n📊 Final content verification...')
     diff = repo.git.diff(args.new_branch_name, args.end_commit_ref)
     if diff:
-        print("⚠️  Working tree differs from original end commit:")
-        # Show summary of differences
+        print('⚠️  Working tree differs from original end commit:')
+        verification_passed = False
         diff_lines = diff.splitlines()
         file_changes = [line for line in diff_lines if line.startswith('diff --git')]
-        print(f"   {len(file_changes)} files differ")
-        if len(file_changes) <= 5:
-            for change in file_changes:
-                print(f"   {change}")
-        else:
-            for change in file_changes[:5]:
-                print(f"   {change}")
-            print(f"   ... and {len(file_changes) - 5} more files")
-        verification_passed = False
+        print(f'   {len(file_changes)} files differ')
+        for change in file_changes[:10]:  # Show first 10 files
+            print(f'   {change}')
+        if len(file_changes) > 10:
+            print(f'   ... and {len(file_changes) - 10} more files')
     else:
-        print("✅ Working tree matches original end commit")
-    
-    # 6. Report skipped commits if any
-    if hasattr(linearize_history, 'skipped_commits') and linearize_history.skipped_commits:
-        print()
-        print(f"⚠️  SKIPPED COMMITS ({len(linearize_history.skipped_commits)}):")
-        for skipped in linearize_history.skipped_commits:
-            print(f"   🚫 {skipped['hexsha'][:8]} - {skipped['summary']} ({skipped['author']})")
-            print(f"      Reason: {skipped['reason']}")
-        print(f"   These commits were from side branches and conflicted with main spine")
-        print(f"   Their changes should be resolved in subsequent merge commits")
-    
-    # 7. Write commit mapping to JSON file
-    mapping_filename = f"{args.new_branch_name}_commit_mapping.json"
-    print()
-    print(f"📄 Writing commit mapping to {mapping_filename}...")
-    
-    with open(mapping_filename, 'w') as f:
+        print('✅ Working tree matches original end commit')
+
+    # Write commit mapping to JSON file
+    mapping_filename = f'{args.new_branch_name}_commit_mapping.json'
+    print(f'\n📄 Writing commit mapping to {mapping_filename}...')
+
+    with open(mapping_filename, 'w', encoding='utf-8') as f:
         import json
         output_data = {
-            "linearization_info": {
-                "source_branch": args.source_branch,
-                "start_commit": args.start_commit_ref,
-                "end_commit": args.end_commit_ref,
-                "new_branch": args.new_branch_name,
-                "total_commits": len(commits_to_replay),
-                "processed_commits": len(commit_mapping),
-                "timestamp": repo.head.commit.committed_datetime.isoformat()
+            'linearization_info': {
+                'source_branch': args.source_branch,
+                'start_commit': args.start_commit_ref,
+                'end_commit': args.end_commit_ref,
+                'new_branch': args.new_branch_name,
+                'total_commits_to_replay': len(commits_to_replay),
+                'total_linearized_commits': len(commit_mapping)
             },
-            "commit_mappings": commit_mapping
+            'commit_mapping': commit_mapping
         }
-        
-        # Add skipped commits if any
-        if hasattr(linearize_history, 'skipped_commits') and linearize_history.skipped_commits:
-            output_data["skipped_commits"] = linearize_history.skipped_commits
-            output_data["linearization_info"]["skipped_commits"] = len(linearize_history.skipped_commits)
-        
         json.dump(output_data, f, indent=2)
-    
-    print(f"✅ Commit mapping written to {mapping_filename}")
-    
-    print()
+
     if verification_passed:
-        print("🎉 SUCCESS: Linearized history created successfully!")
-        print(f"✅ All {len(commits_to_replay)} commits verified for tree and metadata equivalence")
-        print(f"✅ New branch '{args.new_branch_name}' created with perfect linearized history")
-        print(f"📄 Commit mapping saved to {mapping_filename}")
+        print('\n🎉 SUCCESS: Linearized history created successfully!')
     else:
-        print("⚠️  COMPLETED WITH ISSUES: Linearized history created but verification found differences")
-        print(f"📊 Check the verification details above for specifics")
-        print(f"🔧 New branch '{args.new_branch_name}' created - manual review recommended")
-        print(f"📄 Commit mapping saved to {mapping_filename}")
+        print('\n⚠️ COMPLETED WITH ISSUES: Linearized history created but verification found differences')
 
 
 def reconstruct_merge_commit(repo, args):
@@ -1691,39 +1364,32 @@ def validate_path_against_test_case(spine_path, test_case):
     }
 
 def main():
-    """
-    Main function to parse arguments and run the script.
-    """
-    parser = argparse.ArgumentParser(description="A basic Python script with command-line arguments.")
+    parser = argparse.ArgumentParser()
     subparsers = parser.add_subparsers(dest="command")
-
-    # Commits command
-    commits_parser = subparsers.add_parser("commits", help="Extract commits to a JSON file.")
-    commits_parser.add_argument("--repo-url", type=str, default="https://github.com/youtube/cobalt.git", help="The Git repository URL to clone.")
-    commits_parser.add_argument("--verbose", action="store_true", help="Enable verbose output.")
-    commits_parser.add_argument("--tag", type=str, default="chrobalt-init-tag", help="The tag to start extracting commits from.")
-    commits_parser.add_argument("--output-file", type=str, default="commits.json", help="The output file for the commits.")
-
-    # Branches command
-    branches_parser = subparsers.add_parser("branches", help="List branches with a given prefix.")
-    branches_parser.add_argument("--repo-url", type=str, default="https://github.com/youtube/cobalt.git", help="The Git repository URL to clone.")
-    branches_parser.add_argument("--prefix", type=str, default="origin/chromium/", help="The prefix for the branches to list.")
-    
-    # Rebase command
-    rebase_parser = subparsers.add_parser("rebase", help="Rebase commits onto a new branch.")
-    rebase_parser.add_argument("--repo-url", type=str, default="https://github.com/youtube/cobalt.git", help="The Git repository URL to clone.")
-    rebase_parser.add_argument("--base-branch", type=str, default="origin/chromium/m114", help="The base branch to rebase onto.")
-    rebase_parser.add_argument("--new-branch", type=str, default="experimental/m114-rebase", help="The name of the new branch.")
-    rebase_parser.add_argument("--commits-file", type=str, default="commits.json", help="The JSON file with the commits to rebase.")
 
     # Linearize command
     linearize_parser = subparsers.add_parser("linearize", help="Create a new branch with a linearized history.")
-    linearize_parser.add_argument("--repo-url", type=str, default="https://github.com/youtube/cobalt.git", help="The Git repository URL to mirror and clone.")
-    linearize_parser.add_argument("--repo-path", type=str, default="/tmp/opt-cobalt", help="Local path to work with repository (default: /tmp/opt-cobalt).")
-    linearize_parser.add_argument("--source-branch", type=str, required=True, help="The source branch to linearize.")
+    linearize_parser.add_argument("--repo-path", type=str, required=True, help="The path to the local repository.")
+    linearize_parser.add_argument("--source-branch", type=str, required=True, help="The branch to linearize.")
     linearize_parser.add_argument("--start-commit-ref", type=str, required=True, help="The starting commit SHA or ref.")
     linearize_parser.add_argument("--end-commit-ref", type=str, required=True, help="The ending commit SHA or ref.")
     linearize_parser.add_argument("--new-branch-name", type=str, required=True, help="The name of the new linear branch.")
+
+    # Commits command
+    commits_parser = subparsers.add_parser("commits", help="Extract commits to a JSON file.")
+    commits_parser.add_argument("--repo-path", type=str, required=True, help="The path to the local repository.")
+    commits_parser.add_argument("--start-commit-ref", type=str, required=True, help="The starting commit SHA or ref.")
+    commits_parser.add_argument("--end-commit-ref", type=str, required=True, help="The ending commit SHA or ref.")
+    commits_parser.add_argument("--output-file", type=str, default="commits.json", help="The output JSON file for the commits.")
+
+    # Rebase command
+    rebase_parser = subparsers.add_parser("rebase", help="Rebase commits onto a new branch.")
+    rebase_parser.add_argument("--repo-path", type=str, required=True, help="The path to the local repository.")
+    rebase_parser.add_argument("--base-branch", type=str, required=True, help="The base branch to rebase onto.")
+    rebase_parser.add_argument("--new-branch", type=str, required=True, help="The name of the new rebased branch.")
+    rebase_parser.add_argument("--commits-file", type=str, default="commits.json", help="The JSON file with the commits to rebase.")
+
+    
     
     # Reconstruct merge command
     reconstruct_parser = subparsers.add_parser("reconstruct-merge", help="Reconstruct a squashed merge as a proper merge commit.")
@@ -1767,51 +1433,13 @@ def main():
     validate_spine_parser.add_argument("--spine-file", type=str, required=True, help="JSON file containing the spine to validate.")
     
     args = parser.parse_args()
-    
-    # Handle repository setup
+
+    repo = git.Repo(args.repo_path)
+
     if args.command == "linearize":
-        # For linearize command, use mirror setup if repo-url provided
-        if hasattr(args, 'repo_url') and args.repo_url:
-            repo_name = args.repo_url.split('/')[-1].replace('.git', '')
-            mirror_path = f"/tmp/{repo_name}-mirror.git"
-            working_path = args.repo_path if hasattr(args, 'repo_path') and args.repo_path else "/tmp/opt-cobalt"
-            repo = setup_mirror_repo(args.repo_url, mirror_path, working_path)
-        elif hasattr(args, 'repo_path') and args.repo_path:
-            repo = git.Repo(args.repo_path)
-        else:
-            repo = git.Repo(".")
-    elif args.command == "reconstruct-merge":
-        # For reconstruct-merge command, use the specified repo path
-        repo = git.Repo(args.repo_path)
-    elif args.command == "compute-spine":
-        # For compute-spine command, use the specified repo path
-        repo = git.Repo(args.repo_path)
-    elif args.command == "linearize-from-spine":
-        # For linearize-from-spine command, use the specified repo path
-        repo = git.Repo(args.repo_path)
-    elif args.command == "validate-spine":
-        # For validate-spine command, use the specified repo path
-        repo = git.Repo(args.repo_path)
-    elif args.command == "extract-commits":
-        # For extract-commits command, use the specified repo path
-        repo = git.Repo(args.repo_path)
-    elif args.command == "compute-spine-only":
-        # For compute-spine-only command, no repo needed
-        repo = None
-    else:
-        # For other commands, use the original behavior
-        repo_path = "/tmp/cobalt"
-        if not os.path.exists(repo_path):
-            repo = git.Repo.clone_from(args.repo_url, repo_path)
-        else:
-            repo = git.Repo(repo_path)
-
-    if args.command == "commits":
-        if args.verbose:
-            print(f"Verbose mode enabled.")
-
-        commits = list(repo.iter_commits(args.tag))
-        
+        linearize_history(repo, args)
+    elif args.command == 'commits':
+        commits = list(repo.iter_commits(f'{args.start_commit_ref}..{args.end_commit_ref}'))
         commit_data = []
         for commit in commits:
             stats = commit.stats
@@ -1819,28 +1447,22 @@ def main():
             common_dir = find_deepest_common_dir(files)
             is_merge = len(commit.parents) > 1
             commit_data.append({
-                "hexsha": commit.hexsha,
-                "summary": commit.summary,
-                "author": commit.author.name,
-                "date": commit.authored_datetime.isoformat(),
-                "stats": {
-                    "files": stats.total['files'],
-                    "insertions": stats.total['insertions'],
-                    "deletions": stats.total['deletions'],
+                'hexsha': commit.hexsha,
+                'author': commit.author.name,
+                'date': commit.authored_datetime.isoformat(),
+                'summary': commit.summary,
+                'stats': {
+                    'insertions': stats.total['insertions'],
+                    'deletions': stats.total['deletions'],
+                    'lines': stats.total['lines'],
+                    'files': stats.total['files'],
                 },
-                "common_dir": common_dir,
-                "is_merge": is_merge
+                'common_dir': common_dir,
+                'is_merge': is_merge
             })
-
-        with open(args.output_file, "w") as f:
+        with open(args.output_file, 'w', encoding='utf-8') as f:
             json.dump(commit_data, f, indent=2)
-
-        print(f"Extracted {len(commit_data)} commits to {args.output_file}")
-    elif args.command == "branches":
-        repo.remotes.origin.fetch()
-        for branch in repo.remotes.origin.refs:
-            if branch.name.startswith(args.prefix):
-                print(branch.name)
+        print(f'Extracted {len(commit_data)} commits to {args.output_file}')
     elif args.command == "rebase":
         # Create and checkout the new branch
         repo.git.checkout(args.base_branch, b=args.new_branch)
@@ -1864,8 +1486,6 @@ def main():
                 print(f"Error: {e}")
                 repo.git.cherry_pick("--abort")
                 break
-    elif args.command == "linearize":
-        linearize_history(repo, args)
     elif args.command == "reconstruct-merge":
         reconstruct_merge_commit(repo, args)
     elif args.command == "compute-spine":
