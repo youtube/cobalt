@@ -60,6 +60,38 @@ class StarboardBridge {
   std::string GetAdvertisingId(JNIEnv* env);
   bool GetLimitAdTracking(JNIEnv* env);
 
+<<<<<<< HEAD
+=======
+  void CloseApp(JNIEnv* env);
+
+  std::string GetTimeZoneId(JNIEnv* env);
+
+  ScopedJavaLocalRef<jobject> GetDisplayDpi(JNIEnv* env);
+
+  ScopedJavaLocalRef<jobject> GetDeviceResolution(JNIEnv* env);
+
+  bool IsNetworkConnected(JNIEnv* env);
+
+  void ReportFullyDrawn(JNIEnv* env);
+
+  bool IsMicrophoneDisconnected(JNIEnv* env);
+  bool IsMicrophoneMute(JNIEnv* env);
+  ScopedJavaLocalRef<jobject> GetAudioPermissionRequester(JNIEnv* env);
+
+  void ResetVideoSurface(JNIEnv* env);
+  void SetVideoSurfaceBounds(JNIEnv* env, int x, int y, int width, int height);
+
+  ScopedJavaLocalRef<jobject> GetAudioOutputManager(JNIEnv* env);
+
+  std::string GetUserAgentAuxField(JNIEnv* env) const;
+
+  bool IsAmatiDevice(JNIEnv* env) const;
+
+  std::string GetBuildFingerprint(JNIEnv* env) const;
+
+  int64_t GetPlayServicesVersion(JNIEnv* env) const;
+
+>>>>>>> 68e31a670d9 (Make all JNI method calls to StarboardBridge go through starboard_bridge.h (#6157))
  private:
   StarboardBridge() = default;
   ~StarboardBridge() = default;
