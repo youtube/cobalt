@@ -68,7 +68,7 @@ gclient sync --no-history -r $(git rev-parse @)
 
 ```sh
 cobalt/build/gn.py --no-rbe
-autoninja -C out/linux-x64x11_devel/ cobalt_apk
+autoninja -C out/linux-x64x11_devel/ cobalt
 ```
 
 Note: See note about --no-rbe at the end of this document.
@@ -85,7 +85,7 @@ Change the platform parameter to:
 
 ```sh
 cobalt/build/gn.py --no-rbe -p android-arm
-autoninja -C out/android-arm_devel/ cobalt
+autoninja -C out/android-arm_devel/ cobalt_apk
 ```
 
 This will build `apks/Cobalt.apk` in the output directory.
