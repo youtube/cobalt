@@ -150,6 +150,7 @@ test("nplb") {
     "posix_compliance/posix_rand_r_test.cc",
     "posix_compliance/posix_rand_test.cc",
     "posix_compliance/posix_semaphore_test.cc",
+    "posix_compliance/posix_signal_test.cc",
     "posix_compliance/posix_sleep_test.cc",
     "posix_compliance/posix_socket_accept_test.cc",
     "posix_compliance/posix_socket_bind_test.cc",
