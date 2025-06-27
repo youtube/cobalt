@@ -18,6 +18,7 @@
 #include <pthread.h>
 
 #include <limits>
+#include <mutex>
 #include <queue>
 
 #include "starboard/common/log.h"
@@ -152,7 +153,7 @@ class VideoDecoderImpl<FFMPEG> : public VideoDecoder {
   // to obtain the current decode target (which ultimately ends up being a
   // copy of |decode_target_|), we need to safe-guard access to |decode_target_|
   // and |frames_|, we do so through this mutex.
-  Mutex decode_target_and_frames_mutex_;
+  std::mutex decode_target_and_frames_mutex_;
 
   // int frame_last_rendered_pts_;
   // scoped_refptr<VideoFrame> frame_;
