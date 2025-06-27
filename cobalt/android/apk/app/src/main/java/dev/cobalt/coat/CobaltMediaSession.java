@@ -52,6 +52,7 @@ public class CobaltMediaSession implements ArtworkLoader.Callback {
   private final Handler mMainHandler = new Handler(Looper.getMainLooper());
   private final Context mContext;
   private final ArtworkLoader mArtworkLoader;
+  private final Holder<Activity> mActivityHolder;
   private WebContents mWebContents;
   private MediaSessionCompat mMediaSession;
   private MediaSessionObserver mMediaSessionObserver;
@@ -63,6 +64,9 @@ public class CobaltMediaSession implements ArtworkLoader.Callback {
   private Bitmap mArtworkImage;
   private MediaSessionCompat.Callback mMediaSessionCallback;
   private LifecycleCallback mLifecycleCallback = null;
+  // Tracks the current playback state to manage the FLAG_KEEP_SCREEN_ON window flag.
+  private int mCurrentPlaybackState = PlaybackStateCompat.STATE_NONE;
+
 
   // TODO: decouple LifecycleCallback and CobaltMediaSession implementation.
   /** LifecycleCallback to notify listeners when |mediaSession| becomes active or inactive. */
@@ -80,6 +84,7 @@ public class CobaltMediaSession implements ArtworkLoader.Callback {
   public CobaltMediaSession(
       Context context, Holder<Activity> activityHolder, ArtworkDownloader artworkDownloader) {
     mContext = context;
+    mActivityHolder = activityHolder;
     mArtworkLoader = new ArtworkLoader(this, artworkDownloader);
     mMediaSessionCallback =
         new MediaSessionCompat.Callback() {
@@ -265,9 +270,20 @@ public class CobaltMediaSession implements ArtworkLoader.Callback {
         };
   }
 
+  private void setKeepScreenOn(boolean keepScreenOn) {
+    CobaltActivity activity = (CobaltActivity) mActivityHolder.get();
+    if (activity != null) {
+      activity.setKeepScreenOn(keepScreenOn);
+    }
+  }
+
   private void updatePlaybackState() {
     if (!mIsControllable) {
       deactivateMediaSession();
+      if (mCurrentPlaybackState != PlaybackStateCompat.STATE_NONE) {
+        mCurrentPlaybackState = PlaybackStateCompat.STATE_NONE;
+        setKeepScreenOn(false);
+      }
       return;
     }
 
@@ -284,6 +300,11 @@ public class CobaltMediaSession implements ArtworkLoader.Callback {
           (mIsPaused == true
               ? PlaybackStateCompat.STATE_PAUSED
               : PlaybackStateCompat.STATE_PLAYING);
+    }
+
+    if (state != mCurrentPlaybackState) {
+      setKeepScreenOn(state == PlaybackStateCompat.STATE_PLAYING);
+      mCurrentPlaybackState = state;
     }
 
     if (mPosition != null) {

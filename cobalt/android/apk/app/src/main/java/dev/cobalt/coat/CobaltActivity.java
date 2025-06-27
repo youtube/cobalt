@@ -426,8 +426,6 @@ public abstract class CobaltActivity extends Activity {
       // visibility:visible event
       webContents.onShow();
     }
-
-    getWindow().addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON);
   }
 
   @Override
@@ -450,8 +448,6 @@ public abstract class CobaltActivity extends Activity {
     // Set the SurfaceView to fullscreen.
     View rootView = getWindow().getDecorView();
     setVideoSurfaceBounds(0, 0, rootView.getWidth(), rootView.getHeight());
-
-    getWindow().clearFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON);
   }
 
   @Override
@@ -672,5 +668,20 @@ public abstract class CobaltActivity extends Activity {
             }
           }
         });
+  }
+
+  public void setKeepScreenOn(boolean keepOn) {
+    runOnUiThread(new Runnable() {
+      @Override
+      public void run() {
+        if (keepOn) {
+          getWindow().addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON);
+          Log.i(TAG, "Screen keep-on enabled for video playback");
+        } else {
+          getWindow().clearFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON);
+          Log.i(TAG, "Screen keep-on disabled");
+        }
+      }
+    });
   }
 }
