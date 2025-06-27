@@ -41,10 +41,12 @@ extern "C" {
 #define MUSL_SOCK_STREAM 1
 #define MUSL_SOCK_DGRAM 2
 #define MUSL_SOCK_RAW 3
+#define MUSL_SOCK_SEQPACKET 5
 
 #define MUSL_IPPROTO_TCP 6
 #define MUSL_IPPROTO_UDP 17
 
+#define MUSL_AF_UNIX 1
 #define MUSL_AF_INET 2
 #define MUSL_AF_INET6 10
 
