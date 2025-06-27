@@ -30,10 +30,6 @@ constexpr char kExperimentConfigFeatureParams[] =
     "experiment_config.feature_params";
 constexpr char kExperimentConfigExpIds[] = "experiment_config.exp_ids";
 constexpr char kSafeConfig[] = "safe_config";
-// A sentinel value that may be stored as the latest experiment config value in
-// prefs to indicate that the latest config is identical to the safe config.
-// Used to avoid duplicating storage space.
-constexpr char kIdenticalToSafeConfigSentinel[] = "safe_config_content";
 constexpr char kSafeConfigFeatures[] = "safe_config.features";
 constexpr char kSafeConfigFeatureParams[] = "safe_config.feature_params";
 constexpr char kSafeConfigExpIds[] = "safe_config.exp_ids";

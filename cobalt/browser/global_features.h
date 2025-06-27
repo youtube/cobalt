@@ -19,6 +19,7 @@
 #include "base/memory/raw_ptr.h"
 #include "base/no_destructor.h"
 #include "base/sequence_checker.h"
+#include "cobalt/browser/experiments/experiment_config_manager.h"
 #include "components/prefs/pref_registry_simple.h"
 
 class PrefService;
@@ -33,12 +34,6 @@ class MetricsServicesManager;
 
 namespace cobalt {
 class CobaltMetricsServicesManagerClient;
-
-enum class ExperimentConfigType {
-  kRegularConfig,
-  kSafeConfig,
-  kEmptyConfig,
-};
 
 // This class owns features that are globally scoped. It follows the structure
 // of BrowserProcess class in Chrome. This class is a singleton and can only be
@@ -63,20 +58,11 @@ class GlobalFeatures {
   const std::vector<uint32_t>& active_experiment_ids() {
     return active_experiment_ids_;
   }
-  // Public getter for testing.
-  bool has_called_store_safe_config() { return called_store_safe_config_; }
+  ExperimentConfigManager* experiment_config_manager() {
+    return experiment_config_manager_.get();
+  }
 
   void set_accessor(std::unique_ptr<base::FeatureList::Accessor> accessor);
-
-  // Return an ExperimentConfigType that's used by the current run of Cobalt.
-  // This should only be called before StoreSafeConfig() is called since the
-  // content of safe config can be modified by StoreSafeConfig().
-  ExperimentConfigType GetExperimentConfigType();
-  // If regular config is used in the current run, save the active config as
-  // safe config.
-  // This should only be called before any modification to
-  // variations::prefs::kVariationsCrashStreak.
-  void StoreSafeConfig();
 
  private:
   friend class base::NoDestructor<GlobalFeatures>;
@@ -111,9 +97,9 @@ class GlobalFeatures {
   std::unique_ptr<metrics_services_manager::MetricsServicesManager>
       metrics_services_manager_;
 
-  std::vector<uint32_t> active_experiment_ids_;
+  std::unique_ptr<ExperimentConfigManager> experiment_config_manager_;
 
-  bool called_store_safe_config_ = false;
+  std::vector<uint32_t> active_experiment_ids_;
 
   SEQUENCE_CHECKER(sequence_checker_);
 };
