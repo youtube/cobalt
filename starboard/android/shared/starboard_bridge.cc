@@ -25,7 +25,6 @@
 #include "starboard/common/command_line.h"
 #include "starboard/common/log.h"
 #include "starboard/common/time.h"
-#include "starboard/media.h"
 #include "starboard/shared/starboard/audio_sink/audio_sink_internal.h"
 #include "starboard/shared/starboard/log_mutex.h"
 
@@ -319,6 +318,30 @@ void StarboardBridge::SetVideoSurfaceBounds(JNIEnv* env,
   SB_DCHECK(env);
   return Java_StarboardBridge_setVideoSurfaceBounds(env, j_starboard_bridge_, x,
                                                     y, width, height);
+}
+
+std::string StarboardBridge::GetUserAgentAuxField(JNIEnv* env) const {
+  SB_DCHECK(env);
+  return ConvertJavaStringToUTF8(
+      env, Java_StarboardBridge_getUserAgentAuxField(env, j_starboard_bridge_));
+}
+
+bool StarboardBridge::IsAmatiDevice(JNIEnv* env) const {
+  SB_DCHECK(env);
+  return Java_StarboardBridge_getIsAmatiDevice(env, j_starboard_bridge_) ==
+         JNI_TRUE;
+}
+
+std::string StarboardBridge::GetBuildFingerprint(JNIEnv* env) const {
+  SB_DCHECK(env);
+  return ConvertJavaStringToUTF8(
+      env, Java_StarboardBridge_getBuildFingerprint(env, j_starboard_bridge_));
+}
+
+int64_t StarboardBridge::GetPlayServicesVersion(JNIEnv* env) const {
+  SB_DCHECK(env);
+  return static_cast<int64_t>(
+      Java_StarboardBridge_getPlayServicesVersion(env, j_starboard_bridge_));
 }
 
 }  // namespace starboard::android::shared
