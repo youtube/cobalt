@@ -27,7 +27,7 @@ void copy_uts_field(char* dest,
     return;
   }
 
-  memset(dest, NULL, dest_sz);
+  memset(dest, 0, dest_sz);
   const auto minlen = dest_sz < src_sz ? dest_sz : src_sz;
   memcpy(dest, src, minlen);
 }
@@ -35,7 +35,7 @@ void copy_uts_field(char* dest,
 SB_EXPORT int __abi_wrap_uname(struct musl_utsname* musl_uts) {
   // SEGFAULT if utsname is invalid.
   if (musl_uts == NULL) {
-    errno = EBADF;
+    errno = EFAULT;
     return -1;
   }
 
