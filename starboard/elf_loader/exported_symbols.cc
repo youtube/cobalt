@@ -29,6 +29,7 @@
 #include <malloc.h>
 #include <netdb.h>
 #include <sched.h>
+#include <signal.h>
 #include <stdlib.h>
 #include <sys/epoll.h>
 #include <sys/mman.h>
@@ -55,6 +56,7 @@
 #include "starboard/shared/modular/starboard_layer_posix_pipe2_abi_wrappers.h"
 #include "starboard/shared/modular/starboard_layer_posix_pthread_abi_wrappers.h"
 #include "starboard/shared/modular/starboard_layer_posix_semaphore_abi_wrappers.h"
+#include "starboard/shared/modular/starboard_layer_posix_signal_abi_wrappers.h"
 #include "starboard/shared/modular/starboard_layer_posix_socket_abi_wrappers.h"
 #include "starboard/shared/modular/starboard_layer_posix_socketpair_abi_wrappers.h"
 #include "starboard/shared/modular/starboard_layer_posix_stat_abi_wrappers.h"
@@ -240,6 +242,7 @@ ExportedSymbols::ExportedSymbols() {
   REGISTER_SYMBOL(getsockname);
   REGISTER_SYMBOL(getsockopt);
   REGISTER_SYMBOL(isatty);
+  REGISTER_SYMBOL(kill);
   REGISTER_SYMBOL(listen);
   REGISTER_SYMBOL(madvise);
   REGISTER_SYMBOL(malloc);
@@ -252,10 +255,12 @@ ExportedSymbols::ExportedSymbols() {
   REGISTER_SYMBOL(msync);
   REGISTER_SYMBOL(munmap);
   REGISTER_SYMBOL(open);
+  REGISTER_SYMBOL(pause);
   REGISTER_SYMBOL(pipe);
   REGISTER_SYMBOL(posix_memalign);
   REGISTER_SYMBOL(pread);
   REGISTER_SYMBOL(pwrite);
+  REGISTER_SYMBOL(raise);
   REGISTER_SYMBOL(rand);
   REGISTER_SYMBOL(rand_r);
   REGISTER_SYMBOL(read);
@@ -267,6 +272,7 @@ ExportedSymbols::ExportedSymbols() {
   REGISTER_SYMBOL(sched_yield);
   REGISTER_SYMBOL(send);
   REGISTER_SYMBOL(sendto);
+  REGISTER_SYMBOL(signal);
   REGISTER_SYMBOL(socket);
   REGISTER_SYMBOL(snprintf);
   REGISTER_SYMBOL(sprintf);
@@ -366,6 +372,7 @@ ExportedSymbols::ExportedSymbols() {
   REGISTER_WRAPPER(pthread_setname_np);
   REGISTER_WRAPPER(pthread_setschedparam);
   REGISTER_WRAPPER(pthread_setspecific);
+  REGISTER_WRAPPER(pthread_sigmask);
   REGISTER_WRAPPER(readdir);
   REGISTER_WRAPPER(readdir_r);
   REGISTER_WRAPPER(setsockopt);
@@ -375,6 +382,7 @@ ExportedSymbols::ExportedSymbols() {
   REGISTER_WRAPPER(sem_timedwait);
   REGISTER_WRAPPER(sem_wait);
   REGISTER_WRAPPER(shutdown);
+  REGISTER_WRAPPER(sigaction);
   REGISTER_WRAPPER(socketpair);
   REGISTER_WRAPPER(stat);
   REGISTER_WRAPPER(sysconf);

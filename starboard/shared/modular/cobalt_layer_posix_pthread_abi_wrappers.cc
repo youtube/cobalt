@@ -382,10 +382,4 @@ int __abi_wrap_pthread_rwlock_trywrlock(pthread_rwlock_t*);
 int pthread_rwlock_trywrlock(pthread_rwlock_t* rwlock) {
   return __abi_wrap_pthread_rwlock_trywrlock(rwlock);
 }
-
-int __abi_wrap_pthread_kill(pthread_t thread, int sig);
-
-int pthread_kill(pthread_t thread, int sig) {
-  return __abi_wrap_pthread_kill(thread, sig);
-}
 }
