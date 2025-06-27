@@ -14,6 +14,10 @@
 #include "net/third_party/quiche/src/quiche/quic/core/quic_clock.h"
 #include "net/third_party/quiche/src/quiche/quic/core/quic_types.h"
 
+#if BUILDFLAG(IS_COBALT)
+#include "net/quic/platform/impl/quic_chromium_clock.h"
+#endif
+
 namespace net {
 
 namespace {
@@ -94,6 +98,9 @@ if (read_pending_)
 }
 
 bool QuicChromiumPacketReader::ProcessMultiplePacketReadResult(int result) {
+#if BUILDFLAG(IS_COBALT)
+  quic::QuicChromiumClock::GetInstance()->ZeroApproximateNow();
+#endif
   read_pending_ = false;
   if (result <= 0 && net_log_.IsCapturing()) {
     net_log_.AddEventWithIntParams(NetLogEventType::QUIC_READ_ERROR,
@@ -130,8 +137,13 @@ bool QuicChromiumPacketReader::ProcessMultiplePacketReadResult(int result) {
     if (read_packet->result <= 0) {
       continue;
     }
+#if BUILDFLAG(IS_COBALT)
+    quic::QuicReceivedPacket packet(read_packet->buffer, read_packet->result,
+                                    clock_->ApproximateNow());
+#else
     quic::QuicReceivedPacket packet(read_packet->buffer, read_packet->result,
                                     clock_->Now());
+#endif
     if (!(visitor_->OnPacket(packet, quick_local_address, quick_peer_address) &&
           self)) {
       return false;
@@ -213,6 +225,9 @@ static_assert(static_cast<EcnCodePoint>(quic::ECN_NOT_ECT) == ECN_NOT_ECT &&
                   static_cast<EcnCodePoint>(quic::ECN_CE) == ECN_CE,
               "Mismatch ECN codepoint values");
 bool QuicChromiumPacketReader::ProcessReadResult(int result) {
+#if BUILDFLAG(IS_COBALT)
+  quic::QuicChromiumClock::GetInstance()->ZeroApproximateNow();
+#endif
   read_pending_ = false;
   if (result <= 0 && net_log_.IsCapturing()) {
     net_log_.AddEventWithIntParams(NetLogEventType::QUIC_READ_ERROR,
@@ -237,12 +252,17 @@ bool QuicChromiumPacketReader::ProcessReadResult(int result) {
     DscpAndEcn tos = socket_->GetLastTos();
     ecn = static_cast<quic::QuicEcnCodepoint>(tos.ecn);
   }
+#if BUILDFLAG(IS_COBALT)
+  quic::QuicReceivedPacket packet(read_buffer_->data(), result,
+                                  clock_->ApproximateNow());
+#else
   quic::QuicReceivedPacket packet(read_buffer_->data(), result, clock_->Now(),
                                   /*owns_buffer=*/false, /*ttl=*/0,
                                   /*ttl_valid=*/true,
                                   /*packet_headers=*/nullptr,
                                   /*headers_length=*/0,
                                   /*owns_header_buffer=*/false, ecn);
+#endif
   IPEndPoint local_address;
   IPEndPoint peer_address;
   socket_->GetLocalAddress(&local_address);
