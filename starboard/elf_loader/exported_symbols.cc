@@ -56,6 +56,7 @@
 #include "starboard/shared/modular/starboard_layer_posix_pthread_abi_wrappers.h"
 #include "starboard/shared/modular/starboard_layer_posix_semaphore_abi_wrappers.h"
 #include "starboard/shared/modular/starboard_layer_posix_socket_abi_wrappers.h"
+#include "starboard/shared/modular/starboard_layer_posix_socketpair_abi_wrappers.h"
 #include "starboard/shared/modular/starboard_layer_posix_stat_abi_wrappers.h"
 #include "starboard/shared/modular/starboard_layer_posix_time_abi_wrappers.h"
 #include "starboard/shared/modular/starboard_layer_posix_uio_abi_wrappers.h"
@@ -374,6 +375,7 @@ ExportedSymbols::ExportedSymbols() {
   REGISTER_WRAPPER(sem_timedwait);
   REGISTER_WRAPPER(sem_wait);
   REGISTER_WRAPPER(shutdown);
+  REGISTER_WRAPPER(socketpair);
   REGISTER_WRAPPER(stat);
   REGISTER_WRAPPER(sysconf);
   REGISTER_WRAPPER(writev);
