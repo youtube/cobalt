@@ -22,20 +22,32 @@
 namespace {
 
 int musl_flag_to_platform_flag(int flag) {
-  switch (flag) {
-    case MUSL_O_NONBLOCK:
-      return O_NONBLOCK;
-    case MUSL_O_CLOEXEC:
-      return O_CLOEXEC;
-    default:
-      SB_LOG(WARNING) << "Unable to convert musl flag to platform flag, "
-                      << "using value as-is";
-      return flag;
+  int remaining_bits = flag;
+  int platform_flags = 0;
+  if (flag & MUSL_O_NONBLOCK) {
+    platform_flags |= O_NONBLOCK;
+    remaining_bits &= ~MUSL_O_NONBLOCK;
   }
+  if (flag & MUSL_O_CLOEXEC) {
+    platform_flags |= O_CLOEXEC;
+    remaining_bits &= ~MUSL_O_CLOEXEC;
+  }
+
+  if (remaining_bits) {
+    SB_LOG(WARNING) << "Unexplained bits remaining in flag after conversion: "
+                    << remaining_bits;
+    return -1;
+  }
+
+  return platform_flags;
 }
 
 }  // namespace
 
 SB_EXPORT int __abi_wrap_pipe2(int fildes[2], int flag) {
-  return pipe2(fildes, musl_flag_to_platform_flag(flag));
+  int platform_flag = musl_flag_to_platform_flag(flag);
+  if (platform_flag == -1) {
+    return -1;
+  }
+  return pipe2(fildes, platform_flag);
 }
