@@ -235,7 +235,6 @@ SB_EXPORT int __abi_wrap_pthread_rwlock_tryrdlock(
     musl_pthread_rwlock_t* rwlock);
 SB_EXPORT int __abi_wrap_pthread_rwlock_trywrlock(
     musl_pthread_rwlock_t* rwlock);
-SB_EXPORT int __abi_wrap_pthread_kill(musl_pthread_t thread, int sig);
 
 #ifdef __cplusplus
 }  // extern "C"
