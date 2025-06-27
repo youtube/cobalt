@@ -64,7 +64,9 @@ void H5vccExperimentsImpl::SetExperimentState(
       cobalt::GlobalFeatures::GetInstance()->experiment_config();
   // A valid experiment config is supplied by h5vcc and we store the current
   // config as the safe config.
-  cobalt::GlobalFeatures::GetInstance()->StoreSafeConfig();
+  cobalt::GlobalFeatures::GetInstance()
+      ->experiment_config_manager()
+      ->StoreSafeConfig();
 
   experiment_config_ptr->SetDict(
       cobalt::kExperimentConfigFeatures,

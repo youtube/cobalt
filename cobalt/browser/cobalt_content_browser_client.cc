@@ -358,20 +358,25 @@ void CobaltContentBrowserClient::SetUpCobaltFeaturesAndParams(
       kCobaltExperimentName, kCobaltGroupName);
   CHECK(cobalt_field_trial) << "Unexpected name conflict.";
 
-  auto experiment_config = GlobalFeatures::GetInstance()->experiment_config();
-  auto config_type = GlobalFeatures::GetInstance()->GetExperimentConfigType();
+  auto experiment_config_manager =
+      GlobalFeatures::GetInstance()->experiment_config_manager();
+  auto config_type = experiment_config_manager->GetExperimentConfigType();
   if (config_type == ExperimentConfigType::kEmptyConfig) {
     return;
   }
 
   const base::Value::Dict& feature_map =
       config_type == ExperimentConfigType::kSafeConfig
-          ? experiment_config->GetDict(kSafeConfigFeatures)
-          : experiment_config->GetDict(kExperimentConfigFeatures);
+          ? GlobalFeatures::GetInstance()->experiment_config()->GetDict(
+                kSafeConfigFeatures)
+          : GlobalFeatures::GetInstance()->experiment_config()->GetDict(
+                kExperimentConfigFeatures);
   const base::Value::Dict& param_map =
       config_type == ExperimentConfigType::kSafeConfig
-          ? experiment_config->GetDict(kSafeConfigFeatureParams)
-          : experiment_config->GetDict(kExperimentConfigFeatureParams);
+          ? GlobalFeatures::GetInstance()->experiment_config()->GetDict(
+                kSafeConfigFeatureParams)
+          : GlobalFeatures::GetInstance()->experiment_config()->GetDict(
+                kExperimentConfigFeatureParams);
 
   for (const auto feature_name_and_value : feature_map) {
     if (feature_name_and_value.second.is_bool()) {
@@ -404,7 +409,6 @@ void CobaltContentBrowserClient::SetUpCobaltFeaturesAndParams(
   }
   base::AssociateFieldTrialParams(kCobaltExperimentName, kCobaltGroupName,
                                   params);
-  // experiment_config->SetString(kExperimentConfig,"");
 }
 
 void CobaltContentBrowserClient::CreateFeatureListAndFieldTrials() {
