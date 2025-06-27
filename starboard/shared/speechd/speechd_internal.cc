@@ -75,7 +75,7 @@ SpeechDispatcher::~SpeechDispatcher() {
 }
 
 bool SpeechDispatcher::SetLanguage(const char* language) {
-  ScopedLock lock(lock_);
+  std::lock_guard lock(lock_);
   if (connection_) {
     int result = spd_set_language(connection_, language);
     return result == 0;
@@ -84,7 +84,7 @@ bool SpeechDispatcher::SetLanguage(const char* language) {
 }
 
 void SpeechDispatcher::Speak(const char* text) {
-  ScopedLock lock(lock_);
+  std::lock_guard lock(lock_);
   if (connection_ && text && *text) {
     // Priority SPD_MESSAGE will be queued with other text of same priority.
     int result = spd_say(connection_, SPD_MESSAGE, text);
@@ -95,7 +95,7 @@ void SpeechDispatcher::Speak(const char* text) {
 }
 
 void SpeechDispatcher::Cancel() {
-  ScopedLock lock(lock_);
+  std::lock_guard lock(lock_);
   if (connection_) {
     int result = spd_cancel(connection_);
     if (result != 0) {
