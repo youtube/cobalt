@@ -162,6 +162,7 @@ void QuicConnectionLogger::OnPacketSent(
     const quic::QuicFrames& nonretransmittable_frames,
     quic::QuicTime sent_time,
     uint32_t batch_id) {
+#if !BUILDFLAG(IS_COBALT)
   // 4.4.1.4.  Minimum Packet Size
   // The payload of a UDP datagram carrying the Initial packet MUST be
   // expanded to at least 1200 octets
@@ -194,6 +195,7 @@ void QuicConnectionLogger::OnPacketSent(
       NOTREACHED();
       break;
   }
+#endif
 
   event_logger_.OnPacketSent(packet_number, packet_length, has_crypto_handshake,
                              transmission_type, encryption_level,
@@ -224,6 +226,9 @@ void QuicConnectionLogger::OnPacketReceived(
     const quic::QuicSocketAddress& self_address,
     const quic::QuicSocketAddress& peer_address,
     const quic::QuicEncryptedPacket& packet) {
+#if !BUILDFLAG(IS_COBALT)
+  // We disable the packet receiving histogram in Cobalt for performance
+  // reasons.
   if (local_address_from_self_.GetFamily() == ADDRESS_FAMILY_UNSPECIFIED) {
     local_address_from_self_ = ToIPEndPoint(self_address);
     UMA_HISTOGRAM_ENUMERATION(
@@ -231,6 +236,7 @@ void QuicConnectionLogger::OnPacketReceived(
         GetRealAddressFamily(ToIPEndPoint(self_address).address()),
         ADDRESS_FAMILY_LAST);
   }
+#endif
 
   previous_received_packet_size_ = last_received_packet_size_;
   last_received_packet_size_ = packet.length();
@@ -284,7 +290,10 @@ void QuicConnectionLogger::OnPacketHeader(const quic::QuicPacketHeader& header,
   if (!largest_received_packet_number_.IsInitialized()) {
     largest_received_packet_number_ = header.packet_number;
   } else if (largest_received_packet_number_ < header.packet_number) {
+#if !BUILDFLAG(IS_COBALT)
     uint64_t delta = header.packet_number - largest_received_packet_number_;
+    // We disable the packet header histograms in Cobalt for performance
+    // reasons.
     if (delta > 1) {
       // There is a gap between the largest packet previously received and
       // the current packet.  This indicates either loss, or out-of-order
@@ -293,8 +302,12 @@ void QuicConnectionLogger::OnPacketHeader(const quic::QuicPacketHeader& header,
           "Net.QuicSession.PacketGapReceived",
           static_cast<base::HistogramBase::Sample>(delta - 1));
     }
+#endif
     largest_received_packet_number_ = header.packet_number;
   }
+#if !BUILDFLAG(IS_COBALT)
+  // We disable the packet header histograms in Cobalt for performance
+  // reasons.
   if (header.packet_number - first_received_packet_number_ <
       received_packets_.size()) {
     received_packets_[header.packet_number - first_received_packet_number_] =
@@ -318,6 +331,7 @@ void QuicConnectionLogger::OnPacketHeader(const quic::QuicPacketHeader& header,
     }
     no_packet_received_after_ping_ = false;
   }
+#endif
   last_received_packet_number_ = header.packet_number;
   event_logger_.OnPacketHeader(header, receive_time, level);
 }
