@@ -15,8 +15,9 @@
 #ifndef STARBOARD_COMMON_SEMAPHORE_H_
 #define STARBOARD_COMMON_SEMAPHORE_H_
 
-#include "starboard/common/condition_variable.h"
-#include "starboard/common/mutex.h"
+#include <condition_variable>
+#include <mutex>
+
 #include "starboard/configuration.h"
 
 namespace starboard {
@@ -47,8 +48,8 @@ class Semaphore {
   bool TakeWait(int64_t wait_us);
 
  private:
-  Mutex mutex_;
-  ConditionVariable condition_;
+  std::mutex mutex_;
+  std::condition_variable condition_;
   int permits_;
 
   Semaphore(const Semaphore&) = delete;
