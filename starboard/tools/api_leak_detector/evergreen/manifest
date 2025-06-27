@@ -111,7 +111,6 @@ sigemptyset
 sigfillset
 signal
 sigprocmask
-socketpair
 statvfs
 stderr
 stdin

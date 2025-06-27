@@ -16,6 +16,11 @@
 // - ENFILE: This error indicates the system file table is full, which is
 //   difficult to trigger from a user-space test without impacting the system
 //   or requiring specific, non-standard system configurations.
+// The following scenario is not reliably testable for pipe2():
+// - Shall fail with EINVAL if the value of the flag argument is invalid. In
+//   order to test this while maintaining portability and supporting our modular
+//   builds we'd need to support awkward values in our ABI compatibility
+//   wrappers. This particular test coverage probably does not justify that.
 
 #include <errno.h>
 #include <fcntl.h>
@@ -297,13 +302,6 @@ TEST(PosixPipeTest, Pipe2WithMultipleFlagsSetsTheseFlagsOnBothEndsOfPipe) {
 
   close(pipe_fds[0]);
   close(pipe_fds[1]);
-}
-
-TEST(PosixPipeTest, Pipe2WithInvalidFlagFails) {
-  int pipe_fds[2];
-  int invalid_flag = F_GETFD;  // A valid flag, but not for pipe2.
-  EXPECT_EQ(-1, pipe2(pipe_fds, invalid_flag));
-  EXPECT_EQ(EINVAL, errno);
 }
 
 // TODO: b/412648662 - If/when fork() is added to the hermetic build, we should
