@@ -154,10 +154,6 @@ void DrmSystem::CloseSession(const void* session_id, int session_id_size) {
 DrmSystem::DecryptStatus DrmSystem::Decrypt(InputBuffer* buffer) {
   SB_DCHECK(buffer);
   SB_DCHECK(buffer->drm_info());
-<<<<<<< HEAD
-=======
-  SB_DCHECK(media_drm_bridge_->GetMediaCrypto());
->>>>>>> cb4bf3c2511 ([media] Migrate MediaDrmBridge methods to jni generator (#5833))
   // The actual decryption will take place by calling |queueSecureInputBuffer|
   // in the decoders.  Our existence implies that there is enough information
   // to perform the decryption.
