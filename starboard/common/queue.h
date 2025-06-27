@@ -41,8 +41,8 @@ namespace starboard {
 template <typename T>
 class Queue {
  public:
-  Queue() : wake_(false) {}
-  ~Queue() {}
+  Queue() = default;
+  ~Queue() = default;
 
   // Polls for an item, returning the default value of T if nothing is present.
   T Poll() {
@@ -61,7 +61,7 @@ class Queue {
   // guarantees that only one waiter will receive any given queue item.
   T Get() {
     std::unique_lock<std::mutex> lock(mutex_);
-    condition_.wait(lock, [this]() { return !queue_.empty() || wake_; });
+    condition_.wait(lock, [this] { return !queue_.empty() || wake_; });
 
     if (wake_) {
       wake_ = false;
@@ -80,7 +80,7 @@ class Queue {
   T GetTimed(int64_t duration) {
     std::unique_lock<std::mutex> lock(mutex_);
     if (!condition_.wait_for(lock, std::chrono::microseconds(duration),
-                             [this]() { return !queue_.empty() || wake_; })) {
+                             [this] { return !queue_.empty() || wake_; })) {
       return T();
     }
 
@@ -137,7 +137,7 @@ class Queue {
   mutable std::mutex mutex_;
   std::condition_variable condition_;
   std::deque<T> queue_;
-  bool wake_;
+  bool wake_ = false;
 };
 
 }  // namespace starboard

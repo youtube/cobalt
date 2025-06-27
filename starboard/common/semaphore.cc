@@ -25,8 +25,6 @@ Semaphore::Semaphore() : permits_(0) {}
 Semaphore::Semaphore(int initial_thread_permits)
     : permits_(initial_thread_permits) {}
 
-Semaphore::~Semaphore() {}
-
 void Semaphore::Put() {
   std::unique_lock<std::mutex> lock(mutex_);
   ++permits_;
@@ -35,7 +33,7 @@ void Semaphore::Put() {
 
 void Semaphore::Take() {
   std::unique_lock<std::mutex> lock(mutex_);
-  condition_.wait(lock, [this]() { return permits_ > 0; });
+  condition_.wait(lock, [this] { return permits_ > 0; });
   --permits_;
 }
 
@@ -54,7 +52,7 @@ bool Semaphore::TakeWait(int64_t wait_us) {
   }
   std::unique_lock<std::mutex> lock(mutex_);
   if (!condition_.wait_for(lock, std::chrono::microseconds(wait_us),
-                           [this]() { return permits_ > 0; })) {
+                           [this] { return permits_ > 0; })) {
     return false;
   }
   --permits_;

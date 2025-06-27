@@ -27,7 +27,7 @@ class Semaphore {
  public:
   Semaphore();  // initial_thread_permits = 0;
   explicit Semaphore(int initial_thread_permits);
-  ~Semaphore();
+  ~Semaphore() = default;
 
   // Increases the permits. One thread will be woken up if it is blocked in
   // Take().
