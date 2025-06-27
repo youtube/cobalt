@@ -141,7 +141,10 @@ void QuicChromiumPacketWriter::WritePacketToSocket(
 }
 
 quic::WriteResult QuicChromiumPacketWriter::WritePacketToSocketImpl() {
+#if !BUILDFLAG(IS_COBALT)
+  // Tracking the histogram takes 25% of the CPU time on some devices.
   base::TimeTicks now = base::TimeTicks::Now();
+#endif
 
   int rv = socket_->Write(packet_.get(), packet_->size(), write_callback_,
                           kTrafficAnnotation);
@@ -168,12 +171,15 @@ quic::WriteResult QuicChromiumPacketWriter::WritePacketToSocketImpl() {
     }
   }
 
+#if !BUILDFLAG(IS_COBALT)
+  // Tracking the histogram here takes 25% of the CPU time on some devices.
   base::TimeDelta delta = base::TimeTicks::Now() - now;
   if (status == quic::WRITE_STATUS_OK) {
     UMA_HISTOGRAM_TIMES("Net.QuicSession.PacketWriteTime.Synchronous", delta);
   } else if (quic::IsWriteBlockedStatus(status)) {
     UMA_HISTOGRAM_TIMES("Net.QuicSession.PacketWriteTime.Asynchronous", delta);
   }
+#endif
 
   return quic::WriteResult(status, rv);
 }
