@@ -71,7 +71,7 @@ class Queue {
       condition_.wait(lock);
     }
 
-    T entry = queue_.front();
+    T entry = std::move(queue_.front());
     queue_.pop_front();
     return entry;
   }
@@ -96,7 +96,7 @@ class Queue {
       condition_.wait_for(lock, std::chrono::microseconds(duration - elapsed));
     }
 
-    T entry = queue_.front();
+    T entry = std::move(queue_.front());
     queue_.pop_front();
     return entry;
   }
