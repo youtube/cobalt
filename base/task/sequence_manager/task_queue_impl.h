@@ -502,10 +502,15 @@ class BASE_EXPORT TaskQueueImpl {
   void MoveReadyImmediateTasksToImmediateWorkQueueLocked()
       EXCLUSIVE_LOCKS_REQUIRED(any_thread_lock_);
 
+#if BUILDFLAG(IS_COBALT)
+  void RecordQueuingDelayedTaskMetrics(const Task& pending_task,
+                                       LazyNow* lazy_now) {}
+#else
   // Records the delay for some tasks in the main thread and the size of the
   // |delayed_incoming_queue| pseudorandomly in a histogram.
   void RecordQueuingDelayedTaskMetrics(const Task& pending_task,
                                        LazyNow* lazy_now);
+#endif
 
   // LazilyDeallocatedDeque use TimeTicks to figure out when to resize.  We
   // should use real time here always.
