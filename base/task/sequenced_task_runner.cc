@@ -85,6 +85,14 @@ bool SequencedTaskRunner::RunOrPostTask(subtle::RunOrPostTaskPassKey,
 // static
 const scoped_refptr<SequencedTaskRunner>&
 SequencedTaskRunner::GetCurrentDefault() {
+#if BUILDFLAG(IS_COBALT)
+  if (current_default_handle) {
+    return current_default_handle->task_runner_;
+  }
+  static const auto* const null_sequenced_task_runner = 
+    new scoped_refptr<SequencedTaskRunner>();
+  return *null_sequenced_task_runner;
+#endif
   CHECK(HasCurrentDefault())
       << "Error: This caller requires a sequenced context (i.e. the current "
          "task needs to run from a SequencedTaskRunner). If you're in a test "
