@@ -60,6 +60,14 @@ class StarboardBridge {
   std::string GetAdvertisingId(JNIEnv* env);
   bool GetLimitAdTracking(JNIEnv* env);
 
+  std::string GetUserAgentAuxField(JNIEnv* env) const;
+
+  bool IsAmatiDevice(JNIEnv* env) const;
+
+  std::string GetBuildFingerprint(JNIEnv* env) const;
+
+  int64_t GetPlayServicesVersion(JNIEnv* env) const;
+
  private:
   StarboardBridge() = default;
   ~StarboardBridge() = default;
