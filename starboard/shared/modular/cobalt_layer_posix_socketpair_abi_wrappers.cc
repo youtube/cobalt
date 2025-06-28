@@ -12,15 +12,14 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include <memory>
+extern "C" {
 
-namespace content {
-class WebContents;
-class WebContentsViewDelegate;
+int __abi_wrap_socketpair(int domain,
+                          int type,
+                          int protocol,
+                          int socket_vector[2]);
 
-std::unique_ptr<WebContentsViewDelegate> CreateShellWebContentsViewDelegate(
-    WebContents* web_contents) {
-  return nullptr;
+int socketpair(int domain, int type, int protocol, int socket_vector[2]) {
+  return __abi_wrap_socketpair(domain, type, protocol, socket_vector);
 }
-
-}  // namespace content
+}
