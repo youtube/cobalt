@@ -57,6 +57,7 @@ StarboardRendererClient::StarboardRendererClient(
 
 StarboardRendererClient::~StarboardRendererClient() {
   SetPlayingState(false);
+  DCHECK(!video_renderer_sink_started_);
 }
 
 void StarboardRendererClient::Initialize(MediaResource* media_resource,
@@ -219,12 +220,22 @@ void StarboardRendererClient::UpdateStarboardRenderingMode(
       // frame via VideoRendererSink::RenderCallback::Render().
       // The video frame is handled by Sbplayer, and render to its
       // surface directly.
-      StopVideoRendererSink();
+      if (is_playing_) {
+        StopVideoRendererSink();
+      } else {
+        LOG(WARNING) << "StarboardRendererClient doesn't stop video rendering "
+                        "sink, since the video is not playing.";
+      }
       break;
     case StarboardRenderingMode::kDecodeToTexture:
       // StarboardRenderingMode::kDecodeToTexture needs to update
       // video frame via VideoRendererSink::RenderCallback::Render().
-      StartVideoRendererSink();
+      if (is_playing_) {
+        StartVideoRendererSink();
+      } else {
+        LOG(WARNING) << "StarboardRendererClient doesn't start video rendering "
+                        "sink, since StartPlayingFrom() is not called.";
+      }
       break;
     case StarboardRenderingMode::kInvalid:
       NOTREACHED() << "Invalid SbPlayer output mode";
