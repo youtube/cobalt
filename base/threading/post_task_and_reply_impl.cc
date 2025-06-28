@@ -84,7 +84,6 @@ PostTaskAndReplyRelay::~PostTaskAndReplyRelay() {
     reply_task_runner_raw->DeleteSoon(from_here_, std::move(relay_to_delete));
     return;
   }
-
 }
 
 }  // namespace base::internal
