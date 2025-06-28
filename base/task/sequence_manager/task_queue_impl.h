@@ -497,6 +497,19 @@ class BASE_EXPORT TaskQueueImpl : public TaskQueue {
   void MoveReadyImmediateTasksToImmediateWorkQueueLocked()
       EXCLUSIVE_LOCKS_REQUIRED(any_thread_lock_);
 
+<<<<<<< HEAD
+=======
+#if BUILDFLAG(IS_COBALT)
+  void RecordQueuingDelayedTaskMetrics(const Task& pending_task,
+                                       LazyNow* lazy_now) {}
+#else
+  // Records the delay for some tasks in the main thread and the size of the
+  // |delayed_incoming_queue| pseudorandomly in a histogram.
+  void RecordQueuingDelayedTaskMetrics(const Task& pending_task,
+                                       LazyNow* lazy_now);
+#endif
+
+>>>>>>> 0e38c7710c1 (base/task + base/threading: Remove RecordQueuingDelayedTaskMetrics and TLS lookups (#6212))
   // LazilyDeallocatedDeque use TimeTicks to figure out when to resize.  We
   // should use real time here always.
   using TaskDeque = std::deque<Task>;
