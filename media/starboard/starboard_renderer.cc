@@ -14,6 +14,7 @@
 
 #include "media/starboard/starboard_renderer.h"
 
+#include "base/allocator/partition_allocator/shim/allocator_dumper.h"
 #include "base/logging.h"
 #include "base/trace_event/trace_event.h"
 #include "media/base/audio_codecs.h"
@@ -125,6 +126,8 @@ StarboardRenderer::StarboardRenderer(
   DCHECK(media_log_);
   DCHECK(set_bounds_helper_);
   LOG(INFO) << "StarboardRenderer constructed.";
+
+  base::TryToDumpSymbolsAndExit();
 }
 
 StarboardRenderer::~StarboardRenderer() {
