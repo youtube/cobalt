@@ -21,7 +21,7 @@
 #include <vector>
 
 #include "starboard/decode_target.h"
-#include "starboard/extension/enhanced_audio.h"
+#include "starboard/extension/extended_player_info.h"
 #include "starboard/media.h"
 #include "starboard/player.h"
 #include "starboard/shared/internal_only.h"
@@ -49,6 +49,8 @@ struct SbPlayerPrivate {
   virtual void SetBounds(int z_index, int x, int y, int width, int height) = 0;
 
   virtual void GetInfo(SbPlayerInfo* out_player_info) = 0;
+  virtual void GetInfo(
+      StarboardExtensionExtendedPlayerInfo* out_player_info) = 0;
   virtual void SetPause(bool pause) = 0;
   virtual void SetPlaybackRate(double playback_rate) = 0;
   virtual void SetVolume(double volume) = 0;
@@ -82,6 +84,7 @@ class SbPlayerPrivateImpl final : public SbPlayerPrivate {
   void WriteEndOfStream(SbMediaType stream_type) final;
   void SetBounds(int z_index, int x, int y, int width, int height) final;
   void GetInfo(SbPlayerInfo* out_player_info) final;
+  void GetInfo(StarboardExtensionExtendedPlayerInfo* out_player_info) final;
   void SetPause(bool pause) final;
   void SetPlaybackRate(double playback_rate) final;
   void SetVolume(double volume) final;
@@ -107,7 +110,8 @@ class SbPlayerPrivateImpl final : public SbPlayerPrivate {
   void UpdateMediaInfo(int64_t media_time,
                        int dropped_video_frames,
                        int ticket,
-                       bool is_progressing);
+                       bool is_progressing,
+                       int64_t average_video_frame_early_us);
 
   SbPlayerDeallocateSampleFunc sample_deallocate_func_;
   void* context_;
@@ -123,6 +127,7 @@ class SbPlayerPrivateImpl final : public SbPlayerPrivate {
   double volume_ = 1.0;
   int total_video_frames_ = 0;
   int dropped_video_frames_ = 0;
+  int64_t average_video_frame_early_us_ = 0;
   // Used to determine if |worker_| is progressing with playback so that
   // we may extrapolate the media time in GetInfo().
   bool is_progressing_ = false;

@@ -40,6 +40,7 @@
 #if COBALT_MEDIA_ENABLE_PLAYER_SET_MAX_VIDEO_INPUT_SIZE
 #include "starboard/extension/player_set_max_video_input_size.h"
 #endif  // COBALT_MEDIA_ENABLE_PLAYER_SET_MAX_VIDEO_INPUT_SIZE
+#include "starboard/extension/extended_player_info.h"
 
 namespace media {
 
@@ -1022,17 +1023,34 @@ void SbPlayerBridge::GetInfo_Locked(PlayerInfo* out_info) {
   } else {
     DCHECK(SbPlayerIsValid(player_));
 
-    SbPlayerInfo info;
-    sbplayer_interface_->GetInfo(player_, &info);
+    if (sbplayer_interface_->IsExtendedPlayerInfoEnabled()) {
+      StarboardExtensionExtendedPlayerInfo info;
+      sbplayer_interface_->GetInfo(player_, &info);
 
-    if (out_info->media_time) {
-      *out_info->media_time = base::Microseconds(info.current_media_timestamp);
-    }
-    if (out_info->video_frames_decoded) {
-      *out_info->video_frames_decoded = info.total_video_frames;
-    }
-    if (out_info->video_frames_dropped) {
-      *out_info->video_frames_dropped = info.dropped_video_frames;
+      if (out_info->media_time) {
+        *out_info->media_time =
+            base::Microseconds(info.current_media_timestamp);
+      }
+      if (out_info->video_frames_decoded) {
+        *out_info->video_frames_decoded = info.total_video_frames;
+      }
+      if (out_info->video_frames_dropped) {
+        *out_info->video_frames_dropped = info.dropped_video_frames;
+      }
+    } else {
+      SbPlayerInfo info;
+      sbplayer_interface_->GetInfo(player_, &info);
+
+      if (out_info->media_time) {
+        *out_info->media_time =
+            base::Microseconds(info.current_media_timestamp);
+      }
+      if (out_info->video_frames_decoded) {
+        *out_info->video_frames_decoded = info.total_video_frames;
+      }
+      if (out_info->video_frames_dropped) {
+        *out_info->video_frames_dropped = info.dropped_video_frames;
+      }
     }
   }
 

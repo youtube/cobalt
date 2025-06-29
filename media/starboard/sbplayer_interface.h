@@ -22,6 +22,7 @@
 #if COBALT_MEDIA_ENABLE_UMA_METRICS
 #include "cobalt/media/base/metrics_provider.h"
 #endif  // COBALT_MEDIA_ENABLE_UMA_METRICS
+#include "starboard/extension/extended_player_info.h"
 #include "starboard/player.h"
 
 #if SB_HAS(PLAYER_WITH_URL)
@@ -67,7 +68,11 @@ class SbPlayerInterface {
   virtual bool SetPlaybackRate(SbPlayer player, double playback_rate) = 0;
   virtual void SetVolume(SbPlayer player, double volume) = 0;
 
+  virtual bool IsExtendedPlayerInfoEnabled() const = 0;
   virtual void GetInfo(SbPlayer player, SbPlayerInfo* out_player_info) = 0;
+  virtual void GetInfo(
+      SbPlayer player,
+      StarboardExtensionExtendedPlayerInfo* out_player_info) = 0;
 
   virtual SbDecodeTarget GetCurrentFrame(SbPlayer player) = 0;
 
@@ -136,6 +141,8 @@ class SbPlayerInterface {
 
 class DefaultSbPlayerInterface final : public SbPlayerInterface {
  public:
+  DefaultSbPlayerInterface();
+
   SbPlayer Create(
       SbWindow window,
       const SbPlayerCreationParam* creation_param,
@@ -166,7 +173,10 @@ class DefaultSbPlayerInterface final : public SbPlayerInterface {
                  int height) override;
   bool SetPlaybackRate(SbPlayer player, double playback_rate) override;
   void SetVolume(SbPlayer player, double volume) override;
+  bool IsExtendedPlayerInfoEnabled() const override;
   void GetInfo(SbPlayer player, SbPlayerInfo* out_player_info) override;
+  void GetInfo(SbPlayer player,
+               StarboardExtensionExtendedPlayerInfo* out_player_info) override;
   SbDecodeTarget GetCurrentFrame(SbPlayer player) override;
 
 #if SB_HAS(PLAYER_WITH_URL)
@@ -188,6 +198,9 @@ class DefaultSbPlayerInterface final : public SbPlayerInterface {
       SbPlayer player,
       int index,
       SbMediaAudioConfiguration* out_audio_configuration) override;
+
+ private:
+  PlayerGetInfoFunc extended_player_get_info_;
 };
 
 }  // namespace media

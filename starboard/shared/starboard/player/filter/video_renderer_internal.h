@@ -32,6 +32,10 @@ class VideoRenderer {
                           const PrerolledCB& prerolled_cb,
                           const EndedCB& ended_cb) = 0;
   virtual int GetDroppedFrames() const = 0;
+  // Returns the average time difference between when a frame is decoded
+  // and when it's presented in microseconds. The average is cleared every
+  // time this function is called.
+  virtual int64_t GetAndClearAverageFrameEarlyUs() = 0;
 
   virtual void WriteSamples(const InputBuffers& input_buffers) = 0;
 

@@ -55,6 +55,10 @@ class VideoRendererImpl : public VideoRenderer, private JobQueue::JobOwner {
     return algorithm_->GetDroppedFrames();
   }
 
+  int64_t GetAndClearAverageFrameEarlyUs() override {
+    return algorithm_->GetAndClearAverageFrameEarlyUs();
+  }
+
   void WriteSamples(const InputBuffers& input_buffers) override;
 
   void WriteEndOfStream() override;

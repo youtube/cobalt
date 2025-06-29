@@ -17,6 +17,7 @@
 #include "starboard/android/shared/accessibility_extension.h"
 #include "starboard/android/shared/android_media_session_client.h"
 #include "starboard/android/shared/configuration.h"
+#include "starboard/android/shared/extended_player_info.h"
 #include "starboard/android/shared/graphics.h"
 #include "starboard/android/shared/platform_info.h"
 #include "starboard/android/shared/platform_service.h"
@@ -34,6 +35,7 @@
 #endif
 #include "starboard/extension/configuration.h"
 #include "starboard/extension/crash_handler.h"
+#include "starboard/extension/extended_player_info.h"
 #include "starboard/extension/graphics.h"
 #include "starboard/extension/media_session.h"
 #include "starboard/extension/platform_info.h"
@@ -97,6 +99,9 @@ const void* SbSystemGetExtension(const char* name) {
 #endif
   if (strcmp(name, kStarboardExtensionSystemInfoName) == 0) {
     return starboard::android::shared::GetSystemInfoApi();
+  }
+  if (strcmp(name, kStarboardExtensionExtendedPlayerInfoName) == 0) {
+    return starboard::android::shared::GetExtendedPlayerInfoApi();
   }
   return NULL;
 }
