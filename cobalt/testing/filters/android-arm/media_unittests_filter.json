@@ -1,0 +1,25 @@
+{
+  "comment" : "TODO: b/407549902 - Re-enable these disabled tests.",
+  "failing_tests": [
+    "AllNdkEncoderTests*",
+    "AudioAndroidInputTest*",
+    "AudioInputTest.*",
+    "AudioRendererImplTest.*",
+    "ChunkDemuxerTest.*",
+    "DecoderBufferTest.*",
+    "GoogleTestVerification.*",
+    "ImageReaderGLOwnerInsecureSurfaceControlTest.*",
+    "ImageReaderGLOwnerSecureSurfaceControlTest.*",
+    "KeySystemsTest.*",
+    "MP4StreamParserTest.*",
+    "MediaCodecVideoDecoderAV1Test*",
+    "MediaServiceTest.*",
+    "MimeUtilTest.CommonMediaMimeType",
+    "MojoDecoderBufferConverterTest.WriterSidePipeError",
+    "SegmentsMode*",
+    "SequenceMode*",
+    "SourceBuffer*",
+    "TrackRunIteratorTest.*",
+    "VpxGeneric*"
+  ]
+}
