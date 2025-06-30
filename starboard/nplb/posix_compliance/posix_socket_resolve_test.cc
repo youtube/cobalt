@@ -178,7 +178,14 @@ TEST(PosixSocketResolveTest, RainyDayNullHostname) {
   hints.ai_flags = AI_ADDRCONFIG;
   hints.ai_socktype = SOCK_STREAM;
 
-  EXPECT_FALSE(getaddrinfo(nullptr, nullptr, &hints, &ai) == 0);
+  int result = getaddrinfo(nullptr, nullptr, &hints, &ai);
+
+  EXPECT_FALSE(result == 0);
+
+  // Since we cannot guarantee the contents of what the string is,
+  // (the strings are implementation-defined), we can only expect
+  // that the pointer is not null.
+  EXPECT_NE(nullptr, gai_strerror(result));
 }
 
 }  // namespace

@@ -308,6 +308,7 @@ ExportedSymbols::ExportedSymbols() {
   REGISTER_WRAPPER(fstat);
   REGISTER_WRAPPER(freeaddrinfo);
   REGISTER_WRAPPER(ftruncate);
+  REGISTER_WRAPPER(gai_strerror);
   REGISTER_WRAPPER(getaddrinfo);
   REGISTER_WRAPPER(getifaddrs);
   REGISTER_WRAPPER(gmtime_r);
