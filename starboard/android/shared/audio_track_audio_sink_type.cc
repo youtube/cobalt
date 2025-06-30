@@ -22,6 +22,7 @@
 #include "starboard/android/shared/audio_output_manager.h"
 #include "starboard/android/shared/continuous_audio_track_sink.h"
 #include "starboard/android/shared/media_capabilities_cache.h"
+#include "starboard/common/check_op.h"
 #include "starboard/common/string.h"
 #include "starboard/common/time.h"
 #include "starboard/shared/pthread/thread_create_priority.h"
@@ -151,6 +152,7 @@ AudioTrackAudioSink::AudioTrackAudioSink(
   SB_DCHECK(consume_frames_func_);
   SB_DCHECK(frame_buffer_);
 
+  SB_CHECK_EQ(1, 2) << "Hello";
   SB_LOG(INFO) << "Creating audio sink starts at " << start_time_;
 
   if (!bridge_.is_valid()) {
@@ -178,7 +180,7 @@ AudioTrackAudioSink::~AudioTrackAudioSink() {
 }
 
 void AudioTrackAudioSink::SetPlaybackRate(double playback_rate) {
-  SB_DCHECK(playback_rate >= 0.0);
+  SB_DCHECK_GE(playback_rate, 0.0) << "Hello!";
   if (playback_rate != 0.0 && playback_rate != 1.0) {
     SB_NOTIMPLEMENTED() << "TODO: Only playback rates of 0.0 and 1.0 are "
                            "currently supported.";

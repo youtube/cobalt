@@ -152,9 +152,11 @@ class LogMessageVoidify {
 
 #if SB_LOGGING_IS_OFFICIAL_BUILD || \
     (defined(NDEBUG) && !defined(COBALT_LOGGING_ENABLED))
+#define SB_DCHECK_IS_ON() false
 #define SB_DLOG_IS_ON(severity) false
 #define SB_DLOG_IF(severity, condition) SB_EAT_STREAM_PARAMETERS
 #else
+#define SB_DCHECK_IS_ON() true
 #define SB_DLOG_IS_ON(severity) SB_LOG_IS_ON(severity)
 #define SB_DLOG_IF(severity, condition) SB_LOG_IF(severity, condition)
 #endif
