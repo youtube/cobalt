@@ -18,5 +18,5 @@ SbThreadContext SbThreadSamplerFreeze(SbThreadSampler sampler) {
   if (!SbThreadSamplerIsValid(sampler)) {
     return kSbThreadContextInvalid;
   }
-  return sampler->Freeze();
+  return static_cast<SbThreadSamplerPrivate*>(sampler)->Freeze();
 }

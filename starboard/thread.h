@@ -137,11 +137,8 @@ SB_EXPORT bool SbThreadContextGetPointer(SbThreadContext context,
                                          SbThreadContextProperty property,
                                          void** out_value);
 
-// Private structure representing a thread sampler.
-typedef struct SbThreadSamplerPrivate SbThreadSamplerPrivate;
-
 // A handle to a thread sampler.
-typedef SbThreadSamplerPrivate* SbThreadSampler;
+typedef void* SbThreadSampler;
 
 // Well-defined value for an invalid thread sampler.
 #define kSbThreadSamplerInvalid ((SbThreadSampler)NULL)
