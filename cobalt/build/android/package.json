@@ -14,7 +14,6 @@
                 "libtest_trace_processor.so",
                 "obj/cobalt/android/cobalt_java_resources.resources.zip",
                 "obj/components/metrics/metrics_java.javac.jar",
-                "obj/content/shell/android/content_shell_java_resources.resources.zip",
                 "obj/third_party/android_deps/chromium_play_services_availability_java.javac.jar"
             ],
             "rename_files": [
