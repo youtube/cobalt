@@ -54,12 +54,15 @@
 #include "components/ukm/scheme_constants.h"
 #include "components/variations/service/variations_service.h"
 #include "content/public/browser/browser_thread.h"
+#include "content/public/browser/client_certificate_delegate.h"
 #include "content/public/browser/posix_file_descriptor_info.h"
 #include "content/public/browser/render_process_host.h"
+#include "content/public/browser/speech_recognition_manager_delegate.h"
 #include "content/public/browser/web_contents.h"
 #include "content/public/common/content_switch_dependent_feature_overrides.h"
 #include "content/public/common/url_constants.h"
 #include "content/public/common/user_agent.h"
+#include "content/shell/browser/shell_speech_recognition_manager_delegate.h"
 #include "content/shell/browser/shell_web_contents_view_delegate_creator.h"
 #include "content/shell/common/shell_switches.h"
 #include "services/network/public/cpp/features.h"
@@ -220,7 +223,7 @@ SharedState& GetSharedState() {
   return g_shared_state;
 }
 
-void set_browser_main_parts(content::ShellBrowserMainParts* parts) {
+void set_local_browser_main_parts(content::ShellBrowserMainParts* parts) {
   GetSharedState().shell_browser_main_parts = parts;
 }
 
@@ -533,7 +536,7 @@ CobaltContentBrowserClient::CreateURLLoaderThrottles(
 
 void CobaltContentBrowserClient::set_browser_main_parts(
     content::ShellBrowserMainParts* parts) {
-  set_browser_main_parts(parts);
+  set_local_browser_main_parts(parts);
 }
 
 void CobaltContentBrowserClient::AppendExtraCommandLineSwitches(
@@ -604,16 +607,21 @@ bool CobaltContentBrowserClient::IsSharedStorageSelectURLAllowed(
 }
 
 base::OnceClosure CobaltContentBrowserClient::SelectClientCertificate(
-    WebContents* web_contents,
+    content::WebContents* web_contents,
     net::SSLCertRequestInfo* cert_request_info,
     net::ClientCertIdentityList client_certs,
-    std::unique_ptr<ClientCertificateDelegate> delegate) {
+    std::unique_ptr<content::ClientCertificateDelegate> delegate) {
   if (select_client_certificate_callback_) {
     return std::move(select_client_certificate_callback_)
         .Run(web_contents, cert_request_info, std::move(client_certs),
              std::move(delegate));
   }
   return base::OnceClosure();
+}
+
+content::SpeechRecognitionManagerDelegate*
+CobaltContentBrowserClient::CreateSpeechRecognitionManagerDelegate() {
+  return new content::ShellSpeechRecognitionManagerDelegate();
 }
 
 bool CobaltContentBrowserClient::WillCreateURLLoaderFactory(
