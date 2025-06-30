@@ -24,6 +24,7 @@
 #include "content/public/browser/content_browser_client.h"
 #include "content/public/browser/generated_code_cache_settings.h"
 #include "mojo/public/cpp/bindings/pending_receiver.h"
+#include "net/ssl/client_cert_identity.h"
 
 class PrefService;
 
@@ -33,6 +34,7 @@ class URLLoaderThrottle;
 
 namespace content {
 class BrowserMainParts;
+class ClientCertificateDelegate;
 class NavigationUIData;
 class PosixFileDescriptorInfo;
 class RenderFrameHost;
@@ -76,6 +78,13 @@ class CobaltContentBrowserClient : public content::ContentBrowserClient {
 
   ~CobaltContentBrowserClient() override;
 
+  // Used for content_browsertests.
+  using SelectClientCertificateCallback = base::OnceCallback<base::OnceClosure(
+      content::WebContents* web_contents,
+      net::SSLCertRequestInfo* cert_request_info,
+      net::ClientCertIdentityList client_certs,
+      std::unique_ptr<content::ClientCertificateDelegate> delegate)>;
+
   // ShellContentBrowserClient overrides.
   std::unique_ptr<content::BrowserMainParts> CreateBrowserMainParts(
       bool is_integration_test) override;
@@ -101,15 +110,19 @@ class CobaltContentBrowserClient : public content::ContentBrowserClient {
                               content::RenderFrameHost* rfh,
                               const url::Origin& top_frame_origin,
                               const url::Origin& accessing_origin) override;
-  std::vector<std::unique_ptr<content::NavigationThrottle>>
-  CreateThrottlesForNavigation(content::NavigationHandle* handle) override;
+  bool IsSharedStorageSelectURLAllowed(
+      content::BrowserContext* browser_context,
+      const url::Origin& top_frame_origin,
+      const url::Origin& accessing_origin) override;
   content::GeneratedCodeCacheSettings GetGeneratedCodeCacheSettings(
       content::BrowserContext* context) override;
   base::OnceClosure SelectClientCertificate(
-      WebContents* web_contents,
+      content::WebContents* web_contents,
       net::SSLCertRequestInfo* cert_request_info,
       net::ClientCertIdentityList client_certs,
-      std::unique_ptr<ClientCertificateDelegate> delegate) override;
+      std::unique_ptr<content::ClientCertificateDelegate> delegate) override;
+  content::SpeechRecognitionManagerDelegate*
+  CreateSpeechRecognitionManagerDelegate() override;
   std::string GetApplicationLocale() override;
   std::string GetUserAgent() override;
   std::string GetFullUserAgent() override;
@@ -132,6 +145,8 @@ class CobaltContentBrowserClient : public content::ContentBrowserClient {
       content::RenderFrameHost* render_frame_host,
       mojo::BinderMapWithContext<content::RenderFrameHost*>* binder_map)
       override;
+  std::vector<std::unique_ptr<content::NavigationThrottle>>
+  CreateThrottlesForNavigation(content::NavigationHandle* handle) override;
   void ExposeInterfacesToRenderer(
       service_manager::BinderRegistry* registry,
       blink::AssociatedInterfaceRegistry* associated_registry,
@@ -176,6 +191,7 @@ class CobaltContentBrowserClient : public content::ContentBrowserClient {
  private:
   void CreateVideoGeometrySetterService();
 
+  SelectClientCertificateCallback select_client_certificate_callback_;
   std::unique_ptr<CobaltWebContentsObserver> web_contents_observer_;
   std::unique_ptr<CobaltWebContentsDelegate> web_contents_delegate_;
   std::unique_ptr<media::VideoGeometrySetterService, base::OnTaskRunnerDeleter>
