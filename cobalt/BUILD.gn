@@ -33,6 +33,7 @@ group("gn_all") {
   }
   if (is_cobalt_hermetic_build) {
     deps += [
+      ":cobalt_loader",
       "//starboard/elf_loader:elf_loader_sandbox($starboard_toolchain)",
       "//starboard/elf_loader:elf_loader_sys_sandbox($starboard_toolchain)",
       "//starboard/loader_app:loader_app($starboard_toolchain)",

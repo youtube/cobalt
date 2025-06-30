@@ -16,7 +16,7 @@ config("sabi_flags") {
   cflags = [
     "-mfloat-abi=hard",
     "-target",
-    "armv7a-none-eabihf",
+    "armv7a-linux-eabihf",
   ]
   asmflags = cflags
 }

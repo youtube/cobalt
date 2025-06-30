@@ -1,4 +1,8 @@
+#if defined(STARBOARD)
+#define _REDIR_TIME64 0
+#else
 #define _REDIR_TIME64 1
+#endif  // defined(STARBOARD)
 #define _Addr int
 #define _Int64 long long
 #define _Reg int
