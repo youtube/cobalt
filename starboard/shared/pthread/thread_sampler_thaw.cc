@@ -18,5 +18,5 @@ bool SbThreadSamplerThaw(SbThreadSampler sampler) {
   if (!SbThreadSamplerIsValid(sampler)) {
     return false;
   }
-  return sampler->Thaw();
+  return static_cast<SbThreadSamplerPrivate*>(sampler)->Thaw();
 }
