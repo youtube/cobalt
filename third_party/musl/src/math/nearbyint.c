@@ -3,9 +3,6 @@
 
 /* nearbyint is the same as rint, but it must not raise the inexact exception */
 
-#ifdef COBALT_MUSL_W_GLIBC_HEADERS
-double rint_internal(double x);
-#endif  // COBALT_MUSL_W_GLIBC_HEADERS
 double nearbyint(double x)
 {
 #ifdef FE_INEXACT
@@ -14,11 +11,7 @@ double nearbyint(double x)
 
 	e = fetestexcept(FE_INEXACT);
 #endif
-#ifdef COBALT_MUSL_W_GLIBC_HEADERS
-	x = rint_internal(x);
-#else
 	x = rint(x);
-#endif // COBALT_MUSL_W_GLIBC_HEADERS
 #ifdef FE_INEXACT
 	if (!e)
 		feclearexcept(FE_INEXACT);

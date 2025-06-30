@@ -59,11 +59,6 @@ static_library("c_internal") {
     "-Wno-implicit-function-declaration",
   ]
 
-  # Enables temporary situation where main cobalt is built with glibc headers
-  # but then linked with some musl components. Expected to go away when main
-  # cobalt is also build with stand-alone libc++.
-  defines = [ "COBALT_MUSL_W_GLIBC_HEADERS" ]
-
   sources = [
     "src/ctype/__ctype_b_loc.c",
 
