@@ -93,7 +93,6 @@ android_library("cobalt_shell_java") {
     "//components/embedder_support/android:view_java",
     "//components/viz/service:service_java",
     "//content/public/android:content_java",
-    "//content/shell/android:content_shell_java_resources",
     "//media/base/android:media_java",
     "//media/capture/video/android:capture_java",
     "//mojo/public/java:system_java",
