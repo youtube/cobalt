@@ -132,9 +132,7 @@ time_t timegm(struct tm *);
 #endif
 
 #if _REDIR_TIME64
-#if !defined(STARBOARD)
 __REDIR(time, __time64);
-#endif  // !defined(STARBOARD)
 __REDIR(difftime, __difftime64);
 __REDIR(mktime, __mktime64);
 __REDIR(gmtime, __gmtime64);
@@ -144,22 +142,14 @@ __REDIR(timespec_get, __timespec_get_time64);
 #if defined(_POSIX_SOURCE) || defined(_POSIX_C_SOURCE) \
  || defined(_XOPEN_SOURCE) || defined(_GNU_SOURCE) \
  || defined(_BSD_SOURCE)
-#if !defined(STARBOARD)
 __REDIR(gmtime_r, __gmtime64_r);
-#endif  // !defined(STARBOARD)
 __REDIR(localtime_r, __localtime64_r);
 __REDIR(ctime_r, __ctime64_r);
-#if !defined(STARBOARD)
 __REDIR(nanosleep, __nanosleep_time64);
-#endif  // !defined(STARBOARD)
 __REDIR(clock_getres, __clock_getres_time64);
-#if !defined(STARBOARD)
 __REDIR(clock_gettime, __clock_gettime64);
-#endif  // !defined(STARBOARD)
 __REDIR(clock_settime, __clock_settime64);
-#if !defined(STARBOARD)
 __REDIR(clock_nanosleep, __clock_nanosleep_time64);
-#endif  // !defined(STARBOARD)
 __REDIR(timer_settime, __timer_settime64);
 __REDIR(timer_gettime, __timer_gettime64);
 #endif

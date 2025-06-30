@@ -1,4 +1,8 @@
+#if defined(STARBOARD)
+#define _REDIR_TIME64 0
+#else
 #define _REDIR_TIME64 1
+#endif  // defined(STARBOARD)
 #define _Addr int
 #define _Int64 long long
 #define _Reg int
@@ -14,7 +18,7 @@
 #ifndef __cplusplus
 #if defined(USE_COBALT_CUSTOMIZATIONS)
 typedef __WCHAR_TYPE__ wchar_t;
-#else 
+#else
 #if defined(__NEED_wchar_t) && !defined(__DEFINED_wchar_t)
 typedef unsigned wchar_t;
 #define __DEFINED_wchar_t

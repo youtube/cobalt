@@ -16,7 +16,7 @@ config("sabi_flags") {
   cflags = [
     "-march=arm64v8a",
     "-target",
-    "arm64v8a-unknown-unknown-elf",
+    "arm64v8a-unknown-linux-elf",
 
     # char is unsigned by default for arm64.
     "-fsigned-char",
