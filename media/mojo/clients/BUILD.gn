@@ -202,4 +202,8 @@ source_set("unit_tests") {
       "//media",
     ]
   }
+
+  if (is_cobalt && use_starboard_media) {
+    sources += [ "starboard/starboard_renderer_client_unittest.cc" ]
+  }
 }
