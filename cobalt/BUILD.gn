@@ -62,6 +62,10 @@ if (!is_android) {
       "//starboard:starboard_headers_only",
     ]
 
+    if (is_cobalt_hermetic_build) {
+      # Needed for third_party/musl/src/starboard/internal/hwcap_impl.h
+      deps += [ "//third_party/musl:headers" ]
+    }
     if (is_starboard) {
       deps += [ "//ui/ozone/platform/starboard:starboard" ]
     }
