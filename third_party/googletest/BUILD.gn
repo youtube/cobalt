@@ -138,7 +138,7 @@ source_set("gtest") {
   defines = []
   deps = []
   public_deps = []
-  if (is_nacl || !build_with_chromium) {
+  if (is_nacl || !build_with_chromium || is_starboard) {
     defines += [ "GTEST_DISABLE_PRINT_STACK_TRACE" ]
     sources -= [
       "custom/gtest/internal/custom/stack_trace_getter.cc",
@@ -172,8 +172,6 @@ source_set("gtest") {
         "custom/gtest/internal/custom/chrome_custom_temp_dir.h",
         "custom/gtest/internal/custom/gtest.h",
         "custom/gtest/internal/custom/gtest_port_wrapper.cc",
-        "custom/gtest/internal/custom/stack_trace_getter.cc",
-        "custom/gtest/internal/custom/stack_trace_getter.h",
       ]
       sources += [ "src/googletest/src/gtest-port.cc" ]
       configs += [ "//build/config/compiler:chromium_code" ]

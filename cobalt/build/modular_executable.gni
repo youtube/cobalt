@@ -59,10 +59,9 @@ template("loader_final_target") {
         "-Wl,-rpath=" + rebase_path("$root_build_dir"),
       ]
 
-      deps = [
-        ":${original_target_name}($default_toolchain)",
-        "//starboard:starboard_group",
-      ]
+      deps = [ "//starboard:starboard_group" ]
+
+      data_deps = [ ":${original_target_name}($default_toolchain)" ]
     }
   }
 }
