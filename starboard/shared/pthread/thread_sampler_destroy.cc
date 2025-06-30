@@ -18,5 +18,5 @@ void SbThreadSamplerDestroy(SbThreadSampler sampler) {
   if (!SbThreadSamplerIsValid(sampler)) {
     return;
   }
-  delete sampler;
+  delete static_cast<SbThreadSamplerPrivate*>(sampler);
 }

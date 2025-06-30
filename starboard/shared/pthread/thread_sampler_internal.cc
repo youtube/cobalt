@@ -100,7 +100,9 @@ SbThreadContext SignalHandler::Freeze(SbThreadSampler sampler) {
     return kSbThreadContextInvalid;
   }
   frozen_sampler_ = sampler;
-  pthread_kill(SB_PTHREAD_INTERNAL_THREAD(sampler->thread()), SIGPROF);
+  pthread_kill(SB_PTHREAD_INTERNAL_THREAD(
+                   static_cast<SbThreadSamplerPrivate*>(sampler)->thread()),
+               SIGPROF);
   sem_wait(&freeze_semaphore_);
   return &sb_context_;
 }
