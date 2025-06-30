@@ -107,6 +107,7 @@ int musl_conf_to_platform_conf(int name) {
       return _PC_2_SYMLINKS;
 #endif        // defined(_PC_2_SYMLINKS)
     default:  // Explicitly handle unsupported names
+      errno = EINVAL;
       return -1;
   }
 }
@@ -644,6 +645,9 @@ long __abi_wrap_sysconf(int name) {
   }
 }
 
+// If |musl_conf_to_platform_conf| returns -1,
+// just return -1 (errno is set to EINVAL by musl_conf_to_platform_conf()).
 long __abi_wrap_pathconf(const char* path, int name) {
-  return pathconf(path, musl_conf_to_platform_conf(name));
+  int converted_name = musl_conf_to_platform_conf(name);
+  return (converted_name == -1) ? -1 : pathconf(path, converted_name);
 }

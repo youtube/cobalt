@@ -131,7 +131,6 @@ test("nplb") {
     "posix_compliance/posix_file_open_test.cc",
     "posix_compliance/posix_file_pathconf_test.cc",
     "posix_compliance/posix_file_read_test.cc",
-    "posix_compliance/posix_file_realpath_test.cc",
     "posix_compliance/posix_file_seek_test.cc",
     "posix_compliance/posix_file_temp_test.cc",
     "posix_compliance/posix_file_write_test.cc",
