@@ -7,7 +7,9 @@
     "test_root_target": "//cobalt:gn_all",
     "num_gtest_shards": 1,
     "targets": [
-      "loader_app"
+      "cobalt:gn_all",
+      "loader_app",
+      "nplb"
     ],
     "includes": [
       {
