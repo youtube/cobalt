@@ -656,7 +656,7 @@ bool VideoDecoder::InitializeCodec(const VideoStreamInfo& video_stream_info,
   SB_DCHECK(BelongsToCurrentThread());
   SB_DCHECK(error_message);
   if (video_stream_info.codec == kSbMediaVideoCodecAv1) {
-    SB_DCHECK_GT(pending_input_buffers_.size(), 0);
+    SB_DCHECK_GT(pending_input_buffers_.size(), static_cast<unsigned int>(0));
 
     // Guesstimate the video fps.
     if (pending_input_buffers_.size() == 1) {
