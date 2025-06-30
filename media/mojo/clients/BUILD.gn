@@ -206,6 +206,7 @@ source_set("unit_tests") {
     ]
   }
 
+<<<<<<< HEAD
   if (is_win) {
     sources += [ "win/media_foundation_renderer_client_unittest.cc" ]
 
@@ -214,5 +215,9 @@ source_set("unit_tests") {
       "//content/renderer:renderer",
       "//media",
     ]
+=======
+  if (is_cobalt && use_starboard_media) {
+    sources += [ "starboard/starboard_renderer_client_unittest.cc" ]
+>>>>>>> b8977fe2131 ([media] Add unit tests for StarboardRendererClient (#6203))
   }
 }
