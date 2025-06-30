@@ -695,17 +695,14 @@ public class StarboardBridge {
     CrashContext.INSTANCE.registerCrashContextUpdateHandler(handler);
   }
 
-  @CalledByNative
   protected boolean getIsAmatiDevice() {
     return this.isAmatiDevice;
   }
 
-  @CalledByNative
   protected String getBuildFingerprint() {
     return Build.FINGERPRINT;
   }
 
-  @CalledByNative
   protected long getPlayServicesVersion() {
     try {
       if (android.os.Build.VERSION.SDK_INT < 28) {
