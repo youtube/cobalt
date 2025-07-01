@@ -61,11 +61,7 @@ runs:
           --token ${GITHUB_TOKEN} \
           trigger \
           --test_type ${TEST_TYPE} \
-<<<<<<< HEAD
-          --targets '${{inputs.e2e_test_targets}}' \
-=======
           --targets '${{ inputs.e2e_test_targets }}' \
->>>>>>> 38cdc1ede5bc81934c23be0559759bb1fb905fa2
           --label ${TEST_TYPE} \
           --label github_${GITHUB_PR_NUMBER:-postsubmit} \
           --label builder-${{ matrix.platform }} \
