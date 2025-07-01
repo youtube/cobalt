@@ -83,7 +83,7 @@ DecodeTarget::~DecodeTarget() {
   env->DeleteGlobalRef(surface_texture_);
 
   glDeleteTextures(1, &info_.planes[0].texture);
-  SB_DCHECK(glGetError() == GL_NO_ERROR);
+  SB_DCHECK_EQ(glGetError(), static_cast<GLenum>(GL_NO_ERROR));
 }
 
 void DecodeTarget::CreateOnContextRunner() {

@@ -100,19 +100,19 @@ struct FrameSize {
   }
 
   void DCheckValid() const {
-    SB_DCHECK(texture_width >= 0) << texture_width;
-    SB_DCHECK(texture_height >= 0) << texture_height;
+    SB_DCHECK_GE(texture_width, 0);
+    SB_DCHECK_GE(texture_height, 0);
 
     if (crop_left >= 0 || crop_top >= 0 || crop_right >= 0 ||
         crop_bottom >= 0) {
       // If there is at least one crop value set, all of them should be set.
-      SB_DCHECK(crop_left >= 0) << crop_left;
-      SB_DCHECK(crop_top >= 0) << crop_top;
-      SB_DCHECK(crop_right >= 0) << crop_right;
-      SB_DCHECK(crop_bottom >= 0) << crop_bottom;
+      SB_DCHECK_GE(crop_left, 0);
+      SB_DCHECK_GE(crop_top, 0);
+      SB_DCHECK_GE(crop_right, 0);
+      SB_DCHECK_GE(crop_bottom, 0);
       SB_DCHECK(has_crop_values());
-      SB_DCHECK(display_width() >= 0) << display_width();
-      SB_DCHECK(display_height() >= 0) << display_height();
+      SB_DCHECK_GE(display_width(), 0);
+      SB_DCHECK_GE(display_height(), 0);
     }
   }
 };

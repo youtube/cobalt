@@ -150,6 +150,22 @@ class LogMessageVoidify {
   SB_LOG_IF(FATAL, !(condition)) << "Check failed: " #condition ". "
 #endif  // SB_LOGGING_IS_OFFICIAL_BUILD
 
+#define SB_CHECK_OP_IMPL(a, b, op, op_string)                               \
+  do {                                                                      \
+    const auto& sb_check_a = (a);                                           \
+    const auto& sb_check_b = (b);                                           \
+    SB_CHECK(sb_check_a op sb_check_b)                                      \
+        << #a " (" << sb_check_a << ") should be " op_string " " #b << " (" \
+        << sb_check_b << ")";                                               \
+  } while (0)
+
+#define SB_CHECK_EQ(a, b) SB_CHECK_OP_IMPL(a, b, ==, "equal to")
+#define SB_CHECK_NE(a, b) SB_CHECK_OP_IMPL(a, b, !=, "not-equal to")
+#define SB_CHECK_GT(a, b) SB_CHECK_OP_IMPL(a, b, >, "greater than")
+#define SB_CHECK_GE(a, b) SB_CHECK_OP_IMPL(a, b, >=, "greater than or equal to")
+#define SB_CHECK_LT(a, b) SB_CHECK_OP_IMPL(a, b, <, "less than")
+#define SB_CHECK_LE(a, b) SB_CHECK_OP_IMPL(a, b, <=, "less than or equal to")
+
 #if SB_LOGGING_IS_OFFICIAL_BUILD || \
     (defined(NDEBUG) && !defined(COBALT_LOGGING_ENABLED))
 #define SB_DLOG_IS_ON(severity) false
@@ -174,6 +190,23 @@ class SbDcheckNoOpStream {
 #define SB_DCHECK(condition) SB_CHECK(condition)
 #define SB_DCHECK_ENABLED 1
 #endif
+
+#if SB_DCHECK_ENABLED
+#define SB_DCHECK_OP_IMPL(a, b, op, op_string) \
+  SB_CHECK_OP_IMPL(a, b, op, op_string)
+#else
+#define SB_DCHECK_OP_IMPL(a, b, op, op_string) \
+  do {                                         \
+  } while (0)
+#endif
+
+#define SB_DCHECK_EQ(a, b) SB_DCHECK_OP_IMPL(a, b, ==, "equal to")
+#define SB_DCHECK_NE(a, b) SB_DCHECK_OP_IMPL(a, b, !=, "not-equal to")
+#define SB_DCHECK_GT(a, b) SB_DCHECK_OP_IMPL(a, b, >, "greater than")
+#define SB_DCHECK_GE(a, b) \
+  SB_DCHECK_OP_IMPL(a, b, >=, "greater than or equal to")
+#define SB_DCHECK_LT(a, b) SB_DCHECK_OP_IMPL(a, b, <, "less than")
+#define SB_DCHECK_LE(a, b) SB_DCHECK_OP_IMPL(a, b, <=, "less than or equal to")
 
 #define SB_DLOG(severity) SB_DLOG_IF(severity, SB_DLOG_IS_ON(severity))
 #define SB_DSTACK(severity) SB_STACK_IF(severity, SB_DLOG_IS_ON(severity))
