@@ -72,14 +72,6 @@ void ConvertStringToLowerCase(std::string* str) {
   }
 }
 
-bool GetIsWidevineSupported() {
-  return MediaDrmBridge::IsWidevineSupported(AttachCurrentThread());
-}
-
-bool GetIsCbcsSupported() {
-  return MediaDrmBridge::IsCbcsSupported(AttachCurrentThread());
-}
-
 std::set<SbMediaTransferId> GetSupportedHdrTypes() {
   std::set<SbMediaTransferId> supported_transfer_ids;
 
@@ -247,24 +239,6 @@ bool VideoCodecCapability::AreResolutionAndRateSupported(int frame_width,
 // static
 SB_ONCE_INITIALIZE_FUNCTION(MediaCapabilitiesCache,
                             MediaCapabilitiesCache::GetInstance)
-
-bool MediaCapabilitiesCache::IsWidevineSupported() {
-  if (!is_enabled_) {
-    return GetIsWidevineSupported();
-  }
-  ScopedLock scoped_lock(mutex_);
-  UpdateMediaCapabilities_Locked();
-  return is_widevine_supported_;
-}
-
-bool MediaCapabilitiesCache::IsCbcsSchemeSupported() {
-  if (!is_enabled_) {
-    return GetIsCbcsSupported();
-  }
-  ScopedLock scoped_lock(mutex_);
-  UpdateMediaCapabilities_Locked();
-  return is_cbcs_supported_;
-}
 
 bool MediaCapabilitiesCache::IsHDRTransferCharacteristicsSupported(
     SbMediaTransferId transfer_id) {
@@ -455,8 +429,6 @@ void MediaCapabilitiesCache::UpdateMediaCapabilities_Locked() {
     audio_codec_capabilities_map_.clear();
     video_codec_capabilities_map_.clear();
     audio_configurations_.clear();
-    is_widevine_supported_ = GetIsWidevineSupported();
-    is_cbcs_supported_ = GetIsCbcsSupported();
     supported_transfer_ids_ = GetSupportedHdrTypes();
     LoadCodecInfos_Locked();
     LoadAudioConfigurations_Locked();

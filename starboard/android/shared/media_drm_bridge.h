@@ -85,8 +85,8 @@ class MediaDrmBridge {
                          const JavaParamRef<jbyteArray>& session_id,
                          const JavaParamRef<jobjectArray>& key_information);
 
-  static bool IsWidevineSupported(JNIEnv* env);
-  static bool IsCbcsSupported(JNIEnv* env);
+  static bool IsCbcsSupported();
+  static bool IsKeySystemSupported(const std::string& key_system);
 
  private:
   const raw_ref<MediaDrmBridge::Host> host_;

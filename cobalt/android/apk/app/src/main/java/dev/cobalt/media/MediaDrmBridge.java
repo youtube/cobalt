@@ -176,14 +176,36 @@ public class MediaDrmBridge {
     return mediaDrmBridge;
   }
 
+  private static UUID getUUIDFromBytes(byte[] data) {
+    if (data == null) {
+      Log.e(TAG, "getUUIDFromBytes failed since data is null");
+      return null;
+    }
+    if (data.length != 16) {
+      Log.e(TAG, "getUUIDFromBytes failed due to invalid data length: " + data.length);
+      return null;
+    }
+
+    ByteBuffer byteBuffer = ByteBuffer.wrap(data);
+    long mostSigBits = byteBuffer.getLong();
+    long leastSigBits = byteBuffer.getLong();
+    return new UUID(mostSigBits, leastSigBits);
+  }
+
   /**
-   * Check whether the Widevine crypto scheme is supported.
+   * Check whether the given crypto scheme is supported.
    *
-   * @return true if the container and the crypto scheme is supported, or false otherwise.
+   * @return true if the crypto scheme is supported, or false otherwise.
    */
   @CalledByNative
-  static boolean isWidevineCryptoSchemeSupported() {
-    return MediaDrm.isCryptoSchemeSupported(WIDEVINE_UUID);
+  static boolean isCryptoSchemeSupported(byte[] schemeUUID) {
+    UUID uuid = getUUIDFromBytes(schemeUUID);
+    if (uuid == null) {
+      Log.e(TAG, "isCryptoSchemeSupported failed due to invalid scheme uuid");
+      return false;
+    }
+
+    return MediaDrm.isCryptoSchemeSupported(uuid);
   }
 
   /**

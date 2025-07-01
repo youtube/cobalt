@@ -23,6 +23,7 @@
 #include "base/android/jni_string.h"
 #include "base/memory/raw_ref.h"
 #include "starboard/android/shared/jni_utils.h"
+#include "starboard/android/shared/media_common.h"
 #include "starboard/common/log.h"
 
 // Must come after all headers that specialize FromJniType() / ToJniType().
@@ -36,7 +37,19 @@ using base::android::ConvertJavaStringToUTF8;
 using base::android::ConvertUTF8ToJavaString;
 using base::android::ToJavaByteArray;
 
-const char kNoUrl[] = "";
+constexpr char kNoUrl[] = "";
+
+constexpr char kClearKeyKeySystem[] = "org.w3.clearkey";
+constexpr int kUuidByte = 16;
+
+// Defined in https://dashif.org/identifiers/content_protection/
+constexpr uint8_t kClearKeyUuid[kUuidByte] = {
+    0xE2, 0x71, 0x9D, 0x58, 0xA9, 0x85, 0xB3, 0xC9,  //
+    0x78, 0x1A, 0xB0, 0x30, 0xAF, 0x78, 0xD3, 0x0E};
+
+constexpr uint8_t kWidevineUuid[kUuidByte] = {
+    0xED, 0xEF, 0x8B, 0xA9, 0x79, 0xD6, 0x4A, 0xCE,  //
+    0xA3, 0xC8, 0x27, 0xDC, 0xD5, 0x1D, 0x21, 0xED};
 
 // Using all capital names to be consistent with other Android media statuses.
 // They are defined in the same order as in their Java counterparts.  Their
@@ -100,6 +113,16 @@ std::string JavaByteArrayToString(JNIEnv* env,
 std::string JavaByteArrayToString(JNIEnv* env, jbyteArray j_byte_array) {
   return JavaByteArrayToString(
       env, ScopedJavaLocalRef<jbyteArray>(env, j_byte_array));
+}
+
+const uint8_t* GetCryptoSchemeUuid(const std::string& key_system) {
+  if (key_system == kClearKeyKeySystem) {
+    return kClearKeyUuid;
+  } else if (IsWidevineL3(key_system) || IsWidevineL1(key_system)) {
+    return kWidevineUuid;
+  }
+
+  return nullptr;
 }
 
 }  // namespace
@@ -274,13 +297,26 @@ void MediaDrmBridge::OnKeyStatusChange(
 }
 
 // static
-bool MediaDrmBridge::IsWidevineSupported(JNIEnv* env) {
-  return Java_MediaDrmBridge_isWidevineCryptoSchemeSupported(env) == JNI_TRUE;
+bool MediaDrmBridge::IsCbcsSupported() {
+  return Java_MediaDrmBridge_isCbcsSchemeSupported(AttachCurrentThread()) ==
+         JNI_TRUE;
 }
 
 // static
-bool MediaDrmBridge::IsCbcsSupported(JNIEnv* env) {
-  return Java_MediaDrmBridge_isCbcsSchemeSupported(env) == JNI_TRUE;
-}
+bool MediaDrmBridge::IsKeySystemSupported(const std::string& key_system) {
+  if (key_system.empty()) {
+    SB_NOTREACHED();
+    return false;
+  }
 
+  const uint8_t* scheme_uuid = GetCryptoSchemeUuid(key_system);
+  if (scheme_uuid == nullptr) {
+    SB_LOG(INFO) << "Cannot get UUID for key system " << key_system;
+    return false;
+  }
+
+  JNIEnv* env = AttachCurrentThread();
+  return Java_MediaDrmBridge_isCryptoSchemeSupported(
+             env, ToJavaByteArray(env, scheme_uuid, kUuidByte)) == JNI_TRUE;
+}
 }  // namespace starboard::android::shared
