@@ -47,6 +47,7 @@ generate_jni("jni_headers") {
   }
 }
 
+<<<<<<< HEAD
 android_library("content_shell_apk_java") {
   testonly = true
 
@@ -67,6 +68,13 @@ android_library("content_shell_apk_java") {
   ]
 
   sources = [ "//content/shell/android/shell_apk/src/org/chromium/content_shell_apk/ContentShellApplication.java" ]
+=======
+generate_jni("content_shell_jni_headers") {
+  sources = [
+    "apk/app/src/org/chromium/content_shell/Shell.java",
+    "apk/app/src/org/chromium/content_shell/ShellManager.java",
+  ]
+>>>>>>> 9b53675e73e (Remove content_shell_apk_java from build.gn (#6237))
 }
 
 android_library("cobalt_shell_java") {
