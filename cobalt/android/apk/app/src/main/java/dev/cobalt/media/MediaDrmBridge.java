@@ -33,7 +33,6 @@ import android.util.Base64;
 import androidx.annotation.RequiresApi;
 import dev.cobalt.coat.CobaltHttpHelper;
 import dev.cobalt.util.Log;
-import dev.cobalt.util.UsedByNative;
 import java.nio.ByteBuffer;
 import java.nio.charset.StandardCharsets;
 import java.util.Arrays;
@@ -122,11 +121,11 @@ public class MediaDrmBridge {
       this.mErrorMessage = errorMessage;
     }
 
-    public static UpdateSessionResult Success() {
+    public static UpdateSessionResult success() {
       return new UpdateSessionResult(Status.SUCCESS, "");
     }
 
-    public static UpdateSessionResult Failure(String errorMessage, Throwable e) {
+    public static UpdateSessionResult failure(String errorMessage, Throwable e) {
       return new UpdateSessionResult(
           Status.FAILURE,
           errorMessage + " StackTrace: " + android.util.Log.getStackTraceString(e));
@@ -263,13 +262,13 @@ public class MediaDrmBridge {
     Log.d(TAG, "updateSession()");
     if (mMediaDrm == null) {
       Log.e(TAG, "updateSession() called when MediaDrm is null.");
-      return UpdateSessionResult.Failure(
+      return UpdateSessionResult.failure(
           "Null MediaDrm object when calling updateSession().", new Throwable());
     }
 
     if (!sessionExists(sessionId)) {
       Log.e(TAG, "updateSession tried to update a session that does not exist.");
-      return UpdateSessionResult.Failure(
+      return UpdateSessionResult.failure(
           "Failed to update session because it does not exist.", new Throwable());
     }
 
@@ -282,22 +281,22 @@ public class MediaDrmBridge {
         Log.e(TAG, "Exception intentionally caught when calling provideKeyResponse()", e);
       }
       Log.d(TAG, "Key successfully added for sessionId=" + bytesToString(sessionId));
-      return UpdateSessionResult.Success();
+      return UpdateSessionResult.success();
     } catch (NotProvisionedException e) {
       // TODO: Should we handle this?
       Log.e(TAG, "Failed to provide key response", e);
       release();
-      return UpdateSessionResult.Failure(
+      return UpdateSessionResult.failure(
           "Update session failed due to lack of provisioning.", e);
     } catch (DeniedByServerException e) {
       Log.e(TAG, "Failed to provide key response.", e);
       release();
-      return UpdateSessionResult.Failure(
+      return UpdateSessionResult.failure(
           "Update session failed because we were denied by server.", e);
     } catch (Exception e) {
       Log.e(TAG, "", e);
       release();
-      return UpdateSessionResult.Failure(
+      return UpdateSessionResult.failure(
           "Update session failed. Caught exception: " + e.getMessage(), e);
     }
   }
