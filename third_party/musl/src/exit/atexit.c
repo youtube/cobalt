@@ -5,6 +5,7 @@
 #include "fork_impl.h"
 
 #ifdef STARBOARD
+#include "build/build_config.h"
 #include <pthread.h>
 #include "starboard/common/log.h"
 #include "starboard/types.h"
@@ -72,6 +73,9 @@ int __musl_cxa_atexit(void (*func)(void *), void *arg, void *dso)
 int __cxa_atexit(void (*func)(void *), void *arg, void *dso)
 #endif  // defined(USE_CUSTOM_MUSL_ATEXIT_SIGNATURE)
 {
+
+// TODO: Cobalt b/428768024 - Fix the crash on startup.
+#if !BUILDFLAG(ENABLE_COBALT_HERMETIC_HACKS)
 	LOCK(lock);
 
 	/* Defer initialization of head so it can be in BSS */
@@ -95,6 +99,7 @@ int __cxa_atexit(void (*func)(void *), void *arg, void *dso)
 	slot++;
 
 	UNLOCK(lock);
+#endif
 	return 0;
 }
 

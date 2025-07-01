@@ -39,6 +39,12 @@ int __abi_wrap_fstat(int fildes, struct musl_stat* musl_info) {
   return stat_helper(retval, &stat_info, musl_info);
 }
 
+int __abi_wrap_lstat(const char* path, struct musl_stat* musl_info) {
+  struct stat stat_info;  // The type from platform toolchain.
+  int retval = lstat(path, &stat_info);
+  return stat_helper(retval, &stat_info, musl_info);
+}
+
 int __abi_wrap_stat(const char* path, struct musl_stat* musl_info) {
   struct stat stat_info;  // The type from platform toolchain.
   int retval = stat(path, &stat_info);

@@ -21,6 +21,18 @@ static_library("starboard_platform") {
   ]
   configs += [ "//starboard/build/config:starboard_implementation" ]
   public_deps = [ "//starboard/raspi/shared:starboard_platform" ]
+
+  if (sb_evergreen_compatible_use_libunwind) {
+    deps = [ "//third_party/llvm-project/libunwind:unwind_starboard" ]
+  }
+
+  if (sb_is_evergreen_compatible) {
+    public_deps += [
+      "//starboard/elf_loader:constants",
+      "//starboard/elf_loader:evergreen_config",
+      "//starboard/loader_app:pending_restart",
+    ]
+  }
 }
 
 if (sb_is_modular) {
