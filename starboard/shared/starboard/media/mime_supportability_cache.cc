@@ -168,7 +168,7 @@ Supportability MimeSupportabilityCache::GetMimeSupportability(
     return kSupportabilityNotSupported;
   }
 
-  std::scoped_lock scoped_lock(mutex_);
+  std::lock_guard scoped_lock(mutex_);
   Entry& entry = GetEntry_Locked(mime_without_bitrate);
 
   // Return cached ParsedMimeInfo with real bitrate.
@@ -205,7 +205,7 @@ void MimeSupportabilityCache::CacheMimeSupportability(
     return;
   }
 
-  std::scoped_lock scoped_lock(mutex_);
+  std::lock_guard scoped_lock(mutex_);
   Entry& entry = GetEntry_Locked(mime_without_bitrate);
 
   if (entry.mime_info.is_valid()) {
@@ -214,7 +214,7 @@ void MimeSupportabilityCache::CacheMimeSupportability(
 }
 
 void MimeSupportabilityCache::ClearCachedMimeSupportabilities() {
-  std::scoped_lock scoped_lock(mutex_);
+  std::lock_guard scoped_lock(mutex_);
   for (auto& iter : entries_) {
     iter.second.max_supported_bitrate = -1;
     iter.second.min_unsupported_bitrate = INT_MAX;
@@ -222,7 +222,7 @@ void MimeSupportabilityCache::ClearCachedMimeSupportabilities() {
 }
 
 void MimeSupportabilityCache::DumpCache() {
-  std::scoped_lock scoped_lock(mutex_);
+  std::lock_guard scoped_lock(mutex_);
   std::stringstream ss;
   ss << "\n========Dumping MimeSupportabilityCache========";
   for (const auto& entry_iter : entries_) {
