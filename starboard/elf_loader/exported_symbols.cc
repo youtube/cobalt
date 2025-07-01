@@ -321,6 +321,7 @@ ExportedSymbols::ExportedSymbols() {
 
   REGISTER_WRAPPER(mmap);
   REGISTER_WRAPPER(opendir);
+  REGISTER_WRAPPER(pathconf);
   REGISTER_WRAPPER(pipe2);
   REGISTER_WRAPPER(pthread_attr_init);
   REGISTER_WRAPPER(pthread_attr_destroy);
