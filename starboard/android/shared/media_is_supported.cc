@@ -26,6 +26,7 @@ namespace starboard::shared::starboard::media {
 bool MediaIsSupported(SbMediaVideoCodec video_codec,
                       SbMediaAudioCodec audio_codec,
                       const char* key_system) {
+  SB_LOG(INFO) << __func__;
   using ::starboard::android::shared::IsWidevineL1;
   using ::starboard::android::shared::IsWidevineL3;
 
@@ -49,10 +50,6 @@ bool MediaIsSupported(SbMediaVideoCodec video_codec,
   }
 
   const char* key_system_type = mime_type.subtype().c_str();
-  if (!IsWidevineL1(key_system_type) && !IsWidevineL3(key_system_type)) {
-    return false;
-  }
-
   return android::shared::MediaDrmBridge::IsKeySystemSupported(
       base::android::AttachCurrentThread(), key_system_type);
 }
