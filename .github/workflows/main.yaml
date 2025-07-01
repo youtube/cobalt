@@ -124,6 +124,13 @@ jobs:
           set -x
           test_on_device=$(cat ${GITHUB_WORKSPACE}/.github/config/${{ inputs.platform }}.json | jq -rc '.test_on_device')
           echo "test_on_device=${test_on_device}" >> $GITHUB_OUTPUT
+      - name: Set e2e tests
+        id: set-test-e2e
+        shell: bash
+        run: |
+          set -x
+          test_e2e=$(cat ${GITHUB_WORKSPACE}/.github/config/${{ inputs.platform }}.json | jq -rc '.test_e2e')
+          echo "test_e2e=${test_e2e}" >> $GITHUB_OUTPUT
       - name: Set web tests
         id: set-web-tests
         shell: bash
@@ -138,6 +145,27 @@ jobs:
           set -x
           test_root_target=$(cat ${GITHUB_WORKSPACE}/.github/config/${{ inputs.platform }}.json | jq -rc '.test_root_target')
           echo "test_root_target=${test_root_target}" >> $GITHUB_OUTPUT
+      - name: Set E2E test device type
+        id: set-test-device-family
+        shell: bash
+        run: |
+          set -x
+          test_device_family=$(cat ${GITHUB_WORKSPACE}/.github/config/${{ inputs.platform }}.json | jq -rc '.test_device_family // empty')
+          echo "test_device_family=${test_device_family}" >> $GITHUB_OUTPUT
+      - name: Set E2E test targets
+        id: set-e2e-test-targets
+        shell: bash
+        run: |
+          set -x
+          e2e_test_targets=$(cat ${GITHUB_WORKSPACE}/.github/config/${{ inputs.platform }}.json | jq -cr '.e2e_test_targets // []')
+          echo "e2e_test_targets=${e2e_test_targets}" >> $GITHUB_OUTPUT
+      - name: Set E2E test attempts
+        id: set-e2e-test-attempts
+        shell: bash
+        run: |
+          set -x
+          e2e_test_attempts=$(cat ${GITHUB_WORKSPACE}/.github/config/${{ inputs.platform }}.json | jq -rc '.e2e_test_attempts // empty')
+          echo "e2e_test_attempts=${e2e_test_attempts}" >> $GITHUB_OUTPUT
       - name: Set test device dimensions
         id: set-test-dimensions
         shell: bash
@@ -173,8 +201,12 @@ jobs:
       gtest_shards: ${{ steps.set-gtest-shards.outputs.gtest_shards }}
       test_on_host: ${{ steps.set-test-on-host.outputs.test_on_host }}
       test_on_device: ${{ steps.set-test-on-device.outputs.test_on_device }}
+      test_e2e: ${{ steps.set-test-e2e.outputs.test_e2e }}
       web_tests: ${{ steps.set-web-tests.outputs.web_tests }}
       test_root_target: ${{ steps.set-test-root-target.outputs.test_root_target }}
+      test_device_family: ${{ steps.set-test-device-family.outputs.test_device_family }}
+      e2e_test_targets: ${{ steps.set-e2e-test-targets.outputs.e2e_test_targets }}
+      e2e_test_attempts: ${{ steps.set-e2e-test-attempts.outputs.e2e_test_attempts }}
       test_dimensions: ${{ steps.set-test-dimensions.outputs.test_dimensions }}
       test_attempts: ${{ steps.set-test-attempts.outputs.test_attempts }}
       num_gtest_shards: ${{ steps.set-gtest-shards.outputs.num_gtest_shards }}
@@ -317,7 +349,7 @@ jobs:
           test_root_target: ${{ needs.initialize.outputs.test_root_target }}
           test_targets_json_file: out/${{ matrix.platform }}_${{ matrix.config }}/test_targets.json
           upload_on_host_test_artifacts: ${{ matrix.config == 'devel' && needs.initialize.outputs.test_on_host == 'true' }}
-          upload_on_device_test_artifacts: ${{ matrix.config == 'devel' && needs.initialize.outputs.test_on_device == 'true' }}
+          upload_on_device_test_artifacts: ${{ matrix.config == 'devel' && ( needs.initialize.outputs.test_on_device == 'true' || needs.initialize.outputs.test_e2e == 'true' ) }}
           upload_web_test_artifacts: ${{ matrix.config == 'devel' && needs.initialize.outputs.web_tests == 'true' }}
       - name: Run API Leak Detector
         uses: ./src/.github/actions/api_leak_detector
@@ -345,7 +377,6 @@ jobs:
         config: [devel]
     env:
       TEST_RESULTS_KEY: ${{ matrix.platform }}_${{ matrix.name }}_test_results
-      TEST_ATTEMPTS: ${{ needs.initialize.outputs.test_attempts }}
     steps:
       - name: Restore CI Essentials
         uses: actions/download-artifact@v4
@@ -362,8 +393,39 @@ jobs:
           test_results_key: ${{ env.TEST_RESULTS_KEY }}
           gcs_results_path: gs://cobalt-unittest-storage/results/${{ matrix.name }}/${{ github.run_id }}/${{ github.run_attempt }}
           test_dimensions: '${{ needs.initialize.outputs.test_dimensions }}'
+          test_device_family: '${{ needs.initialize.outputs.test_device_family}}'
+          test_attempts: '${{ needs.initialize.outputs.test_attempts }}'
     outputs:
       test_targets_json: ${{ steps.test-target-json.outputs.test_targets_json }}
+
+  e2e-test:
+    needs: [initialize, build]
+    # Run E2E tests when on_device label is applied to PR.
+    # Also, run E2E tests on push and schedule if not explicitly disabled via repo vars.
+    if: needs.initialize.outputs.test_e2e == 'true' &&
+        (
+          (github.event_name == 'pull_request' && contains(github.event.pull_request.labels.*.name, 'on_device')) ||
+          ((inputs.nightly == 'true' || github.event_name == 'schedule') && vars.RUN_ODT_TESTS_ON_NIGHTLY != 'False') ||
+          (github.event_name == 'push' && vars.RUN_ODT_TESTS_ON_POSTSUBMIT != 'False')
+        )
+    runs-on: [self-hosted, odt-runner]
+    name: ${{ matrix.name }}_e2e_tests
+    permissions: {}
+    strategy:
+      fail-fast: false
+      matrix:
+        platform: ${{ fromJson(needs.initialize.outputs.platforms) }}
+        include: ${{ fromJson(needs.initialize.outputs.includes) }}
+        config: [devel]
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Run E2E Tests
+        uses: ./.github/actions/e2e_tests
+        with:
+          e2e_test_targets: '${{ needs.initialize.outputs.e2e_test_targets }}'
+          test_attempts: '${{ needs.initialize.outputs.e2e_test_attempts }}'
+          test_dimensions: '${{ needs.initialize.outputs.test_dimensions }}'
 
   on-host-test:
     needs: [initialize, docker-unittest-image, build]
@@ -517,7 +579,7 @@ jobs:
     if: always()
     permissions: {}
     runs-on: ubuntu-latest
-    name: ${{ matrix.name }}_tests_passing
+    name: ${{ matrix.name }}_unit_tests_passing
     env:
       TEST_RESULTS_KEY: ${{ matrix.platform }}_${{ matrix.name }}_test_results
     strategy:
