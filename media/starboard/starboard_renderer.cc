@@ -185,7 +185,7 @@ void StarboardRenderer::Initialize(MediaResource* media_resource,
   if (audio_stream_ == nullptr && video_stream_ == nullptr) {
     LOG(INFO)
         << "The video has to contain at least an audio track or a video track.";
-    std::move(init_cb).Run(PipelineStatus(
+    std::move(init_cb_).Run(PipelineStatus(
         DEMUXER_ERROR_NO_SUPPORTED_STREAMS,
         "The video has to contain at least an audio track or a video track."));
     return;
@@ -230,7 +230,7 @@ void StarboardRenderer::SetCdm(CdmContext* cdm_context,
   DCHECK(cdm_context);
   TRACE_EVENT0("media", "StarboardRenderer::SetCdm");
 
-  if (SbDrmSystemIsValid(drm_system_)) {
+  if (cdm_context_ || SbDrmSystemIsValid(drm_system_)) {
     LOG(WARNING) << "Switching CDM not supported.";
     std::move(cdm_attached_cb).Run(false);
     return;
@@ -439,6 +439,13 @@ void StarboardRenderer::OnVideoGeometryChange(const gfx::Rect& output_rect) {
                                 output_rect.width(), output_rect.height());
 }
 
+SbPlayerInterface* StarboardRenderer::GetSbPlayerInterface() {
+  if (test_sbplayer_interface_) {
+    return test_sbplayer_interface_;
+  }
+  return &sbplayer_interface_;
+}
+
 void StarboardRenderer::CreatePlayerBridge() {
   DCHECK(task_runner_->RunsTasksInCurrentSequence());
   DCHECK(init_cb_);
@@ -488,7 +495,7 @@ void StarboardRenderer::CreatePlayerBridge() {
     LOG(INFO) << "Creating SbPlayerBridge.";
 
     player_bridge_.reset(new SbPlayerBridge(
-        &sbplayer_interface_, task_runner_,
+        GetSbPlayerInterface(), task_runner_,
         // TODO(b/375070492): Implement decode-to-texture support
         SbPlayerBridge::GetDecodeTargetGraphicsContextProviderFunc(),
         audio_config, audio_mime_type, video_config, video_mime_type,
@@ -938,6 +945,7 @@ int StarboardRenderer::GetEstimatedMaxBuffers(TimeDelta write_duration,
                                  duration_to_write, is_preroll);
         break;
       }
+      [[fallthrough]];
     // TODO(b/41486346): Support multiple samples per write on the format IAMF.
     // case AudioCodec::kIAMF:
     default:

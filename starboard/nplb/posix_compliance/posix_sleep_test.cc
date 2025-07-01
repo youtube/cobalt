@@ -107,8 +107,8 @@ TEST_F(PosixSleepTests, SuccessfulSleep) {
   ASSERT_EQ(0, gettimeofday(&end_time, nullptr))
       << "gettimeofday failed for end_time";
 
-  ASSERT_EQ(0, ret) << "Expected successful sleep (return 0). Return: " << ret
-                    << ", errno: " << errno << " (" << strerror(errno) << ")";
+  ASSERT_EQ(0u, ret) << "Expected successful sleep (return 0). Return: " << ret
+                     << ", errno: " << errno << " (" << strerror(errno) << ")";
 
   long elapsed_us = TimevalDiffToMicroseconds(&start_time, &end_time);
   long requested_us = static_cast<long>(kTestSleepSecs) * 1'000'000L;
@@ -129,10 +129,10 @@ TEST_F(PosixSleepTests, ZeroDurationSleep) {
   ASSERT_EQ(0, gettimeofday(&end_time, nullptr))
       << "gettimeofday failed for end_time";
 
-  ASSERT_EQ(0, ret) << "Expected immediate return for zero duration sleep "
-                       "(return 0). Return: "
-                    << ret << ", errno: " << errno << " (" << strerror(errno)
-                    << ")";
+  ASSERT_EQ(0u, ret) << "Expected immediate return for zero duration sleep "
+                        "(return 0). Return: "
+                     << ret << ", errno: " << errno << " (" << strerror(errno)
+                     << ")";
 
   long elapsed_us = TimevalDiffToMicroseconds(&start_time, &end_time);
   EXPECT_LT(elapsed_us, kShortDurationThresholdUs)
@@ -157,7 +157,7 @@ TEST_F(PosixSleepTests, ErrorEintrCheckErrnoValue) {
 
   errno = 0;
   unsigned int time_slept_for = kLongSleepSecs;
-  unsigned int ret = sleep(time_slept_for);
+  sleep(time_slept_for);
   int saved_errno = errno;
 
   int join_ret = pthread_join(signal_thread_id, nullptr);

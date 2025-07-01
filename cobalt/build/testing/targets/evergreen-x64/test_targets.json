@@ -1,5 +1,9 @@
 {
   "TODO(b/382508397)": "Remove this when list is dynamically generated.",
-  "test_targets": [],
-  "executables": []
+  "test_targets": [
+    "starboard/nplb:nplb_loader"
+  ],
+  "executables": [
+    "libnplb.so"
+  ]
 }

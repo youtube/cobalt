@@ -46,7 +46,9 @@ import re
 import subprocess
 import sys
 
-from starboard.tools import paths
+sys.path.append(os.path.join(os.path.dirname(__file__), os.pardir))
+
+import paths  # pylint: disable=wrong-import-position
 
 # pylint: disable=line-too-long
 _API_LEAK_DETECTOR_TITLE = """    ___    ____  ____   __               __      ____       __            __
@@ -101,12 +103,13 @@ _ALLOWED_SB_GE_16_POSIX_SYMBOLS = [
     'epoll_create',
     'epoll_create1',
     'epoll_ctl',
-    'epoll_wait'
+    'epoll_wait',
     'fcntl',
     'free',
     'freeaddrinfo',
     'freeifaddrs',
     'fstat',
+    'fstatfs',
     'fsync',
     'ftruncate',
     'getaddrinfo',
@@ -118,6 +121,7 @@ _ALLOWED_SB_GE_16_POSIX_SYMBOLS = [
     'gettimeofday',
     'gmtime_r',
     'inet_ntop',
+    'kill',
     'listen',
     'lseek',
     'madvise',
@@ -133,6 +137,7 @@ _ALLOWED_SB_GE_16_POSIX_SYMBOLS = [
     'munmap',
     'open',
     'opendir',
+    'pause',
     'perror',
     'pipe',
     'pipe2',
@@ -195,21 +200,26 @@ _ALLOWED_SB_GE_16_POSIX_SYMBOLS = [
     'pthread_setschedparam',
     'pthread_setspecific',
     'pwrite',
+    'raise',
     'rand',
     'rand_r',
     'read',
+    'readdir',
     'readdir_r',
     'realloc',
     'recv',
     'recvfrom',
     'recvmsg',
+    'recvmmsg',
     'rmdir',
     'sched_yield',
     'send',
     'sendto',
     'setsockopt',
     'shutdown',
+    'signal',
     'socket',
+    'socketpair',
     'srand',
     'stat',
     'strcasecmp',
@@ -218,11 +228,10 @@ _ALLOWED_SB_GE_16_POSIX_SYMBOLS = [
     'unlink',
     'usleep',
     'write',
-    'opendir',
-    'closedir',
-    'readdir_r',
-    'malloc_usable_size',
-    'readdir',
+
+    # Symbols below haven't been implemented yet but need to be investigated.
+    'flock',  # TODO: b/412638190
+    'putchar',  # TODO: b/406081586
 ]
 
 

@@ -141,7 +141,7 @@ bool PostTaskAndReplyImpl::PostTaskAndReply(const Location& from_here,
   DCHECK(task) << from_here.ToString();
   DCHECK(reply) << from_here.ToString();
 
-#if BUILDFLAG(IS_STARBOARD)
+#if BUILDFLAG(IS_COBALT)
   // This is a slight performance optimization for Starboard.
   // With Starboard, HasCurrentDefault() and GetCurrentDefault() are quite
   // expensive, and GetCurrentDefault() is safe to call and will return

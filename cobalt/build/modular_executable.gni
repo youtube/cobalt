@@ -59,10 +59,9 @@ template("loader_final_target") {
         "-Wl,-rpath=" + rebase_path("$root_build_dir"),
       ]
 
-      deps = [
-        ":${original_target_name}($default_toolchain)",
-        "//starboard:starboard_group",
-      ]
+      deps = [ "//starboard:starboard_group" ]
+
+      data_deps = [ ":${original_target_name}($default_toolchain)" ]
     }
   }
 }
@@ -76,13 +75,16 @@ template("evergreen_final_target") {
   original_target_name = target_name
   group("${original_target_name}_loader") {
     forward_variables_from(invoker, TESTONLY_AND_VISIBILITY)
-    deps = [
-      ":${original_target_name}_content",
-      ":${original_target_name}_lib",
+    data_deps = [
+      ":copy_${original_target_name}_content",
+      ":copy_${original_target_name}_lib",
+      "//starboard/elf_loader:elf_loader_sandbox($starboard_toolchain)",
+      "//starboard/loader_app($starboard_toolchain)",
     ]
+    write_runtime_deps = "$root_build_dir/${target_name}.runtime_deps"
   }
 
-  copy("${original_target_name}_content") {
+  copy("copy_${original_target_name}_content") {
     forward_variables_from(invoker, TESTONLY_AND_VISIBILITY)
     sources = [
       "$root_out_dir/content_shell.pak",
@@ -101,7 +103,7 @@ template("evergreen_final_target") {
     }
   }
 
-  copy("${original_target_name}_lib") {
+  copy("copy_${original_target_name}_lib") {
     forward_variables_from(invoker, TESTONLY_AND_VISIBILITY)
 
     test_lib_name = string_replace(original_target_name, "lib", "", 1)
@@ -120,13 +122,6 @@ template("evergreen_final_target") {
 
   shared_library(original_target_name) {
     forward_variables_from(invoker, "*")
-
-    if (!defined(data_deps)) {
-      data_deps = []
-    }
-    data_deps +=
-        [ "//starboard/loader_app:loader_assets($starboard_toolchain)" ]
-    write_runtime_deps = "$root_build_dir/${original_target_name}.runtime_deps"
   }
 }
 
