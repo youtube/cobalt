@@ -85,7 +85,6 @@ class MediaDrmBridge {
                          const JavaParamRef<jbyteArray>& session_id,
                          const JavaParamRef<jobjectArray>& key_information);
 
-  static bool IsWidevineSupported();
   static bool IsCbcsSupported();
   static bool IsKeySystemSupported(const std::string& key_system);
 

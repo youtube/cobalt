@@ -297,14 +297,6 @@ void MediaDrmBridge::OnKeyStatusChange(
 }
 
 // static
-bool MediaDrmBridge::IsWidevineSupported() {
-  JNIEnv* env = AttachCurrentThread();
-  return Java_MediaDrmBridge_isCryptoSchemeSupported(
-             env, ToJavaByteArray(env, kWidevineUuid, sizeof(kWidevineUuid))) ==
-         JNI_TRUE;
-}
-
-// static
 bool MediaDrmBridge::IsCbcsSupported() {
   return Java_MediaDrmBridge_isCbcsSchemeSupported(AttachCurrentThread()) ==
          JNI_TRUE;
