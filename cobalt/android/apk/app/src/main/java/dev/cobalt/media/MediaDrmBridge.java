@@ -177,19 +177,14 @@ public class MediaDrmBridge {
   }
 
   private static UUID getUUIDFromBytes(byte[] data) {
-        if (data.length != 16) {
-            return null;
-        }
-        long mostSigBits = 0;
-        long leastSigBits = 0;
-        for (int i = 0; i < 8; i++) {
-            mostSigBits = (mostSigBits << 8) | (data[i] & 0xff);
-        }
-        for (int i = 8; i < 16; i++) {
-            leastSigBits = (leastSigBits << 8) | (data[i] & 0xff);
-        }
-        return new UUID(mostSigBits, leastSigBits);
+    if (data.length != 16) {
+      return null;
     }
+    ByteBuffer byteBuffer = ByteBuffer.wrap(data);
+    long mostSigBits = byteBuffer.getLong();
+    long leastSigBits = byteBuffer.getLong();
+    return new UUID(mostSigBits, leastSigBits);
+  }
 
   /**
    * Check whether the given crypto scheme is supported.
@@ -198,6 +193,14 @@ public class MediaDrmBridge {
    */
   @CalledByNative
   static boolean isCryptoSchemeSupported(byte[] schemeUUID) {
+    if (schemeUUID == null) {
+      Log.e(TAG, "isCryptoSchemeSupported failed since schemeUUID is null");
+      return false;
+    }
+    if (schemeUUID.length != 16) {
+      Log.e(TAG, "isCryptoSchemeSupported failed due to invalid schemeUUID length: " + schemeUUID.length);
+      return false;
+    }
     return MediaDrm.isCryptoSchemeSupported(getUUIDFromBytes(schemeUUID));
   }
 
