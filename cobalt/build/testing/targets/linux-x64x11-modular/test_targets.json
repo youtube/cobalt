@@ -3,6 +3,7 @@
   "test_targets": [
     "base:base_unittests_loader",
     "cc:cc_unittests_loader",
+    "chrome/test:browser_tests",
     "components/viz:viz_unittests_loader",
     "crypto:crypto_unittests_loader",
     "media/midi:midi_unittests_loader",
@@ -14,6 +15,7 @@
   "executables": [
     "out/linux-x64x11-modular_devel/base_unittests_loader",
     "out/linux-x64x11-modular_devel/blink_platform_nocompile_tests_loader",
+    "out/linux-x64x11-modular_devel/browser_tests",
     "out/linux-x64x11-modular_devel/cc_unittests_loader",
     "out/linux-x64x11-modular_devel/crypto_unittests_loader",
     "out/linux-x64x11-modular_devel/midi_unittests_loader",
