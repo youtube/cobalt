@@ -73,6 +73,7 @@ source_set("browser") {
     "//components/metrics_services_manager",
     "//components/os_crypt/sync",
     "//components/prefs",
+    "//components/ukm:ukm_recorder",
     "//components/variations/service:service",
     "//starboard:starboard_group",
   ]
