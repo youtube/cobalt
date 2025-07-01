@@ -151,6 +151,8 @@ def linearize_history(repo, args):
 
             print(f'  ✅ Regular commit {i}/{len(commits_to_replay)} completed successfully')
 
+        repo.git.clean('-fdx')
+
         # Record commit mapping
         commit_mapping.append({
             'original_hexsha': commit.hexsha,
