@@ -52,6 +52,7 @@ public class CobaltMediaSession implements ArtworkLoader.Callback {
   private final Handler mMainHandler = new Handler(Looper.getMainLooper());
   private final Context mContext;
   private final ArtworkLoader mArtworkLoader;
+  private final Holder<Activity> mActivityHolder;
   private WebContents mWebContents;
   private MediaSessionCompat mMediaSession;
   private MediaSessionObserver mMediaSessionObserver;
@@ -80,6 +81,7 @@ public class CobaltMediaSession implements ArtworkLoader.Callback {
   public CobaltMediaSession(
       Context context, Holder<Activity> activityHolder, ArtworkDownloader artworkDownloader) {
     mContext = context;
+    mActivityHolder = activityHolder;
     mArtworkLoader = new ArtworkLoader(this, artworkDownloader);
     mMediaSessionCallback =
         new MediaSessionCompat.Callback() {
@@ -265,9 +267,17 @@ public class CobaltMediaSession implements ArtworkLoader.Callback {
         };
   }
 
+  private void toggleKeepScreenOn(boolean keepScreenOn) {
+    CobaltActivity activity = (CobaltActivity) mActivityHolder.get();
+    if (activity != null) {
+      activity.toggleKeepScreenOn(keepScreenOn);
+    }
+  }
+
   private void updatePlaybackState() {
     if (!mIsControllable) {
       deactivateMediaSession();
+      toggleKeepScreenOn(false);
       return;
     }
 
@@ -285,6 +295,8 @@ public class CobaltMediaSession implements ArtworkLoader.Callback {
               ? PlaybackStateCompat.STATE_PAUSED
               : PlaybackStateCompat.STATE_PLAYING);
     }
+
+    toggleKeepScreenOn(state == PlaybackStateCompat.STATE_PLAYING);
 
     if (mPosition != null) {
       playbackStateBuilder.setState(
