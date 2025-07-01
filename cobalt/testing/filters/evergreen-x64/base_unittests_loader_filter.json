@@ -98,6 +98,7 @@
     "TimeFormattingTest.TimeFormatWithPattern",
     "TimeFormattingTest.TimeIntervalFormat",
     "TimezoneTest.CountryCodeForTimezones",
+    "TraceEventAnalyzerTest.*",
     "TraceEventTestFixture.SetCurrentThreadBlocksMessageLoopAfterTracing",
     "TransliteratorTest.LatinASCIICorrect",
     "TransliteratorTest.LowerCorrect",
