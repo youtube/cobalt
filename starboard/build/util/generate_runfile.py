@@ -2,6 +2,8 @@
 """
 Generate runfiles for evergreen.
 """
+import os
+import stat
 import sys
 
 _TEMPLATE = """#!/usr/bin/env python3
@@ -28,5 +30,9 @@ except Exception as e:
     sys.exit(1)
 """
 
-with open(sys.argv[1], 'w', encoding='utf-8') as f:
+filepath = sys.argv[1]
+with open(filepath, 'w', encoding='utf-8') as f:
   f.write(_TEMPLATE.format(sys.argv[2], sys.argv[3]))
+current_permissions = stat.S_IMODE(os.stat(filepath).st_mode)
+new_permissions = current_permissions | stat.S_IXUSR | stat.S_IXGRP
+os.chmod(filepath, new_permissions)
