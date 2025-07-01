@@ -312,6 +312,13 @@ ExportedSymbols::ExportedSymbols() {
   REGISTER_WRAPPER(getifaddrs);
   REGISTER_WRAPPER(gmtime_r);
   REGISTER_WRAPPER(lseek);
+
+  // TODO: Cobalt - b/424001809.
+  // Add tests for lstat. The wrapper is added to allow running
+  // on raspi-2 as without the wrapper the lstat symbol is not found in
+  // the fallback dlsym call.
+  REGISTER_WRAPPER(lstat);
+
   REGISTER_WRAPPER(mmap);
   REGISTER_WRAPPER(opendir);
   REGISTER_WRAPPER(pipe2);
