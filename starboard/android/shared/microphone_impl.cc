@@ -299,13 +299,8 @@ void SbMicrophoneImpl::SwapAndPublishBuffer() {
     int16_t* buffer = new int16_t[kSamplesPerBuffer];
     memset(buffer, 0, kBufferSizeInBytes);
     {
-<<<<<<< HEAD
-      std::scoped_lock lock(delivered_queue_mutex_);
-      delivered_queue_.push(buffer);
-=======
       std::lock_guard lock(delivered_queue_mutex_);
-      delivered_queue_.push(open_buffer);
->>>>>>> bd431272856 (Use std::lock_guard over scoped_lock for single mutex. (#6201))
+      delivered_queue_.push(buffer);
     }
     SLresult result =
         (*buffer_object_)->Enqueue(buffer_object_, buffer, kBufferSizeInBytes);
