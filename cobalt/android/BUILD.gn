@@ -52,6 +52,7 @@ generate_jni("content_shell_jni_headers") {
   ]
 }
 
+<<<<<<< HEAD
 android_library("content_shell_apk_java") {
   testonly = true
 
@@ -74,6 +75,8 @@ android_library("content_shell_apk_java") {
   sources = [ "//content/shell/android/shell_apk/src/org/chromium/content_shell_apk/ContentShellApplication.java" ]
 }
 
+=======
+>>>>>>> 9b53675e73e (Remove content_shell_apk_java from build.gn (#6237))
 android_library("cobalt_shell_java") {
   testonly = true
   resources_package = "org.chromium.content_shell"
@@ -110,7 +113,6 @@ android_library("cobalt_main_java") {
   deps = [
     ":cobalt_java_resources",
     ":cobalt_shell_java",
-    ":content_shell_apk_java",
     ":jni_headers",
     "//base:base_java",
     "//base:jni_java",
@@ -241,7 +243,6 @@ template("content_shell_apk_tmpl") {
     }
     deps += [
       ":cobalt_shell_java",
-      ":content_shell_apk_java",
       "//components/metrics:metrics_java",
       "//content/public/android:content_java",
       "//content/shell/android:content_shell_assets",
