@@ -22,7 +22,6 @@ dlclose
 dlerror
 dlopen
 dlsym
-execvp
 fallocate
 fchmod
 fchown
@@ -35,7 +34,6 @@ fgets
 fileno
 fnmatch
 fopen
-fork
 fprintf
 fputc
 fputs
