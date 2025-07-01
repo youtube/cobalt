@@ -13,9 +13,9 @@
 // limitations under the License.
 
 #include <errno.h>
-#include <limits.h>  // For HOST_NAME_MAX (though it's optional for gethostname)
-#include <string.h>  // For strerror, strlen
-#include <unistd.h>  // For gethostname()
+#include <limits.h>
+#include <string.h>
+#include <unistd.h>
 
 #include <string>
 #include <vector>
@@ -32,7 +32,6 @@ constexpr int kMaxHostNameSize = HOST_NAME_MAX + 1;  // +1 for null terminator.
 constexpr int kMaxHostNameSize = 256;  // 255 + 1 for null terminator.
 #endif
 
-// Define a test fixture for gethostname()
 class PosixGetHostnameTest : public ::testing::Test {
  protected:
   PosixGetHostnameTest() = default;
@@ -53,7 +52,7 @@ TEST_F(PosixGetHostnameTest, BasicSuccessfulCall) {
   ASSERT_FALSE(std::string(buf.data()).empty()) << "Hostname is empty.";
 }
 
-// Correctly handles a buffer exactly the size of the hostname
+// Correctly handles a buffer exactly the size of the hostname.
 TEST_F(PosixGetHostnameTest, HandlesSmallestValidBuffer) {
   std::vector<char> temp_buf(kMaxHostNameSize);
   ASSERT_EQ(0, gethostname(temp_buf.data(), temp_buf.size()))
