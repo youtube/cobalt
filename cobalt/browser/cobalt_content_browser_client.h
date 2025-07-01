@@ -21,8 +21,11 @@
 #include "base/threading/thread_checker.h"
 #include "cobalt/browser/client_hint_headers/cobalt_trusted_url_loader_header_client.h"
 #include "cobalt/browser/cobalt_web_contents_delegate.h"
+#include "cobalt/shell/browser/shell_browser_context.h"
 #include "content/public/browser/content_browser_client.h"
 #include "content/public/browser/generated_code_cache_settings.h"
+#include "content/shell/common/shell_controller.test-mojom.h"
+#include "media/mojo/mojom/media_service.mojom.h"
 #include "mojo/public/cpp/bindings/pending_receiver.h"
 #include "net/ssl/client_cert_identity.h"
 
@@ -78,13 +81,6 @@ class CobaltContentBrowserClient : public content::ContentBrowserClient {
 
   ~CobaltContentBrowserClient() override;
 
-  // Used for content_browsertests.
-  using SelectClientCertificateCallback = base::OnceCallback<base::OnceClosure(
-      content::WebContents* web_contents,
-      net::SSLCertRequestInfo* cert_request_info,
-      net::ClientCertIdentityList client_certs,
-      std::unique_ptr<content::ClientCertificateDelegate> delegate)>;
-
   // ShellContentBrowserClient overrides.
   std::unique_ptr<content::BrowserMainParts> CreateBrowserMainParts(
       bool is_integration_test) override;
@@ -116,13 +112,31 @@ class CobaltContentBrowserClient : public content::ContentBrowserClient {
       const url::Origin& accessing_origin) override;
   content::GeneratedCodeCacheSettings GetGeneratedCodeCacheSettings(
       content::BrowserContext* context) override;
-  base::OnceClosure SelectClientCertificate(
-      content::WebContents* web_contents,
-      net::SSLCertRequestInfo* cert_request_info,
-      net::ClientCertIdentityList client_certs,
-      std::unique_ptr<content::ClientCertificateDelegate> delegate) override;
   content::SpeechRecognitionManagerDelegate*
   CreateSpeechRecognitionManagerDelegate() override;
+  void OverrideWebkitPrefs(content::WebContents* web_contents,
+                           blink::web_pref::WebPreferences* prefs) override;
+  std::unique_ptr<content::DevToolsManagerDelegate>
+  CreateDevToolsManagerDelegate() override;
+  void ExposeInterfacesToRenderer(
+      service_manager::BinderRegistry* registry,
+      blink::AssociatedInterfaceRegistry* associated_registry,
+      content::RenderProcessHost* render_process_host) override;
+
+  void OpenURL(
+      content::SiteInstance* site_instance,
+      const content::OpenURLParams& params,
+      base::OnceCallback<void(content::WebContents*)> callback) override;
+  base::Value::Dict GetNetLogConstants() override;
+  std::vector<base::FilePath> GetNetworkContextsParentDirectory() override;
+  void BindBrowserControlInterface(mojo::ScopedMessagePipeHandle pipe) override;
+  void GetHyphenationDictionary(
+      base::OnceCallback<void(const base::FilePath&)>) override;
+  bool HasErrorPage(int http_status_code) override;
+  absl::optional<blink::ParsedPermissionsPolicy>
+  GetPermissionsPolicyForIsolatedWebApp(
+      content::BrowserContext* browser_context,
+      const url::Origin& app_origin) override;
   std::string GetApplicationLocale() override;
   std::string GetUserAgent() override;
   std::string GetFullUserAgent() override;
@@ -138,8 +152,6 @@ class CobaltContentBrowserClient : public content::ContentBrowserClient {
       network::mojom::NetworkContextParams* network_context_params,
       cert_verifier::mojom::CertVerifierCreationParams*
           cert_verifier_creation_params) override;
-  void OverrideWebkitPrefs(content::WebContents* web_contents,
-                           blink::web_pref::WebPreferences* prefs) override;
   void OnWebContentsCreated(content::WebContents* web_contents) override;
   void RegisterBrowserInterfaceBindersForFrame(
       content::RenderFrameHost* render_frame_host,
@@ -147,10 +159,6 @@ class CobaltContentBrowserClient : public content::ContentBrowserClient {
       override;
   std::vector<std::unique_ptr<content::NavigationThrottle>>
   CreateThrottlesForNavigation(content::NavigationHandle* handle) override;
-  void ExposeInterfacesToRenderer(
-      service_manager::BinderRegistry* registry,
-      blink::AssociatedInterfaceRegistry* associated_registry,
-      content::RenderProcessHost* render_process_host) override;
   void BindGpuHostReceiver(mojo::GenericPendingReceiver receiver) override;
 #if BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_ANDROID)
   void GetAdditionalMappedFilesForChildProcess(
@@ -184,14 +192,12 @@ class CobaltContentBrowserClient : public content::ContentBrowserClient {
       bool* disable_secure_dns,
       network::mojom::URLLoaderFactoryOverridePtr* factory_override) override;
 
-  std::unique_ptr<content::DevToolsManagerDelegate>
-  CreateDevToolsManagerDelegate() override;
   content::BrowserContext* GetBrowserContext();
+  content::ShellBrowserMainParts* shell_browser_main_parts();
 
  private:
   void CreateVideoGeometrySetterService();
 
-  SelectClientCertificateCallback select_client_certificate_callback_;
   std::unique_ptr<CobaltWebContentsObserver> web_contents_observer_;
   std::unique_ptr<CobaltWebContentsDelegate> web_contents_delegate_;
   std::unique_ptr<media::VideoGeometrySetterService, base::OnTaskRunnerDeleter>
