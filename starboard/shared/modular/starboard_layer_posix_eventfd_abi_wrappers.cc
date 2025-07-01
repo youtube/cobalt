@@ -20,8 +20,8 @@
 namespace {
 
 int musl_flags_to_platform_flags(int musl_flags) {
-  const int known_musl_flags_mask = MUSL_EFD_SEMAPHORE | MUSL_EFD_NONBLOCK |
-                                    MUSL_EFD_CLOEXEC;
+  const int known_musl_flags_mask =
+      MUSL_EFD_SEMAPHORE | MUSL_EFD_NONBLOCK | MUSL_EFD_CLOEXEC;
   if ((musl_flags & ~known_musl_flags_mask) != 0) {
     return -1;
   }

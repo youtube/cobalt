@@ -237,7 +237,7 @@ TEST(PosixEventfdTest,
 
 TEST(PosixEventfdTest,
      PollFdIsNotWritableIfCannotWriteValueOfAtLeastOneWithoutBlocking) {
-  // We can't initialize the counter to its maxiumum value - the largest
+  // We can't initialize the counter to its maximum value - the largest
   // unsigned 64-bit value minus 1 (i.e., 0xfffffffffffffffe) - because the
   // initval parameter is only an unsigned int. So we initialize the counter to
   // zero and then write 0xfffffffffffffffe to configure the counter such that
@@ -245,7 +245,8 @@ TEST(PosixEventfdTest,
   int fd = eventfd(0, 0);
   ASSERT_NE(fd, -1) << "eventfd() failed";
 
-  ssize_t written_bytes = write(fd, &kMaxCounterValue, sizeof(kMaxCounterValue));
+  ssize_t written_bytes =
+      write(fd, &kMaxCounterValue, sizeof(kMaxCounterValue));
   ASSERT_GE(written_bytes, 0);
   EXPECT_EQ(static_cast<size_t>(written_bytes), sizeof(kMaxCounterValue));
 
@@ -258,7 +259,6 @@ TEST(PosixEventfdTest,
 
   EXPECT_EQ(close(fd), 0);
 }
-
 
 // TODO: b/412648662 - If/when fork() and an exec family function are added to
 // the hermetic build, we should consider adding a test to verify that the file
@@ -329,8 +329,8 @@ TEST(PosixEventfdTest,
   int fd = eventfd(0, EFD_NONBLOCK);
   ASSERT_NE(fd, -1) << "eventfd() failed";
 
-  ssize_t written_bytes = write(fd, &kMaxCounterValue,
-                                sizeof(kMaxCounterValue));
+  ssize_t written_bytes =
+      write(fd, &kMaxCounterValue, sizeof(kMaxCounterValue));
   ASSERT_GE(written_bytes, 0);
   EXPECT_EQ(static_cast<size_t>(written_bytes), sizeof(kMaxCounterValue));
 
@@ -346,8 +346,8 @@ void* DoDelayedWrite(void* test_context) {
 
   usleep(context->delay_us);
 
-  ssize_t written_bytes = write(context->fd, &context->value,
-                                sizeof(context->value));
+  ssize_t written_bytes =
+      write(context->fd, &context->value, sizeof(context->value));
   EXPECT_GE(written_bytes, 0);
   EXPECT_EQ(static_cast<size_t>(written_bytes), sizeof(context->value));
 
@@ -396,8 +396,8 @@ TEST(PosixEventfdTest,
   int fd = eventfd(0, 0);
   ASSERT_NE(fd, -1) << "eventfd() failed";
 
-  ssize_t written_bytes = write(fd, &kMaxCounterValue,
-                                sizeof(kMaxCounterValue));
+  ssize_t written_bytes =
+      write(fd, &kMaxCounterValue, sizeof(kMaxCounterValue));
   ASSERT_GE(written_bytes, 0);
   EXPECT_EQ(static_cast<size_t>(written_bytes), sizeof(kMaxCounterValue));
 
