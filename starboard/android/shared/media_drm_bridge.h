@@ -87,6 +87,7 @@ class MediaDrmBridge {
 
   static bool IsWidevineSupported(JNIEnv* env);
   static bool IsCbcsSupported(JNIEnv* env);
+  static bool IsKeySystemSupported(JNIEnv* env, const std::string& key_system);
 
  private:
   const raw_ref<MediaDrmBridge::Host> host_;

@@ -33,7 +33,6 @@ import android.util.Base64;
 import androidx.annotation.RequiresApi;
 import dev.cobalt.coat.CobaltHttpHelper;
 import dev.cobalt.util.Log;
-import dev.cobalt.util.UsedByNative;
 import java.nio.ByteBuffer;
 import java.nio.charset.StandardCharsets;
 import java.util.Arrays;
@@ -177,14 +176,29 @@ public class MediaDrmBridge {
     return mediaDrmBridge;
   }
 
+  private static UUID getUUIDFromBytes(byte[] data) {
+        if (data.length != 16) {
+            return null;
+        }
+        long mostSigBits = 0;
+        long leastSigBits = 0;
+        for (int i = 0; i < 8; i++) {
+            mostSigBits = (mostSigBits << 8) | (data[i] & 0xff);
+        }
+        for (int i = 8; i < 16; i++) {
+            leastSigBits = (leastSigBits << 8) | (data[i] & 0xff);
+        }
+        return new UUID(mostSigBits, leastSigBits);
+    }
+
   /**
-   * Check whether the Widevine crypto scheme is supported.
+   * Check whether the given crypto scheme is supported.
    *
-   * @return true if the container and the crypto scheme is supported, or false otherwise.
+   * @return true if the crypto scheme is supported, or false otherwise.
    */
   @CalledByNative
-  static boolean isWidevineCryptoSchemeSupported() {
-    return MediaDrm.isCryptoSchemeSupported(WIDEVINE_UUID);
+  static boolean isCryptoSchemeSupported(byte[] schemeUUID) {
+    return MediaDrm.isCryptoSchemeSupported(getUUIDFromBytes(schemeUUID));
   }
 
   /**

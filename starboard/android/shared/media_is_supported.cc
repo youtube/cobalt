@@ -16,8 +16,8 @@
 
 #include "starboard/shared/starboard/media/media_support_internal.h"
 
-#include "starboard/android/shared/media_capabilities_cache.h"
 #include "starboard/android/shared/media_common.h"
+#include "starboard/android/shared/media_drm_bridge.h"
 #include "starboard/media.h"
 #include "starboard/shared/starboard/media/mime_type.h"
 
@@ -28,7 +28,6 @@ bool MediaIsSupported(SbMediaVideoCodec video_codec,
                       const char* key_system) {
   using ::starboard::android::shared::IsWidevineL1;
   using ::starboard::android::shared::IsWidevineL3;
-  using ::starboard::android::shared::MediaCapabilitiesCache;
 
   // It is possible that the |key_system| comes with extra attributes, like
   // `com.widevine.alpha; encryptionscheme="cenc"`. We prepend "key_system/"
@@ -48,22 +47,14 @@ bool MediaIsSupported(SbMediaVideoCodec video_codec,
       audio_codec != kSbMediaAudioCodecEac3) {
     return false;
   }
+
   const char* key_system_type = mime_type.subtype().c_str();
   if (!IsWidevineL1(key_system_type) && !IsWidevineL3(key_system_type)) {
     return false;
   }
 
-  if (!MediaCapabilitiesCache::GetInstance()->IsWidevineSupported()) {
-    return false;
-  }
-
-  std::string encryption_scheme =
-      mime_type.GetParamStringValue("encryptionscheme", "");
-  if (encryption_scheme == "cbcs" || encryption_scheme == "cbcs-1-9") {
-    return MediaCapabilitiesCache::GetInstance()->IsCbcsSchemeSupported();
-  }
-
-  return true;
+  return android::shared::MediaDrmBridge::IsKeySystemSupported(
+      base::android::AttachCurrentThread(), key_system_type);
 }
 
 }  // namespace starboard::shared::starboard::media

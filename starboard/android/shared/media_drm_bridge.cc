@@ -273,9 +273,23 @@ void MediaDrmBridge::OnKeyStatusChange(
   host_->OnKeyStatusChange(session_id_bytes, drm_key_ids, drm_key_statuses);
 }
 
+using Uuid = uint8_t[16];
+
+const Uuid kClearKeyUuid = {
+    0xE2, 0x71, 0x9D, 0x58, 0xA9, 0x85, 0xB3, 0xC9,  //
+    0x78, 0x1A, 0xB0, 0X30, 0xAF, 0x78, 0xD3, 0x0E   //
+};
+
+const uint8_t kWidevineUuid[16] = {
+    0xED, 0xEF, 0x8B, 0xA9, 0x79, 0xD6, 0x4A, 0xCE,  //
+    0xA3, 0xC8, 0x27, 0xDC, 0xD5, 0x1D, 0x21, 0xED};
+
 // static
 bool MediaDrmBridge::IsWidevineSupported(JNIEnv* env) {
-  return Java_MediaDrmBridge_isWidevineCryptoSchemeSupported(env) == JNI_TRUE;
+  ScopedJavaLocalRef<jbyteArray> j_widevine_scheme_uuid =
+      ToJavaByteArray(env, kWidevineUuid, sizeof(kWidevineUuid));
+  return Java_MediaDrmBridge_isCryptoSchemeSupported(
+             env, j_widevine_scheme_uuid) == JNI_TRUE;
 }
 
 // static
@@ -283,4 +297,37 @@ bool MediaDrmBridge::IsCbcsSupported(JNIEnv* env) {
   return Java_MediaDrmBridge_isCbcsSchemeSupported(env) == JNI_TRUE;
 }
 
+const uint8_t* GetUuid(const std::string& key_system) {
+  if (key_system == "org.w3.clearkey") {
+    return kClearKeyUuid;
+  } else if (key_system == "com.widevine.alpha") {
+    return kWidevineUuid;
+  }
+  return nullptr;
+}
+
+// static
+bool MediaDrmBridge::IsKeySystemSupported(JNIEnv* env,
+                                          const std::string& key_system) {
+  if (key_system.empty()) {
+    SB_NOTREACHED();
+    return false;
+  }
+
+  const uint8_t* scheme_uuid = GetUuid(key_system);
+  if (scheme_uuid == nullptr) {
+    SB_LOG(INFO) << "Cannot get UUID for key system " << key_system;
+    return false;
+  }
+
+  ScopedJavaLocalRef<jbyteArray> j_scheme_uuid =
+      ToJavaByteArray(env, scheme_uuid, 16);
+
+  bool supported =
+      Java_MediaDrmBridge_isCryptoSchemeSupported(env, j_scheme_uuid);
+  if (!supported) {
+    SB_LOG(INFO) << "Crypto scheme not supported for " << key_system;
+  }
+  return supported;
+}
 }  // namespace starboard::android::shared
