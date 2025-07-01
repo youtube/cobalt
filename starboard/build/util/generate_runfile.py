@@ -2,37 +2,37 @@
 """
 Generate runfiles for evergreen.
 """
+import argparse
 import os
 import stat
-import sys
 
 _TEMPLATE = """#!/usr/bin/env python3
 import subprocess
 import sys
 
 command = [
-    '{}/elf_loader_sandbox', '--evergreen_content=.',
-    '--evergreen_library={}.so'
+    '{outdir}/elf_loader_sandbox', '--evergreen_content=.',
+    '--evergreen_library={library}.so'
 ] + sys.argv[1:]
-result = subprocess.run(command, check=False)
 try:
-    result = sys.exit(result.returncode)
-except FileNotFoundError:
-    print(f"Error: The command '{{command[0]}}' was not found.", file=sys.stderr)
-    print("Please ensure that 'elf_loader_sandbox' is in your system's PATH.",
-          file=sys.stderr)
-    sys.exit(1)
+    result = subprocess.run(command, check=False)
+    sys.exit(result.returncode)
 except subprocess.CalledProcessError:
     # A subprocess failed, so don't log the python traceback.
     raise SystemExit(1)
 except Exception as e:
-    print(f"An unexpected error occurred: {{e}}", file=sys.stderr)
+    print("An unexpected error occurred: " + str(e), file=sys.stderr)
     sys.exit(1)
 """
 
-filepath = sys.argv[1]
-with open(filepath, 'w', encoding='utf-8') as f:
-  f.write(_TEMPLATE.format(sys.argv[2], sys.argv[3]))
-current_permissions = stat.S_IMODE(os.stat(filepath).st_mode)
+parser = argparse.ArgumentParser()
+parser.add_argument('--output', type=str, required=True)
+parser.add_argument('--outdir', type=str, required=True)
+parser.add_argument('--library', type=str, required=True)
+args = parser.parse_args()
+
+with open(args.output, 'w', encoding='utf-8') as f:
+  f.write(_TEMPLATE.format(outdir=args.outdir, library=args.library))
+current_permissions = stat.S_IMODE(os.stat(args.output).st_mode)
 new_permissions = current_permissions | stat.S_IXUSR | stat.S_IXGRP
-os.chmod(filepath, new_permissions)
+os.chmod(args.output, new_permissions)

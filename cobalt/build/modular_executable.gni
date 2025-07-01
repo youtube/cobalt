@@ -98,8 +98,11 @@ template("evergreen_final_target") {
     script = "//starboard/build/util/generate_runfile.py"
     outputs = [ "$root_out_dir/${original_target_name}_loader" ]
     args = [
+      "--output",
       rebase_path(outputs[0]),
+      "--outdir",
       rebase_path(root_out_dir, "//"),
+      "--library",
       lib_name,
     ]
   }
