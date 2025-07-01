@@ -9,7 +9,7 @@ def find_deepest_common_dir(paths):
     if not paths:
         return '/'
     
-    # Otain directory paths for each file path
+    # Obtain directory paths for each file path
     dir_paths = [os.path.dirname(p) for p in paths]
     # Split directory paths into components
     split_paths = [p.split('/') for p in dir_paths]
@@ -153,14 +153,13 @@ def linearize_history(repo, args):
 
         # Record commit mapping
         commit_mapping.append({
-            'original_commit': commit.hexsha,
-            'new_commit': repo.head.commit.hexsha,
+            'original_hexsha': commit.hexsha,
+            'new_hexsha': repo.head.commit.hexsha,
             'commit_type': commit_type,
             'author': commit.author.name,
             'author_email': commit.author.email,
-            'date': commit.authored_datetime.isoformat(),
-            'iso': commit.authored_datetime.isoformat(),
-            'subject': commit.summary
+            'datetime': commit.authored_datetime.isoformat(),
+            'summary': commit.summary
         })
 
     # Verify each commit's tree equivalence
@@ -270,13 +269,12 @@ def main():
             commit_data.append({
                 'hexsha': commit.hexsha,
                 'author': commit.author.name,
-                'date': commit.authored_datetime.isoformat(),
+                'datetime': commit.authored_dfatetime.isoformat(),
                 'summary': commit.summary,
                 'stats': {
+                    'files': stats.total['files'],
                     'insertions': stats.total['insertions'],
                     'deletions': stats.total['deletions'],
-                    'lines': stats.total['lines'],
-                    'files': stats.total['files'],
                 },
                 'common_dir': common_dir,
                 'is_merge': is_merge
@@ -285,28 +283,24 @@ def main():
             json.dump(commit_data, f, indent=2)
         print(f'Extracted {len(commit_data)} commits to {args.output_file}')
     elif args.command == 'rebase':
-        # Create and checkout the new branch
         repo.git.checkout(args.base_branch, b=args.new_branch)
-
         with open(args.commits_file, 'r') as f:
             commits = json.load(f)
-
         last_successful_commit = None
         for commit in reversed(commits):
             if commit['is_merge']:
-                print(f'Skipping merge commit {commit['hexsha']}')
-                continue
-
+                print(f'❌ Merge commits are not allowed: {commit['hexsha']}')
+                return
             try:
                 repo.git.cherry_pick(commit['hexsha'])
                 last_successful_commit = commit['hexsha']
-                print(f'Successfully cherry-picked {commit['hexsha']}')
+                print(f'✅ Successfully cherry-picked: {commit['hexsha']}')
             except git.exc.GitCommandError as e:
-                print(f'Failed to cherry-pick {commit['hexsha']}')
-                print(f'Last successful commit: {last_successful_commit}')
-                print(f'Error: {e}')
+                print(f'❌ Failed to cherry-pick: {commit['hexsha']}')
+                print(f'  Last successful commit: {last_successful_commit}')
+                print(f'  Error: {e}')
                 repo.git.cherry_pick('--abort')
-                break
+                return
 
 
 if __name__ == '__main__':
