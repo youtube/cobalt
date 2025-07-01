@@ -23,8 +23,10 @@
 #include "base/functional/bind.h"
 #include "base/i18n/rtl.h"
 #include "base/metrics/field_trial_params.h"
+#include "base/no_destructor.h"
 #include "base/path_service.h"
 #include "base/strings/string_split.h"
+#include "build/buildflag.h"
 #include "cobalt/browser/cobalt_browser_interface_binders.h"
 #include "cobalt/browser/cobalt_browser_main_parts.h"
 #include "cobalt/browser/cobalt_secure_navigation_throttle.h"
@@ -35,6 +37,7 @@
 #include "cobalt/media/service/mojom/video_geometry_setter.mojom.h"
 #include "cobalt/media/service/video_geometry_setter_service.h"
 #include "cobalt/shell/browser/shell.h"
+#include "cobalt/shell/browser/shell_browser_context.h"
 #include "cobalt/shell/browser/shell_browser_main_parts.h"
 #include "cobalt/shell/browser/shell_devtools_manager_delegate.h"
 #include "cobalt/shell/browser/shell_paths.h"
@@ -55,6 +58,7 @@
 #include "components/variations/service/variations_service.h"
 #include "content/public/browser/browser_thread.h"
 #include "content/public/browser/client_certificate_delegate.h"
+#include "content/public/browser/login_delegate.h"
 #include "content/public/browser/posix_file_descriptor_info.h"
 #include "content/public/browser/render_process_host.h"
 #include "content/public/browser/speech_recognition_manager_delegate.h"
@@ -64,11 +68,15 @@
 #include "content/public/common/user_agent.h"
 #include "content/shell/browser/shell_speech_recognition_manager_delegate.h"
 #include "content/shell/browser/shell_web_contents_view_delegate_creator.h"
+#include "content/shell/common/shell_controller.test-mojom.h"
 #include "content/shell/common/shell_switches.h"
+#include "media/mojo/mojom/media_service.mojom.h"
+#include "mojo/public/cpp/bindings/self_owned_receiver.h"
 #include "services/network/public/cpp/features.h"
 #include "services/network/public/mojom/network_context.mojom.h"
 #include "services/service_manager/public/cpp/binder_registry.h"
 #include "third_party/blink/public/common/associated_interfaces/associated_interface_registry.h"
+#include "third_party/blink/public/common/permissions_policy/origin_with_possible_wildcards.h"
 #include "third_party/blink/public/common/web_preferences/web_preferences.h"
 #include "ui/base/ui_base_switches.h"
 
@@ -83,6 +91,10 @@
 #include "components/crash/core/app/crashpad.h"
 #include "content/public/common/content_descriptors.h"
 #endif  // BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_ANDROID)
+
+#if defined(ENABLE_CAST_RENDERER)
+#include "media/mojo/services/media_service_factory.h"  // nogncheck
+#endif
 
 namespace cobalt {
 
@@ -101,6 +113,34 @@ constexpr base::FilePath::CharType kTransportSecurityPersisterFilename[] =
     FILE_PATH_LITERAL("TransportSecurity");
 constexpr base::FilePath::CharType kTrustTokenFilename[] =
     FILE_PATH_LITERAL("Trust Tokens");
+
+class ShellControllerImpl : public content::mojom::ShellController {
+ public:
+  ShellControllerImpl() = default;
+  ~ShellControllerImpl() override = default;
+
+  // mojom::ShellController:
+  void GetSwitchValue(const std::string& name,
+                      GetSwitchValueCallback callback) override {
+    const auto& command_line = *base::CommandLine::ForCurrentProcess();
+    if (command_line.HasSwitch(name)) {
+      std::move(callback).Run(command_line.GetSwitchValueASCII(name));
+    } else {
+      std::move(callback).Run(absl::nullopt);
+    }
+  }
+
+  void ExecuteJavaScript(const std::u16string& script,
+                         ExecuteJavaScriptCallback callback) override {
+    CHECK(!content::Shell::windows().empty());
+    content::WebContents* contents =
+        content::Shell::windows()[0]->web_contents();
+    contents->GetPrimaryMainFrame()->ExecuteJavaScriptForTests(
+        script, std::move(callback));
+  }
+
+  void ShutDown() override { content::Shell::Shutdown(); }
+};
 
 std::unique_ptr<PrefService> CreateLocalState() {
   auto pref_registry = base::MakeRefCounted<PrefRegistrySimple>();
@@ -446,6 +486,9 @@ void CobaltContentBrowserClient::ExposeInterfacesToRenderer(
   registry->AddInterface<cobalt::media::mojom::VideoGeometryChangeSubscriber>(
       video_geometry_setter_service_->GetBindSubscriberCallback(),
       base::SingleThreadTaskRunner::GetCurrentDefault());
+  performance_manager::PerformanceManagerRegistry::GetInstance()
+      ->CreateProcessNodeAndExposeInterfacesToRendererProcess(
+          registry, render_process_host);
 }
 
 void CobaltContentBrowserClient::BindGpuHostReceiver(
@@ -606,19 +649,6 @@ bool CobaltContentBrowserClient::IsSharedStorageSelectURLAllowed(
   return true;
 }
 
-base::OnceClosure CobaltContentBrowserClient::SelectClientCertificate(
-    content::WebContents* web_contents,
-    net::SSLCertRequestInfo* cert_request_info,
-    net::ClientCertIdentityList client_certs,
-    std::unique_ptr<content::ClientCertificateDelegate> delegate) {
-  if (select_client_certificate_callback_) {
-    return std::move(select_client_certificate_callback_)
-        .Run(web_contents, cert_request_info, std::move(client_certs),
-             std::move(delegate));
-  }
-  return base::OnceClosure();
-}
-
 content::SpeechRecognitionManagerDelegate*
 CobaltContentBrowserClient::CreateSpeechRecognitionManagerDelegate() {
   return new content::ShellSpeechRecognitionManagerDelegate();
@@ -754,6 +784,77 @@ void CobaltContentBrowserClient::CreateFeatureListAndFieldTrials() {
             << command_line.GetSwitchValueASCII(::switches::kEnableFeatures);
   LOG(INFO) << "CobaltCommandLine "
             << command_line.GetSwitchValueASCII(::switches::kDisableFeatures);
+}
+
+void CobaltContentBrowserClient::OpenURL(
+    content::SiteInstance* site_instance,
+    const content::OpenURLParams& params,
+    base::OnceCallback<void(content::WebContents*)> callback) {
+  std::move(callback).Run(
+      content::Shell::CreateNewWindow(site_instance->GetBrowserContext(),
+                                      params.url, nullptr, gfx::Size())
+          ->web_contents());
+}
+
+base::Value::Dict CobaltContentBrowserClient::GetNetLogConstants() {
+  base::Value::Dict client_constants;
+  client_constants.Set("name", "content_shell");
+  base::CommandLine::StringType command_line =
+      base::CommandLine::ForCurrentProcess()->GetCommandLineString();
+  client_constants.Set("command_line", command_line);
+  base::Value::Dict constants;
+  constants.Set("clientInfo", std::move(client_constants));
+  return constants;
+}
+
+std::vector<base::FilePath>
+CobaltContentBrowserClient::GetNetworkContextsParentDirectory() {
+  return {GetBrowserContext()->GetPath()};
+}
+
+void CobaltContentBrowserClient::BindBrowserControlInterface(
+    mojo::ScopedMessagePipeHandle pipe) {
+  if (!pipe.is_valid()) {
+    return;
+  }
+  mojo::MakeSelfOwnedReceiver(
+      std::make_unique<ShellControllerImpl>(),
+      mojo::PendingReceiver<content::mojom::ShellController>(std::move(pipe)));
+}
+
+void CobaltContentBrowserClient::GetHyphenationDictionary(
+    base::OnceCallback<void(const base::FilePath&)> callback) {
+  // If we have the source tree, return the dictionary files in the tree.
+  base::FilePath dir;
+  if (base::PathService::Get(base::DIR_SOURCE_ROOT, &dir)) {
+    dir = dir.AppendASCII("third_party")
+              .AppendASCII("hyphenation-patterns")
+              .AppendASCII("hyb");
+    std::move(callback).Run(dir);
+  }
+  // No need to callback if there were no dictionaries.
+}
+
+bool CobaltContentBrowserClient::HasErrorPage(int http_status_code) {
+  return http_status_code >= 400 && http_status_code < 600;
+}
+
+absl::optional<blink::ParsedPermissionsPolicy>
+CobaltContentBrowserClient::GetPermissionsPolicyForIsolatedWebApp(
+    content::BrowserContext* browser_context,
+    const url::Origin& app_origin) {
+  blink::ParsedPermissionsPolicyDeclaration decl(
+      blink::mojom::PermissionsPolicyFeature::kDirectSockets,
+      {blink::OriginWithPossibleWildcards(app_origin,
+                                          /*has_subdomain_wildcard=*/false)},
+      /*self_if_matches=*/absl::nullopt,
+      /*matches_all_origins=*/false, /*matches_opaque_src=*/false);
+  return {{decl}};
+}
+
+content::ShellBrowserMainParts*
+CobaltContentBrowserClient::shell_browser_main_parts() {
+  return GetSharedState().shell_browser_main_parts;
 }
 
 }  // namespace cobalt
