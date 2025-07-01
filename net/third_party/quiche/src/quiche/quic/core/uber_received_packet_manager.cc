@@ -202,6 +202,15 @@ void UberReceivedPacketManager::set_min_received_before_ack_decimation(
   }
 }
 
+#if BUILDFLAG(IS_COBALT)
+void UberReceivedPacketManager::set_max_retransmittable_packets_before_ack(
+    size_t new_value) {
+  for (auto& received_packet_manager : received_packet_managers_) {
+    received_packet_manager.set_max_retransmittable_packets_before_ack(new_value);
+  }
+}
+#endif
+
 void UberReceivedPacketManager::set_ack_frequency(size_t new_value) {
   for (auto& received_packet_manager : received_packet_managers_) {
     received_packet_manager.set_ack_frequency(new_value);
