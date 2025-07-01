@@ -673,7 +673,7 @@ public abstract class CobaltActivity extends Activity {
         });
   }
 
-  public void setKeepScreenOn(boolean keepOn) {
+  public void toggleKeepScreenOn(boolean keepOn) {
     if (isKeepScreenOnEnabled != keepOn) {
       runOnUiThread(new Runnable() {
             @Override

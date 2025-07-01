@@ -267,17 +267,17 @@ public class CobaltMediaSession implements ArtworkLoader.Callback {
         };
   }
 
-  private void setKeepScreenOn(boolean keepScreenOn) {
+  private void toggleKeepScreenOn(boolean keepScreenOn) {
     CobaltActivity activity = (CobaltActivity) mActivityHolder.get();
     if (activity != null) {
-      activity.setKeepScreenOn(keepScreenOn);
+      activity.toggleKeepScreenOn(keepScreenOn);
     }
   }
 
   private void updatePlaybackState() {
     if (!mIsControllable) {
       deactivateMediaSession();
-      setKeepScreenOn(false);
+      toggleKeepScreenOn(false);
       return;
     }
 
@@ -296,7 +296,7 @@ public class CobaltMediaSession implements ArtworkLoader.Callback {
               : PlaybackStateCompat.STATE_PLAYING);
     }
 
-    setKeepScreenOn(state == PlaybackStateCompat.STATE_PLAYING);
+    toggleKeepScreenOn(state == PlaybackStateCompat.STATE_PLAYING);
 
     if (mPosition != null) {
       playbackStateBuilder.setState(
