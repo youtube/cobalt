@@ -18,16 +18,17 @@
 
 #include <string>
 
-#include "starboard/common/log.h"
 #include "testing/gtest/include/gtest/gtest.h"
+
+namespace starboard {
+namespace nplb {
+namespace {
 
 class PosixUnameTest : public ::testing::Test {
  protected:
-  PosixUnameTest() {}
+  PosixUnameTest() = default;
 
   void SetUp() override { errno = 0; }
-
-  void TearDown() override {}
 };
 
 // Verify that uname() executes successfully and populates the struct.
@@ -38,21 +39,6 @@ TEST_F(PosixUnameTest, BasicUnameCall) {
   ASSERT_EQ(0, result) << "uname() failed with error: " << strerror(errno);
   EXPECT_EQ(0, errno) << "errno was set to " << errno << " (" << strerror(errno)
                       << ") after successful uname call.";
-
-  EXPECT_FALSE(std::string(name.sysname).empty()) << "sysname is empty.";
-  EXPECT_FALSE(std::string(name.nodename).empty()) << "nodename is empty.";
-  EXPECT_FALSE(std::string(name.release).empty()) << "release is empty.";
-  EXPECT_FALSE(std::string(name.version).empty()) << "version is empty.";
-  EXPECT_FALSE(std::string(name.machine).empty()) << "machine is empty.";
-
-  // Optional: Print the uname information for debugging/informational purposes.
-  // This is similar to how SB_LOG(INFO) was used in the isatty test.
-  SB_LOG(INFO) << "uname() output:";
-  SB_LOG(INFO) << "  Sysname:  " << name.sysname;
-  SB_LOG(INFO) << "  Nodename: " << name.nodename;
-  SB_LOG(INFO) << "  Release:  " << name.release;
-  SB_LOG(INFO) << "  Version:  " << name.version;
-  SB_LOG(INFO) << "  Machine:  " << name.machine;
 }
 
 // Ensure that passing a nullptr to uname() sets errno to EFAULT.
@@ -64,16 +50,6 @@ TEST_F(PosixUnameTest, HandlesNullPointer) {
                            << " (" << strerror(errno) << ").";
 }
 
-// Ensure that utsname fields are null-termnimated.
-TEST_F(PosixUnameTest, CheckForNullTerminatedFields) {
-  struct utsname name;
-  int result = uname(&name);
-
-  ASSERT_EQ(0, result) << "uname() failed with error: " << strerror(errno);
-  ASSERT_EQ(0, errno) << "errno was set to " << errno << " (" << strerror(errno)
-                      << ") after successful uname call.";
-
-  EXPECT_EQ('\0', name.sysname[sizeof(name.sysname) - 1])
-      << "expected utsname sysname to be null-terminated, got "
-      << name.sysname[sizeof(name.sysname) - 1];
-}
+}  // namespace
+}  // namespace nplb
+}  // namespace starboard

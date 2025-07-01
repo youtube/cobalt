@@ -24,9 +24,12 @@ void CopyUtsField(const char* src, size_t src_sz, char* dest, size_t dest_sz) {
     return;
   }
 
-  memset(dest, 0, dest_sz);
-  const auto minlen = std::min(dest_sz, src_sz);
-  memcpy(dest, src, minlen);
+  if (src_sz != UTSNAME_FIELD_SIZE || dest_sz != UTSNAME_FIELD_SIZE) {
+    return;
+  }
+
+  memset(dest, 0, UTSNAME_FIELD_SIZE);
+  memcpy(dest, src, UTSNAME_FIELD_SIZE);
 }
 
 SB_EXPORT int __abi_wrap_uname(struct musl_utsname* musl_uts) {
