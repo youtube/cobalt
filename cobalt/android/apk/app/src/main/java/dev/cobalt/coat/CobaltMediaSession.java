@@ -64,9 +64,6 @@ public class CobaltMediaSession implements ArtworkLoader.Callback {
   private Bitmap mArtworkImage;
   private MediaSessionCompat.Callback mMediaSessionCallback;
   private LifecycleCallback mLifecycleCallback = null;
-  // Tracks the current playback state to manage the FLAG_KEEP_SCREEN_ON window flag.
-  private int mCurrentPlaybackState = PlaybackStateCompat.STATE_NONE;
-
 
   // TODO: decouple LifecycleCallback and CobaltMediaSession implementation.
   /** LifecycleCallback to notify listeners when |mediaSession| becomes active or inactive. */
@@ -280,10 +277,7 @@ public class CobaltMediaSession implements ArtworkLoader.Callback {
   private void updatePlaybackState() {
     if (!mIsControllable) {
       deactivateMediaSession();
-      if (mCurrentPlaybackState != PlaybackStateCompat.STATE_NONE) {
-        mCurrentPlaybackState = PlaybackStateCompat.STATE_NONE;
-        setKeepScreenOn(false);
-      }
+      setKeepScreenOn(false);
       return;
     }
 
@@ -302,10 +296,7 @@ public class CobaltMediaSession implements ArtworkLoader.Callback {
               : PlaybackStateCompat.STATE_PLAYING);
     }
 
-    if (state != mCurrentPlaybackState) {
-      setKeepScreenOn(state == PlaybackStateCompat.STATE_PLAYING);
-      mCurrentPlaybackState = state;
-    }
+    setKeepScreenOn(state == PlaybackStateCompat.STATE_PLAYING);
 
     if (mPosition != null) {
       playbackStateBuilder.setState(
