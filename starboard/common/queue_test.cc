@@ -79,19 +79,23 @@ class ConsumerThread : public Thread {
  public:
   ConsumerThread(Queue<int>* queue,
                  std::atomic<int>* consumed_count,
-                 int total_items)
+                 int total_items,
+                 std::atomic<bool>* producers_finished)
       : Thread("ConsumerThread"),
         queue_(queue),
         consumed_count_(consumed_count),
-        total_items_(total_items) {}
+        total_items_(total_items),
+        producers_finished_(producers_finished) {}
 
   void Run() override {
     while (consumed_count_->load() < total_items_) {
-      int item = queue_->Get();
-      // A non-zero item indicates a successful Get(). A zero item means the
-      // Get() was woken up empty-handed (e.g. from a Wake() call).
+      int item = queue_->GetTimed(kMillisInUs * 10);  // Use a timeout
       if (item != 0) {
         consumed_count_->fetch_add(1);
+      }
+      // If producers are done and we timed out, break the loop.
+      if (producers_finished_->load() && item == 0) {
+        break;
       }
     }
   }
@@ -100,6 +104,7 @@ class ConsumerThread : public Thread {
   Queue<int>* const queue_;
   std::atomic<int>* const consumed_count_;
   const int total_items_;
+  std::atomic<bool>* const producers_finished_;
 };
 
 class ProducerConcurrentThread : public Thread {
@@ -313,6 +318,7 @@ TEST_F(QueueIntTest, ConcurrentPutAndGet) {
   std::vector<std::unique_ptr<ConsumerThread>> consumer_threads;
   std::atomic<int> produced_count = 0;
   std::atomic<int> consumed_count = 0;
+  std::atomic<bool> producers_finished = false;
 
   for (int i = 0; i < kNumProducers; ++i) {
     producer_threads.push_back(std::make_unique<ProducerConcurrentThread>(
@@ -322,7 +328,7 @@ TEST_F(QueueIntTest, ConcurrentPutAndGet) {
 
   for (int i = 0; i < kNumConsumers; ++i) {
     consumer_threads.push_back(std::make_unique<ConsumerThread>(
-        &queue_, &consumed_count, kTotalItems));
+        &queue_, &consumed_count, kTotalItems, &producers_finished));
   }
 
   for (auto& thread : producer_threads) {
@@ -335,6 +341,8 @@ TEST_F(QueueIntTest, ConcurrentPutAndGet) {
   for (auto& thread : producer_threads) {
     thread->Join();
   }
+
+  producers_finished = true;
 
   // After all producers are done, some consumers might be blocked waiting for
   // items that will never come. Wake them up so they can re-evaluate their
