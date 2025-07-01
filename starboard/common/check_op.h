@@ -10,7 +10,6 @@
 #include <type_traits>
 
 #include "starboard/common/log.h"
-#include "starboard/common/supports_ostream_operator.h"
 
 // This header defines the (DP)CHECK_EQ etc. macros.
 //
@@ -31,6 +30,18 @@
 // only use CHECK however, please include the smaller check.h instead.
 
 namespace starboard::logging {
+
+// Uses expression SFINAE to detect whether using operator<< would work.
+//
+// Note that the above #include of <ostream> is necessary to guarantee
+// consistent results here for basic types.
+template <typename T, typename = void>
+struct SupportsOstreamOperator : std::false_type {};
+template <typename T>
+struct SupportsOstreamOperator<T,
+                               decltype(void(std::declval<std::ostream&>()
+                                             << std::declval<T>()))>
+    : std::true_type {};
 
 template <typename T, typename = void>
 struct SupportsToString : std::false_type {};
@@ -129,6 +140,12 @@ class CheckOpResult {
   constexpr explicit CheckOpResult(LogMessage* log_message)
       : log_message_(log_message) {}
 
+  constexpr ~CheckOpResult() {
+    if (log_message_ != nullptr) {
+      delete log_message_;
+    }
+  }
+
   // Returns true if the check succeeded.
   constexpr explicit operator bool() const { return !log_message_; }
 
@@ -138,8 +155,7 @@ class CheckOpResult {
   // compile failure.
   // Takes ownership of `v1_str` and `v2_str`, destroying them with free(). For
   // use with CheckOpValueStr() which allocates these strings using strdup().
-  static LogMessage* CreateLogMessage(bool is_dcheck,
-                                      const char* file,
+  static LogMessage* CreateLogMessage(const char* file,
                                       int line,
                                       const char* expr_str,
                                       char* v1_str,
@@ -158,17 +174,16 @@ class CheckOpResult {
 // macro is used in an 'if' clause such as:
 // if (a == 1)
 //   CHECK_EQ(2, a);
-#define SB_CHECK_OP_FUNCTION_IMPL(is_dcheck, name, op, val1, val2)            \
+#define SB_CHECK_OP_FUNCTION_IMPL(name, op, val1, val2)                       \
   switch (0)                                                                  \
   case 0:                                                                     \
   default:                                                                    \
     if (::starboard::logging::CheckOpResult true_if_passed =                  \
-            ::starboard::logging::Check##name##Impl(is_dcheck, __FILE__,      \
-                                                    __LINE__, (val1), (val2), \
-                                                    #val1 " " #op " " #val2)) \
+            ::starboard::logging::Check##name##Impl(                          \
+                __FILE__, __LINE__, (val1), (val2), #val1 " " #op " " #val2)) \
       ;                                                                       \
     else                                                                      \
-      ::starboard::logging::CheckError(true_if_passed.log_message())
+      true_if_passed.log_message()->stream()
 
 #if !SB_CHECK_WILL_STREAM
 
@@ -178,82 +193,74 @@ class CheckOpResult {
 #else
 
 #define SB_CHECK_OP(name, op, val1, val2) \
-  CHECK_OP_FUNCTION_IMPL(/*is_dcheck=*/false, name, op, val1, val2)
+  SB_CHECK_OP_FUNCTION_IMPL(name, op, val1, val2)
 
 #endif
 
 // The second overload avoids address-taking of static members for
 // fundamental types.
-#define DEFINE_CHECK_OP_IMPL(name, op)                                      \
-  template <typename T, typename U,                                         \
-            std::enable_if_t<!std::is_fundamental<T>::value ||              \
-                                 !std::is_fundamental<U>::value,            \
-                             int> = 0>                                      \
-  constexpr ::starboard::logging::CheckOpResult Check##name##Impl(          \
-      bool is_dcheck, const char* file, int line, const T& v1, const U& v2, \
-      const char* expr_str) {                                               \
-    using ::starboard::logging::CheckOpResult;                              \
-    if (LIKELY(ANALYZER_ASSUME_TRUE(v1 op v2)))                             \
-      return CheckOpResult();                                               \
-    return CheckOpResult(                                                   \
-        ::starboard::logging::CheckOpResult::CreateLogMessage(              \
-            is_dcheck, file, line, expr_str, CheckOpValueStr(v1),           \
-            CheckOpValueStr(v2)));                                          \
-  }                                                                         \
-  template <typename T, typename U,                                         \
-            std::enable_if_t<std::is_fundamental<T>::value &&               \
-                                 std::is_fundamental<U>::value,             \
-                             int> = 0>                                      \
-  constexpr ::starboard::logging::CheckOpResult Check##name##Impl(          \
-      bool is_dcheck, const char* file, int line, T v1, U v2,               \
-      const char* expr_str) {                                               \
-    using ::starboard::logging::CheckOpResult;                              \
-    if (LIKELY(ANALYZER_ASSUME_TRUE(v1 op v2)))                             \
-      return CheckOpResult();                                               \
-    return CheckOpResult(                                                   \
-        ::starboard::logging::CheckOpResult::CreateLogMessage(              \
-            is_dcheck, file, line, expr_str, CheckOpValueStr(v1),           \
-            CheckOpValueStr(v2)));                                          \
+#define DEFINE_SB_CHECK_OP_IMPL(name, op)                                     \
+  template <typename T, typename U,                                           \
+            std::enable_if_t<!std::is_fundamental<T>::value ||                \
+                                 !std::is_fundamental<U>::value,              \
+                             int> = 0>                                        \
+  constexpr ::starboard::logging::CheckOpResult Check##name##Impl(            \
+      const char* file, int line, const T& v1, const U& v2,                   \
+      const char* expr_str) {                                                 \
+    using ::starboard::logging::CheckOpResult;                                \
+    if (v1 op v2)                                                             \
+      return CheckOpResult();                                                 \
+    return CheckOpResult(                                                     \
+        ::starboard::logging::CheckOpResult::CreateLogMessage(                \
+            line, expr_str, CheckOpValueStr(v1), CheckOpValueStr(v2)));       \
+  }                                                                           \
+  template <typename T, typename U,                                           \
+            std::enable_if_t<std::is_fundamental<T>::value &&                 \
+                                 std::is_fundamental<U>::value,               \
+                             int> = 0>                                        \
+  constexpr ::starboard::logging::CheckOpResult Check##name##Impl(            \
+      const char* file, int line, T v1, U v2, const char* expr_str) {         \
+    using ::starboard::logging::CheckOpResult;                                \
+    if (v1 op v2)                                                             \
+      return CheckOpResult();                                                 \
+    return CheckOpResult(                                                     \
+        ::starboard::logging::CheckOpResult::CreateLogMessage(                \
+            file, line, expr_str, CheckOpValueStr(v1), CheckOpValueStr(v2))); \
   }
 
 // clang-format off
-DEFINE_CHECK_OP_IMPL(EQ, ==)
-DEFINE_CHECK_OP_IMPL(NE, !=)
-DEFINE_CHECK_OP_IMPL(LE, <=)
-DEFINE_CHECK_OP_IMPL(LT, < )
-DEFINE_CHECK_OP_IMPL(GE, >=)
-DEFINE_CHECK_OP_IMPL(GT, > )
-#undef DEFINE_CHECK_OP_IMPL
-#define SB_CHECK_EQ(val1, val2) CHECK_OP(EQ, ==, val1, val2)
-#define SB_CHECK_NE(val1, val2) CHECK_OP(NE, !=, val1, val2)
-#define SB_CHECK_LE(val1, val2) CHECK_OP(LE, <=, val1, val2)
-#define SB_CHECK_LT(val1, val2) CHECK_OP(LT, < , val1, val2)
-#define SB_CHECK_GE(val1, val2) CHECK_OP(GE, >=, val1, val2)
-#define SB_CHECK_GT(val1, val2) CHECK_OP(GT, > , val1, val2)
+DEFINE_SB_CHECK_OP_IMPL(EQ, ==)
+DEFINE_SB_CHECK_OP_IMPL(NE, !=)
+DEFINE_SB_CHECK_OP_IMPL(LE, <=)
+DEFINE_SB_CHECK_OP_IMPL(LT, < )
+DEFINE_SB_CHECK_OP_IMPL(GE, >=)
+DEFINE_SB_CHECK_OP_IMPL(GT, > )
+#undef DEFINE_SB_CHECK_OP_IMPL
+#define SB_CHECK_EQ(val1, val2) SB_CHECK_OP(EQ, ==, val1, val2)
+#define SB_CHECK_NE(val1, val2) SB_CHECK_OP(NE, !=, val1, val2)
+#define SB_CHECK_LE(val1, val2) SB_CHECK_OP(LE, <=, val1, val2)
+#define SB_CHECK_LT(val1, val2) SB_CHECK_OP(LT, < , val1, val2)
+#define SB_CHECK_GE(val1, val2) SB_CHECK_OP(GE, >=, val1, val2)
+#define SB_CHECK_GT(val1, val2) SB_CHECK_OP(GT, > , val1, val2)
 // clang-format on
 
-#if SB_DCHECK_IS_ON()
+#if SB_DCHECK_ENABLED
 
 #define SB_DCHECK_OP(name, op, val1, val2) \
-  CHECK_OP_FUNCTION_IMPL(/*is_dcheck=*/true, name, op, val1, val2)
+  SB_CHECK_OP_FUNCTION_IMPL(name, op, val1, val2)
 
 #else
 
-// Don't do any evaluation but still reference the same stuff as when enabled.
-#define SB_DCHECK_OP(name, op, val1, val2)                                 \
-  SB_EAT_CHECK_STREAM_PARAMS((::starboard::logging::CheckOpValueStr(val1), \
-                              ::starboard::logging::CheckOpValueStr(val2), \
-                              (val1)op(val2)))
-
+#define SB_DCHECK_OP(name, op, val1, val2) SB_EAT_STREAM_PARAMETERS
 #endif
 
 // clang-format off
-#define SB_DCHECK_EQ(val1, val2) DCHECK_OP(EQ, ==, val1, val2)
-#define SB_DCHECK_NE(val1, val2) DCHECK_OP(NE, !=, val1, val2)
-#define SB_DCHECK_LE(val1, val2) DCHECK_OP(LE, <=, val1, val2)
-#define SB_DCHECK_LT(val1, val2) DCHECK_OP(LT, < , val1, val2)
-#define SB_DCHECK_GE(val1, val2) DCHECK_OP(GE, >=, val1, val2)
-#define SB_DCHECK_GT(val1, val2) DCHECK_OP(GT, > , val1, val2)
+#define SB_DCHECK_EQ(val1, val2) SB_DCHECK_OP(EQ, ==, val1, val2)
+#define SB_DCHECK_NE(val1, val2) SB_DCHECK_OP(NE, !=, val1, val2)
+#define SB_DCHECK_LE(val1, val2) SB_DCHECK_OP(LE, <=, val1, val2)
+#define SB_DCHECK_LT(val1, val2) SB_DCHECK_OP(LT, < , val1, val2)
+#define SB_DCHECK_GE(val1, val2) SB_DCHECK_OP(GE, >=, val1, val2)
+#define SB_DCHECK_GT(val1, val2) SB_DCHECK_OP(GT, > , val1, val2)
 // clang-format on
 
 }  // namespace starboard::logging
