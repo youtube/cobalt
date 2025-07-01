@@ -158,17 +158,17 @@ class CheckOpResult {
 // macro is used in an 'if' clause such as:
 // if (a == 1)
 //   CHECK_EQ(2, a);
-#define SB_CHECK_OP_FUNCTION_IMPL(is_dcheck, name, op, val1, val2)      \
-  switch (0)                                                            \
-  case 0:                                                               \
-  default:                                                              \
-    if (::starboard::logging::CheckOpResult true_if_passed =            \
-            ::logging::Check##name##Impl(is_dcheck, __FILE__, __LINE__, \
-                                         (val1), (val2),                \
-                                         #val1 " " #op " " #val2))      \
-      ;                                                                 \
-    else                                                                \
-      ::logging::CheckError(true_if_passed.log_message())
+#define SB_CHECK_OP_FUNCTION_IMPL(is_dcheck, name, op, val1, val2)            \
+  switch (0)                                                                  \
+  case 0:                                                                     \
+  default:                                                                    \
+    if (::starboard::logging::CheckOpResult true_if_passed =                  \
+            ::starboard::logging::Check##name##Impl(is_dcheck, __FILE__,      \
+                                                    __LINE__, (val1), (val2), \
+                                                    #val1 " " #op " " #val2)) \
+      ;                                                                       \
+    else                                                                      \
+      ::starboard::logging::CheckError(true_if_passed.log_message())
 
 #if !SB_CHECK_WILL_STREAM
 
@@ -240,9 +240,10 @@ DEFINE_CHECK_OP_IMPL(GT, > )
 #else
 
 // Don't do any evaluation but still reference the same stuff as when enabled.
-#define SB_DCHECK_OP(name, op, val1, val2)                   \
-  EAT_CHECK_STREAM_PARAMS((::logging::CheckOpValueStr(val1), \
-                           ::logging::CheckOpValueStr(val2), (val1)op(val2)))
+#define SB_DCHECK_OP(name, op, val1, val2)                                 \
+  SB_EAT_CHECK_STREAM_PARAMS((::starboard::logging::CheckOpValueStr(val1), \
+                              ::starboard::logging::CheckOpValueStr(val2), \
+                              (val1)op(val2)))
 
 #endif
 
