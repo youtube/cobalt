@@ -15,9 +15,9 @@
 #ifndef STARBOARD_RASPI_SHARED_OPEN_MAX_DISPMANX_RESOURCE_POOL_H_
 #define STARBOARD_RASPI_SHARED_OPEN_MAX_DISPMANX_RESOURCE_POOL_H_
 
+#include <mutex>
 #include <queue>
 
-#include "starboard/common/mutex.h"
 #include "starboard/common/ref_counted.h"
 #include "starboard/raspi/shared/dispmanx_util.h"
 
@@ -45,7 +45,7 @@ class DispmanxResourcePool : public RefCountedThreadSafe<DispmanxResourcePool> {
 
   const size_t max_number_of_resources_;
 
-  Mutex mutex_;
+  std::mutex mutex_;
   size_t number_of_resources_;
   int last_frame_width_;
   int last_frame_height_;

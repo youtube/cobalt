@@ -17,10 +17,10 @@
 
 #include <functional>
 #include <limits>
+#include <mutex>
 #include <queue>
 
 #include "starboard/common/log.h"
-#include "starboard/common/mutex.h"
 #include "starboard/common/queue.h"
 #include "starboard/common/ref_counted.h"
 #include "starboard/media.h"
@@ -92,7 +92,7 @@ class VideoDecoder
   bool request_thread_termination_;
   Queue<Event*> queue_;
 
-  Mutex mutex_;
+  std::mutex mutex_;
   std::queue<OMX_BUFFERHEADERTYPE*> filled_buffers_;
   std::queue<OMX_BUFFERHEADERTYPE*> freed_buffers_;
 
