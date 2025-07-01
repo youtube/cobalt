@@ -29,8 +29,7 @@ import on_device_tests_gateway_pb2_grpc
 _WORK_DIR = '/on_device_tests_gateway'
 
 _ON_DEVICE_TESTS_GATEWAY_SERVICE_HOST = (
-    'on-device-tests-gateway-service.on-device-tests.svc.cluster.local'
-)
+    'on-device-tests-gateway-service.on-device-tests.svc.cluster.local')
 
 # When testing with local gateway, uncomment:
 #_ON_DEVICE_TESTS_GATEWAY_SERVICE_HOST = 'localhost'
@@ -74,12 +73,10 @@ class OnDeviceTestsGatewayClient:
         ],
     )
     self.stub = on_device_tests_gateway_pb2_grpc.on_device_tests_gatewayStub(
-        self.channel
-    )
+        self.channel)
 
-  def run_trigger_command(
-      self, token: str, labels: List[str], test_requests: List[Dict[str, Any]]
-  ) -> None:
+  def run_trigger_command(self, token: str, labels: List[str],
+                          test_requests: List[Dict[str, Any]]) -> None:
     """Calls On-Device Tests service and passing given parameters to it.
 
     Args:
@@ -95,8 +92,7 @@ class OnDeviceTestsGatewayClient:
             token=token,
             labels=labels,
             test_requests=test_requests,
-        )
-    ):
+        )):
 
       print(response_line.response)
 
@@ -114,8 +110,7 @@ class OnDeviceTestsGatewayClient:
         on_device_tests_gateway_pb2.OnDeviceTestsWatchCommand(
             token=token,
             session_id=session_id,
-        )
-    ):
+        )):
 
       print(response_line.response)
 
@@ -149,8 +144,7 @@ def _get_test_args_and_dimensions(
     device_pool = dimensions.pop('device_pool', None)
 
     test_args.extend(
-        [f'dimension_{key}={value}' for key, value in dimensions.items()]
-    )
+        [f'dimension_{key}={value}' for key, value in dimensions.items()])
 
   return test_args, device_type, device_pool
 
@@ -193,14 +187,12 @@ def _unit_test_files(args: argparse.Namespace, target_name: str) -> List[str]:
     raise ValueError(f'Unsupported device family: {args.device_family}')
 
 
-def _unit_test_params(
-    args: argparse.Namespace, target_name: str, dir_on_device: str
-) -> List[str]:
+def _unit_test_params(args: argparse.Namespace, target_name: str,
+                      dir_on_device: str) -> List[str]:
   """Builds the list of params for a unit test request."""
+  runtime_deps = _DEPS_ARCH_MAP.get(args.device_family, '')
   params = [
-      (
-          f'push_files=test_runtime_deps:{_DEPS_ARCH_MAP.get(args.device_family, "")}'
-      ),
+      f'push_files=test_runtime_deps:{runtime_deps}',
       f'gtest_xml_file_on_device={dir_on_device}/{target_name}_testoutput.xml',
       f'gcs_result_filename={target_name}_testoutput.xml',
       f'gcs_log_filename={target_name}_log.txt',
@@ -227,7 +219,7 @@ def _process_test_requests(args: argparse.Namespace) -> List[Dict[str, Any]]:
 
     if args.test_type == 'unit_test':
       if not device_type or not device_pool:
-        raise RuntimeError('Dimensions not specified: device_type, device_pool')
+        raise ValueError('Dimensions not specified: device_type, device_pool')
       test_target = target_data
       target_name = test_target.split(':')[-1]
       gtest_filter = _get_gtest_filter(args.filter_json_dir, target_name)
@@ -277,8 +269,8 @@ def main() -> int:
   """Main routine for the on-device tests gateway client."""
 
   logging.basicConfig(
-      level=logging.INFO, format='[%(filename)s:%(lineno)s] %(message)s'
-  )
+      level=logging.INFO, format='[%(filename)s:%(lineno)s] %(message)s')
+
   print('Starting main routine')
 
   parser = argparse.ArgumentParser(
@@ -295,8 +287,7 @@ def main() -> int:
       help='On Device Tests authentication token',
   )
   subparsers = parser.add_subparsers(
-      dest='action', help='On-Device tests commands', required=True
-  )
+      dest='action', help='On-Device tests commands', required=True)
 
   # Trigger command
   trigger_parser = subparsers.add_parser(
@@ -391,30 +382,28 @@ def main() -> int:
 
   # Watch command
   watch_parser = subparsers.add_parser(
-      'watch', help='Watch a previously triggered On-Device test'
-  )
+      'watch', help='Watch a previously triggered On-Device test')
+
   watch_parser.add_argument(
       'session_id',
       type=str,
-      help=(
-          'Session ID of a previously triggered Mobile Harness test. '
-          'The test will be watched until it completes.'
-      ),
+      help=('Session ID of a previously triggered Mobile Harness test. '
+            'The test will be watched until it completes.'),
   )
 
   args = parser.parse_args()
   if args.test_type == 'e2e_test':
     if not args.cobalt_path:
-      parser.error('--cobalt_path is required for e2e_test')
+      raise ValueError('--cobalt_path is required for e2e_test')
   elif args.test_type == 'unit_test':
     if not args.device_family:
-      parser.error('--device_family is required for unit_test')
+      raise ValueError('--device_family is required for unit_test')
     if not args.gcs_archive_path:
-      parser.error('--gcs_archive_path is required for unit_test')
+      raise ValueError('--gcs_archive_path is required for unit_test')
     if not args.gcs_result_path:
-      parser.error('--gcs_result_path is required for unit_test')
+      raise ValueError('--gcs_result_path is required for unit_test')
     if not args.filter_json_dir:
-      parser.error('--filter_json_dir is required for unit_test')
+      raise ValueError('--filter_json_dir is required for unit_test')
 
   test_requests = _process_test_requests(args)
   client = OnDeviceTestsGatewayClient()
