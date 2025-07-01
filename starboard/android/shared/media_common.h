@@ -27,13 +27,12 @@
 
 namespace starboard::android::shared {
 
-inline bool IsWidevineL1(const char* key_system) {
-  return strcmp(key_system, "com.widevine") == 0 ||
-         strcmp(key_system, "com.widevine.alpha") == 0;
+inline bool IsWidevineL1(const std::string& key_system) {
+  return key_system == "com.widevine" || key_system == "com.widevine.alpha";
 }
 
-inline bool IsWidevineL3(const char* key_system) {
-  return strcmp(key_system, "com.youtube.widevine.l3") == 0;
+inline bool IsWidevineL3(const std::string& key_system) {
+  return key_system == "com.youtube.widevine.l3";
 }
 
 // Map a supported |SbMediaAudioCodec| into its corresponding mime type

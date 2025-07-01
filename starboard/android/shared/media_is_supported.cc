@@ -16,7 +16,6 @@
 
 #include "starboard/shared/starboard/media/media_support_internal.h"
 
-#include "starboard/android/shared/media_common.h"
 #include "starboard/android/shared/media_drm_bridge.h"
 #include "starboard/media.h"
 #include "starboard/shared/starboard/media/mime_type.h"
@@ -26,10 +25,6 @@ namespace starboard::shared::starboard::media {
 bool MediaIsSupported(SbMediaVideoCodec video_codec,
                       SbMediaAudioCodec audio_codec,
                       const char* key_system) {
-  SB_LOG(INFO) << __func__;
-  using ::starboard::android::shared::IsWidevineL1;
-  using ::starboard::android::shared::IsWidevineL3;
-
   // It is possible that the |key_system| comes with extra attributes, like
   // `com.widevine.alpha; encryptionscheme="cenc"`. We prepend "key_system/"
   // to it, so it can be parsed by MimeType.
@@ -49,9 +44,8 @@ bool MediaIsSupported(SbMediaVideoCodec video_codec,
     return false;
   }
 
-  const char* key_system_type = mime_type.subtype().c_str();
   return android::shared::MediaDrmBridge::IsKeySystemSupported(
-      base::android::AttachCurrentThread(), key_system_type);
+      mime_type.subtype());
 }
 
 }  // namespace starboard::shared::starboard::media

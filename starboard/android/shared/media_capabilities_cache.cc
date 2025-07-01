@@ -73,11 +73,11 @@ void ConvertStringToLowerCase(std::string* str) {
 }
 
 bool GetIsWidevineSupported() {
-  return MediaDrmBridge::IsWidevineSupported(AttachCurrentThread());
+  return MediaDrmBridge::IsWidevineSupported();
 }
 
 bool GetIsCbcsSupported() {
-  return MediaDrmBridge::IsCbcsSupported(AttachCurrentThread());
+  return MediaDrmBridge::IsCbcsSupported();
 }
 
 std::set<SbMediaTransferId> GetSupportedHdrTypes() {
