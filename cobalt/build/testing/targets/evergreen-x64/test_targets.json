@@ -4,6 +4,6 @@
     "starboard/nplb:nplb_loader"
   ],
   "executables": [
-    "out/evergreen-x64_devel/nplb_loader.py"
+    "out/evergreen-x64_devel/nplb_loader"
   ]
 }

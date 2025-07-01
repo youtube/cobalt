@@ -57,8 +57,7 @@ runs:
         cd "${test_dir}"
 
         for test_binary_path in $(cat out/${{ matrix.platform }}_${{ matrix.config }}/test_targets.json | jq -cr '.executables | join(" ")'); do
-          filename=$(basename "${test_binary_path}")
-          test_binary="${filename%%.*}"
+          test_binary=$(basename "${test_binary_path}")
           echo "Running tests for suite: ${test_binary}"
 
           test_filter="*"
