@@ -15,18 +15,17 @@
 #include "starboard/shared/modular/starboard_layer_posix_utsname_abi_wrappers.h"
 
 #include <errno.h>
-#include <string.h>
 
-void copy_uts_field(char* dest,
-                    size_t dest_sz,
-                    const char* src,
-                    size_t src_sz) {
-  if (dest == NULL || src == NULL) {
+#include <algorithm>
+#include <cstring>
+
+void CopyUtsField(const char* src, size_t src_sz, char* dest, size_t dest_sz) {
+  if (src == nullptr || dest == nullptr) {
     return;
   }
 
   memset(dest, 0, dest_sz);
-  const auto minlen = dest_sz < src_sz ? dest_sz : src_sz;
+  const auto minlen = std::min(dest_sz, src_sz);
   memcpy(dest, src, minlen);
 }
 
@@ -43,23 +42,18 @@ SB_EXPORT int __abi_wrap_uname(struct musl_utsname* musl_uts) {
     return retval;
   }
 
-  copy_uts_field(musl_uts->sysname, sizeof(musl_uts->sysname), uts.sysname,
-                 sizeof(uts.sysname));
-  copy_uts_field(musl_uts->nodename, sizeof(musl_uts->nodename), uts.nodename,
-                 sizeof(uts.nodename));
-  copy_uts_field(musl_uts->release, sizeof(musl_uts->release), uts.release,
-                 sizeof(uts.release));
-  copy_uts_field(musl_uts->version, sizeof(musl_uts->version), uts.version,
-                 sizeof(uts.version));
-  copy_uts_field(musl_uts->machine, sizeof(musl_uts->machine), uts.machine,
-                 sizeof(uts.machine));
-#ifdef _GNU_SOURCE
-  copy_uts_field(musl_uts->domainname, sizeof(musl_uts->domainname),
-                 uts.domainname, sizeof(uts.domainname));
-#else
-  copy_uts_field(musl_uts->domainname, sizeof(musl_uts->domainname),
-                 uts.__domainname, sizeof(uts.__domainname));
-#endif
+  CopyUtsField(uts.sysname, sizeof(uts.sysname), musl_uts->sysname,
+               sizeof(musl_uts->sysname));
+  CopyUtsField(uts.nodename, sizeof(uts.nodename), musl_uts->nodename,
+               sizeof(musl_uts->nodename));
+  CopyUtsField(uts.release, sizeof(uts.release), musl_uts->release,
+               sizeof(musl_uts->release));
+  CopyUtsField(uts.version, sizeof(uts.version), musl_uts->version,
+               sizeof(musl_uts->version));
+  CopyUtsField(uts.machine, sizeof(uts.machine), musl_uts->machine,
+               sizeof(musl_uts->machine));
+  CopyUtsField(uts.domainname, sizeof(uts.domainname), musl_uts->domainname,
+               sizeof(musl_uts->domainname));
 
   return retval;
 }

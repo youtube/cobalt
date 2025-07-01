@@ -23,7 +23,7 @@
 extern "C" {
 #endif
 
-#define UTSNAME_FIELD_SIZE 65
+#define UTSNAME_FIELD_SIZE 257
 
 struct musl_utsname {
   char sysname[UTSNAME_FIELD_SIZE];
@@ -31,11 +31,7 @@ struct musl_utsname {
   char release[UTSNAME_FIELD_SIZE];
   char version[UTSNAME_FIELD_SIZE];
   char machine[UTSNAME_FIELD_SIZE];
-#ifdef _GNU_SOURCE
   char domainname[UTSNAME_FIELD_SIZE];
-#else
-  char __domainname[UTSNAME_FIELD_SIZE];
-#endif
 };
 
 SB_EXPORT int __abi_wrap_uname(struct musl_utsname* musl_uts);
