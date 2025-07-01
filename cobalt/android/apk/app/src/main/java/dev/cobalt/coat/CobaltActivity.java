@@ -48,7 +48,6 @@ import dev.cobalt.util.UsedByNative;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
-import java.util.Optional;
 import java.util.regex.Pattern;
 import org.chromium.base.CommandLine;
 import org.chromium.base.library_loader.LibraryLoader;
@@ -250,49 +249,26 @@ public abstract class CobaltActivity extends Activity {
     finish();
   }
 
-  private static boolean isDpadKey(int keyCode) {
-      return keyCode == KeyEvent.KEYCODE_DPAD_UP
-              || keyCode == KeyEvent.KEYCODE_DPAD_LEFT
-              || keyCode == KeyEvent.KEYCODE_DPAD_RIGHT
-              || keyCode == KeyEvent.KEYCODE_DPAD_DOWN
-              || keyCode == KeyEvent.KEYCODE_DPAD_CENTER;
-  }
-
-  // Remap KeyEvent for imeAdapter.dispatchKeyEvent call.
-  protected static Optional<KeyEvent> getRemappedKeyEvent(int keyCode, int action) {
-    int mappedKeyCode;
-    if (keyCode == KeyEvent.KEYCODE_BACK) {
-      mappedKeyCode = KeyEvent.KEYCODE_ESCAPE;
-    } else if (isDpadKey(keyCode)) {
-      mappedKeyCode = keyCode;
-    } else {
-      return Optional.empty();
-    }
-    // |KeyEvent| needs to be created with |downTime| and |eventTime| set. If they are not set the
-    // app closes.
-    long eventTime = SystemClock.uptimeMillis();
-    return Optional.of(new KeyEvent(eventTime, eventTime, action, mappedKeyCode, 0));
-  }
-
-  protected boolean tryDispatchRemappedKey(int keyCode, int action) {
+  protected boolean dispatchKeyEventToIme(int keyCode, int action) {
     ImeAdapterImpl imeAdapter = getImeAdapterImpl();
     if (imeAdapter == null) {
       return false;
     }
 
-    return getRemappedKeyEvent(keyCode, action)
-        .map(event -> imeAdapter.dispatchKeyEvent(event))
-        .orElse(false);
+    // |KeyEvent| needs to be created with |downTime| and |eventTime| set. If they are not set the
+    // app closes.
+    long eventTime = SystemClock.uptimeMillis();
+    return imeAdapter.dispatchKeyEvent(new KeyEvent(eventTime, eventTime, action, keyCode, 0));
   }
 
   @Override
   public boolean onKeyDown(int keyCode, KeyEvent event) {
-    return tryDispatchRemappedKey(keyCode, KeyEvent.ACTION_DOWN) || super.onKeyDown(keyCode, event);
+    return dispatchKeyEventToIme(keyCode, KeyEvent.ACTION_DOWN) || super.onKeyDown(keyCode, event);
   }
 
   @Override
   public boolean onKeyUp(int keyCode, KeyEvent event) {
-    return tryDispatchRemappedKey(keyCode, KeyEvent.ACTION_UP) || super.onKeyUp(keyCode, event);
+    return dispatchKeyEventToIme(keyCode, KeyEvent.ACTION_UP) || super.onKeyUp(keyCode, event);
   }
 
   // Initially copied from ContentShellActiviy.java
