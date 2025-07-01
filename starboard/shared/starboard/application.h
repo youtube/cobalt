@@ -21,6 +21,7 @@
 #include <pthread.h>
 
 #include <memory>
+#include <mutex>
 #include <vector>
 
 #include "starboard/common/command_line.h"
@@ -287,7 +288,7 @@ class SB_EXPORT_ANDROID Application {
   // Registers a |callback| function that will be called when |Teardown| is
   // called.
   void RegisterTeardownCallback(TeardownCallback callback) {
-    ScopedLock lock(callbacks_lock_);
+    std::lock_guard lock(callbacks_lock_);
     teardown_callbacks_.push_back(callback);
   }
 
@@ -447,7 +448,7 @@ class SB_EXPORT_ANDROID Application {
   State state_;
 
   // Protect the teardown_callbacks_ vector.
-  Mutex callbacks_lock_;
+  std::mutex callbacks_lock_;
 
   // Callbacks that must be called when Teardown is called.
   std::vector<TeardownCallback> teardown_callbacks_;
