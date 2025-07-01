@@ -16,11 +16,15 @@
 
 #include "starboard/shared/starboard/media/media_support_internal.h"
 
+#include "starboard/android/shared/media_capabilities_cache.h"
 #include "starboard/android/shared/media_drm_bridge.h"
 #include "starboard/media.h"
 #include "starboard/shared/starboard/media/mime_type.h"
 
 namespace starboard::shared::starboard::media {
+
+using android::shared::MediaCapabilitiesCache;
+using android::shared::MediaDrmBridge;
 
 bool MediaIsSupported(SbMediaVideoCodec video_codec,
                       SbMediaAudioCodec audio_codec,
@@ -44,8 +48,18 @@ bool MediaIsSupported(SbMediaVideoCodec video_codec,
     return false;
   }
 
-  return android::shared::MediaDrmBridge::IsKeySystemSupported(
-      mime_type.subtype());
+  if (const std::string& key_system_type = mime_type.subtype();
+      !MediaDrmBridge::IsKeySystemSupported(key_system_type)) {
+    return false;
+  }
+
+  std::string encryption_scheme =
+      mime_type.GetParamStringValue("encryptionscheme", "");
+  if (encryption_scheme == "cbcs" || encryption_scheme == "cbcs-1-9") {
+    return MediaCapabilitiesCache::GetInstance()->IsCbcsSchemeSupported();
+  }
+
+  return true;
 }
 
 }  // namespace starboard::shared::starboard::media
