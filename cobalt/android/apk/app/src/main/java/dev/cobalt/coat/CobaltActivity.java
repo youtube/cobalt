@@ -92,6 +92,9 @@ public abstract class CobaltActivity extends Activity {
   private String mStartupUrl;
   private IntentRequestTracker mIntentRequestTracker;
   protected Boolean shouldSetJNIPrefix = true;
+  // Tracks the status of the FLAG_KEEP_SCREEN_ON window flag.
+  private Boolean isKeepScreenOnEnabled = false;
+
 
   // Initially copied from ContentShellActiviy.java
   protected void createContent(final Bundle savedInstanceState) {
@@ -426,8 +429,6 @@ public abstract class CobaltActivity extends Activity {
     if (webContents != null) {
       webContents.onShow();
     }
-
-    getWindow().addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON);
   }
 
   @Override
@@ -447,8 +448,6 @@ public abstract class CobaltActivity extends Activity {
     // Set the SurfaceView to fullscreen.
     View rootView = getWindow().getDecorView();
     setVideoSurfaceBounds(0, 0, rootView.getWidth(), rootView.getHeight());
-
-    getWindow().clearFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON);
   }
 
   @Override
@@ -669,5 +668,23 @@ public abstract class CobaltActivity extends Activity {
             }
           }
         });
+  }
+
+  public void toggleKeepScreenOn(boolean keepOn) {
+    if (isKeepScreenOnEnabled != keepOn) {
+      runOnUiThread(new Runnable() {
+            @Override
+            public void run() {
+              if (keepOn) {
+                getWindow().addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON);
+                Log.i(TAG, "Screen keep-on enabled for video playback");
+              } else {
+                getWindow().clearFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON);
+                Log.i(TAG, "Screen keep-on disabled");
+              }
+            }
+          });
+      isKeepScreenOnEnabled = keepOn;
+    }
   }
 }
