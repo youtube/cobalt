@@ -3,13 +3,15 @@
     "platforms": [
       "evergreen-arm-hardfp-raspi"
     ],
-    "test_on_host": false,
+    "test_on_device": true,
     "test_root_target": "//cobalt:gn_all",
-    "num_gtest_shards": 1,
+    "test_attempts": "3",
+    "test_dimensions": {
+      "release_version": "regex:10.*"
+    },
     "targets": [
       "cobalt:gn_all",
-      "loader_app",
-      "nplb"
+      "loader_app"
     ],
     "includes": [
       {
