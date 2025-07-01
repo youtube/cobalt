@@ -153,6 +153,8 @@ static_library("starboard_platform_sources") {
     "//starboard/shared/starboard/file_storage/storage_get_record_size.cc",
     "//starboard/shared/starboard/file_storage/storage_open_record.cc",
     "//starboard/shared/starboard/file_storage/storage_read_record.cc",
+    "//starboard/shared/starboard/loader_app_metrics.cc",
+    "//starboard/shared/starboard/loader_app_metrics.h",
     "//starboard/shared/starboard/log_mutex.cc",
     "//starboard/shared/starboard/log_mutex.h",
     "//starboard/shared/starboard/log_raw_dump_stack.cc",

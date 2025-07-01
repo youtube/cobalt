@@ -444,7 +444,7 @@ bool Application::HandleEventAndUpdateState(Application::Event* event) {
 }
 
 void Application::CallTeardownCallbacks() {
-  ScopedLock lock(callbacks_lock_);
+  std::lock_guard lock(callbacks_lock_);
   for (size_t i = 0; i < teardown_callbacks_.size(); ++i) {
     teardown_callbacks_[i]();
   }

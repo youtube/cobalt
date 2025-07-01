@@ -1,4 +1,4 @@
-// Copyright 2019 The Cobalt Authors. All Rights Reserved.
+// Copyright 2025 The Cobalt Authors. All Rights Reserved.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -12,11 +12,4 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include "starboard/shared/pthread/thread_sampler_internal.h"
-
-SbThreadContext SbThreadSamplerFreeze(SbThreadSampler sampler) {
-  if (!SbThreadSamplerIsValid(sampler)) {
-    return kSbThreadContextInvalid;
-  }
-  return static_cast<SbThreadSamplerPrivate*>(sampler)->Freeze();
-}
+#include <bits/hwcap.h>
