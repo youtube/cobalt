@@ -325,6 +325,6 @@ bool MediaDrmBridge::IsKeySystemSupported(const std::string& key_system) {
 
   JNIEnv* env = AttachCurrentThread();
   return Java_MediaDrmBridge_isCryptoSchemeSupported(
-      env, ToJavaByteArray(env, scheme_uuid, kUuidByte));
+             env, ToJavaByteArray(env, scheme_uuid, kUuidByte)) == JNI_TRUE;
 }
 }  // namespace starboard::android::shared
