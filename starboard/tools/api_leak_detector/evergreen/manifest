@@ -53,9 +53,7 @@ gai_strerror
 getauxval
 getc
 getcwd
-geteuid
 gethostname
-getpid
 getrlimit
 gmtime
 in6addr_any
@@ -85,8 +83,6 @@ readlink
 realpath
 rename
 rewind
-sched_get_priority_max
-sched_get_priority_min
 sched_getaffinity
 sdallocx
 select

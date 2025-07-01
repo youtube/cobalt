@@ -39,4 +39,16 @@ long pathconf(const char* path, int name) {
   return __abi_wrap_pathconf(path, name);
 }
 
+pid_t __abi_wrap_getpid();
+
+pid_t getpid() {
+  return __abi_wrap_getpid();
+}
+
+uid_t __abi_wrap_geteuid();
+
+uid_t geteuid() {
+  return __abi_wrap_geteuid();
+}
+
 }  // extern "C"

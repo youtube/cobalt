@@ -19,6 +19,7 @@
 #include <sys/types.h>
 
 #include "starboard/export.h"
+#include "starboard/shared/modular/starboard_layer_posix_signal_abi_wrappers.h"
 
 // The `__abi_wrap_lseek` function converts from the musl's off_t
 // type to the platform's off_t which may have different sizes as
@@ -218,6 +219,10 @@ SB_EXPORT ssize_t __abi_wrap_write(int fildes, const void* buf, size_t nbyte);
 SB_EXPORT long __abi_wrap_sysconf(int name);
 
 SB_EXPORT long __abi_wrap_pathconf(const char* path, int name);
+
+SB_EXPORT musl_uid_t __abi_wrap_geteuid();
+
+SB_EXPORT musl_pid_t __abi_wrap_getpid();
 
 #ifdef __cplusplus
 }  // extern "C"

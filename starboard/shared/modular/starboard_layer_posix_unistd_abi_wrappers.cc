@@ -651,3 +651,11 @@ long __abi_wrap_pathconf(const char* path, int name) {
   int converted_name = musl_conf_to_platform_conf(name);
   return (converted_name == -1) ? -1 : pathconf(path, converted_name);
 }
+
+musl_uid_t __abi_wrap_geteuid() {
+  return static_cast<musl_uid_t>(geteuid());
+}
+
+musl_pid_t __abi_wrap_getpid() {
+  return static_cast<musl_pid_t>(getpid());
+}
