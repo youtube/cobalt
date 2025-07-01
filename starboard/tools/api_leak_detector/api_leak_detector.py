@@ -148,7 +148,6 @@ _ALLOWED_SB_GE_16_POSIX_SYMBOLS = [
     'pipe2',
     'poll',
     'posix_memalign',
-    'ppoll',
     'pread',
     'pthread_attr_destroy',
     'pthread_attr_getdetachstate',

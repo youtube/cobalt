@@ -151,7 +151,6 @@ test("nplb") {
     "posix_compliance/posix_once_test.cc",
     "posix_compliance/posix_pipe_test.cc",
     "posix_compliance/posix_poll_test.cc",
-    "posix_compliance/posix_ppoll_test.cc",
     "posix_compliance/posix_process_test.cc",
     "posix_compliance/posix_rand_r_test.cc",
     "posix_compliance/posix_rand_test.cc",
