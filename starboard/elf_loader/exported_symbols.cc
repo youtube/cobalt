@@ -258,7 +258,6 @@ ExportedSymbols::ExportedSymbols() {
   REGISTER_SYMBOL(open);
   REGISTER_SYMBOL(pause);
   REGISTER_SYMBOL(pipe);
-  REGISTER_SYMBOL(poll);
   REGISTER_SYMBOL(posix_memalign);
   REGISTER_SYMBOL(ppoll);
   REGISTER_SYMBOL(pread);
@@ -332,6 +331,7 @@ ExportedSymbols::ExportedSymbols() {
   REGISTER_WRAPPER(opendir);
   REGISTER_WRAPPER(pathconf);
   REGISTER_WRAPPER(pipe2);
+  REGISTER_WRAPPER(poll);
   REGISTER_WRAPPER(pthread_attr_init);
   REGISTER_WRAPPER(pthread_attr_destroy);
   REGISTER_WRAPPER(pthread_attr_getdetachstate);
