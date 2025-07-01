@@ -237,6 +237,10 @@ SbDecodeTarget VideoRendererImpl::GetCurrentDecodeTarget() {
   return decode_target;
 }
 
+int32_t VideoRendererImpl::GetNumberOfFramesToBeRendered() {
+  return number_of_frames_.load();
+}
+
 void VideoRendererImpl::OnDecoderStatus(
     VideoDecoder::Status status,
     const scoped_refptr<VideoFrame>& frame) {

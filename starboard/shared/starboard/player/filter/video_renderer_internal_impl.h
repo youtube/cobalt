@@ -70,6 +70,8 @@ class VideoRendererImpl : public VideoRenderer, private JobQueue::JobOwner {
   void SetBounds(int z_index, int x, int y, int width, int height) override;
   SbDecodeTarget GetCurrentDecodeTarget() override;
 
+  int32_t GetNumberOfFramesToBeRendered() override;
+
  private:
   typedef std::list<scoped_refptr<VideoFrame>> Frames;
 

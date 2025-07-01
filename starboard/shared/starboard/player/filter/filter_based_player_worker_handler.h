@@ -66,6 +66,8 @@ class FilterBasedPlayerWorkerHandler : public PlayerWorker::Handler,
 
   SbDecodeTarget GetCurrentDecodeTarget() override;
 
+  int32_t GetNumberOfFramesToBeRendered() override;
+
   SbPlayer player_ = kSbPlayerInvalid;
   UpdateMediaInfoCB update_media_info_cb_;
   GetPlayerStateCB get_player_state_cb_;
