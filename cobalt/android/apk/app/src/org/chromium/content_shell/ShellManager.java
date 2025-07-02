@@ -2,9 +2,10 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-package dev.cobalt.shell;
+package org.chromium.content_shell;
 
 import android.content.Context;
+import android.util.Log;
 import org.chromium.base.ThreadUtils;
 import org.chromium.base.annotations.CalledByNative;
 import org.chromium.base.annotations.JNINamespace;
@@ -14,7 +15,6 @@ import org.chromium.content_public.browser.WebContents;
 import org.chromium.ui.base.WindowAndroid;
 
 /**
- * Copied from org.chromium.content_shell.ShellManager.
  * Container and generator of ShellViews.
  */
 @JNINamespace("content")
