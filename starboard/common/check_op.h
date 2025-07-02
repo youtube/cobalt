@@ -19,6 +19,7 @@
 #include <string>
 #include <type_traits>
 
+#include "starboard/common/check.h"
 #include "starboard/common/log.h"
 
 // Copied from base/check_op.h with modificatios, including
@@ -154,8 +155,6 @@ class CheckOpResult {
   constexpr explicit CheckOpResult(LogMessage* log_message)
       : log_message_(log_message) {}
 
-  constexpr ~CheckOpResult() { delete log_message_; }
-
   // Returns true if the check succeeded.
   constexpr explicit operator bool() const { return !log_message_; }
 
@@ -191,7 +190,7 @@ class CheckOpResult {
                 __FILE__, __LINE__, (val1), (val2), #val1 " " #op " " #val2)) \
       ;                                                                       \
     else                                                                      \
-      true_if_passed.log_message()->stream()
+      CheckError(true_if_passed.log_message())
 
 #define SB_CHECK_OP(name, op, val1, val2) \
   SB_CHECK_OP_FUNCTION_IMPL(name, op, val1, val2)
