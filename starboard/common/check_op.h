@@ -6,10 +6,16 @@
 #define STARBOARD_COMMON_CHECK_OP_H_
 
 #include <cstddef>
+#include <cstdlib>
 #include <string>
 #include <type_traits>
 
 #include "starboard/common/log.h"
+
+// Copied from base/check_op.h
+// Modification includes
+// - Add SB_ prefix to macros to avoid name conflict.
+// - Replace dependencies on base/ with the correspondings in starboard/.
 
 // This header defines the (DP)CHECK_EQ etc. macros.
 //
@@ -167,8 +173,6 @@ class CheckOpResult {
   LogMessage* const log_message_ = nullptr;
 };
 
-#define SB_CHECK_WILL_STREAM 1
-
 // Helper macro for binary operators.
 // The 'switch' is used to prevent the 'else' from being ambiguous when the
 // macro is used in an 'if' clause such as:
@@ -185,17 +189,8 @@ class CheckOpResult {
     else                                                                      \
       true_if_passed.log_message()->stream()
 
-#if !SB_CHECK_WILL_STREAM
-
-// Discard log strings to reduce code bloat.
-#define SB_CHECK_OP(name, op, val1, val2) SB_CHECK((val1)op(val2))
-
-#else
-
 #define SB_CHECK_OP(name, op, val1, val2) \
   SB_CHECK_OP_FUNCTION_IMPL(name, op, val1, val2)
-
-#endif
 
 // The second overload avoids address-taking of static members for
 // fundamental types.
@@ -265,4 +260,4 @@ DEFINE_SB_CHECK_OP_IMPL(GT, > )
 
 }  // namespace starboard::logging
 
-#endif  // BASE_CHECK_OP_H_
+#endif  // STARBOARD_COMMON_CHECK_OP_H_

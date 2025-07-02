@@ -657,7 +657,7 @@ bool VideoDecoder::InitializeCodec(const VideoStreamInfo& video_stream_info,
   SB_DCHECK(error_message);
 
   if (video_stream_info.codec == kSbMediaVideoCodecAv1) {
-    SB_DCHECK_GT(pending_input_buffers_.size(), static_cast<unsigned int>(0));
+    SB_DCHECK_GT(pending_input_buffers_.size(), 0u);
 
     // Guesstimate the video fps.
     if (pending_input_buffers_.size() == 1) {
@@ -1055,8 +1055,7 @@ SbDecodeTargetInfoContentRegion GetDecodeTargetContentRegionFromMatrix(
 
 // When in decode-to-texture mode, this returns the current decoded video frame.
 SbDecodeTarget VideoDecoder::GetCurrentDecodeTarget() {
-  SB_DCHECK_EQ(output_mode_,
-               static_cast<int>(kSbPlayerOutputModeDecodeToTexture));
+  SB_DCHECK_EQ(output_mode_, kSbPlayerOutputModeDecodeToTexture);
   // We must take a lock here since this function can be called from a separate
   // thread.
   ScopedLock lock(decode_target_mutex_);

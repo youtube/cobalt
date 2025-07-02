@@ -179,7 +179,7 @@ AudioTrackAudioSink::~AudioTrackAudioSink() {
 }
 
 void AudioTrackAudioSink::SetPlaybackRate(double playback_rate) {
-  SB_DCHECK_GE(playback_rate, 0.0) << "Hello!";
+  SB_DCHECK(playback_rate >= 0.0);
   if (playback_rate != 0.0 && playback_rate != 1.0) {
     SB_NOTIMPLEMENTED() << "TODO: Only playback rates of 0.0 and 1.0 are "
                            "currently supported.";
