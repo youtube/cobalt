@@ -37,8 +37,6 @@
 #include <sys/stat.h>
 #include <unistd.h>
 
-#include <netinet/in.h>
-#include <sys/socket.h>
 #include "starboard/audio_sink.h"
 #include "starboard/common/log.h"
 #include "starboard/configuration.h"

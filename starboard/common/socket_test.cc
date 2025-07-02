@@ -14,6 +14,8 @@
 
 #include "starboard/common/socket.h"
 
+#include <arpa/inet.h>
+
 #include "starboard/common/log.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
@@ -21,40 +23,39 @@ namespace starboard {
 namespace {
 
 TEST(SocketTest, TestGetUnspecifiedAddress) {
-  SbSocketAddress address =
-      GetUnspecifiedAddress(kSbSocketAddressTypeIpv4, 1010);
-  EXPECT_EQ(1010, address.port);
-  EXPECT_EQ(kSbSocketAddressTypeIpv4, address.type);
+  struct sockaddr_storage address = GetUnspecifiedAddress(AF_INET, 1010);
+  struct sockaddr_in* addr = reinterpret_cast<struct sockaddr_in*>(&address);
+  EXPECT_EQ(AF_INET, addr->sin_family);
+  EXPECT_EQ(htons(1010), addr->sin_port);
 }
 
 TEST(SocketTest, TestGetLocalhostAddressIpv4) {
-  SbSocketAddress address = {};
-  bool result = GetLocalhostAddress(kSbSocketAddressTypeIpv4, 2020, &address);
+  struct sockaddr_storage address = {};
+  bool result = GetLocalhostAddress(AF_INET, 2020, &address);
   ASSERT_TRUE(result);
-  EXPECT_EQ(2020, address.port);
-  EXPECT_EQ(kSbSocketAddressTypeIpv4, address.type);
-  EXPECT_EQ(127, address.address[0]);
-  EXPECT_EQ(0, address.address[1]);
-  EXPECT_EQ(0, address.address[2]);
-  EXPECT_EQ(1, address.address[3]);
+  struct sockaddr_in* addr = reinterpret_cast<struct sockaddr_in*>(&address);
+  EXPECT_EQ(AF_INET, addr->sin_family);
+  EXPECT_EQ(htons(2020), addr->sin_port);
+  char ip_str[INET_ADDRSTRLEN];
+  inet_ntop(AF_INET, &addr->sin_addr, ip_str, INET_ADDRSTRLEN);
+  EXPECT_STREQ("127.0.0.1", ip_str);
 }
 
 TEST(SocketTest, TestGetLocalhostAddressIpv6) {
-  SbSocketAddress address = {};
-  bool result = GetLocalhostAddress(kSbSocketAddressTypeIpv6, 3030, &address);
+  struct sockaddr_storage address = {};
+  bool result = GetLocalhostAddress(AF_INET6, 3030, &address);
   ASSERT_TRUE(result);
-  EXPECT_EQ(3030, address.port);
-  EXPECT_EQ(kSbSocketAddressTypeIpv6, address.type);
-  for (int i = 0; i < 15; i++) {
-    EXPECT_EQ(0, address.address[i]);
-  }
-  EXPECT_EQ(1, address.address[15]);
+  struct sockaddr_in6* addr = reinterpret_cast<struct sockaddr_in6*>(&address);
+  EXPECT_EQ(AF_INET6, addr->sin6_family);
+  EXPECT_EQ(htons(3030), addr->sin6_port);
+  char ip_str[INET6_ADDRSTRLEN];
+  inet_ntop(AF_INET6, &addr->sin6_addr, ip_str, INET6_ADDRSTRLEN);
+  EXPECT_STREQ("::1", ip_str);
 }
 
 TEST(SocketTest, TestGetLocalhostAddressInvalidType) {
-  SbSocketAddress address = {};
-  bool result =
-      GetLocalhostAddress(static_cast<SbSocketAddressType>(2), 4040, &address);
+  struct sockaddr_storage address = {};
+  bool result = GetLocalhostAddress(2, 4040, &address);
   ASSERT_FALSE(result);
 }
 }  // namespace

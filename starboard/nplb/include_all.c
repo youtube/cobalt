@@ -29,8 +29,6 @@
 #include "starboard/media.h"
 #include "starboard/microphone.h"
 #include "starboard/player.h"
-#include <sys/socket.h>
-#include <netinet/in.h>
 #include "starboard/speech_synthesis.h"
 #include "starboard/storage.h"
 #include "starboard/system.h"

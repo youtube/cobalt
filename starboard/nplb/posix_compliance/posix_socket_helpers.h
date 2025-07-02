@@ -23,8 +23,6 @@
 #include <sys/types.h>
 #include <unistd.h>
 
-#include <netinet/in.h>
-#include <sys/socket.h>
 #include "starboard/common/log.h"
 #include "starboard/common/time.h"
 #include "testing/gtest/include/gtest/gtest.h"
