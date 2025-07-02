@@ -16,8 +16,7 @@
 
 #include "sys/system_properties.h"
 
-#include "starboard/android/shared/jni_env_ext.h"
-#include "starboard/android/shared/jni_utils.h"
+#include "starboard/android/shared/starboard_bridge.h"
 #include "starboard/common/device_type.h"
 #include "starboard/common/log.h"
 #include "starboard/common/string.h"
@@ -25,10 +24,11 @@
 #define STRINGIZE_NO_EXPANSION(x) #x
 #define STRINGIZE(x) STRINGIZE_NO_EXPANSION(x)
 
-using starboard::android::shared::JniEnvExt;
-using starboard::android::shared::ScopedLocalJavaRef;
-
 namespace {
+
+// TODO: b/372559388 - Update namespace to jni_zero.
+using base::android::AttachCurrentThread;
+using starboard::android::shared::StarboardBridge;
 
 const char kFriendlyName[] = "Android";
 const char kUnknownValue[] = "unknown";
@@ -136,29 +136,21 @@ bool SbSystemGetProperty(SbSystemPropertyId property_id,
     case kSbSystemPropertySpeechApiKey:
       return false;
     case kSbSystemPropertyUserAgentAuxField: {
-      JniEnvExt* env = JniEnvExt::Get();
-      ScopedLocalJavaRef<jstring> aux_string(
-          env->CallStarboardObjectMethodOrAbort("getUserAgentAuxField",
-                                                "()Ljava/lang/String;"));
-
-      std::string utf_str = env->GetStringStandardUTFOrAbort(aux_string.Get());
-      bool success =
-          CopyStringAndTestIfSuccess(out_value, value_length, utf_str.c_str());
-      return success;
+      JNIEnv* env = AttachCurrentThread();
+      return CopyStringAndTestIfSuccess(
+          out_value, value_length,
+          StarboardBridge::GetInstance()->GetUserAgentAuxField(env).c_str());
     }
     case kSbSystemPropertyAdvertisingId: {
-      JniEnvExt* env = JniEnvExt::Get();
-      ScopedLocalJavaRef<jstring> id_string(
-          env->CallStarboardObjectMethodOrAbort("getAdvertisingId",
-                                                "()Ljava/lang/String;"));
-      std::string utf_str = env->GetStringStandardUTFOrAbort(id_string.Get());
-      return CopyStringAndTestIfSuccess(out_value, value_length,
-                                        utf_str.c_str());
+      JNIEnv* env = AttachCurrentThread();
+      return CopyStringAndTestIfSuccess(
+          out_value, value_length,
+          StarboardBridge::GetInstance()->GetAdvertisingId(env).c_str());
     }
     case kSbSystemPropertyLimitAdTracking: {
+      JNIEnv* env = AttachCurrentThread();
       bool limit_ad_tracking_enabled =
-          JniEnvExt::Get()->CallStarboardBooleanMethodOrAbort(
-              "getLimitAdTracking", "()Z") == JNI_TRUE;
+          StarboardBridge::GetInstance()->GetLimitAdTracking(env);
       return CopyStringAndTestIfSuccess(out_value, value_length,
                                         limit_ad_tracking_enabled ? "1" : "0");
     }

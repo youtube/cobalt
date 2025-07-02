@@ -48,7 +48,6 @@ import dev.cobalt.util.UsedByNative;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
-import java.util.Optional;
 import java.util.regex.Pattern;
 import org.chromium.base.CommandLine;
 import org.chromium.base.library_loader.LibraryLoader;
@@ -61,6 +60,7 @@ import org.chromium.content_public.browser.JavascriptInjector;
 import org.chromium.content_public.browser.WebContents;
 import org.chromium.content_shell.Shell;
 import org.chromium.content_shell.ShellManager;
+import org.chromium.content_shell.Util;
 import org.chromium.ui.base.ActivityWindowAndroid;
 import org.chromium.ui.base.IntentRequestTracker;
 
@@ -92,6 +92,9 @@ public abstract class CobaltActivity extends Activity {
   private String mStartupUrl;
   private IntentRequestTracker mIntentRequestTracker;
   protected Boolean shouldSetJNIPrefix = true;
+  // Tracks the status of the FLAG_KEEP_SCREEN_ON window flag.
+  private Boolean isKeepScreenOnEnabled = false;
+
 
   // Initially copied from ContentShellActiviy.java
   protected void createContent(final Bundle savedInstanceState) {
@@ -179,13 +182,13 @@ public abstract class CobaltActivity extends Activity {
       getStarboardBridge().handleDeepLink(startDeepLink);
     }
 
-    setContentView(R.layout.content_shell_activity);
-    mShellManager = findViewById(R.id.shell_container);
+    mShellManager = new ShellManager(this);
     final boolean listenToActivityState = true;
     mIntentRequestTracker = IntentRequestTracker.createFromActivity(this);
     mWindowAndroid = new ActivityWindowAndroid(this, listenToActivityState, mIntentRequestTracker);
     mIntentRequestTracker.restoreInstanceState(savedInstanceState);
     mShellManager.setWindow(mWindowAndroid);
+    setContentView(mShellManager.getContentViewRenderView());
     // Set up the animation placeholder to be the SurfaceView. This disables the
     // SurfaceView's 'hole' clipping during animations that are notified to the window.
     mWindowAndroid.setAnimationPlaceholderView(
@@ -249,49 +252,26 @@ public abstract class CobaltActivity extends Activity {
     finish();
   }
 
-  private static boolean isDpadKey(int keyCode) {
-      return keyCode == KeyEvent.KEYCODE_DPAD_UP
-              || keyCode == KeyEvent.KEYCODE_DPAD_LEFT
-              || keyCode == KeyEvent.KEYCODE_DPAD_RIGHT
-              || keyCode == KeyEvent.KEYCODE_DPAD_DOWN
-              || keyCode == KeyEvent.KEYCODE_DPAD_CENTER;
-  }
-
-  // Remap KeyEvent for imeAdapter.dispatchKeyEvent call.
-  protected static Optional<KeyEvent> getRemappedKeyEvent(int keyCode, int action) {
-    int mappedKeyCode;
-    if (keyCode == KeyEvent.KEYCODE_BACK) {
-      mappedKeyCode = KeyEvent.KEYCODE_ESCAPE;
-    } else if (isDpadKey(keyCode)) {
-      mappedKeyCode = keyCode;
-    } else {
-      return Optional.empty();
-    }
-    // |KeyEvent| needs to be created with |downTime| and |eventTime| set. If they are not set the
-    // app closes.
-    long eventTime = SystemClock.uptimeMillis();
-    return Optional.of(new KeyEvent(eventTime, eventTime, action, mappedKeyCode, 0));
-  }
-
-  protected boolean tryDispatchRemappedKey(int keyCode, int action) {
+  protected boolean dispatchKeyEventToIme(int keyCode, int action) {
     ImeAdapterImpl imeAdapter = getImeAdapterImpl();
     if (imeAdapter == null) {
       return false;
     }
 
-    return getRemappedKeyEvent(keyCode, action)
-        .map(event -> imeAdapter.dispatchKeyEvent(event))
-        .orElse(false);
+    // |KeyEvent| needs to be created with |downTime| and |eventTime| set. If they are not set the
+    // app closes.
+    long eventTime = SystemClock.uptimeMillis();
+    return imeAdapter.dispatchKeyEvent(new KeyEvent(eventTime, eventTime, action, keyCode, 0));
   }
 
   @Override
   public boolean onKeyDown(int keyCode, KeyEvent event) {
-    return tryDispatchRemappedKey(keyCode, KeyEvent.ACTION_DOWN) || super.onKeyDown(keyCode, event);
+    return dispatchKeyEventToIme(keyCode, KeyEvent.ACTION_DOWN) || super.onKeyDown(keyCode, event);
   }
 
   @Override
   public boolean onKeyUp(int keyCode, KeyEvent event) {
-    return tryDispatchRemappedKey(keyCode, KeyEvent.ACTION_UP) || super.onKeyUp(keyCode, event);
+    return dispatchKeyEventToIme(keyCode, KeyEvent.ACTION_UP) || super.onKeyUp(keyCode, event);
   }
 
   // Initially copied from ContentShellActiviy.java
@@ -374,6 +354,10 @@ public abstract class CobaltActivity extends Activity {
     videoSurfaceView.setBackgroundColor(Color.BLACK);
     a11yHelper = new CobaltA11yHelper(this, videoSurfaceView);
     addContentView(videoSurfaceView, new LayoutParams(LayoutParams.MATCH_PARENT, LayoutParams.MATCH_PARENT));
+
+    Log.i(TAG, "CobaltActivity onCreate, all Layout Views:");
+    View rootView = getWindow().getDecorView().getRootView();
+    Util.printRootViewHierarchy(rootView);
   }
 
   /**
@@ -439,24 +423,12 @@ public abstract class CobaltActivity extends Activity {
     AudioOutputManager.addAudioDeviceListener(this);
 
     getStarboardBridge().onActivityStart(this);
+    super.onStart();
 
     WebContents webContents = getActiveWebContents();
     if (webContents != null) {
       webContents.onShow();
     }
-    super.onStart();
-  }
-
-  @Override
-  protected void onResume() {
-    super.onResume();
-    getWindow().addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON);
-  }
-
-  @Override
-  protected void onPause() {
-    super.onPause();
-    getWindow().clearFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON);
   }
 
   @Override
@@ -651,14 +623,23 @@ public abstract class CobaltActivity extends Activity {
     ViewParent parent = videoSurfaceView.getParent();
     if (parent instanceof FrameLayout) {
       FrameLayout frameLayout = (FrameLayout) parent;
+      Log.i(TAG, "createNewSurfaceView, before removing videoSurfaceView, all Views:");
+      View rootView = getWindow().getDecorView().getRootView();
+      Util.printRootViewHierarchy(rootView);
+
       int index = frameLayout.indexOfChild(videoSurfaceView);
       frameLayout.removeView(videoSurfaceView);
+      Log.i(TAG, "removed videoSurfaceView at index:" + index);
+
       videoSurfaceView = new VideoSurfaceView(this);
       a11yHelper = new CobaltA11yHelper(this, videoSurfaceView);
       frameLayout.addView(
           videoSurfaceView,
           index,
           new LayoutParams(LayoutParams.MATCH_PARENT, LayoutParams.MATCH_PARENT));
+      Log.i(TAG, "inserted new videoSurfaceView at index:" + index);
+      Log.i(TAG, "after createNewSurfaceView, all Views:");
+      Util.printRootViewHierarchy(rootView);
     } else {
       Log.w(TAG, "Unexpected surface view parent class " + parent.getClass().getName());
     }
@@ -687,5 +668,23 @@ public abstract class CobaltActivity extends Activity {
             }
           }
         });
+  }
+
+  public void toggleKeepScreenOn(boolean keepOn) {
+    if (isKeepScreenOnEnabled != keepOn) {
+      runOnUiThread(new Runnable() {
+            @Override
+            public void run() {
+              if (keepOn) {
+                getWindow().addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON);
+                Log.i(TAG, "Screen keep-on enabled for video playback");
+              } else {
+                getWindow().clearFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON);
+                Log.i(TAG, "Screen keep-on disabled");
+              }
+            }
+          });
+      isKeepScreenOnEnabled = keepOn;
+    }
   }
 }

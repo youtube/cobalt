@@ -4,6 +4,7 @@
             "files": [
                 "content_shell.pak",
                 "gen/build_info.json",
+                "gen/licenses_cobalt.spdx",
                 "gen/licenses_cobalt.txt",
                 "icudtl.dat",
                 "lib.unstripped/libchrobalt.so",
@@ -13,13 +14,16 @@
                 "libtest_trace_processor.so",
                 "obj/cobalt/android/cobalt_java_resources.resources.zip",
                 "obj/components/metrics/metrics_java.javac.jar",
-                "obj/content/shell/android/content_shell_java_resources.resources.zip",
                 "obj/third_party/android_deps/chromium_play_services_availability_java.javac.jar"
             ],
             "rename_files": [
                 {
                     "from_file": "gen/build_info.json",
                     "to_file": "build_info.json"
+                },
+                {
+                    "from_file": "gen/licenses_cobalt.spdx",
+                    "to_file": "licenses_cobalt.spdx"
                 },
                 {
                     "from_file": "gen/licenses_cobalt.txt",
@@ -45,6 +49,7 @@
           "files": [
               "apks/Cobalt.apk",
               "gen/build_info.json",
+              "gen/licenses_cobalt.spdx",
               "gen/licenses_cobalt.txt",
               "lib.unstripped/libchrobalt.so"
           ],
@@ -56,6 +61,10 @@
               {
                   "from_file": "gen/build_info.json",
                   "to_file": "build_info.json"
+              },
+              {
+                  "from_file": "gen/licenses_cobalt.spdx",
+                  "to_file": "licenses_cobalt.spdx"
               },
               {
                   "from_file": "gen/licenses_cobalt.txt",

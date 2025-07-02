@@ -12,6 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+import("//build/config/android/rules.gni")
 import("//starboard/android/shared/toolchain/toolchain.gni")
 import("//starboard/shared/starboard/media/media_tests.gni")
 import("//starboard/shared/starboard/player/buildfiles.gni")
@@ -86,7 +87,6 @@ static_library("starboard_platform") {
     "//starboard/shared/pthread/thread_sampler_internal.h",
     "//starboard/shared/pthread/thread_sampler_is_supported.cc",
     "//starboard/shared/pthread/thread_sampler_thaw.cc",
-    "//starboard/shared/pthread/thread_yield.cc",
     "//starboard/shared/signal/crash_signals.h",
     "//starboard/shared/signal/crash_signals_sigaction.cc",
     "//starboard/shared/signal/suspend_signals.cc",
@@ -227,6 +227,8 @@ static_library("starboard_platform") {
     "media_common.h",
     "media_decoder.cc",
     "media_decoder.h",
+    "media_drm_bridge.cc",
+    "media_drm_bridge.h",
     "media_get_audio_configuration.cc",
     "media_get_audio_output_count.cc",
     "media_get_initial_buffer_capacity.cc",
@@ -403,4 +405,8 @@ source_set("starboard_platform_tests") {
     "//testing/gmock",
     "//testing/gtest",
   ]
+}
+
+java_cpp_enum("java_enums") {
+  sources = [ "media_codec_bridge.h" ]
 }

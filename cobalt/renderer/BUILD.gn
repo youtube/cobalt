@@ -12,6 +12,8 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+import("//testing/test.gni")
+
 source_set("renderer") {
   sources = [
     "cobalt_content_renderer_client.cc",
@@ -21,6 +23,7 @@ source_set("renderer") {
   ]
 
   deps = [
+    "//cobalt/browser:switches",
     "//cobalt/media/audio:webaudio",
     "//components/cdm/renderer",
     "//components/js_injection/renderer:renderer",
@@ -34,5 +37,18 @@ source_set("renderer") {
     "//media/mojo/clients",
     "//starboard:starboard_headers_only",
     "//v8",
+  ]
+}
+
+test("cobalt_renderer_unittests") {
+  testonly = true
+  sources = [ "cobalt_render_frame_observer_unittest.cc" ]
+  deps = [
+    ":renderer",
+    "//base/test:run_all_unittests",
+    "//base/test:test_support",
+    "//testing/gmock",
+    "//testing/gtest",
+    "//third_party/blink/renderer/modules/exported:test_support",
   ]
 }

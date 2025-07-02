@@ -107,14 +107,14 @@ int GetDefaultAudioFramesPerBuffer(AudioCodec codec) {
 }  // namespace
 
 StarboardRenderer::StarboardRenderer(
-    scoped_refptr<base::SequencedTaskRunner> task_runner,
+    const scoped_refptr<base::SequencedTaskRunner>& task_runner,
     std::unique_ptr<MediaLog> media_log,
     const base::UnguessableToken& overlay_plane_id,
     TimeDelta audio_write_duration_local,
     TimeDelta audio_write_duration_remote,
     const std::string& max_video_capabilities)
     : state_(STATE_UNINITIALIZED),
-      task_runner_(std::move(task_runner)),
+      task_runner_(task_runner),
       media_log_(std::move(media_log)),
       set_bounds_helper_(new SbPlayerSetBoundsHelper),
       cdm_context_(nullptr),
@@ -185,7 +185,7 @@ void StarboardRenderer::Initialize(MediaResource* media_resource,
   if (audio_stream_ == nullptr && video_stream_ == nullptr) {
     LOG(INFO)
         << "The video has to contain at least an audio track or a video track.";
-    std::move(init_cb).Run(PipelineStatus(
+    std::move(init_cb_).Run(PipelineStatus(
         DEMUXER_ERROR_NO_SUPPORTED_STREAMS,
         "The video has to contain at least an audio track or a video track."));
     return;
@@ -230,7 +230,7 @@ void StarboardRenderer::SetCdm(CdmContext* cdm_context,
   DCHECK(cdm_context);
   TRACE_EVENT0("media", "StarboardRenderer::SetCdm");
 
-  if (SbDrmSystemIsValid(drm_system_)) {
+  if (cdm_context_ || SbDrmSystemIsValid(drm_system_)) {
     LOG(WARNING) << "Switching CDM not supported.";
     std::move(cdm_attached_cb).Run(false);
     return;
@@ -433,6 +433,13 @@ void StarboardRenderer::OnVideoGeometryChange(const gfx::Rect& output_rect) {
                                 output_rect.width(), output_rect.height());
 }
 
+SbPlayerInterface* StarboardRenderer::GetSbPlayerInterface() {
+  if (test_sbplayer_interface_) {
+    return test_sbplayer_interface_;
+  }
+  return &sbplayer_interface_;
+}
+
 void StarboardRenderer::CreatePlayerBridge() {
   DCHECK(task_runner_->RunsTasksInCurrentSequence());
   DCHECK(init_cb_);
@@ -482,7 +489,7 @@ void StarboardRenderer::CreatePlayerBridge() {
     LOG(INFO) << "Creating SbPlayerBridge.";
 
     player_bridge_.reset(new SbPlayerBridge(
-        &sbplayer_interface_, task_runner_,
+        GetSbPlayerInterface(), task_runner_,
         // TODO(b/375070492): Implement decode-to-texture support
         SbPlayerBridge::GetDecodeTargetGraphicsContextProviderFunc(),
         audio_config, audio_mime_type, video_config, video_mime_type,

@@ -23,6 +23,7 @@ import android.app.Activity;
 import android.app.Service;
 import android.content.Context;
 import android.content.pm.PackageManager;
+import android.content.res.AssetManager;
 import android.hardware.input.InputManager;
 import android.media.AudioDeviceInfo;
 import android.media.AudioManager;
@@ -81,7 +82,14 @@ public class StarboardBridge {
       new Runnable() {
         @Override
         public void run() {
-          requestSuspend();
+          // When the platform locale setting is updated, the application needs
+          // to exit or the Accept-Language request header configuration needs
+          // to be updated. The Accept-Language header configuration is set on
+          // application start.
+          //
+          // To match cobalt 25, we're exiting the application.
+          // https://source.corp.google.com/piper///depot/google3/third_party/cobalt/app/android/coat/branch_25_lts/java/dev/cobalt/coat/StarboardBridge.java;l=96
+          afterStopped();
         }
       };
 
@@ -131,7 +139,11 @@ public class StarboardBridge {
     this.volumeStateReceiver = new VolumeStateReceiver(appContext);
     this.isAmatiDevice = appContext.getPackageManager().hasSystemFeature(AMATI_EXPERIENCE_FEATURE);
 
-    nativeApp = StarboardBridgeJni.get().startNativeStarboard();
+    nativeApp = StarboardBridgeJni.get().startNativeStarboard(
+      getAssetsFromContext(),
+      getFilesAbsolutePath(),
+      getCacheAbsolutePath(),
+      getNativeLibraryDir());
 
     StarboardBridgeJni.get().handleDeepLink(startDeepLink, /*applicationStarted=*/ false);
     StarboardBridgeJni.get().setAndroidBuildFingerprint(getBuildFingerprint());
@@ -149,7 +161,11 @@ public class StarboardBridge {
 
     long currentMonotonicTime();
 
-    long startNativeStarboard();
+    long startNativeStarboard(
+      AssetManager assetManager,
+      String filesDir,
+      String cacheDir,
+      String nativeLibraryDir);
     // TODO(cobalt, b/372559388): move below native methods to the Natives interface.
     // boolean initJNI();
 
@@ -234,7 +250,6 @@ public class StarboardBridge {
   }
 
   // Warning: "Stopped" refers to Starboard "Stopped" event, it's different from Android's "onStop".
-  @SuppressWarnings("unused")
   @CalledByNative
   protected void afterStopped() {
     applicationStopped = true;
@@ -251,20 +266,17 @@ public class StarboardBridge {
     }
   }
 
-  @SuppressWarnings("unused")
   @CalledByNative
   protected void applicationStarted() {
     applicationStarted = true;
   }
 
-  @SuppressWarnings("unused")
   @CalledByNative
   protected void applicationStopping() {
     applicationStarted = false;
     applicationStopped = true;
   }
 
-  @SuppressWarnings("unused")
   @CalledByNative
   public void requestSuspend() {
     Activity activity = activityHolder.get();
@@ -286,7 +298,6 @@ public class StarboardBridge {
 
   // private native boolean nativeOnSearchRequested();
 
-  @SuppressWarnings("unused")
   @CalledByNative
   public Context getApplicationContext() {
     if (appContext == null) {
@@ -295,7 +306,6 @@ public class StarboardBridge {
     return appContext;
   }
 
-  @SuppressWarnings("unused")
   @CalledByNative
   void raisePlatformError(@PlatformError.ErrorType int errorType, long data) {
     PlatformError error = new PlatformError(activityHolder, errorType, data);
@@ -315,7 +325,6 @@ public class StarboardBridge {
     return activityHolder;
   }
 
-  @SuppressWarnings("unused")
   @CalledByNative
   protected String[] getArgs() {
     if (args == null) {
@@ -329,12 +338,18 @@ public class StarboardBridge {
     StarboardBridgeJni.get().handleDeepLink(url, applicationStarted);
   }
 
+  public AssetManager getAssetsFromContext() {
+    return appContext.getAssets();
+  }
+
+  public String getNativeLibraryDir() {
+    return appContext.getApplicationInfo().nativeLibraryDir;
+  }
+
   /**
    * Returns the absolute path to the directory where application specific files should be written.
    * May be overridden for use cases that need to segregate storage.
    */
-  @SuppressWarnings("unused")
-  @CalledByNative
   protected String getFilesAbsolutePath() {
     return appContext.getFilesDir().getAbsolutePath();
   }
@@ -343,15 +358,12 @@ public class StarboardBridge {
    * Returns the absolute path to the application specific cache directory on the filesystem. May be
    * overridden for use cases that need to segregate storage.
    */
-  @SuppressWarnings("unused")
-  @CalledByNative
   protected String getCacheAbsolutePath() {
     return appContext.getCacheDir().getAbsolutePath();
   }
 
   // TODO: (cobalt b/372559388) remove or migrate JNI?
   // Used in starboard/android/shared/speech_synthesis_speak.cc
-  @SuppressWarnings("unused")
   @CalledByNative
   CobaltTextToSpeechHelper getTextToSpeechHelper() {
     if (ttsHelper == null) {
@@ -514,7 +526,6 @@ public class StarboardBridge {
   }
 
   /** Returns string for kSbSystemPropertyUserAgentAuxField */
-  @SuppressWarnings("unused")
   @CalledByNative
   protected String getUserAgentAuxField() {
     StringBuilder sb = new StringBuilder();
@@ -544,7 +555,6 @@ public class StarboardBridge {
   // TODO: (cobalt b/372559388) remove or migrate JNI?
   // Used in starboard/android/shared/system_get_property.cc
   /** Returns string for kSbSystemPropertyAdvertisingId */
-  @SuppressWarnings("unused")
   @CalledByNative
   protected String getAdvertisingId() {
     return this.advertisingId.getId();
@@ -553,7 +563,6 @@ public class StarboardBridge {
   // TODO: (cobalt b/372559388) remove or migrate JNI?
   // Used in starboard/android/shared/system_get_property.cc
   /** Returns boolean for kSbSystemPropertyLimitAdTracking */
-  @SuppressWarnings("unused")
   @CalledByNative
   protected boolean getLimitAdTracking() {
     return this.advertisingId.isLimitAdTrackingEnabled();
@@ -606,7 +615,6 @@ public class StarboardBridge {
   // TODO: (cobalt b/372559388) remove or migrate JNI?
   // Used in starboard/android/shared/media_capabilities_cache.cc
   /** Return supported hdr types. */
-  @SuppressWarnings("unused")
   @CalledByNative
   public int[] getSupportedHdrTypes() {
     Display defaultDisplay = DisplayUtil.getDefaultDisplay();
@@ -707,14 +715,12 @@ public class StarboardBridge {
   }
 
   // Returns the saved app start timestamp.
-  @SuppressWarnings("unused")
   @CalledByNative
   protected long getAppStartTimestamp() {
     return mAppStartTimestamp;
   }
 
   // Returns the saved app start timestamp.
-  @SuppressWarnings("unused")
   @CalledByNative
   protected long getAppStartDuration() {
     return mAppStartDuration;
@@ -743,7 +749,6 @@ public class StarboardBridge {
     CrashContext.INSTANCE.registerCrashContextUpdateHandler(handler);
   }
 
-  @SuppressWarnings("unused")
   @CalledByNative
   protected boolean getIsAmatiDevice() {
     return this.isAmatiDevice;

@@ -252,6 +252,9 @@ ExportedSymbols::ExportedSymbols() {
   REGISTER_SYMBOL(vsscanf);
   REGISTER_SYMBOL(write);
 
+  // Linux APIs
+  REGISTER_SYMBOL(recvmmsg);
+
   // Custom mapped POSIX APIs to compatibility wrappers.
   // These will rely on Starboard-side implementations that properly translate
   // Platform-specific types with musl-based types. These wrappers are defined

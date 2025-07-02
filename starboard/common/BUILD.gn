@@ -40,8 +40,8 @@ static_library("common") {
     "configuration_defaults.h",
     "device_type.cc",
     "device_type.h",
-    "experimental/concurrency_debug.cc",
-    "experimental/concurrency_debug.h",
+    "drm.cc",
+    "drm.h",
     "file.cc",
     "file.h",
     "fixed_no_free_allocator.cc",
@@ -59,8 +59,6 @@ static_library("common") {
     "murmurhash2.h",
     "mutex.cc",
     "mutex.h",
-    "optional.cc",
-    "optional.h",
     "paths.cc",
     "paths.h",
     "player.cc",
@@ -104,11 +102,14 @@ static_library("file_wrapper") {
 source_set("common_test") {
   testonly = true
   sources = [
+    "drm_test.cc",
     "fixed_no_free_allocator_test.cc",
     "log_unittest.cc",
     "media_test.cc",
     "memory_test.cc",
     "player_test.cc",
+    "queue_test.cc",
+    "semaphore_test.cc",
     "socket_test.cc",
     "test_main.cc",
   ]

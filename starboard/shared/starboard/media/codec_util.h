@@ -15,9 +15,9 @@
 #ifndef STARBOARD_SHARED_STARBOARD_MEDIA_CODEC_UTIL_H_
 #define STARBOARD_SHARED_STARBOARD_MEDIA_CODEC_UTIL_H_
 
+#include <optional>
 #include <vector>
 
-#include "starboard/common/optional.h"
 #include "starboard/media.h"
 #include "starboard/shared/internal_only.h"
 #include "starboard/shared/starboard/media/avc_util.h"
@@ -58,7 +58,7 @@ class VideoConfig {
   int width_ = -1;
   int height_ = -1;
   // Only valid when |video_codec_| is |kSbMediaVideoCodecH264|.
-  optional<AvcParameterSets> avc_parameter_sets_;
+  std::optional<AvcParameterSets> avc_parameter_sets_;
 };
 
 // Attempts to determine an SbMediaAudioCodec from |codec|, returning

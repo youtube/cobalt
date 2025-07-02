@@ -80,8 +80,10 @@ class MediaCodecBridge {
   private final String mMime;
   private double mPlaybackRate = 1.0;
   private int mFps = 30;
+  private final boolean mIsTunnelingPlayback;
 
   private MediaCodec.OnFrameRenderedListener mFrameRendererListener;
+  private MediaCodec.OnFirstTunnelFrameReadyListener mFirstTunnelFrameReadyListener;
 
   // Functions that require this will be called frequently in a tight loop.
   // Only create one of these and reuse it to avoid excessive allocations,
@@ -155,27 +157,23 @@ class MediaCodecBridge {
     private int mStatus;
     private int mIndex;
 
-    @SuppressWarnings("unused")
     @CalledByNative("DequeueInputResult")
     private DequeueInputResult() {
       mStatus = MediaCodecStatus.ERROR;
       mIndex = -1;
     }
 
-    @SuppressWarnings("unused")
     @CalledByNative("DequeueInputResult")
     private DequeueInputResult(int status, int index) {
       mStatus = status;
       mIndex = index;
     }
 
-    @SuppressWarnings("unused")
     @CalledByNative("DequeueInputResult")
     private int status() {
       return mStatus;
     }
 
-    @SuppressWarnings("unused")
     @CalledByNative("DequeueInputResult")
     private int index() {
       return mIndex;
@@ -192,7 +190,6 @@ class MediaCodecBridge {
     private long mPresentationTimeMicroseconds;
     private int mNumBytes;
 
-    @SuppressWarnings("unused")
     @CalledByNative("DequeueOutputResult")
     private DequeueOutputResult() {
       mStatus = MediaCodecStatus.ERROR;
@@ -203,7 +200,6 @@ class MediaCodecBridge {
       mNumBytes = 0;
     }
 
-    @SuppressWarnings("unused")
     @CalledByNative("DequeueOutputResult")
     private DequeueOutputResult(
         int status,
@@ -220,37 +216,31 @@ class MediaCodecBridge {
       mNumBytes = numBytes;
     }
 
-    @SuppressWarnings("unused")
     @CalledByNative("DequeueOutputResult")
     private int status() {
       return mStatus;
     }
 
-    @SuppressWarnings("unused")
     @CalledByNative("DequeueOutputResult")
     private int index() {
       return mIndex;
     }
 
-    @SuppressWarnings("unused")
     @CalledByNative("DequeueOutputResult")
     private int flags() {
       return mFlags;
     }
 
-    @SuppressWarnings("unused")
     @CalledByNative("DequeueOutputResult")
     private int offset() {
       return mOffset;
     }
 
-    @SuppressWarnings("unused")
     @CalledByNative("DequeueOutputResult")
     private long presentationTimeMicroseconds() {
       return mPresentationTimeMicroseconds;
     }
 
-    @SuppressWarnings("unused")
     @CalledByNative("DequeueOutputResult")
     private int numBytes() {
       return mNumBytes;
@@ -266,7 +256,6 @@ class MediaCodecBridge {
     private MediaFormat mFormat;
     private Optional<Boolean> mFormatHasCropValues = Optional.empty();
 
-    @SuppressWarnings("unused")
     @CalledByNative("GetOutputFormatResult")
     private GetOutputFormatResult() {
       mStatus = MediaCodecStatus.ERROR;
@@ -285,13 +274,11 @@ class MediaCodecBridge {
       return mFormatHasCropValues.orElse(false);
     }
 
-    @SuppressWarnings("unused")
     @CalledByNative("GetOutputFormatResult")
     private int status() {
       return mStatus;
     }
 
-    @SuppressWarnings("unused")
     @CalledByNative("GetOutputFormatResult")
     private int textureWidth() {
       return (mFormat != null && mFormat.containsKey(MediaFormat.KEY_WIDTH))
@@ -299,7 +286,6 @@ class MediaCodecBridge {
           : 0;
     }
 
-    @SuppressWarnings("unused")
     @CalledByNative("GetOutputFormatResult")
     private int textureHeight() {
       return (mFormat != null && mFormat.containsKey(MediaFormat.KEY_HEIGHT))
@@ -307,37 +293,31 @@ class MediaCodecBridge {
           : 0;
     }
 
-    @SuppressWarnings("unused")
     @CalledByNative("GetOutputFormatResult")
     private int cropLeft() {
       return formatHasCropValues() ? mFormat.getInteger(KEY_CROP_LEFT) : -1;
     }
 
-    @SuppressWarnings("unused")
     @CalledByNative("GetOutputFormatResult")
     private int cropTop() {
       return formatHasCropValues() ? mFormat.getInteger(KEY_CROP_TOP) : -1;
     }
 
-    @SuppressWarnings("unused")
     @CalledByNative("GetOutputFormatResult")
     private int cropRight() {
       return formatHasCropValues() ? mFormat.getInteger(KEY_CROP_RIGHT) : -1;
     }
 
-    @SuppressWarnings("unused")
     @CalledByNative("GetOutputFormatResult")
     private int cropBottom() {
       return formatHasCropValues() ? mFormat.getInteger(KEY_CROP_BOTTOM) : -1;
     }
 
-    @SuppressWarnings("unused")
     @CalledByNative("GetOutputFormatResult")
     private int sampleRate() {
       return mFormat.getInteger(MediaFormat.KEY_SAMPLE_RATE);
     }
 
-    @SuppressWarnings("unused")
     @CalledByNative("GetOutputFormatResult")
     private int channelCount() {
       return mFormat.getInteger(MediaFormat.KEY_CHANNEL_COUNT);
@@ -356,7 +336,6 @@ class MediaCodecBridge {
     public int colorTransfer;
     public ByteBuffer hdrStaticInfo;
 
-    @SuppressWarnings("unused")
     @CalledByNative("ColorInfo")
     ColorInfo(
         int colorRange,
@@ -421,20 +400,17 @@ class MediaCodecBridge {
     // Contains the error message when mMediaCodecBridge is null.
     private String mErrorMessage;
 
-    @SuppressWarnings("unused")
     @CalledByNative("CreateMediaCodecBridgeResult")
     private CreateMediaCodecBridgeResult() {
       mMediaCodecBridge = null;
       mErrorMessage = "";
     }
 
-    @SuppressWarnings("unused")
     @CalledByNative("CreateMediaCodecBridgeResult")
     private MediaCodecBridge mediaCodecBridge() {
       return mMediaCodecBridge;
     }
 
-    @SuppressWarnings("unused")
     @CalledByNative("CreateMediaCodecBridgeResult")
     private String errorMessage() {
       return mErrorMessage;
@@ -456,6 +432,7 @@ class MediaCodecBridge {
     mLastPresentationTimeUs = 0;
     mFlushed = true;
     mBitrateAdjustmentType = bitrateAdjustmentType;
+    mIsTunnelingPlayback = tunnelModeAudioSessionId != -1;
     mCallback =
         new MediaCodec.Callback() {
           @Override
@@ -522,7 +499,7 @@ class MediaCodecBridge {
         };
     mMediaCodec.get().setCallback(mCallback);
 
-    if (isFrameRenderedCallbackEnabled() || tunnelModeAudioSessionId != -1) {
+    if (isFrameRenderedCallbackEnabled() || mIsTunnelingPlayback) {
       mFrameRendererListener =
           new MediaCodec.OnFrameRenderedListener() {
             @Override
@@ -537,6 +514,10 @@ class MediaCodecBridge {
             }
           };
       mMediaCodec.get().setOnFrameRenderedListener(mFrameRendererListener, null);
+    }
+
+    if (mIsTunnelingPlayback) {
+      setupTunnelingPlayback();
     }
   }
 
@@ -755,7 +736,6 @@ class MediaCodecBridge {
     outCreateMediaCodecBridgeResult.mMediaCodecBridge = bridge;
   }
 
-  @SuppressWarnings("unused")
   @CalledByNative
   public void release() {
     try {
@@ -774,7 +754,6 @@ class MediaCodecBridge {
     return start(null);
   }
 
-  @SuppressWarnings("unused")
   @CalledByNative
   private boolean restart() {
     // Restart MediaCodec after flush().
@@ -796,7 +775,6 @@ class MediaCodecBridge {
     return true;
   }
 
-  @SuppressWarnings("unused")
   @CalledByNative
   private void setPlaybackRate(double playbackRate) {
     if (mPlaybackRate == playbackRate) {
@@ -826,11 +804,10 @@ class MediaCodecBridge {
     try {
       mMediaCodec.get().setParameters(b);
     } catch (IllegalStateException e) {
-      Log.e(TAG, "Failed to set MediaCodec operating rate", e);
+      Log.e(TAG, "Failed to set MediaCodec operating rate: ", e);
     }
   }
 
-  @SuppressWarnings("unused")
   @CalledByNative
   private int flush() {
     try {
@@ -864,7 +841,6 @@ class MediaCodecBridge {
     }
   }
 
-  @SuppressWarnings("unused")
   @CalledByNative
   private void getOutputFormat(GetOutputFormatResult outGetOutputFormatResult) {
     MediaFormat format = null;
@@ -880,7 +856,6 @@ class MediaCodecBridge {
   }
 
   /** Returns null if MediaCodec throws IllegalStateException. */
-  @SuppressWarnings("unused")
   @CalledByNative
   private ByteBuffer getInputBuffer(int index) {
     try {
@@ -892,7 +867,6 @@ class MediaCodecBridge {
   }
 
   /** Returns null if MediaCodec throws IllegalStateException. */
-  @SuppressWarnings("unused")
   @CalledByNative
   private ByteBuffer getOutputBuffer(int index) {
     try {
@@ -903,7 +877,6 @@ class MediaCodecBridge {
     }
   }
 
-  @SuppressWarnings("unused")
   @CalledByNative
   private int queueInputBuffer(
       int index, int offset, int size, long presentationTimeUs, int flags) {
@@ -917,7 +890,6 @@ class MediaCodecBridge {
     return MediaCodecStatus.OK;
   }
 
-  @SuppressWarnings("unused")
   @CalledByNative
   private int queueSecureInputBuffer(
       int index,
@@ -972,7 +944,6 @@ class MediaCodecBridge {
     return MediaCodecStatus.OK;
   }
 
-  @SuppressWarnings("unused")
   @CalledByNative
   private void releaseOutputBuffer(int index, boolean render) {
     try {
@@ -983,7 +954,6 @@ class MediaCodecBridge {
     }
   }
 
-  @SuppressWarnings("unused")
   @CalledByNative
   private void releaseOutputBufferAtTimestamp(int index, long renderTimestampNs) {
     try {
@@ -994,7 +964,6 @@ class MediaCodecBridge {
     }
   }
 
-  @SuppressWarnings("unused")
   @CalledByNative
   private boolean configureVideo(
       MediaFormat format,
@@ -1126,7 +1095,51 @@ class MediaCodecBridge {
     }
   }
 
-  @SuppressWarnings("unused")
+  private void setupTunnelingPlayback() {
+    // PARAMETER_KEY_TUNNEL_PEEK is added in Android 12.
+    if (Build.VERSION.SDK_INT >= 31) {
+      // |PARAMETER_KEY_TUNNEL_PEEK| should be default to enabled according to the API
+      // documentation, but some devices don't adhere to the documentation and we need to set the
+      // parameter explicitly.
+      Bundle bundle = new Bundle();
+      bundle.putInt(MediaCodec.PARAMETER_KEY_TUNNEL_PEEK, 1);
+      try {
+        mMediaCodec.get().setParameters(bundle);
+      } catch (IllegalStateException e) {
+        Log.e(TAG, "Failed to set MediaCodec PARAMETER_KEY_TUNNEL_PEEK: ", e);
+      }
+    } else {
+      Log.w(
+          TAG,
+          "MediaCodec PARAMETER_KEY_TUNNEL_PEEK is not supported in SDK version < 31: SDK version="
+              + Build.VERSION.SDK_INT);
+    }
+
+    // OnFirstTunnelFrameReadyListener is added in Android 12.
+    if (Build.VERSION.SDK_INT >= 31) {
+      mFirstTunnelFrameReadyListener =
+          new MediaCodec.OnFirstTunnelFrameReadyListener() {
+            @Override
+            public void onFirstTunnelFrameReady(MediaCodec codec) {
+              synchronized (this) {
+                if (mNativeMediaCodecBridge == 0) {
+                  return;
+                }
+                MediaCodecBridgeJni.get()
+                    .OnMediaCodecFirstTunnelFrameReady(mNativeMediaCodecBridge);
+              }
+            }
+          };
+      mMediaCodec.get().setOnFirstTunnelFrameReadyListener(null, mFirstTunnelFrameReadyListener);
+    } else {
+      Log.w(
+          TAG,
+          "MediaCodec OnFirstTunnelFrameReadyListener is not supported in SDK version < 31: SDK"
+              + " version="
+              + Build.VERSION.SDK_INT);
+    }
+  }
+
   @CalledByNative
   public boolean configureAudio(MediaFormat format, MediaCrypto crypto, int flags) {
     try {
@@ -1192,5 +1205,7 @@ class MediaCodecBridge {
 
     void onMediaCodecFrameRendered(
       long mediaCodecBridge, long presentationTimeUs, long renderAtSystemTimeNs);
+    
+    void OnMediaCodecFirstTunnelFrameReady(long mediaCodecBridge);
   }
 }
