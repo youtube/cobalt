@@ -14,14 +14,31 @@
 
 #include <memory>
 
+#include "base/files/file_path.h"
+#include "base/files/file_util.h"
+#include "base/memory/ref_counted_memory.h"
 #include "base/path_service.h"
 #include "cobalt/browser/cobalt_browser_main_parts.h"
 #include "cobalt/browser/global_features.h"
 #include "cobalt/browser/metrics/cobalt_metrics_service_client.h"
+#include "cobalt/shell/browser/shell.h"
+#include "cobalt/shell/browser/shell_devtools_manager_delegate.h"
 #include "cobalt/shell/browser/shell_paths.h"
+#include "cobalt/shell/browser/shell_platform_delegate.h"
 #include "components/metrics/metrics_service.h"
 #include "components/metrics_services_manager/metrics_services_manager.h"
 #include "content/public/browser/browser_thread.h"
+#include "content/public/common/content_switches.h"
+#include "net/base/filename_util.h"
+#include "net/base/net_module.h"
+#include "net/grit/net_resources.h"
+#include "ui/base/resource/resource_bundle.h"
+#include "ui/gfx/geometry/size.h"
+#include "url/gurl.h"
+
+#if BUILDFLAG(IS_ANDROID)
+#include "cobalt/shell/android/shell_manager.h"
+#endif
 
 #if BUILDFLAG(IS_ANDROIDTV)
 #include "cobalt/browser/android/mojo/cobalt_interface_registrar_android.h"
@@ -32,6 +49,43 @@
 #include "components/os_crypt/sync/os_crypt.h"
 #endif
 
+namespace {
+
+scoped_refptr<base::RefCountedMemory> PlatformResourceProvider(int key) {
+  if (key == IDR_DIR_HEADER_HTML) {
+    return ui::ResourceBundle::GetSharedInstance().LoadDataResourceBytes(
+        IDR_DIR_HEADER_HTML);
+  }
+  return nullptr;
+}
+
+GURL GetStartupURL() {
+  base::CommandLine* command_line = base::CommandLine::ForCurrentProcess();
+  if (command_line->HasSwitch(switches::kBrowserTest)) {
+    return GURL();
+  }
+
+#if BUILDFLAG(IS_ANDROID)
+  // Delay renderer creation on Android until surface is ready.
+  return GURL();
+#else
+  const base::CommandLine::StringVector& args = command_line->GetArgs();
+  if (args.empty()) {
+    return GURL("https://www.google.com/");
+  }
+
+  GURL url(args[0]);
+  if (url.is_valid() && url.has_scheme()) {
+    return url;
+  }
+
+  return net::FilePathToFileURL(
+      base::MakeAbsoluteFilePath(base::FilePath(args[0])));
+#endif
+}
+
+}  // namespace
+
 namespace cobalt {
 
 int CobaltBrowserMainParts::PreCreateThreads() {
@@ -41,7 +95,29 @@ int CobaltBrowserMainParts::PreCreateThreads() {
 
 int CobaltBrowserMainParts::PreMainMessageLoopRun() {
   StartMetricsRecording();
-  return ShellBrowserMainParts::PreMainMessageLoopRun();
+
+  browser_context_ = std::make_unique<content::ShellBrowserContext>(false);
+  // Persistent Origin Trials needs to be instantiated as soon as possible
+  // during browser startup, to ensure data is available prior to the first
+  // request.
+  browser_context_->GetOriginTrialsControllerDelegate();
+
+  std::unique_ptr<content::ShellPlatformDelegate> delegate =
+      std::make_unique<content::ShellPlatformDelegate>();
+  content::Shell::Initialize(std::move(delegate));
+  net::NetModule::SetResourceProvider(PlatformResourceProvider);
+  content::ShellDevToolsManagerDelegate::StartHttpHandler(
+      browser_context_.get());
+  content::Shell::CreateNewWindow(browser_context_.get(), GetStartupURL(),
+                                  nullptr, gfx::Size());
+
+#if BUILDFLAG(IS_ANDROID)
+  content::BrowserContext* context = browser_context_.get();
+  DCHECK(context);
+  SetShellManagerBrowserContext(context);
+#endif
+
+  return 0;
 }
 
 void CobaltBrowserMainParts::SetupMetrics() {
