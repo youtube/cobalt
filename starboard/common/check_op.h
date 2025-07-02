@@ -190,7 +190,7 @@ class CheckOpResult {
                 __FILE__, __LINE__, (val1), (val2), #val1 " " #op " " #val2)) \
       ;                                                                       \
     else                                                                      \
-      CheckError(true_if_passed.log_message())
+      ::starboard::logging::CheckError(true_if_passed.log_message())
 
 #define SB_CHECK_OP(name, op, val1, val2) \
   SB_CHECK_OP_FUNCTION_IMPL(name, op, val1, val2)

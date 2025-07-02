@@ -30,7 +30,7 @@ class CheckError {
   // Used by CheckOp. Takes ownership of `log_message`.
   explicit CheckError(LogMessage* log_message) : log_message_(log_message) {}
 
-  CheckError::~CheckError() { delete log_message_; }
+  ~CheckError() { delete log_message_; }
 
   CheckError(const CheckError&) = delete;
   CheckError& operator=(const CheckError&) = delete;
