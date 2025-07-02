@@ -22,12 +22,12 @@
 #include "base/containers/contains.h"
 #include "base/notreached.h"
 #include "base/strings/string_piece.h"
+#include "cobalt/android/jni_headers/Shell_jni.h"
 #include "cobalt/shell/android/shell_manager.h"
 #include "cobalt/shell/browser/shell.h"
 #include "content/public/browser/render_widget_host_view.h"
 #include "content/public/browser/web_contents.h"
 #include "content/public/common/content_switches.h"
-#include "content/shell/android/content_shell_jni_headers/Shell_jni.h"
 
 using base::android::AttachCurrentThread;
 using base::android::ConvertUTF8ToJavaString;

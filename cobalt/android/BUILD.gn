@@ -43,6 +43,8 @@ generate_jni("jni_headers") {
     "apk/app/src/main/java/dev/cobalt/media/MediaCodecBridge.java",
     "apk/app/src/main/java/dev/cobalt/media/MediaCodecBridgeBuilder.java",
     "apk/app/src/main/java/dev/cobalt/media/MediaDrmBridge.java",
+    "apk/app/src/main/java/dev/cobalt/shell/Shell.java",
+    "apk/app/src/main/java/dev/cobalt/shell/ShellManager.java",
   ]
 
   if (!use_evergreen) {
@@ -52,11 +54,26 @@ generate_jni("jni_headers") {
   }
 }
 
-generate_jni("content_shell_jni_headers") {
-  sources = [
-    "apk/app/src/org/chromium/content_shell/Shell.java",
-    "apk/app/src/org/chromium/content_shell/ShellManager.java",
+android_library("content_shell_apk_java") {
+  testonly = true
+
+  resources_package = "org.chromium.content_shell_apk"
+  deps = [
+    ":cobalt_shell_java",
+    "//base:base_java",
+    "//base:process_launcher_java",
+    "//build/android:build_java",
+    "//components/embedder_support/android:view_java",
+    "//content/public/android:content_java",
+    "//content/shell/android:content_shell_apk_resources",
+    "//media/capture/video/android:capture_java",
+    "//net/android:net_java",
+    "//third_party/android_deps:com_google_code_findbugs_jsr305_java",
+    "//ui/android:ui_java",
+    "//url:gurl_java",
   ]
+
+  sources = [ "//content/shell/android/shell_apk/src/org/chromium/content_shell_apk/ContentShellApplication.java" ]
 }
 
 android_library("cobalt_shell_java") {
@@ -80,10 +97,10 @@ android_library("cobalt_shell_java") {
     "//url:gurl_java",
   ]
   sources = [
-    "apk/app/src/org/chromium/content_shell/Shell.java",
-    "apk/app/src/org/chromium/content_shell/ShellManager.java",
-    "apk/app/src/org/chromium/content_shell/ShellViewAndroidDelegate.java",
-    "apk/app/src/org/chromium/content_shell/Util.java",
+    "apk/app/src/main/java/dev/cobalt/shell/Shell.java",
+    "apk/app/src/main/java/dev/cobalt/shell/ShellManager.java",
+    "apk/app/src/main/java/dev/cobalt/shell/ShellViewAndroidDelegate.java",
+    "apk/app/src/main/java/dev/cobalt/shell/Util.java",
   ]
 
   annotation_processor_deps = [ "//base/android/jni_generator:jni_processor" ]
@@ -244,7 +261,6 @@ shared_library("libchrobalt") {
   # TODO(b/375655377): remove testonly
   testonly = true
   deps = [
-    ":content_shell_jni_headers",
     "//cobalt/browser",
     "//cobalt/gpu",
     "//cobalt/renderer",
