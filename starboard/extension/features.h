@@ -27,7 +27,6 @@ extern "C" {
 typedef enum SbFeatureParamType {
   SbFeatureParamTypeBool,
   SbFeatureParamTypeInt,
-  SbFeatureParamTypeSize,
   SbFeatureParamTypeDouble,
   SbFeatureParamTypeString,
   SbFeatureParamTypeTime,
@@ -42,14 +41,13 @@ typedef struct SbFeatureParam {
   const char* feature_name;
   const char* param_name;
   SbFeatureParamType type;
-  union {
+  union ParamValue {
     bool bool_value;
     int int_value;
-    size_t size_value;
     double double_value;
     const char* string_value;
     int64_t time_value;
-  };
+  } value;
 } SbFeatureParam;
 
 typedef struct StarboardExtensionFeaturesApi {
