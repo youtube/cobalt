@@ -56,7 +56,6 @@ getauxval
 getc
 getcwd
 geteuid
-gethostname
 getpid
 getrlimit
 gmtime
@@ -126,7 +125,6 @@ timerfd_settime
 tmpfile
 tzname
 tzset
-uname
 ungetc
 uselocale
 utimes

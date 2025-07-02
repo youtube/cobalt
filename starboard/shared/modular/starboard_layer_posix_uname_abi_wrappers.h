@@ -12,8 +12,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#ifndef STARBOARD_SHARED_MODULAR_STARBOARD_LAYER_POSIX_UTSNAME_ABI_WRAPPERS_H_
-#define STARBOARD_SHARED_MODULAR_STARBOARD_LAYER_POSIX_UTSNAME_ABI_WRAPPERS_H_
+#ifndef STARBOARD_SHARED_MODULAR_STARBOARD_LAYER_POSIX_UNAME_ABI_WRAPPERS_H_
+#define STARBOARD_SHARED_MODULAR_STARBOARD_LAYER_POSIX_UNAME_ABI_WRAPPERS_H_
 
 #include <sys/utsname.h>
 
@@ -23,15 +23,15 @@
 extern "C" {
 #endif
 
-#define UTSNAME_FIELD_SIZE 257
+#define MUSL_UTSNAME_FIELD_SIZE 257
 
 struct musl_utsname {
-  char sysname[UTSNAME_FIELD_SIZE];
-  char nodename[UTSNAME_FIELD_SIZE];
-  char release[UTSNAME_FIELD_SIZE];
-  char version[UTSNAME_FIELD_SIZE];
-  char machine[UTSNAME_FIELD_SIZE];
-  char domainname[UTSNAME_FIELD_SIZE];
+  char sysname[MUSL_UTSNAME_FIELD_SIZE];
+  char nodename[MUSL_UTSNAME_FIELD_SIZE];
+  char release[MUSL_UTSNAME_FIELD_SIZE];
+  char version[MUSL_UTSNAME_FIELD_SIZE];
+  char machine[MUSL_UTSNAME_FIELD_SIZE];
+  char domainname[MUSL_UTSNAME_FIELD_SIZE];
 };
 
 SB_EXPORT int __abi_wrap_uname(struct musl_utsname* musl_uts);
@@ -40,4 +40,4 @@ SB_EXPORT int __abi_wrap_uname(struct musl_utsname* musl_uts);
 }  // extern "C"
 #endif
 
-#endif  // STARBOARD_SHARED_MODULAR_STARBOARD_LAYER_POSIX_UTSNAME_ABI_WRAPPERS_H_
+#endif  // STARBOARD_SHARED_MODULAR_STARBOARD_LAYER_POSIX_UNAME_ABI_WRAPPERS_H_

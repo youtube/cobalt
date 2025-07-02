@@ -16,9 +16,9 @@
 
 extern "C" {
 
-int __abi_wrap_uname(struct utsname* buf);
+int __abi_wrap_uname(struct utsname* name);
 
-int uname(struct utsname* buf) {
-  return __abi_wrap_uname(buf);
+int uname(struct utsname* name) {
+  return __abi_wrap_uname(name);
 }
 }

@@ -17,6 +17,7 @@
 #include <sys/utsname.h>
 
 #include <string>
+#include "starboard/common/log.h"
 
 #include "testing/gtest/include/gtest/gtest.h"
 
@@ -36,9 +37,22 @@ TEST_F(PosixUnameTest, BasicUnameCall) {
   struct utsname name;
   int result = uname(&name);
 
-  ASSERT_EQ(0, result) << "uname() failed with error: " << strerror(errno);
+  ASSERT_GE(0, result) << "uname() failed with error: " << strerror(errno);
+  EXPECT_FALSE(std::string(name.sysname).empty());
+  EXPECT_FALSE(std::string(name.nodename).empty());
+  EXPECT_FALSE(std::string(name.release).empty());
+  EXPECT_FALSE(std::string(name.version).empty());
+  EXPECT_FALSE(std::string(name.machine).empty());
+  EXPECT_FALSE(std::string(name.domainname).empty());
   EXPECT_EQ(0, errno) << "errno was set to " << errno << " (" << strerror(errno)
                       << ") after successful uname call.";
+
+  SB_LOG(INFO) << "sysname: " << name.sysname;
+  SB_LOG(INFO) << "nodename: " << name.nodename;
+  SB_LOG(INFO) << "release: " << name.release;
+  SB_LOG(INFO) << "version: " << name.version;
+  SB_LOG(INFO) << "machine: " << name.machine;
+  SB_LOG(INFO) << "domainname: " << name.domainname;
 }
 
 // Ensure that passing a nullptr to uname() sets errno to EFAULT.

@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include "starboard/shared/modular/starboard_layer_posix_utsname_abi_wrappers.h"
+#include "starboard/shared/modular/starboard_layer_posix_uname_abi_wrappers.h"
 
 #include <errno.h>
 
@@ -24,16 +24,16 @@ void CopyUtsField(const char* src, size_t src_sz, char* dest, size_t dest_sz) {
     return;
   }
 
-  if (src_sz != UTSNAME_FIELD_SIZE || dest_sz != UTSNAME_FIELD_SIZE) {
+  if (dest_sz < src_sz) {
     return;
   }
 
-  memset(dest, 0, UTSNAME_FIELD_SIZE);
-  memcpy(dest, src, UTSNAME_FIELD_SIZE);
+  memset(dest, 0, dest_sz);
+  memcpy(dest, src, src_sz);
 }
 
 SB_EXPORT int __abi_wrap_uname(struct musl_utsname* musl_uts) {
-  // Set EFAULT if utsname is invalid.
+  // Set EFAULT if |musl_uts| is invalid.
   if (musl_uts == NULL) {
     errno = EFAULT;
     return -1;
@@ -41,7 +41,7 @@ SB_EXPORT int __abi_wrap_uname(struct musl_utsname* musl_uts) {
 
   struct utsname uts = {0};  // The type from platform toolchain.
   int retval = uname(&uts);
-  if (retval != 0) {
+  if (retval < 0) {
     return retval;
   }
 
