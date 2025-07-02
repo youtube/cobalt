@@ -27,26 +27,6 @@ repos:
     -   id: mixed-line-ending
     -   id: trailing-whitespace
 
--   repo: https://cobalt.googlesource.com/codespell
-    rev: v2.3.0
-    hooks:
-    -   id: codespell
-        name: Spell Check
-        args: [-x, cobalt/precommit/.codespellignorelines,
-               # The --ignore-words-list argument has a bug where it needs to
-               # be lowercase, see
-               # https://github.com/codespell-project/codespell/issues/1390
-               --ignore-words-list, "atleast,varius,assertIn,requestor,kNo,FileTest",
-               ]
-        exclude: |
-            (?x)^(
-                starboard/content/ssl/certs/|
-                starboard/shared/starboard/player/testdata/|
-                starboard/android/apk/app/src/app/assets/web/link_android_splash_screen.html |
-                cobalt/demos/content|
-                cobalt/third_party/boringssl/src/include/openssl/thread.h
-            )
-
 -   repo: local
     hooks:
     -   id: clang-format
