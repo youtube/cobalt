@@ -58,7 +58,6 @@ group("content_shell_lib_deps") {
     "//components/origin_trials:browser",
     "//components/origin_trials:common",
     "//components/performance_manager",
-    "//components/permissions",
     "//components/prefs",
     "//components/services/storage/test_api",
     "//components/url_formatter",
@@ -80,7 +79,6 @@ group("content_shell_lib_deps") {
     "//content/shell:shell_controller_mojom",
     "//content/test:content_test_mojo_bindings",
     "//content/test:test_support",
-    "//device/bluetooth",
     "//media",
     "//media/mojo:buildflags",
     "//net",
@@ -136,7 +134,6 @@ group("content_shell_lib_deps") {
 
   if (is_ios) {
     public_deps += [
-      "//components/permissions",
       "//services/tracing/public/cpp",
       "//services/tracing/public/mojom:mojom",
       "//ui/shell_dialogs",
@@ -259,6 +256,38 @@ static_library("content_shell_lib") {
     "//content/shell/renderer/shell_render_frame_observer.h",
     "//content/shell/utility/shell_content_utility_client.cc",
     "//content/shell/utility/shell_content_utility_client.h",
+<<<<<<< HEAD
+=======
+    "browser/shell.cc",
+    "browser/shell.h",
+    "browser/shell_browser_context.cc",
+    "browser/shell_browser_context.h",
+    "browser/shell_browser_main_parts.cc",
+    "browser/shell_browser_main_parts.h",
+    "browser/shell_content_browser_client.cc",
+    "browser/shell_content_browser_client.h",
+    "browser/shell_content_index_provider.cc",
+    "browser/shell_content_index_provider.h",
+    "browser/shell_devtools_bindings.cc",
+    "browser/shell_devtools_bindings.h",
+    "browser/shell_devtools_frontend.cc",
+    "browser/shell_devtools_frontend.h",
+    "browser/shell_devtools_manager_delegate.cc",
+    "browser/shell_devtools_manager_delegate.h",
+    "browser/shell_javascript_dialog.h",
+    "browser/shell_javascript_dialog_manager.cc",
+    "browser/shell_javascript_dialog_manager.h",
+    "browser/shell_paths.cc",
+    "browser/shell_paths.h",
+    "browser/shell_platform_data_aura.cc",
+    "browser/shell_platform_data_aura.h",
+    "browser/shell_platform_delegate.cc",
+    "browser/shell_platform_delegate.h",
+    "browser/shell_speech_recognition_manager_delegate.cc",
+    "browser/shell_speech_recognition_manager_delegate.h",
+    "browser/shell_web_contents_view_delegate.h",
+    "browser/shell_web_contents_view_delegate_creator.h",
+>>>>>>> 489e735c8d7 (Remove redundant functionalities in cobalt/shell/browser (#6214))
   ]
 
   if (is_android) {
@@ -286,12 +315,19 @@ static_library("content_shell_lib") {
 
   if (is_ios) {
     sources += [
+<<<<<<< HEAD
       "//content/shell/browser/bluetooth/shell_bluetooth_delegate_impl_client.cc",
       "//content/shell/browser/bluetooth/shell_bluetooth_delegate_impl_client.h",
       "//content/shell/browser/shell_file_select_helper.cc",
       "//content/shell/browser/shell_file_select_helper.h",
       "//content/shell/browser/shell_platform_delegate_ios.mm",
       "//content/shell/browser/shell_web_contents_view_delegate_ios.mm",
+=======
+      "browser/shell_file_select_helper.cc",
+      "browser/shell_file_select_helper.h",
+      "browser/shell_platform_delegate_ios.mm",
+      "browser/shell_web_contents_view_delegate_ios.mm",
+>>>>>>> 489e735c8d7 (Remove redundant functionalities in cobalt/shell/browser (#6214))
     ]
     configs += [ "//build/config/compiler:enable_arc" ]
   }
