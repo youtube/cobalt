@@ -28,6 +28,7 @@
 #include <ifaddrs.h>
 #include <malloc.h>
 #include <netdb.h>
+#include <poll.h>
 #include <sched.h>
 #include <signal.h>
 #include <stdlib.h>
@@ -54,6 +55,7 @@
 #include "starboard/shared/modular/starboard_layer_posix_errno_abi_wrappers.h"
 #include "starboard/shared/modular/starboard_layer_posix_mmap_abi_wrappers.h"
 #include "starboard/shared/modular/starboard_layer_posix_pipe2_abi_wrappers.h"
+#include "starboard/shared/modular/starboard_layer_posix_poll_abi_wrappers.h"
 #include "starboard/shared/modular/starboard_layer_posix_pthread_abi_wrappers.h"
 #include "starboard/shared/modular/starboard_layer_posix_semaphore_abi_wrappers.h"
 #include "starboard/shared/modular/starboard_layer_posix_signal_abi_wrappers.h"
@@ -258,6 +260,7 @@ ExportedSymbols::ExportedSymbols() {
   REGISTER_SYMBOL(pause);
   REGISTER_SYMBOL(pipe);
   REGISTER_SYMBOL(posix_memalign);
+  REGISTER_SYMBOL(ppoll);
   REGISTER_SYMBOL(pread);
   REGISTER_SYMBOL(pwrite);
   REGISTER_SYMBOL(raise);
@@ -272,6 +275,7 @@ ExportedSymbols::ExportedSymbols() {
   REGISTER_SYMBOL(sched_get_priority_max);
   REGISTER_SYMBOL(sched_get_priority_min);
   REGISTER_SYMBOL(sched_yield);
+  REGISTER_SYMBOL(select);
   REGISTER_SYMBOL(send);
   REGISTER_SYMBOL(sendto);
   REGISTER_SYMBOL(signal);
@@ -328,6 +332,7 @@ ExportedSymbols::ExportedSymbols() {
   REGISTER_WRAPPER(opendir);
   REGISTER_WRAPPER(pathconf);
   REGISTER_WRAPPER(pipe2);
+  REGISTER_WRAPPER(poll);
   REGISTER_WRAPPER(pthread_attr_init);
   REGISTER_WRAPPER(pthread_attr_destroy);
   REGISTER_WRAPPER(pthread_attr_getdetachstate);
