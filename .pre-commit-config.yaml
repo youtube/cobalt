@@ -31,24 +31,6 @@ repos:
     -   id: trailing-whitespace
     -   id: mixed-line-ending
 
--   repo: https://cobalt.googlesource.com/codespell
-    rev: 67c489d36dd4c52cbb9e4755d90c35c6231842ef  # v2.0.0
-    hooks:
-    -   id: codespell
-        name: Spell Check
-        args: [-x, .codespellignorelines,
-               # The --ignore-words-list argument has a bug where it needs to
-               # be lowercase, see
-               # https://github.com/codespell-project/codespell/issues/1390
-               --ignore-words-list, atleast]
-        exclude: |
-            (?x)^(
-                starboard/[^/]+/i18n/|
-                cobalt/content/licenses/|
-                cobalt/fetch/embedded_scripts|
-                cobalt/loader/cors_preflight.cc
-            )
-
 -   repo: local
     hooks:
     -   id: sync-keyboxes
