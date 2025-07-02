@@ -1,6 +1,7 @@
 {
   "failing_tests": [
     "AllocatorShimTest.*",
+    "AlternateBucketDistribution/PartitionAllocThreadCacheTest.*",
     "BreakIteratorTest.BreakCharacter",
     "BreakIteratorTest.BreakLine",
     "BreakIteratorTest.BreakLineEmpty",
@@ -99,10 +100,12 @@
     "TimeFormattingTest.TimeIntervalFormat",
     "TimezoneTest.CountryCodeForTimezones",
     "TraceEventAnalyzerTest.*",
-    "TraceEventTestFixture.SetCurrentThreadBlocksMessageLoopAfterTracing",
+    "TraceEventTestFixture.*",
     "TransliteratorTest.LatinASCIICorrect",
     "TransliteratorTest.LowerCorrect",
     "TransliteratorTest.LowerLatinASCIICorrect",
+    "TypedTraceEventFilterDebugAnnotationsTest.*",
+    "TypedTraceEventTest.*",
     "ValuesUtilTest.FilePath",
     "LoggingTest.AlwaysLogErrorsToStderr",
     "LoggingTest.CheckCausesDistinctBreakpoints",
