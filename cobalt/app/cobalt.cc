@@ -29,10 +29,10 @@
 #include "build/build_config.h"
 #include "cobalt/app/cobalt_main_delegate.h"
 #include "cobalt/app/cobalt_switch_defaults.h"
+#include "cobalt/shell/browser/shell.h"
+#include "cobalt/shell/browser/shell_paths.h"
 #include "content/public/app/content_main.h"
 #include "content/public/app/content_main_runner.h"
-#include "content/shell/browser/shell.h"
-#include "content/shell/browser/shell_paths.h"
 #include "starboard/event.h"
 #include "ui/ozone/platform/starboard/platform_event_source_starboard.h"
 
