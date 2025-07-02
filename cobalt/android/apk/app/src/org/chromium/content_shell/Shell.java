@@ -2,12 +2,14 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-package dev.cobalt.shell;
+package org.chromium.content_shell;
 
 import android.app.Activity;
 import android.content.Context;
 import android.graphics.Rect;
 import android.text.TextUtils;
+import android.util.AttributeSet;
+import android.util.Log;
 import android.view.ActionMode;
 import android.view.Menu;
 import android.view.MenuItem;
@@ -26,10 +28,10 @@ import org.chromium.content_public.browser.WebContents;
 import org.chromium.ui.base.ViewAndroidDelegate;
 import org.chromium.ui.base.WindowAndroid;
 
+// Cobalt's own Java implementation of Shell. It does not have Shell UI.
+
 /**
- *  Copied from org.chromium.content_shell.Shell.
- *  Cobalt's own Java implementation of Shell. It does not have Shell UI.
- *  Container for the various UI components that make up a shell window.
+ * Container for the various UI components that make up a shell window.
  */
 @JNINamespace("content")
 public class Shell {

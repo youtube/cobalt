@@ -2,15 +2,15 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-package dev.cobalt.shell;
+package org.chromium.content_shell;
 
 import android.graphics.Bitmap;
 import android.view.ViewGroup;
+
 import org.chromium.ui.base.ViewAndroidDelegate;
 import org.chromium.ui.mojom.CursorType;
 
 /**
- * Copied from org.chromium.content_shell.ShellViewAndroidDelegate.
  * Implementation of the abstract class {@link ViewAndroidDelegate} for content shell.
  * Extended for testing.
  */
