@@ -54,6 +54,9 @@ message TestRequest {
   string device_pool = 6;
   // E.g. "base:base_unittests" or "url:url_unittests"
   string test_target = 7;
+  reserved 8;
+  // E.g. "unit_test" or "e2e_test"
+  string test_type = 9;
 }
 
 message OnDeviceTestsWatchCommand {
