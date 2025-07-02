@@ -35,6 +35,7 @@ jinja_template("cobalt_manifest") {
 
 generate_jni("jni_headers") {
   sources = [
+    "apk/app/src/main/java/dev/cobalt/browser/CobaltViewRenderView.java",
     "apk/app/src/main/java/dev/cobalt/coat/AudioPermissionRequester.java",
     "apk/app/src/main/java/dev/cobalt/coat/CobaltTextToSpeechHelper.java",
     "apk/app/src/main/java/dev/cobalt/coat/StarboardBridge.java",
@@ -54,28 +55,6 @@ generate_jni("jni_headers") {
   }
 }
 
-android_library("content_shell_apk_java") {
-  testonly = true
-
-  resources_package = "org.chromium.content_shell_apk"
-  deps = [
-    ":cobalt_shell_java",
-    "//base:base_java",
-    "//base:process_launcher_java",
-    "//build/android:build_java",
-    "//components/embedder_support/android:view_java",
-    "//content/public/android:content_java",
-    "//content/shell/android:content_shell_apk_resources",
-    "//media/capture/video/android:capture_java",
-    "//net/android:net_java",
-    "//third_party/android_deps:com_google_code_findbugs_jsr305_java",
-    "//ui/android:ui_java",
-    "//url:gurl_java",
-  ]
-
-  sources = [ "//content/shell/android/shell_apk/src/org/chromium/content_shell_apk/ContentShellApplication.java" ]
-}
-
 android_library("cobalt_shell_java") {
   testonly = true
   resources_package = "org.chromium.content_shell"
@@ -85,7 +64,6 @@ android_library("cobalt_shell_java") {
     "//base:jni_java",
     "//build/android:build_java",
     "//components/download/internal/common:internal_java",
-    "//components/embedder_support/android:view_java",
     "//components/viz/service:service_java",
     "//content/public/android:content_java",
     "//media/base/android:media_java",
@@ -97,6 +75,7 @@ android_library("cobalt_shell_java") {
     "//url:gurl_java",
   ]
   sources = [
+    "apk/app/src/main/java/dev/cobalt/browser/CobaltViewRenderView.java",
     "apk/app/src/main/java/dev/cobalt/shell/Shell.java",
     "apk/app/src/main/java/dev/cobalt/shell/ShellManager.java",
     "apk/app/src/main/java/dev/cobalt/shell/ShellViewAndroidDelegate.java",
@@ -117,7 +96,6 @@ android_library("cobalt_main_java") {
     "//base:jni_java",
     "//base:process_launcher_java",
     "//build/android:build_java",
-    "//components/embedder_support/android:view_java",
     "//components/version_info/android:version_constants_java",
     "//content/public/android:content_java",
     "//media/capture/video/android:capture_java",
@@ -131,7 +109,6 @@ android_library("cobalt_main_java") {
     "//third_party/androidx:androidx_core_core_java",
     "//third_party/androidx:androidx_customview_customview_java",
     "//third_party/androidx:androidx_media_media_java",
-    "//ui/android:ui_java",
     "//ui/android:ui_no_recycler_view_java",
     "//url:gurl_java",
   ]
@@ -250,7 +227,6 @@ template("content_shell_apk_tmpl") {
       "//net/android:net_java",
       "//services/shape_detection:shape_detection_java",
       "//third_party/mesa_headers",
-      "//ui/android:ui_java",
     ]
   }
 }
@@ -267,6 +243,7 @@ shared_library("libchrobalt") {
     "//gpu/command_buffer/service",
 
     # TODO: what can be removed in the dependencies?
+    "//cc/slim:slim",
     "//cobalt/shell:content_shell_app",
     "//cobalt/shell:content_shell_lib",
     "//components/crash/content/browser",
@@ -290,6 +267,8 @@ shared_library("libchrobalt") {
     "//cobalt/app/cobalt_main_delegate.cc",
     "//cobalt/app/cobalt_main_delegate.h",
     "cobalt_library_loader.cc",
+    "cobalt_view_render_view.cc",
+    "cobalt_view_render_view.h",
   ]
   configs -= [ "//build/config/android:hide_all_but_jni_onload" ]
   configs += [ "//build/config/android:hide_all_but_jni" ]

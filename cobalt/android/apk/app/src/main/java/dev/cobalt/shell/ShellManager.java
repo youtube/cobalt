@@ -5,11 +5,11 @@
 package dev.cobalt.shell;
 
 import android.content.Context;
+import dev.cobalt.browser.CobaltViewRenderView;
 import org.chromium.base.ThreadUtils;
 import org.chromium.base.annotations.CalledByNative;
 import org.chromium.base.annotations.JNINamespace;
 import org.chromium.base.annotations.NativeMethods;
-import org.chromium.components.embedder_support.view.ContentViewRenderView;
 import org.chromium.content_public.browser.WebContents;
 import org.chromium.ui.base.WindowAndroid;
 
@@ -27,7 +27,7 @@ public class ShellManager {
     private String mStartupUrl = DEFAULT_SHELL_URL;
 
     // The target for all content rendering.
-    private ContentViewRenderView mContentViewRenderView;
+    private CobaltViewRenderView mCobaltViewRenderView;
 
     private Context mContext;
 
@@ -49,8 +49,8 @@ public class ShellManager {
     public void setWindow(WindowAndroid window) {
         assert window != null;
         mWindow = window;
-        mContentViewRenderView = new ContentViewRenderView(getContext());
-        mContentViewRenderView.onNativeLibraryLoaded(window);
+        mCobaltViewRenderView = new CobaltViewRenderView(getContext());
+        mCobaltViewRenderView.onNativeLibraryLoaded(window);
     }
 
     /**
@@ -61,10 +61,10 @@ public class ShellManager {
     }
 
     /**
-     * Get the ContentViewRenderView.
+     * Get the CobaltViewRenderView.
      */
-    public ContentViewRenderView getContentViewRenderView() {
-        return mContentViewRenderView;
+    public CobaltViewRenderView getCobaltViewRenderView() {
+        return mCobaltViewRenderView;
     }
 
     /**
@@ -94,9 +94,9 @@ public class ShellManager {
 
     @CalledByNative
     private Object createShell(long nativeShellPtr) {
-        if (mContentViewRenderView == null) {
-            mContentViewRenderView = new ContentViewRenderView(getContext());
-            mContentViewRenderView.onNativeLibraryLoaded(mWindow);
+        if (mCobaltViewRenderView == null) {
+            mCobaltViewRenderView = new CobaltViewRenderView(getContext());
+            mCobaltViewRenderView.onNativeLibraryLoaded(mWindow);
         }
 
         Shell shellView = new Shell(getContext());
@@ -110,11 +110,11 @@ public class ShellManager {
     }
 
     private void showShell(Shell shellView) {
-        shellView.setContentViewRenderView(mContentViewRenderView);
+        shellView.setCobaltViewRenderView(mCobaltViewRenderView);
         mActiveShell = shellView;
         WebContents webContents = mActiveShell.getWebContents();
         if (webContents != null) {
-            mContentViewRenderView.setCurrentWebContents(webContents);
+            mCobaltViewRenderView.setCurrentWebContents(webContents);
             webContents.onShow();
         }
     }
@@ -122,13 +122,13 @@ public class ShellManager {
     @CalledByNative
     private void removeShell(Shell shellView) {
         if (shellView == mActiveShell) mActiveShell = null;
-        shellView.setContentViewRenderView(null);
+        shellView.setCobaltViewRenderView(null);
     }
 
     /**
      * Destroys the Shell manager and associated components.
      * Always called at activity exit, and potentially called by native in cases where we need to
-     * control the timing of mContentViewRenderView destruction. Must handle being called twice.
+     * control the timing of mCobaltViewRenderView destruction. Must handle being called twice.
      */
     @CalledByNative
     public void destroy() {
@@ -136,9 +136,9 @@ public class ShellManager {
         if (mActiveShell != null) {
             removeShell(mActiveShell);
         }
-        if (mContentViewRenderView != null) {
-            mContentViewRenderView.destroy();
-            mContentViewRenderView = null;
+        if (mCobaltViewRenderView != null) {
+            mCobaltViewRenderView.destroy();
+            mCobaltViewRenderView = null;
         }
     }
 
