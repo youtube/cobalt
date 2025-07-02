@@ -15,8 +15,12 @@
   "test_on_host": true,
 >>>>>>> 898c0f59b89 (Add nplb for evergreen (#6132))
   "test_root_target": "//cobalt:gn_all",
+<<<<<<< HEAD
   "num_gtest_shards": 1,
 >>>>>>> c35a7661e27 (Enable base_unittests on the CI. (#5159))
+=======
+  "num_gtest_shards": 10,
+>>>>>>> 3b4435bb727 (Add more evergreen-x64 test suites to CI (#6252))
   "targets": [
 <<<<<<< HEAD
     "base",
