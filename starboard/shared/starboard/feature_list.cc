@@ -36,29 +36,8 @@ void FeatureList::InitializeFeatureList(const SbFeature* features,
 
   // Store the updated params inside of our instance's param map
   for (size_t i = 0; i < number_of_params; i++) {
-    ParamTypeAndValue& entry =
-        (instance->params_)[params[i].feature_name][params[i].param_name];
-    switch (params[i].type) {
-      case SbFeatureParamTypeBool:
-        entry = std::make_pair(SbFeatureParamTypeBool, params[i].bool_value);
-        break;
-      case SbFeatureParamTypeInt:
-        entry = std::make_pair(SbFeatureParamTypeInt, params[i].int_value);
-        break;
-      case SbFeatureParamTypeSize:
-        entry = std::make_pair(SbFeatureParamTypeSize, params[i].size_value);
-        break;
-      case SbFeatureParamTypeDouble:
-        entry =
-            std::make_pair(SbFeatureParamTypeDouble, params[i].double_value);
-        break;
-      case SbFeatureParamTypeString:
-        entry = std::make_pair(SbFeatureParamTypeString,
-                               std::string(params[i].string_value));
-        break;
-      case SbFeatureParamTypeTime:
-        entry = std::make_pair(SbFeatureParamTypeTime, params[i].time_value);
-    }
+    (instance->params_)[params[i].feature_name][params[i].param_name] =
+        std::make_pair(params[i].type, params[i].value);
   }
   instance->IS_INITIALIZED_ = true;
 }
@@ -93,8 +72,8 @@ bool FeatureList::GetParam(const SbFeatureParamExt<bool>& param) {
                                                    param.param_name));
   SB_CHECK(instance->params_[param.feature_name][param.param_name].first ==
            SbFeatureParamTypeBool);
-  return std::get<bool>(
-      instance->params_[param.feature_name][param.param_name].second);
+  return instance->params_[param.feature_name][param.param_name]
+      .second.bool_value;
 }
 
 template <>
@@ -105,8 +84,8 @@ int FeatureList::GetParam(const SbFeatureParamExt<int>& param) {
                                                    param.param_name));
   SB_CHECK(instance->params_[param.feature_name][param.param_name].first ==
            SbFeatureParamTypeInt);
-  return std::get<int>(
-      instance->params_[param.feature_name][param.param_name].second);
+  return instance->params_[param.feature_name][param.param_name]
+      .second.int_value;
 }
 
 template <>
@@ -117,20 +96,8 @@ std::string FeatureList::GetParam(const SbFeatureParamExt<std::string>& param) {
                                                    param.param_name));
   SB_CHECK(instance->params_[param.feature_name][param.param_name].first ==
            SbFeatureParamTypeString);
-  return std::get<std::string>(
-      instance->params_[param.feature_name][param.param_name].second);
-}
-
-template <>
-size_t FeatureList::GetParam(const SbFeatureParamExt<size_t>& param) {
-  FeatureList* instance = GetInstance();
-  ScopedLock lock(instance->mutex_);
-  SB_CHECK(instance->checkFeatureAndParamExistence(param.feature_name,
-                                                   param.param_name));
-  SB_CHECK(instance->params_[param.feature_name][param.param_name].first ==
-           SbFeatureParamTypeSize);
-  return std::get<size_t>(
-      instance->params_[param.feature_name][param.param_name].second);
+  return std::string(instance->params_[param.feature_name][param.param_name]
+                         .second.string_value);
 }
 
 template <>
@@ -141,8 +108,8 @@ int64_t FeatureList::GetParam(const SbFeatureParamExt<int64_t>& param) {
                                                    param.param_name));
   SB_CHECK(instance->params_[param.feature_name][param.param_name].first ==
            SbFeatureParamTypeTime);
-  return std::get<int64_t>(
-      instance->params_[param.feature_name][param.param_name].second);
+  return instance->params_[param.feature_name][param.param_name]
+      .second.time_value;
 }
 
 template <>
@@ -153,7 +120,7 @@ double FeatureList::GetParam(const SbFeatureParamExt<double>& param) {
                                                    param.param_name));
   SB_CHECK(instance->params_[param.feature_name][param.param_name].first ==
            SbFeatureParamTypeDouble);
-  return std::get<double>(
-      instance->params_[param.feature_name][param.param_name].second);
+  return instance->params_[param.feature_name][param.param_name]
+      .second.double_value;
 }
 }  // namespace starboard::features

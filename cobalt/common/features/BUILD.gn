@@ -16,8 +16,8 @@ static_library("features") {
   sources = [
     "features.cc",
     "features.h",
-    "push_starboard_features.cc",
-    "push_starboard_features.h",
+    "starboard_features_initialization.cc",
+    "starboard_features_initialization.h",
   ]
 
   deps = [

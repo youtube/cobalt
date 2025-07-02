@@ -40,8 +40,11 @@ namespace {
 #define FEATURE_PARAM_LIST_START namespace cobalt::features {
 #define FEATURE_PARAM_LIST_END }
 
-#include "starboard/common/feature_config.h"
+#define TIME base::TimeDelta
 
+#include "starboard/extension/feature_config.h"
+
+#undef TIME
 #undef STARBOARD_FEATURE
 #undef STARBOARD_FEATURE_PARAM
 #undef FEATURE_LIST_START

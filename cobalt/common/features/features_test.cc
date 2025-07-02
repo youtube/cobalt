@@ -25,7 +25,10 @@ TEST(CobaltFeatureTest, CanUseFeature) {
 }
 
 TEST(CobaltFeatureTest, CanUseFeatureParam) {
-  EXPECT_EQ(10, features::kFeatureParamBoo.Get());
+  EXPECT_EQ(10, features::kFeatureParamBoo0.Get());
+  EXPECT_EQ(false, features::kFeatureParamBoo1.Get());
+  EXPECT_EQ("hello world", features::kFeatureParamBoo2.Get());
+  EXPECT_EQ(3.14, features::kFeatureParamBoo3.Get());
 }
 
 }  // namespace common

@@ -31,9 +31,7 @@ template <typename T>
 struct SbFeatureParamExt;
 
 class FeatureList {
-  typedef std::pair<
-      SbFeatureParamType,
-      std::variant<bool, std::string, int, double, size_t, int64_t>>
+  typedef std::pair<SbFeatureParamType, SbFeatureParam::ParamValue>
       ParamTypeAndValue;
 
  public:
@@ -81,7 +79,7 @@ template <typename T>
 struct SbFeatureParamExt : public SbFeatureParam {
   // Prevent usage with unsupported types.
   static_assert(std::is_same_v<bool, T> || std::is_same_v<int, T> ||
-                    std::is_same_v<size_t, T> || std::is_same_v<double, T> ||
+                    std::is_same_v<double, T> ||
                     std::is_same_v<std::string, T> ||
                     std::is_same_v<int64_t, T>,
                 "Unsupported Starboard FeatureParam<> type");
@@ -98,8 +96,6 @@ template <>
 int FeatureList::GetParam(const SbFeatureParamExt<int>& param);
 template <>
 std::string FeatureList::GetParam(const SbFeatureParamExt<std::string>& param);
-template <>
-size_t FeatureList::GetParam(const SbFeatureParamExt<size_t>& param);
 template <>
 int64_t FeatureList::GetParam(const SbFeatureParamExt<int64_t>& param);
 template <>

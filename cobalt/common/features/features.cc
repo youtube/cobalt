@@ -13,16 +13,25 @@
 // limitations under the License.
 
 #include "cobalt/common/features/features.h"
+namespace {
+// This macro exists in Chromium version m134, which we currently are not using.
+// To make the code consistent for when we do rebase to m134, we will define the
+// macro ourselves. Once the rebase happens, we should be able to delete this
+// macro.
+#define BASE_FEATURE_PARAM(T, feature_object_name, feature, name, \
+                           default_value)                         \
+  const base::FeatureParam<T> feature_object_name{feature, name, default_value};
+}  // namespace
 
 #define STARBOARD_FEATURE(feature, name, default_state)                 \
   BASE_FEATURE(feature, name,                                           \
                default_state == true ? base::FEATURE_ENABLED_BY_DEFAULT \
                                      : base::FEATURE_DISABLED_BY_DEFAULT);
 
-#define STARBOARD_FEATURE_PARAM(T, param_object_name, feature_object_name, \
-                                param_name, default_value)                 \
-  const base::FeatureParam<T> param_object_name{&feature_object_name,      \
-                                                param_name, default_value};
+#define STARBOARD_FEATURE_PARAM(T, param_object_name, feature_object_name,   \
+                                param_name, default_value)                   \
+  BASE_FEATURE_PARAM(T, param_object_name, &feature_object_name, param_name, \
+                     default_value)
 
 #define FEATURE_LIST_START namespace cobalt::features {
 #define FEATURE_LIST_END }
@@ -30,8 +39,11 @@
 #define FEATURE_PARAM_LIST_START namespace cobalt::features {
 #define FEATURE_PARAM_LIST_END }
 
-#include "starboard/common/feature_config.h"
+#define TIME base::TimeDelta
 
+#include "starboard/extension/feature_config.h"
+
+#undef TIME
 #undef STARBOARD_FEATURE
 #undef STARBOARD_FEATURE_PARAM
 #undef FEATURE_LIST_START
