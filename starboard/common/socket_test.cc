@@ -55,7 +55,7 @@ TEST(SocketTest, TestGetLocalhostAddressIpv6) {
 
 TEST(SocketTest, TestGetLocalhostAddressInvalidType) {
   struct sockaddr_storage address = {};
-  bool result = GetLocalhostAddress(2, 4040, &address);
+  bool result = GetLocalhostAddress(-1, 4040, &address);
   ASSERT_FALSE(result);
 }
 }  // namespace

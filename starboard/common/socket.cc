@@ -24,22 +24,34 @@
 #include "starboard/configuration.h"
 
 namespace starboard {
+namespace {
+constexpr int kInvalidSocketId = -1;
+}
 
 struct sockaddr_storage GetUnspecifiedAddress(int address_type, int port) {
-  struct sockaddr_storage address = {};
-  if (address_type == AF_INET) {
-    struct sockaddr_in* addr = reinterpret_cast<struct sockaddr_in*>(&address);
-    addr->sin_family = AF_INET;
-    addr->sin_addr.s_addr = INADDR_ANY;
-    addr->sin_port = htons(port);
-  } else if (address_type == AF_INET6) {
-    struct sockaddr_in6* addr =
-        reinterpret_cast<struct sockaddr_in6*>(&address);
-    addr->sin6_family = AF_INET6;
-    addr->sin6_addr = in6addr_any;
-    addr->sin6_port = htons(port);
+  switch (address_type) {
+    case AF_INET: {
+      struct sockaddr_storage address = {};
+      struct sockaddr_in* addr =
+          reinterpret_cast<struct sockaddr_in*>(&address);
+      addr->sin_family = AF_INET;
+      addr->sin_addr.s_addr = INADDR_ANY;
+      addr->sin_port = htons(port);
+      return address;
+    }
+    case AF_INET6: {
+      struct sockaddr_storage address = {};
+      struct sockaddr_in6* addr =
+          reinterpret_cast<struct sockaddr_in6*>(&address);
+      addr->sin6_family = AF_INET6;
+      addr->sin6_addr = in6addr_any;
+      addr->sin6_port = htons(port);
+      return address;
+    }
+    default:
+      SB_DCHECK(false) << ": unknown address type=" << address_type;
+      return {};
   }
-  return address;
 }
 
 bool GetLocalhostAddress(int address_type,
@@ -50,19 +62,26 @@ bool GetLocalhostAddress(int address_type,
     return false;
   }
   *address = GetUnspecifiedAddress(address_type, port);
-  if (address_type == AF_INET) {
-    struct sockaddr_in* addr = reinterpret_cast<struct sockaddr_in*>(address);
-    inet_pton(AF_INET, "127.0.0.1", &addr->sin_addr);
-  } else if (address_type == AF_INET6) {
-    struct sockaddr_in6* addr = reinterpret_cast<struct sockaddr_in6*>(address);
-    inet_pton(AF_INET6, "::1", &addr->sin6_addr);
+  switch (address_type) {
+    case AF_INET: {
+      struct sockaddr_in* addr = reinterpret_cast<struct sockaddr_in*>(address);
+      inet_pton(AF_INET, "127.0.0.1", &addr->sin_addr);
+      return true;
+    }
+    case AF_INET6: {
+      struct sockaddr_in6* addr =
+          reinterpret_cast<struct sockaddr_in6*>(address);
+      inet_pton(AF_INET6, "::1", &addr->sin6_addr);
+      return true;
+    }
+    default:
+      SB_NOTREACHED();
+      return false;
   }
-
-  return true;
 }
 
 bool Socket::IsValid() {
-  return socket_ != -1;
+  return socket_ != kInvalidSocketId;
 }
 
 int Socket::GetSocket() {
@@ -73,7 +92,7 @@ Socket::Socket(int address_type, int protocol) {
   socket_ = ::socket(address_type, protocol, 0);
 }
 
-Socket::Socket() : socket_(-1) {}
+Socket::Socket() : socket_(kInvalidSocketId) {}
 
 Socket::~Socket() {
   if (IsValid()) {
