@@ -1566,3 +1566,11 @@ uint32_t GetPassthroughAudioFormats() {
 }
 
 }  // namespace media
+
+#if BUILDFLAG(IS_ANDROID)
+#if BUILDFLAG(USE_STARBOARD_MEDIA)
+BASE_FEATURE(kCobaltUsingAndroidOverlay,
+             "CobaltUsingAndroidOverlay",
+             base::FEATURE_DISABLED_BY_DEFAULT);
+#endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
+#endif  // BUILDFLAG(IS_ANDROID)
