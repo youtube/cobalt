@@ -27,9 +27,7 @@
 #include "build/build_config.h"
 #include "cobalt/shell/browser/shell_content_browser_client.h"
 #include "cobalt/shell/browser/shell_content_index_provider.h"
-#include "cobalt/shell/browser/shell_download_manager_delegate.h"
 #include "cobalt/shell/common/shell_paths.h"
-#include "cobalt/shell/browser/shell_permission_manager.h"
 #include "components/keyed_service/content/browser_context_dependency_manager.h"
 #include "components/keyed_service/core/simple_dependency_manager.h"
 #include "components/keyed_service/core/simple_factory_key.h"
@@ -106,13 +104,7 @@ bool ShellBrowserContext::IsOffTheRecord() {
 }
 
 DownloadManagerDelegate* ShellBrowserContext::GetDownloadManagerDelegate() {
-  if (!download_manager_delegate_.get()) {
-    download_manager_delegate_ =
-        std::make_unique<ShellDownloadManagerDelegate>();
-    download_manager_delegate_->SetDownloadManager(GetDownloadManager());
-  }
-
-  return download_manager_delegate_.get();
+  return nullptr;
 }
 
 BrowserPluginGuestManager* ShellBrowserContext::GetGuestManager() {
@@ -143,10 +135,7 @@ SSLHostStateDelegate* ShellBrowserContext::GetSSLHostStateDelegate() {
 
 PermissionControllerDelegate*
 ShellBrowserContext::GetPermissionControllerDelegate() {
-  if (!permission_manager_.get()) {
-    permission_manager_ = std::make_unique<ShellPermissionManager>();
-  }
-  return permission_manager_.get();
+  return nullptr;
 }
 
 ClientHintsControllerDelegate*
