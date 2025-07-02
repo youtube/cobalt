@@ -125,11 +125,6 @@
 #include "services/network/public/mojom/ct_log_info.mojom.h"
 #endif
 
-#if BUILDFLAG(IS_IOS)
-#include "cobalt/shell/browser/bluetooth/shell_bluetooth_delegate_impl_client.h"
-#include "components/permissions/bluetooth_delegate_impl.h"
-#endif
-
 namespace content {
 
 namespace {
