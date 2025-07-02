@@ -52,6 +52,16 @@ std::string DisplayExtensionsEGL::GetPlatformExtensions(EGLDisplay display) {
 
 // static
 std::string ClientExtensionsEGL::GetClientExtensions() {
+#if BUILDFLAG(IS_STARBOARD)
+  EGLDisplay display = eglGetCurrentDisplay();
+  // On some platforms (e.g., Raspberry Pi), eglQueryString(nullptr, ...) can
+  // crash. If a display is available, query it directly. Otherwise, fall
+  // back to the nullptr query for platforms that support it (e.g., Linux).
+  if (display != EGL_NO_DISPLAY) {
+    const char* str = eglQueryString(display, EGL_EXTENSIONS);
+    return str ? std::string(str) : "";
+  }
+#endif
   const char* str = eglQueryString(EGL_NO_DISPLAY, EGL_EXTENSIONS);
   return str ? std::string(str) : "";
 }
