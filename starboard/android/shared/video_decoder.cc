@@ -13,6 +13,7 @@
 // limitations under the License.
 
 #include "starboard/android/shared/video_decoder.h"
+#include "starboard/common/check_op.h"
 
 #include <android/api-level.h>
 #include <jni.h>
@@ -28,6 +29,7 @@
 #include "starboard/android/shared/jni_utils.h"
 #include "starboard/android/shared/media_common.h"
 #include "starboard/android/shared/video_render_algorithm.h"
+#include "starboard/common/log.h"
 #include "starboard/common/media.h"
 #include "starboard/common/player.h"
 #include "starboard/common/string.h"
@@ -114,8 +116,8 @@ void ParseMaxResolution(const std::string& max_video_capabilities,
                         int frame_height,
                         std::optional<int>* max_width,
                         std::optional<int>* max_height) {
-  SB_DCHECK(frame_width > 0);
-  SB_DCHECK(frame_height > 0);
+  SB_DCHECK_GT(frame_width, 0);
+  SB_DCHECK_GT(frame_height, 0);
   SB_DCHECK(max_width);
   SB_DCHECK(max_height);
 
@@ -394,7 +396,7 @@ VideoDecoder::VideoDecoder(const VideoStreamInfo& video_stream_info,
   SB_DCHECK(error_message);
 
   if (force_secure_pipeline_under_tunnel_mode) {
-    SB_DCHECK(tunnel_mode_audio_session_id != -1);
+    SB_DCHECK_NE(tunnel_mode_audio_session_id_, -1);
     SB_DCHECK(!drm_system_);
     drm_system_to_enforce_tunnel_mode_ = std::make_unique<DrmSystem>(
         "com.youtube.widevine.l3", nullptr, StubDrmSessionUpdateRequestFunc,
@@ -408,7 +410,7 @@ VideoDecoder::VideoDecoder(const VideoStreamInfo& video_stream_info,
   }
 
   if (require_software_codec_) {
-    SB_DCHECK(output_mode_ == kSbPlayerOutputModeDecodeToTexture);
+    SB_DCHECK_EQ(output_mode_, kSbPlayerOutputModeDecodeToTexture);
   }
 
   if (video_codec_ != kSbMediaVideoCodecAv1) {
@@ -497,11 +499,11 @@ int64_t VideoDecoder::GetPrerollTimeout() const {
 void VideoDecoder::WriteInputBuffers(const InputBuffers& input_buffers) {
   SB_DCHECK(BelongsToCurrentThread());
   SB_DCHECK(!input_buffers.empty());
-  SB_DCHECK(input_buffers.front()->sample_type() == kSbMediaTypeVideo);
+  SB_DCHECK_EQ(input_buffers.front()->sample_type(), kSbMediaTypeVideo);
   SB_DCHECK(decoder_status_cb_);
 
   if (input_buffer_written_ == 0) {
-    SB_DCHECK(video_fps_ == 0);
+    SB_DCHECK_EQ(video_fps_, 0);
     first_buffer_timestamp_ = input_buffers.front()->timestamp();
 
     // If color metadata is present and is not an identity mapping, then
@@ -584,8 +586,8 @@ void VideoDecoder::WriteEndOfStream() {
 
   if (video_codec_ == kSbMediaVideoCodecAv1 && video_fps_ == 0) {
     SB_DCHECK(!media_decoder_);
-    SB_DCHECK(pending_input_buffers_.size() ==
-              static_cast<size_t>(input_buffer_written_));
+    SB_DCHECK_EQ(pending_input_buffers_.size(),
+                 static_cast<size_t>(input_buffer_written_));
 
     std::string error_message;
     if (!InitializeCodec(pending_input_buffers_.front()->video_stream_info(),
@@ -617,7 +619,9 @@ void VideoDecoder::Reset() {
   SB_DCHECK(BelongsToCurrentThread());
 
   // If fail to flush |media_decoder_| or |media_decoder_| is null, then
-  // re-create |media_decoder_|.
+  // re-create |media_decoder_|. If the codec is kSbMediaVideoCodecAv1,
+  // set video_fps_ to 0 will call InitializeCodec(),
+  // which we do not need if flush the codec.
   if (!enable_flush_during_seek_ || !media_decoder_ ||
       !media_decoder_->Flush()) {
     TeardownCodec();
@@ -626,10 +630,6 @@ void VideoDecoder::Reset() {
     }
 
     input_buffer_written_ = 0;
-
-    // If the codec is kSbMediaVideoCodecAv1,
-    // set video_fps_ to 0 will call InitializeCodec(),
-    // which we do not need if flush the codec.
     video_fps_ = 0;
   }
   CancelPendingJobs();
@@ -657,7 +657,7 @@ bool VideoDecoder::InitializeCodec(const VideoStreamInfo& video_stream_info,
   SB_DCHECK(error_message);
 
   if (video_stream_info.codec == kSbMediaVideoCodecAv1) {
-    SB_DCHECK(pending_input_buffers_.size() > 0);
+    SB_DCHECK_GT(pending_input_buffers_.size(), static_cast<unsigned int>(0));
 
     // Guesstimate the video fps.
     if (pending_input_buffers_.size() == 1) {
@@ -683,7 +683,7 @@ bool VideoDecoder::InitializeCodec(const VideoStreamInfo& video_stream_info,
         video_fps_ = 30;
       }
     }
-    SB_DCHECK(video_fps_ > 0);
+    SB_DCHECK_GT(video_fps_, 0);
   }
 
   // Setup the output surface object.  If we are in punch-out mode, target
@@ -730,9 +730,9 @@ bool VideoDecoder::InitializeCodec(const VideoStreamInfo& video_stream_info,
   }
 
   if (video_stream_info.codec == kSbMediaVideoCodecAv1) {
-    SB_DCHECK(video_fps_ > 0);
+    SB_DCHECK_GT(video_fps_, 0);
   } else {
-    SB_DCHECK(video_fps_ == 0);
+    SB_DCHECK_EQ(video_fps_, 0);
   }
 
   std::optional<int> max_width, max_height;
@@ -900,7 +900,7 @@ void VideoDecoder::ProcessOutputBuffer(
     MediaCodecBridge* media_codec_bridge,
     const DequeueOutputResult& dequeue_output_result) {
   SB_DCHECK(decoder_status_cb_);
-  SB_DCHECK(dequeue_output_result.index >= 0);
+  SB_DCHECK_GE(dequeue_output_result.index, 0);
 
   bool is_end_of_stream =
       dequeue_output_result.flags & BUFFER_FLAG_END_OF_STREAM;
@@ -962,7 +962,7 @@ void VideoDecoder::RefreshOutputFormat(MediaCodecBridge* media_codec_bridge) {
 bool VideoDecoder::Tick(MediaCodecBridge* media_codec_bridge) {
   // Tunnel mode renders frames in MediaCodec automatically and shouldn't reach
   // here.
-  SB_DCHECK(tunnel_mode_audio_session_id_ == -1);
+  SB_DCHECK_EQ(tunnel_mode_audio_session_id_, -1);
   return sink_->Render();
 }
 
@@ -1003,21 +1003,21 @@ SbDecodeTargetInfoContentRegion GetDecodeTargetContentRegionFromMatrix(
   // Ensure that this matrix contains no rotations or shears.  In other words,
   // make sure that we can convert it to a decode target content region without
   // losing any information.
-  SB_DCHECK(matrix4x4[1] == 0.0f);
-  SB_DCHECK(matrix4x4[2] == 0.0f);
-  SB_DCHECK(matrix4x4[3] == 0.0f);
+  SB_DCHECK_EQ(matrix4x4[1], 0.0f);
+  SB_DCHECK_EQ(matrix4x4[2], 0.0f);
+  SB_DCHECK_EQ(matrix4x4[3], 0.0f);
 
-  SB_DCHECK(matrix4x4[4] == 0.0f);
-  SB_DCHECK(matrix4x4[6] == 0.0f);
-  SB_DCHECK(matrix4x4[7] == 0.0f);
+  SB_DCHECK_EQ(matrix4x4[4], 0.0f);
+  SB_DCHECK_EQ(matrix4x4[6], 0.0f);
+  SB_DCHECK_EQ(matrix4x4[7], 0.0f);
 
-  SB_DCHECK(matrix4x4[8] == 0.0f);
-  SB_DCHECK(matrix4x4[9] == 0.0f);
-  SB_DCHECK(matrix4x4[10] == 1.0f);
-  SB_DCHECK(matrix4x4[11] == 0.0f);
+  SB_DCHECK_EQ(matrix4x4[8], 0.0f);
+  SB_DCHECK_EQ(matrix4x4[9], 0.0f);
+  SB_DCHECK_EQ(matrix4x4[10], 1.0f);
+  SB_DCHECK_EQ(matrix4x4[11], 0.0f);
 
-  SB_DCHECK(matrix4x4[14] == 0.0f);
-  SB_DCHECK(matrix4x4[15] == 1.0f);
+  SB_DCHECK_EQ(matrix4x4[14], 0.0f);
+  SB_DCHECK_EQ(matrix4x4[15], 1.0f);
 
   float origin_x = matrix4x4[12];
   float origin_y = matrix4x4[13];
@@ -1025,14 +1025,14 @@ SbDecodeTargetInfoContentRegion GetDecodeTargetContentRegionFromMatrix(
   float extent_x = matrix4x4[0] + matrix4x4[12];
   float extent_y = matrix4x4[5] + matrix4x4[13];
 
-  SB_DCHECK(origin_y >= 0.0f);
-  SB_DCHECK(origin_y <= 1.0f);
-  SB_DCHECK(origin_x >= 0.0f);
-  SB_DCHECK(origin_x <= 1.0f);
-  SB_DCHECK(extent_x >= 0.0f);
-  SB_DCHECK(extent_x <= 1.0f);
-  SB_DCHECK(extent_y >= 0.0f);
-  SB_DCHECK(extent_y <= 1.0f);
+  SB_DCHECK_GE(origin_y, 0.0f);
+  SB_DCHECK_LE(origin_y, 1.0f);
+  SB_DCHECK_GE(origin_x, 0.0f);
+  SB_DCHECK_LE(origin_x, 1.0f);
+  SB_DCHECK_GE(extent_x, 0.0f);
+  SB_DCHECK_LE(extent_x, 1.0f);
+  SB_DCHECK_GE(extent_y, 0.0f);
+  SB_DCHECK_LE(extent_y, 1.0f);
 
   // Flip the y-axis to match ContentRegion's coordinate system.
   origin_y = 1.0f - origin_y;
@@ -1055,7 +1055,8 @@ SbDecodeTargetInfoContentRegion GetDecodeTargetContentRegionFromMatrix(
 
 // When in decode-to-texture mode, this returns the current decoded video frame.
 SbDecodeTarget VideoDecoder::GetCurrentDecodeTarget() {
-  SB_DCHECK(output_mode_ == kSbPlayerOutputModeDecodeToTexture);
+  SB_DCHECK_EQ(output_mode_,
+               static_cast<int>(kSbPlayerOutputModeDecodeToTexture));
   // We must take a lock here since this function can be called from a separate
   // thread.
   ScopedLock lock(decode_target_mutex_);
@@ -1199,21 +1200,21 @@ void VideoDecoder::OnFrameRendered(int64_t frame_timestamp) {
 }
 
 void VideoDecoder::OnFirstTunnelFrameReady() {
-  SB_DCHECK(tunnel_mode_audio_session_id_ != -1);
+  SB_DCHECK_NE(tunnel_mode_audio_session_id_, -1);
 
   TryToSignalPrerollForTunnelMode();
 }
 
 void VideoDecoder::OnTunnelModePrerollTimeout() {
   SB_DCHECK(BelongsToCurrentThread());
-  SB_DCHECK(tunnel_mode_audio_session_id_ != -1);
+  SB_DCHECK_NE(tunnel_mode_audio_session_id_, -1);
 
   TryToSignalPrerollForTunnelMode();
 }
 
 void VideoDecoder::OnTunnelModeCheckForNeedMoreInput() {
   SB_DCHECK(BelongsToCurrentThread());
-  SB_DCHECK(tunnel_mode_audio_session_id_ != -1);
+  SB_DCHECK_NE(tunnel_mode_audio_session_id_, -1);
 
   // There's a race condition when suspending the app. If surface view is
   // destroyed before this function is called, |media_decoder_| could be null
@@ -1236,7 +1237,7 @@ void VideoDecoder::OnTunnelModeCheckForNeedMoreInput() {
 void VideoDecoder::OnVideoFrameRelease() {
   if (output_format_) {
     --buffered_output_frames_;
-    SB_DCHECK(buffered_output_frames_ >= 0);
+    SB_DCHECK_GE(buffered_output_frames_, 0);
   }
 }
 

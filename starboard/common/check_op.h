@@ -212,7 +212,7 @@ class CheckOpResult {
       return CheckOpResult();                                                 \
     return CheckOpResult(                                                     \
         ::starboard::logging::CheckOpResult::CreateLogMessage(                \
-            line, expr_str, CheckOpValueStr(v1), CheckOpValueStr(v2)));       \
+            file, line, expr_str, CheckOpValueStr(v1), CheckOpValueStr(v2))); \
   }                                                                           \
   template <typename T, typename U,                                           \
             std::enable_if_t<std::is_fundamental<T>::value &&                 \

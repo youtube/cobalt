@@ -152,8 +152,6 @@ AudioTrackAudioSink::AudioTrackAudioSink(
   SB_DCHECK(consume_frames_func_);
   SB_DCHECK(frame_buffer_);
 
-  SB_DCHECK_EQ(1, 2) << "Hello";
-  SB_CHECK_EQ(1, 2) << "Hello";
   SB_LOG(INFO) << "Creating audio sink starts at " << start_time_;
 
   if (!bridge_.is_valid()) {
