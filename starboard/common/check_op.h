@@ -146,12 +146,6 @@ class CheckOpResult {
   constexpr explicit CheckOpResult(LogMessage* log_message)
       : log_message_(log_message) {}
 
-  constexpr ~CheckOpResult() {
-    if (log_message_ != nullptr) {
-      delete log_message_;
-    }
-  }
-
   // Returns true if the check succeeded.
   constexpr explicit operator bool() const { return !log_message_; }
 
