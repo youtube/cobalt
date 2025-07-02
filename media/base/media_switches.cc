@@ -490,6 +490,10 @@ BASE_FEATURE(kCobaltDecoderBufferAllocatorWithInPlaceMetadata,
 BASE_FEATURE(kCobaltProgressivePlayback,
              "CobaltProgressivePlayback",
              base::FEATURE_DISABLED_BY_DEFAULT);
+// When enabled, Cobalt on Android TV will use an ExoPlayer-based SbPlayer.
+BASE_FEATURE(kCobaltUseExoplayer,
+             "CobaltUseExoplayer",
+             base::FEATURE_ENABLED_BY_DEFAULT);
 #endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
 
 #if BUILDFLAG(IS_CHROMEOS)
