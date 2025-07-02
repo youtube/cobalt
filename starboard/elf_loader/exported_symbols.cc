@@ -37,6 +37,8 @@
 #include <sys/stat.h>
 #include <unistd.h>
 
+#include <netinet/in.h>
+#include <sys/socket.h>
 #include "starboard/audio_sink.h"
 #include "starboard/common/log.h"
 #include "starboard/configuration.h"
@@ -63,7 +65,6 @@
 #include "starboard/shared/modular/starboard_layer_posix_time_abi_wrappers.h"
 #include "starboard/shared/modular/starboard_layer_posix_uio_abi_wrappers.h"
 #include "starboard/shared/modular/starboard_layer_posix_unistd_abi_wrappers.h"
-#include "starboard/socket.h"
 #include "starboard/speech_synthesis.h"
 #include "starboard/storage.h"
 #include "starboard/system.h"

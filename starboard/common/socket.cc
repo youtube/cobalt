@@ -14,6 +14,10 @@
 
 #include "starboard/common/socket.h"
 
+#include <arpa/inet.h>
+#include <netdb.h>
+#include <unistd.h>
+
 #include <iomanip>
 
 #include "starboard/common/log.h"
@@ -21,84 +25,174 @@
 
 namespace starboard {
 
-SbSocketAddress GetUnspecifiedAddress(SbSocketAddressType address_type,
-                                      int port) {
-  SbSocketAddress address = {};
-  address.type = address_type;
-  address.port = port;
+struct sockaddr_storage GetUnspecifiedAddress(int address_type, int port) {
+  struct sockaddr_storage address = {};
+  if (address_type == AF_INET) {
+    struct sockaddr_in* addr = reinterpret_cast<struct sockaddr_in*>(&address);
+    addr->sin_family = AF_INET;
+    addr->sin_addr.s_addr = INADDR_ANY;
+    addr->sin_port = htons(port);
+  } else if (address_type == AF_INET6) {
+    struct sockaddr_in6* addr =
+        reinterpret_cast<struct sockaddr_in6*>(&address);
+    addr->sin6_family = AF_INET6;
+    addr->sin6_addr = in6addr_any;
+    addr->sin6_port = htons(port);
+  }
   return address;
 }
 
-bool GetLocalhostAddress(SbSocketAddressType address_type,
+bool GetLocalhostAddress(int address_type,
                          int port,
-                         SbSocketAddress* address) {
-  if (address_type != kSbSocketAddressTypeIpv4 &&
-      address_type != kSbSocketAddressTypeIpv6) {
+                         struct sockaddr_storage* address) {
+  if (address_type != AF_INET && address_type != AF_INET6) {
     SB_LOG(ERROR) << __FUNCTION__ << ": unknown address type: " << address_type;
     return false;
   }
   *address = GetUnspecifiedAddress(address_type, port);
-  switch (address_type) {
-    case kSbSocketAddressTypeIpv4:
-      address->address[0] = 127;
-      address->address[3] = 1;
-      break;
-    case kSbSocketAddressTypeIpv6:
-      address->address[15] = 1;
-      break;
+  if (address_type == AF_INET) {
+    struct sockaddr_in* addr = reinterpret_cast<struct sockaddr_in*>(address);
+    inet_pton(AF_INET, "127.0.0.1", &addr->sin_addr);
+  } else if (address_type == AF_INET6) {
+    struct sockaddr_in6* addr = reinterpret_cast<struct sockaddr_in6*>(address);
+    inet_pton(AF_INET6, "::1", &addr->sin6_addr);
   }
 
   return true;
 }
 
 bool Socket::IsValid() {
-  return SbSocketIsValid(socket_);
+  return socket_ != -1;
 }
 
-SbSocket Socket::socket() {
+int Socket::GetSocket() {
   return socket_;
 }
 
-Socket::Socket(SbSocket socket) : socket_(socket) {}
+Socket::Socket(int address_type, int protocol) {
+  socket_ = ::socket(address_type, protocol, 0);
+}
+
+Socket::Socket() : socket_(-1) {}
+
+Socket::~Socket() {
+  if (IsValid()) {
+    close(socket_);
+  }
+}
+
+int Socket::Connect(const struct sockaddr_storage* address) {
+  return connect(socket_, reinterpret_cast<const struct sockaddr*>(address),
+                 sizeof(*address));
+}
+
+int Socket::Bind(const struct sockaddr_storage* local_address) {
+  return bind(socket_, reinterpret_cast<const struct sockaddr*>(local_address),
+              sizeof(*local_address));
+}
+
+int Socket::Listen() {
+  return listen(socket_, 1);
+}
+
+Socket* Socket::Accept() {
+  struct sockaddr_storage address;
+  socklen_t len = sizeof(address);
+  int new_socket =
+      accept(socket_, reinterpret_cast<struct sockaddr*>(&address), &len);
+  if (new_socket == -1) {
+    return NULL;
+  }
+  return new Socket(new_socket);
+}
+
+bool Socket::IsConnected() {
+  // TODO: implement this
+  return false;
+}
+
+bool Socket::IsConnectedAndIdle() {
+  // TODO: implement this
+  return false;
+}
+
+bool Socket::IsPending() {
+  // TODO: implement this
+  return false;
+}
+
+int Socket::GetLastError() {
+  return errno;
+}
+
+void Socket::ClearLastError() {
+  errno = 0;
+}
+
+int Socket::ReceiveFrom(char* out_data,
+                        int data_size,
+                        struct sockaddr_storage* out_source) {
+  socklen_t len = sizeof(*out_source);
+  return recvfrom(socket_, out_data, data_size, 0,
+                  reinterpret_cast<struct sockaddr*>(out_source), &len);
+}
+
+int Socket::SendTo(const char* data,
+                   int data_size,
+                   const struct sockaddr_storage* destination) {
+  return sendto(socket_, data, data_size, 0,
+                reinterpret_cast<const struct sockaddr*>(destination),
+                sizeof(*destination));
+}
+
+bool Socket::SetBroadcast(bool value) {
+  int val = value;
+  return setsockopt(socket_, SOL_SOCKET, SO_BROADCAST, &val, sizeof(val)) == 0;
+}
+
+bool Socket::SetReuseAddress(bool value) {
+  int val = value;
+  return setsockopt(socket_, SOL_SOCKET, SO_REUSEADDR, &val, sizeof(val)) == 0;
+}
+
+bool Socket::SetReceiveBufferSize(int32_t size) {
+  return setsockopt(socket_, SOL_SOCKET, SO_RCVBUF, &size, sizeof(size)) == 0;
+}
+
+bool Socket::SetSendBufferSize(int32_t size) {
+  return setsockopt(socket_, SOL_SOCKET, SO_SNDBUF, &size, sizeof(size)) == 0;
+}
+
+bool Socket::SetTcpKeepAlive(bool value, int64_t period) {
+  // TODO: implement this
+  return false;
+}
+
+bool Socket::SetTcpNoDelay(bool value) {
+  // TODO: implement this
+  return false;
+}
+
+bool Socket::SetTcpWindowScaling(bool value) {
+  // TODO: implement this
+  return false;
+}
+
+Socket::Socket(int socket) : socket_(socket) {}
 
 }  // namespace starboard
 
-std::ostream& operator<<(std::ostream& os, const SbSocketAddress& address) {
-  if (address.type == kSbSocketAddressTypeIpv6) {
-    os << std::hex << "[";
-    const uint16_t* fields = reinterpret_cast<const uint16_t*>(address.address);
-    int i = 0;
-    while (fields[i] == 0) {
-      if (i == 0) {
-        os << ":";
-      }
-      ++i;
-      if (i == 8) {
-        os << ":";
-      }
-    }
-    for (; i < 8; ++i) {
-      if (i != 0) {
-        os << ":";
-      }
-#if SB_IS(LITTLE_ENDIAN)
-      const uint8_t* fields8 = reinterpret_cast<const uint8_t*>(&fields[i]);
-      const uint16_t value = static_cast<uint16_t>(fields8[0]) * 256 |
-                             static_cast<uint16_t>(fields8[1]);
-      os << value;
-#else
-      os << fields[i];
-#endif
-    }
-    os << "]" << std::dec;
+std::ostream& operator<<(std::ostream& os,
+                         const struct sockaddr_storage& address) {
+  char host[NI_MAXHOST];
+  char service[NI_MAXSERV];
+  getnameinfo(reinterpret_cast<const struct sockaddr*>(&address),
+              sizeof(address), host, sizeof(host), service, sizeof(service),
+              NI_NUMERICHOST | NI_NUMERICSERV);
+  if (address.ss_family == AF_INET6) {
+    os << "[" << host << "]:" << service;
   } else {
-    for (int i = 0; i < 4; ++i) {
-      if (i != 0) {
-        os << ".";
-      }
-      os << static_cast<int>(address.address[i]);
-    }
+    os << host << ":" << service;
   }
-  os << ":" << address.port;
   return os;
 }

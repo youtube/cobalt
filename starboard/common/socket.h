@@ -22,46 +22,46 @@
 
 #include <ostream>
 
-#include "starboard/socket.h"
+#include <netinet/in.h>
+#include <sys/socket.h>
 #include "starboard/types.h"
 
 namespace starboard {
 
 // Returns an IP unspecified address with the given port.
-SbSocketAddress GetUnspecifiedAddress(SbSocketAddressType address_type,
-                                      int port);
+struct sockaddr_storage GetUnspecifiedAddress(int address_type, int port);
 
 // Gets an IP localhost address with the given port.
 // Returns true if it was successful.
-bool GetLocalhostAddress(SbSocketAddressType address_type,
+bool GetLocalhostAddress(int address_type,
                          int port,
-                         SbSocketAddress* address);
+                         struct sockaddr_storage* address);
 
 class Socket {
  public:
-  Socket(SbSocketAddressType address_type, SbSocketProtocol protocol);
-  explicit Socket(SbSocketAddressType address_type);
-  explicit Socket(SbSocketProtocol protocol);
+  Socket(int address_type, int protocol);
   Socket();
   ~Socket();
   bool IsValid();
 
-  SbSocketError Connect(const SbSocketAddress* address);
-  SbSocketError Bind(const SbSocketAddress* local_address);
-  SbSocketError Listen();
+  int Connect(const struct sockaddr_storage* address);
+  int Bind(const struct sockaddr_storage* local_address);
+  int Listen();
   Socket* Accept();
 
   bool IsConnected();
   bool IsConnectedAndIdle();
   bool IsPending();
 
-  SbSocketError GetLastError();
+  int GetLastError();
   void ClearLastError();
 
-  int ReceiveFrom(char* out_data, int data_size, SbSocketAddress* out_source);
+  int ReceiveFrom(char* out_data,
+                  int data_size,
+                  struct sockaddr_storage* out_source);
   int SendTo(const char* data,
              int data_size,
-             const SbSocketAddress* destination);
+             const struct sockaddr_storage* destination);
 
   bool SetBroadcast(bool value);
   bool SetReuseAddress(bool value);
@@ -71,17 +71,18 @@ class Socket {
   bool SetTcpNoDelay(bool value);
   bool SetTcpWindowScaling(bool value);
 
-  SbSocket socket();
+  int GetSocket();
 
  private:
-  explicit Socket(SbSocket socket);
+  explicit Socket(int socket);
 
-  SbSocket socket_;
+  int socket_;
 };
 
 }  // namespace starboard
 
-// Let SbSocketAddresses be output to log streams.
-std::ostream& operator<<(std::ostream& os, const SbSocketAddress& address);
+// Let struct sockaddr_storages be output to log streams.
+std::ostream& operator<<(std::ostream& os,
+                         const struct sockaddr_storage& address);
 
 #endif  // STARBOARD_COMMON_SOCKET_H_
