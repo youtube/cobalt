@@ -23,3 +23,10 @@ enum StarboardRenderingMode {
 // See media/base/starboard/starboard_renderer_config.h for descriptions.
 [Native]
 struct StarboardRendererConfig;
+
+// A wrapper for SbDrmSystem, which is an opaque pointer.
+struct SbDrmSystem {
+  // We use a uint64 to transport the pointer value across the Mojo IPC
+  // boundary.
+  uint64 ptr_value;
+};

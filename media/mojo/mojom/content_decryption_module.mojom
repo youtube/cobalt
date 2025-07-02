@@ -7,7 +7,7 @@ module media.mojom;
 import "media/mojo/mojom/decryptor.mojom";
 import "media/mojo/mojom/media_types.mojom";
 import "mojo/public/mojom/base/unguessable_token.mojom";
-
+import "media/mojo/mojom/starboard/starboard_media_types.mojom";
 // See media::EmeInitDataType.
 [Native]
 enum EmeInitDataType;
@@ -121,6 +121,14 @@ interface ContentDecryptionModule {
   // Removes stored session data associated with the active session specified by
   // |session_id|.
   RemoveSession(string session_id) => (CdmPromiseResult result);
+
+  // Gets the Starboard DRM system. This is a Cobalt-specific extension.
+  // [Sync] is used because this Mojo method proxies the C++
+  // `StarboardCdm::GetSbDrmSystem()` method, which is a synchronous
+  // function. Initially I tried using base::WaitableEvent which hangs,
+  // wherease using `[Sync]` works well.
+  [Sync]
+  GetSbDrmSystem() => (SbDrmSystem drm_system);
 };
 
 // Session callbacks. The implementation is MojoCdm that runs in the render

@@ -86,6 +86,9 @@ class MEDIA_MOJO_EXPORT MojoCdmService final
   // Gets the remote ID of the CDM this is holding.
   base::UnguessableToken cdm_id() const { return cdm_id_.value(); }
 
+#if BUILDFLAG(USE_STARBOARD_MEDIA)
+  void GetSbDrmSystem(GetSbDrmSystemCallback callback) override;
+#endif
  private:
   // Callback for CdmFactory::Create().
   void OnCdmCreated(InitializeCB callback,

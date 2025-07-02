@@ -28,6 +28,10 @@
 #include "services/service_manager/public/cpp/connect.h"
 #include "services/service_manager/public/mojom/interface_provider.mojom.h"
 
+#if BUILDFLAG(USE_STARBOARD_MEDIA)
+#include "starboard/drm.h"  // nogncheck
+#endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
+
 namespace media {
 
 namespace {
@@ -411,5 +415,16 @@ void MojoCdm::RejectPromiseConnectionLost(uint32_t promise_id) {
       promise_id, CdmPromise::Exception::INVALID_STATE_ERROR,
       CdmPromise::SystemCode::kConnectionError, "CDM connection lost.");
 }
+
+#if BUILDFLAG(USE_STARBOARD_MEDIA)
+SbDrmSystem MojoCdm::GetSbDrmSystem() {
+  if (!remote_cdm_.is_connected()) {
+    return kSbDrmSystemInvalid;
+  }
+  SbDrmSystem drm_system = kSbDrmSystemInvalid;
+  remote_cdm_->GetSbDrmSystem(&drm_system);
+  return drm_system;
+}
+#endif
 
 }  // namespace media
