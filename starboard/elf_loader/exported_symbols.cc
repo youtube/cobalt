@@ -63,6 +63,7 @@
 #include "starboard/shared/modular/starboard_layer_posix_time_abi_wrappers.h"
 #include "starboard/shared/modular/starboard_layer_posix_uio_abi_wrappers.h"
 #include "starboard/shared/modular/starboard_layer_posix_unistd_abi_wrappers.h"
+#include "starboard/shared/modular/starboard_layer_posix_utsname_abi_wrappers.h"
 #include "starboard/socket.h"
 #include "starboard/speech_synthesis.h"
 #include "starboard/storage.h"
@@ -399,6 +400,7 @@ ExportedSymbols::ExportedSymbols() {
   REGISTER_WRAPPER(socketpair);
   REGISTER_WRAPPER(stat);
   REGISTER_WRAPPER(sysconf);
+  REGISTER_WRAPPER(uname);
   REGISTER_WRAPPER(writev);
 
 }  // NOLINT

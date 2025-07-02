@@ -229,6 +229,7 @@ _ALLOWED_SB_GE_16_POSIX_SYMBOLS = [
     'strcasecmp',
     'strncasecmp',
     'time',
+    'uname',
     'unlink',
     'usleep',
     'write',
