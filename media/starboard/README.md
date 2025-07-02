@@ -3,8 +3,12 @@
 This document explains the communication architecture between the Renderer
 Process and the GPU Process when using the `StarboardRenderer`. It details
 how Mojo IPC (Inter-Process Communication) enables a clean, bidirectional
-command and callback flow. For more details, see
-[go/starboard-renderer-media-pipeline](go/starboard-renderer-media-pipeline).
+command and callback flow.
+
+Note: Single-process mode runs all of the browser and renderer code in a
+single process. Because `StarboardRenderer` runs in single-process mode,
+the "process" in this document refers to **thread**. For more details, see
+[go/starboard-renderer-media-pipeline](http://go/starboard-renderer-media-pipeline).
 
 ## Core Architecture
 
