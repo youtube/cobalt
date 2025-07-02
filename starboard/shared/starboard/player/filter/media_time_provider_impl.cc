@@ -93,8 +93,6 @@ int64_t MediaTimeProviderImpl::GetCurrentMediaTime(bool* is_playing,
 
 int64_t MediaTimeProviderImpl::GetCurrentMediaTime_Locked(
     int64_t* current_time /*= NULL*/) {
-  mutex_.DCheckAcquired();
-
   int64_t now = system_time_provider_->GetMonotonicNow();
 
   if (!is_playing_ || playback_rate_ == 0.0) {

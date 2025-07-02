@@ -45,12 +45,6 @@ void Mutex::Release() const {
   pthread_mutex_unlock(&mutex_);
 }
 
-void Mutex::DCheckAcquired() const {
-#ifdef _DEBUG
-  SB_DCHECK(pthread_equal(current_thread_acquired_, pthread_self()));
-#endif  // _DEBUG
-}
-
 #ifdef _DEBUG
 void Mutex::debugInit() {
   current_thread_acquired_ = 0;

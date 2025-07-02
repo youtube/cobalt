@@ -40,7 +40,6 @@ class Mutex {
   void Acquire() const;
   bool AcquireTry() const;
   void Release() const;
-  void DCheckAcquired() const;
 
  private:
 #ifdef _DEBUG
