@@ -41,6 +41,8 @@ source_set("browser") {
     ]
   }
 
+  public_deps = [ "//content/public/browser" ]
+
   deps = [
     ":cobalt_experiment_names",
     ":embed_polyfilled_javascript",
@@ -65,6 +67,7 @@ source_set("browser") {
     "//cobalt/browser/user_agent",
     "//cobalt/media/service",
     "//cobalt/media/service/mojom",
+    "//cobalt/shell:content_shell_lib",
     "//components/js_injection/browser:browser",
     "//components/metrics",
     "//components/metrics:test_support",
@@ -72,11 +75,7 @@ source_set("browser") {
     "//components/os_crypt/sync",
     "//components/prefs",
     "//components/variations/service:service",
-    "//content/public/browser",
-    "//starboard($starboard_toolchain)",
-
-    # TODO(b/390021478): Do not depend on content_shell_lib here.
-    "//content/shell:content_shell_lib",
+    "//starboard:starboard_group",
   ]
 
   if (!cobalt_is_release_build) {
@@ -155,13 +154,13 @@ source_set("metrics") {
   ]
   deps = [
     "//cobalt/browser/h5vcc_metrics/public/mojom",
+    "//cobalt/shell:content_shell_lib",
     "//components/metrics",
     "//components/metrics_services_manager",
     "//components/prefs",
     "//components/variations",
     "//components/variations/service",
     "//content/public/browser",
-    "//content/shell:content_shell_lib",
     "//third_party/metrics_proto",
     "//url",
   ]
