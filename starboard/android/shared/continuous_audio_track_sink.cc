@@ -113,7 +113,7 @@ void ContinuousAudioTrackSink::SetPlaybackRate(double playback_rate) {
                            "currently supported.";
     playback_rate = (playback_rate > 0.0) ? 1.0 : 0.0;
   }
-  std::scoped_lock lock(mutex_);
+  std::lock_guard lock(mutex_);
   playback_rate_ = playback_rate;
 }
 
@@ -193,7 +193,7 @@ void ContinuousAudioTrackSink::AudioThreadFunc() {
     update_source_status_func_(&frames_in_buffer, &offset_in_frames,
                                &is_playing, &is_eos_reached, context_);
     {
-      std::scoped_lock lock(mutex_);
+      std::lock_guard lock(mutex_);
       if (playback_rate_ == 0.0) {
         is_playing = false;
       }
