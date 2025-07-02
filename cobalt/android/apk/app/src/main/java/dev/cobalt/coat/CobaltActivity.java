@@ -54,6 +54,7 @@ import org.chromium.base.library_loader.LibraryProcessType;
 import org.chromium.components.version_info.VersionInfo;
 import org.chromium.content.browser.input.ImeAdapterImpl;
 import org.chromium.content_public.browser.BrowserStartupController;
+import org.chromium.content_public.browser.ContentFeatureList;
 import org.chromium.content_public.browser.DeviceUtils;
 import org.chromium.content_public.browser.JavascriptInjector;
 import org.chromium.content_public.browser.WebContents;
@@ -321,17 +322,22 @@ public abstract class CobaltActivity extends Activity {
     super.onCreate(savedInstanceState);
     createContent(savedInstanceState);
 
-    videoSurfaceView = new VideoSurfaceView(this);
+    if (ContentFeatureList.isEnabled(ContentFeatureList.COBALT_USING_ANDROID_OVERLAY)) {
+      Log.d(TAG, "Using Android Overlay for Cobalt.");
 
-    // TODO: b/408279606 - Set this to app theme primary color once we fix
-    // error with it being unresolvable.
-    videoSurfaceView.setBackgroundColor(Color.BLACK);
-    a11yHelper = new CobaltA11yHelper(this, videoSurfaceView);
-    addContentView(videoSurfaceView, new LayoutParams(LayoutParams.MATCH_PARENT, LayoutParams.MATCH_PARENT));
+    } else {
+      videoSurfaceView = new VideoSurfaceView(this);
 
-    Log.i(TAG, "CobaltActivity onCreate, all Layout Views:");
-    View rootView = getWindow().getDecorView().getRootView();
-    Util.printRootViewHierarchy(rootView);
+      // TODO: b/408279606 - Set this to app theme primary color once we fix
+      // error with it being unresolvable.
+      videoSurfaceView.setBackgroundColor(Color.BLACK);
+      a11yHelper = new CobaltA11yHelper(this, videoSurfaceView);
+      addContentView(videoSurfaceView, new LayoutParams(LayoutParams.MATCH_PARENT, LayoutParams.MATCH_PARENT));
+
+      Log.i(TAG, "CobaltActivity onCreate, all Layout Views:");
+      View rootView = getWindow().getDecorView().getRootView();
+      Util.printRootViewHierarchy(rootView);
+    }
   }
 
   /**

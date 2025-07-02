@@ -467,3 +467,9 @@ MEDIA_EXPORT uint32_t GetPassthroughAudioFormats();
 }  // namespace media
 
 #endif  // MEDIA_BASE_MEDIA_SWITCHES_H_
+
+#if BUILDFLAG(IS_ANDROID)
+#if BUILDFLAG(USE_STARBOARD_MEDIA)
+MEDIA_EXPORT BASE_DECLARE_FEATURE(kCobaltUsingAndroidOverlay);
+#endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
+#endif  // BUILDFLAG(IS_ANDROID)
