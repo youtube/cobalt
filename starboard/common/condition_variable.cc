@@ -45,13 +45,10 @@ ConditionVariable::~ConditionVariable() {
 }
 
 void ConditionVariable::Wait() const {
-  mutex_->debugSetReleased();
   pthread_cond_wait(&condition_, mutex_->mutex());
-  mutex_->debugSetAcquired();
 }
 
 bool ConditionVariable::WaitTimed(int64_t duration) const {
-  mutex_->debugSetReleased();
   if (duration < 0) {
     duration = 0;
   }
@@ -76,7 +73,6 @@ bool ConditionVariable::WaitTimed(int64_t duration) const {
 
   bool was_signaled =
       pthread_cond_timedwait(&condition_, mutex_->mutex(), &timeout) == 0;
-  mutex_->debugSetAcquired();
   return was_signaled;
 }
 
