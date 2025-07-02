@@ -126,7 +126,6 @@ group("content_shell_lib_deps") {
     public_deps += [
       "//components/embedder_support/android:view",
       "//content/shell/android:content_shell_jni_headers",
-      "//mojo/public/java/system:test_support",
       "//ui/android",
     ]
   }
