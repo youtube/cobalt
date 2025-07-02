@@ -255,11 +255,22 @@ EGLDisplay GetPlatformANGLEDisplay(
 
   display_attribs.push_back(EGL_NONE);
 
+#if BUILDFLAG(IS_STARBOARD)
+  EGLDisplay platform_display = eglGetPlatformDisplay(
+      EGL_PLATFORM_ANGLE_ANGLE,
+      reinterpret_cast<void*>(display),
+      &display_attribs[0]);
+  if (platform_display == EGL_NO_DISPLAY) {
+    return eglGetDisplay(display);
+  }
+  return platform_display;
+#else
   // This is an EGL 1.5 function that we know ANGLE supports. It's used to pass
   // EGLAttribs (pointers) instead of EGLints into the display
   return eglGetPlatformDisplay(EGL_PLATFORM_ANGLE_ANGLE,
                                reinterpret_cast<void*>(display),
                                &display_attribs[0]);
+#endif
 }
 
 EGLDisplay GetDisplayFromType(
@@ -294,8 +305,17 @@ EGLDisplay GetDisplayFromType(
     case DEFAULT:
     case SWIFT_SHADER: {
       if (native_display.GetPlatform() != 0) {
+#if BUILDFLAG(IS_STARBOARD)
+        EGLDisplay platform_display =
+            eglGetPlatformDisplay(native_display.GetPlatform(),
+                                  reinterpret_cast<void*>(display), nullptr);
+        if (platform_display != EGL_NO_DISPLAY) {
+          return platform_display;
+        }
+#else
         return eglGetPlatformDisplay(native_display.GetPlatform(),
                                      reinterpret_cast<void*>(display), nullptr);
+#endif  // BUILDFLAG(IS_STARBOARD)
       }
       return eglGetDisplay(display);
     }
