@@ -104,7 +104,7 @@ _ALLOWED_SB_GE_16_POSIX_SYMBOLS = [
     'epoll_create1',
     'epoll_ctl',
     'epoll_wait',
-    'eventfd'
+    'eventfd',
     'fcntl',
     'free',
     'freeaddrinfo',
