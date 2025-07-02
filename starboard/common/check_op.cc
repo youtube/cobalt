@@ -87,4 +87,12 @@ LogMessage* CheckOpResult::CreateLogMessage(const char* file,
   return log_message;
 }
 
+std::ostream& CheckError::stream() {
+  return log_message_->stream();
+}
+
+CheckError::~CheckError() {
+  delete log_message_;
+}
+
 }  // namespace starboard::logging

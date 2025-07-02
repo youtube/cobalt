@@ -173,6 +173,29 @@ class CheckOpResult {
   LogMessage* const log_message_ = nullptr;
 };
 
+// Class used for raising a check error upon destruction.
+class CheckError {
+ public:
+  // Used by CheckOp. Takes ownership of `log_message`.
+  explicit CheckError(LogMessage* log_message) : log_message_(log_message) {}
+
+  // Stream for adding optional details to the error message.
+  std::ostream& stream();
+
+  ~CheckError();
+
+  CheckError(const CheckError&) = delete;
+  CheckError& operator=(const CheckError&) = delete;
+
+  template <typename T>
+  std::ostream& operator<<(T&& streamed_type) {
+    return stream() << streamed_type;
+  }
+
+ protected:
+  LogMessage* const log_message_;
+};
+
 // Helper macro for binary operators.
 // The 'switch' is used to prevent the 'else' from being ambiguous when the
 // macro is used in an 'if' clause such as:
@@ -187,7 +210,7 @@ class CheckOpResult {
                 __FILE__, __LINE__, (val1), (val2), #val1 " " #op " " #val2)) \
       ;                                                                       \
     else                                                                      \
-      true_if_passed.log_message()->stream()
+      ::starboard::logging::CheckError(true_if_passed.log_message())
 
 #define SB_CHECK_OP(name, op, val1, val2) \
   SB_CHECK_OP_FUNCTION_IMPL(name, op, val1, val2)
