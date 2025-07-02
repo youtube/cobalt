@@ -19,7 +19,6 @@ namespace starboard {
 
 Mutex::Mutex() : mutex_() {
   pthread_mutex_init(&mutex_, nullptr);
-  debugInit();
 }
 
 Mutex::~Mutex() {
@@ -27,55 +26,30 @@ Mutex::~Mutex() {
 }
 
 void Mutex::Acquire() const {
-  debugPreAcquire();
+  mutex_debugger_.debugPreAcquire();
   pthread_mutex_lock(&mutex_);
-  debugSetAcquired();
+  mutex_debugger_.debugSetAcquired();
 }
 
 bool Mutex::AcquireTry() const {
   bool ok = pthread_mutex_trylock(&mutex_) == 0;
   if (ok) {
-    debugSetAcquired();
+    mutex_debugger_.debugSetAcquired();
   }
   return ok;
 }
 
 void Mutex::Release() const {
-  debugSetReleased();
+  mutex_debugger_.debugSetReleased();
   pthread_mutex_unlock(&mutex_);
 }
 
 void Mutex::DCheckAcquired() const {
 #ifdef _DEBUG
-  SB_DCHECK(pthread_equal(current_thread_acquired_, pthread_self()));
+  SB_DCHECK(
+      pthread_equal(mutex_debugger_.current_thread_acquired_, pthread_self()));
 #endif  // _DEBUG
 }
-
-#ifdef _DEBUG
-void Mutex::debugInit() {
-  current_thread_acquired_ = 0;
-}
-void Mutex::debugSetReleased() const {
-  pthread_t current_thread = pthread_self();
-  SB_DCHECK(pthread_equal(current_thread_acquired_, current_thread));
-  current_thread_acquired_ = 0;
-}
-void Mutex::debugPreAcquire() const {
-  // Check that the mutex is not held by the current thread.
-  pthread_t current_thread = pthread_self();
-  SB_DCHECK(!pthread_equal(current_thread_acquired_, current_thread));
-}
-void Mutex::debugSetAcquired() const {
-  // Check that the thread has already not been held.
-  SB_DCHECK(current_thread_acquired_ == 0);
-  current_thread_acquired_ = pthread_self();
-}
-#else
-void Mutex::debugInit() {}
-void Mutex::debugSetReleased() const {}
-void Mutex::debugPreAcquire() const {}
-void Mutex::debugSetAcquired() const {}
-#endif
 
 pthread_mutex_t* Mutex::mutex() const {
   return &mutex_;
