@@ -200,8 +200,6 @@ class DrmSystemWidevine : public SbDrmSystemPrivate,
   std::atomic_bool first_update_session_received_{false};
 };
 
-}  // namespace widevine
-
 }  // namespace starboard::shared::widevine
 
 #endif  // STARBOARD_SHARED_WIDEVINE_DRM_SYSTEM_WIDEVINE_H_
