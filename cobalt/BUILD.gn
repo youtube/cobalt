@@ -146,6 +146,7 @@ action("cobalt_build_info") {
   ]
 }
 
+# TODO(425987956): Move this target to //cobalt/testing
 test("cobalt_unittests") {
   testonly = true
 

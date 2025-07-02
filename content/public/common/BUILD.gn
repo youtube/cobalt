@@ -96,7 +96,10 @@ source_set("static_switches") {
 # rest of common_sources and its dependencies. Note that unlike the targets
 # above, this is for use inside of content/ only and does not link statically.
 source_set("switches") {
-  visibility = [ "//content/*" ]
+  visibility = [
+    "//cobalt/testing/*",
+    "//content/*"
+  ]
   if (is_cobalt) {
     # Allows cobalt and cobalt_unittests to access switch definitions.
     visibility += [ "//cobalt:*" ]
