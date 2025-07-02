@@ -248,6 +248,10 @@ source_set("blink_unittests_sources") {
     "performance_manager/v8_worker_memory_reporter_test.cc",
     "tests/run_all_tests.cc",
   ]
+  if (is_cobalt_hermetic_build) {
+    sources += [ "tests/run_all_tests_starboard.cc" ]
+    sources -= [ "tests/run_all_tests.cc" ]
+  }
   if (is_linux || is_chromeos) {
     sources += [ "memory_usage_monitor_posix_test.cc" ]
   }

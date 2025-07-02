@@ -56,7 +56,11 @@ source_set("test_support") {
 source_set("run_all_unittests") {
   testonly = true
 
-  sources = [ "run_all_unittests.cc" ]
+  if (is_cobalt_hermetic_build) {
+    sources = [ "run_all_unittests_starboard.cc" ]
+  } else {
+    sources = [ "run_all_unittests.cc" ]
+  }
 
   deps = [ ":test_support" ]
 }

@@ -1,5 +1,6 @@
 {
   "failing_tests": [
-    "*"
+    "FileVideoCaptureDeviceTest.*",
+    "VideoCaptureDeviceTests/VideoCaptureDeviceTest.UsingRealWebcam_*"
   ]
 }

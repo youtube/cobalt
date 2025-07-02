@@ -448,6 +448,10 @@ test("gles2_conform_test") {
     "gles2_conform_test.cc",
     "gles2_conform_test.h",
   ]
+  if (is_cobalt_hermetic_build) {
+    sources -= [ "gles2_conform_test.cc" ]
+    sources += [ "gles2_conform_test_starboard.cc" ]
+  }
   deps = [
     "//base",
     "//base/test:test_support",

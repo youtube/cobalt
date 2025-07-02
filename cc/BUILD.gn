@@ -979,6 +979,11 @@ cc_test("cc_perftests") {
     "trees/layer_tree_host_perftest.cc",
   ]
 
+  if (is_cobalt_hermetic_build) {
+    sources += [ "test/run_all_perftests_starboard.cc" ]
+    sources -= [ "test/run_all_perftests.cc" ]
+  }
+
   deps = [
     ":cc",
     ":test_support",

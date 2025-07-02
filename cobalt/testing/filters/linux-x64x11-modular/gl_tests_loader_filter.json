@@ -1,5 +1,8 @@
 {
   "failing_tests": [
-    "*"
+    "GLReadbackTest.ReadPixelsFloat",
+    "Service/EGLImageBackingFactoryThreadSafeTest.*",
+    "TranslatorVariants/EXTBlendFuncExtendedES3DrawTest.ES3Getters/*",
+    "TranslatorVariants/EXTBlendFuncExtendedES3DrawTest.ESSL3*"
   ]
 }

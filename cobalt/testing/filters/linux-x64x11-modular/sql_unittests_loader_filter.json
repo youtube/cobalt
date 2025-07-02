@@ -1,5 +1,6 @@
 {
   "failing_tests": [
-    "*"
+    "JournalMode/SQLDatabaseTest.*",
+    "SQLRecoveryTest.Bug387868"
   ]
 }

@@ -292,7 +292,7 @@ static_library("test_support") {
     ]
   }
 
-  if (use_blink && !is_cobalt_hermetic_build) {
+  if (use_blink) {
     sources += [
       "launcher/test_launcher.cc",
       "launcher/test_launcher.h",
@@ -304,7 +304,9 @@ static_library("test_support") {
       "launcher/unit_test_launcher.cc",
       "multiprocess_test.cc",
     ]
-  } else {
+  }
+  if (is_cobalt_hermetic_build) {
+    sources -= [ "multiprocess_test.cc" ]
     sources += [ "multiprocess_test_starboard.cc" ]
   }
 
@@ -334,7 +336,11 @@ config("perf_test_config") {
 # this, you always want the object file anyway.
 source_set("test_support_perf") {
   testonly = true
-  sources = [ "run_all_perftests.cc" ]
+  if (is_cobalt_hermetic_build) {
+    sources = [ "run_all_perftests_starboard.cc" ]
+  } else {
+    sources = [ "run_all_perftests.cc" ]
+  }
   deps = [
     ":test_support",
     "//base",
