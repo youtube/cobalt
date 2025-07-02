@@ -40,7 +40,7 @@ class PosixGetHostnameTest : public ::testing::Test {
 };
 
 // Basic successful call with a sufficiently large buffer.
-TEST_F(PosixGetHostnameTest, BasicSuccessfulCall) {
+TEST_F(PosixGetHostnameTest, SucceedsBasicCall) {
   std::vector<char> buf(kMaxHostNameSize);
   int result = gethostname(buf.data(), buf.size());
 
@@ -53,7 +53,7 @@ TEST_F(PosixGetHostnameTest, BasicSuccessfulCall) {
 }
 
 // Correctly handles a buffer exactly the size of the hostname.
-TEST_F(PosixGetHostnameTest, HandlesSmallestValidBuffer) {
+TEST_F(PosixGetHostnameTest, SucceedsWithMimimumValidBufferLength) {
   std::vector<char> temp_buf(kMaxHostNameSize);
   ASSERT_EQ(0, gethostname(temp_buf.data(), temp_buf.size()))
       << "gethostname() failed: " << strerror(errno);
@@ -71,7 +71,7 @@ TEST_F(PosixGetHostnameTest, HandlesSmallestValidBuffer) {
   EXPECT_EQ('\0', buf[hostname_len]) << "Hostname is not null-terminated.";
 }
 
-TEST_F(PosixGetHostnameTest, HandlesNegativeLength) {
+TEST_F(PosixGetHostnameTest, SetsEINVALForNegativeNameLength) {
   std::vector<char> buf(kMaxHostNameSize);
   int result = gethostname(buf.data(), INT_MIN);
 
@@ -81,7 +81,7 @@ TEST_F(PosixGetHostnameTest, HandlesNegativeLength) {
                            << " (" << strerror(errno) << ").";
 }
 
-TEST_F(PosixGetHostnameTest, HandlesInsufficientLength) {
+TEST_F(PosixGetHostnameTest, SetsENAMETOOLONGForInsufficientNameLength) {
   std::vector<char> buf(kMaxHostNameSize);
   int result = gethostname(buf.data(), 1);
 
