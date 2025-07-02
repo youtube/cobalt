@@ -269,6 +269,8 @@ ExportedSymbols::ExportedSymbols() {
   REGISTER_SYMBOL(recvfrom);
   REGISTER_SYMBOL(recvmsg);
   REGISTER_SYMBOL(rmdir);
+  REGISTER_SYMBOL(sched_get_priority_max);
+  REGISTER_SYMBOL(sched_get_priority_min);
   REGISTER_SYMBOL(sched_yield);
   REGISTER_SYMBOL(send);
   REGISTER_SYMBOL(sendto);
@@ -308,8 +310,11 @@ ExportedSymbols::ExportedSymbols() {
   REGISTER_WRAPPER(fstat);
   REGISTER_WRAPPER(freeaddrinfo);
   REGISTER_WRAPPER(ftruncate);
+  REGISTER_WRAPPER(gai_strerror);
   REGISTER_WRAPPER(getaddrinfo);
+  REGISTER_WRAPPER(geteuid);
   REGISTER_WRAPPER(getifaddrs);
+  REGISTER_WRAPPER(getpid);
   REGISTER_WRAPPER(gmtime_r);
   REGISTER_WRAPPER(lseek);
 
@@ -321,6 +326,7 @@ ExportedSymbols::ExportedSymbols() {
 
   REGISTER_WRAPPER(mmap);
   REGISTER_WRAPPER(opendir);
+  REGISTER_WRAPPER(pathconf);
   REGISTER_WRAPPER(pipe2);
   REGISTER_WRAPPER(pthread_attr_init);
   REGISTER_WRAPPER(pthread_attr_destroy);
