@@ -50,7 +50,6 @@ ftello
 futimes
 fwrite
 gai_strerror
-getauxval
 getc
 getcwd
 gethostname
