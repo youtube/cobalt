@@ -181,6 +181,7 @@ test("cobalt_unittests") {
     "//cobalt/browser/migrate_storage_record:unittest",
     "//cobalt/browser/user_agent",
     "//cobalt/common/eztime:eztime_test",
+    "//cobalt/common/features:features_test",
     "//components/metrics",
     "//components/prefs",
     "//components/prefs:test_support",
