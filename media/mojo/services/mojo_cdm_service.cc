@@ -135,6 +135,14 @@ scoped_refptr<ContentDecryptionModule> MojoCdmService::GetCdm() {
   return cdm_;
 }
 
+#if BUILDFLAG(USE_STARBOARD_MEDIA)
+void MojoCdmService::GetSbDrmSystem(GetSbDrmSystemCallback callback) {
+  media::CdmContext* cdm_context = cdm_->GetCdmContext();
+  DCHECK(cdm_context);
+  std::move(callback).Run(cdm_context->GetSbDrmSystem());
+}
+#endif
+
 void MojoCdmService::OnCdmCreated(
     InitializeCB init_cb,
     const scoped_refptr<::media::ContentDecryptionModule>& cdm,

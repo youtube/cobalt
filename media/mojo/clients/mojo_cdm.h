@@ -120,6 +120,10 @@ class MojoCdm final : public ContentDecryptionModule,
   // Helper for rejecting promises when connection lost.
   void RejectPromiseConnectionLost(uint32_t promise_id);
 
+#if BUILDFLAG(USE_STARBOARD_MEDIA)
+  SbDrmSystem GetSbDrmSystem() override;
+#endif
+
   THREAD_CHECKER(thread_checker_);
 
   mojo::Remote<mojom::ContentDecryptionModule> remote_cdm_;

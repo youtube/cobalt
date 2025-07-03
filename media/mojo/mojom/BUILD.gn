@@ -759,6 +759,16 @@ mojom("mojom") {
         traits_headers = [ "starboard/starboard_rendering_mode_mojom_traits.h" ]
         traits_public_deps = [ "//media" ]
       },
+      {
+      types = [
+        {
+          mojom = "media.mojom.SbDrmSystem"
+          cpp = "::SbDrmSystem"
+        },
+      ]
+      traits_headers = [ "starboard/starboard_drm_system_mojom_traits.h" ]
+      traits_public_deps = [ "//starboard:starboard_headers_only" ]
+    },
     ]
   }
 
