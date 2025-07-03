@@ -407,7 +407,6 @@ void MediaDecoder::CollectPendingData_Locked(
   SB_DCHECK(pending_inputs);
   SB_DCHECK(input_buffer_indices);
   SB_DCHECK(dequeue_output_results);
-  mutex_.DCheckAcquired();
 
   pending_inputs->insert(pending_inputs->end(), pending_inputs_.begin(),
                          pending_inputs_.end());
