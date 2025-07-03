@@ -141,8 +141,7 @@ MediaDrmBridge::MediaDrmBridge(raw_ref<MediaDrmBridge::Host> host,
 
   ScopedJavaLocalRef<jobject> j_media_drm_bridge(Java_MediaDrmBridge_create(
       env, ToJavaByteArray(env, scheme_uuid, kUuidByte),
-      reinterpret_cast<jlong>(this),
-      /*isSecurityLevelL3=*/true));
+      reinterpret_cast<jlong>(this), IsWidevineL3(key_system)));
 
   if (j_media_drm_bridge.is_null()) {
     SB_LOG(ERROR) << "Failed to create MediaDrmBridge.";
