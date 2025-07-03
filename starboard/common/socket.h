@@ -49,10 +49,6 @@ class Socket {
   int Listen();
   Socket* Accept();
 
-  bool IsConnected();
-  bool IsConnectedAndIdle();
-  bool IsPending();
-
   int GetLastError();
   void ClearLastError();
 

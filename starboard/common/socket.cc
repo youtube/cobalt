@@ -125,21 +125,6 @@ Socket* Socket::Accept() {
   return new Socket(new_socket);
 }
 
-bool Socket::IsConnected() {
-  // TODO: implement this
-  return false;
-}
-
-bool Socket::IsConnectedAndIdle() {
-  // TODO: implement this
-  return false;
-}
-
-bool Socket::IsPending() {
-  // TODO: implement this
-  return false;
-}
-
 int Socket::GetLastError() {
   return errno;
 }
