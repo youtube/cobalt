@@ -594,7 +594,6 @@ MediaCapabilitiesCache::MediaCapabilitiesCache() {
 }
 
 void MediaCapabilitiesCache::UpdateMediaCapabilities_Locked() {
-  mutex_.DCheckAcquired();
   if (capabilities_is_dirty_.exchange(false)) {
     // We use a different cache strategy (load and cache) for passthrough
     // supportabilities, so we only clear |passthrough_supportabilities_| here.
@@ -614,7 +613,6 @@ void MediaCapabilitiesCache::UpdateMediaCapabilities_Locked() {
 void MediaCapabilitiesCache::LoadCodecInfos_Locked() {
   SB_DCHECK(audio_codec_capabilities_map_.empty());
   SB_DCHECK(video_codec_capabilities_map_.empty());
-  mutex_.DCheckAcquired();
 
   JniEnvExt* env = JniEnvExt::Get();
   ScopedLocalJavaRef<jobjectArray> j_codec_infos(
@@ -663,7 +661,6 @@ void MediaCapabilitiesCache::LoadCodecInfos_Locked() {
 
 void MediaCapabilitiesCache::LoadAudioConfigurations_Locked() {
   SB_DCHECK(audio_configurations_.empty());
-  mutex_.DCheckAcquired();
 
   // SbPlayerBridge::GetAudioConfigurations() reads up to 32 configurations. The
   // limit here is to avoid infinite loop and also match

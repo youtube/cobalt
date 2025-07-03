@@ -1090,8 +1090,6 @@ SbDecodeTarget VideoDecoder::GetCurrentDecodeTarget() {
 }
 
 void VideoDecoder::UpdateDecodeTargetSizeAndContentRegion_Locked() {
-  decode_target_mutex_.DCheckAcquired();
-
   SB_DCHECK(!frame_sizes_.empty());
 
   while (!frame_sizes_.empty()) {
