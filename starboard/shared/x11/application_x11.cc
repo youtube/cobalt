@@ -696,7 +696,6 @@ ApplicationX11::ApplicationX11(SbEventHandleCallback sb_event_handle_callback)
       wm_change_state_atom_(None),
       QueueApplication(sb_event_handle_callback),
       composite_event_id_(kSbEventIdInvalid),
-      frame_mutex_lock_(frame_mutex_, std::defer_lock),
       display_(NULL),
       paste_buffer_key_release_pending_(false) {
   ::starboard::shared::starboard::audio_sink::SbAudioSinkImpl::Initialize();
@@ -820,7 +819,7 @@ void ApplicationX11::AcceptFrame(SbPlayer player,
 
 void ApplicationX11::SwapBuffersBegin() {
   // Prevent compositing while the GL layer is changing.
-  frame_mutex_lock_.lock();
+  frame_mutex_.lock();
 }
 
 void ApplicationX11::SwapBuffersEnd() {
@@ -840,7 +839,7 @@ void ApplicationX11::SwapBuffersEnd() {
     current_video_bounds_.insert(position, bounds);
   }
 
-  frame_mutex_lock_.lock();
+  frame_mutex_.unlock();
 }
 
 void ApplicationX11::PlayerSetBounds(SbPlayer player,

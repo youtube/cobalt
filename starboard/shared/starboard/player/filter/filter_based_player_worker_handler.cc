@@ -531,11 +531,11 @@ SbDecodeTarget FilterBasedPlayerWorkerHandler::GetCurrentDecodeTarget() {
     return kSbDecodeTargetInvalid;
   }
   SbDecodeTarget decode_target = kSbDecodeTargetInvalid;
-  if (player_components_existence_mutex_.try_lock()) {
+  std::unique_lock lock(player_components_existence_mutex_, std::try_to_lock);
+  if (lock.owns_lock()) {
     if (video_renderer_) {
       decode_target = video_renderer_->GetCurrentDecodeTarget();
     }
-    player_components_existence_mutex_.unlock();
   }
   return decode_target;
 }

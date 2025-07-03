@@ -125,7 +125,6 @@ class ApplicationX11 : public shared::starboard::QueueApplication {
 
   SbEventId composite_event_id_;
   std::mutex frame_mutex_;
-  std::unique_lock<std::mutex> frame_mutex_lock_;
 
   // The latest frame for every active player.
   std::unordered_map<SbPlayer, scoped_refptr<VideoFrame>> next_video_frames_;

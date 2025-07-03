@@ -370,7 +370,7 @@ void AudioRendererPcm::GetSourceStatus(int* frames_in_buffer,
 #endif  // SB_PLAYER_FILTER_ENABLE_STATE_CHECK
 
   {
-    std::unique_lock<std::mutex> lock(mutex_, std::try_to_lock);
+    std::unique_lock lock(mutex_, std::try_to_lock);
     if (lock.owns_lock()) {
       UpdateVariablesOnSinkThread_Locked(
           frames_consumed_set_at_on_sink_thread_);
@@ -435,7 +435,7 @@ void AudioRendererPcm::ConsumeFrames(int frames_consumed,
   // However, if this ever becomes a problem, we can smooth it out over multiple
   // ConsumeFrames() calls.
 
-  std::unique_lock<std::mutex> lock(mutex_, std::try_to_lock);
+  std::unique_lock lock(mutex_, std::try_to_lock);
   if (lock.owns_lock()) {
     frames_consumed_on_sink_thread_ += frames_consumed;
 

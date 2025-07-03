@@ -172,8 +172,7 @@ void VideoRendererImpl::Seek(int64_t seek_to_time) {
              preroll_timeout);
   }
 
-  std::lock_guard scoped_lock_decoder_frames(decoder_frames_mutex_);
-  std::lock_guard scoped_lock_sink_frames(sink_frames_mutex_);
+  std::scoped_lock lock(decoder_frames_mutex_, sink_frames_mutex_);
   decoder_frames_.clear();
   sink_frames_.clear();
   number_of_frames_.store(0);
@@ -242,8 +241,7 @@ void VideoRendererImpl::OnDecoderStatus(
     VideoDecoder::Status status,
     const scoped_refptr<VideoFrame>& frame) {
   if (status == VideoDecoder::kReleaseAllFrames) {
-    std::lock_guard scoped_lock_decoder_frames(decoder_frames_mutex_);
-    std::lock_guard scoped_lock_sink_frames(sink_frames_mutex_);
+    std::scoped_lock scoped_lock(decoder_frames_mutex_, sink_frames_mutex_);
     decoder_frames_.clear();
     sink_frames_.clear();
     number_of_frames_.store(0);
