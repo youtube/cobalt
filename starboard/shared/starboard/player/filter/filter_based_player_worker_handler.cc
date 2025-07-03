@@ -15,6 +15,7 @@
 #include "starboard/shared/starboard/player/filter/filter_based_player_worker_handler.h"
 
 #include <memory>
+#include <mutex>
 #include <utility>
 
 #include "starboard/audio_sink.h"
@@ -132,7 +133,7 @@ HandlerResult FilterBasedPlayerWorkerHandler::Init(
       drm_system_);
 
   {
-    ::starboard::ScopedLock lock(player_components_existence_mutex_);
+    std::lock_guard lock(player_components_existence_mutex_);
     std::string components_error_message;
     player_components_ = factory->CreateComponents(creation_parameters,
                                                    &components_error_message);
@@ -516,7 +517,7 @@ void FilterBasedPlayerWorkerHandler::Stop() {
     // it outside of the lock.  This is because the VideoRenderer destructor
     // may post a task to destroy the SbDecodeTarget to the same thread that
     // might call GetCurrentDecodeTarget(), which would try to take this lock.
-    ::starboard::ScopedLock lock(player_components_existence_mutex_);
+    std::lock_guard lock(player_components_existence_mutex_);
     player_components = std::move(player_components_);
     media_time_provider_ = nullptr;
     audio_renderer_ = nullptr;
@@ -530,11 +531,11 @@ SbDecodeTarget FilterBasedPlayerWorkerHandler::GetCurrentDecodeTarget() {
     return kSbDecodeTargetInvalid;
   }
   SbDecodeTarget decode_target = kSbDecodeTargetInvalid;
-  if (player_components_existence_mutex_.AcquireTry()) {
+  if (player_components_existence_mutex_.try_lock()) {
     if (video_renderer_) {
       decode_target = video_renderer_->GetCurrentDecodeTarget();
     }
-    player_components_existence_mutex_.Release();
+    player_components_existence_mutex_.unlock();
   }
   return decode_target;
 }

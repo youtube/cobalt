@@ -696,6 +696,7 @@ ApplicationX11::ApplicationX11(SbEventHandleCallback sb_event_handle_callback)
       wm_change_state_atom_(None),
       QueueApplication(sb_event_handle_callback),
       composite_event_id_(kSbEventIdInvalid),
+      frame_mutex_lock_(frame_mutex_, std::defer_lock),
       display_(NULL),
       paste_buffer_key_release_pending_(false) {
   ::starboard::shared::starboard::audio_sink::SbAudioSinkImpl::Initialize();
@@ -763,7 +764,7 @@ void ApplicationX11::Composite() {
   if (!windows_.empty()) {
     SbWindow window = windows_[0];
     if (SbWindowIsValid(window)) {
-      ScopedLock lock(frame_mutex_);
+      std::lock_guard lock(frame_mutex_);
 
       window->BeginComposite();
       for (auto& frame_info : current_video_bounds_) {
@@ -803,7 +804,7 @@ void ApplicationX11::AcceptFrame(SbPlayer player,
                                  int y,
                                  int width,
                                  int height) {
-  ScopedLock lock(frame_mutex_);
+  std::lock_guard lock(frame_mutex_);
 
   if (frame->is_end_of_stream()) {
     // Remove all references the the player and its resources.
@@ -819,7 +820,7 @@ void ApplicationX11::AcceptFrame(SbPlayer player,
 
 void ApplicationX11::SwapBuffersBegin() {
   // Prevent compositing while the GL layer is changing.
-  frame_mutex_.Acquire();
+  frame_mutex_lock_.lock();
 }
 
 void ApplicationX11::SwapBuffersEnd() {
@@ -839,7 +840,7 @@ void ApplicationX11::SwapBuffersEnd() {
     current_video_bounds_.insert(position, bounds);
   }
 
-  frame_mutex_.Release();
+  frame_mutex_lock_.lock();
 }
 
 void ApplicationX11::PlayerSetBounds(SbPlayer player,
@@ -848,7 +849,7 @@ void ApplicationX11::PlayerSetBounds(SbPlayer player,
                                      int y,
                                      int width,
                                      int height) {
-  ScopedLock lock(frame_mutex_);
+  std::lock_guard lock(frame_mutex_);
 
   bool player_exists =
       next_video_bounds_.find(player) != next_video_bounds_.end();

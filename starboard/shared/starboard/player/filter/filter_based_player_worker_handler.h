@@ -17,6 +17,7 @@
 
 #include <functional>
 #include <memory>
+#include <mutex>
 #include <string>
 
 #include "starboard/configuration.h"
@@ -85,7 +86,7 @@ class FilterBasedPlayerWorkerHandler : public PlayerWorker::Handler,
   // reads from the video renderer held by |player_components_|.  This is
   // because GetCurrentDecodeTarget() won't modify |player_components_|, and all
   // other accesses are happening from the same thread.
-  Mutex player_components_existence_mutex_;
+  std::mutex player_components_existence_mutex_;
 
   std::unique_ptr<PlayerComponents> player_components_;
   // The following three variables cache the return values of member functions
