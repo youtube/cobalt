@@ -198,7 +198,6 @@ test("nplb") {
     "posix_compliance/posix_unistd_sysconf_test.cc",
     "posix_compliance/posix_usleep_test.cc",
     "random_helpers.cc",
-    "recursive_mutex_test.cc",
     "semaphore_test.cc",
     "storage_close_record_test.cc",
     "storage_get_record_size_test.cc",

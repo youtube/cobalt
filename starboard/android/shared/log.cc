@@ -54,9 +54,8 @@ void SbLog(SbLogPriority priority, const char* message) {
       break;
   }
 
-  starboard::shared::starboard::GetLoggingMutex()->Acquire();
+  std::lock_guard lock(*starboard::shared::starboard::GetLoggingMutex());
   __android_log_write(android_priority, "starboard", message);
-  starboard::shared::starboard::GetLoggingMutex()->Release();
 
   // In unit tests the logging is too fast for the android log to be read out
   // and we end up losing crucial logs. The test runner specifies a sleep time.
