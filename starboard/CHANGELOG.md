@@ -37,7 +37,7 @@ The functionality is migrated to a starboard extension.
 The functionality is migrated to starboard extension.
 ### Removed `starboard/user.h`
 ### Removed unused symbols from `starboard/file.h`
-
+### Removed unused symbols from `starboard/socket.h`
 ### Removed unused symbols from `starboard/thread.h`
 ### Removed unused symbols from `starboard/types.h`
   * Removed provisions for SSIZE_T

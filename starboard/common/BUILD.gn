@@ -77,8 +77,6 @@ static_library("common") {
     "reuse_allocator_base.h",
     "semaphore.cc",
     "semaphore.h",
-    "socket.cc",
-    "socket.h",
     "spin_lock.cc",
     "spin_lock.h",
     "storage.cc",
@@ -112,7 +110,6 @@ source_set("common_test") {
     "player_test.cc",
     "queue_test.cc",
     "semaphore_test.cc",
-    "socket_test.cc",
   ]
   deps = [
     ":common",
