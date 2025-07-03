@@ -20,12 +20,12 @@
 #include <unistd.h>
 
 #include <algorithm>
+#include <condition_variable>
+#include <mutex>
 #include <vector>
 
 #include "starboard/audio_sink.h"
-#include "starboard/common/condition_variable.h"
 #include "starboard/common/log.h"
-#include "starboard/common/mutex.h"
 #include "starboard/common/time.h"
 #include "starboard/configuration.h"
 #include "starboard/shared/alsa/alsa_util.h"
@@ -34,8 +34,6 @@
 namespace starboard::shared::alsa {
 namespace {
 
-using ::starboard::ScopedLock;
-using ::starboard::ScopedTryLock;
 using ::starboard::shared::alsa::AlsaGetBufferedFrames;
 using ::starboard::shared::alsa::AlsaWriteFrames;
 using ::starboard::shared::starboard::audio_sink::SbAudioSinkImpl;
@@ -96,12 +94,12 @@ class AlsaAudioSink : public SbAudioSinkImpl {
   bool IsType(Type* type) override { return type_ == type; }
 
   void SetPlaybackRate(double playback_rate) override {
-    ScopedLock lock(mutex_);
+    std::lock_guard lock(mutex_);
     playback_rate_ = playback_rate;
   }
 
   void SetVolume(double volume) override {
-    ScopedLock lock(mutex_);
+    std::lock_guard lock(mutex_);
     volume_ = volume;
   }
 
@@ -141,8 +139,8 @@ class AlsaAudioSink : public SbAudioSinkImpl {
   SbMediaAudioSampleType sample_type_;
 
   pthread_t audio_out_thread_;
-  ::starboard::Mutex mutex_;
-  ::starboard::ConditionVariable creation_signal_;
+  std::mutex mutex_;
+  std::condition_variable creation_signal_;
 
   int64_t time_to_wait_;
 
@@ -177,7 +175,6 @@ AlsaAudioSink::AlsaAudioSink(
       consume_frames_func_(consume_frames_func),
       context_(context),
       audio_out_thread_(0),
-      creation_signal_(mutex_),
       time_to_wait_(kFramesPerRequest * 1'000'000LL / sampling_frequency_hz /
                     2),
       destroying_(false),
@@ -194,16 +191,16 @@ AlsaAudioSink::AlsaAudioSink(
   memset(silence_frames_, 0,
          channels * kFramesPerRequest * GetSampleSize(sample_type));
 
-  ScopedLock lock(mutex_);
+  std::unique_lock lock(mutex_);
   pthread_create(&audio_out_thread_, nullptr, &AlsaAudioSink::ThreadEntryPoint,
                  this);
   SB_DCHECK(audio_out_thread_ != 0);
-  creation_signal_.Wait();
+  creation_signal_.wait(lock);
 }
 
 AlsaAudioSink::~AlsaAudioSink() {
   {
-    ScopedLock lock(mutex_);
+    std::lock_guard lock(mutex_);
     destroying_ = true;
   }
   pthread_join(audio_out_thread_, NULL);
@@ -231,8 +228,8 @@ void AlsaAudioSink::AudioThreadFunc() {
       channels_, sampling_frequency_hz_, kFramesPerRequest,
       kALSABufferSizeInFrames, alsa_sample_type);
   {
-    ScopedLock lock(mutex_);
-    creation_signal_.Signal();
+    std::lock_guard lock(mutex_);
+    creation_signal_.notify_one();
   }
 
   if (!playback_handle_) {
@@ -249,7 +246,7 @@ void AlsaAudioSink::AudioThreadFunc() {
   }
 
   ::starboard::shared::alsa::AlsaCloseDevice(playback_handle_);
-  ScopedLock lock(mutex_);
+  std::lock_guard lock(mutex_);
   playback_handle_ = NULL;
 }
 
@@ -261,7 +258,7 @@ bool AlsaAudioSink::IdleLoop() {
   for (;;) {
     double playback_rate;
     {
-      ScopedLock lock(mutex_);
+      std::lock_guard lock(mutex_);
       if (destroying_) {
         SB_DLOG(INFO) << "alsa::AlsaAudioSink exits idle loop : destroying";
         break;
@@ -297,8 +294,8 @@ bool AlsaAudioSink::PlaybackLoop() {
   for (;;) {
     int delayed_frame = AlsaGetBufferedFrames(playback_handle_);
     {
-      ScopedTryLock lock(mutex_);
-      if (lock.is_locked()) {
+      std::unique_lock lock(mutex_, std::try_to_lock);
+      if (lock.owns_lock()) {
         if (destroying_) {
           SB_DLOG(INFO)
               << "alsa::AlsaAudioSink exits playback loop : destroying";

@@ -49,18 +49,4 @@ ScopedLock::~ScopedLock() {
   mutex_.Release();
 }
 
-ScopedTryLock::ScopedTryLock(const Mutex& mutex) : mutex_(mutex) {
-  is_locked_ = mutex_.AcquireTry();
-}
-
-ScopedTryLock::~ScopedTryLock() {
-  if (is_locked_) {
-    mutex_.Release();
-  }
-}
-
-bool ScopedTryLock::is_locked() const {
-  return is_locked_;
-}
-
 }  // namespace starboard
