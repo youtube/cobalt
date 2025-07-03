@@ -23,7 +23,6 @@
       "gpu:gpu_perftests_loader",
       "gpu:gpu_unittests_loader",
       "gpu/gles2_conform_support:gles2_conform_test_loader",
-      "ipc:ipc_tests_loader",
       "media:media_unittests_loader",
       "media/capture:capture_unittests_loader",
       "mojo:mojo_perftests_loader",

@@ -19,6 +19,7 @@
     "All/LayerTreeHostMaskAsBlendingPixelTest.RotatedClippedCircle/SkiaGL_ZeroCopy*",
     "All/LayerTreeHostTilesTestRasterColorSpace.GenericRGB/SkiaGL_GPU",
     "All/LayerTreeHostTilesTestRasterColorSpace.GenericRGB/SkiaGL_OneCopy",
+    "B/LayerTreeHostBlendingPixelTest.*",
     "OopPixelTest.DrawImageWithSourceColorSpace",
     "P/OopTextBlobPixelTest.*",
     "P/OopClearPixelTest.*",
