@@ -43,9 +43,10 @@ group("content_shell_lib_deps") {
     "//base",
     "//base:base_static",
     "//base/third_party/dynamic_annotations",
-    "//build:chromeos_buildflags",
     "//cc/base",
     "//components/cdm/renderer",
+    "//components/crash/content/browser",
+    "//components/crash/core/app",
     "//components/custom_handlers",
     "//components/custom_handlers:test_support",
     "//components/keyed_service/content",
@@ -106,32 +107,12 @@ group("content_shell_lib_deps") {
     "//v8",
   ]
 
-  if (is_fuchsia) {
-    public_deps += [
-      "//third_party/fuchsia-sdk/sdk/fidl/fuchsia.element:fuchsia.element_hlcpp",
-      "//third_party/fuchsia-sdk/sdk/fidl/fuchsia.ui.policy:fuchsia.ui.policy_hlcpp",
-    ]
-  } else {
-    public_deps += [
-      "//components/crash/content/browser",
-      "//components/crash/core/app",
-    ]
-  }
-
   if (enable_cast_renderer) {
     public_deps += [ "//media/mojo/services" ]
   }
 
-  if (is_win) {
-    public_deps += [ "//gin" ]
-  }
-
   if (is_linux) {
     public_deps += [ "//ui/linux:linux_ui_factory" ]
-  }
-
-  if (is_mac) {
-    public_deps += [ "//ui/display:test_support" ]
   }
 
   if (is_ios) {
@@ -172,6 +153,7 @@ group("content_shell_lib_deps") {
     }
   }
 
+<<<<<<< HEAD
   if (is_chromeos_ash) {
     public_deps += [ "//chromeos/ash/components/dbus" ]
   }
@@ -184,6 +166,13 @@ group("content_shell_lib_deps") {
   }
 
   if (is_linux || is_chromeos) {
+=======
+  if (shell_use_toolkit_views) {
+    public_deps += [ "//ui/views" ]
+  }
+
+  if (is_linux) {
+>>>>>>> 248e684eaa1 ([Cobalt Shell] Remove unsupported platforms from cobalt_shell (#6073))
     public_deps += [ "//build/config/freetype" ]
   }
 
@@ -270,6 +259,7 @@ static_library("content_shell_lib") {
     ]
   }
 
+<<<<<<< HEAD
   if (is_mac) {
     sources += [
       "//content/shell/browser/renderer_host/shell_render_widget_host_view_mac_delegate.h",
@@ -284,6 +274,8 @@ static_library("content_shell_lib") {
     configs += [ "//build/config/compiler:enable_arc" ]
   }
 
+=======
+>>>>>>> 248e684eaa1 ([Cobalt Shell] Remove unsupported platforms from cobalt_shell (#6073))
   if (is_ios) {
     sources += [
       "//content/shell/browser/bluetooth/shell_bluetooth_delegate_impl_client.cc",
@@ -296,10 +288,13 @@ static_library("content_shell_lib") {
     configs += [ "//build/config/compiler:enable_arc" ]
   }
 
+<<<<<<< HEAD
   if (is_win) {
     sources += [ "//content/shell/browser/shell_javascript_dialog_win.cc" ]
   }
 
+=======
+>>>>>>> 248e684eaa1 ([Cobalt Shell] Remove unsupported platforms from cobalt_shell (#6073))
   configs += [
     ":content_shell_lib_warnings",
     "//build/config:precompiled_headers",
@@ -317,6 +312,7 @@ static_library("content_shell_lib") {
     check_includes = false
   }
 
+<<<<<<< HEAD
   if (is_fuchsia) {
     sources += [
       "//content/shell/browser/fuchsia_view_presenter.cc",
@@ -331,6 +327,8 @@ static_library("content_shell_lib") {
     ]
   }
 
+=======
+>>>>>>> 248e684eaa1 ([Cobalt Shell] Remove unsupported platforms from cobalt_shell (#6073))
   if (use_aura) {
     if (shell_use_toolkit_views) {
       sources += [
@@ -379,12 +377,6 @@ static_library("content_shell_app") {
       "app/paths_mac.mm",
     ]
   }
-  if (is_mac) {
-    sources += [
-      "app/shell_main_delegate_mac.h",
-      "app/shell_main_delegate_mac.mm",
-    ]
-  }
   if (is_ios) {
     sources += [
       "app/ios/shell_application_ios.h",
@@ -401,6 +393,8 @@ group("content_shell_app_deps") {
   testonly = true
   public_deps = [
     ":content_shell_lib",
+    "//components/crash/core/app",
+    "//components/crash/core/app:test_support",
     "//components/crash/core/common:crash_key",
     "//components/memory_system",
     "//content/public/app",
@@ -412,12 +406,6 @@ group("content_shell_app_deps") {
       "//content/web_test:web_test_browser",
       "//content/web_test:web_test_common",
       "//content/web_test:web_test_renderer",
-    ]
-  }
-  if (!is_fuchsia) {
-    public_deps += [
-      "//components/crash/core/app",
-      "//components/crash/core/app:test_support",
     ]
   }
 }
