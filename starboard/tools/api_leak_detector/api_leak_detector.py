@@ -113,6 +113,7 @@ _ALLOWED_SB_GE_16_POSIX_SYMBOLS = [
     'fsync',
     'ftruncate',
     'getaddrinfo',
+    'getauxval',
     'geteuid',
     'getifaddrs',
     'getpagesize',
