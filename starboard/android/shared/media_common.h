@@ -17,10 +17,10 @@
 
 #include <cstring>
 
+#include <mutex>
 #include <optional>
 #include "starboard/android/shared/jni_env_ext.h"
 #include "starboard/common/log.h"
-#include "starboard/common/mutex.h"
 #include "starboard/configuration.h"
 #include "starboard/media.h"
 #include "starboard/shared/starboard/player/filter/audio_frame_tracker.h"
