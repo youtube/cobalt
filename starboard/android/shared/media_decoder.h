@@ -18,16 +18,16 @@
 #include <jni.h>
 
 #include <atomic>
+#include <condition_variable>
 #include <deque>
 #include <memory>
+#include <mutex>
 #include <optional>
 #include <string>
 #include <vector>
 
 #include "starboard/android/shared/drm_system.h"
 #include "starboard/android/shared/media_codec_bridge.h"
-#include "starboard/common/condition_variable.h"
-#include "starboard/common/mutex.h"
 #include "starboard/common/ref_counted.h"
 #include "starboard/media.h"
 #include "starboard/shared/internal_only.h"
@@ -205,8 +205,8 @@ class MediaDecoder final
 
   std::atomic<int32_t> number_of_pending_inputs_{0};
 
-  Mutex mutex_;
-  ConditionVariable condition_variable_;
+  std::mutex mutex_;
+  std::condition_variable condition_variable_;
   std::deque<PendingInput> pending_inputs_;
   std::vector<int> input_buffer_indices_;
   std::vector<DequeueOutputResult> dequeue_output_results_;

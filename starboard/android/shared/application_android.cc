@@ -21,6 +21,7 @@
 
 #include <algorithm>
 #include <limits>
+#include <mutex>
 #include <string>
 #include <vector>
 
@@ -32,9 +33,7 @@
 #include "starboard/android/shared/jni_env_ext.h"
 #include "starboard/android/shared/jni_utils.h"
 #include "starboard/android/shared/window_internal.h"
-#include "starboard/common/condition_variable.h"
 #include "starboard/common/log.h"
-#include "starboard/common/mutex.h"
 #include "starboard/common/string.h"
 #include "starboard/common/time.h"
 #include "starboard/event.h"

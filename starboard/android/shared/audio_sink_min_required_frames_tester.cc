@@ -46,7 +46,6 @@ MinRequiredFramesTester::MinRequiredFramesTester(int max_required_frames,
     : max_required_frames_(max_required_frames),
       required_frames_increment_(required_frames_increment),
       min_stable_played_frames_(min_stable_played_frames),
-      condition_variable_(mutex_),
       destroying_(false) {}
 
 MinRequiredFramesTester::~MinRequiredFramesTester() {
@@ -54,8 +53,8 @@ MinRequiredFramesTester::~MinRequiredFramesTester() {
   destroying_.store(true);
   if (tester_thread_ != 0) {
     {
-      ScopedLock scoped_lock(mutex_);
-      condition_variable_.Signal();
+      std::unique_lock lock(mutex_);
+      condition_variable_.notify_one();
     }
     pthread_join(tester_thread_, NULL);
     tester_thread_ = 0;
@@ -130,8 +129,10 @@ void MinRequiredFramesTester::TesterThreadFunc() {
         &MinRequiredFramesTester::ConsumeFramesFunc,
         &MinRequiredFramesTester::ErrorFunc, 0, -1, false, this);
     {
-      ScopedLock scoped_lock(mutex_);
-      wait_timeout = !condition_variable_.WaitTimed(5'000'000);
+      std::unique_lock lock(mutex_);
+      wait_timeout = condition_variable_.wait_for(
+                         lock, std::chrono::microseconds(5'000'000)) ==
+                     std::cv_status::timeout;
     }
 
     // Get start threshold before release the audio sink.
@@ -257,8 +258,8 @@ void MinRequiredFramesTester::ConsumeFrames(int frames_consumed) {
     // |min_required_frames_| reached maximum, or playback is stable and
     // doesn't have underruns. Stop the test.
     last_total_consumed_frames_ = INT_MAX;
-    ScopedLock scoped_lock(mutex_);
-    condition_variable_.Signal();
+    std::unique_lock lock(mutex_);
+    condition_variable_.notify_one();
   }
 }
 
