@@ -72,9 +72,6 @@ public class MediaDrmBridge {
   // The value of this must stay in sync with kSbDrmTicketInvalid in "starboard/drm.h"
   private static final int SB_DRM_TICKET_INVALID = Integer.MIN_VALUE;
 
-  // Scheme UUID for Widevine. See http://dashif.org/identifiers/protection/
-  private static final UUID WIDEVINE_UUID = UUID.fromString("edef8ba9-79d6-4ace-a3c8-27dcd51d21ed");
-
   // Deprecated in API 26, but we still log it on earlier devices.
   // We do handle STATUS_EXPIRED in onKeyStatusChange() for API 23+ devices.
   @SuppressWarnings("deprecation")
@@ -89,7 +86,7 @@ public class MediaDrmBridge {
 
   private MediaDrm mMediaDrm;
   private long mNativeMediaDrmBridge;
-  private UUID mSchemeUUID;
+  private final UUID mSchemeUUID;
 
   // A session only for the purpose of creating a MediaCrypto object. Created
   // after construction, or after the provisioning process is successfully
@@ -143,20 +140,25 @@ public class MediaDrmBridge {
   }
 
   /**
-   * Create a new MediaDrmBridge with the Widevine crypto scheme.
+   * Create a new MediaDrmBridge.
    *
    * @param nativeMediaDrmBridge The native owner of this class.
    */
   @CalledByNative
-  static MediaDrmBridge create(String keySystem, long nativeMediaDrmBridge) {
-    UUID cryptoScheme = WIDEVINE_UUID;
-    if (!MediaDrm.isCryptoSchemeSupported(cryptoScheme)) {
+  static MediaDrmBridge create(byte[] cryptoSchemeBytes, long nativeMediaDrmBridge, boolean isSecurityLevelL3) {
+    UUID cryptoScheme = getUUIDFromBytes(cryptoSchemeBytes);
+    if (cryptoScheme == null) {
+      Log.e(TAG, "cryptoSchemeBytes is not valid");
+      return null;
+    } else if (!MediaDrm.isCryptoSchemeSupported(cryptoScheme)) {
+      Log.e(TAG, "Given crypto scheme is not supported: cryptoScheme=" + cryptoScheme);
       return null;
     }
 
     MediaDrmBridge mediaDrmBridge = null;
     try {
-      mediaDrmBridge = new MediaDrmBridge(keySystem, cryptoScheme, nativeMediaDrmBridge);
+      mediaDrmBridge = new MediaDrmBridge(
+        cryptoScheme, nativeMediaDrmBridge, isSecurityLevelL3);
       Log.d(TAG, "MediaDrmBridge successfully created.");
     } catch (UnsupportedSchemeException e) {
       Log.e(TAG, "Unsupported DRM scheme", e);
@@ -176,14 +178,36 @@ public class MediaDrmBridge {
     return mediaDrmBridge;
   }
 
+  private static UUID getUUIDFromBytes(byte[] data) {
+    if (data == null) {
+      Log.e(TAG, "getUUIDFromBytes failed since data is null");
+      return null;
+    }
+    if (data.length != 16) {
+      Log.e(TAG, "getUUIDFromBytes failed due to invalid data length: " + data.length);
+      return null;
+    }
+
+    ByteBuffer byteBuffer = ByteBuffer.wrap(data);
+    long mostSigBits = byteBuffer.getLong();
+    long leastSigBits = byteBuffer.getLong();
+    return new UUID(mostSigBits, leastSigBits);
+  }
+
   /**
-   * Check whether the Widevine crypto scheme is supported.
+   * Check whether the given crypto scheme is supported.
    *
-   * @return true if the container and the crypto scheme is supported, or false otherwise.
+   * @return true if the crypto scheme is supported, or false otherwise.
    */
   @CalledByNative
-  static boolean isWidevineCryptoSchemeSupported() {
-    return MediaDrm.isCryptoSchemeSupported(WIDEVINE_UUID);
+  static boolean isCryptoSchemeSupported(byte[] schemeUUID) {
+    UUID uuid = getUUIDFromBytes(schemeUUID);
+    if (uuid == null) {
+      Log.e(TAG, "isCryptoSchemeSupported failed due to invalid scheme uuid");
+      return false;
+    }
+
+    return MediaDrm.isCryptoSchemeSupported(uuid);
   }
 
   /**
@@ -353,7 +377,7 @@ public class MediaDrmBridge {
     return mMediaCrypto;
   }
 
-  private MediaDrmBridge(String keySystem, UUID schemeUUID, long nativeMediaDrmBridge)
+  private MediaDrmBridge(UUID schemeUUID, long nativeMediaDrmBridge, boolean isSecurityLevelL3)
       throws android.media.UnsupportedSchemeException {
     mSchemeUUID = schemeUUID;
     mMediaDrm = new MediaDrm(schemeUUID);
@@ -445,7 +469,7 @@ public class MediaDrmBridge {
 
     mMediaDrm.setPropertyString("privacyMode", "disable");
     mMediaDrm.setPropertyString("sessionSharing", "enable");
-    if (keySystem.equals("com.youtube.widevine.l3")
+    if (isSecurityLevelL3
         && !mMediaDrm.getPropertyString("securityLevel").equals("L3")) {
       mMediaDrm.setPropertyString("securityLevel", "L3");
     }
