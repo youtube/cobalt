@@ -132,10 +132,17 @@ MediaDrmBridge::MediaDrmBridge(raw_ref<MediaDrmBridge::Host> host,
     : host_(host) {
   JNIEnv* env = AttachCurrentThread();
 
-  ScopedJavaLocalRef<jstring> j_key_system(
-      ConvertUTF8ToJavaString(env, key_system));
+  const uint8_t* scheme_uuid = GetCryptoSchemeUuid(key_system);
+  if (scheme_uuid == nullptr) {
+    SB_LOG(ERROR)
+        << "Failed to create MediaDrmBridge due to invalid scheme_uuid";
+    return;
+  }
+
   ScopedJavaLocalRef<jobject> j_media_drm_bridge(Java_MediaDrmBridge_create(
-      env, j_key_system, reinterpret_cast<jlong>(this)));
+      env, ToJavaByteArray(env, scheme_uuid, kUuidByte),
+      reinterpret_cast<jlong>(this),
+      /*isSecurityLevelL3=*/true));
 
   if (j_media_drm_bridge.is_null()) {
     SB_LOG(ERROR) << "Failed to create MediaDrmBridge.";
@@ -311,7 +318,7 @@ bool MediaDrmBridge::IsKeySystemSupported(const std::string& key_system) {
 
   const uint8_t* scheme_uuid = GetCryptoSchemeUuid(key_system);
   if (scheme_uuid == nullptr) {
-    SB_LOG(INFO) << "Cannot get UUID for key system " << key_system;
+    SB_LOG(WARNING) << "Cannot get UUID for key system " << key_system;
     return false;
   }
 
