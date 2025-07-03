@@ -263,8 +263,18 @@ void MediaDecoder::DecoderThreadFunc() {
             (has_pending_input && has_input_buffer_indices);
         if (dequeue_output_results_.empty() && !can_process_input) {
           if (condition_variable_.wait_for(
-                  lock, std::chrono::microseconds(5'000'000LL)) ==
-              std::cv_status::timeout) {
+                  lock, std::chrono::microseconds(5'000'000LL), [&]() {
+                    bool has_pending_input =
+                        !pending_inputs.empty() || !pending_inputs_.empty();
+                    bool has_input_buffer_indices =
+                        !input_buffer_indices_.empty();
+                    bool can_process_input =
+                        pending_input_to_retry_ ||
+                        (has_pending_input && has_input_buffer_indices);
+                    return destroying_.load() ||
+                           !dequeue_output_results_.empty() ||
+                           can_process_input;
+                  }) == std::cv_status::timeout) {
             SB_LOG_IF(ERROR, !stream_ended_.load())
                 << GetDecoderName(media_type_) << ": Wait() hits timeout.";
           }
@@ -369,7 +379,11 @@ void MediaDecoder::DecoderThreadFunc() {
         can_process_input =
             !pending_inputs.empty() && !input_buffer_indices.empty();
         if (!can_process_input && dequeue_output_results.empty()) {
-          condition_variable_.wait_for(lock, std::chrono::microseconds(1000));
+          condition_variable_.wait_for(
+              lock, std::chrono::microseconds(1000), [&]() {
+                return can_process_input || !dequeue_output_results.empty() ||
+                       destroying_.load();
+              });
         }
       }
     }

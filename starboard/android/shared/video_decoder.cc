@@ -716,7 +716,7 @@ bool VideoDecoder::InitializeCodec(const VideoStreamInfo& video_stream_info,
       env->CallVoidMethodOrAbort(decode_target->surface_texture(),
                                  "setOnFrameAvailableListener", "(J)V", this);
 
-      std::lock_guard<std::mutex> lock(decode_target_mutex_);
+      std::lock_guard lock(decode_target_mutex_);
       decode_target_ = decode_target;
     } break;
     case kSbPlayerOutputModeInvalid: {
@@ -783,7 +783,7 @@ void VideoDecoder::TeardownCodec() {
 
   SbDecodeTarget decode_target_to_release = kSbDecodeTargetInvalid;
   {
-    std::lock_guard<std::mutex> lock(decode_target_mutex_);
+    std::lock_guard lock(decode_target_mutex_);
     if (decode_target_ != nullptr) {
       // Remove OnFrameAvailableListener to make sure the callback
       // would not be called.
@@ -931,7 +931,7 @@ void VideoDecoder::RefreshOutputFormat(MediaCodecBridge* media_codec_bridge) {
   SB_DCHECK(media_codec_bridge);
   SB_DLOG(INFO) << "Output format changed, trying to dequeue again.";
 
-  std::lock_guard<std::mutex> lock(decode_target_mutex_);
+  std::lock_guard lock(decode_target_mutex_);
   // Record the latest dimensions of the decoded input.
   frame_sizes_.push_back(media_codec_bridge->GetOutputSize());
 
@@ -1058,7 +1058,7 @@ SbDecodeTarget VideoDecoder::GetCurrentDecodeTarget() {
   SB_DCHECK_EQ(output_mode_, kSbPlayerOutputModeDecodeToTexture);
   // We must take a lock here since this function can be called from a separate
   // thread.
-  std::lock_guard<std::mutex> lock(decode_target_mutex_);
+  std::lock_guard lock(decode_target_mutex_);
   if (decode_target_ != nullptr) {
     bool has_new_texture = has_new_texture_available_.exchange(false);
     if (has_new_texture) {
@@ -1242,8 +1242,9 @@ void VideoDecoder::OnSurfaceDestroyed() {
   if (!BelongsToCurrentThread()) {
     std::unique_lock lock(surface_destroy_mutex_);
     Schedule(std::bind(&VideoDecoder::OnSurfaceDestroyed, this));
-    surface_condition_variable_.wait_for(lock,
-                                         std::chrono::microseconds(1'000'000));
+    surface_condition_variable_.wait_for(
+        lock, std::chrono::microseconds(1'000'000),
+        [this] { return surface_destroyed_on_decoder_thread_; });
     return;
   }
   // When this function is called, the decoder no longer owns the surface.

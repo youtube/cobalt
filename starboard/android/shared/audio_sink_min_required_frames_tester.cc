@@ -131,8 +131,10 @@ void MinRequiredFramesTester::TesterThreadFunc() {
     {
       std::unique_lock lock(mutex_);
       wait_timeout = condition_variable_.wait_for(
-                         lock, std::chrono::microseconds(5'000'000)) ==
-                     std::cv_status::timeout;
+                         lock, std::chrono::microseconds(5'000'000), [this] {
+                           return destroying_.load() ||
+                                  last_total_consumed_frames_ == INT_MAX;
+                         }) == std::cv_status::timeout;
     }
 
     // Get start threshold before release the audio sink.
