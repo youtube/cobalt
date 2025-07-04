@@ -8,10 +8,10 @@
 #include "media/gpu/buildflags.h"
 #include "media/media_buildflags.h"
 
-#if BUILDFLAG(USE_CHROMEOS_MEDIA_ACCELERATION)
+#if BUILDFLAG(USE_LINUX_VIDEO_ACCELERATION)
 #include "media/gpu/chromeos/generic_dmabuf_video_frame_mapper.h"
 #include "media/gpu/chromeos/gpu_memory_buffer_video_frame_mapper.h"
-#endif  // BUILDFLAG(USE_CHROMEOS_MEDIA_ACCELERATION)
+#endif  // BUILDFLAG(USE_LINUX_VIDEO_ACCELERATION)
 
 #if BUILDFLAG(USE_VAAPI)
 #include "media/gpu/vaapi/vaapi_dmabuf_video_frame_mapper.h"
@@ -35,13 +35,13 @@ std::unique_ptr<VideoFrameMapper> VideoFrameMapperFactory::CreateMapper(
     VideoPixelFormat format,
     VideoFrame::StorageType storage_type,
     bool linear_buffer_mapper) {
-#if BUILDFLAG(USE_CHROMEOS_MEDIA_ACCELERATION)
+#if BUILDFLAG(USE_LINUX_VIDEO_ACCELERATION)
   if (storage_type == VideoFrame::STORAGE_GPU_MEMORY_BUFFER)
     return GpuMemoryBufferVideoFrameMapper::Create(format);
 
   if (linear_buffer_mapper)
     return GenericDmaBufVideoFrameMapper::Create(format);
-#endif  // BUILDFLAG(USE_CHROMEOS_MEDIA_ACCELERATION)
+#endif  // BUILDFLAG(USE_LINUX_VIDEO_ACCELERATION)
 
 #if BUILDFLAG(USE_VAAPI)
   return VaapiDmaBufVideoFrameMapper::Create(format);
