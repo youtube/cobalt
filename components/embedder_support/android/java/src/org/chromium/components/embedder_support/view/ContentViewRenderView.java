@@ -51,7 +51,7 @@ public class ContentViewRenderView extends FrameLayout {
         mSurfaceBridge.initialize(this);
     }
 
-    protected SurfaceBridge createSurfaceBridge() {
+    public SurfaceBridge createSurfaceBridge() {
         return new SurfaceBridge();
     }
 
@@ -187,7 +187,7 @@ public class ContentViewRenderView extends FrameLayout {
      * @param context The context used to create the SurfaceView object.
      * @return The created SurfaceView object.
      */
-    protected SurfaceView createSurfaceView(Context context) {
+    public SurfaceView createSurfaceView(Context context) {
         return new SurfaceView(context);
     }
 
@@ -221,15 +221,15 @@ public class ContentViewRenderView extends FrameLayout {
         }
     }
 
-    protected static class SurfaceBridge {
-        private SurfaceView mSurfaceView;
+    public static class SurfaceBridge {
+        public SurfaceView mSurfaceView;
         private SurfaceHolder.Callback mSurfaceCallback;
 
         protected SurfaceView getSurfaceView() {
             return mSurfaceView;
         }
 
-        protected void initialize(ContentViewRenderView renderView) {
+        public void initialize(ContentViewRenderView renderView) {
             mSurfaceView = renderView.createSurfaceView(renderView.getContext());
             mSurfaceView.setZOrderMediaOverlay(true);
 

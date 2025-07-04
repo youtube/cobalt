@@ -21,7 +21,6 @@ import android.content.Intent;
 import android.content.pm.ActivityInfo;
 import android.content.pm.PackageManager;
 import android.content.pm.PackageManager.NameNotFoundException;
-import android.graphics.Color;
 import android.media.AudioManager;
 import android.net.Uri;
 import android.os.Bundle;
@@ -66,7 +65,7 @@ import org.chromium.ui.base.IntentRequestTracker;
 /** Native activity that has the required JNI methods called by the Starboard implementation. */
 public abstract class CobaltActivity extends Activity {
   private static final String URL_ARG = "--url=";
-  private static final java.lang.String META_DATA_APP_URL = "cobalt.APP_URL";
+  private static final String META_DATA_APP_URL = "cobalt.APP_URL";
 
   // This key differs in naming format for legacy reasons
   public static final String COMMAND_LINE_ARGS_KEY = "commandLineArgs";
@@ -322,10 +321,6 @@ public abstract class CobaltActivity extends Activity {
     createContent(savedInstanceState);
 
     videoSurfaceView = new VideoSurfaceView(this);
-
-    // TODO: b/408279606 - Set this to app theme primary color once we fix
-    // error with it being unresolvable.
-    videoSurfaceView.setBackgroundColor(Color.BLACK);
     a11yHelper = new CobaltA11yHelper(this, videoSurfaceView);
     addContentView(videoSurfaceView, new LayoutParams(LayoutParams.MATCH_PARENT, LayoutParams.MATCH_PARENT));
 
@@ -590,10 +585,6 @@ public abstract class CobaltActivity extends Activity {
             // where the view would be in a UI layout and to set the surface transform matrix to
             // match the view's size.
             videoSurfaceView.setLayoutParams(layoutParams);
-            // Set the background to transparent here to avoid obscuring UI
-            // elements. Some are rendered behind the background and rely on
-            // the background being transparent.
-            videoSurfaceView.setBackgroundColor(Color.TRANSPARENT);
           }
         });
   }

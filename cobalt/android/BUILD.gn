@@ -97,6 +97,7 @@ android_library("cobalt_shell_java") {
     "//url:gurl_java",
   ]
   sources = [
+    "apk/app/src/main/java/dev/cobalt/browser/CobaltViewRenderView.java",
     "apk/app/src/main/java/dev/cobalt/shell/Shell.java",
     "apk/app/src/main/java/dev/cobalt/shell/ShellManager.java",
     "apk/app/src/main/java/dev/cobalt/shell/ShellViewAndroidDelegate.java",
