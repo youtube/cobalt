@@ -130,6 +130,10 @@ test("sql_unittests") {
     "test/sql_test_suite.h",
     "transaction_unittest.cc",
   ]
+  if (is_cobalt_hermetic_build) {
+    sources += [ "test/run_all_unittests_starboard.cc" ]
+    sources -= [ "test/run_all_unittests.cc" ]
+  }
 
   data = [ "test/data/" ]
 

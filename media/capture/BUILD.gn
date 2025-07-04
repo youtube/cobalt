@@ -439,6 +439,10 @@ test("capture_unittests") {
     "video/video_capture_metrics_unittest.cc",
     "video_capture_types_unittest.cc",
   ]
+  if (is_cobalt_hermetic_build) {
+    sources += [ "run_all_unittests_starboard.cc" ]
+    sources -= [ "run_all_unittests.cc" ]
+  }
 
   data = [ "//media/test/data/bear.mjpeg" ]
 

@@ -512,6 +512,10 @@ if (build_with_chromium) {
       "google/zip_reader_unittest.cc",
       "google/zip_unittest.cc",
     ]
+    if (is_cobalt_hermetic_build) {
+      sources += [ "contrib/tests/run_all_unittests_starboard.cc" ]
+      sources -= [ "contrib/tests/run_all_unittests.cc" ]
+    }
 
     data = [ "google/test/data/" ]
 
