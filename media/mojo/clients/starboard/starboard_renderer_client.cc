@@ -58,6 +58,7 @@ StarboardRendererClient::StarboardRendererClient(
 StarboardRendererClient::~StarboardRendererClient() {
   SetPlayingState(false);
   DCHECK(!video_renderer_sink_started_);
+  DCHECK(!video_renderer_sink_started_);
 }
 
 void StarboardRendererClient::Initialize(MediaResource* media_resource,
