@@ -94,6 +94,18 @@ _FILTERED_TESTS = {
         'SysInfoTest.AmountOfFreeDiskSpace',
         'SysInfoTest.AmountOfTotalDiskSpace',
     ],
+    'nplb': [
+        'SbMediaCanPlayMimeAndKeySystem.MinimumSupport',
+        'SbMediaCanPlayMimeAndKeySystem.AnySupportedKeySystems',
+        'SbSystemGetLocaleIdTest.SunnyDay',
+        'SbSystemGetPropertyTest.ReturnsRequired',
+        'SbTimeZoneGetNameTest.IsIANAFormat',
+        'PosixSocketHints/PosixSocketResolveTest.Localhost/family_inet6_socktype*',
+        'SbSocketAddressTypes/SbSocketGetInterfaceAddressTest.SunnyDaySourceForDestination/type_ipv6',
+    ],
+    'layout_tests': [
+        'CSS3FontsLayoutTests/Layout.Test/*',
+    ],
     'dom_test': [
         'NavigatorTest.NavigatorOnline',
     ],
