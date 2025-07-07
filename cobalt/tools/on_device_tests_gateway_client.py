@@ -33,7 +33,6 @@ _ON_DEVICE_TESTS_GATEWAY_SERVICE_HOST = (
 
 # When testing with local gateway, uncomment:
 #_ON_DEVICE_TESTS_GATEWAY_SERVICE_HOST = 'localhost'
-
 _ON_DEVICE_TESTS_GATEWAY_SERVICE_PORT = '50052'
 
 # These paths are hardcoded in various places. DO NOT CHANGE!
@@ -42,11 +41,14 @@ _DEPS_ARCHIVE = '/sdcard/chromium_tests_root/deps.tar.gz'
 
 _DIR_ON_DEV_MAP = {
     'android': '/sdcard/Download',
-    'ssh': '/home/pi/test/results',
+    'raspi': '/home/pi/test/results',
+    'rdk': '/home/rdk/test/results',
 }
+
 _DEPS_ARCH_MAP = {
     'android': '/sdcard/chromium_tests_root/deps.tar.gz',
-    'ssh': '/home/pi/test/',
+    'raspi': '/home/pi/test/',
+    'rdk': '/home/rdk/test/',
 }
 
 # Any test run that fails due to infra error will be retried.
@@ -188,9 +190,9 @@ def _unit_test_files(args: argparse.Namespace, target_name: str) -> List[str]:
 
 
 def _unit_test_params(args: argparse.Namespace, target_name: str,
-                      dir_on_device: str) -> List[str]:
+                      dir_on_device: str, device_type: str) -> List[str]:
   """Builds the list of params for a unit test request."""
-  runtime_deps = _DEPS_ARCH_MAP.get(args.device_family, '')
+  runtime_deps = _DEPS_ARCH_MAP.get(device_type, '')
   params = [
       f'push_files=test_runtime_deps:{runtime_deps}',
       f'gtest_xml_file_on_device={dir_on_device}/{target_name}_testoutput.xml',
@@ -228,20 +230,20 @@ def _process_test_requests(args: argparse.Namespace) -> List[Dict[str, Any]]:
         continue
       if args.test_attempts:
         test_args.extend([f'test_attempts={args.test_attempts}'])
-      dir_on_device = _DIR_ON_DEV_MAP.get(args.device_family, '')
+      dir_on_device = _DIR_ON_DEV_MAP.get(device_type, '')
       command_line_args = ' '.join([
           f'--gtest_output=xml:{dir_on_device}/{target_name}_testoutput.xml',
           f'--gtest_filter={gtest_filter}',
       ])
       test_cmd_args = [f'command_line_args={command_line_args}']
       files = _unit_test_files(args, target_name)
-      params = _unit_test_params(args, target_name, dir_on_device)
+      params = _unit_test_params(args, target_name, dir_on_device, device_type)
 
     elif args.test_type == 'e2e_test':
       test_target = target_data['target']
-      retries = target_data.get('retries')
-      if retries:
-        test_args.extend([f'test_attempts={retries}'])
+      test_attempts = target_data.get('test_attempts', '')
+      if test_attempts:
+        test_args.extend([f'test_attempts={test_attempts}'])
       elif args.test_attempts:
         test_args.extend([f'test_attempts={args.test_attempts}'])
       test_cmd_args = []
@@ -297,7 +299,7 @@ def main() -> int:
   )
 
   # --- Common Trigger Arguments ---
-  trigger_args = trigger_parser.add_argument_group('Trigger common Arguments')
+  trigger_args = trigger_parser.add_argument_group('Common Trigger Arguments')
   trigger_args.add_argument(
       '--test_type',
       type=str,
@@ -314,7 +316,7 @@ def main() -> int:
   trigger_args.add_argument(
       '--targets',
       type=str,
-      help='List of targets to test in format module:target, comma separated.',
+      help='List of targets to test in JSON format.',
       required=True,
   )
   trigger_args.add_argument(
