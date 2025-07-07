@@ -68,7 +68,7 @@ public class Shell {
     /**
      * Set the SurfaceView being rendered to as soon as it is available.
      */
-    public void setContentViewRenderView(CobaltViewRenderView cobaltViewRenderView) {
+    public void setCobaltViewRenderView(CobaltViewRenderView cobaltViewRenderView) {
         mCobaltViewRenderView = cobaltViewRenderView;
     }
 

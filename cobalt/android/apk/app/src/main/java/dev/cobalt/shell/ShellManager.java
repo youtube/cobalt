@@ -61,9 +61,9 @@ public class ShellManager {
     }
 
     /**
-     * Get the ContentViewRenderView.
+     * Get the CobaltViewRenderView.
      */
-    public CobaltViewRenderView getContentViewRenderView() {
+    public CobaltViewRenderView getCobaltViewRenderView() {
         return mCobaltViewRenderView;
     }
 
@@ -110,7 +110,7 @@ public class ShellManager {
     }
 
     private void showShell(Shell shellView) {
-        shellView.setContentViewRenderView(mCobaltViewRenderView);
+        shellView.setCobaltViewRenderView(mCobaltViewRenderView);
         mActiveShell = shellView;
         WebContents webContents = mActiveShell.getWebContents();
         if (webContents != null) {
@@ -122,7 +122,7 @@ public class ShellManager {
     @CalledByNative
     private void removeShell(Shell shellView) {
         if (shellView == mActiveShell) mActiveShell = null;
-        shellView.setContentViewRenderView(null);
+        shellView.setCobaltViewRenderView(null);
     }
 
     /**
