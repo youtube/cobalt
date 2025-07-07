@@ -179,14 +179,14 @@ public class StarboardBridge {
   }
 
   protected void onActivityStart(Activity activity) {
-    Log.e(TAG, "onActivityStart ran");
+    Log.i(TAG, "onActivityStart ran");
     activityHolder.set(activity);
     sysConfigChangeReceiver.setForeground(true);
     beforeStartOrResume();
   }
 
   protected void onActivityStop(Activity activity) {
-    Log.e(TAG, "onActivityStop ran");
+    Log.i(TAG, "onActivityStop ran");
     beforeSuspend();
     if (activityHolder.get() == activity) {
       activityHolder.set(null);
