@@ -369,8 +369,7 @@ ContentBrowserClient* ShellMainDelegate::CreateContentBrowserClient() {
 }
 
 ContentGpuClient* ShellMainDelegate::CreateContentGpuClient() {
-  gpu_client_ = std::make_unique<ShellContentGpuClient>();
-  return gpu_client_.get();
+  return nullptr;
 }
 
 ContentRendererClient* ShellMainDelegate::CreateContentRendererClient() {
@@ -385,9 +384,7 @@ ContentRendererClient* ShellMainDelegate::CreateContentRendererClient() {
 }
 
 ContentUtilityClient* ShellMainDelegate::CreateContentUtilityClient() {
-  utility_client_ =
-      std::make_unique<ShellContentUtilityClient>(is_content_browsertests_);
-  return utility_client_.get();
+  return nullptr;
 }
 
 }  // namespace content

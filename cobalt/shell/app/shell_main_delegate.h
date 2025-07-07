@@ -79,9 +79,7 @@ class ShellMainDelegate : public ContentMainDelegate {
 #endif
 
   std::unique_ptr<ShellContentBrowserClient> browser_client_;
-  std::unique_ptr<ShellContentGpuClient> gpu_client_;
   std::unique_ptr<ShellContentRendererClient> renderer_client_;
-  std::unique_ptr<ShellContentUtilityClient> utility_client_;
   std::unique_ptr<ShellContentClient> content_client_;
 
   memory_system::MemorySystem memory_system_;

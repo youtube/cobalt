@@ -59,10 +59,6 @@
 #include "net/base/network_change_notifier.h"
 #endif
 
-#if defined(USE_AURA) && (BUILDFLAG(IS_LINUX))
-#include "ui/base/ime/init/input_method_initializer.h"
-#endif
-
 #if BUILDFLAG(IS_LINUX)
 #include "device/bluetooth/dbus/dbus_bluez_manager_wrapper_linux.h"
 #endif
@@ -121,9 +117,6 @@ void ShellBrowserMainParts::PostCreateMainMessageLoop() {
 }
 
 int ShellBrowserMainParts::PreEarlyInitialization() {
-#if defined(USE_AURA) && (BUILDFLAG(IS_LINUX))
-  ui::InitializeInputMethodForTesting();
-#endif
 #if BUILDFLAG(IS_ANDROID)
   net::NetworkChangeNotifier::SetFactory(
       new net::NetworkChangeNotifierFactoryAndroid());
