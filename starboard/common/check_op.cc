@@ -88,6 +88,7 @@ char* StreamValToStr(const void* v,
 }
 
 // Copied from base/check.cc
+// Copied it into check_op.cc, since its declaration is in check_op.h.
 LogMessage* CheckOpResult::CreateLogMessage(const char* file,
                                             int line,
                                             const char* expr_str,
