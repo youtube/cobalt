@@ -7,6 +7,7 @@
 #include <sched.h>
 #include <unistd.h>
 
+#include "starboard/common/recursive_mutex.h"
 #include "starboard/thread.h"
 
 _LIBCPP_PUSH_MACROS
@@ -26,7 +27,7 @@ _LIBCPP_BEGIN_NAMESPACE_STD
 
 typedef pthread_mutex_t __libcpp_mutex_t;
 
-typedef pthread_mutex_t __libcpp_recursive_mutex_t;
+typedef starboard::RecursiveMutex __libcpp_recursive_mutex_t;
 #define _LIBCPP_MUTEX_INITIALIZER  PTHREAD_MUTEX_INITIALIZER
 
 typedef pthread_cond_t __libcpp_condvar_t;
@@ -136,44 +137,29 @@ int __libcpp_tls_set(__libcpp_tls_key __key, void *__p);
 
 #if defined(_LIBCPP_HAS_THREAD_API_EXTERNAL)
 
-int __libcpp_recursive_mutex_init(__libcpp_recursive_mutex_t* __m) {
-  pthread_mutexattr_t __attr;
-  int __ec = pthread_mutexattr_init(&__attr);
-  if (__ec)
-    return __ec;
-  __ec = pthread_mutexattr_settype(&__attr, PTHREAD_MUTEX_RECURSIVE);
-  if (__ec) {
-    pthread_mutexattr_destroy(&__attr);
-    return __ec;
-  }
-  __ec = pthread_mutex_init(__m, &__attr);
-  if (__ec) {
-    pthread_mutexattr_destroy(&__attr);
-    return __ec;
-  }
-  __ec = pthread_mutexattr_destroy(&__attr);
-  if (__ec) {
-    pthread_mutex_destroy(__m);
-    return __ec;
-  }
+// No further initialization required other than simply creating an instance of
+// starboard::RecursiveMutex since its constructor initializes it.
+int __libcpp_recursive_mutex_init(__libcpp_recursive_mutex_t* __m) {}
+
+int __libcpp_recursive_mutex_lock(__libcpp_recursive_mutex_t* __m) {
+  __m->Acquire();
   return 0;
 }
 
-int  __libcpp_recursive_mutex_lock(__libcpp_recursive_mutex_t* __m) {
-  return pthread_mutex_lock(__m);
-}
-
-int __libcpp_recursive_mutex_trylock(__libcpp_recursive_mutex_t* __m) {
-  return pthread_mutex_trylock(__m) == 0;
+bool __libcpp_recursive_mutex_trylock(__libcpp_recursive_mutex_t* __m) {
+  if (__m->AcquireTry()) {
+    return 0;
+  }
+  return 1;
 }
 
 int __libcpp_recursive_mutex_unlock(__libcpp_recursive_mutex_t* __m) {
-  return pthread_mutex_unlock(__m);
+  __m->Release();
+  return 0;
 }
 
-int __libcpp_recursive_mutex_destroy(__libcpp_recursive_mutex_t* __m) {
-  return pthread_mutex_destroy(__m);
-}
+// Similar situation to the constructor.
+int __libcpp_recursive_mutex_destroy(__libcpp_recursive_mutex_t* __m) {}
 
 int __libcpp_mutex_lock(__libcpp_mutex_t* __m) {
   return pthread_mutex_lock(__m);
