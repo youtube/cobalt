@@ -16,7 +16,6 @@
 
 #include <string>
 
-#include "build/build_config.h"
 #include "starboard/common/command_line.h"
 #include "starboard/common/log.h"
 #include "starboard/common/string.h"
@@ -64,9 +63,6 @@ void LoadLibraryAndInitialize(const std::string& library_path,
     SB_LOG(INFO) << "Loaded Cobalt library information into Crashpad.";
   }
 
-// TODO: Cobalt b/428765497 - Make sure the shared library has
-// GetEvergreenSabiString.
-#if BUILDFLAG(ENABLE_COBALT_HERMETIC_HACKS)
   auto get_evergreen_sabi_string_func = reinterpret_cast<const char* (*)()>(
       g_elf_loader.LookupSymbol("GetEvergreenSabiString"));
 
@@ -74,7 +70,6 @@ void LoadLibraryAndInitialize(const std::string& library_path,
     SB_LOG(ERROR) << "CheckSabi failed";
     return;
   }
-#endif
 
   g_sb_event_func = reinterpret_cast<void (*)(const SbEvent*)>(
       g_elf_loader.LookupSymbol("SbEventHandle"));
