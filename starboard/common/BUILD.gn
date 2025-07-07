@@ -33,6 +33,14 @@ static_library("common") {
     "//starboard/shared/media_session/playback_state.h",
     "allocator.cc",
     "allocator.h",
+<<<<<<< HEAD
+=======
+    "check.h",
+    "check_op.cc",
+    "check_op.h",
+    "command_line.cc",
+    "command_line.h",
+>>>>>>> 6f1cbe1059a (Import check_op.h (e.g SB_CHECK_EQ) to starboard/ (from base/) (#6274))
     "common.cc",
     "condition_variable.cc",
     "condition_variable.h",
