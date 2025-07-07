@@ -332,14 +332,16 @@ std::string AppendModeCharacter(StringPiece mode, char mode_char) {
 
 }  // namespace
 
+
 FilePath MakeAbsoluteFilePath(const FilePath& input) {
   ScopedBlockingCall scoped_blocking_call(FROM_HERE, BlockingType::MAY_BLOCK);
   char full_path[PATH_MAX];
+  #if !BUILDFLAG(IS_STARBOARD)
   if (realpath(input.value().c_str(), full_path) == nullptr)
     return FilePath();
+  #endif // !BUILDFLAG(IS_STARBOARD)
   return FilePath(full_path);
 }
-
 absl::optional<FilePath> MakeAbsoluteFilePathNoResolveSymbolicLinks(
     const FilePath& input) {
   if (input.empty()) {
@@ -1069,14 +1071,17 @@ bool AppendToFile(const FilePath& filename, StringPiece data) {
   return AppendToFile(filename, as_bytes(make_span(data)));
 }
 
+
 bool GetCurrentDirectory(FilePath* dir) {
   // getcwd can return ENOENT, which implies it checks against the disk.
   ScopedBlockingCall scoped_blocking_call(FROM_HERE, BlockingType::MAY_BLOCK);
 
   char system_buffer[PATH_MAX] = "";
+#if !BUILDFLAG(IS_STARBOARD)
   if (!getcwd(system_buffer, sizeof(system_buffer))) {
     return false;
   }
+#endif //!BUILDFLAG(IS_STARBOARD)
   *dir = FilePath(system_buffer);
   return true;
 }
