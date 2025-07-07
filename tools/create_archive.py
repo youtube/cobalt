@@ -48,7 +48,8 @@ TEST_PATTERNS = [
     'ds_archive.zip',
     'app_launcher.zip',
     'native_target/crashpad_handler',
-    'elf_loader_sandbox'
+    'elf_loader_sandbox',
+    'elf_loader_sandbox_bin'
 ]
 
 SOURCE_DIR = r'<source_dir>'
