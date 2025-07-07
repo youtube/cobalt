@@ -95,7 +95,7 @@ ContinuousAudioTrackSink::ContinuousAudioTrackSink(
 
   pthread_create(&audio_out_thread_, nullptr,
                  &ContinuousAudioTrackSink::ThreadEntryPoint, this);
-  SB_DCHECK(audio_out_thread_ != 0);
+  SB_DCHECK_NE(audio_out_thread_, 0);
 }
 
 ContinuousAudioTrackSink::~ContinuousAudioTrackSink() {
@@ -317,7 +317,7 @@ int ContinuousAudioTrackSink::WriteData(JniEnvExt* env,
     // Error code returned as negative value, like kAudioTrackErrorDeadObject.
     return samples_written;
   }
-  SB_DCHECK(samples_written % channels_ == 0);
+  SB_DCHECK_EQ(samples_written % channels_, 0);
   return samples_written / channels_;
 }
 

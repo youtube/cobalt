@@ -69,7 +69,7 @@ void MinRequiredFramesTester::AddTest(
     int default_required_frames) {
   SB_DCHECK(thread_checker_.CalledOnValidThread());
   // MinRequiredFramesTester doesn't support to add test after starts.
-  SB_DCHECK(tester_thread_ == 0);
+  SB_DCHECK_EQ(tester_thread_, 0);
 
   test_tasks_.emplace_back(number_of_channels, sample_type, sample_rate,
                            received_cb, default_required_frames);
@@ -78,11 +78,11 @@ void MinRequiredFramesTester::AddTest(
 void MinRequiredFramesTester::Start() {
   SB_DCHECK(thread_checker_.CalledOnValidThread());
   // MinRequiredFramesTester only supports to start once.
-  SB_DCHECK(tester_thread_ == 0);
+  SB_DCHECK_EQ(tester_thread_, 0);
 
   pthread_create(&tester_thread_, nullptr,
                  &MinRequiredFramesTester::TesterThreadEntryPoint, this);
-  SB_DCHECK(tester_thread_ != 0);
+  SB_DCHECK_NE(tester_thread_, 0);
 }
 
 // static

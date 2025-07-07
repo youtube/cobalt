@@ -538,7 +538,7 @@ void SbMicrophonePrivate::DestroyMicrophone(SbMicrophone microphone) {
     return;
   }
 
-  SB_DCHECK(s_microphone == microphone);
+  SB_DCHECK_EQ(s_microphone, microphone);
   s_microphone->Close();
 
   delete s_microphone;

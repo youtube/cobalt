@@ -166,7 +166,7 @@ AudioTrackAudioSink::AudioTrackAudioSink(
 
   pthread_create(&audio_out_thread_, nullptr,
                  &AudioTrackAudioSink::ThreadEntryPoint, this);
-  SB_DCHECK(audio_out_thread_ != 0);
+  SB_DCHECK_NE(audio_out_thread_, 0);
 }
 
 AudioTrackAudioSink::~AudioTrackAudioSink() {
@@ -398,7 +398,7 @@ int AudioTrackAudioSink::WriteData(JniEnvExt* env,
     // Error code returned as negative value, like kAudioTrackErrorDeadObject.
     return samples_written;
   }
-  SB_DCHECK(samples_written % channels_ == 0);
+  SB_DCHECK_EQ(samples_written % channels_, 0);
   return samples_written / channels_;
 }
 
@@ -601,7 +601,7 @@ void SbAudioSinkImpl::PlatformInitialize() {
 
 // static
 void SbAudioSinkImpl::PlatformTearDown() {
-  SB_DCHECK(audio_track_audio_sink_type_ == GetPrimaryType());
+  SB_DCHECK_EQ(audio_track_audio_sink_type_, GetPrimaryType());
   SetPrimaryType(NULL);
   delete audio_track_audio_sink_type_;
   audio_track_audio_sink_type_ = NULL;
