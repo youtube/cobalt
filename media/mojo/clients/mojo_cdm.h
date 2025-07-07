@@ -121,7 +121,7 @@ class MojoCdm final : public ContentDecryptionModule,
   void RejectPromiseConnectionLost(uint32_t promise_id);
 
 #if BUILDFLAG(USE_STARBOARD_MEDIA)
-  SbDrmSystem GetSbDrmSystem() override;
+  void GetSbDrmSystemAsync(GetSbDrmSystemCB callback) final;
 #endif
 
   THREAD_CHECKER(thread_checker_);

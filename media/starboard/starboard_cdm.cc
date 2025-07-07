@@ -276,6 +276,10 @@ SbDrmSystem StarboardCdm::GetSbDrmSystem() {
   return sb_drm_;
 }
 
+void StarboardCdm::GetSbDrmSystemAsync(GetSbDrmSystemCB callback) {
+  std::move(callback).Run(sb_drm_);
+}
+
 bool StarboardCdm::HasValidSbDrm() {
   return SbDrmSystemIsValid(sb_drm_);
 }

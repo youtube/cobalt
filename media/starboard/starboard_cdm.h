@@ -77,6 +77,7 @@ class MEDIA_EXPORT StarboardCdm : public ContentDecryptionModule,
       EventCB event_cb) override;
 
   SbDrmSystem GetSbDrmSystem() override;
+  void GetSbDrmSystemAsync(GetSbDrmSystemCB callback) override;
 
   bool HasValidSbDrm();
 

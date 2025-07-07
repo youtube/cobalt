@@ -117,6 +117,8 @@ class MEDIA_EXPORT CdmContext {
 
 #if BUILDFLAG(USE_STARBOARD_MEDIA)
   virtual SbDrmSystem GetSbDrmSystem();
+  using GetSbDrmSystemCB = base::OnceCallback<void(const SbDrmSystem&)>;
+  virtual void GetSbDrmSystemAsync(GetSbDrmSystemCB callback);
 #endif // BUILDFLAG(USE_STARBOARD_MEDIA)
 
 #if BUILDFLAG(IS_FUCHSIA)

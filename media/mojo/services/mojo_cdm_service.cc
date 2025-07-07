@@ -139,7 +139,7 @@ scoped_refptr<ContentDecryptionModule> MojoCdmService::GetCdm() {
 void MojoCdmService::GetSbDrmSystem(GetSbDrmSystemCallback callback) {
   media::CdmContext* cdm_context = cdm_->GetCdmContext();
   DCHECK(cdm_context);
-  std::move(callback).Run(cdm_context->GetSbDrmSystem());
+  cdm_context->GetSbDrmSystemAsync(std::move(callback));
 }
 #endif
 

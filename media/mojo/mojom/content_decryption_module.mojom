@@ -123,11 +123,6 @@ interface ContentDecryptionModule {
   RemoveSession(string session_id) => (CdmPromiseResult result);
 
   // Gets the Starboard DRM system. This is a Cobalt-specific extension.
-  // [Sync] is used because this Mojo method proxies the C++
-  // `StarboardCdm::GetSbDrmSystem()` method, which is a synchronous
-  // function. Initially I tried using base::WaitableEvent which hangs,
-  // wherease using `[Sync]` works well.
-  [Sync]
   GetSbDrmSystem() => (SbDrmSystem drm_system);
 };
 

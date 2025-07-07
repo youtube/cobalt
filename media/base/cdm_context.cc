@@ -51,6 +51,10 @@ MediaCryptoContext* CdmContext::GetMediaCryptoContext() {
 SbDrmSystem CdmContext::GetSbDrmSystem() {
   return kSbDrmSystemInvalid;
 }
+
+void CdmContext::GetSbDrmSystemAsync(GetSbDrmSystemCB callback) {
+  std::move(callback).Run(kSbDrmSystemInvalid);
+}
 #endif // BUILDFLAG(USE_STARBOARD_MEDIA)
 
 
