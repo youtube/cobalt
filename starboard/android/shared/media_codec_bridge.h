@@ -21,6 +21,7 @@
 
 #include "base/android/scoped_java_ref.h"
 #include "starboard/android/shared/media_common.h"
+#include "starboard/common/check_op.h"
 #include "starboard/shared/starboard/media/media_util.h"
 
 namespace starboard::android::shared {
