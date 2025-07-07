@@ -22,6 +22,7 @@
 #include "starboard/common/mutex.h"
 
 namespace starboard {
+XXXXXXX
 
 // This class adds thread-safety to any class.  Note when using LockedPtr<T>,
 // the caller should use the returned object directly as a pointer without
