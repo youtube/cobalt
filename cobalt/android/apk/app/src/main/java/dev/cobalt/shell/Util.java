@@ -12,12 +12,13 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package org.chromium.content_shell;
+package dev.cobalt.shell;
 
+import android.util.Log;
 import android.view.View;
 import android.view.ViewGroup;
-import android.util.Log;
 
+/** A helper class for observing Cobalt's View hierarchy. */
 public class Util {
   private static String TAG = "cobalt";
 

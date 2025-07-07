@@ -9,11 +9,11 @@
 #include "base/android/scoped_java_ref.h"
 #include "base/functional/bind.h"
 #include "base/lazy_instance.h"
+#include "cobalt/android/jni_headers/ShellManager_jni.h"
 #include "cobalt/shell/browser/shell.h"
 #include "cobalt/shell/browser/shell_browser_context.h"
 #include "cobalt/shell/browser/shell_content_browser_client.h"
 #include "content/public/browser/web_contents.h"
-#include "content/shell/android/content_shell_jni_headers/ShellManager_jni.h"
 #include "url/gurl.h"
 
 using base::android::JavaParamRef;

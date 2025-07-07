@@ -2,14 +2,12 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-package org.chromium.content_shell;
+package dev.cobalt.shell;
 
 import android.app.Activity;
 import android.content.Context;
 import android.graphics.Rect;
 import android.text.TextUtils;
-import android.util.AttributeSet;
-import android.util.Log;
 import android.view.ActionMode;
 import android.view.Menu;
 import android.view.MenuItem;
@@ -28,10 +26,10 @@ import org.chromium.content_public.browser.WebContents;
 import org.chromium.ui.base.ViewAndroidDelegate;
 import org.chromium.ui.base.WindowAndroid;
 
-// Cobalt's own Java implementation of Shell. It does not have Shell UI.
-
 /**
- * Container for the various UI components that make up a shell window.
+ *  Copied from org.chromium.content_shell.Shell.
+ *  Cobalt's own Java implementation of Shell. It does not have Shell UI.
+ *  Container for the various UI components that make up a shell window.
  */
 @JNINamespace("content")
 public class Shell {
@@ -90,7 +88,9 @@ public class Shell {
      * dependencies.
      */
     public void close() {
-        if (mNativeShell == 0) return;
+        if (mNativeShell == 0){
+            return;
+        }
         ShellJni.get().closeShell(mNativeShell);
     }
 
@@ -123,7 +123,9 @@ public class Shell {
      * @param url The URL to be loaded by the shell.
      */
     public void loadUrl(String url) {
-        if (url == null) return;
+        if (url == null) {
+            return;
+        }
 
         if (TextUtils.equals(url, mWebContents.getLastCommittedUrl().getSpec())) {
             mNavigationController.reload(true);
@@ -138,8 +140,12 @@ public class Shell {
      * @return The sanitized URL.
      */
     public static String sanitizeUrl(String url) {
-        if (url == null) return null;
-        if (url.startsWith("www.") || url.indexOf(":") == -1) url = "http://" + url;
+        if (url == null) {
+            return null;
+        }
+        if (url.startsWith("www.") || url.indexOf(":") == -1) {
+            url = "http://" + url;
+        }
         return url;
     }
 
@@ -175,7 +181,9 @@ public class Shell {
     private void initFromNativeTabContents(WebContents webContents) {
         mViewAndroidDelegate = new ShellViewAndroidDelegate(mRootView);
         assert (mWebContents != webContents);
-        if (mWebContents != null) mWebContents.clearNativeReference();
+        if (mWebContents != null) {
+            mWebContents.clearNativeReference();
+        }
         webContents.initialize(
                 "", mViewAndroidDelegate, null /* ContentView */, mWindow, WebContents.createDefaultInternalsHolder());
         mWebContents = webContents;

@@ -2,10 +2,9 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-package org.chromium.content_shell;
+package dev.cobalt.shell;
 
 import android.content.Context;
-import android.util.Log;
 import org.chromium.base.ThreadUtils;
 import org.chromium.base.annotations.CalledByNative;
 import org.chromium.base.annotations.JNINamespace;
@@ -15,6 +14,7 @@ import org.chromium.content_public.browser.WebContents;
 import org.chromium.ui.base.WindowAndroid;
 
 /**
+ * Copied from org.chromium.content_shell.ShellManager.
  * Container and generator of ShellViews.
  */
 @JNINamespace("content")
@@ -89,7 +89,9 @@ public class ShellManager {
         ThreadUtils.assertOnUiThread();
         Shell previousShell = mActiveShell;
         ShellManagerJni.get().launchShell(url);
-        if (previousShell != null) previousShell.close();
+        if (previousShell != null) {
+            previousShell.close();
+        }
     }
 
     @CalledByNative
@@ -103,7 +105,9 @@ public class ShellManager {
         shellView.initialize(nativeShellPtr, mWindow);
 
         // TODO(tedchoc): Allow switching back to these inactive shells.
-        if (mActiveShell != null) removeShell(mActiveShell);
+        if (mActiveShell != null) {
+            removeShell(mActiveShell);
+        }
 
         showShell(shellView);
         return shellView;
@@ -121,7 +125,9 @@ public class ShellManager {
 
     @CalledByNative
     private void removeShell(Shell shellView) {
-        if (shellView == mActiveShell) mActiveShell = null;
+        if (shellView == mActiveShell) {
+            mActiveShell = null;
+        }
         shellView.setContentViewRenderView(null);
     }
 
