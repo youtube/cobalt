@@ -41,16 +41,31 @@ extern "C" {
 #define MUSL_SOCK_STREAM 1
 #define MUSL_SOCK_DGRAM 2
 #define MUSL_SOCK_RAW 3
+#define MUSL_SOCK_SEQPACKET 5
 
 #define MUSL_IPPROTO_TCP 6
 #define MUSL_IPPROTO_UDP 17
 
+#define MUSL_AF_UNIX 1
 #define MUSL_AF_INET 2
 #define MUSL_AF_INET6 10
 
 #define MUSL_SHUT_RD 0
 #define MUSL_SHUT_WR 1
 #define MUSL_SHUT_RDWR 2
+
+// Errcodes defined from MUSL's <netdb.h>
+#define MUSL_EAI_BADFLAGS -1
+#define MUSL_EAI_NONAME -2
+#define MUSL_EAI_AGAIN -3
+#define MUSL_EAI_FAIL -4
+#define MUSL_EAI_NODATA -5
+#define MUSL_EAI_FAMILY -6
+#define MUSL_EAI_SOCKTYPE -7
+#define MUSL_EAI_SERVICE -8
+#define MUSL_EAI_MEMORY -10
+#define MUSL_EAI_SYSTEM -11
+#define MUSL_EAI_OVERFLOW -12
 
 // sizeof(sockaddr_in6) = 28
 // This size enables musl_sockaddr to work for both IPv4 and IPv6
@@ -82,6 +97,8 @@ SB_EXPORT int __abi_wrap_bind(int sockfd,
 SB_EXPORT int __abi_wrap_connect(int sockfd,
                                  const musl_sockaddr* addr,
                                  socklen_t addrlen);
+
+SB_EXPORT const char* __abi_wrap_gai_strerror(int ecode);
 
 SB_EXPORT int __abi_wrap_getaddrinfo(const char* node,
                                      const char* service,
