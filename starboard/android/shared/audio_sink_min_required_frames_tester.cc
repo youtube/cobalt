@@ -18,6 +18,7 @@
 #include <vector>
 
 #include "starboard/android/shared/audio_track_audio_sink_type.h"
+#include "starboard/common/check_op.h"
 #include "starboard/shared/pthread/thread_create_priority.h"
 
 namespace starboard::android::shared {

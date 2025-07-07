@@ -24,6 +24,7 @@
 #include <functional>
 
 #include "starboard/android/shared/jni_env_ext.h"
+#include "starboard/common/check_op.h"
 #include "starboard/shared/gles/gl_call.h"
 
 using starboard::android::shared::JniEnvExt;

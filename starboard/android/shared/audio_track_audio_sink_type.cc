@@ -22,6 +22,7 @@
 #include "starboard/android/shared/audio_output_manager.h"
 #include "starboard/android/shared/continuous_audio_track_sink.h"
 #include "starboard/android/shared/media_capabilities_cache.h"
+#include "starboard/common/check_op.h"
 #include "starboard/common/string.h"
 #include "starboard/common/time.h"
 #include "starboard/shared/pthread/thread_create_priority.h"

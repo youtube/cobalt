@@ -17,6 +17,7 @@
 #include <android/asset_manager_jni.h>
 #include <android/log.h>
 
+#include "starboard/common/check_op.h"
 #include "starboard/common/log.h"
 #include "starboard/common/string.h"
 

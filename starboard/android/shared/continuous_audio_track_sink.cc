@@ -19,6 +19,7 @@
 #include <string>
 #include <vector>
 
+#include "starboard/common/check_op.h"
 #include "starboard/common/string.h"
 #include "starboard/common/time.h"
 #include "starboard/shared/pthread/thread_create_priority.h"

@@ -25,6 +25,7 @@
 
 #include "starboard/android/shared/audio_permission_requester.h"
 #include "starboard/android/shared/starboard_bridge.h"
+#include "starboard/common/check_op.h"
 #include "starboard/common/log.h"
 #include "starboard/shared/starboard/thread_checker.h"
 

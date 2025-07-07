@@ -21,6 +21,7 @@
 #include <algorithm>
 #include <string>
 
+#include "starboard/common/check_op.h"
 #include "starboard/thread.h"
 
 #include "jni_state.h"

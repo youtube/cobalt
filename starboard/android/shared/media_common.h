@@ -19,6 +19,7 @@
 
 #include <optional>
 #include "starboard/android/shared/jni_env_ext.h"
+#include "starboard/common/check_op.h"
 #include "starboard/common/log.h"
 #include "starboard/common/mutex.h"
 #include "starboard/configuration.h"
