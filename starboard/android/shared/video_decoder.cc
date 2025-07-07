@@ -591,12 +591,8 @@ void VideoDecoder::WriteEndOfStream() {
 
   if (video_codec_ == kSbMediaVideoCodecAv1 && video_fps_ == 0) {
     SB_DCHECK(!media_decoder_);
-<<<<<<< HEAD
-    SB_DCHECK(pending_input_buffers_.size() == input_buffer_written_);
-=======
     SB_DCHECK_EQ(pending_input_buffers_.size(),
                  static_cast<size_t>(input_buffer_written_));
->>>>>>> 6f1cbe1059a (Import check_op.h (e.g SB_CHECK_EQ) to starboard/ (from base/) (#6274))
 
     std::string error_message;
     if (!InitializeCodec(pending_input_buffers_.front()->video_stream_info(),
