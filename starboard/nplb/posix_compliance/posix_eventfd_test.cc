@@ -58,11 +58,7 @@ bool IsCounterZero(int fd) {
     return true;
   }
 
-  if ((poll_fd.revents & POLLIN) == POLLIN) {
-    return false;
-  } else {
-    return true;
-  }
+  return (poll_fd.revents & POLLIN) == 0;
 }
 
 TEST(PosixEventfdTest, NonSemaphoreReadNonzeroCounterReturnsCounter) {
