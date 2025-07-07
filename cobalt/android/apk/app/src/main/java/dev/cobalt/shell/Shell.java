@@ -13,11 +13,11 @@ import android.view.Menu;
 import android.view.MenuItem;
 import android.view.View;
 import android.view.ViewGroup;
-import dev.cobalt.browser.CobaltViewRenderView;
 import org.chromium.base.Callback;
 import org.chromium.base.annotations.CalledByNative;
 import org.chromium.base.annotations.JNINamespace;
 import org.chromium.base.annotations.NativeMethods;
+import org.chromium.components.embedder_support.view.ContentViewRenderView;
 import org.chromium.content_public.browser.ActionModeCallbackHelper;
 import org.chromium.content_public.browser.LoadUrlParams;
 import org.chromium.content_public.browser.NavigationController;
@@ -47,7 +47,7 @@ public class Shell {
     private NavigationController mNavigationController;
 
     private long mNativeShell;
-    private CobaltViewRenderView mCobaltViewRenderView;
+    private ContentViewRenderView mContentViewRenderView;
     private WindowAndroid mWindow;
     private ShellViewAndroidDelegate mViewAndroidDelegate;
 
@@ -68,8 +68,8 @@ public class Shell {
     /**
      * Set the SurfaceView being rendered to as soon as it is available.
      */
-    public void setCobaltViewRenderView(CobaltViewRenderView cobaltViewRenderView) {
-        mCobaltViewRenderView = cobaltViewRenderView;
+    public void setContentViewRenderView(ContentViewRenderView contentViewRenderView) {
+        mContentViewRenderView = contentViewRenderView;
     }
 
     /**
@@ -179,7 +179,7 @@ public class Shell {
         mWebContents = webContents;
         mNavigationController = mWebContents.getNavigationController();
         mWebContents.onShow();
-        mCobaltViewRenderView.setCurrentWebContents(mWebContents);
+        mContentViewRenderView.setCurrentWebContents(mWebContents);
     }
 
     /**
@@ -222,7 +222,7 @@ public class Shell {
 
     @CalledByNative
     public void setOverlayMode(boolean useOverlayMode) {
-        mCobaltViewRenderView.setOverlayVideoMode(useOverlayMode);
+        mContentViewRenderView.setOverlayVideoMode(useOverlayMode);
         if (mOverlayModeChangedCallbackForTesting != null) {
             mOverlayModeChangedCallbackForTesting.onResult(useOverlayMode);
         }
