@@ -26,6 +26,7 @@ _LIBCPP_BEGIN_NAMESPACE_STD
 
 typedef pthread_mutex_t __libcpp_mutex_t;
 
+typedef pthread_mutex_t __libcpp_recursive_mutex_t;
 #define _LIBCPP_MUTEX_INITIALIZER  PTHREAD_MUTEX_INITIALIZER
 
 typedef pthread_cond_t __libcpp_condvar_t;
@@ -44,6 +45,21 @@ typedef pthread_key_t __libcpp_tls_key;
 // mostly used on Windows platforms, and documentation can be found at
 // https://docs.microsoft.com/en-us/cpp/cpp/stdcall.
 #define _LIBCPP_TLS_DESTRUCTOR_CC
+
+_LIBCPP_THREAD_ABI_VISIBILITY
+int __libcpp_recursive_mutex_init(__libcpp_recursive_mutex_t *__m);
+
+_LIBCPP_THREAD_ABI_VISIBILITY _LIBCPP_NO_THREAD_SAFETY_ANALYSIS
+int __libcpp_recursive_mutex_lock(__libcpp_recursive_mutex_t *__m);
+
+_LIBCPP_THREAD_ABI_VISIBILITY _LIBCPP_NO_THREAD_SAFETY_ANALYSIS
+bool __libcpp_recursive_mutex_trylock(__libcpp_recursive_mutex_t *__m);
+
+_LIBCPP_THREAD_ABI_VISIBILITY _LIBCPP_NO_THREAD_SAFETY_ANALYSIS
+int __libcpp_recursive_mutex_unlock(__libcpp_recursive_mutex_t *__m);
+
+_LIBCPP_THREAD_ABI_VISIBILITY
+int __libcpp_recursive_mutex_destroy(__libcpp_recursive_mutex_t *__m);
 
 _LIBCPP_THREAD_ABI_VISIBILITY _LIBCPP_NO_THREAD_SAFETY_ANALYSIS
 int __libcpp_mutex_lock(__libcpp_mutex_t *__m);
@@ -119,6 +135,45 @@ _LIBCPP_THREAD_ABI_VISIBILITY
 int __libcpp_tls_set(__libcpp_tls_key __key, void *__p);
 
 #if defined(_LIBCPP_HAS_THREAD_API_EXTERNAL)
+
+int __libcpp_recursive_mutex_init(__libcpp_recursive_mutex_t* __m) {
+  pthread_mutexattr_t __attr;
+  int __ec = pthread_mutexattr_init(&__attr);
+  if (__ec)
+    return __ec;
+  __ec = pthread_mutexattr_settype(&__attr, PTHREAD_MUTEX_RECURSIVE);
+  if (__ec) {
+    pthread_mutexattr_destroy(&__attr);
+    return __ec;
+  }
+  __ec = pthread_mutex_init(__m, &__attr);
+  if (__ec) {
+    pthread_mutexattr_destroy(&__attr);
+    return __ec;
+  }
+  __ec = pthread_mutexattr_destroy(&__attr);
+  if (__ec) {
+    pthread_mutex_destroy(__m);
+    return __ec;
+  }
+  return 0;
+}
+
+int  __libcpp_recursive_mutex_lock(__libcpp_recursive_mutex_t* __m) {
+  return pthread_mutex_lock(__m);
+}
+
+bool __libcpp_recursive_mutex_trylock(__libcpp_recursive_mutex_t* __m) {
+  return pthread_mutex_trylock(__m) == 0;
+}
+
+int __libcpp_recursive_mutex_unlock(__libcpp_recursive_mutex_t* __m) {
+  return pthread_mutex_unlock(__m);
+}
+
+int __libcpp_recursive_mutex_destroy(__libcpp_recursive_mutex_t* __m) {
+  return pthread_mutex_destroy(__m);
+}
 
 int __libcpp_mutex_lock(__libcpp_mutex_t* __m) {
   return pthread_mutex_lock(__m);
