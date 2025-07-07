@@ -52,8 +52,6 @@ fwrite
 gai_strerror
 getc
 getcwd
-geteuid
-getpid
 getrlimit
 gmtime
 in6addr_any
