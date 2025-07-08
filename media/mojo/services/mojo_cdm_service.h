@@ -17,12 +17,16 @@
 #include "media/base/content_decryption_module.h"
 #include "media/base/eme_constants.h"
 #include "media/mojo/mojom/content_decryption_module.mojom.h"
+#if BUILDFLAG(USE_STARBOARD_MEDIA)
+#include "media/mojo/mojom/starboard/starboard_cdm.mojom.h"
+#endif
 #include "media/mojo/services/media_mojo_export.h"
 #include "media/mojo/services/mojo_cdm_promise.h"
 #include "media/mojo/services/mojo_cdm_service_context.h"
 #include "media/mojo/services/mojo_decryptor_service.h"
 #include "mojo/public/cpp/bindings/associated_remote.h"
 #include "mojo/public/cpp/bindings/pending_associated_remote.h"
+#include "mojo/public/cpp/bindings/pending_receiver.h"
 #include "mojo/public/cpp/bindings/pending_remote.h"
 #include "mojo/public/cpp/bindings/receiver.h"
 #include "third_party/abseil-cpp/absl/types/optional.h"
@@ -34,7 +38,12 @@ class CdmFactory;
 // A mojom::ContentDecryptionModule implementation backed by a
 // media::ContentDecryptionModule.
 class MEDIA_MOJO_EXPORT MojoCdmService final
+#if BUILDFLAG(USE_STARBOARD_MEDIA)
+    : public mojom::ContentDecryptionModule,
+      public mojom::StarboardCdm {
+#else
     : public mojom::ContentDecryptionModule {
+#endif
  public:
   // Callback for Initialize(). Non-null `cdm_context` indicates success. Null
   // `cdm_context` indicates failure and the `error_message` provides a reason.
@@ -87,7 +96,9 @@ class MEDIA_MOJO_EXPORT MojoCdmService final
   base::UnguessableToken cdm_id() const { return cdm_id_.value(); }
 
 #if BUILDFLAG(USE_STARBOARD_MEDIA)
-  void GetSbDrmSystem(GetSbDrmSystemCallback callback) override;
+  void BindStarboardCdm(
+      mojo::PendingReceiver<mojom::StarboardCdm> receiver);
+  void GetSbDrmSystem(GetSbDrmSystemCallback callback) final;
 #endif
  private:
   // Callback for CdmFactory::Create().
@@ -118,6 +129,10 @@ class MEDIA_MOJO_EXPORT MojoCdmService final
   std::unique_ptr<MojoDecryptorService> decryptor_;
   mojo::PendingRemote<mojom::Decryptor> decryptor_remote_;
   std::unique_ptr<mojo::Receiver<mojom::Decryptor>> decryptor_receiver_;
+
+#if BUILDFLAG(USE_STARBOARD_MEDIA)
+  mojo::Receiver<mojom::StarboardCdm> starboard_cdm_receiver_{this};
+#endif
 
   // Set to a valid CDM ID if the |cdm_| is successfully created.
   absl::optional<base::UnguessableToken> cdm_id_;

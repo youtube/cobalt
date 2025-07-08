@@ -136,10 +136,13 @@ scoped_refptr<ContentDecryptionModule> MojoCdmService::GetCdm() {
 }
 
 #if BUILDFLAG(USE_STARBOARD_MEDIA)
+void MojoCdmService::BindStarboardCdm(
+    mojo::PendingReceiver<mojom::StarboardCdm> receiver) {
+  starboard_cdm_receiver_.Bind(std::move(receiver));
+}
+
 void MojoCdmService::GetSbDrmSystem(GetSbDrmSystemCallback callback) {
-  media::CdmContext* cdm_context = cdm_->GetCdmContext();
-  DCHECK(cdm_context);
-  cdm_context->GetSbDrmSystemAsync(std::move(callback));
+  cdm_->GetCdmContext()->GetSbDrmSystemAsync(std::move(callback));
 }
 #endif
 

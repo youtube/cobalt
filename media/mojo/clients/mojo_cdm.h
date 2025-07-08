@@ -23,6 +23,9 @@
 #include "media/base/cdm_session_tracker.h"
 #include "media/base/content_decryption_module.h"
 #include "media/mojo/mojom/content_decryption_module.mojom.h"
+#if BUILDFLAG(USE_STARBOARD_MEDIA)
+#include "media/mojo/mojom/starboard/starboard_cdm.mojom.h"
+#endif
 #include "mojo/public/cpp/bindings/associated_receiver.h"
 #include "mojo/public/cpp/bindings/pending_remote.h"
 #include "mojo/public/cpp/bindings/remote.h"
@@ -87,6 +90,9 @@ class MojoCdm final : public ContentDecryptionModule,
 #if BUILDFLAG(IS_WIN)
   bool RequiresMediaFoundationRenderer() final;
 #endif  // BUILDFLAG(IS_WIN)
+#if BUILDFLAG(USE_STARBOARD_MEDIA)
+  SbDrmSystem GetSbDrmSystem() override;
+#endif
 
  private:
   ~MojoCdm() final;
@@ -120,13 +126,12 @@ class MojoCdm final : public ContentDecryptionModule,
   // Helper for rejecting promises when connection lost.
   void RejectPromiseConnectionLost(uint32_t promise_id);
 
-#if BUILDFLAG(USE_STARBOARD_MEDIA)
-  void GetSbDrmSystemAsync(GetSbDrmSystemCB callback) final;
-#endif
-
   THREAD_CHECKER(thread_checker_);
 
   mojo::Remote<mojom::ContentDecryptionModule> remote_cdm_;
+#if BUILDFLAG(USE_STARBOARD_MEDIA)
+  mojo::Remote<mojom::StarboardCdm> remote_starboard_cdm_;
+#endif
   mojo::AssociatedReceiver<ContentDecryptionModuleClient> client_receiver_{
       this};
 

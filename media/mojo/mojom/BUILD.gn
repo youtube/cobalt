@@ -79,7 +79,10 @@ mojom("mojom") {
   }
 
   if (is_cobalt && use_starboard_media) {
-    sources += [ "starboard/starboard_media_types.mojom" ]
+    sources += [
+      "starboard/starboard_cdm.mojom",
+      "starboard/starboard_media_types.mojom"
+    ]
   }
 
   public_deps = [

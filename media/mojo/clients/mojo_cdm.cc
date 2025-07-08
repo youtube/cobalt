@@ -417,14 +417,14 @@ void MojoCdm::RejectPromiseConnectionLost(uint32_t promise_id) {
 }
 
 #if BUILDFLAG(USE_STARBOARD_MEDIA)
-void MojoCdm::GetSbDrmSystemAsync(GetSbDrmSystemCB callback) {
-  if (!remote_cdm_.is_connected()) {
-    std::move(callback).Run(kSbDrmSystemInvalid);
-    return;
+SbDrmSystem MojoCdm::GetSbDrmSystem() {
+  if (!remote_starboard_cdm_.is_connected()) {
+    return kSbDrmSystemInvalid;
   }
-  remote_cdm_->GetSbDrmSystem(std::move(callback));
+  SbDrmSystem drm_system = kSbDrmSystemInvalid;
+  remote_starboard_cdm_->GetSbDrmSystem(&drm_system);
+  return drm_system;
 }
-
 #endif
 
 }  // namespace media
