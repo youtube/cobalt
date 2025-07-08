@@ -14,9 +14,10 @@
 
 #include "starboard/android/shared/drm_system.h"
 
+#include <iomanip>
 #include <memory>
 #include <mutex>
-#include <string_view>
+#include <string>
 #include <utility>
 
 #include "starboard/android/shared/media_common.h"
@@ -68,6 +69,19 @@ DrmSystem::DrmSystem(
   Start();
 }
 
+void DrmSystem::ScheduleTask(const std::function<void(JniEnvExt*)>& task) {
+  std::unique_lock<std::mutex> lock(pending_tasks_mutex_);
+  pending_tasks_.push(task);
+
+  condition_.notify_one();
+}
+
+void DrmSystem::StopThread() {
+  running_ = false;
+  condition_.notify_all();
+  SB_LOG(INFO) << "Stop signal sent to scheduler." << std::endl;
+}
+
 void DrmSystem::Run() {
   if (media_drm_bridge_->CreateMediaCryptoSession()) {
     created_media_crypto_session_.store(true);
@@ -81,12 +95,17 @@ void DrmSystem::Run() {
     for (const auto& update_request : deferred_session_update_requests_) {
       update_request->Generate(media_drm_bridge_.get());
     }
-    deferred_session_update_requests_.clear();
+
+    SB_CHECK(task != nullptr);
+
+    task(env);
   }
+  SB_LOG(INFO) << "Scheduler stopped and exited run loop.";
 }
 
 DrmSystem::~DrmSystem() {
   ON_INSTANCE_RELEASED(AndroidDrmSystem);
+  StopThread();
   Join();
 }
 
@@ -138,6 +157,11 @@ void DrmSystem::UpdateSession(int ticket,
       this, context_, ticket,
       update_success ? kSbDrmStatusSuccess : kSbDrmStatusUnknownError,
       error_msg.c_str(), session_id, session_id_size);
+
+  if (update_success == JNI_TRUE) {
+    ScheduleTask(
+        [this](JniEnvExt* env) { media_drm_bridge_->runPendingTasks(env); });
+  }
 }
 
 void DrmSystem::CloseSession(const void* session_id, int session_id_size) {
@@ -180,6 +204,10 @@ void DrmSystem::OnSessionUpdate(int ticket,
                            content.size(), url);
 }
 
+std::string BytesToString(const void* data, int length) {
+  return std::string(static_cast<const char*>(data), length);
+}
+
 void DrmSystem::OnKeyStatusChange(
     std::string_view session_id,
     const std::vector<SbDrmKeyId>& drm_key_ids,
@@ -197,6 +225,20 @@ void DrmSystem::OnKeyStatusChange(
       }
     }
   }
+
+  /*
+  std::string log;
+  for (int i = 0; i < drm_key_ids.size(); i++) {
+    log += (i > 0 ? ", " : "") + drm_key_ids[i] + "=" +
+           BytesToString(drm_key_statuses[i];
+  }
+  SB_LOG(INFO) << "Key status changed: session_id=" << session_id_as_string
+               << ", key_ids={" << log + "}";
+  */
+
+  is_key_provided_ = std::any_of(
+      drm_key_statuses.cbegin(), drm_key_statuses.cend(),
+      [](const auto& status) { return status == kSbDrmKeyStatusUsable; });
 
   key_statuses_changed_callback_(this, context_, session_id.data(),
                                  session_id.size(),
@@ -227,6 +269,10 @@ void DrmSystem::CallKeyStatusesChangedCallbackWithKeyStatusRestricted_Locked() {
                                    static_cast<int>(drm_key_ids.size()),
                                    drm_key_ids.data(), drm_key_statuses.data());
   }
+}
+
+bool DrmSystem::IsReady() {
+  return is_key_provided_;
 }
 
 }  // namespace starboard::android::shared

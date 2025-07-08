@@ -208,15 +208,8 @@ const void* MediaDrmBridge::GetMetrics(int* size) {
   return metrics_.data();
 }
 
-bool MediaDrmBridge::CreateMediaCryptoSession() {
-  bool result = Java_MediaDrmBridge_createMediaCryptoSession(
-      AttachCurrentThread(), j_media_drm_bridge_);
-  if (!result && !j_media_crypto_.is_null()) {
-    j_media_crypto_.Reset();
-    return false;
-  }
-
-  return true;
+void MediaDrmBridge::runPendingTasks(JNIEnv* env) {
+  Java_MediaDrmBridge_runPendingTasks(env, j_media_drm_bridge_);
 }
 
 void MediaDrmBridge::OnSessionMessage(
