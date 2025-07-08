@@ -22,7 +22,6 @@ dlclose
 dlerror
 dlopen
 dlsym
-eventfd
 execvp
 fallocate
 fchmod
@@ -50,7 +49,6 @@ ftello
 futimes
 fwrite
 gai_strerror
-getauxval
 getc
 getcwd
 gethostname
