@@ -5,8 +5,11 @@
 #include "base/android/jni_android.h"
 
 #include <cstring>
+#include <iostream>
 #include <stddef.h>
+#include <string>
 #include <sys/prctl.h>
+#include <regex>
 
 #include "base/android/java_exception_reporter.h"
 #include "base/android/jni_string.h"
@@ -323,6 +326,7 @@ void CheckException(JNIEnv* env) {
   if (!HasException(env))
     return;
 
+  std::string exception_token;
   jthrowable java_throwable = env->ExceptionOccurred();
   if (java_throwable) {
     // Clear the pending exception, since a local reference is now held.
@@ -333,16 +337,18 @@ void CheckException(JNIEnv* env) {
       // Another exception (probably OOM) occurred during GetJavaExceptionInfo.
       base::android::SetJavaException(
           "Java OOM'ed in exception handling, check logcat");
+      exception_token = "Java OOM'ed";
     } else {
       g_fatal_exception_occurred = true;
       // RVO should avoid any extra copies of the exception string.
-      base::android::SetJavaException(
-          GetJavaExceptionInfo(env, java_throwable).c_str());
+      std::string exception_info = GetJavaExceptionInfo(env, java_throwable);
+      base::android::SetJavaException(exception_info.c_str());
+      exception_token = findFirstJavaFileAndLine(exception_info);
     }
   }
 
   // Now, feel good about it and die.
-  LOG(FATAL) << "Please include Java exception stack in crash report";
+  LOG(FATAL) << "JNI run into exception: " << exception_token;
 }
 
 std::string GetJavaExceptionInfo(JNIEnv* env, jthrowable java_throwable) {
@@ -351,6 +357,33 @@ std::string GetJavaExceptionInfo(JNIEnv* env, jthrowable java_throwable) {
           env, ScopedJavaLocalRef(env, java_throwable));
 
   return ConvertJavaStringToUTF8(sanitized_exception_string);
+}
+
+std::string findFirstJavaFileAndLine(const std::string& stackTrace) {
+    // This regular expression looks for a pattern inside parentheses.
+    // Breakdown of the pattern: \(([^)]+\.java:\d+)\)
+    // \\(      - Matches the literal opening parenthesis '('. We need two backslashes in a C++ string literal.
+    // (        - Starts a capturing group. This is the part of the match we want to extract.
+    // [^)]+    - Matches one or more characters that are NOT a closing parenthesis ')'. This captures the file name.
+    // \\.java: - Matches the literal text ".java:".
+    // \\d+     - Matches one or more digits (the line number).
+    // )        - Ends the capturing group.
+    // \\)      - Matches the literal closing parenthesis ')'.
+    std::regex pattern("\\(([^)]+\\.java:\\d+)\\)");
+
+    // smatch object will store the results of the search.
+    std::smatch match;
+
+    // Search the input string for the first occurrence of the pattern.
+    if (std::regex_search(stackTrace, match, pattern)) {
+        // The full match is match[0] (e.g., "(CobaltActivity.java:219)").
+        // The first captured group is match[1] (e.g., "CobaltActivity.java:219").
+        // We return the content of the first captured group.
+        return match[1].str();
+    }
+
+    // Return an empty string if no match was found.
+    return "";
 }
 
 #if BUILDFLAG(CAN_UNWIND_WITH_FRAME_POINTERS)
