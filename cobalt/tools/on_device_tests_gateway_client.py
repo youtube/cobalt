@@ -192,7 +192,9 @@ def _unit_test_files(args: argparse.Namespace, target_name: str) -> List[str]:
 def _unit_test_params(args: argparse.Namespace, target_name: str,
                       dir_on_device: str, device_type: str) -> List[str]:
   """Builds the list of params for a unit test request."""
-  runtime_deps = _DEPS_ARCH_MAP.get(device_type, '')
+  runtime_deps = _DEPS_ARCH_MAP.get(
+      device_type, _DEPS_ARCH_MAP.get(args.device_family, '')
+  )
   params = [
       f'push_files=test_runtime_deps:{runtime_deps}',
       f'gtest_xml_file_on_device={dir_on_device}/{target_name}_testoutput.xml',
@@ -230,7 +232,9 @@ def _process_test_requests(args: argparse.Namespace) -> List[Dict[str, Any]]:
         continue
       if args.test_attempts:
         test_args.extend([f'test_attempts={args.test_attempts}'])
-      dir_on_device = _DIR_ON_DEV_MAP.get(device_type, '')
+      dir_on_device = _DIR_ON_DEV_MAP.get(
+          device_type, _DIR_ON_DEV_MAP.get(args.device_family, '')
+      )
       command_line_args = ' '.join([
           f'--gtest_output=xml:{dir_on_device}/{target_name}_testoutput.xml',
           f'--gtest_filter={gtest_filter}',
