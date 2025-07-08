@@ -51,8 +51,6 @@ _DEPS_ARCH_MAP = {
     'rdk': '/home/rdk/test/',
 }
 
-# Any test run that fails due to infra error will be retried.
-_DEFAULT_RETRY_LEVEL = 'FAIL'
 # This is needed because driver expects cobalt.apk, but we publish
 # Cobalt.apk
 _E2E_DEFAULT_YT_BINARY_NAME = 'Cobalt'
@@ -131,7 +129,7 @@ def _get_test_args_and_dimensions(
   if args.test_attempts:
     test_args.extend([
         f'test_attempts={args.test_attempts}',
-        f'retry_level={_DEFAULT_RETRY_LEVEL}',
+        f'retry_level={args.retry_level}',
     ])
 
   device_type = None
@@ -332,6 +330,12 @@ def main() -> int:
       '--test_attempts',
       type=str,
       help='The maximum number of times a test can retry.',
+  )
+  trigger_args.add_argument(
+      '--retry_level',
+      type=str,
+      default='ERROR',
+      help='Retry level for failed tests.',
   )
   trigger_args.add_argument(
       '--dimensions',
