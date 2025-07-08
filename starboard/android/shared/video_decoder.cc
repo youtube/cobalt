@@ -710,7 +710,8 @@ bool VideoDecoder::InitializeCodec(const VideoStreamInfo& video_stream_info,
       // by texture data until updateTexImage() is called on it.
       DecodeTarget* decode_target =
           new DecodeTarget(decode_target_graphics_context_provider_);
-      if (!SbDecodeTargetIsValid(decode_target)) {
+      if (!decode_target_graphics_context_provider_ ||
+          !SbDecodeTargetIsValid(decode_target)) {
         *error_message = "Could not acquire a decode target from provider.";
         SB_LOG(ERROR) << *error_message;
         return false;
