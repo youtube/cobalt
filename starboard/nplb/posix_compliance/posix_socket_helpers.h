@@ -25,8 +25,12 @@
 
 #include "starboard/common/log.h"
 #include "starboard/common/time.h"
+<<<<<<< HEAD
 #include "starboard/nplb/socket_helpers.h"
 #include "starboard/socket.h"
+=======
+#include "testing/gtest/include/gtest/gtest.h"
+>>>>>>> ea0e9aea8ed ([Cleanup] Remove starboard/socket.h and related files. (#6290))
 
 namespace starboard {
 namespace nplb {

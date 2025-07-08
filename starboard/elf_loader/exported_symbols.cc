@@ -47,8 +47,11 @@
 #include "starboard/shared/modular/starboard_layer_posix_stat_abi_wrappers.h"
 #include "starboard/shared/modular/starboard_layer_posix_time_abi_wrappers.h"
 #include "starboard/shared/modular/starboard_layer_posix_unistd_abi_wrappers.h"
+<<<<<<< HEAD
 #include "starboard/socket.h"
 #include "starboard/socket_waiter.h"
+=======
+>>>>>>> ea0e9aea8ed ([Cleanup] Remove starboard/socket.h and related files. (#6290))
 #include "starboard/speech_synthesis.h"
 #include "starboard/storage.h"
 #include "starboard/system.h"
