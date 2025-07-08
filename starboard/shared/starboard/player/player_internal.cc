@@ -18,6 +18,7 @@
 #include <memory>
 #include <utility>
 
+#include "starboard/common/check_op.h"
 #include "starboard/common/log.h"
 #include "starboard/common/media.h"
 #include "starboard/common/time.h"
@@ -93,7 +94,7 @@ SbPlayerPrivate* SbPlayerPrivateImpl::CreateInstance(
 void SbPlayerPrivateImpl::Seek(int64_t seek_to_time, int ticket) {
   {
     std::lock_guard lock(mutex_);
-    SB_DCHECK(ticket_ != ticket);
+    SB_DCHECK_NE(ticket_, ticket);
     media_time_ = seek_to_time;
     media_time_updated_at_ = CurrentMonotonicTime();
     is_progressing_ = false;
