@@ -22,7 +22,6 @@ dlclose
 dlerror
 dlopen
 dlsym
-eventfd
 execvp
 fallocate
 fchmod
