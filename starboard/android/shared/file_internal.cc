@@ -17,6 +17,7 @@
 #include <android/asset_manager_jni.h>
 #include <android/log.h>
 
+#include "starboard/common/check_op.h"
 #include "starboard/common/log.h"
 #include "starboard/common/string.h"
 
@@ -55,20 +56,20 @@ void SbFileAndroidInitialize(ScopedJavaGlobalRef<jobject> asset_manager,
   JNIEnv* env = base::android::AttachCurrentThread();
 
   SB_DCHECK(g_java_asset_manager.is_null());
-  SB_DCHECK(g_asset_manager == NULL);
+  SB_DCHECK_EQ(g_asset_manager, nullptr);
 
   g_java_asset_manager = asset_manager;
   g_asset_manager = AAssetManager_fromJava(env, asset_manager.obj());
 
-  SB_DCHECK(g_app_files_dir == NULL);
+  SB_DCHECK_EQ(g_app_files_dir, nullptr);
   g_app_files_dir = strdup(files_dir.c_str());
   SB_DLOG(INFO) << "Files dir: " << g_app_files_dir;
 
-  SB_DCHECK(g_app_cache_dir == NULL);
+  SB_DCHECK_EQ(g_app_cache_dir, nullptr);
   g_app_cache_dir = strdup(cache_dir.c_str());
   SB_DLOG(INFO) << "Cache dir: " << g_app_cache_dir;
 
-  SB_DCHECK(g_app_lib_dir == NULL);
+  SB_DCHECK_EQ(g_app_lib_dir, nullptr);
   g_app_lib_dir = strdup(native_library_dir.c_str());
   SB_DLOG(INFO) << "Lib dir: " << g_app_lib_dir;
 }

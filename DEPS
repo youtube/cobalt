@@ -537,10 +537,11 @@ deps = {
     'dep_type': 'cipd',
     'condition': 'host_os == "mac"',
   },
-  'src/buildtools/third_party/libc++/trunk':
-    Var('chromium_git') +
-    '/external/github.com/llvm/llvm-project/libcxx.git' + '@' +
-    Var('libcxx_revision'),
+# Cobalt: imported
+# 'src/buildtools/third_party/libc++/trunk':
+#   Var('chromium_git') +
+#   '/external/github.com/llvm/llvm-project/libcxx.git' + '@' +
+#   Var('libcxx_revision'),
   'src/buildtools/third_party/libc++abi/trunk':
     Var('chromium_git') +
     '/external/github.com/llvm/llvm-project/libcxxabi.git' + '@' +

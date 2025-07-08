@@ -18,6 +18,7 @@
 
 #include "starboard/android/shared/jni_utils.h"
 #include "starboard/android/shared/media_common.h"
+#include "starboard/common/check_op.h"
 #include "starboard/common/log.h"
 
 namespace starboard::android::shared {
@@ -107,7 +108,7 @@ void VideoRenderAlgorithm::Render(
       ++dropped_frames_;
     } else if (early_us < kBufferReadyThreshold) {
       auto status = draw_frame_cb(frames->front(), adjusted_release_time_ns);
-      SB_DCHECK(status == VideoRendererSink::kReleased);
+      SB_DCHECK_EQ(status, VideoRendererSink::kReleased);
       frames->pop_front();
     } else {
       break;
