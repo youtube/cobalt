@@ -50,8 +50,10 @@
 #include "starboard/log.h"
 #include "starboard/microphone.h"
 #include "starboard/player.h"
+#include "starboard/shared/modular/starboard_layer_posix_auxv_abi_wrappers.h"
 #include "starboard/shared/modular/starboard_layer_posix_directory_abi_wrappers.h"
 #include "starboard/shared/modular/starboard_layer_posix_errno_abi_wrappers.h"
+#include "starboard/shared/modular/starboard_layer_posix_eventfd_abi_wrappers.h"
 #include "starboard/shared/modular/starboard_layer_posix_mmap_abi_wrappers.h"
 #include "starboard/shared/modular/starboard_layer_posix_pipe2_abi_wrappers.h"
 #include "starboard/shared/modular/starboard_layer_posix_pthread_abi_wrappers.h"
@@ -268,6 +270,8 @@ ExportedSymbols::ExportedSymbols() {
   REGISTER_SYMBOL(recvfrom);
   REGISTER_SYMBOL(recvmsg);
   REGISTER_SYMBOL(rmdir);
+  REGISTER_SYMBOL(sched_get_priority_max);
+  REGISTER_SYMBOL(sched_get_priority_min);
   REGISTER_SYMBOL(sched_yield);
   REGISTER_SYMBOL(send);
   REGISTER_SYMBOL(sendto);
@@ -304,11 +308,16 @@ ExportedSymbols::ExportedSymbols() {
   } else {
     REGISTER_SYMBOL(__errno_location);
   }
+  REGISTER_WRAPPER(eventfd);
   REGISTER_WRAPPER(fstat);
   REGISTER_WRAPPER(freeaddrinfo);
   REGISTER_WRAPPER(ftruncate);
+  REGISTER_WRAPPER(gai_strerror);
   REGISTER_WRAPPER(getaddrinfo);
+  REGISTER_WRAPPER(getauxval);
+  REGISTER_WRAPPER(geteuid);
   REGISTER_WRAPPER(getifaddrs);
+  REGISTER_WRAPPER(getpid);
   REGISTER_WRAPPER(gmtime_r);
   REGISTER_WRAPPER(lseek);
 
@@ -320,6 +329,7 @@ ExportedSymbols::ExportedSymbols() {
 
   REGISTER_WRAPPER(mmap);
   REGISTER_WRAPPER(opendir);
+  REGISTER_WRAPPER(pathconf);
   REGISTER_WRAPPER(pipe2);
   REGISTER_WRAPPER(pthread_attr_init);
   REGISTER_WRAPPER(pthread_attr_destroy);

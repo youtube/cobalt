@@ -40,23 +40,10 @@ class Mutex {
   void Acquire() const;
   bool AcquireTry() const;
   void Release() const;
-  void DCheckAcquired() const;
 
  private:
-#ifdef _DEBUG
-  void debugInit();
-  void debugSetReleased() const;
-  void debugPreAcquire() const;
-  void debugSetAcquired() const;
-  mutable pthread_t current_thread_acquired_;
-#else
-  void debugInit();
-  void debugSetReleased() const;
-  void debugPreAcquire() const;
-  void debugSetAcquired() const;
-#endif
-
   friend class ConditionVariable;
+
   pthread_mutex_t* mutex() const;
   mutable pthread_mutex_t mutex_;
   Mutex(const Mutex&) = delete;

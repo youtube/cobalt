@@ -183,7 +183,7 @@ void DrmSystem::OnKeyStatusChange(
     std::string_view session_id,
     const std::vector<SbDrmKeyId>& drm_key_ids,
     const std::vector<SbDrmKeyStatus>& drm_key_statuses) {
-  SB_DCHECK(drm_key_ids.size() == drm_key_statuses.size());
+  SB_DCHECK_EQ(drm_key_ids.size(), drm_key_statuses.size());
 
   std::string session_id_str(session_id);
   {
@@ -215,8 +215,6 @@ void DrmSystem::OnInsufficientOutputProtection() {
 }
 
 void DrmSystem::CallKeyStatusesChangedCallbackWithKeyStatusRestricted_Locked() {
-  mutex_.DCheckAcquired();
-
   for (auto& iter : cached_drm_key_ids_) {
     const std::string& session_id = iter.first;
     const std::vector<SbDrmKeyId>& drm_key_ids = iter.second;

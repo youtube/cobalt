@@ -460,8 +460,6 @@ void AudioRendererPcm::OnError(bool capability_changed,
 
 void AudioRendererPcm::UpdateVariablesOnSinkThread_Locked(
     int64_t system_time_on_consume_frames) {
-  mutex_.DCheckAcquired();
-
   if (frames_consumed_on_sink_thread_ > 0) {
     SB_DCHECK(total_frames_consumed_by_sink_ +
                   frames_consumed_on_sink_thread_ <=
@@ -540,7 +538,6 @@ void AudioRendererPcm::OnFirstOutput(
 }
 
 bool AudioRendererPcm::IsEndOfStreamPlayed_Locked() const {
-  mutex_.DCheckAcquired();
   return eos_state_ >= kEOSSentToSink &&
          total_frames_sent_to_sink_ == total_frames_consumed_by_sink_;
 }

@@ -1,9 +1,25 @@
 {
   "TODO(b/382508397)": "Remove this when list is dynamically generated.",
   "test_targets": [
-    "starboard/nplb:nplb_loader"
+    "base:base_unittests_loader",
+    "cc:cc_unittests_loader",
+    "components/viz:viz_unittests_loader",
+    "crypto:crypto_unittests_loader",
+    "media/midi:midi_unittests_loader",
+    "skia:skia_unittests_loader",
+    "starboard/nplb:nplb_loader",
+    "third_party/blink/renderer/platform:blink_platform_nocompile_tests_loader",
+    "ui/ozone:ozone_unittests_loader"
   ],
   "executables": [
-    "libnplb.so"
+    "out/evergreen-x64_devel/base_unittests_loader.py",
+    "out/evergreen-x64_devel/blink_platform_nocompile_tests_loader.py",
+    "out/evergreen-x64_devel/cc_unittests_loader.py",
+    "out/evergreen-x64_devel/crypto_unittests_loader.py",
+    "out/evergreen-x64_devel/midi_unittests_loader.py",
+    "out/evergreen-x64_devel/nplb_loader.py",
+    "out/evergreen-x64_devel/ozone_unittests_loader.py",
+    "out/evergreen-x64_devel/skia_unittests_loader.py",
+    "out/evergreen-x64_devel/viz_unittests_loader.py"
   ]
 }
