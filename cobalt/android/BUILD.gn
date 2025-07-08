@@ -236,27 +236,6 @@ android_assets("coat_assets") {
   disable_compression = true
 }
 
-template("content_shell_apk_tmpl") {
-  _target_type = invoker.target_type
-  target(_target_type, target_name) {
-    forward_variables_from(invoker, "*")
-    if (!defined(deps)) {
-      deps = []
-    }
-    deps += [
-      ":cobalt_shell_java",
-      "//components/metrics:metrics_java",
-      "//content/public/android:content_java",
-      "//content/shell/android:content_shell_assets",
-      "//media/capture/video/android:capture_java",
-      "//net/android:net_java",
-      "//services/shape_detection:shape_detection_java",
-      "//third_party/mesa_headers",
-      "//ui/android:ui_java",
-    ]
-  }
-}
-
 # Copied from target: libcontent_shell_content_view
 # TODO(b/376867565) rename this library, NO shell
 shared_library("libchrobalt") {
@@ -300,15 +279,23 @@ shared_library("libchrobalt") {
   }
 }
 
-content_shell_apk_tmpl("cobalt_apk") {
+android_apk("cobalt_apk") {
   testonly = true
-  target_type = "android_apk"
   apk_name = "Cobalt"
   android_manifest = cobalt_manifest
   android_manifest_dep = ":cobalt_manifest"
   deps = [
     ":coat_assets",
     ":cobalt_apk_java",
+    ":cobalt_shell_java",
+    "//components/metrics:metrics_java",
+    "//content/public/android:content_java",
+    "//content/shell/android:content_shell_assets",
+    "//media/capture/video/android:capture_java",
+    "//net/android:net_java",
+    "//services/shape_detection:shape_detection_java",
+    "//third_party/mesa_headers",
+    "//ui/android:ui_java",
   ]
   shared_libraries = [ ":libchrobalt" ]
   include_size_info = is_official_build
