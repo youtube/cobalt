@@ -7,6 +7,7 @@ package dev.cobalt.shell;
 import android.content.Context;
 import android.util.AttributeSet;
 import android.widget.FrameLayout;
+import android.graphics.Color;
 import org.chromium.base.ThreadUtils;
 import org.chromium.base.annotations.CalledByNative;
 import org.chromium.base.annotations.JNINamespace;
@@ -92,6 +93,7 @@ public class ShellManager extends FrameLayout {
     private Object createShell(long nativeShellPtr) {
         if (mContentViewRenderView == null) {
             mContentViewRenderView = new ContentViewRenderView(getContext());
+            mContentViewRenderView.setSurfaceViewBackgroundColor(Color.TRANSPARENT);
             mContentViewRenderView.onNativeLibraryLoaded(mWindow);
         }
 
