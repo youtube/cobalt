@@ -208,12 +208,7 @@ int AudioTrackBridge::WriteSample(const uint16_t* samples,
     // Error code returned as negative value, like AudioTrack.ERROR_DEAD_OBJECT.
     return bytes_written;
   }
-<<<<<<< HEAD
-  SB_DCHECK(bytes_written % sizeof(uint16_t) == 0);
-=======
   SB_DCHECK_EQ(bytes_written % sizeof(uint16_t), static_cast<size_t>(0));
-
->>>>>>> 92a724a3ed9 (Apply SB_CHECK_EQ and similar macros to more files under starboard/ (#5966))
   return bytes_written / sizeof(uint16_t);
 }
 
