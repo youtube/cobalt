@@ -5,12 +5,9 @@
 package dev.cobalt.shell;
 
 import android.content.Context;
-<<<<<<< HEAD
-=======
 import android.util.AttributeSet;
 import android.widget.FrameLayout;
 import android.graphics.Color;
->>>>>>> 7441ce299ef (Revert "Remove Shell and ShellManager from native UI" (#6323))
 import org.chromium.base.ThreadUtils;
 import org.chromium.base.annotations.CalledByNative;
 import org.chromium.base.annotations.JNINamespace;
