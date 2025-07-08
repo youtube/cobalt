@@ -21,7 +21,6 @@
 #include "starboard/common/log.h"
 #include "starboard/common/mutex.h"
 #include "starboard/shared/pthread/thread_context_internal.h"
-#include "starboard/shared/pthread/types_internal.h"
 #include "starboard/thread.h"
 
 namespace {
@@ -100,7 +99,8 @@ SbThreadContext SignalHandler::Freeze(SbThreadSampler sampler) {
     return kSbThreadContextInvalid;
   }
   frozen_sampler_ = sampler;
-  pthread_kill(SB_PTHREAD_INTERNAL_THREAD(sampler->thread()), SIGPROF);
+  pthread_kill(static_cast<SbThreadSamplerPrivate*>(sampler)->thread(),
+               SIGPROF);
   sem_wait(&freeze_semaphore_);
   return &sb_context_;
 }
