@@ -115,9 +115,6 @@ class MediaCapabilitiesCache {
  public:
   static MediaCapabilitiesCache* GetInstance();
 
-  bool IsWidevineSupported();
-  bool IsCbcsSchemeSupported();
-
   bool IsHDRTransferCharacteristicsSupported(SbMediaTransferId transfer_id);
 
   bool IsPassthroughSupported(SbMediaAudioCodec codec);
@@ -176,8 +173,6 @@ class MediaCapabilitiesCache {
   std::map<std::string, AudioCodecCapabilities> audio_codec_capabilities_map_;
   std::map<std::string, VideoCodecCapabilities> video_codec_capabilities_map_;
   std::vector<SbMediaAudioConfiguration> audio_configurations_;
-  bool is_widevine_supported_ = false;
-  bool is_cbcs_supported_ = false;
 
   std::atomic_bool is_enabled_{true};
   std::atomic_bool capabilities_is_dirty_{true};
