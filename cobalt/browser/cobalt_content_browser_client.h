@@ -18,6 +18,7 @@
 #include <memory>
 #include <vector>
 
+#include "base/memory/raw_ptr.h"
 #include "base/threading/thread_checker.h"
 #include "cobalt/browser/client_hint_headers/cobalt_trusted_url_loader_header_client.h"
 #include "cobalt/browser/cobalt_web_contents_delegate.h"
@@ -197,6 +198,11 @@ class CobaltContentBrowserClient : public content::ContentBrowserClient {
 
  private:
   void CreateVideoGeometrySetterService();
+
+  // Owned by content::BrowserMainLoop.
+  raw_ptr<content::ShellBrowserMainParts, DanglingUntriaged>
+      shell_browser_main_parts_{nullptr};
+  std::unique_ptr<PrefService> local_state_;
 
   std::unique_ptr<CobaltWebContentsObserver> web_contents_observer_;
   std::unique_ptr<CobaltWebContentsDelegate> web_contents_delegate_;

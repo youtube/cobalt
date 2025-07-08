@@ -250,25 +250,8 @@ blink::UserAgentMetadata GetCobaltUserAgentMetadata() {
   return metadata;
 }
 
-struct SharedState {
-  // Owned by content::BrowserMainLoop.
-  raw_ptr<content::ShellBrowserMainParts, DanglingUntriaged>
-      shell_browser_main_parts = nullptr;
-
-  std::unique_ptr<PrefService> local_state;
-};
-
-SharedState& GetSharedState() {
-  static SharedState g_shared_state;
-  return g_shared_state;
-}
-
-void set_local_browser_main_parts(content::ShellBrowserMainParts* parts) {
-  GetSharedState().shell_browser_main_parts = parts;
-}
-
 content::BrowserContext* CobaltContentBrowserClient::GetBrowserContext() {
-  return GetSharedState().shell_browser_main_parts->browser_context();
+  return shell_browser_main_parts_->browser_context();
 }
 
 CobaltContentBrowserClient::CobaltContentBrowserClient()
@@ -286,10 +269,10 @@ std::unique_ptr<content::BrowserMainParts>
 CobaltContentBrowserClient::CreateBrowserMainParts(
     bool /* is_integration_test */) {
   DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
-  DCHECK(!GetSharedState().shell_browser_main_parts);
+  DCHECK(!shell_browser_main_parts_);
 
   auto browser_main_parts = std::make_unique<CobaltBrowserMainParts>();
-  GetSharedState().shell_browser_main_parts = browser_main_parts.get();
+  shell_browser_main_parts_ = browser_main_parts.get();
 
   return browser_main_parts;
 }
@@ -579,7 +562,7 @@ CobaltContentBrowserClient::CreateURLLoaderThrottles(
 
 void CobaltContentBrowserClient::set_browser_main_parts(
     content::ShellBrowserMainParts* parts) {
-  set_local_browser_main_parts(parts);
+  shell_browser_main_parts_ = parts;
 }
 
 void CobaltContentBrowserClient::AppendExtraCommandLineSwitches(
@@ -734,13 +717,13 @@ void CobaltContentBrowserClient::SetUpCobaltFeaturesAndParams(
 }
 
 void CobaltContentBrowserClient::CreateFeatureListAndFieldTrials() {
-  GetSharedState().local_state = CreateLocalState();
+  local_state_ = CreateLocalState();
   GlobalFeatures::GetInstance()
       ->metrics_services_manager()
       ->InstantiateFieldTrialList();
   // Schedule a Local State write since the above function resulted in some
   // prefs being updated.
-  GetSharedState().local_state->CommitPendingWrite();
+  local_state_->CommitPendingWrite();
 
   auto feature_list = std::make_unique<base::FeatureList>();
 
@@ -854,7 +837,7 @@ CobaltContentBrowserClient::GetPermissionsPolicyForIsolatedWebApp(
 
 content::ShellBrowserMainParts*
 CobaltContentBrowserClient::shell_browser_main_parts() {
-  return GetSharedState().shell_browser_main_parts;
+  return shell_browser_main_parts_;
 }
 
 }  // namespace cobalt
