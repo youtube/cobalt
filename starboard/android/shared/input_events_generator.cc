@@ -431,7 +431,7 @@ void InputEventsGenerator::ProcessJoyStickEvent(
   SB_DCHECK(android_motion_event->pointerCount > 0);
 
   int32_t device_id = android_motion_event->deviceId;
-  SB_DCHECK(device_flat_.find(device_id) != device_flat_.end());
+  SB_DCHECK_NE(device_flat_.find(device_id), device_flat_.end());
 
   float flat = device_flat_[device_id][axis];
   float offset = GameActivityPointerAxes_getAxisValue(

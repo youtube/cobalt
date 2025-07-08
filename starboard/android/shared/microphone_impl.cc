@@ -23,7 +23,13 @@
 #include <mutex>
 #include <queue>
 
+<<<<<<< HEAD
 #include "starboard/android/shared/jni_env_ext.h"
+=======
+#include "starboard/android/shared/audio_permission_requester.h"
+#include "starboard/android/shared/starboard_bridge.h"
+#include "starboard/common/check_op.h"
+>>>>>>> 92a724a3ed9 (Apply SB_CHECK_EQ and similar macros to more files under starboard/ (#5966))
 #include "starboard/common/log.h"
 #include "starboard/shared/starboard/thread_checker.h"
 
@@ -542,7 +548,7 @@ void SbMicrophonePrivate::DestroyMicrophone(SbMicrophone microphone) {
     return;
   }
 
-  SB_DCHECK(s_microphone == microphone);
+  SB_DCHECK_EQ(s_microphone, microphone);
   s_microphone->Close();
 
   delete s_microphone;

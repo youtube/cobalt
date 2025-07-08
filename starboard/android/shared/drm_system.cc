@@ -183,7 +183,7 @@ void DrmSystem::CallDrmSessionKeyStatusesChangedCallback(
     int session_id_size,
     const std::vector<SbDrmKeyId>& drm_key_ids,
     const std::vector<SbDrmKeyStatus>& drm_key_statuses) {
-  SB_DCHECK(drm_key_ids.size() == drm_key_statuses.size());
+  SB_DCHECK_EQ(drm_key_ids.size(), drm_key_statuses.size());
 
   std::string session_id_as_string(static_cast<const char*>(session_id),
                                    session_id_size);
