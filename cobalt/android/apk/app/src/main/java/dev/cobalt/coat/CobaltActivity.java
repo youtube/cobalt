@@ -162,7 +162,6 @@ public abstract class CobaltActivity extends Activity {
     mWindowAndroid = new ActivityWindowAndroid(this, listenToActivityState, mIntentRequestTracker);
     mIntentRequestTracker.restoreInstanceState(savedInstanceState);
     mShellManager.setWindow(mWindowAndroid);
-    setContentView(mShellManager.getContentViewRenderView());
     // Set up the animation placeholder to be the SurfaceView. This disables the
     // SurfaceView's 'hole' clipping during animations that are notified to the window.
     mWindowAndroid.setAnimationPlaceholderView(
@@ -202,6 +201,7 @@ public abstract class CobaltActivity extends Activity {
                 initializationFailed();
               }
             });
+    setContentView(mShellManager.getContentViewRenderView());
   }
 
   // Initially copied from ContentShellActiviy.java
