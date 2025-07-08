@@ -188,10 +188,6 @@ static_library("content_shell_lib") {
     "//content/shell/common/shell_origin_trial_policy.h",
     "//content/shell/common/shell_switches.cc",
     "//content/shell/common/shell_switches.h",
-    "//content/shell/gpu/shell_content_gpu_client.cc",
-    "//content/shell/gpu/shell_content_gpu_client.h",
-    "//content/shell/utility/shell_content_utility_client.cc",
-    "//content/shell/utility/shell_content_utility_client.h",
     "browser/shell.cc",
     "browser/shell.h",
     "browser/shell_browser_context.cc",
@@ -221,6 +217,10 @@ static_library("content_shell_lib") {
     "browser/shell_speech_recognition_manager_delegate.h",
     "browser/shell_web_contents_view_delegate.h",
     "browser/shell_web_contents_view_delegate_creator.h",
+    "gpu/shell_content_gpu_client.cc",
+    "gpu/shell_content_gpu_client.h",
+    "utility/shell_content_utility_client.cc",
+    "utility/shell_content_utility_client.h",
   ]
 
   if (is_android) {
