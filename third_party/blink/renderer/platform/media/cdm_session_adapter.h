@@ -117,6 +117,10 @@ class PLATFORM_EXPORT CdmSessionAdapter
   // Returns the CdmConfig used in creation of CDM.
   const media::CdmConfig& GetCdmConfig() const;
 
+#if BUILDFLAG(USE_STARBOARD_MEDIA)
+  void GetMetrics(base::OnceCallback<void(const std::string&)> callback);
+#endif // BUILDFLAG(USE_STARBOARD_MEDIA)
+
  private:
   friend class base::RefCounted<CdmSessionAdapter>;
 

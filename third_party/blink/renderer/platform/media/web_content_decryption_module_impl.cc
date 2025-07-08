@@ -106,6 +106,7 @@ void WebContentDecryptionModuleImpl::Create(
   // |adapter| will be destructed.
   scoped_refptr<CdmSessionAdapter> adapter(new CdmSessionAdapter());
   adapter->CreateCdm(cdm_factory, cdm_config, std::move(web_cdm_created_cb));
+
 }
 
 WebContentDecryptionModuleImpl::WebContentDecryptionModuleImpl(
@@ -155,25 +156,8 @@ void WebContentDecryptionModuleImpl::GetStatusForPolicy(
 }
 
 #if BUILDFLAG(USE_STARBOARD_MEDIA)
-bool WebContentDecryptionModuleImpl::GetMetrics(std::string& metrics_results) {
-  auto cdm_context_ref = adapter_->GetCdmContextRef();
-  DCHECK(cdm_context_ref);
-
-  auto* cdm_context = cdm_context_ref->GetCdmContext();
-  DCHECK(cdm_context);
-
-  auto sb_drm = cdm_context->GetSbDrmSystem();
-  DCHECK(SbDrmSystemIsValid(sb_drm));
-
-  int size = 0;
-  const uint8_t* raw_metrics =
-      static_cast<const uint8_t*>(SbDrmGetMetrics(sb_drm, &size));
-  if (!raw_metrics || size < 0) {
-    return false;
-  }
-
-  metrics_results.assign(raw_metrics, raw_metrics + size);
-  return true;
+void WebContentDecryptionModuleImpl::GetMetrics(base::OnceCallback<void(const std::string&)> callback) {
+  adapter_->GetMetrics(std::move(callback));
 }
 #endif // BUILDFLAG(USE_STARBOARD_MEDIA)
 

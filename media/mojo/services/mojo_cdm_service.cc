@@ -22,6 +22,11 @@
 #include "mojo/public/cpp/bindings/callback_helpers.h"
 #include "mojo/public/cpp/bindings/pending_remote.h"
 
+#if BUILDFLAG(USE_STARBOARD_MEDIA)
+#include "media/mojo/services/starboard/starboard_drm_system_manager.h"
+#include "media/starboard/starboard_cdm.h"
+#endif // BUILDFLAG(USE_STARBOARD_MEDIA)
+
 namespace media {
 
 using SimpleMojoCdmPromise = MojoCdmPromise<void(mojom::CdmPromiseResultPtr)>;
@@ -235,5 +240,65 @@ void MojoCdmService::OnDecryptorConnectionError() {
   // for recovery.
   decryptor_.reset();
 }
+
+#if BUILDFLAG(USE_STARBOARD_MEDIA)
+void MojoCdmService::GetStarboardDrmSystemHandle(
+    GetStarboardDrmSystemHandleCallback callback) {
+  DVLOG(1) << __func__;
+
+  auto* starboard_cdm = static_cast<media::StarboardCdm*>(cdm_.get());
+  if (!starboard_cdm) {
+    DLOG(ERROR) << "CDM is not a StarboardCDM instance.";
+    std::move(callback).Run(absl::nullopt);
+    return;
+  }
+
+  SbDrmSystem drm_system = starboard_cdm->GetSbDrmSystem();
+  if (!drm_system) {
+    DLOG(ERROR) << "Failed to get SbDrmSystem from StarboardCDM.";
+    std::move(callback).Run(absl::nullopt);
+    return;
+  }
+
+  const auto token = base::UnguessableToken::Create();
+  StarboardDrmSystemManager::GetInstance()->Register(token, drm_system);
+  std::move(callback).Run(token);
+}
+
+void MojoCdmService::DeleteStarboardDrmSystemHandle(
+    const base::UnguessableToken& drm_system_handle) {
+  StarboardDrmSystemManager::GetInstance()->Unregister(drm_system_handle);
+}
+
+void MojoCdmService::GetMetrics(const base::UnguessableToken& drm_system_handle,
+                                GetMetricsCallback callback) {
+  DVLOG(1) << __func__;
+
+  absl::optional<SbDrmSystem> drm_system =
+      StarboardDrmSystemManager::GetInstance()->GetDrmSystem(drm_system_handle);
+
+  if (!drm_system) {
+    DLOG(ERROR) << "Could not find a DRM system for the given handle.";
+    std::move(callback).Run(absl::nullopt);
+    return;
+  }
+
+  // blob, encoded using url safe base64 without padding and line wrapping
+  // see starboard/drm.h
+  int metrics_size = 0;
+  const uint8_t* metrics_data =
+    static_cast<const uint8_t*>(SbDrmGetMetrics(
+          drm_system.value(), &metrics_size));
+
+  if (!metrics_data || metrics_size <= 0) {
+    DLOG(ERROR) << "Failed to get metrics from SbDrmSystem.";
+    std::move(callback).Run(absl::nullopt);
+    return;
+  }
+
+  std::string metrics_string(metrics_data, metrics_data + metrics_size);
+  std::move(callback).Run(std::move(metrics_string));
+}
+#endif // BUILDFLAG(USE_STARBOARD_MEDIA)
 
 }  // namespace media
