@@ -52,7 +52,7 @@ _DEPS_ARCH_MAP = {
 }
 
 # Any test run that fails due to infra error will be retried.
-_DEFAULT_RETRY_LEVEL = 'ERROR'
+_DEFAULT_RETRY_LEVEL = 'FAIL'
 # This is needed because driver expects cobalt.apk, but we publish
 # Cobalt.apk
 _E2E_DEFAULT_YT_BINARY_NAME = 'Cobalt'
