@@ -119,6 +119,11 @@ component("services") {
       "starboard/gpu_mojo_media_client_starboard.cc",
       "starboard/starboard_renderer_wrapper.cc",
       "starboard/starboard_renderer_wrapper.h",
+      "starboard/starboard_drm_system_manager.cc",
+      "starboard/starboard_drm_system_manager.h",
+    ]
+    deps += [
+      "//starboard:starboard_headers_only",
     ]
   } else if (is_android) {
     sources += [ "gpu_mojo_media_client_android.cc" ]

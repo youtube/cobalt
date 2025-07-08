@@ -23,9 +23,9 @@
 namespace blink {
 
 // static
-WebString MediaKeysGetMetrics::getMetrics(MediaKeys& media_keys,
-                                          ExceptionState& exception_state) {
-  return media_keys.getMetrics(exception_state);
+ScriptPromise MediaKeysGetMetrics::getMetrics(ScriptState* script_state,
+                                              MediaKeys& media_keys) {
+  return media_keys.getMetrics(script_state);
 }
 
 }  // namespace blink
