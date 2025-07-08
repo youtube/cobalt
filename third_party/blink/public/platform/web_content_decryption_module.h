@@ -55,7 +55,7 @@ class BLINK_PLATFORM_EXPORT WebContentDecryptionModule {
                                   WebContentDecryptionModuleResult) = 0;
 
 #if BUILDFLAG(USE_STARBOARD_MEDIA)
-  virtual bool GetMetrics(std::string& metrics_results) = 0;
+  virtual void GetMetrics(base::OnceCallback<void(const std::string&)> callback) = 0;
 #endif // BUILDFLAG(USE_STARBOARD_MEDIA)
 };
 

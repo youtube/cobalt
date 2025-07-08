@@ -128,6 +128,7 @@ source_set("clients") {
 
     visibility += [
       "//cobalt/renderer",
+      "//third_party/blink/renderer/platform/media:media",
     ]
   }
 }

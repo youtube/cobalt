@@ -442,15 +442,27 @@ ScriptPromise MediaKeys::getStatusForPolicy(
 }
 
 #if BUILDFLAG(USE_STARBOARD_MEDIA)
-WebString MediaKeys::getMetrics(ExceptionState& exception_state) {
-  std::string metrics;
-  if (!cdm_ || !cdm_->GetMetrics(metrics)) {
-    exception_state.ThrowDOMException(
-        DOMExceptionCode::kInvalidStateError,
-        !cdm_ ? "No active CDM" : "GetMetrics() failed");
-    return WebString();
-  }
-  return WebString::FromUTF8(metrics);
+ScriptPromise MediaKeys::getMetrics(ScriptState* script_state) {
+    auto* resolver = MakeGarbageCollected<ScriptPromiseResolver>(script_state);
+    ScriptPromise promise = resolver->Promise();
+
+    if (!cdm_) {
+        resolver->Reject(MakeGarbageCollected<DOMException>(DOMExceptionCode::kInvalidStateError, "No active CDM."));
+        return promise;
+    }
+
+    auto callback = base::BindOnce(
+        [](ScriptPromiseResolver* resolver, const std::string& metrics) {
+            if (!resolver->GetScriptState() || !resolver->GetScriptState()->ContextIsValid()) {
+                return;
+            }
+            resolver->Resolve(String::FromUTF8(metrics));
+        },
+        WrapPersistent(resolver)); // Use WrapPersistent to safely pass the resolver.
+
+    cdm_->GetMetrics(std::move(callback));
+
+    return promise;
 }
 #endif // BUILDFLAG(USE_STARBOARD_MEDIA)
 

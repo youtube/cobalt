@@ -20,5 +20,5 @@
     SecureContext,
     ImplementedAs=MediaKeysGetMetrics
 ] partial interface MediaKeys {
-    [RaisesException] DOMString getMetrics();
+    [CallWith=ScriptState] Promise<DOMString> getMetrics();
 };
