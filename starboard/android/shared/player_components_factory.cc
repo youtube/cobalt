@@ -30,6 +30,7 @@
 #include "starboard/android/shared/media_capabilities_cache.h"
 #include "starboard/android/shared/media_common.h"
 #include "starboard/android/shared/video_decoder.h"
+#include "starboard/common/check_op.h"
 #include "starboard/common/log.h"
 #include "starboard/common/media.h"
 #include "starboard/common/ref_counted.h"
@@ -147,7 +148,7 @@ class AudioRendererSinkCallbackStub
     *is_eos_reached = false;
   }
   void ConsumeFrames(int frames_consumed, int64_t frames_consumed_at) override {
-    SB_DCHECK(frames_consumed == 0);
+    SB_DCHECK_EQ(frames_consumed, 0);
   }
 
   void OnError(bool capability_changed,
