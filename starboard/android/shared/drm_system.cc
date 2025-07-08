@@ -14,6 +14,7 @@
 
 #include "starboard/android/shared/drm_system.h"
 
+#include <iomanip>
 #include <memory>
 #include <string_view>
 #include <utility>
@@ -25,8 +26,84 @@
 namespace {
 
 using starboard::android::shared::DrmSystem;
+// They must have the same values as defined in MediaDrm.KeyRequest.
+const jint REQUEST_TYPE_INITIAL = 0;
+const jint REQUEST_TYPE_RENEWAL = 1;
+const jint REQUEST_TYPE_RELEASE = 2;
+const jint REQUEST_TYPE_INDIVIDUALIZATION = 3;
 
 DECLARE_INSTANCE_COUNTER(AndroidDrmSystem)
+
+SbDrmSessionRequestType SbDrmSessionRequestTypeFromMediaDrmKeyRequestType(
+    jint request_type) {
+  if (request_type == REQUEST_TYPE_INITIAL) {
+    return kSbDrmSessionRequestTypeLicenseRequest;
+  }
+  if (request_type == REQUEST_TYPE_RENEWAL) {
+    return kSbDrmSessionRequestTypeLicenseRenewal;
+  }
+  if (request_type == REQUEST_TYPE_RELEASE) {
+    return kSbDrmSessionRequestTypeLicenseRelease;
+  }
+  if (request_type == REQUEST_TYPE_INDIVIDUALIZATION) {
+    return kSbDrmSessionRequestTypeIndividualizationRequest;
+  }
+  SB_NOTREACHED();
+  return kSbDrmSessionRequestTypeLicenseRequest;
+}
+
+SbDrmKeyStatus SbDrmKeyStatusFromMediaDrmKeyStatus(jint j_status_code) {
+  switch (j_status_code) {
+    case MEDIA_DRM_KEY_STATUS_EXPIRED:
+      return kSbDrmKeyStatusExpired;
+    case MEDIA_DRM_KEY_STATUS_INTERNAL_ERROR:
+      return kSbDrmKeyStatusError;
+    case MEDIA_DRM_KEY_STATUS_OUTPUT_NOT_ALLOWED:
+      return kSbDrmKeyStatusRestricted;
+    case MEDIA_DRM_KEY_STATUS_PENDING:
+      return kSbDrmKeyStatusPending;
+    case MEDIA_DRM_KEY_STATUS_USABLE:
+      return kSbDrmKeyStatusUsable;
+    default:
+      break;
+  }
+
+  SB_NOTREACHED();
+  return kSbDrmKeyStatusError;
+}
+
+std::string ToString(const SbDrmKeyId& keyId) {
+  std::stringstream ss;
+  ss << std::hex << std::setfill('0');  // Set output to hex, fill with '0'
+
+  int actual_size = std::min(keyId.identifier_size, 16);
+  actual_size = std::max(0, actual_size);  // Ensure non-negative
+
+  for (int i = 0; i < actual_size; ++i) {
+    ss << std::setw(2) << static_cast<int>(keyId.identifier[i]);
+  }
+  return ss.str();
+}
+
+std::string ToString(SbDrmKeyStatus status) {
+  switch (status) {
+    case kSbDrmKeyStatusExpired:
+      return "expired";
+    case kSbDrmKeyStatusError:
+      return "error";
+    case kSbDrmKeyStatusRestricted:
+      return "restricted";
+    case kSbDrmKeyStatusPending:
+      return "pending";
+    case kSbDrmKeyStatusUsable:
+      return "usable";
+    default:
+      break;
+  }
+
+  SB_NOTREACHED();
+  return "unknown";
+}
 
 }  // namespace
 
@@ -68,24 +145,15 @@ DrmSystem::DrmSystem(
 }
 
 void DrmSystem::Run() {
-  if (media_drm_bridge_->CreateMediaCryptoSession()) {
-    created_media_crypto_session_.store(true);
-  } else {
-    SB_LOG(INFO) << "Could not create media crypto session";
-    return;
-  }
-
-  ScopedLock scoped_lock(mutex_);
-  if (!deferred_session_update_requests_.empty()) {
-    for (const auto& update_request : deferred_session_update_requests_) {
-      update_request->Generate(media_drm_bridge_.get());
-    }
-    deferred_session_update_requests_.clear();
-  }
+  job_queue_ =
+      std::make_unique<starboard::shared::starboard::player::JobQueue>();
+  job_queue_->RunUntilStopped();
 }
 
 DrmSystem::~DrmSystem() {
   ON_INSTANCE_RELEASED(AndroidDrmSystem);
+  job_queue_->StopSoon();
+
   Join();
 }
 
@@ -113,14 +181,7 @@ void DrmSystem::GenerateSessionUpdateRequest(int ticket,
   std::unique_ptr<SessionUpdateRequest> session_update_request(
       new SessionUpdateRequest(ticket, type, initialization_data,
                                initialization_data_size));
-  if (created_media_crypto_session_.load()) {
-    session_update_request->Generate(media_drm_bridge_.get());
-  } else {
-    // Defer generating the update request.
-    ScopedLock scoped_lock(mutex_);
-    deferred_session_update_requests_.push_back(
-        std::move(session_update_request));
-  }
+  session_update_request->Generate(j_media_drm_bridge_);
   // |update_request_callback_| will be called by Java calling into
   // |onSessionMessage|.
 }
@@ -196,6 +257,17 @@ void DrmSystem::OnKeyStatusChange(
       }
     }
   }
+  std::string log;
+  for (int i = 0; i < drm_key_ids.size(); i++) {
+    log += (i > 0 ? ", " : "") + ToString(drm_key_ids[i]) + "=" +
+           ToString(drm_key_statuses[i]);
+  }
+  SB_LOG(INFO) << "Key status changed: session_id=" << session_id_as_string
+               << ", key_ids={" << log + "}";
+
+  is_key_provided_ = std::any_of(
+      drm_key_statuses.cbegin(), drm_key_statuses.cend(),
+      [](const auto& status) { return status == kSbDrmKeyStatusUsable; });
 
   key_statuses_changed_callback_(this, context_, session_id.data(),
                                  session_id.size(),

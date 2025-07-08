@@ -21,6 +21,9 @@
 
 #include <atomic>
 #include <memory>
+#include <condition_variable>
+#include <mutex>
+#include <queue>
 #include <string>
 #include <string_view>
 #include <unordered_map>
@@ -30,6 +33,7 @@
 #include "starboard/android/shared/media_drm_bridge.h"
 #include "starboard/common/mutex.h"
 #include "starboard/common/thread.h"
+#include "starboard/shared/starboard/player/job_queue.h"
 #include "starboard/types.h"
 
 namespace starboard::android::shared {
@@ -84,7 +88,7 @@ class DrmSystem : public ::SbDrmSystemPrivate,
   }
 
   // Return true when the drm system is ready for secure input buffers.
-  bool IsReady() { return created_media_crypto_session_.load(); }
+  bool IsReady();
 
  private:
   class SessionUpdateRequest {
@@ -121,7 +125,7 @@ class DrmSystem : public ::SbDrmSystemPrivate,
   Mutex mutex_;
   std::unordered_map<std::string, std::vector<SbDrmKeyId>> cached_drm_key_ids_;
   bool hdcp_lost_;
-  std::atomic_bool created_media_crypto_session_{false};
+  std::atomic_bool created_media_crypto_session_{true};
 
   std::unique_ptr<MediaDrmBridge> media_drm_bridge_;
 };

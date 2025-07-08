@@ -187,6 +187,7 @@ android_library("cobalt_main_java") {
     "apk/app/src/main/java/dev/cobalt/media/MediaCodecCapabilitiesLogger.java",
     "apk/app/src/main/java/dev/cobalt/media/MediaCodecUtil.java",
     "apk/app/src/main/java/dev/cobalt/media/MediaDrmBridge.java",
+    "apk/app/src/main/java/dev/cobalt/media/MediaDrmSessionManager.java",
     "apk/app/src/main/java/dev/cobalt/media/MediaFormatBuilder.java",
     "apk/app/src/main/java/dev/cobalt/media/VideoDecoderCache.java",
     "apk/app/src/main/java/dev/cobalt/media/VideoFrameReleaseTimeHelper.java",
