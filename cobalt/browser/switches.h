@@ -35,10 +35,6 @@ constexpr char kInitialURL[] = "url";
 constexpr char kRequireCSP[] = "require_csp";
 constexpr char kRequireHTTPS[] = "require_https";
 
-// Exposes the window.internals object to JavaScript for interactive development
-// and debugging of web tests that rely on it.
-constexpr char kExposeInternalsForTesting[] = "expose-internals-for-testing";
-
 }  // namespace switches
 }  // namespace cobalt
 
