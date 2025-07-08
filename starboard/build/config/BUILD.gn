@@ -366,5 +366,6 @@ config("modular_cpp20_config") {
 }
 
 config("native_target") {
+  cflags = [ "-Wno-deprecated-non-prototype" ]
   configs = [ ":modular_cpp17_config" ]
 }
