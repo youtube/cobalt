@@ -18,18 +18,34 @@ CobaltSecureNavigationThrottle::~CobaltSecureNavigationThrottle() = default;
 // Called when a network request is about to be made for this navigation.
 content::NavigationThrottle::ThrottleCheckResult
 CobaltSecureNavigationThrottle::WillStartRequest() {
-  if (ShouldEnforceHTTPS(*base::CommandLine::ForCurrentProcess())) {
-    return EnforceHTTPS();
+#if BUILDFLAG(COBALT_IS_RELEASE_BUILD)
+  const GURL& url = navigation_handle()->GetURL();
+  if (url.SchemeIs(url::kHttpsScheme)) {
+    return content::NavigationThrottle::PROCEED;
   }
+  LOG(WARNING) << "Navigation throttle canceling navigation due to "
+                  "HTTPS-only violation";
+  return content::NavigationThrottle::ThrottleCheckResult(
+      content::NavigationThrottle::CANCEL, net::ERR_BLOCKED_BY_CLIENT);
+#endif  // COBALT_IS_OFFICIAL_BUILD
+
   return content::NavigationThrottle::PROCEED;
 }
 
 // Called when a server redirect is received by the navigation.
 content::NavigationThrottle::ThrottleCheckResult
 CobaltSecureNavigationThrottle::WillRedirectRequest() {
-  if (ShouldEnforceHTTPS(*base::CommandLine::ForCurrentProcess())) {
-    return EnforceHTTPS();
+#if BUILDFLAG(COBALT_IS_RELEASE_BUILD)
+  const GURL& url = navigation_handle()->GetURL();
+  if (url.SchemeIs(url::kHttpsScheme)) {
+    return content::NavigationThrottle::PROCEED;
   }
+  LOG(WARNING) << "Navigation throttle canceling navigation due to "
+                  "HTTPS-only violation";
+  return content::NavigationThrottle::ThrottleCheckResult(
+      content::NavigationThrottle::CANCEL, net::ERR_BLOCKED_BY_CLIENT);
+#endif  // COBALT_IS_OFFICIAL_BUILD
+
   return content::NavigationThrottle::PROCEED;
 }
 
@@ -40,31 +56,6 @@ CobaltSecureNavigationThrottle::WillProcessResponse() {
     return EnforceCSPHeaders();
   }
   return content::NavigationThrottle::PROCEED;
-}
-
-bool CobaltSecureNavigationThrottle::ShouldEnforceHTTPS(
-    const base::CommandLine& command_line) {
-  if (command_line.HasSwitch(cobalt::switches::kRequireHTTPS)) {
-    return true;
-  }
-#if BUILDFLAG(COBALT_IS_RELEASE_BUILD)
-  return true;
-#endif  // COBALT_IS_OFFICIAL_BUILD
-  return false;
-}
-
-// Returns a Navigation ThrottleCheckResult based on
-// HTTPS vs non-HTTPS URL scheme
-content::NavigationThrottle::ThrottleCheckResult
-CobaltSecureNavigationThrottle::EnforceHTTPS() {
-  const GURL& url = navigation_handle()->GetURL();
-  if (url.SchemeIs(url::kHttpsScheme)) {
-    return content::NavigationThrottle::PROCEED;
-  }
-  LOG(WARNING) << "Navigation throttle canceling navigation due to "
-                  "HTTPS-only violation";
-  return content::NavigationThrottle::ThrottleCheckResult(
-      content::NavigationThrottle::CANCEL, net::ERR_BLOCKED_BY_CLIENT);
 }
 
 bool CobaltSecureNavigationThrottle::ShouldEnforceCSP(
