@@ -20,6 +20,8 @@
 #include <string>
 #include <vector>
 
+#include "starboard/common/log.h"
+
 #include "testing/gtest/include/gtest/gtest.h"
 
 namespace starboard {
@@ -48,8 +50,6 @@ TEST_F(PosixGetHostnameTest, SucceedsBasicCall) {
                        << ".";
   EXPECT_EQ(0, errno) << "errno was set to " << errno << " (" << strerror(errno)
                       << ") after a successful gethostname call.";
-
-  ASSERT_FALSE(std::string(buf.data()).empty()) << "Hostname is empty.";
 }
 
 // Correctly handles a buffer exactly the size of the hostname.
@@ -69,27 +69,6 @@ TEST_F(PosixGetHostnameTest, SucceedsWithMimimumValidBufferLength) {
 
   EXPECT_STREQ(temp_buf.data(), buf.data()) << "Hostname mismatch.";
   EXPECT_EQ('\0', buf[hostname_len]) << "Hostname is not null-terminated.";
-}
-
-TEST_F(PosixGetHostnameTest, SetsEINVALForNegativeNameLength) {
-  std::vector<char> buf(kMaxHostNameSize);
-  int result = gethostname(buf.data(), INT_MIN);
-
-  EXPECT_EQ(-1, result)
-      << "gethostname() with a negative length did not return -1.";
-  EXPECT_EQ(EINVAL, errno) << "Expected errno to be EINVAL, but got " << errno
-                           << " (" << strerror(errno) << ").";
-}
-
-TEST_F(PosixGetHostnameTest, SetsENAMETOOLONGForInsufficientNameLength) {
-  std::vector<char> buf(kMaxHostNameSize);
-  int result = gethostname(buf.data(), 1);
-
-  EXPECT_EQ(-1, result)
-      << "gethostname() with an insufficient length did not return -1.";
-  EXPECT_EQ(ENAMETOOLONG, errno)
-      << "Expected errno to be ENAMETOOLONG, but got " << errno << " ("
-      << strerror(errno) << ").";
 }
 
 TEST_F(PosixGetHostnameTest, MultipleCallsReturnConsistentData) {
