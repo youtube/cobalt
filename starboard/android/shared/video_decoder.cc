@@ -1244,13 +1244,16 @@ void VideoDecoder::OnSurfaceDestroyed() {
     Schedule(std::bind(&VideoDecoder::OnSurfaceDestroyed, this));
     surface_condition_variable_.wait_for(
         lock, std::chrono::microseconds(1'000'000),
-        [this] { return surface_destroyed_on_decoder_thread_; });
+        [this] { return is_surface_destroyed_; });
     return;
   }
   // When this function is called, the decoder no longer owns the surface.
   owns_video_surface_ = false;
   TeardownCodec();
-  std::unique_lock lock(surface_destroy_mutex_);
+  {
+    std::lock_guard lock(surface_destroy_mutex_);
+    is_surface_destroyed_ = true;
+  }
   surface_condition_variable_.notify_one();
 }
 

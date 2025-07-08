@@ -199,7 +199,7 @@ void MediaDecoder::WriteInputBuffers(const InputBuffers& input_buffers) {
     SB_DCHECK_NE(decoder_thread_, 0);
   }
 
-  std::unique_lock lock(mutex_);
+  std::lock_guard lock(mutex_);
   bool need_signal = pending_inputs_.empty();
   for (const auto& input_buffer : input_buffers) {
     pending_inputs_.emplace_back(input_buffer);
@@ -214,7 +214,7 @@ void MediaDecoder::WriteEndOfStream() {
   SB_DCHECK(thread_checker_.CalledOnValidThread());
 
   stream_ended_.store(true);
-  std::unique_lock lock(mutex_);
+  std::lock_guard lock(mutex_);
   pending_inputs_.emplace_back(PendingInput::kWriteEndOfStream);
   ++number_of_pending_inputs_;
   if (pending_inputs_.size() == 1) {
@@ -261,23 +261,12 @@ void MediaDecoder::DecoderThreadFunc() {
         bool can_process_input =
             pending_input_to_retry_ ||
             (has_pending_input && has_input_buffer_indices);
-        if (dequeue_output_results_.empty() && !can_process_input) {
-          if (condition_variable_.wait_for(
-                  lock, std::chrono::microseconds(5'000'000LL), [&]() {
-                    bool has_pending_input =
-                        !pending_inputs.empty() || !pending_inputs_.empty();
-                    bool has_input_buffer_indices =
-                        !input_buffer_indices_.empty();
-                    bool can_process_input =
-                        pending_input_to_retry_ ||
-                        (has_pending_input && has_input_buffer_indices);
-                    return destroying_.load() ||
-                           !dequeue_output_results_.empty() ||
-                           can_process_input;
-                  }) == std::cv_status::timeout) {
-            SB_LOG_IF(ERROR, !stream_ended_.load())
-                << GetDecoderName(media_type_) << ": Wait() hits timeout.";
-          }
+        if (condition_variable_.wait_for(
+                lock, std::chrono::microseconds(5'000'000LL), [&] {
+                  return !dequeue_output_results_.empty() || can_process_input;
+                })) {
+          SB_LOG_IF(ERROR, !stream_ended_.load())
+              << GetDecoderName(media_type_) << ": Wait() hits timeout.";
         }
         SB_DCHECK(dequeue_output_results.empty());
         if (destroying_.load()) {
@@ -336,7 +325,7 @@ void MediaDecoder::DecoderThreadFunc() {
         break;
       }
       if (collect_pending_data) {
-        std::unique_lock lock(mutex_);
+        std::lock_guard lock(mutex_);
         CollectPendingData_Locked(&pending_inputs, &input_buffer_indices,
                                   &dequeue_output_results);
       }
@@ -396,10 +385,7 @@ void MediaDecoder::TerminateDecoderThread() {
 
   destroying_.store(true);
 
-  {
-    std::unique_lock lock(mutex_);
-    condition_variable_.notify_one();
-  }
+  condition_variable_.notify_one();
 
   if (decoder_thread_ != 0) {
     pthread_join(decoder_thread_, nullptr);
@@ -648,7 +634,7 @@ void MediaDecoder::OnMediaCodecInputBufferAvailable(int buffer_index) {
     ::starboard::shared::pthread::ThreadSetPriority(kSbThreadPriorityHigh);
     first_call_on_handler_thread_ = false;
   }
-  std::unique_lock lock(mutex_);
+  std::lock_guard lock(mutex_);
   input_buffer_indices_.push_back(buffer_index);
   if (input_buffer_indices_.size() == 1) {
     condition_variable_.notify_one();
@@ -678,7 +664,7 @@ void MediaDecoder::OnMediaCodecOutputBufferAvailable(
   dequeue_output_result.presentation_time_microseconds = presentation_time_us;
   dequeue_output_result.num_bytes = size;
 
-  std::unique_lock lock(mutex_);
+  std::lock_guard lock(mutex_);
   dequeue_output_results_.push_back(dequeue_output_result);
   condition_variable_.notify_one();
 }
@@ -689,7 +675,7 @@ void MediaDecoder::OnMediaCodecOutputFormatChanged() {
   DequeueOutputResult dequeue_output_result = {};
   dequeue_output_result.index = -1;
 
-  std::unique_lock lock(mutex_);
+  std::lock_guard lock(mutex_);
   dequeue_output_results_.push_back(dequeue_output_result);
   condition_variable_.notify_one();
 }

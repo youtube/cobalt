@@ -52,10 +52,7 @@ MinRequiredFramesTester::~MinRequiredFramesTester() {
   SB_DCHECK(thread_checker_.CalledOnValidThread());
   destroying_.store(true);
   if (tester_thread_ != 0) {
-    {
-      std::unique_lock lock(mutex_);
-      condition_variable_.notify_one();
-    }
+    condition_variable_.notify_one();
     pthread_join(tester_thread_, NULL);
     tester_thread_ = 0;
   }
@@ -260,7 +257,6 @@ void MinRequiredFramesTester::ConsumeFrames(int frames_consumed) {
     // |min_required_frames_| reached maximum, or playback is stable and
     // doesn't have underruns. Stop the test.
     last_total_consumed_frames_ = INT_MAX;
-    std::unique_lock lock(mutex_);
     condition_variable_.notify_one();
   }
 }
