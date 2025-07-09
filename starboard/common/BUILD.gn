@@ -108,11 +108,7 @@ source_set("common_test") {
     "player_test.cc",
     "queue_test.cc",
     "semaphore_test.cc",
-<<<<<<< HEAD
-    "socket_test.cc",
     "test_main.cc",
-=======
->>>>>>> ea0e9aea8ed ([Cleanup] Remove starboard/socket.h and related files. (#6290))
   ]
   deps = [
     ":common",
