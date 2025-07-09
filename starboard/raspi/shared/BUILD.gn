@@ -214,10 +214,6 @@ static_library("starboard_platform_sources") {
 
   sources += common_player_sources
 
-  if (!sb_is_modular) {
-    sources += [ "//starboard/raspi/shared/main.cc" ]
-  }
-
   configs += [
     "//starboard/build/config:starboard_implementation",
     "//starboard/build/config:pedantic_warnings",
