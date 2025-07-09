@@ -362,6 +362,10 @@ test("gl_tests") {
     "ipc/client/gpu_in_process_context_tests.cc",
     "ipc/client/raster_in_process_context_tests.cc",
   ]
+  if (is_cobalt_hermetic_build) {
+    sources += [ "command_buffer/tests/starboard/gl_tests_main.cc" ]
+    sources -= [ "command_buffer/tests/gl_tests_main.cc" ]
+  }
 
   if (use_egl) {
     sources += [ "command_buffer/service/shared_image/egl_image_backing_factory_unittest.cc" ]
@@ -590,6 +594,10 @@ test("gpu_unittests") {
     "ipc/service/gpu_channel_test_common.h",
     "ipc/service/gpu_watchdog_thread_unittest.cc",
   ]
+  if (is_cobalt_hermetic_build) {
+    sources += [ "command_buffer/common/starboard/unittest_main.cc" ]
+    sources -= [ "command_buffer/common/unittest_main.cc" ]
+  }
 
   if (enable_validating_command_decoder) {
     sources += [
@@ -765,6 +773,11 @@ test("gpu_perftests") {
     "perftests/run_all_tests.cc",
     "perftests/texture_upload_perftest.cc",
   ]
+
+  if (is_cobalt_hermetic_build) {
+    sources -= [ "perftests/run_all_tests.cc" ]
+    sources += [ "perftests/starboard/run_all_tests.cc" ]
+  }
 
   deps = [
     ":gpu",
