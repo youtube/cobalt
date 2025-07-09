@@ -15,11 +15,7 @@
 #include "starboard/android/shared/drm_system.h"
 
 #include <memory>
-<<<<<<< HEAD
-=======
 #include <mutex>
-#include <string_view>
->>>>>>> 129aeba41bb ([Refactor] Replace starboard::Mutex with std::mutex (#6343))
 #include <utility>
 
 #include "starboard/android/shared/media_common.h"
