@@ -15,6 +15,11 @@
 #include "starboard/android/shared/drm_system.h"
 
 #include <memory>
+<<<<<<< HEAD
+=======
+#include <mutex>
+#include <string_view>
+>>>>>>> 129aeba41bb ([Refactor] Replace starboard::Mutex with std::mutex (#6343))
 #include <utility>
 
 #include "starboard/android/shared/media_common.h"
@@ -73,7 +78,7 @@ void DrmSystem::Run() {
     return;
   }
 
-  ScopedLock scoped_lock(mutex_);
+  std::lock_guard scoped_lock(mutex_);
   if (!deferred_session_update_requests_.empty()) {
     for (const auto& update_request : deferred_session_update_requests_) {
       update_request->Generate(media_drm_bridge_.get());
@@ -115,7 +120,7 @@ void DrmSystem::GenerateSessionUpdateRequest(int ticket,
     session_update_request->Generate(media_drm_bridge_.get());
   } else {
     // Defer generating the update request.
-    ScopedLock scoped_lock(mutex_);
+    std::lock_guard scoped_lock(mutex_);
     deferred_session_update_requests_.push_back(
         std::move(session_update_request));
   }
@@ -142,7 +147,7 @@ void DrmSystem::CloseSession(const void* session_id, int session_id_size) {
                                    session_id_size);
 
   {
-    ScopedLock scoped_lock(mutex_);
+    std::lock_guard scoped_lock(mutex_);
     auto iter = cached_drm_key_ids_.find(session_id_as_string);
     if (iter != cached_drm_key_ids_.end()) {
       cached_drm_key_ids_.erase(iter);
@@ -189,9 +194,15 @@ void DrmSystem::CallDrmSessionKeyStatusesChangedCallback(
                                    session_id_size);
 
   {
+<<<<<<< HEAD
     ScopedLock scoped_lock(mutex_);
     if (cached_drm_key_ids_[session_id_as_string] != drm_key_ids) {
       cached_drm_key_ids_[session_id_as_string] = drm_key_ids;
+=======
+    std::lock_guard scoped_lock(mutex_);
+    if (cached_drm_key_ids_[session_id_str] != drm_key_ids) {
+      cached_drm_key_ids_[session_id_str] = drm_key_ids;
+>>>>>>> 129aeba41bb ([Refactor] Replace starboard::Mutex with std::mutex (#6343))
       if (hdcp_lost_) {
         CallKeyStatusesChangedCallbackWithKeyStatusRestricted_Locked();
         return;
@@ -207,7 +218,7 @@ void DrmSystem::CallDrmSessionKeyStatusesChangedCallback(
 void DrmSystem::OnInsufficientOutputProtection() {
   // HDCP has lost, update the statuses of all keys in all known sessions to be
   // restricted.
-  ScopedLock scoped_lock(mutex_);
+  std::lock_guard scoped_lock(mutex_);
   if (hdcp_lost_) {
     return;
   }
