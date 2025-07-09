@@ -100,5 +100,71 @@ public class CommandLineOverrideHelperTest {
       Assert.assertEquals(expected, actual);
     }
 
-    // TODO(b/420912320): Add tests with non-null params to flag overrides
+    @Test
+    public void testFlagOverrides_SingleArg() {
+        String[] commandLineArgs = {"--enable-features=TestFeature1;TestFeature2"};
+        CommandLineOverrideHelper.CommandLineOverrideHelperParams params =
+            new CommandLineOverrideHelper.CommandLineOverrideHelperParams(
+                false, true, commandLineArgs);
+        CommandLineOverrideHelper.getFlagOverrides(params);
+
+        String actual = CommandLine.getInstance().getSwitchValue("enable-features");
+        String expected = "LogJsConsoleMessages,LimitImageDecodeCacheSize:mb/24,TestFeature1,TestFeature2";
+        Assert.assertEquals(expected, actual);
+    }
+
+    @Test
+    public void testFlagOverrides_MultipleArgs() {
+        String[] commandLineArgs = {
+            "--enable-features=TestFeature1;TestFeature2",
+            "--disable-features=TestFeature3",
+            "--js-flags=--test-flag;--another-flag"
+        };
+        CommandLineOverrideHelper.CommandLineOverrideHelperParams params =
+            new CommandLineOverrideHelper.CommandLineOverrideHelperParams(
+                false, true, commandLineArgs);
+        CommandLineOverrideHelper.getFlagOverrides(params);
+
+        String enableFeatures = CommandLine.getInstance().getSwitchValue("enable-features");
+        String expectedEnable = "LogJsConsoleMessages,LimitImageDecodeCacheSize:mb/24,TestFeature1,TestFeature2";
+        Assert.assertEquals(expectedEnable, enableFeatures);
+
+        String disableFeatures = CommandLine.getInstance().getSwitchValue("disable-features");
+        String expectedDisable = "AImageReader,TestFeature3";
+        Assert.assertEquals(expectedDisable, disableFeatures);
+
+        String jsFlags = CommandLine.getInstance().getSwitchValue("js-flags");
+        String expectedJs = "--optimize-for-size,--test-flag,--another-flag";
+        Assert.assertEquals(expectedJs, jsFlags);
+    }
+
+    @Test
+    public void testFlagOverrides_WithRegularSwitch() {
+        String[] commandLineArgs = {"--some-other-switch=value"};
+        CommandLineOverrideHelper.CommandLineOverrideHelperParams params =
+            new CommandLineOverrideHelper.CommandLineOverrideHelperParams(
+                false, true, commandLineArgs);
+        CommandLineOverrideHelper.getFlagOverrides(params);
+
+        Assert.assertTrue(CommandLine.getInstance().hasSwitch("some-other-switch"));
+        String actual = CommandLine.getInstance().getSwitchValue("some-other-switch");
+        Assert.assertEquals("value", actual);
+    }
+
+    @Test
+    public void testFlagOverrides_EmptyAndNullArgs() {
+        String[] commandLineArgs = {"--enable-features=TestFeature1;", null, "--disable-features=TestFeature2"};
+        CommandLineOverrideHelper.CommandLineOverrideHelperParams params =
+            new CommandLineOverrideHelper.CommandLineOverrideHelperParams(
+                false, true, commandLineArgs);
+        CommandLineOverrideHelper.getFlagOverrides(params);
+
+        String enableFeatures = CommandLine.getInstance().getSwitchValue("enable-features");
+        String expectedEnable = "LogJsConsoleMessages,LimitImageDecodeCacheSize:mb/24,TestFeature1";
+        Assert.assertEquals(expectedEnable, enableFeatures);
+
+        String disableFeatures = CommandLine.getInstance().getSwitchValue("disable-features");
+        String expectedDisable = "AImageReader,TestFeature2";
+        Assert.assertEquals(expectedDisable, disableFeatures);
+    }
 }
