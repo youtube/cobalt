@@ -2833,6 +2833,10 @@ test("net_unittests") {
     "url_request/url_request_unittest.cc",
     "url_request/view_cache_helper_unittest.cc",
   ]
+  if (is_cobalt_hermetic_build) {
+    sources += [ "test/starboard/run_all_unittests.cc" ]
+    sources -= [ "test/run_all_unittests.cc" ]
+  }
 
   if (!is_cronet_build) {
     sources += [
