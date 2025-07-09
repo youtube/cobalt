@@ -21,13 +21,9 @@ runs:
       shell: bash
       run: |
         set -x
-
-        test_dir="${GITHUB_WORKSPACE}/unit_test"
-        echo "test_dir=${test_dir}" >> $GITHUB_ENV
-
-        mkdir -p ${test_dir}
-        cd ${test_dir}
-        tar xvf ../test_artifacts.tar.gz
+        mkdir -p unit_test/
+        cd unit_test/
+        tar xzf ../test_artifacts.tar.gz
     - name: Run Tests
       id: run-tests
       shell: bash
@@ -37,10 +33,10 @@ runs:
         set -x
         env
 
-        # Explicitly point to libraries in extracted dir.
+        out_dir="${GITHUB_WORKSPACE}/unit_test/out/${{ matrix.platform}}_${{ matrix.config }}"
         # TODO: LD_LIBRARY_PATH should not include the starboard subdirectory.
-        LD_LIBRARY_PATH="${test_dir}/out/${{ matrix.platform}}_${{ matrix.config }}/starboard"
-        LD_LIBRARY_PATH="${LD_LIBRARY_PATH}:${test_dir}/out/${{ matrix.platform}}_${{ matrix.config }}"
+        LD_LIBRARY_PATH="${out_dir}/starboard"
+        LD_LIBRARY_PATH="${LD_LIBRARY_PATH}:${out_dir}"
         export LD_LIBRARY_PATH
 
         # Make results dir available to the archiving step below.
@@ -54,7 +50,7 @@ runs:
         mkdir -p ${test_output}
 
         failed_suites=""
-        cd "${test_dir}"
+        cd unit_test/
 
         for test_binary_path in $(cat out/${{ matrix.platform }}_${{ matrix.config }}/test_targets.json | jq -cr '.executables | join(" ")'); do
           filename=$(basename "${test_binary_path}")
@@ -91,10 +87,15 @@ runs:
                 --gtest_filter="${test_filter}" 2>&1 | tee ${log_path} || {
               failed_suites="${failed_suites} ${test_binary}"
             }
+
+            if [[ ! -f ${xml_path} ]]; then
+              # Test binary crashed. Generate a fake JUnit XML report with the last run test.
+              python3 ${GITHUB_WORKSPACE}/.github/scripts/generate_crash_report.py "${log_path}" "${xml_path}"
+            fi
           fi
         done
         echo "Finished running tests..."
-        if [ -n "${failed_suites}" ]; then
+        if [[ -n "${failed_suites}" ]]; then
           echo "Test suites failed:${failed_suites}"
           # Fail the job so it's easy to retrigger.
           exit 1
