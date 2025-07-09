@@ -5,8 +5,11 @@
 #include "base/android/jni_android.h"
 
 #include <cstring>
+#include <iostream>
 #include <stddef.h>
+#include <string>
 #include <sys/prctl.h>
+#include <regex>
 
 #include "base/android/java_exception_reporter.h"
 #include "base/android/jni_string.h"
@@ -353,6 +356,7 @@ bool ClearException(JNIEnv* env) {
 void CheckException(JNIEnv* env) {
   if (!jni_zero::HasException(env)) {
     return;
+<<<<<<< HEAD
   }
 
   static thread_local bool g_reentering = false;
@@ -459,6 +463,45 @@ void CheckException(JNIEnv* env) {
   }
   // Needed for tests, which do not terminate from LOG(FATAL).
   g_reentering = false;
+=======
+
+#if BUILDFLAG(IS_COBALT)
+  std::string exception_token;
+#endif
+  jthrowable java_throwable = env->ExceptionOccurred();
+  if (java_throwable) {
+    // Clear the pending exception, since a local reference is now held.
+    env->ExceptionDescribe();
+    env->ExceptionClear();
+
+    if (g_fatal_exception_occurred) {
+      // Another exception (probably OOM) occurred during GetJavaExceptionInfo.
+      base::android::SetJavaException(
+          "Java OOM'ed in exception handling, check logcat");
+#if BUILDFLAG(IS_COBALT)
+      exception_token = "Java OOM'ed";
+#endif
+    } else {
+      g_fatal_exception_occurred = true;
+#if BUILDFLAG(IS_COBALT)
+      std::string exception_info = GetJavaExceptionInfo(env, java_throwable);
+      base::android::SetJavaException(exception_info.c_str());
+      exception_token = FindFirstJavaFileAndLine(exception_info);
+#else
+      // RVO should avoid any extra copies of the exception string.
+      base::android::SetJavaException(
+          GetJavaExceptionInfo(env, java_throwable).c_str());
+#endif
+    }
+  }
+
+  // Now, feel good about it and die.
+#if BUILDFLAG(IS_COBALT)
+  LOG(FATAL) << "JNI exception: " << exception_token;
+#else
+  LOG(FATAL) << "Please include Java exception stack in crash report";
+#endif
+>>>>>>> 502a632502b (Informative JNI crash message (#6337))
 }
 
 std::string GetJavaExceptionInfo(JNIEnv* env,
@@ -471,6 +514,7 @@ std::string GetJavaExceptionInfo(JNIEnv* env,
              : kOomInGetJavaExceptionInfoMessage;
 }
 
+<<<<<<< HEAD
 std::string GetJavaStackTraceIfPresent() {
   JNIEnv* env = nullptr;
   JavaVM* jvm = jni_zero::GetVM();
@@ -481,6 +525,36 @@ std::string GetJavaStackTraceIfPresent() {
     // JNI has not been initialized on this thread.
     return {};
   }
+=======
+std::string FindFirstJavaFileAndLine(const std::string& stack_trace) {
+    // This regular expression looks for a pattern inside parentheses.
+    // Breakdown of the pattern: \(([^)]+\.java:\d+)\)
+    // \\(      - Matches the literal opening parenthesis '('. We need two backslashes in a C++ string literal.
+    // (        - Starts a capturing group. This is the part of the match we want to extract.
+    // [^)]+    - Matches one or more characters that are NOT a closing parenthesis ')'. This captures the file name.
+    // \\.java: - Matches the literal text ".java:".
+    // \\d+     - Matches one or more digits (the line number).
+    // )        - Ends the capturing group.
+    // \\)      - Matches the literal closing parenthesis ')'.
+    std::regex pattern("\\(([^)]+\\.java:\\d+)\\)");
+
+    // smatch object will store the results of the search.
+    std::smatch match;
+
+    // Search the input string for the first occurrence of the pattern.
+    if (std::regex_search(stack_trace, match, pattern)) {
+        // The full match is match[0] (e.g., "(CobaltActivity.java:219)").
+        // The first captured group is match[1] (e.g., "CobaltActivity.java:219").
+        // We return the content of the first captured group.
+        return match[1].str();
+    }
+
+    // Return an empty string if no match was found.
+    return "";
+}
+
+#if BUILDFLAG(CAN_UNWIND_WITH_FRAME_POINTERS)
+>>>>>>> 502a632502b (Informative JNI crash message (#6337))
 
   if (HasException(env)) {
     // This can happen if CheckException() is being re-entered, decided to

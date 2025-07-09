@@ -106,11 +106,39 @@ inline bool ClearException(JNIEnv* env) {
 BASE_EXPORT void CheckException(JNIEnv* env);
 
 // This returns a string representation of the java stack trace.
+<<<<<<< HEAD
 BASE_EXPORT std::string GetJavaExceptionInfo(
     JNIEnv* env,
     const JavaRef<jthrowable>& throwable);
 // This returns a string representation of the java stack trace.
 BASE_EXPORT std::string GetJavaStackTraceIfPresent();
+=======
+BASE_EXPORT std::string GetJavaExceptionInfo(JNIEnv* env,
+                                             jthrowable java_throwable);
+
+// Utility method to find the java file name from the java stack trace.
+BASE_EXPORT std::string FindFirstJavaFileAndLine(const std::string& stackTrace);
+
+#if BUILDFLAG(CAN_UNWIND_WITH_FRAME_POINTERS)
+
+// Saves caller's PC and stack frame in a thread-local variable.
+// Implemented only when profiling is enabled (enable_profiling=true).
+class BASE_EXPORT JNIStackFrameSaver {
+ public:
+  JNIStackFrameSaver(void* current_fp);
+
+  JNIStackFrameSaver(const JNIStackFrameSaver&) = delete;
+  JNIStackFrameSaver& operator=(const JNIStackFrameSaver&) = delete;
+
+  ~JNIStackFrameSaver();
+  static void* SavedFrame();
+
+ private:
+  const AutoReset<void*> resetter_;
+};
+
+#endif  // BUILDFLAG(CAN_UNWIND_WITH_FRAME_POINTERS)
+>>>>>>> 502a632502b (Informative JNI crash message (#6337))
 
 using MethodID = jni_zero::MethodID;
 }  // namespace android
