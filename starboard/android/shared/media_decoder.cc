@@ -578,9 +578,9 @@ void MediaDecoder::HandleError(const char* action_name, jint status) {
   }
 
   if (retry) {
-    SB_LOG(INFO) << "|" << action_name << "| failed with status: "
-                 << GetNameForMediaCodecStatus(status)
-                 << ", will try again after a delay.";
+    // SB_LOG(INFO) << "|" << action_name << "| failed with status: "
+    //              << GetNameForMediaCodecStatus(status)
+    //              << ", will try again after a delay.";
     sched_yield();
   } else {
     SB_LOG(ERROR) << "|" << action_name << "| failed with status: "
