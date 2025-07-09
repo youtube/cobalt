@@ -146,10 +146,10 @@ void GlobalFeatures::InitializeActiveExperimentIds() {
   if (experiment_config_type == ExperimentConfigType::kEmptyConfig) {
     return;
   }
-  const base::Value::List& experiments =
-      experiment_config_type == ExperimentConfigType::kSafeConfig
-          ? experiment_config_->GetList(kSafeConfigExpIds)
-          : experiment_config_->GetList(kExperimentConfigExpIds);
+  const base::Value::List& experiments = experiment_config_->GetList(
+      (experiment_config_type == ExperimentConfigType::kSafeConfig)
+          ? kSafeConfigExpIds
+          : kExperimentConfigExpIds);
   active_experiment_ids_.reserve(experiments.size());
   for (const auto& experiment_id : experiments) {
     active_experiment_ids_.push_back(experiment_id.GetInt());

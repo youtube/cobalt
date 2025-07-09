@@ -34,8 +34,9 @@ class ExperimentConfigManager {
   ~ExperimentConfigManager() = default;
 
   // Return an ExperimentConfigType that's used by the current run of Cobalt.
-  // This should only be called before StoreSafeConfig() is called since the
-  // content of safe config can be modified by StoreSafeConfig().
+  // This should only be called before the safe config has been stored.
+  // `StoreSafeConfig()` calls this method internally, but subsequent calls from
+  // other places are disallowed via a DCHECK.
   ExperimentConfigType GetExperimentConfigType();
   // If regular config is used in the current run, save the active config as
   // safe config.
