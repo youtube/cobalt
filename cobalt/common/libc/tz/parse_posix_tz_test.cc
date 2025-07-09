@@ -43,11 +43,6 @@ bool operator==(const TimezoneData& lhs, const TimezoneData& rhs) {
 
 namespace {
 
-// Number of seconds in an hour.
-constexpr int kSecondsInHour = 3600;
-// Number of seconds in a minute.
-constexpr int kSecondsInMinute = 60;
-
 // Structure to hold all parameters for a single test case.
 struct TzParseTestParam {
   std::string test_name;
@@ -57,6 +52,17 @@ struct TzParseTestParam {
   // Allows gtest to print readable output.
   friend void PrintTo(const TzParseTestParam& param, std::ostream* os);
 };
+
+std::string GetTestName(
+    const ::testing::TestParamInfo<TzParseTestParam>& info) {
+  return info.param.test_name;
+}
+
+// Number of seconds in an hour.
+constexpr int kSecondsInHour = 3600;
+// Number of seconds in a minute.
+constexpr int kSecondsInMinute = 60;
+
 
 // `PrintTo` function for `TzParseTestParam` so that gtest will print readable
 // output when a test fails. This version prints on a single line.
@@ -239,9 +245,7 @@ INSTANTIATE_TEST_SUITE_P(
     ParsePosixTzTests,
     Tests,
     ::testing::ValuesIn(Tests::kAllTests),
-    [](const ::testing::TestParamInfo<TzParseTestParam>& info) {
-      return info.param.test_name;
-    });
+    GetTestName);
 
 }  // namespace tz
 }  // namespace libc
