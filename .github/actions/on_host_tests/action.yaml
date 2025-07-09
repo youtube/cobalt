@@ -74,6 +74,11 @@ runs:
 
           ENTRYPOINT=./"${test_binary_path}"
 
+          # TODO: Always run with --single-process-tests flag.
+          if [[ "${{ matrix.platform }}" == *evergreen* || "${{ matrix.platform }}" == *modular* ]]; then
+            ENTRYPOINT="./${test_binary_path} --single-process-tests"
+          fi
+
           if [ "${test_filter}" == "-*" ]; then
             echo "Skipped due to test filter." >  ${log_path}
           else
