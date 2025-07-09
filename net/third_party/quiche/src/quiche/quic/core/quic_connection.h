@@ -1069,6 +1069,10 @@ class QUIC_EXPORT_PRIVATE QuicConnection
   size_t min_received_before_ack_decimation() const;
   void set_min_received_before_ack_decimation(size_t new_value);
 
+#if BUILDFLAG(IS_COBALT)
+  void set_max_retransmittable_packets_before_ack(size_t new_value);
+#endif
+
   // If |defer| is true, configures the connection to defer sending packets in
   // response to an ACK to the SendAlarm. If |defer| is false, packets may be
   // sent immediately after receiving an ACK.
