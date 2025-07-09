@@ -52,6 +52,11 @@ config("icu_config") {
   }
 
   if (is_cobalt) {
+    # ICU calls uprv_tzset() from TimeZone::detectHostTimeZone().
+    #
+    # uprv_tzset
+    # Set U_HAVE_TZSET so that putilimp.h
+    # does not attempt to set U_TZSET.
     defines += [ "U_HAVE_TZSET", "U_TIMEZONE=timezone" ]
   }
 

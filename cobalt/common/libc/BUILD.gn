@@ -20,12 +20,14 @@ static_library("libc") {
     "time/tzset.cc",
   ]
   deps = [
-    "//cobalt/common/icu_init",
     "//cobalt/common/libc/tz",
     "//starboard:starboard_headers_only",
     "//third_party/icu:icui18n",
     "//third_party/icu:icuuc_public",
   ]
+  if (is_cobalt_hermetic_build) {
+    deps += [ "//cobalt/common/icu_init" ]
+  }
   public_deps = [ "//starboard/common:common_headers_only" ]
 }
 
