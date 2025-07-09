@@ -192,10 +192,9 @@ class CobaltContentBrowserClient : public content::ContentBrowserClient {
       bool* disable_secure_dns,
       network::mojom::URLLoaderFactoryOverridePtr* factory_override) override;
 
-  content::BrowserContext* GetBrowserContext();
-
  private:
   void CreateVideoGeometrySetterService();
+  content::BrowserContext* GetBrowserContext();
 
   // Owned by content::BrowserMainLoop.
   raw_ptr<content::ShellBrowserMainParts, DanglingUntriaged>
