@@ -15,6 +15,7 @@
 #include "starboard/android/shared/drm_system.h"
 
 #include <memory>
+#include <mutex>
 #include <string_view>
 #include <utility>
 
@@ -75,7 +76,7 @@ void DrmSystem::Run() {
     return;
   }
 
-  ScopedLock scoped_lock(mutex_);
+  std::lock_guard scoped_lock(mutex_);
   if (!deferred_session_update_requests_.empty()) {
     for (const auto& update_request : deferred_session_update_requests_) {
       update_request->Generate(media_drm_bridge_.get());
@@ -117,7 +118,7 @@ void DrmSystem::GenerateSessionUpdateRequest(int ticket,
     session_update_request->Generate(media_drm_bridge_.get());
   } else {
     // Defer generating the update request.
-    ScopedLock scoped_lock(mutex_);
+    std::lock_guard scoped_lock(mutex_);
     deferred_session_update_requests_.push_back(
         std::move(session_update_request));
   }
@@ -144,7 +145,7 @@ void DrmSystem::CloseSession(const void* session_id, int session_id_size) {
                                    session_id_size);
 
   {
-    ScopedLock scoped_lock(mutex_);
+    std::lock_guard scoped_lock(mutex_);
     auto iter = cached_drm_key_ids_.find(session_id_as_string);
     if (iter != cached_drm_key_ids_.end()) {
       cached_drm_key_ids_.erase(iter);
@@ -183,11 +184,11 @@ void DrmSystem::OnKeyStatusChange(
     std::string_view session_id,
     const std::vector<SbDrmKeyId>& drm_key_ids,
     const std::vector<SbDrmKeyStatus>& drm_key_statuses) {
-  SB_DCHECK(drm_key_ids.size() == drm_key_statuses.size());
+  SB_DCHECK_EQ(drm_key_ids.size(), drm_key_statuses.size());
 
   std::string session_id_str(session_id);
   {
-    ScopedLock scoped_lock(mutex_);
+    std::lock_guard scoped_lock(mutex_);
     if (cached_drm_key_ids_[session_id_str] != drm_key_ids) {
       cached_drm_key_ids_[session_id_str] = drm_key_ids;
       if (hdcp_lost_) {
@@ -206,7 +207,7 @@ void DrmSystem::OnKeyStatusChange(
 void DrmSystem::OnInsufficientOutputProtection() {
   // HDCP has lost, update the statuses of all keys in all known sessions to be
   // restricted.
-  ScopedLock scoped_lock(mutex_);
+  std::lock_guard scoped_lock(mutex_);
   if (hdcp_lost_) {
     return;
   }
