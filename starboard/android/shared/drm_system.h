@@ -19,13 +19,9 @@
 
 #include <jni.h>
 
-#include <memory>
-<<<<<<< HEAD
-
 #include <atomic>
-=======
+#include <memory>
 #include <mutex>
->>>>>>> 129aeba41bb ([Refactor] Replace starboard::Mutex with std::mutex (#6343))
 #include <string>
 #include <unordered_map>
 #include <vector>
