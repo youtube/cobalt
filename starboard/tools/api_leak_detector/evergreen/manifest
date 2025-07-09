@@ -10,9 +10,6 @@ __res_state
 __sched_cpucount
 _exit
 access
-catclose
-catgets
-catopen
 chmod
 clock_nanosleep
 closelog
