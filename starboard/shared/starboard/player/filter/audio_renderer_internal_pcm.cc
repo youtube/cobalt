@@ -369,12 +369,8 @@ void AudioRendererPcm::GetSourceStatus(int* frames_in_buffer,
   ++sink_callbacks_since_last_check_;
 #endif  // SB_PLAYER_FILTER_ENABLE_STATE_CHECK
 
-  {
-    std::unique_lock lock(mutex_, std::try_to_lock);
-    if (lock.owns_lock()) {
-      UpdateVariablesOnSinkThread_Locked(
-          frames_consumed_set_at_on_sink_thread_);
-    }
+  if (std::unique_lock lock(mutex_, std::try_to_lock); lock.owns_lock()) {
+    UpdateVariablesOnSinkThread_Locked(frames_consumed_set_at_on_sink_thread_);
   }
 
   *is_eos_reached = is_eos_reached_on_sink_thread_;
