@@ -560,11 +560,6 @@ CobaltContentBrowserClient::CreateURLLoaderThrottles(
   return result;
 }
 
-void CobaltContentBrowserClient::set_browser_main_parts(
-    content::ShellBrowserMainParts* parts) {
-  shell_browser_main_parts_ = parts;
-}
-
 void CobaltContentBrowserClient::AppendExtraCommandLineSwitches(
     base::CommandLine* command_line,
     int child_process_id) {
@@ -833,11 +828,6 @@ CobaltContentBrowserClient::GetPermissionsPolicyForIsolatedWebApp(
       /*self_if_matches=*/absl::nullopt,
       /*matches_all_origins=*/false, /*matches_opaque_src=*/false);
   return {{decl}};
-}
-
-content::ShellBrowserMainParts*
-CobaltContentBrowserClient::shell_browser_main_parts() {
-  return shell_browser_main_parts_;
 }
 
 }  // namespace cobalt

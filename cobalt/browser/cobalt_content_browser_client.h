@@ -168,7 +168,6 @@ class CobaltContentBrowserClient : public content::ContentBrowserClient {
       content::PosixFileDescriptorInfo* mappings) override;
 #endif  // BUILDFLAG(IS_LINUX) ||
         // BUILDFLAG(IS_ANDROID)
-  void set_browser_main_parts(content::ShellBrowserMainParts* parts);
 
   // Initializes all necessary parameters to create the feature list and calls
   // base::FeatureList::SetInstance() to set the global instance.
@@ -194,7 +193,6 @@ class CobaltContentBrowserClient : public content::ContentBrowserClient {
       network::mojom::URLLoaderFactoryOverridePtr* factory_override) override;
 
   content::BrowserContext* GetBrowserContext();
-  content::ShellBrowserMainParts* shell_browser_main_parts();
 
  private:
   void CreateVideoGeometrySetterService();
