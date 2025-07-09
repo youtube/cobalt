@@ -153,8 +153,8 @@ void MediaDrmBridge::CreateSession(int ticket,
   ScopedJavaLocalRef<jstring> j_mime =
       ScopedJavaLocalRef(ConvertUTF8ToJavaString(env, mime.c_str()));
 
-  Java_MediaDrmBridge_createSession(env, j_media_drm_bridge_, j_ticket,
-                                    j_init_data, j_mime);
+  Java_MediaDrmBridge_createSessionNoProvisioning(
+      env, j_media_drm_bridge_, j_ticket, j_init_data, j_mime);
 }
 
 bool MediaDrmBridge::UpdateSession(int ticket,
