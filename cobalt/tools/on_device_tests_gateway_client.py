@@ -188,7 +188,7 @@ def _unit_test_files(args: argparse.Namespace, target_name: str) -> List[str]:
 
 
 def _unit_test_params(args: argparse.Namespace, target_name: str,
-                      dir_on_device: str, device_type: str) -> List[str]:
+                      dir_on_device: str) -> List[str]:
   """Builds the list of params for a unit test request."""
   runtime_deps = _DEPS_ARCH_MAP.get(args.device_family, '')
   params = [
@@ -235,7 +235,7 @@ def _process_test_requests(args: argparse.Namespace) -> List[Dict[str, Any]]:
       ])
       test_cmd_args = [f'command_line_args={command_line_args}']
       files = _unit_test_files(args, target_name)
-      params = _unit_test_params(args, target_name, dir_on_device, device_type)
+      params = _unit_test_params(args, target_name, dir_on_device)
 
     elif args.test_type == 'e2e_test':
       test_target = target_data['target']
