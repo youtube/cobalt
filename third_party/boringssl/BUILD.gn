@@ -248,7 +248,7 @@ if (build_with_chromium) {
       "test_data_chromium.cc",
     ]
     if (is_cobalt_hermetic_build) {
-      sources += [ "gtest_main_chromium_starboard.cc" ]
+      sources += [ "starboard/gtest_main_chromium.cc" ]
       sources -= [ "gtest_main_chromium.cc" ]
     }
     deps += [ "//base/test:test_support" ]
@@ -275,7 +275,7 @@ if (build_with_chromium) {
     # Chromium infrastructure does not support GTest, only the //base wrapper.
     sources -= [ "src/crypto/test/gtest_main.cc" ]
     if (is_cobalt_hermetic_build) {
-      sources += [ "gtest_main_chromium_starboard.cc" ]
+      sources += [ "starboard/gtest_main_chromium.cc" ]
     } else {
       sources += [ "gtest_main_chromium.cc" ]
     }

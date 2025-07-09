@@ -30,7 +30,7 @@
 
 #if BUILDFLAG(USE_STARBOARD_MEDIA)
 #include "media/starboard/decoder_buffer_allocator.h"
-#endif // BUILDFLAG(USE_STARBOARD_MEDIA)
+#endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
 
 class TestSuiteNoAtExit : public base::TestSuite {
  public:
@@ -46,7 +46,7 @@ class TestSuiteNoAtExit : public base::TestSuite {
 #if BUILDFLAG(USE_STARBOARD_MEDIA)
   // Defining starboard decoder buffer allocator makes DecoderBuffer use it.
   media::DecoderBufferAllocator decoder_buffer_allocator_;
-#endif // BUILDFLAG(USE_STARBOARD_MEDIA)
+#endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
 };
 
 void TestSuiteNoAtExit::Initialize() {

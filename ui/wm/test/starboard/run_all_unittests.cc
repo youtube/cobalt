@@ -22,13 +22,13 @@
 #include "base/test/test_discardable_memory_allocator.h"
 #include "base/test/test_suite.h"
 #include "mojo/core/embedder/embedder.h"
+#include "starboard/client_porting/wrap_main/wrap_main.h"
 #include "testing/gtest/include/gtest/gtest.h"
 #include "ui/aura/env.h"
 #include "ui/base/resource/resource_bundle.h"
 #include "ui/base/resource/resource_scale_factor.h"
 #include "ui/base/ui_base_paths.h"
 #include "ui/gl/test/gl_surface_test_support.h"
-#include "starboard/client_porting/wrap_main/wrap_main.h"
 
 class WMTestSuite : public base::TestSuite {
  public:

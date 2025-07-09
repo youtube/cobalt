@@ -36,8 +36,9 @@ bool VerifyBuildIsTimely() {
   base::Time build_time = base::GetBuildTime();
   base::Time now = base::Time::Now();
 
-  if ((now - build_time).magnitude() <= kMaxAge)
+  if ((now - build_time).magnitude() <= kMaxAge) {
     return true;
+  }
 
   std::cerr
       << "ERROR: This build is more than " << kMaxAge.InDays()
@@ -56,8 +57,9 @@ bool VerifyBuildIsTimely() {
 }  // namespace
 
 static int InitAndRunAllTests(int argc, char** argv) {
-  if (!VerifyBuildIsTimely())
+  if (!VerifyBuildIsTimely()) {
     return 1;
+  }
 
   NetTestSuite test_suite(argc, argv);
   net::TransportClientSocketPool::set_connect_backup_jobs_enabled(false);

@@ -349,7 +349,7 @@ source_set("wtf_unittests_sources") {
     "vector_test.cc",
   ]
   if (is_cobalt_hermetic_build) {
-    sources += [ "testing/run_all_tests_starboard.cc" ]
+    sources += [ "testing/starboard/run_all_tests.cc" ]
     sources -= [ "testing/run_all_tests.cc" ]
   }
 

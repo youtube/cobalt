@@ -337,7 +337,7 @@ config("perf_test_config") {
 source_set("test_support_perf") {
   testonly = true
   if (is_cobalt_hermetic_build) {
-    sources = [ "run_all_perftests_starboard.cc" ]
+    sources = [ "starboard/run_all_perftests.cc" ]
   } else {
     sources = [ "run_all_perftests.cc" ]
   }

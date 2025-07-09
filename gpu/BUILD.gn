@@ -363,7 +363,7 @@ test("gl_tests") {
     "ipc/client/raster_in_process_context_tests.cc",
   ]
   if (is_cobalt_hermetic_build) {
-    sources += [ "command_buffer/tests/gl_tests_main_starboard.cc" ]
+    sources += [ "command_buffer/tests/starboard/gl_tests_main.cc" ]
     sources -= [ "command_buffer/tests/gl_tests_main.cc" ]
   }
 
@@ -595,7 +595,7 @@ test("gpu_unittests") {
     "ipc/service/gpu_watchdog_thread_unittest.cc",
   ]
   if (is_cobalt_hermetic_build) {
-    sources += [ "command_buffer/common/unittest_main_starboard.cc" ]
+    sources += [ "command_buffer/common/starboard/unittest_main.cc" ]
     sources -= [ "command_buffer/common/unittest_main.cc" ]
   }
 
@@ -776,7 +776,7 @@ test("gpu_perftests") {
 
   if (is_cobalt_hermetic_build) {
     sources -= [ "perftests/run_all_tests.cc" ]
-    sources += [ "perftests/run_all_tests_starboard.cc" ]
+    sources += [ "perftests/starboard/run_all_tests.cc" ]
   }
 
   deps = [

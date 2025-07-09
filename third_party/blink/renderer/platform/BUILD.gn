@@ -2252,7 +2252,7 @@ source_set("blink_platform_unittests_sources") {
   }
 
   if (is_cobalt_hermetic_build) {
-    sources += [ "testing/run_all_tests_starboard.cc" ]
+    sources += [ "testing/starboard/run_all_tests.cc" ]
   } else {
     sources += [ "testing/run_all_tests.cc" ]
   }
@@ -2401,7 +2401,7 @@ test("blink_platform_perftests") {
   ]
 
   if (is_cobalt_hermetic_build) {
-    sources += [ "testing/run_all_perf_tests_starboard.cc" ]
+    sources += [ "testing/starboard/run_all_perf_tests.cc" ]
     sources -= [ "testing/run_all_perf_tests.cc" ]
   }
   configs += [

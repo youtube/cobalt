@@ -52,9 +52,9 @@ bool RunGLES2ConformTest(const char* path) {
   base::FilePath src_path;
   base::PathService::Get(base::DIR_SOURCE_ROOT, &src_path);
   base::FilePath test_expectations_path =
-      src_path.Append(FILE_PATH_LITERAL("gpu")).
-      Append(FILE_PATH_LITERAL("gles2_conform_support")).
-      Append(FILE_PATH_LITERAL("gles2_conform_test_expectations.txt"));
+      src_path.Append(FILE_PATH_LITERAL("gpu"))
+          .Append(FILE_PATH_LITERAL("gles2_conform_support"))
+          .Append(FILE_PATH_LITERAL("gles2_conform_test_expectations.txt"));
   if (!base::PathExists(test_expectations_path)) {
     LOG(ERROR) << "Fail to locate gles2_conform_test_expectations.txt";
     return false;
@@ -115,8 +115,8 @@ bool RunGLES2ConformTest(const char* path) {
 
   base::FilePath test_path;
   base::PathService::Get(base::DIR_EXE, &test_path);
-  base::FilePath program(test_path.Append(FILE_PATH_LITERAL(
-      "gles2_conform_test_windowless")));
+  base::FilePath program(
+      test_path.Append(FILE_PATH_LITERAL("gles2_conform_test_windowless")));
 
   base::CommandLine cmd_line(program);
   cmd_line.AppendArguments(*current_cmd_line, false);

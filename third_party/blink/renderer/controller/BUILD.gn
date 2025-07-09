@@ -249,7 +249,7 @@ source_set("blink_unittests_sources") {
     "tests/run_all_tests.cc",
   ]
   if (is_cobalt_hermetic_build) {
-    sources += [ "tests/run_all_tests_starboard.cc" ]
+    sources += [ "tests/starboard/run_all_tests.cc" ]
     sources -= [ "tests/run_all_tests.cc" ]
   }
   if (is_linux || is_chromeos) {

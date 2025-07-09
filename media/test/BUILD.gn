@@ -12,7 +12,7 @@ if (is_ios) {
 source_set("run_all_unittests") {
   testonly = true
   if (is_cobalt_hermetic_build) {
-    sources = [ "run_all_unittests_starboard.cc" ]
+    sources = [ "starboard/run_all_unittests.cc" ]
   } else {
     sources = [ "run_all_unittests.cc" ]
   }

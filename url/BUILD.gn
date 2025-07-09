@@ -218,7 +218,7 @@ test("url_unittests") {
     "url_util_unittest.cc",
   ]
   if (is_cobalt_hermetic_build) {
-    sources += [ "run_all_unittests_starboard.cc" ]
+    sources += [ "starboard/run_all_unittests.cc" ]
     sources -= [ "run_all_unittests.cc" ]
   }
 
@@ -276,7 +276,7 @@ test("url_perftests") {
   ]
 
   if (is_cobalt_hermetic_build) {
-    sources += [ "run_all_perftests_starboard.cc" ]
+    sources += [ "starboard/run_all_perftests.cc" ]
     sources -= [ "run_all_perftests.cc" ]
   }
   deps = [

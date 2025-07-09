@@ -58,7 +58,7 @@ viz_test("viz_unittests") {
 
 viz_test("viz_perftests") {
   if (is_cobalt_hermetic_build) {
-    sources = [ "test/run_all_perftests_starboard.cc" ]
+    sources = [ "test/starboard/run_all_perftests.cc" ]
   } else {
     sources = [ "test/run_all_perftests.cc" ]
   }
