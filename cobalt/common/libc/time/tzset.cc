@@ -21,14 +21,18 @@
 #include <charconv>
 #include <chrono>
 #include <ctime>
+#include <map>
 #include <memory>
 #include <optional>
 #include <string_view>
 #include <utility>
 #include <vector>
 
+#include "cobalt/common/libc/no_destructor.h"
+#include "cobalt/common/libc/tz/parse_posix_tz.h"
 #include "starboard/common/log.h"
 #include "starboard/log.h"
+#include "starboard/time_zone.h"
 #include "unicode/basictz.h"
 #include "unicode/calendar.h"
 #include "unicode/gregocal.h"
@@ -42,10 +46,6 @@
 #include "unicode/unistr.h"
 #include "unicode/utypes.h"
 
-#include "cobalt/common/libc/no_destructor.h"
-#include "cobalt/common/libc/tz/parse_posix_tz.h"
-#include "starboard/time_zone.h"
-
 namespace cobalt {
 namespace common {
 namespace libc {
@@ -56,24 +56,37 @@ namespace time {
 #endif
 
 namespace {
-// A thread-local flag to detect re-entrant calls to tzset().
+// A thread-local flag to detect re-entrant calls to tzset(). This guards
+// against infinite recursion or deadlocks that could occur if tzset() is
+// called from within itself.
+// Our implementation of tzset() calls into ICU. While ICU does not currently
+// call back into tzset(), future ICU updates or configuration changes could
+// introduce such a dependency. This guard ensures that if a re-entrant call
+// ever occurs, it will be caught immediately, preventing a difficult-to-debug
+// hang or crash.
 thread_local bool g_in_tzset = false;
 
 // A scoped guard to ensure the g_in_tzset flag is reset on exit.
+// The tzset() function is not thread-safe by definition, but this guard
+// prevents re-entrancy within the same thread, which can happen if a signal
+// handler calls a function that directly or indirectly calls tzset().
 class TzsetGuard {
  public:
   TzsetGuard() {
     SB_CHECK(!g_in_tzset) << "tzset() re-entrancy detected.";
     g_in_tzset = true;
   }
-  ~TzsetGuard() { g_in_tzset = false; }
+  ~TzsetGuard() {
+    SB_CHECK(g_in_tzset);
+    g_in_tzset = false;
+  }
 };
 }  // namespace
 
 // A class to encapsulate timezone-related logic and state.
 class Timezone {
  public:
-  static void TZSet();
+  static void Tzset();
 
  private:
   struct Correction {
@@ -94,10 +107,10 @@ class Timezone {
   static std::array<char, kMaxTimezoneNameSize> cached_timezone_name_;
 
   // Use the TimezoneData to set the tset() state.
-  static void TZSetFromTimezoneData(tz::TimezoneData timezone_data);
+  static void SetFromTimezoneData(tz::TimezoneData timezone_data);
 
   // Use the IANA time zone name to set the tset() state using data from ICU.
-  static void TZSetFromIana(const char* timezone_name);
+  static void SetFromIana(const char* timezone_name);
 
   // Copy src to Name without overflowing.
   static void SafeCopyToName(const std::string_view& src, Name& dest) {
@@ -300,11 +313,15 @@ std::unique_ptr<icu::TimeZone> Timezone::CreateIcuTimezoneFromParsedData(
   return custom_tz;
 }
 
+// This function is a temporary workaround for the fact that the ICU data
+// bundled with Cobalt may be out of date. It applies corrections for timezones
+// that have changed since the ICU data was last updated. This function should
+// be updated or removed when the ICU data is updated.
 void Timezone::MaybeApplyCorrection(const icu::UnicodeString& time_zone_id) {
   // Corrections for certain timezones, necessary since the tzdata in our
   // current ICU is version 2023c.
-  static constexpr std::array<std::pair<std::string_view, Correction>, 21>
-      kCorrections = {{
+  static const NoDestructor<std::map<std::string_view, Correction>>
+      kCorrections({{
           // "America/Asuncion" was {_}
           {"America/Asuncion", {nullptr, nullptr, std::nullopt, 10800}},
           // "America/Dawson" was {"YST"}
@@ -347,31 +364,30 @@ void Timezone::MaybeApplyCorrection(const icu::UnicodeString& time_zone_id) {
           {"GB-Eire", {nullptr, "BST"}},
           // "WET" was {"GMT", "GMT+1"}
           {"WET", {"WET", "WEST"}},
-      }};
+      }});
 
   std::string time_zone_id_str;
   time_zone_id.toUTF8String(time_zone_id_str);
 
   // Apply corrections from the static table.
-  for (const auto& [tz_name, correction] : kCorrections) {
-    if (tz_name == time_zone_id_str) {
-      if (correction.daylight_status) {
-        daylight = *correction.daylight_status;
-      }
-      if (correction.timezone) {
-        timezone = *correction.timezone;
-      }
-      if (correction.std_name) {
-        std::string_view name(correction.std_name);
-        SafeCopyToName(name, std_name_);
-        std_name_[name.length()] = '\0';
-      }
-      if (correction.dst_name) {
-        std::string_view name(correction.dst_name);
-        SafeCopyToName(name, dst_name_);
-        dst_name_[name.length()] = '\0';
-      }
-      return;
+  auto it = kCorrections->find(time_zone_id_str);
+  if (it != kCorrections->end()) {
+    const auto& correction = it->second;
+    if (correction.daylight_status) {
+      daylight = *correction.daylight_status;
+    }
+    if (correction.timezone) {
+      timezone = *correction.timezone;
+    }
+    if (correction.std_name) {
+      std::string_view name(correction.std_name);
+      SafeCopyToName(name, std_name_);
+      std_name_[name.length()] = '\0';
+    }
+    if (correction.dst_name) {
+      std::string_view name(correction.dst_name);
+      SafeCopyToName(name, dst_name_);
+      dst_name_[name.length()] = '\0';
     }
   }
 }
@@ -506,7 +522,7 @@ void Timezone::SetToUTC() {
   icu::TimeZone::setDefault(*icu::TimeZone::getGMT());
 }
 
-void Timezone::TZSetFromTimezoneData(tz::TimezoneData timezone_data) {
+void Timezone::SetFromTimezoneData(tz::TimezoneData timezone_data) {
   // We have valid POSIX data. Attempt to create a custom ICU Timezone
   // so that all parts of the system (ICU and C-library) are in sync.
   std::unique_ptr<icu::TimeZone> custom_tz =
@@ -532,7 +548,7 @@ void Timezone::TZSetFromTimezoneData(tz::TimezoneData timezone_data) {
   tzname[1] = dst_name_.data();
 }
 
-void Timezone::TZSetFromIana(const char* timezone_name) {
+void Timezone::SetFromIana(const char* timezone_name) {
   icu::UnicodeString time_zone_id = icu::UnicodeString::fromUTF8(timezone_name);
 
   std::unique_ptr<icu::TimeZone> tz(
@@ -544,7 +560,6 @@ void Timezone::TZSetFromIana(const char* timezone_name) {
     return;
   }
 
-  tz->getID(time_zone_id);
   icu::TimeZone::setDefault(*tz);
 
   // Set the daylight flag based on whether DST has been observed since 1970.
@@ -594,7 +609,7 @@ bool Timezone::TimezoneIsChanged(const char* timezone_name) {
   return true;
 }
 
-void Timezone::TZSet() {
+void Timezone::Tzset() {
   TzsetGuard guard;
   // If the TZ variable is not set, use the system provided timezone.
   const char* timezone_name = getenv("TZ");
@@ -618,21 +633,19 @@ void Timezone::TZSet() {
   // "stdoffset[dst[offset][,start[/time],end[/time]]]"
   auto timezone_data = tz::ParsePosixTz(timezone_name);
   if (timezone_data) {
-    TZSetFromTimezoneData(*timezone_data);
+    SetFromTimezoneData(*timezone_data);
     return;
   }
 
   // If parsing fails, assume 'timezone_name' is an IANA ID (e.g.,
   // "America/Los_Angeles").
-  TZSetFromIana(timezone_name);
+  SetFromIana(timezone_name);
 }
 
 }  // namespace time
 }  // namespace libc
 }  // namespace common
 }  // namespace cobalt
-
-using cobalt::common::libc::time::Timezone;
 
 // The symbol below must have C linkage.
 extern "C" {
@@ -642,7 +655,7 @@ int daylight = 0;
 char* tzname[2]{nullptr, nullptr};
 
 void tzset(void) {
-  Timezone::TZSet();
+  cobalt::common::libc::time::Timezone::Tzset();
 }
 
 }  // extern "C"

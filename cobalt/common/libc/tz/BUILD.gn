@@ -18,7 +18,6 @@ static_library("tz") {
     "parse_posix_tz.h",
   ]
 
-  #  configs += [ "//third_party/icu:icu_config" ]
   deps = [ "//starboard:starboard_headers_only" ]
 }
 

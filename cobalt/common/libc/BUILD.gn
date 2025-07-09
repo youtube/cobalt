@@ -22,13 +22,13 @@ static_library("libc") {
   deps = [
     "//cobalt/common/libc/tz",
     "//starboard:starboard_headers_only",
+    "//starboard/common:common_headers_only",
     "//third_party/icu:icui18n",
     "//third_party/icu:icuuc_public",
   ]
   if (is_cobalt_hermetic_build) {
     deps += [ "//cobalt/common/icu_init" ]
   }
-  public_deps = [ "//starboard/common:common_headers_only" ]
 }
 
 source_set("libc_test") {
@@ -38,7 +38,8 @@ source_set("libc_test") {
 
   deps = [
     ":libc",
-    "tz:tz_test",
+    "//cobalt/common/libc/tz:tz_test",
+    "//starboard/common:common_headers_only",
     "//testing/gmock",
     "//testing/gtest",
     "//third_party/icu:icui18n",

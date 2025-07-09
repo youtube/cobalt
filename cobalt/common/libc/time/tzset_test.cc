@@ -40,6 +40,7 @@ namespace cobalt {
 namespace common {
 namespace libc {
 namespace time {
+
 namespace {
 
 // Number of seconds in an hour.
@@ -48,6 +49,14 @@ constexpr int kSecondsInHour = 3600;
 // The year to use for testing timezone transitions. The year 2023 corresponds
 // to the tzdata database version used in the included ICU library.
 constexpr int kTestyear = 2023;
+
+std::string ToString(const icu::UnicodeString& ustr) {
+  std::string s;
+  ustr.toUTF8String(s);
+  return s;
+}
+
+}  // namespace
 
 struct YearMonthDay {
   int year;
@@ -83,17 +92,10 @@ struct TimezoneTestData {
   }
 };
 
-std::string ToString(const icu::UnicodeString& ustr) {
-  std::string s;
-  ustr.toUTF8String(s);
-  return s;
-}
-
 std::string GetTestName(
     const ::testing::TestParamInfo<TimezoneTestData>& info) {
   return info.param.test_name;
 }
-}  // namespace
 
 // A base test fixture to manage the TZ environment variable and ICU's default
 // timezone state. This ensures tests are isolated from each other.

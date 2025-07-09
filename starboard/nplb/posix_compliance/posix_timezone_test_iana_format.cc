@@ -442,17 +442,14 @@ class IANAFormat : public ::testing::TestWithParam<IANATestData> {
         IANATestData{"EST", 5 * kSecondsInHour, "EST"},
         IANATestData{"EST5EDT", 5 * kSecondsInHour, "EST", "EDT"},
         IANATestData{"Etc/GMT-0", 0, "GMT"},
-        IANATestData{"Etc/GMT+0", 0, "GMT"},
-        IANATestData{"Etc/GMT0", 0, "GMT"},
+        IANATestData{"Etc/GMT+0", 0, "GMT"}, IANATestData{"Etc/GMT0", 0, "GMT"},
         IANATestData{"Etc/Greenwich", 0, "GMT"},
         IANATestData{"Etc/UCT", 0, "UTC"},
         IANATestData{"Etc/Universal", 0, "UTC"},
         IANATestData{"Etc/Zulu", 0, "UTC"},
         IANATestData{"GB-Eire", 0, "GMT", "BST"},
-        IANATestData{"GB", 0, "GMT", "BST"},
-        IANATestData{"GMT-0", 0, "GMT"},
-        IANATestData{"GMT+0", 0, "GMT"},
-        IANATestData{"GMT0", 0, "GMT"},
+        IANATestData{"GB", 0, "GMT", "BST"}, IANATestData{"GMT-0", 0, "GMT"},
+        IANATestData{"GMT+0", 0, "GMT"}, IANATestData{"GMT0", 0, "GMT"},
         IANATestData{"Greenwich", 0, "GMT"},
         IANATestData{"Hongkong", -8 * kSecondsInHour, "HKT", "HKST"},
         IANATestData{"Iceland", 0, "GMT"},
@@ -484,8 +481,7 @@ class IANAFormat : public ::testing::TestWithParam<IANATestData> {
         IANATestData{"ROC", -8 * kSecondsInHour, "CST", "CDT"},
         IANATestData{"ROK", -9 * kSecondsInHour, "KST", "KDT"},
         IANATestData{"Turkey", -3 * kSecondsInHour, "TRT"},
-        IANATestData{"UCT", 0, "UTC"},
-        IANATestData{"Universal", 0, "UTC"},
+        IANATestData{"UCT", 0, "UTC"}, IANATestData{"Universal", 0, "UTC"},
         IANATestData{"US/Alaska", 9 * kSecondsInHour, "AKST", "AKDT"},
         IANATestData{"US/Aleutian", 10 * kSecondsInHour, "HST", "HDT"},
         IANATestData{"US/Arizona", 7 * kSecondsInHour, "MST"},
@@ -498,16 +494,13 @@ class IANAFormat : public ::testing::TestWithParam<IANATestData> {
         IANATestData{"US/Mountain", 7 * kSecondsInHour, "MST", "MDT"},
         IANATestData{"US/Pacific", 8 * kSecondsInHour, "PST", "PDT"},
         IANATestData{"US/Samoa", 11 * kSecondsInHour, "SST"},
-        IANATestData{"UTC", 0, "UTC"},
-        IANATestData{"WET", 0, "WET", "WEST"},
+        IANATestData{"UTC", 0, "UTC"}, IANATestData{"WET", 0, "WET", "WEST"},
         IANATestData{"Zulu", 0, "UTC"},
 
         // Etcetera.
         //   https://data.iana.org/time-zones/tzdb/etcetera
-        IANATestData{"Etc/UTC", 0, "UTC"},
-        IANATestData{"Etc/GMT", 0, "GMT"},
-        IANATestData{"GMT", 0, "GMT"}
-    };
+        IANATestData{"Etc/UTC", 0, "UTC"}, IANATestData{"Etc/GMT", 0, "GMT"},
+        IANATestData{"GMT", 0, "GMT"}};
     return all_tests;
   }
 };

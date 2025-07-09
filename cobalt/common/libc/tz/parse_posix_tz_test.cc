@@ -63,7 +63,6 @@ constexpr int kSecondsInHour = 3600;
 // Number of seconds in a minute.
 constexpr int kSecondsInMinute = 60;
 
-
 // `PrintTo` function for `TzParseTestParam` so that gtest will print readable
 // output when a test fails. This version prints on a single line.
 void PrintTo(const TzParseTestParam& param, std::ostream* os) {
@@ -241,11 +240,10 @@ TEST_P(Tests, Parses) {
 
 // Instantiate a set of tests named
 // "ParsePosixTzTests/Tests.Parses/Testname"
-INSTANTIATE_TEST_SUITE_P(
-    ParsePosixTzTests,
-    Tests,
-    ::testing::ValuesIn(Tests::kAllTests),
-    GetTestName);
+INSTANTIATE_TEST_SUITE_P(ParsePosixTzTests,
+                         Tests,
+                         ::testing::ValuesIn(Tests::kAllTests),
+                         GetTestName);
 
 }  // namespace tz
 }  // namespace libc
