@@ -39,7 +39,7 @@
 namespace {
 
 // Number of seconds in an hour.
-constexpr int kHour = 3600;
+constexpr int kSecondsInHour = 3600;
 
 // The year to use for testing timezone transitions. The year 2023 corresponds
 // to the tzdata database version used in the included ICU library.
@@ -189,41 +189,41 @@ class Timezone : public TzsetTest,
           "IanaAmericaNewYork",
           "America/New_York",
           "America/New_York",
-          -5 * kHour,
+          -5 * kSecondsInHour,
           {kTestyear, UCAL_NOVEMBER, 5},
           std::make_optional<YearMonthDay>({kTestyear, UCAL_MARCH, 12})},
       TimezoneTestData{
           "IanaAmericaChicago",
           "America/Chicago",
           "America/Chicago",
-          -6 * kHour,
+          -6 * kSecondsInHour,
           {kTestyear, UCAL_NOVEMBER, 5},
           std::make_optional<YearMonthDay>({kTestyear, UCAL_MARCH, 12})},
       TimezoneTestData{
           "IanaAmericaDenver",
           "America/Denver",
           "America/Denver",
-          -7 * kHour,
+          -7 * kSecondsInHour,
           {kTestyear, UCAL_NOVEMBER, 5},
           std::make_optional<YearMonthDay>({kTestyear, UCAL_MARCH, 12})},
       TimezoneTestData{
           "IanaAmericaLosAngeles",
           "America/Los_Angeles",
           "America/Los_Angeles",
-          -8 * kHour,
+          -8 * kSecondsInHour,
           {kTestyear, UCAL_NOVEMBER, 5},
           std::make_optional<YearMonthDay>({kTestyear, UCAL_MARCH, 12})},
       TimezoneTestData{
           "IanaAmericaAnchorage",
           "America/Anchorage",
           "America/Anchorage",
-          -9 * kHour,
+          -9 * kSecondsInHour,
           {kTestyear, UCAL_NOVEMBER, 5},
           std::make_optional<YearMonthDay>({kTestyear, UCAL_MARCH, 12})},
       TimezoneTestData{"IanaPacificHonoluluNoDst",
                        "Pacific/Honolulu",
                        "Pacific/Honolulu",
-                       -10 * kHour,
+                       -10 * kSecondsInHour,
                        {kTestyear, UCAL_JANUARY, 1}},
       TimezoneTestData{
           "IanaEuropeLondon",
@@ -236,36 +236,36 @@ class Timezone : public TzsetTest,
           "IanaEuropeParis",
           "Europe/Paris",
           "Europe/Paris",
-          1 * kHour,
+          1 * kSecondsInHour,
           {kTestyear, UCAL_OCTOBER, 29},
           std::make_optional<YearMonthDay>({kTestyear, UCAL_MARCH, 26})},
       TimezoneTestData{
           "IanaEuropeAthens",
           "Europe/Athens",
           "Europe/Athens",
-          2 * kHour,
+          2 * kSecondsInHour,
           {kTestyear, UCAL_OCTOBER, 29},
           std::make_optional<YearMonthDay>({kTestyear, UCAL_MARCH, 26})},
       TimezoneTestData{"IanaEuropeMoscowNoDst",
                        "Europe/Moscow",
                        "Europe/Moscow",
-                       3 * kHour,
+                       3 * kSecondsInHour,
                        {kTestyear, UCAL_JANUARY, 1}},
       TimezoneTestData{"IanaAsiaTokyoNoDst",
                        "Asia/Tokyo",
                        "Asia/Tokyo",
-                       9 * kHour,
+                       9 * kSecondsInHour,
                        {kTestyear, UCAL_JANUARY, 1}},
       TimezoneTestData{"IanaAsiaKolkataNoDst",
                        "Asia/Kolkata",
                        "Asia/Kolkata",
-                       (5 * kHour + 30 * 60),
+                       (5 * kSecondsInHour + 30 * 60),
                        {kTestyear, UCAL_JANUARY, 1}},
       TimezoneTestData{
           "IanaAfricaCairo",
           "Africa/Cairo",
           "Africa/Cairo",
-          2 * kHour,
+          2 * kSecondsInHour,
           {kTestyear, UCAL_OCTOBER, 27},
           std::make_optional<YearMonthDay>({kTestyear, UCAL_APRIL, 28})},
 
@@ -273,48 +273,48 @@ class Timezone : public TzsetTest,
       TimezoneTestData{"PosixFixedOffsetNoDst",
                        "PST8",
                        "PST",
-                       -8 * kHour,
+                       -8 * kSecondsInHour,
                        {kTestyear, UCAL_JANUARY, 1}},
       TimezoneTestData{
           "PosixStandardUsDstRules",
           "EST5EDT,M3.2.0,M11.1.0",
           "EST",
-          -5 * kHour,
+          -5 * kSecondsInHour,
           {kTestyear, UCAL_NOVEMBER, 5},
           std::make_optional<YearMonthDay>({kTestyear, UCAL_MARCH, 12})},
       TimezoneTestData{
           "PosixEuropeanDstRules",
           "CET-1CEST,M3.5.0/2,M10.5.0/3",
           "CET",
-          1 * kHour,
+          1 * kSecondsInHour,
           {kTestyear, UCAL_OCTOBER, 29},
           std::make_optional<YearMonthDay>({kTestyear, UCAL_MARCH, 26})},
       TimezoneTestData{
           "PosixWeekdayRuleSaturday",
           "CAT-2CAST,M4.1.6,M10.5.6",
           "CAT",
-          2 * kHour,
+          2 * kSecondsInHour,
           {kTestyear, UCAL_OCTOBER, 28},
           std::make_optional<YearMonthDay>({kTestyear, UCAL_APRIL, 1})},
       TimezoneTestData{
           "PosixWeekdayRuleFriday",
           "FKT-4FKST,M3.2.5,M11.1.5",
           "FKT",
-          4 * kHour,
+          4 * kSecondsInHour,
           {kTestyear, UCAL_NOVEMBER, 3},
           std::make_optional<YearMonthDay>({kTestyear, UCAL_MARCH, 10})},
       TimezoneTestData{
           "PosixJulianRuleOneBased",
           "JST-9JDT,J70,J300",
           "JST",
-          9 * kHour,
+          9 * kSecondsInHour,
           {kTestyear, UCAL_OCTOBER, 27},
           std::make_optional<YearMonthDay>({kTestyear, UCAL_MARCH, 11})},
       TimezoneTestData{
           "PosixJulianRuleZeroBased",
           "ZST+5ZDT,69,299",
           "ZST",
-          -5 * kHour,
+          -5 * kSecondsInHour,
           {kTestyear, UCAL_OCTOBER, 27},
           std::make_optional<YearMonthDay>({kTestyear, UCAL_MARCH, 11})},
   };
@@ -336,10 +336,11 @@ TEST_P(Timezone, SetsIcuDefaultCorrectly) {
 
   if (param.daylight_start_day) {
     // Verify that the timezone offset changes on the expected day.
-    EXPECT_EQ(kHour * 1000, default_tz->getDSTSavings());
+    EXPECT_EQ(kSecondsInHour * 1000, default_tz->getDSTSavings());
 
     VerifyDateOffset(*default_tz, *param.daylight_start_day,
-                     param.timezone_offset + kHour, "on daylight time start");
+                     param.timezone_offset + kSecondsInHour,
+                     "on daylight time start");
 
     VerifyDateOffset(*default_tz,
                      GetDayBefore(*default_tz, *param.daylight_start_day),
@@ -350,7 +351,7 @@ TEST_P(Timezone, SetsIcuDefaultCorrectly) {
 
     VerifyDateOffset(
         *default_tz, GetDayBefore(*default_tz, param.standard_start_day),
-        param.timezone_offset + kHour, "before standard time start");
+        param.timezone_offset + kSecondsInHour, "before standard time start");
 
   } else {
     // Verify the expected timezone offset.

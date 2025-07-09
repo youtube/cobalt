@@ -31,9 +31,9 @@ namespace tz {
 namespace {
 
 // Number of seconds in an hour.
-constexpr int kHour = 3600;
+constexpr int kSecondsInHour = 3600;
 // Number of seconds in a minute.
-constexpr int kMinute = 60;
+constexpr int kSecondsInMinute = 60;
 
 // A helper struct to return both a parsed value and the number of characters
 // consumed from the input string. This is crucial for the iterative parser
@@ -126,7 +126,7 @@ std::optional<ParseResult<TimeOffset>> ParseTimeOffset(
   // --- Parse Hours (mandatory) ---
   int total_seconds = 0;
   if (auto hours_res = ParseInteger(time_offset_string)) {
-    total_seconds += hours_res->value * kHour;
+    total_seconds += hours_res->value * kSecondsInHour;
     consumed += hours_res->consumed;
     time_offset_string.remove_prefix(hours_res->consumed);
   } else {
@@ -136,7 +136,7 @@ std::optional<ParseResult<TimeOffset>> ParseTimeOffset(
   // --- Parse Minutes (optional) ---
   int minutes = 0;
   if (ParseOptionalTimeComponent(time_offset_string, consumed, minutes)) {
-    total_seconds += minutes * kMinute;
+    total_seconds += minutes * kSecondsInMinute;
     // --- Parse Seconds (optional, only if minutes were parsable) ---
     int seconds = 0;
     if (ParseOptionalTimeComponent(time_offset_string, consumed, seconds)) {
@@ -341,7 +341,7 @@ std::optional<TimezoneData> ParsePosixTz(const std::string& timezone_string) {
     } else {
       // If DST name is present but offset isn't, default to one hour
       // less than standard time offset. (e.g. EST5EDT, EST is +5h, EDT is +4h)
-      dst_offset = result.std_offset - kHour;
+      dst_offset = result.std_offset - kSecondsInHour;
     }
 
     // If we've successfully parsed a DST name and its offset (explicit or
@@ -377,11 +377,11 @@ std::optional<TimezoneData> ParsePosixTz(const std::string& timezone_string) {
     // If a DST name exists but no rules were specified, apply US default rules.
     // This is a common implementation choice for POSIX compliance.
     // Starts second Sunday in March at 2am.
-    result.start_rule =
-        TransitionRule{{DateRule::Format::MonthWeekDay, 3, 2, 0}, 2 * kHour};
+    result.start_rule = TransitionRule{
+        {DateRule::Format::MonthWeekDay, 3, 2, 0}, 2 * kSecondsInHour};
     // Ends first Sunday in November at 2am.
-    result.end_rule =
-        TransitionRule{{DateRule::Format::MonthWeekDay, 11, 1, 0}, 2 * kHour};
+    result.end_rule = TransitionRule{{DateRule::Format::MonthWeekDay, 11, 1, 0},
+                                     2 * kSecondsInHour};
   }
 
   return result;

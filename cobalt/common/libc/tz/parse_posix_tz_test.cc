@@ -26,9 +26,9 @@ namespace libc {
 namespace tz {
 
 // Number of seconds in an hour.
-constexpr int kHour = 3600;
+constexpr int kSecondsInHour = 3600;
 // Number of seconds in a minute.
-constexpr int kMinute = 60;
+constexpr int kSecondsInMinute = 60;
 
 // --- Equality Operators for Comparison ---
 bool operator==(const DateRule& lhs, const DateRule& rhs) {
@@ -116,76 +116,79 @@ class Tests : public ::testing::TestWithParam<TzParseTestParam> {
   // the first Sunday in November as the end.
   static constexpr TransitionRule kDefaultStartRule = {
       {DateRule::Format::MonthWeekDay, 3, 2, 0},
-      2 * kHour};
+      2 * kSecondsInHour};
   static constexpr TransitionRule kDefaultEndRule = {
       {DateRule::Format::MonthWeekDay, 11, 1, 0},
-      2 * kHour};
+      2 * kSecondsInHour};
 
   static const inline std::vector<TzParseTestParam> kAllTests = {
       // --- Success Cases ---
-      {"StdAndOffset", "PST8", TimezoneData{"PST", 8 * kHour}},
-      {"NegativeOffset", "CET-1", TimezoneData{"CET", -1 * kHour}},
-      {"PositiveSignOffset", "PST+8", TimezoneData{"PST", 8 * kHour}},
+      {"StdAndOffset", "PST8", TimezoneData{"PST", 8 * kSecondsInHour}},
+      {"NegativeOffset", "CET-1", TimezoneData{"CET", -1 * kSecondsInHour}},
+      {"PositiveSignOffset", "PST+8", TimezoneData{"PST", 8 * kSecondsInHour}},
       {"HourMinuteOffset", "IST-5:30",  // codespell:ignore ist
        TimezoneData{"IST",              // codespell:ignore ist
-                    -(5 * kHour + 30 * kMinute)}},
+                    -(5 * kSecondsInHour + 30 * kSecondsInMinute)}},
       {"HourMinuteSecondOffset", "XYZ-1:23:45",
-       TimezoneData{"XYZ", -(1 * kHour + 23 * kMinute + 45)}},
+       TimezoneData{"XYZ", -(1 * kSecondsInHour + 23 * kSecondsInMinute + 45)}},
 
       // --- Cases that rely on the parser's DEFAULT rules ---
       {"DefaultRulesForPositiveOffset", "PST8PDT",
-       TimezoneData{"PST", 8 * kHour, "PDT", 7 * kHour, kDefaultStartRule,
-                    kDefaultEndRule}},
+       TimezoneData{"PST", 8 * kSecondsInHour, "PDT", 7 * kSecondsInHour,
+                    kDefaultStartRule, kDefaultEndRule}},
       {"DefaultRulesForNegativeOffset", "EET-2EEST",
-       TimezoneData{"EET", -2 * kHour, "EEST", -3 * kHour, kDefaultStartRule,
-                    kDefaultEndRule}},
+       TimezoneData{"EET", -2 * kSecondsInHour, "EEST", -3 * kSecondsInHour,
+                    kDefaultStartRule, kDefaultEndRule}},
       {"DefaultRulesWithExplicitDstOffset", "EST5EDT4",
-       TimezoneData{"EST", 5 * kHour, "EDT", 4 * kHour, kDefaultStartRule,
-                    kDefaultEndRule}},
+       TimezoneData{"EST", 5 * kSecondsInHour, "EDT", 4 * kSecondsInHour,
+                    kDefaultStartRule, kDefaultEndRule}},
       {"DefaultRulesForQuotedNames", "<MYT>-8<MYST>-9",
-       TimezoneData{"MYT", -8 * kHour, "MYST", -9 * kHour, kDefaultStartRule,
-                    kDefaultEndRule}},
+       TimezoneData{"MYT", -8 * kSecondsInHour, "MYST", -9 * kSecondsInHour,
+                    kDefaultStartRule, kDefaultEndRule}},
       {"DefaultRulesWithLeadingColon", ":PST8PDT",
-       TimezoneData{"PST", 8 * kHour, "PDT", 7 * kHour, kDefaultStartRule,
-                    kDefaultEndRule}},
+       TimezoneData{"PST", 8 * kSecondsInHour, "PDT", 7 * kSecondsInHour,
+                    kDefaultStartRule, kDefaultEndRule}},
 
       // --- Cases that test EXPLICITLY PROVIDED rules ---
       {"WithVariedMonthWeekDayRules", "CST6CDT,M2.1.3,M12.4.4",
-       TimezoneData{
-           "CST", 6 * kHour, "CDT", 5 * kHour,
-           TransitionRule{{DateRule::Format::MonthWeekDay, 2, 1, 3}, 2 * kHour},
-           TransitionRule{{DateRule::Format::MonthWeekDay, 12, 4, 4},
-                          2 * kHour}}},
+       TimezoneData{"CST", 6 * kSecondsInHour, "CDT", 5 * kSecondsInHour,
+                    TransitionRule{{DateRule::Format::MonthWeekDay, 2, 1, 3},
+                                   2 * kSecondsInHour},
+                    TransitionRule{{DateRule::Format::MonthWeekDay, 12, 4, 4},
+                                   2 * kSecondsInHour}}},
       {"WithVariedRulesAndTimes", "CST6CDT,M1.1.6/01:30,M8.3.5/23:59:59",
-       TimezoneData{"CST", 6 * kHour, "CDT", 5 * kHour,
-                    TransitionRule{{DateRule::Format::MonthWeekDay, 1, 1, 6},
-                                   1 * kHour + 30 * kMinute},
-                    TransitionRule{{DateRule::Format::MonthWeekDay, 8, 3, 5},
-                                   23 * kHour + 59 * kMinute + 59}}},
+       TimezoneData{
+           "CST", 6 * kSecondsInHour, "CDT", 5 * kSecondsInHour,
+           TransitionRule{{DateRule::Format::MonthWeekDay, 1, 1, 6},
+                          1 * kSecondsInHour + 30 * kSecondsInMinute},
+           TransitionRule{{DateRule::Format::MonthWeekDay, 8, 3, 5},
+                          23 * kSecondsInHour + 59 * kSecondsInMinute + 59}}},
       {"WithJulianDayRules", "EET-2EEST,J60,J305",
-       TimezoneData{
-           "EET", -2 * kHour, "EEST", -3 * kHour,
-           TransitionRule{{DateRule::Format::Julian, 0, 0, 60}, 2 * kHour},
-           TransitionRule{{DateRule::Format::Julian, 0, 0, 305}, 2 * kHour}}},
+       TimezoneData{"EET", -2 * kSecondsInHour, "EEST", -3 * kSecondsInHour,
+                    TransitionRule{{DateRule::Format::Julian, 0, 0, 60},
+                                   2 * kSecondsInHour},
+                    TransitionRule{{DateRule::Format::Julian, 0, 0, 305},
+                                   2 * kSecondsInHour}}},
       {"WithJulianDayRulesAndTimes", "EET-2EEST,J65/03:00,J300/04:00",
-       TimezoneData{
-           "EET", -2 * kHour, "EEST", -3 * kHour,
-           TransitionRule{{DateRule::Format::Julian, 0, 0, 65}, 3 * kHour},
-           TransitionRule{{DateRule::Format::Julian, 0, 0, 300}, 4 * kHour}}},
+       TimezoneData{"EET", -2 * kSecondsInHour, "EEST", -3 * kSecondsInHour,
+                    TransitionRule{{DateRule::Format::Julian, 0, 0, 65},
+                                   3 * kSecondsInHour},
+                    TransitionRule{{DateRule::Format::Julian, 0, 0, 300},
+                                   4 * kSecondsInHour}}},
       {"WithZeroBasedDayRules", "EET-2EEST,59,304",
        TimezoneData{
-           "EET", -2 * kHour, "EEST", -3 * kHour,
+           "EET", -2 * kSecondsInHour, "EEST", -3 * kSecondsInHour,
            TransitionRule{{DateRule::Format::ZeroBasedJulian, 0, 0, 59},
-                          2 * kHour},
+                          2 * kSecondsInHour},
            TransitionRule{{DateRule::Format::ZeroBasedJulian, 0, 0, 304},
-                          2 * kHour}}},
+                          2 * kSecondsInHour}}},
       {"WithZeroBasedDayRulesAndTimes", "EET-2EEST,64/01:30:15,309/23:00",
        TimezoneData{
-           "EET", -2 * kHour, "EEST", -3 * kHour,
+           "EET", -2 * kSecondsInHour, "EEST", -3 * kSecondsInHour,
            TransitionRule{{DateRule::Format::ZeroBasedJulian, 0, 0, 64},
-                          1 * kHour + 30 * kMinute + 15},
+                          1 * kSecondsInHour + 30 * kSecondsInMinute + 15},
            TransitionRule{{DateRule::Format::ZeroBasedJulian, 0, 0, 309},
-                          23 * kHour}}},
+                          23 * kSecondsInHour}}},
       {"QuotedStdNameOnly", "<UTC+0>0", TimezoneData{"UTC+0", 0}},
 
       // --- Failure Cases ---
@@ -197,16 +200,16 @@ class Tests : public ::testing::TestWithParam<TzParseTestParam> {
       {"StdNameWithSlash", "America/New_York5", std::nullopt},
 
       // --- Partial Success (Graceful Stop) Cases ---
-      {"ShortDstName", "PST8PD", TimezoneData{"PST", 8 * kHour}},
-      {"NonAlphaDstName", "PST8P&T", TimezoneData{"PST", 8 * kHour}},
+      {"ShortDstName", "PST8PD", TimezoneData{"PST", 8 * kSecondsInHour}},
+      {"NonAlphaDstName", "PST8P&T", TimezoneData{"PST", 8 * kSecondsInHour}},
       {"DstNameWithSlash", "EST5America/New_York",
-       TimezoneData{"EST", 5 * kHour}},
+       TimezoneData{"EST", 5 * kSecondsInHour}},
       {"MalformedRule", "CST6CDT,M3.2.0",
-       TimezoneData{"CST", 6 * kHour, "CDT", 5 * kHour}},
+       TimezoneData{"CST", 6 * kSecondsInHour, "CDT", 5 * kSecondsInHour}},
       {"InvalidRuleCharacter", "CST6CDT,M3.X.0,M11.1.0",
-       TimezoneData{"CST", 6 * kHour, "CDT", 5 * kHour}},
+       TimezoneData{"CST", 6 * kSecondsInHour, "CDT", 5 * kSecondsInHour}},
       {"InvalidTransitionTime", "CST6CDT,M3.2.0/invalid,M11.1.0",
-       TimezoneData{"CST", 6 * kHour, "CDT", 5 * kHour}},
+       TimezoneData{"CST", 6 * kSecondsInHour, "CDT", 5 * kSecondsInHour}},
 
   };
 };
