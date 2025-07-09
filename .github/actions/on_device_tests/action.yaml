@@ -13,6 +13,12 @@ inputs:
   test_dimensions:
     description: "Test dimensions JSON string."
     required: true
+  test_device_family:
+    description: "Test device family."
+    required: true
+  test_attempts:
+    description: "Number of attempts for the tests."
+    default: ""
 
 runs:
   using: "composite"
@@ -53,20 +59,24 @@ runs:
         GITHUB_RUN_NUMBER: ${{ github.run_number }}
         GITHUB_RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
         GITHUB_WORKFLOW: ${{ github.workflow }}
+        TEST_ATTEMPTS: ${{ inputs.test_attempts }}
+        TEST_TYPE: unit_test
       run: |
         set -x
-        test_targets=$(echo "${TEST_TARGETS_JSON}" | jq -cr '. | join(",")')
 
         # TODO(oxv): Fix dimensions. Pass as json? key-value pair?
         python3 -u cobalt/tools/on_device_tests_gateway_client.py \
           --token ${GITHUB_TOKEN} \
           trigger \
-          --targets ${test_targets} \
+          --test_type ${TEST_TYPE} \
+          --device_family '${{ inputs.test_device_family }}' \
+          --targets '${{ inputs.test_targets_json }}' \
           --filter_json_dir "${GITHUB_WORKSPACE}/cobalt/testing/filters/${{ matrix.platform}}" \
           --label chrobalt_on_device_test \
           --label github_${GITHUB_PR_NUMBER:-postsubmit} \
           --label builder-${{ matrix.platform }} \
           --label builder_url-${GITHUB_RUN_URL} \
+          --label ${TEST_TYPE} \
           --label github \
           --label ${GITHUB_EVENT_NAME} \
           --label ${GITHUB_WORKFLOW} \
