@@ -14,26 +14,33 @@
 
 #include "starboard/shared/modular/starboard_layer_posix_poll_abi_wrappers.h"
 
+#include <errno.h>
 #include <poll.h>
-
-#include "starboard/common/log.h"
 
 SB_EXPORT int __abi_wrap_poll(struct musl_pollfd* poll_fd,
                               musl_nfds_t nfds,
-                              int32_t n) {
+                              int32_t timeout) {
   if (!poll_fd) {
-    return 0;
+    return poll(nullptr, nfds, timeout);
   }
-  struct pollfd pfd;
-  pfd.fd = poll_fd->fd;
-  pfd.events = poll_fd->events;
-  pfd.revents = poll_fd->revents;
 
-  int retval = poll(&pfd, nfds, n);
+  struct pollfd fds[nfds];
 
-  poll_fd->fd = pfd.fd;
-  poll_fd->events = pfd.events;
-  poll_fd->revents = pfd.revents;
+  for (musl_nfds_t i = 0; i < nfds; i++) {
+    fds[i].fd = poll_fd[i].fd;
+    fds[i].events = poll_fd[i].events;
+    fds[i].revents = 0;  // Clear revents before calling poll.
+  }
+
+  int retval = poll(fds, nfds, timeout);
+
+  // If poll() was successful, copy the resulting revents
+  // back to the original musl_pollfd array.
+  if (retval >= 0) {
+    for (musl_nfds_t i = 0; i < nfds; i++) {
+      poll_fd[i].revents = fds[i].revents;
+    }
+  }
 
   return retval;
 }

@@ -1,4 +1,4 @@
-// Copyright 2024 The Cobalt Authors. All Rights Reserved.
+// Copyright 2025 The Cobalt Authors. All Rights Reserved.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -22,7 +22,13 @@
 extern "C" {
 #endif
 
-typedef uint64_t /* unsigned long */ musl_nfds_t;
+#if SB_IS(ARCH_ARM64) || SB_IS(ARCH_X64)
+#define __MUSL_ULONG_TYPE uint64_t
+#else
+#define __MUSL_ULONG_TYPE uint32_t
+#endif
+
+typedef __MUSL_ULONG_TYPE /* unsigned long */ musl_nfds_t;
 
 struct musl_pollfd {
   int32_t /* int */ fd;
@@ -30,7 +36,7 @@ struct musl_pollfd {
   uint16_t /* short */ revents;
 };
 
-SB_EXPORT int __abi_wrap_poll(struct musl_pollfd*, musl_nfds_t, int);
+SB_EXPORT int __abi_wrap_poll(struct musl_pollfd*, musl_nfds_t, int32_t);
 
 #ifdef __cplusplus
 }  // extern "C"
