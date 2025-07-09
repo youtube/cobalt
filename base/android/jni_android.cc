@@ -4,8 +4,11 @@
 
 #include "base/android/jni_android.h"
 
+#include <iostream>
 #include <stddef.h>
+#include <string>
 #include <sys/prctl.h>
+#include <regex>
 
 #include "base/android/java_exception_reporter.h"
 #include "base/android/jni_string.h"
@@ -114,6 +117,11 @@ void CheckException(JNIEnv* env) {
     return;
   }
 
+#if BUILDFLAG(IS_COBALT)
+  std::string exception_token;
+  std::string exception_info;
+#endif
+
   static thread_local bool g_reentering = false;
   if (g_reentering) {
     // We were handling an uncaught Java exception already, but one of the Java
@@ -180,12 +188,22 @@ void CheckException(JNIEnv* env) {
   auto throwable = ScopedJavaLocalRef<jthrowable>::Adopt(env, raw_throwable);
 
   if (!handle_exception_in_java) {
+#if BUILDFLAG(IS_COBALT)
+    exception_info = GetJavaExceptionInfo(env, throwable);
+    base::android::SetJavaException(exception_info.c_str());
+    exception_token = FindFirstJavaFileAndLine(exception_info);
+#else
     base::android::SetJavaException(
         GetJavaExceptionInfo(env, throwable).c_str());
+#endif
     if (g_log_fatal_callback_for_testing) {
       g_log_fatal_callback_for_testing(kUncaughtExceptionMessage);
     } else {
+#if BUILDFLAG(IS_COBALT)
+      LOG(FATAL) << "JNI exception: " << exception_token;
+#else
       LOG(FATAL) << kUncaughtExceptionMessage;
+#endif
     }
     // Needed for tests, which do not terminate from LOG(FATAL).
     g_reentering = false;
@@ -207,14 +225,24 @@ void CheckException(JNIEnv* env) {
   // app that embedded WebView installed an exception handler that does not
   // terminate, or itself threw an exception. We cannot be confident that
   // JavaExceptionReporter ran, so set the java exception explicitly.
+#if BUILDFLAG(IS_COBALT)
+  exception_info = GetJavaExceptionInfo(env, secondary_exception ? secondary_exception : throwable);
+  base::android::SetJavaException(exception_info.c_str());
+  exception_token = FindFirstJavaFileAndLine(exception_info);
+#else
   base::android::SetJavaException(
       GetJavaExceptionInfo(
           env, secondary_exception ? secondary_exception : throwable)
           .c_str());
+#endif
   if (g_log_fatal_callback_for_testing) {
     g_log_fatal_callback_for_testing(kUncaughtExceptionHandlerFailedMessage);
   } else {
+#if BUILDFLAG(IS_COBALT)
+    LOG(FATAL) << "JNI exception: " << exception_token;
+#else
     LOG(FATAL) << kUncaughtExceptionHandlerFailedMessage;
+#endif
   }
   // Needed for tests, which do not terminate from LOG(FATAL).
   g_reentering = false;
@@ -228,6 +256,33 @@ std::string GetJavaExceptionInfo(JNIEnv* env,
   return !sanitized_exception_string.empty()
              ? sanitized_exception_string
              : kOomInGetJavaExceptionInfoMessage;
+}
+
+std::string FindFirstJavaFileAndLine(const std::string& stack_trace) {
+    // This regular expression looks for a pattern inside parentheses.
+    // Breakdown of the pattern: \(([^)]+\.java:\d+)\)
+    // \\(      - Matches the literal opening parenthesis '('. We need two backslashes in a C++ string literal.
+    // (        - Starts a capturing group. This is the part of the match we want to extract.
+    // [^)]+    - Matches one or more characters that are NOT a closing parenthesis ')'. This captures the file name.
+    // \\.java: - Matches the literal text ".java:".
+    // \\d+     - Matches one or more digits (the line number).
+    // )        - Ends the capturing group.
+    // \\)      - Matches the literal closing parenthesis ')'.
+    std::regex pattern("\\(([^)]+\\.java:\\d+)\\)");
+
+    // smatch object will store the results of the search.
+    std::smatch match;
+
+    // Search the input string for the first occurrence of the pattern.
+    if (std::regex_search(stack_trace, match, pattern)) {
+        // The full match is match[0] (e.g., "(CobaltActivity.java:219)").
+        // The first captured group is match[1] (e.g., "CobaltActivity.java:219").
+        // We return the content of the first captured group.
+        return match[1].str();
+    }
+
+    // Return an empty string if no match was found.
+    return "";
 }
 
 std::string GetJavaStackTraceIfPresent() {
