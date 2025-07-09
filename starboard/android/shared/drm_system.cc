@@ -190,15 +190,9 @@ void DrmSystem::CallDrmSessionKeyStatusesChangedCallback(
                                    session_id_size);
 
   {
-<<<<<<< HEAD
-    ScopedLock scoped_lock(mutex_);
+    std::lock_guard scoped_lock(mutex_);
     if (cached_drm_key_ids_[session_id_as_string] != drm_key_ids) {
       cached_drm_key_ids_[session_id_as_string] = drm_key_ids;
-=======
-    std::lock_guard scoped_lock(mutex_);
-    if (cached_drm_key_ids_[session_id_str] != drm_key_ids) {
-      cached_drm_key_ids_[session_id_str] = drm_key_ids;
->>>>>>> 129aeba41bb ([Refactor] Replace starboard::Mutex with std::mutex (#6343))
       if (hdcp_lost_) {
         CallKeyStatusesChangedCallbackWithKeyStatusRestricted_Locked();
         return;
