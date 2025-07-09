@@ -1,21 +1,15 @@
-name: On Device Test
-description: Runs on-device tests.
+name: E2E Tests
+description: Runs e2e tests.
 inputs:
-  test_targets_json:
-    description: "The test targets in a JSON array."
-    required: true
-  gcs_results_path:
-    description: "GCS path for the test results."
-    required: true
-  test_results_key:
-    description: "Artifact key used to store test results."
-    required: true
   test_dimensions:
     description: "Test dimensions JSON string."
     required: true
-  test_device_family:
-    description: "Test device family."
+  e2e_test_targets:
+    description: "E2E test targets."
     required: true
+  artifact_name:
+    description: "The name of the artifact to be used for E2E tests (e.g., Cobalt.apk)."
+    default: "Cobalt.apk"
   test_attempts:
     description: "Number of attempts for the tests."
     default: ""
@@ -42,8 +36,7 @@ runs:
       shell: bash
     - name: Run Tests on ${{ matrix.platform }} Platform
       env:
-        TEST_TARGETS_JSON: ${{ inputs.test_targets_json }}
-        GCS_ARTIFACTS_PATH: /bigstore/${{ env.PROJECT_NAME }}-test-artifacts/${{ github.workflow }}/${{ github.run_number }}/${{ matrix.platform }}
+        GCS_ARTIFACTS_PATH: /bigstore/${{ env.PROJECT_NAME }}-test-artifacts/${{ github.workflow }}/${{ github.run_number }}/${{ matrix.platform }}/${{ inputs.artifact_name }}
         GITHUB_SHA: ${{ github.sha }}
         GITHUB_TOKEN: ${{ github.token }}
         GITHUB_EVENT_NAME: ${{ github.event_name }}
@@ -60,23 +53,21 @@ runs:
         GITHUB_RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
         GITHUB_WORKFLOW: ${{ github.workflow }}
         TEST_ATTEMPTS: ${{ inputs.test_attempts }}
-        TEST_TYPE: unit_test
+        TEST_TYPE: e2e_test
+        TEST_RETRY_LEVEL: FAIL
       run: |
         set -x
 
-        # TODO(oxv): Fix dimensions. Pass as json? key-value pair?
         python3 -u cobalt/tools/on_device_tests_gateway_client.py \
           --token ${GITHUB_TOKEN} \
           trigger \
           --test_type ${TEST_TYPE} \
-          --device_family '${{ inputs.test_device_family }}' \
-          --targets '${{ inputs.test_targets_json }}' \
-          --filter_json_dir "${GITHUB_WORKSPACE}/cobalt/testing/filters/${{ matrix.platform}}" \
-          --label chrobalt_on_device_test \
+          --targets '${{ inputs.e2e_test_targets }}' \
+          --retry_level ${TEST_RETRY_LEVEL} \
+          --label ${TEST_TYPE} \
           --label github_${GITHUB_PR_NUMBER:-postsubmit} \
           --label builder-${{ matrix.platform }} \
           --label builder_url-${GITHUB_RUN_URL} \
-          --label ${TEST_TYPE} \
           --label github \
           --label ${GITHUB_EVENT_NAME} \
           --label ${GITHUB_WORKFLOW} \
@@ -88,9 +79,7 @@ runs:
           --label author-${GITHUB_PR_HEAD_USER_LOGIN:-$GITHUB_COMMIT_AUTHOR_USERNAME} \
           --label author_id-${GITHUB_PR_HEAD_USER_ID:-$GITHUB_COMMIT_AUTHOR_EMAIL} \
           --dimensions '${{ inputs.test_dimensions }}' \
-          ${TEST_ATTEMPTS:+"--test_attempts" "$TEST_ATTEMPTS"} \
-          --gcs_archive_path "${GCS_ARTIFACTS_PATH}" \
-          --gcs_result_path "${{ inputs.gcs_results_path }}" || {
+          --cobalt_path "${GCS_ARTIFACTS_PATH}" || {
             echo "Finished running tests..."
             echo "The test session failed. See logs for details."
             # Fail the job so it's easy to retrigger.
@@ -98,21 +87,3 @@ runs:
           }
         echo "Finished running tests..."
       shell: bash
-    - name: Download ${{ matrix.platform }} Test Results from GCS
-      if: always()
-      run: |
-        set -uxe
-        test_output="${GITHUB_WORKSPACE}/results"
-        echo "test_output=${test_output}" >> $GITHUB_ENV
-
-        # Test results (xml and logs) must be in a subfolder in results_dir
-        # to be picked up by the test result processor.
-        mkdir -p "${test_output}/${{ matrix.platform }}"
-        gsutil -q cp -r "${{ inputs.gcs_results_path }}/" "${test_output}/${{ matrix.platform }}"
-      shell: bash
-    - name: Archive Test Results
-      uses: actions/upload-artifact@v4
-      if: always()
-      with:
-        name: ${{ inputs.test_results_key }}
-        path: ${{ env.test_output }}/*
