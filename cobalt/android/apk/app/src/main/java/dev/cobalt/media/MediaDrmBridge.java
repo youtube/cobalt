@@ -723,7 +723,7 @@ public class MediaDrmBridge {
     Log.i(TAG, "MediaCrypto Session created: sessionId=" + bytesToString(mMediaCryptoSession));
   }
 
-  private static final int INDIVIDUALIZATION_REQUEST_TYPE = 3;
+  private static final int INDIVIDUALIZATION_REQUEST_TYPE = 13;
 
   // bridge_session_id -> session_id map.
   private HashMap<ByteBuffer, ByteBuffer> mBridgeSessionIds = new HashMap<>();

@@ -83,17 +83,29 @@ void DrmSystem::StopThread() {
 }
 
 void DrmSystem::Run() {
-  if (media_drm_bridge_->CreateMediaCryptoSession()) {
-    created_media_crypto_session_.store(true);
-  } else {
-    SB_LOG(INFO) << "Could not create media crypto session";
-    return;
-  }
+  SB_CHECK(!running_);
 
-  std::lock_guard scoped_lock(mutex_);
-  if (!deferred_session_update_requests_.empty()) {
-    for (const auto& update_request : deferred_session_update_requests_) {
-      update_request->Generate(media_drm_bridge_.get());
+  running_ = true;
+  SB_LOG(INFO) << "Thread loop started.";
+
+  while (running_.load()) {
+    JniEnvExt* env = JniEnvExt::Get();
+
+    std::function<void(JniEnvExt*)> task;
+    {
+      std::unique_lock<std::mutex> lock(pending_tasks_mutex_);
+      // Wait until there's a task or the scheduler is stopped
+      condition_.wait(
+          lock, [this] { return !pending_tasks_.empty() || !running_.load(); });
+
+      // If scheduler is stopped and no more tasks, exit
+      if (!running_.load() && pending_tasks_.empty()) {
+        break;
+      }
+
+      SB_CHECK(!pending_tasks_.empty());
+      task = std::move(pending_tasks_.front());
+      pending_tasks_.pop();
     }
 
     SB_CHECK(task != nullptr);

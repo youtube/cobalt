@@ -55,6 +55,7 @@ enum class RequestType : jint {
   kInitial = 0,
   kRenewal = 1,
   kRelease = 2,
+  kIndividualizationRequest = 13,
 };
 
 SbDrmSessionRequestType ToSbDrmSessionRequestType(RequestType request_type) {
@@ -65,6 +66,8 @@ SbDrmSessionRequestType ToSbDrmSessionRequestType(RequestType request_type) {
       return kSbDrmSessionRequestTypeLicenseRenewal;
     case RequestType::kRelease:
       return kSbDrmSessionRequestTypeLicenseRelease;
+    case RequestType::kIndividualizationRequest:
+      return kSbDrmSessionRequestTypeIndividualizationRequest;
     default:
       SB_NOTREACHED() << "Unknown key request type: "
                       << static_cast<jint>(request_type);
