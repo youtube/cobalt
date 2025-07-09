@@ -250,6 +250,7 @@ ExportedSymbols::ExportedSymbols() {
   REGISTER_SYMBOL(madvise);
   REGISTER_SYMBOL(malloc);
   REGISTER_SYMBOL(malloc_usable_size);
+  REGISTER_SYMBOL(mincore);
   REGISTER_SYMBOL(mkdir);
   REGISTER_SYMBOL(mkdtemp);
   REGISTER_SYMBOL(mkostemp);
