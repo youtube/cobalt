@@ -186,7 +186,7 @@ class Launcher(abstract_launcher.AbstractLauncher):
     self.test_failure_tag = 'failed'
 
     # test command setup
-    rdk_loader_path = os.path.join(rdk_storage_dir, "install", "elf_loader_sandbox_bin")
+    rdk_loader_path = os.path.join(rdk_storage_dir, "install", "elf_loader_sandbox")
     test_base_command = rdk_loader_path + ' ' + escaped_flags
     test_success_output = (f' && echo {self.test_complete_tag} '
                            f'{self.test_success_tag}')
