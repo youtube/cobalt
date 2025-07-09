@@ -343,12 +343,12 @@ void CheckException(JNIEnv* env) {
       // RVO should avoid any extra copies of the exception string.
       std::string exception_info = GetJavaExceptionInfo(env, java_throwable);
       base::android::SetJavaException(exception_info.c_str());
-      exception_token = findFirstJavaFileAndLine(exception_info);
+      exception_token = FindFirstJavaFileAndLine(exception_info);
     }
   }
 
   // Now, feel good about it and die.
-  LOG(FATAL) << "JNI run into exception: " << exception_token;
+  LOG(FATAL) << "JNI exception: " << exception_token;
 }
 
 std::string GetJavaExceptionInfo(JNIEnv* env, jthrowable java_throwable) {
@@ -359,7 +359,7 @@ std::string GetJavaExceptionInfo(JNIEnv* env, jthrowable java_throwable) {
   return ConvertJavaStringToUTF8(sanitized_exception_string);
 }
 
-std::string findFirstJavaFileAndLine(const std::string& stackTrace) {
+std::string FindFirstJavaFileAndLine(const std::string& stack_trace) {
     // This regular expression looks for a pattern inside parentheses.
     // Breakdown of the pattern: \(([^)]+\.java:\d+)\)
     // \\(      - Matches the literal opening parenthesis '('. We need two backslashes in a C++ string literal.
@@ -375,7 +375,7 @@ std::string findFirstJavaFileAndLine(const std::string& stackTrace) {
     std::smatch match;
 
     // Search the input string for the first occurrence of the pattern.
-    if (std::regex_search(stackTrace, match, pattern)) {
+    if (std::regex_search(stack_trace, match, pattern)) {
         // The full match is match[0] (e.g., "(CobaltActivity.java:219)").
         // The first captured group is match[1] (e.g., "CobaltActivity.java:219").
         // We return the content of the first captured group.

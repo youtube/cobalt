@@ -158,7 +158,7 @@ BASE_EXPORT std::string GetJavaExceptionInfo(JNIEnv* env,
                                              jthrowable java_throwable);
 
 // Utility method to find the java file name from the java stack trace.
-BASE_EXPORT std::string findFirstJavaFileAndLine(const std::string& stackTrace);
+BASE_EXPORT std::string FindFirstJavaFileAndLine(const std::string& stackTrace);
 
 #if BUILDFLAG(CAN_UNWIND_WITH_FRAME_POINTERS)
 
