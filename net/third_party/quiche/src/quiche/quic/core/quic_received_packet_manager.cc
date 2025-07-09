@@ -45,6 +45,10 @@ QuicReceivedPacketManager::QuicReceivedPacketManager(QuicConnectionStats* stats)
       num_retransmittable_packets_received_since_last_ack_sent_(0),
       min_received_before_ack_decimation_(kMinReceivedBeforeAckDecimation),
       ack_frequency_(kDefaultRetransmittablePacketsBeforeAck),
+#if BUILDFLAG(IS_COBALT)
+      max_retransmittable_packets_before_ack_(
+          kMaxRetransmittablePacketsBeforeAck),
+#endif
       ack_decimation_delay_(kAckDecimationDelay),
       unlimited_ack_decimation_(false),
       one_immediate_ack_(false),
@@ -251,7 +255,11 @@ void QuicReceivedPacketManager::MaybeUpdateAckFrequency(
   }
   ack_frequency_ = unlimited_ack_decimation_
                        ? std::numeric_limits<size_t>::max()
-                       : kMaxRetransmittablePacketsBeforeAck;
+#if BUILDFLAG(IS_COBALT)
+: max_retransmittable_packets_before_ack_;
+#else
+: kMaxRetransmittablePacketsBeforeAck;
+#endif
 }
 
 void QuicReceivedPacketManager::MaybeUpdateAckTimeout(
