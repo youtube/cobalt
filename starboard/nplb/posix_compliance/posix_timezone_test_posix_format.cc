@@ -46,6 +46,11 @@ struct PosixTestData {
     *os << " }\n";
   }
 };
+
+std::string GetTestName(const ::testing::TestParamInfo<PosixTestData>& info) {
+  return info.param.test_name;
+}
+
 }  // namespace
 
 class PosixFormat : public ::testing::TestWithParam<PosixTestData> {
@@ -98,7 +103,7 @@ TEST_P(PosixFormat, Handles) {
 INSTANTIATE_TEST_SUITE_P(PosixTimezoneTests,
                          PosixFormat,
                          ::testing::ValuesIn(PosixFormat::kAllTests),
-                         [](const auto& info) { return info.param.test_name; });
+                         GetTestName);
 
 }  // namespace nplb
 }  // namespace starboard

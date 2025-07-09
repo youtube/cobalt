@@ -36,6 +36,10 @@
 // the globals tzname, timezone, and daylight is not tested here. That
 // functionality is tested in starboard/nplb/posix_compliance.
 
+namespace cobalt {
+namespace common {
+namespace libc {
+namespace time {
 namespace {
 
 // Number of seconds in an hour.
@@ -44,46 +48,6 @@ constexpr int kSecondsInHour = 3600;
 // The year to use for testing timezone transitions. The year 2023 corresponds
 // to the tzdata database version used in the included ICU library.
 constexpr int kTestyear = 2023;
-
-std::string ToString(const icu::UnicodeString& ustr) {
-  std::string s;
-  ustr.toUTF8String(s);
-  return s;
-}
-
-// A base test fixture to manage the TZ environment variable and ICU's default
-// timezone state. This ensures tests are isolated from each other.
-class TzsetTest : public ::testing::Test {
- protected:
-  void SetUp() override {
-    original_icu_tz_.reset(icu::TimeZone::createDefault()->clone());
-    const char* current_tz_env = getenv("TZ");
-    if (current_tz_env != nullptr) {
-      original_tz_value_ = current_tz_env;  // Store the original TZ string
-    }
-    unsetenv("TZ");
-  }
-
-  void TearDown() override {
-    if (original_icu_tz_) {
-      icu::TimeZone::setDefault(*original_icu_tz_);
-    }
-    if (original_tz_value_) {
-      setenv("TZ", original_tz_value_->c_str(), 1);
-    } else {
-      unsetenv("TZ");
-    }
-    tzset();
-  }
-
-  void SetTimezoneAndCallTzset(const char* tz_value) {
-    setenv("TZ", tz_value, 1);
-    tzset();
-  }
-
-  std::unique_ptr<icu::TimeZone> original_icu_tz_;
-  std::optional<std::string> original_tz_value_;
-};
 
 struct YearMonthDay {
   int year;
@@ -117,6 +81,52 @@ struct TimezoneTestData {
     print_date_check("daylight_start_day", data.daylight_start_day);
     *os << " }";
   }
+};
+
+std::string ToString(const icu::UnicodeString& ustr) {
+  std::string s;
+  ustr.toUTF8String(s);
+  return s;
+}
+
+std::string GetTestName(
+    const ::testing::TestParamInfo<TimezoneTestData>& info) {
+  return info.param.test_name;
+}
+}  // namespace
+
+// A base test fixture to manage the TZ environment variable and ICU's default
+// timezone state. This ensures tests are isolated from each other.
+class TzsetTest : public ::testing::Test {
+ protected:
+  void SetUp() override {
+    original_icu_tz_.reset(icu::TimeZone::createDefault()->clone());
+    const char* current_tz_env = getenv("TZ");
+    if (current_tz_env != nullptr) {
+      original_tz_value_ = current_tz_env;  // Store the original TZ string
+    }
+    unsetenv("TZ");
+  }
+
+  void TearDown() override {
+    if (original_icu_tz_) {
+      icu::TimeZone::setDefault(*original_icu_tz_);
+    }
+    if (original_tz_value_) {
+      setenv("TZ", original_tz_value_->c_str(), 1);
+    } else {
+      unsetenv("TZ");
+    }
+    tzset();
+  }
+
+  void SetTimezoneAndCallTzset(const char* tz_value) {
+    setenv("TZ", tz_value, 1);
+    tzset();
+  }
+
+  std::unique_ptr<icu::TimeZone> original_icu_tz_;
+  std::optional<std::string> original_tz_value_;
 };
 
 class Timezone : public TzsetTest,
@@ -365,6 +375,9 @@ TEST_P(Timezone, SetsIcuDefaultCorrectly) {
 INSTANTIATE_TEST_SUITE_P(Tzset,
                          Timezone,
                          ::testing::ValuesIn(Timezone::kAllTestCases),
-                         [](const auto& info) { return info.param.test_name; });
+                         GetTestName);
 
-}  // namespace
+}  // namespace time
+}  // namespace libc
+}  // namespace common
+}  // namespace cobalt

@@ -45,6 +45,31 @@ struct IANATestData {
     *os << " }\n";
   }
 };
+
+std::string GetTestName(const ::testing::TestParamInfo<IANATestData>& info) {
+  // Generates a gtest-friendly name from the IANA timezone string
+  // by replacing non-alphanumeric characters with underscores,
+  // and explicitly naming "plus" and "minus" for GMT offsets.
+  // e.g., "America/Los_Angeles" -> "America_Los_Angeles"
+  //       "Etc/GMT+0" -> "Etc_GMT_plus_0"
+  //       "Etc/GMT-0" -> "Etc_GMT_minus_0"
+  std::string name = info.param.iana_tz_name;
+  std::string result;
+
+  for (char c : name) {
+    if (c == '+') {
+      result += "_plus_";
+    } else if (c == '-') {
+      result += "_minus_";
+    } else if (std::isalnum(static_cast<unsigned char>(c))) {
+      result += c;
+    } else {
+      result += '_';
+    }
+  }
+  return result;
+}
+
 }  // namespace
 
 class IANAFormat : public ::testing::TestWithParam<IANATestData> {
@@ -575,29 +600,7 @@ INSTANTIATE_TEST_SUITE_P(
     IANAFormat,
     ::testing::ValuesIn(GetFilteredTimezoneTests(IANAFormat::GetTests(),
                                                  false)),
-    [](const auto& info) {
-      // Generates a gtest-friendly name from the IANA timezone string
-      // by replacing non-alphanumeric characters with underscores,
-      // and explicitly naming "plus" and "minus" for GMT offsets.
-      // e.g., "America/Los_Angeles" -> "America_Los_Angeles"
-      //       "Etc/GMT+0" -> "Etc_GMT_plus_0"
-      //       "Etc/GMT-0" -> "Etc_GMT_minus_0"
-      std::string name = info.param.iana_tz_name;
-      std::string result;
-
-      for (char c : name) {
-        if (c == '+') {
-          result += "_plus_";
-        } else if (c == '-') {
-          result += "_minus_";
-        } else if (std::isalnum(static_cast<unsigned char>(c))) {
-          result += c;
-        } else {
-          result += '_';
-        }
-      }
-      return result;
-    });
+    GetTestName);
 
 }  // namespace nplb
 }  // namespace starboard
