@@ -24,6 +24,7 @@
 #include <queue>
 
 #include "starboard/android/shared/jni_env_ext.h"
+#include "starboard/common/check_op.h"
 #include "starboard/common/log.h"
 #include "starboard/shared/starboard/thread_checker.h"
 
@@ -542,7 +543,7 @@ void SbMicrophonePrivate::DestroyMicrophone(SbMicrophone microphone) {
     return;
   }
 
-  SB_DCHECK(s_microphone == microphone);
+  SB_DCHECK_EQ(s_microphone, microphone);
   s_microphone->Close();
 
   delete s_microphone;

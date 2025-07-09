@@ -93,6 +93,7 @@ public class ShellManager extends FrameLayout {
     private Object createShell(long nativeShellPtr) {
         if (mContentViewRenderView == null) {
             mContentViewRenderView = new ContentViewRenderView(getContext());
+            mContentViewRenderView.setSurfaceViewBackgroundColor(Color.TRANSPARENT);
             mContentViewRenderView.onNativeLibraryLoaded(mWindow);
         }
 
