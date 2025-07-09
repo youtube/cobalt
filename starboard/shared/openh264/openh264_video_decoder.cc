@@ -76,7 +76,7 @@ void VideoDecoder::Reset() {
   frames_being_decoded_ = 0;
   time_sequential_queue_ = TimeSequentialQueue();
 
-  ScopedLock lock(decode_target_mutex_);
+  std::lock_guard lock(decode_target_mutex_);
   frames_ = std::queue<scoped_refptr<CpuVideoFrame>>();
 }
 
@@ -114,7 +114,7 @@ void VideoDecoder::TeardownCodec() {
   if (output_mode_ == kSbPlayerOutputModeDecodeToTexture) {
     SbDecodeTarget decode_target_to_release;
     {
-      ScopedLock lock(decode_target_mutex_);
+      std::lock_guard lock(decode_target_mutex_);
       decode_target_to_release = decode_target_;
       decode_target_ = kSbDecodeTargetInvalid;
     }
@@ -206,7 +206,7 @@ void VideoDecoder::FlushFrames() {
   while (!time_sequential_queue_.empty()) {
     auto output_frame = time_sequential_queue_.top();
     if (output_mode_ == kSbPlayerOutputModeDecodeToTexture) {
-      ScopedLock lock(decode_target_mutex_);
+      std::lock_guard lock(decode_target_mutex_);
       frames_.push(output_frame);
     }
     Schedule(std::bind(decoder_status_cb_, kBufferFull, output_frame));
@@ -242,7 +242,7 @@ void VideoDecoder::ProcessDecodedImage(unsigned char* decoded_frame[],
     has_new_output = true;
     auto output_frame = time_sequential_queue_.top();
     if (output_mode_ == kSbPlayerOutputModeDecodeToTexture) {
-      ScopedLock lock(decode_target_mutex_);
+      std::lock_guard lock(decode_target_mutex_);
       frames_.push(output_frame);
     }
     if (flushing) {
@@ -303,7 +303,7 @@ SbDecodeTarget VideoDecoder::GetCurrentDecodeTarget() {
 
   // We must take a lock here since this function can be called from a
   // separate thread.
-  ScopedLock lock(decode_target_mutex_);
+  std::lock_guard lock(decode_target_mutex_);
   while (frames_.size() > 1 && frames_.front()->HasOneRef()) {
     frames_.pop();
   }
