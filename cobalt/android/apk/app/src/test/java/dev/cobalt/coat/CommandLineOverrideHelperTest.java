@@ -167,4 +167,19 @@ public class CommandLineOverrideHelperTest {
         String expectedDisable = "AImageReader,TestFeature2";
         Assert.assertEquals(expectedDisable, disableFeatures);
     }
+
+    @Test
+    public void testFlagOverrides_FeaturesWithValues() {
+        String[] commandLineArgs = {
+            "--enable-features=TestFeature1=value1;TestFeature2=value2"
+        };
+        CommandLineOverrideHelper.CommandLineOverrideHelperParams params =
+            new CommandLineOverrideHelper.CommandLineOverrideHelperParams(
+                false, true, commandLineArgs);
+        CommandLineOverrideHelper.getFlagOverrides(params);
+
+        String enableFeatures = CommandLine.getInstance().getSwitchValue("enable-features");
+        String expectedEnable = "LogJsConsoleMessages,LimitImageDecodeCacheSize:mb/24,TestFeature1=value1,TestFeature2=value2";
+        Assert.assertEquals(expectedEnable, enableFeatures);
+    }
 }
