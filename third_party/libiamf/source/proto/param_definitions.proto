@@ -1,0 +1,52 @@
+// Copyright (c) 2023, Alliance for Open Media. All rights reserved
+//
+// This source code is subject to the terms of the BSD 3-Clause Clear License
+// and the Alliance for Open Media Patent License 1.0. If the BSD 3-Clause Clear
+// License was not distributed with this source code in the LICENSE file, you
+// can obtain it at www.aomedia.org/license/software-license/bsd-3-c-c. If the
+// Alliance for Open Media Patent License 1.0 was not distributed with this
+// source code in the PATENTS file, you can obtain it at
+// www.aomedia.org/license/patent.
+
+syntax = "proto2";
+
+package libiamf_proto;
+
+import "parameter_data.proto";
+
+// Valid proto enums start at index 1, which are different from the
+// corresponding enums in C++, e.g. kParameterDefinitionMixGain = 0.
+enum ParamDefinitionType {
+  PARAM_DEFINITION_TYPE_INVALID = 0;
+  PARAM_DEFINITION_TYPE_MIX_GAIN = 1;
+  PARAM_DEFINITION_TYPE_DEMIXING = 2;
+  PARAM_DEFINITION_TYPE_RECON_GAIN = 3;
+  PARAM_DEFINITION_TYPE_RESERVED_3 = 4;
+}
+
+message ParamDefinition {
+  optional uint32 parameter_id = 1;
+  optional uint32 parameter_rate = 2;
+  optional bool param_definition_mode = 3;
+  optional uint32 reserved = 4;
+  optional uint32 duration = 5;
+  optional uint32 constant_subblock_duration = 7;
+  optional uint32 num_subblocks = 6;
+  repeated uint32 subblock_durations = 8 [packed = true];
+}
+
+message MixGainParamDefinition {
+  optional ParamDefinition param_definition = 1;
+  optional int32 default_mix_gain = 2;
+}
+
+message DemixingParamDefinition {
+  optional ParamDefinition param_definition = 1;
+  optional DemixingInfoParameterData default_demixing_info_parameter_data = 2;
+  optional uint32 default_w = 3;
+  optional uint32 reserved = 4;
+}
+
+message ReconGainParamDefinition {
+  optional ParamDefinition param_definition = 1;
+}
