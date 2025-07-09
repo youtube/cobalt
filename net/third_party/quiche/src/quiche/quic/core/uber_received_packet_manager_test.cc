@@ -317,7 +317,7 @@ TEST_F(UberReceivedPacketManagerTest, AckDecimationReducesAcks) {
 
   // Start ack decimation from 10th packet.
   manager_->set_min_received_before_ack_decimation(10);
-#if defined(IS_COBALT)
+#if BUILDFLAG(IS_COBALT)
   manager_->set_max_retransmittable_packets_before_ack(10);
 #endif
 
@@ -350,7 +350,7 @@ TEST_F(UberReceivedPacketManagerTest, AckDecimationReducesAcks) {
 
 TEST_F(UberReceivedPacketManagerTest, SendDelayedAckDecimation) {
   EXPECT_FALSE(HasPendingAck());
-#if defined(IS_COBALT)
+#if BUILDFLAG(IS_COBALT)
   manager_->set_max_retransmittable_packets_before_ack(10);
 #endif
   // The ack time should be based on min_rtt * 1/4, since it's less than the
@@ -424,7 +424,7 @@ TEST_F(UberReceivedPacketManagerTest,
 
 TEST_F(UberReceivedPacketManagerTest, SendDelayedAckDecimationEighthRtt) {
   EXPECT_FALSE(HasPendingAck());
-#if defined(IS_COBALT)
+#if BUILDFLAG(IS_COBALT)
   manager_->set_max_retransmittable_packets_before_ack(10);
 #endif
   UberReceivedPacketManagerPeer::SetAckDecimationDelay(manager_.get(), 0.125);
