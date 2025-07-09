@@ -25,11 +25,6 @@ namespace common {
 namespace libc {
 namespace tz {
 
-// Number of seconds in an hour.
-constexpr int kSecondsInHour = 3600;
-// Number of seconds in a minute.
-constexpr int kSecondsInMinute = 60;
-
 // --- Equality Operators for Comparison ---
 bool operator==(const DateRule& lhs, const DateRule& rhs) {
   return lhs.format == rhs.format && lhs.month == rhs.month &&
@@ -45,6 +40,13 @@ bool operator==(const TimezoneData& lhs, const TimezoneData& rhs) {
          lhs.dst_name == rhs.dst_name && lhs.dst_offset == rhs.dst_offset &&
          lhs.start_rule == rhs.start_rule && lhs.end_rule == rhs.end_rule;
 }
+
+namespace {
+
+// Number of seconds in an hour.
+constexpr int kSecondsInHour = 3600;
+// Number of seconds in a minute.
+constexpr int kSecondsInMinute = 60;
 
 // Structure to hold all parameters for a single test case.
 struct TzParseTestParam {
@@ -107,6 +109,7 @@ void PrintTo(const TzParseTestParam& param, std::ostream* os) {
   }
   *os << " }";
 }
+}  // namespace
 
 class Tests : public ::testing::TestWithParam<TzParseTestParam> {
  public:
