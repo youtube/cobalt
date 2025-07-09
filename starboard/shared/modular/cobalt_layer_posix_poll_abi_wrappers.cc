@@ -1,4 +1,4 @@
-// Copyright 2024 The Cobalt Authors. All Rights Reserved.
+// Copyright 2025 The Cobalt Authors. All Rights Reserved.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -16,9 +16,9 @@
 
 extern "C" {
 
-int __abi_wrap_poll(struct pollfd* poll_fd, nfds_t nfdst, int n);
+int __abi_wrap_poll(struct pollfd* fds, nfds_t nfds, int timeout);
 
-int poll(pollfd* poll_fd, nfds_t nfdst, int m) {
-  return __abi_wrap_poll(poll_fd, nfdst, m);
+int poll(pollfd* fds, nfds_t nfds, int timeout) {
+  return __abi_wrap_poll(fds, nfds, timeout);
 }
 }
