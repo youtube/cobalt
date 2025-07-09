@@ -90,8 +90,12 @@ runs:
       shell: bash
     - name: Download ${{ matrix.platform }} Test Results from GCS
       if: always()
+      env:
+        TEST_TARGETS_JSON: ${{ inputs.test_targets_json }}
       run: |
         set -uxe
+        shopt -s globstar nullglob
+
         test_output="${GITHUB_WORKSPACE}/results"
         echo "test_output=${test_output}" >> $GITHUB_ENV
 
@@ -99,6 +103,27 @@ runs:
         # to be picked up by the test result processor.
         mkdir -p "${test_output}/${{ matrix.platform }}"
         gsutil -q cp -r "${{ inputs.gcs_results_path }}/" "${test_output}/${{ matrix.platform }}"
+
+        # Check for missing result xml files.
+        readarray -t test_targets < <(echo "$TEST_TARGETS_JSON" | jq -r '.[]')
+        for test_target_with_path in "${test_targets[@]}"; do
+          # Trim path prefix (before :).
+          test_target=${test_target_with_path#*:}
+          xml_files=("${test_output}"/${{ matrix.platform }}/**/"${test_target}"_testoutput.xml)
+          if [[ "${#xml_files[@]}" -eq 0 ]]; then
+            # Check if the test target is filtered.
+            test_filter_file="${GITHUB_WORKSPACE}/cobalt/testing/filters/${{ matrix.platform }}/${test_target}_filter.json"
+            if [ ! -f "${test_filter_file}" ] || [ "$(jq -cr '.failing_tests[0]' "${test_filter_file}")" != '*' ]; then
+              echo "Test result xml is missing for ${test_target}."
+
+              # Try to find the crashed test in the log and create a fake junit xml for it.
+              log_path=("${test_output}"/${{ matrix.platform }}/**/"${test_target}"_log.txt)
+              xml_path=("${test_output}"/${{ matrix.platform }}/1/"${test_target}"_testoutput.xml)
+              python3 ${GITHUB_WORKSPACE}/.github/scripts/generate_crash_report.py "${log_path}" "${xml_path}"
+              exit 1
+            fi
+          fi
+        done
       shell: bash
     - name: Archive Test Results
       uses: actions/upload-artifact@v4
