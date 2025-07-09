@@ -349,6 +349,10 @@ source_set("wtf_unittests_sources") {
     "vector_backed_linked_list_test.cc",
     "vector_test.cc",
   ]
+  if (is_cobalt_hermetic_build) {
+    sources += [ "testing/starboard/run_all_tests.cc" ]
+    sources -= [ "testing/run_all_tests.cc" ]
+  }
 
   if (is_win) {
     cflags = [ "/wd4068" ]  # Unknown pragma.

@@ -54,6 +54,7 @@
     "content_shell",
     "dump_syms",
 <<<<<<< HEAD
+<<<<<<< HEAD
     "minidump_stackwalk"
 >>>>>>> 25d07a9da36 (Build almost all linux targets hermetically (#6097))
 =======
@@ -101,8 +102,12 @@
     "url:url_perftests_loader",
     "url:url_unittests_loader"
 >>>>>>> 898c0f59b89 (Add nplb for evergreen (#6132))
+=======
+    "minidump_stackwalk"
+>>>>>>> 473112b0f73 (Add entry points for modular targets (#6302))
   ],
   "build_configs": [
+    "debug",
     "devel",
     "qa",
     "gold"

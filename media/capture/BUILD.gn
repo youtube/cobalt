@@ -485,6 +485,10 @@ test("capture_unittests") {
     "video/video_capture_metrics_unittest.cc",
     "video_capture_types_unittest.cc",
   ]
+  if (is_cobalt_hermetic_build) {
+    sources += [ "starboard/run_all_unittests.cc" ]
+    sources -= [ "run_all_unittests.cc" ]
+  }
 
   if (enable_video_effects) {
     sources += [ "video/video_capture_effects_processor_unittest.cc" ]

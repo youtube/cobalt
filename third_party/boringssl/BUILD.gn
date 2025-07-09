@@ -291,7 +291,18 @@ if (build_with_chromium) {
 
     # Chromium infrastructure does not support GTest, only the //base wrapper.
     sources -= [ "src/crypto/test/gtest_main.cc" ]
+<<<<<<< HEAD
     sources += [ "gtest_main_chromium.cc" ]
+=======
+    sources += [
+      "gtest_main_chromium.cc",
+      "test_data_chromium.cc",
+    ]
+    if (is_cobalt_hermetic_build) {
+      sources += [ "starboard/gtest_main_chromium.cc" ]
+      sources -= [ "gtest_main_chromium.cc" ]
+    }
+>>>>>>> 473112b0f73 (Add entry points for modular targets (#6302))
     deps += [ "//base/test:test_support" ]
 
     if (is_fuchsia) {
@@ -337,7 +348,11 @@ if (build_with_chromium) {
 
     # Chromium infrastructure does not support GTest, only the //base wrapper.
     sources -= [ "src/crypto/test/gtest_main.cc" ]
-    sources += [ "gtest_main_chromium.cc" ]
+    if (is_cobalt_hermetic_build) {
+      sources += [ "starboard/gtest_main_chromium.cc" ]
+    } else {
+      sources += [ "gtest_main_chromium.cc" ]
+    }
     deps += [ "//base/test:test_support" ]
   }
 
