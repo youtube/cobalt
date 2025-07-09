@@ -326,7 +326,9 @@ void CheckException(JNIEnv* env) {
   if (!HasException(env))
     return;
 
+#if BUILDFLAG(IS_COBALT)
   std::string exception_token;
+#endif
   jthrowable java_throwable = env->ExceptionOccurred();
   if (java_throwable) {
     // Clear the pending exception, since a local reference is now held.
@@ -337,18 +339,29 @@ void CheckException(JNIEnv* env) {
       // Another exception (probably OOM) occurred during GetJavaExceptionInfo.
       base::android::SetJavaException(
           "Java OOM'ed in exception handling, check logcat");
+#if BUILDFLAG(IS_COBALT)
       exception_token = "Java OOM'ed";
+#endif
     } else {
       g_fatal_exception_occurred = true;
-      // RVO should avoid any extra copies of the exception string.
+#if BUILDFLAG(IS_COBALT)
       std::string exception_info = GetJavaExceptionInfo(env, java_throwable);
       base::android::SetJavaException(exception_info.c_str());
       exception_token = FindFirstJavaFileAndLine(exception_info);
+#else
+      // RVO should avoid any extra copies of the exception string.
+      base::android::SetJavaException(
+          GetJavaExceptionInfo(env, java_throwable).c_str());
+#endif
     }
   }
 
   // Now, feel good about it and die.
+#if BUILDFLAG(IS_COBALT)
   LOG(FATAL) << "JNI exception: " << exception_token;
+#else
+  LOG(FATAL) << "Please include Java exception stack in crash report";
+#endif
 }
 
 std::string GetJavaExceptionInfo(JNIEnv* env, jthrowable java_throwable) {
