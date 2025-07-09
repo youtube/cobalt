@@ -37,7 +37,9 @@ struct PosixTestData {
   std::string expected_tzname_dst;  // Empty if no DST rule.
 
   friend void PrintTo(const PosixTestData& data, ::std::ostream* os) {
-    *os << "{ test_name: \"" << data.test_name << "\", tz_string: \"" << data.tz_string << "\", expected_timezone: " << data.expected_timezone << ", expected_tzname_std: \"" << data.expected_tzname_std << "\"";
+    *os << "{ test_name: \"" << data.test_name << "\", tz_string: \""
+        << data.tz_string << "\", expected_timezone: " << data.expected_timezone
+        << ", expected_tzname_std: \"" << data.expected_tzname_std << "\"";
     if (!data.expected_tzname_dst.empty()) {
       *os << ", expected_tzname_dst: \"" << data.expected_tzname_dst << "\"";
     } else {

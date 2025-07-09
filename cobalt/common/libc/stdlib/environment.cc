@@ -93,6 +93,10 @@ char** Environment::InitializeGlobalEnviron() {
   // Initialize the TZ variable from the Starboard API.
   const char* iana_id = SbTimeZoneGetName();
   if (iana_id) {
+    // It is best to set TZ here versus during the first call to tzset(). TZ is
+    // the authoritative source for the configured timezone of the system. This
+    // will allow programs to read the TZ environment variable without first
+    // calling tzset().
     setenv("TZ", iana_id, 0 /* overwrite */);
   }
 
