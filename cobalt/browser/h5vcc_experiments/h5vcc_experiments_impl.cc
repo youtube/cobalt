@@ -60,13 +60,11 @@ H5vccExperimentsImpl::H5vccExperimentsImpl(
 void H5vccExperimentsImpl::SetExperimentState(
     base::Value::Dict experiment_config,
     SetExperimentStateCallback callback) {
-  auto* experiment_config_ptr =
-      cobalt::GlobalFeatures::GetInstance()->experiment_config();
+  auto* global_features = cobalt::GlobalFeatures::GetInstance();
+  auto* experiment_config_ptr = global_features->experiment_config();
   // A valid experiment config is supplied by h5vcc and we store the current
   // config as the safe config.
-  cobalt::GlobalFeatures::GetInstance()
-      ->experiment_config_manager()
-      ->StoreSafeConfig();
+  global_features->experiment_config_manager()->StoreSafeConfig();
 
   experiment_config_ptr->SetDict(
       cobalt::kExperimentConfigFeatures,
