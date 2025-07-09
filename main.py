@@ -54,8 +54,8 @@ def linearize_history(repo, args):
     end_commit = repo.commit(args.end_commit_ref)
 
     # Initial Branch Setup
+    repo.git.checkout(args.source_branch)
     if args.new_branch_name in repo.heads:
-        repo.git.checkout(args.source_branch)
         repo.delete_head(args.new_branch_name, force=True)
     new_branch = repo.create_head(args.new_branch_name, start_commit)
     repo.head.reference = new_branch
@@ -243,6 +243,7 @@ def main():
     # Commits command
     commits_parser = subparsers.add_parser('commits', help='Extract commits to a JSON file.')
     commits_parser.add_argument('--repo-path', type=str, required=True, help='The path to the local repository.')
+    commits_parser.add_argument('--source-branch', type=str, required=True, help='The linear branch.')
     commits_parser.add_argument('--start-commit-ref', type=str, required=True, help='The starting commit SHA or ref.')
     commits_parser.add_argument('--end-commit-ref', type=str, required=True, help='The ending commit SHA or ref.')
     commits_parser.add_argument('--output-file', type=str, default='commits.json', help='The output JSON file for the commits.')
@@ -261,6 +262,7 @@ def main():
     if args.command == 'linearize':
         linearize_history(repo, args)
     elif args.command == 'commits':
+        repo.git.checkout(args.source_branch)
         commits = list(repo.iter_commits(f'{args.start_commit_ref}..{args.end_commit_ref}'))
         commit_data = []
         for commit in commits:
@@ -271,7 +273,7 @@ def main():
             commit_data.append({
                 'hexsha': commit.hexsha,
                 'author': commit.author.name,
-                'datetime': commit.authored_dfatetime.isoformat(),
+                'datetime': commit.authored_datetime.isoformat(),
                 'summary': commit.summary,
                 'stats': {
                     'files': stats.total['files'],
