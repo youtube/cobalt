@@ -335,6 +335,7 @@ def main() -> int:
       '--retry_level',
       type=str,
       default='ERROR',
+      choices=['ERROR', 'FAIL'],
       help='Retry level for failed tests.',
   )
   trigger_args.add_argument(
@@ -400,6 +401,8 @@ def main() -> int:
   )
 
   args = parser.parse_args()
+
+  # TODO(b/428961033): Let argparse handle these checks as required arguments.
   if args.test_type == 'e2e_test':
     if not args.cobalt_path:
       raise ValueError('--cobalt_path is required for e2e_test')
