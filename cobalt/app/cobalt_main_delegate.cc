@@ -59,6 +59,12 @@ CobaltMainDelegate::CreateContentRendererClient() {
   return renderer_client_.get();
 }
 
+content::ContentUtilityClient*
+CobaltMainDelegate::CreateContentUtilityClient() {
+  utility_client_ = std::make_unique<CobaltContentUtilityClient>();
+  return utility_client_.get();
+}
+
 std::optional<int> CobaltMainDelegate::PostEarlyInitialization(
     InvokedIn invoked_in) {
   content::RenderFrameHost::AllowInjectingJavaScript();
