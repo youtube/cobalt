@@ -22,7 +22,7 @@
 
 #if BUILDFLAG(USE_STARBOARD_MEDIA)
 #include "media/mojo/clients/mojo_cdm.h"
-#endif // BUILDFLAG(USE_STARBOARD_MEDIA)
+#endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
 
 namespace blink {
 namespace {
@@ -266,7 +266,8 @@ WebContentDecryptionModuleSessionImpl* CdmSessionAdapter::GetSession(
 }
 
 #if BUILDFLAG(USE_STARBOARD_MEDIA)
-void CdmSessionAdapter::GetMetrics(base::OnceCallback<void(const std::string&)> callback) {
+void CdmSessionAdapter::GetMetrics(
+    base::OnceCallback<void(const std::string&)> callback) {
   DCHECK(cdm_);
 
   auto* mojo_cdm = static_cast<media::MojoCdm*>(cdm_.get());
@@ -274,6 +275,6 @@ void CdmSessionAdapter::GetMetrics(base::OnceCallback<void(const std::string&)> 
 
   mojo_cdm->GetMetrics(std::move(callback));
 }
-#endif // BUILDFLAG(USE_STARBOARD_MEDIA)
+#endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
 
 }  // namespace blink

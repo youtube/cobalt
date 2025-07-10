@@ -119,7 +119,7 @@ class PLATFORM_EXPORT CdmSessionAdapter
 
 #if BUILDFLAG(USE_STARBOARD_MEDIA)
   void GetMetrics(base::OnceCallback<void(const std::string&)> callback);
-#endif // BUILDFLAG(USE_STARBOARD_MEDIA)
+#endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
 
  private:
   friend class base::RefCounted<CdmSessionAdapter>;

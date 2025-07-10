@@ -106,7 +106,6 @@ void WebContentDecryptionModuleImpl::Create(
   // |adapter| will be destructed.
   scoped_refptr<CdmSessionAdapter> adapter(new CdmSessionAdapter());
   adapter->CreateCdm(cdm_factory, cdm_config, std::move(web_cdm_created_cb));
-
 }
 
 WebContentDecryptionModuleImpl::WebContentDecryptionModuleImpl(
@@ -156,10 +155,11 @@ void WebContentDecryptionModuleImpl::GetStatusForPolicy(
 }
 
 #if BUILDFLAG(USE_STARBOARD_MEDIA)
-void WebContentDecryptionModuleImpl::GetMetrics(base::OnceCallback<void(const std::string&)> callback) {
+void WebContentDecryptionModuleImpl::GetMetrics(
+    base::OnceCallback<void(const std::string&)> callback) {
   adapter_->GetMetrics(std::move(callback));
 }
-#endif // BUILDFLAG(USE_STARBOARD_MEDIA)
+#endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
 
 std::unique_ptr<media::CdmContextRef>
 WebContentDecryptionModuleImpl::GetCdmContextRef() {

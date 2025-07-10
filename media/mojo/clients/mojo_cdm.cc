@@ -107,7 +107,7 @@ MojoCdm::~MojoCdm() {
   if (!sbdrm_handle_.is_empty()) {
     remote_cdm_->DeleteStarboardDrmSystemHandle(sbdrm_handle_);
   }
-#endif // BUILDFLAG(USE_STARBOARD_MEDIA)
+#endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
 
   // Release |decryptor_| on the correct thread. If GetDecryptor() is never
   // called but |decryptor_remote_| is not null, it is not bound to any
@@ -419,34 +419,36 @@ void MojoCdm::RejectPromiseConnectionLost(uint32_t promise_id) {
 }
 
 #if BUILDFLAG(USE_STARBOARD_MEDIA)
-void MojoCdm::GetMetrics(base::OnceCallback<void(const std::string&)> callback) {
+void MojoCdm::GetMetrics(
+    base::OnceCallback<void(const std::string&)> callback) {
   if (!remote_cdm_.is_bound()) {
     // If we're not connected, run the callback with an empty string.
     std::move(callback).Run(std::string());
     return;
   }
 
-   if (sbdrm_handle_.is_empty()) {
-     // Start an async call to get an sbdrm_token_ then call get metrics
-     remote_cdm_->GetStarboardDrmSystemHandle(
-         base::BindOnce(&MojoCdm::OnHandleReceived, base::Unretained(this),
-                        std::move(callback)));
-   } else {
-     remote_cdm_->GetMetrics(
-         sbdrm_handle_,
-         base::BindOnce(&MojoCdm::OnMetricsReceived, base::Unretained(this),
-                        std::move(callback)));
-   }
+  if (sbdrm_handle_.is_empty()) {
+    // Start an async call to get an sbdrm_token_ then call get metrics
+    remote_cdm_->GetStarboardDrmSystemHandle(
+        base::BindOnce(&MojoCdm::OnHandleReceived, base::Unretained(this),
+                       std::move(callback)));
+  } else {
+    remote_cdm_->GetMetrics(
+        sbdrm_handle_,
+        base::BindOnce(&MojoCdm::OnMetricsReceived, base::Unretained(this),
+                       std::move(callback)));
+  }
 }
 
-void MojoCdm::OnHandleReceived(base::OnceCallback<void(const std::string&)> callback,
-  const absl::optional<base::UnguessableToken>& handle) {
-   if (!handle) {
+void MojoCdm::OnHandleReceived(
+    base::OnceCallback<void(const std::string&)> callback,
+    const absl::optional<base::UnguessableToken>& handle) {
+  if (!handle) {
     std::move(callback).Run(std::string());
     return;
   }
 
-   sbdrm_handle_ = handle.value();
+  sbdrm_handle_ = handle.value();
 
   // Once the handle is received, get the metrics.
   remote_cdm_->GetMetrics(
@@ -455,11 +457,11 @@ void MojoCdm::OnHandleReceived(base::OnceCallback<void(const std::string&)> call
                      std::move(callback)));
 }
 
-void MojoCdm::OnMetricsReceived(base::OnceCallback<void(const std::string&)> callback,
-  const absl::optional<std::string>& metrics_string) {
+void MojoCdm::OnMetricsReceived(
+    base::OnceCallback<void(const std::string&)> callback,
+    const absl::optional<std::string>& metrics_string) {
   std::move(callback).Run(metrics_string.value_or(std::string()));
-
 }
-#endif // BUILDFLAG(USE_STARBOARD_MEDIA)
+#endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
 
 }  // namespace media

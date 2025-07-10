@@ -82,7 +82,7 @@ class MediaKeys : public ScriptWrappable,
 
 #if BUILDFLAG(USE_STARBOARD_MEDIA)
   ScriptPromise getMetrics(ScriptState* script_state);
-#endif // BUILDFLAG(USE_STARBOARD_MEDIA)
+#endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
 
   // Indicates that the provided HTMLMediaElement wants to use this object.
   // Returns true if no other HTMLMediaElement currently references this
