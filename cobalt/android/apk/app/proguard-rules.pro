@@ -54,3 +54,11 @@
 -keepclasseswithmembers,includedescriptorclasses,allowaccessmodification,allowoptimization class ** {
   @dev.cobalt.coat.javabridge.CobaltJavaScriptInterface <methods>;
 }
+
+# Keep classes from the following packages from being obfuscated.
+# classes with package name starts with dev.cobalt
+-keep class dev.cobalt.** { *; }
+# classes with package name is org.chromium.components.embedder_support.view
+-keep class org.chromium.components.embedder_support.view.* { *; }
+# classes with package name starts with org.chromium.content
+-keep class org.chromium.content.** { *; }
