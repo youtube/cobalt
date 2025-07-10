@@ -25,7 +25,7 @@
 #if BUILDFLAG(USE_STARBOARD_MEDIA)
 #include "media/mojo/services/starboard/starboard_drm_system_manager.h"
 #include "media/starboard/starboard_cdm.h"
-#endif // BUILDFLAG(USE_STARBOARD_MEDIA)
+#endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
 
 namespace media {
 
@@ -286,9 +286,8 @@ void MojoCdmService::GetMetrics(const base::UnguessableToken& drm_system_handle,
   // blob, encoded using url safe base64 without padding and line wrapping
   // see starboard/drm.h
   int metrics_size = 0;
-  const uint8_t* metrics_data =
-    static_cast<const uint8_t*>(SbDrmGetMetrics(
-          drm_system.value(), &metrics_size));
+  const uint8_t* metrics_data = static_cast<const uint8_t*>(
+      SbDrmGetMetrics(drm_system.value(), &metrics_size));
 
   if (!metrics_data || metrics_size <= 0) {
     DLOG(ERROR) << "Failed to get metrics from SbDrmSystem.";
@@ -299,6 +298,6 @@ void MojoCdmService::GetMetrics(const base::UnguessableToken& drm_system_handle,
   std::string metrics_string(metrics_data, metrics_data + metrics_size);
   std::move(callback).Run(std::move(metrics_string));
 }
-#endif // BUILDFLAG(USE_STARBOARD_MEDIA)
+#endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
 
 }  // namespace media
