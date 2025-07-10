@@ -559,6 +559,11 @@ public abstract class CobaltActivity extends Activity {
   }
 
   public void resetVideoSurface() {
+    if (ContentFeatureList.isEnabled(ContentFeatureList.COBALT_USING_ANDROID_OVERLAY)) {
+      // VideoSurfaceView will be null if Cobalt is using Android Overlay.
+      return;
+    }
+
     runOnUiThread(
         new Runnable() {
           @Override
@@ -569,10 +574,16 @@ public abstract class CobaltActivity extends Activity {
   }
 
   public void setVideoSurfaceBounds(final int x, final int y, final int width, final int height) {
+    if (ContentFeatureList.isEnabled(ContentFeatureList.COBALT_USING_ANDROID_OVERLAY)) {
+      // VideoSurfaceView will be null if Cobalt is using Android Overlay.
+      return;
+    }
+    
     if (width == 0 || height == 0) {
       // The SurfaceView should be covered by our UI layer in this case.
       return;
     }
+
     runOnUiThread(
         new Runnable() {
           @Override
@@ -605,6 +616,11 @@ public abstract class CobaltActivity extends Activity {
   }
 
   private void createNewSurfaceView() {
+    if (ContentFeatureList.isEnabled(ContentFeatureList.COBALT_USING_ANDROID_OVERLAY)) {
+      // VideoSurfaceView will be null if Cobalt is using Android Overlay.
+      return;
+    }
+
     ViewParent parent = videoSurfaceView.getParent();
     if (parent instanceof FrameLayout) {
       FrameLayout frameLayout = (FrameLayout) parent;
