@@ -32,6 +32,11 @@
 #include "components/os_crypt/sync/os_crypt.h"
 #endif
 
+
+#include "cobalt/splash/splash.h"
+#include "ui/aura/window_tree_host.h"
+
+
 namespace cobalt {
 
 int CobaltBrowserMainParts::PreCreateThreads() {
@@ -41,6 +46,11 @@ int CobaltBrowserMainParts::PreCreateThreads() {
 
 int CobaltBrowserMainParts::PreMainMessageLoopRun() {
   StartMetricsRecording();
+
+  // splash_ = Splash::Show(browser_context_.get(),
+  //     content::Shell::windows()[0]->window()->GetHost()->window(),
+  //     GURL("https://serve-dot-zipline.appspot.com/asset/85c0fdfa-ac32-5348-a73d-a9ede6330205/zpc/r5hdve28yl9/"));
+
   return ShellBrowserMainParts::PreMainMessageLoopRun();
 }
 

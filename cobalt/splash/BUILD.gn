@@ -1,0 +1,11 @@
+source_set("splash") {
+  sources = [
+    "splash.cc",
+    "splash.h",
+  ]
+
+  deps = [
+    "//base",
+    "//content/public/browser",
+  ]
+}
