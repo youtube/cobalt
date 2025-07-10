@@ -23,6 +23,10 @@
 extern "C" {
 #endif
 
+// Set to 257 to match the field size defined in SVr4:
+// https://man7.org/linux/man-pages/man2/uname.2.html.
+// This size should handle the largest hostnames encountered
+// in the wild.
 #define MUSL_UTSNAME_FIELD_SIZE 257
 
 struct musl_utsname {
