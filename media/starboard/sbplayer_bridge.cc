@@ -266,6 +266,9 @@ SbPlayerBridge::SbPlayerBridge(
   DCHECK(decode_target_provider_);
 #endif  // COBALT_MEDIA_ENABLE_DECODE_TARGET_PROVIDER
 
+  LOG(WARNING) << "@@@@@@@@@@@@@@@@@@@@@@@\n@@@@@@@@@@@@@@@@@@@@@@@\n@@@@@@@@@@"
+                  "@@@@@@@@@@@@@\n SbPlayerBridge";
+
   audio_stream_info_.codec = kSbMediaAudioCodecNone;
   video_stream_info_.codec = kSbMediaVideoCodecNone;
 
