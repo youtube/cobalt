@@ -156,8 +156,11 @@ class Timezone {
   // Set the returned timezone to UTC.
   static void SetToUTC();
 
-  // Return true if the timezone_name is the same as the cached name.
+  // Return true if the timezone has changed.
   static bool TimezoneIsChanged(const char* timezone_name);
+
+  // Cache the new timezone name.
+  static void CacheTimeZoneName(const char* timezone_name);
 };
 
 Timezone::Name Timezone::std_name_{};
@@ -593,12 +596,15 @@ void Timezone::SetFromIana(const char* timezone_name) {
 
 bool Timezone::TimezoneIsChanged(const char* timezone_name) {
   // If tzname[0] is nullptr, this is the first call. Otherwise,
-  // compare the timezone_name with the cached name and return false
-  // if they match.
+  // return false if the timezone_name is the same as the cached name.
   if (tzname[0] && timezone_name && timezone_name[0] &&
       strcmp(cached_timezone_name_.data(), timezone_name) == 0) {
     return false;
   }
+  return true;
+}
+
+void Timezone::CacheTimeZoneName(const char* timezone_name) {
   size_t to_copy = 0;
   if (timezone_name) {
     std::string_view tz_name_view(timezone_name);
@@ -606,7 +612,6 @@ bool Timezone::TimezoneIsChanged(const char* timezone_name) {
     std::copy_n(tz_name_view.begin(), to_copy, cached_timezone_name_.data());
   }
   cached_timezone_name_[to_copy] = '\0';
-  return true;
 }
 
 void Timezone::Tzset() {
@@ -621,11 +626,11 @@ void Timezone::Tzset() {
     return;
   }
 
+  CacheTimeZoneName(timezone_name);
+
   // No timezone is specified, default to UTC.
   if (!timezone_name || !timezone_name[0]) {
     SetToUTC();
-    // Clear the cache since we are now in a non-specific (UTC) state.
-    cached_timezone_name_[0] = '\0';
     return;
   }
 
