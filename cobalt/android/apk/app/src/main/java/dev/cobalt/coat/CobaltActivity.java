@@ -94,7 +94,6 @@ public abstract class CobaltActivity extends Activity {
   private Intent mLastSentIntent;
   private String mStartupUrl;
   private IntentRequestTracker mIntentRequestTracker;
-  protected Boolean shouldSetJNIPrefix = true;
   // Tracks the status of the FLAG_KEEP_SCREEN_ON window flag.
   private Boolean isKeepScreenOnEnabled = false;
 
@@ -122,7 +121,6 @@ public abstract class CobaltActivity extends Activity {
               getIntent(), COMMAND_LINE_BLINK_ENABLE_FEATURES_KEY);
       CommandLineOverrideHelper.getFlagOverrides(
           new CommandLineOverrideHelper.CommandLineOverrideHelperParams(
-              shouldSetJNIPrefix,
               VersionInfo.isOfficialBuild(),
               commandLineOverrides,
               jsFlagOverrides,

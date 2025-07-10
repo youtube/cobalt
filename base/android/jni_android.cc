@@ -17,8 +17,6 @@
 #include "base/base_jni_headers/PiiElider_jni.h"
 #include "base/debug/debugging_buildflags.h"
 #include "base/logging.h"
-#include "base/base_switches.h"
-#include "base/command_line.h"
 #include "build/build_config.h"
 #include "third_party/abseil-cpp/absl/base/attributes.h"
 
@@ -36,52 +34,9 @@ ABSL_CONST_INIT thread_local void* stack_frame_pointer = nullptr;
 
 bool g_fatal_exception_occurred = false;
 
-/* Cobalt specific hack to move Java classes to a custom namespace.
-   For every class org.chromium.foo moves them to cobalt.org.chromium.foo
-   This works around link-time conflicts when building the final
-   package against other Chromium release artifacts. */
-#if BUILDFLAG(IS_COBALT)
-const char* COBALT_ORG_CHROMIUM = "cobalt/org/chromium";
-const char* ORG_CHROMIUM = "org/chromium";
-
-bool g_add_cobalt_prefix = false;
-std::atomic<bool> g_checked_command_line(false);
-
-std::string getRepackagedName(const char* signature) {
-  std::string holder(signature);
-  size_t pos = 0;
-  while ((pos = holder.find(ORG_CHROMIUM, pos)) != std::string::npos) {
-    holder.replace(pos, strlen(ORG_CHROMIUM), COBALT_ORG_CHROMIUM);
-    pos += strlen(COBALT_ORG_CHROMIUM);
-  }
-  return holder;
-}
-
-bool shouldAddCobaltPrefix() {
-  if (!g_checked_command_line && base::CommandLine::InitializedForCurrentProcess()) {
-    g_add_cobalt_prefix = base::CommandLine::ForCurrentProcess()->HasSwitch(switches::kCobaltJniPrefix);
-    g_checked_command_line = true;
-  }
-  return g_add_cobalt_prefix;
-}
-#endif
-
 ScopedJavaLocalRef<jclass> GetClassInternal(JNIEnv* env,
-#if BUILDFLAG(IS_COBALT)
-                                            const char* original_class_name,
-                                            jobject class_loader) {
-  const char* class_name;
-  std::string holder;
-  if (shouldAddCobaltPrefix()) {
-    holder = getRepackagedName(original_class_name);
-    class_name = holder.c_str();
-  } else {
-    class_name = original_class_name;
-  }
-#else
                                             const char* class_name,
                                             jobject class_loader) {
-#endif
   jclass clazz;
   if (class_loader != nullptr) {
     // ClassLoader.loadClass expects a classname with components separated by
@@ -278,17 +233,7 @@ jmethodID MethodID::LazyGet(JNIEnv* env,
   const jmethodID value = atomic_method_id->load(std::memory_order_acquire);
   if (value)
     return value;
-#if BUILDFLAG(IS_COBALT)
-  jmethodID id;
-  if (shouldAddCobaltPrefix()) {
-    std::string holder = getRepackagedName(jni_signature);
-    id = MethodID::Get<type>(env, clazz, method_name, holder.c_str());
-  } else {
-    id = MethodID::Get<type>(env, clazz, method_name, jni_signature);
-  }
-#else
   jmethodID id = MethodID::Get<type>(env, clazz, method_name, jni_signature);
-#endif
   atomic_method_id->store(id, std::memory_order_release);
   return id;
 }

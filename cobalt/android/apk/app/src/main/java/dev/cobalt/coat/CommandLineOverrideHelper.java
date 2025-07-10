@@ -34,14 +34,12 @@ public final class CommandLineOverrideHelper {
     /** Param class to simplify #getFlagOverrides method signature */
     public static class CommandLineOverrideHelperParams {
         public CommandLineOverrideHelperParams(
-            boolean shouldSetJNIPrefix,
             boolean isOfficialBuild,
             String[] commandLineOverrides,
             String[] jsFlagCommandLineOverrides,
             String[] enableFeaturesCommandLineOverrides,
             String[] disableFeaturesCommandLineOverrides,
             String[] blinkEnableFeaturesCommandLineOverrides) {
-            mShouldSetJNIPrefix = shouldSetJNIPrefix;
             mIsOfficialBuild = isOfficialBuild;
             mCommandLineOverrides = commandLineOverrides;
             mJsFlagCommandLineOverrides = jsFlagCommandLineOverrides;
@@ -50,7 +48,6 @@ public final class CommandLineOverrideHelper {
             mBlinkEnableFeaturesCommandLineOverrides = blinkEnableFeaturesCommandLineOverrides;
         }
 
-        private boolean mShouldSetJNIPrefix;
         private boolean mIsOfficialBuild;
         private String[] mCommandLineOverrides;
         private String[] mJsFlagCommandLineOverrides;
@@ -142,10 +139,6 @@ public final class CommandLineOverrideHelper {
             getDefaultBlinkEnableFeatureOverridesList();
 
         if (params != null) {
-            if (params.mShouldSetJNIPrefix) {
-                // Helps Kimono build avoid package name conflict with cronet.
-                cliOverrides.add("--cobalt-jni-prefix");
-            }
             if (!params.mIsOfficialBuild) {
                 cliOverrides.add(
                   "--remote-allow-origins="
