@@ -20,6 +20,10 @@
 
 #include "components/js_injection/browser/js_communication_host.h"
 
+#if BUILDFLAG(IS_ANDROIDTV)
+#include "ui/android/view_android.h"
+#endif
+
 namespace cobalt {
 
 class CobaltWebContentsObserver : public content::WebContentsObserver {
@@ -30,9 +34,17 @@ class CobaltWebContentsObserver : public content::WebContentsObserver {
   void DidFinishNavigation(
       content::NavigationHandle* navigation_handle) override;
   void DidStopLoading() override;
+  void DidFinishLoad(content::RenderFrameHost* render_frame_host,
+                     const GURL& validated_url) override;
 
  private:
   void RegisterInjectedJavaScript();
+  void DeleteSplash();
+
+  std::unique_ptr<content::WebContents> splash_;
+#if BUILDFLAG(IS_ANDROIDTV)
+  ui::ViewAndroid::ScopedAnchorView anchor_view_;
+#endif
 
   std::unique_ptr<js_injection::JsCommunicationHost> js_communication_host_;
 };

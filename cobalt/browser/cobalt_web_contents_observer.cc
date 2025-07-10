@@ -17,6 +17,7 @@
 #include "base/strings/utf_string_conversions.h"
 #include "cobalt/browser/embedded_resources/embedded_js.h"
 #include "cobalt/browser/migrate_storage_record/migration_manager.h"
+#include "cobalt/splash/splash.h"
 #include "content/public/browser/navigation_handle.h"
 #include "content/public/browser/render_widget_host_view.h"
 #include "content/public/browser/web_contents.h"
@@ -24,11 +25,16 @@
 #if BUILDFLAG(IS_ANDROIDTV)
 #include "cobalt/android/oom_intervention/oom_intervention_tab_helper.h"
 #include "starboard/android/shared/starboard_bridge.h"
+#include "ui/android/view_android.h"
 
 using ::starboard::StarboardBridge;
 #endif
 
 namespace cobalt {
+
+namespace {
+std::atomic<bool> splashed;
+}
 
 CobaltWebContentsObserver::CobaltWebContentsObserver(
     content::WebContents* web_contents)
@@ -84,7 +90,23 @@ enum {
 
 void CobaltWebContentsObserver::DidFinishNavigation(
     content::NavigationHandle* navigation_handle) {
+  // Not getting called for android.
   LOG(INFO) << "Navigated to: " << navigation_handle->GetURL();
+  if (!splashed.load()) {
+    splashed = true;
+    LOG(INFO) << "Show splash!!!";
+    splash_ = Splash::Show(web_contents()->GetBrowserContext(),
+                           web_contents()->GetNativeView(),
+                           GURL("https://www.example.com"));
+    // GURL("https://serve-dot-zipline.appspot.com/asset/"
+    //      "bd6af0e0-dde1-5515-9269-160a8b8db8b6/zpc/5gtay4qr9bs/"));
+
+#if BUILDFLAG(IS_ANDROIDTV)
+    anchor_view_ = splash_->GetNativeView()->AcquireAnchorView();
+#endif
+  } else {
+    LOG(INFO) << "splash already shown?";
+  }
 #if BUILDFLAG(IS_ANDROIDTV)
   if (navigation_handle->IsErrorPage() &&
       navigation_handle->GetNetErrorCode() == net::ERR_NAME_NOT_RESOLVED) {
@@ -98,11 +120,31 @@ void CobaltWebContentsObserver::DidFinishNavigation(
 #endif
 }
 
+
 void CobaltWebContentsObserver::DidStopLoading() {
   // Set initial focus to the web content.
   if (web_contents()->GetRenderWidgetHostView()) {
     web_contents()->GetRenderWidgetHostView()->Focus();
   }
+}
+
+void CobaltWebContentsObserver::DeleteSplash() {
+  LOG(INFO) << "splash_ deleted!!";
+#if BUILDFLAG(IS_ANDROIDTV)
+  anchor_view_.Reset();
+#endif
+  splash_.reset();
+}
+
+void CobaltWebContentsObserver::DidFinishLoad(
+    content::RenderFrameHost* render_frame_host,
+    const GURL& validated_url) {
+  base::SingleThreadTaskRunner::GetCurrentDefault()->PostDelayedTask(
+      FROM_HERE,
+      base::BindOnce(&CobaltWebContentsObserver::DeleteSplash,
+                     base::Unretained(this)),
+      base::Milliseconds(5000));
+  LOG(INFO) << "splash_ delete scheduled!!";
 }
 
 }  // namespace cobalt

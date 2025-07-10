@@ -22,6 +22,10 @@
 #include "content/public/browser/generated_code_cache_settings.h"
 #include "mojo/public/cpp/bindings/pending_receiver.h"
 
+#if BUILDFLAG(IS_ANDROIDTV)
+#include "ui/android/view_android.h"
+#endif
+
 class PrefService;
 
 namespace content {
@@ -131,6 +135,11 @@ class CobaltContentBrowserClient : public content::ShellContentBrowserClient {
       video_geometry_setter_service_;
   std::vector<std::unique_ptr<browser::CobaltTrustedURLLoaderHeaderClient>>
       cobalt_header_clients_;
+
+  std::unique_ptr<content::WebContents> splash_;
+#if BUILDFLAG(IS_ANDROIDTV)
+  ui::ViewAndroid::ScopedAnchorView anchor_view_;
+#endif
 
   THREAD_CHECKER(thread_checker_);
 };
