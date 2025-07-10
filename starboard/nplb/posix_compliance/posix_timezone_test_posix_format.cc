@@ -30,20 +30,19 @@ namespace nplb {
 namespace {
 
 struct PosixTestData {
-  std::string test_name;
-  std::string tz_string;
-  long expected_timezone;
-  std::string expected_tzname_std;
-  std::string expected_tzname_dst;  // Empty if no DST rule.
+  const char* test_name;
+  const char* tz;
+  long offset;
+  const char* std;
+  std::optional<const char*> dst = std::nullopt;
 
   friend void PrintTo(const PosixTestData& data, ::std::ostream* os) {
-    *os << "{ test_name: \"" << data.test_name << "\", tz_string: \""
-        << data.tz_string << "\", expected_timezone: " << data.expected_timezone
-        << ", expected_tzname_std: \"" << data.expected_tzname_std << "\"";
-    if (!data.expected_tzname_dst.empty()) {
-      *os << ", expected_tzname_dst: \"" << data.expected_tzname_dst << "\"";
+    *os << "{ test_name: \"" << data.test_name << "\", tz: \"" << data.tz
+        << "\", offset: " << data.offset << ", std: \"" << data.std << "\"";
+    if (data.dst.has_value()) {
+      *os << ", dst: \"" << data.dst.value() << "\"";
     } else {
-      *os << ", expected_tzname_dst: (not checked)";
+      *os << ", dst: (not checked)";
     }
     *os << " }\n";
   }
@@ -57,48 +56,77 @@ std::string GetTestName(const ::testing::TestParamInfo<PosixTestData>& info) {
 
 class PosixFormat : public ::testing::TestWithParam<PosixTestData> {
  public:
-  static const inline std::vector<PosixTestData> kAllTests = {
-      PosixTestData{"EmptyTZStringAsUTC", "", 0, "UTC"},
-      PosixTestData{"LeadingColon", ":UTC0", 0, "UTC"},
-      PosixTestData{"ISTMinus530", "IST-5:30",
-                    -(5 * kSecondsInHour + 30 * kSecondsInMinute),
-                    "IST"},  // codespell:ignore ist
-      PosixTestData{"FullHmsOffset", "FOO+08:30:15",
-                    8 * kSecondsInHour + 30 * kSecondsInMinute + 15, "FOO"},
-      PosixTestData{"CST6CDT", "CST6CDT", 6 * kSecondsInHour, "CST", "CDT"},
-      PosixTestData{"DefaultDstOffset", "PST8PDT", 8 * kSecondsInHour, "PST",
-                    "PDT"},
-      PosixTestData{"ExplicitDSTOffset", "AAA+5BBB+4", 5 * kSecondsInHour,
-                    "AAA", "BBB"},
-      PosixTestData{"QuotedNames", "<UTC+3>-3<-UTC+2>-2", -3 * kSecondsInHour,
-                    "UTC+3", "-UTC+2"},
-      PosixTestData{"JulianDayDSTRule", "CST6CDT,J60,J300", 6 * kSecondsInHour,
-                    "CST", "CDT"},
-      PosixTestData{"ZeroBasedJulianDayDSTRule", "MST7MDT,59,299",
-                    7 * kSecondsInHour, "MST", "MDT"},
-      PosixTestData{"DSTRulesEST5EDT", "EST5EDT,M3.2.0/2,M11.1.0/2",
-                    5 * kSecondsInHour, "EST", "EDT"},
-      PosixTestData{"TransitionRuleWithExplicitTime",
-                    "CST6CDT,M3.2.0/02:30:00,M11.1.0/03:00:00",
-                    6 * kSecondsInHour, "CST", "CDT"},
-  };
+  static const std::array<PosixTestData, 12> kAllTests;
 };
+
+const std::array<PosixTestData, 12> PosixFormat::kAllTests = {{
+    {.test_name = "EmptyTZStringAsUTC", .tz = "", .offset = 0, .std = "UTC"},
+    {.test_name = "LeadingColon", .tz = ":UTC0", .offset = 0, .std = "UTC"},
+    {.test_name = "ISTMinus530",
+     .tz = "IST-5:30",
+     .offset = -(5 * kSecondsInHour + 30 * kSecondsInMinute),
+     .std = "IST"},
+    {.test_name = "FullHmsOffset",
+     .tz = "FOO+08:30:15",
+     .offset = 8 * kSecondsInHour + 30 * kSecondsInMinute + 15,
+     .std = "FOO"},
+    {.test_name = "CST6CDT",
+     .tz = "CST6CDT",
+     .offset = 6 * kSecondsInHour,
+     .std = "CST",
+     .dst = "CDT"},
+    {.test_name = "DefaultDstOffset",
+     .tz = "PST8PDT",
+     .offset = 8 * kSecondsInHour,
+     .std = "PST",
+     .dst = "PDT"},
+    {.test_name = "ExplicitDSTOffset",
+     .tz = "AAA+5BBB+4",
+     .offset = 5 * kSecondsInHour,
+     .std = "AAA",
+     .dst = "BBB"},
+    {.test_name = "QuotedNames",
+     .tz = "<UTC+3>-3<-UTC+2>-2",
+     .offset = -3 * kSecondsInHour,
+     .std = "UTC+3",
+     .dst = "-UTC+2"},
+    {.test_name = "JulianDayDSTRule",
+     .tz = "CST6CDT,J60,J300",
+     .offset = 6 * kSecondsInHour,
+     .std = "CST",
+     .dst = "CDT"},
+    {.test_name = "ZeroBasedJulianDayDSTRule",
+     .tz = "MST7MDT,59,299",
+     .offset = 7 * kSecondsInHour,
+     .std = "MST",
+     .dst = "MDT"},
+    {.test_name = "DSTRulesEST5EDT",
+     .tz = "EST5EDT,M3.2.0/2,M11.1.0/2",
+     .offset = 5 * kSecondsInHour,
+     .std = "EST",
+     .dst = "EDT"},
+    {.test_name = "TransitionRuleWithExplicitTime",
+     .tz = "CST6CDT,M3.2.0/02:30:00,M11.1.0/03:00:00",
+     .offset = 6 * kSecondsInHour,
+     .std = "CST",
+     .dst = "CDT"},
+}};
 
 TEST_P(PosixFormat, Handles) {
   const auto& param = GetParam();
-  ScopedTZ tz_manager(param.tz_string.c_str());
+  ScopedTZ tz_manager(param.tz);
 
-  EXPECT_EQ(timezone, param.expected_timezone);
+  EXPECT_EQ(timezone, param.offset);
 
-  bool expected_daylight = !param.expected_tzname_dst.empty();
+  bool expected_daylight = param.dst.has_value();
   EXPECT_EQ(daylight, expected_daylight);
 
   ASSERT_NE(tzname[0], nullptr);
-  EXPECT_STREQ(tzname[0], param.expected_tzname_std.c_str());
+  EXPECT_STREQ(tzname[0], param.std);
 
-  if (!param.expected_tzname_dst.empty()) {
+  if (param.dst.has_value()) {
     ASSERT_NE(tzname[1], nullptr);
-    EXPECT_STREQ(tzname[1], param.expected_tzname_dst.c_str());
+    EXPECT_STREQ(tzname[1], param.dst.value());
   }
 }
 

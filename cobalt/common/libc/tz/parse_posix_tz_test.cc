@@ -32,13 +32,13 @@ bool operator==(const DateRule& lhs, const DateRule& rhs) {
 }
 
 bool operator==(const TransitionRule& lhs, const TransitionRule& rhs) {
-  return lhs.date_rule == rhs.date_rule && lhs.time == rhs.time;
+  return lhs.date == rhs.date && lhs.time == rhs.time;
 }
 
 bool operator==(const TimezoneData& lhs, const TimezoneData& rhs) {
-  return lhs.std_name == rhs.std_name && lhs.std_offset == rhs.std_offset &&
-         lhs.dst_name == rhs.dst_name && lhs.dst_offset == rhs.dst_offset &&
-         lhs.start_rule == rhs.start_rule && lhs.end_rule == rhs.end_rule;
+  return lhs.std == rhs.std && lhs.std_offset == rhs.std_offset &&
+         lhs.dst == rhs.dst && lhs.dst_offset == rhs.dst_offset &&
+         lhs.start == rhs.start && lhs.end == rhs.end;
 }
 
 namespace {
@@ -46,8 +46,8 @@ namespace {
 // Structure to hold all parameters for a single test case.
 struct TzParseTestParam {
   std::string test_name;
-  std::string tz_string;
-  std::optional<TimezoneData> expected_result;
+  std::string tz;
+  std::optional<TimezoneData> result;
 
   // Allows gtest to print readable output.
   friend void PrintTo(const TzParseTestParam& param, std::ostream* os);
@@ -67,16 +67,16 @@ constexpr int kSecondsInMinute = 60;
 // output when a test fails. This version prints on a single line.
 void PrintTo(const TzParseTestParam& param, std::ostream* os) {
   *os << "{ test_name: \"" << param.test_name << "\", "
-      << "tz_string: \"" << param.tz_string << "\", "
-      << "expected_result: ";
-  if (param.expected_result.has_value()) {
-    const auto& data = *param.expected_result;
-    *os << "{ std_name: \"" << data.std_name << "\", "
+      << "tz: \"" << param.tz << "\", "
+      << "result: ";
+  if (param.result.has_value()) {
+    const auto& data = *param.result;
+    *os << "{ std: \"" << data.std << "\", "
         << "std_offset: " << data.std_offset;
-    if (data.dst_name && !data.dst_name->empty()) {
+    if (data.dst && !data.dst->empty()) {
       auto print_rule = [&](const TransitionRule& rule) {
-        *os << "{ date_rule: { format: ";
-        switch (rule.date_rule.format) {
+        *os << "{ date: { format: ";
+        switch (rule.date.format) {
           case DateRule::Format::MonthWeekDay:
             *os << "MonthWeekDay";
             break;
@@ -87,23 +87,21 @@ void PrintTo(const TzParseTestParam& param, std::ostream* os) {
             *os << "ZeroBasedJulian";
             break;
         }
-        *os << ", month: " << rule.date_rule.month
-            << ", week: " << rule.date_rule.week
-            << ", day: " << rule.date_rule.day << " }, time: " << rule.time
-            << " }";
+        *os << ", month: " << rule.date.month << ", week: " << rule.date.week
+            << ", day: " << rule.date.day << " }, time: " << rule.time << " }";
       };
 
-      *os << ", dst_name: \"" << *data.dst_name << "\", "
+      *os << ", dst: \"" << *data.dst << "\", "
           << "dst_offset: " << data.dst_offset.value_or(0) << ", "
-          << "start_rule: ";
-      if (data.start_rule) {
-        print_rule(*data.start_rule);
+          << "start: ";
+      if (data.start) {
+        print_rule(*data.start);
       } else {
         *os << "null";
       }
-      *os << ", end_rule: ";
-      if (data.end_rule) {
-        print_rule(*data.end_rule);
+      *os << ", end: ";
+      if (data.end) {
+        print_rule(*data.end);
       } else {
         *os << "null";
       }
@@ -114,6 +112,7 @@ void PrintTo(const TzParseTestParam& param, std::ostream* os) {
   }
   *os << " }";
 }
+
 }  // namespace
 
 class Tests : public ::testing::TestWithParam<TzParseTestParam> {
@@ -122,119 +121,277 @@ class Tests : public ::testing::TestWithParam<TzParseTestParam> {
   // and the start and end dates as implementation-defined. The parser
   // being tested here uses second Sunday in March as the start and
   // the first Sunday in November as the end.
-  static constexpr TransitionRule kDefaultStartRule = {
-      {DateRule::Format::MonthWeekDay, 3, 2, 0},
-      2 * kSecondsInHour};
-  static constexpr TransitionRule kDefaultEndRule = {
-      {DateRule::Format::MonthWeekDay, 11, 1, 0},
-      2 * kSecondsInHour};
+  static constexpr TransitionRule kDefaultStart = {
+      .date = {.format = DateRule::Format::MonthWeekDay,
+               .month = 3,
+               .week = 2,
+               .day = 0},
+      .time = 2 * kSecondsInHour};
+  static constexpr TransitionRule kDefaultEnd = {
+      .date = {.format = DateRule::Format::MonthWeekDay,
+               .month = 11,
+               .week = 1,
+               .day = 0},
+      .time = 2 * kSecondsInHour};
 
   static const inline std::vector<TzParseTestParam> kAllTests = {
       // --- Success Cases ---
-      {"StdAndOffset", "PST8", TimezoneData{"PST", 8 * kSecondsInHour}},
-      {"NegativeOffset", "CET-1", TimezoneData{"CET", -1 * kSecondsInHour}},
-      {"PositiveSignOffset", "PST+8", TimezoneData{"PST", 8 * kSecondsInHour}},
-      {"HourMinuteOffset", "IST-5:30",  // codespell:ignore ist
-       TimezoneData{"IST",              // codespell:ignore ist
-                    -(5 * kSecondsInHour + 30 * kSecondsInMinute)}},
-      {"HourMinuteSecondOffset", "XYZ-1:23:45",
-       TimezoneData{"XYZ", -(1 * kSecondsInHour + 23 * kSecondsInMinute + 45)}},
+      {.test_name = "StdAndOffset",
+       .tz = "PST8",
+       .result = TimezoneData{.std = "PST", .std_offset = 8 * kSecondsInHour}},
+      {.test_name = "NegativeOffset",
+       .tz = "CET-1",
+       .result = TimezoneData{.std = "CET", .std_offset = -1 * kSecondsInHour}},
+      {.test_name = "PositiveSignOffset",
+       .tz = "PST+8",
+       .result = TimezoneData{.std = "PST", .std_offset = 8 * kSecondsInHour}},
+      {.test_name = "HourMinuteOffset",
+       .tz = "IST-5:30",
+       .result = TimezoneData{.std = "IST",
+                              .std_offset = -(5 * kSecondsInHour +
+                                              30 * kSecondsInMinute)}},
+      {.test_name = "HourMinuteSecondOffset",
+       .tz = "XYZ-1:23:45",
+       .result = TimezoneData{.std = "XYZ",
+                              .std_offset = -(1 * kSecondsInHour +
+                                              23 * kSecondsInMinute + 45)}},
 
       // --- Cases that rely on the parser's DEFAULT rules ---
-      {"DefaultRulesForPositiveOffset", "PST8PDT",
-       TimezoneData{"PST", 8 * kSecondsInHour, "PDT", 7 * kSecondsInHour,
-                    kDefaultStartRule, kDefaultEndRule}},
-      {"DefaultRulesForNegativeOffset", "EET-2EEST",
-       TimezoneData{"EET", -2 * kSecondsInHour, "EEST", -3 * kSecondsInHour,
-                    kDefaultStartRule, kDefaultEndRule}},
-      {"DefaultRulesWithExplicitDstOffset", "EST5EDT4",
-       TimezoneData{"EST", 5 * kSecondsInHour, "EDT", 4 * kSecondsInHour,
-                    kDefaultStartRule, kDefaultEndRule}},
-      {"DefaultRulesForQuotedNames", "<MYT>-8<MYST>-9",
-       TimezoneData{"MYT", -8 * kSecondsInHour, "MYST", -9 * kSecondsInHour,
-                    kDefaultStartRule, kDefaultEndRule}},
-      {"DefaultRulesWithLeadingColon", ":PST8PDT",
-       TimezoneData{"PST", 8 * kSecondsInHour, "PDT", 7 * kSecondsInHour,
-                    kDefaultStartRule, kDefaultEndRule}},
+      {.test_name = "DefaultRulesForPositiveOffset",
+       .tz = "PST8PDT",
+       .result = TimezoneData{.std = "PST",
+                              .std_offset = 8 * kSecondsInHour,
+                              .dst = "PDT",
+                              .dst_offset = 7 * kSecondsInHour,
+                              .start = kDefaultStart,
+                              .end = kDefaultEnd}},
+      {.test_name = "DefaultRulesForNegativeOffset",
+       .tz = "EET-2EEST",
+       .result = TimezoneData{.std = "EET",
+                              .std_offset = -2 * kSecondsInHour,
+                              .dst = "EEST",
+                              .dst_offset = -3 * kSecondsInHour,
+                              .start = kDefaultStart,
+                              .end = kDefaultEnd}},
+      {.test_name = "DefaultRulesWithExplicitDstOffset",
+       .tz = "EST5EDT4",
+       .result = TimezoneData{.std = "EST",
+                              .std_offset = 5 * kSecondsInHour,
+                              .dst = "EDT",
+                              .dst_offset = 4 * kSecondsInHour,
+                              .start = kDefaultStart,
+                              .end = kDefaultEnd}},
+      {.test_name = "DefaultRulesForQuotedNames",
+       .tz = "<MYT>-8<MYST>-9",
+       .result = TimezoneData{.std = "MYT",
+                              .std_offset = -8 * kSecondsInHour,
+                              .dst = "MYST",
+                              .dst_offset = -9 * kSecondsInHour,
+                              .start = kDefaultStart,
+                              .end = kDefaultEnd}},
+      {.test_name = "DefaultRulesWithLeadingColon",
+       .tz = ":PST8PDT",
+       .result = TimezoneData{.std = "PST",
+                              .std_offset = 8 * kSecondsInHour,
+                              .dst = "PDT",
+                              .dst_offset = 7 * kSecondsInHour,
+                              .start = kDefaultStart,
+                              .end = kDefaultEnd}},
 
       // --- Cases that test EXPLICITLY PROVIDED rules ---
-      {"WithVariedMonthWeekDayRules", "CST6CDT,M2.1.3,M12.4.4",
-       TimezoneData{"CST", 6 * kSecondsInHour, "CDT", 5 * kSecondsInHour,
-                    TransitionRule{{DateRule::Format::MonthWeekDay, 2, 1, 3},
-                                   2 * kSecondsInHour},
-                    TransitionRule{{DateRule::Format::MonthWeekDay, 12, 4, 4},
-                                   2 * kSecondsInHour}}},
-      {"WithVariedRulesAndTimes", "CST6CDT,M1.1.6/01:30,M8.3.5/23:59:59",
-       TimezoneData{
-           "CST", 6 * kSecondsInHour, "CDT", 5 * kSecondsInHour,
-           TransitionRule{{DateRule::Format::MonthWeekDay, 1, 1, 6},
-                          1 * kSecondsInHour + 30 * kSecondsInMinute},
-           TransitionRule{{DateRule::Format::MonthWeekDay, 8, 3, 5},
-                          23 * kSecondsInHour + 59 * kSecondsInMinute + 59}}},
-      {"WithJulianDayRules", "EET-2EEST,J60,J305",
-       TimezoneData{"EET", -2 * kSecondsInHour, "EEST", -3 * kSecondsInHour,
-                    TransitionRule{{DateRule::Format::Julian, 0, 0, 60},
-                                   2 * kSecondsInHour},
-                    TransitionRule{{DateRule::Format::Julian, 0, 0, 305},
-                                   2 * kSecondsInHour}}},
-      {"WithJulianDayRulesAndTimes", "EET-2EEST,J65/03:00,J300/04:00",
-       TimezoneData{"EET", -2 * kSecondsInHour, "EEST", -3 * kSecondsInHour,
-                    TransitionRule{{DateRule::Format::Julian, 0, 0, 65},
-                                   3 * kSecondsInHour},
-                    TransitionRule{{DateRule::Format::Julian, 0, 0, 300},
-                                   4 * kSecondsInHour}}},
-      {"WithZeroBasedDayRules", "EET-2EEST,59,304",
-       TimezoneData{
-           "EET", -2 * kSecondsInHour, "EEST", -3 * kSecondsInHour,
-           TransitionRule{{DateRule::Format::ZeroBasedJulian, 0, 0, 59},
-                          2 * kSecondsInHour},
-           TransitionRule{{DateRule::Format::ZeroBasedJulian, 0, 0, 304},
-                          2 * kSecondsInHour}}},
-      {"WithZeroBasedDayRulesAndTimes", "EET-2EEST,64/01:30:15,309/23:00",
-       TimezoneData{
-           "EET", -2 * kSecondsInHour, "EEST", -3 * kSecondsInHour,
-           TransitionRule{{DateRule::Format::ZeroBasedJulian, 0, 0, 64},
-                          1 * kSecondsInHour + 30 * kSecondsInMinute + 15},
-           TransitionRule{{DateRule::Format::ZeroBasedJulian, 0, 0, 309},
-                          23 * kSecondsInHour}}},
-      {"QuotedStdNameOnly", "<UTC+0>0", TimezoneData{"UTC+0", 0}},
+      {.test_name = "WithVariedMonthWeekDayRules",
+       .tz = "CST6CDT,M2.1.3,M12.4.4",
+       .result =
+           TimezoneData{
+               .std = "CST",
+               .std_offset = 6 * kSecondsInHour,
+               .dst = "CDT",
+               .dst_offset = 5 * kSecondsInHour,
+               .start =
+                   TransitionRule{
+                       .date = {.format = DateRule::Format::MonthWeekDay,
+                                .month = 2,
+                                .week = 1,
+                                .day = 3},
+                       .time = 2 * kSecondsInHour},
+               .end =
+                   TransitionRule{
+                       .date = {.format = DateRule::Format::MonthWeekDay,
+                                .month = 12,
+                                .week = 4,
+                                .day = 4},
+                       .time = 2 * kSecondsInHour}}},
+      {.test_name = "WithVariedRulesAndTimes",
+       .tz = "CST6CDT,M1.1.6/01:30,M8.3.5/23:59:59",
+       .result =
+           TimezoneData{
+               .std = "CST",
+               .std_offset = 6 * kSecondsInHour,
+               .dst = "CDT",
+               .dst_offset = 5 * kSecondsInHour,
+               .start = TransitionRule{.date = {.format = DateRule::Format::
+                                                    MonthWeekDay,
+                                                .month = 1,
+                                                .week = 1,
+                                                .day = 6},
+                                       .time = 1 * kSecondsInHour +
+                                               30 *
+                                                   kSecondsInMinute},
+               .end =
+                   TransitionRule{
+                       .date = {.format = DateRule::Format::MonthWeekDay,
+                                .month =
+                                    8,
+                                .week = 3,
+                                .day =
+                                    5},
+                       .time = 23 * kSecondsInHour + 59 * kSecondsInMinute +
+                               59}}},
+      {.test_name = "WithJulianDayRules",
+       .tz = "EET-2EEST,J60,J305",
+       .result =
+           TimezoneData{
+               .std = "EET",
+               .std_offset = -2 * kSecondsInHour,
+               .dst = "EEST",
+               .dst_offset = -3 * kSecondsInHour,
+               .start = TransitionRule{.date = {.format =
+                                                    DateRule::Format::Julian,
+                                                .month = 0,
+                                                .week = 0,
+                                                .day = 60},
+                                       .time = 2 * kSecondsInHour},
+               .end =
+                   TransitionRule{.date = {.format = DateRule::Format::Julian,
+                                           .month = 0,
+                                           .week = 0,
+                                           .day = 305},
+                                  .time = 2 * kSecondsInHour}}},
+      {.test_name = "WithJulianDayRulesAndTimes",
+       .tz = "EET-2EEST,J65/03:00,J300/04:00",
+       .result =
+           TimezoneData{
+               .std = "EET",
+               .std_offset = -2 * kSecondsInHour,
+               .dst = "EEST",
+               .dst_offset = -3 * kSecondsInHour,
+               .start = TransitionRule{.date = {.format =
+                                                    DateRule::Format::Julian,
+                                                .month = 0,
+                                                .week = 0,
+                                                .day = 65},
+                                       .time = 3 * kSecondsInHour},
+               .end =
+                   TransitionRule{.date = {.format = DateRule::Format::Julian,
+                                           .month = 0,
+                                           .week = 0,
+                                           .day = 300},
+                                  .time = 4 * kSecondsInHour}}},
+      {.test_name = "WithZeroBasedDayRules",
+       .tz = "EET-2EEST,59,304",
+       .result =
+           TimezoneData{.std = "EET",
+                        .std_offset = -2 * kSecondsInHour,
+                        .dst = "EEST",
+                        .dst_offset = -3 * kSecondsInHour,
+                        .start =
+                            TransitionRule{
+                                .date = {.format =
+                                             DateRule::Format::ZeroBasedJulian,
+                                         .month = 0,
+                                         .week = 0,
+                                         .day = 59},
+                                .time = 2 * kSecondsInHour},
+                        .end =
+                            TransitionRule{
+                                .date = {.format =
+                                             DateRule::Format::ZeroBasedJulian,
+                                         .month = 0,
+                                         .week = 0,
+                                         .day = 304},
+                                .time = 2 * kSecondsInHour}}},
+      {.test_name = "WithZeroBasedDayRulesAndTimes",
+       .tz = "EET-2EEST,64/01:30:15,309/23:00",
+       .result =
+           TimezoneData{
+               .std = "EET",
+               .std_offset = -2 * kSecondsInHour,
+               .dst = "EEST",
+               .dst_offset = -3 * kSecondsInHour,
+               .start = TransitionRule{.date = {.format = DateRule::Format::
+                                                    ZeroBasedJulian,
+                                                .month = 0,
+                                                .week = 0,
+                                                .day = 64},
+                                       .time = 1 * kSecondsInHour +
+                                               30 * kSecondsInMinute + 15},
+               .end = TransitionRule{.date =
+                                         {
+                                             .format =
+                                                 DateRule::Format::ZeroBasedJulian,
+                                             .month = 0,
+                                             .week = 0,
+                                             .day = 309},
+                                     .time = 23 * kSecondsInHour}}},
+      {.test_name = "QuotedStdNameOnly",
+       .tz = "<UTC+0>0",
+       .result = TimezoneData{.std = "UTC+0", .std_offset = 0}},
 
       // --- Failure Cases ---
-      {"EmptyString", "", std::nullopt},
-      {"ColonOnly", ":", std::nullopt},
-      {"ShortStdName", "PS8", std::nullopt},
-      {"NonAlphaStdName", "PST!8", std::nullopt},
-      {"MissingStdOffset", "PST", std::nullopt},
-      {"StdNameWithSlash", "America/New_York5", std::nullopt},
+      {.test_name = "EmptyString", .tz = "", .result = std::nullopt},
+      {.test_name = "ColonOnly", .tz = ":", .result = std::nullopt},
+      {.test_name = "ShortStdName", .tz = "PS8", .result = std::nullopt},
+      {.test_name = "NonAlphaStdName", .tz = "PST!8", .result = std::nullopt},
+      {.test_name = "MissingStdOffset", .tz = "PST", .result = std::nullopt},
+      {.test_name = "StdNameWithSlash",
+       .tz = "America/New_York5",
+       .result = std::nullopt},
 
       // --- Partial Success (Graceful Stop) Cases ---
-      {"ShortDstName", "PST8PD", TimezoneData{"PST", 8 * kSecondsInHour}},
-      {"NonAlphaDstName", "PST8P&T", TimezoneData{"PST", 8 * kSecondsInHour}},
-      {"DstNameWithSlash", "EST5America/New_York",
-       TimezoneData{"EST", 5 * kSecondsInHour}},
-      {"MalformedRule", "CST6CDT,M3.2.0",
-       TimezoneData{"CST", 6 * kSecondsInHour, "CDT", 5 * kSecondsInHour}},
-      {"InvalidRuleCharacter", "CST6CDT,M3.X.0,M11.1.0",
-       TimezoneData{"CST", 6 * kSecondsInHour, "CDT", 5 * kSecondsInHour}},
-      {"InvalidTransitionTime", "CST6CDT,M3.2.0/invalid,M11.1.0",
-       TimezoneData{"CST", 6 * kSecondsInHour, "CDT", 5 * kSecondsInHour}},
+      {.test_name = "ShortDstName",
+       .tz = "PST8PD",
+       .result = TimezoneData{.std = "PST", .std_offset = 8 * kSecondsInHour}},
+      {.test_name = "NonAlphaDstName",
+       .tz = "PST8P&T",
+       .result = TimezoneData{.std = "PST", .std_offset = 8 * kSecondsInHour}},
+      {.test_name = "DstNameWithSlash",
+       .tz = "EST5America/New_York",
+       .result = TimezoneData{.std = "EST", .std_offset = 5 * kSecondsInHour}},
+      {.test_name = "MalformedRule",
+       .tz = "CST6CDT,M3.2.0",
+       .result = TimezoneData{.std = "CST",
+                              .std_offset = 6 * kSecondsInHour,
+                              .dst = "CDT",
+                              .dst_offset = 5 * kSecondsInHour}},
+      {.test_name = "InvalidRuleCharacter",
+       .tz = "CST6CDT,M3.X.0,M11.1.0",
+       .result = TimezoneData{.std = "CST",
+                              .std_offset = 6 * kSecondsInHour,
+                              .dst = "CDT",
+                              .dst_offset = 5 * kSecondsInHour}},
+      {.test_name = "InvalidTransitionTime",
+       .tz = "CST6CDT,M3.2.0/invalid,M11.1.0",
+       .result = TimezoneData{.std = "CST",
+                              .std_offset = 6 * kSecondsInHour,
+                              .dst = "CDT",
+                              .dst_offset = 5 * kSecondsInHour}},
 
   };
 };
 
 TEST_P(Tests, Parses) {
   const auto& param = GetParam();
-  auto actual_result = ParsePosixTz(param.tz_string);
+  auto actual_result = ParsePosixTz(param.tz);
 
-  if (param.expected_result.has_value()) {
+  if (param.result.has_value()) {
     // This case expects a successful parse.
     ASSERT_TRUE(actual_result.has_value())
-        << "Expected parsing to succeed for: " << param.tz_string;
-    EXPECT_EQ(*actual_result, *param.expected_result);
+        << "Expected parsing to succeed for: " << param.tz;
+    EXPECT_EQ(*actual_result, *param.result);
   } else {
     // This case expects a parse failure.
     EXPECT_FALSE(actual_result.has_value())
-        << "Expected parsing to fail for: " << param.tz_string;
+        << "Expected parsing to fail for: " << param.tz;
   }
 }
 

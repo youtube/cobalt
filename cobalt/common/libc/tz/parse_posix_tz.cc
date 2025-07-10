@@ -217,7 +217,7 @@ std::optional<TransitionRule> ParseTransitionRule(
 
   auto date_rule_string_view = transition_rule_string.substr(0, slash_position);
   if (auto date_rule = ParseDateRule(date_rule_string_view)) {
-    parsed_transition_rule.date_rule = *date_rule;
+    parsed_transition_rule.date = *date_rule;
   } else {
     return std::nullopt;
   }
@@ -293,7 +293,7 @@ std::optional<TimezoneData> ParsePosixTz(const std::string& timezone_string) {
   if (std_name_res.value.find('/') != std::string::npos) {
     return std::nullopt;
   }
-  result.std_name = std_name_res.value;
+  result.std = std_name_res.value;
   tz_sv.remove_prefix(std_name_res.consumed);
 
   // 2. Parse Standard Time Offset
@@ -346,7 +346,7 @@ std::optional<TimezoneData> ParsePosixTz(const std::string& timezone_string) {
 
     // If we've successfully parsed a DST name and its offset (explicit or
     // default), commit it to the results and advance the parser.
-    result.dst_name = dst_name_res.value;
+    result.dst = dst_name_res.value;
     result.dst_offset = dst_offset;
     tz_sv.remove_prefix(dst_name_res.consumed + offset_consumed);
   }
@@ -370,18 +370,18 @@ std::optional<TimezoneData> ParsePosixTz(const std::string& timezone_string) {
 
     // Both rules must be fully valid to be included.
     if (start_rule && end_rule) {
-      result.start_rule = start_rule;
-      result.end_rule = end_rule;
+      result.start = start_rule;
+      result.end = end_rule;
     }
-  } else if (result.dst_name.has_value()) {
+  } else if (result.dst.has_value()) {
     // If a DST name exists but no rules were specified, apply US default rules.
     // This is a common implementation choice for POSIX compliance.
     // Starts second Sunday in March at 2am.
-    result.start_rule = TransitionRule{
-        {DateRule::Format::MonthWeekDay, 3, 2, 0}, 2 * kSecondsInHour};
+    result.start = TransitionRule{{DateRule::Format::MonthWeekDay, 3, 2, 0},
+                                  2 * kSecondsInHour};
     // Ends first Sunday in November at 2am.
-    result.end_rule = TransitionRule{{DateRule::Format::MonthWeekDay, 11, 1, 0},
-                                     2 * kSecondsInHour};
+    result.end = TransitionRule{{DateRule::Format::MonthWeekDay, 11, 1, 0},
+                                2 * kSecondsInHour};
   }
 
   return result;
@@ -406,12 +406,11 @@ std::ostream& operator<<(std::ostream& out, const DateRule& rule) {
 }
 
 std::ostream& operator<<(std::ostream& out, const TimezoneData& data) {
-  out << "{ std_name: \"" << data.std_name
-      << "\", std_offset: " << data.std_offset;
+  out << "{ std: \"" << data.std << "\", std_offset: " << data.std_offset;
 
-  out << ", dst_name: ";
-  if (data.dst_name) {
-    out << "\"" << *data.dst_name << "\"";
+  out << ", dst: ";
+  if (data.dst) {
+    out << "\"" << *data.dst << "\"";
   } else {
     out << "null";
   }
@@ -423,16 +422,16 @@ std::ostream& operator<<(std::ostream& out, const TimezoneData& data) {
     out << "null";
   }
 
-  out << ", start_rule: ";
-  if (data.start_rule) {
-    out << *data.start_rule;
+  out << ", start: ";
+  if (data.start) {
+    out << *data.start;
   } else {
     out << "null";
   }
 
-  out << ", end_rule: ";
-  if (data.end_rule) {
-    out << *data.end_rule;
+  out << ", end: ";
+  if (data.end) {
+    out << *data.end;
   } else {
     out << "null";
   }
@@ -453,7 +452,7 @@ std::ostream& operator<<(
 }
 
 std::ostream& operator<<(std::ostream& out, const TransitionRule& rule) {
-  out << "{ date: " << rule.date_rule << ", time: " << rule.time << "s }";
+  out << "{ date: " << rule.date << ", time: " << rule.time << "s }";
   return out;
 }
 
