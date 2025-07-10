@@ -63,6 +63,24 @@ constexpr int kSecondsInHour = 3600;
 // Number of seconds in a minute.
 constexpr int kSecondsInMinute = 60;
 
+// Helper function to print a `TransitionRule` to an output stream.
+void PrintTransitionRule(const TransitionRule& rule, std::ostream* os) {
+  *os << "{ date: { format: ";
+  switch (rule.date.format) {
+    case DateRule::Format::MonthWeekDay:
+      *os << "MonthWeekDay";
+      break;
+    case DateRule::Format::Julian:
+      *os << "Julian";
+      break;
+    case DateRule::Format::ZeroBasedJulian:
+      *os << "ZeroBasedJulian";
+      break;
+  }
+  *os << ", month: " << rule.date.month << ", week: " << rule.date.week
+      << ", day: " << rule.date.day << " }, time: " << rule.time << " }";
+}
+
 // `PrintTo` function for `TzParseTestParam` so that gtest will print readable
 // output when a test fails. This version prints on a single line.
 void PrintTo(const TzParseTestParam& param, std::ostream* os) {
@@ -74,34 +92,17 @@ void PrintTo(const TzParseTestParam& param, std::ostream* os) {
     *os << "{ std: \"" << data.std << "\", "
         << "std_offset: " << data.std_offset;
     if (data.dst && !data.dst->empty()) {
-      auto print_rule = [&](const TransitionRule& rule) {
-        *os << "{ date: { format: ";
-        switch (rule.date.format) {
-          case DateRule::Format::MonthWeekDay:
-            *os << "MonthWeekDay";
-            break;
-          case DateRule::Format::Julian:
-            *os << "Julian";
-            break;
-          case DateRule::Format::ZeroBasedJulian:
-            *os << "ZeroBasedJulian";
-            break;
-        }
-        *os << ", month: " << rule.date.month << ", week: " << rule.date.week
-            << ", day: " << rule.date.day << " }, time: " << rule.time << " }";
-      };
-
       *os << ", dst: \"" << *data.dst << "\", "
           << "dst_offset: " << data.dst_offset.value_or(0) << ", "
           << "start: ";
       if (data.start) {
-        print_rule(*data.start);
+        PrintTransitionRule(*data.start, os);
       } else {
         *os << "null";
       }
       *os << ", end: ";
       if (data.end) {
-        print_rule(*data.end);
+        PrintTransitionRule(*data.end, os);
       } else {
         *os << "null";
       }
