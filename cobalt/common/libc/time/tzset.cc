@@ -90,9 +90,9 @@ class Timezone {
 
  private:
   struct Correction {
-    const char* std_name = nullptr;
-    const char* dst_name = nullptr;
-    std::optional<int> daylight_status;
+    const char* std = nullptr;
+    const char* dst = nullptr;
+    std::optional<int> daylight;
     std::optional<int> timezone;
   };
 
@@ -219,11 +219,11 @@ bool Timezone::SetTransitionRule(icu::SimpleTimeZone* tz,
   int32_t day_of_month = 0;  // Used for Julian-converted format
   bool use_day_of_month_rule = false;
 
-  switch (rule.date_rule.format) {
+  switch (rule.date.format) {
     case tz::DateRule::Format::MonthWeekDay: {
-      month = rule.date_rule.month - 1;
-      day_of_week = rule.date_rule.day + 1;
-      day_in_month = (rule.date_rule.week == 5) ? -1 : rule.date_rule.week;
+      month = rule.date.month - 1;
+      day_of_week = rule.date.day + 1;
+      day_in_month = (rule.date.week == 5) ? -1 : rule.date.week;
       use_day_of_month_rule = false;
       break;
     }
@@ -236,9 +236,9 @@ bool Timezone::SetTransitionRule(icu::SimpleTimeZone* tz,
       const int current_year = *current_year_opt;
 
       bool is_zero_based =
-          (rule.date_rule.format == tz::DateRule::Format::ZeroBasedJulian);
-      if (!JulianToGregorian(current_year, rule.date_rule.day, is_zero_based,
-                             month, day_of_month)) {
+          (rule.date.format == tz::DateRule::Format::ZeroBasedJulian);
+      if (!JulianToGregorian(current_year, rule.date.day, is_zero_based, month,
+                             day_of_month)) {
         return false;
       }
       use_day_of_month_rule = true;
@@ -277,19 +277,19 @@ std::unique_ptr<icu::TimeZone> Timezone::CreateIcuTimezoneFromParsedData(
   const int32_t raw_offset_ms = -timezone_data.std_offset * 1000;
 
   // If there are no DST rules, create a simple, fixed-offset timezone.
-  if (!timezone_data.start_rule) {
+  if (!timezone_data.start) {
     return std::make_unique<icu::SimpleTimeZone>(
-        raw_offset_ms, icu::UnicodeString::fromUTF8(timezone_data.std_name));
+        raw_offset_ms, icu::UnicodeString::fromUTF8(timezone_data.std));
   }
 
   // A start rule exists, so an end rule must also exist for valid DST.
-  if (!timezone_data.end_rule) {
+  if (!timezone_data.end) {
     return nullptr;
   }
 
   UErrorCode status = U_ZERO_ERROR;
   auto custom_tz = std::make_unique<icu::SimpleTimeZone>(
-      raw_offset_ms, icu::UnicodeString::fromUTF8(timezone_data.std_name));
+      raw_offset_ms, icu::UnicodeString::fromUTF8(timezone_data.std));
 
   // The DST savings is the difference between the standard and DST offsets.
   // POSIX default is one hour if not explicitly specified.
@@ -303,12 +303,12 @@ std::unique_ptr<icu::TimeZone> Timezone::CreateIcuTimezoneFromParsedData(
   }
 
   // Set the start and end rules using the helper function.
-  if (!SetTransitionRule(custom_tz.get(), *timezone_data.start_rule,
+  if (!SetTransitionRule(custom_tz.get(), *timezone_data.start,
                          true /* is_start_rule */)) {
     return nullptr;
   }
 
-  if (!SetTransitionRule(custom_tz.get(), *timezone_data.end_rule,
+  if (!SetTransitionRule(custom_tz.get(), *timezone_data.end,
                          false /* is_start_rule */)) {
     return nullptr;
   }
@@ -326,47 +326,47 @@ void Timezone::MaybeApplyCorrection(const icu::UnicodeString& time_zone_id) {
   static const NoDestructor<std::map<std::string_view, Correction>>
       kCorrections({{
           // "America/Asuncion" was {_}
-          {"America/Asuncion", {nullptr, nullptr, std::nullopt, 10800}},
+          {"America/Asuncion", {.timezone = 10800}},
           // "America/Dawson" was {"YST"}
-          {"America/Dawson", {"MST"}},
+          {"America/Dawson", {.std = "MST"}},
           // "America/Montreal" was {"", ""}
-          {"America/Montreal", {"EST", "EDT"}},
+          {"America/Montreal", {.std = "EST", .dst = "EDT"}},
           // "America/Whitehorse" was {"YST"}
-          {"America/Whitehorse", {"MST"}},
+          {"America/Whitehorse", {.std = "MST"}},
           // "Asia/Dhaka" was {"BDT"}
-          {"Asia/Dhaka", {"BST"}},
+          {"Asia/Dhaka", {.std = "BST"}},
           // "Asia/Famagusta" was {"GMT+2", "GMT+3"}
-          {"Asia/Famagusta", {"EET", "EEST"}},
+          {"Asia/Famagusta", {.std = "EET", .dst = "EEST"}},
           // "Asia/Manila" was {"PHT"}
-          {"Asia/Manila", {"PHST"}},
+          {"Asia/Manila", {.std = "PHST"}},
           // "Europe/Belfast" was {_, "GMT+1"}
-          {"Europe/Belfast", {nullptr, "BST"}},
+          {"Europe/Belfast", {.dst = "BST"}},
           // "Europe/Dublin" was {_, "GMT+1"}
-          {"Europe/Dublin", {nullptr, "IST"}},  // codespell:ignore ist
+          {"Europe/Dublin", {.dst = "IST"}},  // codespell:ignore ist
           // "Europe/Guernsey" was {_, "GMT+1"}
-          {"Europe/Guernsey", {nullptr, "BST"}},
+          {"Europe/Guernsey", {.dst = "BST"}},
           // "Europe/Isle_of_Man" was {_, "GMT+1"}
-          {"Europe/Isle_of_Man", {nullptr, "BST"}},
+          {"Europe/Isle_of_Man", {.dst = "BST"}},
           // "Europe/Jersey" was {_, "GMT+1"}
-          {"Europe/Jersey", {nullptr, "BST"}},
+          {"Europe/Jersey", {.dst = "BST"}},
           // "Europe/London" was {_, "GMT+1"}
-          {"Europe/London", {nullptr, "BST"}},
+          {"Europe/London", {.dst = "BST"}},
           // "Canada/Yukon" was {"YST"}
-          {"Canada/Yukon", {"MST"}},
+          {"Canada/Yukon", {.std = "MST"}},
           // "CET" was {"GMT", "GMT+1"}
-          {"CET", {"CET", "CEST"}},
+          {"CET", {.std = "CET", .dst = "CEST"}},
           // "EET" was {"GMT+2", "GMT+3"}
-          {"EET", {"EET", "EEST"}},
+          {"EET", {.std = "EET", .dst = "EEST"}},
           // "Eire" was {"GMT+1", ""}
-          {"Eire", {nullptr, "IST"}},  // codespell:ignore ist
+          {"Eire", {.dst = "IST"}},  // codespell:ignore ist
           // "EST" was {"GMT-5"}
-          {"EST", {"EST"}},
+          {"EST", {.std = "EST"}},
           // "GB" was {_, "GMT+1"}
-          {"GB", {nullptr, "BST"}},
+          {"GB", {.dst = "BST"}},
           // "GB-Eire" was {_, "GMT+1"}
-          {"GB-Eire", {nullptr, "BST"}},
+          {"GB-Eire", {.dst = "BST"}},
           // "WET" was {"GMT", "GMT+1"}
-          {"WET", {"WET", "WEST"}},
+          {"WET", {.std = "WET", .dst = "WEST"}},
       }});
 
   std::string time_zone_id_str;
@@ -376,19 +376,19 @@ void Timezone::MaybeApplyCorrection(const icu::UnicodeString& time_zone_id) {
   auto it = kCorrections->find(time_zone_id_str);
   if (it != kCorrections->end()) {
     const auto& correction = it->second;
-    if (correction.daylight_status) {
-      daylight = *correction.daylight_status;
+    if (correction.daylight) {
+      daylight = *correction.daylight;
     }
     if (correction.timezone) {
       timezone = *correction.timezone;
     }
-    if (correction.std_name) {
-      std::string_view name(correction.std_name);
+    if (correction.std) {
+      std::string_view name(correction.std);
       SafeCopyToName(name, std_name_);
       std_name_[name.length()] = '\0';
     }
-    if (correction.dst_name) {
-      std::string_view name(correction.dst_name);
+    if (correction.dst) {
+      std::string_view name(correction.dst);
       SafeCopyToName(name, dst_name_);
       dst_name_[name.length()] = '\0';
     }
@@ -542,12 +542,11 @@ void Timezone::SetFromTimezoneData(tz::TimezoneData timezone_data) {
 
   // Populate the C-library global variables from the parsed data.
   timezone = timezone_data.std_offset;
-  SafeCopyToName(timezone_data.std_name, std_name_);
+  SafeCopyToName(timezone_data.std, std_name_);
   tzname[0] = std_name_.data();
 
-  daylight = timezone_data.dst_name.has_value() ? 1 : 0;
-  SafeCopyToName(daylight ? *timezone_data.dst_name : timezone_data.std_name,
-                 dst_name_);
+  daylight = timezone_data.dst.has_value() ? 1 : 0;
+  SafeCopyToName(daylight ? *timezone_data.dst : timezone_data.std, dst_name_);
   tzname[1] = dst_name_.data();
 }
 

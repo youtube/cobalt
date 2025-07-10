@@ -46,18 +46,18 @@ struct DateRule {
 
 // Represents a complete transition rule (date and time)
 struct TransitionRule {
-  DateRule date_rule;
+  DateRule date;
   TimeOffset time = 2 * 3600;  // Default time is 02:00:00 (per POSIX).
 };
 
 // Top-level structure for the parsed TZ data
 struct TimezoneData {
-  std::string std_name;
+  std::string std;
   TimeOffset std_offset;
-  std::optional<std::string> dst_name;
+  std::optional<std::string> dst;
   std::optional<TimeOffset> dst_offset;
-  std::optional<TransitionRule> start_rule;
-  std::optional<TransitionRule> end_rule;
+  std::optional<TransitionRule> start;
+  std::optional<TransitionRule> end;
 };
 
 // Parses the given string in POSIX TZ format.
