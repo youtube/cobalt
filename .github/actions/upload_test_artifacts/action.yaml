@@ -24,12 +24,31 @@ runs:
         mkdir ${GITHUB_WORKSPACE}/artifacts
         cd src/
 
+        FLAGS=""
+        if [[ "${{ matrix.platform }}" == "android" ]]; then
+          FLAGS="--archive-per-target --use-android-deps-path --root-dir ."
+        elif [[ "${{ matrix.platform }}" == *raspi* ]]; then
+          FLAGS="--archive-per-target"
+        fi
+
         time vpython3 -u ./cobalt/build/archive_test_artifacts.py \
           --source-dir ${GITHUB_WORKSPACE}/src \
           --out-dir out/${{ matrix.platform }}_${{ matrix.config }}/ \
           --destination-dir ${GITHUB_WORKSPACE}/artifacts \
-          --platform ${{ matrix.platform }} \
-          --targets $(echo "${TEST_TARGETS_JSON}" | jq -cr 'join(",")')
+          --targets $(echo "${TEST_TARGETS_JSON}" | jq -cr 'join(",")') \
+          ${FLAGS}
+      shell: bash
+    - name: Copy APKs
+      if: matrix.platform == 'android'
+      env:
+        TEST_TARGETS_JSON: ${{ inputs.test_targets_json }}
+      run: |
+        set -eux
+        cd src/
+        for target in $(echo "${TEST_TARGETS_JSON}" | jq -r '.[] | split(":")[1]'); do
+          apk_path="out/${{ matrix.platform }}_${{ matrix.config }}/${target}_apk/${target}-debug.apk"
+          cp "${apk_path}" "${GITHUB_WORKSPACE}/artifacts/"
+        done
       shell: bash
     - name: Upload On-Host Test Artifacts Archive
       if: inputs.upload_on_host_test_artifacts == 'true'
