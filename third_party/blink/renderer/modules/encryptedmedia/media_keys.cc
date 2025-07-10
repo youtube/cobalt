@@ -443,28 +443,30 @@ ScriptPromise MediaKeys::getStatusForPolicy(
 
 #if BUILDFLAG(USE_STARBOARD_MEDIA)
 ScriptPromise MediaKeys::getMetrics(ScriptState* script_state) {
-    auto* resolver = MakeGarbageCollected<ScriptPromiseResolver>(script_state);
-    ScriptPromise promise = resolver->Promise();
+  auto* resolver = MakeGarbageCollected<ScriptPromiseResolver>(script_state);
+  ScriptPromise promise = resolver->Promise();
 
-    if (!cdm_) {
-        resolver->Reject(MakeGarbageCollected<DOMException>(DOMExceptionCode::kInvalidStateError, "No active CDM."));
-        return promise;
-    }
-
-    auto callback = base::BindOnce(
-        [](ScriptPromiseResolver* resolver, const std::string& metrics) {
-            if (!resolver->GetScriptState() || !resolver->GetScriptState()->ContextIsValid()) {
-                return;
-            }
-            resolver->Resolve(String::FromUTF8(metrics));
-        },
-        WrapPersistent(resolver)); // Use WrapPersistent to safely pass the resolver.
-
-    cdm_->GetMetrics(std::move(callback));
-
+  if (!cdm_) {
+    resolver->Reject(MakeGarbageCollected<DOMException>(
+        DOMExceptionCode::kInvalidStateError, "No active CDM."));
     return promise;
+  }
+
+  auto callback = base::BindOnce(
+      [](ScriptPromiseResolver* resolver, const std::string& metrics) {
+        if (!resolver->GetScriptState() ||
+            !resolver->GetScriptState()->ContextIsValid()) {
+          return;
+        }
+        resolver->Resolve(String::FromUTF8(metrics));
+      },
+      WrapPersistent( resolver));
+
+  cdm_->GetMetrics(std::move(callback));
+
+  return promise;
 }
-#endif // BUILDFLAG(USE_STARBOARD_MEDIA)
+#endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
 
 void MediaKeys::GetStatusForPolicyTask(const String& min_hdcp_version,
                                        ContentDecryptionModuleResult* result) {
