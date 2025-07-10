@@ -17,6 +17,9 @@
 
 #include "starboard/player.h"
 
+// TODO: Remove //media/base:base dependency cycle to use base::FeatureList
+// here. #include "media/base/media_switches.h"
+#include "starboard/android/shared/exoplayer/exoplayer_worker_handler.h"
 #include "starboard/android/shared/video_max_video_input_size.h"
 #include "starboard/android/shared/video_window.h"
 #include "starboard/common/log.h"
@@ -200,8 +203,17 @@ SbPlayer SbPlayerCreate(SbWindow window,
     }
   }
 
-  std::unique_ptr<PlayerWorker::Handler> handler(
-      new FilterBasedPlayerWorkerHandler(creation_param, provider));
+  std::unique_ptr<PlayerWorker::Handler> handler;
+  if (/* base::FeatureList::IsEnabled(media::kCobaltUseExoPlayer) */ (true)) {
+    SB_LOG(INFO)
+        << "Using ExoPlayerWorkerHandler SbPlayerCreate() implementation";
+    handler.reset(
+        new starboard::android::shared::exoplayer::ExoPlayerWorkerHandler(
+            creation_param));
+  } else {
+    handler.reset(new FilterBasedPlayerWorkerHandler(creation_param, provider));
+  }
+
   handler->SetMaxVideoInputSize(
       starboard::android::shared::GetMaxVideoInputSizeForCurrentThread());
   SbPlayer player = SbPlayerPrivateImpl::CreateInstance(

@@ -481,6 +481,12 @@ void StarboardRenderer::CreatePlayerBridge() {
   const std::string video_mime_type =
       video_stream_ ? video_stream_->mime_type() : "";
 
+  if (!video_stream_) {
+    LOG(INFO) << "THERE IS NO VIDEO STREAM";
+  } else {
+    LOG(INFO) << "VIDEO STREAM MIME TYPE IS " << video_stream_->mime_type();
+  }
+
   std::string error_message;
 
   {
@@ -492,7 +498,8 @@ void StarboardRenderer::CreatePlayerBridge() {
     // number of active players.
     player_bridge_.reset();
 
-    LOG(INFO) << "Creating SbPlayerBridge.";
+    LOG(INFO) << "Creating SbPlayerBridge with video mime type "
+              << video_mime_type;
 
     player_bridge_.reset(new SbPlayerBridge(
         GetSbPlayerInterface(), task_runner_,
