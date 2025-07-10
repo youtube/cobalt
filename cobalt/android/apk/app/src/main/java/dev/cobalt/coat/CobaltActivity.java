@@ -578,7 +578,7 @@ public abstract class CobaltActivity extends Activity {
       // VideoSurfaceView will be null if Cobalt is using Android Overlay.
       return;
     }
-    
+
     if (width == 0 || height == 0) {
       // The SurfaceView should be covered by our UI layer in this case.
       return;
