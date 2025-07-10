@@ -15,11 +15,11 @@
 #include "cobalt/shell/renderer/shell_render_frame_observer.h"
 
 #include "base/command_line.h"
+#include "cobalt/shell/common/shell_switches.h"
 #include "cobalt/shell/renderer/render_frame_test_helper.h"
 #include "content/public/renderer/render_frame.h"
 #include "content/public/renderer/render_frame_observer.h"
 #include "content/shell/common/render_frame_test_helper.mojom.h"
-#include "content/shell/common/shell_switches.h"
 #include "third_party/blink/public/web/web_testing_support.h"
 
 namespace content {
