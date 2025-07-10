@@ -1,4 +1,9 @@
 {
-    "test_targets": [],
-    "executables": []
+  "TODO(b/382508397)": "Remove this when list is dynamically generated.",
+  "test_targets": [
+    "starboard/nplb:nplb_loader"
+  ],
+  "executables": [
+    "out/raspi-2_devel/nplb_loader"
+  ]
 }
