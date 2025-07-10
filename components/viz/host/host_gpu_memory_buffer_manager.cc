@@ -475,9 +475,17 @@ void HostGpuMemoryBufferManager::OnGpuMemoryBufferAllocated(
 bool HostGpuMemoryBufferManager::CreateBufferUsesGpuService(
     gfx::BufferFormat format,
     gfx::BufferUsage usage) {
+// TODO(b/430968699): On some platforms, such as the Raspberry Pi 2, native
+// buffer configurations may not be available. Forcing the use of the GPU
+// service prevents a fallback to an unsupported buffer type that can cause
+// crashes.
+#if BUILDFLAG(ENABLE_COBALT_HERMETIC_HACKS)
+  return true;
+#else
   return gpu_memory_buffer_support_->GetNativeGpuMemoryBufferType() !=
              gfx::EMPTY_BUFFER &&
          IsNativeGpuMemoryBufferConfiguration(format, usage);
+#endif
 }
 
 }  // namespace viz
