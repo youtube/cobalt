@@ -138,6 +138,8 @@ class CobaltContentBrowserClient : public content::ContentBrowserClient {
   std::vector<std::unique_ptr<browser::CobaltTrustedURLLoaderHeaderClient>>
       cobalt_header_clients_;
 
+  std::unique_ptr<content::WebContents> splash_;
+
   THREAD_CHECKER(thread_checker_);
 };
 

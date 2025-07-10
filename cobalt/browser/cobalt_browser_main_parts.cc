@@ -36,6 +36,9 @@
 #include "ui/gfx/geometry/size.h"
 #include "url/gurl.h"
 
+#include "cobalt/splash/splash.h"
+#include "ui/aura/window_tree_host.h"
+
 #if BUILDFLAG(IS_ANDROID)
 #include "cobalt/shell/android/shell_manager.h"
 #endif
@@ -111,6 +114,9 @@ int CobaltBrowserMainParts::PreMainMessageLoopRun() {
   content::Shell::CreateNewWindow(browser_context_.get(), GetStartupURL(),
                                   nullptr, gfx::Size());
 
+  // splash_ = Splash::Show(browser_context_.get(),
+  //     content::Shell::windows()[0]->window()->GetHost()->window(),
+  //     GURL("https://serve-dot-zipline.appspot.com/asset/85c0fdfa-ac32-5348-a73d-a9ede6330205/zpc/r5hdve28yl9/"));
 #if BUILDFLAG(IS_ANDROID)
   content::BrowserContext* context = browser_context_.get();
   DCHECK(context);

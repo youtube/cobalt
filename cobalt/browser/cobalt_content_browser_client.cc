@@ -37,6 +37,7 @@
 #include "cobalt/shell/browser/shell_browser_main_parts.h"
 #include "cobalt/shell/browser/shell_devtools_manager_delegate.h"
 #include "cobalt/shell/browser/shell_paths.h"
+#include "cobalt/splash/splash.h"
 #include "components/metrics/metrics_service.h"
 #include "components/metrics/metrics_state_manager.h"
 #include "components/metrics_services_manager/metrics_services_manager.h"
@@ -49,6 +50,7 @@
 #include "components/variations/service/variations_service.h"
 #include "content/public/browser/browser_thread.h"
 #include "content/public/browser/render_process_host.h"
+#include "content/public/browser/render_widget_host_view.h"
 #include "content/public/browser/web_contents.h"
 #include "content/public/common/content_switch_dependent_feature_overrides.h"
 #include "content/public/common/user_agent.h"
@@ -58,6 +60,8 @@
 #include "services/service_manager/public/cpp/binder_registry.h"
 #include "third_party/blink/public/common/associated_interfaces/associated_interface_registry.h"
 #include "third_party/blink/public/common/web_preferences/web_preferences.h"
+#include "ui/aura/window.h"
+#include "ui/aura/window_tree_host.h"
 #include "ui/base/ui_base_switches.h"
 
 #if BUILDFLAG(IS_ANDROID)
@@ -340,6 +344,11 @@ void CobaltContentBrowserClient::ConfigureNetworkContextParams(
 void CobaltContentBrowserClient::OnWebContentsCreated(
     content::WebContents* web_contents) {
   DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
+  if (web_contents_observer_) {
+    // Already created.
+    return;
+  }
+
   web_contents_observer_.reset(new CobaltWebContentsObserver(web_contents));
   web_contents_delegate_.reset(new CobaltWebContentsDelegate());
   content::Shell::SetShellCreatedCallback(base::BindOnce(
@@ -347,6 +356,9 @@ void CobaltContentBrowserClient::OnWebContentsCreated(
         shell->web_contents()->SetDelegate(delegate);
       },
       web_contents_delegate_.get()));
+  // splash_ = Splash::Show(GetBrowserContext(),
+  //     web_contents->GetNativeView()->GetHost()->window(),
+  //     GURL("https://serve-dot-zipline.appspot.com/asset/85c0fdfa-ac32-5348-a73d-a9ede6330205/zpc/r5hdve28yl9/"));
 }
 
 void CobaltContentBrowserClient::RegisterBrowserInterfaceBindersForFrame(

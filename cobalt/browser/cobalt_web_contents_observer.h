@@ -32,6 +32,7 @@ class CobaltWebContentsObserver : public content::WebContentsObserver {
 
  private:
   void RegisterInjectedJavaScript();
+  std::unique_ptr<content::WebContents> splash_;
 
   std::unique_ptr<js_injection::JsCommunicationHost> js_communication_host_;
 };

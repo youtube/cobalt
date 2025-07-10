@@ -17,8 +17,12 @@
 #include "base/strings/utf_string_conversions.h"
 #include "cobalt/browser/embedded_resources/embedded_js.h"
 #include "cobalt/browser/migrate_storage_record/migration_manager.h"
+#include "cobalt/splash/splash.h"
 #include "content/public/browser/navigation_handle.h"
+#include "content/public/browser/render_widget_host_view.h"
 #include "content/public/browser/web_contents.h"
+#include "ui/aura/window.h"
+#include "ui/aura/window_tree_host.h"
 
 #if BUILDFLAG(IS_ANDROIDTV)
 #include "starboard/android/shared/starboard_bridge.h"
@@ -77,6 +81,14 @@ enum {
 void CobaltWebContentsObserver::DidFinishNavigation(
     content::NavigationHandle* navigation_handle) {
   LOG(INFO) << "Navigated to: " << navigation_handle->GetURL();
+  // content::WebContents* web_contents = web_contents();
+  web_contents()->GetRenderWidgetHostView()->SetBounds(
+      gfx::Rect(500, 500, 500, 500));
+  splash_ = Splash::Show(
+      web_contents()->GetBrowserContext(), web_contents()->GetNativeView(),
+      GURL("https://serve-dot-zipline.appspot.com/asset/"
+           "85c0fdfa-ac32-5348-a73d-a9ede6330205/zpc/r5hdve28yl9/"));
+
 #if BUILDFLAG(IS_ANDROIDTV)
   if (navigation_handle->IsErrorPage() &&
       navigation_handle->GetNetErrorCode() == net::ERR_NAME_NOT_RESOLVED) {
