@@ -856,10 +856,14 @@ void GpuServiceImpl::CreateGpuMemoryBuffer(
     int client_id,
     gpu::SurfaceHandle surface_handle,
     CreateGpuMemoryBufferCallback callback) {
+#if BUILDFLAG(ENABLE_COBALT_HERMETIC_HACKS)
+  std::move(callback).Run(gfx::GpuMemoryBufferHandle());
+#else
   DCHECK(io_runner_->BelongsToCurrentThread());
   // This needs to happen in the IO thread.
   gpu_memory_buffer_factory_->CreateGpuMemoryBufferAsync(
       id, size, format, usage, client_id, surface_handle, std::move(callback));
+#endif  // BUILDFLAG(ENABLE_COBALT_HERMETIC_HACKS)
 }
 
 void GpuServiceImpl::DestroyGpuMemoryBuffer(gfx::GpuMemoryBufferId id,
