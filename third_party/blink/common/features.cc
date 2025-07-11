@@ -2858,6 +2858,17 @@ BASE_FEATURE(kReleaseResourceDecodedDataOnMemoryPressure,
              "ReleaseResourceDecodedDataOnMemoryPressure",
              base::FEATURE_ENABLED_BY_DEFAULT);
 
+// WorkerThread termination procedure (prepare and shutdown) runs sequentially
+// in the same task without calling another cross thread post task.
+// Kill switch for crbug.com/409059706.
+BASE_FEATURE(kWorkerThreadSequentialShutdown,
+             "WorkerThreadSequentialShutdown",
+             base::FEATURE_ENABLED_BY_DEFAULT);
+
+BASE_FEATURE(kNoReferrerForPreloadFromSubresource,
+             "NoReferrerForPreloadFromSubresource",
+             base::FEATURE_ENABLED_BY_DEFAULT);
+
 // When adding new features or constants for features, please keep the features
 // sorted by identifier name (e.g. `kAwesomeFeature`), and the constants for
 // that feature grouped with the associated feature.
