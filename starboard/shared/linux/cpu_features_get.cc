@@ -369,6 +369,7 @@ bool HasItemInList(const char* list, const char* flag) {
   return false;
 }
 
+#if SB_IS(32_BIT)
 // Construct hwcap bitmask by the feature flags in /proc/cpuinfo
 uint32_t ConstructHwcapFromCPUInfo(ProcCpuInfo* cpu_info,
                                    int16_t architecture_generation,
@@ -413,6 +414,7 @@ uint32_t ConstructHwcapFromCPUInfo(ProcCpuInfo* cpu_info,
   }
   return hwcap_value;
 }
+#endif  // SB_IS(32_BIT)
 
 bool SbCPUFeaturesGet_ARM(SbCPUFeatures* features) {
   memset(features, 0, sizeof(*features));
