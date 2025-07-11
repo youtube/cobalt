@@ -5,11 +5,14 @@
 #include "base/android/jni_android.h"
 
 #include <cstring>
-#include <iostream>
 #include <stddef.h>
-#include <string>
 #include <sys/prctl.h>
+
+#if BUILDFLAG(IS_COBALT)
+#include <string>
+#include <iostream>
 #include <regex>
+#endif
 
 #include "base/android/java_exception_reporter.h"
 #include "base/android/jni_string.h"
@@ -372,6 +375,7 @@ std::string GetJavaExceptionInfo(JNIEnv* env, jthrowable java_throwable) {
   return ConvertJavaStringToUTF8(sanitized_exception_string);
 }
 
+#if BUILDFLAG(IS_COBALT)
 std::string FindFirstJavaFileAndLine(const std::string& stack_trace) {
     // This regular expression looks for a pattern inside parentheses.
     // Breakdown of the pattern: \(([^)]+\.java:\d+)\)
@@ -398,6 +402,7 @@ std::string FindFirstJavaFileAndLine(const std::string& stack_trace) {
     // Return an empty string if no match was found.
     return "";
 }
+#endif
 
 #if BUILDFLAG(CAN_UNWIND_WITH_FRAME_POINTERS)
 

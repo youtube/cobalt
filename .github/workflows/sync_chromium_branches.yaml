@@ -58,7 +58,7 @@ jobs:
           git diff HEAD branch/${{ matrix.branch.branch_num }} --binary > chromium_diff.patch
       - name: Apply and push diffs
         run: |
-          if [ test -s chromium_diff.patch ]; then
+          if [ -s chromium_diff.patch ]; then
             echo "Applying diff..."
             git apply --index chromium_diff.patch
             # Reset local branch to upstream and push.
