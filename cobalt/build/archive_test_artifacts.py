@@ -105,18 +105,15 @@ def create_archive(
           target_deps.add(rel_path)
       combined_deps |= target_deps
 
-      # Android tests and deps are bundled into one tar file per target.
       if archive_per_target:
         output_path = os.path.join(destination_dir,
                                    f'{target_name}_deps.tar.gz')
-        if use_android_deps_path:
-          _make_tar(output_path, [(combined_deps, out_dir),
-                                  (target_src_root_deps, source_dir)])
-        else:
-          _make_tar(output_path, [(combined_deps, source_dir)])
-        archive_size = f'{os.path.getsize(output_path) / 1024 / 1024:.2f} MB'
-        print(f'Created {os.path.basename(output_path)} ({archive_size})')
 
+        deps_source_roots = [(combined_deps, out_dir)]
+        if target_src_root_deps:
+          deps_source_roots += (target_src_root_deps, source_dir)
+        _make_tar(output_path, deps_source_roots)
+        # Reset the list of deps.
         combined_deps = set(
             [os.path.relpath(os.path.join(tar_root, 'test_targets.json'))])
 
