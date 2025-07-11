@@ -114,8 +114,10 @@ BASE_EXPORT std::string GetJavaExceptionInfo(
 // This returns a string representation of the java stack trace.
 BASE_EXPORT std::string GetJavaStackTraceIfPresent();
 
+#if BUILDFLAG(IS_COBALT)
 // Utility method to find the java file name from the java stack trace.
 BASE_EXPORT std::string FindFirstJavaFileAndLine(const std::string& stackTrace);
+#endif
 
 using MethodID = jni_zero::MethodID;
 }  // namespace android
