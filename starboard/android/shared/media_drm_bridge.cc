@@ -38,8 +38,6 @@ using base::android::JavaByteArrayToString;
 using base::android::ScopedJavaLocalRef;
 using base::android::ToJavaByteArray;
 
-const char kNoUrl[] = "";
-
 // Using all capital names to be consistent with other Android media statuses.
 // They are defined in the same order as in their Java counterparts.  Their
 // values should be kept in consistent with their Java counterparts defined in
@@ -235,7 +233,7 @@ void MediaDrmBridge::OnSessionMessage(
   host_->OnSessionUpdate(
       ticket, ToSbDrmSessionRequestType(static_cast<RequestType>(request_type)),
       JavaByteArrayToString(env, session_id),
-      JavaByteArrayToString(env, message), kNoUrl);
+      JavaByteArrayToString(env, message));
 }
 
 void MediaDrmBridge::OnKeyStatusChange(

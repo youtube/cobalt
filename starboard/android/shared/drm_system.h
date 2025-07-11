@@ -69,8 +69,7 @@ class DrmSystem : public ::SbDrmSystemPrivate,
   void OnSessionUpdate(int ticket,
                        SbDrmSessionRequestType request_type,
                        std::string_view session_id,
-                       std::string_view content,
-                       const char* url) override;
+                       std::string_view content) override;
   void OnKeyStatusChange(
       std::string_view session_id,
       const std::vector<SbDrmKeyId>& drm_key_ids,

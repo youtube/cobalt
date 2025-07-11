@@ -34,8 +34,7 @@ class MediaDrmBridge {
     virtual void OnSessionUpdate(int ticket,
                                  SbDrmSessionRequestType request_type,
                                  std::string_view session_id,
-                                 std::string_view content,
-                                 const char* url) = 0;
+                                 std::string_view content) = 0;
     virtual void OnKeyStatusChange(
         std::string_view session_id,
         const std::vector<SbDrmKeyId>& drm_key_ids,

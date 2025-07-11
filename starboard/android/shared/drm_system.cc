@@ -22,14 +22,6 @@
 #include "starboard/common/instance_counter.h"
 #include "starboard/common/thread.h"
 
-namespace {
-
-using starboard::android::shared::DrmSystem;
-
-DECLARE_INSTANCE_COUNTER(AndroidDrmSystem)
-
-}  // namespace
-
 // Declare the function as static instead of putting it in the above anonymous
 // namespace so it can be picked up by `std::vector<SbDrmKeyId>::operator==()`
 // as functions in anonymous namespace doesn't participate in argument dependent
@@ -42,6 +34,13 @@ static bool operator==(const SbDrmKeyId& left, const SbDrmKeyId& right) {
 }
 
 namespace starboard::android::shared {
+namespace {
+using starboard::android::shared::DrmSystem;
+
+constexpr char kNoUrl[] = "";
+
+DECLARE_INSTANCE_COUNTER(AndroidDrmSystem)
+}  // namespace
 
 DrmSystem::DrmSystem(
     const char* key_system,
@@ -171,12 +170,11 @@ const void* DrmSystem::GetMetrics(int* size) {
 void DrmSystem::OnSessionUpdate(int ticket,
                                 SbDrmSessionRequestType request_type,
                                 std::string_view session_id,
-                                std::string_view content,
-                                const char* url) {
+                                std::string_view content) {
   update_request_callback_(this, context_, ticket, kSbDrmStatusSuccess,
                            request_type, /*error_message=*/nullptr,
                            session_id.data(), session_id.size(), content.data(),
-                           content.size(), url);
+                           content.size(), kNoUrl);
 }
 
 void DrmSystem::OnKeyStatusChange(
