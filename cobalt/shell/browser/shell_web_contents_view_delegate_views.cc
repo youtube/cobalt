@@ -21,7 +21,7 @@
 #include "cobalt/shell/browser/shell_devtools_frontend.h"
 #include "content/public/browser/context_menu_params.h"
 #include "content/public/browser/web_contents.h"
-#include "content/shell/common/shell_switches.h"
+
 #include "ui/aura/client/screen_position_client.h"
 #include "ui/aura/window.h"
 #include "ui/base/models/simple_menu_model.h"

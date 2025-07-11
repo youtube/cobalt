@@ -87,7 +87,7 @@
 #endif
 
 #if BUILDFLAG(IS_IOS)
-#include "content/shell/app/ios/shell_application_ios.h"
+
 #endif
 
 namespace {
