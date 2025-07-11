@@ -105,11 +105,10 @@ void DrmSystem::GenerateSessionUpdateRequest(int ticket,
                                              const char* type,
                                              const void* initialization_data,
                                              int initialization_data_size) {
-  std::unique_ptr<SessionUpdateRequest> session_update_request(
-      new SessionUpdateRequest(
-          ticket, std::string_view(type),
-          std::string_view(static_cast<const char*>(initialization_data),
-                           initialization_data_size)));
+  auto session_update_request = std::make_unique<SessionUpdateRequest>(
+      ticket, std::string_view(type),
+      std::string_view(static_cast<const char*>(initialization_data),
+                       initialization_data_size));
   if (created_media_crypto_session_.load()) {
     session_update_request->Generate(media_drm_bridge_.get());
   } else {
