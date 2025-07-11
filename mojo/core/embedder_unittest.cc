@@ -98,7 +98,7 @@ MojoResult ExtractRegionFromSharedBuffer(MojoHandle handle, T* region) {
 }
 
 // The multiprocess tests that use these don't compile on iOS.
-#if !BUILDFLAG(IS_IOS)
+#if !BUILDFLAG(IS_IOS) && !BUILDFLAG(IS_STARBOARD)
 const char kHelloWorld[] = "hello world";
 const char kByeWorld[] = "bye world";
 #endif
@@ -210,7 +210,7 @@ TEST_F(EmbedderTest, ChannelsHandlePassing) {
 //  11.                                      (wait/cl.)
 //  12.                                                  (wait/cl.)
 
-#if !BUILDFLAG(IS_IOS)
+#if !BUILDFLAG(IS_IOS) && !BUILDFLAG(IS_STARBOARD)
 
 TEST_F(EmbedderTest, MultiprocessChannels) {
   RunTestClient("MultiprocessChannelsClient", [&](MojoHandle server_mp) {
