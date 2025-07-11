@@ -23,7 +23,10 @@
 #include "base/functional/bind.h"
 #include "base/i18n/rtl.h"
 #include "base/metrics/field_trial_params.h"
+#include "base/no_destructor.h"
 #include "base/path_service.h"
+#include "base/strings/string_split.h"
+#include "build/buildflag.h"
 #include "cobalt/browser/cobalt_browser_interface_binders.h"
 #include "cobalt/browser/cobalt_browser_main_parts.h"
 #include "cobalt/browser/cobalt_secure_navigation_throttle.h"
@@ -34,29 +37,64 @@
 #include "cobalt/media/service/mojom/video_geometry_setter.mojom.h"
 #include "cobalt/media/service/video_geometry_setter_service.h"
 #include "cobalt/shell/browser/shell.h"
+#include "cobalt/shell/browser/shell_browser_context.h"
+#include "cobalt/shell/browser/shell_browser_main_parts.h"
+#include "cobalt/shell/browser/shell_devtools_manager_delegate.h"
 #include "cobalt/shell/browser/shell_paths.h"
+#include "cobalt/shell/browser/shell_speech_recognition_manager_delegate.h"
+#include "cobalt/shell/browser/shell_web_contents_view_delegate.h"
+#include "cobalt/shell/browser/shell_web_contents_view_delegate_creator.h"
+#include "components/custom_handlers/protocol_handler_registry.h"
+#include "components/custom_handlers/protocol_handler_throttle.h"
+#include "components/custom_handlers/simple_protocol_handler_registry_factory.h"
+#include "components/metrics/metrics_service.h"
 #include "components/metrics/metrics_state_manager.h"
-#include "components/metrics/test/test_enabled_state_provider.h"
 #include "components/metrics_services_manager/metrics_services_manager.h"
+#include "components/network_hints/browser/simple_network_hints_handler_impl.h"
+#include "components/performance_manager/embedder/performance_manager_registry.h"
+#include "components/prefs/json_pref_store.h"
 #include "components/prefs/pref_registry_simple.h"
 #include "components/prefs/pref_service.h"
 #include "components/prefs/pref_service_factory.h"
+#include "components/ukm/scheme_constants.h"
 #include "components/variations/service/variations_service.h"
 #include "content/public/browser/browser_thread.h"
+#include "content/public/browser/client_certificate_delegate.h"
+#include "content/public/browser/login_delegate.h"
+#include "content/public/browser/posix_file_descriptor_info.h"
 #include "content/public/browser/render_process_host.h"
+#include "content/public/browser/speech_recognition_manager_delegate.h"
 #include "content/public/browser/web_contents.h"
 #include "content/public/common/content_switch_dependent_feature_overrides.h"
+#include "content/public/common/url_constants.h"
 #include "content/public/common/user_agent.h"
+#include "content/shell/common/shell_controller.test-mojom.h"
 #include "content/shell/common/shell_switches.h"
+#include "media/mojo/mojom/media_service.mojom.h"
+#include "mojo/public/cpp/bindings/self_owned_receiver.h"
 #include "services/network/public/cpp/features.h"
 #include "services/network/public/mojom/network_context.mojom.h"
 #include "services/service_manager/public/cpp/binder_registry.h"
 #include "third_party/blink/public/common/associated_interfaces/associated_interface_registry.h"
+#include "third_party/blink/public/common/permissions_policy/origin_with_possible_wildcards.h"
 #include "third_party/blink/public/common/web_preferences/web_preferences.h"
+#include "ui/base/ui_base_switches.h"
 
 #if BUILDFLAG(IS_ANDROID)
 #include "base/android/locale_utils.h"
+#include "components/crash/content/browser/crash_handler_host_linux.h"
+#include "content/public/common/content_descriptors.h"
 #endif  // BUILDFLAG(IS_ANDROID)
+
+#if BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_ANDROID)
+#include "components/crash/core/app/crash_switches.h"
+#include "components/crash/core/app/crashpad.h"
+#include "content/public/common/content_descriptors.h"
+#endif  // BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_ANDROID)
+
+#if defined(ENABLE_CAST_RENDERER)
+#include "media/mojo/services/media_service_factory.h"  // nogncheck
+#endif
 
 namespace cobalt {
 
@@ -75,6 +113,104 @@ constexpr base::FilePath::CharType kTransportSecurityPersisterFilename[] =
     FILE_PATH_LITERAL("TransportSecurity");
 constexpr base::FilePath::CharType kTrustTokenFilename[] =
     FILE_PATH_LITERAL("Trust Tokens");
+
+class ShellControllerImpl : public content::mojom::ShellController {
+ public:
+  ShellControllerImpl() = default;
+  ~ShellControllerImpl() override = default;
+
+  // mojom::ShellController:
+  void GetSwitchValue(const std::string& name,
+                      GetSwitchValueCallback callback) override {
+    const auto& command_line = *base::CommandLine::ForCurrentProcess();
+    if (command_line.HasSwitch(name)) {
+      std::move(callback).Run(command_line.GetSwitchValueASCII(name));
+    } else {
+      std::move(callback).Run(absl::nullopt);
+    }
+  }
+
+  void ExecuteJavaScript(const std::u16string& script,
+                         ExecuteJavaScriptCallback callback) override {
+    CHECK(!content::Shell::windows().empty());
+    content::WebContents* contents =
+        content::Shell::windows()[0]->web_contents();
+    contents->GetPrimaryMainFrame()->ExecuteJavaScriptForTests(
+        script, std::move(callback));
+  }
+
+  void ShutDown() override { content::Shell::Shutdown(); }
+};
+
+std::unique_ptr<PrefService> CreateLocalState() {
+  auto pref_registry = base::MakeRefCounted<PrefRegistrySimple>();
+
+  metrics::MetricsService::RegisterPrefs(pref_registry.get());
+  variations::VariationsService::RegisterPrefs(pref_registry.get());
+
+  base::FilePath path;
+  CHECK(base::PathService::Get(content::SHELL_DIR_USER_DATA, &path));
+  path = path.AppendASCII("Local State");
+
+  PrefServiceFactory pref_service_factory;
+  pref_service_factory.set_user_prefs(
+      base::MakeRefCounted<JsonPrefStore>(path));
+
+  return pref_service_factory.Create(pref_registry);
+}
+
+void BindNetworkHintsHandler(
+    content::RenderFrameHost* frame_host,
+    mojo::PendingReceiver<network_hints::mojom::NetworkHintsHandler> receiver) {
+  DCHECK(frame_host);
+  network_hints::SimpleNetworkHintsHandlerImpl::Create(frame_host,
+                                                       std::move(receiver));
+}
+
+#if BUILDFLAG(IS_ANDROID)
+int GetCrashSignalFD(const base::CommandLine& command_line) {
+  return crashpad::CrashHandlerHost::Get()->GetDeathSignalSocket();
+}
+#elif BUILDFLAG(IS_LINUX)
+int GetCrashSignalFD(const base::CommandLine& command_line) {
+  int fd;
+  pid_t pid;
+  return crash_reporter::GetHandlerSocket(&fd, &pid) ? fd : -1;
+}
+#endif
+
+#if BUILDFLAG(IS_ANDROID)
+// This is a list of global descriptor keys to be used with the
+// base::GlobalDescriptors object (see base/posix/global_descriptors.h)
+enum {
+  kShellPakDescriptor = kContentIPCDescriptorMax + 1,
+  kAndroidMinidumpDescriptor,
+};
+#endif  // BUILDFLAG(IS_ANDROID)
+
+std::string GetShellLanguage() {
+  return "en-us,en";
+}
+
+base::flat_set<url::Origin> GetIsolatedContextOriginSetFromFlag() {
+  std::string cmdline_origins(
+      base::CommandLine::ForCurrentProcess()->GetSwitchValueASCII(
+          switches::kIsolatedContextOrigins));
+
+  std::vector<base::StringPiece> origin_strings = base::SplitStringPiece(
+      cmdline_origins, ",", base::TRIM_WHITESPACE, base::SPLIT_WANT_NONEMPTY);
+
+  base::flat_set<url::Origin> origin_set;
+  for (const base::StringPiece& origin_string : origin_strings) {
+    url::Origin allowed_origin = url::Origin::Create(GURL(origin_string));
+    if (!allowed_origin.opaque()) {
+      origin_set.insert(allowed_origin);
+    } else {
+      LOG(ERROR) << "Error parsing IsolatedContext origin: " << origin_string;
+    }
+  }
+  return origin_set;
+}
 
 }  // namespace
 
@@ -114,6 +250,10 @@ blink::UserAgentMetadata GetCobaltUserAgentMetadata() {
   return metadata;
 }
 
+content::BrowserContext* CobaltContentBrowserClient::GetBrowserContext() {
+  return shell_browser_main_parts_->browser_context();
+}
+
 CobaltContentBrowserClient::CobaltContentBrowserClient()
     : video_geometry_setter_service_(
           std::unique_ptr<cobalt::media::VideoGeometrySetterService,
@@ -129,8 +269,11 @@ std::unique_ptr<content::BrowserMainParts>
 CobaltContentBrowserClient::CreateBrowserMainParts(
     bool /* is_integration_test */) {
   DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
+  DCHECK(!shell_browser_main_parts_);
+
   auto browser_main_parts = std::make_unique<CobaltBrowserMainParts>();
-  set_browser_main_parts(browser_main_parts.get());
+  shell_browser_main_parts_ = browser_main_parts.get();
+
   return browser_main_parts;
 }
 
@@ -192,7 +335,19 @@ void CobaltContentBrowserClient::OverrideWebkitPrefs(
   // testing set up. See b/377410179.
   prefs->allow_running_insecure_content = true;
 #endif  // !defined(COBALT_IS_RELEASE_BUILD)
-  content::ShellContentBrowserClient::OverrideWebkitPrefs(web_contents, prefs);
+  if (base::CommandLine::ForCurrentProcess()->HasSwitch(
+          switches::kForceDarkMode)) {
+    prefs->preferred_color_scheme = blink::mojom::PreferredColorScheme::kDark;
+  } else {
+    prefs->preferred_color_scheme = blink::mojom::PreferredColorScheme::kLight;
+  }
+
+  if (base::CommandLine::ForCurrentProcess()->HasSwitch(
+          switches::kForceHighContrast)) {
+    prefs->preferred_contrast = blink::mojom::PreferredContrast::kMore;
+  } else {
+    prefs->preferred_contrast = blink::mojom::PreferredContrast::kNoPreference;
+  }
 }
 
 content::StoragePartitionConfig
@@ -287,8 +442,10 @@ void CobaltContentBrowserClient::RegisterBrowserInterfaceBindersForFrame(
     mojo::BinderMapWithContext<content::RenderFrameHost*>* map) {
   DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
   PopulateCobaltFrameBinders(render_frame_host, map);
-  ShellContentBrowserClient::RegisterBrowserInterfaceBindersForFrame(
-      render_frame_host, map);
+  performance_manager::PerformanceManagerRegistry::GetInstance()
+      ->ExposeInterfacesToRenderFrame(map);
+  map->Add<network_hints::mojom::NetworkHintsHandler>(
+      base::BindRepeating(&BindNetworkHintsHandler));
 }
 
 void CobaltContentBrowserClient::CreateVideoGeometrySetterService() {
@@ -312,6 +469,9 @@ void CobaltContentBrowserClient::ExposeInterfacesToRenderer(
   registry->AddInterface<cobalt::media::mojom::VideoGeometryChangeSubscriber>(
       video_geometry_setter_service_->GetBindSubscriberCallback(),
       base::SingleThreadTaskRunner::GetCurrentDefault());
+  performance_manager::PerformanceManagerRegistry::GetInstance()
+      ->CreateProcessNodeAndExposeInterfacesToRendererProcess(
+          registry, render_process_host);
 }
 
 void CobaltContentBrowserClient::BindGpuHostReceiver(
@@ -323,6 +483,153 @@ void CobaltContentBrowserClient::BindGpuHostReceiver(
   if (auto r = receiver.As<media::mojom::VideoGeometrySetter>()) {
     video_geometry_setter_service_->GetVideoGeometrySetter(std::move(r));
   }
+}
+
+#if BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_ANDROID)
+void CobaltContentBrowserClient::GetAdditionalMappedFilesForChildProcess(
+    const base::CommandLine& command_line,
+    int child_process_id,
+    content::PosixFileDescriptorInfo* mappings) {
+#if BUILDFLAG(IS_ANDROID)
+  mappings->ShareWithRegion(
+      kShellPakDescriptor,
+      base::GlobalDescriptors::GetInstance()->Get(kShellPakDescriptor),
+      base::GlobalDescriptors::GetInstance()->GetRegion(kShellPakDescriptor));
+#endif
+  int crash_signal_fd = GetCrashSignalFD(command_line);
+  if (crash_signal_fd >= 0) {
+    mappings->Share(kCrashDumpSignal, crash_signal_fd);
+  }
+}
+#endif  // BUILDFLAG(IS_LINUX) ||
+        // BUILDFLAG(IS_ANDROID)
+
+bool CobaltContentBrowserClient::IsHandledURL(const GURL& url) {
+  if (!url.is_valid()) {
+    return false;
+  }
+  static const char* const kProtocolList[] = {
+      url::kHttpScheme,
+      url::kHttpsScheme,
+      url::kWsScheme,
+      url::kWssScheme,
+      url::kBlobScheme,
+      url::kFileSystemScheme,
+      ukm::kChromeUIScheme,
+      content::kChromeUIUntrustedScheme,
+      content::kChromeDevToolsScheme,
+      url::kDataScheme,
+      url::kFileScheme,
+  };
+  for (const char* supported_protocol : kProtocolList) {
+    if (url.scheme_piece() == supported_protocol) {
+      return true;
+    }
+  }
+  return false;
+}
+
+bool CobaltContentBrowserClient::HasCustomSchemeHandler(
+    content::BrowserContext* browser_context,
+    const std::string& scheme) {
+  if (custom_handlers::ProtocolHandlerRegistry* protocol_handler_registry =
+          custom_handlers::SimpleProtocolHandlerRegistryFactory::
+              GetForBrowserContext(browser_context)) {
+    return protocol_handler_registry->IsHandledProtocol(scheme);
+  }
+  return false;
+}
+
+std::vector<std::unique_ptr<blink::URLLoaderThrottle>>
+CobaltContentBrowserClient::CreateURLLoaderThrottles(
+    const network::ResourceRequest& request,
+    content::BrowserContext* browser_context,
+    const base::RepeatingCallback<content::WebContents*()>& wc_getter,
+    content::NavigationUIData* navigation_ui_data,
+    int frame_tree_node_id) {
+  std::vector<std::unique_ptr<blink::URLLoaderThrottle>> result;
+
+  auto* factory = custom_handlers::SimpleProtocolHandlerRegistryFactory::
+      GetForBrowserContext(browser_context);
+  // null in unit tests.
+  if (factory) {
+    result.push_back(
+        std::make_unique<custom_handlers::ProtocolHandlerThrottle>(*factory));
+  }
+
+  return result;
+}
+
+void CobaltContentBrowserClient::AppendExtraCommandLineSwitches(
+    base::CommandLine* command_line,
+    int child_process_id) {
+  static const char* kForwardSwitches[] = {
+      switches::kCrashDumpsDir,
+      switches::kEnableCrashReporter,
+      switches::kExposeInternalsForTesting,
+      switches::kRunWebTests,
+  };
+
+  command_line->CopySwitchesFrom(*base::CommandLine::ForCurrentProcess(),
+                                 kForwardSwitches, std::size(kForwardSwitches));
+
+#if BUILDFLAG(IS_LINUX)
+  if (base::CommandLine::ForCurrentProcess()->HasSwitch(
+          switches::kEnableCrashReporter)) {
+    int fd;
+    pid_t pid;
+    if (crash_reporter::GetHandlerSocket(&fd, &pid)) {
+      command_line->AppendSwitchASCII(
+          crash_reporter::switches::kCrashpadHandlerPid,
+          base::NumberToString(pid));
+    }
+  }
+#endif  // BUILDFLAG(IS_LINUX)
+}
+
+std::string CobaltContentBrowserClient::GetAcceptLangs(
+    content::BrowserContext* context) {
+  return GetShellLanguage();
+}
+
+std::string CobaltContentBrowserClient::GetDefaultDownloadName() {
+  return "download";
+}
+
+std::unique_ptr<content::WebContentsViewDelegate>
+CobaltContentBrowserClient::GetWebContentsViewDelegate(
+    content::WebContents* web_contents) {
+  performance_manager::PerformanceManagerRegistry::GetInstance()
+      ->MaybeCreatePageNodeForWebContents(web_contents);
+  return CreateShellWebContentsViewDelegate(web_contents);
+}
+
+bool CobaltContentBrowserClient::IsIsolatedContextAllowedForUrl(
+    content::BrowserContext* browser_context,
+    const GURL& lock_url) {
+  static base::flat_set<url::Origin> isolated_context_origins =
+      GetIsolatedContextOriginSetFromFlag();
+  return isolated_context_origins.contains(url::Origin::Create(lock_url));
+}
+
+bool CobaltContentBrowserClient::IsSharedStorageAllowed(
+    content::BrowserContext* browser_context,
+    content::RenderFrameHost* rfh,
+    const url::Origin& top_frame_origin,
+    const url::Origin& accessing_origin) {
+  return true;
+}
+
+bool CobaltContentBrowserClient::IsSharedStorageSelectURLAllowed(
+    content::BrowserContext* browser_context,
+    const url::Origin& top_frame_origin,
+    const url::Origin& accessing_origin) {
+  return true;
+}
+
+content::SpeechRecognitionManagerDelegate*
+CobaltContentBrowserClient::CreateSpeechRecognitionManagerDelegate() {
+  return new content::ShellSpeechRecognitionManagerDelegate();
 }
 
 bool CobaltContentBrowserClient::WillCreateURLLoaderFactory(
@@ -348,6 +655,12 @@ bool CobaltContentBrowserClient::WillCreateURLLoaderFactory(
   }
 
   return true;
+}
+
+std::unique_ptr<content::DevToolsManagerDelegate>
+CobaltContentBrowserClient::CreateDevToolsManagerDelegate() {
+  return std::make_unique<content::ShellDevToolsManagerDelegate>(
+      GetBrowserContext());
 }
 
 void CobaltContentBrowserClient::SetUpCobaltFeaturesAndParams(
@@ -399,11 +712,13 @@ void CobaltContentBrowserClient::SetUpCobaltFeaturesAndParams(
 }
 
 void CobaltContentBrowserClient::CreateFeatureListAndFieldTrials() {
-  metrics::TestEnabledStateProvider enabled_state_provider(/*consent=*/false,
-                                                           /*enabled=*/false);
+  local_state_ = CreateLocalState();
   GlobalFeatures::GetInstance()
       ->metrics_services_manager()
       ->InstantiateFieldTrialList();
+  // Schedule a Local State write since the above function resulted in some
+  // prefs being updated.
+  local_state_->CommitPendingWrite();
 
   auto feature_list = std::make_unique<base::FeatureList>();
 
@@ -447,6 +762,72 @@ void CobaltContentBrowserClient::CreateFeatureListAndFieldTrials() {
             << command_line.GetSwitchValueASCII(::switches::kEnableFeatures);
   LOG(INFO) << "CobaltCommandLine "
             << command_line.GetSwitchValueASCII(::switches::kDisableFeatures);
+}
+
+void CobaltContentBrowserClient::OpenURL(
+    content::SiteInstance* site_instance,
+    const content::OpenURLParams& params,
+    base::OnceCallback<void(content::WebContents*)> callback) {
+  std::move(callback).Run(
+      content::Shell::CreateNewWindow(site_instance->GetBrowserContext(),
+                                      params.url, nullptr, gfx::Size())
+          ->web_contents());
+}
+
+base::Value::Dict CobaltContentBrowserClient::GetNetLogConstants() {
+  base::Value::Dict client_constants;
+  client_constants.Set("name", "content_shell");
+  base::CommandLine::StringType command_line =
+      base::CommandLine::ForCurrentProcess()->GetCommandLineString();
+  client_constants.Set("command_line", command_line);
+  base::Value::Dict constants;
+  constants.Set("clientInfo", std::move(client_constants));
+  return constants;
+}
+
+std::vector<base::FilePath>
+CobaltContentBrowserClient::GetNetworkContextsParentDirectory() {
+  return {GetBrowserContext()->GetPath()};
+}
+
+void CobaltContentBrowserClient::BindBrowserControlInterface(
+    mojo::ScopedMessagePipeHandle pipe) {
+  if (!pipe.is_valid()) {
+    return;
+  }
+  mojo::MakeSelfOwnedReceiver(
+      std::make_unique<ShellControllerImpl>(),
+      mojo::PendingReceiver<content::mojom::ShellController>(std::move(pipe)));
+}
+
+void CobaltContentBrowserClient::GetHyphenationDictionary(
+    base::OnceCallback<void(const base::FilePath&)> callback) {
+  // If we have the source tree, return the dictionary files in the tree.
+  base::FilePath dir;
+  if (base::PathService::Get(base::DIR_SOURCE_ROOT, &dir)) {
+    dir = dir.AppendASCII("third_party")
+              .AppendASCII("hyphenation-patterns")
+              .AppendASCII("hyb");
+    std::move(callback).Run(dir);
+  }
+  // No need to callback if there were no dictionaries.
+}
+
+bool CobaltContentBrowserClient::HasErrorPage(int http_status_code) {
+  return http_status_code >= 400 && http_status_code < 600;
+}
+
+absl::optional<blink::ParsedPermissionsPolicy>
+CobaltContentBrowserClient::GetPermissionsPolicyForIsolatedWebApp(
+    content::BrowserContext* browser_context,
+    const url::Origin& app_origin) {
+  blink::ParsedPermissionsPolicyDeclaration decl(
+      blink::mojom::PermissionsPolicyFeature::kDirectSockets,
+      {blink::OriginWithPossibleWildcards(app_origin,
+                                          /*has_subdomain_wildcard=*/false)},
+      /*self_if_matches=*/absl::nullopt,
+      /*matches_all_origins=*/false, /*matches_opaque_src=*/false);
+  return {{decl}};
 }
 
 }  // namespace cobalt
