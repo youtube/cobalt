@@ -27,7 +27,7 @@ runs:
           if [[ "${{ matrix.platform }}" == "android" ]]; then
             runnable="out/${{ matrix.platform }}_${{ matrix.config }}/${target}_apk/${target}-debug.apk"
           else
-            runnable="out/${{ matrix.platform }}_${{ matrix.config }}/${target}"
+            runnable="out/${{ matrix.platform }}_${{ matrix.config }}/${target}.py"
           fi
           cp "${runnable}" "${GITHUB_WORKSPACE}/artifacts/"
         done
