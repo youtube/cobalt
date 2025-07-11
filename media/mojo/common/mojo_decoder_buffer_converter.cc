@@ -524,7 +524,7 @@ void MojoDecoderBufferWriter::OnPipeError(MojoResult result) {
     }
 =======
 #if BUILDFLAG(USE_STARBOARD_MEDIA)
-    for (auto buffer : pending_buffers_) {
+    for (auto& buffer : pending_buffers_) {
       // Release DecoderBuffer as its ref-count was increased manually.
       buffer->Release();
     }
