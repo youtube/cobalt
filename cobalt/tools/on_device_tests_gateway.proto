@@ -36,7 +36,8 @@ message OnDeviceTestsCommand {
 }
 
 message TestRequest {
-  // Next ID: 7
+  // Next ID: 10
+  reserved 8;
   // Args picked up by MH, e.g. "name1=value", "name2=value".
   repeated string test_args = 1;
   // Args picked up by the test target "command_line_args=--arg1=value",
@@ -54,6 +55,8 @@ message TestRequest {
   string device_pool = 6;
   // E.g. "base:base_unittests" or "url:url_unittests"
   string test_target = 7;
+  // E.g. "unit_test" or "e2e_test"
+  string test_type = 9;
 }
 
 message OnDeviceTestsWatchCommand {

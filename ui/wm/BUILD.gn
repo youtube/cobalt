@@ -151,6 +151,10 @@ test("wm_unittests") {
     "core/window_util_unittest.cc",
     "test/run_all_unittests.cc",
   ]
+  if (is_cobalt_hermetic_build) {
+    sources += [ "test/starboard/run_all_unittests.cc" ]
+    sources -= [ "test/run_all_unittests.cc" ]
+  }
 
   deps = [
     ":test_support",

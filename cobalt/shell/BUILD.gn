@@ -57,7 +57,6 @@ group("content_shell_lib_deps") {
     "//components/origin_trials:browser",
     "//components/origin_trials:common",
     "//components/performance_manager",
-    "//components/permissions",
     "//components/prefs",
     "//components/services/storage/test_api",
     "//components/url_formatter",
@@ -79,7 +78,6 @@ group("content_shell_lib_deps") {
     "//content/shell:shell_controller_mojom",
     "//content/test:content_test_mojo_bindings",
     "//content/test:test_support",
-    "//device/bluetooth",
     "//media",
     "//media/mojo:buildflags",
     "//net",
@@ -95,15 +93,20 @@ group("content_shell_lib_deps") {
     "//third_party/blink/public:resources",
     "//third_party/blink/public/strings",
     "//third_party/blink/public/strings:accessibility_strings",
-    "//ui/base",
-    "//ui/base/clipboard",
-    "//ui/base/ime/init",
-    "//ui/gfx",
-    "//ui/gfx/geometry",
-    "//ui/platform_window",
     "//url",
     "//v8",
   ]
+
+  if (!is_android) {
+    public_deps += [
+      "//ui/base",
+      "//ui/base/clipboard",
+      "//ui/base/ime/init",
+      "//ui/gfx",
+      "//ui/gfx/geometry",
+      "//ui/platform_window",
+    ]
+  }
 
   if (enable_cast_renderer) {
     public_deps += [ "//media/mojo/services" ]
@@ -115,7 +118,6 @@ group("content_shell_lib_deps") {
 
   if (is_ios) {
     public_deps += [
-      "//components/permissions",
       "//services/tracing/public/cpp",
       "//services/tracing/public/mojom:mojom",
       "//ui/shell_dialogs",
@@ -126,7 +128,6 @@ group("content_shell_lib_deps") {
     public_deps += [
       "//components/embedder_support/android:view",
       "//content/shell/android:content_shell_jni_headers",
-      "//mojo/public/java/system:test_support",
       "//ui/android",
     ]
   }
@@ -192,10 +193,6 @@ static_library("content_shell_lib") {
     "//content/shell/common/shell_origin_trial_policy.h",
     "//content/shell/common/shell_switches.cc",
     "//content/shell/common/shell_switches.h",
-    "//content/shell/gpu/shell_content_gpu_client.cc",
-    "//content/shell/gpu/shell_content_gpu_client.h",
-    "//content/shell/utility/shell_content_utility_client.cc",
-    "//content/shell/utility/shell_content_utility_client.h",
     "browser/shell.cc",
     "browser/shell.h",
     "browser/shell_browser_context.cc",
@@ -212,17 +209,11 @@ static_library("content_shell_lib") {
     "browser/shell_devtools_frontend.h",
     "browser/shell_devtools_manager_delegate.cc",
     "browser/shell_devtools_manager_delegate.h",
-    "browser/shell_download_manager_delegate.cc",
-    "browser/shell_download_manager_delegate.h",
-    "browser/shell_federated_permission_context.cc",
-    "browser/shell_federated_permission_context.h",
     "browser/shell_javascript_dialog.h",
     "browser/shell_javascript_dialog_manager.cc",
     "browser/shell_javascript_dialog_manager.h",
     "browser/shell_paths.cc",
     "browser/shell_paths.h",
-    "browser/shell_permission_manager.cc",
-    "browser/shell_permission_manager.h",
     "browser/shell_platform_data_aura.cc",
     "browser/shell_platform_data_aura.h",
     "browser/shell_platform_delegate.cc",
@@ -231,6 +222,10 @@ static_library("content_shell_lib") {
     "browser/shell_speech_recognition_manager_delegate.h",
     "browser/shell_web_contents_view_delegate.h",
     "browser/shell_web_contents_view_delegate_creator.h",
+    "gpu/shell_content_gpu_client.cc",
+    "gpu/shell_content_gpu_client.h",
+    "utility/shell_content_utility_client.cc",
+    "utility/shell_content_utility_client.h",
   ]
 
   if (is_android) {
@@ -244,8 +239,6 @@ static_library("content_shell_lib") {
 
   if (is_ios) {
     sources += [
-      "browser/bluetooth/shell_bluetooth_delegate_impl_client.cc",
-      "browser/bluetooth/shell_bluetooth_delegate_impl_client.h",
       "browser/shell_file_select_helper.cc",
       "browser/shell_file_select_helper.h",
       "browser/shell_platform_delegate_ios.mm",
@@ -314,19 +307,12 @@ static_library("content_shell_lib") {
 static_library("content_shell_app") {
   testonly = true
   sources = [
-    "//content/shell/app/shell_crash_reporter_client.cc",
-    "//content/shell/app/shell_crash_reporter_client.h",
+    "app/shell_crash_reporter_client.cc",
+    "app/shell_crash_reporter_client.h",
     "app/shell_main_delegate.cc",
     "app/shell_main_delegate.h",
   ]
   public_deps = [ ":content_shell_app_deps" ]
-  if (is_apple) {
-    configs += [ "//build/config/compiler:enable_arc" ]
-    sources += [
-      "app/paths_mac.h",
-      "app/paths_mac.mm",
-    ]
-  }
   if (is_ios) {
     sources += [
       "app/ios/shell_application_ios.h",
