@@ -16,7 +16,23 @@ inputs:
 runs:
   using: "composite"
   steps:
-    - name: Archive Test Artifacts
+    - name: Copy Runnables to Artifacts
+      if: inputs.upload_on_device_test_artifacts == 'true'
+      env:
+        TEST_TARGETS_JSON: ${{ inputs.test_targets_json }}
+      run: |
+        set -eux
+        cd src/
+        for target in $(echo "${TEST_TARGETS_JSON}" | jq -r '.[] | split(":")[1]'); do
+          if [[ "${{ matrix.platform }}" == "android" ]]; then
+            runnable="out/${{ matrix.platform }}_${{ matrix.config }}/${target}_apk/${target}-debug.apk"
+          else
+            runnable="out/${{ matrix.platform }}_${{ matrix.config }}/${target}"
+          fi
+          cp "${runnable}" "${GITHUB_WORKSPACE}/artifacts/"
+        done
+      shell: bash
+    - name: Archive Test Dependencies
       env:
         TEST_TARGETS_JSON: ${{ inputs.test_targets_json }}
       run: |
@@ -37,18 +53,6 @@ runs:
           --destination-dir ${GITHUB_WORKSPACE}/artifacts \
           --targets $(echo "${TEST_TARGETS_JSON}" | jq -cr 'join(",")') \
           ${FLAGS}
-      shell: bash
-    - name: Copy APKs
-      if: matrix.platform == 'android'
-      env:
-        TEST_TARGETS_JSON: ${{ inputs.test_targets_json }}
-      run: |
-        set -eux
-        cd src/
-        for target in $(echo "${TEST_TARGETS_JSON}" | jq -r '.[] | split(":")[1]'); do
-          apk_path="out/${{ matrix.platform }}_${{ matrix.config }}/${target}_apk/${target}-debug.apk"
-          cp "${apk_path}" "${GITHUB_WORKSPACE}/artifacts/"
-        done
       shell: bash
     - name: Upload On-Host Test Artifacts Archive
       if: inputs.upload_on_host_test_artifacts == 'true'
