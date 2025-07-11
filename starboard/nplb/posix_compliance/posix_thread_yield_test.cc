@@ -30,14 +30,14 @@ inline bool IsYielder(int trial, int index) {
 }
 
 // The more loops, the more the yielders should fall behind.
-const int kLoops = 10000;
+constexpr int kLoops = 10000;
 
 void* YieldingEntryPoint(void* context) {
   for (int i = 0; i < kLoops; ++i) {
     sched_yield();
   }
 
-  int64_t* end_time = static_cast<int64_t*>(context);
+  int64_t *end_time = static_cast<int64_t *>(context);
   *end_time = CurrentMonotonicTime();
   return NULL;
 }
@@ -47,14 +47,14 @@ void* UnyieldingEntryPoint(void* context) {
     posix::DoNotYield();
   }
 
-  int64_t* end_time = static_cast<int64_t*>(context);
+  int64_t *end_time = static_cast<int64_t *>(context);
   *end_time = CurrentMonotonicTime();
   return NULL;
 }
 
 TEST(PosixThreadYieldTest, SunnyDay) {
   sched_yield();
-  // Well, my work here is done.
+// Well, my work here is done.
 }
 
 TEST(PosixThreadYieldTest, SunnyDayRace) {
@@ -63,7 +63,7 @@ TEST(PosixThreadYieldTest, SunnyDayRace) {
   for (int trial = 0; trial < kTrials; ++trial) {
     // We want enough racers such that the threads must contend for cpu time,
     // and enough data for the averages to be consistently divergent.
-    const int64_t kRacers = 32;
+    constexpr int64_t kRacers = 32;
     pthread_t threads[kRacers];
     int64_t end_times[kRacers] = {0};
     for (int i = 0; i < kRacers; ++i) {

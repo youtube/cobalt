@@ -22,7 +22,7 @@ namespace nplb {
 namespace {
 
 // Allow millisecond-level precision.
-const int64_t kPrecision = 1000;  // 1ms
+constexpr int64_t kPrecision = 1000;  // 1ms
 
 TEST(PosixThreadSleepTest, SunnyDay) {
   usleep(0);
@@ -30,8 +30,8 @@ TEST(PosixThreadSleepTest, SunnyDay) {
 }
 
 TEST(PosixThreadSleepTest, SunnyDayAtLeastDelay) {
-  const int kTrials = 12;
-  const int64_t one = 1;
+  constexpr int kTrials = 12;
+  constexpr int64_t one = 1;
   for (int trial = 0; trial < kTrials; ++trial) {
     // This tests several delays, between about 15 to about 4 milliseconds.
     const int64_t kDelay = 1'000'000LL / (one << ((trial % 3) + 6));

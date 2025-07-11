@@ -23,7 +23,7 @@ namespace nplb {
 namespace {
 
 TEST(PosixThreadCreateTest, SunnyDay) {
-  const int kTrials = 64;
+  constexpr int kTrials = 64;
   for (int i = 0; i < kTrials; ++i) {
     pthread_t thread;
     EXPECT_EQ(pthread_create(&thread, NULL, posix::AddOneEntryPoint,

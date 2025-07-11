@@ -22,18 +22,18 @@ namespace starboard {
 namespace nplb {
 namespace {
 
-const char kIpGood[] = "192.168.1.2";
-const char kIpBad1[] = "192.1x8.1.2";
-const char kIpBad2[] = "192.1x8";
-const char kIpBad3[] = "x.1.2.3";
-const char kIpBad4[] = "192.168.1.2.";
-const char kIpFormat[] = "%u.%u.%u.%u";
+constexpr char kIpGood[] = "192.168.1.2";
+constexpr char kIpBad1[] = "192.1x8.1.2";
+constexpr char kIpBad2[] = "192.1x8";
+constexpr char kIpBad3[] = "x.1.2.3";
+constexpr char kIpBad4[] = "192.168.1.2.";
+constexpr char kIpFormat[] = "%u.%u.%u.%u";
 
-const char kFloatString[] = "3.14159";
-const char kFloatPattern[] = "%f";
-const char kDoublePattern[] = "%lf";
-const float kExpectedFloat = 3.14159f;
-const double kExpectedDouble = 3.14159;
+constexpr char kFloatString[] = "3.14159";
+constexpr char kFloatPattern[] = "%f";
+constexpr char kDoublePattern[] = "%lf";
+constexpr float kExpectedFloat = 3.14159f;
+constexpr double kExpectedDouble = 3.14159;
 
 TEST(PosixStringScanTest, SunnyDayIp1) {
   unsigned int in[4] = {0};

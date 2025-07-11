@@ -20,19 +20,19 @@ namespace nplb {
 namespace {
 
 TEST(PosixCompareNoCaseTest, SunnyDaySelf) {
-  const char kString[] = "0123456789";
+  constexpr char kString[] = "0123456789";
   EXPECT_EQ(0, strcasecmp(kString, kString));
   EXPECT_EQ(0, strcasecmp("", ""));
 }
 
 TEST(PosixCompareNoCaseTest, SunnyDayEmptyLessThanNotEmpty) {
-  const char kString[] = "0123456789";
+  constexpr char kString[] = "0123456789";
   EXPECT_GT(0, strcasecmp("", kString));
 }
 
 TEST(PosixCompareNoCaseTest, SunnyDayCase) {
-  const char kString1[] = "aBcDeFgHiJkLmNoPqRsTuVwXyZ";
-  const char kString2[] = "AbCdEfGhIjKlMnOpQrStUvWxYz";
+  constexpr char kString1[] = "aBcDeFgHiJkLmNoPqRsTuVwXyZ";
+  constexpr char kString2[] = "AbCdEfGhIjKlMnOpQrStUvWxYz";
   EXPECT_EQ(0, strcasecmp(kString1, kString2));
   EXPECT_EQ(0, strcasecmp(kString2, kString1));
 }

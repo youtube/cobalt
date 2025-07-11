@@ -40,7 +40,7 @@ bool FileExists(const char* path) {
 }
 
 TEST(PosixDirectoryGetNextTest, SunnyDay) {
-  const int kNumFiles = 65;
+  constexpr int kNumFiles = 65;
   ScopedRandomFile files[kNumFiles];
 
   std::string directory_name = files[0].filename();

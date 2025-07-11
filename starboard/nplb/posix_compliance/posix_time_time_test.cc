@@ -24,17 +24,17 @@ namespace starboard {
 namespace nplb {
 namespace {
 
-const int64_t kMicrosecondsPerSecond = 1'000'000LL;
+constexpr int64_t kMicrosecondsPerSecond = 1'000'000LL;
 
 // kReasonableMinTime represents a time (2025-01-01 00:00:00 UTC) after which
 // the current time is expected to fall.
-const time_t kReasonableMinTime = 1'735'689'600;  // 2025-01-01 00:00:00 UTC
+constexpr time_t kReasonableMinTime = 1'735'689'600;  // 2025-01-01 00:00:00 UTC
 
 // kReasonableMaxTime represents a time (2045-01-01 00:00:00 UTC) before which
 // the current time is expected to fall. Note that this also implicitly tests
 // that the code handles timestamps past the Unix Epoch wraparound on 03:14:08
 // UTC on 19 January 2038.
-const time_t kReasonableMaxTime = 2'366'841'600;  // 2045-01-01 00:00:00 UTC
+constexpr time_t kReasonableMaxTime = 2'366'841'600;  // 2045-01-01 00:00:00 UTC
 
 // TODO: b/390675141 - Remove this after non-hermetic linux build is removed.
 // On non-hermetic builds, clock_gettime() is declared "noexcept".
@@ -176,7 +176,7 @@ TEST(PosixTimeTimeTests, MatchesGettimeofdayWithNullArgument) {
 }
 
 TEST(PosixTimeTimeTests, TimeProgressesMonotonically) {
-  const int kNumIterations = 1000;
+  constexpr int kNumIterations = 1000;
   for (int i = 0; i < kNumIterations; ++i) {
     time_t time1 = time(nullptr);
     ASSERT_NE(time1, static_cast<time_t>(-1))
