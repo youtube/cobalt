@@ -302,19 +302,12 @@ static_library("content_shell_lib") {
 static_library("content_shell_app") {
   testonly = true
   sources = [
-    "//content/shell/app/shell_crash_reporter_client.cc",
-    "//content/shell/app/shell_crash_reporter_client.h",
+    "app/shell_crash_reporter_client.cc",
+    "app/shell_crash_reporter_client.h",
     "app/shell_main_delegate.cc",
     "app/shell_main_delegate.h",
   ]
   public_deps = [ ":content_shell_app_deps" ]
-  if (is_apple) {
-    configs += [ "//build/config/compiler:enable_arc" ]
-    sources += [
-      "app/paths_mac.h",
-      "app/paths_mac.mm",
-    ]
-  }
   if (is_ios) {
     sources += [
       "app/ios/shell_application_ios.h",
