@@ -221,6 +221,10 @@ class MetaBuildWrapper:
                            'as a JSON object.')
     subp.add_argument('--json-output',
                       help='Write errors to json.output')
+    subp.add_argument('--write-ide-json',
+                      action='store_true',
+                      help='Write project target information to a file at '
+                      'project.json in the build dir.')
     subp.set_defaults(func=self.CmdAnalyze)
 
     subp = subps.add_parser('export',
@@ -280,14 +284,16 @@ class MetaBuildWrapper:
                            'in file as .isolate and .isolated.gen.json files. '
                            'Targets should be listed by name, separated by '
                            'newline.')
-    subp.add_argument('--json-output',
-                      help='Write errors to json.output')
     subp.add_argument('--rts-target-change-recall',
                       type=float,
                       help='how much safety is needed when selecting tests. '
                       '0.0 is the lowest and 1.0 is the highest')
-    subp.add_argument('path',
-                      help='path to generate build into')
+    subp.add_argument('--write-ide-json',
+                      action='store_true',
+                      help='Write project target information to a file at '
+                      'project.json in the build dir.')
+    subp.add_argument('--json-output', help='Write errors to json.output')
+    subp.add_argument('path', help='path to generate build into')
     subp.set_defaults(func=self.CmdGen)
 
     subp = subps.add_parser('isolate-everything',
@@ -307,10 +313,12 @@ class MetaBuildWrapper:
                       help='Do not build, just isolate')
     subp.add_argument('-j', '--jobs', type=int,
                       help='Number of jobs to pass to ninja')
-    subp.add_argument('path',
-                      help='path build was generated into')
-    subp.add_argument('target',
-                      help='ninja target to generate the isolate for')
+    subp.add_argument('--write-ide-json',
+                      action='store_true',
+                      help='Write project target information to a file at '
+                      'project.json in the build dir.')
+    subp.add_argument('path', help='path build was generated into')
+    subp.add_argument('target', help='ninja target to generate the isolate for')
     subp.set_defaults(func=self.CmdIsolate)
 
     subp = subps.add_parser('lookup',
@@ -388,9 +396,13 @@ class MetaBuildWrapper:
     subp.add_argument('--no-default-dimensions', action='store_false',
                       dest='default_dimensions', default=True,
                       help='Do not automatically add dimensions to the task')
-    subp.add_argument('target',
-                      help='ninja target to build and run')
-    subp.add_argument('extra_args', nargs='*',
+    subp.add_argument('--write-ide-json',
+                      action='store_true',
+                      help='Write project target information to a file at '
+                      'project.json in the build dir.')
+    subp.add_argument('target', help='ninja target to build and run')
+    subp.add_argument('extra_args',
+                      nargs='*',
                       help=('extra args to pass to the isolate to run. Use '
                             '"--" as the first arg if you need to pass '
                             'switches'))
@@ -1186,6 +1198,9 @@ class MetaBuildWrapper:
 
     # Write all generated targets to a JSON file called project.json
     # in the build dir.
+    # TODO(crbug.com/330760869): Enable this conditional once the bots that
+    # need it are passing down the "--write-ide-json" flag.
+    #if self.args.write_ide_json:
     cmd.append('--ide=json')
     cmd.append('--json-file-name=project.json')
 

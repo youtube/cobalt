@@ -1,7 +1,8 @@
 {
   "$build/chromium_orchestrator": {
     "compilator": "chromeos-amd64-generic-rel-compilator",
-    "compilator_watcher_git_revision": "e3cad57252d996ab02463019e7f49343d739b885"
+    "compilator_watcher_git_revision": "e3cad57252d996ab02463019e7f49343d739b885",
+    "propagate_properties_to_compilator": true
   },
   "$build/chromium_tests_builder_config": {
     "builder_config": {
@@ -36,6 +37,7 @@
               "legacy_gclient_config": {
                 "apply_configs": [
                   "chromeos",
+                  "chromium_with_telemetry_dependencies",
                   "checkout_lacros_sdk"
                 ],
                 "config": "chromium"
@@ -52,6 +54,11 @@
         }
       ]
     }
+  },
+  "$build/reclient": {
+    "instance": "rbe-chromium-untrusted",
+    "jobs": 300,
+    "metrics_project": "chromium-reclient-metrics"
   },
   "$recipe_engine/resultdb/test_presentation": {
     "column_keys": [],
