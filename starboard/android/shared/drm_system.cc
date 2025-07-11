@@ -15,7 +15,6 @@
 #include "starboard/android/shared/drm_system.h"
 
 #include <memory>
-#include <mutex>
 #include <string_view>
 #include <utility>
 

@@ -34,6 +34,8 @@ namespace {
 using base::android::AttachCurrentThread;
 using base::android::ConvertJavaStringToUTF8;
 using base::android::ConvertUTF8ToJavaString;
+using base::android::JavaByteArrayToString;
+using base::android::ScopedJavaLocalRef;
 using base::android::ToJavaByteArray;
 
 const char kNoUrl[] = "";
@@ -90,8 +92,9 @@ SbDrmKeyStatus ToSbDrmKeyStatus(MediaDrmKeyStatus status_code) {
   }
 }
 
-std::string JavaByteArrayToString(JNIEnv* env,
-                                  const JavaRef<jbyteArray>& j_byte_array) {
+std::string JavaByteArrayToString(
+    JNIEnv* env,
+    const base::android::JavaRef<jbyteArray>& j_byte_array) {
   std::string out;
   base::android::JavaByteArrayToString(env, j_byte_array, &out);
   return out;
@@ -99,7 +102,7 @@ std::string JavaByteArrayToString(JNIEnv* env,
 
 std::string JavaByteArrayToString(JNIEnv* env, jbyteArray j_byte_array) {
   return JavaByteArrayToString(
-      env, ScopedJavaLocalRef<jbyteArray>(env, j_byte_array));
+      env, base::android::ScopedJavaLocalRef<jbyteArray>(env, j_byte_array));
 }
 
 }  // namespace
@@ -109,17 +112,18 @@ MediaDrmBridge::MediaDrmBridge(raw_ref<MediaDrmBridge::Host> host,
     : host_(host) {
   JNIEnv* env = AttachCurrentThread();
 
-  ScopedJavaLocalRef<jstring> j_key_system(
+  base::android::ScopedJavaLocalRef<jstring> j_key_system(
       ConvertUTF8ToJavaString(env, key_system));
-  ScopedJavaLocalRef<jobject> j_media_drm_bridge(Java_MediaDrmBridge_create(
-      env, j_key_system, reinterpret_cast<jlong>(this)));
+  base::android::ScopedJavaLocalRef<jobject> j_media_drm_bridge(
+      Java_MediaDrmBridge_create(env, j_key_system,
+                                 reinterpret_cast<jlong>(this)));
 
   if (j_media_drm_bridge.is_null()) {
     SB_LOG(ERROR) << "Failed to create MediaDrmBridge.";
     return;
   }
 
-  ScopedJavaLocalRef<jobject> j_media_crypto(
+  base::android::ScopedJavaLocalRef<jobject> j_media_crypto(
       Java_MediaDrmBridge_getMediaCrypto(env, j_media_drm_bridge));
 
   if (j_media_crypto.is_null()) {
@@ -145,10 +149,12 @@ void MediaDrmBridge::CreateSession(int ticket,
   JNIEnv* env = AttachCurrentThread();
 
   JniIntWrapper j_ticket = static_cast<jint>(ticket);
-  ScopedJavaLocalRef<jbyteArray> j_init_data = ScopedJavaLocalRef(
-      ToJavaByteArray(env, init_data.data(), init_data.size()));
-  ScopedJavaLocalRef<jstring> j_mime =
-      ScopedJavaLocalRef(ConvertUTF8ToJavaString(env, mime.c_str()));
+  base::android::ScopedJavaLocalRef<jbyteArray> j_init_data =
+      base::android::ScopedJavaLocalRef(
+          ToJavaByteArray(env, init_data.data(), init_data.size()));
+  base::android::ScopedJavaLocalRef<jstring> j_mime =
+      base::android::ScopedJavaLocalRef(
+          ConvertUTF8ToJavaString(env, mime.c_str()));
 
   Java_MediaDrmBridge_createSession(env, j_media_drm_bridge_, j_ticket,
                                     j_init_data, j_mime);
@@ -162,13 +168,14 @@ bool MediaDrmBridge::UpdateSession(int ticket,
                                    std::string* error_msg) const {
   JNIEnv* env = AttachCurrentThread();
 
-  ScopedJavaLocalRef<jbyteArray> j_session_id(ToJavaByteArray(
+  base::android::ScopedJavaLocalRef<jbyteArray> j_session_id(ToJavaByteArray(
       env, static_cast<const uint8_t*>(session_id), session_id_size));
-  ScopedJavaLocalRef<jbyteArray> j_response(
+  base::android::ScopedJavaLocalRef<jbyteArray> j_response(
       ToJavaByteArray(env, static_cast<const uint8_t*>(key), key_size));
 
-  ScopedJavaLocalRef<jobject> j_update_result(Java_MediaDrmBridge_updateSession(
-      env, j_media_drm_bridge_, ticket, j_session_id, j_response));
+  base::android::ScopedJavaLocalRef<jobject> j_update_result(
+      Java_MediaDrmBridge_updateSession(env, j_media_drm_bridge_, ticket,
+                                        j_session_id, j_response));
   *error_msg = ConvertJavaStringToUTF8(
       Java_UpdateSessionResult_getErrorMessage(env, j_update_result));
 
@@ -178,7 +185,7 @@ bool MediaDrmBridge::UpdateSession(int ticket,
 void MediaDrmBridge::CloseSession(const std::string& session_id) const {
   JNIEnv* env = AttachCurrentThread();
 
-  ScopedJavaLocalRef<jbyteArray> j_session_id =
+  base::android::ScopedJavaLocalRef<jbyteArray> j_session_id =
       ToJavaByteArray(env, reinterpret_cast<const uint8_t*>(session_id.data()),
                       session_id.size());
 
@@ -188,7 +195,7 @@ void MediaDrmBridge::CloseSession(const std::string& session_id) const {
 const void* MediaDrmBridge::GetMetrics(int* size) {
   JNIEnv* env = AttachCurrentThread();
 
-  ScopedJavaLocalRef<jbyteArray> j_metrics =
+  base::android::ScopedJavaLocalRef<jbyteArray> j_metrics =
       Java_MediaDrmBridge_getMetricsInBase64(env, j_media_drm_bridge_);
 
   if (j_metrics.is_null()) {
@@ -222,9 +229,9 @@ bool MediaDrmBridge::CreateMediaCryptoSession() {
 void MediaDrmBridge::OnSessionMessage(
     JNIEnv* env,
     jint ticket,
-    const JavaParamRef<jbyteArray>& session_id,
+    const base::android::JavaParamRef<jbyteArray>& session_id,
     jint request_type,
-    const JavaParamRef<jbyteArray>& message) {
+    const base::android::JavaParamRef<jbyteArray>& message) {
   host_->OnSessionUpdate(
       ticket, ToSbDrmSessionRequestType(static_cast<RequestType>(request_type)),
       JavaByteArrayToString(env, session_id),
@@ -233,8 +240,8 @@ void MediaDrmBridge::OnSessionMessage(
 
 void MediaDrmBridge::OnKeyStatusChange(
     JNIEnv* env,
-    const JavaParamRef<jbyteArray>& session_id,
-    const JavaParamRef<jobjectArray>& key_information) {
+    const base::android::JavaParamRef<jbyteArray>& session_id,
+    const base::android::JavaParamRef<jobjectArray>& key_information) {
   std::string session_id_bytes = JavaByteArrayToString(env, session_id);
 
   // nullptr array indicates key status isn't supported (i.e. Android API < 23)

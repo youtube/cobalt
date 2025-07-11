@@ -27,11 +27,6 @@
 
 namespace starboard::android::shared {
 
-using base::android::JavaParamRef;
-using base::android::JavaRef;
-using base::android::ScopedJavaGlobalRef;
-using base::android::ScopedJavaLocalRef;
-
 class MediaDrmBridge {
  public:
   class Host {
@@ -76,14 +71,16 @@ class MediaDrmBridge {
   const void* GetMetrics(int* size);
   bool CreateMediaCryptoSession();
 
-  void OnSessionMessage(JNIEnv* env,
-                        jint ticket,
-                        const JavaParamRef<jbyteArray>& session_id,
-                        jint request_type,
-                        const JavaParamRef<jbyteArray>& message);
-  void OnKeyStatusChange(JNIEnv* env,
-                         const JavaParamRef<jbyteArray>& session_id,
-                         const JavaParamRef<jobjectArray>& key_information);
+  void OnSessionMessage(
+      JNIEnv* env,
+      jint ticket,
+      const base::android::JavaParamRef<jbyteArray>& session_id,
+      jint request_type,
+      const base::android::JavaParamRef<jbyteArray>& message);
+  void OnKeyStatusChange(
+      JNIEnv* env,
+      const base::android::JavaParamRef<jbyteArray>& session_id,
+      const base::android::JavaParamRef<jobjectArray>& key_information);
 
   static bool IsWidevineSupported(JNIEnv* env);
   static bool IsCbcsSupported(JNIEnv* env);
@@ -92,8 +89,8 @@ class MediaDrmBridge {
   const raw_ref<MediaDrmBridge::Host> host_;
   std::vector<uint8_t> metrics_;
 
-  ScopedJavaGlobalRef<jobject> j_media_drm_bridge_;
-  ScopedJavaGlobalRef<jobject> j_media_crypto_;
+  base::android::ScopedJavaGlobalRef<jobject> j_media_drm_bridge_;
+  base::android::ScopedJavaGlobalRef<jobject> j_media_crypto_;
 };
 
 }  // namespace starboard::android::shared
