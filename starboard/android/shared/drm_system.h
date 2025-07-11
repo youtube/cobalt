@@ -24,6 +24,7 @@
 #include <optional>
 #include <ostream>
 #include <string>
+#include <string_view>
 #include <unordered_map>
 #include <vector>
 
@@ -69,11 +70,11 @@ class DrmSystem : public ::SbDrmSystemPrivate,
   // MediaDrmBridge::Host methods.
   void OnSessionUpdate(int ticket,
                        SbDrmSessionRequestType request_type,
-                       const std::string& session_id,
-                       const std::string& content) override;
-  void OnProvisioningRequest(const std::string& content) override;
+                       std::string_view session_id,
+                       std::string_view content) override;
+  void OnProvisioningRequest(std::string_view content) override;
   void OnKeyStatusChange(
-      const std::string& session_id,
+      std::string_view session_id,
       const std::vector<SbDrmKeyId>& drm_key_ids,
       const std::vector<SbDrmKeyStatus>& drm_key_statuses) override;
 
@@ -137,13 +138,9 @@ class DrmSystem : public ::SbDrmSystemPrivate,
   std::mutex mutex_;
   std::unordered_map<std::string, std::vector<SbDrmKeyId>> cached_drm_key_ids_;
   bool hdcp_lost_;
-  std::atomic_bool created_media_crypto_session_{true};
+  std::atomic_bool created_media_crypto_session_{false};
 
   std::unique_ptr<MediaDrmBridge> media_drm_bridge_;
-
-  std::vector<uint8_t> metrics_;
-
-  std::atomic<bool> running_;  // Flag to control the Run loop
 
   std::atomic<bool> is_key_provided_ = false;
 

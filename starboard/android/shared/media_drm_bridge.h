@@ -18,6 +18,7 @@
 #include <jni.h>
 
 #include <string>
+#include <string_view>
 #include <vector>
 
 #include "base/android/jni_android.h"
@@ -38,11 +39,11 @@ class MediaDrmBridge {
    public:
     virtual void OnSessionUpdate(int ticket,
                                  SbDrmSessionRequestType request_type,
-                                 const std::string& session_id,
-                                 const std::string& content) = 0;
-    virtual void OnProvisioningRequest(const std::string& content) = 0;
+                                 std::string_view session_id,
+                                 std::string_view content) = 0;
+    virtual void OnProvisioningRequest(std::string_view content) = 0;
     virtual void OnKeyStatusChange(
-        const std::string& session_id,
+        std::string_view session_id,
         const std::vector<SbDrmKeyId>& drm_key_ids,
         const std::vector<SbDrmKeyStatus>& drm_key_statuses) = 0;
 
@@ -64,7 +65,7 @@ class MediaDrmBridge {
   };
 
   MediaDrmBridge(raw_ref<MediaDrmBridge::Host> host,
-                 const char* key_system,
+                 std::string_view key_system,
                  bool use_app_provisioning);
   ~MediaDrmBridge();
 
@@ -78,24 +79,20 @@ class MediaDrmBridge {
   jobject GetMediaCrypto() const { return j_media_crypto_.obj(); }
 
   void CreateSession(int ticket,
-                     const std::vector<const uint8_t>& init_data,
-                     const std::string& mime) const;
+                     std::string_view init_data,
+                     std::string_view mime) const;
 
-  Status CreateSessionNoProvisioning(
-      int ticket,
-      const std::vector<const uint8_t>& init_data,
-      const std::string& mime) const;
+  Status CreateSessionNoProvisioning(int ticket,
+                                     std::string_view init_data,
+                                     std::string_view mime) const;
   void GenerateProvisionRequest() const;
-  Status ProvideProvisionResponse(const void* response,
-                                  int response_size) const;
+  Status ProvideProvisionResponse(std::string_view response) const;
 
   Status UpdateSession(int ticket,
-                       const void* key,
-                       int key_size,
-                       const void* session_id,
-                       int session_id_size,
+                       std::string_view key,
+                       std::string_view session_id,
                        std::string* error_msg) const;
-  void CloseSession(const std::string& session_id) const;
+  void CloseSession(std::string_view session_id) const;
   const void* GetMetrics(int* size);
   bool CreateMediaCryptoSession();
 
