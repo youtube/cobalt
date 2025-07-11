@@ -146,7 +146,6 @@ group("content_shell_lib_deps") {
   if (is_android) {
     public_deps += [
       "//components/embedder_support/android:view",
-      "//content/shell/android:content_shell_jni_headers",
       "//ui/android",
     ]
   }
