@@ -16,6 +16,7 @@
 
 #include <memory>
 #include <string_view>
+#include <mutex>
 #include <utility>
 
 #include "starboard/android/shared/media_common.h"
