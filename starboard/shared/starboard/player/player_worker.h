@@ -24,6 +24,7 @@
 #include <utility>
 
 #include "starboard/common/log.h"
+#include "starboard/common/player.h"
 #include "starboard/common/ref_counted.h"
 #include "starboard/media.h"
 #include "starboard/player.h"
@@ -78,6 +79,8 @@ class PlayerWorker {
     typedef std::function<void(SbPlayerError error,
                                const std::string& error_message)>
         UpdatePlayerErrorCB;
+    typedef std::function<void(SbMediaType type, int number_of_frames)>
+        UpdateRenderStatusCB;
 
     Handler() = default;
     virtual ~Handler() {}
@@ -85,11 +88,13 @@ class PlayerWorker {
     // All the following functions set |HandlerResult.success| to false to
     // signal a fatal error. The event processing loop in PlayerWorker will
     // terminate in this case.
-    virtual HandlerResult Init(SbPlayer player,
-                               UpdateMediaInfoCB update_media_info_cb,
-                               GetPlayerStateCB get_player_state_cb,
-                               UpdatePlayerStateCB update_player_state_cb,
-                               UpdatePlayerErrorCB update_player_error_cb) = 0;
+    virtual HandlerResult Init(
+        SbPlayer player,
+        UpdateMediaInfoCB update_media_info_cb,
+        GetPlayerStateCB get_player_state_cb,
+        UpdatePlayerStateCB update_player_state_cb,
+        UpdatePlayerErrorCB update_player_error_cb,
+        UpdateRenderStatusCB update_render_status_cb) = 0;
     virtual HandlerResult Seek(int64_t seek_to_time, int ticket) = 0;
     virtual HandlerResult WriteSamples(const InputBuffers& input_buffers,
                                        int* samples_written) = 0;
@@ -122,6 +127,7 @@ class PlayerWorker {
       SbPlayerDecoderStatusFunc decoder_status_func,
       SbPlayerStatusFunc player_status_func,
       SbPlayerErrorFunc player_error_func,
+      SbPlayerRenderStatusFunc player_render_status_func,
       SbPlayer player,
       void* context);
 
@@ -183,6 +189,7 @@ class PlayerWorker {
                SbPlayerDecoderStatusFunc decoder_status_func,
                SbPlayerStatusFunc player_status_func,
                SbPlayerErrorFunc player_error_func,
+               SbPlayerRenderStatusFunc player_render_status_func_,
                SbPlayer player,
                void* context);
 
@@ -196,6 +203,7 @@ class PlayerWorker {
   void UpdatePlayerError(SbPlayerError error,
                          Handler::HandlerResult result,
                          const std::string& message);
+  void UpdatePlayerRenderStatus(SbMediaType type, int number_of_frames);
 
   static void* ThreadEntryPoint(void* context);
   void RunLoop();
@@ -223,6 +231,7 @@ class PlayerWorker {
   SbPlayerDecoderStatusFunc decoder_status_func_;
   SbPlayerStatusFunc player_status_func_;
   SbPlayerErrorFunc player_error_func_;
+  SbPlayerRenderStatusFunc player_render_status_func_;
   std::atomic_bool error_occurred_ = {false};
   SbPlayer player_;
   void* context_;

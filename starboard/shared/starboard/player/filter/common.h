@@ -18,6 +18,7 @@
 #include <functional>
 #include <string>
 
+#include "starboard/media.h"
 #include "starboard/player.h"
 #include "starboard/shared/internal_only.h"
 
@@ -28,6 +29,7 @@ typedef std::function<void(SbPlayerError error,
     ErrorCB;
 typedef std::function<void()> PrerolledCB;
 typedef std::function<void()> EndedCB;
+typedef std::function<void(int number_of_frames)> RenderStatusCB;
 
 }  // namespace starboard::shared::starboard::player::filter
 

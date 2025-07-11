@@ -908,6 +908,18 @@ void StarboardRenderer::OnPlayerError(SbPlayerError error,
       break;
   }
 }
+void StarboardRenderer::OnRenderStatus(SbMediaType type, int number_of_frames) {
+  DCHECK(task_runner_->RunsTasksInCurrentSequence());
+  // TODO - b/307362589: Implement audio/video underrun algorithm.
+  switch (type) {
+    case kSbMediaTypeAudio:
+      LOG(ERROR) << "Cobalt: " << __func__ << " " << number_of_frames;
+      break;
+    case kSbMediaTypeVideo:
+      LOG(ERROR) << "Cobalt: " << __func__ << " " << number_of_frames;
+      break;
+  }
+}
 
 void StarboardRenderer::DelayedNeedData(int max_number_of_buffers_to_write) {
   DCHECK(task_runner_->RunsTasksInCurrentSequence());

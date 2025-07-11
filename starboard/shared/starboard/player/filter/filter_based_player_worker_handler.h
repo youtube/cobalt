@@ -20,6 +20,7 @@
 #include <mutex>
 #include <string>
 
+#include "starboard/common/player.h"
 #include "starboard/configuration.h"
 #include "starboard/decode_target.h"
 #include "starboard/media.h"
@@ -48,7 +49,8 @@ class FilterBasedPlayerWorkerHandler : public PlayerWorker::Handler,
                      UpdateMediaInfoCB update_media_info_cb,
                      GetPlayerStateCB get_player_state_cb,
                      UpdatePlayerStateCB update_player_state_cb,
-                     UpdatePlayerErrorCB update_player_error_cb) override;
+                     UpdatePlayerErrorCB update_player_error_cb,
+                     UpdateRenderStatusCB update_render_status_cb) override;
   HandlerResult Seek(int64_t seek_to_time, int ticket) override;
   HandlerResult WriteSamples(const InputBuffers& input_buffers,
                              int* samples_written) override;
@@ -64,6 +66,7 @@ class FilterBasedPlayerWorkerHandler : public PlayerWorker::Handler,
   void OnError(SbPlayerError error, const std::string& error_message);
   void OnPrerolled(SbMediaType media_type);
   void OnEnded(SbMediaType media_type);
+  void OnRenderStatusUpdate(SbMediaType type, int number_of_frames);
 
   SbDecodeTarget GetCurrentDecodeTarget() override;
 
@@ -72,6 +75,7 @@ class FilterBasedPlayerWorkerHandler : public PlayerWorker::Handler,
   GetPlayerStateCB get_player_state_cb_;
   UpdatePlayerStateCB update_player_state_cb_;
   UpdatePlayerErrorCB update_player_error_cb_;
+  UpdateRenderStatusCB update_render_status_cb_;
 
   SbDrmSystem drm_system_;
 

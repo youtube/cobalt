@@ -30,7 +30,8 @@ class VideoRenderer {
 
   virtual void Initialize(const ErrorCB& error_cb,
                           const PrerolledCB& prerolled_cb,
-                          const EndedCB& ended_cb) = 0;
+                          const EndedCB& ended_cb,
+                          const RenderStatusCB& render_status_cb) = 0;
   virtual int GetDroppedFrames() const = 0;
 
   virtual void WriteSamples(const InputBuffers& input_buffers) = 0;
