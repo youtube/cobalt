@@ -87,13 +87,12 @@ class MediaDrmBridge {
   Status ProvideProvisionResponse(const void* response,
                                   int response_size) const;
 
-  // Updates the session. Returns true on success.
-  bool UpdateSession(int ticket,
-                     const void* key,
-                     int key_size,
-                     const void* session_id,
-                     int session_id_size,
-                     std::string* error_msg) const;
+  Status UpdateSession(int ticket,
+                       const void* key,
+                       int key_size,
+                       const void* session_id,
+                       int session_id_size,
+                       std::string* error_msg) const;
   void CloseSession(const std::string& session_id) const;
   const void* GetMetrics(int* size);
   bool CreateMediaCryptoSession();

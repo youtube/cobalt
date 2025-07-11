@@ -83,12 +83,16 @@ void DrmSystem::Run() {
   job_queue_ =
       std::make_unique<starboard::shared::starboard::player::JobQueue>();
   job_queue_->RunUntilStopped();
+
+  // job_queue_ should be destroyed at the same thread that it was created.
+  job_queue_.reset();
 }
 
 DrmSystem::~DrmSystem() {
   ON_INSTANCE_RELEASED(AndroidDrmSystem);
   job_queue_->StopSoon();
   Join();
+  SB_DCHECK_EQ(job_queue_, nullptr);
 }
 
 DrmSystem::SessionUpdateRequest::SessionUpdateRequest(
@@ -101,6 +105,12 @@ DrmSystem::SessionUpdateRequest::SessionUpdateRequest(
                  static_cast<const uint8_t*>(initialization_data) +
                      initialization_data_size),
       mime_(type) {}
+
+DrmSystem::SessionUpdateRequest
+DrmSystem::SessionUpdateRequest::CloneWithoutTicket() const {
+  return DrmSystem::SessionUpdateRequest(kSbDrmTicketInvalid, mime_.c_str(),
+                                         init_data_.data(), init_data_.size());
+}
 
 void DrmSystem::SessionUpdateRequest::Generate(
     const MediaDrmBridge* media_drm_bridge) const {
@@ -119,10 +129,14 @@ void DrmSystem::GenerateSessionUpdateRequest(int ticket,
                                              const char* type,
                                              const void* initialization_data,
                                              int initialization_data_size) {
-  auto session_update_request = std::make_unique<SessionUpdateRequest>(
-      ticket, type, initialization_data, initialization_data_size);
+  GenerateSessionUpdateRequestInternal(std::make_unique<SessionUpdateRequest>(
+      ticket, type, initialization_data, initialization_data_size));
+}
+
+void DrmSystem::GenerateSessionUpdateRequestInternal(
+    std::unique_ptr<SessionUpdateRequest> request) {
   MediaDrmBridge::Status status =
-      session_update_request->GenerateNoProvisioning(media_drm_bridge_.get());
+      request->GenerateNoProvisioning(media_drm_bridge_.get());
   switch (status.type) {
     case MediaDrmBridge::Status::kSuccess:
       return;
@@ -130,10 +144,10 @@ void DrmSystem::GenerateSessionUpdateRequest(int ticket,
       SB_LOG(INFO) << "Device is not provisioned. Generating provision request";
       {
         std::lock_guard scoped_lock(mutex_);
+        pending_ticket_ = request->ticket();
         deferred_session_update_requests_.push_back(
             std::make_unique<SessionUpdateRequest>(
-                ticket, type, initialization_data, initialization_data_size));
-        pending_ticket_ = ticket;
+                request->CloneWithoutTicket()));
       }
       media_drm_bridge_->GenerateProvisionRequest();
       return;
@@ -154,52 +168,53 @@ void DrmSystem::UpdateSession(int ticket,
   const std::string_view cdm_session_id(static_cast<const char*>(session_id),
                                         session_id_size);
   std::string_view media_drm_session_id = cdm_session_id;
+  std::optional<MediaDrmBridge::Status> completed_status;
   SB_LOG(INFO) << __func__ << ": cdm_session_id=" << cdm_session_id;
   if (bridge_session_id_map_.has_value() &&
       bridge_session_id_map_->cdm_id == cdm_session_id) {
     if (bridge_session_id_map_->media_drm_id.empty()) {
       SB_LOG(INFO) << "Calling ProvideProvisionResponse, since MediaDrmSession "
                       "is not created yet";
-      auto status = media_drm_bridge_->ProvideProvisionResponse(key, key_size);
-      session_updated_callback_(
-          this, context_, ticket,
-          status.ok() ? kSbDrmStatusSuccess : kSbDrmStatusUnknownError,
-          error_msg.c_str(), cdm_session_id.data(), cdm_session_id.size());
-      return;
+      completed_status.emplace(
+          media_drm_bridge_->ProvideProvisionResponse(key, key_size));
+    } else {
+      media_drm_session_id = bridge_session_id_map_->media_drm_id;
     }
-
-    media_drm_session_id = bridge_session_id_map_->media_drm_id;
   }
 
-  bool update_success = media_drm_bridge_->UpdateSession(
-      ticket, key, key_size, media_drm_session_id.data(),
-      media_drm_session_id.size(), &error_msg);
+  if (!completed_status.has_value()) {
+    completed_status.emplace(media_drm_bridge_->UpdateSession(
+        ticket, key, key_size, media_drm_session_id.data(),
+        media_drm_session_id.size(), &error_msg));
+  }
+  SB_CHECK(completed_status.has_value());
+
+  bool update_success = completed_status->ok();
   session_updated_callback_(
       this, context_, ticket,
       update_success ? kSbDrmStatusSuccess : kSbDrmStatusUnknownError,
       error_msg.c_str(), cdm_session_id.data(), cdm_session_id.size());
 
-  if (update_success == JNI_TRUE) {
-    job_queue_->Schedule([this] {
-      SB_LOG(INFO) << "Run pending task.";
-      HandlePendingRequests();
-    });
+  if (update_success) {
+    job_queue_->Schedule([this] { HandlePendingRequests(); });
   }
 }
 
 void DrmSystem::HandlePendingRequests() {
-  std::lock_guard scoped_lock(mutex_);
+  SB_LOG(INFO) << __func__;
+  std::unique_ptr<SessionUpdateRequest> request;
+  {
+    std::lock_guard scoped_lock(mutex_);
+    if (deferred_session_update_requests_.empty()) {
+      return;
+    }
 
-  if (deferred_session_update_requests_.empty()) {
-    return;
+    request = std::move(deferred_session_update_requests_.front());
+    deferred_session_update_requests_.erase(
+        deferred_session_update_requests_.begin());
   }
 
-  std::unique_ptr<SessionUpdateRequest> request =
-      std::move(deferred_session_update_requests_.front());
-  deferred_session_update_requests_.erase(
-      deferred_session_update_requests_.begin());
-
-  request->Generate(media_drm_bridge_.get());
+  GenerateSessionUpdateRequestInternal(std::move(request));
 }
 
 void DrmSystem::CloseSession(const void* session_id, int session_id_size) {

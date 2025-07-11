@@ -100,6 +100,10 @@ class DrmSystem : public ::SbDrmSystemPrivate,
     MediaDrmBridge::Status GenerateNoProvisioning(
         const MediaDrmBridge* media_drm_bridge) const;
 
+    SessionUpdateRequest CloneWithoutTicket() const;
+
+    int ticket() const { return ticket_; }
+
    private:
     const int ticket_;
     const std::vector<const uint8_t> init_data_;
@@ -108,6 +112,8 @@ class DrmSystem : public ::SbDrmSystemPrivate,
 
   void CallKeyStatusesChangedCallbackWithKeyStatusRestricted_Locked();
   void HandlePendingRequests();
+  void GenerateSessionUpdateRequestInternal(
+      std::unique_ptr<SessionUpdateRequest> request);
 
   // From Thread.
   void Run() override;

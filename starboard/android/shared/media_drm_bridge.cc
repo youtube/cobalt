@@ -200,12 +200,13 @@ MediaDrmBridge::Status MediaDrmBridge::ProvideProvisionResponse(
                       ToScopedJavaByteArray(env, response, response_size)));
 }
 
-bool MediaDrmBridge::UpdateSession(int ticket,
-                                   const void* key,
-                                   int key_size,
-                                   const void* session_id,
-                                   int session_id_size,
-                                   std::string* error_msg) const {
+MediaDrmBridge::Status MediaDrmBridge::UpdateSession(
+    int ticket,
+    const void* key,
+    int key_size,
+    const void* session_id,
+    int session_id_size,
+    std::string* error_msg) const {
   JNIEnv* env = AttachCurrentThread();
 
   ScopedJavaLocalRef<jbyteArray> j_session_id(ToJavaByteArray(
@@ -213,12 +214,9 @@ bool MediaDrmBridge::UpdateSession(int ticket,
   ScopedJavaLocalRef<jbyteArray> j_response(
       ToJavaByteArray(env, static_cast<const uint8_t*>(key), key_size));
 
-  ScopedJavaLocalRef<jobject> j_update_result(Java_MediaDrmBridge_updateSession(
-      env, j_media_drm_bridge_, ticket, j_session_id, j_response));
-  *error_msg = ConvertJavaStringToUTF8(
-      Java_UpdateSessionResult_getErrorMessage(env, j_update_result));
-
-  return Java_UpdateSessionResult_isSuccess(env, j_update_result) == JNI_TRUE;
+  return ToStatus(
+      env, Java_MediaDrmBridge_updateSession(env, j_media_drm_bridge_, ticket,
+                                             j_session_id, j_response));
 }
 
 void MediaDrmBridge::CloseSession(const std::string& session_id) const {
