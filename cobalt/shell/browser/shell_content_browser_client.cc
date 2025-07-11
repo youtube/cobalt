@@ -103,8 +103,8 @@
 #if BUILDFLAG(IS_ANDROID)
 #include "base/android/apk_assets.h"
 #include "base/android/path_utils.h"
+#include "cobalt/shell/android/shell_descriptors.h"
 #include "components/variations/android/variations_seed_bridge.h"
-#include "content/shell/android/shell_descriptors.h"
 #endif
 
 #if BUILDFLAG(IS_ANDROID)

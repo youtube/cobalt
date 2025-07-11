@@ -31,11 +31,16 @@ config("content_shell_lib_warnings") {
   }
 }
 
+source_set("android_shell_descriptors") {
+  sources = [ "android/shell_descriptors.h" ]
+  deps = [ "//content/public/common:content_descriptors" ]
+}
+
 # TODO(b/384748332): Remove dependency on content shell
 group("content_shell_lib_deps") {
   testonly = true
   public_deps = [
-    "//content/shell:android_shell_descriptors",
+    ":android_shell_descriptors",
 
     # content_shell_lib also exposes all public content APIs.
     "//base",
