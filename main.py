@@ -1,8 +1,10 @@
 import argparse
 import git
+import glob
+import json
 import os
 import shutil
-import json
+import subprocess
 
 
 def find_deepest_common_dir(paths):
@@ -228,6 +230,102 @@ def linearize_history(repo, args):
         print('\n⚠️ COMPLETED WITH ISSUES: Linearized history created but verification found differences')
 
 
+def get_conflicted_files(repo):
+    """
+    Identifies files that are currently in a conflicted (unmerged) state.
+    Returns a list of file paths relative to the repository root.
+    """
+    conflicted_files = []
+    status_output = repo.git.status('--porcelain').splitlines()
+    for line in status_output:
+        if line.startswith(('UU ', 'AA ', 'DD ', 'UD ', 'DU ')):
+            file_path = line[3:].strip()
+            conflicted_files.append(file_path)
+    return conflicted_files
+
+
+def record_conflict(repo, conflicts_dir):
+    """
+    Records the state of conflicted files, prompts the user to resolve, then
+    records the resolved state and a patch.
+    """
+    os.makedirs(conflicts_dir, exist_ok=True)
+    commit_id = repo.git.rev_parse('CHERRY_PICK_HEAD')
+
+    commit_record_dir = os.path.join(conflicts_dir,
+                                     repo.commit(commit_id).hexsha[:7])
+    conflict_dir = os.path.join(commit_record_dir, 'conflict')
+    resolved_dir = os.path.join(commit_record_dir, 'resolved')
+    patch_dir = os.path.join(commit_record_dir, 'patch')
+    os.makedirs(conflict_dir, exist_ok=True)
+    os.makedirs(resolved_dir, exist_ok=True)
+    os.makedirs(patch_dir, exist_ok=True)
+
+    print(f'\n💾 Recording conflict to: {commit_record_dir}')
+    print('⚠️ Conflicted files:')
+    conflicted_files = get_conflicted_files(repo)
+    patches_to_apply = {}
+
+    for file_path in conflicted_files:
+        dst_path = os.path.join(conflict_dir, file_path)
+        os.makedirs(os.path.dirname(dst_path), exist_ok=True)
+        shutil.copy2(os.path.join(repo.working_dir, file_path), dst_path)
+
+        patch_filename = f'{os.path.basename(file_path).split('.')[0]}_resolution.patch'
+        patch_path = os.path.join(os.getcwd(), patch_dir, patch_filename)
+        if os.path.exists(patch_path):
+            print(f'  ✅ {file_path} - Patch found')
+            print(patch_path)
+            patches_to_apply[file_path] = patch_path
+        else:
+            print(f'  ❌ {file_path} - No patch found')
+
+    resolved_conflict = False
+    if patches_to_apply:
+        print('⚙️ Applying patches...')
+        for file_path, patch_path in patches_to_apply.items():
+            print(f'  🔨 [Patching] - {file_path}')
+            result = subprocess.run(
+                ['patch', file_path, '-i', patch_path],
+                cwd=repo.working_dir
+            )
+            if result.returncode == 0:
+                print(f'    ✅ Patch applied cleanly.')
+                resolved_conflict = True
+            else:
+                print(f'    ❌ Patch failed.')
+                resolved_conflict = False
+                print('🪄 Restoring original conflicted state.')
+                for file_path in conflicted_files:
+                    shutil.copy2(os.path.join(conflict_dir, file_path),
+                                 os.path.join(repo.working_dir, file_path))
+                break
+
+    if not resolved_conflict:
+        print('⚙️ Manual conflict resolution required')
+        input('  Press Enter after resolving conflicts to create patches...')
+
+    for file_path in conflicted_files:
+        dst_path = os.path.join(resolved_dir, file_path)
+        os.makedirs(os.path.dirname(dst_path), exist_ok=True)
+        shutil.copy2(os.path.join(repo.working_dir, file_path), dst_path)
+
+    print('📄 Creating conflict resolution patches...')
+    for file_path in conflicted_files:
+        conflict_path = os.path.join(conflict_dir, file_path)
+        resolved_path = os.path.join(resolved_dir, file_path)
+        patch_filename = f'{os.path.basename(file_path).split('.')[0]}_resolution.patch'
+        patch_path = os.path.join(patch_dir, patch_filename)
+
+        with open(patch_path, 'w', encoding='utf-8') as f:
+            subprocess.run(
+                ['diff', '-u', '--label', file_path, '--label', file_path,
+                 conflict_path, resolved_path],
+                stdout=f
+            )
+    input('  Resolution recorded. Press Enter after "git cherry-pick --continue" to resume...')
+
+
 def main():
     parser = argparse.ArgumentParser()
     subparsers = parser.add_subparsers(dest='command')
@@ -251,9 +349,10 @@ def main():
     # Rebase command
     rebase_parser = subparsers.add_parser('rebase', help='Rebase commits onto a new branch.')
     rebase_parser.add_argument('--repo-path', type=str, required=True, help='The path to the local repository.')
-    rebase_parser.add_argument('--base-branch', type=str, required=True, help='The base branch to rebase onto.')
-    rebase_parser.add_argument('--new-branch', type=str, required=True, help='The name of the new rebased branch.')
+    rebase_parser.add_argument('--rebase-branch', type=str, required=True, help='The branch to rebase onto.')
     rebase_parser.add_argument('--commits-file', type=str, default='commits.json', help='The JSON file with the commits to rebase.')
+    rebase_parser.add_argument('--conflicts-dir', type=str, default='conflicts', help='The path to the conflicts resolution directory.')
+    rebase_parser.add_argument('--last-successful-commit-ref', type=str, default=None, help='The commit SHA or ref to resume from.')
 
     args = parser.parse_args()
 
@@ -287,24 +386,31 @@ def main():
             json.dump(commit_data, f, indent=2)
         print(f'Extracted {len(commit_data)} commits to {args.output_file}')
     elif args.command == 'rebase':
-        repo.git.checkout(args.base_branch, b=args.new_branch)
-        with open(args.commits_file, 'r') as f:
+        repo.git.checkout(args.rebase_branch)
+        with open(args.commits_file, 'r', encoding='utf-8') as f:
             commits = json.load(f)
         last_successful_commit = None
-        for commit in reversed(commits):
+        resume = args.last_successful_commit_ref != None
+        for i, commit in enumerate(reversed(commits), 1):
+            if resume:
+                if commit['hexsha'] == args.last_successful_commit_ref:
+                    resume = False
+                print(f'💤 {i}/{len(commits)} Skipped: {commit['hexsha']}')
+                continue
+
             if commit['is_merge']:
                 print(f'❌ Merge commits are not allowed: {commit['hexsha']}')
                 return
             try:
                 repo.git.cherry_pick(commit['hexsha'])
                 last_successful_commit = commit['hexsha']
-                print(f'✅ Successfully cherry-picked: {commit['hexsha']}')
+                print(f'✅ {i}/{len(commits)} cherry-picked successfully: {commit['hexsha']}')
             except git.exc.GitCommandError as e:
                 print(f'❌ Failed to cherry-pick: {commit['hexsha']}')
                 print(f'  Last successful commit: {last_successful_commit}')
                 print(f'  Error: {e}')
-                repo.git.cherry_pick('--abort')
-                return
+                record_conflict(repo, args.conflicts_dir)
+        print('\n🎉 SUCCESS: rebase created successfully!')
 
 
 if __name__ == '__main__':

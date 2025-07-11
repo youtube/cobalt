@@ -1,0 +1,19 @@
+--- BUILD.gn
++++ BUILD.gn
+@@ -831,14 +831,13 @@
+       deps += [ "//components/cronet:cronet_tests" ]
+     }
+   }
+-<<<<<<< HEAD
+ 
+   if (is_chrome_for_testing) {
+     deps += [ "//chrome/browser/chrome_for_testing:chrome_for_testing" ]
+-=======
++  }
++
+   if (chrobalt) {
+     deps += [ "//chrobalt:gn_all" ]
+->>>>>>> 26cdf98880e (Build starboard shared library for linux-x64x11 (#4215))
+   }
+ }
+ 
