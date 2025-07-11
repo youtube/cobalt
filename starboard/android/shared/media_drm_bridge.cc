@@ -55,6 +55,7 @@ enum class RequestType : jint {
   kInitial = 0,
   kRenewal = 1,
   kRelease = 2,
+  kIndividualizationRequest = 13,
 };
 
 SbDrmSessionRequestType ToSbDrmSessionRequestType(RequestType request_type) {
@@ -65,6 +66,8 @@ SbDrmSessionRequestType ToSbDrmSessionRequestType(RequestType request_type) {
       return kSbDrmSessionRequestTypeLicenseRenewal;
     case RequestType::kRelease:
       return kSbDrmSessionRequestTypeLicenseRelease;
+    case RequestType::kIndividualizationRequest:
+      return kSbDrmSessionRequestTypeIndividualizationRequest;
     default:
       SB_NOTREACHED() << "Unknown key request type: "
                       << static_cast<jint>(request_type);
@@ -150,8 +153,8 @@ void MediaDrmBridge::CreateSession(int ticket,
   ScopedJavaLocalRef<jstring> j_mime =
       ScopedJavaLocalRef(ConvertUTF8ToJavaString(env, mime.c_str()));
 
-  Java_MediaDrmBridge_createSession(env, j_media_drm_bridge_, j_ticket,
-                                    j_init_data, j_mime);
+  Java_MediaDrmBridge_createSessionNoProvisioning(
+      env, j_media_drm_bridge_, j_ticket, j_init_data, j_mime);
 }
 
 bool MediaDrmBridge::UpdateSession(int ticket,
@@ -208,15 +211,8 @@ const void* MediaDrmBridge::GetMetrics(int* size) {
   return metrics_.data();
 }
 
-bool MediaDrmBridge::CreateMediaCryptoSession() {
-  bool result = Java_MediaDrmBridge_createMediaCryptoSession(
-      AttachCurrentThread(), j_media_drm_bridge_);
-  if (!result && !j_media_crypto_.is_null()) {
-    j_media_crypto_.Reset();
-    return false;
-  }
-
-  return true;
+void MediaDrmBridge::runPendingTasks(JNIEnv* env) {
+  Java_MediaDrmBridge_runPendingTasks(env, j_media_drm_bridge_);
 }
 
 void MediaDrmBridge::OnSessionMessage(

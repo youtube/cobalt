@@ -74,7 +74,7 @@ class MediaDrmBridge {
                      std::string* error_msg) const;
   void CloseSession(const std::string& session_id) const;
   const void* GetMetrics(int* size);
-  bool CreateMediaCryptoSession();
+  void runPendingTasks(JNIEnv* env);
 
   void OnSessionMessage(JNIEnv* env,
                         jint ticket,
