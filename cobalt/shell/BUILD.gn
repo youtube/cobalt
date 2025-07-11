@@ -31,9 +31,23 @@ config("content_shell_lib_warnings") {
   }
 }
 
+import("//mojo/public/tools/bindings/mojom.gni")
+
 source_set("android_shell_descriptors") {
   sources = [ "android/shell_descriptors.h" ]
   deps = [ "//content/public/common:content_descriptors" ]
+}
+
+mojom("content_browsertests_mojom") {
+  sources = [
+    "common/main_frame_counter_test.mojom",
+    "common/power_monitor_test.mojom",
+    "common/render_frame_test_helper.mojom",
+  ]
+  public_deps = [
+    "//sandbox/policy/mojom",
+    "//third_party/blink/public/mojom/tokens:tokens",
+  ]
 }
 
 # TODO(b/384748332): Remove dependency on content shell
@@ -43,6 +57,7 @@ group("content_shell_lib_deps") {
     ":android_shell_descriptors",
 
     # content_shell_lib also exposes all public content APIs.
+    ":content_browsertests_mojom",
     "//base",
     "//base:base_static",
     "//base/third_party/dynamic_annotations",
@@ -78,7 +93,6 @@ group("content_shell_lib_deps") {
     "//content/public/gpu",
     "//content/public/renderer",
     "//content/public/utility",
-    "//content/shell:content_browsertests_mojom",
     "//content/shell:resources",
     "//content/shell:shell_controller_mojom",
     "//content/test:content_test_mojo_bindings",

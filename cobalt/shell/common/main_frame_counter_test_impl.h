@@ -5,7 +5,7 @@
 #ifndef CONTENT_SHELL_COMMON_MAIN_FRAME_COUNTER_TEST_IMPL_H_
 #define CONTENT_SHELL_COMMON_MAIN_FRAME_COUNTER_TEST_IMPL_H_
 
-#include "content/shell/common/main_frame_counter_test.mojom.h"
+#include "cobalt/shell/common/main_frame_counter_test.mojom.h"
 #include "mojo/public/cpp/bindings/receiver.h"
 
 namespace content {
