@@ -184,6 +184,7 @@ auto RunNetworkService(
       /*delay_initialization_until_set_client=*/true);
 }
 
+#if !BUILDFLAG(IS_COBALT)
 auto RunAuctionWorkletService(
     mojo::PendingReceiver<auction_worklet::mojom::AuctionWorkletService>
         receiver) {
@@ -244,6 +245,7 @@ auto RunAudio(mojo::PendingReceiver<audio::mojom::AudioService> receiver) {
       std::move(receiver),
       /*run_audio_processing=*/media::IsChromeWideEchoCancellationEnabled());
 }
+#endif  // !BUILDFLAG(IS_COBALT)
 
 #if BUILDFLAG(GOOGLE_CHROME_BRANDING) && BUILDFLAG(IS_CHROMEOS)
 auto RunShapeDetectionService(
@@ -262,12 +264,14 @@ auto RunCdmServiceBroker(
 }
 #endif
 
+#if !BUILDFLAG(IS_COBALT)
 auto RunDataDecoder(
     mojo::PendingReceiver<data_decoder::mojom::DataDecoderService> receiver) {
   UtilityThread::Get()->EnsureBlinkInitialized();
   return std::make_unique<data_decoder::DataDecoderService>(
       std::move(receiver));
 }
+#endif  // !BUILDFLAG(IS_COBALT)
 
 #if BUILDFLAG(ENABLE_ACCESSIBILITY_SERVICE)
 auto RunAccessibilityService(
@@ -290,17 +294,20 @@ RunMediaFoundationServiceBroker(
 }
 #endif  // BUILDFLAG(IS_WIN)
 
+#if !BUILDFLAG(IS_COBALT)
 auto RunStorageService(
     mojo::PendingReceiver<storage::mojom::StorageService> receiver) {
   return std::make_unique<storage::StorageServiceImpl>(
       std::move(receiver), ChildProcess::current()->io_task_runner());
 }
+#endif  // !BUILDFLAG(IS_COBALT)
 
 auto RunTracing(
     mojo::PendingReceiver<tracing::mojom::TracingService> receiver) {
   return std::make_unique<tracing::TracingService>(std::move(receiver));
 }
 
+#if !BUILDFLAG(IS_COBALT)
 auto RunVideoCapture(
     mojo::PendingReceiver<video_capture::mojom::VideoCaptureService> receiver) {
   auto service = std::make_unique<UtilityThreadVideoCaptureServiceImpl>(
@@ -318,6 +325,7 @@ auto RunVideoCapture(
 #endif  // BUILDFLAG(IS_LINUX)
   return service;
 }
+#endif  // !BUILDFLAG(IS_COBALT)
 
 #if BUILDFLAG(ENABLE_VR) && !BUILDFLAG(IS_ANDROID)
 auto RunXrDeviceService(
@@ -348,6 +356,7 @@ auto RunStableVideoDecoderFactoryProcessService(
 #endif  // (BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_CHROMEOS_ASH)) &&
         // (BUILDFLAG(USE_VAAPI) || BUILDFLAG(USE_V4L2_CODEC))
 
+#if !BUILDFLAG(IS_COBALT)
 #if BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_CHROMEOS)
 auto RunVideoEncodeAcceleratorProviderFactory(
     mojo::PendingReceiver<media::mojom::VideoEncodeAcceleratorProviderFactory>
@@ -358,6 +367,7 @@ auto RunVideoEncodeAcceleratorProviderFactory(
   return factory;
 }
 #endif  // BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_CHROMEOS)
+#endif  // !BUILDFLAG(IS_COBALT)
 
 }  // namespace
 
