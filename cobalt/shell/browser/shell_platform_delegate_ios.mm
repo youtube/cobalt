@@ -22,7 +22,7 @@
 #include "base/trace_event/trace_config.h"
 #include "cobalt/shell/browser/shell.h"
 #include "cobalt/shell/browser/shell_file_select_helper.h"
-#include "content/shell/app/resource.h"
+
 #include "services/tracing/public/cpp/perfetto/perfetto_config.h"
 #include "services/tracing/public/mojom/constants.mojom.h"
 #include "third_party/perfetto/include/perfetto/tracing/core/trace_config.h"

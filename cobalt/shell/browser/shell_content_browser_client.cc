@@ -45,6 +45,8 @@
 #include "cobalt/shell/browser/shell_devtools_manager_delegate.h"
 #include "cobalt/shell/browser/shell_paths.h"
 #include "cobalt/shell/browser/shell_web_contents_view_delegate_creator.h"
+#include "cobalt/shell/common/shell_controller.test-mojom.h"
+#include "cobalt/shell/common/shell_switches.h"
 #include "components/custom_handlers/protocol_handler_registry.h"
 #include "components/custom_handlers/protocol_handler_throttle.h"
 #include "components/custom_handlers/simple_protocol_handler_registry_factory.h"
@@ -78,8 +80,6 @@
 #include "content/public/common/content_switches.h"
 #include "content/public/common/url_constants.h"
 #include "content/public/common/user_agent.h"
-#include "content/shell/common/shell_controller.test-mojom.h"
-#include "content/shell/common/shell_switches.h"
 #include "media/mojo/buildflags.h"
 #include "media/mojo/mojom/media_service.mojom.h"
 #include "mojo/public/cpp/bindings/remote.h"
@@ -103,8 +103,8 @@
 #if BUILDFLAG(IS_ANDROID)
 #include "base/android/apk_assets.h"
 #include "base/android/path_utils.h"
+#include "cobalt/shell/android/shell_descriptors.h"
 #include "components/variations/android/variations_seed_bridge.h"
-#include "content/shell/android/shell_descriptors.h"
 #endif
 
 #if BUILDFLAG(IS_ANDROID)

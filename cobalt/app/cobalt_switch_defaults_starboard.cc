@@ -18,7 +18,7 @@
 #include "base/files/file_path.h"
 #include "cobalt/browser/switches.h"
 #include "content/public/common/content_switches.h"
-#include "content/shell/common/shell_switches.h"
+
 #include "gpu/command_buffer/service/gpu_switches.h"
 #include "gpu/config/gpu_switches.h"
 #include "media/base/media_switches.h"
