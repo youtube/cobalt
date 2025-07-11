@@ -1,0 +1,19 @@
+# Copyright 2024 The Chromium Authors
+# Use of this source code is governed by a BSD-style license that can be
+# found in the LICENSE file.
+
+import("//build/config/features.gni")
+import("//services/on_device_model/on_device_model.gni")
+
+assert(use_blink)
+
+declare_args() {
+  # TFLite is used as a fallback option on Apple and Windows.
+  webnn_use_tflite = is_android || is_chromeos || is_linux || is_apple || is_win
+
+  # Enable the GPU delegate provided by the Optimization Guide library.
+  webnn_use_chrome_ml_api = enable_ml_internal
+
+  # Enable logging of TFLite profiling information on MLGraph destruction.
+  webnn_enable_tflite_profiler = false
+}

@@ -1,0 +1,44 @@
+# Copyright 2019 The Chromium Authors
+# Use of this source code is governed by a BSD-style license that can be
+# found in the LICENSE file.
+
+source_set("model") {
+  sources = [
+    "external_file_remover.h",
+    "external_file_remover_factory.h",
+    "external_file_remover_factory.mm",
+    "external_file_remover_impl.h",
+    "external_file_remover_impl.mm",
+  ]
+  deps = [
+    "//base",
+    "//components/bookmarks/browser",
+    "//components/sessions",
+    "//ios/chrome/browser/bookmarks/model",
+    "//ios/chrome/browser/sessions/model",
+    "//ios/chrome/browser/shared/model/browser",
+    "//ios/chrome/browser/shared/model/profile",
+    "//ios/chrome/browser/shared/model/profile:profile_keyed_service_factory",
+    "//ios/chrome/browser/shared/model/url",
+    "//ios/chrome/browser/shared/model/web_state_list",
+  ]
+}
+
+source_set("unit_tests") {
+  testonly = true
+  sources = [ "external_file_remover_impl_unittest.mm" ]
+  deps = [
+    ":model",
+    "//base",
+    "//base/test:test_support",
+    "//components/sessions:test_support",
+    "//ios/chrome/browser/sessions/model",
+    "//ios/chrome/browser/sessions/model:fake",
+    "//ios/chrome/browser/shared/model/browser",
+    "//ios/chrome/browser/shared/model/browser/test:test_support",
+    "//ios/chrome/browser/shared/model/profile/test",
+    "//ios/chrome/browser/shared/model/web_state_list",
+    "//ios/web/public/test",
+    "//testing/gtest",
+  ]
+}

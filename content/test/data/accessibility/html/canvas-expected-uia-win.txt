@@ -1,0 +1,6 @@
+Document
+++Group IsControlElement=false
+++++Image
+++++++Text Name='Static fallback'
+++++Image
+++++++Text Name='Static fallback'

@@ -1,0 +1,100 @@
+; Copyright 2017 The Chromium Authors
+; Use of this source code is governed by a BSD-style license that can be
+; found in the LICENSE file.
+
+; --- The contents of common.sb implicitly included here. ---
+
+; Put the denials first.
+; crbug.com/799149: These operations are allowed by default.
+(if (param-true? disable-sandbox-denial-logging)
+  (deny iokit-get-properties process-info* nvram* (with no-log))
+  (deny iokit-get-properties process-info* nvram*)
+)
+
+; Allow cf prefs to work.
+(allow user-preference-read)
+
+; process-info
+(allow process-info-pidinfo)
+(allow process-info-setcontrol (target self))
+
+; File reads.
+; Reads from the home directory.
+(allow file-read-data
+  (path (user-homedir-path "/.CFUserTextEncoding"))
+  (path (user-homedir-path "/Library/Preferences/com.apple.universalaccess.plist"))
+)
+
+; Reads of /dev devices.
+(allow file-read-data
+  (path "/dev/autofs_nowait")
+  (path "/dev/fd")
+)
+
+(allow-cvms-blobs)
+
+(allow file-write-data
+  (require-all
+    (path "/dev/null")
+    (vnode-type CHARACTER-DEVICE)))
+
+; Needed for Fonts.
+(allow-font-access)
+
+; Reads from /System.
+(allow file-read-data
+  (path "/System/Library/CoreServices/CoreTypes.bundle/Contents/Library/AppExceptions.bundle/Exceptions.plist")
+  (path "/System/Library/CoreServices/CoreTypes.bundle/Contents/Resources/Exceptions.plist")
+  (path "/System/Library/Preferences/Logging/Subsystems/com.apple.SkyLight.plist")
+  (subpath "/System/Library/ColorSync/Profiles")
+  (subpath "/System/Library/CoreServices/SystemAppearance.bundle")
+  (subpath "/System/Library/CoreServices/SystemVersion.bundle")
+  (subpath "/System/Library/Extensions")  ; https://crbug.com/847518
+  (subpath "/System/Library/LinguisticData")
+)
+
+; Reads from /Library.
+(allow file-read-data
+  (subpath "/Library/GPUBundles")  ; https://crbug.com/850021
+)
+
+; IOKit
+(allow iokit-open
+  (iokit-registry-entry-class "IOSurfaceRootUserClient")
+  (iokit-registry-entry-class "RootDomainUserClient")
+  (iokit-user-client-class "IOSurfaceSendRight")
+)
+
+; POSIX IPC
+(allow ipc-posix-shm-read-data
+  (ipc-posix-name "apple.cfprefs.317580v1")
+  (ipc-posix-name "apple.cfprefs.daemonv1")
+  (ipc-posix-name "apple.shm.notification_center")  ; https://crbug.com/792217
+)
+
+; mach IPC
+(allow mach-lookup
+  (global-name "com.apple.cvmsServ")  ; https://crbug.com/850021
+  (global-name "com.apple.distributed_notifications@Uv3")  ; https://crbug.com/792257
+  (global-name "com.apple.lsd.mapdb")
+  (global-name "com.apple.system.notification_center")  ; https://crbug.com/792217
+)
+
+; IOKit properties.
+(allow iokit-get-properties
+  (iokit-property "CaseSensitive")
+  (iokit-property "CoreStorage Encrypted")
+  (iokit-property "Ejectable")
+  (iokit-property "Encrypted")
+  (iokit-property "IOClassNameOverride")
+  (iokit-property "IOMediaIcon")
+  (iokit-property "Product Identification")
+  (iokit-property "Protocol Characteristics")
+  (iokit-property "Removable")
+  (iokit-property "image-encrypted")
+)
+
+; For V8 to use in thread calculations.
+(allow sysctl-read (sysctl-name "kern.tcsm_enable"))
+(allow sysctl-write (sysctl-name "kern.tcsm_enable"))
+(allow sysctl-read (sysctl-name "kern.tcsm_available"))

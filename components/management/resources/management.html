@@ -1,0 +1,45 @@
+<!DOCTYPE HTML>
+<html dir="$i18n{textdirection}" lang="$i18n{language}">
+<head>
+  <meta charset="utf-8">
+  <meta name="theme-color" content="#fff">
+  <meta name="viewport" content="initial-scale=1, minimum-scale=1, width=device-width">
+  <link rel="stylesheet" href="chrome://resources/css/text_defaults.css">
+  <link rel="stylesheet" href="management.css">
+</head>
+<body style="font-size: 75%">
+  <script type="module" src="management.js"></script>
+  <div class="content-wrapper">
+    <img id="icon" src="images/enterprise_icon.svg">
+    <div id="managed-info" class="hidden">
+      <div id="main-message" class="heading">$i18n{managementMessage}</div>
+      <div id="secondary-message" class="description-text">$i18n{managedInfo}
+        <a id="learn-more-link" target="_blank" href="$i18n{learnMoreURL}">$i18n{learnMore}</a>
+      </div>
+
+      <div id="connectors-info" class="hidden">
+          <div id="connectors-section-title" class="heading" >$i18n{connectorsSectionTitle}</div>
+
+          <div id="connectors-section-description" class="description-text">
+            $i18n{connectorsDescription}
+          </div>
+
+          <div id="security-event-section" class="event-section hidden">
+            <div class="event-title heading" >$i18n{securityEventTitle}</div>
+            <div class="description-text">
+              $i18n{securityEventData}
+            </div>
+          </div>
+
+          <div id="page-visit-event-section" class="event-section hidden">
+            <div class="event-title heading">$i18n{pageVisitEventTitle}</div>
+            <div class="description-text">
+              $i18n{pageVisitEventData}
+            </div>
+          </div>
+      </div>
+    </div>
+    <div id="unmanaged-info" class="hidden heading">$i18n{unmanagedInfo}</div>
+  </div>
+</body>
+</html>

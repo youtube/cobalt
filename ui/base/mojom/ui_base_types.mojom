@@ -1,0 +1,29 @@
+// Copyright 2017 The Chromium Authors
+// Use of this source code is governed by a BSD-style license that can be
+// found in the LICENSE file.
+
+module ui.mojom;
+
+// Specifies the type of modality applied to a window. Different modal
+// treatments may be handled differently by the window manager.
+enum ModalType {
+  // Window is not modal.
+  kNone,
+
+  // Window is modal to its transient parent.
+  kWindow,
+
+  // Window is modal to a specific child UI element (and its descendants) of its
+  // transient parent. Other UI elements remain interactive.
+  //
+  // Example: A tab-modal dialog disables input *only* to that tab's contents.
+  //
+  // The application is responsible for managing this modality. The OS window
+  // manager is unaware of it. The client must disable input to the target child
+  // UI and its descendants while the modal window is active.
+  kChild,
+
+  // Window is modal to all other windows.
+  // Only supported on ChromeOS.
+  kSystem
+};

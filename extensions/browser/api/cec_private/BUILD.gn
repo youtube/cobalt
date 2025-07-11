@@ -1,0 +1,32 @@
+# Copyright 2018 The Chromium Authors
+# Use of this source code is governed by a BSD-style license that can be
+# found in the LICENSE file.
+
+import("//build/config/chromeos/ui_mode.gni")
+import("//extensions/buildflags/buildflags.gni")
+
+assert(enable_extensions,
+       "Cannot depend on extensions because enable_extensions=false.")
+assert(is_chromeos)
+
+source_set("cec_private") {
+  sources = [
+    "cec_private_api.cc",
+    "cec_private_api.h",
+    "cec_private_delegate.h",
+    "cec_private_delegate_ash.cc",
+  ]
+
+  configs += [ "//build/config/compiler:wexit_time_destructors" ]
+
+  public_deps = [
+    "//base",
+    "//extensions/browser:browser_sources",
+    "//extensions/common/api",
+  ]
+
+  deps = [
+    "//chromeos/ash/components/dbus/cec_service",
+    "//extensions/common",
+  ]
+}

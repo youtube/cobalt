@@ -1,0 +1,4 @@
+include_rules = [
+  "+chromecast/base/jni_headers",
+  "+chromecast/browser/jni_headers",
+]

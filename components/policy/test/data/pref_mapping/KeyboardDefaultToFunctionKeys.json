@@ -1,0 +1,19 @@
+[
+  {
+    "os": [
+      "chromeos"
+    ],
+    "policy_pref_mapping_tests": [
+      {
+        "policies": {
+          "KeyboardDefaultToFunctionKeys": true
+        },
+        "prefs": {
+          "settings.language.send_function_keys": {
+            "value": true
+          }
+        }
+      }
+    ]
+  }
+]

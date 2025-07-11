@@ -1,0 +1,27 @@
+<!DOCTYPE html>
+<script src="../../resources/testharness.js"></script>
+<script src="../../resources/testharnessreport.js"></script>
+<div contenteditable id="start">
+  <span contenteditable="false">
+    <span contenteditable>
+      <span>foo</span>
+      <ol>bar</ol>
+    </span>
+    <ol>bar</ol>
+  </span>
+  <ol id="end">bar</ol>
+</div>
+<script>
+test(() => {
+  document.designMode = 'on';
+  const selection = window.getSelection();
+  const start = document.getElementById('start');
+  const end = document.getElementById('end');
+  selection.collapse(start, 0);
+  selection.extend(end.firstChild, 3);
+  // Note: This is a crash test. It only reflects the current behavior,
+  // which may be incorrect due to the unusual input HTML. Therefore
+  // `selection_test` is not currently applicable to verify.
+  document.execCommand('indent');
+}, 'The test passes if it does not crash');
+</script>

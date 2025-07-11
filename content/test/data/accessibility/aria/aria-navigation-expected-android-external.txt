@@ -1,0 +1,2 @@
+WebView focusable focused actions:[CLEAR_FOCUS, AX_FOCUS] bundle:[chromeRole="rootWebArea"]
+++NavigationView actions:[AX_FOCUS] bundle:[chromeRole="navigation", roleDescription="navigation"]

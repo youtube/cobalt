@@ -1,0 +1,37 @@
+# Copyright 2014 The Chromium Authors
+# Use of this source code is governed by a BSD-style license that can be
+# found in the LICENSE file.
+
+import("//build/config/locales.gni")
+import("//tools/grit/grit_rule.gni")
+
+# Meta target that includes all ui strings. Most
+# targets want them all. You can depend on the individually if you need to.
+group("strings") {
+  public_deps = [
+    ":app_locale_settings",
+    ":auto_image_annotation_strings",
+    ":ax_strings",
+    ":ui_strings",
+  ]
+}
+
+grit_strings("ax_strings") {
+  source = "ax_strings.grd"
+  outputs = [ "grit/ax_strings.h" ]
+}
+
+grit_strings("auto_image_annotation_strings") {
+  source = "auto_image_annotation_strings.grd"
+  outputs = [ "grit/auto_image_annotation_strings.h" ]
+}
+
+grit_strings("ui_strings") {
+  source = "ui_strings.grd"
+  outputs = [ "grit/ui_strings.h" ]
+}
+
+grit_strings("app_locale_settings") {
+  source = "app_locale_settings.grd"
+  outputs = [ "grit/app_locale_settings.h" ]
+}

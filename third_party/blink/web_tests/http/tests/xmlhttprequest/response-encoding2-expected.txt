@@ -1,0 +1,3 @@
+Test that XHR response text is not normalized.
+
+SUCCESS
