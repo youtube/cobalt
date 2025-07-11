@@ -63,7 +63,9 @@ class MediaDrmBridge {
     bool ok() const { return type == kSuccess; }
   };
 
-  MediaDrmBridge(raw_ref<MediaDrmBridge::Host> host, const char* key_system);
+  MediaDrmBridge(raw_ref<MediaDrmBridge::Host> host,
+                 const char* key_system,
+                 bool use_app_provisioning);
   ~MediaDrmBridge();
 
   MediaDrmBridge(const MediaDrmBridge&) = delete;

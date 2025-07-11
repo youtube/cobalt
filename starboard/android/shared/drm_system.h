@@ -110,9 +110,12 @@ class DrmSystem : public ::SbDrmSystemPrivate,
     const std::string mime_;
   };
 
+  void InitializeMediaCryptoSession();
   void CallKeyStatusesChangedCallbackWithKeyStatusRestricted_Locked();
   void HandlePendingRequests();
-  void GenerateSessionUpdateRequestInternal(
+  void GenerateSessionUpdateRequestProvisioning(
+      std::unique_ptr<SessionUpdateRequest> request);
+  void GenerateSessionUpdateRequestNoProvisioning(
       std::unique_ptr<SessionUpdateRequest> request);
 
   // From Thread.
