@@ -180,8 +180,8 @@ def _unit_test_files(args: argparse.Namespace, target_name: str) -> List[str]:
     ]
   elif args.device_family in ['rdk', 'raspi']:
     return [
-        f'bin={args.gcs_archive_path}/{target_name}_loader',
-        f'test_runtime_deps={args.gcs_archive_path}/deps.tar.gz',
+        f'bin={args.gcs_archive_path}/{target_name}',
+        f'test_runtime_deps={args.gcs_archive_path}/{target_name}_deps.tar.gz',
     ]
   else:
     raise ValueError(f'Unsupported device family: {args.device_family}')

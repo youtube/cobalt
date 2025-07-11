@@ -109,8 +109,11 @@ def create_archive(
       if archive_per_target:
         output_path = os.path.join(destination_dir,
                                    f'{target_name}_deps.tar.gz')
-        _make_tar(output_path, [(combined_deps, out_dir),
-                                (target_src_root_deps, source_dir)])
+        if use_android_deps_path:
+          _make_tar(output_path, [(combined_deps, out_dir),
+                                  (target_src_root_deps, source_dir)])
+        else:
+          _make_tar(output_path, [(combined_deps, source_dir)])
         archive_size = f'{os.path.getsize(output_path) / 1024 / 1024:.2f} MB'
         print(f'Created {os.path.basename(output_path)} ({archive_size})')
 
