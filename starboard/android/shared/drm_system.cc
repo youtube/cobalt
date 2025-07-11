@@ -98,11 +98,7 @@ DrmSystem::SessionUpdateRequest::SessionUpdateRequest(
 void DrmSystem::SessionUpdateRequest::Generate(
     const MediaDrmBridge* media_drm_bridge) const {
   SB_DCHECK(media_drm_bridge);
-  media_drm_bridge->CreateSession(
-      ticket_,
-      std::string_view(reinterpret_cast<const char*>(init_data_.data()),
-                       init_data_.size()),
-      mime_);
+  media_drm_bridge->CreateSession(ticket_, init_data_, mime_);
 }
 
 void DrmSystem::GenerateSessionUpdateRequest(int ticket,
