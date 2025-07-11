@@ -23,14 +23,6 @@
 #include "starboard/common/instance_counter.h"
 #include "starboard/common/thread.h"
 
-namespace {
-
-using starboard::android::shared::DrmSystem;
-
-DECLARE_INSTANCE_COUNTER(AndroidDrmSystem)
-
-}  // namespace
-
 // Declare the function as static instead of putting it in the above anonymous
 // namespace so it can be picked up by `std::vector<SbDrmKeyId>::operator==()`
 // as functions in anonymous namespace doesn't participate in argument dependent
@@ -43,9 +35,16 @@ static bool operator==(const SbDrmKeyId& left, const SbDrmKeyId& right) {
 }
 
 namespace starboard::android::shared {
+namespace {
+using starboard::android::shared::DrmSystem;
+
+constexpr char kNoUrl[] = "";
+
+DECLARE_INSTANCE_COUNTER(AndroidDrmSystem)
+}  // namespace
 
 DrmSystem::DrmSystem(
-    const char* key_system,
+    std::string_view key_system,
     void* context,
     SbDrmSessionUpdateRequestFunc update_request_callback,
     SbDrmSessionUpdatedFunc session_updated_callback,
@@ -60,7 +59,7 @@ DrmSystem::DrmSystem(
   ON_INSTANCE_CREATED(AndroidDrmSystem);
 
   media_drm_bridge_ = std::make_unique<MediaDrmBridge>(
-      base::raw_ref<MediaDrmBridge::Host>(*this), key_system);
+      base::raw_ref<MediaDrmBridge::Host>(*this), key_system_);
   if (!media_drm_bridge_->is_valid()) {
     return;
   }
@@ -92,14 +91,9 @@ DrmSystem::~DrmSystem() {
 
 DrmSystem::SessionUpdateRequest::SessionUpdateRequest(
     int ticket,
-    const char* type,
-    const void* initialization_data,
-    int initialization_data_size)
-    : ticket_(ticket),
-      init_data_(static_cast<const uint8_t*>(initialization_data),
-                 static_cast<const uint8_t*>(initialization_data) +
-                     initialization_data_size),
-      mime_(type) {}
+    std::string_view mime_type,
+    std::string_view initialization_data)
+    : ticket_(ticket), init_data_(initialization_data), mime_(mime_type) {}
 
 void DrmSystem::SessionUpdateRequest::Generate(
     const MediaDrmBridge* media_drm_bridge) const {
@@ -111,9 +105,10 @@ void DrmSystem::GenerateSessionUpdateRequest(int ticket,
                                              const char* type,
                                              const void* initialization_data,
                                              int initialization_data_size) {
-  std::unique_ptr<SessionUpdateRequest> session_update_request(
-      new SessionUpdateRequest(ticket, type, initialization_data,
-                               initialization_data_size));
+  auto session_update_request = std::make_unique<SessionUpdateRequest>(
+      ticket, type,
+      std::string_view(static_cast<const char*>(initialization_data),
+                       initialization_data_size));
   if (created_media_crypto_session_.load()) {
     session_update_request->Generate(media_drm_bridge_.get());
   } else {
@@ -133,7 +128,9 @@ void DrmSystem::UpdateSession(int ticket,
                               int session_id_size) {
   std::string error_msg;
   bool update_success = media_drm_bridge_->UpdateSession(
-      ticket, key, key_size, session_id, session_id_size, &error_msg);
+      ticket, std::string_view(static_cast<const char*>(key), key_size),
+      std::string_view(static_cast<const char*>(session_id), session_id_size),
+      &error_msg);
   session_updated_callback_(
       this, context_, ticket,
       update_success ? kSbDrmStatusSuccess : kSbDrmStatusUnknownError,
@@ -172,12 +169,11 @@ const void* DrmSystem::GetMetrics(int* size) {
 void DrmSystem::OnSessionUpdate(int ticket,
                                 SbDrmSessionRequestType request_type,
                                 std::string_view session_id,
-                                std::string_view content,
-                                const char* url) {
+                                std::string_view content) {
   update_request_callback_(this, context_, ticket, kSbDrmStatusSuccess,
                            request_type, /*error_message=*/nullptr,
                            session_id.data(), session_id.size(), content.data(),
-                           content.size(), url);
+                           content.size(), kNoUrl);
 }
 
 void DrmSystem::OnKeyStatusChange(
