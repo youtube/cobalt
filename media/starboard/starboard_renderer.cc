@@ -14,9 +14,11 @@
 
 #include "media/starboard/starboard_renderer.h"
 
+#include "base/feature_list.h"
 #include "base/logging.h"
 #include "base/trace_event/trace_event.h"
 #include "media/base/audio_codecs.h"
+#include "media/base/media_switches.h"
 #include "media/base/video_codecs.h"
 #include "starboard/common/media.h"
 #include "starboard/common/player.h"
@@ -118,6 +120,7 @@ StarboardRenderer::StarboardRenderer(
       media_log_(std::move(media_log)),
       set_bounds_helper_(new SbPlayerSetBoundsHelper),
       cdm_context_(nullptr),
+      buffering_state_(BUFFERING_HAVE_NOTHING),
       audio_write_duration_local_(audio_write_duration_local),
       audio_write_duration_remote_(audio_write_duration_remote),
       max_video_capabilities_(max_video_capabilities) {
@@ -272,6 +275,17 @@ void StarboardRenderer::Flush(base::OnceClosure flush_cb) {
   // request more data from us before Seek() is called.
   player_bridge_->PrepareForSeek();
 
+  if (buffering_state_ != BUFFERING_HAVE_NOTHING) {
+    buffering_state_ = BUFFERING_HAVE_NOTHING;
+    if (base::FeatureList::IsEnabled(
+            media::kCobaltReportBufferingStateDuringFlush)) {
+      task_runner_->PostTask(
+          FROM_HERE,
+          base::BindOnce(&StarboardRenderer::OnBufferingStateChange,
+                         weak_factory_.GetWeakPtr(), buffering_state_));
+    }
+  }
+
   // The function can be called when there are in-flight Demuxer::Read() calls
   // posted in OnDemuxerStreamRead(), we will wait until they are completed.
   if (audio_read_in_progress_ || video_read_in_progress_) {
@@ -284,6 +298,7 @@ void StarboardRenderer::Flush(base::OnceClosure flush_cb) {
 
 void StarboardRenderer::StartPlayingFrom(TimeDelta time) {
   DCHECK(task_runner_->RunsTasksInCurrentSequence());
+  DCHECK_EQ(buffering_state_, BUFFERING_HAVE_NOTHING);
 
   LOG(INFO) << "StarboardRenderer::StartPlayingFrom() called with " << time
             << '.';
@@ -834,14 +849,17 @@ void StarboardRenderer::OnPlayerStatus(SbPlayerState state) {
       DCHECK(player_bridge_initialized_);
       break;
     case kSbPlayerStatePresenting:
-      client_->OnBufferingStateChange(BUFFERING_HAVE_ENOUGH,
-                                      BUFFERING_CHANGE_REASON_UNKNOWN);
+      DCHECK(player_bridge_initialized_);
+      buffering_state_ = BUFFERING_HAVE_ENOUGH;
+      task_runner_->PostTask(
+          FROM_HERE,
+          base::BindOnce(&StarboardRenderer::OnBufferingStateChange,
+                         weak_factory_.GetWeakPtr(), buffering_state_));
       audio_write_duration_for_preroll_ = audio_write_duration_ =
           HasRemoteAudioOutputs(player_bridge_->GetAudioConfigurations())
               ? audio_write_duration_remote_
               : audio_write_duration_local_;
       LOG(INFO) << "Audio write duration is " << audio_write_duration_;
-      DCHECK(player_bridge_initialized_);
       break;
     case kSbPlayerStateEndOfStream:
       DCHECK(player_bridge_initialized_);
@@ -956,6 +974,12 @@ int StarboardRenderer::GetEstimatedMaxBuffers(TimeDelta write_duration,
   // The maximum number samples of write should be guarded by
   // SbPlayerGetMaximumNumberOfSamplesPerWrite() in OnNeedData().
   return estimated_max_buffers > 0 ? estimated_max_buffers : 1;
+}
+
+void StarboardRenderer::OnBufferingStateChange(BufferingState buffering_state) {
+  DCHECK(task_runner_->RunsTasksInCurrentSequence());
+  client_->OnBufferingStateChange(buffering_state,
+                                  BUFFERING_CHANGE_REASON_UNKNOWN);
 }
 
 }  // namespace media
