@@ -108,7 +108,7 @@ void VideoRenderAlgorithm::Render(
       ++dropped_frames_;
     } else if (early_us < kBufferReadyThreshold) {
       auto status = draw_frame_cb(frames->front(), adjusted_release_time_ns);
-      SB_DCHECK_EQ(status, VideoRendererSink::kReleased);
+      SB_CHECK_EQ(status, VideoRendererSink::kReleased);
       frames->pop_front();
     } else {
       break;
