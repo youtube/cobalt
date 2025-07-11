@@ -176,6 +176,7 @@ void ShellBrowserMainParts::PostCreateThreads() {
 }
 
 int ShellBrowserMainParts::PreMainMessageLoopRun() {
+  LOG(INFO) << "YO THOR - COBALT SHEL BROWSA MAIN PARTS";
   InitializeBrowserContexts();
   Shell::Initialize(CreateShellPlatformDelegate());
   net::NetModule::SetResourceProvider(PlatformResourceProvider);

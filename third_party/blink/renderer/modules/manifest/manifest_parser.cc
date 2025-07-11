@@ -130,7 +130,10 @@ ManifestParser::ManifestParser(const String& data,
       manifest_url_(manifest_url),
       document_url_(document_url),
       execution_context_(execution_context),
-      failed_(false) {}
+      failed_(false) {
+        LOG(INFO) << "YO THOR - MANIFEST PARSER!";
+        LOG(INFO) << "YO THOR - data:" << data_ << " MANIFEST URL:" << manifest_url << " DOC URL: " << document_url;
+      }
 
 ManifestParser::~ManifestParser() {}
 
@@ -142,6 +145,7 @@ void ManifestParser::SetFileHandlerExtensionLimitForTesting(int limit) {
 bool ManifestParser::Parse() {
   DCHECK(!manifest_);
 
+        LOG(INFO) << "YO THOR - MANIFEST PARSER! PARSEYYY";
   // TODO(crbug.com/1264024): Deprecate JSON comments here, if possible.
   JSONParseError error;
   bool has_comments = false;
@@ -601,6 +605,7 @@ KURL ManifestParser::ParseIconSrc(const JSONObject* icon) {
 
 String ManifestParser::ParseIconType(const JSONObject* icon) {
   absl::optional<String> type = ParseString(icon, "type", Trim(true));
+  LOG(INFO) << "YO THOR - PARSE ICON TYPE:" << (type.has_value() ? *type : "NANE FOUND");
   return type.has_value() ? *type : String("");
 }
 
@@ -622,6 +627,8 @@ Vector<gfx::Size> ManifestParser::ParseIconSizes(const JSONObject* icon) {
 
 absl::optional<Vector<mojom::blink::ManifestImageResource::Purpose>>
 ManifestParser::ParseIconPurpose(const JSONObject* icon) {
+
+  LOG(INFO) << "YO THOR - PARSE ICON PURPOSE";
   absl::optional<String> purpose_str =
       ParseString(icon, "purpose", Trim(false));
   Vector<mojom::blink::ManifestImageResource::Purpose> purposes;
@@ -644,8 +651,11 @@ ManifestParser::ParseIconPurpose(const JSONObject* icon) {
   bool unrecognised_purpose = false;
   for (auto& keyword : keywords) {
     keyword = keyword.StripWhiteSpace();
-    if (keyword.empty())
+    if (keyword.empty()) {
       continue;
+    }
+
+    LOG(INFO) << "YO THOR! KEYWURD:" << keyword;
 
     if (EqualIgnoringASCIICase(keyword, "any")) {
       purposes.push_back(mojom::blink::ManifestImageResource::Purpose::ANY);
@@ -655,6 +665,9 @@ ManifestParser::ParseIconPurpose(const JSONObject* icon) {
     } else if (EqualIgnoringASCIICase(keyword, "maskable")) {
       purposes.push_back(
           mojom::blink::ManifestImageResource::Purpose::MASKABLE);
+    } else if (EqualIgnoringASCIICase(keyword, "splash")) {
+      purposes.push_back(
+          mojom::blink::ManifestImageResource::Purpose::SPLASH);
     } else {
       unrecognised_purpose = true;
     }
@@ -747,6 +760,7 @@ Vector<mojom::blink::ManifestScreenshotPtr> ManifestParser::ParseScreenshots(
 Vector<mojom::blink::ManifestImageResourcePtr>
 ManifestParser::ParseImageResourceArray(const String& key,
                                         const JSONObject* object) {
+  LOG(INFO) << "YO THOR - PARSER - ParseImageResourceArray";
   Vector<mojom::blink::ManifestImageResourcePtr> icons;
   JSONValue* json_value = object->Get(key);
   if (!json_value)
@@ -758,6 +772,7 @@ ManifestParser::ParseImageResourceArray(const String& key,
     return icons;
   }
 
+  LOG(INFO) << "YO THOR - ICONS LIST HAZ:" <<  icons_list->size() << " ITEMS";
   for (wtf_size_t i = 0; i < icons_list->size(); ++i) {
     auto icon = ParseImageResource(icons_list->at(i));
     if (icon.has_value())
@@ -773,14 +788,18 @@ ManifestParser::ParseImageResource(const JSONValue* object) {
   if (!icon_object)
     return absl::nullopt;
 
+  LOG(INFO) << "YO THOR - PARSE IMAGGGGE RESOUECE";
   auto icon = mojom::blink::ManifestImageResource::New();
   icon->src = ParseIconSrc(icon_object);
   // An icon MUST have a valid src. If it does not, it MUST be ignored.
   if (!icon->src.IsValid())
     return absl::nullopt;
 
+  LOG(INFO) << "YO THOR - PARSE IMAGGGGE TYPE";
   icon->type = ParseIconType(icon_object);
+  LOG(INFO) << "YO THOR - PARSE IMAGGGGE SIZE";
   icon->sizes = ParseIconSizes(icon_object);
+  LOG(INFO) << "YO THOR - PARSE IMAGGGGE PURPOSE";
   auto purpose = ParseIconPurpose(icon_object);
   if (!purpose)
     return absl::nullopt;

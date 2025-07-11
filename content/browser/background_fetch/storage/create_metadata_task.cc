@@ -138,6 +138,8 @@ ManifestImageResourcePurposeToImageResoucePurposeProto(
       return proto::ImageResource_Purpose_MONOCHROME;
     case blink::mojom::ManifestImageResource_Purpose::MASKABLE:
       return proto::ImageResource_Purpose_MASKABLE;
+    case blink::mojom::ManifestImageResource_Purpose::SPLASH:
+      return proto::ImageResource_Purpose_SPLASH;
   }
 }
 }  // namespace

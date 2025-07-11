@@ -142,6 +142,10 @@ Manifest::ImageResource ConvertManifestImageResource(
           manifest_icon.purpose.emplace_back(
               mojom::ManifestImageResource_Purpose::MASKABLE);
           break;
+        case mojo::Purpose::SPLASH:
+          manifest_icon.purpose.emplace_back(
+              mojom::ManifestImageResource_Purpose::SPLASH);
+          break;
       }
     }
   }

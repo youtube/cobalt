@@ -20,6 +20,8 @@
 #include "content/public/browser/navigation_handle.h"
 #include "content/public/browser/web_contents.h"
 
+#include "third_party/blink/public/mojom/manifest/manifest.mojom.h"
+
 #if BUILDFLAG(IS_ANDROIDTV)
 #include "starboard/android/shared/starboard_bridge.h"
 
@@ -77,6 +79,7 @@ enum {
 void CobaltWebContentsObserver::DidFinishNavigation(
     content::NavigationHandle* navigation_handle) {
   LOG(INFO) << "Navigated to: " << navigation_handle->GetURL();
+  LOG(INFO) << "===> YO THOR! CobaltWebContentsObserver::DidFinishNavigation";
 #if BUILDFLAG(IS_ANDROIDTV)
   if (navigation_handle->IsErrorPage() &&
       navigation_handle->GetNetErrorCode() == net::ERR_NAME_NOT_RESOLVED) {
@@ -88,6 +91,69 @@ void CobaltWebContentsObserver::DidFinishNavigation(
     starboard_bridge->RaisePlatformError(env, jni_error_type, data);
   }
 #endif
+}
+
+void CobaltWebContentsObserver::DidStartNavigation(
+    content::NavigationHandle* navigation_handle) {
+  LOG(INFO) << "===> YO THOR! CobaltWebContentsObserver::DidStartNavigation";
+}
+
+void CobaltWebContentsObserver::ReadyToCommitNavigation(
+    content::NavigationHandle* navigation_handle) {
+  LOG(INFO)
+      << "===> YO THOR! CobaltWebContentsObserver::ReadyToCommitNavigation";
+}
+
+void CobaltWebContentsObserver::DidFinishLoad(
+    content::RenderFrameHost* render_frame_host,
+    const GURL& validated_url) {
+  LOG(INFO) << "===> YO THOR! CobaltWebContentsObserver::DidFinishLoad";
+}
+
+void CobaltWebContentsObserver::DidStopLoading() {
+  LOG(INFO) << "===> YO THOR! CobaltWebContentsObserver::DidStopLoading";
+}
+
+void CobaltWebContentsObserver::WebContentsDestroyed() {
+  LOG(INFO) << "===> YO THOR! CobaltWebContentsObserver::WebContentsDestroyed";
+}
+void CobaltWebContentsObserver::DidUpdateWebManifestURL(
+    content::RenderFrameHost* target_frame,
+    const GURL& manifest_url) {
+  LOG(INFO)
+      << "===> YO THOR! CobaltWebContentsObserver::DidUpdate***WebManifestURL";
+  // Get the Page object associated with the frame that has the manifest.
+  content::Page& page = target_frame->GetPage();
+
+  // Asynchronously request the manifest. The result will be sent to
+  // OnManifestReceived.
+  page.GetManifest(
+      base::BindOnce(&CobaltWebContentsObserver::OnManifestReceived,
+                     weak_ptr_factory_.GetWeakPtr()));
+}
+
+void CobaltWebContentsObserver::OnManifestReceived(
+    const GURL& manifest_url,
+    blink::mojom::ManifestPtr manifest) {
+  LOG(INFO) << "YO THOR - HAZ MANIFEST!" << manifest_url;
+
+  // Check if the manifest is valid. It might be null if fetching or parsing
+  // failed.
+  if (!manifest) {
+    // Handle case where manifest could not be loaded.
+    return;
+  }
+
+  if (manifest->name) {
+    std::u16string app_name = manifest->name.value();
+    LOG(INFO) << "YO THOR! APP NAEM:" << app_name;
+  }
+
+  // Get icons
+  for (const auto& icon : manifest->icons) {
+    GURL icon_url = icon.src;
+    LOG(INFO) << "YO THOR! ICON URL:" << icon_url;
+  }
 }
 
 }  // namespace cobalt

@@ -23,6 +23,7 @@ struct IconInfo {
     kAny = 0,
     kMonochrome = 1,
     kMaskable = 2,
+    kSplash = 3,
   };
 
   IconInfo();

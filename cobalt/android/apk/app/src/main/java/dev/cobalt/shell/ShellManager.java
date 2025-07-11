@@ -6,6 +6,7 @@ package dev.cobalt.shell;
 
 import android.content.Context;
 import android.graphics.Color;
+import android.util.Log;
 import org.chromium.base.ThreadUtils;
 import org.chromium.base.annotations.CalledByNative;
 import org.chromium.base.annotations.JNINamespace;
@@ -20,7 +21,7 @@ import org.chromium.ui.base.WindowAndroid;
  */
 @JNINamespace("content")
 public class ShellManager {
-    private static final String TAG = "cobalt";
+    private static final String TAG = "cobalt - THOR!";
     public static final String DEFAULT_SHELL_URL = "http://www.google.com";
     private WindowAndroid mWindow;
     private Shell mActiveShell;
@@ -38,6 +39,7 @@ public class ShellManager {
     public ShellManager(final Context context) {
         mContext = context;
         ShellManagerJni.get().init(this);
+        Log.i(TAG, "SHELL MANAGER YO!");
     }
 
     public Context getContext() {
@@ -72,6 +74,7 @@ public class ShellManager {
      * Sets the startup URL for new shell windows.
      */
     public void setStartupUrl(String url) {
+        Log.i(TAG, "SHELL MANAGER SET STARYOP URL YO!");
         mStartupUrl = url;
     }
 
@@ -79,6 +82,7 @@ public class ShellManager {
      * @return The currently visible shell view or null if one is not showing.
      */
     public Shell getActiveShell() {
+        Log.i(TAG, "SHELL MANAGER GET ACTIVE SHELL YO!");
         return mActiveShell;
     }
 
@@ -87,6 +91,7 @@ public class ShellManager {
      * @param url The URL the shell should load upon creation.
      */
     public void launchShell(String url) {
+        Log.i(TAG, "SHELL MANAGER - LAUNCH SHELL YO!");
         ThreadUtils.assertOnUiThread();
         Shell previousShell = mActiveShell;
         ShellManagerJni.get().launchShell(url);
@@ -95,6 +100,7 @@ public class ShellManager {
 
     @CalledByNative
     private Object createShell(long nativeShellPtr) {
+        Log.i(TAG, "SHELL MANAGER - CREATE SHELL YO!");
         if (mContentViewRenderView == null) {
             mContentViewRenderView = new ContentViewRenderView(getContext());
             mContentViewRenderView.setSurfaceViewBackgroundColor(Color.TRANSPARENT);

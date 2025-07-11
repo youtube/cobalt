@@ -1620,6 +1620,7 @@ NavigationRequest::NavigationRequest(
               ? absl::make_optional(FencedFrameProperties())
               : absl::nullopt),
       embedder_shared_storage_context_(embedder_shared_storage_context) {
+        LOG(INFO) << "YO THOR! NAVIGATION REQUEST CTOR!";
   CHECK(!common_params_->initiator_base_url ||
         !common_params_->initiator_base_url->is_empty());
   DCHECK(!blink::IsRendererDebugURL(common_params_->url));
@@ -2018,6 +2019,7 @@ NavigationRequest::NavigationRequest(
         frame_tree_node_->current_frame_host(),
         blink::mojom::WebFeature::kSameDocumentCrossOriginInitiator);
   }
+  LOG(INFO) << "YO THOR! NAVIGATION REQUEST CTOR! END!!!!";
 }
 
 NavigationRequest::~NavigationRequest() {

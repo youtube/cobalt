@@ -41,6 +41,8 @@ int CobaltBrowserMainParts::PreCreateThreads() {
 
 int CobaltBrowserMainParts::PreMainMessageLoopRun() {
   StartMetricsRecording();
+  LOG(INFO)
+      << "YO THOR _ COBALT BROWSER MAIN PARTS - PRE MAIN MESSAGE LOOP RUN";
   return ShellBrowserMainParts::PreMainMessageLoopRun();
 }
 

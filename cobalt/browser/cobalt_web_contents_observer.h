@@ -30,10 +30,25 @@ class CobaltWebContentsObserver : public content::WebContentsObserver {
   void DidFinishNavigation(
       content::NavigationHandle* navigation_handle) override;
 
+  void DidStartNavigation(
+      content::NavigationHandle* navigation_handle) override;
+  void ReadyToCommitNavigation(
+      content::NavigationHandle* navigation_handle) override;
+  void DidFinishLoad(content::RenderFrameHost* render_frame_host,
+                     const GURL& validated_url) override;
+  void DidStopLoading() override;
+  void WebContentsDestroyed() override;
+  void DidUpdateWebManifestURL(content::RenderFrameHost* target_frame,
+                               const GURL& manifest_url) override;
+  void OnManifestReceived(const GURL& manifest_url,
+                          blink::mojom::ManifestPtr manifest);
+
  private:
   void RegisterInjectedJavaScript();
 
   std::unique_ptr<js_injection::JsCommunicationHost> js_communication_host_;
+
+  base::WeakPtrFactory<CobaltWebContentsObserver> weak_ptr_factory_{this};
 };
 
 }  // namespace cobalt

@@ -161,6 +161,7 @@ struct ManifestImageResource {
     ANY = 0,
     MONOCHROME,
     MASKABLE,
+    SPLASH,
   };
 
   // MUST be a valid url. If an icon doesn't have a valid URL, it will not be

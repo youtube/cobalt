@@ -28,6 +28,8 @@ absl::optional<apps::IconInfo::Purpose> SyncPurposeToIconInfoPurpose(
       return apps::IconInfo::Purpose::kMaskable;
     case sync_pb::WebAppIconInfo_Purpose_MONOCHROME:
       return apps::IconInfo::Purpose::kMonochrome;
+    case sync_pb::WebAppIconInfo_Purpose_SPLASH:
+      return apps::IconInfo::Purpose::kSplash;
   }
 }
 
@@ -40,6 +42,8 @@ sync_pb::WebAppIconInfo_Purpose IconInfoPurposeToSyncPurpose(
       return sync_pb::WebAppIconInfo_Purpose_MONOCHROME;
     case apps::IconInfo::Purpose::kMaskable:
       return sync_pb::WebAppIconInfo_Purpose_MASKABLE;
+    case apps::IconInfo::Purpose::kSplash:
+      return sync_pb::WebAppIconInfo_Purpose_SPLASH;
   }
 }
 
@@ -53,6 +57,8 @@ ManifestImageResourcePurposeToImageResoucePurposeProto(
       return content::proto::ImageResource_Purpose_MONOCHROME;
     case blink::mojom::ManifestImageResource_Purpose::MASKABLE:
       return content::proto::ImageResource_Purpose_MASKABLE;
+    case blink::mojom::ManifestImageResource_Purpose::SPLASH:
+      return content::proto::ImageResource_Purpose_SPLASH;
   }
 }
 

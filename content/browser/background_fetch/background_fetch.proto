@@ -67,6 +67,7 @@ message ImageResource {
     ANY = 1;
     MONOCHROME = 2;
     MASKABLE = 3;
+    SPLASH = 4;
   }
 
   // blink::mojom::ManifestImageResource_Purpose enum.

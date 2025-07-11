@@ -196,6 +196,7 @@ int ShellBrowserMainParts::PreMainMessageLoopRun() {
   fuchsia_view_presenter_ = std::make_unique<FuchsiaViewPresenter>();
 #endif
 
+  LOG(INFO) << "YO THOR _ SHELL BROWSA MAIN - SOULDNT BE HERE!!!";
   InitializeBrowserContexts();
   Shell::Initialize(CreateShellPlatformDelegate());
   net::NetModule::SetResourceProvider(PlatformResourceProvider);
