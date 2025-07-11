@@ -4,6 +4,6 @@
     "starboard/nplb:nplb_loader"
   ],
   "executables": [
-    "out/raspi-2_devel/nplb_loader"
+    "out/raspi-2_devel/starboard/nplb_loader"
   ]
 }

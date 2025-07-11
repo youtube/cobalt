@@ -10,8 +10,8 @@ inputs:
   test_artifacts_key:
     description: "Artifact key used to store on-host test artifacts."
     required: true
-  test_targets_json:
-    description: "The test targets as a json list."
+  test_targets_json_file:
+    description: "The path to test targets json file."
     required: true
 runs:
   using: "composite"
@@ -19,22 +19,17 @@ runs:
     - name: Copy Runnables to Artifacts
       if: inputs.upload_on_device_test_artifacts == 'true'
       env:
-        TEST_TARGETS_JSON: ${{ inputs.test_targets_json }}
+        TEST_TARGETS_JSON_FILE: ${{ inputs.test_targets_json_file }}
       run: |
         set -eux
         cd src/
-        for target in $(echo "${TEST_TARGETS_JSON}" | jq -r '.[] | split(":")[1]'); do
-          if [[ "${{ matrix.platform }}" == "android" ]]; then
-            runnable="out/${{ matrix.platform }}_${{ matrix.config }}/${target}_apk/${target}-debug.apk"
-          else
-            runnable="out/${{ matrix.platform }}_${{ matrix.config }}/${target}"
-          fi
-          cp "${runnable}" "${GITHUB_WORKSPACE}/artifacts/"
+        for target in $(cat "${TEST_TARGETS_JSON_FILE}" | jq -r '.executables | .[]'); do
+          cp "${target}" "${GITHUB_WORKSPACE}/artifacts/"
         done
       shell: bash
     - name: Archive Test Dependencies
       env:
-        TEST_TARGETS_JSON: ${{ inputs.test_targets_json }}
+        TEST_TARGETS_JSON_FILE: ${{ inputs.test_targets_json_file }}
       run: |
         set -x
         mkdir ${GITHUB_WORKSPACE}/artifacts
@@ -51,9 +46,10 @@ runs:
           --source-dir ${GITHUB_WORKSPACE}/src \
           --out-dir out/${{ matrix.platform }}_${{ matrix.config }}/ \
           --destination-dir ${GITHUB_WORKSPACE}/artifacts \
-          --targets $(echo "${TEST_TARGETS_JSON}" | jq -cr 'join(",")') \
+          --targets $(cat "${TEST_TARGETS_JSON_FILE}" | jq -cr '.test_targets | join(",")') \
           ${FLAGS}
       shell: bash
+
     - name: Upload On-Host Test Artifacts Archive
       if: inputs.upload_on_host_test_artifacts == 'true'
       uses: actions/upload-artifact@v4
