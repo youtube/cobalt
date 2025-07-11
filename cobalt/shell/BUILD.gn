@@ -38,6 +38,12 @@ source_set("android_shell_descriptors") {
   deps = [ "//content/public/common:content_descriptors" ]
 }
 
+mojom("shell_controller_mojom") {
+  testonly = true
+  sources = [ "common/shell_controller.test-mojom" ]
+  public_deps = [ "//mojo/public/mojom/base" ]
+}
+
 mojom("content_browsertests_mojom") {
   sources = [
     "common/main_frame_counter_test.mojom",
@@ -58,6 +64,7 @@ group("content_shell_lib_deps") {
 
     # content_shell_lib also exposes all public content APIs.
     ":content_browsertests_mojom",
+    ":shell_controller_mojom",
     "//base",
     "//base:base_static",
     "//base/third_party/dynamic_annotations",
@@ -93,8 +100,6 @@ group("content_shell_lib_deps") {
     "//content/public/gpu",
     "//content/public/renderer",
     "//content/public/utility",
-    "//content/shell:resources",
-    "//content/shell:shell_controller_mojom",
     "//content/test:content_test_mojo_bindings",
     "//content/test:test_support",
     "//media",

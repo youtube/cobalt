@@ -40,7 +40,7 @@
 #include "content/public/common/content_switches.h"
 #include "content/public/common/url_constants.h"
 #include "content/public/common/user_agent.h"
-#include "content/shell/grit/shell_resources.h"
+// #include "cobalt/shell/grit/shell_resources.h"
 #include "net/base/net_errors.h"
 #include "net/log/net_log_source.h"
 #include "net/socket/tcp_server_socket.h"
