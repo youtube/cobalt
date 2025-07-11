@@ -464,6 +464,10 @@ BASE_FEATURE(kCobaltDecoderBufferAllocatorWithInPlaceMetadata,
 BASE_FEATURE(kCobaltProgressivePlayback,
              "CobaltProgressivePlayback",
              base::FEATURE_DISABLED_BY_DEFAULT);
+// When enabled, Cobalt reports buffering state during flush.
+BASE_FEATURE(kCobaltReportBufferingStateDuringFlush,
+             "CobaltReportBufferingStateDuringFlush",
+             base::FEATURE_DISABLED_BY_DEFAULT);
 #endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
 
 #if BUILDFLAG(IS_CHROMEOS)
