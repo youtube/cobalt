@@ -24,6 +24,7 @@
 #include <optional>
 #include <ostream>
 #include <string>
+#include <string_view>
 #include <unordered_map>
 #include <vector>
 
@@ -69,11 +70,11 @@ class DrmSystem : public ::SbDrmSystemPrivate,
   // MediaDrmBridge::Host methods.
   void OnSessionUpdate(int ticket,
                        SbDrmSessionRequestType request_type,
-                       const std::string& session_id,
-                       const std::string& content) override;
-  void OnProvisioningRequest(const std::string& content) override;
+                       std::string_view session_id,
+                       std::string_view content) override;
+  void OnProvisioningRequest(std::string_view content) override;
   void OnKeyStatusChange(
-      const std::string& session_id,
+      std::string_view session_id,
       const std::vector<SbDrmKeyId>& drm_key_ids,
       const std::vector<SbDrmKeyStatus>& drm_key_statuses) override;
 

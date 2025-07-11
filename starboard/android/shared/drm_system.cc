@@ -14,14 +14,11 @@
 
 #include "starboard/android/shared/drm_system.h"
 
-#include <memory>
-#include <mutex>
-#include <optional>
 #include <string>
-#include <utility>
+#include <string_view>
 
-#include "media_drm_bridge.h"
 #include "starboard/android/shared/media_common.h"
+#include "starboard/android/shared/media_drm_bridge.h"
 #include "starboard/common/instance_counter.h"
 #include "starboard/common/thread.h"
 
@@ -41,7 +38,7 @@ namespace {
 
 DECLARE_INSTANCE_COUNTER(AndroidDrmSystem)
 
-constexpr bool kUseAppProvisioning = true;
+constexpr bool kUseAppProvisioning = false;
 
 constexpr char kNoUrl[] = "";
 
@@ -311,9 +308,9 @@ const void* DrmSystem::GetMetrics(int* size) {
 
 void DrmSystem::OnSessionUpdate(int ticket,
                                 SbDrmSessionRequestType request_type,
-                                const std::string& session_id,
-                                const std::string& content) {
-  std::string cdm_session_id = session_id;
+                                std::string_view session_id,
+                                std::string_view content) {
+  std::string_view cdm_session_id = session_id;
   if (bridge_session_id_map_.has_value()) {
     if (bridge_session_id_map_->media_drm_id.empty()) {
       bridge_session_id_map_->media_drm_id = session_id;
@@ -330,7 +327,7 @@ void DrmSystem::OnSessionUpdate(int ticket,
                            content.data(), content.size(), kNoUrl);
 }
 
-void DrmSystem::OnProvisioningRequest(const std::string& content) {
+void DrmSystem::OnProvisioningRequest(std::string_view content) {
   SB_LOG(INFO) << __func__;
   if (!bridge_session_id_map_.has_value()) {
     bridge_session_id_map_.emplace(
@@ -358,7 +355,7 @@ void DrmSystem::OnProvisioningRequest(const std::string& content) {
 }
 
 void DrmSystem::OnKeyStatusChange(
-    const std::string& session_id,
+    std::string_view session_id,
     const std::vector<SbDrmKeyId>& drm_key_ids,
     const std::vector<SbDrmKeyStatus>& drm_key_statuses) {
   SB_DCHECK_EQ(drm_key_ids.size(), drm_key_statuses.size());
@@ -396,8 +393,8 @@ void DrmSystem::OnKeyStatusChange(
 }
 
 void DrmSystem::OnInsufficientOutputProtection() {
-  // HDCP has lost, update the statuses of all keys in all known sessions to
-  // be restricted.
+  // HDCP has lost, update the statuses of all keys in all known sessions to  be
+  // restricted.
   std::lock_guard scoped_lock(mutex_);
   if (hdcp_lost_) {
     return;

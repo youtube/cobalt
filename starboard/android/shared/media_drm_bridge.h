@@ -18,6 +18,7 @@
 #include <jni.h>
 
 #include <string>
+#include <string_view>
 #include <vector>
 
 #include "base/android/jni_android.h"
@@ -38,11 +39,11 @@ class MediaDrmBridge {
    public:
     virtual void OnSessionUpdate(int ticket,
                                  SbDrmSessionRequestType request_type,
-                                 const std::string& session_id,
-                                 const std::string& content) = 0;
-    virtual void OnProvisioningRequest(const std::string& content) = 0;
+                                 std::string_view session_id,
+                                 std::string_view content) = 0;
+    virtual void OnProvisioningRequest(std::string_view content) = 0;
     virtual void OnKeyStatusChange(
-        const std::string& session_id,
+        std::string_view session_id,
         const std::vector<SbDrmKeyId>& drm_key_ids,
         const std::vector<SbDrmKeyStatus>& drm_key_statuses) = 0;
 
