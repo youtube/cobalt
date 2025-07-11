@@ -20,8 +20,9 @@
 #include <jni.h>
 
 #include <atomic>
-#include <memory>
 #include <mutex>
+#include <optional>
+#include <ostream>
 #include <string>
 #include <string_view>
 #include <unordered_map>
@@ -30,6 +31,7 @@
 #include "starboard/android/shared/media_common.h"
 #include "starboard/android/shared/media_drm_bridge.h"
 #include "starboard/common/thread.h"
+#include "starboard/shared/starboard/player/job_queue.h"
 #include "starboard/types.h"
 
 namespace starboard::android::shared {
@@ -69,8 +71,8 @@ class DrmSystem : public ::SbDrmSystemPrivate,
   void OnSessionUpdate(int ticket,
                        SbDrmSessionRequestType request_type,
                        std::string_view session_id,
-                       std::string_view content,
-                       const char* url) override;
+                       std::string_view content) override;
+  void OnProvisioningRequest(std::string_view content) override;
   void OnKeyStatusChange(
       std::string_view session_id,
       const std::vector<SbDrmKeyId>& drm_key_ids,
@@ -84,7 +86,7 @@ class DrmSystem : public ::SbDrmSystemPrivate,
   }
 
   // Return true when the drm system is ready for secure input buffers.
-  bool IsReady() { return created_media_crypto_session_.load(); }
+  bool IsReady();
 
  private:
   class SessionUpdateRequest {
@@ -96,6 +98,12 @@ class DrmSystem : public ::SbDrmSystemPrivate,
     ~SessionUpdateRequest() = default;
 
     void Generate(const MediaDrmBridge* media_drm_bridge) const;
+    MediaDrmBridge::Status GenerateNoProvisioning(
+        const MediaDrmBridge* media_drm_bridge) const;
+
+    SessionUpdateRequest CloneWithoutTicket() const;
+
+    int ticket() const { return ticket_; }
 
    private:
     const int ticket_;
@@ -103,10 +111,19 @@ class DrmSystem : public ::SbDrmSystemPrivate,
     const std::string mime_;
   };
 
+  void InitializeMediaCryptoSession();
   void CallKeyStatusesChangedCallbackWithKeyStatusRestricted_Locked();
+  void HandlePendingRequests();
+  void GenerateSessionUpdateRequestProvisioning(
+      std::unique_ptr<SessionUpdateRequest> request);
+  void GenerateSessionUpdateRequestNoProvisioning(
+      std::unique_ptr<SessionUpdateRequest> request);
 
   // From Thread.
   void Run() override;
+
+  struct SessionIdMap;
+  friend std::ostream& operator<<(std::ostream& os, const SessionIdMap& map);
 
   const std::string key_system_;
   void* context_;
@@ -121,9 +138,26 @@ class DrmSystem : public ::SbDrmSystemPrivate,
   std::mutex mutex_;
   std::unordered_map<std::string, std::vector<SbDrmKeyId>> cached_drm_key_ids_;
   bool hdcp_lost_;
-  std::atomic_bool created_media_crypto_session_{false};
+  std::atomic_bool created_media_crypto_session_{true};
 
   std::unique_ptr<MediaDrmBridge> media_drm_bridge_;
+
+  std::vector<uint8_t> metrics_;
+
+  std::atomic<bool> running_;  // Flag to control the Run loop
+
+  std::atomic<bool> is_key_provided_ = false;
+
+  struct SessionIdMap {
+    const std::string cdm_id;
+    std::string media_drm_id;
+  };
+
+  std::optional<SessionIdMap> bridge_session_id_map_;
+
+  std::unique_ptr<starboard::shared::starboard::player::JobQueue> job_queue_;
+
+  std::optional<int> pending_ticket_;
 };
 
 }  // namespace starboard::android::shared

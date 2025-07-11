@@ -18,6 +18,7 @@
 #include <jni.h>
 
 #include <string>
+#include <string_view>
 #include <vector>
 
 #include "base/android/jni_android.h"
@@ -39,8 +40,8 @@ class MediaDrmBridge {
     virtual void OnSessionUpdate(int ticket,
                                  SbDrmSessionRequestType request_type,
                                  std::string_view session_id,
-                                 std::string_view content,
-                                 const char* url) = 0;
+                                 std::string_view content) = 0;
+    virtual void OnProvisioningRequest(std::string_view content) = 0;
     virtual void OnKeyStatusChange(
         std::string_view session_id,
         const std::vector<SbDrmKeyId>& drm_key_ids,
@@ -50,7 +51,22 @@ class MediaDrmBridge {
     ~Host() = default;
   };
 
-  MediaDrmBridge(raw_ref<MediaDrmBridge::Host> host, const char* key_system);
+  struct Status {
+    enum Type {
+      kSuccess = 0,
+      kOperationError = 1,
+      kNotProvisionedError = 2,
+    };
+
+    const Type type;
+    const std::string error_message;
+
+    bool ok() const { return type == kSuccess; }
+  };
+
+  MediaDrmBridge(raw_ref<MediaDrmBridge::Host> host,
+                 const char* key_system,
+                 bool use_app_provisioning);
   ~MediaDrmBridge();
 
   MediaDrmBridge(const MediaDrmBridge&) = delete;
@@ -65,13 +81,21 @@ class MediaDrmBridge {
   void CreateSession(int ticket,
                      const std::vector<const uint8_t>& init_data,
                      const std::string& mime) const;
-  // Updates the session. Returns true on success.
-  bool UpdateSession(int ticket,
-                     const void* key,
-                     int key_size,
-                     const void* session_id,
-                     int session_id_size,
-                     std::string* error_msg) const;
+
+  Status CreateSessionNoProvisioning(
+      int ticket,
+      const std::vector<const uint8_t>& init_data,
+      const std::string& mime) const;
+  void GenerateProvisionRequest() const;
+  Status ProvideProvisionResponse(const void* response,
+                                  int response_size) const;
+
+  Status UpdateSession(int ticket,
+                       const void* key,
+                       int key_size,
+                       const void* session_id,
+                       int session_id_size,
+                       std::string* error_msg) const;
   void CloseSession(const std::string& session_id) const;
   const void* GetMetrics(int* size);
   bool CreateMediaCryptoSession();
@@ -84,6 +108,8 @@ class MediaDrmBridge {
   void OnKeyStatusChange(JNIEnv* env,
                          const JavaParamRef<jbyteArray>& session_id,
                          const JavaParamRef<jobjectArray>& key_information);
+  void OnProvisioningRequestMessage(JNIEnv* env,
+                                    const JavaParamRef<jbyteArray>& message);
 
   static bool IsWidevineSupported(JNIEnv* env);
   static bool IsCbcsSupported(JNIEnv* env);
