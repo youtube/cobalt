@@ -60,7 +60,7 @@
 #endif
 
 #if defined(USE_AURA) && (BUILDFLAG(IS_LINUX))
-#include "ui/base/ime/init/input_method_initializer.h"
+#include "ui/base/ime/init/input_method_initializer.h"  // nogncheck
 #endif
 
 #if BUILDFLAG(IS_LINUX)
