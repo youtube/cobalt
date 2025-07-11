@@ -46,7 +46,9 @@ const base::Feature* const kFeaturesExposedToJava[] = {
     &features::kWebBluetoothNewPermissionsBackend,
     &features::kWebNfc,
     &features::kDoNotGenerateChromiumA11yTree,
-    &kCobaltUsingAndroidOverlay,
+    #if BUILDFLAG(USE_STARBOARD_MEDIA)
+    &media::kCobaltUsingAndroidOverlay,
+    #endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
 };
 
 const base::Feature* FindFeatureExposedToJava(const std::string& feature_name) {

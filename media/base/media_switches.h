@@ -179,6 +179,9 @@ MEDIA_EXPORT extern const base::FeatureParam<int>
 #if BUILDFLAG(USE_STARBOARD_MEDIA)
 MEDIA_EXPORT BASE_DECLARE_FEATURE(kCobaltDecoderBufferAllocatorWithInPlaceMetadata);
 MEDIA_EXPORT BASE_DECLARE_FEATURE(kCobaltProgressivePlayback);
+#if BUILDFLAG(IS_ANDROID)
+MEDIA_EXPORT BASE_DECLARE_FEATURE(kCobaltUsingAndroidOverlay);
+#endif  // BUILDFLAG(IS_ANDROID)
 #endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
 #if BUILDFLAG(IS_CHROMEOS)
 MEDIA_EXPORT BASE_DECLARE_FEATURE(kCrOSSystemAEC);
@@ -465,11 +468,4 @@ MEDIA_EXPORT extern const base::FeatureParam<kCrosGlobalMediaControlsPinOptions>
 MEDIA_EXPORT uint32_t GetPassthroughAudioFormats();
 
 }  // namespace media
-
 #endif  // MEDIA_BASE_MEDIA_SWITCHES_H_
-
-#if BUILDFLAG(IS_ANDROID)
-#if BUILDFLAG(USE_STARBOARD_MEDIA)
-MEDIA_EXPORT BASE_DECLARE_FEATURE(kCobaltUsingAndroidOverlay);
-#endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
-#endif  // BUILDFLAG(IS_ANDROID)
