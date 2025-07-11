@@ -15,8 +15,8 @@
 #include "starboard/android/shared/drm_system.h"
 
 #include <memory>
-#include <string_view>
 #include <mutex>
+#include <string_view>
 #include <utility>
 
 #include "starboard/android/shared/media_common.h"
@@ -139,18 +139,17 @@ void DrmSystem::UpdateSession(int ticket,
 }
 
 void DrmSystem::CloseSession(const void* session_id, int session_id_size) {
-  std::string_view session_id_as_string_view(
-      static_cast<const char*>(session_id), session_id_size);
+  std::string session_id_as_string(static_cast<const char*>(session_id),
+                                   session_id_size);
 
   {
     std::lock_guard scoped_lock(mutex_);
-    auto iter =
-        cached_drm_key_ids_.find(std::string(session_id_as_string_view));
+    auto iter = cached_drm_key_ids_.find(session_id_as_string);
     if (iter != cached_drm_key_ids_.end()) {
       cached_drm_key_ids_.erase(iter);
     }
   }
-  media_drm_bridge_->CloseSession(session_id_as_string_view);
+  media_drm_bridge_->CloseSession(session_id_as_string);
 }
 
 DrmSystem::DecryptStatus DrmSystem::Decrypt(InputBuffer* buffer) {
