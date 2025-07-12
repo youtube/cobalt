@@ -15,6 +15,8 @@
 #include "starboard/android/shared/drm_system.h"
 
 #include <memory>
+#include <mutex>
+#include <string_view>
 #include <utility>
 
 #include "starboard/android/shared/media_common.h"
@@ -57,7 +59,8 @@ DrmSystem::DrmSystem(
       hdcp_lost_(false) {
   ON_INSTANCE_CREATED(AndroidDrmSystem);
 
-  media_drm_bridge_.reset(new MediaDrmBridge(this, key_system));
+  media_drm_bridge_ = std::make_unique<MediaDrmBridge>(
+      base::raw_ref<MediaDrmBridge::Host>(*this), key_system);
   if (!media_drm_bridge_->is_valid()) {
     return;
   }
@@ -73,7 +76,7 @@ void DrmSystem::Run() {
     return;
   }
 
-  ScopedLock scoped_lock(mutex_);
+  std::lock_guard scoped_lock(mutex_);
   if (!deferred_session_update_requests_.empty()) {
     for (const auto& update_request : deferred_session_update_requests_) {
       update_request->Generate(media_drm_bridge_.get());
@@ -115,7 +118,7 @@ void DrmSystem::GenerateSessionUpdateRequest(int ticket,
     session_update_request->Generate(media_drm_bridge_.get());
   } else {
     // Defer generating the update request.
-    ScopedLock scoped_lock(mutex_);
+    std::lock_guard scoped_lock(mutex_);
     deferred_session_update_requests_.push_back(
         std::move(session_update_request));
   }
@@ -142,7 +145,7 @@ void DrmSystem::CloseSession(const void* session_id, int session_id_size) {
                                    session_id_size);
 
   {
-    ScopedLock scoped_lock(mutex_);
+    std::lock_guard scoped_lock(mutex_);
     auto iter = cached_drm_key_ids_.find(session_id_as_string);
     if (iter != cached_drm_key_ids_.end()) {
       cached_drm_key_ids_.erase(iter);
@@ -166,32 +169,28 @@ const void* DrmSystem::GetMetrics(int* size) {
   return media_drm_bridge_->GetMetrics(size);
 }
 
-void DrmSystem::CallUpdateRequestCallback(int ticket,
-                                          SbDrmSessionRequestType request_type,
-                                          const void* session_id,
-                                          int session_id_size,
-                                          const void* content,
-                                          int content_size,
-                                          const char* url) {
+void DrmSystem::OnSessionUpdate(int ticket,
+                                SbDrmSessionRequestType request_type,
+                                std::string_view session_id,
+                                std::string_view content,
+                                const char* url) {
   update_request_callback_(this, context_, ticket, kSbDrmStatusSuccess,
-                           request_type, nullptr, session_id, session_id_size,
-                           content, content_size, url);
+                           request_type, /*error_message=*/nullptr,
+                           session_id.data(), session_id.size(), content.data(),
+                           content.size(), url);
 }
 
-void DrmSystem::CallDrmSessionKeyStatusesChangedCallback(
-    const void* session_id,
-    int session_id_size,
+void DrmSystem::OnKeyStatusChange(
+    std::string_view session_id,
     const std::vector<SbDrmKeyId>& drm_key_ids,
     const std::vector<SbDrmKeyStatus>& drm_key_statuses) {
-  SB_DCHECK(drm_key_ids.size() == drm_key_statuses.size());
+  SB_DCHECK_EQ(drm_key_ids.size(), drm_key_statuses.size());
 
-  std::string session_id_as_string(static_cast<const char*>(session_id),
-                                   session_id_size);
-
+  std::string session_id_str(session_id);
   {
-    ScopedLock scoped_lock(mutex_);
-    if (cached_drm_key_ids_[session_id_as_string] != drm_key_ids) {
-      cached_drm_key_ids_[session_id_as_string] = drm_key_ids;
+    std::lock_guard scoped_lock(mutex_);
+    if (cached_drm_key_ids_[session_id_str] != drm_key_ids) {
+      cached_drm_key_ids_[session_id_str] = drm_key_ids;
       if (hdcp_lost_) {
         CallKeyStatusesChangedCallbackWithKeyStatusRestricted_Locked();
         return;
@@ -199,7 +198,8 @@ void DrmSystem::CallDrmSessionKeyStatusesChangedCallback(
     }
   }
 
-  key_statuses_changed_callback_(this, context_, session_id, session_id_size,
+  key_statuses_changed_callback_(this, context_, session_id.data(),
+                                 session_id.size(),
                                  static_cast<int>(drm_key_ids.size()),
                                  drm_key_ids.data(), drm_key_statuses.data());
 }
@@ -207,7 +207,7 @@ void DrmSystem::CallDrmSessionKeyStatusesChangedCallback(
 void DrmSystem::OnInsufficientOutputProtection() {
   // HDCP has lost, update the statuses of all keys in all known sessions to be
   // restricted.
-  ScopedLock scoped_lock(mutex_);
+  std::lock_guard scoped_lock(mutex_);
   if (hdcp_lost_) {
     return;
   }

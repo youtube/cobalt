@@ -19,24 +19,24 @@
 
 #include <jni.h>
 
-#include <memory>
-
 #include <atomic>
+#include <memory>
+#include <mutex>
 #include <string>
+#include <string_view>
 #include <unordered_map>
 #include <vector>
 
 #include "starboard/android/shared/media_common.h"
 #include "starboard/android/shared/media_drm_bridge.h"
-#include "starboard/common/mutex.h"
 #include "starboard/common/thread.h"
 #include "starboard/types.h"
 
 namespace starboard::android::shared {
 
 class DrmSystem : public ::SbDrmSystemPrivate,
-                  private Thread,
-                  private MediaDrmBridge::Host {
+                  public MediaDrmBridge::Host,
+                  private Thread {
  public:
   DrmSystem(const char* key_system,
             void* context,
@@ -66,16 +66,13 @@ class DrmSystem : public ::SbDrmSystemPrivate,
   jobject GetMediaCrypto() const { return media_drm_bridge_->GetMediaCrypto(); }
 
   // MediaDrmBridge::Host methods.
-  void CallUpdateRequestCallback(int ticket,
-                                 SbDrmSessionRequestType request_type,
-                                 const void* session_id,
-                                 int session_id_size,
-                                 const void* content,
-                                 int content_size,
-                                 const char* url) override;
-  void CallDrmSessionKeyStatusesChangedCallback(
-      const void* session_id,
-      int session_id_size,
+  void OnSessionUpdate(int ticket,
+                       SbDrmSessionRequestType request_type,
+                       std::string_view session_id,
+                       std::string_view content,
+                       const char* url) override;
+  void OnKeyStatusChange(
+      std::string_view session_id,
       const std::vector<SbDrmKeyId>& drm_key_ids,
       const std::vector<SbDrmKeyStatus>& drm_key_statuses) override;
 
@@ -121,7 +118,7 @@ class DrmSystem : public ::SbDrmSystemPrivate,
   std::vector<std::unique_ptr<SessionUpdateRequest>>
       deferred_session_update_requests_;
 
-  Mutex mutex_;
+  std::mutex mutex_;
   std::unordered_map<std::string, std::vector<SbDrmKeyId>> cached_drm_key_ids_;
   bool hdcp_lost_;
   std::atomic_bool created_media_crypto_session_{false};

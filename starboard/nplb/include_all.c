@@ -29,11 +29,6 @@
 #include "starboard/media.h"
 #include "starboard/microphone.h"
 #include "starboard/player.h"
-<<<<<<< HEAD
-#include "starboard/socket.h"
-#include "starboard/socket_waiter.h"
-=======
->>>>>>> ea0e9aea8ed ([Cleanup] Remove starboard/socket.h and related files. (#6290))
 #include "starboard/speech_synthesis.h"
 #include "starboard/storage.h"
 #include "starboard/system.h"
