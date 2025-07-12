@@ -130,8 +130,7 @@ void DrmSystem::UpdateSession(int ticket,
   std::string error_msg;
   MediaDrmBridge::OperationResult result = media_drm_bridge_->UpdateSession(
       ticket, std::string_view(static_cast<const char*>(key), key_size),
-      std::string_view(static_cast<const char*>(session_id), session_id_size),
-      &error_msg);
+      std::string_view(static_cast<const char*>(session_id), session_id_size));
   if (!result.ok()) {
     SB_LOG(ERROR) << "UpdateSession failed: " << result;
   }
