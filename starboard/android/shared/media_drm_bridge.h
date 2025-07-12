@@ -49,7 +49,7 @@ class MediaDrmBridge {
     // cobalt/android/apk/app/src/main/java/dev/cobalt/media/MediaDrmBridge.java
     enum Status {
       kSuccess = 0,
-      kOperationError = 1,
+      kOperationFailed = 1,
     };
 
     const Status status;
