@@ -36,9 +36,6 @@ _ON_DEVICE_TESTS_GATEWAY_SERVICE_HOST = (
 _ON_DEVICE_TESTS_GATEWAY_SERVICE_PORT = '50052'
 
 # These paths are hardcoded in various places. DO NOT CHANGE!
-_DIR_ON_DEVICE = '/sdcard/Download'
-_DEPS_ARCHIVE = '/sdcard/chromium_tests_root/deps.tar.gz'
-
 _DIR_ON_DEV_MAP = {
     'android': '/sdcard/Download',
     'raspi': '/home/pi/test/results',
