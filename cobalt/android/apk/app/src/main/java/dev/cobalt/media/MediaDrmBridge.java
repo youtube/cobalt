@@ -128,7 +128,7 @@ public class MediaDrmBridge {
     }
 
     public static OperationResult success() {
-      return new OperationResult(OperationResult.Status.SUCCESS, "");
+      return new OperationResult(Status.SUCCESS, "");
     }
 
     public static OperationResult operationFailed(String errorMessage, Throwable e) {
