@@ -27,7 +27,6 @@
 #include "starboard/common/time.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
-
 namespace starboard {
 namespace nplb {
 
