@@ -349,6 +349,7 @@ static_library("c_internal") {
     "src/math/trunc.c",
     "src/math/truncf.c",
     "src/math/truncl.c",
+    "src/mman/mincore.c",
     "src/multibyte/btowc.c",
     "src/multibyte/internal.c",
     "src/multibyte/mbrlen.c",
