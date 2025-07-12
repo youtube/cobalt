@@ -103,10 +103,15 @@ class MEDIA_EXPORT StarboardRenderer : public Renderer,
       base::RepeatingCallback<void(const gfx::Size&)>;
   using UpdateStarboardRenderingModeCallback =
       base::RepeatingCallback<void(const StarboardRenderingMode mode)>;
+  using RequestOverlayInfoCB =
+      base::RepeatingCallback<void(bool restart_for_transitions)>;
   void SetStarboardRendererCallbacks(
       PaintVideoHoleFrameCallback paint_video_hole_frame_cb,
-      UpdateStarboardRenderingModeCallback update_starboard_rendering_mode_cb);
+      UpdateStarboardRenderingModeCallback update_starboard_rendering_mode_cb,
+      RequestOverlayInfoCB request_overlay_info_cb);
+
   void OnVideoGeometryChange(const gfx::Rect& output_rect);
+  void OnOverlayInfoChanged(const OverlayInfo& overlay_info);
 
   SbPlayerInterface* GetSbPlayerInterface();
 
@@ -174,6 +179,7 @@ class MEDIA_EXPORT StarboardRenderer : public Renderer,
   raw_ptr<RendererClient> client_ = nullptr;
   PaintVideoHoleFrameCallback paint_video_hole_frame_cb_;
   UpdateStarboardRenderingModeCallback update_starboard_rendering_mode_cb_;
+  RequestOverlayInfoCB request_overlay_info_cb_;
 
   // Temporary callback used for Initialize().
   PipelineStatusCallback init_cb_;
