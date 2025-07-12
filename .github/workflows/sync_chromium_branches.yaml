@@ -19,7 +19,7 @@ jobs:
           {milestone: m120, branch_num: 6099},
           {milestone: m126, branch_num: 6478},
           {milestone: m132, branch_num: 6834},
-          {milestone: m138, branch_num: 7024},
+          {milestone: m138, branch_num: 7204},
         ]
     outputs:
       output1: ${{ steps.diff_step.outputs.diff_present }}
@@ -58,7 +58,7 @@ jobs:
           git diff HEAD branch/${{ matrix.branch.branch_num }} --binary > chromium_diff.patch
       - name: Apply and push diffs
         run: |
-          if [ test -s chromium_diff.patch ]; then
+          if [ -s chromium_diff.patch ]; then
             echo "Applying diff..."
             git apply --index chromium_diff.patch
             # Reset local branch to upstream and push.

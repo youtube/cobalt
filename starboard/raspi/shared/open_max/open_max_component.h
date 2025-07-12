@@ -15,11 +15,11 @@
 #ifndef STARBOARD_RASPI_SHARED_OPEN_MAX_OPEN_MAX_COMPONENT_H_
 #define STARBOARD_RASPI_SHARED_OPEN_MAX_OPEN_MAX_COMPONENT_H_
 
+#include <mutex>
 #include <queue>
 #include <vector>
 
 #include "starboard/common/log.h"
-#include "starboard/common/mutex.h"
 #include "starboard/raspi/shared/open_max/open_max_component_base.h"
 #include "starboard/shared/internal_only.h"
 
@@ -97,7 +97,7 @@ class OpenMaxComponent : protected OpenMaxComponentBase {
   OMX_ERRORTYPE OnEmptyBufferDone(OMX_BUFFERHEADERTYPE* buffer) override;
   void OnFillBufferDone(OMX_BUFFERHEADERTYPE* buffer) override;
 
-  Mutex mutex_;
+  std::mutex mutex_;
   bool output_setting_changed_;
   std::vector<OMX_BUFFERHEADERTYPE*> input_buffers_;
   std::queue<OMX_BUFFERHEADERTYPE*> free_input_buffers_;
