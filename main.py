@@ -246,8 +246,8 @@ def get_conflicted_files(repo):
 
 def record_conflict(repo, conflicts_dir):
     """
-    Records the state of conflicted files, prompts the user to resolve, then
-    records the resolved state and a patch.
+    Records the conflicted files, prompts the user to resolve, then records
+    the resolved files along with a corresponding patch.
     """
     os.makedirs(conflicts_dir, exist_ok=True)
     commit_id = repo.git.rev_parse('CHERRY_PICK_HEAD')
@@ -262,7 +262,6 @@ def record_conflict(repo, conflicts_dir):
     os.makedirs(patch_dir, exist_ok=True)
 
     print(f'\n💾 Recording conflict to: {commit_record_dir}')
-    print('⚠️ Conflicted files:')
     conflicted_files = get_conflicted_files(repo)
     patches_to_apply = {}
 
@@ -271,59 +270,57 @@ def record_conflict(repo, conflicts_dir):
         os.makedirs(os.path.dirname(dst_path), exist_ok=True)
         shutil.copy2(os.path.join(repo.working_dir, file_path), dst_path)
 
-        patch_filename = f'{os.path.basename(file_path).split('.')[0]}_resolution.patch'
-        patch_path = os.path.join(os.getcwd(), patch_dir, patch_filename)
-        if os.path.exists(patch_path):
-            print(f'  ✅ {file_path} - Patch found')
-            print(patch_path)
-            patches_to_apply[file_path] = patch_path
+        patch_path = f'{file_path.split('.')[0]}.patch'
+        full_patch_path = os.path.join(os.getcwd(), patch_dir, patch_path)
+        if os.path.exists(full_patch_path):
+            print(f'   ✅ {file_path} - Patch found')
+            patches_to_apply[file_path] = full_patch_path
         else:
-            print(f'  ❌ {file_path} - No patch found')
+            print(f'   ❌ {file_path} - No patch found')
 
     resolved_conflict = False
     if patches_to_apply:
-        print('⚙️ Applying patches...')
         for file_path, patch_path in patches_to_apply.items():
-            print(f'  🔨 [Patching] - {file_path}')
+            print(f'   🔨 {file_path} - Patching')
             result = subprocess.run(
-                ['patch', file_path, '-i', patch_path],
+                ['patch', file_path, '-i', patch_path, '-s'],
                 cwd=repo.working_dir
             )
             if result.returncode == 0:
-                print(f'    ✅ Patch applied cleanly.')
                 resolved_conflict = True
             else:
-                print(f'    ❌ Patch failed.')
+                print(f'   ❌ Patch failed.')
                 resolved_conflict = False
-                print('🪄 Restoring original conflicted state.')
+                print('   🪄 Restoring original conflicted state.')
                 for file_path in conflicted_files:
                     shutil.copy2(os.path.join(conflict_dir, file_path),
                                  os.path.join(repo.working_dir, file_path))
                 break
 
     if not resolved_conflict:
-        print('⚙️ Manual conflict resolution required')
-        input('  Press Enter after resolving conflicts to create patches...')
+        print('   ⚠️  Manual conflict resolution required')
+        input('      Press Enter after resolving conflicts to create patch...')
 
     for file_path in conflicted_files:
         dst_path = os.path.join(resolved_dir, file_path)
         os.makedirs(os.path.dirname(dst_path), exist_ok=True)
         shutil.copy2(os.path.join(repo.working_dir, file_path), dst_path)
 
-    print('📄 Creating conflict resolution patches...')
-    for file_path in conflicted_files:
-        conflict_path = os.path.join(conflict_dir, file_path)
-        resolved_path = os.path.join(resolved_dir, file_path)
-        patch_filename = f'{os.path.basename(file_path).split('.')[0]}_resolution.patch'
-        patch_path = os.path.join(patch_dir, patch_filename)
-
-        with open(patch_path, 'w', encoding='utf-8') as f:
-            subprocess.run(
-                ['diff', '-u', '--label', file_path, '--label', file_path,
-                 conflict_path, resolved_path],
-                stdout=f
-            )
-    input('  Resolution recorded. Press Enter after "git cherry-pick --continue" to resume...')
+    if not resolved_conflict:
+        print('   📄 Creating conflict resolution patches...')
+        for file_path in conflicted_files:
+            conflict_path = os.path.join(conflict_dir, file_path)
+            resolved_path = os.path.join(resolved_dir, file_path)
+            patch_path = os.path.join(patch_dir, f'{file_path.split('.')[0]}.patch')
+            os.makedirs(os.path.dirname(patch_path), exist_ok=True)
+            with open(patch_path, 'w', encoding='utf-8') as f:
+                subprocess.run(
+                    ['diff', '-u', '--label', file_path, '--label', file_path,
+                     conflict_path, resolved_path],
+                    stdout=f
+                )
+    repo.git.add('.')
+    repo.git.cherry_pick('--continue')
 
 
 def main():
@@ -407,9 +404,8 @@ def main():
                 print(f'✅ {i}/{len(commits)} cherry-picked successfully: {commit['hexsha']}')
             except git.exc.GitCommandError as e:
                 print(f'❌ Failed to cherry-pick: {commit['hexsha']}')
-                print(f'  Last successful commit: {last_successful_commit}')
-                print(f'  Error: {e}')
                 record_conflict(repo, args.conflicts_dir)
+                print(f'✅ {i}/{len(commits)} cherry-picked successfully: {commit['hexsha']}\n')
         print('\n🎉 SUCCESS: rebase created successfully!')
 
 

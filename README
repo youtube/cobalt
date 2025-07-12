@@ -13,10 +13,32 @@ source rebase_tools/bin/activate
 
 pip install -r requirements.txt
 
-4. Run main.py
 
-python3 main.py
+To linearize a branch...
 
-5. Deactivate virtual environment when done
+python3 main.py linearize --repo-path=/usr/local/google/home/brianting/chromium/src --source-branch=main --new-branch-name=linear_main --start-commit-ref=38a06fe8674ad2140ff85c87b5b3a817304e369a --end-commit-ref=9a69c6a6b1364e6f7b69d475fda5030a4bf738c4
 
-deactivate
+`experimental/linear_main` is currently linearized `main` up to
+9a69c6a6b1364e6f7b69d475fda5030a4bf738c4 and can be fetched to skip this
+step.
+
+
+To generate commits.json...
+
+python3 main.py commits --repo-path=/usr/local/google/home/brianting/chromium/src --source-branch=experimental/linear_main --start-commit-ref=38a06fe8674ad2140ff85c87b5b3a817304e369a --end-commit-ref=48f6c4861a2455800aa40b9ba2e9858505dc5981
+
+`commits.json` is currently provided up to
+48f6c4861a2455800aa40b9ba2e9858505dc5981 which is the linearized equivalent of
+9a69c6a6b1364e6f7b69d475fda5030a4bf738c4 and cane be used to skip this step.
+
+
+To rebase...
+
+Build a base branch such as `experimental/base_120`. `experimental/rebase_120`
+is a partially rebased branch.
+
+python3 main.py rebase --repo-path=/usr/local/google/home/brianting/chromium/src --rebase-branch=experimental/rebase_m120 --conflicts-dir=m114_to_m120_conflicts
+
+Conflict records including patch files are stored in the `m114_to_m120_conflicts`
+directory. Rebasing can also be restarted non-inclusively using the
+`--last-successful-commit-ref` parameter.
