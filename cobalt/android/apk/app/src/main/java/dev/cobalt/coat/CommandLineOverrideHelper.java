@@ -81,8 +81,6 @@ public final class CommandLineOverrideHelper {
         // causes rendering artifacts when
         // low-end-device-mode is enabled.
         paramOverrides.add("--disable-rgba-4444-textures");
-        // Use passthrough command decoder.
-        paramOverrides.add("--use-cmd-decoder=passthrough");
         // Limit the total amount of memory that may be allocated for GPU
         // resources.
         paramOverrides.add("--force-gpu-mem-available-mb=32");
@@ -106,6 +104,9 @@ public final class CommandLineOverrideHelper {
         paramOverrides.add("LogJsConsoleMessages");
         // Limit decoded image cache to 32 mbytes.
         paramOverrides.add("LimitImageDecodeCacheSize:mb/24");
+        // It is important to use a feature override instead of the
+        // rendering switch, to make sure certain devices are excluded.
+        paramOverrides.add("DefaultPassthroughCommandDecoder");
 
         return paramOverrides;
     }
