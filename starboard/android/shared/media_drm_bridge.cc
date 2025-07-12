@@ -307,5 +307,4 @@ std::ostream& operator<<(std::ostream& os,
      << result.error_message << "\"}";
   return os;
 }
-}
 }  // namespace starboard::android::shared
