@@ -77,8 +77,7 @@ class MediaDrmBridge {
   // Updates the session. Returns true on success.
   OperationResult UpdateSession(int ticket,
                                 std::string_view key,
-                                std::string_view session_id,
-                                std::string* error_msg) const;
+                                std::string_view session_id) const;
   void CloseSession(std::string_view session_id) const;
   const void* GetMetrics(int* size);
   bool CreateMediaCryptoSession();

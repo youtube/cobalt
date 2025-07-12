@@ -173,8 +173,7 @@ void MediaDrmBridge::CreateSession(int ticket,
 MediaDrmBridge::OperationResult MediaDrmBridge::UpdateSession(
     int ticket,
     std::string_view key,
-    std::string_view session_id,
-    std::string* error_msg) const {
+    std::string_view session_id) const {
   JNIEnv* env = AttachCurrentThread();
 
   auto j_session_id = ToScopedJavaByteArray(env, session_id);
