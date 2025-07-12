@@ -64,7 +64,8 @@ class MEDIA_EXPORT StarboardRendererClient
       mojo::PendingRemote<RendererExtension> pending_renderer_extension,
       mojo::PendingReceiver<ClientExtension> client_extension_receiver,
       BindHostReceiverCallback bind_host_receiver_callback,
-      GpuVideoAcceleratorFactories* gpu_factories);
+      GpuVideoAcceleratorFactories* gpu_factories,
+      RequestOverlayInfoCB request_overlay_info_cb);
 
   StarboardRendererClient(const StarboardRendererClient&) = delete;
   StarboardRendererClient& operator=(const StarboardRendererClient&) = delete;
@@ -103,6 +104,10 @@ class MEDIA_EXPORT StarboardRendererClient
   // mojom::StarboardRendererClientExtension implementation
   void PaintVideoHoleFrame(const gfx::Size& size) override;
   void UpdateStarboardRenderingMode(const StarboardRenderingMode mode) override;
+  void RequestOverlayInfo(bool restart_for_transitions) override;
+
+  // mojom::StarboardRendererExtension implementation
+  void OnOverlayInfoChanged(const OverlayInfo& overlay_info);
 
   // cobalt::media::mojom::VideoGeometryChangeClient implementation.
   void OnVideoGeometryChange(const gfx::RectF& rect_f,
@@ -144,6 +149,7 @@ class MEDIA_EXPORT StarboardRendererClient
   mojo::Receiver<ClientExtension> client_extension_receiver_;
   const BindHostReceiverCallback bind_host_receiver_callback_;
   raw_ptr<GpuVideoAcceleratorFactories> gpu_factories_ = nullptr;
+  RequestOverlayInfoCB request_overlay_info_cb_;
 
   mojo::Remote<RendererExtension> renderer_extension_;
 

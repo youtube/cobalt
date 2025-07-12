@@ -37,7 +37,8 @@ StarboardRendererClient::StarboardRendererClient(
     mojo::PendingRemote<RendererExtension> pending_renderer_extension,
     mojo::PendingReceiver<ClientExtension> client_extension_receiver,
     BindHostReceiverCallback bind_host_receiver_callback,
-    GpuVideoAcceleratorFactories* gpu_factories)
+    GpuVideoAcceleratorFactories* gpu_factories,
+    RequestOverlayInfoCB request_overlay_info_cb)
     : MojoRendererWrapper(std::move(mojo_renderer)),
       media_task_runner_(media_task_runner),
       media_log_(std::move(media_log)),
@@ -47,7 +48,8 @@ StarboardRendererClient::StarboardRendererClient(
       pending_client_extension_receiver_(std::move(client_extension_receiver)),
       client_extension_receiver_(this),
       bind_host_receiver_callback_(bind_host_receiver_callback),
-      gpu_factories_(gpu_factories) {
+      gpu_factories_(gpu_factories),
+      request_overlay_info_cb_(request_overlay_info_cb){
   DCHECK(media_task_runner_);
   DCHECK(video_renderer_sink_);
   DCHECK(video_overlay_factory_);
@@ -415,6 +417,23 @@ void StarboardRendererClient::StopVideoRendererSink() {
     video_renderer_sink_started_ = false;
     video_renderer_sink_->Stop();
   }
+}
+
+void StarboardRendererClient::RequestOverlayInfo(bool restart_for_transitions){
+  DVLOG(2) << __func__;
+  DCHECK(media_task_runner_->RunsTasksInCurrentSequence());
+  DCHECK(request_overlay_info_cb_);
+
+  request_overlay_info_cb_.Run(
+      restart_for_transitions,
+      base::BindRepeating(&StarboardRendererClient::OnOverlayInfoChanged, weak_factory_.GetWeakPtr()));
+}
+
+void StarboardRendererClient::OnOverlayInfoChanged(const OverlayInfo& overlay_info) {
+  DVLOG(2) << __func__;
+  DCHECK(media_task_runner_->RunsTasksInCurrentSequence());
+
+  renderer_extension_->OnOverlayInfoChanged(overlay_info);
 }
 
 }  // namespace media
