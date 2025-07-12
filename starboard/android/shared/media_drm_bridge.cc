@@ -296,8 +296,8 @@ std::ostream& operator<<(std::ostream& os,
     case MediaDrmBridge::OperationResult::kSuccess:
       status_str = "kSuccess";
       break;
-    case MediaDrmBridge::OperationResult::kOperationError:
-      status_str = "kOperationError";
+   case MediaDrmBridge::OperationResult::kOperationFailed:
+      status_str = "kOperationFailed";
       break;
     default:
       status_str = "Unknown";
