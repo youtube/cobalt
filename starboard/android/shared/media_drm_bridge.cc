@@ -291,7 +291,7 @@ bool MediaDrmBridge::IsCbcsSupported(JNIEnv* env) {
 
 std::ostream& operator<<(std::ostream& os,
                          const MediaDrmBridge::OperationResult& result) {
-  const char* status_str;
+  const char* status_str = "Unknown";
   switch (result.status) {
     case MediaDrmBridge::OperationResult::kSuccess:
       status_str = "kSuccess";
@@ -301,7 +301,6 @@ std::ostream& operator<<(std::ostream& os,
       break;
     default:
       SB_NOTREACHED();
-      status_str = "Unknown";
       break;
   }
   os << "{status: " << status_str << ", error_message: \""
