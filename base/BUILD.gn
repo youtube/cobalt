@@ -1787,9 +1787,11 @@ component("base") {
   }
 
   if (is_starboard) {
+    sources -= [ "process/launch_posix.cc" ]
     sources += [
       "message_loop/message_pump_ui_starboard.cc",
       "message_loop/message_pump_ui_starboard.h",
+      "process/launch_starboard.cc",
     ]
     deps += [
       "//starboard:starboard_group",

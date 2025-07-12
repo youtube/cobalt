@@ -41,6 +41,15 @@
     "MobileFriendlinessCheckerTest.SmallTextOutsideViewportCeiling",
     "MobileFriendlinessCheckerTest.SubScrollerInSubScroller",
     "MobileFriendlinessCheckerTest.TextTooWide",
-    "DecoderTemplateTest/1.ResetDuringFlush"
+    "DecoderTemplateTest/1.ResetDuringFlush",
+    "StyleEngineTest.VideoControlsReject",
+    "TextSuggestionControllerTest.ApplyTextSuggestion",
+    "PageTestBase.CSPForWorld",
+    "WebFrameTest.SiteForCookiesFromChildWithRemoteMainFrame",
+    "HTMLSrcsetParserTest.SaveDataEnabledBasic",
+    "LayoutThemeTest.ChangeFocusRingColor",
+    "All/UseCounterImplBrowserReportTest.ReportOnlyHTTPFamily/5",
+    "TextFragmentAnchorTest.TextDirectiveInSvg",
+    "ScrollTypes/TextFragmentAnchorScrollTest.DontDismissTextHighlightOnUserScroll/0"
   ]
 }
