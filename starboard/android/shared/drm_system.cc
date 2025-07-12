@@ -19,6 +19,7 @@
 #include <string_view>
 #include <utility>
 
+#include "media_drm_bridge.h"
 #include "starboard/android/shared/media_common.h"
 #include "starboard/common/instance_counter.h"
 #include "starboard/common/thread.h"
@@ -126,15 +127,17 @@ void DrmSystem::UpdateSession(int ticket,
                               int key_size,
                               const void* session_id,
                               int session_id_size) {
-  std::string error_msg;
-  bool update_success = media_drm_bridge_->UpdateSession(
+  MediaDrmBridge::OperationResult result = media_drm_bridge_->UpdateSession(
       ticket, std::string_view(static_cast<const char*>(key), key_size),
-      std::string_view(static_cast<const char*>(session_id), session_id_size),
-      &error_msg);
+      std::string_view(static_cast<const char*>(session_id), session_id_size));
+  if (!result.ok()) {
+    SB_LOG(ERROR) << "UpdateSession failed: " << result;
+  }
+
   session_updated_callback_(
       this, context_, ticket,
-      update_success ? kSbDrmStatusSuccess : kSbDrmStatusUnknownError,
-      error_msg.c_str(), session_id, session_id_size);
+      result.ok() ? kSbDrmStatusSuccess : kSbDrmStatusUnknownError,
+      result.error_message.c_str(), session_id, session_id_size);
 }
 
 void DrmSystem::CloseSession(const void* session_id, int session_id_size) {

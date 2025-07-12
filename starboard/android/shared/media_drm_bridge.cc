@@ -109,7 +109,16 @@ ScopedJavaLocalRef<jbyteArray> ToScopedJavaByteArray(JNIEnv* env,
   return ToJavaByteArray(env, reinterpret_cast<const uint8_t*>(data.data()),
                          data.size());
 }
-
+MediaDrmBridge::OperationResult ToOperationResult(
+    JNIEnv* env,
+    const ScopedJavaLocalRef<jobject>& result) {
+  return {
+      .status = static_cast<MediaDrmBridge::OperationResult::Status>(
+          Java_OperationResult_getStatusCode(env, result)),
+      .error_message = ConvertJavaStringToUTF8(
+          Java_OperationResult_getErrorMessage(env, result)),
+  };
+}
 }  // namespace
 
 MediaDrmBridge::MediaDrmBridge(raw_ref<MediaDrmBridge::Host> host,
@@ -160,21 +169,18 @@ void MediaDrmBridge::CreateSession(int ticket,
                                     j_init_data, j_mime);
 }
 
-bool MediaDrmBridge::UpdateSession(int ticket,
-                                   std::string_view key,
-                                   std::string_view session_id,
-                                   std::string* error_msg) const {
+MediaDrmBridge::OperationResult MediaDrmBridge::UpdateSession(
+    int ticket,
+    std::string_view key,
+    std::string_view session_id) const {
   JNIEnv* env = AttachCurrentThread();
 
   auto j_session_id = ToScopedJavaByteArray(env, session_id);
   auto j_response = ToScopedJavaByteArray(env, key);
 
-  ScopedJavaLocalRef<jobject> j_update_result(Java_MediaDrmBridge_updateSession(
-      env, j_media_drm_bridge_, ticket, j_session_id, j_response));
-  *error_msg = ConvertJavaStringToUTF8(
-      Java_UpdateSessionResult_getErrorMessage(env, j_update_result));
-
-  return Java_UpdateSessionResult_isSuccess(env, j_update_result) == JNI_TRUE;
+  return ToOperationResult(
+      env, Java_MediaDrmBridge_updateSession(env, j_media_drm_bridge_, ticket,
+                                             j_session_id, j_response));
 }
 
 void MediaDrmBridge::CloseSession(std::string_view session_id) const {
@@ -283,4 +289,22 @@ bool MediaDrmBridge::IsCbcsSupported(JNIEnv* env) {
   return Java_MediaDrmBridge_isCbcsSchemeSupported(env) == JNI_TRUE;
 }
 
+std::ostream& operator<<(std::ostream& os,
+                         const MediaDrmBridge::OperationResult& result) {
+  const char* status_str = "Unknown";
+  switch (result.status) {
+    case MediaDrmBridge::OperationResult::kSuccess:
+      status_str = "kSuccess";
+      break;
+    case MediaDrmBridge::OperationResult::kOperationFailed:
+      status_str = "kOperationFailed";
+      break;
+    default:
+      SB_NOTREACHED();
+      break;
+  }
+  os << "{status: " << status_str << ", error_message: \""
+     << result.error_message << "\"}";
+  return os;
+}
 }  // namespace starboard::android::shared
