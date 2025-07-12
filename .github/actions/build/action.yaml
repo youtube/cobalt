@@ -134,4 +134,4 @@ runs:
           test_artifacts_key: ${{ inputs.test_artifacts_key }}
           upload_on_host_test_artifacts: ${{ inputs.upload_on_host_test_artifacts == 'true' || inputs.upload_web_test_artifacts == 'true' }}
           upload_on_device_test_artifacts: ${{ inputs.upload_on_device_test_artifacts }}
-          test_targets_json: ${{ inputs.test_targets_json_file }}
+          test_targets_json_file: ${{ inputs.test_targets_json_file }}
