@@ -17,6 +17,7 @@
 #include <jni.h>
 
 #include <cstring>
+#include <ostream>
 #include <vector>
 
 #include "base/android/jni_array.h"
@@ -110,17 +111,35 @@ ScopedJavaLocalRef<jbyteArray> ToScopedJavaByteArray(JNIEnv* env,
                          data.size());
 }
 
+MediaDrmBridge::OperationResult ToOperationResult(
+    JNIEnv* env,
+    const ScopedJavaLocalRef<jobject>& result) {
+  return {
+      .status = static_cast<MediaDrmBridge::OperationResult::Status>(
+          Java_OperationResult_getStatusCode(env, result)),
+      .error_message = ConvertJavaStringToUTF8(
+          Java_OperationResult_getErrorMessage(env, result)),
+  };
+}
 }  // namespace
 
+std::ostream& operator<<(std::ostream& os,
+                         const MediaDrmBridge::OperationResult& result) {
+  os << "{status: " << result.status
+     << ", error_message: " << result.error_message << "}";
+  return os;
+}
+
 MediaDrmBridge::MediaDrmBridge(raw_ref<MediaDrmBridge::Host> host,
-                               std::string_view key_system)
+                               std::string_view key_system,
+                               bool use_app_provisioning)
     : host_(host) {
   JNIEnv* env = AttachCurrentThread();
 
   ScopedJavaLocalRef<jstring> j_key_system(
       ConvertUTF8ToJavaString(env, key_system));
   ScopedJavaLocalRef<jobject> j_media_drm_bridge(Java_MediaDrmBridge_create(
-      env, j_key_system, reinterpret_cast<jlong>(this)));
+      env, j_key_system, use_app_provisioning, reinterpret_cast<jlong>(this)));
 
   if (j_media_drm_bridge.is_null()) {
     SB_LOG(ERROR) << "Failed to create MediaDrmBridge.";
@@ -160,21 +179,46 @@ void MediaDrmBridge::CreateSession(int ticket,
                                     j_init_data, j_mime);
 }
 
-bool MediaDrmBridge::UpdateSession(int ticket,
-                                   std::string_view key,
-                                   std::string_view session_id,
-                                   std::string* error_msg) const {
+MediaDrmBridge::OperationResult MediaDrmBridge::CreateSessionNoProvisioning(
+    int ticket,
+    std::string_view init_data,
+    std::string_view mime) const {
+  JNIEnv* env = AttachCurrentThread();
+
+  JniIntWrapper j_ticket = static_cast<jint>(ticket);
+  auto j_init_data = ToScopedJavaByteArray(env, init_data);
+  auto j_mime = ScopedJavaLocalRef(ConvertUTF8ToJavaString(env, mime));
+
+  return ToOperationResult(
+      env, Java_MediaDrmBridge_createSessionNoProvisioning(
+               env, j_media_drm_bridge_, j_ticket, j_init_data, j_mime));
+}
+
+void MediaDrmBridge::GenerateProvisionRequest() const {
+  JNIEnv* env = AttachCurrentThread();
+  Java_MediaDrmBridge_generateProvisionRequest(env, j_media_drm_bridge_);
+}
+
+MediaDrmBridge::OperationResult MediaDrmBridge::ProvideProvisionResponse(
+    std::string_view response) const {
+  JNIEnv* env = AttachCurrentThread();
+  return ToOperationResult(
+      env, Java_MediaDrmBridge_provideProvisionResponse(
+               env, j_media_drm_bridge_, ToScopedJavaByteArray(env, response)));
+}
+
+MediaDrmBridge::OperationResult MediaDrmBridge::UpdateSession(
+    int ticket,
+    std::string_view key,
+    std::string_view session_id) const {
   JNIEnv* env = AttachCurrentThread();
 
   auto j_session_id = ToScopedJavaByteArray(env, session_id);
   auto j_response = ToScopedJavaByteArray(env, key);
 
-  ScopedJavaLocalRef<jobject> j_update_result(Java_MediaDrmBridge_updateSession(
-      env, j_media_drm_bridge_, ticket, j_session_id, j_response));
-  *error_msg = ConvertJavaStringToUTF8(
-      Java_UpdateSessionResult_getErrorMessage(env, j_update_result));
-
-  return Java_UpdateSessionResult_isSuccess(env, j_update_result) == JNI_TRUE;
+  return ToOperationResult(
+      env, Java_MediaDrmBridge_updateSession(env, j_media_drm_bridge_, ticket,
+                                             j_session_id, j_response));
 }
 
 void MediaDrmBridge::CloseSession(std::string_view session_id) const {
@@ -229,6 +273,12 @@ void MediaDrmBridge::OnSessionMessage(
       ticket, ToSbDrmSessionRequestType(static_cast<RequestType>(request_type)),
       JavaByteArrayToString(env, session_id),
       JavaByteArrayToString(env, message));
+}
+
+void MediaDrmBridge::OnProvisioningRequestMessage(
+    JNIEnv* env,
+    const JavaParamRef<jbyteArray>& message) {
+  host_->OnProvisioningRequest(JavaByteArrayToString(env, message));
 }
 
 void MediaDrmBridge::OnKeyStatusChange(
