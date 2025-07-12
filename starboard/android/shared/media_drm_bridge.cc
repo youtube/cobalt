@@ -292,8 +292,21 @@ bool MediaDrmBridge::IsCbcsSupported(JNIEnv* env) {
 
 std::ostream& operator<<(std::ostream& os,
                          const MediaDrmBridge::OperationResult& result) {
-  os << "{status: " << result.status
-     << ", error_message: " << result.error_message << "}";
+  const char* status_str;
+  switch (result.status) {
+    case MediaDrmBridge::OperationResult::kSuccess:
+      status_str = "kSuccess";
+      break;
+    case MediaDrmBridge::OperationResult::kOperationError:
+      status_str = "kOperationError";
+      break;
+    default:
+      status_str = "Unknown";
+      break;
+  }
+  os << "{status: " << status_str << ", error_message: \""
+     << result.error_message << "\"}";
   return os;
+}
 }
 }  // namespace starboard::android::shared
