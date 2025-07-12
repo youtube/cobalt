@@ -281,6 +281,7 @@ class ProcCpuInfo {
   }
 };
 
+#if SB_IS(ARCH_ARM) || SB_IS(ARCH_ARM64)
 // Check if getauxval() is supported
 bool IsGetauxvalSupported() {
   // TODO: figure out which linking flags are needed to use
@@ -306,7 +307,6 @@ bool IsGetauxvalSupported() {
   return true;
 }
 
-#if SB_IS(ARCH_ARM) || SB_IS(ARCH_ARM64)
 // Get hwcap bitmask by getauxval() or by reading /proc/self/auxv
 uint32_t ReadElfHwcaps(uint32_t hwcap_type) {
   uint32_t hwcap = 0;
