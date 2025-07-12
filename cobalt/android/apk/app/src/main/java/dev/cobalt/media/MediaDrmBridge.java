@@ -106,7 +106,7 @@ public class MediaDrmBridge {
 
   // Return value type for calls to updateSession(), which contains whether or not the call
   // succeeded, and optionally an error message (that is empty on success).
-  private static class UpdateSessionResult {
+  private static class OperationResult {
     public enum Status {
       SUCCESS(0),
       OPERATION_FAILED(1),
@@ -124,36 +124,36 @@ public class MediaDrmBridge {
     // Descriptive error message or details, in the scenario where the update session call failed.
     private final String mErrorMessage;
 
-    private UpdateSessionResult(Status status, String errorMessage) {
+    private OperationResult(Status status, String errorMessage) {
       this.mStatus = status;
       this.mErrorMessage = errorMessage;
     }
 
-    public static UpdateSessionResult success() {
-      return new UpdateSessionResult(Status.SUCCESS, "");
+    public static OperationResult success() {
+      return new OperationResult(OperationResult.Status.SUCCESS, "");
     }
 
-    public static UpdateSessionResult failure(String errorMessage, Throwable e) {
-      return new UpdateSessionResult(
+    public static OperationResult failure(String errorMessage, Throwable e) {
+      return new OperationResult(
           Status.OPERATION_FAILED,
           errorMessage + " StackTrace: " + android.util.Log.getStackTraceString(e));
     }
 
-    public static UpdateSessionResult notProvisioned() {
-      return new UpdateSessionResult(Status.NOT_PROVISIONED, "");
+    public static OperationResult notProvisioned() {
+      return new OperationResult(Status.NOT_PROVISIONED, "");
     }
 
-    @CalledByNative("UpdateSessionResult")
+    @CalledByNative("OperationResult")
     public boolean isSuccess() {
       return mStatus == Status.SUCCESS;
     }
 
-    @CalledByNative("UpdateSessionResult")
+    @CalledByNative("OperationResult")
     public String getErrorMessage() {
       return mErrorMessage;
     }
 
-    @CalledByNative("UpdateSessionResult")
+    @CalledByNative("OperationResult")
     public int getStatusCode() {
       return mStatus.code;
     }
@@ -269,10 +269,10 @@ public class MediaDrmBridge {
   }
 
   @CalledByNative
-  UpdateSessionResult createSessionNoProvisioning(int ticket, byte[] initData, String mime) {
+  OperationResult createSessionNoProvisioning(int ticket, byte[] initData, String mime) {
     if (mMediaDrm == null) {
       Log.e(TAG, "createSession() called when MediaDrm is null.");
-      return UpdateSessionResult.failure("createSession() called when MediaDrm is null.", new Throwable());
+      return OperationResult.failure("createSession() called when MediaDrm is null.", new Throwable());
     }
 
     byte[] sessionId;
@@ -282,24 +282,24 @@ public class MediaDrmBridge {
       createMediaCryptoSessionNoProvisioning();
     } catch (NotProvisionedException e) {
       Log.e(TAG, "createMediaCryptoSessionNoProvisioning failed: Device not provisioned", e);
-      return UpdateSessionResult.notProvisioned();
+      return OperationResult.notProvisioned();
     }
 
     try {
       sessionId = openSession();
     } catch (NotProvisionedException e) {
       Log.e(TAG, "openSession failed: Device not provisioned", e);
-      return UpdateSessionResult.notProvisioned();
+      return OperationResult.notProvisioned();
     }
 
     if (sessionId == null) {
       Log.e(TAG, "Open session failed.");
-      return UpdateSessionResult.failure("Open session failed", new Throwable());
+      return OperationResult.failure("Open session failed", new Throwable());
     }
 
     if (sessionExists(sessionId)) {
       Log.e(TAG, "Opened session that already exists.");
-      return UpdateSessionResult.failure("Opened session that already exists", new Throwable());
+      return OperationResult.failure("Opened session that already exists", new Throwable());
     }
 
     try {
@@ -307,13 +307,13 @@ public class MediaDrmBridge {
     } catch (NotProvisionedException e) {
       Log.e(TAG, "getDevice failed, since Device not provisioned", e);
       closeMediaDrmSession(sessionId);
-      return UpdateSessionResult.notProvisioned();
+      return OperationResult.notProvisioned();
     }
 
     if (request == null) {
       closeMediaDrmSession(sessionId);
       Log.e(TAG, "Generate request failed.");
-      return UpdateSessionResult.failure("Generate request failed", new Throwable());
+      return OperationResult.failure("Generate request failed", new Throwable());
     }
 
     // Success!
@@ -321,7 +321,7 @@ public class MediaDrmBridge {
     mSessionIds.put(ByteBuffer.wrap(sessionId), mime);
     onSessionMessage(ticket, sessionId, request);
 
-    return UpdateSessionResult.success();
+    return OperationResult.success();
   }
 
   /**
@@ -331,17 +331,17 @@ public class MediaDrmBridge {
    * @param response Response data from the server.
    */
   @CalledByNative
-  UpdateSessionResult updateSession(int ticket, byte[] sessionId, byte[] response) {
+  OperationResult updateSession(int ticket, byte[] sessionId, byte[] response) {
     Log.d(TAG, "updateSession()");
     if (mMediaDrm == null) {
       Log.e(TAG, "updateSession() called when MediaDrm is null.");
-      return UpdateSessionResult.failure(
+      return OperationResult.failure(
           "Null MediaDrm object when calling updateSession().", new Throwable());
     }
 
     if (!sessionExists(sessionId)) {
       Log.e(TAG, "updateSession tried to update a session that does not exist.");
-      return UpdateSessionResult.failure(
+      return OperationResult.failure(
           "Failed to update session because it does not exist.", new Throwable());
     }
 
@@ -354,22 +354,22 @@ public class MediaDrmBridge {
         Log.e(TAG, "Exception intentionally caught when calling provideKeyResponse()", e);
       }
       Log.d(TAG, "Key successfully added for sessionId=" + bytesToString(sessionId));
-      return UpdateSessionResult.success();
+      return OperationResult.success();
     } catch (NotProvisionedException e) {
       // TODO: Should we handle this?
       Log.e(TAG, "Failed to provide key response", e);
       release();
-      return UpdateSessionResult.failure(
+      return OperationResult.failure(
           "Update session failed due to lack of provisioning.", e);
     } catch (DeniedByServerException e) {
       Log.e(TAG, "Failed to provide key response.", e);
       release();
-      return UpdateSessionResult.failure(
+      return OperationResult.failure(
           "Update session failed because we were denied by server.", e);
     } catch (Exception e) {
       Log.e(TAG, "", e);
       release();
-      return UpdateSessionResult.failure(
+      return OperationResult.failure(
           "Update session failed. Caught exception: " + e.getMessage(), e);
     }
   }
@@ -774,18 +774,18 @@ public class MediaDrmBridge {
   }
 
   @CalledByNative
-  UpdateSessionResult provideProvisionResponse(byte[] response) {
+  OperationResult provideProvisionResponse(byte[] response) {
     Log.i(TAG, "handleProvisionResponse: size=" + response.length);
 
     try {
       mMediaDrm.provideProvisionResponse(response);
     } catch (android.media.DeniedByServerException e) {
       Log.e(TAG, "Failed to provide provision response.", e);
-      return UpdateSessionResult.failure("Failed to provide provision response.", e);
+      return OperationResult.failure("Failed to provide provision response.", e);
     }
     Log.i(TAG, "provideProvisionResponse succeeded");
 
-    return new UpdateSessionResult(UpdateSessionResult.Status.SUCCESS, "");
+    return new OperationResult(OperationResult.Status.SUCCESS, "");
   }
 
   /**

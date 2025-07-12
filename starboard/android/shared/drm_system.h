@@ -97,7 +97,7 @@ class DrmSystem : public ::SbDrmSystemPrivate,
     ~SessionUpdateRequest() = default;
 
     void Generate(const MediaDrmBridge* media_drm_bridge) const;
-    MediaDrmBridge::Status GenerateNoProvisioning(
+    MediaDrmBridge::OperationResult GenerateNoProvisioning(
         const MediaDrmBridge* media_drm_bridge) const;
 
     SessionUpdateRequest CloneWithoutTicket() const;

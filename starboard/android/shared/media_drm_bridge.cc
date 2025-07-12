@@ -110,13 +110,14 @@ ScopedJavaLocalRef<jbyteArray> ToScopedJavaByteArray(JNIEnv* env,
                          data.size());
 }
 
-MediaDrmBridge::Status ToStatus(JNIEnv* env,
-                                const ScopedJavaLocalRef<jobject>& result) {
+MediaDrmBridge::OperationResult ToOperationResult(
+    JNIEnv* env,
+    const ScopedJavaLocalRef<jobject>& result) {
   return {
-      .type = static_cast<MediaDrmBridge::Status::Type>(
-          Java_UpdateSessionResult_getStatusCode(env, result)),
+      .status = static_cast<MediaDrmBridge::OperationResult::Status>(
+          Java_OperationResult_getStatusCode(env, result)),
       .error_message = ConvertJavaStringToUTF8(
-          Java_UpdateSessionResult_getErrorMessage(env, result)),
+          Java_OperationResult_getErrorMessage(env, result)),
   };
 }
 }  // namespace
@@ -170,7 +171,7 @@ void MediaDrmBridge::CreateSession(int ticket,
                                     j_init_data, j_mime);
 }
 
-MediaDrmBridge::Status MediaDrmBridge::CreateSessionNoProvisioning(
+MediaDrmBridge::OperationResult MediaDrmBridge::CreateSessionNoProvisioning(
     int ticket,
     std::string_view init_data,
     std::string_view mime) const {
@@ -180,9 +181,9 @@ MediaDrmBridge::Status MediaDrmBridge::CreateSessionNoProvisioning(
   auto j_init_data = ToScopedJavaByteArray(env, init_data);
   auto j_mime = ScopedJavaLocalRef(ConvertUTF8ToJavaString(env, mime));
 
-  return ToStatus(env,
-                  Java_MediaDrmBridge_createSessionNoProvisioning(
-                      env, j_media_drm_bridge_, j_ticket, j_init_data, j_mime));
+  return ToOperationResult(
+      env, Java_MediaDrmBridge_createSessionNoProvisioning(
+               env, j_media_drm_bridge_, j_ticket, j_init_data, j_mime));
 }
 
 void MediaDrmBridge::GenerateProvisionRequest() const {
@@ -190,15 +191,15 @@ void MediaDrmBridge::GenerateProvisionRequest() const {
   Java_MediaDrmBridge_generateProvisionRequest(env, j_media_drm_bridge_);
 }
 
-MediaDrmBridge::Status MediaDrmBridge::ProvideProvisionResponse(
+MediaDrmBridge::OperationResult MediaDrmBridge::ProvideProvisionResponse(
     std::string_view response) const {
   JNIEnv* env = AttachCurrentThread();
-  return ToStatus(
+  return ToOperationResult(
       env, Java_MediaDrmBridge_provideProvisionResponse(
                env, j_media_drm_bridge_, ToScopedJavaByteArray(env, response)));
 }
 
-MediaDrmBridge::Status MediaDrmBridge::UpdateSession(
+MediaDrmBridge::OperationResult MediaDrmBridge::UpdateSession(
     int ticket,
     std::string_view key,
     std::string_view session_id,
@@ -208,7 +209,7 @@ MediaDrmBridge::Status MediaDrmBridge::UpdateSession(
   auto j_session_id = ToScopedJavaByteArray(env, session_id);
   auto j_response = ToScopedJavaByteArray(env, key);
 
-  return ToStatus(
+  return ToOperationResult(
       env, Java_MediaDrmBridge_updateSession(env, j_media_drm_bridge_, ticket,
                                              j_session_id, j_response));
 }

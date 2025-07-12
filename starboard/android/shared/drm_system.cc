@@ -143,7 +143,8 @@ void DrmSystem::SessionUpdateRequest::Generate(
       mime_);
 }
 
-MediaDrmBridge::Status DrmSystem::SessionUpdateRequest::GenerateNoProvisioning(
+MediaDrmBridge::OperationResult
+DrmSystem::SessionUpdateRequest::GenerateNoProvisioning(
     const MediaDrmBridge* media_drm_bridge) const {
   SB_LOG(INFO) << __func__;
   SB_DCHECK(media_drm_bridge);
@@ -189,12 +190,12 @@ void DrmSystem::GenerateSessionUpdateRequestProvisioning(
 void DrmSystem::GenerateSessionUpdateRequestNoProvisioning(
     std::unique_ptr<SessionUpdateRequest> request) {
   SB_LOG(INFO) << __func__;
-  MediaDrmBridge::Status status =
+  MediaDrmBridge::OperationResult status =
       request->GenerateNoProvisioning(media_drm_bridge_.get());
-  switch (status.type) {
-    case MediaDrmBridge::Status::kSuccess:
+  switch (status.status) {
+    case MediaDrmBridge::OperationResult::kSuccess:
       return;
-    case MediaDrmBridge::Status::kNotProvisionedError:
+    case MediaDrmBridge::OperationResult::kNotProvisionedError:
       SB_LOG(INFO) << "Device is not provisioned. Generating provision request";
       {
         std::lock_guard scoped_lock(mutex_);
@@ -205,7 +206,7 @@ void DrmSystem::GenerateSessionUpdateRequestNoProvisioning(
       }
       media_drm_bridge_->GenerateProvisionRequest();
       return;
-    case MediaDrmBridge::Status::kOperationError:
+    case MediaDrmBridge::OperationResult::kOperationError:
     default:
       SB_LOG(ERROR) << "GenerateNoProvisioning failed: "
                     << status.error_message;
@@ -222,7 +223,7 @@ void DrmSystem::UpdateSession(int ticket,
   const std::string_view cdm_session_id(static_cast<const char*>(session_id),
                                         session_id_size);
   std::string_view media_drm_session_id = cdm_session_id;
-  std::optional<MediaDrmBridge::Status> completed_status;
+  std::optional<MediaDrmBridge::OperationResult> completed_status;
   SB_LOG(INFO) << __func__ << ": cdm_session_id=" << cdm_session_id;
   if (bridge_session_id_map_.has_value() &&
       bridge_session_id_map_->cdm_id == cdm_session_id) {

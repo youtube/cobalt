@@ -46,17 +46,17 @@ class MediaDrmBridge {
     ~Host() = default;
   };
 
-  struct Status {
-    enum Type {
+  struct OperationResult {
+    enum Status {
       kSuccess = 0,
       kOperationError = 1,
       kNotProvisionedError = 2,
     };
 
-    const Type type;
+    const Status status;
     const std::string error_message;
 
-    bool ok() const { return type == kSuccess; }
+    bool ok() const { return status == kSuccess; }
   };
 
   MediaDrmBridge(raw_ref<MediaDrmBridge::Host> host,
@@ -77,16 +77,16 @@ class MediaDrmBridge {
                      std::string_view init_data,
                      std::string_view mime) const;
 
-  Status CreateSessionNoProvisioning(int ticket,
-                                     std::string_view init_data,
-                                     std::string_view mime) const;
+  OperationResult CreateSessionNoProvisioning(int ticket,
+                                              std::string_view init_data,
+                                              std::string_view mime) const;
   void GenerateProvisionRequest() const;
-  Status ProvideProvisionResponse(std::string_view response) const;
+  OperationResult ProvideProvisionResponse(std::string_view response) const;
 
-  Status UpdateSession(int ticket,
-                       std::string_view key,
-                       std::string_view session_id,
-                       std::string* error_msg) const;
+  OperationResult UpdateSession(int ticket,
+                                std::string_view key,
+                                std::string_view session_id,
+                                std::string* error_msg) const;
   void CloseSession(std::string_view session_id) const;
   const void* GetMetrics(int* size);
   bool CreateMediaCryptoSession();
