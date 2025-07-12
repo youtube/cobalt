@@ -70,16 +70,12 @@ runs:
 
           ENTRYPOINT=./"${test_binary_path}"
 
-          # TODO: Always run with --single-process-tests flag.
-          if [[ "${{ matrix.platform }}" == *evergreen* || "${{ matrix.platform }}" == *modular* ]]; then
-            ENTRYPOINT="./${test_binary_path} --single-process-tests"
-          fi
-
           if [ "${test_filter}" == "-*" ]; then
             echo "Skipped due to test filter." >  ${log_path}
           else
             /usr/bin/xvfb-run -a --server-args="${XVFB_SERVER_ARGS}" \
                 stdbuf -i0 -o0 -e0 $ENTRYPOINT \
+                --single-process-tests \
                 --test-launcher-shard-index=${{ matrix.shard }} \
                 --test-launcher-total-shards=${{ inputs.num_gtest_shards }} \
                 --gtest_output="xml:${xml_path}" \
