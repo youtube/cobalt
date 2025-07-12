@@ -25,5 +25,31 @@
     "third_party/zlib:zlib_unittests",
     "url:url_perftests",
     "url:url_unittests"
+  ],
+  "executables": [
+    "out/android-arm64_devel/apks/base_perftests-debug.apk",
+    "out/android-arm64_devel/apks/base_unittests-debug.apk",
+    "out/android-arm64_devel/apks/cobalt_unittests-debug.apk",
+    "out/android-arm64_devel/apks/media_unittests-debug.apk",
+    "out/android-arm64_devel/apks/midi_unittests-debug.apk",
+    "out/android-arm64_devel/apks/mojo_perftests-debug.apk",
+    "out/android-arm64_devel/apks/mojo_unittests-debug.apk",
+    "out/android-arm64_devel/apks/net_unittests-debug.apk",
+    "out/android-arm64_devel/apks/skia_unittests-debug.apk",
+    "out/android-arm64_devel/apks/sql_unittests-debug.apk",
+    "out/android-arm64_devel/apks/nplb-debug.apk",
+    "out/android-arm64_devel/apks/blink_unittests-debug.apk",
+    "out/android-arm64_devel/apks/blink_platform_perftests-debug.apk",
+    "out/android-arm64_devel/apks/blink_platform_unittests-debug.apk",
+    "out/android-arm64_devel/apks/blink_heap_perftests-debug.apk",
+    "out/android-arm64_devel/apks/blink_heap_unittests-debug.apk",
+    "out/android-arm64_devel/apks/wtf_unittests-debug.apk",
+    "out/android-arm64_devel/apks/boringssl_crypto_tests-debug.apk",
+    "out/android-arm64_devel/apks/boringssl_ssl_tests-debug.apk",
+    "out/android-arm64_devel/apks/perfetto_unittests-debug.apk",
+    "out/android-arm64_devel/apks/trace_processor_minimal_smoke_tests-debug.apk",
+    "out/android-arm64_devel/apks/zlib_unittests-debug.apk",
+    "out/android-arm64_devel/apks/url_perftests-debug.apk",
+    "out/android-arm64_devel/apks/url_unittests-debug.apk"
   ]
 }
