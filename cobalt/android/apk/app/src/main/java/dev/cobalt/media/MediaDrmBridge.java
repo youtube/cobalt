@@ -102,43 +102,53 @@ public class MediaDrmBridge {
 
   private MediaCrypto mMediaCrypto;
 
-  // Return value type for calls to updateSession(), which contains whether or not the call
-  // succeeded, and optionally an error message (that is empty on success).
-  private static class UpdateSessionResult {
+  // Return value for DRM operation that MediaDrmBridge executes.
+  private static class OperationResult {
     public enum Status {
-      SUCCESS,
-      FAILURE
+      SUCCESS(0),
+      OPERATION_FAILED(1);
+      // TODO: b/79941850 - Add status for provising error.
+
+      final int code;
+
+      Status(int code) {
+        this.code = code;
+      }
     }
 
-    // Whether or not the update session attempt succeeded or failed.
-    private boolean mIsSuccess;
+    private final Status mStatus;
+
 
     // Descriptive error message or details, in the scenario where the update session call failed.
-    private String mErrorMessage;
+    private final String mErrorMessage;
 
-    private UpdateSessionResult(Status status, String errorMessage) {
-      this.mIsSuccess = status == Status.SUCCESS;
+    private OperationResult(Status status, String errorMessage) {
+      this.mStatus = status;
       this.mErrorMessage = errorMessage;
     }
 
-    public static UpdateSessionResult success() {
-      return new UpdateSessionResult(Status.SUCCESS, "");
+    public static OperationResult success() {
+      return new OperationResult(OperationResult.Status.SUCCESS, "");
     }
 
-    public static UpdateSessionResult failure(String errorMessage, Throwable e) {
-      return new UpdateSessionResult(
-          Status.FAILURE,
+    public static OperationResult operationFailed(String errorMessage) {
+      return new OperationResult(Status.OPERATION_FAILED, errorMessage);
+    }
+
+    public static OperationResult operationFailed(String errorMessage, Throwable e) {
+      return new OperationResult(
+          Status.OPERATION_FAILED,
           errorMessage + " StackTrace: " + android.util.Log.getStackTraceString(e));
     }
 
-    @CalledByNative("UpdateSessionResult")
-    public boolean isSuccess() {
-      return mIsSuccess;
-    }
-
-    @CalledByNative("UpdateSessionResult")
+    @CalledByNative("OperationResult")
     public String getErrorMessage() {
       return mErrorMessage;
+    }
+
+    @CalledByNative("OperationResult")
+    public int getStatusCode() {
+      return mStatus.code;
     }
   }
 
@@ -258,18 +268,18 @@ public class MediaDrmBridge {
    * @param response Response data from the server.
    */
   @CalledByNative
-  UpdateSessionResult updateSession(int ticket, byte[] sessionId, byte[] response) {
+  OperationResult updateSession(int ticket, byte[] sessionId, byte[] response) {
     Log.d(TAG, "updateSession()");
     if (mMediaDrm == null) {
       Log.e(TAG, "updateSession() called when MediaDrm is null.");
-      return UpdateSessionResult.failure(
-          "Null MediaDrm object when calling updateSession().", new Throwable());
+      return OperationResult.operationFailed(
+          "Null MediaDrm object when calling updateSession().");
     }
 
     if (!sessionExists(sessionId)) {
       Log.e(TAG, "updateSession tried to update a session that does not exist.");
-      return UpdateSessionResult.failure(
-          "Failed to update session because it does not exist.", new Throwable());
+      return OperationResult.operationFailed(
+          "Failed to update session because it does not exist.");
     }
 
     try {
@@ -281,22 +291,22 @@ public class MediaDrmBridge {
         Log.e(TAG, "Exception intentionally caught when calling provideKeyResponse()", e);
       }
       Log.d(TAG, "Key successfully added for sessionId=" + bytesToString(sessionId));
-      return UpdateSessionResult.success();
+      return OperationResult.success();
     } catch (NotProvisionedException e) {
       // TODO: Should we handle this?
       Log.e(TAG, "Failed to provide key response", e);
       release();
-      return UpdateSessionResult.failure(
+      return OperationResult.operationFailed(
           "Update session failed due to lack of provisioning.", e);
     } catch (DeniedByServerException e) {
       Log.e(TAG, "Failed to provide key response.", e);
       release();
-      return UpdateSessionResult.failure(
+      return OperationResult.operationFailed(
           "Update session failed because we were denied by server.", e);
     } catch (Exception e) {
       Log.e(TAG, "", e);
       release();
-      return UpdateSessionResult.failure(
+      return OperationResult.operationFailed(
           "Update session failed. Caught exception: " + e.getMessage(), e);
     }
   }

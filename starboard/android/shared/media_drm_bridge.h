@@ -44,6 +44,20 @@ class MediaDrmBridge {
     ~Host() = default;
   };
 
+  struct OperationResult {
+    // This value should match MediaDrmBridge::OperationResult::Status in
+    // cobalt/android/apk/app/src/main/java/dev/cobalt/media/MediaDrmBridge.java
+    enum Status {
+      kSuccess = 0,
+      kOperationError = 1,
+    };
+
+    const Status status;
+    const std::string error_message;
+
+    bool ok() const { return status == kSuccess; }
+  };
+
   MediaDrmBridge(raw_ref<MediaDrmBridge::Host> host,
                  std::string_view key_system);
   ~MediaDrmBridge();
@@ -61,10 +75,10 @@ class MediaDrmBridge {
                      std::string_view init_data,
                      std::string_view mime) const;
   // Updates the session. Returns true on success.
-  bool UpdateSession(int ticket,
-                     std::string_view key,
-                     std::string_view session_id,
-                     std::string* error_msg) const;
+  OperationResult UpdateSession(int ticket,
+                                std::string_view key,
+                                std::string_view session_id,
+                                std::string* error_msg) const;
   void CloseSession(std::string_view session_id) const;
   const void* GetMetrics(int* size);
   bool CreateMediaCryptoSession();
@@ -90,6 +104,9 @@ class MediaDrmBridge {
   base::android::ScopedJavaGlobalRef<jobject> j_media_drm_bridge_;
   base::android::ScopedJavaGlobalRef<jobject> j_media_crypto_;
 };
+
+std::ostream& operator<<(std::ostream& os,
+                         const MediaDrmBridge::OperationResult& result);
 
 }  // namespace starboard::android::shared
 
