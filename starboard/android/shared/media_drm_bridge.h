@@ -17,6 +17,7 @@
 
 #include <jni.h>
 
+#include <ostream>
 #include <string>
 #include <string_view>
 #include <vector>
@@ -85,8 +86,7 @@ class MediaDrmBridge {
 
   OperationResult UpdateSession(int ticket,
                                 std::string_view key,
-                                std::string_view session_id,
-                                std::string* error_msg) const;
+                                std::string_view session_id) const;
   void CloseSession(std::string_view session_id) const;
   const void* GetMetrics(int* size);
   bool CreateMediaCryptoSession();
@@ -115,6 +115,9 @@ class MediaDrmBridge {
   base::android::ScopedJavaGlobalRef<jobject> j_media_drm_bridge_;
   base::android::ScopedJavaGlobalRef<jobject> j_media_crypto_;
 };
+
+std::ostream& operator<<(std::ostream& os,
+                         const MediaDrmBridge::OperationResult& result);
 
 }  // namespace starboard::android::shared
 

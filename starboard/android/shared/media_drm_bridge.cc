@@ -17,6 +17,7 @@
 #include <jni.h>
 
 #include <cstring>
+#include <ostream>
 #include <vector>
 
 #include "base/android/jni_array.h"
@@ -122,6 +123,13 @@ MediaDrmBridge::OperationResult ToOperationResult(
 }
 }  // namespace
 
+std::ostream& operator<<(std::ostream& os,
+                         const MediaDrmBridge::OperationResult& result) {
+  os << "{status: " << result.status
+     << ", error_message: " << result.error_message << "}";
+  return os;
+}
+
 MediaDrmBridge::MediaDrmBridge(raw_ref<MediaDrmBridge::Host> host,
                                std::string_view key_system,
                                bool use_app_provisioning)
@@ -202,8 +210,7 @@ MediaDrmBridge::OperationResult MediaDrmBridge::ProvideProvisionResponse(
 MediaDrmBridge::OperationResult MediaDrmBridge::UpdateSession(
     int ticket,
     std::string_view key,
-    std::string_view session_id,
-    std::string* error_msg) const {
+    std::string_view session_id) const {
   JNIEnv* env = AttachCurrentThread();
 
   auto j_session_id = ToScopedJavaByteArray(env, session_id);

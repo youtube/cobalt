@@ -208,8 +208,7 @@ void DrmSystem::GenerateSessionUpdateRequestNoProvisioning(
       return;
     case MediaDrmBridge::OperationResult::kOperationError:
     default:
-      SB_LOG(ERROR) << "GenerateNoProvisioning failed: "
-                    << status.error_message;
+      SB_LOG(ERROR) << "GenerateNoProvisioning failed: " << status;
       return;
   }
 }
@@ -219,7 +218,6 @@ void DrmSystem::UpdateSession(int ticket,
                               int key_size,
                               const void* session_id,
                               int session_id_size) {
-  std::string error_msg;
   const std::string_view cdm_session_id(static_cast<const char*>(session_id),
                                         session_id_size);
   std::string_view media_drm_session_id = cdm_session_id;
@@ -243,15 +241,20 @@ void DrmSystem::UpdateSession(int ticket,
         ticket,
         std::string_view{static_cast<const char*>(key),
                          static_cast<size_t>(key_size)},
-        media_drm_session_id, &error_msg));
+        media_drm_session_id));
   }
   SB_CHECK(completed_status.has_value());
+
+  if (!completed_status->ok()) {
+    SB_LOG(ERROR) << "UpdateSession failed: " << *completed_status;
+  }
 
   bool update_success = completed_status->ok();
   session_updated_callback_(
       this, context_, ticket,
       update_success ? kSbDrmStatusSuccess : kSbDrmStatusUnknownError,
-      error_msg.c_str(), cdm_session_id.data(), cdm_session_id.size());
+      completed_status->error_message.c_str(), cdm_session_id.data(),
+      cdm_session_id.size());
 
   if (kUseAppProvisioning && update_success) {
     job_queue_->Schedule([this] { HandlePendingRequests(); });
