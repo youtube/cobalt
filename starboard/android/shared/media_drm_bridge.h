@@ -74,7 +74,6 @@ class MediaDrmBridge {
   void CreateSession(int ticket,
                      std::string_view init_data,
                      std::string_view mime) const;
-  // Updates the session. Returns true on success.
   OperationResult UpdateSession(int ticket,
                                 std::string_view key,
                                 std::string_view session_id) const;

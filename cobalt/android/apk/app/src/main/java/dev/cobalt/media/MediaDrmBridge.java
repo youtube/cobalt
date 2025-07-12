@@ -131,10 +131,6 @@ public class MediaDrmBridge {
       return new OperationResult(OperationResult.Status.SUCCESS, "");
     }
 
-    public static OperationResult operationFailed(String errorMessage) {
-      return new OperationResult(Status.OPERATION_FAILED, errorMessage);
-    }
-
     public static OperationResult operationFailed(String errorMessage, Throwable e) {
       return new OperationResult(
           Status.OPERATION_FAILED,
@@ -273,13 +269,13 @@ public class MediaDrmBridge {
     if (mMediaDrm == null) {
       Log.e(TAG, "updateSession() called when MediaDrm is null.");
       return OperationResult.operationFailed(
-          "Null MediaDrm object when calling updateSession().");
+          "Null MediaDrm object when calling updateSession().", new Throwable());
     }
 
     if (!sessionExists(sessionId)) {
       Log.e(TAG, "updateSession tried to update a session that does not exist.");
       return OperationResult.operationFailed(
-          "Failed to update session because it does not exist.");
+          "Failed to update session because it does not exist.", new Throwable());
     }
 
     try {
