@@ -22,7 +22,6 @@
 #include "base/android/jni_array.h"
 #include "base/android/jni_string.h"
 #include "base/memory/raw_ref.h"
-#include "media_drm_bridge.h"
 #include "starboard/android/shared/jni_utils.h"
 #include "starboard/common/log.h"
 
