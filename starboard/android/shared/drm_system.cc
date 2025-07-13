@@ -19,8 +19,8 @@
 #include <string_view>
 #include <utility>
 
-#include "media_drm_bridge.h"
 #include "starboard/android/shared/media_common.h"
+#include "starboard/android/shared/media_drm_bridge.h"
 #include "starboard/common/instance_counter.h"
 #include "starboard/common/thread.h"
 
