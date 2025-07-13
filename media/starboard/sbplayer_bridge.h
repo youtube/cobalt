@@ -20,6 +20,7 @@
 #include <vector>
 
 #include "base/functional/callback.h"
+#include "base/logging.h"
 #include "base/memory/ref_counted.h"
 #include "base/synchronization/lock.h"
 #include "base/task/sequenced_task_runner.h"
@@ -292,6 +293,17 @@ class SbPlayerBridge {
 
   void LogStartupLatency() const;
   void SendColorSpaceHistogram() const;
+
+  class DtorLogger {
+   public:
+    DtorLogger(const std::string& name) : name_(name) {}
+    ~DtorLogger() { LOG(INFO) << name_ << " completes dtor"; }
+
+   private:
+    const std::string name_;
+  };
+
+  DtorLogger dtor_logger_{"SbPlayerBridge instance"};
 
 // The following variables are initialized in the ctor and never changed.
 #if SB_HAS(PLAYER_WITH_URL)
