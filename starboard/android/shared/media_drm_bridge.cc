@@ -114,9 +114,9 @@ MediaDrmBridge::OperationResult ToOperationResult(
     JNIEnv* env,
     const ScopedJavaLocalRef<jobject>& result) {
   return {
-      .status = static_cast<MediaDrmBridge::OperationResult::Status>(
+      static_cast<MediaDrmBridge::OperationResult::Status>(
           Java_OperationResult_getStatusCode(env, result)),
-      .error_message = ConvertJavaStringToUTF8(
+      ConvertJavaStringToUTF8(
           Java_OperationResult_getErrorMessage(env, result)),
   };
 }

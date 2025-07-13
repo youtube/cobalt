@@ -130,9 +130,12 @@ public class MediaDrmBridge {
       return new OperationResult(Status.SUCCESS, "");
     }
 
+    public static OperationResult operationFailed(String errorMessage) {
+      return new OperationResult(Status.OPERATION_FAILED, errorMessage);
+    }
+
     public static OperationResult operationFailed(String errorMessage, Throwable e) {
-      return new OperationResult(
-          Status.OPERATION_FAILED,
+      return operationFailed(
           errorMessage + " StackTrace: " + android.util.Log.getStackTraceString(e));
     }
 
@@ -268,13 +271,13 @@ public class MediaDrmBridge {
     if (mMediaDrm == null) {
       Log.e(TAG, "updateSession() called when MediaDrm is null.");
       return OperationResult.operationFailed(
-          "Null MediaDrm object when calling updateSession().", new Throwable());
+          "Null MediaDrm object when calling updateSession().");
     }
 
     if (!sessionExists(sessionId)) {
       Log.e(TAG, "updateSession tried to update a session that does not exist.");
       return OperationResult.operationFailed(
-          "Failed to update session because it does not exist.", new Throwable());
+          "Failed to update session because it does not exist.");
     }
 
     try {
