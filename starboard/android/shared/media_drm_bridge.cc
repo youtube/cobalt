@@ -109,6 +109,7 @@ ScopedJavaLocalRef<jbyteArray> ToScopedJavaByteArray(JNIEnv* env,
   return ToJavaByteArray(env, reinterpret_cast<const uint8_t*>(data.data()),
                          data.size());
 }
+
 MediaDrmBridge::OperationResult ToOperationResult(
     JNIEnv* env,
     const ScopedJavaLocalRef<jobject>& result) {
@@ -290,21 +291,23 @@ bool MediaDrmBridge::IsCbcsSupported(JNIEnv* env) {
 }
 
 std::ostream& operator<<(std::ostream& os,
-                         const MediaDrmBridge::OperationResult& result) {
-  const char* status_str = "Unknown";
-  switch (result.status) {
-    case MediaDrmBridge::OperationResult::kSuccess:
-      status_str = "kSuccess";
-      break;
-    case MediaDrmBridge::OperationResult::kOperationFailed:
-      status_str = "kOperationFailed";
-      break;
+                         MediaDrmBridge::OperationResult::Status status) {
+  switch (status) {
+    case MediaDrmBridge::OperationResult::Status::kSuccess:
+      return os << "success";
+    case MediaDrmBridge::OperationResult::Status::kOperationFailed:
+      return os << "operation-failed";
     default:
       SB_NOTREACHED();
-      break;
+      return os << "unknown";
   }
-  os << "{status: " << status_str << ", error_message: \""
+}
+
+std::ostream& operator<<(std::ostream& os,
+                         const MediaDrmBridge::OperationResult& result) {
+  os << "{status=" << result.status << ", error_message=\""
      << result.error_message << "\"}";
   return os;
 }
+
 }  // namespace starboard::android::shared

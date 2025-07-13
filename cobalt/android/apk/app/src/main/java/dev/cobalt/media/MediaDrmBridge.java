@@ -118,7 +118,6 @@ public class MediaDrmBridge {
 
     private final Status mStatus;
 
-
     // Descriptive error message or details, in the scenario where the update session call failed.
     private final String mErrorMessage;
 

@@ -47,7 +47,7 @@ class MediaDrmBridge {
   struct OperationResult {
     // This value should match MediaDrmBridge::OperationResult::Status in
     // cobalt/android/apk/app/src/main/java/dev/cobalt/media/MediaDrmBridge.java
-    enum Status {
+    enum class Status {
       kSuccess = 0,
       kOperationFailed = 1,
     };
@@ -55,7 +55,7 @@ class MediaDrmBridge {
     const Status status;
     const std::string error_message;
 
-    bool ok() const { return status == kSuccess; }
+    bool ok() const { return status == Status::kSuccess; }
   };
 
   MediaDrmBridge(raw_ref<MediaDrmBridge::Host> host,
@@ -103,6 +103,8 @@ class MediaDrmBridge {
   base::android::ScopedJavaGlobalRef<jobject> j_media_crypto_;
 };
 
+std::ostream& operator<<(std::ostream& os,
+                         MediaDrmBridge::OperationResult::Status status);
 std::ostream& operator<<(std::ostream& os,
                          const MediaDrmBridge::OperationResult& result);
 
