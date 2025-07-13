@@ -18,8 +18,8 @@
 #include <pthread.h>
 
 #include <atomic>
-#include <functional>
-#include <memory>
+#include <condition_variable>
+#include <mutex>
 #include <string>
 #include <utility>
 
@@ -171,6 +171,11 @@ class PlayerWorker {
     job_queue_->Schedule(std::bind(&PlayerWorker::DoSetVolume, this, volume));
   }
 
+  void Stop(std::mutex* mutex, std::condition_variable* condition) {
+    job_queue_->Schedule(
+        std::bind(&PlayerWorker::DoStop, this, mutex, condition));
+  }
+
   SbDecodeTarget GetCurrentDecodeTarget() {
     return handler_->GetCurrentDecodeTarget();
   }
@@ -208,7 +213,7 @@ class PlayerWorker {
   void DoSetPause(bool pause);
   void DoSetPlaybackRate(double rate);
   void DoSetVolume(double volume);
-  void DoStop();
+  void DoStop(std::mutex* mutex, std::condition_variable* condition);
 
   void UpdateDecoderState(SbMediaType type, SbPlayerDecoderState state);
 

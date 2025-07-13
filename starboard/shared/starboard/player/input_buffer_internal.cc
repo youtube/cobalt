@@ -14,6 +14,8 @@
 
 #include "starboard/shared/starboard/player/input_buffer_internal.h"
 
+#include <unistd.h>
+
 #include <cctype>
 #include <cstring>
 #include <numeric>
@@ -22,11 +24,16 @@
 
 #include "starboard/common/log.h"
 #include "starboard/common/string.h"
+#include "starboard/thread.h"
 
 namespace starboard::shared::starboard::player {
 
 InputBuffer::~InputBuffer() {
+  SB_LOG(INFO) << __func__ << " >";
+
   DeallocateSampleBuffer(data_);
+  usleep(10'000);
+  SB_LOG(INFO) << __func__ << " <";
 }
 
 void InputBuffer::SetDecryptedContent(std::vector<uint8_t> decrypted_content) {
