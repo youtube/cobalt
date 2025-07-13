@@ -113,9 +113,19 @@ ScopedJavaLocalRef<jbyteArray> ToScopedJavaByteArray(JNIEnv* env,
 MediaDrmBridge::OperationResult ToOperationResult(
     JNIEnv* env,
     const ScopedJavaLocalRef<jobject>& result) {
+  auto status = static_cast<MediaDrmBridge::OperationResult::Status>(
+      Java_OperationResult_getStatusCode(env, result));
+  // Sanitize status.
+  switch (status) {
+    case MediaDrmBridge::OperationResult::Status::kSuccess:
+    case MediaDrmBridge::OperationResult::Status::kOperationFailed:
+      break;
+    default:
+      SB_NOTREACHED() << "Unknown status " << static_cast<int>(status);
+      status = MediaDrmBridge::OperationResult::Status::kOperationFailed;
+  }
   return {
-      static_cast<MediaDrmBridge::OperationResult::Status>(
-          Java_OperationResult_getStatusCode(env, result)),
+      status,
       ConvertJavaStringToUTF8(
           Java_OperationResult_getErrorMessage(env, result)),
   };
