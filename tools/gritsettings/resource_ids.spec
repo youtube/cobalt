@@ -1532,7 +1532,11 @@
 
   "third_party/search_engines_data/resources/search_engines_scaled_resources.grd": {
     "structures": [10100],
-  }
+  },
+
+  "cobalt/shell/shell_resources.grd": {
+    "includes": [31500]
+  },
 
   # END "everything else" section.
   # Everything but chrome/, components/, content/, and ios/
