@@ -49,7 +49,7 @@ StarboardRendererClient::StarboardRendererClient(
       client_extension_receiver_(this),
       bind_host_receiver_callback_(bind_host_receiver_callback),
       gpu_factories_(gpu_factories),
-      request_overlay_info_cb_(request_overlay_info_cb){
+      request_overlay_info_cb_(std::move(request_overlay_info_cb)) {
   DCHECK(media_task_runner_);
   DCHECK(video_renderer_sink_);
   DCHECK(video_overlay_factory_);
@@ -251,6 +251,16 @@ void StarboardRendererClient::UpdateStarboardRenderingMode(
   }
 }
 
+void StarboardRendererClient::RequestOverlayInfo(bool restart_for_transitions) {
+  DCHECK(media_task_runner_->RunsTasksInCurrentSequence());
+  DCHECK(request_overlay_info_cb_);
+
+  request_overlay_info_cb_.Run(
+      restart_for_transitions,
+      base::BindRepeating(&StarboardRendererClient::OnOverlayInfoChanged,
+                          weak_factory_.GetWeakPtr()));
+}
+
 void StarboardRendererClient::OnVideoGeometryChange(
     const gfx::RectF& rect_f,
     gfx::OverlayTransform /* transform */) {
@@ -419,18 +429,8 @@ void StarboardRendererClient::StopVideoRendererSink() {
   }
 }
 
-void StarboardRendererClient::RequestOverlayInfo(bool restart_for_transitions){
-  DVLOG(2) << __func__;
-  DCHECK(media_task_runner_->RunsTasksInCurrentSequence());
-  DCHECK(request_overlay_info_cb_);
-
-  request_overlay_info_cb_.Run(
-      restart_for_transitions,
-      base::BindRepeating(&StarboardRendererClient::OnOverlayInfoChanged, weak_factory_.GetWeakPtr()));
-}
-
-void StarboardRendererClient::OnOverlayInfoChanged(const OverlayInfo& overlay_info) {
-  DVLOG(2) << __func__;
+void StarboardRendererClient::OnOverlayInfoChanged(
+    const OverlayInfo& overlay_info) {
   DCHECK(media_task_runner_->RunsTasksInCurrentSequence());
 
   renderer_extension_->OnOverlayInfoChanged(overlay_info);

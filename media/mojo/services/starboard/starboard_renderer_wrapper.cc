@@ -148,6 +148,12 @@ void StarboardRendererWrapper::GetCurrentVideoFrame(
   std::move(callback).Run(nullptr);
 }
 
+void StarboardRendererWrapper::OnOverlayInfoChanged(
+    const OverlayInfo& overlay_info) {
+  DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
+  GetRenderer()->OnOverlayInfoChanged(overlay_info);
+}
+
 StarboardRenderer* StarboardRendererWrapper::GetRenderer() {
   if (test_renderer_) {
     return test_renderer_;
@@ -190,12 +196,6 @@ void StarboardRendererWrapper::OnRequestOverlayInfoByStarboard(
     bool restart_for_transitions) {
   DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
   client_extension_remote_->RequestOverlayInfo(restart_for_transitions);
-}
-
-void StarboardRendererWrapper::OnOverlayInfoChanged(
-    const OverlayInfo& overlay_info) {
-  DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
-  GetRenderer()->OnOverlayInfoChanged(overlay_info);
 }
 
 }  // namespace media
