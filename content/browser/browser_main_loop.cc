@@ -1273,7 +1273,9 @@ void BrowserMainLoop::PostCreateThreadsImpl() {
   // so this cannot happen any earlier than now.
   InitializeMojo();
 
+#if !BUILDFLAG(IS_COBALT)
   data_decoder_service_provider_ = std::make_unique<OopDataDecoder>();
+#endif
 
   HistogramSynchronizer::GetInstance();
 
@@ -1338,6 +1340,7 @@ void BrowserMainLoop::PostCreateThreadsImpl() {
       nullptr);
 #endif
 
+#if !BUILDFLAG(IS_COBALT)
   {
     TRACE_EVENT0("startup", "PostCreateThreads::Subsystem:AudioMan");
     InitializeAudio();
@@ -1357,6 +1360,7 @@ void BrowserMainLoop::PostCreateThreadsImpl() {
         base::BindRepeating(&BindHidManager));
 #endif
   }
+#endif  // !BUILDFLAG(IS_COBALT)
 
 #if BUILDFLAG(IS_WIN)
   system_message_window_ = std::make_unique<media::SystemMessageWindowWin>();
@@ -1368,6 +1372,7 @@ void BrowserMainLoop::PostCreateThreadsImpl() {
           {base::TaskPriority::USER_VISIBLE}));
 #endif
 
+#if !BUILDFLAG(IS_COBALT)
   // Instantiated once using CreateSingletonInstance(), and accessed only using
   // GetInstance(), which is not allowed to create the object. This allows us
   // to ensure that it cannot be used before objects it relies on have been
@@ -1390,6 +1395,7 @@ void BrowserMainLoop::PostCreateThreadsImpl() {
     speech_recognition_manager_.reset(new SpeechRecognitionManagerImpl(
         audio_system_.get(), media_stream_manager_.get()));
   }
+#endif  // !BUILDFLAG(IS_COBALT)
 
   {
     TRACE_EVENT0("startup",
