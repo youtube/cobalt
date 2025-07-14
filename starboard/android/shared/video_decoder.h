@@ -102,6 +102,9 @@ class VideoDecoder
 
   bool is_decoder_created() const { return media_decoder_ != NULL; }
 
+  static int GetLastReleasedId();
+  static int GetLastCreatedId();
+
  private:
   // Attempt to initialize the codec.  Returns whether initialization was
   // successful.

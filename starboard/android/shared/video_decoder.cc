@@ -45,6 +45,8 @@ namespace starboard::android::shared {
 namespace {
 
 std::atomic<int> g_alive_video_frames_count(0);
+std::atomic<int> g_last_created_id = 0;
+std::atomic<int> g_last_released_id = 0;
 
 using ::starboard::shared::starboard::media::MimeType;
 using ::starboard::shared::starboard::player::filter::VideoFrame;
@@ -206,7 +208,9 @@ class VideoFrameImpl : public VideoFrame {
     SB_DCHECK(media_codec_bridge_);
     SB_DCHECK(release_callback_);
     int count = ++g_alive_video_frames_count;
+    g_last_created_id = id_;
     SB_LOG(INFO) << "VideoFrameImpl created, alive frames=" << count
+                 << ", gap=" << (g_last_created_id - g_last_released_id)
                  << ", id=" << id_;
   }
 
@@ -215,6 +219,7 @@ class VideoFrameImpl : public VideoFrame {
       media_codec_bridge_->ReleaseOutputBuffer(dequeue_output_result_.index,
                                                false);
       --g_alive_video_frames_count;
+      g_last_released_id = id_;
       if (!is_end_of_stream()) {
         release_callback_();
       }
@@ -229,13 +234,14 @@ class VideoFrameImpl : public VideoFrame {
     media_codec_bridge_->ReleaseOutputBufferAtTimestamp(
         dequeue_output_result_.index, release_time_in_nanoseconds);
     --g_alive_video_frames_count;
+    g_last_released_id = id_;
     release_callback_();
     SB_LOG(INFO) << "Release(in Draw): id=" << id_;
   }
 
  private:
   static int GetId() {
-    static int counter = 0;
+    static int counter = 1;
     return counter++;
   }
 
@@ -369,6 +375,13 @@ class VideoDecoder::Sink : public VideoDecoder::VideoRendererSink {
   RenderCB render_cb_;
   bool rendered_;
 };
+
+int VideoDecoder::GetLastCreatedId() {
+  return g_last_created_id;
+}
+int VideoDecoder::GetLastReleasedId() {
+  return g_last_released_id;
+}
 
 VideoDecoder::VideoDecoder(const VideoStreamInfo& video_stream_info,
                            SbDrmSystem drm_system,
