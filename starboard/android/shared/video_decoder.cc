@@ -44,6 +44,8 @@ namespace starboard::android::shared {
 
 namespace {
 
+std::atomic<int> g_alive_video_frames_count(0);
+
 using ::starboard::shared::starboard::media::MimeType;
 using ::starboard::shared::starboard::player::filter::VideoFrame;
 using VideoRenderAlgorithmBase =
@@ -196,21 +198,27 @@ class VideoFrameImpl : public VideoFrame {
       : VideoFrame(dequeue_output_result.flags & BUFFER_FLAG_END_OF_STREAM
                        ? kMediaTimeEndOfStream
                        : dequeue_output_result.presentation_time_microseconds),
+        id_(GetId()),
         dequeue_output_result_(dequeue_output_result),
         media_codec_bridge_(media_codec_bridge),
         released_(false),
         release_callback_(release_callback) {
     SB_DCHECK(media_codec_bridge_);
     SB_DCHECK(release_callback_);
+    int count = ++g_alive_video_frames_count;
+    SB_LOG(INFO) << "VideoFrameImpl created, alive frames=" << count
+                 << ", id=" << id_;
   }
 
   ~VideoFrameImpl() {
     if (!released_) {
       media_codec_bridge_->ReleaseOutputBuffer(dequeue_output_result_.index,
                                                false);
+      --g_alive_video_frames_count;
       if (!is_end_of_stream()) {
         release_callback_();
       }
+      SB_LOG(INFO) << "Release(in Dtor): id=" << id_;
     }
   }
 
@@ -220,10 +228,18 @@ class VideoFrameImpl : public VideoFrame {
     released_ = true;
     media_codec_bridge_->ReleaseOutputBufferAtTimestamp(
         dequeue_output_result_.index, release_time_in_nanoseconds);
+    --g_alive_video_frames_count;
     release_callback_();
+    SB_LOG(INFO) << "Release(in Draw): id=" << id_;
   }
 
  private:
+  static int GetId() {
+    static int counter = 0;
+    return counter++;
+  }
+
+  const int id_;
   DequeueOutputResult dequeue_output_result_;
   MediaCodecBridge* media_codec_bridge_;
   volatile bool released_;
