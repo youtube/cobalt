@@ -89,7 +89,11 @@ PlayerWorker::~PlayerWorker() {
   ON_INSTANCE_RELEASED(PlayerWorker);
 
   if (thread_ != 0) {
-    job_queue_->Schedule(std::bind(&PlayerWorker::DoStop, this));
+    std::mutex mutex;
+    std::condition_variable condition;
+    std::unique_lock<std::mutex> lock(mutex);
+    job_queue_->Schedule(std::bind(&PlayerWorker::DoStop, this, &condition));
+    condition.wait(lock);
     pthread_join(thread_, NULL);
     thread_ = 0;
 
@@ -403,7 +407,7 @@ void PlayerWorker::DoSetVolume(double volume) {
   handler_->SetVolume(volume);
 }
 
-void PlayerWorker::DoStop() {
+void PlayerWorker::DoStop(std::condition_variable* condition) {
   SB_DCHECK(job_queue_->BelongsToCurrentThread());
 
   handler_->Stop();
@@ -413,6 +417,7 @@ void PlayerWorker::DoStop() {
     UpdatePlayerState(kSbPlayerStateDestroyed);
   }
   job_queue_->StopSoon();
+  condition->notify_one();
 }
 
 void PlayerWorker::UpdateDecoderState(SbMediaType type,

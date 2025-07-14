@@ -18,8 +18,10 @@
 #include <pthread.h>
 
 #include <atomic>
+#include <condition_variable>
 #include <functional>
 #include <memory>
+#include <mutex>
 #include <string>
 #include <utility>
 
@@ -208,7 +210,7 @@ class PlayerWorker {
   void DoSetPause(bool pause);
   void DoSetPlaybackRate(double rate);
   void DoSetVolume(double volume);
-  void DoStop();
+  void DoStop(std::condition_variable* condition);
 
   void UpdateDecoderState(SbMediaType type, SbPlayerDecoderState state);
 
