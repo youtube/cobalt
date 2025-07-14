@@ -309,10 +309,6 @@ void StubDrmSessionKeyStatusesChangedFunc(SbDrmSystem drm_system,
 
 }  // namespace
 
-int VideoDecoder::GetActiveDecodedFrames() {
-  return g_alive_video_frames_count;
-}
-
 // TODO: Merge this with VideoFrameTracker, maybe?
 class VideoRenderAlgorithmTunneled : public VideoRenderAlgorithmBase {
  public:
