@@ -235,66 +235,6 @@ class CheckUTF8:
       return ""
 
 
-def symbolize_with_extra_binary(loop, extra_binary_path):
-    base_addr = None
-    load_addr_re = re.compile(r'Load start=(0x[0-9a-fA-F]+)')
-    unknown_module_re = re.compile(r'^( *#\d+ *)(0x[0-9a-fA-F]+) *\(<unknown module>\)(.*)')
-    llvm_symbolizer_path = os.environ.get('LLVM_SYMBOLIZER_PATH')
-
-    if not os.path.exists(extra_binary_path):
-        sys.stderr.write(f"Extra binary not found at: {extra_binary_path}\n")
-        asan_symbolize.logfile = CheckUTF8(sys.stdin)
-        loop.process_logfile()
-        return
-
-    asan_symbolize.logfile = CheckUTF8(sys.stdin)
-    for line in asan_symbolize.logfile:
-        if base_addr is None:
-            match = load_addr_re.search(line)
-            if match:
-                base_addr = int(match.group(1), 16)
-
-        processed = False
-        if base_addr is not None:
-            match = unknown_module_re.match(line.rstrip())
-            if match:
-                prefix = match.group(1)
-                frame_addr_str = match.group(2)
-                suffix = match.group(3)
-                frame_addr = int(frame_addr_str, 16)
-                offset = frame_addr - base_addr
-
-                cmd = [
-                    llvm_symbolizer_path,
-                    '--exe', extra_binary_path,
-                    '--inlines', '--functions', '--demangle',
-                    f'0x{offset:x}'
-                ]
-                
-                try:
-                    p = subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
-                    symbolized_output, err = p.communicate()
-                    symbolized_output = symbolized_output.decode().strip()
-
-                    if symbolized_output and p.returncode == 0:
-                        symbol_lines = symbolized_output.split('\n')
-                        if len(symbol_lines) >= 2:
-                            func = symbol_lines[0]
-                            loc = symbol_lines[1].strip()
-                            if '?' not in loc:
-                                sys.stdout.write(f"{prefix}{frame_addr_str} in {func} {loc}{suffix}\n")
-                                processed = True
-                except OSError as e:
-                    sys.stderr.write(f"Failed to run llvm-symbolizer: {e}\n")
-                except Exception as e:
-                    sys.stderr.write(f"An error occurred during symbolization: {e}\n")
-
-        if not processed:
-            symbolized_lines = loop.process_line(line)
-            for l in symbolized_lines:
-                sys.stdout.write(l + '\n')
-
-
 def main():
   parser = argparse.ArgumentParser(description='Symbolize sanitizer reports.')
   parser.add_argument('--test-summary-json-file',
@@ -309,10 +249,13 @@ def main():
       help='Path to program executable. Used on OSX swarming bots to locate '
            'dSYM bundles for associated frameworks and bundles.')
   parser.add_argument('--sysroot', help='Root directory for symbol files')
-  parser.add_argument('--extra-binary',
+  parser.add_argument('--extra-binary', default=None,
       help='Path to a dynamically loaded binary for which to symbolize '
            'stack traces.')
   args = parser.parse_args()
+
+  if args.extra_binary and not os.path.exists(args.extra_binary):
+    raise ValueError(f"Extra binary not found at: {args.extra_binary}\n")
 
   disable_buffering()
   set_symbolizer_path()
@@ -333,12 +276,12 @@ def main():
       plugin_proxy.add_plugin(macos_filter)
 
     loop = asan_symbolize.SymbolizationLoop(
-        plugin_proxy=plugin_proxy, dsym_hint_producer=chrome_dsym_hints)
+        plugin_proxy=plugin_proxy,
+        dsym_hint_producer=chrome_dsym_hints,
+        extra_binary_path=args.extra_binary)
 
     if args.test_summary_json_file:
       symbolize_snippets_in_json(args.test_summary_json_file, loop)
-    elif args.extra_binary:
-      symbolize_with_extra_binary(loop, args.extra_binary)
     else:
       asan_symbolize.logfile = CheckUTF8(sys.stdin)
       loop.process_logfile()
