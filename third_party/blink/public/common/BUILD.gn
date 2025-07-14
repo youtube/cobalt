@@ -119,6 +119,7 @@ source_set("headers") {
   visibility = [
     ":*",
     "//android_webview/*",
+    "//cobalt/testing/test/*",
     "//chrome/*",
     "//chromecast/*",
     "//components/*",

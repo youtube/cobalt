@@ -43,6 +43,7 @@ source_set("browser") {
   visibility = [
     ":content_sms_parser_fuzzer",
     ":for_content_tests",  # See top of //content/BUILD.gn for why.
+    "//cobalt/testing/*",
     "//content/app:*",
     "//content/public/browser:browser_sources",
     "//content/test/fuzzer:browser_accessibility_fuzzer",
@@ -3387,6 +3388,7 @@ group("for_content_tests") {
     "//content/public/test/android/*",
     "//content/test/*",
     "//content/web_test:web_test_browser",
+    "//cobalt/testing/*",
   ]
   if (!is_component_build) {
     public_deps = [ ":browser" ]

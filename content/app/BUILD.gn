@@ -154,7 +154,10 @@ source_set("app") {
 
 # See comment at the top of //content/BUILD.gn for how this works.
 group("for_content_tests") {
-  visibility = [ "//content/test/*" ]
+  visibility = [
+    "//cobalt/testing/test/*",
+    "//content/test/*"
+  ]
   if (!is_component_build) {
     public_deps = [ ":app" ]
   }

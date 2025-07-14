@@ -438,6 +438,7 @@ if (is_linux || is_chromeos) {
 # See comment at the top of //content/BUILD.gn for how this works.
 group("for_content_tests") {
   visibility = [
+    "//cobalt/testing/test/*",
     "//content/services/auction_worklet:tests",
     "//content/test/*",
   ]
