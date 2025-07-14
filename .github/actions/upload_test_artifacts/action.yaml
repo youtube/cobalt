@@ -29,6 +29,7 @@ runs:
           else
             runnable="out/${{ matrix.platform }}_${{ matrix.config }}/${target}.py"
           fi
+          mkdir ${GITHUB_WORKSPACE}/artifacts
           cp "${runnable}" "${GITHUB_WORKSPACE}/artifacts/"
         done
       shell: bash
@@ -37,7 +38,7 @@ runs:
         TEST_TARGETS_JSON: ${{ inputs.test_targets_json }}
       run: |
         set -x
-        mkdir ${GITHUB_WORKSPACE}/artifacts
+        mkdir -p ${GITHUB_WORKSPACE}/artifacts
         cd src/
 
         FLAGS=""
