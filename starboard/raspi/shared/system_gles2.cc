@@ -17,30 +17,33 @@
 
 #include "starboard/gles.h"
 
+#include "starboard/common/gles_tracker.h"
+
 namespace {
 
 void SbGlShaderSource(SbGlUInt32 shader,
                       SbGlSizei count,
-                      const SbGlChar* const* string,  // NOLINT
+                      const SbGlChar* const* input_string,  // NOLINT
                       const SbGlInt32* length) {
   // Begone, const!
-  glShaderSource(shader, count, const_cast<const GLchar**>(string), length);
+  glShaderSource(shader, count, const_cast<const GLchar**>(input_string),
+                 length);
 }
 
 const SbGlesInterface g_sb_gles_interface = {
     &glActiveTexture,
     &glAttachShader,
     &glBindAttribLocation,
-    &glBindBuffer,
+    &GL_MEM_TRACE_I(glBindBuffer),
     &glBindFramebuffer,
-    &glBindRenderbuffer,
-    &glBindTexture,
+    &GL_MEM_TRACE_I(glBindRenderbuffer),
+    &GL_MEM_TRACE_I(glBindTexture),
     &glBlendColor,
     &glBlendEquation,
     &glBlendEquationSeparate,
     &glBlendFunc,
     &glBlendFuncSeparate,
-    &glBufferData,
+    &GL_MEM_TRACE_I(glBufferData),
     &glBufferSubData,
     &glCheckFramebufferStatus,
     &glClear,
@@ -56,12 +59,12 @@ const SbGlesInterface g_sb_gles_interface = {
     &glCreateProgram,
     &glCreateShader,
     &glCullFace,
-    &glDeleteBuffers,
+    &GL_MEM_TRACE_I(glDeleteBuffers),
     &glDeleteFramebuffers,
     &glDeleteProgram,
-    &glDeleteRenderbuffers,
+    &GL_MEM_TRACE_I(glDeleteRenderbuffers),
     &glDeleteShader,
-    &glDeleteTextures,
+    &GL_MEM_TRACE_I(glDeleteTextures),
     &glDepthFunc,
     &glDepthMask,
     &glDepthRangef,
@@ -77,11 +80,11 @@ const SbGlesInterface g_sb_gles_interface = {
     &glFramebufferRenderbuffer,
     &glFramebufferTexture2D,
     &glFrontFace,
-    &glGenBuffers,
+    &GL_MEM_TRACE_I(glGenBuffers),
     &glGenerateMipmap,
     &glGenFramebuffers,
-    &glGenRenderbuffers,
-    &glGenTextures,
+    &GL_MEM_TRACE_I(glGenRenderbuffers),
+    &GL_MEM_TRACE_I(glGenTextures),
     &glGetActiveAttrib,
     &glGetActiveUniform,
     &glGetAttachedShaders,
@@ -99,7 +102,7 @@ const SbGlesInterface g_sb_gles_interface = {
     &glGetShaderInfoLog,
     &glGetShaderPrecisionFormat,
     &glGetShaderSource,
-    &glGetString,
+    &GL_MEM_TRACE_I(glGetString),
     &glGetTexParameterfv,
     &glGetTexParameteriv,
     &glGetUniformfv,
@@ -122,7 +125,7 @@ const SbGlesInterface g_sb_gles_interface = {
     &glPolygonOffset,
     &glReadPixels,
     &glReleaseShaderCompiler,
-    &glRenderbufferStorage,
+    &GL_MEM_TRACE_I(glRenderbufferStorage),
     &glSampleCoverage,
     &glScissor,
     &glShaderBinary,
@@ -133,12 +136,12 @@ const SbGlesInterface g_sb_gles_interface = {
     &glStencilMaskSeparate,
     &glStencilOp,
     &glStencilOpSeparate,
-    &glTexImage2D,
+    &GL_MEM_TRACE_I(glTexImage2D),
     &glTexParameterf,
     &glTexParameterfv,
     &glTexParameteri,
     &glTexParameteriv,
-    &glTexSubImage2D,
+    &GL_MEM_TRACE_I(glTexSubImage2D),
     &glUniform1f,
     &glUniform1fv,
     &glUniform1i,
