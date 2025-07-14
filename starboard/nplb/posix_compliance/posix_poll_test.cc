@@ -124,6 +124,36 @@ TEST(PosixPollTest, PollOutEvent) {
   close(fds[1]);
 }
 
+TEST(PosixPollTest, MultipleFds) {
+  int pipe1[2], pipe2[2];
+  CreatePipe(pipe1);
+  CreatePipe(pipe2);
+
+  struct pollfd poll_fds[2];
+
+  poll_fds[0].fd = pipe1[0];
+  poll_fds[0].events = POLLIN;
+
+  poll_fds[1].fd = pipe2[1];
+  poll_fds[1].events = POLLOUT;
+
+  // Write to the first pipe to make it readable.
+  char buffer[1] = {'x'};
+  write(pipe1[1], buffer, sizeof(buffer));
+
+  // The second pipe should be writable immediately.
+  int result = poll(poll_fds, 2, 1000);  // 1 second timeout
+
+  EXPECT_EQ(result, 2);
+  EXPECT_TRUE(poll_fds[0].revents & POLLIN);
+  EXPECT_TRUE(poll_fds[1].revents & POLLOUT);
+
+  close(pipe1[0]);
+  close(pipe1[1]);
+  close(pipe2[0]);
+  close(pipe2[1]);
+}
+
 TEST(PosixPollTest, PollErrEvent) {
   int fds[2];
   CreatePipe(fds);
