@@ -35,6 +35,10 @@ config("content_shell_lib_warnings") {
 
 # TODO(b/384748332): Remove dependency on content shell
 group("content_shell_lib_deps") {
+  visibility = [
+    "//cobalt/shell/*",
+    "//cobalt/testing/*",
+  ]
   testonly = true
   public_deps = [
     "//content/shell:android_shell_descriptors",
@@ -328,6 +332,10 @@ static_library("content_shell_app") {
 }
 
 group("content_shell_app_deps") {
+  visibility = [
+    "//cobalt/shell/*",
+    "//cobalt/testing/*",
+  ]
   testonly = true
   public_deps = [
     ":content_shell_lib",
