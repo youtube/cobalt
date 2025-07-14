@@ -361,8 +361,10 @@ void GraphicsContextEGL::ReleaseCurrentContext() {
 
 std::unique_ptr<TextureEGL> GraphicsContextEGL::CreateTexture(
     std::unique_ptr<TextureDataEGL> texture_data) {
-  return std::unique_ptr<TextureEGL>(
+  auto ret = std::unique_ptr<TextureEGL>(
       new TextureEGL(this, std::move(texture_data), bgra_format_supported_));
+  LOG(WARNING) << "GraphicsContextEGL::CreateTexture:" << ret->gl_handle();
+  return ret;
 }
 
 std::unique_ptr<TextureEGL> GraphicsContextEGL::CreateTextureFromRawMemory(
@@ -372,9 +374,13 @@ std::unique_ptr<TextureEGL> GraphicsContextEGL::CreateTextureFromRawMemory(
   const RawTextureMemoryEGL* texture_memory =
       &(raw_texture_memory->raw_texture_memory());
 
-  return std::unique_ptr<TextureEGL>(
+
+  auto ret = std::unique_ptr<TextureEGL>(
       new TextureEGL(this, texture_memory, offset, size, format, pitch_in_bytes,
                      bgra_format_supported_));
+  LOG(WARNING) << "GraphicsContextEGL::CreateTextureFromRawMemory: "
+               << ret->gl_handle();
+  return ret;
 }
 
 scoped_refptr<RenderTarget> GraphicsContextEGL::CreateOffscreenRenderTarget(
@@ -440,6 +446,8 @@ std::unique_ptr<uint8_t[]> GraphicsContextEGL::DownloadPixelDataAsRGBA(
     std::unique_ptr<TextureEGL> texture(
         new TextureEGL(this, pbuffer_render_target));
     DCHECK(texture->GetSize() == render_target->GetSize());
+    LOG(WARNING) << "GraphicsContextEGL::DownloadPixelDataAsRGBA:"
+                 << texture->gl_handle();
 
     // This shouldn't be strictly necessary as glReadPixels() should implicitly
     // call glFinish(), however it doesn't hurt to be safe and guard against

@@ -120,16 +120,18 @@ std::unique_ptr<render_tree::ImageData> ImageDataDecoder::AllocateImageData(
       size, pixel_format(),
       has_alpha ? render_tree::kAlphaFormatPremultiplied
                 : render_tree::kAlphaFormatOpaque);
-  DLOG_IF(ERROR, !image_data) << "Failed to allocate image data ("
-                              << size.width() << "x" << size.height() << ").";
+  LOG_IF(ERROR, !image_data) << "Failed to allocate image data ("
+                             << size.width() << "x" << size.height() << ").";
   return image_data;
 }
 
 scoped_refptr<Image> ImageDataDecoder::CreateStaticImage(
     std::unique_ptr<render_tree::ImageData> image_data) {
   DCHECK(image_data);
-  return new StaticImage(
-      resource_provider()->CreateImage(std::move(image_data)));
+  auto img = resource_provider()->CreateImage(std::move(image_data));
+  auto sz = img->GetEstimatedSizeInBytes();
+  LOG(WARNING) << "Allocated " << sz << " bytes StaticImage";
+  return new StaticImage(std::move(img));
 }
 
 void ImageDataDecoder::CalculatePixelFormat() {
