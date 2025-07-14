@@ -109,7 +109,7 @@ std::unique_ptr<Renderer> StarboardRendererClientFactory::CreateRenderer(
       std::move(overlay_factory), video_renderer_sink,
       std::move(renderer_extension_remote),
       std::move(client_extension_receiver), bind_host_receiver_callback_,
-      gpu_factories, request_overlay_info_cb);
+      gpu_factories, std::move(request_overlay_info_cb));
 }
 
 }  // namespace media

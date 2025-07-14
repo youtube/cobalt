@@ -106,9 +106,6 @@ class MEDIA_EXPORT StarboardRendererClient
   void UpdateStarboardRenderingMode(const StarboardRenderingMode mode) override;
   void RequestOverlayInfo(bool restart_for_transitions) override;
 
-  // mojom::StarboardRendererExtension implementation
-  void OnOverlayInfoChanged(const OverlayInfo& overlay_info);
-
   // cobalt::media::mojom::VideoGeometryChangeClient implementation.
   void OnVideoGeometryChange(const gfx::RectF& rect_f,
                              gfx::OverlayTransform transform) override;
@@ -139,6 +136,7 @@ class MEDIA_EXPORT StarboardRendererClient
   void OnGetCurrentVideoFrameDone(const scoped_refptr<VideoFrame>& frame);
   void StartVideoRendererSink();
   void StopVideoRendererSink();
+  void OnOverlayInfoChanged(const OverlayInfo& overlay_info);
 
   scoped_refptr<base::SequencedTaskRunner> media_task_runner_;
   std::unique_ptr<MediaLog> media_log_;
