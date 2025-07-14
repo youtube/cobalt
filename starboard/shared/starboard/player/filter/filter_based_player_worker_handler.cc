@@ -18,7 +18,9 @@
 #include <mutex>
 #include <utility>
 
+#include "starboard/android/shared/video_decoder.h"
 #include "starboard/audio_sink.h"
+#include "starboard/common/check_op.h"
 #include "starboard/common/log.h"
 #include "starboard/common/murmurhash2.h"
 #include "starboard/common/player.h"
@@ -211,9 +213,44 @@ HandlerResult FilterBasedPlayerWorkerHandler::Seek(int64_t seek_to_time,
   return HandlerResult{true};
 }
 
+constexpr int kMaxActiveDecodedFrames = 4;
+
 HandlerResult FilterBasedPlayerWorkerHandler::WriteSamples(
-    const InputBuffers& input_buffers,
+    const InputBuffers& input_buffers_org,
     int* samples_written) {
+  const int input_buffers_org_size = static_cast<int>(input_buffers_org.size());
+  const int active_decoded_frames =
+      android::shared::VideoDecoder::GetActiveDecodedFrames();
+  if (active_decoded_frames >= kMaxActiveDecodedFrames) {
+    SB_LOG(INFO) << __func__
+                 << " > no more decoded frames: active_decoded_frames="
+                 << active_decoded_frames
+                 << ", kMaxActiveDecodedFrames=" << kMaxActiveDecodedFrames
+                 << ", # input frames=" << input_buffers_org_size;
+    *samples_written = 0;
+    return HandlerResult{true};
+  }
+  const int max_addable_decoded_frames =
+      kMaxActiveDecodedFrames - active_decoded_frames;
+  SB_DCHECK_GT(max_addable_decoded_frames, 0);
+  const int available_decoded_frames =
+      std::min(input_buffers_org_size, max_addable_decoded_frames);
+  if (available_decoded_frames != input_buffers_org_size) {
+    SB_LOG(INFO) << __func__
+                 << "Trimmed input buffer size: input_buffers_org.size()="
+                 << input_buffers_org.size() << ", max_addable_decoded_frames="
+                 << max_addable_decoded_frames
+                 << ", available_decoded_frames=" << available_decoded_frames;
+  }
+
+  const InputBuffers input_buffers(
+      input_buffers_org.begin(),
+      input_buffers_org.begin() + available_decoded_frames);
+  SB_LOG(INFO) << __func__ << " > add frames: " << input_buffers.size()
+               << ", max_addable_decoded_frames=" << max_addable_decoded_frames;
+  SB_DCHECK_LE(input_buffers.size(),
+               static_cast<size_t>(max_addable_decoded_frames));
+
   SB_DCHECK(!input_buffers.empty());
   SB_DCHECK(BelongsToCurrentThread());
   SB_DCHECK(samples_written != NULL);
