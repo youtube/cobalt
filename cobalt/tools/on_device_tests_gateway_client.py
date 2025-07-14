@@ -47,8 +47,8 @@ _DIR_ON_DEV_MAP = {
 
 _DEPS_ARCH_MAP = {
     'android': '/sdcard/chromium_tests_root/deps.tar.gz',
-    'raspi': '/home/pi/test/',
-    'rdk': '/home/rdk/test/',
+    'raspi': '/home/pi/test/deps.tar.gz',
+    'rdk': '/home/rdk/test/deps.tar.gz',
 }
 
 # This is needed because driver expects cobalt.apk, but we publish
