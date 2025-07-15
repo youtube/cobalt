@@ -480,6 +480,7 @@ static_library("c_internal") {
     "src/time/nanosleep.c",
     "src/time/strftime.c",
     "src/time/time.c",
+    "src/unistd/gethostname.c",
     "src/unistd/sleep.c",
     "src/unistd/usleep.c",
   ]

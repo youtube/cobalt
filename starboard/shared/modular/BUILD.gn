@@ -46,6 +46,7 @@ if ((sb_is_modular || sb_is_evergreen_compatible) &&
       "starboard_layer_posix_time_abi_wrappers.h",
       "starboard_layer_posix_uio_abi_wrappers.cc",
       "starboard_layer_posix_uio_abi_wrappers.h",
+      "starboard_layer_posix_uname_abi_wrappers.cc",
       "starboard_layer_posix_unistd_abi_wrappers.cc",
       "starboard_layer_posix_unistd_abi_wrappers.h",
     ]
