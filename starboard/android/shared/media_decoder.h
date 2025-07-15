@@ -118,6 +118,13 @@ class MediaDecoder final
   bool Flush();
 
  private:
+  struct Counter {
+    int input = 0;
+    int output = 0;
+  };
+  Counter decode_counter_;
+  std::vector<int64_t> decode_start_us_{0, 10};
+
   // Holding inputs to be processed.  They are mostly InputBuffer objects, but
   // can also be codec configs or end of streams.
   struct PendingInput {
