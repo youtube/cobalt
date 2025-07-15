@@ -176,11 +176,6 @@ bool GetContentDirectory(char* out_path, int path_size) {
   if (!GetExecutableDirectory(out_path, path_size)) {
     return false;
   }
-#ifdef USE_COMMON_CONTENT_DIR
-  if (!GetParentDirectory(out_path)) {
-    return false;
-  }
-#endif
   return true;
 }
 }  // namespace
