@@ -12,6 +12,13 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+source_set("constants") {
+  sources = [
+    "pref_names.cc",
+    "pref_names.h",
+  ]
+}
+
 source_set("cobalt_experiment_names") {
   sources = [ "cobalt_experiment_names.h" ]
 }

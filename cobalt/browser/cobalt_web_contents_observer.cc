@@ -15,8 +15,11 @@
 #include "cobalt/browser/cobalt_web_contents_observer.h"
 
 #include "base/strings/utf_string_conversions.h"
+#include "cobalt/browser/constants/pref_names.h"
 #include "cobalt/browser/embedded_resources/embedded_js.h"
+#include "cobalt/browser/global_features.h"
 #include "cobalt/browser/migrate_storage_record/migration_manager.h"
+#include "components/prefs/pref_service.h"
 #include "content/public/browser/navigation_handle.h"
 #include "content/public/browser/web_contents.h"
 
@@ -151,8 +154,15 @@ void CobaltWebContentsObserver::OnManifestReceived(
 
   // Get icons
   for (const auto& icon : manifest->icons) {
-    GURL icon_url = icon.src;
-    LOG(INFO) << "YO THOR! ICON URL:" << icon_url;
+    for (const auto& purpose : icon.purpose) {
+      if (purpose == blink::mojom::ManifestImageResource::Purpose::SPLASH) {
+        GURL icon_url = icon.src;
+        LOG(INFO) << "YO THOR! FOUND SPLASH ICON URL:" << icon_url;
+        PrefService* prefs = GlobalFeatures::GetInstance()->local_state();
+        prefs->SetString(prefs::kSplashUrl, icon_url.spec());
+        return;
+      }
+    }
   }
 }
 

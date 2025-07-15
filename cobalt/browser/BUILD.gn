@@ -49,6 +49,7 @@ source_set("browser") {
     ":metrics",
     "//cobalt/browser:switches",
     "//cobalt/browser/client_hint_headers",
+    "//cobalt/browser/constants",
     "//cobalt/browser/constants:cobalt_experiment_names",
     "//cobalt/browser/crash_annotator/public/mojom",
     "//cobalt/browser/h5vcc_accessibility",
@@ -123,6 +124,7 @@ source_set("global_features") {
   deps = [
     ":metrics",
     "//base",
+    "//cobalt/browser/constants",
     "//cobalt/browser/constants:cobalt_experiment_names",
     "//components/metrics",
     "//components/metrics_services_manager",

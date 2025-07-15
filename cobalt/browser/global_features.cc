@@ -18,6 +18,7 @@
 #include "base/no_destructor.h"
 #include "base/path_service.h"
 #include "cobalt/browser/constants/cobalt_experiment_names.h"
+#include "cobalt/browser/constants/pref_names.h"
 #include "cobalt/browser/metrics/cobalt_metrics_services_manager_client.h"
 #include "components/metrics/metrics_pref_names.h"
 #include "components/metrics/metrics_service.h"
@@ -34,8 +35,12 @@ constexpr base::FilePath::CharType kExperimentConfigFilename[] =
 constexpr base::FilePath::CharType kMetricsConfigFilename[] =
     FILE_PATH_LITERAL("Metrics Config");
 
+constexpr base::FilePath::CharType kLocalStateFilename[] =
+    FILE_PATH_LITERAL("Local State");
+
 GlobalFeatures::GlobalFeatures() {
   CreateExperimentConfig();
+  CreateLocalState();
   CreateMetricsServices();
   InitializeActiveExperimentIds();
 }
@@ -73,6 +78,11 @@ PrefService* GlobalFeatures::experiment_config() {
 PrefService* GlobalFeatures::metrics_local_state() {
   DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
   return metrics_local_state_.get();
+}
+
+PrefService* GlobalFeatures::local_state() {
+  DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
+  return local_state_.get();
 }
 
 void GlobalFeatures::set_accessor(
@@ -133,6 +143,23 @@ void GlobalFeatures::CreateMetricsLocalState() {
   metrics_local_state_ = pref_service_factory.Create(std::move(pref_registry));
 }
 
+void GlobalFeatures::CreateLocalState() {
+  DCHECK(!local_state_);
+  auto pref_registry = base::MakeRefCounted<PrefRegistrySimple>();
+
+  RegisterPrefs(pref_registry.get());
+
+  base::FilePath path;
+  CHECK(base::PathService::Get(base::DIR_CACHE, &path));
+  path = path.Append(kLocalStateFilename);
+
+  PrefServiceFactory pref_service_factory;
+  pref_service_factory.set_user_prefs(
+      base::MakeRefCounted<JsonPrefStore>(path));
+
+  local_state_ = pref_service_factory.Create(pref_registry);
+}
+
 void GlobalFeatures::InitializeActiveExperimentIds() {
   DCHECK(experiment_config_);
   const auto& experiments =
@@ -149,6 +176,7 @@ void GlobalFeatures::RegisterPrefs(PrefRegistrySimple* registry) {
   registry->RegisterDictionaryPref(kExperimentConfigFeatures);
   registry->RegisterDictionaryPref(kExperimentConfigFeatureParams);
   registry->RegisterListPref(kExperimentConfigExpIds);
+  registry->RegisterStringPref(prefs::kSplashUrl, "");
   metrics::MetricsService::RegisterPrefs(registry);
 }
 

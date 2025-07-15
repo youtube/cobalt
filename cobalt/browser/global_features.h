@@ -85,6 +85,9 @@ class GlobalFeatures {
   // UMA config/state.
   std::unique_ptr<PrefService> metrics_local_state_;
 
+  // General purpose local state.
+  std::unique_ptr<PrefService> local_state_;
+
   // |metrics_services_manager_| owns this.
   raw_ptr<CobaltMetricsServicesManagerClient, DanglingUntriaged>
       metrics_services_manager_client_;
