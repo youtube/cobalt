@@ -33,8 +33,11 @@
 #if !BUILDFLAG(IS_ANDROIDTV)
 #include "components/crash/core/common/crash_key.h"
 #endif
+#include "cobalt/shell/app/shell_crash_reporter_client.h"
 #include "cobalt/shell/browser/shell_content_browser_client.h"
 #include "cobalt/shell/browser/shell_paths.h"
+#include "cobalt/shell/common/shell_content_client.h"
+#include "cobalt/shell/common/shell_switches.h"
 #include "cobalt/shell/gpu/shell_content_gpu_client.h"
 #include "cobalt/shell/renderer/shell_content_renderer_client.h"
 #include "cobalt/shell/utility/shell_content_utility_client.h"
@@ -46,9 +49,6 @@
 #include "content/public/common/content_switches.h"
 #include "content/public/common/main_function_params.h"
 #include "content/public/common/url_constants.h"
-#include "content/shell/app/shell_crash_reporter_client.h"
-#include "content/shell/common/shell_content_client.h"
-#include "content/shell/common/shell_switches.h"
 #include "ipc/ipc_buildflags.h"
 #include "net/cookies/cookie_monster.h"
 #include "third_party/abseil-cpp/absl/types/variant.h"
@@ -79,7 +79,7 @@
 #endif
 
 #if BUILDFLAG(IS_APPLE)
-#include "content/shell/app/paths_mac.h"
+#include "cobalt/shell/app/paths_mac.h"
 #endif
 
 #if BUILDFLAG(IS_POSIX) && !BUILDFLAG(IS_ANDROID)
@@ -87,7 +87,7 @@
 #endif
 
 #if BUILDFLAG(IS_IOS)
-#include "content/shell/app/ios/shell_application_ios.h"
+#include "cobalt/shell/app/ios/shell_application_ios.h"
 #endif
 
 namespace {

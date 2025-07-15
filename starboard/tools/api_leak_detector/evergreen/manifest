@@ -19,7 +19,6 @@ dlclose
 dlerror
 dlopen
 dlsym
-execvp
 fallocate
 fchmod
 fchown
@@ -32,7 +31,6 @@ fgets
 fileno
 fnmatch
 fopen
-fork
 fprintf
 fputc
 fputs
@@ -48,7 +46,6 @@ fwrite
 gai_strerror
 getc
 getcwd
-gethostname
 getrlimit
 gmtime
 in6addr_any
@@ -93,7 +90,6 @@ setpriority
 setstate
 setvbuf
 sigaction
-statvfs
 stderr
 stdin
 stdout
@@ -107,7 +103,6 @@ timerfd_settime
 tmpfile
 tzname
 tzset
-uname
 ungetc
 uselocale
 utimes

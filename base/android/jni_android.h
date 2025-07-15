@@ -157,8 +157,10 @@ BASE_EXPORT void CheckException(JNIEnv* env);
 BASE_EXPORT std::string GetJavaExceptionInfo(JNIEnv* env,
                                              jthrowable java_throwable);
 
+#if BUILDFLAG(IS_COBALT)
 // Utility method to find the java file name from the java stack trace.
 BASE_EXPORT std::string FindFirstJavaFileAndLine(const std::string& stackTrace);
+#endif
 
 #if BUILDFLAG(CAN_UNWIND_WITH_FRAME_POINTERS)
 
