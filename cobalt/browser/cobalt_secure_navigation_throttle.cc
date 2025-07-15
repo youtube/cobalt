@@ -54,14 +54,9 @@ bool CobaltSecureNavigationThrottle::ShouldEnforceHTTPS(
   }
 #if BUILDFLAG(COBALT_IS_RELEASE_BUILD)
   return true;
-<<<<<<< HEAD
-#endif  // COBALT_IS_OFFICIAL_BUILD
-  return false;
-=======
 #else   // COBALT_IS_RELEASE_BUILD
   return false;
 #endif  // COBALT_IS_RELEASE_BUILD
->>>>>>> 263b8458603 (Fix commandline switches CSP and HTTPS enforcement (#6365))
 }
 
 // Returns a Navigation ThrottleCheckResult based on
@@ -86,14 +81,9 @@ bool CobaltSecureNavigationThrottle::ShouldEnforceCSP(
   }
 #if BUILDFLAG(COBALT_IS_RELEASE_BUILD)
   return true;
-<<<<<<< HEAD
-#endif  // COBALT_IS_OFFICIAL_BUILD
-  return false;
-=======
 #else   // COBALT_IS_RELEASE_BUILD
   return false;
 #endif  // COBALT_IS_RELEASE_BUILD
->>>>>>> 263b8458603 (Fix commandline switches CSP and HTTPS enforcement (#6365))
 }
 
 // Returns a Navigation ThrottleCheckResult based on the
