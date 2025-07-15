@@ -47,6 +47,9 @@ typedef struct SbFeatureParam {
     int int_value;
     double double_value;
     const char* string_value;
+    // |time_value| holds a base::TimeDelta value converted into an int64_t
+    // value in microseconds. The conversion is done through the base function
+    // GetFieldTrialParamByFeatureAsTimeDelta().inMicroseconds();
     int64_t time_value;
   } value;
 } SbFeatureParam;
