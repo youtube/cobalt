@@ -154,10 +154,17 @@ class MEDIA_EXPORT StarboardRenderer : public Renderer,
                              TimeDelta time_ahead_of_playback,
                              bool is_preroll);
 
-  State state_;
+  void OnBufferingStateChange(BufferingState state);
 
-  scoped_refptr<base::SequencedTaskRunner> task_runner_;
-  std::unique_ptr<MediaLog> media_log_;
+  State state_;
+  const scoped_refptr<base::SequencedTaskRunner> task_runner_;
+  const std::unique_ptr<MediaLog> media_log_;
+  const scoped_refptr<SbPlayerSetBoundsHelper> set_bounds_helper_;
+  raw_ptr<CdmContext> cdm_context_;
+  BufferingState buffering_state_;
+  const TimeDelta audio_write_duration_local_;
+  const TimeDelta audio_write_duration_remote_;
+  const std::string max_video_capabilities_;
 
   raw_ptr<DemuxerStream> audio_stream_ = nullptr;
   raw_ptr<DemuxerStream> video_stream_ = nullptr;
@@ -171,17 +178,10 @@ class MEDIA_EXPORT StarboardRenderer : public Renderer,
   // Temporary callback used for Initialize().
   PipelineStatusCallback init_cb_;
 
-  scoped_refptr<SbPlayerSetBoundsHelper> set_bounds_helper_;
-
-  raw_ptr<CdmContext> cdm_context_;
-
   DefaultSbPlayerInterface sbplayer_interface_;
 
   TimeDelta seek_time_;
 
-  const TimeDelta audio_write_duration_local_;
-  const TimeDelta audio_write_duration_remote_;
-  const std::string max_video_capabilities_;
   // The two variables below should always contain the same value.  They are
   // kept as separate variables so we can keep the existing implementation as
   // is, which simplifies the implementation across multiple Starboard versions.
