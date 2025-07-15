@@ -320,6 +320,7 @@ test("cobalt_browsertests") {
     "//build:chromecast_buildflags",
     "//build:chromeos_buildflags",
     "//cc/slim",
+    "//cobalt/shell:content_browsertests_mojom",
     "//cobalt/shell:content_shell_lib",
     "//components/aggregation_service:mojom",
     "//components/attribution_reporting:mojom",
@@ -355,7 +356,6 @@ test("cobalt_browsertests") {
     "//content/public/renderer",
     "//content/renderer:for_content_tests",
     "//content/services/auction_worklet/public/mojom:for_content_tests",
-    "//content/shell:content_browsertests_mojom",
     "//content/shell:pak",
     "//content/test:mojo_web_test_bindings",
 
