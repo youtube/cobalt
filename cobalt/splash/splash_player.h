@@ -15,9 +15,14 @@
 #ifndef COBALT_SPLASH_SPLASH_PLAYER_H_
 #define COBALT_SPLASH_SPLASH_PLAYER_H_
 
+#include <memory>
+
 #include "base/files/file_path.h"
 #include "base/memory/scoped_refptr.h"
 #include "base/task/single_thread_task_runner.h"
+#include "third_party/libvpx/source/libvpx/vpx/vpx_decoder.h"
+#include "third_party/libwebm/source/mkvparser/mkvparser.h"
+#include "ui/gl/gl_bindings.h"
 #include "ui/gl/gl_context.h"
 #include "ui/gl/gl_surface.h"
 
@@ -33,12 +38,34 @@ class SplashPlayer {
   void Stop();
 
  private:
-  void Initialize();
+  void Initialize(const base::FilePath& video_path);
+  void InitializeShaders();
+  void DecodeFrame();
   void RenderFrame();
 
   scoped_refptr<gl::GLSurface> surface_;
   scoped_refptr<gl::GLContext> context_;
   scoped_refptr<base::SingleThreadTaskRunner> task_runner_;
+
+  class BufferReader;
+  std::vector<uint8_t> video_buffer_;
+  BufferReader* reader_ = nullptr;
+  mkvparser::Segment* segment_ = nullptr;
+  const mkvparser::Cluster* cluster_ = nullptr;
+  const mkvparser::Block* block_ = nullptr;
+  const mkvparser::BlockEntry* block_entry_ = nullptr;
+  int64_t block_frame_index_ = 0;
+
+  vpx_codec_ctx_t vpx_codec_;
+  vpx_codec_iter_t vpx_iter_ = nullptr;
+  vpx_image_t* vpx_image_ = nullptr;
+
+  GLuint program_ = 0;
+  GLuint vertex_shader_ = 0;
+  GLuint fragment_shader_ = 0;
+  GLuint y_texture_ = 0;
+  GLuint u_texture_ = 0;
+  GLuint v_texture_ = 0;
 };
 
 }  // namespace splash

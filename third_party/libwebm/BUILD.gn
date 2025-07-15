@@ -14,5 +14,7 @@ static_library("libwebm") {
     "source/mkvmuxer/mkvmuxer.cc",
     "source/mkvmuxer/mkvmuxerutil.cc",
     "source/mkvmuxer/mkvwriter.cc",
+    "source/mkvparser/mkvparser.cc",
+    "source/mkvparser/mkvreader.cc",
   ]
 }
