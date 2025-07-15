@@ -300,6 +300,10 @@ class NavigationBaseBrowserTest : public ContentBrowserTest {
     test_ukm_recorder_ = std::make_unique<ukm::TestAutoSetUkmRecorder>();
   }
 
+  void SetUpCommandLine(base::CommandLine* command_line) {
+    command_line->RemoveSwitch("single-process");
+  }
+
   const ukm::TestAutoSetUkmRecorder& test_ukm_recorder() const {
     return *test_ukm_recorder_;
   }
