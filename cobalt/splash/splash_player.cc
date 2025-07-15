@@ -14,13 +14,17 @@
 
 #include "cobalt/splash/splash_player.h"
 
-#include "base/files/file_util.h"
+#include <sys/stat.h>
+#include <unistd.h>
+#include <utility>
+
 #include "base/functional/bind.h"
 #include "base/logging.h"
+#include "base/synchronization/waitable_event.h"
 #include "base/task/thread_pool.h"
+#include "starboard/android/shared/asset_manager.h"
 #include "third_party/libvpx/source/libvpx/vpx/vp8dx.h"
 #include "ui/gfx/frame_data.h"
-#include "ui/gl/gl_bindings.h"
 #include "ui/gl/gl_implementation.h"
 #include "ui/gl/init/gl_factory.h"
 
@@ -29,6 +33,7 @@ namespace splash {
 
 namespace {
 
+// Shaders for converting YUV textures to RGB.
 const char kVertexShader[] =
     "attribute vec4 a_position;\n"
     "attribute vec2 a_texCoord;\n"
@@ -54,6 +59,7 @@ const char kFragmentShader[] =
     "  gl_FragColor = vec4(r, g, b, 1.0);\n"
     "}\n";
 
+// Helper to compile a shader and handle errors.
 GLuint CompileShader(GLenum type, const char* source) {
   GLuint shader = glCreateShader(type);
   glShaderSource(shader, 1, &source, nullptr);
@@ -78,73 +84,120 @@ GLuint CompileShader(GLenum type, const char* source) {
 
 }  // namespace
 
-class SplashPlayer::BufferReader : public mkvparser::IMkvReader {
+// An IMkvReader implementation that reads from a file descriptor.
+class SplashPlayer::FdReader : public mkvparser::IMkvReader {
  public:
-  explicit BufferReader(const std::vector<uint8_t>& buffer) : buffer_(buffer) {}
+  explicit FdReader(int fd) : fd_(fd) {}
+  ~FdReader() override {
+    starboard::android::shared::AssetManager::GetInstance()->Close(fd_);
+  }
 
   int Read(long long pos, long len, unsigned char* buf) override {
-    if (pos < 0 || len < 0) {
+    if (pread(fd_, buf, len, pos) != len) {
       return -1;
     }
-    if (static_cast<size_t>(pos) >= buffer_.size()) {
-      return -1;
-    }
-    if (static_cast<size_t>(pos) + len > buffer_.size()) {
-      len = buffer_.size() - pos;
-    }
-    memcpy(buf, buffer_.data() + pos, len);
     return 0;
   }
 
   int Length(long long* total, long long* available) override {
-    *total = buffer_.size();
-    *available = buffer_.size();
+    struct stat st;
+    if (fstat(fd_, &st) != 0) {
+      return -1;
+    }
+    *total = st.st_size;
+    *available = st.st_size;
     return 0;
   }
 
  private:
-  const std::vector<uint8_t>& buffer_;
+  int fd_;
 };
 
-SplashPlayer::SplashPlayer() {
-  task_runner_ = base::ThreadPool::CreateSingleThreadTaskRunner(
-      {base::TaskPriority::USER_VISIBLE});
+SplashPlayer::SplashPlayer()
+    : task_runner_(base::ThreadPool::CreateSingleThreadTaskRunner(
+          {base::TaskPriority::USER_VISIBLE, base::MayBlock()})) {
+  memset(&vpx_codec_, 0, sizeof(vpx_codec_));
 }
 
 SplashPlayer::~SplashPlayer() {
   Stop();
 }
 
-void SplashPlayer::Initialize(const base::FilePath& video_path) {
+void SplashPlayer::Initialize(const std::string& asset_name,
+                              base::WaitableEvent* init_event,
+                              bool* success) {
   CHECK(task_runner_->BelongsToCurrentThread());
 
-  gl::SetGLImplementation(gl::kGLImplementationEGLGLES2);
-  surface_ = gl::init::CreateOffscreenGLSurface(nullptr, gfx::Size(1280, 720));
+  display_ = gl::init::InitializeGLOneOff(gl::GpuPreference::kDefault);
+  if (!display_) {
+    LOG(ERROR) << "Failed to initialize GL.";
+    *success = false;
+    init_event->Signal();
+    return;
+  }
+
+  surface_ = gl::init::CreateOffscreenGLSurface(display_, gfx::Size(1280, 720));
+  if (!surface_) {
+    LOG(ERROR) << "Failed to create GL surface.";
+    *success = false;
+    init_event->Signal();
+    return;
+  }
+
   context_ = gl::init::CreateGLContext(nullptr, surface_.get(),
                                        gl::GLContextAttribs());
-  context_->MakeCurrent(surface_.get());
+  if (!context_) {
+    LOG(ERROR) << "Failed to create GL context.";
+    *success = false;
+    init_event->Signal();
+    return;
+  }
+
+  if (!context_->MakeCurrent(surface_.get())) {
+    LOG(ERROR) << "Failed to make GL context current.";
+    *success = false;
+    init_event->Signal();
+    return;
+  }
 
   InitializeShaders();
 
-  std::string video_data;
-  if (!base::ReadFileToString(video_path, &video_data)) {
-    LOG(ERROR) << "Failed to read video file.";
+  int fd = starboard::android::shared::AssetManager::GetInstance()->Open(
+      asset_name.c_str(), 0);
+  if (fd < 0) {
+    LOG(ERROR) << "Failed to open asset: " << asset_name;
+    *success = false;
+    init_event->Signal();
     return;
   }
-  video_buffer_.assign(video_data.begin(), video_data.end());
-  reader_ = new BufferReader(video_buffer_);
+  reader_ = std::make_unique<FdReader>(fd);
 
   long long pos = 0;
   mkvparser::EBMLHeader ebml_header;
-  ebml_header.Parse(reader_, pos);
+  ebml_header.Parse(reader_.get(), pos);
 
-  mkvparser::Segment::CreateInstance(reader_, pos, segment_);
-  segment_->Load();
+  mkvparser::Segment* segment_raw = nullptr;
+  if (mkvparser::Segment::CreateInstance(reader_.get(), pos, segment_raw) !=
+      0) {
+    LOG(ERROR) << "Failed to create mkvparser::Segment.";
+    *success = false;
+    init_event->Signal();
+    return;
+  }
+  segment_.reset(segment_raw);
+  if (segment_->Load() < 0) {
+    LOG(ERROR) << "Failed to load mkvparser::Segment.";
+    *success = false;
+    init_event->Signal();
+    return;
+  }
 
   const mkvparser::Tracks* tracks = segment_->GetTracks();
   const mkvparser::Track* track = tracks->GetTrackByNumber(1);
   if (track == nullptr || track->GetType() != mkvparser::Track::kVideo) {
-    LOG(ERROR) << "Could not find video track.";
+    LOG(ERROR) << "Could not find video track in the WebM file.";
+    *success = false;
+    init_event->Signal();
     return;
   }
 
@@ -152,13 +205,18 @@ void SplashPlayer::Initialize(const base::FilePath& video_path) {
   vpx_codec_iface_t* iface = vpx_codec_vp9_dx();
   if (vpx_codec_dec_init(&vpx_codec_, iface, &cfg, 0)) {
     LOG(ERROR) << "Failed to initialize VP9 decoder.";
+    *success = false;
+    init_event->Signal();
     return;
   }
 
   cluster_ = segment_->GetFirst();
+  *success = true;
+  init_event->Signal();
 }
 
 void SplashPlayer::InitializeShaders() {
+  CHECK(task_runner_->BelongsToCurrentThread());
   vertex_shader_ = CompileShader(GL_VERTEX_SHADER, kVertexShader);
   fragment_shader_ = CompileShader(GL_FRAGMENT_SHADER, kFragmentShader);
   program_ = glCreateProgram();
@@ -172,15 +230,27 @@ void SplashPlayer::InitializeShaders() {
   glGenTextures(1, &v_texture_);
 }
 
-void SplashPlayer::Play(const base::FilePath& video_path) {
-  task_runner_->PostTask(FROM_HERE,
-                         base::BindOnce(&SplashPlayer::Initialize,
-                                        base::Unretained(this), video_path));
-  task_runner_->PostTask(FROM_HERE, base::BindOnce(&SplashPlayer::DecodeFrame,
-                                                   base::Unretained(this)));
+void SplashPlayer::Play(const std::string& asset_name) {
+  base::WaitableEvent init_event;
+  bool success = false;
+
+  task_runner_->PostTask(
+      FROM_HERE,
+      base::BindOnce(&SplashPlayer::Initialize, base::Unretained(this),
+                     asset_name, &init_event, &success));
+  init_event.Wait();
+
+  if (success) {
+    task_runner_->PostTask(FROM_HERE, base::BindOnce(&SplashPlayer::DecodeFrame,
+                                                     base::Unretained(this)));
+  } else {
+    completion_event_.Signal();
+  }
 }
 
 void SplashPlayer::DecodeFrame() {
+  CHECK(task_runner_->BelongsToCurrentThread());
+
   if (!cluster_ || cluster_->EOS()) {
     completion_event_.Signal();
     return;
@@ -204,7 +274,7 @@ void SplashPlayer::DecodeFrame() {
   const mkvparser::Block::Frame& frame = block_->GetFrame(block_frame_index_);
 
   std::vector<uint8_t> frame_buffer(frame.len);
-  frame.Read(reader_, &frame_buffer[0]);
+  frame.Read(reader_.get(), &frame_buffer[0]);
 
   if (vpx_codec_decode(&vpx_codec_, frame_buffer.data(), frame_buffer.size(),
                        nullptr, 0)) {
@@ -287,11 +357,27 @@ void SplashPlayer::RenderFrame() {
 }
 
 void SplashPlayer::Stop() {
+  base::WaitableEvent stop_event;
+  task_runner_->PostTask(FROM_HERE,
+                         base::BindOnce(&SplashPlayer::DestroyOnTaskRunner,
+                                        base::Unretained(this), &stop_event));
+  stop_event.Wait();
+}
+
+void SplashPlayer::DestroyOnTaskRunner(base::WaitableEvent* stop_event) {
+  CHECK(task_runner_->BelongsToCurrentThread());
+
+  if (context_ && !context_->IsCurrent(surface_.get())) {
+    context_->MakeCurrent(surface_.get());
+  }
+
+  reader_.reset();
+
   if (vpx_codec_.name) {
     vpx_codec_destroy(&vpx_codec_);
+    memset(&vpx_codec_, 0, sizeof(vpx_codec_));
   }
-  delete segment_;
-  delete reader_;
+
   if (program_) {
     glDeleteProgram(program_);
   }
@@ -316,6 +402,10 @@ void SplashPlayer::Stop() {
     context_ = nullptr;
   }
   surface_ = nullptr;
+
+  segment_.reset();
+
+  stop_event->Signal();
 }
 
 }  // namespace splash

@@ -12,13 +12,15 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+#include "cobalt/browser/cobalt_browser_main_parts.h"
+
 #include <memory>
 
 #include "base/path_service.h"
-#include "cobalt/browser/cobalt_browser_main_parts.h"
 #include "cobalt/browser/global_features.h"
 #include "cobalt/browser/metrics/cobalt_metrics_service_client.h"
 #include "cobalt/shell/browser/shell_paths.h"
+#include "cobalt/splash/splash_player.h"
 #include "components/metrics/metrics_service.h"
 #include "components/metrics_services_manager/metrics_services_manager.h"
 #include "content/public/browser/browser_thread.h"
@@ -43,7 +45,16 @@ int CobaltBrowserMainParts::PreMainMessageLoopRun() {
   StartMetricsRecording();
   LOG(INFO)
       << "YO THOR _ COBALT BROWSER MAIN PARTS - PRE MAIN MESSAGE LOOP RUN";
-  return ShellBrowserMainParts::PreMainMessageLoopRun();
+  ShellBrowserMainParts::PreMainMessageLoopRun();
+  LOG(INFO) << "YO THOR - START SPLAZZZH";
+
+  splash_player_ = std::make_unique<splash::SplashPlayer>();
+  splash_player_->Play("splash.webm");
+  splash_player_->WaitForCompletion();
+  splash_player_->Stop();
+  splash_player_.reset();
+
+  return 0;
 }
 
 void CobaltBrowserMainParts::SetupMetrics() {

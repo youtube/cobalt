@@ -16,6 +16,8 @@
 #define COBALT_SPLASH_SPLASH_PLAYER_H_
 
 #include <memory>
+#include <string>
+#include <vector>
 
 #include "base/files/file_path.h"
 #include "base/memory/scoped_refptr.h"
@@ -25,6 +27,7 @@
 #include "third_party/libwebm/source/mkvparser/mkvparser.h"
 #include "ui/gl/gl_bindings.h"
 #include "ui/gl/gl_context.h"
+#include "ui/gl/gl_display.h"
 #include "ui/gl/gl_surface.h"
 
 namespace cobalt {
@@ -35,26 +38,29 @@ class SplashPlayer {
   SplashPlayer();
   ~SplashPlayer();
 
-  void Play(const base::FilePath& video_path);
+  void Play(const std::string& asset_name);
   void Stop();
   void WaitForCompletion();
 
  private:
-  class BufferReader;
+  class FdReader;
 
-  void Initialize(const base::FilePath& video_path);
+  void Initialize(const std::string& asset_name,
+                  base::WaitableEvent* init_event,
+                  bool* success);
   void InitializeShaders();
   void DecodeFrame();
   void RenderFrame();
+  void DestroyOnTaskRunner(base::WaitableEvent* stop_event);
 
+  gl::GLDisplay* display_ = nullptr;
   scoped_refptr<gl::GLSurface> surface_;
   scoped_refptr<gl::GLContext> context_;
   scoped_refptr<base::SingleThreadTaskRunner> task_runner_;
   base::WaitableEvent completion_event_;
 
-  std::vector<uint8_t> video_buffer_;
-  BufferReader* reader_ = nullptr;
-  mkvparser::Segment* segment_ = nullptr;
+  std::unique_ptr<FdReader> reader_;
+  std::unique_ptr<mkvparser::Segment> segment_;
   const mkvparser::Cluster* cluster_ = nullptr;
   const mkvparser::Block* block_ = nullptr;
   const mkvparser::BlockEntry* block_entry_ = nullptr;

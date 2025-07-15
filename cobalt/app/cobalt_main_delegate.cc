@@ -106,14 +106,6 @@ absl::variant<int, content::MainFunctionParams> CobaltMainDelegate::RunProcess(
     return std::move(main_function_params);
   }
 
-  base::FilePath video_path;
-  base::PathService::Get(base::DIR_ASSETS, &video_path);
-  video_path = video_path.Append(FILE_PATH_LITERAL("splash.webm"));
-
-  splash_player_ = std::make_unique<splash::SplashPlayer>();
-  splash_player_->Play(video_path);
-  splash_player_->WaitForCompletion();
-
   base::CurrentProcess::GetInstance().SetProcessType(
       base::CurrentProcessType::PROCESS_BROWSER);
   base::trace_event::TraceLog::GetInstance()->SetProcessSortIndex(
@@ -128,9 +120,6 @@ absl::variant<int, content::MainFunctionParams> CobaltMainDelegate::RunProcess(
       main_runner_->Initialize(std::move(main_function_params));
   DCHECK_LT(initialize_exit_code, 0)
       << "BrowserMainRunner::Initialize failed in ShellMainDelegate";
-
-  splash_player_->Stop();
-  splash_player_.reset();
 
   // Return 0 as BrowserMain() should not be called after this, bounce up to
   // the system message loop for ContentShell, and we're already done thanks

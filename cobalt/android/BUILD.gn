@@ -227,6 +227,7 @@ android_library("cobalt_apk_java") {
 
 android_assets("coat_assets") {
   sources = [
+    "//cobalt/splash/splash.webm",
     "apk/app/src/app/assets/not_empty.txt",
     "apk/app/src/app/assets/test/not_empty.txt",
     "apk/app/src/app/assets/web/cobalt_logo_1024.png",

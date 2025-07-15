@@ -17,9 +17,8 @@
 
 #include <memory>
 
-// TODO(b/390021478): Remove this include when CobaltBrowserMainParts stops
-// being a ShellBrowserMainParts.
 #include "cobalt/shell/browser/shell_browser_main_parts.h"
+#include "cobalt/splash/splash_player.h"
 
 class PrefService;
 
@@ -69,6 +68,8 @@ class CobaltBrowserMainParts : public content::ShellBrowserMainParts {
 
   // Starts metrics recording.
   void StartMetricsRecording();
+
+  std::unique_ptr<splash::SplashPlayer> splash_player_;
 };
 
 }  // namespace cobalt

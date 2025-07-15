@@ -21,6 +21,8 @@ source_set("splash") {
   deps = [
     "//base",
     "//gpu/command_buffer/client",
+    "//starboard/android/shared:jni_impl",
+    "//starboard/android/shared:starboard_platform",
     "//third_party/libvpx",
     "//third_party/libwebm",
     "//ui/gl",
