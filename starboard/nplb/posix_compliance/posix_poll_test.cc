@@ -139,7 +139,7 @@ TEST(PosixPollTest, MultipleFds) {
 
   // Write to the first pipe to make it readable.
   char buffer[1] = {'x'};
-  write(pipe1[1], buffer, sizeof(buffer));
+  int write_val = write(pipe1[1], buffer, sizeof(buffer));
 
   // The second pipe should be writable immediately.
   int result = poll(poll_fds, 2, 1000);  // 1 second timeout
