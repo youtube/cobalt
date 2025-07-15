@@ -19,6 +19,7 @@
 
 #include "base/files/file_path.h"
 #include "base/memory/scoped_refptr.h"
+#include "base/synchronization/waitable_event.h"
 #include "base/task/single_thread_task_runner.h"
 #include "third_party/libvpx/source/libvpx/vpx/vpx_decoder.h"
 #include "third_party/libwebm/source/mkvparser/mkvparser.h"
@@ -36,8 +37,11 @@ class SplashPlayer {
 
   void Play(const base::FilePath& video_path);
   void Stop();
+  void WaitForCompletion();
 
  private:
+  class BufferReader;
+
   void Initialize(const base::FilePath& video_path);
   void InitializeShaders();
   void DecodeFrame();
@@ -46,8 +50,8 @@ class SplashPlayer {
   scoped_refptr<gl::GLSurface> surface_;
   scoped_refptr<gl::GLContext> context_;
   scoped_refptr<base::SingleThreadTaskRunner> task_runner_;
+  base::WaitableEvent completion_event_;
 
-  class BufferReader;
   std::vector<uint8_t> video_buffer_;
   BufferReader* reader_ = nullptr;
   mkvparser::Segment* segment_ = nullptr;

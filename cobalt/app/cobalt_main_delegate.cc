@@ -112,6 +112,7 @@ absl::variant<int, content::MainFunctionParams> CobaltMainDelegate::RunProcess(
 
   splash_player_ = std::make_unique<splash::SplashPlayer>();
   splash_player_->Play(video_path);
+  splash_player_->WaitForCompletion();
 
   base::CurrentProcess::GetInstance().SetProcessType(
       base::CurrentProcessType::PROCESS_BROWSER);

@@ -182,6 +182,7 @@ void SplashPlayer::Play(const base::FilePath& video_path) {
 
 void SplashPlayer::DecodeFrame() {
   if (!cluster_ || cluster_->EOS()) {
+    completion_event_.Signal();
     return;
   }
 
@@ -191,6 +192,7 @@ void SplashPlayer::DecodeFrame() {
     if (status < 0) {
       cluster_ = segment_->GetNext(cluster_);
       if (!cluster_ || cluster_->EOS()) {
+        completion_event_.Signal();
         return;
       }
       cluster_->GetFirst(block_entry_);
@@ -223,6 +225,10 @@ void SplashPlayer::DecodeFrame() {
 
   task_runner_->PostTask(FROM_HERE, base::BindOnce(&SplashPlayer::DecodeFrame,
                                                    base::Unretained(this)));
+}
+
+void SplashPlayer::WaitForCompletion() {
+  completion_event_.Wait();
 }
 
 void SplashPlayer::RenderFrame() {
