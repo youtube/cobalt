@@ -25,7 +25,10 @@
 // macro for their own specific use.
 //
 // Doing it this way guarantees that features defined in the Chrobalt side and
-// starboard side share the same initial default values.
+// starboard side share the same names, param types and initial default values.
+
+#include "build/build_config.h"
+#include "starboard/configuration.h"
 
 #ifndef STARBOARD_FEATURE
 #error "STARBOARD_FEATURE has to be defined before including this file"
@@ -68,13 +71,18 @@
 // - `default_state` is the default state to use for the feature, i.e true or
 //    false.
 //
-// Be sure to add this macro in between FEATURE_LIST_START, and
-// FEATURE_LIST_END. An example of what a feature might look like is:
-//
-// STARBOARD_FEATURE(kFeatureFoo, "foo", true)
+// Features should also be guarded with BUILDFLAGS indicating what platform they
+// belong to (IS_ANDROID for example) along with the STARBOARD_VERSION they were
+// introduced in (e.g. 17).
 
 FEATURE_LIST_START
-
+// Be sure to add the feature in between FEATURE_LIST_START and
+// FEATURE_LIST_END. An example of what a feature might look like, with a
+// defined platform and starboard version is:
+//
+// #if BUILDFLAG(IS_ANDROID) && (SB_API_VERSION >= 17)
+//   STARBOARD_FEATURE(kFeatureFoo, "foo", true)
+// #endif // BUILDFLAG(IS_ANDROID) && (SB_API_VERSION >= 17)
 FEATURE_LIST_END
 
 // To add a parameter to Starboard, use the macro:
@@ -107,12 +115,16 @@ FEATURE_LIST_END
 // - `defaultValue` is the default value that the parameter has. If the value
 //    isn't overridden, this value will be used.
 //
-// Be sure to add this macro in between FEATURE_PARAM_LIST_START, and
-// FEATURE_PARAM_LIST_END. An example of what a feature parameter
-// might look like is:
-//
-// STARBOARD_FEATURE_PARAM(int, kFeatureParamBoo, kFeatureFoo, "boo", 10)
+// Parameters should also be guarded with BUILDFLAGS indicating what platform
+// they belong to (IS_ANDROID for example) along with the STARBOARD_VERSION they
+// were introduced in (e.g. 17).
 
 FEATURE_PARAM_LIST_START
-
+// Be sure to add the parameter macro in between FEATURE_PARAM_LIST_START and
+// FEATURE_PARAM_LIST_END. An example of what a feature parameter
+// might look like with a defined platform and starboard version is:
+//
+// #if BUILDFLAG(IS_ANDROID) && (SB_API_VERSION >= 17)
+//   STARBOARD_FEATURE_PARAM(int, kFeatureParamBoo, kFeatureFoo, "boo", 10)
+// #endif // BUILDFLAG(IS_ANDROID) && (SB_API_VERSION >= 17)
 FEATURE_PARAM_LIST_END
