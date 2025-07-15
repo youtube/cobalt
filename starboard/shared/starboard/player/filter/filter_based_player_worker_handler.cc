@@ -82,6 +82,10 @@ FilterBasedPlayerWorkerHandler::FilterBasedPlayerWorkerHandler(
       decode_target_graphics_context_provider_(provider),
       video_stream_info_(creation_param->video_stream_info) {
   update_job_ = std::bind(&FilterBasedPlayerWorkerHandler::Update, this);
+
+  using ::starboard::android::shared::VideoDecoder;
+  SB_LOG(INFO) << __func__;
+  VideoDecoder::ResetCounts();
 }
 
 HandlerResult FilterBasedPlayerWorkerHandler::Init(
@@ -232,9 +236,6 @@ HandlerResult FilterBasedPlayerWorkerHandler::WriteSamples(
       SB_LOG(WARNING) << "Try to write audio sample after EOS is reached";
     } else {
       for (const auto& input_buffer : input_buffers) {
-        if (!audio_renderer_->CanAcceptMoreData()) {
-          return HandlerResult{true};
-        }
         if (input_buffer->drm_info()) {
           if (!SbDrmSystemIsValid(drm_system_)) {
             return HandlerResult{false, "Invalid DRM system."};
@@ -274,6 +275,8 @@ HandlerResult FilterBasedPlayerWorkerHandler::WriteSamples(
           return HandlerResult{true};
         }
         using ::starboard::android::shared::VideoDecoder;
+        SB_LOG(INFO) << "Adding encoded frame: id="
+                     << VideoDecoder::GetEncodedFrameId();
         VideoDecoder::GetEncodedFrameCount()--;
         VideoDecoder::GetFrameInDecoderCount()++;
 

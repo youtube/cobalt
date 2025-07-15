@@ -109,7 +109,8 @@ class VideoDecoder
 
   static int& GetFrameInDecoderCount();
   static int& GetEncodedFrameCount();
-  static int GetFrameSpaceInDecoder();
+  static int GetEncodedFrameId();
+  static void ResetCounts();
 
  private:
   // Attempt to initialize the codec.  Returns whether initialization was

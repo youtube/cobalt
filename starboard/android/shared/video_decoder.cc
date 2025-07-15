@@ -47,6 +47,11 @@ namespace {
 std::atomic<int> g_alive_video_frames_count(0);
 std::atomic<int> g_last_created_id = 0;
 std::atomic<int> g_last_released_id = 0;
+static int g_decoded_frame_id = 0;
+
+static int decoded_frame_count = 0;
+static int encoded_frame_count = 0;
+static int encoded_frame_id = 0;
 
 using ::starboard::shared::starboard::media::MimeType;
 using ::starboard::shared::starboard::player::filter::VideoFrame;
@@ -248,8 +253,9 @@ class VideoFrameImpl : public VideoFrame {
 
  private:
   static int GetId() {
-    static int counter = 1;
-    return counter++;
+    ++g_decoded_frame_id;
+    SB_CHECK_LE(g_decoded_frame_id, encoded_frame_id);
+    return g_decoded_frame_id;
   }
 
   const int id_;
@@ -392,18 +398,29 @@ int VideoDecoder::GetLastReleasedId() {
   return g_last_released_id;
 }
 
+void VideoDecoder::ResetCounts() {
+  SB_LOG(INFO) << __func__ << " > kMaxFramesInDecoder=" << kMaxFramesInDecoder;
+
+  g_alive_video_frames_count = 0;
+  g_last_created_id = 0;
+  g_last_released_id = 0;
+  g_decoded_frame_id = 0;
+
+  decoded_frame_count = 0;
+  encoded_frame_count = 0;
+  encoded_frame_id = 0;
+}
+
 int& VideoDecoder::GetFrameInDecoderCount() {
-  static int frame_count;
-  return frame_count;
+  return decoded_frame_count;
 }
 
 int& VideoDecoder::GetEncodedFrameCount() {
-  static int frame_count;
-  return frame_count;
+  return encoded_frame_count;
 }
 
-int VideoDecoder::GetFrameSpaceInDecoder() {
-  return std::max(kMaxFramesInDecoder - GetFrameInDecoderCount(), 0);
+int VideoDecoder::GetEncodedFrameId() {
+  return ++encoded_frame_id;
 }
 
 VideoDecoder::VideoDecoder(const VideoStreamInfo& video_stream_info,

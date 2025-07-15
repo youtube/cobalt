@@ -190,11 +190,12 @@ bool VideoRendererImpl::CanAcceptMoreData() const {
   SB_DCHECK(BelongsToCurrentThread());
 
   using android::shared::VideoDecoder;
-  int alive_video_frame =
+  int alive_video_frames =
       VideoDecoder::GetLastCreatedId() - VideoDecoder::GetLastReleasedId();
   int pending_encoded_frames = VideoDecoder::GetEncodedFrameCount();
   int pending_frames_decoder = VideoDecoder::GetFrameInDecoderCount();
   SB_CHECK_LE(pending_frames_decoder, VideoDecoder::kMaxFramesInDecoder);
+  SB_CHECK_LE(alive_video_frames, pending_frames_decoder);
 
   /*
   bool can_accept_more_data = number_of_frames_.load() < max_cached_frames;
@@ -213,7 +214,7 @@ bool VideoRendererImpl::CanAcceptMoreData() const {
   SB_LOG(INFO) << __func__ << " > # frames=" << number_of_frames_
                << ", pending_encoded_frames=" << pending_encoded_frames
                << ", pending_frames_in_decoder=" << pending_frames_decoder
-               << ", alive VideoFrameImpl=" << alive_video_frame
+               << ", alive VideoFrameImpl=" << alive_video_frames
                << ", need_more_data=" << (need_more_input_ ? "true" : "false")
                << ", can_accept_more_data="
                << (can_accept_more_data ? "true" : "false");
