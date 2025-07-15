@@ -6190,6 +6190,14 @@ void QuicConnection::set_min_received_before_ack_decimation(size_t new_value) {
       new_value);
 }
 
+#if BUILDFLAG(IS_COBALT)
+void QuicConnection::set_max_retransmittable_packets_before_ack(
+    size_t new_value) {
+  uber_received_packet_manager_.set_max_retransmittable_packets_before_ack(
+      new_value);
+}
+#endif
+
 const QuicAckFrame& QuicConnection::ack_frame() const {
   if (SupportsMultiplePacketNumberSpaces()) {
     return uber_received_packet_manager_.GetAckFrame(

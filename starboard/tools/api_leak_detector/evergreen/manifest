@@ -10,9 +10,6 @@ __res_state
 __sched_cpucount
 _exit
 access
-catclose
-catgets
-catopen
 chmod
 clock_nanosleep
 closelog
@@ -22,8 +19,6 @@ dlclose
 dlerror
 dlopen
 dlsym
-eventfd
-execvp
 fallocate
 fchmod
 fchown
@@ -36,7 +31,6 @@ fgets
 fileno
 fnmatch
 fopen
-fork
 fprintf
 fputc
 fputs
