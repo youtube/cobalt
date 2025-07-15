@@ -18,6 +18,7 @@
 #include <mutex>
 #include <utility>
 
+#include "starboard/android/shared/video_decoder.h"
 #include "starboard/audio_sink.h"
 #include "starboard/common/log.h"
 #include "starboard/common/murmurhash2.h"
@@ -272,6 +273,10 @@ HandlerResult FilterBasedPlayerWorkerHandler::WriteSamples(
         if (!video_renderer_->CanAcceptMoreData()) {
           return HandlerResult{true};
         }
+        using ::starboard::android::shared::VideoDecoder;
+        VideoDecoder::GetEncodedFrameCount()--;
+        VideoDecoder::GetFrameInDecoderCount()++;
+
         if (input_buffer->drm_info()) {
           if (!SbDrmSystemIsValid(drm_system_)) {
             return HandlerResult{false, "Invalid DRM system."};

@@ -194,6 +194,7 @@ bool VideoRendererImpl::CanAcceptMoreData() const {
       VideoDecoder::GetLastCreatedId() - VideoDecoder::GetLastReleasedId();
   int pending_encoded_frames = VideoDecoder::GetEncodedFrameCount();
   int pending_frames_decoder = VideoDecoder::GetFrameInDecoderCount();
+  SB_CHECK_LE(pending_frames_decoder, VideoDecoder::kMaxFramesInDecoder);
 
   /*
   bool can_accept_more_data = number_of_frames_.load() < max_cached_frames;
