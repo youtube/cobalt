@@ -537,7 +537,8 @@ bool MediaDecoder::ProcessOneInputBuffer(
     return false;
   }
 
-  VideoDecoder::GetFrameCount()++;
+  VideoDecoder::GetEncodedFrameCount()--;
+  VideoDecoder::GetFrameInDecoderCount()++;
 
   is_output_restricted_ = false;
   return true;

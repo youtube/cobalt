@@ -186,21 +186,20 @@ void VideoRendererImpl::Seek(int64_t seek_to_time) {
   algorithm_->Seek(seek_to_time);
 }
 
-constexpr int kMaxPendingFrames = 6;
-
 bool VideoRendererImpl::CanAcceptMoreData() const {
   SB_DCHECK(BelongsToCurrentThread());
 
   using android::shared::VideoDecoder;
-  int decoded_frames =
+  int alive_video_frame =
       VideoDecoder::GetLastCreatedId() - VideoDecoder::GetLastReleasedId();
-  int pending_frames = VideoDecoder::GetFrameCount();
-  int32_t max_cached_frames = decoder_->GetMaxNumberOfCachedFrames();
+  int pending_encoded_frames = VideoDecoder::GetEncodedFrameCount();
+  int pending_frames_decoder = VideoDecoder::GetFrameInDecoderCount();
 
   /*
   bool can_accept_more_data = number_of_frames_.load() < max_cached_frames;
   */
-  bool can_accept_more_data = pending_frames < kMaxPendingFrames;
+  bool can_accept_more_data =
+      pending_frames_decoder < VideoDecoder::kMaxFramesInDecoder;
 
   can_accept_more_data = can_accept_more_data &&
                          !end_of_stream_written_.load() &&
@@ -211,10 +210,9 @@ bool VideoRendererImpl::CanAcceptMoreData() const {
   }
 #endif  // SB_PLAYER_FILTER_ENABLE_STATE_CHECK
   SB_LOG(INFO) << __func__ << " > # frames=" << number_of_frames_
-               << ", max cached frames=" << max_cached_frames
-               << ", kMaxPendingFrames=" << kMaxPendingFrames
-               << ", pending_frames=" << pending_frames
-               << ", decoded frames=" << decoded_frames
+               << ", pending_encoded_frames=" << pending_encoded_frames
+               << ", pending_frames_in_decoder=" << pending_frames_decoder
+               << ", alive VideoFrameImpl=" << alive_video_frame
                << ", need_more_data=" << (need_more_input_ ? "true" : "false")
                << ", can_accept_more_data="
                << (can_accept_more_data ? "true" : "false");

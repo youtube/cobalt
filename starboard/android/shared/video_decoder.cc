@@ -221,7 +221,7 @@ class VideoFrameImpl : public VideoFrame {
                                                false);
       --g_alive_video_frames_count;
       g_last_released_id = id_;
-      VideoDecoder::GetFrameCount()--;
+      VideoDecoder::GetFrameInDecoderCount()--;
       if (!is_end_of_stream()) {
         release_callback_();
       }
@@ -237,10 +237,13 @@ class VideoFrameImpl : public VideoFrame {
         dequeue_output_result_.index, release_time_in_nanoseconds);
     --g_alive_video_frames_count;
     g_last_released_id = id_;
-    VideoDecoder::GetFrameCount()--;
+    VideoDecoder::GetFrameInDecoderCount()--;
     release_callback_();
     SB_LOG(INFO) << "Release(in Draw): id=" << id_ << ", elapsed(msec)="
-                 << ((CurrentMonotonicTime() - created_us_) / 1'000);
+                 << ((CurrentMonotonicTime() - created_us_) / 1'000)
+                 << ", elapsed-to-release(msec)="
+                 << ((release_time_in_nanoseconds / 1'000 - created_us_) /
+                     1'000);
   }
 
  private:
@@ -389,9 +392,18 @@ int VideoDecoder::GetLastReleasedId() {
   return g_last_released_id;
 }
 
-int& VideoDecoder::GetFrameCount() {
+int& VideoDecoder::GetFrameInDecoderCount() {
   static int frame_count;
   return frame_count;
+}
+
+int& VideoDecoder::GetEncodedFrameCount() {
+  static int frame_count;
+  return frame_count;
+}
+
+int VideoDecoder::GetFrameSpaceInDecoder() {
+  return std::max(kMaxFramesInDecoder - GetFrameInDecoderCount(), 0);
 }
 
 VideoDecoder::VideoDecoder(const VideoStreamInfo& video_stream_info,

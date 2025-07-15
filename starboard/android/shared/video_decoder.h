@@ -105,7 +105,11 @@ class VideoDecoder
   static int GetLastReleasedId();
   static int GetLastCreatedId();
 
-  static int& GetFrameCount();
+  static const int kMaxFramesInDecoder = 6;
+
+  static int& GetFrameInDecoderCount();
+  static int& GetEncodedFrameCount();
+  static int GetFrameSpaceInDecoder();
 
  private:
   // Attempt to initialize the codec.  Returns whether initialization was

@@ -268,10 +268,10 @@ HandlerResult FilterBasedPlayerWorkerHandler::WriteSamples(
     if (video_renderer_->IsEndOfStreamWritten()) {
       SB_LOG(WARNING) << "Try to write video sample after EOS is reached";
     } else {
-      if (!video_renderer_->CanAcceptMoreData()) {
-        return HandlerResult{true};
-      }
       for (const auto& input_buffer : input_buffers) {
+        if (!video_renderer_->CanAcceptMoreData()) {
+          return HandlerResult{true};
+        }
         if (input_buffer->drm_info()) {
           if (!SbDrmSystemIsValid(drm_system_)) {
             return HandlerResult{false, "Invalid DRM system."};
@@ -293,8 +293,8 @@ HandlerResult FilterBasedPlayerWorkerHandler::WriteSamples(
         }
         DumpInputHash(input_buffer);
         ++*samples_written;
+        video_renderer_->WriteSamples({input_buffer});
       }
-      video_renderer_->WriteSamples(input_buffers);
     }
   }
 
