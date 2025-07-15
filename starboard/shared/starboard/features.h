@@ -44,12 +44,12 @@
 
 #include "starboard/extension/feature_config.h"
 
-#undef TIME
 #undef STARBOARD_FEATURE
 #undef STARBOARD_FEATURE_PARAM
 #undef FEATURE_LIST_START
 #undef FEATURE_LIST_END
 #undef FEATURE_PARAM_LIST_START
 #undef FEATURE_PARAM_LIST_END
+#undef TIME
 
 #endif  // STARBOARD_SHARED_STARBOARD_FEATURES_H_
