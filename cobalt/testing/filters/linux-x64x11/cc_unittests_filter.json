@@ -23,9 +23,6 @@
     "P/OopTextBlobPixelTest.*",
     "P/OopClearPixelTest.*",
     "P/OopYUVToRGBPixelTest.*",
-    "P/OopPathPixelTest.*",
-    "B/LayerTreeHostBlendingPixelTest.*",
-    "*LayerTreeHost*",
-    "All/BackdropFilter*"
+    "P/OopPathPixelTest.*"
   ]
 }
