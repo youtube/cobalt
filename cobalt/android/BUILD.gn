@@ -264,6 +264,7 @@ shared_library("libchrobalt") {
     "//cobalt/browser",
     "//cobalt/gpu",
     "//cobalt/renderer",
+    "//cobalt/splash",
     "//gpu/command_buffer/service",
 
     # TODO: what can be removed in the dependencies?

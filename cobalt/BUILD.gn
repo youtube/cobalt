@@ -110,6 +110,7 @@ source_set("common") {
     "//cobalt/renderer",
     "//cobalt/shell:content_shell_app",
     "//cobalt/shell:content_shell_lib",
+    "//cobalt/splash",
     "//components/memory_system:memory_system",
     "//content/public/app",
     "//content/shell:pak",

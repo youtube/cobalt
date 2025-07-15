@@ -14,12 +14,15 @@
 
 #include "cobalt/app/cobalt_main_delegate.h"
 
+#include "base/base_paths.h"
+#include "base/path_service.h"
 #include "base/process/current_process.h"
 #include "base/threading/hang_watcher.h"
 #include "base/trace_event/trace_log.h"
 #include "cobalt/browser/cobalt_content_browser_client.h"
 #include "cobalt/gpu/cobalt_content_gpu_client.h"
 #include "cobalt/renderer/cobalt_content_renderer_client.h"
+#include "cobalt/splash/splash_player.h"
 #include "components/memory_system/initializer.h"
 #include "components/memory_system/parameters.h"
 #include "content/common/content_constants_internal.h"
@@ -27,6 +30,7 @@
 #include "content/public/browser/render_frame_host.h"
 #include "content/public/common/content_switches.h"
 #include "gpu/command_buffer/service/gpu_switches.h"
+#include "ui/gl/init/gl_factory.h"
 
 namespace cobalt {
 
@@ -102,6 +106,13 @@ absl::variant<int, content::MainFunctionParams> CobaltMainDelegate::RunProcess(
     return std::move(main_function_params);
   }
 
+  base::FilePath video_path;
+  base::PathService::Get(base::DIR_ASSETS, &video_path);
+  video_path = video_path.Append(FILE_PATH_LITERAL("splash.webm"));
+
+  splash_player_ = std::make_unique<splash::SplashPlayer>();
+  splash_player_->Play(video_path);
+
   base::CurrentProcess::GetInstance().SetProcessType(
       base::CurrentProcessType::PROCESS_BROWSER);
   base::trace_event::TraceLog::GetInstance()->SetProcessSortIndex(
@@ -116,6 +127,9 @@ absl::variant<int, content::MainFunctionParams> CobaltMainDelegate::RunProcess(
       main_runner_->Initialize(std::move(main_function_params));
   DCHECK_LT(initialize_exit_code, 0)
       << "BrowserMainRunner::Initialize failed in ShellMainDelegate";
+
+  splash_player_->Stop();
+  splash_player_.reset();
 
   // Return 0 as BrowserMain() should not be called after this, bounce up to
   // the system message loop for ContentShell, and we're already done thanks
