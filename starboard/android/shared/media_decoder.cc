@@ -22,6 +22,7 @@
 #include "starboard/android/shared/jni_utils.h"
 #include "starboard/android/shared/media_common.h"
 #include "starboard/audio_sink.h"
+#include "starboard/common/check_op.h"
 #include "starboard/common/log.h"
 #include "starboard/common/string.h"
 #include "starboard/shared/pthread/thread_create_priority.h"
@@ -502,6 +503,12 @@ bool MediaDecoder::ProcessOneInputBuffer(
     memcpy(address, data, size);
   }
 
+  if (decode_counter_.input < static_cast<int>(decode_start_us_.size())) {
+    decode_start_us_[decode_counter_.input] =
+        static_cast<int64_t>(CurrentMonotonicTime());
+  }
+  decode_counter_.input++;
+
   jint status;
   if (drm_system_ && !drm_system_->IsReady()) {
     // Drm system initialization is asynchronous. If there's a drm system, we
@@ -650,6 +657,14 @@ void MediaDecoder::OnMediaCodecOutputBufferAvailable(
     int size) {
   SB_DCHECK(media_codec_bridge_);
   SB_DCHECK_GE(buffer_index, 0);
+
+  if (decode_counter_.output < static_cast<int>(decode_start_us_.size())) {
+    auto elapsed_us =
+        CurrentMonotonicTime() - decode_start_us_[decode_counter_.output];
+    SB_LOG(INFO) << "Decode time(msec)=" << (elapsed_us / 1'000);
+  }
+  decode_counter_.output++;
+  SB_CHECK_LE(decode_counter_.output, decode_counter_.input);
 
   // TODO(b/291959069): After |decoder_thread_| is destroyed, it may still
   // receive output buffer, discard this invalid output buffer.
