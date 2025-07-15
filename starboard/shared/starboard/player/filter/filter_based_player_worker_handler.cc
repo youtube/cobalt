@@ -18,6 +18,7 @@
 #include <mutex>
 #include <utility>
 
+#include "starboard/android/shared/video_decoder.h"
 #include "starboard/audio_sink.h"
 #include "starboard/common/log.h"
 #include "starboard/common/murmurhash2.h"
@@ -81,6 +82,10 @@ FilterBasedPlayerWorkerHandler::FilterBasedPlayerWorkerHandler(
       decode_target_graphics_context_provider_(provider),
       video_stream_info_(creation_param->video_stream_info) {
   update_job_ = std::bind(&FilterBasedPlayerWorkerHandler::Update, this);
+
+  using ::starboard::android::shared::VideoDecoder;
+  SB_LOG(INFO) << __func__;
+  VideoDecoder::ResetCounts();
 }
 
 HandlerResult FilterBasedPlayerWorkerHandler::Init(
@@ -230,9 +235,6 @@ HandlerResult FilterBasedPlayerWorkerHandler::WriteSamples(
     if (audio_renderer_->IsEndOfStreamWritten()) {
       SB_LOG(WARNING) << "Try to write audio sample after EOS is reached";
     } else {
-      if (!audio_renderer_->CanAcceptMoreData()) {
-        return HandlerResult{true};
-      }
       for (const auto& input_buffer : input_buffers) {
         if (input_buffer->drm_info()) {
           if (!SbDrmSystemIsValid(drm_system_)) {
@@ -268,10 +270,16 @@ HandlerResult FilterBasedPlayerWorkerHandler::WriteSamples(
     if (video_renderer_->IsEndOfStreamWritten()) {
       SB_LOG(WARNING) << "Try to write video sample after EOS is reached";
     } else {
-      if (!video_renderer_->CanAcceptMoreData()) {
-        return HandlerResult{true};
-      }
       for (const auto& input_buffer : input_buffers) {
+        if (!video_renderer_->CanAcceptMoreData()) {
+          return HandlerResult{true};
+        }
+        using ::starboard::android::shared::VideoDecoder;
+        SB_LOG(INFO) << "Adding encoded frame: id="
+                     << VideoDecoder::GetEncodedFrameId();
+        VideoDecoder::GetEncodedFrameCount()--;
+        VideoDecoder::GetFrameInDecoderCount()++;
+
         if (input_buffer->drm_info()) {
           if (!SbDrmSystemIsValid(drm_system_)) {
             return HandlerResult{false, "Invalid DRM system."};
@@ -293,8 +301,8 @@ HandlerResult FilterBasedPlayerWorkerHandler::WriteSamples(
         }
         DumpInputHash(input_buffer);
         ++*samples_written;
+        video_renderer_->WriteSamples({input_buffer});
       }
-      video_renderer_->WriteSamples(input_buffers);
     }
   }
 
