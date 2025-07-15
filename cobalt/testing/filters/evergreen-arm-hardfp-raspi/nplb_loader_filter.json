@@ -1,0 +1,14 @@
+{
+  "failing_tests": [
+    "MaximumPlayerConfigurationExplorerTests*",
+    "MultiplePlayerTest.*",
+    "SbAudioSinkTest.*",
+    "SbMediaSetAudioWriteDurationTests*",
+    "SbMediaCanPlayMimeAndKeySystem.MinimumSupport",
+    "SbMediaCanPlayMimeAndKeySystem.KeySystemWithAttributes",
+    "SbPlayerTest.*",
+    "SbPlayerGetAudioConfigurationTests*",
+    "SbPlayerGetMediaTimeTests*",
+    "SbPlayerWriteSampleTests*"
+  ]
+}
