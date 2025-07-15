@@ -204,7 +204,8 @@ class VideoFrameImpl : public VideoFrame {
         dequeue_output_result_(dequeue_output_result),
         media_codec_bridge_(media_codec_bridge),
         released_(false),
-        release_callback_(release_callback) {
+        release_callback_(release_callback),
+        created_us_(CurrentMonotonicTime()) {
     SB_DCHECK(media_codec_bridge_);
     SB_DCHECK(release_callback_);
     int count = ++g_alive_video_frames_count;
@@ -220,6 +221,7 @@ class VideoFrameImpl : public VideoFrame {
                                                false);
       --g_alive_video_frames_count;
       g_last_released_id = id_;
+      VideoDecoder::GetFrameCount()--;
       if (!is_end_of_stream()) {
         release_callback_();
       }
@@ -235,8 +237,10 @@ class VideoFrameImpl : public VideoFrame {
         dequeue_output_result_.index, release_time_in_nanoseconds);
     --g_alive_video_frames_count;
     g_last_released_id = id_;
+    VideoDecoder::GetFrameCount()--;
     release_callback_();
-    SB_LOG(INFO) << "Release(in Draw): id=" << id_;
+    SB_LOG(INFO) << "Release(in Draw): id=" << id_ << ", elapsed(msec)="
+                 << ((CurrentMonotonicTime() - created_us_) / 1'000);
   }
 
  private:
@@ -250,6 +254,7 @@ class VideoFrameImpl : public VideoFrame {
   MediaCodecBridge* media_codec_bridge_;
   volatile bool released_;
   const VideoFrameReleaseCallback release_callback_;
+  const int64_t created_us_;
 };
 
 const int64_t kInitialPrerollTimeout = 250'000;                  // 250ms
@@ -379,8 +384,14 @@ class VideoDecoder::Sink : public VideoDecoder::VideoRendererSink {
 int VideoDecoder::GetLastCreatedId() {
   return g_last_created_id;
 }
+
 int VideoDecoder::GetLastReleasedId() {
   return g_last_released_id;
+}
+
+int& VideoDecoder::GetFrameCount() {
+  static int frame_count;
+  return frame_count;
 }
 
 VideoDecoder::VideoDecoder(const VideoStreamInfo& video_stream_info,

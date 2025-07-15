@@ -21,6 +21,7 @@
 #include <mutex>
 #include <utility>
 
+#include "starboard/android/shared/video_decoder.h"
 #include "starboard/common/time.h"
 
 namespace starboard::shared::starboard::player::filter {
@@ -185,17 +186,38 @@ void VideoRendererImpl::Seek(int64_t seek_to_time) {
   algorithm_->Seek(seek_to_time);
 }
 
+constexpr int kMaxPendingFrames = 6;
+
 bool VideoRendererImpl::CanAcceptMoreData() const {
   SB_DCHECK(BelongsToCurrentThread());
-  bool can_accept_more_data =
-      number_of_frames_.load() <
-          static_cast<int32_t>(decoder_->GetMaxNumberOfCachedFrames()) &&
-      !end_of_stream_written_.load() && need_more_input_.load();
+
+  using android::shared::VideoDecoder;
+  int decoded_frames =
+      VideoDecoder::GetLastCreatedId() - VideoDecoder::GetLastReleasedId();
+  int pending_frames = VideoDecoder::GetFrameCount();
+  int32_t max_cached_frames = decoder_->GetMaxNumberOfCachedFrames();
+
+  /*
+  bool can_accept_more_data = number_of_frames_.load() < max_cached_frames;
+  */
+  bool can_accept_more_data = pending_frames < kMaxPendingFrames;
+
+  can_accept_more_data = can_accept_more_data &&
+                         !end_of_stream_written_.load() &&
+                         need_more_input_.load();
 #if SB_PLAYER_FILTER_ENABLE_STATE_CHECK
   if (can_accept_more_data) {
     last_can_accept_more_data = CurrentMonotonicTime();
   }
 #endif  // SB_PLAYER_FILTER_ENABLE_STATE_CHECK
+  SB_LOG(INFO) << __func__ << " > # frames=" << number_of_frames_
+               << ", max cached frames=" << max_cached_frames
+               << ", kMaxPendingFrames=" << kMaxPendingFrames
+               << ", pending_frames=" << pending_frames
+               << ", decoded frames=" << decoded_frames
+               << ", need_more_data=" << (need_more_input_ ? "true" : "false")
+               << ", can_accept_more_data="
+               << (can_accept_more_data ? "true" : "false");
   return can_accept_more_data;
 }
 

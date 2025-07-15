@@ -105,6 +105,8 @@ class VideoDecoder
   static int GetLastReleasedId();
   static int GetLastCreatedId();
 
+  static int& GetFrameCount();
+
  private:
   // Attempt to initialize the codec.  Returns whether initialization was
   // successful.
