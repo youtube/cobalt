@@ -47,9 +47,9 @@ shared_library("libcobalt_native_test") {
   deps = [
     "//base",
     "//base:base_javatests_lib",
+    "//cobalt/shell:content_shell_app",
+    "//cobalt/shell:content_shell_lib",
     "//content/public/test/android:content_native_test_support",
-    "//content/shell:content_shell_app",
-    "//content/shell:content_shell_lib",
   ]
 
   sources = [ "shell_test_library_loader.cc" ]
@@ -60,16 +60,18 @@ shared_library("libcobalt_native_test") {
 android_resources("content_shell_java_resources") {
   testonly = true
   sources = [
-    "//content/java/res/drawable/ic_refresh.png",
-    "//content/java/res/drawable/progress.xml",
-    "//content/java/res/layout/shell_view.xml",
-    "//content/java/res/mipmap-hdpi/app_icon.png",
-    "//content/java/res/mipmap-mdpi/app_icon.png",
-    "//content/java/res/mipmap-xhdpi/app_icon.png",
-    "//content/java/res/mipmap-xxhdpi/app_icon.png",
-    "//content/java/res/mipmap-xxxhdpi/app_icon.png",
-    "//content/java/res/values/strings.xml",
+    "//content/shell/android/java/res/drawable/ic_refresh.png",
+    "//content/shell/android/java/res/drawable/progress.xml",
+    "//content/shell/android/java/res/layout/shell_view.xml",
+    "//content/shell/android/java/res/mipmap-hdpi/app_icon.png",
+    "//content/shell/android/java/res/mipmap-mdpi/app_icon.png",
+    "//content/shell/android/java/res/mipmap-xhdpi/app_icon.png",
+    "//content/shell/android/java/res/mipmap-xxhdpi/app_icon.png",
+    "//content/shell/android/java/res/mipmap-xxxhdpi/app_icon.png",
+    "//content/shell/android/java/res/values/strings.xml",
   ]
+
+  deps = [ "//cobalt/android:cobalt_java_resources" ]
 }
 
 android_library("content_shell_java") {
@@ -107,15 +109,21 @@ jinja_template("content_shell_manifest") {
   testonly = true
   input = "//cobalt/android/apk/app/src/app/AndroidManifest.xml.jinja2"
   output = content_shell_manifest
-  variables = [ "manifest_package=org.chromium.content_shell_apk" ]
+  variables = [
+    "manifest_package=dev.cobalt.app",
+    "build_type=$build_type",
+  ]
 }
 
 jinja_template("content_shell_test_manifest") {
   testonly = true
-  input = "//content/shell/javatests/AndroidManifest.xml"
+  input = "javatests/AndroidManifest.xml"
   includes = [ "//cobalt/android/apk/app/src/app/AndroidManifest.xml.jinja2" ]
   output = content_shell_test_manifest
-  variables = [ "manifest_package=org.chromium.content_shell_apk.tests" ]
+  variables = [
+    "manifest_package=dev.cobalt.app",
+    "build_type=$build_type",
+  ]
 }
 
 android_resources("content_shell_apk_resources") {
@@ -266,5 +274,5 @@ android_library("content_shell_browsertests_java") {
     "//third_party/androidx:androidx_core_core_java",
     "//ui/android:ui_java",
   ]
-  sources = [ "browsertests/src/org/chromium/content_shell/browsertests/ContentShellBrowserTestActivity.java" ]
+  sources = [ "//cobalt/shell/android/browsertests/src/org/chromium/content_shell/browsertests/ContentShellBrowserTestActivity.java" ]
 }
