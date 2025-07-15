@@ -118,7 +118,6 @@ component("media") {
 
   if (is_cobalt && use_starboard_media) {
     deps += [
-      "//media/mojo/clients:clients",
       "//starboard:starboard_group",
     ]
   }

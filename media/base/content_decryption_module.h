@@ -18,6 +18,10 @@
 #include "media/base/media_export.h"
 #include "url/gurl.h"
 
+#if BUILDFLAG(USE_STARBOARD_MEDIA)
+#include "base/functional/callback.h"
+#endif // BUILDFLAG(USE_STARBOARD_MEDIA)
+
 namespace base {
 class Time;
 }
@@ -179,6 +183,10 @@ class MEDIA_EXPORT ContentDecryptionModule
   // immediately. Override this method if |this| needs to be deleted on a
   // specific thread.
   virtual void DeleteOnCorrectThread() const;
+
+#if BUILDFLAG(USE_STARBOARD_MEDIA)
+  virtual void GetMetrics(base::OnceCallback<void(const std::string&)> callback) {}
+#endif // BUILDFLAG(USE_STARBOARD_MEDIA)
 
  protected:
   friend class base::RefCountedThreadSafe<ContentDecryptionModule,

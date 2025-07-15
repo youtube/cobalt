@@ -242,9 +242,9 @@ void MojoCdmService::OnDecryptorConnectionError() {
 }
 
 #if BUILDFLAG(USE_STARBOARD_MEDIA)
+// TODO(b/432075710) move these into a Starboard CDM extension.
 void MojoCdmService::GetStarboardDrmSystemHandle(
     GetStarboardDrmSystemHandleCallback callback) {
-  DVLOG(1) << __func__;
 
   auto* starboard_cdm = static_cast<media::StarboardCdm*>(cdm_.get());
   if (!starboard_cdm) {
@@ -272,8 +272,6 @@ void MojoCdmService::DeleteStarboardDrmSystemHandle(
 
 void MojoCdmService::GetMetrics(const base::UnguessableToken& drm_system_handle,
                                 GetMetricsCallback callback) {
-  DVLOG(1) << __func__;
-
   absl::optional<SbDrmSystem> drm_system =
       StarboardDrmSystemManager::GetInstance()->GetDrmSystem(drm_system_handle);
 
