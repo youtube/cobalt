@@ -301,4 +301,19 @@ suite('NewTabFooterAppTest', () => {
       });
     });
   });
+
+  suite('Misc', () => {
+    test(`right click opens context menu`, async () => {
+      await initializeElement();
+      const container = $$(element, '#container');
+      assertTrue(!!container);
+
+      container.dispatchEvent(new MouseEvent('contextmenu'));
+
+      await handler.whenCalled('showContextMenu');
+      assertEquals(
+          1,
+          metrics.count('NewTabPage.Footer.Click', FooterElement.CONTEXT_MENU));
+    });
+  });
 });

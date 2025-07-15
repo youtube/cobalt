@@ -8,12 +8,15 @@
 
 #include "base/strings/string_util.h"
 #include "base/test/gmock_move_support.h"
+#include "base/test/metrics/histogram_tester.h"
 #include "base/test/mock_callback.h"
 #include "chrome/browser/extensions/chrome_test_extension_loader.h"
 #include "chrome/browser/extensions/extension_service_test_base.h"
 #include "chrome/browser/extensions/extension_web_ui.h"
+#include "chrome/browser/ui/webui/new_tab_footer/footer_context_menu.h"
 #include "chrome/browser/ui/webui/new_tab_footer/mock_new_tab_footer_document.h"
 #include "chrome/browser/ui/webui/new_tab_footer/new_tab_footer.mojom.h"
+#include "chrome/browser/ui/webui/top_chrome/top_chrome_web_ui_controller.h"
 #include "chrome/common/pref_names.h"
 #include "chrome/common/webui_url_constants.h"
 #include "content/public/test/test_web_ui.h"
@@ -45,6 +48,32 @@ namespace {
 const char kExtensionNtpName[] = "Extension-overridden NTP";
 }
 
+class TestEmbedder final : public TopChromeWebUIController::Embedder {
+ public:
+  TestEmbedder() = default;
+  ~TestEmbedder() = default;
+
+  void ShowUI() override {}
+  void CloseUI() override {}
+  void HideContextMenu() override {}
+
+  void ShowContextMenu(gfx::Point point,
+                       std::unique_ptr<ui::MenuModel> menu_model) override {
+    context_menu_shown_ = true;
+  }
+
+  bool context_menu_shown() const { return context_menu_shown_; }
+
+  base::WeakPtr<TestEmbedder> GetWeakPtr() {
+    return weak_factory_.GetWeakPtr();
+  }
+
+ private:
+  bool context_menu_shown_;
+
+  base::WeakPtrFactory<TestEmbedder> weak_factory_{this};
+};
+
 class NewTabFooterHandlerExtensionTest
     : public extensions::ExtensionServiceTestBase {
  public:
@@ -52,11 +81,13 @@ class NewTabFooterHandlerExtensionTest
     ExtensionServiceTestBase::SetUp();
 
     InitializeEmptyExtensionService();
+    embedder_ = std::make_unique<TestEmbedder>();
     web_contents_ = content::WebContents::Create(
         content::WebContents::CreateParams(profile()));
     handler_ = std::make_unique<NewTabFooterHandler>(
         mojo::PendingReceiver<new_tab_footer::mojom::NewTabFooterHandler>(),
-        document_.BindAndGetRemote(), web_contents_.get());
+        document_.BindAndGetRemote(), embedder_->GetWeakPtr(),
+        web_contents_.get());
     testing::Mock::VerifyAndClearExpectations(&document_);
   }
 
@@ -87,10 +118,12 @@ class NewTabFooterHandlerExtensionTest
         extension_id, extensions::UnloadedExtensionReason::DISABLE);
   }
 
+  TestEmbedder& embedder() { return *embedder_; }
   NewTabFooterHandler& handler() { return *handler_; }
 
  protected:
   std::unique_ptr<content::WebContents> web_contents_;
+  std::unique_ptr<TestEmbedder> embedder_;
   std::unique_ptr<NewTabFooterHandler> handler_;
   testing::NiceMock<MockNewTabFooterDocument> document_;
 };
@@ -212,6 +245,26 @@ TEST_F(NewTabFooterHandlerExtensionTest, SetNtpExtensionName_ReenablePolicy) {
   testing::Mock::VerifyAndClearExpectations(&document_);
 }
 
+TEST_F(NewTabFooterHandlerExtensionTest, ContextMenu_Shows) {
+  handler().ShowContextMenu(gfx::Point());
+  EXPECT_TRUE(embedder().context_menu_shown());
+}
+
+TEST_F(NewTabFooterHandlerExtensionTest, ContextMenu_HidesFooter) {
+  base::HistogramTester histogram_tester;
+  const std::string& hide_footer = "NewTabPage.Footer.ContextMenuClicked";
+  ASSERT_TRUE(profile()->GetPrefs()->GetBoolean(prefs::kNtpFooterVisible));
+  histogram_tester.ExpectTotalCount(hide_footer, 0);
+
+  FooterContextMenu menu(profile());
+  menu.ExecuteCommand(0 /* COMMAND_CLOSE_FOOTER */, /*event_flags=*/0);
+
+  EXPECT_FALSE(profile()->GetPrefs()->GetBoolean(prefs::kNtpFooterVisible));
+  histogram_tester.ExpectTotalCount(hide_footer, 1);
+  histogram_tester.ExpectBucketCount(
+      hide_footer, new_tab_footer::FooterContextMenuItem::kHideFooter, 1);
+}
+
 #if BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_MAC) || BUILDFLAG(IS_WIN)
 class NewTabFooterHandlerEnterpriseTest : public testing::Test {
  public:
@@ -226,7 +279,9 @@ class NewTabFooterHandlerEnterpriseTest : public testing::Test {
         features::kEnterpriseBadgingForNtpFooter);
     handler_ = std::make_unique<NewTabFooterHandler>(
         mojo::PendingReceiver<new_tab_footer::mojom::NewTabFooterHandler>(),
-        document_.BindAndGetRemote(), web_contents_.get());
+        document_.BindAndGetRemote(),
+        base::WeakPtr<TopChromeWebUIController::Embedder>(),
+        web_contents_.get());
     testing::Mock::VerifyAndClearExpectations(&document_);
   }
 
