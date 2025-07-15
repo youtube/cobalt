@@ -44,7 +44,7 @@ class NET_EXPORT Socket {
 
 #if BUILDFLAG(IS_COBALT)
   struct ReadPacketResult {
-    raw_ptr<char> buffer;
+    RAW_PTR_EXCLUSION char* buffer;
     int result;
   };
   struct ReadPacketResults {
@@ -60,7 +60,7 @@ class NET_EXPORT Socket {
     scoped_refptr<IOBufferWithSize> buffer;
     int result = 0;
     int packet_buffer_size = 0;
-    raw_ptr<ReadPacketResult> packets = nullptr;
+    RAW_PTR_EXCLUSION ReadPacketResult* packets = nullptr;
   };
   virtual int ReadMultiplePackets(ReadPacketResults* results,
                                   int read_buffer_size,
