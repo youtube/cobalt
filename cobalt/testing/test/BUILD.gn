@@ -232,7 +232,7 @@ if (is_android) {
 
   jinja_template("content_browsertests_manifest") {
     testonly = true
-    input = "//cobalt/shell/android/browsertests_apk/AndroidManifest.xml.jinja2"
+    input = "//cobalt/testing/test/browsertests_apk/AndroidManifest.xml.jinja2"
     output = content_browsertests_manifest
   }
 
@@ -246,8 +246,8 @@ if (is_android) {
     resources_package = "org.chromium.content_browsertests_apk"
     sources = [
       "//content/public/android/javatests/src/org/chromium/content/browser/fakes/TestViewAndroidDelegate.java",
-      "//content/shell/android/browsertests_apk/src/org/chromium/content_browsertests_apk/ContentBrowserTestsActivity.java",
-      "//content/shell/android/browsertests_apk/src/org/chromium/content_browsertests_apk/ContentBrowserTestsApplication.java",
+      "browsertests_apk/src/org/chromium/content_browsertests_apk/ContentBrowserTestsActivity.java",
+      "browsertests_apk/src/org/chromium/content_browsertests_apk/ContentBrowserTestsApplication.java",
     ]
     deps = [
       ":content_browsertests_manifest",
@@ -269,8 +269,8 @@ if (is_android) {
   android_resources("content_browsertests_resources") {
     testonly = true
     sources = [
-      "//cobalt/shell/android/browsertests_apk/res/layout/test_activity.xml",
-      "//cobalt/shell/android/browsertests_apk/res/xml/file_paths.xml",
+      "browsertests_apk/res/layout/test_activity.xml",
+      "browsertests_apk/res/xml/file_paths.xml",
     ]
   }
 }
@@ -294,6 +294,10 @@ test("cobalt_browsertests") {
     "content_main_runner_impl_browsertest.cc",
     "navigation_browsertest.cc",
   ]
+
+  if (is_android) {
+    sources += [ "browsertests_apk/content_browser_tests_jni_onload.cc" ]
+  }
 
   if (is_linux) {
     sources += [ "//content/browser/network/address_map_linux_browsertest.cc" ]
@@ -450,6 +454,26 @@ test("cobalt_browsertests") {
 
   if (enable_plugins) {
     sources += [ "//content/browser/plugin_service_impl_browsertest.cc" ]
+  }
+
+  if (is_android) {
+    deps += [
+      ":content_browsertests_java",
+      ":content_browsertests_jni_headers",
+      "//cobalt/shell:content_shell_app",
+      "//cobalt/shell/android:content_shell_java_resources",
+      "//content/shell/android:content_shell_assets",
+      "//content/shell/android:content_shell_jni_headers",
+      "//content/test:android_test_message_pump_support",
+      "//services/data_decoder/public/cpp/android:safe_json_java",
+      "//testing/android/native_test:native_test_support",
+      "//ui/android:android",
+      "//ui/touch_selection:touch_selection",
+    ]
+    android_manifest =
+        "${target_gen_dir}/content_browsertests_manifest/AndroidManifest.xml"
+    android_manifest_dep = ":content_browsertests_manifest"
+    use_default_launcher = false
   }
 
   if (is_linux || is_chromeos) {
