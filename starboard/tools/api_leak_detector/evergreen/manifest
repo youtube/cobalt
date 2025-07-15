@@ -90,7 +90,6 @@ setpriority
 setstate
 setvbuf
 sigaction
-statvfs
 stderr
 stdin
 stdout

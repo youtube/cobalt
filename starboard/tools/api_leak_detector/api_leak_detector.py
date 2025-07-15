@@ -228,6 +228,7 @@ _ALLOWED_SB_GE_16_POSIX_SYMBOLS = [
     'socketpair',
     'srand',
     'stat',
+    'statvfs',
     'strcasecmp',
     'strncasecmp',
     'time',
