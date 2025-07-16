@@ -17,6 +17,7 @@ import("//build/config/ui.gni")
 import("//mojo/public/tools/bindings/mojom.gni")
 import("//starboard/build/buildflags.gni")
 import("//tools/grit/grit_rule.gni")
+import("//tools/grit/repack.gni")
 
 # TODO(crbug.com/1336055, spang): Investigate using shell_views with cast builds as
 # true.
@@ -33,6 +34,15 @@ config("content_shell_lib_warnings") {
   }
 }
 
+source_set("android_shell_descriptors") {
+  testonly = true
+  sources = []
+  public_deps = [ "//content/public/common:content_descriptors" ]
+  if (is_android) {
+    sources += [ "android/shell_descriptors.h" ]
+  }
+}
+
 # TODO(b/384748332): Remove dependency on content shell
 group("content_shell_lib_deps") {
   visibility = [
@@ -41,7 +51,7 @@ group("content_shell_lib_deps") {
   ]
   testonly = true
   public_deps = [
-    "//content/shell:android_shell_descriptors",
+    ":android_shell_descriptors",
 
     # content_shell_lib also exposes all public content APIs.
     ":content_browsertests_mojom",
@@ -132,8 +142,8 @@ group("content_shell_lib_deps") {
 
   if (is_android) {
     public_deps += [
+      "//cobalt/shell/android:content_shell_jni_headers",
       "//components/embedder_support/android:view",
-      "//content/shell/android:content_shell_jni_headers",
       "//ui/android",
     ]
   }
@@ -354,6 +364,74 @@ group("content_shell_app_deps") {
       "//content/web_test:web_test_renderer",
     ]
   }
+}
+
+repack("pak") {
+  testonly = true
+
+  sources = [
+    "$root_gen_dir/base/tracing/protos/tracing_proto_resources.pak",
+    "$root_gen_dir/cobalt/shell/cobalt_shell_resources.pak",
+    "$root_gen_dir/content/aggregation_service_internals_resources.pak",
+    "$root_gen_dir/content/attribution_internals_resources.pak",
+    "$root_gen_dir/content/browser/resources/media/media_internals_resources.pak",
+    "$root_gen_dir/content/browser/webrtc/resources/webrtc_internals_resources.pak",
+    "$root_gen_dir/content/content_resources.pak",
+    "$root_gen_dir/content/dev_ui_content_resources.pak",
+    "$root_gen_dir/content/gpu_resources.pak",
+    "$root_gen_dir/content/histograms_resources.pak",
+    "$root_gen_dir/content/quota_internals_resources.pak",
+    "$root_gen_dir/content/test/web_ui_mojo_test_resources.pak",
+    "$root_gen_dir/mojo/public/js/mojo_bindings_resources.pak",
+    "$root_gen_dir/net/net_resources.pak",
+    "$root_gen_dir/third_party/blink/public/resources/blink_resources.pak",
+    "$root_gen_dir/third_party/blink/public/resources/blink_scaled_resources_100_percent.pak",
+    "$root_gen_dir/third_party/blink/public/resources/inspector_overlay_resources.pak",
+    "$root_gen_dir/third_party/blink/public/strings/blink_accessibility_strings_en-US.pak",
+    "$root_gen_dir/third_party/blink/public/strings/blink_strings_en-US.pak",
+    "$root_gen_dir/ui/resources/ui_resources_100_percent.pak",
+    "$root_gen_dir/ui/resources/webui_resources.pak",
+    "$root_gen_dir/ui/strings/app_locale_settings_en-US.pak",
+    "$root_gen_dir/ui/strings/ax_strings_en-US.pak",
+    "$root_gen_dir/ui/strings/ui_strings_en-US.pak",
+  ]
+
+  deps = [
+    ":resources",
+    "//base/tracing/protos:chrome_track_event_resources",
+    "//content:content_resources",
+    "//content:dev_ui_content_resources",
+    "//content/browser/resources:resources",
+    "//content/browser/resources/media:resources",
+    "//content/browser/webrtc/resources",
+    "//content/test:web_ui_mojo_test_resources",
+    "//mojo/public/js:resources",
+    "//net:net_resources",
+    "//third_party/blink/public:devtools_inspector_resources",
+    "//third_party/blink/public:resources",
+    "//third_party/blink/public:scaled_resources_100_percent",
+    "//third_party/blink/public/strings",
+    "//third_party/blink/public/strings:accessibility_strings",
+    "//ui/resources",
+    "//ui/strings",
+  ]
+
+  if (!is_android) {
+    deps += [ "//content/browser/tracing:resources" ]
+    sources += [ "$root_gen_dir/content/browser/tracing/tracing_resources.pak" ]
+  }
+
+  if (shell_use_toolkit_views) {
+    deps += [ "//ui/views/resources" ]
+    sources +=
+        [ "$root_gen_dir/ui/views/resources/views_resources_100_percent.pak" ]
+  }
+  if (!is_android && !is_fuchsia && !is_ios) {
+    sources +=
+        [ "$root_gen_dir/content/browser/devtools/devtools_resources.pak" ]
+    deps += [ "//content/browser/devtools:devtools_resources" ]
+  }
+  output = "$root_out_dir/cobalt_shell.pak"
 }
 
 grit("content_shell_resources_grit") {

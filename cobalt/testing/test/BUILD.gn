@@ -299,10 +299,6 @@ test("cobalt_browsertests") {
     sources += [ "browsertests_apk/content_browser_tests_jni_onload.cc" ]
   }
 
-  if (is_linux) {
-    sources += [ "//content/browser/network/address_map_linux_browsertest.cc" ]
-  }
-
   defines = [ "HAS_OUT_OF_PROC_TEST_RUNNER" ]
 
   configs += [ "//build/config:precompiled_headers" ]
@@ -322,6 +318,7 @@ test("cobalt_browsertests") {
     "//cc/slim",
     "//cobalt/shell:content_browsertests_mojom",
     "//cobalt/shell:content_shell_lib",
+    "//cobalt/shell:pak",
     "//components/aggregation_service:mojom",
     "//components/attribution_reporting:mojom",
     "//components/discardable_memory/client",
@@ -356,7 +353,6 @@ test("cobalt_browsertests") {
     "//content/public/renderer",
     "//content/renderer:for_content_tests",
     "//content/services/auction_worklet/public/mojom:for_content_tests",
-    "//content/shell:pak",
     "//content/test:mojo_web_test_bindings",
 
     # This may need to be modified for cobalt-specific testing
@@ -447,23 +443,19 @@ test("cobalt_browsertests") {
   ]
 
   data_deps = [
-    "//content/shell:pak",
+    "//cobalt/shell:pak",
     "//testing/buildbot/filters:content_browsertests_filters",
     "//third_party/mesa_headers",
   ]
-
-  if (enable_plugins) {
-    sources += [ "//content/browser/plugin_service_impl_browsertest.cc" ]
-  }
 
   if (is_android) {
     deps += [
       ":content_browsertests_java",
       ":content_browsertests_jni_headers",
       "//cobalt/shell:content_shell_app",
+      "//cobalt/shell/android:content_shell_assets",
       "//cobalt/shell/android:content_shell_java_resources",
-      "//content/shell/android:content_shell_assets",
-      "//content/shell/android:content_shell_jni_headers",
+      "//cobalt/shell/android:content_shell_jni_headers",
       "//content/test:android_test_message_pump_support",
       "//services/data_decoder/public/cpp/android:safe_json_java",
       "//testing/android/native_test:native_test_support",
@@ -488,58 +480,11 @@ test("cobalt_browsertests") {
     deps += [ "//services/tracing:test_utils" ]
   }
 
-  # HID support is not available without udev.
-  is_linux_without_udev = (is_linux || is_chromeos) && !use_udev
-  if (!is_linux_without_udev && !is_android) {
-    sources += [
-      "//content/browser/hid/hid_browsertest.cc",
-      "//content/browser/webauth/webauth_browsertest.cc",
-    ]
-    deps += [
-      "//components/cbor",
-      "//device/base",
-      "//device/fido:fido",
-      "//device/fido:mocks",
-      "//device/fido:test_support",
-    ]
-  }
-
-  if (is_ios) {
-    sources += [
-      "//content/browser/keyboard_lock_browsertest_ios.mm",
-      "//content/browser/pointer_lock_browsertest_ios.mm",
-    ]
-    bundle_deps = [ ":content_shell_pak_bundle_data" ]
-  }
-
-  if (is_chromeos_ash) {
-    deps += [
-      "//chromeos/ash/components/audio",
-      "//chromeos/ash/components/dbus/audio",
-      "//chromeos/ash/components/dbus/debug_daemon",
-      "//chromeos/ash/components/system",
-    ]
-  }
-
   if (use_aura) {
     deps += [ "//ui/events:test_support" ]
   }
 
-  if (use_aura) {
-    sources += [
-      "//content/browser/compositor/image_transport_factory_browsertest.cc",
-    ]
-  }
-
-  if (enable_vr) {
-    sources += [ "//content/browser/xr/metrics/session_metrics_browsertest.cc" ]
-    deps += [ "//device/vr:vr_fakes" ]
-  }
-
   if ((is_chromeos || is_linux) && !is_tsan) {
-    # NOTE: We don't bother to build these tests when TSan is enabled, because
-    # they can't properly launch a child content_shell in that environment.
-    sources += [ "//content/browser/launch_as_mojo_client_browsertest.cc" ]
     deps += [
       "//cobalt/shell:shell_controller_mojom",
       "//components/variations:variations",
