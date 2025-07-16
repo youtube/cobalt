@@ -4,6 +4,8 @@
 #include <functional>
 #include <vector>
 
+#include <mutex>
+
 #include "starboard/common/time.h"
 #include "starboard/shared/internal_only.h"
 
@@ -14,7 +16,8 @@ class MemoryTracker {
  public:
   using GetCurrentTimeUsCallback = std::function<int64_t()>;
 
-  explicit MemoryTracker(GetCurrentTimeUsCallback get_current_time_us_cb);
+  explicit MemoryTracker(GetCurrentTimeUsCallback get_current_time_us_cb,
+                         int max_frames = 6);
   ~MemoryTracker() = default;
 
   // Return true, when new frame is added in the tracker. False, it cannot
@@ -26,17 +29,19 @@ class MemoryTracker {
   // expiration for.
   bool SetFrameExpiration(int64_t expired_at_us);
 
+  // Sets the expiration time for one of the active frames to the current time.
+  bool SetFrameExpirationNow();
+
   // Returns current number of frames that are alive in the memory now.
   int GetCurrentFrames() const;
 
  private:
-  void CleanUpExpiredFrames();
+  void CleanUpExpiredFrames_Locked();
 
+  mutable std::mutex mutex_;
   GetCurrentTimeUsCallback get_current_time_us_cb_;
+  const int max_frames_;
 
-  static const int64_t kUninitialized = -1;
-  static const int64_t kNoExpirationSet = 0;
-  static const int kMaxFrames = 6;
   // Keeps track of the lifespan of the frame.
   std::vector<int64_t> frame_expirations_;
 };
