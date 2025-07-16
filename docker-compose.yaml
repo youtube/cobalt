@@ -1,19 +1,28 @@
+version: '3.8'
 services:
   linux:
     build:
       context: cobalt/docker/linux
-    image: "${DOCKER_IMAGE_PREFIX:-ghcr.io/youtube/cobalt}/linux:${DOCKER_BRANCH_TAG:-main}"
+      cache_from:
+        - ghcr.io/youtube/cobalt/linux:latest
+    image: ghcr.io/youtube/cobalt/linux:latest
     platform: linux/amd64
   raspi:
     build:
       context: cobalt/docker/raspi
-    image: "${DOCKER_IMAGE_PREFIX:-ghcr.io/youtube/cobalt}/raspi:${DOCKER_BRANCH_TAG:-main}"
+      cache_from:
+        - ghcr.io/youtube/cobalt/raspi:latest
+    image: ghcr.io/youtube/cobalt/raspi:latest
     platform: linux/amd64
   unittest:
     build:
       context: cobalt/docker/unittest
-    image: "${DOCKER_IMAGE_PREFIX:-ghcr.io/youtube/cobalt}/unittest:${DOCKER_BRANCH_TAG:-main}"
+      cache_from:
+        - ghcr.io/youtube/cobalt/unittest:latest
+    image: ghcr.io/youtube/cobalt/unittest:latest
   webtest:
     build:
       context: cobalt/docker/webtest
-    image: "${DOCKER_IMAGE_PREFIX:-ghcr.io/youtube/cobalt}/webtest:${DOCKER_BRANCH_TAG:-main}"
+      cache_from:
+        - ghcr.io/youtube/cobalt/webtest:latest
+    image: ghcr.io/youtube/cobalt/webtest:latest
