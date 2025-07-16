@@ -42,6 +42,14 @@ class NET_EXPORT Socket {
                    int buf_len,
                    CompletionOnceCallback callback) = 0;
 
+// The structs' raw pointers (char* buffer and ReadPacketResult* packets) are both 
+// safely deallocated when the QuicChromiumPacketReader itself is destroyed. It 
+// calls ReadPacketResults' destructor, which safely deallocates ReadPacketResult* 
+// buffer and also frees the scoped_refptr<IOBufferWithSize> buffer. As used in 
+// udp_socket_posix.cc, this buffer holds all of the allocated memory which is then 
+// divided into smaller chunks with multiple ReadPacketResult char* buffer pointers 
+// point to. Thus, when the scoped_refptr<IOBufferWithSize> buffer is freed, it also 
+// frees the char* pointers. 
 #if BUILDFLAG(IS_COBALT)
   struct ReadPacketResult {
     RAW_PTR_EXCLUSION char* buffer;
