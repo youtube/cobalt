@@ -205,7 +205,7 @@ class VideoFrameImpl : public VideoFrame {
       : VideoFrame(dequeue_output_result.flags & BUFFER_FLAG_END_OF_STREAM
                        ? kMediaTimeEndOfStream
                        : dequeue_output_result.presentation_time_microseconds),
-        id_(GetId()),
+        id_(is_end_of_stream() ? 0 : GetId()),
         dequeue_output_result_(dequeue_output_result),
         media_codec_bridge_(media_codec_bridge),
         released_(false),
@@ -213,21 +213,23 @@ class VideoFrameImpl : public VideoFrame {
         created_us_(CurrentMonotonicTime()) {
     SB_DCHECK(media_codec_bridge_);
     SB_DCHECK(release_callback_);
-    int count = ++g_alive_video_frames_count;
-    g_last_created_id = id_;
-    SB_LOG(INFO) << "VideoFrameImpl created, alive frames=" << count
-                 << ", gap=" << (g_last_created_id - g_last_released_id)
-                 << ", id=" << id_;
+    if (!is_end_of_stream()) {
+      int count = ++g_alive_video_frames_count;
+      g_last_created_id = id_;
+      SB_LOG(INFO) << "VideoFrameImpl created, alive frames=" << count
+                   << ", gap=" << (g_last_created_id - g_last_released_id)
+                   << ", id=" << id_;
+    }
   }
 
   ~VideoFrameImpl() {
     if (!released_) {
       media_codec_bridge_->ReleaseOutputBuffer(dequeue_output_result_.index,
                                                false);
-      --g_alive_video_frames_count;
-      g_last_released_id = id_;
-      VideoDecoder::GetFrameInDecoderCount()--;
       if (!is_end_of_stream()) {
+        --g_alive_video_frames_count;
+        g_last_released_id = id_;
+        VideoDecoder::GetFrameInDecoderCount()--;
         release_callback_();
       }
       SB_LOG(INFO) << "Release(in Dtor): id=" << id_;
