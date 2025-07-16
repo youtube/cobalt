@@ -125,13 +125,13 @@ std::optional<ParseResult<TimeOffset>> ParseTimeOffset(
 
   // --- Parse Hours (mandatory) ---
   int total_seconds = 0;
-  if (auto hours_res = ParseInteger(time_offset_string)) {
-    total_seconds += hours_res->value * kSecondsInHour;
-    consumed += hours_res->consumed;
-    time_offset_string.remove_prefix(hours_res->consumed);
-  } else {
+  auto hours_res = ParseInteger(time_offset_string);
+  if (!hours_res) {
     return std::nullopt;  // Must have hours
   }
+  total_seconds += hours_res->value * kSecondsInHour;
+  consumed += hours_res->consumed;
+  time_offset_string.remove_prefix(hours_res->consumed);
 
   // --- Parse Minutes (optional) ---
   int minutes = 0;
@@ -147,6 +147,56 @@ std::optional<ParseResult<TimeOffset>> ParseTimeOffset(
   return {{is_negative ? -total_seconds : total_seconds, consumed}};
 }
 
+// Parses a month-week-day format date rule (e.g., "M3.2.0").
+std::optional<DateRule> ParseMonthWeekDayRule(std::string_view rule_body) {
+  DateRule parsed_date_rule;
+  parsed_date_rule.format = DateRule::Format::MonthWeekDay;
+
+  size_t first_dot_position = rule_body.find('.');
+  size_t second_dot_position = rule_body.find('.', first_dot_position + 1);
+
+  if (first_dot_position == std::string_view::npos ||
+      second_dot_position == std::string_view::npos) {
+    return std::nullopt;
+  }
+
+  auto month = StringViewToInt(rule_body.substr(0, first_dot_position));
+  auto week = StringViewToInt(rule_body.substr(
+      first_dot_position + 1, second_dot_position - (first_dot_position + 1)));
+  auto day = StringViewToInt(rule_body.substr(second_dot_position + 1));
+
+  if (month && week && day) {
+    parsed_date_rule.month = *month;
+    parsed_date_rule.week = *week;
+    parsed_date_rule.day = *day;
+    return parsed_date_rule;
+  }
+
+  return std::nullopt;
+}
+
+// Parses a Julian day format date rule (e.g., "J60").
+std::optional<DateRule> ParseJulianRule(std::string_view rule_body) {
+  DateRule parsed_date_rule;
+  parsed_date_rule.format = DateRule::Format::Julian;
+  if (auto day = StringViewToInt(rule_body)) {
+    parsed_date_rule.day = *day;
+    return parsed_date_rule;
+  }
+  return std::nullopt;
+}
+
+// Parses a zero-based Julian day format date rule (e.g., "60").
+std::optional<DateRule> ParseZeroBasedJulianRule(std::string_view rule_body) {
+  DateRule parsed_date_rule;
+  parsed_date_rule.format = DateRule::Format::ZeroBasedJulian;
+  if (auto day = StringViewToInt(rule_body)) {
+    parsed_date_rule.day = *day;
+    return parsed_date_rule;
+  }
+  return std::nullopt;
+}
+
 // Parses a date rule string (e.g., "M3.2.0" or "J60") into a DateRule struct.
 // This function remains strict, as an invalid rule is not recoverable.
 std::optional<DateRule> ParseDateRule(std::string_view date_rule_string) {
@@ -154,58 +204,14 @@ std::optional<DateRule> ParseDateRule(std::string_view date_rule_string) {
     return std::nullopt;
   }
 
-  DateRule parsed_date_rule;
   switch (date_rule_string.front()) {
-    case 'M': {
-      parsed_date_rule.format = DateRule::Format::MonthWeekDay;
-      date_rule_string.remove_prefix(1);
-      size_t first_dot_position = date_rule_string.find('.');
-      size_t second_dot_position =
-          date_rule_string.find('.', first_dot_position + 1);
-
-      if (first_dot_position == std::string_view::npos ||
-          second_dot_position == std::string_view::npos) {
-        return std::nullopt;
-      }
-
-      auto month =
-          StringViewToInt(date_rule_string.substr(0, first_dot_position));
-      auto week = StringViewToInt(date_rule_string.substr(
-          first_dot_position + 1,
-          second_dot_position - (first_dot_position + 1)));
-      auto day =
-          StringViewToInt(date_rule_string.substr(second_dot_position + 1));
-
-      if (month && week && day) {
-        parsed_date_rule.month = *month;
-        parsed_date_rule.week = *week;
-        parsed_date_rule.day = *day;
-      } else {
-        return std::nullopt;
-      }
-      break;
-    }
-    case 'J': {
-      parsed_date_rule.format = DateRule::Format::Julian;
-      date_rule_string.remove_prefix(1);
-      if (auto day = StringViewToInt(date_rule_string)) {
-        parsed_date_rule.day = *day;
-      } else {
-        return std::nullopt;
-      }
-      break;
-    }
-    default: {
-      parsed_date_rule.format = DateRule::Format::ZeroBasedJulian;
-      if (auto day = StringViewToInt(date_rule_string)) {
-        parsed_date_rule.day = *day;
-      } else {
-        return std::nullopt;
-      }
-      break;
-    }
+    case 'M':
+      return ParseMonthWeekDayRule(date_rule_string.substr(1));
+    case 'J':
+      return ParseJulianRule(date_rule_string.substr(1));
+    default:
+      return ParseZeroBasedJulianRule(date_rule_string);
   }
-  return parsed_date_rule;
 }
 
 // Parses a transition rule string (e.g., "M3.2.0/2:00:00").
