@@ -159,6 +159,7 @@ class MEDIA_EXPORT StarboardRendererClient
 
   bool is_playing_ = false;
   bool video_renderer_sink_started_ = false;
+  bool overlay_info_requested_ = false;
   scoped_refptr<VideoFrame> next_video_frame_;
 
   mutable base::Lock lock_;
