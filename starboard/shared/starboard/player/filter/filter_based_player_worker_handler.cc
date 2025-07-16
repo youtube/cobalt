@@ -18,9 +18,6 @@
 #include <mutex>
 #include <utility>
 
-#if defined(OS_ANDROID)
-#include "starboard/android/shared/video_decoder.h"
-#endif
 #include "starboard/audio_sink.h"
 #include "starboard/common/log.h"
 #include "starboard/common/murmurhash2.h"
@@ -278,13 +275,6 @@ HandlerResult FilterBasedPlayerWorkerHandler::WriteSamples(
         if (!video_renderer_->CanAcceptMoreData()) {
           return HandlerResult{true};
         }
-#if defined(OS_ANDROID)
-        using ::starboard::android::shared::VideoDecoder;
-        SB_LOG(INFO) << "Adding encoded frame: id="
-                     << VideoDecoder::GetEncodedFrameId();
-        VideoDecoder::GetEncodedFrameCount()--;
-        VideoDecoder::AddDecodedFrame();
-#endif  // defined(OS_ANDROID)
         if (input_buffer->drm_info()) {
           if (!SbDrmSystemIsValid(drm_system_)) {
             return HandlerResult{false, "Invalid DRM system."};

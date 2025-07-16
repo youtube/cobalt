@@ -112,8 +112,6 @@ class VideoDecoder
   static void RemoveDecodedFrameNow();
   static int GetFrameInDecoderCount();
 
-  static int& GetEncodedFrameCount();
-  static int GetEncodedFrameId();
   static void ResetCounts();
 
  private:

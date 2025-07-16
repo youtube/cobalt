@@ -54,9 +54,6 @@ std::atomic<int> g_last_created_id = 0;
 std::atomic<int> g_last_released_id = 0;
 static int g_decoded_frame_id = 0;
 
-static int encoded_frame_count = 0;
-static int encoded_frame_id = 0;
-
 using ::starboard::shared::starboard::media::MimeType;
 using ::starboard::shared::starboard::player::filter::VideoFrame;
 using VideoRenderAlgorithmBase =
@@ -260,7 +257,6 @@ class VideoFrameImpl : public VideoFrame {
  private:
   static int GetId() {
     ++g_decoded_frame_id;
-    SB_CHECK_LE(g_decoded_frame_id, encoded_frame_id);
     return g_decoded_frame_id;
   }
 
@@ -413,9 +409,6 @@ void VideoDecoder::ResetCounts() {
   g_decoded_frame_id = 0;
 
   g_memory_tracker.Reset();
-
-  encoded_frame_count = 0;
-  encoded_frame_id = 0;
 }
 
 void VideoDecoder::AddDecodedFrame() {
@@ -432,14 +425,6 @@ void VideoDecoder::RemoveDecodedFrameNow() {
 
 int VideoDecoder::GetFrameInDecoderCount() {
   return g_memory_tracker.GetCurrentFrames();
-}
-
-int& VideoDecoder::GetEncodedFrameCount() {
-  return encoded_frame_count;
-}
-
-int VideoDecoder::GetEncodedFrameId() {
-  return ++encoded_frame_id;
 }
 
 VideoDecoder::VideoDecoder(const VideoStreamInfo& video_stream_info,
