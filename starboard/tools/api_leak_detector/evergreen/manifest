@@ -52,7 +52,6 @@ link
 localeconv
 localtime
 localtime_r
-lstat
 mktime
 mremap
 newlocale
