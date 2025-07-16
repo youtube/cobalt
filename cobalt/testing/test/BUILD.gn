@@ -4,7 +4,6 @@
 
 import("//build/config/chrome_build.gni")
 import("//build/config/chromecast_build.gni")
-import("//build/config/chromeos/ui_mode.gni")
 import("//build/config/compiler/compiler.gni")
 import("//build/config/features.gni")
 import("//build/config/ui.gni")
@@ -34,114 +33,10 @@ if (is_ios) {
   import("//build/config/ios/bundle_data_from_filelist.gni")
 }
 
-group("telemetry_gpu_integration_test_scripts_only") {
+group("test") {
   testonly = true
-  deps = [
-    "//tools/perf/chrome_telemetry_build:telemetry_chrome_test_without_chrome",
-  ]
 
-  data = [ "//testing/scripts/run_isolated_script_test.py" ]
-  data_deps = [
-    ":telemetry_gpu_integration_test_data",
-    "//testing:test_scripts_shared",
-  ]
-}
-
-group("telemetry_gpu_integration_test_support") {
-  testonly = true
-  data = [
-    # For the Maps performance test. Include individual files since including
-    # the full directory can include a .fetchts file, which affects swarming's
-    # ability to dedupe tasks.
-    "//tools/perf/page_sets/maps_perf_test/config.js",
-    "//tools/perf/page_sets/maps_perf_test/load_dataset",
-    "//tools/perf/page_sets/maps_perf_test/load_dataset.sha1",
-    "//tools/perf/page_sets/maps_perf_test/performance.html",
-    "//tools/perf/page_sets/maps_perf_test/tracked.js",
-    "//tools/perf/page_sets/maps_perf_test/worker.js",
-
-    # For GpuProcess.video
-    "//content/test/data/media/bear.ogv",
-
-    # For webgl_conformance
-    "//third_party/webgl/",
-
-    # For pixel_test and trace_test
-    "//media/test/data/four-colors.mp4",
-    "//media/test/data/four-colors.y4m",
-    "//media/test/data/four-colors-aspect-4x3.mp4",
-    "//media/test/data/four-colors-rot-90.mp4",
-    "//media/test/data/four-colors-rot-180.mp4",
-    "//media/test/data/four-colors-rot-270.mp4",
-    "//media/test/data/four-colors-vp9.webm",
-    "//media/test/data/four-colors-vp9-i420a.webm",
-    "//media/test/data/four-colors-incompatible-stride.y4m",
-
-    # For power
-    "//media/test/data/bear-1280x720.mp4",
-
-    # For Skia Gold pixel test functionality.
-    "//build/skia_gold_common/",
-
-    # For isolate contract.
-    "//testing/scripts/gpu_integration_test_adapter.py",
-    "//testing/scripts/run_gpu_integration_test_as_googletest.py",
-  ]
-
-  data_deps = [
-    ":telemetry_gpu_integration_test_data",
-
-    # For anything using Skia Gold (pixel, maps).
-    "//ui/base:goldctl",
-  ]
-}
-
-group("webgpu_cts_scripts") {
-  testonly = true
-  data = [
-    "//third_party/node/",
-    "//third_party/dawn/webgpu-cts/scripts/",
-    "//third_party/dawn/third_party/webgpu-cts/src/",
-    "//third_party/dawn/third_party/webgpu-cts/node.tsconfig.json",
-    "//third_party/dawn/third_party/webgpu-cts/tsconfig.json",
-  ]
-}
-
-group("telemetry_gpu_common_data") {
-  testonly = true
-  data = [
-    "//content/test/data/gpu/",
-    "//content/test/gpu/gpu_path_util/",
-    "//content/test/gpu/gpu_tests/",
-    "//content/test/gpu/unittest_data/",
-
-    "//third_party/dawn/webgpu-cts/",
-
-    "//content/test/gpu/gpu_project_config.py",
-    "//content/test/gpu/run_gpu_integration_test.py",
-  ]
-  data_deps = [
-    # For WebGPU CTS tests.
-    "//third_party/dawn/webgpu-cts",
-  ]
-}
-
-group("telemetry_gpu_unittest_data") {
-  testonly = true
-  data = [ "//content/test/gpu/run_unittests.py" ]
-  data_deps = [ ":telemetry_gpu_common_data" ]
-}
-
-group("telemetry_gpu_integration_test_data") {
-  testonly = true
-  data = [
-    "//content/test/gpu/gold_inexact_matching/",
-    "//content/test/gpu/power_measurement_results/",
-
-    "//content/test/gpu/measure_power_intel.py",
-    "//content/test/gpu/run_gpu_integration_test.py",
-  ]
-  data_deps = [ ":telemetry_gpu_common_data" ]
+  deps = [ ":cobalt_browsertests" ]
 }
 
 # browsertest_support can be used by targets that run content_shell based
@@ -190,7 +85,6 @@ static_library("browsertest_support") {
     "//base:i18n",
     "//base/test:test_config",
     "//base/test:test_support",
-    "//build:chromeos_buildflags",
     "//cobalt/shell:content_shell_app",
     "//cobalt/shell:content_shell_lib",
     "//components/network_session_configurator/common:common",
@@ -215,10 +109,6 @@ static_library("browsertest_support") {
 
   if (use_aura && toolkit_views && !is_castos) {
     deps += [ "//ui/views" ]
-  }
-
-  if (is_chromeos_lacros) {
-    deps += [ "//chromeos/lacros:lacros" ]
   }
 
   configs += [ "//v8:external_startup_data" ]
@@ -275,12 +165,6 @@ if (is_android) {
   }
 }
 
-group("test") {
-  testonly = true
-
-  deps = [ ":cobalt_browsertests" ]
-}
-
 test("cobalt_browsertests") {
   use_xvfb = use_xvfb_in_this_config
 
@@ -314,7 +198,6 @@ test("cobalt_browsertests") {
     ":browsertest_support",
     "//base/test:test_support",
     "//build:chromecast_buildflags",
-    "//build:chromeos_buildflags",
     "//cc/slim",
     "//cobalt/shell:content_browsertests_mojom",
     "//cobalt/shell:content_shell_lib",
@@ -468,7 +351,7 @@ test("cobalt_browsertests") {
     use_default_launcher = false
   }
 
-  if (is_linux || is_chromeos) {
+  if (is_linux) {
     deps += [ "//third_party/libyuv" ]
     data += [
       "//net/tools/testserver/",
@@ -484,7 +367,7 @@ test("cobalt_browsertests") {
     deps += [ "//ui/events:test_support" ]
   }
 
-  if ((is_chromeos || is_linux) && !is_tsan) {
+  if (is_linux && !is_tsan) {
     deps += [
       "//cobalt/shell:shell_controller_mojom",
       "//components/variations:variations",
@@ -492,67 +375,9 @@ test("cobalt_browsertests") {
       "//mojo/public/cpp/platform",
       "//mojo/public/mojom/base",
     ]
-    data_deps += [
-      "//cobalt/shell:content_shell",
-      "//mojo/core:shared_library",
-    ]
+    data_deps += [ "//mojo/core:shared_library" ]
     if (use_ozone) {
       deps += [ "//ui/ozone" ]
     }
   }
-}
-
-if (enable_nocompile_tests) {
-  nocompile_test("content_nocompile_tests") {
-    sources = [ "//content/browser/browser_task_traits_unittest.nc" ]
-
-    deps = [
-      ":run_all_unittests",
-      "//base",
-      "//content/public/browser",
-      "//testing/gtest",
-    ]
-  }
-}
-
-group("fuzzers") {
-  deps = [ "//content/test/fuzzer" ]
-}
-
-# This group defines the isolate files needed to run
-# test_buildbucket_api_gpu_cases.py on bots. This also tells the build system
-# when the tests should be re-run - when one of the dependent files changes.
-#
-group("test_buildbucket_api_gpu_use_cases") {
-  data = [
-    # The test runner and its dependencies.
-    "//testing/scripts/test_buildbucket_api_gpu_use_cases.py",
-
-    "//content/test/gpu/gather_power_measurement_results.py",
-    "//content/test/gpu/gather_swarming_json_results.py",
-  ]
-  data_deps = [ "//testing:test_scripts_shared" ]
-}
-
-group("gpu_pytype") {
-  testonly = true
-
-  data = [
-    "//content/test/gpu/run_pytype.py",
-    "//content/test/gpu/validate_tag_consistency.py",
-
-    "//content/test/gpu/gold_inexact_matching/",
-    "//content/test/gpu/flake_suppressor/",
-    "//testing/flake_suppressor_common/",
-    "//content/test/gpu/unexpected_passes/",
-    "//testing/unexpected_passes_common/",
-  ]
-
-  data_deps = [
-    # This includes more than we strictly need to, but this ensures that we
-    # don't accidentally omit Python files that the real tests would be using.
-    ":telemetry_gpu_integration_test_scripts_only",
-    ":telemetry_gpu_integration_test_support",
-    "//testing:pytype_dependencies",
-  ]
 }
