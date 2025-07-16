@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include "cobalt/testing/test/content_browser_test_utils_internal.h"
+#include "cobalt/testing/browser_tests/content_browser_test_utils_internal.h"
 
 #include <stddef.h>
 
@@ -23,7 +23,7 @@
 #include "build/build_config.h"
 #include "cobalt/shell/browser/shell.h"
 #include "cobalt/shell/browser/shell_javascript_dialog_manager.h"
-#include "cobalt/testing/test/content_browser_test_utils.h"
+#include "cobalt/testing/browser_tests/content_browser_test_utils.h"
 #include "content/browser/preloading/prerender/prerender_host_registry.h"
 #include "content/browser/renderer_host/delegated_frame_host.h"
 #include "content/browser/renderer_host/frame_tree_node.h"

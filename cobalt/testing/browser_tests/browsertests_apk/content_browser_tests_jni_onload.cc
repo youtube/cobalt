@@ -8,7 +8,7 @@
 #include "base/android/library_loader/library_loader_hooks.h"
 #include "base/functional/bind.h"
 #include "base/message_loop/message_pump.h"
-#include "cobalt/testing/test/content_browser_test_shell_main_delegate.h"
+#include "cobalt/testing/browser_tests/content_browser_test_shell_main_delegate.h"
 #include "content/public/app/content_jni_onload.h"
 #include "content/public/app/content_main.h"
 #include "content/public/test/nested_message_pump_android.h"

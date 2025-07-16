@@ -14,7 +14,7 @@
 #include "base/test/test_timeouts.h"
 #include "build/build_config.h"
 #include "cobalt/shell/common/shell_switches.h"
-#include "cobalt/testing/test/content_browser_test_shell_main_delegate.h"
+#include "cobalt/testing/browser_tests/content_browser_test_shell_main_delegate.h"
 #include "content/public/common/content_switches.h"
 #include "content/public/test/content_test_suite_base.h"
 #include "testing/gtest/include/gtest/gtest.h"

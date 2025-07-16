@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include "cobalt/testing/test/browsing_data_browsertest_utils.h"
+#include "cobalt/testing/browser_tests/browsing_data_browsertest_utils.h"
 
 #include <memory>
 #include <string>
@@ -12,7 +12,7 @@
 #include "base/command_line.h"
 #include "base/functional/bind.h"
 #include "base/run_loop.h"
-#include "cobalt/testing/test/content_browser_test_utils.h"
+#include "cobalt/testing/browser_tests/content_browser_test_utils.h"
 #include "components/network_session_configurator/common/network_switches.h"
 #include "content/browser/browsing_data/browsing_data_test_utils.h"
 #include "content/public/browser/browser_thread.h"

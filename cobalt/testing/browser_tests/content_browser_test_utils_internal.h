@@ -2,8 +2,8 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#ifndef COBALT_TESTING_TEST_CONTENT_BROWSER_TEST_UTILS_INTERNAL_H_
-#define COBALT_TESTING_TEST_CONTENT_BROWSER_TEST_UTILS_INTERNAL_H_
+#ifndef COBALT_TESTING_BROWSER_TESTS_CONTENT_BROWSER_TEST_UTILS_INTERNAL_H_
+#define COBALT_TESTING_BROWSER_TESTS_CONTENT_BROWSER_TEST_UTILS_INTERNAL_H_
 
 // A collection of functions designed for use with content_shell based browser
 // tests internal to the content/ module.
@@ -18,7 +18,7 @@
 #include "base/memory/raw_ptr.h"
 #include "base/run_loop.h"
 #include "build/build_config.h"
-#include "cobalt/testing/test/content_browser_test_content_browser_client.h"
+#include "cobalt/testing/browser_tests/content_browser_test_content_browser_client.h"
 #include "content/browser/bad_message.h"
 #include "content/browser/renderer_host/back_forward_cache_metrics.h"
 #include "content/browser/renderer_host/navigation_type.h"
@@ -780,4 +780,4 @@ class BeginNavigationInCommitCallbackInterceptor
 
 }  // namespace content
 
-#endif  // COBALT_TESTING_TEST_CONTENT_BROWSER_TEST_UTILS_INTERNAL_H_
+#endif  // COBALT_TESTING_BROWSER_TESTS_CONTENT_BROWSER_TEST_UTILS_INTERNAL_H_
