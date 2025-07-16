@@ -33,10 +33,6 @@ if (is_android) {
 } else if (is_ios) {
   import("//build/config/ios/config.gni")
 }
-if (is_cobalt) {
-  import("//cobalt/build/modular_executable.gni")
-  import("//starboard/build/buildflags.gni")
-}
 
 # TODO(crbug.com/1336055, spang): Investigate using shell_views with cast builds as
 # true.
@@ -443,17 +439,6 @@ static_library("content_shell_lib") {
   if (use_ozone) {
     deps += [ "//ui/ozone" ]
   }
-
-  if (is_cobalt && use_starboard_media) {
-    deps += [
-      "//starboard:starboard_group",
-    ]
-    if (is_android) {
-      deps += [
-        "//starboard/android/shared:starboard_platform",
-      ]
-    }
-  }
 }
 
 grit("content_shell_resources_grit") {
@@ -630,12 +615,7 @@ if (is_android) {
     configs += [ "//build/config/compiler:enable_arc" ]
   }
 } else {
-  if (is_cobalt && is_cobalt_hermetic_build) {
-    _target_type = "modular_executable"
-  } else {
-    _target_type = "executable"
-  }
-  target(_target_type, "content_shell") {
+  target("executable", "content_shell") {
     testonly = true
 
     sources = [ "app/shell_main.cc" ]

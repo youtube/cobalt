@@ -29,11 +29,9 @@ shared_library("libcontent_shell_content_view") {
     "//skia",
   ]
 
-  if (!is_cobalt) {
-    deps += [
-      "//components/crash/content/browser",
-    ]
-  }
+  deps += [
+    "//components/crash/content/browser",
+  ]
 
   # Explicit dependency required for JNI registration to be able to
   # find the native side functions.
@@ -206,14 +204,12 @@ template("content_shell_apk_tmpl") {
       "//ui/android:ui_java",
     ]
 
-    if (!is_cobalt) {
-      deps += [
-        "//components/crash/android:java",
-        "//components/crash/core/app:chrome_crashpad_handler_named_as_so",
-      ]
+    deps += [
+      "//components/crash/android:java",
+      "//components/crash/core/app:chrome_crashpad_handler_named_as_so",
+    ]
 
-      loadable_modules = [ "$root_out_dir/libchrome_crashpad_handler.so" ]
-    }
+    loadable_modules = [ "$root_out_dir/libchrome_crashpad_handler.so" ]
   }
 }
 

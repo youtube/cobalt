@@ -180,7 +180,7 @@ group("content_shell_lib_deps") {
     public_deps += [ "//ui/ozone" ]
   }
 
-  if (is_cobalt && use_starboard_media) {
+  if (use_starboard_media) {
     public_deps += [ "//starboard:starboard_group" ]
     if (is_android) {
       public_deps += [ "//starboard/android/shared:starboard_platform" ]
