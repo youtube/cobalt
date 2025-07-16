@@ -56,9 +56,6 @@ static constexpr auto kCobaltToggleSwitches = std::to_array<const char*>({
       // rebasing to m120+
       switches::kUserLevelMemoryPressureSignalParams,
 #endif  // BUILDFLAG(IS_ANDROID)
-<<<<<<< HEAD:cobalt/app/cobalt_switch_defaults_starboard.cc
-      sandbox::policy::switches::kNoSandbox
-=======
       // Disable Zygote (a process fork utility); in turn needs sandbox
       // disabled.
       switches::kNoZygote, sandbox::policy::switches::kNoSandbox,
@@ -69,7 +66,6 @@ static constexpr auto kCobaltToggleSwitches = std::to_array<const char*>({
       // known regressions is 4444 textures, which are then disabled explicitly.
       switches::kEnableLowEndDeviceMode,
       blink::switches::kDisableRGBA4444Textures,
->>>>>>> 9bc18d10a8e (cobalt 3P: Enable low-end-device-mode (w/ caveats) and zero-copy (#5958)):cobalt/app/cobalt_switch_defaults.cc
 });
 
 // Map of switches with parameters and their defaults.
