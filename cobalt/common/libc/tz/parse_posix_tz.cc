@@ -14,6 +14,7 @@
 
 #include "cobalt/common/libc/tz/parse_posix_tz.h"
 
+#include <algorithm>
 #include <cctype>
 #include <charconv>
 #include <iostream>
@@ -53,10 +54,9 @@ std::optional<int> StringViewToInt(std::string_view string_to_convert) {
 // On failure (no digits or invalid number), returns nullopt and the view is
 // not modified.
 std::optional<int> ParseInteger(std::string_view& sv) {
-  size_t digits_end = 0;
-  while (digits_end < sv.length() && isdigit(sv[digits_end])) {
-    digits_end++;
-  }
+  auto it = std::find_if_not(sv.begin(), sv.end(),
+                             [](char c) { return std::isdigit(c); });
+  size_t digits_end = std::distance(sv.begin(), it);
 
   if (digits_end == 0) {
     return std::nullopt;
@@ -252,11 +252,10 @@ std::optional<std::string> ExtractName(std::string_view& sv) {
     name = std::string(temp_sv.substr(1, end_quote - 1));
     temp_sv.remove_prefix(end_quote + 1);
   } else {
-    size_t name_end = 0;
-    // An unquoted name must be alphabetic.
-    while (name_end < temp_sv.length() && isalpha(temp_sv[name_end])) {
-      name_end++;
-    }
+    auto it = std::find_if_not(temp_sv.begin(), temp_sv.end(),
+                               [](char c) { return std::isalpha(c); });
+    size_t name_end = std::distance(temp_sv.begin(), it);
+
     if (name_end == 0) {
       return std::nullopt;  // No alphabetic name found.
     }
