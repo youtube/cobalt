@@ -2,26 +2,18 @@ services:
   linux:
     build:
       context: cobalt/docker/linux
-      cache_from:
-        - "ghcr.io/youtube/cobalt/linux:${GIT_BRANCH:-main}"
-    image: "ghcr.io/youtube/cobalt/linux:${GIT_BRANCH:-main}"
+    image: "ghcr.io/${DOCKER_REPO:-youtube/cobalt}/linux:${GIT_BRANCH:-main}"
     platform: linux/amd64
   raspi:
     build:
       context: cobalt/docker/raspi
-      cache_from:
-        - "ghcr.io/youtube/cobalt/raspi:${GIT_BRANCH:-main}"
-    image: "ghcr.io/youtube/cobalt/raspi:${GIT_BRANCH:-main}"
+    image: "ghcr.io/${DOCKER_REPO:-youtube/cobalt}/raspi:${GIT_BRANCH:-main}"
     platform: linux/amd64
   unittest:
     build:
       context: cobalt/docker/unittest
-      cache_from:
-        - "ghcr.io/youtube/cobalt/unittest:${GIT_BRANCH:-main}"
-    image: "ghcr.io/youtube/cobalt/unittest:${GIT_BRANCH:-main}"
+    image: "ghcr.io/${DOCKER_REPO:-youtube/cobalt}/unittest:${GIT_BRANCH:-main}"
   webtest:
     build:
       context: cobalt/docker/webtest
-      cache_from:
-        - "ghcr.io/youtube/cobalt/webtest:${GIT_BRANCH:-main}"
-    image: "ghcr.io/youtube/cobalt/webtest:${GIT_BRANCH:-main}"
+    image: "ghcr.io/${DOCKER_REPO:-youtube/cobalt}/webtest:${GIT_BRANCH:-main}"
