@@ -25,6 +25,7 @@ source_set("h5vcc_experiments") {
     "//cobalt/browser/constants:cobalt_experiment_names",
     "//cobalt/browser/h5vcc_experiments/public/mojom",
     "//components/prefs",
+    "//components/variations",
     "//content/public/browser",
     "//mojo/public/cpp/bindings",
     "//starboard($starboard_toolchain)",
