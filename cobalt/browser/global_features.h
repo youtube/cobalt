@@ -19,6 +19,7 @@
 #include "base/memory/raw_ptr.h"
 #include "base/no_destructor.h"
 #include "base/sequence_checker.h"
+#include "cobalt/browser/experiments/experiment_config_manager.h"
 #include "components/prefs/pref_registry_simple.h"
 
 class PrefService;
@@ -57,6 +58,9 @@ class GlobalFeatures {
   const std::vector<uint32_t>& active_experiment_ids() {
     return active_experiment_ids_;
   }
+  ExperimentConfigManager* experiment_config_manager() {
+    return experiment_config_manager_.get();
+  }
 
   void set_accessor(std::unique_ptr<base::FeatureList::Accessor> accessor);
 
@@ -92,6 +96,8 @@ class GlobalFeatures {
   // Must be destroyed before |metrics_local_state_|.
   std::unique_ptr<metrics_services_manager::MetricsServicesManager>
       metrics_services_manager_;
+
+  std::unique_ptr<ExperimentConfigManager> experiment_config_manager_;
 
   std::vector<uint32_t> active_experiment_ids_;
 
