@@ -20,7 +20,9 @@
 #include <string>
 #include <utility>
 
+#if SB_IS_ANDRDOID
 #include "starboard/android/shared/video_decoder.h"
+#endif
 #include "starboard/common/condition_variable.h"
 #include "starboard/common/instance_counter.h"
 #include "starboard/common/mutex.h"
@@ -302,10 +304,12 @@ void PlayerWorker::DoWriteSamples(InputBuffers input_buffers) {
     return;
   }
 
+#if SB_IS_ANDRDOID
   if (media_type == kSbMediaTypeVideo) {
     ::starboard::android::shared::VideoDecoder::GetEncodedFrameCount() +=
         samples_written;
   }
+#endif
 
   if (static_cast<size_t>(samples_written) == input_buffers.size()) {
     UpdateDecoderState(media_type, kSbPlayerDecoderStateNeedsData);
