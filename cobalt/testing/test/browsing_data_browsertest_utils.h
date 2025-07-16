@@ -2,8 +2,8 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#ifndef CONTENT_BROWSER_BROWSING_DATA_BROWSING_DATA_BROWSERTEST_UTILS_H_
-#define CONTENT_BROWSER_BROWSING_DATA_BROWSING_DATA_BROWSERTEST_UTILS_H_
+#ifndef COBALT_TESTING_TEST_BROWSING_DATA_BROWSERTEST_UTILS_H_
+#define COBALT_TESTING_TEST_BROWSING_DATA_BROWSERTEST_UTILS_H_
 
 #include <string>
 #include <vector>
@@ -93,4 +93,4 @@ void SetUpMockCertVerifier(int32_t default_result);
 
 }  // namespace content
 
-#endif  // CONTENT_BROWSER_BROWSING_DATA_BROWSING_DATA_BROWSERTEST_UTILS_H_
+#endif  // COBALT_TESTING_TEST_BROWSING_DATA_BROWSERTEST_UTILS_H_

@@ -2,8 +2,8 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#ifndef CONTENT_PUBLIC_TEST_CONTENT_BROWSER_TEST_CONTENT_BROWSER_CLIENT_H_
-#define CONTENT_PUBLIC_TEST_CONTENT_BROWSER_TEST_CONTENT_BROWSER_CLIENT_H_
+#ifndef COBALT_TESTING_TEST_CONTENT_BROWSER_TEST_CONTENT_BROWSER_CLIENT_H_
+#define COBALT_TESTING_TEST_CONTENT_BROWSER_TEST_CONTENT_BROWSER_CLIENT_H_
 
 #include "cobalt/shell/browser/shell_content_browser_client.h"
 
@@ -24,4 +24,4 @@ class ContentBrowserTestContentBrowserClient
 
 }  // namespace content
 
-#endif  // CONTENT_PUBLIC_TEST_CONTENT_BROWSER_TEST_CONTENT_BROWSER_CLIENT_H_
+#endif  // COBALT_TESTING_TEST_CONTENT_BROWSER_TEST_CONTENT_BROWSER_CLIENT_H_
