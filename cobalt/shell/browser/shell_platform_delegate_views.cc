@@ -24,7 +24,9 @@
 #include "base/strings/utf_string_conversions.h"
 #include "build/build_config.h"
 #include "cobalt/shell/browser/shell.h"
+#include "cobalt/shell/browser/shell_paths.h"
 #include "cobalt/shell/browser/shell_platform_delegate.h"
+#include "cobalt/splash/splash_player.h"
 #include "content/public/browser/context_factory.h"
 #include "content/public/browser/render_widget_host_view.h"
 #include "content/public/browser/web_contents.h"
@@ -61,6 +63,7 @@ struct ShellPlatformDelegate::ShellData {
   gfx::Size content_size;
   // Self-owned Widget, destroyed through CloseNow().
   raw_ptr<views::Widget> window_widget = nullptr;
+  std::unique_ptr<splash::SplashPlayer> splash_player;
 };
 
 struct ShellPlatformDelegate::PlatformData {
@@ -345,6 +348,13 @@ void ShellPlatformDelegate::CreatePlatformWindow(
   params.wm_class_name = params.wm_class_class;
   shell_data.window_widget->Init(std::move(params));
 
+  shell_data.splash_player = std::make_unique<splash::SplashPlayer>();
+  base::FilePath video_path;
+  base::PathService::Get(base::DIR_ASSETS, &video_path);
+  video_path = video_path.Append(FILE_PATH_LITERAL("splash.webm"));
+  shell_data.splash_player->Play(video_path,
+                                 shell_data.window_widget->GetNativeWindow());
+
   // |window_widget| is made visible in PlatformSetContents(), so that the
   // platform-window size does not need to change due to layout again.
 }
@@ -364,6 +374,11 @@ void ShellPlatformDelegate::CleanUp(Shell* shell) {
 void ShellPlatformDelegate::SetContents(Shell* shell) {
   DCHECK(base::Contains(shell_data_map_, shell));
   ShellData& shell_data = shell_data_map_[shell];
+
+  if (shell_data.splash_player) {
+    shell_data.splash_player->Stop();
+    shell_data.splash_player.reset();
+  }
 
   ShellViewForWidget(shell_data.window_widget)
       ->SetWebContents(shell->web_contents(), shell_data.content_size);

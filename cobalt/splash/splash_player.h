@@ -16,8 +16,6 @@
 #define COBALT_SPLASH_SPLASH_PLAYER_H_
 
 #include <memory>
-#include <string>
-#include <vector>
 
 #include "base/files/file_path.h"
 #include "base/memory/scoped_refptr.h"
@@ -25,9 +23,9 @@
 #include "base/task/single_thread_task_runner.h"
 #include "third_party/libvpx/source/libvpx/vpx/vpx_decoder.h"
 #include "third_party/libwebm/source/mkvparser/mkvparser.h"
+#include "ui/gfx/native_widget_types.h"
 #include "ui/gl/gl_bindings.h"
 #include "ui/gl/gl_context.h"
-#include "ui/gl/gl_display.h"
 #include "ui/gl/gl_surface.h"
 
 namespace cobalt {
@@ -38,29 +36,27 @@ class SplashPlayer {
   SplashPlayer();
   ~SplashPlayer();
 
-  void Play(const std::string& asset_name);
+  void Play(const base::FilePath& video_path, gfx::AcceleratedWidget window);
   void Stop();
-  void WaitForCompletion();
 
  private:
-  class FdReader;
+  class BufferReader;
 
-  void Initialize(const std::string& asset_name,
-                  base::WaitableEvent* init_event,
-                  bool* success);
+  void Initialize(const base::FilePath& video_path,
+                  gfx::AcceleratedWidget window);
   void InitializeShaders();
   void DecodeFrame();
   void RenderFrame();
-  void DestroyOnTaskRunner(base::WaitableEvent* stop_event);
 
-  gl::GLDisplay* display_ = nullptr;
+  gfx::AcceleratedWidget window_ = gfx::kNullAcceleratedWidget;
   scoped_refptr<gl::GLSurface> surface_;
   scoped_refptr<gl::GLContext> context_;
   scoped_refptr<base::SingleThreadTaskRunner> task_runner_;
   base::WaitableEvent completion_event_;
 
-  std::unique_ptr<FdReader> reader_;
-  std::unique_ptr<mkvparser::Segment> segment_;
+  std::vector<uint8_t> video_buffer_;
+  BufferReader* reader_ = nullptr;
+  mkvparser::Segment* segment_ = nullptr;
   const mkvparser::Cluster* cluster_ = nullptr;
   const mkvparser::Block* block_ = nullptr;
   const mkvparser::BlockEntry* block_entry_ = nullptr;

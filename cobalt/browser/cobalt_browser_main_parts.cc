@@ -20,7 +20,6 @@
 #include "cobalt/browser/global_features.h"
 #include "cobalt/browser/metrics/cobalt_metrics_service_client.h"
 #include "cobalt/shell/browser/shell_paths.h"
-#include "cobalt/splash/splash_player.h"
 #include "components/metrics/metrics_service.h"
 #include "components/metrics_services_manager/metrics_services_manager.h"
 #include "content/public/browser/browser_thread.h"
@@ -43,18 +42,7 @@ int CobaltBrowserMainParts::PreCreateThreads() {
 
 int CobaltBrowserMainParts::PreMainMessageLoopRun() {
   StartMetricsRecording();
-  LOG(INFO)
-      << "YO THOR _ COBALT BROWSER MAIN PARTS - PRE MAIN MESSAGE LOOP RUN";
-  ShellBrowserMainParts::PreMainMessageLoopRun();
-  LOG(INFO) << "YO THOR - START SPLAZZZH";
-
-  splash_player_ = std::make_unique<splash::SplashPlayer>();
-  splash_player_->Play("splash.webm");
-  splash_player_->WaitForCompletion();
-  splash_player_->Stop();
-  splash_player_.reset();
-
-  return 0;
+  return ShellBrowserMainParts::PreMainMessageLoopRun();
 }
 
 void CobaltBrowserMainParts::SetupMetrics() {

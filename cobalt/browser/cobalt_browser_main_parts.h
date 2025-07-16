@@ -18,7 +18,6 @@
 #include <memory>
 
 #include "cobalt/shell/browser/shell_browser_main_parts.h"
-#include "cobalt/splash/splash_player.h"
 
 class PrefService;
 
@@ -68,8 +67,6 @@ class CobaltBrowserMainParts : public content::ShellBrowserMainParts {
 
   // Starts metrics recording.
   void StartMetricsRecording();
-
-  std::unique_ptr<splash::SplashPlayer> splash_player_;
 };
 
 }  // namespace cobalt
