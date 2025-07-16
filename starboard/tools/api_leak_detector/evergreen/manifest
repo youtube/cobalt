@@ -93,7 +93,6 @@ sigaction
 stderr
 stdin
 stdout
-symlink
 syscall
 sysconf
 syslog
