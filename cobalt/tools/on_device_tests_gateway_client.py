@@ -177,7 +177,7 @@ def _unit_test_files(args: argparse.Namespace, target_name: str) -> List[str]:
     ]
   elif args.device_family in ['rdk', 'raspi']:
     return [
-        f'bin={args.gcs_archive_path}/{target_name}',
+        f'bin={args.gcs_archive_path}/{target_name}.py',
         f'test_runtime_deps={args.gcs_archive_path}/{target_name}_deps.tar.gz',
     ]
   else:

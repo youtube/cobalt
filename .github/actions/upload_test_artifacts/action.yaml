@@ -32,7 +32,6 @@ runs:
         TEST_TARGETS_JSON_FILE: ${{ inputs.test_targets_json_file }}
       run: |
         set -x
-        mkdir ${GITHUB_WORKSPACE}/artifacts
         cd src/
 
         FLAGS=""
@@ -49,7 +48,6 @@ runs:
           --targets $(cat "${TEST_TARGETS_JSON_FILE}" | jq -cr '.test_targets | join(",")') \
           ${FLAGS}
       shell: bash
-
     - name: Upload On-Host Test Artifacts Archive
       if: inputs.upload_on_host_test_artifacts == 'true'
       uses: actions/upload-artifact@v4
