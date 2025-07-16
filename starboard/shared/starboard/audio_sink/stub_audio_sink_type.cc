@@ -18,8 +18,8 @@
 #include <unistd.h>
 
 #include <algorithm>
+#include <mutex>
 
-#include "starboard/common/mutex.h"
 #include "starboard/common/time.h"
 #include "starboard/configuration.h"
 #include "starboard/configuration_constants.h"
@@ -53,7 +53,7 @@ class StubAudioSink : public SbAudioSinkPrivate {
   void* context_;
 
   pthread_t audio_out_thread_;
-  ::starboard::Mutex mutex_;
+  std::mutex mutex_;
 
   bool destroying_;
 };
@@ -78,7 +78,7 @@ StubAudioSink::StubAudioSink(
 
 StubAudioSink::~StubAudioSink() {
   {
-    ScopedLock lock(mutex_);
+    std::lock_guard lock(mutex_);
     destroying_ = true;
   }
   pthread_join(audio_out_thread_, NULL);
@@ -101,7 +101,7 @@ void StubAudioSink::AudioThreadFunc() {
 
   for (;;) {
     {
-      ScopedLock lock(mutex_);
+      std::lock_guard lock(mutex_);
       if (destroying_) {
         break;
       }
