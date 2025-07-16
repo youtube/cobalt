@@ -25,7 +25,6 @@
 
 #include "starboard/common/log.h"
 #include "starboard/common/time.h"
-#include "starboard/socket.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
 namespace starboard {
@@ -72,18 +71,6 @@ struct trio_socket_fd {
   int* client_socket_fd_ptr;
   int* server_socket_fd_ptr;
 };
-
-// Writes the given data to socket, spinning until success or error.
-bool PosixWriteBySpinning(int socket,
-                          const char* data,
-                          int data_size,
-                          int64_t timeout);
-
-// Reads the given amount of data from socket, spinning until success or error.
-bool PosixReadBySpinning(int socket,
-                         char* out_data,
-                         int data_size,
-                         int64_t timeout);
 
 }  // namespace nplb
 }  // namespace starboard

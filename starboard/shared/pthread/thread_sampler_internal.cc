@@ -18,10 +18,10 @@
 #include <semaphore.h>
 #include <signal.h>
 
+#include <mutex>
+
 #include "starboard/common/log.h"
-#include "starboard/common/mutex.h"
 #include "starboard/shared/pthread/thread_context_internal.h"
-#include "starboard/shared/pthread/types_internal.h"
 #include "starboard/thread.h"
 
 namespace {
@@ -29,14 +29,14 @@ namespace {
 class SignalHandler {
  public:
   static void AddSampler() {
-    starboard::ScopedLock lock(GetMutex());
+    std::lock_guard lock(GetMutex());
     if (++sampler_count_ == 1) {
       Install();
     }
   }
 
   static void RemoveSampler() {
-    starboard::ScopedLock lock(GetMutex());
+    std::lock_guard lock(GetMutex());
     if (--sampler_count_ == 0) {
       Restore();
     }
@@ -47,8 +47,8 @@ class SignalHandler {
 
  private:
   // Getter with static local to lazily initialize the mutex once.
-  static const starboard::Mutex& GetMutex() {
-    static starboard::Mutex mutex;
+  static std::mutex& GetMutex() {
+    static std::mutex mutex;
     return mutex;
   }
 
@@ -94,19 +94,20 @@ sem_t SignalHandler::freeze_semaphore_;
 sem_t SignalHandler::thaw_semaphore_;
 
 SbThreadContext SignalHandler::Freeze(SbThreadSampler sampler) {
-  starboard::ScopedLock lock(GetMutex());
+  std::lock_guard lock(GetMutex());
   SB_DCHECK(frozen_sampler_ != sampler) << "SbThreadSampler frozen twice.";
   if (!signal_handler_installed_ || SbThreadSamplerIsValid(frozen_sampler_)) {
     return kSbThreadContextInvalid;
   }
   frozen_sampler_ = sampler;
-  pthread_kill(SB_PTHREAD_INTERNAL_THREAD(sampler->thread()), SIGPROF);
+  pthread_kill(static_cast<SbThreadSamplerPrivate*>(sampler)->thread(),
+               SIGPROF);
   sem_wait(&freeze_semaphore_);
   return &sb_context_;
 }
 
 bool SignalHandler::Thaw(SbThreadSampler sampler) {
-  starboard::ScopedLock lock(GetMutex());
+  std::lock_guard lock(GetMutex());
   SB_DCHECK(frozen_sampler_ == sampler) << "SbThreadSampler didn't freeze.";
   if (frozen_sampler_ != sampler) {
     return false;

@@ -1,6 +1,16 @@
-// Copyright 2025 The Cobalt Authors
-// Use of this source code is governed by a BSD-style license that can be
-// found in the LICENSE file.
+// Copyright 2025 The Cobalt Authors. All Rights Reserved.
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
 
 #include "cobalt/shell/browser/shell_content_browser_client.h"
 
@@ -35,6 +45,8 @@
 #include "cobalt/shell/browser/shell_devtools_manager_delegate.h"
 #include "cobalt/shell/browser/shell_paths.h"
 #include "cobalt/shell/browser/shell_web_contents_view_delegate_creator.h"
+#include "cobalt/shell/common/shell_controller.test-mojom.h"
+#include "cobalt/shell/common/shell_switches.h"
 #include "components/custom_handlers/protocol_handler_registry.h"
 #include "components/custom_handlers/protocol_handler_throttle.h"
 #include "components/custom_handlers/simple_protocol_handler_registry_factory.h"
@@ -68,8 +80,6 @@
 #include "content/public/common/content_switches.h"
 #include "content/public/common/url_constants.h"
 #include "content/public/common/user_agent.h"
-#include "content/shell/common/shell_controller.test-mojom.h"
-#include "content/shell/common/shell_switches.h"
 #include "media/mojo/buildflags.h"
 #include "media/mojo/mojom/media_service.mojom.h"
 #include "mojo/public/cpp/bindings/remote.h"
@@ -113,11 +123,6 @@
 
 #if BUILDFLAG(IS_CT_SUPPORTED)
 #include "services/network/public/mojom/ct_log_info.mojom.h"
-#endif
-
-#if BUILDFLAG(IS_IOS)
-#include "cobalt/shell/browser/bluetooth/shell_bluetooth_delegate_impl_client.h"
-#include "components/permissions/bluetooth_delegate_impl.h"
 #endif
 
 namespace content {

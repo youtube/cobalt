@@ -374,12 +374,3 @@ if (sb_is_evergreen_compatible && current_toolchain == starboard_toolchain) {
     ]
   }
 }
-
-if (current_toolchain == starboard_toolchain) {
-  group("loader_assets") {
-    deps = [
-      ":loader_app",
-      "//starboard/elf_loader:elf_loader_sandbox",
-    ]
-  }
-}

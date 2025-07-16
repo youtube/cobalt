@@ -33,6 +33,7 @@ group("gn_all") {
   }
   if (is_cobalt_hermetic_build) {
     deps += [
+      ":cobalt_loader",
       "//starboard/elf_loader:elf_loader_sandbox($starboard_toolchain)",
       "//starboard/elf_loader:elf_loader_sys_sandbox($starboard_toolchain)",
       "//starboard/loader_app:loader_app($starboard_toolchain)",
@@ -62,6 +63,10 @@ if (!is_android) {
       "//starboard:starboard_headers_only",
     ]
 
+    if (is_cobalt_hermetic_build) {
+      # Needed for third_party/musl/src/starboard/internal/hwcap_impl.h
+      deps += [ "//third_party/musl:headers" ]
+    }
     if (is_starboard) {
       deps += [ "//ui/ozone/platform/starboard:starboard" ]
     }
@@ -88,9 +93,14 @@ source_set("common") {
   sources = [
     "app/cobalt_main_delegate.cc",
     "app/cobalt_main_delegate.h",
-    "app/cobalt_switch_defaults_starboard.cc",
-    "app/cobalt_switch_defaults_starboard.h",
   ]
+
+  if (is_starboard) {
+    sources += [
+      "app/cobalt_switch_defaults_starboard.cc",
+      "app/cobalt_switch_defaults_starboard.h",
+    ]
+  }
 
   deps = [
     "//base",
@@ -100,6 +110,7 @@ source_set("common") {
     "//cobalt/renderer",
     "//cobalt/shell:content_shell_app",
     "//cobalt/shell:content_shell_lib",
+    "//cobalt/utility",
     "//components/memory_system:memory_system",
     "//content/public/app",
     "//content/shell:pak",
@@ -140,7 +151,6 @@ test("cobalt_unittests") {
   testonly = true
 
   sources = [
-    "//cobalt/app/cobalt_switch_defaults_starboard_test.cc",
     "//cobalt/browser/client_hint_headers/cobalt_header_value_provider_test.cc",
     "//cobalt/browser/client_hint_headers/cobalt_trusted_header_client_test.cc",
     "//cobalt/browser/client_hint_headers/cobalt_trusted_url_loader_header_client_test.cc",
@@ -152,6 +162,10 @@ test("cobalt_unittests") {
     "//cobalt/browser/metrics/cobalt_metrics_services_manager_client_test.cc",
     "//cobalt/browser/user_agent/user_agent_platform_info_test.cc",
   ]
+
+  if (is_starboard) {
+    sources += [ "//cobalt/app/cobalt_switch_defaults_starboard_test.cc" ]
+  }
 
   public_deps = [ "//third_party/zlib/google:compression_utils" ]
 

@@ -5,6 +5,7 @@
 #include "fork_impl.h"
 
 #ifdef STARBOARD
+#include "build/build_config.h"
 #include <pthread.h>
 #include "starboard/common/log.h"
 #include "starboard/types.h"

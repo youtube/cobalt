@@ -43,8 +43,7 @@ public class CommandLineOverrideHelperTest {
     @Test
     public void testDefaultJsFlagOverridesList() {
         String overrides = CommandLineOverrideHelper.getDefaultJsFlagOverridesList().toString();
-        assertThat(overrides.contains("--optimize_for_size=true")).isTrue();
-        assertThat(overrides.contains("--concurrent_marking=false")).isTrue();
+        assertThat(overrides.contains("--optimize-for-size")).isTrue();
     }
 
     @Test
@@ -84,16 +83,12 @@ public class CommandLineOverrideHelperTest {
       actual = CommandLine.getInstance().getSwitchValue("force-device-scale-factor");
       Assert.assertEquals(expected, actual);
 
-      expected = "passthrough";
-      actual = CommandLine.getInstance().getSwitchValue("use-cmd-decoder");
-      Assert.assertEquals(expected, actual);
-
       expected = "32";
       actual = CommandLine.getInstance().getSwitchValue("force-gpu-mem-available-mb");
       Assert.assertEquals(expected, actual);
 
       actual = CommandLine.getInstance().getSwitchValue("enable-features");
-      expected = "LogJsConsoleMessages,LimitImageDecodeCacheSize:mb/24";
+      expected = "LogJsConsoleMessages,LimitImageDecodeCacheSize:mb/24,DefaultPassthroughCommandDecoder";
       Assert.assertEquals(expected, actual);
 
       actual = CommandLine.getInstance().getSwitchValue("disable-features");
