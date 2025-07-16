@@ -17,6 +17,7 @@
 #include <algorithm>
 #include <utility>
 
+#include "base/trace_event/trace_event.h"
 #include "cobalt/cssom/computed_style_utils.h"
 #include "cobalt/cssom/keyword_value.h"
 #include "cobalt/cssom/number_value.h"
@@ -315,6 +316,7 @@ InsetsLayoutUnit GetOffsetFromContainingBlockToParentOfAbsolutelyPositionedBox(
 }  // namespace
 
 bool ContainerBox::ValidateUpdateSizeInputs(const LayoutParams& params) {
+  TRACE_EVENT0("cobalt::layout", "ContainerBox::ValidateUpdateSizeInputs");
   // Take into account whether our children have been modified to determine
   // if our sizes are invalid and need to be recomputed.
   if (Box::ValidateUpdateSizeInputs(params) && update_size_results_valid_) {
