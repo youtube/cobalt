@@ -12,21 +12,25 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+#include <pthread.h>
 #include <stdarg.h>
 #include <stdio.h>
 #include <string.h>
 
 namespace {
 char g_ident[128];
-}
+pthread_mutex_t g_ident_mutex = PTHREAD_MUTEX_INITIALIZER;
+}  // namespace
 
 void openlog(const char* ident, int option, int facility) {
+  pthread_mutex_lock(&g_ident_mutex);
   if (ident) {
     strncpy(g_ident, ident, sizeof(g_ident) - 1);
     g_ident[sizeof(g_ident) - 1] = '\0';
   } else {
     g_ident[0] = '\0';
   }
+  pthread_mutex_unlock(&g_ident_mutex);
 }
 
 void syslog(int priority, const char* format, ...) {
@@ -36,13 +40,17 @@ void syslog(int priority, const char* format, ...) {
   vsnprintf(syslog_message, sizeof(syslog_message), format, args);
   va_end(args);
 
+  pthread_mutex_lock(&g_ident_mutex);
   if (g_ident[0] != '\0') {
     printf("%s: %s\n", g_ident, syslog_message);
   } else {
     printf("%s\n", syslog_message);
   }
+  pthread_mutex_unlock(&g_ident_mutex);
 }
 
 void closelog(void) {
+  pthread_mutex_lock(&g_ident_mutex);
   g_ident[0] = '\0';
+  pthread_mutex_unlock(&g_ident_mutex);
 }
