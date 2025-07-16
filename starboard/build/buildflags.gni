@@ -3,8 +3,7 @@ import("//v8/gni/snapshot_toolchain.gni")
 
 declare_args() {
   use_starboard_media = is_cobalt && current_toolchain != host_toolchain &&
-                        (current_toolchain != v8_snapshot_toolchain ||
-                         v8_snapshot_toolchain == default_toolchain)
+                        current_toolchain != v8_snapshot_toolchain
 }
 
 # Differentiates our 1P ATV platform from 3P AOSP.
