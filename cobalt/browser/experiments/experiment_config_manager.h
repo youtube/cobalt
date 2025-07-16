@@ -45,13 +45,22 @@ class ExperimentConfigManager {
   void StoreSafeConfig();
 
   // Public getter for testing.
-  bool has_called_store_safe_config() { return called_store_safe_config_; }
+  bool has_called_store_safe_config_for_testing() {
+    return called_store_safe_config_;
+  }
 
  private:
   bool called_store_safe_config_ = false;
   // The pref service used to persist the experiment config. Weak reference;
   // Must outlive |this| instance.
   raw_ptr<PrefService> experiment_config_;
+
+  FRIEND_TEST_ALL_PREFIXES(ExperimentConfigManagerTest,
+                           TestStoreSafeConfigWithRegularConfig);
+  FRIEND_TEST_ALL_PREFIXES(ExperimentConfigManagerTest,
+                           TestStoreSafeConfigWithSafeConfig);
+  FRIEND_TEST_ALL_PREFIXES(ExperimentConfigManagerTest,
+                           TestStoreSafeConfigWithEmptyConfig);
 };
 
 }  // namespace cobalt

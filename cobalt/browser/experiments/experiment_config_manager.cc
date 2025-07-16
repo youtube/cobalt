@@ -26,6 +26,10 @@ ExperimentConfigType ExperimentConfigManager::GetExperimentConfigType() {
   DCHECK(!called_store_safe_config_);
   int num_crashes =
       experiment_config_->GetInteger(variations::prefs::kVariationsCrashStreak);
+  static_assert(
+      kCrashStreakEmptyConfigThreshold > kCrashStreakSafeConfigThreshold,
+      "Threshold to use an empty experiment config should be larger "
+      "than to use the safe one.");
   if (num_crashes >= kCrashStreakEmptyConfigThreshold) {
     return ExperimentConfigType::kEmptyConfig;
   }
@@ -36,7 +40,7 @@ ExperimentConfigType ExperimentConfigManager::GetExperimentConfigType() {
 }
 
 void ExperimentConfigManager::StoreSafeConfig() {
-  // This should only be called upon the first setExperimentState call from
+  // This should only be called upon the first setExperimentState() call from
   // h5vcc. Active config would be stored as the safe config.
   // Note that it's sufficient to do this only upon receiving the first
   // experiment config from h5vcc call because the active configuration does

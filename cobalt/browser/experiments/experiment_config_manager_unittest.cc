@@ -77,7 +77,8 @@ TEST_F(ExperimentConfigManagerTest, StoreSafeConfigIsNoOpForSafeConfig) {
   experiment_config_manager_->StoreSafeConfig();
   task_environment_.RunUntilIdle();
 
-  EXPECT_FALSE(experiment_config_manager_->has_called_store_safe_config());
+  EXPECT_FALSE(
+      experiment_config_manager_->has_called_store_safe_config_for_testing());
   EXPECT_TRUE(pref_service_->GetDict(kSafeConfigFeatures).empty());
 }
 
@@ -88,7 +89,8 @@ TEST_F(ExperimentConfigManagerTest, StoreSafeConfigIsNoOpForEmptyConfig) {
   experiment_config_manager_->StoreSafeConfig();
   task_environment_.RunUntilIdle();
 
-  EXPECT_FALSE(experiment_config_manager_->has_called_store_safe_config());
+  EXPECT_FALSE(
+      experiment_config_manager_->has_called_store_safe_config_for_testing());
   EXPECT_TRUE(pref_service_->GetDict(kSafeConfigFeatures).empty());
 }
 
@@ -102,7 +104,8 @@ TEST_F(ExperimentConfigManagerTest, StoreSafeConfigIsOnlyCalledOnce) {
   experiment_config_manager_->StoreSafeConfig();
   task_environment_.RunUntilIdle();
 
-  EXPECT_TRUE(experiment_config_manager_->has_called_store_safe_config());
+  EXPECT_TRUE(
+      experiment_config_manager_->has_called_store_safe_config_for_testing());
   EXPECT_EQ(pref_service_->GetDict(kSafeConfigFeatures), initial_features);
 
   // Modify the regular config.

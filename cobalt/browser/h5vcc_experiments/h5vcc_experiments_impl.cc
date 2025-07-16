@@ -65,6 +65,11 @@ void H5vccExperimentsImpl::SetExperimentState(
   // A valid experiment config is supplied by h5vcc and we store the current
   // config as the safe config.
   global_features->experiment_config_manager()->StoreSafeConfig();
+  // Note: It's important to clear the crash streak. Crashes that occur after a
+  // successful config fetch do not prevent updating to a new update, and
+  // therefore do not necessitate falling back to a safe config.
+  experiment_config_ptr->SetInteger(variations::prefs::kVariationsCrashStreak,
+                                    0);
 
   experiment_config_ptr->SetDict(
       cobalt::kExperimentConfigFeatures,
@@ -78,12 +83,6 @@ void H5vccExperimentsImpl::SetExperimentState(
       cobalt::kExperimentConfigExpIds,
       std::move(
           experiment_config.Find(cobalt::kExperimentConfigExpIds)->GetList()));
-
-  // Note: It's important to clear the crash streak. Crashes that occur after a
-  // successful config fetch do not prevent updating to a new update, and
-  // therefore do not necessitate falling back to a safe config.
-  experiment_config_ptr->SetInteger(variations::prefs::kVariationsCrashStreak,
-                                    0);
   experiment_config_ptr->CommitPendingWrite();
   std::move(callback).Run();
 }
