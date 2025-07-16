@@ -53,67 +53,64 @@ std::optional<int> StringViewToInt(std::string_view string_to_convert) {
 // On success, returns the integer value.
 // On failure (no digits or invalid number), returns nullopt and the view is
 // not modified.
-std::optional<int> ParseInteger(std::string_view& sv) {
-  auto it = std::find_if_not(sv.begin(), sv.end(),
+std::optional<int> ParseInteger(std::string_view& timezone_view) {
+  auto it = std::find_if_not(timezone_view.begin(), timezone_view.end(),
                              [](char c) { return std::isdigit(c); });
-  size_t digits_end = std::distance(sv.begin(), it);
+  size_t digits_end = std::distance(timezone_view.begin(), it);
 
   if (digits_end == 0) {
     return std::nullopt;
   }
 
-  auto parsed_value = StringViewToInt(sv.substr(0, digits_end));
+  auto parsed_value = StringViewToInt(timezone_view.substr(0, digits_end));
   if (!parsed_value) {
     return std::nullopt;
   }
 
-  sv.remove_prefix(digits_end);
+  timezone_view.remove_prefix(digits_end);
   return parsed_value;
 }
 
 // Parses an optional, colon-prefixed time component (minutes or seconds).
 // Returns `true` on success (if the component was parsed, or if it wasn't
 // present). Returns `false` on a parse error (e.g., ":" not followed by
-// digits). On success, it updates `sv` and `target_component`.
-bool ParseOptionalTimeComponent(std::string_view& sv, int& target_component) {
-  if (sv.empty() || sv.front() != ':') {
+// digits). On success, it updates `timezone_view` and `target_component`.
+bool ParseOptionalTimeComponent(std::string_view& timezone_view,
+                                int& target_component) {
+  if (timezone_view.empty() || timezone_view.front() != ':') {
     return true;  // Success: component is optional and not present.
   }
 
   // We have a ':', so a number must follow.
-  auto temp_sv = sv;
-  temp_sv.remove_prefix(1);
-  auto int_res = ParseInteger(temp_sv);
+  timezone_view.remove_prefix(1);
+  auto int_res = ParseInteger(timezone_view);
   if (!int_res) {
     // Parse error: ':' was not followed by valid digits.
     return false;
   }
   target_component = *int_res;
-  sv = temp_sv;
   return true;
 }
 
 // Parses a time offset string (e.g., "8", "+2", or "-1:30") into seconds.
 // On success, returns the offset in seconds and advances the string_view.
 // On failure, returns nullopt and the view is not modified.
-std::optional<TimeOffset> ParseTimeOffset(std::string_view& sv) {
-  auto temp_sv = sv;
-
-  if (temp_sv.empty()) {
+std::optional<TimeOffset> ParseTimeOffset(std::string_view& timezone_view) {
+  if (timezone_view.empty()) {
     return std::nullopt;
   }
 
   bool is_negative = false;
-  if (temp_sv.front() == '+') {
-    temp_sv.remove_prefix(1);
-  } else if (temp_sv.front() == '-') {
+  if (timezone_view.front() == '+') {
+    timezone_view.remove_prefix(1);
+  } else if (timezone_view.front() == '-') {
     is_negative = true;
-    temp_sv.remove_prefix(1);
+    timezone_view.remove_prefix(1);
   }
 
   // --- Parse Hours (mandatory) ---
   int total_seconds = 0;
-  auto hours_res = ParseInteger(temp_sv);
+  auto hours_res = ParseInteger(timezone_view);
   if (!hours_res) {
     return std::nullopt;  // Must have hours.
   }
@@ -121,19 +118,17 @@ std::optional<TimeOffset> ParseTimeOffset(std::string_view& sv) {
 
   // --- Parse Minutes (optional) ---
   int minutes = 0;
-  if (!ParseOptionalTimeComponent(temp_sv, minutes)) {
+  if (!ParseOptionalTimeComponent(timezone_view, minutes)) {
     return std::nullopt;  // Invalid minutes format.
   }
   total_seconds += minutes * kSecondsInMinute;
 
   // --- Parse Seconds (optional) ---
   int seconds = 0;
-  if (!ParseOptionalTimeComponent(temp_sv, seconds)) {
+  if (!ParseOptionalTimeComponent(timezone_view, seconds)) {
     return std::nullopt;  // Invalid seconds format.
   }
   total_seconds += seconds;
-
-  sv = temp_sv;
   return is_negative ? -total_seconds : total_seconds;
 }
 
@@ -236,109 +231,149 @@ std::optional<TransitionRule> ParseTransitionRule(
 // past the name on success.
 // Returns the name on success, otherwise nullopt. The view is not modified on
 // failure.
-std::optional<std::string> ExtractName(std::string_view& sv) {
-  auto temp_sv = sv;
+std::optional<std::string> ExtractName(std::string_view& timezone_view) {
   std::string name;
 
-  if (temp_sv.empty()) {
+  if (timezone_view.empty()) {
     return std::nullopt;
   }
 
-  if (temp_sv.front() == '<') {
-    size_t end_quote = temp_sv.find('>');
+  if (timezone_view.front() == '<') {
+    size_t end_quote = timezone_view.find('>');
     if (end_quote == std::string_view::npos) {
       return std::nullopt;  // Unterminated quoted name.
     }
-    name = std::string(temp_sv.substr(1, end_quote - 1));
-    temp_sv.remove_prefix(end_quote + 1);
+    name = std::string(timezone_view.substr(1, end_quote - 1));
+    timezone_view.remove_prefix(end_quote + 1);
   } else {
-    auto it = std::find_if_not(temp_sv.begin(), temp_sv.end(),
+    auto it = std::find_if_not(timezone_view.begin(), timezone_view.end(),
                                [](char c) { return std::isalpha(c); });
-    size_t name_end = std::distance(temp_sv.begin(), it);
+    size_t name_end = std::distance(timezone_view.begin(), it);
 
     if (name_end == 0) {
       return std::nullopt;  // No alphabetic name found.
     }
-    name = std::string(temp_sv.substr(0, name_end));
-    temp_sv.remove_prefix(name_end);
+    name = std::string(timezone_view.substr(0, name_end));
+    timezone_view.remove_prefix(name_end);
   }
-
-  sv = temp_sv;
   return name;
 }
 
-}  // namespace
+// Extracts a timezone name and validates it. Returns true if a name was
+// extracted. The caller is responsible for checking `is_valid`.
+bool ParseZoneName(std::string_view& timezone_view,
+                   std::string& name,
+                   bool& is_valid) {
+  bool is_quoted = (!timezone_view.empty() && timezone_view.front() == '<');
+  auto extracted_name = ExtractName(timezone_view);
+  if (!extracted_name) {
+    return false;
+  }
+  name = *extracted_name;
+  is_valid = !((!is_quoted && name.length() < 3) ||
+               name.find('/') != std::string::npos);
+  return true;
+}
 
-// Parses a POSIX-style timezone string into its component parts.
-// The format is described as:
-// "std[offset[dst[offset]][,start_date[/time],end_date[/time]]]"
-std::optional<TimezoneData> ParsePosixTz(const std::string& timezone_string) {
-  std::string_view tz_sv(timezone_string);
-  TimezoneData result;
+// Parses a time offset. Returns true on success.
+bool ParseZoneOffset(std::string_view& timezone_view, TimeOffset& offset) {
+  auto parsed_offset = ParseTimeOffset(timezone_view);
+  if (!parsed_offset) {
+    return false;
+  }
+  offset = *parsed_offset;
+  return true;
+}
 
-  // Skip optional leading ':'
-  if (!tz_sv.empty() && tz_sv.front() == ':') {
-    tz_sv.remove_prefix(1);
+enum class ZoneParseStatus { kSuccess, kNoName, kInvalidName };
+
+// Attempts to parse a zone name and an optional offset.
+// Returns a status indicating the outcome, and the parsed components are
+// returned via output parameters.
+ZoneParseStatus ParseZone(std::string_view& timezone_view,
+                          std::string& out_name,
+                          std::optional<TimeOffset>& out_offset) {
+  bool is_valid;
+  if (!ParseZoneName(timezone_view, out_name, is_valid)) {
+    return ZoneParseStatus::kNoName;
   }
 
-  // 1. Parse Standard Time Name
-  bool is_quoted = (!tz_sv.empty() && tz_sv.front() == '<');
-  auto std_name = ExtractName(tz_sv);
-  if (!std_name) {
-    return std::nullopt;
+  if (!is_valid) {
+    return ZoneParseStatus::kInvalidName;
   }
-  if ((!is_quoted && std_name->length() < 3) ||
-      std_name->find('/') != std::string::npos) {
-    return std::nullopt;
-  }
-  result.std = *std_name;
 
-  // 2. Parse Standard Time Offset
-  auto std_offset = ParseTimeOffset(tz_sv);
-  if (!std_offset) {
-    return std::nullopt;  // A standard offset is mandatory.
+  out_offset.reset();
+  TimeOffset offset_val;
+  if (ParseZoneOffset(timezone_view, offset_val)) {
+    out_offset = offset_val;
   }
+
+  return ZoneParseStatus::kSuccess;
+}
+
+// Parses the standard time zone part of the string.
+// Returns false if parsing should stop, true otherwise.
+bool ParseStd(std::string_view& timezone_view, TimezoneData& result) {
+  std::string std_name;
+  std::optional<TimeOffset> std_offset;
+  ZoneParseStatus std_status = ParseZone(timezone_view, std_name, std_offset);
+
+  if (std_status != ZoneParseStatus::kSuccess || !std_offset.has_value()) {
+    // Standard time requires a valid name and an offset.
+    return false;
+  }
+  result.std = std_name;
   result.std_offset = *std_offset;
+  return true;
+}
 
-  // 3. Parse optional DST Name and Offset.
-  if (!tz_sv.empty() && tz_sv.front() != ',') {
-    auto temp_sv = tz_sv;
-    auto dst_name = ExtractName(temp_sv);
-    if (dst_name) {
-      bool is_quoted_dst = (!tz_sv.empty() && tz_sv.front() == '<');
-      if ((!is_quoted_dst && dst_name->length() < 3) ||
-          dst_name->find('/') != std::string::npos) {
-        return result;
-      }
-
-      result.dst = *dst_name;
-
-      if (!temp_sv.empty() && temp_sv.front() != ',') {
-        auto dst_offset = ParseTimeOffset(temp_sv);
-        if (!dst_offset) {
-          return result;
-        }
-        result.dst_offset = dst_offset;
-      } else {
-        result.dst_offset = result.std_offset - kSecondsInHour;
-      }
-      tz_sv = temp_sv;
-    }
+// Parses the optional DST part of the time zone string.
+// Returns false if parsing should stop, true otherwise.
+bool ParseDst(std::string_view& timezone_view, TimezoneData& result) {
+  if (timezone_view.empty() || timezone_view.front() == ',') {
+    return true;  // No DST part to parse.
   }
 
-  // 4. Parse optional transition rules, or apply defaults.
-  if (!tz_sv.empty() && tz_sv.front() == ',') {
-    tz_sv.remove_prefix(1);
+  std::string dst_name;
+  std::optional<TimeOffset> dst_offset;
+  ZoneParseStatus dst_status = ParseZone(timezone_view, dst_name, dst_offset);
 
-    size_t comma_pos = tz_sv.find(',');
+  if (dst_status == ZoneParseStatus::kInvalidName) {
+    // An invalid DST name is a graceful stop.
+    return false;
+  }
+
+  if (dst_status == ZoneParseStatus::kSuccess) {
+    result.dst = dst_name;
+    result.dst_offset = dst_offset.value_or(result.std_offset - kSecondsInHour);
+  }
+
+  // After parsing DST, if the remaining string is not empty and doesn't
+  // start with a comma, it's a malformed entry.
+  if (!timezone_view.empty() && timezone_view.front() != ',') {
+    // The DST part was malformed. Discard it and reset the string view.
+    result.dst.reset();
+    result.dst_offset.reset();
+    return false;
+  }
+  return true;
+}
+
+// Section 4: Parse optional transition rules, or apply defaults.
+// Returns true to continue parsing, false to stop and return result.
+bool ParseTransitionRules(std::string_view& timezone_view,
+                          TimezoneData& result) {
+  if (!timezone_view.empty() && timezone_view.front() == ',') {
+    timezone_view.remove_prefix(1);
+
+    size_t comma_pos = timezone_view.find(',');
     if (comma_pos == std::string_view::npos) {
-      // Malformed rule (only one part), so we ignore it and return what we
-      // have.
-      return result;
+      // Malformed rule (only one part), so we ignore it and return.
+      return false;  // Stop parsing.
     }
 
-    auto start_rule_sv = tz_sv.substr(0, comma_pos);
-    auto end_rule_sv = tz_sv.substr(comma_pos + 1);
+    auto start_rule_sv = timezone_view.substr(0, comma_pos);
+    auto end_rule_sv = timezone_view.substr(comma_pos + 1);
 
     auto start_rule = ParseTransitionRule(start_rule_sv);
     auto end_rule = ParseTransitionRule(end_rule_sv);
@@ -356,6 +391,37 @@ std::optional<TimezoneData> ParsePosixTz(const std::string& timezone_string) {
     // Ends first Sunday in November at 2am.
     result.end = TransitionRule{{DateRule::Format::MonthWeekDay, 11, 1, 0},
                                 2 * kSecondsInHour};
+  }
+  return true;
+}
+
+}  // namespace
+
+// Parses a POSIX-style timezone string into its component parts.
+// The format is described as:
+// "std[offset[dst[offset]][,start_date[/time],end_date[/time]]]"
+std::optional<TimezoneData> ParsePosixTz(const std::string& timezone_string) {
+  std::string_view timezone_view(timezone_string);
+  TimezoneData result;
+
+  // Skip optional leading ':'
+  if (!timezone_view.empty() && timezone_view.front() == ':') {
+    timezone_view.remove_prefix(1);
+  }
+
+  // 1. Parse Standard Time Name and Offset
+  if (!ParseStd(timezone_view, result)) {
+    return std::nullopt;
+  }
+
+  // 2. Parse optional DST Name and Offset.
+  if (!ParseDst(timezone_view, result)) {
+    return result;
+  }
+
+  // 3. Parse optional transition rules, or apply defaults.
+  if (!ParseTransitionRules(timezone_view, result)) {
+    return result;
   }
 
   return result;
