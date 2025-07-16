@@ -2,8 +2,8 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#ifndef CONTENT_TEST_RESOURCE_LOAD_OBSERVER_H_
-#define CONTENT_TEST_RESOURCE_LOAD_OBSERVER_H_
+#ifndef COBALT_TESTING_TEST_RESOURCE_LOAD_OBSERVER_H_
+#define COBALT_TESTING_TEST_RESOURCE_LOAD_OBSERVER_H_
 
 #include <string>
 #include <vector>
@@ -90,4 +90,4 @@ class ResourceLoadObserver : public WebContentsObserver {
 
 }  // namespace content
 
-#endif  // CONTENT_TEST_RESOURCE_LOAD_OBSERVER_H_
+#endif  // COBALT_TESTING_TEST_RESOURCE_LOAD_OBSERVER_H_

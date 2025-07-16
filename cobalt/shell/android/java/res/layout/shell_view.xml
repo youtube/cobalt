@@ -6,7 +6,7 @@ Use of this source code is governed by a BSD-style license that can be
 found in the LICENSE file.
 -->
 
-<org.chromium.content_shell.Shell
+<dev.cobalt.shell.Shell
     xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:tools="http://schemas.android.com/tools"
     android:id="@+id/container"
@@ -52,4 +52,4 @@ found in the LICENSE file.
         android:layout_width="match_parent"
         android:layout_height="0dp"
         android:layout_weight="1" />
-</org.chromium.content_shell.Shell>
+</dev.cobalt.shell.Shell>

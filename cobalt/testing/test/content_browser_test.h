@@ -25,8 +25,8 @@
 // renderer in the same process, but on a different thread. This is very
 // strongly discouraged. :)
 
-#ifndef CONTENT_PUBLIC_TEST_CONTENT_BROWSER_TEST_H_
-#define CONTENT_PUBLIC_TEST_CONTENT_BROWSER_TEST_H_
+#ifndef COBALT_TESTING_TEST_CONTENT_BROWSER_TEST_H_
+#define COBALT_TESTING_TEST_CONTENT_BROWSER_TEST_H_
 
 #include "base/files/file_path.h"
 #include "base/memory/raw_ptr.h"
@@ -88,4 +88,4 @@ class ContentBrowserTest : public BrowserTestBase {
 
 }  // namespace content
 
-#endif  // CONTENT_PUBLIC_TEST_CONTENT_BROWSER_TEST_H_
+#endif  // COBALT_TESTING_TEST_CONTENT_BROWSER_TEST_H_

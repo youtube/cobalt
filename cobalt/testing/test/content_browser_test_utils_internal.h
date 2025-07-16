@@ -2,8 +2,8 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#ifndef CONTENT_TEST_CONTENT_BROWSER_TEST_UTILS_INTERNAL_H_
-#define CONTENT_TEST_CONTENT_BROWSER_TEST_UTILS_INTERNAL_H_
+#ifndef COBALT_TESTING_TEST_CONTENT_BROWSER_TEST_UTILS_INTERNAL_H_
+#define COBALT_TESTING_TEST_CONTENT_BROWSER_TEST_UTILS_INTERNAL_H_
 
 // A collection of functions designed for use with content_shell based browser
 // tests internal to the content/ module.
@@ -780,4 +780,4 @@ class BeginNavigationInCommitCallbackInterceptor
 
 }  // namespace content
 
-#endif  // CONTENT_TEST_CONTENT_BROWSER_TEST_UTILS_INTERNAL_H_
+#endif  // COBALT_TESTING_TEST_CONTENT_BROWSER_TEST_UTILS_INTERNAL_H_
