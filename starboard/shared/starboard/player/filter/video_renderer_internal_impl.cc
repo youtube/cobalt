@@ -21,7 +21,9 @@
 #include <mutex>
 #include <utility>
 
+#if SB_IS_ANDROID
 #include "starboard/android/shared/video_decoder.h"
+#endif
 #include "starboard/common/time.h"
 
 namespace starboard::shared::starboard::player::filter {
@@ -186,6 +188,7 @@ void VideoRendererImpl::Seek(int64_t seek_to_time) {
   algorithm_->Seek(seek_to_time);
 }
 
+#if SB_IS_ANDROID
 bool VideoRendererImpl::CanAcceptMoreData() const {
   SB_DCHECK(BelongsToCurrentThread());
 
@@ -220,6 +223,21 @@ bool VideoRendererImpl::CanAcceptMoreData() const {
                << (can_accept_more_data ? "true" : "false");
   return can_accept_more_data;
 }
+#else
+bool VideoRendererImpl::CanAcceptMoreData() const {
+  SB_DCHECK(BelongsToCurrentThread());
+  bool can_accept_more_data =
+      number_of_frames_.load() <
+          static_cast<int32_t>(decoder_->GetMaxNumberOfCachedFrames()) &&
+      !end_of_stream_written_.load() && need_more_input_.load();
+#if SB_PLAYER_FILTER_ENABLE_STATE_CHECK
+  if (can_accept_more_data) {
+    last_can_accept_more_data = CurrentMonotonicTime();
+  }
+#endif  // SB_PLAYER_FILTER_ENABLE_STATE_CHECK
+  return can_accept_more_data;
+}
+#endif
 
 void VideoRendererImpl::SetBounds(int z_index,
                                   int x,
