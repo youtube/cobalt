@@ -35,15 +35,6 @@ constexpr int kSecondsInHour = 3600;
 // Number of seconds in a minute.
 constexpr int kSecondsInMinute = 60;
 
-// A helper struct to return both a parsed value and the number of characters
-// consumed from the input string. This is crucial for the iterative parser
-// to know where to resume parsing.
-template <typename T>
-struct ParseResult {
-  T value;
-  size_t consumed;
-};
-
 std::optional<int> StringViewToInt(std::string_view string_to_convert) {
   int integer_value;
   auto [end_pointer, error_code] = std::from_chars(
@@ -56,11 +47,12 @@ std::optional<int> StringViewToInt(std::string_view string_to_convert) {
   return std::nullopt;
 }
 
-// Parses a sequence of digits from the start of a string_view.
-// On success, returns a ParseResult with the integer value and number of
-// characters consumed. On failure (no digits or invalid number), returns
-// nullopt. This function does not modify the input string_view.
-std::optional<ParseResult<int>> ParseInteger(std::string_view sv) {
+// Parses a sequence of digits from the start of a string_view, advancing the
+// view past the digits on success.
+// On success, returns the integer value.
+// On failure (no digits or invalid number), returns nullopt and the view is
+// not modified.
+std::optional<int> ParseInteger(std::string_view& sv) {
   size_t digits_end = 0;
   while (digits_end < sv.length() && isdigit(sv[digits_end])) {
     digits_end++;
@@ -70,81 +62,79 @@ std::optional<ParseResult<int>> ParseInteger(std::string_view sv) {
     return std::nullopt;
   }
 
-  if (auto parsed_value = StringViewToInt(sv.substr(0, digits_end))) {
-    return {{*parsed_value, digits_end}};
+  auto parsed_value = StringViewToInt(sv.substr(0, digits_end));
+  if (!parsed_value) {
+    return std::nullopt;
   }
 
-  return std::nullopt;
+  sv.remove_prefix(digits_end);
+  return parsed_value;
 }
 
 // Parses an optional, colon-prefixed time component (minutes or seconds).
 // Returns `true` on success (if the component was parsed, or if it wasn't
 // present). Returns `false` on a parse error (e.g., ":" not followed by
-// digits). On success, it updates `sv`, `consumed`, and `target_component`.
-bool ParseOptionalTimeComponent(std::string_view& sv,
-                                size_t& consumed,
-                                int& target_component) {
+// digits). On success, it updates `sv` and `target_component`.
+bool ParseOptionalTimeComponent(std::string_view& sv, int& target_component) {
   if (sv.empty() || sv.front() != ':') {
     return true;  // Success: component is optional and not present.
   }
 
   // We have a ':', so a number must follow.
-  if (auto int_res = ParseInteger(sv.substr(1))) {
-    target_component = int_res->value;
-    // Consume the ':' plus the digits.
-    size_t component_consumed = 1 + int_res->consumed;
-    sv.remove_prefix(component_consumed);
-    consumed += component_consumed;
-    return true;
+  auto temp_sv = sv;
+  temp_sv.remove_prefix(1);
+  auto int_res = ParseInteger(temp_sv);
+  if (!int_res) {
+    // Parse error: ':' was not followed by valid digits.
+    return false;
   }
-
-  // Parse error: ':' was not followed by valid digits.
-  return false;
+  target_component = *int_res;
+  sv = temp_sv;
+  return true;
 }
 
 // Parses a time offset string (e.g., "8", "+2", or "-1:30") into seconds.
-// Returns the offset in seconds and the number of characters consumed.
-std::optional<ParseResult<TimeOffset>> ParseTimeOffset(
-    std::string_view time_offset_string) {
-  if (time_offset_string.empty()) {
+// On success, returns the offset in seconds and advances the string_view.
+// On failure, returns nullopt and the view is not modified.
+std::optional<TimeOffset> ParseTimeOffset(std::string_view& sv) {
+  auto temp_sv = sv;
+
+  if (temp_sv.empty()) {
     return std::nullopt;
   }
 
   bool is_negative = false;
-  size_t consumed = 0;
-
-  // Handle optional leading '+' or '-' sign.
-  if (time_offset_string.front() == '+') {
-    time_offset_string.remove_prefix(1);
-    consumed++;
-  } else if (time_offset_string.front() == '-') {
+  if (temp_sv.front() == '+') {
+    temp_sv.remove_prefix(1);
+  } else if (temp_sv.front() == '-') {
     is_negative = true;
-    time_offset_string.remove_prefix(1);
-    consumed++;
+    temp_sv.remove_prefix(1);
   }
 
   // --- Parse Hours (mandatory) ---
   int total_seconds = 0;
-  auto hours_res = ParseInteger(time_offset_string);
+  auto hours_res = ParseInteger(temp_sv);
   if (!hours_res) {
-    return std::nullopt;  // Must have hours
+    return std::nullopt;  // Must have hours.
   }
-  total_seconds += hours_res->value * kSecondsInHour;
-  consumed += hours_res->consumed;
-  time_offset_string.remove_prefix(hours_res->consumed);
+  total_seconds += *hours_res * kSecondsInHour;
 
   // --- Parse Minutes (optional) ---
   int minutes = 0;
-  if (ParseOptionalTimeComponent(time_offset_string, consumed, minutes)) {
-    total_seconds += minutes * kSecondsInMinute;
-    // --- Parse Seconds (optional, only if minutes were parsable) ---
-    int seconds = 0;
-    if (ParseOptionalTimeComponent(time_offset_string, consumed, seconds)) {
-      total_seconds += seconds;
-    }
+  if (!ParseOptionalTimeComponent(temp_sv, minutes)) {
+    return std::nullopt;  // Invalid minutes format.
   }
+  total_seconds += minutes * kSecondsInMinute;
 
-  return {{is_negative ? -total_seconds : total_seconds, consumed}};
+  // --- Parse Seconds (optional) ---
+  int seconds = 0;
+  if (!ParseOptionalTimeComponent(temp_sv, seconds)) {
+    return std::nullopt;  // Invalid seconds format.
+  }
+  total_seconds += seconds;
+
+  sv = temp_sv;
+  return is_negative ? -total_seconds : total_seconds;
 }
 
 // Parses a month-week-day format date rule (e.g., "M3.2.0").
@@ -165,36 +155,37 @@ std::optional<DateRule> ParseMonthWeekDayRule(std::string_view rule_body) {
       first_dot_position + 1, second_dot_position - (first_dot_position + 1)));
   auto day = StringViewToInt(rule_body.substr(second_dot_position + 1));
 
-  if (month && week && day) {
-    parsed_date_rule.month = *month;
-    parsed_date_rule.week = *week;
-    parsed_date_rule.day = *day;
-    return parsed_date_rule;
+  if (!month || !week || !day) {
+    return std::nullopt;
   }
-
-  return std::nullopt;
+  parsed_date_rule.month = *month;
+  parsed_date_rule.week = *week;
+  parsed_date_rule.day = *day;
+  return parsed_date_rule;
 }
 
 // Parses a Julian day format date rule (e.g., "J60").
 std::optional<DateRule> ParseJulianRule(std::string_view rule_body) {
   DateRule parsed_date_rule;
   parsed_date_rule.format = DateRule::Format::Julian;
-  if (auto day = StringViewToInt(rule_body)) {
-    parsed_date_rule.day = *day;
-    return parsed_date_rule;
+  auto day = StringViewToInt(rule_body);
+  if (!day) {
+    return std::nullopt;
   }
-  return std::nullopt;
+  parsed_date_rule.day = *day;
+  return parsed_date_rule;
 }
 
 // Parses a zero-based Julian day format date rule (e.g., "60").
 std::optional<DateRule> ParseZeroBasedJulianRule(std::string_view rule_body) {
   DateRule parsed_date_rule;
   parsed_date_rule.format = DateRule::Format::ZeroBasedJulian;
-  if (auto day = StringViewToInt(rule_body)) {
-    parsed_date_rule.day = *day;
-    return parsed_date_rule;
+  auto day = StringViewToInt(rule_body);
+  if (!day) {
+    return std::nullopt;
   }
-  return std::nullopt;
+  parsed_date_rule.day = *day;
+  return parsed_date_rule;
 }
 
 // Parses a date rule string (e.g., "M3.2.0" or "J60") into a DateRule struct.
@@ -222,55 +213,59 @@ std::optional<TransitionRule> ParseTransitionRule(
   size_t slash_position = transition_rule_string.find('/');
 
   auto date_rule_string_view = transition_rule_string.substr(0, slash_position);
-  if (auto date_rule = ParseDateRule(date_rule_string_view)) {
-    parsed_transition_rule.date = *date_rule;
-  } else {
+  auto date_rule = ParseDateRule(date_rule_string_view);
+  if (!date_rule) {
     return std::nullopt;
   }
+  parsed_transition_rule.date = *date_rule;
 
   // Time is optional, defaults to 2:00:00.
   if (slash_position != std::string_view::npos) {
-    auto time_offset_string_view =
-        transition_rule_string.substr(slash_position + 1);
+    auto time_offset_sv = transition_rule_string.substr(slash_position + 1);
     // The time of day for a transition is always positive.
-    if (auto result = ParseTimeOffset(time_offset_string_view);
-        result && result->value >= 0) {
-      parsed_transition_rule.time = result->value;
-    } else {
-      return std::nullopt;  // Time part is invalid or negative.
+    auto result = ParseTimeOffset(time_offset_sv);
+    if (!result || *result < 0 || !time_offset_sv.empty()) {
+      return std::nullopt;  // Time part invalid, or junk after time
     }
+    parsed_transition_rule.time = *result;
   }
   return parsed_transition_rule;
 }
 
-// Helper to extract a timezone name (quoted or unquoted).
-// Returns the name and the number of characters consumed.
-ParseResult<std::string> ExtractName(std::string_view sv) {
+// Helper to extract a timezone name (quoted or unquoted), advancing the view
+// past the name on success.
+// Returns the name on success, otherwise nullopt. The view is not modified on
+// failure.
+std::optional<std::string> ExtractName(std::string_view& sv) {
+  auto temp_sv = sv;
   std::string name;
-  size_t consumed = 0;
 
-  if (sv.empty()) {
-    return {name, consumed};
+  if (temp_sv.empty()) {
+    return std::nullopt;
   }
 
-  if (sv.front() == '<') {
-    size_t end_quote = sv.find('>');
-    if (end_quote != std::string_view::npos) {
-      name = std::string(sv.substr(1, end_quote - 1));
-      consumed = end_quote + 1;
+  if (temp_sv.front() == '<') {
+    size_t end_quote = temp_sv.find('>');
+    if (end_quote == std::string_view::npos) {
+      return std::nullopt;  // Unterminated quoted name.
     }
+    name = std::string(temp_sv.substr(1, end_quote - 1));
+    temp_sv.remove_prefix(end_quote + 1);
   } else {
     size_t name_end = 0;
     // An unquoted name must be alphabetic.
-    while (name_end < sv.length() && isalpha(sv[name_end])) {
+    while (name_end < temp_sv.length() && isalpha(temp_sv[name_end])) {
       name_end++;
     }
-    if (name_end > 0) {
-      name = std::string(sv.substr(0, name_end));
-      consumed = name_end;
+    if (name_end == 0) {
+      return std::nullopt;  // No alphabetic name found.
     }
+    name = std::string(temp_sv.substr(0, name_end));
+    temp_sv.remove_prefix(name_end);
   }
-  return {name, consumed};
+
+  sv = temp_sv;
+  return name;
 }
 
 }  // namespace
@@ -288,73 +283,48 @@ std::optional<TimezoneData> ParsePosixTz(const std::string& timezone_string) {
   }
 
   // 1. Parse Standard Time Name
-  auto std_name_res = ExtractName(tz_sv);
-  // Unquoted POSIX names must be at least 3 characters.
   bool is_quoted = (!tz_sv.empty() && tz_sv.front() == '<');
-  if (std_name_res.consumed == 0 ||
-      (!is_quoted && std_name_res.value.length() < 3)) {
+  auto std_name = ExtractName(tz_sv);
+  if (!std_name) {
     return std::nullopt;
   }
-  // IANA names contain '/', which is not allowed in POSIX names.
-  if (std_name_res.value.find('/') != std::string::npos) {
+  if ((!is_quoted && std_name->length() < 3) ||
+      std_name->find('/') != std::string::npos) {
     return std::nullopt;
   }
-  result.std = std_name_res.value;
-  tz_sv.remove_prefix(std_name_res.consumed);
+  result.std = *std_name;
 
   // 2. Parse Standard Time Offset
-  auto std_offset_res = ParseTimeOffset(tz_sv);
-  if (!std_offset_res) {
+  auto std_offset = ParseTimeOffset(tz_sv);
+  if (!std_offset) {
     return std::nullopt;  // A standard offset is mandatory.
   }
-  result.std_offset = std_offset_res->value;
-  tz_sv.remove_prefix(std_offset_res->consumed);
+  result.std_offset = *std_offset;
 
   // 3. Parse optional DST Name and Offset.
-  // This block parses the `dst[offset]` part atomically. It will only
-  // commit the DST information to the result if the name and its optional
-  // offset are both valid.
-  auto dst_name_res = ExtractName(tz_sv);
-  if (dst_name_res.consumed > 0) {
-    // Re-evaluate is_quoted for the DST name.
-    is_quoted = (!tz_sv.empty() && tz_sv.front() == '<');
-
-    // Per POSIX, unquoted names must be >= 3 chars.
-    // This implementation also disallows '/' in names to avoid IANA-style
-    // names.
-    if ((!is_quoted && dst_name_res.value.length() < 3) ||
-        dst_name_res.value.find('/') != std::string::npos) {
-      return result;  // Invalid name format, stop parsing.
-    }
-
-    auto tz_sv_after_name = tz_sv;
-    tz_sv_after_name.remove_prefix(dst_name_res.consumed);
-
-    std::optional<TimeOffset> dst_offset;
-    size_t offset_consumed = 0;
-
-    // A DST name can be followed by an offset or directly by rules (a ',').
-    if (!tz_sv_after_name.empty() && tz_sv_after_name.front() != ',') {
-      auto dst_offset_res = ParseTimeOffset(tz_sv_after_name);
-      if (dst_offset_res) {
-        dst_offset = dst_offset_res->value;
-        offset_consumed = dst_offset_res->consumed;
-      } else {
-        // Found a name-like string, but it's followed by something that is
-        // not a valid offset nor a rule delimiter. Stop parsing here.
+  if (!tz_sv.empty() && tz_sv.front() != ',') {
+    auto temp_sv = tz_sv;
+    auto dst_name = ExtractName(temp_sv);
+    if (dst_name) {
+      bool is_quoted_dst = (!tz_sv.empty() && tz_sv.front() == '<');
+      if ((!is_quoted_dst && dst_name->length() < 3) ||
+          dst_name->find('/') != std::string::npos) {
         return result;
       }
-    } else {
-      // If DST name is present but offset isn't, default to one hour
-      // less than standard time offset. (e.g. EST5EDT, EST is +5h, EDT is +4h)
-      dst_offset = result.std_offset - kSecondsInHour;
-    }
 
-    // If we've successfully parsed a DST name and its offset (explicit or
-    // default), commit it to the results and advance the parser.
-    result.dst = dst_name_res.value;
-    result.dst_offset = dst_offset;
-    tz_sv.remove_prefix(dst_name_res.consumed + offset_consumed);
+      result.dst = *dst_name;
+
+      if (!temp_sv.empty() && temp_sv.front() != ',') {
+        auto dst_offset = ParseTimeOffset(temp_sv);
+        if (!dst_offset) {
+          return result;
+        }
+        result.dst_offset = dst_offset;
+      } else {
+        result.dst_offset = result.std_offset - kSecondsInHour;
+      }
+      tz_sv = temp_sv;
+    }
   }
 
   // 4. Parse optional transition rules, or apply defaults.
@@ -374,7 +344,6 @@ std::optional<TimezoneData> ParsePosixTz(const std::string& timezone_string) {
     auto start_rule = ParseTransitionRule(start_rule_sv);
     auto end_rule = ParseTransitionRule(end_rule_sv);
 
-    // Both rules must be fully valid to be included.
     if (start_rule && end_rule) {
       result.start = start_rule;
       result.end = end_rule;
