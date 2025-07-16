@@ -18,30 +18,6 @@ generate_jni("content_shell_jni_headers") {
   ]
 }
 
-shared_library("libcobalt_shell_content_view") {
-  testonly = true
-  deps = [
-    ":content_shell_jni_headers",
-    "//cobalt/shell:content_shell_app",
-    "//cobalt/shell:content_shell_lib",
-    "//content/shell:pak",
-    "//media",
-    "//skia",
-  ]
-
-  # Explicit dependency required for JNI registration to be able to
-  # find the native side functions.
-  if (is_component_build) {
-    deps += [
-      "//device/gamepad",
-      "//media/midi",
-    ]
-  }
-  sources = [ "shell_library_loader.cc" ]
-  configs -= [ "//build/config/android:hide_all_but_jni_onload" ]
-  configs += [ "//build/config/android:hide_all_but_jni" ]
-}
-
 shared_library("libcobalt_native_test") {
   testonly = true
   deps = [
@@ -60,15 +36,15 @@ shared_library("libcobalt_native_test") {
 android_resources("content_shell_java_resources") {
   testonly = true
   sources = [
-    "//content/shell/android/java/res/drawable/ic_refresh.png",
-    "//content/shell/android/java/res/drawable/progress.xml",
-    "//content/shell/android/java/res/layout/shell_view.xml",
-    "//content/shell/android/java/res/mipmap-hdpi/app_icon.png",
-    "//content/shell/android/java/res/mipmap-mdpi/app_icon.png",
-    "//content/shell/android/java/res/mipmap-xhdpi/app_icon.png",
-    "//content/shell/android/java/res/mipmap-xxhdpi/app_icon.png",
-    "//content/shell/android/java/res/mipmap-xxxhdpi/app_icon.png",
-    "//content/shell/android/java/res/values/strings.xml",
+    "java/res/drawable/ic_refresh.png",
+    "java/res/drawable/progress.xml",
+    "java/res/layout/shell_view.xml",
+    "java/res/mipmap-hdpi/app_icon.png",
+    "java/res/mipmap-mdpi/app_icon.png",
+    "java/res/mipmap-xhdpi/app_icon.png",
+    "java/res/mipmap-xxhdpi/app_icon.png",
+    "java/res/mipmap-xxxhdpi/app_icon.png",
+    "java/res/values/strings.xml",
   ]
 
   deps = [ "//cobalt/android:cobalt_java_resources" ]
@@ -129,8 +105,8 @@ jinja_template("content_shell_test_manifest") {
 android_resources("content_shell_apk_resources") {
   testonly = true
   sources = [
-    "//content/shell/shell_apk/res/layout/content_shell_activity.xml",
-    "//content/shell/shell_apk/res/values/strings.xml",
+    "shell_apk/res/layout/content_shell_activity.xml",
+    "shell_apk/res/values/strings.xml",
   ]
   deps = [ ":content_shell_java_resources" ]
 }
@@ -160,25 +136,25 @@ android_library("content_shell_apk_java") {
   sources = [
     "//cobalt/android/apk/app/src/app/java/dev/cobalt/app/CobaltApplication.java",
     "//cobalt/android/apk/app/src/main/java/dev/cobalt/coat/CobaltActivity.java",
-    "//content/shell/shell_apk/src/org/chromium/content_shell_apk/ChildProcessLauncherTestHelperService.java",
-    "//content/shell/shell_apk/src/org/chromium/content_shell_apk/ChildProcessLauncherTestUtils.java",
-    "//content/shell/shell_apk/src/org/chromium/content_shell_apk/TestChildProcessService.java",
-    "//content/shell/shell_apk/src/org/chromium/content_shell_apk/TestChildProcessService0.java",
-    "//content/shell/shell_apk/src/org/chromium/content_shell_apk/TestChildProcessService1.java",
+    "shell_apk/src/org/chromium/content_shell_apk/ChildProcessLauncherTestHelperService.java",
+    "shell_apk/src/org/chromium/content_shell_apk/ChildProcessLauncherTestUtils.java",
+    "shell_apk/src/org/chromium/content_shell_apk/TestChildProcessService.java",
+    "shell_apk/src/org/chromium/content_shell_apk/TestChildProcessService0.java",
+    "shell_apk/src/org/chromium/content_shell_apk/TestChildProcessService1.java",
   ]
 }
 
 android_aidl("content_javatests_aidl") {
   import_include = [ "shell_apk/src" ]
-  sources = [ "//content/shell/shell_apk/src/org/chromium/content_shell_apk/IChildProcessTest.aidl" ]
+  sources = [ "//cobalt/shell/android/shell_apk/src/org/chromium/content_shell_apk/IChildProcessTest.aidl" ]
 }
 
 android_assets("content_shell_assets") {
   testonly = true
-  sources = [ "$root_out_dir/content_shell.pak" ]
+  sources = [ "$root_out_dir/cobalt_shell.pak" ]
   disable_compression = true
   deps = [
-    "//content/shell:pak",
+    "//cobalt/shell:pak",
     "//gin:v8_snapshot_assets",
     "//third_party/icu:icu_assets",
   ]
@@ -207,15 +183,6 @@ template("content_shell_apk_tmpl") {
       "//ui/android:ui_java",
     ]
   }
-}
-
-content_shell_apk_tmpl("cobalt_shell_apk") {
-  target_type = "android_apk"
-  apk_name = "CobaltShell"
-  android_manifest = content_shell_manifest
-  android_manifest_dep = ":content_shell_manifest"
-  shared_libraries = [ ":libcobalt_shell_content_view" ]
-  command_line_flags_file = "content-shell-command-line"
 }
 
 content_shell_apk_tmpl("cobalt_shell_test_apk") {
@@ -247,7 +214,6 @@ android_library("content_shell_test_java") {
     "//base:base_java_test_support",
     "//content/public/android:content_java",
     "//content/public/test/android:content_java_test_support",
-    "//content/shell/android:content_shell_java",
     "//mojo/public/java/system:test_support_java",
     "//third_party/androidx:androidx_test_monitor_java",
     "//third_party/androidx:androidx_test_runner_java",
