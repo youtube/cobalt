@@ -13,7 +13,6 @@ constexpr int64_t kNoExpirationSet = 0;
 MemoryTracker::MemoryTracker(GetCurrentTimeUsCallback get_current_time_us_cb,
                              int max_frames)
     : get_current_time_us_cb_(get_current_time_us_cb),
-      max_frames_(max_frames),
       frame_expirations_(max_frames, kUninitialized) {
   SB_DCHECK(get_current_time_us_cb_);
   SB_DCHECK(max_frames > 0);
@@ -71,6 +70,11 @@ void MemoryTracker::CleanUpExpiredFrames_Locked() {
       frame_expiration = kUninitialized;
     }
   }
+}
+
+void MemoryTracker::Reset() {
+  std::lock_guard<std::mutex> lock(mutex_);
+  frame_expirations_.assign(frame_expirations_.size(), kUninitialized);
 }
 
 }  // namespace starboard::shared::starboard::media

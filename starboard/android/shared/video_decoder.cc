@@ -36,6 +36,7 @@
 #include "starboard/configuration.h"
 #include "starboard/decode_target.h"
 #include "starboard/drm.h"
+#include "starboard/shared/starboard/media/memory_tracker.h"
 #include "starboard/shared/starboard/media/mime_type.h"
 #include "starboard/shared/starboard/player/filter/video_frame_internal.h"
 #include "starboard/thread.h"
@@ -43,13 +44,16 @@
 namespace starboard::android::shared {
 
 namespace {
+using ::starboard::shared::starboard::media::MemoryTracker;
+
+MemoryTracker g_memory_tracker(&CurrentMonotonicTime,
+                               VideoDecoder::kMaxFramesInDecoder);
 
 std::atomic<int> g_alive_video_frames_count(0);
 std::atomic<int> g_last_created_id = 0;
 std::atomic<int> g_last_released_id = 0;
 static int g_decoded_frame_id = 0;
 
-static int decoded_frame_count = 0;
 static int encoded_frame_count = 0;
 static int encoded_frame_id = 0;
 
@@ -229,7 +233,7 @@ class VideoFrameImpl : public VideoFrame {
       if (!is_end_of_stream()) {
         --g_alive_video_frames_count;
         g_last_released_id = id_;
-        VideoDecoder::GetFrameInDecoderCount()--;
+        VideoDecoder::RemoveDecodedFrameNow();
         release_callback_();
       }
       SB_LOG(INFO) << "Release(in Dtor): id=" << id_;
@@ -244,13 +248,13 @@ class VideoFrameImpl : public VideoFrame {
         dequeue_output_result_.index, release_time_in_nanoseconds);
     --g_alive_video_frames_count;
     g_last_released_id = id_;
-    VideoDecoder::GetFrameInDecoderCount()--;
+    int64_t release_us = release_time_in_nanoseconds / 1'000;
+    VideoDecoder::RemoveDecodedFrameAt(release_us);
     release_callback_();
     SB_LOG(INFO) << "Release(in Draw): id=" << id_ << ", elapsed(msec)="
                  << ((CurrentMonotonicTime() - created_us_) / 1'000)
                  << ", elapsed-to-release(msec)="
-                 << ((release_time_in_nanoseconds / 1'000 - created_us_) /
-                     1'000);
+                 << ((release_us / 1'000 - created_us_) / 1'000);
   }
 
  private:
@@ -408,13 +412,26 @@ void VideoDecoder::ResetCounts() {
   g_last_released_id = 0;
   g_decoded_frame_id = 0;
 
-  decoded_frame_count = 0;
+  g_memory_tracker.Reset();
+
   encoded_frame_count = 0;
   encoded_frame_id = 0;
 }
 
-int& VideoDecoder::GetFrameInDecoderCount() {
-  return decoded_frame_count;
+void VideoDecoder::AddDecodedFrame() {
+  SB_CHECK(g_memory_tracker.AddNewFrame());
+}
+
+void VideoDecoder::RemoveDecodedFrameAt(int64_t expiration) {
+  SB_CHECK(g_memory_tracker.SetFrameExpiration(expiration));
+}
+
+void VideoDecoder::RemoveDecodedFrameNow() {
+  SB_CHECK(g_memory_tracker.SetFrameExpirationNow());
+}
+
+int VideoDecoder::GetFrameInDecoderCount() {
+  return g_memory_tracker.GetCurrentFrames();
 }
 
 int& VideoDecoder::GetEncodedFrameCount() {

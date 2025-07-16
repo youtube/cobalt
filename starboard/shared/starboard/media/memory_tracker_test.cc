@@ -73,5 +73,17 @@ TEST(MemoryTrackerTest, AddAfterExpiration) {
   EXPECT_EQ(tracker.GetCurrentFrames(), 2);
 }
 
+TEST(MemoryTrackerTest, Reset) {
+  MemoryTracker tracker(&GetCurrentMockTimeUs, 5);
+  tracker.AddNewFrame();
+  tracker.AddNewFrame();
+  tracker.AddNewFrame();
+  EXPECT_EQ(tracker.GetCurrentFrames(), 3);
+  tracker.Reset();
+  EXPECT_EQ(tracker.GetCurrentFrames(), 0);
+  EXPECT_TRUE(tracker.AddNewFrame());
+  EXPECT_EQ(tracker.GetCurrentFrames(), 1);
+}
+
 }  // namespace
 }  // namespace starboard::shared::starboard::media

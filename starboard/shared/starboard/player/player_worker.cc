@@ -20,7 +20,7 @@
 #include <string>
 #include <utility>
 
-#if SB_IS_ANDRDOID
+#if defined(OS_ANDROID)
 #include "starboard/android/shared/video_decoder.h"
 #endif
 #include "starboard/common/condition_variable.h"
@@ -304,7 +304,7 @@ void PlayerWorker::DoWriteSamples(InputBuffers input_buffers) {
     return;
   }
 
-#if SB_IS_ANDRDOID
+#if defined(OS_ANDROID)
   if (media_type == kSbMediaTypeVideo) {
     ::starboard::android::shared::VideoDecoder::GetEncodedFrameCount() +=
         samples_written;

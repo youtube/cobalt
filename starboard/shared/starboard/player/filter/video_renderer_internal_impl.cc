@@ -21,10 +21,11 @@
 #include <mutex>
 #include <utility>
 
-#if SB_IS_ANDROID
+#if defined(OS_ANDROID)
 #include "starboard/android/shared/video_decoder.h"
 #endif
 #include "starboard/common/time.h"
+#include "starboard/shared/starboard/media/memory_tracker.h"
 
 namespace starboard::shared::starboard::player::filter {
 
@@ -188,7 +189,7 @@ void VideoRendererImpl::Seek(int64_t seek_to_time) {
   algorithm_->Seek(seek_to_time);
 }
 
-#if SB_IS_ANDROID
+#if defined(OS_ANDROID)
 bool VideoRendererImpl::CanAcceptMoreData() const {
   SB_DCHECK(BelongsToCurrentThread());
 
