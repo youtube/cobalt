@@ -841,7 +841,7 @@ group("gn_all") {
   if (is_cobalt) {
     deps += [
       "//cobalt:gn_all",
-      "//cobalt/testing/browser_tests:browser_tests",
+      "//cobalt:cobalt_browsertests",
     ]
   }
 }
