@@ -25,13 +25,13 @@ TEST(MemoryTrackerTest, AddAndCountFrames) {
 }
 
 TEST(MemoryTrackerTest, AddTooManyFrames) {
-  MemoryTracker tracker(&GetCurrentMockTimeUs);
-  for (int i = 0; i < 6; ++i) {
-    EXPECT_TRUE(tracker.AddNewFrame());
-  }
-  EXPECT_EQ(tracker.GetCurrentFrames(), 6);
+  MemoryTracker tracker(&GetCurrentMockTimeUs, 3);
+  EXPECT_TRUE(tracker.AddNewFrame());
+  EXPECT_TRUE(tracker.AddNewFrame());
+  EXPECT_TRUE(tracker.AddNewFrame());
+  EXPECT_EQ(tracker.GetCurrentFrames(), 3);
   EXPECT_FALSE(tracker.AddNewFrame());
-  EXPECT_EQ(tracker.GetCurrentFrames(), 6);
+  EXPECT_EQ(tracker.GetCurrentFrames(), 3);
 }
 
 TEST(MemoryTrackerTest, SetFrameExpiration) {
@@ -40,6 +40,15 @@ TEST(MemoryTrackerTest, SetFrameExpiration) {
   EXPECT_EQ(tracker.GetCurrentFrames(), 1);
   EXPECT_TRUE(tracker.SetFrameExpiration(g_current_time + 100));
   EXPECT_EQ(tracker.GetCurrentFrames(), 1);
+}
+
+TEST(MemoryTrackerTest, SetFrameExpirationNow) {
+  MemoryTracker tracker(&GetCurrentMockTimeUs);
+  tracker.AddNewFrame();
+  EXPECT_EQ(tracker.GetCurrentFrames(), 1);
+  g_current_time++;
+  EXPECT_TRUE(tracker.SetFrameExpirationNow());
+  EXPECT_EQ(tracker.GetCurrentFrames(), 0);
 }
 
 TEST(MemoryTrackerTest, FrameExpiration) {
@@ -52,17 +61,16 @@ TEST(MemoryTrackerTest, FrameExpiration) {
 }
 
 TEST(MemoryTrackerTest, AddAfterExpiration) {
-  MemoryTracker tracker(&GetCurrentMockTimeUs);
-  for (int i = 0; i < 6; ++i) {
-    tracker.AddNewFrame();
-  }
+  MemoryTracker tracker(&GetCurrentMockTimeUs, 2);
+  tracker.AddNewFrame();
+  tracker.AddNewFrame();
   EXPECT_FALSE(tracker.AddNewFrame());
 
   tracker.SetFrameExpiration(g_current_time + 100);
   g_current_time += 101;
 
   EXPECT_TRUE(tracker.AddNewFrame());
-  EXPECT_EQ(tracker.GetCurrentFrames(), 6);
+  EXPECT_EQ(tracker.GetCurrentFrames(), 2);
 }
 
 }  // namespace
