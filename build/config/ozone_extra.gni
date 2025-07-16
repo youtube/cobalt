@@ -37,13 +37,17 @@ ozone_external_platform_ui_test_support_deps = []
 ozone_external_interactive_ui_tests_deps = []
 
 if (is_starboard) {
-  ozone_external_platforms += ["starboard"]
-  ozone_external_platform_deps += ["platform/starboard"]
-  ozone_external_platform_test_deps += ["platform/starboard:starboard_unittests"]
-  ozone_external_platform_ui_test_support_deps += ["platform/starboard:test_support"]
+  ozone_external_platforms += [ "starboard" ]
+  ozone_external_platform_deps += [ "platform/starboard" ]
+  ozone_external_platform_test_deps +=
+      [ "platform/starboard:starboard_unittests" ]
+  ozone_external_platform_ui_test_support_deps +=
+      [ "platform/starboard:test_support" ]
 }
 
-if (is_cobalt && target_os != "android" && (current_toolchain == host_toolchain || current_toolchain == v8_snapshot_toolchain)) {
+if (is_cobalt && target_os != "android" &&
+    (current_toolchain == host_toolchain ||
+     (current_toolchain == v8_snapshot_toolchain && is_starboard))) {
   ozone_external_platforms += [ "headless" ]
   ozone_external_platform_deps += [ "platform/headless" ]
 }
