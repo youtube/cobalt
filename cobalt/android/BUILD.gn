@@ -201,7 +201,7 @@ android_library("cobalt_apk_java") {
     ":cobalt_main_java",
     "//base:base_java",
     "//ui/android:ui_no_recycler_view_java"
-    ]
+  ]
 
   sources = [
     "apk/app/src/app/java/dev/cobalt/app/CobaltApplication.java",
