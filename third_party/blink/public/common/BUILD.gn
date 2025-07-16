@@ -119,7 +119,6 @@ source_set("headers") {
   visibility = [
     ":*",
     "//android_webview/*",
-    "//cobalt/testing/*",
     "//chrome/*",
     "//chromecast/*",
     "//components/*",
@@ -130,6 +129,11 @@ source_set("headers") {
     "//storage/*",
     "//third_party/blink/*",
   ]
+  if (is_cobalt) {
+    visibility += [
+      "//cobalt/testing/*",
+    ]
+  }
 
   sources = [
     "action_after_pagehide.h",

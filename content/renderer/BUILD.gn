@@ -584,10 +584,14 @@ target(link_target_type, "renderer") {
 # See comment at the top of //content/BUILD.gn for how this works.
 group("for_content_tests") {
   visibility = [
-    "//cobalt/testing/*",
     "//content/test/*",
     "//content/web_test:web_test_renderer_public_deps",
   ]
+  if (is_cobalt) {
+    visibility += [
+      "//cobalt/testing/*",
+    ]
+  }
 
   if (!is_component_build) {
     public_deps = [ ":renderer" ]
