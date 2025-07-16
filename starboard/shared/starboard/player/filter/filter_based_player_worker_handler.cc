@@ -18,7 +18,7 @@
 #include <mutex>
 #include <utility>
 
-#if SB_IS_ANDROID
+#if defined(OS_ANDROID)
 #include "starboard/android/shared/video_decoder.h"
 #endif
 #include "starboard/audio_sink.h"
@@ -85,7 +85,7 @@ FilterBasedPlayerWorkerHandler::FilterBasedPlayerWorkerHandler(
       video_stream_info_(creation_param->video_stream_info) {
   update_job_ = std::bind(&FilterBasedPlayerWorkerHandler::Update, this);
 
-#if SB_IS_ANDROID
+#if defined(OS_ANDROID)
   using ::starboard::android::shared::VideoDecoder;
   SB_LOG(INFO) << __func__;
   VideoDecoder::ResetCounts();
@@ -278,13 +278,13 @@ HandlerResult FilterBasedPlayerWorkerHandler::WriteSamples(
         if (!video_renderer_->CanAcceptMoreData()) {
           return HandlerResult{true};
         }
-#if SB_IS_ANDROID
+#if defined(OS_ANDROID)
         using ::starboard::android::shared::VideoDecoder;
         SB_LOG(INFO) << "Adding encoded frame: id="
                      << VideoDecoder::GetEncodedFrameId();
         VideoDecoder::GetEncodedFrameCount()--;
-        VideoDecoder::GetFrameInDecoderCount()++;
-#endif
+        VideoDecoder::AddDecodedFrame();
+#endif  // defined(OS_ANDROID)
         if (input_buffer->drm_info()) {
           if (!SbDrmSystemIsValid(drm_system_)) {
             return HandlerResult{false, "Invalid DRM system."};

@@ -107,7 +107,11 @@ class VideoDecoder
 
   static const int kMaxFramesInDecoder = 6;
 
-  static int& GetFrameInDecoderCount();
+  static void AddDecodedFrame();
+  static void RemoveDecodedFrameAt(int64_t expiration);
+  static void RemoveDecodedFrameNow();
+  static int GetFrameInDecoderCount();
+
   static int& GetEncodedFrameCount();
   static int GetEncodedFrameId();
   static void ResetCounts();

@@ -35,13 +35,13 @@ class MemoryTracker {
   // Returns current number of frames that are alive in the memory now.
   int GetCurrentFrames() const;
 
+  void Reset();
+
  private:
   void CleanUpExpiredFrames_Locked();
 
   mutable std::mutex mutex_;
   GetCurrentTimeUsCallback get_current_time_us_cb_;
-  const int max_frames_;
-
   // Keeps track of the lifespan of the frame.
   std::vector<int64_t> frame_expirations_;
 };
