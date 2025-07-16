@@ -15,10 +15,14 @@
 static_library("libc") {
   sources = [
     "no_destructor.h",
-    "stdlib/environment.cc",
     "syslog/syslog.cc",
-    "time/tzset.cc",
   ]
+  if (!is_android) {
+    sources += [
+      "stdlib/environment.cc",
+      "time/tzset.cc",
+    ]
+  }
   deps = [
     "//cobalt/common/libc/tz",
     "//starboard:starboard_headers_only",
