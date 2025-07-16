@@ -232,6 +232,7 @@ jobs:
       uses: ./.github/actions/docker
       with:
         docker_service: ${{ needs.initialize.outputs.docker_service }}
+        is_forked_pr: ${{ github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name != github.repository }}
     - name: Set Docker Tag Output
       id: set-docker-tag-output
       shell: bash
@@ -263,6 +264,7 @@ jobs:
         uses: ./.github/actions/docker
         with:
           docker_service: unittest
+          is_forked_pr: ${{ github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name != github.repository }}
       - name: Set Docker Tag Output
         id: set-docker-tag-output
         shell: bash
@@ -294,6 +296,7 @@ jobs:
         uses: ./.github/actions/docker
         with:
           docker_service: webtest
+          is_forked_pr: ${{ github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name != github.repository }}
       - name: Set Docker Tag Output
         id: set-docker-tag-output
         shell: bash

@@ -2,18 +2,18 @@ services:
   linux:
     build:
       context: cobalt/docker/linux
-    image: "ghcr.io/${DOCKER_REPO:-youtube/cobalt}/linux:${GIT_BRANCH:-main}"
+    image: "${DOCKER_IMAGE_PREFIX:-ghcr.io/youtube/cobalt}/linux:${DOCKER_BRANCH_TAG:-main}"
     platform: linux/amd64
   raspi:
     build:
       context: cobalt/docker/raspi
-    image: "ghcr.io/${DOCKER_REPO:-youtube/cobalt}/raspi:${GIT_BRANCH:-main}"
+    image: "${DOCKER_IMAGE_PREFIX:-ghcr.io/youtube/cobalt}/raspi:${DOCKER_BRANCH_TAG:-main}"
     platform: linux/amd64
   unittest:
     build:
       context: cobalt/docker/unittest
-    image: "ghcr.io/${DOCKER_REPO:-youtube/cobalt}/unittest:${GIT_BRANCH:-main}"
+    image: "${DOCKER_IMAGE_PREFIX:-ghcr.io/youtube/cobalt}/unittest:${DOCKER_BRANCH_TAG:-main}"
   webtest:
     build:
       context: cobalt/docker/webtest
-    image: "ghcr.io/${DOCKER_REPO:-youtube/cobalt}/webtest:${GIT_BRANCH:-main}"
+    image: "${DOCKER_IMAGE_PREFIX:-ghcr.io/youtube/cobalt}/webtest:${DOCKER_BRANCH_TAG:-main}"

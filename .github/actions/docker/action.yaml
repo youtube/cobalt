@@ -4,6 +4,9 @@ inputs:
   docker_service:
     description: "Docker compose service."
     required: true
+  is_forked_pr:
+    description: "True if the event is a pull request from a forked repository."
+    required: true
 
 runs:
   using: "composite"
@@ -15,75 +18,66 @@ runs:
     - name: Set up Docker Buildx
       uses: docker/setup-buildx-action@988b5a0280414f521da01fcc63a27aeeb4b104db # v3.6.1
       with:
-        driver-opts: |
-          image=ghcr.io/youtube/cobalt/moby-buildkit-mirror:main
-    - name: Set env vars
+        driver-opts: image=ghcr.io/youtube/cobalt/moby-buildkit-mirror:main
+    - name: Set Docker Build Vars
+      id: build_vars
       run: |
         set -x
-        echo "DOCKER_REPO=${{ github.repository }}" >> $GITHUB_ENV
-        tag=${{ github.event_name == 'pull_request' && github.event.pull_request.number || github.ref_name }}
-        tag=${tag//\//__}
-        tag="${tag%.1[+,-]}"
-        echo "FLOATING_TAG=${tag}" >> $GITHUB_ENV
-        echo "GIT_BRANCH=${tag}" >> $GITHUB_ENV
-        short_git_sha="${{ github.sha }}::7}"
-        echo "GIT_SHA=${short_git_sha}" >> $GITHUB_ENV
-        docker_source_git_hash=$(git log -n 1 --pretty=format:%h -- cobalt/docker docker-compose.yaml)
-        echo "DOCKER_SOURCE_GIT_HASH=${docker_source_git_hash}" >> $GITHUB_ENV
+        if [[ "${{ inputs.is_forked_pr }}" == "true" ]]; then
+          PROJECT_NAME=$(gcloud config get-value project)
+          DOCKER_IMAGE_PREFIX="us-central1-docker.pkg.dev/${PROJECT_NAME}/github"
+        else
+          DOCKER_IMAGE_PREFIX="ghcr.io/${{ github.repository }}"
+        fi
+        echo "DOCKER_IMAGE_PREFIX=${DOCKER_IMAGE_PREFIX}" >> $GITHUB_ENV
+
+        BRANCH_TAG=${{ github.event_name == 'pull_request' && github.event.pull_request.number || github.ref_name }}
+        # Replace slashes with double underscore.
+        BRANCH_TAG=${BRANCH_TAG//\//__}
+        # Remove url unsafe suffix from LTS branches.
+        BRANCH_TAG="${BRANCH_TAG%.1[+,-]}"
+        echo "DOCKER_BRANCH_TAG=${BRANCH_TAG}" >> $GITHUB_ENV
+
+        CONTENT_SHA=$(git log -n 1 --pretty=format:%h -- cobalt/docker/${{ inputs.docker_service }} docker-compose.yaml)
+
+        echo "IMAGE_WITH_SHA_TAG=${DOCKER_IMAGE_PREFIX}/${{ inputs.docker_service }}:${CONTENT_SHA}" >> $GITHUB_ENV
+        echo "IMAGE_WITH_BRANCH_TAG=${DOCKER_IMAGE_PREFIX}/${{ inputs.docker_service }}:${BRANCH_TAG}" >> $GITHUB_ENV
       shell: bash
-    - name: Set Docker Tag
-      id: set-docker-tag-github
-      if: ${{ (github.event_name != 'pull_request') || (github.event.pull_request.head.repo.full_name == github.repository) }}
-      run: |
-        set -x
-        echo "DOCKER_TAG=ghcr.io/${{ github.repository }}/${{ inputs.docker_service }}:${GIT_SHA}" >> $GITHUB_ENV
-        echo "DOCKER_FLOATING_TAG=ghcr.io/${{ github.repository }}/${{ inputs.docker_service }}:${FLOATING_TAG}" >> $GITHUB_ENV
-      shell: bash
-    # Handle Google Artifact Registry used for pull requests off forked repos.
+
     - name: Set up Cloud SDK
       uses: isarkis/setup-gcloud@40dce7857b354839efac498d3632050f568090b6 # v1.1.1
-    - name: Login to GAR and set tag
-      if: ${{ (github.event_name == 'pull_request') && (github.event.pull_request.head.repo.full_name != github.repository) }}
+      if: ${{ inputs.is_forked_pr == 'true' }}
+
+    - name: Login to GAR
+      if: ${{ inputs.is_forked_pr == 'true' }}
       run: |
         # Need to login to GAR to be able to push images created by fork based PR workflows.
-        PROJECT_NAME=$(gcloud config get-value project)
-        METADATA="http://metadata.google.internal./computeMetadata/v1"
-        SVC_ACCT="${METADATA}/instance/service-accounts/default"
-        ACCESS_TOKEN=$(curl -H 'Metadata-Flavor: Google' ${SVC_ACCT}/token | cut -d'"' -f 4)
+        TOKEN_ENDPOINT="http://metadata.google.internal/computeMetadata/v1/instance/service-accounts/default/token"
+        ACCESS_TOKEN=$(curl -H 'Metadata-Flavor: Google' ${TOKEN_ENDPOINT} | jq -r .access_token)
         printf ${ACCESS_TOKEN} | docker login -u oauth2accesstoken --password-stdin https://us-central1-docker.pkg.dev
-        echo "DOCKER_TAG=us-central1-docker.pkg.dev/${PROJECT_NAME}/github/${{ inputs.docker_service }}:${GIT_SHA}" >> $GITHUB_ENV
-        echo "DOCKER_FLOATING_TAG=us-central1-docker.pkg.dev/${PROJECT_NAME}/github/${{ inputs.docker_service }}:${FLOATING_TAG}" >> $GITHUB_ENV
       shell: bash
-    - name: Login to Marketplace GAR
-      run: |
-        # Need to login to Marketplace to be able to pull image metadata.
-        PROJECT_NAME=$(gcloud config get-value project)
-        METADATA="http://metadata.google.internal./computeMetadata/v1"
-        SVC_ACCT="${METADATA}/instance/service-accounts/default"
-        ACCESS_TOKEN=$(curl -H 'Metadata-Flavor: Google' ${SVC_ACCT}/token | cut -d'"' -f 4)
-        printf ${ACCESS_TOKEN} | docker login -u oauth2accesstoken --password-stdin https://marketplace.gcr.io
-      shell: bash
-    - name: Docker Pull Cache
-      id: docker-pull
-      continue-on-error: true
+
+    - name: Login to GHCR
+      if: ${{ inputs.is_forked_pr != 'true' }}
+      uses: docker/login-action@v3
+      with:
+        registry: ghcr.io
+        username: ${{ github.actor }}
+        password: ${{ secrets.GITHUB_TOKEN }}
+
+    - name: Build and Push Docker Image
       run: |
         set -x
-        docker pull "${DOCKER_TAG}"
-      shell: bash
-    - name: Docker Build
-      if: steps.docker-pull.outcome != 'success'
-      run: |
-        set -x
-        cat ${GITHUB_WORKSPACE}/cobalt/docker/unittest/Dockerfile
-        docker compose build ${{ inputs.docker_service }}
-        SOURCE_IMAGE="ghcr.io/${{ github.repository }}/${{ inputs.docker_service }}:${FLOATING_TAG}"
-        docker tag "${SOURCE_IMAGE}" "${DOCKER_TAG}"
-        docker tag "${DOCKER_TAG}" "${DOCKER_FLOATING_TAG}"
-      shell: bash
-    - name: Docker Push Git SHA Tag
-      if: steps.docker-pull.outcome != 'success'
-      run: |
-        set -x
-        docker push ${DOCKER_TAG}
-        docker push ${DOCKER_FLOATING_TAG}
+        # Try to pull the image with the branch tag to use as a cache.
+        docker pull "${IMAGE_WITH_BRANCH_TAG}" || true
+
+        # Build the image. docker-compose will use DOCKER_BRANCH_TAG from the environment.
+        docker compose build --cache-from "${IMAGE_WITH_BRANCH_TAG}" ${{ inputs.docker_service }}
+
+        # Tag the newly built image with the content SHA tag.
+        docker tag "${IMAGE_WITH_BRANCH_TAG}" "${IMAGE_WITH_SHA_TAG}"
+
+        # Push both tags.
+        docker push "${IMAGE_WITH_BRANCH_TAG}"
+        docker push "${IMAGE_WITH_SHA_TAG}"
       shell: bash
