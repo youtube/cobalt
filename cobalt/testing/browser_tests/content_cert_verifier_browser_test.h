@@ -2,10 +2,10 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#ifndef CONTENT_PUBLIC_TEST_CONTENT_CERT_VERIFIER_BROWSER_TEST_H_
-#define CONTENT_PUBLIC_TEST_CONTENT_CERT_VERIFIER_BROWSER_TEST_H_
+#ifndef COBALT_TESTSING_BROWSER_TESTS_CONTENT_CERT_VERIFIER_BROWSER_TEST_H_
+#define COBALT_TESTSING_BROWSER_TESTS_CONTENT_CERT_VERIFIER_BROWSER_TEST_H_
 
-#include "cobalt/testing/test/content_browser_test.h"
+#include "cobalt/testing/browser_tests/content_browser_test.h"
 #include "content/public/test/content_mock_cert_verifier.h"
 
 namespace content {
@@ -41,4 +41,4 @@ class CertVerifierBrowserTest : public ContentBrowserTest {
 
 }  // namespace content
 
-#endif  // CONTENT_PUBLIC_TEST_CONTENT_CERT_VERIFIER_BROWSER_TEST_H_
+#endif  // COBALT_TESTSING_BROWSER_TESTS_CONTENT_CERT_VERIFIER_BROWSER_TEST_H_

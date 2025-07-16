@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include "cobalt/testing/test/content_browser_test.h"
+#include "cobalt/testing/browser_tests/content_browser_test.h"
 
 #include "base/check_op.h"
 #include "base/command_line.h"
@@ -15,7 +15,7 @@
 #include "cobalt/shell/browser/shell.h"
 #include "cobalt/shell/browser/shell_browser_context.h"
 #include "cobalt/shell/common/shell_switches.h"
-#include "cobalt/testing/test/content_browser_test_content_browser_client.h"
+#include "cobalt/testing/browser_tests/content_browser_test_content_browser_client.h"
 #include "content/browser/renderer_host/render_frame_host_impl.h"
 #include "content/public/browser/render_process_host.h"
 #include "content/public/common/content_paths.h"

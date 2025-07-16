@@ -2,8 +2,8 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#ifndef COBALT_TESTING_TEST_CONTENT_BROWSER_TEST_UTILS_H_
-#define COBALT_TESTING_TEST_CONTENT_BROWSER_TEST_UTILS_H_
+#ifndef COBALT_TESTING_BROWSER_TESTS_CONTENT_BROWSER_TEST_UTILS_H_
+#define COBALT_TESTING_BROWSER_TESTS_CONTENT_BROWSER_TEST_UTILS_H_
 
 #include <map>
 #include <string>
@@ -275,4 +275,4 @@ void SetMockCursorPositionForTesting(WebContents* web_contents,
 
 }  // namespace content
 
-#endif  // COBALT_TESTING_TEST_CONTENT_BROWSER_TEST_UTILS_H_
+#endif  // COBALT_TESTING_BROWSER_TESTS_CONTENT_BROWSER_TEST_UTILS_H_

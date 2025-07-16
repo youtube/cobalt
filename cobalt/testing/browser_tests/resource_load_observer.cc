@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include "cobalt/testing/test/resource_load_observer.h"
+#include "cobalt/testing/browser_tests/resource_load_observer.h"
 
 #include <string>
 #include <vector>

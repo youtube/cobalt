@@ -2,10 +2,10 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include "cobalt/testing/test/content_browser_test_shell_main_delegate.h"
+#include "cobalt/testing/browser_tests/content_browser_test_shell_main_delegate.h"
 
 #include "cobalt/shell/browser/shell_content_browser_client.h"
-#include "cobalt/testing/test/content_browser_test_content_browser_client.h"
+#include "cobalt/testing/browser_tests/content_browser_test_content_browser_client.h"
 #include "third_party/abseil-cpp/absl/types/optional.h"
 #include "third_party/abseil-cpp/absl/types/variant.h"
 

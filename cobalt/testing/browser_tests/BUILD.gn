@@ -124,7 +124,7 @@ if (is_android) {
 
   jinja_template("content_browsertests_manifest") {
     testonly = true
-    input = "//cobalt/testing/test/browsertests_apk/AndroidManifest.xml.jinja2"
+    input = "//cobalt/testing/browser_tests/browsertests_apk/AndroidManifest.xml.jinja2"
     output = content_browsertests_manifest
   }
 
