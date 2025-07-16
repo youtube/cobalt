@@ -11,7 +11,7 @@ import("//media/media_options.gni")
 # See //content/BUILD.gn for how this works.
 group("gpu") {
   visibility = [
-    "//cobalt/testing/test/*",
+    "//cobalt/testing/*",
     "//content/*"
   ]  # This is an internal content API.
 

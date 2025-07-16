@@ -9,7 +9,7 @@ if (is_cobalt) {
 # Implementations of media C++ interfaces using corresponding mojo services.
 source_set("clients") {
   visibility = [
-    "//cobalt/testing/test/*",
+    "//cobalt/testing/*",
     "//chromecast/*",
 
     # Mirroring Service needs the video accelerated encoder mojom interfaces.
