@@ -323,20 +323,17 @@ public abstract class CobaltActivity extends Activity {
 
     if (ContentFeatureList.isEnabled(ContentFeatureList.COBALT_USING_ANDROID_OVERLAY)) {
       Log.d(TAG, "Using Android Overlay for Cobalt.");
+      // TODO: b/431317298 - Add SurfaceView for |a11yHelper|.
 
     } else {
       videoSurfaceView = new VideoSurfaceView(this);
-
-      // TODO: b/408279606 - Set this to app theme primary color once we fix
-      // error with it being unresolvable.
-      videoSurfaceView.setBackgroundColor(Color.BLACK);
       a11yHelper = new CobaltA11yHelper(this, videoSurfaceView);
       addContentView(videoSurfaceView, new LayoutParams(LayoutParams.MATCH_PARENT, LayoutParams.MATCH_PARENT));
-
-      Log.i(TAG, "CobaltActivity onCreate, all Layout Views:");
-      View rootView = getWindow().getDecorView().getRootView();
-      Util.printRootViewHierarchy(rootView);
     }
+
+    Log.i(TAG, "CobaltActivity onCreate, all Layout Views:");
+    View rootView = getWindow().getDecorView().getRootView();
+    Util.printRootViewHierarchy(rootView);
   }
 
   /**
@@ -391,7 +388,7 @@ public abstract class CobaltActivity extends Activity {
       getStarboardBridge().getAudioOutputManager().dumpAllOutputDevices();
       MediaCodecCapabilitiesLogger.dumpAllDecoders();
     }
-    if (forceCreateNewVideoSurfaceView) {
+    if (forceCreateNewVideoSurfaceView && !ContentFeatureList.isEnabled(ContentFeatureList.COBALT_USING_ANDROID_OVERLAY)) {
       Log.w(TAG, "Force to create a new video surface.");
       createNewSurfaceView();
     }
@@ -558,23 +555,21 @@ public abstract class CobaltActivity extends Activity {
   }
 
   public void resetVideoSurface() {
-    if (ContentFeatureList.isEnabled(ContentFeatureList.COBALT_USING_ANDROID_OVERLAY)) {
-      // VideoSurfaceView will be null if Cobalt is using Android Overlay.
-      return;
-    }
-
-    runOnUiThread(
+    // VideoSurfaceView will be null if Cobalt is using Android Overlay.
+    if (!ContentFeatureList.isEnabled(ContentFeatureList.COBALT_USING_ANDROID_OVERLAY)) {
+      runOnUiThread(
         new Runnable() {
           @Override
           public void run() {
             createNewSurfaceView();
           }
         });
+    }
   }
 
   public void setVideoSurfaceBounds(final int x, final int y, final int width, final int height) {
     if (ContentFeatureList.isEnabled(ContentFeatureList.COBALT_USING_ANDROID_OVERLAY)) {
-      // VideoSurfaceView will be null if Cobalt is using Android Overlay.
+      // Using AndroidOverlay doesn't update the bounds of VideoSurfaceView.
       return;
     }
 
@@ -582,8 +577,6 @@ public abstract class CobaltActivity extends Activity {
       // The SurfaceView should be covered by our UI layer in this case.
       return;
     }
-
-
     runOnUiThread(
         new Runnable() {
           @Override
@@ -612,11 +605,6 @@ public abstract class CobaltActivity extends Activity {
   }
 
   private void createNewSurfaceView() {
-    if (ContentFeatureList.isEnabled(ContentFeatureList.COBALT_USING_ANDROID_OVERLAY)) {
-      // VideoSurfaceView will be null if Cobalt is using Android Overlay.
-      return;
-    }
-
     if (ContentFeatureList.isEnabled(ContentFeatureList.COBALT_USING_ANDROID_OVERLAY)) {
       // VideoSurfaceView will be null if Cobalt is using Android Overlay.
       return;
