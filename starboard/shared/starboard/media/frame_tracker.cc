@@ -4,12 +4,13 @@
 #include <ostream>
 
 #include "starboard/common/log.h"
+#include "starboard/common/time.h"
 
 namespace starboard::shared::starboard::media {
 namespace {
-constexpr int64_t kUninitialized = -2;
-constexpr int64_t kDecoding = -1;
-constexpr int64_t kDecoded = 0;
+constexpr int64_t kUnassigned = -1;
+constexpr int64_t kDecoding = -2;
+constexpr int64_t kDecoded = -3;
 
 }  // namespace
 
@@ -22,16 +23,17 @@ std::ostream& operator<<(std::ostream& os, const FrameTracker::State& status) {
   return os;
 }
 
-FrameTracker::FrameTracker(int max_frames)
-    : frames_(kUninitialized, max_frames) {}
+FrameTracker::FrameTracker(int max_frames) : frames_(max_frames, kUnassigned) {}
 
 bool FrameTracker::AddFrame() {
   std::lock_guard lock(mutex_);
+  PurgeReleasedFrames_Locked();
+
   for (auto& frame : frames_) {
-    if (frame == kUninitialized) {
+    if (frame == kUnassigned) {
       frame = kDecoding;
-      ++decoding_frames_;
       UpdateHighWaterMarks_Locked();
+      return true;
     }
   }
 
@@ -42,45 +44,51 @@ bool FrameTracker::SetFrameDecoded() {
   std::lock_guard lock(mutex_);
   for (auto& frame : frames_) {
     if (frame == kDecoding) {
-      frame = kDecoding;
-      ++decoding_frames_;
+      frame = kDecoded;
       UpdateHighWaterMarks_Locked();
+      return true;
     }
   }
   return false;
 }
 
-bool FrameTracker::ReleaseFrame() {}
+bool FrameTracker::ReleaseFrame() {
+  return ReleaseFrameAt(CurrentMonotonicTime());
+}
 
-void FrameTracker::ReleaseFrameAt(int64_t release_time) {
+bool FrameTracker::ReleaseFrameAt(int64_t release_time) {
   std::lock_guard lock(mutex_);
-  if (decoded_frames_ == 0) {
-    return false;
+  for (auto& frame : frames_) {
+    if (frame == kDecoded) {
+      frame = release_time;
+      UpdateHighWaterMarks_Locked();
+      return true;
+    }
   }
-  --decoded_frames_;
-
-  UpdateHighWaterMarks_Locked();
+  return false;
 }
 
 void FrameTracker::Reset() {
   std::lock_guard lock(mutex_);
-  decoding_frames_ = 0;
-  decoded_frames_ = 0;
   decoding_frames_high_water_mark_ = 0;
   decoded_frames_high_water_mark_ = 0;
   total_frames_high_water_mark_ = 0;
   deferred_input_buffer_indices_ = {};
 }
 
-FrameTracker::State FrameTracker::GetCurrentState() const {
+FrameTracker::State FrameTracker::GetCurrentState() {
   std::lock_guard lock(mutex_);
-  return {decoding_frames_, decoded_frames_, decoding_frames_high_water_mark_,
+  PurgeReleasedFrames_Locked();
+  auto [decoding_frames, decoded_frames] = UpdateHighWaterMarks_Locked();
+  return {decoding_frames, decoded_frames, decoding_frames_high_water_mark_,
           decoded_frames_high_water_mark_, total_frames_high_water_mark_};
 }
 
-bool FrameTracker::IsFull() const {
+bool FrameTracker::IsFull() {
   std::lock_guard lock(mutex_);
-  return decoding_frames_ + decoded_frames_ >= max_frames_;
+  PurgeReleasedFrames_Locked();
+  return std::find(frames_.cbegin(), frames_.cend(), kUnassigned) ==
+         frames_.cend();
 }
 
 void FrameTracker::DeferInputBuffer(int buffer_index) {
@@ -98,13 +106,36 @@ std::optional<int> FrameTracker::GetDeferredInputBuffer() {
   return buffer_index;
 }
 
-void FrameTracker::UpdateHighWaterMarks_Locked() {
+std::pair<int, int> FrameTracker::UpdateHighWaterMarks_Locked() {
+  int decoding_frames = 0;
+  int decoded_frames = 0;
+
+  for (auto& frame : frames_) {
+    if (frame == kUnassigned) {
+      continue;
+    } else if (frame == kDecoding) {
+      decoding_frames++;
+      continue;
+    }
+    decoded_frames++;
+  }
+
   decoding_frames_high_water_mark_ =
-      std::max(decoding_frames_high_water_mark_, decoding_frames_);
+      std::max(decoding_frames_high_water_mark_, decoding_frames);
   decoded_frames_high_water_mark_ =
-      std::max(decoded_frames_high_water_mark_, decoded_frames_);
-  total_frames_high_water_mark_ = std::max(total_frames_high_water_mark_,
-                                           decoding_frames_ + decoded_frames_);
+      std::max(decoded_frames_high_water_mark_, decoded_frames);
+  total_frames_high_water_mark_ =
+      std::max(total_frames_high_water_mark_, decoding_frames + decoded_frames);
+  return {decoding_frames, decoded_frames};
+}
+
+void FrameTracker::PurgeReleasedFrames_Locked() {
+  int64_t now_us = CurrentMonotonicTime();
+  for (auto& frame : frames_) {
+    if (0 <= frame && frame <= now_us) {
+      frame = kUnassigned;
+    }
+  }
 }
 
 }  // namespace starboard::shared::starboard::media
