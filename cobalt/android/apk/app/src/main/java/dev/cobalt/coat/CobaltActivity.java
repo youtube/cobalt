@@ -69,10 +69,6 @@ public abstract class CobaltActivity extends Activity {
 
   // This key differs in naming format for legacy reasons
   public static final String COMMAND_LINE_ARGS_KEY = "commandLineArgs";
-  public static final String COMMAND_LINE_JS_FLAGS_KEY = "js-flags";
-  public static final String COMMAND_LINE_ENABLE_FEATURES_KEY = "enable-features";
-  public static final String COMMAND_LINE_DISABLE_FEATURES_KEY = "disable-features";
-  public static final String COMMAND_LINE_BLINK_ENABLE_FEATURES_KEY = "blink-enable-features";
 
   private static final Pattern URL_PARAM_PATTERN = Pattern.compile("^[a-zA-Z0-9_=]*$");
 
@@ -105,30 +101,14 @@ public abstract class CobaltActivity extends Activity {
     if (!CommandLine.isInitialized()) {
       CommandLine.init(null);
 
-      String[] commandLineOverrides =
+      String[] commandLineArgs =
           getCommandLineParamsFromIntent(
               getIntent(), COMMAND_LINE_ARGS_KEY);
-      String[] jsFlagOverrides =
-          getCommandLineParamsFromIntent(
-              getIntent(), COMMAND_LINE_JS_FLAGS_KEY);
-      String[] enableFeaturesCommandLineOverrides =
-          getCommandLineParamsFromIntent(
-              getIntent(), COMMAND_LINE_ENABLE_FEATURES_KEY);
-      String[] disableFeaturesCommandLineOverrides =
-          getCommandLineParamsFromIntent(
-              getIntent(), COMMAND_LINE_DISABLE_FEATURES_KEY);
-      String[] blinkEnableFeaturesCommandLineOverrides =
-          getCommandLineParamsFromIntent(
-              getIntent(), COMMAND_LINE_BLINK_ENABLE_FEATURES_KEY);
       CommandLineOverrideHelper.getFlagOverrides(
           new CommandLineOverrideHelper.CommandLineOverrideHelperParams(
               shouldSetJNIPrefix,
               VersionInfo.isOfficialBuild(),
-              commandLineOverrides,
-              jsFlagOverrides,
-              enableFeaturesCommandLineOverrides,
-              disableFeaturesCommandLineOverrides,
-              blinkEnableFeaturesCommandLineOverrides
+              commandLineArgs
         ));
     }
 
