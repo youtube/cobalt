@@ -123,11 +123,7 @@ interface ContentDecryptionModule {
   RemoveSession(string session_id) => (CdmPromiseResult result);
 
   [EnableIf=use_starboard_media]
-  GetStarboardDrmSystemHandle() => (mojo_base.mojom.UnguessableToken? drm_system_handle);
-  [EnableIf=use_starboard_media]
-  DeleteStarboardDrmSystemHandle(mojo_base.mojom.UnguessableToken drm_system_handle);
-  [EnableIf=use_starboard_media]
-  GetMetrics(mojo_base.mojom.UnguessableToken drm_system_handle) => (string? metrics);
+  GetMetrics() => (string? metrics);
 
 };
 

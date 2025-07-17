@@ -23,7 +23,6 @@
 #include "mojo/public/cpp/bindings/pending_remote.h"
 
 #if BUILDFLAG(USE_STARBOARD_MEDIA)
-#include "media/mojo/services/starboard/starboard_drm_system_manager.h"
 #include "media/starboard/starboard_cdm.h"
 #endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
 
@@ -243,40 +242,13 @@ void MojoCdmService::OnDecryptorConnectionError() {
 
 #if BUILDFLAG(USE_STARBOARD_MEDIA)
 // TODO(b/432075710) move these into a Starboard CDM extension.
-void MojoCdmService::GetStarboardDrmSystemHandle(
-    GetStarboardDrmSystemHandleCallback callback) {
+
+void MojoCdmService::GetMetrics(GetMetricsCallback callback) {
 
   auto* starboard_cdm = static_cast<media::StarboardCdm*>(cdm_.get());
-  if (!starboard_cdm) {
-    DLOG(ERROR) << "CDM is not a StarboardCDM instance.";
-    std::move(callback).Run(absl::nullopt);
-    return;
-  }
-
   SbDrmSystem drm_system = starboard_cdm->GetSbDrmSystem();
   if (!drm_system) {
     DLOG(ERROR) << "Failed to get SbDrmSystem from StarboardCDM.";
-    std::move(callback).Run(absl::nullopt);
-    return;
-  }
-
-  const auto token = base::UnguessableToken::Create();
-  StarboardDrmSystemManager::GetInstance()->Register(token, drm_system);
-  std::move(callback).Run(token);
-}
-
-void MojoCdmService::DeleteStarboardDrmSystemHandle(
-    const base::UnguessableToken& drm_system_handle) {
-  StarboardDrmSystemManager::GetInstance()->Unregister(drm_system_handle);
-}
-
-void MojoCdmService::GetMetrics(const base::UnguessableToken& drm_system_handle,
-                                GetMetricsCallback callback) {
-  absl::optional<SbDrmSystem> drm_system =
-      StarboardDrmSystemManager::GetInstance()->GetDrmSystem(drm_system_handle);
-
-  if (!drm_system) {
-    DLOG(ERROR) << "Could not find a DRM system for the given handle.";
     std::move(callback).Run(absl::nullopt);
     return;
   }
@@ -285,7 +257,7 @@ void MojoCdmService::GetMetrics(const base::UnguessableToken& drm_system_handle,
   // see starboard/drm.h
   int metrics_size = 0;
   const uint8_t* metrics_data = static_cast<const uint8_t*>(
-      SbDrmGetMetrics(drm_system.value(), &metrics_size));
+      SbDrmGetMetrics(drm_system, &metrics_size));
 
   if (!metrics_data || metrics_size <= 0) {
     DLOG(ERROR) << "Failed to get metrics from SbDrmSystem.";

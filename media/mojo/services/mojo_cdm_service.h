@@ -87,12 +87,7 @@ class MEDIA_MOJO_EXPORT MojoCdmService final
   base::UnguessableToken cdm_id() const { return cdm_id_.value(); }
 
 #if BUILDFLAG(USE_STARBOARD_MEDIA)
-  void GetStarboardDrmSystemHandle(
-      GetStarboardDrmSystemHandleCallback callback) final;
-  void DeleteStarboardDrmSystemHandle(
-      const base::UnguessableToken& drm_system_handle) final;
-  void GetMetrics(const base::UnguessableToken& drm_system_handle,
-                  GetMetricsCallback callback) final;
+  void GetMetrics(GetMetricsCallback callback) final;
 #endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
 
  private:
