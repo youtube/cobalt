@@ -44,6 +44,15 @@ namespace starboard::android::shared {
 
 namespace {
 
+std::atomic<int> g_alive_video_frames_count(0);
+std::atomic<int> g_last_created_id = 0;
+std::atomic<int> g_last_released_id = 0;
+static int g_decoded_frame_id = 0;
+
+static int decoded_frame_count = 0;
+static int encoded_frame_count = 0;
+static int encoded_frame_id = 0;
+
 using ::starboard::shared::starboard::media::MimeType;
 using ::starboard::shared::starboard::player::filter::VideoFrame;
 using VideoRenderAlgorithmBase =
@@ -196,21 +205,32 @@ class VideoFrameImpl : public VideoFrame {
       : VideoFrame(dequeue_output_result.flags & BUFFER_FLAG_END_OF_STREAM
                        ? kMediaTimeEndOfStream
                        : dequeue_output_result.presentation_time_microseconds),
+        id_(GetId()),
         dequeue_output_result_(dequeue_output_result),
         media_codec_bridge_(media_codec_bridge),
         released_(false),
-        release_callback_(release_callback) {
+        release_callback_(release_callback),
+        created_us_(CurrentMonotonicTime()) {
     SB_DCHECK(media_codec_bridge_);
     SB_DCHECK(release_callback_);
+    int count = ++g_alive_video_frames_count;
+    g_last_created_id = id_;
+    SB_LOG(INFO) << "VideoFrameImpl created, alive frames=" << count
+                 << ", gap=" << (g_last_created_id - g_last_released_id)
+                 << ", id=" << id_;
   }
 
   ~VideoFrameImpl() {
     if (!released_) {
       media_codec_bridge_->ReleaseOutputBuffer(dequeue_output_result_.index,
                                                false);
+      --g_alive_video_frames_count;
+      g_last_released_id = id_;
+      VideoDecoder::GetFrameInDecoderCount()--;
       if (!is_end_of_stream()) {
         release_callback_();
       }
+      SB_LOG(INFO) << "Release(in Dtor): id=" << id_;
     }
   }
 
@@ -220,14 +240,30 @@ class VideoFrameImpl : public VideoFrame {
     released_ = true;
     media_codec_bridge_->ReleaseOutputBufferAtTimestamp(
         dequeue_output_result_.index, release_time_in_nanoseconds);
+    --g_alive_video_frames_count;
+    g_last_released_id = id_;
+    VideoDecoder::GetFrameInDecoderCount()--;
     release_callback_();
+    SB_LOG(INFO) << "Release(in Draw): id=" << id_ << ", elapsed(msec)="
+                 << ((CurrentMonotonicTime() - created_us_) / 1'000)
+                 << ", elapsed-to-release(msec)="
+                 << ((release_time_in_nanoseconds / 1'000 - created_us_) /
+                     1'000);
   }
 
  private:
+  static int GetId() {
+    ++g_decoded_frame_id;
+    SB_CHECK_LE(g_decoded_frame_id, encoded_frame_id);
+    return g_decoded_frame_id;
+  }
+
+  const int id_;
   DequeueOutputResult dequeue_output_result_;
   MediaCodecBridge* media_codec_bridge_;
   volatile bool released_;
   const VideoFrameReleaseCallback release_callback_;
+  const int64_t created_us_;
 };
 
 const int64_t kInitialPrerollTimeout = 250'000;                  // 250ms
@@ -353,6 +389,39 @@ class VideoDecoder::Sink : public VideoDecoder::VideoRendererSink {
   RenderCB render_cb_;
   bool rendered_;
 };
+
+int VideoDecoder::GetLastCreatedId() {
+  return g_last_created_id;
+}
+
+int VideoDecoder::GetLastReleasedId() {
+  return g_last_released_id;
+}
+
+void VideoDecoder::ResetCounts() {
+  SB_LOG(INFO) << __func__ << " > kMaxFramesInDecoder=" << kMaxFramesInDecoder;
+
+  g_alive_video_frames_count = 0;
+  g_last_created_id = 0;
+  g_last_released_id = 0;
+  g_decoded_frame_id = 0;
+
+  decoded_frame_count = 0;
+  encoded_frame_count = 0;
+  encoded_frame_id = 0;
+}
+
+int& VideoDecoder::GetFrameInDecoderCount() {
+  return decoded_frame_count;
+}
+
+int& VideoDecoder::GetEncodedFrameCount() {
+  return encoded_frame_count;
+}
+
+int VideoDecoder::GetEncodedFrameId() {
+  return ++encoded_frame_id;
+}
 
 VideoDecoder::VideoDecoder(const VideoStreamInfo& video_stream_info,
                            SbDrmSystem drm_system,

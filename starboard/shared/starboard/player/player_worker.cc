@@ -20,6 +20,7 @@
 #include <string>
 #include <utility>
 
+#include "starboard/android/shared/video_decoder.h"
 #include "starboard/common/condition_variable.h"
 #include "starboard/common/instance_counter.h"
 #include "starboard/common/mutex.h"
@@ -300,12 +301,17 @@ void PlayerWorker::DoWriteSamples(InputBuffers input_buffers) {
     UpdatePlayerError(kSbPlayerErrorDecode, result, "Failed to write sample.");
     return;
   }
+
+  if (media_type == kSbMediaTypeVideo) {
+    ::starboard::android::shared::VideoDecoder::GetEncodedFrameCount() +=
+        samples_written;
+  }
+
   if (static_cast<size_t>(samples_written) == input_buffers.size()) {
     UpdateDecoderState(media_type, kSbPlayerDecoderStateNeedsData);
   } else {
     SB_DCHECK(samples_written >= 0 &&
               static_cast<size_t>(samples_written) <= input_buffers.size());
-
     size_t num_of_pending_buffers = input_buffers.size() - samples_written;
     input_buffers.erase(input_buffers.begin(),
                         input_buffers.begin() + samples_written);
