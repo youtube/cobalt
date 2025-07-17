@@ -137,7 +137,7 @@ StarboardRenderer::~StarboardRenderer() {
   LOG(INFO) << "Destructing StarboardRenderer.";
 
   base::MemoryPressureListener::NotifyMemoryPressure(
-      base::MemoryPressureListener::MEMORY_PRESSURE_LEVEL_NONE);
+      base::MemoryPressureListener::MEMORY_PRESSURE_LEVEL_MODERATE);
 
   // Explicitly reset |player_bridge_| before destroying it.
   // Some functions in this class using `player_bridge_` can be called
