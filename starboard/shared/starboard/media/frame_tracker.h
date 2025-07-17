@@ -35,7 +35,7 @@ class FrameTracker {
  private:
   void UpdateHighWaterMarks_Locked();
 
-  const int max_frames_;
+  std::vector<int64_t> frames_;
   int decoding_frames_ = 0;
   int decoded_frames_ = 0;
   int decoding_frames_high_water_mark_ = 0;
