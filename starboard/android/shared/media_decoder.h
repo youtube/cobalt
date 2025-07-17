@@ -120,11 +120,6 @@ class MediaDecoder final
   bool Flush();
 
  private:
-  // TODO(b/289330342): Refactor frame counting logic.
-  void FrameAdded();
-  void FrameDecoded();
-  void FrameReleased();
-
   // Holding inputs to be processed.  They are mostly InputBuffer objects, but
   // can also be codec configs or end of streams.
   struct PendingInput {
