@@ -231,6 +231,7 @@ _ALLOWED_SB_GE_16_POSIX_SYMBOLS = [
     'statvfs',
     'strcasecmp',
     'strncasecmp',
+    'symlink',
     'time',
     'uname',
     'unlink',
