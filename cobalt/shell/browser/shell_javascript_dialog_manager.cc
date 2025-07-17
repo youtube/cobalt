@@ -21,10 +21,10 @@
 #include "base/strings/utf_string_conversions.h"
 #include "build/build_config.h"
 #include "cobalt/shell/browser/shell_javascript_dialog.h"
+#include "cobalt/shell/common/shell_switches.h"
 #include "components/url_formatter/url_formatter.h"
 #include "content/public/browser/browser_thread.h"
 #include "content/public/browser/web_contents.h"
-#include "content/shell/common/shell_switches.h"
 
 namespace content {
 

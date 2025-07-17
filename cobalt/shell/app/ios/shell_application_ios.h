@@ -1,4 +1,4 @@
-// Copyright 2015 The Cobalt Authors. All Rights Reserved.
+// Copyright 2025 The Cobalt Authors. All Rights Reserved.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -12,13 +12,22 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include "starboard/time_zone.h"
+#ifndef COBALT_SHELL_APP_IOS_SHELL_APPLICATION_IOS_H_
+#define COBALT_SHELL_APP_IOS_SHELL_APPLICATION_IOS_H_
 
-#include <time.h>
+#ifdef __OBJC__
+#import <UIKit/UIKit.h>
 
-SbTimeZone SbTimeZoneGetCurrent() {
-  // TODO: Using timezone assumes that tzset() has been called at some
-  // point. That should happen as part of Starboard's main loop initialization,
-  // but that doesn't exist yet.
-  return timezone / 60;
-}
+NS_ASSUME_NONNULL_BEGIN
+
+// UIApplicationDelegate implementation for web_view_shell.
+@interface ShellAppDelegate : UIResponder <UIApplicationDelegate>
+
+@end
+
+NS_ASSUME_NONNULL_END
+#endif
+
+int RunShellApplication(int argc, const char* _Nullable* _Nullable argv);
+
+#endif  // COBALT_SHELL_APP_IOS_SHELL_APPLICATION_IOS_H_

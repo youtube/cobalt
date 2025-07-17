@@ -1,4 +1,4 @@
-// Copyright 2016 The Cobalt Authors. All Rights Reserved.
+// Copyright 2025 The Cobalt Authors. All Rights Reserved.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -12,8 +12,12 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include "starboard/time_zone.h"
+module content.mojom;
 
-SbTimeZone SbTimeZoneGetCurrent() {
-  return 0;
-}
+// This interface is only for the sake of browser test to query the number of
+// main frames in a remote child process.
+interface MainFrameCounterTest {
+    // Returns whether or not the renderer this is called on has a local main
+    // frame.
+    HasMainFrame() => (bool has_main_frame);
+};
