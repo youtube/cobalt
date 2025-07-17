@@ -699,13 +699,6 @@ void MediaDecoder::OnMediaCodecOutputFormatChanged() {
 
 void MediaDecoder::OnMediaCodecFrameRendered(int64_t frame_timestamp) {
   frame_rendered_cb_(frame_timestamp);
-  if (frame_tracker_.ReleaseFrame()) {
-    if (std::optional<int> buffer_index =
-            frame_tracker_.GetDeferredInputBuffer();
-        buffer_index.has_value() && !frame_tracker_.IsFull()) {
-      OnMediaCodecInputBufferAvailable(*buffer_index);
-    }
-  }
 }
 
 void MediaDecoder::OnMediaCodecFirstTunnelFrameReady() {

@@ -6,6 +6,12 @@
 #include "starboard/common/log.h"
 
 namespace starboard::shared::starboard::media {
+namespace {
+constexpr int64_t kUninitialized = -2;
+constexpr int64_t kDecoding = -1;
+constexpr int64_t kDecoded = 0;
+
+}  // namespace
 
 std::ostream& operator<<(std::ostream& os, const FrameTracker::State& status) {
   os << "{decoding: " << status.decoding_frames
@@ -16,41 +22,44 @@ std::ostream& operator<<(std::ostream& os, const FrameTracker::State& status) {
   return os;
 }
 
-FrameTracker::FrameTracker(int max_frames) : max_frames_(max_frames) {}
+FrameTracker::FrameTracker(int max_frames)
+    : frames_(kUninitialized, max_frames) {}
 
 bool FrameTracker::AddFrame() {
   std::lock_guard lock(mutex_);
-  if (decoding_frames_ + decoded_frames_ >= max_frames_) {
-    return false;
+  for (auto& frame : frames_) {
+    if (frame == kUninitialized) {
+      frame = kDecoding;
+      ++decoding_frames_;
+      UpdateHighWaterMarks_Locked();
+    }
   }
-  ++decoding_frames_;
-  UpdateHighWaterMarks_Locked();
-  return true;
+
+  return false;
 }
 
 bool FrameTracker::SetFrameDecoded() {
   std::lock_guard lock(mutex_);
-  if (decoding_frames_ == 0) {
-    return false;
+  for (auto& frame : frames_) {
+    if (frame == kDecoding) {
+      frame = kDecoding;
+      ++decoding_frames_;
+      UpdateHighWaterMarks_Locked();
+    }
   }
-  --decoding_frames_;
-  ++decoded_frames_;
-  UpdateHighWaterMarks_Locked();
-  return true;
+  return false;
 }
 
-bool FrameTracker::ReleaseFrame() {
+bool FrameTracker::ReleaseFrame() {}
+
+void FrameTracker::ReleaseFrameAt(int64_t release_time) {
   std::lock_guard lock(mutex_);
   if (decoded_frames_ == 0) {
     return false;
   }
   --decoded_frames_;
-  UpdateHighWaterMarks_Locked();
-  return true;
-}
 
-void FrameTracker::ReleaseFrameAt(int64_t release_time) {
-  // TODO(b/289330342): Implement this method.
+  UpdateHighWaterMarks_Locked();
 }
 
 void FrameTracker::Reset() {
