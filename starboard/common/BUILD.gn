@@ -71,8 +71,6 @@ static_library("common") {
     "process.cc",
     "process.h",
     "queue.h",
-    "recursive_mutex.cc",
-    "recursive_mutex.h",
     "ref_counted.cc",
     "ref_counted.h",
     "reuse_allocator_base.cc",
