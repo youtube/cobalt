@@ -37,6 +37,10 @@ void FrameTracker::ReleaseFrame() {
   UpdateHighWaterMarks_Locked();
 }
 
+void FrameTracker::ReleaseFrameAt(int64_t release_time) {
+  // TODO(b/289330342): Implement this method.
+}
+
 void FrameTracker::Reset() {
   std::lock_guard lock(mutex_);
   decoding_frames_ = 0;
