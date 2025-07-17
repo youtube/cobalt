@@ -27,6 +27,13 @@
 
 namespace starboard::android::shared {
 
+// A "status" for MediaDrmBridge operations.
+// GENERATED_JAVA_ENUM_PACKAGE: dev.cobalt.media
+enum DrmOperationStatus {
+  DRM_OPERATION_STATUS_SUCCESS,
+  DRM_OPERATION_STATUS_OPERATION_FAILED,
+};
+
 class MediaDrmBridge {
  public:
   class Host {
@@ -45,17 +52,10 @@ class MediaDrmBridge {
   };
 
   struct OperationResult {
-    // This value should match MediaDrmBridge::OperationResult::Status in
-    // cobalt/android/apk/app/src/main/java/dev/cobalt/media/MediaDrmBridge.java
-    enum class Status {
-      kSuccess = 0,
-      kOperationFailed = 1,
-    };
-
-    const Status status;
+    const DrmOperationStatus status;
     const std::string error_message;
 
-    bool ok() const { return status == Status::kSuccess; }
+    bool ok() const { return status == DRM_OPERATION_STATUS_SUCCESS; }
   };
 
   MediaDrmBridge(raw_ref<MediaDrmBridge::Host> host,
@@ -103,8 +103,7 @@ class MediaDrmBridge {
   base::android::ScopedJavaGlobalRef<jobject> j_media_crypto_;
 };
 
-std::ostream& operator<<(std::ostream& os,
-                         MediaDrmBridge::OperationResult::Status status);
+std::ostream& operator<<(std::ostream& os, DrmOperationStatus);
 std::ostream& operator<<(std::ostream& os,
                          const MediaDrmBridge::OperationResult& result);
 

@@ -104,34 +104,22 @@ public class MediaDrmBridge {
 
   // Return value for DRM operation that MediaDrmBridge executes.
   private static class OperationResult {
-    public enum Status {
-      SUCCESS(0),
-      OPERATION_FAILED(1);
-      // TODO: b/79941850 - Add status for provising error.
-
-      final int code;
-
-      Status(int code) {
-        this.code = code;
-      }
-    }
-
-    private final Status mStatus;
+    private final @DrmOperationStatus int mStatus;
 
     // Descriptive error message or details, in the scenario where the update session call failed.
     private final String mErrorMessage;
 
-    private OperationResult(Status status, String errorMessage) {
+    private OperationResult(@DrmOperationStatus int status, String errorMessage) {
       this.mStatus = status;
       this.mErrorMessage = errorMessage;
     }
 
     public static OperationResult success() {
-      return new OperationResult(Status.SUCCESS, "");
+      return new OperationResult(DrmOperationStatus.SUCCESS, "");
     }
 
     public static OperationResult operationFailed(String errorMessage) {
-      return new OperationResult(Status.OPERATION_FAILED, errorMessage);
+      return new OperationResult(DrmOperationStatus.OPERATION_FAILED, errorMessage);
     }
 
     public static OperationResult operationFailed(String errorMessage, Throwable e) {
@@ -146,7 +134,7 @@ public class MediaDrmBridge {
 
     @CalledByNative("OperationResult")
     public int getStatusCode() {
-      return mStatus.code;
+      return mStatus;
     }
   }
 

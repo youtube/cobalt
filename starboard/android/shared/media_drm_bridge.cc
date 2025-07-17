@@ -39,6 +39,8 @@ using base::android::JavaParamRef;
 using base::android::ScopedJavaLocalRef;
 using base::android::ToJavaByteArray;
 
+using DrmOperationResult = MediaDrmBridge::OperationResult;
+
 // Using all capital names to be consistent with other Android media statuses.
 // They are defined in the same order as in their Java counterparts.  Their
 // values should be kept in consistent with their Java counterparts defined in
@@ -110,19 +112,19 @@ ScopedJavaLocalRef<jbyteArray> ToScopedJavaByteArray(JNIEnv* env,
                          data.size());
 }
 
-MediaDrmBridge::OperationResult ToOperationResult(
+DrmOperationResult ToOperationResult(
     JNIEnv* env,
     const ScopedJavaLocalRef<jobject>& result) {
-  auto status = static_cast<MediaDrmBridge::OperationResult::Status>(
+  auto status = static_cast<DrmOperationStatus>(
       Java_OperationResult_getStatusCode(env, result));
   // Sanitize status.
   switch (status) {
-    case MediaDrmBridge::OperationResult::Status::kSuccess:
-    case MediaDrmBridge::OperationResult::Status::kOperationFailed:
+    case DRM_OPERATION_STATUS_SUCCESS:
+    case DRM_OPERATION_STATUS_OPERATION_FAILED:
       break;
     default:
       SB_NOTREACHED() << "Unknown status " << static_cast<int>(status);
-      status = MediaDrmBridge::OperationResult::Status::kOperationFailed;
+      status = DRM_OPERATION_STATUS_OPERATION_FAILED;
   }
   return {
       status,
@@ -180,7 +182,7 @@ void MediaDrmBridge::CreateSession(int ticket,
                                     j_init_data, j_mime);
 }
 
-MediaDrmBridge::OperationResult MediaDrmBridge::UpdateSession(
+DrmOperationResult MediaDrmBridge::UpdateSession(
     int ticket,
     std::string_view key,
     std::string_view session_id) const {
@@ -300,21 +302,19 @@ bool MediaDrmBridge::IsCbcsSupported(JNIEnv* env) {
   return Java_MediaDrmBridge_isCbcsSchemeSupported(env) == JNI_TRUE;
 }
 
-std::ostream& operator<<(std::ostream& os,
-                         MediaDrmBridge::OperationResult::Status status) {
+std::ostream& operator<<(std::ostream& os, DrmOperationStatus status) {
   switch (status) {
-    case MediaDrmBridge::OperationResult::Status::kSuccess:
-      return os << "kSuccess";
-    case MediaDrmBridge::OperationResult::Status::kOperationFailed:
-      return os << "kOperationFailed";
+    case DRM_OPERATION_STATUS_SUCCESS:
+      return os << "success";
+    case DRM_OPERATION_STATUS_OPERATION_FAILED:
+      return os << "operation-failed";
     default:
       SB_NOTREACHED();
-      return os << "unknown status";
+      return os << "unknown-status";
   }
 }
 
-std::ostream& operator<<(std::ostream& os,
-                         const MediaDrmBridge::OperationResult& result) {
+std::ostream& operator<<(std::ostream& os, const DrmOperationResult& result) {
   os << "{status:" << result.status;
   if (!result.ok()) {
     os << ", error_message: "
