@@ -150,7 +150,7 @@ TEST(FrameTrackerTest, StreamInsertionOperator) {
             "total (hw): 5}");
 }
 
-TEST(FrameTrackerTest, DISABLED_ReleaseFrameAt) {
+TEST(FrameTrackerTest, ReleaseFrameAt) {
   constexpr int kMaxFramesForTest = 2;
   FrameTracker frame_tracker(kMaxFramesForTest);
   frame_tracker.AddFrame();
