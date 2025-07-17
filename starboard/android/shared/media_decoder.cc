@@ -539,7 +539,9 @@ bool MediaDecoder::ProcessOneInputBuffer(
     pending_input_to_retry_ = {dequeue_input_result, pending_input};
     return false;
   }
-  frame_tracker_.AddFrame();
+  if (!frame_tracker_.AddFrame()) {
+    SB_LOG(ERROR) << "Cannot add a new frame to the tracker.";
+  }
 
   is_output_restricted_ = false;
   return true;
@@ -667,7 +669,9 @@ void MediaDecoder::OnMediaCodecOutputBufferAvailable(
     return;
   }
 
-  frame_tracker_.SetFrameDecoded();
+  if (!frame_tracker_.SetFrameDecoded()) {
+    SB_LOG(ERROR) << "SetFrameDecoded() called on empty frame tracker.";
+  }
 
   DequeueOutputResult dequeue_output_result;
   dequeue_output_result.status = 0;
@@ -695,10 +699,12 @@ void MediaDecoder::OnMediaCodecOutputFormatChanged() {
 
 void MediaDecoder::OnMediaCodecFrameRendered(int64_t frame_timestamp) {
   frame_rendered_cb_(frame_timestamp);
-  frame_tracker_.ReleaseFrame();
-  if (std::optional<int> buffer_index = frame_tracker_.GetDeferredInputBuffer();
-      buffer_index.has_value() && !frame_tracker_.IsFull()) {
-    OnMediaCodecInputBufferAvailable(*buffer_index);
+  if (frame_tracker_.ReleaseFrame()) {
+    if (std::optional<int> buffer_index =
+            frame_tracker_.GetDeferredInputBuffer();
+        buffer_index.has_value() && !frame_tracker_.IsFull()) {
+      OnMediaCodecInputBufferAvailable(*buffer_index);
+    }
   }
 }
 
