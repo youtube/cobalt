@@ -14,47 +14,14 @@
 
 #include "starboard/linux/shared/time_zone.h"
 
-#include "starboard/extension/time_zone.h"
-
-#include <stdlib.h>
-#include <time.h>
-#include <cstring>
-
-#include "starboard/common/log.h"
+// Necessary includes would go here if there were other code.
+// For now, <stdlib.h>, <time.h>, <cstring> and "starboard/common/log.h"
+// seem to be related to the removed functionality.
 
 namespace starboard {
 namespace shared {
 
-namespace {
-
-// Definitions of any functions included as components in the extension
-// are added here.
-
-bool SetTimeZone(const char* time_zone_name) {
-  if (time_zone_name == nullptr || strlen(time_zone_name) == 0) {
-    SB_LOG(ERROR) << "Set time zone failed!";
-    SB_LOG(ERROR) << "Time zone name can't be null or empty string.";
-    return false;
-  }
-  if (setenv("TZ", time_zone_name, 1) != 0) {
-    SB_LOG(WARNING) << "Set time zone failed!";
-    return false;
-  }
-  tzset();
-  return true;
-}
-
-const StarboardExtensionTimeZoneApi kTimeZoneApi = {
-    kStarboardExtensionTimeZoneName,
-    1,  // API version that's implemented.
-    &SetTimeZone,
-};
-
-}  // namespace
-
-const void* GetTimeZoneApi() {
-  return &kTimeZoneApi;
-}
+// Content related to TimeZone extension has been removed.
 
 }  // namespace shared
 }  // namespace starboard

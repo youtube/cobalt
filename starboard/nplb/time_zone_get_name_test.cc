@@ -15,7 +15,6 @@
 #include <string.h>
 
 #include "starboard/common/log.h"
-#include "starboard/extension/time_zone.h"
 #include "starboard/system.h"
 #include "starboard/time_zone.h"
 #include "testing/gmock/include/gmock/gmock.h"
