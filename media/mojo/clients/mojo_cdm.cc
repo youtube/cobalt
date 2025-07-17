@@ -103,12 +103,6 @@ MojoCdm::~MojoCdm() {
 
   base::AutoLock auto_lock(lock_);
 
-#if BUILDFLAG(USE_STARBOARD_MEDIA)
-  if (!sbdrm_handle_.is_empty()) {
-    remote_cdm_->DeleteStarboardDrmSystemHandle(sbdrm_handle_);
-  }
-#endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
-
   // Release |decryptor_| on the correct thread. If GetDecryptor() is never
   // called but |decryptor_remote_| is not null, it is not bound to any
   // thread and is safe to be released on the current thread.
@@ -427,34 +421,9 @@ void MojoCdm::GetMetrics(
     return;
   }
 
-  if (sbdrm_handle_.is_empty()) {
-    // Start an async call to get an sbdrm_token_ then call get metrics
-    remote_cdm_->GetStarboardDrmSystemHandle(
-        base::BindOnce(&MojoCdm::OnHandleReceived, base::Unretained(this),
-                       std::move(callback)));
-  } else {
-    remote_cdm_->GetMetrics(
-        sbdrm_handle_,
-        base::BindOnce(&MojoCdm::OnMetricsReceived, base::Unretained(this),
-                       std::move(callback)));
-  }
-}
-
-void MojoCdm::OnHandleReceived(
-    base::OnceCallback<void(const std::string&)> callback,
-    const absl::optional<base::UnguessableToken>& handle) {
-  if (!handle) {
-    std::move(callback).Run(std::string());
-    return;
-  }
-
-  sbdrm_handle_ = handle.value();
-
-  // Once the handle is received, get the metrics.
   remote_cdm_->GetMetrics(
-      sbdrm_handle_,
-      base::BindOnce(&MojoCdm::OnMetricsReceived, base::Unretained(this),
-                     std::move(callback)));
+        base::BindOnce(&MojoCdm::OnMetricsReceived,
+                       base::Unretained(this), std::move(callback)));
 }
 
 void MojoCdm::OnMetricsReceived(

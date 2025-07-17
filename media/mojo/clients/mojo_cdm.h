@@ -173,10 +173,6 @@ class MojoCdm final : public ContentDecryptionModule,
   CallbackRegistry<EventCB::RunType> event_callbacks_;
 
 #if BUILDFLAG(USE_STARBOARD_MEDIA)
-  // A default-constructed token is empty.
-  base::UnguessableToken sbdrm_handle_;
-  void OnHandleReceived(base::OnceCallback<void(const std::string&)> callback,
-                        const absl::optional<base::UnguessableToken>& handle);
   void OnMetricsReceived(base::OnceCallback<void(const std::string&)> callback,
                          const absl::optional<std::string>& metrics_string);
 #endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
