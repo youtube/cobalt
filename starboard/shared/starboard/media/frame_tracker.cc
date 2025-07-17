@@ -18,23 +18,35 @@ std::ostream& operator<<(std::ostream& os, const FrameTracker::State& status) {
 
 FrameTracker::FrameTracker(int max_frames) : max_frames_(max_frames) {}
 
-void FrameTracker::AddFrame() {
+bool FrameTracker::AddFrame() {
   std::lock_guard lock(mutex_);
+  if (decoding_frames_ + decoded_frames_ >= max_frames_) {
+    return false;
+  }
   ++decoding_frames_;
   UpdateHighWaterMarks_Locked();
+  return true;
 }
 
-void FrameTracker::SetFrameDecoded() {
+bool FrameTracker::SetFrameDecoded() {
   std::lock_guard lock(mutex_);
+  if (decoding_frames_ == 0) {
+    return false;
+  }
   --decoding_frames_;
   ++decoded_frames_;
   UpdateHighWaterMarks_Locked();
+  return true;
 }
 
-void FrameTracker::ReleaseFrame() {
+bool FrameTracker::ReleaseFrame() {
   std::lock_guard lock(mutex_);
+  if (decoded_frames_ == 0) {
+    return false;
+  }
   --decoded_frames_;
   UpdateHighWaterMarks_Locked();
+  return true;
 }
 
 void FrameTracker::ReleaseFrameAt(int64_t release_time) {

@@ -20,9 +20,9 @@ class FrameTracker {
 
   explicit FrameTracker(int max_frames);
 
-  void AddFrame();
-  void SetFrameDecoded();
-  void ReleaseFrame();
+  bool AddFrame();
+  bool SetFrameDecoded();
+  bool ReleaseFrame();
   void ReleaseFrameAt(int64_t release_time);
   void Reset();
 
