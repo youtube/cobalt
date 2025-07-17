@@ -102,6 +102,18 @@ class VideoDecoder
 
   bool is_decoder_created() const { return media_decoder_ != NULL; }
 
+  static int GetLastReleasedId();
+  static int GetLastCreatedId();
+
+  static const int kMaxFramesInDecoder = 6;
+
+  static void AddDecodedFrame();
+  static void RemoveDecodedFrameAt(int64_t expiration);
+  static void RemoveDecodedFrameNow();
+  static int GetFrameInDecoderCount();
+
+  static void ResetCounts();
+
  private:
   // Attempt to initialize the codec.  Returns whether initialization was
   // successful.
