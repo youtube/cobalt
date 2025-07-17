@@ -119,6 +119,10 @@ class MediaDecoder final
 
   bool Flush();
 
+  ::starboard::shared::starboard::media::FrameTracker* frame_tracker() {
+    return &frame_tracker_;
+  }
+
  private:
   // Holding inputs to be processed.  They are mostly InputBuffer objects, but
   // can also be codec configs or end of streams.

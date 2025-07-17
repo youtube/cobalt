@@ -188,7 +188,8 @@ void ParseMaxResolution(const std::string& max_video_capabilities,
 
 class VideoFrameImpl : public VideoFrame {
  public:
-  typedef std::function<void()> VideoFrameReleaseCallback;
+  typedef std::function<void(std::optional<int64_t> release_us)>
+      VideoFrameReleaseCallback;
 
   VideoFrameImpl(const DequeueOutputResult& dequeue_output_result,
                  MediaCodecBridge* media_codec_bridge,
@@ -209,7 +210,7 @@ class VideoFrameImpl : public VideoFrame {
       media_codec_bridge_->ReleaseOutputBuffer(dequeue_output_result_.index,
                                                false);
       if (!is_end_of_stream()) {
-        release_callback_();
+        release_callback_(std::nullopt);
       }
     }
   }
@@ -220,7 +221,7 @@ class VideoFrameImpl : public VideoFrame {
     released_ = true;
     media_codec_bridge_->ReleaseOutputBufferAtTimestamp(
         dequeue_output_result_.index, release_time_in_nanoseconds);
-    release_callback_();
+    release_callback_(release_time_in_nanoseconds / 1'000);
   }
 
  private:
@@ -1234,11 +1235,14 @@ void VideoDecoder::OnTunnelModeCheckForNeedMoreInput() {
            kNeedMoreInputCheckIntervalInTunnelMode);
 }
 
-void VideoDecoder::OnVideoFrameRelease() {
+void VideoDecoder::OnVideoFrameRelease(std::optional<int64_t> release_us) {
   if (output_format_) {
     --buffered_output_frames_;
     SB_DCHECK_GE(buffered_output_frames_, 0);
   }
+
+  media_decoder_->frame_tracker()->ReleaseFrameAt(
+      release_us.value_or(CurrentMonotonicTime()));
 }
 
 void VideoDecoder::OnSurfaceDestroyed() {
