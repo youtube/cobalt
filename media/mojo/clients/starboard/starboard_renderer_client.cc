@@ -419,6 +419,12 @@ void StarboardRendererClient::OnGetCurrentVideoFrameDone(
   }
 }
 
+void StarboardRendererClient::OnOverlayInfoChanged(
+    const OverlayInfo& overlay_info) {
+  DCHECK(media_task_runner_->RunsTasksInCurrentSequence());
+  renderer_extension_->OnOverlayInfoChanged(overlay_info);
+}
+
 void StarboardRendererClient::StartVideoRendererSink() {
   DCHECK(media_task_runner_->RunsTasksInCurrentSequence());
   if (!video_renderer_sink_started_) {
@@ -433,13 +439,6 @@ void StarboardRendererClient::StopVideoRendererSink() {
     video_renderer_sink_started_ = false;
     video_renderer_sink_->Stop();
   }
-}
-
-void StarboardRendererClient::OnOverlayInfoChanged(
-    const OverlayInfo& overlay_info) {
-  DCHECK(media_task_runner_->RunsTasksInCurrentSequence());
-
-  renderer_extension_->OnOverlayInfoChanged(overlay_info);
 }
 
 }  // namespace media

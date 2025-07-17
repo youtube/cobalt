@@ -134,9 +134,9 @@ class MEDIA_EXPORT StarboardRendererClient
   void SetPlayingState(bool is_playing);
   void UpdateCurrentFrame();
   void OnGetCurrentVideoFrameDone(const scoped_refptr<VideoFrame>& frame);
+  void OnOverlayInfoChanged(const OverlayInfo& overlay_info);
   void StartVideoRendererSink();
   void StopVideoRendererSink();
-  void OnOverlayInfoChanged(const OverlayInfo& overlay_info);
 
   scoped_refptr<base::SequencedTaskRunner> media_task_runner_;
   std::unique_ptr<MediaLog> media_log_;
