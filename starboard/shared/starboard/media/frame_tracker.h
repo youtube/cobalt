@@ -3,6 +3,7 @@
 
 #include <iosfwd>
 #include <mutex>
+#include <optional>
 #include <queue>
 
 namespace starboard::shared::starboard::media {
@@ -27,9 +28,8 @@ class FrameTracker {
   State GetCurrentState() const;
 
   bool IsFull() const;
-  void OnInputBufferAvailable(int buffer_index);
-  int GetDeferredInputBuffer();
-  bool HasDeferredInputBuffers() const;
+  void DeferInputBuffer(int buffer_index);
+  std::optional<int> GetDeferredInputBuffer();
 
  private:
   void UpdateHighWaterMarks_Locked();
