@@ -1,6 +1,7 @@
 #include "starboard/shared/starboard/media/frame_tracker.h"
 
 #include <sstream>
+
 #include "starboard/common/time.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
@@ -24,7 +25,7 @@ TEST(FrameTrackerTest, InitialState) {
 TEST(FrameTrackerTest, AddFrame) {
   FrameTracker frame_tracker(kMaxFrames);
 
-  frame_tracker.AddFrame();
+  EXPECT_TRUE(frame_tracker.AddFrame());
   FrameTracker::State status = frame_tracker.GetCurrentState();
 
   EXPECT_EQ(status.decoding_frames, 1);
@@ -34,11 +35,20 @@ TEST(FrameTrackerTest, AddFrame) {
   EXPECT_EQ(status.total_frames_high_water_mark, 1);
 }
 
+TEST(FrameTrackerTest, AddFrameReturnsFalseWhenFull) {
+  FrameTracker frame_tracker(kMaxFrames);
+  for (int i = 0; i < kMaxFrames; ++i) {
+    EXPECT_TRUE(frame_tracker.AddFrame());
+  }
+
+  EXPECT_FALSE(frame_tracker.AddFrame());
+}
+
 TEST(FrameTrackerTest, SetFrameDecoded) {
   FrameTracker frame_tracker(kMaxFrames);
   frame_tracker.AddFrame();
 
-  frame_tracker.SetFrameDecoded();
+  EXPECT_TRUE(frame_tracker.SetFrameDecoded());
   FrameTracker::State status = frame_tracker.GetCurrentState();
 
   EXPECT_EQ(status.decoding_frames, 0);
@@ -48,12 +58,18 @@ TEST(FrameTrackerTest, SetFrameDecoded) {
   EXPECT_EQ(status.total_frames_high_water_mark, 1);
 }
 
+TEST(FrameTrackerTest, SetFrameDecodedReturnsFalseWhenEmpty) {
+  FrameTracker frame_tracker(kMaxFrames);
+
+  EXPECT_FALSE(frame_tracker.SetFrameDecoded());
+}
+
 TEST(FrameTrackerTest, ReleaseFrame) {
   FrameTracker frame_tracker(kMaxFrames);
   frame_tracker.AddFrame();
   frame_tracker.SetFrameDecoded();
 
-  frame_tracker.ReleaseFrame();
+  EXPECT_TRUE(frame_tracker.ReleaseFrame());
   FrameTracker::State status = frame_tracker.GetCurrentState();
 
   EXPECT_EQ(status.decoding_frames, 0);
@@ -61,6 +77,12 @@ TEST(FrameTrackerTest, ReleaseFrame) {
   EXPECT_EQ(status.decoding_frames_high_water_mark, 1);
   EXPECT_EQ(status.decoded_frames_high_water_mark, 1);
   EXPECT_EQ(status.total_frames_high_water_mark, 1);
+}
+
+TEST(FrameTrackerTest, ReleaseFrameReturnsFalseWhenEmpty) {
+  FrameTracker frame_tracker(kMaxFrames);
+
+  EXPECT_FALSE(frame_tracker.ReleaseFrame());
 }
 
 TEST(FrameTrackerTest, HighWaterMark) {
