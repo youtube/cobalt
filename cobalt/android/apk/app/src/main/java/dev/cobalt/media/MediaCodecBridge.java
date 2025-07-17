@@ -37,8 +37,12 @@ import dev.cobalt.util.Log;
 import dev.cobalt.util.SynchronizedHolder;
 import java.nio.ByteBuffer;
 import java.nio.ByteOrder;
+import java.util.ArrayDeque;
+import java.util.HashMap;
 import java.util.Locale;
+import java.util.Map;
 import java.util.Optional;
+import java.util.Queue;
 import org.chromium.base.annotations.CalledByNative;
 import org.chromium.base.annotations.JNINamespace;
 import org.chromium.base.annotations.NativeMethods;
@@ -84,6 +88,11 @@ class MediaCodecBridge {
   // Only create one of these and reuse it to avoid excessive allocations,
   // which would cause GC cycles long enough to impact playback.
   private final MediaCodec.BufferInfo info = new MediaCodec.BufferInfo();
+
+  private Map<Long, Long> mFrameDecodeStartTimes = new HashMap<>();
+  private Map<Long, Long> mFrameOutputAvailableTimes = new HashMap<>();
+  private Queue<Integer> mDeferredInputBufferIndices = new ArrayDeque<>();
+  private static final int MAX_FRAMES_IN_DECODER = 6;
 
   // Type of bitrate adjustment for video encoder.
   public enum BitrateAdjustmentTypes {
@@ -441,6 +450,21 @@ class MediaCodecBridge {
               if (mNativeMediaCodecBridge == 0) {
                 return;
               }
+              if (mDecodingFrames + mDecodedFrames >= MAX_FRAMES_IN_DECODER) {
+                Log.i(
+                    TAG,
+                    "Too many frames in decoder pipeline (decoding: "
+                        + mDecodingFrames
+                        + ", decoded: "
+                        + mDecodedFrames
+                        + ", total: "
+                        + (mDecodingFrames + mDecodedFrames)
+                        + ", limit: "
+                        + MAX_FRAMES_IN_DECODER
+                        + "). Deferring input buffer processing.");
+                mDeferredInputBufferIndices.add(index);
+                return;
+              }
               MediaCodecBridgeJni.get()
                   .onMediaCodecInputBufferAvailable(mNativeMediaCodecBridge, index);
             }
@@ -453,6 +477,8 @@ class MediaCodecBridge {
               if (mNativeMediaCodecBridge == 0) {
                 return;
               }
+              SetFrameDecoded(info.presentationTimeUs);
+              mFrameOutputAvailableTimes.put(info.presentationTimeUs, System.nanoTime());
               MediaCodecBridgeJni.get()
                   .onMediaCodecOutputBufferAvailable(
                       mNativeMediaCodecBridge,
@@ -474,6 +500,7 @@ class MediaCodecBridge {
 
           @Override
           public void onOutputFormatChanged(MediaCodec codec, MediaFormat format) {
+            Log.i(TAG, "onOutputFormatChanged < format=" + format);
             synchronized (this) {
               if (mNativeMediaCodecBridge == 0) {
                 return;
@@ -495,6 +522,11 @@ class MediaCodecBridge {
               synchronized (this) {
                 if (mNativeMediaCodecBridge == 0) {
                   return;
+                }
+                Long outputAvailableTime = mFrameOutputAvailableTimes.remove(presentationTimeUs);
+                if (outputAvailableTime != null) {
+                  long elapsedMs = (System.nanoTime() - outputAvailableTime) / 1000000;
+                  Log.i(TAG, "Frame rendered in " + elapsedMs + " ms after output available.");
                 }
                 MediaCodecBridgeJni.get()
                     .onMediaCodecFrameRendered(
@@ -800,6 +832,9 @@ class MediaCodecBridge {
   private int flush() {
     try {
       mFlushed = true;
+      mFrameDecodeStartTimes.clear();
+      mFrameOutputAvailableTimes.clear();
+      mDeferredInputBufferIndices.clear();
       mMediaCodec.get().flush();
     } catch (Exception e) {
       Log.e(TAG, "Failed to flush MediaCodec", e);
@@ -856,9 +891,66 @@ class MediaCodecBridge {
     }
   }
 
+  int mDecodingFrames = 0;
+  int mDecodingFramesHw = 0;
+  int mDecodedFrames = 0;
+  int mDecodedFramesHw = 0;
+  int mTotalFramesHw = 0;
+
+  void UpdateHighmark() {
+    mDecodingFramesHw = Math.max(mDecodingFramesHw, mDecodingFrames);
+    mDecodedFramesHw = Math.max(mDecodedFramesHw, mDecodedFrames);
+    mTotalFramesHw = Math.max(mTotalFramesHw, mDecodingFrames + mDecodedFrames);
+  }
+
+  void AddNewFrame(long presentationTimeUs) {
+    assert mDecodingFrames + mDecodedFrames < MAX_FRAMES_IN_DECODER;
+    mDecodingFrames++;
+    mFrameDecodeStartTimes.put(presentationTimeUs, System.nanoTime());
+    UpdateHighmark();
+  }
+
+  void SetFrameDecoded(long presentationTimeUs) {
+    mDecodingFrames--;
+    mDecodedFrames++;
+
+    Long startTime = mFrameDecodeStartTimes.remove(presentationTimeUs);
+    if (startTime != null) {
+      long elapsedMs = (System.nanoTime() - startTime) / 1000000;
+      Log.i(TAG, "Frame decoded in " + elapsedMs + " ms.");
+    }
+
+    UpdateHighmark();
+    Log.i(TAG, "FrameDecoded > " + FrameStat());
+  }
+
+  void ReleaseFrame() {
+    mDecodedFrames--;
+
+    UpdateHighmark();
+    Log.i(TAG, "FrameReleased > " + FrameStat());
+
+    synchronized (this) {
+      if (!mDeferredInputBufferIndices.isEmpty()
+          && (mDecodingFrames + mDecodedFrames) < MAX_FRAMES_IN_DECODER) {
+        Log.i(TAG, "Processing deferred input buffer.");
+        MediaCodecBridgeJni.get()
+            .onMediaCodecInputBufferAvailable(
+                mNativeMediaCodecBridge, mDeferredInputBufferIndices.poll());
+      }
+    }
+  }
+
+  String FrameStat() {
+    return "decoding=" + mDecodingFrames + "/" + mDecodingFramesHw
+        + ", decoded=" + mDecodedFrames + "/" + mDecodedFramesHw
+        + ", total(hw)=" + mTotalFramesHw;
+  }
+
   @CalledByNative
   private int queueInputBuffer(
       int index, int offset, int size, long presentationTimeUs, int flags) {
+
     resetLastPresentationTimeIfNeeded(presentationTimeUs);
     try {
       mMediaCodec.get().queueInputBuffer(index, offset, size, presentationTimeUs, flags);
@@ -866,6 +958,8 @@ class MediaCodecBridge {
       Log.e(TAG, "Failed to queue input buffer", e);
       return MediaCodecStatus.ERROR;
     }
+
+    AddNewFrame(presentationTimeUs);
     return MediaCodecStatus.OK;
   }
 
@@ -920,6 +1014,8 @@ class MediaCodecBridge {
       Log.e(TAG, "Failed to queue secure input buffer, IllegalStateException " + e);
       return MediaCodecStatus.ERROR;
     }
+
+    AddNewFrame(presentationTimeUs);
     return MediaCodecStatus.OK;
   }
 
@@ -930,7 +1026,9 @@ class MediaCodecBridge {
     } catch (IllegalStateException e) {
       // TODO: May need to report the error to the caller. crbug.com/356498.
       Log.e(TAG, "Failed to release output buffer", e);
+      return;
     }
+    ReleaseFrame();
   }
 
   @CalledByNative
@@ -940,7 +1038,9 @@ class MediaCodecBridge {
     } catch (IllegalStateException e) {
       // TODO: May need to report the error to the caller. crbug.com/356498.
       Log.e(TAG, "Failed to release output buffer", e);
+      return;
     }
+    ReleaseFrame();
   }
 
   private boolean configureVideo(
