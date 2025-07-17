@@ -33,6 +33,8 @@ using base::android::AttachCurrentThread;
 
 namespace {
 
+constexpr int kMaxFramesInDecoder = 6;
+
 const jint kNoOffset = 0;
 const jlong kNoPts = 0;
 const jint kNoBufferFlags = 0;
@@ -81,7 +83,8 @@ MediaDecoder::MediaDecoder(Host* host,
       drm_system_(static_cast<DrmSystem*>(drm_system)),
       tunnel_mode_enabled_(false),
       flush_delay_usec_(0),
-      condition_variable_(mutex_) {
+      condition_variable_(mutex_),
+      frame_tracker_(kMaxFramesInDecoder) {
   SB_DCHECK(host_);
 
   jobject j_media_crypto = drm_system_ ? drm_system_->GetMediaCrypto() : NULL;
@@ -130,7 +133,8 @@ MediaDecoder::MediaDecoder(
       first_tunnel_frame_ready_cb_(first_tunnel_frame_ready_cb),
       tunnel_mode_enabled_(tunnel_mode_audio_session_id != -1),
       flush_delay_usec_(flush_delay_usec),
-      condition_variable_(mutex_) {
+      condition_variable_(mutex_),
+      frame_tracker_(kMaxFramesInDecoder) {
   SB_DCHECK(frame_rendered_cb_);
   SB_DCHECK(first_tunnel_frame_ready_cb_);
 
@@ -535,6 +539,7 @@ bool MediaDecoder::ProcessOneInputBuffer(
     pending_input_to_retry_ = {dequeue_input_result, pending_input};
     return false;
   }
+  frame_tracker_.AddFrame();
 
   is_output_restricted_ = false;
   return true;
@@ -635,6 +640,11 @@ void MediaDecoder::OnMediaCodecInputBufferAvailable(int buffer_index) {
     ::starboard::shared::pthread::ThreadSetPriority(kSbThreadPriorityHigh);
     first_call_on_handler_thread_ = false;
   }
+  if (frame_tracker_.IsFull()) {
+    SB_LOG(INFO) << "Too many frames in decoder pipeline, deferring input.";
+    frame_tracker_.OnInputBufferAvailable(buffer_index);
+    return;
+  }
   ScopedLock scoped_lock(mutex_);
   input_buffer_indices_.push_back(buffer_index);
   if (input_buffer_indices_.size() == 1) {
@@ -656,6 +666,8 @@ void MediaDecoder::OnMediaCodecOutputBufferAvailable(
   if (destroying_.load() || decoder_thread_ == 0) {
     return;
   }
+
+  frame_tracker_.SetFrameDecoded();
 
   DequeueOutputResult dequeue_output_result;
   dequeue_output_result.status = 0;
@@ -683,6 +695,13 @@ void MediaDecoder::OnMediaCodecOutputFormatChanged() {
 
 void MediaDecoder::OnMediaCodecFrameRendered(int64_t frame_timestamp) {
   frame_rendered_cb_(frame_timestamp);
+  frame_tracker_.ReleaseFrame();
+  if (frame_tracker_.HasDeferredInputBuffers() && !frame_tracker_.IsFull()) {
+    int buffer_index = frame_tracker_.GetDeferredInputBuffer();
+    if (buffer_index != -1) {
+      OnMediaCodecInputBufferAvailable(buffer_index);
+    }
+  }
 }
 
 void MediaDecoder::OnMediaCodecFirstTunnelFrameReady() {
@@ -720,6 +739,7 @@ bool MediaDecoder::Flush() {
     input_buffer_indices_.clear();
     dequeue_output_results_.clear();
     pending_input_to_retry_ = std::nullopt;
+    frame_tracker_.Reset();
 
     // 2.3. Add OutputFormatChanged to get current output format after Flush().
     DequeueOutputResult dequeue_output_result = {};
