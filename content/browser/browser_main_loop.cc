@@ -777,6 +777,7 @@ int BrowserMainLoop::PreCreateThreads() {
 
   InitializeMemoryManagementComponent();
 #if BUILDFLAG(IS_ANDROID)
+  // mcasas: this is only defined for Android.
   memory_pressure::UserLevelMemoryPressureSignalGenerator::Initialize();
 #endif
 

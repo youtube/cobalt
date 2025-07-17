@@ -16,6 +16,7 @@
 
 #include "base/feature_list.h"
 #include "base/logging.h"
+#include "base/memory/memory_pressure_listener.h"
 #include "base/trace_event/trace_event.h"
 #include "media/base/audio_codecs.h"
 #include "media/base/media_switches.h"
@@ -135,6 +136,9 @@ StarboardRenderer::~StarboardRenderer() {
 
   LOG(INFO) << "Destructing StarboardRenderer.";
 
+  base::MemoryPressureListener::NotifyMemoryPressure(
+      base::MemoryPressureListener::MEMORY_PRESSURE_LEVEL_NONE);
+
   // Explicitly reset |player_bridge_| before destroying it.
   // Some functions in this class using `player_bridge_` can be called
   // asynchronously on arbitrary threads (e.g. `GetMediaTime()`), this ensures
@@ -164,6 +168,14 @@ void StarboardRenderer::Initialize(MediaResource* media_resource,
   TRACE_EVENT0("media", "StarboardRenderer::Initialize");
 
   LOG(INFO) << "Initializing StarboardRenderer.";
+
+  // Is it OK to call here this directly...? In single process configurations,
+  // yes since it's an interface to a singleton. In multiprocess, this would
+  // only notify the process-specific, i.e. the GPU process'
+  // MemoryPressureListener...? Which would only notify the GPU process
+  // observers, not beyond.
+  base::MemoryPressureListener::NotifyMemoryPressure(
+      base::MemoryPressureListener::MEMORY_PRESSURE_LEVEL_CRITICAL);
 
 #if COBALT_MEDIA_ENABLE_SUSPEND_RESUME
   // Note that once this code block is enabled, we should also ensure that the

@@ -53,6 +53,8 @@ base::TimeDelta MeasurementIntervalFor6GbDevices() {
   return kMeasurementInterval.Get();
 }
 
+// mcasas: threshold on Android when "UserLevelMemoryPressureSignalOn4GbDevices"
+// feature is enabled (disabled by default).
 constexpr size_t kDefaultMemoryThresholdMB = 485;
 
 uint64_t MemoryThresholdParamFor4GbDevices() {

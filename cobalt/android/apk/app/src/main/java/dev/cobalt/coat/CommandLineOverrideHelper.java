@@ -108,6 +108,7 @@ public final class CommandLineOverrideHelper {
         // rendering switch, to make sure certain devices are excluded.
         paramOverrides.add("DefaultPassthroughCommandDecoder");
 
+        paramOverrides.add("UserLevelMemoryPressureSignalOn4GbDevices")
         return paramOverrides;
     }
 

@@ -3493,6 +3493,8 @@ void LayerTreeHostImpl::OnMemoryPressure(
   if (!base::SysInfo::IsLowEndDevice())
     return;
 
+  LOG(ERROR) << "Miguelao ######################################";
+
   if (!ImageDecodeCacheUtils::ShouldEvictCaches(level))
     return;
 
