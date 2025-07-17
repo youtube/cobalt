@@ -32,7 +32,6 @@ runs:
         set -x
 
         # Set floating to either the PR number (for PRs) or the branch name (for post-submit).
-        # Images will be tagged
         FLOATING_TAG="${{ inputs.is_pr == 'true' && github.event.pull_request.number || github.ref_name }}"
         # Replace slashes with double underscore.
         FLOATING_TAG="${FLOATING_TAG//\//__}"
@@ -70,46 +69,50 @@ runs:
         GITHUB_DOCKER_REGISTRY_URL: ghcr.io
         PR_DOCKER_REGISTRY_URL: us-central1-docker.pkg.dev
         DOCKER_SERVICE: ${{ inputs.docker_service }}
-        CONTENT_SHA: ${{ inputs.docker_content_sha }}
+        DOCKER_CONTENT_SHA: ${{ inputs.docker_content_sha }}
+        IS_PR: ${{ inputs.is_pr }}
       run: |
         # Pull Existing Docker Image
         set -x
         DOCKER_COMPOSE_IMAGE="${GITHUB_DOCKER_REGISTRY_URL}/${{ github.repository }}/${DOCKER_SERVICE}"
 
-        if docker manifest inspect "${DOCKER_COMPOSE_IMAGE}:${CONTENT_SHA}"; then
+        if docker manifest inspect "${DOCKER_COMPOSE_IMAGE}:${DOCKER_CONTENT_SHA}"; then
           # A postsubmit image exists, use it.
           echo "Using existing ${DOCKER_COMPOSE_IMAGE}"
 
-        elif [[ "${{ inputs.is_pr }}" == "true" ]]; then
+        elif [[ "${IS_PR}" == "true" ]]; then
           # No post-submit image was found. Check PR registry to see if there's an image there.
           PROJECT_NAME=$(gcloud config get-value project)
           DOCKER_COMPOSE_IMAGE="${PR_DOCKER_REGISTRY_URL}/${PROJECT_NAME}/github/${DOCKER_SERVICE}"
 
-          if ! docker manifest inspect "${DOCKER_COMPOSE_IMAGE}:${CONTENT_SHA}"; then
-            echo "::warning::No pre-built docker image found for commit ${CONTENT_SHA}. Building ${:${CONTENT_SHA}"
+          if ! docker manifest inspect "${DOCKER_COMPOSE_IMAGE}:${DOCKER_CONTENT_SHA}"; then
+            echo "::warning::No pre-built docker image found for commit ${DOCKER_CONTENT_SHA}."
             echo "build_image=true" >> $GITHUB_OUTPUT
           fi
         else
-          echo "::warning::No pre-built docker image found for commit ${CONTENT_SHA}. Building ${:${CONTENT_SHA}"
+          echo "::warning::No pre-built docker image found for commit ${DOCKER_CONTENT_SHA}."
           echo "build_image=true" >> $GITHUB_OUTPUT
         fi
 
-        echo "docker_tag=${DOCKER_COMPOSE_IMAGE}:${CONTENT_SHA}" >> $GITHUB_OUTPUT
+        # Tell builders which image tag to use.
+        echo "docker_tag=${DOCKER_COMPOSE_IMAGE}:${DOCKER_CONTENT_SHA}" >> $GITHUB_OUTPUT
+
+        # Make the compose image tag available to the build step below.
         echo "DOCKER_COMPOSE_IMAGE=${DOCKER_COMPOSE_IMAGE}" >> $GITHUB_ENV
       shell: bash
 
     - name: Build and Push Docker Image
       if: steps.pull-cached-image.outputs.build_image == 'true'
       env:
-        CONTENT_SHA: ${{ inputs.docker_content_sha }}
+        DOCKER_CONTENT_SHA: ${{ inputs.docker_content_sha }}
         DOCKER_SERVICE: ${{ inputs.docker_service }}
       run: |
         # Build and Push Docker Image
         set -x
         docker compose build ${DOCKER_SERVICE}
 
-        # The compose build tags the image with image url. Add the Docker content sha and floating tag and push.
-        docker tag "${DOCKER_COMPOSE_IMAGE}" "${DOCKER_COMPOSE_IMAGE}:${CONTENT_SHA}"
+        # The compose build tags the built image with $DOCKER_COMPOSE_IMAGE. Add the Docker content sha and floating tag and push.
+        docker tag "${DOCKER_COMPOSE_IMAGE}" "${DOCKER_COMPOSE_IMAGE}:${DOCKER_CONTENT_SHA}"
         docker tag "${DOCKER_COMPOSE_IMAGE}" "${DOCKER_COMPOSE_IMAGE}:${DOCKER_FLOATING_TAG}"
         docker push --all-tags "${DOCKER_COMPOSE_IMAGE}"
       shell: bash
