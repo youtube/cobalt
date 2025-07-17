@@ -23,24 +23,24 @@ class FrameTracker {
   bool AddFrame();
   bool SetFrameDecoded();
   bool ReleaseFrame();
-  void ReleaseFrameAt(int64_t release_time);
+  bool ReleaseFrameAt(int64_t release_us);
   void Reset();
 
-  State GetCurrentState() const;
+  State GetCurrentState();
+  bool IsFull();
 
-  bool IsFull() const;
   void DeferInputBuffer(int buffer_index);
   std::optional<int> GetDeferredInputBuffer();
 
  private:
-  void UpdateHighWaterMarks_Locked();
+  std::pair<int, int> UpdateHighWaterMarks_Locked();
+  void PurgeReleasedFrames_Locked();
 
   std::vector<int64_t> frames_;
-  int decoding_frames_ = 0;
-  int decoded_frames_ = 0;
-  int decoding_frames_high_water_mark_ = 0;
-  int decoded_frames_high_water_mark_ = 0;
-  int total_frames_high_water_mark_ = 0;
+  mutable int decoding_frames_high_water_mark_ = 0;
+  mutable int decoded_frames_high_water_mark_ = 0;
+  mutable int total_frames_high_water_mark_ = 0;
+
   std::queue<int> deferred_input_buffer_indices_;
   mutable std::mutex mutex_;
 };

@@ -928,7 +928,9 @@ void VideoDecoder::ProcessOutputBuffer(
   decoder_status_cb_(
       is_end_of_stream ? kBufferFull : kNeedMoreInput,
       new VideoFrameImpl(dequeue_output_result, media_codec_bridge,
-                         std::bind(&VideoDecoder::OnVideoFrameRelease, this)));
+                         [this](std::optional<int64_t> release_us) {
+                           OnVideoFrameRelease(release_us);
+                         }));
 }
 
 void VideoDecoder::RefreshOutputFormat(MediaCodecBridge* media_codec_bridge) {
