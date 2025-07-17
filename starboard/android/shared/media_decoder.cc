@@ -642,7 +642,7 @@ void MediaDecoder::OnMediaCodecInputBufferAvailable(int buffer_index) {
   }
   if (frame_tracker_.IsFull()) {
     SB_LOG(INFO) << "Too many frames in decoder pipeline, deferring input.";
-    frame_tracker_.OnInputBufferAvailable(buffer_index);
+    frame_tracker_.DeferInputBuffer(buffer_index);
     return;
   }
   ScopedLock scoped_lock(mutex_);
@@ -696,11 +696,9 @@ void MediaDecoder::OnMediaCodecOutputFormatChanged() {
 void MediaDecoder::OnMediaCodecFrameRendered(int64_t frame_timestamp) {
   frame_rendered_cb_(frame_timestamp);
   frame_tracker_.ReleaseFrame();
-  if (frame_tracker_.HasDeferredInputBuffers() && !frame_tracker_.IsFull()) {
-    int buffer_index = frame_tracker_.GetDeferredInputBuffer();
-    if (buffer_index != -1) {
-      OnMediaCodecInputBufferAvailable(buffer_index);
-    }
+  if (std::optional<int> buffer_index = frame_tracker_.GetDeferredInputBuffer();
+      buffer_index.has_value() && !frame_tracker_.IsFull()) {
+    OnMediaCodecInputBufferAvailable(*buffer_index);
   }
 }
 

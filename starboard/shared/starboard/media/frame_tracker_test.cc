@@ -95,6 +95,22 @@ TEST(FrameTrackerTest, Reset) {
   EXPECT_EQ(status.total_frames_high_water_mark, 0);
 }
 
+TEST(FrameTrackerTest, GetDeferredInputBuffer) {
+  FrameTracker frame_tracker(kMaxFrames);
+  frame_tracker.DeferInputBuffer(1);
+  frame_tracker.DeferInputBuffer(2);
+
+  std::optional<int> buffer1 = frame_tracker.GetDeferredInputBuffer();
+  std::optional<int> buffer2 = frame_tracker.GetDeferredInputBuffer();
+  std::optional<int> buffer3 = frame_tracker.GetDeferredInputBuffer();
+
+  EXPECT_TRUE(buffer1);
+  EXPECT_EQ(*buffer1, 1);
+  EXPECT_TRUE(buffer2);
+  EXPECT_EQ(*buffer2, 2);
+  EXPECT_FALSE(buffer3);
+}
+
 TEST(FrameTrackerTest, StreamInsertionOperator) {
   FrameTracker::State status;
   status.decoding_frames = 1;
