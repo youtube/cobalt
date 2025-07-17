@@ -1,18 +1,16 @@
 #define _Addr long
 #define _Int64 long
 #define _Reg long
+
 #define __BYTE_ORDER 1234
 #define __LONG_MAX 0x7fffffffffffffffL
 
 #ifndef __cplusplus
-#if defined(USE_COBALT_CUSTOMIZATIONS)
-typedef __WCHAR_TYPE__ wchar_t;
-#else 
 #if defined(__NEED_wchar_t) && !defined(__DEFINED_wchar_t)
 typedef int wchar_t;
 #define __DEFINED_wchar_t
 #endif
-#endif // defined(USE_COBALT_CUSTOMIZATIONS)
+
 #endif
 
 #if defined(__FLT_EVAL_METHOD__) && __FLT_EVAL_METHOD__ == 2
