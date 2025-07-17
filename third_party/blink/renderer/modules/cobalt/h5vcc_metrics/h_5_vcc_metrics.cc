@@ -94,6 +94,11 @@ ScriptPromise H5vccMetrics::setMetricEventInterval(
 
 void H5vccMetrics::OnMetrics(h5vcc_metrics::mojom::H5vccMetricType metric_type,
                              const WTF::String& metric_payload) {
+  // Do not upload UMA payload if execution context is destroyed.
+  if (!GetExecutionContext() || GetExecutionContext()->IsContextDestroyed()) {
+    return;
+  }
+
   // For now, only UMA is supported.
   if (metric_type == h5vcc_metrics::mojom::H5vccMetricType::kCobaltUma) {
     DispatchEvent(*MakeGarbageCollected<MetricsEvent>(

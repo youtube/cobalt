@@ -218,7 +218,6 @@ ExportedSymbols::ExportedSymbols() {
   REGISTER_SYMBOL(SbThreadSamplerIsSupported);
   REGISTER_SYMBOL(SbThreadSamplerThaw);
   REGISTER_SYMBOL(SbThreadSetPriority);
-  REGISTER_SYMBOL(SbTimeZoneGetCurrent);
   REGISTER_SYMBOL(SbTimeZoneGetName);
   REGISTER_SYMBOL(SbWindowCreate);
   REGISTER_SYMBOL(SbWindowDestroy);
@@ -250,6 +249,7 @@ ExportedSymbols::ExportedSymbols() {
   REGISTER_SYMBOL(madvise);
   REGISTER_SYMBOL(malloc);
   REGISTER_SYMBOL(malloc_usable_size);
+  REGISTER_SYMBOL(mincore);
   REGISTER_SYMBOL(mkdir);
   REGISTER_SYMBOL(mkdtemp);
   REGISTER_SYMBOL(mkostemp);

@@ -26,7 +26,7 @@ pthread_once_t s_once_flag = PTHREAD_ONCE_INIT;
 pthread_key_t s_thread_local_key = 0;
 
 void InitThreadLocalKey() {
-  int res = pthread_key_create(&s_thread_local_key, NULL);
+  [[maybe_unused]] int res = pthread_key_create(&s_thread_local_key, NULL);
   SB_DCHECK_EQ(res, 0);
 }
 

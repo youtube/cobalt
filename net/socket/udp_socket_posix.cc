@@ -383,6 +383,7 @@ int UDPSocketPosix::ReadMultiplePackets(Socket::ReadPacketResults* results,
     results->packet_buffer_size = packet_buffer_size;
 
     results->packets = reinterpret_cast<Socket::ReadPacketResult*>(results->buffer->data());
+    memset(results->packets, 0, packets_array_size);
 
     char* packet_data_start = results->buffer->data() + packets_array_size;
 

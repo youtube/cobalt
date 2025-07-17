@@ -213,10 +213,13 @@ void FakeGraphicsContextProvider::InitializeEGL() {
   PFNEGLGETPLATFORMDISPLAYEXTPROC eglGetPlatformDisplayEXT_func =
       reinterpret_cast<PFNEGLGETPLATFORMDISPLAYEXTPROC>(
           EGL_CALL_SIMPLE(eglGetProcAddress("eglGetPlatformDisplayEXT")));
-  SB_CHECK(eglGetPlatformDisplayEXT_func);
-  display_ = eglGetPlatformDisplayEXT_func(
-      EGL_PLATFORM_ANGLE_ANGLE, reinterpret_cast<void*>(EGL_DEFAULT_DISPLAY),
-      display_attribs.data());
+  if (eglGetPlatformDisplayEXT_func) {
+    display_ = eglGetPlatformDisplayEXT_func(
+        EGL_PLATFORM_ANGLE_ANGLE, reinterpret_cast<void*>(EGL_DEFAULT_DISPLAY),
+        display_attribs.data());
+  } else {
+    display_ = EGL_CALL_SIMPLE(eglGetDisplay(EGL_DEFAULT_DISPLAY));
+  }
 #else
   display_ = EGL_CALL_SIMPLE(eglGetPlatformDisplay(
       EGL_PLATFORM_ANGLE_ANGLE, reinterpret_cast<void*>(EGL_DEFAULT_DISPLAY),
