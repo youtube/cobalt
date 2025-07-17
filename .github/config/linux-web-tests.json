@@ -8,7 +8,8 @@
     "blink_web_tests",
     "content_shell",
     "dump_syms",
-    "minidump_stackwalk"
+    "minidump_stackwalk",
+    "chromedriver"
   ],
   "build_configs": [
     "devel"

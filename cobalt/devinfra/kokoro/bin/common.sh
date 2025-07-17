@@ -189,6 +189,8 @@ run_package_release_pipeline () {
     local package_platform="linux"
     if [[ "${PLATFORM}" =~ "android" ]]; then
       package_platform="android"
+    elif [[ "${TARGET_PLATFORM}" =~ "linux-x64x11-no-starboard" ]]; then
+      package_platform="linux-x64x11-no-starboard"
     fi
 
     # NOTE: Name is required because the Json recipe is not platform and config
