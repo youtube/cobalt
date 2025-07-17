@@ -76,21 +76,21 @@ runs:
         set -x
         DOCKER_COMPOSE_IMAGE="${GITHUB_DOCKER_REGISTRY_URL}/${{ github.repository }}/${DOCKER_SERVICE}"
 
-        if docker manifest inspect "${DOCKER_COMPOSE_IMAGE}"; then
+        if docker manifest inspect "${DOCKER_COMPOSE_IMAGE}:${CONTENT_SHA}"; then
           # A postsubmit image exists, use it.
           echo "Using existing ${DOCKER_COMPOSE_IMAGE}"
 
         elif [[ "${{ inputs.is_pr }}" == "true" ]]; then
-          # No post-submit image was found. Check  GAR registry and check if there's an image there..
+          # No post-submit image was found. Check PR registry to see if there's an image there.
           PROJECT_NAME=$(gcloud config get-value project)
           DOCKER_COMPOSE_IMAGE="${PR_DOCKER_REGISTRY_URL}/${PROJECT_NAME}/github/${DOCKER_SERVICE}"
 
-          if ! docker manifest inspect "${DOCKER_COMPOSE_IMAGE}"; then
-            echo "::warning::No pre-built docker image found for commit ${CONTENT_SHA}. Building ${DOCKER_COMPOSE_IMAGE}"
+          if ! docker manifest inspect "${DOCKER_COMPOSE_IMAGE}:${CONTENT_SHA}"; then
+            echo "::warning::No pre-built docker image found for commit ${CONTENT_SHA}. Building ${:${CONTENT_SHA}"
             echo "build_image=true" >> $GITHUB_OUTPUT
           fi
         else
-          echo "::warning::No pre-built docker image found for commit ${CONTENT_SHA}. Building ${DOCKER_COMPOSE_IMAGE}"
+          echo "::warning::No pre-built docker image found for commit ${CONTENT_SHA}. Building ${:${CONTENT_SHA}"
           echo "build_image=true" >> $GITHUB_OUTPUT
         fi
 
