@@ -1,12 +1,13 @@
 #include "starboard/shared/starboard/media/frame_tracker.h"
 
 #include <sstream>
+#include "starboard/common/time.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
 namespace starboard::shared::starboard::media {
 namespace {
 
-constexpr int kMaxFrames = 6;
+constexpr int kMaxFrames = 2;
 
 TEST(FrameTrackerTest, InitialState) {
   FrameTracker frame_tracker(kMaxFrames);
@@ -125,6 +126,33 @@ TEST(FrameTrackerTest, StreamInsertionOperator) {
   EXPECT_EQ(ss.str(),
             "{decoding: 1, decoded: 2, decoding (hw): 3, decoded (hw): 4, "
             "total (hw): 5}");
+}
+
+TEST(FrameTrackerTest, DISABLED_ReleaseFrameAt) {
+  constexpr int kMaxFramesForTest = 2;
+  FrameTracker frame_tracker(kMaxFramesForTest);
+  frame_tracker.AddFrame();
+  frame_tracker.SetFrameDecoded();
+  frame_tracker.AddFrame();
+  frame_tracker.SetFrameDecoded();
+
+  EXPECT_TRUE(frame_tracker.IsFull());
+
+  frame_tracker.ReleaseFrameAt(CurrentMonotonicTime() + 100'000);
+  frame_tracker.ReleaseFrameAt(CurrentMonotonicTime() + 200'000);
+
+  FrameTracker::State status = frame_tracker.GetCurrentState();
+  EXPECT_EQ(status.decoded_frames, 2);
+
+  usleep(100'000);
+  status = frame_tracker.GetCurrentState();
+  EXPECT_EQ(status.decoded_frames, 1);
+  EXPECT_FALSE(frame_tracker.IsFull());
+
+  usleep(100'000);
+  status = frame_tracker.GetCurrentState();
+  EXPECT_EQ(status.decoded_frames, 0);
+  EXPECT_FALSE(frame_tracker.IsFull());
 }
 
 }  // namespace

@@ -23,6 +23,7 @@ class FrameTracker {
   void AddFrame();
   void SetFrameDecoded();
   void ReleaseFrame();
+  void ReleaseFrameAt(int64_t release_time);
   void Reset();
 
   State GetCurrentState() const;
