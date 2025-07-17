@@ -131,6 +131,7 @@ _ALLOWED_SB_GE_16_POSIX_SYMBOLS = [
     'madvise',
     'malloc',
     'malloc_usable_size',
+    'mincore',
     'mkdir',
     'mkdtemp',
     'mkostemp',

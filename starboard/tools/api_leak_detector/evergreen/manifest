@@ -58,7 +58,6 @@ localeconv
 localtime
 localtime_r
 lstat
-mincore
 mktime
 mremap
 newlocale
