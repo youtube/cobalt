@@ -321,14 +321,16 @@ HardwareResourceProvider::CreateImageFromSbDecodeTarget(
     planes.push_back(base::WrapRefCounted(new HardwareFrontendImage(
         std::move(texture), alpha_format, cobalt_context_, gr_context_,
         std::move(content_region), rasterizer_task_runner_,
-        alternate_rgba_format)));
+        alternate_rgba_format, info.transfer_id,
+        planes_per_format == 1 ? info.on_render_callback : nullptr)));
   }
 
   if (planes_per_format == 1) {
     return planes[0];
   } else {
     return new HardwareMultiPlaneImage(
-        DecodeTargetFormatToRenderTreeMultiPlaneFormat(info.format), planes);
+        DecodeTargetFormatToRenderTreeMultiPlaneFormat(info.format), planes,
+        info.transfer_id, info.on_render_callback);
   }
 }
 

@@ -25,6 +25,7 @@
 #include "cobalt/renderer/egl_and_gles.h"
 #include "starboard/configuration.h"
 #include "starboard/extension/graphics.h"
+#include "third_party/angle/include/angle_hdr.h"
 #include "third_party/glm/glm/gtc/type_ptr.hpp"
 
 namespace cobalt {
@@ -354,7 +355,7 @@ SamplerInfo GetSamplerInfo(uint32 texture_target) {
 // static
 uint32 TexturedMeshRenderer::CreateFragmentShader(
     uint32 texture_target, const std::vector<TextureInfo>& textures,
-    const float* color_matrix) {
+    const float* color_matrix, bool tonemapping) {
   SamplerInfo sampler_info = GetSamplerInfo(texture_target);
 
   std::string blit_fragment_shader_source = sampler_info.preamble;
@@ -389,14 +390,89 @@ uint32 TexturedMeshRenderer::CreateFragmentShader(
     // Add an alpha component of 1.
     blit_fragment_shader_source += ", 1.0";
   }
-  if (color_matrix) {
-    blit_fragment_shader_source +=
-        ");"
-        "  vec4 color = untransformed_color * to_rgb_color_matrix;";
+  if (!tonemapping) {
+    if (color_matrix) {
+      blit_fragment_shader_source +=
+          ");"
+          "  vec4 color = untransformed_color * to_rgb_color_matrix;";
+    } else {
+      blit_fragment_shader_source +=
+          ");"
+          "  vec4 color = untransformed_color;";
+    }
   } else {
+    if (color_matrix) {
+      blit_fragment_shader_source +=
+          ");\n"
+          "float Y = untransformed_color.x * 64. - 0.0625;\n"
+          "float Cb = untransformed_color.y * 64. - 0.5;\n"
+          "float Cr = untransformed_color.z * 64. - 0.5;\n";
+    } else {
+      blit_fragment_shader_source +=
+          ");\n"
+          // ITU-R BT.2020-2:
+          "float Y = 0.2627 * untransformed_color.x + 0.6780 * \n"
+          "untransformed_color.y + 0.0593 * untransformed_color.z;\n"
+          "float Cb = 0.531519 * (untransformed_color.z - Y);\n"
+          "float Cr = 0.67815 * (untransformed_color.x - Y);\n";
+    }
     blit_fragment_shader_source +=
-        ");"
-        "  vec4 color = untransformed_color;";
+        // Tone mapping step 1.
+        "float rho_hdr = 13.2598;\n"  // 1 + 32 * (L_hdr / 10000)^(1/2.4)
+                                      // L_hdr = 1000
+        "float rho_sdr = 5.69695;\n"  // 1 + 32 * (L_sdr / 10000)^(1/2.4)
+                                      // L_sdr = 290
+        "float Y_p = log(1. + (rho_hdr - 1.) * Y) / log(rho_hdr);\n"
+        // Tone mapping step 2.
+        "float Y_c = 1.0770 * Y_p;\n"
+        "if (Y_p > 0.7399 && Y_p < 0.9909)\n"
+        "  Y_c = -1.1510 * Y_p * Y_p +  2.7811 * Y_p - 0.6302;\n"
+        "if (Y_p >= 0.9909)\n"
+        "  Y_c = 0.5 * Y_p + 0.5;\n"
+        // Tone mapping step 3.
+        "float Y_sdr = (pow(rho_sdr, Y_c) - 1.) / (rho_sdr - 1.);\n"
+        "float color_scaling = Y_sdr /Y / 1.1;\n"
+        "float Cb_tmo = Cb * color_scaling;\n"
+        "float Cr_tmo = Cr * color_scaling;\n"
+        "float Y_tmo = Y_sdr - max(0.1 * Cr_tmo, 0.);\n";
+    if (color_matrix) {
+      blit_fragment_shader_source +=
+          "vec4 corrected_color = vec4( (Y_tmo + 0.0625) / 64.,"
+          "(Cb_tmo + 0.5) / 64.,  (Cr_tmo + 0.5) / 64.,"
+          "untransformed_color.w);\n"
+          "vec4 color = corrected_color * to_rgb_color_matrix;\n";
+    } else {
+      blit_fragment_shader_source +=
+          "vec4 color;\n"
+          "color.x = Y_tmo + 1.4746*Cr_tmo;\n"
+          "color.y = Y_tmo - 0.5714*Cr_tmo - 0.1646*Cb_tmo;\n"
+          "color.z = Y_tmo + 1.8814*Cb_tmo;\n"
+          "color.w = untransformed_color.w;\n";
+    }
+    blit_fragment_shader_source +=
+        "const float kRefWhiteLevelSRGB = 290.0;\n"
+        "const float kRefWhiteLevelPQ = 1000.0;\n"
+        "const float c1 = 3424.0/4096.0;\n"
+        "const float c2 = 2413.0*32.0/4096.0;\n"
+        "const float c3 = 2392.0*32.0/4096.0;\n"
+        "const float m1 = 2610.0/4096.0/4.0;\n"
+        "const float m2 = 2523.0*128.0/4096.0;\n"
+        "color.xyz = max(color.xyz, vec3(0.0));\n"
+        "vec3 M = c2 - c3 * pow(color.xyz, vec3(1.0 / m2));\n"
+        "vec3 N = pow(color.xyz, vec3(1.0 / m2)) - c1;\n"
+        "vec3 L = pow(max(N/M, vec3(0.0)), vec3(1.0 /m1));\n"
+        "L = L * kRefWhiteLevelPQ;\n"
+        "color.x = L.x * (82250100.0/49532999.0) + L.y * "
+        "(-29111068.0/49532999.0) + L.z * (-3606033.0/49532999.0);\n"
+        "color.y = L.x * (-6169900.0/49532999.0) + L.y * "
+        "(56118932.0/49532999.0) + L.z * (-416033.0/49532999.0);\n"
+        "color.z = L.x * (-899900.0/49532999.0) + L.y * "
+        "(-4981068.0/49532999.0) + L.z * (55413967.0/49532999.0);\n"
+        "L = color.xyz / kRefWhiteLevelSRGB;\n"
+        "color.xyz = L * 12.92;\n"
+        "if (L.x > 0.0031308) color.x = 1.055 * pow(L.x, 1.0 / 2.4) - 0.055;\n"
+        "if (L.y > 0.0031308) color.y = 1.055 * pow(L.y, 1.0 / 2.4) - 0.055;\n"
+        "if (L.z > 0.0031308) color.z = 1.055 * pow(L.z, 1.0 / 2.4) - 0.055;\n";
   }
 
   const CobaltExtensionGraphicsApi* graphics_extension =
@@ -517,7 +593,7 @@ uint32 TexturedMeshRenderer::CreateUYVYFragmentShader(uint32 texture_target,
 }
 
 uint32 TexturedMeshRenderer::CreateYUVCompactedTexturesFragmentShader(
-    uint32 texture_target) {
+    uint32 texture_target, bool tonemapping) {
   SamplerInfo sampler_info = GetSamplerInfo(texture_target);
 
   std::string blit_fragment_shader_source = sampler_info.preamble;
@@ -634,10 +710,63 @@ uint32 TexturedMeshRenderer::CreateYUVCompactedTexturesFragmentShader(
       "y2))[xcoord_fr];\n"
       "      }\n"
       "    vec4 untransformed_color = vec4(Y_component, U_component, "
-      "V_component, 1.0);\n"
-      "     gl_FragColor = untransformed_color * to_rgb_color_matrix;\n"
-      "}";
-
+      "V_component, 1.0);\n";
+  if (!tonemapping) {
+    blit_fragment_shader_source +=
+        "gl_FragColor = untransformed_color * to_rgb_color_matrix;\n"
+        "}";
+  } else {
+    blit_fragment_shader_source +=
+        "float Y = untransformed_color.x - 0.0625;\n"
+        "float Cb = untransformed_color.y - 0.5;\n"
+        "float Cr = untransformed_color.z - 0.5;\n"
+        // Tone mapping step 1.
+        "float rho_hdr = 13.2598;\n"  // 1 + 32 * (L_hdr / 10000)^(1/2.4)
+                                      // L_hdr = 1000
+        "float rho_sdr = 5.69695;\n"  // 1 + 32 * (L_sdr / 10000)^(1/2.4)
+                                      // L_sdr = 290
+        "float Y_p = log(1. + (rho_hdr - 1.) * Y) / log(rho_hdr);\n"
+        // Tone mapping step 2.
+        "float Y_c = 1.0770 * Y_p;\n"
+        "if (Y_p > 0.7399 && Y_p < 0.9909)\n"
+        "  Y_c = -1.1510 * Y_p * Y_p +  2.7811 * Y_p - 0.6302;\n"
+        "if (Y_p >= 0.9909)\n"
+        "  Y_c = 0.5 * Y_p + 0.5;\n"
+        // Tone mapping step 3.
+        "float Y_sdr = (pow(rho_sdr, Y_c) - 1.) / (rho_sdr - 1.);\n"
+        "float color_scaling = Y_sdr /Y / 1.1;\n"
+        "float Cb_tmo = Cb * color_scaling;\n"
+        "float Cr_tmo = Cr * color_scaling;\n"
+        "float Y_tmo = Y_sdr - max(0.1 * Cr_tmo, 0.);\n"
+        "vec4 corrected_color = vec4(Y_tmo + 0.0625,"
+        "Cb_tmo + 0.5, Cr_tmo + 0.5, untransformed_color.w);\n"
+        "vec4 color = corrected_color * to_rgb_color_matrix;\n"
+        "const float kRefWhiteLevelSRGB = 290.0;\n"
+        "const float kRefWhiteLevelPQ = 1000.0;\n"
+        "const float c1 = 3424.0/4096.0;\n"
+        "const float c3 = 2392.0*32.0/4096.0;\n"
+        "const float c2 = 2413.0*32.0/4096.0;\n"
+        "const float m1 = 2610.0/4096.0/4.0;\n"
+        "const float m2 = 2523.0*128.0/4096.0;\n"
+        "color.xyz = max(color.xyz, vec3(0.0));\n"
+        "vec3 M = c2 - c3 * pow(color.xyz, vec3(1.0 / m2));\n"
+        "vec3 N = pow(color.xyz, vec3(1.0 / m2)) - c1;\n"
+        "vec3 L = pow(max(N/M, vec3(0.0)), vec3(1.0 /m1));\n"
+        "L = L * kRefWhiteLevelPQ;\n"
+        "color.x = L.x * (82250100.0/49532999.0) + L.y * "
+        "(-29111068.0/49532999.0) + L.z * (-3606033.0/49532999.0);\n"
+        "color.y = L.x * (-6169900.0/49532999.0) + L.y * "
+        "(56118932.0/49532999.0) + L.z * (-416033.0/49532999.0);\n"
+        "color.z = L.x * (-899900.0/49532999.0) + L.y * "
+        "(-4981068.0/49532999.0) + L.z * (55413967.0/49532999.0);\n"
+        "L = color.xyz / kRefWhiteLevelSRGB;\n"
+        "color.xyz = L * 12.92;\n"
+        "if (L.x > 0.0031308) color.x = 1.055 * pow(L.x, 1.0 / 2.4) - 0.055;\n"
+        "if (L.y > 0.0031308) color.y = 1.055 * pow(L.y, 1.0 / 2.4) - 0.055;\n"
+        "if (L.z > 0.0031308) color.z = 1.055 * pow(L.z, 1.0 / 2.4) - 0.055;\n"
+        "gl_FragColor = color;\n"
+        "}";
+  }
   return CompileShader(blit_fragment_shader_source);
 }
 
@@ -741,7 +870,10 @@ TexturedMeshRenderer::ProgramInfo TexturedMeshRenderer::GetBlitProgram(
     GL_CALL(glBindTexture(texture_target, 0));
   }
 
-  CacheKey key(texture_target, type, texture_wrap_s);
+  bool tonemapping = !IsHdrAngleModeEnabled() &&
+                     image.transfer_id == kSbMediaTransferIdSmpteSt2084;
+
+  CacheKey key(texture_target, type, tonemapping, texture_wrap_s);
 
   ProgramCache::iterator found = blit_program_cache_.find(key);
   if (found == blit_program_cache_.end()) {
@@ -751,9 +883,10 @@ TexturedMeshRenderer::ProgramInfo TexturedMeshRenderer::GetBlitProgram(
       case Image::RGBA: {
         std::vector<TextureInfo> texture_infos;
         texture_infos.push_back(TextureInfo("rgba", "rgba"));
-        result = MakeBlitProgram(
-            color_matrix, texture_infos,
-            CreateFragmentShader(texture_target, texture_infos, color_matrix));
+        result =
+            MakeBlitProgram(color_matrix, texture_infos,
+                            CreateFragmentShader(texture_target, texture_infos,
+                                                 color_matrix, tonemapping));
       } break;
       case Image::YUV_2PLANE_BT709: {
         std::vector<TextureInfo> texture_infos;
@@ -813,11 +946,11 @@ TexturedMeshRenderer::ProgramInfo TexturedMeshRenderer::GetBlitProgram(
 #endif  // defined(GL_RED_EXT)
         uint32 shader_program;
         if (type == Image::YUV_3PLANE_10BIT_COMPACT_BT2020) {
-          shader_program =
-              CreateYUVCompactedTexturesFragmentShader(texture_target);
+          shader_program = CreateYUVCompactedTexturesFragmentShader(
+              texture_target, tonemapping);
         } else {
-          shader_program =
-              CreateFragmentShader(texture_target, texture_infos, color_matrix);
+          shader_program = CreateFragmentShader(texture_target, texture_infos,
+                                                color_matrix, tonemapping);
         }
         result = MakeBlitProgram(color_matrix, texture_infos, shader_program);
       } break;

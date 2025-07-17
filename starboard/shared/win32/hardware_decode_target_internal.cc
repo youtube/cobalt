@@ -125,12 +125,16 @@ HardwareDecodeTargetPrivate::HardwareDecodeTargetPrivate(
     const ComPtr<ID3D11VideoProcessor>& video_processor,
     const ComPtr<IMFSample>& video_sample,
     const RECT& video_area,
-    bool texture_RGBA)
+    bool texture_RGBA,
+    SbMediaTransferId transfer_id,
+    SbOnRenderCallback callback)
     : texture_RGBA_(texture_RGBA) {
   memset(&info, 0, sizeof(info));
   info.is_opaque = true;
   info.width = video_area.right;
   info.height = video_area.bottom;
+  info.transfer_id = transfer_id;
+  info.on_render_callback = callback;
 
   if (texture_RGBA_) {
     info.format = kSbDecodeTargetFormat1PlaneRGBA;

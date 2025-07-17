@@ -106,7 +106,9 @@ class HardwareFrontendImage : public SinglePlaneImage {
       backend::GraphicsContextEGL* cobalt_context, GrContext* gr_context,
       std::unique_ptr<math::RectF> content_region,
       scoped_refptr<base::SequencedTaskRunner> rasterizer_task_runner,
-      base::Optional<AlternateRgbaFormat> alternate_rgba_format);
+      base::Optional<AlternateRgbaFormat> alternate_rgba_format,
+      SbMediaTransferId transfer_id = kSbMediaTransferIdUnspecified,
+      SbOnRenderCallback callback = nullptr);
   HardwareFrontendImage(
       const scoped_refptr<render_tree::Node>& root,
       const SubmitOffscreenCallback& submit_offscreen_callback,
@@ -199,7 +201,9 @@ class HardwareMultiPlaneImage : public MultiPlaneImage {
 
   HardwareMultiPlaneImage(
       render_tree::MultiPlaneImageFormat format,
-      const std::vector<scoped_refptr<HardwareFrontendImage> >& planes);
+      const std::vector<scoped_refptr<HardwareFrontendImage> >& planes,
+      SbMediaTransferId transfer_id = kSbMediaTransferIdUnspecified,
+      SbOnRenderCallback callback = nullptr);
 
   const math::Size& GetSize() const override { return size_; }
 

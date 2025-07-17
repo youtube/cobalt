@@ -20,6 +20,7 @@
 #include "starboard/shared/uwp/async_utils.h"
 #include "starboard/shared/uwp/decoder_utils.h"
 #include "starboard/shared/uwp/xb1_get_type.h"
+#include "starboard/shared/win32/decode_target_internal.h"
 #include "third_party/angle/include/angle_hdr.h"
 
 using ::starboard::shared::uwp::ApplicationUwp;
@@ -39,6 +40,19 @@ const int kXboxeOneXMaxOutputSamples = 5;
 // of the software decoder to test if performance improves.
 const std::set<starboard::shared::uwp::XboxType> hw_av1_disabled_devices = {
     starboard::shared::uwp::kXboxSeriesS, starboard::shared::uwp::kXboxSeriesX};
+
+VideoDecoderUwp::VideoDecoderUwp(
+    SbMediaVideoCodec video_codec,
+    SbPlayerOutputMode output_mode,
+    SbDecodeTargetGraphicsContextProvider* graphics_context_provider,
+    SbDrmSystem drm_system)
+    : VideoDecoder(
+          video_codec,
+          output_mode,
+          graphics_context_provider,
+          drm_system,
+          std::bind(&VideoDecoderUwp::OnDraw, this, std::placeholders::_1),
+          ::starboard::shared::uwp::ApplicationUwp::Get()->IsHdrSupported()) {}
 
 VideoDecoderUwp::~VideoDecoderUwp() {
   if (IsHdrSupported() && IsHdrAngleModeEnabled()) {
@@ -78,17 +92,26 @@ bool VideoDecoderUwp::TryUpdateOutputForHdrVideo(
     is_first_input_ = false;
     const SbMediaColorMetadata& color_metadata = stream_info.color_metadata;
     if (is_hdr_video && IsHdrSupported()) {
-      if (!IsHdrAngleModeEnabled()) {
-        SetHdrAngleModeEnabled(true);
-      }
+      ScopedLock metadata_lock(metadata_mutex_);
       if (memcmp(&color_metadata, &current_color_metadata_,
                  sizeof(color_metadata)) != 0) {
         current_color_metadata_ = color_metadata;
-        UpdateHdrColorMetadataToCurrentDisplay(color_metadata);
+        metadata_available_ = true;
       }
     }
   }
   return true;
+}
+
+void VideoDecoderUwp::OnDraw(bool fullscreen) {
+  ScopedLock metadata_lock(metadata_mutex_);
+  if (fullscreen && metadata_available_ && !metadata_is_set_) {
+    metadata_is_set_ = true;
+    if (!IsHdrAngleModeEnabled()) {
+      SetHdrAngleModeEnabled(true);
+    }
+    UpdateHdrColorMetadataToCurrentDisplay(current_color_metadata_);
+  }
 }
 
 size_t VideoDecoderUwp::GetPrerollFrameCount() const {

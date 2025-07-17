@@ -52,9 +52,12 @@
 #ifndef STARBOARD_DECODE_TARGET_H_
 #define STARBOARD_DECODE_TARGET_H_
 
+#include <functional>
+
 #include "starboard/configuration.h"
 #include "starboard/export.h"
 #include "starboard/log.h"
+#include "starboard/media.h"
 #include "starboard/types.h"
 
 #ifdef __cplusplus
@@ -153,6 +156,8 @@ typedef void (*SbDecodeTargetGlesContextRunner)(
     SbDecodeTargetGlesContextRunnerTarget target_function,
     void* target_function_context);
 
+typedef std::function<void(bool fullscreen)> SbOnRenderCallback;
+
 // In general, the SbDecodeTargetGraphicsContextProvider structure provides
 // information about the graphics context that will be used to render
 // SbDecodeTargets. Some Starboard implementations may need to have references
@@ -232,6 +237,10 @@ typedef struct SbDecodeTargetInfo {
   // expected in |planes|.
   SbDecodeTargetFormat format;
 
+  // The decode target color  transfer characteristics, may be used to determine
+  // rendering shader and if color conversion is needed.
+  SbMediaTransferId transfer_id;
+
   // Specifies whether the decode target is opaque. The underlying source of
   // this value is expected to be properly maintained by the Starboard
   // implementation. So, for example, if an opaque only image type were decoded
@@ -253,6 +262,8 @@ typedef struct SbDecodeTargetInfo {
   // kSbDecodeTargetPlaneU, kSbDecodeTargetPlaneV}) associated with this
   // decode target.
   SbDecodeTargetInfoPlane planes[3];
+
+  SbOnRenderCallback on_render_callback;
 } SbDecodeTargetInfo;
 
 // --- Constants -------------------------------------------------------------

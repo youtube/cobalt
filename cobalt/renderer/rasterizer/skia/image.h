@@ -38,6 +38,10 @@ namespace skia {
 // Skia draw calls.
 class Image : public render_tree::Image {
  public:
+  Image(SbMediaTransferId transfer_id = kSbMediaTransferIdUnspecified,
+        SbOnRenderCallback cb = nullptr)
+      : draw_callback_(cb), transfer_id_(transfer_id) {}
+
   // Ensures that any queued backend initialization of this image object is
   // completed after this method returns.  This can only be called from the
   // rasterizer thread.  When an Image is created (from any thread), the
@@ -66,12 +70,29 @@ class Image : public render_tree::Image {
   // that assume a specific rasterizer such as GLES2.  In this case, we can
   // fallback to a rasterizer-provided renderer function.
   virtual bool CanRenderInSkia() const { return true; }
+
+  void OnDraw(bool fullscreen) {
+    if (draw_callback_) {
+      draw_callback_(fullscreen);
+    }
+  }
+
+  SbMediaTransferId GetTransferId() { return transfer_id_; }
+
+ private:
+  SbOnRenderCallback draw_callback_;
+  SbMediaTransferId transfer_id_;
 };
 
 // A single-plane image is an image where all data to describe a single pixel
 // is stored contiguously.  This style of image is by far the most common.
 class SinglePlaneImage : public Image {
  public:
+  SinglePlaneImage(
+      SbMediaTransferId transfer_id = kSbMediaTransferIdUnspecified,
+      SbOnRenderCallback cb = nullptr)
+      : Image(transfer_id, cb) {}
+
   virtual const sk_sp<SkImage>& GetImage() const = 0;
 
   base::TypeId GetTypeId() const override {
@@ -92,6 +113,10 @@ class SinglePlaneImage : public Image {
 // image can be defined in terms of a set of single-plane images.
 class MultiPlaneImage : public Image {
  public:
+  MultiPlaneImage(SbMediaTransferId transfer_id = kSbMediaTransferIdUnspecified,
+                  SbOnRenderCallback cb = nullptr)
+      : Image(transfer_id, cb) {}
+
   virtual render_tree::MultiPlaneImageFormat GetFormat() const = 0;
   virtual const backend::TextureEGL* GetTextureEGL(int plane_index) const {
     return NULL;

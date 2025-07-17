@@ -45,6 +45,7 @@ class VideoDecoder
                SbPlayerOutputMode output_mode,
                SbDecodeTargetGraphicsContextProvider* graphics_context_provider,
                SbDrmSystem drm_system,
+               SbOnRenderCallback render_callback = nullptr,
                bool is_hdr_supported = false);
   ~VideoDecoder() override;
 
@@ -161,6 +162,10 @@ class VideoDecoder
   std::list<SbDecodeTarget> prev_decode_targets_;
 
   bool is_hdr_supported_;
+
+  SbMediaTransferId transfer_id_ = kSbMediaTransferIdUnspecified;
+  SbOnRenderCallback render_callback_;
+
   std::atomic_bool error_occured_ = {false};
 };
 
