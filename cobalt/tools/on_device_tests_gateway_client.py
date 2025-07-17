@@ -341,20 +341,21 @@ def main() -> int:
   trigger_args.add_argument(
       '--job_timeout_sec',
       type=str,
-      default='1800',
-      help='Timeout in seconds for the job (default: 1800 seconds).',
+      default='2100',
+      help='Timeout in seconds for the job. Must be set higher and '
+      'start_timeout_sec and test_timeout_sec combined.',
   )
   trigger_args.add_argument(
       '--test_timeout_sec',
       type=str,
       default='1800',
-      help='Timeout in seconds for the test (default: 1800 seconds).',
+      help='Timeout in seconds for the test.',
   )
   trigger_args.add_argument(
       '--start_timeout_sec',
       type=str,
       default='900',
-      help='Timeout in seconds for the test to start (default: 900 seconds).',
+      help='Timeout in seconds for the test to start.',
   )
 
   # --- Unit Test Arguments ---
