@@ -25,6 +25,7 @@
 #include "cobalt/math/rect.h"
 #include "cobalt/renderer/backend/egl/graphics_context.h"
 #include "cobalt/renderer/backend/egl/texture.h"
+#include "starboard/extension/video_renderer.h"
 #include "third_party/glm/glm/mat4x4.hpp"
 
 namespace cobalt {
@@ -167,6 +168,8 @@ class TexturedMeshRenderer {
   static const int kBlitTexcoordAttribute = 1;
 
   base::Optional<uint32> quad_vbo_;
+
+  const StarboardExtensionVideoRendererApi* renderer_extension_;
 };
 
 }  // namespace egl
