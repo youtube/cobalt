@@ -73,6 +73,7 @@ class FakeStarboardRendererExtension
 
   MOCK_METHOD1(GetCurrentVideoFrame, void(GetCurrentVideoFrameCallback cb));
   MOCK_METHOD1(OnVideoGeometryChange, void(const gfx::Rect&));
+  MOCK_METHOD1(OnOverlayInfoChanged, void(const OverlayInfo& overlay_info));
   void OnGpuChannelTokenReady(
       mojom::CommandBufferIdPtr command_buffer_id) override {}
 };
@@ -153,7 +154,8 @@ class StarboardRendererClientTest : public ::testing::Test {
         std::move(starboard_renderer_extensions_remote),
         std::move(client_extension_receiver),
         /*bind_host_receiver_callback=*/base::DoNothing(),
-        with_gpu_factories ? mock_gpu_factories_.get() : nullptr);
+        with_gpu_factories ? mock_gpu_factories_.get() : nullptr,
+        /*request_overlay_info_cb=*/base::DoNothing());
   }
 
   base::test::SingleThreadTaskEnvironment task_environment_;

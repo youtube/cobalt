@@ -60,7 +60,26 @@ static void* NopThreadFunc(void* arg) {
   return nullptr;
 }
 
-TEST(PosixThreadKillTest, SendSignalToThread) {
+class PosixThreadKillTest : public ::testing::Test {
+ protected:
+  sigset_t original_mask_;
+
+  void SetUp() override {
+    // Make sure the signal is unblocked.
+    sigset_t unblock_mask;
+    sigemptyset(&unblock_mask);
+    sigaddset(&unblock_mask, SIGUSR1);
+
+    ASSERT_EQ(sigprocmask(SIG_UNBLOCK, &unblock_mask, &original_mask_), 0);
+  }
+
+  void TearDown() override {
+    // Restore the original mask.
+    ASSERT_EQ(sigprocmask(SIG_SETMASK, &original_mask_, nullptr), 0);
+  }
+};
+
+TEST_F(PosixThreadKillTest, SendSignalToThread) {
   g_signal_received_flag.store(
       false, std::memory_order_relaxed);  // Ensure flag is reset.
   pthread_t thread_id;
@@ -90,7 +109,7 @@ TEST(PosixThreadKillTest, SendSignalToThread) {
   EXPECT_EQ(ret, 0) << "pthread_attr_destroy failed: " << strerror(ret);
 }
 
-TEST(PosixThreadKillTest, CheckThreadExistsWithSignalZero) {
+TEST_F(PosixThreadKillTest, CheckThreadExistsWithSignalZero) {
   pthread_t thread_id;
   pthread_attr_t attr;
   int ret = pthread_attr_init(&attr);
@@ -123,7 +142,7 @@ TEST(PosixThreadKillTest, CheckThreadExistsWithSignalZero) {
   EXPECT_EQ(ret, 0) << "pthread_attr_destroy failed: " << strerror(ret);
 }
 
-TEST(PosixThreadKillTest, SendSignalToInvalidThread) {
+TEST_F(PosixThreadKillTest, SendSignalToInvalidThread) {
   pthread_t invalid_thread_id = {};
 
   // Create a valid thread, join it, then its ID becomes "invalid" for
@@ -150,7 +169,7 @@ TEST(PosixThreadKillTest, SendSignalToInvalidThread) {
                         << ret << ")";
 }
 
-TEST(PosixThreadKillTest, SendInvalidSignalNumber) {
+TEST_F(PosixThreadKillTest, SendInvalidSignalNumber) {
   pthread_t thread_id;
   pthread_attr_t attr;
   int ret = pthread_attr_init(&attr);
