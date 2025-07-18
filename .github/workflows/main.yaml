@@ -214,6 +214,18 @@ jobs:
             build_id/build_info.json \
             build_id/licenses_cobalt.txt \
             build_id/licenses_cobalt.spdx
+      - name: Debug Build Info JSON
+        shell: bash
+        run: |
+          echo "--- Build Info JSON Content ---"
+          cat build_id/build_info.json
+          echo "---------------------------"
+      - name: Debug Build Info JSON
+        shell: bash
+        run: |
+          echo "--- Build Info JSON Content ---"
+          cat build_id/build_info.json
+          echo "---------------------------"
       - name: Upload Build Info Artifact
         uses: actions/upload-artifact@v4
         with:

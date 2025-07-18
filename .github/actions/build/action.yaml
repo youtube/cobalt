@@ -35,6 +35,12 @@ runs:
         with:
           name: build-id-${{ matrix.platform }}
           path: src/out/${{ matrix.platform }}_${{ matrix.config }}/
+      - name: Debug Build Info JSON after download
+        shell: bash
+        run: |
+          echo "--- Build Info JSON Content (after download) ---"
+          cat src/out/${{ matrix.platform }}_${{ matrix.config }}/build_id/build_info.json
+          echo "--------------------------------------------"
       - name: List GN args
         run: |
           cd src
