@@ -210,16 +210,9 @@ jobs:
           # checking out the full git history more than once.
           mkdir -p build_id/cobalt
           python3 cobalt/build/build_info.py \
+            --skip-licenses \
             build_id/cobalt/cobalt_build_id.h \
-            build_id/build_info.json \
-            build_id/licenses_cobalt.txt \
-            build_id/licenses_cobalt.spdx
-      - name: Debug Build Info JSON
-        shell: bash
-        run: |
-          echo "--- Build Info JSON Content ---"
-          cat build_id/build_info.json
-          echo "---------------------------"
+            build_id/build_info.json
       - name: Debug Build Info JSON
         shell: bash
         run: |
