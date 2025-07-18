@@ -32,34 +32,52 @@ NativeLibrary LoadNativeLibraryWithOptions(const FilePath& library_path,
   // please refer to the bug tracker.  Some useful bug reports to read include:
   // http://crbug.com/17943, http://crbug.com/17557, http://crbug.com/36892,
   // and http://crbug.com/40794.
+#if !BUILDFLAG(IS_STARBOARD)
   int flags = RTLD_LAZY;
+#endif // BUILDFLAG(IS_STARBOARD)
 #if BUILDFLAG(IS_ANDROID) || !defined(RTLD_DEEPBIND)
   // Certain platforms don't define RTLD_DEEPBIND. Android dlopen() requires
   // further investigation, as it might vary across versions. Crash here to
   // warn developers that they're trying to rely on uncertain behavior.
   CHECK(!options.prefer_own_symbols);
 #else
+#if !BUILDFLAG(IS_STARBOARD)
   if (options.prefer_own_symbols)
     flags |= RTLD_DEEPBIND;
+#endif // BUILDFLAG(IS_STARBOARD)
 #endif
+#if !BUILDFLAG(IS_STARBOARD)
   void* dl = dlopen(library_path.value().c_str(), flags);
   if (!dl && error)
     error->message = dlerror();
+#else // !BUILDFLAG(IS_STARBOARD)
+  void* dl = nullptr;
+  error->message = "dlopen and dl error are not supported for evergreen platforms.";
+#endif // !BUILDFLAG(IS_STARBOARD)
 
   return dl;
 }
 
 void UnloadNativeLibrary(NativeLibrary library) {
+#if !BUILDFLAG(IS_STARBOARD)
   int ret = dlclose(library);
   if (ret < 0) {
     DLOG(ERROR) << "dlclose failed: " << dlerror();
     NOTREACHED();
   }
+#else // !BUILDFLAG(IS_STARBOARD)
+    DLOG(ERROR) << "dlclose is not supported on evergreen platforms.";
+    NOTREACHED();
+#endif // !BUILDFLAG(IS_STARBOARD)
 }
 
 void* GetFunctionPointerFromNativeLibrary(NativeLibrary library,
                                           StringPiece name) {
+#if !BUILDFLAG(IS_STARBOARD)
   return dlsym(library, name.data());
+#else // !BUILDFLAG(IS_STARBOARD)
+  return nullptr;
+#endif // !BUILDFLAG(IS_STARBOARD)
 }
 
 std::string GetNativeLibraryName(StringPiece name) {

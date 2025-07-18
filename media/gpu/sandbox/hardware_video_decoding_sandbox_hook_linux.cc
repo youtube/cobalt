@@ -8,6 +8,7 @@
 #include <sys/stat.h>
 
 #include "base/strings/stringprintf.h"
+#include "build/build_config.h"
 #include "media/gpu/buildflags.h"
 #include "sandbox/policy/linux/bpf_hardware_video_decoding_policy_linux.h"
 
@@ -95,15 +96,21 @@ bool HardwareVideoDecodingPreSandboxHookForVaapiOnAMD(
   AllowAccessToRenderNodes(permissions, /*include_sys_dev_char=*/true,
                            /*read_write=*/true);
   permissions.push_back(BrokerFilePermission::ReadOnly("/dev/dri"));
-
+#if !BUILDFLAG(IS_STARBOARD)
   const char* radeonsi_lib = "/usr/lib64/dri/radeonsi_dri.so";
+#endif // !BUILDFLAG(IS_STARBOARD)
 #if defined(DRI_DRIVER_DIR)
   radeonsi_lib = DRI_DRIVER_DIR "/radeonsi_dri.so";
 #endif
+#if !BUILDFLAG(IS_STARBOARD)
   if (nullptr == dlopen(radeonsi_lib, RTLD_NOW | RTLD_GLOBAL | RTLD_NODELETE)) {
     LOG(ERROR) << "dlopen(radeonsi_dri.so) failed with error: " << dlerror();
     return false;
   }
+#else // !BUILDFLAG(IS_STARBOARD)
+  LOG(ERROR) << "dlopen() and dlerror() are disabled; This function will return false.";
+  return false;
+#endif // !BUILDFLAG(IS_STARBOARD)
 
 #if BUILDFLAG(USE_VAAPI)
   VaapiWrapper::PreSandboxInitialization(/*allow_disabling_global_lock=*/true);
@@ -155,13 +162,13 @@ bool HardwareVideoDecodingPreSandboxHookForV4L2(
 
   // Some platforms (RK3399) need libv4l2 to interact with the kernel V4L2
   // driver, so we need to load that library prior to entering the sandbox.
-#if BUILDFLAG(USE_LIBV4L2)
+#if BUILDFLAG(USE_LIBV4L2) && !BUILDFLAG(IS_STARBOARD)
 #if defined(__aarch64__)
   dlopen("/usr/lib64/libv4l2.so", RTLD_NOW | RTLD_GLOBAL | RTLD_NODELETE);
 #else
   dlopen("/usr/lib/libv4l2.so", RTLD_NOW | RTLD_GLOBAL | RTLD_NODELETE);
 #endif  // defined(__aarch64__)
-#endif  // BUILDFLAG(USE_LIBV4L2)
+#endif  // BUILDFLAG(USE_LIBV4L2) && !BUILDFLAG(IS_STARBOARD)
   return true;
 #else
   NOTREACHED();
