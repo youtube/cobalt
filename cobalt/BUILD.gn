@@ -41,6 +41,12 @@ group("gn_all") {
   }
 }
 
+group("cobalt_browsertests") {
+  testonly = true
+
+  deps = [ "testing:cobalt_browsertests" ]
+}
+
 if (!is_android) {
   if (is_cobalt_hermetic_build) {
     cobalt_target_type = "modular_executable"
