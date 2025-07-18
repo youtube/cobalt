@@ -348,6 +348,10 @@ test("nplb") {
     deps += [ "//starboard/nplb/compiler_compliance:cpp20_supported" ]
   }
 
+  if (is_apple) {
+    deps += [ "//starboard/shared/starboard/player:player_test_data_resources" ]
+  }
+
   data_deps = [
     "//starboard/nplb/testdata/file_tests:nplb_file_tests_data",
     "//starboard/shared/starboard/player:player_download_test_data",

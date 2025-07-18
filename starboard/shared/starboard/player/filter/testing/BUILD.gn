@@ -51,6 +51,10 @@ if (current_toolchain == starboard_toolchain) {
       "//starboard/shared/starboard/player/filter:filter_based_player_sources",
     ]
 
+    if (is_apple) {
+      deps += [ "//starboard/shared/starboard/player:player_test_data_resources" ]
+    }
+
     data_deps =
         [ "//starboard/shared/starboard/player:player_download_test_data" ]
   }
@@ -94,5 +98,9 @@ if (current_toolchain == starboard_toolchain) {
       "//$starboard_path:starboard_platform",
       "//starboard/shared/starboard/player/filter:filter_based_player_sources",
     ]
+
+    if (is_apple) {
+      deps += [ "//starboard/shared/starboard/player:player_test_data_resources" ]
+    }
   }
 }
