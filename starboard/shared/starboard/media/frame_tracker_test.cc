@@ -69,7 +69,7 @@ TEST(FrameTrackerTest, ReleaseFrame) {
   ASSERT_TRUE(frame_tracker.AddFrame());
   ASSERT_TRUE(frame_tracker.SetFrameDecoded());
 
-  ASSERT_TRUE(frame_tracker.ReleaseFrame());
+  ASSERT_TRUE(frame_tracker.ReleaseFrameAt(CurrentMonotonicTime()));
   usleep(10'000);
   FrameTracker::State status = frame_tracker.GetCurrentState();
 
@@ -83,7 +83,7 @@ TEST(FrameTrackerTest, ReleaseFrame) {
 TEST(FrameTrackerTest, ReleaseFrameReturnsFalseWhenEmpty) {
   FrameTracker frame_tracker(kMaxFrames, 0, [] {});
 
-  EXPECT_FALSE(frame_tracker.ReleaseFrame());
+  EXPECT_FALSE(frame_tracker.ReleaseFrameAt(CurrentMonotonicTime()));
 }
 
 TEST(FrameTrackerTest, HighWaterMark) {
@@ -92,7 +92,7 @@ TEST(FrameTrackerTest, HighWaterMark) {
   ASSERT_TRUE(frame_tracker.AddFrame());
   ASSERT_TRUE(frame_tracker.SetFrameDecoded());
   ASSERT_TRUE(frame_tracker.SetFrameDecoded());
-  ASSERT_TRUE(frame_tracker.ReleaseFrame());
+  ASSERT_TRUE(frame_tracker.ReleaseFrameAt(CurrentMonotonicTime()));
 
   usleep(10'000);
   FrameTracker::State status = frame_tracker.GetCurrentState();
