@@ -587,6 +587,11 @@ group("for_content_tests") {
     "//content/test/*",
     "//content/web_test:web_test_renderer_public_deps",
   ]
+  if (is_cobalt) {
+    visibility += [
+      "//cobalt/testing/*",
+    ]
+  }
 
   if (!is_component_build) {
     public_deps = [ ":renderer" ]

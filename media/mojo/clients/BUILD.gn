@@ -29,6 +29,11 @@ source_set("clients") {
     "//third_party/blink/renderer/modules/mediarecorder",
     "//third_party/blink/renderer/modules/webcodecs",
   ]
+  if (is_cobalt) {
+    visibility += [
+      "//cobalt/testing/*",
+    ]
+  }
 
   sources = [
     "mojo_audio_decoder.cc",
