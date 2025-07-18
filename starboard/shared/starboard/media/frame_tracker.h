@@ -1,12 +1,9 @@
 #ifndef STARBOARD_SHARED_STARBOARD_MEDIA_FRAME_TRACKER_H_
 #define STARBOARD_SHARED_STARBOARD_MEDIA_FRAME_TRACKER_H_
 
-#include <deque>
 #include <functional>
 #include <iosfwd>
-#include <mutex>
-
-#include "starboard/shared/starboard/player/job_thread.h"
+#include <memory>
 
 namespace starboard::shared::starboard::media {
 
@@ -27,33 +24,19 @@ class FrameTracker {
     int total_frames() const { return decoding_frames + decoded_frames; }
   };
 
-  FrameTracker(int max_frames,
-               int64_t log_interval_us,
-               FrameReleasedCB frame_released_cb);
-  ~FrameTracker();
+  static std::unique_ptr<FrameTracker> Create(
+      int max_frames,
+      int64_t log_interval_us,
+      FrameReleasedCB frame_released_cb);
 
-  bool AddFrame();
-  bool SetFrameDecoded();
-  bool ReleaseFrameAt(int64_t release_us);
+  virtual ~FrameTracker() = default;
 
-  State GetCurrentState() const;
-  bool IsFull();
+  virtual bool AddFrame() = 0;
+  virtual bool SetFrameDecoded() = 0;
+  virtual bool ReleaseFrameAt(int64_t release_us) = 0;
 
- private:
-  void UpdateDecodingStat_Locked();
-  void UpdateState_Locked();
-  void LogStateAndReschedule(int64_t log_interval_us);
-
-  const int max_frames_;
-  const FrameReleasedCB frame_released_cb_;
-
-  mutable std::mutex mutex_;
-  State state_;  // GUARDED_BY mutex_;
-
-  std::deque<int64_t> decoding_start_times_us_;
-  std::deque<int64_t> previous_decoding_times_us_;
-
-  ::starboard::shared::starboard::player::JobThread task_runner_;
+  virtual State GetCurrentState() const = 0;
+  virtual bool IsFull() = 0;
 };
 
 std::ostream& operator<<(std::ostream& os, const FrameTracker::State& status);
