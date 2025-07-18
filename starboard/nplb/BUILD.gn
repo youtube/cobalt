@@ -230,6 +230,7 @@ test("nplb") {
     "drm_is_server_certificate_updatable_test.cc",
     "drm_session_test.cc",
     "drm_update_server_certificate_test.cc",
+
     # TODO: Separate functions tested by media buffer test into multiple
     # files.
     "media_buffer_test.cc",
