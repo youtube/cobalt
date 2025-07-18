@@ -23,6 +23,7 @@ runs:
       run: |
         set -eux
         cd src/
+        mkdir -p "${GITHUB_WORKSPACE}/artifacts/"
         for target in $(cat "${TEST_TARGETS_JSON_FILE}" | jq -r '.executables | .[]'); do
           cp "${target}" "${GITHUB_WORKSPACE}/artifacts/"
         done
