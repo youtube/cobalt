@@ -29,7 +29,6 @@ feof
 fflush
 fgets
 fileno
-fnmatch
 fopen
 fprintf
 fputc
