@@ -142,7 +142,7 @@ group("content_shell_lib_deps") {
 
   if (is_android) {
     public_deps += [
-      "//cobalt/shell/android:content_shell_jni_headers",
+      "//cobalt/shell/android:cobalt_shell_jni_headers",
       "//components/embedder_support/android:view",
       "//ui/android",
     ]

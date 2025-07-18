@@ -20,7 +20,7 @@ cobalt_shell_test_manifest =
     "$target_gen_dir/cobalt_shell_test_manifest/AndroidManifest.xml"
 
 # TODO(b/432786200): Rename the `content_shell_*` targets to `cobalt_shell_*`.
-generate_jni("content_shell_jni_headers") {
+generate_jni("cobalt_shell_jni_headers") {
   sources = [
     "//cobalt/android/apk/app/src/main/java/dev/cobalt/shell/Shell.java",
     "//cobalt/android/apk/app/src/main/java/dev/cobalt/shell/ShellManager.java",
