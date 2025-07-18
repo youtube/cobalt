@@ -65,8 +65,11 @@ static_library("starboard_platform") {
     "//starboard/shared/posix/system_get_error_string.cc",
     "//starboard/shared/posix/system_get_last_error.cc",
     "//starboard/shared/posix/system_get_number_of_processors.cc",
+<<<<<<< HEAD
     "//starboard/shared/posix/thread_sleep.cc",
     "//starboard/shared/posix/time_zone_get_current.cc",
+=======
+>>>>>>> fee3c6def50 (cleanup: Remove SbThreadSleep (#6457))
     "//starboard/shared/pthread/thread_context_get_pointer.cc",
     "//starboard/shared/pthread/thread_context_internal.cc",
     "//starboard/shared/pthread/thread_context_internal.h",

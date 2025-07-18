@@ -148,8 +148,12 @@ static_library("stub_sources") {
     "//starboard/shared/stub/thread_sampler_freeze.cc",
     "//starboard/shared/stub/thread_sampler_is_supported.cc",
     "//starboard/shared/stub/thread_sampler_thaw.cc",
+<<<<<<< HEAD
     "//starboard/shared/stub/thread_sleep.cc",
     "//starboard/shared/stub/time_zone_get_current.cc",
+=======
+    "//starboard/shared/stub/thread_yield.cc",
+>>>>>>> fee3c6def50 (cleanup: Remove SbThreadSleep (#6457))
     "//starboard/shared/stub/time_zone_get_name.cc",
     "//starboard/shared/stub/window_create.cc",
     "//starboard/shared/stub/window_destroy.cc",
