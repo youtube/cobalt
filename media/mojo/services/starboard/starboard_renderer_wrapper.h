@@ -78,6 +78,7 @@ class StarboardRendererWrapper : public Renderer,
   void OnGpuChannelTokenReady(
       mojom::CommandBufferIdPtr command_buffer_id) override;
   void GetCurrentVideoFrame(GetCurrentVideoFrameCallback callback) override;
+  void OnOverlayInfoChanged(const OverlayInfo& overlay_info) override;
 
   StarboardRenderer* GetRenderer();
   base::SequenceBound<StarboardGpuFactory>* GetGpuFactory();
@@ -95,6 +96,7 @@ class StarboardRendererWrapper : public Renderer,
   void OnPaintVideoHoleFrameByStarboard(const gfx::Size& size);
   void OnUpdateStarboardRenderingModeByStarboard(
       const StarboardRenderingMode mode);
+  void OnRequestOverlayInfoByStarboard(bool restart_for_transitions);
   void ContinueInitialization(MediaResource* media_resource,
                               RendererClient* client,
                               PipelineStatusCallback init_cb);

@@ -124,7 +124,8 @@ class StarboardRendererTest : public testing::Test {
     renderer_->SetSbPlayerInterfaceForTesting(&mock_sbplayer_interface_);
     renderer_->SetStarboardRendererCallbacks(
         /*paint_video_hole_frame_cb=*/base::DoNothing(),
-        /*update_starboard_rendering_mode_cb=*/base::DoNothing());
+        /*update_starboard_rendering_mode_cb=*/base::DoNothing(),
+        /*request_overlay_info_cb=*/base::DoNothing());
 
     EXPECT_CALL(media_resource_, GetAllStreams())
         .WillRepeatedly(Invoke(this, &StarboardRendererTest::GetAllStreams));
