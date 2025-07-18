@@ -120,7 +120,7 @@ class MediaDecoder final
   bool Flush();
 
   ::starboard::shared::starboard::media::FrameTracker* frame_tracker() {
-    return &frame_tracker_;
+    return frame_tracker_.get();
   }
 
  private:
@@ -217,7 +217,8 @@ class MediaDecoder final
   std::vector<int> input_buffer_indices_;
   std::vector<DequeueOutputResult> dequeue_output_results_;
 
-  ::starboard::shared::starboard::media::FrameTracker frame_tracker_;
+  std::unique_ptr<::starboard::shared::starboard::media::FrameTracker>
+      frame_tracker_;
 
   bool is_output_restricted_ = false;
   bool first_call_on_handler_thread_ = true;

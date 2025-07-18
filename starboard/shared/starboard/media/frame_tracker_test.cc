@@ -102,22 +102,6 @@ TEST(FrameTrackerTest, HighWaterMark) {
   EXPECT_EQ(status.total_frames_high_water_mark, 2);
 }
 
-TEST(FrameTrackerTest, Reset) {
-  FrameTracker frame_tracker(kMaxFrames, 0, [] {});
-  frame_tracker.AddFrame();
-  frame_tracker.SetFrameDecoded();
-  frame_tracker.ReleaseFrame();
-
-  frame_tracker.Reset();
-  FrameTracker::State status = frame_tracker.GetCurrentState();
-
-  EXPECT_EQ(status.decoding_frames, 0);
-  EXPECT_EQ(status.decoded_frames, 0);
-  EXPECT_EQ(status.decoding_frames_high_water_mark, 0);
-  EXPECT_EQ(status.decoded_frames_high_water_mark, 0);
-  EXPECT_EQ(status.total_frames_high_water_mark, 0);
-}
-
 TEST(FrameTrackerTest, StreamInsertionOperator) {
   FrameTracker::State status;
   status.decoding_frames = 1;

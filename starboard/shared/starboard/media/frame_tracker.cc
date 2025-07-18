@@ -103,16 +103,6 @@ bool FrameTracker::ReleaseFrameAt(int64_t release_time) {
   return false;
 }
 
-void FrameTracker::Reset() {
-  std::lock_guard lock(mutex_);
-  decoding_frames_high_water_mark_ = 0;
-  decoded_frames_high_water_mark_ = 0;
-  total_frames_high_water_mark_ = 0;
-  deferred_input_buffer_indices_ = {};
-  decoding_start_times_us_.clear();
-  previous_decoding_times_us_.clear();
-}
-
 FrameTracker::State FrameTracker::GetCurrentState() {
   std::lock_guard lock(mutex_);
   PurgeReleasedFrames_Locked();
