@@ -1243,7 +1243,7 @@ void VideoDecoder::OnVideoFrameRelease(std::optional<int64_t> release_us) {
     SB_DCHECK_GE(buffered_output_frames_, 0);
   }
 
-  media_decoder_->frame_tracker()->ReleaseFrameAt(
+  media_decoder_->decoder_flow_control()->ReleaseFrameAt(
       release_us.value_or(CurrentMonotonicTime()));
 }
 
