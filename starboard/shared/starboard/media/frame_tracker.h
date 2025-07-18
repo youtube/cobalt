@@ -16,14 +16,14 @@ class FrameTracker {
   using FrameReleasedCB = std::function<void()>;
 
   struct State {
-    int decoding_frames;
-    int decoded_frames;
-    int decoding_frames_high_water_mark;
-    int decoded_frames_high_water_mark;
-    int total_frames_high_water_mark;
-    int64_t min_decoding_time_us;
-    int64_t max_decoding_time_us;
-    int64_t avg_decoding_time_us;
+    int decoding_frames = 0;
+    int decoded_frames = 0;
+    int decoding_frames_high_water_mark = 0;
+    int decoded_frames_high_water_mark = 0;
+    int total_frames_high_water_mark = 0;
+    int64_t min_decoding_time_us = 0;
+    int64_t max_decoding_time_us = 0;
+    int64_t avg_decoding_time_us = 0;
 
     int total_frames() const { return decoding_frames + decoded_frames; }
   };
