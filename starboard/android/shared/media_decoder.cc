@@ -36,6 +36,7 @@ using base::android::AttachCurrentThread;
 namespace {
 
 constexpr int kMaxFramesInDecoder = 6;
+constexpr int kFrameTrackerLogIntervalUs = 1'000'000;  // 1 sec.
 
 const jint kNoOffset = 0;
 const jlong kNoPts = 0;
@@ -87,10 +88,12 @@ MediaDecoder::MediaDecoder(Host* host,
       flush_delay_usec_(0),
       condition_variable_(mutex_),
       frame_tracker_(
-          std::make_unique<FrameTracker>(kMaxFramesInDecoder, 0, [this]() {
-            ScopedLock lock(mutex_);
-            condition_variable_.Signal();
-          })) {
+          std::make_unique<FrameTracker>(kMaxFramesInDecoder,
+                                         kFrameTrackerLogIntervalUs,
+                                         [this]() {
+                                           ScopedLock lock(mutex_);
+                                           condition_variable_.Signal();
+                                         })) {
   SB_DCHECK(host_);
 
   jobject j_media_crypto = drm_system_ ? drm_system_->GetMediaCrypto() : NULL;
@@ -141,10 +144,12 @@ MediaDecoder::MediaDecoder(
       flush_delay_usec_(flush_delay_usec),
       condition_variable_(mutex_),
       frame_tracker_(
-          std::make_unique<FrameTracker>(kMaxFramesInDecoder, 0, [this]() {
-            ScopedLock lock(mutex_);
-            condition_variable_.Signal();
-          })) {
+          std::make_unique<FrameTracker>(kMaxFramesInDecoder,
+                                         kFrameTrackerLogIntervalUs,
+                                         [this]() {
+                                           ScopedLock lock(mutex_);
+                                           condition_variable_.Signal();
+                                         })) {
   SB_DCHECK(frame_rendered_cb_);
   SB_DCHECK(first_tunnel_frame_ready_cb_);
 
