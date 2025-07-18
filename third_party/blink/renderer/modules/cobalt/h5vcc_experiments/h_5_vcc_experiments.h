@@ -58,6 +58,10 @@ class MODULES_EXPORT H5vccExperiments final
   void EnsureReceiverIsBound();
   HeapMojoRemote<h5vcc_experiments::mojom::blink::H5vccExperiments>
       remote_h5vcc_experiments_;
+  // Holds promises associated with outstanding async remote_h5vcc_experiments_
+  // requests so that they can be rejected in the case of a Mojo connection
+  // error.
+  HeapHashSet<Member<ScriptPromiseResolver>> ongoing_requests_;
 
   String feature_param_value_;
   WTF::Vector<uint32_t> active_experiment_ids_;
