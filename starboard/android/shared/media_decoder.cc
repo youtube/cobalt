@@ -88,12 +88,12 @@ MediaDecoder::MediaDecoder(Host* host,
       flush_delay_usec_(0),
       condition_variable_(mutex_),
       decoder_flow_control_(
-          DecoderFlowControl::Create(kMaxFramesInDecoder,
-                                     kFrameTrackerLogIntervalUs,
-                                     [this]() {
-                                       ScopedLock lock(mutex_);
-                                       condition_variable_.Signal();
-                                     })) {
+          DecoderFlowControl::CreateThrottling(kMaxFramesInDecoder,
+                                               kFrameTrackerLogIntervalUs,
+                                               [this]() {
+                                                 ScopedLock lock(mutex_);
+                                                 condition_variable_.Signal();
+                                               })) {
   SB_DCHECK(host_);
 
   jobject j_media_crypto = drm_system_ ? drm_system_->GetMediaCrypto() : NULL;
@@ -144,12 +144,12 @@ MediaDecoder::MediaDecoder(
       flush_delay_usec_(flush_delay_usec),
       condition_variable_(mutex_),
       decoder_flow_control_(
-          DecoderFlowControl::Create(kMaxFramesInDecoder,
-                                     kFrameTrackerLogIntervalUs,
-                                     [this]() {
-                                       ScopedLock lock(mutex_);
-                                       condition_variable_.Signal();
-                                     })) {
+          DecoderFlowControl::CreateThrottling(kMaxFramesInDecoder,
+                                               kFrameTrackerLogIntervalUs,
+                                               [this]() {
+                                                 ScopedLock lock(mutex_);
+                                                 condition_variable_.Signal();
+                                               })) {
   SB_DCHECK(frame_rendered_cb_);
   SB_DCHECK(first_tunnel_frame_ready_cb_);
 
@@ -746,7 +746,7 @@ bool MediaDecoder::Flush() {
     dequeue_output_results_.clear();
     pending_input_to_retry_ = std::nullopt;
     decoder_flow_control_ =
-        DecoderFlowControl::Create(kMaxFramesInDecoder, 0, [this]() {
+        DecoderFlowControl::CreateThrottling(kMaxFramesInDecoder, 0, [this]() {
           ScopedLock lock(mutex_);
           condition_variable_.Signal();
         });
