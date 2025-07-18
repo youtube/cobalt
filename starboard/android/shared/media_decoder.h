@@ -21,6 +21,7 @@
 #include <deque>
 #include <memory>
 #include <optional>
+#include <queue>
 #include <string>
 #include <vector>
 
@@ -31,6 +32,7 @@
 #include "starboard/common/ref_counted.h"
 #include "starboard/media.h"
 #include "starboard/shared/internal_only.h"
+#include "starboard/shared/starboard/media/frame_tracker.h"
 #include "starboard/shared/starboard/media/media_util.h"
 #include "starboard/shared/starboard/player/filter/common.h"
 #include "starboard/shared/starboard/player/input_buffer_internal.h"
@@ -116,6 +118,10 @@ class MediaDecoder final
   bool is_valid() const { return media_codec_bridge_ != NULL; }
 
   bool Flush();
+
+  ::starboard::shared::starboard::media::FrameTracker* frame_tracker() {
+    return frame_tracker_.get();
+  }
 
  private:
   // Holding inputs to be processed.  They are mostly InputBuffer objects, but
@@ -210,6 +216,9 @@ class MediaDecoder final
   std::deque<PendingInput> pending_inputs_;
   std::vector<int> input_buffer_indices_;
   std::vector<DequeueOutputResult> dequeue_output_results_;
+
+  std::unique_ptr<::starboard::shared::starboard::media::FrameTracker>
+      frame_tracker_;
 
   bool is_output_restricted_ = false;
   bool first_call_on_handler_thread_ = true;
