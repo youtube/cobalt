@@ -203,6 +203,27 @@ jobs:
           docker_content_sha=$(git log -n 1 --pretty=format:%h -- cobalt/docker docker-compose.yaml)
           git show ${docker_content_sha}
           echo "docker_content_sha=${docker_content_sha}" >> $GITHUB_OUTPUT
+      - name: Generate Build Info
+        shell: bash
+        run: |
+          # Generate build id manually here instead of the build step to avoid
+          # checking out the full git history more than once.
+          mkdir -p build_id/gen/cobalt
+          python3 cobalt/build/build_info.py \
+            --skip-licenses \
+            build_id/gen/cobalt/cobalt_build_id.h \
+            build_id/gen/build_info.json
+      - name: Debug Build Info JSON
+        shell: bash
+        run: |
+          echo "--- Build Info JSON Content ---"
+          cat build_id/gen/build_info.json
+          echo "---------------------------"
+      - name: Upload Build Info Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: build-id-${{ inputs.platform }}
+          path: build_id/
     outputs:
       platforms: ${{ steps.set-platforms.outputs.platforms }}
       targets: ${{ steps.set-targets.outputs.targets }}
@@ -315,8 +336,6 @@ jobs:
         if: ${{ ! (contains(matrix.platform, 'android') && matrix.config == 'debug') }}
         with:
           path: src
-          # Use fetch depth of 0 to get full history for a valid build id.
-          fetch-depth: 0
       - name: Set Up Depot Tools
         uses: ./src/.github/actions/depot_tools
       - name: Build Cobalt
