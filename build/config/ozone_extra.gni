@@ -2,7 +2,7 @@
 # Use of this source code is governed by a BSD-style license that can be
 # found in the LICENSE file.
 
-if (is_cobalt) {
+if (is_starboard) {
   import("//v8/gni/snapshot_toolchain.gni")
 }
 
@@ -47,7 +47,7 @@ if (is_starboard) {
 
 if (is_cobalt && target_os != "android" &&
     (current_toolchain == host_toolchain ||
-     (current_toolchain == v8_snapshot_toolchain && is_starboard))) {
+     (is_starboard && current_toolchain == v8_snapshot_toolchain))) {
   ozone_external_platforms += [ "headless" ]
   ozone_external_platform_deps += [ "platform/headless" ]
 }
