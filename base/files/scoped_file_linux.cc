@@ -85,6 +85,7 @@ using LibcCloseFuncPtr = int (*)(int);
 
 // Load the libc close symbol to forward to from the close wrapper.
 LibcCloseFuncPtr LoadCloseSymbol() {
+#if !BUILDFLAG(IS_STARBOARD)
 #if defined(THREAD_SANITIZER)
   // If TSAN is enabled use __interceptor___close first to make sure the TSAN
   // wrapper gets called.
@@ -93,6 +94,9 @@ LibcCloseFuncPtr LoadCloseSymbol() {
 #else
   return reinterpret_cast<LibcCloseFuncPtr>(dlsym(RTLD_NEXT, "close"));
 #endif
+#else // !BUILDFLAG(IS_STARBOARD)
+  return nullptr;
+#endif // !BUILDFLAG(IS_STARBOARD)
 }
 
 #if !BUILDFLAG(IS_STARBOARD)
