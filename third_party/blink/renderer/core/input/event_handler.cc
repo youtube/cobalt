@@ -2028,6 +2028,9 @@ void EventHandler::ApplyTouchAdjustment(WebGestureEvent* gesture_event,
 WebInputEventResult EventHandler::SendContextMenuEvent(
     const WebMouseEvent& event,
     Element* override_target_element) {
+#if BUILDFLAG(IS_COBALT)
+    return WebInputEventResult::kHandledSystem;
+#else
   LocalFrameView* v = frame_->View();
   if (!v)
     return WebInputEventResult::kNotHandled;
@@ -2057,6 +2060,7 @@ WebInputEventResult EventHandler::SendContextMenuEvent(
       event_type_names::kContextmenu, event, nullptr, nullptr, false, event.id,
       PointerEventFactory::PointerTypeNameForWebPointPointerType(
           event.pointer_type));
+#endif
 }
 
 static bool ShouldShowContextMenuAtSelection(const FrameSelection& selection) {
