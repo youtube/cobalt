@@ -36,9 +36,9 @@ std::ostream& operator<<(std::ostream& os, const FrameTracker::State& status) {
      << ", decoding (hw): " << status.decoding_frames_high_water_mark
      << ", decoded (hw): " << status.decoded_frames_high_water_mark
      << ", total (hw): " << status.total_frames_high_water_mark
-     << ", min decoding time: " << status.min_decoding_time_us
-     << ", max decoding time: " << status.max_decoding_time_us
-     << ", avg decoding time: " << status.avg_decoding_time_us << "}";
+     << ", min decoding(msec): " << status.min_decoding_time_us / 1'000
+     << ", max decoding(msec): " << status.max_decoding_time_us / 1'000
+     << ", avg decoding(msec): " << status.avg_decoding_time_us / 1'000 << "}";
   return os;
 }
 
@@ -87,8 +87,8 @@ bool FrameTracker::SetFrameDecoded() {
     decoding_start_times_us_.pop_front();
     auto decoding_time = CurrentMonotonicTime() - start_time;
     if (decoding_time > kDecodingTimeWarningThresholdUs) {
-      SB_LOG(WARNING) << "Decoding time exceeded threshold: " << decoding_time
-                      << " us";
+      SB_LOG(WARNING) << "Decoding time exceeded threshold: "
+                      << decoding_time / 1'000 << " msec";
     }
     previous_decoding_times_us_.push_back(decoding_time);
     if (previous_decoding_times_us_.size() > kMaxDecodingHistory) {
@@ -171,7 +171,7 @@ void FrameTracker::UpdateState_Locked() {
 void FrameTracker::LogStateAndReschedule(int64_t log_interval_us) {
   SB_DCHECK(task_runner_.BelongsToCurrentThread());
 
-  SB_LOG(INFO) << "FrameTracker status: " << GetCurrentState();
+  SB_LOG(INFO) << "FrameTracker state: " << GetCurrentState();
 
   task_runner_.Schedule(
       [this, log_interval_us]() { LogStateAndReschedule(log_interval_us); },

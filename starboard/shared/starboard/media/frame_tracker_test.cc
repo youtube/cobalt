@@ -111,17 +111,17 @@ TEST(FrameTrackerTest, StreamInsertionOperator) {
   status.decoding_frames_high_water_mark = 3;
   status.decoded_frames_high_water_mark = 4;
   status.total_frames_high_water_mark = 5;
-  status.min_decoding_time_us = 10;
-  status.max_decoding_time_us = 20;
-  status.avg_decoding_time_us = 15;
+  status.min_decoding_time_us = 10'000;
+  status.max_decoding_time_us = 20'000;
+  status.avg_decoding_time_us = 15'000;
 
   std::stringstream ss;
   ss << status;
 
   EXPECT_EQ(ss.str(),
             "{decoding: 1, decoded: 2, decoding (hw): 3, decoded (hw): 4, "
-            "total (hw): 5, min decoding time: 10, max decoding time: 20, "
-            "avg decoding time: 15}");
+            "total (hw): 5, min decoding(msec): 10, max decoding(msec): 20, "
+            "avg decoding(msec): 15}");
 }
 
 TEST(FrameTrackerTest, ReleaseFrameAt) {
