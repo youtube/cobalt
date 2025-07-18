@@ -281,7 +281,8 @@ def main() -> int:
       '--token',
       type=str,
       required=True,
-      help='On Device Tests authentication token',
+      help='On Device Tests authentication (GitHub) token. Use GitHub cli '
+      'command `gh auth token` to generate.',
   )
   subparsers = parser.add_subparsers(
       dest='action', help='On-Device tests commands', required=True)
