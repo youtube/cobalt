@@ -39,6 +39,14 @@ void WebContentDecryptionModuleResult::CompleteWithError(
   Reset();
 }
 
+#if BUILDFLAG(USE_STARBOARD_MEDIA)
+void WebContentDecryptionModuleResult::CompleteWithString(
+    const WebString& message) {
+  impl_->CompleteWithString(message);
+  Reset();
+}
+#endif // BUILDFLAG(USE_STARBOARD_MEDIA)
+
 WebContentDecryptionModuleResult::WebContentDecryptionModuleResult(
     ContentDecryptionModuleResult* impl)
     : impl_(impl) {

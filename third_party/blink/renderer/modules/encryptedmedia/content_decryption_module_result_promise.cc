@@ -83,6 +83,16 @@ void ContentDecryptionModuleResultPromise::CompleteWithKeyStatus(
          "Unexpected completion.");
 }
 
+#if BUILDFLAG(USE_STARBOARD_MEDIA)
+void ContentDecryptionModuleResultPromise::CompleteWithString(
+    const WebString&) {
+  if (!IsValidToFulfillPromise())
+    return;
+  Reject(ToExceptionCode(DOMExceptionCode::kInvalidStateError),
+         "Unexpected completion.");
+}
+#endif // BUILDFLAG(USE_STARBOARD_MEDIA)
+
 void ContentDecryptionModuleResultPromise::CompleteWithError(
     WebContentDecryptionModuleException exception_code,
     uint32_t system_code,

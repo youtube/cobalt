@@ -28,6 +28,11 @@ class ContentDecryptionModuleResult
       WebContentDecryptionModuleResult::SessionStatus) = 0;
   virtual void CompleteWithKeyStatus(
       WebEncryptedMediaKeyInformation::KeyStatus) = 0;
+
+#if BUILDFLAG(USE_STARBOARD_MEDIA)
+  virtual void CompleteWithString(const WebString&) {}
+#endif // BUILDFLAG(USE_STARBOARD_MEDIA)
+
   virtual void CompleteWithError(WebContentDecryptionModuleException,
                                  uint32_t system_code,
                                  const WebString&) = 0;

@@ -118,7 +118,7 @@ class PLATFORM_EXPORT CdmSessionAdapter
   const media::CdmConfig& GetCdmConfig() const;
 
 #if BUILDFLAG(USE_STARBOARD_MEDIA)
-  void GetMetrics(base::OnceCallback<void(const std::string&)> callback);
+  void GetMetrics(std::unique_ptr<media::GetMetricsCdmPromise> promise);
 #endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
 
  private:
