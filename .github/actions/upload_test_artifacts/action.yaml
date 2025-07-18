@@ -33,6 +33,7 @@ runs:
         TEST_TARGETS_JSON_FILE: ${{ inputs.test_targets_json_file }}
       run: |
         set -x
+        mkdir -p "${GITHUB_WORKSPACE}/artifacts/"
         cd src/
 
         FLAGS=""

@@ -33,7 +33,7 @@ _EXCLUDE_DIRS = [
 def _make_tar(archive_path: str, file_lists: List[Tuple[str, str]]):
   """Creates the tar file. Uses tar command instead of tarfile for performance.
   """
-  tar_cmd = ['tar', '-I', 'gzip -1', '-cvf', archive_path]
+  tar_cmd = ['tar', '-I', 'gzip', '-1', '-cvf', archive_path]
   tmp_files = []
   for file_list, base_dir in file_lists:
     # Create temporary file to hold file list to not blow out the commandline.
@@ -109,7 +109,6 @@ def create_archive(
         output_path = os.path.join(destination_dir,
                                    f'{target_name}_deps.tar.gz')
 
-        # TODO: Something is fishy here.
         if target_src_root_deps:
           _make_tar(output_path, [(combined_deps, out_dir),
                                   (target_src_root_deps, source_dir)])
