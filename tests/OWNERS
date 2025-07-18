@@ -1,0 +1,5 @@
+per-file autoninja_test.py=brucedawson@chromium.org
+per-file autoninja_test.py=tikuta@chromium.org
+per-file ninjalog_uploader_test.py=tikuta@chromium.org
+per-file ninja_reclient_test.py=file://BUILD_OWNERS
+per-file ninja_reclient_test.py=file://RECLIENT_OWNERS

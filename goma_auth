@@ -1,0 +1,20 @@
+#!/usr/bin/env bash
+
+# Copyright 2019 The Chromium Authors. All rights reserved.
+# Use of this source code is governed by a BSD-style license that can be
+# found in the LICENSE file.
+
+# See revert instructions in cipd_manifest.txt
+
+# In git bash on Windows, invoke the batch file.
+if [ "$(expr "$(uname -s)" : "^MINGW64_NT")" == "10" ]; then
+    goma_auth.bat "$@"
+    exit
+fi
+
+MYPATH=$(dirname "${BASH_SOURCE[0]}")
+
+source "$MYPATH/cipd_bin_setup.sh"
+cipd_bin_setup &> /dev/null
+
+PYTHONDONTWRITEBYTECODE=1 exec python3 "$MYPATH/.cipd_bin/goma_auth.py" "$@"

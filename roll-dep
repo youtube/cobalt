@@ -1,0 +1,21 @@
+#!/usr/bin/env bash
+# Copyright (c) 2009 The Chromium Authors. All rights reserved.
+# Use of this source code is governed by a BSD-style license that can be
+# found in the LICENSE file.
+
+base_dir=$(dirname "$0")
+
+# Ensure that "depot_tools" is somewhere in PATH so this tool can be used
+# standalone, but allow other PATH manipulations to take priority.
+PATH=$PATH:$base_dir
+
+if [[ $GCLIENT_PY3 = 1 ]]; then
+  # Explicitly run on Python 3
+  PYTHONDONTWRITEBYTECODE=1 exec vpython3 "$base_dir/roll_dep.py" "$@"
+elif [[ $GCLIENT_PY3 = 0 ]]; then
+  # Explicitly run on Python 2
+  PYTHONDONTWRITEBYTECODE=1 exec vpython "$base_dir/roll_dep.py" "$@"
+else
+  # Run on Python 2 for now, allows default to be flipped.
+  PYTHONDONTWRITEBYTECODE=1 exec vpython3 "$base_dir/roll_dep.py" "$@"
+fi
