@@ -39,30 +39,6 @@ config("wnos") {
 test("nplb") {
   testonly = true
 
-  if (!is_androidtv || sb_has_unused_symbol_issue) {
-    foo = [
-      "//starboard/testing/fake_graphics_context_provider.cc",
-      "//starboard/testing/fake_graphics_context_provider.h",
-      "maximum_player_configuration_explorer_test.cc",
-      "maximum_player_configuration_explorer.cc",
-      "maximum_player_configuration_explorer.h",
-      "media_set_audio_write_duration_test.cc",
-      "multiple_player_test.cc",
-      "player_create_test.cc",
-      "player_creation_param_helpers.cc",
-      "player_creation_param_helpers.h",
-      "player_get_audio_configuration_test.cc",
-      "player_get_media_time_test.cc",
-      "player_get_preferred_output_mode_test.cc",
-      "player_test_util.cc",
-      "player_test_util.h",
-      "player_test_fixture.cc",
-      "player_test_fixture.h",
-      "player_write_sample_test.cc",
-      "vertical_video_test.cc",
-    ]
-  }
-
   sources = [
     "//starboard/common/test_main.cc",
     "align_test.cc",
@@ -262,6 +238,39 @@ test("nplb") {
   ]
   sources += media_generic_files
 
+  media_player_files = [
+    "//starboard/testing/fake_graphics_context_provider.cc",
+    "//starboard/testing/fake_graphics_context_provider.h",
+    "maximum_player_configuration_explorer_test.cc",
+    "maximum_player_configuration_explorer.cc",
+    "maximum_player_configuration_explorer.h",
+    "media_set_audio_write_duration_test.cc",
+    "multiple_player_test.cc",
+    "player_create_test.cc",
+    "player_creation_param_helpers.cc",
+    "player_creation_param_helpers.h",
+    "player_get_audio_configuration_test.cc",
+    "player_get_media_time_test.cc",
+    "player_get_preferred_output_mode_test.cc",
+    "player_test_util.cc",
+    "player_test_util.h",
+    "player_test_fixture.cc",
+    "player_test_fixture.h",
+    "player_write_sample_test.cc",
+    "vertical_video_test.cc",
+  ]
+  sources += media_player_files
+
+  # TODO(mcasas): These two are just placeholders for SbWindowCreate/Destroy
+  # methods which are needed to build media_player_files on is_androidtv
+  # platforms. Use the starboard/android ones instead.
+  if (is_androidtv) {
+    sources += [
+      "//starboard/shared/stub/window_create.cc",
+      "//starboard/shared/stub/window_destroy.cc",
+    ]
+  }
+
   if (!is_androidtv) {
     sources += [
       "//starboard/nplb/sabi/alignment_test.cc",
@@ -279,7 +288,6 @@ test("nplb") {
       "window_get_size_test.cc",
     ]
 
-    sources += foo
     if (enable_cobalt_hermetic_hacks) {
       sources -= [
         # TODO: b/400512503 - Fix build errors.
@@ -336,7 +344,7 @@ test("nplb") {
 
   #  TODO: b/297808555 - Add these tests for all  modular builds.
   if (sb_has_unused_symbol_issue) {
-    sources -= foo
+    sources -= media_player_files
     sources -= [ "media_buffer_test.cc" ]
 
     deps -= [
