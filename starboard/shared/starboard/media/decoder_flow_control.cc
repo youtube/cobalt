@@ -31,12 +31,12 @@ namespace {
 constexpr int kMaxDecodingHistory = 30;
 constexpr int64_t kDecodingTimeWarningThresholdUs = 50'000;  // 50 ms
 
-class DecoderFlowControlImpl : public DecoderFlowControl {
+class ThrottlingDecoderFlowControl : public DecoderFlowControl {
  public:
-  DecoderFlowControlImpl(int max_frames,
-                         int64_t log_interval_us,
-                         FrameReleasedCB frame_released_cb);
-  ~DecoderFlowControlImpl() override = default;
+  ThrottlingDecoderFlowControl(int max_frames,
+                               int64_t log_interval_us,
+                               FrameReleasedCB frame_released_cb);
+  ~ThrottlingDecoderFlowControl() override = default;
 
   bool AddFrame() override;
   bool SetFrameDecoded() override;
@@ -62,7 +62,7 @@ class DecoderFlowControlImpl : public DecoderFlowControl {
   ::starboard::shared::starboard::player::JobThread task_runner_;
 };
 
-DecoderFlowControlImpl::DecoderFlowControlImpl(
+ThrottlingDecoderFlowControl::ThrottlingDecoderFlowControl(
     int max_frames,
     int64_t log_interval_us,
     FrameReleasedCB frame_released_cb)
@@ -80,7 +80,7 @@ DecoderFlowControlImpl::DecoderFlowControlImpl(
                << ", log_interval(msec)=" << (log_interval_us / 1'000);
 }
 
-bool DecoderFlowControlImpl::AddFrame() {
+bool ThrottlingDecoderFlowControl::AddFrame() {
   std::lock_guard lock(mutex_);
   if (state_.total_frames() == max_frames_) {
     return false;
@@ -92,7 +92,7 @@ bool DecoderFlowControlImpl::AddFrame() {
   return true;
 }
 
-bool DecoderFlowControlImpl::SetFrameDecoded() {
+bool ThrottlingDecoderFlowControl::SetFrameDecoded() {
   std::lock_guard lock(mutex_);
   if (state_.decoding_frames == 0) {
     return false;
@@ -120,7 +120,7 @@ bool DecoderFlowControlImpl::SetFrameDecoded() {
   return true;
 }
 
-bool DecoderFlowControlImpl::ReleaseFrameAt(int64_t release_us) {
+bool ThrottlingDecoderFlowControl::ReleaseFrameAt(int64_t release_us) {
   std::lock_guard lock(mutex_);
 
   if (state_.decoded_frames == 0) {
@@ -141,17 +141,18 @@ bool DecoderFlowControlImpl::ReleaseFrameAt(int64_t release_us) {
   return true;
 }
 
-DecoderFlowControl::State DecoderFlowControlImpl::GetCurrentState() const {
+DecoderFlowControl::State ThrottlingDecoderFlowControl::GetCurrentState()
+    const {
   std::lock_guard lock(mutex_);
   return state_;
 }
 
-bool DecoderFlowControlImpl::IsFull() {
+bool ThrottlingDecoderFlowControl::IsFull() {
   std::lock_guard lock(mutex_);
   return state_.total_frames() == max_frames_;
 }
 
-void DecoderFlowControlImpl::UpdateDecodingStat_Locked() {
+void ThrottlingDecoderFlowControl::UpdateDecodingStat_Locked() {
   if (previous_decoding_times_us_.empty()) {
     return;
   }
@@ -169,7 +170,7 @@ void DecoderFlowControlImpl::UpdateDecodingStat_Locked() {
   state_.avg_decoding_time_us = sum / previous_decoding_times_us_.size();
 }
 
-void DecoderFlowControlImpl::UpdateState_Locked() {
+void ThrottlingDecoderFlowControl::UpdateState_Locked() {
   SB_CHECK_LE(state_.total_frames(), max_frames_);
   SB_CHECK_GE(state_.decoding_frames, 0);
   SB_CHECK_GE(state_.decoded_frames, 0);
@@ -183,7 +184,8 @@ void DecoderFlowControlImpl::UpdateState_Locked() {
                state_.decoding_frames + state_.decoded_frames);
 }
 
-void DecoderFlowControlImpl::LogStateAndReschedule(int64_t log_interval_us) {
+void ThrottlingDecoderFlowControl::LogStateAndReschedule(
+    int64_t log_interval_us) {
   SB_DCHECK(task_runner_.BelongsToCurrentThread());
 
   SB_LOG(INFO) << "DecoderFlowControl state: " << GetCurrentState();
@@ -196,12 +198,12 @@ void DecoderFlowControlImpl::LogStateAndReschedule(int64_t log_interval_us) {
 }  // namespace
 
 // static
-std::unique_ptr<DecoderFlowControl> DecoderFlowControl::Create(
+std::unique_ptr<DecoderFlowControl> DecoderFlowControl::CreateThrottling(
     int max_frames,
     int64_t log_interval_us,
     FrameReleasedCB frame_released_cb) {
-  return std::make_unique<DecoderFlowControlImpl>(max_frames, log_interval_us,
-                                                  std::move(frame_released_cb));
+  return std::make_unique<ThrottlingDecoderFlowControl>(
+      max_frames, log_interval_us, std::move(frame_released_cb));
 }
 
 std::ostream& operator<<(std::ostream& os,

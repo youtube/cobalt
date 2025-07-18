@@ -10,8 +10,9 @@ namespace {
 
 constexpr int kMaxFrames = 2;
 
-TEST(DecoderFlowControlTest, InitialState) {
-  auto decoder_flow_control = DecoderFlowControl::Create(kMaxFrames, 0, [] {});
+TEST(ThrottlingDecoderFlowControlTest, InitialState) {
+  auto decoder_flow_control =
+      DecoderFlowControl::CreateThrottling(kMaxFrames, 0, [] {});
 
   DecoderFlowControl::State status = decoder_flow_control->GetCurrentState();
 
@@ -22,8 +23,9 @@ TEST(DecoderFlowControlTest, InitialState) {
   EXPECT_EQ(status.total_frames_high_water_mark, 0);
 }
 
-TEST(DecoderFlowControlTest, AddFrame) {
-  auto decoder_flow_control = DecoderFlowControl::Create(kMaxFrames, 0, [] {});
+TEST(ThrottlingDecoderFlowControlTest, AddFrame) {
+  auto decoder_flow_control =
+      DecoderFlowControl::CreateThrottling(kMaxFrames, 0, [] {});
 
   ASSERT_TRUE(decoder_flow_control->AddFrame());
   DecoderFlowControl::State status = decoder_flow_control->GetCurrentState();
@@ -35,8 +37,9 @@ TEST(DecoderFlowControlTest, AddFrame) {
   EXPECT_EQ(status.total_frames_high_water_mark, 1);
 }
 
-TEST(DecoderFlowControlTest, AddFrameReturnsFalseWhenFull) {
-  auto decoder_flow_control = DecoderFlowControl::Create(kMaxFrames, 0, [] {});
+TEST(ThrottlingDecoderFlowControlTest, AddFrameReturnsFalseWhenFull) {
+  auto decoder_flow_control =
+      DecoderFlowControl::CreateThrottling(kMaxFrames, 0, [] {});
   for (int i = 0; i < kMaxFrames; ++i) {
     ASSERT_TRUE(decoder_flow_control->AddFrame());
   }
@@ -44,8 +47,9 @@ TEST(DecoderFlowControlTest, AddFrameReturnsFalseWhenFull) {
   EXPECT_FALSE(decoder_flow_control->AddFrame());
 }
 
-TEST(DecoderFlowControlTest, SetFrameDecoded) {
-  auto decoder_flow_control = DecoderFlowControl::Create(kMaxFrames, 0, [] {});
+TEST(ThrottlingDecoderFlowControlTest, SetFrameDecoded) {
+  auto decoder_flow_control =
+      DecoderFlowControl::CreateThrottling(kMaxFrames, 0, [] {});
   ASSERT_TRUE(decoder_flow_control->AddFrame());
 
   ASSERT_TRUE(decoder_flow_control->SetFrameDecoded());
@@ -58,14 +62,16 @@ TEST(DecoderFlowControlTest, SetFrameDecoded) {
   EXPECT_EQ(status.total_frames_high_water_mark, 1);
 }
 
-TEST(DecoderFlowControlTest, SetFrameDecodedReturnsFalseWhenEmpty) {
-  auto decoder_flow_control = DecoderFlowControl::Create(kMaxFrames, 0, [] {});
+TEST(ThrottlingDecoderFlowControlTest, SetFrameDecodedReturnsFalseWhenEmpty) {
+  auto decoder_flow_control =
+      DecoderFlowControl::CreateThrottling(kMaxFrames, 0, [] {});
 
   EXPECT_FALSE(decoder_flow_control->SetFrameDecoded());
 }
 
-TEST(DecoderFlowControlTest, HighWaterMark) {
-  auto decoder_flow_control = DecoderFlowControl::Create(kMaxFrames, 0, [] {});
+TEST(ThrottlingDecoderFlowControlTest, HighWaterMark) {
+  auto decoder_flow_control =
+      DecoderFlowControl::CreateThrottling(kMaxFrames, 0, [] {});
   ASSERT_TRUE(decoder_flow_control->AddFrame());
   ASSERT_TRUE(decoder_flow_control->AddFrame());
   ASSERT_TRUE(decoder_flow_control->SetFrameDecoded());
@@ -82,7 +88,7 @@ TEST(DecoderFlowControlTest, HighWaterMark) {
   EXPECT_EQ(status.total_frames_high_water_mark, 2);
 }
 
-TEST(DecoderFlowControlTest, StreamInsertionOperator) {
+TEST(ThrottlingDecoderFlowControlTest, StreamInsertionOperator) {
   DecoderFlowControl::State status;
   status.decoding_frames = 1;
   status.decoded_frames = 2;
@@ -102,8 +108,9 @@ TEST(DecoderFlowControlTest, StreamInsertionOperator) {
             "avg decoding(msec): 15}");
 }
 
-TEST(DecoderFlowControlTest, ReleaseFrameAt) {
-  auto decoder_flow_control = DecoderFlowControl::Create(kMaxFrames, 0, [] {});
+TEST(ThrottlingDecoderFlowControlTest, ReleaseFrameAt) {
+  auto decoder_flow_control =
+      DecoderFlowControl::CreateThrottling(kMaxFrames, 0, [] {});
   ASSERT_TRUE(decoder_flow_control->AddFrame());
   ASSERT_TRUE(decoder_flow_control->SetFrameDecoded());
   ASSERT_TRUE(decoder_flow_control->AddFrame());
@@ -125,13 +132,14 @@ TEST(DecoderFlowControlTest, ReleaseFrameAt) {
   EXPECT_FALSE(decoder_flow_control->IsFull());
 }
 
-TEST(DecoderFlowControlTest, LongIntervalNotBlockDestruction) {
+TEST(ThrottlingDecoderFlowControlTest, LongIntervalNotBlockDestruction) {
   auto decoder_flow_control =
-      DecoderFlowControl::Create(kMaxFrames, 1'000'000'000, [] {});
+      DecoderFlowControl::CreateThrottling(kMaxFrames, 1'000'000'000, [] {});
 }
 
-TEST(DecoderFlowControlTest, DecodingTimeStats) {
-  auto decoder_flow_control = DecoderFlowControl::Create(kMaxFrames, 0, [] {});
+TEST(ThrottlingDecoderFlowControlTest, DecodingTimeStats) {
+  auto decoder_flow_control =
+      DecoderFlowControl::CreateThrottling(kMaxFrames, 0, [] {});
 
   ASSERT_TRUE(decoder_flow_control->AddFrame());
   usleep(10'000);
@@ -150,10 +158,10 @@ TEST(DecoderFlowControlTest, DecodingTimeStats) {
   EXPECT_LE(status.avg_decoding_time_us, 20'000);
 }
 
-TEST(DecoderFlowControlTest, FrameReleasedCallback) {
+TEST(ThrottlingDecoderFlowControlTest, FrameReleasedCallback) {
   int counter = 0;
-  auto decoder_flow_control =
-      DecoderFlowControl::Create(kMaxFrames, 0, [&counter]() { counter++; });
+  auto decoder_flow_control = DecoderFlowControl::CreateThrottling(
+      kMaxFrames, 0, [&counter]() { counter++; });
 
   ASSERT_TRUE(decoder_flow_control->AddFrame());
   ASSERT_TRUE(decoder_flow_control->AddFrame());
