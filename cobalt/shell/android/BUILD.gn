@@ -1,0 +1,238 @@
+# Copyright 2025 The Cobalt Authors. All Rights Reserved.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+import("//build/config/android/config.gni")
+import("//build/config/android/rules.gni")
+import("//third_party/icu/config.gni")
+
+cobalt_shell_test_manifest =
+    "$target_gen_dir/cobalt_shell_test_manifest/AndroidManifest.xml"
+
+# TODO(b/432786200): Rename the `content_shell_*` targets to `cobalt_shell_*`.
+generate_jni("cobalt_shell_jni_headers") {
+  sources = [
+    "//cobalt/android/apk/app/src/main/java/dev/cobalt/shell/Shell.java",
+    "//cobalt/android/apk/app/src/main/java/dev/cobalt/shell/ShellManager.java",
+  ]
+}
+
+shared_library("libcobalt_native_test") {
+  testonly = true
+  deps = [
+    "//base",
+    "//base:base_javatests_lib",
+    "//cobalt/shell:content_shell_app",
+    "//cobalt/shell:content_shell_lib",
+    "//content/public/test/android:content_native_test_support",
+  ]
+
+  sources = [ "shell_test_library_loader.cc" ]
+  configs -= [ "//build/config/android:hide_all_but_jni_onload" ]
+  configs += [ "//build/config/android:hide_all_but_jni" ]
+}
+
+android_resources("content_shell_java_resources") {
+  testonly = true
+  sources = [
+    "java/res/drawable/ic_refresh.png",
+    "java/res/drawable/progress.xml",
+    "java/res/layout/shell_view.xml",
+    "java/res/mipmap-hdpi/app_icon.png",
+    "java/res/mipmap-mdpi/app_icon.png",
+    "java/res/mipmap-xhdpi/app_icon.png",
+    "java/res/mipmap-xxhdpi/app_icon.png",
+    "java/res/mipmap-xxxhdpi/app_icon.png",
+    "java/res/values/strings.xml",
+  ]
+
+  deps = [ "//cobalt/android:cobalt_java_resources" ]
+}
+
+android_library("content_shell_java") {
+  testonly = true
+  resources_package = "org.chromium.content_shell"
+  deps = [
+    ":cobalt_shell_test_manifest",
+    ":content_shell_java_resources",
+    "//base:base_java",
+    "//base:jni_java",
+    "//build/android:build_java",
+    "//components/download/internal/common:internal_java",
+    "//components/embedder_support/android:content_view_java",
+    "//components/embedder_support/android:view_java",
+    "//components/viz/service:service_java",
+    "//content/public/android:content_java",
+    "//media/base/android:media_java",
+    "//media/capture/video/android:capture_java",
+    "//mojo/public/java:system_java",
+    "//net/android:net_java",
+    "//ui/android:ui_java",
+    "//ui/base/cursor/mojom:cursor_type_java",
+    "//url:gurl_java",
+  ]
+  sources = [
+    "//cobalt/android/apk/app/src/main/java/dev/cobalt/shell/Shell.java",
+    "//cobalt/android/apk/app/src/main/java/dev/cobalt/shell/ShellManager.java",
+    "//cobalt/android/apk/app/src/main/java/dev/cobalt/shell/ShellViewAndroidDelegate.java",
+  ]
+
+  annotation_processor_deps = [ "//base/android/jni_generator:jni_processor" ]
+}
+
+jinja_template("cobalt_shell_test_manifest") {
+  testonly = true
+  input = "javatests/AndroidManifest.xml"
+  includes = [ "//cobalt/android/apk/app/src/app/AndroidManifest.xml.jinja2" ]
+  output = cobalt_shell_test_manifest
+  variables = [
+    "manifest_package=dev.cobalt.app",
+    "build_type=$build_type",
+  ]
+}
+
+android_resources("content_shell_apk_resources") {
+  testonly = true
+  sources = [
+    "shell_apk/res/layout/content_shell_activity.xml",
+    "shell_apk/res/values/strings.xml",
+  ]
+  deps = [ ":content_shell_java_resources" ]
+}
+
+android_library("content_shell_test_apk_java") {
+  testonly = true
+
+  srcjar_deps = [ ":content_javatests_aidl" ]
+
+  resources_package = "org.chromium.content_shell_apk"
+  deps = [
+    ":cobalt_shell_test_manifest",
+    ":content_shell_apk_resources",
+    ":content_shell_java",
+    "//base:base_java",
+    "//base:process_launcher_java",
+    "//build/android:build_java",
+    "//components/embedder_support/android:view_java",
+    "//content/public/android:content_java",
+    "//media/capture/video/android:capture_java",
+    "//net/android:net_java",
+    "//third_party/android_deps:com_google_code_findbugs_jsr305_java",
+    "//ui/android:ui_java",
+    "//url:gurl_java",
+  ]
+
+  sources = [
+    "//cobalt/android/apk/app/src/app/java/dev/cobalt/app/CobaltApplication.java",
+    "//cobalt/android/apk/app/src/main/java/dev/cobalt/coat/CobaltActivity.java",
+  ]
+}
+
+android_aidl("content_javatests_aidl") {
+  import_include = [ "shell_apk/src" ]
+  sources = [ "//cobalt/shell/android/shell_apk/src/org/chromium/content_shell_apk/IChildProcessTest.aidl" ]
+}
+
+android_assets("content_shell_assets") {
+  testonly = true
+  sources = [ "$root_out_dir/cobalt_shell.pak" ]
+  disable_compression = true
+  deps = [
+    "//cobalt/shell:pak",
+    "//gin:v8_snapshot_assets",
+    "//third_party/icu:icu_assets",
+  ]
+}
+
+template("content_shell_apk_tmpl") {
+  _target_type = invoker.target_type
+  target(_target_type, target_name) {
+    forward_variables_from(invoker, "*")
+    testonly = true
+    if (!defined(deps)) {
+      deps = []
+    }
+    deps += [
+      ":content_shell_assets",
+      ":content_shell_java",
+      ":content_shell_test_apk_java",
+      "//base:base_java_test_support",
+      "//components/metrics:metrics_java",
+      "//content/public/android:content_java",
+      "//content/public/test/android:android_test_message_pump_support_java",
+      "//media/capture/video/android:capture_java",
+      "//net/android:net_java",
+      "//services/shape_detection:shape_detection_java",
+      "//third_party/mesa_headers",
+      "//ui/android:ui_java",
+    ]
+  }
+}
+
+content_shell_apk_tmpl("cobalt_shell_test_apk") {
+  target_type = "instrumentation_test_apk"
+  apk_name = "CobaltShellTest"
+  android_manifest = cobalt_shell_test_manifest
+  android_manifest_dep = ":cobalt_shell_test_manifest"
+  shared_libraries = [ ":libcobalt_native_test" ]
+  deps = [
+    "//base:base_java_test_support",
+    "//base:base_javatests",
+    "//content/public/android:content_javatests",
+    "//net/android:net_javatests",
+  ]
+  data_deps = [ "//testing/buildbot/filters:content_shell_test_apk_filters" ]
+
+  additional_apks = [ "//net/android:net_test_support_apk" ]
+
+  # TODO(crbug.com/1099536): Fix tests that break when this is increased.
+  target_sdk_version = 24
+}
+
+android_library("content_shell_test_java") {
+  testonly = true
+  deps = [
+    ":content_shell_java",
+    ":content_shell_test_apk_java",
+    "//base:base_java",
+    "//base:base_java_test_support",
+    "//content/public/android:content_java",
+    "//content/public/test/android:content_java_test_support",
+    "//mojo/public/java/system:test_support_java",
+    "//third_party/androidx:androidx_test_monitor_java",
+    "//third_party/androidx:androidx_test_runner_java",
+    "//third_party/hamcrest:hamcrest_java",
+    "//third_party/junit:junit",
+    "//ui/android:ui_java",
+    "//url:gurl_java",
+  ]
+  sources = [
+    "javatests/src/org/chromium/content_shell_apk/ContentShellActivityTestRule.java",
+    "javatests/src/org/chromium/content_shell_apk/ContentShellPreconditionsTest.java",
+    "javatests/src/org/chromium/content_shell_apk/ContentShellShellManagementTest.java",
+    "javatests/src/org/chromium/content_shell_apk/ContentShellUrlTest.java",
+  ]
+}
+
+android_library("content_shell_browsertests_java") {
+  testonly = true
+  deps = [
+    ":content_shell_java",
+    "//base:base_java",
+    "//content/public/android:content_java",
+    "//testing/android/native_test:native_test_java",
+    "//third_party/androidx:androidx_core_core_java",
+    "//ui/android:ui_java",
+  ]
+  sources = [ "//cobalt/shell/android/browsertests/src/org/chromium/content_shell/browsertests/ContentShellBrowserTestActivity.java" ]
+}
