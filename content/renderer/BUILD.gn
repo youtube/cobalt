@@ -589,7 +589,8 @@ group("for_content_tests") {
   ]
   if (is_cobalt) {
     visibility += [
-      "//cobalt/testing/*",
+      "//cobalt/testing:*",
+      "//cobalt/testing/browser_tests:*",
     ]
   }
 

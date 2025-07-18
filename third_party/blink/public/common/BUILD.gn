@@ -131,7 +131,8 @@ source_set("headers") {
   ]
   if (is_cobalt) {
     visibility += [
-      "//cobalt/testing/*",
+      "//cobalt/testing:*",
+      "//cobalt/testing/browser_tests:*",
     ]
   }
 

@@ -44,7 +44,7 @@ group("gn_all") {
 group("cobalt_browsertests") {
   testonly = true
 
-  deps = [ "testing/browser_tests:cobalt_browsertests" ]
+  deps = [ "testing:cobalt_browsertests" ]
 }
 
 if (!is_android) {

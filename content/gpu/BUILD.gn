@@ -13,7 +13,8 @@ group("gpu") {
   visibility = [ "//content/*" ]  # This is an internal content API.
   if (is_cobalt) {
     visibility += [
-      "//cobalt/testing/*",
+      "//cobalt/testing:*",
+      "//cobalt/testing/browser_tests:*",
     ]
   }
 
