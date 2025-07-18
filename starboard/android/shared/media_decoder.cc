@@ -84,7 +84,7 @@ MediaDecoder::MediaDecoder(Host* host,
       tunnel_mode_enabled_(false),
       flush_delay_usec_(0),
       condition_variable_(mutex_),
-      frame_tracker_(kMaxFramesInDecoder) {
+      frame_tracker_(kMaxFramesInDecoder, 0) {
   SB_DCHECK(host_);
 
   jobject j_media_crypto = drm_system_ ? drm_system_->GetMediaCrypto() : NULL;
@@ -134,7 +134,7 @@ MediaDecoder::MediaDecoder(
       tunnel_mode_enabled_(tunnel_mode_audio_session_id != -1),
       flush_delay_usec_(flush_delay_usec),
       condition_variable_(mutex_),
-      frame_tracker_(kMaxFramesInDecoder) {
+      frame_tracker_(kMaxFramesInDecoder, 0) {
   SB_DCHECK(frame_rendered_cb_);
   SB_DCHECK(first_tunnel_frame_ready_cb_);
 
