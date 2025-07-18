@@ -101,10 +101,6 @@ bool FrameTracker::SetFrameDecoded() {
   return true;
 }
 
-bool FrameTracker::ReleaseFrame() {
-  return ReleaseFrameAt(CurrentMonotonicTime());
-}
-
 bool FrameTracker::ReleaseFrameAt(int64_t release_us) {
   std::lock_guard lock(mutex_);
 
