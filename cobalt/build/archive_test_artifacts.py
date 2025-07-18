@@ -30,10 +30,17 @@ _EXCLUDE_DIRS = [
 ]
 
 
-def _make_tar(archive_path: str, file_lists: List[Tuple[str, str]]):
+def _make_tar(archive_path: str, file_lists: List[Tuple[str, str]],
+              compression: str):
   """Creates the tar file. Uses tar command instead of tarfile for performance.
   """
-  tar_cmd = ['tar', '-I', 'gzip', '-1', '-cvf', archive_path]
+  if compression == 'gzip':
+    compression_flag = 'gzip -1'
+  elif compression == 'xz':
+    compression_flag = 'xz -T0 -1'
+  else:
+    raise ValueError(f'Unsupported compression: {compression}')
+  tar_cmd = ['tar', '-I', compression_flag, '-cvf', archive_path]
   tmp_files = []
   for file_list, base_dir in file_lists:
     # Create temporary file to hold file list to not blow out the commandline.
@@ -59,6 +66,7 @@ def create_archive(
     archive_per_target: bool,
     use_android_deps_path: bool,
     root_dir: Optional[str],
+    compression: str,
 ):
   """Main logic. Collects runtime dependencies for each target."""
   tar_root = root_dir or out_dir
@@ -106,14 +114,16 @@ def create_archive(
       combined_deps |= target_deps
 
       if archive_per_target:
-        output_path = os.path.join(destination_dir,
-                                   f'{target_name}_deps.tar.gz')
+        output_path = os.path.join(
+            destination_dir,
+            f'{target_name}_deps.tar.{compression}'.replace('gzip', 'gz'))
 
         if target_src_root_deps:
           _make_tar(output_path, [(combined_deps, out_dir),
-                                  (target_src_root_deps, source_dir)])
+                                  (target_src_root_deps, source_dir)],
+                    compression)
         else:
-          _make_tar(output_path, [(combined_deps, source_dir)])
+          _make_tar(output_path, [(combined_deps, source_dir)], compression)
 
         archive_size = f'{os.path.getsize(output_path) / 1024 / 1024:.2f} MB'
         print(f'Created {os.path.basename(output_path)} ({archive_size})')
@@ -123,8 +133,10 @@ def create_archive(
 
   # Linux tests and deps are all bundled into a single tar file.
   if not archive_per_target:
-    output_path = os.path.join(destination_dir, 'test_artifacts.tar.gz')
-    _make_tar(output_path, [(combined_deps, source_dir)])
+    output_path = os.path.join(
+        destination_dir,
+        f'test_artifacts.tar.{compression}'.replace('gzip', 'gz'))
+    _make_tar(output_path, [(combined_deps, source_dir)], compression)
 
 
 def main():
@@ -161,6 +173,11 @@ def main():
   parser.add_argument(
       '--root-dir',
       help='The path to the root directory for collecting artifacts.')
+  parser.add_argument(
+      '--compression',
+      choices=['xz', 'gzip'],
+      default='xz',
+      help='The compression to use.')
   args = parser.parse_args()
 
   create_archive(
@@ -170,7 +187,8 @@ def main():
       destination_dir=args.destination_dir,
       archive_per_target=args.archive_per_target,
       use_android_deps_path=args.use_android_deps_path,
-      root_dir=args.root_dir)
+      root_dir=args.root_dir,
+      compression=args.compression)
 
 
 if __name__ == '__main__':
