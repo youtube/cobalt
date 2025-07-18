@@ -32,6 +32,12 @@ group("gn_all") {
   }
 }
 
+group("cobalt_browsertests") {
+  testonly = true
+
+  deps = [ "testing:cobalt_browsertests" ]
+}
+
 if (!is_android) {
   executable("cobalt") {
     testonly = true

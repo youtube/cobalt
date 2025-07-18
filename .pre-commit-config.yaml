@@ -21,6 +21,10 @@ repos:
     hooks:
     -   id: check-case-conflict
     -   id: check-xml
+        exclude: |
+            (?x)^(
+                cobalt/shell/android/javatests/AndroidManifest.xml
+            )
     -   id: check-yaml
     -   id: check-json
     -   id: end-of-file-fixer
