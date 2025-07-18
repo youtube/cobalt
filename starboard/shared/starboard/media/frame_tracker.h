@@ -29,9 +29,6 @@ class FrameTracker {
   State GetCurrentState();
   bool IsFull();
 
-  void DeferInputBuffer(int buffer_index);
-  std::optional<int> GetDeferredInputBuffer();
-
  private:
   std::pair<int, int> UpdateHighWaterMarks_Locked();
   void PurgeReleasedFrames_Locked();
