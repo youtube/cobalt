@@ -17,12 +17,12 @@
 
 extern "C" {
 
-int __abi_wrap_fcntl(int fildes, int cmd, va_list args);
+int __abi_wrap_fcntl(int fd, int cmd, va_list args);
 
-int fcntl(int fildes, int cmd, ...) {
+int fcntl(int fd, int cmd, ...) {
   va_list args;
   va_start(args, cmd);
-  int result = __abi_wrap_fcntl(fildes, cmd, args);
+  int result = __abi_wrap_fcntl(fd, cmd, args);
   va_end(args);
   return result;
 }

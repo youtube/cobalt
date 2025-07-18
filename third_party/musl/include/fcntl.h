@@ -211,20 +211,19 @@ ssize_t tee(int, int, size_t, unsigned);
 
 #if defined(STARBOARD)
 #define F_DUPFD 0
-#define F_DUPFD_CLOEXEC 1
-#define F_GETFD 2
-#define F_SETFD 3
-#define F_GETFL 4
-#define F_SETFL 5
-#define F_GETOWN 6
-#define F_SETOWN 7
-#define F_GETLK 8
-#define F_SETLK 9
-#define F_SETLKW 10
-#define FD_CLOEXEC 11
-#define F_RDLCK 12
-#define F_UNLCK 13
-#define F_WRLCK 14
+#define F_GETFD 1
+#define F_SETFD 2
+#define F_GETFL 3
+#define F_SETFL 4
+#define F_GETOWN 5
+#define F_SETOWN 6
+#define F_GETLK 7
+#define F_SETLK 8
+#define F_SETLKW 9
+#define FD_CLOEXEC 10
+#define F_RDLCK 11
+#define F_UNLCK 12
+#define F_WRLCK 13
 
 #define O_APPEND 02000
 #define O_DSYNC 010000

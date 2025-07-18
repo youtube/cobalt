@@ -239,6 +239,7 @@ ExportedSymbols::ExportedSymbols() {
   REGISTER_SYMBOL(epoll_create1);
   REGISTER_SYMBOL(epoll_ctl);
   REGISTER_SYMBOL(epoll_wait);
+  // REGISTER_SYMBOL(fcntl);
   REGISTER_SYMBOL(free);
   REGISTER_SYMBOL(freeifaddrs);
   REGISTER_SYMBOL(fsync);

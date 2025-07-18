@@ -15,6 +15,7 @@
 #ifndef STARBOARD_SHARED_MODULAR_STARBOARD_LAYER_POSIX_FCNTL_ABI_WRAPPERS_H_
 #define STARBOARD_SHARED_MODULAR_STARBOARD_LAYER_POSIX_FCNTL_ABI_WRAPPERS_H_
 
+#include <fcntl.h>
 #include <stdarg.h>
 
 #include "starboard/export.h"
@@ -25,20 +26,19 @@ extern "C" {
 
 // From //third_party/musl/include/fcntl.h
 #define MUSL_F_DUPFD 0
-#define MUSL_F_DUPFD_CLOEXEC 1
-#define MUSL_F_GETFD 2
-#define MUSL_F_SETFD 3
-#define MUSL_F_GETFL 4
-#define MUSL_F_SETFL 5
-#define MUSL_F_GETOWN 6
-#define MUSL_F_SETOWN 7
-#define MUSL_F_GETLK 8
-#define MUSL_F_SETLK 9
-#define MUSL_F_SETLKW 10
-#define MUSL_FD_CLOEXEC 11
-#define MUSL_F_RDLCK 12
-#define MUSL_F_UNLCK 13
-#define MUSL_F_WRLCK 14
+#define MUSL_F_GETFD 1
+#define MUSL_F_SETFD 2
+#define MUSL_F_GETFL 3
+#define MUSL_F_SETFL 4
+#define MUSL_F_GETOWN 5
+#define MUSL_F_SETOWN 6
+#define MUSL_F_GETLK 7
+#define MUSL_F_SETLK 8
+#define MUSL_F_SETLKW 9
+#define MUSL_FD_CLOEXEC 10
+#define MUSL_F_RDLCK 11
+#define MUSL_F_UNLCK 12
+#define MUSL_F_WRLCK 13
 
 #define MUSL_O_APPEND 02000
 #define MUSL_O_DSYNC 010000
@@ -51,7 +51,7 @@ extern "C" {
 #define MUSL_O_WRONLY 01
 #define MUSL_O_RDWR 02
 
-SB_EXPORT int __abi_wrap_fcntl(int fildes, int cmd, va_list args);
+SB_EXPORT int __abi_wrap_fcntl(int fd, int cmd, va_list args);
 
 #ifdef __cplusplus
 }  // extern "C"
