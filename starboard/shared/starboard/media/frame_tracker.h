@@ -54,7 +54,7 @@ class FrameTracker {
   mutable std::mutex mutex_;
 
   std::deque<int64_t> decoding_start_times_us_;
-  std::deque<int64_t> last_30_decoding_times_us_;
+  std::deque<int64_t> previous_decoding_times_us_;
 
   const FrameReleasedCB frame_released_cb_;
 

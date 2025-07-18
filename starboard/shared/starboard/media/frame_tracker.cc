@@ -70,9 +70,9 @@ bool FrameTracker::SetFrameDecoded() {
         auto start_time = decoding_start_times_us_.front();
         decoding_start_times_us_.pop_front();
         auto decoding_time = CurrentMonotonicTime() - start_time;
-        last_30_decoding_times_us_.push_back(decoding_time);
-        if (last_30_decoding_times_us_.size() > kMaxDecodingHistory) {
-          last_30_decoding_times_us_.pop_front();
+        previous_decoding_times_us_.push_back(decoding_time);
+        if (previous_decoding_times_us_.size() > kMaxDecodingHistory) {
+          previous_decoding_times_us_.pop_front();
         }
       }
       UpdateHighWaterMarks_Locked();
@@ -91,7 +91,8 @@ bool FrameTracker::ReleaseFrameAt(int64_t release_time) {
   for (auto& frame : frames_) {
     if (frame == kDecoded) {
       frame = release_time;
-      int64_t delay_us = std::max(release_time - CurrentMonotonicTime(), 0);
+      int64_t delay_us =
+          std::max<int64_t>(release_time - CurrentMonotonicTime(), 0);
       task_runner_.Schedule([this] { frame_released_cb_(); }, delay_us);
 
       UpdateHighWaterMarks_Locked();
@@ -109,7 +110,7 @@ void FrameTracker::Reset() {
   total_frames_high_water_mark_ = 0;
   deferred_input_buffer_indices_ = {};
   decoding_start_times_us_.clear();
-  last_30_decoding_times_us_.clear();
+  previous_decoding_times_us_.clear();
 }
 
 FrameTracker::State FrameTracker::GetCurrentState() {
@@ -120,16 +121,16 @@ FrameTracker::State FrameTracker::GetCurrentState() {
   int64_t max_decoding_time_us = 0;
   int64_t avg_decoding_time_us = 0;
 
-  if (!last_30_decoding_times_us_.empty()) {
-    min_decoding_time_us = last_30_decoding_times_us_[0];
-    max_decoding_time_us = last_30_decoding_times_us_[0];
+  if (!previous_decoding_times_us_.empty()) {
+    min_decoding_time_us = previous_decoding_times_us_[0];
+    max_decoding_time_us = previous_decoding_times_us_[0];
     int64_t sum = 0;
-    for (auto time : last_30_decoding_times_us_) {
-      min_decoding_time_us = std::min(min_decoding_time_us, time);
-      max_decoding_time_us = std::max(max_decoding_time_us, time);
-      sum += time;
+    for (auto decoding_us : previous_decoding_times_us_) {
+      min_decoding_time_us = std::min(min_decoding_time_us, decoding_us);
+      max_decoding_time_us = std::max(max_decoding_time_us, decoding_us);
+      sum += decoding_us;
     }
-    avg_decoding_time_us = sum / last_30_decoding_times_us_.size();
+    avg_decoding_time_us = sum / previous_decoding_times_us_.size();
   }
 
   return {decoding_frames,
