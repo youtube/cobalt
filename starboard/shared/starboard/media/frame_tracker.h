@@ -4,8 +4,7 @@
 #include <functional>
 #include <iosfwd>
 #include <mutex>
-#include <optional>
-#include <queue>
+#include <deque>
 
 #include "starboard/shared/starboard/player/job_thread.h"
 
