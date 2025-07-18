@@ -16,11 +16,10 @@ import("//build/config/android/config.gni")
 import("//build/config/android/rules.gni")
 import("//third_party/icu/config.gni")
 
-content_shell_manifest =
-    "$target_gen_dir/content_shell_manifest/AndroidManifest.xml"
-content_shell_test_manifest =
-    "$target_gen_dir/content_shell_test_manifest/AndroidManifest.xml"
+cobalt_shell_test_manifest =
+    "$target_gen_dir/cobalt_shell_test_manifest/AndroidManifest.xml"
 
+# TODO(b/432786200): Rename the `content_shell_*` targets to `cobalt_shell_*`.
 generate_jni("content_shell_jni_headers") {
   sources = [
     "//cobalt/android/apk/app/src/main/java/dev/cobalt/shell/Shell.java",
@@ -64,8 +63,8 @@ android_library("content_shell_java") {
   testonly = true
   resources_package = "org.chromium.content_shell"
   deps = [
+    ":cobalt_shell_test_manifest",
     ":content_shell_java_resources",
-    ":content_shell_manifest",
     "//base:base_java",
     "//base:jni_java",
     "//build/android:build_java",
@@ -91,21 +90,11 @@ android_library("content_shell_java") {
   annotation_processor_deps = [ "//base/android/jni_generator:jni_processor" ]
 }
 
-jinja_template("content_shell_manifest") {
-  testonly = true
-  input = "//cobalt/android/apk/app/src/app/AndroidManifest.xml.jinja2"
-  output = content_shell_manifest
-  variables = [
-    "manifest_package=dev.cobalt.app",
-    "build_type=$build_type",
-  ]
-}
-
-jinja_template("content_shell_test_manifest") {
+jinja_template("cobalt_shell_test_manifest") {
   testonly = true
   input = "javatests/AndroidManifest.xml"
   includes = [ "//cobalt/android/apk/app/src/app/AndroidManifest.xml.jinja2" ]
-  output = content_shell_test_manifest
+  output = cobalt_shell_test_manifest
   variables = [
     "manifest_package=dev.cobalt.app",
     "build_type=$build_type",
@@ -121,16 +110,16 @@ android_resources("content_shell_apk_resources") {
   deps = [ ":content_shell_java_resources" ]
 }
 
-android_library("content_shell_apk_java") {
+android_library("content_shell_test_apk_java") {
   testonly = true
 
   srcjar_deps = [ ":content_javatests_aidl" ]
 
   resources_package = "org.chromium.content_shell_apk"
   deps = [
+    ":cobalt_shell_test_manifest",
     ":content_shell_apk_resources",
     ":content_shell_java",
-    ":content_shell_manifest",
     "//base:base_java",
     "//base:process_launcher_java",
     "//build/android:build_java",
@@ -146,11 +135,6 @@ android_library("content_shell_apk_java") {
   sources = [
     "//cobalt/android/apk/app/src/app/java/dev/cobalt/app/CobaltApplication.java",
     "//cobalt/android/apk/app/src/main/java/dev/cobalt/coat/CobaltActivity.java",
-    "shell_apk/src/org/chromium/content_shell_apk/ChildProcessLauncherTestHelperService.java",
-    "shell_apk/src/org/chromium/content_shell_apk/ChildProcessLauncherTestUtils.java",
-    "shell_apk/src/org/chromium/content_shell_apk/TestChildProcessService.java",
-    "shell_apk/src/org/chromium/content_shell_apk/TestChildProcessService0.java",
-    "shell_apk/src/org/chromium/content_shell_apk/TestChildProcessService1.java",
   ]
 }
 
@@ -179,9 +163,9 @@ template("content_shell_apk_tmpl") {
       deps = []
     }
     deps += [
-      ":content_shell_apk_java",
       ":content_shell_assets",
       ":content_shell_java",
+      ":content_shell_test_apk_java",
       "//base:base_java_test_support",
       "//components/metrics:metrics_java",
       "//content/public/android:content_java",
@@ -198,8 +182,8 @@ template("content_shell_apk_tmpl") {
 content_shell_apk_tmpl("cobalt_shell_test_apk") {
   target_type = "instrumentation_test_apk"
   apk_name = "CobaltShellTest"
-  android_manifest = content_shell_test_manifest
-  android_manifest_dep = ":content_shell_test_manifest"
+  android_manifest = cobalt_shell_test_manifest
+  android_manifest_dep = ":cobalt_shell_test_manifest"
   shared_libraries = [ ":libcobalt_native_test" ]
   deps = [
     "//base:base_java_test_support",
@@ -218,8 +202,8 @@ content_shell_apk_tmpl("cobalt_shell_test_apk") {
 android_library("content_shell_test_java") {
   testonly = true
   deps = [
-    ":content_shell_apk_java",
     ":content_shell_java",
+    ":content_shell_test_apk_java",
     "//base:base_java",
     "//base:base_java_test_support",
     "//content/public/android:content_java",
