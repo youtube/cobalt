@@ -38,17 +38,11 @@ StarboardRendererClient::StarboardRendererClient(
     mojo::PendingRemote<RendererExtension> pending_renderer_extension,
     mojo::PendingReceiver<ClientExtension> client_extension_receiver,
     BindHostReceiverCallback bind_host_receiver_callback,
-<<<<<<< HEAD
-    GpuVideoAcceleratorFactories* gpu_factories)
-    : media_task_runner_(media_task_runner),
-=======
     GpuVideoAcceleratorFactories* gpu_factories,
     RequestOverlayInfoCB request_overlay_info_cb)
     : MojoRendererWrapper(std::move(mojo_renderer)),
       media_task_runner_(media_task_runner),
->>>>>>> 8711f0869a4 (media: Allow StarboardRenderer to RequestOverlayInfo from WebMediaPlayer (#6399))
       media_log_(std::move(media_log)),
-      MojoRendererWrapper(std::move(mojo_renderer)),
       video_overlay_factory_(std::move(video_overlay_factory)),
       video_renderer_sink_(video_renderer_sink),
       pending_renderer_extension_(std::move(pending_renderer_extension)),
