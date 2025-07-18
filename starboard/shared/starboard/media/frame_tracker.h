@@ -18,6 +18,9 @@ class FrameTracker {
     int decoding_frames_high_water_mark;
     int decoded_frames_high_water_mark;
     int total_frames_high_water_mark;
+    int64_t min_decoding_time_us;
+    int64_t max_decoding_time_us;
+    int64_t avg_decoding_time_us;
   };
 
   FrameTracker(int max_frames, int64_t log_interval_us);
@@ -44,6 +47,9 @@ class FrameTracker {
 
   std::queue<int> deferred_input_buffer_indices_;
   mutable std::mutex mutex_;
+
+  std::deque<int64_t> decoding_start_times_us_;
+  std::deque<int64_t> last_30_decoding_times_us_;
 
   ::starboard::shared::starboard::player::JobThread task_runner_;
 };
