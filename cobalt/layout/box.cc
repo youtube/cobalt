@@ -19,6 +19,7 @@
 #include <utility>
 
 #include "base/logging.h"
+#include "base/trace_event/trace_event.h"
 #include "cobalt/base/polymorphic_downcast.h"
 #include "cobalt/cssom/computed_style_utils.h"
 #include "cobalt/cssom/integer_value.h"
@@ -159,6 +160,7 @@ void Box::UpdateSize(const LayoutParams& layout_params) {
 }
 
 bool Box::ValidateUpdateSizeInputs(const LayoutParams& params) {
+  TRACE_EVENT0("cobalt::layout", "Box::ValidateUpdateSizeInputs");
   if (last_update_size_params_ && params == *last_update_size_params_) {
     return true;
   } else {
@@ -168,6 +170,7 @@ bool Box::ValidateUpdateSizeInputs(const LayoutParams& params) {
 }
 
 void Box::InvalidateUpdateSizeInputsOfBox() {
+  TRACE_EVENT0("cobalt::layout", "Box::ValidateUpdateSizeInputs");
   last_update_size_params_ = base::nullopt;
 }
 
@@ -1381,6 +1384,7 @@ void Box::UpdateCrossReferencesOfContainerBox(
 }
 
 void Box::UpdateBorders() {
+  TRACE_EVENT0("cobalt::layout", "Box::UpdateBorders");
   if (IsBorderStyleNoneOrHidden(computed_style()->border_left_style()) &&
       IsBorderStyleNoneOrHidden(computed_style()->border_top_style()) &&
       IsBorderStyleNoneOrHidden(computed_style()->border_right_style()) &&
@@ -1396,6 +1400,7 @@ void Box::UpdateBorders() {
 }
 
 void Box::UpdatePaddings(const LayoutParams& layout_params) {
+  TRACE_EVENT0("cobalt::layout", "Box::UpdatePaddings");
   padding_insets_.SetInsets(
       GetUsedPaddingLeft(computed_style(), layout_params.containing_block_size),
       GetUsedPaddingTop(computed_style(), layout_params.containing_block_size),
