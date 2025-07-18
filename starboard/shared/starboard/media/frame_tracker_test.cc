@@ -11,7 +11,7 @@ namespace {
 constexpr int kMaxFrames = 2;
 
 TEST(FrameTrackerTest, InitialState) {
-  FrameTracker frame_tracker(kMaxFrames);
+  FrameTracker frame_tracker(kMaxFrames, 0);
 
   FrameTracker::State status = frame_tracker.GetCurrentState();
 
@@ -23,7 +23,7 @@ TEST(FrameTrackerTest, InitialState) {
 }
 
 TEST(FrameTrackerTest, AddFrame) {
-  FrameTracker frame_tracker(kMaxFrames);
+  FrameTracker frame_tracker(kMaxFrames, 0);
 
   EXPECT_TRUE(frame_tracker.AddFrame());
   FrameTracker::State status = frame_tracker.GetCurrentState();
@@ -36,7 +36,7 @@ TEST(FrameTrackerTest, AddFrame) {
 }
 
 TEST(FrameTrackerTest, AddFrameReturnsFalseWhenFull) {
-  FrameTracker frame_tracker(kMaxFrames);
+  FrameTracker frame_tracker(kMaxFrames, 0);
   for (int i = 0; i < kMaxFrames; ++i) {
     EXPECT_TRUE(frame_tracker.AddFrame());
   }
@@ -45,7 +45,7 @@ TEST(FrameTrackerTest, AddFrameReturnsFalseWhenFull) {
 }
 
 TEST(FrameTrackerTest, SetFrameDecoded) {
-  FrameTracker frame_tracker(kMaxFrames);
+  FrameTracker frame_tracker(kMaxFrames, 0);
   frame_tracker.AddFrame();
 
   EXPECT_TRUE(frame_tracker.SetFrameDecoded());
@@ -59,13 +59,13 @@ TEST(FrameTrackerTest, SetFrameDecoded) {
 }
 
 TEST(FrameTrackerTest, SetFrameDecodedReturnsFalseWhenEmpty) {
-  FrameTracker frame_tracker(kMaxFrames);
+  FrameTracker frame_tracker(kMaxFrames, 0);
 
   EXPECT_FALSE(frame_tracker.SetFrameDecoded());
 }
 
 TEST(FrameTrackerTest, ReleaseFrame) {
-  FrameTracker frame_tracker(kMaxFrames);
+  FrameTracker frame_tracker(kMaxFrames, 0);
   frame_tracker.AddFrame();
   frame_tracker.SetFrameDecoded();
 
@@ -80,13 +80,13 @@ TEST(FrameTrackerTest, ReleaseFrame) {
 }
 
 TEST(FrameTrackerTest, ReleaseFrameReturnsFalseWhenEmpty) {
-  FrameTracker frame_tracker(kMaxFrames);
+  FrameTracker frame_tracker(kMaxFrames, 0);
 
   EXPECT_FALSE(frame_tracker.ReleaseFrame());
 }
 
 TEST(FrameTrackerTest, HighWaterMark) {
-  FrameTracker frame_tracker(kMaxFrames);
+  FrameTracker frame_tracker(kMaxFrames, 0);
   frame_tracker.AddFrame();
   frame_tracker.AddFrame();
   frame_tracker.SetFrameDecoded();
@@ -103,7 +103,7 @@ TEST(FrameTrackerTest, HighWaterMark) {
 }
 
 TEST(FrameTrackerTest, Reset) {
-  FrameTracker frame_tracker(kMaxFrames);
+  FrameTracker frame_tracker(kMaxFrames, 0);
   frame_tracker.AddFrame();
   frame_tracker.SetFrameDecoded();
   frame_tracker.ReleaseFrame();
@@ -135,8 +135,7 @@ TEST(FrameTrackerTest, StreamInsertionOperator) {
 }
 
 TEST(FrameTrackerTest, ReleaseFrameAt) {
-  constexpr int kMaxFramesForTest = 2;
-  FrameTracker frame_tracker(kMaxFramesForTest);
+  FrameTracker frame_tracker(kMaxFrames, 0);
   frame_tracker.AddFrame();
   frame_tracker.SetFrameDecoded();
   frame_tracker.AddFrame();
@@ -159,6 +158,10 @@ TEST(FrameTrackerTest, ReleaseFrameAt) {
   status = frame_tracker.GetCurrentState();
   EXPECT_EQ(status.decoded_frames, 0);
   EXPECT_FALSE(frame_tracker.IsFull());
+}
+
+TEST(FrameTrackerTest, LongIntervalNotBlockDestruction) {
+  FrameTracker frame_tracker(kMaxFrames, 1'000'000'000);
 }
 
 }  // namespace

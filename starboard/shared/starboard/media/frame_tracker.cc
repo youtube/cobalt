@@ -23,7 +23,16 @@ std::ostream& operator<<(std::ostream& os, const FrameTracker::State& status) {
   return os;
 }
 
-FrameTracker::FrameTracker(int max_frames) : frames_(max_frames, kUnassigned) {}
+FrameTracker::FrameTracker(int max_frames, int64_t log_interval_us)
+    : frames_(max_frames, kUnassigned), task_runner_("frame_tracker") {
+  if (log_interval_us > 0) {
+    task_runner_.Schedule(
+        [this, log_interval_us]() { LogStateAndReschedule(log_interval_us); },
+        log_interval_us);
+  }
+}
+
+FrameTracker::~FrameTracker() = default;
 
 bool FrameTracker::AddFrame() {
   std::lock_guard lock(mutex_);
@@ -121,6 +130,16 @@ void FrameTracker::PurgeReleasedFrames_Locked() {
       frame = kUnassigned;
     }
   }
+}
+
+void FrameTracker::LogStateAndReschedule(int64_t log_interval_us) {
+  SB_DCHECK(task_runner_.BelongsToCurrentThread());
+
+  SB_LOG(INFO) << "FrameTracker status: " << GetCurrentState();
+
+  task_runner_.Schedule(
+      [this, log_interval_us]() { LogStateAndReschedule(log_interval_us); },
+      log_interval_us);
 }
 
 }  // namespace starboard::shared::starboard::media

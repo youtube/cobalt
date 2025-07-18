@@ -6,6 +6,8 @@
 #include <optional>
 #include <queue>
 
+#include "starboard/shared/starboard/player/job_thread.h"
+
 namespace starboard::shared::starboard::media {
 
 class FrameTracker {
@@ -18,7 +20,8 @@ class FrameTracker {
     int total_frames_high_water_mark;
   };
 
-  explicit FrameTracker(int max_frames);
+  FrameTracker(int max_frames, int64_t log_interval_us);
+  ~FrameTracker();
 
   bool AddFrame();
   bool SetFrameDecoded();
@@ -32,6 +35,7 @@ class FrameTracker {
  private:
   std::pair<int, int> UpdateHighWaterMarks_Locked();
   void PurgeReleasedFrames_Locked();
+  void LogStateAndReschedule(int64_t log_interval_us);
 
   std::vector<int64_t> frames_;
   mutable int decoding_frames_high_water_mark_ = 0;
@@ -40,6 +44,8 @@ class FrameTracker {
 
   std::queue<int> deferred_input_buffer_indices_;
   mutable std::mutex mutex_;
+
+  ::starboard::shared::starboard::player::JobThread task_runner_;
 };
 
 std::ostream& operator<<(std::ostream& os, const FrameTracker::State& status);
