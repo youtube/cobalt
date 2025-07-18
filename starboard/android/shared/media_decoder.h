@@ -32,7 +32,7 @@
 #include "starboard/common/ref_counted.h"
 #include "starboard/media.h"
 #include "starboard/shared/internal_only.h"
-#include "starboard/shared/starboard/media/frame_tracker.h"
+#include "starboard/shared/starboard/media/decoder_flow_control.h"
 #include "starboard/shared/starboard/media/media_util.h"
 #include "starboard/shared/starboard/player/filter/common.h"
 #include "starboard/shared/starboard/player/input_buffer_internal.h"
@@ -119,8 +119,9 @@ class MediaDecoder final
 
   bool Flush();
 
-  ::starboard::shared::starboard::media::FrameTracker* frame_tracker() {
-    return frame_tracker_.get();
+  ::starboard::shared::starboard::media::DecoderFlowControl*
+  decoder_flow_control() {
+    return decoder_flow_control_.get();
   }
 
  private:
@@ -217,8 +218,8 @@ class MediaDecoder final
   std::vector<int> input_buffer_indices_;
   std::vector<DequeueOutputResult> dequeue_output_results_;
 
-  std::unique_ptr<::starboard::shared::starboard::media::FrameTracker>
-      frame_tracker_;
+  std::unique_ptr<::starboard::shared::starboard::media::DecoderFlowControl>
+      decoder_flow_control_;
 
   bool is_output_restricted_ = false;
   bool first_call_on_handler_thread_ = true;

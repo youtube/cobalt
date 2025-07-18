@@ -28,7 +28,7 @@
 
 namespace starboard::android::shared {
 
-using ::starboard::shared::starboard::media::FrameTracker;
+using ::starboard::shared::starboard::media::DecoderFlowControl;
 
 // TODO: (cobalt b/372559388) Update namespace to jni_zero.
 using base::android::AttachCurrentThread;
@@ -87,12 +87,13 @@ MediaDecoder::MediaDecoder(Host* host,
       tunnel_mode_enabled_(false),
       flush_delay_usec_(0),
       condition_variable_(mutex_),
-      frame_tracker_(FrameTracker::Create(kMaxFramesInDecoder,
-                                          kFrameTrackerLogIntervalUs,
-                                          [this]() {
-                                            ScopedLock lock(mutex_);
-                                            condition_variable_.Signal();
-                                          })) {
+      decoder_flow_control_(
+          DecoderFlowControl::Create(kMaxFramesInDecoder,
+                                     kFrameTrackerLogIntervalUs,
+                                     [this]() {
+                                       ScopedLock lock(mutex_);
+                                       condition_variable_.Signal();
+                                     })) {
   SB_DCHECK(host_);
 
   jobject j_media_crypto = drm_system_ ? drm_system_->GetMediaCrypto() : NULL;
@@ -142,12 +143,13 @@ MediaDecoder::MediaDecoder(
       tunnel_mode_enabled_(tunnel_mode_audio_session_id != -1),
       flush_delay_usec_(flush_delay_usec),
       condition_variable_(mutex_),
-      frame_tracker_(FrameTracker::Create(kMaxFramesInDecoder,
-                                          kFrameTrackerLogIntervalUs,
-                                          [this]() {
-                                            ScopedLock lock(mutex_);
-                                            condition_variable_.Signal();
-                                          })) {
+      decoder_flow_control_(
+          DecoderFlowControl::Create(kMaxFramesInDecoder,
+                                     kFrameTrackerLogIntervalUs,
+                                     [this]() {
+                                       ScopedLock lock(mutex_);
+                                       condition_variable_.Signal();
+                                     })) {
   SB_DCHECK(frame_rendered_cb_);
   SB_DCHECK(first_tunnel_frame_ready_cb_);
 
@@ -366,7 +368,7 @@ void MediaDecoder::DecoderThreadFunc() {
       bool can_process_input =
           pending_input_to_retry_ ||
           (!pending_inputs.empty() && !input_buffer_indices.empty());
-      can_process_input = !frame_tracker_->IsFull() && can_process_input;
+      can_process_input = !decoder_flow_control_->IsFull() && can_process_input;
       if (can_process_input) {
         ProcessOneInputBuffer(&pending_inputs, &input_buffer_indices);
       }
@@ -676,7 +678,7 @@ void MediaDecoder::OnMediaCodecOutputBufferAvailable(
     return;
   }
 
-  if (!frame_tracker_->SetFrameDecoded()) {
+  if (!decoder_flow_control_->SetFrameDecoded()) {
     SB_LOG(ERROR) << "SetFrameDecoded() called on empty frame tracker.";
   }
 
@@ -743,10 +745,11 @@ bool MediaDecoder::Flush() {
     input_buffer_indices_.clear();
     dequeue_output_results_.clear();
     pending_input_to_retry_ = std::nullopt;
-    frame_tracker_ = FrameTracker::Create(kMaxFramesInDecoder, 0, [this]() {
-      ScopedLock lock(mutex_);
-      condition_variable_.Signal();
-    });
+    decoder_flow_control_ =
+        DecoderFlowControl::Create(kMaxFramesInDecoder, 0, [this]() {
+          ScopedLock lock(mutex_);
+          condition_variable_.Signal();
+        });
 
     // 2.3. Add OutputFormatChanged to get current output format after Flush().
     DequeueOutputResult dequeue_output_result = {};

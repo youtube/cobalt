@@ -1,5 +1,5 @@
-#ifndef STARBOARD_SHARED_STARBOARD_MEDIA_FRAME_TRACKER_H_
-#define STARBOARD_SHARED_STARBOARD_MEDIA_FRAME_TRACKER_H_
+#ifndef STARBOARD_SHARED_STARBOARD_MEDIA_DECODER_FLOW_CONTROL_H_
+#define STARBOARD_SHARED_STARBOARD_MEDIA_DECODER_FLOW_CONTROL_H_
 
 #include <functional>
 #include <iosfwd>
@@ -7,7 +7,7 @@
 
 namespace starboard::shared::starboard::media {
 
-class FrameTracker {
+class DecoderFlowControl {
  public:
   using FrameReleasedCB = std::function<void()>;
 
@@ -24,12 +24,12 @@ class FrameTracker {
     int total_frames() const { return decoding_frames + decoded_frames; }
   };
 
-  static std::unique_ptr<FrameTracker> Create(
+  static std::unique_ptr<DecoderFlowControl> Create(
       int max_frames,
       int64_t log_interval_us,
       FrameReleasedCB frame_released_cb);
 
-  virtual ~FrameTracker() = default;
+  virtual ~DecoderFlowControl() = default;
 
   virtual bool AddFrame() = 0;
   virtual bool SetFrameDecoded() = 0;
@@ -39,8 +39,9 @@ class FrameTracker {
   virtual bool IsFull() = 0;
 };
 
-std::ostream& operator<<(std::ostream& os, const FrameTracker::State& status);
+std::ostream& operator<<(std::ostream& os,
+                         const DecoderFlowControl::State& status);
 
 }  // namespace starboard::shared::starboard::media
 
-#endif  // STARBOARD_SHARED_STARBOARD_MEDIA_FRAME_TRACKER_H_
+#endif  // STARBOARD_SHARED_STARBOARD_MEDIA_DECODER_FLOW_CONTROL_H_
