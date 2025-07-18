@@ -130,10 +130,6 @@ void DrmSystem::UpdateSession(int ticket,
   MediaDrmBridge::OperationResult result = media_drm_bridge_->UpdateSession(
       ticket, std::string_view(static_cast<const char*>(key), key_size),
       std::string_view(static_cast<const char*>(session_id), session_id_size));
-  if (!result.ok()) {
-    SB_LOG(ERROR) << "UpdateSession failed: result=" << result;
-  }
-
   session_updated_callback_(
       this, context_, ticket,
       result.ok() ? kSbDrmStatusSuccess : kSbDrmStatusUnknownError,
