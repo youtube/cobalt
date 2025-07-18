@@ -35,7 +35,6 @@ class FrameTracker {
   bool SetFrameDecoded();
   bool ReleaseFrame();
   bool ReleaseFrameAt(int64_t release_us);
-  void Reset();
 
   State GetCurrentState();
   bool IsFull();
