@@ -65,6 +65,12 @@ public class MockWebContents implements WebContents {
     }
 
     @Override
+    public void onResume() {}
+
+    @Override
+    public void onFreeze() {}
+
+    @Override
     public ViewAndroidDelegate getViewAndroidDelegate() {
         return null;
     }
