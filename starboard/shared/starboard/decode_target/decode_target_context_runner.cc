@@ -41,5 +41,4 @@ void DecodeTargetContextRunner::RunOnGlesContext(
   SbDecodeTargetRunInGlesContext(provider_, RunnerTargetHelper, &function);
 }
 
-}  // namespace decode_target
 }  // namespace starboard::shared::starboard::decode_target
