@@ -14,6 +14,7 @@
 # limitations under the License.
 """Generates a Cobalt Build Info json."""
 
+import argparse
 import datetime
 import json
 import os
@@ -205,6 +206,22 @@ def write_licenses(txt_path, spdx_path):
 
 
 if __name__ == '__main__':
-  write_build_id_header(sys.argv[1])
-  write_build_json(sys.argv[2])
-  write_licenses(sys.argv[3], sys.argv[4])
+  parser = argparse.ArgumentParser()
+  parser.add_argument(
+      '--skip-licenses',
+      action='store_true',
+      help='If set, skips the license generation step.')
+  parser.add_argument('header_path')
+  parser.add_argument('json_path')
+  parser.add_argument('txt_path', nargs='?')
+  parser.add_argument('spdx_path', nargs='?')
+  args = parser.parse_args()
+
+  write_build_id_header(args.header_path)
+  write_build_json(args.json_path)
+  if not args.skip_licenses:
+    if not args.txt_path or not args.spdx_path:
+      print('Error: txt_path and spdx_path are required unless --skip-licenses '
+            'is used.')
+      sys.exit(1)
+    write_licenses(args.txt_path, args.spdx_path)
