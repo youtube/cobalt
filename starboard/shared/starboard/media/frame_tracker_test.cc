@@ -25,7 +25,7 @@ TEST(FrameTrackerTest, InitialState) {
 TEST(FrameTrackerTest, AddFrame) {
   FrameTracker frame_tracker(kMaxFrames, 0, [] {});
 
-  EXPECT_TRUE(frame_tracker.AddFrame());
+  ASSERT_TRUE(frame_tracker.AddFrame());
   FrameTracker::State status = frame_tracker.GetCurrentState();
 
   EXPECT_EQ(status.decoding_frames, 1);
@@ -38,7 +38,7 @@ TEST(FrameTrackerTest, AddFrame) {
 TEST(FrameTrackerTest, AddFrameReturnsFalseWhenFull) {
   FrameTracker frame_tracker(kMaxFrames, 0, [] {});
   for (int i = 0; i < kMaxFrames; ++i) {
-    EXPECT_TRUE(frame_tracker.AddFrame());
+    ASSERT_TRUE(frame_tracker.AddFrame());
   }
 
   EXPECT_FALSE(frame_tracker.AddFrame());
@@ -46,9 +46,9 @@ TEST(FrameTrackerTest, AddFrameReturnsFalseWhenFull) {
 
 TEST(FrameTrackerTest, SetFrameDecoded) {
   FrameTracker frame_tracker(kMaxFrames, 0, [] {});
-  frame_tracker.AddFrame();
+  ASSERT_TRUE(frame_tracker.AddFrame());
 
-  EXPECT_TRUE(frame_tracker.SetFrameDecoded());
+  ASSERT_TRUE(frame_tracker.SetFrameDecoded());
   FrameTracker::State status = frame_tracker.GetCurrentState();
 
   EXPECT_EQ(status.decoding_frames, 0);
@@ -66,10 +66,10 @@ TEST(FrameTrackerTest, SetFrameDecodedReturnsFalseWhenEmpty) {
 
 TEST(FrameTrackerTest, ReleaseFrame) {
   FrameTracker frame_tracker(kMaxFrames, 0, [] {});
-  frame_tracker.AddFrame();
-  frame_tracker.SetFrameDecoded();
+  ASSERT_TRUE(frame_tracker.AddFrame());
+  ASSERT_TRUE(frame_tracker.SetFrameDecoded());
 
-  EXPECT_TRUE(frame_tracker.ReleaseFrame());
+  ASSERT_TRUE(frame_tracker.ReleaseFrame());
   usleep(10'000);
   FrameTracker::State status = frame_tracker.GetCurrentState();
 
@@ -88,11 +88,11 @@ TEST(FrameTrackerTest, ReleaseFrameReturnsFalseWhenEmpty) {
 
 TEST(FrameTrackerTest, HighWaterMark) {
   FrameTracker frame_tracker(kMaxFrames, 0, [] {});
-  frame_tracker.AddFrame();
-  frame_tracker.AddFrame();
-  frame_tracker.SetFrameDecoded();
-  frame_tracker.SetFrameDecoded();
-  frame_tracker.ReleaseFrame();
+  ASSERT_TRUE(frame_tracker.AddFrame());
+  ASSERT_TRUE(frame_tracker.AddFrame());
+  ASSERT_TRUE(frame_tracker.SetFrameDecoded());
+  ASSERT_TRUE(frame_tracker.SetFrameDecoded());
+  ASSERT_TRUE(frame_tracker.ReleaseFrame());
 
   usleep(10'000);
   FrameTracker::State status = frame_tracker.GetCurrentState();
@@ -126,12 +126,12 @@ TEST(FrameTrackerTest, StreamInsertionOperator) {
 
 TEST(FrameTrackerTest, ReleaseFrameAt) {
   FrameTracker frame_tracker(kMaxFrames, 0, [] {});
-  frame_tracker.AddFrame();
-  frame_tracker.SetFrameDecoded();
-  frame_tracker.AddFrame();
-  frame_tracker.SetFrameDecoded();
+  ASSERT_TRUE(frame_tracker.AddFrame());
+  ASSERT_TRUE(frame_tracker.SetFrameDecoded());
+  ASSERT_TRUE(frame_tracker.AddFrame());
+  ASSERT_TRUE(frame_tracker.SetFrameDecoded());
 
-  EXPECT_TRUE(frame_tracker.IsFull());
+  ASSERT_TRUE(frame_tracker.IsFull());
 
   frame_tracker.ReleaseFrameAt(CurrentMonotonicTime() + 100'000);
   frame_tracker.ReleaseFrameAt(CurrentMonotonicTime() + 200'000);
@@ -154,13 +154,13 @@ TEST(FrameTrackerTest, LongIntervalNotBlockDestruction) {
 TEST(FrameTrackerTest, DecodingTimeStats) {
   FrameTracker frame_tracker(kMaxFrames, 0, [] {});
 
-  frame_tracker.AddFrame();
+  ASSERT_TRUE(frame_tracker.AddFrame());
   usleep(10'000);
-  frame_tracker.SetFrameDecoded();
+  ASSERT_TRUE(frame_tracker.SetFrameDecoded());
 
-  frame_tracker.AddFrame();
+  ASSERT_TRUE(frame_tracker.AddFrame());
   usleep(20'000);
-  frame_tracker.SetFrameDecoded();
+  ASSERT_TRUE(frame_tracker.SetFrameDecoded());
 
   FrameTracker::State status = frame_tracker.GetCurrentState();
   EXPECT_GE(status.min_decoding_time_us, 10'000);
@@ -175,10 +175,10 @@ TEST(FrameTrackerTest, FrameReleasedCallback) {
   int counter = 0;
   FrameTracker frame_tracker(kMaxFrames, 0, [&counter]() { counter++; });
 
-  frame_tracker.AddFrame();
-  frame_tracker.AddFrame();
-  frame_tracker.SetFrameDecoded();
-  frame_tracker.SetFrameDecoded();
+  ASSERT_TRUE(frame_tracker.AddFrame());
+  ASSERT_TRUE(frame_tracker.AddFrame());
+  ASSERT_TRUE(frame_tracker.SetFrameDecoded());
+  ASSERT_TRUE(frame_tracker.SetFrameDecoded());
   frame_tracker.ReleaseFrameAt(CurrentMonotonicTime() + 100'000);
   frame_tracker.ReleaseFrameAt(CurrentMonotonicTime() + 200'000);
 
