@@ -121,7 +121,7 @@ runs:
           test_target=${test_target_with_path#*:}
           xml_files=("${test_output}"/${{ matrix.platform }}/**/"${test_target}"_testoutput.xml)
           if [[ "${#xml_files[@]}" -eq 0 ]]; then
-            # Check if the test target is filtered.
+            # No matching XML results found. Check if the test target is filtered.
             test_filter_file="${GITHUB_WORKSPACE}/cobalt/testing/filters/${{ matrix.platform }}/${test_target}_filter.json"
             if [ ! -f "${test_filter_file}" ] || [ "$(jq -cr '.failing_tests[0]' "${test_filter_file}")" != '*' ]; then
               echo "Test result xml is missing for ${test_target}."
@@ -132,6 +132,8 @@ runs:
               python3 ${GITHUB_WORKSPACE}/.github/scripts/generate_crash_report.py "${log_path}" "${xml_path}"
               exit 1
             fi
+          elif grep -e '<failure' -e '<error' ${xml_files}; then
+            echo "::error::Found failures in the test xml."
           fi
         done
       shell: bash
