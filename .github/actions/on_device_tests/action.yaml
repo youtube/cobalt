@@ -109,7 +109,7 @@ runs:
         test_output="${GITHUB_WORKSPACE}/results"
         echo "test_output=${test_output}" >> $GITHUB_ENV
 
-        # Test results (xml and logs) must be in a subfolder in results_dir
+        # Test results (xml and logs) must be in a subfolder in results_dir.
         # to be picked up by the test result processor.
         mkdir -p "${test_output}/${{ matrix.platform }}"
         gsutil -q cp -r "${{ inputs.gcs_results_path }}/" "${test_output}/${{ matrix.platform }}"
@@ -133,7 +133,9 @@ runs:
               exit 1
             fi
           elif grep -e '<failure' -e '<error' ${xml_files}; then
+            # Double-check the result XML for failures. ODT service has been known to report incorrect status.
             echo "::error::Found failures in the test xml."
+            exit 1
           fi
         done
       shell: bash
