@@ -310,6 +310,11 @@ class NavigationBaseBrowserTest : public ContentBrowserTest {
     test_ukm_recorder_ = std::make_unique<ukm::TestAutoSetUkmRecorder>();
   }
 
+  // Currently, Cobalt runs in single-process as a way to save memory during
+  // runtime. However, comments in //content/public/test/content_browser_test.h
+  // strongly discourage the use of single-process. For testing purposes, it
+  // should be okay to parallelize these tests as cobalt does not require
+  // running in single-process.
   void SetUpCommandLine(base::CommandLine* command_line) {
     command_line->RemoveSwitch("single-process");
   }

@@ -169,9 +169,7 @@ target(link_target_type, "child") {
 
 # See comment at the top of //content/BUILD.gn for how this works.
 group("for_content_tests") {
-  visibility = [
-    "//content/test/*"
-  ]
+  visibility = [ "//content/test/*" ]
   if (is_cobalt) {
     visibility += [
       "//cobalt/testing/*",
