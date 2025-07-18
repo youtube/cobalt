@@ -65,12 +65,12 @@ namespace {
 
 using PlatformWrapperTest = test::MojoTestBase;
 
-#if BUILDFLAG(IS_IOS) || BUILDFLAG(IS_STARBOARD)
+#if BUILDFLAG(IS_IOS)
 // TODO(crbug.com/1418597): Test currently fails on iOS.
 #define MAYBE_WrapPlatformHandle DISABLED_WrapPlatformHandle
 #else
 #define MAYBE_WrapPlatformHandle WrapPlatformHandle
-#endif  // BUILDFLAG(IS_IOS) || BUILDFLAG(IS_STARBOARD)
+#endif  // BUILDFLAG(IS_IOS)
 TEST_F(PlatformWrapperTest, MAYBE_WrapPlatformHandle) {
   // Create a temporary file and write a message to it.
   base::FilePath temp_file_path;
@@ -120,13 +120,13 @@ DEFINE_TEST_CLIENT_TEST_WITH_PIPE(ReadPlatformFile, PlatformWrapperTest, h) {
   EXPECT_EQ(MOJO_RESULT_OK, MojoClose(h));
 }
 
-#if BUILDFLAG(IS_IOS) || BUILDFLAG(IS_STARBOARD)
+#if BUILDFLAG(IS_IOS)
 // TODO(crbug.com/1418597): Test currently fails on iOS.
 #define MAYBE_WrapPlatformSharedMemoryRegion \
   DISABLED_WrapPlatformSharedMemoryRegion
 #else
 #define MAYBE_WrapPlatformSharedMemoryRegion WrapPlatformSharedMemoryRegion
-#endif  // BUILDFLAG(IS_IOS) || BUILDFLAG(IS_STARBOARD)
+#endif  // BUILDFLAG(IS_IOS)
 TEST_F(PlatformWrapperTest, MAYBE_WrapPlatformSharedMemoryRegion) {
   // Allocate a new platform shared buffer and write a message into it.
   const std::string kMessage = "Hello, world!";
