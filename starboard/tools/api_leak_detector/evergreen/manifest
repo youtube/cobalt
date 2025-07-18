@@ -13,7 +13,6 @@ access
 chmod
 clock_nanosleep
 closelog
-creat
 dladdr
 dlclose
 dlerror
