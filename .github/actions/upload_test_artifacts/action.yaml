@@ -38,7 +38,7 @@ runs:
 
         FLAGS=""
         if [[ "${{ matrix.platform }}" == *android* ]]; then
-          FLAGS="--archive-per-target --use-android-deps-path --flatten-deps"
+          FLAGS="--compression gz --archive-per-target --use-android-deps-path --flatten-deps"
         elif [[ "${{ matrix.platform }}" == *raspi* ]]; then
           FLAGS="--archive-per-target"
         fi
@@ -77,5 +77,4 @@ runs:
         # Upload gtest target artifacts.
         gsutil -m cp "${GITHUB_WORKSPACE}/artifacts/*" \
           "gs://${project_name}-test-artifacts/${WORKFLOW}/${GITHUB_RUN_NUMBER}/${{matrix.platform}}/"
-
       shell: bash

@@ -17,6 +17,7 @@ RUN apt-get update && apt-get install -y \
     libnss3 \
     libxcomposite-dev \
     xvfb \
+    xz-utils \
     && rm -rf /var/lib/apt/lists/*
 
 # This locale satisfies SbSystemGetLocaleIdTest.
