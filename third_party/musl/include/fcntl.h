@@ -209,6 +209,34 @@ ssize_t tee(int, int, size_t, unsigned);
 #define off64_t off_t
 #endif
 
+#if defined(STARBOARD)
+#define F_DUPFD 0
+#define F_GETFD 1
+#define F_SETFD 2
+#define F_GETFL 3
+#define F_SETFL 4
+#define F_GETOWN 5
+#define F_SETOWN 6
+#define F_GETLK 7
+#define F_SETLK 8
+#define F_SETLKW 9
+#define FD_CLOEXEC 10
+#define F_RDLCK 11
+#define F_UNLCK 12
+#define F_WRLCK 13
+
+#define O_APPEND 02000
+#define O_DSYNC 010000
+#define O_NONBLOCK 04000
+#define O_RSYNC 04010000
+#define O_SYNC 04010000
+#define O_PATH 010000000
+#define O_ACCMODE (03|010000000)
+#define O_RDONLY 00
+#define O_WRONLY 01
+#define O_RDWR 02
+#endif  // defined(STARBOARD)
+
 #ifdef __cplusplus
 }
 #endif
