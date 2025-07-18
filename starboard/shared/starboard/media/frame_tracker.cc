@@ -26,6 +26,7 @@ namespace starboard::shared::starboard::media {
 namespace {
 
 constexpr int kMaxDecodingHistory = 30;
+constexpr int64_t kDecodingTimeWarningThresholdUs = 50'000;  // 50 ms
 
 }  // namespace
 
@@ -48,12 +49,14 @@ FrameTracker::FrameTracker(int max_frames,
       frame_released_cb_(std::move(frame_released_cb)),
       state_({}),
       task_runner_("frame_tracker") {
-  SB_DCHECK(frame_released_cb_);
+  SB_CHECK(frame_released_cb_);
   if (log_interval_us > 0) {
     task_runner_.Schedule(
         [this, log_interval_us]() { LogStateAndReschedule(log_interval_us); },
         log_interval_us);
   }
+  SB_LOG(INFO) << "FrameTracker is created: max_frames=" << max_frames_
+               << ", log_interval(msec)=" << (log_interval_us / 1'000);
 }
 
 FrameTracker::~FrameTracker() = default;
@@ -83,6 +86,10 @@ bool FrameTracker::SetFrameDecoded() {
     auto start_time = decoding_start_times_us_.front();
     decoding_start_times_us_.pop_front();
     auto decoding_time = CurrentMonotonicTime() - start_time;
+    if (decoding_time > kDecodingTimeWarningThresholdUs) {
+      SB_LOG(WARNING) << "Decoding time exceeded threshold: " << decoding_time
+                      << " us";
+    }
     previous_decoding_times_us_.push_back(decoding_time);
     if (previous_decoding_times_us_.size() > kMaxDecodingHistory) {
       previous_decoding_times_us_.pop_front();
