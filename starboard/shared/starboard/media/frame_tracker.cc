@@ -15,12 +15,15 @@
 #include "starboard/shared/starboard/media/frame_tracker.h"
 
 #include <algorithm>
+#include <deque>
+#include <memory>
 #include <numeric>
 #include <ostream>
 
 #include "starboard/common/check_op.h"
 #include "starboard/common/log.h"
 #include "starboard/common/time.h"
+#include "starboard/shared/starboard/player/job_thread.h"
 
 namespace starboard::shared::starboard::media {
 namespace {
@@ -28,23 +31,40 @@ namespace {
 constexpr int kMaxDecodingHistory = 30;
 constexpr int64_t kDecodingTimeWarningThresholdUs = 50'000;  // 50 ms
 
-}  // namespace
+class FrameTrackerImpl : public FrameTracker {
+ public:
+  FrameTrackerImpl(int max_frames,
+                   int64_t log_interval_us,
+                   FrameReleasedCB frame_released_cb);
+  ~FrameTrackerImpl() override = default;
 
-std::ostream& operator<<(std::ostream& os, const FrameTracker::State& status) {
-  os << "{decoding: " << status.decoding_frames
-     << ", decoded: " << status.decoded_frames
-     << ", decoding (hw): " << status.decoding_frames_high_water_mark
-     << ", decoded (hw): " << status.decoded_frames_high_water_mark
-     << ", total (hw): " << status.total_frames_high_water_mark
-     << ", min decoding(msec): " << status.min_decoding_time_us / 1'000
-     << ", max decoding(msec): " << status.max_decoding_time_us / 1'000
-     << ", avg decoding(msec): " << status.avg_decoding_time_us / 1'000 << "}";
-  return os;
-}
+  bool AddFrame() override;
+  bool SetFrameDecoded() override;
+  bool ReleaseFrameAt(int64_t release_us) override;
 
-FrameTracker::FrameTracker(int max_frames,
-                           int64_t log_interval_us,
-                           FrameReleasedCB frame_released_cb)
+  State GetCurrentState() const override;
+  bool IsFull() override;
+
+ private:
+  void UpdateDecodingStat_Locked();
+  void UpdateState_Locked();
+  void LogStateAndReschedule(int64_t log_interval_us);
+
+  const int max_frames_;
+  const FrameReleasedCB frame_released_cb_;
+
+  mutable std::mutex mutex_;
+  State state_;  // GUARDED_BY mutex_;
+
+  std::deque<int64_t> decoding_start_times_us_;
+  std::deque<int64_t> previous_decoding_times_us_;
+
+  ::starboard::shared::starboard::player::JobThread task_runner_;
+};
+
+FrameTrackerImpl::FrameTrackerImpl(int max_frames,
+                                   int64_t log_interval_us,
+                                   FrameReleasedCB frame_released_cb)
     : max_frames_(max_frames),
       frame_released_cb_(std::move(frame_released_cb)),
       state_({}),
@@ -59,9 +79,7 @@ FrameTracker::FrameTracker(int max_frames,
                << ", log_interval(msec)=" << (log_interval_us / 1'000);
 }
 
-FrameTracker::~FrameTracker() = default;
-
-bool FrameTracker::AddFrame() {
+bool FrameTrackerImpl::AddFrame() {
   std::lock_guard lock(mutex_);
   if (state_.total_frames() == max_frames_) {
     return false;
@@ -73,7 +91,7 @@ bool FrameTracker::AddFrame() {
   return true;
 }
 
-bool FrameTracker::SetFrameDecoded() {
+bool FrameTrackerImpl::SetFrameDecoded() {
   std::lock_guard lock(mutex_);
   if (state_.decoding_frames == 0) {
     return false;
@@ -101,7 +119,7 @@ bool FrameTracker::SetFrameDecoded() {
   return true;
 }
 
-bool FrameTracker::ReleaseFrameAt(int64_t release_us) {
+bool FrameTrackerImpl::ReleaseFrameAt(int64_t release_us) {
   std::lock_guard lock(mutex_);
 
   if (state_.decoded_frames == 0) {
@@ -122,17 +140,17 @@ bool FrameTracker::ReleaseFrameAt(int64_t release_us) {
   return true;
 }
 
-FrameTracker::State FrameTracker::GetCurrentState() const {
+FrameTracker::State FrameTrackerImpl::GetCurrentState() const {
   std::lock_guard lock(mutex_);
   return state_;
 }
 
-bool FrameTracker::IsFull() {
+bool FrameTrackerImpl::IsFull() {
   std::lock_guard lock(mutex_);
   return state_.total_frames() == max_frames_;
 }
 
-void FrameTracker::UpdateDecodingStat_Locked() {
+void FrameTrackerImpl::UpdateDecodingStat_Locked() {
   if (previous_decoding_times_us_.empty()) {
     return;
   }
@@ -150,7 +168,7 @@ void FrameTracker::UpdateDecodingStat_Locked() {
   state_.avg_decoding_time_us = sum / previous_decoding_times_us_.size();
 }
 
-void FrameTracker::UpdateState_Locked() {
+void FrameTrackerImpl::UpdateState_Locked() {
   SB_CHECK_LE(state_.total_frames(), max_frames_);
   SB_CHECK_GE(state_.decoding_frames, 0);
   SB_CHECK_GE(state_.decoded_frames, 0);
@@ -164,7 +182,7 @@ void FrameTracker::UpdateState_Locked() {
                state_.decoding_frames + state_.decoded_frames);
 }
 
-void FrameTracker::LogStateAndReschedule(int64_t log_interval_us) {
+void FrameTrackerImpl::LogStateAndReschedule(int64_t log_interval_us) {
   SB_DCHECK(task_runner_.BelongsToCurrentThread());
 
   SB_LOG(INFO) << "FrameTracker state: " << GetCurrentState();
@@ -172,6 +190,29 @@ void FrameTracker::LogStateAndReschedule(int64_t log_interval_us) {
   task_runner_.Schedule(
       [this, log_interval_us]() { LogStateAndReschedule(log_interval_us); },
       log_interval_us);
+}
+
+}  // namespace
+
+// static
+std::unique_ptr<FrameTracker> FrameTracker::Create(
+    int max_frames,
+    int64_t log_interval_us,
+    FrameReleasedCB frame_released_cb) {
+  return std::make_unique<FrameTrackerImpl>(max_frames, log_interval_us,
+                                            std::move(frame_released_cb));
+}
+
+std::ostream& operator<<(std::ostream& os, const FrameTracker::State& status) {
+  os << "{decoding: " << status.decoding_frames
+     << ", decoded: " << status.decoded_frames
+     << ", decoding (hw): " << status.decoding_frames_high_water_mark
+     << ", decoded (hw): " << status.decoded_frames_high_water_mark
+     << ", total (hw): " << status.total_frames_high_water_mark
+     << ", min decoding(msec): " << status.min_decoding_time_us / 1'000
+     << ", max decoding(msec): " << status.max_decoding_time_us / 1'000
+     << ", avg decoding(msec): " << status.avg_decoding_time_us / 1'000 << "}";
+  return os;
 }
 
 }  // namespace starboard::shared::starboard::media
