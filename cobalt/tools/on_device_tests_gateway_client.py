@@ -171,6 +171,8 @@ def _unit_test_files(args: argparse.Namespace, target_name: str) -> List[str]:
   """Builds the list of files for a unit test request."""
   is_modular_raspi = 'builder-raspi-2-modular' in args.label
 
+  # TODO: b/432536319 - Use flag to determine file ending.
+
   if args.device_family == 'android':
     return [
         f'test_apk={args.gcs_archive_path}/{target_name}-debug.apk',
@@ -180,12 +182,12 @@ def _unit_test_files(args: argparse.Namespace, target_name: str) -> List[str]:
   elif is_modular_raspi and args.device_family == 'raspi':
     return [
         f'bin={args.gcs_archive_path}/{target_name}',
-        f'test_runtime_deps={args.gcs_archive_path}/{target_name}_deps.tar.gz',
+        f'test_runtime_deps={args.gcs_archive_path}/{target_name}_deps.tar.xz',
     ]
   elif args.device_family in ['rdk', 'raspi']:
     return [
         f'bin={args.gcs_archive_path}/{target_name}.py',
-        f'test_runtime_deps={args.gcs_archive_path}/{target_name}_deps.tar.gz',
+        f'test_runtime_deps={args.gcs_archive_path}/{target_name}_deps.tar.xz',
     ]
   else:
     raise ValueError(f'Unsupported device family: {args.device_family}')
