@@ -1,0 +1,46 @@
+#!/usr/bin/env bash
+
+# Copyright 2019 The Chromium Authors. All rights reserved.
+# Use of this source code is governed by a BSD-style license that can be
+# found in the LICENSE file.
+
+if [[ $VPYTHON_BYPASS == "manually managed python not supported by chrome operations" ]]
+then
+  NEWARGS=()
+  while [[ $# -gt 0 ]]
+  do
+    case "$1" in
+      -vpython-tool*) # these tools all do something vpython related and quit
+        exit 0
+        ;;
+      -vpython*=*) # delete any vpython-specific flag (w/ attached argument)
+        shift
+        ;;
+      -vpython*) # delete any vpython-specific flag (w/ separate argument)
+        shift
+        shift
+        ;;
+      --)     # stop parsing
+        NEWARGS+=( "$@" )
+        break
+        ;;
+      *)      # regular arg
+        NEWARGS+=( "$1" )
+        shift
+        ;;
+    esac
+  done
+  exec "python3" "${NEWARGS[@]}"
+fi
+
+
+base_dir=$(dirname "$0")
+
+source "$base_dir/cipd_bin_setup.sh"
+cipd_bin_setup &> /dev/null
+
+if [[ $(uname -s) = MINGW* || $(uname -s) = CYGWIN* ]]; then
+  cmd.exe //c $0.bat "$@"
+else
+  exec "$base_dir/.cipd_bin/vpython3" "$@"
+fi
