@@ -103,6 +103,7 @@ static_library("c_internal") {
     "src/exit/assert.c",
     "src/exit/atexit.c",
     "src/exit/exit.c",
+    "src/fcntl/creat.c",
     "src/fenv/__flt_rounds.c",
     "src/fenv/fegetexceptflag.c",
     "src/fenv/feholdexcept.c",
