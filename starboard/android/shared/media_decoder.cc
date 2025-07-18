@@ -353,6 +353,7 @@ void MediaDecoder::DecoderThreadFunc() {
       bool can_process_input =
           pending_input_to_retry_ ||
           (!pending_inputs.empty() && !input_buffer_indices.empty());
+      can_process_input = !frame_tracker_.IsFull() && can_process_input;
       if (can_process_input) {
         ProcessOneInputBuffer(&pending_inputs, &input_buffer_indices);
       }
@@ -642,11 +643,7 @@ void MediaDecoder::OnMediaCodecInputBufferAvailable(int buffer_index) {
     ::starboard::shared::pthread::ThreadSetPriority(kSbThreadPriorityHigh);
     first_call_on_handler_thread_ = false;
   }
-  if (frame_tracker_.IsFull()) {
-    SB_LOG(INFO) << "Too many frames in decoder pipeline, deferring input.";
-    frame_tracker_.DeferInputBuffer(buffer_index);
-    return;
-  }
+  SB_LOG(INFO) << "Too many frames in decoder pipeline, deferring input.";
   ScopedLock scoped_lock(mutex_);
   input_buffer_indices_.push_back(buffer_index);
   if (input_buffer_indices_.size() == 1) {
