@@ -35,8 +35,6 @@ class DecodeTargetContextRunner {
   SbDecodeTargetGraphicsContextProvider* provider_;
 };
 
-}  // namespace decode_target
-
 }  // namespace starboard::shared::starboard::decode_target
 
 #endif  // STARBOARD_SHARED_STARBOARD_DECODE_TARGET_DECODE_TARGET_CONTEXT_RUNNER_H_
