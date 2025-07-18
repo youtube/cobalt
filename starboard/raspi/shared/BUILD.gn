@@ -212,10 +212,6 @@ static_library("starboard_platform_sources") {
 
   sources += common_player_sources
 
-  if (!sb_is_modular) {
-    sources += [ "//starboard/raspi/shared/main.cc" ]
-  }
-
   configs += [
     "//starboard/build/config:starboard_implementation",
     "//starboard/build/config:pedantic_warnings",
@@ -224,6 +220,7 @@ static_library("starboard_platform_sources") {
   public_deps = [
     "//starboard:starboard_headers_only",
     "//starboard/common",
+    "//starboard/crashpad_wrapper:wrapper_stub",
     "//starboard/linux/shared:starboard_base_symbolize",
     "//starboard/shared/ffmpeg:ffmpeg_dynamic_load",
     "//starboard/shared/starboard/media:media_util",

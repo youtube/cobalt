@@ -66,6 +66,9 @@ static constexpr auto kCobaltToggleSwitches = std::to_array<const char*>({
       // known regressions is 4444 textures, which are then disabled explicitly.
       switches::kEnableLowEndDeviceMode,
       blink::switches::kDisableRGBA4444Textures,
+      // For Starboard the signal handlers are already setup. Disable the
+      // Chromium registrations to avoid overriding the Starboard ones.
+      switches::kDisableInProcessStackTraces,
 });
 
 // Map of switches with parameters and their defaults.
