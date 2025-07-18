@@ -29,8 +29,13 @@ std::ostream& operator<<(std::ostream& os, const FrameTracker::State& status) {
   return os;
 }
 
-FrameTracker::FrameTracker(int max_frames, int64_t log_interval_us)
-    : frames_(max_frames, kUnassigned), task_runner_("frame_tracker") {
+FrameTracker::FrameTracker(int max_frames,
+                           int64_t log_interval_us,
+                           FrameReleasedCB frame_released_cb)
+    : frames_(max_frames, kUnassigned),
+      task_runner_("frame_tracker"),
+      frame_released_cb_(std::move(frame_released_cb)) {
+  SB_DCHECK(frame_released_cb_);
   if (log_interval_us > 0) {
     task_runner_.Schedule(
         [this, log_interval_us]() { LogStateAndReschedule(log_interval_us); },
@@ -86,10 +91,14 @@ bool FrameTracker::ReleaseFrameAt(int64_t release_time) {
   for (auto& frame : frames_) {
     if (frame == kDecoded) {
       frame = release_time;
+      int64_t delay_us = std::max(release_time - CurrentMonotonicTime(), 0);
+      task_runner_.Schedule([this] { frame_released_cb_(); }, delay_us);
+
       UpdateHighWaterMarks_Locked();
       return true;
     }
   }
+
   return false;
 }
 
