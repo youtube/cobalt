@@ -19,12 +19,40 @@ import("//third_party/icu/config.gni")
 cobalt_shell_test_manifest =
     "$target_gen_dir/cobalt_shell_test_manifest/AndroidManifest.xml"
 
-# TODO(b/432786200): Rename the `content_shell_*` targets to `cobalt_shell_*`.
-generate_jni("cobalt_shell_jni_headers") {
+generate_jni("jni_headers") {
   sources = [
-    "//cobalt/android/apk/app/src/main/java/dev/cobalt/shell/Shell.java",
-    "//cobalt/android/apk/app/src/main/java/dev/cobalt/shell/ShellManager.java",
+    "Shell.java",
+    "ShellManager.java",
   ]
+}
+
+android_library("shell_java") {
+  sources = [
+    "Shell.java",
+    "ShellManager.java",
+    "ShellViewAndroidDelegate.java",
+    "Util.java",
+  ]
+
+  deps = [
+    "//base:base_java",
+    "//base:jni_java",
+    "//build/android:build_java",
+    "//components/download/internal/common:internal_java",
+    "//components/embedder_support/android:content_view_java",
+    "//components/embedder_support/android:view_java",
+    "//components/viz/service:service_java",
+    "//content/public/android:content_java",
+    "//media/base/android:media_java",
+    "//media/capture/video/android:capture_java",
+    "//mojo/public/java:system_java",
+    "//net/android:net_java",
+    "//ui/android:ui_java",
+    "//ui/base/cursor/mojom:cursor_type_java",
+    "//url:gurl_java",
+  ]
+
+  annotation_processor_deps = [ "//base/android/jni_generator:jni_processor" ]
 }
 
 shared_library("libcobalt_native_test") {
@@ -59,38 +87,17 @@ android_resources("content_shell_java_resources") {
   deps = [ "//cobalt/android:cobalt_java_resources" ]
 }
 
-android_library("content_shell_java") {
+jinja_template("content_shell_manifest") {
   testonly = true
-  resources_package = "org.chromium.content_shell"
-  deps = [
-    ":cobalt_shell_test_manifest",
-    ":content_shell_java_resources",
-    "//base:base_java",
-    "//base:jni_java",
-    "//build/android:build_java",
-    "//components/download/internal/common:internal_java",
-    "//components/embedder_support/android:content_view_java",
-    "//components/embedder_support/android:view_java",
-    "//components/viz/service:service_java",
-    "//content/public/android:content_java",
-    "//media/base/android:media_java",
-    "//media/capture/video/android:capture_java",
-    "//mojo/public/java:system_java",
-    "//net/android:net_java",
-    "//ui/android:ui_java",
-    "//ui/base/cursor/mojom:cursor_type_java",
-    "//url:gurl_java",
+  input = "//cobalt/android/apk/app/src/app/AndroidManifest.xml.jinja2"
+  output = content_shell_manifest
+  variables = [
+    "manifest_package=dev.cobalt.app",
+    "build_type=$build_type",
   ]
-  sources = [
-    "//cobalt/android/apk/app/src/main/java/dev/cobalt/shell/Shell.java",
-    "//cobalt/android/apk/app/src/main/java/dev/cobalt/shell/ShellManager.java",
-    "//cobalt/android/apk/app/src/main/java/dev/cobalt/shell/ShellViewAndroidDelegate.java",
-  ]
-
-  annotation_processor_deps = [ "//base/android/jni_generator:jni_processor" ]
 }
 
-jinja_template("cobalt_shell_test_manifest") {
+jinja_template("content_shell_test_manifest") {
   testonly = true
   input = "javatests/AndroidManifest.xml"
   includes = [ "//cobalt/android/apk/app/src/app/AndroidManifest.xml.jinja2" ]
@@ -119,7 +126,8 @@ android_library("content_shell_test_apk_java") {
   deps = [
     ":cobalt_shell_test_manifest",
     ":content_shell_apk_resources",
-    ":content_shell_java",
+    ":content_shell_manifest",
+    ":shell_java",
     "//base:base_java",
     "//base:process_launcher_java",
     "//build/android:build_java",
@@ -164,8 +172,7 @@ template("content_shell_apk_tmpl") {
     }
     deps += [
       ":content_shell_assets",
-      ":content_shell_java",
-      ":content_shell_test_apk_java",
+      ":shell_java",
       "//base:base_java_test_support",
       "//components/metrics:metrics_java",
       "//content/public/android:content_java",
@@ -202,8 +209,8 @@ content_shell_apk_tmpl("cobalt_shell_test_apk") {
 android_library("content_shell_test_java") {
   testonly = true
   deps = [
-    ":content_shell_java",
-    ":content_shell_test_apk_java",
+    ":content_shell_apk_java",
+    ":shell_java",
     "//base:base_java",
     "//base:base_java_test_support",
     "//content/public/android:content_java",
@@ -227,7 +234,7 @@ android_library("content_shell_test_java") {
 android_library("content_shell_browsertests_java") {
   testonly = true
   deps = [
-    ":content_shell_java",
+    ":shell_java",
     "//base:base_java",
     "//content/public/android:content_java",
     "//testing/android/native_test:native_test_java",
