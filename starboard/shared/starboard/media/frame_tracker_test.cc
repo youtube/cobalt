@@ -125,13 +125,17 @@ TEST(FrameTrackerTest, StreamInsertionOperator) {
   status.decoding_frames_high_water_mark = 3;
   status.decoded_frames_high_water_mark = 4;
   status.total_frames_high_water_mark = 5;
+  status.min_decoding_time_us = 10;
+  status.max_decoding_time_us = 20;
+  status.avg_decoding_time_us = 15;
 
   std::stringstream ss;
   ss << status;
 
   EXPECT_EQ(ss.str(),
             "{decoding: 1, decoded: 2, decoding (hw): 3, decoded (hw): 4, "
-            "total (hw): 5}");
+            "total (hw): 5, min decoding time: 10, max decoding time: 20, "
+            "avg decoding time: 15}");
 }
 
 TEST(FrameTrackerTest, ReleaseFrameAt) {
@@ -162,6 +166,26 @@ TEST(FrameTrackerTest, ReleaseFrameAt) {
 
 TEST(FrameTrackerTest, LongIntervalNotBlockDestruction) {
   FrameTracker frame_tracker(kMaxFrames, 1'000'000'000);
+}
+
+TEST(FrameTrackerTest, DecodingTimeStats) {
+  FrameTracker frame_tracker(kMaxFrames, 0);
+
+  frame_tracker.AddFrame();
+  usleep(10'000);
+  frame_tracker.SetFrameDecoded();
+
+  frame_tracker.AddFrame();
+  usleep(20'000);
+  frame_tracker.SetFrameDecoded();
+
+  FrameTracker::State status = frame_tracker.GetCurrentState();
+  EXPECT_GE(status.min_decoding_time_us, 10'000);
+  EXPECT_LE(status.min_decoding_time_us, 15'000);
+  EXPECT_GE(status.max_decoding_time_us, 20'000);
+  EXPECT_LE(status.max_decoding_time_us, 25'000);
+  EXPECT_GE(status.avg_decoding_time_us, 15'000);
+  EXPECT_LE(status.avg_decoding_time_us, 20'000);
 }
 
 }  // namespace
