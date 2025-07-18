@@ -294,6 +294,4 @@ SbDecodeTarget VideoDecoder::GetCurrentDecodeTarget() {
   }
 }
 
-}  // namespace aom
-
 }  // namespace starboard::shared::aom
