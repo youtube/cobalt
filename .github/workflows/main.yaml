@@ -47,6 +47,9 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          ref: ${{ github.event.pull_request.head.sha }}
       - name: Cache CI Essentials
         uses: actions/upload-artifact@v4
         with:
@@ -59,7 +62,7 @@ jobs:
             cobalt/docker
             cobalt/testing/filters
             cobalt/tools
-            docker-compose.yml
+            docker-compose.yaml
       - name: Remove runtest if exists
         if: github.event_name == 'pull_request'
         continue-on-error: true  # Ignore this step if we cannot remove the label.
@@ -192,12 +195,21 @@ jobs:
           # Create a zero-indexed list of shards for use by matrix, e.g. [0,1,2,3,4,5].
           gtest_shards="[$(seq -s, 0 1 $((${num_gtest_shards} - 1)))]"
           echo "gtest_shards=${gtest_shards}" >> $GITHUB_OUTPUT
+      - name: Set git hash for Docker changes
+        id: set-docker-hash
+        shell: bash
+        run: |
+          set -x
+          docker_content_sha=$(git log -n 1 --pretty=format:%h -- cobalt/docker docker-compose.yaml)
+          git show ${docker_content_sha}
+          echo "docker_content_sha=${docker_content_sha}" >> $GITHUB_OUTPUT
     outputs:
       platforms: ${{ steps.set-platforms.outputs.platforms }}
       targets: ${{ steps.set-targets.outputs.targets }}
       build_configs: ${{ steps.set-build-configs.outputs.build_configs }}
       includes: ${{ steps.set-includes.outputs.includes }}
       docker_service: ${{ steps.set-docker-service.outputs.docker_service }}
+      docker_content_sha: ${{ steps.set-docker-hash.outputs.docker_content_sha }}
       gtest_shards: ${{ steps.set-gtest-shards.outputs.gtest_shards }}
       test_on_host: ${{ steps.set-test-on-host.outputs.test_on_host }}
       test_on_device: ${{ steps.set-test-on-device.outputs.test_on_device }}
@@ -216,32 +228,20 @@ jobs:
     needs: [initialize]
     runs-on: [self-hosted, chrobalt-linux-runner]
     steps:
-    - name: Restore CI Essentials
-      uses: actions/download-artifact@v4
-      with:
-        name: ci-essentials-${{ inputs.platform }}
-    # Handle GitHub registry used for everything other than pull requests off forked repos.
-    - name: Login to GitHub Docker Registry
-      uses: docker/login-action@9780b0c442fbb1117ed29e0efdff1e18412f7567 # v3.3.0
-      with:
-        registry: ghcr.io
-        username: ${{ github.actor }}
-        password: ${{ secrets.GITHUB_TOKEN }}
-    - name: Build docker image
-      id: build-docker-image
-      uses: ./.github/actions/docker
-      with:
-        docker_service: ${{ needs.initialize.outputs.docker_service }}
-        is_forked_pr: ${{ github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name != github.repository }}
-    - name: Set Docker Tag Output
-      id: set-docker-tag-output
-      shell: bash
-      run: |
-        set -u
-        echo $DOCKER_TAG
-        echo "docker_tag=$DOCKER_TAG" | head -n 1  >> $GITHUB_OUTPUT
+      - name: Restore CI Essentials
+        uses: actions/download-artifact@v4
+        with:
+          name: ci-essentials-${{ inputs.platform }}
+      - name: Build docker image
+        id: build-docker-image
+        uses: ./.github/actions/docker
+        with:
+          docker_service: ${{ needs.initialize.outputs.docker_service }}
+          is_pr: ${{ (github.event_name == 'pull_request') }}
+          docker_content_sha: ${{ needs.initialize.outputs.docker_content_sha }}
+          github_token: ${{ secrets.GITHUB_TOKEN }}
     outputs:
-      docker_tag: ${{ steps.set-docker-tag-output.outputs.docker_tag }}
+      docker_tag: ${{ steps.build-docker-image.outputs.docker_tag }}
 
   # Builds, tags, and pushes Cobalt unit test image to ghr.
   docker-unittest-image:
@@ -253,27 +253,16 @@ jobs:
         uses: actions/download-artifact@v4
         with:
           name: ci-essentials-${{ inputs.platform }}
-      - name: Login to GitHub Docker Registry
-        uses: docker/login-action@9780b0c442fbb1117ed29e0efdff1e18412f7567 # v3.3.0
-        with:
-          registry: ghcr.io
-          username: ${{ github.actor }}
-          password: ${{ secrets.GITHUB_TOKEN }}
       - name: Build docker image
         id: build-docker-image
         uses: ./.github/actions/docker
         with:
           docker_service: unittest
-          is_forked_pr: ${{ github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name != github.repository }}
-      - name: Set Docker Tag Output
-        id: set-docker-tag-output
-        shell: bash
-        run: |
-          set -u
-          echo $DOCKER_TAG
-          echo "docker_tag=$DOCKER_TAG" | head -n 1 >> $GITHUB_OUTPUT
+          is_pr: ${{ (github.event_name == 'pull_request') }}
+          docker_content_sha: ${{ needs.initialize.outputs.docker_content_sha }}
+          github_token: ${{ secrets.GITHUB_TOKEN }}
     outputs:
-      docker_tag: ${{ steps.set-docker-tag-output.outputs.docker_tag }}
+      docker_tag: ${{ steps.build-docker-image.outputs.docker_tag }}
 
   # Builds, tags, and pushes Cobalt web test image to ghr.
   docker-webtest-image:
@@ -285,27 +274,16 @@ jobs:
         uses: actions/download-artifact@v4
         with:
           name: ci-essentials-${{ inputs.platform }}
-      - name: Login to GitHub Docker Registry
-        uses: docker/login-action@9780b0c442fbb1117ed29e0efdff1e18412f7567 # v3.3.0
-        with:
-          registry: ghcr.io
-          username: ${{ github.actor }}
-          password: ${{ secrets.GITHUB_TOKEN }}
       - name: Build docker image
         id: build-docker-image
         uses: ./.github/actions/docker
         with:
           docker_service: webtest
-          is_forked_pr: ${{ github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name != github.repository }}
-      - name: Set Docker Tag Output
-        id: set-docker-tag-output
-        shell: bash
-        run: |
-          set -u
-          echo $DOCKER_TAG
-          echo "docker_tag=$DOCKER_TAG" | head -n 1 >> $GITHUB_OUTPUT
+          is_pr: ${{ (github.event_name == 'pull_request') }}
+          docker_content_sha: ${{ needs.initialize.outputs.docker_content_sha }}
+          github_token: ${{ secrets.GITHUB_TOKEN }}
     outputs:
-      docker_tag: ${{ steps.set-docker-tag-output.outputs.docker_tag }}
+      docker_tag: ${{ steps.build-docker-image.outputs.docker_tag }}
 
   build:
     needs: [initialize, docker-build-image]
