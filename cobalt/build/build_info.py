@@ -14,6 +14,7 @@
 # limitations under the License.
 """Generates a Cobalt Build Info json."""
 
+import argparse
 import datetime
 import json
 import os
@@ -205,7 +206,6 @@ def write_licenses(txt_path, spdx_path):
 
 
 if __name__ == '__main__':
-  import argparse
   parser = argparse.ArgumentParser()
   parser.add_argument(
       '--skip-licenses',
