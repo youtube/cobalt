@@ -89,7 +89,7 @@ class MojoCdm final : public ContentDecryptionModule,
 #endif  // BUILDFLAG(IS_WIN)
 
 #if BUILDFLAG(USE_STARBOARD_MEDIA)
-  void GetMetrics(base::OnceCallback<void(const std::string&)> callback);
+  void GetMetrics(std::unique_ptr<GetMetricsCdmPromise> promise);
 #endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
 
  private:
@@ -173,7 +173,7 @@ class MojoCdm final : public ContentDecryptionModule,
   CallbackRegistry<EventCB::RunType> event_callbacks_;
 
 #if BUILDFLAG(USE_STARBOARD_MEDIA)
-  void OnMetricsReceived(base::OnceCallback<void(const std::string&)> callback,
+  void OnMetricsReceived(uint32_t promise_id,
                          const absl::optional<std::string>& metrics_string);
 #endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
 

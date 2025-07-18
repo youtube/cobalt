@@ -28,7 +28,8 @@ class MediaKeysGetMetrics {
 
  public:
   static ScriptPromise getMetrics(ScriptState* script_state,
-                                  MediaKeys& media_keys);
+                                  MediaKeys& media_keys,
+                                  ExceptionState&);
 };
 
 }  // namespace blink

@@ -414,22 +414,25 @@ void MojoCdm::RejectPromiseConnectionLost(uint32_t promise_id) {
 
 #if BUILDFLAG(USE_STARBOARD_MEDIA)
 void MojoCdm::GetMetrics(
-    base::OnceCallback<void(const std::string&)> callback) {
-  if (!remote_cdm_.is_bound()) {
-    // If we're not connected, run the callback with an empty string.
-    std::move(callback).Run(std::string());
+    std::unique_ptr<GetMetricsCdmPromise> promise) {
+  uint32_t promise_id =
+      cdm_promise_adapter_.SavePromise(std::move(promise), __func__);
+
+  if (!remote_cdm_) {
+    RejectPromiseConnectionLost(promise_id);
     return;
   }
 
   remote_cdm_->GetMetrics(
         base::BindOnce(&MojoCdm::OnMetricsReceived,
-                       base::Unretained(this), std::move(callback)));
+                       base::Unretained(this), promise_id));
 }
 
 void MojoCdm::OnMetricsReceived(
-    base::OnceCallback<void(const std::string&)> callback,
+    uint32_t promise_id,
     const absl::optional<std::string>& metrics_string) {
-  std::move(callback).Run(metrics_string.value_or(std::string()));
+  cdm_promise_adapter_.ResolvePromise(promise_id,
+      metrics_string.value_or(std::string()));
 }
 #endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
 

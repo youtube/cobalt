@@ -24,6 +24,7 @@
 
 #if BUILDFLAG(USE_STARBOARD_MEDIA)
 #include "media/starboard/starboard_cdm.h"
+constexpr unsigned long long kMaxMetricsSize = 1024 * 1024;
 #endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
 
 namespace media {
@@ -259,7 +260,7 @@ void MojoCdmService::GetMetrics(GetMetricsCallback callback) {
   const uint8_t* metrics_data = static_cast<const uint8_t*>(
       SbDrmGetMetrics(drm_system, &metrics_size));
 
-  if (!metrics_data || metrics_size <= 0) {
+  if (!metrics_data || metrics_size <= 0 || metrics_size >= kMaxMetricsSize) {
     DLOG(ERROR) << "Failed to get metrics from SbDrmSystem.";
     std::move(callback).Run(absl::nullopt);
     return;

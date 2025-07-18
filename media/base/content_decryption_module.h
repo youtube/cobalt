@@ -18,10 +18,6 @@
 #include "media/base/media_export.h"
 #include "url/gurl.h"
 
-#if BUILDFLAG(USE_STARBOARD_MEDIA)
-#include "base/functional/callback.h"
-#endif // BUILDFLAG(USE_STARBOARD_MEDIA)
-
 namespace base {
 class Time;
 }
@@ -37,6 +33,10 @@ class CdmPromiseTemplate;
 typedef CdmPromiseTemplate<std::string> NewSessionCdmPromise;
 typedef CdmPromiseTemplate<> SimpleCdmPromise;
 typedef CdmPromiseTemplate<CdmKeyInformation::KeyStatus> KeyStatusCdmPromise;
+#if BUILDFLAG(USE_STARBOARD_MEDIA)
+typedef CdmPromiseTemplate<std::string> GetMetricsCdmPromise;
+#endif // BUILDFLAG(USE_STARBOARD_MEDIA)
+
 
 typedef std::vector<std::unique_ptr<CdmKeyInformation>> CdmKeysInfo;
 
@@ -185,7 +185,7 @@ class MEDIA_EXPORT ContentDecryptionModule
   virtual void DeleteOnCorrectThread() const;
 
 #if BUILDFLAG(USE_STARBOARD_MEDIA)
-  virtual void GetMetrics(base::OnceCallback<void(const std::string&)> callback) {}
+  virtual void GetMetrics(std::unique_ptr<GetMetricsCdmPromise> promise);
 #endif // BUILDFLAG(USE_STARBOARD_MEDIA)
 
  protected:

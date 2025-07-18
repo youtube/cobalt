@@ -264,9 +264,9 @@ WebContentDecryptionModuleSessionImpl* CdmSessionAdapter::GetSession(
 #if BUILDFLAG(USE_STARBOARD_MEDIA)
 // TODO(b/432075710) move to starboard cdm extension
 void CdmSessionAdapter::GetMetrics(
-    base::OnceCallback<void(const std::string&)> callback) {
+    std::unique_ptr<media::GetMetricsCdmPromise> promise) {
   DCHECK(cdm_);
-  cdm_->GetMetrics(std::move(callback));
+  cdm_->GetMetrics(std::move(promise));
 }
 #endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
 

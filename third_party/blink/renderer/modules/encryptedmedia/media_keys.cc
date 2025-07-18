@@ -54,6 +54,11 @@
 #include "third_party/blink/renderer/platform/timer.h"
 #include "third_party/blink/renderer/platform/wtf/casting.h"
 
+#if BUILDFLAG(USE_STARBOARD_MEDIA)
+#include "media/base/cdm_promise.h"
+#include "third_party/blink/renderer/platform/media/cdm_result_promise_helper.h"
+#endif // BUILDFLAG(USE_STARBOARD_MEDIA)
+
 #define MEDIA_KEYS_LOG_LEVEL 3
 
 namespace blink {
@@ -442,27 +447,52 @@ ScriptPromise MediaKeys::getStatusForPolicy(
 }
 
 #if BUILDFLAG(USE_STARBOARD_MEDIA)
-ScriptPromise MediaKeys::getMetrics(ScriptState* script_state) {
-  auto* resolver = MakeGarbageCollected<ScriptPromiseResolver>(script_state);
-  ScriptPromise promise = resolver->Promise();
+class GetMetricsResultPromise
+    : public ContentDecryptionModuleResultPromise {
+ public:
+  GetMetricsResultPromise(ScriptState* script_state,
+                          const MediaKeysConfig& config,
+                          MediaKeys* media_keys)
+      : ContentDecryptionModuleResultPromise(script_state,
+                                             config,
+                                             EmeApiType::kGetMetrics),
+        media_keys_(media_keys) {}
 
-  if (!cdm_) {
-    resolver->Reject(MakeGarbageCollected<DOMException>(
-        DOMExceptionCode::kInvalidStateError, "No active CDM."));
-    return promise;
+  ~GetMetricsResultPromise() override = default;
+
+  // ContentDecryptionModuleResult implementation.
+  void CompleteWithString(
+      const WebString& result) override {
+    if (!IsValidToFulfillPromise())
+      return;
+
+    Resolve(result);
+  }
+  void Trace(Visitor* visitor) const override {
+    visitor->Trace(media_keys_);
+    ContentDecryptionModuleResultPromise::Trace(visitor);
   }
 
-  auto callback = base::BindOnce(
-      [](ScriptPromiseResolver* resolver, const std::string& metrics) {
-        if (!resolver->GetScriptState() ||
-            !resolver->GetScriptState()->ContextIsValid()) {
-          return;
-        }
-        resolver->Resolve(String::FromUTF8(metrics));
-      },
-      WrapPersistent( resolver));
+ private:
+  // Keeping a reference to MediaKeys to prevent GC from collecting it while
+  // the promise is pending.
+  Member<MediaKeys> media_keys_;
+};
 
-  cdm_->GetMetrics(std::move(callback));
+ScriptPromise MediaKeys::getMetrics(ScriptState* script_state,
+                                    ExceptionState& exception_state) {
+  if (!cdm_) {
+    exception_state.ThrowDOMException(DOMExceptionCode::kInvalidStateError,
+                                      "No active CDM..");
+    return ScriptPromise();
+  }
+
+  GetMetricsResultPromise* result = 
+    MakeGarbageCollected<GetMetricsResultPromise>(script_state, config_, this);
+
+  ScriptPromise promise = result->Promise();
+
+  cdm_->GetMetrics(result->Result());
 
   return promise;
 }

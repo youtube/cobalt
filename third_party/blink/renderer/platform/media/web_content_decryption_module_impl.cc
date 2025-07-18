@@ -31,6 +31,10 @@ const char kCreateSessionSessionTypeUMAName[] = "CreateSession.SessionType";
 const char kSetServerCertificateUMAName[] = "SetServerCertificate";
 const char kGetStatusForPolicyUMAName[] = "GetStatusForPolicy";
 
+#if BUILDFLAG(USE_STARBOARD_MEDIA)
+const char kGetMetricsUMAName[] = "GetMetrics";
+#endif // BUILDFLAG(USE_STARBOARD_MEDIA)
+
 bool ConvertHdcpVersion(const WebString& hdcp_version_string,
                         media::HdcpVersion* hdcp_version) {
   if (!hdcp_version_string.ContainsOnlyASCII())
@@ -156,8 +160,10 @@ void WebContentDecryptionModuleImpl::GetStatusForPolicy(
 
 #if BUILDFLAG(USE_STARBOARD_MEDIA)
 void WebContentDecryptionModuleImpl::GetMetrics(
-    base::OnceCallback<void(const std::string&)> callback) {
-  adapter_->GetMetrics(std::move(callback));
+    WebContentDecryptionModuleResult result) {
+  adapter_->GetMetrics(std::make_unique<CdmResultPromise<std::string>>(
+                       result, adapter_->GetKeySystemUMAPrefix(),
+                       kGetMetricsUMAName));
 }
 #endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
 

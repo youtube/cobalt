@@ -55,8 +55,7 @@ class PLATFORM_EXPORT WebContentDecryptionModuleImpl
                           WebContentDecryptionModuleResult result) override;
 
 #if BUILDFLAG(USE_STARBOARD_MEDIA)
-  void GetMetrics(
-      base::OnceCallback<void(const std::string&)> callback) override;
+  void GetMetrics(WebContentDecryptionModuleResult result) override;
 #endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
 
   std::unique_ptr<media::CdmContextRef> GetCdmContextRef();
