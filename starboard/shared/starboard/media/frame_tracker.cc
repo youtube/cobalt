@@ -91,21 +91,6 @@ bool FrameTracker::IsFull() {
          frames_.cend();
 }
 
-void FrameTracker::DeferInputBuffer(int buffer_index) {
-  std::lock_guard lock(mutex_);
-  deferred_input_buffer_indices_.push(buffer_index);
-}
-
-std::optional<int> FrameTracker::GetDeferredInputBuffer() {
-  std::lock_guard lock(mutex_);
-  if (deferred_input_buffer_indices_.empty()) {
-    return std::nullopt;
-  }
-  int buffer_index = deferred_input_buffer_indices_.front();
-  deferred_input_buffer_indices_.pop();
-  return buffer_index;
-}
-
 std::pair<int, int> FrameTracker::UpdateHighWaterMarks_Locked() {
   int decoding_frames = 0;
   int decoded_frames = 0;
