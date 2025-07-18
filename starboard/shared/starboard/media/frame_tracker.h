@@ -1,10 +1,10 @@
 #ifndef STARBOARD_SHARED_STARBOARD_MEDIA_FRAME_TRACKER_H_
 #define STARBOARD_SHARED_STARBOARD_MEDIA_FRAME_TRACKER_H_
 
+#include <deque>
 #include <functional>
 #include <iosfwd>
 #include <mutex>
-#include <deque>
 
 #include "starboard/shared/starboard/player/job_thread.h"
 
@@ -34,7 +34,6 @@ class FrameTracker {
 
   bool AddFrame();
   bool SetFrameDecoded();
-  bool ReleaseFrame();
   bool ReleaseFrameAt(int64_t release_us);
 
   State GetCurrentState() const;
