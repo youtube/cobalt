@@ -658,7 +658,6 @@ void MediaDecoder::OnMediaCodecInputBufferAvailable(int buffer_index) {
     ::starboard::shared::pthread::ThreadSetPriority(kSbThreadPriorityHigh);
     first_call_on_handler_thread_ = false;
   }
-  SB_LOG(INFO) << "Too many frames in decoder pipeline, deferring input.";
   ScopedLock scoped_lock(mutex_);
   input_buffer_indices_.push_back(buffer_index);
   if (input_buffer_indices_.size() == 1) {
