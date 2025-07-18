@@ -1,6 +1,7 @@
 #ifndef STARBOARD_SHARED_STARBOARD_MEDIA_FRAME_TRACKER_H_
 #define STARBOARD_SHARED_STARBOARD_MEDIA_FRAME_TRACKER_H_
 
+#include <functional>
 #include <iosfwd>
 #include <mutex>
 #include <optional>
@@ -12,6 +13,8 @@ namespace starboard::shared::starboard::media {
 
 class FrameTracker {
  public:
+  using FrameReleasedCB = std::function<void()>;
+
   struct State {
     int decoding_frames;
     int decoded_frames;
@@ -23,7 +26,9 @@ class FrameTracker {
     int64_t avg_decoding_time_us;
   };
 
-  FrameTracker(int max_frames, int64_t log_interval_us);
+  FrameTracker(int max_frames,
+               int64_t log_interval_us,
+               FrameReleasedCB frame_released_cb);
   ~FrameTracker();
 
   bool AddFrame();
@@ -50,6 +55,8 @@ class FrameTracker {
 
   std::deque<int64_t> decoding_start_times_us_;
   std::deque<int64_t> last_30_decoding_times_us_;
+
+  const FrameReleasedCB frame_released_cb_;
 
   ::starboard::shared::starboard::player::JobThread task_runner_;
 };
