@@ -39,11 +39,9 @@ config("wnos") {
 test("nplb") {
   testonly = true
 
-  sources = [
-    "//starboard/common/test_main.cc",
+  bla = [
     "//starboard/shared/starboard/drm/drm_test_helpers.cc",
     "//starboard/shared/starboard/drm/drm_test_helpers.h",
-    "align_test.cc",
     "audio_sink_create_test.cc",
     "audio_sink_destroy_test.cc",
     "audio_sink_get_max_channels_test.cc",
@@ -54,14 +52,48 @@ test("nplb") {
     "audio_sink_is_audio_frame_storage_type_supported_test.cc",
     "audio_sink_is_audio_sample_type_supported_test.cc",
     "audio_sink_test.cc",
-    "char_is_signed_test.cc",
-    "configuration_test.cc",
-    "cpu_features_get_test.cc",
     "drm_get_metrics_test.cc",
     "drm_helpers.h",
     "drm_is_server_certificate_updatable_test.cc",
     "drm_session_test.cc",
     "drm_update_server_certificate_test.cc",
+
+    # TODO: Separate functions tested by media buffer test into multiple
+    # files.
+    "drm_create_system_test.cc",
+    "media_buffer_test.cc",
+    "media_can_play_mime_and_key_system_test.cc",
+    "media_configuration_test.cc",
+  ]
+
+  foo = [
+    "//starboard/testing/fake_graphics_context_provider.cc",
+    "//starboard/testing/fake_graphics_context_provider.h",
+    "maximum_player_configuration_explorer_test.cc",
+    "maximum_player_configuration_explorer.cc",
+    "maximum_player_configuration_explorer.h",
+    "media_set_audio_write_duration_test.cc",
+    "multiple_player_test.cc",
+    "player_create_test.cc",
+    "player_creation_param_helpers.cc",
+    "player_creation_param_helpers.h",
+    "player_get_audio_configuration_test.cc",
+    "player_get_media_time_test.cc",
+    "player_get_preferred_output_mode_test.cc",
+    "player_test_util.cc",
+    "player_test_util.h",
+    "player_test_fixture.cc",
+    "player_test_fixture.h",
+    "player_write_sample_test.cc",
+    "vertical_video_test.cc",
+  ]
+
+  sources = [
+    "//starboard/common/test_main.cc",
+    "align_test.cc",
+    "char_is_signed_test.cc",
+    "configuration_test.cc",
+    "cpu_features_get_test.cc",
     "egl_test.cc",
     "extern_c_test.cc",
     "file_atomic_replace_test.cc",
@@ -77,15 +109,6 @@ test("nplb") {
     "log_raw_dump_stack_test.cc",
     "log_raw_test.cc",
     "log_test.cc",
-
-    # TODO: Separate functions tested by media buffer test into multiple
-    # files.
-    "drm_create_system_test.cc",
-    "maximum_player_configuration_explorer.cc",
-    "maximum_player_configuration_explorer.h",
-    "media_buffer_test.cc",
-    "media_can_play_mime_and_key_system_test.cc",
-    "media_configuration_test.cc",
     "microphone_close_test.cc",
     "microphone_create_test.cc",
     "microphone_destroy_test.cc",
@@ -94,11 +117,6 @@ test("nplb") {
     "microphone_open_test.cc",
     "microphone_read_test.cc",
     "murmurhash2_test.cc",
-    "player_creation_param_helpers.cc",
-    "player_creation_param_helpers.h",
-    "player_get_preferred_output_mode_test.cc",
-    "player_test_util.cc",
-    "player_test_util.h",
     "posix_compliance/madvise_test.cc",
     "posix_compliance/malloc_usable_size_test.cc",
     "posix_compliance/posix_arpa_inet_test.cc",
@@ -242,6 +260,8 @@ test("nplb") {
     "url_player_create_test.cc",
   ]
 
+  sources += bla
+
   if (!is_androidtv) {
     sources += [
       "//starboard/nplb/sabi/alignment_test.cc",
@@ -250,26 +270,15 @@ test("nplb") {
       "//starboard/nplb/sabi/signedness_of_char_test.cc",
       "//starboard/nplb/sabi/size_test.cc",
       "//starboard/nplb/sabi/struct_alignment_test.cc",
-      "//starboard/testing/fake_graphics_context_provider.cc",
-      "//starboard/testing/fake_graphics_context_provider.h",
-      "maximum_player_configuration_explorer_test.cc",
-      "media_set_audio_write_duration_test.cc",
-      "multiple_player_test.cc",
-      "player_create_test.cc",
-      "player_get_audio_configuration_test.cc",
-      "player_get_media_time_test.cc",
-      "player_test_fixture.cc",
-      "player_test_fixture.h",
-      "player_write_sample_test.cc",
       "posix_compliance/posix_aligned_alloc_test.cc",
       "speech_synthesis_basic_test.cc",
-      "vertical_video_test.cc",
       "window_create_test.cc",
       "window_destroy_test.cc",
       "window_get_diagonal_size_in_inches_test.cc",
       "window_get_platform_handle_test.cc",
       "window_get_size_test.cc",
     ]
+    sources += foo
     if (enable_cobalt_hermetic_hacks) {
       sources -= [
         # TODO: b/400512503 - Fix build errors.
@@ -326,26 +335,8 @@ test("nplb") {
 
   #  TODO: b/297808555 - Add these tests for all  modular builds.
   if (sb_has_unused_symbol_issue) {
-    sources -= [
-      "maximum_player_configuration_explorer.cc",
-      "maximum_player_configuration_explorer.h",
-      "maximum_player_configuration_explorer_test.cc",
-      "media_buffer_test.cc",
-      "media_set_audio_write_duration_test.cc",
-      "multiple_player_test.cc",
-      "player_create_test.cc",
-      "player_creation_param_helpers.cc",
-      "player_creation_param_helpers.h",
-      "player_get_audio_configuration_test.cc",
-      "player_get_media_time_test.cc",
-      "player_get_preferred_output_mode_test.cc",
-      "player_test_fixture.cc",
-      "player_test_fixture.h",
-      "player_test_util.cc",
-      "player_test_util.h",
-      "player_write_sample_test.cc",
-      "vertical_video_test.cc",
-    ]
+    sources -= foo
+    sources -= [ "media_buffer_test.cc" ]
 
     deps -= [
       "//starboard/shared/starboard/media:media_util",
