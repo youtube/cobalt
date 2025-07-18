@@ -51,13 +51,15 @@ class MockStarboardRenderer : public StarboardRenderer {
       const base::UnguessableToken& overlay_plane_id,
       TimeDelta audio_write_duration_local,
       TimeDelta audio_write_duration_remote,
-      const std::string& max_video_capabilities)
+      const std::string& max_video_capabilities,
+      const AndroidOverlayMojoFactoryCB android_overlay_factory_cb)
       : StarboardRenderer(task_runner,
                           std::move(media_log),
                           overlay_plane_id,
                           audio_write_duration_local,
                           audio_write_duration_remote,
-                          max_video_capabilities) {}
+                          max_video_capabilities,
+                          android_overlay_factory_cb) {}
 
   MockStarboardRenderer(const MockStarboardRenderer&) = delete;
   MockStarboardRenderer& operator=(const MockStarboardRenderer&) = delete;
@@ -153,7 +155,8 @@ class StarboardRendererWrapperTest : public testing::Test {
         std::move(media_log_remote), base::UnguessableToken::Create(),
         base::Seconds(1), base::Seconds(1), std::string(),
         std::move(renderer_extension_receiver),
-        std::move(client_extension_remote), base::NullCallback());
+        std::move(client_extension_remote), base::NullCallback(),
+        base::NullCallback());
     renderer_wrapper_ =
         std::make_unique<StarboardRendererWrapper>(std::move(traits));
     renderer_wrapper_->SetRendererForTesting(mock_renderer_.get());

@@ -22,6 +22,7 @@
 #include "base/threading/sequence_bound.h"
 #include "base/threading/thread_checker.h"
 #include "gpu/ipc/service/command_buffer_stub.h"
+#include "media/base/android_overlay_mojo_factory.h"
 #include "media/base/renderer.h"
 #include "media/gpu/starboard/starboard_gpu_factory_impl.h"
 #include "media/mojo/mojom/renderer_extensions.mojom.h"

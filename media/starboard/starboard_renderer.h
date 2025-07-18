@@ -24,6 +24,7 @@
 #include "base/synchronization/lock.h"
 #include "base/task/sequenced_task_runner.h"
 #include "base/time/time.h"
+#include "media/base/android_overlay_mojo_factory.h"
 #include "media/base/cdm_context.h"
 #include "media/base/decoder_buffer.h"
 #include "media/base/demuxer_stream.h"
@@ -48,12 +49,14 @@ using base::TimeDelta;
 class MEDIA_EXPORT StarboardRenderer : public Renderer,
                                        private SbPlayerBridge::Host {
  public:
-  StarboardRenderer(const scoped_refptr<base::SequencedTaskRunner>& task_runner,
-                    std::unique_ptr<MediaLog> media_log,
-                    const base::UnguessableToken& overlay_plane_id,
-                    TimeDelta audio_write_duration_local,
-                    TimeDelta audio_write_duration_remote,
-                    const std::string& max_video_capabilities);
+  StarboardRenderer(
+      const scoped_refptr<base::SequencedTaskRunner>& task_runner,
+      std::unique_ptr<MediaLog> media_log,
+      const base::UnguessableToken& overlay_plane_id,
+      TimeDelta audio_write_duration_local,
+      TimeDelta audio_write_duration_remote,
+      const std::string& max_video_capabilities,
+      const AndroidOverlayMojoFactoryCB android_overlay_factory_cb);
 
   // Disallow copy and assign.
   StarboardRenderer(const StarboardRenderer&) = delete;
@@ -170,6 +173,7 @@ class MEDIA_EXPORT StarboardRenderer : public Renderer,
   const TimeDelta audio_write_duration_local_;
   const TimeDelta audio_write_duration_remote_;
   const std::string max_video_capabilities_;
+  const AndroidOverlayMojoFactoryCB android_overlay_factory_cb_;
 
   raw_ptr<DemuxerStream> audio_stream_ = nullptr;
   raw_ptr<DemuxerStream> video_stream_ = nullptr;
