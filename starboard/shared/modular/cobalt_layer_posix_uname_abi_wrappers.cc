@@ -1,4 +1,4 @@
-// Copyright 2016 The Cobalt Authors. All Rights Reserved.
+// Copyright 2025 The Cobalt Authors. All Rights Reserved.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -12,8 +12,13 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include "starboard/time_zone.h"
+#include <sys/utsname.h>
 
-SbTimeZone SbTimeZoneGetCurrent() {
-  return 0;
+extern "C" {
+
+int __abi_wrap_uname(struct utsname* name);
+
+int uname(struct utsname* name) {
+  return __abi_wrap_uname(name);
+}
 }

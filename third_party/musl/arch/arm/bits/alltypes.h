@@ -16,14 +16,10 @@
 #define __LONG_MAX 0x7fffffffL
 
 #ifndef __cplusplus
-#if defined(USE_COBALT_CUSTOMIZATIONS)
-typedef __WCHAR_TYPE__ wchar_t;
-#else
 #if defined(__NEED_wchar_t) && !defined(__DEFINED_wchar_t)
 typedef unsigned wchar_t;
 #define __DEFINED_wchar_t
 #endif
-#endif // defined(USE_COBALT_CUSTOMIZATIONS)
 
 #endif
 

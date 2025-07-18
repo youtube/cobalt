@@ -15,8 +15,8 @@
 #ifndef COBALT_SHELL_RENDERER_RENDER_FRAME_TEST_HELPER_H_
 #define COBALT_SHELL_RENDERER_RENDER_FRAME_TEST_HELPER_H_
 
+#include "cobalt/shell/common/render_frame_test_helper.mojom.h"
 #include "content/public/renderer/render_frame_observer.h"
-#include "content/shell/common/render_frame_test_helper.mojom.h"
 #include "mojo/public/cpp/bindings/pending_receiver.h"
 #include "mojo/public/cpp/bindings/receiver.h"
 

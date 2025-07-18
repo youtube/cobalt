@@ -10,6 +10,11 @@ since the version previous to it.
 ## Version 17
 Starboard 17 fully switches to POSIX APIs.
 
+### From `starboard/time_zone.h`
+ * Removed `SbTimeZoneGetCurrent`. The time offset is now derived
+   from the name returned by `SbTimeZoneGetName`, using the zoneinfo
+   that is in the included ICU data.
+
 ### Removed the followoing SbEvents:
 * `kSbEventTypeUser`.
 * `kSbEventTypeAccessibilitySettingsChanged`

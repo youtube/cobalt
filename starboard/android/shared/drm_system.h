@@ -38,7 +38,7 @@ class DrmSystem : public ::SbDrmSystemPrivate,
                   public MediaDrmBridge::Host,
                   private Thread {
  public:
-  DrmSystem(const char* key_system,
+  DrmSystem(std::string_view key_system,
             void* context,
             SbDrmSessionUpdateRequestFunc update_request_callback,
             SbDrmSessionUpdatedFunc session_updated_callback,
@@ -69,8 +69,7 @@ class DrmSystem : public ::SbDrmSystemPrivate,
   void OnSessionUpdate(int ticket,
                        SbDrmSessionRequestType request_type,
                        std::string_view session_id,
-                       std::string_view content,
-                       const char* url) override;
+                       std::string_view content) override;
   void OnKeyStatusChange(
       std::string_view session_id,
       const std::vector<SbDrmKeyId>& drm_key_ids,
@@ -90,16 +89,15 @@ class DrmSystem : public ::SbDrmSystemPrivate,
   class SessionUpdateRequest {
    public:
     SessionUpdateRequest(int ticket,
-                         const char* type,
-                         const void* initialization_data,
-                         int initialization_data_size);
+                         std::string_view mime_type,
+                         std::string_view initialization_data);
     ~SessionUpdateRequest() = default;
 
     void Generate(const MediaDrmBridge* media_drm_bridge) const;
 
    private:
     const int ticket_;
-    const std::vector<const uint8_t> init_data_;
+    const std::string init_data_;
     const std::string mime_;
   };
 

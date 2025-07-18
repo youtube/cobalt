@@ -44,8 +44,8 @@ config("platform_configuration") {
     # to the legacy behavior during development to verify the customizations
     # are made cleanly. Once the feature is complete we may want to remove
     # existing customizations that enable the legacy behavior for Cobalt builds,
-    # change IN_MEMORY_UPDATES references to USE_COBALT_CUSTOMIZATIONS
-    # references, and remove this macro.
+    # change IN_MEMORY_UPDATES references to IS_COBALT references, and remove
+    # this macro.
     "IN_MEMORY_UPDATES",
   ]
 

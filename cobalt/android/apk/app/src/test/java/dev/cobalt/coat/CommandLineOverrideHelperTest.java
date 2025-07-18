@@ -55,54 +55,149 @@ public class CommandLineOverrideHelperTest {
 
     @Test
     public void testDefaultDisableFeatureOverridesList() {
-        String overrides = CommandLineOverrideHelper.getDefaultDisableFeatureOverridesList().toString();
+        String overrides =
+            CommandLineOverrideHelper.getDefaultDisableFeatureOverridesList().toString();
         assertThat(overrides.contains("AImageReader")).isTrue();
     }
 
     @Test
     public void testDefaultBlinkEnableFeatureOverridesList() {
-        String overrides = CommandLineOverrideHelper.getDefaultBlinkEnableFeatureOverridesList().toString();
+        String overrides =
+            CommandLineOverrideHelper.getDefaultBlinkEnableFeatureOverridesList().toString();
         assertThat(overrides.contains("MediaSourceNewAbortAndDuration")).isTrue();
     }
 
     @Test
     public void testFlagOverrides_NullParam() {
-      CommandLineOverrideHelper.getFlagOverrides(null);
+        CommandLineOverrideHelper.getFlagOverrides(null);
 
-      Assert.assertTrue(CommandLine.getInstance().hasSwitch("single-process"));
-      Assert.assertTrue(CommandLine.getInstance().hasSwitch("force-video-overlays"));
-      Assert.assertTrue(CommandLine.getInstance().hasSwitch("user-level-memory-pressure-signal-params"));
-      Assert.assertTrue(CommandLine.getInstance().hasSwitch("enable-low-end-device-mode"));
-      Assert.assertTrue(CommandLine.getInstance().hasSwitch("disable-rgba-4444-textures"));
+        Assert.assertTrue(CommandLine.getInstance().hasSwitch("single-process"));
+        Assert.assertTrue(CommandLine.getInstance().hasSwitch("force-video-overlays"));
+        Assert.assertTrue(
+            CommandLine.getInstance().hasSwitch("user-level-memory-pressure-signal-params"));
+        Assert.assertTrue(CommandLine.getInstance().hasSwitch("enable-low-end-device-mode"));
+        Assert.assertTrue(CommandLine.getInstance().hasSwitch("disable-rgba-4444-textures"));
 
-      String expected = "no-user-gesture-required";
-      String actual = CommandLine.getInstance().getSwitchValue("autoplay-policy");
-      Assert.assertEquals(expected, actual);
+        String expected = "no-user-gesture-required";
+        String actual = CommandLine.getInstance().getSwitchValue("autoplay-policy");
+        Assert.assertEquals(expected, actual);
 
-      expected = "1";
-      actual = CommandLine.getInstance().getSwitchValue("force-device-scale-factor");
-      Assert.assertEquals(expected, actual);
+        expected = "1";
+        actual = CommandLine.getInstance().getSwitchValue("force-device-scale-factor");
+        Assert.assertEquals(expected, actual);
 
-      expected = "passthrough";
-      actual = CommandLine.getInstance().getSwitchValue("use-cmd-decoder");
-      Assert.assertEquals(expected, actual);
+        expected = "32";
+        actual = CommandLine.getInstance().getSwitchValue("force-gpu-mem-available-mb");
+        Assert.assertEquals(expected, actual);
 
-      expected = "32";
-      actual = CommandLine.getInstance().getSwitchValue("force-gpu-mem-available-mb");
-      Assert.assertEquals(expected, actual);
+        actual = CommandLine.getInstance().getSwitchValue("enable-features");
+        expected = CommandLineOverrideHelper.getDefaultEnableFeatureOverridesList().toString();
+        Assert.assertEquals(expected, actual);
 
-      actual = CommandLine.getInstance().getSwitchValue("enable-features");
-      expected = "LogJsConsoleMessages,LimitImageDecodeCacheSize:mb/24";
-      Assert.assertEquals(expected, actual);
+        actual = CommandLine.getInstance().getSwitchValue("disable-features");
+        expected = CommandLineOverrideHelper.getDefaultDisableFeatureOverridesList().toString();
+        Assert.assertEquals(expected, actual);
 
-      actual = CommandLine.getInstance().getSwitchValue("disable-features");
-      expected = "AImageReader";
-      Assert.assertEquals(expected, actual);
-
-      actual = CommandLine.getInstance().getSwitchValue("blink-enable-features");
-      expected = "MediaSourceNewAbortAndDuration";
-      Assert.assertEquals(expected, actual);
+        actual = CommandLine.getInstance().getSwitchValue("blink-enable-features");
+        expected =
+            CommandLineOverrideHelper.getDefaultBlinkEnableFeatureOverridesList().toString();
+        Assert.assertEquals(expected, actual);
     }
 
-    // TODO(b/420912320): Add tests with non-null params to flag overrides
+    @Test
+    public void testFlagOverrides_SingleArg() {
+        String[] commandLineArgs = {"--enable-features=TestFeature1;TestFeature2"};
+        CommandLineOverrideHelper.CommandLineOverrideHelperParams params =
+            new CommandLineOverrideHelper.CommandLineOverrideHelperParams(
+                false, true, commandLineArgs);
+        CommandLineOverrideHelper.getFlagOverrides(params);
+
+        String actual = CommandLine.getInstance().getSwitchValue("enable-features");
+        String expected =
+            CommandLineOverrideHelper.getDefaultEnableFeatureOverridesList().toString()
+                + ",TestFeature1,TestFeature2";
+        Assert.assertEquals(expected, actual);
+    }
+
+    @Test
+    public void testFlagOverrides_MultipleArgs() {
+        String[] commandLineArgs = {
+        "--enable-features=TestFeature1;TestFeature2",
+        "--disable-features=TestFeature3",
+        "--js-flags=--test-flag;--another-flag"
+        };
+        CommandLineOverrideHelper.CommandLineOverrideHelperParams params =
+            new CommandLineOverrideHelper.CommandLineOverrideHelperParams(
+                false, true, commandLineArgs);
+        CommandLineOverrideHelper.getFlagOverrides(params);
+
+        String enableFeatures = CommandLine.getInstance().getSwitchValue("enable-features");
+        String expectedEnable =
+            CommandLineOverrideHelper.getDefaultEnableFeatureOverridesList().toString()
+                + ",TestFeature1,TestFeature2";
+        Assert.assertEquals(expectedEnable, enableFeatures);
+
+        String disableFeatures = CommandLine.getInstance().getSwitchValue("disable-features");
+        String expectedDisable =
+            CommandLineOverrideHelper.getDefaultDisableFeatureOverridesList().toString()
+                + ",TestFeature3";
+        Assert.assertEquals(expectedDisable, disableFeatures);
+
+        String jsFlags = CommandLine.getInstance().getSwitchValue("js-flags");
+        String expectedJs =
+            CommandLineOverrideHelper.getDefaultJsFlagOverridesList().toString()
+                + ",--test-flag,--another-flag";
+        Assert.assertEquals(expectedJs, jsFlags);
+    }
+
+    @Test
+    public void testFlagOverrides_WithRegularSwitch() {
+        String[] commandLineArgs = {"--some-other-switch=value"};
+        CommandLineOverrideHelper.CommandLineOverrideHelperParams params =
+            new CommandLineOverrideHelper.CommandLineOverrideHelperParams(
+                false, true, commandLineArgs);
+        CommandLineOverrideHelper.getFlagOverrides(params);
+
+        Assert.assertTrue(CommandLine.getInstance().hasSwitch("some-other-switch"));
+        String actual = CommandLine.getInstance().getSwitchValue("some-other-switch");
+        Assert.assertEquals("value", actual);
+    }
+
+    @Test
+    public void testFlagOverrides_EmptyAndNullArgs() {
+        String[] commandLineArgs = {
+        "--enable-features=TestFeature1;", null, "--disable-features=TestFeature2"
+        };
+        CommandLineOverrideHelper.CommandLineOverrideHelperParams params =
+            new CommandLineOverrideHelper.CommandLineOverrideHelperParams(
+                false, true, commandLineArgs);
+        CommandLineOverrideHelper.getFlagOverrides(params);
+
+        String enableFeatures = CommandLine.getInstance().getSwitchValue("enable-features");
+        String expectedEnable =
+            CommandLineOverrideHelper.getDefaultEnableFeatureOverridesList().toString()
+                + ",TestFeature1";
+        Assert.assertEquals(expectedEnable, enableFeatures);
+
+        String disableFeatures = CommandLine.getInstance().getSwitchValue("disable-features");
+        String expectedDisable =
+            CommandLineOverrideHelper.getDefaultDisableFeatureOverridesList().toString()
+                + ",TestFeature2";
+        Assert.assertEquals(expectedDisable, disableFeatures);
+    }
+
+    @Test
+    public void testFlagOverrides_FeaturesWithValues() {
+        String[] commandLineArgs = {"--enable-features=TestFeature1=value1;TestFeature2=value2"};
+        CommandLineOverrideHelper.CommandLineOverrideHelperParams params =
+            new CommandLineOverrideHelper.CommandLineOverrideHelperParams(
+                false, true, commandLineArgs);
+        CommandLineOverrideHelper.getFlagOverrides(params);
+
+        String enableFeatures = CommandLine.getInstance().getSwitchValue("enable-features");
+        String expectedEnable =
+            CommandLineOverrideHelper.getDefaultEnableFeatureOverridesList().toString()
+                + ",TestFeature1=value1,TestFeature2=value2";
+        Assert.assertEquals(expectedEnable, enableFeatures);
+    }
 }

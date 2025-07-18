@@ -1,28 +1,19 @@
-version: '3.8'
 services:
   linux:
     build:
       context: cobalt/docker/linux
-      cache_from:
-        - ghcr.io/youtube/cobalt/linux:latest
-    image: ghcr.io/youtube/cobalt/linux:latest
+    image: "${DOCKER_COMPOSE_IMAGE:-linux}"
     platform: linux/amd64
   raspi:
     build:
       context: cobalt/docker/raspi
-      cache_from:
-        - ghcr.io/youtube/cobalt/raspi:latest
-    image: ghcr.io/youtube/cobalt/raspi:latest
+    image: "${DOCKER_COMPOSE_IMAGE:-raspi}"
     platform: linux/amd64
   unittest:
     build:
       context: cobalt/docker/unittest
-      cache_from:
-        - ghcr.io/youtube/cobalt/unittest:latest
-    image: ghcr.io/youtube/cobalt/unittest:latest
+    image: "${DOCKER_COMPOSE_IMAGE:-unittest}"
   webtest:
     build:
       context: cobalt/docker/webtest
-      cache_from:
-        - ghcr.io/youtube/cobalt/webtest:latest
-    image: ghcr.io/youtube/cobalt/webtest:latest
+    image: "${DOCKER_COMPOSE_IMAGE:-webtest}"

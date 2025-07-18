@@ -108,8 +108,6 @@ static_library("starboard_platform_sources") {
     "//starboard/shared/posix/system_get_last_error.cc",
     "//starboard/shared/posix/system_get_locale_id.cc",
     "//starboard/shared/posix/system_get_number_of_processors.cc",
-    "//starboard/shared/posix/thread_sleep.cc",
-    "//starboard/shared/posix/time_zone_get_current.cc",
     "//starboard/shared/pthread/thread_context_get_pointer.cc",
     "//starboard/shared/pthread/thread_context_internal.cc",
     "//starboard/shared/pthread/thread_context_internal.h",
@@ -214,10 +212,6 @@ static_library("starboard_platform_sources") {
 
   sources += common_player_sources
 
-  if (!sb_is_modular) {
-    sources += [ "//starboard/raspi/shared/main.cc" ]
-  }
-
   configs += [
     "//starboard/build/config:starboard_implementation",
     "//starboard/build/config:pedantic_warnings",
@@ -226,6 +220,7 @@ static_library("starboard_platform_sources") {
   public_deps = [
     "//starboard:starboard_headers_only",
     "//starboard/common",
+    "//starboard/crashpad_wrapper:wrapper_stub",
     "//starboard/linux/shared:starboard_base_symbolize",
     "//starboard/shared/ffmpeg:ffmpeg_dynamic_load",
     "//starboard/shared/starboard/media:media_util",

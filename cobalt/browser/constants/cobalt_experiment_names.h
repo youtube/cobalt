@@ -20,11 +20,19 @@ namespace cobalt {
 // Alphabetical list of experiment names in the Cobalt experiment config.
 constexpr char kCobaltExperimentName[] = "CobaltExperiment";
 constexpr char kCobaltGroupName[] = "CobaltGroup";
+// Apply empty config if crash streak exceeds this threshold.
+constexpr int kCrashStreakEmptyConfigThreshold = 4;
+// Apply safe config if crash streak exceeds this threshold.
+constexpr int kCrashStreakSafeConfigThreshold = 3;
 constexpr char kExperimentConfig[] = "experiment_config";
 constexpr char kExperimentConfigFeatures[] = "experiment_config.features";
 constexpr char kExperimentConfigFeatureParams[] =
     "experiment_config.feature_params";
 constexpr char kExperimentConfigExpIds[] = "experiment_config.exp_ids";
+constexpr char kSafeConfig[] = "safe_config";
+constexpr char kSafeConfigFeatures[] = "safe_config.features";
+constexpr char kSafeConfigFeatureParams[] = "safe_config.feature_params";
+constexpr char kSafeConfigExpIds[] = "safe_config.exp_ids";
 
 }  // namespace cobalt
 

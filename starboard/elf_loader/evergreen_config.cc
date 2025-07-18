@@ -15,27 +15,27 @@
 #include "starboard/elf_loader/evergreen_config.h"
 
 #include <memory>
+#include <mutex>
 
 #include "starboard/common/log.h"
-#include "starboard/common/mutex.h"
 
 namespace starboard {
 namespace elf_loader {
 
-static starboard::Mutex g_evergreen_config_mutex;
+static std::mutex g_evergreen_config_mutex;
 static std::unique_ptr<EvergreenConfig> g_evergreen_config;
 
 void EvergreenConfig::Create(
     const char* library_path,
     const char* content_path,
     const void* (*custom_get_extension)(const char* name)) {
-  starboard::ScopedLock lock(g_evergreen_config_mutex);
+  std::lock_guard lock(g_evergreen_config_mutex);
   g_evergreen_config.reset(
       new EvergreenConfig(library_path, content_path, custom_get_extension));
 }
 
 const EvergreenConfig* EvergreenConfig::GetInstance() {
-  starboard::ScopedLock lock(g_evergreen_config_mutex);
+  std::lock_guard lock(g_evergreen_config_mutex);
   return g_evergreen_config.get();
 }
 

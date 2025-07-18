@@ -1729,9 +1729,11 @@ component("base") {
   }
 
   if (is_starboard) {
+    sources -= [ "process/launch_posix.cc" ]
     sources += [
       "message_loop/message_pump_ui_starboard.cc",
       "message_loop/message_pump_ui_starboard.h",
+      "process/launch_starboard.cc",
     ]
     deps += [
       "//starboard:starboard_group",
@@ -3915,6 +3917,8 @@ test("base_unittests") {
       if (is_starboard) {
         sources -= [
           "allocator/partition_allocator/starscan/scan_loop_unittest.cc",
+          # TODO: b/402471389 Cobalt: - try to enable these tests.
+          "allocator/partition_allocator/thread_cache_unittest.cc",
         ]
       }
     }

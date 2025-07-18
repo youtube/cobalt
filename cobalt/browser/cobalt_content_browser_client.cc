@@ -35,6 +35,7 @@
 #include "cobalt/media/service/video_geometry_setter_service.h"
 #include "cobalt/shell/browser/shell.h"
 #include "cobalt/shell/browser/shell_paths.h"
+#include "cobalt/shell/common/shell_switches.h"
 #include "components/metrics/metrics_state_manager.h"
 #include "components/metrics/test/test_enabled_state_provider.h"
 #include "components/metrics_services_manager/metrics_services_manager.h"
@@ -47,7 +48,6 @@
 #include "content/public/browser/web_contents.h"
 #include "content/public/common/content_switch_dependent_feature_overrides.h"
 #include "content/public/common/user_agent.h"
-#include "content/shell/common/shell_switches.h"
 #include "services/network/public/cpp/features.h"
 #include "services/network/public/mojom/network_context.mojom.h"
 #include "services/service_manager/public/cpp/binder_registry.h"
@@ -358,12 +358,23 @@ void CobaltContentBrowserClient::SetUpCobaltFeaturesAndParams(
       kCobaltExperimentName, kCobaltGroupName);
   CHECK(cobalt_field_trial) << "Unexpected name conflict.";
 
-  auto experiment_config = GlobalFeatures::GetInstance()->experiment_config();
+  auto* global_features = GlobalFeatures::GetInstance();
+  auto* experiment_config_manager =
+      global_features->experiment_config_manager();
+  auto config_type = experiment_config_manager->GetExperimentConfigType();
+  if (config_type == ExperimentConfigType::kEmptyConfig) {
+    return;
+  }
 
-  const base::Value::Dict& feature_map =
-      experiment_config->GetDict(kExperimentConfigFeatures);
-  const base::Value::Dict& param_map =
-      experiment_config->GetDict(kExperimentConfigFeatureParams);
+  auto* experiment_config = global_features->experiment_config();
+  const bool use_safe_config =
+      (config_type == ExperimentConfigType::kSafeConfig);
+
+  const base::Value::Dict& feature_map = experiment_config->GetDict(
+      use_safe_config ? kSafeConfigFeatures : kExperimentConfigFeatures);
+  const base::Value::Dict& param_map = experiment_config->GetDict(
+      use_safe_config ? kSafeConfigFeatureParams
+                      : kExperimentConfigFeatureParams);
 
   for (const auto feature_name_and_value : feature_map) {
     if (feature_name_and_value.second.is_bool()) {

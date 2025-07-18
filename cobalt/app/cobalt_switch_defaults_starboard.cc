@@ -17,8 +17,8 @@
 #include "base/base_switches.h"
 #include "base/files/file_path.h"
 #include "cobalt/browser/switches.h"
+#include "cobalt/shell/common/shell_switches.h"
 #include "content/public/common/content_switches.h"
-#include "content/shell/common/shell_switches.h"
 #include "gpu/command_buffer/service/gpu_switches.h"
 #include "gpu/config/gpu_switches.h"
 #include "media/base/media_switches.h"
@@ -66,6 +66,9 @@ static constexpr auto kCobaltToggleSwitches = std::to_array<const char*>({
       // known regressions is 4444 textures, which are then disabled explicitly.
       switches::kEnableLowEndDeviceMode,
       blink::switches::kDisableRGBA4444Textures,
+      // For Starboard the signal handlers are already setup. Disable the
+      // Chromium registrations to avoid overriding the Starboard ones.
+      switches::kDisableInProcessStackTraces,
 });
 
 // Map of switches with parameters and their defaults.

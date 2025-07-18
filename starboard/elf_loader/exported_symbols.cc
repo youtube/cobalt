@@ -62,8 +62,10 @@
 #include "starboard/shared/modular/starboard_layer_posix_socket_abi_wrappers.h"
 #include "starboard/shared/modular/starboard_layer_posix_socketpair_abi_wrappers.h"
 #include "starboard/shared/modular/starboard_layer_posix_stat_abi_wrappers.h"
+#include "starboard/shared/modular/starboard_layer_posix_statvfs_abi_wrappers.h"
 #include "starboard/shared/modular/starboard_layer_posix_time_abi_wrappers.h"
 #include "starboard/shared/modular/starboard_layer_posix_uio_abi_wrappers.h"
+#include "starboard/shared/modular/starboard_layer_posix_uname_abi_wrappers.h"
 #include "starboard/shared/modular/starboard_layer_posix_unistd_abi_wrappers.h"
 #include "starboard/speech_synthesis.h"
 #include "starboard/storage.h"
@@ -216,7 +218,6 @@ ExportedSymbols::ExportedSymbols() {
   REGISTER_SYMBOL(SbThreadSamplerIsSupported);
   REGISTER_SYMBOL(SbThreadSamplerThaw);
   REGISTER_SYMBOL(SbThreadSetPriority);
-  REGISTER_SYMBOL(SbTimeZoneGetCurrent);
   REGISTER_SYMBOL(SbTimeZoneGetName);
   REGISTER_SYMBOL(SbWindowCreate);
   REGISTER_SYMBOL(SbWindowDestroy);
@@ -248,6 +249,7 @@ ExportedSymbols::ExportedSymbols() {
   REGISTER_SYMBOL(madvise);
   REGISTER_SYMBOL(malloc);
   REGISTER_SYMBOL(malloc_usable_size);
+  REGISTER_SYMBOL(mincore);
   REGISTER_SYMBOL(mkdir);
   REGISTER_SYMBOL(mkdtemp);
   REGISTER_SYMBOL(mkostemp);
@@ -401,7 +403,9 @@ ExportedSymbols::ExportedSymbols() {
   REGISTER_WRAPPER(sigaction);
   REGISTER_WRAPPER(socketpair);
   REGISTER_WRAPPER(stat);
+  REGISTER_WRAPPER(statvfs);
   REGISTER_WRAPPER(sysconf);
+  REGISTER_WRAPPER(uname);
   REGISTER_WRAPPER(writev);
 
 }  // NOLINT

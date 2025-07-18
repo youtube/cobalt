@@ -77,5 +77,4 @@ bool SignWithCertificationSecretKey(const char* secret_key,
   return result == digest;
 }
 
-}  // namespace deviceauth
 }  // namespace starboard::shared::deviceauth
