@@ -1205,7 +1205,7 @@ class MediaCodecBridge {
 
     void onMediaCodecFrameRendered(
       long mediaCodecBridge, long presentationTimeUs, long renderAtSystemTimeNs);
-    
+
     void OnMediaCodecFirstTunnelFrameReady(long mediaCodecBridge);
   }
 }
