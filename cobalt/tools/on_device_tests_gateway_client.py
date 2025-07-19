@@ -36,9 +36,6 @@ _ON_DEVICE_TESTS_GATEWAY_SERVICE_HOST = (
 _ON_DEVICE_TESTS_GATEWAY_SERVICE_PORT = '50052'
 
 # These paths are hardcoded in various places. DO NOT CHANGE!
-_DIR_ON_DEVICE = '/sdcard/Download'
-_DEPS_ARCHIVE = '/sdcard/chromium_tests_root/deps.tar.gz'
-
 _DIR_ON_DEV_MAP = {
     'android': '/sdcard/Download',
     'raspi': '/home/pi/test/results',
@@ -180,8 +177,8 @@ def _unit_test_files(args: argparse.Namespace, target_name: str) -> List[str]:
     ]
   elif args.device_family in ['rdk', 'raspi']:
     return [
-        f'bin={args.gcs_archive_path}/{target_name}_loader',
-        f'test_runtime_deps={args.gcs_archive_path}/deps.tar.gz',
+        f'bin={args.gcs_archive_path}/{target_name}.py',
+        f'test_runtime_deps={args.gcs_archive_path}/{target_name}_deps.tar.gz',
     ]
   else:
     raise ValueError(f'Unsupported device family: {args.device_family}')
@@ -284,7 +281,8 @@ def main() -> int:
       '--token',
       type=str,
       required=True,
-      help='On Device Tests authentication token',
+      help='On Device Tests authentication (GitHub) token. Use GitHub cli '
+      'command `gh auth token` to generate.',
   )
   subparsers = parser.add_subparsers(
       dest='action', help='On-Device tests commands', required=True)
@@ -344,20 +342,21 @@ def main() -> int:
   trigger_args.add_argument(
       '--job_timeout_sec',
       type=str,
-      default='1800',
-      help='Timeout in seconds for the job (default: 1800 seconds).',
+      default='2100',
+      help='Timeout in seconds for the job. Must be set higher and '
+      'start_timeout_sec and test_timeout_sec combined.',
   )
   trigger_args.add_argument(
       '--test_timeout_sec',
       type=str,
       default='1800',
-      help='Timeout in seconds for the test (default: 1800 seconds).',
+      help='Timeout in seconds for the test.',
   )
   trigger_args.add_argument(
       '--start_timeout_sec',
       type=str,
       default='900',
-      help='Timeout in seconds for the test to start (default: 900 seconds).',
+      help='Timeout in seconds for the test to start.',
   )
 
   # --- Unit Test Arguments ---
