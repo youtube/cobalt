@@ -303,7 +303,7 @@ vars = {
   # Three lines of non-changing comments so that
   # the commit queue can handle CLs rolling V8
   # and whatever else without interference from each other.
-  'v8_revision': 'de9d0f8b56ae61896e4d2ac577fc589efb14f87d',
+  'v8_revision': 'dcf190c321f7a34ae3a78af48cb249ec7c4592ac',
   # Three lines of non-changing comments so that
   # the commit queue can handle CLs rolling ANGLE
   # and whatever else without interference from each other.
@@ -391,7 +391,7 @@ vars = {
   # Three lines of non-changing comments so that
   # the commit queue can handle CLs rolling devtools-frontend
   # and whatever else without interference from each other.
-  'devtools_frontend_revision': '4cca0aa00c4915947f1081014d5cfa2e83d357fa',
+  'devtools_frontend_revision': 'a718e86b3dc6f1ba3c8cc8092cd79b401d428cfc',
   # Three lines of non-changing comments so that
   # the commit queue can handle CLs rolling libprotobuf-mutator
   # and whatever else without interference from each other.
@@ -1508,7 +1508,7 @@ deps = {
 
   'src/clank': {
     'url': Var('chrome_git') + '/clank/internal/apps.git' + '@' +
-    'd2a2549457af44dc139d17b67e191ab1ad72c2fc',
+    '549dc0df200364c7174b311b51fde8f17c4ed7ed',
     'condition': 'checkout_android and checkout_src_internal',
   },
 
