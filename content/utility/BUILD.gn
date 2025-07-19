@@ -90,7 +90,7 @@ source_set("utility") {
       "//chromeos/ash/services/ime:sandbox_hook",
       "//chromeos/services/tts:sandbox_hook",
     ]
-    if (use_vaapi || use_v4l2_codec) {
+    if (use_linux_video_acceleration) {
       deps += [ "//ash/components/arc/video_accelerator" ]
     }
   }
@@ -102,8 +102,8 @@ source_set("utility") {
       "//media/mojo/services",
       "//third_party/angle:angle_gpu_info_util",
     ]
-    if (is_cobalt_hermetic_build) {
-      deps -= [
+    if (use_linux_video_acceleration) {
+      deps += [
         "//gpu/config",
         "//third_party/angle:angle_gpu_info_util",
       ]
