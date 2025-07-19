@@ -45,10 +45,6 @@ declare_args() {
 # There are test cases for this code posted as an attachment to
 # https://crbug.com/625353.
 
-if (is_starboard) {
-  v8_snapshot_toolchain = host_toolchain
-}
-
 if (v8_snapshot_toolchain == "") {
   if (current_os == host_os && current_cpu == host_cpu) {
     # This is not a cross-compile, so build the snapshot with the current
@@ -113,6 +109,11 @@ if (v8_snapshot_toolchain == "") {
     # cross compile iOS arm64 with host_toolchain
     v8_snapshot_toolchain = host_toolchain
   }
+}
+
+# We need to use a non-Starboard toolchain for Starboard platforms.
+if (is_starboard && v8_snapshot_toolchain == current_toolchain) {
+  v8_snapshot_toolchain = host_toolchain
 }
 
 assert(v8_snapshot_toolchain != "",
