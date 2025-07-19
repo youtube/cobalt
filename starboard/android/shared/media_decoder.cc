@@ -356,7 +356,7 @@ void MediaDecoder::DecoderThreadFunc() {
       bool can_process_input =
           pending_input_to_retry_ ||
           (!pending_inputs.empty() && !input_buffer_indices.empty());
-      if (!decoder_flow_control_->IsFull() && can_process_input) {
+      if (decoder_flow_control_->CanAcceptMore() && can_process_input) {
         ProcessOneInputBuffer(&pending_inputs, &input_buffer_indices);
       }
 
