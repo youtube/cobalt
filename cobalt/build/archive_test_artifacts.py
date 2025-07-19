@@ -123,7 +123,7 @@ def create_archive(
                                   (target_src_root_deps, source_dir)],
                     compression)
         else:
-          _make_tar(output_path, [(combined_deps, source_dir)], compression)
+          _make_tar(output_path, [(combined_deps, out_dir)], compression)
 
         archive_size = f'{os.path.getsize(output_path) / 1024 / 1024:.2f} MB'
         print(f'Created {os.path.basename(output_path)} ({archive_size})')
