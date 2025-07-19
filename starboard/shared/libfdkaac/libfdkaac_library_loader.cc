@@ -24,7 +24,7 @@ namespace {
 const char kLibfdkaacLibraryName[] = "libfdk-aac.so";
 }
 
-SB_ONCE_INITIALIZE_FUNCTION(LibfdkaacHandle, LibfdkaacHandle::GetHandle);
+SB_ONCE_INITIALIZE_FUNCTION(LibfdkaacHandle, LibfdkaacHandle::GetHandle)
 
 LibfdkaacHandle::LibfdkaacHandle() {
   LoadLibrary();

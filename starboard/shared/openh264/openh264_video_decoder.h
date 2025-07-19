@@ -92,9 +92,9 @@ class VideoDecoder : public starboard::player::filter::VideoDecoder,
   void FlushFrames();
   void ReportError(const std::string& error_message);
 
+  SbPlayerOutputMode output_mode_;
   SbDecodeTargetGraphicsContextProvider*
       decode_target_graphics_context_provider_;
-  SbPlayerOutputMode output_mode_;
 
   // The following callbacks will be initialized in Initialize() and won't be
   // changed during the life time of this class.

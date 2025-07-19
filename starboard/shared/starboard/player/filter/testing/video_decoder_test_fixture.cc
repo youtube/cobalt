@@ -60,10 +60,10 @@ VideoDecoderTestFixture::VideoDecoderTestFixture(
     SbPlayerOutputMode output_mode,
     bool using_stub_decoder)
     : job_queue_(job_queue),
-      fake_graphics_context_provider_(fake_graphics_context_provider),
       test_filename_(test_filename),
       output_mode_(output_mode),
       using_stub_decoder_(using_stub_decoder),
+      fake_graphics_context_provider_(fake_graphics_context_provider),
       dmp_reader_(test_filename, VideoDmpReader::kEnableReadOnDemand) {
   SB_DCHECK(job_queue_);
   SB_DCHECK(fake_graphics_context_provider_);

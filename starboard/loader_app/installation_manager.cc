@@ -753,7 +753,7 @@ std::unique_ptr<
     g_installation_manager_;
 
 // Global Installation Manager Mutex.
-SB_ONCE_INITIALIZE_FUNCTION(std::mutex, GetImMutex);
+SB_ONCE_INITIALIZE_FUNCTION(std::mutex, GetImMutex)
 
 int ImInitialize(int max_num_installations, const char* app_key) {
   std::lock_guard lock(*GetImMutex());
