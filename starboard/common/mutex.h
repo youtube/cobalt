@@ -63,23 +63,6 @@ class ScopedLock {
   void operator=(const ScopedLock&) = delete;
 };
 
-// Scoped lock holder that works on starboard::Mutex which uses AcquireTry()
-// instead of Acquire().
-class ScopedTryLock {
- public:
-  explicit ScopedTryLock(const Mutex& mutex);
-  ~ScopedTryLock();
-
-  bool is_locked() const;
-
- private:
-  const Mutex& mutex_;
-  bool is_locked_;
-
-  ScopedTryLock(const ScopedTryLock&) = delete;
-  void operator=(const ScopedTryLock&) = delete;
-};
-
 }  // namespace starboard
 }
 
