@@ -16,6 +16,7 @@
 #include "base/path_service.h"
 #include "base/strings/string_piece.h"
 #include "base/strings/stringprintf.h"
+#include "build/build_config.h"
 #include "sandbox/linux/syscall_broker/broker_command.h"
 #include "sandbox/linux/syscall_broker/broker_file_permission.h"
 
@@ -164,11 +165,15 @@ void LoadAudioLibraries() {
   const std::string libraries[]{"libasound.so.2", "libpulse.so.0",
                                 "libnss_files.so.2", "libnss_compat.so.2"};
   for (const auto& library_name : libraries) {
+#if !BUILDFLAG(IS_STARBOARD)
     if (nullptr ==
         dlopen(library_name.c_str(), RTLD_NOW | RTLD_GLOBAL | RTLD_NODELETE)) {
       LOG(WARNING) << "dlopen: failed to open " << library_name
                    << " with error: " << dlerror();
     }
+#else // !BUILDFLAG(IS_STARBOARD)
+    LOG(WARNING) << "dlopen and dlerror are disabled. Cannot open " << library_name;
+#endif // !BUILDFLAG(IS_STARBOARD)
   }
 }
 
