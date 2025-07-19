@@ -180,5 +180,22 @@ TEST(ThrottlingDecoderFlowControlTest, FrameReleasedCallback) {
   EXPECT_EQ(counter, 2);
 }
 
+TEST(NoOpDecoderFlowControlTest, AllMethodsNoOp) {
+  auto decoder_flow_control = DecoderFlowControl::CreateNoOp();
+  EXPECT_TRUE(decoder_flow_control->AddFrame());
+  EXPECT_TRUE(decoder_flow_control->SetFrameDecoded());
+  EXPECT_TRUE(decoder_flow_control->ReleaseFrameAt(0));
+  EXPECT_FALSE(decoder_flow_control->IsFull());
+  auto status = decoder_flow_control->GetCurrentState();
+  EXPECT_EQ(status.decoding_frames, 0);
+  EXPECT_EQ(status.decoded_frames, 0);
+  EXPECT_EQ(status.decoding_frames_high_water_mark, 0);
+  EXPECT_EQ(status.decoded_frames_high_water_mark, 0);
+  EXPECT_EQ(status.total_frames_high_water_mark, 0);
+  EXPECT_EQ(status.min_decoding_time_us, 0);
+  EXPECT_EQ(status.max_decoding_time_us, 0);
+  EXPECT_EQ(status.avg_decoding_time_us, 0);
+}
+
 }  // namespace
 }  // namespace starboard::shared::starboard::media

@@ -87,13 +87,7 @@ MediaDecoder::MediaDecoder(Host* host,
       tunnel_mode_enabled_(false),
       flush_delay_usec_(0),
       condition_variable_(mutex_),
-      decoder_flow_control_(
-          DecoderFlowControl::CreateThrottling(kMaxFramesInDecoder,
-                                               kFrameTrackerLogIntervalUs,
-                                               [this]() {
-                                                 ScopedLock lock(mutex_);
-                                                 condition_variable_.Signal();
-                                               })) {
+      decoder_flow_control_(DecoderFlowControl::CreateNoOp()) {
   SB_DCHECK(host_);
 
   jobject j_media_crypto = drm_system_ ? drm_system_->GetMediaCrypto() : NULL;
@@ -143,13 +137,7 @@ MediaDecoder::MediaDecoder(
       tunnel_mode_enabled_(tunnel_mode_audio_session_id != -1),
       flush_delay_usec_(flush_delay_usec),
       condition_variable_(mutex_),
-      decoder_flow_control_(
-          DecoderFlowControl::CreateThrottling(kMaxFramesInDecoder,
-                                               kFrameTrackerLogIntervalUs,
-                                               [this]() {
-                                                 ScopedLock lock(mutex_);
-                                                 condition_variable_.Signal();
-                                               })) {
+      decoder_flow_control_(DecoderFlowControl::CreateNoOp()) {
   SB_DCHECK(frame_rendered_cb_);
   SB_DCHECK(first_tunnel_frame_ready_cb_);
 
@@ -368,8 +356,7 @@ void MediaDecoder::DecoderThreadFunc() {
       bool can_process_input =
           pending_input_to_retry_ ||
           (!pending_inputs.empty() && !input_buffer_indices.empty());
-      can_process_input = !decoder_flow_control_->IsFull() && can_process_input;
-      if (can_process_input) {
+      if (!decoder_flow_control_->IsFull() && can_process_input) {
         ProcessOneInputBuffer(&pending_inputs, &input_buffer_indices);
       }
 
@@ -698,6 +685,14 @@ void MediaDecoder::OnMediaCodecOutputBufferAvailable(
 void MediaDecoder::OnMediaCodecOutputFormatChanged() {
   SB_DCHECK(media_codec_bridge_);
 
+  FrameSize frame_size = media_codec_bridge_->GetOutputSize();
+
+  SB_LOG(INFO) << __func__
+               << " > texture_resolution=" << frame_size.texture_width << "x"
+               << frame_size.texture_height;
+
+  ResetDecoderFlowControl();
+
   DequeueOutputResult dequeue_output_result = {};
   dequeue_output_result.index = -1;
 
@@ -718,6 +713,8 @@ void MediaDecoder::OnMediaCodecFirstTunnelFrameReady() {
 
 bool MediaDecoder::Flush() {
   SB_DCHECK(thread_checker_.CalledOnValidThread());
+
+  ResetDecoderFlowControl();
 
   // Try to flush if we can, otherwise return |false| to recreate the codec
   // completely. Flush() is called by `player_worker` thread,
@@ -745,11 +742,6 @@ bool MediaDecoder::Flush() {
     input_buffer_indices_.clear();
     dequeue_output_results_.clear();
     pending_input_to_retry_ = std::nullopt;
-    decoder_flow_control_ =
-        DecoderFlowControl::CreateThrottling(kMaxFramesInDecoder, 0, [this]() {
-          ScopedLock lock(mutex_);
-          condition_variable_.Signal();
-        });
 
     // 2.3. Add OutputFormatChanged to get current output format after Flush().
     DequeueOutputResult dequeue_output_result = {};
@@ -776,6 +768,24 @@ bool MediaDecoder::Flush() {
   stream_ended_.store(false);
   destroying_.store(false);
   return true;
+}
+
+void MediaDecoder::ResetDecoderFlowControl() {
+  if (media_codec_bridge_ == nullptr) {
+    decoder_flow_control_ = DecoderFlowControl::CreateNoOp();
+  }
+  FrameSize frame_size = media_codec_bridge_->GetOutputSize();
+
+  constexpr int kArea4k = 3840 * 2160;
+  decoder_flow_control_ =
+      frame_size.texture_width * frame_size.texture_height > kArea4k
+          ? DecoderFlowControl::CreateThrottling(kMaxFramesInDecoder,
+                                                 kFrameTrackerLogIntervalUs,
+                                                 [this]() {
+                                                   ScopedLock lock(mutex_);
+                                                   condition_variable_.Signal();
+                                                 })
+          : DecoderFlowControl::CreateNoOp();
 }
 
 }  // namespace starboard::android::shared
