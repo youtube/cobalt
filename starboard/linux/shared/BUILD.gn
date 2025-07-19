@@ -22,6 +22,7 @@ group("starboard_platform") {
     ":starboard_base_symbolize",
     ":starboard_platform_sources",
     "//starboard/common",
+    "//starboard/crashpad_wrapper:wrapper_stub",
     "//starboard/shared/ffmpeg:ffmpeg_dynamic_load",
     "//starboard/shared/starboard/media:media_util",
   ]
@@ -157,7 +158,6 @@ static_library("starboard_platform_sources") {
     "//starboard/shared/posix/system_get_last_error.cc",
     "//starboard/shared/posix/system_get_locale_id.cc",
     "//starboard/shared/posix/system_get_number_of_processors.cc",
-    "//starboard/shared/posix/thread_sleep.cc",
     "//starboard/shared/pthread/thread_context_get_pointer.cc",
     "//starboard/shared/pthread/thread_context_internal.cc",
     "//starboard/shared/pthread/thread_context_internal.h",

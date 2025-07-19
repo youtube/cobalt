@@ -68,8 +68,6 @@ class SpeechDispatcher {
   static SpeechDispatcher* instance;
 };
 
-}  // namespace speechd
-
 }  // namespace starboard::shared::speechd
 
 #endif  // STARBOARD_SHARED_SPEECHD_SPEECHD_INTERNAL_H_

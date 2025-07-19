@@ -1,4 +1,4 @@
-// Copyright 2016 The Cobalt Authors. All Rights Reserved.
+// Copyright 2025 The Cobalt Authors. All Rights Reserved.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -12,6 +12,16 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include "starboard/thread.h"
+#ifndef CONTENT_SHELL_ANDROID_SHELL_DESCRIPTORS_H_
+#define CONTENT_SHELL_ANDROID_SHELL_DESCRIPTORS_H_
 
-void SbThreadSleep(int64_t duration) {}
+#include "content/public/common/content_descriptors.h"
+
+// This is a list of global descriptor keys to be used with the
+// base::GlobalDescriptors object (see base/posix/global_descriptors.h)
+enum {
+  kShellPakDescriptor = kContentIPCDescriptorMax + 1,
+  kAndroidMinidumpDescriptor,
+};
+
+#endif  // CONTENT_SHELL_ANDROID_SHELL_DESCRIPTORS_H_

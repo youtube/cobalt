@@ -101,6 +101,9 @@ interface StarboardRendererClientExtension {
 
   // Notify the rendering mode from SbPlayer.
   UpdateStarboardRenderingMode(StarboardRenderingMode mode);
+
+  // Request OverlayInfo from StarboardRendererClient.
+  RequestOverlayInfo(bool restart_for_transitions);
 };
 
 // The Media Foundation Media Engine has two modes for playback.
@@ -166,6 +169,9 @@ interface StarboardRendererExtension {
   // Acquire frame from SbPlayer.
   [Sync]
   GetCurrentVideoFrame() => (VideoFrame? video_frame);
+
+  // Notify StarboardRendererWrapper when the current OverlayInfo changes.
+  OnOverlayInfoChanged(OverlayInfo overlay_info);
 };
 
 // This interface is used by the browser to determine if there are any renderers
