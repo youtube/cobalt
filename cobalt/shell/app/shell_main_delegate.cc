@@ -70,8 +70,8 @@
 #if BUILDFLAG(IS_ANDROID)
 #include "base/android/apk_assets.h"
 #include "base/posix/global_descriptors.h"
+#include "cobalt/shell/android/shell_descriptors.h"
 #include "content/public/browser/android/compositor.h"
-#include "content/shell/android/shell_descriptors.h"
 #endif
 
 #if !BUILDFLAG(IS_ANDROIDTV)
