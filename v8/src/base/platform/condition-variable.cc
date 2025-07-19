@@ -9,6 +9,10 @@
 
 #include "src/base/platform/time.h"
 
+#if V8_OS_STARBOARD
+#include "starboard/common/time.h"
+#endif
+
 #if V8_OS_WIN
 #include <windows.h>
 #endif
@@ -170,31 +174,51 @@ bool ConditionVariable::WaitFor(Mutex* mutex, const TimeDelta& rel_time) {
 #elif V8_OS_STARBOARD
 
 ConditionVariable::ConditionVariable() {
-  SbConditionVariableCreate(&native_handle_, nullptr);
+#if !SB_HAS_QUIRK(NO_CONDATTR_SETCLOCK_SUPPORT)
+  pthread_condattr_t attribute;
+  pthread_condattr_init(&attribute);
+  pthread_condattr_setclock(&attribute, CLOCK_MONOTONIC);
+
+  int result = pthread_cond_init(&native_handle_, &attribute);
+  DCHECK(result == 0);
+
+  pthread_condattr_destroy(&attribute);
+#else
+  int result = pthread_cond_init(&native_handle_, nullptr);
+  DCHECK(result == 0);
+#endif  // !SB_HAS_QUIRK(NO_CONDATTR_SETCLOCK_SUPPORT)
 }
 
 ConditionVariable::~ConditionVariable() {
-  SbConditionVariableDestroy(&native_handle_);
+  pthread_cond_destroy(&native_handle_);
 }
 
 void ConditionVariable::NotifyOne() {
-  SbConditionVariableSignal(&native_handle_);
+  pthread_cond_signal(&native_handle_);
 }
 
 void ConditionVariable::NotifyAll() {
-  SbConditionVariableBroadcast(&native_handle_);
+  pthread_cond_broadcast(&native_handle_);
 }
 
 void ConditionVariable::Wait(Mutex* mutex) {
-  SbConditionVariableWait(&native_handle_, &mutex->native_handle());
+  pthread_cond_wait(&native_handle_, &mutex->native_handle());
 }
 
 bool ConditionVariable::WaitFor(Mutex* mutex, const TimeDelta& rel_time) {
-  SbTime microseconds = static_cast<SbTime>(rel_time.InMicroseconds());
-  SbConditionVariableResult result = SbConditionVariableWaitTimed(
-      &native_handle_, &mutex->native_handle(), microseconds);
-  DCHECK(result != kSbConditionVariableFailed);
-  return result == kSbConditionVariableSignaled;
+#if !SB_HAS_QUIRK(NO_CONDATTR_SETCLOCK_SUPPORT)
+  int64_t timeout_time_usec = starboard::CurrentMonotonicTime();
+#else
+  int64_t timeout_time_usec = starboard::CurrentPosixTime();
+#endif  // !SB_HAS_QUIRK(NO_CONDATTR_SETCLOCK_SUPPORT)
+  timeout_time_usec += static_cast<int64_t>(rel_time.InMicroseconds());
+
+  struct timespec delay_timestamp;
+  delay_timestamp.tv_sec = timeout_time_usec / 1000'000;
+  delay_timestamp.tv_nsec = (timeout_time_usec % 1000'000) * 1000;
+
+  int result = pthread_cond_timedwait(&native_handle_, &mutex->native_handle(), &delay_timestamp);
+  return result == 0;
 }
 
 #endif  // V8_OS_STARBOARD
