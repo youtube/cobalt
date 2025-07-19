@@ -21,6 +21,8 @@
 #include "build/chromeos_buildflags.h"
 #include "content/browser/renderer_host/render_frame_host_delegate.h"
 #include "content/browser/renderer_host/render_frame_host_impl.h"
+#include "content/browser/renderer_host/render_process_host_impl.h"
+#include "content/public/browser/browser_thread.h"
 #include "content/public/browser/media_service.h"
 #include "content/public/browser/render_frame_host.h"
 #include "content/public/browser/service_process_host.h"
@@ -400,6 +402,8 @@ void MediaInterfaceProxy::CreateStarboardRenderer(
         renderer_extension_receiver,
     mojo::PendingRemote<media::mojom::StarboardRendererClientExtension>
         client_extension_remote) {
+  // This should be IO,  but it's not because we're on single-process.
+  DCHECK_CURRENTLY_ON(BrowserThread::UI);
   DCHECK(thread_checker_.CalledOnValidThread());
   DVLOG(1) << __func__ << ": this=" << this;
 
@@ -409,6 +413,36 @@ void MediaInterfaceProxy::CreateStarboardRenderer(
         std::move(media_log_remote), config,
         std::move(receiver), std::move(renderer_extension_receiver),
         std::move(client_extension_remote));
+
+
+    // If this was a real video playback call (not some feature detection),
+    // let's send a critical memory pressure signal tothe Renderer and GPU
+    // processes, so they can flush their caches etc.
+
+    // A bigger gun is just calling here
+    //base::MemoryPressureListener::NotifyMemoryPressure(
+    //    base::MemoryPressureListener::MEMORY_PRESSURE_LEVEL_CRITICAL);
+    // and it might be equivalent since MemoryPressureListener talks to a
+    // singleton MemoryPressureObserver, so I guess in single process, the route
+    // below and the direct call end up in the same place.
+
+    /*
+    for (content::RenderProcessHost::iterator iter =
+             content::RenderProcessHost::AllHostsIterator();
+         !iter.IsAtEnd(); iter.Advance()) {
+      content::RenderProcessHost* host = iter.GetCurrentValue();
+      if (!host || !host->IsInitializedAndNotDead() ||
+          !host->GetProcess().IsValid()) {
+        continue;
+      }
+      // Miguelao, we pass by here...
+      static_cast<content::RenderProcessHostImpl*>(host)
+          ->NotifyMemoryPressureToRenderer(
+              base::MemoryPressureListener::MemoryPressureLevel::
+                  MEMORY_PRESSURE_LEVEL_CRITICAL);
+
+    }
+    */
   }
 }
 #endif  // BUILDFLAG(USE_STARBOARD_MEDIA)

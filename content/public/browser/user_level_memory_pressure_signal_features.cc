@@ -26,6 +26,9 @@ constexpr base::TimeDelta kDefaultInertInterval = base::TimeDelta::Min();
 
 }  // namespace
 
+// mcasas: these two are enabled by default on 139. A new one for 3GB or less
+// is added, and disabled by default.
+
 // Monitor total private memory footprint and dispatch memory pressure signal
 // if the value exceeds the pre-defined threshold. (for Android 4GB devices)
 BASE_FEATURE(kUserLevelMemoryPressureSignalOn4GbDevices,
