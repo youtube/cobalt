@@ -44,7 +44,7 @@ TEST(ThrottlingDecoderFlowControlTest, AddFrameReturnsFalseWhenFull) {
     ASSERT_TRUE(decoder_flow_control->AddFrame());
   }
 
-  EXPECT_FALSE(decoder_flow_control->AddFrame());
+  EXPECT_FALSE(decoder_flow_control->CanAcceptMore());
 }
 
 TEST(ThrottlingDecoderFlowControlTest, SetFrameDecoded) {
@@ -116,7 +116,7 @@ TEST(ThrottlingDecoderFlowControlTest, ReleaseFrameAt) {
   ASSERT_TRUE(decoder_flow_control->AddFrame());
   ASSERT_TRUE(decoder_flow_control->SetFrameDecoded());
 
-  ASSERT_TRUE(decoder_flow_control->IsFull());
+  ASSERT_FALSE(decoder_flow_control->CanAcceptMore());
 
   decoder_flow_control->ReleaseFrameAt(CurrentMonotonicTime() + 100'000);
   decoder_flow_control->ReleaseFrameAt(CurrentMonotonicTime() + 200'000);
@@ -124,12 +124,12 @@ TEST(ThrottlingDecoderFlowControlTest, ReleaseFrameAt) {
   usleep(150'000);
   DecoderFlowControl::State status = decoder_flow_control->GetCurrentState();
   EXPECT_EQ(status.decoded_frames, 1);
-  EXPECT_FALSE(decoder_flow_control->IsFull());
+  EXPECT_TRUE(decoder_flow_control->CanAcceptMore());
 
   usleep(100'000);
   status = decoder_flow_control->GetCurrentState();
   EXPECT_EQ(status.decoded_frames, 0);
-  EXPECT_FALSE(decoder_flow_control->IsFull());
+  EXPECT_TRUE(decoder_flow_control->CanAcceptMore());
 }
 
 TEST(ThrottlingDecoderFlowControlTest, LongIntervalNotBlockDestruction) {
@@ -185,7 +185,7 @@ TEST(NoOpDecoderFlowControlTest, AllMethodsNoOp) {
   EXPECT_TRUE(decoder_flow_control->AddFrame());
   EXPECT_TRUE(decoder_flow_control->SetFrameDecoded());
   EXPECT_TRUE(decoder_flow_control->ReleaseFrameAt(0));
-  EXPECT_FALSE(decoder_flow_control->IsFull());
+  EXPECT_TRUE(decoder_flow_control->CanAcceptMore());
   auto status = decoder_flow_control->GetCurrentState();
   EXPECT_EQ(status.decoding_frames, 0);
   EXPECT_EQ(status.decoded_frames, 0);

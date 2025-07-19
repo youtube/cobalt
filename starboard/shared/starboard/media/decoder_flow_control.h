@@ -37,7 +37,7 @@ class DecoderFlowControl {
   virtual bool ReleaseFrameAt(int64_t release_us) = 0;
 
   virtual State GetCurrentState() const = 0;
-  virtual bool IsFull() = 0;
+  virtual bool CanAcceptMore() = 0;
 };
 
 std::ostream& operator<<(std::ostream& os,

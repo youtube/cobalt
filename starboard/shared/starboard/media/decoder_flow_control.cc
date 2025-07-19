@@ -43,7 +43,7 @@ class ThrottlingDecoderFlowControl : public DecoderFlowControl {
   bool ReleaseFrameAt(int64_t release_us) override;
 
   State GetCurrentState() const override;
-  bool IsFull() override;
+  bool CanAcceptMore() override;
 
  private:
   void UpdateDecodingStat_Locked();
@@ -76,7 +76,8 @@ ThrottlingDecoderFlowControl::ThrottlingDecoderFlowControl(
         [this, log_interval_us]() { LogStateAndReschedule(log_interval_us); },
         log_interval_us);
   }
-  SB_LOG(INFO) << "DecoderFlowControl is created: max_frames=" << max_frames_
+  SB_LOG(INFO) << "ThrottlingDecoderFlowControl is created: max_frames="
+               << max_frames_
                << ", log_interval(msec)=" << (log_interval_us / 1'000);
 }
 
@@ -147,9 +148,9 @@ DecoderFlowControl::State ThrottlingDecoderFlowControl::GetCurrentState()
   return state_;
 }
 
-bool ThrottlingDecoderFlowControl::IsFull() {
+bool ThrottlingDecoderFlowControl::CanAcceptMore() {
   std::lock_guard lock(mutex_);
-  return state_.total_frames() == max_frames_;
+  return state_.total_frames() < max_frames_;
 }
 
 void ThrottlingDecoderFlowControl::UpdateDecodingStat_Locked() {
@@ -197,7 +198,9 @@ void ThrottlingDecoderFlowControl::LogStateAndReschedule(
 
 class NoOpDecoderFlowControl : public DecoderFlowControl {
  public:
-  NoOpDecoderFlowControl() = default;
+  NoOpDecoderFlowControl() {
+    SB_LOG(INFO) << "NoOpDecoderFlowControl is created.";
+  }
   ~NoOpDecoderFlowControl() override = default;
 
   bool AddFrame() override { return true; }
@@ -205,7 +208,7 @@ class NoOpDecoderFlowControl : public DecoderFlowControl {
   bool ReleaseFrameAt(int64_t release_us) override { return true; }
 
   State GetCurrentState() const override { return State(); }
-  bool IsFull() override { return false; }
+  bool CanAcceptMore() override { return true; }
 };
 
 }  // namespace
