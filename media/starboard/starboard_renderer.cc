@@ -127,6 +127,7 @@ StarboardRenderer::StarboardRenderer(
   DCHECK(task_runner_);
   DCHECK(media_log_);
   DCHECK(set_bounds_helper_);
+
   LOG(INFO) << "StarboardRenderer constructed.";
 }
 
@@ -164,6 +165,8 @@ void StarboardRenderer::Initialize(MediaResource* media_resource,
   TRACE_EVENT0("media", "StarboardRenderer::Initialize");
 
   LOG(INFO) << "Initializing StarboardRenderer.";
+  LOG(WARNING) << "@@@@@@@@@@@@@@@@@@@@@@@\n@@@@@@@@@@@@@@@@@@@@@@@\n@@@@@@@@@@"
+                  "@@@@@@@@@@@@@\n StarboardRenderer Initialize";
 
 #if COBALT_MEDIA_ENABLE_SUSPEND_RESUME
   // Note that once this code block is enabled, we should also ensure that the

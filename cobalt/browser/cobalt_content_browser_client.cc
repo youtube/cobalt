@@ -58,6 +58,12 @@
 #include "base/android/locale_utils.h"
 #endif  // BUILDFLAG(IS_ANDROID)
 
+#include "cobalt/splash/splash.h"
+#include "content/public/browser/render_widget_host_view.h"
+#include "ui/aura/window.h"
+#include "ui/aura/window_tree_host.h"
+
+
 namespace cobalt {
 
 namespace {
@@ -273,6 +279,11 @@ void CobaltContentBrowserClient::ConfigureNetworkContextParams(
 void CobaltContentBrowserClient::OnWebContentsCreated(
     content::WebContents* web_contents) {
   DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
+  if (web_contents_observer_) {
+    // Already created.
+    return;
+  }
+
   web_contents_observer_.reset(new CobaltWebContentsObserver(web_contents));
   web_contents_delegate_.reset(new CobaltWebContentsDelegate());
   content::Shell::SetShellCreatedCallback(base::BindOnce(
@@ -280,6 +291,9 @@ void CobaltContentBrowserClient::OnWebContentsCreated(
         shell->web_contents()->SetDelegate(delegate);
       },
       web_contents_delegate_.get()));
+  // splash_ = Splash::Show(GetBrowserContext(),
+  //     web_contents->GetNativeView()->GetHost()->window(),
+  //     GURL("https://serve-dot-zipline.appspot.com/asset/85c0fdfa-ac32-5348-a73d-a9ede6330205/zpc/r5hdve28yl9/"));
 }
 
 void CobaltContentBrowserClient::RegisterBrowserInterfaceBindersForFrame(
