@@ -254,6 +254,8 @@ SbPlayerBridge::SbPlayerBridge(
   DCHECK(decode_target_provider_);
 #endif  // COBALT_MEDIA_ENABLE_DECODE_TARGET_PROVIDER
 
+  weak_this_ = weak_factory_.GetWeakPtr();
+
   audio_stream_info_.codec = kSbMediaAudioCodecNone;
   video_stream_info_.codec = kSbMediaVideoCodecNone;
 
@@ -747,7 +749,7 @@ void SbPlayerBridge::CreatePlayer() {
   is_creating_player_ = true;
 
   if (output_mode_ == kSbPlayerOutputModeInvalid) {
-    PlayerErrorCB(kSbPlayerInvalid, this, kSbPlayerErrorDecode,
+    PlayerErrorCB(kSbPlayerInvalid, &weak_this_, kSbPlayerErrorDecode,
                   "Invalid output mode returned by "
                   "SbPlayerBridge::ComputeSbPlayerOutputMode()");
     is_creating_player_ = false;
@@ -796,7 +798,7 @@ void SbPlayerBridge::CreatePlayer() {
   player_ = sbplayer_interface_->Create(
       window_, &creation_param, &SbPlayerBridge::DeallocateSampleCB,
       &SbPlayerBridge::DecoderStatusCB, &SbPlayerBridge::PlayerStatusCB,
-      &SbPlayerBridge::PlayerErrorCB, this,
+      &SbPlayerBridge::PlayerErrorCB, &weak_this_,
 #if COBALT_MEDIA_ENABLE_DECODE_TARGET_PROVIDER
       get_decode_target_graphics_context_provider_func_.Run());
 #else   // COBALT_MEDIA_ENABLE_DECODE_TARGET_PROVIDER
@@ -1227,12 +1229,15 @@ void SbPlayerBridge::DecoderStatusCB(SbPlayer player,
                                      SbMediaType type,
                                      SbPlayerDecoderState state,
                                      int ticket) {
-  SbPlayerBridge* helper = static_cast<SbPlayerBridge*>(context);
-  helper->task_runner_->PostTask(
-      FROM_HERE,
-      base::BindOnce(&SbPlayerBridge::CallbackHelper::OnDecoderStatus,
-                     helper->callback_helper_, static_cast<void*>(player), type,
-                     state, ticket));
+  base::WeakPtr<SbPlayerBridge> helper =
+      *static_cast<base::WeakPtr<SbPlayerBridge>*>(context);
+  if (helper) {
+    helper->task_runner_->PostTask(
+        FROM_HERE,
+        base::BindOnce(&SbPlayerBridge::CallbackHelper::OnDecoderStatus,
+                       helper->callback_helper_, static_cast<void*>(player),
+                       type, state, ticket));
+  }
 }
 
 // static
@@ -1240,11 +1245,15 @@ void SbPlayerBridge::PlayerStatusCB(SbPlayer player,
                                     void* context,
                                     SbPlayerState state,
                                     int ticket) {
-  SbPlayerBridge* helper = static_cast<SbPlayerBridge*>(context);
-  helper->task_runner_->PostTask(
-      FROM_HERE, base::BindOnce(&SbPlayerBridge::CallbackHelper::OnPlayerStatus,
-                                helper->callback_helper_,
-                                static_cast<void*>(player), state, ticket));
+  base::WeakPtr<SbPlayerBridge> helper =
+      *static_cast<base::WeakPtr<SbPlayerBridge>*>(context);
+  if (helper) {
+    helper->task_runner_->PostTask(
+        FROM_HERE,
+        base::BindOnce(&SbPlayerBridge::CallbackHelper::OnPlayerStatus,
+                       helper->callback_helper_, static_cast<void*>(player),
+                       state, ticket));
+  }
 }
 
 // static
@@ -1252,7 +1261,11 @@ void SbPlayerBridge::PlayerErrorCB(SbPlayer player,
                                    void* context,
                                    SbPlayerError error,
                                    const char* message) {
-  SbPlayerBridge* helper = static_cast<SbPlayerBridge*>(context);
+  base::WeakPtr<SbPlayerBridge> helper =
+      *static_cast<base::WeakPtr<SbPlayerBridge>*>(context);
+  if (!helper) {
+    return;
+  }
   if (player == kSbPlayerInvalid) {
     // TODO: Simplify by combining the functionality of
     // TryToSetPlayerCreationErrorMessage() with OnPlayerError().
@@ -1271,11 +1284,15 @@ void SbPlayerBridge::PlayerErrorCB(SbPlayer player,
 void SbPlayerBridge::DeallocateSampleCB(SbPlayer player,
                                         void* context,
                                         const void* sample_buffer) {
-  SbPlayerBridge* helper = static_cast<SbPlayerBridge*>(context);
-  helper->task_runner_->PostTask(
-      FROM_HERE,
-      base::BindOnce(&SbPlayerBridge::CallbackHelper::OnDeallocateSample,
-                     helper->callback_helper_, sample_buffer));
+  base::WeakPtr<SbPlayerBridge> helper =
+      *static_cast<base::WeakPtr<SbPlayerBridge>*>(context);
+  if (helper) {
+    CHECK(helper->task_runner_);
+    helper->task_runner_->PostTask(
+        FROM_HERE,
+        base::BindOnce(&SbPlayerBridge::CallbackHelper::OnDeallocateSample,
+                       helper->callback_helper_, sample_buffer));
+  }
 }
 
 #if SB_HAS(PLAYER_WITH_URL)

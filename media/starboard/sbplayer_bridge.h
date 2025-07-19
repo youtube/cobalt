@@ -388,6 +388,8 @@ class SbPlayerBridge {
   CValStats* cval_stats_;
   std::string pipeline_identifier_;
 #endif  // COBALT_MEDIA_ENABLE_CVAL
+  base::WeakPtr<SbPlayerBridge> weak_this_;
+  base::WeakPtrFactory<SbPlayerBridge> weak_factory_{this};
 };
 
 }  // namespace media
