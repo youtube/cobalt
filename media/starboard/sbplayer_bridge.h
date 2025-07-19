@@ -61,6 +61,7 @@ class SbPlayerBridge {
     virtual void OnPlayerStatus(SbPlayerState state) = 0;
     virtual void OnPlayerError(SbPlayerError error,
                                const std::string& message) = 0;
+    virtual void OnRenderStatus(SbMediaType type, int number_of_frames) = 0;
 
    protected:
     ~Host() {}
@@ -200,6 +201,7 @@ class SbPlayerBridge {
                        SbPlayerError error,
                        const std::string& message);
     void OnDeallocateSample(const void* sample_buffer);
+    void OnRenderStatus(void* player, SbMediaType type, int number_of_frames);
 
     void ResetPlayer();
 
@@ -263,6 +265,7 @@ class SbPlayerBridge {
                      SbPlayerError error,
                      const std::string& message);
   void OnDeallocateSample(const void* sample_buffer);
+  void OnRenderStatus(SbPlayer player, SbMediaType type, int number_of_frames);
 
   static void DecoderStatusCB(SbPlayer player,
                               void* context,
@@ -280,6 +283,10 @@ class SbPlayerBridge {
   static void DeallocateSampleCB(SbPlayer player,
                                  void* context,
                                  const void* sample_buffer);
+  static void RenderStatusCB(SbPlayer player,
+                             void* context,
+                             SbMediaType type,
+                             int number_of_frames);
 
 #if SB_HAS(PLAYER_WITH_URL)
   SbPlayerOutputMode ComputeSbUrlPlayerOutputMode(

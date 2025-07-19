@@ -15,7 +15,13 @@
 #ifndef STARBOARD_COMMON_PLAYER_H_
 #define STARBOARD_COMMON_PLAYER_H_
 
+#include "starboard/media.h"
 #include "starboard/player.h"
+
+typedef void (*SbPlayerRenderStatusFunc)(SbPlayer player,
+                                         void* context,
+                                         SbMediaType type,
+                                         int number_of_frames);
 
 namespace starboard {
 

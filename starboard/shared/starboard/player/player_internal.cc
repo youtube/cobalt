@@ -53,6 +53,7 @@ SbPlayerPrivateImpl::SbPlayerPrivateImpl(
     SbPlayerDecoderStatusFunc decoder_status_func,
     SbPlayerStatusFunc player_status_func,
     SbPlayerErrorFunc player_error_func,
+    SbPlayerRenderStatusFunc player_render_status_func,
     void* context,
     std::unique_ptr<PlayerWorker::Handler> player_worker_handler)
     : sample_deallocate_func_(sample_deallocate_func),
@@ -61,8 +62,8 @@ SbPlayerPrivateImpl::SbPlayerPrivateImpl(
   worker_ = std::unique_ptr<PlayerWorker>(PlayerWorker::CreateInstance(
       audio_codec, video_codec, std::move(player_worker_handler),
       std::bind(&SbPlayerPrivateImpl::UpdateMediaInfo, this, _1, _2, _3, _4),
-      decoder_status_func, player_status_func, player_error_func, this,
-      context));
+      decoder_status_func, player_status_func, player_error_func,
+      player_render_status_func, this, context));
 
   ++number_of_players_;
   SB_LOG(INFO) << "Creating SbPlayerPrivateImpl. There are "
@@ -77,11 +78,12 @@ SbPlayerPrivate* SbPlayerPrivateImpl::CreateInstance(
     SbPlayerDecoderStatusFunc decoder_status_func,
     SbPlayerStatusFunc player_status_func,
     SbPlayerErrorFunc player_error_func,
+    SbPlayerRenderStatusFunc player_render_status_func,
     void* context,
     std::unique_ptr<PlayerWorker::Handler> player_worker_handler) {
   SbPlayerPrivateImpl* ret = new SbPlayerPrivateImpl(
       audio_codec, video_codec, sample_deallocate_func, decoder_status_func,
-      player_status_func, player_error_func, context,
+      player_status_func, player_error_func, player_render_status_func, context,
       std::move(player_worker_handler));
 
   if (ret && ret->worker_) {

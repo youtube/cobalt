@@ -82,15 +82,19 @@ VideoRendererImpl::~VideoRendererImpl() {
 
 void VideoRendererImpl::Initialize(const ErrorCB& error_cb,
                                    const PrerolledCB& prerolled_cb,
-                                   const EndedCB& ended_cb) {
+                                   const EndedCB& ended_cb,
+                                   const RenderStatusCB& render_status_cb) {
   SB_DCHECK(BelongsToCurrentThread());
   SB_DCHECK(prerolled_cb);
   SB_DCHECK(ended_cb);
+  SB_DCHECK(render_status_cb);
   SB_DCHECK(!prerolled_cb_);
   SB_DCHECK(!ended_cb_);
+  SB_DCHECK(!render_status_cb_);
 
   prerolled_cb_ = prerolled_cb;
   ended_cb_ = ended_cb;
+  render_status_cb_ = render_status_cb;
 
   decoder_->Initialize(
       std::bind(&VideoRendererImpl::OnDecoderStatus, this, _1, _2), error_cb);
@@ -340,6 +344,8 @@ void VideoRendererImpl::Render(VideoRendererSink::DrawFrameCB draw_frame_cb) {
     Schedule(ended_cb_);
   }
   sink_frames_mutex_.unlock();
+
+  render_status_cb_(number_of_frames_.load());
 
 #if SB_PLAYER_FILTER_ENABLE_STATE_CHECK
   // Update this at last to ensure that the delay of Render() call isn't caused

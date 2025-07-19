@@ -37,6 +37,7 @@
 #include "starboard/common/player.h"
 #include "starboard/common/string.h"
 #include "starboard/configuration.h"
+#include "starboard/extension/player_get_render_status.h"
 #if COBALT_MEDIA_ENABLE_PLAYER_SET_MAX_VIDEO_INPUT_SIZE
 #include "starboard/extension/player_set_max_video_input_size.h"
 #endif  // COBALT_MEDIA_ENABLE_PLAYER_SET_MAX_VIDEO_INPUT_SIZE
@@ -127,6 +128,16 @@ void SbPlayerBridge::CallbackHelper::OnPlayerError(void* player,
   if (player_bridge_) {
     player_bridge_->OnPlayerError(static_cast<SbPlayer>(player), error,
                                   message);
+  }
+}
+
+void SbPlayerBridge::CallbackHelper::OnRenderStatus(void* player,
+                                                    SbMediaType type,
+                                                    int number_of_frames) {
+  base::AutoLock auto_lock(lock_);
+  if (player_bridge_) {
+    player_bridge_->OnRenderStatus(static_cast<SbPlayer>(player), type,
+                                   number_of_frames);
   }
 }
 
@@ -793,6 +804,18 @@ void SbPlayerBridge::CreatePlayer() {
         ->SetMaxVideoInputSizeForCurrentThread(max_video_input_size_);
   }
 #endif  // COBALT_MEDIA_ENABLE_PLAYER_SET_MAX_VIDEO_INPUT_SIZE
+  const StarboardExtensionPlayerGetRenderStatusApi*
+      player_get_render_status_extension =
+          static_cast<const StarboardExtensionPlayerGetRenderStatusApi*>(
+              SbSystemGetExtension(
+                  kStarboardExtensionPlayerGetRenderStatusName));
+  if (player_get_render_status_extension &&
+      strcmp(player_get_render_status_extension->name,
+             kStarboardExtensionPlayerGetRenderStatusName) == 0 &&
+      player_get_render_status_extension->version >= 1) {
+    player_get_render_status_extension->SetRenderStatusCBForCurrentThread(
+        &SbPlayerBridge::RenderStatusCB);
+  }
   player_ = sbplayer_interface_->Create(
       window_, &creation_param, &SbPlayerBridge::DeallocateSampleCB,
       &SbPlayerBridge::DecoderStatusCB, &SbPlayerBridge::PlayerStatusCB,
@@ -1208,6 +1231,17 @@ void SbPlayerBridge::OnDeallocateSample(const void* sample_buffer) {
   }
 }
 
+void SbPlayerBridge::OnRenderStatus(SbPlayer player,
+                                    SbMediaType type,
+                                    int number_of_frames) {
+  DCHECK(task_runner_->RunsTasksInCurrentSequence());
+
+  if (player_ != player) {
+    return;
+  }
+  host_->OnRenderStatus(type, number_of_frames);
+}
+
 bool SbPlayerBridge::TryToSetPlayerCreationErrorMessage(
     const std::string& message) {
   DCHECK(task_runner_->RunsTasksInCurrentSequence());
@@ -1276,6 +1310,19 @@ void SbPlayerBridge::DeallocateSampleCB(SbPlayer player,
       FROM_HERE,
       base::BindOnce(&SbPlayerBridge::CallbackHelper::OnDeallocateSample,
                      helper->callback_helper_, sample_buffer));
+}
+
+// static
+void SbPlayerBridge::RenderStatusCB(SbPlayer player,
+                                    void* context,
+                                    SbMediaType type,
+                                    int number_of_frames) {
+  SbPlayerBridge* helper = static_cast<SbPlayerBridge*>(context);
+  helper->task_runner_->PostTask(
+      FROM_HERE,
+      base::BindOnce(&SbPlayerBridge::CallbackHelper::OnRenderStatus,
+                     helper->callback_helper_, static_cast<void*>(player), type,
+                     number_of_frames));
 }
 
 #if SB_HAS(PLAYER_WITH_URL)

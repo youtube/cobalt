@@ -50,7 +50,8 @@ class VideoRendererImpl : public VideoRenderer, private JobQueue::JobOwner {
 
   void Initialize(const ErrorCB& error_cb,
                   const PrerolledCB& prerolled_cb,
-                  const EndedCB& ended_cb) override;
+                  const EndedCB& ended_cb,
+                  const RenderStatusCB& render_status_cb) override;
   int GetDroppedFrames() const override {
     return algorithm_->GetDroppedFrames();
   }
@@ -86,6 +87,7 @@ class VideoRendererImpl : public VideoRenderer, private JobQueue::JobOwner {
 
   PrerolledCB prerolled_cb_;
   EndedCB ended_cb_;
+  RenderStatusCB render_status_cb_;
 
   // Our owner will attempt to seek to time 0 when playback begins.  In
   // general, seeking could require a full reset of the underlying decoder on

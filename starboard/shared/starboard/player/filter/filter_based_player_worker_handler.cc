@@ -88,7 +88,8 @@ HandlerResult FilterBasedPlayerWorkerHandler::Init(
     UpdateMediaInfoCB update_media_info_cb,
     GetPlayerStateCB get_player_state_cb,
     UpdatePlayerStateCB update_player_state_cb,
-    UpdatePlayerErrorCB update_player_error_cb) {
+    UpdatePlayerErrorCB update_player_error_cb,
+    UpdateRenderStatusCB update_render_status_cb) {
   // This function should only be called once.
   SB_DCHECK(update_media_info_cb_ == NULL);
 
@@ -105,6 +106,7 @@ HandlerResult FilterBasedPlayerWorkerHandler::Init(
   get_player_state_cb_ = get_player_state_cb;
   update_player_state_cb_ = update_player_state_cb;
   update_player_error_cb_ = update_player_error_cb;
+  update_render_status_cb_ = update_render_status_cb;
 
   std::unique_ptr<PlayerComponents::Factory> factory =
       PlayerComponents::Factory::Create();
@@ -176,7 +178,9 @@ HandlerResult FilterBasedPlayerWorkerHandler::Init(
         std::bind(&FilterBasedPlayerWorkerHandler::OnPrerolled, this,
                   kSbMediaTypeVideo),
         std::bind(&FilterBasedPlayerWorkerHandler::OnEnded, this,
-                  kSbMediaTypeVideo));
+                  kSbMediaTypeVideo),
+        std::bind(&FilterBasedPlayerWorkerHandler::OnRenderStatusUpdate, this,
+                  kSbMediaTypeVideo, _1));
   }
 
   update_job_token_ = Schedule(update_job_, kUpdateIntervalUsec);
@@ -502,6 +506,20 @@ void FilterBasedPlayerWorkerHandler::Update() {
 
   RemoveJobByToken(update_job_token_);
   update_job_token_ = Schedule(update_job_, kUpdateIntervalUsec);
+}
+
+void FilterBasedPlayerWorkerHandler::OnRenderStatusUpdate(
+    SbMediaType type,
+    int number_of_frames) {
+  if (!BelongsToCurrentThread()) {
+    Schedule(std::bind(&FilterBasedPlayerWorkerHandler::OnRenderStatusUpdate,
+                       this, type, number_of_frames));
+    return;
+  }
+
+  if (update_render_status_cb_) {
+    update_render_status_cb_(type, number_of_frames);
+  }
 }
 
 void FilterBasedPlayerWorkerHandler::Stop() {
