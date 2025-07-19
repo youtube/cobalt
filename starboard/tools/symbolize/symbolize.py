@@ -85,7 +85,7 @@ def _Symbolize(filename, library, base_address):
       if match:
         offset = int(match.group(2), 0) - int(base_address, 0)
         results = _RunSymbolizer(library, str(offset))
-        if results and '?' not in results[0] and '?' not in results[1]:
+        if results and b'?' not in results[0] and b'?' not in results[1]:
           sys.stdout.write(f'    {match.group(1)} {hex(offset)} in '
                            f'{results[0]} {results[1]}\n')
           continue
@@ -94,7 +94,7 @@ def _Symbolize(filename, library, base_address):
       if match:
         offset = int(match.group(1), 0) - int(base_address, 0)
         results = _RunSymbolizer(library, str(offset))
-        if results and '?' not in results[0]:
+        if results and b'?' not in results[0]:
           sys.stdout.write(f'        {hex(offset)} [{results[0]}]\n')
           continue
       # Raw

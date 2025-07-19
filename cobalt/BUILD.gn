@@ -41,6 +41,12 @@ group("gn_all") {
   }
 }
 
+group("cobalt_browsertests") {
+  testonly = true
+
+  deps = [ "testing:cobalt_browsertests" ]
+}
+
 if (!is_android) {
   if (is_cobalt_hermetic_build) {
     cobalt_target_type = "modular_executable"
@@ -110,6 +116,7 @@ source_set("common") {
     "//cobalt/renderer",
     "//cobalt/shell:content_shell_app",
     "//cobalt/shell:content_shell_lib",
+    "//cobalt/utility",
     "//components/memory_system:memory_system",
     "//content/public/app",
     "//content/shell:pak",
@@ -153,6 +160,7 @@ test("cobalt_unittests") {
     "//cobalt/browser/client_hint_headers/cobalt_header_value_provider_test.cc",
     "//cobalt/browser/client_hint_headers/cobalt_trusted_header_client_test.cc",
     "//cobalt/browser/client_hint_headers/cobalt_trusted_url_loader_header_client_test.cc",
+    "//cobalt/browser/experiments/experiment_config_manager_unittest.cc",
     "//cobalt/browser/global_features_unittest.cc",
     "//cobalt/browser/h5vcc_runtime/deep_link_manager_unittest.cc",
     "//cobalt/browser/metrics/cobalt_enabled_state_provider_test.cc",
@@ -194,7 +202,6 @@ test("cobalt_unittests") {
 
   # All configs that provide definitions for switch constants.
   deps += [
-    "//chrome/common:non_code_constants",
     "//cobalt/browser:switches",
 
     # TODO(cobalt b/375241103) This dependency is large in scope. It would be

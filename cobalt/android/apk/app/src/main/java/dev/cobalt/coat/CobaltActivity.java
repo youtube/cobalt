@@ -21,7 +21,6 @@ import android.content.Intent;
 import android.content.pm.ActivityInfo;
 import android.content.pm.PackageManager;
 import android.content.pm.PackageManager.NameNotFoundException;
-import android.graphics.Color;
 import android.media.AudioManager;
 import android.net.Uri;
 import android.os.Bundle;
@@ -66,14 +65,10 @@ import org.chromium.ui.base.IntentRequestTracker;
 /** Native activity that has the required JNI methods called by the Starboard implementation. */
 public abstract class CobaltActivity extends Activity {
   private static final String URL_ARG = "--url=";
-  private static final java.lang.String META_DATA_APP_URL = "cobalt.APP_URL";
+  private static final String META_DATA_APP_URL = "cobalt.APP_URL";
 
   // This key differs in naming format for legacy reasons
   public static final String COMMAND_LINE_ARGS_KEY = "commandLineArgs";
-  public static final String COMMAND_LINE_JS_FLAGS_KEY = "js-flags";
-  public static final String COMMAND_LINE_ENABLE_FEATURES_KEY = "enable-features";
-  public static final String COMMAND_LINE_DISABLE_FEATURES_KEY = "disable-features";
-  public static final String COMMAND_LINE_BLINK_ENABLE_FEATURES_KEY = "blink-enable-features";
 
   private static final Pattern URL_PARAM_PATTERN = Pattern.compile("^[a-zA-Z0-9_=]*$");
 
@@ -106,30 +101,14 @@ public abstract class CobaltActivity extends Activity {
     if (!CommandLine.isInitialized()) {
       CommandLine.init(null);
 
-      String[] commandLineOverrides =
+      String[] commandLineArgs =
           getCommandLineParamsFromIntent(
               getIntent(), COMMAND_LINE_ARGS_KEY);
-      String[] jsFlagOverrides =
-          getCommandLineParamsFromIntent(
-              getIntent(), COMMAND_LINE_JS_FLAGS_KEY);
-      String[] enableFeaturesCommandLineOverrides =
-          getCommandLineParamsFromIntent(
-              getIntent(), COMMAND_LINE_ENABLE_FEATURES_KEY);
-      String[] disableFeaturesCommandLineOverrides =
-          getCommandLineParamsFromIntent(
-              getIntent(), COMMAND_LINE_DISABLE_FEATURES_KEY);
-      String[] blinkEnableFeaturesCommandLineOverrides =
-          getCommandLineParamsFromIntent(
-              getIntent(), COMMAND_LINE_BLINK_ENABLE_FEATURES_KEY);
       CommandLineOverrideHelper.getFlagOverrides(
           new CommandLineOverrideHelper.CommandLineOverrideHelperParams(
               shouldSetJNIPrefix,
               VersionInfo.isOfficialBuild(),
-              commandLineOverrides,
-              jsFlagOverrides,
-              enableFeaturesCommandLineOverrides,
-              disableFeaturesCommandLineOverrides,
-              blinkEnableFeaturesCommandLineOverrides
+              commandLineArgs
         ));
     }
 
@@ -156,13 +135,13 @@ public abstract class CobaltActivity extends Activity {
       getStarboardBridge().handleDeepLink(startDeepLink);
     }
 
-    mShellManager = new ShellManager(this);
+    setContentView(R.layout.content_shell_activity);
+    mShellManager = findViewById(R.id.shell_container);
     final boolean listenToActivityState = true;
     mIntentRequestTracker = IntentRequestTracker.createFromActivity(this);
     mWindowAndroid = new ActivityWindowAndroid(this, listenToActivityState, mIntentRequestTracker);
     mIntentRequestTracker.restoreInstanceState(savedInstanceState);
     mShellManager.setWindow(mWindowAndroid);
-    setContentView(mShellManager.getContentViewRenderView());
     // Set up the animation placeholder to be the SurfaceView. This disables the
     // SurfaceView's 'hole' clipping during animations that are notified to the window.
     mWindowAndroid.setAnimationPlaceholderView(
@@ -322,10 +301,6 @@ public abstract class CobaltActivity extends Activity {
     createContent(savedInstanceState);
 
     videoSurfaceView = new VideoSurfaceView(this);
-
-    // TODO: b/408279606 - Set this to app theme primary color once we fix
-    // error with it being unresolvable.
-    videoSurfaceView.setBackgroundColor(Color.BLACK);
     a11yHelper = new CobaltA11yHelper(this, videoSurfaceView);
     addContentView(videoSurfaceView, new LayoutParams(LayoutParams.MATCH_PARENT, LayoutParams.MATCH_PARENT));
 
@@ -590,10 +565,6 @@ public abstract class CobaltActivity extends Activity {
             // where the view would be in a UI layout and to set the surface transform matrix to
             // match the view's size.
             videoSurfaceView.setLayoutParams(layoutParams);
-            // Set the background to transparent here to avoid obscuring UI
-            // elements. Some are rendered behind the background and rely on
-            // the background being transparent.
-            videoSurfaceView.setBackgroundColor(Color.TRANSPARENT);
           }
         });
   }

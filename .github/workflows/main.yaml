@@ -47,6 +47,9 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          ref: ${{ github.event.pull_request.head.sha }}
       - name: Cache CI Essentials
         uses: actions/upload-artifact@v4
         with:
@@ -59,7 +62,7 @@ jobs:
             cobalt/docker
             cobalt/testing/filters
             cobalt/tools
-            docker-compose.yml
+            docker-compose.yaml
       - name: Remove runtest if exists
         if: github.event_name == 'pull_request'
         continue-on-error: true  # Ignore this step if we cannot remove the label.
@@ -124,6 +127,13 @@ jobs:
           set -x
           test_on_device=$(cat ${GITHUB_WORKSPACE}/.github/config/${{ inputs.platform }}.json | jq -rc '.test_on_device')
           echo "test_on_device=${test_on_device}" >> $GITHUB_OUTPUT
+      - name: Set e2e tests
+        id: set-test-e2e
+        shell: bash
+        run: |
+          set -x
+          test_e2e=$(cat ${GITHUB_WORKSPACE}/.github/config/${{ inputs.platform }}.json | jq -rc '.test_e2e')
+          echo "test_e2e=${test_e2e}" >> $GITHUB_OUTPUT
       - name: Set web tests
         id: set-web-tests
         shell: bash
@@ -138,6 +148,27 @@ jobs:
           set -x
           test_root_target=$(cat ${GITHUB_WORKSPACE}/.github/config/${{ inputs.platform }}.json | jq -rc '.test_root_target')
           echo "test_root_target=${test_root_target}" >> $GITHUB_OUTPUT
+      - name: Set E2E test device type
+        id: set-test-device-family
+        shell: bash
+        run: |
+          set -x
+          test_device_family=$(cat ${GITHUB_WORKSPACE}/.github/config/${{ inputs.platform }}.json | jq -rc '.test_device_family // empty')
+          echo "test_device_family=${test_device_family}" >> $GITHUB_OUTPUT
+      - name: Set E2E test targets
+        id: set-e2e-test-targets
+        shell: bash
+        run: |
+          set -x
+          e2e_test_targets=$(cat ${GITHUB_WORKSPACE}/.github/config/${{ inputs.platform }}.json | jq -cr '.e2e_test_targets // []')
+          echo "e2e_test_targets=${e2e_test_targets}" >> $GITHUB_OUTPUT
+      - name: Set E2E test attempts
+        id: set-e2e-test-attempts
+        shell: bash
+        run: |
+          set -x
+          e2e_test_attempts=$(cat ${GITHUB_WORKSPACE}/.github/config/${{ inputs.platform }}.json | jq -rc '.e2e_test_attempts // empty')
+          echo "e2e_test_attempts=${e2e_test_attempts}" >> $GITHUB_OUTPUT
       - name: Set test device dimensions
         id: set-test-dimensions
         shell: bash
@@ -158,23 +189,36 @@ jobs:
         run: |
           set -x
           # Retrieve number of shards from config. If not specified, default to 1 shard with `echo 1`.
-          num_gtest_shards=$(cat ${GITHUB_WORKSPACE}/.github/config/${{ inputs.platform }}.json | jq -rc '.num_gtest_shards' || echo 1)
+          num_gtest_shards=$(cat ${GITHUB_WORKSPACE}/.github/config/${{ inputs.platform }}.json | jq -rc '.num_gtest_shards // 1' )
           echo "num_gtest_shards=${num_gtest_shards}" >> $GITHUB_OUTPUT
 
           # Create a zero-indexed list of shards for use by matrix, e.g. [0,1,2,3,4,5].
           gtest_shards="[$(seq -s, 0 1 $((${num_gtest_shards} - 1)))]"
           echo "gtest_shards=${gtest_shards}" >> $GITHUB_OUTPUT
+      - name: Set git hash for Docker changes
+        id: set-docker-hash
+        shell: bash
+        run: |
+          set -x
+          docker_content_sha=$(git log -n 1 --pretty=format:%h -- cobalt/docker docker-compose.yaml)
+          git show ${docker_content_sha}
+          echo "docker_content_sha=${docker_content_sha}" >> $GITHUB_OUTPUT
     outputs:
       platforms: ${{ steps.set-platforms.outputs.platforms }}
       targets: ${{ steps.set-targets.outputs.targets }}
       build_configs: ${{ steps.set-build-configs.outputs.build_configs }}
       includes: ${{ steps.set-includes.outputs.includes }}
       docker_service: ${{ steps.set-docker-service.outputs.docker_service }}
+      docker_content_sha: ${{ steps.set-docker-hash.outputs.docker_content_sha }}
       gtest_shards: ${{ steps.set-gtest-shards.outputs.gtest_shards }}
       test_on_host: ${{ steps.set-test-on-host.outputs.test_on_host }}
       test_on_device: ${{ steps.set-test-on-device.outputs.test_on_device }}
+      test_e2e: ${{ steps.set-test-e2e.outputs.test_e2e }}
       web_tests: ${{ steps.set-web-tests.outputs.web_tests }}
       test_root_target: ${{ steps.set-test-root-target.outputs.test_root_target }}
+      test_device_family: ${{ steps.set-test-device-family.outputs.test_device_family }}
+      e2e_test_targets: ${{ steps.set-e2e-test-targets.outputs.e2e_test_targets }}
+      e2e_test_attempts: ${{ steps.set-e2e-test-attempts.outputs.e2e_test_attempts }}
       test_dimensions: ${{ steps.set-test-dimensions.outputs.test_dimensions }}
       test_attempts: ${{ steps.set-test-attempts.outputs.test_attempts }}
       num_gtest_shards: ${{ steps.set-gtest-shards.outputs.num_gtest_shards }}
@@ -184,31 +228,20 @@ jobs:
     needs: [initialize]
     runs-on: [self-hosted, chrobalt-linux-runner]
     steps:
-    - name: Restore CI Essentials
-      uses: actions/download-artifact@v4
-      with:
-        name: ci-essentials-${{ inputs.platform }}
-    # Handle GitHub registry used for everything other than pull requests off forked repos.
-    - name: Login to GitHub Docker Registry
-      uses: docker/login-action@9780b0c442fbb1117ed29e0efdff1e18412f7567 # v3.3.0
-      with:
-        registry: ghcr.io
-        username: ${{ github.actor }}
-        password: ${{ secrets.GITHUB_TOKEN }}
-    - name: Build docker image
-      id: build-docker-image
-      uses: ./.github/actions/docker
-      with:
-        docker_service: ${{ needs.initialize.outputs.docker_service }}
-    - name: Set Docker Tag Output
-      id: set-docker-tag-output
-      shell: bash
-      run: |
-        set -u
-        echo $DOCKER_TAG
-        echo "docker_tag=$DOCKER_TAG" | head -n 1  >> $GITHUB_OUTPUT
+      - name: Restore CI Essentials
+        uses: actions/download-artifact@v4
+        with:
+          name: ci-essentials-${{ inputs.platform }}
+      - name: Build docker image
+        id: build-docker-image
+        uses: ./.github/actions/docker
+        with:
+          docker_service: ${{ needs.initialize.outputs.docker_service }}
+          is_pr: ${{ (github.event_name == 'pull_request') }}
+          docker_content_sha: ${{ needs.initialize.outputs.docker_content_sha }}
+          github_token: ${{ secrets.GITHUB_TOKEN }}
     outputs:
-      docker_tag: ${{ steps.set-docker-tag-output.outputs.docker_tag }}
+      docker_tag: ${{ steps.build-docker-image.outputs.docker_tag }}
 
   # Builds, tags, and pushes Cobalt unit test image to ghr.
   docker-unittest-image:
@@ -220,26 +253,16 @@ jobs:
         uses: actions/download-artifact@v4
         with:
           name: ci-essentials-${{ inputs.platform }}
-      - name: Login to GitHub Docker Registry
-        uses: docker/login-action@9780b0c442fbb1117ed29e0efdff1e18412f7567 # v3.3.0
-        with:
-          registry: ghcr.io
-          username: ${{ github.actor }}
-          password: ${{ secrets.GITHUB_TOKEN }}
       - name: Build docker image
         id: build-docker-image
         uses: ./.github/actions/docker
         with:
           docker_service: unittest
-      - name: Set Docker Tag Output
-        id: set-docker-tag-output
-        shell: bash
-        run: |
-          set -u
-          echo $DOCKER_TAG
-          echo "docker_tag=$DOCKER_TAG" | head -n 1 >> $GITHUB_OUTPUT
+          is_pr: ${{ (github.event_name == 'pull_request') }}
+          docker_content_sha: ${{ needs.initialize.outputs.docker_content_sha }}
+          github_token: ${{ secrets.GITHUB_TOKEN }}
     outputs:
-      docker_tag: ${{ steps.set-docker-tag-output.outputs.docker_tag }}
+      docker_tag: ${{ steps.build-docker-image.outputs.docker_tag }}
 
   # Builds, tags, and pushes Cobalt web test image to ghr.
   docker-webtest-image:
@@ -251,26 +274,16 @@ jobs:
         uses: actions/download-artifact@v4
         with:
           name: ci-essentials-${{ inputs.platform }}
-      - name: Login to GitHub Docker Registry
-        uses: docker/login-action@9780b0c442fbb1117ed29e0efdff1e18412f7567 # v3.3.0
-        with:
-          registry: ghcr.io
-          username: ${{ github.actor }}
-          password: ${{ secrets.GITHUB_TOKEN }}
       - name: Build docker image
         id: build-docker-image
         uses: ./.github/actions/docker
         with:
           docker_service: webtest
-      - name: Set Docker Tag Output
-        id: set-docker-tag-output
-        shell: bash
-        run: |
-          set -u
-          echo $DOCKER_TAG
-          echo "docker_tag=$DOCKER_TAG" | head -n 1 >> $GITHUB_OUTPUT
+          is_pr: ${{ (github.event_name == 'pull_request') }}
+          docker_content_sha: ${{ needs.initialize.outputs.docker_content_sha }}
+          github_token: ${{ secrets.GITHUB_TOKEN }}
     outputs:
-      docker_tag: ${{ steps.set-docker-tag-output.outputs.docker_tag }}
+      docker_tag: ${{ steps.build-docker-image.outputs.docker_tag }}
 
   build:
     needs: [initialize, docker-build-image]
@@ -317,7 +330,7 @@ jobs:
           test_root_target: ${{ needs.initialize.outputs.test_root_target }}
           test_targets_json_file: out/${{ matrix.platform }}_${{ matrix.config }}/test_targets.json
           upload_on_host_test_artifacts: ${{ matrix.config == 'devel' && needs.initialize.outputs.test_on_host == 'true' }}
-          upload_on_device_test_artifacts: ${{ matrix.config == 'devel' && needs.initialize.outputs.test_on_device == 'true' }}
+          upload_on_device_test_artifacts: ${{ matrix.config == 'devel' && ( needs.initialize.outputs.test_on_device == 'true' || needs.initialize.outputs.test_e2e == 'true' ) }}
           upload_web_test_artifacts: ${{ matrix.config == 'devel' && needs.initialize.outputs.web_tests == 'true' }}
       - name: Run API Leak Detector
         uses: ./src/.github/actions/api_leak_detector
@@ -345,7 +358,6 @@ jobs:
         config: [devel]
     env:
       TEST_RESULTS_KEY: ${{ matrix.platform }}_${{ matrix.name }}_test_results
-      TEST_ATTEMPTS: ${{ needs.initialize.outputs.test_attempts }}
     steps:
       - name: Restore CI Essentials
         uses: actions/download-artifact@v4
@@ -362,8 +374,39 @@ jobs:
           test_results_key: ${{ env.TEST_RESULTS_KEY }}
           gcs_results_path: gs://cobalt-unittest-storage/results/${{ matrix.name }}/${{ github.run_id }}/${{ github.run_attempt }}
           test_dimensions: '${{ needs.initialize.outputs.test_dimensions }}'
+          test_device_family: '${{ needs.initialize.outputs.test_device_family}}'
+          test_attempts: '${{ needs.initialize.outputs.test_attempts }}'
     outputs:
       test_targets_json: ${{ steps.test-target-json.outputs.test_targets_json }}
+
+  e2e-test:
+    needs: [initialize, build]
+    # Run E2E tests when on_device label is applied to PR.
+    # Also, run E2E tests on push and schedule if not explicitly disabled via repo vars.
+    if: needs.initialize.outputs.test_e2e == 'true' &&
+        (
+          (github.event_name == 'pull_request' && contains(github.event.pull_request.labels.*.name, 'on_device')) ||
+          ((inputs.nightly == 'true' || github.event_name == 'schedule') && vars.RUN_ODT_TESTS_ON_NIGHTLY != 'False') ||
+          (github.event_name == 'push' && vars.RUN_ODT_TESTS_ON_POSTSUBMIT != 'False')
+        )
+    runs-on: [self-hosted, odt-runner]
+    name: ${{ matrix.name }}_e2e_tests
+    permissions: {}
+    strategy:
+      fail-fast: false
+      matrix:
+        platform: ${{ fromJson(needs.initialize.outputs.platforms) }}
+        include: ${{ fromJson(needs.initialize.outputs.includes) }}
+        config: [devel]
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Run E2E Tests
+        uses: ./.github/actions/e2e_tests
+        with:
+          e2e_test_targets: '${{ needs.initialize.outputs.e2e_test_targets }}'
+          test_attempts: '${{ needs.initialize.outputs.e2e_test_attempts }}'
+          test_dimensions: '${{ needs.initialize.outputs.test_dimensions }}'
 
   on-host-test:
     needs: [initialize, docker-unittest-image, build]
@@ -493,6 +536,7 @@ jobs:
           target_name: ${{ matrix.test_target }}
           results_glob: results/**/${{ steps.extract-target-name.outputs.test_target }}*.xml
           datadog_api_key: ${{ secrets.datadog_api_key }}
+          num_gtest_shards: ${{ needs.initialize.outputs.num_gtest_shards }}
       - name: ${{ matrix.test_target }} Device Logs
         if: always() && steps.filter.outputs.skipped != 'true' && needs.initialize.outputs.test_on_device == 'true'
         uses: ./.github/actions/print_logs

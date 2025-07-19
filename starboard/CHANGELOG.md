@@ -10,6 +10,11 @@ since the version previous to it.
 ## Version 17
 Starboard 17 fully switches to POSIX APIs.
 
+### From `starboard/time_zone.h`
+ * Removed `SbTimeZoneGetCurrent`. The time offset is now derived
+   from the name returned by `SbTimeZoneGetName`, using the zoneinfo
+   that is in the included ICU data.
+
 ### Removed the followoing SbEvents:
 * `kSbEventTypeUser`.
 * `kSbEventTypeAccessibilitySettingsChanged`
@@ -31,13 +36,13 @@ The functionality is migrated to a starboard extension.
 ### Removed `starboard/mutex.h`
 ### Removed `starboard/memory.h`
 ### Removed `starboard/once.h`
+### Removed `starboard/socket.h`
 ### Removed `starboard/string.h`
 ### Removed `starboard/time.h`
 ### Removed `starboard/ui_navigation.h`
 The functionality is migrated to starboard extension.
 ### Removed `starboard/user.h`
 ### Removed unused symbols from `starboard/file.h`
-### Removed unused symbols from `starboard/socket.h`
 ### Removed unused symbols from `starboard/thread.h`
 ### Removed unused symbols from `starboard/types.h`
   * Removed provisions for SSIZE_T

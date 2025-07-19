@@ -27,10 +27,12 @@
 
 namespace starboard::android::shared {
 
-using base::android::JavaParamRef;
-using base::android::JavaRef;
-using base::android::ScopedJavaGlobalRef;
-using base::android::ScopedJavaLocalRef;
+// A "status" for MediaDrmBridge operations.
+// GENERATED_JAVA_ENUM_PACKAGE: dev.cobalt.media
+enum DrmOperationStatus {
+  DRM_OPERATION_STATUS_SUCCESS,
+  DRM_OPERATION_STATUS_OPERATION_FAILED,
+};
 
 class MediaDrmBridge {
  public:
@@ -39,8 +41,7 @@ class MediaDrmBridge {
     virtual void OnSessionUpdate(int ticket,
                                  SbDrmSessionRequestType request_type,
                                  std::string_view session_id,
-                                 std::string_view content,
-                                 const char* url) = 0;
+                                 std::string_view content) = 0;
     virtual void OnKeyStatusChange(
         std::string_view session_id,
         const std::vector<SbDrmKeyId>& drm_key_ids,
@@ -50,7 +51,15 @@ class MediaDrmBridge {
     ~Host() = default;
   };
 
-  MediaDrmBridge(raw_ref<MediaDrmBridge::Host> host, const char* key_system);
+  struct OperationResult {
+    const DrmOperationStatus status;
+    const std::string error_message;
+
+    bool ok() const { return status == DRM_OPERATION_STATUS_SUCCESS; }
+  };
+
+  MediaDrmBridge(raw_ref<MediaDrmBridge::Host> host,
+                 std::string_view key_system);
   ~MediaDrmBridge();
 
   MediaDrmBridge(const MediaDrmBridge&) = delete;
@@ -63,27 +72,25 @@ class MediaDrmBridge {
   jobject GetMediaCrypto() const { return j_media_crypto_.obj(); }
 
   void CreateSession(int ticket,
-                     const std::vector<const uint8_t>& init_data,
-                     const std::string& mime) const;
-  // Updates the session. Returns true on success.
-  bool UpdateSession(int ticket,
-                     const void* key,
-                     int key_size,
-                     const void* session_id,
-                     int session_id_size,
-                     std::string* error_msg) const;
-  void CloseSession(const std::string& session_id) const;
+                     std::string_view init_data,
+                     std::string_view mime) const;
+  OperationResult UpdateSession(int ticket,
+                                std::string_view key,
+                                std::string_view session_id) const;
+  void CloseSession(std::string_view session_id) const;
   const void* GetMetrics(int* size);
   bool CreateMediaCryptoSession();
 
-  void OnSessionMessage(JNIEnv* env,
-                        jint ticket,
-                        const JavaParamRef<jbyteArray>& session_id,
-                        jint request_type,
-                        const JavaParamRef<jbyteArray>& message);
-  void OnKeyStatusChange(JNIEnv* env,
-                         const JavaParamRef<jbyteArray>& session_id,
-                         const JavaParamRef<jobjectArray>& key_information);
+  void OnSessionMessage(
+      JNIEnv* env,
+      jint ticket,
+      const base::android::JavaParamRef<jbyteArray>& session_id,
+      jint request_type,
+      const base::android::JavaParamRef<jbyteArray>& message);
+  void OnKeyStatusChange(
+      JNIEnv* env,
+      const base::android::JavaParamRef<jbyteArray>& session_id,
+      const base::android::JavaParamRef<jobjectArray>& key_information);
 
   static bool IsWidevineSupported(JNIEnv* env);
   static bool IsCbcsSupported(JNIEnv* env);
@@ -92,9 +99,13 @@ class MediaDrmBridge {
   const raw_ref<MediaDrmBridge::Host> host_;
   std::vector<uint8_t> metrics_;
 
-  ScopedJavaGlobalRef<jobject> j_media_drm_bridge_;
-  ScopedJavaGlobalRef<jobject> j_media_crypto_;
+  base::android::ScopedJavaGlobalRef<jobject> j_media_drm_bridge_;
+  base::android::ScopedJavaGlobalRef<jobject> j_media_crypto_;
 };
+
+std::ostream& operator<<(std::ostream& os, DrmOperationStatus);
+std::ostream& operator<<(std::ostream& os,
+                         const MediaDrmBridge::OperationResult& result);
 
 }  // namespace starboard::android::shared
 
