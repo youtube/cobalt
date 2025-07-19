@@ -43,8 +43,8 @@ TEST(PosixAlignedAllocTests,
      AllocatesMemorySuccessfullyWhenAlignmentAndSizeAreValid) {
   // Valid alignment is a power of 2 based on
   // https://man7.org/linux/man-pages/man3/aligned_alloc.3.html#DESCRIPTION
-  const size_t kValidAlignment = 64;
-  const size_t kValidSize = kValidAlignment * 2;
+  constexpr size_t kValidAlignment = 64;
+  constexpr size_t kValidSize = kValidAlignment * 2;
   ASSERT_TRUE((kValidAlignment > 0) &&
               ((kValidAlignment & (kValidAlignment - 1)) == 0));
   ASSERT_EQ(0u, kValidSize % kValidAlignment);
@@ -61,8 +61,8 @@ TEST(PosixAlignedAllocTests,
 }
 
 TEST(PosixAlignedAllocTests, HandlesZeroSizeCorrectly) {
-  const size_t kValidAlignment = 128;
-  const size_t kZeroSize = kValidAlignment * 0;
+  constexpr size_t kValidAlignment = 128;
+  constexpr size_t kZeroSize = kValidAlignment * 0;
   ASSERT_TRUE((kValidAlignment > 0) &&
               ((kValidAlignment & (kValidAlignment - 1)) == 0));
 
@@ -81,8 +81,8 @@ TEST(PosixAlignedAllocTests, HandlesZeroSizeCorrectly) {
 
 TEST(PosixAlignedAllocTests,
      AllocatesSuccessfullyWithMinimumValidAlignmentOne) {
-  const size_t kAlignmentOne = 1;  // 2^0 = 1
-  const size_t kAnySize = kAlignmentOne * 100;
+  constexpr size_t kAlignmentOne = 1;  // 2^0 = 1
+  constexpr size_t kAnySize = kAlignmentOne * 100;
 
   errno = 0;
   void* ptr = aligned_alloc(kAlignmentOne, kAnySize);
@@ -97,8 +97,8 @@ TEST(PosixAlignedAllocTests,
 
 TEST(PosixAlignedAllocTests,
      AllocatesSuccessfullyWithAlignmentEqualToSizeofVoidPointer) {
-  const size_t kAlignmentSizeofVoidPtr = sizeof(void*);
-  const size_t kTestSize = kAlignmentSizeofVoidPtr * 4;
+  constexpr size_t kAlignmentSizeofVoidPtr = sizeof(void*);
+  constexpr size_t kTestSize = kAlignmentSizeofVoidPtr * 4;
 
   errno = 0;
   void* ptr = aligned_alloc(kAlignmentSizeofVoidPtr, kTestSize);
@@ -112,8 +112,8 @@ TEST(PosixAlignedAllocTests,
 }
 
 TEST(PosixAlignedAllocTests, AllocatesSuccessfullyWithLargeAlignmentAndSize) {
-  const size_t kLargeAlignment = 1024 * 1024;
-  const size_t kLargeSize = kLargeAlignment * 2;
+  constexpr size_t kLargeAlignment = 1024 * 1024;
+  constexpr size_t kLargeSize = kLargeAlignment * 2;
   ASSERT_TRUE((kLargeAlignment > 0) &&
               ((kLargeAlignment & (kLargeAlignment - 1)) == 0));
   ASSERT_EQ(0u, kLargeSize % kLargeAlignment);

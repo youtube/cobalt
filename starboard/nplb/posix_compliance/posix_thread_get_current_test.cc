@@ -28,7 +28,7 @@ void* EntryPoint(void* context) {
 }
 
 TEST(PosixThreadGetCurrentTest, SunnyDay) {
-  const int kThreads = 16;
+  constexpr int kThreads = 16;
   pthread_t threads[kThreads];
   for (int i = 0; i < kThreads; ++i) {
     EXPECT_EQ(pthread_create(&threads[i], NULL, EntryPoint, NULL), 0);

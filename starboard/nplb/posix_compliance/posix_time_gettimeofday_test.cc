@@ -27,7 +27,7 @@ namespace {
 
 // kReasonableMinTime represents a time (2025-01-01 00:00:00 UTC) after which
 // the current time is expected to fall.
-const time_t kReasonableMinTime = 1'735'689'600;  // 2025-01-01 00:00:00 UTC
+constexpr time_t kReasonableMinTime = 1'735'689'600;  // 2025-01-01 00:00:00 UTC
 
 // Helper template to check for the existence of tv_sec
 template <typename T, typename = void>
@@ -117,7 +117,7 @@ TEST(PosixTimeGettimeofdayTests, GettimeofdayHasDecentResolution) {
   // Number of iterations to check for time change.
   // Chosen to be large enough to observe time changes on typical systems
   // but small enough to not make the test excessively long.
-  const int kNumIterations = 100;
+  constexpr int kNumIterations = 100;
   for (int i = 0; i < kNumIterations; ++i) {
     struct timespec monotonic_ts_start {};
     ASSERT_EQ(0, clock_gettime(CLOCK_MONOTONIC, &monotonic_ts_start))
@@ -137,7 +137,7 @@ TEST(PosixTimeGettimeofdayTests, GettimeofdayHasDecentResolution) {
 
     int64_t currentTime = initialTime;
 
-    const int64_t kMaxResolutionMicroseconds = 100'000LL;  // 100ms
+    constexpr int64_t kMaxResolutionMicroseconds = 100'000LL;  // 100ms
     // Loop until the time reported by gettimeofday changes.
     while (currentTime == initialTime) {
       struct timeval posix_tv_current {};
