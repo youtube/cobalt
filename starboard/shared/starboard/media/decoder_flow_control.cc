@@ -195,7 +195,25 @@ void ThrottlingDecoderFlowControl::LogStateAndReschedule(
       log_interval_us);
 }
 
+class NoOpDecoderFlowControl : public DecoderFlowControl {
+ public:
+  NoOpDecoderFlowControl() = default;
+  ~NoOpDecoderFlowControl() override = default;
+
+  bool AddFrame() override { return true; }
+  bool SetFrameDecoded() override { return true; }
+  bool ReleaseFrameAt(int64_t release_us) override { return true; }
+
+  State GetCurrentState() const override { return State(); }
+  bool IsFull() override { return false; }
+};
+
 }  // namespace
+
+// static
+std::unique_ptr<DecoderFlowControl> DecoderFlowControl::CreateNoOp() {
+  return std::make_unique<NoOpDecoderFlowControl>();
+}
 
 // static
 std::unique_ptr<DecoderFlowControl> DecoderFlowControl::CreateThrottling(

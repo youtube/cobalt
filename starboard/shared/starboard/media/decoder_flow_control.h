@@ -24,6 +24,7 @@ class DecoderFlowControl {
     int total_frames() const { return decoding_frames + decoded_frames; }
   };
 
+  static std::unique_ptr<DecoderFlowControl> CreateNoOp();
   static std::unique_ptr<DecoderFlowControl> CreateThrottling(
       int max_frames,
       int64_t log_interval_us,
