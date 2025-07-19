@@ -387,10 +387,6 @@ template("evergreen_loader") {
       "//starboard/loader_app:copy_crashpad_handler_named_as_so",
       "//starboard/loader_app:copy_loader_app_content",
     ]
-
-    if (!sb_is_evergreen_compatible) {
-      deps += [ "//starboard/crashpad_wrapper:wrapper_stub" ]
-    }
   }
   if (separate_install_targets_for_bundling) {
     import("//starboard/build/config/bundle_content.gni")
