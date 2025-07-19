@@ -203,9 +203,14 @@ class SbPlayerBridge {
 
     void ResetPlayer();
 
+    base::WeakPtr<CallbackHelper> GetWeakPtr() {
+      return weak_factory_.GetWeakPtr();
+    }
+
    private:
     base::Lock lock_;
     SbPlayerBridge* player_bridge_ GUARDED_BY(lock_);
+    base::WeakPtrFactory<CallbackHelper> weak_factory_{this};
   };
 
   static const int64_t kClearDecoderCacheIntervalInMilliseconds = 1000;

@@ -1228,11 +1228,13 @@ void SbPlayerBridge::DecoderStatusCB(SbPlayer player,
                                      SbPlayerDecoderState state,
                                      int ticket) {
   SbPlayerBridge* helper = static_cast<SbPlayerBridge*>(context);
-  helper->task_runner_->PostTask(
-      FROM_HERE,
-      base::BindOnce(&SbPlayerBridge::CallbackHelper::OnDecoderStatus,
-                     helper->callback_helper_, static_cast<void*>(player), type,
-                     state, ticket));
+  if (helper->task_runner_) {
+    helper->task_runner_->PostTask(
+        FROM_HERE,
+        base::BindOnce(&SbPlayerBridge::CallbackHelper::OnDecoderStatus,
+                       helper->callback_helper_->GetWeakPtr(),
+                       static_cast<void*>(player), type, state, ticket));
+  }
 }
 
 // static
@@ -1241,10 +1243,13 @@ void SbPlayerBridge::PlayerStatusCB(SbPlayer player,
                                     SbPlayerState state,
                                     int ticket) {
   SbPlayerBridge* helper = static_cast<SbPlayerBridge*>(context);
-  helper->task_runner_->PostTask(
-      FROM_HERE, base::BindOnce(&SbPlayerBridge::CallbackHelper::OnPlayerStatus,
-                                helper->callback_helper_,
-                                static_cast<void*>(player), state, ticket));
+  if (helper->task_runner_) {
+    helper->task_runner_->PostTask(
+        FROM_HERE,
+        base::BindOnce(&SbPlayerBridge::CallbackHelper::OnPlayerStatus,
+                       helper->callback_helper_->GetWeakPtr(),
+                       static_cast<void*>(player), state, ticket));
+  }
 }
 
 // static
@@ -1260,11 +1265,14 @@ void SbPlayerBridge::PlayerErrorCB(SbPlayer player,
       return;
     }
   }
-  helper->task_runner_->PostTask(
-      FROM_HERE,
-      base::BindOnce(&SbPlayerBridge::CallbackHelper::OnPlayerError,
-                     helper->callback_helper_, static_cast<void*>(player),
-                     error, message ? std::string(message) : ""));
+  if (helper->task_runner_) {
+    helper->task_runner_->PostTask(
+        FROM_HERE,
+        base::BindOnce(&SbPlayerBridge::CallbackHelper::OnPlayerError,
+                       helper->callback_helper_->GetWeakPtr(),
+                       static_cast<void*>(player), error,
+                       message ? std::string(message) : ""));
+  }
 }
 
 // static
@@ -1272,10 +1280,12 @@ void SbPlayerBridge::DeallocateSampleCB(SbPlayer player,
                                         void* context,
                                         const void* sample_buffer) {
   SbPlayerBridge* helper = static_cast<SbPlayerBridge*>(context);
-  helper->task_runner_->PostTask(
-      FROM_HERE,
-      base::BindOnce(&SbPlayerBridge::CallbackHelper::OnDeallocateSample,
-                     helper->callback_helper_, sample_buffer));
+  if (helper->task_runner_) {
+    helper->task_runner_->PostTask(
+        FROM_HERE,
+        base::BindOnce(&SbPlayerBridge::CallbackHelper::OnDeallocateSample,
+                       helper->callback_helper_->GetWeakPtr(), sample_buffer));
+  }
 }
 
 #if SB_HAS(PLAYER_WITH_URL)
