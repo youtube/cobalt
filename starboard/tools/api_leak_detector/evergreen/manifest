@@ -46,8 +46,6 @@ getc
 getcwd
 getrlimit
 gmtime
-in6addr_any
-in6addr_loopback
 initstate
 ioctl
 isatty
