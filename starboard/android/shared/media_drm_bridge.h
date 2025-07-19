@@ -17,7 +17,9 @@
 
 #include <jni.h>
 
+#include <ostream>
 #include <string>
+#include <string_view>
 #include <vector>
 
 #include "base/android/jni_android.h"
@@ -32,6 +34,7 @@ namespace starboard::android::shared {
 enum DrmOperationStatus {
   DRM_OPERATION_STATUS_SUCCESS,
   DRM_OPERATION_STATUS_OPERATION_FAILED,
+  DRM_OPERATION_STATUS_NOT_PROVISIONED,
 };
 
 class MediaDrmBridge {
@@ -42,6 +45,7 @@ class MediaDrmBridge {
                                  SbDrmSessionRequestType request_type,
                                  std::string_view session_id,
                                  std::string_view content) = 0;
+    virtual void OnProvisioningRequest(std::string_view content) = 0;
     virtual void OnKeyStatusChange(
         std::string_view session_id,
         const std::vector<SbDrmKeyId>& drm_key_ids,
@@ -59,7 +63,8 @@ class MediaDrmBridge {
   };
 
   MediaDrmBridge(raw_ref<MediaDrmBridge::Host> host,
-                 std::string_view key_system);
+                 std::string_view key_system,
+                 bool use_app_provisioning);
   ~MediaDrmBridge();
 
   MediaDrmBridge(const MediaDrmBridge&) = delete;
@@ -74,6 +79,13 @@ class MediaDrmBridge {
   void CreateSession(int ticket,
                      std::string_view init_data,
                      std::string_view mime) const;
+
+  OperationResult CreateSessionNoProvisioning(int ticket,
+                                              std::string_view init_data,
+                                              std::string_view mime) const;
+  void GenerateProvisionRequest() const;
+  OperationResult ProvideProvisionResponse(std::string_view response) const;
+
   OperationResult UpdateSession(int ticket,
                                 std::string_view key,
                                 std::string_view session_id) const;
@@ -91,6 +103,9 @@ class MediaDrmBridge {
       JNIEnv* env,
       const base::android::JavaParamRef<jbyteArray>& session_id,
       const base::android::JavaParamRef<jobjectArray>& key_information);
+  void OnProvisioningRequestMessage(
+      JNIEnv* env,
+      const base::android::JavaParamRef<jbyteArray>& message);
 
   static bool IsWidevineSupported(JNIEnv* env);
   static bool IsCbcsSupported(JNIEnv* env);
