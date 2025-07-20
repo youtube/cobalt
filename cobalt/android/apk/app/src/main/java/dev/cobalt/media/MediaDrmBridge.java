@@ -256,8 +256,8 @@ public class MediaDrmBridge {
   OperationResult createSessionWithAppProvisioning(int ticket, byte[] initData, String mime) {
     assert mEnableAppProvisioning;
     if (mMediaDrm == null) {
-      Log.e(TAG, "createSession() called when MediaDrm is null.");
-      return OperationResult.operationFailed("createSession() called when MediaDrm is null.");
+      Log.e(TAG, "createSessionWithAppProvisioning() called when MediaDrm is null.");
+      return OperationResult.operationFailed("createSessionWithAppProvisioning() called when MediaDrm is null.");
     }
 
     byte[] sessionId;
