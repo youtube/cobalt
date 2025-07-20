@@ -537,7 +537,7 @@ public class MediaDrmBridge {
     return hexString.toString();
   }
 
-  private void HandleKeyRequiredEventWithAppProvisioning(byte[] sessionId, byte[] data) {
+  private void handleKeyRequiredEventWithAppProvisioning(byte[] sessionId, byte[] data) {
     assert mEnableAppProvisioning;
     if (!sessionExists(sessionId)) {
       Log.e(TAG, "HandleKeyRequiredEventWithAppProvisioning failed: Invalid session id=" + bytesToString(sessionId));
