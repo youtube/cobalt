@@ -64,7 +64,7 @@ class MediaDrmBridge {
 
   MediaDrmBridge(raw_ref<MediaDrmBridge::Host> host,
                  std::string_view key_system,
-                 bool use_app_provisioning);
+                 bool enable_app_provisioning);
   ~MediaDrmBridge();
 
   MediaDrmBridge(const MediaDrmBridge&) = delete;
@@ -80,9 +80,9 @@ class MediaDrmBridge {
                      std::string_view init_data,
                      std::string_view mime) const;
 
-  OperationResult CreateSessionNoProvisioning(int ticket,
-                                              std::string_view init_data,
-                                              std::string_view mime) const;
+  OperationResult CreateSessionWithAppProvisioning(int ticket,
+                                                   std::string_view init_data,
+                                                   std::string_view mime) const;
   void GenerateProvisionRequest() const;
   OperationResult ProvideProvisionResponse(std::string_view response) const;
 

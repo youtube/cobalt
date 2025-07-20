@@ -37,7 +37,7 @@ namespace starboard::android::shared {
 namespace {
 using starboard::android::shared::DrmSystem;
 
-constexpr bool kUseAppProvisioning = true;
+constexpr bool kEnableAppProvisioning = true;
 
 constexpr char kNoUrl[] = "";
 
@@ -72,7 +72,7 @@ DrmSystem::DrmSystem(
 
   media_drm_bridge_ = std::make_unique<MediaDrmBridge>(
       base::raw_ref<MediaDrmBridge::Host>(*this), key_system_,
-      kUseAppProvisioning);
+      kEnableAppProvisioning);
   if (!media_drm_bridge_->is_valid()) {
     return;
   }
@@ -81,10 +81,11 @@ DrmSystem::DrmSystem(
 }
 
 void DrmSystem::Run() {
-  if (!kUseAppProvisioning) {
+  if (!kEnableAppProvisioning) {
     InitializeMediaCryptoSession();
     return;
   }
+  SB_CHECK(kEnableAppProvisioning);
 
   job_queue_ =
       std::make_unique<starboard::shared::starboard::player::JobQueue>();
@@ -144,11 +145,11 @@ void DrmSystem::SessionUpdateRequest::Generate(
 }
 
 MediaDrmBridge::OperationResult
-DrmSystem::SessionUpdateRequest::GenerateNoProvisioning(
+DrmSystem::SessionUpdateRequest::GenerateWithAppProvisioning(
     const MediaDrmBridge* media_drm_bridge) const {
   SB_LOG(INFO) << __func__;
   SB_DCHECK(media_drm_bridge);
-  return media_drm_bridge->CreateSessionNoProvisioning(
+  return media_drm_bridge->CreateSessionWithAppProvisioning(
       ticket_,
       std::string_view{reinterpret_cast<const char*>(init_data_.data()),
                        init_data_.size()},
@@ -164,8 +165,8 @@ void DrmSystem::GenerateSessionUpdateRequest(int ticket,
       ticket, type,
       std::string_view(static_cast<const char*>(initialization_data),
                        initialization_data_size));
-  if (kUseAppProvisioning) {
-    GenerateSessionUpdateRequestNoProvisioning(std::move(request));
+  if (kEnableAppProvisioning) {
+    GenerateSessionUpdateRequestWithAppProvisioning(std::move(request));
     return;
   }
 
@@ -187,11 +188,12 @@ void DrmSystem::GenerateSessionUpdateRequestProvisioning(
   // |onSessionMessage|.
 }
 
-void DrmSystem::GenerateSessionUpdateRequestNoProvisioning(
+void DrmSystem::GenerateSessionUpdateRequestWithAppProvisioning(
     std::unique_ptr<SessionUpdateRequest> request) {
+  SB_CHECK(kEnableAppProvisioning);
   SB_LOG(INFO) << __func__;
   MediaDrmBridge::OperationResult result =
-      request->GenerateNoProvisioning(media_drm_bridge_.get());
+      request->GenerateWithAppProvisioning(media_drm_bridge_.get());
   switch (result.status) {
     case DRM_OPERATION_STATUS_SUCCESS:
       return;
@@ -208,7 +210,7 @@ void DrmSystem::GenerateSessionUpdateRequestNoProvisioning(
       return;
     case DRM_OPERATION_STATUS_OPERATION_FAILED:
     default:
-      SB_LOG(ERROR) << "GenerateNoProvisioning failed: " << result;
+      SB_LOG(ERROR) << "GenerateWithAppProvisioning failed: " << result;
       return;
   }
 }
@@ -226,6 +228,7 @@ void DrmSystem::UpdateSession(int ticket,
   if (bridge_session_id_map_.has_value() &&
       bridge_session_id_map_->cdm_id == cdm_session_id) {
     if (bridge_session_id_map_->media_drm_id.empty()) {
+      SB_CHECK(kEnableAppProvisioning);
       SB_LOG(INFO) << "Calling ProvideProvisionResponse, since MediaDrmSession "
                       "is not created yet";
       completed_status.emplace(
@@ -256,12 +259,13 @@ void DrmSystem::UpdateSession(int ticket,
       completed_status->error_message.c_str(), cdm_session_id.data(),
       cdm_session_id.size());
 
-  if (kUseAppProvisioning && update_success) {
+  if (kEnableAppProvisioning && update_success) {
     job_queue_->Schedule([this] { HandlePendingRequests(); });
   }
 }
 
 void DrmSystem::HandlePendingRequests() {
+  SB_CHECK(kEnableAppProvisioning);
   SB_LOG(INFO) << __func__;
   std::unique_ptr<SessionUpdateRequest> request;
   {
@@ -275,7 +279,7 @@ void DrmSystem::HandlePendingRequests() {
         deferred_session_update_requests_.begin());
   }
 
-  GenerateSessionUpdateRequestNoProvisioning(std::move(request));
+  GenerateSessionUpdateRequestWithAppProvisioning(std::move(request));
 }
 
 void DrmSystem::CloseSession(const void* session_id, int session_id_size) {
@@ -340,6 +344,7 @@ void DrmSystem::OnSessionUpdate(int ticket,
 }
 
 void DrmSystem::OnProvisioningRequest(std::string_view content) {
+  SB_CHECK(kEnableAppProvisioning);
   SB_LOG(INFO) << __func__;
   if (!bridge_session_id_map_.has_value()) {
     bridge_session_id_map_.emplace(

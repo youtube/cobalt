@@ -137,14 +137,15 @@ DrmOperationResult ToOperationResult(
 
 MediaDrmBridge::MediaDrmBridge(raw_ref<MediaDrmBridge::Host> host,
                                std::string_view key_system,
-                               bool use_app_provisioning)
+                               bool enable_app_provisioning)
     : host_(host) {
   JNIEnv* env = AttachCurrentThread();
 
   ScopedJavaLocalRef<jstring> j_key_system(
       ConvertUTF8ToJavaString(env, key_system));
-  ScopedJavaLocalRef<jobject> j_media_drm_bridge(Java_MediaDrmBridge_create(
-      env, j_key_system, use_app_provisioning, reinterpret_cast<jlong>(this)));
+  ScopedJavaLocalRef<jobject> j_media_drm_bridge(
+      Java_MediaDrmBridge_create(env, j_key_system, enable_app_provisioning,
+                                 reinterpret_cast<jlong>(this)));
 
   if (j_media_drm_bridge.is_null()) {
     SB_LOG(ERROR) << "Failed to create MediaDrmBridge.";
@@ -184,7 +185,7 @@ void MediaDrmBridge::CreateSession(int ticket,
                                     j_init_data, j_mime);
 }
 
-DrmOperationResult MediaDrmBridge::CreateSessionNoProvisioning(
+DrmOperationResult MediaDrmBridge::CreateSessionWithAppProvisioning(
     int ticket,
     std::string_view init_data,
     std::string_view mime) const {
@@ -195,7 +196,7 @@ DrmOperationResult MediaDrmBridge::CreateSessionNoProvisioning(
   auto j_mime = ScopedJavaLocalRef(ConvertUTF8ToJavaString(env, mime));
 
   return ToOperationResult(
-      env, Java_MediaDrmBridge_createSessionNoProvisioning(
+      env, Java_MediaDrmBridge_createSessionWithAppProvisioning(
                env, j_media_drm_bridge_, j_ticket, j_init_data, j_mime));
 }
 

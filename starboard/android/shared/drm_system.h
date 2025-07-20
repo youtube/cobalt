@@ -97,7 +97,7 @@ class DrmSystem : public ::SbDrmSystemPrivate,
     ~SessionUpdateRequest() = default;
 
     void Generate(const MediaDrmBridge* media_drm_bridge) const;
-    MediaDrmBridge::OperationResult GenerateNoProvisioning(
+    MediaDrmBridge::OperationResult GenerateWithAppProvisioning(
         const MediaDrmBridge* media_drm_bridge) const;
 
     SessionUpdateRequest CloneWithoutTicket() const;
@@ -115,7 +115,7 @@ class DrmSystem : public ::SbDrmSystemPrivate,
   void HandlePendingRequests();
   void GenerateSessionUpdateRequestProvisioning(
       std::unique_ptr<SessionUpdateRequest> request);
-  void GenerateSessionUpdateRequestNoProvisioning(
+  void GenerateSessionUpdateRequestWithAppProvisioning(
       std::unique_ptr<SessionUpdateRequest> request);
 
   // From Thread.
