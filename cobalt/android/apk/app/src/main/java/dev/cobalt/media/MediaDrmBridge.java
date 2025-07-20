@@ -438,7 +438,7 @@ public class MediaDrmBridge {
             }
 
             if (event == MediaDrm.EVENT_KEY_REQUIRED) {
-                            Log.d(TAG, "MediaDrm.EVENT_KEY_REQUIRED");
+              Log.d(TAG, "MediaDrm.EVENT_KEY_REQUIRED");
               if (mEnableAppProvisioning) {
                 HandleKeyRequiredEventWithAppProvisioning(sessionId, data);
                 return;
