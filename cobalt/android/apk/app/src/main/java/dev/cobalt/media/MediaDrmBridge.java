@@ -290,7 +290,7 @@ public class MediaDrmBridge {
     try {
       request = getKeyRequest(sessionId, initData, mime);
     } catch (NotProvisionedException e) {
-      Log.e(TAG, "getDevice failed, since Device not provisioned", e);
+      Log.e(TAG, "getKeyRequest failed, since device not provisioned", e);
       closeMediaDrmSession(sessionId);
       return OperationResult.notProvisioned();
     }
