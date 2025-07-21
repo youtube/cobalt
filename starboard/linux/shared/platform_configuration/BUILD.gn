@@ -224,9 +224,7 @@ config("no_pedantic_warnings") {
 
     "-Wno-unused-private-field",
     "-Wno-implicit-fallthrough",
-    "-Wno-c++98-compat-extra-semi",
     "-Wno-unused-variable",
-    "-Wno-reorder-ctor",
     "-Wno-sign-compare",
     "-Wno-unused-but-set-variable",
     "-Wno-unreachable-code-return",
