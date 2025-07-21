@@ -80,6 +80,7 @@ void ServiceWorkerContextAdapterImpl::RunningServiceWorker::RenderProcessExited(
   /* This object is deleted inside the above, don't touch "this". */
 }
 
+<<<<<<< HEAD
 void ServiceWorkerContextAdapterImpl::RunningServiceWorker::
     InProcessRendererExiting(content::RenderProcessHost* host) {
   CHECK(content::RenderProcessHost::run_renderer_in_process());
@@ -93,8 +94,19 @@ void ServiceWorkerContextAdapterImpl::RunningServiceWorker::
   // In --single-process mode, `RenderProcessExited` is never called as there is
   // no render process. The worker nodes still need to be cleaned up before the
   // process node.
+=======
+void ServiceWorkerContextAdapter::RunningServiceWorker::
+    InProcessRendererExiting(content::RenderProcessHost* host) {
+>>>>>>> a8551212c07 (Add RenderProcessHostObserver::InProcessRendererExiting (#4896))
   CHECK(content::RenderProcessHost::run_renderer_in_process());
   adapter_->OnRenderProcessExited(version_id_);
+
+  /* This object is deleted inside the above, don't touch "this". */
+}
+
+void ServiceWorkerContextAdapter::RunningServiceWorker::
+    RenderProcessHostDestroyed(content::RenderProcessHost* host) {
+  NOTREACHED_NORETURN();
 }
 
 // ServiceWorkerContextAdapterImpl ---------------------------------------------
