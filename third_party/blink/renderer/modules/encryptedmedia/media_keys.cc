@@ -54,11 +54,6 @@
 #include "third_party/blink/renderer/platform/timer.h"
 #include "third_party/blink/renderer/platform/wtf/casting.h"
 
-#if BUILDFLAG(USE_STARBOARD_MEDIA)
-#include "media/base/cdm_promise.h"
-#include "third_party/blink/renderer/platform/media/cdm_result_promise_helper.h"
-#endif // BUILDFLAG(USE_STARBOARD_MEDIA)
-
 #define MEDIA_KEYS_LOG_LEVEL 3
 
 namespace blink {
