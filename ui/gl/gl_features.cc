@@ -29,6 +29,15 @@
 namespace features {
 namespace {
 
+<<<<<<< HEAD
+=======
+#if BUILDFLAG(IS_APPLE)
+BASE_FEATURE(kGpuVsync, "GpuVsync", base::FEATURE_DISABLED_BY_DEFAULT);
+#else
+BASE_FEATURE(kGpuVsync, "GpuVsync", base::FEATURE_ENABLED_BY_DEFAULT);
+#endif
+
+>>>>>>> 4ea35a7c288 (Add the missing ENABLE_VALIDATING_COMMAND_DECODER build flag (#5439))
 #if BUILDFLAG(IS_ANDROID) && BUILDFLAG(ENABLE_VALIDATING_COMMAND_DECODER)
 const base::FeatureParam<std::string>
     kPassthroughCommandDecoderBlockListByBrand{
