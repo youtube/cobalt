@@ -90,7 +90,11 @@ void ServiceWorkerContextAdapterImpl::RunningServiceWorker::
 
 void ServiceWorkerContextAdapterImpl::RunningServiceWorker::
     RenderProcessHostDestroyed(content::RenderProcessHost* host) {
-  NOTREACHED();
+  // In --single-process mode, `RenderProcessExited` is never called as there is
+  // no render process. The worker nodes still need to be cleaned up before the
+  // process node.
+  CHECK(content::RenderProcessHost::run_renderer_in_process());
+  adapter_->OnRenderProcessExited(version_id_);
 }
 
 // ServiceWorkerContextAdapterImpl ---------------------------------------------
