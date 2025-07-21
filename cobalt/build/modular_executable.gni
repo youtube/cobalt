@@ -120,10 +120,6 @@ template("evergreen_final_target") {
       "//content/shell:pak",
       "//third_party/icu:icudata",
     ]
-    if (use_v8_context_snapshot) {
-      sources += [ "$root_out_dir/$v8_context_snapshot_filename" ]
-      deps += [ "//tools/v8_context_snapshot" ]
-    }
   }
 
   copy("copy_${original_target_name}_lib") {
