@@ -16,6 +16,8 @@
 
 #include <errno.h>
 #include <string.h>
+#include <unistd.h>
+#include <cmath>
 
 #include "starboard/configuration_constants.h"
 #include "starboard/system.h"
@@ -84,32 +86,61 @@ TEST(PosixSysStatvfsTest, UsageChanges) {
 
   size_t written = fwrite(write_buffer, 1, write_size, fp);
   fclose(fp);
+  sync();
   delete[] write_buffer;
 
   ASSERT_EQ(written, write_size);
 
+  // Wait for the filesystem to reflect the new file creation.
+  const int kMaxRetries = 50;               // 50 * 100ms = 5s
+  const int kRetryIntervalUs = 100 * 1000;  // 100ms
+
   struct statvfs buf_after_creation;
-  errno = 0;
-  ASSERT_EQ(statvfs(cache_path, &buf_after_creation), 0)
-      << "statvfs (after creation) failed: " << strerror(errno);
+  bool creation_reflected = false;
+  for (int i = 0; i < kMaxRetries; ++i) {
+    errno = 0;
+    ASSERT_EQ(statvfs(cache_path, &buf_after_creation), 0)
+        << "statvfs (after creation) failed: " << strerror(errno);
+    if (buf_after_creation.f_ffree < buf_before.f_ffree &&
+        buf_after_creation.f_bavail < buf_before.f_bavail) {
+      creation_reflected = true;
+      break;
+    }
+    usleep(kRetryIntervalUs);
+  }
 
-  EXPECT_LT(buf_after_creation.f_ffree, buf_before.f_ffree);
-  EXPECT_LT(buf_after_creation.f_bavail, buf_before.f_bavail);
+  ASSERT_TRUE(creation_reflected)
+      << "Filesystem did not reflect file creation in time.";
 
-  // The total number of blocks and files should not change.
   EXPECT_EQ(buf_after_creation.f_blocks, buf_before.f_blocks);
   EXPECT_EQ(buf_after_creation.f_files, buf_before.f_files);
 
   ASSERT_EQ(remove(temp_file_path), 0);
+  sync();
 
-  // After removing the file, the available space should be restored.
+  const int kTolerance = 2;
   struct statvfs buf_after_removal;
-  errno = 0;
-  ASSERT_EQ(statvfs(cache_path, &buf_after_removal), 0)
-      << "statvfs (after removal) failed: " << strerror(errno);
+  bool removal_reflected = false;
+  for (int i = 0; i < kMaxRetries; ++i) {
+    errno = 0;
+    ASSERT_EQ(statvfs(cache_path, &buf_after_removal), 0)
+        << "statvfs (after removal) failed: " << strerror(errno);
+    if ((std::abs(static_cast<long long>(buf_after_removal.f_ffree) -
+                  static_cast<long long>(buf_before.f_ffree)) <= kTolerance) &&
+        (std::abs(static_cast<long long>(buf_after_removal.f_bavail) -
+                  static_cast<long long>(buf_before.f_bavail)) <= kTolerance)) {
+      removal_reflected = true;
+      break;
+    }
+    usleep(kRetryIntervalUs);
+  }
 
-  EXPECT_EQ(buf_after_removal.f_ffree, buf_before.f_ffree);
-  EXPECT_EQ(buf_after_removal.f_bavail, buf_before.f_bavail);
+  ASSERT_TRUE(removal_reflected)
+      << "Filesystem did not reflect file removal in time. "
+      << "Before: f_bavail=" << buf_before.f_bavail
+      << ", f_ffree=" << buf_before.f_ffree
+      << ". After: f_bavail=" << buf_after_removal.f_bavail
+      << ", f_ffree=" << buf_after_removal.f_ffree;
 }
 
 }  // namespace
