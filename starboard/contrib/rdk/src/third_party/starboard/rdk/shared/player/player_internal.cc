@@ -1311,6 +1311,7 @@ class PlayerImpl : public Player {
   std::thread playback_thread_;
   std::mutex mutex_;
   std::mutex source_setup_mutex_;
+  std::condition_variable source_setup_condition_;
   std::mutex seek_mutex_;
   double rate_{1.0};
   int ticket_{SB_PLAYER_INITIAL_TICKET};
@@ -1911,6 +1912,7 @@ gboolean PlayerImpl::FinishSourceSetup(gpointer user_data) {
   }
   gst_cobalt_src_all_app_srcs_added(self->source_);
   self->source_setup_id_ = 0;
+  self->source_setup_condition_.notify_all();
   return G_SOURCE_REMOVE;
 }
 
@@ -2479,6 +2481,17 @@ void PlayerImpl::HandleInititialSeek() {
   }
 
   if (state_ == State::kInitialPreroll) {
+    // Await for source setup to finish if needed
+    if (source_setup_id_) {
+      mutex_.unlock();
+      std::unique_lock<std::mutex> ss_lock(source_setup_mutex_);
+      if (!source_setup_condition_.wait_for(ss_lock, std::chrono::microseconds(500000), [this] { return source_setup_id_ == 0; })) {
+        GST_WARNING_OBJECT(pipeline_, "Source setup did not finish in time.");
+      }
+      mutex_.lock();
+    }
+
+    // Ask for data.
     MediaType need_data = static_cast<MediaType>(static_cast<int>(GetBothMediaTypeTakingCodecsIntoAccount()) & (~has_enough_data_));
     DecoderNeedsData(need_data);
   }
