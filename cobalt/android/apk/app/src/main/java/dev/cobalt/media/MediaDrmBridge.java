@@ -124,12 +124,11 @@ public class MediaDrmBridge {
     }
 
     public static OperationResult operationFailed(String errorMessage, Throwable e) {
-      return operationFailed(
-          errorMessage + " StackTrace: " + android.util.Log.getStackTraceString(e));
+      return operationFailed(String.format("%s StackTrace: %s", errorMessage, android.util.Log.getStackTraceString(e)));
     }
 
     public static OperationResult notProvisioned(Throwable e) {
-      return new OperationResult(DrmOperationStatus.NOT_PROVISIONED, "Device is not provisioned. StackTrace: "  + android.util.Log.getStackTraceString(e));
+      return new OperationResult(DrmOperationStatus.NOT_PROVISIONED, String.format("Device is not provisioned. StackTrace: %s", android.util.Log.getStackTraceString(e)));
     }
 
     @CalledByNative("OperationResult")
@@ -291,6 +290,10 @@ public class MediaDrmBridge {
       Log.e(TAG, "getKeyRequest failed, since device not provisioned", e);
       closeMediaDrmSession(sessionId);
       return OperationResult.notProvisioned(e);
+    } catch (Exception e) {
+      Log.e(TAG, "getKeyRequest failed", e);
+      closeMediaDrmSession(sessionId);
+      return OperationResult.operationFailed("getKeyRequestf failed", e);
     }
     if (request == null) {
       closeMediaDrmSession(sessionId);
@@ -298,8 +301,7 @@ public class MediaDrmBridge {
       return OperationResult.operationFailed("Generate request failed");
     }
 
-    // Success!
-    Log.d(TAG, "Session is created: sessionId=" + bytesToString(sessionId));
+    Log.d(TAG, "Session is created: sessionId=%s", bytesToString(sessionId));
     mSessionIds.put(ByteBuffer.wrap(sessionId), mime);
     onSessionMessage(ticket, sessionId, request);
 
@@ -558,7 +560,6 @@ public class MediaDrmBridge {
       Log.e(TAG, "handleKeyRequiredEventWithAppProvisioning: getKeyRequest returned null");
       return;
     }
-
 
     onSessionMessage(SB_DRM_TICKET_INVALID, sessionId, request);
   }
