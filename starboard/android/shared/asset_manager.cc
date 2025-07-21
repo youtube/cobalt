@@ -72,7 +72,7 @@ std::string FallbackPath(const std::string& path) {
 }  // namespace
 
 // static
-SB_ONCE_INITIALIZE_FUNCTION(AssetManager, AssetManager::GetInstance);
+SB_ONCE_INITIALIZE_FUNCTION(AssetManager, AssetManager::GetInstance)
 
 AssetManager::AssetManager() {
   const int kPathSize = PATH_MAX / 2;
