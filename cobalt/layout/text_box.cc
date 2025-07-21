@@ -17,7 +17,6 @@
 #include <algorithm>
 #include <limits>
 
-#include "base/trace_event/trace_event.h"
 #include "cobalt/cssom/keyword_value.h"
 #include "cobalt/cssom/shadow_value.h"
 #include "cobalt/layout/render_tree_animations.h"
@@ -73,7 +72,6 @@ TextBox* TextBox::AsTextBox() { return this; }
 const TextBox* TextBox::AsTextBox() const { return this; }
 
 bool TextBox::ValidateUpdateSizeInputs(const LayoutParams& params) {
-  TRACE_EVENT0("cobalt::layout", "TextBox::ValidateUpdateSizeInputs");
   // Also take into account mutable local state about (at least) whether white
   // space should be collapsed or not.
   if (Box::ValidateUpdateSizeInputs(params) && update_size_results_valid_) {
@@ -91,7 +89,6 @@ LayoutUnit TextBox::GetInlineLevelTopMargin() const {
 }
 
 void TextBox::UpdateContentSizeAndMargins(const LayoutParams& layout_params) {
-  TRACE_EVENT0("cobalt::layout", "TextBox::UpdateContentSizeAndMargins");
   // Anonymous boxes do not have margins.
   DCHECK(GetUsedMarginLeftIfNotAuto(computed_style(),
                                     layout_params.containing_block_size)

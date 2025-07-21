@@ -18,7 +18,6 @@
 #include <utility>
 #include <vector>
 
-#include "base/trace_event/trace_event.h"
 #include "cobalt/cssom/computed_style.h"
 #include "cobalt/cssom/keyword_value.h"
 #include "cobalt/layout/anonymous_block_box.h"
@@ -154,8 +153,6 @@ void FlexContainerBox::DetermineAvailableSpace(
 // From |Box|.
 void FlexContainerBox::UpdateContentSizeAndMargins(
     const LayoutParams& layout_params) {
-  TRACE_EVENT0("cobalt::layout",
-               "FlexContainerBox::UpdateContentSizeAndMargins");
   // Flex layout works with the flex items in order-modified document order, not
   // their original document order.
   //   https://www.w3.org/TR/css-flexbox-1/#layout-algorithm
