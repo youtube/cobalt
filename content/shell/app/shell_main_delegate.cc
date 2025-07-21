@@ -20,7 +20,9 @@
 #include "base/process/current_process.h"
 #include "base/trace_event/trace_log.h"
 #include "build/build_config.h"
+#if !BUILDFLAG(IS_ANDROIDTV)
 #include "components/crash/core/common/crash_key.h"
+#endif
 #include "components/memory_system/initializer.h"
 #include "components/memory_system/parameters.h"
 #include "content/common/content_constants_internal.h"
@@ -62,7 +64,7 @@
 #include "content/shell/android/shell_descriptors.h"
 #endif
 
-#if !BUILDFLAG(IS_FUCHSIA)
+#if !BUILDFLAG(IS_FUCHSIA) && !BUILDFLAG(IS_ANDROIDTV)
 #include "components/crash/core/app/crashpad.h"  // nogncheck
 #endif
 
@@ -94,6 +96,7 @@
 
 namespace {
 
+<<<<<<< HEAD
 enum class LoggingDest {
   kFile,
   kStderr,
@@ -103,6 +106,9 @@ enum class LoggingDest {
 };
 
 #if !BUILDFLAG(IS_FUCHSIA)
+=======
+#if !BUILDFLAG(IS_FUCHSIA) && !BUILDFLAG(IS_ANDROIDTV)
+>>>>>>> 379386b0a1c ([Cobalt] Remove unused crashpad library (#5281))
 base::LazyInstance<content::ShellCrashReporterClient>::Leaky
     g_shell_crash_client = LAZY_INSTANCE_INITIALIZER;
 #endif
@@ -258,8 +264,13 @@ bool ShellMainDelegate::ShouldInitializeMojo(InvokedIn invoked_in) {
 void ShellMainDelegate::PreSandboxStartup() {
 // Disable platform crash handling and initialize the crash reporter, if
 // requested.
+<<<<<<< HEAD
 // TODO(crbug.com/40188745): Implement crash reporter integration for Fuchsia.
 #if !BUILDFLAG(IS_FUCHSIA)
+=======
+// TODO(crbug.com/1226159): Implement crash reporter integration for Fuchsia.
+#if !BUILDFLAG(IS_FUCHSIA) && !BUILDFLAG(IS_ANDROIDTV)
+>>>>>>> 379386b0a1c ([Cobalt] Remove unused crashpad library (#5281))
   if (base::CommandLine::ForCurrentProcess()->HasSwitch(
           switches::kEnableCrashReporter)) {
     std::string process_type =
@@ -275,9 +286,11 @@ void ShellMainDelegate::PreSandboxStartup() {
 #endif
     }
   }
-#endif  // !BUILDFLAG(IS_FUCHSIA)
+#endif  // !BUILDFLAG(IS_FUCHSIA) && !BUILDFLAG(IS_ANDROIDTV)
 
+#if !BUILDFLAG(IS_ANDROIDTV)
   crash_reporter::InitializeCrashKeys();
+#endif  // !BUILDFLAG(IS_ANDROIDTV)
 
   InitializeResourceBundle();
 }
@@ -331,6 +344,7 @@ absl::variant<int, MainFunctionParams> ShellMainDelegate::RunProcess(
 
 #if BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_CHROMEOS)
 void ShellMainDelegate::ZygoteForked() {
+#if !BUILDFLAG(IS_ANDROIDTV)
   if (base::CommandLine::ForCurrentProcess()->HasSwitch(
           switches::kEnableCrashReporter)) {
     std::string process_type =
@@ -340,6 +354,7 @@ void ShellMainDelegate::ZygoteForked() {
     crash_reporter::SetFirstChanceExceptionHandler(
         v8::TryHandleWebAssemblyTrapPosix);
   }
+#endif  // !BUILDFLAG(IS_ANDROIDTV)
 }
 #endif  // BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_CHROMEOS)
 
