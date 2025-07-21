@@ -94,12 +94,15 @@ enum GpuControlListTestingEntryEnum {
   kGpuControlListEntryTest_AnyDriverVersion = 78,
   kGpuControlListEntryTest_ActiveDriverVersion = 79,
   kGpuControlListEntryTest_NativeAngleRenderer = 80,
+<<<<<<< HEAD
   kGpuControlListEntryTest_GlTypeEntry = 81,
   kGpuControlListEntryTest_GLES30Exception = 82,
   kGpuControlListEntryTest_WrongANGLEException = 83,
   kGpuControlListEntryTest_ANGLEException = 84,
   kGpuControlListEntryTest_GlTypeAngleGl = 85,
   kGpuControlListEntryTest_GLVersionOnly = 86,
+=======
+>>>>>>> a5fea100089 (Fix GPU blocklisting where Android ships ANGLE as native GL driver. (#4391))
 };
 }  // namespace gpu
 

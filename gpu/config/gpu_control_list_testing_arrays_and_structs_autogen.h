@@ -1071,6 +1071,7 @@ static const GpuControlList::More kMoreForEntry82_1440601243 = {
     GpuControlList::kDontCare,  // subpixel_font_rendering
 };
 
+<<<<<<< HEAD
 static const std::array<int, 1> kFeatureListForGpuControlTestingEntry83 = {
     TEST_FEATURE_0,
 };
@@ -1179,6 +1180,23 @@ static const GpuControlList::More kMoreForEntry87_1440601243 = {
     GpuControlList::kGLTypeNone,  // gl_type
     {GpuControlList::kLT, GpuControlList::kVersionStyleNumerical,
      GpuControlList::kVersionSchemaCommon, "3.1", nullptr},  // gl_version
+=======
+const int kFeatureListForGpuControlTestingEntry81[1] = {
+    TEST_FEATURE_0,
+};
+
+const GpuControlList::GLStrings kGLStringsForGpuControlTestingEntry81 = {
+    nullptr,
+    "ANGLE \\(Samsung Xclipse 920\\) on Vulkan 1.1.179",
+    nullptr,
+    nullptr,
+};
+
+const GpuControlList::More kMoreForEntry81_1440601243 = {
+    GpuControlList::kGLTypeNone,  // gl_type
+    {GpuControlList::kUnknown, GpuControlList::kVersionStyleNumerical,
+     GpuControlList::kVersionSchemaCommon, nullptr, nullptr},  // gl_version
+>>>>>>> a5fea100089 (Fix GPU blocklisting where Android ships ANGLE as native GL driver. (#4391))
     {GpuControlList::kUnknown, GpuControlList::kVersionStyleNumerical,
      GpuControlList::kVersionSchemaCommon, nullptr,
      nullptr},  // pixel_shader_version
@@ -1193,5 +1211,10 @@ static const GpuControlList::More kMoreForEntry87_1440601243 = {
     0,                          // test_group
     GpuControlList::kDontCare,  // subpixel_font_rendering
 };
+<<<<<<< HEAD
+=======
+
+}  // namespace gpu
+>>>>>>> a5fea100089 (Fix GPU blocklisting where Android ships ANGLE as native GL driver. (#4391))
 
 #endif  // GPU_CONFIG_GPU_CONTROL_LIST_TESTING_ARRAYS_AND_STRUCTS_AUTOGEN_H_

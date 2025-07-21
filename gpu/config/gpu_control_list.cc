@@ -117,6 +117,20 @@ bool StringMismatch(const std::string& input, const char* pattern) {
   return StringMismatch(input, pattern_string);
 }
 
+<<<<<<< HEAD
+=======
+bool ProcessANGLEGLRenderer(const std::string& gl_renderer,
+                            std::string* vendor,
+                            std::string* renderer,
+                            std::string* version) {
+  DCHECK(vendor);
+  DCHECK(renderer);
+  DCHECK(version);
+  return RE2::FullMatch(gl_renderer, "ANGLE \\((.*), (.*), (.*)\\)", vendor,
+                        renderer, version);
+}
+
+>>>>>>> a5fea100089 (Fix GPU blocklisting where Android ships ANGLE as native GL driver. (#4391))
 }  // namespace
 
 bool GpuControlList::Version::Contains(const std::string& version_string,
@@ -321,6 +335,7 @@ bool GpuControlList::MachineModelInfo::Contains(const GPUInfo& gpu_info) const {
 }
 
 bool GpuControlList::More::Contains(const GPUInfo& gpu_info) const {
+<<<<<<< HEAD
   GLType gl_backend_type = kGLTypeNone;
   std::string gl_version_string = gpu_info.gl_version;
   if (!gpu_info.gl_renderer.empty()) {
@@ -347,6 +362,13 @@ bool GpuControlList::More::Contains(const GPUInfo& gpu_info) const {
       break;
     default:
       break;
+=======
+  std::string vendor, renderer, version;
+  bool is_angle_gl = ProcessANGLEGLRenderer(gpu_info.gl_renderer, &vendor,
+                                            &renderer, &version);
+  if (GLVersionInfoMismatch(is_angle_gl ? version : gpu_info.gl_version)) {
+    return false;
+>>>>>>> a5fea100089 (Fix GPU blocklisting where Android ships ANGLE as native GL driver. (#4391))
   }
 
   if (gl_reset_notification_strategy != 0 &&
