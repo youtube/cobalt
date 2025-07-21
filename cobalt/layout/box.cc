@@ -1531,8 +1531,8 @@ base::Optional<render_tree::RoundedCorners> Box::ComputeRoundedCorners() const {
 }
 
 base::Optional<render_tree::RoundedCorners> Box::ComputePaddingRoundedCorners(
+  const base::Optional<RoundedCorners>& rounded_corners) const {
   TRACE_EVENT0("cobalt::layout", "Box::ComputePaddingRoundedCorners");
-    const base::Optional<RoundedCorners>& rounded_corners) const {
   base::Optional<RoundedCorners> padding_rounded_corners_if_different;
 
   if (rounded_corners && !border_insets_.zero()) {
