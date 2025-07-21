@@ -108,7 +108,7 @@ jinja_template("cobalt_shell_test_manifest") {
 android_resources("cobalt_shell_apk_resources") {
   testonly = true
   sources = [
-    # TODO can this be removed?
+    # TODO: can this be removed for test?
     "shell_apk/res/layout/content_shell_activity.xml",
     "shell_apk/res/values/strings.xml",
   ]
