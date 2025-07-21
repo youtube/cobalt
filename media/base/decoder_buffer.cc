@@ -391,4 +391,28 @@ size_t DecoderBuffer::GetMemoryUsage() const {
   return memory_usage;
 }
 
+size_t DecoderBuffer::GetMemoryUsage() const {
+  size_t memory_usage = sizeof(DecoderBuffer);
+
+  if (end_of_stream()) {
+    return memory_usage;
+  }
+
+  memory_usage += data_size();
+
+  // Side data and decrypt config would not change after construction.
+  if (side_data_size_ > 0) {
+    memory_usage += side_data_size_;
+  }
+  if (decrypt_config_) {
+    memory_usage += sizeof(DecryptConfig);
+    memory_usage += decrypt_config_->key_id().capacity();
+    memory_usage += decrypt_config_->iv().capacity();
+    memory_usage +=
+        sizeof(SubsampleEntry) * decrypt_config_->subsamples().capacity();
+  }
+
+  return memory_usage;
+}
+
 }  // namespace media

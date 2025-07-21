@@ -371,6 +371,10 @@ class MEDIA_EXPORT DecoderBuffer
     return side_data_ ? side_data_->next_config : std::nullopt;
   }
 
+  // Returns total memory usage for both bookkeeping and buffered data. The
+  // function is added for more accurately memory management.
+  virtual size_t GetMemoryUsage() const;
+
  protected:
   friend class base::RefCountedThreadSafe<DecoderBuffer>;
   virtual ~DecoderBuffer();
