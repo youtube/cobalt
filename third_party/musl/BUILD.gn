@@ -372,6 +372,7 @@ static_library("c_internal") {
     "src/network/ntohs.c",
     "src/network/res_init.c",
     "src/prng/rand.c",
+    "src/regex/fnmatch.c",
     "src/sched/sched_cpucount.c",
     "src/signal/sigaddset.c",
     "src/signal/sigdelset.c",
