@@ -111,6 +111,7 @@ assert(!is_win || is_clang,
        "only clang-cl is supported on Windows, see https://crbug.com/988071")
 
 <<<<<<< HEAD
+<<<<<<< HEAD
 =======
 if (is_apple) {
   assert(!use_blink || enable_mach_absolute_time_ticks,
@@ -126,6 +127,8 @@ dep_libevent = !is_fuchsia && !is_win && !is_mac && !is_nacl
 use_libevent = dep_libevent && !is_ios
 
 >>>>>>> 216d6ca3ac8 (Build nplb hermetically (#4587))
+=======
+>>>>>>> 743c174bb41 (Migrate to MessagePumpEpoll and remove MessagePumpLibevent (#5420))
 if (is_android || is_robolectric) {
   import("//build/config/android/rules.gni")
   import("//third_party/jni_zero/jni_zero.gni")
@@ -1061,7 +1064,10 @@ component("base") {
   ]
 
   deps = [
+<<<<<<< HEAD
     ":check_version_internal",
+=======
+>>>>>>> 743c174bb41 (Migrate to MessagePumpEpoll and remove MessagePumpLibevent (#5420))
     "//base/allocator:buildflags",
     "//base/third_party/cityhash",
     "//base/third_party/cityhash_v103",

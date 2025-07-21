@@ -35,6 +35,7 @@
 
 namespace base {
 
+<<<<<<< HEAD
 namespace {
 
 // Under this feature native work is batched.
@@ -60,6 +61,8 @@ void SetEventsForPoll(const uint32_t epoll_events, struct pollfd* poll_entry) {
 }
 }  // namespace
 
+=======
+>>>>>>> 743c174bb41 (Migrate to MessagePumpEpoll and remove MessagePumpLibevent (#5420))
 // Parameters used to construct and describe an interest.
 struct MessagePumpEpoll::InterestParams {
   // The file descriptor of interest.
@@ -201,7 +204,11 @@ bool MessagePumpEpoll::WatchFileDescriptor(int fd,
     // non-persistent) Interest.
     existing_interest->set_active(true);
   } else {
+<<<<<<< HEAD
     entry.interests.push_back(controller->AssignInterest(params));
+=======
+    entry.interests->push_back(controller->AssignInterest(params));
+>>>>>>> 743c174bb41 (Migrate to MessagePumpEpoll and remove MessagePumpLibevent (#5420))
     if (existing_interest) {
       UnregisterInterest(existing_interest);
     }

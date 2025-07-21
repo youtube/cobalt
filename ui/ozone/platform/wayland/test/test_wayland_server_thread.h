@@ -87,7 +87,12 @@ struct TestServerListener {
 
 class TestSelectionDeviceManager;
 
+<<<<<<< HEAD
 class TestWaylandServerThread : public base::Thread,
+=======
+class TestWaylandServerThread : public TestOutput::Delegate,
+                                public base::Thread,
+>>>>>>> 743c174bb41 (Migrate to MessagePumpEpoll and remove MessagePumpLibevent (#5420))
                                 base::MessagePumpEpoll::FdWatcher {
  public:
   class OutputDelegate;
@@ -250,6 +255,11 @@ class TestWaylandServerThread : public base::Thread,
   std::vector<std::unique_ptr<GlobalObject>> globals_;
 
   base::MessagePumpEpoll::FdWatchController controller_;
+<<<<<<< HEAD
+=======
+
+  raw_ptr<OutputDelegate> output_delegate_ = nullptr;
+>>>>>>> 743c174bb41 (Migrate to MessagePumpEpoll and remove MessagePumpLibevent (#5420))
 
   THREAD_CHECKER(thread_checker_);
 
