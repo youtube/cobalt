@@ -128,8 +128,8 @@ public class MediaDrmBridge {
           errorMessage + " StackTrace: " + android.util.Log.getStackTraceString(e));
     }
 
-    public static OperationResult notProvisioned() {
-      return new OperationResult(DrmOperationStatus.NOT_PROVISIONED, "");
+    public static OperationResult notProvisioned(Throwable e) {
+      return new OperationResult(DrmOperationStatus.NOT_PROVISIONED, "Device is not provisioned. StackTrace: "  + android.util.Log.getStackTraceString(e));
     }
 
     @CalledByNative("OperationResult")
@@ -274,7 +274,7 @@ public class MediaDrmBridge {
       sessionId = openSession();
     } catch (NotProvisionedException e) {
       Log.e(TAG, "openSession failed: Device not provisioned", e);
-      return OperationResult.notProvisioned();
+      return OperationResult.notProvisioned(e);
     }
     if (sessionId == null) {
       Log.e(TAG, "Open session failed.");
@@ -290,7 +290,7 @@ public class MediaDrmBridge {
     } catch (NotProvisionedException e) {
       Log.e(TAG, "getKeyRequest failed, since device not provisioned", e);
       closeMediaDrmSession(sessionId);
-      return OperationResult.notProvisioned();
+      return OperationResult.notProvisioned(e);
     }
     if (request == null) {
       closeMediaDrmSession(sessionId);
@@ -540,8 +540,13 @@ public class MediaDrmBridge {
       Log.e(TAG, "HandleKeyRequiredEventWithAppProvisioning failed: null session id");
       return;
     }
+    ByteBuffer sessionIdByteBuffer = ByteBuffer.wrap(sessionId);
+    if (!mSessionIds.containsKey(sessionIdByteBuffer)) {
+      Log.e(TAG, "HandleKeyRequiredEventWithAppProvisioning failed: invalid session id=" + bytesToString(sessionId));
+      return;
+    }
 
-    String mime = mSessionIds.get(ByteBuffer.wrap(sessionId));
+    String mime = mSessionIds.get(sessionIdByteBuffer);
     MediaDrm.KeyRequest request = null;
     try {
       request = getKeyRequest(sessionId, data, mime);
@@ -550,9 +555,10 @@ public class MediaDrmBridge {
       return;
     }
     if (request == null) {
-      Log.e(TAG, "handleKeyRequiredEventWithAppProvisionin: getKeyRequest returned null");
+      Log.e(TAG, "handleKeyRequiredEventWithAppProvisioning: getKeyRequest returned null");
       return;
     }
+
 
     onSessionMessage(SB_DRM_TICKET_INVALID, sessionId, request);
   }
@@ -738,7 +744,7 @@ public class MediaDrmBridge {
     try {
       mediaCryptoSession = openSession();
     } catch (NotProvisionedException e) {
-      return OperationResult.notProvisioned();
+      return OperationResult.notProvisioned(e);
     }
     if (mediaCryptoSession == null) {
       return OperationResult.operationFailed("openSession returned null");

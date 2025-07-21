@@ -191,7 +191,7 @@ DrmOperationResult MediaDrmBridge::CreateSessionWithAppProvisioning(
     std::string_view mime) const {
   JNIEnv* env = AttachCurrentThread();
 
-  JniIntWrapper j_ticket = static_cast<jint>(ticket);
+  jint j_ticket = static_cast<jint>(ticket);
   auto j_init_data = ToScopedJavaByteArray(env, init_data);
   auto j_mime = ScopedJavaLocalRef(ConvertUTF8ToJavaString(env, mime));
 
