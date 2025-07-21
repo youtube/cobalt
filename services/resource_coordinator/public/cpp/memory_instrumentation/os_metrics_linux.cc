@@ -105,7 +105,7 @@ ModuleData GetMainModuleData() {
       module_data.build_id = std::string(build_id, build_id_length);
     }
   }
-#endif // BUILDFLAG(IS_STARBOARD)
+#endif // !BUILDFLAG(IS_STARBOARD)
   return module_data;
 }
 

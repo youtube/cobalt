@@ -52,7 +52,9 @@ NativeLibrary LoadNativeLibraryWithOptions(const FilePath& library_path,
     error->message = dlerror();
 #else // !BUILDFLAG(IS_STARBOARD)
   void* dl = nullptr;
-  error->message = "dlopen and dl error are not supported for evergreen platforms.";
+  if (error){
+    error->message = "dlopen and dl error are not supported for evergreen platforms.";
+  }
 #endif // !BUILDFLAG(IS_STARBOARD)
 
   return dl;
@@ -66,8 +68,8 @@ void UnloadNativeLibrary(NativeLibrary library) {
     NOTREACHED();
   }
 #else // !BUILDFLAG(IS_STARBOARD)
-    DLOG(ERROR) << "dlclose is not supported on evergreen platforms.";
-    NOTREACHED();
+  DLOG(ERROR) << "dlclose is not supported on evergreen platforms.";
+  NOTREACHED();
 #endif // !BUILDFLAG(IS_STARBOARD)
 }
 

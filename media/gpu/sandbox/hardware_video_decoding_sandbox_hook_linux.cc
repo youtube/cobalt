@@ -96,13 +96,12 @@ bool HardwareVideoDecodingPreSandboxHookForVaapiOnAMD(
   AllowAccessToRenderNodes(permissions, /*include_sys_dev_char=*/true,
                            /*read_write=*/true);
   permissions.push_back(BrokerFilePermission::ReadOnly("/dev/dri"));
+
 #if !BUILDFLAG(IS_STARBOARD)
   const char* radeonsi_lib = "/usr/lib64/dri/radeonsi_dri.so";
-#endif // !BUILDFLAG(IS_STARBOARD)
 #if defined(DRI_DRIVER_DIR)
   radeonsi_lib = DRI_DRIVER_DIR "/radeonsi_dri.so";
 #endif
-#if !BUILDFLAG(IS_STARBOARD)
   if (nullptr == dlopen(radeonsi_lib, RTLD_NOW | RTLD_GLOBAL | RTLD_NODELETE)) {
     LOG(ERROR) << "dlopen(radeonsi_dri.so) failed with error: " << dlerror();
     return false;

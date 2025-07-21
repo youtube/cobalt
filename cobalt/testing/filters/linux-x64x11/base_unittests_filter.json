@@ -102,6 +102,7 @@
     "ProcessUtilTest.FDRemappingIncludesStdio",
     "ImmediateCrashTest.ExpectedOpcodeSequence",
     "PostTaskAndReplyImplTest.PostTaskToStoppedTaskRunnerWithoutSequencedContext",
-    "ThreadGroupImplBlockingTest.MayBlockIncreaseCapacityNestedWillBlock"
+    "ThreadGroupImplBlockingTest.MayBlockIncreaseCapacityNestedWillBlock",
+    "ElfReaderTestWithCurrentImage.ReadElfBuildId"
   ]
 }

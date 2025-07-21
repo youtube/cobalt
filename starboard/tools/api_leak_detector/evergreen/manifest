@@ -12,11 +12,6 @@ access
 chmod
 clock_nanosleep
 closelog
-dladdr
-dlclose
-dlerror
-dlopen
-dlsym
 fallocate
 fchmod
 fchown
