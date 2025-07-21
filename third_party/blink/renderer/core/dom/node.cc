@@ -349,11 +349,14 @@ DOMNodeId Node::GetDomNodeId() {
   return DOMNodeIds::IdForNode(this);
 }
 
+<<<<<<< HEAD
 // static
 Node* Node::FromDomNodeId(DOMNodeId dom_node_id) {
   return DOMNodeIds::NodeForId(dom_node_id);
 }
 
+=======
+>>>>>>> 11f52fe6f8a (BACKPORT: Pass HTMLMediaElement identifier to ::media::Renderer (#5463))
 NodeRareData& Node::CreateRareData() {
   if (IsElementNode()) {
     data_ = MakeGarbageCollected<ElementRareDataVector>();

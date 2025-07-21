@@ -306,6 +306,11 @@ WebEngineContentRendererClient::GetBaseRendererFactory(
     base::RepeatingCallback<media::GpuVideoAcceleratorFactories*()>
         get_gpu_factories_cb,
     int element_id) {
+<<<<<<< HEAD
+=======
+  auto* interface_broker = render_frame->GetBrowserInterfaceBroker();
+
+>>>>>>> 11f52fe6f8a (BACKPORT: Pass HTMLMediaElement identifier to ::media::Renderer (#5463))
   mojo::Remote<mojom::WebEngineMediaResourceProvider> media_resource_provider;
   render_frame->GetBrowserInterfaceBroker().GetInterface(
       media_resource_provider.BindNewPipeAndPassReceiver());

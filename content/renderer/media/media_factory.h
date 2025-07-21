@@ -133,7 +133,11 @@ class MediaFactory {
       blink::WebURL url,
       const RenderFrameMediaPlaybackOptions& renderer_media_playback_options,
       media::DecoderFactory* decoder_factory,
+<<<<<<< HEAD
       media::RemotePlaybackClientWrapper* client_wrapper,
+=======
+      std::unique_ptr<media::RemotePlaybackClientWrapper> client_wrapper,
+>>>>>>> 11f52fe6f8a (BACKPORT: Pass HTMLMediaElement identifier to ::media::Renderer (#5463))
       base::WeakPtr<media::MediaObserver>* out_media_observer,
       int element_id);
 
