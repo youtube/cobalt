@@ -536,8 +536,8 @@ public class MediaDrmBridge {
 
   private void handleKeyRequiredEventWithAppProvisioning(byte[] sessionId, byte[] data) {
     assert mEnableAppProvisioning;
-    if (!sessionExists(sessionId)) {
-      Log.e(TAG, "HandleKeyRequiredEventWithAppProvisioning failed: Invalid session id=" + bytesToString(sessionId));
+    if (sessionId == null) {
+      Log.e(TAG, "HandleKeyRequiredEventWithAppProvisioning failed: null session id");
       return;
     }
 
@@ -546,7 +546,7 @@ public class MediaDrmBridge {
     try {
       request = getKeyRequest(sessionId, data, mime);
     } catch (NotProvisionedException e) {
-      Log.e(TAG, "getKeyRequest failed.", e);
+      Log.e(TAG, "getKeyRequest(sessionId=" + bytesToString(sessionId) + ") failed.", e);
       return;
     }
     if (request == null) {
