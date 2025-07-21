@@ -19,7 +19,7 @@
 #include "base/android/scoped_java_ref.h"
 #include "base/functional/bind.h"
 #include "base/lazy_instance.h"
-#include "cobalt/android/jni_headers/ShellManager_jni.h"
+#include "cobalt/shell/android/cobalt_shell_jni_headers/ShellManager_jni.h"
 #include "cobalt/shell/browser/shell.h"
 #include "cobalt/shell/browser/shell_browser_context.h"
 #include "cobalt/shell/browser/shell_content_browser_client.h"
