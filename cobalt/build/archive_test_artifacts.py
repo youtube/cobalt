@@ -114,17 +114,20 @@ def create_archive(
                                   (target_src_root_deps, source_dir)])
         else:
           _make_tar(output_path, [(combined_deps, source_dir)])
-
         archive_size = f'{os.path.getsize(output_path) / 1024 / 1024:.2f} MB'
         print(f'Created {os.path.basename(output_path)} ({archive_size})')
+
         # Reset the list of deps.
         combined_deps = set(
             [os.path.relpath(os.path.join(tar_root, 'test_targets.json'))])
+        target_src_root_deps.clear()
 
   # Linux tests and deps are all bundled into a single tar file.
   if not archive_per_target:
     output_path = os.path.join(destination_dir, 'test_artifacts.tar.gz')
     _make_tar(output_path, [(combined_deps, source_dir)])
+    archive_size = f'{os.path.getsize(output_path) / 1024 / 1024:.2f} MB'
+    print(f'Created {os.path.basename(output_path)} ({archive_size})')
 
 
 def main():
