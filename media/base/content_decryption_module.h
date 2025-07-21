@@ -33,6 +33,10 @@ class CdmPromiseTemplate;
 typedef CdmPromiseTemplate<std::string> NewSessionCdmPromise;
 typedef CdmPromiseTemplate<> SimpleCdmPromise;
 typedef CdmPromiseTemplate<CdmKeyInformation::KeyStatus> KeyStatusCdmPromise;
+#if BUILDFLAG(USE_STARBOARD_MEDIA)
+typedef CdmPromiseTemplate<std::string> GetMetricsCdmPromise;
+#endif // BUILDFLAG(USE_STARBOARD_MEDIA)
+
 
 typedef std::vector<std::unique_ptr<CdmKeyInformation>> CdmKeysInfo;
 
@@ -179,6 +183,10 @@ class MEDIA_EXPORT ContentDecryptionModule
   // immediately. Override this method if |this| needs to be deleted on a
   // specific thread.
   virtual void DeleteOnCorrectThread() const;
+
+#if BUILDFLAG(USE_STARBOARD_MEDIA)
+  virtual void GetMetrics(std::unique_ptr<GetMetricsCdmPromise> promise);
+#endif // BUILDFLAG(USE_STARBOARD_MEDIA)
 
  protected:
   friend class base::RefCountedThreadSafe<ContentDecryptionModule,
