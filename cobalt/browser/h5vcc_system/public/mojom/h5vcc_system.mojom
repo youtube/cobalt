@@ -17,6 +17,8 @@ module h5vcc_system.mojom;
 // The browser process must provide an implementation of this interface so that
 // the renderer process can implement the H5vccSystem Blink API.
 interface H5vccSystem {
-  // Get the GetAdvertisingId for the device.
+  // Get the advertisingId for the device.
   GetAdvertisingId() => (string advertising_id);
+  // Get the limitAdTracking for the device.
+  GetLimitAdTracking() => (bool limitAdTracking);
 };

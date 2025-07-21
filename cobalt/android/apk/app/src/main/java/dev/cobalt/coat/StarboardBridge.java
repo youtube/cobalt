@@ -618,7 +618,7 @@ public class StarboardBridge {
   // Used in starboard/android/shared/system_get_property.cc
   /** Returns boolean for kSbSystemPropertyLimitAdTracking */
   @SuppressWarnings("unused")
-  @UsedByNative
+  @CalledByNative
   protected boolean getLimitAdTracking() {
     return this.advertisingId.isLimitAdTrackingEnabled();
   }
