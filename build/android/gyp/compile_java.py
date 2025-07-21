@@ -586,6 +586,7 @@ def main(argv,
       # protobuf-generated files fail this check (javadoc has @deprecated,
       # but method missing @Deprecated annotation).
       '-Xlint:-dep-ann',
+<<<<<<< HEAD
       # Do not warn about finalize() methods. Android still intends to support
       # them.
       '-Xlint:-removal',
@@ -594,6 +595,10 @@ def main(argv,
 
       # Disable all annotation processors (we run them via Turbine).
       '-proc:none',
+=======
+      # https://crbug.com/1441023
+      '-J-XX:+PerfDisableSharedMem',
+>>>>>>> 1920a44b92b (Cherry-pick a40b631 from chromium (#4881))
   ]
 
   if extra_javac_args:
