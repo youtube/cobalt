@@ -166,6 +166,9 @@ AlsaAudioSink::AlsaAudioSink(
     ConsumeFramesFunc consume_frames_func,
     void* context)
     : type_(type),
+      update_source_status_func_(update_source_status_func),
+      consume_frames_func_(consume_frames_func),
+      context_(context),
       playback_rate_(1.0),
       volume_(1.0),
       resample_buffer_(channels * kFramesPerRequest *
@@ -173,9 +176,6 @@ AlsaAudioSink::AlsaAudioSink(
       channels_(channels),
       sampling_frequency_hz_(sampling_frequency_hz),
       sample_type_(sample_type),
-      update_source_status_func_(update_source_status_func),
-      consume_frames_func_(consume_frames_func),
-      context_(context),
       audio_out_thread_(0),
       creation_signal_(mutex_),
       time_to_wait_(kFramesPerRequest * 1'000'000LL / sampling_frequency_hz /
