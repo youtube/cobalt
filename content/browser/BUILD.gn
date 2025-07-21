@@ -27,6 +27,11 @@ import("//tools/ipc_fuzzer/ipc_fuzzer.gni")
 if (is_mac) {
   import("//content/public/app/mac_helpers.gni")
 }
+
+if (is_cobalt) {
+  import("//starboard/build/buildflags.gni")
+}
+
 import("//cobalt/build/configs/hacks.gni")
 
 buildflag_header("buildflags") {

@@ -11,6 +11,10 @@
 #include "third_party/blink/public/common/features.h"
 #include "ui/accessibility/accessibility_features.h"
 
+#if BUILDFLAG(USE_STARBOARD_MEDIA)
+#include "media/base/media_switches.h"
+#endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
+
 using base::android::ConvertJavaStringToUTF8;
 using base::android::JavaParamRef;
 
@@ -42,6 +46,9 @@ const base::Feature* const kFeaturesExposedToJava[] = {
     &features::kWebBluetoothNewPermissionsBackend,
     &features::kWebNfc,
     &features::kDoNotGenerateChromiumA11yTree,
+    #if BUILDFLAG(USE_STARBOARD_MEDIA)
+    &media::kCobaltUsingAndroidOverlay,
+    #endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
 };
 
 const base::Feature* FindFeatureExposedToJava(const std::string& feature_name) {

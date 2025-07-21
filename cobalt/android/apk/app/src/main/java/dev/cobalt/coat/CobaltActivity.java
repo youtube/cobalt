@@ -56,6 +56,7 @@ import org.chromium.base.library_loader.LibraryProcessType;
 import org.chromium.components.version_info.VersionInfo;
 import org.chromium.content.browser.input.ImeAdapterImpl;
 import org.chromium.content_public.browser.BrowserStartupController;
+import org.chromium.content_public.browser.ContentFeatureList;
 import org.chromium.content_public.browser.DeviceUtils;
 import org.chromium.content_public.browser.JavascriptInjector;
 import org.chromium.content_public.browser.WebContents;
@@ -300,9 +301,15 @@ public abstract class CobaltActivity extends Activity {
     super.onCreate(savedInstanceState);
     createContent(savedInstanceState);
 
-    videoSurfaceView = new VideoSurfaceView(this);
-    a11yHelper = new CobaltA11yHelper(this, videoSurfaceView);
-    addContentView(videoSurfaceView, new LayoutParams(LayoutParams.MATCH_PARENT, LayoutParams.MATCH_PARENT));
+    if (ContentFeatureList.isEnabled(ContentFeatureList.COBALT_USING_ANDROID_OVERLAY)) {
+      Log.d(TAG, "Using Android Overlay for Cobalt.");
+      // TODO: b/431317298 - Add SurfaceView for |a11yHelper|.
+
+    } else {
+      videoSurfaceView = new VideoSurfaceView(this);
+      a11yHelper = new CobaltA11yHelper(this, videoSurfaceView);
+      addContentView(videoSurfaceView, new LayoutParams(LayoutParams.MATCH_PARENT, LayoutParams.MATCH_PARENT));
+    }
 
     Log.i(TAG, "CobaltActivity onCreate, all Layout Views:");
     View rootView = getWindow().getDecorView().getRootView();
@@ -361,7 +368,7 @@ public abstract class CobaltActivity extends Activity {
       getStarboardBridge().getAudioOutputManager().dumpAllOutputDevices();
       MediaCodecCapabilitiesLogger.dumpAllDecoders();
     }
-    if (forceCreateNewVideoSurfaceView) {
+    if (forceCreateNewVideoSurfaceView && !ContentFeatureList.isEnabled(ContentFeatureList.COBALT_USING_ANDROID_OVERLAY)) {
       Log.w(TAG, "Force to create a new video surface.");
       createNewSurfaceView();
     }
@@ -528,16 +535,24 @@ public abstract class CobaltActivity extends Activity {
   }
 
   public void resetVideoSurface() {
-    runOnUiThread(
+    // VideoSurfaceView will be null if Cobalt is using Android Overlay.
+    if (!ContentFeatureList.isEnabled(ContentFeatureList.COBALT_USING_ANDROID_OVERLAY)) {
+      runOnUiThread(
         new Runnable() {
           @Override
           public void run() {
             createNewSurfaceView();
           }
         });
+    }
   }
 
   public void setVideoSurfaceBounds(final int x, final int y, final int width, final int height) {
+    if (ContentFeatureList.isEnabled(ContentFeatureList.COBALT_USING_ANDROID_OVERLAY)) {
+      // Using AndroidOverlay doesn't update the bounds of VideoSurfaceView.
+      return;
+    }
+
     if (width == 0 || height == 0) {
       // The SurfaceView should be covered by our UI layer in this case.
       return;
@@ -570,6 +585,11 @@ public abstract class CobaltActivity extends Activity {
   }
 
   private void createNewSurfaceView() {
+    if (ContentFeatureList.isEnabled(ContentFeatureList.COBALT_USING_ANDROID_OVERLAY)) {
+      // VideoSurfaceView will be null if Cobalt is using Android Overlay.
+      return;
+    }
+
     ViewParent parent = videoSurfaceView.getParent();
     if (parent instanceof FrameLayout) {
       FrameLayout frameLayout = (FrameLayout) parent;

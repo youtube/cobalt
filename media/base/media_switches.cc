@@ -494,6 +494,12 @@ BASE_FEATURE(kCobaltProgressivePlayback,
 BASE_FEATURE(kCobaltReportBufferingStateDuringFlush,
              "CobaltReportBufferingStateDuringFlush",
              base::FEATURE_DISABLED_BY_DEFAULT);
+// When enabled, Cobalt uses Android Overlay, otherwise VideoSurfaceView.
+#if BUILDFLAG(IS_ANDROID)
+BASE_FEATURE(kCobaltUsingAndroidOverlay,
+             "CobaltUsingAndroidOverlay",
+             base::FEATURE_DISABLED_BY_DEFAULT);
+#endif  // BUILDFLAG(IS_ANDROID)
 #endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
 
 #if BUILDFLAG(IS_CHROMEOS)
