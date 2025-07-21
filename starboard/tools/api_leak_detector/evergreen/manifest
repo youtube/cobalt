@@ -17,6 +17,7 @@ dlclose
 dlerror
 dlopen
 dlsym
+execvp
 fallocate
 fchmod
 fchown
@@ -28,6 +29,7 @@ fflush
 fgets
 fileno
 fopen
+fork
 fprintf
 fputc
 fputs
