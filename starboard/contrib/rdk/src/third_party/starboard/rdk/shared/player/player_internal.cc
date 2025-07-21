@@ -2013,6 +2013,7 @@ void PlayerImpl::OnVideoBufferUnderflow(PlayerImpl* self)
 void PlayerImpl::SetupElement(GstElement* pipeline,
                               GstElement* element,
                               PlayerImpl* self) {
+  GST_DEBUG_OBJECT(pipeline, "Setup element %" GST_PTR_FORMAT, element);
   if (GST_IS_BASE_SINK(element)) {
     static bool disable_wait_video = !!getenv("COBALT_AML_DISABLE_WAIT_VIDEO");
     bool has_video = (self->video_codec_ != kSbMediaVideoCodecNone);
@@ -2050,11 +2051,13 @@ void PlayerImpl::SetupElement(GstElement* pipeline,
           g_object_class_find_property(oclass, "max-video-width") &&
           g_object_class_find_property(oclass, "max-video-height")) {
             MaxVideoCapabilities max_caps;
-            if (max_caps.Parse(self->max_video_capabilities_.c_str()) && max_caps.width && max_caps.height)
+            if (max_caps.Parse(self->max_video_capabilities_.c_str()) && max_caps.width && max_caps.height) {
+              GST_DEBUG_OBJECT(pipeline, "Set max video capabilities %u x %u on %" GST_PTR_FORMAT, *max_caps.width, *max_caps.height, element);
               g_object_set(G_OBJECT(element),
                            "max-video-width",  *max_caps.width,
                            "max-video-height", *max_caps.height,
                            nullptr);
+            }
         }
     }
 
