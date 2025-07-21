@@ -38,6 +38,9 @@ const char kCreateSessionSessionTypeUMAName[] = "CreateSession.SessionType";
 const char kSetServerCertificateUMAName[] = "SetServerCertificate";
 const char kGetStatusForPolicyUMAName[] = "GetStatusForPolicy";
 
+#if BUILDFLAG(USE_STARBOARD_MEDIA)
+const char kGetMetricsUMAName[] = "GetMetrics";
+#endif // BUILDFLAG(USE_STARBOARD_MEDIA)
 }  // namespace
 
 void WebContentDecryptionModuleImpl::Create(
@@ -140,27 +143,13 @@ void WebContentDecryptionModuleImpl::GetStatusForPolicy(
 }
 
 #if BUILDFLAG(USE_STARBOARD_MEDIA)
-bool WebContentDecryptionModuleImpl::GetMetrics(std::string& metrics_results) {
-  auto cdm_context_ref = adapter_->GetCdmContextRef();
-  DCHECK(cdm_context_ref);
-
-  auto* cdm_context = cdm_context_ref->GetCdmContext();
-  DCHECK(cdm_context);
-
-  auto sb_drm = cdm_context->GetSbDrmSystem();
-  DCHECK(SbDrmSystemIsValid(sb_drm));
-
-  int size = 0;
-  const uint8_t* raw_metrics =
-      static_cast<const uint8_t*>(SbDrmGetMetrics(sb_drm, &size));
-  if (!raw_metrics || size < 0) {
-    return false;
-  }
-
-  metrics_results.assign(raw_metrics, raw_metrics + size);
-  return true;
+void WebContentDecryptionModuleImpl::GetMetrics(
+    WebContentDecryptionModuleResult result) {
+  adapter_->GetMetrics(std::make_unique<CdmResultPromise<std::string>>(
+                       result, adapter_->GetKeySystemUMAPrefix(),
+                       kGetMetricsUMAName));
 }
-#endif // BUILDFLAG(USE_STARBOARD_MEDIA)
+#endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
 
 std::unique_ptr<media::CdmContextRef>
 WebContentDecryptionModuleImpl::GetCdmContextRef() {

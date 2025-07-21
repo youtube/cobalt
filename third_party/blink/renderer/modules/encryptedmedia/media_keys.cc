@@ -425,17 +425,57 @@ ScriptPromise<V8MediaKeyStatus> MediaKeys::getStatusForPolicy(
 }
 
 #if BUILDFLAG(USE_STARBOARD_MEDIA)
-String MediaKeys::getMetrics(ExceptionState& exception_state) {
-  std::string metrics;
-  if (!cdm_ || !cdm_->GetMetrics(metrics)) {
-    exception_state.ThrowDOMException(
-        DOMExceptionCode::kInvalidStateError,
-        !cdm_ ? "No active CDM" : "GetMetrics() failed");
-    return String();
+class GetMetricsResultPromise : public ContentDecryptionModuleResultPromise {
+ public:
+  GetMetricsResultPromise(ScriptPromiseResolver<IDLString>* resolver,
+                          const MediaKeysConfig& config,
+                          MediaKeys* media_keys)
+      : ContentDecryptionModuleResultPromise(resolver,
+                                             config,
+                                             EmeApiType::kGetMetrics),
+        media_keys_(media_keys) {}
+
+  ~GetMetricsResultPromise() override = default;
+
+  // ContentDecryptionModuleResult implementation.
+  void CompleteWithString(const WebString& result) override {
+    if (!IsValidToFulfillPromise()) {
+      return;
+    }
+
+    Resolve<IDLString>(result);
   }
-  return String::FromUTF8(metrics);
+  void Trace(Visitor* visitor) const override {
+    visitor->Trace(media_keys_);
+    ContentDecryptionModuleResultPromise::Trace(visitor);
+  }
+
+ private:
+  // Keeping a reference to MediaKeys to prevent GC from collecting it while
+  // the promise is pending.
+  Member<MediaKeys> media_keys_;
+};
+
+ScriptPromise<IDLString> MediaKeys::getMetrics(
+    ScriptState* script_state,
+    ExceptionState& exception_state) {
+  if (!cdm_) {
+    exception_state.ThrowDOMException(DOMExceptionCode::kInvalidStateError,
+                                      "No active CDM..");
+    return EmptyPromise();
+  }
+
+  auto* resolver = MakeGarbageCollected<ScriptPromiseResolver<IDLString>>(
+      script_state, exception_state.GetContext());
+  GetMetricsResultPromise* result =
+      MakeGarbageCollected<GetMetricsResultPromise>(resolver, config_, this);
+  auto promise = resolver->Promise();
+
+  cdm_->GetMetrics(result->Result());
+
+  return promise;
 }
-#endif // BUILDFLAG(USE_STARBOARD_MEDIA)
+#endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
 
 void MediaKeys::GetStatusForPolicyTask(const String& min_hdcp_version,
                                        ContentDecryptionModuleResult* result) {

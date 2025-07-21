@@ -16,7 +16,8 @@
 #define THIRD_PARTY_BLINK_RENDERER_MODULES_COBALT_ENCRYPTEDMEDIA_MEDIA_KEYS_GET_METRICS_H_
 
 #include "build/build_config.h"
-#include "third_party/blink/renderer/platform/bindings/exception_state.h"
+#include "third_party/blink/renderer/bindings/core/v8/script_promise.h"
+#include "third_party/blink/renderer/platform/bindings/script_state.h"
 
 namespace blink {
 
@@ -26,7 +27,9 @@ class MediaKeysGetMetrics {
   STATIC_ONLY(MediaKeysGetMetrics);
 
  public:
-  static String getMetrics(MediaKeys&, ExceptionState&);
+  static ScriptPromise<IDLString> getMetrics(ScriptState* script_state,
+                                             MediaKeys& media_keys,
+                                             ExceptionState&);
 };
 
 }  // namespace blink
