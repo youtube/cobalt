@@ -429,15 +429,15 @@ public class MediaDrmBridge {
         new OnEventListener() {
           @Override
           public void onEvent(MediaDrm md, byte[] sessionId, int event, int extra, byte[] data) {
-            if (sessionId == null) {
-              Log.e(TAG, "EventListener: Null session.");
-              return;
-            }
-
             if (event == MediaDrm.EVENT_KEY_REQUIRED) {
               Log.d(TAG, "MediaDrm.EVENT_KEY_REQUIRED");
               if (mEnableAppProvisioning) {
                 handleKeyRequiredEventWithAppProvisioning(sessionId, data);
+                return;
+              }
+
+              if (sessionId == null) {
+                Log.e(TAG, "EventListener: Null session.");
                 return;
               }
               if (!sessionExists(sessionId)) {
@@ -734,25 +734,25 @@ public class MediaDrmBridge {
     }
     assert mMediaCrypto != null;
 
+    byte[] mediaCryptoSession;
     try {
-      mMediaCryptoSession = openSession();
+      mediaCryptoSession = openSession();
     } catch (NotProvisionedException e) {
       return OperationResult.notProvisioned();
     }
-    if (mMediaCryptoSession == null) {
+    if (mediaCryptoSession == null) {
       return OperationResult.operationFailed("openSession returned null");
     }
 
     try {
-      Log.i(TAG, "Calling MediaCrypto.setMediaDrmSession(mMediaCryptoSession)");
-      mMediaCrypto.setMediaDrmSession(mMediaCryptoSession);
-    } catch (MediaCryptoException e3) {
-      closeMediaDrmSession(mMediaCryptoSession);
-      mMediaCryptoSession = null;
-      return OperationResult.operationFailed("Unable to set media drm session", e3);
+      mMediaCrypto.setMediaDrmSession(mediaCryptoSession);
+    } catch (MediaCryptoException e) {
+      closeMediaDrmSession(mediaCryptoSession);
+      return OperationResult.operationFailed("Unable to set media drm session", e);
     }
 
-    Log.i(TAG, "MediaCrypto Session created: sessionId=" + bytesToString(mMediaCryptoSession));
+    Log.i(TAG, "MediaCrypto Session created: sessionId=" + bytesToString(mediaCryptoSession));
+    mMediaCryptoSession = mediaCryptoSession;
     return OperationResult.success();
   }
 
