@@ -141,6 +141,10 @@ public class MediaDrmBridge {
     public int getStatusCode() {
       return mStatus;
     }
+
+    public boolean isSuccess() {
+      return mStatus == DrmOperationStatus.SUCCESS;
+    }
   }
 
   /**
@@ -260,33 +264,27 @@ public class MediaDrmBridge {
       return OperationResult.operationFailed("createSessionWithAppProvisioning() called when MediaDrm is null.");
     }
 
-    byte[] sessionId;
-    MediaDrm.KeyRequest request;
-
-    try {
-      createMediaCryptoSessionWithAppProvisioning();
-    } catch (NotProvisionedException e) {
-      Log.e(TAG, "createMediaCryptoSessionWithAppProvisioning failed: Device not provisioned", e);
-      return OperationResult.notProvisioned();
+    OperationResult result = createMediaCryptoSessionWithAppProvisioning();
+    if (!result.isSuccess()) {
+      return result;
     }
 
+    byte[] sessionId;
     try {
       sessionId = openSession();
     } catch (NotProvisionedException e) {
       Log.e(TAG, "openSession failed: Device not provisioned", e);
       return OperationResult.notProvisioned();
     }
-
     if (sessionId == null) {
       Log.e(TAG, "Open session failed.");
       return OperationResult.operationFailed("Open session failed");
-    }
-
-    if (sessionExists(sessionId)) {
+    } else if (sessionExists(sessionId)) {
       Log.e(TAG, "Opened session that already exists.");
       return OperationResult.operationFailed("Opened session that already exists");
     }
 
+    MediaDrm.KeyRequest request;
     try {
       request = getKeyRequest(sessionId, initData, mime);
     } catch (NotProvisionedException e) {
@@ -294,7 +292,6 @@ public class MediaDrmBridge {
       closeMediaDrmSession(sessionId);
       return OperationResult.notProvisioned();
     }
-
     if (request == null) {
       closeMediaDrmSession(sessionId);
       Log.e(TAG, "Generate request failed.");
@@ -440,7 +437,7 @@ public class MediaDrmBridge {
             if (event == MediaDrm.EVENT_KEY_REQUIRED) {
               Log.d(TAG, "MediaDrm.EVENT_KEY_REQUIRED");
               if (mEnableAppProvisioning) {
-                HandleKeyRequiredEventWithAppProvisioning(sessionId, data);
+                handleKeyRequiredEventWithAppProvisioning(sessionId, data);
                 return;
               }
               if (!sessionExists(sessionId)) {
@@ -549,10 +546,13 @@ public class MediaDrmBridge {
     try {
       request = getKeyRequest(sessionId, data, mime);
     } catch (NotProvisionedException e) {
-      Log.e(TAG, "EventListener: getKeyRequest failed.", e);
+      Log.e(TAG, "getKeyRequest failed.", e);
       return;
     }
-    assert request != null;
+    if (request == null) {
+      Log.e(TAG, "handleKeyRequiredEventWithAppProvisionin: getKeyRequest returned null");
+      return;
+    }
 
     onSessionMessage(SB_DRM_TICKET_INVALID, sessionId, request);
   }
@@ -726,35 +726,34 @@ public class MediaDrmBridge {
     return true;
   }
 
-  void createMediaCryptoSessionWithAppProvisioning() throws NotProvisionedException {
+  OperationResult createMediaCryptoSessionWithAppProvisioning() {
     assert mEnableAppProvisioning;
-    Log.i(TAG, "createMediaCryptoSessionWithAppProvisioning()");
     if (mMediaCryptoSession != null) {
       Log.i(TAG, "MediaCryptoSession is already created");
-      return;
+      return OperationResult.success();
     }
-
     assert mMediaCrypto != null;
 
     try {
       mMediaCryptoSession = openSession();
     } catch (NotProvisionedException e) {
-      Log.w(TAG, "createMediaCryptoSesionWithAppProvisioning met: Device not provisioned. Re-throw NotProvisionedException");
-      throw e;
+      return OperationResult.notProvisioned();
     }
-    assert mMediaCryptoSession != null;
+    if (mMediaCryptoSession == null) {
+      return OperationResult.operationFailed("openSession returned null");
+    }
 
     try {
       Log.i(TAG, "Calling MediaCrypto.setMediaDrmSession(mMediaCryptoSession)");
       mMediaCrypto.setMediaDrmSession(mMediaCryptoSession);
     } catch (MediaCryptoException e3) {
-      Log.e(TAG, "Unable to set media drm session", e3);
       closeMediaDrmSession(mMediaCryptoSession);
       mMediaCryptoSession = null;
-      return;
+      return OperationResult.operationFailed("Unable to set media drm session", e3);
     }
 
     Log.i(TAG, "MediaCrypto Session created: sessionId=" + bytesToString(mMediaCryptoSession));
+    return OperationResult.success();
   }
 
   @CalledByNative
