@@ -236,21 +236,21 @@ if (current_toolchain == starboard_toolchain) {
       "//starboard/common:common_test",
       "//testing/gtest",
     ]
+    if (is_linux) {
+      deps += [ "//starboard/linux/shared:starboard_platform_tests" ]
+    }
     if (!is_android) {
-      deps += [
-        "//starboard/elf_loader:elf_loader_test",
-        "//starboard/linux/shared:starboard_platform_tests",
-        "//starboard/loader_app:installation_manager_test",
-        "//starboard/loader_app:memory_tracker_thread",
-        "//starboard/shared/starboard/player/filter/testing:player_filter_tests",
-      ]
+      deps += [ "//starboard/shared/starboard/player/filter/testing:player_filter_tests" ]
     }
     if (sb_is_evergreen_compatible) {
       deps += [
+        "//starboard/elf_loader:elf_loader_test",
         "//starboard/extension:extension_test",
         "//starboard/loader_app:app_key_files_test",
         "//starboard/loader_app:app_key_test",
         "//starboard/loader_app:drain_file_test",
+        "//starboard/loader_app:installation_manager_test",
+        "//starboard/loader_app:memory_tracker_thread",
       ]
     }
 
