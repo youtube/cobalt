@@ -62,6 +62,19 @@ if (!is_android) {
   }
 }
 
+action("cobalt_build_id") {
+  script = "build/build_id.py"
+  outputs = [ "$root_gen_dir/cobalt/cobalt_build_id.h" ]
+  args = [ rebase_path(outputs[0], root_build_dir) ]
+}
+
+# TODO(b/377927950): This should be consolidated with the above
+action("cobalt_build_info") {
+  script = "build/build_info.py"
+  outputs = [ "$root_gen_dir/build_info.json" ]
+  args = [ rebase_path(outputs[0], root_build_dir) ]
+}
+
 static_library("common") {
   sources = [
     "user_agent_platform_info.cc",
@@ -69,6 +82,8 @@ static_library("common") {
   ]
 
   deps = [
+    ":cobalt_build_id",
+    ":cobalt_build_info",
     "//base",
     "//starboard/common",
   ]
