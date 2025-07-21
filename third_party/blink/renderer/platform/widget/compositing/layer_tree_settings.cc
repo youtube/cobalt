@@ -49,15 +49,6 @@ BASE_FEATURE(kScaleScrollbarAnimationTiming,
              "ScaleScrollbarAnimationTiming",
              base::FEATURE_DISABLED_BY_DEFAULT);
 
-#if BUILDFLAG(IS_ANDROID)
-// Whether to use a simpler way to compute compositor memory limits on
-// Android. Intended to become default, but introduced temporarily to check
-// it's not breaking things.
-BASE_FEATURE(kSimpleCompositorMemoryLimits,
-             "SimpleCompositorMemoryLimits",
-             base::FEATURE_DISABLED_BY_DEFAULT);
-#endif
-
 constexpr base::FeatureParam<double> kFadeDelayScalingFactor{
     &kScaleScrollbarAnimationTiming, "fade_delay_scaling_factor",
     /*default_value=*/1.0};
@@ -188,6 +179,7 @@ cc::ManagedMemoryPolicy GetGpuMemoryPolicy(
 
 #if BUILDFLAG(IS_ANDROID)
 <<<<<<< HEAD
+<<<<<<< HEAD
   if (base::SysInfo::IsLowEndDevice() ||
       base::SysInfo::AmountOfPhysicalMemoryMB() < 2000) {
     actual.bytes_limit_when_visible = 96 * 1024 * 1024;
@@ -302,6 +294,32 @@ cc::ManagedMemoryPolicy GetGpuMemoryPolicy(
   actual.priority_cutoff_when_visible =
       gpu::MemoryAllocation::CUTOFF_ALLOW_NICE_TO_HAVE;
 
+=======
+  if (base::SysInfo::IsLowEndDevice() ||
+      base::SysInfo::AmountOfPhysicalMemoryMB() < 2000) {
+    actual.bytes_limit_when_visible = 96 * 1024 * 1024;
+  } else {
+    actual.bytes_limit_when_visible = 256 * 1024 * 1024;
+  }
+#else
+  // Ignore what the system said and give all clients the same maximum
+  // allocation on desktop platforms.
+  actual.bytes_limit_when_visible = 512 * 1024 * 1024;
+
+  // For large monitors (4k), double the tile memory to avoid frequent out of
+  // memory problems. 4k could mean a screen width of anywhere from 3840 to 4096
+  // (see https://en.wikipedia.org/wiki/4K_resolution). We use 3500 as a proxy
+  // for "large enough".
+  static const int kLargeDisplayThreshold = 3500;
+  int display_width =
+      std::round(initial_screen_size.width() * initial_device_scale_factor);
+  if (display_width >= kLargeDisplayThreshold)
+    actual.bytes_limit_when_visible *= 2;
+#endif
+  actual.priority_cutoff_when_visible =
+      gpu::MemoryAllocation::CUTOFF_ALLOW_NICE_TO_HAVE;
+
+>>>>>>> 3cc6aff5fd2 ([cc] Use simple compositor memory limits on Android (#4637))
   return actual;
 }
 
