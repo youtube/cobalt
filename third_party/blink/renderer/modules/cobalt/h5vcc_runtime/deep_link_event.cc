@@ -12,15 +12,23 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-// This interface mirrors the H5vccRuntime Web IDL defined in Cobalt LTS 25:
-// https://github.com/youtube/cobalt/blob/25.lts.stable/cobalt/h5vcc/h5vcc_runtime.idl
-[
-    Exposed=Window,
-    SecureContext
-]
-interface H5vccRuntime : EventTarget {
-    [CallWith=ScriptState, RaisesException]
-    Promise<DOMString> getInitialDeepLink();
+#include "third_party/blink/renderer/modules/cobalt/h5vcc_runtime/deep_link_event.h"
 
-    attribute EventHandler onDeepLink;
-};
+#include "third_party/blink/renderer/modules/event_interface_modules_names.h"
+
+namespace blink {
+
+DeepLinkEvent::DeepLinkEvent(const AtomicString& type, const String& url)
+    : Event(type, Bubbles::kNo, Cancelable::kNo), url_(url) {}
+
+DeepLinkEvent::~DeepLinkEvent() = default;
+
+const AtomicString& DeepLinkEvent::InterfaceName() const {
+  return event_interface_names::kDeepLinkEvent;
+}
+
+void DeepLinkEvent::Trace(Visitor* visitor) const {
+  Event::Trace(visitor);
+}
+
+}  // namespace blink
