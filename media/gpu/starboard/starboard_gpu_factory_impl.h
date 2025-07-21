@@ -15,16 +15,11 @@
 #ifndef MEDIA_GPU_STARBOARD_STARBOARD_GPU_FACTORY_IMPL_H_
 #define MEDIA_GPU_STARBOARD_STARBOARD_GPU_FACTORY_IMPL_H_
 
-#include <vector>
-
-#include "base/memory/raw_ptr.h"
 #include "base/threading/thread_checker.h"
 #include "media/gpu/starboard/starboard_gpu_factory.h"
 
 namespace media {
 // Implement StarboardGpuFactory class.
-// TODO(b/375070492): wire the rest of the functionality with
-// decode-to-texture.
 class StarboardGpuFactoryImpl : public StarboardGpuFactory {
  public:
   explicit StarboardGpuFactoryImpl(GetStubCB get_stub_cb);
@@ -37,6 +32,21 @@ class StarboardGpuFactoryImpl : public StarboardGpuFactory {
   void Initialize(base::UnguessableToken channel_token,
                   int32_t route_id,
                   base::OnceClosure callback) override;
+  void RunSbDecodeTargetFunctionOnGpu(
+      SbDecodeTargetGlesContextRunnerTarget target_function,
+      void* target_function_context,
+      base::WaitableEvent* done_event) override;
+  void RunCallbackOnGpu(base::OnceCallback<void()> callback,
+                        base::WaitableEvent* done_event) override;
+  void CreateImageOnGpu(const gfx::Size& coded_size,
+                        const gfx::ColorSpace& color_space,
+                        int plane_count,
+                        std::vector<gpu::Mailbox>& mailboxes,
+                        std::vector<uint32_t>& texture_service_ids,
+#if BUILDFLAG(IS_ANDROID)
+                        scoped_refptr<gpu::RefCountedLock> drdc_lock,
+#endif  // BUILDFLAG(IS_ANDROID)
+                        base::WaitableEvent* done_event) override;
 
  private:
   void OnWillDestroyStub(bool have_context) override;
