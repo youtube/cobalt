@@ -190,7 +190,11 @@ android_library("cobalt_apk_java") {
   testonly = true
   resources_package = "dev.cobalt.coat"
 
-  deps = [ ":cobalt_main_java" ]
+  deps = [
+    ":cobalt_main_java",
+    "//base:base_java",
+    "//ui/android:ui_no_recycler_view_java",
+  ]
 
   sources = [
     "apk/app/src/app/java/dev/cobalt/app/CobaltApplication.java",
