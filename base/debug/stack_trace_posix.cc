@@ -78,7 +78,7 @@
 #include "build/build_config.h"
 
 #if defined(USE_SYMBOLIZE)
-#include "base/third_party/symbolize/symbolize.h"
+#include "base/third_party/symbolize/symbolize.h"  // nogncheck
 
 #if BUILDFLAG(ENABLE_STACK_TRACE_LINE_NUMBERS)
 #include "base/debug/dwarf_line_no.h"
