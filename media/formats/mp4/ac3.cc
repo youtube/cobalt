@@ -55,7 +55,11 @@ bool AC3::Parse(const std::vector<uint8_t>& data, MediaLog* media_log) {
 
   int acmod;
   RCHECK(reader.ReadBits(3, &acmod));
+<<<<<<< HEAD
   if (acmod >= kAC3AudioCodingModeSize) {
+=======
+  if (acmod >= static_cast<int>(sizeof(kGlobalChannelArray))) {
+>>>>>>> 70d4a39d0a2 (Audio: Add AC3/EAC3 support in EME on Windows platform (#4744))
     return false;
   }
 

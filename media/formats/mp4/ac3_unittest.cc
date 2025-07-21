@@ -4,7 +4,10 @@
 
 #include <stdint.h>
 
+<<<<<<< HEAD
 #include "media/base/channel_layout.h"
+=======
+>>>>>>> 70d4a39d0a2 (Audio: Add AC3/EAC3 support in EME on Windows platform (#4744))
 #include "media/base/mock_media_log.h"
 #include "media/formats/mp4/ac3.h"
 #include "testing/gmock/include/gmock/gmock.h"
@@ -49,6 +52,7 @@ TEST_F(AC3Test, NormalInputTest) {
   EXPECT_EQ(ac3_.GetChannelCount(), 2u);
 }
 
+<<<<<<< HEAD
 TEST_F(AC3Test, ChannelLayout_Mono_Test) {
   std::vector<uint8_t> data({0x10, 0x08, 0xc0});
 
@@ -113,6 +117,8 @@ TEST_F(AC3Test, ChannelLayout_5_1_Test) {
   EXPECT_EQ(ac3_.GetChannelLayout(), CHANNEL_LAYOUT_5_1);
 }
 
+=======
+>>>>>>> 70d4a39d0a2 (Audio: Add AC3/EAC3 support in EME on Windows platform (#4744))
 }  // namespace mp4
 
 }  // namespace media

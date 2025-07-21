@@ -53,7 +53,11 @@ bool EAC3::Parse(const std::vector<uint8_t>& data, MediaLog* media_log) {
   //        }
   //        reserved                             variable bits
 
+<<<<<<< HEAD
   // At least one independent substreams exist without dependent substream.
+=======
+  // At least one independent substreams exist without ndependent substream
+>>>>>>> 70d4a39d0a2 (Audio: Add AC3/EAC3 support in EME on Windows platform (#4744))
   if (data.size() * 8 < (13 + 3 + (2 + 5 + 1 + 1 + 3 + 3 + 1 + 3 + 4 + 1))) {
     return false;
   }
@@ -75,7 +79,11 @@ bool EAC3::Parse(const std::vector<uint8_t>& data, MediaLog* media_log) {
 
     int acmod;
     RCHECK(reader.ReadBits(3, &acmod));
+<<<<<<< HEAD
     if (acmod >= kAC3AudioCodingModeSize) {
+=======
+    if (acmod >= static_cast<int>(sizeof(kGlobalChannelArray))) {
+>>>>>>> 70d4a39d0a2 (Audio: Add AC3/EAC3 support in EME on Windows platform (#4744))
       return false;
     }
 

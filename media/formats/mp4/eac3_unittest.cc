@@ -48,6 +48,7 @@ TEST_F(EAC3Test, NormalInputTest) {
   EXPECT_EQ(eac3_.GetChannelCount(), 2u);
 }
 
+<<<<<<< HEAD
 TEST_F(EAC3Test, ChannelLayout_Mono_Test) {
   std::vector<uint8_t> data({0x03, 0x00, 0x20, 0x02, 0x00});
 
@@ -120,6 +121,8 @@ TEST_F(EAC3Test, ChannelLayout_7_1_Test) {
   EXPECT_EQ(eac3_.GetChannelLayout(), CHANNEL_LAYOUT_7_1);
 }
 
+=======
+>>>>>>> 70d4a39d0a2 (Audio: Add AC3/EAC3 support in EME on Windows platform (#4744))
 }  // namespace mp4
 
 }  // namespace media

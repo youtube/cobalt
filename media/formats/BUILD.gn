@@ -344,10 +344,13 @@ source_set("unit_tests") {
       ]
     }
 
+<<<<<<< HEAD
     if (enable_platform_ac4_audio) {
       sources += [ "mp4/ac4_unittest.cc" ]
     }
 
+=======
+>>>>>>> 70d4a39d0a2 (Audio: Add AC3/EAC3 support in EME on Windows platform (#4744))
     if (enable_mse_mpeg2ts_stream_parser) {
       sources += [
         "mp2t/es_adapter_video_unittest.cc",
