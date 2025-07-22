@@ -39,6 +39,28 @@ String H5vccRuntime::initialDeepLink() {
   return initial_deep_link_;
 }
 
+void H5vccRuntime::OnRenderToImageComplete(ScriptPromiseResolver* resolver,
+                                           const WTF::Vector<uint8_t>& bytes) {
+  resolver->Resolve(bytes);
+}
+
+ScriptPromise H5vccRuntime::renderToImage(ScriptState* script_state,
+                                          const String& url,
+                                          uint32_t width,
+                                          uint32_t height,
+                                          ExceptionState& exception_state) {
+  auto* resolver = MakeGarbageCollected<ScriptPromiseResolver>(
+      script_state, exception_state.GetContext());
+
+  EnsureRemoteIsBound();
+  remote_h5vcc_runtime_->RenderToImage(
+      url, width, height,
+      WTF::BindOnce(&H5vccRuntime::OnRenderToImageComplete,
+                    WrapPersistent(this), WrapPersistent(resolver)));
+
+  return resolver->Promise();
+}
+
 void H5vccRuntime::MaybeFireDeepLinkEvent(const String& url) {
   if (!url.empty()) {
     LOG(INFO) << "Dispatch DeepLink to application: " << url;
