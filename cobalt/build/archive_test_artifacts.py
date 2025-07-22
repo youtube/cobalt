@@ -105,7 +105,7 @@ def create_archive(
         else:
           # Prepend tar root directory to path to ensure files are extracted to
           # the correct dir.
-          rel_path = os.path.relpath(os.path.join(tar_root, line.strip()))
+          rel_path = os.path.relpath(os.path.join(out_dir, line.strip()))
           target_deps.add(rel_path)
       combined_deps |= target_deps
 
