@@ -113,7 +113,7 @@ TEST(PosixSymlinkTest, FailsWithNullOldPath) {
   // A NULL oldpath should result in a "Bad address" error.
 #pragma clang diagnostic push
 #pragma clang diagnostic ignored "-Wnonnull"
-  EXPECT_EQ(symlink(NULL, link_path), -1);
+  EXPECT_EQ(symlink(nullptr, link_path), -1);
 #pragma clang diagnostic pop
   EXPECT_EQ(errno, EFAULT);
 }
@@ -124,7 +124,7 @@ TEST(PosixSymlinkTest, FailsWithNullNewPath) {
   // A NULL newpath should result in a "Bad address" error.
 #pragma clang diagnostic push
 #pragma clang diagnostic ignored "-Wnonnull"
-  EXPECT_EQ(symlink(target_path, NULL), -1);
+  EXPECT_EQ(symlink(target_path, nullptr), -1);
 #pragma clang diagnostic pop
   EXPECT_EQ(errno, EFAULT);
 }
