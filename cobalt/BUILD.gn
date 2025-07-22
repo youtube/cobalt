@@ -213,7 +213,7 @@ test("cobalt_unittests") {
     "//sandbox/policy:policy",
   ]
 
-  if (!is_android) {
+  if (use_ozone) {
     deps += [ "//ui/ozone:ozone_switches" ]
   }
 }
