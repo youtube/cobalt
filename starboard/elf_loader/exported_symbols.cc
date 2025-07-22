@@ -282,6 +282,7 @@ ExportedSymbols::ExportedSymbols() {
   REGISTER_SYMBOL(snprintf);
   REGISTER_SYMBOL(sprintf);
   REGISTER_SYMBOL(srand);
+  REGISTER_SYMBOL(symlink);
   REGISTER_SYMBOL(unlink);
   REGISTER_SYMBOL(usleep);
   REGISTER_SYMBOL(vfwprintf);
