@@ -400,7 +400,7 @@ INSTANTIATE_TEST_SUITE_P(
         network::mojom::ReferrerPolicy::kStrictOrigin));
 
 // Ensure that browser initiated basic navigations work.
-// TODO(https://crbug.com/432503432): Investigate test failure
+// TODO: b/432503432 - Investigate test failure
 IN_PROC_BROWSER_TEST_F(NavigationBrowserTest,
                        DISABLED_BrowserInitiatedNavigations) {
   // Perform a navigation with no live renderer.
@@ -464,7 +464,7 @@ IN_PROC_BROWSER_TEST_F(NavigationBrowserTest,
 }
 
 // Ensure that renderer initiated same-site navigations work.
-// TODO(https://crbug.com/432503432): Investigate test failure
+// TODO: b/432503432 - Investigate test failure
 IN_PROC_BROWSER_TEST_F(NavigationBrowserTest,
                        DISABLED_RendererInitiatedSameSiteNavigation) {
   // Perform a navigation with no live renderer.
@@ -527,7 +527,7 @@ IN_PROC_BROWSER_TEST_F(NavigationBrowserTest,
 }
 
 // Ensure that renderer initiated cross-site navigations work.
-// TODO(https://crbug.com/432503432): Investigate test failure
+// TODO: b/432503432 - Investigate test failure
 IN_PROC_BROWSER_TEST_F(NavigationBrowserTest,
                        DISABLED_RendererInitiatedCrossSiteNavigation) {
   // Perform a navigation with no live renderer.
@@ -574,7 +574,7 @@ IN_PROC_BROWSER_TEST_F(NavigationBrowserTest,
 }
 
 // Ensure navigation failures are handled.
-// TODO(https://crbug.com/432503432): Investigate test failure
+// TODO: b/432503432 - Investigate test failure
 IN_PROC_BROWSER_TEST_F(NavigationBrowserTest, DISABLED_FailedNavigation) {
   // Perform a navigation with no live renderer.
   {
@@ -609,7 +609,7 @@ IN_PROC_BROWSER_TEST_F(NavigationBrowserTest, DISABLED_FailedNavigation) {
 }
 
 // Ensure that browser initiated navigations to view-source URLs works.
-// TODO(https://crbug.com/432503432): Investigate test failure
+// TODO: b/432503432 - Investigate test failure
 IN_PROC_BROWSER_TEST_F(NavigationBrowserTest,
                        DISABLED_ViewSourceNavigation_BrowserInitiated) {
   TestNavigationObserver observer(web_contents());
@@ -622,7 +622,7 @@ IN_PROC_BROWSER_TEST_F(NavigationBrowserTest,
 }
 
 // Ensure that content initiated navigations to view-sources URLs are blocked.
-// TODO(https://crbug.com/432503432): Investigate test failure
+// TODO: b/432503432 - Investigate test failure
 IN_PROC_BROWSER_TEST_F(NavigationBrowserTest,
                        DISABLED_ViewSourceNavigation_RendererInitiated) {
   TestNavigationObserver observer(web_contents());
@@ -647,7 +647,7 @@ IN_PROC_BROWSER_TEST_F(NavigationBrowserTest,
 }
 
 // Ensure that content initiated navigations to googlechrome: URLs are blocked.
-// TODO(https://crbug.com/432503432): Investigate test failure
+// TODO: b/432503432 - Investigate test failure
 IN_PROC_BROWSER_TEST_F(NavigationBrowserTest,
                        DISABLED_GoogleChromeNavigation_RendererInitiated) {
   TestNavigationObserver observer(web_contents());
@@ -679,7 +679,7 @@ IN_PROC_BROWSER_TEST_F(NavigationBrowserTest, UnloadDuringNavigation) {
 }
 
 // Ensure that the referrer of a navigation is properly sanitized.
-// TODO(https://crbug.com/432503432): Investigate test failure
+// TODO: b/432503432 - Investigate test failure
 IN_PROC_BROWSER_TEST_F(NavigationBrowserTest, DISABLED_SanitizeReferrer) {
   const GURL kInsecureUrl(embedded_test_server()->GetURL("/title1.html"));
   const Referrer kSecureReferrer(
@@ -706,7 +706,7 @@ IN_PROC_BROWSER_TEST_F(NavigationBrowserTest, DISABLED_SanitizeReferrer) {
 
 // Ensure the correctness of a navigation request's referrer. This is a
 // regression test for https://crbug.com/1004083.
-// TODO(https://crbug.com/432530025): Investigate test failure
+// TODO: b/432530025 - Investigate test failure
 IN_PROC_BROWSER_TEST_P(NavigationBrowserTestReferrerPolicy,
                        DISABLED_ReferrerPolicy) {
   const GURL kDestination(embedded_test_server()->GetURL("/title1.html"));
@@ -756,7 +756,7 @@ IN_PROC_BROWSER_TEST_P(NavigationBrowserTestReferrerPolicy,
 
 // Test to verify that an exploited renderer process trying to upload a file
 // it hasn't been explicitly granted permissions to is correctly terminated.
-// TODO(https://crbug.com/432503432): Investigate test failure
+// TODO: b/432503432 - Investigate test failure
 IN_PROC_BROWSER_TEST_F(NavigationBrowserTest,
                        DISABLED_PostUploadIllegalFilePath) {
   GURL form_url(
@@ -810,7 +810,7 @@ IN_PROC_BROWSER_TEST_F(NavigationBrowserTest,
 // Test case to verify that redirects to data: URLs are properly disallowed,
 // even when invoked through a reload.
 // See https://crbug.com/723796.
-// TODO(https://crbug.com/432503432): Investigate test failure
+// TODO: b/432503432 - Investigate test failure
 IN_PROC_BROWSER_TEST_F(NavigationBrowserTest,
                        DISABLED_VerifyBlockedErrorPageURL_Reload) {
   NavigationControllerImpl& controller = web_contents()->GetController();
@@ -842,7 +842,7 @@ IN_PROC_BROWSER_TEST_F(NavigationBrowserTest,
             controller.GetLastCommittedEntry()->GetVirtualURL());
 }
 
-// TODO(https://crbug.com/432503432): Investigate test failure
+// TODO: b/432503432 - Investigate test failure
 IN_PROC_BROWSER_TEST_F(NavigationBrowserTest, DISABLED_BackFollowedByReload) {
   // First, make two history entries.
   GURL url1(embedded_test_server()->GetURL("/title1.html"));
@@ -905,7 +905,7 @@ IN_PROC_BROWSER_TEST_F(NavigationBaseBrowserTest,
   EXPECT_EQ("\"done\"", done);
 }
 
-// TODO(https://crbug.com/432529457): Investigate test failure
+// TODO: b/432529457 - Investigate test failure
 IN_PROC_BROWSER_TEST_F(NetworkIsolationNavigationBrowserTest,
                        DISABLED_BrowserNavigationNetworkIsolationKey) {
   GURL url(embedded_test_server()->GetURL("/title1.html"));
@@ -924,7 +924,7 @@ IN_PROC_BROWSER_TEST_F(NetworkIsolationNavigationBrowserTest,
                   .IsEqualForTesting(request->trusted_params->isolation_info));
 }
 
-// TODO(https://crbug.com/432529457): Investigate test failure
+// TODO: b/432529457 - Investigate test failure
 IN_PROC_BROWSER_TEST_F(NetworkIsolationNavigationBrowserTest,
                        DISABLED_RenderNavigationIsolationInfo) {
   GURL url(embedded_test_server()->GetURL("/title2.html"));
@@ -944,7 +944,7 @@ IN_PROC_BROWSER_TEST_F(NetworkIsolationNavigationBrowserTest,
                   .IsEqualForTesting(request->trusted_params->isolation_info));
 }
 
-// TODO(https://crbug.com/432529457): Investigate test failure
+// TODO: b/432529457 - Investigate test failure
 IN_PROC_BROWSER_TEST_F(NetworkIsolationNavigationBrowserTest,
                        DISABLED_SubframeIsolationInfo) {
   GURL url(embedded_test_server()->GetURL("/page_with_iframe.html"));
@@ -979,7 +979,7 @@ IN_PROC_BROWSER_TEST_F(NetworkIsolationNavigationBrowserTest,
 
 // Tests that the initiator is not set for a browser initiated top frame
 // navigation.
-// TODO(https://crbug.com/432503432): Investigate test failure
+// TODO: b/432503432 - Investigate test failure
 IN_PROC_BROWSER_TEST_F(NavigationBrowserTest,
                        DISABLED_BrowserNavigationInitiator) {
   GURL url(embedded_test_server()->GetURL("/title1.html"));
@@ -997,7 +997,7 @@ IN_PROC_BROWSER_TEST_F(NavigationBrowserTest,
 
 // Test that the initiator is set to the starting page when a renderer initiated
 // navigation goes from the starting page to another page.
-// TODO(https://crbug.com/432503432): Investigate test failure
+// TODO: b/432503432 - Investigate test failure
 IN_PROC_BROWSER_TEST_F(NavigationBrowserTest,
                        DISABLED_RendererNavigationInitiator) {
   GURL starting_page(embedded_test_server()->GetURL("a.com", "/title1.html"));
@@ -1021,7 +1021,7 @@ IN_PROC_BROWSER_TEST_F(NavigationBrowserTest,
 
 // Test that the initiator is set to the starting page when a sub frame is
 // navigated by Javascript from some starting page to another page.
-// TODO(https://crbug.com/432503432): Investigate test failure
+// TODO: b/432503432 - Investigate test failure
 IN_PROC_BROWSER_TEST_F(NavigationBrowserTest,
                        DISABLED_SubFrameJsNavigationInitiator) {
   GURL starting_page(embedded_test_server()->GetURL("/frame_tree/top.html"));
@@ -1064,7 +1064,7 @@ IN_PROC_BROWSER_TEST_F(NavigationBrowserTest,
 // Test that the initiator is set to the starting page when a sub frame,
 // selected by Id, is navigated by Javascript from some starting page to another
 // page.
-// TODO(https://crbug.com/432503432): Investigate test failure
+// TODO: b/432503432 - Investigate test failure
 IN_PROC_BROWSER_TEST_F(NavigationBrowserTest,
                        DISABLED_SubframeNavigationByTopFrameInitiator) {
   // Go to a page on a.com with an iframe that is on b.com
@@ -1105,7 +1105,7 @@ IN_PROC_BROWSER_TEST_F(NavigationBrowserTest,
   EXPECT_EQ(starting_page_origin, request->request_initiator);
 }
 
-// TODO(https://crbug.com/432503432): Investigate test failure
+// TODO: b/432503432 - Investigate test failure
 IN_PROC_BROWSER_TEST_F(NavigationBrowserTest,
                        DISABLED_RendererInitiatedCrossSiteNewWindowInitator) {
   GURL url(embedded_test_server()->GetURL("/simple_links.html"));
@@ -1139,7 +1139,7 @@ IN_PROC_BROWSER_TEST_F(NavigationBrowserTest,
 
 // Ensure that renderer initiated navigations which have the opener suppressed
 // work.
-// TODO(https://crbug.com/432503432): Investigate test failure
+// TODO: b/432503432 - Investigate test failure
 IN_PROC_BROWSER_TEST_F(NavigationBrowserTest,
                        DISABLED_RendererInitiatedNewWindowNoOpenerNavigation) {
   GURL url(embedded_test_server()->GetURL("/simple_links.html"));
@@ -1174,7 +1174,7 @@ IN_PROC_BROWSER_TEST_F(NavigationBrowserTest,
   }
 }
 
-// TODO(https://crbug.com/432503432): Investigate test failure
+// TODO: b/432503432 - Investigate test failure
 IN_PROC_BROWSER_TEST_F(NavigationBrowserTest,
                        DISABLED_RendererInitiatedWithSubframeInitator) {
   GURL url(embedded_test_server()->GetURL(
@@ -1213,7 +1213,7 @@ IN_PROC_BROWSER_TEST_F(NavigationBrowserTest,
   }
 }
 
-// TODO(https://crbug.com/432503432): Investigate test failure
+// TODO: b/432503432 - Investigate test failure
 IN_PROC_BROWSER_TEST_F(
     NavigationBrowserTest,
     DISABLED_InitiatorFrameStateConsistentAtDidStartNavigation) {
@@ -1258,7 +1258,7 @@ IN_PROC_BROWSER_TEST_F(
   EXPECT_TRUE(form_manager.GetNavigationHandle());
 }
 
-// TODO(https://crbug.com/432503432): Investigate test failure
+// TODO: b/432503432 - Investigate test failure
 IN_PROC_BROWSER_TEST_F(NavigationBrowserTest,
                        DISABLED_RendererInitiatedMiddleClickInitator) {
   GURL url(embedded_test_server()->GetURL("/simple_links.html"));
@@ -1308,7 +1308,7 @@ IN_PROC_BROWSER_TEST_F(NavigationBrowserTest, DataURLWithReferenceFragment) {
 // 1) Start on a document with history.length == 1.
 // 2) Create an iframe and call history.pushState at the same time.
 // 3) history.back() must work.
-// TODO(https://crbug.com/432503432): Investigate test failure
+// TODO: b/432503432 - Investigate test failure
 IN_PROC_BROWSER_TEST_F(NavigationBrowserTest,
                        DISABLED_IframeAndPushStateSimultaneously) {
   GURL main_url = embedded_test_server()->GetURL("/simple_page.html");
@@ -1350,7 +1350,7 @@ IN_PROC_BROWSER_TEST_F(NavigationBrowserTest,
 
 // Regression test for https://crbug.com/260144
 // Back/Forward navigation in an iframe must not stop ongoing XHR.
-// TODO(https://crbug.com/432532766): Investigate test failure
+// TODO: b/432532766 - Investigate test failure
 IN_PROC_BROWSER_TEST_F(NavigationBaseBrowserTest,
                        DISABLED_IframeNavigationsDoNotStopXHR) {
   // A response for the XHR request. It will be delayed until the end of all the
@@ -1505,7 +1505,7 @@ IN_PROC_BROWSER_TEST_F(NavigationBaseBrowserTest,
 // window.setTimeout(). Thus it is executed "outside" of its beforeunload
 // handler and thus avoid basic navigation circumventions.
 // Regression test for: https://crbug.com/879965.
-// TODO(https://crbug.com/432503432): Investigate test failure
+// TODO: b/432503432 - Investigate test failure
 IN_PROC_BROWSER_TEST_F(NavigationGoToEntryAtOffsetBrowserTest,
                        DISABLED_HistoryBackInBeforeUnloadAfterSetTimeout) {
   GURL url_1(embedded_test_server()->GetURL("/title1.html"));
@@ -1532,7 +1532,7 @@ IN_PROC_BROWSER_TEST_F(NavigationGoToEntryAtOffsetBrowserTest,
 
 // Renderer initiated back/forward navigation can't cancel an ongoing browser
 // initiated navigation if it is not user initiated.
-// TODO(https://crbug.com/432503432): Investigate test failure
+// TODO: b/432503432 - Investigate test failure
 IN_PROC_BROWSER_TEST_F(
     NavigationBrowserTest,
     DISABLED_HistoryBackCancelPendingNavigationNoUserGesture) {
@@ -1558,7 +1558,7 @@ IN_PROC_BROWSER_TEST_F(
 
 // Renderer initiated back/forward navigation can cancel an ongoing browser
 // initiated navigation if it is user initiated.
-// TODO(https://crbug.com/432503432): Investigate test failure
+// TODO: b/432503432 - Investigate test failure
 IN_PROC_BROWSER_TEST_F(NavigationBrowserTest,
                        DISABLED_HistoryBackCancelPendingNavigationUserGesture) {
   GURL url_1(embedded_test_server()->GetURL("/title1.html"));
@@ -1584,7 +1584,7 @@ IN_PROC_BROWSER_TEST_F(NavigationBrowserTest,
 // when history.pushState() and history.back() are called in a loop.
 // Failing to do so causes the browser to become unresponsive.
 // See https://crbug.com/882238
-// TODO(https://crbug.com/432503432): Investigate test failure
+// TODO: b/432503432 - Investigate test failure
 IN_PROC_BROWSER_TEST_F(NavigationBrowserTest,
                        DISABLED_IPCFlood_GoToEntryAtOffset) {
   GURL url(embedded_test_server()->GetURL("/title1.html"));
@@ -1613,7 +1613,7 @@ IN_PROC_BROWSER_TEST_F(NavigationBrowserTest,
 // TODO(arthursonzogni): Make the same test, but when the navigation is
 // requested from a remote frame.
 // See https://crbug.com/882238
-// TODO(https://crbug.com/432503432): Investigate test failure
+// TODO: b/432503432 - Investigate test failure
 IN_PROC_BROWSER_TEST_F(NavigationBrowserTest, DISABLED_IPCFlood_Navigation) {
   GURL url(embedded_test_server()->GetURL("/title1.html"));
   EXPECT_TRUE(NavigateToURL(shell(), url));
@@ -1925,7 +1925,7 @@ class CreateWebContentsOnCrashObserver : public NotificationObserver {
 };
 
 // Test NavigationRequest::CheckAboutSrcDoc()
-// TODO(https://crbug.com/432503432): Investigate test failure
+// TODO: b/432503432 - Investigate test failure
 IN_PROC_BROWSER_TEST_F(NavigationBrowserTest,
                        DISABLED_BlockedSrcDocBrowserInitiated) {
   const char* about_srcdoc_urls[] = {"about:srcdoc", "about:srcdoc?foo",
@@ -1956,7 +1956,7 @@ IN_PROC_BROWSER_TEST_F(NavigationBrowserTest,
 }
 
 // Test NavigationRequest::CheckAboutSrcDoc().
-// TODO(https://crbug.com/432503432): Investigate test failure
+// TODO: b/432503432 - Investigate test failure
 IN_PROC_BROWSER_TEST_F(NavigationBrowserTest,
                        DISABLED_BlockedSrcDocRendererInitiated) {
   EXPECT_TRUE(
@@ -2003,7 +2003,7 @@ IN_PROC_BROWSER_TEST_F(NavigationBrowserTest,
 
 // Test renderer initiated navigations to about:srcdoc are routed through the
 // browser process. It means RenderFrameHostImpl::BeginNavigation() is called.
-// TODO(https://crbug.com/432503432): Investigate test failure
+// TODO: b/432503432 - Investigate test failure
 IN_PROC_BROWSER_TEST_F(NavigationBrowserTest,
                        DISABLED_AboutSrcDocUsesBeginNavigation) {
   GURL url(embedded_test_server()->GetURL("/title1.html"));
@@ -2030,7 +2030,7 @@ IN_PROC_BROWSER_TEST_F(NavigationBrowserTest,
 //  2) Same-document navigation to about:srcdoc#1.
 //  3) Same-document navigation to about:srcdoc#2.
 //  4) history.back() to about:srcdoc#1.
-// TODO(https://crbug.com/432503432): Investigate test failure
+// TODO: b/432503432 - Investigate test failure
 IN_PROC_BROWSER_TEST_F(NavigationBrowserTest,
                        DISABLED_SrcDocWithFragmentHistoryNavigation) {
   GURL url(embedded_test_server()->GetURL("/title1.html"));
@@ -2083,7 +2083,7 @@ IN_PROC_BROWSER_TEST_F(NavigationBrowserTest,
 //  2) Cross-document navigation to about:srcdoc?1.
 //  3) Cross-document navigation to about:srcdoc?2.
 //  4) history.back() to about:srcdoc?1.
-// TODO(https://crbug.com/432503432): Investigate test failure
+// TODO: b/432503432 - Investigate test failure
 IN_PROC_BROWSER_TEST_F(NavigationBrowserTest,
                        DISABLED_SrcDocWithQueryHistoryNavigation) {
   GURL url(embedded_test_server()->GetURL("/title1.html"));
@@ -2395,7 +2395,7 @@ IN_PROC_BROWSER_TEST_F(NavigationBaseBrowserTest,
 // Test that NavigationRequest::GetNextPageUkmSourceId returns the eventual
 // value of RenderFrameHost::GetPageUkmSourceId() --- unremarkable top-level
 // navigation case.
-// TODO(https://crbug.com/432503432): Investigate test failure
+// TODO: b/432503432 - Investigate test failure
 IN_PROC_BROWSER_TEST_F(
     NavigationBrowserTest,
     DISABLED_NavigationRequest_GetNextPageUkmSourceId_Basic) {
@@ -2416,7 +2416,7 @@ IN_PROC_BROWSER_TEST_F(
 
 // Test that NavigationRequest::GetNextPageUkmSourceId returns the eventual
 // value of RenderFrameHost::GetPageUkmSourceId() --- child frame case.
-// TODO(https://crbug.com/432503432): Investigate test failure
+// TODO: b/432503432 - Investigate test failure
 IN_PROC_BROWSER_TEST_F(
     NavigationBrowserTest,
     DISABLED_NavigationRequest_GetNextPageUkmSourceId_ChildFrame) {
@@ -2448,7 +2448,7 @@ IN_PROC_BROWSER_TEST_F(
 
 // Test that NavigationRequest::GetNextPageUkmSourceId returns the eventual
 // value of RenderFrameHost::GetPageUkmSourceId() --- same document navigation.
-// TODO(https://crbug.com/432503432): Investigate test failure
+// TODO: b/432503432 - Investigate test failure
 IN_PROC_BROWSER_TEST_F(
     NavigationBrowserTest,
     DISABLED_NavigationRequest_GetNextPageUkmSourceId_SameDocument) {
@@ -2469,7 +2469,7 @@ IN_PROC_BROWSER_TEST_F(
 // Test that NavigationRequest::GetNextPageUkmSourceId returns the eventual
 // value of RenderFrameHost::GetPageUkmSourceId() --- back navigation;
 // this case matters because of back-forward cache.
-// TODO(https://crbug.com/432503432): Investigate test failure
+// TODO: b/432503432 - Investigate test failure
 IN_PROC_BROWSER_TEST_F(NavigationBrowserTest,
                        DISABLED_NavigationRequest_GetNextPageUkmSourceId_Back) {
   const GURL kUrl1(embedded_test_server()->GetURL("a.com", "/title1.html"));
@@ -2520,7 +2520,7 @@ class NavigationCookiesBrowserTest : public NavigationBaseBrowserTest {
 // Test how cookies are inherited in about:srcdoc iframes.
 //
 // Regression test: https://crbug.com/1003167.
-// TODO(https://crbug.com/432532805): Investigate test failure
+// TODO: b/432532805 - Investigate test failure
 IN_PROC_BROWSER_TEST_F(NavigationCookiesBrowserTest,
                        DISABLED_CookiesInheritedSrcDoc) {
   using Response = net::test_server::ControllableHttpResponse;
@@ -2888,7 +2888,7 @@ IN_PROC_BROWSER_TEST_F(NavigationCookiesBrowserTest,
 }
 
 // Test how cookies are inherited in data-URL iframes.
-// TODO(https://crbug.com/432532805): Investigate test failure
+// TODO: b/432532805 - Investigate test failure
 IN_PROC_BROWSER_TEST_F(NavigationCookiesBrowserTest,
                        DISABLED_CookiesInheritedDataUrl) {
   using Response = net::test_server::ControllableHttpResponse;
@@ -3059,7 +3059,7 @@ class NavigationUrlRewriteBrowserTest : public NavigationBaseBrowserTest {
 // Tests navigating to a URL that gets rewritten to a "no access" URL. This
 // mimics the behavior of navigating to special URLs like chrome://newtab and
 // chrome://history which get rewritten to "no access" chrome-native:// URLs.
-// TODO(https://crbug.com/432532306): Investigate test failure
+// TODO: b/432532306 - Investigate test failure
 IN_PROC_BROWSER_TEST_F(NavigationUrlRewriteBrowserTest,
                        DISABLED_RewriteToNoAccess) {
   // Perform an initial navigation.
@@ -3090,7 +3090,7 @@ IN_PROC_BROWSER_TEST_F(NavigationUrlRewriteBrowserTest,
   }
 }
 
-// TODO(https://crbug.com/432503432): Investigate test failure
+// TODO: b/432503432 - Investigate test failure
 IN_PROC_BROWSER_TEST_F(NavigationBrowserTest, DISABLED_SameDocumentNavigation) {
   WebContents* wc = shell()->web_contents();
   GURL url1 = embedded_test_server()->GetURL("a.com", "/title1.html#frag1");
@@ -3120,7 +3120,7 @@ IN_PROC_BROWSER_TEST_F(NavigationBrowserTest, DISABLED_SameDocumentNavigation) {
 // this case treat each failed navigation request as a separate load, with the
 // resulting navigation being performed as a cross-document navigation. This is
 // regression test for https://crbug.com/1018385.
-// TODO(https://crbug.com/432503432): Investigate test failure
+// TODO: b/432503432 - Investigate test failure
 IN_PROC_BROWSER_TEST_F(NavigationBrowserTest,
                        DISABLED_SameDocumentNavigationOnBlockedPage) {
   GURL url1("about:srcdoc#0");
@@ -3174,7 +3174,7 @@ IN_PROC_BROWSER_TEST_F(NavigationBrowserTest,
 // been loaded instead. A same-document navigation in the renderer-loaded error
 // page should be performed as a cross-document navigation in order to attempt
 // to reload the page.
-// TODO(https://crbug.com/432503432): Investigate test failure
+// TODO: b/432503432 - Investigate test failure
 IN_PROC_BROWSER_TEST_F(NavigationBrowserTest,
                        DISABLED_SameDocumentNavigationOn404ErrorPage) {
   // This case is a non-empty 404 page. It makes different choices about where
@@ -3256,7 +3256,7 @@ IN_PROC_BROWSER_TEST_F(NavigationBrowserTest,
   }
 }
 
-// TODO(https://crbug.com/432503432): Investigate test failure
+// TODO: b/432503432 - Investigate test failure
 IN_PROC_BROWSER_TEST_F(
     NavigationBrowserTest,
     DISABLED_SameDocumentNavigationFromCrossDocumentRedirect) {
@@ -3311,9 +3311,9 @@ IN_PROC_BROWSER_TEST_F(
 // navigation, so..
 // 6. The browser will perform a cross-document navigation to a.html#foo.
 //
-// TODO(b/): Test is flaky on various platforms.
+// TODO(https://crbug.com/1262032): Test is flaky on various platforms.
 
-//
+// TODO: b/432503432 - Investigate test failure
 IN_PROC_BROWSER_TEST_F(NavigationBrowserTest,
                        DISABLED_SameDocumentNavigationRacesPushStateURLChange) {
   WebContents* wc = shell()->web_contents();
@@ -3402,7 +3402,7 @@ class GetEffectiveUrlClient : public ContentBrowserTestContentBrowserClient {
 // navigation would pick up this different SiteInstance, but a same-document
 // navigation should not. It should just navigate inside the currently loaded
 // document instead of reloading the document.
-// TODO(https://crbug.com/432503432): Investigate test failure
+// TODO: b/432503432 - Investigate test failure
 IN_PROC_BROWSER_TEST_F(
     NavigationBrowserTest,
     DISABLED_SameDocumentNavigationWhenSiteInstanceWouldChange) {
@@ -3442,7 +3442,7 @@ IN_PROC_BROWSER_TEST_F(
 // This tests the same ideas as the above test except in this case the same-
 // document navigation is done through a history navigation, which exercises
 // different codepaths in the NavigationControllerImpl.
-// TODO(https://crbug.com/432503432): Investigate test failure
+// TODO: b/432503432 - Investigate test failure
 IN_PROC_BROWSER_TEST_F(
     NavigationBrowserTest,
     DISABLED_SameDocumentHistoryNavigationWhenSiteInstanceWouldChange) {
@@ -3519,7 +3519,7 @@ IN_PROC_BROWSER_TEST_F(NavigationBrowserTest,
 // Create two windows. When the second is deleted, it initiates a navigation in
 // the first. This is a situation where the navigation has an initiator frame
 // token, but no corresponding RenderFrameHost.
-// TODO(https://crbug.com/432503432): Investigate test failure
+// TODO: b/432503432 - Investigate test failure
 IN_PROC_BROWSER_TEST_F(
     NavigationBrowserTest,
     DISABLED_RendererInitiatedCrossWindowNavigationInUnload) {
@@ -3591,7 +3591,7 @@ IN_PROC_BROWSER_TEST_F(
 
 // A document initiates a form submission in another frame, then deletes itself.
 // Check the initiator frame token.
-// TODO(https://crbug.com/432503432): Investigate test failure
+// TODO: b/432503432 - Investigate test failure
 IN_PROC_BROWSER_TEST_F(NavigationBrowserTest,
                        DISABLED_FormSubmissionThenDeleteFrame) {
   GURL url(embedded_test_server()->GetURL("/empty.html"));
@@ -3702,7 +3702,7 @@ IN_PROC_BROWSER_TEST_F(NavigationBrowserTest,
 // Same as the previous test, but for a remote frame navigation:
 // A document initiates a form submission in a cross-origin frame, then deletes
 // itself. Check the initiator frame token.
-// TODO(https://crbug.com/432503432): Investigate test failure
+// TODO: b/432503432 - Investigate test failure
 IN_PROC_BROWSER_TEST_F(NavigationBrowserTest,
                        DISABLED_FormSubmissionInRemoteFrameThenDeleteFrame) {
   GURL url(embedded_test_server()->GetURL("/empty.html"));
@@ -4039,7 +4039,7 @@ IN_PROC_BROWSER_TEST_F(DocumentPolicyBrowserTest,
   EXPECT_FALSE(last_metadata.is_scroll_offset_at_top);
 }
 
-// TODO(https://crbug.com/432503432): Investigate test failure
+// TODO: b/432503432 - Investigate test failure
 IN_PROC_BROWSER_TEST_F(NavigationBrowserTest, DISABLED_OriginToCommitBasic) {
   GURL url = embedded_test_server()->GetURL("a.com", "/empty.html");
   auto origin_expected = url::Origin::Create(url);
@@ -4146,7 +4146,7 @@ IN_PROC_BROWSER_TEST_F(NavigationBrowserTest, ErrorPageFromCspSandboxResponse) {
       current_frame_host()->GetLastCommittedOrigin().CanBeDerivedFrom(url));
 }
 
-// TODO(https://crbug.com/432503432): Investigate test failure
+// TODO: b/432503432 - Investigate test failure
 IN_PROC_BROWSER_TEST_F(
     NavigationBrowserTest,
     DISABLED_ProcessShutdownDuringDeferredNavigationThrottle) {
@@ -4254,7 +4254,7 @@ IN_PROC_BROWSER_TEST_F(
 }
 
 // Sandbox flags defined by the parent must not apply to Chrome's error page.
-// TODO(https://crbug.com/432503432): Investigate test failure
+// TODO: b/432503432 - Investigate test failure
 IN_PROC_BROWSER_TEST_F(NavigationBrowserTest,
                        DISABLED_ErrorPageFromInSandboxedIframe) {
   GURL url = embedded_test_server()->GetURL("a.com", "/empty.html");
@@ -4281,7 +4281,7 @@ IN_PROC_BROWSER_TEST_F(NavigationBrowserTest,
             child_rfh->active_sandbox_flags());
 }
 
-// TODO(https://crbug.com/432503432): Investigate test failure
+// TODO: b/432503432 - Investigate test failure
 IN_PROC_BROWSER_TEST_F(NavigationBrowserTest,
                        DISABLED_OriginToCommitSandboxFromFrame) {
   GURL url = embedded_test_server()->GetURL("a.com", "/empty.html");
@@ -4307,7 +4307,7 @@ IN_PROC_BROWSER_TEST_F(NavigationBrowserTest,
   EXPECT_NE(origin_to_commit, origin_committed);
 }
 
-// TODO(https://crbug.com/432503432): Investigate test failure
+// TODO: b/432503432 - Investigate test failure
 IN_PROC_BROWSER_TEST_F(
     NavigationBrowserTest,
     DISABLED_NavigateToAboutBlankWhileFirstNavigationPending) {
@@ -4348,7 +4348,7 @@ class NetworkIsolationSplitCacheAppendIframeOrigin
 // test server, have the sandboxed document requests the same subresource. The
 // request should fail. To make sure the request is actually in the cache, the
 // main document should be able to request it again.
-// TODO(https://crbug.com/432532266): Investigate test failure
+// TODO: b/432532266 - Investigate test failure
 IN_PROC_BROWSER_TEST_F(NetworkIsolationSplitCacheAppendIframeOrigin,
                        DISABLED_SandboxedUsesDifferentCache) {
   auto server = std::make_unique<net::EmbeddedTestServer>();
@@ -4559,7 +4559,7 @@ class SubresourceLoadingTest : public NavigationBrowserTest {
 // frame is a local frame (even in presence of site-per-process).  See also
 // GrandchildToAboutBlank_ABA_CrossSite and
 // GrandchildToAboutBlank_ABB_CrossSite.
-// TODO(https://crbug.com/432503432): Investigate test failure
+// TODO: b/432503432 - Investigate test failure
 IN_PROC_BROWSER_TEST_F(SubresourceLoadingTest,
                        DISABLED_GrandchildToAboutBlank_ABA_SameSite) {
   GURL url(embedded_test_server()->GetURL(
@@ -4608,7 +4608,7 @@ IN_PROC_BROWSER_TEST_F(SubresourceLoadingTest,
 // In this test case there are no process swaps and the parent of the navigated
 // frame is a remote frame (in presence of site-per-process).  See also
 // GrandchildToAboutBlank_ABA_SameSite and GrandchildToAboutBlank_ABB_CrossSite.
-// TODO(https://crbug.com/432503432): Investigate test failure
+// TODO: b/432503432 - Investigate test failure
 IN_PROC_BROWSER_TEST_F(SubresourceLoadingTest,
                        DISABLED_GrandchildToAboutBlank_ABA_CrossSite) {
   GURL url(embedded_test_server()->GetURL(
@@ -4659,7 +4659,7 @@ IN_PROC_BROWSER_TEST_F(SubresourceLoadingTest,
 // In this test case the navigation forces a process swap of the target frame.
 // See also GrandchildToAboutBlank_ABA_SameSite and
 // GrandchildToAboutBlank_ABA_CrossSite.
-// TODO(https://crbug.com/432503432): Investigate test failure
+// TODO: b/432503432 - Investigate test failure
 IN_PROC_BROWSER_TEST_F(SubresourceLoadingTest,
                        DISABLED_GrandchildToAboutBlank_ABB_CrossSite) {
   GURL url(embedded_test_server()->GetURL(
@@ -4707,7 +4707,7 @@ IN_PROC_BROWSER_TEST_F(SubresourceLoadingTest,
 // opener of the frame targeted by the navigation.  In the
 // TopToAboutBlank_CrossSite testcase, the top-level navigation is initiated by
 // a cross-site subframe.
-// TODO(https://crbug.com/432503432): Investigate test failure
+// TODO: b/432503432 - Investigate test failure
 IN_PROC_BROWSER_TEST_F(SubresourceLoadingTest,
                        DISABLED_TopToAboutBlank_CrossSite) {
   GURL url(embedded_test_server()->GetURL(
@@ -4758,7 +4758,7 @@ IN_PROC_BROWSER_TEST_F(SubresourceLoadingTest,
 // SameSiteSiblingToAboutBlank_CrossSiteTop testcase, the navigation is
 // initiated by a same-origin sibling (notably, not by one of target frame's
 // ancestors) and both siblings are subframes of a cross-site main frame.
-// TODO(https://crbug.com/432503432): Investigate test failure
+// TODO: b/432503432 - Investigate test failure
 IN_PROC_BROWSER_TEST_F(SubresourceLoadingTest,
                        DISABLED_SameSiteSiblingToAboutBlank_CrossSiteTop) {
   GURL url(embedded_test_server()->GetURL(
@@ -4799,7 +4799,7 @@ IN_PROC_BROWSER_TEST_F(SubresourceLoadingTest,
 // https://crbug.com/778318 and https://github.com/whatwg/html/issues/3267.
 // Note that the same behavior is expected in the ...NewFrameWithoutSrc and
 // in the ...NewFrameWithAboutBlank testcases.
-// TODO(https://crbug.com/432503432): Investigate test failure
+// TODO: b/432503432 - Investigate test failure
 IN_PROC_BROWSER_TEST_F(
     SubresourceLoadingTest,
     DISABLED_URLLoaderFactoryInInitialEmptyDoc_NewFrameWithoutSrc) {
@@ -4823,7 +4823,7 @@ IN_PROC_BROWSER_TEST_F(
 
 // See the doc comment for the
 // URLLoaderFactoryInInitialEmptyDoc_NewFrameWithoutSrc test case.
-// TODO(https://crbug.com/432503432): Investigate test failure
+// TODO: b/432503432 - Investigate test failure
 IN_PROC_BROWSER_TEST_F(
     SubresourceLoadingTest,
     DISABLED_URLLoaderFactoryInInitialEmptyDoc_NewFrameWithAboutBlank) {
@@ -4840,7 +4840,7 @@ IN_PROC_BROWSER_TEST_F(
   VerifyResultsOfAboutBlankNavigation(subframe, main_frame);
 }
 
-// TODO(https://crbug.com/432503432): Investigate test failure
+// TODO: b/432503432 - Investigate test failure
 IN_PROC_BROWSER_TEST_F(
     NavigationBrowserTest,
     DISABLED_SameOriginFlagOfSameOriginAboutBlankNavigation) {
@@ -4872,7 +4872,7 @@ IN_PROC_BROWSER_TEST_F(
   loop.Run();
 }
 
-// TODO(https://crbug.com/432503432): Investigate test failure
+// TODO: b/432503432 - Investigate test failure
 IN_PROC_BROWSER_TEST_F(
     NavigationBrowserTest,
     DISABLED_SameOriginFlagOfCrossOriginAboutBlankNavigation) {
@@ -4904,7 +4904,7 @@ IN_PROC_BROWSER_TEST_F(
   loop.Run();
 }
 
-// TODO(https://crbug.com/432503432): Investigate test failure
+// TODO: b/432503432 - Investigate test failure
 IN_PROC_BROWSER_TEST_F(NavigationBrowserTest,
                        DISABLED_SameOriginFlagOfSrcdocNavigation) {
   GURL url = embedded_test_server()->GetURL("a.com", "/empty.html");
@@ -4961,7 +4961,7 @@ IN_PROC_BROWSER_TEST_F(NavigationBrowserTest,
   }
 }
 
-// TODO(https://crbug.com/432503432): Investigate test failure
+// TODO: b/432503432 - Investigate test failure
 IN_PROC_BROWSER_TEST_F(
     NavigationBrowserTest,
     DISABLED_SameOriginFlagOfAboutBlankToAboutBlankNavigation) {
@@ -5026,7 +5026,7 @@ IN_PROC_BROWSER_TEST_F(
   }
 }
 
-// TODO(https://crbug.com/432503432): Investigate test failure
+// TODO: b/432503432 - Investigate test failure
 IN_PROC_BROWSER_TEST_F(NavigationBrowserTest,
                        DISABLED_SameOriginOfSandboxedIframe) {
   EXPECT_TRUE(NavigateToURL(
@@ -5053,7 +5053,7 @@ IN_PROC_BROWSER_TEST_F(NavigationBrowserTest,
 
 // The test below verifies that an initial empty document has a functional
 // URLLoaderFactory.
-// TODO(https://crbug.com/432503432): Investigate test failure
+// TODO: b/432503432 - Investigate test failure
 IN_PROC_BROWSER_TEST_F(
     SubresourceLoadingTest,
     DISABLED_URLLoaderFactoryInInitialEmptyDoc_NewPopupToEmptyUrl) {
@@ -5083,7 +5083,7 @@ IN_PROC_BROWSER_TEST_F(
 
 // See the doc comment for the
 // URLLoaderFactoryInInitialEmptyDoc_NewPopupToEmptyUrl test case.
-// TODO(https://crbug.com/432503432): Investigate test failure
+// TODO: b/432503432 - Investigate test failure
 IN_PROC_BROWSER_TEST_F(
     SubresourceLoadingTest,
     DISABLED_URLLoaderFactoryInInitialEmptyDoc_NewPopupToAboutBlank) {
@@ -5111,7 +5111,7 @@ IN_PROC_BROWSER_TEST_F(
 }
 
 // The test below verifies that error pages have a functional URLLoaderFactory.
-// TODO(https://crbug.com/432513261): Investigate test failure
+// TODO: b/432513261 - Investigate test failure
 IN_PROC_BROWSER_TEST_F(SubresourceLoadingTest,
                        DISABLED_URLLoaderFactoryInErrorPage) {
   GURL error_url(embedded_test_server()->GetURL("/close-socket"));
@@ -5121,7 +5121,7 @@ IN_PROC_BROWSER_TEST_F(SubresourceLoadingTest,
 
 // The test below verifies that an initial empty document has a functional
 // URLLoaderFactory.
-// TODO(https://crbug.com/432503432): Investigate test failure
+// TODO: b/432503432 - Investigate test failure
 IN_PROC_BROWSER_TEST_F(
     SubresourceLoadingTest,
     DISABLED_URLLoaderFactoryInInitialEmptyDoc_HungNavigationInSubframe) {
@@ -5157,7 +5157,7 @@ IN_PROC_BROWSER_TEST_F(
 
 // The test below verifies that an initial empty document has a functional
 // URLLoaderFactory.
-// TODO(https://crbug.com/432503432): Investigate test failure
+// TODO: b/432503432 - Investigate test failure
 IN_PROC_BROWSER_TEST_F(
     SubresourceLoadingTest,
     DISABLED_URLLoaderFactoryInInitialEmptyDoc_HungNavigationInPopup) {
@@ -5205,7 +5205,7 @@ IN_PROC_BROWSER_TEST_F(
 // The test below verifies that an initial empty document has a functional
 // URLLoaderFactory.  The ...WithClearedOpener testcase is a regression test for
 // https://crbug.com/1191203.
-// TODO(https://crbug.com/432503432): Investigate test failure
+// TODO: b/432503432 - Investigate test failure
 IN_PROC_BROWSER_TEST_F(
     SubresourceLoadingTest,
     DISABLED_URLLoaderFactoryInInitialEmptyDoc_HungNavigationInPopupWithClearedOpener) {
@@ -5259,7 +5259,7 @@ IN_PROC_BROWSER_TEST_F(
   // matching `request_initiator_origin_lock` (e.g. inherited from the opener).
   VerifyImageSubresourceLoads(popup);
 
-  // TODO(https://crbug.com/1194763): Crash recovery doesn't work when there is
+  // TODO: b/1194763): Crash recovery doesn't work when there is
   // no opener.
   DontTestNetworkServiceCrashes();
   // Test again after closing the opener..
@@ -5269,7 +5269,7 @@ IN_PROC_BROWSER_TEST_F(
 
 // The test below verifies that an initial empty document has a functional
 // URLLoaderFactory.
-// TODO(https://crbug.com/432503432): Investigate test failure
+// TODO: b/432503432 - Investigate test failure
 IN_PROC_BROWSER_TEST_F(
     SubresourceLoadingTest,
     DISABLED_URLLoaderFactoryInInitialEmptyDoc_204NoOpenerPopup) {
@@ -5327,7 +5327,7 @@ IN_PROC_BROWSER_TEST_F(
 
 // The test below verifies that an initial empty document has a functional
 // URLLoaderFactory.
-// TODO(https://crbug.com/432503432): Investigate test failure
+// TODO: b/432503432 - Investigate test failure
 IN_PROC_BROWSER_TEST_F(
     SubresourceLoadingTest,
     DISABLED_URLLoaderFactoryInInitialEmptyDoc_HungNavigationInNewWindow) {
@@ -5428,7 +5428,7 @@ class CommitNavigationRaceBrowserTest
     // Force-enable it for test coverage; otherwise, by default,
     // PerformanceManager uses the dummy implementation.
     //
-    // TODO(https://crbug.com/1222647): Enable this by default in content_shell.
+    // TODO: b/1222647): Enable this by default in content_shell.
     command_line->AppendSwitchASCII(switches::kEnableBlinkFeatures,
                                     "PerformanceManagerInstrumentation");
   }
@@ -5442,7 +5442,7 @@ class CommitNavigationRaceBrowserTest
   base::test::ScopedFeatureList feature_list_;
 };
 
-// TODO(https://crbug.com/432536450): Investigate test failure
+// TODO: b/432536450 - Investigate test failure
 IN_PROC_BROWSER_TEST_P(
     CommitNavigationRaceBrowserTest,
     DISABLED_BeginNewNavigationAfterCommitNavigationInMainFrame) {
@@ -5512,7 +5512,7 @@ IN_PROC_BROWSER_TEST_P(
   EXPECT_EQ(final_url, results[1].url);
 }
 
-// TODO(https://crbug.com/432536450): Investigate test failure
+// TODO: b/432536450 - Investigate test failure
 IN_PROC_BROWSER_TEST_P(
     CommitNavigationRaceBrowserTest,
     DISABLED_BeginNewNavigationAfterCommitNavigationInSubFrame) {
@@ -5644,7 +5644,7 @@ class DetachChildFrameInCommitCallbackInterceptor
 // was in the middle of committing a navigation to a provisional frame in render
 // process B while render process A simultaneously detaches that child frame,
 // the detach message would never be received by render process B.
-// TODO(https://crbug.com/432536450): Investigate test failure
+// TODO: b/432536450 - Investigate test failure
 IN_PROC_BROWSER_TEST_P(CommitNavigationRaceBrowserTest,
                        DISABLED_DetachAfterCommitNavigationInSubFrame) {
   // This test checks an edge case that is only relevant when using
@@ -5710,7 +5710,7 @@ INSTANTIATE_TEST_SUITE_P(,
 // new NavigationRequest, because it was trying to access the current
 // RenderFrameHost's PolicyContainerHost, which had not been set up yet by
 // RenderFrameHostImpl::DidNavigate.
-// TODO(https://crbug.com/432503432): Investigate test failure
+// TODO: b/432503432 - Investigate test failure
 IN_PROC_BROWSER_TEST_F(NavigationBrowserTest, DISABLED_Bug1210234) {
   class NavigationWebContentsDelegate : public WebContentsDelegate {
    public:
@@ -5776,7 +5776,7 @@ class NavigationBrowserTestCredentiallessIframe : public NavigationBrowserTest {
   }
 };
 
-// TODO(https://crbug.com/432532822): Investigate test failure
+// TODO: b/432532822 - Investigate test failure
 IN_PROC_BROWSER_TEST_F(NavigationBrowserTestCredentiallessIframe,
                        DISABLED_CredentiallessAttributeIsHonoredByNavigation) {
   GURL main_url = embedded_test_server()->GetURL("/page_with_iframe.html");
@@ -5954,7 +5954,7 @@ IN_PROC_BROWSER_TEST_F(NavigationBrowserTestCredentiallessIframe,
 
 // Ensures that OpenURLParams::FromNavigationHandle translates navigation params
 // correctly when used to initiate a navigation in another WebContents.
-// TODO(https://crbug.com/432503432): Investigate test failure
+// TODO: b/432503432 - Investigate test failure
 IN_PROC_BROWSER_TEST_F(
     NavigationBrowserTest,
     DISABLED_FromNavigationHandleTranslatesNavigationParamsCorrectly) {
@@ -6103,7 +6103,7 @@ class CacheTransparencyNavigationBrowserTest : public ContentBrowserTest {
   base::HistogramTester histogram_tester_;
 };
 
-// TODO(https://crbug.com/432532281): Investigate test failure
+// TODO: b/432532281 - Investigate test failure
 IN_PROC_BROWSER_TEST_F(CacheTransparencyNavigationBrowserTest,
                        DISABLED_SuccessfulPervasivePayload) {
   GURL url_main_document =
@@ -6114,7 +6114,7 @@ IN_PROC_BROWSER_TEST_F(CacheTransparencyNavigationBrowserTest,
   ExpectCacheUsed();
 }
 
-// TODO(https://crbug.com/432532281): Investigate test failure
+// TODO: b/432532281 - Investigate test failure
 IN_PROC_BROWSER_TEST_F(CacheTransparencyNavigationBrowserTest,
                        DISABLED_NotAPervasivePayload) {
   GURL url_main_document =
@@ -6139,7 +6139,7 @@ class NavigationBrowserTestWarnSandboxIneffective
       "sandbox attribute can escape its sandboxing.";
 };
 
-// TODO(https://crbug.com/432529537): Investigate test failure
+// TODO: b/432529537 - Investigate test failure
 IN_PROC_BROWSER_TEST_F(NavigationBrowserTestWarnSandboxIneffective,
                        DISABLED_WarnEscapableSandboxSameOrigin) {
   EXPECT_TRUE(NavigateToURL(
@@ -6158,7 +6158,7 @@ IN_PROC_BROWSER_TEST_F(NavigationBrowserTestWarnSandboxIneffective,
   ASSERT_TRUE(console_observer.Wait());
 }
 
-// TODO(https://crbug.com/432529537): Investigate test failure
+// TODO: b/432529537 - Investigate test failure
 IN_PROC_BROWSER_TEST_F(NavigationBrowserTestWarnSandboxIneffective,
                        DISABLED_WarnEscapableSandboxCrossOrigin) {
   EXPECT_TRUE(NavigateToURL(
@@ -6180,7 +6180,7 @@ IN_PROC_BROWSER_TEST_F(NavigationBrowserTestWarnSandboxIneffective,
   EXPECT_EQ(console_observer.messages().size(), 0u);
 }
 
-// TODO(https://crbug.com/432529537): Investigate test failure
+// TODO: b/432529537 - Investigate test failure
 IN_PROC_BROWSER_TEST_F(NavigationBrowserTestWarnSandboxIneffective,
                        DISABLED_WarnEscapableSandboxSameOriginGrandChild) {
   EXPECT_TRUE(NavigateToURL(
@@ -6309,7 +6309,7 @@ class NavigationSuddenTerminationDisablerTypeBrowserTest
 // have an unload handler. Then navigate one of the frames and verify that we
 // correctly record which type of frame navigates combined with whether it
 // involved an unload handler.
-// TODO(https://crbug.com/432530029): Investigate test failure
+// TODO: b/432530029 - Investigate test failure
 IN_PROC_BROWSER_TEST_P(NavigationSuddenTerminationDisablerTypeBrowserTest,
                        DISABLED_RecordUma) {
   ASSERT_TRUE(NavigateToURL(
@@ -6355,7 +6355,7 @@ INSTANTIATE_TEST_SUITE_P(
 
 // Test that "SameOrigin" only considers frames that have an unbroken path of
 // same-origin frames from the frame that navigates.
-// TODO(https://crbug.com/432503432): Investigate test failure
+// TODO: b/432503432 - Investigate test failure
 IN_PROC_BROWSER_TEST_F(
     NavigationBrowserTest,
     DISABLED_NavigationSuddenTerminationDisablerTypeRecordUmaSameOrigin) {
@@ -6384,7 +6384,7 @@ IN_PROC_BROWSER_TEST_F(
 // Test that we record when the navigation involves restoring from BFCache.
 // This is tested because the code path for a navigation involving activation
 // is different from one involving a pageload.
-// TODO(https://crbug.com/432503432): Investigate test failure
+// TODO: b/432503432 - Investigate test failure
 IN_PROC_BROWSER_TEST_F(
     NavigationBrowserTest,
     DISABLED_NavigationSuddenTerminationDisablerTypeRecordUmaActivation) {
@@ -6416,7 +6416,7 @@ IN_PROC_BROWSER_TEST_F(
 // document is recorded correctly. This does not test all possibilities of
 // histogram value, just that the scenario is counted under the correct
 // histogram.
-// TODO(https://crbug.com/432503432): Investigate test failure
+// TODO: b/432503432 - Investigate test failure
 IN_PROC_BROWSER_TEST_F(
     NavigationBrowserTest,
     DISABLED_NavigationSuddenTerminationDisablerTypeRecordUmaInitialEmptyDocument) {
@@ -6449,7 +6449,7 @@ IN_PROC_BROWSER_TEST_F(
 }
 
 // Ensure that navigations from non-HTTP(S) pages are recorded correctly.
-// TODO(https://crbug.com/432503432): Investigate test failure
+// TODO: b/432503432 - Investigate test failure
 IN_PROC_BROWSER_TEST_F(
     NavigationBrowserTest,
     DISABLED_NavigationSuddenTerminationDisablerTypeRecordUmaNotHttp) {
