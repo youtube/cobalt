@@ -58,19 +58,15 @@ runs:
         run: |
           set -x
 
-          if [[ ${IS_WEB_TESTS} == "true" ]]; then
-            test_targets_json='[":blink_web_tests"]'
-            echo "test_targets_json=${test_targets_json}" >> $GITHUB_OUTPUT
-            echo "test_targets_count=1" >> $GITHUB_OUTPUT
-            exit 0
-          fi
+          # TODO: b/382508397 - Currently, override with static test targets
+          cp -av "${STATIC_TEST_TARGETS_JSON_FILE}" "${{ inputs.test_targets_json_file }}"
 
-          cd src
-          gn desc out/${{ matrix.platform }}_${{ matrix.config }}/ "*" --format=json > gn_desc.json
-          # Trim any warning gn printed before the json (all lines above the first curly brace).
-          sed -n '/^{/,$p' -i gn_desc.json
+          # cd src
+          # gn desc out/${{ matrix.platform }}_${{ matrix.config }}/ "*" --format=json > gn_desc.json
+          # # Trim any warning gn printed before the json (all lines above the first curly brace).
+          # sed -n '/^{/,$p' -i gn_desc.json
 
-          changed_files_arg=""
+          # changed_files_arg=""
 
           # TODO(oxv): If this list is too it will blow out the command line. Pass list in a file to the script instead.
           # Since the output of the script below isn't currently used the arg is disabled.
@@ -78,14 +74,12 @@ runs:
           #   changed_files_arg="--sources $(cat ${CHANGED_FILES_LIST} | jq -cr '. | join(",")')"
           # fi
 
-          vpython3 cobalt/build/test_targets.py \
-              --root-target "${ROOT_TARGET}" \
-              ${changed_files_arg} \
-              --gn-json gn_desc.json \
-              --json-output > "${DYN_TEST_TARGETS_JSON_FILE}"
+          # vpython3 cobalt/build/test_targets.py \
+          #     --root-target "${ROOT_TARGET}" \
+          #     ${changed_files_arg} \
+          #     --gn-json gn_desc.json \
+          #     --json-output > "${DYN_TEST_TARGETS_JSON_FILE}"
 
-          # Currently, override with static test targets, TODO(b/382508397)
-          cp -av "${STATIC_TEST_TARGETS_JSON_FILE}" "${{ inputs.test_targets_json_file }}"
 
           test_targets_json=$(cat ${{ inputs.test_targets_json_file }} | jq -cr '.test_targets')
           echo "test_targets_json=${test_targets_json}" >> $GITHUB_OUTPUT
