@@ -582,44 +582,6 @@ void SbPlayerBridge::SetDrmSystem(SbDrmSystem drm_system) {
 }
 #endif  // SB_HAS(PLAYER_WITH_URL)
 
-void SbPlayerBridge::Suspend() {
-  DCHECK(task_runner_->RunsTasksInCurrentSequence());
-
-  // Check if the player is already suspended.
-  if (state_ == kSuspended) {
-    return;
-  }
-
-  DCHECK(SbPlayerIsValid(player_));
-
-  sbplayer_interface_->SetPlaybackRate(player_, 0.0);
-
-  set_bounds_helper_->SetPlayerBridge(NULL);
-
-  base::AutoLock auto_lock(lock_);
-  PlayerInfo info{&cached_video_frames_decoded_, &cached_video_frames_dropped_,
-                  nullptr, nullptr, &preroll_timestamp_};
-  GetInfo_Locked(&info);
-
-  state_ = kSuspended;
-
-#if COBALT_MEDIA_ENABLE_DECODE_TARGET_PROVIDER
-  decode_target_provider_->SetOutputMode(
-      DecodeTargetProvider::kOutputModeInvalid);
-  decode_target_provider_->ResetGetCurrentSbDecodeTargetFunction();
-#endif  // COBALT_MEDIA_ENABLE_DECODE_TARGET_PROVIDER
-
-#if COBALT_MEDIA_ENABLE_CVAL
-  cval_stats_->StartTimer(MediaTiming::SbPlayerDestroy, pipeline_identifier_);
-#endif  // COBALT_MEDIA_ENABLE_CVAL
-  sbplayer_interface_->Destroy(player_);
-#if COBALT_MEDIA_ENABLE_CVAL
-  cval_stats_->StopTimer(MediaTiming::SbPlayerDestroy, pipeline_identifier_);
-#endif  // COBALT_MEDIA_ENABLE_CVAL
-
-  player_ = kSbPlayerInvalid;
-}
-
 void SbPlayerBridge::Resume(SbWindow window) {
   DCHECK(task_runner_->RunsTasksInCurrentSequence());
 

@@ -153,7 +153,6 @@ class SbPlayerBridge {
   void SetDrmSystem(SbDrmSystem drm_system);
 #endif  // SB_HAS(PLAYER_WITH_URL)
 
-  void Suspend();
   // TODO: This is temporary for supporting background media playback.
   //       Need to be removed with media refactor.
   void Resume(SbWindow window);
