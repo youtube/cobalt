@@ -59,7 +59,7 @@ static constexpr auto kCobaltToggleSwitches = std::to_array<const char*>({
       // Disable Zygote (a process fork utility); in turn needs sandbox
       // disabled.
       switches::kNoZygote, sandbox::policy::switches::kNoSandbox,
-      // Rasterize Tiles directly to GPU memory.
+      // Rasterize Tiles directly to GPU memory (ZeroCopyRasterBufferProvider).
       blink::switches::kEnableZeroCopy,
       // Enable low-end device mode. This comes with a load of memory and CPU
       // saving goodies but can degrade the experience considerably. One of the
