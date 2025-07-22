@@ -73,7 +73,6 @@ static_library("starboard_platform") {
     "//starboard/shared/posix/system_get_error_string.cc",
     "//starboard/shared/posix/system_get_last_error.cc",
     "//starboard/shared/posix/system_get_number_of_processors.cc",
-    "//starboard/shared/posix/thread_sleep.cc",
     "//starboard/shared/pthread/thread_context_get_pointer.cc",
     "//starboard/shared/pthread/thread_context_internal.cc",
     "//starboard/shared/pthread/thread_context_internal.h",
@@ -415,5 +414,8 @@ source_set("starboard_platform_tests") {
 }
 
 java_cpp_enum("java_enums") {
-  sources = [ "media_codec_bridge.h" ]
+  sources = [
+    "media_codec_bridge.h",
+    "media_drm_bridge.h",
+  ]
 }

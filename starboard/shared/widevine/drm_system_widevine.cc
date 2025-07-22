@@ -85,7 +85,7 @@ class Registry {
   std::vector<SbDrmSystem> drm_systems_;
 };
 
-SB_ONCE_INITIALIZE_FUNCTION(Registry, GetRegistry);
+SB_ONCE_INITIALIZE_FUNCTION(Registry, GetRegistry)
 
 std::string GetWidevineStoragePath() {
   std::vector<char> path(kSbFileMaxPath + 1, 0);
@@ -151,7 +151,7 @@ SbDrmStatus CdmStatusToSbDrmStatus(const wv3cdm::Status status) {
   return kSbDrmStatusUnknownError;
 }
 
-SB_ONCE_INITIALIZE_FUNCTION(Mutex, GetInitializationMutex);
+SB_ONCE_INITIALIZE_FUNCTION(Mutex, GetInitializationMutex)
 
 void EnsureWidevineCdmIsInitialized(const std::string& company_name,
                                     const std::string& model_name,
