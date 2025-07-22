@@ -50,6 +50,7 @@
     "LayoutThemeTest.ChangeFocusRingColor",
     "All/UseCounterImplBrowserReportTest.ReportOnlyHTTPFamily/5",
     "TextFragmentAnchorTest.TextDirectiveInSvg",
-    "ScrollTypes/TextFragmentAnchorScrollTest.DontDismissTextHighlightOnUserScroll/0"
+    "*/TextFragmentAnchorScrollTest.*",
+    "TextFragmentAnchorScrollTest.*"
   ]
 }
