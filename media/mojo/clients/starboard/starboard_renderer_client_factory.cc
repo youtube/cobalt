@@ -53,9 +53,8 @@ std::unique_ptr<Renderer> StarboardRendererClientFactory::CreateRenderer(
     const scoped_refptr<base::TaskRunner>& /*worker_task_runner*/,
     AudioRendererSink* /*audio_renderer_sink*/,
     VideoRendererSink* video_renderer_sink,
-    RequestOverlayInfoCB request_overlay_info_cb,
+    RequestOverlayInfoCB /*request_overlay_info_cb*/,
     const gfx::ColorSpace& /*target_color_space*/) {
-  DCHECK(request_overlay_info_cb);
   DCHECK(video_renderer_sink);
   DCHECK(media_log_);
   DCHECK(mojo_renderer_factory_);
@@ -109,7 +108,7 @@ std::unique_ptr<Renderer> StarboardRendererClientFactory::CreateRenderer(
       std::move(overlay_factory), video_renderer_sink,
       std::move(renderer_extension_remote),
       std::move(client_extension_receiver), bind_host_receiver_callback_,
-      gpu_factories, std::move(request_overlay_info_cb));
+      gpu_factories);
 }
 
 }  // namespace media
