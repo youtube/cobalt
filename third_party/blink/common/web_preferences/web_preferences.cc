@@ -132,9 +132,6 @@ WebPreferences::WebPreferences()
       smooth_scroll_for_find_enabled(false),
       main_frame_resizes_are_orientation_changes(false),
 #endif
-#if BUILDFLAG(IS_COBALT)
-      always_show_context_menu_on_touch(false);
-#endif
       initialize_at_minimum_page_scale(true),
 #if BUILDFLAG(IS_MAC)
       smart_insert_delete_enabled(true),
