@@ -37,7 +37,6 @@ getcwd
 getrlimit
 initstate
 ioctl
-link
 localeconv
 localtime
 localtime_r
