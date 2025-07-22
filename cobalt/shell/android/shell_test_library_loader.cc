@@ -1,4 +1,4 @@
-// Copyright 2015 The Cobalt Authors. All Rights Reserved.
+// Copyright 2025 The Cobalt Authors. All Rights Reserved.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -12,15 +12,17 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include "starboard/thread.h"
+#include "base/android/jni_android.h"
+#include "cobalt/shell/app/shell_main_delegate.h"
+#include "content/public/app/content_jni_onload.h"
+#include "content/public/app/content_main.h"
 
-#include <unistd.h>
-
-void SbThreadSleep(int64_t duration) {
-  if (duration <= 0) {
-    return;
+// This is called by the VM when the shared library is first loaded.
+JNI_EXPORT jint JNI_OnLoad(JavaVM* vm, void* reserved) {
+  base::android::InitVM(vm);
+  if (!content::android::OnJNIOnLoadInit()) {
+    return -1;
   }
-
-  // duration is microseconds, so this is easy.
-  usleep(duration);
+  content::SetContentMainDelegate(new content::ShellMainDelegate());
+  return JNI_VERSION_1_4;
 }

@@ -25,6 +25,7 @@
 #include "components/prefs/json_pref_store.h"
 #include "components/prefs/pref_service.h"
 #include "components/prefs/pref_service_factory.h"
+#include "components/variations/pref_names.h"
 
 namespace cobalt {
 
@@ -37,6 +38,10 @@ constexpr base::FilePath::CharType kMetricsConfigFilename[] =
 GlobalFeatures::GlobalFeatures() {
   CreateExperimentConfig();
   CreateMetricsServices();
+  // InitializeActiveExperimentIds needs ExperimentConfigManager to determine
+  // the experiment config type.
+  experiment_config_manager_ =
+      std::make_unique<ExperimentConfigManager>(experiment_config_.get());
   InitializeActiveExperimentIds();
 }
 
@@ -100,7 +105,7 @@ void GlobalFeatures::CreateExperimentConfig() {
 void GlobalFeatures::CreateMetricsServices() {
   CreateMetricsLocalState();
   DCHECK(metrics_local_state_)
-      << "CreateLocalState() must have been called previously";
+      << "CreateMetricsLocalState() must have been called previously";
   auto client = std::make_unique<CobaltMetricsServicesManagerClient>(
       metrics_local_state_.get());
   metrics_services_manager_client_ = client.get();
@@ -135,8 +140,16 @@ void GlobalFeatures::CreateMetricsLocalState() {
 
 void GlobalFeatures::InitializeActiveExperimentIds() {
   DCHECK(experiment_config_);
-  const auto& experiments =
-      experiment_config_->GetList(kExperimentConfigExpIds);
+  DCHECK(experiment_config_manager_);
+  auto experiment_config_type =
+      experiment_config_manager_->GetExperimentConfigType();
+  if (experiment_config_type == ExperimentConfigType::kEmptyConfig) {
+    return;
+  }
+  const base::Value::List& experiments = experiment_config_->GetList(
+      (experiment_config_type == ExperimentConfigType::kSafeConfig)
+          ? kSafeConfigExpIds
+          : kExperimentConfigExpIds);
   active_experiment_ids_.reserve(experiments.size());
   for (const auto& experiment_id : experiments) {
     active_experiment_ids_.push_back(experiment_id.GetInt());
@@ -149,6 +162,10 @@ void GlobalFeatures::RegisterPrefs(PrefRegistrySimple* registry) {
   registry->RegisterDictionaryPref(kExperimentConfigFeatures);
   registry->RegisterDictionaryPref(kExperimentConfigFeatureParams);
   registry->RegisterListPref(kExperimentConfigExpIds);
+  registry->RegisterDictionaryPref(kSafeConfig);
+  registry->RegisterDictionaryPref(kSafeConfigFeatures);
+  registry->RegisterDictionaryPref(kSafeConfigFeatureParams);
+  registry->RegisterListPref(kSafeConfigExpIds);
   metrics::MetricsService::RegisterPrefs(registry);
 }
 

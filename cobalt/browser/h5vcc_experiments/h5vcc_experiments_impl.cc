@@ -22,6 +22,7 @@
 #include "cobalt/browser/constants/cobalt_experiment_names.h"
 #include "cobalt/browser/global_features.h"
 #include "components/prefs/pref_service.h"
+#include "components/variations/pref_names.h"
 
 namespace h5vcc_experiments {
 
@@ -39,11 +40,6 @@ h5vcc_experiments::mojom::OverrideState GetFeatureInternal(
     return h5vcc_experiments::mojom::OverrideState::OVERRIDE_DISABLE_FEATURE;
   }
   return h5vcc_experiments::mojom::OverrideState::OVERRIDE_USE_DEFAULT;
-}
-
-std::string GetFeatureParamInternal(const std::string& feature_param_name) {
-  return base::GetFieldTrialParamValue(cobalt::kCobaltExperimentName,
-                                       feature_param_name);
 }
 
 }  // namespace
@@ -64,8 +60,16 @@ H5vccExperimentsImpl::H5vccExperimentsImpl(
 void H5vccExperimentsImpl::SetExperimentState(
     base::Value::Dict experiment_config,
     SetExperimentStateCallback callback) {
-  auto* experiment_config_ptr =
-      cobalt::GlobalFeatures::GetInstance()->experiment_config();
+  auto* global_features = cobalt::GlobalFeatures::GetInstance();
+  auto* experiment_config_ptr = global_features->experiment_config();
+  // A valid experiment config is supplied by h5vcc and we store the current
+  // config as the safe config.
+  global_features->experiment_config_manager()->StoreSafeConfig();
+  // Note: It's important to clear the crash streak. Crashes that occur after a
+  // successful config fetch do not prevent updating to a new update, and
+  // therefore do not necessitate falling back to a safe config.
+  experiment_config_ptr->SetInteger(variations::prefs::kVariationsCrashStreak,
+                                    0);
 
   experiment_config_ptr->SetDict(
       cobalt::kExperimentConfigFeatures,
