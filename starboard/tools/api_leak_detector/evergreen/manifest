@@ -7,13 +7,11 @@ OPENSSL_memory_free
 OPENSSL_memory_get_size
 __nl_langinfo_l
 __res_state
-__sched_cpucount
 _exit
 access
 chmod
 clock_nanosleep
 closelog
-creat
 dladdr
 dlclose
 dlerror
@@ -29,7 +27,6 @@ feof
 fflush
 fgets
 fileno
-fnmatch
 fopen
 fprintf
 fputc
@@ -46,11 +43,8 @@ fwrite
 gai_strerror
 getc
 getcwd
-gethostname
 getrlimit
 gmtime
-in6addr_any
-in6addr_loopback
 initstate
 ioctl
 isatty
@@ -59,7 +53,6 @@ localeconv
 localtime
 localtime_r
 lstat
-mincore
 mktime
 mremap
 newlocale
@@ -91,7 +84,6 @@ setpriority
 setstate
 setvbuf
 sigaction
-statvfs
 stderr
 stdin
 stdout
@@ -105,7 +97,6 @@ timerfd_settime
 tmpfile
 tzname
 tzset
-uname
 ungetc
 uselocale
 utimes

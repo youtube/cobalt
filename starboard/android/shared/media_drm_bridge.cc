@@ -39,6 +39,8 @@ using base::android::JavaParamRef;
 using base::android::ScopedJavaLocalRef;
 using base::android::ToJavaByteArray;
 
+using DrmOperationResult = MediaDrmBridge::OperationResult;
+
 // Using all capital names to be consistent with other Android media statuses.
 // They are defined in the same order as in their Java counterparts.  Their
 // values should be kept in consistent with their Java counterparts defined in
@@ -110,6 +112,26 @@ ScopedJavaLocalRef<jbyteArray> ToScopedJavaByteArray(JNIEnv* env,
                          data.size());
 }
 
+DrmOperationResult ToOperationResult(
+    JNIEnv* env,
+    const ScopedJavaLocalRef<jobject>& result) {
+  auto status = static_cast<DrmOperationStatus>(
+      Java_OperationResult_getStatusCode(env, result));
+  // Sanitize status.
+  switch (status) {
+    case DRM_OPERATION_STATUS_SUCCESS:
+    case DRM_OPERATION_STATUS_OPERATION_FAILED:
+      break;
+    default:
+      SB_NOTREACHED() << "Unknown status " << static_cast<int>(status);
+      status = DRM_OPERATION_STATUS_OPERATION_FAILED;
+  }
+  return {
+      status,
+      ConvertJavaStringToUTF8(
+          Java_OperationResult_getErrorMessage(env, result)),
+  };
+}
 }  // namespace
 
 MediaDrmBridge::MediaDrmBridge(raw_ref<MediaDrmBridge::Host> host,
@@ -160,21 +182,18 @@ void MediaDrmBridge::CreateSession(int ticket,
                                     j_init_data, j_mime);
 }
 
-bool MediaDrmBridge::UpdateSession(int ticket,
-                                   std::string_view key,
-                                   std::string_view session_id,
-                                   std::string* error_msg) const {
+DrmOperationResult MediaDrmBridge::UpdateSession(
+    int ticket,
+    std::string_view key,
+    std::string_view session_id) const {
   JNIEnv* env = AttachCurrentThread();
 
   auto j_session_id = ToScopedJavaByteArray(env, session_id);
   auto j_response = ToScopedJavaByteArray(env, key);
 
-  ScopedJavaLocalRef<jobject> j_update_result(Java_MediaDrmBridge_updateSession(
-      env, j_media_drm_bridge_, ticket, j_session_id, j_response));
-  *error_msg = ConvertJavaStringToUTF8(
-      Java_UpdateSessionResult_getErrorMessage(env, j_update_result));
-
-  return Java_UpdateSessionResult_isSuccess(env, j_update_result) == JNI_TRUE;
+  return ToOperationResult(
+      env, Java_MediaDrmBridge_updateSession(env, j_media_drm_bridge_, ticket,
+                                             j_session_id, j_response));
 }
 
 void MediaDrmBridge::CloseSession(std::string_view session_id) const {
@@ -281,6 +300,27 @@ bool MediaDrmBridge::IsWidevineSupported(JNIEnv* env) {
 // static
 bool MediaDrmBridge::IsCbcsSupported(JNIEnv* env) {
   return Java_MediaDrmBridge_isCbcsSchemeSupported(env) == JNI_TRUE;
+}
+
+std::ostream& operator<<(std::ostream& os, DrmOperationStatus status) {
+  switch (status) {
+    case DRM_OPERATION_STATUS_SUCCESS:
+      return os << "success";
+    case DRM_OPERATION_STATUS_OPERATION_FAILED:
+      return os << "operation-failed";
+    default:
+      SB_NOTREACHED();
+      return os << "unknown-status";
+  }
+}
+
+std::ostream& operator<<(std::ostream& os, const DrmOperationResult& result) {
+  os << "{status:" << result.status;
+  if (!result.ok()) {
+    os << ", error_message: "
+       << (result.error_message.empty() ? "(empty)" : result.error_message);
+  }
+  return os << "}";
 }
 
 }  // namespace starboard::android::shared
