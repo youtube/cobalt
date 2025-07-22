@@ -191,6 +191,18 @@ run_package_release_pipeline () {
       package_platform="android"
     fi
 
+    # IMPORTANT: chromedriver must be built without starboardizations. We ensure
+    # that the biary is built with the linux-x64x11-no-starboard config in a
+    # previous build step. Then copy the file into this out directory to
+    # simulate having built it in-situ (even though that's not possible). This
+    # simplifies the execution of the packaging scripts.
+    if [[ "${TARGET_PLATFORM}" =~ "linux" ]]; then
+      local src_platform="linux-x64x11-no-starboard"
+      local src_out="${WORKSPACE_COBALT}/out/${src_platform}_${CONFIG}"
+      local dst_out="${WORKSPACE_COBALT}/out/${TARGET_PLATFORM}_${CONFIG}"
+      cp "${src_out}/chromedriver" "${dst_out}/chromedriver"
+    fi
+
     # NOTE: Name is required because the Json recipe is not platform and config
     # specific. GCS upload is also done separately because the Json recipe is
     # not branch, date, and build number specific though this can be added.
