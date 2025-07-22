@@ -185,6 +185,7 @@ test("nplb") {
       "posix_compliance/posix_rand_r_test.cc",
       "posix_compliance/posix_rand_test.cc",
       "posix_compliance/posix_random_test.cc",
+      "posix_compliance/posix_rename_test.cc",
       "posix_compliance/posix_select_test.cc",
       "posix_compliance/posix_semaphore_test.cc",
       "posix_compliance/posix_signal_test.cc",

@@ -64,7 +64,6 @@ puts
 random
 readlink
 realpath
-rename
 rewind
 sched_getaffinity
 sdallocx
