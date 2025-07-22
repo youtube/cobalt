@@ -1,4 +1,4 @@
-// Copyright 2017 The Cobalt Authors. All Rights Reserved.
+// Copyright 2017 The Cobalt Authors. All Rights Reserve),
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -77,6 +77,7 @@ MediaDecoder::MediaDecoder(Host* host,
                            const AudioStreamInfo& audio_stream_info,
                            SbDrmSystem drm_system)
     : media_type_(kSbMediaTypeAudio),
+      media_type_name_("audio"),
       host_(host),
       drm_system_(static_cast<DrmSystem*>(drm_system)),
       tunnel_mode_enabled_(false),
@@ -124,6 +125,7 @@ MediaDecoder::MediaDecoder(
     int64_t flush_delay_usec,
     std::string* error_message)
     : media_type_(kSbMediaTypeVideo),
+      media_type_name_("video"),
       host_(host),
       drm_system_(static_cast<DrmSystem*>(drm_system)),
       frame_rendered_cb_(frame_rendered_cb),
@@ -150,6 +152,7 @@ MediaDecoder::MediaDecoder(
 }
 
 MediaDecoder::~MediaDecoder() {
+  SB_LOG(INFO) << __func__ << " > " << media_type_name_;
   SB_DCHECK(thread_checker_.CalledOnValidThread());
 
   TerminateDecoderThread();
@@ -196,6 +199,7 @@ void MediaDecoder::WriteInputBuffers(const InputBuffers& input_buffers) {
   }
 
   if (decoder_thread_ == 0) {
+    SB_LOG(INFO) << __func__ << " > " << media_type_name_;
     pthread_create(&decoder_thread_, nullptr,
                    &MediaDecoder::DecoderThreadEntryPoint, this);
     SB_DCHECK_NE(decoder_thread_, 0);
@@ -248,6 +252,7 @@ void* MediaDecoder::DecoderThreadEntryPoint(void* context) {
 void MediaDecoder::DecoderThreadFunc() {
   SB_DCHECK(error_cb_);
 
+  SB_LOG(INFO) << __func__ << " > starts: " << media_type_name_;
   if (media_type_ == kSbMediaTypeAudio) {
     std::deque<PendingInput> pending_inputs;
     std::vector<int> input_buffer_indices;
@@ -375,7 +380,9 @@ void MediaDecoder::DecoderThreadFunc() {
     }
   }
 
-  SB_LOG(INFO) << "Destroying decoder thread.";
+  SB_LOG(INFO) << "Destroying decoder thread. delay: type=" << media_type_name_;
+  usleep(10'000'000);
+  SB_LOG(INFO) << "Destroying decoder thread. type=" << media_type_name_;
 }
 
 void MediaDecoder::TerminateDecoderThread() {
@@ -692,6 +699,7 @@ void MediaDecoder::OnMediaCodecFirstTunnelFrameReady() {
 }
 
 bool MediaDecoder::Flush() {
+  SB_LOG(INFO) << __func__;
   SB_DCHECK(thread_checker_.CalledOnValidThread());
 
   // Try to flush if we can, otherwise return |false| to recreate the codec
