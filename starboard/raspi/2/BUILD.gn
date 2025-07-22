@@ -38,7 +38,6 @@ static_library("starboard_platform") {
 if (sb_is_modular) {
   static_library("starboard_platform_with_main") {
     check_includes = false
-    sources = [ "//starboard/raspi/shared/main.cc" ]
     configs += [ "//starboard/build/config:starboard_implementation" ]
     public_deps = [ ":starboard_platform" ]
   }

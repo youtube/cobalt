@@ -22,6 +22,11 @@
 #include "mojo/public/cpp/bindings/callback_helpers.h"
 #include "mojo/public/cpp/bindings/pending_remote.h"
 
+#if BUILDFLAG(USE_STARBOARD_MEDIA)
+#include "media/starboard/starboard_cdm.h"
+constexpr int kMaxMetricsSize = 1024 * 1024;
+#endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
+
 namespace media {
 
 using SimpleMojoCdmPromise = MojoCdmPromise<void(mojom::CdmPromiseResultPtr)>;
@@ -235,5 +240,34 @@ void MojoCdmService::OnDecryptorConnectionError() {
   // for recovery.
   decryptor_.reset();
 }
+
+#if BUILDFLAG(USE_STARBOARD_MEDIA)
+// TODO(b/432075710) move these into a Starboard CDM extension.
+void MojoCdmService::GetMetrics(GetMetricsCallback callback) {
+
+  auto* starboard_cdm = static_cast<media::StarboardCdm*>(cdm_.get());
+  SbDrmSystem drm_system = starboard_cdm->GetSbDrmSystem();
+  if (!drm_system) {
+    DLOG(ERROR) << "Failed to get SbDrmSystem from StarboardCDM.";
+    std::move(callback).Run(absl::nullopt);
+    return;
+  }
+
+  // blob, encoded using url safe base64 without padding and line wrapping
+  // see starboard/drm.h
+  int metrics_size = 0;
+  const uint8_t* metrics_data = static_cast<const uint8_t*>(
+      SbDrmGetMetrics(drm_system, &metrics_size));
+
+  if (!metrics_data || metrics_size <= 0 || metrics_size >= kMaxMetricsSize) {
+    DLOG(ERROR) << "Failed to get metrics from SbDrmSystem.";
+    std::move(callback).Run(absl::nullopt);
+    return;
+  }
+
+  std::string metrics_string(metrics_data, metrics_data + metrics_size);
+  std::move(callback).Run(std::move(metrics_string));
+}
+#endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
 
 }  // namespace media

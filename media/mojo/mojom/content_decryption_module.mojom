@@ -121,6 +121,10 @@ interface ContentDecryptionModule {
   // Removes stored session data associated with the active session specified by
   // |session_id|.
   RemoveSession(string session_id) => (CdmPromiseResult result);
+
+  [EnableIf=use_starboard_media]
+  GetMetrics() => (string? metrics);
+
 };
 
 // Session callbacks. The implementation is MojoCdm that runs in the render

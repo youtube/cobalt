@@ -27,6 +27,13 @@
 
 namespace starboard::android::shared {
 
+// A "status" for MediaDrmBridge operations.
+// GENERATED_JAVA_ENUM_PACKAGE: dev.cobalt.media
+enum DrmOperationStatus {
+  DRM_OPERATION_STATUS_SUCCESS,
+  DRM_OPERATION_STATUS_OPERATION_FAILED,
+};
+
 class MediaDrmBridge {
  public:
   class Host {
@@ -42,6 +49,13 @@ class MediaDrmBridge {
 
    protected:
     ~Host() = default;
+  };
+
+  struct OperationResult {
+    const DrmOperationStatus status;
+    const std::string error_message;
+
+    bool ok() const { return status == DRM_OPERATION_STATUS_SUCCESS; }
   };
 
   MediaDrmBridge(raw_ref<MediaDrmBridge::Host> host,
@@ -60,11 +74,9 @@ class MediaDrmBridge {
   void CreateSession(int ticket,
                      std::string_view init_data,
                      std::string_view mime) const;
-  // Updates the session. Returns true on success.
-  bool UpdateSession(int ticket,
-                     std::string_view key,
-                     std::string_view session_id,
-                     std::string* error_msg) const;
+  OperationResult UpdateSession(int ticket,
+                                std::string_view key,
+                                std::string_view session_id) const;
   void CloseSession(std::string_view session_id) const;
   const void* GetMetrics(int* size);
   bool CreateMediaCryptoSession();
@@ -90,6 +102,10 @@ class MediaDrmBridge {
   base::android::ScopedJavaGlobalRef<jobject> j_media_drm_bridge_;
   base::android::ScopedJavaGlobalRef<jobject> j_media_crypto_;
 };
+
+std::ostream& operator<<(std::ostream& os, DrmOperationStatus);
+std::ostream& operator<<(std::ostream& os,
+                         const MediaDrmBridge::OperationResult& result);
 
 }  // namespace starboard::android::shared
 
