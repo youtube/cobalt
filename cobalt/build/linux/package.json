@@ -2,6 +2,7 @@
     "archive_datas": [
         {
             "files": [
+                "chromedriver",
                 "cobalt.stripped",
                 "content_shell.pak",
                 "gen/build_info.json",
