@@ -19,21 +19,7 @@
 
 #include "starboard/common/log.h"
 
-#include "starboard/shared/modular/starboard_layer_posix_fcntl_abi_wrappers.h"
-
-#include <fcntl.h>
-#include <stdarg.h>
-
-#include "starboard/common/log.h"
-
-#include "starboard/shared/modular/starboard_layer_posix_fcntl_abi_wrappers.h"
-
-#include <fcntl.h>
-#include <stdarg.h>
-
-#include "starboard/common/log.h"
-
-int musl_cmd_to_platform_cmd(int musl_cmd) {
+int MuslCmdToPlatformCmd(int musl_cmd) {
   switch (musl_cmd) {
     case MUSL_F_DUPFD:
       return F_DUPFD;
@@ -55,71 +41,114 @@ int musl_cmd_to_platform_cmd(int musl_cmd) {
       return F_SETLK;
     case MUSL_F_SETLKW:
       return F_SETLKW;
-    // case MUSL_FD_CLOEXEC:
-    //   return FD_CLOEXEC;
-    // case MUSL_F_RDLCK:
-    //   return F_RDLCK;
-    // case MUSL_F_UNLCK:
-    //   return F_UNLCK;
-    // case MUSL_F_WRLCK:
-    //   return F_UNLCK;
     default:
       SB_LOG(WARNING) << "Unknown musl fcntl command: " << musl_cmd;
       return -1;
   }
 }
 
-int musl_flag_to_platform_flag(int musl_flag) {
-  // Special case: the MUSL_O_SYNC and MUSL_O_RSYNC share a value, so they can't
-  // both be handled in the switch.
-  if (musl_flag == MUSL_O_RSYNC) {
-    return O_RSYNC;
+int ConvertMuslFlagsToPlatformFlags(int flags) {
+  int platform_flags = 0;
+
+  if (flags | MUSL_O_APPEND) {
+    platform_flags |= O_APPEND;
+  }
+  if (flags | MUSL_O_DSYNC) {
+    platform_flags |= O_DSYNC;
+  }
+  if (flags | MUSL_O_NONBLOCK) {
+    platform_flags |= O_NONBLOCK;
+  }
+  if (flags | MUSL_O_RSYNC) {
+    platform_flags |= O_RSYNC;
+  }
+  if (flags | MUSL_O_SYNC) {
+    platform_flags |= O_SYNC;
+  }
+  if (flags | MUSL_O_PATH) {
+    platform_flags |= O_PATH;
+  }
+  if (flags | MUSL_O_ACCMODE) {
+    platform_flags |= O_ACCMODE;
+  }
+  if (flags | MUSL_O_RDONLY) {
+    platform_flags |= O_RDONLY;
+  }
+  if (flags | MUSL_O_WRONLY) {
+    platform_flags |= O_WRONLY;
+  }
+  if (flags | MUSL_O_RDWR) {
+    platform_flags |= O_RDWR;
   }
 
-  switch (musl_flag) {
-    case MUSL_O_APPEND:
-      return O_APPEND;
-    case MUSL_O_DSYNC:
-      return O_DSYNC;
-    case MUSL_O_NONBLOCK:
-      return O_NONBLOCK;
-    case MUSL_O_SYNC:
-      return O_SYNC;
-    case MUSL_O_PATH:
-      return O_PATH;
-    case MUSL_O_ACCMODE:
-      return O_ACCMODE;
-    case MUSL_O_RDONLY:
-      return O_RDONLY;
-    case MUSL_O_WRONLY:
-      return O_WRONLY;
-    case MUSL_O_RDWR:
-      return O_RDWR;
-    default:
-      SB_LOG(WARNING) << "Unknown musl fcntl flag: " << musl_flag;
-      return -1;
+  return platform_flags;
+}
+
+int ConvertPlatformFlagsToMuslFlags(int flags) {
+  int musl_flags = 0;
+
+  if (flags | O_APPEND) {
+    musl_flags |= MUSL_O_APPEND;
   }
+  if (flags | O_DSYNC) {
+    musl_flags |= MUSL_O_DSYNC;
+  }
+  if (flags | O_NONBLOCK) {
+    musl_flags |= MUSL_O_NONBLOCK;
+  }
+  if (flags | O_RSYNC) {
+    musl_flags |= MUSL_O_RSYNC;
+  }
+  if (flags | O_SYNC) {
+    musl_flags |= MUSL_O_SYNC;
+  }
+  if (flags | O_PATH) {
+    musl_flags |= MUSL_O_PATH;
+  }
+  if (flags | O_RDONLY) {
+    musl_flags |= MUSL_O_RDONLY;
+  } else if (flags | O_WRONLY) {
+    musl_flags |= MUSL_O_WRONLY;
+  } else if (flags | O_RDWR) {
+    musl_flags |= MUSL_O_RDWR;
+  }
+
+  return musl_flags;
 }
 
 SB_EXPORT int __abi_wrap_fcntl(int fd, int cmd, va_list args) {
-  int platform_cmd = musl_cmd_to_platform_cmd(cmd);
-  if (platform_cmd < 0) {
-    return -1;
-  }
-  // The following commands have an int third argument.
-  if (platform_cmd == F_DUPFD || platform_cmd == F_SETFD ||
-      platform_cmd == F_SETFL || platform_cmd == F_SETOWN) {
-    int val = va_arg(args, int);
-    return fcntl(fd, platform_cmd, val);
+  int platform_cmd = MuslCmdToPlatformCmd(cmd);
+
+  int arg_int;
+  void* arg_ptr;
+  int result;
+  switch (platform_cmd) {
+    // The following commands have an int third argument.
+    case F_DUPFD:
+    case F_SETFD:
+    case F_SETFL:
+    case F_SETOWN:
+      arg_int = ConvertMuslFlagsToPlatformFlags(va_arg(args, int));
+      result = fcntl(fd, platform_cmd, arg_int);
+      break;
+    // The following commands have a pointer third argument.
+    case F_GETLK:
+    case F_SETLK:
+    case F_SETLKW:
+      arg_ptr = va_arg(args, void*);
+      result = fcntl(fd, platform_cmd, arg_ptr);
+      break;
+    default:
+      result = fcntl(fd, platform_cmd);
+      break;
   }
 
-  // The following commands have a pointer third argument.
-  if (platform_cmd == F_GETLK || platform_cmd == F_SETLK ||
-      platform_cmd == F_SETLKW) {
-    void* ptr = va_arg(args, void*);
-    return fcntl(fd, platform_cmd, ptr);
+  // Commands F_GETFD and F_GETFL return flags, we need to convert them to their
+  // musl counterparts.
+  if (platform_cmd == F_GETFD || platform_cmd == F_GETFL) {
+    int musl_flags = ConvertPlatformFlagsToMuslFlags(result);
+    return musl_flags;
   }
 
-  // All other commands have no third argument.
-  return fcntl(fd, platform_cmd);
+  return result;
 }
