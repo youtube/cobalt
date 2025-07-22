@@ -60,9 +60,6 @@ void StarboardRendererWrapper::Initialize(MediaResource* media_resource,
           weak_factory_.GetWeakPtr()),
       base::BindRepeating(
           &StarboardRendererWrapper::OnUpdateStarboardRenderingModeByStarboard,
-          weak_factory_.GetWeakPtr()),
-      base::BindRepeating(
-          &StarboardRendererWrapper::OnRequestOverlayInfoByStarboard,
           weak_factory_.GetWeakPtr()));
 
   base::ScopedClosureRunner scoped_init_cb(
@@ -148,12 +145,6 @@ void StarboardRendererWrapper::GetCurrentVideoFrame(
   std::move(callback).Run(nullptr);
 }
 
-void StarboardRendererWrapper::OnOverlayInfoChanged(
-    const OverlayInfo& overlay_info) {
-  DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
-  GetRenderer()->OnOverlayInfoChanged(overlay_info);
-}
-
 StarboardRenderer* StarboardRendererWrapper::GetRenderer() {
   if (test_renderer_) {
     return test_renderer_;
@@ -190,12 +181,6 @@ void StarboardRendererWrapper::OnUpdateStarboardRenderingModeByStarboard(
     const StarboardRenderingMode mode) {
   DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
   client_extension_remote_->UpdateStarboardRenderingMode(mode);
-}
-
-void StarboardRendererWrapper::OnRequestOverlayInfoByStarboard(
-    bool restart_for_transitions) {
-  DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
-  client_extension_remote_->RequestOverlayInfo(restart_for_transitions);
 }
 
 }  // namespace media
