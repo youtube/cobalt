@@ -63,9 +63,9 @@ class TempPath {
   const char* path_;
 };
 
-unsigned long ONE = 1;
-unsigned long TWO = 2;
-unsigned long THREE = 3;
+constexpr unsigned long ONE = 1;
+constexpr unsigned long TWO = 2;
+constexpr unsigned long THREE = 3;
 
 TEST(PosixLstatTest, LstatOnExistingFile) {
   const int kFileSize = 12;
