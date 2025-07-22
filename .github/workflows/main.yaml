@@ -539,6 +539,7 @@ jobs:
           num_gtest_shards: ${{ needs.initialize.outputs.num_gtest_shards }}
       - name: ${{ matrix.test_target }} Device Logs
         if: always() && steps.filter.outputs.skipped != 'true' && needs.initialize.outputs.test_on_device == 'true'
+        continue-on-error: true
         uses: ./.github/actions/print_logs
         with:
           log_glob: results/**/${{ steps.extract-target-name.outputs.test_target }}*logcat.txt
