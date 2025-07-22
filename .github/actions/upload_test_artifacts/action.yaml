@@ -38,7 +38,7 @@ runs:
 
         FLAGS=""
         if [[ "${{ matrix.platform }}" == *android* ]]; then
-          FLAGS="--archive-per-target --use-android-deps-path --root-dir ."
+          FLAGS="--archive-per-target --use-android-deps-path --flatten-deps"
         elif [[ "${{ matrix.platform }}" == *raspi* ]]; then
           FLAGS="--archive-per-target"
         fi

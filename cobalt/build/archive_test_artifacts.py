@@ -18,7 +18,7 @@ import argparse
 import os
 import subprocess
 import tempfile
-from typing import List, Tuple, Optional
+from typing import List, Tuple
 
 # Path prefixes that contain files we don't need to run tests.
 _EXCLUDE_DIRS = [
@@ -36,6 +36,8 @@ def _make_tar(archive_path: str, file_lists: List[Tuple[str, str]]):
   tar_cmd = ['tar', '-I', 'gzip -1', '-cvf', archive_path]
   tmp_files = []
   for file_list, base_dir in file_lists:
+    if not file_list:
+      continue
     # Create temporary file to hold file list to not blow out the commandline.
     # It will get cleaned up via implicit close.
     # pylint: disable=consider-using-with
@@ -58,13 +60,13 @@ def create_archive(
     destination_dir: str,
     archive_per_target: bool,
     use_android_deps_path: bool,
-    root_dir: Optional[str],
+    flatten_deps: bool,
 ):
   """Main logic. Collects runtime dependencies for each target."""
-  tar_root = root_dir or out_dir
+  tar_root = out_dir if flatten_deps else source_dir
   combined_deps = set()
   # Add test_targets.json to archive so that test runners know what to run.
-  test_targets_json = os.path.join(tar_root, 'test_targets.json')
+  test_targets_json = os.path.join(out_dir, 'test_targets.json')
   if os.path.exists(test_targets_json):
     combined_deps.add(os.path.relpath(test_targets_json))
 
@@ -91,16 +93,18 @@ def create_archive(
       # Android tests expects files to be relative to the out folder in the
       # archive whereas Linux tests expect it relative to the source root.
       # Files that are to be picked up from the source root should be
-      # include in the archive without the prefix.
+      # included in the archive without the path prefix.
       target_deps = set()
       target_src_root_deps = set()
       for line in runtime_deps_file:
         if any(line.startswith(path) for path in _EXCLUDE_DIRS):
           continue
 
-        if root_dir and line.startswith('../../'):
+        if flatten_deps and line.startswith('../../'):
           target_src_root_deps.add(line[6:])
         else:
+          # Prepend tar root directory to path to ensure files are extracted to
+          # the correct dir.
           rel_path = os.path.relpath(os.path.join(tar_root, line.strip()))
           target_deps.add(rel_path)
       combined_deps |= target_deps
@@ -109,17 +113,17 @@ def create_archive(
         output_path = os.path.join(destination_dir,
                                    f'{target_name}_deps.tar.gz')
 
-        if target_src_root_deps:
+        if flatten_deps:
           _make_tar(output_path, [(combined_deps, out_dir),
                                   (target_src_root_deps, source_dir)])
         else:
-          _make_tar(output_path, [(combined_deps, source_dir)])
+          _make_tar(output_path, [(combined_deps, tar_root)])
         archive_size = f'{os.path.getsize(output_path) / 1024 / 1024:.2f} MB'
         print(f'Created {os.path.basename(output_path)} ({archive_size})')
 
         # Reset the list of deps.
         combined_deps = set(
-            [os.path.relpath(os.path.join(tar_root, 'test_targets.json'))])
+            [os.path.relpath(os.path.join(out_dir, 'test_targets.json'))])
         target_src_root_deps.clear()
 
   # Linux tests and deps are all bundled into a single tar file.
@@ -162,8 +166,10 @@ def main():
       action='store_true',
       help='Look for .runtime_deps files in the Android-specific path.')
   parser.add_argument(
-      '--root-dir',
-      help='The path to the root directory for collecting artifacts.')
+      '--flatten-deps',
+      action='store_true',
+      help='Pass this argument to archive files from the source and out '
+      'directories both at the root of the deps archive.')
   args = parser.parse_args()
 
   create_archive(
@@ -173,7 +179,7 @@ def main():
       destination_dir=args.destination_dir,
       archive_per_target=args.archive_per_target,
       use_android_deps_path=args.use_android_deps_path,
-      root_dir=args.root_dir)
+      flatten_deps=args.flatten_deps)
 
 
 if __name__ == '__main__':
