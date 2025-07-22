@@ -68,13 +68,14 @@ runs:
         set -eux
         project_name=$(gcloud config get-value project)
 
+        # Upload cobalt.apk for smoke tests.
+        if [[ "${{ matrix.platform }}" == *android* ]]; then
+          cp "${GITHUB_WORKSPACE}/src/out/${{ matrix.platform }}_${{ matrix.config }}/apks/Cobalt.apk" \
+             "${GITHUB_WORKSPACE}/artifacts/"
+        fi
+
         # Upload gtest target artifacts.
         gsutil -m cp "${GITHUB_WORKSPACE}/artifacts/*" \
           "gs://${project_name}-test-artifacts/${WORKFLOW}/${GITHUB_RUN_NUMBER}/${{matrix.platform}}/"
 
-        if [[ "${{ matrix.platform }}" == "android" ]]; then
-          # Upload cobalt.apk for smoke tests.
-          gsutil -m cp "${GITHUB_WORKSPACE}/src/out/${{ matrix.platform }}_${{ matrix.config }}/apks/Cobalt.apk" \
-            "gs://${project_name}-test-artifacts/${WORKFLOW}/${GITHUB_RUN_NUMBER}/${{matrix.platform}}/"
-        fi
       shell: bash
