@@ -70,7 +70,6 @@ static constexpr auto kCobaltToggleSwitches = std::to_array<const char*>({
       // Chromium registrations to avoid overriding the Starboard ones.
       switches::kDisableInProcessStackTraces,      
       // Cobalt doesn't use Chrome's accelerated video decoding/encoding.
-      blink::switches::kDisableRGBA4444Textures, 
       swiches::kDisableAcceleratedVideoDecode,
       swiches::kDisableAcceleratedVideoEncode,
 });
