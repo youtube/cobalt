@@ -46,26 +46,9 @@ namespace starboard {
 namespace nplb {
 namespace {
 
-// A helper class to manage temporary paths for testing.
-// It automatically cleans up created paths upon destruction.
-class TempPath {
- public:
-  explicit TempPath(const char* path) : path_(path) {}
-  ~TempPath() {
-    if (path_) {
-      unlink(path_);  // Works for files and symbolic links.
-    }
-  }
-  const char* c_str() const { return path_; }
-
- private:
-  const char* path_;
-};
-
 TEST(PosixSymlinkTest, SuccessfulCreation) {
   starboard::nplb::ScopedRandomFile target_file;
   const char* link_path = "success_link.tmp";
-  TempPath temp_link(link_path);
 
   // Create the symbolic link.
   EXPECT_EQ(symlink(target_file.filename().c_str(), link_path), 0);
@@ -80,6 +63,8 @@ TEST(PosixSymlinkTest, SuccessfulCreation) {
   ASSERT_GT(len, 0);
   read_buf[len] = '\0';
   EXPECT_STREQ(target_file.filename().c_str(), read_buf);
+
+  unlink(link_path);
 }
 
 TEST(PosixSymlinkTest, FailsIfNewPathExists) {
@@ -94,7 +79,6 @@ TEST(PosixSymlinkTest, FailsIfNewPathExists) {
 TEST(PosixSymlinkTest, CanCreateDanglingLink) {
   const char* non_existent_target = "this_file_does_not_exist";
   const char* link_path = "dangling_link.tmp";
-  TempPath temp_link(link_path);
 
   // It is valid to create a symbolic link to a target that does not exist.
   EXPECT_EQ(symlink(non_existent_target, link_path), 0);
@@ -103,11 +87,12 @@ TEST(PosixSymlinkTest, CanCreateDanglingLink) {
   struct stat sb;
   EXPECT_EQ(lstat(link_path, &sb), 0);
   EXPECT_TRUE(S_ISLNK(sb.st_mode));
+
+  unlink(link_path);
 }
 
 TEST(PosixSymlinkTest, FailsWithEmptyOldPath) {
   const char* link_path = "empty_oldpath_link.tmp";
-  TempPath temp_link(link_path);
 
   // The target of a symlink cannot be an empty string.
   EXPECT_EQ(symlink("", link_path), -1);
@@ -124,7 +109,6 @@ TEST(PosixSymlinkTest, FailsWithEmptyNewPath) {
 
 TEST(PosixSymlinkTest, FailsWithNullOldPath) {
   const char* link_path = "null_oldpath_link.tmp";
-  TempPath temp_link(link_path);
 
   // A NULL oldpath should result in a "Bad address" error.
 #pragma clang diagnostic push
