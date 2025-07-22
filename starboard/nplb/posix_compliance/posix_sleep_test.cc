@@ -58,9 +58,17 @@ static_assert(std::is_same_v<decltype(sleep), unsigned int(unsigned int)>,
 class PosixSleepTests : public ::testing::Test {
  protected:
   struct sigaction old_sa_sigusr1_;
+  sigset_t original_mask_;
   bool sigusr1_handler_set_ = false;
 
   void SetUp() override {
+    // Make sure the signal is unblocked.
+    sigset_t unblock_mask;
+    sigemptyset(&unblock_mask);
+    sigaddset(&unblock_mask, SIGUSR1);
+
+    ASSERT_EQ(sigprocmask(SIG_UNBLOCK, &unblock_mask, &original_mask_), 0);
+
     errno = 0;
     ASSERT_EQ(sigaction(SIGUSR1, nullptr, &old_sa_sigusr1_), 0)
         << "Could not get old SIGUSR1 handler in SetUp";
@@ -71,6 +79,9 @@ class PosixSleepTests : public ::testing::Test {
       ASSERT_EQ(sigaction(SIGUSR1, &old_sa_sigusr1_, nullptr), 0)
           << "Could not restore old SIGUSR1 handler in TearDown";
     }
+
+    // Restore the original mask.
+    ASSERT_EQ(sigprocmask(SIG_SETMASK, &original_mask_, nullptr), 0);
   }
 
   void RegisterSigusr1Handler() {

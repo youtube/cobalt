@@ -121,6 +121,15 @@ class PosixSignalTest : public ::testing::Test {
   }
 
   void SetUp() override {
+    // Make sure the signals are unblocked.
+    sigset_t unblock_mask;
+    sigemptyset(&unblock_mask);
+    sigaddset(&unblock_mask, SIGUSR1);
+    sigaddset(&unblock_mask, SIGUSR2);
+    sigaddset(&unblock_mask, SIGALRM);
+
+    ASSERT_EQ(sigprocmask(SIG_UNBLOCK, &unblock_mask, &original_mask_), 0);
+
     // Reset the global flag before each test.
     g_signal_received = 0;
 
@@ -160,6 +169,9 @@ class PosixSignalTest : public ::testing::Test {
     EXPECT_EQ(sigaction(SIGUSR1, &original_sa_usr1_, nullptr), 0);
     EXPECT_EQ(sigaction(SIGUSR2, &original_sa_usr2_, nullptr), 0);
     EXPECT_EQ(sigaction(SIGALRM, &original_sa_alrm_, nullptr), 0);
+
+    // --- Restore the original mask ---
+    ASSERT_EQ(sigprocmask(SIG_SETMASK, &original_mask_, nullptr), 0);
   }
 
   // Waits for a signal to be delivered using epoll on a pipe.
@@ -191,6 +203,8 @@ class PosixSignalTest : public ::testing::Test {
   struct sigaction original_sa_usr1_;
   struct sigaction original_sa_usr2_;
   struct sigaction original_sa_alrm_;
+
+  sigset_t original_mask_;
 };
 
 // --- Signal Handler Registration and Delivery Tests ---
