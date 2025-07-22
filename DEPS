@@ -1020,6 +1020,22 @@ deps = {
     'dep_type': 'cipd',
     'condition': 'host_os == "mac"',
   },
+<<<<<<< HEAD
+=======
+# Cobalt: imported
+# 'src/buildtools/third_party/libc++/trunk':
+#   Var('chromium_git') +
+#   '/external/github.com/llvm/llvm-project/libcxx.git' + '@' +
+#   Var('libcxx_revision'),
+  'src/buildtools/third_party/libc++abi/trunk':
+    Var('chromium_git') +
+    '/external/github.com/llvm/llvm-project/libcxxabi.git' + '@' +
+    Var('libcxxabi_revision'),
+  'src/buildtools/third_party/libunwind/trunk':
+    Var('chromium_git') +
+    '/external/github.com/llvm/llvm-project/libunwind.git' + '@' +
+    Var('libunwind_revision'),
+>>>>>>> c522bbe3365 (Import libc++/trunk from commit 34b0f973 (#6259))
   'src/buildtools/win': {
     'packages': [
       {
