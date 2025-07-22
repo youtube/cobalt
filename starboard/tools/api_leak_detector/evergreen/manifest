@@ -44,7 +44,6 @@ getrlimit
 gmtime
 initstate
 ioctl
-link
 localeconv
 localtime
 localtime_r
