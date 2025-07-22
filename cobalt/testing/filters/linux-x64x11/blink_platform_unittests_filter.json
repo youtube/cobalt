@@ -1,10 +1,5 @@
 {
   "failing_tests": [
-    "FilePathConversionTest.convert",
-    "HarfBuzzShaperTest.*",
-    "KeySystemConfigSelectorTest.*",
-    "*RTCVideoDecoder*",
-    "TextFragmentAnchorMetricsTest.*",
-    "*TextFragmentAnchorScrollTest*"
+    "*"
   ]
 }
