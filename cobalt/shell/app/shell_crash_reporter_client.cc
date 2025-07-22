@@ -21,11 +21,11 @@
 #include "base/files/file_path.h"
 #include "base/strings/utf_string_conversions.h"
 #include "build/build_config.h"
+#include "cobalt/shell/common/shell_switches.h"
 #include "content/public/common/content_switches.h"
-#include "content/shell/common/shell_switches.h"
 
 #if BUILDFLAG(IS_ANDROID)
-#include "content/shell/android/shell_descriptors.h"
+#include "cobalt/shell/android/shell_descriptors.h"
 #endif
 
 namespace content {
