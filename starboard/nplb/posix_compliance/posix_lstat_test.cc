@@ -46,23 +46,6 @@ namespace starboard {
 namespace nplb {
 namespace {
 
-// A helper class to manage temporary paths for testing.
-// It automatically cleans up created paths upon destruction.
-class TempPath {
- public:
-  explicit TempPath(const char* path) : path_(path) {}
-  ~TempPath() {
-    if (path_) {
-      unlink(path_);  // Works for files and symbolic links.
-      rmdir(path_);   // Works for empty directories.
-    }
-  }
-  const char* c_str() const { return path_; }
-
- private:
-  const char* path_;
-};
-
 constexpr unsigned long ONE = 1;
 constexpr unsigned long TWO = 2;
 constexpr unsigned long THREE = 3;
@@ -80,7 +63,6 @@ TEST(PosixLstatTest, LstatOnExistingFile) {
 
 TEST(PosixLstatTest, LstatOnExistingDirectory) {
   const char* dir_path = "test_dir.tmp";
-  TempPath temp_dir(dir_path);
   ASSERT_EQ(mkdir(dir_path, 0755), 0);
 
   struct stat sb;
@@ -89,16 +71,12 @@ TEST(PosixLstatTest, LstatOnExistingDirectory) {
   // A directory should have at least 2 links: one for its own entry
   // and one for the "." entry within it.
   EXPECT_GE(sb.st_nlink, TWO);
+  rmdir(dir_path);
 }
 
 TEST(PosixLstatTest, DirectoryWithSubdirectory) {
   const char* parent_dir_path = "parent_dir.tmp";
   std::string child_dir_path_str = std::string(parent_dir_path) + "/child";
-
-  // The TempPath destructors will clean up in reverse order of declaration,
-  // removing the child directory before the parent.
-  TempPath temp_child(child_dir_path_str.c_str());
-  TempPath temp_parent(parent_dir_path);
 
   ASSERT_EQ(mkdir(parent_dir_path, 0755), 0);
   ASSERT_EQ(mkdir(child_dir_path_str.c_str(), 0755), 0);
@@ -111,13 +89,14 @@ TEST(PosixLstatTest, DirectoryWithSubdirectory) {
   // 2. The "." entry within itself.
   // 3. The ".." entry within the subdirectory pointing back to it.
   EXPECT_EQ(sb.st_nlink, THREE);
+  rmdir(child_dir_path_str.c_str());
+  rmdir(parent_dir_path);
 }
 
 TEST(PosixLstatTest, LstatOnSymbolicLinkToFile) {
   starboard::nplb::ScopedRandomFile target_file;
 
   const char* link_path = "link_to_file.tmp";
-  TempPath temp_link(link_path);
   std::string target_filename = target_file.filename();
 
   ASSERT_EQ(symlink(target_filename.c_str(), link_path), 0);
@@ -130,13 +109,12 @@ TEST(PosixLstatTest, LstatOnSymbolicLinkToFile) {
   EXPECT_GE(sb.st_size, 0);
   EXPECT_EQ(static_cast<unsigned long>(sb.st_size), target_filename.length());
   EXPECT_EQ(sb.st_nlink, ONE);
+  unlink(link_path);
 }
 
 TEST(PosixLstatTest, LstatOnSymbolicLinkToDirectory) {
   const char* dir_path = "target_dir.tmp";
   const char* link_path = "link_to_dir.tmp";
-  TempPath temp_dir(dir_path);
-  TempPath temp_link(link_path);
 
   ASSERT_EQ(mkdir(dir_path, 0755), 0);
   ASSERT_EQ(symlink(dir_path, link_path), 0);
@@ -147,12 +125,13 @@ TEST(PosixLstatTest, LstatOnSymbolicLinkToDirectory) {
   EXPECT_GE(sb.st_size, 0);
   EXPECT_EQ(static_cast<unsigned long>(sb.st_size), strlen(dir_path));
   EXPECT_EQ(sb.st_nlink, ONE);
+  unlink(link_path);
+  rmdir(dir_path);
 }
 
 TEST(PosixLstatTest, LstatOnDanglingSymbolicLink) {
   const char* target_path = "non_existent_target";
   const char* link_path = "dangling_link.tmp";
-  TempPath temp_link(link_path);
 
   // Create a symlink to a target that does not exist.
   ASSERT_EQ(symlink(target_path, link_path), 0);
@@ -163,6 +142,7 @@ TEST(PosixLstatTest, LstatOnDanglingSymbolicLink) {
   EXPECT_GE(sb.st_size, 0);
   EXPECT_EQ(static_cast<unsigned long>(sb.st_size), strlen(target_path));
   EXPECT_EQ(sb.st_nlink, ONE);
+  unlink(link_path);
 }
 
 TEST(LstatTest, PathComponentNotADirectory) {
