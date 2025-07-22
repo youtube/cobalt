@@ -43,7 +43,6 @@ prctl
 printf
 puts
 random
-readlink
 realpath
 rewind
 sched_getaffinity
