@@ -755,6 +755,7 @@ TEST_F(ContextMenuControllerTest, EditingActionsEnabledInXMLDocument) {
   EXPECT_EQ(context_menu_data.selected_text, "Blue text");
 }
 
+#if !BUILDFLAG(IS_COBALT)
 TEST_F(ContextMenuControllerTest, ShowNonLocatedContextMenuEvent) {
   GetDocument()->documentElement()->setInnerHTML(
       "<input id='sample' type='text' size='5' value='Sample Input Text'>");
@@ -799,6 +800,7 @@ TEST_F(ContextMenuControllerTest, ShowNonLocatedContextMenuEvent) {
   context_menu_data = GetWebFrameClient().GetContextMenuData();
   EXPECT_EQ(context_menu_data.selected_text, "Sample Input Text");
 }
+#endif
 
 #if !BUILDFLAG(IS_MAC)
 // Mac has no way to open a context menu based on a keyboard event.
@@ -832,6 +834,7 @@ TEST_F(ContextMenuControllerTest,
 }
 #endif
 
+#if !BUILDFLAG(IS_COBALT)
 TEST_F(ContextMenuControllerTest, SelectionRectClipped) {
   GetDocument()->documentElement()->setInnerHTML(
       "<textarea id='text-area' cols=6 rows=2>Sample editable text</textarea>");
@@ -889,12 +892,14 @@ TEST_F(ContextMenuControllerTest, SelectionRectClipped) {
           gfx::Rect(left, top, right - left, bottom - top));
   EXPECT_EQ(context_menu_data.selection_rect, selection_rect);
 }
+#endif
 
 class MockEventListener final : public NativeEventListener {
  public:
   MOCK_METHOD2(Invoke, void(ExecutionContext*, Event*));
 };
 
+#if !BUILDFLAG(IS_COBALT)
 // Test that a basic image hit test works and is no† impacted by
 // penetrating image selection logic.
 TEST_F(ContextMenuControllerTest,
@@ -1716,6 +1721,7 @@ TEST_F(ContextMenuControllerTest,
           kCrossFrameRetrieval,
       1);
 }
+#endif //!BUILDFLAG(IS_COBALT)
 
 TEST_F(ContextMenuControllerTest, OpenedFromHighlight) {
   WebURL url = url_test_helpers::ToKURL("http://www.test.com/");

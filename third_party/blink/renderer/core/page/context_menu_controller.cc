@@ -403,16 +403,16 @@ static gfx::Rect ComputeSelectionRect(LocalFrame* selected_frame) {
 
 bool ContextMenuController::ShouldShowContextMenuFromTouch(
     const ContextMenuData& data) {
-#if BUILDFLAG(IS_COBALT)
-  return false;
-#else
+// #if BUILDFLAG(IS_COBALT)
+//   return false;
+// #else
   return page_->GetSettings().GetAlwaysShowContextMenuOnTouch() ||
          !data.link_url.is_empty() ||
          data.media_type == mojom::blink::ContextMenuDataMediaType::kImage ||
          data.media_type == mojom::blink::ContextMenuDataMediaType::kVideo ||
          data.is_editable || data.opened_from_highlight ||
          !data.selected_text.empty();
-#endif
+// #endif
 }
 
 bool ContextMenuController::ShowContextMenu(LocalFrame* frame,
