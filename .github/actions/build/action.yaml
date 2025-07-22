@@ -57,11 +57,11 @@ runs:
           DYN_TEST_TARGETS_JSON_FILE: out/${{ matrix.platform }}_${{ matrix.config }}/dyn_targets.json
         run: |
           set -x
+          cd src
 
           # TODO: b/382508397 - Currently, override with static test targets
           cp -av "${STATIC_TEST_TARGETS_JSON_FILE}" "${{ inputs.test_targets_json_file }}"
 
-          # cd src
           # gn desc out/${{ matrix.platform }}_${{ matrix.config }}/ "*" --format=json > gn_desc.json
           # # Trim any warning gn printed before the json (all lines above the first curly brace).
           # sed -n '/^{/,$p' -i gn_desc.json
