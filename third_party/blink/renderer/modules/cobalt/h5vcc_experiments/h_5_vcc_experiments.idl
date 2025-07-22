@@ -34,8 +34,12 @@ interface H5vccExperiments {
 
   // Instructs Cobalt to delete its current cached experiment configuration.
   // Returns a promise that resolves/rejects in the event of success/failure.
+  // If |restart|, Cobalt will trigger crash and the empty experiment
+  // configuration will be applied immediately after app restart. If |restart|
+  // is false, the empty experiment configuration will not be applied until the
+  // next Cobalt cold start.
   [CallWith=ScriptState, RaisesException]
-  Promise<void> resetExperimentState();
+  Promise<void> resetExperimentState(boolean restart);
 
   // Returns a list of Cobalt's currently active client experiment IDs for use
   // by the client to log.
