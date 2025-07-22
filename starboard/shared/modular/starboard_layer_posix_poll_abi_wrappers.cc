@@ -21,7 +21,7 @@ SB_EXPORT int __abi_wrap_poll(struct musl_pollfd* poll_fd,
                               musl_nfds_t nfds,
                               int32_t timeout) {
   if (!poll_fd) {
-    return poll(nullptr, nfds, timeout);
+    return poll(nullptr, static_cast<nfds_t>(nfds), timeout);
   }
 
   struct pollfd fds[nfds];
@@ -32,7 +32,7 @@ SB_EXPORT int __abi_wrap_poll(struct musl_pollfd* poll_fd,
     fds[i].revents = 0;  // Clear revents before calling poll.
   }
 
-  int retval = poll(fds, nfds, timeout);
+  int retval = poll(fds, static_cast<nfds_t>(nfds), timeout);
 
   // If poll() was successful, copy the resulting revents
   // back to the original musl_pollfd array.
