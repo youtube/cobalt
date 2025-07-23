@@ -634,15 +634,11 @@ void OS::FreeAddressSpaceReservation(AddressSpaceReservation reservation) {
 // Need to disable CFI_ICALL due to the indirect call to memfd_create.
 DISABLE_CFI_ICALL
 PlatformSharedMemoryHandle OS::CreateSharedMemoryHandleForTesting(size_t size) {
-#if V8_OS_LINUX && !V8_OS_ANDROID
+#if V8_OS_LINUX && !V8_OS_ANDROID && !BUILDFLAG(IS_STARBOARD)
   // Use memfd_create if available, otherwise mkstemp.
   using memfd_create_t = int (*)(const char*, unsigned int);
   memfd_create_t memfd_create =
-#if !BUILDFLAG(IS_STARBOARD)
       reinterpret_cast<memfd_create_t>(dlsym(RTLD_DEFAULT, "memfd_create"));
-#else // !BUILDFLAG(IS_STARBOARD)
-      nullptr;
-#endif // !BUILDFLAG(IS_STARBOARD)
   int fd = -1;
   if (memfd_create) {
     fd = memfd_create("V8MemFDForTesting", 0);
@@ -1106,11 +1102,7 @@ static void SetThreadName(const char* name) {
   // for it at runtime.
   int (*dynamic_pthread_setname_np)(const char*);
   *reinterpret_cast<void**>(&dynamic_pthread_setname_np) =
-#if !BUILDFLAG(IS_STARBOARD)
     dlsym(RTLD_DEFAULT, "pthread_setname_np");
-#else // !BUILDFLAG(IS_STARBOARD)
-    nullptr;
-#endif // !BUILDFLAG(IS_STARBOARD)
   if (dynamic_pthread_setname_np == nullptr) return;
 
   // Mac OS X does not expose the length limit of the name, so hardcode it.

@@ -7,7 +7,6 @@
 #include <dlfcn.h>
 
 #include "base/files/file_util.h"
-#include "build/build_config.h"
 #include "components/soda/buildflags.h"
 #include "components/soda/constants.h"
 #include "sandbox/linux/syscall_broker/broker_command.h"
@@ -58,21 +57,13 @@ bool SpeechRecognitionPreSandboxHook(
   base::FilePath test_binary_path = GetSodaTestBinaryPath();
   DVLOG(0) << "SODA test binary path: " << test_binary_path.value().c_str();
   DCHECK(base::PathExists(test_binary_path));
-#if !BUILDFLAG(IS_STARBOARD)
   void* soda_test_library = dlopen(GetSodaTestBinaryPath().value().c_str(),
                                    RTLD_NOW | RTLD_GLOBAL | RTLD_NODELETE);
-#else // !BUILDFLAG(IS_STARBOARD)
-  void* soda_test_library = nullptr;
-#endif // !BUILDFLAG(IS_STARBOARD)
   DCHECK(soda_test_library);
 #endif
 
-#if !BUILDFLAG(IS_STARBOARD)
   void* soda_library = dlopen(GetSodaBinaryPath().value().c_str(),
                               RTLD_NOW | RTLD_GLOBAL | RTLD_NODELETE);
-#else // !BUILDFLAG(IS_STARBOARD)
-  void* soda_library = nullptr;
-#endif // !BUILDFLAG(IS_STARBOARD)
   DCHECK(soda_library);
 
   auto* instance = sandbox::policy::SandboxLinux::GetInstance();

@@ -13,8 +13,6 @@
 #include "src/base/logging.h"
 #include "src/base/macros.h"
 
-#include "build/build_config.h"
-
 // Runtime-detection of PKU support with {dlsym()}.
 //
 // For now, we support memory protection keys/PKEYs/PKU only for Linux on x64
@@ -105,7 +103,6 @@ void MemoryProtectionKey::InitializeMemoryProtectionKeySupport() {
   if (!kernel_has_pkru_fix) return;
 
   // Try to find the pkey functions in glibc.
-#if !BUILDFLAG(IS_STARBOARD)
   void* pkey_alloc_ptr = dlsym(RTLD_DEFAULT, "pkey_alloc");
   if (!pkey_alloc_ptr) return;
 
@@ -121,9 +118,6 @@ void MemoryProtectionKey::InitializeMemoryProtectionKeySupport() {
   pkey_mprotect = reinterpret_cast<pkey_mprotect_t>(pkey_mprotect_ptr);
   pkey_get = reinterpret_cast<pkey_get_t>(pkey_get_ptr);
   pkey_set = reinterpret_cast<pkey_set_t>(pkey_set_ptr);
-#else // !BUILDFLAG(IS_STARBOARD)
-  return;
-#endif // !BUILDFLAG(IS_STARBOARD)
 #endif
 }
 
