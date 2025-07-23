@@ -134,11 +134,13 @@ class TestWebFrameClientImpl : public frame_test_helpers::TestWebFrameClient {
   absl::optional<gfx::Point> host_context_menu_location_;
 };
 
+#if !BUILDFLAG(IS_COBALT)
 void RegisterMockedImageURLLoad(const String& url) {
   url_test_helpers::RegisterMockedURLLoad(
       url_test_helpers::ToKURL(url.Utf8().c_str()),
       test::CoreTestDataPath(kTestResourceFilename), kTestResourceMimeType);
 }
+#endif
 
 }  // namespace
 
