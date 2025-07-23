@@ -1475,6 +1475,7 @@ bool MoveUnsafe(const FilePath& from_path, const FilePath& to_path) {
   return true;
 }
 
+#if !BUILDFLAG(IS_STARBOARD)
 #if BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_CHROMEOS) || BUILDFLAG(IS_ANDROID)
 bool CopyFileContentsWithSendfile(File& infile,
                                   File& outfile,
@@ -1531,6 +1532,7 @@ bool CopyFileContentsWithSendfile(File& infile,
 }
 #endif  // BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_CHROMEOS) ||
         // BUILDFLAG(IS_ANDROID)
+#endif  // BUILDFLAG(IS_STARBOARD)
 
 }  // namespace internal
 
