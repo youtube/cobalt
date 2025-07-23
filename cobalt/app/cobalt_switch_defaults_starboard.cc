@@ -16,7 +16,6 @@
 
 #include "base/base_switches.h"
 #include "base/files/file_path.h"
-#include "chrome/common/chrome_switches.h"
 #include "cobalt/browser/switches.h"
 #include "cobalt/shell/common/shell_switches.h"
 #include "content/public/common/content_switches.h"
@@ -123,10 +122,10 @@ CommandLinePreprocessor::CommandLinePreprocessor(int argc,
   }
 
   // Ensure the window size configs are consistent wherever they are set.
-  if (cmd_line_.HasSwitch(::switches::kWindowSize)) {
+  if (cmd_line_.HasSwitch(switches::kWindowSize)) {
     // --window-size takes priority over other window-size configs.
     const auto window_size =
-        cmd_line_.GetSwitchValueASCII(::switches::kWindowSize);
+        cmd_line_.GetSwitchValueASCII(switches::kWindowSize);
     cmd_line_.AppendSwitchASCII(::switches::kContentShellHostWindowSize,
                                 window_size);
   }
