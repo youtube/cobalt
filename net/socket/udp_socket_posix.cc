@@ -76,7 +76,7 @@ constexpr int kBindRetries = 10;
 constexpr int kPortStart = 1024;
 constexpr int kPortEnd = 65535;
 
-#if BUILDFLAG(IS_COBALT)
+#if BUILDFLAG(IS_COBALT) && (BUILDFLAG(IS_ANDROID) || BUILDFLAG(IS_LINUX))
 // Read in larger batches to minimize recvmmsg overhead.
 inline constexpr int kNumPacketsPerReadMmsgCall = 64;
 #endif
@@ -284,6 +284,9 @@ int UDPSocketPosix::GetLocalAddress(IPEndPoint* address) const {
 #ifdef UNSAFE_BUFFERS_BUILD
 #pragma allow_unsafe_buffers
 #endif
+#endif
+
+#if BUILDFLAG(IS_COBALT) && (BUILDFLAG(IS_ANDROID) || BUILDFLAG(IS_LINUX))
 int UDPSocketPosix::ReadMultiplePackets(Socket::ReadPacketResults* results,
                                             int packet_buffer_size,
                                             CompletionOnceCallback callback) {
@@ -599,13 +602,13 @@ int UDPSocketPosix::SetRecvTos() {
 }
 
 void UDPSocketPosix::SetMsgConfirm(bool confirm) {
-#if !BUILDFLAG(IS_APPLE)
+#if (BUILDFLAG(IS_ANDROID) || BUILDFLAG(IS_LINUX))
   if (confirm) {
     sendto_flags_ |= MSG_CONFIRM;
   } else {
     sendto_flags_ &= ~MSG_CONFIRM;
   }
-#endif  // !BUILDFLAG(IS_APPLE)
+#endif  // (BUILDFLAG(IS_ANDROID) || BUILDFLAG(IS_LINUX))
 }
 
 int UDPSocketPosix::AllowAddressReuse() {
@@ -664,7 +667,7 @@ void UDPSocketPosix::ReadWatcher::OnFileCanReadWithoutBlocking(int) {
   TRACE_EVENT(NetTracingCategory(),
               "UDPSocketPosix::ReadWatcher::OnFileCanReadWithoutBlocking");
   if (!socket_->read_callback_.is_null()) {
-#if BUILDFLAG(IS_COBALT)
+#if BUILDFLAG(IS_COBALT) && (BUILDFLAG(IS_ANDROID) || BUILDFLAG(IS_LINUX))
     if(socket_->results_) {
       socket_->DidCompleteMultiplePacketRead();
       return;
@@ -710,7 +713,7 @@ void UDPSocketPosix::DidCompleteRead() {
   }
 }
 
-#if BUILDFLAG(IS_COBALT)
+#if BUILDFLAG(IS_COBALT) && (BUILDFLAG(IS_ANDROID) || BUILDFLAG(IS_LINUX))
 void UDPSocketPosix::DidCompleteMultiplePacketRead() {
   int result = InternalReadMultiplePackets(results_);
   if (result != ERR_IO_PENDING) {
@@ -888,7 +891,7 @@ int UDPSocketPosix::InternalRecvFromNonConnectedSocket(IOBuffer* buf,
   return result;
 }
 
-#if BUILDFLAG(IS_COBALT)
+#if BUILDFLAG(IS_COBALT) && (BUILDFLAG(IS_ANDROID) || BUILDFLAG(IS_LINUX))
 int UDPSocketPosix::InternalReadMultiplePackets(
     Socket::ReadPacketResults* results) {
   if (!socket_) {
