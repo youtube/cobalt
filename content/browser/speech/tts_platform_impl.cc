@@ -37,6 +37,9 @@ if BUILDFLAG(ENABLE_COBALT_HERMETIC_HACKS) {
   // trying to do TTS on a platform where the content client implementation
   // is not provided, that's probably not intended. It's not important
   // if this is hit in something like a content-only unit test.
+  //
+  // TtsPlatformImpl relies on the library speech-dispatcher, which 
+  // Starboard does not support.
   NOTREACHED();
   return nullptr;
 #else
