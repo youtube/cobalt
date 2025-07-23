@@ -22,6 +22,7 @@
 #include "cobalt/shell/app/shell_main_delegate.h"
 #include "cobalt/utility/cobalt_content_utility_client.h"
 #include "content/public/browser/browser_main_runner.h"
+#include "media/starboard/splash_screen_player.h"
 #include "third_party/abseil-cpp/absl/types/optional.h"
 
 namespace cobalt {
@@ -59,6 +60,7 @@ class CobaltMainDelegate : public content::ShellMainDelegate {
   std::unique_ptr<CobaltContentGpuClient> gpu_client_;
   std::unique_ptr<CobaltContentRendererClient> renderer_client_;
   std::unique_ptr<CobaltContentUtilityClient> utility_client_;
+  std::unique_ptr<media::SplashScreenPlayer> splash_screen_player_;
 
   void InitializeHangWatcher();
 };

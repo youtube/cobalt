@@ -14,6 +14,7 @@ android_resources("cobalt_java_resources") {
     "apk/app/src/app/res/mipmap-xxhdpi/ic_app.png",
     "apk/app/src/app/res/values/strings.xml",
     "apk/app/src/main/res/layout/coat_error_dialog.xml",
+    "apk/app/src/main/res/raw/splash.webm",
     "apk/app/src/main/res/values/colors.xml",
     "apk/app/src/main/res/values/ids.xml",
     "apk/app/src/main/res/values/overlayable.xml",

@@ -15,6 +15,7 @@
 #include "cobalt/app/cobalt_main_delegate.h"
 
 #include "base/process/current_process.h"
+#include "base/task/thread_pool.h"
 #include "base/threading/hang_watcher.h"
 #include "base/trace_event/trace_log.h"
 #include "cobalt/browser/cobalt_content_browser_client.h"
@@ -27,6 +28,8 @@
 #include "content/public/browser/render_frame_host.h"
 #include "content/public/common/content_switches.h"
 #include "gpu/command_buffer/service/gpu_switches.h"
+#include "media/starboard/splash_screen_player.h"
+#include "starboard/window.h"
 
 namespace cobalt {
 
@@ -113,6 +116,15 @@ absl::variant<int, content::MainFunctionParams> CobaltMainDelegate::RunProcess(
   base::trace_event::TraceLog::GetInstance()->SetProcessSortIndex(
       content::kTraceEventBrowserProcessSortIndex);
 
+  SbWindowOptions options;
+  SbWindowSetDefaultOptions(&options);
+  SbWindow window = SbWindowCreate(&options);
+  CHECK(SbWindowIsValid(window));
+
+  splash_screen_player_ = std::make_unique<media::SplashScreenPlayer>(
+      base::ThreadPool::CreateSequencedTaskRunner({}), window);
+  splash_screen_player_->Start();
+
   main_runner_ = content::BrowserMainRunner::Create();
 
   // In browser tests, the |main_function_params| contains a |ui_task| which
@@ -122,6 +134,10 @@ absl::variant<int, content::MainFunctionParams> CobaltMainDelegate::RunProcess(
       main_runner_->Initialize(std::move(main_function_params));
   DCHECK_LT(initialize_exit_code, 0)
       << "BrowserMainRunner::Initialize failed in ShellMainDelegate";
+
+  splash_screen_player_->Stop();
+  splash_screen_player_.reset();
+  SbWindowDestroy(window);
 
   // Return 0 as BrowserMain() should not be called after this, bounce up to
   // the system message loop for ContentShell, and we're already done thanks

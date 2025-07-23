@@ -89,6 +89,8 @@ source_set("starboard") {
       "sbplayer_interface.h",
       "sbplayer_set_bounds_helper.cc",
       "sbplayer_set_bounds_helper.h",
+      "splash_screen_player.cc",
+      "splash_screen_player.h",
       "starboard_cdm.cc",
       "starboard_cdm.h",
       "starboard_cdm_factory.cc",
@@ -109,6 +111,7 @@ source_set("starboard") {
     "//mojo/public/cpp/bindings:bindings",
     "//starboard:starboard_group",
     "//starboard/common",
+    "//third_party/libwebm",
     "//url",
   ]
 
