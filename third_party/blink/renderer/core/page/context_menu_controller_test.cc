@@ -59,8 +59,10 @@ namespace blink {
 
 namespace {
 
+#if !BUILDFLAG(IS_COBALT)
 constexpr char kTestResourceFilename[] = "white-1x1.png";
 constexpr char kTestResourceMimeType[] = "image/png";
+#endif
 
 class MockWebMediaPlayerForContextMenu : public EmptyWebMediaPlayer {
  public:
