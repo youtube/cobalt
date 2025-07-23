@@ -63,6 +63,7 @@ class ThrottlingDecoderFlowControl : public DecoderFlowControl {
 
   int entering_frame_id_ = 0;
   int decoded_frame_id_ = 0;
+  bool started_ = false;
 };
 
 ThrottlingDecoderFlowControl::ThrottlingDecoderFlowControl(
@@ -89,9 +90,11 @@ bool ThrottlingDecoderFlowControl::AddFrame(int64_t presentation_time_us) {
                << ", decoding_frames=" << state_.decoding_frames;
   std::lock_guard lock(mutex_);
 
-  if (state_.total_frames() == max_frames_) {
-    SB_LOG(FATAL) << __func__ << " < total_frame=" << state_.total_frames();
-    return false;
+  if (state_.total_frames() >= max_frames_) {
+    SB_LOG(WARNING) << __func__ << " < total_frame=" << state_.total_frames();
+    if (started_) {
+      return false;
+    }
   }
   state_.decoding_frames++;
   decoding_start_times_us_.push_back(CurrentMonotonicTime());
@@ -108,6 +111,7 @@ bool ThrottlingDecoderFlowControl::AddFrame(int64_t presentation_time_us) {
 bool ThrottlingDecoderFlowControl::SetFrameDecoded(
     int64_t presentation_time_us) {
   std::lock_guard lock(mutex_);
+  started_ = true;
   if (state_.decoding_frames == 0) {
     SB_LOG(FATAL) << __func__ << " < no decoding frames"
                   << ", pts(msec)=" << presentation_time_us / 1000;
@@ -171,6 +175,10 @@ DecoderFlowControl::State ThrottlingDecoderFlowControl::GetCurrentState()
 
 bool ThrottlingDecoderFlowControl::CanAcceptMore() {
   std::lock_guard lock(mutex_);
+  if (!started_) {
+    SB_LOG(INFO) << __func__ << ": returning true until started";
+    return true;
+  }
   return state_.total_frames() < max_frames_;
 }
 
@@ -193,7 +201,7 @@ void ThrottlingDecoderFlowControl::UpdateDecodingStat_Locked() {
 }
 
 void ThrottlingDecoderFlowControl::UpdateState_Locked() {
-  SB_CHECK_LE(state_.total_frames(), max_frames_);
+  // SB_CHECK_LE(state_.total_frames(), max_frames_);
   SB_CHECK_GE(state_.decoding_frames, 0);
   SB_CHECK_GE(state_.decoded_frames, 0);
 

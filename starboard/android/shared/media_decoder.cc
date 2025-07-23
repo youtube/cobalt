@@ -35,7 +35,7 @@ using base::android::AttachCurrentThread;
 
 namespace {
 
-constexpr int kMaxFramesInDecoder = 2;
+constexpr int kMaxFramesInDecoder = 4;
 constexpr bool kForceLimiting = true;
 constexpr int kFrameTrackerLogIntervalUs = 1'000'000;  // 1 sec.
 
@@ -660,6 +660,7 @@ void MediaDecoder::OnMediaCodecError(bool is_recoverable,
 }
 
 void MediaDecoder::OnMediaCodecInputBufferAvailable(int buffer_index) {
+  SB_LOG(INFO) << __func__;
   if (media_type_ == kSbMediaTypeVideo && first_call_on_handler_thread_) {
     // Set the thread priority of the Handler thread to dispatch the async
     // decoder callbacks to high.
