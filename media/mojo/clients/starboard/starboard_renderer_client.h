@@ -64,8 +64,12 @@ class MEDIA_EXPORT StarboardRendererClient
       mojo::PendingRemote<RendererExtension> pending_renderer_extension,
       mojo::PendingReceiver<ClientExtension> client_extension_receiver,
       BindHostReceiverCallback bind_host_receiver_callback,
-      GpuVideoAcceleratorFactories* gpu_factories,
-      RequestOverlayInfoCB request_overlay_info_cb);
+      GpuVideoAcceleratorFactories* gpu_factories
+#if BUILDFLAG(IS_ANDROID)
+      ,
+      RequestOverlayInfoCB request_overlay_info_cb
+#endif  // BUILDFLAG(IS_ANDROID)
+  );
 
   StarboardRendererClient(const StarboardRendererClient&) = delete;
   StarboardRendererClient& operator=(const StarboardRendererClient&) = delete;
@@ -104,7 +108,9 @@ class MEDIA_EXPORT StarboardRendererClient
   // mojom::StarboardRendererClientExtension implementation
   void PaintVideoHoleFrame(const gfx::Size& size) override;
   void UpdateStarboardRenderingMode(const StarboardRenderingMode mode) override;
+#if BUILDFLAG(IS_ANDROID)
   void RequestOverlayInfo(bool restart_for_transitions) override;
+#endif  // BUILDFLAG(IS_ANDROID)
 
   // cobalt::media::mojom::VideoGeometryChangeClient implementation.
   void OnVideoGeometryChange(const gfx::RectF& rect_f,
@@ -134,7 +140,9 @@ class MEDIA_EXPORT StarboardRendererClient
   void SetPlayingState(bool is_playing);
   void UpdateCurrentFrame();
   void OnGetCurrentVideoFrameDone(const scoped_refptr<VideoFrame>& frame);
+#if BUILDFLAG(IS_ANDROID)
   void OnOverlayInfoChanged(const OverlayInfo& overlay_info);
+#endif  // BUILDFLAG(IS_ANDROID)
   void StartVideoRendererSink();
   void StopVideoRendererSink();
 
@@ -148,7 +156,6 @@ class MEDIA_EXPORT StarboardRendererClient
   const BindHostReceiverCallback bind_host_receiver_callback_;
   raw_ptr<GpuVideoAcceleratorFactories> gpu_factories_ = nullptr;
   RequestOverlayInfoCB request_overlay_info_cb_;
-
   mojo::Remote<RendererExtension> renderer_extension_;
 
   raw_ptr<RendererClient> client_ = nullptr;

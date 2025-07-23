@@ -107,11 +107,17 @@ class MEDIA_EXPORT StarboardRenderer : public Renderer,
       base::RepeatingCallback<void(bool restart_for_transitions)>;
   void SetStarboardRendererCallbacks(
       PaintVideoHoleFrameCallback paint_video_hole_frame_cb,
-      UpdateStarboardRenderingModeCallback update_starboard_rendering_mode_cb,
-      RequestOverlayInfoCallBack request_overlay_info_cb);
+      UpdateStarboardRenderingModeCallback update_starboard_rendering_mode_cb
+#if BUILDFLAG(IS_ANDROID)
+      ,
+      RequestOverlayInfoCallBack request_overlay_info_cb
+#endif  // BUILDFLAG(IS_ANDROID)
+  );
 
   void OnVideoGeometryChange(const gfx::Rect& output_rect);
+#if BUILDFLAG(IS_ANDROID)
   void OnOverlayInfoChanged(const OverlayInfo& overlay_info);
+#endif  // BUILDFLAG(IS_ANDROID)
 
   SbPlayerInterface* GetSbPlayerInterface();
 
