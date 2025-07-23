@@ -216,8 +216,13 @@ component("chromium_sqlite3") {
   }
 
   if (is_starboard) {
-    # mremap is unsupported for Starboard platforms.
-    defines += [ "HAVE_MREMAP=0" ]
+    defines += [
+      # mremap is unsupported for Starboard platforms.
+      "HAVE_MREMAP=0",
+
+      # Avoid using posix_fallocate for starboard. Refer to b/432313858
+      "HAVE_POSIX_FALLOCATE=0",
+    ]
   }
 
   include_dirs = [
