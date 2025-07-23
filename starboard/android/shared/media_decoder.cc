@@ -521,8 +521,19 @@ bool MediaDecoder::ProcessOneInputBuffer(
     memcpy(address, data, size);
   }
 
+  if (size > 0) {
+    SB_LOG(INFO) << "Calling AddFrame: is_key_frame="
+                 << (input_buffer->video_sample_info().is_key_frame ? "true"
+                                                                    : "false")
+                 << ", size=" << input_buffer->size();
+    decoder_flow_control_->AddFrame(input_buffer->timestamp());
+  } else {
+    SB_LOG(WARNING) << __func__ << " > size=" << size;
+  }
+
   jint status;
   if (drm_system_ && !drm_system_->IsReady()) {
+    SB_NOTREACHED();
     // Drm system initialization is asynchronous. If there's a drm system, we
     // should wait until it's initialized to avoid errors.
     status = MEDIA_CODEC_NO_KEY;
@@ -548,23 +559,14 @@ bool MediaDecoder::ProcessOneInputBuffer(
   }
 
   if (status != MEDIA_CODEC_OK) {
-    SB_LOG(ERROR) << "QueueInputBuffer returns status=" << status;
+    SB_LOG(FATAL) << "QueueInputBuffer returns status=" << status;
     HandleError("queue(Secure)?InputBuffer", status);
     // TODO: Stop the decoding loop and call error_cb_ on fatal error.
     SB_DCHECK(!pending_input_to_retry_);
     pending_input_to_retry_ = {dequeue_input_result, pending_input};
     return false;
   }
-  if (size > 0) {
-    SB_LOG(INFO) << "Calling AddFrame: is_key_frame="
-                 << (input_buffer->video_sample_info().is_key_frame ? "true"
-                                                                    : "false")
-                 << ", size=" << input_buffer->size();
-    SB_DCHECK(decoder_flow_control_->AddFrame(input_buffer->timestamp()))
-        << "Frame tracker is unexpectedly full.";
-  } else {
-    SB_LOG(WARNING) << __func__ << " > size=" << size;
-  }
+
   is_output_restricted_ = false;
   return true;
 }
@@ -686,8 +688,12 @@ void MediaDecoder::OnMediaCodecOutputBufferAvailable(
     return;
   }
 
-  if (!decoder_flow_control_->SetFrameDecoded(presentation_time_us)) {
-    SB_LOG(ERROR) << "SetFrameDecoded() called on empty frame tracker.";
+  if (size > 0) {
+    if (!decoder_flow_control_->SetFrameDecoded(presentation_time_us)) {
+      SB_LOG(ERROR) << "SetFrameDecoded() called on empty frame tracker.";
+    }
+  } else {
+    SB_LOG(INFO) << __func__ << " > size is 0, which may mean EOS";
   }
 
   DequeueOutputResult dequeue_output_result;
