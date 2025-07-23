@@ -32,6 +32,7 @@ ExoPlayerWorkerHandler::ExoPlayerWorkerHandler(
       audio_stream_info_(creation_param->audio_stream_info),
       video_stream_info_(creation_param->video_stream_info) {
   update_job_ = std::bind(&ExoPlayerWorkerHandler::Update, this);
+  bridge_.reset(new ExoPlayerBridge(audio_stream_info_, video_stream_info_));
 }
 
 HandlerResult ExoPlayerWorkerHandler::Init(
@@ -57,11 +58,13 @@ HandlerResult ExoPlayerWorkerHandler::Init(
   update_player_state_cb_ = update_player_state_cb;
   update_player_error_cb_ = update_player_error_cb;
 
-  bridge_.reset(new ExoPlayerBridge(
-      audio_stream_info_, video_stream_info_,
+  bridge_->SetCallbacks(
       std::bind(&ExoPlayerWorkerHandler::OnError, this, _1, _2),
       std::bind(&ExoPlayerWorkerHandler::OnPrerolled, this),
-      std::bind(&ExoPlayerWorkerHandler::OnEnded, this)));
+      std::bind(&ExoPlayerWorkerHandler::OnEnded, this));
+  if (!bridge_->EnsurePlayerIsInitialized()) {
+    return HandlerResult{false};
+  }
 
   update_job_token_ = Schedule(update_job_, kUpdateIntervalUsec);
 
@@ -70,19 +73,14 @@ HandlerResult ExoPlayerWorkerHandler::Init(
 
 HandlerResult ExoPlayerWorkerHandler::Seek(int64_t seek_to_time, int ticket) {
   SB_DCHECK(bridge_);
-  SB_LOG(INFO) << "Called Seek() to " << seek_to_time;
 
   if (seek_to_time < 0) {
-    SB_DLOG(ERROR) << "Try to seek to negative timestamp " << seek_to_time;
+    SB_DLOG(ERROR) << "Tried to seek to negative timestamp " << seek_to_time;
     seek_to_time = 0;
   }
 
   bridge_->Pause();
   bridge_->Seek(seek_to_time);
-  audio_prerolled_ = false;
-  video_prerolled_ = false;
-  audio_ended_ = false;
-  video_ended_ = false;
 
   return HandlerResult{true};
 }
@@ -101,12 +99,12 @@ HandlerResult ExoPlayerWorkerHandler::WriteSamples(
   *samples_written = 0;
   if (input_buffers.front()->sample_type() == kSbMediaTypeAudio) {
     if (bridge_->IsEndOfStreamWritten(kSbMediaTypeAudio)) {
-      SB_LOG(WARNING) << "Try to write audio sample after EOS is reached";
+      SB_LOG(WARNING) << "Tried to write audio sample after EOS is reached";
     }
   } else {
     SB_DCHECK(input_buffers.front()->sample_type() == kSbMediaTypeVideo);
     if (bridge_->IsEndOfStreamWritten(kSbMediaTypeVideo)) {
-      SB_LOG(WARNING) << "Try to write video sample after EOS is reached";
+      SB_LOG(WARNING) << "Tried to write video sample after EOS is reached";
     }
   }
   for (const auto& input_buffer : input_buffers) {
@@ -121,14 +119,14 @@ HandlerResult ExoPlayerWorkerHandler::WriteEndOfStream(
   SB_DCHECK(BelongsToCurrentThread());
   if (sample_type == kSbMediaTypeAudio) {
     if (bridge_->IsEndOfStreamWritten(kSbMediaTypeAudio)) {
-      SB_LOG(WARNING) << "Try to write audio EOS after EOS is enqueued";
+      SB_LOG(WARNING) << "Tried to write audio EOS after EOS is enqueued";
     } else {
       SB_LOG(INFO) << "Audio EOS enqueued";
       bridge_->WriteEndOfStream(kSbMediaTypeAudio);
     }
   } else {
     if (bridge_->IsEndOfStreamWritten(kSbMediaTypeVideo)) {
-      SB_LOG(WARNING) << "Try to write video EOS after EOS is enqueued";
+      SB_LOG(WARNING) << "Tried to write video EOS after EOS is enqueued";
     } else {
       SB_LOG(INFO) << "Video EOS enqueued";
       bridge_->WriteEndOfStream(kSbMediaTypeVideo);
@@ -140,8 +138,6 @@ HandlerResult ExoPlayerWorkerHandler::WriteEndOfStream(
 
 HandlerResult ExoPlayerWorkerHandler::SetPause(bool pause) {
   SB_DCHECK(BelongsToCurrentThread());
-
-  SB_LOG(INFO) << "Set pause from " << paused_ << " to " << pause;
 
   paused_ = pause;
 
@@ -158,9 +154,6 @@ HandlerResult ExoPlayerWorkerHandler::SetPause(bool pause) {
 HandlerResult ExoPlayerWorkerHandler::SetPlaybackRate(double playback_rate) {
   SB_DCHECK(BelongsToCurrentThread());
 
-  SB_LOG(INFO) << "Set playback rate from " << playback_rate_ << " to "
-               << playback_rate;
-
   playback_rate_ = playback_rate;
 
   bridge_->SetPlaybackRate(playback_rate_);
@@ -171,8 +164,6 @@ HandlerResult ExoPlayerWorkerHandler::SetPlaybackRate(double playback_rate) {
 
 void ExoPlayerWorkerHandler::SetVolume(double volume) {
   SB_DCHECK(BelongsToCurrentThread());
-
-  SB_LOG(INFO) << "Set volume from " << volume_ << " to " << volume;
 
   volume_ = volume;
   bridge_->SetVolume(volume_);

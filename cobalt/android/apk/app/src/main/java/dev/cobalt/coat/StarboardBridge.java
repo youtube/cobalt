@@ -535,7 +535,7 @@ public class StarboardBridge {
   }
 
   @SuppressWarnings("unused")
-  @UsedByNative
+  @CalledByNative
   ExoPlayerBridge getExoPlayerBridge() {
     return exoPlayerBridge;
   }

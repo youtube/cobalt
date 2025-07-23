@@ -81,6 +81,8 @@ class StarboardBridge {
 
   ScopedJavaLocalRef<jobject> GetAudioOutputManager(JNIEnv* env);
 
+  ScopedJavaLocalRef<jobject> GetExoPlayerBridge(JNIEnv* env);
+
   std::string GetUserAgentAuxField(JNIEnv* env) const;
 
   bool IsAmatiDevice(JNIEnv* env) const;

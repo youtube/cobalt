@@ -360,7 +360,6 @@ void ChunkDemuxerStream::UnmarkEndOfStream() {
 // DemuxerStream methods.
 #if BUILDFLAG(USE_STARBOARD_MEDIA)
 std::string ChunkDemuxerStream::mime_type() const {
-  LOG(INFO) << "CALLED MIME_TYPE(), WILL RETURN " << mime_type_;
   return mime_type_;
 }
 #endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
@@ -851,7 +850,6 @@ ChunkDemuxer::Status ChunkDemuxer::AddId(const std::string& id,
     return kNotSupported;
   }
   DCHECK(!base::Contains(id_to_mime_map_, id));
-  LOG(INFO) << "STORING MIME TYPE " << mime_type << "TO ID " << id;
   id_to_mime_map_[id] = mime_type;
   return AddId(id, type, codecs);
 }
@@ -1684,10 +1682,8 @@ ChunkDemuxerStream* ChunkDemuxer::CreateDemuxerStream(
   }
 
 #if BUILDFLAG(USE_STARBOARD_MEDIA)
-  LOG(INFO) << "SEARCHING FOR MIME MAPPED TO " << source_id;
   auto iter = id_to_mime_map_.find(source_id);
   std::string mime_type = iter != id_to_mime_map_.end() ? iter->second : "";
-  LOG(INFO) << "MIME ENDED UP BEING " << mime_type;
   std::unique_ptr<ChunkDemuxerStream> stream =
       std::make_unique<ChunkDemuxerStream>(mime_type, type, media_track_id);
 #else   // BUILDFLAG(USE_STARBOARD_MEDIA)

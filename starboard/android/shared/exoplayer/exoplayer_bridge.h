@@ -20,9 +20,10 @@
 #include <memory>
 #include <string>
 
-#include "starboard/android/shared/jni_env_ext.h"
-#include "starboard/android/shared/jni_utils.h"
+#include "base/android/jni_android.h"
+#include "base/android/jni_array.h"
 #include "starboard/android/shared/video_window.h"
+#include "starboard/common/condition_variable.h"
 #include "starboard/common/mutex.h"
 #include "starboard/media.h"
 #include "starboard/player.h"
@@ -34,10 +35,19 @@
 
 namespace starboard::android::shared::exoplayer {
 
-using starboard::android::shared::JniEnvExt;
+using base::android::ScopedJavaGlobalRef;
 using starboard::android::shared::VideoSurfaceHolder;
 using starboard::shared::starboard::player::filter::EndedCB;
 using starboard::shared::starboard::player::filter::ErrorCB;
+
+// GENERATED_JAVA_ENUM_PACKAGE: dev.cobalt.media
+// GENERATED_JAVA_PREFIX_TO_STRIP: EXOPLAYER_RENDERER_TYPE_
+enum ExoPlayerRendererType {
+  EXOPLAYER_RENDERER_TYPE_AUDIO,
+  EXOPLAYER_RENDERER_TYPE_VIDEO,
+
+  EXOPLAYER_RENDERER_TYPE_MAX = EXOPLAYER_RENDERER_TYPE_VIDEO,
+};
 
 class ExoPlayerBridge final : private VideoSurfaceHolder {
  public:
@@ -56,15 +66,14 @@ class ExoPlayerBridge final : private VideoSurfaceHolder {
     bool is_underflow;
     double playback_rate;
   };
-  //   typedef std::function<void(MediaInfo& info)>
-  //       UpdateMediaInfoCB;
 
   ExoPlayerBridge(const AudioStreamInfo& audio_stream_info,
-                  const VideoStreamInfo& video_stream_info,
-                  const ErrorCB& error_cb,
-                  const PrerolledCB& prerolled_cb,
-                  const EndedCB& ended_cb);
+                  const VideoStreamInfo& video_stream_info);
   ~ExoPlayerBridge();
+
+  void SetCallbacks(const ErrorCB& error_cb,
+                    const PrerolledCB& prerolled_cb,
+                    const EndedCB& ended_cb);
 
   void Seek(int64_t seek_to_timestamp);
   void WriteSamples(const InputBuffers& input_buffers);
@@ -73,16 +82,22 @@ class ExoPlayerBridge final : private VideoSurfaceHolder {
   bool Pause();
   bool Stop();
   bool SetVolume(double volume);
-  void SetPlaybackRate(const double playback_rate);
+  bool SetPlaybackRate(const double playback_rate);
 
   int GetDroppedFrames();
   int64_t GetCurrentMediaTime(MediaInfo& info);
+
+  // Native callbacks.
+  void OnPlaybackStateChanged(JNIEnv* env, jint playbackState);
+  void OnInitialized(JNIEnv* env);
+  void OnError(JNIEnv* env);
+  void SetPlayingStatus(JNIEnv* env, jboolean isPlaying);
 
   void OnPlayerInitialized();
   void OnPlayerPrerolled();
   void OnPlayerError();
   void OnPlaybackEnded();
-  void SetPlayingStatus(bool is_playing);
+  void SetPlayingStatusInternal(bool is_playing);
 
   // VideoSurfaceHolder method
   void OnSurfaceDestroyed() override {}
@@ -92,29 +107,27 @@ class ExoPlayerBridge final : private VideoSurfaceHolder {
   }
 
   bool is_valid() const {
-    return j_exoplayer_bridge_ != nullptr && j_sample_data_ != nullptr;
+    return !j_exoplayer_bridge_.is_null() && !j_sample_data_.is_null() &&
+           !error_occurred_;
   }
 
+  bool EnsurePlayerIsInitialized();
+
  private:
-  bool InitExoplayer();
+  void InitExoplayer();
 
   void TearDownExoPlayer();
   void UpdatePlayingStatus(bool is_playing);
 
-  jobject j_exoplayer_bridge_ = nullptr;
-  jobject j_sample_data_ = nullptr;
-  jobject j_output_surface_ = nullptr;
+  ScopedJavaGlobalRef<jobject> j_exoplayer_bridge_ = nullptr;
+  ScopedJavaGlobalRef<jbyteArray> j_sample_data_ = nullptr;
+  ScopedJavaGlobalRef<jobject> j_output_surface_ = nullptr;
 
   bool error_occurred_ = false;
-  bool audio_only_ = false;
-  bool video_only_ = false;
-  SbPlayerState player_state_;
   starboard::shared::starboard::media::AudioStreamInfo audio_stream_info_;
   starboard::shared::starboard::media::VideoStreamInfo video_stream_info_;
 
-  int64_t last_media_time_ = 0;
   int64_t seek_time_ = 0;
-  int dropped_video_frames_ = 0;
   bool is_playing_ = false;
   bool ended_ = false;
 
@@ -123,6 +136,8 @@ class ExoPlayerBridge final : private VideoSurfaceHolder {
   EndedCB ended_cb_;
 
   Mutex mutex_;
+  // Signaled once player initialization is complete.
+  ConditionVariable cv_;
   bool audio_eos_written_ = false;
   bool video_eos_written_ = false;
   bool playback_ended_ = false;

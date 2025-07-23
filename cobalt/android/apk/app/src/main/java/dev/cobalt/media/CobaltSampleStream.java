@@ -25,159 +25,135 @@ import androidx.media3.exoplayer.FormatHolder;
 import androidx.media3.exoplayer.source.SampleQueue;
 import androidx.media3.exoplayer.source.SampleStream;
 import androidx.media3.exoplayer.upstream.Allocator;
-import dev.cobalt.util.Log;
+
+import org.chromium.base.annotations.JNINamespace;
+
 import java.io.IOException;
 
+import dev.cobalt.util.Log;
+
+@JNINamespace("starboard::android::shared::exoplayer")
 @UnstableApi
 public class CobaltSampleStream implements SampleStream {
-  private SampleQueue sampleQueue;
-  public boolean prerolled = false;
-  public boolean firstData = true;
-  private boolean endOfStream = false;
-  private Allocator allocator;
+    private SampleQueue sampleQueue;
+    public boolean prerolled = false;
+    public boolean firstData = true;
+    private boolean endOfStream = false;
+    private Allocator allocator;
+    private long samplesQueued = 0;
 
-  CobaltSampleStream(Allocator allocator, Format format) {
-    this.allocator = allocator;
-    sampleQueue = SampleQueue.createWithoutDrm(allocator);
-    sampleQueue.format(format);
-  }
+    CobaltSampleStream(Allocator allocator, Format format) {
+        this.allocator = allocator;
+        sampleQueue = SampleQueue.createWithoutDrm(allocator);
+        sampleQueue.format(format);
+    }
 
-  void discardBuffer(long positionUs, boolean toKeyframe) {
-    // Log.i(TAG, String.format("Discarding Samplequeue to %d", positionUs));
-    sampleQueue.discardTo(positionUs, toKeyframe, true);
-  }
+    void discardBuffer(long positionUs, boolean toKeyframe) {
+        sampleQueue.discardTo(positionUs, toKeyframe, true);
+    }
 
-  void writeSample(byte[] data, int sizeInBytes, long timestampUs, boolean isKeyFrame, boolean isEndOfStream) {
-    int sampleFlags = isKeyFrame ? C.BUFFER_FLAG_KEY_FRAME : 0;
-    if (firstData) {
-      sampleFlags = sampleFlags | C.BUFFER_FLAG_FIRST_SAMPLE;
-      firstData = false;
-      Log.i(TAG, String.format("Setting sampleQueue start time to %d", timestampUs));
-      sampleQueue.setStartTimeUs(timestampUs);
-    }
-    if (isEndOfStream) {
-      sampleFlags = sampleFlags | C.BUFFER_FLAG_END_OF_STREAM;
-      endOfStream = true;
-      Log.i(TAG, "Reached end of stream in SampleQueue");
-    }
-    // Log.i(TAG, String.format("Preparing to append to queue with timestamp %d", timestampUs));
-    ParsableByteArray array = new ParsableByteArray(data);
-    // Log.i(TAG, String.format("Size in bytes is %d, data length is %d", sizeInBytes, data.length));
-    try {
-      sampleQueue.sampleData(array, sizeInBytes);
-    } catch (Exception e) {
-      Log.i(TAG, String.format("Caught exception from sampleQueue.sampleData() %s", e.toString()));
-    }
-    try {
-      sampleQueue.sampleMetadata(timestampUs, sampleFlags, sizeInBytes, 0, null);
-      // Log.i(TAG, String.format("Wrote %s sample with timestamp %d", (sampleQueue.getUpstreamFormat().sampleRate != Format.NO_VALUE ? "audio" :"video"), timestampUs));
-    } catch (Exception e) {
-      Log.i(TAG, String.format("Caught exception from sampleQueue.sampleMetadata() %s", e.toString()));
-    }
-    // Log.i(TAG, String.format("Appended sample for format: %s (%s) of size %d. Current read index: %d, current queued timestamp: %d, is key frame: %s",
-    //     sampleQueue.getUpstreamFormat().codecs, sampleQueue.getUpstreamFormat().sampleMimeType,
-    //     sizeInBytes, sampleQueue.getReadIndex(), sampleQueue.getLargestQueuedTimestampUs(), isKeyFrame ? "yes" : "no"));
-    if (!prerolled) {
-      if (sampleQueue.getUpstreamFormat().sampleRate != Format.NO_VALUE) {
-        // Audio stream
-        prerolled = (prerolled || sampleQueue.getLargestQueuedTimestampUs() > 500000) || endOfStream;
-        if (prerolled) {
-          Log.i(TAG, "Prerolled audio stream");
+    void writeSample(byte[] data, int sizeInBytes, long timestampUs, boolean isKeyFrame,
+            boolean isEndOfStream) {
+        int sampleFlags = isKeyFrame ? C.BUFFER_FLAG_KEY_FRAME : 0;
+        if (firstData) {
+            sampleFlags = sampleFlags | C.BUFFER_FLAG_FIRST_SAMPLE;
+            firstData = false;
+            Log.i(TAG, String.format("Setting sampleQueue start time to %d", timestampUs));
+            sampleQueue.setStartTimeUs(timestampUs);
         }
-      } else {
-        // Video stream
-        prerolled = (prerolled || sampleQueue.getLargestQueuedTimestampUs() > 500000) || endOfStream;
-        if (prerolled) {
-          Log.i(TAG, "Prerolled video stream");
+        if (isEndOfStream) {
+            sampleFlags = sampleFlags | C.BUFFER_FLAG_END_OF_STREAM;
+            endOfStream = true;
+            prerolled = true;
+            Log.i(TAG, "Reached end of stream in SampleQueue, setting EOS buffer and returning");
+            return;
         }
-      }
-    }
-  }
 
-  @Override
-  public boolean isReady() {
-    // Log.i(TAG, String.format("Checking if SampleStream is ready: %b", sampleQueue.isReady(endOfStream)));
-    // return sampleQueue.isReady(endOfStream) && prerolled;
-    return sampleQueue.isReady(endOfStream) || endOfStream;
-    // boolean ready = sampleQueue.isReady(false);
-    // Log.i(TAG, String.format("Checking if SampleStream is ready. SampleQueue: %b, prerolled: %b", ready, prerolled));
-    // return ready && prerolled;
-    // return sampleQueue.isReady(false);
-  }
+        ParsableByteArray array = new ParsableByteArray(data);
 
-  @Override
-  public void maybeThrowError() throws IOException {
-    // Log.i(TAG, "ExoPlayer SampleStream throws an error");
-    // try {
-    //   sampleQueue.maybeThrowError();
-    // } catch (IOException e) {
-    //   Log.i(TAG, String.format("Caught exception from SampleQueue: %s", e.toString()));
-    // }
-  }
-
-  @Override
-  public int readData(FormatHolder formatHolder, DecoderInputBuffer buffer, int readFlags) {
-    // if (sampleQueue.getUpstreamFormat().sampleRate != Format.NO_VALUE) {
-    //   Log.i(TAG, "Called readData() for audio");
-    // } else {
-    //   Log.i(TAG, "Called readData() for video");
-    // }
-    if (!sampleQueue.isReady(endOfStream)) {
-      // Log.e(TAG, "SampleQueue is not ready to read from");
-      // Log.i(TAG, "Queue is not ready to be read from");
-      return C.RESULT_NOTHING_READ;
-    }
-    // Log.i(TAG, String.format("Current read position is %d", sampleQueue.getFirstTimestampUs()));
-    // Log.i(TAG, String.format("READING DATA FROM SAMPLEQUEUE. READFLAGS: %d", readFlags));
-    // if (buffer.format != null) {
-    //   Log.i(TAG, String.format("ExoPlayer is reading data for format %s", buffer.format.sampleMimeType));
-    // } else if (formatHolder.format != null) {
-    //   Log.i(TAG, String.format("ExoPlayer is reading formatholder for format %s", formatHolder.format.sampleMimeType));
-    // }
-    int read = -1;
-    try {
-      read = sampleQueue.read(formatHolder, buffer, readFlags, endOfStream);
-      // if (buffer.format != null) {
-      //   Log.i(TAG,
-      //       String.format("ExoPlayer is reading data for format %s", buffer.format.sampleMimeType));
-      // } else if (formatHolder.format != null) {
-      //   Log.i(TAG, String.format("ExoPlayer is reading formatholder for format %s",
-      //       formatHolder.format.sampleMimeType));
-      // }
-      // Log.i(TAG, String.format("READ RETURNS %d", read));
-    } catch (Exception e) {
-      Log.i(TAG, String.format("Caught exception from read() %s", e.toString()));
+        try {
+            sampleQueue.sampleData(array, sizeInBytes);
+        } catch (Exception e) {
+            Log.i(TAG,
+                    String.format(
+                            "Caught exception from sampleQueue.sampleData() %s", e.toString()));
+        }
+        try {
+            sampleQueue.sampleMetadata(timestampUs, sampleFlags, sizeInBytes, 0, null);
+        } catch (Exception e) {
+            Log.i(TAG,
+                    String.format(
+                            "Caught exception from sampleQueue.sampleMetadata() %s", e.toString()));
+        }
+        samplesQueued = samplesQueued + 1;
+        if (!prerolled) {
+            if (sampleQueue.getUpstreamFormat().sampleRate != Format.NO_VALUE) {
+                // Audio stream
+                prerolled = (prerolled || sampleQueue.getLargestQueuedTimestampUs() > 500000)
+                        || endOfStream;
+                if (prerolled) {
+                    Log.i(TAG, "Prerolled audio stream");
+                }
+            } else {
+                // Video stream
+                prerolled = (prerolled || sampleQueue.getLargestQueuedTimestampUs() > 500000)
+                        || endOfStream;
+                if (prerolled) {
+                    Log.i(TAG, "Prerolled video stream");
+                }
+            }
+        }
     }
 
-    // Log.i(TAG, String.format("Buffer time for %s sample is %d, is key frame %b", (sampleQueue.getUpstreamFormat().sampleRate != Format.NO_VALUE ? "audio" : "video"), buffer.timeUs, buffer.isKeyFrame()));
-    // Log.i(TAG, String.format("Allocated bytes is %d", allocator.getTotalBytesAllocated()));
-    if (buffer.timeUs == 0L && endOfStream) {
-      Log.i(TAG, "Setting EOS buffer flag");
-      buffer.addFlag(C.BUFFER_FLAG_END_OF_STREAM);
-    } else if (endOfStream) {
-      Log.i(TAG, String.format("Buffer time: %d, is data null: %b", buffer.timeUs, buffer.data == null));
+    @Override
+    public boolean isReady() {
+        return sampleQueue.isReady(endOfStream) || endOfStream;
     }
-    return read;
-  }
 
-  @Override
-  public int skipData(long positionUs) {
-    Log.i(TAG, String.format("Called skipData() to %d", positionUs));
-    int skipCount = sampleQueue.getSkipCount(positionUs, endOfStream);
-    sampleQueue.skip(skipCount);
-    Log.i(TAG, String.format("Skipped %d samples", skipCount));
-    return skipCount;
-  }
+    @Override
+    public void maybeThrowError() throws IOException {}
 
-  public long getBufferedPositionUs() {
-    return sampleQueue.getLargestQueuedTimestampUs();
-  }
+    @Override
+    public int readData(FormatHolder formatHolder, DecoderInputBuffer buffer, int readFlags) {
+        if (!sampleQueue.isReady(endOfStream)) {
+            return C.RESULT_NOTHING_READ;
+        }
+        if (endOfStream && samplesQueued == 0) {
+            Log.i(TAG, "REPORTING END OF STREAM FROM SAMPLEQUEUE");
+            buffer.setFlags(C.BUFFER_FLAG_END_OF_STREAM);
+            return C.RESULT_BUFFER_READ;
+        }
 
-  public void clearStream() {
-    Log.i(TAG, "Called clearStream()");
-    sampleQueue.reset();
-    firstData = true;
-    prerolled = false;
-    endOfStream = false;
-  }
+        int read = -1;
+        try {
+            read = sampleQueue.read(formatHolder, buffer, readFlags, endOfStream);
+        } catch (Exception e) {
+            Log.i(TAG, String.format("Caught exception from read() %s", e.toString()));
+        }
+        if (read == C.RESULT_BUFFER_READ) {
+            samplesQueued = samplesQueued - 1;
+        }
+        return read;
+    }
+
+    @Override
+    public int skipData(long positionUs) {
+        Log.i(TAG, String.format("Called skipData() to %d", positionUs));
+        int skipCount = sampleQueue.getSkipCount(positionUs, endOfStream);
+        sampleQueue.skip(skipCount);
+        Log.i(TAG, String.format("Skipped %d samples", skipCount));
+        return skipCount;
+    }
+
+    public long getBufferedPositionUs() {
+        return sampleQueue.getLargestQueuedTimestampUs();
+    }
+
+    public void clearStream() {
+        Log.i(TAG, "Called clearStream()");
+        sampleQueue.reset();
+        firstData = true;
+        prerolled = false;
+        endOfStream = false;
+    }
 }

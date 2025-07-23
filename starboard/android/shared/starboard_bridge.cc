@@ -287,6 +287,11 @@ ScopedJavaLocalRef<jobject> StarboardBridge::GetAudioOutputManager(
   return Java_StarboardBridge_getAudioOutputManager(env, j_starboard_bridge_);
 }
 
+ScopedJavaLocalRef<jobject> StarboardBridge::GetExoPlayerBridge(JNIEnv* env) {
+  SB_DCHECK(env);
+  return Java_StarboardBridge_getExoPlayerBridge(env, j_starboard_bridge_);
+}
+
 bool StarboardBridge::IsMicrophoneDisconnected(JNIEnv* env) {
   SB_DCHECK(env);
   return Java_StarboardBridge_isMicrophoneDisconnected(env,

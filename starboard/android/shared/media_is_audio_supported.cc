@@ -61,9 +61,11 @@ bool MediaIsAudioSupported(SbMediaAudioCodec audio_codec,
 
   // Android uses a libopus based opus decoder for clear content, or a platform
   // opus decoder for encrypted content, if available.
-  if (audio_codec == kSbMediaAudioCodecOpus) {
-    return true;
-  }
+  // Skip this check for ExoPlayer
+  // TODO: Guard this
+  // if (audio_codec == kSbMediaAudioCodecOpus) {
+  //   return true;
+  // }
 
   bool media_codec_supported =
       MediaCapabilitiesCache::GetInstance()->HasAudioDecoderFor(mime, bitrate);

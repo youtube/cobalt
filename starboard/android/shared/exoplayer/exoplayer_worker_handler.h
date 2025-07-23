@@ -83,11 +83,6 @@ class ExoPlayerWorkerHandler : public Handler, private JobQueue::JobOwner {
   JobQueue::JobToken update_job_token_;
   std::function<void()> update_job_;
 
-  bool audio_prerolled_ = false;
-  bool video_prerolled_ = false;
-  bool audio_ended_ = false;
-  bool video_ended_ = false;
-
   SbPlayerOutputMode output_mode_;
   int max_video_input_size_;
 

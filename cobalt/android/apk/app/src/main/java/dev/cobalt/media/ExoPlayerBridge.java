@@ -35,15 +35,20 @@ import androidx.media3.exoplayer.analytics.AnalyticsListener;
 import androidx.media3.exoplayer.mediacodec.MediaCodecSelector;
 import androidx.media3.exoplayer.source.MediaSource;
 import androidx.media3.exoplayer.source.MergingMediaSource;
+import androidx.media3.exoplayer.source.SampleStream;
 import androidx.media3.exoplayer.trackselection.DefaultTrackSelector;
+
+import org.chromium.base.annotations.CalledByNative;
+import org.chromium.base.annotations.JNINamespace;
+import org.chromium.base.annotations.NativeMethods;
 
 import dev.cobalt.media.CobaltMediaCodecSelector;
 import dev.cobalt.media.CobaltMediaSource;
 import dev.cobalt.media.ExoPlayerFormatCreator;
+import dev.cobalt.media.ExoPlayerRendererType;
 import dev.cobalt.util.Log;
-import dev.cobalt.util.UsedByNative;
 
-@UsedByNative
+@JNINamespace("starboard::android::shared::exoplayer")
 @UnstableApi
 public class ExoPlayerBridge {
     private ExoPlayer player;
@@ -51,8 +56,6 @@ public class ExoPlayerBridge {
     private CobaltMediaSource audioMediaSource;
     private CobaltMediaSource videoMediaSource;
     private long mNativeExoPlayerBridge;
-    private boolean isAudioOnly;
-    private boolean isVideoOnly;
     private HandlerThread exoplayerThread;
     private Handler exoplayerHandler;
     private long lastPlaybackPos = 0;
@@ -68,11 +71,6 @@ public class ExoPlayerBridge {
         this.context = context;
     }
 
-    private native void nativeOnPlaybackStateChanged(long nativeExoPlayerBridge, int playbackState);
-    private native void nativeOnInitialized(long nativeExoPlayerBridge);
-    private native void nativeOnError(long nativeExoPlayerBridge);
-    private native void nativeSetPlayingStatus(long nativeExoPlayerBridge, boolean isPlaying);
-
     private class ExoPlayerListener implements Player.Listener {
         @Override
         public void onPlaybackStateChanged(@Player.State int playbackState) {
@@ -81,19 +79,18 @@ public class ExoPlayerBridge {
                 case Player.STATE_BUFFERING:
                 case Player.STATE_IDLE:
                     if (!stopped) {
-                        nativeOnPlaybackStateChanged(mNativeExoPlayerBridge, playbackState);
+                        ExoPlayerBridgeJni.get().onPlaybackStateChanged(
+                                mNativeExoPlayerBridge, playbackState);
                     }
                     break;
                 case Player.STATE_READY:
-                    Log.i(TAG,
-                            player.isTunnelingEnabled() ? "TUNNEL MODE ENABLED"
-                                                        : "TUNNEL MODE DISABLED");
-                    // No native callback for STATE_READY in original, maintaining omission.
                     break;
                 case Player.STATE_ENDED:
+                    Log.i(TAG, "EXOPLAYER HAS ENDED PLAYBACK");
                     if (!stopped && !firedEOS) {
                         firedEOS = true;
-                        nativeOnPlaybackStateChanged(mNativeExoPlayerBridge, playbackState);
+                        ExoPlayerBridgeJni.get().onPlaybackStateChanged(
+                                mNativeExoPlayerBridge, playbackState);
                     }
                     break;
             }
@@ -103,7 +100,7 @@ public class ExoPlayerBridge {
         public void onIsPlayingChanged(boolean isPlaying) {
             Log.i(TAG, isPlaying ? "Exoplayer is playing." : "Exoplayer is not playing.");
             if (!stopped) {
-                nativeSetPlayingStatus(mNativeExoPlayerBridge, isPlaying);
+                ExoPlayerBridgeJni.get().setPlayingStatus(mNativeExoPlayerBridge, isPlaying);
             }
         }
 
@@ -113,7 +110,7 @@ public class ExoPlayerBridge {
                     String.format("ExoPlayer playback error %s, code: %s, cause: %s",
                             error.getMessage(), error.getErrorCodeName(),
                             error.getCause() != null ? error.getCause().getMessage() : "N/A"));
-            nativeOnError(mNativeExoPlayerBridge);
+            ExoPlayerBridgeJni.get().onError(mNativeExoPlayerBridge);
         }
 
         @Override
@@ -142,24 +139,14 @@ public class ExoPlayerBridge {
         }
     }
 
-    @UsedByNative
-    public void createExoPlayer(long nativeExoPlayerBridge, @Nullable Surface surface,
-            byte[] audioConfigurationData, boolean isAudioOnly, boolean isVideoOnly, int sampleRate,
-            int channelCount, int width, int height, int fps, int videoBitrate, String audioMime,
-            String videoMime) {
-        if (surface != null && !surface.isValid()) {
-            Log.w(TAG, "Provided surface is invalid.");
-        }
-
+    @CalledByNative
+    public void createExoPlayer(long nativeExoPlayerBridge, boolean preferTunnelMode) {
         this.exoplayerThread = new HandlerThread("ExoPlayerThread", Process.THREAD_PRIORITY_AUDIO);
         exoplayerThread.start();
         this.exoplayerHandler = new Handler(exoplayerThread.getLooper());
-        this.isAudioOnly = isAudioOnly;
-        this.isVideoOnly = isVideoOnly; // Ensure this flag is set
+
         mNativeExoPlayerBridge = nativeExoPlayerBridge;
 
-        boolean preferTunnelMode =
-                false; // Original code always sets to false, can be removed if not dynamic
         if (preferTunnelMode) {
             Log.i(TAG, "Tunnel mode is preferred for this playback.");
         }
@@ -182,45 +169,72 @@ public class ExoPlayerBridge {
                          .build();
 
         exoplayerHandler.post(() -> {
-            player.addListener(new ExoPlayerListener());
-
-            if (!isAudioOnly
-                    && surface
-                            != null) { // Only set surface if not audio only and surface is provided
-                Log.i(TAG, "Setting video surface");
-                player.setVideoSurface(surface);
-            }
-
-            MediaSource playbackMediaSource;
-            if (isAudioOnly) {
-                Log.i(TAG, "Creating audio only ExoPlayer");
-                audioMediaSource = new CobaltMediaSource(true, this, audioConfigurationData,
-                        ExoPlayerFormatCreator.createAudioFormat(
-                                audioMime, audioConfigurationData, sampleRate, channelCount));
-                playbackMediaSource = audioMediaSource;
-            } else if (isVideoOnly) {
-                Log.i(TAG, "Creating video only ExoPlayer");
-                videoMediaSource = new CobaltMediaSource(false, this, null,
-                        ExoPlayerFormatCreator.createVideoFormat(
-                                videoMime, width, height, (float) fps, videoBitrate));
-                playbackMediaSource = videoMediaSource;
-            } else { // Audio and Video
-                audioMediaSource = new CobaltMediaSource(true, this, audioConfigurationData,
-                        ExoPlayerFormatCreator.createAudioFormat(
-                                audioMime, audioConfigurationData, sampleRate, channelCount));
-                videoMediaSource = new CobaltMediaSource(false, this, null,
-                        ExoPlayerFormatCreator.createVideoFormat(
-                                videoMime, width, height, (float) fps, videoBitrate));
-                playbackMediaSource =
-                        new MergingMediaSource(true, audioMediaSource, videoMediaSource);
-            }
-
-            player.setMediaSource(playbackMediaSource);
+            // Listener to report dropped frames.
             player.addAnalyticsListener(new ExoPlayerEventLogger());
-            Log.i(TAG, "ExoPlayer created and prepared.");
-            player.prepare();
-            player.play();
+            player.addListener(new ExoPlayerListener());
         });
+    }
+
+    @CalledByNative
+    private boolean createAudioRenderer(
+            String mime, byte[] audioConfigurationData, int sampleRate, int channelCount) {
+        if (audioMediaSource != null) {
+            Log.e(TAG, "Attempted to create an ExoPlayer audio renderer while one already exists.");
+            return false;
+        }
+
+        Log.i(TAG, String.format("Creating audio renderer for type: %s", mime));
+        audioMediaSource = new CobaltMediaSource(this,
+                ExoPlayerFormatCreator.createAudioFormat(
+                        mime, audioConfigurationData, sampleRate, channelCount),
+                ExoPlayerRendererType.AUDIO);
+        return true;
+    }
+
+    @CalledByNative
+    private boolean createVideoRenderer(
+            String mime, Surface surface, int width, int height, int fps, int bitrate) {
+        if (videoMediaSource != null) {
+            Log.e(TAG, "Attempted to create an ExoPlayer video renderer while one already exists.");
+            return false;
+        }
+        if (player == null) {
+            Log.e(TAG, "Cannot set the video surface for an invalid player");
+            return false;
+        }
+        if (surface != null && !surface.isValid()) {
+            Log.w(TAG, "Provided surface is invalid.");
+        }
+
+        videoMediaSource = new CobaltMediaSource(this,
+                ExoPlayerFormatCreator.createVideoFormat(mime, width, height, (float) fps, bitrate),
+                ExoPlayerRendererType.VIDEO);
+        exoplayerHandler.post(() -> { player.setVideoSurface(surface); });
+        return true;
+    }
+
+    @CalledByNative
+    private boolean preparePlayer() {
+        if (audioMediaSource == null && videoMediaSource == null) {
+            Log.e(TAG, "Cannot prepare ExoPlayer with null media sources");
+            return false;
+        }
+
+        MediaSource playbackMediaSource;
+        if (audioMediaSource != null && videoMediaSource != null) {
+            // Combine audio and video into a single MediaSource.
+            playbackMediaSource = new MergingMediaSource(true, audioMediaSource, videoMediaSource);
+        } else if (audioMediaSource != null) {
+            playbackMediaSource = audioMediaSource;
+        } else {
+            playbackMediaSource = videoMediaSource;
+        }
+        exoplayerHandler.post(() -> {
+            player.setMediaSource(playbackMediaSource);
+            player.prepare();
+            Log.i(TAG, "ExoPlayer created and prepared.");
+        });
+        return true;
     }
 
     private synchronized void updatePlaybackPos() {
@@ -234,9 +248,10 @@ public class ExoPlayerBridge {
         } else {
             Log.i(TAG, "Stopped, not posting delayed updatePlaybackPos.");
         }
+        Log.i(TAG, String.format("Playback pos is: %d", lastPlaybackPos));
     }
 
-    @UsedByNative
+    @CalledByNative
     public void destroyExoPlayer() throws InterruptedException {
         if (!isAbleToProcessCommands()) {
             Log.e(TAG, "Unable to destroy player with NULL ExoPlayer.");
@@ -270,9 +285,11 @@ public class ExoPlayerBridge {
         exoplayerHandler = null;
         exoplayerThread = null;
         Log.i(TAG, "ExoPlayer thread references cleared.");
+        audioMediaSource = null;
+        videoMediaSource = null;
     }
 
-    @UsedByNative
+    @CalledByNative
     private boolean seek(long seekToTimeUs) {
         if (!isAbleToProcessCommands()) {
             Log.e(TAG, "Cannot set seek with NULL ExoPlayer.");
@@ -281,12 +298,13 @@ public class ExoPlayerBridge {
         exoplayerHandler.post(() -> {
             player.seekTo(seekToTimeUs / 1000);
             Log.i(TAG, String.format("ExoPlayer seeked to %d microseconds.", seekToTimeUs));
-            droppedFramesOnPlayerThread = 0;
         });
+        droppedFramesOnPlayerThread = 0;
+        notifiedPrerolled = false;
         return true;
     }
 
-    @UsedByNative
+    @CalledByNative
     private boolean setVolume(float volume) {
         if (!isAbleToProcessCommands()) {
             Log.e(TAG, "Cannot set volume with NULL ExoPlayer.");
@@ -299,21 +317,27 @@ public class ExoPlayerBridge {
         return true;
     }
 
-    @UsedByNative
-    private void setPlaybackRate(float playbackRate) {
+    @CalledByNative
+    private boolean setPlaybackRate(float playbackRate) {
         if (!isAbleToProcessCommands()) {
             Log.e(TAG, "Cannot set playback rate with NULL ExoPlayer.");
-            return;
+            return false;
         }
-        if (playbackRate > 0.0f) {
+        if (playbackRate == 0.0f) {
+            // Skip, setting the playback rate to 0 is unsupported.
+        } else if (playbackRate > 0.0f) {
             exoplayerHandler.post(() -> {
-                player.setPlaybackParameters(new PlaybackParameters(playbackRate));
                 Log.i(TAG, String.format("Setting ExoPlayer playback rate to %f", playbackRate));
+                player.setPlaybackParameters(new PlaybackParameters(playbackRate));
             });
+        } else {
+            Log.i(TAG, String.format("Playback rate %f is unsupported", playbackRate));
+            return false;
         }
+        return true;
     }
 
-    @UsedByNative
+    @CalledByNative
     private boolean play() {
         Log.i(TAG, "Called ExoPlayerBridge.play()");
         if (!isAbleToProcessCommands()) {
@@ -329,7 +353,7 @@ public class ExoPlayerBridge {
         return true;
     }
 
-    @UsedByNative
+    @CalledByNative
     private boolean pause() {
         if (!isAbleToProcessCommands()) {
             Log.e(TAG, "Unable to pause with NULL ExoPlayer.");
@@ -342,7 +366,7 @@ public class ExoPlayerBridge {
         return true;
     }
 
-    @UsedByNative
+    @CalledByNative
     private boolean stop() {
         Log.i(TAG, "Called player stop.");
         if (!isAbleToProcessCommands()) {
@@ -360,31 +384,30 @@ public class ExoPlayerBridge {
         return true;
     }
 
-    @UsedByNative
-    public void writeSample(byte[] data, int sizeInBytes, long timestampUs, boolean isAudio,
+    @CalledByNative
+    public void writeSample(byte[] data, int sizeInBytes, long timestampUs, int rendererType,
             boolean isKeyFrame, boolean isEndOfStream) {
         if (!isAbleToProcessCommands()) {
-            // Log.e(TAG, "Unable to write samples with a NULL ExoPlayer or during destruction.");
+            Log.e(TAG, "Unable to write samples with a NULL ExoPlayer or during destruction.");
             return; // No need to log frequently for sample writes
         }
         if (!stopped) {
-            if (isAudio) {
-                audioPrerolled |= audioMediaSource.writeSample(
+            if (rendererType == ExoPlayerRendererType.AUDIO) {
+                audioMediaSource.writeSample(
                         data, sizeInBytes, timestampUs, isKeyFrame, isEndOfStream);
-            } else if (videoMediaSource
-                    != null) { // Check videoMediaSource is not null for video samples
-                videoPrerolled |= videoMediaSource.writeSample(
+            } else if (videoMediaSource != null) {
+                videoMediaSource.writeSample(
                         data, sizeInBytes, timestampUs, isKeyFrame, isEndOfStream);
             }
         }
     }
 
-    @UsedByNative
+    @CalledByNative
     private synchronized long getCurrentPositionUs() {
         return lastPlaybackPos;
     }
 
-    @UsedByNative
+    @CalledByNative
     private synchronized int getDroppedFrames() {
         return droppedFramesOnPlayerThread;
     }
@@ -396,13 +419,11 @@ public class ExoPlayerBridge {
         }
 
         // Determine if all required streams are initialized
-        boolean allStreamsInitialized = (isAudioOnly && audioMediaSource.isInitialized())
-                || (isVideoOnly && videoMediaSource.isInitialized())
-                || (audioMediaSource != null && audioMediaSource.isInitialized()
-                        && videoMediaSource != null && videoMediaSource.isInitialized());
+        boolean audioIsInitialized = audioMediaSource == null || audioMediaSource.isInitialized();
+        boolean videoIsInitialized = videoMediaSource == null || videoMediaSource.isInitialized();
 
-        if (allStreamsInitialized) {
-            nativeOnInitialized(mNativeExoPlayerBridge);
+        if (audioIsInitialized && videoIsInitialized) {
+            ExoPlayerBridgeJni.get().onInitialized(mNativeExoPlayerBridge);
         }
     }
 
@@ -410,27 +431,28 @@ public class ExoPlayerBridge {
         return new DefaultLoadControl.Builder().setBufferDurationsMs(500, 50000, 500, 500).build();
     }
 
-    public void onPrerolled(boolean isAudio) {
+    public void onPrerolled(int rendererType) {
         if (!isAbleToProcessCommands()) {
             Log.i(TAG, "Player is being destroyed or not ready, cannot signal preroll.");
             return;
         }
 
-        if (isAudio) {
+        if (rendererType == ExoPlayerRendererType.AUDIO) {
             audioPrerolled = true;
         } else {
             videoPrerolled = true;
         }
 
-        boolean allStreamsPrerolled = (isAudioOnly && audioPrerolled)
-                || (isVideoOnly && videoPrerolled) || (audioPrerolled && videoPrerolled);
+        boolean audioHasPrerolled = audioMediaSource == null || audioPrerolled;
+        boolean videoHasPrerolled = videoMediaSource == null || videoPrerolled;
 
-        if (allStreamsPrerolled && !notifiedPrerolled) {
+        if (audioHasPrerolled && videoHasPrerolled && !notifiedPrerolled) {
             notifiedPrerolled = true;
             Log.i(TAG,
                     String.format("Media prerolled (audio: %b, video: %b). Ready to play.",
                             audioPrerolled, videoPrerolled));
-            nativeOnPlaybackStateChanged(mNativeExoPlayerBridge, Player.STATE_READY);
+            ExoPlayerBridgeJni.get().onPlaybackStateChanged(
+                    mNativeExoPlayerBridge, Player.STATE_READY);
             exoplayerHandler.post(this::updatePlaybackPos);
         }
     }
@@ -441,8 +463,20 @@ public class ExoPlayerBridge {
 
     public void notifyEOS() {
         if (!firedEOS) { // Only fire EOS once
-            nativeOnPlaybackStateChanged(mNativeExoPlayerBridge, Player.STATE_ENDED);
+            ExoPlayerBridgeJni.get().onPlaybackStateChanged(
+                    mNativeExoPlayerBridge, Player.STATE_ENDED);
             firedEOS = true;
         }
+    }
+
+    @NativeMethods
+    interface Natives {
+        void onPlaybackStateChanged(long nativeExoPlayerBridge, int playbackState);
+
+        void onInitialized(long nativeExoPlayerBridge);
+
+        void onError(long nativeExoPlayerBridge);
+
+        void setPlayingStatus(long nativeExoPlayerBridge, boolean isPlaying);
     }
 }
