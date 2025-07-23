@@ -37,6 +37,8 @@ int stat_helper(int retval,
   musl_info->st_ino = stat_info->st_ino;
   musl_info->st_dev = stat_info->st_dev;
   musl_info->st_rdev = stat_info->st_rdev;
+  musl_info->st_blksize = stat_info->st_blksize;
+  musl_info->st_blocks = stat_info->st_blocks;
 
   return retval;
 }
