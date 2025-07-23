@@ -75,10 +75,10 @@ TEST(PosixLstatTest, LstatOnExistingDirectory) {
 }
 
 TEST(PosixLstatTest, DirectoryWithSubdirectory) {
-  const char* parent_dir_path = "parent_dir.tmp";
+  char template_name[] = "/tmp/lstat_test_XXXXXX";
+  char* parent_dir_path = mkdtemp(template_name);
   std::string child_dir_path_str = std::string(parent_dir_path) + "/child";
 
-  ASSERT_EQ(mkdir(parent_dir_path, 0755), 0);
   ASSERT_EQ(mkdir(child_dir_path_str.c_str(), 0755), 0);
 
   struct stat sb;
