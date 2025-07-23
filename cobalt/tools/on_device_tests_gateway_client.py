@@ -177,7 +177,7 @@ def _unit_test_files(args: argparse.Namespace, target_name: str) -> List[str]:
     ]
   elif args.device_family in ['rdk', 'raspi']:
     return [
-        f'bin={args.gcs_archive_path}/{target_name}.py',
+        f'bin={args.gcs_archive_path}/{args.out_dir}/{target_name}.py',
         f'test_runtime_deps={args.gcs_archive_path}/{target_name}_deps.tar.gz',
     ]
   else:
@@ -371,6 +371,10 @@ def main() -> int:
       '--gcs_archive_path',
       type=str,
       help='Path to Cobalt archive to be tested. Must be on GCS.',
+  )
+  unit_test_group.add_argument(
+      '--out_dir',
+      type=str,
   )
   unit_test_group.add_argument(
       '--gcs_result_path',

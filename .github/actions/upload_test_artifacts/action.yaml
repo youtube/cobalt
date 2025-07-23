@@ -24,8 +24,15 @@ runs:
         set -eux
         cd src/
         mkdir -p "${GITHUB_WORKSPACE}/artifacts/"
+        if [[ "${{ matrix.platform }}" == *raspi* ]]; then
+          mkdir -p "${GITHUB_WORKSPACE}/artifacts/out/${{ matrix.platform }}_${{ matrix.config }}/"
+        fi
         for target in $(cat "${TEST_TARGETS_JSON_FILE}" | jq -r '.executables | .[]'); do
-          cp "${target}" "${GITHUB_WORKSPACE}/artifacts/"
+          if [[ "${{ matrix.platform }}" == *android* ]]; then
+            cp "${target}" "${GITHUB_WORKSPACE}/artifacts/"
+          elif [[ "${{ matrix.platform }}" == *raspi* ]]; then
+            cp "${target}" "${GITHUB_WORKSPACE}/artifacts/out/${{ matrix.platform }}_${{ matrix.config }}/"
+          fi
         done
       shell: bash
     - name: Archive Test Dependencies
