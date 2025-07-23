@@ -92,7 +92,7 @@ class NET_EXPORT UDPSocketPosix {
   // has been connected.
   int Read(IOBuffer* buf, int buf_len, CompletionOnceCallback callback);
 
-#if BUILDFLAG(IS_COBALT)
+#if BUILDFLAG(IS_COBALT) && (BUILDFLAG(IS_ANDROID) || BUILDFLAG(IS_LINUX))
   // Reads multiple packets from the socket.
   // Only usable from the client-side of a UDP socket, after the socket
   // has been connected.
@@ -339,7 +339,7 @@ class NET_EXPORT UDPSocketPosix {
   void DoWriteCallback(int rv);
 
   void DidCompleteRead();
-#if BUILDFLAG(IS_COBALT)
+#if BUILDFLAG(IS_COBALT) && (BUILDFLAG(IS_ANDROID) || BUILDFLAG(IS_LINUX))
   void DidCompleteMultiplePacketRead();
 #endif
   void DidCompleteWrite();
@@ -384,7 +384,7 @@ class NET_EXPORT UDPSocketPosix {
   int InternalRecvFromNonConnectedSocket(IOBuffer* buf,
                                          int buf_len,
                                          IPEndPoint* address);
-#if BUILDFLAG(IS_COBALT)                                       
+#if BUILDFLAG(IS_COBALT) && (BUILDFLAG(IS_ANDROID) || BUILDFLAG(IS_LINUX))
   int InternalReadMultiplePackets(Socket::ReadPacketResults* results);  
 #endif                                    
   int InternalSendTo(IOBuffer* buf, int buf_len, const IPEndPoint* address);
@@ -450,7 +450,7 @@ class NET_EXPORT UDPSocketPosix {
   int write_buf_len_ = 0;
   std::unique_ptr<IPEndPoint> send_to_address_;
 
-#if BUILDFLAG(IS_COBALT)
+#if BUILDFLAG(IS_COBALT) && (BUILDFLAG(IS_ANDROID) || BUILDFLAG(IS_LINUX))
   // The buffer used by ReadMultiplePackets() to retry Read requests
   raw_ptr<Socket::ReadPacketResults> results_ = nullptr;
 #endif
