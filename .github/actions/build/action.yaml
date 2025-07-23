@@ -30,6 +30,17 @@ runs:
           cd src
           cobalt/build/gn.py -p ${{ matrix.platform }} -C ${{ matrix.config }}
         shell: bash
+      - name: Download Build Info Artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: build-id-${{ matrix.platform }}
+          path: src/out/${{ matrix.platform }}_${{ matrix.config }}/
+      - name: Debug Build Info JSON after download
+        shell: bash
+        run: |
+          echo "--- Build Info JSON Content (after download) ---"
+          cat src/out/${{ matrix.platform }}_${{ matrix.config }}/gen/build_info.json
+          echo "--------------------------------------------"
       - name: List GN args
         run: |
           cd src
