@@ -12,7 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-target_platform = "linux-x64x11-gcc-6-3"
+starboard_target_platform = "linux-x64x11-gcc-6-3"
 target_os = "linux"
 target_cpu = "x64"
 using_old_compiler = true
