@@ -21,6 +21,7 @@ cobalt_shell_test_manifest =
 
 generate_jni("cobalt_shell_jni_headers") {
   sources = [
+    "java/src/dev/cobalt/shell/ContentViewRenderView.java",
     "java/src/dev/cobalt/shell/Shell.java",
     "java/src/dev/cobalt/shell/ShellManager.java",
   ]
@@ -72,8 +73,6 @@ android_library("cobalt_shell_java") {
     "//base:jni_java",
     "//build/android:build_java",
     "//components/download/internal/common:internal_java",
-    "//components/embedder_support/android:content_view_java",
-    "//components/embedder_support/android:view_java",
     "//components/viz/service:service_java",
     "//content/public/android:content_java",
     "//media/base/android:media_java",
@@ -81,10 +80,12 @@ android_library("cobalt_shell_java") {
     "//mojo/public/java:system_java",
     "//net/android:net_java",
     "//ui/android:ui_java",
+    "//ui/android:ui_no_recycler_view_java",
     "//ui/base/cursor/mojom:cursor_type_java",
     "//url:gurl_java",
   ]
   sources = [
+    "java/src/dev/cobalt/shell/ContentViewRenderView.java",
     "java/src/dev/cobalt/shell/Shell.java",
     "java/src/dev/cobalt/shell/ShellManager.java",
     "java/src/dev/cobalt/shell/ShellViewAndroidDelegate.java",
