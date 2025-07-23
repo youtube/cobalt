@@ -7,6 +7,7 @@ import("//build/config/cast.gni")
 import("//build/config/chrome_build.gni")
 import("//build/config/chromeos/args.gni")
 import("//build/config/features.gni")
+import("//build/config/lightweight.gni")
 import("//build/util/process_version.gni")
 import("//build_overrides/build.gni")
 
@@ -121,6 +122,14 @@ buildflag_header("ios_buildflags") {
 buildflag_header("android_buildflags") {
   header = "android_buildflags.h"
   flags = [ "IS_DESKTOP_ANDROID=$is_desktop_android" ]
+}
+
+# Build flags for lightweight builds.
+buildflag_header("lightweight_buildflags") {
+  header = "lightweight_buildflags.h"
+  flags = [
+    "DISABLE_XR=$disable_xr",
+  ]
 }
 
 if (build_with_chromium) {

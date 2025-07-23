@@ -10,6 +10,7 @@ import("//testing/libfuzzer/fuzzer_test.gni")
 import("//third_party/blink/renderer/bindings/bindings.gni")
 import("//third_party/blink/renderer/build/scripts/scripts.gni")
 import("//third_party/blink/renderer/modules/modules.gni")
+import("//third_party/blink/renderer/modules/submodules_excluded.gni")
 
 if (is_android) {
   import("//build/config/android/rules.gni")
@@ -190,6 +191,9 @@ component("modules") {
   if (enable_compute_pressure) {
     sub_modules += [ "//third_party/blink/renderer/modules/compute_pressure" ]
   }
+
+  # Exclude sub modules for lightweight.
+  sub_modules -= sub_modules_excluded_for_lightweight
 
   deps = [
     ":make_modules_generated",
@@ -754,6 +758,11 @@ source_set("unit_tests") {
     ":accessibility_unittests_data",
     ":mediastream_unittests_data",
   ]
+
+  # Exclude tests for disabled modules.
+  sources -= test_sources_excluded_for_lightweight
+
+  deps += ["//build:lightweight_buildflags"]
 }
 
 if (is_ios) {
