@@ -40,10 +40,8 @@ namespace {
 
 // List of toggleable default switches.
 static constexpr auto kCobaltToggleSwitches = std::to_array<const char*>({
-  // Disable first run experience, kiosk, etc.
-  "disable-fre", switches::kNoFirstRun, switches::kKioskMode,
-      // Enable Blink to work in overlay video mode
-      switches::kForceVideoOverlays,
+  // Enable Blink to work in overlay video mode
+  switches::kForceVideoOverlays,
       // Disable multiprocess mode.
       switches::kSingleProcess,
       // Accelerated GL is blanket disabled for Linux. Ignore the GPU blocklist
