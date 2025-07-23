@@ -555,9 +555,7 @@ bool MediaDecoder::ProcessOneInputBuffer(
     pending_input_to_retry_ = {dequeue_input_result, pending_input};
     return false;
   }
-  if (!frame_tracker_->AddFrame()) {
-    SB_LOG(ERROR) << "Cannot add a new frame to the tracker.";
-  }
+  SB_DCHECK(frame_tracker_->AddFrame()) << "Frame tracker is unexpectedly full.";
 
   is_output_restricted_ = false;
   return true;
