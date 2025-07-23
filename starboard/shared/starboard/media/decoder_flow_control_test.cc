@@ -27,7 +27,7 @@ TEST(ThrottlingDecoderFlowControlTest, AddFrame) {
   auto decoder_flow_control =
       DecoderFlowControl::CreateThrottling(kMaxFrames, 0, [] {});
 
-  ASSERT_TRUE(decoder_flow_control->AddFrame());
+  ASSERT_TRUE(decoder_flow_control->AddFrame(0));
   DecoderFlowControl::State status = decoder_flow_control->GetCurrentState();
 
   EXPECT_EQ(status.decoding_frames, 1);
@@ -41,7 +41,7 @@ TEST(ThrottlingDecoderFlowControlTest, AddFrameReturnsFalseWhenFull) {
   auto decoder_flow_control =
       DecoderFlowControl::CreateThrottling(kMaxFrames, 0, [] {});
   for (int i = 0; i < kMaxFrames; ++i) {
-    ASSERT_TRUE(decoder_flow_control->AddFrame());
+    ASSERT_TRUE(decoder_flow_control->AddFrame(0));
   }
 
   EXPECT_FALSE(decoder_flow_control->CanAcceptMore());
@@ -50,9 +50,9 @@ TEST(ThrottlingDecoderFlowControlTest, AddFrameReturnsFalseWhenFull) {
 TEST(ThrottlingDecoderFlowControlTest, SetFrameDecoded) {
   auto decoder_flow_control =
       DecoderFlowControl::CreateThrottling(kMaxFrames, 0, [] {});
-  ASSERT_TRUE(decoder_flow_control->AddFrame());
+  ASSERT_TRUE(decoder_flow_control->AddFrame(0));
 
-  ASSERT_TRUE(decoder_flow_control->SetFrameDecoded());
+  ASSERT_TRUE(decoder_flow_control->SetFrameDecoded(0));
   DecoderFlowControl::State status = decoder_flow_control->GetCurrentState();
 
   EXPECT_EQ(status.decoding_frames, 0);
@@ -66,16 +66,16 @@ TEST(ThrottlingDecoderFlowControlTest, SetFrameDecodedReturnsFalseWhenEmpty) {
   auto decoder_flow_control =
       DecoderFlowControl::CreateThrottling(kMaxFrames, 0, [] {});
 
-  EXPECT_FALSE(decoder_flow_control->SetFrameDecoded());
+  EXPECT_FALSE(decoder_flow_control->SetFrameDecoded(0));
 }
 
 TEST(ThrottlingDecoderFlowControlTest, HighWaterMark) {
   auto decoder_flow_control =
       DecoderFlowControl::CreateThrottling(kMaxFrames, 0, [] {});
-  ASSERT_TRUE(decoder_flow_control->AddFrame());
-  ASSERT_TRUE(decoder_flow_control->AddFrame());
-  ASSERT_TRUE(decoder_flow_control->SetFrameDecoded());
-  ASSERT_TRUE(decoder_flow_control->SetFrameDecoded());
+  ASSERT_TRUE(decoder_flow_control->AddFrame(0));
+  ASSERT_TRUE(decoder_flow_control->AddFrame(0));
+  ASSERT_TRUE(decoder_flow_control->SetFrameDecoded(0));
+  ASSERT_TRUE(decoder_flow_control->SetFrameDecoded(0));
   ASSERT_TRUE(decoder_flow_control->ReleaseFrameAt(CurrentMonotonicTime()));
 
   usleep(10'000);
@@ -111,10 +111,10 @@ TEST(ThrottlingDecoderFlowControlTest, StreamInsertionOperator) {
 TEST(ThrottlingDecoderFlowControlTest, ReleaseFrameAt) {
   auto decoder_flow_control =
       DecoderFlowControl::CreateThrottling(kMaxFrames, 0, [] {});
-  ASSERT_TRUE(decoder_flow_control->AddFrame());
-  ASSERT_TRUE(decoder_flow_control->SetFrameDecoded());
-  ASSERT_TRUE(decoder_flow_control->AddFrame());
-  ASSERT_TRUE(decoder_flow_control->SetFrameDecoded());
+  ASSERT_TRUE(decoder_flow_control->AddFrame(0));
+  ASSERT_TRUE(decoder_flow_control->SetFrameDecoded(0));
+  ASSERT_TRUE(decoder_flow_control->AddFrame(0));
+  ASSERT_TRUE(decoder_flow_control->SetFrameDecoded(0));
 
   ASSERT_FALSE(decoder_flow_control->CanAcceptMore());
 
@@ -141,13 +141,13 @@ TEST(ThrottlingDecoderFlowControlTest, DecodingTimeStats) {
   auto decoder_flow_control =
       DecoderFlowControl::CreateThrottling(kMaxFrames, 0, [] {});
 
-  ASSERT_TRUE(decoder_flow_control->AddFrame());
+  ASSERT_TRUE(decoder_flow_control->AddFrame(0));
   usleep(10'000);
-  ASSERT_TRUE(decoder_flow_control->SetFrameDecoded());
+  ASSERT_TRUE(decoder_flow_control->SetFrameDecoded(0));
 
-  ASSERT_TRUE(decoder_flow_control->AddFrame());
+  ASSERT_TRUE(decoder_flow_control->AddFrame(0));
   usleep(20'000);
-  ASSERT_TRUE(decoder_flow_control->SetFrameDecoded());
+  ASSERT_TRUE(decoder_flow_control->SetFrameDecoded(0));
 
   DecoderFlowControl::State status = decoder_flow_control->GetCurrentState();
   EXPECT_GE(status.min_decoding_time_us, 10'000);
@@ -163,10 +163,10 @@ TEST(ThrottlingDecoderFlowControlTest, FrameReleasedCallback) {
   auto decoder_flow_control = DecoderFlowControl::CreateThrottling(
       kMaxFrames, 0, [&counter]() { counter++; });
 
-  ASSERT_TRUE(decoder_flow_control->AddFrame());
-  ASSERT_TRUE(decoder_flow_control->AddFrame());
-  ASSERT_TRUE(decoder_flow_control->SetFrameDecoded());
-  ASSERT_TRUE(decoder_flow_control->SetFrameDecoded());
+  ASSERT_TRUE(decoder_flow_control->AddFrame(0));
+  ASSERT_TRUE(decoder_flow_control->AddFrame(0));
+  ASSERT_TRUE(decoder_flow_control->SetFrameDecoded(0));
+  ASSERT_TRUE(decoder_flow_control->SetFrameDecoded(0));
   decoder_flow_control->ReleaseFrameAt(CurrentMonotonicTime() + 100'000);
   decoder_flow_control->ReleaseFrameAt(CurrentMonotonicTime() + 200'000);
 
@@ -182,8 +182,8 @@ TEST(ThrottlingDecoderFlowControlTest, FrameReleasedCallback) {
 
 TEST(NoOpDecoderFlowControlTest, AllMethodsNoOp) {
   auto decoder_flow_control = DecoderFlowControl::CreateNoOp();
-  EXPECT_TRUE(decoder_flow_control->AddFrame());
-  EXPECT_TRUE(decoder_flow_control->SetFrameDecoded());
+  EXPECT_TRUE(decoder_flow_control->AddFrame(0));
+  EXPECT_TRUE(decoder_flow_control->SetFrameDecoded(0));
   EXPECT_TRUE(decoder_flow_control->ReleaseFrameAt(0));
   EXPECT_TRUE(decoder_flow_control->CanAcceptMore());
   auto status = decoder_flow_control->GetCurrentState();

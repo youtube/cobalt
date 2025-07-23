@@ -29,7 +29,7 @@ namespace starboard::shared::starboard::media {
 namespace {
 
 constexpr int kMaxDecodingHistory = 30;
-constexpr int64_t kDecodingTimeWarningThresholdUs = 50'000;  // 50 ms
+constexpr int64_t kDecodingTimeWarningThresholdUs = 1'000'000;  // 50 ms
 
 class ThrottlingDecoderFlowControl : public DecoderFlowControl {
  public:
@@ -38,8 +38,8 @@ class ThrottlingDecoderFlowControl : public DecoderFlowControl {
                                FrameReleasedCB frame_released_cb);
   ~ThrottlingDecoderFlowControl() override = default;
 
-  bool AddFrame() override;
-  bool SetFrameDecoded() override;
+  bool AddFrame(int64_t presentation_time_us) override;
+  bool SetFrameDecoded(int64_t presentation_time_us) override;
   bool ReleaseFrameAt(int64_t release_us) override;
 
   State GetCurrentState() const override;
@@ -60,6 +60,9 @@ class ThrottlingDecoderFlowControl : public DecoderFlowControl {
   std::deque<int64_t> previous_decoding_times_us_;
 
   ::starboard::shared::starboard::player::JobThread task_runner_;
+
+  int entering_frame_id_ = 0;
+  int decoded_frame_id_ = 0;
 };
 
 ThrottlingDecoderFlowControl::ThrottlingDecoderFlowControl(
@@ -81,7 +84,7 @@ ThrottlingDecoderFlowControl::ThrottlingDecoderFlowControl(
                << ", log_interval(msec)=" << (log_interval_us / 1'000);
 }
 
-bool ThrottlingDecoderFlowControl::AddFrame() {
+bool ThrottlingDecoderFlowControl::AddFrame(int64_t presentation_time_us) {
   std::lock_guard lock(mutex_);
   if (state_.total_frames() == max_frames_) {
     return false;
@@ -90,30 +93,43 @@ bool ThrottlingDecoderFlowControl::AddFrame() {
   decoding_start_times_us_.push_back(CurrentMonotonicTime());
 
   UpdateState_Locked();
+  entering_frame_id_++;
+  SB_LOG(INFO) << __func__ << " < decoding_frames=" << state_.decoding_frames
+               << ", decoded_frames=" << state_.decoded_frames
+               << ", id=" << entering_frame_id_
+               << ", pts(msec)=" << presentation_time_us / 1000;
   return true;
 }
 
-bool ThrottlingDecoderFlowControl::SetFrameDecoded() {
+bool ThrottlingDecoderFlowControl::SetFrameDecoded(
+    int64_t presentation_time_us) {
   std::lock_guard lock(mutex_);
   if (state_.decoding_frames == 0) {
+    SB_LOG(FATAL) << __func__ << " < no decoding frames"
+                  << ", pts(msec)=" << presentation_time_us / 1000;
     return false;
   }
   state_.decoding_frames--;
   state_.decoded_frames++;
   SB_CHECK_GE(state_.decoded_frames, 0);
 
-  if (!decoding_start_times_us_.empty()) {
-    auto start_time = decoding_start_times_us_.front();
-    decoding_start_times_us_.pop_front();
-    auto decoding_time = CurrentMonotonicTime() - start_time;
-    if (decoding_time > kDecodingTimeWarningThresholdUs) {
-      SB_LOG(WARNING) << "Decoding time exceeded threshold: "
-                      << decoding_time / 1'000 << " msec";
-    }
-    previous_decoding_times_us_.push_back(decoding_time);
-    if (previous_decoding_times_us_.size() > kMaxDecodingHistory) {
-      previous_decoding_times_us_.pop_front();
-    }
+  SB_CHECK(!decoding_start_times_us_.empty());
+
+  auto start_time = decoding_start_times_us_.front();
+  decoding_start_times_us_.pop_front();
+  auto decoding_time_us = CurrentMonotonicTime() - start_time;
+  decoded_frame_id_++;
+  SB_LOG(INFO) << __func__
+               << " > decoding_time_us(msec)=" << (decoding_time_us / 1'000)
+               << ", decoding_frame_id=" << decoded_frame_id_
+               << ", pts(msec)=" << presentation_time_us / 1000;
+  if (decoding_time_us > kDecodingTimeWarningThresholdUs) {
+    SB_LOG(WARNING) << "Decoding time exceeded threshold: "
+                    << decoding_time_us / 1'000 << " msec";
+  }
+  previous_decoding_times_us_.push_back(decoding_time_us);
+  if (previous_decoding_times_us_.size() > kMaxDecodingHistory) {
+    previous_decoding_times_us_.pop_front();
   }
 
   UpdateState_Locked();
@@ -125,6 +141,7 @@ bool ThrottlingDecoderFlowControl::ReleaseFrameAt(int64_t release_us) {
   std::lock_guard lock(mutex_);
 
   if (state_.decoded_frames == 0) {
+    SB_LOG(FATAL) << __func__ << " < no decoded frames";
     return false;
   }
 
@@ -203,8 +220,8 @@ class NoOpDecoderFlowControl : public DecoderFlowControl {
   }
   ~NoOpDecoderFlowControl() override = default;
 
-  bool AddFrame() override { return true; }
-  bool SetFrameDecoded() override { return true; }
+  bool AddFrame(int64_t presentation_time_us) override { return true; }
+  bool SetFrameDecoded(int64_t presentation_time_us) override { return true; }
   bool ReleaseFrameAt(int64_t release_us) override { return true; }
 
   State GetCurrentState() const override { return State(); }

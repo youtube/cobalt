@@ -32,8 +32,8 @@ class DecoderFlowControl {
 
   virtual ~DecoderFlowControl() = default;
 
-  virtual bool AddFrame() = 0;
-  virtual bool SetFrameDecoded() = 0;
+  virtual bool AddFrame(int64_t presentation_time_us) = 0;
+  virtual bool SetFrameDecoded(int64_t presentation_time_us) = 0;
   virtual bool ReleaseFrameAt(int64_t release_us) = 0;
 
   virtual State GetCurrentState() const = 0;
