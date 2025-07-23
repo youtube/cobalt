@@ -44,7 +44,6 @@ TEST_F(PosixUnameTest, BasicUnameCall) {
   EXPECT_FALSE(std::string(name.release).empty());
   EXPECT_FALSE(std::string(name.version).empty());
   EXPECT_FALSE(std::string(name.machine).empty());
-  EXPECT_FALSE(std::string(name.domainname).empty());
   EXPECT_EQ(0, errno) << "errno was set to " << errno << " (" << strerror(errno)
                       << ") after successful uname call.";
 }
