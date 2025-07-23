@@ -248,6 +248,7 @@ ExportedSymbols::ExportedSymbols() {
   REGISTER_SYMBOL(isatty);
   REGISTER_SYMBOL(kill);
   REGISTER_SYMBOL(listen);
+  REGISTER_SYMBOL(lstat);
   REGISTER_SYMBOL(madvise);
   REGISTER_SYMBOL(malloc);
   REGISTER_SYMBOL(malloc_usable_size);
