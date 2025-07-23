@@ -54,7 +54,6 @@ localtime
 localtime_r
 lstat
 mktime
-mremap
 newlocale
 openlog
 pathconf
