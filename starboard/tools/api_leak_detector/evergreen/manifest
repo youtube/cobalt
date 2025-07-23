@@ -58,7 +58,6 @@ mremap
 newlocale
 openlog
 pathconf
-poll
 posix_fadvise
 prctl
 printf
@@ -71,7 +70,6 @@ rename
 rewind
 sched_getaffinity
 sdallocx
-select
 sem_destroy
 sem_init
 sem_post
