@@ -304,3 +304,18 @@ SB_EXPORT int __abi_wrap_setsockopt(int socket,
 SB_EXPORT int __abi_wrap_shutdown(int socket, int how) {
   return shutdown(socket, musl_shuts_to_platform_shuts(how));
 }
+
+ssize_t __abi_wrap_sendmsg(int sockfd,
+                           const struct musl_msghdr* msg,
+                           int flags) {
+  struct msghdr platform_msg = {0};
+  platform_msg.msg_name = msg->msg_name;
+  platform_msg.msg_namelen = msg->msg_namelen;
+  platform_msg.msg_iov = msg->msg_iov;
+  platform_msg.msg_iovlen = msg->msg_iovlen;
+  platform_msg.msg_control = msg->msg_control;
+  platform_msg.msg_controllen = msg->msg_controllen;
+  platform_msg.msg_flags = msg->msg_flags;
+
+  return sendmsg(sockfd, &platform_msg, flags);
+}

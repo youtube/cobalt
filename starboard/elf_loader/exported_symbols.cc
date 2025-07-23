@@ -405,6 +405,7 @@ ExportedSymbols::ExportedSymbols() {
   REGISTER_WRAPPER(sem_post);
   REGISTER_WRAPPER(sem_timedwait);
   REGISTER_WRAPPER(sem_wait);
+  REGISTER_WRAPPER(sendmsg);
   REGISTER_WRAPPER(shutdown);
   REGISTER_WRAPPER(sigaction);
   REGISTER_WRAPPER(socketpair);

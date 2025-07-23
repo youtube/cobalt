@@ -82,4 +82,9 @@ int shutdown(int socket, int how) {
   return __abi_wrap_shutdown(socket, how);
 }
 
+ssize_t __abi_wrap_sendmsg(int sockfd, const struct msghdr* msg, int flags);
+ssize_t sendmsg(int sockfd, const struct msghdr* msg, int flags) {
+  return __abi_wrap_sendmsg(sockfd, msg, flags);
+}
+
 }  // extern "C"

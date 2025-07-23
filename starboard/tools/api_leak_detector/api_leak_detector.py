@@ -224,6 +224,7 @@ _ALLOWED_SB_GE_16_POSIX_SYMBOLS = [
     'sched_yield',
     'select',
     'send',
+    'sendmsg',
     'sendto',
     'setsockopt',
     'shutdown',
