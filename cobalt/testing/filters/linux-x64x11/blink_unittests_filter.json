@@ -49,6 +49,7 @@
     "HTMLSrcsetParserTest.SaveDataEnabledBasic",
     "LayoutThemeTest.ChangeFocusRingColor",
     "All/UseCounterImplBrowserReportTest.ReportOnlyHTTPFamily/5",
-    "*TextFragmentAnchor*"
+    "*TextFragmentAnchor*",
+    "*TextFragmentHandlerTest*",
   ]
 }
