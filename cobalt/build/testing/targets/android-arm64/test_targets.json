@@ -25,5 +25,31 @@
     "third_party/zlib:zlib_unittests",
     "url:url_perftests",
     "url:url_unittests"
+  ],
+  "executables": [
+    "out/android-arm64_devel/base_perftests_apk/base_perftests-debug.apk",
+    "out/android-arm64_devel/base_unittests_apk/base_unittests-debug.apk",
+    "out/android-arm64_devel/cobalt_unittests_apk/cobalt_unittests-debug.apk",
+    "out/android-arm64_devel/media_unittests_apk/media_unittests-debug.apk",
+    "out/android-arm64_devel/midi_unittests_apk/midi_unittests-debug.apk",
+    "out/android-arm64_devel/mojo_perftests_apk/mojo_perftests-debug.apk",
+    "out/android-arm64_devel/mojo_unittests_apk/mojo_unittests-debug.apk",
+    "out/android-arm64_devel/net_unittests_apk/net_unittests-debug.apk",
+    "out/android-arm64_devel/skia_unittests_apk/skia_unittests-debug.apk",
+    "out/android-arm64_devel/sql_unittests_apk/sql_unittests-debug.apk",
+    "out/android-arm64_devel/nplb_apk/nplb-debug.apk",
+    "out/android-arm64_devel/blink_unittests_apk/blink_unittests-debug.apk",
+    "out/android-arm64_devel/blink_platform_perftests_apk/blink_platform_perftests-debug.apk",
+    "out/android-arm64_devel/blink_platform_unittests_apk/blink_platform_unittests-debug.apk",
+    "out/android-arm64_devel/blink_heap_perftests_apk/blink_heap_perftests-debug.apk",
+    "out/android-arm64_devel/blink_heap_unittests_apk/blink_heap_unittests-debug.apk",
+    "out/android-arm64_devel/wtf_unittests_apk/wtf_unittests-debug.apk",
+    "out/android-arm64_devel/boringssl_crypto_tests_apk/boringssl_crypto_tests-debug.apk",
+    "out/android-arm64_devel/boringssl_ssl_tests_apk/boringssl_ssl_tests-debug.apk",
+    "out/android-arm64_devel/perfetto_unittests_apk/perfetto_unittests-debug.apk",
+    "out/android-arm64_devel/trace_processor_minimal_smoke_tests_apk/trace_processor_minimal_smoke_tests-debug.apk",
+    "out/android-arm64_devel/zlib_unittests_apk/zlib_unittests-debug.apk",
+    "out/android-arm64_devel/url_perftests_apk/url_perftests-debug.apk",
+    "out/android-arm64_devel/url_unittests_apk/url_unittests-debug.apk"
   ]
 }

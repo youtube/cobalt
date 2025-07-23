@@ -703,12 +703,14 @@ bool VideoDecoder::InitializeCodec(const VideoStreamInfo& video_stream_info,
       // actually allocate any memory into the texture at this time.  That is
       // done behind the scenes, the acquired texture is not actually backed
       // by texture data until updateTexImage() is called on it.
+      if (!decode_target_graphics_context_provider_) {
+        *error_message = "Invalid decode target graphics context provider.";
+        return false;
+      }
       DecodeTarget* decode_target =
           new DecodeTarget(decode_target_graphics_context_provider_);
-      if (!decode_target_graphics_context_provider_ ||
-          !SbDecodeTargetIsValid(decode_target)) {
+      if (!SbDecodeTargetIsValid(decode_target)) {
         *error_message = "Could not acquire a decode target from provider.";
-        SB_LOG(ERROR) << *error_message;
         return false;
       }
       j_output_surface = decode_target->surface();
@@ -726,7 +728,6 @@ bool VideoDecoder::InitializeCodec(const VideoStreamInfo& video_stream_info,
   }
   if (!j_output_surface) {
     *error_message = "Video surface does not exist.";
-    SB_LOG(ERROR) << *error_message;
     return false;
   }
 
@@ -770,6 +771,7 @@ bool VideoDecoder::InitializeCodec(const VideoStreamInfo& video_stream_info,
     return true;
   }
   media_decoder_.reset();
+  *error_message = "Media Decoder is not valid.";
   return false;
 }
 
