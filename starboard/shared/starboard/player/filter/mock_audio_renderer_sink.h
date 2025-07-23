@@ -51,9 +51,6 @@ class MockAudioRendererSink : public AudioRendererSink {
 
  private:
   bool has_started_ = false;
-  SbMediaAudioSampleType audio_sample_type_ = kSbMediaAudioSampleTypeFloat32;
-  SbMediaAudioFrameStorageType audio_frame_storage_type_ =
-      kSbMediaAudioFrameStorageTypeInterleaved;
 };
 
 }  // namespace starboard::shared::starboard::player::filter
