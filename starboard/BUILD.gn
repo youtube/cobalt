@@ -236,8 +236,9 @@ if (current_toolchain == starboard_toolchain) {
       "//starboard/common:common_test",
       "//testing/gtest",
     ]
-    if (is_linux) {
-      deps += [ "//starboard/linux/shared:starboard_platform_tests" ]
+
+    if (platform_tests_path != "") {
+      deps += [ platform_tests_path ]
     }
     if (!is_android) {
       deps += [ "//starboard/shared/starboard/player/filter/testing:player_filter_tests" ]
