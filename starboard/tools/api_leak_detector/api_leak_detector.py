@@ -128,6 +128,7 @@ _ALLOWED_SB_GE_16_POSIX_SYMBOLS = [
     'kill',
     'listen',
     'lseek',
+    'lstat',
     'madvise',
     'malloc',
     'malloc_usable_size',
