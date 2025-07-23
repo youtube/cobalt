@@ -238,6 +238,37 @@ class MediaCodecBridge {
     }
   }
 
+  private static String bufferFlagsToString(int flags) {
+    if (flags == 0) {
+      return "0";
+    }
+    StringBuilder sb = new StringBuilder();
+    if ((flags & MediaCodec.BUFFER_FLAG_KEY_FRAME) != 0) {
+      sb.append("KEY_FRAME ");
+    }
+    if ((flags & MediaCodec.BUFFER_FLAG_CODEC_CONFIG) != 0) {
+      sb.append("CODEC_CONFIG ");
+    }
+    if ((flags & MediaCodec.BUFFER_FLAG_END_OF_STREAM) != 0) {
+      sb.append("END_OF_STREAM ");
+    }
+    if ((flags & MediaCodec.BUFFER_FLAG_PARTIAL_FRAME) != 0) {
+      sb.append("PARTIAL_FRAME ");
+    }
+    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q && (flags & 16 /* MediaCodec.BUFFER_FLAG_MUXER_DATA */) != 0) {
+      sb.append("MUXER_DATA ");
+    }
+    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP) {
+      if ((flags & MediaCodec.BUFFER_FLAG_DECODE_ONLY) != 0) {
+        sb.append("DECODE_ONLY ");
+      }
+    }
+    if (sb.length() > 0) {
+      sb.setLength(sb.length() - 1); // remove trailing space
+    }
+    return sb.toString();
+  }
+
   /** A wrapper around a MediaFormat. */
   private static class GetOutputFormatResult {
     private int mStatus;
@@ -453,6 +484,16 @@ class MediaCodecBridge {
               if (mNativeMediaCodecBridge == 0) {
                 return;
               }
+              Log.i(
+                  TAG,
+                  "media_decoder:onOutputBufferAvailable pts(msec)="
+                      + info.presentationTimeUs / 1000
+                      + ", size="
+                      + info.size
+                      + ", offset="
+                      + info.offset
+                      + ", flags="
+                      + bufferFlagsToString(info.flags));
               MediaCodecBridgeJni.get()
                   .onMediaCodecOutputBufferAvailable(
                       mNativeMediaCodecBridge,
@@ -861,6 +902,7 @@ class MediaCodecBridge {
       int index, int offset, int size, long presentationTimeUs, int flags) {
     resetLastPresentationTimeIfNeeded(presentationTimeUs);
     try {
+      Log.i(TAG, "media_decoder:queueInputBuffer pts(msec)=" + presentationTimeUs / 1000);
       mMediaCodec.get().queueInputBuffer(index, offset, size, presentationTimeUs, flags);
     } catch (Exception e) {
       Log.e(TAG, "Failed to queue input buffer", e);
@@ -884,6 +926,7 @@ class MediaCodecBridge {
       long presentationTimeUs) {
     resetLastPresentationTimeIfNeeded(presentationTimeUs);
     try {
+      Log.i(TAG, "media_decoder:queueSecureInputBuffer pts(msec)=" + presentationTimeUs / 1000);
       CryptoInfo cryptoInfo = new CryptoInfo();
       cryptoInfo.set(
           numSubSamples, numBytesOfClearData, numBytesOfEncryptedData, keyId, iv, cipherMode);

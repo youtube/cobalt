@@ -35,7 +35,8 @@ using base::android::AttachCurrentThread;
 
 namespace {
 
-constexpr int kMaxFramesInDecoder = 6;
+constexpr int kMaxFramesInDecoder = 2;
+constexpr bool kForceLimiting = true;
 constexpr int kFrameTrackerLogIntervalUs = 1'000'000;  // 1 sec.
 
 const jint kNoOffset = 0;
@@ -87,7 +88,13 @@ MediaDecoder::MediaDecoder(Host* host,
       tunnel_mode_enabled_(false),
       flush_delay_usec_(0),
       condition_variable_(mutex_),
-      decoder_flow_control_(DecoderFlowControl::CreateNoOp()) {
+      decoder_flow_control_(
+          DecoderFlowControl::CreateThrottling(kMaxFramesInDecoder,
+                                               kFrameTrackerLogIntervalUs,
+                                               [this]() {
+                                                 ScopedLock lock(mutex_);
+                                                 condition_variable_.Signal();
+                                               })) {
   SB_DCHECK(host_);
 
   jobject j_media_crypto = drm_system_ ? drm_system_->GetMediaCrypto() : NULL;
@@ -137,8 +144,13 @@ MediaDecoder::MediaDecoder(
       tunnel_mode_enabled_(tunnel_mode_audio_session_id != -1),
       flush_delay_usec_(flush_delay_usec),
       condition_variable_(mutex_),
-      decoder_flow_control_(DecoderFlowControl::CreateNoOp()) {
-  SB_DCHECK(frame_rendered_cb_);
+      decoder_flow_control_(
+          DecoderFlowControl::CreateThrottling(kMaxFramesInDecoder,
+                                               kFrameTrackerLogIntervalUs,
+                                               [this]() {
+                                                 ScopedLock lock(mutex_);
+                                                 condition_variable_.Signal();
+                                               })) {
   SB_DCHECK(first_tunnel_frame_ready_cb_);
 
   jobject j_media_crypto = drm_system_ ? drm_system_->GetMediaCrypto() : NULL;
@@ -536,14 +548,23 @@ bool MediaDecoder::ProcessOneInputBuffer(
   }
 
   if (status != MEDIA_CODEC_OK) {
+    SB_LOG(ERROR) << "QueueInputBuffer returns status=" << status;
     HandleError("queue(Secure)?InputBuffer", status);
     // TODO: Stop the decoding loop and call error_cb_ on fatal error.
     SB_DCHECK(!pending_input_to_retry_);
     pending_input_to_retry_ = {dequeue_input_result, pending_input};
     return false;
   }
-  SB_DCHECK(frame_tracker_->AddFrame()) << "Frame tracker is unexpectedly full.";
-
+  if (size > 0) {
+    SB_LOG(INFO) << "Calling AddFrame: is_key_frame="
+                 << (input_buffer->video_sample_info().is_key_frame ? "true"
+                                                                    : "false")
+                 << ", size=" << input_buffer->size();
+    SB_DCHECK(decoder_flow_control_->AddFrame(input_buffer->timestamp()))
+        << "Frame tracker is unexpectedly full.";
+  } else {
+    SB_LOG(WARNING) << __func__ << " > size=" << size;
+  }
   is_output_restricted_ = false;
   return true;
 }
@@ -665,7 +686,7 @@ void MediaDecoder::OnMediaCodecOutputBufferAvailable(
     return;
   }
 
-  if (!decoder_flow_control_->SetFrameDecoded()) {
+  if (!decoder_flow_control_->SetFrameDecoded(presentation_time_us)) {
     SB_LOG(ERROR) << "SetFrameDecoded() called on empty frame tracker.";
   }
 
@@ -691,8 +712,6 @@ void MediaDecoder::OnMediaCodecOutputFormatChanged() {
                << " > texture_resolution=" << frame_size.texture_width << "x"
                << frame_size.texture_height;
 
-  ResetDecoderFlowControl();
-
   DequeueOutputResult dequeue_output_result = {};
   dequeue_output_result.index = -1;
 
@@ -713,8 +732,6 @@ void MediaDecoder::OnMediaCodecFirstTunnelFrameReady() {
 
 bool MediaDecoder::Flush() {
   SB_DCHECK(thread_checker_.CalledOnValidThread());
-
-  ResetDecoderFlowControl();
 
   // Try to flush if we can, otherwise return |false| to recreate the codec
   // completely. Flush() is called by `player_worker` thread,
@@ -771,14 +788,20 @@ bool MediaDecoder::Flush() {
 }
 
 void MediaDecoder::ResetDecoderFlowControl() {
-  if (media_codec_bridge_ == nullptr) {
-    decoder_flow_control_ = DecoderFlowControl::CreateNoOp();
+  if (media_codec_bridge_ != nullptr) {
+    SB_LOG(INFO) << "DecoderFrameControl is already created";
+    return;
   }
-  FrameSize frame_size = media_codec_bridge_->GetOutputSize();
 
+  if (kForceLimiting) {
+    SB_LOG(INFO) << "kForceLimiting=" << (kForceLimiting ? "true" : "false");
+  }
+
+  FrameSize frame_size = media_codec_bridge_->GetOutputSize();
   constexpr int kArea4k = 3840 * 2160;
   decoder_flow_control_ =
-      frame_size.texture_width * frame_size.texture_height > kArea4k
+      kForceLimiting ||
+              frame_size.texture_width * frame_size.texture_height > kArea4k
           ? DecoderFlowControl::CreateThrottling(kMaxFramesInDecoder,
                                                  kFrameTrackerLogIntervalUs,
                                                  [this]() {
