@@ -24,8 +24,4 @@ static_library("features") {
     "//base",
     "//starboard/common:common",
   ]
-
-  if (is_android) {
-    deps += [ "//starboard/android/shared:starboard_platform" ]
-  }
 }
