@@ -85,8 +85,12 @@ ThrottlingDecoderFlowControl::ThrottlingDecoderFlowControl(
 }
 
 bool ThrottlingDecoderFlowControl::AddFrame(int64_t presentation_time_us) {
+  SB_LOG(INFO) << __func__ << " pts=" << (presentation_time_us / 1'000)
+               << ", decoding_frames=" << state_.decoding_frames;
   std::lock_guard lock(mutex_);
+
   if (state_.total_frames() == max_frames_) {
+    SB_LOG(FATAL) << __func__ << " < total_frame=" << state_.total_frames();
     return false;
   }
   state_.decoding_frames++;
