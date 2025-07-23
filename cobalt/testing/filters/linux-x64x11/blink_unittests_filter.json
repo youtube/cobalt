@@ -50,6 +50,6 @@
     "LayoutThemeTest.ChangeFocusRingColor",
     "All/UseCounterImplBrowserReportTest.ReportOnlyHTTPFamily/5",
     "*TextFragmentAnchor*",
-    "*TextFragmentHandlerTest*",
+    "*TextFragmentHandlerTest*"
   ]
 }
