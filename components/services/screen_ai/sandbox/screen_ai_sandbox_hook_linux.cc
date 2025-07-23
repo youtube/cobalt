@@ -7,7 +7,6 @@
 #include <dlfcn.h>
 
 #include "base/files/file_util.h"
-#include "build/build_config.h"
 #include "components/services/screen_ai/public/cpp/utilities.h"
 #include "sandbox/linux/syscall_broker/broker_command.h"
 #include "sandbox/linux/syscall_broker/broker_file_permission.h"
@@ -33,27 +32,17 @@ bool ScreenAIPreSandboxHook(sandbox::policy::SandboxLinux::Options options) {
   if (library_path.empty()) {
     VLOG(0) << "Screen AI component binary not found.";
   } else {
-#if !BUILDFLAG(IS_STARBOARD)
     void* screen_ai_library = dlopen(library_path.value().c_str(),
                                      RTLD_LAZY | RTLD_GLOBAL | RTLD_NODELETE);
     // The library is delivered by the component updater or DLC. If it is not
     // available or has loading or syntax problems, we cannot do anything about
     // them here. The requests to the service will fail later as the library
     // does not exist or does not initialize.
-#else // !BUILDFLAG(IS_STARBOARD)
-    void* screen_ai_library = nullptr;
-#endif // !BUILDFLAG(IS_STARBOARD)
     if (screen_ai_library == nullptr) {
-#if !BUILDFLAG(IS_STARBOARD)
       VLOG(0) << dlerror();
-#endif // !BUILDFLAG(IS_STARBOARD)
       library_path.clear();
     } else {
-#if !BUILDFLAG(IS_STARBOARD)
       void* presandbox_init = dlsym(screen_ai_library, "PresandboxInit");
-#else // !BUILDFLAG(IS_STARBOARD)
-      void* presandbox_init = nullptr;
-#endif // !BUILDFLAG(IS_STARBOARD)
       if (presandbox_init == nullptr) {
         VLOG(0) << "PresandboxInit function of Screen AI library not found.";
         library_path.clear();

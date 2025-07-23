@@ -89,7 +89,6 @@ struct ModuleData {
 
 ModuleData GetMainModuleData() {
   ModuleData module_data;
-#if !BUILDFLAG(IS_STARBOARD)
   Dl_info dl_info;
   if (dladdr(&__ehdr_start, &dl_info)) {
     base::debug::ElfBuildIdBuffer build_id;
@@ -105,7 +104,6 @@ ModuleData GetMainModuleData() {
       module_data.build_id = std::string(build_id, build_id_length);
     }
   }
-#endif // !BUILDFLAG(IS_STARBOARD)
   return module_data;
 }
 
