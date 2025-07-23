@@ -42,14 +42,4 @@ public class ContentBrowserTestsActivity extends ContentShellBrowserTestActivity
                 ContentBrowserTestsApplication.PRIVATE_DATA_DIRECTORY_SUFFIX);
     }
 
-    @Override
-    protected int getTestActivityViewId() {
-        return R.layout.test_activity;
-    }
-
-    @Override
-    protected int getShellManagerViewId() {
-        return R.id.shell_container;
-    }
-
 }

@@ -135,17 +135,8 @@ public abstract class CobaltActivity extends Activity {
       getStarboardBridge().handleDeepLink(startDeepLink);
     }
 
-    mShellManager = new ShellManager(this);
-    final boolean listenToActivityState = true;
     mIntentRequestTracker = IntentRequestTracker.createFromActivity(this);
-    mWindowAndroid = new ActivityWindowAndroid(this, listenToActivityState, mIntentRequestTracker);
     mIntentRequestTracker.restoreInstanceState(savedInstanceState);
-    mShellManager.setWindow(mWindowAndroid);
-    setContentView(mShellManager.getContentViewRenderView());
-    // Set up the animation placeholder to be the SurfaceView. This disables the
-    // SurfaceView's 'hole' clipping during animations that are notified to the window.
-    mWindowAndroid.setAnimationPlaceholderView(
-        mShellManager.getContentViewRenderView().getSurfaceView());
 
     if (mStartupUrl == null || mStartupUrl.isEmpty()) {
       String[] args = getStarboardBridge().getArgs();
@@ -155,9 +146,6 @@ public abstract class CobaltActivity extends Activity {
               .findAny()
               .map(arg -> arg.substring(arg.indexOf(URL_ARG) + URL_ARG.length()))
               .orElse(null);
-    }
-    if (!TextUtils.isEmpty(mStartupUrl)) {
-      mShellManager.setStartupUrl(Shell.sanitizeUrl(mStartupUrl));
     }
 
     // TODO(b/377025559): Bring back WebTests launch capability
@@ -185,6 +173,19 @@ public abstract class CobaltActivity extends Activity {
 
   // Initially copied from ContentShellActiviy.java
   private void finishInitialization(Bundle savedInstanceState) {
+    mShellManager = new ShellManager(this);
+    final boolean listenToActivityState = true;
+    mWindowAndroid = new ActivityWindowAndroid(this, listenToActivityState, mIntentRequestTracker);
+    mShellManager.setWindow(mWindowAndroid);
+    setContentView(mShellManager.getContentViewRenderView());
+    // Set up the animation placeholder to be the SurfaceView. This disables the
+    // SurfaceView's 'hole' clipping during animations that are notified to the window.
+    mWindowAndroid.setAnimationPlaceholderView(
+        mShellManager.getContentViewRenderView().getSurfaceView());
+    if (!TextUtils.isEmpty(mStartupUrl)) {
+      mShellManager.setStartupUrl(Shell.sanitizeUrl(mStartupUrl));
+    }
+
     // Load an empty page to let shell create WebContents.
     mShellManager.launchShell("");
     // Inject JavaBridge objects to the WebContents.

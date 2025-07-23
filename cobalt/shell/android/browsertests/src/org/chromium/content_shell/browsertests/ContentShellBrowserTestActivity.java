@@ -68,12 +68,12 @@ public abstract class ContentShellBrowserTestActivity extends NativeBrowserTestA
         }
 
         ContentUriUtils.setFileProviderUtil(new FileProviderHelper());
-        setContentView(getTestActivityViewId());
-        mShellManager = (ShellManager) findViewById(getShellManagerViewId());
+        mShellManager = new ShellManager(this);
         IntentRequestTracker intentRequestTracker = IntentRequestTracker.createFromActivity(this);
         mWindowAndroid = new ActivityWindowAndroid(
                 this, /* listenToActivityState= */ true, intentRequestTracker);
         mShellManager.setWindow(mWindowAndroid);
+        setContentView(mShellManager.getContentViewRenderView());
 
         Window wind = this.getWindow();
         wind.addFlags(WindowManager.LayoutParams.FLAG_DISMISS_KEYGUARD);
@@ -112,7 +112,5 @@ public abstract class ContentShellBrowserTestActivity extends NativeBrowserTestA
     protected String getUserDataDirectoryCommandLineSwitch() {
         return "data-path";
     }
-    protected abstract int getTestActivityViewId();
 
-    protected abstract int getShellManagerViewId();
 }
