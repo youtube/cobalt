@@ -77,6 +77,9 @@ public class CommandLineOverrideHelperTest {
             CommandLine.getInstance().hasSwitch("user-level-memory-pressure-signal-params"));
         Assert.assertTrue(CommandLine.getInstance().hasSwitch("enable-low-end-device-mode"));
         Assert.assertTrue(CommandLine.getInstance().hasSwitch("disable-rgba-4444-textures"));
+        Assert.assertTrue(CommandLine.getInstance().hasSwitch("disable-accelerated-video-decode"));
+        Assert.assertTrue(CommandLine.getInstance().hasSwitch("disable-accelerated-video-encode"));
+        Assert.assertTrue(CommandLine.getInstance().hasSwitch("enable-zero-copy"));
 
         String expected = "no-user-gesture-required";
         String actual = CommandLine.getInstance().getSwitchValue("autoplay-policy");

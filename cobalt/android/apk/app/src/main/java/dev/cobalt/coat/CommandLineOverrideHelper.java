@@ -72,6 +72,12 @@ public final class CommandLineOverrideHelper {
         // Limit the total amount of memory that may be allocated for GPU
         // resources.
         paramOverrides.add("--force-gpu-mem-available-mb=32");
+        // Disable Chrome's accelerated video encoding and decoding (Cobalt uses
+        // Starboard's stack).
+        paramOverrides.add("--disable-accelerated-video-decode");
+        paramOverrides.add("--disable-accelerated-video-encode");
+        // Rasterize Tiles directly to GPU memory.
+        paramOverrides.add("--enable-zero-copy");
 
         return paramOverrides;
     }
