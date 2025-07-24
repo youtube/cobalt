@@ -51,7 +51,6 @@ localtime_r
 mktime
 newlocale
 openlog
-posix_fadvise
 prctl
 printf
 puts
