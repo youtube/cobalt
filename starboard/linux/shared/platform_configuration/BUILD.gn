@@ -215,14 +215,9 @@ config("no_pedantic_warnings") {
     # Do not warn for implicit type conversions that may change a value.
     "-Wno-conversion",
 
-    # shifting a negative signed value is undefined
-    "-Wno-shift-negative-value",
-
     # Width of bit-field exceeds width of its type- value will be truncated
     "-Wno-bitfield-width",
-    "-Wno-undefined-var-template",
 
-    "-Wno-unused-private-field",
     "-Wno-implicit-fallthrough",
     "-Wno-unused-variable",
     "-Wno-sign-compare",
@@ -230,8 +225,6 @@ config("no_pedantic_warnings") {
     "-Wno-unreachable-code-return",
     "-Wno-unused-function",
     "-Wno-missing-braces",
-    "-Wno-mismatched-tags",
-    "-Wno-return-type",
 
     # ./../starboard/shared/modular/starboard_layer_posix_socket_abi_wrappers.cc:237:28:
     # error: comparison of array 'ai_copy.ai_addr->sa_data' not equal
