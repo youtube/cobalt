@@ -15,6 +15,7 @@
 #include "cobalt/app/cobalt_main_delegate.h"
 
 #include "base/process/current_process.h"
+#include "base/task/thread_pool.h"
 #include "base/threading/hang_watcher.h"
 #include "base/trace_event/trace_log.h"
 #include "cobalt/browser/cobalt_content_browser_client.h"
@@ -27,8 +28,51 @@
 #include "content/public/browser/render_frame_host.h"
 #include "content/public/common/content_switches.h"
 #include "gpu/command_buffer/service/gpu_switches.h"
+#include "media/base/renderer_client.h"
+#include "media/starboard/splash_screen_demuxer.h"
+#include "media/starboard/splash_screen_renderer.h"
+#include "starboard/window.h"
 
 namespace cobalt {
+
+namespace {
+
+class SplashScreenRendererClient : public ::media::RendererClient {
+ public:
+  explicit SplashScreenRendererClient(base::OnceClosure ended_cb)
+      : ended_cb_(std::move(ended_cb)) {}
+  virtual ~SplashScreenRendererClient() = default;
+
+  void OnError(::media::PipelineStatus status) override {
+    LOG(ERROR) << "Splash screen renderer error: " << status;
+    if (ended_cb_) {
+      std::move(ended_cb_).Run();
+    }
+  }
+  void OnEnded() override {
+    if (ended_cb_) {
+      std::move(ended_cb_).Run();
+    }
+  }
+  void OnStatisticsUpdate(const ::media::PipelineStatistics& stats) override {}
+  void OnBufferingStateChange(
+      ::media::BufferingState state,
+      ::media::BufferingStateChangeReason reason) override {}
+  void OnWaiting(::media::WaitingReason reason) override {}
+  void OnAudioConfigChange(const ::media::AudioDecoderConfig& config) override {
+  }
+  void OnVideoConfigChange(const ::media::VideoDecoderConfig& config) override {
+  }
+  void OnVideoNaturalSizeChange(const gfx::Size& size) override {}
+  void OnVideoOpacityChange(bool opaque) override {}
+  void OnVideoFrameRateChange(absl::optional<int> fps) override {}
+  void OnFallback(::media::PipelineStatus status) override {}
+
+ private:
+  base::OnceClosure ended_cb_;
+};
+
+}  // namespace
 
 CobaltMainDelegate::CobaltMainDelegate(bool is_content_browsertests)
     : content::ShellMainDelegate(is_content_browsertests) {}
@@ -113,6 +157,53 @@ absl::variant<int, content::MainFunctionParams> CobaltMainDelegate::RunProcess(
   base::trace_event::TraceLog::GetInstance()->SetProcessSortIndex(
       content::kTraceEventBrowserProcessSortIndex);
 
+  SbWindowOptions options;
+  SbWindowSetDefaultOptions(&options);
+  SbWindow window = SbWindowCreate(&options);
+  CHECK(SbWindowIsValid(window));
+
+  base::RunLoop run_loop;
+
+  auto demuxer = std::make_unique<::media::SplashScreenDemuxer>(
+      base::ThreadPool::CreateSequencedTaskRunner({}));
+  auto renderer = std::make_unique<::media::SplashScreenRenderer>(
+      base::ThreadPool::CreateSequencedTaskRunner({}), window);
+  auto renderer_client =
+      std::make_unique<SplashScreenRendererClient>(run_loop.QuitClosure());
+
+  demuxer->Initialize(
+      nullptr,
+      base::BindOnce(
+          [](::media::SplashScreenDemuxer* demuxer,
+             ::media::SplashScreenRenderer* renderer,
+             ::media::RendererClient* client, base::OnceClosure quit_closure,
+             ::media::PipelineStatus status) {
+            if (status != ::media::PIPELINE_OK) {
+              LOG(ERROR) << "Failed to initialize splash screen demuxer.";
+              std::move(quit_closure).Run();
+              return;
+            }
+            renderer->Initialize(
+                demuxer, client,
+                base::BindOnce(
+                    [](::media::SplashScreenRenderer* renderer,
+                       base::OnceClosure quit_closure,
+                       ::media::PipelineStatus status) {
+                      if (status != ::media::PIPELINE_OK) {
+                        LOG(ERROR) << "Failed to initialize splash "
+                                      "screen renderer.";
+                        std::move(quit_closure).Run();
+                        return;
+                      }
+                      renderer->StartPlayingFrom(base::TimeDelta());
+                    },
+                    renderer, std::move(quit_closure)));
+          },
+          demuxer.get(), renderer.get(), renderer_client.get(),
+          run_loop.QuitClosure()));
+
+  run_loop.Run();
+
   main_runner_ = content::BrowserMainRunner::Create();
 
   // In browser tests, the |main_function_params| contains a |ui_task| which
@@ -122,6 +213,8 @@ absl::variant<int, content::MainFunctionParams> CobaltMainDelegate::RunProcess(
       main_runner_->Initialize(std::move(main_function_params));
   DCHECK_LT(initialize_exit_code, 0)
       << "BrowserMainRunner::Initialize failed in ShellMainDelegate";
+
+  SbWindowDestroy(window);
 
   // Return 0 as BrowserMain() should not be called after this, bounce up to
   // the system message loop for ContentShell, and we're already done thanks

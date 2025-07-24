@@ -179,6 +179,21 @@ void SplashScreenDemuxer::OnSelectedVideoTrackChanged(
   std::move(change_completed_cb).Run(DemuxerStream::VIDEO, {});
 }
 
+DemuxerType SplashScreenDemuxer::GetDemuxerType() const {
+  return DemuxerType::kMockDemuxer;
+}
+
+bool SplashScreenDemuxer::IsSeekable() const {
+  return false;
+}
+
+absl::optional<container_names::MediaContainerName>
+SplashScreenDemuxer::GetContainerForMetrics() const {
+  return absl::optional<container_names::MediaContainerName>();
+}
+
+void SplashScreenDemuxer::SetPlaybackRate(double rate) {}
+
 VideoDecoderConfig SplashScreenDemuxer::video_decoder_config() const {
   if (!video_track_) {
     return VideoDecoderConfig();

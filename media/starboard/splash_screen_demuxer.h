@@ -55,6 +55,12 @@ class SplashScreenDemuxer : public Demuxer {
                                    base::TimeDelta curr_time,
                                    TrackChangeCB change_completed_cb) override;
 
+  DemuxerType GetDemuxerType() const override;
+  bool IsSeekable() const override;
+  absl::optional<container_names::MediaContainerName> GetContainerForMetrics()
+      const override;
+  void SetPlaybackRate(double rate) override;
+
   VideoDecoderConfig video_decoder_config() const;
   void Read(DemuxerStream::Type type, DemuxerStream::ReadCB read_cb);
 
