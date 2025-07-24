@@ -263,6 +263,8 @@ void BlinkInitializer::RegisterMemoryWatchers(Platform* platform) {
   CrashMemoryMetricsReporterImpl::Instance();
 
   // Initialize UserLevelMemoryPressureSignalGenerator so it starts monitoring.
+  // mcasas: this is a different one from the browser's, even though they have
+  // the same name (different namespaces).
   if (platform->IsUserLevelMemoryPressureSignalEnabled()) {
     UserLevelMemoryPressureSignalGenerator::Initialize(platform,
                                                        main_thread_task_runner);
