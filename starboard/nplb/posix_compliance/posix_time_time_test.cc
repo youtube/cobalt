@@ -16,6 +16,7 @@
 #include <sys/time.h>
 #include <time.h>
 
+#include <limits>
 #include <type_traits>
 
 #include "testing/gtest/include/gtest/gtest.h"
@@ -27,14 +28,20 @@ namespace {
 const int64_t kMicrosecondsPerSecond = 1'000'000LL;
 
 // kReasonableMinTime represents a time (2025-01-01 00:00:00 UTC) after which
-// the current time is expected to fall.
-const time_t kReasonableMinTime = 1'735'689'600;  // 2025-01-01 00:00:00 UTC
+// the current time is expected to fall. In some platforms, time_t is long long
+// and in others it's just a long; this type dance below is to guarantee the
+// numbers fit into ranges.
+const auto kReasonableMinTimeTemp = 1'735'689'600LL;  // 2025-01-01 00:00:00 UTC
+static_assert(kReasonableMinTimeTemp >= std::numeric_limits<time_t>::min() &&
+                  kReasonableMinTimeTemp <= std::numeric_limits<time_t>::max(),
+              "kReasonableMinTimeTemp does not fit in a time_t.");
+const time_t kReasonableMinTime = static_cast<time_t>(kReasonableMinTimeTemp);
 
-// kReasonableMaxTime represents a time (2045-01-01 00:00:00 UTC) before which
+// kReasonableMaxTime represents a time very far in the future and before which
 // the current time is expected to fall. Note that this also implicitly tests
 // that the code handles timestamps past the Unix Epoch wraparound on 03:14:08
 // UTC on 19 January 2038.
-const time_t kReasonableMaxTime = 2'366'841'600;  // 2045-01-01 00:00:00 UTC
+const time_t kReasonableMaxTime = std::numeric_limits<time_t>::max();
 
 // TODO: b/390675141 - Remove this after non-hermetic linux build is removed.
 // On non-hermetic builds, clock_gettime() is declared "noexcept".

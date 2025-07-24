@@ -52,9 +52,7 @@ link
 localeconv
 localtime
 localtime_r
-lstat
 mktime
-mremap
 newlocale
 openlog
 pathconf
@@ -75,7 +73,6 @@ sem_init
 sem_post
 sem_timedwait
 sem_wait
-sendfile
 sendmsg
 setlocale
 setpriority
