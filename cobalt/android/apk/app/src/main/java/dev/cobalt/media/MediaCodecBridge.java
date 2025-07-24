@@ -364,11 +364,6 @@ class MediaCodecBridge {
               if (mNativeMediaCodecBridge == 0) {
                 return;
               }
-              Log.i(TAG, "media_decoder:onOutputBufferAvailable pts(msec)="
-                      + info.presentationTimeUs / 1000
-                      + ", size=" + info.size
-                      + ", offset=" + info.offset
-                      + ", flags=" + bufferFlagsToString(info.flags));
               MediaCodecBridgeJni.get()
                   .onMediaCodecOutputBufferAvailable(
                       mNativeMediaCodecBridge,
@@ -775,7 +770,6 @@ class MediaCodecBridge {
       int index, int offset, int size, long presentationTimeUs, int flags) {
     resetLastPresentationTimeIfNeeded(presentationTimeUs);
     try {
-      Log.i(TAG, "media_decoder:queueInputBuffer pts(msec)=" + presentationTimeUs / 1000);
       mMediaCodec.get().queueInputBuffer(index, offset, size, presentationTimeUs, flags);
     } catch (Exception e) {
       Log.e(TAG, "Failed to queue input buffer", e);

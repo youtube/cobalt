@@ -35,7 +35,7 @@ using base::android::AttachCurrentThread;
 
 namespace {
 
-constexpr int kMaxFramesInDecoder = 4;
+constexpr int kMaxFramesInDecoder = 6;
 constexpr bool kForceLimiting = true;
 constexpr int kFrameTrackerLogIntervalUs = 1'000'000;  // 1 sec.
 
@@ -522,10 +522,6 @@ bool MediaDecoder::ProcessOneInputBuffer(
   }
 
   if (size > 0) {
-    SB_LOG(INFO) << "Calling AddFrame: is_key_frame="
-                 << (input_buffer->video_sample_info().is_key_frame ? "true"
-                                                                    : "false")
-                 << ", size=" << input_buffer->size();
     decoder_flow_control_->AddFrame(input_buffer->timestamp());
   } else {
     SB_LOG(WARNING) << __func__ << " > size=" << size;
@@ -660,7 +656,7 @@ void MediaDecoder::OnMediaCodecError(bool is_recoverable,
 }
 
 void MediaDecoder::OnMediaCodecInputBufferAvailable(int buffer_index) {
-  SB_LOG(INFO) << __func__;
+  SB_LOG(INFO) << __func__ << " > buffer_index=" << buffer_index;
   if (media_type_ == kSbMediaTypeVideo && first_call_on_handler_thread_) {
     // Set the thread priority of the Handler thread to dispatch the async
     // decoder callbacks to high.
