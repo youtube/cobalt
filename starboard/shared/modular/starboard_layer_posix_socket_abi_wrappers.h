@@ -86,6 +86,24 @@ typedef struct musl_addrinfo {
   struct musl_addrinfo* ai_next;
 } musl_addrinfo;
 
+// The padding assumes all platforms are little endian
+// in third_party/musl/include/sys/socket.h.
+struct musl_msghdr {
+  void* msg_name;
+  socklen_t msg_namelen;
+  struct iovec* msg_iov;
+  int msg_iovlen;
+#if SB_IS(64_BIT)
+  int __pad1;
+#endif  // SB_IS(64_BIT)
+  void* msg_control;
+  socklen_t msg_controllen;
+#if SB_IS(64_BIT)
+  int __pad2;
+#endif  // SB_IS(64_BIT)
+  int msg_flags;
+};
+
 SB_EXPORT int __abi_wrap_accept(int sockfd,
                                 musl_sockaddr* addr,
                                 socklen_t* addrlen_ptr);
@@ -116,6 +134,10 @@ SB_EXPORT int __abi_wrap_setsockopt(int socket,
                                     socklen_t option_len);
 
 SB_EXPORT int __abi_wrap_shutdown(int socket, int how);
+
+SB_EXPORT ssize_t __abi_wrap_sendmsg(int sockfd,
+                                     const struct musl_msghdr* msg,
+                                     int flags);
 
 #ifdef __cplusplus
 }  // extern "C"
