@@ -1104,7 +1104,7 @@ class MediaCodecBridge {
                   return;
                 }
                 MediaCodecBridgeJni.get()
-                    .OnMediaCodecFirstTunnelFrameReady(mNativeMediaCodecBridge);
+                    .onMediaCodecFirstTunnelFrameReady(mNativeMediaCodecBridge);
               }
             }
           };
@@ -1179,6 +1179,6 @@ class MediaCodecBridge {
     void onMediaCodecFrameRendered(
         long nativeMediaCodecBridge, long presentationTimeUs, long renderAtSystemTimeNs);
 
-    void OnMediaCodecFirstTunnelFrameReady(long nativeMediaCodecBridge);
+    void onMediaCodecFirstTunnelFrameReady(long nativeMediaCodecBridge);
   }
 }
