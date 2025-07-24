@@ -7,7 +7,6 @@ OPENSSL_memory_free
 OPENSSL_memory_get_size
 __nl_langinfo_l
 __res_state
-_exit
 access
 chmod
 clock_nanosleep
@@ -52,13 +51,10 @@ link
 localeconv
 localtime
 localtime_r
-lstat
 mktime
-mremap
 newlocale
 openlog
 pathconf
-poll
 posix_fadvise
 prctl
 printf
@@ -67,17 +63,14 @@ puts
 random
 readlink
 realpath
-rename
 rewind
 sched_getaffinity
 sdallocx
-select
 sem_destroy
 sem_init
 sem_post
 sem_timedwait
 sem_wait
-sendfile
 sendmsg
 setlocale
 setpriority
@@ -87,7 +80,6 @@ sigaction
 stderr
 stdin
 stdout
-symlink
 syscall
 sysconf
 syslog

@@ -1,12 +1,20 @@
-// Copyright 2012 The Chromium Authors
-// Use of this source code is governed by a BSD-style license that can be
-// found in the LICENSE file.
+// Copyright 2025 The Cobalt Authors. All Rights Reserved.
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
 
 package dev.cobalt.shell;
 
 import android.content.Context;
-import android.util.AttributeSet;
-import android.widget.FrameLayout;
 import android.graphics.Color;
 import org.chromium.base.ThreadUtils;
 import org.chromium.base.annotations.CalledByNative;
@@ -21,7 +29,7 @@ import org.chromium.ui.base.WindowAndroid;
  * Container and generator of ShellViews.
  */
 @JNINamespace("content")
-public class ShellManager extends FrameLayout {
+public class ShellManager {
     private static final String TAG = "cobalt";
     public static final String DEFAULT_SHELL_URL = "http://www.google.com";
     private WindowAndroid mWindow;
@@ -32,12 +40,18 @@ public class ShellManager extends FrameLayout {
     // The target for all content rendering.
     private ContentViewRenderView mContentViewRenderView;
 
+    private Context mContext;
+
     /**
      * Constructor for inflating via XML.
      */
-    public ShellManager(final Context context, AttributeSet attrs) {
-        super(context, attrs);
+    public ShellManager(final Context context) {
+        mContext = context;
         ShellManagerJni.get().init(this);
+    }
+
+    public Context getContext() {
+        return mContext;
     }
 
     /**
@@ -97,21 +111,18 @@ public class ShellManager extends FrameLayout {
             mContentViewRenderView.onNativeLibraryLoaded(mWindow);
         }
 
-        Shell shellView = new Shell(getContext(), null);
+        Shell shellView = new Shell(getContext());
         shellView.initialize(nativeShellPtr, mWindow);
 
         // TODO(tedchoc): Allow switching back to these inactive shells.
         if (mActiveShell != null) removeShell(mActiveShell);
 
         showShell(shellView);
-
         return shellView;
     }
 
     private void showShell(Shell shellView) {
         shellView.setContentViewRenderView(mContentViewRenderView);
-        addView(shellView, new FrameLayout.LayoutParams(
-                FrameLayout.LayoutParams.MATCH_PARENT, FrameLayout.LayoutParams.MATCH_PARENT));
         mActiveShell = shellView;
         WebContents webContents = mActiveShell.getWebContents();
         if (webContents != null) {
@@ -119,12 +130,11 @@ public class ShellManager extends FrameLayout {
             webContents.onShow();
         }
     }
+
     @CalledByNative
     private void removeShell(Shell shellView) {
         if (shellView == mActiveShell) mActiveShell = null;
-        if (shellView.getParent() == null) return;
         shellView.setContentViewRenderView(null);
-        removeView(shellView);
     }
 
     /**
