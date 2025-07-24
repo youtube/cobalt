@@ -18,6 +18,9 @@ import android.view.View;
 import android.view.ViewGroup;
 import android.util.Log;
 
+/**
+ * Utility class for Cobalt Shell android.
+ */
 public class Util {
   private static String TAG = "cobalt";
 

@@ -12,16 +12,13 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#ifndef COBALT_SHELL_ANDROID_SHELL_DESCRIPTORS_H_
-#define COBALT_SHELL_ANDROID_SHELL_DESCRIPTORS_H_
+#include <poll.h>
 
-#include "content/public/common/content_descriptors.h"
+extern "C" {
 
-// This is a list of global descriptor keys to be used with the
-// base::GlobalDescriptors object (see base/posix/global_descriptors.h)
-enum {
-  kShellPakDescriptor = kContentIPCDescriptorMax + 1,
-  kAndroidMinidumpDescriptor,
-};
+int __abi_wrap_poll(struct pollfd* fds, nfds_t nfds, int timeout);
 
-#endif  // COBALT_SHELL_ANDROID_SHELL_DESCRIPTORS_H_
+int poll(pollfd* fds, nfds_t nfds, int timeout) {
+  return __abi_wrap_poll(fds, nfds, timeout);
+}
+}
