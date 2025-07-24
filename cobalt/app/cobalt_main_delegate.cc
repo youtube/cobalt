@@ -157,17 +157,12 @@ absl::variant<int, content::MainFunctionParams> CobaltMainDelegate::RunProcess(
   base::trace_event::TraceLog::GetInstance()->SetProcessSortIndex(
       content::kTraceEventBrowserProcessSortIndex);
 
-  SbWindowOptions options;
-  SbWindowSetDefaultOptions(&options);
-  SbWindow window = SbWindowCreate(&options);
-  CHECK(SbWindowIsValid(window));
-
   base::RunLoop run_loop;
 
   auto demuxer = std::make_unique<::media::SplashScreenDemuxer>(
       base::ThreadPool::CreateSequencedTaskRunner({}));
   auto renderer = std::make_unique<::media::SplashScreenRenderer>(
-      base::ThreadPool::CreateSequencedTaskRunner({}), window);
+      base::ThreadPool::CreateSequencedTaskRunner({}), kSbWindowInvalid);
   auto renderer_client =
       std::make_unique<SplashScreenRendererClient>(run_loop.QuitClosure());
 
@@ -213,8 +208,6 @@ absl::variant<int, content::MainFunctionParams> CobaltMainDelegate::RunProcess(
       main_runner_->Initialize(std::move(main_function_params));
   DCHECK_LT(initialize_exit_code, 0)
       << "BrowserMainRunner::Initialize failed in ShellMainDelegate";
-
-  SbWindowDestroy(window);
 
   // Return 0 as BrowserMain() should not be called after this, bounce up to
   // the system message loop for ContentShell, and we're already done thanks
