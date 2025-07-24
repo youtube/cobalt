@@ -57,6 +57,25 @@ runs:
           --targets $(cat "${TEST_TARGETS_JSON_FILE}" | jq -cr '.test_targets | join(",")') \
           ${FLAGS}
       shell: bash
+    - name: Copy Runnables to Artifacts again
+      if: inputs.upload_on_device_test_artifacts == 'true'
+      env:
+        TEST_TARGETS_JSON_FILE: ${{ inputs.test_targets_json_file }}
+      run: |
+        set -eux
+        cd src/
+        mkdir -p "${GITHUB_WORKSPACE}/artifacts/"
+        if [[ "${{ matrix.platform }}" == *raspi* ]]; then
+          mkdir -p "${GITHUB_WORKSPACE}/artifacts/out/${{ matrix.platform }}_${{ matrix.config }}/"
+        fi
+        for target in $(cat "${TEST_TARGETS_JSON_FILE}" | jq -r '.executables | .[]'); do
+          if [[ "${{ matrix.platform }}" == *android* ]]; then
+            cp "${target}" "${GITHUB_WORKSPACE}/artifacts/"
+          elif [[ "${{ matrix.platform }}" == *raspi* ]]; then
+            cp "${target}" "${GITHUB_WORKSPACE}/artifacts/out/${{ matrix.platform }}_${{ matrix.config }}/"
+          fi
+        done
+      shell: bash
     - name: Upload On-Host Test Artifacts Archive
       if: inputs.upload_on_host_test_artifacts == 'true'
       uses: actions/upload-artifact@v4
