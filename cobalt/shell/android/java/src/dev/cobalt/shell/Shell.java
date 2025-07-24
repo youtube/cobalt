@@ -23,6 +23,7 @@ import android.view.Menu;
 import android.view.MenuItem;
 import android.view.View;
 import android.view.ViewGroup;
+import android.widget.FrameLayout;
 import org.chromium.base.Callback;
 import org.chromium.base.annotations.CalledByNative;
 import org.chromium.base.annotations.JNINamespace;
@@ -64,6 +65,8 @@ public class Shell {
     private boolean mLoading;
     private boolean mIsFullscreen;
 
+    private boolean loaded;
+
     private Callback<Boolean> mOverlayModeChangedCallbackForTesting;
     private ViewGroup mRootView;
 
@@ -78,7 +81,17 @@ public class Shell {
     /**
      * Set the SurfaceView being rendered to as soon as it is available.
      */
-    public void setContentViewRenderView(ContentViewRenderView contentViewRenderView) {
+    public void setContentViewRenderView(ContentViewRenderView contentViewRenderView, boolean addView) {
+        if (contentViewRenderView == null) {
+            if (contentViewRenderView != null) {
+                mRootView.removeView(contentViewRenderView);
+            }
+        } else if (addView) {
+            mRootView.addView(contentViewRenderView,
+                    new FrameLayout.LayoutParams(
+                            FrameLayout.LayoutParams.MATCH_PARENT,
+                            FrameLayout.LayoutParams.MATCH_PARENT));
+        }
         mContentViewRenderView = contentViewRenderView;
     }
 

@@ -36,6 +36,8 @@ public class ShellManager {
     private Shell mActiveShell;
 
     private String mStartupUrl = DEFAULT_SHELL_URL;
+    // A boolean to ensure setContentView() is only called once.
+    private boolean mAddView = true;
 
     // The target for all content rendering.
     private ContentViewRenderView mContentViewRenderView;
@@ -122,7 +124,9 @@ public class ShellManager {
     }
 
     private void showShell(Shell shellView) {
-        shellView.setContentViewRenderView(mContentViewRenderView);
+        boolean addView = mAddView;
+        mAddView = false;
+        shellView.setContentViewRenderView(mContentViewRenderView, addView);
         mActiveShell = shellView;
         WebContents webContents = mActiveShell.getWebContents();
         if (webContents != null) {
@@ -134,7 +138,7 @@ public class ShellManager {
     @CalledByNative
     private void removeShell(Shell shellView) {
         if (shellView == mActiveShell) mActiveShell = null;
-        shellView.setContentViewRenderView(null);
+        shellView.setContentViewRenderView(null, false);
     }
 
     /**
