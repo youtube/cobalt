@@ -1006,6 +1006,14 @@ SbPlayerOutputMode SbPlayerBridge::GetSbPlayerOutputMode() {
   return output_mode_;
 }
 
+base::TimeDelta SbPlayerBridge::GetMediaTime() {
+  PlayerInfo info{nullptr, nullptr, nullptr, nullptr, nullptr};
+  base::TimeDelta media_time;
+  info.media_time = &media_time;
+  GetInfo(&info);
+  return media_time;
+}
+
 void SbPlayerBridge::GetInfo_Locked(PlayerInfo* out_info) {
   DCHECK(out_info);
   lock_.AssertAcquired();

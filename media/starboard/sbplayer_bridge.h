@@ -174,6 +174,8 @@ class SbPlayerBridge {
     set_drm_system_ready_cb_time_ = timestamp;
   }
 
+  base::TimeDelta GetMediaTime();
+
  private:
   enum State {
     kPlaying,
