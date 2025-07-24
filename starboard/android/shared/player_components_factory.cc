@@ -50,6 +50,9 @@
 #include "starboard/shared/starboard/player/filter/video_renderer_sink.h"
 
 namespace starboard::android::shared {
+namespace {
+
+using base::android::AttachCurrentThread;
 
 // Tunnel mode has to be enabled explicitly by the web app via mime attributes
 // "tunnelmode", set the following variable to true to force enabling tunnel
@@ -179,6 +182,7 @@ class PlayerComponentsPassthrough
   std::unique_ptr<AudioRendererPassthrough> audio_renderer_;
   std::unique_ptr<VideoRenderer> video_renderer_;
 };
+}  // namespace
 
 class PlayerComponentsFactory : public starboard::shared::starboard::player::
                                     filter::PlayerComponents::Factory {

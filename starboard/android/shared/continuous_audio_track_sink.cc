@@ -29,6 +29,7 @@
 namespace starboard::android::shared {
 namespace {
 
+using base::android::AttachCurrentThread;
 using ::starboard::shared::starboard::media::GetBytesPerSample;
 
 // The maximum number of frames that can be written to android audio track per

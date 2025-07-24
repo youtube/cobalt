@@ -23,6 +23,8 @@
 
 namespace starboard::android::shared {
 
+using base::android::ScopedJavaGlobalRef;
+
 const char* g_app_assets_dir = "/cobalt/assets";
 // Representing the absolute path to the application-specific directory
 // where persistent files should be stored

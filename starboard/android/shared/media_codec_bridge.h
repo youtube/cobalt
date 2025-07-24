@@ -26,10 +26,6 @@
 
 namespace starboard::android::shared {
 
-// TODO: (cobalt b/372559388) Update namespace to jni_zero.
-using base::android::ScopedJavaGlobalRef;
-using base::android::ScopedJavaLocalRef;
-
 // GENERATED_JAVA_ENUM_PACKAGE: dev.cobalt.media
 // GENERATED_JAVA_PREFIX_TO_STRIP: MEDIA_CODEC_
 enum MediaCodecStatus {
@@ -189,7 +185,7 @@ class MediaCodecBridge {
 
   // It is the responsibility of the client to manage the lifetime of the
   // jobject that |GetInputBuffer| returns.
-  ScopedJavaLocalRef<jobject> GetInputBuffer(jint index);
+  base::android::ScopedJavaLocalRef<jobject> GetInputBuffer(jint index);
   jint QueueInputBuffer(jint index,
                         jint offset,
                         jint size,
@@ -202,7 +198,7 @@ class MediaCodecBridge {
 
   // It is the responsibility of the client to manage the lifetime of the
   // jobject that |GetOutputBuffer| returns.
-  ScopedJavaLocalRef<jobject> GetOutputBuffer(jint index);
+  base::android::ScopedJavaLocalRef<jobject> GetOutputBuffer(jint index);
   void ReleaseOutputBuffer(jint index, jboolean render);
   void ReleaseOutputBufferAtTimestamp(jint index, jlong render_timestamp_ns);
 
@@ -234,14 +230,15 @@ class MediaCodecBridge {
   void Initialize(jobject j_media_codec_bridge);
 
   Handler* handler_ = NULL;
-  ScopedJavaGlobalRef<jobject> j_media_codec_bridge_ = NULL;
+  base::android::ScopedJavaGlobalRef<jobject> j_media_codec_bridge_ = NULL;
 
   // Profiling and allocation tracking has identified this area to be hot,
   // and, capable of enough to cause GC times to raise high enough to impact
   // playback.  We mitigate this by reusing these output objects between calls
   // to |DequeueInputBuffer|, |DequeueOutputBuffer|, and
   // |GetOutputDimensions|.
-  ScopedJavaGlobalRef<jobject> j_reused_get_output_format_result_ = NULL;
+  base::android::ScopedJavaGlobalRef<jobject>
+      j_reused_get_output_format_result_ = NULL;
 
   MediaCodecBridge(const MediaCodecBridge&) = delete;
   void operator=(const MediaCodecBridge&) = delete;

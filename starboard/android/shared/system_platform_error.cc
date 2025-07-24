@@ -22,6 +22,7 @@
 #include "starboard/android/shared/application_android.h"
 #include "starboard/android/shared/starboard_bridge.h"
 
+using base::android::ScopedJavaGlobalRef;
 using starboard::android::shared::ApplicationAndroid;
 
 namespace {
