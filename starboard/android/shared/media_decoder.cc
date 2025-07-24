@@ -723,7 +723,8 @@ void MediaDecoder::OnMediaCodecOutputFormatChanged() {
   condition_variable_.Signal();
 }
 
-void MediaDecoder::OnMediaCodecFrameRendered(int64_t frame_timestamp) {
+void MediaDecoder::OnMediaCodecFrameRendered(int64_t frame_timestamp,
+                                             int64_t frame_rendered_us) {
   frame_rendered_cb_(frame_timestamp);
 }
 
