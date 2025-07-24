@@ -35,7 +35,7 @@ extern "C" {
 #endif
 
 struct musl_stat {
-#if SB_IS(ARCH_ARM64) || SB_IS(ARCH_X64)
+#if SB_IS(ARCH_X64)
   int64_t /*dev_t*/ st_dev;
   int64_t /*ino_t*/ st_ino;
   int64_t /*nlink_t*/ st_nlink;
@@ -53,6 +53,24 @@ struct musl_stat {
   struct musl_timespec /*struct timespec*/ st_mtim;
   struct musl_timespec /*struct timespec*/ st_ctim;
   int64_t unused[3];
+#elif SB_IS(ARCH_ARM64)
+  int64_t /*dev_t*/ st_dev;
+  int64_t /*ino_t*/ st_ino;
+  unsigned /*mode_t*/ st_mode;
+  unsigned /*nlink_t*/ st_nlink;
+  unsigned /*uid_t*/ st_uid;
+  unsigned /*gid_t*/ st_gid;
+  int64_t /*dev_t*/ st_rdev;
+  int64_t /*unsigned int*/ __pad0;
+  int64_t /*off_t*/ st_size;
+  unsigned /*blksize_t*/ st_blksize;
+  unsigned /*int*/ __pad2;
+  int64_t /*blkcnt_t*/ st_blocks;
+
+  struct musl_timespec /*struct timespec*/ st_atim;
+  struct musl_timespec /*struct timespec*/ st_mtim;
+  struct musl_timespec /*struct timespec*/ st_ctim;
+  unsigned unused[2];
 #else
   uint64_t /*dev_t*/ st_dev;
   uint32_t /*int*/ _st_dev_padding;
