@@ -41,6 +41,19 @@
     "MobileFriendlinessCheckerTest.SmallTextOutsideViewportCeiling",
     "MobileFriendlinessCheckerTest.SubScrollerInSubScroller",
     "MobileFriendlinessCheckerTest.TextTooWide",
+<<<<<<< HEAD
     "DecoderTemplateTest/1.ResetDuringFlush"
+=======
+    "DecoderTemplateTest/1.ResetDuringFlush",
+    "StyleEngineTest.VideoControlsReject",
+    "TextSuggestionControllerTest.ApplyTextSuggestion",
+    "PageTestBase.CSPForWorld",
+    "WebFrameTest.SiteForCookiesFromChildWithRemoteMainFrame",
+    "HTMLSrcsetParserTest.SaveDataEnabledBasic",
+    "LayoutThemeTest.ChangeFocusRingColor",
+    "All/UseCounterImplBrowserReportTest.ReportOnlyHTTPFamily/5",
+    "*TextFragmentAnchor*",
+    "*TextFragmentHandlerTest*"
+>>>>>>> f633b1e740b (starboard/nplb: Clarify media/not sources and what's built where (#6494))
   ]
 }
