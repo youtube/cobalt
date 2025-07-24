@@ -72,8 +72,8 @@ static constexpr auto kCobaltToggleSwitches = std::to_array<const char*>({
       // Cobalt doesn't use Chrome's accelerated video decoding/encoding.
       switches::kDisableAcceleratedVideoDecode,
       switches::kDisableAcceleratedVideoEncode,
-      // Backforwardcache keeps a copy of the current page when navigating away to
-      // speed up backwards navigation. YTLR Webapps are SPAs and don't use it.
+      // Backforwardcache keeps a copy of the current page when navigating away
+      // to speed up back-navigation. YTLR Webapps are SPAs and don't use it.
       switches::kDisableBackForwardCache,
 });
 
