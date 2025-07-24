@@ -61,7 +61,6 @@ printf
 pthread_sigmask
 puts
 random
-readlink
 realpath
 rename
 rewind
