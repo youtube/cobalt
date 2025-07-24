@@ -28,30 +28,6 @@ namespace starboard {
 namespace nplb {
 namespace {
 
-// Helper function to clean up a directory and its contents
-void RemoveDirectoryRecursively(const std::string& path) {
-  DIR* dir = opendir(path.c_str());
-  if (dir == nullptr) {
-    return;  // Directory might not exist or already cleaned up
-  }
-
-  struct dirent* entry;
-  while ((entry = readdir(dir)) != nullptr) {
-    if (std::string(entry->d_name) == "." ||
-        std::string(entry->d_name) == "..") {
-      continue;
-    }
-    std::string entry_path = path + "/" + entry->d_name;
-    if (entry->d_type == DT_DIR) {
-      RemoveDirectoryRecursively(entry_path);
-    } else {
-      unlink(entry_path.c_str());
-    }
-  }
-  closedir(dir);
-  rmdir(path.c_str());
-}
-
 /*
 Scenarios that aren't tested:
 1. Invalid directory pointer (ie, readdir(invalid_pointer)) as this behavior
