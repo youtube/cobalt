@@ -86,8 +86,6 @@ ThrottlingDecoderFlowControl::ThrottlingDecoderFlowControl(
 }
 
 bool ThrottlingDecoderFlowControl::AddFrame(int64_t presentation_time_us) {
-  SB_LOG(INFO) << __func__ << " pts=" << (presentation_time_us / 1'000)
-               << ", decoding_frames=" << state_.decoding_frames;
   std::lock_guard lock(mutex_);
 
   if (state_.total_frames() >= max_frames_) {
@@ -101,10 +99,10 @@ bool ThrottlingDecoderFlowControl::AddFrame(int64_t presentation_time_us) {
 
   UpdateState_Locked();
   entering_frame_id_++;
-  SB_LOG(INFO) << __func__ << " < decoding_frames=" << state_.decoding_frames
-               << ", decoded_frames=" << state_.decoded_frames
-               << ", id=" << entering_frame_id_
-               << ", pts(msec)=" << presentation_time_us / 1000;
+  SB_LOG(INFO) << "AddFrame: id=" << entering_frame_id_
+               << ", pts(msec)=" << presentation_time_us / 1000
+               << ", decoding=" << state_.decoding_frames
+               << ", decoded=" << state_.decoded_frames;
   return true;
 }
 
@@ -127,10 +125,11 @@ bool ThrottlingDecoderFlowControl::SetFrameDecoded(
   decoding_start_times_us_.pop_front();
   auto decoding_time_us = CurrentMonotonicTime() - start_time;
   decoded_frame_id_++;
-  SB_LOG(INFO) << __func__
-               << " > decoding_time_us(msec)=" << (decoding_time_us / 1'000)
-               << ", decoding_frame_id=" << decoded_frame_id_
-               << ", pts(msec)=" << presentation_time_us / 1000;
+  SB_LOG(INFO) << "SetFrameDecoded: id=" << decoded_frame_id_
+               << ", pts(msec)=" << presentation_time_us / 1000
+               << ", time(msec)=" << (decoding_time_us / 1'000)
+               << ", decoding=" << state_.decoding_frames
+               << ", decoded=" << state_.decoded_frames;
   if (decoding_time_us > kDecodingTimeWarningThresholdUs) {
     SB_LOG(WARNING) << "Decoding time exceeded threshold: "
                     << decoding_time_us / 1'000 << " msec";
