@@ -186,7 +186,8 @@ class MediaDecoder final
                                          int64_t presentation_time_us,
                                          int size) override;
   void OnMediaCodecOutputFormatChanged() override;
-  void OnMediaCodecFrameRendered(int64_t frame_timestamp) override;
+  void OnMediaCodecFrameRendered(int64_t frame_timestamp,
+                                 int64_t frame_rendered_us) override;
   void OnMediaCodecFirstTunnelFrameReady() override;
 
   ::starboard::shared::starboard::ThreadChecker thread_checker_;
