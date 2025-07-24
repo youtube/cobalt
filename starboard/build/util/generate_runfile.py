@@ -12,7 +12,7 @@ import subprocess
 import sys
 
 command = [
-    os.path.join(os.path.dirname(__file__), 'elf_loader_sandbox'),
+    os.path.join(os.path.abspath(os.path.dirname(__file__)), 'elf_loader_sandbox'),
     '--evergreen_content=.', '--evergreen_library={library}.so'
 ] + sys.argv[1:]
 try:
