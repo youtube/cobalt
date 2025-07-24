@@ -78,7 +78,9 @@ public final class CommandLineOverrideHelper {
         paramOverrides.add("--disable-accelerated-video-encode");
         // Rasterize Tiles directly to GPU memory.
         paramOverrides.add("--enable-zero-copy");
-
+        // Backforwardcache keeps a copy of the current page when navigating away to
+        // speed up backwards navigation. YTLR Webapps are SPAs and don't use it.
+        paramOverrides.add("--disable-back-forward-cache");
         return paramOverrides;
     }
 
