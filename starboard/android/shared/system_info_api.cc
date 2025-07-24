@@ -19,8 +19,6 @@
 
 namespace starboard::android::shared {
 
-using base::android::ScopedJavaGlobalRef;
-
 namespace {
 
 using base::android::ScopedJavaGlobalRef;
