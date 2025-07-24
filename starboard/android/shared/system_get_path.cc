@@ -28,7 +28,7 @@
 #include "starboard/elf_loader/evergreen_config.h"  // nogncheck
 #endif
 
-using base::android::ScopedJavaGlobalRef;
+using ::base::android::ScopedJavaGlobalRef;
 using ::starboard::android::shared::g_app_assets_dir;
 using ::starboard::android::shared::g_app_cache_dir;
 using ::starboard::android::shared::g_app_files_dir;
