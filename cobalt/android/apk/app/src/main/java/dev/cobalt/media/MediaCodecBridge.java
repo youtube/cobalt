@@ -1104,7 +1104,7 @@ class MediaCodecBridge {
                   return;
                 }
                 MediaCodecBridgeJni.get()
-                    .OnMediaCodecFirstTunnelFrameReady(mNativeMediaCodecBridge);
+                    .onMediaCodecFirstTunnelFrameReady(mNativeMediaCodecBridge);
               }
             }
           };
@@ -1162,23 +1162,23 @@ class MediaCodecBridge {
   @NativeMethods
   interface Natives {
     void onMediaCodecError(
-        long mediaCodecBridge, boolean isRecoverable, boolean isTransient, String diagnosticInfo);
+        long nativeMediaCodecBridge, boolean isRecoverable, boolean isTransient, String diagnosticInfo);
 
-    void onMediaCodecInputBufferAvailable(long mediaCodecBridge, int bufferIndex);
+    void onMediaCodecInputBufferAvailable(long nativeMediaCodecBridge, int bufferIndex);
 
     void onMediaCodecOutputBufferAvailable(
-        long mediaCodecBridge,
+        long nativeMediaCodecBridge,
         int bufferIndex,
         int flags,
         int offset,
         long presentationTimeUs,
         int size);
 
-    void onMediaCodecOutputFormatChanged(long mediaCodecBridge);
+    void onMediaCodecOutputFormatChanged(long nativeMediaCodecBridge);
 
     void onMediaCodecFrameRendered(
-        long mediaCodecBridge, long presentationTimeUs, long renderAtSystemTimeNs);
+        long nativeMediaCodecBridge, long presentationTimeUs, long renderAtSystemTimeNs);
 
-    void OnMediaCodecFirstTunnelFrameReady(long mediaCodecBridge);
+    void onMediaCodecFirstTunnelFrameReady(long nativeMediaCodecBridge);
   }
 }
