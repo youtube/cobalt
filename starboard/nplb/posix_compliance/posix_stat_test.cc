@@ -47,7 +47,8 @@ class PosixStatTest : public ::testing::Test {
     file_path_ = test_dir_ + "/the_file.txt";
     int fd = open(file_path_.c_str(), O_CREAT | O_WRONLY, 0644);
     ASSERT_NE(fd, -1) << "Failed to create test file: " << strerror(errno);
-    ASSERT_EQ(write(fd, kTestFileContent, strlen(kTestFileContent)),
+    ASSERT_EQ(static_cast<unsigned long>(
+                  write(fd, kTestFileContent, strlen(kTestFileContent))),
               strlen(kTestFileContent));
     close(fd);
 
@@ -75,7 +76,7 @@ TEST_F(PosixStatTest, SuccessForFile) {
 
   EXPECT_TRUE(S_ISREG(statbuf.st_mode));
   EXPECT_FALSE(S_ISDIR(statbuf.st_mode));
-  EXPECT_EQ(statbuf.st_size, strlen(kTestFileContent));
+  EXPECT_EQ(static_cast<size_t>(statbuf.st_size), strlen(kTestFileContent));
 }
 
 TEST_F(PosixStatTest, SuccessForDirectory) {
@@ -96,7 +97,7 @@ TEST_F(PosixStatTest, SuccessForSymlink) {
       << "stat failed: " << strerror(errno);
 
   EXPECT_TRUE(S_ISREG(statbuf.st_mode));
-  EXPECT_EQ(statbuf.st_size, strlen(kTestFileContent));
+  EXPECT_EQ(static_cast<size_t>(statbuf.st_size), strlen(kTestFileContent));
 }
 
 // We are not checking st_uid and st_gid since we do not support getuid() and
@@ -115,21 +116,21 @@ TEST_F(PosixStatTest, AllFieldsArePopulated) {
   ASSERT_EQ(stat(test_dir_.c_str(), &parent_statbuf), 0);
 
   // Check device and inode numbers.
-  EXPECT_GT(statbuf.st_dev, 0);
+  EXPECT_GT(statbuf.st_dev, static_cast<unsigned long>(0));
   EXPECT_EQ(statbuf.st_dev, parent_statbuf.st_dev);
-  EXPECT_GT(statbuf.st_ino, 0);
+  EXPECT_GT(statbuf.st_ino, static_cast<unsigned long>(0));
 
   // Check mode and permissions.
   EXPECT_TRUE(S_ISREG(statbuf.st_mode));
   EXPECT_FALSE(S_ISDIR(statbuf.st_mode));
   // 0644 comes from permissions in test setup.
-  EXPECT_EQ(statbuf.st_mode & 0777, 0644);
+  EXPECT_EQ(statbuf.st_mode & 0777, static_cast<mode_t>(0644));
 
   // Check link count
-  EXPECT_EQ(statbuf.st_nlink, 1);
+  EXPECT_EQ(statbuf.st_nlink, static_cast<unsigned long>(1));
 
   // Check file size.
-  EXPECT_EQ(statbuf.st_size, strlen(kTestFileContent));
+  EXPECT_EQ(static_cast<size_t>(statbuf.st_size), strlen(kTestFileContent));
 
   // Check block size and block count
   // Sanity check, since these can vary by platform.
