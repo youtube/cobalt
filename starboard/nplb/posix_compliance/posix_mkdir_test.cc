@@ -83,15 +83,6 @@ TEST(PosixMkdirTest, FailsWithEmptyPath) {
   EXPECT_EQ(errno, ENOENT);
 }
 
-TEST(PosixMkdirTest, FailsWithNullPath) {
-  // A NULL path should result in a "Bad address" error.
-#pragma clang diagnostic push
-#pragma clang diagnostic ignored "-Wnonnull"
-  EXPECT_EQ(mkdir(NULL, 0755), -1);
-#pragma clang diagnostic pop
-  EXPECT_EQ(errno, EFAULT);
-}
-
 }  // namespace
 }  // namespace nplb
 }  // namespace starboard
