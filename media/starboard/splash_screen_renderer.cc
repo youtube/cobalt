@@ -15,6 +15,7 @@
 #include "media/starboard/splash_screen_renderer.h"
 
 #include "base/functional/bind.h"
+#include "base/logging.h"
 #include "base/task/bind_post_task.h"
 #include "media/base/decoder_buffer.h"
 #include "media/base/media_resource.h"
@@ -27,13 +28,16 @@ SplashScreenRenderer::SplashScreenRenderer(
     SbWindow window)
     : task_runner_(task_runner),
       window_(window),
-      set_bounds_helper_(new SbPlayerSetBoundsHelper) {}
+      set_bounds_helper_(new SbPlayerSetBoundsHelper) {
+  LOG(INFO) << "YO THOR - SPLASH SCREEN RENDERERE CTOR";
+}
 
 SplashScreenRenderer::~SplashScreenRenderer() = default;
 
 void SplashScreenRenderer::Initialize(MediaResource* media_resource,
                                       RendererClient* client,
                                       PipelineStatusCallback init_cb) {
+  LOG(INFO) << "YO THOR - SPLASH SCREEN RENDERERE INTIITITI";
   client_ = client;
   video_stream_ = media_resource->GetFirstStream(DemuxerStream::VIDEO);
 

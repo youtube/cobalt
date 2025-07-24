@@ -40,7 +40,9 @@ namespace {
 class SplashScreenRendererClient : public ::media::RendererClient {
  public:
   explicit SplashScreenRendererClient(base::OnceClosure ended_cb)
-      : ended_cb_(std::move(ended_cb)) {}
+      : ended_cb_(std::move(ended_cb)) {
+    LOG(INFO) << "YO THOR - SPLASH SCREEN RENDERERERER CLIENT";
+  }
   virtual ~SplashScreenRendererClient() = default;
 
   void OnError(::media::PipelineStatus status) override {
@@ -166,6 +168,7 @@ absl::variant<int, content::MainFunctionParams> CobaltMainDelegate::RunProcess(
   auto renderer_client =
       std::make_unique<SplashScreenRendererClient>(run_loop.QuitClosure());
 
+  LOG(INFO) << "YO THOR - SPLASH SCREEN DEMUXER CALL";
   demuxer->Initialize(
       nullptr,
       base::BindOnce(

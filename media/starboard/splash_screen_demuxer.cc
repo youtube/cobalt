@@ -43,7 +43,9 @@ std::string GetSplashScreenVideoPath() {
 class SplashScreenDemuxerStream : public DemuxerStream {
  public:
   explicit SplashScreenDemuxerStream(SplashScreenDemuxer* demuxer)
-      : demuxer_(demuxer) {}
+      : demuxer_(demuxer) {
+    LOG(INFO) << "YO THOR SPLASH SCREEN DEMIXER STREAM";
+  }
 
   // DemuxerStream implementation.
   void Read(uint32_t count, ReadCB read_cb) override {
@@ -65,7 +67,9 @@ class SplashScreenDemuxerStream : public DemuxerStream {
 
 SplashScreenDemuxer::SplashScreenDemuxer(
     const scoped_refptr<base::SequencedTaskRunner>& task_runner)
-    : task_runner_(task_runner) {}
+    : task_runner_(task_runner) {
+  LOG(INFO) << "YO THOR - SPLASH SCREEN DEMXUER";
+}
 
 SplashScreenDemuxer::~SplashScreenDemuxer() {
   if (reader_) {
@@ -208,6 +212,7 @@ VideoDecoderConfig SplashScreenDemuxer::video_decoder_config() const {
 
 void SplashScreenDemuxer::Read(DemuxerStream::Type type,
                                DemuxerStream::ReadCB read_cb) {
+  LOG(INFO) << "YO THOR - SPLASH SCREEN DEMXUER REAADDDD";
   if (!current_cluster_ || current_cluster_->EOS()) {
     std::move(read_cb).Run(DemuxerStream::kAborted,
                            {DecoderBuffer::CreateEOSBuffer()});
