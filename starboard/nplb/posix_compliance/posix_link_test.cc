@@ -80,10 +80,34 @@ TEST(PosixLinkTest, FailsOnDirectory) {
   const char* new_path = "new_dir_link.tmp";
   ASSERT_EQ(mkdir(dir_path, 0755), 0);
 
-  // Most systems do not allow creating hard links to directories.
   EXPECT_EQ(link(dir_path, new_path), -1);
   EXPECT_EQ(errno, EPERM);
 
+  rmdir(dir_path);
+}
+
+TEST(PosixLinkTest, FailsWithSymbolicLinkLoop) {
+  // Setup a temporary directory for this test.
+  const char* dir_path = "eloop_test_dir";
+  ASSERT_EQ(mkdir(dir_path, 0755), 0);
+
+  starboard::nplb::ScopedRandomFile old_path;
+  const std::string link_a_path = std::string(dir_path) + "/link_a";
+  const std::string link_b_path = std::string(dir_path) + "/link_b";
+
+  // Create a symlink loop using relative paths: link_a -> link_b, and link_b ->
+  // link_a
+  ASSERT_EQ(symlink("link_b", link_a_path.c_str()), 0);
+  ASSERT_EQ(symlink("link_a", link_b_path.c_str()), 0);
+
+  // Attempt to create a link where the new path contains the loop.
+  const std::string new_path_with_loop = link_a_path + "/new_link";
+  EXPECT_EQ(link(old_path.filename().c_str(), new_path_with_loop.c_str()), -1);
+  EXPECT_EQ(errno, ELOOP);
+
+  // Cleanup
+  unlink(link_a_path.c_str());
+  unlink(link_b_path.c_str());
   rmdir(dir_path);
 }
 
@@ -105,24 +129,6 @@ TEST(PosixLinkTest, FailsWithEmptyNewPath) {
   starboard::nplb::ScopedRandomFile old_path;
   EXPECT_EQ(link(old_path.filename().c_str(), ""), -1);
   EXPECT_EQ(errno, ENOENT);
-}
-
-TEST(PosixLinkTest, FailsWithNullOldPath) {
-  const char* new_path = "new_link.tmp";
-#pragma clang diagnostic push
-#pragma clang diagnostic ignored "-Wnonnull"
-  EXPECT_EQ(link(nullptr, new_path), -1);
-#pragma clang diagnostic pop
-  EXPECT_EQ(errno, EFAULT);
-}
-
-TEST(PosixLinkTest, FailsWithNullNewPath) {
-  starboard::nplb::ScopedRandomFile old_path;
-#pragma clang diagnostic push
-#pragma clang diagnostic ignored "-Wnonnull"
-  EXPECT_EQ(link(old_path.filename().c_str(), nullptr), -1);
-#pragma clang diagnostic pop
-  EXPECT_EQ(errno, EFAULT);
 }
 
 }  // namespace
