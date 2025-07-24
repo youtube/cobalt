@@ -63,7 +63,7 @@ class ThrottlingDecoderFlowControl : public DecoderFlowControl {
 
   int entering_frame_id_ = 0;
   int decoded_frame_id_ = 0;
-  bool started_ = false;
+  bool started_ = true;
 };
 
 ThrottlingDecoderFlowControl::ThrottlingDecoderFlowControl(
@@ -127,7 +127,7 @@ bool ThrottlingDecoderFlowControl::SetFrameDecoded(
   decoded_frame_id_++;
   SB_LOG(INFO) << "SetFrameDecoded: id=" << decoded_frame_id_
                << ", pts(msec)=" << presentation_time_us / 1000
-               << ", time(msec)=" << (decoding_time_us / 1'000)
+               << ", elapsed time(msec)=" << (decoding_time_us / 1'000)
                << ", decoding=" << state_.decoding_frames
                << ", decoded=" << state_.decoded_frames;
   if (decoding_time_us > kDecodingTimeWarningThresholdUs) {

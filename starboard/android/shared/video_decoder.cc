@@ -219,9 +219,17 @@ class VideoFrameImpl : public VideoFrame {
     SB_DCHECK(!released_);
     SB_DCHECK(!is_end_of_stream());
     released_ = true;
+
+    media_codec_bridge_->ReleaseOutputBuffer(dequeue_output_result_.index,
+                                             true);
+    if (!is_end_of_stream()) {
+      release_callback_(std::nullopt);
+    }
+    /*
     media_codec_bridge_->ReleaseOutputBufferAtTimestamp(
         dequeue_output_result_.index, release_time_in_nanoseconds);
     release_callback_(release_time_in_nanoseconds / 1'000);
+    */
   }
 
  private:
