@@ -96,79 +96,6 @@ jint SbMediaRangeIdToColorRange(SbMediaRangeId range_id) {
 
 }  // namespace
 
-extern "C" SB_EXPORT_PLATFORM void
-JNI_MediaCodecBridge_OnMediaCodecFrameRendered(JNIEnv* env,
-                                               jlong native_media_codec_bridge,
-                                               jlong presentation_time_us,
-                                               jlong render_at_system_time_ns) {
-  MediaCodecBridge* media_codec_bridge =
-      reinterpret_cast<MediaCodecBridge*>(native_media_codec_bridge);
-  SB_DCHECK(media_codec_bridge);
-  media_codec_bridge->OnMediaCodecFrameRendered(presentation_time_us);
-}
-
-extern "C" SB_EXPORT_PLATFORM void
-JNI_MediaCodecBridge_OnMediaCodecFirstTunnelFrameReady(
-    JNIEnv* env,
-    jlong native_media_codec_bridge) {
-  MediaCodecBridge* media_codec_bridge =
-      reinterpret_cast<MediaCodecBridge*>(native_media_codec_bridge);
-  SB_DCHECK(media_codec_bridge);
-  media_codec_bridge->OnMediaCodecFirstTunnelFrameReady();
-}
-
-extern "C" SB_EXPORT_PLATFORM void JNI_MediaCodecBridge_OnMediaCodecError(
-    JNIEnv* env,
-    jlong native_media_codec_bridge,
-    jboolean is_recoverable,
-    jboolean is_transient,
-    const JavaParamRef<jstring>& diagnostic_info) {
-  MediaCodecBridge* media_codec_bridge =
-      reinterpret_cast<MediaCodecBridge*>(native_media_codec_bridge);
-  SB_DCHECK(media_codec_bridge);
-  std::string diagnostic_info_in_str =
-      ConvertJavaStringToUTF8(env, diagnostic_info);
-  media_codec_bridge->OnMediaCodecError(is_recoverable, is_transient,
-                                        diagnostic_info_in_str);
-}
-
-extern "C" SB_EXPORT_PLATFORM void
-JNI_MediaCodecBridge_OnMediaCodecInputBufferAvailable(
-    JNIEnv* env,
-    jlong native_media_codec_bridge,
-    jint buffer_index) {
-  MediaCodecBridge* media_codec_bridge =
-      reinterpret_cast<MediaCodecBridge*>(native_media_codec_bridge);
-  SB_DCHECK(media_codec_bridge);
-  media_codec_bridge->OnMediaCodecInputBufferAvailable(buffer_index);
-}
-
-extern "C" SB_EXPORT_PLATFORM void
-JNI_MediaCodecBridge_OnMediaCodecOutputBufferAvailable(
-    JNIEnv* env,
-    jlong native_media_codec_bridge,
-    jint buffer_index,
-    jint flags,
-    jint offset,
-    jlong presentation_time_us,
-    jint size) {
-  MediaCodecBridge* media_codec_bridge =
-      reinterpret_cast<MediaCodecBridge*>(native_media_codec_bridge);
-  SB_DCHECK(media_codec_bridge);
-  media_codec_bridge->OnMediaCodecOutputBufferAvailable(
-      buffer_index, flags, offset, presentation_time_us, size);
-}
-
-extern "C" SB_EXPORT_PLATFORM void
-JNI_MediaCodecBridge_OnMediaCodecOutputFormatChanged(
-    JNIEnv* env,
-    jlong native_media_codec_bridge) {
-  MediaCodecBridge* media_codec_bridge =
-      reinterpret_cast<MediaCodecBridge*>(native_media_codec_bridge);
-  SB_DCHECK(media_codec_bridge);
-  media_codec_bridge->OnMediaCodecOutputFormatChanged();
-}
-
 // static
 std::unique_ptr<MediaCodecBridge> MediaCodecBridge::CreateAudioMediaCodecBridge(
     const AudioStreamInfo& audio_stream_info,
@@ -521,35 +448,45 @@ AudioOutputFormatResult MediaCodecBridge::GetAudioOutputFormat() {
   return {status, sample_rate, channel_count};
 }
 
-void MediaCodecBridge::OnMediaCodecError(bool is_recoverable,
-                                         bool is_transient,
-                                         const std::string& diagnostic_info) {
-  handler_->OnMediaCodecError(is_recoverable, is_transient, diagnostic_info);
+void MediaCodecBridge::OnMediaCodecError(
+    JNIEnv* env,
+    jboolean is_recoverable,
+    jboolean is_transient,
+    const base::android::JavaParamRef<jstring>& diagnostic_info) {
+  std::string diagnostic_info_in_str =
+      ConvertJavaStringToUTF8(env, diagnostic_info);
+  handler_->OnMediaCodecError(is_recoverable, is_transient,
+                              diagnostic_info_in_str);
 }
 
-void MediaCodecBridge::OnMediaCodecInputBufferAvailable(int buffer_index) {
+void MediaCodecBridge::OnMediaCodecInputBufferAvailable(JNIEnv* env,
+                                                        jint buffer_index) {
   handler_->OnMediaCodecInputBufferAvailable(buffer_index);
 }
 
 void MediaCodecBridge::OnMediaCodecOutputBufferAvailable(
-    int buffer_index,
-    int flags,
-    int offset,
-    int64_t presentation_time_us,
-    int size) {
+    JNIEnv* env,
+    jint buffer_index,
+    jint flags,
+    jint offset,
+    jlong presentation_time_us,
+    jint size) {
   handler_->OnMediaCodecOutputBufferAvailable(buffer_index, flags, offset,
                                               presentation_time_us, size);
 }
 
-void MediaCodecBridge::OnMediaCodecOutputFormatChanged() {
+void MediaCodecBridge::OnMediaCodecOutputFormatChanged(JNIEnv* env) {
   handler_->OnMediaCodecOutputFormatChanged();
 }
 
-void MediaCodecBridge::OnMediaCodecFrameRendered(int64_t frame_timestamp) {
-  handler_->OnMediaCodecFrameRendered(frame_timestamp);
+void MediaCodecBridge::OnMediaCodecFrameRendered(
+    JNIEnv* env,
+    jlong presentation_time_us,
+    jlong render_at_system_time_ns) {
+  handler_->OnMediaCodecFrameRendered(presentation_time_us);
 }
 
-void MediaCodecBridge::OnMediaCodecFirstTunnelFrameReady() {
+void MediaCodecBridge::OnMediaCodecFirstTunnelFrameReady(JNIEnv* env) {
   handler_->OnMediaCodecFirstTunnelFrameReady();
 }
 
