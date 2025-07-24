@@ -1630,7 +1630,8 @@ component("net") {
     configs += [ "//build/config/compiler:optimize_max" ]
   }
 
-  if(is_starboard) {
+  # This allows linux-x64x11-no-starboard builds to run without ???
+  if(is_cobalt) {
     sources += [
       "cert/test_root_certs_builtin.cc",
       "cert/internal/system_trust_store_starboard.cc"
