@@ -700,6 +700,7 @@ BASE_EXPORT bool CopyAndDeleteDirectory(const FilePath& from_path,
                                         const FilePath& to_path);
 #endif  // BUILDFLAG(IS_WIN)
 
+#if !BUILDFLAG(IS_STARBOARD)
 #if BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_CHROMEOS) || BUILDFLAG(IS_ANDROID)
 // CopyFileContentsWithSendfile will use the sendfile(2) syscall to perform a
 // file copy without moving the data between kernel and userspace. This is much
@@ -714,6 +715,7 @@ BASE_EXPORT bool CopyFileContentsWithSendfile(File& infile,
                                               bool& retry_slow);
 #endif  // BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_CHROMEOS) ||
         // BUILDFLAG(IS_ANDROID)
+#endif  // BUILDFLAG(IS_STARBOARD)
 
 // Used by PreReadFile() when no kernel support for prefetching is available.
 bool PreReadFileSlow(const FilePath& file_path, int64_t max_bytes);

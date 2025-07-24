@@ -72,9 +72,6 @@ class DummyFile : public File {
   const std::string& GetName() { return name_; }
 
  private:
-  int file_offset_;
-  const char* buffer_;
-  int size_;
   std::vector<FileChunk> file_chunks_;
   int read_index_;
   std::string name_;

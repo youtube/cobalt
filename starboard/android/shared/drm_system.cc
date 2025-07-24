@@ -39,6 +39,9 @@ namespace starboard::android::shared {
 namespace {
 using starboard::android::shared::DrmSystem;
 
+// TODO: b/79941850 - Use base::Feature instead for the experimentation.
+constexpr bool kEnableAppProvisioning = false;
+
 constexpr char kNoUrl[] = "";
 
 DECLARE_INSTANCE_COUNTER(AndroidDrmSystem)
@@ -60,7 +63,8 @@ DrmSystem::DrmSystem(
   ON_INSTANCE_CREATED(AndroidDrmSystem);
 
   media_drm_bridge_ = std::make_unique<MediaDrmBridge>(
-      base::raw_ref<MediaDrmBridge::Host>(*this), key_system_);
+      base::raw_ref<MediaDrmBridge::Host>(*this), key_system_,
+      kEnableAppProvisioning);
   if (!media_drm_bridge_->is_valid()) {
     return;
   }
@@ -173,6 +177,10 @@ void DrmSystem::OnSessionUpdate(int ticket,
                            request_type, /*error_message=*/nullptr,
                            session_id.data(), session_id.size(), content.data(),
                            content.size(), kNoUrl);
+}
+
+void DrmSystem::OnProvisioningRequest(std::string_view content) {
+  // TODO: b/79941850 - Implement this method for app-assisted provisioning.
 }
 
 void DrmSystem::OnKeyStatusChange(

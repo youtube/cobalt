@@ -4662,6 +4662,7 @@ TEST(ScopedFD, ScopedFDCrashesOnCloseFailure) {
 
 #endif  // BUILDFLAG(IS_POSIX) || BUILDFLAG(IS_FUCHSIA)
 
+#if !BUILDFLAG(IS_STARBOARD)
 #if BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_CHROMEOS) || BUILDFLAG(IS_ANDROID)
 TEST_F(FileUtilTest, CopyFileContentsWithSendfile) {
   // This test validates that sendfile(2) can be used to copy a file contents
@@ -4825,6 +4826,7 @@ TEST_F(FileUtilTest, CopyFileContentsWithSendfileSeqFile) {
 
 #endif  // BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_CHROMEOS) ||
         // BUILDFLAG(IS_ANDROID)
+#endif  // BUILDFLAG(IS_STARBOARD)
 
 }  // namespace
 
