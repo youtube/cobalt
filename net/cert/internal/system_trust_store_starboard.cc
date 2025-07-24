@@ -11,7 +11,7 @@
 
 #include "net/cert/internal/trust_store_chrome.h"
 
-#if BUILDFLAG(IS_STARBOARD)
+#if BUILDFLAG(IS_COBALT)
 
 namespace net {
 
@@ -48,4 +48,4 @@ std::unique_ptr<SystemTrustStore> CreateSslSystemTrustStoreChromeRoot(
 
 } // namespace net
 
-#endif // BUILDFLAG(IS_STARBOARD)
+#endif // BUILDFLAG(IS_COBALT)
