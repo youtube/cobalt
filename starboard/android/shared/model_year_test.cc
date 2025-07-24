@@ -12,7 +12,12 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+#include <algorithm>
+#include <cctype>
 #include <string>
+
+#include "starboard/common/log.h"
+#include "starboard/system.h"
 
 #include "testing/gtest/include/gtest/gtest.h"
 
@@ -25,13 +30,14 @@ TEST(ModelYearTest, YearIsFourDigitsOrUnknown) {
   memset(value, 0xCD, kValueSize);
   bool result =
       SbSystemGetProperty(kSbSystemPropertyModelYear, value, kValueSize);
-  SB_DCHECK(result);
+  ASSERT_TRUE(result);
   std::string year = value;
   if (year == "unknown") {
-    return;
+    GTEST_SKIP() << "Unknown year";
   }
-  EXPECT_EQ(4, year.length());
-  EXPECT_EQ(std::string::npos, year.find_first_not_of("0123456789"));
+  EXPECT_EQ(4U, year.length());
+  EXPECT_TRUE(std::all_of(year.cbegin(), year.cend(),
+                          [](unsigned char c) { return std::isdigit(c); }));
   EXPECT_EQ("20", year.substr(0, 2));
 }
 
