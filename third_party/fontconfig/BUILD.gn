@@ -84,6 +84,10 @@ if (use_bundled_fontconfig) {
         "FC_ATTRIBUTE_VISIBILITY_EXPORT=__attribute((visibility(\"hidden\")))",
       ]
     }
+    if (is_starboard) {
+      # posix_fadvise is unsupported for Starboard platforms
+      defines += [ "HAVE_POSIX_FADVISE=0" ]
+    }
 
     deps = [
       "//build/config/freetype",
