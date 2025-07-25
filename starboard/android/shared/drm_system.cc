@@ -21,6 +21,7 @@
 #include "starboard/android/shared/media_drm_bridge.h"
 #include "starboard/common/instance_counter.h"
 #include "starboard/common/thread.h"
+#include "starboard/shared/starboard/media/drm_session_id_mapper.h"
 
 // Declare the function as static instead of putting it in the above anonymous
 // namespace so it can be picked up by `std::vector<SbDrmKeyId>::operator==()`
@@ -44,17 +45,7 @@ constexpr char kNoUrl[] = "";
 
 DECLARE_INSTANCE_COUNTER(AndroidDrmSystem)
 
-std::string GenerateBridgeSesssionId() {
-  static std::atomic<int> counter = 0;
-  return "cobalt.sid." + std::to_string(counter++);
-}
 }  // namespace
-
-std::ostream& operator<<(std::ostream& os, const DrmSystem::SessionIdMap& map) {
-  os << "{cdm_id: " << map.cdm_id << ", media_drm_id: " << map.media_drm_id
-     << "}";
-  return os;
-}
 
 DrmSystem::DrmSystem(
     std::string_view key_system,
@@ -68,7 +59,12 @@ DrmSystem::DrmSystem(
       update_request_callback_(update_request_callback),
       session_updated_callback_(session_updated_callback),
       key_statuses_changed_callback_(key_statuses_changed_callback),
-      hdcp_lost_(false) {
+      hdcp_lost_(false),
+      session_id_mapper_(
+          kEnableAppProvisioning
+              ? std::make_unique<
+                    starboard::shared::starboard::media::DrmSessionIdMapper>()
+              : nullptr) {
   ON_INSTANCE_CREATED(AndroidDrmSystem);
 
   media_drm_bridge_ = std::make_unique<MediaDrmBridge>(
@@ -214,46 +210,62 @@ void DrmSystem::UpdateSession(int ticket,
                               int key_size,
                               const void* session_id,
                               int session_id_size) {
-  const std::string_view cdm_session_id(static_cast<const char*>(session_id),
-                                        session_id_size);
-  std::string_view media_drm_session_id = cdm_session_id;
-  std::optional<MediaDrmBridge::OperationResult> completed_status;
-  SB_LOG(INFO) << __func__ << ": cdm_session_id=" << cdm_session_id;
-
-  if (bridge_session_id_map_.has_value() &&
-      bridge_session_id_map_->cdm_id == cdm_session_id) {
-    if (bridge_session_id_map_->media_drm_id.empty()) {
-      SB_LOG(INFO) << "Calling ProvideProvisionResponse, since MediaDrmSession "
-                      "is not created yet";
-      completed_status.emplace(
-          media_drm_bridge_->ProvideProvisionResponse(std::string_view{
-              static_cast<const char*>(key), static_cast<size_t>(key_size)}));
-    } else {
-      media_drm_session_id = bridge_session_id_map_->media_drm_id;
-    }
+  if (kEnableAppProvisioning) {
+    UpdateSessionWithAppProvisioning(ticket, key, key_size, session_id,
+                                     session_id_size);
+    return;
   }
 
-  if (!completed_status.has_value()) {
-    completed_status.emplace(media_drm_bridge_->UpdateSession(
-        ticket,
-        std::string_view{static_cast<const char*>(key),
-                         static_cast<size_t>(key_size)},
-        media_drm_session_id));
-  }
-  SB_CHECK(completed_status.has_value());
-
-  if (!completed_status->ok()) {
-    SB_LOG(ERROR) << "UpdateSession failed: " << *completed_status;
-  }
-
-  bool update_success = completed_status->ok();
+  MediaDrmBridge::OperationResult result = media_drm_bridge_->UpdateSession(
+      ticket, std::string_view(static_cast<const char*>(key), key_size),
+      std::string_view(static_cast<const char*>(session_id), session_id_size));
   session_updated_callback_(
       this, context_, ticket,
-      update_success ? kSbDrmStatusSuccess : kSbDrmStatusUnknownError,
-      completed_status->error_message.c_str(), cdm_session_id.data(),
+      result.ok() ? kSbDrmStatusSuccess : kSbDrmStatusUnknownError,
+      result.error_message.c_str(), session_id, session_id_size);
+}
+
+void DrmSystem::UpdateSessionWithAppProvisioning(int ticket,
+                                                 const void* key,
+                                                 int key_size,
+                                                 const void* session_id,
+                                                 int session_id_size) {
+  SB_CHECK(kEnableAppProvisioning);
+  SB_CHECK(session_id_mapper_);
+  const std::string_view key_view(static_cast<const char*>(key), key_size);
+  const std::string_view cdm_session_id(static_cast<const char*>(session_id),
+                                        session_id_size);
+
+  std::string_view media_drm_session_id;
+  {
+    std::lock_guard lock(mutex_);
+    media_drm_session_id =
+        session_id_mapper_->GetMediaDrmSessionId(cdm_session_id);
+  }
+
+  MediaDrmBridge::OperationResult result;
+  if (media_drm_session_id.empty()) {
+    SB_LOG(INFO) << __func__
+                 << "Handle the given key as provision response, since "
+                    "MediaDrm session is not created yet for "
+                 << cdm_session_id;
+    result = media_drm_bridge_->ProvideProvisionResponse(key_view);
+  } else {
+    result = media_drm_bridge_->UpdateSession(ticket, key_view,
+                                              media_drm_session_id);
+  }
+
+  if (!result.ok()) {
+    SB_LOG(ERROR) << "UpdateSession failed: " << result;
+  }
+
+  session_updated_callback_(
+      this, context_, ticket,
+      result.ok() ? kSbDrmStatusSuccess : kSbDrmStatusUnknownError,
+      result.error_message.c_str(), cdm_session_id.data(),
       cdm_session_id.size());
 
-  if (kEnableAppProvisioning && update_success) {
+  if (result.ok()) {
     job_queue_->Schedule([this] { HandlePendingRequests(); });
   }
 }
@@ -286,11 +298,14 @@ void DrmSystem::CloseSession(const void* session_id, int session_id_size) {
     }
   }
 
-  const std::string media_drm_session_id =
-      bridge_session_id_map_.has_value() &&
-              bridge_session_id_map_->cdm_id == session_id_as_string
-          ? bridge_session_id_map_->media_drm_id
-          : session_id_as_string;
+  std::string media_drm_session_id;
+  if (kEnableAppProvisioning) {
+    std::lock_guard lock(mutex_);
+    media_drm_session_id =
+        session_id_mapper_->GetMediaDrmSessionId(session_id_as_string);
+  } else {
+    media_drm_session_id = session_id_as_string;
+  }
 
   if (media_drm_session_id.empty()) {
     // There is no MediaDrmSession to close.
@@ -318,15 +333,15 @@ void DrmSystem::OnSessionUpdate(int ticket,
                                 SbDrmSessionRequestType request_type,
                                 std::string_view session_id,
                                 std::string_view content) {
-  std::string_view cdm_session_id = session_id;
-  if (bridge_session_id_map_.has_value()) {
-    if (bridge_session_id_map_->media_drm_id.empty()) {
-      bridge_session_id_map_->media_drm_id = session_id;
-    }
-
-    if (bridge_session_id_map_->media_drm_id == session_id) {
-      cdm_session_id = bridge_session_id_map_->cdm_id;
-    }
+  std::string cdm_session_id_str;
+  std::string_view cdm_session_id;
+  if (kEnableAppProvisioning) {
+    std::lock_guard lock(mutex_);
+    session_id_mapper_->RegisterMediaDrmSessionIdIfNotSet(session_id);
+    cdm_session_id_str = session_id_mapper_->GetCdmSessionId(session_id);
+    cdm_session_id = cdm_session_id_str;
+  } else {
+    cdm_session_id = session_id;
   }
 
   update_request_callback_(this, context_, ticket, kSbDrmStatusSuccess,
@@ -339,12 +354,13 @@ void DrmSystem::OnProvisioningRequest(std::string_view content) {
   SB_CHECK(kEnableAppProvisioning);
 
   SB_LOG(INFO) << __func__;
-  if (!bridge_session_id_map_.has_value()) {
-    bridge_session_id_map_.emplace(
-        SessionIdMap{.cdm_id = GenerateBridgeSesssionId()});
-    SB_LOG(INFO) << "bridge session is created: map="
-                 << *bridge_session_id_map_;
-  };
+  std::string cdm_session_id;
+  {
+    std::lock_guard lock(mutex_);
+    cdm_session_id = session_id_mapper_->GenerateCdmSessionId();
+  }
+  SB_DCHECK(!cdm_session_id.empty());
+
   int ticket = kSbDrmTicketInvalid;
   {
     std::lock_guard lock(mutex_);
@@ -358,10 +374,9 @@ void DrmSystem::OnProvisioningRequest(std::string_view content) {
 
   update_request_callback_(this, context_, ticket, kSbDrmStatusSuccess,
                            kSbDrmSessionRequestTypeIndividualizationRequest,
-                           /*error_message=*/nullptr,
-                           bridge_session_id_map_->cdm_id.data(),
-                           bridge_session_id_map_->cdm_id.size(),
-                           content.data(), content.size(), kNoUrl);
+                           /*error_message=*/nullptr, cdm_session_id.data(),
+                           cdm_session_id.size(), content.data(),
+                           content.size(), kNoUrl);
 }
 
 void DrmSystem::OnKeyStatusChange(

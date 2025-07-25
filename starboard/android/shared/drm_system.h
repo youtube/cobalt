@@ -34,6 +34,8 @@
 #include "starboard/shared/starboard/player/job_queue.h"
 #include "starboard/types.h"
 
+#include "starboard/shared/starboard/media/drm_session_id_mapper.h"
+
 namespace starboard::android::shared {
 
 class DrmSystem : public ::SbDrmSystemPrivate,
@@ -115,12 +117,14 @@ class DrmSystem : public ::SbDrmSystemPrivate,
   void HandlePendingRequests();
   void GenerateSessionUpdateRequestWithAppProvisioning(
       std::unique_ptr<SessionUpdateRequest> request);
+  void UpdateSessionWithAppProvisioning(int ticket,
+                                        const void* key,
+                                        int key_size,
+                                        const void* session_id,
+                                        int session_id_size);
 
   // From Thread.
   void Run() override;
-
-  struct SessionIdMap;
-  friend std::ostream& operator<<(std::ostream& os, const SessionIdMap& map);
 
   const std::string key_system_;
   void* context_;
@@ -141,12 +145,16 @@ class DrmSystem : public ::SbDrmSystemPrivate,
 
   std::atomic<bool> is_key_provided_ = false;
 
-  struct SessionIdMap {
-    const std::string cdm_id;
-    std::string media_drm_id;
-  };
-
-  std::optional<SessionIdMap> bridge_session_id_map_;
+  // Manages the mapping between the CDM session ID in the C++ layer and the
+  // MediaDrm session ID in the Java layer. Most of the time, we can use the
+  // MediaDrm session ID as the CDM session ID. However, there are some cases
+  // where we cannot, as the lifecycle of the CDM session ID can diverge from
+  // the MediaDrm session ID's lifecycle. For example, when a device isn't
+  // provisioned, we can't get a MediaDrm session ID (which can be generated
+  // only after provisioning). In such scenarios, `DrmSystem` still needs a CDM
+  // session ID to interact with the Cobalt CDM module.
+  const std::unique_ptr<starboard::shared::starboard::media::DrmSessionIdMapper>
+      session_id_mapper_;
 
   std::unique_ptr<starboard::shared::starboard::player::JobQueue> job_queue_;
 
