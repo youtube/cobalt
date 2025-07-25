@@ -17,6 +17,7 @@
 #include "base/check.h"
 #include "base/task/sequenced_task_runner.h"
 #include "base/time/time.h"
+#include "media/base/media_switches.h"
 #include "media/base/starboard/starboard_renderer_config.h"
 #include "media/mojo/clients/mojo_media_log_service.h"
 #include "media/mojo/clients/mojo_renderer.h"
@@ -41,8 +42,14 @@ StarboardRendererClientFactory::StarboardRendererClientFactory(
     : media_log_(media_log),
       mojo_renderer_factory_(std::move(mojo_renderer_factory)),
       get_gpu_factories_cb_(get_gpu_factories_cb),
-      audio_write_duration_local_(traits->audio_write_duration_local),
-      audio_write_duration_remote_(traits->audio_write_duration_remote),
+      audio_write_duration_local_(
+          base::FeatureList::IsEnabled(kCobaltAudioWriteDurationLocal)
+              ? base::Microseconds(kAudioWriteDurationLocal.Get())
+              : traits->audio_write_duration_local),
+      audio_write_duration_remote_(
+          base::FeatureList::IsEnabled(kCobaltAudioWriteDurationRemote)
+              ? base::Microseconds(kAudioWriteDurationRemote.Get())
+              : traits->audio_write_duration_remote),
       max_video_capabilities_(traits->max_video_capabilities),
       bind_host_receiver_callback_(traits->bind_host_receiver_callback) {}
 
