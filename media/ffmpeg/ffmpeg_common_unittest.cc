@@ -360,18 +360,21 @@ TEST_F(FFmpegCommonTest, VerifyHDRMetadataAndColorSpaceInfo) {
   VideoDecoderConfig video_config;
   EXPECT_TRUE(AVStreamToVideoDecoderConfig(stream, &video_config));
   ASSERT_TRUE(video_config.hdr_metadata().has_value());
-  const auto& color_volume_metadata =
-      video_config.hdr_metadata()->color_volume_metadata;
-  EXPECT_EQ(30.0, color_volume_metadata.luminance_min);
-  EXPECT_EQ(40.0, color_volume_metadata.luminance_max);
-  EXPECT_EQ(0.1f, color_volume_metadata.primaries.fRX);
-  EXPECT_EQ(0.2f, color_volume_metadata.primaries.fRY);
-  EXPECT_EQ(0.1f, color_volume_metadata.primaries.fGX);
-  EXPECT_EQ(0.2f, color_volume_metadata.primaries.fGY);
-  EXPECT_EQ(0.1f, color_volume_metadata.primaries.fBX);
-  EXPECT_EQ(0.2f, color_volume_metadata.primaries.fBY);
-  EXPECT_EQ(0.1f, color_volume_metadata.primaries.fWX);
-  EXPECT_EQ(0.2f, color_volume_metadata.primaries.fWY);
+  const auto& smpte_st_2086 =
+      video_config.hdr_metadata()->smpte_st_2086.value();
+  EXPECT_EQ(30.0, smpte_st_2086.luminance_min);
+  EXPECT_EQ(40.0, smpte_st_2086.luminance_max);
+  EXPECT_EQ(0.1f, smpte_st_2086.primaries.fRX);
+  EXPECT_EQ(0.2f, smpte_st_2086.primaries.fRY);
+  EXPECT_EQ(0.1f, smpte_st_2086.primaries.fGX);
+  EXPECT_EQ(0.2f, smpte_st_2086.primaries.fGY);
+  EXPECT_EQ(0.1f, smpte_st_2086.primaries.fBX);
+  EXPECT_EQ(0.2f, smpte_st_2086.primaries.fBY);
+  EXPECT_EQ(0.1f, smpte_st_2086.primaries.fWX);
+  EXPECT_EQ(0.2f, smpte_st_2086.primaries.fWY);
+  const auto& cta_861_3 = video_config.hdr_metadata()->cta_861_3.value();
+  EXPECT_EQ(11.0f, cta_861_3.max_content_light_level);
+  EXPECT_EQ(12.0f, cta_861_3.max_frame_average_light_level);
   EXPECT_EQ(VideoColorSpace(VideoColorSpace::PrimaryID::SMPTEST428_1,
                             VideoColorSpace::TransferID::LOG,
                             VideoColorSpace::MatrixID::RGB,

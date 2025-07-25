@@ -6,7 +6,12 @@
 
 #include <vector>
 
+#include "base/feature_list.h"
 #include "ui/gfx/codec/vector_wstream.h"
+
+BASE_FEATURE(kUseLosslessWebPCompression,
+             "UseLosslessWebPCompression",
+             base::FEATURE_ENABLED_BY_DEFAULT);
 
 namespace gfx {
 
@@ -20,6 +25,11 @@ bool WebpCodec::Encode(const SkPixmap& input,
 
   SkWebpEncoder::Options options;
   options.fQuality = quality;
+  bool use_lossless_webp = quality >= 100 && base::FeatureList::IsEnabled(
+                                                 kUseLosslessWebPCompression);
+  options.fCompression = use_lossless_webp
+                             ? SkWebpEncoder::Compression::kLossless
+                             : SkWebpEncoder::Compression::kLossy;
   return SkWebpEncoder::Encode(&dst, input, options);
 }
 
@@ -34,27 +44,27 @@ bool WebpCodec::Encode(const SkBitmap& src,
   return WebpCodec::Encode(pixmap, quality, output);
 }
 
-absl::optional<std::vector<uint8_t>> WebpCodec::EncodeAnimated(
+std::optional<std::vector<uint8_t>> WebpCodec::EncodeAnimated(
     const std::vector<SkEncoder::Frame>& frames,
     const SkWebpEncoder::Options& options) {
   std::vector<uint8_t> output;
   VectorWStream dst(&output);
 
   if (!SkWebpEncoder::EncodeAnimated(&dst, frames, options)) {
-    return absl::nullopt;
+    return std::nullopt;
   }
 
   return output;
 }
 
-absl::optional<std::vector<uint8_t>> WebpCodec::EncodeAnimated(
+std::optional<std::vector<uint8_t>> WebpCodec::EncodeAnimated(
     const std::vector<Frame>& frames,
     const SkWebpEncoder::Options& options) {
   std::vector<SkEncoder::Frame> pixmap_frames;
   for (const auto& frame : frames) {
     SkEncoder::Frame pixmap_frame;
     if (!frame.bitmap.peekPixels(&pixmap_frame.pixmap)) {
-      return absl::nullopt;
+      return std::nullopt;
     }
     pixmap_frame.duration = frame.duration;
     pixmap_frames.push_back(pixmap_frame);

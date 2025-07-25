@@ -29,7 +29,7 @@ class MediaRemotingIntegrationTest : public testing::Test,
 
  private:
   std::unique_ptr<Renderer> CreateEnd2EndTestRenderer(
-      absl::optional<RendererType> renderer_type) {
+      std::optional<RendererType> renderer_type) {
     return std::make_unique<End2EndTestRenderer>(
         this->CreateRendererImpl(renderer_type));
   }
@@ -63,8 +63,7 @@ TEST_F(MediaRemotingIntegrationTest, MediaSource_ConfigChange_WebM) {
   scoped_refptr<DecoderBuffer> second_file =
       ReadTestDataFile("bear-640x360.webm");
   ASSERT_TRUE(source.AppendAtTime(base::Seconds(kAppendTimeSec),
-                                  second_file->data(),
-                                  second_file->data_size()));
+                                  second_file->data(), second_file->size()));
   source.EndOfStream();
 
   Play();

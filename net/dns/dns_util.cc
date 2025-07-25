@@ -10,18 +10,18 @@
 
 #include <cstring>
 #include <string>
+#include <string_view>
 #include <unordered_map>
 #include <vector>
 
-#include "base/big_endian.h"
 #include "base/check_op.h"
 #include "base/containers/contains.h"
 #include "base/feature_list.h"
 #include "base/metrics/field_trial.h"
 #include "base/metrics/histogram_macros.h"
+#include "base/numerics/byte_conversions.h"
 #include "base/ranges/algorithm.h"
 #include "base/strings/string_number_conversions.h"
-#include "base/strings/string_piece.h"
 #include "base/strings/string_split.h"
 #include "build/build_config.h"
 #include "net/dns/public/dns_protocol.h"
@@ -50,7 +50,7 @@ DohProviderEntry::List GetDohProviderEntriesFromNameservers(
   DohProviderEntry::List entries;
 
   for (const auto& server : dns_servers) {
-    for (const auto* entry : providers) {
+    for (const net::DohProviderEntry* entry : providers) {
       // DoH servers should only be added once.
       // Note: Check whether the provider is enabled *after* we've determined
       // that the IP addresses match so that if we are doing experimentation via
@@ -85,7 +85,7 @@ bool GetTimeDeltaForConnectionTypeFromFieldTrial(
   std::string group = base::FieldTrialList::FindFullName(field_trial);
   if (group.empty())
     return false;
-  std::vector<base::StringPiece> group_parts = base::SplitStringPiece(
+  std::vector<std::string_view> group_parts = base::SplitStringPiece(
       group, ":", base::TRIM_WHITESPACE, base::SPLIT_WANT_ALL);
   if (type < 0)
     return false;
@@ -113,10 +113,9 @@ base::TimeDelta GetTimeDeltaForConnectionTypeFromFieldTrialOrDefault(
 
 std::string CreateNamePointer(uint16_t offset) {
   DCHECK_EQ(offset & ~dns_protocol::kOffsetMask, 0);
-  char buf[2];
-  base::WriteBigEndian(buf, offset);
-  buf[0] |= dns_protocol::kLabelPointer;
-  return std::string(buf, sizeof(buf));
+  std::array<uint8_t, 2> buf = base::U16ToBigEndian(offset);
+  buf[0u] |= dns_protocol::kLabelPointer;
+  return std::string(buf.begin(), buf.end());
 }
 
 uint16_t DnsQueryTypeToQtype(DnsQueryType dns_query_type) {
@@ -160,7 +159,7 @@ std::vector<DnsOverHttpsServerConfig> GetDohUpgradeServersFromDotHostname(
   if (dot_server.empty())
     return doh_servers;
 
-  for (const auto* entry : DohProviderEntry::GetList()) {
+  for (const net::DohProviderEntry* entry : DohProviderEntry::GetList()) {
     // Note: Check whether the provider is enabled *after* we've determined that
     // the hostnames match so that if we are doing experimentation via Finch,
     // the experiment only includes possible users of the corresponding DoH

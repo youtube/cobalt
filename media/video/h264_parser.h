@@ -13,6 +13,7 @@
 
 #include <map>
 #include <memory>
+#include <optional>
 #include <vector>
 
 #include "media/base/media_export.h"
@@ -21,13 +22,12 @@
 #include "media/base/video_color_space.h"
 #include "media/base/video_types.h"
 #include "media/video/h264_bit_reader.h"
-#include "third_party/abseil-cpp/absl/types/optional.h"
 
 namespace gfx {
 class Rect;
 class Size;
-struct ColorVolumeMetadata;
-struct HDRMetadata;
+struct HdrMetadataSmpteSt2086;
+struct HdrMetadataCta861_3;
 }  // namespace gfx
 
 namespace media {
@@ -79,6 +79,8 @@ enum {
 
 struct MEDIA_EXPORT H264SPS {
   H264SPS();
+  H264SPS& operator=(const H264SPS&);
+  H264SPS(H264SPS&&) noexcept;
 
   enum H264ProfileIDC {
     kProfileIDCBaseline = 66,
@@ -216,10 +218,10 @@ struct MEDIA_EXPORT H264SPS {
                                              bool* constraint_set3_flag);
 
   // Helpers to compute frequently-used values. These methods return
-  // absl::nullopt if they encounter integer overflow. They do not verify that
+  // std::nullopt if they encounter integer overflow. They do not verify that
   // the results are in-spec for the given profile or level.
-  absl::optional<gfx::Size> GetCodedSize() const;
-  absl::optional<gfx::Rect> GetVisibleRect() const;
+  std::optional<gfx::Size> GetCodedSize() const;
+  std::optional<gfx::Rect> GetVisibleRect() const;
   VideoColorSpace GetColorSpace() const;
   VideoChromaSampling GetChromaSampling() const;
 
@@ -234,6 +236,7 @@ struct MEDIA_EXPORT H264SPS {
 
 struct MEDIA_EXPORT H264PPS {
   H264PPS();
+  H264PPS(H264PPS&&) noexcept;
 
   int pic_parameter_set_id;
   int seq_parameter_set_id;
@@ -392,15 +395,14 @@ struct MEDIA_EXPORT H264SEIMasteringDisplayInfo {
   uint32_t max_luminance;
   uint32_t min_luminance;
 
-  void PopulateColorVolumeMetadata(
-      gfx::ColorVolumeMetadata& color_volume_metadata) const;
+  gfx::HdrMetadataSmpteSt2086 ToGfx() const;
 };
 
 struct MEDIA_EXPORT H264SEIContentLightLevelInfo {
   uint16_t max_content_light_level;
   uint16_t max_picture_average_light_level;
 
-  void PopulateHDRMetadata(gfx::HDRMetadata& hdr_metadata) const;
+  gfx::HdrMetadataCta861_3 ToGfx() const;
 };
 
 struct MEDIA_EXPORT H264SEIMessage {
@@ -551,15 +553,6 @@ class MEDIA_EXPORT H264Parser {
   //   the start code as well as the trailing zero bits.
   // - the size in bytes of the start code is returned in |*start_code_size|.
   bool LocateNALU(off_t* nalu_size, off_t* start_code_size);
-
-  // Exp-Golomb code parsing as specified in chapter 9.1 of the spec.
-  // Read one unsigned exp-Golomb code from the stream and return in |*val|
-  // with total bits read return in |*num_bits_read|.
-  Result ReadUE(int* val, int* num_bits_read);
-
-  // Read one signed exp-Golomb code from the stream and return in |*val|
-  // with total bits read return in |*num_bits_read|.
-  Result ReadSE(int* val, int* num_bits_read);
 
   // Parse scaling lists (see spec).
   Result ParseScalingList(int size, uint8_t* scaling_list, bool* use_default);

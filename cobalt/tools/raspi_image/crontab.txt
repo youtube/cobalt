@@ -1,1 +1,0 @@
-@reboot /boot/auto-resize-partition.sh

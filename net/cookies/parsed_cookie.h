@@ -36,7 +36,10 @@ class NET_EXPORT ParsedCookie {
   // informative exclusion reasons if the resulting ParsedCookie is invalid.
   // The CookieInclusionStatus will not be altered if the resulting ParsedCookie
   // is valid.
+  // `block_truncated` indicates whether cookies containing '\00', '\r', or '\n'
+  // characters should be treated as invalid.
   explicit ParsedCookie(const std::string& cookie_line,
+                        bool block_truncated = true,
                         CookieInclusionStatus* status_out = nullptr);
 
   ParsedCookie(const ParsedCookie&) = delete;
@@ -82,7 +85,6 @@ class NET_EXPORT ParsedCookie {
   CookieSameSite SameSite(
       CookieSameSiteString* samesite_string = nullptr) const;
   CookiePriority Priority() const;
-  bool IsSameParty() const { return same_party_index_ != 0; }
   bool IsPartitioned() const { return partitioned_index_ != 0; }
   bool HasInternalHtab() const { return internal_htab_; }
   TruncatingCharacterInCookieStringType
@@ -113,7 +115,6 @@ class NET_EXPORT ParsedCookie {
   bool SetIsHttpOnly(bool is_http_only);
   bool SetSameSite(const std::string& same_site);
   bool SetPriority(const std::string& priority);
-  bool SetIsSameParty(bool is_same_party);
   bool SetIsPartitioned(bool is_partitioned);
 
   // Returns the cookie description as it appears in a HTML response header.
@@ -174,6 +175,7 @@ class NET_EXPORT ParsedCookie {
 
  private:
   void ParseTokenValuePairs(const std::string& cookie_line,
+                            bool block_truncated,
                             CookieInclusionStatus& status_out);
   void SetupAttributes();
 
@@ -209,7 +211,6 @@ class NET_EXPORT ParsedCookie {
   size_t httponly_index_ = 0;
   size_t same_site_index_ = 0;
   size_t priority_index_ = 0;
-  size_t same_party_index_ = 0;
   size_t partitioned_index_ = 0;
   TruncatingCharacterInCookieStringType truncating_char_in_cookie_string_type_ =
       TruncatingCharacterInCookieStringType::kTruncatingCharNone;

@@ -4,13 +4,19 @@
 
 #include "crypto/unexportable_key.h"
 
+#include <optional>
 #include <tuple>
 
 #include "base/logging.h"
+#include "base/test/scoped_feature_list.h"
 #include "base/time/time.h"
+#include "crypto/features.h"
 #include "crypto/scoped_mock_unexportable_key_provider.h"
 #include "testing/gtest/include/gtest/gtest.h"
-#include "third_party/abseil-cpp/absl/types/optional.h"
+
+#if BUILDFLAG(IS_MAC)
+#include "crypto/scoped_fake_apple_keychain_v2.h"
+#endif  // BUILDFLAG(IS_MAC)
 
 namespace {
 
@@ -19,9 +25,22 @@ const crypto::SignatureVerifier::SignatureAlgorithm kAllAlgorithms[] = {
     crypto::SignatureVerifier::SignatureAlgorithm::RSA_PKCS1_SHA256,
 };
 
+#if BUILDFLAG(IS_MAC)
+constexpr char kTestKeychainAccessGroup[] = "test-keychain-access-group";
+#endif  // BUILDFLAG(IS_MAC)
+
 class UnexportableKeySigningTest
     : public testing::TestWithParam<
-          std::tuple<crypto::SignatureVerifier::SignatureAlgorithm, bool>> {};
+          std::tuple<crypto::SignatureVerifier::SignatureAlgorithm, bool>> {
+ private:
+#if BUILDFLAG(IS_MAC)
+  crypto::ScopedFakeAppleKeychainV2 scoped_fake_apple_keychain_{
+      kTestKeychainAccessGroup};
+
+  base::test::ScopedFeatureList scoped_feature_list_{
+      crypto::kEnableMacUnexportableKeys};
+#endif  // BUILDFLAG(IS_MAC)
+};
 
 INSTANTIATE_TEST_SUITE_P(All,
                          UnexportableKeySigningTest,
@@ -47,15 +66,20 @@ TEST_P(UnexportableKeySigningTest, RoundTrip) {
   SCOPED_TRACE(static_cast<int>(algo));
   SCOPED_TRACE(mock_enabled);
 
-  absl::optional<crypto::ScopedMockUnexportableKeyProvider> mock;
+  std::optional<crypto::ScopedMockUnexportableKeyProvider> mock;
   if (mock_enabled) {
     mock.emplace();
   }
 
   const crypto::SignatureVerifier::SignatureAlgorithm algorithms[] = {algo};
 
+  crypto::UnexportableKeyProvider::Config config{
+#if BUILDFLAG(IS_MAC)
+      .keychain_access_group = kTestKeychainAccessGroup
+#endif  // BUILDLFAG(IS_MAC)
+  };
   std::unique_ptr<crypto::UnexportableKeyProvider> provider =
-      crypto::GetUnexportableKeyProvider();
+      crypto::GetUnexportableKeyProvider(std::move(config));
   if (!provider) {
     LOG(INFO) << "Skipping test because of lack of hardware support.";
     return;
@@ -69,6 +93,13 @@ TEST_P(UnexportableKeySigningTest, RoundTrip) {
   const base::TimeTicks generate_start = base::TimeTicks::Now();
   std::unique_ptr<crypto::UnexportableSigningKey> key =
       provider->GenerateSigningKeySlowly(algorithms);
+  if (algo == crypto::SignatureVerifier::SignatureAlgorithm::ECDSA_SHA256) {
+    if (!key) {
+      GTEST_SKIP()
+          << "Workaround for https://issues.chromium.org/issues/41494935";
+    }
+  }
+
   ASSERT_TRUE(key);
   LOG(INFO) << "Generation took " << (base::TimeTicks::Now() - generate_start);
 
@@ -78,7 +109,7 @@ TEST_P(UnexportableKeySigningTest, RoundTrip) {
   const uint8_t msg[] = {1, 2, 3, 4};
 
   const base::TimeTicks sign_start = base::TimeTicks::Now();
-  const absl::optional<std::vector<uint8_t>> sig = key->SignSlowly(msg);
+  const std::optional<std::vector<uint8_t>> sig = key->SignSlowly(msg);
   LOG(INFO) << "Signing took " << (base::TimeTicks::Now() - sign_start);
   ASSERT_TRUE(sig);
 
@@ -94,7 +125,7 @@ TEST_P(UnexportableKeySigningTest, RoundTrip) {
   LOG(INFO) << "Import took " << (base::TimeTicks::Now() - import2_start);
 
   const base::TimeTicks sign2_start = base::TimeTicks::Now();
-  const absl::optional<std::vector<uint8_t>> sig2 = key->SignSlowly(msg);
+  const std::optional<std::vector<uint8_t>> sig2 = key->SignSlowly(msg);
   LOG(INFO) << "Signing took " << (base::TimeTicks::Now() - sign2_start);
   ASSERT_TRUE(sig2);
 
@@ -102,5 +133,7 @@ TEST_P(UnexportableKeySigningTest, RoundTrip) {
   ASSERT_TRUE(verifier2.VerifyInit(algo, *sig2, spki));
   verifier2.VerifyUpdate(msg);
   ASSERT_TRUE(verifier2.VerifyFinal());
+
+  EXPECT_TRUE(provider->DeleteSigningKeySlowly(wrapped));
 }
 }  // namespace

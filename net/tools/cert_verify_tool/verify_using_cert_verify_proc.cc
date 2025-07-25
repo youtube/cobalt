@@ -4,9 +4,10 @@
 
 #include "net/tools/cert_verify_tool/verify_using_cert_verify_proc.h"
 
+#include <algorithm>
 #include <iostream>
+#include <string_view>
 
-#include "base/cxx17_backports.h"
 #include "base/strings/strcat.h"
 #include "base/strings/string_util.h"
 #include "base/strings/stringprintf.h"
@@ -59,7 +60,6 @@ void PrintCertStatus(int cert_status) {
 }  // namespace
 
 void PrintCertVerifyResult(const net::CertVerifyResult& result) {
-  PrintDebugData(&result);
   PrintCertStatus(result.cert_status);
   if (result.has_sha1)
     std::cout << "has_sha1\n";
@@ -88,7 +88,7 @@ bool VerifyUsingCertVerifyProc(
     const std::vector<CertInput>& intermediate_der_certs,
     const std::vector<CertInputWithTrustSetting>& der_certs_with_trust_settings,
     const base::FilePath& dump_path) {
-  std::vector<base::StringPiece> der_cert_chain;
+  std::vector<std::string_view> der_cert_chain;
   der_cert_chain.push_back(target_der_cert.der_cert);
   for (const auto& cert : intermediate_der_certs)
     der_cert_chain.push_back(cert.der_cert);
@@ -118,20 +118,19 @@ bool VerifyUsingCertVerifyProc(
       PrintCertError("ERROR: X509Certificate::CreateFromBytes failed:",
                      cert_input_with_trust.cert_input);
     } else {
-      scoped_test_roots.emplace_back(x509_root.get(),
-                                     cert_input_with_trust.trust);
+      scoped_test_roots.emplace_back(x509_root, cert_input_with_trust.trust);
     }
   }
 
   // TODO(mattm): add command line flags to configure VerifyFlags.
   int flags = 0;
 
-  // TODO(crbug.com/634484): use a real netlog and print the results?
+  // TODO(crbug.com/40479281): use a real netlog and print the results?
   net::CertVerifyResult result;
   int rv = cert_verify_proc->Verify(
       x509_target_and_intermediates.get(), hostname,
       /*ocsp_response=*/std::string(), /*sct_list=*/std::string(), flags,
-      /*additional_trust_anchors=*/{}, &result, net::NetLogWithSource());
+      &result, net::NetLogWithSource());
 
   std::cout << "CertVerifyProc result: " << net::ErrorToShortString(rv) << "\n";
   PrintCertVerifyResult(result);

@@ -2,13 +2,18 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#ifdef UNSAFE_BUFFERS_BUILD
+// TODO(crbug.com/40284755): Remove this and spanify to fix the errors.
+#pragma allow_unsafe_buffers
+#endif
+
 #include "base/i18n/rtl.h"
 
 #include <stddef.h>
 #include <stdint.h>
 
 #include <algorithm>
-#include <unicode/utf16.h>
+#include <string_view>
 
 #include "base/check_op.h"
 #include "base/command_line.h"
@@ -203,12 +208,14 @@ TextDirection GetTextDirectionForLocaleInStartUp(const char* locale_name) {
   if (forced_direction != UNKNOWN_DIRECTION)
     return forced_direction;
 
+  CHECK(locale_name && locale_name[0]);
+
   // This list needs to be updated in alphabetical order if we add more RTL
   // locales.
   static const char kRTLLanguageCodes[][3] = {"ar", "fa", "he", "iw", "ur"};
-  std::vector<StringPiece> locale_split =
+  std::vector<std::string_view> locale_split =
       SplitStringPiece(locale_name, "-_", KEEP_WHITESPACE, SPLIT_WANT_ALL);
-  const StringPiece& language_code = locale_split[0];
+  std::string_view language_code = locale_split[0];
   if (std::binary_search(kRTLLanguageCodes,
                          kRTLLanguageCodes + std::size(kRTLLanguageCodes),
                          language_code))

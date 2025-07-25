@@ -5,10 +5,22 @@
 #ifndef BASE_IMMEDIATE_CRASH_H_
 #define BASE_IMMEDIATE_CRASH_H_
 
+#include "base/fuzzing_buildflags.h"
 #include "build/build_config.h"
-#if defined(STARBOARD)
-#include "starboard/common/log.h"
-#endif
+
+#if BUILDFLAG(USE_FUZZING_ENGINE)
+#include <stdlib.h>
+
+#if BUILDFLAG(IS_LINUX)
+// The fuzzing coverage display wants to record coverage even
+// for failure cases. It's Linux-only. So on Linux, dump coverage
+// before we immediately exit. We provide a weak symbol so that
+// this causes no link problems on configurations that don't involve
+// coverage.
+extern "C" int __attribute__((weak)) __llvm_profile_write_file(void);
+#endif  // BUILDFLAG(IS_LINUX)
+
+#endif  // BUILDFLAG(USE_FUZZING_ENGINE)
 
 // Crashes in the fastest possible way with no attempt at logging.
 // There are several constraints; see http://crbug.com/664209 for more context.
@@ -44,11 +56,7 @@
 // be removed in followups, so splitting it up like this now makes it easy to
 // land the followups.
 
-#if defined(STARBOARD)
-#define IMMEDIATE_CRASH() SB_CHECK(false)
-#define TRAP_SEQUENCE1_() SB_CHECK(false)
-#define TRAP_SEQUENCE2_()
-#elif defined(COMPILER_GCC)
+#if defined(COMPILER_GCC)
 
 #if BUILDFLAG(IS_NACL)
 
@@ -58,7 +66,7 @@
 
 #elif defined(ARCH_CPU_X86_FAMILY)
 
-// TODO(https://crbug.com/958675): In theory, it should be possible to use just
+// TODO(crbug.com/40625592): In theory, it should be possible to use just
 // int3. However, there are a number of crashes with SIGILL as the exception
 // code, so it seems likely that there's a signal handler that allows execution
 // to continue after SIGTRAP.
@@ -78,14 +86,14 @@
 // as a 32 bit userspace app on arm64. There doesn't seem to be any way to
 // cause a SIGTRAP from userspace without using a syscall (which would be a
 // problem for sandboxing).
-// TODO(https://crbug.com/958675): Remove bkpt from this sequence.
+// TODO(crbug.com/40625592): Remove bkpt from this sequence.
 #define TRAP_SEQUENCE1_() asm volatile("bkpt #0")
 #define TRAP_SEQUENCE2_() asm volatile("udf #0")
 
 #elif defined(ARCH_CPU_ARM64)
 
 // This will always generate a SIGTRAP on arm64.
-// TODO(https://crbug.com/958675): Remove brk from this sequence.
+// TODO(crbug.com/40625592): Remove brk from this sequence.
 #define TRAP_SEQUENCE1_() asm volatile("brk #0")
 #define TRAP_SEQUENCE2_() asm volatile("hlt #0")
 
@@ -150,7 +158,23 @@
 namespace base {
 
 [[noreturn]] IMMEDIATE_CRASH_ALWAYS_INLINE void ImmediateCrash() {
+#if BUILDFLAG(USE_FUZZING_ENGINE)
+  // If fuzzing, exit in such a way that atexit() handlers are run in order
+  // to write out failing fuzz cases. This is similar
+  // behavior to __sanitizer::Die.
+  // libfuzzer has its own atexit handler which unfortunately calls the
+  // equivalent of base::ImmediateCrash, thus not running any other atexit
+  // handlers. We want to dump coverage information so we'll do that
+  // here explicitly too.
+#if BUILDFLAG(IS_LINUX)
+  if (__llvm_profile_write_file) {
+    __llvm_profile_write_file();
+  }
+#endif  // BUILDFLAG(IS_LINUX)
+  exit(-1);
+#else   // BUILDFLAG(USE_FUZZING_ENGINE)
   TRAP_SEQUENCE_();
+#endif  // BUILDFLAG(USE_FUZZING_ENGINE)
 #if defined(__clang__) || defined(COMPILER_GCC)
   __builtin_unreachable();
 #endif  // defined(__clang__) || defined(COMPILER_GCC)

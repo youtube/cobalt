@@ -4,6 +4,8 @@
 
 #include "net/url_request/redirect_info.h"
 
+#include <string_view>
+
 #include "base/metrics/histogram_macros.h"
 #include "base/strings/string_split.h"
 #include "base/strings/string_util.h"
@@ -37,9 +39,9 @@ std::string ComputeMethodForRedirect(const std::string& method,
 // policy that should be used for the request.
 ReferrerPolicy ProcessReferrerPolicyHeaderOnRedirect(
     ReferrerPolicy original_referrer_policy,
-    const absl::optional<std::string>& referrer_policy_header) {
+    const std::optional<std::string>& referrer_policy_header) {
   ReferrerPolicy new_policy = original_referrer_policy;
-  std::vector<base::StringPiece> policy_tokens;
+  std::vector<std::string_view> policy_tokens;
   if (referrer_policy_header) {
     policy_tokens = base::SplitStringPiece(*referrer_policy_header, ",",
                                            base::TRIM_WHITESPACE,
@@ -114,7 +116,7 @@ RedirectInfo RedirectInfo::ComputeRedirectInfo(
     const std::string& original_referrer,
     int http_status_code,
     const GURL& new_location,
-    const absl::optional<std::string>& referrer_policy_header,
+    const std::optional<std::string>& referrer_policy_header,
     bool insecure_scheme_was_upgraded,
     bool copy_fragment,
     bool is_signed_exchange_fallback_redirect) {

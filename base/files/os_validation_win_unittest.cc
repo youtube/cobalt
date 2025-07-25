@@ -14,11 +14,11 @@
 #include "base/files/file_path.h"
 #include "base/files/file_util.h"
 #include "base/files/scoped_temp_dir.h"
-#include "base/functional/callback_helpers.h"
 #include "base/memory/ptr_util.h"
 #include "base/strings/string_util.h"
 #include "base/win/scoped_handle.h"
 #include "testing/gtest/include/gtest/gtest.h"
+#include "third_party/abseil-cpp/absl/cleanup/cleanup.h"
 
 #define FPL FILE_PATH_LITERAL
 
@@ -29,12 +29,12 @@ namespace base {
 class OsValidationTest : public ::testing::Test {
  protected:
   // ::testing::Test:
-  static void SetUpTestCase() {
+  static void SetUpTestSuite() {
     temp_dir_ = std::make_unique<ScopedTempDir>().release();
     ASSERT_TRUE(temp_dir_->CreateUniqueTempDir());
   }
 
-  static void TearDownTestCase() {
+  static void TearDownTestSuite() {
     // Explicitly delete the dir to catch any deletion errors.
     ASSERT_TRUE(temp_dir_->Delete());
     auto temp_dir = base::WrapUnique(temp_dir_);
@@ -225,7 +225,7 @@ class OpenFileTest : public OsValidationTest,
       if (bitfield & bit_name.bit) {
         if (!result->empty())
           result->append(" | ");
-        result->append(bit_name.name.data(), bit_name.name.size());
+        result->append(bit_name.name);
         bitfield &= ~bit_name.bit;
       }
       ++bits_begin;
@@ -317,8 +317,7 @@ TEST_P(OpenFileTest, MapThenDelete) {
   auto* view = ::MapViewOfFile(mapping.get(), FILE_MAP_READ, 0, 0, 0);
   result = ::GetLastError();
   ASSERT_NE(view, nullptr) << result;
-  ScopedClosureRunner unmapper(
-      BindOnce([](const void* view) { ::UnmapViewOfFile(view); }, view));
+  absl::Cleanup unmapper = [view] { ::UnmapViewOfFile(view); };
 
   // Mapped files cannot be deleted under any circumstances.
   EXPECT_EQ(::DeleteFileW(temp_file_path().value().c_str()), 0);

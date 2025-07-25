@@ -2,6 +2,11 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#ifdef UNSAFE_BUFFERS_BUILD
+// TODO(crbug.com/40284755): Remove this and spanify to fix the errors.
+#pragma allow_unsafe_buffers
+#endif
+
 #include "base/debug/stack_trace.h"
 
 #include <errno.h>
@@ -60,11 +65,12 @@
 #endif
 
 #if BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_CHROMEOS)
+#include <sys/prctl.h>
+
 #include "base/debug/proc_maps_linux.h"
 #endif
 
 #include "base/cfi_buildflags.h"
-#include "base/cxx17_backports.h"
 #include "base/debug/debugger.h"
 #include "base/debug/stack_trace.h"
 #include "base/files/scoped_file.h"
@@ -78,10 +84,10 @@
 #include "build/build_config.h"
 
 #if defined(USE_SYMBOLIZE)
-#include "base/third_party/symbolize/symbolize.h"
+#include "base/third_party/symbolize/symbolize.h"  // nogncheck
 
 #if BUILDFLAG(ENABLE_STACK_TRACE_LINE_NUMBERS)
-#include "base/debug/dwarf_line_no.h"
+#include "base/debug/dwarf_line_no.h"  // nogncheck
 #endif
 
 #endif
@@ -162,7 +168,7 @@ class BacktraceOutputHandler {
 };
 
 #if defined(HAVE_BACKTRACE)
-void OutputPointer(void* pointer, BacktraceOutputHandler* handler) {
+void OutputPointer(const void* pointer, BacktraceOutputHandler* handler) {
   // This should be more than enough to store a 64-bit number in hex:
   // 16 hex digits + 1 for null-terminator.
   char buf[17] = { '\0' };
@@ -190,23 +196,22 @@ void OutputFrameId(size_t frame_id, BacktraceOutputHandler* handler) {
 }
 #endif  // defined(USE_SYMBOLIZE)
 
-void ProcessBacktrace(void* const* trace,
+void ProcessBacktrace(const void* const* trace,
                       size_t size,
-                      const char* prefix_string,
+                      cstring_view prefix_string,
                       BacktraceOutputHandler* handler) {
   // NOTE: This code MUST be async-signal safe (it's used by in-process
   // stack dumping signal handler). NO malloc or stdio is allowed here.
 
 #if defined(USE_SYMBOLIZE)
 #if BUILDFLAG(ENABLE_STACK_TRACE_LINE_NUMBERS)
-  uint64_t* cu_offsets =
-      static_cast<uint64_t*>(alloca(sizeof(uint64_t) * size));
+  uint64_t cu_offsets[StackTrace::kMaxTraces] = {};
   GetDwarfCompileUnitOffsets(trace, cu_offsets, size);
 #endif
 
   for (size_t i = 0; i < size; ++i) {
-    if (prefix_string)
-      handler->HandleOutput(prefix_string);
+    if (!prefix_string.empty())
+      handler->HandleOutput(prefix_string.c_str());
 
     OutputFrameId(i, handler);
     handler->HandleOutput(" ");
@@ -217,8 +222,8 @@ void ProcessBacktrace(void* const* trace,
 
     // Subtract by one as return address of function may be in the next
     // function when a function is annotated as noreturn.
-    void* address = static_cast<char*>(trace[i]) - 1;
-    if (google::Symbolize(address, buf, sizeof(buf))) {
+    const void* address = static_cast<const char*>(trace[i]) - 1;
+    if (google::Symbolize(const_cast<void*>(address), buf, sizeof(buf))) {
       handler->HandleOutput(buf);
 #if BUILDFLAG(ENABLE_STACK_TRACE_LINE_NUMBERS)
       // Only output the source line number if the offset was found. Otherwise,
@@ -245,8 +250,8 @@ void ProcessBacktrace(void* const* trace,
 #if defined(HAVE_DLADDR)
     Dl_info dl_info;
     for (size_t i = 0; i < size; ++i) {
-      if (prefix_string) {
-        handler->HandleOutput(prefix_string);
+      if (!prefix_string.empty()) {
+        handler->HandleOutput(prefix_string.c_str());
       }
 
       OutputValue(i, handler);
@@ -267,14 +272,14 @@ void ProcessBacktrace(void* const* trace,
     }
     printed = true;
 #else   // defined(HAVE_DLADDR)
-    std::unique_ptr<char*, FreeDeleter> trace_symbols(
-        backtrace_symbols(trace, static_cast<int>(size)));
+    std::unique_ptr<char*, FreeDeleter> trace_symbols(backtrace_symbols(
+        const_cast<void* const*>(trace), static_cast<int>(size)));
     if (trace_symbols.get()) {
       for (size_t i = 0; i < size; ++i) {
         std::string trace_symbol = trace_symbols.get()[i];
         DemangleSymbols(&trace_symbol);
-        if (prefix_string)
-          handler->HandleOutput(prefix_string);
+        if (!prefix_string.empty())
+          handler->HandleOutput(prefix_string.c_str());
         handler->HandleOutput(trace_symbol.c_str());
         handler->HandleOutput("\n");
       }
@@ -301,7 +306,7 @@ void PrintToStderr(const char* output) {
   std::ignore = HANDLE_EINTR(write(STDERR_FILENO, output, strlen(output)));
 }
 
-#if BUILDFLAG(IS_LINUX)
+#if BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_ANDROID) || BUILDFLAG(IS_CHROMEOS)
 void AlarmSignalHandler(int signal, siginfo_t* info, void* void_context) {
   // We have seen rare cases on AMD linux where the default signal handler
   // either does not run or a thread (Probably an AMD driver thread) prevents
@@ -320,7 +325,8 @@ void AlarmSignalHandler(int signal, siginfo_t* info, void* void_context) {
   // See: https://man7.org/linux/man-pages/man2/exit_group.2.html
   syscall(SYS_exit_group, EXIT_FAILURE);
 }
-#endif  // BUILDFLAG(IS_LINUX)
+#endif  // BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_ANDROID) ||
+        // BUILDFLAG(IS_CHROMEOS)
 
 void StackDumpSignalHandler(int signal, siginfo_t* info, void* void_context) {
   // NOTE: This code MUST be async-signal safe.
@@ -530,24 +536,11 @@ void StackDumpSignalHandler(int signal, siginfo_t* info, void* void_context) {
 
   PrintToStderr("[end of stack trace]\n");
 
-#if BUILDFLAG(IS_MAC)
   if (::signal(signal, SIG_DFL) == SIG_ERR) {
     _exit(EXIT_FAILURE);
   }
-#elif !BUILDFLAG(IS_LINUX)
-  // For all operating systems but Linux we do not reraise the signal that
-  // brought us here but terminate the process immediately.
-  // Otherwise various tests break on different operating systems, see
-  // https://code.google.com/p/chromium/issues/detail?id=551681 amongst others.
-  PrintToStderr(
-      "Calling _exit(EXIT_FAILURE). Core file will not be generated.\n");
-  _exit(EXIT_FAILURE);
-#else   // BUILDFLAG(IS_LINUX)
 
-  // After leaving this handler control flow returns to the point where the
-  // signal was raised, raising the current signal once again but executing the
-  // default handler instead of this one.
-
+#if BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_ANDROID) || BUILDFLAG(IS_CHROMEOS)
   // Set an alarm to trigger in case the default handler does not terminate
   // the process. See 'AlarmSignalHandler' for more details.
   struct sigaction action;
@@ -562,7 +555,42 @@ void StackDumpSignalHandler(int signal, siginfo_t* info, void* void_context) {
   // shorter than chrome's process watchdog timer.
   constexpr unsigned int kAlarmSignalDelaySeconds = 5;
   alarm(kAlarmSignalDelaySeconds);
-#endif  // !BUILDFLAG(IS_LINUX)
+
+  // The following is mostly from
+  // third_party/crashpad/crashpad/util/posix/signals.cc as re-raising signals
+  // is complicated.
+
+  // If we can raise a signal with siginfo on this platform, do so. This ensures
+  // that we preserve the siginfo information for asynchronous signals (i.e.
+  // signals that do not re-raise autonomously), such as signals delivered via
+  // kill() and asynchronous hardware faults such as SEGV_MTEAERR, which would
+  // otherwise be lost when re-raising the signal via raise().
+  long retval = syscall(SYS_rt_tgsigqueueinfo, getpid(), syscall(SYS_gettid),
+                        info->si_signo, info);
+  if (retval == 0) {
+    return;
+  }
+
+  // Kernels without commit 66dd34ad31e5 ("signal: allow to send any siginfo to
+  // itself"), which was first released in kernel version 3.9, did not permit a
+  // process to send arbitrary signals to itself, and will reject the
+  // rt_tgsigqueueinfo syscall with EPERM. If that happens, follow the non-Linux
+  // code path. Any other errno is unexpected and will cause us to exit.
+  if (errno != EPERM) {
+    _exit(EXIT_FAILURE);
+  }
+#endif  // BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_ANDROID) ||
+        // BUILDFLAG(IS_CHROMEOS)
+
+  // Explicitly re-raise the signal even if it might have re-raised itself on
+  // return. Because signal handlers normally execute with their signal blocked,
+  // this raise() cannot immediately deliver the signal. Delivery is deferred
+  // until the signal handler returns and the signal becomes unblocked. The
+  // re-raised signal will appear with the same context as where it was
+  // initially triggered.
+  if (raise(signal) != 0) {
+    _exit(EXIT_FAILURE);
+  }
 }
 
 class PrintBacktraceOutputHandler : public BacktraceOutputHandler {
@@ -740,13 +768,51 @@ class SandboxSymbolizeHelper {
     return -1;
   }
 
+  // This class is copied from
+  // third_party/crashpad/crashpad/util/linux/scoped_pr_set_dumpable.h.
+  // It aims at ensuring the process is dumpable before opening /proc/self/mem.
+  // If the process is already dumpable, this class doesn't do anything.
+  class ScopedPrSetDumpable {
+   public:
+    // Uses `PR_SET_DUMPABLE` to make the current process dumpable.
+    //
+    // Restores the dumpable flag to its original value on destruction. If the
+    // original value couldn't be determined, the destructor attempts to
+    // restore the flag to 0 (non-dumpable).
+    explicit ScopedPrSetDumpable() {
+      int result = prctl(PR_GET_DUMPABLE, 0, 0, 0, 0);
+      was_dumpable_ = result > 0;
+
+      if (!was_dumpable_) {
+        std::ignore = prctl(PR_SET_DUMPABLE, 1, 0, 0, 0);
+      }
+    }
+
+    ScopedPrSetDumpable(const ScopedPrSetDumpable&) = delete;
+    ScopedPrSetDumpable& operator=(const ScopedPrSetDumpable&) = delete;
+
+    ~ScopedPrSetDumpable() {
+      if (!was_dumpable_) {
+        std::ignore = prctl(PR_SET_DUMPABLE, 0, 0, 0, 0);
+      }
+    }
+
+   private:
+    bool was_dumpable_;
+  };
+
   // Set the base address for each memory region by reading ELF headers in
   // process memory.
   void SetBaseAddressesForMemoryRegions() {
-    base::ScopedFD mem_fd(
-        HANDLE_EINTR(open("/proc/self/mem", O_RDONLY | O_CLOEXEC)));
-    if (!mem_fd.is_valid())
-      return;
+    base::ScopedFD mem_fd;
+    {
+      ScopedPrSetDumpable s;
+      mem_fd = base::ScopedFD(
+          HANDLE_EINTR(open("/proc/self/mem", O_RDONLY | O_CLOEXEC)));
+      if (!mem_fd.is_valid()) {
+        return;
+      }
+    }
 
     auto safe_memcpy = [&mem_fd](void* dst, uintptr_t src, size_t size) {
       return HANDLE_EINTR(pread(mem_fd.get(), dst, size,
@@ -854,8 +920,7 @@ class SandboxSymbolizeHelper {
           if (fd >= 0) {
             modules_.emplace(region.path, base::ScopedFD(fd));
           } else {
-            LOG(WARNING) << "Failed to open file: " << region.path
-                         << "\n  Error: " << strerror(errno);
+            PLOG(WARNING) << "Failed to open file: " << region.path;
           }
         }
       }
@@ -964,28 +1029,37 @@ bool SetStackDumpFirstChanceCallback(bool (*handler)(int, siginfo_t*, void*)) {
 }
 #endif
 
-size_t CollectStackTrace(void** trace, size_t count) {
+size_t CollectStackTrace(const void** trace, size_t count) {
   // NOTE: This code MUST be async-signal safe (it's used by in-process
   // stack dumping signal handler). NO malloc or stdio is allowed here.
 
 #if defined(NO_UNWIND_TABLES) && BUILDFLAG(CAN_UNWIND_WITH_FRAME_POINTERS)
   // If we do not have unwind tables, then try tracing using frame pointers.
-  return base::debug::TraceStackFramePointers(const_cast<const void**>(trace),
-                                              count, 0);
+  return base::debug::TraceStackFramePointers(trace, count, 0);
 #elif defined(HAVE_BACKTRACE)
   // Though the backtrace API man page does not list any possible negative
   // return values, we take no chance.
   return base::saturated_cast<size_t>(
-      backtrace(trace, base::saturated_cast<int>(count)));
+      backtrace(const_cast<void**>(trace), base::saturated_cast<int>(count)));
 #else
   return 0;
 #endif
 }
 
-void StackTrace::PrintWithPrefix(const char* prefix_string) const {
+// static
+void StackTrace::PrintMessageWithPrefix(cstring_view prefix_string,
+                                        cstring_view message) {
+  // NOTE: This code MUST be async-signal safe (it's used by in-process
+  // stack dumping signal handler). NO malloc or stdio is allowed here.
+  if (!prefix_string.empty()) {
+    PrintToStderr(prefix_string.c_str());
+  }
+  PrintToStderr(message.c_str());
+}
+
+void StackTrace::PrintWithPrefixImpl(cstring_view prefix_string) const {
 // NOTE: This code MUST be async-signal safe (it's used by in-process
 // stack dumping signal handler). NO malloc or stdio is allowed here.
-
 #if defined(HAVE_BACKTRACE)
   PrintBacktraceOutputHandler handler;
   ProcessBacktrace(trace_, count_, prefix_string, &handler);
@@ -993,8 +1067,9 @@ void StackTrace::PrintWithPrefix(const char* prefix_string) const {
 }
 
 #if defined(HAVE_BACKTRACE)
-void StackTrace::OutputToStreamWithPrefix(std::ostream* os,
-                                          const char* prefix_string) const {
+void StackTrace::OutputToStreamWithPrefixImpl(
+    std::ostream* os,
+    cstring_view prefix_string) const {
   StreamBacktraceOutputHandler handler(os);
   ProcessBacktrace(trace_, count_, prefix_string, &handler);
 }

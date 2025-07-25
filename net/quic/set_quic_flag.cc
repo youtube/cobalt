@@ -18,10 +18,18 @@ void SetQuicFlagByName_bool(bool* flag, const std::string& value) {
   else if (value == "false" || value == "False")
     *flag = false;
 }
+
 void SetQuicFlagByName_double(double* flag, const std::string& value) {
   double val;
   if (base::StringToDouble(value, &val))
     *flag = val;
+}
+
+void SetQuicFlagByName_float(float* flag, const std::string& value) {
+  double val;
+  if (base::StringToDouble(value, &val)) {
+    *flag = static_cast<float>(val);
+  }
 }
 
 void SetQuicFlagByName_uint64_t(uint64_t* flag, const std::string& value) {
@@ -53,13 +61,13 @@ void SetQuicFlagByName(const std::string& flag_name, const std::string& value) {
 #include "net/third_party/quiche/src/quiche/quic/core/quic_flags_list.h"
 #undef QUIC_FLAG
 
-#define QUIC_PROTOCOL_FLAG(type, flag, ...)         \
+#define QUICHE_PROTOCOL_FLAG(type, flag, ...)       \
   if (flag_name == "FLAGS_" #flag) {                \
     SetQuicFlagByName_##type(&FLAGS_##flag, value); \
     return;                                         \
   }
-#include "net/third_party/quiche/src/quiche/quic/core/quic_protocol_flags_list.h"
-#undef QUIC_PROTOCOL_FLAG
+#include "net/third_party/quiche/src/quiche/common/quiche_protocol_flags_list.h"
+#undef QUICHE_PROTOCOL_FLAG
 }
 
 }  // namespace net

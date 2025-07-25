@@ -4,6 +4,7 @@
 
 #include "media/formats/hls/multivariant_playlist.h"
 
+#include <optional>
 #include <utility>
 #include <vector>
 
@@ -22,7 +23,6 @@
 #include "media/formats/hls/types.h"
 #include "media/formats/hls/variable_dictionary.h"
 #include "media/formats/hls/variant_stream.h"
-#include "third_party/abseil-cpp/absl/types/optional.h"
 #include "third_party/abseil-cpp/absl/types/variant.h"
 #include "url/gurl.h"
 
@@ -35,8 +35,8 @@ namespace {
 template <typename T>
 T* GetOrCreateRenditionGroup(
     base::PassKey<MultivariantPlaylist> pass_key,
-    base::flat_map<base::StringPiece, scoped_refptr<T>>& groups,
-    base::StringPiece id) {
+    base::flat_map<std::string_view, scoped_refptr<T>>& groups,
+    std::string_view id) {
   auto iter = groups.find(id);
 
   // If the group wasn't found, create it.
@@ -59,7 +59,7 @@ Playlist::Kind MultivariantPlaylist::GetKind() const {
 
 // static
 ParseStatus::Or<scoped_refptr<MultivariantPlaylist>>
-MultivariantPlaylist::Parse(base::StringPiece source,
+MultivariantPlaylist::Parse(std::string_view source,
                             GURL uri,
                             types::DecimalInteger version) {
   DCHECK(version != 0);
@@ -84,9 +84,9 @@ MultivariantPlaylist::Parse(base::StringPiece source,
 
   CommonParserState common_state;
   VariableDictionary::SubstitutionBuffer sub_buffer;
-  absl::optional<XStreamInfTag> inf_tag;
+  std::optional<XStreamInfTag> inf_tag;
   std::vector<VariantStream> variants;
-  base::flat_map<base::StringPiece, scoped_refptr<AudioRenditionGroup>>
+  base::flat_map<std::string_view, scoped_refptr<AudioRenditionGroup>>
       audio_rendition_groups;
 
   // Get variants out of the playlist
@@ -135,11 +135,12 @@ MultivariantPlaylist::Parse(base::StringPiece source,
 
       switch (static_cast<MultivariantPlaylistTagName>(*tag->GetName())) {
         case MultivariantPlaylistTagName::kXContentSteering: {
-          // TODO(crbug.com/1266991): Implement the EXT-X-CONTENT-STEERING tag
+          // TODO(crbug.com/40057824): Implement the EXT-X-CONTENT-STEERING tag
           break;
         }
         case MultivariantPlaylistTagName::kXIFrameStreamInf: {
-          // TODO(crbug.com/1266991): Implement the EXT-X-I-FRAME-STREAM-INF tag
+          // TODO(crbug.com/40057824): Implement the EXT-X-I-FRAME-STREAM-INF
+          // tag
           break;
         }
         case MultivariantPlaylistTagName::kXMedia: {
@@ -163,26 +164,26 @@ MultivariantPlaylist::Parse(base::StringPiece source,
               break;
             }
             case MediaType::kVideo: {
-              // TODO(crbug.com/1266991): Support alternate video renditions
+              // TODO(crbug.com/40057824): Support alternate video renditions
               break;
             }
             case MediaType::kSubtitles: {
-              // TODO(crbug.com/1266991): Support subtitle renditions
+              // TODO(crbug.com/40057824): Support subtitle renditions
               break;
             }
             case MediaType::kClosedCaptions: {
-              // TODO(crbug.com/1266991): Support closed captions renditions
+              // TODO(crbug.com/40057824): Support closed captions renditions
               break;
             }
           }
           break;
         }
         case MultivariantPlaylistTagName::kXSessionData: {
-          // TODO(crbug.com/1266991): Implement the EXT-X-SESSION-DATA tag
+          // TODO(crbug.com/40057824): Implement the EXT-X-SESSION-DATA tag
           break;
         }
         case MultivariantPlaylistTagName::kXSessionKey: {
-          // TODO(crbug.com/1266991): Implement the EXT-X-SESSION-KEY tag
+          // TODO(crbug.com/40057824): Implement the EXT-X-SESSION-KEY tag
           break;
         }
         case MultivariantPlaylistTagName::kXStreamInf: {
@@ -221,7 +222,7 @@ MultivariantPlaylist::Parse(base::StringPiece source,
                                                    inf_tag->audio->Str());
     }
 
-    absl::optional<std::string> video_rendition_group_name;
+    std::optional<std::string> video_rendition_group_name;
     if (inf_tag->video.has_value()) {
       video_rendition_group_name = std::string(inf_tag->video->Str());
     }

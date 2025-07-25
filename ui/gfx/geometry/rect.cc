@@ -12,6 +12,8 @@
 #include "build/build_config.h"
 #include "ui/gfx/geometry/insets.h"
 #include "ui/gfx/geometry/outsets.h"
+#include "ui/gfx/geometry/rect_conversions.h"
+#include "ui/gfx/geometry/rect_f.h"
 
 #if BUILDFLAG(IS_WIN)
 #include <windows.h>
@@ -268,13 +270,16 @@ void Rect::Transpose() {
   SetRect(y(), x(), height(), width());
 }
 
-void Rect::SplitVertically(Rect* left_half, Rect* right_half) const {
-  DCHECK(left_half);
-  DCHECK(right_half);
+void Rect::SplitVertically(Rect& left_half, Rect& right_half) const {
+  left_half.SetRect(x(), y(), width() / 2, height());
+  right_half.SetRect(left_half.right(), y(), width() - left_half.width(),
+                     height());
+}
 
-  left_half->SetRect(x(), y(), width() / 2, height());
-  right_half->SetRect(
-      left_half->right(), y(), width() - left_half->width(), height());
+void Rect::SplitHorizontally(Rect& top_half, Rect& bottom_half) const {
+  top_half.SetRect(x(), y(), width(), height() / 2);
+  bottom_half.SetRect(x(), top_half.bottom(), width(),
+                      height() - top_half.height());
 }
 
 bool Rect::SharesEdgeWith(const Rect& rect) const {
@@ -356,6 +361,14 @@ Rect BoundingRect(const Point& p1, const Point& p2) {
   result.SetByBounds(std::min(p1.x(), p2.x()), std::min(p1.y(), p2.y()),
                      std::max(p1.x(), p2.x()), std::max(p1.y(), p2.y()));
   return result;
+}
+
+Rect ScaleToEnclosingRectIgnoringError(const Rect& rect,
+                                       float scale,
+                                       float epsilon) {
+  RectF rect_f(rect);
+  rect_f.Scale(scale);
+  return ToEnclosingRectIgnoringError(rect_f, epsilon);
 }
 
 Rect MaximumCoveredRect(const Rect& a, const Rect& b) {

@@ -12,9 +12,9 @@
 
 #include "base/auto_reset.h"
 #include "base/compiler_specific.h"
-#include "base/feature_list.h"
 #include "base/files/file_util.h"
 #include "base/logging.h"
+#include "base/memory/raw_ptr.h"
 #include "base/notreached.h"
 #include "base/posix/eintr_wrapper.h"
 #include "base/time/time.h"
@@ -39,15 +39,13 @@
 
 namespace base {
 
-namespace {
-
 #if BUILDFLAG(ENABLE_MESSAGE_PUMP_EPOLL)
-bool g_use_epoll = false;
+namespace {
+bool g_use_epoll = true;
+}  // namespace
 
 BASE_FEATURE(kMessagePumpEpoll, "MessagePumpEpoll", FEATURE_ENABLED_BY_DEFAULT);
-#endif
-
-}  // namespace
+#endif  // BUILDFLAG(ENABLE_MESSAGE_PUMP_EPOLL)
 
 MessagePumpLibevent::FdWatchController::FdWatchController(
     const Location& from_here)
@@ -145,16 +143,11 @@ MessagePumpLibevent::MessagePumpLibevent() {
 #endif
 
   if (!Init())
-    NOTREACHED();
+    NOTREACHED_IN_MIGRATION();
   DCHECK_NE(wakeup_pipe_in_, -1);
   DCHECK_NE(wakeup_pipe_out_, -1);
   DCHECK(wakeup_event_);
 }
-
-#if BUILDFLAG(ENABLE_MESSAGE_PUMP_EPOLL)
-MessagePumpLibevent::MessagePumpLibevent(decltype(kUseEpoll))
-    : epoll_pump_(std::make_unique<MessagePumpEpoll>()) {}
-#endif
 
 MessagePumpLibevent::~MessagePumpLibevent() {
 #if BUILDFLAG(ENABLE_MESSAGE_PUMP_EPOLL)
@@ -238,7 +231,8 @@ bool MessagePumpLibevent::WatchFileDescriptor(int fd,
     // It's illegal to use this function to listen on 2 separate fds with the
     // same |controller|.
     if (EVENT_FD(evt.get()) != fd) {
-      NOTREACHED() << "FDs don't match" << EVENT_FD(evt.get()) << "!=" << fd;
+      NOTREACHED_IN_MIGRATION()
+          << "FDs don't match" << EVENT_FD(evt.get()) << "!=" << fd;
       return false;
     }
   }
@@ -279,7 +273,7 @@ void MessagePumpLibevent::Run(Delegate* delegate) {
 #endif
 
   RunState run_state(delegate);
-  AutoReset<RunState*> auto_reset_run_state(&run_state_, &run_state);
+  AutoReset<raw_ptr<RunState>> auto_reset_run_state(&run_state_, &run_state);
 
   // event_base_loopexit() + EVLOOP_ONCE is leaky, see http://crbug.com/25641.
   // Instead, make our own timer and reuse it on each call to event_base_loop().

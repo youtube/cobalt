@@ -22,12 +22,6 @@ package org.chromium.build;
  */
 public class BuildConfig {
 
-#if defined(ENABLE_MULTIDEX)
-    public static MAYBE_FINAL boolean IS_MULTIDEX_ENABLED = true;
-#else
-    public static MAYBE_FINAL boolean IS_MULTIDEX_ENABLED MAYBE_FALSE;
-#endif
-
 #if defined(_ENABLE_ASSERTS)
     public static MAYBE_FINAL boolean ENABLE_ASSERTS = true;
 #else
@@ -69,6 +63,13 @@ public class BuildConfig {
     public static MAYBE_FINAL int MIN_SDK_VERSION = 1;
 #endif
 
+    // Value of android:versionCode.
+#if defined(_VERSION_CODE)
+    public static MAYBE_FINAL long VERSION_CODE = _VERSION_CODE;
+#else
+    public static MAYBE_FINAL long VERSION_CODE = 1;
+#endif
+
 #if defined(_BUNDLES_SUPPORTED)
     public static MAYBE_FINAL boolean BUNDLES_SUPPORTED = true;
 #else
@@ -91,5 +92,11 @@ public class BuildConfig {
     public static MAYBE_FINAL boolean IS_FOR_TEST = true;
 #else
     public static MAYBE_FINAL boolean IS_FOR_TEST MAYBE_FALSE;
+#endif
+
+#if defined(_WRITE_CLANG_PROFILING_DATA)
+    public static MAYBE_FINAL boolean WRITE_CLANG_PROFILING_DATA = true;
+#else
+    public static MAYBE_FINAL boolean WRITE_CLANG_PROFILING_DATA MAYBE_FALSE;
 #endif
 }

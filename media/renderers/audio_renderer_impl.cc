@@ -371,6 +371,7 @@ void AudioRendererImpl::Initialize(DemuxerStream* stream,
   // If we are re-initializing playback (e.g. switching media tracks), stop the
   // sink first.
   if (state_ == kFlushed) {
+    num_absurd_delay_warnings_ = 0;
     sink_->Stop();
     if (null_sink_)
       null_sink_->Stop();
@@ -448,6 +449,18 @@ void AudioRendererImpl::OnDeviceInfoReceived(
     is_passthrough_ = false;
   }
   expecting_config_changes_ = stream->SupportsConfigChanges();
+  // AC3/EAC3 windows decoder supports input channel count in the range 1 (mono)
+  // to 8 (7.1 channel configuration), but output channel config are stereo, 5.1
+  // and 7.1. There will be channel config changes, so here force
+  // 'expecting_config_changes_' to true to use 'hw_channel_layout'.
+  // Refer to
+  // https://learn.microsoft.com/en-us/windows/win32/medfound/dolby-audio-decoder
+#if BUILDFLAG(ENABLE_PLATFORM_AC3_EAC3_AUDIO) && BUILDFLAG(IS_WIN)
+  if (current_decoder_config_.codec() == AudioCodec::kAC3 ||
+      current_decoder_config_.codec() == AudioCodec::kEAC3) {
+    expecting_config_changes_ = true;
+  }
+#endif  // BUILDFLAG(ENABLE_PLATFORM_AC3_EAC3_AUDIO) && BUILDFLAG(IS_WIN)
 
   bool use_stream_params = !expecting_config_changes_ || !hw_params.IsValid() ||
                            hw_params.format() == AudioParameters::AUDIO_FAKE ||
@@ -527,7 +540,7 @@ void AudioRendererImpl::OnDeviceInfoReceived(
     // If supported by the OS and the initial sample rate is not too low, let
     // the OS level resampler handle resampling for power efficiency.
     if (AudioLatency::IsResamplingPassthroughSupported(
-            AudioLatency::LATENCY_PLAYBACK) &&
+            AudioLatency::Type::kPlayback) &&
         stream->audio_decoder_config().samples_per_second() >= 44100) {
       sample_rate = stream->audio_decoder_config().samples_per_second();
     }
@@ -590,7 +603,7 @@ void AudioRendererImpl::OnDeviceInfoReceived(
   audio_parameters_.set_effects(audio_parameters_.effects() |
                                 AudioParameters::MULTIZONE);
 
-  audio_parameters_.set_latency_tag(AudioLatency::LATENCY_PLAYBACK);
+  audio_parameters_.set_latency_tag(AudioLatency::Type::kPlayback);
 
   audio_decoder_stream_ = std::make_unique<AudioDecoderStream>(
       std::make_unique<AudioDecoderStream::StreamTraits>(
@@ -662,7 +675,7 @@ void AudioRendererImpl::OnAudioDecoderStreamInitialized(bool success) {
     return;
   }
 
-  if (expecting_config_changes_) {
+  if (expecting_config_changes_ && !audio_parameters_.IsBitstreamFormat()) {
     buffer_converter_ =
         std::make_unique<AudioBufferConverter>(audio_parameters_);
   }
@@ -673,7 +686,7 @@ void AudioRendererImpl::OnAudioDecoderStreamInitialized(bool success) {
   auto params =
       (media_client ? media_client->GetAudioRendererAlgorithmParameters(
                           audio_parameters_)
-                    : absl::nullopt);
+                    : std::nullopt);
   if (params && !client_->IsVideoStreamAvailable()) {
     algorithm_ =
         std::make_unique<AudioRendererAlgorithm>(media_log_, params.value());
@@ -821,7 +834,7 @@ void AudioRendererImpl::SetVolume(float volume) {
 }
 
 void AudioRendererImpl::SetLatencyHint(
-    absl::optional<base::TimeDelta> latency_hint) {
+    std::optional<base::TimeDelta> latency_hint) {
   base::AutoLock auto_lock(lock_);
 
   latency_hint_ = latency_hint;
@@ -912,7 +925,7 @@ void AudioRendererImpl::DecodedAudioReady(
         buffer->channel_layout() == CHANNEL_LAYOUT_STEREO &&
         audio_parameters_.channel_layout() == CHANNEL_LAYOUT_MONO;
     if (is_mono_to_stereo || is_stereo_to_mono) {
-      if (!buffer_converter_) {
+      if (!buffer_converter_ && !audio_parameters_.IsBitstreamFormat()) {
         buffer_converter_ =
             std::make_unique<AudioBufferConverter>(audio_parameters_);
       }
@@ -948,12 +961,19 @@ void AudioRendererImpl::DecodedAudioReady(
       }
     }
 
-    DCHECK(buffer_converter_);
-    buffer_converter_->AddInput(std::move(buffer));
+    if (audio_parameters_.IsBitstreamFormat()) {
+      // Avoid using `buffer_converter_` for bitstreams, as resampling the
+      // bitstream data doesn't make sense.
+      CHECK(!buffer_converter_);
+      need_another_buffer = HandleDecodedBuffer_Locked(std::move(buffer));
+    } else {
+      DCHECK(buffer_converter_);
+      buffer_converter_->AddInput(std::move(buffer));
 
-    while (buffer_converter_->HasNextBuffer()) {
-      need_another_buffer =
-          HandleDecodedBuffer_Locked(buffer_converter_->GetNextBuffer());
+      while (buffer_converter_->HasNextBuffer()) {
+        need_another_buffer =
+            HandleDecodedBuffer_Locked(buffer_converter_->GetNextBuffer());
+      }
     }
   } else {
     // TODO(chcunningham, tguilbert): Figure out if we want to support implicit
@@ -1060,8 +1080,7 @@ bool AudioRendererImpl::HandleDecodedBuffer_Locked(
     case kUninitialized:
     case kInitializing:
     case kFlushing:
-      NOTREACHED();
-      return false;
+      NOTREACHED_NORETURN();
 
     case kFlushed:
       DCHECK(!pending_read_);
@@ -1178,8 +1197,16 @@ int AudioRendererImpl::Render(base::TimeDelta delay,
 
   // Since this information is coming from the OS or potentially a fake stream,
   // it may end up with spurious values.
-  if (delay.is_negative())
+  if (delay.is_negative()) {
     delay = base::TimeDelta();
+  }
+
+  if (delay > base::Seconds(1)) {
+    LIMITED_MEDIA_LOG(WARNING, media_log_, num_absurd_delay_warnings_, 1)
+        << "Large rendering delay (" << delay.InSecondsF()
+        << "s) detected; video may stall or be otherwise out of sync with "
+           "audio.";
+  }
 
   int frames_written = 0;
   {
@@ -1223,7 +1250,7 @@ int AudioRendererImpl::Render(base::TimeDelta delay,
           first_packet_timestamp_ - audio_clock_->back_timestamp();
       if (play_delay.is_positive()) {
         MEDIA_LOG(ERROR, media_log_)
-            << "Cannot add delay for compressed audio bitstream foramt."
+            << "Cannot add delay for compressed audio bitstream format."
             << " Requested delay: " << play_delay;
       }
 
@@ -1231,7 +1258,7 @@ int AudioRendererImpl::Render(base::TimeDelta delay,
                                                playback_rate_);
 
       // See Initialize(), the |audio_bus| should be bigger than we need in
-      // bitstream cases. Fix |frames_requested| to avoid incorrent time
+      // bitstream cases. Fix |frames_requested| to avoid incorrect time
       // calculation of |audio_clock_| below.
       frames_requested = frames_written;
     } else if (algorithm_->BufferedFrames() > 0) {
@@ -1361,8 +1388,7 @@ void AudioRendererImpl::HandleAbortedReadOrDecodeError(PipelineStatus status) {
   switch (state_) {
     case kUninitialized:
     case kInitializing:
-      NOTREACHED();
-      return;
+      NOTREACHED_NORETURN();
     case kFlushing:
       ChangeState_Locked(kFlushed);
       if (status == PIPELINE_OK) {
@@ -1396,7 +1422,12 @@ void AudioRendererImpl::ChangeState_Locked(State new_state) {
 void AudioRendererImpl::OnConfigChange(const AudioDecoderConfig& config) {
   DCHECK(task_runner_->RunsTasksInCurrentSequence());
   DCHECK(expecting_config_changes_);
-  buffer_converter_->ResetTimestampState();
+
+  // We don't use `buffer_converter_` for bitstream formats.
+  CHECK(buffer_converter_ || audio_parameters_.IsBitstreamFormat());
+  if (buffer_converter_) {
+    buffer_converter_->ResetTimestampState();
+  }
 
   // An invalid config may be supplied by callers who simply want to reset
   // internal state outside of detecting a new config from the demuxer stream.

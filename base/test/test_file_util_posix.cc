@@ -15,6 +15,7 @@
 #include "base/check_op.h"
 #include "base/files/file.h"
 #include "base/files/file_util.h"
+#include "base/notimplemented.h"
 #include "base/notreached.h"
 #include "base/strings/string_util.h"
 #include "base/strings/utf_string_conversions.h"
@@ -27,8 +28,9 @@ namespace {
 // Deny |permission| on the file |path|.
 bool DenyFilePermission(const FilePath& path, mode_t permission) {
   stat_wrapper_t stat_buf;
-  if (File::Stat(path.value().c_str(), &stat_buf) != 0)
+  if (File::Stat(path, &stat_buf) != 0) {
     return false;
+  }
   stat_buf.st_mode &= ~permission;
 
   int rv = HANDLE_EINTR(chmod(path.value().c_str(), stat_buf.st_mode));
@@ -43,8 +45,9 @@ void* GetPermissionInfo(const FilePath& path, size_t* length) {
   *length = 0;
 
   stat_wrapper_t stat_buf;
-  if (File::Stat(path.value().c_str(), &stat_buf) != 0)
+  if (File::Stat(path, &stat_buf) != 0) {
     return nullptr;
+  }
 
   *length = sizeof(mode_t);
   mode_t* mode = new mode_t;
@@ -113,7 +116,7 @@ FilePermissionRestorer::FilePermissionRestorer(const FilePath& path)
 
 FilePermissionRestorer::~FilePermissionRestorer() {
   if (!RestorePermissionInfo(path_, info_, length_))
-    NOTREACHED();
+    NOTREACHED_IN_MIGRATION();
 }
 
 }  // namespace base

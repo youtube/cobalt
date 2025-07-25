@@ -2,12 +2,13 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#include "base/base_paths.h"
+
 #include <windows.h>
 
 #include <KnownFolders.h>
 #include <shlobj.h>
 
-#include "base/base_paths.h"
 #include "base/environment.h"
 #include "base/files/file_path.h"
 #include "base/path_service.h"
@@ -71,7 +72,8 @@ bool PathProviderWin(int key, FilePath* result) {
       break;
     case base::DIR_PROGRAM_FILES6432:
 #if !defined(_WIN64)
-      if (base::win::OSInfo::GetInstance()->IsWowX86OnAMD64()) {
+      if (base::win::OSInfo::GetInstance()->IsWowX86OnAMD64() ||
+          base::win::OSInfo::GetInstance()->IsWowX86OnARM64()) {
         std::unique_ptr<base::Environment> env(base::Environment::Create());
         std::string programfiles_w6432;
         // 32-bit process running in WOW64 sets ProgramW6432 environment

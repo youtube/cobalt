@@ -17,7 +17,7 @@
 
 #include "absl/debugging/internal/address_is_readable.h"
 
-#if !defined(__linux__) || defined(__ANDROID__) || defined(STARBOARD)
+#if !defined(__linux__) || defined(__ANDROID__)
 
 namespace absl {
 ABSL_NAMESPACE_BEGIN
@@ -50,8 +50,10 @@ namespace debugging_internal {
 // NOTE: any new system calls here may also require sandbox reconfiguration.
 //
 bool AddressIsReadable(const void *addr) {
-  // Align address on 8-byte boundary. On aarch64, checking last
-  // byte before inaccessible page returned unexpected EFAULT.
+  // rt_sigprocmask below checks 8 contiguous bytes. If addr resides in the
+  // last 7 bytes of a page (unaligned), rt_sigprocmask would additionally
+  // check the readability of the next page, which is not desired. Align
+  // address on 8-byte boundary to check only the current page.
   const uintptr_t u_addr = reinterpret_cast<uintptr_t>(addr) & ~uintptr_t{7};
   addr = reinterpret_cast<const void *>(u_addr);
 

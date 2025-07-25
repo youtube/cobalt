@@ -14,13 +14,11 @@
 #include "base/containers/stack.h"
 #include "base/files/file.h"
 #include "base/files/file_path.h"
+#include "base/functional/function_ref.h"
 #include "base/time/time.h"
 #include "build/build_config.h"
 
-#if defined(STARBOARD)
-#include <sys/stat.h>
-#include <unistd.h>
-#elif BUILDFLAG(IS_WIN)
+#if BUILDFLAG(IS_WIN)
 #include "base/win/windows_types.h"
 #elif BUILDFLAG(IS_POSIX) || BUILDFLAG(IS_FUCHSIA)
 #include <sys/stat.h>
@@ -39,6 +37,9 @@ namespace base {
 //
 //   base::FileEnumerator e(my_dir, false, base::FileEnumerator::FILES,
 //                          FILE_PATH_LITERAL("*.txt"));
+// Using `ForEach` with a lambda:
+//   e.ForEach([](const base::FilePath& item) {...});
+// Using a `for` loop:
 //   for (base::FilePath name = e.Next(); !name.empty(); name = e.Next())
 //     ...
 class BASE_EXPORT FileEnumerator {
@@ -61,25 +62,25 @@ class BASE_EXPORT FileEnumerator {
     // On POSIX systems, this is rounded down to the second.
     Time GetLastModifiedTime() const;
 
-#if defined(STARBOARD) || BUILDFLAG(IS_POSIX) || BUILDFLAG(IS_FUCHSIA)
-    const stat_wrapper_t& stat() const { return stat_; }
-#elif BUILDFLAG(IS_WIN)
+#if BUILDFLAG(IS_WIN)
     // Note that the cAlternateFileName (used to hold the "short" 8.3 name)
     // of the WIN32_FIND_DATA will be empty. Since we don't use short file
     // names, we tell Windows to omit it which speeds up the query slightly.
     const WIN32_FIND_DATA& find_data() const {
       return *ChromeToWindowsType(&find_data_);
     }
+#elif BUILDFLAG(IS_POSIX) || BUILDFLAG(IS_FUCHSIA)
+    const stat_wrapper_t& stat() const { return stat_; }
 #endif
 
    private:
     friend class FileEnumerator;
 
-#if defined(STARBOARD) || BUILDFLAG(IS_POSIX) || BUILDFLAG(IS_FUCHSIA)
+#if BUILDFLAG(IS_WIN)
+    CHROME_WIN32_FIND_DATA find_data_;
+#elif BUILDFLAG(IS_POSIX) || BUILDFLAG(IS_FUCHSIA)
     stat_wrapper_t stat_;
     FilePath filename_;
-#elif BUILDFLAG(IS_WIN)
-    CHROME_WIN32_FIND_DATA find_data_;
 #endif
   };
 
@@ -95,8 +96,7 @@ class BASE_EXPORT FileEnumerator {
     // called.
     NAMES_ONLY = 1 << 3,
 
-#if defined(STARBOARD)
-#elif BUILDFLAG(IS_POSIX) || BUILDFLAG(IS_FUCHSIA)
+#if BUILDFLAG(IS_POSIX) || BUILDFLAG(IS_FUCHSIA)
     SHOW_SYM_LINKS = 1 << 4,
 #endif
   };
@@ -143,6 +143,14 @@ class BASE_EXPORT FileEnumerator {
   // since the underlying code uses OS-specific matching routines.  In general,
   // Windows matching is less featureful than others, so test there first.
   // If unspecified, this will match all files.
+  //
+  // |folder_search_policy| optionally specifies a search behavior. Refer to
+  // |FolderSearchPolicy| for a list of folder search policies and the meaning
+  // of them. If |recursive| is false, this parameter has no effect.
+  //
+  // |error_policy| optionally specifies the behavior when an error occurs.
+  // Refer to |ErrorPolicy| for a list of error policies and the meaning of
+  // them.
   FileEnumerator(const FilePath& root_path, bool recursive, int file_type);
   FileEnumerator(const FilePath& root_path,
                  bool recursive,
@@ -162,6 +170,12 @@ class BASE_EXPORT FileEnumerator {
   FileEnumerator(const FileEnumerator&) = delete;
   FileEnumerator& operator=(const FileEnumerator&) = delete;
   ~FileEnumerator();
+
+  // Calls `ref` synchronously for each path found by the `FileEnumerator`. Each
+  // path will incorporate the `root_path` passed in the constructor:
+  // "<root_path>/file_name.txt". If the `root_path` is absolute, then so will
+  // be the paths provided in the `ref` invocations.
+  void ForEach(FunctionRef<void(const FilePath& path)> ref);
 
   // Returns the next file or an empty string if there are no more results.
   //
@@ -192,15 +206,7 @@ class BASE_EXPORT FileEnumerator {
 
   bool IsPatternMatched(const FilePath& src) const;
 
-#if defined(STARBOARD)
-  std::vector<FileInfo> ReadDirectory(const FilePath& source);
-
-  // The files in the current directory
-  std::vector<FileInfo> directory_entries_;
-
-  // The next entry to use from the directory_entries_ vector
-  size_t current_directory_entry_;
-#elif BUILDFLAG(IS_WIN)
+#if BUILDFLAG(IS_WIN)
   const WIN32_FIND_DATA& find_data() const {
     return *ChromeToWindowsType(&find_data_);
   }

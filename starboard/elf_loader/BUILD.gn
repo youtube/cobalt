@@ -85,7 +85,7 @@ if (sb_is_evergreen_compatible && current_toolchain == starboard_toolchain) {
       "//starboard:starboard_group",
       "//starboard/common",
       "//starboard/shared/modular:starboard_layer_posix_abi_wrappers",
-      "//third_party/crashpad/crashpad/wrapper",
+      "//starboard/crashpad_wrapper",
     ]
   }
 }
@@ -115,7 +115,7 @@ if (current_toolchain == starboard_toolchain) {
     ]
 
     if (!sb_is_evergreen_compatible) {
-      deps += [ "//third_party/crashpad/crashpad/wrapper:wrapper_stub" ]
+      deps += [ "//starboard/crashpad_wrapper:wrapper_stub" ]
     }
     if (sb_is_evergreen_compatible && sb_evergreen_compatible_package) {
       deps += [ "//starboard/loader_app:copy_crashpad_handler_named_as_so" ]

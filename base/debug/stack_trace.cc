@@ -2,19 +2,25 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#ifdef UNSAFE_BUFFERS_BUILD
+// TODO(crbug.com/40284755): Remove this and spanify to fix the errors.
+#pragma allow_unsafe_buffers
+#endif
+
 #include "base/debug/stack_trace.h"
 
 #include <string.h>
 
 #include <algorithm>
 #include <sstream>
+#include <utility>
 
 #include "base/check_op.h"
 #include "build/build_config.h"
 #include "build/config/compiler/compiler_buildflags.h"
 
 #if BUILDFLAG(CAN_UNWIND_WITH_FRAME_POINTERS)
-#include "third_party/abseil-cpp/absl/types/optional.h"
+#include <optional>
 
 #if BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_CHROMEOS) || BUILDFLAG(IS_ANDROID)
 #include <pthread.h>
@@ -163,6 +169,18 @@ void* LinkStackFrames(void* fpp, void* parent_fp) {
 
 #endif  // BUILDFLAG(CAN_UNWIND_WITH_FRAME_POINTERS)
 
+// A message to be emitted in place of a symbolized stack trace. Ordinarily used
+// in death test child processes to inform a developer that they may rerun a
+// failing test with a switch to prevent the test launcher from suppressing
+// stacks in such processes.
+std::string* g_stack_trace_message = nullptr;
+
+// True if an OverrideStackTraceOutputForTesting instance is alive to force
+// or prevent generation of symbolized stack traces despite a suppression
+// message having been set (or not).
+OverrideStackTraceOutputForTesting::Mode g_override_suppression =
+    OverrideStackTraceOutputForTesting::Mode::kUnset;
+
 }  // namespace
 
 #if BUILDFLAG(CAN_UNWIND_WITH_FRAME_POINTERS)
@@ -217,15 +235,17 @@ uintptr_t GetStackEnd() {
 
 StackTrace::StackTrace() : StackTrace(std::size(trace_)) {}
 
-StackTrace::StackTrace(size_t count) {
-  count_ = CollectStackTrace(trace_, std::min(count, std::size(trace_)));
-}
+StackTrace::StackTrace(size_t count)
+    : count_(ShouldSuppressOutput()
+                 ? 0
+                 : CollectStackTrace(trace_,
+                                     std::min(count, std::size(trace_)))) {}
 
-StackTrace::StackTrace(const void* const* trace, size_t count) {
-  count = std::min(count, std::size(trace_));
-  if (count)
-    memcpy(trace_, trace, count * sizeof(trace_[0]));
-  count_ = count;
+StackTrace::StackTrace(const void* const* trace, size_t count)
+    : count_(std::min(count, std::size(trace_))) {
+  if (count_) {
+    memcpy(trace_, trace, count_ * sizeof(trace_[0]));
+  }
 }
 
 // static
@@ -261,30 +281,62 @@ bool StackTrace::WillSymbolizeToStreamForTesting() {
 #endif
 }
 
-const void *const *StackTrace::Addresses(size_t* count) const {
-  *count = count_;
-  if (count_)
-    return trace_;
-  return nullptr;
+void StackTrace::Print() const {
+  PrintWithPrefix({});
 }
 
-void StackTrace::Print() const {
-  PrintWithPrefix(nullptr);
+void StackTrace::PrintWithPrefix(cstring_view prefix_string) const {
+  if (!count_ || ShouldSuppressOutput()) {
+    if (g_stack_trace_message) {
+      PrintMessageWithPrefix(prefix_string, *g_stack_trace_message);
+    }
+    return;
+  }
+  PrintWithPrefixImpl(prefix_string);
 }
 
 void StackTrace::OutputToStream(std::ostream* os) const {
-  OutputToStreamWithPrefix(os, nullptr);
+  OutputToStreamWithPrefix(os, {});
+}
+
+void StackTrace::OutputToStreamWithPrefix(std::ostream* os,
+                                          cstring_view prefix_string) const {
+  if (!count_ || ShouldSuppressOutput()) {
+    if (g_stack_trace_message) {
+      (*os) << prefix_string << *g_stack_trace_message;
+    }
+    return;
+  }
+  OutputToStreamWithPrefixImpl(os, prefix_string);
 }
 
 std::string StackTrace::ToString() const {
-  return ToStringWithPrefix(nullptr);
+  return ToStringWithPrefix({});
 }
-std::string StackTrace::ToStringWithPrefix(const char* prefix_string) const {
+
+std::string StackTrace::ToStringWithPrefix(cstring_view prefix_string) const {
   std::stringstream stream;
 #if !defined(__UCLIBC__) && !defined(_AIX)
   OutputToStreamWithPrefix(&stream, prefix_string);
 #endif
   return stream.str();
+}
+
+// static
+void StackTrace::SuppressStackTracesWithMessageForTesting(std::string message) {
+  delete std::exchange(
+      g_stack_trace_message,
+      (message.empty() ? nullptr : new std::string(std::move(message))));
+}
+
+// static
+bool StackTrace::ShouldSuppressOutput() {
+  using Mode = OverrideStackTraceOutputForTesting::Mode;
+  // Do not generate stack traces if a suppression message has been provided,
+  // unless an OverrideStackTraceOutputForTesting instance is alive.
+  return g_override_suppression != Mode::kUnset
+             ? (g_override_suppression == Mode::kSuppressOutput)
+             : (g_stack_trace_message != nullptr);
 }
 
 std::ostream& operator<<(std::ostream& os, const StackTrace& s) {
@@ -294,6 +346,18 @@ std::ostream& operator<<(std::ostream& os, const StackTrace& s) {
   os << "StackTrace::OutputToStream not implemented.";
 #endif
   return os;
+}
+
+OverrideStackTraceOutputForTesting::OverrideStackTraceOutputForTesting(
+    Mode mode) {
+  CHECK_NE(mode, Mode::kUnset);
+  CHECK_EQ(g_override_suppression, Mode::kUnset);  // Nesting not supported.
+  g_override_suppression = mode;
+}
+
+OverrideStackTraceOutputForTesting::~OverrideStackTraceOutputForTesting() {
+  CHECK_NE(g_override_suppression, Mode::kUnset);  // Nesting not supported.
+  g_override_suppression = Mode::kUnset;
 }
 
 #if BUILDFLAG(CAN_UNWIND_WITH_FRAME_POINTERS)

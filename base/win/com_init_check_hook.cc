@@ -2,11 +2,17 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#ifdef UNSAFE_BUFFERS_BUILD
+// TODO(crbug.com/40284755): Remove this and spanify to fix the errors.
+#pragma allow_unsafe_buffers
+#endif
+
 #include "base/win/com_init_check_hook.h"
+
+#include <objbase.h>
 
 #include <windows.h>
 
-#include <objbase.h>
 #include <stdint.h>
 #include <string.h>
 
@@ -176,19 +182,19 @@ class HookManager {
     HotpatchPlaceholderFormat format = GetHotpatchPlaceholderFormat(
         reinterpret_cast<const void*>(co_create_instance_padded_address_));
     if (format == HotpatchPlaceholderFormat::UNKNOWN) {
-      NOTREACHED() << "Unrecognized hotpatch function format: "
-                   << FirstSevenBytesToString(
-                          co_create_instance_padded_address_);
+      NOTREACHED_IN_MIGRATION()
+          << "Unrecognized hotpatch function format: "
+          << FirstSevenBytesToString(co_create_instance_padded_address_);
       return;
     } else if (format == HotpatchPlaceholderFormat::EXTERNALLY_PATCHED) {
       hotpatch_placeholder_format_ = format;
-      NOTREACHED() << "CoCreateInstance appears to be previously patched. <"
-                   << FirstSevenBytesToString(
-                          co_create_instance_padded_address_)
-                   << "> Attempted to write <"
-                   << FirstSevenBytesToString(
-                          reinterpret_cast<uint32_t>(&structured_hotpatch_))
-                   << ">";
+      NOTREACHED_IN_MIGRATION()
+          << "CoCreateInstance appears to be previously patched. <"
+          << FirstSevenBytesToString(co_create_instance_padded_address_)
+          << "> Attempted to write <"
+          << FirstSevenBytesToString(
+                 reinterpret_cast<uint32_t>(&structured_hotpatch_))
+          << ">";
       return;
     } else if (format == HotpatchPlaceholderFormat::APPHELP_SHIM) {
       // The apphelp shim placeholder does not allocate enough bytes for a
@@ -285,12 +291,13 @@ class HookManager {
       return false;
     }
 
-    NOTREACHED() << "CoCreateInstance patch overwritten. Expected: <"
-                 << FirstSevenBytesToString(co_create_instance_padded_address_)
-                 << ">, Actual: <"
-                 << FirstSevenBytesToString(
-                        reinterpret_cast<uint32_t>(&structured_hotpatch_))
-                 << ">";
+    NOTREACHED_IN_MIGRATION()
+        << "CoCreateInstance patch overwritten. Expected: <"
+        << FirstSevenBytesToString(co_create_instance_padded_address_)
+        << ">, Actual: <"
+        << FirstSevenBytesToString(
+               reinterpret_cast<uint32_t>(&structured_hotpatch_))
+        << ">";
     return true;
   }
 

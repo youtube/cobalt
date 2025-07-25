@@ -80,6 +80,33 @@ class MEDIA_GPU_EXPORT H265Decoder final : public AcceleratedVideoDecoder {
     // this situation as normal and return from Decode() with kRanOutOfSurfaces.
     virtual scoped_refptr<H265Picture> CreateH265Picture() = 0;
 
+    // |secure_handle| is a reference to the corresponding secure memory when
+    // doing secure decoding on ARM. This is invoked instead of CreateAV1Picture
+    // when doing secure decoding on ARM. Default implementation returns
+    // nullptr.
+    // TODO(jkardatzke): Remove this once we move to the V4L2 flat stateless
+    // decoder and add a field to media::CodecPicture instead.
+    virtual scoped_refptr<H265Picture> CreateH265PictureSecure(
+        uint64_t secure_handle);
+
+    // Provides the raw NALU data for a VPS. The |vps| passed to
+    // SubmitFrameMetadata() is always the most recent VPS passed to
+    // ProcessVPS() with the same |vps_video_parameter_set_id|.
+    virtual void ProcessVPS(const H265VPS* vps,
+                            base::span<const uint8_t> vps_nalu_data);
+
+    // Provides the raw NALU data for an SPS. The |sps| passed to
+    // SubmitFrameMetadata() is always the most recent SPS passed to
+    // ProcessSPS() with the same |sps_video_parameter_set_id|.
+    virtual void ProcessSPS(const H265SPS* sps,
+                            base::span<const uint8_t> sps_nalu_data);
+
+    // Provides the raw NALU data for a PPS. The |pps| passed to
+    // SubmitFrameMetadata() is always the most recent PPS passed to
+    // ProcessPPS() with the same |pps_pic_parameter_set_id|.
+    virtual void ProcessPPS(const H265PPS* pps,
+                            base::span<const uint8_t> pps_nalu_data);
+
     // Submit metadata for the current frame, providing the current |sps|, |pps|
     // and |slice_hdr| for it. |ref_pic_list| contains the set of pictures as
     // described in 8.3.2 from the lists RefPicSetLtCurr, RefPicSetLtFoll,
@@ -158,6 +185,9 @@ class MEDIA_GPU_EXPORT H265Decoder final : public AcceleratedVideoDecoder {
     // Indicates whether the accelerator supports bitstreams with
     // specific chroma subsampling format.
     virtual bool IsChromaSamplingSupported(VideoChromaSampling format) = 0;
+
+    // Indicates whether the accelerator supports an alpha layer.
+    virtual bool IsAlphaLayerSupported();
   };
 
   H265Decoder(std::unique_ptr<H265Accelerator> accelerator,
@@ -179,7 +209,8 @@ class MEDIA_GPU_EXPORT H265Decoder final : public AcceleratedVideoDecoder {
   VideoCodecProfile GetProfile() const override;
   uint8_t GetBitDepth() const override;
   VideoChromaSampling GetChromaSampling() const override;
-  absl::optional<gfx::HDRMetadata> GetHDRMetadata() const override;
+  VideoColorSpace GetVideoColorSpace() const override;
+  std::optional<gfx::HDRMetadata> GetHDRMetadata() const override;
   size_t GetRequiredNumOfPictures() const override;
   size_t GetNumReferenceFrames() const override;
 
@@ -222,7 +253,8 @@ class MEDIA_GPU_EXPORT H265Decoder final : public AcceleratedVideoDecoder {
   H265Accelerator::Status FinishPrevFrameIfPresent();
 
   // Called after we are done processing |pic|.
-  void FinishPicture(scoped_refptr<H265Picture> pic);
+  bool FinishPicture(scoped_refptr<H265Picture> pic,
+                     std::unique_ptr<H265SliceHeader> slice_hdr);
 
   // Commits all pending data for HW decoder and starts HW decoder.
   H265Accelerator::Status DecodePicture();
@@ -279,6 +311,10 @@ class MEDIA_GPU_EXPORT H265Decoder final : public AcceleratedVideoDecoder {
   // Decrypting config for the most recent data passed to SetStream().
   std::unique_ptr<DecryptConfig> current_decrypt_config_;
 
+  // Secure handle to pass through to the accelerator when doing secure playback
+  // on ARM.
+  uint64_t secure_handle_ = 0;
+
   // Keep track of when SetStream() is called so that
   // H265Accelerator::SetStream() can be called.
   bool current_stream_has_been_changed_ = false;
@@ -295,6 +331,10 @@ class MEDIA_GPU_EXPORT H265Decoder final : public AcceleratedVideoDecoder {
   // Used to identify first picture in decoding order or first picture that
   // follows an EOS NALU.
   bool first_picture_ = true;
+
+  // Used to keep NoRaslOutputFlag state since last IRAP, to decide if we
+  // drop a RASL picture.
+  bool no_rasl_output_flag_ = true;
 
   // Global state values, needed in decoding. See spec.
   scoped_refptr<H265Picture> prev_tid0_pic_;
@@ -325,6 +365,10 @@ class MEDIA_GPU_EXPORT H265Decoder final : public AcceleratedVideoDecoder {
   int curr_sps_id_ = -1;
   int curr_pps_id_ = -1;
 
+  // If this value larger than 0, then that means the current NALU contain alpha
+  // layer.
+  int aux_alpha_layer_id_ = 0;
+
   // Current NALU and slice header being processed.
   std::unique_ptr<H265NALU> curr_nalu_;
   std::unique_ptr<H265SliceHeader> curr_slice_hdr_;
@@ -341,8 +385,10 @@ class MEDIA_GPU_EXPORT H265Decoder final : public AcceleratedVideoDecoder {
   uint8_t bit_depth_ = 0;
   // Chroma sampling format of input bitstream
   VideoChromaSampling chroma_sampling_ = VideoChromaSampling::kUnknown;
+  // Video color space of input bitstream.
+  VideoColorSpace picture_color_space_;
   // HDR metadata in the bitstream.
-  absl::optional<gfx::HDRMetadata> hdr_metadata_;
+  std::optional<gfx::HDRMetadata> hdr_metadata_;
 
   const std::unique_ptr<H265Accelerator> accelerator_;
 };

@@ -2,8 +2,10 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#include <algorithm>
 #include <memory>
 #include <string>
+#include <string_view>
 
 #include "base/base64.h"
 #include "base/containers/span.h"
@@ -61,11 +63,8 @@ class HttpAuthHandlerNtlmPortableTest : public PlatformTest {
   }
 
   std::string CreateNtlmAuthHeader(base::span<const uint8_t> buffer) {
-    std::string output;
-    base::Base64Encode(
-        base::StringPiece(reinterpret_cast<const char*>(buffer.data()),
-                          buffer.size()),
-        &output);
+    std::string output = base::Base64Encode(std::string_view(
+        reinterpret_cast<const char*>(buffer.data()), buffer.size()));
 
     return "NTLM " + output;
   }
@@ -104,10 +103,8 @@ class HttpAuthHandlerNtlmPortableTest : public PlatformTest {
     if (!reader->ReadSecurityBuffer(&sec_buf))
       return false;
 
-    if (!reader->ReadBytesFrom(
-            sec_buf,
-            base::as_writable_bytes(base::make_span(
-                base::WriteInto(str, sec_buf.length + 1), sec_buf.length)))) {
+    str->resize(sec_buf.length);
+    if (!reader->ReadBytesFrom(sec_buf, base::as_writable_byte_span(*str))) {
       return false;
     }
 
@@ -146,10 +143,10 @@ class HttpAuthHandlerNtlmPortableTest : public PlatformTest {
     return static_cast<HttpAuthHandlerNTLM*>(auth_handler_.get());
   }
 
-  static void MockRandom(uint8_t* output, size_t n) {
+  static void MockRandom(base::span<uint8_t> output) {
     // This is set to 0xaa because the client challenge for testing in
     // [MS-NLMP] Section 4.2.1 is 8 bytes of 0xaa.
-    memset(output, 0xaa, n);
+    std::ranges::fill(output, 0xaa);
   }
 
   static uint64_t MockGetMSTime() {

@@ -76,8 +76,8 @@ void NetLog::AddGlobalEntry(NetLogEventType type) {
 }
 
 void NetLog::AddGlobalEntryWithStringParams(NetLogEventType type,
-                                            base::StringPiece name,
-                                            base::StringPiece value) {
+                                            std::string_view name,
+                                            std::string_view value) {
   AddGlobalEntry(type, [&] { return NetLogParamsWithString(name, value); });
 }
 
@@ -144,14 +144,17 @@ void NetLog::UpdateObserverCaptureModes() {
   lock_.AssertAcquired();
 
   NetLogCaptureModeSet capture_mode_set = 0;
-  for (const auto* observer : observers_)
+  for (const net::NetLog::ThreadSafeObserver* observer : observers_) {
     NetLogCaptureModeSetAdd(observer->capture_mode_, &capture_mode_set);
+  }
 
   base::subtle::NoBarrier_Store(&observer_capture_modes_, capture_mode_set);
 
   // Notify any capture mode observers with the new |capture_mode_set|.
-  for (auto* capture_mode_observer : capture_mode_observers_)
+  for (net::NetLog::ThreadSafeCaptureModeObserver* capture_mode_observer :
+       capture_mode_observers_) {
     capture_mode_observer->OnCaptureModeUpdated(capture_mode_set);
+  }
 }
 
 bool NetLog::HasObserver(ThreadSafeObserver* observer) {
@@ -167,7 +170,7 @@ bool NetLog::HasCaptureModeObserver(ThreadSafeCaptureModeObserver* observer) {
 // static
 std::string NetLog::TickCountToString(const base::TimeTicks& time) {
   int64_t delta_time = time.since_origin().InMilliseconds();
-  // TODO(https://crbug.com/915391): Use NetLogNumberValue().
+  // TODO(crbug.com/40606676): Use NetLogNumberValue().
   return base::NumberToString(delta_time);
 }
 
@@ -248,7 +251,7 @@ void NetLog::AddEntryInternal(NetLogEventType type,
 
     // Notify all of the log observers with |capture_mode|.
     base::AutoLock lock(lock_);
-    for (auto* observer : observers_) {
+    for (net::NetLog::ThreadSafeObserver* observer : observers_) {
       if (observer->capture_mode() == capture_mode)
         observer->OnAddEntry(entry);
     }
@@ -272,7 +275,7 @@ void NetLog::AddEntryAtTimeWithMaterializedParams(NetLogEventType type,
 
   // Notify all of the log observers, regardless of capture mode.
   base::AutoLock lock(lock_);
-  for (auto* observer : observers_) {
+  for (net::NetLog::ThreadSafeObserver* observer : observers_) {
     observer->OnAddEntry(entry);
   }
 }

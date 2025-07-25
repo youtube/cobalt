@@ -140,7 +140,7 @@ class CookieChangeDispatcher {
   AddCallbackForCookie(
       const GURL& url,
       const std::string& name,
-      const absl::optional<CookiePartitionKey>& cookie_partition_key,
+      const std::optional<CookiePartitionKey>& cookie_partition_key,
       CookieChangeCallback callback) = 0;
 
   // Observe changes to the cookies that would be sent for a request to `url`.
@@ -153,14 +153,14 @@ class CookieChangeDispatcher {
   [[nodiscard]] virtual std::unique_ptr<CookieChangeSubscription>
   AddCallbackForUrl(
       const GURL& url,
-      const absl::optional<CookiePartitionKey>& cookie_partition_key,
+      const std::optional<CookiePartitionKey>& cookie_partition_key,
       CookieChangeCallback callback) = 0;
 
   // Observe all the CookieStore's changes.
   //
   // The callback will not observe a few bookkeeping changes.
   // See kChangeCauseMapping in cookie_monster.cc for details.
-  // TODO(crbug.com/1225444): Add support for Partitioned cookies.
+  // TODO(crbug.com/40188414): Add support for Partitioned cookies.
   [[nodiscard]] virtual std::unique_ptr<CookieChangeSubscription>
   AddCallbackForAllChanges(CookieChangeCallback callback) = 0;
 };

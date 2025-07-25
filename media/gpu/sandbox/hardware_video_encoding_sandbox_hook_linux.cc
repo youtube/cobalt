@@ -53,9 +53,9 @@ bool HardwareVideoEncodingPreSandboxHook(
 #elif BUILDFLAG(USE_VAAPI)
   command_set.set(sandbox::syscall_broker::COMMAND_OPEN);
   command_set.set(sandbox::syscall_broker::COMMAND_STAT);
+  command_set.set(sandbox::syscall_broker::COMMAND_ACCESS);
 
   if (options.use_amd_specific_policies) {
-    command_set.set(sandbox::syscall_broker::COMMAND_ACCESS);
     command_set.set(sandbox::syscall_broker::COMMAND_READLINK);
 
     permissions.push_back(BrokerFilePermission::ReadOnly("/dev/dri"));
@@ -94,8 +94,7 @@ bool HardwareVideoEncodingPreSandboxHook(
   }
 
   sandbox::policy::SandboxLinux::GetInstance()->StartBrokerProcess(
-      command_set, permissions, sandbox::policy::SandboxLinux::PreSandboxHook(),
-      options);
+      command_set, permissions, options);
 
   // TODO(b/248528896): the hardware video encoding sandbox is really only
   // useful when building with VA-API or V4L2 (otherwise, we're not really doing
@@ -121,20 +120,7 @@ bool HardwareVideoEncodingPreSandboxHook(
       return false;
     }
   }
-#elif BUILDFLAG(USE_V4L2_CODEC)
-  if (V4L2Device::UseLibV4L2()) {
-#if defined(__aarch64__)
-    dlopen("/usr/lib64/libv4l2.so", RTLD_NOW | RTLD_GLOBAL | RTLD_NODELETE);
-    dlopen("/usr/lib64/libv4l/plugins/libv4l-encplugin.so",
-           RTLD_NOW | RTLD_GLOBAL | RTLD_NODELETE);
-#else
-    dlopen("/usr/lib/libv4l2.so", RTLD_NOW | RTLD_GLOBAL | RTLD_NODELETE);
-    dlopen("/usr/lib/libv4l/plugins/libv4l-encplugin.so",
-           RTLD_NOW | RTLD_GLOBAL | RTLD_NODELETE);
-#endif  // defined(__aarch64__)
-  }
 #endif
-
   return true;
 }
 

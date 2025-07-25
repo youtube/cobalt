@@ -1,4 +1,4 @@
-// Copyright 2017 The Chromium Authors. All rights reserved.
+// Copyright 2017 The Chromium Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -14,7 +14,6 @@
 #include "components/metrics/metrics_scheduler.h"
 
 namespace metrics {
-
 namespace {
 
 // When uploading metrics to the server fails, we progressively wait longer and
@@ -33,38 +32,37 @@ const int kOverDataUsageIntervalMinutes = 5;
 // where the server is having issues.
 base::TimeDelta BackOffUploadInterval(base::TimeDelta interval) {
   DCHECK_GT(kBackoffMultiplier, 1.0);
-  interval = base::TimeDelta::FromMicroseconds(static_cast<int64_t>(
-      kBackoffMultiplier * interval.InMicroseconds()));
+  interval = base::Microseconds(
+      static_cast<int64_t>(kBackoffMultiplier * interval.InMicroseconds()));
 
-  base::TimeDelta max_interval =
-      base::TimeDelta::FromHours(kMaxBackoffIntervalHours);
+  base::TimeDelta max_interval = base::Hours(kMaxBackoffIntervalHours);
   if (interval > max_interval || interval.InSeconds() < 0) {
     interval = max_interval;
   }
   return interval;
 }
 
-// Time delay after a log is uploaded successfully before attempting another.
-// On mobile, keeping the radio on is very expensive, so prefer to keep this
-// short and send in bursts.
-base::TimeDelta GetUnsentLogsInterval() {
-  return base::TimeDelta::FromSeconds(3);
-}
-
-// Initial time delay after a log uploaded fails before retrying it.
-base::TimeDelta GetInitialBackoffInterval() {
-  return base::TimeDelta::FromMinutes(5);
-}
-
 }  // namespace
 
 MetricsUploadScheduler::MetricsUploadScheduler(
-    const base::Closure& upload_callback)
-    : MetricsScheduler(upload_callback),
+    const base::RepeatingClosure& upload_callback,
+    bool fast_startup_for_testing)
+    : MetricsScheduler(upload_callback, fast_startup_for_testing),
+      unsent_logs_interval_(GetUnsentLogsInterval()),
       initial_backoff_interval_(GetInitialBackoffInterval()),
       backoff_interval_(initial_backoff_interval_) {}
 
-MetricsUploadScheduler::~MetricsUploadScheduler() {}
+MetricsUploadScheduler::~MetricsUploadScheduler() = default;
+
+// static
+base::TimeDelta MetricsUploadScheduler::GetUnsentLogsInterval() {
+  return base::Seconds(3);
+}
+
+// static
+base::TimeDelta MetricsUploadScheduler::GetInitialBackoffInterval() {
+  return base::Minutes(5);
+}
 
 void MetricsUploadScheduler::UploadFinished(bool server_is_healthy) {
   // If the server is having issues, back off. Otherwise, reset to default
@@ -75,17 +73,17 @@ void MetricsUploadScheduler::UploadFinished(bool server_is_healthy) {
     backoff_interval_ = BackOffUploadInterval(backoff_interval_);
   } else {
     backoff_interval_ = initial_backoff_interval_;
-    TaskDone(GetUnsentLogsInterval());
+    TaskDone(unsent_logs_interval_);
   }
 }
 
 void MetricsUploadScheduler::StopAndUploadCancelled() {
   Stop();
-  TaskDone(GetUnsentLogsInterval());
+  TaskDone(unsent_logs_interval_);
 }
 
 void MetricsUploadScheduler::UploadOverDataUsageCap() {
-  TaskDone(base::TimeDelta::FromMinutes(kOverDataUsageIntervalMinutes));
+  TaskDone(base::Minutes(kOverDataUsageIntervalMinutes));
 }
 
 }  // namespace metrics

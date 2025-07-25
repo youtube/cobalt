@@ -1,0 +1,17 @@
+rootWebArea
+++genericContainer ignored
+++++genericContainer ignored
+++++++splitter horizontal name='Outside custom element'
+++++++paragraph
+++++++++staticText name='Hello, world'
+++++++++++inlineTextBox name='Hello, world'
+++++++splitter horizontal name='Inside custom element'
+++++++group
+++++++++button name='something'
+++++++++++staticText name='something'
+++++++++++++inlineTextBox name='something'
+++++++++button name='something'
+++++++++++staticText name='something'
+++++++++++++inlineTextBox name='something'
+++++++staticText name=' '
+++++++++inlineTextBox name=' '

@@ -65,7 +65,7 @@ TypedStatus<T>&& AddHere() &&;
 // specific error value, ie: HRESULT. This data is for human consumption only
 // in a developer setting, and can't be extracted from the TypedStatus
 // normally. The code value should be sufficiently informative between sender
-// and reciever of the TypedStatus.
+// and receiver of the TypedStatus.
 template<typename D>
 TypedStatus<T>&& WithData(const char *key, const D& value) &&;
 template<typename D>
@@ -260,7 +260,7 @@ struct MyExampleStatusTraits {
   static constexpr StatusGroupType Group() { return "MyExampleStatus"; }
   static constexpr Codes OkEnumValue() { return Codes::kDefaultValue; }
   static uint32_t PackExtraData(const StatusData& info) {
-    absl::optional<int> hresult = info.data.GetIntValue("HRESULT");
+    std::optional<int> hresult = info.data.GetIntValue("HRESULT");
     return static_cast<uint32_t>(hresult.has_value() ? *hresult : 0);
   }
 }

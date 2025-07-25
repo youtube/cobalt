@@ -1,0 +1,17 @@
+include_rules = [
+  "+components/webrtc",
+  "+extensions/browser/api/messaging",
+  "+google_apis",
+  "+mojo/core/embedder",
+  "+net",
+  "+remoting/client",
+  "+remoting/codec",
+  "+remoting/host",
+  "+remoting/protocol",
+  "+remoting/signaling",
+  "+ui/gfx",
+  "+ui/events/keycodes/dom",
+  "+ui/events/platform/x11",
+  "+services/network",
+  "+third_party/skia",
+]

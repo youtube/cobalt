@@ -49,7 +49,7 @@ namespace media {
 namespace {
 
 // Hardcoded constants defined in the Amlogic driver.
-// TODO(crbug.com/1373287): Get this values from platform API rather than
+// TODO(crbug.com/42050532): Get this values from platform API rather than
 // hardcoding them.
 constexpr int kMaxResolutionWidth = 1920;
 constexpr int kMaxResolutionHeight = 1088;
@@ -71,7 +71,7 @@ constexpr size_t kOutputFrameConfigSize = 128 * 1024;
 
 const VideoCodecProfile kSupportedProfiles[] = {
     H264PROFILE_BASELINE,
-    // TODO(crbug.com/1373293): Support HEVC codec.
+    // TODO(crbug.com/40241992): Support HEVC codec.
 };
 
 fuchsia::sysmem::PixelFormatType GetPixelFormatType(
@@ -164,8 +164,7 @@ class FuchsiaVideoEncodeAccelerator::OutputPacketsQueue {
   using ProcessCB =
       base::RepeatingCallback<void(int32_t buffer_index,
                                    const BitstreamBufferMetadata& metadata)>;
-  using ErrorCB = base::OnceCallback<void(VideoEncodeAccelerator::Error,
-                                          const std::string& message)>;
+  using ErrorCB = base::OnceCallback<void(EncoderStatus status)>;
 
   OutputPacketsQueue() = default;
 
@@ -299,9 +298,9 @@ void FuchsiaVideoEncodeAccelerator::VideoFrameWriterQueue::CopyFrameToBuffer(
   CHECK_LE(frame->coded_size().height(), coded_size_.height());
 
   int result = libyuv::I420Copy(
-      frame->data(VideoFrame::kYPlane), frame->stride(VideoFrame::kYPlane),
-      frame->data(VideoFrame::kUPlane), frame->stride(VideoFrame::kUPlane),
-      frame->data(VideoFrame::kVPlane), frame->stride(VideoFrame::kVPlane),
+      frame->data(VideoFrame::Plane::kY), frame->stride(VideoFrame::Plane::kY),
+      frame->data(VideoFrame::Plane::kU), frame->stride(VideoFrame::Plane::kU),
+      frame->data(VideoFrame::Plane::kV), frame->stride(VideoFrame::Plane::kV),
       dst_y, dst_y_stride_, dst_u, dst_uv_stride_, dst_v, dst_uv_stride_,
       frame->coded_size().width(), frame->coded_size().height());
   DCHECK_EQ(result, 0);
@@ -361,11 +360,10 @@ bool FuchsiaVideoEncodeAccelerator::OutputPacketsQueue::
                               BitstreamBufferMetadata* metadata) {
   if (packet.size() > bitstream_buffer.size()) {
     std::move(error_cb_).Run(
-        VideoEncodeAccelerator::kPlatformFailureError,
-        base::StringPrintf("Encoded output is too large. Packet size: %zu "
-                           "Bitstream buffer size: "
-                           "%zu",
-                           packet.size(), bitstream_buffer.size()));
+        {EncoderStatus::Codes::kEncoderFailedEncode,
+         base::StringPrintf("Encoded output is too large. Packet size: %zu "
+                            "Bitstream buffer size: %zu",
+                            packet.size(), bitstream_buffer.size())});
     return false;
   }
 
@@ -373,8 +371,8 @@ bool FuchsiaVideoEncodeAccelerator::OutputPacketsQueue::
   base::WritableSharedMemoryMapping mapping =
       region.MapAt(bitstream_buffer.offset(), packet.size());
   if (!mapping.IsValid()) {
-    std::move(error_cb_).Run(VideoEncodeAccelerator::kPlatformFailureError,
-                             "Failed to map BitstreamBuffer memory.");
+    std::move(error_cb_).Run({EncoderStatus::Codes::kSystemAPICallError,
+                              "Failed to map BitstreamBuffer memory."});
     return false;
   }
 
@@ -436,11 +434,11 @@ bool FuchsiaVideoEncodeAccelerator::Initialize(
     return false;
   }
 
-  // TODO(crbug.com/1373291): Support NV12 pixel format.
+  // TODO(crbug.com/40241991): Support NV12 pixel format.
   if (config.input_format != PIXEL_FORMAT_I420) {
     return false;
   }
-  // TODO(crbug.com/1373293): Support HEVC codec.
+  // TODO(crbug.com/40241992): Support HEVC codec.
   if (config.output_profile != H264PROFILE_BASELINE) {
     return false;
   }
@@ -500,14 +498,14 @@ void FuchsiaVideoEncodeAccelerator::Encode(scoped_refptr<VideoFrame> frame,
   // the frame's alignment, as `input_visible_size.width()` must be aligned to
   // `kWidthAlignment`.
   //
-  // TODO(crbug.com/1381293): Encode only the `visible_rect` of a frame.
+  // TODO(crbug.com/40245141): Encode only the `visible_rect` of a frame.
   if (frame->coded_size().width() > config_->input_visible_size.width() ||
       frame->coded_size().height() > config_->input_visible_size.height()) {
-    OnError(VideoEncodeAccelerator::kInvalidArgumentError,
-            base::StringPrintf(
-                "Input frame size %s is larger than configured size %s",
-                frame->coded_size().ToString().c_str(),
-                config_->input_visible_size.ToString().c_str()));
+    OnError({EncoderStatus::Codes::kInvalidInputFrame,
+             base::StringPrintf(
+                 "Input frame size %s is larger than configured size %s",
+                 frame->coded_size().ToString().c_str(),
+                 config_->input_visible_size.ToString().c_str())});
     return;
   }
 
@@ -516,8 +514,9 @@ void FuchsiaVideoEncodeAccelerator::Encode(scoped_refptr<VideoFrame> frame,
 
 void FuchsiaVideoEncodeAccelerator::RequestEncodingParametersChange(
     const Bitrate& bitrate,
-    uint32_t framerate) {
-  // TODO(crbug.com/1373298): Implement RequestEncodingParameterChange.
+    uint32_t framerate,
+    const std::optional<gfx::Size>& size) {
+  // TODO(crbug.com/40241995): Implement RequestEncodingParameterChange.
   NOTIMPLEMENTED();
 }
 
@@ -529,7 +528,7 @@ void FuchsiaVideoEncodeAccelerator::Destroy() {
 }
 
 bool FuchsiaVideoEncodeAccelerator::IsFlushSupported() {
-  // TODO(crbug.com/1375924): Implement Flush.
+  // TODO(crbug.com/40242985): Implement Flush.
   return false;
 }
 
@@ -548,7 +547,7 @@ void FuchsiaVideoEncodeAccelerator::OnStreamProcessorAllocateInputBuffers(
 
   fuchsia::sysmem::BufferCollectionConstraints constraints =
       VmoBuffer::GetRecommendedConstraints(kInputBufferCount,
-                                           /*min_buffer_size=*/absl::nullopt,
+                                           /*min_buffer_size=*/std::nullopt,
                                            /*writable=*/true);
   input_buffer_collection_->Initialize(constraints, "VideoEncoderInput");
   input_buffer_collection_->AcquireBuffers(
@@ -619,8 +618,8 @@ void FuchsiaVideoEncodeAccelerator::OnStreamProcessorOutputFormat(
   auto* format_details = format.mutable_format_details();
   if (!format_details->has_domain() || !format_details->domain().is_video() ||
       !format_details->domain().video().is_compressed()) {
-    OnError(kPlatformFailureError,
-            "Received invalid format from stream processor.");
+    OnError({EncoderStatus::Codes::kEncoderFailedEncode,
+             "Received invalid format from stream processor."});
   }
 }
 
@@ -644,7 +643,8 @@ void FuchsiaVideoEncodeAccelerator::OnStreamProcessorNoKey() {
 void FuchsiaVideoEncodeAccelerator::OnStreamProcessorError() {
   DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
 
-  OnError(kPlatformFailureError, "Encountered stream processor error.");
+  OnError({EncoderStatus::Codes::kEncoderFailedEncode,
+           "Encountered stream processor error."});
 }
 
 void FuchsiaVideoEncodeAccelerator::ReleaseEncoder() {
@@ -658,16 +658,17 @@ void FuchsiaVideoEncodeAccelerator::ReleaseEncoder() {
   encoder_.reset();
 }
 
-void FuchsiaVideoEncodeAccelerator::OnError(
-    VideoEncodeAccelerator::Error error_type,
-    const std::string& error_message) {
-  DLOG(ERROR) << error_message;
+void FuchsiaVideoEncodeAccelerator::OnError(EncoderStatus status) {
+  CHECK(!status.is_ok());
+  LOG(ERROR) << "FuchsiaVideoEncodeAccelerator failed, error_code="
+             << static_cast<int>(status.code())
+             << ", message=" << status.message();
   if (media_log_) {
-    MEDIA_LOG(ERROR, media_log_) << error_message;
+    MEDIA_LOG(ERROR, media_log_) << status.message();
   }
   ReleaseEncoder();
   if (vea_client_) {
-    vea_client_->NotifyError(error_type);
+    vea_client_->NotifyErrorStatus(status);
   }
 }
 
@@ -703,18 +704,17 @@ FuchsiaVideoEncodeAccelerator::CreateFormatDetails(
   format_details.set_domain(std::move(domain));
 
   // For now, hardcode mime type for H264.
-  // TODO(crbug.com/1373293): Support HEVC codec.
+  // TODO(crbug.com/40241992): Support HEVC codec.
   DCHECK(config.output_profile == H264PROFILE_BASELINE);
   format_details.set_mime_type("video/h264");
   fuchsia::media::H264EncoderSettings h264_settings;
   if (config.bitrate.target_bps() != 0) {
     h264_settings.set_bit_rate(config.bitrate.target_bps());
   }
-  if (config.initial_framerate.has_value()) {
-    h264_settings.set_frame_rate(config.initial_framerate.value());
-    format_details.set_timebase(base::Time::kNanosecondsPerSecond /
-                                config.initial_framerate.value());
-  }
+  h264_settings.set_frame_rate(config.framerate);
+  format_details.set_timebase(base::Time::kNanosecondsPerSecond /
+                              config.framerate);
+
   if (config.gop_length.has_value()) {
     h264_settings.set_gop_size(config.gop_length.value());
   }

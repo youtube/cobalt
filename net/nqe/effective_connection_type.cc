@@ -4,6 +4,8 @@
 
 #include "net/nqe/effective_connection_type.h"
 
+#include <string_view>
+
 #include "base/notreached.h"
 
 namespace {
@@ -43,8 +45,8 @@ const char* GetNameForEffectiveConnectionType(EffectiveConnectionType type) {
   return "";
 }
 
-absl::optional<EffectiveConnectionType> GetEffectiveConnectionTypeForName(
-    base::StringPiece connection_type_name) {
+std::optional<EffectiveConnectionType> GetEffectiveConnectionTypeForName(
+    std::string_view connection_type_name) {
   if (connection_type_name == kEffectiveConnectionTypeUnknown)
     return EFFECTIVE_CONNECTION_TYPE_UNKNOWN;
   if (connection_type_name == kEffectiveConnectionTypeOffline)
@@ -61,7 +63,7 @@ absl::optional<EffectiveConnectionType> GetEffectiveConnectionTypeForName(
     return EFFECTIVE_CONNECTION_TYPE_3G;
   if (connection_type_name == kEffectiveConnectionType4G)
     return EFFECTIVE_CONNECTION_TYPE_4G;
-  return absl::nullopt;
+  return std::nullopt;
 }
 
 const char* DeprecatedGetNameForEffectiveConnectionType(

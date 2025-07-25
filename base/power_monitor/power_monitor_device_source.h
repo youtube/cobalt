@@ -24,7 +24,7 @@
 #if BUILDFLAG(IS_MAC)
 #include <IOKit/IOTypes.h>
 
-#include "base/mac/scoped_cftyperef.h"
+#include "base/apple/scoped_cftyperef.h"
 #include "base/mac/scoped_ionotificationportref.h"
 #include "base/power_monitor/battery_level_provider.h"
 #include "base/power_monitor/iopm_power_source_sampling_event_source.h"
@@ -128,7 +128,7 @@ class BASE_EXPORT PowerMonitorDeviceSource : public PowerMonitorSource {
   // Retrieves the current battery state to update `is_on_battery_`.
   void GetBatteryState();
   void OnBatteryStateReceived(
-      const absl::optional<BatteryLevelProvider::BatteryState>& battery_state);
+      const std::optional<BatteryLevelProvider::BatteryState>& battery_state);
 
   // Reference to the system IOPMrootDomain port.
   io_connect_t power_manager_port_ = IO_OBJECT_NULL;

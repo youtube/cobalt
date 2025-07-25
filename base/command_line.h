@@ -17,15 +17,17 @@
 #define BASE_COMMAND_LINE_H_
 
 #include <stddef.h>
+
 #include <functional>
 #include <map>
 #include <memory>
 #include <string>
+#include <string_view>
 #include <vector>
 
 #include "base/base_export.h"
+#include "base/containers/span.h"
 #include "base/debug/debugging_buildflags.h"
-#include "base/strings/string_piece.h"
 #include "build/build_config.h"
 
 #if BUILDFLAG(ENABLE_COMMANDLINE_SEQUENCE_CHECKS)
@@ -42,14 +44,23 @@ class BASE_EXPORT CommandLine {
 #if BUILDFLAG(IS_WIN)
   // The native command line string type.
   using StringType = std::wstring;
-#elif BUILDFLAG(IS_POSIX) || BUILDFLAG(IS_FUCHSIA) || defined(STARBOARD)
+#elif BUILDFLAG(IS_POSIX) || BUILDFLAG(IS_FUCHSIA)
   using StringType = std::string;
 #endif
 
   using CharType = StringType::value_type;
-  using StringPieceType = base::BasicStringPiece<CharType>;
+  using StringPieceType = std::basic_string_view<CharType>;
   using StringVector = std::vector<StringType>;
   using SwitchMap = std::map<std::string, StringType, std::less<>>;
+
+  // Returns CommandLine object constructed with switches and keys alone.
+  // NOTE: `argv` must NOT include the program path, and the switch arguments
+  // must start from the index 0.
+  static CommandLine FromArgvWithoutProgram(const StringVector& argv);
+
+#if BUILDFLAG(IS_WIN)
+  static CommandLine FromString(StringPieceType command_line);
+#endif
 
   // A constructor for CommandLines that only carry switches and arguments.
   enum NoProgram { NO_PROGRAM };
@@ -68,6 +79,9 @@ class BASE_EXPORT CommandLine {
   //   cl.AppendSwitch(...);
   CommandLine(const CommandLine& other);
   CommandLine& operator=(const CommandLine& other);
+
+  CommandLine(CommandLine&& other) noexcept;
+  CommandLine& operator=(CommandLine&& other) noexcept;
 
   ~CommandLine();
 
@@ -111,10 +125,6 @@ class BASE_EXPORT CommandLine {
 
   // Returns true if the CommandLine has been initialized for the given process.
   static bool InitializedForCurrentProcess();
-
-#if BUILDFLAG(IS_WIN)
-  static CommandLine FromString(StringPieceType command_line);
-#endif
 
   // Initialize from an argv vector.
   void InitFromArgv(int argc, const CharType* const* argv);
@@ -178,36 +188,38 @@ class BASE_EXPORT CommandLine {
   // Switch names must be lowercase.
   // The second override provides an optimized version to avoid inlining codegen
   // at every callsite to find the length of the constant and construct a
-  // StringPiece.
-  bool HasSwitch(StringPiece switch_string) const;
+  // std::string_view.
+  bool HasSwitch(std::string_view switch_string) const;
   bool HasSwitch(const char switch_constant[]) const;
 
   // Returns the value associated with the given switch. If the switch has no
   // value or isn't present, this method returns the empty string.
   // Switch names must be lowercase.
-  std::string GetSwitchValueASCII(StringPiece switch_string) const;
-  FilePath GetSwitchValuePath(StringPiece switch_string) const;
-  StringType GetSwitchValueNative(StringPiece switch_string) const;
+  std::string GetSwitchValueASCII(std::string_view switch_string) const;
+  FilePath GetSwitchValuePath(std::string_view switch_string) const;
+  StringType GetSwitchValueNative(std::string_view switch_string) const;
 
   // Get a copy of all switches, along with their values.
   const SwitchMap& GetSwitches() const { return switches_; }
 
   // Append a switch [with optional value] to the command line.
   // Note: Switches will precede arguments regardless of appending order.
-  void AppendSwitch(StringPiece switch_string);
-  void AppendSwitchPath(StringPiece switch_string, const FilePath& path);
-  void AppendSwitchNative(StringPiece switch_string, StringPieceType value);
-  void AppendSwitchASCII(StringPiece switch_string, StringPiece value);
+  void AppendSwitch(std::string_view switch_string);
+  void AppendSwitchPath(std::string_view switch_string, const FilePath& path);
+  void AppendSwitchNative(std::string_view switch_string,
+                          StringPieceType value);
+  void AppendSwitchASCII(std::string_view switch_string,
+                         std::string_view value);
 
   // Removes the switch that matches |switch_key_without_prefix|, regardless of
   // prefix and value. If no such switch is present, this has no effect.
-  void RemoveSwitch(const base::StringPiece switch_key_without_prefix);
+  void RemoveSwitch(std::string_view switch_key_without_prefix);
 
-  // Copy a set of switches (and any values) from another command line.
+  // Copies a set of switches (and any values) from another command line.
   // Commonly used when launching a subprocess.
+  // If an entry in `switches` does not exist in `source`, then it is ignored.
   void CopySwitchesFrom(const CommandLine& source,
-                        const char* const switches[],
-                        size_t count);
+                        span<const char* const> switches);
 
   // Get the remaining arguments to the command.
   StringVector GetArgs() const;
@@ -216,12 +228,12 @@ class BASE_EXPORT CommandLine {
   // properly such that it is interpreted as one argument to the target command.
   // AppendArg is primarily for ASCII; non-ASCII input is interpreted as UTF-8.
   // Note: Switches will precede arguments regardless of appending order.
-  void AppendArg(StringPiece value);
+  void AppendArg(std::string_view value);
   void AppendArgPath(const FilePath& value);
   void AppendArgNative(StringPieceType value);
 
   // Append the switches and arguments from another command line to this one.
-  // If |include_program| is true, include |other|'s program as well.
+  // If `include_program` is true, program will be overwritten by other's.
   void AppendArguments(const CommandLine& other, bool include_program);
 
   // Insert a command before the current command.
@@ -262,10 +274,10 @@ class BASE_EXPORT CommandLine {
       return *this;
     }
 
-    // Disallow move.
-    InstanceBoundSequenceChecker(InstanceBoundSequenceChecker&&) = delete;
+    // Allow move as per SequenceChecker.
+    InstanceBoundSequenceChecker(InstanceBoundSequenceChecker&&) = default;
     InstanceBoundSequenceChecker& operator=(InstanceBoundSequenceChecker&&) =
-        delete;
+        default;
 
     void Detach() { DETACH_FROM_SEQUENCE(sequence_checker_); }
     void Check() { DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_); }
@@ -279,7 +291,8 @@ class BASE_EXPORT CommandLine {
   CommandLine() = delete;
 
   // Append switches and arguments, keeping switches before arguments.
-  void AppendSwitchesAndArguments(const StringVector& argv);
+  // NOTE: `argv` should not include the "program" element.
+  void AppendSwitchesAndArguments(span<const StringType> argv);
 
   // Internal version of GetArgumentsString to support allowing unsafe insert
   // sequences in rare cases (see
@@ -330,7 +343,7 @@ class BASE_EXPORT CommandLine {
 class BASE_EXPORT DuplicateSwitchHandler {
  public:
   // out_value contains the existing value of the switch
-  virtual void ResolveDuplicate(base::StringPiece key,
+  virtual void ResolveDuplicate(std::string_view key,
                                 CommandLine::StringPieceType new_value,
                                 CommandLine::StringType& out_value) = 0;
   virtual ~DuplicateSwitchHandler() = default;

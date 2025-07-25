@@ -6,6 +6,7 @@
 
 #include <stdint.h>
 #include <ostream>
+#include <string_view>
 
 #include "base/check.h"
 #include "base/lazy_instance.h"
@@ -36,8 +37,8 @@ class DefaultLocaleBreakIteratorCache {
     main_ = UBreakIteratorPtr(
         ubrk_open(break_type, nullptr, nullptr, 0, &main_status_));
     if (U_FAILURE(main_status_)) {
-      NOTREACHED() << "ubrk_open failed for type " << break_type
-                   << " with error " << main_status_;
+      NOTREACHED_IN_MIGRATION() << "ubrk_open failed for type " << break_type
+                                << " with error " << main_status_;
     }
   }
   UBreakIteratorPtr Lease(UErrorCode& status) {
@@ -60,8 +61,8 @@ class DefaultLocaleBreakIteratorCache {
     UBreakIteratorPtr result(
         ubrk_open(break_type, nullptr, nullptr, 0, &status));
     if (U_FAILURE(status)) {
-      NOTREACHED() << "ubrk_open failed for type " << break_type
-                   << " with error " << status;
+      NOTREACHED_IN_MIGRATION() << "ubrk_open failed for type " << break_type
+                                << " with error " << status;
     }
     return result;
   }
@@ -96,10 +97,11 @@ void UBreakIteratorDeleter::operator()(UBreakIterator* ptr) {
   }
 }
 
-BreakIterator::BreakIterator(StringPiece16 str, BreakType break_type)
+BreakIterator::BreakIterator(std::u16string_view str, BreakType break_type)
     : string_(str), break_type_(break_type) {}
 
-BreakIterator::BreakIterator(StringPiece16 str, const std::u16string& rules)
+BreakIterator::BreakIterator(std::u16string_view str,
+                             const std::u16string& rules)
     : string_(str), rules_(rules), break_type_(RULE_BASED) {}
 
 BreakIterator::~BreakIterator() {
@@ -144,8 +146,9 @@ bool BreakIterator::Init() {
           ubrk_openRules(rules_.c_str(), static_cast<int32_t>(rules_.length()),
                          nullptr, 0, &parse_error, &status));
       if (U_FAILURE(status)) {
-        NOTREACHED() << "ubrk_openRules failed to parse rule string at line "
-                     << parse_error.line << ", offset " << parse_error.offset;
+        NOTREACHED_IN_MIGRATION()
+            << "ubrk_openRules failed to parse rule string at line "
+            << parse_error.line << ", offset " << parse_error.offset;
       }
       break;
   }
@@ -200,16 +203,16 @@ bool BreakIterator::Advance() {
   }
 }
 
-bool BreakIterator::SetText(const char16_t* text, const size_t length) {
+bool BreakIterator::SetText(std::u16string_view text) {
   UErrorCode status = U_ZERO_ERROR;
-  ubrk_setText(iter_.get(), text, length, &status);
+  ubrk_setText(iter_.get(), text.data(), text.length(), &status);
   pos_ = 0;  // implicit when ubrk_setText is done
   prev_ = npos;
   if (U_FAILURE(status)) {
-    NOTREACHED() << "ubrk_setText failed";
+    NOTREACHED_IN_MIGRATION() << "ubrk_setText failed";
     return false;
   }
-  string_ = StringPiece16(text, length);
+  string_ = text;
   return true;
 }
 
@@ -262,10 +265,10 @@ bool BreakIterator::IsGraphemeBoundary(size_t position) const {
 }
 
 std::u16string BreakIterator::GetString() const {
-  return std::u16string(GetStringPiece());
+  return std::u16string(GetStringView());
 }
 
-StringPiece16 BreakIterator::GetStringPiece() const {
+std::u16string_view BreakIterator::GetStringView() const {
   DCHECK(prev_ != npos && pos_ != npos);
   return string_.substr(prev_, pos_ - prev_);
 }

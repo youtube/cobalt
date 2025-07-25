@@ -4,26 +4,32 @@
 //
 // This file defines utility functions for working with strings.
 
+#ifdef UNSAFE_BUFFERS_BUILD
+// TODO(crbug.com/40284755): Remove this and spanify to fix the errors.
+#pragma allow_unsafe_buffers
+#endif
+
 #ifndef BASE_STRINGS_STRING_UTIL_H_
 #define BASE_STRINGS_STRING_UTIL_H_
 
-#include <ctype.h>
-#include <stdarg.h>   // va_list
+#include <stdarg.h>  // va_list
 #include <stddef.h>
 #include <stdint.h>
 
+#include <concepts>
 #include <initializer_list>
+#include <memory>
 #include <string>
-#include <type_traits>
+#include <string_view>
 #include <vector>
 
 #include "base/base_export.h"
 #include "base/check_op.h"
 #include "base/compiler_specific.h"
 #include "base/containers/span.h"
-#include "base/cxx20_to_address.h"
 #include "base/strings/string_piece.h"  // For implicit conversions.
 #include "base/strings/string_util_internal.h"
+#include "base/types/to_address.h"
 #include "build/build_config.h"
 
 namespace base {
@@ -91,13 +97,14 @@ BASE_EXPORT bool IsWprintfFormatPortable(const wchar_t* format);
 // Simplified implementation of C++20's std::basic_string_view(It, End).
 // Reference: https://wg21.link/string.view.cons
 template <typename CharT, typename Iter>
-constexpr BasicStringPiece<CharT> MakeBasicStringPiece(Iter begin, Iter end) {
+constexpr std::basic_string_view<CharT> MakeBasicStringPiece(Iter begin,
+                                                             Iter end) {
   DCHECK_GE(end - begin, 0);
   return {base::to_address(begin), static_cast<size_t>(end - begin)};
 }
 
 // Explicit instantiations of MakeBasicStringPiece for the BasicStringPiece
-// aliases defined in base/strings/string_piece_forward.h
+// aliases defined in base/strings/string_piece.h
 template <typename Iter>
 constexpr StringPiece MakeStringPiece(Iter begin, Iter end) {
   return MakeBasicStringPiece<char>(begin, end);
@@ -109,22 +116,22 @@ constexpr StringPiece16 MakeStringPiece16(Iter begin, Iter end) {
 }
 
 template <typename Iter>
-constexpr WStringPiece MakeWStringPiece(Iter begin, Iter end) {
+constexpr std::wstring_view MakeWStringView(Iter begin, Iter end) {
   return MakeBasicStringPiece<wchar_t>(begin, end);
 }
 
 // ASCII-specific tolower.  The standard library's tolower is locale sensitive,
 // so we don't want to use it here.
-template <typename CharT,
-          typename = std::enable_if_t<std::is_integral<CharT>::value>>
+template <typename CharT>
+  requires(std::integral<CharT>)
 constexpr CharT ToLowerASCII(CharT c) {
   return internal::ToLowerASCII(c);
 }
 
 // ASCII-specific toupper.  The standard library's toupper is locale sensitive,
 // so we don't want to use it here.
-template <typename CharT,
-          typename = std::enable_if_t<std::is_integral<CharT>::value>>
+template <typename CharT>
+  requires(std::integral<CharT>)
 CharT ToUpperASCII(CharT c) {
   return (c >= 'a' && c <= 'z') ? static_cast<CharT>(c + 'A' - 'a') : c;
 }
@@ -182,9 +189,6 @@ BASE_EXPORT constexpr int CompareCaseInsensitiveASCII(StringPiece16 a,
 // To compare all Unicode code points case-insensitively, use
 // base::i18n::ToLower or base::i18n::FoldCase and then compare with either ==
 // or !=.
-#ifdef STARBOARD
-BASE_EXPORT bool EqualsCaseInsensitiveASCII(const char* a_begin, const char* a_end, const char* b);
-#endif
 inline bool EqualsCaseInsensitiveASCII(StringPiece a, StringPiece b) {
   return internal::EqualsCaseInsensitiveASCIIT(a, b);
 }
@@ -348,8 +352,8 @@ BASE_EXPORT bool IsStringUTF8AllowingNoncharacters(StringPiece str);
 BASE_EXPORT bool IsStringASCII(StringPiece str);
 BASE_EXPORT bool IsStringASCII(StringPiece16 str);
 
-#if defined(WCHAR_T_IS_UTF32)
-BASE_EXPORT bool IsStringASCII(WStringPiece str);
+#if defined(WCHAR_T_IS_32_BIT)
+BASE_EXPORT bool IsStringASCII(std::wstring_view str);
 #endif
 
 // Performs a case-sensitive string compare of the given 16-bit string against
@@ -424,6 +428,28 @@ inline bool IsAsciiPrintable(Char c) {
 }
 
 template <typename Char>
+inline bool IsAsciiControl(Char c) {
+  if constexpr (std::is_signed_v<Char>) {
+    if (c < 0) {
+      return false;
+    }
+  }
+  return c <= 0x1f || c == 0x7f;
+}
+
+template <typename Char>
+inline bool IsUnicodeControl(Char c) {
+  return IsAsciiControl(c) ||
+         // C1 control characters: http://unicode.org/charts/PDF/U0080.pdf
+         (c >= 0x80 && c <= 0x9F);
+}
+
+template <typename Char>
+inline bool IsAsciiPunctuation(Char c) {
+  return c > 0x20 && c < 0x7f && !IsAsciiAlphaNumeric(c);
+}
+
+template <typename Char>
 inline bool IsHexDigit(Char c) {
   return (c >= '0' && c <= '9') ||
          (c >= 'A' && c <= 'F') ||
@@ -446,7 +472,8 @@ inline char HexDigitToInt(char16_t c) {
 // should call IsAsciiWhitespace(), and if they are from a UTF-8 string they may
 // be individual units of a multi-unit code point.  Convert to 16- or 32-bit
 // values known to hold the full code point before calling this.
-template <typename Char, typename = std::enable_if_t<(sizeof(Char) > 1)>>
+template <typename Char>
+  requires(sizeof(Char) > 1)
 inline bool IsUnicodeWhitespace(Char c) {
   // kWhitespaceWide is a null-terminated string.
   for (const auto* cur = kWhitespaceWide; *cur; ++cur) {
@@ -574,9 +601,7 @@ BASE_EXPORT std::u16string ReplaceStringPlaceholders(
 
 }  // namespace base
 
-#if defined(STARBOARD)
-#include "base/strings/string_util_starboard.h"
-#elif BUILDFLAG(IS_WIN)
+#if BUILDFLAG(IS_WIN)
 #include "base/strings/string_util_win.h"
 #elif BUILDFLAG(IS_POSIX) || BUILDFLAG(IS_FUCHSIA)
 #include "base/strings/string_util_posix.h"

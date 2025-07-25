@@ -8,6 +8,7 @@
 #include <zircon/rights.h>
 
 #include <algorithm>
+#include <string_view>
 
 #include "base/fuchsia/fuchsia_logging.h"
 #include "base/fuchsia/process_context.h"
@@ -33,7 +34,7 @@ SysmemCollectionClient::~SysmemCollectionClient() {
 
 void SysmemCollectionClient::Initialize(
     fuchsia::sysmem::BufferCollectionConstraints constraints,
-    base::StringPiece name,
+    std::string_view name,
     uint32_t name_priority) {
   DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
 
@@ -47,24 +48,24 @@ void SysmemCollectionClient::Initialize(
       fit::bind_member(this, &SysmemCollectionClient::OnError));
   collection_->SetName(name_priority, std::string(name));
 
-  // If Sync() is not required then constraints can be set immediately.
-  if (sync_completion_closures_.empty()) {
-    collection_->SetConstraints(/*has_constraints=*/true,
-                                std::move(constraints));
-    return;
+  // We may need to send a Sync to ensure previously-started CreateSharedToken()
+  // calls can complete. The Sync completion is how we know that sysmem knows
+  // about the existence of the tokens created by the CreateSharedToken() calls,
+  // which is needed before we can send the token to a different participant.
+  //
+  // CreateSharedToken can complete as soon as this Sync is done.
+  if (!shared_token_ready_closures_.empty()) {
+    collection_->Sync(
+        fit::bind_member(this, &SysmemCollectionClient::OnSyncComplete));
   }
 
-  sync_completion_closures_.push_back(
-      base::BindOnce(&fuchsia::sysmem::BufferCollection::SetConstraints,
-                     base::Unretained(collection_.get()),
-                     /*have_constraints=*/true, std::move(constraints)));
-  collection_->Sync(
-      fit::bind_member(this, &SysmemCollectionClient::OnSyncComplete));
+  collection_->SetConstraints(/*have_constraints=*/true,
+                              std::move(constraints));
 }
 
 void SysmemCollectionClient::CreateSharedToken(
     GetSharedTokenCB cb,
-    base::StringPiece debug_client_name,
+    std::string_view debug_client_name,
     uint64_t debug_client_id) {
   DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
   DCHECK(collection_token_);
@@ -76,7 +77,7 @@ void SysmemCollectionClient::CreateSharedToken(
     token->SetDebugClientInfo(std::string(debug_client_name), debug_client_id);
   }
 
-  sync_completion_closures_.push_back(
+  shared_token_ready_closures_.push_back(
       base::BindOnce(std::move(cb), std::move(token)));
 }
 
@@ -98,7 +99,7 @@ void SysmemCollectionClient::OnSyncComplete() {
   DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
 
   std::vector<base::OnceClosure> sync_closures =
-      std::move(sync_completion_closures_);
+      std::move(shared_token_ready_closures_);
   for (auto& cb : sync_closures) {
     std::move(cb).Run();
   }
@@ -131,7 +132,7 @@ void SysmemCollectionClient::OnError(zx_status_t status) {
     std::move(acquire_buffers_cb_).Run({}, {});
 }
 
-SysmemAllocatorClient::SysmemAllocatorClient(base::StringPiece client_name) {
+SysmemAllocatorClient::SysmemAllocatorClient(std::string_view client_name) {
   allocator_ = base::ComponentContextForProcess()
                    ->svc()
                    ->Connect<fuchsia::sysmem::Allocator>();

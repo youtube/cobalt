@@ -8,10 +8,14 @@
 #include <linux/if.h>
 #include <stdint.h>
 #include <sys/ioctl.h>
-#include <vector>
+
+#include <optional>
 #include <utility>
+#include <vector>
 
 #include "base/check.h"
+#include "base/compiler_specific.h"
+#include "base/containers/span.h"
 #include "base/dcheck_is_on.h"
 #include "base/files/scoped_file.h"
 #include "base/functional/bind.h"
@@ -25,7 +29,6 @@
 #include "base/threading/thread_restrictions.h"
 #include "build/build_config.h"
 #include "net/base/network_interfaces_linux.h"
-#include "third_party/abseil-cpp/absl/types/optional.h"
 
 #if BUILDFLAG(IS_ANDROID)
 #include "base/android/build_info.h"
@@ -123,7 +126,9 @@ bool GetAddress(const struct nlmsghdr* header,
     address = local;
   if (!address)
     return false;
-  *out = IPAddress(address, address_length);
+  // SAFETY: `address` is only set above after `RTA_PAYLOAD` is checked against
+  // `address_length`.
+  *out = IPAddress(UNSAFE_BUFFERS(base::span(address, address_length)));
   return true;
 }
 
@@ -419,7 +424,7 @@ void AddressTrackerLinux::ReadMessages(bool* address_changed,
       std::max(base::GetPageSize(), kMinNetlinkBufferSize));
 
   {
-    absl::optional<base::ScopedBlockingCall> blocking_call;
+    std::optional<base::ScopedBlockingCall> blocking_call;
     if (tracking_) {
       // If the loop below takes a long time to run, a new thread should added
       // to the current thread pool to ensure forward progress of all tasks.
@@ -500,7 +505,7 @@ void AddressTrackerLinux::HandleMessage(const char* buffer,
           // changed.
           auto it = address_map_.find(address);
           if (it == address_map_.end()) {
-            address_map_.insert(it, std::make_pair(address, msg_copy));
+            address_map_.insert(it, std::pair(address, msg_copy));
             *address_changed = true;
           } else if (memcmp(&it->second, &msg_copy, sizeof(msg_copy))) {
             it->second = msg_copy;
@@ -524,7 +529,7 @@ void AddressTrackerLinux::HandleMessage(const char* buffer,
           if (address_map_.erase(address)) {
             *address_changed = true;
             if (address_map_diff_.has_value()) {
-              (*address_map_diff_)[address] = absl::nullopt;
+              (*address_map_diff_)[address] = std::nullopt;
             }
           }
         }

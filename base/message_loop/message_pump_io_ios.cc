@@ -91,22 +91,22 @@ bool MessagePumpIOSForIO::WatchFileDescriptor(int fd,
 
   CFFileDescriptorRef fdref = controller->fdref_.get();
   if (fdref == NULL) {
-    base::ScopedCFTypeRef<CFFileDescriptorRef> scoped_fdref(
-        CFFileDescriptorCreate(
-            kCFAllocatorDefault, fd, false, HandleFdIOEvent, &source_context));
+    apple::ScopedCFTypeRef<CFFileDescriptorRef> scoped_fdref(
+        CFFileDescriptorCreate(kCFAllocatorDefault, fd, false, HandleFdIOEvent,
+                               &source_context));
     if (scoped_fdref == NULL) {
-      NOTREACHED() << "CFFileDescriptorCreate failed";
+      NOTREACHED_IN_MIGRATION() << "CFFileDescriptorCreate failed";
       return false;
     }
 
     CFFileDescriptorEnableCallBacks(scoped_fdref, callback_types);
 
     // TODO(wtc): what should the 'order' argument be?
-    base::ScopedCFTypeRef<CFRunLoopSourceRef> scoped_fd_source(
-        CFFileDescriptorCreateRunLoopSource(
-            kCFAllocatorDefault, scoped_fdref, 0));
+    apple::ScopedCFTypeRef<CFRunLoopSourceRef> scoped_fd_source(
+        CFFileDescriptorCreateRunLoopSource(kCFAllocatorDefault, scoped_fdref,
+                                            0));
     if (scoped_fd_source == NULL) {
-      NOTREACHED() << "CFFileDescriptorCreateRunLoopSource failed";
+      NOTREACHED_IN_MIGRATION() << "CFFileDescriptorCreateRunLoopSource failed";
       return false;
     }
     CFRunLoopAddSource(run_loop(), scoped_fd_source, kCFRunLoopCommonModes);
@@ -118,13 +118,13 @@ bool MessagePumpIOSForIO::WatchFileDescriptor(int fd,
     // It's illegal to use this function to listen on 2 separate fds with the
     // same |controller|.
     if (CFFileDescriptorGetNativeDescriptor(fdref) != fd) {
-      NOTREACHED() << "FDs don't match: "
-                   << CFFileDescriptorGetNativeDescriptor(fdref)
-                   << " != " << fd;
+      NOTREACHED_IN_MIGRATION()
+          << "FDs don't match: " << CFFileDescriptorGetNativeDescriptor(fdref)
+          << " != " << fd;
       return false;
     }
     if (persistent != controller->is_persistent_) {
-      NOTREACHED() << "persistent doesn't match";
+      NOTREACHED_IN_MIGRATION() << "persistent doesn't match";
       return false;
     }
 
@@ -154,12 +154,20 @@ void MessagePumpIOSForIO::HandleFdIOEvent(CFFileDescriptorRef fdref,
   // Ensure that |fdref| will remain live for the duration of this function
   // call even if |controller| is deleted or |StopWatchingFileDescriptor()| is
   // called, either of which will cause |fdref| to be released.
-  ScopedCFTypeRef<CFFileDescriptorRef> scoped_fdref(
+  apple::ScopedCFTypeRef<CFFileDescriptorRef> scoped_fdref(
       fdref, base::scoped_policy::RETAIN);
 
   int fd = CFFileDescriptorGetNativeDescriptor(fdref);
   MessagePumpIOSForIO* pump = controller->pump().get();
   DCHECK(pump);
+
+  // Inform ThreadController of this native work item for tracking and tracing
+  // purposes.
+  Delegate::ScopedDoWorkItem scoped_do_work_item;
+  if (pump->delegate()) {
+    scoped_do_work_item = pump->delegate()->BeginWorkItem();
+  }
+
   if (callback_types & kCFFileDescriptorWriteCallBack)
     controller->OnFileCanWriteWithoutBlocking(fd, pump);
 

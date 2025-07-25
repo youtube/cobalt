@@ -7,6 +7,7 @@
 
 #include <map>
 #include <memory>
+#include <optional>
 
 #include "base/functional/callback_forward.h"
 #include "base/memory/raw_ptr.h"
@@ -25,12 +26,11 @@
 #include "media/gpu/media_gpu_export.h"
 #include "media/mojo/mojom/stable/stable_video_decoder.mojom.h"
 #include "media/video/video_decode_accelerator.h"
-#include "third_party/abseil-cpp/absl/types/optional.h"
 #include "ui/gfx/gpu_memory_buffer.h"
 
 namespace media {
 
-class VideoFrame;
+class FrameResource;
 
 // Implements the VideoDecodeAccelerator backed by a VideoDecoder.
 // Currently GpuArcVideoDecodeAccelerator bridges the video codec from
@@ -47,8 +47,8 @@ class MEDIA_GPU_EXPORT VdVideoDecodeAccelerator
       public VdaVideoFramePool::VdaDelegate {
  public:
   // Callback for creating VideoDecoder instance.
-  using CreateVideoDecoderCb =
-      base::RepeatingCallback<decltype(VideoDecoderPipeline::Create)>;
+  using CreateVideoDecoderCb = base::RepeatingCallback<
+      decltype(VideoDecoderPipeline::CreateForVDAAdapterForARC)>;
 
   // Create VdVideoDecodeAccelerator instance, and call Initialize().
   // Return nullptr if Initialize() failed.
@@ -56,7 +56,6 @@ class MEDIA_GPU_EXPORT VdVideoDecodeAccelerator
       CreateVideoDecoderCb create_vd_cb,
       Client* client,
       const Config& config,
-      bool low_delay,
       scoped_refptr<base::SequencedTaskRunner> task_runner);
   VdVideoDecodeAccelerator(const VdVideoDecodeAccelerator&) = delete;
   VdVideoDecodeAccelerator& operator=(const VdVideoDecodeAccelerator&) = delete;
@@ -87,6 +86,7 @@ class MEDIA_GPU_EXPORT VdVideoDecodeAccelerator
                      size_t max_num_frames,
                      NotifyLayoutChangedCb notify_layout_changed_cb,
                      ImportFrameCb import_frame_cb) override;
+  VideoFrame::StorageType GetFrameStorageType() const override;
 
  private:
   VdVideoDecodeAccelerator(
@@ -101,19 +101,19 @@ class MEDIA_GPU_EXPORT VdVideoDecodeAccelerator
   void OnResetDone();
 
   // Get Picture instance that represents the same buffer as |frame|. Return
-  // absl::nullopt if the buffer is already dismissed.
-  absl::optional<Picture> GetPicture(const VideoFrame& frame);
+  // std::nullopt if the buffer is already dismissed.
+  std::optional<Picture> GetPicture(const VideoFrame& frame);
 
   // Thunk to post OnFrameReleased() to |task_runner|.
   // Because this thunk may be called in any thread, We don't want to
-  // dereference WeakPtr. Therefore we wrap the WeakPtr by absl::optional to
+  // dereference WeakPtr. Therefore we wrap the WeakPtr by std::optional to
   // avoid the task runner defererencing the WeakPtr.
   static void OnFrameReleasedThunk(
-      absl::optional<base::WeakPtr<VdVideoDecodeAccelerator>> weak_this,
+      std::optional<base::WeakPtr<VdVideoDecodeAccelerator>> weak_this,
       scoped_refptr<base::SequencedTaskRunner> task_runner,
-      scoped_refptr<VideoFrame> origin_frame);
+      scoped_refptr<FrameResource> origin_frame);
   // Called when a frame gets destroyed.
-  void OnFrameReleased(scoped_refptr<VideoFrame> origin_frame);
+  void OnFrameReleased(scoped_refptr<FrameResource> origin_frame);
 
   // Called when any error occurs. Notify |client_| an error occurred.
   void OnError(base::Location location, Error error);
@@ -138,10 +138,10 @@ class MEDIA_GPU_EXPORT VdVideoDecodeAccelerator
   gfx::Size pending_coded_size_;
   // The formats of the current buffers.
   gfx::Size coded_size_;
-  absl::optional<VideoFrameLayout> layout_;
+  std::optional<VideoFrameLayout> layout_;
 
-  // Mapping from VideoFrame's GpuMemoryBufferId to picture buffer id.
-  std::map<gfx::GpuMemoryBufferId, int32_t /* picture_buffer_id */>
+  // Mapping from a frame's GenericSharedMemoryId to picture buffer id.
+  std::map<gfx::GenericSharedMemoryId, int32_t /* picture_buffer_id */>
       frame_id_to_picture_id_;
   // Record how many times the picture is sent to the client, and keep a refptr
   // of corresponding VideoFrame when the client owns the buffers.

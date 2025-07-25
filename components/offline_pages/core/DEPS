@@ -1,0 +1,8 @@
+include_rules = [
+  "+components/filename_generation",
+  "+components/keyed_service",
+  "+components/offline_items_collection",
+  "+crypto",
+  "+sql",
+  "+ui/gfx/image",
+]

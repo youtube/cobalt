@@ -1,6 +1,0 @@
-# MediaSession tests
-# TODO
-# idlharness.html
-# mediametadata.html
-# js_error: playbackstate.html,PASS
-setactionhandler.html,PASS

@@ -34,8 +34,8 @@ class NET_EXPORT NetworkConnection
   // hopefully leave only ethernet (with no WiFi available) in the
   // CONNECTION_UNKNOWN category.  This *might* err if there is both ethernet,
   // as well as WiFi, where WiFi was not being used that much. Most platforms
-  // don't distinguish Wifi vs Etherenet, and call everything CONNECTION_UNKNOWN
-  // :-(. Fo non CONNECTIION_WIFI, this returns the C-string returned by
+  // don't distinguish Wifi vs Ethernet, and call everything CONNECTION_UNKNOWN
+  // :-(. For non CONNECTIION_WIFI, this returns the C-string returned by
   // NetworkChangeNotifier::ConnectionTypeToString.
   const char* connection_description() { return connection_description_; }
 

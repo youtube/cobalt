@@ -23,7 +23,7 @@ chromium-metrics-reviews@google.com.
 <histograms>
 
 <histogram name="PDF.Actions" enum="ChromePDFViewerActions"
-    expires_after="2023-09-10">
+    expires_after="2024-09-22">
   <owner>hnakashima@chromium.org</owner>
   <summary>
     Tracks user actions in the PDF viewer. Logged when the document is opened
@@ -35,21 +35,7 @@ chromium-metrics-reviews@google.com.
   </summary>
 </histogram>
 
-<histogram name="PDF.AttachmentType" enum="ViewFileType"
-    expires_after="2023-08-27">
-  <owner>nigi@chromium.org</owner>
-  <owner>thestig@chromium.org</owner>
-  <summary>
-    Records encountering a PDF attachment with a specific file extension. This
-    is logged when a document is opened in the PDF viewer but not in the Print
-    Preview. The index of &quot;directory&quot; won't be used for this log since
-    a PDF attachment cannot be a directory. The index of &quot;unknown
-    extension&quot; won't be used for this log since it will be represented as
-    the index of &quot;other&quot;.
-  </summary>
-</histogram>
-
-<histogram name="PDF.FormType" enum="PDFFormTypes" expires_after="2023-10-08">
+<histogram name="PDF.FormType" enum="PDFFormTypes" expires_after="2025-04-28">
   <owner>dhoss@chromium.org</owner>
   <owner>kmoon@chromium.org</owner>
   <owner>thestig@chromium.org</owner>
@@ -59,7 +45,7 @@ chromium-metrics-reviews@google.com.
   </summary>
 </histogram>
 
-<histogram name="PDF.HasAttachment" enum="Boolean" expires_after="2023-08-27">
+<histogram name="PDF.HasAttachment" enum="Boolean" expires_after="2024-09-22">
   <owner>nigi@chromium.org</owner>
   <owner>thestig@chromium.org</owner>
   <summary>
@@ -68,25 +54,8 @@ chromium-metrics-reviews@google.com.
   </summary>
 </histogram>
 
-<histogram name="PDF.LinkHighlightOverlapsInPage" units="overlaps"
-    expires_after="2022-04-24">
-  <obsolete>
-    Removed 04/2022. It's no longer needed.
-  </obsolete>
-  <owner>thestig@chromium.org</owner>
-  <owner>ankk@microsoft.com</owner>
-  <owner>mohitb@microsoft.com</owner>
-  <owner>virens@microsoft.com</owner>
-  <summary>
-    Records the number of overlapping link and highlight annotations in a PDF
-    page. This is logged once per page whenever accessibility tree creation is
-    triggered for that page. It will not be logged on render or scroll
-    operations.
-  </summary>
-</histogram>
-
 <histogram name="PDF.LoadStatus" enum="ChromePDFViewerLoadStatus"
-    expires_after="2023-09-03">
+    expires_after="2024-09-15">
   <owner>kmoon@chromium.org</owner>
   <owner>thestig@chromium.org</owner>
   <summary>
@@ -96,7 +65,7 @@ chromium-metrics-reviews@google.com.
   </summary>
 </histogram>
 
-<histogram name="PDF.PageCount" units="pages" expires_after="2023-08-27">
+<histogram name="PDF.PageCount" units="pages" expires_after="2024-09-22">
   <owner>hnakashima@chromium.org</owner>
   <owner>thestig@chromium.org</owner>
   <summary>
@@ -104,8 +73,17 @@ chromium-metrics-reviews@google.com.
   </summary>
 </histogram>
 
+<histogram name="PDF.PostMessageDataType" enum="PDFPostMessageDataType"
+    expires_after="2024-11-30">
+  <owner>andyphan@chromium.org</owner>
+  <owner>thestig@chromium.org</owner>
+  <summary>
+    Tracks the type of postMessage() call made to the PDF viewer.
+  </summary>
+</histogram>
+
 <histogram name="PDF.RenderAndPaintVisiblePagesTime" units="ms"
-    expires_after="2023-10-01">
+    expires_after="2024-11-03">
   <owner>nigi@chromium.org</owner>
   <owner>thestig@chromium.org</owner>
   <summary>
@@ -114,7 +92,7 @@ chromium-metrics-reviews@google.com.
   </summary>
 </histogram>
 
-<histogram name="PDF.Version" enum="PDFVersion" expires_after="2023-10-22">
+<histogram name="PDF.Version" enum="PDFVersion" expires_after="2024-11-03">
   <owner>dhoss@chromium.org</owner>
   <owner>thestig@chromium.org</owner>
   <summary>Tracks versions of documents opened in the PDF viewer.</summary>

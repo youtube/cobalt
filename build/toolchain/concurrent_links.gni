@@ -20,21 +20,25 @@ declare_args() {
   # links at once than we do compiles, because linking is memory-intensive.
   # The default to use varies by platform and by the amount of memory
   # available, so we call out to a script to get the right value.
-  concurrent_links = getenv("COBALT_CONCURRENT_LINKS")
+  concurrent_links = -1
 }
 
-if (concurrent_links == "") {
+if (concurrent_links == -1) {
   if (use_thin_lto) {
-    _args = [ "--reserve_mem_gb=10" ]
-    if (use_goma_thin_lto) {
-      _args += [ "--thin-lto=goma" ]
-    } else {
-      _args += [ "--thin-lto=local" ]
-    }
+    _args = [
+      "--reserve_mem_gb=10",
+      "--thin-lto=local",
+    ]
     if (is_win) {
       # Based on measurements of linking chrome.dll and chrome_child.dll, plus
       # a little padding to account for future growth.
       _args += [ "--mem_per_link_gb=45" ]
+    } else if (is_android) {
+      # Large solink of Android official builds take 30-60GB.
+      _args += [ "--mem_per_link_gb=30" ]
+    } else if (is_linux) {
+      # OOM quite frequently for linux.
+      _args += [ "--mem_per_link_gb=30" ]
     } else {
       _args += [ "--mem_per_link_gb=20" ]
     }
@@ -73,7 +77,7 @@ if (concurrent_links == "") {
   } else if (current_os == "zos") {
     _args = [ "--mem_per_link_gb=1" ]
   } else if (is_fuchsia) {
-    # TODO(crbug.com/1347159): This was defaulting to 8GB. The number of
+    # TODO(crbug.com/40854531): This was defaulting to 8GB. The number of
     #    linker instances to run in parallel is calculated by diviging
     #    the available memory by this value. On a 32GB machine with
     #    roughly 29GB of available memory, this would cause three instances
@@ -82,6 +86,13 @@ if (concurrent_links == "") {
     #    could be optimized (maybe to 12GB or for different configs like
     #    component build).
     _args = [ "--mem_per_link_gb=16" ]
+  } else if (is_chromeos && is_msan) {
+    # crbug.com/1505350 - CrOS MSan builder consumes more memory and crushes.
+    # Max 25.2GB, Avg: 9.4GB, Median: 7.9GB
+    _args = [ "--mem_per_link_gb=12" ]
+  } else if (is_chromeos && is_debug) {
+    # b/315102033, b/312072730: Large links use 9GB-13.5GB.
+    _args = [ "--mem_per_link_gb=10" ]
   } else {
     _args = []
   }
@@ -96,7 +107,7 @@ if (concurrent_links == "") {
     _args += [ "--secondary_mem_per_link=2" ]
   }
 
-  # TODO(crbug.com/617429) Pass more build configuration info to the script
+  # TODO(crbug.com/41257258) Pass more build configuration info to the script
   # so that we can compute better values.
   _command_dict = exec_script("get_concurrent_links.py", _args, "scope")
 

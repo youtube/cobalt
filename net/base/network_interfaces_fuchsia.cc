@@ -7,6 +7,7 @@
 #include <fuchsia/net/interfaces/cpp/fidl.h>
 #include <zircon/types.h>
 
+#include <optional>
 #include <string>
 #include <utility>
 
@@ -15,7 +16,6 @@
 #include "net/base/network_change_notifier.h"
 #include "net/base/network_change_notifier_fuchsia.h"
 #include "net/base/network_interfaces.h"
-#include "third_party/abseil-cpp/absl/types/optional.h"
 
 namespace net {
 namespace internal {
@@ -24,9 +24,9 @@ namespace {
 IPAddress FuchsiaIpAddressToIPAddress(const fuchsia::net::IpAddress& address) {
   switch (address.Which()) {
     case fuchsia::net::IpAddress::kIpv4:
-      return IPAddress(address.ipv4().addr.data(), address.ipv4().addr.size());
+      return IPAddress(address.ipv4().addr);
     case fuchsia::net::IpAddress::kIpv6:
-      return IPAddress(address.ipv6().addr.data(), address.ipv6().addr.size());
+      return IPAddress(address.ipv6().addr);
     default:
       return IPAddress();
   }
@@ -35,11 +35,11 @@ IPAddress FuchsiaIpAddressToIPAddress(const fuchsia::net::IpAddress& address) {
 }  // namespace
 
 // static
-absl::optional<InterfaceProperties> InterfaceProperties::VerifyAndCreate(
+std::optional<InterfaceProperties> InterfaceProperties::VerifyAndCreate(
     fuchsia::net::interfaces::Properties properties) {
   if (!internal::VerifyCompleteInterfaceProperties(properties))
-    return absl::nullopt;
-  return absl::make_optional(InterfaceProperties(std::move(properties)));
+    return std::nullopt;
+  return std::make_optional(InterfaceProperties(std::move(properties)));
 }
 
 InterfaceProperties::InterfaceProperties(

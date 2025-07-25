@@ -41,7 +41,7 @@ TEST_F(ProtoUtilsTest, PassEOSDecoderBuffer) {
 
   // 3. To DecoderBuffer
   scoped_refptr<media::DecoderBuffer> output_buffer =
-      ByteArrayToDecoderBuffer(data.data(), data.size());
+      ByteArrayToDecoderBuffer(data);
   DCHECK(output_buffer);
 
   ASSERT_TRUE(output_buffer->end_of_stream());
@@ -61,39 +61,32 @@ TEST_F(ProtoUtilsTest, PassValidDecoderBuffer) {
       162, 1,   22,  105, 78,  66,  183, 130, 158, 108, 252, 112, 113, 58,  159,
       72,  116, 78,  141, 133, 76,  225, 209, 13,  221, 49,  187, 83,  123, 193,
       112, 123, 112, 74,  121, 133};
-  size_t buffer_size = sizeof(buffer) / sizeof(uint8_t);
-  const uint8_t side_buffer[] = "XX";
-  size_t side_buffer_size = sizeof(side_buffer) / sizeof(uint8_t);
+  const uint8_t side_buffer[] = {'X', 'X'};
   base::TimeDelta pts = base::Milliseconds(5);
 
   // 1. To DecoderBuffer
   scoped_refptr<media::DecoderBuffer> input_buffer =
-      media::DecoderBuffer::CopyFrom(buffer, buffer_size, side_buffer,
-                                     side_buffer_size);
+      media::DecoderBuffer::CopyFrom(buffer);
   input_buffer->set_timestamp(pts);
   input_buffer->set_is_key_frame(true);
+  input_buffer->WritableSideData().alpha_data.assign(std::begin(side_buffer),
+                                                     std::end(side_buffer));
 
   // 2. To Byte Array
   std::vector<uint8_t> data = DecoderBufferToByteArray(*input_buffer);
 
   // 3. To DecoderBuffer
   scoped_refptr<media::DecoderBuffer> output_buffer =
-      ByteArrayToDecoderBuffer(data.data(), data.size());
+      ByteArrayToDecoderBuffer(data);
   DCHECK(output_buffer);
 
   ASSERT_FALSE(output_buffer->end_of_stream());
   ASSERT_TRUE(output_buffer->is_key_frame());
   ASSERT_EQ(output_buffer->timestamp(), pts);
-  ASSERT_EQ(output_buffer->data_size(), buffer_size);
-  const uint8_t* output_data = output_buffer->data();
-  for (size_t i = 0; i < buffer_size; i++) {
-    ASSERT_EQ(output_data[i], buffer[i]);
-  }
-  ASSERT_EQ(output_buffer->side_data_size(), side_buffer_size);
-  const uint8_t* output_side_data = output_buffer->side_data();
-  for (size_t i = 0; i < side_buffer_size; i++) {
-    ASSERT_EQ(output_side_data[i], side_buffer[i]);
-  }
+  EXPECT_EQ(base::span(*output_buffer), base::span(buffer));
+  ASSERT_TRUE(output_buffer->has_side_data());
+  EXPECT_EQ(base::span(output_buffer->side_data()->alpha_data),
+            base::span(side_buffer));
 }
 
 TEST_F(ProtoUtilsTest, AudioDecoderConfigConversionTest) {

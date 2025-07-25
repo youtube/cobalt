@@ -7,15 +7,14 @@
 
 #include <stdint.h>
 
+#include <optional>
 #include <string>
 #include <vector>
 
 #include "base/functional/callback.h"
-#include "media/base/decrypt_config.h"
 #include "media/base/eme_constants.h"
+#include "media/base/encryption_scheme.h"
 #include "media/base/media_export.h"
-#include "media/media_buildflags.h"
-#include "third_party/abseil-cpp/absl/types/optional.h"
 
 namespace media {
 
@@ -23,13 +22,9 @@ namespace media {
 //
 // Many of the original static methods are still available, they should be
 // migrated into this interface over time (or removed).
-//
-// TODO(sandersd): Provide GetKeySystem() so that it is not necessary to pass
-// |key_system| to every method. http://crbug.com/457438
 class MEDIA_EXPORT KeySystems {
  public:
-  // Returns the KeySystems singleton which may or may not be updated yet.
-  static KeySystems* GetInstance();
+  virtual ~KeySystems() = default;
 
   // Updates the list of available key systems if it's not initialized or may be
   // out of date. Calls the `done_cb` when done.
@@ -73,7 +68,7 @@ class MEDIA_EXPORT KeySystems {
   // HW secure; if null then there is no HW secure requirement to apply. This
   // does not imply that `requested_robustness` should be ignored, both rules
   // must be applied.
-  // TODO(crbug.com/1204284): Refactor this and remove the
+  // TODO(crbug.com/40179944): Refactor this and remove the
   // `hw_secure_requirement` argument.
   virtual EmeConfig::Rule GetRobustnessConfigRule(
       const std::string& key_system,
@@ -92,44 +87,18 @@ class MEDIA_EXPORT KeySystems {
   // Returns the support |key_system| provides for distinctive identifiers.
   virtual EmeFeatureSupport GetDistinctiveIdentifierSupport(
       const std::string& key_system) const = 0;
-
- protected:
-  virtual ~KeySystems() {}
 };
-
-// TODO(ddorwin): WebContentDecryptionModuleSessionImpl::initializeNewSession()
-// is violating this rule! https://crbug.com/249976.
-// Use for prefixed EME only!
-MEDIA_EXPORT bool IsSupportedKeySystemWithInitDataType(
-    const std::string& key_system,
-    EmeInitDataType init_data_type);
 
 // Returns a name for `key_system` for UMA logging. When `use_hw_secure_codecs`
 // is specified (non-nullopt), names with robustness will be returned for
 // supported key systems.
 MEDIA_EXPORT std::string GetKeySystemNameForUMA(
     const std::string& key_system,
-    absl::optional<bool> use_hw_secure_codecs = absl::nullopt);
+    std::optional<bool> use_hw_secure_codecs = std::nullopt);
 
 // Returns an int mapping to `key_system` suitable for UKM reporting. CdmConfig
 // is not needed here because we can report CdmConfig fields in UKM directly.
 MEDIA_EXPORT int GetKeySystemIntForUKM(const std::string& key_system);
-
-// Returns whether AesDecryptor can be used for the given `key_system`.
-MEDIA_EXPORT bool CanUseAesDecryptor(const std::string& key_system);
-
-#if defined(UNIT_TEST)
-// Helper functions to add container/codec types for testing purposes.
-// Call AddCodecMaskForTesting() first to ensure the mask values passed to
-// AddMimeTypeCodecMaskForTesting() already exist.
-MEDIA_EXPORT void AddCodecMaskForTesting(EmeMediaType media_type,
-                                         const std::string& codec,
-                                         uint32_t mask);
-MEDIA_EXPORT void AddMimeTypeCodecMaskForTesting(const std::string& mime_type,
-                                                 uint32_t mask);
-// Resets and reinitializes the KeySystems for testing.
-MEDIA_EXPORT void ResetKeySystemsForTesting();
-#endif  // defined(UNIT_TEST)
 
 }  // namespace media
 

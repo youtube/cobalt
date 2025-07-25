@@ -6,7 +6,9 @@
 
 #include <stdint.h>
 
-#include "base/strings/string_piece.h"
+#include <string_view>
+
+#include "base/containers/span.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
 namespace base {
@@ -14,7 +16,7 @@ namespace legacy {
 
 TEST(LegacyHashTest, CityHashV103) {
   constexpr struct {
-    StringPiece input;
+    std::string_view input;
     uint64_t output;
     uint64_t output_with_seed;
   } kTestCases[] = {

@@ -1,4 +1,4 @@
-// Copyright 2013 The Chromium Authors. All rights reserved.
+// Copyright 2013 The Chromium Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -8,8 +8,8 @@
 #include <map>
 #include <memory>
 #include <string>
-#include <vector>
 
+#include "base/metrics/field_trial.h"
 #include "components/variations/active_field_trials.h"
 
 // This file provides various helpers that extend the functionality around
@@ -20,7 +20,7 @@
 // IDs. These APIs are meant to extend the base::FieldTrial APIs to offer extra
 // functionality that is not offered by the simpler base::FieldTrial APIs.
 //
-// The AssociateGoogleVariationID and AssociateVariationParams functions are
+// The AssociateGoogleVariationID function is
 // generally meant to be called by the VariationsService based on server-side
 // variation configs, but may also be used for client-only field trials by
 // invoking them directly after appending all the groups to a FieldTrial.
@@ -33,18 +33,14 @@
 //    // use |params|
 //  }
 //
-//  std::string value = GetVariationParamValue("trial", "param_x");
+//  std::string value = base::GetFieldTrialParamValue("trial", "param_x");
 //  // use |value|, which will be "" if it does not exist
 //
-// VariationID id = GetGoogleVariationID(GOOGLE_WEB_PROPERTIES, "trial",
-//                                       "group1");
+// VariationID id = GetGoogleVariationID(
+//     GOOGLE_WEB_PROPERTIES_ANY_CONTEXT, "trial", "group1");
 // if (id != variations::EMPTY_ID) {
 //   // use |id|
 // }
-
-namespace base {
-struct Feature;
-}  // namespace base
 
 namespace variations {
 
@@ -55,19 +51,28 @@ const VariationID EMPTY_ID = 0;
 // A key into the Associate/Get methods for VariationIDs. This is used to create
 // separate ID associations for separate parties interested in VariationIDs.
 enum IDCollectionKey {
-  // This collection is used by Google web properties, transmitted through the
-  // X-Client-Data header.
-  GOOGLE_WEB_PROPERTIES,
+  // The IDs in this collection are used by Google web properties and are
+  // transmitted via the X-Client-Data header. These IDs are transmitted in
+  // first- and third-party contexts.
+  GOOGLE_WEB_PROPERTIES_ANY_CONTEXT,
+  // The IDs in this collection are used by Google web properties and are
+  // transmitted via the X-Client-Data header. Transmitted in only first-party
+  // contexts.
+  GOOGLE_WEB_PROPERTIES_FIRST_PARTY,
   // This collection is used by Google web properties for signed in users only,
   // transmitted through the X-Client-Data header.
   GOOGLE_WEB_PROPERTIES_SIGNED_IN,
-  // This collection is used by Google web properties for IDs that trigger
-  // server side experimental behavior, transmitted through the
-  // X-Client-Data header.
-  GOOGLE_WEB_PROPERTIES_TRIGGER,
-  // This collection is used by Chrome Sync services, transmitted through the
-  // Sync Event Logger.
-  CHROME_SYNC_EVENT_LOGGER,
+  // The IDs in this collection are used by Google web properties to trigger
+  // server-side experimental behavior and are transmitted via the X-Client-Data
+  // header. These IDs are transmitted in first- and third-party contexts.
+  GOOGLE_WEB_PROPERTIES_TRIGGER_ANY_CONTEXT,
+  // The IDs in this collection are used by Google web properties to trigger
+  // server-side experimental behavior and are transmitted via the X-Client-Data
+  // header. Transmitted in only first-party contexts.
+  GOOGLE_WEB_PROPERTIES_TRIGGER_FIRST_PARTY,
+  // This collection is used by the Google App and is passed at the time
+  // the cross-app communication is triggered.
+  GOOGLE_APP,
   // The total count of collections.
   ID_COLLECTION_COUNT,
 };
@@ -79,18 +84,21 @@ enum IDCollectionKey {
 // the trial and append groups) and needs to have a variations::VariationID
 // associated with it so Google servers can recognize the FieldTrial.
 // Thread safe.
+COMPONENT_EXPORT(VARIATIONS)
 void AssociateGoogleVariationID(IDCollectionKey key,
                                 const std::string& trial_name,
                                 const std::string& group_name,
                                 VariationID id);
 
 // As above, but overwrites any previously set id. Thread safe.
+COMPONENT_EXPORT(VARIATIONS)
 void AssociateGoogleVariationIDForce(IDCollectionKey key,
                                      const std::string& trial_name,
                                      const std::string& group_name,
                                      VariationID id);
 
 // As above, but takes an ActiveGroupId hash pair, rather than the string names.
+COMPONENT_EXPORT(VARIATIONS)
 void AssociateGoogleVariationIDForceHashes(IDCollectionKey key,
                                            const ActiveGroupId& active_group,
                                            VariationID id);
@@ -101,63 +109,27 @@ void AssociateGoogleVariationIDForceHashes(IDCollectionKey key,
 // for the named group. This API can be nicely combined with
 // FieldTrial::GetActiveFieldTrialGroups() to enumerate the variation IDs for
 // all active FieldTrial groups. Thread safe.
+COMPONENT_EXPORT(VARIATIONS)
 VariationID GetGoogleVariationID(IDCollectionKey key,
                                  const std::string& trial_name,
                                  const std::string& group_name);
 
 // Same as GetGoogleVariationID(), but takes in a hashed |active_group| rather
 // than the string trial and group name.
+COMPONENT_EXPORT(VARIATIONS)
 VariationID GetGoogleVariationIDFromHashes(IDCollectionKey key,
                                            const ActiveGroupId& active_group);
-
-// Deprecated. Use base::AssociateFieldTrialParams() instead.
-bool AssociateVariationParams(const std::string& trial_name,
-                              const std::string& group_name,
-                              const std::map<std::string, std::string>& params);
-
-// Deprecated. Use base::GetFieldTrialParams() instead.
-bool GetVariationParams(const std::string& trial_name,
-                        std::map<std::string, std::string>* params);
-
-// Deprecated. Use base::GetFieldTrialParamsByFeature() instead.
-bool GetVariationParamsByFeature(const base::Feature& feature,
-                                 std::map<std::string, std::string>* params);
-
-// Deprecated. Use base::GetFieldTrialParamValue() instead.
-std::string GetVariationParamValue(const std::string& trial_name,
-                                   const std::string& param_name);
-
-// Deprecated. Use base::GetFieldTrialParamValueByFeature() instead.
-std::string GetVariationParamValueByFeature(const base::Feature& feature,
-                                            const std::string& param_name);
-
-// Deprecated. Use base::GetFieldTrialParamByFeatureAsInt() instead.
-int GetVariationParamByFeatureAsInt(const base::Feature& feature,
-                                    const std::string& param_name,
-                                    int default_value);
-
-// Deprecated. Use base::GetFieldTrialParamByFeatureAsDouble() instead.
-double GetVariationParamByFeatureAsDouble(const base::Feature& feature,
-                                          const std::string& param_name,
-                                          double default_value);
-
-// Deprecated. Use base::GetFieldTrialParamByFeatureAsBool() instead.
-bool GetVariationParamByFeatureAsBool(const base::Feature& feature,
-                                      const std::string& param_name,
-                                      bool default_value);
 
 // Expose some functions for testing.
 namespace testing {
 
-// Clears all of the mapped associations. Deprecated, try to use
-// VariationParamsManager instead as it does a lot of work for you
-// automatically.
-void ClearAllVariationIDs();
+// Clears all of the mapped associations. Deprecated, use ScopedFeatureList
+// instead as it does a lot of work for you automatically.
+COMPONENT_EXPORT(VARIATIONS) void ClearAllVariationIDs();
 
-// Clears all of the associated params. Deprecated, try to use
-// VariationParamsManager instead as it does a lot of work for you
-// automatically.
-void ClearAllVariationParams();
+// Clears all of the associated params. Deprecated, use ScopedFeatureList
+// instead as it does a lot of work for you automatically.
+COMPONENT_EXPORT(VARIATIONS) void ClearAllVariationParams();
 
 }  // namespace testing
 

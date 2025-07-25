@@ -4,6 +4,8 @@
 
 #include "net/quic/web_transport_client.h"
 
+#include <string_view>
+
 #include "base/memory/raw_ptr.h"
 #include "net/quic/dedicated_web_transport_http3_client.h"
 
@@ -21,7 +23,7 @@ class FailedWebTransportClient : public WebTransportClient {
                /*safe_to_report_details=*/true),
         visitor_(visitor) {}
   void Connect() override { visitor_->OnConnectionFailed(error_); }
-  void Close(const absl::optional<WebTransportCloseInfo>& close_info) override {
+  void Close(const std::optional<WebTransportCloseInfo>& close_info) override {
     NOTREACHED();
   }
 
@@ -57,7 +59,7 @@ const char* WebTransportStateString(WebTransportState state) {
 
 WebTransportCloseInfo::WebTransportCloseInfo() = default;
 WebTransportCloseInfo::WebTransportCloseInfo(uint32_t code,
-                                             base::StringPiece reason)
+                                             std::string_view reason)
     : code(code), reason(reason) {}
 WebTransportCloseInfo::~WebTransportCloseInfo() = default;
 bool WebTransportCloseInfo::operator==(

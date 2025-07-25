@@ -8,13 +8,16 @@
 #import <Foundation/Foundation.h>
 #include <IOKit/usb/IOUSBLib.h>
 
+#include <string_view>
+
 #include "base/check.h"
 #include "base/logging.h"
 #include "base/mac/scoped_ioplugininterface.h"
-#include "base/strings/string_piece.h"
 #include "base/trace_event/trace_event.h"
 #include "media/capture/capture_export.h"
 #include "media/capture/mojom/image_capture_types.h"
+#include "media/capture/video/video_capture_device_descriptor.h"
+#include "media/capture/video_capture_types.h"
 
 using ScopedIOUSBInterfaceInterface =
     base::mac::ScopedIOPluginInterface<IOUSBInterfaceInterface220>;
@@ -82,7 +85,7 @@ class CAPTURE_EXPORT UvcControl {
   template <typename ValueType>
   bool GetControlCurrent(int control_selector,
                          ValueType* control_current,
-                         base::StringPiece control_name) const {
+                         std::string_view control_name) const {
     return SendControlRequest<ValueType>(uvc::kVcRequestCodeGetCur,
                                          control_selector, control_current,
                                          control_name);
@@ -91,7 +94,7 @@ class CAPTURE_EXPORT UvcControl {
   template <typename ValueType>
   bool GetControlMin(int control_selector,
                      ValueType* control_min,
-                     base::StringPiece control_name) const {
+                     std::string_view control_name) const {
     return SendControlRequest<ValueType>(
         uvc::kVcRequestCodeGetMin, control_selector, control_min, control_name);
   }
@@ -99,7 +102,7 @@ class CAPTURE_EXPORT UvcControl {
   template <typename ValueType>
   bool GetControlMax(int control_selector,
                      ValueType* control_max,
-                     base::StringPiece control_name) const {
+                     std::string_view control_name) const {
     return SendControlRequest<ValueType>(
         uvc::kVcRequestCodeGetMax, control_selector, control_max, control_name);
   }
@@ -107,7 +110,7 @@ class CAPTURE_EXPORT UvcControl {
   template <typename ValueType>
   bool GetControlStep(int control_selector,
                       ValueType* control_step,
-                      base::StringPiece control_name) const {
+                      std::string_view control_name) const {
     return SendControlRequest<ValueType>(uvc::kVcRequestCodeGetRes,
                                          control_selector, control_step,
                                          control_name);
@@ -117,7 +120,7 @@ class CAPTURE_EXPORT UvcControl {
   template <typename ValueType>
   void MaybeUpdateControlRange(int control_selector,
                                media::mojom::Range* control_range,
-                               base::StringPiece control_name) const {
+                               std::string_view control_name) const {
     ValueType max, min, step, current;
     if (!GetControlMax<ValueType>(control_selector, &max, control_name) ||
         !GetControlMin<ValueType>(control_selector, &min, control_name) ||
@@ -135,7 +138,7 @@ class CAPTURE_EXPORT UvcControl {
   template <typename ValueType>
   void SetControlCurrent(int control_selector,
                          ValueType value,
-                         base::StringPiece control_name) const {
+                         std::string_view control_name) const {
     TRACE_EVENT1(TRACE_DISABLED_BY_DEFAULT("video_and_image_capture"),
                  "UvcControl::SetControlCurrent", "control_name", control_name);
     CHECK(interface_);
@@ -147,19 +150,35 @@ class CAPTURE_EXPORT UvcControl {
                            sizeof(ValueType));
     command.pData = &value;
 
-    IOReturn ret = (*interface_)->ControlRequestTO(interface_, 0, &command);
+    IOReturn ret =
+        (*interface_.get())->ControlRequestTO(interface_.get(), 0, &command);
     VLOG_IF(1, ret != kIOReturnSuccess)
         << "Set " << control_name << " value to " << value << " failed (0x"
         << std::hex << ret << ")";
     VLOG_IF(1, ret == kIOReturnSuccess) << control_name << " set to " << value;
   }
 
+  static void SetPowerLineFrequency(
+      const VideoCaptureDeviceDescriptor& device_descriptor,
+      const VideoCaptureParams& params);
+  static void GetPhotoState(
+      media::mojom::PhotoStatePtr& photo_state,
+      const VideoCaptureDeviceDescriptor& device_descriptor);
+  static void SetPhotoState(
+      mojom::PhotoSettingsPtr& settings,
+      const VideoCaptureDeviceDescriptor& device_descriptor);
+  static VideoCaptureControlSupport GetControlSupport(
+      const std::string& device_model);
+  static std::string GetDeviceModelId(const std::string& device_id,
+                                      VideoCaptureApi capture_api,
+                                      VideoCaptureTransportType transport_type);
+
  private:
   template <typename ValueType>
   bool SendControlRequest(int request_code,
                           int control_selector,
                           ValueType* result,
-                          base::StringPiece control_name) const {
+                          std::string_view control_name) const {
     TRACE_EVENT2(TRACE_DISABLED_BY_DEFAULT("video_and_image_capture"),
                  "UvcControl::SendControlRequest", "request_code", request_code,
                  "control_name", control_name);
@@ -172,7 +191,8 @@ class CAPTURE_EXPORT UvcControl {
     ValueType data;
     command.pData = &data;
 
-    IOReturn ret = (*interface_)->ControlRequestTO(interface_, 0, &command);
+    IOReturn ret =
+        (*interface_.get())->ControlRequestTO(interface_.get(), 0, &command);
     VLOG_IF(1, ret != kIOReturnSuccess)
         << control_name << " failed (0x" << std::hex << ret;
     if (ret != kIOReturnSuccess) {

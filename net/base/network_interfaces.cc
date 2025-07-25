@@ -7,12 +7,13 @@
 #include "base/logging.h"
 #include "build/build_config.h"
 
-#if BUILDFLAG(IS_POSIX) || defined(COBALT_PENDING_CLEAN_UP)
+#if BUILDFLAG(IS_POSIX)
 #include <unistd.h>
 #endif
 
 #if BUILDFLAG(IS_WIN)
 #include <winsock2.h>
+
 #include "net/base/winsock_init.h"
 #endif
 
@@ -29,7 +30,7 @@ NetworkInterface::NetworkInterface(const std::string& name,
                                    const IPAddress& address,
                                    uint32_t prefix_length,
                                    int ip_address_attributes,
-                                   absl::optional<Eui48MacAddress> mac_address)
+                                   std::optional<Eui48MacAddress> mac_address)
     : name(name),
       friendly_name(friendly_name),
       interface_index(interface_index),
@@ -46,10 +47,6 @@ NetworkInterface::~NetworkInterface() = default;
 ScopedWifiOptions::~ScopedWifiOptions() = default;
 
 std::string GetHostName() {
-#if defined(STARBOARD)
-  NOTIMPLEMENTED();
-  return "";
-#else
 #if BUILDFLAG(IS_WIN)
   EnsureWinsockInit();
 #endif
@@ -62,7 +59,6 @@ std::string GetHostName() {
     buffer[0] = '\0';
   }
   return std::string(buffer);
-#endif
 }
 
 }  // namespace net

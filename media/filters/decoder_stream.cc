@@ -11,6 +11,7 @@
 #include "base/functional/callback_helpers.h"
 #include "base/location.h"
 #include "base/logging.h"
+#include "base/numerics/safe_conversions.h"
 #include "base/task/bind_post_task.h"
 #include "base/task/sequenced_task_runner.h"
 #include "base/trace_event/trace_event.h"
@@ -80,7 +81,7 @@ const char* GetPrepareTraceString<DemuxerStream::AUDIO>() {
 }
 
 const char* GetStatusString(const DecoderStatus& status) {
-  // TODO(crbug.com/1129662): Replace this with generic Status-to-string.
+  // TODO(crbug.com/40149493): Replace this with generic Status-to-string.
   switch (status.code()) {
     case DecoderStatus::Codes::kOk:
       return "okay";
@@ -90,8 +91,7 @@ const char* GetStatusString(const DecoderStatus& status) {
       return "decode_error";
   }
 
-  NOTREACHED();
-  return "";
+  NOTREACHED_NORETURN();
 }
 
 template <DemuxerStream::Type StreamType>
@@ -320,8 +320,7 @@ bool DecoderStream<StreamType>::CanDecodeMore() const {
 template <DemuxerStream::Type StreamType>
 base::TimeDelta DecoderStream<StreamType>::AverageDuration() const {
   DCHECK(task_runner_->RunsTasksInCurrentSequence());
-  return duration_tracker_.count() ? duration_tracker_.Average()
-                                   : base::TimeDelta();
+  return duration_tracker_.Mean();
 }
 
 template <DemuxerStream::Type StreamType>
@@ -401,14 +400,15 @@ void DecoderStream<StreamType>::OnDecoderSelected(
   }
 
   // Attempt to decode buffers from previous decoders (when those decoders have
-  // never successfully outputed a frame).
+  // never successfully outputted a frame).
   fallback_buffers_ = pending_buffers_;
 
   if (!decoder_or_error.has_value()) {
     if (state_ == STATE_INITIALIZING) {
       state_ = STATE_UNINITIALIZED;
       MEDIA_LOG(ERROR, media_log_)
-          << GetStreamTypeString() << " decoder initialization failed";
+          << GetStreamTypeString() << " decoder initialization failed with "
+          << std::move(decoder_or_error).error();
       std::move(init_cb_).Run(false);
       // Node that |decoder_or_error| is not actually lost in this case, as
       // DecoderSelector is keeping track of it to use in case there are no
@@ -491,7 +491,7 @@ void DecoderStream<StreamType>::Decode(scoped_refptr<DecoderBuffer> buffer) {
     }
   }
 
-  // TODO(https://crbug.com/1324732): We should DCHECK(CanDecodeMore()) here,
+  // TODO(crbug.com/40839438): We should DCHECK(CanDecodeMore()) here,
   // but this breaks a number of tests.
 
   if (!fallback_buffers_.empty()) {
@@ -531,7 +531,7 @@ void DecoderStream<StreamType>::DecodeInternal(
 
   ++pending_decode_requests_;
 
-  const int buffer_size = is_eos ? 0 : buffer->data_size();
+  const int buffer_size = is_eos ? 0 : base::checked_cast<int>(buffer->size());
   decoder_->Decode(
       std::move(buffer),
       base::BindOnce(&DecoderStream<StreamType>::OnDecodeDone,
@@ -693,7 +693,7 @@ void DecoderStream<StreamType>::OnDecodeOutputReady(
 
   if (read_cb_) {
     // If |ready_outputs_| was non-empty, the read would have already been
-    // satisifed by Read().
+    // satisfied by Read().
     DCHECK(ready_outputs_.empty());
     SatisfyRead(std::move(output));
     return;
@@ -727,26 +727,32 @@ void DecoderStream<StreamType>::ReadFromDemuxerStream() {
   TRACE_EVENT_ASYNC_BEGIN0("media", GetDemuxerReadTraceString<StreamType>(),
                            this);
   pending_demuxer_read_ = true;
-  stream_->Read(1, base::BindOnce(&DecoderStream<StreamType>::OnBuffersRead,
-                                  weak_factory_.GetWeakPtr()));
+  uint32_t buffer_read_count = 1;
+  if (base::FeatureList::IsEnabled(kVideoDecodeBatching)) {
+    buffer_read_count = GetMaxDecodeRequests() - pending_decode_requests_;
+  }
+  {
+    TRACE_EVENT2("media", "DecodeStreamRead",
+                 "StreamType:", GetStreamTypeString(),
+                 "buffer_read_count:", buffer_read_count);
+    stream_->Read(buffer_read_count,
+                  base::BindOnce(&DecoderStream<StreamType>::OnBuffersReady,
+                                 weak_factory_.GetWeakPtr()));
+  }
 }
 
 template <DemuxerStream::Type StreamType>
-void DecoderStream<StreamType>::OnBuffersRead(
+void DecoderStream<StreamType>::OnBuffersReady(
     DemuxerStream::Status status,
     DemuxerStream::DecoderBufferVector buffers) {
-  DCHECK_LE(buffers.size(), 1u) << "DecoderStream only reads a single-buffer.";
-  OnBufferReady(status, buffers.empty() ? nullptr : std::move(buffers[0]));
-}
+  if (status == DemuxerStream::kOk && buffers.empty()) {
+    MEDIA_LOG(ERROR, media_log_) << "Empty buffer received.";
+    pending_demuxer_read_ = false;
+    return;
+  }
 
-template <DemuxerStream::Type StreamType>
-void DecoderStream<StreamType>::OnBufferReady(
-    DemuxerStream::Status status,
-    scoped_refptr<DecoderBuffer> buffer) {
   TRACE_EVENT_ASYNC_END1("media", GetDemuxerReadTraceString<StreamType>(), this,
                          "status", DemuxerStream::GetStatusName(status));
-  FUNCTION_DVLOG(3) << ": " << status << ", "
-                    << (buffer ? buffer->AsHumanReadableString() : "nullptr");
 
   DCHECK(task_runner_->RunsTasksInCurrentSequence());
   DCHECK(pending_demuxer_read_);
@@ -755,7 +761,6 @@ void DecoderStream<StreamType>::OnBufferReady(
            state_ == STATE_NORMAL)
         << state_;
   }
-  DCHECK_EQ(buffer != nullptr, status == DemuxerStream::kOk) << status;
   pending_demuxer_read_ = false;
 
   // If parallel decode requests are supported, multiple read requests might
@@ -767,7 +772,10 @@ void DecoderStream<StreamType>::OnBufferReady(
         // Save valid buffers to be consumed by the new decoder.
         // |pending_buffers_| is copied to |fallback_buffers_| in
         // OnDecoderSelected().
-        pending_buffers_.push_back(std::move(buffer));
+        for (auto buffer : buffers) {
+          pending_buffers_.push_back(std::move(buffer));
+        }
+        buffers.clear();
         break;
       case DemuxerStream::kConfigChanged:
         // TODO(tguilbert): crbug.com/603713
@@ -795,8 +803,9 @@ void DecoderStream<StreamType>::OnBufferReady(
     ClearOutputs();
     // TODO(crbug.com/c/1326324): Convert |status| into a typed status so that
     // it can be set as a cause here.
-    if (read_cb_)
+    if (read_cb_) {
       SatisfyRead(DecoderStatus::Codes::kDecoderStreamDemuxerError);
+    }
   }
 
   // Decoding has been stopped.
@@ -806,8 +815,9 @@ void DecoderStream<StreamType>::OnBufferReady(
     if (reset_cb_) {
       // If we are using DecryptingDemuxerStream, we already called DDS::Reset()
       // which will continue the resetting process in its callback.
-      if (!decrypting_demuxer_stream_)
+      if (!decrypting_demuxer_stream_) {
         Reset(std::move(reset_cb_));
+      }
     }
     return;
   }
@@ -845,15 +855,17 @@ void DecoderStream<StreamType>::OnBufferReady(
         << " decoder config changed midstream, new config: "
         << config.AsHumanReadableString();
 
-    if (config_change_observer_cb_)
+    if (config_change_observer_cb_) {
       config_change_observer_cb_.Run(config);
+    }
 
     state_ = STATE_FLUSHING_DECODER;
     if (reset_cb_) {
       // If we are using DecryptingDemuxerStream, we already called DDS::Reset()
       // which will continue the resetting process in its callback.
-      if (!decrypting_demuxer_stream_)
+      if (!decrypting_demuxer_stream_) {
         Reset(std::move(reset_cb_));
+      }
       // Reinitialization will continue after Reset() is done.
     } else {
       FlushDecoder();
@@ -864,14 +876,16 @@ void DecoderStream<StreamType>::OnBufferReady(
   if (reset_cb_) {
     // If we are using DecryptingDemuxerStream, we already called DDS::Reset()
     // which will continue the resetting process in its callback.
-    if (!decrypting_demuxer_stream_)
+    if (!decrypting_demuxer_stream_) {
       Reset(std::move(reset_cb_));
+    }
     return;
   }
 
   if (status == DemuxerStream::kAborted) {
-    if (read_cb_)
+    if (read_cb_) {
       SatisfyRead(DecoderStatus::Codes::kAborted);
+    }
     return;
   }
 
@@ -882,14 +896,18 @@ void DecoderStream<StreamType>::OnBufferReady(
   // changes later, which is fine for metrics purposes.
   if (!encryption_type_reported_) {
     encryption_type_reported_ = true;
-    ReportEncryptionType(buffer);
+    ReportEncryptionType(buffers[0]);
   }
 
-  Decode(std::move(buffer));
+  for (auto buffer : buffers) {
+    Decode(std::move(buffer));
+  }
+  buffers.clear();
 
   // Read more data if the decoder supports multiple parallel decoding requests.
-  if (CanDecodeMore())
+  if (CanDecodeMore()) {
     ReadFromDemuxerStream();
+  }
 }
 
 template <DemuxerStream::Type StreamType>
@@ -913,6 +931,14 @@ void DecoderStream<StreamType>::CompleteDecoderReinitialization(
 
   state_ = status.is_ok() ? STATE_NORMAL : STATE_ERROR;
 
+  // If there's a pending read and no pending reset, report error via
+  // `read_cb_`, otherwise report it via MediaLog.
+  if (!status.is_ok() && (reset_cb_ || !read_cb_)) {
+    media_log_->NotifyError(std::move(status));
+    MEDIA_LOG(ERROR, media_log_)
+        << GetStreamTypeString() << " decoder reinitialization failed";
+  }
+
   if (reset_cb_) {
     std::move(reset_cb_).Run();
     return;
@@ -922,8 +948,6 @@ void DecoderStream<StreamType>::CompleteDecoderReinitialization(
     return;
 
   if (state_ == STATE_ERROR) {
-    MEDIA_LOG(ERROR, media_log_)
-        << GetStreamTypeString() << " decoder reinitialization failed";
     SatisfyRead(std::move(status));
     return;
   }

@@ -5,6 +5,7 @@
 #include "net/http/http_basic_stream.h"
 
 #include <set>
+#include <string_view>
 #include <utility>
 
 #include "base/functional/bind.h"
@@ -20,8 +21,8 @@
 namespace net {
 
 HttpBasicStream::HttpBasicStream(std::unique_ptr<ClientSocketHandle> connection,
-                                 bool using_proxy)
-    : state_(std::move(connection), using_proxy) {}
+                                 bool is_for_get_to_http_proxy)
+    : state_(std::move(connection), is_for_get_to_http_proxy) {}
 
 HttpBasicStream::~HttpBasicStream() = default;
 
@@ -37,6 +38,9 @@ int HttpBasicStream::InitializeStream(bool can_send_early,
                                       CompletionOnceCallback callback) {
   DCHECK(request_info_);
   state_.Initialize(request_info_, priority, net_log);
+  // RequestInfo is no longer needed after this point.
+  request_info_ = nullptr;
+
   int ret = OK;
   if (!can_send_early) {
     // parser() cannot outlive |this|, so we can use base::Unretained().
@@ -44,8 +48,6 @@ int HttpBasicStream::InitializeStream(bool can_send_early,
         base::BindOnce(&HttpBasicStream::OnHandshakeConfirmed,
                        base::Unretained(this), std::move(callback)));
   }
-  // RequestInfo is no longer needed after this point.
-  request_info_ = nullptr;
   return ret;
 }
 
@@ -101,7 +103,7 @@ std::unique_ptr<HttpStream> HttpBasicStream::RenewStreamForAuth() {
   // than leaving it until the destructor is called.
   state_.DeleteParser();
   return std::make_unique<HttpBasicStream>(state_.ReleaseConnection(),
-                                           state_.using_proxy());
+                                           state_.is_for_get_to_http_proxy());
 }
 
 bool HttpBasicStream::IsResponseBodyComplete() const {
@@ -163,20 +165,10 @@ bool HttpBasicStream::GetAlternativeService(
 }
 
 void HttpBasicStream::GetSSLInfo(SSLInfo* ssl_info) {
-  if (!state_.connection()->socket()) {
+  if (!state_.connection()->socket() ||
+      !state_.connection()->socket()->GetSSLInfo(ssl_info)) {
     ssl_info->Reset();
-    return;
   }
-  parser()->GetSSLInfo(ssl_info);
-}
-
-void HttpBasicStream::GetSSLCertRequestInfo(
-    SSLCertRequestInfo* cert_request_info) {
-  if (!state_.connection()->socket()) {
-    cert_request_info->Reset();
-    return;
-  }
-  parser()->GetSSLCertRequestInfo(cert_request_info);
 }
 
 int HttpBasicStream::GetRemoteEndpoint(IPEndPoint* endpoint) {
@@ -195,7 +187,7 @@ void HttpBasicStream::Drain(HttpNetworkSession* session) {
 void HttpBasicStream::PopulateNetErrorDetails(NetErrorDetails* details) {
   // TODO(mmenke):  Consumers don't actually care about HTTP version, but seems
   // like the right version should be reported, if headers were received.
-  details->connection_info = HttpResponseInfo::CONNECTION_INFO_HTTP1_1;
+  details->connection_info = HttpConnectionInfo::kHTTP1_1;
   return;
 }
 
@@ -212,7 +204,7 @@ const std::set<std::string>& HttpBasicStream::GetDnsAliases() const {
   return state_.GetDnsAliases();
 }
 
-base::StringPiece HttpBasicStream::GetAcceptChViaAlps() const {
+std::string_view HttpBasicStream::GetAcceptChViaAlps() const {
   return {};
 }
 

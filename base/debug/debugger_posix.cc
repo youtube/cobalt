@@ -2,6 +2,11 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#ifdef UNSAFE_BUFFERS_BUILD
+// TODO(crbug.com/40284755): Remove this and spanify to fix the errors.
+#pragma allow_unsafe_buffers
+#endif
+
 #include "base/debug/debugger.h"
 
 #include <errno.h>
@@ -15,9 +20,10 @@
 #include <unistd.h>
 
 #include <memory>
+#include <string_view>
 
 #include "base/check_op.h"
-#include "base/notreached.h"
+#include "base/notimplemented.h"
 #include "base/strings/string_util.h"
 #include "base/threading/platform_thread.h"
 #include "base/time/time.h"
@@ -49,10 +55,9 @@
 #include "base/posix/eintr_wrapper.h"
 #include "base/process/process.h"
 #include "base/strings/string_number_conversions.h"
-#include "base/strings/string_piece.h"
 
 #if defined(USE_SYMBOLIZE)
-#include "base/third_party/symbolize/symbolize.h"
+#include "base/third_party/symbolize/symbolize.h"  // nogncheck
 #endif
 
 namespace base {
@@ -170,8 +175,8 @@ Process GetDebuggerProcess() {
   if (num_read <= 0)
     return Process();
 
-  StringPiece status(buf, static_cast<size_t>(num_read));
-  StringPiece tracer("TracerPid:\t");
+  std::string_view status(buf, static_cast<size_t>(num_read));
+  std::string_view tracer("TracerPid:\t");
 
   StringPiece::size_type pid_index = status.find(tracer);
   if (pid_index == StringPiece::npos)
@@ -181,7 +186,7 @@ Process GetDebuggerProcess() {
   if (pid_end_index == StringPiece::npos)
     return Process();
 
-  StringPiece pid_str(buf + pid_index, pid_end_index - pid_index);
+  std::string_view pid_str(buf + pid_index, pid_end_index - pid_index);
   int pid = 0;
   if (!StringToInt(pid_str, &pid))
     return Process();
@@ -212,7 +217,7 @@ void VerifyDebugger() {
   // /proc/*/cmdline separates arguments with null bytes, but we only care about
   // the executable name, so interpret |cmdline| as a null-terminated C string
   // to extract the exe portion.
-  StringPiece exe(cmdline.c_str());
+  std::string_view exe(cmdline.c_str());
 
   DCHECK(ToLowerASCII(exe).find("gdb") == std::string::npos)
       << "Detected gdb without sourcing //tools/gdb/gdbinit.  gdb may not be "

@@ -504,9 +504,7 @@ bool DoIPv6AddressToNumber(const CHAR* spec,
                                 &num_ipv4_components)) {
       return false;
     }
-    if ((num_ipv4_components != 4 || trailing_dot) &&
-        base::FeatureList::IsEnabled(
-            url::kStrictIPv4EmbeddedIPv6AddressParsing)) {
+    if ((num_ipv4_components != 4 || trailing_dot)) {
       return false;
     }
   }
@@ -589,11 +587,7 @@ bool DoCanonicalizeIPv6Address(const CHAR* spec,
 void AppendIPv4Address(const unsigned char address[4], CanonOutput* output) {
   for (int i = 0; i < 4; i++) {
     char str[16];
-#if defined(STARBOARD)
-    snprintf(str, 16, "%d", address[i]);
-#else
     _itoa_s(address[i], str, 10);
-#endif
 
     for (int ch = 0; str[ch] != 0; ch++)
       output->push_back(str[ch]);
@@ -628,11 +622,7 @@ void AppendIPv6Address(const unsigned char address[16], CanonOutput* output) {
 
       // Stringify the 16 bit number (at most requires 4 hex digits).
       char str[5];
-#if defined(STARBOARD)
-      snprintf(str, 5, "%x", x);
-#else
       _itoa_s(x, str, 16);
-#endif
       for (int ch = 0; str[ch] != 0; ++ch)
         output->push_back(str[ch]);
 
@@ -665,6 +655,22 @@ void CanonicalizeIPAddress(const char16_t* spec,
   if (DoCanonicalizeIPv6Address<char16_t, char16_t>(spec, host, output,
                                                     host_info))
     return;
+}
+
+void CanonicalizeIPv6Address(const char* spec,
+                             const Component& host,
+                             CanonOutput& output,
+                             CanonHostInfo& host_info) {
+  DoCanonicalizeIPv6Address<char, unsigned char>(spec, host, &output,
+                                                 &host_info);
+}
+
+void CanonicalizeIPv6Address(const char16_t* spec,
+                             const Component& host,
+                             CanonOutput& output,
+                             CanonHostInfo& host_info) {
+  DoCanonicalizeIPv6Address<char16_t, char16_t>(spec, host, &output,
+                                                &host_info);
 }
 
 CanonHostInfo::Family IPv4AddressToNumber(const char* spec,

@@ -33,9 +33,7 @@ extern "C" {
 
 #include "config.h"
 #include "min_heap.h"
-#ifndef STARBOARD
 #include "evsignal.h"
-#endif
 
 struct eventop {
 	const char *name;
@@ -61,10 +59,8 @@ struct event_base {
 	struct event_list **activequeues;
 	int nactivequeues;
 
-#ifndef STARBOARD
 	/* signal handling info */
 	struct evsignal_info sig;
-#endif
 
 	struct event_list eventqueue;
 	struct timeval event_tv;
@@ -91,11 +87,9 @@ struct event_base {
 } while (0)
 #endif /* TAILQ_FOREACH */
 
-#ifndef STARBOARD
 int _evsignal_set_handler(struct event_base *base, int evsignal,
 			  void (*fn)(int));
 int _evsignal_restore_handler(struct event_base *base, int evsignal);
-#endif
 
 /* defined in evutil.c */
 const char *evutil_getenv(const char *varname);

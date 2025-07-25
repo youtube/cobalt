@@ -15,10 +15,9 @@ import signal
 import socket
 import sys
 import tempfile
-import six
 
 # The following non-std imports are fetched via vpython. See the list at
-# //.vpython
+# //.vpython3
 import dateutil.parser  # pylint: disable=import-error
 import jsonlines  # pylint: disable=import-error
 import psutil  # pylint: disable=import-error
@@ -33,10 +32,8 @@ from pylib.base import base_test_result  # pylint: disable=import-error
 from pylib.results import json_results  # pylint: disable=import-error
 
 sys.path.insert(0, os.path.join(CHROMIUM_SRC_PATH, 'build', 'util'))
-# TODO(crbug.com/1421441): Re-enable the 'no-name-in-module' check.
+# TODO(crbug.com/40259280): Re-enable the 'no-name-in-module' check.
 from lib.results import result_sink  # pylint: disable=import-error,no-name-in-module
-
-assert not six.PY2, 'Py2 not supported for this file.'
 
 import subprocess  # pylint: disable=import-error,wrong-import-order
 
@@ -60,6 +57,7 @@ SYSTEM_LOG_LOCATIONS = [
     '/var/log/chrome/',
     '/var/log/messages',
     '/var/log/ui/',
+    '/var/log/lacros/',
 ]
 
 TAST_DEBUG_DOC = 'https://bit.ly/2LgvIXz'
@@ -117,9 +115,13 @@ class RemoteTest:
           '--copy-on-write',
       ]
     else:
-      self._test_cmd += [
-          '--device', args.device if args.device else LAB_DUT_HOSTNAME
-      ]
+      if args.fetch_cros_hostname:
+        self._test_cmd += ['--device', get_cros_hostname()]
+      else:
+        self._test_cmd += [
+            '--device', args.device if args.device else LAB_DUT_HOSTNAME
+        ]
+
     if args.logs_dir:
       for log in SYSTEM_LOG_LOCATIONS:
         self._test_cmd += ['--results-src', log]
@@ -328,7 +330,7 @@ class TastTest(RemoteTest):
       self._attr_expr = '(' + ' || '.join(names) + ')'
 
     if self._attr_expr:
-      # Don't use pipes.quote() here. Something funky happens with the arg
+      # Don't use shlex.quote() here. Something funky happens with the arg
       # as it gets passed down from cros_run_test to tast. (Tast picks up the
       # escaping single quotes and complains that the attribute expression
       # "must be within parentheses".)
@@ -399,6 +401,9 @@ class TastTest(RemoteTest):
         # inside as an RDB 'artifact'. (This could include system logs, screen
         # shots, etc.)
         artifacts = self.get_artifacts(test['outDir'])
+        html_artifact = debug_link
+        if result == base_test_result.ResultType.SKIP:
+          html_artifact = 'Test was skipped because: ' + test['skipReason']
         self._rdb_client.Post(
             test['name'],
             result,
@@ -407,7 +412,7 @@ class TastTest(RemoteTest):
             None,
             artifacts=artifacts,
             failure_reason=primary_error_message,
-            html_artifact=debug_link)
+            html_artifact=html_artifact)
 
     if self._rdb_client and self._logs_dir:
       # Attach artifacts from the device that don't apply to a single test.
@@ -481,6 +486,10 @@ class GTestTest(RemoteTest):
   def __init__(self, args, unknown_args):
     super().__init__(args, unknown_args)
 
+    self._test_cmd = ['vpython3'] + self._test_cmd
+    if not args.clean:
+      self._test_cmd += ['--no-clean']
+
     self._test_exe = args.test_exe
     self._runtime_deps_path = args.runtime_deps_path
     self._vpython_dir = args.vpython_dir
@@ -489,6 +498,8 @@ class GTestTest(RemoteTest):
     self._env_vars = args.env_var
     self._stop_ui = args.stop_ui
     self._trace_dir = args.trace_dir
+    self._run_test_sudo_helper = args.run_test_sudo_helper
+    self._set_selinux_label = args.set_selinux_label
 
   @property
   def suite_name(self):
@@ -550,7 +561,8 @@ class GTestTest(RemoteTest):
       if not os.path.exists(vpython_path) or not os.path.exists(cpython_path):
         raise TestFormatError(
             '--vpython-dir must point to a dir with both '
-            'infra/3pp/tools/cpython3 and infra/tools/luci/vpython installed.')
+            'infra/3pp/tools/cpython3 and infra/tools/luci/vpython3 '
+            'installed.')
       vpython_spec_path = os.path.relpath(
           os.path.join(CHROMIUM_SRC_PATH, '.vpython3'), self._path_to_outdir)
       # Initialize the vpython cache. This can take 10-20s, and some tests
@@ -577,12 +589,39 @@ class GTestTest(RemoteTest):
       ])
       test_invocation += ' --trace-dir=%s' % device_trace_dir
 
+    if self._run_test_sudo_helper:
+      device_test_script_contents.extend([
+          'TEST_SUDO_HELPER_PATH=$(mktemp)',
+          './test_sudo_helper.py --socket-path=${TEST_SUDO_HELPER_PATH} &',
+          'TEST_SUDO_HELPER_PID=$!'
+      ])
+      test_invocation += (
+          ' --test-sudo-helper-socket-path=${TEST_SUDO_HELPER_PATH}')
+
+    # Append the selinux labels. The 'setfiles' command takes a file with each
+    # line consisting of "<file-regex> <file-type> <new-label>", where '--' is
+    # the type of a regular file.
+    if self._set_selinux_label:
+      for label_pair in self._set_selinux_label:
+        filename, label = label_pair.split('=', 1)
+        specfile = filename + '.specfile'
+        device_test_script_contents.extend([
+            'echo %s -- %s > %s' % (filename, label, specfile),
+            'setfiles -F %s %s' % (specfile, filename),
+        ])
+
     if self._additional_args:
       test_invocation += ' %s' % ' '.join(self._additional_args)
 
     if self._stop_ui:
       device_test_script_contents += [
           'stop ui',
+      ]
+      # Send a user activity ping to powerd to ensure the display is on.
+      device_test_script_contents += [
+          'dbus-send --system --type=method_call'
+          ' --dest=org.chromium.PowerManager /org/chromium/PowerManager'
+          ' org.chromium.PowerManager.HandleUserActivity int32:0'
       ]
       # The UI service on the device owns the chronos user session, so shutting
       # it down as chronos kills the entire execution of the test. So we'll have
@@ -600,6 +639,27 @@ class GTestTest(RemoteTest):
       ]
 
     device_test_script_contents.append(test_invocation)
+    device_test_script_contents.append('TEST_RETURN_CODE=$?')
+
+    # (Re)start ui after all tests are done. This is for developer convenienve.
+    # Without this, the device would remain in a black screen which looks like
+    # powered off.
+    if self._stop_ui:
+      device_test_script_contents += [
+          'start ui',
+      ]
+
+    # Stop the crosier helper.
+    if self._run_test_sudo_helper:
+      device_test_script_contents.extend([
+          'pkill -P $TEST_SUDO_HELPER_PID',
+          'kill $TEST_SUDO_HELPER_PID',
+          'unlink ${TEST_SUDO_HELPER_PATH}',
+      ])
+
+    # This command should always be the last bash commandline so infra can
+    # correctly get the error code from test invocations.
+    device_test_script_contents.append('exit $TEST_RETURN_CODE')
 
     self._on_device_script = self.write_test_script_to_disk(
         device_test_script_contents)
@@ -689,9 +749,12 @@ def host_cmd(args, cmd_args):
         '--copy-on-write',
     ]
   else:
-    cros_run_test_cmd += [
-        '--device', args.device if args.device else LAB_DUT_HOSTNAME
-    ]
+    if args.fetch_cros_hostname:
+      cros_run_test_cmd += ['--device', get_cros_hostname()]
+    else:
+      cros_run_test_cmd += [
+          '--device', args.device if args.device else LAB_DUT_HOSTNAME
+      ]
   if args.verbose:
     cros_run_test_cmd.append('--debug')
   if args.flash:
@@ -743,6 +806,29 @@ def host_cmd(args, cmd_args):
       cros_run_test_cmd, stdout=sys.stdout, stderr=sys.stderr, env=test_env)
 
 
+def get_cros_hostname_from_bot_id(bot_id):
+  """Parse hostname from a chromeos-swarming bot id."""
+  for prefix in ['cros-', 'crossk-']:
+    if bot_id.startswith(prefix):
+      return bot_id[len(prefix):]
+  return bot_id
+
+
+def get_cros_hostname():
+  """Fetch bot_id from env var and parse hostname."""
+
+  # In chromeos-swarming, we can extract hostname from bot ID, since
+  # bot ID is formatted as "{prefix}{hostname}".
+  bot_id = os.environ.get('SWARMING_BOT_ID')
+  if bot_id:
+    return get_cros_hostname_from_bot_id(bot_id)
+
+  logging.warning(
+      'Attempted to read from SWARMING_BOT_ID env var and it was'
+      ' not defined. Will set %s as device instead.', LAB_DUT_HOSTNAME)
+  return LAB_DUT_HOSTNAME
+
+
 def setup_env():
   """Returns a copy of the current env with some needed vars added."""
   env = os.environ.copy()
@@ -752,7 +838,7 @@ def setup_env():
   # certain libraries need to be pushed to the device. It looks for the args via
   # an env var. To trigger the default deploying behavior, give it a dummy set
   # of args.
-  # TODO(crbug.com/823996): Make the GN-dependent deps controllable via cmd
+  # TODO(crbug.com/40567963): Make the GN-dependent deps controllable via cmd
   # line args.
   if not env.get('GN_ARGS'):
     env['GN_ARGS'] = 'enable_nacl = true'
@@ -819,6 +905,11 @@ def add_common_args(*parsers):
         help='Will flash the device to the current SDK version before running '
         'the test.')
     parser.add_argument(
+        '--no-flash',
+        action='store_false',
+        dest='flash',
+        help='Will not flash the device before running the test.')
+    parser.add_argument(
         '--public-image',
         action='store_true',
         help='Will flash a public "full" image to the device.')
@@ -837,7 +928,11 @@ def add_common_args(*parsers):
         type=str,
         help='Hostname (or IP) of device to run the test on. This arg is not '
         'required if --use-vm is set.')
-
+    vm_or_device_group.add_argument(
+        '--fetch-cros-hostname',
+        action='store_true',
+        help='Will extract device hostname from the SWARMING_BOT_ID env var if '
+        'running on ChromeOS Swarming.')
 
 def main():
   parser = argparse.ArgumentParser()
@@ -874,7 +969,8 @@ def main():
   gtest_parser.add_argument(
       '--stop-ui',
       action='store_true',
-      help='Will stop the UI service in the device before running the test.')
+      help='Will stop the UI service in the device before running the test. '
+      'Also start the UI service after all tests are done.')
   gtest_parser.add_argument(
       '--trace-dir',
       type=str,
@@ -888,6 +984,27 @@ def main():
       help='Env var to set on the device for the duration of the test. '
       'Expected format is "--env-var SOME_VAR_NAME some_var_value". Specify '
       'multiple times for more than one var.')
+  gtest_parser.add_argument(
+      '--run-test-sudo-helper',
+      action='store_true',
+      help='When set, will run test_sudo_helper before the test and stop it '
+      'after test finishes.')
+  gtest_parser.add_argument(
+      "--no-clean",
+      action="store_false",
+      dest="clean",
+      default=True,
+      help="Do not clean up the deployed files after running the test. "
+      "Only supported for --remote-cmd tests")
+  gtest_parser.add_argument(
+      '--set-selinux-label',
+      action='append',
+      default=[],
+      help='Set the selinux label for a file before running. The format is:\n'
+      '  --set-selinux-label=<filename>=<label>\n'
+      'So:\n'
+      '  --set-selinux-label=my_test=u:r:cros_foo_label:s0\n'
+      'You can specify it more than one time to set multiple files tags.')
 
   # Tast test args.
   # pylint: disable=line-too-long
@@ -953,7 +1070,7 @@ def main():
 
   logging.basicConfig(level=logging.DEBUG if args.verbose else logging.WARN)
 
-  if not args.use_vm and not args.device:
+  if not args.use_vm and not args.device and not args.fetch_cros_hostname:
     logging.warning(
         'The test runner is now assuming running in the lab environment, if '
         'this is unintentional, please re-invoke the test runner with the '

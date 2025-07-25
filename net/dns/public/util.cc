@@ -6,6 +6,8 @@
 
 #include <stdint.h>
 
+#include <string_view>
+
 #include "base/check.h"
 #include "base/notreached.h"
 #include "base/strings/strcat.h"
@@ -66,7 +68,7 @@ IPEndPoint GetMdnsReceiveEndPoint(AddressFamily address_family) {
       NOTREACHED();
       return IPEndPoint();
   }
-#elif BUILDFLAG(IS_POSIX) || BUILDFLAG(IS_FUCHSIA) || defined(STARBOARD)
+#elif BUILDFLAG(IS_POSIX) || BUILDFLAG(IS_FUCHSIA)
   // With POSIX/Fuchsia, any socket can receive messages for multicast groups
   // joined by any socket on the system. Sockets intending to receive messages
   // for a specific multicast group should bind to that group address.
@@ -83,7 +85,7 @@ std::string GetNameForHttpsQuery(const url::SchemeHostPort& scheme_host_port,
 
   // Normalize ws/wss schemes to http/https. Note that this behavior is not
   // indicated by the draft-ietf-dnsop-svcb-https-08 spec.
-  base::StringPiece normalized_scheme = scheme_host_port.scheme();
+  std::string_view normalized_scheme = scheme_host_port.scheme();
   if (normalized_scheme == url::kWsScheme) {
     normalized_scheme = url::kHttpScheme;
   } else if (normalized_scheme == url::kWssScheme) {

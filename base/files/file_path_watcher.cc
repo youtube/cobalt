@@ -7,6 +7,9 @@
 
 #include "base/files/file_path_watcher.h"
 
+#include <memory>
+#include <utility>
+
 #include "base/check.h"
 #include "base/files/file_path.h"
 #include "build/build_config.h"
@@ -52,11 +55,32 @@ bool FilePathWatcher::WatchWithOptions(const FilePath& path,
   return impl_->WatchWithOptions(path, options, callback);
 }
 
+bool FilePathWatcher::WatchWithChangeInfo(
+    const FilePath& path,
+    const WatchOptions& options,
+    const CallbackWithChangeInfo& callback) {
+  DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
+  DCHECK(path.IsAbsolute());
+  return impl_->WatchWithChangeInfo(path, options, callback);
+}
+
 bool FilePathWatcher::PlatformDelegate::WatchWithOptions(
     const FilePath& path,
     const WatchOptions& options,
     const Callback& callback) {
   return Watch(path, options.type, callback);
+}
+
+bool FilePathWatcher::PlatformDelegate::WatchWithChangeInfo(
+    const FilePath& path,
+    const WatchOptions& options,
+    const CallbackWithChangeInfo& callback) {
+  return Watch(path, options.type, base::BindRepeating(callback, ChangeInfo()));
+}
+
+FilePathWatcher::FilePathWatcher(std::unique_ptr<PlatformDelegate> delegate) {
+  DETACH_FROM_SEQUENCE(sequence_checker_);
+  impl_ = std::move(delegate);
 }
 
 }  // namespace base

@@ -2,6 +2,11 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#ifdef UNSAFE_BUFFERS_BUILD
+// TODO(crbug.com/40284755): Remove this and spanify to fix the errors.
+#pragma allow_unsafe_buffers
+#endif
+
 #include "base/memory/madv_free_discardable_memory_posix.h"
 
 #include <errno.h>
@@ -288,7 +293,7 @@ MadvFreeDiscardableMemoryPosix::CreateMemoryAllocatorDump(
   pmd->AddSuballocation(dump->guid(), allocator_dump_name);
   return dump;
 #else   // BUILDFLAG(ENABLE_BASE_TRACING)
-  NOTREACHED();
+  NOTREACHED_IN_MIGRATION();
   return nullptr;
 #endif  // BUILDFLAG(ENABLE_BASE_TRACING)
 }

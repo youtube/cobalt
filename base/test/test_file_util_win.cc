@@ -4,10 +4,11 @@
 
 #include "base/test/test_file_util.h"
 
+#include <windows.h>
+
 #include <aclapi.h>
 #include <stddef.h>
 #include <wchar.h>
-#include <windows.h>
 
 #include <memory>
 
@@ -191,7 +192,7 @@ FilePermissionRestorer::FilePermissionRestorer(const FilePath& path)
 
 FilePermissionRestorer::~FilePermissionRestorer() {
   if (!RestorePermissionInfo(path_, info_, length_))
-    NOTREACHED();
+    NOTREACHED_IN_MIGRATION();
 }
 
 }  // namespace base

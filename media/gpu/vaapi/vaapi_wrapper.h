@@ -16,9 +16,11 @@
 
 #include <map>
 #include <memory>
+#include <optional>
 #include <set>
 #include <vector>
 
+#include "base/atomic_ref_count.h"
 #include "base/files/file.h"
 #include "base/gtest_prod_util.h"
 #include "base/memory/raw_ptr.h"
@@ -26,6 +28,7 @@
 #include "base/memory/scoped_refptr.h"
 #include "base/synchronization/lock.h"
 #include "base/thread_annotations.h"
+#include "base/types/expected.h"
 #include "build/chromeos_buildflags.h"
 #include "media/gpu/chromeos/fourcc.h"
 #include "media/gpu/media_gpu_export.h"
@@ -33,12 +36,7 @@
 #include "media/gpu/vaapi/vaapi_utils.h"
 #include "media/video/video_decode_accelerator.h"
 #include "media/video/video_encode_accelerator.h"
-#include "third_party/abseil-cpp/absl/types/optional.h"
 #include "ui/gfx/geometry/size.h"
-
-#if BUILDFLAG(USE_VAAPI_X11)
-#include "ui/gfx/x/xproto.h"  // nogncheck
-#endif                        // BUILDFLAG(USE_VAAPI_X11)
 
 namespace gfx {
 enum class BufferFormat : uint8_t;
@@ -56,6 +54,7 @@ constexpr unsigned int kInvalidVaRtFormat = 0u;
 
 class VADisplayStateSingleton;
 class VideoFrame;
+class FrameResource;
 
 // Enum, function and callback type to allow VaapiWrapper to log errors in VA
 // function calls executed on behalf of its owner. |histogram_name| is prebound
@@ -93,6 +92,7 @@ enum class VAImplementation {
   kMesaGallium,
   kIntelI965,
   kIntelIHD,
+  kChromiumFakeDriver,
   kOther,
   kInvalid,
 };
@@ -207,7 +207,9 @@ class MEDIA_GPU_EXPORT VaapiWrapper
   // Return an instance of VaapiWrapper initialized for |va_profile| and
   // |mode|. |report_error_to_uma_cb| will be called independently from
   // reporting errors to clients via method return values.
-  static scoped_refptr<VaapiWrapper> Create(
+  // TODO(mcasas): Add and use a VaapiWrapperStatus instead of reusing here
+  // DecoderStatus.
+  static base::expected<scoped_refptr<VaapiWrapper>, DecoderStatus> Create(
       CodecMode mode,
       VAProfile va_profile,
       EncryptionScheme encryption_scheme,
@@ -218,12 +220,14 @@ class MEDIA_GPU_EXPORT VaapiWrapper
   // |profile| to VAProfile.
   // |report_error_to_uma_cb| will be called independently from reporting
   // errors to clients via method return values.
-  static scoped_refptr<VaapiWrapper> CreateForVideoCodec(
-      CodecMode mode,
-      VideoCodecProfile profile,
-      EncryptionScheme encryption_scheme,
-      const ReportErrorToUMACB& report_error_to_uma_cb,
-      bool enforce_sequence_affinity = true);
+  // TODO(mcasas): Add and use a VaapiWrapperStatus instead of reusing here
+  // DecoderStatus.
+  static base::expected<scoped_refptr<VaapiWrapper>, DecoderStatus>
+  CreateForVideoCodec(CodecMode mode,
+                      VideoCodecProfile profile,
+                      EncryptionScheme encryption_scheme,
+                      const ReportErrorToUMACB& report_error_to_uma_cb,
+                      bool enforce_sequence_affinity = true);
 
   VaapiWrapper(const VaapiWrapper&) = delete;
   VaapiWrapper& operator=(const VaapiWrapper&) = delete;
@@ -333,7 +337,7 @@ class MEDIA_GPU_EXPORT VaapiWrapper
       const gfx::Size& size,
       const std::vector<SurfaceUsageHint>& usage_hints,
       size_t num_surfaces,
-      const absl::optional<gfx::Size>& visible_size);
+      const std::optional<gfx::Size>& visible_size);
 
   // Attempts to create a protected session that will be attached to the
   // decoding context to enable encrypted video decoding. If it cannot be
@@ -379,6 +383,9 @@ class MEDIA_GPU_EXPORT VaapiWrapper
   // exists, it will be attached to the newly created |va_context_id_| as well.
   [[nodiscard]] virtual bool CreateContext(const gfx::Size& size);
 
+  // Returns true iff a VAContextID has been created and hasn't been destroyed.
+  bool HasContext() const;
+
   // Destroys the context identified by |va_context_id_|.
   virtual void DestroyContext();
 
@@ -395,8 +402,20 @@ class MEDIA_GPU_EXPORT VaapiWrapper
       const gfx::Size& size,
       const std::vector<SurfaceUsageHint>& usage_hints,
       size_t num_surfaces,
-      const absl::optional<gfx::Size>& visible_size,
-      const absl::optional<uint32_t>& va_fourcc);
+      const std::optional<gfx::Size>& visible_size,
+      const std::optional<uint32_t>& va_fourcc);
+
+  // Creates a self-releasing VASurface from |frame|. The created VASurface
+  // shares the ownership of the underlying buffer represented by |frame|.
+  // |frame|->StorageType() must either be STORAGE_GPU_MEMORY_BUFFER or
+  // STORAGE_DMABUFS. The ownership of the surface is transferred to the caller.
+  // A caller can destroy |frame| after this method returns and the underlying
+  // buffer will be kept alive by the VASurface. |protected_content| should only
+  // be true if the format needs VA_RT_FORMAT_PROTECTED (currently only true for
+  // AMD).
+  scoped_refptr<VASurface> CreateVASurfaceForFrameResource(
+      const FrameResource& frame,
+      bool protected_content);
 
   // Creates a self-releasing VASurface from |pixmap|. The created VASurface
   // shares the ownership of the underlying buffer represented by |pixmap|. The
@@ -405,7 +424,7 @@ class MEDIA_GPU_EXPORT VaapiWrapper
   // alive by the VASurface. |protected_content| should only be true if the
   // format needs VA_RT_FORMAT_PROTECTED (currently only true for AMD).
   virtual scoped_refptr<VASurface> CreateVASurfaceForPixmap(
-      scoped_refptr<gfx::NativePixmap> pixmap,
+      scoped_refptr<const gfx::NativePixmap> pixmap,
       bool protected_content = false);
 
   // Creates a self-releasing VASurface from |buffers|. The ownership of the
@@ -461,7 +480,7 @@ class MEDIA_GPU_EXPORT VaapiWrapper
   struct VABufferDescriptor {
     VABufferType type;
     size_t size;
-    raw_ptr<const void> data;
+    raw_ptr<const void, DanglingUntriaged> data;
   };
   [[nodiscard]] bool SubmitBuffers(
       const std::vector<VABufferDescriptor>& va_buffers);
@@ -481,21 +500,13 @@ class MEDIA_GPU_EXPORT VaapiWrapper
       VASurfaceID va_surface_id,
       const std::vector<std::pair<VABufferID, VABufferDescriptor>>& va_buffers);
 
-#if BUILDFLAG(USE_VAAPI_X11)
-  // Put data from |va_surface_id| into |x_pixmap| of size
-  // |dest_size|, converting/scaling to it.
-  [[nodiscard]] bool PutSurfaceIntoPixmap(VASurfaceID va_surface_id,
-                                          x11::Pixmap x_pixmap,
-                                          gfx::Size dest_size);
-#endif  // BUILDFLAG(USE_VAAPI_X11)
-
   // Creates a ScopedVAImage from a VASurface |va_surface_id| and map it into
   // memory with the given |format| and |size|. If |format| is not equal to the
   // internal format, the underlying implementation will do format conversion if
   // supported. |size| should be smaller than or equal to the surface. If |size|
   // is smaller, the image will be cropped.
   std::unique_ptr<ScopedVAImage> CreateVaImage(VASurfaceID va_surface_id,
-                                               VAImageFormat* format,
+                                               const VAImageFormat& format,
                                                const gfx::Size& size);
 
   // Uploads contents of |frame| into |va_surface_id| for encode.
@@ -528,7 +539,7 @@ class MEDIA_GPU_EXPORT VaapiWrapper
   // linear size of the resulted encoded frame is larger than |target_size|.
   [[nodiscard]] virtual bool DownloadFromVABuffer(
       VABufferID buffer_id,
-      absl::optional<VASurfaceID> sync_surface_id,
+      std::optional<VASurfaceID> sync_surface_id,
       uint8_t* target_ptr,
       size_t target_size,
       size_t* coded_data_size);
@@ -552,11 +563,12 @@ class MEDIA_GPU_EXPORT VaapiWrapper
       bool& packed_pps,
       bool& packed_slice);
 
-  // Checks if the driver supports frame rotation.
-  bool IsRotationSupported();
+  // Gets the minimum segment block size supported for AV1 encoding.
+  [[nodiscard]] bool GetMinAV1SegmentSize(VideoCodecProfile profile,
+                                          uint32_t& min_seg_size);
 
   // Blits a VASurface |va_surface_src| into another VASurface
-  // |va_surface_dest| applying pixel format conversion, rotation, cropping
+  // |va_surface_dest| applying pixel format conversion, cropping
   // and scaling if needed. |src_rect| and |dest_rect| are optional. They can
   // be used to specify the area used in the blit. If |va_protected_session_id|
   // is provided and is not VA_INVALID_ID, the corresponding protected session
@@ -565,9 +577,8 @@ class MEDIA_GPU_EXPORT VaapiWrapper
   [[nodiscard]] virtual bool BlitSurface(
       const VASurface& va_surface_src,
       const VASurface& va_surface_dest,
-      absl::optional<gfx::Rect> src_rect = absl::nullopt,
-      absl::optional<gfx::Rect> dest_rect = absl::nullopt,
-      VideoRotation rotation = VIDEO_ROTATION_0
+      std::optional<gfx::Rect> src_rect = std::nullopt,
+      std::optional<gfx::Rect> dest_rect = std::nullopt
 #if BUILDFLAG(IS_CHROMEOS_ASH)
       ,
       VAProtectedSessionID va_protected_session_id = VA_INVALID_ID
@@ -594,16 +605,23 @@ class MEDIA_GPU_EXPORT VaapiWrapper
   friend class VaapiVideoEncodeAcceleratorTest;
 
   FRIEND_TEST_ALL_PREFIXES(VaapiTest, LowQualityEncodingSetting);
+  FRIEND_TEST_ALL_PREFIXES(VaapiTest, TooManyDecoderInstances);
   FRIEND_TEST_ALL_PREFIXES(VaapiUtilsTest, ScopedVAImage);
   FRIEND_TEST_ALL_PREFIXES(VaapiUtilsTest, BadScopedVAImage);
   FRIEND_TEST_ALL_PREFIXES(VaapiUtilsTest, BadScopedVABufferMapping);
   FRIEND_TEST_ALL_PREFIXES(VaapiMinigbmTest, AllocateAndCompareWithMinigbm);
 
+  // There's a limit to the number of simultaneous decoder instances a given SoC
+  // can have, e.g. sometimes the process where VaapiWrapper runs can exhaust
+  // the FDs and subsequently crash (b/181264362). We run into stability
+  // problems for various reasons when that limit is reached; this class method
+  // provides that number to prevent that erroneous behaviour during Create().
+  static int GetMaxNumDecoderInstances();
+
   [[nodiscard]] bool Initialize(VAProfile va_profile,
                                 EncryptionScheme encryption_scheme);
   void Deinitialize();
-  [[nodiscard]] bool VaInitialize(
-      const ReportErrorToUMACB& report_error_to_uma_cb);
+  void VaInitialize(const ReportErrorToUMACB& report_error_to_uma_cb);
 
   // Tries to allocate |num_surfaces| VASurfaceIDs of |size| and |va_format|.
   // Fills |va_surfaces| and returns true if successful, or returns false.
@@ -665,6 +683,9 @@ class MEDIA_GPU_EXPORT VaapiWrapper
   // If a protected session is active, attaches it to the decoding context.
   [[nodiscard]] bool MaybeAttachProtectedSession_Locked()
       EXCLUSIVE_LOCKS_REQUIRED(va_lock_);
+
+  // Tracks the number of decoder instances globally in the process.
+  static base::AtomicRefCount num_decoder_instances_;
 
   const CodecMode mode_;
   const bool enforce_sequence_affinity_;

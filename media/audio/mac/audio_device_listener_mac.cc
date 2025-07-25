@@ -4,19 +4,19 @@
 
 #include "media/audio/mac/audio_device_listener_mac.h"
 
+#include <optional>
 #include <vector>
 
+#include "base/apple/osstatus_logging.h"
 #include "base/files/file_path.h"
 #include "base/functional/bind.h"
 #include "base/logging.h"
-#include "base/mac/mac_logging.h"
 #include "base/memory/raw_ptr.h"
 #include "base/memory/weak_ptr.h"
 #include "base/task/single_thread_task_runner.h"
 #include "base/thread_annotations.h"
 #include "media/audio/audio_manager.h"
 #include "media/audio/mac/core_audio_util_mac.h"
-#include "third_party/abseil-cpp/absl/types/optional.h"
 
 namespace media {
 
@@ -391,7 +391,7 @@ bool AudioDeviceListenerMac::IsOutputDevice(AudioObjectID id) {
   return core_audio_mac::IsOutputDevice(id);
 }
 
-absl::optional<uint32_t> AudioDeviceListenerMac::GetDeviceSource(
+std::optional<uint32_t> AudioDeviceListenerMac::GetDeviceSource(
     AudioObjectID device_id,
     bool is_input) {
   return core_audio_mac::GetDeviceSource(device_id, is_input);

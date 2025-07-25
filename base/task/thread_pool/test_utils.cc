@@ -18,6 +18,7 @@
 #include "base/threading/scoped_blocking_call_internal.h"
 #include "base/threading/thread_restrictions.h"
 #include "testing/gtest/include/gtest/gtest.h"
+#include "third_party/abseil-cpp/absl/types/variant.h"
 
 namespace base {
 namespace internal {
@@ -92,7 +93,7 @@ void MockWorkerThreadObserver::AllowCallsOnMainExit(int num_calls) {
 void MockWorkerThreadObserver::WaitCallsOnMainExit() {
   CheckedAutoLock auto_lock(lock_);
   while (allowed_calls_on_main_exit_ != 0)
-    on_main_exit_cv_->Wait();
+    on_main_exit_cv_.Wait();
 }
 
 void MockWorkerThreadObserver::OnWorkerThreadMainExit() {
@@ -100,13 +101,13 @@ void MockWorkerThreadObserver::OnWorkerThreadMainExit() {
   EXPECT_GE(allowed_calls_on_main_exit_, 0);
   --allowed_calls_on_main_exit_;
   if (allowed_calls_on_main_exit_ == 0)
-    on_main_exit_cv_->Signal();
+    on_main_exit_cv_.Signal();
 }
 
 scoped_refptr<Sequence> CreateSequenceWithTask(
     Task task,
     const TaskTraits& traits,
-    scoped_refptr<TaskRunner> task_runner,
+    scoped_refptr<SequencedTaskRunner> task_runner,
     TaskSourceExecutionMode execution_mode) {
   scoped_refptr<Sequence> sequence =
       MakeRefCounted<Sequence>(traits, task_runner.get(), execution_mode);
@@ -186,12 +187,12 @@ bool MockPooledTaskRunnerDelegate::PostTaskWithSequence(
         std::move(task),
         BindOnce(
             [](scoped_refptr<Sequence> sequence,
-               MockPooledTaskRunnerDelegate* self, Task task) {
+               MockPooledTaskRunnerDelegate* self,
+               scoped_refptr<TaskRunner> task_runner, Task task) {
               self->PostTaskWithSequenceNow(std::move(task),
                                             std::move(sequence));
             },
-            std::move(sequence), Unretained(this)),
-        std::move(task_runner));
+            std::move(sequence), Unretained(this), std::move(task_runner)));
   }
 
   return true;
@@ -265,24 +266,12 @@ MockJobTask::~MockJobTask() = default;
 MockJobTask::MockJobTask(
     base::RepeatingCallback<void(JobDelegate*)> worker_task,
     size_t num_tasks_to_run)
-/* Cobalt
-    : worker_task_(std::move(worker_task)),
-      remaining_num_tasks_to_run_(num_tasks_to_run) {}
-Cobalt */
     : task_(std::move(worker_task)),
       remaining_num_tasks_to_run_(num_tasks_to_run) {
   CHECK(!absl::get<decltype(worker_task)>(task_).is_null());
 }
 
 MockJobTask::MockJobTask(base::OnceClosure worker_task)
-/* Cobalt
-    : worker_task_(base::BindRepeating(
-          [](base::OnceClosure&& worker_task, JobDelegate*) mutable {
-            std::move(worker_task).Run();
-          },
-          base::Passed(std::move(worker_task)))),
-      remaining_num_tasks_to_run_(1) {}
-Cobalt */
     : task_(std::move(worker_task)), remaining_num_tasks_to_run_(1) {
   CHECK(!absl::get<decltype(worker_task)>(task_).is_null());
 }
@@ -310,11 +299,6 @@ size_t MockJobTask::GetMaxConcurrency(size_t /* worker_count */) const {
 }
 
 void MockJobTask::Run(JobDelegate* delegate) {
-/* Cobalt
-  worker_task_.Run(delegate);
-  size_t before = remaining_num_tasks_to_run_.fetch_sub(1);
-  DCHECK_GT(before, 0U);
-Cobalt */
   absl::visit(
       base::Overloaded{
           [](OnceClosure& closure) { std::move(closure).Run(); },

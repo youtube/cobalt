@@ -7,20 +7,15 @@
 
 #include <stdint.h>
 
+#include <optional>
 #include <ostream>
 #include <string>
-
-#if defined(STARBOARD)
-#include "starboard/common/socket.h"
-#include "starboard/types.h"
-#endif
 
 #include "base/values.h"
 #include "build/build_config.h"
 #include "net/base/address_family.h"
 #include "net/base/ip_address.h"
 #include "net/base/net_export.h"
-#include "third_party/abseil-cpp/absl/types/optional.h"
 
 // Replicate these from Windows headers to avoid pulling net/sys_addrinfo.h.
 // Doing that transitively brings in windows.h. Including windows.h pollutes the
@@ -30,7 +25,7 @@
 // Similarly, just pull in the minimal header necessary on non-Windows platforms
 // to help with build performance.
 struct sockaddr;
-#if BUILDFLAG(IS_WIN) || defined(COBALT_PENDING_CLEAN_UP) && defined(COMPILER_MSVC)
+#if BUILDFLAG(IS_WIN)
 typedef int socklen_t;
 #else
 #include <sys/socket.h>
@@ -44,7 +39,7 @@ namespace net {
 class NET_EXPORT IPEndPoint {
  public:
   // Nullopt if `value` is malformed to be serialized to IPEndPoint.
-  static absl::optional<IPEndPoint> FromValue(const base::Value& value);
+  static std::optional<IPEndPoint> FromValue(const base::Value& value);
 
   IPEndPoint();
   ~IPEndPoint();
@@ -61,14 +56,6 @@ class NET_EXPORT IPEndPoint {
   // Returns AddressFamily of the address. Returns ADDRESS_FAMILY_UNSPECIFIED if
   // this is the IPEndPoint for a Bluetooth socket.
   AddressFamily GetFamily() const;
-
-#if defined(STARBOARD)
-  static IPEndPoint GetForAllInterfaces(int port);
-
-  bool ToSbSocketAddress(SbSocketAddress* out_address) const;
-
-  bool FromSbSocketAddress(const SbSocketAddress* address);
-#endif
 
   // Returns the sockaddr family of the address, AF_INET or AF_INET6. Returns
   // AF_BTH if this is the IPEndPoint for a Bluetooth socket.
@@ -91,8 +78,6 @@ class NET_EXPORT IPEndPoint {
   // Returns true on success, false on failure.
   [[nodiscard]] bool FromSockAddr(const struct sockaddr* address,
                                   socklen_t address_length);
-
-// #endif
 
   // Returns value as a string (e.g. "127.0.0.1:80"). Returns the empty string
   // when |address_| is invalid (the port will be ignored). This function will

@@ -5,6 +5,7 @@
 #ifndef MEDIA_FILTERS_DEMUXER_MANAGER_H_
 #define MEDIA_FILTERS_DEMUXER_MANAGER_H_
 
+#include <optional>
 #include <vector>
 
 #include "base/functional/callback.h"
@@ -20,13 +21,12 @@
 #include "media/base/pipeline.h"
 #include "media/base/pipeline_status.h"
 #include "media/filters/chunk_demuxer.h"
-#include "third_party/abseil-cpp/absl/types/optional.h"
-#include "url/gurl.h"
 #include "url/origin.h"
 
 #if BUILDFLAG(ENABLE_HLS_DEMUXER)
 #include "base/threading/sequence_bound.h"
 #include "media/filters/hls_data_source_provider.h"
+#include "url/gurl.h"
 #endif  // BUILDFLAG(ENABLE_HLS_DEMUXER)
 
 namespace media {
@@ -103,6 +103,9 @@ class MEDIA_EXPORT DemuxerManager {
     // Allows us to set a loaded url on the client, which might happen when we
     // handle a redirect as part of a restart for switching to HLS.
     virtual void UpdateLoadedUrl(const GURL& url) = 0;
+
+    // Allows a seek triggered by a demuxer (mainly used for live content)
+    virtual void DemuxerRequestsSeek(base::TimeDelta seek_time) = 0;
   };
 
   // Demuxer, StartType, IsStreaming, IsStatic
@@ -125,6 +128,7 @@ class MEDIA_EXPORT DemuxerManager {
 
   void OnPipelineError(PipelineStatus error);
   void SetLoadedUrl(GURL url);
+  const GURL& LoadedUrl() const;
 #if BUILDFLAG(ENABLE_HLS_DEMUXER) || BUILDFLAG(IS_ANDROID)
   void PopulateHlsHistograms(bool cryptographic_url);
   PipelineStatus SelectHlsFallbackMechanism(bool cryptographic_url);
@@ -132,29 +136,32 @@ class MEDIA_EXPORT DemuxerManager {
   void DisallowFallback();
 
   // Methods that help manage demuxers
-  absl::optional<double> GetDemuxerDuration();
-  absl::optional<DemuxerType> GetDemuxerType();
-  absl::optional<container_names::MediaContainerName> GetContainerForMetrics();
+  std::optional<double> GetDemuxerDuration();
+  std::optional<DemuxerType> GetDemuxerType() const;
+  std::optional<container_names::MediaContainerName> GetContainerForMetrics();
   void RespondToDemuxerMemoryUsageReport(base::OnceCallback<void(int64_t)> cb);
+  void DisableDemuxerCanChangeType();
 
   // Returns a forwarded error/success from |on_demuxer_created|, or an error
   // if a demuxer couldn't be created.
-  PipelineStatus CreateDemuxer(bool load_media_source,
-                               DataSource::Preload preload,
-                               bool has_poster,
-                               DemuxerCreatedCB on_demuxer_created);
+  PipelineStatus CreateDemuxer(
+      bool load_media_source,
+      DataSource::Preload preload,
+      bool needs_first_frame,
+      DemuxerCreatedCB on_demuxer_created,
+      base::flat_map<std::string, std::string> headers);
 
 #if BUILDFLAG(IS_ANDROID)
   void SetAllowMediaPlayerRendererCredentials(bool allow);
 #endif  // BUILDFLAG(IS_ANDROID)
 
   // Methods that help manage or access |data_source_|
-  const DataSource* GetDataSourceForTesting() const;
+  DataSource* GetDataSourceForTesting() const;
   void SetDataSource(std::unique_ptr<DataSource> data_source);
   void OnBufferingHaveEnough(bool enough);
   void SetPreload(DataSource::Preload preload);
 
-  void StopAndResetClient(Client* client);
+  void StopAndResetClient();
   int64_t GetDataSourceMemoryUsage();
   void OnDataSourcePlaybackRateChange(double rate, bool paused);
 
@@ -162,10 +169,11 @@ class MEDIA_EXPORT DemuxerManager {
   bool HasDataSource() const;
   bool HasDemuxer() const;
   bool HasDemuxerOverride() const;
-  absl::optional<GURL> GetDataSourceUrlAfterRedirects() const;
+  std::optional<GURL> GetDataSourceUrlAfterRedirects() const;
   bool DataSourceFullyBuffered() const;
   bool IsStreaming() const;
   bool PassedDataSourceTimingAllowOriginCheck() const;
+  bool IsLiveContent() const;
 
  private:
   // Demuxer creation and helper methods
@@ -176,11 +184,14 @@ class MEDIA_EXPORT DemuxerManager {
 #endif  // BUILDFLAG(ENABLE_FFMPEG)
 
 #if BUILDFLAG(ENABLE_HLS_DEMUXER)
-  std::unique_ptr<Demuxer> CreateHlsDemuxer();
+  std::tuple<raw_ptr<DataSourceInfo>, std::unique_ptr<Demuxer>>
+  CreateHlsDemuxer();
 #endif
 
 #if BUILDFLAG(IS_ANDROID)
-  std::unique_ptr<media::Demuxer> CreateMediaUrlDemuxer(bool hls_content);
+  std::unique_ptr<media::Demuxer> CreateMediaUrlDemuxer(
+      bool hls_content, 
+      base::flat_map<std::string, std::string> headers);
 #endif  // BUILDFLAG(IS_ANDROID)
 
   void SetDemuxer(std::unique_ptr<Demuxer> demuxer);
@@ -200,6 +211,8 @@ class MEDIA_EXPORT DemuxerManager {
 #if BUILDFLAG(ENABLE_FFMPEG)
   void OnFFmpegMediaTracksUpdated(std::unique_ptr<MediaTracks> tracks);
 #endif  // BUILDFLAG(ENABLE_FFMPEG)
+
+  void DemuxerRequestsSeek(base::TimeDelta time);
 
   // This is usually just the WebMediaPlayerImpl.
   raw_ptr<Client, DanglingUntriaged> client_;
@@ -224,6 +237,7 @@ class MEDIA_EXPORT DemuxerManager {
   // Used for MediaUrlDemuxer when playing HLS content, as well as
   // FFmpegDemuxer in most cases. Also used for creating MemoryDataSource
   // objects.
+  // Note: this may be very large, take care when making copies.
   GURL loaded_url_;
 
   // The data source for creating a demuxer. This should be null when using
@@ -232,6 +246,13 @@ class MEDIA_EXPORT DemuxerManager {
 
   // Holds whichever demuxer implementation is being used.
   std::unique_ptr<Demuxer> demuxer_;
+
+  // Refers to the owned object that can query information about a data source.
+  // For most playbacks, this is a raw ptr to `data_source_`, and so it is safe,
+  // since this class also owns that object. For HLS playback, this object is
+  // the HlsManifestDemuxerEngine, owned by `demuxer_`, so again, it is safe to
+  // keep a raw ptr here.
+  raw_ptr<DataSourceInfo> data_source_info_ = nullptr;
 
   // Holds an optional demuxer that can be passed in at time of creation,
   // which becomes the default demuxer to use.

@@ -1,2 +1,0 @@
-option('graphite', type : 'boolean', value : true, description : 'Sanitize Graphite tables')
-option('fuzzer_ldflags', type: 'string', description : 'Extra LDFLAGS used during linking of fuzzing binaries')

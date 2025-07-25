@@ -1,12 +1,11 @@
-// Copyright 2017 The Chromium Authors. All rights reserved.
+// Copyright 2017 The Chromium Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
 #ifndef COMPONENTS_METRICS_METRICS_SCHEDULER_H_
 #define COMPONENTS_METRICS_METRICS_SCHEDULER_H_
 
-#include "base/callback.h"
-#include "base/macros.h"
+#include "base/functional/callback.h"
 #include "base/time/time.h"
 #include "base/timer/timer.h"
 
@@ -17,7 +16,12 @@ class MetricsScheduler {
  public:
   // Creates MetricsScheduler object with the given |task_callback|
   // callback to call when a task should happen.
-  explicit MetricsScheduler(const base::Closure& task_callback);
+  MetricsScheduler(const base::RepeatingClosure& task_callback,
+                   bool fast_startup_for_testing);
+
+  MetricsScheduler(const MetricsScheduler&) = delete;
+  MetricsScheduler& operator=(const MetricsScheduler&) = delete;
+
   virtual ~MetricsScheduler();
 
   // Starts scheduling uploads. This in a no-op if the scheduler is already
@@ -26,6 +30,9 @@ class MetricsScheduler {
 
   // Stops scheduling uploads.
   void Stop();
+
+  // Returns the initial delay before the task is run for the first time.
+  static int GetInitialIntervalSeconds();
 
  protected:
   // Subclasses should provide task_callback with a wrapper to call this with.
@@ -41,7 +48,7 @@ class MetricsScheduler {
   void ScheduleNextTask();
 
   // The method to call when task should happen.
-  const base::Closure task_callback_;
+  const base::RepeatingClosure task_callback_;
 
   // Uses a one-shot timer rather than a repeating one because the task may be
   // async, and the length of the interval may change.
@@ -56,8 +63,6 @@ class MetricsScheduler {
 
   // Indicates that the last triggered task hasn't resolved yet.
   bool callback_pending_;
-
-  DISALLOW_COPY_AND_ASSIGN(MetricsScheduler);
 };
 
 }  // namespace metrics

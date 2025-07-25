@@ -1,0 +1,5 @@
+*.class
+*.dex
+*.jar
+*.txt
+*.mapping

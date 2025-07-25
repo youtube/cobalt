@@ -7,6 +7,7 @@
 #include <strings.h>
 
 #include <memory>
+#include <optional>
 #include <utility>
 #include <vector>
 
@@ -17,7 +18,6 @@
 #include "net/base/net_errors.h"
 #include "net/ssl/ssl_platform_key_util.h"
 #include "net/ssl/threaded_ssl_private_key.h"
-#include "third_party/abseil-cpp/absl/types/optional.h"
 #include "third_party/boringssl/src/include/openssl/ecdsa.h"
 #include "third_party/boringssl/src/include/openssl/evp.h"
 #include "third_party/boringssl/src/include/openssl/mem.h"
@@ -73,7 +73,7 @@ class SSLPlatformKeyAndroid : public ThreadedSSLPrivateKey::Delegate {
         provider_name_(android::GetPrivateKeyClassName(key)) {
     key_.Reset(key);
 
-    absl::optional<bool> supports_rsa_no_padding;
+    std::optional<bool> supports_rsa_no_padding;
     for (uint16_t algorithm : SSLPrivateKey::DefaultAlgorithmPreferences(
              EVP_PKEY_id(pubkey_.get()), true /* include PSS */)) {
       const char* java_algorithm = GetJavaAlgorithm(algorithm);
@@ -136,7 +136,7 @@ class SSLPlatformKeyAndroid : public ThreadedSSLPrivateKey::Delegate {
       return ERR_SSL_CLIENT_AUTH_SIGNATURE_FAILED;
     }
 
-    absl::optional<std::vector<uint8_t>> padded =
+    std::optional<std::vector<uint8_t>> padded =
         AddPSSPadding(pubkey_.get(), md, base::make_span(digest, digest_len));
     if (!padded) {
       return ERR_SSL_CLIENT_AUTH_SIGNATURE_FAILED;
@@ -168,6 +168,31 @@ scoped_refptr<SSLPrivateKey> WrapJavaPrivateKey(
   return base::MakeRefCounted<ThreadedSSLPrivateKey>(
       std::make_unique<SSLPlatformKeyAndroid>(std::move(pubkey), key),
       GetSSLPlatformKeyTaskRunner());
+}
+
+std::vector<std::string> SignatureAlgorithmsToJavaKeyTypes(
+    base::span<const uint16_t> algorithms) {
+  std::vector<std::string> key_types;
+  bool has_rsa = false, has_ec = false;
+  for (uint16_t alg : algorithms) {
+    switch (SSL_get_signature_algorithm_key_type(alg)) {
+      case EVP_PKEY_RSA:
+        if (!has_rsa) {
+          // https://developer.android.com/reference/android/security/keystore/KeyProperties#KEY_ALGORITHM_RSA
+          key_types.push_back("RSA");
+          has_rsa = true;
+        }
+        break;
+      case EVP_PKEY_EC:
+        if (!has_ec) {
+          // https://developer.android.com/reference/android/security/keystore/KeyProperties#KEY_ALGORITHM_EC
+          key_types.push_back("EC");
+          has_ec = true;
+        }
+        break;
+    }
+  }
+  return key_types;
 }
 
 }  // namespace net

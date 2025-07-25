@@ -1,0 +1,4 @@
+file://chrome/browser/ash/guest_os/OWNERS
+
+per-file org.chromium.*.conf=set noparent
+per-file org.chromium.*.conf=file://chromeos/SECURITY_OWNERS

@@ -1,4 +1,4 @@
-// Copyright (c) 2012 The Chromium Authors. All rights reserved.
+// Copyright 2012 The Chromium Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -8,6 +8,7 @@
 
 #include "base/files/file_path.h"
 #include "base/strings/string_number_conversions.h"
+#include "base/strings/string_util.h"
 #include "base/values.h"
 
 PrefRegistrySimple::PrefRegistrySimple() = default;
@@ -41,7 +42,7 @@ void PrefRegistrySimple::RegisterFilePathPref(
     const std::string& path,
     const base::FilePath& default_value,
     uint32_t flags) {
-  RegisterPreference(path, base::Value(default_value.value()), flags);
+  RegisterPreference(path, base::Value(default_value.AsUTF8Unsafe()), flags);
 }
 
 void PrefRegistrySimple::RegisterListPref(const std::string& path,
@@ -50,9 +51,9 @@ void PrefRegistrySimple::RegisterListPref(const std::string& path,
 }
 
 void PrefRegistrySimple::RegisterListPref(const std::string& path,
-                                          base::Value default_value,
+                                          base::Value::List default_value,
                                           uint32_t flags) {
-  RegisterPreference(path, std::move(default_value), flags);
+  RegisterPreference(path, base::Value(std::move(default_value)), flags);
 }
 
 void PrefRegistrySimple::RegisterDictionaryPref(const std::string& path,
@@ -61,9 +62,9 @@ void PrefRegistrySimple::RegisterDictionaryPref(const std::string& path,
 }
 
 void PrefRegistrySimple::RegisterDictionaryPref(const std::string& path,
-                                                base::Value default_value,
+                                                base::Value::Dict default_value,
                                                 uint32_t flags) {
-  RegisterPreference(path, std::move(default_value), flags);
+  RegisterPreference(path, base::Value(std::move(default_value)), flags);
 }
 
 void PrefRegistrySimple::RegisterInt64Pref(const std::string& path,

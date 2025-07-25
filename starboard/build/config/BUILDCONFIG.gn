@@ -389,7 +389,7 @@ template("evergreen_loader") {
     ]
 
     if (!sb_is_evergreen_compatible) {
-      deps += [ "//third_party/crashpad/crashpad/wrapper:wrapper_stub" ]
+      deps += [ "//starboard/crashpad_wrapper:wrapper_stub" ]
     }
   }
   if (separate_install_targets_for_bundling) {

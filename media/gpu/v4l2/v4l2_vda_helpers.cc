@@ -22,7 +22,7 @@
 namespace media {
 namespace v4l2_vda_helpers {
 
-absl::optional<Fourcc> FindImageProcessorInputFormat(V4L2Device* vda_device) {
+std::optional<Fourcc> FindImageProcessorInputFormat(V4L2Device* vda_device) {
   std::vector<uint32_t> processor_input_formats =
       V4L2ImageProcessorBackend::GetSupportedInputFormats();
 
@@ -36,10 +36,10 @@ absl::optional<Fourcc> FindImageProcessorInputFormat(V4L2Device* vda_device) {
     }
     ++fmtdesc.index;
   }
-  return absl::nullopt;
+  return std::nullopt;
 }
 
-absl::optional<Fourcc> FindImageProcessorOutputFormat(V4L2Device* ip_device) {
+std::optional<Fourcc> FindImageProcessorOutputFormat(V4L2Device* ip_device) {
   // Prefer YVU420 and NV12 because ArcGpuVideoDecodeAccelerator only supports
   // single physical plane.
   static constexpr uint32_t kPreferredFormats[] = {V4L2_PIX_FMT_NV12,
@@ -65,7 +65,7 @@ absl::optional<Fourcc> FindImageProcessorOutputFormat(V4L2Device* ip_device) {
     }
   }
 
-  return absl::nullopt;
+  return std::nullopt;
 }
 
 std::unique_ptr<ImageProcessor> CreateImageProcessor(
@@ -89,10 +89,10 @@ std::unique_ptr<ImageProcessor> CreateImageProcessor(
       base::BindRepeating(&V4L2ImageProcessorBackend::Create,
                           image_processor_device, nb_buffers),
       ImageProcessor::PortConfig(vda_output_format, vda_output_coded_size, {},
-                                 visible_rect, {VideoFrame::STORAGE_DMABUFS}),
+                                 visible_rect, VideoFrame::STORAGE_DMABUFS),
       ImageProcessor::PortConfig(ip_output_format, ip_output_coded_size, {},
-                                 visible_rect, {output_storage_type}),
-      image_processor_output_mode, VIDEO_ROTATION_0, std::move(error_cb),
+                                 visible_rect, output_storage_type),
+      image_processor_output_mode, std::move(error_cb),
       std::move(client_task_runner));
   if (!image_processor)
     return nullptr;
@@ -268,8 +268,7 @@ bool H264InputBufferFragmentSplitter::AdvanceFrameFragment(const uint8_t* data,
     }
     *endpos = (nalu.data + nalu.size) - data;
   }
-  NOTREACHED();
-  return false;
+  NOTREACHED_NORETURN();
 }
 
 void H264InputBufferFragmentSplitter::Reset() {
@@ -403,8 +402,7 @@ bool HEVCInputBufferFragmentSplitter::AdvanceFrameFragment(const uint8_t* data,
     }
     *endpos = (nalu.data + nalu.size) - data;
   }
-  NOTREACHED();
-  return false;
+  NOTREACHED_NORETURN();
 }
 
 void HEVCInputBufferFragmentSplitter::Reset() {

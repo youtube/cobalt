@@ -11,7 +11,6 @@
 #include "base/i18n/icu_util.h"
 #include "base/memory/scoped_refptr.h"
 #include "base/strings/string_piece.h"
-#include "base/strings/string_piece_forward.h"
 #include "media/formats/hls/media_playlist.h"
 #include "media/formats/hls/multivariant_playlist.h"
 #include "media/formats/hls/playlist.h"
@@ -26,10 +25,10 @@ struct IcuEnvironment {
 
 IcuEnvironment* env = new IcuEnvironment();
 
-// Attempts to determine playlist version from the given source (excercising
+// Attempts to determine playlist version from the given source (exercising
 // `Playlist::IdentifyPlaylist`). Since we don't necessarily want to exit early
 // on a failure here, return `kDefaultVersion` on error.
-media::hls::types::DecimalInteger GetPlaylistVersion(base::StringPiece source) {
+media::hls::types::DecimalInteger GetPlaylistVersion(std::string_view source) {
   auto ident_result = media::hls::Playlist::IdentifyPlaylist(source);
   if (!ident_result.has_value()) {
     return media::hls::Playlist::kDefaultVersion;

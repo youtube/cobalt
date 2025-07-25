@@ -47,6 +47,7 @@ void MockVideoCaptureClient::OnIncomingCapturedData(
     bool flip_y,
     base::TimeTicks reference_time,
     base::TimeDelta timestamp,
+    std::optional<base::TimeTicks> capture_begin_time,
     int frame_feedback_id) {
   ASSERT_GT(length, 0);
   ASSERT_TRUE(data);
@@ -60,6 +61,7 @@ void MockVideoCaptureClient::OnIncomingCapturedGfxBuffer(
     int clockwise_rotation,
     base::TimeTicks reference_time,
     base::TimeDelta timestamp,
+    std::optional<base::TimeTicks> capture_begin_time,
     int frame_feedback_id) {
   ASSERT_TRUE(buffer);
   ASSERT_GT(buffer->GetSize().width() * buffer->GetSize().height(), 0);
@@ -69,10 +71,10 @@ void MockVideoCaptureClient::OnIncomingCapturedGfxBuffer(
 
 void MockVideoCaptureClient::OnIncomingCapturedExternalBuffer(
     CapturedExternalVideoBuffer buffer,
-    std::vector<CapturedExternalVideoBuffer> scaled_buffers,
     base::TimeTicks reference_time,
     base::TimeDelta timestamp,
-    gfx::Rect visible_rect) {
+    std::optional<base::TimeTicks> capture_begin_time,
+    const gfx::Rect& visible_rect) {
   if (frame_cb_)
     std::move(frame_cb_).Run();
 }
@@ -83,7 +85,9 @@ MockVideoCaptureClient::ReserveOutputBuffer(
     const gfx::Size& dimensions,
     VideoPixelFormat format,
     int frame_feedback_id,
-    VideoCaptureDevice::Client::Buffer* buffer) {
+    VideoCaptureDevice::Client::Buffer* buffer,
+    int* require_new_buffer_id,
+    int* retire_old_buffer_id) {
   DoReserveOutputBuffer();
   NOTREACHED() << "This should never be called";
   return ReserveResult::kSucceeded;
@@ -93,7 +97,8 @@ void MockVideoCaptureClient::OnIncomingCapturedBuffer(
     Buffer buffer,
     const VideoCaptureFormat& format,
     base::TimeTicks reference_time,
-    base::TimeDelta timestamp) {
+    base::TimeDelta timestamp,
+    std::optional<base::TimeTicks> capture_begin_time) {
   DoOnIncomingCapturedBuffer();
 }
 
@@ -103,6 +108,7 @@ void MockVideoCaptureClient::OnIncomingCapturedBufferExt(
     const gfx::ColorSpace& color_space,
     base::TimeTicks reference_time,
     base::TimeDelta timestamp,
+    std::optional<base::TimeTicks> capture_begin_time,
     gfx::Rect visible_rect,
     const VideoFrameMetadata& additional_metadata) {
   DoOnIncomingCapturedVideoFrame();

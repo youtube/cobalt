@@ -2,10 +2,19 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#ifdef UNSAFE_BUFFERS_BUILD
+// TODO(crbug.com/40284755): Remove this and spanify to fix the errors.
+#pragma allow_unsafe_buffers
+#endif
+
 #include "base/i18n/icu_mergeable_data_file.h"
 
 #include <sys/mman.h>
 
+#include "base/check.h"
+#include "base/check_op.h"
+#include "base/debug/alias.h"
+#include "base/debug/dump_without_crashing.h"
 #include "base/hash/hash.h"
 #include "base/numerics/safe_conversions.h"
 #include "base/strings/string_number_conversions.h"
@@ -39,7 +48,7 @@ inline IcuMergeableDataFile::HashType HashPage(const uint8_t* page) {
 }
 
 IcuMergeableDataFile::HashType ReadHash(const uint8_t* data, size_t offset) {
-  DCHECK_EQ(0ul, offset % kHashBytes);
+  CHECK_EQ(0ul, offset % kHashBytes);
   IcuMergeableDataFile::HashType hash = 0;
   for (size_t i = 0; i < kHashBytes; i++) {
     IcuMergeableDataFile::HashType byte = data[offset + i];
@@ -109,8 +118,9 @@ IcuMergeableDataFile::Hashes::~Hashes() = default;
 
 bool IcuMergeableDataFile::Initialize(File lacros_file,
                                       MemoryMappedFile::Region region) {
-  DCHECK(region == MemoryMappedFile::Region::kWholeFile);
-  DCHECK(!lacros_file_.IsValid()) << "ICUDataFile::Initialize called twice";
+  CHECK(region == MemoryMappedFile::Region::kWholeFile);
+  CHECK(!lacros_file_.IsValid())
+      << "ICUDataFile::Initialize called twice";
 
   lacros_file_ = std::move(lacros_file);
   int64_t lacros_length = lacros_file_.GetLength();
@@ -148,7 +158,7 @@ const uint8_t* IcuMergeableDataFile::data() const {
 
 bool IcuMergeableDataFile::MergeWithAshVersion(const FilePath& ash_file_path) {
   // Verify the assumption that page size is 4K.
-  DCHECK_EQ(sysconf(_SC_PAGESIZE), kPageSize);
+  CHECK_EQ(sysconf(_SC_PAGESIZE), kPageSize);
 
   // Mmap Ash's data file.
   auto ash_file = MmapAshFile(ash_file_path);
@@ -185,7 +195,7 @@ bool IcuMergeableDataFile::MmapLacrosFile(bool remap) {
   if (remap) {
     // If `remap` == true, we add the MAP_FIXED option to unmap the
     // existing map and replace it with the new one in a single operation.
-    DCHECK_NE(lacros_data_, nullptr);
+    CHECK_NE(lacros_data_, nullptr);
     lacros_data_ = static_cast<uint8_t*>(
         mmap(lacros_data_, lacros_length_, PROT_READ, MAP_FIXED | MAP_PRIVATE,
              lacros_file_.GetPlatformFile(), 0));
@@ -251,6 +261,10 @@ size_t IcuMergeableDataFile::CountEqualPages(
     const AshMemoryMappedFile& ash_file,
     const uint8_t* ash_page,
     const uint8_t* lacros_page) const {
+  if (!ash_page || !lacros_page) {
+    return 0;
+  }
+
   size_t pages = 0;
   const uint8_t* ash_end = ash_file.data() + ash_file.length();
   const uint8_t* lacros_end = lacros_data_ + lacros_length_;
@@ -362,8 +376,8 @@ FilePath IcuMergeableDataFile::GetLacrosFilePath() {
   // We read the content of the symbolic link to find the path of the
   // file associated with the file descriptor.
   int64_t path_len = readlink(proc_path.value().c_str(), path, sizeof(path));
-  DCHECK_NE(path_len, -1);
-  DCHECK_LT(path_len, PATH_MAX);
+  CHECK_NE(path_len, -1);
+  CHECK_LT(path_len, PATH_MAX);
 
   return FilePath(std::string(path, 0, path_len));
 }

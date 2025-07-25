@@ -5,7 +5,7 @@
 #include "base/native_library.h"
 
 #include "base/check.h"
-#include "base/notreached.h"
+#include "base/notimplemented.h"
 #include "base/strings/string_piece.h"
 #include "base/strings/string_util.h"
 
@@ -30,7 +30,7 @@ void UnloadNativeLibrary(NativeLibrary library) {
 }
 
 void* GetFunctionPointerFromNativeLibrary(NativeLibrary library,
-                                          StringPiece name) {
+                                          const char* name) {
   NOTIMPLEMENTED();
   return nullptr;
 }

@@ -5,10 +5,13 @@
 #include "media/cdm/cdm_adapter.h"
 
 #include <stddef.h>
+
 #include <iomanip>
 #include <memory>
 #include <utility>
 
+#include "base/compiler_specific.h"
+#include "base/containers/span.h"
 #include "base/functional/bind.h"
 #include "base/functional/callback_helpers.h"
 #include "base/logging.h"
@@ -96,8 +99,7 @@ std::string CdmStatusToString(cdm::Status status) {
       return "kDeferredInitialization";
   }
 
-  NOTREACHED();
-  return "Invalid Status!";
+  NOTREACHED_NORETURN();
 }
 
 inline std::ostream& operator<<(std::ostream& out, cdm::Status status) {
@@ -135,11 +137,9 @@ void* GetCdmHost(int host_interface_version, void* user_data) {
       return static_cast<cdm::Host_10*>(cdm_adapter);
     case cdm::Host_11::kVersion:
       return static_cast<cdm::Host_11*>(cdm_adapter);
-    default:
-      NOTREACHED() << "Unexpected host interface version "
-                   << host_interface_version;
-      return nullptr;
   }
+  NOTREACHED_NORETURN() << "Unexpected host interface version "
+                        << host_interface_version;
 }
 
 void ReportSystemCodeUMA(const std::string& key_system, uint32_t system_code) {
@@ -419,9 +419,9 @@ Decryptor* CdmAdapter::GetDecryptor() {
   return this;
 }
 
-absl::optional<base::UnguessableToken> CdmAdapter::GetCdmId() const {
+std::optional<base::UnguessableToken> CdmAdapter::GetCdmId() const {
   DCHECK(task_runner_->BelongsToCurrentThread());
-  return absl::nullopt;
+  return std::nullopt;
 }
 
 void CdmAdapter::Decrypt(StreamType stream_type,
@@ -449,9 +449,10 @@ void CdmAdapter::Decrypt(StreamType stream_type,
     return;
   }
 
-  scoped_refptr<DecoderBuffer> decrypted_buffer(
-      DecoderBuffer::CopyFrom(decrypted_block->DecryptedBuffer()->Data(),
-                              decrypted_block->DecryptedBuffer()->Size()));
+  scoped_refptr<DecoderBuffer> decrypted_buffer(DecoderBuffer::CopyFrom(
+      // SAFETY: `Data()` must return a buffer of `Size()` bytes.
+      UNSAFE_BUFFERS(base::span(decrypted_block->DecryptedBuffer()->Data(),
+                                decrypted_block->DecryptedBuffer()->Size()))));
   decrypted_buffer->set_timestamp(
       base::Microseconds(decrypted_block->Timestamp()));
   std::move(decrypt_cb).Run(Decryptor::kSuccess, std::move(decrypted_buffer));
@@ -684,7 +685,7 @@ void CdmAdapter::TimerExpired(void* context) {
 
 cdm::Time CdmAdapter::GetCurrentWallTime() {
   DCHECK(task_runner_->BelongsToCurrentThread());
-  return base::Time::Now().ToDoubleT();
+  return base::Time::Now().InSecondsFSinceUnixEpoch();
 }
 
 void CdmAdapter::OnInitialized(bool success) {
@@ -809,7 +810,8 @@ void CdmAdapter::OnExpirationChange(const char* session_id,
            << ", new_expiry_time = " << new_expiry_time;
   DCHECK(task_runner_->BelongsToCurrentThread());
 
-  base::Time expiration = base::Time::FromDoubleT(new_expiry_time);
+  base::Time expiration =
+      base::Time::FromSecondsSinceUnixEpoch(new_expiry_time);
   TRACE_EVENT2("media", "CdmAdapter::OnExpirationChange", "session_id",
                session_id_str, "new_expiry_time", expiration);
   session_expiration_update_cb_.Run(session_id_str, expiration);
@@ -990,7 +992,7 @@ void CdmAdapter::OnDeferredInitializationDone(cdm::StreamType stream_type,
       return;
   }
 
-  NOTREACHED() << "Unexpected cdm::StreamType " << stream_type;
+  NOTREACHED_NORETURN() << "Unexpected cdm::StreamType " << stream_type;
 }
 
 cdm::FileIO* CdmAdapter::CreateFileIO(cdm::FileIOClient* client) {

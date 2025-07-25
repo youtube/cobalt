@@ -17,7 +17,7 @@
 namespace media {
 
 // static
-absl::optional<Fourcc> Fourcc::FromUint32(uint32_t fourcc) {
+std::optional<Fourcc> Fourcc::FromUint32(uint32_t fourcc) {
   switch (fourcc) {
     case YU12:
     case YV12:
@@ -39,12 +39,12 @@ absl::optional<Fourcc> Fourcc::FromUint32(uint32_t fourcc) {
     case Q10C:
       return Fourcc(static_cast<Value>(fourcc));
   }
-  DVLOGF(3) << "Unmapped fourcc: " << FourccToString(fourcc);
-  return absl::nullopt;
+  DVLOGF(4) << "Unmapped fourcc: " << FourccToString(fourcc);
+  return std::nullopt;
 }
 
 // static
-absl::optional<Fourcc> Fourcc::FromVideoPixelFormat(
+std::optional<Fourcc> Fourcc::FromVideoPixelFormat(
     VideoPixelFormat pixel_format,
     bool single_planar) {
   if (single_planar) {
@@ -149,7 +149,7 @@ absl::optional<Fourcc> Fourcc::FromVideoPixelFormat(
   }
   DVLOGF(3) << "Unmapped " << VideoPixelFormatToString(pixel_format) << " for "
             << (single_planar ? "single-planar" : "multi-planar");
-  return absl::nullopt;
+  return std::nullopt;
 }
 
 VideoPixelFormat Fourcc::ToVideoPixelFormat() const {
@@ -200,6 +200,8 @@ VideoPixelFormat Fourcc::ToVideoPixelFormat() const {
     // bitdepth and internal layout as P010.
     case Q10C:
       return PIXEL_FORMAT_P016LE;
+    case UNDEFINED:
+      break;
   }
   NOTREACHED() << "Unmapped Fourcc: " << ToString();
   return PIXEL_FORMAT_UNKNOWN;
@@ -207,7 +209,7 @@ VideoPixelFormat Fourcc::ToVideoPixelFormat() const {
 
 #if BUILDFLAG(USE_V4L2_CODEC)
 // static
-absl::optional<Fourcc> Fourcc::FromV4L2PixFmt(uint32_t v4l2_pix_fmt) {
+std::optional<Fourcc> Fourcc::FromV4L2PixFmt(uint32_t v4l2_pix_fmt) {
   // We can do that because we adopt the same internal definition of Fourcc as
   // V4L2.
   return FromUint32(v4l2_pix_fmt);
@@ -220,7 +222,7 @@ uint32_t Fourcc::ToV4L2PixFmt() const {
 }
 #elif BUILDFLAG(USE_VAAPI)
 // static
-absl::optional<Fourcc> Fourcc::FromVAFourCC(uint32_t va_fourcc) {
+std::optional<Fourcc> Fourcc::FromVAFourCC(uint32_t va_fourcc) {
   switch (va_fourcc) {
     case VA_FOURCC_I420:
       return Fourcc(YU12);
@@ -238,10 +240,10 @@ absl::optional<Fourcc> Fourcc::FromVAFourCC(uint32_t va_fourcc) {
       return Fourcc(AR24);
   }
   DVLOGF(3) << "Unmapped VAFourCC: " << FourccToString(va_fourcc);
-  return absl::nullopt;
+  return std::nullopt;
 }
 
-absl::optional<uint32_t> Fourcc::ToVAFourCC() const {
+std::optional<uint32_t> Fourcc::ToVAFourCC() const {
   switch (value_) {
     case YU12:
       return VA_FOURCC_I420;
@@ -268,18 +270,19 @@ absl::optional<uint32_t> Fourcc::ToVAFourCC() const {
     case MT2T:
     case Q08C:
     case Q10C:
+    case UNDEFINED:
       // VAAPI does not know about these formats, so signal this by returning
       // nullopt.
       DVLOGF(3) << "Fourcc not convertible to VaFourCC: " << ToString();
-      return absl::nullopt;
+      return std::nullopt;
   }
   NOTREACHED() << "Unmapped Fourcc: " << ToString();
-  return absl::nullopt;
+  return std::nullopt;
 }
 
 #endif  // BUILDFLAG(USE_VAAPI)
 
-absl::optional<Fourcc> Fourcc::ToSinglePlanar() const {
+std::optional<Fourcc> Fourcc::ToSinglePlanar() const {
   switch (value_) {
     case YU12:
     case YV12:
@@ -305,7 +308,8 @@ absl::optional<Fourcc> Fourcc::ToSinglePlanar() const {
     case MT21:
     case Q08C:
     case Q10C:
-      return absl::nullopt;
+    case UNDEFINED:
+      return std::nullopt;
   }
 }
 
@@ -326,6 +330,7 @@ bool Fourcc::IsMultiPlanar() const {
     case AR24:
     case Q08C:
     case Q10C:
+    case UNDEFINED:
       return false;
     case YM12:
     case YM21:
@@ -354,19 +359,16 @@ static_assert(Fourcc::NM12 == V4L2_PIX_FMT_NV12M, "Mismatch Fourcc");
 static_assert(Fourcc::NM21 == V4L2_PIX_FMT_NV21M, "Mismatch Fourcc");
 static_assert(Fourcc::YU16 == V4L2_PIX_FMT_YUV422P, "Mismatch Fourcc");
 static_assert(Fourcc::YM16 == V4L2_PIX_FMT_YUV422M, "Mismatch Fourcc");
+static_assert(Fourcc::MM21 == V4L2_PIX_FMT_MM21, "Mismatch Fourcc");
 static_assert(Fourcc::MT21 == V4L2_PIX_FMT_MT21C, "Mismatch Fourcc");
 static_assert(Fourcc::AR24 == V4L2_PIX_FMT_ABGR32, "Mismatch Fourcc");
-// TODO(b/189218019): The following formats are upstream, but not in the
-// ChromeOS headers
-#ifdef V4L2_PIX_FMT_MM21
-static_assert(Fourcc::MM21 == V4L2_PIX_FMT_MM21, "Mismatch Fourcc");
-#endif  // V4L2_PIX_FMT_MM21
-#ifdef V4L2_PIX_FMT_P010
 static_assert(Fourcc::P010 == V4L2_PIX_FMT_P010, "Mismatch Fourcc");
-#endif  // V4L2_PIX_FMT_P010
+// MT2T has not been upstreamed yet
 #ifdef V4L2_PIX_FMT_MT2T
 static_assert(Fourcc::MT2T == V4L2_PIX_FMT_MT2T, "Mismatch Fourcc");
 #endif  // V4L2_PIX_FMT_MT2T
+// TODO(b/189218019): The following formats are upstream, but not in the
+// ChromeOS headers
 #ifdef V4L2_PIX_FMT_QC08C
 static_assert(Fourcc::Q08C == V4L2_PIX_FMT_QC08C, "Mismatch Fourcc");
 #endif  // V4L2_PIX_FMT_QC08C

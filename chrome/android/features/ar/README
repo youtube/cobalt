@@ -1,0 +1,3 @@
+The AR dynamic feature module on-demand delivers code necessary to support AR in
+Chrome. This folder contains the template for creating an AR DFM target as well
+as the required Android manifest.

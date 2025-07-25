@@ -1,4 +1,4 @@
-// Copyright (c) 2012 The Chromium Authors. All rights reserved.
+// Copyright 2012 The Chromium Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 //
@@ -27,12 +27,11 @@
 #include <string>
 #include <vector>
 
-#include "base/bind.h"
-#include "base/functional/callback_forward.h"
+#include "base/check.h"
 #include "base/files/file_path.h"
-#include "base/callback.h"
-#include "base/logging.h"
-#include "base/macros.h"
+#include "base/functional/bind.h"
+#include "base/functional/callback_forward.h"
+#include "base/memory/raw_ptr.h"
 #include "base/memory/ref_counted.h"
 #include "base/task/sequenced_task_runner.h"
 #include "base/values.h"
@@ -47,7 +46,7 @@ class COMPONENTS_PREFS_EXPORT PrefMemberBase : public PrefObserver {
  public:
   // Type of callback you can register if you need to know the name of
   // the pref that is changing.
-  typedef base::Callback<void(const std::string&)> NamedChangeCallback;
+  using NamedChangeCallback = base::RepeatingCallback<void(const std::string&)>;
 
   PrefService* prefs() { return prefs_; }
   const PrefService* prefs() const { return prefs_; }
@@ -58,24 +57,24 @@ class COMPONENTS_PREFS_EXPORT PrefMemberBase : public PrefObserver {
    public:
     Internal();
 
+    Internal(const Internal&) = delete;
+    Internal& operator=(const Internal&) = delete;
+
     // Update the value, either by calling |UpdateValueInternal| directly
     // or by dispatching to the right sequence.
     // Takes ownership of |value|.
     void UpdateValue(base::Value* value,
                      bool is_managed,
                      bool is_user_modifiable,
+                     bool is_default_value,
                      base::OnceClosure callback) const;
 
     void MoveToSequence(scoped_refptr<base::SequencedTaskRunner> task_runner);
 
     // See PrefMember<> for description.
-    bool IsManaged() const {
-      return is_managed_;
-    }
-
-    bool IsUserModifiable() const {
-      return is_user_modifiable_;
-    }
+    bool IsManaged() const { return is_managed_; }
+    bool IsUserModifiable() const { return is_user_modifiable_; }
+    bool IsDefaultValue() const { return is_default_value_; }
 
    protected:
     friend class base::RefCountedThreadSafe<Internal>;
@@ -91,10 +90,9 @@ class COMPONENTS_PREFS_EXPORT PrefMemberBase : public PrefObserver {
     bool IsOnCorrectSequence() const;
 
     scoped_refptr<base::SequencedTaskRunner> owning_task_runner_;
-    mutable bool is_managed_;
-    mutable bool is_user_modifiable_;
-
-    DISALLOW_COPY_AND_ASSIGN(Internal);
+    mutable bool is_managed_ = false;
+    mutable bool is_user_modifiable_ = false;
+    mutable bool is_default_value_ = false;
   };
 
   PrefMemberBase();
@@ -124,7 +122,7 @@ class COMPONENTS_PREFS_EXPORT PrefMemberBase : public PrefObserver {
   // This method is used to do the actual sync with the preference.
   // Note: it is logically const, because it doesn't modify the state
   // seen by the outside world. It is just doing a lazy load behind the scenes.
-  void UpdateValueFromPref(const base::Closure& callback) const;
+  void UpdateValueFromPref(base::OnceClosure callback) const;
 
   // Verifies the preference name, and lazily loads the preference value if
   // it hasn't been loaded yet.
@@ -134,15 +132,15 @@ class COMPONENTS_PREFS_EXPORT PrefMemberBase : public PrefObserver {
 
   virtual Internal* internal() const = 0;
 
-  // Used to allow registering plain base::Closure callbacks.
-  static void InvokeUnnamedCallback(const base::Closure& callback,
+  // Used to allow registering plain base::RepeatingClosure callbacks.
+  static void InvokeUnnamedCallback(const base::RepeatingClosure& callback,
                                     const std::string& pref_name);
 
  private:
   // Ordered the members to compact the class instance.
   std::string pref_name_;
   NamedChangeCallback observer_;
-  PrefService* prefs_;
+  raw_ptr<PrefService> prefs_;
 
  protected:
   bool setting_value_;
@@ -162,6 +160,10 @@ class PrefMember : public subtle::PrefMemberBase {
   // Defer initialization to an Init method so it's easy to make this class be
   // a member variable.
   PrefMember() {}
+
+  PrefMember(const PrefMember&) = delete;
+  PrefMember& operator=(const PrefMember&) = delete;
+
   virtual ~PrefMember() {}
 
   // Do the actual initialization of the class.  Use the two-parameter
@@ -174,10 +176,10 @@ class PrefMember : public subtle::PrefMemberBase {
   }
   void Init(const std::string& pref_name,
             PrefService* prefs,
-            const base::Closure& observer) {
+            const base::RepeatingClosure& observer) {
     subtle::PrefMemberBase::Init(
         pref_name, prefs,
-        base::Bind(&PrefMemberBase::InvokeUnnamedCallback, observer));
+        base::BindRepeating(&PrefMemberBase::InvokeUnnamedCallback, observer));
   }
   void Init(const std::string& pref_name, PrefService* prefs) {
     subtle::PrefMemberBase::Init(pref_name, prefs);
@@ -222,6 +224,15 @@ class PrefMember : public subtle::PrefMemberBase {
     return internal_->IsUserModifiable();
   }
 
+  // Checks whether the pref is currently using its default value, and has not
+  // been set by any higher-priority source (even with the same value). This
+  // method should only be used from the sequence the PrefMember is currently
+  // on, which is the UI thread unless changed by |MoveToSequence|.
+  bool IsDefaultValue() const {
+    VerifyPref();
+    return internal_->IsDefaultValue();
+  }
+
   // Retrieve the value of the member variable.
   // This method should only be used from the sequence the PrefMember is
   // currently on, which is the UI thread unless changed by |MoveToSequence|.
@@ -254,6 +265,9 @@ class PrefMember : public subtle::PrefMemberBase {
    public:
     Internal() : value_(ValueType()) {}
 
+    Internal(const Internal&) = delete;
+    Internal& operator=(const Internal&) = delete;
+
     ValueType value() {
       CheckOnCorrectSequence();
       return value_;
@@ -268,9 +282,6 @@ class PrefMember : public subtle::PrefMemberBase {
     // We cache the value of the pref so we don't have to keep walking the pref
     // tree.
     mutable ValueType value_;
-
-   private:
-    DISALLOW_COPY_AND_ASSIGN(Internal);
   };
 
   Internal* internal() const override { return internal_.get(); }
@@ -280,8 +291,6 @@ class PrefMember : public subtle::PrefMemberBase {
   void COMPONENTS_PREFS_EXPORT UpdatePref(const ValueType& value);
 
   mutable scoped_refptr<Internal> internal_;
-
-  DISALLOW_COPY_AND_ASSIGN(PrefMember);
 };
 
 // Declaration of template specialization need to be repeated here

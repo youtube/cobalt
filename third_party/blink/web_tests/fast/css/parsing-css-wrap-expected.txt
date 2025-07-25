@@ -1,0 +1,19 @@
+Test parsing of CSS '\r\n' newline characters.
+
+SUCCESS
+
+Rules from the stylesheet:
+
+Font size is 16px.
+
+
+
+
+
+Expected result:
+
+Font size is 16px.
+
+
+
+

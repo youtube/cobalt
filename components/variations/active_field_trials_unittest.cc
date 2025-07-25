@@ -1,4 +1,4 @@
-// Copyright 2014 The Chromium Authors. All rights reserved.
+// Copyright 2014 The Chromium Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -44,8 +44,7 @@ TEST(ActiveFieldTrialsTest, GetFieldTrialActiveGroups) {
                                            &active_group_ids);
   EXPECT_EQ(2U, active_group_ids.size());
   for (size_t i = 0; i < active_group_ids.size(); ++i) {
-    ActiveGroupIdSet::iterator expected_group =
-        expected_groups.find(active_group_ids[i]);
+    auto expected_group = expected_groups.find(active_group_ids[i]);
     EXPECT_FALSE(expected_group == expected_groups.end());
     expected_groups.erase(expected_group);
   }
@@ -72,6 +71,32 @@ TEST(ActiveFieldTrialsTest, GetFieldTrialActiveGroupsWithSuffix) {
   uint32_t expected_group = HashName("group onesome_suffix");
   EXPECT_EQ(expected_name, active_group_ids[0].name);
   EXPECT_EQ(expected_group, active_group_ids[0].group);
+}
+
+TEST(ActiveFieldTrialsTest,
+     GetFieldTrialActiveGroupsProvidesDifferentHashesForOverriddenTrials) {
+  std::string trial_one("trial one");
+  std::string group_one("group one");
+
+  base::FieldTrial::ActiveGroup active_group;
+  active_group.trial_name = trial_one;
+  active_group.group_name = group_one;
+  active_group.is_overridden = true;
+
+  std::vector<ActiveGroupId> active_group_ids;
+  testing::TestGetFieldTrialActiveGroupIds(base::StringPiece(), {active_group},
+                                           &active_group_ids);
+  ASSERT_EQ(1U, active_group_ids.size());
+  EXPECT_EQ(active_group_ids[0].name, HashName(trial_one));
+  EXPECT_EQ(active_group_ids[0].group, HashName("group one_MANUALLY_FORCED"));
+
+  active_group_ids.clear();
+  testing::TestGetFieldTrialActiveGroupIds("_suffix", {active_group},
+                                           &active_group_ids);
+  ASSERT_EQ(1U, active_group_ids.size());
+  EXPECT_EQ(active_group_ids[0].name, HashName("trial one_suffix"));
+  EXPECT_EQ(active_group_ids[0].group,
+            HashName("group one_suffix_MANUALLY_FORCED"));
 }
 
 }  // namespace variations

@@ -27,19 +27,14 @@ import android.provider.MediaStore;
 import android.provider.Settings;
 import android.view.Display;
 import android.view.View;
-import android.view.Window;
-import android.view.WindowManager;
 import android.view.textclassifier.TextClassifier;
 import android.widget.TextView;
 
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
-import androidx.annotation.OptIn;
 import androidx.annotation.RequiresApi;
-import androidx.core.os.BuildCompat;
 
 import java.io.IOException;
-import java.lang.reflect.Field;
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
 import java.nio.charset.StandardCharsets;
@@ -55,8 +50,7 @@ import java.util.List;
 public class ApiCompatibilityUtils {
     private static final String TAG = "ApiCompatUtil";
 
-    private ApiCompatibilityUtils() {
-    }
+    private ApiCompatibilityUtils() {}
 
     @RequiresApi(Build.VERSION_CODES.Q)
     private static class ApisQ {
@@ -75,7 +69,9 @@ public class ApiCompatibilityUtils {
                     (ActivityManager) activity.getSystemService(Context.ACTIVITY_SERVICE);
             for (Display display : displays) {
                 if (display.getState() == Display.STATE_ON
-                        && am.isActivityStartAllowedOnDisplay(activity, display.getDisplayId(),
+                        && am.isActivityStartAllowedOnDisplay(
+                                activity,
+                                display.getDisplayId(),
                                 new Intent(activity, activity.getClass()))) {
                     displayList.add(display.getDisplayId());
                 }
@@ -118,8 +114,9 @@ public class ApiCompatibilityUtils {
     private static class ApisNMR1 {
         static boolean isDemoUser() {
             UserManager userManager =
-                    (UserManager) ContextUtils.getApplicationContext().getSystemService(
-                            Context.USER_SERVICE);
+                    (UserManager)
+                            ContextUtils.getApplicationContext()
+                                    .getSystemService(Context.USER_SERVICE);
             return userManager.isDemoUser();
         }
     }
@@ -174,31 +171,6 @@ public class ApiCompatibilityUtils {
     }
 
     /**
-     * @see android.view.Window#setStatusBarColor(int color).
-     */
-    public static void setStatusBarColor(Window window, int statusBarColor) {
-        window.addFlags(WindowManager.LayoutParams.FLAG_DRAWS_SYSTEM_BAR_BACKGROUNDS);
-        window.setStatusBarColor(statusBarColor);
-    }
-
-    /**
-     * Sets the status bar icons to dark or light. Note that this is only valid for
-     * Android M+.
-     *
-     * @param rootView The root view used to request updates to the system UI theming.
-     * @param useDarkIcons Whether the status bar icons should be dark.
-     */
-    public static void setStatusBarIconColor(View rootView, boolean useDarkIcons) {
-        int systemUiVisibility = rootView.getSystemUiVisibility();
-        if (useDarkIcons) {
-            systemUiVisibility |= View.SYSTEM_UI_FLAG_LIGHT_STATUS_BAR;
-        } else {
-            systemUiVisibility &= ~View.SYSTEM_UI_FLAG_LIGHT_STATUS_BAR;
-        }
-        rootView.setSystemUiVisibility(systemUiVisibility);
-    }
-
-    /**
      * @see android.content.res.Resources#getDrawable(int id).
      * TODO(ltian): use {@link AppCompatResources} to parse drawable to prevent fail on
      * {@link VectorDrawable}. (http://crbug.com/792129)
@@ -224,14 +196,6 @@ public class ApiCompatibilityUtils {
         } finally {
             StrictMode.setThreadPolicy(oldPolicy);
         }
-    }
-
-    /**
-     * @see android.content.res.Resources#getColor(int id).
-     */
-    @SuppressWarnings("deprecation")
-    public static int getColor(Resources res, int id) throws NotFoundException {
-        return res.getColor(id);
     }
 
     /**
@@ -318,37 +282,23 @@ public class ApiCompatibilityUtils {
      * passed to Chrome from a backgrounded app.
      * @param options {@ActivityOptions} to set the required mode to.
      */
-    @OptIn(markerClass = androidx.core.os.BuildCompat.PrereleaseSdkCheck.class)
     public static void setActivityOptionsBackgroundActivityStartMode(
             @NonNull ActivityOptions options) {
-        if (!BuildCompat.isAtLeastU()) return;
-
-        // options.setPendingIntentBackgroundActivityStartMode(
-        //     ActivityOptions.MODE_BACKGROUND_ACTIVITY_START_ALLOWED);
-        // TODO(crbug.com/1423489): Replace the reflection with the normal API.
-        try {
-            Method method = ActivityOptions.class.getMethod(
-                    "setPendingIntentBackgroundActivityStartMode", int.class);
-            Field field = ActivityOptions.class.getField("MODE_BACKGROUND_ACTIVITY_START_ALLOWED");
-            int mode = field.getInt(null);
-            method.invoke(options, mode);
-        } catch (IllegalAccessException | InvocationTargetException | NoSuchFieldException
-                | NoSuchMethodException e) {
-            Log.e(TAG, "Reflection failure: " + e);
-            assert false : "PendingIntent from background activity may fail to run.";
-        }
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.UPSIDE_DOWN_CAKE) return;
+        options.setPendingIntentBackgroundActivityStartMode(
+                ActivityOptions.MODE_BACKGROUND_ACTIVITY_START_ALLOWED);
     }
 
     /**
-     * Sets the bottom handwriting bounds offset of the given view to 0.
-     * See https://crbug.com/1427112
+     * Sets the bottom handwriting bounds offset of the given view to 0. See
+     * https://crbug.com/1427112
+     *
      * @param view The view on which to set the handwriting bounds.
      */
-    @OptIn(markerClass = androidx.core.os.BuildCompat.PrereleaseSdkCheck.class)
     public static void clearHandwritingBoundsOffsetBottom(View view) {
-        // TODO(crbug.com/1427112): Replace uses of this method with direct calls once the API is
+        // TODO(crbug.com/40261637): Replace uses of this method with direct calls once the API is
         // available.
-        if (!BuildCompat.isAtLeastU()) return;
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.UPSIDE_DOWN_CAKE) return;
         // Set the bottom handwriting bounds offset to 0 so that the view doesn't intercept
         // stylus events meant for the web contents.
         try {
@@ -362,10 +312,17 @@ public class ApiCompatibilityUtils {
             float offsetRight =
                     (float) View.class.getMethod("getHandwritingBoundsOffsetRight").invoke(view);
             // this.setHandwritingBoundsOffsets(offsetLeft, offsetTop, offsetRight, 0);
-            Method setHandwritingBoundsOffsets = View.class.getMethod("setHandwritingBoundsOffsets",
-                    float.class, float.class, float.class, float.class);
+            Method setHandwritingBoundsOffsets =
+                    View.class.getMethod(
+                            "setHandwritingBoundsOffsets",
+                            float.class,
+                            float.class,
+                            float.class,
+                            float.class);
             setHandwritingBoundsOffsets.invoke(view, offsetLeft, offsetTop, offsetRight, 0);
-        } catch (IllegalAccessException | InvocationTargetException | NoSuchMethodException
+        } catch (IllegalAccessException
+                | InvocationTargetException
+                | NoSuchMethodException
                 | NullPointerException e) {
             // Do nothing.
         }
@@ -394,9 +351,7 @@ public class ApiCompatibilityUtils {
         return false;
     }
 
-    /**
-     * Retrieves an image for the given uri as a Bitmap.
-     */
+    /** Retrieves an image for the given uri as a Bitmap. */
     public static Bitmap getBitmapByUri(ContentResolver cr, Uri uri) throws IOException {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
             return ApisP.getBitmapByUri(cr, uri);

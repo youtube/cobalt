@@ -10,7 +10,8 @@ import sys
 
 from typing import Iterator, Optional
 
-from common import REPO_ALIAS, register_device_args, run_ffx_command
+from common import REPO_ALIAS, catch_sigterm, register_device_args, \
+                   run_ffx_command, wait_for_sigterm
 
 _REPO_NAME = 'chromium-test-package-server'
 
@@ -19,11 +20,12 @@ def _stop_serving(repo_name: str, target: Optional[str]) -> None:
     """Stop serving a repository."""
 
     # Attempt to clean up.
-    run_ffx_command(['target', 'repository', 'deregister', '-r', repo_name],
-                    target,
-                    check=False)
-    run_ffx_command(['repository', 'remove', repo_name], check=False)
-    run_ffx_command(['repository', 'server', 'stop'], check=False)
+    run_ffx_command(
+        cmd=['target', 'repository', 'deregister', '-r', repo_name],
+        target_id=target,
+        check=False)
+    run_ffx_command(cmd=['repository', 'remove', repo_name], check=False)
+    run_ffx_command(cmd=['repository', 'server', 'stop'], check=False)
 
 
 def _start_serving(repo_dir: str, repo_name: str,
@@ -36,14 +38,16 @@ def _start_serving(repo_dir: str, repo_name: str,
         target: Fuchsia device the repository is served to.
     """
 
-    run_ffx_command(('config', 'set', 'repository.server.mode', '\"ffx\"'))
+    run_ffx_command(cmd=('config', 'set', 'repository.server.mode', '\"ffx\"'))
 
-    run_ffx_command(['repository', 'server', 'start'])
-    run_ffx_command(['repository', 'add-from-pm', repo_dir, '-r', repo_name])
-    run_ffx_command([
+    run_ffx_command(cmd=['repository', 'server', 'start'])
+    run_ffx_command(
+        cmd=['repository', 'add-from-pm', repo_dir, '-r', repo_name])
+    run_ffx_command(cmd=[
         'target', 'repository', 'register', '-r', repo_name, '--alias',
         REPO_ALIAS
-    ], target)
+    ],
+                    target_id=target)
 
 
 def register_serve_args(arg_parser: argparse.ArgumentParser) -> None:
@@ -64,8 +68,16 @@ def run_serve_cmd(cmd: str, args: argparse.Namespace) -> None:
 
     if cmd == 'start':
         _start_serving(args.repo, args.repo_name, args.target_id)
-    else:
+    elif cmd == 'stop':
         _stop_serving(args.repo_name, args.target_id)
+    else:
+        assert cmd == 'run'
+        catch_sigterm()
+        with serve_repository(args):
+            # Clients can assume the repo is up and running once the repo-name
+            # is printed out.
+            print(args.repo_name, flush=True)
+            wait_for_sigterm('shutting down the repo server.')
 
 
 @contextlib.contextmanager
@@ -83,14 +95,18 @@ def main():
 
     parser = argparse.ArgumentParser()
     parser.add_argument('cmd',
-                        choices=['start', 'stop'],
-                        help='Choose to start|stop repository serving.')
+                        choices=['start', 'stop', 'run'],
+                        help='Choose to start|stop|run repository serving. ' \
+                             '"start" command will start the repo and exit; ' \
+                             '"run" command will start the repo and wait ' \
+                             'until ctrl-c or sigterm.')
     register_device_args(parser)
     register_serve_args(parser)
     args = parser.parse_args()
-    if args.cmd == 'start' and not args.repo:
+    if (args.cmd == 'start' or args.cmd == 'run') and not args.repo:
         raise ValueError('Directory the repository is serving from needs '
                          'to be specified.')
+
     run_serve_cmd(args.cmd, args)
 
 

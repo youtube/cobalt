@@ -70,6 +70,7 @@
 #include <map>
 #include <memory>
 #include <string>
+#include <string_view>
 #include <vector>
 
 #include "base/base_export.h"
@@ -81,7 +82,6 @@
 #include "base/metrics/bucket_ranges.h"
 #include "base/metrics/histogram_base.h"
 #include "base/metrics/histogram_samples.h"
-#include "base/strings/string_piece.h"
 #include "base/time/time.h"
 #include "base/values.h"
 
@@ -202,7 +202,7 @@ class BASE_EXPORT Histogram : public HistogramBase {
   // function on non-dcheck builds without crashing.
   // Note. Currently it allow some bad input, e.g. 0 as minimum, but silently
   // converts it to good input: 1.
-  static bool InspectConstructionArguments(StringPiece name,
+  static bool InspectConstructionArguments(std::string_view name,
                                            Sample* minimum,
                                            Sample* maximum,
                                            size_t* bucket_count);
@@ -271,6 +271,23 @@ class BASE_EXPORT Histogram : public HistogramBase {
   friend BASE_EXPORT HistogramBase* DeserializeHistogramInfo(
       base::PickleIterator* iter);
   static HistogramBase* DeserializeInfoImpl(base::PickleIterator* iter);
+
+  static HistogramBase* FactoryGetInternal(std::string_view name,
+                                           Sample minimum,
+                                           Sample maximum,
+                                           size_t bucket_count,
+                                           int32_t flags);
+  static HistogramBase* FactoryTimeGetInternal(std::string_view name,
+                                               base::TimeDelta minimum,
+                                               base::TimeDelta maximum,
+                                               size_t bucket_count,
+                                               int32_t flags);
+  static HistogramBase* FactoryMicrosecondsTimeGetInternal(
+      std::string_view name,
+      base::TimeDelta minimum,
+      base::TimeDelta maximum,
+      size_t bucket_count,
+      int32_t flags);
 
   // Create a snapshot containing all samples (both logged and unlogged).
   // Implementation of SnapshotSamples method with a more specific type for
@@ -357,7 +374,7 @@ class BASE_EXPORT LinearHistogram : public Histogram {
   // it's not NULL, the last element in the array must has a NULL in its
   // "description" field.
   static HistogramBase* FactoryGetWithRangeDescription(
-      const std::string& name,
+      std::string_view name,
       Sample minimum,
       Sample maximum,
       size_t bucket_count,
@@ -391,6 +408,17 @@ class BASE_EXPORT LinearHistogram : public Histogram {
   friend BASE_EXPORT HistogramBase* DeserializeHistogramInfo(
       base::PickleIterator* iter);
   static HistogramBase* DeserializeInfoImpl(base::PickleIterator* iter);
+
+  static HistogramBase* FactoryGetInternal(std::string_view name,
+                                           Sample minimum,
+                                           Sample maximum,
+                                           size_t bucket_count,
+                                           int32_t flags);
+  static HistogramBase* FactoryTimeGetInternal(std::string_view name,
+                                               TimeDelta minimum,
+                                               TimeDelta maximum,
+                                               size_t bucket_count,
+                                               int32_t flags);
 
   // For some ranges, we store a printable description of a bucket range.
   // If there is no description, then GetAsciiBucketRange() uses parent class
@@ -487,6 +515,9 @@ class BASE_EXPORT BooleanHistogram : public LinearHistogram {
   class Factory;
 
  private:
+  static HistogramBase* FactoryGetInternal(std::string_view name,
+                                           int32_t flags);
+
   BooleanHistogram(const char* name, const BucketRanges* ranges);
   BooleanHistogram(const char* name,
                    const BucketRanges* ranges,
@@ -562,6 +593,11 @@ class BASE_EXPORT CustomHistogram : public Histogram {
   friend BASE_EXPORT HistogramBase* DeserializeHistogramInfo(
       base::PickleIterator* iter);
   static HistogramBase* DeserializeInfoImpl(base::PickleIterator* iter);
+
+  static HistogramBase* FactoryGetInternal(
+      std::string_view name,
+      const std::vector<Sample>& custom_ranges,
+      int32_t flags);
 
   static bool ValidateCustomRanges(const std::vector<Sample>& custom_ranges);
 };

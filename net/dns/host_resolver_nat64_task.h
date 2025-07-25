@@ -1,4 +1,4 @@
-// Copyright 2022 The Chromium Authors. All rights reserved.
+// Copyright 2022 The Chromium Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -7,6 +7,7 @@
 
 #include <memory>
 #include <string>
+#include <string_view>
 #include <vector>
 
 #include "base/functional/callback_forward.h"
@@ -28,11 +29,10 @@ class HostCache;
 // Destruction cancels the task and prevents any callbacks from being invoked.
 class HostResolverNat64Task {
  public:
-  HostResolverNat64Task(base::StringPiece hostname,
+  HostResolverNat64Task(std::string_view hostname,
                         NetworkAnonymizationKey network_anonymization_key,
                         NetLogWithSource net_log,
                         ResolveContext* resolve_context,
-                        HostCache* host_cache,
                         base::WeakPtr<HostResolverManager> resolver);
 
   HostResolverNat64Task(const HostResolverNat64Task&) = delete;
@@ -51,7 +51,6 @@ class HostResolverNat64Task {
   const NetworkAnonymizationKey network_anonymization_key_;
   NetLogWithSource net_log_;
   const raw_ptr<ResolveContext> resolve_context_;
-  const raw_ptr<HostCache> host_cache_;
   base::OnceClosure completion_closure_;
   base::WeakPtr<HostResolverManager> resolver_;
 

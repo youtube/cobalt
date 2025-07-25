@@ -2,12 +2,17 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#ifdef UNSAFE_BUFFERS_BUILD
+// TODO(crbug.com/40284755): Remove this and spanify to fix the errors.
+#pragma allow_unsafe_buffers
+#endif
+
 #include "base/containers/intrusive_heap.h"
 
 #include "base/check_op.h"
 #include "base/functional/callback_helpers.h"
 #include "base/memory/ptr_util.h"
-#include "base/memory/raw_ptr_exclusion.h"
+#include "base/memory/raw_ptr.h"
 #include "base/notreached.h"
 #include "base/rand_util.h"
 #include "base/test/bind.h"
@@ -131,7 +136,7 @@ void DoGrowingOperation(IntrusiveHeap<T>* heap) {
     }
 
     case kGrowingOperationsCount:
-      NOTREACHED();
+      NOTREACHED_IN_MIGRATION();
   }
 
   EXPECT_EQ(old_size + 1, heap->size());
@@ -143,8 +148,8 @@ void DoGrowingOperation(IntrusiveHeap<T>* heap) {
 // Used to determine whether or not the "take" operations can be used.
 template <typename T>
 struct NotMovable {
-  static constexpr bool value = !std::is_nothrow_move_constructible<T>::value &&
-                                std::is_copy_constructible<T>::value;
+  static constexpr bool value = !std::is_nothrow_move_constructible_v<T> &&
+                                std::is_copy_constructible_v<T>;
 };
 
 // Invokes "take" if the type is movable, otherwise invokes erase.
@@ -215,7 +220,7 @@ void DoShrinkingOperation(IntrusiveHeap<T>* heap) {
     }
 
     case kShrinkingOperationsCount:
-      NOTREACHED();
+      NOTREACHED_IN_MIGRATION();
   }
 
   EXPECT_EQ(old_size - 1, heap->size());
@@ -254,7 +259,7 @@ void DoSameSizeOperation(IntrusiveHeap<T>* heap) {
     }
 
     case kSameSizeOperationsCount:
-      NOTREACHED();
+      NOTREACHED_IN_MIGRATION();
   }
 
   EXPECT_EQ(old_size, heap->size());
@@ -291,7 +296,7 @@ void DoRandomHeapOperation(IntrusiveHeap<T>* heap) {
       DoSameSizeOperation(heap);
       break;
     case kOperationTypesCount:
-      NOTREACHED();
+      NOTREACHED_IN_MIGRATION();
   }
 }
 
@@ -516,20 +521,18 @@ DEFINE_VALUE_TYPE(Value_dMc, delete, default, delete)
 // default-constructors, move-operations and copy-operations.
 template <typename ValueType, bool D, bool M, bool C>
 void ValidateValueType() {
-  static_assert(std::is_default_constructible<ValueType>::value == D, "oops");
-  static_assert(std::is_move_constructible<ValueType>::value == M, "oops");
-  static_assert(std::is_move_assignable<ValueType>::value == M, "oops");
-  static_assert(std::is_copy_constructible<ValueType>::value == C, "oops");
-  static_assert(std::is_copy_assignable<ValueType>::value == C, "oops");
+  static_assert(std::is_default_constructible_v<ValueType> == D, "oops");
+  static_assert(std::is_move_constructible_v<ValueType> == M, "oops");
+  static_assert(std::is_move_assignable_v<ValueType> == M, "oops");
+  static_assert(std::is_copy_constructible_v<ValueType> == C, "oops");
+  static_assert(std::is_copy_assignable_v<ValueType> == C, "oops");
 }
 
 // A small test element that provides its own HeapHandle storage and implements
 // the contract expected of the DefaultHeapHandleAccessor.
 struct TestElement {
   int key;
-  // This field is not a raw_ptr<> because it was filtered by the rewriter for:
-  // #reinterpret-cast-trivial-type
-  RAW_PTR_EXCLUSION HeapHandle* handle;
+  raw_ptr<HeapHandle> handle;
 
   // Make this a min-heap by return > instead of <.
   bool operator<(const TestElement& other) const { return key > other.key; }

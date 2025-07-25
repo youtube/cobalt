@@ -8,7 +8,7 @@
 
 #include "base/android/jni_android.h"
 #include "base/android/jni_string.h"
-#include "base/base_jni_headers/JavaHandlerThread_jni.h"
+#include "base/base_jni/JavaHandlerThread_jni.h"
 #include "base/functional/bind.h"
 #include "base/message_loop/message_pump.h"
 #include "base/message_loop/message_pump_type.h"
@@ -31,7 +31,7 @@ JavaHandlerThread::JavaHandlerThread(const char* name,
           name,
           Java_JavaHandlerThread_create(
               AttachCurrentThread(),
-              ConvertUTF8ToJavaString(AttachCurrentThread(), name),
+              name,
               base::internal::ThreadTypeToNiceValue(thread_type))) {}
 
 JavaHandlerThread::JavaHandlerThread(

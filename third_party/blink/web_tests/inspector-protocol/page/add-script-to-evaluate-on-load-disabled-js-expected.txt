@@ -1,0 +1,3 @@
+Tests that Page.addScriptToEvaluateOnLoad is executed with disabled javascript
+42
+

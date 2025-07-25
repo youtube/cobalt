@@ -7,7 +7,7 @@
 namespace base {
 
 // Static table of checksums for all possible 8 bit bytes.
-const uint32_t kCrcTable[256] = {
+const std::array<uint32_t, 256> kCrcTable = {
     0x0,         0x77073096L, 0xee0e612cL, 0x990951baL, 0x76dc419L,
     0x706af48fL, 0xe963a535L, 0x9e6495a3L, 0xedb8832L,  0x79dcb8a4L,
     0xe0d5e91eL, 0x97d2d988L, 0x9b64c2bL,  0x7eb17cbdL, 0xe7b82d07L,
@@ -70,10 +70,9 @@ const uint32_t kCrcTable[256] = {
 // the CRC correct for big-endian vs little-ending calculations.  All we need is
 // a nice hash, that tends to depend on all the bits of the sample, with very
 // little chance of changes in one place impacting changes in another place.
-uint32_t Crc32(uint32_t sum, const void* data, size_t size) {
-  const unsigned char* bytes = reinterpret_cast<const unsigned char*>(data);
-  for (size_t i = 0; i < size; ++i) {
-    sum = kCrcTable[(sum & 0x000000FF) ^ bytes[i]] ^ (sum >> 8);
+uint32_t Crc32(uint32_t sum, span<const uint8_t> data) {
+  for (uint8_t byte : data) {
+    sum = kCrcTable[(sum & 0x000000FF) ^ byte] ^ (sum >> 8);
   }
   return sum;
 }

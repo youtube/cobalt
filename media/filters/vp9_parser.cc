@@ -14,11 +14,12 @@
 #include <algorithm>
 
 #include "base/containers/circular_deque.h"
+#include "base/containers/span.h"
 #include "base/functional/bind.h"
 #include "base/functional/callback_helpers.h"
 #include "base/logging.h"
+#include "base/numerics/byte_conversions.h"
 #include "base/numerics/safe_conversions.h"
-#include "base/sys_byteorder.h"
 #include "media/filters/vp9_compressed_header_parser.h"
 #include "media/filters/vp9_uncompressed_header_parser.h"
 
@@ -155,19 +156,21 @@ std::string IncrementIV(const std::string& iv, uint32_t by) {
   // What we call the 'IV' value is actually somewhat of a misnomer:
   // "IV" = 0xFFFFFFFFFFFFFFFF0000000000000000
   //          └──actual IV───┘└─block counter┘
-  // When we want to 'increment' this structure, we treat them both
-  // as big-endian 64 bit unsigned integers, then increment _only_ the
-  // block counter, then combine them back into a big-endian bytestring.
-  // |by| is usually going to be the number of blocks (aka 16 byte chunks)
+  //
+  // We want to 'increment' this structure by incrementing just the block
+  // counter. We pull out the block counter, convert to native endian,
+  // increment, convert back to big endian and write it back into the byte
+  // array. Then we return the byte array as a string.
+  //
+  // `by` is usually going to be the number of blocks (aka 16 byte chunks)
   //      of cipher data.
   DCHECK_EQ(iv.size(), 16u);
-  uint64_t integral_data[2];
-  memcpy(integral_data, reinterpret_cast<const uint8_t*>(iv.data()), 16);
-  uint64_t block_counter = base::NetToHost64(integral_data[1]) + by;
-  integral_data[1] = base::HostToNet64(block_counter);
-  uint8_t new_iv[16];
-  memcpy(new_iv, integral_data, 16);
-  return std::string(reinterpret_cast<char*>(new_iv), 16);
+  std::array<uint8_t, 16u> bytes;
+  base::span(bytes).copy_from(base::as_byte_span(iv).first<16u>());
+  auto counter_bytes = base::span(bytes).last<8u>();
+  counter_bytes.copy_from(base::numerics::U64ToBigEndian(
+      base::numerics::U64FromBigEndian(counter_bytes) + by));
+  return std::string(bytes.begin(), bytes.end());
 }
 
 // |frame_size|: The size of the current frame; this controls how long we
@@ -187,7 +190,7 @@ std::unique_ptr<DecryptConfig> SplitSubsamples(
     uint32_t frame_size,
     size_t* current_subsample_index,
     size_t* extra_clear_subsample_bytes,
-    DecryptConfig* base_decrypt_config,
+    const DecryptConfig* base_decrypt_config,
     const std::vector<SubsampleEntry>& subsamples,
     std::string* iv) {
   // We copy iv so that we can use the starting value in our
@@ -205,7 +208,7 @@ std::unique_ptr<DecryptConfig> SplitSubsamples(
         subsamples[*current_subsample_index].cypher_bytes;
 
     // if clear+cipher bytes would be over the max of uint32_t, we need to
-    // quit immediatly, to prevent malicious overflowing.
+    // quit immediately, to prevent malicious overflowing.
     if (0xFFFFFFFF - subsample_clear < subsample_cipher) {
       DVLOG(1) << "Invalid subsample alignment";
       return nullptr;
@@ -445,87 +448,10 @@ bool Vp9FrameContext::IsValid() const {
   return true;
 }
 
-Vp9Parser::Context::Vp9FrameContextManager::Vp9FrameContextManager() {}
-
-Vp9Parser::Context::Vp9FrameContextManager::~Vp9FrameContextManager() = default;
-
-const Vp9FrameContext&
-Vp9Parser::Context::Vp9FrameContextManager::frame_context() const {
-  DCHECK(initialized_);
-  DCHECK(!needs_client_update_);
-  return frame_context_;
-}
-
-void Vp9Parser::Context::Vp9FrameContextManager::Reset() {
-  initialized_ = false;
-  needs_client_update_ = false;
-  weak_ptr_factory_.InvalidateWeakPtrs();
-}
-
-void Vp9Parser::Context::Vp9FrameContextManager::SetNeedsClientUpdate() {
-  DCHECK(!needs_client_update_);
-  initialized_ = true;
-  needs_client_update_ = true;
-}
-
-Vp9Parser::ContextRefreshCallback
-Vp9Parser::Context::Vp9FrameContextManager::GetUpdateCb() {
-  if (needs_client_update_) {
-    return base::BindOnce(&Vp9FrameContextManager::UpdateFromClient,
-                          weak_ptr_factory_.GetWeakPtr());
-  }
-
-  return {};
-}
-
-void Vp9Parser::Context::Vp9FrameContextManager::Update(
-    const Vp9FrameContext& frame_context) {
-  // DCHECK because we can trust values from our parser.
-  DCHECK(frame_context.IsValid());
-  initialized_ = true;
-  frame_context_ = frame_context;
-
-  // For frame context we are updating, it may be still awaiting previous
-  // ContextRefreshCallback. Because we overwrite the value of context here and
-  // previous ContextRefreshCallback no longer matters, invalidate the weak ptr
-  // to prevent previous ContextRefreshCallback run.
-  // With this optimization, we may be able to parse more frames while previous
-  // are still decoding.
-  weak_ptr_factory_.InvalidateWeakPtrs();
-  needs_client_update_ = false;
-}
-
-void Vp9Parser::Context::Vp9FrameContextManager::UpdateFromClient(
-    const Vp9FrameContext& frame_context) {
-  DVLOG(2) << "Got external frame_context update";
-  DCHECK(needs_client_update_);
-  if (!frame_context.IsValid()) {
-    DLOG(ERROR) << "Invalid prob value in frame_context";
-    return;
-  }
-  needs_client_update_ = false;
-  initialized_ = true;
-  frame_context_ = frame_context;
-}
-
 void Vp9Parser::Context::Reset() {
   memset(&segmentation_, 0, sizeof(segmentation_));
   memset(&loop_filter_, 0, sizeof(loop_filter_));
   memset(&ref_slots_, 0, sizeof(ref_slots_));
-  for (auto& manager : frame_context_managers_)
-    manager.Reset();
-}
-
-void Vp9Parser::Context::MarkFrameContextForUpdate(size_t frame_context_idx) {
-  DCHECK_LT(frame_context_idx, std::size(frame_context_managers_));
-  frame_context_managers_[frame_context_idx].SetNeedsClientUpdate();
-}
-
-void Vp9Parser::Context::UpdateFrameContext(
-    size_t frame_context_idx,
-    const Vp9FrameContext& frame_context) {
-  DCHECK_LT(frame_context_idx, std::size(frame_context_managers_));
-  frame_context_managers_[frame_context_idx].Update(frame_context);
 }
 
 const Vp9Parser::ReferenceSlot& Vp9Parser::Context::GetRefSlot(
@@ -542,13 +468,7 @@ void Vp9Parser::Context::UpdateRefSlot(
 }
 
 Vp9Parser::Vp9Parser(bool parsing_compressed_header)
-    : Vp9Parser(parsing_compressed_header,
-                /*needs_external_context_update=*/false) {}
-
-Vp9Parser::Vp9Parser(bool parsing_compressed_header,
-                     bool needs_external_context_update)
-    : parsing_compressed_header_(parsing_compressed_header),
-      needs_external_context_update_(needs_external_context_update) {
+    : parsing_compressed_header_(parsing_compressed_header) {
   Reset();
 }
 
@@ -627,54 +547,17 @@ bool Vp9Parser::ParseUncompressedHeader(const FrameInfo& frame_info,
 bool Vp9Parser::ParseCompressedHeader(const FrameInfo& frame_info,
                                       Result* result) {
   *result = kInvalidStream;
-  size_t frame_context_idx = curr_frame_header_.frame_context_idx;
-  const Context::Vp9FrameContextManager& context_to_load =
-      context_.frame_context_managers_[frame_context_idx];
-  if (!context_to_load.initialized()) {
-    // 8.2 Frame order constraints
-    // must load an initialized set of probabilities.
-    DVLOG(1) << "loading uninitialized frame context, index="
-             << frame_context_idx;
-    *result = kInvalidStream;
-    return true;
-  }
-  if (context_to_load.needs_client_update()) {
-    DVLOG(3) << "waiting frame_context_idx=" << frame_context_idx
-             << " to update";
-    curr_frame_info_ = frame_info;
-    *result = kAwaitingRefresh;
-    return true;
-  }
-  curr_frame_header_.initial_frame_context = curr_frame_header_.frame_context =
-      context_to_load.frame_context();
 
   Vp9CompressedHeaderParser compressed_parser;
   bool parse_success;
-  if (!needs_external_context_update_) {
-    parse_success = compressed_parser.ParseNoContext(
-        frame_info.ptr + curr_frame_header_.uncompressed_header_size,
-        curr_frame_header_.header_size_in_bytes, &curr_frame_header_);
-  } else {
-    parse_success = compressed_parser.Parse(
-        frame_info.ptr + curr_frame_header_.uncompressed_header_size,
-        curr_frame_header_.header_size_in_bytes, &curr_frame_header_);
-  }
+  parse_success = compressed_parser.ParseNoContext(
+      frame_info.ptr + curr_frame_header_.uncompressed_header_size,
+      curr_frame_header_.header_size_in_bytes, &curr_frame_header_);
   if (!parse_success) {
     *result = kInvalidStream;
     return true;
   }
 
-  if (curr_frame_header_.refresh_frame_context) {
-    // In frame parallel mode, we can refresh the context without decoding
-    // tile data.
-    if (curr_frame_header_.frame_parallel_decoding_mode) {
-      context_.UpdateFrameContext(frame_context_idx,
-                                  curr_frame_header_.frame_context);
-    } else {
-      if (needs_external_context_update_)
-        context_.MarkFrameContextForUpdate(frame_context_idx);
-    }
-  }
   return false;
 }
 
@@ -734,7 +617,7 @@ Vp9Parser::Result Vp9Parser::ParseNextFrame(
 
   if (parsing_compressed_header_) {
     if (ParseCompressedHeader(frame_info, &result)) {
-      DCHECK(result != kAwaitingRefresh || curr_frame_info_.IsValid());
+      DCHECK(curr_frame_info_.IsValid());
       return result;
     }
   }
@@ -760,15 +643,6 @@ Vp9Parser::Result Vp9Parser::ParseNextFrame(
   return kOk;
 }
 
-Vp9Parser::ContextRefreshCallback Vp9Parser::GetContextRefreshCb(
-    size_t frame_context_idx) {
-  DCHECK_LT(frame_context_idx, std::size(context_.frame_context_managers_));
-  auto& frame_context_manager =
-      context_.frame_context_managers_[frame_context_idx];
-
-  return frame_context_manager.GetUpdateCb();
-}
-
 std::unique_ptr<DecryptConfig> Vp9Parser::NextFrameDecryptContextForTesting() {
   if (frames_.empty()) {
     // No frames to be decoded, if there is no more stream, request more.
@@ -792,42 +666,50 @@ std::string Vp9Parser::IncrementIVForTesting(const std::string& iv,
   return IncrementIV(iv, by);
 }
 
-// Annex B Superframes
-base::circular_deque<Vp9Parser::FrameInfo> Vp9Parser::ParseSuperframe() {
-  const uint8_t* stream = stream_;
-  off_t bytes_left = bytes_left_;
-
-  // Make sure we don't parse stream_ more than once.
-  stream_ = nullptr;
-  bytes_left_ = 0;
-
-  base::circular_deque<FrameInfo> frames;
-
-  if (bytes_left < 1) {
-    return frames;
+// static
+bool Vp9Parser::IsSuperframe(const uint8_t* stream,
+                             off_t stream_size,
+                             const DecryptConfig* decrypt_config) {
+  if (!stream || stream_size < 1) {
+    return false;
   }
 
   // The marker byte might be encrypted, in which case we should treat
   // the stream as a single frame.
-  off_t marker_offset = bytes_left - 1;
-  if (stream_decrypt_config_) {
-    if (IsByteNEncrypted(marker_offset, stream_decrypt_config_->subsamples())) {
-      frames.push_back(FrameInfo(stream, bytes_left));
-      frames[0].decrypt_config = stream_decrypt_config_->Clone();
-      return frames;
-    }
+  off_t marker_offset = stream_size - 1;
+  if (decrypt_config &&
+      IsByteNEncrypted(marker_offset, decrypt_config->subsamples())) {
+    return false;
   }
 
   // If this is a superframe, the last byte in the stream will contain the
   // superframe marker. If not, the whole buffer contains a single frame.
   uint8_t marker = *(stream + marker_offset);
-  if ((marker & 0xe0) != 0xc0) {
+  return ((marker & 0xe0) == 0xc0);
+}
+
+// static
+base::circular_deque<Vp9Parser::FrameInfo> Vp9Parser::ExtractFrames(
+    const uint8_t* stream,
+    off_t stream_size,
+    const DecryptConfig* decrypt_config) {
+  base::circular_deque<FrameInfo> frames;
+  off_t bytes_left = stream_size;
+
+  if (!stream || bytes_left < 1) {
+    return frames;
+  }
+
+  if (!IsSuperframe(stream, bytes_left, decrypt_config)) {
     frames.push_back(FrameInfo(stream, bytes_left));
-    if (stream_decrypt_config_) {
-      frames[0].decrypt_config = stream_decrypt_config_->Clone();
+    if (decrypt_config) {
+      frames[0].decrypt_config = decrypt_config->Clone();
     }
     return frames;
   }
+
+  off_t marker_offset = stream_size - 1;
+  uint8_t marker = *(stream + marker_offset);
 
   DVLOG(1) << "Parsing a superframe";
 
@@ -858,9 +740,9 @@ base::circular_deque<Vp9Parser::FrameInfo> Vp9Parser::ParseSuperframe() {
   std::vector<SubsampleEntry> subsamples;
   size_t current_subsample = 0;
   size_t extra_clear_subsample_bytes = 0;
-  if (stream_decrypt_config_) {
-    iv = stream_decrypt_config_->iv();
-    subsamples = stream_decrypt_config_->subsamples();
+  if (decrypt_config) {
+    iv = decrypt_config->iv();
+    subsamples = decrypt_config->subsamples();
   }
 
   for (size_t i = 0; i < num_frames; ++i) {
@@ -881,7 +763,7 @@ base::circular_deque<Vp9Parser::FrameInfo> Vp9Parser::ParseSuperframe() {
     if (subsamples.size()) {
       std::unique_ptr<DecryptConfig> frame_dc = SplitSubsamples(
           size, &current_subsample, &extra_clear_subsample_bytes,
-          stream_decrypt_config_.get(), subsamples, &iv);
+          decrypt_config, subsamples, &iv);
       if (!frame_dc) {
         DVLOG(1) << "Failed to calculate decrypt config for frame " << i;
         frames.clear();
@@ -899,6 +781,18 @@ base::circular_deque<Vp9Parser::FrameInfo> Vp9Parser::ParseSuperframe() {
   }
 
   return frames;
+}
+
+// Annex B Superframes
+base::circular_deque<Vp9Parser::FrameInfo> Vp9Parser::ParseSuperframe() {
+  const uint8_t* stream = stream_;
+  off_t bytes_left = bytes_left_;
+
+  // Make sure we don't parse stream_ more than once.
+  stream_ = nullptr;
+  bytes_left_ = 0;
+
+  return ExtractFrames(stream, bytes_left, stream_decrypt_config_.get());
 }
 
 base::circular_deque<Vp9Parser::FrameInfo> Vp9Parser::ParseSVCFrame() {
@@ -963,8 +857,9 @@ base::circular_deque<Vp9Parser::FrameInfo> Vp9Parser::ParseSVCFrame() {
                                       curr_frame_header_.frame_height));
   }
 
-  for (auto& frame_info : frames)
+  for (auto& frame_info : frames) {
     frame_info.allocate_size = max_frame_size;
+  }
   return frames;
 }
 

@@ -5,15 +5,19 @@
 #include "base/metrics/histogram_samples.h"
 
 #include <limits>
-#include <cstring>
+#include <string_view>
+#include <utility>
 
 #include "base/compiler_specific.h"
 #include "base/memory/raw_ptr.h"
 #include "base/metrics/histogram_functions.h"
 #include "base/metrics/histogram_macros.h"
+#include "base/numerics/clamped_math.h"
 #include "base/numerics/safe_conversions.h"
 #include "base/numerics/safe_math.h"
 #include "base/pickle.h"
+#include "base/strings/strcat.h"
+#include "base/strings/string_number_conversions.h"
 #include "base/strings/stringprintf.h"
 
 namespace base {
@@ -294,6 +298,10 @@ void HistogramSamples::Extract(HistogramSamples& other) {
   DCHECK(success);
 }
 
+bool HistogramSamples::IsDefinitelyEmpty() const {
+  return sum() == 0 && redundant_count() == 0;
+}
+
 void HistogramSamples::Serialize(Pickle* pickle) const {
   pickle->WriteInt64(sum());
   pickle->WriteInt(redundant_count());
@@ -341,7 +349,7 @@ void HistogramSamples::RecordNegativeSample(NegativeSampleReason reason,
                      static_cast<int32_t>(id()));
 }
 
-base::Value::Dict HistogramSamples::ToGraphDict(StringPiece histogram_name,
+base::Value::Dict HistogramSamples::ToGraphDict(std::string_view histogram_name,
                                                 int32_t flags) const {
   base::Value::Dict dict;
   dict.Set("name", histogram_name);
@@ -350,12 +358,11 @@ base::Value::Dict HistogramSamples::ToGraphDict(StringPiece histogram_name,
   return dict;
 }
 
-std::string HistogramSamples::GetAsciiHeader(StringPiece histogram_name,
+std::string HistogramSamples::GetAsciiHeader(std::string_view histogram_name,
                                              int32_t flags) const {
   std::string output;
-  StringAppendF(&output, "Histogram: %.*s recorded %d samples",
-                static_cast<int>(histogram_name.size()), histogram_name.data(),
-                TotalCount());
+  StrAppend(&output, {"Histogram: ", histogram_name, " recorded ",
+                      NumberToString(TotalCount()), " samples"});
   if (flags)
     StringAppendF(&output, " (flags = 0x%x)", flags);
   return output;
@@ -403,27 +410,30 @@ std::string HistogramSamples::GetAsciiBody() const {
     // value is min, so display it
     std::string range = GetSimpleAsciiBucketRange(min);
     output.append(range);
-    for (size_t j = 0; range.size() + j < print_width + 1; ++j)
-      output.push_back(' ');
+    if (const auto range_size = range.size(); print_width >= range_size) {
+      output.append(print_width + 1 - range_size, ' ');
+    }
     HistogramBase::Count current_size = round(count * scaling_factor);
     WriteAsciiBucketGraph(current_size, kLineLength, &output);
     WriteAsciiBucketValue(count, scaled_total_count, &output);
-    StringAppendF(&output, "\n");
+    output.append(1, '\n');
     it->Next();
   }
   return output;
 }
 
+// static
 void HistogramSamples::WriteAsciiBucketGraph(double x_count,
                                              int line_length,
-                                             std::string* output) const {
-  int x_remainder = line_length - x_count;
+                                             std::string* output) {
+  output->reserve(ClampAdd(output->size(), ClampAdd(line_length, 1)));
 
-  while (0 < x_count--)
-    output->append("-");
-  output->append("O");
-  while (0 < x_remainder--)
-    output->append(" ");
+  const size_t count = ClampRound<size_t>(x_count);
+  output->append(count, '-');
+  output->append(1, 'O');
+  if (const auto len = as_unsigned(line_length); count < len) {
+    output->append(len - count, ' ');
+  }
 }
 
 void HistogramSamples::WriteAsciiBucketValue(HistogramBase::Count current,

@@ -2,13 +2,19 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#ifdef UNSAFE_BUFFERS_BUILD
+// TODO(crbug.com/40284755): Remove this and spanify to fix the errors.
+#pragma allow_unsafe_buffers
+#endif
+
 #include "base/hash/sha1.h"
 
 #include <stddef.h>
 
 #include <string>
 
-#include "base/base64.h"
+#include "base/containers/span.h"
+#include "base/hash/sha1_boringssl.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
 TEST(SHA1Test, Test1) {
@@ -68,8 +74,7 @@ TEST(SHA1Test, Test1BytesAndSpan) {
   for (size_t i = 0; i < base::kSHA1Length; i++)
     EXPECT_EQ(kExpected[i], output[i]);
 
-  base::SHA1Digest output_array =
-      base::SHA1HashSpan(base::as_bytes(base::make_span(input)));
+  base::SHA1Digest output_array = base::SHA1HashSpan(base::as_byte_span(input));
   for (size_t i = 0; i < base::kSHA1Length; i++)
     EXPECT_EQ(kExpected[i], output_array[i]);
 }
@@ -89,8 +94,7 @@ TEST(SHA1Test, Test2BytesAndSpan) {
   for (size_t i = 0; i < base::kSHA1Length; i++)
     EXPECT_EQ(kExpected[i], output[i]);
 
-  base::SHA1Digest output_array =
-      base::SHA1HashSpan(base::as_bytes(base::make_span(input)));
+  base::SHA1Digest output_array = base::SHA1HashSpan(base::as_byte_span(input));
   for (size_t i = 0; i < base::kSHA1Length; i++)
     EXPECT_EQ(kExpected[i], output_array[i]);
 }
@@ -109,8 +113,7 @@ TEST(SHA1Test, Test3BytesAndSpan) {
   for (size_t i = 0; i < base::kSHA1Length; i++)
     EXPECT_EQ(kExpected[i], output[i]);
 
-  base::SHA1Digest output_array =
-      base::SHA1HashSpan(base::as_bytes(base::make_span(input)));
+  base::SHA1Digest output_array = base::SHA1HashSpan(base::as_byte_span(input));
   for (size_t i = 0; i < base::kSHA1Length; i++)
     EXPECT_EQ(kExpected[i], output_array[i]);
 }

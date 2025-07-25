@@ -15,6 +15,8 @@
 
 namespace quic {
 
+namespace {
+
 class QuicPacketPrinter : public QuicFramerVisitorInterface {
  public:
   explicit QuicPacketPrinter(QuicFramer* framer, std::ostream* output)
@@ -32,22 +34,19 @@ class QuicPacketPrinter : public QuicFramerVisitorInterface {
     return true;
   }
   void OnPacket() override { *output_ << "OnPacket\n"; }
-  void OnPublicResetPacket(const QuicPublicResetPacket& packet) override {
-    *output_ << "OnPublicResetPacket\n";
-  }
   void OnVersionNegotiationPacket(
       const QuicVersionNegotiationPacket& packet) override {
     *output_ << "OnVersionNegotiationPacket\n";
   }
   void OnRetryPacket(QuicConnectionId original_connection_id,
                      QuicConnectionId new_connection_id,
-                     absl::string_view retry_token,
-                     absl::string_view retry_integrity_tag,
-                     absl::string_view retry_without_tag) override {
+                     std::string_view retry_token,
+                     std::string_view retry_integrity_tag,
+                     std::string_view retry_without_tag) override {
     *output_ << "OnRetryPacket\n";
   }
   bool OnUnauthenticatedPublicHeader(const QuicPacketHeader& header) override {
-    *output_ << "OnUnauthenticatedPublicHeader: " << header << "\n";
+    *output_ << "OnUnauthenticatedPublicHeader: " << header;
     return true;
   }
   bool OnUnauthenticatedHeader(const QuicPacketHeader& header) override {
@@ -98,7 +97,7 @@ class QuicPacketPrinter : public QuicFramerVisitorInterface {
     return true;
   }
   bool OnAckFrameEnd(QuicPacketNumber start,
-                     const absl::optional<QuicEcnCounts>& ecn_counts) override {
+                     const std::optional<QuicEcnCounts>& ecn_counts) override {
     *output_ << "OnAckFrameEnd, start: " << start << ", "
              << ecn_counts.value_or(QuicEcnCounts()).ToString() << "\n";
     return true;
@@ -188,6 +187,10 @@ class QuicPacketPrinter : public QuicFramerVisitorInterface {
   }
   bool OnMessageFrame(const QuicMessageFrame& frame) override {
     *output_ << "OnMessageFrame: " << frame;
+    // In a test context, `frame.data` should always be set.
+    CHECK(frame.data);
+    *output_ << "         data: { "
+             << base::HexEncode(frame.data, frame.message_length) << " }\n";
     return true;
   }
   bool OnHandshakeDoneFrame(const QuicHandshakeDoneFrame& frame) override {
@@ -196,6 +199,10 @@ class QuicPacketPrinter : public QuicFramerVisitorInterface {
   }
   bool OnAckFrequencyFrame(const QuicAckFrequencyFrame& frame) override {
     *output_ << "OnAckFrequencyFrame: " << frame;
+    return true;
+  }
+  bool OnResetStreamAtFrame(const QuicResetStreamAtFrame& frame) override {
+    *output_ << "OnResetStreamAtFrame: " << frame;
     return true;
   }
   void OnPacketComplete() override { *output_ << "OnPacketComplete\n"; }
@@ -213,6 +220,8 @@ class QuicPacketPrinter : public QuicFramerVisitorInterface {
   raw_ptr<QuicFramer> framer_;  // Unowned.
   mutable raw_ptr<std::ostream> output_;
 };
+
+}  // namespace
 
 }  // namespace quic
 

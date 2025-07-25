@@ -2,18 +2,25 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#ifdef UNSAFE_BUFFERS_BUILD
+// TODO(crbug.com/40284755): Remove this and spanify to fix the errors.
+#pragma allow_unsafe_buffers
+#endif
+
 #include "base/win/win_util.h"
+
+#include <objbase.h>
+
+#include <initguid.h>
+#include <shobjidl.h>
+#include <tchar.h>
 
 #include <aclapi.h>
 #include <cfgmgr32.h>
-#include <initguid.h>
-#include <lm.h>
-#include <powrprof.h>
-#include <shobjidl.h>  // Must be before propkey.
-
 #include <inspectable.h>
+#include <lm.h>
 #include <mdmregistration.h>
-#include <objbase.h>
+#include <powrprof.h>
 #include <propkey.h>
 #include <psapi.h>
 #include <roapi.h>
@@ -24,7 +31,6 @@
 #include <stddef.h>
 #include <stdlib.h>
 #include <strsafe.h>
-#include <tchar.h>  // Must be before tpcshrd.h or for any use of _T macro
 #include <tpcshrd.h>
 #include <uiviewsettingsinterop.h>
 #include <windows.ui.viewmanagement.h>
@@ -34,6 +40,8 @@
 
 #include <limits>
 #include <memory>
+#include <optional>
+#include <string_view>
 #include <utility>
 
 #include "base/base_switches.h"
@@ -60,7 +68,6 @@
 #include "base/win/shlwapi.h"
 #include "base/win/static_constants.h"
 #include "base/win/windows_version.h"
-#include "third_party/abseil-cpp/absl/types/optional.h"
 
 namespace base {
 namespace win {
@@ -268,31 +275,34 @@ bool IsKeyboardPresentOnSlate(HWND hwnd, std::string* reason) {
 
   if (CommandLine::ForCurrentProcess()->HasSwitch(
           switches::kDisableUsbKeyboardDetect)) {
-    if (reason)
+    if (reason) {
       *reason = "Detection disabled";
+    }
     return false;
   }
 
   // This function should be only invoked for machines with touch screens.
   if ((GetSystemMetrics(SM_DIGITIZER) & NID_INTEGRATED_TOUCH) !=
       NID_INTEGRATED_TOUCH) {
-    if (reason) {
-      *reason += "NID_INTEGRATED_TOUCH\n";
-      result = true;
-    } else {
+    if (!reason) {
       return true;
     }
+
+    *reason += "NID_INTEGRATED_TOUCH\n";
+    result = true;
   }
 
   // If it is a tablet device we assume that there is no keyboard attached.
   if (IsTabletDevice(reason, hwnd)) {
-    if (reason)
+    if (reason) {
       *reason += "Tablet device.\n";
+    }
     return false;
   }
 
-  if (!reason)
+  if (!reason) {
     return true;
+  }
 
   *reason += "Not a tablet device";
   result = true;
@@ -323,8 +333,9 @@ bool IsKeyboardPresentOnSlate(HWND hwnd, std::string* reason) {
       // If there is no auto rotation sensor or rotation is not supported in
       // the current configuration, then we can assume that this is a desktop
       // or a traditional laptop.
-      if (!reason)
+      if (!reason) {
         return true;
+      }
 
       *reason += (auto_rotation_state & AR_NOSENSOR) ? "AR_NOSENSOR\n"
                                                      : "AR_NOT_SUPPORTED\n";
@@ -342,8 +353,9 @@ bool IsKeyboardPresentOnSlate(HWND hwnd, std::string* reason) {
   HDEVINFO device_info = SetupDiGetClassDevs(&KEYBOARD_CLASS_GUID, nullptr,
                                              nullptr, DIGCF_PRESENT);
   if (device_info == INVALID_HANDLE_VALUE) {
-    if (reason)
+    if (reason) {
       *reason += "No keyboard info\n";
+    }
     return result;
   }
 
@@ -384,10 +396,10 @@ bool IsKeyboardPresentOnSlate(HWND hwnd, std::string* reason) {
 static bool g_crash_on_process_detach = false;
 
 bool GetUserSidString(std::wstring* user_sid) {
-  absl::optional<AccessToken> token = AccessToken::FromCurrentProcess();
+  std::optional<AccessToken> token = AccessToken::FromCurrentProcess();
   if (!token)
     return false;
-  absl::optional<std::wstring> sid_string = token->User().ToSddlString();
+  std::optional<std::wstring> sid_string = token->User().ToSddlString();
   if (!sid_string)
     return false;
   *user_sid = *sid_string;
@@ -526,25 +538,26 @@ bool IsDeviceUsedAsATablet(std::string* reason) {
   // Once this is set, it shouldn't be overridden, and it should be the ultimate
   // return value, so that this method returns the same result whether or not
   // reason is NULL.
-  absl::optional<bool> ret;
+  std::optional<bool> ret;
 
   if (GetSystemMetrics(SM_MAXIMUMTOUCHES) == 0) {
-    if (reason) {
-      *reason += "Device does not support touch.\n";
-      ret = false;
-    } else {
+    if (!reason) {
       return false;
     }
+
+    *reason += "Device does not support touch.\n";
+    ret = false;
   }
 
   // If the device is docked, the user is treating the device as a PC.
   if (GetSystemMetrics(SM_SYSTEMDOCKED) != 0) {
-    if (reason) {
-      *reason += "SM_SYSTEMDOCKED\n";
-      if (!ret.has_value())
-        ret = false;
-    } else {
+    if (!reason) {
       return false;
+    }
+
+    *reason += "SM_SYSTEMDOCKED\n";
+    if (!ret.has_value()) {
+      ret = false;
     }
   }
 
@@ -559,8 +572,9 @@ bool IsDeviceUsedAsATablet(std::string* reason) {
   if (get_auto_rotation_state_func) {
     AR_STATE rotation_state = AR_ENABLED;
     if (get_auto_rotation_state_func(&rotation_state) &&
-        (rotation_state & (AR_NOT_SUPPORTED | AR_LAPTOP | AR_NOSENSOR)) != 0)
-      return ret.has_value() ? ret.value() : false;
+        (rotation_state & (AR_NOT_SUPPORTED | AR_LAPTOP | AR_NOSENSOR)) != 0) {
+      return ret.value_or(false);
+    }
   }
 
   // PlatformRoleSlate was added in Windows 8+.
@@ -569,12 +583,13 @@ bool IsDeviceUsedAsATablet(std::string* reason) {
   if (role == PlatformRoleMobile || role == PlatformRoleSlate) {
     is_tablet = !GetSystemMetrics(SM_CONVERTIBLESLATEMODE);
     if (!is_tablet) {
-      if (reason) {
-        *reason += "Not in slate mode.\n";
-        if (!ret.has_value())
-          ret = false;
-      } else {
+      if (!reason) {
         return false;
+      }
+
+      *reason += "Not in slate mode.\n";
+      if (!ret.has_value()) {
+        ret = false;
       }
     } else if (reason) {
       *reason += (role == PlatformRoleMobile) ? "PlatformRoleMobile\n"
@@ -583,7 +598,7 @@ bool IsDeviceUsedAsATablet(std::string* reason) {
   } else if (reason) {
     *reason += "Device role is not mobile or slate.\n";
   }
-  return ret.has_value() ? ret.value() : is_tablet;
+  return ret.value_or(is_tablet);
 }
 
 bool IsEnrolledToDomain() {
@@ -604,7 +619,7 @@ bool IsJoinedToAzureAD() {
 }
 
 bool IsUser32AndGdi32Available() {
-  static auto is_user32_and_gdi32_available = []() {
+  static const bool is_user32_and_gdi32_available = []() {
     // If win32k syscalls aren't disabled, then user32 and gdi32 are available.
     PROCESS_MITIGATION_SYSTEM_CALL_DISABLE_POLICY policy = {};
     if (::GetProcessMitigationPolicy(GetCurrentProcess(),
@@ -640,6 +655,7 @@ bool GetLoadedModulesSnapshot(HANDLE process, std::vector<HMODULE>* snapshot) {
       DPLOG(ERROR) << "::EnumProcessModules failed.";
       return false;
     }
+
     DCHECK_EQ(0u, bytes_required % sizeof(HMODULE));
     size_t num_modules = bytes_required / sizeof(HMODULE);
     if (num_modules <= snapshot->size()) {
@@ -647,15 +663,17 @@ bool GetLoadedModulesSnapshot(HANDLE process, std::vector<HMODULE>* snapshot) {
       snapshot->erase(snapshot->begin() + static_cast<ptrdiff_t>(num_modules),
                       snapshot->end());
       return true;
-    } else if (num_modules == 0) {
+    }
+
+    if (num_modules == 0) {
       DLOG(ERROR) << "Can't determine the module list size.";
       return false;
-    } else {
-      // Buffer size was too small. Try again with a larger buffer. A little
-      // more room is given to avoid multiple expensive calls to
-      // ::EnumProcessModules() just because one module has been added.
-      snapshot->resize(num_modules + 8, nullptr);
     }
+
+    // Buffer size was too small. Try again with a larger buffer. A little
+    // more room is given to avoid multiple expensive calls to
+    // ::EnumProcessModules() just because one module has been added.
+    snapshot->resize(num_modules + 8, nullptr);
   } while (--retries_remaining);
 
   DLOG(ERROR) << "Failed to enumerate modules.";
@@ -740,7 +758,29 @@ std::wstring GetWindowObjectName(HANDLE handle) {
   return object_name;
 }
 
-bool IsRunningUnderDesktopName(WStringPiece desktop_name) {
+bool GetPointerDevice(HANDLE device, POINTER_DEVICE_INFO& result) {
+  return ::GetPointerDevice(device, &result);
+}
+
+std::optional<std::vector<POINTER_DEVICE_INFO>> GetPointerDevices() {
+  uint32_t device_count;
+  if (!::GetPointerDevices(&device_count, nullptr)) {
+    return std::nullopt;
+  }
+
+  std::vector<POINTER_DEVICE_INFO> pointer_devices(device_count);
+  if (!::GetPointerDevices(&device_count, pointer_devices.data())) {
+    return std::nullopt;
+  }
+  return pointer_devices;
+}
+
+bool RegisterPointerDeviceNotifications(HWND hwnd,
+                                        bool notify_proximity_changes) {
+  return ::RegisterPointerDeviceNotifications(hwnd, notify_proximity_changes);
+}
+
+bool IsRunningUnderDesktopName(std::wstring_view desktop_name) {
   HDESK thread_desktop = ::GetThreadDesktop(::GetCurrentThreadId());
   if (!thread_desktop)
     return false;
@@ -771,33 +811,12 @@ bool IsCurrentSessionRemote() {
   static constexpr wchar_t kGlassSessionIdValueName[] = L"GlassSessionId";
   DWORD glass_session_id = 0;
   if (key.ReadValueDW(kGlassSessionIdValueName, &glass_session_id) !=
-      ERROR_SUCCESS)
+      ERROR_SUCCESS) {
     return false;
+  }
 
   return current_session_id != glass_session_id;
 }
-
-#if !defined(OFFICIAL_BUILD)
-bool IsAppVerifierEnabled(const std::wstring& process_name) {
-  RegKey key;
-
-  // Look for GlobalFlag in the IFEO\chrome.exe key. If it is present then
-  // Application Verifier or gflags.exe are configured. Most GlobalFlag
-  // settings are experimentally determined to be incompatible with renderer
-  // code integrity and a safe set is not known so any GlobalFlag entry is
-  // assumed to mean that Application Verifier (or pageheap) are enabled.
-  // The settings are propagated to both 64-bit WOW6432Node versions of the
-  // registry on 64-bit Windows, so only one check is needed.
-  return key.Open(
-             HKEY_LOCAL_MACHINE,
-             (L"SOFTWARE\\Microsoft\\Windows NT\\CurrentVersion\\Image File "
-              L"Execution Options\\" +
-              process_name)
-                 .c_str(),
-             KEY_READ | KEY_WOW64_64KEY) == ERROR_SUCCESS &&
-         key.HasValue(L"GlobalFlag");
-}
-#endif  // !defined(OFFICIAL_BUILD)
 
 bool IsAppVerifierLoaded() {
   return GetModuleHandleA(kApplicationVerifierDllName);

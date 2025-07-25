@@ -9,6 +9,7 @@
 #include <stdint.h>
 
 #include <memory>
+#include <optional>
 #include <string>
 #include <utility>
 #include <vector>
@@ -28,12 +29,12 @@
 #include "base/types/id_type.h"
 #include "base/unguessable_token.h"
 #include "build/build_config.h"
+#include "gpu/command_buffer/client/client_shared_image.h"
 #include "gpu/command_buffer/common/mailbox_holder.h"
 #include "gpu/ipc/common/vulkan_ycbcr_info.h"
 #include "media/base/video_frame_layout.h"
 #include "media/base/video_frame_metadata.h"
 #include "media/base/video_types.h"
-#include "third_party/abseil-cpp/absl/types/optional.h"
 #include "ui/gfx/color_space.h"
 #include "ui/gfx/geometry/rect.h"
 #include "ui/gfx/geometry/size.h"
@@ -41,7 +42,7 @@
 
 #if BUILDFLAG(IS_APPLE)
 #include <CoreVideo/CVPixelBuffer.h>
-#include "base/mac/scoped_cftyperef.h"
+#include "base/apple/scoped_cftyperef.h"
 #endif  // BUILDFLAG(IS_APPLE)
 
 #if BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_CHROMEOS)
@@ -59,24 +60,21 @@ namespace media {
 // encoder/decoder. Currently, we have (1) one shared image (and texture)
 // created for single planar formats eg. RGBA (2) multiple shared images created
 // for multiplanar formats eg. P010, NV12 with one shared image for each plane
-// eg. Y and UV passing ResourceFormat (or BufferFormat) RED_8, RG_88, R_16 etc.
-// and (3) one shared image created for multiplanar formats passing in
-// ResourceFormat (or BufferFormat) used with external sampler. With
-// SharedImageFormats, we can have single planar format eg. RGBA created with
-// SharedImageFormat::SinglePlane() and multiplanar formats created with
-// SharedImageFormat::MultiPlane(). This enum helps with differentiating between
-// 3 cases between current format and SharedImageFormat (1) Legacy
-// single/multiplanar format i.e. Resource/BufferFormat (2) SharedImageFormat
-// without external sampler and (3) SharedImageFormat with external sampler.
-// NOTE: This enum is interim until all clients are converted to use
-// SharedImageFormat, then it can be replaced with bool for external sampler
-// usage.
+// eg. Y and UV passing singleplanar SharedImageFormats (kR_8, kRG_88, kR_16,
+// etc.) and (3) one shared image created for multiplanar formats passing in
+// legacy multiplanar SharedImageFormats that are used with external sampler.
+// As we roll out usage of MultiPlaneFormat, this enum helps with
+// differentiating between 3 cases: (1) SinglePlaneFormat/LegacyMultiPlaneFormat
+// (2) MultiPlaneFormat without external sampler, and (3) MultiPlaneFormat with
+// external sampler. NOTE: This enum is interim until all clients are converted
+// to use MultiPlaneFormat for all multiplanar use cases; then it will be
+// replaced with bool for external sampler usage.
 enum class SharedImageFormatType : uint8_t {
-  // Legacy formats eg. BufferFormat/ResourceFormat::YUV_420_BIPLANAR, RGBA_888
+  // SinglePlaneFormat/LegacyMultiPlaneFormat
   kLegacy,
-  // SharedImageFormat without external sampler
+  // MultiPlaneFormat without external sampler
   kSharedImageFormat,
-  // SharedImageFormat with external sampler
+  // MultiPlaneFormat with external sampler
   kSharedImageFormatExternalSampler,
 };
 
@@ -88,16 +86,16 @@ class MEDIA_EXPORT VideoFrame : public base::RefCountedThreadSafe<VideoFrame> {
   static constexpr size_t kFrameAddressAlignment =
       VideoFrameLayout::kBufferAddressAlignment;
 
-  enum {
-    kMaxPlanes = 4,
+  static constexpr size_t kMaxPlanes = 4;
 
-    kYPlane = 0,
-    kARGBPlane = kYPlane,
-    kUPlane = 1,
-    kUVPlane = kUPlane,
-    kVPlane = 2,
-    kAPlaneTriPlanar = kVPlane,
-    kAPlane = 3,
+  enum Plane : uint8_t {
+    kY = 0,
+    kARGB = kY,
+    kU = 1,
+    kUV = kU,
+    kV = 2,
+    kATriPlanar = kV,
+    kA = 3,
   };
 
   // These values are persisted to logs. Entries should not be renumbered and
@@ -172,7 +170,7 @@ class MEDIA_EXPORT VideoFrame : public base::RefCountedThreadSafe<VideoFrame> {
   // specified layout including offsets and plane sizes. Except that VideoFrame
   // knows how to compute plane sizes, this method should be in
   // `VideoFrameLayout`, probably just folded into `CreateWithStrides()`.
-  static absl::optional<VideoFrameLayout> CreateFullySpecifiedLayoutWithStrides(
+  static std::optional<VideoFrameLayout> CreateFullySpecifiedLayoutWithStrides(
       VideoPixelFormat format,
       const gfx::Size& coded_size);
 
@@ -220,6 +218,20 @@ class MEDIA_EXPORT VideoFrame : public base::RefCountedThreadSafe<VideoFrame> {
   static scoped_refptr<VideoFrame> WrapNativeTextures(
       VideoPixelFormat format,
       const gpu::MailboxHolder (&mailbox_holder)[kMaxPlanes],
+      ReleaseMailboxCB mailbox_holders_release_cb,
+      const gfx::Size& coded_size,
+      const gfx::Rect& visible_rect,
+      const gfx::Size& natural_size,
+      base::TimeDelta timestamp);
+
+  // Wraps a set of native texture shared images with a VideoFrame.
+  // |mailbox_holders_release_cb| will be called with a sync token as the
+  // argument when the VideoFrame is to be destroyed.
+  static scoped_refptr<VideoFrame> WrapSharedImages(
+      VideoPixelFormat format,
+      scoped_refptr<gpu::ClientSharedImage> shared_images[kMaxPlanes],
+      gpu::SyncToken sync_token,
+      uint32_t texture_target,
       ReleaseMailboxCB mailbox_holders_release_cb,
       const gfx::Size& coded_size,
       const gfx::Rect& visible_rect,
@@ -316,13 +328,26 @@ class MEDIA_EXPORT VideoFrame : public base::RefCountedThreadSafe<VideoFrame> {
       ReleaseMailboxAndGpuMemoryBufferCB mailbox_holder_and_gmb_release_cb,
       base::TimeDelta timestamp);
 
+  // Same as the function above except that this variant accepts a shared image
+  // array (plus a sync token and a texture target) instead of a mailbox holder
+  // array.
+  static scoped_refptr<VideoFrame> WrapExternalGpuMemoryBuffer(
+      const gfx::Rect& visible_rect,
+      const gfx::Size& natural_size,
+      std::unique_ptr<gfx::GpuMemoryBuffer> gpu_memory_buffer,
+      scoped_refptr<gpu::ClientSharedImage> shared_images[kMaxPlanes],
+      const gpu::SyncToken& sync_token,
+      uint32_t texture_target,
+      ReleaseMailboxAndGpuMemoryBufferCB mailbox_holder_and_gmb_release_cb,
+      base::TimeDelta timestamp);
+
 #if BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_CHROMEOS)
   // Wraps provided dmabufs
   // (https://www.kernel.org/doc/html/latest/driver-api/dma-buf.html) with a
   // VideoFrame. The frame will take ownership of |dmabuf_fds|, and will
-  // automatically close() them on destruction. Callers can call
-  // media::DuplicateFDs() if they need to retain a copy of the FDs for
-  // themselves. Note that the FDs are consumed even in case of failure.
+  // automatically close() them on destruction. Callers can duplicate the file
+  // descriptors if they need to retain a copy of the FDs for themselves. Note
+  // that the FDs are consumed even in case of failure.
   // The image data is only accessible via dmabuf fds, which are usually passed
   // directly to a hardware device and/or to another process, or can also be
   // mapped via mmap() for CPU access.
@@ -439,7 +464,8 @@ class MEDIA_EXPORT VideoFrame : public base::RefCountedThreadSafe<VideoFrame> {
   static void HashFrameForTesting(base::MD5Context* context,
                                   const VideoFrame& frame);
 
-  // Returns true if |frame| is accesible mapped in the VideoFrame memory space.
+  // Returns true if |frame| is accessible mapped in the VideoFrame memory
+  // space.
   // static
   static bool IsStorageTypeMappable(VideoFrame::StorageType storage_type);
 
@@ -487,11 +513,27 @@ class MEDIA_EXPORT VideoFrame : public base::RefCountedThreadSafe<VideoFrame> {
   // Returns the number of native textures.
   size_t NumTextures() const;
 
+  // Returns true if the video frame uses ClientSharedImage.
+  bool HasSharedImages() const;
+
   // Returns true if the video frame is backed with GpuMemoryBuffer.
   bool HasGpuMemoryBuffer() const;
 
+  // Returns true if the GpuMemoruBuffer backing the video frame is native
+  // buffer and not shared memory buffer. A native GPU memory buffer is a
+  // block of memory that is allocated and managed directly on the GPU's
+  // memory which allows for hardware acceleration.
+  bool HasNativeGpuMemoryBuffer() const;
+
   // Gets the GpuMemoryBuffer backing the VideoFrame.
   gfx::GpuMemoryBuffer* GetGpuMemoryBuffer() const;
+
+  // Gets the GpuMemoryBufferHandle backing the VideoFrame. Note that most of
+  // VideoFrame clients currently use ::GetGpuMemoryBuffer() above only to clone
+  // a handle from it. Those clients will be switched to using this new api.
+  // This will help with MappableSI work which intends to remove all direct
+  // usage of GpuMemoryBuffer.
+  gfx::GpuMemoryBufferHandle GetGpuMemoryBufferHandle() const;
 
   // Returns true if the video frame was created with the given parameters.
   bool IsSameAllocation(VideoPixelFormat format,
@@ -505,11 +547,16 @@ class MEDIA_EXPORT VideoFrame : public base::RefCountedThreadSafe<VideoFrame> {
     color_space_ = color_space;
   }
 
-  const absl::optional<gfx::HDRMetadata>& hdr_metadata() const {
+  // Return the full-range RGB component of the color space of this frame's
+  // content. This will replace several color spaces (Rec601, Rec709, and
+  // Apple's Rec709) with sRGB, for compatibility with existing behavior.
+  gfx::ColorSpace CompatRGBColorSpace() const;
+
+  const std::optional<gfx::HDRMetadata>& hdr_metadata() const {
     return hdr_metadata_;
   }
 
-  void set_hdr_metadata(const absl::optional<gfx::HDRMetadata>& hdr_metadata) {
+  void set_hdr_metadata(const std::optional<gfx::HDRMetadata>& hdr_metadata) {
     hdr_metadata_ = hdr_metadata;
   }
 
@@ -548,11 +595,8 @@ class MEDIA_EXPORT VideoFrame : public base::RefCountedThreadSafe<VideoFrame> {
   const gfx::Size& natural_size() const { return natural_size_; }
 
   int stride(size_t plane) const {
-    if (UNLIKELY(!IsValidPlane(format(), plane) ||
-                 plane >= layout_.num_planes())) {
-      NOTREACHED();
-      return 0;
-    }
+    CHECK(IsValidPlane(format(), plane));
+    CHECK_LT(plane, layout_.num_planes());
     return layout_.planes()[plane].stride;
   }
 
@@ -575,7 +619,7 @@ class MEDIA_EXPORT VideoFrame : public base::RefCountedThreadSafe<VideoFrame> {
     return data_[plane];
   }
   uint8_t* writable_data(size_t plane) {
-    // TODO(crbug.com/1435549): Also CHECK that the storage type isn't
+    // TODO(crbug.com/40265179): Also CHECK that the storage type isn't
     // STORAGE_UNOWNED_MEMORY once non-compliant usages are fixed.
     CHECK_NE(storage_type_, STORAGE_SHMEM);
     CHECK(IsValidPlane(format(), plane));
@@ -583,7 +627,7 @@ class MEDIA_EXPORT VideoFrame : public base::RefCountedThreadSafe<VideoFrame> {
     return const_cast<uint8_t*>(data_[plane]);
   }
 
-  const absl::optional<gpu::VulkanYCbCrInfo>& ycbcr_info() const {
+  const std::optional<gpu::VulkanYCbCrInfo>& ycbcr_info() const {
     return wrapped_frame_ ? wrapped_frame_->ycbcr_info() : ycbcr_info_;
   }
 
@@ -599,19 +643,26 @@ class MEDIA_EXPORT VideoFrame : public base::RefCountedThreadSafe<VideoFrame> {
   // mailbox, the caller must wait for the included sync point.
   const gpu::MailboxHolder& mailbox_holder(size_t texture_index) const;
 
+  // Returns a ClientSharedImage for a given texture.
+  // Only valid to call if this is a NATIVE_TEXTURE frame and contains valid
+  // ClientSharedImage pointers. Before using the shared_image, the caller must
+  // wait for the included sync point.
+  scoped_refptr<gpu::ClientSharedImage> shared_image(
+      size_t texture_index) const;
+
 #if BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_CHROMEOS)
-  // Returns a vector containing the backing DmaBufs for this frame. The number
-  // of returned DmaBufs will be equal or less than the number of planes of
+  // The number of DmaBufs will be equal or less than the number of planes of
   // the frame. If there are less, this means that the last FD contains the
-  // remaining planes.
-  // Note that the returned FDs are still owned by the VideoFrame. This means
-  // that the caller shall not close them, or use them after the VideoFrame is
-  // destroyed. For such use cases, use media::DuplicateFDs() to obtain your
-  // own copy of the FDs.
-  const std::vector<base::ScopedFD>& DmabufFds() const;
+  // remaining planes. Should be > 0 for STORAGE_DMABUFS.
+  size_t NumDmabufFds() const;
 
   // Returns true if |frame| has DmaBufs.
   bool HasDmaBufs() const;
+
+  // The returned FDs are still owned by the VideoFrame. This means that the
+  // caller shall not close them, or use them after the VideoFrame is destroyed.
+  // For such use cases, use dup() to obtain your own copy of the FDs.
+  int GetDmabufFd(size_t i) const;
 
   // Returns true if both VideoFrames are backed by DMABUF memory and point
   // to the same set of DMABUFs, meaning that both frames use the same memory.
@@ -692,7 +743,7 @@ class MEDIA_EXPORT VideoFrame : public base::RefCountedThreadSafe<VideoFrame> {
   size_t BitDepth() const;
 
   // Provide the sampler conversion information for the frame.
-  void set_ycbcr_info(const absl::optional<gpu::VulkanYCbCrInfo>& ycbcr_info) {
+  void set_ycbcr_info(const std::optional<gpu::VulkanYCbCrInfo>& ycbcr_info) {
     ycbcr_info_ = ycbcr_info;
   }
 
@@ -746,6 +797,20 @@ class MEDIA_EXPORT VideoFrame : public base::RefCountedThreadSafe<VideoFrame> {
       const gfx::Size& natural_size,
       base::TimeDelta timestamp,
       bool zero_initialize_memory);
+
+  static scoped_refptr<VideoFrame> CreateFrameForNativeTexturesInternal(
+      VideoPixelFormat format,
+      const gfx::Size& coded_size,
+      const gfx::Rect& visible_rect,
+      const gfx::Size& natural_size,
+      base::TimeDelta timestamp);
+
+  static scoped_refptr<VideoFrame> CreateFrameForGpuMemoryBufferInternal(
+      const gfx::Rect& visible_rect,
+      const gfx::Size& natural_size,
+      std::unique_ptr<gfx::GpuMemoryBuffer> gpu_memory_buffer,
+      ReleaseMailboxAndGpuMemoryBufferCB mailbox_holder_and_gmb_release_cb,
+      base::TimeDelta timestamp);
 
   // Return the alignment for the whole frame, calculated as the max of the
   // alignment for each individual plane.
@@ -805,6 +870,10 @@ class MEDIA_EXPORT VideoFrame : public base::RefCountedThreadSafe<VideoFrame> {
   gpu::MailboxHolder mailbox_holders_[kMaxPlanes];
   ReleaseMailboxAndGpuMemoryBufferCB mailbox_holders_and_gmb_release_cb_;
 
+  // Native texture shared images that are only set when the VideoFrame is
+  // created via VideoFrame::WrapSharedImages().
+  scoped_refptr<gpu::ClientSharedImage> shared_images_[kMaxPlanes];
+
   // Shared memory handle, if this frame is STORAGE_SHMEM.  The region pointed
   // to is unowned.
   raw_ptr<const base::ReadOnlySharedMemoryRegion> shm_region_ = nullptr;
@@ -825,15 +894,19 @@ class MEDIA_EXPORT VideoFrame : public base::RefCountedThreadSafe<VideoFrame> {
   // the memory area represented by the last FD contains the remaining planes.
   // If a STORAGE_DMABUFS frame is wrapped into another, the wrapping frame
   // will get an extra reference to the FDs (i.e. no duplication is involved).
-  // This makes it possible to test whether two VideoFrame instances point to
-  // the same DMABUF memory by testing for
-  // (&vf1->DmabufFds() == &vf2->DmabufFds()).
   scoped_refptr<DmabufHolder> dmabuf_fds_;
+
+  friend scoped_refptr<VideoFrame>
+  WrapChromeOSCompressedGpuMemoryBufferAsVideoFrame(
+      const gfx::Rect& visible_rect,
+      const gfx::Size& natural_size,
+      std::unique_ptr<gfx::GpuMemoryBuffer> gpu_memory_buffer,
+      base::TimeDelta timestamp);
 #endif
 
 #if BUILDFLAG(IS_APPLE)
   // CVPixelBuffer, if this frame is wrapping one.
-  base::ScopedCFTypeRef<CVPixelBufferRef> cv_pixel_buffer_;
+  base::apple::ScopedCFTypeRef<CVPixelBufferRef> cv_pixel_buffer_;
 #endif
 
   base::Lock done_callbacks_lock_;
@@ -851,7 +924,7 @@ class MEDIA_EXPORT VideoFrame : public base::RefCountedThreadSafe<VideoFrame> {
   const ID unique_id_;
 
   gfx::ColorSpace color_space_;
-  absl::optional<gfx::HDRMetadata> hdr_metadata_;
+  std::optional<gfx::HDRMetadata> hdr_metadata_;
 
   // The format type used to create shared images. When set to Legacy creates
   // shared images with current path; when set to SharedImageFormat with/without
@@ -861,7 +934,7 @@ class MEDIA_EXPORT VideoFrame : public base::RefCountedThreadSafe<VideoFrame> {
       SharedImageFormatType::kLegacy;
 
   // Sampler conversion information which is used in vulkan context for android.
-  absl::optional<gpu::VulkanYCbCrInfo> ycbcr_info_;
+  std::optional<gpu::VulkanYCbCrInfo> ycbcr_info_;
 
   // Allocation which makes up |data_| planes for self-allocated frames.
   std::unique_ptr<uint8_t, base::UncheckedFreeDeleter> private_data_;

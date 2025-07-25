@@ -1,5 +1,5 @@
-#!/usr/bin/python
-# Copyright 2014 The Chromium Authors. All rights reserved.
+#!/usr/bin/env python
+# Copyright 2014 The Chromium Authors
 # Use of this source code is governed by a BSD-style license that can be
 # found in the LICENSE file.
 
@@ -73,8 +73,6 @@ namespace chrome_variations {
 
 namespace {
 
-const size_t kNumResources = 4;
-
 const uint32_t kResourceHashes[] = {
     301430091U,  // IDS_BOOKMARKS_NO_ITEMS
     2654138887U,  // IDS_BOOKMARK_BAR_IMPORT_LINK
@@ -93,7 +91,7 @@ const int kResourceIndices[] = {
 
 variations::UIStringOverrider CreateUIStringOverrider() {
   return variations::UIStringOverrider(
-      kResourceHashes, kResourceIndices, kNumResources);
+      kResourceHashes, kResourceIndices);
 }
 
 }  // namespace chrome_variations

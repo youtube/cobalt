@@ -15,8 +15,8 @@
 #include <string>
 #include <vector>
 
+#include "base/apple/scoped_cftyperef.h"
 #include "base/containers/queue.h"
-#include "base/mac/scoped_cftyperef.h"
 #include "base/memory/raw_ptr.h"
 #include "base/memory/weak_ptr.h"
 #include "base/task/sequenced_task_runner.h"
@@ -34,7 +34,6 @@
 #include "media/video/h265_parser.h"
 #include "media/video/h265_poc.h"
 #endif  // BUILDFLAG(ENABLE_HEVC_PARSER_AND_HW_DECODER)
-#include "media/gpu/mac/gl_image_io_surface.h"
 #include "media/video/video_decode_accelerator.h"
 #include "ui/gfx/geometry/size.h"
 #include "ui/gl/gl_bindings.h"
@@ -49,11 +48,12 @@ class SingleThreadTaskRunner;
 }  // namespace base
 
 namespace media {
+class AV1ConfigChangeDetector;
 class VP9ConfigChangeDetector;
 class VP9SuperFrameBitstreamFilter;
 
 // Preload VideoToolbox libraries, needed for sandbox warmup.
-MEDIA_GPU_EXPORT bool InitializeVideoToolbox();
+MEDIA_GPU_EXPORT void InitializeVideoToolbox();
 
 // VideoToolbox.framework implementation of the VideoDecodeAccelerator
 // interface for macOS.
@@ -85,7 +85,6 @@ class VTVideoDecodeAccelerator : public VideoDecodeAccelerator,
       const scoped_refptr<base::SequencedTaskRunner>& decode_task_runner)
       override;
   bool SupportsSharedImagePictureBuffers() const override;
-  TextureAllocationMode GetSharedImageTextureAllocationMode() const override;
 
   // MemoryDumpProvider implementation.
   bool OnMemoryDump(const base::trace_event::MemoryDumpArgs& args,
@@ -145,10 +144,10 @@ class VTVideoDecodeAccelerator : public VideoDecodeAccelerator,
     gfx::Size image_size;
 
     // Decoded image, if decoding was successful.
-    base::ScopedCFTypeRef<CVImageBufferRef> image;
+    base::apple::ScopedCFTypeRef<CVImageBufferRef> image;
 
     // Dynamic HDR metadata, if any.
-    absl::optional<gfx::HDRMetadata> hdr_metadata;
+    std::optional<gfx::HDRMetadata> hdr_metadata;
   };
 
   struct Task {
@@ -164,27 +163,16 @@ class VTVideoDecodeAccelerator : public VideoDecodeAccelerator,
     // A PictureInfo that specifies no texture IDs will be used for shared
     // images.
     PictureInfo();
-    PictureInfo(uint32_t client_texture_id, uint32_t service_texture_id);
 
     PictureInfo(const PictureInfo&) = delete;
     PictureInfo& operator=(const PictureInfo&) = delete;
 
     ~PictureInfo();
 
-    // If true, then |scoped_shared_images| is used and |client_texture_id| and
-    // |service_texture_id| are not used.
-    const bool uses_shared_images;
-
-    // Information about the currently bound image, for OnMemoryDump().
-    std::vector<scoped_refptr<GLImageIOSurface>> gl_images;
     int32_t bitstream_id = 0;
 
-    // Texture IDs for the image buffer.
-    const uint32_t client_texture_id = 0;
-    const uint32_t service_texture_id = 0;
-
     // The shared image holder that will be passed to the client.
-    std::vector<scoped_refptr<Picture::ScopedSharedImage>> scoped_shared_images;
+    scoped_refptr<Picture::ScopedSharedImage> scoped_shared_image;
   };
 
   struct FrameOrder {
@@ -206,6 +194,7 @@ class VTVideoDecodeAccelerator : public VideoDecodeAccelerator,
 
   // |frame| is owned by |pending_frames_|.
   void DecodeTaskH264(scoped_refptr<DecoderBuffer> buffer, Frame* frame);
+  void DecodeTaskAv1(scoped_refptr<DecoderBuffer> buffer, Frame* frame);
   void DecodeTaskVp9(scoped_refptr<DecoderBuffer> buffer, Frame* frame);
 #if BUILDFLAG(ENABLE_HEVC_PARSER_AND_HW_DECODER)
   void DecodeTaskHEVC(scoped_refptr<DecoderBuffer> buffer, Frame* frame);
@@ -247,7 +236,8 @@ class VTVideoDecodeAccelerator : public VideoDecodeAccelerator,
   const gpu::GpuDriverBugWorkarounds workarounds_;
   std::unique_ptr<MediaLog> media_log_;
 
-  raw_ptr<VideoDecodeAccelerator::Client, DanglingUntriaged> client_ = nullptr;
+  raw_ptr<VideoDecodeAccelerator::Client, AcrossTasksDanglingUntriaged>
+      client_ = nullptr;
   State state_ = STATE_DECODING;
 
   // Queue of pending flush tasks. This is used to drop frames when a reset
@@ -267,8 +257,10 @@ class VTVideoDecodeAccelerator : public VideoDecodeAccelerator,
   // require reordering (VP9 only at the moment).
   std::deque<std::unique_ptr<Frame>> output_queue_;
 
-  std::unique_ptr<VP9ConfigChangeDetector> cc_detector_;
+  std::unique_ptr<VP9ConfigChangeDetector> vp9_cc_detector_;
   std::unique_ptr<VP9SuperFrameBitstreamFilter> vp9_bsf_;
+
+  std::unique_ptr<AV1ConfigChangeDetector> av1_cc_detector_;
 
   // Size of assigned picture buffers.
   gfx::Size picture_size_;
@@ -301,8 +293,8 @@ class VTVideoDecodeAccelerator : public VideoDecodeAccelerator,
   // Decoder thread state.
   //
   VTDecompressionOutputCallbackRecord callback_;
-  base::ScopedCFTypeRef<CMFormatDescriptionRef> format_;
-  base::ScopedCFTypeRef<VTDecompressionSessionRef> session_;
+  base::apple::ScopedCFTypeRef<CMFormatDescriptionRef> format_;
+  base::apple::ScopedCFTypeRef<VTDecompressionSessionRef> session_;
   H264Parser h264_parser_;
 
   // SPSs and PPSs seen in the bitstream.
@@ -352,6 +344,8 @@ class VTVideoDecodeAccelerator : public VideoDecodeAccelerator,
   // currently only HEVC is supported, VideoToolbox doesn't
   // support VP9 with alpha for now.
   bool has_alpha_ = false;
+
+  uint8_t bit_depth_ = 0;
 
   // Used to accumulate the output picture count as a workaround to solve
   // the VT CRA/RASL bug

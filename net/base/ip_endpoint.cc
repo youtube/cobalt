@@ -4,14 +4,16 @@
 
 #include "net/base/ip_endpoint.h"
 
-#include <ostream>
-
 #include <string.h>
+
+#include <optional>
+#include <ostream>
 #include <tuple>
 #include <utility>
 
 #include "base/check.h"
 #include "base/check_op.h"
+#include "base/containers/span.h"
 #include "base/notreached.h"
 #include "base/numerics/safe_conversions.h"
 #include "base/strings/string_number_conversions.h"
@@ -20,10 +22,10 @@
 #include "build/build_config.h"
 #include "net/base/ip_address.h"
 #include "net/base/sys_addrinfo.h"
-#include "third_party/abseil-cpp/absl/types/optional.h"
 
 #if BUILDFLAG(IS_WIN)
 #include <winsock2.h>
+
 #include <ws2bth.h>
 
 #include "net/base/winsock_util.h"  // For kBluetoothAddressSize
@@ -31,63 +33,33 @@
 
 namespace net {
 
-#if defined(STARBOARD)
-bool GetIPAddressFromSbSocketAddress(const SbSocketAddress* address,
-                                     const unsigned char** out_address_data,
-                                     size_t* out_address_len,
-                                     uint16_t* out_port) {
-  DCHECK(address);
-  DCHECK(out_address_data);
-  DCHECK(out_address_len);
-  if (out_port) {
-    *out_port = address->port;
-  }
-
-  *out_address_data = address->address;
-  switch (address->type) {
-    case kSbSocketAddressTypeIpv4:
-      *out_address_len = IPAddress::kIPv4AddressSize;
-      break;
-    case kSbSocketAddressTypeIpv6:
-      *out_address_len = IPAddress::kIPv6AddressSize;
-      break;
-
-    default:
-      NOTREACHED();
-      return false;
-  }
-
-  return true;
-}
-#endif
-
 namespace {
 
 // Value dictionary keys
-constexpr base::StringPiece kValueAddressKey = "address";
-constexpr base::StringPiece kValuePortKey = "port";
+constexpr std::string_view kValueAddressKey = "address";
+constexpr std::string_view kValuePortKey = "port";
 
 }  // namespace
 
 // static
-absl::optional<IPEndPoint> IPEndPoint::FromValue(const base::Value& value) {
+std::optional<IPEndPoint> IPEndPoint::FromValue(const base::Value& value) {
   const base::Value::Dict* dict = value.GetIfDict();
   if (!dict)
-    return absl::nullopt;
+    return std::nullopt;
 
   const base::Value* address_value = dict->Find(kValueAddressKey);
   if (!address_value)
-    return absl::nullopt;
-  absl::optional<IPAddress> address = IPAddress::FromValue(*address_value);
+    return std::nullopt;
+  std::optional<IPAddress> address = IPAddress::FromValue(*address_value);
   if (!address.has_value())
-    return absl::nullopt;
+    return std::nullopt;
   // Expect IPAddress to only allow deserializing valid addresses.
   DCHECK(address.value().IsValid());
 
-  absl::optional<int> port = dict->FindInt(kValuePortKey);
+  std::optional<int> port = dict->FindInt(kValuePortKey);
   if (!port.has_value() ||
       !base::IsValueInRangeForNumericType<uint16_t>(port.value())) {
-    return absl::nullopt;
+    return std::nullopt;
   }
 
   return IPEndPoint(address.value(),
@@ -109,53 +81,6 @@ uint16_t IPEndPoint::port() const {
 #endif
   return port_;
 }
-
-#if defined(STARBOARD)
-// static
-IPEndPoint IPEndPoint::GetForAllInterfaces(int port) {
-  // Directly construct the 0.0.0.0 address with the given port.
-  IPAddress address(0, 0, 0, 0);
-  return IPEndPoint(address, port);
-}
-
-bool IPEndPoint::ToSbSocketAddress(SbSocketAddress* out_address) const {
-  DCHECK(out_address);
-  out_address->port = port_;
-  memset(out_address->address, 0, sizeof(out_address->address));
-  switch (GetFamily()) {
-    case ADDRESS_FAMILY_IPV4:
-      out_address->type = kSbSocketAddressTypeIpv4;
-      memcpy(&out_address->address, address_.bytes().data(),
-                   IPAddress::kIPv4AddressSize);
-      break;
-    case ADDRESS_FAMILY_IPV6:
-      out_address->type = kSbSocketAddressTypeIpv6;
-      memcpy(&out_address->address, address_.bytes().data(),
-                   IPAddress::kIPv6AddressSize);
-      break;
-    default:
-      NOTREACHED();
-      return false;
-  }
-  return true;
-}
-
-bool IPEndPoint::FromSbSocketAddress(const SbSocketAddress* address) {
-  DCHECK(address);
-
-  const uint8_t* address_data;
-  size_t address_len;
-  uint16_t port;
-  if (!GetIPAddressFromSbSocketAddress(address, &address_data, &address_len,
-                                       &port)) {
-    return false;
-  }
-
-  address_ = net::IPAddress(address_data, address_len);
-  port_ = port;
-  return true;
-}
-#endif  // defined(STARBOARD)
 
 AddressFamily IPEndPoint::GetFamily() const {
   return GetAddressFamily(address_);
@@ -232,8 +157,8 @@ bool IPEndPoint::FromSockAddr(const struct sockaddr* sock_addr,
       const struct sockaddr_in* addr =
           reinterpret_cast<const struct sockaddr_in*>(sock_addr);
       *this = IPEndPoint(
-          IPAddress(reinterpret_cast<const uint8_t*>(&addr->sin_addr),
-                    IPAddress::kIPv4AddressSize),
+          // `s_addr` is a `uint32_t`, but it is already in network byte order.
+          IPAddress(base::as_bytes(base::span_from_ref(addr->sin_addr.s_addr))),
           base::NetToHost16(addr->sin_port));
       return true;
     }
@@ -242,10 +167,8 @@ bool IPEndPoint::FromSockAddr(const struct sockaddr* sock_addr,
         return false;
       const struct sockaddr_in6* addr =
           reinterpret_cast<const struct sockaddr_in6*>(sock_addr);
-      *this = IPEndPoint(
-          IPAddress(reinterpret_cast<const uint8_t*>(&addr->sin6_addr),
-                    IPAddress::kIPv6AddressSize),
-          base::NetToHost16(addr->sin6_port));
+      *this = IPEndPoint(IPAddress(addr->sin6_addr.s6_addr),
+                         base::NetToHost16(addr->sin6_port));
       return true;
     }
 #if BUILDFLAG(IS_WIN)
@@ -255,8 +178,10 @@ bool IPEndPoint::FromSockAddr(const struct sockaddr* sock_addr,
       const SOCKADDR_BTH* addr =
           reinterpret_cast<const SOCKADDR_BTH*>(sock_addr);
       *this = IPEndPoint();
-      address_ = IPAddress(reinterpret_cast<const uint8_t*>(&addr->btAddr),
-                           kBluetoothAddressSize);
+      // A bluetooth address is 6 bytes, but btAddr is a ULONGLONG, so we take a
+      // prefix of it.
+      address_ = IPAddress(base::as_bytes(base::span_from_ref(addr->btAddr))
+                               .first(kBluetoothAddressSize));
       // Intentionally ignoring Bluetooth port. It is a ULONG, but
       // `IPEndPoint::port_` is a uint16_t. See https://crbug.com/1231273.
       return true;

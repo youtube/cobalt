@@ -6,6 +6,7 @@
 
 #include <atomic>
 #include <memory>
+#include <string_view>
 
 #include "base/atomicops.h"
 #include "base/cancelable_callback.h"
@@ -276,6 +277,7 @@ void DelayedTasksTest(TaskEnvironment::TimeSource time_source) {
 
   if (time_source == TaskEnvironment::TimeSource::MOCK_TIME) {
     const TimeTicks start_time = task_environment.NowTicks();
+    const LiveTicks live_start_time = task_environment.NowLiveTicks();
 
     // Delay inferior to the delay of the first posted task.
     constexpr base::TimeDelta kInferiorTaskDelay = Seconds(1);
@@ -284,14 +286,19 @@ void DelayedTasksTest(TaskEnvironment::TimeSource time_source) {
                   "set to a value inferior to the first posted task's delay.");
     task_environment.FastForwardBy(kInferiorTaskDelay);
     EXPECT_EQ(expected_value, counter);
-    // Time advances to cap even if there was no task at cap.
+    // Time advances to cap even if there was no task at cap and live ticks
+    // advances by the same amount.
     EXPECT_EQ(task_environment.NowTicks() - start_time, kInferiorTaskDelay);
+    EXPECT_EQ(task_environment.NowLiveTicks() - live_start_time,
+              kInferiorTaskDelay);
 
     task_environment.FastForwardBy(kShortTaskDelay - kInferiorTaskDelay);
     expected_value += 4;
     expected_value += 128;
     EXPECT_EQ(expected_value, counter);
     EXPECT_EQ(task_environment.NowTicks() - start_time, kShortTaskDelay);
+    EXPECT_EQ(task_environment.NowLiveTicks() - live_start_time,
+              kShortTaskDelay);
 
     task_environment.FastForwardUntilNoTasksRemain();
     expected_value += 8;
@@ -301,6 +308,8 @@ void DelayedTasksTest(TaskEnvironment::TimeSource time_source) {
     expected_value += 1024;
     EXPECT_EQ(expected_value, counter);
     EXPECT_EQ(task_environment.NowTicks() - start_time, kLongTaskDelay * 4);
+    EXPECT_EQ(task_environment.NowLiveTicks() - live_start_time,
+              kLongTaskDelay * 4);
   }
 }
 
@@ -367,7 +376,6 @@ TEST_F(TaskEnvironmentTest, MainThreadType) {
   EXPECT_FALSE(CurrentIOThread::IsSet());
 }
 
-#if !defined(STARBOARD)
 #if BUILDFLAG(IS_POSIX)
 TEST_F(TaskEnvironmentTest, SupportsFileDescriptorWatcherOnIOMainThread) {
   TaskEnvironment task_environment(TaskEnvironment::MainThreadType::IO);
@@ -411,7 +419,6 @@ TEST_F(TaskEnvironmentTest,
   run_loop.Run();
 }
 #endif  // BUILDFLAG(IS_POSIX)
-#endif // !defined(STARBOARD)
 
 TEST_F(TaskEnvironmentTest, MockTimeStartsWithWholeMilliseconds) {
   TaskEnvironment task_environment(TaskEnvironment::TimeSource::MOCK_TIME);
@@ -530,6 +537,26 @@ TEST_F(TaskEnvironmentTest, AdvanceClockAdvancesTimeTicks) {
   EXPECT_EQ(start_time + kDelay, base::TimeTicks::Now());
 }
 
+TEST_F(TaskEnvironmentTest, AdvanceClockAdvancesLiveTicks) {
+  constexpr base::TimeDelta kDelay = Seconds(42);
+  TaskEnvironment task_environment(TaskEnvironment::TimeSource::MOCK_TIME);
+
+  const LiveTicks start_time = base::LiveTicks::Now();
+  task_environment.AdvanceClock(kDelay);
+  EXPECT_EQ(start_time + kDelay, base::LiveTicks::Now());
+}
+
+TEST_F(TaskEnvironmentTest, SuspendedAdvanceClockDoesntAdvanceLiveTicks) {
+  constexpr base::TimeDelta kDelay = Seconds(42);
+  TaskEnvironment task_environment(TaskEnvironment::TimeSource::MOCK_TIME);
+
+  const TimeTicks start_time = base::TimeTicks::Now();
+  const LiveTicks live_start_time = base::LiveTicks::Now();
+  task_environment.SuspendedAdvanceClock(kDelay);
+  EXPECT_EQ(live_start_time, base::LiveTicks::Now());
+  EXPECT_EQ(start_time + kDelay, base::TimeTicks::Now());
+}
+
 TEST_F(TaskEnvironmentTest, AdvanceClockDoesNotRunTasks) {
   TaskEnvironment task_environment(TaskEnvironment::TimeSource::MOCK_TIME);
 
@@ -547,8 +574,27 @@ TEST_F(TaskEnvironmentTest, AdvanceClockDoesNotRunTasks) {
   EXPECT_FALSE(task_environment.NextTaskIsDelayed());
 }
 
-TEST_F(TaskEnvironmentTest, AdvanceClockSchedulesRipeDelayedTasks) {
+TEST_F(TaskEnvironmentTest, SuspendedAdvanceClockDoesNotRunTasks) {
   TaskEnvironment task_environment(TaskEnvironment::TimeSource::MOCK_TIME);
+
+  constexpr base::TimeDelta kTaskDelay = Days(1);
+  SingleThreadTaskRunner::GetCurrentDefault()->PostDelayedTask(
+      FROM_HERE, base::DoNothing(), kTaskDelay);
+
+  EXPECT_EQ(1U, task_environment.GetPendingMainThreadTaskCount());
+  EXPECT_TRUE(task_environment.NextTaskIsDelayed());
+
+  task_environment.SuspendedAdvanceClock(kTaskDelay);
+
+  // The task is still pending, but is now runnable.
+  EXPECT_EQ(1U, task_environment.GetPendingMainThreadTaskCount());
+  EXPECT_FALSE(task_environment.NextTaskIsDelayed());
+}
+
+TEST_F(TaskEnvironmentTest, AdvanceClockSchedulesRipeDelayedTasks) {
+  TaskEnvironment task_environment(
+      TaskEnvironment::TimeSource::MOCK_TIME,
+      TaskEnvironment::ThreadPoolExecutionMode::QUEUED);
 
   bool ran = false;
 
@@ -557,6 +603,23 @@ TEST_F(TaskEnvironmentTest, AdvanceClockSchedulesRipeDelayedTasks) {
       FROM_HERE, base::BindLambdaForTesting([&]() { ran = true; }), kTaskDelay);
 
   task_environment.AdvanceClock(kTaskDelay);
+  EXPECT_FALSE(ran);
+  task_environment.RunUntilIdle();
+  EXPECT_TRUE(ran);
+}
+
+TEST_F(TaskEnvironmentTest, SuspendedAdvanceClockSchedulesRipeDelayedTasks) {
+  TaskEnvironment task_environment(
+      TaskEnvironment::TimeSource::MOCK_TIME,
+      TaskEnvironment::ThreadPoolExecutionMode::QUEUED);
+
+  bool ran = false;
+
+  constexpr base::TimeDelta kTaskDelay = Days(1);
+  ThreadPool::PostDelayedTask(
+      FROM_HERE, base::BindLambdaForTesting([&]() { ran = true; }), kTaskDelay);
+
+  task_environment.SuspendedAdvanceClock(kTaskDelay);
   EXPECT_FALSE(ran);
   task_environment.RunUntilIdle();
   EXPECT_TRUE(ran);
@@ -582,6 +645,32 @@ TEST_F(TaskEnvironmentTest, FastForwardOnlyAdvancesWhenIdle) {
       kDelay);
   task_environment.FastForwardBy(kFastForwardUntil);
   EXPECT_EQ(start_time + kFastForwardUntil, base::TimeTicks::Now());
+}
+
+// Verify that SuspendedFastForwardBy() behaves as FastForwardBy() but doesn't
+// advance `LiveTicks`
+TEST_F(TaskEnvironmentTest, SuspendedFastForwardOnlyAdvancesWhenIdle) {
+  TaskEnvironment task_environment(TaskEnvironment::TimeSource::MOCK_TIME);
+
+  const TimeTicks start_time = base::TimeTicks::Now();
+  const LiveTicks live_start_time = base::LiveTicks::Now();
+
+  constexpr base::TimeDelta kDelay = Seconds(42);
+  constexpr base::TimeDelta kFastForwardUntil = Seconds(100);
+  SingleThreadTaskRunner::GetCurrentDefault()->PostTask(
+      FROM_HERE, BindLambdaForTesting([&]() {
+        EXPECT_EQ(start_time, base::TimeTicks::Now());
+        EXPECT_EQ(live_start_time, base::LiveTicks::Now());
+      }));
+  SingleThreadTaskRunner::GetCurrentDefault()->PostDelayedTask(
+      FROM_HERE, BindLambdaForTesting([&]() {
+        EXPECT_EQ(start_time + kDelay, base::TimeTicks::Now());
+        EXPECT_EQ(live_start_time, base::LiveTicks::Now());
+      }),
+      kDelay);
+  task_environment.SuspendedFastForwardBy(kFastForwardUntil);
+  EXPECT_EQ(start_time + kFastForwardUntil, base::TimeTicks::Now());
+  EXPECT_EQ(live_start_time, base::LiveTicks::Now());
 }
 
 // FastForwardBy(0) should be equivalent of RunUntilIdle().
@@ -610,6 +699,7 @@ TEST_F(TaskEnvironmentTest, NestedFastForwardBy) {
 
   constexpr TimeDelta kDelayPerTask = Milliseconds(1);
   const TimeTicks start_time = task_environment.NowTicks();
+  const LiveTicks live_start_time = task_environment.NowLiveTicks();
 
   int max_nesting_level = 0;
 
@@ -626,6 +716,8 @@ TEST_F(TaskEnvironmentTest, NestedFastForwardBy) {
 
   EXPECT_EQ(max_nesting_level, 5);
   EXPECT_EQ(task_environment.NowTicks(), start_time + kDelayPerTask * 5);
+  EXPECT_EQ(task_environment.NowLiveTicks(),
+            live_start_time + kDelayPerTask * 5);
 }
 
 TEST_F(TaskEnvironmentTest, NestedRunInFastForwardBy) {
@@ -633,6 +725,7 @@ TEST_F(TaskEnvironmentTest, NestedRunInFastForwardBy) {
 
   constexpr TimeDelta kDelayPerTask = Milliseconds(1);
   const TimeTicks start_time = task_environment.NowTicks();
+  const LiveTicks live_start_time = task_environment.NowLiveTicks();
 
   std::vector<RunLoop*> run_loops;
 
@@ -660,6 +753,8 @@ TEST_F(TaskEnvironmentTest, NestedRunInFastForwardBy) {
 
   EXPECT_EQ(run_loops.size(), 4U);
   EXPECT_EQ(task_environment.NowTicks(), start_time + kDelayPerTask * 5);
+  EXPECT_EQ(task_environment.NowLiveTicks(),
+            live_start_time + kDelayPerTask * 5);
 }
 
 TEST_F(TaskEnvironmentTest,
@@ -782,6 +877,7 @@ TEST_F(TaskEnvironmentTest, MultiThreadedFastForwardBy) {
   TaskEnvironment task_environment(TaskEnvironment::TimeSource::MOCK_TIME);
 
   const TimeTicks start_time = task_environment.NowTicks();
+  const LiveTicks live_start_time = task_environment.NowLiveTicks();
 
   // The 1s delayed task in the pool should run but not the 5s delayed task on
   // the main thread and fast-forward by should be capped at +2s.
@@ -792,6 +888,7 @@ TEST_F(TaskEnvironmentTest, MultiThreadedFastForwardBy) {
   task_environment.FastForwardBy(Seconds(2));
 
   EXPECT_EQ(task_environment.NowTicks(), start_time + Seconds(2));
+  EXPECT_EQ(task_environment.NowLiveTicks(), live_start_time + Seconds(2));
 }
 
 // Verify that ThreadPoolExecutionMode::QUEUED doesn't prevent running tasks and
@@ -901,13 +998,13 @@ TEST_F(TaskEnvironmentTest, SetsDefaultRunTimeout) {
     }
     static auto& static_on_timeout_cb = run_timeout->on_timeout;
 #if defined(__clang__) && defined(_MSC_VER)
-    EXPECT_FATAL_FAILURE(
+    EXPECT_NONFATAL_FAILURE(
         static_on_timeout_cb.Run(FROM_HERE),
         "RunLoop::Run() timed out. Timeout set at "
         // We don't test the line number but it would be present.
         "TaskEnvironment@base\\test\\task_environment.cc:");
 #else
-    EXPECT_FATAL_FAILURE(
+    EXPECT_NONFATAL_FAILURE(
         static_on_timeout_cb.Run(FROM_HERE),
         "RunLoop::Run() timed out. Timeout set at "
         // We don't test the line number but it would be present.
@@ -927,11 +1024,11 @@ TEST_F(TaskEnvironmentTest, DescribeCurrentTasksHasPendingMainThreadTasks) {
   mock_log.StartCapturingLogs();
 
   // Thread pool tasks (none here) are logged.
-  EXPECT_CALL(mock_log, Log(::logging::LOG_INFO, _, _, _,
+  EXPECT_CALL(mock_log, Log(::logging::LOGGING_INFO, _, _, _,
                             HasSubstr("ThreadPool currently running tasks")))
       .WillOnce(Return(true));
   // The pending task posted above to the main thread is logged.
-  EXPECT_CALL(mock_log, Log(::logging::LOG_INFO, _, _, _,
+  EXPECT_CALL(mock_log, Log(::logging::LOGGING_INFO, _, _, _,
                             HasSubstr("task_environment_unittest.cc")))
       .WillOnce(Return(true));
   task_environment.DescribeCurrentTasks();
@@ -939,11 +1036,11 @@ TEST_F(TaskEnvironmentTest, DescribeCurrentTasksHasPendingMainThreadTasks) {
   task_environment.RunUntilIdle();
 
   // Thread pool tasks (none here) are logged.
-  EXPECT_CALL(mock_log, Log(::logging::LOG_INFO, _, _, _,
+  EXPECT_CALL(mock_log, Log(::logging::LOGGING_INFO, _, _, _,
                             HasSubstr("ThreadPool currently running tasks")))
       .WillOnce(Return(true));
   // Pending tasks (none left) are logged.
-  EXPECT_CALL(mock_log, Log(::logging::LOG_INFO, _, _, _,
+  EXPECT_CALL(mock_log, Log(::logging::LOGGING_INFO, _, _, _,
                             HasSubstr("\"immediate_work_queue_size\":0")))
       .WillOnce(Return(true));
   task_environment.DescribeCurrentTasks();
@@ -975,11 +1072,11 @@ TEST_F(TaskEnvironmentTest, DescribeCurrentTasksHasThreadPoolTasks) {
   mock_log.StartCapturingLogs();
 
   // The pending task posted above is logged.
-  EXPECT_CALL(mock_log, Log(::logging::LOG_INFO, _, _, _,
+  EXPECT_CALL(mock_log, Log(::logging::LOGGING_INFO, _, _, _,
                             HasSubstr("task_environment_unittest.cc")))
       .WillOnce(Return(true));
   // Pending tasks (none here) are logged.
-  EXPECT_CALL(mock_log, Log(::logging::LOG_INFO, _, _, _,
+  EXPECT_CALL(mock_log, Log(::logging::LOGGING_INFO, _, _, _,
                             HasSubstr("\"immediate_work_queue_size\":0")))
       .WillOnce(Return(true));
   task_environment.DescribeCurrentTasks();
@@ -989,11 +1086,11 @@ TEST_F(TaskEnvironmentTest, DescribeCurrentTasksHasThreadPoolTasks) {
   task_environment.RunUntilIdle();
 
   // The current thread pool tasks (none left) are logged.
-  EXPECT_CALL(mock_log, Log(::logging::LOG_INFO, _, _, _,
+  EXPECT_CALL(mock_log, Log(::logging::LOGGING_INFO, _, _, _,
                             Not(HasSubstr("task_environment_unittest.cc"))))
       .WillOnce(Return(true));
   // Main thread pending tasks (none here) are logged.
-  EXPECT_CALL(mock_log, Log(::logging::LOG_INFO, _, _, _,
+  EXPECT_CALL(mock_log, Log(::logging::LOGGING_INFO, _, _, _,
                             HasSubstr("\"immediate_work_queue_size\":0")))
       .WillOnce(Return(true));
   task_environment.DescribeCurrentTasks();
@@ -1308,10 +1405,14 @@ TEST_F(TaskEnvironmentTest, TimeSourceMockTimeAlsoMocksNow) {
 
   const Time start_time = Time::Now();
 
+  const LiveTicks start_live_ticks = task_environment.NowLiveTicks();
+  EXPECT_EQ(LiveTicks::Now(), start_live_ticks);
+
   constexpr TimeDelta kDelay = Seconds(10);
   task_environment.FastForwardBy(kDelay);
   EXPECT_EQ(TimeTicks::Now(), start_ticks + kDelay);
   EXPECT_EQ(Time::Now(), start_time + kDelay);
+  EXPECT_EQ(LiveTicks::Now(), start_live_ticks + kDelay);
 }
 
 TEST_F(TaskEnvironmentTest, SingleThread) {
@@ -1409,7 +1510,7 @@ TEST_F(TaskEnvironmentTest, NoCOMEnvironment) {
 }
 #endif  // BUILDFLAG(IS_WIN)
 
-// TODO(crbug.com/1318840): Re-enable this test
+// TODO(crbug.com/40835641): Re-enable this test
 #if BUILDFLAG(IS_CHROMEOS) || BUILDFLAG(IS_ANDROID) || BUILDFLAG(IS_LINUX)
 #define MAYBE_ParallelExecutionFence DISABLED_ParallelExecutionFence
 #else
@@ -1523,7 +1624,7 @@ bool FailOnTaskEnvironmentLog(int severity,
                               int line,
                               size_t message_start,
                               const std::string& str) {
-  StringPiece file_str(file);
+  std::string_view file_str(file);
   if (file_str.find("task_environment.cc") != StringPiece::npos) {
     ADD_FAILURE() << str;
     return true;

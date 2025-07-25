@@ -10,6 +10,7 @@
 #include <memory>
 #include <vector>
 
+#include "base/containers/flat_set.h"
 #include "base/gtest_prod_util.h"
 #include "base/memory/raw_ptr.h"
 #include "base/observer_list.h"
@@ -22,7 +23,6 @@
 
 namespace net {
 
-class CTPolicyEnforcer;
 class HostPortPair;
 class SCTAuditingDelegate;
 class SSLClientSessionCache;
@@ -101,11 +101,13 @@ class NET_EXPORT SSLClientContext : public SSLConfigService::Observer,
     // Called when SSL configuration for all hosts changed. Newly-created
     // SSLClientSockets will pick up the new configuration. Note that changes
     // which only apply to one server will result in a call to
-    // OnSSLConfigForServerChanged() instead.
+    // OnSSLConfigForServersChanged() instead.
     virtual void OnSSLConfigChanged(SSLConfigChangeType change_type) = 0;
-    // Called when SSL configuration for |server| changed. Newly-created
-    // SSLClientSockets to |server| will pick up the new configuration.
-    virtual void OnSSLConfigForServerChanged(const HostPortPair& server) = 0;
+    // Called when SSL configuration for |servers| changed. Newly-created
+    // SSLClientSockets to any server in |servers| will pick up the new
+    // configuration.
+    virtual void OnSSLConfigForServersChanged(
+        const base::flat_set<HostPortPair>& servers) = 0;
   };
 
   // Creates a new SSLClientContext with the specified parameters. The
@@ -117,7 +119,6 @@ class NET_EXPORT SSLClientContext : public SSLConfigService::Observer,
   SSLClientContext(SSLConfigService* ssl_config_service,
                    CertVerifier* cert_verifier,
                    TransportSecurityState* transport_security_state,
-                   CTPolicyEnforcer* ct_policy_enforcer,
                    SSLClientSessionCache* ssl_client_session_cache,
                    SCTAuditingDelegate* sct_auditing_delegate);
 
@@ -133,7 +134,6 @@ class NET_EXPORT SSLClientContext : public SSLConfigService::Observer,
   TransportSecurityState* transport_security_state() {
     return transport_security_state_;
   }
-  CTPolicyEnforcer* ct_policy_enforcer() { return ct_policy_enforcer_; }
   SSLClientSessionCache* ssl_client_session_cache() {
     return ssl_client_session_cache_;
   }
@@ -164,7 +164,7 @@ class NET_EXPORT SSLClientContext : public SSLConfigService::Observer,
   // |private_key| may be null to indicate that no client certificate should be
   // sent to |server|.
   //
-  // Note this method will synchronously call OnSSLConfigForServerChanged() on
+  // Note this method will synchronously call OnSSLConfigForServersChanged() on
   // observers.
   void SetClientCertificate(const HostPortPair& server,
                             scoped_refptr<X509Certificate> client_cert,
@@ -174,9 +174,32 @@ class NET_EXPORT SSLClientContext : public SSLConfigService::Observer,
   // SetClientCertificate(). Returns true if one was removed and false
   // otherwise.
   //
-  // Note this method will synchronously call OnSSLConfigForServerChanged() on
+  // Note this method will synchronously call OnSSLConfigForServersChanged() on
   // observers.
   bool ClearClientCertificate(const HostPortPair& server);
+
+  // Clears a client certificate preference for |host| set by
+  // SetClientCertificate() if |certificate| doesn't match the cached
+  // certificate.
+  //
+  // Note this method will synchronously call OnSSLConfigForServersChanged() on
+  // observers.
+  void ClearClientCertificateIfNeeded(
+      const net::HostPortPair& host,
+      const scoped_refptr<net::X509Certificate>& certificate);
+
+  // Clears a client certificate preference, set by SetClientCertificate(),
+  // for all hosts whose cached certificate matches |certificate|.
+  //
+  // Note this method will synchronously call OnSSLConfigForServersChanged() on
+  // observers.
+  void ClearMatchingClientCertificate(
+      const scoped_refptr<net::X509Certificate>& certificate);
+
+  base::flat_set<HostPortPair> GetClientCertificateCachedServersForTesting()
+      const {
+    return ssl_client_auth_cache_.GetCachedServers();
+  }
 
   // Add an observer to be notified when configuration has changed.
   // RemoveObserver() must be called before |observer| is destroyed.
@@ -192,18 +215,19 @@ class NET_EXPORT SSLClientContext : public SSLConfigService::Observer,
   void OnCertVerifierChanged() override;
 
   // CertDatabase::Observer:
-  void OnCertDBChanged() override;
+  void OnTrustStoreChanged() override;
+  void OnClientCertStoreChanged() override;
 
  private:
   void NotifySSLConfigChanged(SSLConfigChangeType change_type);
-  void NotifySSLConfigForServerChanged(const HostPortPair& server);
+  void NotifySSLConfigForServersChanged(
+      const base::flat_set<HostPortPair>& servers);
 
   SSLContextConfig config_;
 
   raw_ptr<SSLConfigService> ssl_config_service_;
   raw_ptr<CertVerifier> cert_verifier_;
   raw_ptr<TransportSecurityState> transport_security_state_;
-  raw_ptr<CTPolicyEnforcer> ct_policy_enforcer_;
   raw_ptr<SSLClientSessionCache> ssl_client_session_cache_;
   raw_ptr<SCTAuditingDelegate> sct_auditing_delegate_;
 

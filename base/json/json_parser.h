@@ -9,16 +9,16 @@
 #include <stdint.h>
 
 #include <memory>
+#include <optional>
 #include <string>
+#include <string_view>
 
 #include "base/base_export.h"
 #include "base/compiler_specific.h"
 #include "base/gtest_prod_util.h"
 #include "base/json/json_common.h"
-#include "base/strings/string_piece.h"
 #include "base/third_party/icu/icu_utf.h"
 #include "base/values.h"
-#include "third_party/abseil-cpp/absl/types/optional.h"
 
 namespace base {
 
@@ -81,7 +81,7 @@ class BASE_EXPORT JSONParser {
   // result as a Value.
   // Wrap this in base::FooValue::From() to check the Value is of type Foo and
   // convert to a FooValue at the same time.
-  absl::optional<Value> Parse(StringPiece input);
+  std::optional<Value> Parse(std::string_view input);
 
   // Returns the error code.
   JsonParseError error_code() const;
@@ -115,7 +115,7 @@ class BASE_EXPORT JSONParser {
   };
 
   // A helper class used for parsing strings. One optimization performed is to
-  // create base::Value with a StringPiece to avoid unnecessary std::string
+  // create base::Value with a std::string_view to avoid unnecessary std::string
   // copies. This is not possible if the input string needs to be decoded from
   // UTF-16 to UTF-8, or if an escape sequence causes characters to be skipped.
   // This class centralizes that logic.
@@ -136,9 +136,9 @@ class BASE_EXPORT JSONParser {
     // converted, or by appending the UTF8 bytes for the code point.
     void Append(base_icu::UChar32 point);
 
-    // Converts the builder from its default StringPiece to a full std::string,
-    // performing a copy. Once a builder is converted, it cannot be made a
-    // StringPiece again.
+    // Converts the builder from its default std::string_view to a full
+    // std::string, performing a copy. Once a builder is converted, it cannot be
+    // made a std::string_view again.
     void Convert();
 
     // Returns the builder as a string, invalidating all state. This allows
@@ -155,22 +155,22 @@ class BASE_EXPORT JSONParser {
 
     // The copied string representation. Will be unset until Convert() is
     // called.
-    absl::optional<std::string> string_;
+    std::optional<std::string> string_;
   };
 
   // Returns the next |count| bytes of the input stream, or nullopt if fewer
   // than |count| bytes remain.
-  absl::optional<StringPiece> PeekChars(size_t count);
+  std::optional<std::string_view> PeekChars(size_t count);
 
   // Calls PeekChars() with a |count| of 1.
-  absl::optional<char> PeekChar();
+  std::optional<char> PeekChar();
 
   // Returns the next |count| bytes of the input stream, or nullopt if fewer
   // than |count| bytes remain, and advances the parser position by |count|.
-  absl::optional<StringPiece> ConsumeChars(size_t count);
+  std::optional<std::string_view> ConsumeChars(size_t count);
 
   // Calls ConsumeChars() with a |count| of 1.
-  absl::optional<char> ConsumeChar();
+  std::optional<char> ConsumeChar();
 
   // Returns a pointer to the current character position.
   const char* pos();
@@ -187,22 +187,22 @@ class BASE_EXPORT JSONParser {
   bool EatComment();
 
   // Calls GetNextToken() and then ParseToken().
-  absl::optional<Value> ParseNextToken();
+  std::optional<Value> ParseNextToken();
 
   // Takes a token that represents the start of a Value ("a structural token"
   // in RFC terms) and consumes it, returning the result as a Value.
-  absl::optional<Value> ParseToken(Token token);
+  std::optional<Value> ParseToken(Token token);
 
   // Assuming that the parser is currently wound to '{', this parses a JSON
   // object into a Value.
-  absl::optional<Value> ConsumeDictionary();
+  std::optional<Value> ConsumeDictionary();
 
   // Assuming that the parser is wound to '[', this parses a JSON list into a
   // Value.
-  absl::optional<Value> ConsumeList();
+  std::optional<Value> ConsumeList();
 
   // Calls through ConsumeStringRaw and wraps it in a value.
-  absl::optional<Value> ConsumeString();
+  std::optional<Value> ConsumeString();
 
   // Assuming that the parser is wound to a double quote, this parses a string,
   // decoding any escape sequences and converts UTF-16 to UTF-8. Returns true on
@@ -217,20 +217,20 @@ class BASE_EXPORT JSONParser {
 
   // Assuming that the parser is wound to the start of a valid JSON number,
   // this parses and converts it to either an int or double value.
-  absl::optional<Value> ConsumeNumber();
+  std::optional<Value> ConsumeNumber();
   // Helper that reads characters that are ints. Returns true if a number was
   // read and false on error.
   bool ReadInt(bool allow_leading_zeros);
 
   // Consumes the literal values of |true|, |false|, and |null|, assuming the
   // parser is wound to the first character of any of those.
-  absl::optional<Value> ConsumeLiteral();
+  std::optional<Value> ConsumeLiteral();
 
   // Helper function that returns true if the byte squence |match| can be
   // consumed at the current parser position. Returns false if there are fewer
   // than |match|-length bytes or if the sequence does not match, and the
   // parser state is unchanged.
-  bool ConsumeIfMatch(StringPiece match);
+  bool ConsumeIfMatch(std::string_view match);
 
   // Sets the error information to |code| at the current column, based on
   // |index_| and |index_last_line_|, with an optional positive/negative
@@ -249,7 +249,7 @@ class BASE_EXPORT JSONParser {
   const size_t max_depth_;
 
   // The input stream being parsed. Note: Not guaranteed to NUL-terminated.
-  StringPiece input_;
+  std::string_view input_;
 
   // The index in the input stream to which the parser is wound.
   size_t index_;

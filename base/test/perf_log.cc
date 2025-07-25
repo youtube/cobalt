@@ -2,6 +2,11 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#ifdef UNSAFE_BUFFERS_BUILD
+// TODO(crbug.com/40284755): Remove this and spanify to fix the errors.
+#pragma allow_unsafe_buffers
+#endif
+
 #include "base/test/perf_log.h"
 
 #include "base/files/file_util.h"
@@ -14,7 +19,7 @@ static FILE* perf_log_file = nullptr;
 bool InitPerfLog(const FilePath& log_file) {
   if (perf_log_file) {
     // trying to initialize twice
-    NOTREACHED();
+    NOTREACHED_IN_MIGRATION();
     return false;
   }
 
@@ -25,7 +30,7 @@ bool InitPerfLog(const FilePath& log_file) {
 void FinalizePerfLog() {
   if (!perf_log_file) {
     // trying to cleanup without initializing
-    NOTREACHED();
+    NOTREACHED_IN_MIGRATION();
     return;
   }
   base::CloseFile(perf_log_file);
@@ -33,7 +38,7 @@ void FinalizePerfLog() {
 
 void LogPerfResult(const char* test_name, double value, const char* units) {
   if (!perf_log_file) {
-    NOTREACHED();
+    NOTREACHED_IN_MIGRATION();
     return;
   }
 

@@ -1,0 +1,83 @@
+<style include="mwb-shared-style tab-organization-shared-style">
+  cr-feedback-buttons {
+    color: var(--color-icon);
+  }
+
+  .feedback {
+    align-items: center;
+    display: flex;
+    gap: 8px;
+    justify-content: space-between;
+  }
+
+  :host([multi-tab-organization]) .feedback {
+    background-color: var(--color-tab-search-footer-background);
+    margin: calc(var(--mwb-list-item-horizontal-margin) * -1);
+    margin-top: 0;
+    padding: var(--mwb-list-item-horizontal-margin);
+  }
+
+  .results {
+    background-color: var(--color-tab-search-card-background);
+    border-radius: 8px;
+  }
+
+  #scrollable {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    overflow-y: auto;
+  }
+
+  .tab-organization-body,
+  .tab-organization-link {
+    font-size: 11px;
+    line-height: 16px;
+  }
+</style>
+
+<div class="tab-organization-container">
+  <div id="header"
+      class="tab-organization-header"
+      aria-live="polite"
+      aria-relevant="all">
+    [[getTitle_(session, multiTabOrganization)]]
+  </div>
+  <div id="scrollable">
+    <template is="dom-repeat"
+        items="[[getOrganizations_(session, multiTabOrganization)]]">
+      <tab-organization-group
+        name="[[getName_(item)]]"
+        tabs="[[item.tabs]]"
+        first-new-tab-index="[[item.firstNewTabIndex]]"
+        organization-id="[[item.organizationId]]"
+        multi-tab-organization="[[multiTabOrganization]]"
+        show-reject="[[hasMultipleOrganizations_(session)]]">
+      </tab-organization-group>
+    </template>
+  </div>
+  <template is="dom-if" if="[[multiTabOrganization]]">
+    <tab-organization-results-actions show-clear
+        multiple-organizations="[[hasMultipleOrganizations_(session)]]"
+        on-create-group-click="onCreateAllGroupsClick_">
+    </tab-organization-results-actions>
+  </template>
+  <div class="feedback" role="toolbar" on-keydown="onFeedbackKeyDown_">
+    <div class="tab-organization-body">
+      $i18n{learnMoreDisclaimer}
+      <div id="learnMore" class="tab-organization-link"
+          on-click="onLearnMoreClick_"
+          on-keydown="onLearnMoreKeyDown_"
+          role="link"
+          tabindex="0"
+          aria-label="$i18n{learnMoreAriaLabel}">
+        $i18n{learnMore}
+      </div>
+    </div>
+    <cr-feedback-buttons id="feedbackButtons"
+        tabindex="-1"
+        selected-option="[[feedbackSelectedOption_]]"
+        on-selected-option-changed="onFeedbackSelectedOptionChanged_">
+    </cr-feedback-buttons>
+  </div>
+</div>

@@ -6,7 +6,9 @@
 
 #include <cstdint>
 #include <memory>
+#include <optional>
 #include <string>
+#include <string_view>
 #include <tuple>
 #include <vector>
 
@@ -19,7 +21,6 @@
 #include "net/dns/record_rdata.h"
 #include "testing/gmock/include/gmock/gmock.h"
 #include "testing/gtest/include/gtest/gtest.h"
-#include "third_party/abseil-cpp/absl/types/optional.h"
 
 namespace net {
 
@@ -27,7 +28,7 @@ namespace {
 
 using ::testing::ElementsAreArray;
 
-std::tuple<char*, size_t> AsTuple(const IOBufferWithSize* buf) {
+std::tuple<const char*, size_t> AsTuple(const IOBufferWithSize* buf) {
   return std::make_tuple(buf->data(), buf->size());
 }
 
@@ -48,8 +49,7 @@ const char kQNameData[] =
     "example"
     "\x03"
     "com";
-const base::span<const uint8_t> kQName =
-    base::as_bytes(base::make_span(kQNameData));
+const base::span<const uint8_t> kQName = base::as_byte_span(kQNameData);
 
 TEST(DnsQueryTest, Constructor) {
   // This includes \0 at the end.
@@ -73,8 +73,7 @@ TEST(DnsQueryTest, Constructor) {
   EXPECT_THAT(AsTuple(q1.io_buffer()), ElementsAreArray(query_data));
   EXPECT_THAT(q1.qname(), ElementsAreArray(kQName));
 
-  base::StringPiece question(reinterpret_cast<const char*>(query_data) + 12,
-                             21);
+  std::string_view question(reinterpret_cast<const char*>(query_data) + 12, 21);
   EXPECT_EQ(question, q1.question());
 }
 
@@ -84,8 +83,8 @@ TEST(DnsQueryTest, CopiesAreIndependent) {
   DnsQuery q2(q1);
 
   EXPECT_EQ(q1.id(), q2.id());
-  EXPECT_EQ(base::StringPiece(q1.io_buffer()->data(), q1.io_buffer()->size()),
-            base::StringPiece(q2.io_buffer()->data(), q2.io_buffer()->size()));
+  EXPECT_EQ(std::string_view(q1.io_buffer()->data(), q1.io_buffer()->size()),
+            std::string_view(q2.io_buffer()->data(), q2.io_buffer()->size()));
   EXPECT_NE(q1.io_buffer(), q2.io_buffer());
 }
 
@@ -132,8 +131,7 @@ TEST(DnsQueryTest, EDNS0) {
 
   EXPECT_THAT(AsTuple(q1.io_buffer()), ElementsAreArray(query_data));
 
-  base::StringPiece question(reinterpret_cast<const char*>(query_data) + 12,
-                             21);
+  std::string_view question(reinterpret_cast<const char*>(query_data) + 12, 21);
   EXPECT_EQ(question, q1.question());
 }
 
@@ -153,7 +151,7 @@ TEST(DnsQueryTest, Block128Padding) {
 }
 
 TEST(DnsQueryTest, Block128Padding_LongName) {
-  absl::optional<std::vector<uint8_t>> qname =
+  std::optional<std::vector<uint8_t>> qname =
       dns_names_util::DottedNameToNetwork(
           "really.long.domain.name.that.will.push.us.past.the.128.byte.block."
           "size.because.it.would.be.nice.to.test.something.realy.long.like."

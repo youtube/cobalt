@@ -7,6 +7,7 @@
 
 #include <stdint.h>
 
+#include <optional>
 #include <string>
 #include <vector>
 
@@ -17,7 +18,6 @@
 #include "media/base/video_color_space.h"
 #include "media/base/video_transformation.h"
 #include "media/base/video_types.h"
-#include "third_party/abseil-cpp/absl/types/optional.h"
 #include "ui/gfx/geometry/rect.h"
 #include "ui/gfx/geometry/size.h"
 #include "ui/gfx/hdr_metadata.h"
@@ -103,7 +103,7 @@ class MEDIA_EXPORT VideoDecoderConfig {
   }
 
   // DEPRECATED: Use aspect_ratio().GetNaturalSize().
-  // TODO(crbug.com/1214061): Remove.
+  // TODO(crbug.com/40769111): Remove.
   // Final visible width and height of a video frame with aspect ratio taken
   // into account. Image data in the visible_rect() should be scaled to this
   // size for display.
@@ -148,7 +148,7 @@ class MEDIA_EXPORT VideoDecoderConfig {
   void set_hdr_metadata(const gfx::HDRMetadata& hdr_metadata) {
     hdr_metadata_ = hdr_metadata;
   }
-  const absl::optional<gfx::HDRMetadata>& hdr_metadata() const {
+  const std::optional<gfx::HDRMetadata>& hdr_metadata() const {
     return hdr_metadata_;
   }
 
@@ -188,7 +188,7 @@ class MEDIA_EXPORT VideoDecoderConfig {
   EncryptionScheme encryption_scheme_ = EncryptionScheme::kUnencrypted;
 
   VideoColorSpace color_space_info_;
-  absl::optional<gfx::HDRMetadata> hdr_metadata_;
+  std::optional<gfx::HDRMetadata> hdr_metadata_;
   bool is_rtc_ = false;
 
   // Not using DISALLOW_COPY_AND_ASSIGN here intentionally to allow the compiler

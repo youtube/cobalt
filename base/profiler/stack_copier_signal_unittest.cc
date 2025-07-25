@@ -2,6 +2,11 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#ifdef UNSAFE_BUFFERS_BUILD
+// TODO(crbug.com/40284755): Remove this and spanify to fix the errors.
+#pragma allow_unsafe_buffers
+#endif
+
 #include <string.h>
 #include <algorithm>
 #include <utility>
@@ -81,9 +86,6 @@ class TestStackCopierDelegate : public StackCopier::Delegate {
 // TSAN hangs on the AsyncSafeWaitableEvent FUTEX_WAIT call.
 #if defined(ADDRESS_SANITIZER) || defined(MEMORY_SANITIZER) || \
     defined(THREAD_SANITIZER)
-#define MAYBE_CopyStack DISABLED_CopyStack
-#elif BUILDFLAG(IS_CHROMEOS_ASH)
-// https://crbug.com/1042974
 #define MAYBE_CopyStack DISABLED_CopyStack
 #elif BUILDFLAG(IS_LINUX)
 // We don't support getting the stack base address on Linux, and thus can't

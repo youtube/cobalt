@@ -53,7 +53,6 @@ chrome/install_static/install_modes.h
 chrome/install_static/install_util.h
 chrome/install_static/test/scoped_install_details.h
 chrome/installer/util/google_update_settings.h
-components/cdm/browser/cdm_message_filter_android.h
 components/device_event_log/device_event_log_export.h
 components/login/login_export.h
 components/media_router/common/providers/cast/certificate/cast_crl_root_ca_cert_der-inc.h
@@ -110,8 +109,6 @@ gpu/gpu_export.h
 ipc/ipc_channel_proxy_unittest_messages.h
 ipc/ipc_message_null_macros.h
 media/audio/audio_logging.h
-media/base/routing_token_callback.h
-media/base/video_renderer_sink.h
 media/cast/common/mod_util.h
 media/cast/net/rtcp/rtcp_session.h
 media/filters/ffmpeg_aac_bitstream_converter.h

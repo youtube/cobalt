@@ -16,6 +16,7 @@
 #include "base/synchronization/lock.h"
 #include "skia/ext/skcolorspace_primaries.h"
 #include "skia/ext/skcolorspace_trfn.h"
+#include "skia/ext/skia_utils_base.h"
 #include "third_party/skia/include/core/SkColorSpace.h"
 #include "third_party/skia/include/core/SkData.h"
 #include "third_party/skia/include/core/SkImageInfo.h"
@@ -106,6 +107,15 @@ bool PrimaryIdContainsSRGB(ColorSpace::PrimaryID id) {
   }
 }
 
+float GetSDRWhiteLevelFromPQSkTransferFunction(
+    const skcms_TransferFunction& fn) {
+  DCHECK_EQ(fn.g, SkNamedTransferFn::kPQ.g);
+  const double ws_a = static_cast<double>(fn.a) / SkNamedTransferFn::kPQ.a;
+  const double w_a = pow(ws_a, fn.f);
+  const double sdr_white_level_a = 10000.0f / w_a;
+  return sdr_white_level_a;
+}
+
 }  // namespace
 
 // static
@@ -143,6 +153,7 @@ ColorSpace::ColorSpace(const SkColorSpace& sk_color_space, bool is_hdr)
     transfer_ = TransferID::HLG;
   } else if (skcms_TransferFunction_isPQish(&fn)) {
     transfer_ = TransferID::PQ;
+    transfer_params_[0] = GetSDRWhiteLevelFromPQSkTransferFunction(fn);
   } else {
     // Construct an invalid result: Unable to extract necessary parameters
     return;
@@ -299,6 +310,8 @@ size_t ColorSpace::TransferParamCount(TransferID transfer) {
       return 7;
     case TransferID::PIECEWISE_HDR:
       return 2;
+    case TransferID::PQ:
+      return 1;
     default:
       return 0;
   }
@@ -517,8 +530,7 @@ std::string ColorSpace::ToString() const {
     case TransferID::CUSTOM: {
       skcms_TransferFunction fn;
       GetTransferFunction(&fn);
-      ss << fn.c << "*x + " << fn.f << " if x < " << fn.d << " else (" << fn.a
-         << "*x + " << fn.b << ")**" << fn.g << " + " << fn.e;
+      ss << skia::SkcmsTransferFunctionToString(fn);
       break;
     }
     case TransferID::CUSTOM_HDR: {
@@ -529,8 +541,7 @@ std::string ColorSpace::ToString() const {
         ss << "LINEAR_HDR (slope " << fn.a << ")";
         break;
       }
-      ss << fn.c << "*x + " << fn.f << " if |x| < " << fn.d << " else sign(x)*("
-         << fn.a << "*|x| + " << fn.b << ")**" << fn.g << " + " << fn.e;
+      ss << skia::SkcmsTransferFunctionToString(fn);
       break;
     }
     case TransferID::PIECEWISE_HDR: {
@@ -555,7 +566,6 @@ std::string ColorSpace::ToString() const {
     PRINT_ENUM_CASE(MatrixID, SMPTE240M)
     PRINT_ENUM_CASE(MatrixID, YCOCG)
     PRINT_ENUM_CASE(MatrixID, BT2020_NCL)
-    PRINT_ENUM_CASE(MatrixID, BT2020_CL)
     PRINT_ENUM_CASE(MatrixID, YDZDX)
     PRINT_ENUM_CASE(MatrixID, GBR)
   }
@@ -649,8 +659,15 @@ ColorSpace ColorSpace::GetWithMatrixAndRange(MatrixID matrix,
   return result;
 }
 
+ColorSpace ColorSpace::GetWithSdrWhiteLevel(float sdr_white_level) const {
+  if (!IsAffectedBySDRWhiteLevel())
+    return *this;
+
+  return gfx::ColorSpace(*ToSkColorSpace(sdr_white_level), /*is_hdr=*/true);
+}
+
 sk_sp<SkColorSpace> ColorSpace::ToSkColorSpace(
-    absl::optional<float> sdr_white_level) const {
+    std::optional<float> sdr_white_level) const {
   // Handle only valid, full-range RGB spaces.
   if (!IsValid() || matrix_ != MatrixID::RGB || range_ != RangeID::FULL)
     return nullptr;
@@ -677,7 +694,7 @@ sk_sp<SkColorSpace> ColorSpace::ToSkColorSpace(
       break;
     case TransferID::PQ:
       transfer_fn = GetPQSkTransferFunction(
-          sdr_white_level.value_or(kDefaultSDRWhiteLevel));
+          sdr_white_level.value_or(transfer_params_[0]));
       break;
     default:
       if (!GetTransferFunction(&transfer_fn, sdr_white_level)) {
@@ -876,7 +893,7 @@ void ColorSpace::GetPrimaryMatrix(skcms_Matrix3x3* to_XYZD50) const {
 SkM44 ColorSpace::GetPrimaryMatrix() const {
   skcms_Matrix3x3 toXYZ_3x3;
   GetPrimaryMatrix(&toXYZ_3x3);
-  return SkM44FromRowMajor3x3(&toXYZ_3x3.vals[0][0]);
+  return SkM44FromSkcmsMatrix3x3(toXYZ_3x3);
 }
 
 // static
@@ -956,7 +973,7 @@ bool ColorSpace::GetTransferFunction(TransferID transfer,
 
 bool ColorSpace::GetTransferFunction(
     skcms_TransferFunction* fn,
-    absl::optional<float> sdr_white_level) const {
+    std::optional<float> sdr_white_level) const {
   switch (transfer_) {
     case TransferID::CUSTOM:
     case TransferID::CUSTOM_HDR:
@@ -990,7 +1007,7 @@ bool ColorSpace::GetTransferFunction(
 
 bool ColorSpace::GetInverseTransferFunction(
     skcms_TransferFunction* fn,
-    absl::optional<float> sdr_white_level) const {
+    std::optional<float> sdr_white_level) const {
   if (!GetTransferFunction(fn, sdr_white_level))
     return false;
   *fn = SkTransferFnInverse(*fn);
@@ -1052,20 +1069,6 @@ SkM44 ColorSpace::GetTransferMatrix(int bit_depth) const {
                         -0.25f, 0.5f, -0.25f, chroma_0_5,  // Cg
                         0.5f,   0.0f, -0.5f,  chroma_0_5,  // Co
                         0.0f,   0.0f, 0.0f,   1.0f};
-      return SkM44::RowMajor(data);
-    }
-
-    // BT2020_CL is a special case.
-    // Basically we return a matrix that transforms RYB values
-    // to YUV values. (Note that the green component have been replaced
-    // with the luminance.)
-    case ColorSpace::MatrixID::BT2020_CL: {
-      Kr = 0.2627f;
-      Kb = 0.0593f;
-      float data[16] = {1.0f, 0.0f,           0.0f, 0.0f,  // R
-                        Kr,   1.0f - Kr - Kb, Kb,   0.0f,  // Y
-                        0.0f, 0.0f,           1.0f, 0.0f,  // B
-                        0.0f, 0.0f,           0.0f, 1.0f};
       return SkM44::RowMajor(data);
     }
 
@@ -1140,7 +1143,6 @@ SkM44 ColorSpace::GetRangeAdjustMatrix(int bit_depth) const {
     case MatrixID::SMPTE170M:
     case MatrixID::SMPTE240M:
     case MatrixID::BT2020_NCL:
-    case MatrixID::BT2020_CL:
     case MatrixID::YDZDX: {
       const float a_uv = 224 << shift;
       const float scale_uv = c / a_uv;
@@ -1185,6 +1187,43 @@ bool ColorSpace::ToSkYUVColorSpace(int bit_depth, SkYUVColorSpace* out) const {
       }
       return false;
 
+    case MatrixID::FCC:
+      *out = range_ == RangeID::FULL ? kFCC_Full_SkYUVColorSpace
+                                     : kFCC_Limited_SkYUVColorSpace;
+      return true;
+
+    case MatrixID::SMPTE240M:
+      *out = range_ == RangeID::FULL ? kSMPTE240_Full_SkYUVColorSpace
+                                     : kSMPTE240_Limited_SkYUVColorSpace;
+      return true;
+
+    case MatrixID::YDZDX:
+      *out = range_ == RangeID::FULL ? kYDZDX_Full_SkYUVColorSpace
+                                     : kYDZDX_Limited_SkYUVColorSpace;
+      return true;
+
+    case MatrixID::GBR:
+      *out = range_ == RangeID::FULL ? kGBR_Full_SkYUVColorSpace
+                                     : kGBR_Limited_SkYUVColorSpace;
+      return true;
+
+    case MatrixID::YCOCG:
+      if (bit_depth == 8) {
+        *out = range_ == RangeID::FULL ? kYCgCo_8bit_Full_SkYUVColorSpace
+                                       : kYCgCo_8bit_Limited_SkYUVColorSpace;
+        return true;
+      }
+      if (bit_depth == 10) {
+        *out = range_ == RangeID::FULL ? kYCgCo_10bit_Full_SkYUVColorSpace
+                                       : kYCgCo_10bit_Limited_SkYUVColorSpace;
+        return true;
+      }
+      if (bit_depth == 12) {
+        *out = range_ == RangeID::FULL ? kYCgCo_12bit_Full_SkYUVColorSpace
+                                       : kYCgCo_12bit_Limited_SkYUVColorSpace;
+        return true;
+      }
+      return false;
     default:
       break;
   }

@@ -15,10 +15,11 @@
 #include "base/task/thread_pool.h"
 #include "build/build_config.h"
 #include "gpu/config/gpu_driver_bug_workarounds.h"
+#include "media/base/media_switches.h"
 #include "media/base/media_util.h"
 #include "media/base/waiting.h"
 #include "media/gpu/macros.h"
-#include "media/gpu/test/video.h"
+#include "media/gpu/test/video_bitstream.h"
 #include "media/gpu/test/video_frame_helpers.h"
 #include "media/gpu/test/video_player/frame_renderer_dummy.h"
 #include "media/gpu/test/video_player/test_vda_video_decoder.h"
@@ -39,7 +40,7 @@ namespace {
 // This helper thunk wraps a WeakPtr into an 'Optional' value, so the WeakPtr is
 // only dereferenced after rescheduling the task on the specified task runner.
 template <typename F, typename... Args>
-void CallbackThunk(absl::optional<base::WeakPtr<DecoderWrapper>> decoder_client,
+void CallbackThunk(std::optional<base::WeakPtr<DecoderWrapper>> decoder_client,
                    scoped_refptr<base::SequencedTaskRunner> task_runner,
                    F f,
                    Args... args) {
@@ -122,7 +123,7 @@ void DecoderWrapper::WaitForRenderer() {
   frame_renderer_->WaitUntilRenderingDone();
 }
 
-void DecoderWrapper::Initialize(const Video* video) {
+void DecoderWrapper::Initialize(const VideoBitstream* video) {
   DCHECK_CALLED_ON_VALID_SEQUENCE(parent_sequence_checker_);
   DCHECK(video);
 
@@ -188,7 +189,7 @@ void DecoderWrapper::CreateDecoderTask(base::WaitableEvent* done) {
   done->Signal();
 }
 
-void DecoderWrapper::InitializeTask(const Video* video,
+void DecoderWrapper::InitializeTask(const VideoBitstream* video,
                                     base::WaitableEvent* done) {
   DCHECK_CALLED_ON_VALID_SEQUENCE(worker_sequence_checker_);
   DCHECK(state_ == DecoderWrapperState::kUninitialized ||
@@ -229,7 +230,11 @@ void DecoderWrapper::InitializeTask(const Video* video,
 
 void DecoderWrapper::DestroyDecoderTask(base::WaitableEvent* done) {
   DCHECK_CALLED_ON_VALID_SEQUENCE(worker_sequence_checker_);
-  DCHECK_EQ(0u, num_outstanding_decode_requests_);
+  LOG_IF(WARNING, 0u != num_outstanding_decode_requests_)
+      << "There is/are " << num_outstanding_decode_requests_
+      << " Decode() requests that have not been acknowledged by |decoder_|. "
+         "This might be fine or a problem depending on whether the calling "
+         "test needed to have processed the full input bitstream or not.";
   DVLOGF(4);
 
   // Invalidate all scheduled tasks.
@@ -286,7 +291,7 @@ void DecoderWrapper::DecodeNextFragmentTask() {
   if (input_video_codec_ == media::VideoCodec::kH264 ||
       input_video_codec_ == media::VideoCodec::kHEVC) {
     has_config_info = media::test::EncodedDataHelper::HasConfigInfo(
-        bitstream_buffer->data(), bitstream_buffer->data_size(),
+        bitstream_buffer->data(), bitstream_buffer->size(),
         input_video_profile_);
   }
 
@@ -336,10 +341,14 @@ void DecoderWrapper::OnDecoderInitializedTask(DecoderStatus status) {
   DCHECK_CALLED_ON_VALID_SEQUENCE(worker_sequence_checker_);
   DCHECK(state_ == DecoderWrapperState::kUninitialized ||
          state_ == DecoderWrapperState::kIdle);
-  ASSERT_TRUE(status.is_ok()) << "Initializing decoder failed";
 
-  state_ = DecoderWrapperState::kIdle;
-  FireEvent(DecoderListener::Event::kInitialized);
+  if (!status.is_ok()) {
+    state_ = DecoderWrapperState::kUninitialized;
+    FireEvent(DecoderListener::Event::kFailure);
+  } else {
+    state_ = DecoderWrapperState::kIdle;
+    FireEvent(DecoderListener::Event::kInitialized);
+  }
 }
 
 void DecoderWrapper::OnDecodeDoneTask(DecoderStatus status) {
@@ -351,6 +360,7 @@ void DecoderWrapper::OnDecodeDoneTask(DecoderStatus status) {
 
   num_outstanding_decode_requests_--;
 
+  base::TimeDelta delay = base::Milliseconds(0);
   // Queue the next fragment to be decoded.
   // TODO(mcasas): Introduce a minor delay here to avoid overrunning the driver;
   // this is a provision for Mediatek devices and for the erroneous behaviour
@@ -358,21 +368,36 @@ void DecoderWrapper::OnDecodeDoneTask(DecoderStatus status) {
   // encoded chunk enqueued at this point) and not in OnFrameReadyTask as it
   // should (naively moving this task there doesn't work because it prevents the
   // V4L2VideoDecoder backend from polling the device driver).
+#if BUILDFLAG(USE_V4L2_CODEC)
+  delay = base::Milliseconds(1);
+  static bool log_delay_message = true;
+  if (log_delay_message) {
+    LOG(INFO) << "Using a delay of " << delay
+              << " between sending encoded chunks to accommodate "
+                 "MTK stateful V4L2 drivers";
+    log_delay_message = false;
+  }
+#endif
+
   worker_task_runner_->PostDelayedTask(
       FROM_HERE,
       base::BindOnce(&DecoderWrapper::DecodeNextFragmentTask, weak_this_),
-#if BUILDFLAG(USE_V4L2_CODEC)
-      base::Milliseconds(1)
-#else
-      base::Milliseconds(0)
-#endif
-  );
+      delay);
+  FireEvent(DecoderListener::Event::kDecoderBufferAccepted);
 }
 
 void DecoderWrapper::OnFrameReadyTask(scoped_refptr<VideoFrame> video_frame) {
   DVLOGF(4) << current_frame_index_;
   DCHECK_CALLED_ON_VALID_SEQUENCE(worker_sequence_checker_);
   DCHECK(video_frame->metadata().power_efficient);
+
+  // Technically VideoDecoder clients shouldn't care about |video_frame|'s'
+  // timestamps but we do because we feed non-zeros in DecodeNextFragmentTask().
+  // Note that we cannot enforce non-strictly monotonically increasing time
+  // deltas because the feeding order might not be the same as the output order
+  // (e.g. in H.264 with B-frames the output order would be the "presentation"
+  // order and not the "decode" or "transmission" order).
+  DCHECK_NE(video_frame->timestamp(), base::TimeDelta());
 
   frame_renderer_->RenderFrame(video_frame);
 

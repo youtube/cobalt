@@ -30,9 +30,6 @@ interface MediaPlayer {
   // Requests the media player to enter the Picture-in-Picture mode.
   RequestEnterPictureInPicture();
 
-  // Requests the media player to exit the Picture-in-Picture mode.
-  RequestExitPictureInPicture();
-
   // Requests the media player to mute or unmute.
   RequestMute(bool mute);
 
@@ -114,6 +111,9 @@ interface MediaPlayerObserver {
   // Notifies that the RemotePlayback metadata of the media player has changed.
   OnRemotePlaybackMetadataChange(media_session.mojom.RemotePlaybackMetadata
                              remote_playback_metadata);
+
+  // Notifies that the video visibility has changed.
+  OnVideoVisibilityChanged(bool meets_visibility_threshold);
 };
 
 // Implemented by MediaWebContentsObserver::MediaPlayerHostImpl in the browser

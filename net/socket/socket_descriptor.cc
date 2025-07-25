@@ -8,8 +8,9 @@
 
 #if BUILDFLAG(IS_WIN)
 #include <ws2tcpip.h>
+
 #include "net/base/winsock_init.h"
-#else
+#elif BUILDFLAG(IS_POSIX) || BUILDFLAG(IS_FUCHSIA)
 #include <sys/socket.h>
 #include <sys/types.h>
 #endif
@@ -34,7 +35,7 @@ SocketDescriptor CreatePlatformSocket(int family, int type, int protocol) {
     }
   }
   return result;
-#else
+#elif BUILDFLAG(IS_POSIX) || BUILDFLAG(IS_FUCHSIA)
   SocketDescriptor result = ::socket(family, type, protocol);
 #if BUILDFLAG(IS_APPLE)
   // Disable SIGPIPE on this socket. Although Chromium globally disables

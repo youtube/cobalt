@@ -7,6 +7,7 @@
 #include <dlfcn.h>
 #include <sys/stat.h>
 
+#include "base/process/process_metrics.h"
 #include "base/strings/stringprintf.h"
 #include "media/gpu/buildflags.h"
 #include "sandbox/policy/linux/bpf_hardware_video_decoding_policy_linux.h"
@@ -73,6 +74,13 @@ bool HardwareVideoDecodingPreSandboxHookForVaapiOnIntel(
   // TODO(b/210759684): we probably will need to do this for Linux as well.
   command_set.set(sandbox::syscall_broker::COMMAND_STAT);
 
+  // This is added because libdrm calls access() from drmGetMinorType() that is
+  // called from drmGetNodeTypeFromFd(). libva calls drmGetNodeTypeFromFd()
+  // during initialization.
+  //
+  // TODO(b/210759684): we probably will need to do this for Linux as well.
+  command_set.set(sandbox::syscall_broker::COMMAND_ACCESS);
+
   AllowAccessToRenderNodes(permissions, /*include_sys_dev_char=*/true,
                            /*read_write=*/false);
 #endif  // BUILDFLAG(IS_CHROMEOS_ASH)
@@ -80,8 +88,7 @@ bool HardwareVideoDecodingPreSandboxHookForVaapiOnIntel(
   VaapiWrapper::PreSandboxInitialization(/*allow_disabling_global_lock=*/true);
   return true;
 #else
-  NOTREACHED();
-  return false;
+  NOTREACHED_NORETURN();
 #endif  // BUILDFLAG(USE_VAAPI)
 }
 
@@ -91,6 +98,15 @@ bool HardwareVideoDecodingPreSandboxHookForVaapiOnAMD(
   command_set.set(sandbox::syscall_broker::COMMAND_OPEN);
   command_set.set(sandbox::syscall_broker::COMMAND_STAT);
   command_set.set(sandbox::syscall_broker::COMMAND_READLINK);
+
+#if BUILDFLAG(IS_CHROMEOS_ASH)
+  // This is added because libdrm calls access() from drmGetMinorType() that is
+  // called from drmGetNodeTypeFromFd(). libva calls drmGetNodeTypeFromFd()
+  // during initialization.
+  //
+  // TODO(b/210759684): we probably will need to do this for Linux as well.
+  command_set.set(sandbox::syscall_broker::COMMAND_ACCESS);
+#endif  // BUILDFLAG(IS_CHROMEOS_ASH)
 
   AllowAccessToRenderNodes(permissions, /*include_sys_dev_char=*/true,
                            /*read_write=*/true);
@@ -109,8 +125,7 @@ bool HardwareVideoDecodingPreSandboxHookForVaapiOnAMD(
   VaapiWrapper::PreSandboxInitialization(/*allow_disabling_global_lock=*/true);
   return true;
 #else
-  NOTREACHED();
-  return false;
+  NOTREACHED_NORETURN();
 #endif  // BUILDFLAG(USE_VAAPI)
 }
 
@@ -152,20 +167,9 @@ bool HardwareVideoDecodingPreSandboxHookForV4L2(
   // platforms that need it.
   static const char kDevImageProc0Path[] = "/dev/image-proc0";
   permissions.push_back(BrokerFilePermission::ReadWrite(kDevImageProc0Path));
-
-  // Some platforms (RK3399) need libv4l2 to interact with the kernel V4L2
-  // driver, so we need to load that library prior to entering the sandbox.
-#if BUILDFLAG(USE_LIBV4L2)
-#if defined(__aarch64__)
-  dlopen("/usr/lib64/libv4l2.so", RTLD_NOW | RTLD_GLOBAL | RTLD_NODELETE);
-#else
-  dlopen("/usr/lib/libv4l2.so", RTLD_NOW | RTLD_GLOBAL | RTLD_NODELETE);
-#endif  // defined(__aarch64__)
-#endif  // BUILDFLAG(USE_LIBV4L2)
   return true;
 #else
-  NOTREACHED();
-  return false;
+  NOTREACHED_NORETURN();
 #endif  // BUILDFLAG(USE_V4L2_CODEC)
 }
 
@@ -187,6 +191,15 @@ bool HardwareVideoDecodingPreSandboxHook(
       sandbox::policy::HardwareVideoDecodingProcessPolicy;
   using PolicyType =
       sandbox::policy::HardwareVideoDecodingProcessPolicy::PolicyType;
+
+  // When decoding many video streams at once, the video utility process can hit
+  // FD limits. Increase the limit of maximum FDs allowed to (at least) 8192.
+  // IncreaseFdLimitTo() will only increase the FD limit to a value in:
+  // [max(soft limit, requested value), min(hard limit, requested value)], never
+  // decrease it. See https://man7.org/linux/man-pages/man2/getrlimit.2.html for
+  // context on resource limits.
+  constexpr unsigned int kAttemptedFdSoftLimit = 1u << 13;
+  base::IncreaseFdLimitTo(kAttemptedFdSoftLimit);
 
   const PolicyType policy_type =
       HardwareVideoDecodingProcessPolicy::ComputePolicyType(
@@ -218,8 +231,7 @@ bool HardwareVideoDecodingPreSandboxHook(
   // TODO(b/210759684): should this still be called if |command_set| or
   // |permissions| is empty?
   sandbox::policy::SandboxLinux::GetInstance()->StartBrokerProcess(
-      command_set, permissions, sandbox::policy::SandboxLinux::PreSandboxHook(),
-      options);
+      command_set, permissions, options);
   return true;
 }
 

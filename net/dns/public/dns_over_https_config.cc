@@ -5,7 +5,9 @@
 #include "net/dns/public/dns_over_https_config.h"
 
 #include <iterator>
+#include <optional>
 #include <string>
+#include <string_view>
 #include <vector>
 
 #include "base/json/json_reader.h"
@@ -16,21 +18,20 @@
 #include "base/values.h"
 #include "net/dns/public/dns_over_https_server_config.h"
 #include "net/dns/public/util.h"
-#include "third_party/abseil-cpp/absl/types/optional.h"
 
 namespace net {
 
 namespace {
 
-std::vector<std::string> SplitGroup(base::StringPiece group) {
+std::vector<std::string> SplitGroup(std::string_view group) {
   // Templates in a group are whitespace-separated.
   return SplitString(group, base::kWhitespaceASCII, base::TRIM_WHITESPACE,
                      base::SPLIT_WANT_NONEMPTY);
 }
 
-std::vector<absl::optional<DnsOverHttpsServerConfig>> ParseTemplates(
+std::vector<std::optional<DnsOverHttpsServerConfig>> ParseTemplates(
     std::vector<std::string> templates) {
-  std::vector<absl::optional<DnsOverHttpsServerConfig>> parsed;
+  std::vector<std::optional<DnsOverHttpsServerConfig>> parsed;
   parsed.reserve(templates.size());
   base::ranges::transform(templates, std::back_inserter(parsed), [](auto& s) {
     return DnsOverHttpsServerConfig::FromString(std::move(s));
@@ -38,30 +39,30 @@ std::vector<absl::optional<DnsOverHttpsServerConfig>> ParseTemplates(
   return parsed;
 }
 
-constexpr base::StringPiece kJsonKeyServers("servers");
+constexpr std::string_view kJsonKeyServers("servers");
 
-absl::optional<DnsOverHttpsConfig> FromValue(base::Value::Dict value) {
+std::optional<DnsOverHttpsConfig> FromValue(base::Value::Dict value) {
   base::Value::List* servers_value = value.FindList(kJsonKeyServers);
   if (!servers_value)
-    return absl::nullopt;
+    return std::nullopt;
   std::vector<DnsOverHttpsServerConfig> servers;
   servers.reserve(servers_value->size());
   for (base::Value& elt : *servers_value) {
     base::Value::Dict* dict = elt.GetIfDict();
     if (!dict)
-      return absl::nullopt;
+      return std::nullopt;
     auto parsed = DnsOverHttpsServerConfig::FromValue(std::move(*dict));
     if (!parsed.has_value())
-      return absl::nullopt;
+      return std::nullopt;
     servers.push_back(std::move(*parsed));
   }
   return DnsOverHttpsConfig(servers);
 }
 
-absl::optional<DnsOverHttpsConfig> FromJson(base::StringPiece json) {
-  absl::optional<base::Value> value = base::JSONReader::Read(json);
+std::optional<DnsOverHttpsConfig> FromJson(std::string_view json) {
+  std::optional<base::Value> value = base::JSONReader::Read(json);
   if (!value || !value->is_dict())
-    return absl::nullopt;
+    return std::nullopt;
   return FromValue(std::move(*value).TakeDict());
 }
 
@@ -82,41 +83,42 @@ DnsOverHttpsConfig::DnsOverHttpsConfig(
     : servers_(std::move(servers)) {}
 
 // static
-absl::optional<DnsOverHttpsConfig> DnsOverHttpsConfig::FromTemplates(
+std::optional<DnsOverHttpsConfig> DnsOverHttpsConfig::FromTemplates(
     std::vector<std::string> server_templates) {
   // All templates must be valid for the group to be considered valid.
   std::vector<DnsOverHttpsServerConfig> servers;
   for (auto& server_config : ParseTemplates(server_templates)) {
     if (!server_config)
-      return absl::nullopt;
+      return std::nullopt;
     servers.push_back(std::move(*server_config));
   }
   return DnsOverHttpsConfig(std::move(servers));
 }
 
 // static
-absl::optional<DnsOverHttpsConfig> DnsOverHttpsConfig::FromTemplatesForTesting(
+std::optional<DnsOverHttpsConfig> DnsOverHttpsConfig::FromTemplatesForTesting(
     std::vector<std::string> server_templates) {
   return FromTemplates(std::move(server_templates));
 }
 
 // static
-absl::optional<DnsOverHttpsConfig> DnsOverHttpsConfig::FromString(
-    base::StringPiece doh_config) {
-  absl::optional<DnsOverHttpsConfig> parsed = FromJson(doh_config);
+std::optional<DnsOverHttpsConfig> DnsOverHttpsConfig::FromString(
+    std::string_view doh_config) {
+  std::optional<DnsOverHttpsConfig> parsed = FromJson(doh_config);
   if (parsed && !parsed->servers().empty())
     return parsed;
   std::vector<std::string> server_templates = SplitGroup(doh_config);
   if (server_templates.empty())
-    return absl::nullopt;  // `doh_config` must contain at least one server.
+    return std::nullopt;  // `doh_config` must contain at least one server.
   return FromTemplates(std::move(server_templates));
 }
 
 // static
 DnsOverHttpsConfig DnsOverHttpsConfig::FromStringLax(
-    base::StringPiece doh_config) {
-  if (absl::optional<DnsOverHttpsConfig> parsed = FromJson(doh_config))
+    std::string_view doh_config) {
+  if (std::optional<DnsOverHttpsConfig> parsed = FromJson(doh_config)) {
     return *parsed;
+  }
   auto parsed = ParseTemplates(SplitGroup(doh_config));
   std::vector<DnsOverHttpsServerConfig> servers;
   for (auto& server_config : parsed) {
@@ -133,7 +135,7 @@ bool DnsOverHttpsConfig::operator==(const DnsOverHttpsConfig& other) const {
 std::string DnsOverHttpsConfig::ToString() const {
   if (base::ranges::all_of(servers(), &DnsOverHttpsServerConfig::IsSimple)) {
     // Return the templates on separate lines.
-    std::vector<base::StringPiece> strings;
+    std::vector<std::string_view> strings;
     strings.reserve(servers().size());
     base::ranges::transform(servers(), std::back_inserter(strings),
                             &DnsOverHttpsServerConfig::server_template_piece);

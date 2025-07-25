@@ -1,5 +1,0 @@
-uniform foo { out int x; };
-
-/*%%*
-'out' is not permitted here
-*%%*/

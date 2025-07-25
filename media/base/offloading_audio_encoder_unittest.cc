@@ -2,9 +2,12 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#include "media/base/offloading_audio_encoder.h"
+
 #include <memory>
 #include <vector>
 
+#include "base/containers/heap_array.h"
 #include "base/functional/bind.h"
 #include "base/functional/callback_helpers.h"
 #include "base/memory/raw_ptr.h"
@@ -17,7 +20,6 @@
 #include "base/time/time.h"
 #include "media/base/media_util.h"
 #include "media/base/mock_filters.h"
-#include "media/base/offloading_audio_encoder.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
 using ::base::test::RunCallback;
@@ -49,7 +51,7 @@ class OffloadingAudioEncoderTest : public testing::Test {
   base::test::TaskEnvironment task_environment_;
   scoped_refptr<base::SequencedTaskRunner> work_runner_;
   scoped_refptr<base::SequencedTaskRunner> callback_runner_;
-  raw_ptr<MockAudioEncoder> mock_audio_encoder_;
+  raw_ptr<MockAudioEncoder, AcrossTasksDanglingUntriaged> mock_audio_encoder_;
   std::unique_ptr<OffloadingAudioEncoder> offloading_encoder_;
 };
 
@@ -58,7 +60,7 @@ TEST_F(OffloadingAudioEncoderTest, Initialize) {
   bool called_output = false;
   AudioEncoder::Options options;
   AudioEncoder::OutputCB output_cb = base::BindLambdaForTesting(
-      [&](EncodedAudioBuffer, absl::optional<AudioEncoder::CodecDescription>) {
+      [&](EncodedAudioBuffer, std::optional<AudioEncoder::CodecDescription>) {
         EXPECT_TRUE(callback_runner_->RunsTasksInCurrentSequence());
         called_output = true;
       });
@@ -74,7 +76,8 @@ TEST_F(OffloadingAudioEncoderTest, Initialize) {
                               AudioEncoder::EncoderStatusCB done_cb) {
         EXPECT_TRUE(work_runner_->RunsTasksInCurrentSequence());
         AudioParameters params;
-        EncodedAudioBuffer buf(params, nullptr, 0, base::TimeTicks());
+        EncodedAudioBuffer buf(params, base::HeapArray<uint8_t>(), 0,
+                               base::TimeTicks());
         std::move(done_cb).Run(EncoderStatus::Codes::kOk);
 
         // Usually |output_cb| is not called by Initialize() but for this

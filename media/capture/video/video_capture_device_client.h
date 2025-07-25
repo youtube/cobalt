@@ -11,12 +11,22 @@
 #include <memory>
 #include <vector>
 
+#include "base/feature_list.h"
 #include "base/memory/scoped_refptr.h"
 #include "base/threading/thread_collision_warner.h"
+#include "build/build_config.h"
 #include "build/chromeos_buildflags.h"
 #include "media/capture/capture_export.h"
+#include "media/capture/mojom/video_effects_manager.mojom.h"
 #include "media/capture/video/video_capture_device.h"
 #include "media/capture/video/video_frame_receiver.h"
+#include "mojo/public/cpp/bindings/remote.h"
+#include "services/video_effects/public/cpp/buildflags.h"
+#include "services/video_effects/public/mojom/video_effects_processor.mojom-forward.h"
+
+#if BUILDFLAG(ENABLE_VIDEO_EFFECTS)
+#include "media/capture/video/video_capture_effects_processor.h"
+#endif  // BUILDFLAG(ENABLE_VIDEO_EFFECTS)
 
 namespace media {
 class VideoCaptureBufferPool;
@@ -25,6 +35,32 @@ class VideoCaptureJpegDecoder;
 
 using VideoCaptureJpegDecoderFactoryCB =
     base::OnceCallback<std::unique_ptr<VideoCaptureJpegDecoder>()>;
+
+#if BUILDFLAG(IS_MAC)
+CAPTURE_EXPORT BASE_DECLARE_FEATURE(kFallbackToSharedMemoryIfNotNv12OnMac);
+#endif
+
+// Structure used to inject dependencies required for the
+// `VideoCaptureDeviceClient` to apply video effects.
+class CAPTURE_EXPORT VideoEffectsContext {
+ public:
+  explicit VideoEffectsContext(
+      mojo::PendingRemote<video_effects::mojom::VideoEffectsProcessor> remote);
+  ~VideoEffectsContext();
+
+  VideoEffectsContext(const VideoEffectsContext& other) = delete;
+  VideoEffectsContext& operator=(VideoEffectsContext& other) = delete;
+
+  VideoEffectsContext(VideoEffectsContext&& other);
+  VideoEffectsContext& operator=(VideoEffectsContext&& other);
+
+  mojo::PendingRemote<video_effects::mojom::VideoEffectsProcessor>&&
+  TakeVideoEffectsProcessor();
+
+ private:
+  mojo::PendingRemote<video_effects::mojom::VideoEffectsProcessor>
+      video_effects_processor_;
+};
 
 // Implementation of VideoCaptureDevice::Client that uses a buffer pool
 // to provide buffers and converts incoming data to the I420 format for
@@ -45,14 +81,13 @@ class CAPTURE_EXPORT VideoCaptureDeviceClient
  public:
 #if BUILDFLAG(IS_CHROMEOS_ASH)
   VideoCaptureDeviceClient(
-      VideoCaptureBufferType target_buffer_type,
       std::unique_ptr<VideoFrameReceiver> receiver,
       scoped_refptr<VideoCaptureBufferPool> buffer_pool,
       VideoCaptureJpegDecoderFactoryCB jpeg_decoder_factory_callback);
 #else
-  VideoCaptureDeviceClient(VideoCaptureBufferType target_buffer_type,
-                           std::unique_ptr<VideoFrameReceiver> receiver,
-                           scoped_refptr<VideoCaptureBufferPool> buffer_pool);
+  VideoCaptureDeviceClient(std::unique_ptr<VideoFrameReceiver> receiver,
+                           scoped_refptr<VideoCaptureBufferPool> buffer_pool,
+                           VideoEffectsContext video_effects_context);
 #endif  // BUILDFLAG(IS_CHROMEOS_ASH)
 
   VideoCaptureDeviceClient(const VideoCaptureDeviceClient&) = delete;
@@ -67,41 +102,50 @@ class CAPTURE_EXPORT VideoCaptureDeviceClient
 
   // VideoCaptureDevice::Client implementation.
   void OnCaptureConfigurationChanged() override;
-  void OnIncomingCapturedData(const uint8_t* data,
-                              int length,
-                              const VideoCaptureFormat& frame_format,
-                              const gfx::ColorSpace& color_space,
-                              int clockwise_rotation,
-                              bool flip_y,
-                              base::TimeTicks reference_time,
-                              base::TimeDelta timestamp,
-                              int frame_feedback_id) override;
-  void OnIncomingCapturedGfxBuffer(gfx::GpuMemoryBuffer* buffer,
-                                   const VideoCaptureFormat& frame_format,
-                                   int clockwise_rotation,
-                                   base::TimeTicks reference_time,
-                                   base::TimeDelta timestamp,
-                                   int frame_feedback_id) override;
-  void OnIncomingCapturedExternalBuffer(
-      CapturedExternalVideoBuffer buffer,
-      std::vector<CapturedExternalVideoBuffer> scaled_buffers,
+  void OnIncomingCapturedData(
+      const uint8_t* data,
+      int length,
+      const VideoCaptureFormat& frame_format,
+      const gfx::ColorSpace& color_space,
+      int clockwise_rotation,
+      bool flip_y,
       base::TimeTicks reference_time,
       base::TimeDelta timestamp,
-      gfx::Rect visible_rect) override;
+      std::optional<base::TimeTicks> capture_begin_timestamp,
+      int frame_feedback_id) override;
+  void OnIncomingCapturedGfxBuffer(
+      gfx::GpuMemoryBuffer* buffer,
+      const VideoCaptureFormat& frame_format,
+      int clockwise_rotation,
+      base::TimeTicks reference_time,
+      base::TimeDelta timestamp,
+      std::optional<base::TimeTicks> capture_begin_timestamp,
+      int frame_feedback_id) override;
+  void OnIncomingCapturedExternalBuffer(
+      CapturedExternalVideoBuffer buffer,
+      base::TimeTicks reference_time,
+      base::TimeDelta timestamp,
+      std::optional<base::TimeTicks> capture_begin_timestamp,
+      const gfx::Rect& visible_rect) override;
   ReserveResult ReserveOutputBuffer(const gfx::Size& dimensions,
                                     VideoPixelFormat format,
                                     int frame_feedback_id,
-                                    Buffer* buffer) override;
-  void OnIncomingCapturedBuffer(Buffer buffer,
-                                const VideoCaptureFormat& format,
-                                base::TimeTicks reference_time,
-                                base::TimeDelta timestamp) override;
+                                    Buffer* buffer,
+                                    int* require_new_buffer_id,
+                                    int* retire_old_buffer_id) override;
+  void OnIncomingCapturedBuffer(
+      Buffer buffer,
+      const VideoCaptureFormat& format,
+      base::TimeTicks reference_time,
+      base::TimeDelta timestamp,
+      std::optional<base::TimeTicks> capture_begin_timestamp) override;
   void OnIncomingCapturedBufferExt(
       Buffer buffer,
       const VideoCaptureFormat& format,
       const gfx::ColorSpace& color_space,
       base::TimeTicks reference_time,
       base::TimeDelta timestamp,
+      std::optional<base::TimeTicks> capture_begin_timestamp,
       gfx::Rect visible_rect,
       const VideoFrameMetadata& additional_metadata) override;
   void OnError(VideoCaptureError error,
@@ -113,21 +157,29 @@ class CAPTURE_EXPORT VideoCaptureDeviceClient
   double GetBufferPoolUtilization() const override;
 
  private:
-  ReadyFrameInBuffer CreateReadyFrameFromExternalBuffer(
+  VideoCaptureDevice::Client::ReserveResult CreateReadyFrameFromExternalBuffer(
       CapturedExternalVideoBuffer buffer,
       base::TimeTicks reference_time,
       base::TimeDelta timestamp,
-      gfx::Rect visible_rect);
+      std::optional<base::TimeTicks> capture_begin_timestamp,
+      const gfx::Rect& visible_rect,
+      ReadyFrameInBuffer* ready_buffer);
 
   // A branch of OnIncomingCapturedData for Y16 frame_format.pixel_format.
-  void OnIncomingCapturedY16Data(const uint8_t* data,
-                                 int length,
-                                 const VideoCaptureFormat& frame_format,
-                                 base::TimeTicks reference_time,
-                                 base::TimeDelta timestamp,
-                                 int frame_feedback_id);
+  void OnIncomingCapturedY16Data(
+      const uint8_t* data,
+      int length,
+      const VideoCaptureFormat& frame_format,
+      base::TimeTicks reference_time,
+      base::TimeDelta timestamp,
+      std::optional<base::TimeTicks> capture_begin_timestamp,
+      int frame_feedback_id);
 
-  const VideoCaptureBufferType target_buffer_type_;
+#if BUILDFLAG(ENABLE_VIDEO_EFFECTS)
+  void OnPostProcessDone(base::expected<PostProcessDoneInfo,
+                                        video_effects::mojom::PostProcessError>
+                             post_process_info_or_error);
+#endif
 
   // The receiver to which we post events.
   const std::unique_ptr<VideoFrameReceiver> receiver_;
@@ -144,10 +196,19 @@ class CAPTURE_EXPORT VideoCaptureDeviceClient
 
   VideoPixelFormat last_captured_pixel_format_;
 
+#if BUILDFLAG(ENABLE_VIDEO_EFFECTS)
+  std::optional<VideoCaptureEffectsProcessor> effects_processor_;
+#endif  // !BUILDFLAG(ENABLE_VIDEO_EFFECTS)
+
   // Thread collision warner to ensure that producer-facing API is not called
   // concurrently. Producers are allowed to call from multiple threads, but not
   // concurrently.
   DFAKE_MUTEX(call_from_producer_);
+
+#if BUILDFLAG(ENABLE_VIDEO_EFFECTS)
+  // Must be last:
+  base::WeakPtrFactory<VideoCaptureDeviceClient> weak_ptr_factory_{this};
+#endif
 };
 
 }  // namespace media

@@ -8,16 +8,20 @@
 #include <string>
 #include <vector>
 
+#include "ash/webui/camera_app_ui/document_scanner_service_host.h"
 #include "base/task/bind_post_task.h"
 
 namespace media {
 
 CameraAppDeviceProviderImpl::CameraAppDeviceProviderImpl(
-    mojo::PendingRemote<cros::mojom::CameraAppDeviceBridge> bridge,
+    ConnectToBridgeCallback connect_to_bridge_callback,
     DeviceIdMappingCallback mapping_callback)
-    : bridge_(std::move(bridge)),
+    : connect_to_bridge_callback_(std::move(connect_to_bridge_callback)),
       mapping_callback_(std::move(mapping_callback)),
-      weak_ptr_factory_(this) {}
+      weak_ptr_factory_(this) {
+  ash::DocumentScannerServiceHost::GetInstance()->Start();
+  ConnectToCameraAppDeviceBridge();
+}
 
 CameraAppDeviceProviderImpl::~CameraAppDeviceProviderImpl() = default;
 
@@ -39,10 +43,10 @@ void CameraAppDeviceProviderImpl::GetCameraAppDevice(
 
 void CameraAppDeviceProviderImpl::GetCameraAppDeviceWithDeviceId(
     GetCameraAppDeviceCallback callback,
-    const absl::optional<std::string>& device_id) {
+    const std::optional<std::string>& device_id) {
   if (!device_id.has_value()) {
     std::move(callback).Run(
-        cros::mojom::GetCameraAppDeviceStatus::ERROR_INVALID_ID,
+        cros::mojom::GetCameraAppDeviceStatus::kErrorInvalidId,
         mojo::NullRemote());
     return;
   }
@@ -68,13 +72,40 @@ void CameraAppDeviceProviderImpl::SetVirtualDeviceEnabled(
 void CameraAppDeviceProviderImpl::SetVirtualDeviceEnabledWithDeviceId(
     bool enabled,
     SetVirtualDeviceEnabledCallback callback,
-    const absl::optional<std::string>& device_id) {
+    const std::optional<std::string>& device_id) {
   if (!device_id.has_value()) {
     std::move(callback).Run(false);
     return;
   }
 
   bridge_->SetVirtualDeviceEnabled(*device_id, enabled, std::move(callback));
+}
+
+void CameraAppDeviceProviderImpl::IsDeviceInUse(
+    const std::string& source_id,
+    IsDeviceInUseCallback callback) {
+  mapping_callback_.Run(
+      source_id, base::BindPostTaskToCurrentDefault(base::BindOnce(
+                     &CameraAppDeviceProviderImpl::IsDeviceInUseWithDeviceId,
+                     weak_ptr_factory_.GetWeakPtr(), std::move(callback))));
+}
+
+void CameraAppDeviceProviderImpl::IsDeviceInUseWithDeviceId(
+    IsDeviceInUseCallback callback,
+    const std::optional<std::string>& device_id) {
+  if (!device_id.has_value()) {
+    std::move(callback).Run(false);
+    return;
+  }
+  bridge_->IsDeviceInUse(*device_id, std::move(callback));
+}
+
+void CameraAppDeviceProviderImpl::ConnectToCameraAppDeviceBridge() {
+  bridge_.reset();
+  connect_to_bridge_callback_.Run(bridge_.BindNewPipeAndPassReceiver());
+  bridge_.set_disconnect_handler(base::BindOnce(
+      &CameraAppDeviceProviderImpl::ConnectToCameraAppDeviceBridge,
+      weak_ptr_factory_.GetWeakPtr()));
 }
 
 }  // namespace media

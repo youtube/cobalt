@@ -28,7 +28,7 @@
 #include "starboard/shared/starboard/link_receiver.h"
 #include "starboard/shared/x11/application_x11.h"
 
-#include "third_party/crashpad/crashpad/wrapper/wrapper.h"
+#include "starboard/crashpad_wrapper/wrapper.h"
 
 extern "C" SB_EXPORT_PLATFORM int main(int argc, char** argv) {
   // Set M_ARENA_MAX to a low value to slow memory growth due to fragmentation.

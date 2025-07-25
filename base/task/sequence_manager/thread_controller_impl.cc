@@ -78,12 +78,6 @@ void ThreadControllerImpl::SetSequencedTaskSource(
   sequence_ = sequence;
 }
 
-void ThreadControllerImpl::SetTimerSlack(TimerSlack timer_slack) {
-  if (!funneled_sequence_manager_)
-    return;
-  funneled_sequence_manager_->SetTimerSlack(timer_slack);
-}
-
 void ThreadControllerImpl::ScheduleWork() {
   TRACE_EVENT0(TRACE_DISABLED_BY_DEFAULT("sequence_manager"),
                "ThreadControllerImpl::ScheduleWork::PostTask");
@@ -94,9 +88,8 @@ void ThreadControllerImpl::ScheduleWork() {
   }
 }
 
-void ThreadControllerImpl::SetNextDelayedDoWork(
-    LazyNow* lazy_now,
-    absl::optional<WakeUp> wake_up) {
+void ThreadControllerImpl::SetNextDelayedDoWork(LazyNow* lazy_now,
+                                                std::optional<WakeUp> wake_up) {
   DCHECK_CALLED_ON_VALID_SEQUENCE(associated_thread_->sequence_checker);
   DCHECK(sequence_);
   DCHECK(!wake_up || !wake_up->is_immediate());
@@ -158,7 +151,7 @@ void ThreadControllerImpl::RestoreDefaultTaskRunner() {
 
 void ThreadControllerImpl::BindToCurrentThread(
     std::unique_ptr<MessagePump> message_pump) {
-  NOTREACHED();
+  NOTREACHED_IN_MIGRATION();
 }
 
 void ThreadControllerImpl::WillQueueTask(PendingTask* pending_task) {
@@ -173,7 +166,7 @@ void ThreadControllerImpl::DoWork(WorkType work_type) {
   DCHECK(sequence_);
 
   work_deduplicator_.OnWorkStarted();
-  absl::optional<base::TimeTicks> recent_time;
+  std::optional<base::TimeTicks> recent_time;
 
   WeakPtr<ThreadControllerImpl> weak_ptr = weak_factory_.GetWeakPtr();
   for (int i = 0; i < main_sequence_only().work_batch_size_; i++) {
@@ -188,7 +181,7 @@ void ThreadControllerImpl::DoWork(WorkType work_type) {
     run_level_tracker_.OnWorkStarted(lazy_now_select_task);
     int run_depth = static_cast<int>(run_level_tracker_.num_run_levels());
 
-    absl::optional<SequencedTaskSource::SelectedTask> selected_task =
+    std::optional<SequencedTaskSource::SelectedTask> selected_task =
         sequence_->SelectNextTask(lazy_now_select_task);
     LazyNow lazy_now_task_selected(time_source_);
     run_level_tracker_.OnApplicationTaskSelected(
@@ -232,7 +225,7 @@ void ThreadControllerImpl::DoWork(WorkType work_type) {
       // the next loop iteration.
       if (lazy_now_after_run_task.has_value()) {
         recent_time =
-            absl::optional<base::TimeTicks>(lazy_now_after_run_task.Now());
+            std::optional<base::TimeTicks>(lazy_now_after_run_task.Now());
       } else {
         recent_time.reset();
       }
@@ -256,13 +249,11 @@ void ThreadControllerImpl::DoWork(WorkType work_type) {
   work_deduplicator_.WillCheckForMoreWork();
 
   LazyNow lazy_now_after_work(time_source_);
-  sequence_->RemoveAllCanceledDelayedTasksFromFront(&lazy_now_after_work);
-  absl::optional<WakeUp> next_wake_up =
+  std::optional<WakeUp> next_wake_up =
       sequence_->GetPendingWakeUp(&lazy_now_after_work);
-  // The OnSystemIdle callback allows the TimeDomains to advance virtual time
-  // in which case we now have immediate work to do.
-  if ((next_wake_up && next_wake_up->is_immediate()) ||
-      sequence_->OnSystemIdle()) {
+  // The OnIdle() callback allows the TimeDomains to advance virtual time in
+  // which case we now have immediate work to do.
+  if ((next_wake_up && next_wake_up->is_immediate()) || sequence_->OnIdle()) {
     // The next task needs to run immediately, post a continuation if
     // another thread didn't get there first.
     if (work_deduplicator_.DidCheckForMoreWork(
@@ -301,7 +292,7 @@ void ThreadControllerImpl::DoWork(WorkType work_type) {
   // callback.
   main_sequence_only().next_delayed_do_work = next_wake_up_time;
   cancelable_delayed_do_work_closure_.Reset(delayed_do_work_closure_);
-  // TODO(1153139): Use PostDelayedTaskAt().
+  // TODO(crbug.com/40158967): Use PostDelayedTaskAt().
   task_runner_->PostDelayedTask(FROM_HERE,
                                 cancelable_delayed_do_work_closure_.callback(),
                                 next_wake_up_time - lazy_now_after_work.Now());
@@ -346,8 +337,9 @@ void ThreadControllerImpl::SetWorkBatchSize(int work_batch_size) {
   main_sequence_only().work_batch_size_ = work_batch_size;
 }
 
-void ThreadControllerImpl::SetTaskExecutionAllowed(bool allowed) {
-  NOTREACHED();
+void ThreadControllerImpl::SetTaskExecutionAllowedInNativeNestedLoop(
+    bool allowed) {
+  NOTREACHED_IN_MIGRATION();
 }
 
 bool ThreadControllerImpl::IsTaskExecutionAllowed() const {
@@ -363,20 +355,20 @@ MessagePump* ThreadControllerImpl::GetBoundMessagePump() const {
   return nullptr;
 }
 
-#if BUILDFLAG(IS_IOS) || BUILDFLAG(IS_ANDROID) || defined(STARBOARD)
+#if BUILDFLAG(IS_IOS) || BUILDFLAG(IS_ANDROID)
 void ThreadControllerImpl::AttachToMessagePump() {
-  NOTREACHED();
+  NOTREACHED_IN_MIGRATION();
 }
 #endif  // BUILDFLAG(IS_IOS) || BUILDFLAG(IS_ANDROID)
 
 #if BUILDFLAG(IS_IOS)
 void ThreadControllerImpl::DetachFromMessagePump() {
-  NOTREACHED();
+  NOTREACHED_IN_MIGRATION();
 }
 #endif  // BUILDFLAG(IS_IOS)
 
 void ThreadControllerImpl::PrioritizeYieldingToNative(base::TimeTicks) {
-  NOTREACHED();
+  NOTREACHED_IN_MIGRATION();
 }
 
 }  // namespace internal

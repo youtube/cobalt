@@ -4,6 +4,7 @@
 
 #include "net/first_party_sets/global_first_party_sets.h"
 
+#include <optional>
 #include <set>
 #include <tuple>
 
@@ -11,9 +12,7 @@
 #include "base/containers/flat_map.h"
 #include "base/containers/flat_set.h"
 #include "base/functional/function_ref.h"
-#include "base/metrics/histogram_macros.h"
 #include "base/ranges/algorithm.h"
-#include "base/timer/elapsed_timer.h"
 #include "base/types/optional_util.h"
 #include "net/base/schemeful_site.h"
 #include "net/first_party_sets/addition_overlaps_union_find.h"
@@ -21,7 +20,7 @@
 #include "net/first_party_sets/first_party_set_entry_override.h"
 #include "net/first_party_sets/first_party_set_metadata.h"
 #include "net/first_party_sets/first_party_sets_context_config.h"
-#include "third_party/abseil-cpp/absl/types/optional.h"
+#include "net/first_party_sets/local_set_declaration.h"
 
 namespace net {
 
@@ -29,13 +28,6 @@ namespace {
 
 using FlattenedSets = base::flat_map<SchemefulSite, FirstPartySetEntry>;
 using SingleSet = base::flat_map<SchemefulSite, FirstPartySetEntry>;
-
-// Converts WS to HTTP, and WSS to HTTPS.
-SchemefulSite NormalizeScheme(const SchemefulSite& site) {
-  SchemefulSite normalized_site = site;
-  normalized_site.ConvertWebSocketToHttp();
-  return normalized_site;
-}
 
 // Converts a list of First-Party Sets from a SingleSet to a FlattenedSet
 // representation.
@@ -68,11 +60,6 @@ const SchemefulSite& ProjectKey(
   return p.first;
 }
 
-SamePartyContext::Type ContextTypeFromBool(bool is_same_party) {
-  return is_same_party ? SamePartyContext::Type::kSameParty
-                       : SamePartyContext::Type::kCrossParty;
-}
-
 }  // namespace
 
 GlobalFirstPartySets::GlobalFirstPartySets() = default;
@@ -89,25 +76,29 @@ GlobalFirstPartySets::GlobalFirstPartySets(
           public_sets_version.IsValid()
               ? std::move(aliases)
               : base::flat_map<SchemefulSite, SchemefulSite>(),
-          FirstPartySetsContextConfig()) {}
+          FirstPartySetsContextConfig(),
+          base::flat_map<SchemefulSite, SchemefulSite>()) {}
 
 GlobalFirstPartySets::GlobalFirstPartySets(
     base::Version public_sets_version,
     base::flat_map<SchemefulSite, FirstPartySetEntry> entries,
     base::flat_map<SchemefulSite, SchemefulSite> aliases,
-    FirstPartySetsContextConfig manual_config)
+    FirstPartySetsContextConfig manual_config,
+    base::flat_map<SchemefulSite, SchemefulSite> manual_aliases)
     : public_sets_version_(std::move(public_sets_version)),
       entries_(std::move(entries)),
       aliases_(std::move(aliases)),
-      manual_config_(std::move(manual_config)) {
-  if (public_sets_version_.IsValid()) {
-    DCHECK(base::ranges::all_of(aliases_, [&](const auto& pair) {
-      return entries_.contains(pair.second);
-    }));
-  } else {
+      manual_config_(std::move(manual_config)),
+      manual_aliases_(std::move(manual_aliases)) {
+  if (!public_sets_version_.IsValid()) {
     CHECK(entries_.empty());
     CHECK(aliases_.empty());
   }
+
+  CHECK(base::ranges::all_of(aliases_, [&](const auto& pair) {
+    return entries_.contains(pair.second);
+  }));
+  CHECK(!ContainsSingleton());
 }
 
 GlobalFirstPartySets::GlobalFirstPartySets(GlobalFirstPartySets&&) = default;
@@ -116,59 +107,53 @@ GlobalFirstPartySets& GlobalFirstPartySets::operator=(GlobalFirstPartySets&&) =
 
 GlobalFirstPartySets::~GlobalFirstPartySets() = default;
 
-bool GlobalFirstPartySets::operator==(const GlobalFirstPartySets& other) const {
-  return std::tie(public_sets_version_, entries_, aliases_, manual_config_) ==
-         std::tie(other.public_sets_version_, other.entries_, other.aliases_,
-                  other.manual_config_);
-}
+bool GlobalFirstPartySets::operator==(const GlobalFirstPartySets& other) const =
+    default;
 
-bool GlobalFirstPartySets::operator!=(const GlobalFirstPartySets& other) const {
-  return !(*this == other);
-}
+bool GlobalFirstPartySets::operator!=(const GlobalFirstPartySets& other) const =
+    default;
 
 GlobalFirstPartySets GlobalFirstPartySets::Clone() const {
   return GlobalFirstPartySets(public_sets_version_, entries_, aliases_,
-                              manual_config_.Clone());
+                              manual_config_.Clone(), manual_aliases_);
 }
 
-absl::optional<FirstPartySetEntry> GlobalFirstPartySets::FindEntry(
+std::optional<FirstPartySetEntry> GlobalFirstPartySets::FindEntry(
     const SchemefulSite& site,
     const FirstPartySetsContextConfig& config) const {
   return FindEntry(site, &config);
 }
 
-absl::optional<FirstPartySetEntry> GlobalFirstPartySets::FindEntry(
+std::optional<FirstPartySetEntry> GlobalFirstPartySets::FindEntry(
     const SchemefulSite& site,
     const FirstPartySetsContextConfig* config) const {
-  const SchemefulSite normalized_site = NormalizeScheme(site);
-
-  // Check if `normalized_site` can be found in the customizations first.
+  // Check if `site` can be found in the customizations first.
   if (config) {
-    if (const auto override = config->FindOverride(normalized_site);
+    if (const auto override = config->FindOverride(site);
         override.has_value()) {
-      return override->IsDeletion() ? absl::nullopt
-                                    : absl::make_optional(override->GetEntry());
+      return override->IsDeletion() ? std::nullopt
+                                    : std::make_optional(override->GetEntry());
     }
   }
 
   // Now see if it's in the manual config (with or without a manual alias).
-  if (const auto manual_override = manual_config_.FindOverride(normalized_site);
+  if (const auto manual_override = manual_config_.FindOverride(site);
       manual_override.has_value()) {
     return manual_override->IsDeletion()
-               ? absl::nullopt
-               : absl::make_optional(manual_override->GetEntry());
+               ? std::nullopt
+               : std::make_optional(manual_override->GetEntry());
   }
 
   // Finally, look up in `entries_`, applying an alias if applicable.
-  const auto canonical_it = aliases_.find(normalized_site);
+  const auto canonical_it = aliases_.find(site);
   const SchemefulSite& canonical_site =
-      canonical_it == aliases_.end() ? normalized_site : canonical_it->second;
+      canonical_it == aliases_.end() ? site : canonical_it->second;
   if (const auto entry_it = entries_.find(canonical_site);
       entry_it != entries_.end()) {
     return entry_it->second;
   }
 
-  return absl::nullopt;
+  return std::nullopt;
 }
 
 base::flat_map<SchemefulSite, FirstPartySetEntry>
@@ -177,7 +162,7 @@ GlobalFirstPartySets::FindEntries(
     const FirstPartySetsContextConfig& config) const {
   std::vector<std::pair<SchemefulSite, FirstPartySetEntry>> sites_to_entries;
   for (const SchemefulSite& site : sites) {
-    const absl::optional<FirstPartySetEntry> entry = FindEntry(site, config);
+    const std::optional<FirstPartySetEntry> entry = FindEntry(site, config);
     if (entry.has_value()) {
       sites_to_entries.emplace_back(site, entry.value());
     }
@@ -188,61 +173,42 @@ GlobalFirstPartySets::FindEntries(
 FirstPartySetMetadata GlobalFirstPartySets::ComputeMetadata(
     const SchemefulSite& site,
     const SchemefulSite* top_frame_site,
-    const std::set<SchemefulSite>& party_context,
     const FirstPartySetsContextConfig& fps_context_config) const {
-  const base::ElapsedTimer timer;
-
-  SamePartyContext::Type context_type =
-      ContextTypeFromBool(IsContextSamePartyWithSite(
-          site, top_frame_site, party_context, fps_context_config));
-
-  SamePartyContext context(context_type);
-
-  UMA_HISTOGRAM_CUSTOM_MICROSECONDS_TIMES(
-      "Cookie.FirstPartySets.ComputeContext.Latency", timer.Elapsed(),
-      base::Microseconds(1), base::Milliseconds(100), 50);
-
-  absl::optional<FirstPartySetEntry> top_frame_entry =
+  std::optional<FirstPartySetEntry> top_frame_entry =
       top_frame_site ? FindEntry(*top_frame_site, fps_context_config)
-                     : absl::nullopt;
+                     : std::nullopt;
 
   return FirstPartySetMetadata(
-      context, base::OptionalToPtr(FindEntry(site, fps_context_config)),
+      base::OptionalToPtr(FindEntry(site, fps_context_config)),
       base::OptionalToPtr(top_frame_entry));
 }
 
-bool GlobalFirstPartySets::IsContextSamePartyWithSite(
-    const SchemefulSite& site,
-    const SchemefulSite* top_frame_site,
-    const std::set<SchemefulSite>& party_context,
-    const FirstPartySetsContextConfig& fps_context_config) const {
-  const absl::optional<FirstPartySetEntry> site_entry =
-      FindEntry(site, fps_context_config);
-  if (!site_entry.has_value())
-    return false;
-
-  const auto is_in_same_set_as_frame_site =
-      [this, &site_entry,
-       &fps_context_config](const SchemefulSite& context_site) -> bool {
-    const absl::optional<FirstPartySetEntry> context_entry =
-        FindEntry(context_site, fps_context_config);
-    return context_entry.has_value() &&
-           context_entry->primary() == site_entry->primary();
-  };
-
-  if (top_frame_site && !is_in_same_set_as_frame_site(*top_frame_site))
-    return false;
-
-  return base::ranges::all_of(party_context, is_in_same_set_as_frame_site);
-}
-
 void GlobalFirstPartySets::ApplyManuallySpecifiedSet(
-    const base::flat_map<SchemefulSite, FirstPartySetEntry>& manual_entries) {
+    const LocalSetDeclaration& local_set_declaration) {
   CHECK(manual_config_.empty());
+  CHECK(manual_aliases_.empty());
+  if (local_set_declaration.empty()) {
+    // Nothing to do.
+    return;
+  }
+
+  base::flat_map<SchemefulSite, SchemefulSite> manual_aliases =
+      local_set_declaration.aliases();
+
+  base::flat_map<SchemefulSite, FirstPartySetEntry> manual_entries =
+      local_set_declaration.entries();
+  for (const auto& [alias, canonical] : manual_aliases) {
+    manual_entries.emplace(alias, manual_entries.find(canonical)->second);
+  }
+
   // We handle the manually-specified set the same way as we handle
   // replacement enterprise policy sets.
-  manual_config_ = ComputeConfig(
-      /*replacement_sets=*/{manual_entries}, /*addition_sets=*/{});
+  manual_config_ = ComputeConfig(SetsMutation(
+      /*replacement_sets=*/{manual_entries},
+      /*addition_sets=*/{}));
+  manual_aliases_ = std::move(manual_aliases);
+
+  CHECK(!ContainsSingleton());
 }
 
 void GlobalFirstPartySets::UnsafeSetManualConfig(
@@ -252,8 +218,9 @@ void GlobalFirstPartySets::UnsafeSetManualConfig(
 }
 
 FirstPartySetsContextConfig GlobalFirstPartySets::ComputeConfig(
-    const std::vector<SingleSet>& replacement_sets,
-    const std::vector<SingleSet>& addition_sets) const {
+    const SetsMutation& mutation) const {
+  const std::vector<SingleSet>& replacement_sets = mutation.replacements();
+  const std::vector<SingleSet>& addition_sets = mutation.additions();
   if (base::ranges::all_of(replacement_sets,
                            [](const SingleSet& set) { return set.empty(); }) &&
       base::ranges::all_of(addition_sets,
@@ -338,7 +305,7 @@ FirstPartySetsContextConfig GlobalFirstPartySets::ComputeConfig(
                                            member == entry->second.primary()
                                                ? SiteType::kPrimary
                                                : SiteType::kAssociated,
-                                           absl::nullopt));
+                                           std::nullopt));
           }
           if (member == set_entry.primary())
             return true;
@@ -367,14 +334,15 @@ FirstPartySetsContextConfig GlobalFirstPartySets::ComputeConfig(
     }
   }
 
-  // For every public alias that would now refer to a site in the overlay, which
-  // is not already contained in the overlay, we explicitly ignore that alias.
-  for (const auto& [alias, site] : aliases_) {
-    if (base::Contains(site_to_entry, site, ProjectKey) &&
+  // For every pre-existing alias that would now refer to a site in the overlay,
+  // which is not already contained in the overlay, we explicitly ignore that
+  // alias.
+  ForEachAlias([&](const SchemefulSite& alias, const SchemefulSite& canonical) {
+    if (base::Contains(site_to_entry, canonical, ProjectKey) &&
         !base::Contains(site_to_entry, alias, ProjectKey)) {
       site_to_entry.emplace_back(alias, FirstPartySetEntryOverride());
     }
-  }
+  });
 
   return FirstPartySetsContextConfig(std::move(site_to_entry));
 }
@@ -422,7 +390,7 @@ GlobalFirstPartySets::NormalizeAdditionSets(
             normalized
                 .emplace(child_site_and_entry.first,
                          FirstPartySetEntry(rep_primary, SiteType::kAssociated,
-                                            absl::nullopt))
+                                            std::nullopt))
                 .second;
         CHECK(inserted);
       }
@@ -498,6 +466,42 @@ bool GlobalFirstPartySets::ForEachEffectiveSetEntry(
   });
 }
 
+void GlobalFirstPartySets::ForEachAlias(
+    base::FunctionRef<void(const SchemefulSite&, const SchemefulSite&)> f)
+    const {
+  for (const auto& [alias, site] : manual_aliases_) {
+    f(alias, site);
+  }
+  for (const auto& [alias, site] : aliases_) {
+    if (manual_config_.Contains(alias)) {
+      continue;
+    }
+    f(alias, site);
+  }
+}
+
+bool GlobalFirstPartySets::ContainsSingleton() const {
+  std::set<SchemefulSite> possible_singletons;
+  std::set<SchemefulSite> not_singletons;
+
+  ForEachEffectiveSetEntry(
+      nullptr,
+      [&](const SchemefulSite& site, const FirstPartySetEntry& entry) -> bool {
+        if (!not_singletons.contains(entry.primary())) {
+          if (site == entry.primary()) {
+            possible_singletons.insert(entry.primary());
+          } else {
+            not_singletons.insert(entry.primary());
+            possible_singletons.erase(entry.primary());
+          }
+        }
+
+        return true;
+      });
+
+  return !possible_singletons.empty();
+}
+
 std::ostream& operator<<(std::ostream& os, const GlobalFirstPartySets& sets) {
   os << "{entries = {";
   for (const auto& [site, entry] : sets.entries_) {
@@ -514,6 +518,10 @@ std::ostream& operator<<(std::ostream& os, const GlobalFirstPartySets& sets) {
         os << "{" << site.Serialize() << ": " << override << "},";
         return true;
       });
+  os << "}, manual_aliases = {";
+  for (const auto& [alias, canonical] : sets.manual_aliases_) {
+    os << "{" << alias.Serialize() << ": " << canonical.Serialize() << "}, ";
+  }
   os << "}}";
   return os;
 }

@@ -1,0 +1,4 @@
+include_rules = [
+  "+chromeos/ash/components/login",
+  "+components/device_event_log",
+]

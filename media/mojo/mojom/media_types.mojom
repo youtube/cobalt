@@ -4,10 +4,13 @@
 
 module media.mojom;
 
+import "gpu/ipc/common/exported_shared_image.mojom";
 import "gpu/ipc/common/mailbox_holder.mojom";
+import "gpu/ipc/common/sync_token.mojom";
 import "gpu/ipc/common/vulkan_ycbcr_info.mojom";
 import "media/mojo/mojom/audio_data.mojom";
 import "media/mojo/mojom/encryption_pattern.mojom";
+import "mojo/public/mojom/base/byte_string.mojom";
 import "mojo/public/mojom/base/shared_memory.mojom";
 import "mojo/public/mojom/base/time.mojom";
 import "mojo/public/mojom/base/values.mojom";
@@ -125,12 +128,32 @@ enum SVCScalabilityMode {
   kL1T1,
   kL1T2,
   kL1T3,
+  kL2T1,
+  kL2T2,
+  kL2T3,
+  kL3T1,
+  kL3T2,
+  kL3T3,
   kL2T1Key,
   kL2T2Key,
   kL2T3Key,
   kL3T1Key,
   kL3T2Key,
   kL3T3Key,
+  kS2T1,
+  kS2T2,
+  kS2T3,
+  kS3T1,
+  kS3T2,
+  kS3T3,
+};
+
+// This mojo enum only list hardware codec supported scalability mode.
+// See media/base/svc_scalability_mode.h for description.
+enum SVCInterLayerPredMode {
+  kOff,
+  kOn,
+  kOnKeyPic
 };
 
 // This defines a mojo transport format for media::VideoColorSpace.
@@ -156,7 +179,8 @@ struct VideoColorSpace {
 
 // This defines a mojo transport format for media::AudioDecoderConfig.
 // See media/base/audio_decoder_config.h for descriptions.
-// TODO(crbug.com/1232205): Support `channels_` set by SetChannelsForDiscrete().
+// TODO(crbug.com/40191032): Support `channels_` set by
+// SetChannelsForDiscrete().
 struct AudioDecoderConfig {
   AudioCodec codec;
   SampleFormat sample_format;
@@ -225,10 +249,17 @@ enum SharedImageFormatType {
 // See media/base/decrypt_config.h for descriptions.
 struct DecryptConfig {
   EncryptionScheme encryption_scheme;
-  string key_id;
-  string iv;
+  mojo_base.mojom.ByteString key_id;
+  mojo_base.mojom.ByteString iv;
   array<SubsampleEntry> subsamples;
   EncryptionPattern? encryption_pattern;
+};
+
+// This defines a mojo transport format for media::DecoderBufferSideData.
+struct DecoderBufferSideData {
+  array<uint32> spatial_layers;
+  array<uint8> alpha_data;
+  uint64 secure_handle;
 };
 
 // This defines a mojo transport format for media::DecoderBuffer.
@@ -248,15 +279,14 @@ struct DecoderBuffer {
   // Indicates whether or not this buffer is a random access point.
   bool is_key_frame;
 
-  // Empty when |side_data| doesn't exist.
-  array<uint8> side_data;
-
   // DecryptConfig for a encrypted buffer. NULL if the buffer is not encrypted.
   DecryptConfig? decrypt_config;
 
   // These fields indicate the amount of data to discard after decoding.
   mojo_base.mojom.TimeDelta front_discard;
   mojo_base.mojom.TimeDelta back_discard;
+
+  DecoderBufferSideData? side_data;
 };
 
 // This defines a mojo transport format for media::AudioBuffer.
@@ -287,7 +317,7 @@ struct AudioBuffer {
 };
 
 // See media/base/video_frame_metadata.h for a description of fields.
-// TODO(crbug.com/657632): Remove |has_*| values and use nullable types.
+// TODO(crbug.com/40489779): Remove |has_*| values and use nullable types.
 struct VideoFrameMetadata {
   bool allow_overlay;
 
@@ -302,7 +332,7 @@ struct VideoFrameMetadata {
   gfx.mojom.Size? source_size;
 
   gfx.mojom.Rect? region_capture_rect;
-  uint32 crop_version;
+  uint32 sub_capture_target_version;
 
   bool copy_required;
 
@@ -328,6 +358,8 @@ struct VideoFrameMetadata {
   bool protected_video;
 
   bool hw_protected;
+
+  bool needs_detiling;
 
   bool is_webgpu_compatible;
 
@@ -363,6 +395,8 @@ struct VideoFrameMetadata {
   mojo_base.mojom.TimeTicks? receive_time;
 
   mojo_base.mojom.TimeDelta? wallclock_frame_duration;
+
+  uint64? frame_sequence;
 };
 
 // This defines a mojo transport format for media::VideoFrame.
@@ -399,7 +433,9 @@ union VideoFrameData {
   EosVideoFrameData eos_data;
   SharedMemoryVideoFrameData shared_memory_data;
   GpuMemoryBufferVideoFrameData gpu_memory_buffer_data;
+  GpuMemoryBufferSharedImageVideoFrameData gpu_memory_buffer_shared_image_data;
   MailboxVideoFrameData mailbox_data;
+  SharedImageVideoFrameData shared_image_data;
 };
 
 // A marker for EOS frames.
@@ -422,10 +458,29 @@ struct GpuMemoryBufferVideoFrameData {
   array<gpu.mojom.MailboxHolder, 4> mailbox_holder;
 };
 
+struct GpuMemoryBufferSharedImageVideoFrameData {
+  gfx.mojom.GpuMemoryBufferHandle gpu_memory_buffer_handle;
+  // Size should be no greater than media::VideoFrame::kMaxPlanes.
+  array<gpu.mojom.ExportedSharedImage> shared_images;
+  gpu.mojom.SyncToken sync_token;
+  uint32 texture_target;
+};
+
 // This defines video frame data stored in texture mailboxes.
 struct MailboxVideoFrameData {
   // Size must be kept in sync with media::VideoFrame::kMaxPlanes.
   array<gpu.mojom.MailboxHolder, 4> mailbox_holder;
+  gpu.mojom.VulkanYCbCrInfo? ycbcr_data;
+};
+
+// This defines video frame data stored in texture shared images.
+struct SharedImageVideoFrameData {
+  // Size should be no greater than media::VideoFrame::kMaxPlanes.
+  array<gpu.mojom.ExportedSharedImage> shared_images;
+  gpu.mojom.SyncToken sync_token;
+  uint32 texture_target;
+  // |ycbcr_data| is present on Android (and sometimes Fuchsia) when the
+  // video is hardware decoded and the display compositor uses Vulkan.
   gpu.mojom.VulkanYCbCrInfo? ycbcr_data;
 };
 
@@ -483,7 +538,7 @@ struct StatusData {
   string group;
   uint16 code;
   string message;
-  array<mojo_base.mojom.Value> frames;
+  mojo_base.mojom.ListValue frames;
   StatusData? cause;
   mojo_base.mojom.Value data;
   uint64 packed_root_cause;

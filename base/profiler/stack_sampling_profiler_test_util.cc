@@ -2,14 +2,20 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include "base/profiler/stack_sampling_profiler_test_util.h"
-#include "base/memory/raw_ptr.h"
+#ifdef UNSAFE_BUFFERS_BUILD
+// TODO(crbug.com/40284755): Remove this and spanify to fix the errors.
+#pragma allow_unsafe_buffers
+#endif
 
+#include "base/profiler/stack_sampling_profiler_test_util.h"
+
+#include <string_view>
 #include <utility>
 
 #include "base/functional/bind.h"
 #include "base/functional/callback.h"
 #include "base/location.h"
+#include "base/memory/raw_ptr.h"
 #include "base/path_service.h"
 #include "base/profiler/native_unwinder_android_map_delegate.h"
 #include "base/profiler/native_unwinder_android_memory_regions_map.h"
@@ -31,7 +37,7 @@
 #include "base/profiler/native_unwinder_android.h"
 #endif
 
-#if BUILDFLAG(IS_WIN) || defined(COMPILER_MSVC)
+#if BUILDFLAG(IS_WIN)
 // Windows doesn't provide an alloca function like Linux does.
 // Fortunately, it provides _alloca, which functions identically.
 #include <malloc.h>
@@ -128,7 +134,8 @@ NativeUnwinderAndroidMapDelegateForTesting* GetMapDelegateForTesting() {
 std::unique_ptr<NativeUnwinderAndroid> CreateNativeUnwinderAndroidForTesting(
     uintptr_t exclude_module_with_base_address) {
   return std::make_unique<NativeUnwinderAndroid>(
-      exclude_module_with_base_address, GetMapDelegateForTesting());
+      exclude_module_with_base_address, GetMapDelegateForTesting(),
+      /*is_java_name_hashing_enabled=*/false);
 }
 
 std::unique_ptr<Unwinder> CreateChromeUnwinderAndroidForTesting(
@@ -276,7 +283,6 @@ NOINLINE FunctionAddressRange CallWithAlloca(OnceClosure wait_for_sample) {
   return {start_program_counter, end_program_counter};
 }
 
-#if !defined(STARBOARD)
 // Disable inlining for this function so that it gets its own stack frame.
 NOINLINE FunctionAddressRange
 CallThroughOtherLibrary(NativeLibrary library, OnceClosure wait_for_sample) {
@@ -296,7 +302,6 @@ CallThroughOtherLibrary(NativeLibrary library, OnceClosure wait_for_sample) {
   const void* volatile end_program_counter = GetProgramCounter();
   return {start_program_counter, end_program_counter};
 }
-#endif
 
 void WithTargetThread(UnwindScenario* scenario,
                       ProfileCallback profile_callback) {
@@ -365,7 +370,7 @@ void ExpectStackContains(const std::vector<Frame>& stack,
   for (; frame_it != stack.end() && function_it != functions.end();
        ++frame_it) {
     if (frame_it->instruction_pointer >=
-            reinterpret_cast<uintptr_t>(function_it->start) &&
+            reinterpret_cast<uintptr_t>(function_it->start.get()) &&
         frame_it->instruction_pointer <=
             reinterpret_cast<uintptr_t>(function_it->end.get())) {
       ++function_it;
@@ -411,7 +416,7 @@ void ExpectStackDoesNotContain(
   for (const auto& frame : stack) {
     for (const auto& function : functions) {
       if (frame.instruction_pointer >=
-              reinterpret_cast<uintptr_t>(function.start) &&
+              reinterpret_cast<uintptr_t>(function.start.get()) &&
           frame.instruction_pointer <=
               reinterpret_cast<uintptr_t>(function.end.get())) {
         seen_functions.insert(function);
@@ -426,14 +431,13 @@ void ExpectStackDoesNotContain(
   }
 }
 
-#if !defined(STARBOARD)
-NativeLibrary LoadTestLibrary(StringPiece library_name) {
+NativeLibrary LoadTestLibrary(std::string_view library_name) {
   // The lambda gymnastics works around the fact that we can't use ASSERT_*
   // macros in a function returning non-null.
   const auto load = [&](NativeLibrary* library) {
     FilePath library_path;
-#if BUILDFLAG(IS_FUCHSIA)
-    // TODO(crbug.com/1262430): Find a solution that works across platforms.
+#if BUILDFLAG(IS_FUCHSIA) || BUILDFLAG(IS_IOS)
+    // TODO(crbug.com/40799492): Find a solution that works across platforms.
     ASSERT_TRUE(PathService::Get(DIR_ASSETS, &library_path));
 #else
     // The module is next to the test module rather than with test data.
@@ -463,7 +467,6 @@ uintptr_t GetAddressInOtherLibrary(NativeLibrary library) {
   EXPECT_NE(address, 0u);
   return address;
 }
-#endif
 
 StackSamplingProfiler::UnwindersFactory CreateCoreUnwindersFactoryForTesting(
     ModuleCache* module_cache) {

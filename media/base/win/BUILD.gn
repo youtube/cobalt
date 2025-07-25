@@ -27,6 +27,7 @@ source_set("media_foundation_util") {
   deps = [
     "//base",
     "//media:shared_memory_support",
+    "//media/base",
   ]
   libs = [
     "d3d11.lib",
@@ -86,6 +87,8 @@ source_set("test_support") {
   sources = [
     "d3d11_mocks.cc",
     "d3d11_mocks.h",
+    "d3d12_mocks.cc",
+    "d3d12_mocks.h",
     "mf_mocks.cc",
     "mf_mocks.h",
     "test_utils.h",

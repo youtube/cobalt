@@ -104,9 +104,11 @@ struct GFX_EXPORT TextRunHarfBuzz {
     sk_sp<SkTypeface> skia_face;
     FontRenderParams render_params;
     Font::Weight weight = Font::Weight::NORMAL;
+    cc::PaintFlags::Style fill_style = cc::PaintFlags::kFill_Style;
+    SkScalar stroke_width = 0.0f;
     int font_size = 0;
     int baseline_offset = 0;
-    int baseline_type = 0;
+    BaselineStyle baseline_type = BaselineStyle::kNormalBaseline;
     bool italic = false;
     bool strike = false;
     bool underline = false;
@@ -305,7 +307,7 @@ class GFX_EXPORT RenderTextHarfBuzz : public RenderText {
   // RenderText:
   internal::TextRunList* GetRunList() override;
   const internal::TextRunList* GetRunList() const override;
-  bool GetDecoratedTextForRange(const Range& range,
+  void GetDecoratedTextForRange(const Range& range,
                                 DecoratedText* decorated_text) override;
 
   // Text run list for |layout_text_| and |display_text_|.

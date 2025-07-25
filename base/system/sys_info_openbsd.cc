@@ -11,6 +11,7 @@
 #include <sys/sysctl.h>
 
 #include "base/notreached.h"
+#include "base/posix/sysctl.h"
 
 namespace {
 
@@ -32,7 +33,7 @@ int SysInfo::NumberOfProcessors() {
   int ncpu;
   size_t size = sizeof(ncpu);
   if (sysctl(mib, std::size(mib), &ncpu, &size, NULL, 0) < 0) {
-    NOTREACHED();
+    NOTREACHED_IN_MIGRATION();
     return 1;
   }
   return ncpu;
@@ -56,7 +57,7 @@ uint64_t SysInfo::MaxSharedMemorySize() {
   size_t limit;
   size_t size = sizeof(limit);
   if (sysctl(mib, std::size(mib), &limit, &size, NULL, 0) < 0) {
-    NOTREACHED();
+    NOTREACHED_IN_MIGRATION();
     return 0;
   }
   return static_cast<uint64_t>(limit);
@@ -64,14 +65,7 @@ uint64_t SysInfo::MaxSharedMemorySize() {
 
 // static
 std::string SysInfo::CPUModelName() {
-  int mib[] = {CTL_HW, HW_MODEL};
-  char name[256];
-  size_t len = std::size(name);
-  if (sysctl(mib, std::size(mib), name, &len, NULL, 0) < 0) {
-    NOTREACHED();
-    return std::string();
-  }
-  return name;
+  return StringSysctl({CTL_HW, HW_MODEL}).value();
 }
 
 }  // namespace base

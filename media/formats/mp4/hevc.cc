@@ -9,7 +9,8 @@
 #include <utility>
 #include <vector>
 
-#include "base/big_endian.h"
+#include "base/containers/span.h"
+#include "base/containers/span_writer.h"
 #include "base/logging.h"
 #include "media/base/decrypt_config.h"
 #include "media/base/media_util.h"
@@ -95,48 +96,51 @@ bool HEVCDecoderConfigurationRecord::Serialize(
   bool result = true;
   output.clear();
   output.resize(expected_size);
-  base::BigEndianWriter writer(reinterpret_cast<char*>(output.data()),
-                               output.size());
+  auto writer = base::SpanWriter(base::span(output));
 
   // configurationVersion
-  result &= writer.WriteU8(configurationVersion);
+  result &= writer.WriteU8BigEndian(configurationVersion);
   // profile_indication
-  result &= writer.WriteU8((general_profile_space << 6) +
-                           (general_tier_flag << 5) + general_profile_idc);
+  result &=
+      writer.WriteU8BigEndian((general_profile_space << 6) +
+                              (general_tier_flag << 5) + general_profile_idc);
   // general_profile_compatibility_flag
-  result &= writer.WriteU32(general_profile_compatibility_flags);
+  result &= writer.WriteU32BigEndian(general_profile_compatibility_flags);
   // general_constraint_indicator_flags
-  result &= writer.WriteU32(general_constraint_indicator_flags >> 16);
-  result &= writer.WriteU16(general_constraint_indicator_flags & 0xffff);
+  result &= writer.WriteU32BigEndian(general_constraint_indicator_flags >> 16);
+  result &=
+      writer.WriteU16BigEndian(general_constraint_indicator_flags & 0xffff);
   // genral_level_idc
-  result &= writer.WriteU8(general_level_idc);
+  result &= writer.WriteU8BigEndian(general_level_idc);
   // min_spatial_segmentation_idc
-  result &= writer.WriteU16(min_spatial_segmentation_idc | (0xf << 12));
+  result &=
+      writer.WriteU16BigEndian(min_spatial_segmentation_idc | (0xf << 12));
   // parallelismType
-  result &= writer.WriteU8(parallelismType | (0x3f << 2));
+  result &= writer.WriteU8BigEndian(parallelismType | (0x3f << 2));
   // chromaFormat
-  result &= writer.WriteU8(chromaFormat | (0x3f << 2));
+  result &= writer.WriteU8BigEndian(chromaFormat | (0x3f << 2));
   // bitDepthLumaMinus8
-  result &= writer.WriteU8(bitDepthLumaMinus8 | (0x1f << 3));
+  result &= writer.WriteU8BigEndian(bitDepthLumaMinus8 | (0x1f << 3));
   // bitDepthChromaMinus8
-  result &= writer.WriteU8(bitDepthChromaMinus8 | (0x1f << 3));
+  result &= writer.WriteU8BigEndian(bitDepthChromaMinus8 | (0x1f << 3));
   // avgFrameRate
-  result &= writer.WriteU16(avgFrameRate);
+  result &= writer.WriteU16BigEndian(avgFrameRate);
   // miscs
-  result &= writer.WriteU8((constantFrameRate << 6) + (numTemporalLayers << 3) +
-                           (temporalIdNested << 2) + lengthSizeMinusOne);
+  result &= writer.WriteU8BigEndian(
+      (constantFrameRate << 6) + (numTemporalLayers << 3) +
+      (temporalIdNested << 2) + lengthSizeMinusOne);
   // numOfArrays
-  result &= writer.WriteU8(numOfArrays);
+  result &= writer.WriteU8BigEndian(numOfArrays);
   for (auto& array : arrays) {
     // array_completeness and nalu type, etc.
-    result &= writer.WriteU8(array.first_byte);
+    result &= writer.WriteU8BigEndian(array.first_byte);
     // num_nalus
-    result &= writer.WriteU16(array.units.size());
+    result &= writer.WriteU16BigEndian(array.units.size());
     for (auto& nalu : array.units) {
       // nalUnitLength
-      result &= writer.WriteU16(nalu.size());
+      result &= writer.WriteU16BigEndian(nalu.size());
       // NAL unit data
-      result &= writer.WriteBytes(nalu.data(), nalu.size());
+      result &= writer.Write(nalu);
     }
   }
 
@@ -224,15 +228,33 @@ bool HEVCDecoderConfigurationRecord::ParseInternal(BufferReader* reader,
   parser.SetStream(param_sets.data(), param_sets.size());
   while (true) {
     H265Parser::Result result = parser.AdvanceToNextNALU(&nalu);
-    if (result != H265Parser::kOk)
+    if (result != H265Parser::kOk) {
       break;
-
+    }
+    if (nalu.nuh_layer_id) {
+      continue;
+    }
     switch (nalu.nal_unit_type) {
+      case H265NALU::VPS_NUT: {
+        int vps_id = -1;
+        result = parser.ParseVPS(&vps_id);
+        if (result != H265Parser::kOk) {
+          DVLOG(1) << "Could not parse VPS";
+          break;
+        }
+
+        const H265VPS* vps = parser.GetVPS(vps_id);
+        DCHECK(vps);
+        alpha_mode = vps->aux_alpha_layer_id
+                         ? VideoDecoderConfig::AlphaMode::kHasAlpha
+                         : VideoDecoderConfig::AlphaMode::kIsOpaque;
+        break;
+      }
       case H265NALU::SPS_NUT: {
         int sps_id = -1;
         result = parser.ParseSPS(&sps_id);
         if (result != H265Parser::kOk) {
-          DVLOG(1) << "Could not parse SPS for fetching colorspace";
+          DVLOG(1) << "Could not parse SPS";
           break;
         }
 
@@ -245,24 +267,17 @@ bool HEVCDecoderConfigurationRecord::ParseInternal(BufferReader* reader,
         H265SEI sei;
         result = parser.ParseSEI(&sei);
         if (result != H265Parser::kOk) {
-          DVLOG(1) << "Could not parse SEI for fetching HDR metadata";
+          DVLOG(1) << "Could not parse SEI";
           break;
         }
         for (auto& sei_msg : sei.msgs) {
           switch (sei_msg.type) {
             case H265SEIMessage::kSEIContentLightLevelInfo:
-              sei_msg.content_light_level_info.PopulateHDRMetadata(
-                  hdr_metadata);
+              hdr_metadata.cta_861_3 = sei_msg.content_light_level_info.ToGfx();
               break;
             case H265SEIMessage::kSEIMasteringDisplayInfo:
-              sei_msg.mastering_display_info.PopulateColorVolumeMetadata(
-                  hdr_metadata.color_volume_metadata);
-              break;
-            case H265SEIMessage::kSEIAlphaChannelInfo:
-              alpha_mode =
-                  sei_msg.alpha_channel_info.alpha_channel_cancel_flag == 0
-                      ? VideoDecoderConfig::AlphaMode::kHasAlpha
-                      : VideoDecoderConfig::AlphaMode::kIsOpaque;
+              hdr_metadata.smpte_st_2086 =
+                  sei_msg.mastering_display_info.ToGfx();
               break;
             default:
               break;

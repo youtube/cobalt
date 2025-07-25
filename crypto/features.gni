@@ -6,5 +6,5 @@ import("//build/config/features.gni")
 
 declare_args() {
   # True if NSS is used for certificate handling.
-  use_nss_certs = (is_linux || is_chromeos) && !use_cobalt_customizations
+  use_nss_certs = is_linux || is_chromeos
 }

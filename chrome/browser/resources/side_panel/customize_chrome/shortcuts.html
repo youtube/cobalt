@@ -1,0 +1,40 @@
+<div id="showShortcutsToggleContainer" class="sp-card-content">
+  <div id="showShortcutsToggleTitle">$i18n{showShortcutsToggle}</div>
+  <cr-toggle id="showShortcutsToggle" title="$i18n{showShortcutsToggle}"
+      ?checked="${this.show_}" @change="${this.onShowShortcutsToggleChange_}">
+  </cr-toggle>
+</div>
+<div id="options">
+  <cr-collapse ?opened="${this.show_}" ?no-animation="${!this.initialized_}">
+    <hr class="sp-hr">
+    <cr-radio-group id="shortcutsRadioSelection" ?disabled="${!this.show_}"
+        .selected="${this.shortcutsRadioSelection_}"
+        @selected-changed="${this.onShortcutsRadioSelectionChanged_}"
+        nested-selectable>
+      <div class="option">
+        <customize-chrome-button-label label="$i18n{myShortcuts}"
+            label-description="$i18n{shortcutsCurated}">
+        </customize-chrome-button-label>
+        <cr-radio-button id="customLinksButton"
+            name="customLinksOption"
+            label="$i18n{myShortcuts}"
+            hide-label-text>
+          <!-- cr-radio-button's aria description references slotted content -->
+          <span class="button-aria-describedby">$i18n{shortcutsCurated}</span>
+        </cr-radio-button>
+      </div>
+      <div class="option">
+        <customize-chrome-button-label label="$i18n{mostVisited}"
+            label-description="$i18n{shortcutsSuggested}">
+        </customize-chrome-button-label>
+        <cr-radio-button id="mostVisitedButton"
+            name="mostVisitedOption"
+            label="$i18n{mostVisited}"
+            hide-label-text>
+          <!-- cr-radio-button's aria description references slotted content -->
+          <span class="button-aria-describedby">$i18n{shortcutsSuggested}</span>
+        </cr-radio-button>
+      </div>
+    </cr-radio-group>
+  </cr-collapse>
+</div>

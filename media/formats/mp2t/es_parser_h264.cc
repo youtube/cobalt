@@ -5,6 +5,7 @@
 #include "media/formats/mp2t/es_parser_h264.h"
 
 #include <limits>
+#include <optional>
 
 #include "base/containers/adapters.h"
 #include "base/logging.h"
@@ -18,7 +19,6 @@
 #include "media/formats/common/offset_byte_queue.h"
 #include "media/formats/mp2t/mp2t_common.h"
 #include "media/video/h264_parser.h"
-#include "third_party/abseil-cpp/absl/types/optional.h"
 #include "ui/gfx/geometry/rect.h"
 #include "ui/gfx/geometry/size.h"
 
@@ -210,7 +210,7 @@ void EsParserH264::Flush() {
   // Fail if this AUD's push fails allocation, since otherwise the behavior of
   // the subsequent parse would vary based on whether or not the system is
   // near-OOM.
-  // TODO(crbug.com/1266639): Consider plumbing parse failure for this push
+  // TODO(crbug.com/40204179): Consider plumbing parse failure for this push
   // failure case, instead of what used to OOM but now instead would fail this
   // CHECK.
   CHECK(es_queue_->Push(aud, sizeof(aud)));
@@ -478,11 +478,11 @@ bool EsParserH264::UpdateVideoDecoderConfig(const H264SPS* sps,
   int sar_width = (sps->sar_width == 0) ? 1 : sps->sar_width;
   int sar_height = (sps->sar_height == 0) ? 1 : sps->sar_height;
 
-  absl::optional<gfx::Size> coded_size = sps->GetCodedSize();
+  std::optional<gfx::Size> coded_size = sps->GetCodedSize();
   if (!coded_size)
     return false;
 
-  absl::optional<gfx::Rect> visible_rect = sps->GetVisibleRect();
+  std::optional<gfx::Rect> visible_rect = sps->GetVisibleRect();
   if (!visible_rect)
     return false;
 

@@ -9,6 +9,7 @@
 #include <algorithm>
 #include <vector>
 
+#include "base/check.h"
 #include "base/check_op.h"
 #include "base/containers/circular_deque.h"
 #include "net/base/io_buffer.h"
@@ -65,7 +66,7 @@ bool WebSocketDeflater::Initialize(int window_bits) {
     stream_.reset();
     return false;
   }
-  const size_t kFixedBufferSize = 4096;
+  constexpr size_t kFixedBufferSize = 4096;
   fixed_buffer_.resize(kFixedBufferSize);
   return true;
 }

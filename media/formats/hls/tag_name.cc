@@ -41,8 +41,8 @@ static_assert(
     are_disjoint<MultivariantPlaylistTagName, MediaPlaylistTagName>());
 
 template <typename T>
-constexpr std::pair<base::StringPiece, TagName> TagNameEntry(
-    base::StringPiece name_str,
+constexpr std::pair<std::string_view, TagName> TagNameEntry(
+    std::string_view name_str,
     T name) {
   return std::make_pair(name_str, ToTagName(name));
 }
@@ -110,29 +110,27 @@ TagKind GetTagKind(TagName name) {
     return TagKind::kMediaPlaylistTag;
   }
 
-  NOTREACHED();
-  return TagKind::kMaxValue;
+  NOTREACHED_NORETURN();
 }
 
-absl::optional<TagName> ParseTagName(base::StringPiece name) {
+std::optional<TagName> ParseTagName(std::string_view name) {
   // Search for the tag name
-  const auto* match = kTagNames.find(name);
+  const auto match = kTagNames.find(name);
   if (match == kTagNames.end()) {
-    return absl::nullopt;
+    return std::nullopt;
   }
 
   return match->second;
 }
 
-base::StringPiece TagNameToString(TagName name) {
+std::string_view TagNameToString(TagName name) {
   for (auto entry : kTagNames) {
     if (name == entry.second) {
       return entry.first;
     }
   }
 
-  NOTREACHED();
-  return "";
+  NOTREACHED_NORETURN();
 }
 
 }  // namespace media::hls

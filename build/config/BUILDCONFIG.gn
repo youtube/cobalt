@@ -177,6 +177,12 @@ assert(!(is_debug && is_official_build), "Can't do official debug builds")
 assert(!(current_os == "ios" && is_component_build),
        "Can't use component build on iOS")
 
+declare_args() {
+  # Unsafe buffers. Location of file used by plugins to track portions of
+  # the codebase which have been made manifestly safe.
+  clang_unsafe_buffers_paths = ""
+}
+
 # ==============================================================================
 # TOOLCHAIN SETUP
 # ==============================================================================
@@ -342,7 +348,6 @@ default_compiler_configs = [
   "//build/config/compiler:default_optimization",
   "//build/config/compiler:default_stack_frames",
   "//build/config/compiler:default_symbols",
-  "//build/config/compiler:export_dynamic",
   "//build/config/compiler:no_exceptions",
   "//build/config/compiler:no_rtti",
   "//build/config/compiler:no_unresolved_symbols",
@@ -365,6 +370,10 @@ if (is_win) {
   ]
 }
 
+if (is_apple) {
+  default_compiler_configs += [ "//build/config/compiler:enable_arc" ]
+}
+
 if (is_posix) {
   if (current_os != "aix") {
     default_compiler_configs +=
@@ -383,8 +392,9 @@ if (is_android) {
 
 if (is_clang && !is_nacl) {
   default_compiler_configs += [
-    "//build/config/clang:find_bad_constructs",
     "//build/config/clang:extra_warnings",
+    "//build/config/clang:find_bad_constructs",
+    "//build/config/clang:unsafe_buffers",
   ]
 }
 
@@ -398,11 +408,6 @@ if (is_debug) {
 # Static libraries and source sets use only the compiler ones.
 set_defaults("static_library") {
   configs = default_compiler_configs
-
-  # For Rust, a static library involves linking in all dependencies, and it
-  # performs LTO. But since we will perform LTO in the C++ linker which
-  # consumes the library, we defer LTO from Rust into the linker.
-  configs += [ "//build/config/compiler:rust_defer_lto_to_linker" ]
 }
 set_defaults("source_set") {
   configs = default_compiler_configs
@@ -431,6 +436,7 @@ if (is_win) {
 
 # Executable defaults.
 default_executable_configs = default_compiler_configs + [
+                               "//build/config/compiler:export_dynamic",
                                "//build/config:default_libs",
                                "//build/config:executable_config",
                              ] + _linker_configs
@@ -439,6 +445,14 @@ if (is_win) {
   # Turn on linker CFI for executables, and position it so it can be removed
   # if needed.
   default_executable_configs += [ "//build/config/win:cfi_linker" ]
+}
+if (is_fuchsia) {
+  # Sometimes executables are linked by rustc passing a command line to
+  # clang++. It includes "-pie" which is pointless on Fuchsia. Suppress the
+  # resulting (fatal) warning. Unfortunately there's no way to do this only
+  # for binaries linked by rustc; gn does not make the distinction.
+  default_executable_configs +=
+      [ "//build/config/fuchsia:rustc_no_pie_warning" ]
 }
 
 set_defaults("executable") {
@@ -461,6 +475,14 @@ if (is_android) {
   # want this can remove this config.
   default_shared_library_configs +=
       [ "//build/config/android:hide_all_but_jni_onload" ]
+}
+if (is_fuchsia) {
+  # Sometimes shared libraries are linked by rustc passing a command line to
+  # clang++. It includes "-pie" which is pointless on Fuchsia. Suppress the
+  # resulting (fatal) warning. Unfortunately there's no way to do this only
+  # for binaries linked by rustc; gn does not make the distinction.
+  default_shared_library_configs +=
+      [ "//build/config/fuchsia:rustc_no_pie_warning" ]
 }
 set_defaults("shared_library") {
   configs = default_shared_library_configs
@@ -502,6 +524,42 @@ TESTONLY_AND_VISIBILITY = [
   "visibility",
 ]
 
+# Sets default dependencies for static_library and source_set targets.
+foreach(_target_type,
+        [
+          "source_set",
+          "static_library",
+        ]) {
+  template(_target_type) {
+    target(_target_type, target_name) {
+      forward_variables_from(invoker, "*", TESTONLY_AND_VISIBILITY)
+      forward_variables_from(invoker, TESTONLY_AND_VISIBILITY)
+      if (!defined(inputs)) {
+        inputs = []
+      }
+
+      # Consumed by the unsafe-buffers plugin during compile.
+      #
+      # TODO(crbug.com/326584510): Reclient doesn't respect this variable, see
+      # rbe_bug_326584510_missing_inputs in //build/config/rbe.gni.
+      _uses_cflags = false
+      if (defined(sources)) {
+        foreach(f, sources) {
+          if (string_replace(f + ".END", ".cc.END", "") != f + ".END" ||
+              string_replace(f + ".END", ".c.END", "") != f + ".END" ||
+              string_replace(f + ".END", ".mm.END", "") != f + ".END" ||
+              string_replace(f + ".END", ".m.END", "") != f + ".END") {
+            _uses_cflags = true
+          }
+        }
+      }
+      if (_uses_cflags && clang_unsafe_buffers_paths != "") {
+        inputs += [ clang_unsafe_buffers_paths ]
+      }
+    }
+  }
+}
+
 # Sets default dependencies for executable and shared_library targets.
 #
 # Variables
@@ -514,9 +572,6 @@ foreach(_target_type,
           "executable",
           "loadable_module",
           "shared_library",
-          "rust_bin",
-          "rust_dylib",
-          "rust_cdylib",
         ]) {
   template(_target_type) {
     # Alias "target_name" because it is clobbered by forward_variables_from().
@@ -526,6 +581,29 @@ foreach(_target_type,
                              "*",
                              TESTONLY_AND_VISIBILITY + [ "no_default_deps" ])
       forward_variables_from(invoker, TESTONLY_AND_VISIBILITY)
+      if (!defined(inputs)) {
+        inputs = []
+      }
+
+      # Consumed by the unsafe-buffers plugin during compile.
+      #
+      # TODO(crbug.com/326584510): Reclient doesn't respect this variable, see
+      # rbe_bug_326584510_missing_inputs in //build/config/rbe.gni.
+      _uses_cflags = false
+      if (defined(sources)) {
+        foreach(f, sources) {
+          if (string_replace(f + ".END", ".cc.END", "") != f + ".END" ||
+              string_replace(f + ".END", ".c.END", "") != f + ".END" ||
+              string_replace(f + ".END", ".mm.END", "") != f + ".END" ||
+              string_replace(f + ".END", ".m.END", "") != f + ".END") {
+            _uses_cflags = true
+          }
+        }
+      }
+      if (_uses_cflags && clang_unsafe_buffers_paths != "") {
+        inputs += [ clang_unsafe_buffers_paths ]
+      }
+
       if (!defined(deps)) {
         deps = []
       }
@@ -560,8 +638,6 @@ foreach(_target_type,
 
         if (defined(output_extension)) {
           _shlib_extension = ".$output_extension"
-        } else if (is_component_build && _target_type != "loadable_module") {
-          _shlib_extension = ".cr.so"
         } else {
           _shlib_extension = ".so"
         }
@@ -618,6 +694,11 @@ template("component") {
     if (defined(_output_name)) {
       output_name = _output_name
     }
+    if (is_component_build && is_android) {
+      # By appending .cr, we prevent name collisions with libraries already
+      # loaded by the Android zygote.
+      output_extension = "cr.so"
+    }
     forward_variables_from(invoker, TESTONLY_AND_VISIBILITY)
     forward_variables_from(invoker, "*", TESTONLY_AND_VISIBILITY)
   }
@@ -631,6 +712,11 @@ if (is_component_build) {
   if (is_android) {
     default_component_configs -=
         [ "//build/config/android:hide_all_but_jni_onload" ]
+  }
+  if (is_win) {
+    # We don't want component dlls to statically load OS dlls that aren't
+    # loaded normally.
+    default_component_configs += [ "//build/config/win:delayloads" ]
   }
 } else {
   default_component_configs = default_compiler_configs
@@ -659,12 +745,12 @@ set_defaults("component") {
 
 # Variables needed by rbe.gni aren't available at the top of this file.
 import("//build/toolchain/rbe.gni")
+import("//build/toolchain/siso.gni")
 
 # TODO(b/253987456): Add action_foreach support.
 foreach(_target_type, [ "action" ]) {
   template(_target_type) {
     forward_variables_from(invoker, TESTONLY_AND_VISIBILITY)
-    forward_variables_from(invoker, [ "allow_remote" ])
     action("${target_name}") {
       forward_variables_from(invoker,
                              [
@@ -693,8 +779,10 @@ foreach(_target_type, [ "action" ]) {
 
       # If remote execution is desired, only run remotely when use_remoteexec
       # is enabled, and the environment is not nacl.
+      # Siso doesn't use action_remote.py wrapper because it sends requests to
+      # Reproxy directly without actions_remote.py/rewrapper.
       # TODO(b/259381924): Investigate enabling in nacl config.
-      if (allow_remote && use_remoteexec && !is_nacl) {
+      if (allow_remote && use_remoteexec && !is_nacl && !use_siso) {
         pool = "//build/toolchain:remote_action_pool($default_toolchain)"
         script = "//build/util/action_remote.py"
         inputs = [ invoker.script ]
@@ -726,6 +814,14 @@ foreach(_target_type, [ "action" ]) {
         re_outputs_file = "$target_gen_dir/${target_name}__remote_outputs.rsp"
         write_file(re_outputs_file, re_outputs)
 
+        rewrapper_cfg = "$rbe_py_cfg_file"
+        if (defined(invoker.remote_worker)) {
+          remote_worker = invoker.remote_worker
+          assert(remote_worker == "large",
+                 "remote_worker = " + remote_worker + " is not supported")
+          rewrapper_cfg = "$rbe_py_large_cfg_file"
+        }
+
         args = []
         args += [ "$rbe_bin_dir/rewrapper" ]
         if (defined(invoker.custom_processor)) {
@@ -733,7 +829,7 @@ foreach(_target_type, [ "action" ]) {
         }
 
         args += [
-          "--cfg=$rbe_py_cfg_file",
+          "--cfg=" + rewrapper_cfg,
           "--exec_root=$rbe_exec_root",
           "--input_list_paths=" + rebase_path(re_inputs_file, root_build_dir),
           "--output_list_paths=" + rebase_path(re_outputs_file, root_build_dir),
@@ -746,7 +842,11 @@ foreach(_target_type, [ "action" ]) {
         }
       } else {
         forward_variables_from(invoker, [ "inputs" ])
-        not_needed(invoker, [ "custom_processor" ])
+        not_needed(invoker,
+                   [
+                     "custom_processor",
+                     "remote_worker",
+                   ])
       }
     }
   }

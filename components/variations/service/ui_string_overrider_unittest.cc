@@ -1,4 +1,4 @@
-// Copyright 2014 The Chromium Authors. All rights reserved.
+// Copyright 2014 The Chromium Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -7,7 +7,6 @@
 #include <stddef.h>
 #include <stdint.h>
 
-#include "base/macros.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
 namespace variations {
@@ -33,8 +32,10 @@ const int kResourceIndices[] = {
 
 class UIStringOverriderTest : public ::testing::Test {
  public:
-  UIStringOverriderTest()
-      : provider_(kResourceHashes, kResourceIndices, kNumResources) {}
+  UIStringOverriderTest() : provider_(kResourceHashes, kResourceIndices) {}
+
+  UIStringOverriderTest(const UIStringOverriderTest&) = delete;
+  UIStringOverriderTest& operator=(const UIStringOverriderTest&) = delete;
 
   int GetResourceIndex(uint32_t hash) {
     return provider_.GetResourceIndex(hash);
@@ -42,8 +43,6 @@ class UIStringOverriderTest : public ::testing::Test {
 
  private:
   UIStringOverrider provider_;
-
-  DISALLOW_COPY_AND_ASSIGN(UIStringOverriderTest);
 };
 
 TEST_F(UIStringOverriderTest, LookupNotFound) {

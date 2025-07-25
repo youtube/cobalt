@@ -2,6 +2,11 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#ifdef UNSAFE_BUFFERS_BUILD
+// TODO(crbug.com/40284755): Remove this and spanify to fix the errors.
+#pragma allow_unsafe_buffers
+#endif
+
 #include "base/task/thread_pool/thread_pool_impl.h"
 
 #include <stddef.h>
@@ -329,11 +334,13 @@ class ThreadPoolImplTestBase : public testing::Test {
   void SetupFeatures() {
     std::vector<base::test::FeatureRef> features;
 
-    if (GetUseResourceEfficientThreadGroup())
+    if (GetUseResourceEfficientThreadGroup()) {
       features.push_back(kUseUtilityThreadGroup);
+    }
 
-    if (!features.empty())
+    if (!features.empty()) {
       feature_list_.InitWithFeatures(features, {});
+    }
   }
 
   base::test::ScopedFeatureList feature_list_;
@@ -812,7 +819,7 @@ TEST_P(ThreadPoolImplTest,
 
   // GetMaxConcurrentNonBlockedTasksWithTraitsDeprecated() does not support
   // TaskPriority::BEST_EFFORT.
-  testing::GTEST_FLAG(death_test_style) = "threadsafe";
+  GTEST_FLAG_SET(death_test_style, "threadsafe");
   EXPECT_DCHECK_DEATH({
     thread_pool_->GetMaxConcurrentNonBlockedTasksWithTraitsDeprecated(
         {TaskPriority::BEST_EFFORT});
@@ -942,7 +949,8 @@ TEST_P(ThreadPoolImplTest, FileDescriptorWatcherNoOpsAfterShutdown) {
           [](int read_fd) {
             std::unique_ptr<FileDescriptorWatcher::Controller> controller =
                 FileDescriptorWatcher::WatchReadable(
-                    read_fd, BindRepeating([]() { NOTREACHED(); }));
+                    read_fd,
+                    BindRepeating([]() { NOTREACHED_IN_MIGRATION(); }));
 
             // This test is for components that intentionally leak their
             // watchers at shutdown. We can't clean |controller| up because its
@@ -1056,12 +1064,6 @@ void VerifyHasStringsOnStack(const std::string& pool_str,
 
 }  // namespace
 
-// Starboard does not support switching thread priority and therefore background
-// scheduler worker that has TaskPriority::BEST_EFFORT can not be used.
-// See CanUseBackgroundPriorityForSchedulerWorker() for more details.
-// And Starboard can also reproduce the StackTrace().ToString() crash described
-// down below on Linux.
-#ifndef STARBOARD
 #if BUILDFLAG(IS_POSIX)
 // Many POSIX bots flakily crash on |debug::StackTrace().ToString()|,
 // https://crbug.com/840429.
@@ -1157,7 +1159,6 @@ TEST_P(ThreadPoolImplTest, MAYBE_IdentifiableStacks) {
 
   thread_pool_->FlushForTesting();
 }
-#endif  // STARBOARD
 
 TEST_P(ThreadPoolImplTest, WorkerThreadObserver) {
   auto owned_observer =
@@ -1472,9 +1473,12 @@ std::vector<std::unique_ptr<TaskRunnerAndEvents>> CreateTaskRunnersAndEvents(
   // If the task following the priority update is expected to run in the
   // foreground group, it should be after the task posted to the TaskRunner
   // whose priority is updated to USER_VISIBLE.
-  expected_previous_event = CanUseBackgroundThreadTypeForWorkerThread()
-                                ? nullptr
-                                : &task_runners_and_events.back()->task_ran;
+  expected_previous_event =
+      CanUseBackgroundThreadTypeForWorkerThread() ||
+              (test->GetUseResourceEfficientThreadGroup() &&
+               CanUseUtilityThreadTypeForWorkerThread())
+          ? nullptr
+          : &task_runners_and_events.back()->task_ran;
 
   task_runners_and_events.push_back(std::make_unique<TaskRunnerAndEvents>(
       thread_pool->CreateUpdateableSequencedTaskRunner(
@@ -1598,7 +1602,7 @@ TEST_P(ThreadPoolImplTest, UpdatePrioritySequenceScheduled_MustUseForeground) {
 // Verify that a ThreadPolicy has to be specified in TaskTraits to increase
 // TaskPriority from BEST_EFFORT.
 TEST_P(ThreadPoolImplTest, UpdatePriorityFromBestEffortNoThreadPolicy) {
-  testing::GTEST_FLAG(death_test_style) = "threadsafe";
+  GTEST_FLAG_SET(death_test_style, "threadsafe");
   StartThreadPool();
   {
     auto task_runner = thread_pool_->CreateUpdateableSequencedTaskRunner(

@@ -33,6 +33,11 @@ if (POLICY CMP0048)
   cmake_policy(SET CMP0048 NEW)
 endif (POLICY CMP0048)
 
+# Honor the GTest_ROOT variable if specified
+if (POLICY CMP0074)
+  cmake_policy(SET CMP0074 NEW)
+endif (POLICY CMP0074)
+
 # option() honor variables
 if (POLICY CMP0077)
   cmake_policy(SET CMP0077 NEW)
@@ -47,6 +52,11 @@ endif (POLICY CMP0091)
 if (POLICY CMP0067)
   cmake_policy(SET CMP0067 NEW)
 endif (POLICY CMP0067)
+
+# Allow the user to specify the CMAKE_MSVC_DEBUG_INFORMATION_FORMAT
+if (POLICY CMP0141)
+  cmake_policy(SET CMP0141 NEW)
+endif (POLICY CMP0141)
 
 project(absl LANGUAGES CXX)
 include(CTest)
@@ -226,20 +236,41 @@ if(ABSL_ENABLE_INSTALL)
       PATTERN "testdata" EXCLUDE
     )
 
+  # Rewrite options.h to use the compiled ABI.
   file(READ "absl/base/options.h" ABSL_INTERNAL_OPTIONS_H_CONTENTS)
-  if (ABSL_INTERNAL_AT_LEAST_CXX17)
-    string(REGEX REPLACE
-      "#define ABSL_OPTION_USE_STD_([^ ]*) 2"
-      "#define ABSL_OPTION_USE_STD_\\1 1"
+
+  # Handle features that require at least C++20.
+  if (ABSL_INTERNAL_AT_LEAST_CXX20)
+    foreach(FEATURE "ORDERING")
+      string(REPLACE
+      "#define ABSL_OPTION_USE_STD_${FEATURE} 2"
+      "#define ABSL_OPTION_USE_STD_${FEATURE} 1"
       ABSL_INTERNAL_OPTIONS_H_PINNED
       "${ABSL_INTERNAL_OPTIONS_H_CONTENTS}")
-  else()
-    string(REGEX REPLACE
-      "#define ABSL_OPTION_USE_STD_([^ ]*) 2"
-      "#define ABSL_OPTION_USE_STD_\\1 0"
-      ABSL_INTERNAL_OPTIONS_H_PINNED
-      "${ABSL_INTERNAL_OPTIONS_H_CONTENTS}")
+      set(ABSL_INTERNAL_OPTIONS_H_CONTENTS "${ABSL_INTERNAL_OPTIONS_H_PINNED}")
+    endforeach()
   endif()
+
+  # Handle features that require at least C++17.
+  if (ABSL_INTERNAL_AT_LEAST_CXX17)
+    foreach(FEATURE "ANY" "OPTIONAL" "STRING_VIEW" "VARIANT")
+      string(REPLACE
+      "#define ABSL_OPTION_USE_STD_${FEATURE} 2"
+      "#define ABSL_OPTION_USE_STD_${FEATURE} 1"
+      ABSL_INTERNAL_OPTIONS_H_PINNED
+      "${ABSL_INTERNAL_OPTIONS_H_CONTENTS}")
+      set(ABSL_INTERNAL_OPTIONS_H_CONTENTS "${ABSL_INTERNAL_OPTIONS_H_PINNED}")
+    endforeach()
+  endif()
+
+  # Any feature that still has the value of 2 (because it was not handled above)
+  # should be set to 0.
+  string(REGEX REPLACE
+    "#define ABSL_OPTION_USE_STD_([^ ]*) 2"
+    "#define ABSL_OPTION_USE_STD_\\1 0"
+    ABSL_INTERNAL_OPTIONS_H_PINNED
+    "${ABSL_INTERNAL_OPTIONS_H_CONTENTS}")
+
   file(WRITE "${CMAKE_BINARY_DIR}/options-pinned.h" "${ABSL_INTERNAL_OPTIONS_H_PINNED}")
 
   install(FILES "${CMAKE_BINARY_DIR}/options-pinned.h"

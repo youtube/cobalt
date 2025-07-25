@@ -12,7 +12,6 @@
 #include "net/base/network_isolation_key.h"
 #include "net/cert/cert_verifier.h"
 #include "net/cert/ct_log_verifier.h"
-#include "net/cert/ct_policy_enforcer.h"
 #include "net/http/transport_security_state.h"
 #include "net/quic/crypto/proof_source_chromium.h"
 #include "net/quic/crypto/proof_verifier_chromium.h"
@@ -60,7 +59,6 @@ class ProofVerifierChromiumWithOwnership : public net::ProofVerifierChromium {
       std::string host)
       : net::ProofVerifierChromium(
             cert_verifier.get(),
-            &ct_policy_enforcer_,
             &transport_security_state_,
             /*sct_auditing_delegate=*/nullptr,
             UnknownRootAllowlistForHost(host),
@@ -71,7 +69,6 @@ class ProofVerifierChromiumWithOwnership : public net::ProofVerifierChromium {
 
  private:
   std::unique_ptr<net::CertVerifier> cert_verifier_;
-  net::DefaultCTPolicyEnforcer ct_policy_enforcer_;
   net::TransportSecurityState transport_security_state_;
 };
 
@@ -87,16 +84,15 @@ std::unique_ptr<quic::ProofSource> CreateDefaultProofSourceImpl() {
   auto proof_source = std::make_unique<net::ProofSourceChromium>();
   proof_source->SetTicketCrypter(std::make_unique<quic::SimpleTicketCrypter>(
       quic::QuicChromiumClock::GetInstance()));
-  auto result = proof_source->Initialize(
+  CHECK(proof_source->Initialize(
 #if BUILDFLAG(IS_WIN)
       base::FilePath(base::UTF8ToWide(GetQuicFlag(certificate_file))),
       base::FilePath(base::UTF8ToWide(GetQuicFlag(key_file))),
-      base::FilePath());
+      base::FilePath()));
 #else
       base::FilePath(GetQuicFlag(certificate_file)),
-      base::FilePath(GetQuicFlag(key_file)), base::FilePath());
+      base::FilePath(GetQuicFlag(key_file)), base::FilePath()));
 #endif
-  CHECK(result);
   return std::move(proof_source);
 }
 

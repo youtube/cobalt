@@ -57,8 +57,7 @@ import java.util.Set;
  * command-line flag that a base class has removed (or vice versa). Similarly, uses of these
  * annotations on a test method will take precedence over uses on the containing class.
  *
- * <p>
- * These annonations may also be used on Junit4 Rule classes and on their base classes. Note,
+ * <p>These annotations may also be used on Junit4 Rule classes and on their base classes. Note,
  * however that the annotation processor only looks at the declared type of the Rule, not its actual
  * type, so in, for example:
  *
@@ -69,20 +68,19 @@ import java.util.Set;
  *
  * will only look for CommandLineFlags annotations on TestRule, not for CommandLineFlags annotations
  * on ChromeActivityTestRule.
- * <p>
- * In addition a rule may not remove flags added by an independently invoked rule, although it may
- * remove flags added by its base classes.
- * <p>
- * Uses of these annotations on the test class or methods take precedence over uses on Rule classes.
- * <p>
- * Note that this class should never be instantiated.
+ *
+ * <p>In addition a rule may not remove flags added by an independently invoked rule, although it
+ * may remove flags added by its base classes.
+ *
+ * <p>Uses of these annotations on the test class or methods take precedence over uses on Rule
+ * classes.
+ *
+ * <p>Note that this class should never be instantiated.
  */
 public final class CommandLineFlags {
     private static final String TAG = "CommandLineFlags";
     private static final String DISABLE_FEATURES = "disable-features";
     private static final String ENABLE_FEATURES = "enable-features";
-
-    private static boolean sInitializedForTest;
 
     // These members are used to track CommandLine state modifications made by the class/test method
     // currently being run, to be undone when the class/test method finishes.
@@ -91,9 +89,7 @@ public final class CommandLineFlags {
     private static Set<String> sMethodFlagsToRemove;
     private static Map<String, String> sMethodFlagsToAdd;
 
-    /**
-     * Adds command-line flags to the {@link org.chromium.base.CommandLine} for this test.
-     */
+    /** Adds command-line flags to the {@link org.chromium.base.CommandLine} for this test. */
     @Inherited
     @Retention(RetentionPolicy.RUNTIME)
     @Target({ElementType.METHOD, ElementType.TYPE})
@@ -124,12 +120,8 @@ public final class CommandLineFlags {
      * trying to remove a flag set externally, i.e. by the command-line flags file, will not work.
      */
     public static void setUpClass(Class<?> clazz) {
-        // The command line may already have been initialized by Application-level init. We need to
-        // re-initialize it with test flags.
-        if (!sInitializedForTest) {
-            CommandLine.reset();
+        if (!CommandLine.isInitialized()) {
             CommandLineInitUtil.initCommandLine(getTestCmdLineFile());
-            sInitializedForTest = true;
         }
 
         Set<String> flags = new HashSet<>();
@@ -143,8 +135,11 @@ public final class CommandLineFlags {
         if (ApplicationStatus.isInitialized()) {
             for (Activity a : ApplicationStatus.getRunningActivities()) {
                 if (ApplicationStatus.getStateForActivity(a) < ActivityState.RESUMED) {
-                    Log.w(TAG,
-                            "Activity " + a + ", is still starting up while the Command Line flags "
+                    Log.w(
+                            TAG,
+                            "Activity "
+                                    + a
+                                    + ", is still starting up while the Command Line flags "
                                     + "are being reset. This is a known source of flakiness.");
                 }
             }
@@ -182,8 +177,11 @@ public final class CommandLineFlags {
         }
     }
 
-    private static void applyFlags(Set<String> flagsToAdd, Set<String> flagsToRemove,
-            Set<String> flagsToRemoveForRestore, Map<String, String> flagsToAddForRestore) {
+    private static void applyFlags(
+            Set<String> flagsToAdd,
+            Set<String> flagsToRemove,
+            Set<String> flagsToRemoveForRestore,
+            Map<String, String> flagsToAddForRestore) {
         if (flagsToRemove != null) {
             for (String flag : flagsToRemove) {
                 if (CommandLine.getInstance().hasSwitch(flag)) {
@@ -228,8 +226,8 @@ public final class CommandLineFlags {
                 flagsToAddForRestore.put(ENABLE_FEATURES, existingValue);
                 CommandLine.getInstance().removeSwitch(ENABLE_FEATURES);
             }
-            CommandLine.getInstance().appendSwitchWithValue(
-                    ENABLE_FEATURES, TextUtils.join(",", enableFeatures));
+            CommandLine.getInstance()
+                    .appendSwitchWithValue(ENABLE_FEATURES, TextUtils.join(",", enableFeatures));
             flagsToRemoveForRestore.add(ENABLE_FEATURES);
         }
         if (disableFeatures.size() > 0) {
@@ -238,8 +236,8 @@ public final class CommandLineFlags {
                 flagsToAddForRestore.put(DISABLE_FEATURES, existingValue);
                 CommandLine.getInstance().removeSwitch(DISABLE_FEATURES);
             }
-            CommandLine.getInstance().appendSwitchWithValue(
-                    DISABLE_FEATURES, TextUtils.join(",", disableFeatures));
+            CommandLine.getInstance()
+                    .appendSwitchWithValue(DISABLE_FEATURES, TextUtils.join(",", disableFeatures));
             flagsToRemoveForRestore.add(DISABLE_FEATURES);
         }
     }
@@ -254,7 +252,8 @@ public final class CommandLineFlags {
             }
         }
         for (Method method : clazz.getMethods()) {
-            Assert.assertFalse("@Rule annotations on methods are unsupported. Cause: "
+            Assert.assertFalse(
+                    "@Rule annotations on methods are unsupported. Cause: "
                             + method.toGenericString(),
                     method.isAnnotationPresent(Rule.class));
         }
@@ -298,7 +297,7 @@ public final class CommandLineFlags {
                 @Override
                 public void evaluate() throws Throwable {
                     try {
-                        Class clazz = description.getTestClass();
+                        Class<?> clazz = description.getTestClass();
                         CommandLineFlags.setUpClass(clazz);
                         CommandLineFlags.setUpMethod(clazz.getMethod(description.getMethodName()));
 

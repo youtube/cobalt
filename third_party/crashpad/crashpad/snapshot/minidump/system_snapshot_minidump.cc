@@ -1,4 +1,4 @@
-// Copyright 2018 The Crashpad Authors. All rights reserved.
+// Copyright 2018 The Crashpad Authors
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -14,6 +14,7 @@
 
 #include "snapshot/minidump/system_snapshot_minidump.h"
 
+#include "base/notreached.h"
 #include "snapshot/minidump/minidump_string_reader.h"
 
 namespace crashpad {
@@ -67,6 +68,8 @@ CPUArchitecture SystemSnapshotMinidump::GetCPUArchitecture() const {
     case kMinidumpCPUArchitectureMIPS:
       return kCPUArchitectureMIPSEL;
     // No word on how MIPS64 is signalled
+    case kMinidumpCPUArchitectureRISCV64Breakpad:
+      return kCPUArchitectureRISCV64;
 
     default:
       return CPUArchitecture::kCPUArchitectureUnknown;
@@ -192,6 +195,12 @@ void SystemSnapshotMinidump::TimeZone(DaylightSavingTimeStatus* dst_status,
                                       std::string* daylight_name) const {
   INITIALIZATION_STATE_DCHECK_VALID(initialized_);
   NOTREACHED();  // https://crashpad.chromium.org/bug/10
+}
+
+uint64_t SystemSnapshotMinidump::AddressMask() const {
+  INITIALIZATION_STATE_DCHECK_VALID(initialized_);
+  NOTREACHED();  // https://crashpad.chromium.org/bug/10
+  return 0;
 }
 
 }  // namespace internal

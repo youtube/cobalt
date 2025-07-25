@@ -56,15 +56,14 @@ void MemoryAllocatorDump::AddString(const char* name,
                                     const char* units,
                                     const std::string& value) {
   // String attributes are disabled in background mode.
-  if (level_of_detail_ == MemoryDumpLevelOfDetail::BACKGROUND) {
-    NOTREACHED();
+  if (level_of_detail_ == MemoryDumpLevelOfDetail::kBackground) {
+    NOTREACHED_IN_MIGRATION();
     return;
   }
   entries_.emplace_back(name, units, value);
 }
 
 void MemoryAllocatorDump::AsValueInto(TracedValue* value) const {
-  std::string string_conversion_buffer;
   value->BeginDictionaryWithCopiedName(absolute_name_);
   value->SetString("guid", guid_.ToString());
   value->BeginDictionary("attrs");
@@ -73,11 +72,9 @@ void MemoryAllocatorDump::AsValueInto(TracedValue* value) const {
     value->BeginDictionaryWithCopiedName(entry.name);
     switch (entry.entry_type) {
       case Entry::kUint64:
-        SStringPrintf(&string_conversion_buffer, "%" PRIx64,
-                      entry.value_uint64);
         value->SetString("type", kTypeScalar);
         value->SetString("units", entry.units);
-        value->SetString("value", string_conversion_buffer);
+        value->SetString("value", StringPrintf("%" PRIx64, entry.value_uint64));
         break;
       case Entry::kString:
         value->SetString("type", kTypeString);
@@ -175,7 +172,7 @@ bool MemoryAllocatorDump::Entry::operator==(const Entry& rhs) const {
     case EntryType::kString:
       return value_string == rhs.value_string;
   }
-  NOTREACHED();
+  NOTREACHED_IN_MIGRATION();
   return false;
 }
 
@@ -190,7 +187,7 @@ void PrintTo(const MemoryAllocatorDump::Entry& entry, std::ostream* out) {
            << entry.value_string << "\")>";
       return;
   }
-  NOTREACHED();
+  NOTREACHED_IN_MIGRATION();
 }
 
 }  // namespace trace_event

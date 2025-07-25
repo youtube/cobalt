@@ -30,31 +30,17 @@
 #include "config.h"
 #endif
 
-#ifdef STARBOARD
-#include "libevent-starboard.h"
-
-#include <sys/socket.h>
-
-// Use libevent's local compatibility  versions of these.
-#include "third_party/libevent/compat/sys/queue.h"
-#include "third_party/libevent/compat/sys/_libevent_time.h"
-#else  // STARBOARD
 #define _GNU_SOURCE 1
-#endif  // STARBOARD
 
 #include <sys/types.h>
-#ifndef STARBOARD
 #ifdef HAVE_SYS_TIME_H
 #include <sys/time.h>
 #else
 #include <sys/_libevent_time.h>
 #endif
 #include <sys/queue.h>
-#endif  // STARBOARD
 #include <sys/event.h>
-#ifndef STARBOARD
 #include <signal.h>
-#endif  // STARBOARD
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -76,10 +62,8 @@
 
 #include "event.h"
 #include "event-internal.h"
-#ifndef STARBOARD
-#include "evsignal.h"
-#endif  // STARBOARD
 #include "log.h"
+#include "evsignal.h"
 
 #define EVLIST_X_KQINKERNEL	0x1000
 
@@ -89,9 +73,7 @@ struct kqop {
 	struct kevent *changes;
 	int nchanges;
 	struct kevent *events;
-#ifndef STARBOARD
 	struct event_list evsigevents[NSIG];
-#endif
 	int nevents;
 	int kq;
 	pid_t pid;
@@ -153,13 +135,10 @@ kq_init(struct event_base *base)
 	}
 	kqueueop->nevents = NEVENT;
 
-#ifndef STARBOARD
 	/* we need to keep track of multiple events per signal */
 	for (i = 0; i < NSIG; ++i) {
 		TAILQ_INIT(&kqueueop->evsigevents[i]);
 	}
-#endif
-
 
 	return (kqueueop);
 }
@@ -305,7 +284,6 @@ kq_add(void *arg, struct event *ev)
 	struct kqop *kqop = arg;
 	struct kevent kev;
 
-#ifndef STARBOARD
 	if (ev->ev_events & EV_SIGNAL) {
 		int nsignal = EVENT_SIGNAL(ev);
 
@@ -335,7 +313,6 @@ kq_add(void *arg, struct event *ev)
 		ev->ev_flags |= EVLIST_X_KQINKERNEL;
 		return (0);
 	}
-#endif
 
 	if (ev->ev_events & EV_READ) {
  		memset(&kev, 0, sizeof(kev));
@@ -383,7 +360,6 @@ kq_del(void *arg, struct event *ev)
 	if (!(ev->ev_flags & EVLIST_X_KQINKERNEL))
 		return (0);
 
-#ifndef STARBOARD
 	if (ev->ev_events & EV_SIGNAL) {
 		int nsignal = EVENT_SIGNAL(ev);
 		struct timespec timeout = { 0, 0 };
@@ -410,7 +386,6 @@ kq_del(void *arg, struct event *ev)
 		ev->ev_flags &= ~EVLIST_X_KQINKERNEL;
 		return (0);
 	}
-#endif
 
 	if (ev->ev_events & EV_READ) {
  		memset(&kev, 0, sizeof(kev));

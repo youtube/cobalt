@@ -17,15 +17,13 @@
 namespace net {
 
 HttpStreamRequest::HttpStreamRequest(
-    const GURL& url,
     Helper* helper,
     HttpStreamRequest::Delegate* delegate,
     WebSocketHandshakeStreamBase::CreateHelper*
         websocket_handshake_stream_create_helper,
     const NetLogWithSource& net_log,
     StreamType stream_type)
-    : url_(url),
-      helper_(helper),
+    : helper_(helper),
       websocket_handshake_stream_create_helper_(
           websocket_handshake_stream_create_helper),
       net_log_(net_log),
@@ -39,16 +37,12 @@ HttpStreamRequest::~HttpStreamRequest() {
 }
 
 void HttpStreamRequest::Complete(
-    bool was_alpn_negotiated,
     NextProto negotiated_protocol,
-    AlternateProtocolUsage alternate_protocol_usage,
-    bool using_spdy) {
+    AlternateProtocolUsage alternate_protocol_usage) {
   DCHECK(!completed_);
   completed_ = true;
-  was_alpn_negotiated_ = was_alpn_negotiated;
   negotiated_protocol_ = negotiated_protocol;
   alternate_protocol_usage_ = alternate_protocol_usage;
-  using_spdy_ = using_spdy;
 }
 
 int HttpStreamRequest::RestartTunnelWithProxyAuth() {
@@ -63,11 +57,6 @@ LoadState HttpStreamRequest::GetLoadState() const {
   return helper_->GetLoadState();
 }
 
-bool HttpStreamRequest::was_alpn_negotiated() const {
-  DCHECK(completed_);
-  return was_alpn_negotiated_;
-}
-
 NextProto HttpStreamRequest::negotiated_protocol() const {
   DCHECK(completed_);
   return negotiated_protocol_;
@@ -76,11 +65,6 @@ NextProto HttpStreamRequest::negotiated_protocol() const {
 AlternateProtocolUsage HttpStreamRequest::alternate_protocol_usage() const {
   DCHECK(completed_);
   return alternate_protocol_usage_;
-}
-
-bool HttpStreamRequest::using_spdy() const {
-  DCHECK(completed_);
-  return using_spdy_;
 }
 
 const ConnectionAttempts& HttpStreamRequest::connection_attempts() const {

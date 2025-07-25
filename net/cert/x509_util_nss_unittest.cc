@@ -4,6 +4,8 @@
 
 #include "net/cert/x509_util_nss.h"
 
+#include <string_view>
+
 #include "base/files/file_path.h"
 #include "base/files/file_util.h"
 #include "base/time/time.h"
@@ -30,18 +32,15 @@ std::string BytesForNSSCert(CERTCertificate* cert) {
 
 TEST(X509UtilNSSTest, IsSameCertificate) {
   ScopedCERTCertificate google_nss_cert(
-      x509_util::CreateCERTCertificateFromBytes(google_der,
-                                                std::size(google_der)));
+      x509_util::CreateCERTCertificateFromBytes(google_der));
   ASSERT_TRUE(google_nss_cert);
 
   ScopedCERTCertificate google_nss_cert2(
-      x509_util::CreateCERTCertificateFromBytes(google_der,
-                                                std::size(google_der)));
+      x509_util::CreateCERTCertificateFromBytes(google_der));
   ASSERT_TRUE(google_nss_cert2);
 
   ScopedCERTCertificate webkit_nss_cert(
-      x509_util::CreateCERTCertificateFromBytes(webkit_der,
-                                                std::size(webkit_der)));
+      x509_util::CreateCERTCertificateFromBytes(webkit_der));
   ASSERT_TRUE(webkit_nss_cert);
 
   scoped_refptr<X509Certificate> google_x509_cert(
@@ -77,8 +76,8 @@ TEST(X509UtilNSSTest, IsSameCertificate) {
 }
 
 TEST(X509UtilNSSTest, CreateCERTCertificateFromBytes) {
-  ScopedCERTCertificate google_cert(x509_util::CreateCERTCertificateFromBytes(
-      google_der, std::size(google_der)));
+  ScopedCERTCertificate google_cert(
+      x509_util::CreateCERTCertificateFromBytes(google_der));
   ASSERT_TRUE(google_cert);
   EXPECT_STREQ(
       "CN=www.google.com,O=Google Inc,L=Mountain View,ST=California,C=US",
@@ -86,11 +85,11 @@ TEST(X509UtilNSSTest, CreateCERTCertificateFromBytes) {
 }
 
 TEST(X509UtilNSSTest, CreateCERTCertificateFromBytesGarbage) {
-  static const uint8_t garbage_data[] = "garbage";
-  EXPECT_EQ(nullptr,
-            x509_util::CreateCERTCertificateFromBytes(garbage_data, 0));
   EXPECT_EQ(nullptr, x509_util::CreateCERTCertificateFromBytes(
-                         garbage_data, std::size(garbage_data)));
+                         base::span<const uint8_t>()));
+
+  static const uint8_t garbage_data[] = "garbage";
+  EXPECT_EQ(nullptr, x509_util::CreateCERTCertificateFromBytes(garbage_data));
 }
 
 TEST(X509UtilNSSTest, CreateCERTCertificateFromX509Certificate) {
@@ -136,7 +135,7 @@ TEST(X509UtilTest, CreateCERTCertificateListFromX509CertificateErrors) {
   ASSERT_TRUE(ok_cert);
 
   bssl::UniquePtr<CRYPTO_BUFFER> bad_cert =
-      x509_util::CreateCryptoBuffer(base::StringPiece("invalid"));
+      x509_util::CreateCryptoBuffer(std::string_view("invalid"));
   ASSERT_TRUE(bad_cert);
 
   scoped_refptr<X509Certificate> ok_cert2(
@@ -192,8 +191,8 @@ TEST(X509UtilNSSTest, CreateCERTCertificateListFromBytes) {
 }
 
 TEST(X509UtilNSSTest, DupCERTCertificate) {
-  ScopedCERTCertificate cert(x509_util::CreateCERTCertificateFromBytes(
-      google_der, std::size(google_der)));
+  ScopedCERTCertificate cert(
+      x509_util::CreateCERTCertificateFromBytes(google_der));
   ASSERT_TRUE(cert);
 
   ScopedCERTCertificate cert2 = x509_util::DupCERTCertificate(cert.get());
@@ -209,11 +208,11 @@ TEST(X509UtilNSSTest, DupCERTCertificate) {
 }
 
 TEST(X509UtilNSSTest, DupCERTCertificateList) {
-  ScopedCERTCertificate cert(x509_util::CreateCERTCertificateFromBytes(
-      google_der, std::size(google_der)));
+  ScopedCERTCertificate cert(
+      x509_util::CreateCERTCertificateFromBytes(google_der));
   ASSERT_TRUE(cert);
-  ScopedCERTCertificate cert2(x509_util::CreateCERTCertificateFromBytes(
-      webkit_der, std::size(webkit_der)));
+  ScopedCERTCertificate cert2(
+      x509_util::CreateCERTCertificateFromBytes(webkit_der));
   ASSERT_TRUE(cert2);
   ScopedCERTCertificateList certs;
   certs.push_back(std::move(cert));
@@ -242,8 +241,8 @@ TEST(X509UtilNSSTest, DupCERTCertificateList_EmptyList) {
 }
 
 TEST(X509UtilNSSTest, CreateX509CertificateFromCERTCertificate_NoChain) {
-  ScopedCERTCertificate nss_cert(x509_util::CreateCERTCertificateFromBytes(
-      google_der, std::size(google_der)));
+  ScopedCERTCertificate nss_cert(
+      x509_util::CreateCERTCertificateFromBytes(google_der));
   ASSERT_TRUE(nss_cert);
   scoped_refptr<X509Certificate> x509_cert =
       x509_util::CreateX509CertificateFromCERTCertificate(nss_cert.get());
@@ -253,8 +252,8 @@ TEST(X509UtilNSSTest, CreateX509CertificateFromCERTCertificate_NoChain) {
 }
 
 TEST(X509UtilNSSTest, CreateX509CertificateFromCERTCertificate_EmptyChain) {
-  ScopedCERTCertificate nss_cert(x509_util::CreateCERTCertificateFromBytes(
-      google_der, std::size(google_der)));
+  ScopedCERTCertificate nss_cert(
+      x509_util::CreateCERTCertificateFromBytes(google_der));
   ASSERT_TRUE(nss_cert);
   scoped_refptr<X509Certificate> x509_cert =
       x509_util::CreateX509CertificateFromCERTCertificate(
@@ -265,11 +264,11 @@ TEST(X509UtilNSSTest, CreateX509CertificateFromCERTCertificate_EmptyChain) {
 }
 
 TEST(X509UtilNSSTest, CreateX509CertificateFromCERTCertificate_WithChain) {
-  ScopedCERTCertificate nss_cert(x509_util::CreateCERTCertificateFromBytes(
-      google_der, std::size(google_der)));
+  ScopedCERTCertificate nss_cert(
+      x509_util::CreateCERTCertificateFromBytes(google_der));
   ASSERT_TRUE(nss_cert);
-  ScopedCERTCertificate nss_cert2(x509_util::CreateCERTCertificateFromBytes(
-      webkit_der, std::size(webkit_der)));
+  ScopedCERTCertificate nss_cert2(
+      x509_util::CreateCERTCertificateFromBytes(webkit_der));
   ASSERT_TRUE(nss_cert2);
 
   std::vector<CERTCertificate*> chain;
@@ -287,11 +286,11 @@ TEST(X509UtilNSSTest, CreateX509CertificateFromCERTCertificate_WithChain) {
 }
 
 TEST(X509UtilNSSTest, CreateX509CertificateListFromCERTCertificates) {
-  ScopedCERTCertificate nss_cert(x509_util::CreateCERTCertificateFromBytes(
-      google_der, std::size(google_der)));
+  ScopedCERTCertificate nss_cert(
+      x509_util::CreateCERTCertificateFromBytes(google_der));
   ASSERT_TRUE(nss_cert);
-  ScopedCERTCertificate nss_cert2(x509_util::CreateCERTCertificateFromBytes(
-      webkit_der, std::size(webkit_der)));
+  ScopedCERTCertificate nss_cert2(
+      x509_util::CreateCERTCertificateFromBytes(webkit_der));
   ASSERT_TRUE(nss_cert2);
   ScopedCERTCertificateList nss_certs;
   nss_certs.push_back(std::move(nss_cert));
@@ -315,8 +314,8 @@ TEST(X509UtilNSSTest, CreateX509CertificateListFromCERTCertificates_EmptyList) {
 }
 
 TEST(X509UtilNSSTest, GetDEREncoded) {
-  ScopedCERTCertificate google_cert(x509_util::CreateCERTCertificateFromBytes(
-      google_der, std::size(google_der)));
+  ScopedCERTCertificate google_cert(
+      x509_util::CreateCERTCertificateFromBytes(google_der));
   ASSERT_TRUE(google_cert);
   std::string der_encoded;
   ASSERT_TRUE(x509_util::GetDEREncoded(google_cert.get(), &der_encoded));
@@ -398,8 +397,8 @@ TEST(X509UtilNSSTest, ParseClientSubjectAltNames) {
 }
 
 TEST(X509UtilNSSTest, GetValidityTimes) {
-  ScopedCERTCertificate google_cert(x509_util::CreateCERTCertificateFromBytes(
-      google_der, std::size(google_der)));
+  ScopedCERTCertificate google_cert(
+      x509_util::CreateCERTCertificateFromBytes(google_der));
   ASSERT_TRUE(google_cert);
 
   base::Time not_before, not_after;
@@ -408,14 +407,14 @@ TEST(X509UtilNSSTest, GetValidityTimes) {
 
   // Constants copied from x509_certificate_unittest.cc.
   EXPECT_EQ(1238192407,  // Mar 27 22:20:07 2009 GMT
-            not_before.ToDoubleT());
+            not_before.InSecondsFSinceUnixEpoch());
   EXPECT_EQ(1269728407,  // Mar 27 22:20:07 2010 GMT
-            not_after.ToDoubleT());
+            not_after.InSecondsFSinceUnixEpoch());
 }
 
 TEST(X509UtilNSSTest, GetValidityTimesOptionalArgs) {
-  ScopedCERTCertificate google_cert(x509_util::CreateCERTCertificateFromBytes(
-      google_der, std::size(google_der)));
+  ScopedCERTCertificate google_cert(
+      x509_util::CreateCERTCertificateFromBytes(google_der));
   ASSERT_TRUE(google_cert);
 
   base::Time not_before;
@@ -423,13 +422,13 @@ TEST(X509UtilNSSTest, GetValidityTimesOptionalArgs) {
       x509_util::GetValidityTimes(google_cert.get(), &not_before, nullptr));
   // Constants copied from x509_certificate_unittest.cc.
   EXPECT_EQ(1238192407,  // Mar 27 22:20:07 2009 GMT
-            not_before.ToDoubleT());
+            not_before.InSecondsFSinceUnixEpoch());
 
   base::Time not_after;
   EXPECT_TRUE(
       x509_util::GetValidityTimes(google_cert.get(), nullptr, &not_after));
   EXPECT_EQ(1269728407,  // Mar 27 22:20:07 2010 GMT
-            not_after.ToDoubleT());
+            not_after.InSecondsFSinceUnixEpoch());
 }
 
 TEST(X509UtilNSSTest, CalculateFingerprint256) {
@@ -438,8 +437,8 @@ TEST(X509UtilNSSTest, CalculateFingerprint256) {
        0xaa, 0x53, 0x32, 0x80, 0x8f, 0xbf, 0x8a, 0x24, 0x7d, 0x98, 0xec,
        0x7f, 0x77, 0x49, 0x38, 0x42, 0x81, 0x26, 0x7f, 0xed, 0x38}};
 
-  ScopedCERTCertificate google_cert(x509_util::CreateCERTCertificateFromBytes(
-      google_der, std::size(google_der)));
+  ScopedCERTCertificate google_cert(
+      x509_util::CreateCERTCertificateFromBytes(google_der));
   ASSERT_TRUE(google_cert);
 
   EXPECT_EQ(google_fingerprint,

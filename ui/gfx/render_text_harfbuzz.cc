@@ -6,6 +6,7 @@
 
 #include <limits>
 #include <set>
+#include <string_view>
 
 #include "base/command_line.h"
 #include "base/containers/contains.h"
@@ -28,12 +29,12 @@
 #include "base/no_destructor.h"
 #include "base/numerics/safe_conversions.h"
 #include "base/strings/string_number_conversions.h"
-#include "base/strings/string_piece.h"
 #include "base/strings/string_util.h"
 #include "base/strings/utf_string_conversions.h"
 #include "base/task/current_thread.h"
 #include "base/trace_event/trace_event.h"
 #include "build/build_config.h"
+#include "skia/ext/font_utils.h"
 #include "third_party/icu/source/common/unicode/ubidi.h"
 #include "third_party/icu/source/common/unicode/uscript.h"
 #include "third_party/icu/source/common/unicode/utf16.h"
@@ -55,7 +56,7 @@
 #include "ui/gfx/utf16_indexing.h"
 
 #if BUILDFLAG(IS_APPLE)
-#include "base/mac/foundation_util.h"
+#include "base/apple/foundation_util.h"
 #include "base/mac/mac_util.h"
 #include "third_party/skia/include/ports/SkTypeface_mac.h"
 #endif
@@ -192,7 +193,7 @@ struct GraphemeProperties {
 };
 
 // Returns the properties for the codepoints part of the given text.
-GraphemeProperties RetrieveGraphemeProperties(const base::StringPiece16& text,
+GraphemeProperties RetrieveGraphemeProperties(std::u16string_view text,
                                               bool retrieve_block) {
   GraphemeProperties properties;
   bool first_char = true;
@@ -251,7 +252,7 @@ size_t FindRunBreakingCharacter(const std::u16string& text,
                                 size_t run_break,
                                 size_t run_end) {
   const size_t run_length = run_end - run_start;
-  const base::StringPiece16 run_text(text.c_str() + run_start, run_length);
+  const std::u16string_view run_text(text.c_str() + run_start, run_length);
   const bool is_common_script = (script == USCRIPT_COMMON);
 
   DCHECK(!run_text.empty());
@@ -266,16 +267,16 @@ size_t FindRunBreakingCharacter(const std::u16string& text,
   }
 
   // Retrieve the first grapheme and its codepoint properties.
-  const base::StringPiece16 first_grapheme_text =
-      grapheme_iterator.GetStringPiece();
+  const std::u16string_view first_grapheme_text =
+      grapheme_iterator.GetStringView();
   const GraphemeProperties first_grapheme_properties =
       RetrieveGraphemeProperties(first_grapheme_text, is_common_script);
 
   // Append subsequent graphemes in this grapheme cluster if they are
   // compatible, otherwise break the current run.
   while (grapheme_iterator.Advance()) {
-    const base::StringPiece16 current_grapheme_text =
-        grapheme_iterator.GetStringPiece();
+    const std::u16string_view current_grapheme_text =
+        grapheme_iterator.GetStringView();
     const GraphemeProperties current_grapheme_properties =
         RetrieveGraphemeProperties(current_grapheme_text, is_common_script);
 
@@ -314,7 +315,7 @@ size_t ScriptInterval(const std::u16string& text,
   UScriptCode scripts[kMaxScripts] = { USCRIPT_INVALID_CODE };
 
   base::i18n::UTF16CharIterator char_iterator(
-      base::StringPiece16(text.c_str() + start, length));
+      std::u16string_view(text.c_str() + start, length));
   size_t scripts_size = GetScriptExtensions(char_iterator.get(), scripts);
   *script = scripts[0];
 
@@ -337,12 +338,12 @@ inline hb_script_t ICUScriptToHBScript(UScriptCode script) {
 }
 
 bool FontWasAlreadyTried(sk_sp<SkTypeface> typeface,
-                         std::set<SkFontID>* fallback_fonts) {
+                         std::set<SkTypefaceID>* fallback_fonts) {
   return fallback_fonts->count(typeface->uniqueID()) != 0;
 }
 
 void MarkFontAsTried(sk_sp<SkTypeface> typeface,
-                     std::set<SkFontID>* fallback_fonts) {
+                     std::set<SkTypefaceID>* fallback_fonts) {
   fallback_fonts->insert(typeface->uniqueID());
 }
 
@@ -806,6 +807,8 @@ internal::TextRunHarfBuzz::FontParams CreateFontParams(
   font_params.underline = style.style(TEXT_STYLE_UNDERLINE);
   font_params.heavy_underline = style.style(TEXT_STYLE_HEAVY_UNDERLINE);
   font_params.weight = style.weight();
+  font_params.fill_style = style.fill_style();
+  font_params.stroke_width = style.stroke_width();
   font_params.level = bidi_level;
   font_params.script = script;
   // Odd BiDi embedding levels correspond to RTL runs.
@@ -868,8 +871,7 @@ sk_sp<SkTypeface> CreateSkiaTypeface(const Font& font,
   SkFontStyle skia_style(
       static_cast<int>(weight), SkFontStyle::kNormal_Width,
       italic ? SkFontStyle::kItalic_Slant : SkFontStyle::kUpright_Slant);
-  return sk_sp<SkTypeface>(SkTypeface::MakeFromName(
-      font.GetFontName().c_str(), skia_style));
+  return skia::MakeTypefaceFromName(font.GetFontName().c_str(), skia_style);
 #endif
 }
 
@@ -890,7 +892,8 @@ bool TextRunHarfBuzz::FontParams::operator==(const FontParams& other) const {
          baseline_type == other.baseline_type && italic == other.italic &&
          strike == other.strike && underline == other.underline &&
          heavy_underline == other.heavy_underline && is_rtl == other.is_rtl &&
-         level == other.level;
+         level == other.level && fill_style == other.fill_style &&
+         stroke_width == other.stroke_width;
 }
 
 void TextRunHarfBuzz::FontParams::
@@ -899,23 +902,23 @@ void TextRunHarfBuzz::FontParams::
   if (font_size == 0)
     font_size = font.GetFontSize();
   baseline_offset = 0;
-  if (baseline_type != NORMAL_BASELINE) {
+  if (baseline_type != BaselineStyle::kNormalBaseline) {
     // Calculate a slightly smaller font. The ratio here is somewhat arbitrary.
     // Proportions from 5/9 to 5/7 all look pretty good.
     const float ratio = 5.0f / 9.0f;
     font_size = base::ClampRound(font.GetFontSize() * ratio);
     switch (baseline_type) {
-      case SUPERSCRIPT:
+      case BaselineStyle::kSuperscript:
         baseline_offset = font.GetCapHeight() - font.GetHeight();
         break;
-      case SUPERIOR:
+      case BaselineStyle::kSuperior:
         baseline_offset =
             base::ClampRound(font.GetCapHeight() * ratio) - font.GetCapHeight();
         break;
-      case SUBSCRIPT:
+      case BaselineStyle::kSubscript:
         baseline_offset = font.GetHeight() - font.GetBaseline();
         break;
-      case INFERIOR:  // Fall through.
+      case BaselineStyle::kInferior:  // Fall through.
       default:
         break;
     }
@@ -935,20 +938,21 @@ size_t TextRunHarfBuzz::FontParams::Hash::operator()(
          static_cast<size_t>(key.font_size) << 12 ^
          static_cast<size_t>(key.baseline_type) << 16 ^
          static_cast<size_t>(key.level) << 20 ^
-         static_cast<size_t>(key.script) << 24;
+         static_cast<size_t>(key.script) << 24 ^
+         static_cast<size_t>(key.fill_style) << 28;
 }
 
 bool TextRunHarfBuzz::FontParams::SetRenderParamsRematchFont(
     const Font& new_font,
     const FontRenderParams& new_render_params) {
   // This takes the font family name from new_font, and calls
-  // SkTypeface::makeFromName() with that family name and the style information
-  // internal to this text run. So it triggers a new font match and looks for
-  // adjacent fonts in the family. This works for styling, e.g. styling a run in
-  // bold, italic or underline, but breaks font fallback in certain scenarios,
-  // as the fallback font may be of a different weight and style than the run's
-  // own, so this can lead to a failure of instantiating the correct fallback
-  // font.
+  // skia::MakeTypefaceFromName() with that family name and the style
+  // information internal to this text run. So it triggers a new font match and
+  // looks for adjacent fonts in the family. This works for styling, e.g.
+  // styling a run in bold, italic or underline, but breaks font fallback in
+  // certain scenarios, as the fallback font may be of a different weight and
+  // style than the run's own, so this can lead to a failure of instantiating
+  // the correct fallback font.
   sk_sp<SkTypeface> new_skia_face(
       internal::CreateSkiaTypeface(new_font, italic, weight));
   if (!new_skia_face)
@@ -1273,7 +1277,7 @@ struct ShapeRunWithFontInput {
     hash = base::HashInts(hash, skia_face->uniqueID());
     hash = base::HashInts(hash, script);
     hash = base::HashInts(hash, font_size);
-    hash = base::Hash(text);
+    hash = base::FastHash(base::as_bytes(base::make_span(text)));
     hash = base::HashInts(hash, range.start());
     hash = base::HashInts(hash, range.length());
   }
@@ -1759,7 +1763,7 @@ void RenderTextHarfBuzz::EnsureLayout() {
     // In multiline, only ELIDE_TAIL is supported. max_lines_ is not used
     // otherwise.
     if (multiline() && max_lines() && elide_behavior() == ELIDE_TAIL) {
-      // TODO(crbug.com/866720): no more than max_lines() should be rendered.
+      // TODO(crbug.com/40586307): no more than max_lines() should be rendered.
       // Remove the IsHomogeneous() condition for the following DCHECK when the
       // bug is fixed.
       if (IsHomogeneous()) {
@@ -1807,7 +1811,18 @@ void RenderTextHarfBuzz::DrawVisualText(internal::SkiaTextRenderer* renderer,
       if (IsNewlineSegment(display_text, segment))
         continue;
 
+      const size_t crash_report_size = 256;
+      DEBUG_ALIAS_FOR_U16CSTR(alias_display_text, display_text.c_str(),
+                              crash_report_size);
+      DEBUG_ALIAS_FOR_U16CSTR(alias_text, text().c_str(), crash_report_size);
+      const size_t run_list_size = run_list->runs().size();
+      base::debug::Alias(&run_list_size);
+      const size_t segment_run_size = segment.run;
+      base::debug::Alias(&segment_run_size);
+
       const internal::TextRunHarfBuzz& run = *run_list->runs()[segment.run];
+      renderer->SetFillStyle(run.font_params.fill_style);
+      renderer->SetStrokeWidth(run.font_params.stroke_width);
       renderer->SetTypeface(run.font_params.skia_face);
       renderer->SetTextSize(SkIntToScalar(run.font_params.font_size));
       renderer->SetFontRenderParams(run.font_params.render_params,
@@ -1844,10 +1859,6 @@ void RenderTextHarfBuzz::DrawVisualText(internal::SkiaTextRenderer* renderer,
         const int pos_size = positions.size();
         base::debug::Alias(&colored_pos);
         base::debug::Alias(&pos_size);
-        const size_t crash_report_size = 256;
-        DEBUG_ALIAS_FOR_U16CSTR(alias_display_text, display_text.c_str(),
-                                crash_report_size);
-        DEBUG_ALIAS_FOR_U16CSTR(alias_text, text().c_str(), crash_report_size);
 
         renderer->SetForegroundColor(it->second);
         renderer->DrawPosText(
@@ -2053,7 +2064,7 @@ void RenderTextHarfBuzz::ShapeRuns(
   }
 
   // Keep a set of fonts already tried for shaping runs.
-  std::set<SkFontID> fallback_fonts_already_tried;
+  std::set<SkTypefaceID> fallback_fonts_already_tried;
   std::vector<Font> fallback_font_candidates;
 
   // Shaping with primary configured fonts from font_list().
@@ -2091,7 +2102,7 @@ void RenderTextHarfBuzz::ShapeRuns(
       SCOPED_UMA_HISTOGRAM_LONG_TIMER("RenderTextHarfBuzz.GetFallbackFontTime");
       TRACE_EVENT1("ui", "RenderTextHarfBuzz::GetFallbackFont", "script",
                    TRACE_STR_COPY(uscript_getShortName(font_params.script)));
-      const base::StringPiece16 run_text(&text[current_run->range.start()],
+      const std::u16string_view run_text(&text[current_run->range.start()],
                                          current_run->range.length());
       fallback_found =
           GetFallbackFont(primary_font, locale_, run_text, &fallback_font);
@@ -2292,8 +2303,9 @@ void RenderTextHarfBuzz::EnsureLayoutRunList() {
     layout_run_list_.Reset();
 
     const std::u16string& text = GetLayoutText();
-    if (!text.empty())
+    if (!text.empty()) {
       ItemizeAndShapeText(text, &layout_run_list_);
+    }
 
     display_run_list_.reset();
     update_display_text_ = true;
@@ -2341,22 +2353,26 @@ bool RenderTextHarfBuzz::IsValidDisplayRange(Range display_range) {
   }
 }
 
-bool RenderTextHarfBuzz::GetDecoratedTextForRange(
-    const Range& range,
+void RenderTextHarfBuzz::GetDecoratedTextForRange(
+    const Range& text_range,
     DecoratedText* decorated_text) {
-  if (obscured())
-    return false;
-
   EnsureLayout();
 
   decorated_text->attributes.clear();
-  decorated_text->text = GetTextFromRange(range);
+  decorated_text->text = GetTextFromRange(text_range);
+
+  // The range on the runs below is in display offsets, not logical offsets.
+  // This means we need to convert the text range to a display range before
+  // running the intersection logic below, or else we won't get the attributes
+  // for the obscured grapheme composed of multiple codepoints.
+  const Range display_range(TextIndexToDisplayIndex(text_range.start()),
+                            TextIndexToDisplayIndex(text_range.end()));
 
   const internal::TextRunList* run_list = GetRunList();
   for (size_t i = 0; i < run_list->size(); i++) {
     const internal::TextRunHarfBuzz& run = *run_list->runs()[i];
 
-    const Range intersection = range.Intersect(run.range);
+    const Range intersection = display_range.Intersect(run.range);
     DCHECK(!intersection.is_reversed());
 
     if (!intersection.is_empty()) {
@@ -2365,18 +2381,25 @@ bool RenderTextHarfBuzz::GetDecoratedTextForRange(
         style |= Font::ITALIC;
       if (run.font_params.underline || run.font_params.heavy_underline)
         style |= Font::UNDERLINE;
+      if (run.font_params.strike) {
+        style |= Font::STRIKE_THROUGH;
+      }
 
-      // Get range relative to the decorated text.
+      // Get range relative to the decorated text in logical offsets. The
+      // `intersection` is in display offsets but logical text offsets are
+      // expected in the range attribute of `DecoratedText::RangedAttribute`.
+      Range intersection_text_range =
+          Range(DisplayIndexToTextIndex(intersection.start()),
+                DisplayIndexToTextIndex(intersection.end()));
       DecoratedText::RangedAttribute attribute(
-          Range(intersection.start() - range.GetMin(),
-                intersection.end() - range.GetMin()),
+          Range(intersection_text_range.start() - text_range.GetMin(),
+                intersection_text_range.end() - text_range.GetMin()),
           run.font_params.font.Derive(0, style, run.font_params.weight));
 
       attribute.strike = run.font_params.strike;
       decorated_text->attributes.push_back(attribute);
     }
   }
-  return true;
 }
 
 }  // namespace gfx

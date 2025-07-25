@@ -30,12 +30,6 @@ class TestGetHostArch(unittest.TestCase):
 @mock.patch('builtins.open')
 @mock.patch('os.path.isfile')
 class TestGetSDKOverrideGCSPath(unittest.TestCase):
-  def testFileNotFound(self, mock_isfile, mock_open):
-    mock_isfile.return_value = False
-
-    actual = GetSDKOverrideGCSPath('this-file-does-not-exist.txt')
-    self.assertIsNone(actual)
-
   def testDefaultPath(self, mock_isfile, mock_open):
     mock_isfile.return_value = False
 
@@ -62,7 +56,7 @@ class TestGetTarballPath(unittest.TestCase):
     mock_host_arch.return_value = 'amd64'
 
     actual = _GetTarballPath('gs://bucket/sdk')
-    self.assertEqual(actual, 'gs://bucket/sdk/linux-amd64/gn.tar.gz')
+    self.assertEqual(actual, 'gs://bucket/sdk/linux-amd64/core.tar.gz')
 
 
 if __name__ == '__main__':

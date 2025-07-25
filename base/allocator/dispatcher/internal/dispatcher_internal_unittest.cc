@@ -3,26 +3,84 @@
 // found in the LICENSE file.
 
 #include "base/allocator/dispatcher/internal/dispatcher_internal.h"
-#include "base/allocator/buildflags.h"
-#include "base/allocator/dispatcher/testing/dispatcher_test.h"
-#include "base/allocator/dispatcher/testing/observer_mock.h"
-#include "base/allocator/dispatcher/testing/tools.h"
-#include "base/allocator/partition_allocator/partition_alloc_buildflags.h"
-#include "base/dcheck_is_on.h"
-#include "testing/gtest/include/gtest/gtest.h"
 
+#include <iostream>
 #include <tuple>
 #include <utility>
 
+#include "base/allocator/dispatcher/subsystem.h"
+#include "base/allocator/dispatcher/testing/dispatcher_test.h"
+#include "base/allocator/dispatcher/testing/observer_mock.h"
+#include "base/allocator/dispatcher/testing/tools.h"
+#include "base/dcheck_is_on.h"
+#include "partition_alloc/partition_alloc_buildflags.h"
+#include "testing/gtest/include/gtest/gtest.h"
+
+#if PA_BUILDFLAG(USE_PARTITION_ALLOC)
+#include "partition_alloc/partition_alloc_allocation_data.h"
+#endif
+
+using ::base::allocator::dispatcher::AllocationSubsystem;
 using ::base::allocator::dispatcher::configuration::kMaximumNumberOfObservers;
 using ::base::allocator::dispatcher::testing::CreateTupleOfPointers;
 using ::base::allocator::dispatcher::testing::DispatcherTest;
 using ::testing::_;
+using ::testing::AllOf;
 using ::testing::InSequence;
+using ::testing::Matcher;
+using ::testing::Property;
 
 namespace base::allocator::dispatcher::internal {
 
 namespace {
+
+auto AllocationNotificationMatches(
+    Matcher<void*> address_matcher,
+    Matcher<size_t> size_matcher,
+    Matcher<AllocationSubsystem> subsystem_matcher = _) {
+  return AllOf(Property("address", &AllocationNotificationData::address,
+                        std::move(address_matcher)),
+               Property("size", &AllocationNotificationData::size,
+                        std::move(size_matcher)),
+               Property("allocation_subsystem",
+                        &AllocationNotificationData::allocation_subsystem,
+                        std::move(subsystem_matcher)));
+}
+
+auto FreeNotificationMatches(
+    Matcher<void*> address_matcher,
+    Matcher<AllocationSubsystem> subsystem_matcher = _) {
+  return AllOf(Property("address", &FreeNotificationData::address,
+                        std::move(address_matcher)),
+               Property("allocation_subsystem",
+                        &FreeNotificationData::allocation_subsystem,
+                        std::move(subsystem_matcher)));
+}
+
+#if PA_BUILDFLAG(USE_PARTITION_ALLOC)
+::partition_alloc::AllocationNotificationData CreatePAAllocationData(
+    void* address,
+    size_t size,
+    partition_alloc::TagViolationReportingMode mte_mode =
+        partition_alloc::TagViolationReportingMode::kUndefined) {
+  return ::partition_alloc::AllocationNotificationData(address, size, nullptr)
+#if PA_BUILDFLAG(HAS_MEMORY_TAGGING)
+      .SetMteReportingMode(mte_mode)
+#endif
+      ;
+}
+
+::partition_alloc::FreeNotificationData CreatePAFreeData(
+    void* address,
+    partition_alloc::TagViolationReportingMode mte_mode =
+        partition_alloc::TagViolationReportingMode::kUndefined) {
+  return ::partition_alloc::FreeNotificationData(address)
+#if PA_BUILDFLAG(HAS_MEMORY_TAGGING)
+      .SetMteReportingMode(mte_mode)
+#endif
+      ;
+}
+#endif  // PA_BUILDFLAG(USE_PARTITION_ALLOC)
 
 struct AllocationEventDispatcherInternalTest : public DispatcherTest {
   static void* GetAllocatedAddress() {
@@ -34,7 +92,7 @@ struct AllocationEventDispatcherInternalTest : public DispatcherTest {
     return reinterpret_cast<void*>(0x876543210);
   }
 
-#if BUILDFLAG(USE_ALLOCATOR_SHIM)
+#if PA_BUILDFLAG(USE_ALLOCATOR_SHIM)
   AllocatorDispatch* GetNextAllocatorDispatch() { return &allocator_dispatch_; }
   static void* alloc_function(const AllocatorDispatch*, size_t, void*) {
     return GetAllocatedAddress();
@@ -66,6 +124,11 @@ struct AllocationEventDispatcherInternalTest : public DispatcherTest {
                                            void*,
                                            void*) {
     return GetEstimatedSize();
+  }
+  static size_t good_size_function(const AllocatorDispatch*,
+                                   size_t size,
+                                   void*) {
+    return size;
   }
   static bool claimed_address_function(const AllocatorDispatch*, void*, void*) {
     return GetEstimatedSize();
@@ -99,6 +162,7 @@ struct AllocationEventDispatcherInternalTest : public DispatcherTest {
       &realloc_function,
       [](const AllocatorDispatch*, void*, void*) {},
       &get_size_estimate_function,
+      &good_size_function,
       &claimed_address_function,
       &batch_malloc_function,
       [](const AllocatorDispatch*, void**, unsigned, void*) {},
@@ -133,7 +197,7 @@ TEST(AllocationEventDispatcherInternalDeathTest,
 #endif  // defined(GTEST_HAS_DEATH_TEST) && GTEST_HAS_DEATH_TEST &&
         // DCHECK_IS_ON()
 
-#if BUILDFLAG(USE_PARTITION_ALLOC)
+#if PA_BUILDFLAG(USE_PARTITION_ALLOC)
 TEST_F(AllocationEventDispatcherInternalTest,
        VerifyPartitionAllocatorHooksAreSet) {
   std::array<ObserverMock, 1> observers;
@@ -158,15 +222,20 @@ TEST_F(AllocationEventDispatcherInternalTest,
   std::array<ObserverMock, kMaximumNumberOfObservers> observers;
 
   for (auto& mock : observers) {
-    EXPECT_CALL(mock, OnAllocation(_, _, _, _)).Times(0);
-    EXPECT_CALL(mock, OnAllocation(this, sizeof(*this), _, _)).Times(1);
+    EXPECT_CALL(mock, OnAllocation(_)).Times(0);
+    EXPECT_CALL(
+        mock, OnAllocation(AllocationNotificationMatches(this, sizeof(*this))))
+        .Times(1);
     EXPECT_CALL(mock, OnFree(_)).Times(0);
   }
 
   const auto dispatch_data =
       GetNotificationHooks(CreateTupleOfPointers(observers));
 
-  dispatch_data.GetAllocationObserverHook()(this, sizeof(*this), nullptr);
+  ::partition_alloc::AllocationNotificationData notification_data =
+      CreatePAAllocationData(this, sizeof(*this));
+
+  dispatch_data.GetAllocationObserverHook()(notification_data);
 }
 
 TEST_F(AllocationEventDispatcherInternalTest,
@@ -174,19 +243,19 @@ TEST_F(AllocationEventDispatcherInternalTest,
   std::array<ObserverMock, kMaximumNumberOfObservers> observers;
 
   for (auto& mock : observers) {
-    EXPECT_CALL(mock, OnAllocation(_, _, _, _)).Times(0);
+    EXPECT_CALL(mock, OnAllocation(_)).Times(0);
     EXPECT_CALL(mock, OnFree(_)).Times(0);
-    EXPECT_CALL(mock, OnFree(this)).Times(1);
+    EXPECT_CALL(mock, OnFree(FreeNotificationMatches(this))).Times(1);
   }
 
   const auto dispatch_data =
       GetNotificationHooks(CreateTupleOfPointers(observers));
 
-  dispatch_data.GetFreeObserverHook()(this);
+  dispatch_data.GetFreeObserverHook()(CreatePAFreeData(this));
 }
-#endif
+#endif  // PA_BUILDFLAG(USE_PARTITION_ALLOC)
 
-#if BUILDFLAG(USE_ALLOCATOR_SHIM)
+#if PA_BUILDFLAG(USE_ALLOCATOR_SHIM)
 TEST_F(AllocationEventDispatcherInternalTest, VerifyAllocatorShimDataIsSet) {
   std::array<ObserverMock, 1> observers;
 
@@ -200,8 +269,6 @@ TEST_F(AllocationEventDispatcherInternalTest, VerifyAllocatorShimDataIsSet) {
   EXPECT_NE(nullptr, allocator_dispatch->alloc_aligned_function);
   EXPECT_NE(nullptr, allocator_dispatch->realloc_function);
   EXPECT_NE(nullptr, allocator_dispatch->free_function);
-  EXPECT_NE(nullptr, allocator_dispatch->get_size_estimate_function);
-  EXPECT_NE(nullptr, allocator_dispatch->claimed_address_function);
   EXPECT_NE(nullptr, allocator_dispatch->batch_malloc_function);
   EXPECT_NE(nullptr, allocator_dispatch->batch_free_function);
   EXPECT_NE(nullptr, allocator_dispatch->free_definite_size_function);
@@ -223,9 +290,10 @@ TEST_F(AllocationEventDispatcherInternalTest,
   std::array<ObserverMock, kMaximumNumberOfObservers> observers;
 
   for (auto& mock : observers) {
-    EXPECT_CALL(mock, OnAllocation(_, _, _, _)).Times(0);
-    EXPECT_CALL(mock, OnAllocation(GetAllocatedAddress(), GetAllocatedSize(),
-                                   AllocationSubsystem::kAllocatorShim, _))
+    EXPECT_CALL(mock, OnAllocation(_)).Times(0);
+    EXPECT_CALL(mock, OnAllocation(AllocationNotificationMatches(
+                          GetAllocatedAddress(), GetAllocatedSize(),
+                          AllocationSubsystem::kAllocatorShim)))
         .Times(1);
     EXPECT_CALL(mock, OnFree(_)).Times(0);
   }
@@ -247,9 +315,10 @@ TEST_F(AllocationEventDispatcherInternalTest,
   std::array<ObserverMock, kMaximumNumberOfObservers> observers;
 
   for (auto& mock : observers) {
-    EXPECT_CALL(mock, OnAllocation(_, _, _, _)).Times(0);
-    EXPECT_CALL(mock, OnAllocation(GetAllocatedAddress(), GetAllocatedSize(),
-                                   AllocationSubsystem::kAllocatorShim, _))
+    EXPECT_CALL(mock, OnAllocation(_)).Times(0);
+    EXPECT_CALL(mock, OnAllocation(AllocationNotificationMatches(
+                          GetAllocatedAddress(), GetAllocatedSize(),
+                          AllocationSubsystem::kAllocatorShim)))
         .Times(1);
     EXPECT_CALL(mock, OnFree(_)).Times(0);
   }
@@ -273,10 +342,10 @@ TEST_F(
   constexpr int n = 8;
 
   for (auto& mock : observers) {
-    EXPECT_CALL(mock, OnAllocation(_, _, _, _)).Times(0);
-    EXPECT_CALL(mock,
-                OnAllocation(GetAllocatedAddress(), n * GetAllocatedSize(),
-                             AllocationSubsystem::kAllocatorShim, _))
+    EXPECT_CALL(mock, OnAllocation(_)).Times(0);
+    EXPECT_CALL(mock, OnAllocation(AllocationNotificationMatches(
+                          GetAllocatedAddress(), n * GetAllocatedSize(),
+                          AllocationSubsystem::kAllocatorShim)))
         .Times(1);
     EXPECT_CALL(mock, OnFree(_)).Times(0);
   }
@@ -299,9 +368,10 @@ TEST_F(AllocationEventDispatcherInternalTest,
   std::array<ObserverMock, kMaximumNumberOfObservers> observers;
 
   for (auto& mock : observers) {
-    EXPECT_CALL(mock, OnAllocation(_, _, _, _)).Times(0);
-    EXPECT_CALL(mock, OnAllocation(GetAllocatedAddress(), GetAllocatedSize(),
-                                   AllocationSubsystem::kAllocatorShim, _))
+    EXPECT_CALL(mock, OnAllocation(_)).Times(0);
+    EXPECT_CALL(mock, OnAllocation(AllocationNotificationMatches(
+                          GetAllocatedAddress(), GetAllocatedSize(),
+                          AllocationSubsystem::kAllocatorShim)))
         .Times(1);
     EXPECT_CALL(mock, OnFree(_)).Times(0);
   }
@@ -325,9 +395,13 @@ TEST_F(AllocationEventDispatcherInternalTest,
   for (auto& mock : observers) {
     InSequence execution_order;
 
-    EXPECT_CALL(mock, OnFree(GetFreedAddress())).Times(1);
-    EXPECT_CALL(mock, OnAllocation(GetAllocatedAddress(), GetAllocatedSize(),
-                                   AllocationSubsystem::kAllocatorShim, _))
+    EXPECT_CALL(mock,
+                OnFree(FreeNotificationMatches(
+                    GetFreedAddress(), AllocationSubsystem::kAllocatorShim)))
+        .Times(1);
+    EXPECT_CALL(mock, OnAllocation(AllocationNotificationMatches(
+                          GetAllocatedAddress(), GetAllocatedSize(),
+                          AllocationSubsystem::kAllocatorShim)))
         .Times(1);
   }
 
@@ -348,8 +422,11 @@ TEST_F(AllocationEventDispatcherInternalTest,
   std::array<ObserverMock, kMaximumNumberOfObservers> observers;
 
   for (auto& mock : observers) {
-    EXPECT_CALL(mock, OnFree(GetFreedAddress())).Times(1);
-    EXPECT_CALL(mock, OnAllocation(_, _, _, _)).Times(0);
+    EXPECT_CALL(mock,
+                OnFree(FreeNotificationMatches(
+                    GetFreedAddress(), AllocationSubsystem::kAllocatorShim)))
+        .Times(1);
+    EXPECT_CALL(mock, OnAllocation(_)).Times(0);
   }
 
   auto const dispatch_data =
@@ -363,27 +440,6 @@ TEST_F(AllocationEventDispatcherInternalTest,
 }
 
 TEST_F(AllocationEventDispatcherInternalTest,
-       VerifyAllocatorShimHooksTriggerCorrectly_get_size_estimate_function) {
-  std::array<ObserverMock, kMaximumNumberOfObservers> observers;
-
-  for (auto& mock : observers) {
-    EXPECT_CALL(mock, OnFree(_)).Times(0);
-    EXPECT_CALL(mock, OnAllocation(_, _, _, _)).Times(0);
-  }
-
-  auto const dispatch_data =
-      GetNotificationHooks(CreateTupleOfPointers(observers));
-
-  auto* const allocator_dispatch = dispatch_data.GetAllocatorDispatch();
-  allocator_dispatch->next = GetNextAllocatorDispatch();
-
-  auto const estimated_size = allocator_dispatch->get_size_estimate_function(
-      allocator_dispatch, GetAllocatedAddress(), nullptr);
-
-  EXPECT_EQ(estimated_size, GetEstimatedSize());
-}
-
-TEST_F(AllocationEventDispatcherInternalTest,
        VerifyAllocatorShimHooksTriggerCorrectly_batch_malloc_function) {
   constexpr size_t allocation_batch_size = 10;
   std::array<ObserverMock, kMaximumNumberOfObservers> observers;
@@ -391,8 +447,9 @@ TEST_F(AllocationEventDispatcherInternalTest,
 
   for (auto& mock : observers) {
     EXPECT_CALL(mock, OnFree(_)).Times(0);
-    EXPECT_CALL(mock, OnAllocation(nullptr, GetAllocatedSize(),
-                                   AllocationSubsystem::kAllocatorShim, _))
+    EXPECT_CALL(mock, OnAllocation(AllocationNotificationMatches(
+                          nullptr, GetAllocatedSize(),
+                          AllocationSubsystem::kAllocatorShim)))
         .Times(allocation_batch_size);
   }
 
@@ -419,8 +476,11 @@ TEST_F(AllocationEventDispatcherInternalTest,
   allocation_batch.fill(GetFreedAddress());
 
   for (auto& mock : observers) {
-    EXPECT_CALL(mock, OnFree(GetFreedAddress())).Times(allocation_batch_size);
-    EXPECT_CALL(mock, OnAllocation(_, _, _, _)).Times(0);
+    EXPECT_CALL(mock,
+                OnFree(FreeNotificationMatches(
+                    GetFreedAddress(), AllocationSubsystem::kAllocatorShim)))
+        .Times(allocation_batch_size);
+    EXPECT_CALL(mock, OnAllocation(_)).Times(0);
   }
 
   auto const dispatch_data =
@@ -441,8 +501,11 @@ TEST_F(AllocationEventDispatcherInternalTest,
   std::array<ObserverMock, kMaximumNumberOfObservers> observers;
 
   for (auto& mock : observers) {
-    EXPECT_CALL(mock, OnFree(GetAllocatedAddress())).Times(1);
-    EXPECT_CALL(mock, OnAllocation(_, _, _, _)).Times(0);
+    EXPECT_CALL(
+        mock, OnFree(FreeNotificationMatches(
+                  GetAllocatedAddress(), AllocationSubsystem::kAllocatorShim)))
+        .Times(1);
+    EXPECT_CALL(mock, OnAllocation(_)).Times(0);
   }
 
   DispatchData const dispatch_data =
@@ -462,8 +525,11 @@ TEST_F(AllocationEventDispatcherInternalTest,
   std::array<ObserverMock, kMaximumNumberOfObservers> observers;
 
   for (auto& mock : observers) {
-    EXPECT_CALL(mock, OnFree(GetAllocatedAddress())).Times(1);
-    EXPECT_CALL(mock, OnAllocation(_, _, _, _)).Times(0);
+    EXPECT_CALL(
+        mock, OnFree(FreeNotificationMatches(
+                  GetAllocatedAddress(), AllocationSubsystem::kAllocatorShim)))
+        .Times(1);
+    EXPECT_CALL(mock, OnAllocation(_)).Times(0);
   }
 
   DispatchData const dispatch_data =
@@ -483,9 +549,10 @@ TEST_F(AllocationEventDispatcherInternalTest,
   std::array<ObserverMock, kMaximumNumberOfObservers> observers;
 
   for (auto& mock : observers) {
-    EXPECT_CALL(mock, OnAllocation(_, _, _, _)).Times(0);
-    EXPECT_CALL(mock, OnAllocation(GetAllocatedAddress(), GetAllocatedSize(),
-                                   AllocationSubsystem::kAllocatorShim, _))
+    EXPECT_CALL(mock, OnAllocation(_)).Times(0);
+    EXPECT_CALL(mock, OnAllocation(AllocationNotificationMatches(
+                          GetAllocatedAddress(), GetAllocatedSize(),
+                          AllocationSubsystem::kAllocatorShim)))
         .Times(1);
     EXPECT_CALL(mock, OnFree(_)).Times(0);
   }
@@ -509,9 +576,13 @@ TEST_F(AllocationEventDispatcherInternalTest,
   for (auto& mock : observers) {
     InSequence execution_order;
 
-    EXPECT_CALL(mock, OnFree(GetFreedAddress())).Times(1);
-    EXPECT_CALL(mock, OnAllocation(GetAllocatedAddress(), GetAllocatedSize(),
-                                   AllocationSubsystem::kAllocatorShim, _))
+    EXPECT_CALL(mock,
+                OnFree(FreeNotificationMatches(
+                    GetFreedAddress(), AllocationSubsystem::kAllocatorShim)))
+        .Times(1);
+    EXPECT_CALL(mock, OnAllocation(AllocationNotificationMatches(
+                          GetAllocatedAddress(), GetAllocatedSize(),
+                          AllocationSubsystem::kAllocatorShim)))
         .Times(1);
   }
 
@@ -532,8 +603,11 @@ TEST_F(AllocationEventDispatcherInternalTest,
   std::array<ObserverMock, kMaximumNumberOfObservers> observers;
 
   for (auto& mock : observers) {
-    EXPECT_CALL(mock, OnFree(GetFreedAddress())).Times(1);
-    EXPECT_CALL(mock, OnAllocation(_, _, _, _)).Times(0);
+    EXPECT_CALL(mock,
+                OnFree(FreeNotificationMatches(
+                    GetFreedAddress(), AllocationSubsystem::kAllocatorShim)))
+        .Times(1);
+    EXPECT_CALL(mock, OnAllocation(_)).Times(0);
   }
 
   auto const dispatch_data =
@@ -545,6 +619,5 @@ TEST_F(AllocationEventDispatcherInternalTest,
   allocator_dispatch->aligned_free_function(allocator_dispatch,
                                             GetFreedAddress(), nullptr);
 }
-
-#endif
+#endif  // PA_BUILDFLAG(USE_ALLOCATOR_SHIM)
 }  // namespace base::allocator::dispatcher::internal

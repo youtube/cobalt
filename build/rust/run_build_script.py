@@ -106,7 +106,30 @@ def main():
     else:
       env["TARGET"] = args.target
     target_components = env["TARGET"].split("-")
-    env["CARGO_CFG_TARGET_ARCH"] = target_components[0]
+    if len(target_components) == 2:
+      env["CARGO_CFG_TARGET_ARCH"] = target_components[0]
+      env["CARGO_CFG_TARGET_VENDOR"] = ''
+      env["CARGO_CFG_TARGET_OS"] = target_components[1]
+      env["CARGO_CFG_TARGET_ENV"] = ''
+    elif len(target_components) == 3:
+      env["CARGO_CFG_TARGET_ARCH"] = target_components[0]
+      env["CARGO_CFG_TARGET_VENDOR"] = target_components[1]
+      env["CARGO_CFG_TARGET_OS"] = target_components[2]
+      env["CARGO_CFG_TARGET_ENV"] = ''
+    elif len(target_components) == 4:
+      env["CARGO_CFG_TARGET_ARCH"] = target_components[0]
+      env["CARGO_CFG_TARGET_VENDOR"] = target_components[1]
+      env["CARGO_CFG_TARGET_OS"] = target_components[2]
+      env["CARGO_CFG_TARGET_ENV"] = target_components[3]
+    else:
+      print(f'Invalid TARGET {env["TARGET"]}')
+      sys.exit(1)
+    # See https://crbug.com/325543500 for background.
+    # Cargo sets CARGO_CFG_TARGET_OS to "android" even when targeting *-androideabi.
+    if env["CARGO_CFG_TARGET_OS"].startswith("android"):
+      env["CARGO_CFG_TARGET_OS"] = "android"
+    elif env["CARGO_CFG_TARGET_OS"] == "darwin":
+      env["CARGO_CFG_TARGET_OS"] = "macos"
     if args.features:
       for f in args.features:
         feature_name = f.upper().replace("-", "_")
@@ -128,7 +151,8 @@ def main():
                           env=env,
                           cwd=args.src_dir,
                           encoding='utf8',
-                          capture_output=True)
+                          stdout=subprocess.PIPE,
+                          stderr=subprocess.PIPE)
 
     if proc.stderr.rstrip():
       print(proc.stderr.rstrip(), file=sys.stderr)

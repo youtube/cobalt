@@ -2,6 +2,11 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#ifdef UNSAFE_BUFFERS_BUILD
+// TODO(crbug.com/40284755): Remove this and spanify to fix the errors.
+#pragma allow_unsafe_buffers
+#endif
+
 #include "base/threading/platform_thread.h"
 
 #include <stddef.h>
@@ -20,6 +25,7 @@
 #include "base/threading/platform_thread_internal_posix.h"
 #elif BUILDFLAG(IS_WIN)
 #include <windows.h>
+
 #include "base/threading/platform_thread_win.h"
 #endif
 
@@ -418,7 +424,6 @@ TEST(PlatformThreadTest,
 }
 #endif  // BUILDFLAG(IS_WIN)
 
-#if !defined(STARBOARD)
 // Ideally PlatformThread::CanChangeThreadType() would be true on all
 // platforms for all priorities. This not being the case. This test documents
 // and hardcodes what we know. Please inform scheduler-dev@chromium.org if this
@@ -426,8 +431,12 @@ TEST(PlatformThreadTest,
 TEST(PlatformThreadTest, CanChangeThreadType) {
 #if BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_CHROMEOS)
   // On Ubuntu, RLIMIT_NICE and RLIMIT_RTPRIO are 0 by default, so we won't be
-  // able to increase priority to any level.
-  constexpr bool kCanIncreasePriority = false;
+  // able to increase priority to any level unless we are root (euid == 0).
+  bool kCanIncreasePriority = false;
+  if (geteuid() == 0) {
+    kCanIncreasePriority = true;
+  }
+
 #else
   constexpr bool kCanIncreasePriority = true;
 #endif
@@ -484,38 +493,39 @@ TEST(PlatformThreadTest, CanChangeThreadType) {
                                                   ThreadType::kBackground));
 #endif
 }
-#endif // !defined(STARBOARD)
 
 TEST(PlatformThreadTest, SetCurrentThreadTypeTest) {
   TestPriorityResultingFromThreadType(ThreadType::kBackground,
                                       ThreadPriorityForTest::kBackground);
   TestPriorityResultingFromThreadType(ThreadType::kUtility,
                                       ThreadPriorityForTest::kUtility);
+
 #if BUILDFLAG(IS_APPLE)
   TestPriorityResultingFromThreadType(ThreadType::kResourceEfficient,
                                       ThreadPriorityForTest::kUtility);
+#elif BUILDFLAG(IS_CHROMEOS) || BUILDFLAG(IS_LINUX)
+  TestPriorityResultingFromThreadType(
+      ThreadType::kResourceEfficient,
+      ThreadPriorityForTest::kResourceEfficient);
 #else
   TestPriorityResultingFromThreadType(ThreadType::kResourceEfficient,
                                       ThreadPriorityForTest::kNormal);
 #endif  // BUILDFLAG(IS_APPLE)
+
   TestPriorityResultingFromThreadType(ThreadType::kDefault,
                                       ThreadPriorityForTest::kNormal);
-#if BUILDFLAG(IS_WIN) || BUILDFLAG(IS_ANDROID) || BUILDFLAG(IS_CHROMEOS)
+
+#if BUILDFLAG(IS_WIN) || BUILDFLAG(IS_ANDROID) || BUILDFLAG(IS_CHROMEOS) || \
+    BUILDFLAG(IS_APPLE)
   TestPriorityResultingFromThreadType(ThreadType::kCompositing,
                                       ThreadPriorityForTest::kDisplay);
-#if BUILDFLAG(IS_WIN)
-  TestPriorityResultingFromThreadType(ThreadType::kCompositing,
-                                      MessagePumpType::UI,
-                                      ThreadPriorityForTest::kNormal);
-#else
   TestPriorityResultingFromThreadType(ThreadType::kCompositing,
                                       MessagePumpType::UI,
                                       ThreadPriorityForTest::kDisplay);
-#endif  // BUILDFLAG(IS_WIN)
   TestPriorityResultingFromThreadType(ThreadType::kCompositing,
                                       MessagePumpType::IO,
                                       ThreadPriorityForTest::kDisplay);
-#else  // BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_APPLE) || BUILDFLAG(IS_FUCHSIA)
+#else  // BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_FUCHSIA)
   TestPriorityResultingFromThreadType(ThreadType::kCompositing,
                                       ThreadPriorityForTest::kNormal);
   TestPriorityResultingFromThreadType(ThreadType::kCompositing,
@@ -540,9 +550,6 @@ TEST(PlatformThreadTest, SetHugeThreadName) {
   PlatformThread::SetName(long_name);
 }
 
-// TODO: b/327008491 - Not used by Cobalt, but should be tested to get
-// closer to Chrome.
-#if !defined(STARBOARD)
 TEST(PlatformThreadTest, GetDefaultThreadStackSize) {
   size_t stack_size = PlatformThread::GetDefaultThreadStackSize();
 #if BUILDFLAG(IS_IOS) && BUILDFLAG(USE_BLINK)
@@ -557,7 +564,6 @@ TEST(PlatformThreadTest, GetDefaultThreadStackSize) {
   EXPECT_LT(stack_size, 20u * (1 << 20));
 #endif
 }
-#endif
 
 #if BUILDFLAG(IS_APPLE)
 
@@ -605,9 +611,6 @@ class RealtimeTestThread : public FunctionTestThread {
     mach_timebase_info(&tb_info);
 
     if (FeatureList::IsEnabled(kOptimizedRealtimeThreadingMac) &&
-#if BUILDFLAG(IS_MAC)
-        !mac::IsOS10_14() &&  // Should not be applied on 10.14.
-#endif
         !realtime_period_.is_zero()) {
       uint32_t abs_realtime_period = saturated_cast<uint32_t>(
           realtime_period_.InNanoseconds() *
@@ -676,7 +679,7 @@ TEST_P(RealtimePlatformThreadTest, RealtimeAudioConfigMac) {
     feature_list.InitAndDisableFeature(kOptimizedRealtimeThreadingMac);
   }
 
-  PlatformThread::InitFeaturesPostFieldTrial();
+  PlatformThread::InitializeFeatures();
   VerifyRealtimeConfig(std::get<2>(GetParam()));
 }
 

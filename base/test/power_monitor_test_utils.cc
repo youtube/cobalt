@@ -22,13 +22,13 @@ TestBatteryLevelProvider::TestBatteryLevelProvider() = default;
 
 void TestBatteryLevelProvider::GetBatteryState(
     base::OnceCallback<
-        void(const absl::optional<base::BatteryLevelProvider::BatteryState>&)>
+        void(const std::optional<base::BatteryLevelProvider::BatteryState>&)>
         callback) {
   std::move(callback).Run(battery_state_);
 }
 
 void TestBatteryLevelProvider::SetBatteryState(
-    absl::optional<base::BatteryLevelProvider::BatteryState> battery_state) {
+    std::optional<base::BatteryLevelProvider::BatteryState> battery_state) {
   battery_state_ = battery_state;
 }
 
@@ -37,18 +37,6 @@ base::BatteryLevelProvider::BatteryState
 TestBatteryLevelProvider::CreateBatteryState(int battery_count,
                                              bool is_external_power_connected,
                                              int charge_percent) {
-#if defined(STARBOARD)
-// TODO: Remove once we use c++20
-  return {
-      battery_count,
-      is_external_power_connected,
-      charge_percent,
-      100,
-      absl::nullopt,
-      base::BatteryLevelProvider::BatteryLevelUnit::kRelative,
-      base::TimeTicks::Now(),
-  };
-#else
   return {
       .battery_count = battery_count,
       .is_external_power_connected = is_external_power_connected,
@@ -57,8 +45,6 @@ TestBatteryLevelProvider::CreateBatteryState(int battery_count,
       .charge_unit = base::BatteryLevelProvider::BatteryLevelUnit::kRelative,
       .capture_time = base::TimeTicks::Now(),
   };
-}
-#endif
 }
 
 }  // namespace base::test

@@ -9,7 +9,6 @@
 #include <algorithm>
 #include <utility>
 
-#include "base/containers/cxx20_erase.h"
 #include "base/time/default_tick_clock.h"
 #include "base/time/time.h"
 #include "net/nqe/network_quality_estimator_params.h"
@@ -65,7 +64,7 @@ void ObservationBuffer::AddObservation(const Observation& observation) {
   DCHECK_LE(observations_.size(), params_->observation_buffer_size());
 }
 
-absl::optional<int32_t> ObservationBuffer::GetPercentile(
+std::optional<int32_t> ObservationBuffer::GetPercentile(
     base::TimeTicks begin_timestamp,
     int32_t current_signal_strength,
     int percentile,
@@ -88,7 +87,7 @@ absl::optional<int32_t> ObservationBuffer::GetPercentile(
   }
 
   if (weighted_observations.empty())
-    return absl::nullopt;
+    return std::nullopt;
 
   double desired_weight = percentile / 100.0 * total_weight;
 

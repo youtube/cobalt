@@ -6,8 +6,10 @@
 
 #include <map>
 #include <memory>
+#include <string_view>
 #include <utility>
 
+#include "base/base_paths.h"
 #include "base/base_switches.h"
 #include "base/command_line.h"
 #include "base/compiler_specific.h"
@@ -16,6 +18,7 @@
 #include "base/format_macros.h"
 #include "base/functional/bind.h"
 #include "base/functional/callback_helpers.h"
+#include "base/i18n/icu_util.h"
 #include "base/location.h"
 #include "base/logging.h"
 #include "base/message_loop/message_pump_type.h"
@@ -28,6 +31,7 @@
 #include "base/task/single_thread_task_runner.h"
 #include "base/test/allow_check_is_test_for_testing.h"
 #include "base/test/launcher/test_launcher.h"
+#include "base/test/scoped_block_tests_writing_to_special_dirs.h"
 #include "base/test/test_switches.h"
 #include "base/test/test_timeouts.h"
 #include "base/threading/thread_checker.h"
@@ -179,6 +183,9 @@ int RunTestSuite(RunTestSuiteCallback run_test_suite,
     return std::move(run_test_suite).Run();
   }
 
+  // ICU must be initialized before any attempts to format times, e.g. for logs.
+  CHECK(base::i18n::InitializeICU());
+
   if (CommandLine::ForCurrentProcess()->HasSwitch(switches::kHelpFlag)) {
     PrintUsage();
     return 0;
@@ -237,6 +244,22 @@ int LaunchUnitTestsInternal(RunTestSuiteCallback run_test_suite,
                                 std::move(gtest_init)));
   return RunTestsFromIOSApp();
 #else
+  ScopedBlockTestsWritingToSpecialDirs scoped_blocker(
+      {
+        // Please keep these in alphabetic order within each platform type.
+        base::DIR_SRC_TEST_DATA_ROOT, base::DIR_USER_DESKTOP,
+#if BUILDFLAG(IS_WIN)
+            base::DIR_COMMON_DESKTOP, base::DIR_START_MENU,
+            base::DIR_USER_STARTUP,
+
+#endif  // BUILDFLAG(IS_WIN)
+      },
+      ([](const base::FilePath& path) {
+        ADD_FAILURE()
+            << "Attempting to write file in dir " << path
+            << " Use ScopedPathOverride or other mechanism to not write to this"
+               " directory.";
+      }));
   return RunTestSuite(std::move(run_test_suite), parallel_jobs,
                       default_batch_limit, retry_limit, use_job_objects,
                       timeout_callback, std::move(gtest_init));
@@ -257,7 +280,7 @@ void InitGoogleTestWChar(int* argc, wchar_t** argv) {
 
 MergeTestFilterSwitchHandler::~MergeTestFilterSwitchHandler() = default;
 void MergeTestFilterSwitchHandler::ResolveDuplicate(
-    base::StringPiece key,
+    std::string_view key,
     CommandLine::StringPieceType new_value,
     CommandLine::StringType& out_value) {
   if (key != switches::kTestLauncherFilterFile) {
@@ -364,6 +387,15 @@ CommandLine DefaultUnitTestPlatformDelegate::GetCommandLineForChildGTestProcess(
   CommandLine new_cmd_line(*CommandLine::ForCurrentProcess());
 
   CHECK(base::PathExists(flag_file));
+
+  // Any `--gtest_filter` flag specified on the original command line is
+  // no longer needed; the test launcher has already determined the list
+  // of actual tests to run in each child process. Since the test launcher
+  // internally uses `--gtest_filter` via a flagfile to pass this info to
+  // the child process, remove any original `--gtest_filter` flags on the
+  // command line, as GoogleTest provides no guarantee about whether the
+  // command line or the flagfile takes precedence.
+  new_cmd_line.RemoveSwitch(kGTestFilterFlag);
 
   std::string long_flags(
       StrCat({"--", kGTestFilterFlag, "=", JoinString(test_names, ":")}));

@@ -8,20 +8,18 @@
 #include <stddef.h>
 #include <stdint.h>
 
+#include <optional>
 #include <string>
+#include <string_view>
 #include <vector>
 
+#include "base/compiler_specific.h"
 #include "base/containers/span.h"
+#include "base/containers/span_writer.h"
 #include "base/memory/scoped_refptr.h"
-#include "base/strings/string_piece.h"
 #include "net/base/net_export.h"
 #include "net/dns/dns_response_result_extractor.h"
 #include "net/dns/public/dns_protocol.h"
-#include "third_party/abseil-cpp/absl/types/optional.h"
-
-namespace base {
-class BigEndianWriter;
-}  // namespace base
 
 namespace net {
 
@@ -58,7 +56,7 @@ struct NET_EXPORT_PRIVATE DnsResourceRecord {
   uint16_t klass = 0;
   uint32_t ttl = 0;
   // Points to the original response buffer or otherwise to |owned_rdata|.
-  base::StringPiece rdata;
+  std::string_view rdata;
   // Used to construct a DnsResponse from data. This field is empty if |rdata|
   // points to the response buffer.
   std::string owned_rdata;
@@ -70,24 +68,29 @@ class NET_EXPORT_PRIVATE DnsRecordParser {
   // Construct an uninitialized iterator.
   DnsRecordParser();
 
-  // Construct an iterator to process the `packet` of given `length`.
+  // Construct an iterator to process the `packet`.
   // `offset` points to the beginning of the answer section. `ReadRecord()` will
   // fail if called more than `num_records` times, no matter whether or not
   // there is additional data at the end of the buffer that may appear to be a
   // valid record.
-  DnsRecordParser(const void* packet,
-                  size_t length,
+  DnsRecordParser(base::span<const uint8_t> packet,
                   size_t offset,
                   size_t num_records);
 
+  // TODO(crbug.com/40284755): Deprecated, use the span-based constructor.
+  UNSAFE_BUFFER_USAGE DnsRecordParser(const void* packet,
+                                      size_t length,
+                                      size_t offset,
+                                      size_t num_records);
+
   // Returns |true| if initialized.
-  bool IsValid() const { return packet_ != nullptr; }
+  bool IsValid() const { return !packet_.empty(); }
 
   // Returns |true| if no more bytes remain in the packet.
-  bool AtEnd() const { return cur_ == packet_ + length_; }
+  bool AtEnd() const { return cur_ == packet_.size(); }
 
   // Returns current offset into the packet.
-  size_t GetOffset() const { return cur_ - packet_; }
+  size_t GetOffset() const { return cur_; }
 
   // Parses a (possibly compressed) DNS name from the packet starting at
   // |pos|. Stores output (even partial) in |out| unless |out| is NULL. |out|
@@ -107,12 +110,11 @@ class NET_EXPORT_PRIVATE DnsRecordParser {
   bool ReadQuestion(std::string& out_dotted_qname, uint16_t& out_qtype);
 
  private:
-  const char* packet_ = nullptr;
-  size_t length_ = 0;
-  size_t num_records_ = 0;
-  size_t num_records_parsed_ = 0;
+  base::span<const uint8_t> packet_;
+  size_t num_records_ = 0u;
+  size_t num_records_parsed_ = 0u;
   // Current offset within the packet.
-  const char* cur_ = nullptr;
+  size_t cur_ = 0u;
 };
 
 // Buffer-holder for the DNS response allowing easy access to the header fields
@@ -135,7 +137,7 @@ class NET_EXPORT_PRIVATE DnsResponse {
               const std::vector<DnsResourceRecord>& answers,
               const std::vector<DnsResourceRecord>& authority_records,
               const std::vector<DnsResourceRecord>& additional_records,
-              const absl::optional<DnsQuery>& query,
+              const std::optional<DnsQuery>& query,
               uint8_t rcode = dns_protocol::kRcodeNOERROR,
               bool validate_records = true,
               bool validate_names_as_internet_hostnames = true);
@@ -182,7 +184,7 @@ class NET_EXPORT_PRIVATE DnsResponse {
   // nullopt if the ID is unknown. The ID will only be known if the response is
   // successfully constructed from data or if InitParse...() has been able to
   // parse at least as far as the ID (not necessarily a fully successful parse).
-  absl::optional<uint16_t> id() const;
+  std::optional<uint16_t> id() const;
 
   // Returns true if response is valid, that is, after successful InitParse, or
   // after successful construction of a new response from data.
@@ -214,7 +216,7 @@ class NET_EXPORT_PRIVATE DnsResponse {
   // used in cases where there is known to be exactly one question (e.g. because
   // that has been validated by `InitParse()`).
   uint16_t GetSingleQType() const;
-  base::StringPiece GetSingleDottedName() const;
+  std::string_view GetSingleDottedName() const;
 
   // Returns an iterator to the resource records in the answer section.
   // The iterator is valid only in the scope of the DnsResponse.
@@ -222,16 +224,16 @@ class NET_EXPORT_PRIVATE DnsResponse {
   DnsRecordParser Parser() const;
 
  private:
-  bool WriteHeader(base::BigEndianWriter* writer,
+  bool WriteHeader(base::SpanWriter<uint8_t>* writer,
                    const dns_protocol::Header& header);
-  bool WriteQuestion(base::BigEndianWriter* writer, const DnsQuery& query);
-  bool WriteRecord(base::BigEndianWriter* writer,
+  bool WriteQuestion(base::SpanWriter<uint8_t>* writer, const DnsQuery& query);
+  bool WriteRecord(base::SpanWriter<uint8_t>* writer,
                    const DnsResourceRecord& record,
                    bool validate_record,
                    bool validate_name_as_internet_hostname);
-  bool WriteAnswer(base::BigEndianWriter* writer,
+  bool WriteAnswer(base::SpanWriter<uint8_t>* writer,
                    const DnsResourceRecord& answer,
-                   const absl::optional<DnsQuery>& query,
+                   const std::optional<DnsQuery>& query,
                    bool validate_record,
                    bool validate_name_as_internet_hostname);
 

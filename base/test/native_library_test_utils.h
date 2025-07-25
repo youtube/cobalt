@@ -7,7 +7,7 @@
 
 #include "build/build_config.h"
 
-#if BUILDFLAG(IS_WIN) || defined(COMPILER_MSVC)
+#if BUILDFLAG(IS_WIN)
 #define NATIVE_LIBRARY_TEST_ALWAYS_EXPORT __declspec(dllexport)
 #else
 #define NATIVE_LIBRARY_TEST_ALWAYS_EXPORT __attribute__((visibility("default")))

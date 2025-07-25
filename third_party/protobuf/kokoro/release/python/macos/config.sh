@@ -1,17 +1,36 @@
 # Define custom utilities
 # Test for OSX with [ -n "$IS_OSX" ]
 
+function remove_travis_ve_pip {
+    # Removing the system virtualenv or pip can be very problematic for
+    # macOS on Kokoro, so just leave them be.
+    :;
+}
+
+function install_pip {
+    check_python
+    PIP_CMD="sudo $PYTHON_EXE -m pip${pip_args:+ $pip_args}"
+    $PIP_CMD install --upgrade pip
+}
+
+function install_virtualenv {
+    check_python
+    check_pip
+    $PIP_CMD install --upgrade virtualenv
+    VIRTUALENV_CMD="$PYTHON_EXE -m virtualenv"
+}
+
 function pre_build {
     # Any stuff that you need to do before you start building the wheels
     # Runs in the root directory of this repository.
     pushd protobuf
 
-    # Build protoc
-    ./autogen.sh
-    ./configure
-
-    CXXFLAGS="-std=c++14 -fPIC -g -O2" ./configure
-    make -j8
+    # Build protoc and protobuf libraries
+    bazel build //:protoc
+    export PROTOC=$PWD/bazel-bin/protoc
+    mkdir src/.libs
+    ln -s $PWD/bazel-bin/libprotobuf.a src/.libs/libprotobuf.a
+    ln -s $PWD/bazel-bin/libprotobuf_lite.a src/.libs/libprotobuf-lite.a
 
     # Generate python dependencies.
     pushd python

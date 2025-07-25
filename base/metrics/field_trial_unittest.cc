@@ -5,6 +5,8 @@
 #include "base/metrics/field_trial.h"
 
 #include <stddef.h>
+
+#include <string_view>
 #include <utility>
 
 #include "base/base_switches.h"
@@ -30,11 +32,12 @@
 #include "testing/gtest/include/gtest/gtest.h"
 #include "testing/multiprocess_func_list.h"
 
-#if !BUILDFLAG(IS_IOS)
+#if BUILDFLAG(USE_BLINK)
 #include "base/process/launch.h"
 #endif
 
-#if BUILDFLAG(IS_ANDROID)
+#if BUILDFLAG(IS_POSIX)
+#include "base/files/platform_file.h"
 #include "base/posix/global_descriptors.h"
 #endif
 
@@ -71,9 +74,9 @@ class TestFieldTrialObserver : public FieldTrialList::Observer {
 
   ~TestFieldTrialObserver() override { FieldTrialList::RemoveObserver(this); }
 
-  void OnFieldTrialGroupFinalized(const std::string& trial,
+  void OnFieldTrialGroupFinalized(const FieldTrial& trial,
                                   const std::string& group) override {
-    trial_name_ = trial;
+    trial_name_ = trial.trial_name();
     group_name_ = group;
   }
 
@@ -105,7 +108,7 @@ class FieldTrialObserverAccessingGroup : public FieldTrialList::Observer {
     FieldTrialList::RemoveObserver(this);
   }
 
-  void OnFieldTrialGroupFinalized(const std::string& trial,
+  void OnFieldTrialGroupFinalized(const base::FieldTrial& trial,
                                   const std::string& group) override {
     trial_to_access_->Activate();
   }
@@ -137,9 +140,9 @@ class TestFieldTrialObserverIncludingLowAnonymity
     FieldTrialListIncludingLowAnonymity::RemoveObserver(this);
   }
 
-  void OnFieldTrialGroupFinalized(const std::string& trial,
+  void OnFieldTrialGroupFinalized(const base::FieldTrial& trial,
                                   const std::string& group) override {
-    trial_name_ = trial;
+    trial_name_ = trial.trial_name();
     group_name_ = group;
   }
 
@@ -317,17 +320,6 @@ TEST_F(FieldTrialTest, ActiveGroups) {
   }
 }
 
-TEST_F(FieldTrialTest, GetActiveFieldTrialGroupsFromString) {
-  FieldTrial::ActiveGroups active_groups;
-  FieldTrialList::GetActiveFieldTrialGroupsFromString("*A/X/B/Y/*C/Z",
-                                                      &active_groups);
-  ASSERT_EQ(2U, active_groups.size());
-  EXPECT_EQ("A", active_groups[0].trial_name);
-  EXPECT_EQ("X", active_groups[0].group_name);
-  EXPECT_EQ("C", active_groups[1].trial_name);
-  EXPECT_EQ("Z", active_groups[1].group_name);
-}
-
 TEST_F(FieldTrialTest, ActiveGroupsNotFinalized) {
   const char kTrialName[] = "TestTrial";
   const char kSecondaryGroupName[] = "SecondaryGroup";
@@ -387,7 +379,7 @@ TEST_F(FieldTrialTest, SaveAll) {
       CreateFieldTrial("Some name", 10, "Default some name");
   EXPECT_EQ("", trial->group_name_internal());
   FieldTrialList::AllStatesToString(&save_string);
-  EXPECT_EQ("Some name/Default some name/", save_string);
+  EXPECT_EQ("Some name/Default some name", save_string);
   // Getting all states should have finalized the trial.
   EXPECT_EQ("Default some name", trial->group_name_internal());
   save_string.clear();
@@ -397,7 +389,7 @@ TEST_F(FieldTrialTest, SaveAll) {
   trial->AppendGroup("Winner", 10);
   trial->Activate();
   FieldTrialList::AllStatesToString(&save_string);
-  EXPECT_EQ("Some name/Default some name/*trial2/Winner/", save_string);
+  EXPECT_EQ("Some name/Default some name/*trial2/Winner", save_string);
   save_string.clear();
 
   // Create a second trial and winning group.
@@ -407,7 +399,7 @@ TEST_F(FieldTrialTest, SaveAll) {
 
   FieldTrialList::AllStatesToString(&save_string);
   // We assume names are alphabetized... though this is not critical.
-  EXPECT_EQ("Some name/Default some name/*trial2/Winner/*xxx/yyyy/",
+  EXPECT_EQ("Some name/Default some name/*trial2/Winner/*xxx/yyyy",
             save_string);
   save_string.clear();
 
@@ -415,12 +407,12 @@ TEST_F(FieldTrialTest, SaveAll) {
   scoped_refptr<FieldTrial> trial3 = CreateFieldTrial("zzz", 10, "default");
 
   FieldTrialList::AllStatesToString(&save_string);
-  EXPECT_EQ("Some name/Default some name/*trial2/Winner/*xxx/yyyy/zzz/default/",
+  EXPECT_EQ("Some name/Default some name/*trial2/Winner/*xxx/yyyy/zzz/default",
             save_string);
 
   save_string.clear();
   FieldTrialList::AllStatesToString(&save_string);
-  EXPECT_EQ("Some name/Default some name/*trial2/Winner/*xxx/yyyy/zzz/default/",
+  EXPECT_EQ("Some name/Default some name/*trial2/Winner/*xxx/yyyy/zzz/default",
             save_string);
 }
 
@@ -434,11 +426,13 @@ TEST_F(FieldTrialTest, Restore) {
   ASSERT_NE(static_cast<FieldTrial*>(nullptr), trial);
   EXPECT_EQ("Winner", trial->group_name());
   EXPECT_EQ("Some_name", trial->trial_name());
+  EXPECT_FALSE(trial->IsOverridden());
 
   trial = FieldTrialList::Find("xxx");
   ASSERT_NE(static_cast<FieldTrial*>(nullptr), trial);
   EXPECT_EQ("yyyy", trial->group_name());
   EXPECT_EQ("xxx", trial->trial_name());
+  EXPECT_FALSE(trial->IsOverridden());
 }
 
 TEST_F(FieldTrialTest, RestoreNotEndingWithSlash) {
@@ -466,7 +460,7 @@ TEST_F(FieldTrialTest, DuplicateRestore) {
   std::string save_string;
   FieldTrialList::AllStatesToString(&save_string);
   // * prefix since it is activated.
-  EXPECT_EQ("*Some name/Winner/", save_string);
+  EXPECT_EQ("*Some name/Winner", save_string);
 
   // It is OK if we redundantly specify a winner.
   EXPECT_TRUE(FieldTrialList::CreateTrialsFromString(save_string));
@@ -804,8 +798,9 @@ TEST_F(FieldTrialTest, FloatBoundariesGiveEqualGroupSizes) {
   for (int i = 0; i < kBucketCount; ++i) {
     const double entropy = i / static_cast<double>(kBucketCount);
 
-    scoped_refptr<FieldTrial> trial(new FieldTrial(
-        "test", kBucketCount, "default", entropy, /*is_low_anonymity=*/false));
+    scoped_refptr<FieldTrial> trial(
+        new FieldTrial("test", kBucketCount, "default", entropy,
+                       /*is_low_anonymity=*/false, /*is_overridden=*/false));
     for (int j = 0; j < kBucketCount; ++j)
       trial->AppendGroup(NumberToString(j), 1);
 
@@ -817,8 +812,9 @@ TEST_F(FieldTrialTest, DoesNotSurpassTotalProbability) {
   const double kEntropyValue = 1.0 - 1e-9;
   ASSERT_LT(kEntropyValue, 1.0);
 
-  scoped_refptr<FieldTrial> trial(new FieldTrial(
-      "test", 2, "default", kEntropyValue, /*is_low_anonymity=*/false));
+  scoped_refptr<FieldTrial> trial(
+      new FieldTrial("test", 2, "default", kEntropyValue,
+                     /*is_low_anonymity=*/false, /*is_overridden=*/false));
   trial->AppendGroup("1", 1);
   trial->AppendGroup("2", 1);
 
@@ -922,38 +918,6 @@ class FieldTrialListTest : public ::testing::Test {
  private:
   test::ScopedFeatureList scoped_feature_list_;
 };
-
-// TODO(b/298237462): Try to enable |FieldTrialList|.
-// TODO(b/316198056): Determine if tests should be enabled.
-#if !defined(COBALT_PENDING_CLEAN_UP)
-#if !BUILDFLAG(IS_IOS)
-// LaunchOptions is not available on iOS.
-TEST_F(FieldTrialListTest, TestCopyFieldTrialStateToFlags) {
-  test::ScopedFeatureList scoped_feature_list1;
-  scoped_feature_list1.InitWithEmptyFeatureAndFieldTrialLists();
-  std::unique_ptr<FeatureList> feature_list(new FeatureList);
-  feature_list->InitializeFromCommandLine("A,B", "C");
-
-  FieldTrial* trial = FieldTrialList::CreateFieldTrial("Trial1", "Group1");
-  feature_list->RegisterFieldTrialOverride(
-      "MyFeature", FeatureList::OVERRIDE_ENABLE_FEATURE, trial);
-
-  test::ScopedFeatureList scoped_feature_list2;
-  scoped_feature_list2.InitWithFeatureList(std::move(feature_list));
-
-  FilePath test_file_path = FilePath(FILE_PATH_LITERAL("Program"));
-  CommandLine command_line = CommandLine(test_file_path);
-  LaunchOptions launch_options;
-
-  FieldTrialList::PopulateLaunchOptionsWithFieldTrialState(&command_line,
-                                                           &launch_options);
-  EXPECT_TRUE(command_line.HasSwitch(switches::kFieldTrialHandle));
-
-  // Explicitly specified enabled/disabled features should be specified.
-  EXPECT_EQ("A,B", command_line.GetSwitchValueASCII(switches::kEnableFeatures));
-  EXPECT_EQ("C", command_line.GetSwitchValueASCII(switches::kDisableFeatures));
-}
-#endif  // !BUILDFLAG(IS_IOS)
 
 TEST_F(FieldTrialListTest, InstantiateAllocator) {
   test::ScopedFeatureList scoped_feature_list;
@@ -1120,7 +1084,7 @@ TEST_F(FieldTrialListTest, ClearParamsFromSharedMemory) {
   FieldTrialList::CreateTrialsFromSharedMemoryMapping(std::move(shm_mapping));
   std::string check_string;
   FieldTrialList::AllStatesToString(&check_string);
-  EXPECT_EQ("*Trial1/Group1/", check_string);
+  EXPECT_EQ("*Trial1/Group1", check_string);
 }
 
 TEST_F(FieldTrialListTest, DumpAndFetchFromSharedMemory) {
@@ -1132,6 +1096,8 @@ TEST_F(FieldTrialListTest, DumpAndFetchFromSharedMemory) {
   scoped_feature_list.InitWithEmptyFeatureAndFieldTrialLists();
 
   FieldTrialList::CreateFieldTrial(trial_name, group_name);
+  FieldTrialList::CreateFieldTrial("Trial2", "Group2", false,
+                                   /*is_overridden=*/true);
   std::map<std::string, std::string> params;
   params["key1"] = "value1";
   params["key2"] = "value2";
@@ -1152,83 +1118,117 @@ TEST_F(FieldTrialListTest, DumpAndFetchFromSharedMemory) {
       FieldTrialList::GetAllFieldTrialsFromPersistentAllocator(allocator);
 
   // Check that we have the entry we put in.
-  EXPECT_EQ(1u, entries.size());
-  const FieldTrial::FieldTrialEntry* entry = entries[0];
+  EXPECT_EQ(2u, entries.size());
+  const FieldTrial::FieldTrialEntry* entry1 = entries[0];
+  const FieldTrial::FieldTrialEntry* entry2 = entries[1];
 
-  // Check that the trial and group names match.
-  StringPiece shm_trial_name;
-  StringPiece shm_group_name;
-  entry->GetTrialAndGroupName(&shm_trial_name, &shm_group_name);
+  // Check that the trial information matches.
+  std::string_view shm_trial_name;
+  std::string_view shm_group_name;
+  bool overridden;
+  ASSERT_TRUE(entry1->GetState(shm_trial_name, shm_group_name, overridden));
   EXPECT_EQ(trial_name, shm_trial_name);
   EXPECT_EQ(group_name, shm_group_name);
+  EXPECT_FALSE(overridden);
 
   // Check that the params match.
   std::map<std::string, std::string> shm_params;
-  entry->GetParams(&shm_params);
+  entry1->GetParams(&shm_params);
   EXPECT_EQ(2u, shm_params.size());
   EXPECT_EQ("value1", shm_params["key1"]);
   EXPECT_EQ("value2", shm_params["key2"]);
+
+  ASSERT_TRUE(entry2->GetState(shm_trial_name, shm_group_name, overridden));
+  EXPECT_EQ("Trial2", shm_trial_name);
+  EXPECT_EQ("Group2", shm_group_name);
+  EXPECT_TRUE(overridden);
 }
 
-#if !BUILDFLAG(IS_NACL) && !BUILDFLAG(IS_IOS)
-MULTIPROCESS_TEST_MAIN(SerializeSharedMemoryRegionMetadata) {
-  std::string serialized =
-      CommandLine::ForCurrentProcess()->GetSwitchValueASCII("field_trials");
-  std::string guid_string =
-      CommandLine::ForCurrentProcess()->GetSwitchValueASCII("guid");
+#if BUILDFLAG(USE_BLINK)
 
-  int fd = 42;
-#if BUILDFLAG(IS_ANDROID)
-  fd = base::GlobalDescriptors::GetInstance()->MaybeGet(42);
-  CHECK_NE(fd, -1);
+#if BUILDFLAG(IS_POSIX) && !BUILDFLAG(IS_APPLE)
+constexpr GlobalDescriptors::Key kFDKey = 42;
 #endif
 
-  base::ReadOnlySharedMemoryRegion deserialized =
-      FieldTrialList::DeserializeSharedMemoryRegionMetadata(serialized, fd);
-  CHECK(deserialized.IsValid());
-  CHECK_EQ(deserialized.GetGUID().ToString(), guid_string);
-  CHECK(!deserialized.GetGUID().is_empty());
+BASE_FEATURE(kTestFeatureA, "TestFeatureA", base::FEATURE_DISABLED_BY_DEFAULT);
+BASE_FEATURE(kTestFeatureB, "TestFeatureB", base::FEATURE_ENABLED_BY_DEFAULT);
+BASE_FEATURE(kTestFeatureC, "TestFeatureC", base::FEATURE_ENABLED_BY_DEFAULT);
 
+MULTIPROCESS_TEST_MAIN(CreateTrialsInChildProcess) {
+#if BUILDFLAG(IS_POSIX) && !BUILDFLAG(IS_APPLE) && !BUILDFLAG(IS_ANDROID)
+  // Since the fd value will be mapped from the global descriptors singleton,
+  // set it there. We use the same value both for the key and the actual fd for
+  // simplicity.
+  // Note: On Android, the launch service already sets up the mapping.
+  base::GlobalDescriptors::GetInstance()->Set(kFDKey, kFDKey);
+#endif
+
+  // Create and populate the field trial list singleton.
+  FieldTrialList field_trial_list;
+  FieldTrialList::CreateTrialsInChildProcess(*CommandLine::ForCurrentProcess());
+
+  // Create and populate the feature list singleton.
+  auto feature_list = std::make_unique<FeatureList>();
+  base::FieldTrialList::ApplyFeatureOverridesInChildProcess(feature_list.get());
+  FeatureList::SetInstance(std::move(feature_list));
+
+  // Validate the expected field trial and feaure state
+  CHECK_EQ("Group1", FieldTrialList::FindFullName("Trial1"));
+  CHECK(FeatureList::IsEnabled(kTestFeatureA));
+  CHECK(!FeatureList::IsEnabled(kTestFeatureB));
+  CHECK(!FeatureList::IsEnabled(kTestFeatureC));
   return 0;
 }
 
-TEST_F(FieldTrialListTest, SerializeSharedMemoryRegionMetadata) {
-  base::MappedReadOnlyRegion shm =
-      base::ReadOnlySharedMemoryRegion::Create(4 << 10);
-  ASSERT_TRUE(shm.IsValid());
+#if !BUILDFLAG(IS_IOS)
+TEST_F(FieldTrialListTest, PassFieldTrialSharedMemoryOnCommandLine) {
+  // Setup some field trial state.
+  test::ScopedFeatureList scoped_feature_list1;
+  scoped_feature_list1.InitWithEmptyFeatureAndFieldTrialLists();
+  std::unique_ptr<FeatureList> feature_list(new FeatureList);
+  feature_list->InitFromCommandLine(kTestFeatureA.name, kTestFeatureB.name);
+  FieldTrial* trial = FieldTrialList::CreateFieldTrial("Trial1", "Group1");
+  feature_list->RegisterFieldTrialOverride(
+      kTestFeatureC.name, FeatureList::OVERRIDE_DISABLE_FEATURE, trial);
+  test::ScopedFeatureList scoped_feature_list2;
+  scoped_feature_list2.InitWithFeatureList(std::move(feature_list));
 
-  LaunchOptions options;
-  std::string serialized =
-      FieldTrialList::SerializeSharedMemoryRegionMetadata(shm.region, &options);
+  // Prepare to launch a child process.
+  CommandLine command_line = GetMultiProcessTestChildBaseCommandLine();
+  LaunchOptions launch_options;
+#if BUILDFLAG(IS_POSIX) && !BUILDFLAG(IS_APPLE)
+  ScopedFD fd_to_share;
+#endif
+  FieldTrialList::PopulateLaunchOptionsWithFieldTrialState(
+#if BUILDFLAG(IS_POSIX) && !BUILDFLAG(IS_APPLE)
+      kFDKey, fd_to_share,
+#endif
+      &command_line, &launch_options);
+#if BUILDFLAG(IS_POSIX) && !BUILDFLAG(IS_APPLE)
+  launch_options.fds_to_remap.emplace_back(fd_to_share.get(), kFDKey);
+#endif  // BUILDFLAG(IS_POSIX) && !BUILDFLAG(IS_APPLE)
 
-#if BUILDFLAG(IS_POSIX) && !BUILDFLAG(IS_MAC)
-#if BUILDFLAG(IS_ANDROID)
-  int shm_fd = shm.region.GetPlatformHandle();
-#else
-  int shm_fd = shm.region.GetPlatformHandle().fd;
-#endif  // BUILDFLAG(IS_ANDROID)
-  // Pick an arbitrary FD number to use for the shmem FD in the child.
-  options.fds_to_remap.emplace_back(std::make_pair(shm_fd, 42));
-#endif  // BUILDFLAG(IS_POSIX) && !BUILDFLAG(IS_MAC)
+  // The shared memory handle should be specified.
+  EXPECT_TRUE(command_line.HasSwitch(switches::kFieldTrialHandle));
 
-  CommandLine cmd_line = GetMultiProcessTestChildBaseCommandLine();
-  cmd_line.AppendSwitchASCII("field_trials", serialized);
-  cmd_line.AppendSwitchASCII("guid", shm.region.GetGUID().ToString());
+  // Explicitly specified enabled/disabled features should be specified.
+  EXPECT_EQ(kTestFeatureA.name,
+            command_line.GetSwitchValueASCII(switches::kEnableFeatures));
+  EXPECT_EQ(kTestFeatureB.name,
+            command_line.GetSwitchValueASCII(switches::kDisableFeatures));
 
-  Process process = SpawnMultiProcessTestChild(
-      "SerializeSharedMemoryRegionMetadata", cmd_line, options);
-
-  int exit_code;
+  // Run the child.
+  Process process = SpawnMultiProcessTestChild("CreateTrialsInChildProcess",
+                                               command_line, launch_options);
+  int exit_code = -1;
   EXPECT_TRUE(WaitForMultiprocessTestChildExit(
       process, TestTimeouts::action_timeout(), &exit_code));
   EXPECT_EQ(0, exit_code);
 }
-#endif  // !BUILDFLAG(IS_NACL) && !BUILDFLAG(IS_IOS)
+#endif
 
 // Verify that the field trial shared memory handle is really read-only, and
-// does not allow writable mappings. Test disabled on NaCl, Fuchsia, and Mac,
-// which don't support/implement shared memory configuration.
-#if !BUILDFLAG(IS_NACL) && !BUILDFLAG(IS_MAC)
+// does not allow writable mappings.
 TEST_F(FieldTrialListTest, CheckReadOnlySharedMemoryRegion) {
   test::ScopedFeatureList scoped_feature_list;
   scoped_feature_list.InitWithEmptyFeatureAndFieldTrialLists();
@@ -1245,7 +1245,7 @@ TEST_F(FieldTrialListTest, CheckReadOnlySharedMemoryRegion) {
       base::ReadOnlySharedMemoryRegion::TakeHandleForSerialization(
           std::move(region))));
 }
-#endif  // !BUILDFLAG(IS_NACL) && !BUILDFLAG(IS_MAC)
+#endif  // BUILDFLAG(USE_BLINK)
 
 TEST_F(FieldTrialListTest, TestGetRandomizedFieldTrialCount) {
   EXPECT_EQ(0u, FieldTrialList::GetFieldTrialCount());
@@ -1294,7 +1294,6 @@ TEST_F(FieldTrialListTest, TestGetRandomizedFieldTrialCount) {
 
   // Note: FieldTrialList should delete the objects at shutdown.
 }
-#endif  // !defined(COBALT_PENDING_CLEAN_UP)
 
 TEST_F(FieldTrialTest, TestAllParamsToString) {
   std::string exptected_output = "t1.g1:p1/v1/p2/v2";
@@ -1372,6 +1371,74 @@ TEST_F(FieldTrialTest, ObserveIncludingLowAnonymity) {
   EXPECT_EQ("", observer.group_name());
   EXPECT_EQ(kTrialName, low_anonymity_observer.trial_name());
   EXPECT_EQ(kDefaultGroupName, low_anonymity_observer.group_name());
+}
+
+TEST_F(FieldTrialTest, ParseFieldTrialsString) {
+  std::vector<FieldTrial::State> entries;
+  ASSERT_TRUE(FieldTrial::ParseFieldTrialsString(
+      "Trial1/Group1", /*override_trials=*/false, entries));
+
+  ASSERT_EQ(entries.size(), 1ul);
+  const FieldTrial::State& entry = entries[0];
+  EXPECT_EQ("Trial1", entry.trial_name);
+  EXPECT_EQ("Group1", entry.group_name);
+  EXPECT_EQ(false, entry.activated);
+  EXPECT_EQ(false, entry.is_overridden);
+}
+
+TEST_F(FieldTrialTest, ParseFieldTrialsStringTwoStudies) {
+  std::vector<FieldTrial::State> entries;
+  ASSERT_TRUE(FieldTrial::ParseFieldTrialsString(
+      "Trial1/Group1/*Trial2/Group2/", /*override_trials=*/false, entries));
+
+  ASSERT_EQ(entries.size(), 2ul);
+  const FieldTrial::State& entry1 = entries[0];
+  EXPECT_EQ("Trial1", entry1.trial_name);
+  EXPECT_EQ("Group1", entry1.group_name);
+  EXPECT_EQ(false, entry1.activated);
+  EXPECT_EQ(false, entry1.is_overridden);
+
+  const FieldTrial::State& entry2 = entries[1];
+  EXPECT_EQ("Trial2", entry2.trial_name);
+  EXPECT_EQ("Group2", entry2.group_name);
+  EXPECT_EQ(true, entry2.activated);
+  EXPECT_EQ(false, entry2.is_overridden);
+}
+
+TEST_F(FieldTrialTest, ParseFieldTrialsStringEmpty) {
+  std::vector<FieldTrial::State> entries;
+  ASSERT_TRUE(FieldTrial::ParseFieldTrialsString("", /*override_trials=*/false,
+                                                 entries));
+
+  ASSERT_EQ(entries.size(), 0ul);
+}
+
+TEST_F(FieldTrialTest, ParseFieldTrialsStringInvalid) {
+  std::vector<FieldTrial::State> entries;
+  EXPECT_FALSE(FieldTrial::ParseFieldTrialsString(
+      "A/", /*override_trials=*/false, entries));
+  EXPECT_FALSE(FieldTrial::ParseFieldTrialsString(
+      "/A", /*override_trials=*/false, entries));
+  EXPECT_FALSE(FieldTrial::ParseFieldTrialsString(
+      "//", /*override_trials=*/false, entries));
+  EXPECT_FALSE(FieldTrial::ParseFieldTrialsString(
+      "///", /*override_trials=*/false, entries));
+}
+
+TEST_F(FieldTrialTest, BuildFieldTrialStateString) {
+  FieldTrial::State state1;
+  state1.trial_name = "Trial";
+  state1.group_name = "Group";
+  state1.activated = false;
+
+  FieldTrial::State state2;
+  state2.trial_name = "Foo";
+  state2.group_name = "Bar";
+  state2.activated = true;
+
+  EXPECT_EQ("Trial/Group", FieldTrial::BuildFieldTrialStateString({state1}));
+  EXPECT_EQ("Trial/Group/*Foo/Bar",
+            FieldTrial::BuildFieldTrialStateString({state1, state2}));
 }
 
 }  // namespace base

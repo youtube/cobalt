@@ -7,13 +7,14 @@
 #include <dlfcn.h>
 #include <mach-o/getsect.h>
 
+#include "base/apple/scoped_cftyperef.h"
 #include "base/files/file_path.h"
 #include "base/files/file_util.h"
 #include "base/logging.h"
-#include "base/mac/scoped_cftyperef.h"
 #include "base/strings/strcat.h"
 #include "base/strings/string_piece.h"
 #include "base/strings/string_util.h"
+#include "base/strings/sys_string_conversions.h"
 #include "base/strings/utf_string_conversions.h"
 #include "base/threading/thread_restrictions.h"
 
@@ -64,7 +65,7 @@ NativeLibrary LoadNativeLibraryWithOptions(const FilePath& library_path,
     native_lib->objc_status = OBJC_UNKNOWN;
     return native_lib;
   }
-  ScopedCFTypeRef<CFURLRef> url(CFURLCreateFromFileSystemRepresentation(
+  apple::ScopedCFTypeRef<CFURLRef> url(CFURLCreateFromFileSystemRepresentation(
       kCFAllocatorDefault, (const UInt8*)library_path.value().c_str(),
       checked_cast<CFIndex>(library_path.value().length()), true));
   if (!url)
@@ -98,17 +99,17 @@ void UnloadNativeLibrary(NativeLibrary library) {
 }
 
 void* GetFunctionPointerFromNativeLibrary(NativeLibrary library,
-                                          StringPiece name) {
+                                          const char* name) {
   void* function_pointer = nullptr;
 
   // Get the function pointer using the right API for the type.
   if (library->type == BUNDLE) {
-    ScopedCFTypeRef<CFStringRef> symbol_name(CFStringCreateWithCString(
-        kCFAllocatorDefault, name.data(), kCFStringEncodingUTF8));
-    function_pointer = CFBundleGetFunctionPointerForName(library->bundle,
-                                                         symbol_name);
+    apple::ScopedCFTypeRef<CFStringRef> symbol_name =
+        SysUTF8ToCFStringRef(name);
+    function_pointer =
+        CFBundleGetFunctionPointerForName(library->bundle, symbol_name.get());
   } else {
-    function_pointer = dlsym(library->dylib, name.data());
+    function_pointer = dlsym(library->dylib, name);
   }
 
   // If this library hasn't been tested for having ObjC, use the function

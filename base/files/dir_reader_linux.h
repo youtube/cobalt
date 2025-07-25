@@ -2,6 +2,11 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#ifdef UNSAFE_BUFFERS_BUILD
+// TODO(crbug.com/40284755): Remove this and spanify to fix the errors.
+#pragma allow_unsafe_buffers
+#endif
+
 #ifndef BASE_FILES_DIR_READER_LINUX_H_
 #define BASE_FILES_DIR_READER_LINUX_H_
 
@@ -65,7 +70,9 @@ class DirReaderLinux {
     if (r == 0)
       return false;
     if (r < 0) {
-      DPLOG(FATAL) << "getdents64 failed";
+      if (errno != ENOENT) {
+        DPLOG(FATAL) << "getdents64 failed";
+      }
       return false;
     }
     size_ = static_cast<size_t>(r);

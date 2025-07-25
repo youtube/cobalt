@@ -9,12 +9,12 @@
 
 #include "base/logging.h"
 #include "base/memory/raw_ptr.h"
+#include "base/memory/weak_ptr.h"
 #include "base/task/sequenced_task_runner.h"
 #include "base/task/single_thread_task_runner.h"
 #include "base/threading/thread_checker.h"
 #include "build/build_config.h"
 #include "gpu/command_buffer/common/scheduling_priority.h"
-#include "gpu/command_buffer/service/decoder_context.h"
 #include "gpu/command_buffer/service/scheduler.h"
 #include "gpu/command_buffer/service/shared_image/shared_image_backing.h"
 #include "gpu/command_buffer/service/shared_image/shared_image_representation.h"
@@ -153,93 +153,10 @@ class CommandBufferHelperImpl
         ->Register(std::move(backing), &memory_type_tracker_);
   }
 
-  gpu::TextureBase* GetTexture(GLuint service_id) const override {
-    DVLOG(2) << __func__ << "(" << service_id << ")";
-    DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
-    DCHECK(stub_->decoder_context()->GetGLContext()->IsCurrent(nullptr));
-    DCHECK(textures_.count(service_id));
-    return textures_.at(service_id)->GetTextureBase();
-  }
-
-  GLuint CreateTexture(GLenum target,
-                       GLenum internal_format,
-                       GLsizei width,
-                       GLsizei height,
-                       GLenum format,
-                       GLenum type) override {
-    DVLOG(2) << __func__;
-    DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
-    DCHECK(stub_->decoder_context()->GetGLContext()->IsCurrent(nullptr));
-
-    std::unique_ptr<gpu::gles2::AbstractTexture> texture =
-        decoder_helper_->CreateTexture(target, internal_format, width, height,
-                                       format, type);
-    GLuint service_id = texture->service_id();
-    textures_[service_id] = std::move(texture);
-    return service_id;
-  }
-
-  void DestroyTexture(GLuint service_id) override {
-    DVLOG(2) << __func__ << "(" << service_id << ")";
-    DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
-    DCHECK(stub_->decoder_context()->GetGLContext()->IsCurrent(nullptr));
-    DCHECK(textures_.count(service_id));
-
-    textures_.erase(service_id);
-  }
-
-  void SetCleared(GLuint service_id) override {
-    DVLOG(2) << __func__ << "(" << service_id << ")";
-    DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
-
-    DCHECK(textures_.count(service_id));
-    textures_[service_id]->SetCleared();
-  }
-
-#if BUILDFLAG(IS_WIN) || BUILDFLAG(IS_APPLE)
-  bool BindDecoderManagedImage(GLuint service_id, gl::GLImage* image) override {
-    DVLOG(2) << __func__ << "(" << service_id << ")";
-    DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
-
-    DCHECK(textures_.count(service_id));
-    textures_[service_id]->SetUnboundImage(image);
-    return true;
-  }
-#else
-  bool BindClientManagedImage(GLuint service_id, gl::GLImage* image) override {
-    DVLOG(2) << __func__ << "(" << service_id << ")";
-    DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
-
-    DCHECK(textures_.count(service_id));
-    textures_[service_id]->SetBoundImage(image);
-    return true;
-  }
-#endif
-
- private:
-  gpu::Mailbox CreateLegacyMailbox(GLuint service_id) override {
-    DVLOG(2) << __func__ << "(" << service_id << ")";
-    DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
-
-    if (!decoder_helper_)
-      return gpu::Mailbox();
-
-    DCHECK(textures_.count(service_id));
-    return decoder_helper_->CreateLegacyMailbox(textures_[service_id].get());
-  }
-
  public:
   void AddWillDestroyStubCB(WillDestroyStubCB callback) override {
     DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
     will_destroy_stub_callbacks_.push_back(std::move(callback));
-  }
-
-  bool IsPassthrough() const override {
-    if (!stub_)
-      return false;
-    return stub_->decoder_context()
-        ->GetFeatureInfo()
-        ->is_passthrough_cmd_decoder();
   }
 
   bool SupportsTextureRectangle() const override {
@@ -310,15 +227,19 @@ class CommandBufferHelperImpl
     DVLOG(1) << __func__;
     DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
 
-    // In case |will_destroy_stub_cb_| drops the last reference to |this|, make
-    // sure that we're around a bit longer.
-    scoped_refptr<CommandBufferHelper> thiz(this);
+    // In case any of the |will_destroy_stub_callbacks_| drops the last
+    // reference to |this|, use a weak ptr to check if |this| is still alive.
+    auto weak_ptr = weak_ptr_factory_.GetWeakPtr();
 
-    for (auto& callback : will_destroy_stub_callbacks_) {
+    // Save callbacks in case |this| gets destroyed while running callbacks.
+    auto callbacks = std::move(will_destroy_stub_callbacks_);
+    for (auto& callback : callbacks) {
       std::move(callback).Run(have_context);
     }
 
-    DestroyStub();
+    if (weak_ptr && weak_ptr->stub_) {
+      weak_ptr->DestroyStub();
+    }
   }
 
   void DestroyStub() {
@@ -347,7 +268,6 @@ class CommandBufferHelperImpl
   // TODO(sandersd): Merge GLES2DecoderHelper implementation into this class.
   std::unique_ptr<GLES2DecoderHelper> decoder_helper_;
 #endif
-  std::map<GLuint, std::unique_ptr<gpu::gles2::AbstractTexture>> textures_;
 
   std::vector<WillDestroyStubCB> will_destroy_stub_callbacks_;
 
@@ -355,6 +275,8 @@ class CommandBufferHelperImpl
   gpu::MemoryTypeTracker memory_type_tracker_;
 
   THREAD_CHECKER(thread_checker_);
+
+  base::WeakPtrFactory<CommandBufferHelperImpl> weak_ptr_factory_{this};
 };
 
 CommandBufferHelper::CommandBufferHelper(

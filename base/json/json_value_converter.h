@@ -9,13 +9,13 @@
 
 #include <memory>
 #include <string>
+#include <string_view>
 #include <utility>
 #include <vector>
 
 #include "base/base_export.h"
 #include "base/logging.h"
 #include "base/memory/ptr_util.h"
-#include "base/strings/string_piece.h"
 #include "base/values.h"
 
 // JSONValueConverter converts a JSON value into a C++ struct in a
@@ -70,8 +70,8 @@
 //
 // Sometimes JSON format uses string representations for other types such
 // like enum, timestamp, or URL.  You can use RegisterCustomField method
-// and specify a function to convert a StringPiece to your type.
-//   bool ConvertFunc(StringPiece s, YourEnum* result) {
+// and specify a function to convert a std::string_view to your type.
+//   bool ConvertFunc(std::string_view s, YourEnum* result) {
 //     // do something and return true if succeed...
 //   }
 //   struct Message {
@@ -219,7 +219,7 @@ class ValueFieldConverter : public ValueConverter<FieldType> {
 template <typename FieldType>
 class CustomFieldConverter : public ValueConverter<FieldType> {
  public:
-  typedef bool (*ConvertFunc)(StringPiece value, FieldType* field);
+  typedef bool (*ConvertFunc)(std::string_view value, FieldType* field);
 
   explicit CustomFieldConverter(ConvertFunc convert_func)
       : convert_func_(convert_func) {}
@@ -415,7 +415,7 @@ class JSONValueConverter {
   template <typename FieldType>
   void RegisterCustomField(const std::string& field_name,
                            FieldType StructType::*field,
-                           bool (*convert_func)(StringPiece, FieldType*)) {
+                           bool (*convert_func)(std::string_view, FieldType*)) {
     fields_.push_back(
         std::make_unique<internal::FieldConverter<StructType, FieldType>>(
             field_name, field,
@@ -502,15 +502,19 @@ class JSONValueConverter {
   }
 
   bool Convert(const base::Value& value, StructType* output) const {
-    const Value::Dict* dict = value.GetIfDict();
+    const base::Value::Dict* dict = value.GetIfDict();
     if (!dict)
       return false;
 
+    return Convert(*dict, output);
+  }
+
+  bool Convert(const base::Value::Dict& dict, StructType* output) const {
     for (size_t i = 0; i < fields_.size(); ++i) {
       const internal::FieldConverterBase<StructType>* field_converter =
           fields_[i].get();
       const base::Value* field =
-          dict->FindByDottedPath(field_converter->field_path());
+          dict.FindByDottedPath(field_converter->field_path());
       if (field) {
         if (!field_converter->ConvertField(*field, output)) {
           DVLOG(1) << "failure at field " << field_converter->field_path();

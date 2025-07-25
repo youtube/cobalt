@@ -4,6 +4,8 @@
 
 #include "net/socket/stream_socket.h"
 
+#include <string_view>
+
 #include "base/notreached.h"
 
 namespace net {
@@ -13,9 +15,9 @@ void StreamSocket::SetBeforeConnectCallback(
   NOTREACHED();
 }
 
-absl::optional<base::StringPiece> StreamSocket::GetPeerApplicationSettings()
+std::optional<std::string_view> StreamSocket::GetPeerApplicationSettings()
     const {
-  return absl::nullopt;
+  return std::nullopt;
 }
 
 void StreamSocket::GetSSLCertRequestInfo(
