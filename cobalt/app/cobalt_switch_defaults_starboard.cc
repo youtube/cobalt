@@ -16,10 +16,10 @@
 
 #include "base/base_switches.h"
 #include "base/files/file_path.h"
-#include "chrome/common/chrome_switches.h"
 #include "cobalt/browser/switches.h"
 #include "cobalt/shell/common/shell_switches.h"
 #include "content/public/common/content_switches.h"
+#include "gpu/command_buffer/service/gpu_switches.h"
 #include "gpu/config/gpu_switches.h"
 #include "media/base/media_switches.h"
 #include "sandbox/policy/switches.h"
@@ -41,10 +41,8 @@ namespace {
 
 // List of toggleable default switches.
 static constexpr auto kCobaltToggleSwitches = std::to_array<const char*>({
-  // Disable first run experience, kiosk, etc.
-  "disable-fre", switches::kNoFirstRun, switches::kKioskMode,
-      // Enable Blink to work in overlay video mode
-      switches::kForceVideoOverlays,
+  // Enable Blink to work in overlay video mode
+  switches::kForceVideoOverlays,
       // Disable multiprocess mode.
       switches::kSingleProcess,
       // Accelerated GL is blanket disabled for Linux. Ignore the GPU blocklist
@@ -63,8 +61,16 @@ const base::CommandLine::SwitchMap GetCobaltParamSwitchDefaults() {
   const base::CommandLine::SwitchMap cobalt_param_switch_defaults({
     // Disable Vulkan.
     {switches::kDisableFeatures, "Vulkan"},
-        // Enable LimitImageDecodeCacheSize, and set its limit to 32 mbytes.
-        {switches::kEnableFeatures, "LimitImageDecodeCacheSize:mb/32"},
+        // The Renderer Compositor (a.k.a. "cc" see //docs/how_cc_works.md) has
+        // two important parts re. memory consumption, one is the image decode
+        // cache whose size is specified by the LimitImageDecodeCacheSize flag
+        // and the tile manager cache of rasterized content (i.e. content that
+        // has been rastered already or pre-rastered and is kept for later fast
+        // (re)use) that can be overwritten with the kForceGpuMemAvailableMb
+        // switch.
+        // TODO(mcasas): Ideally configure depending on policy.
+        {switches::kForceGpuMemAvailableMb, "32"},
+        {switches::kEnableFeatures, "LimitImageDecodeCacheSize:mb/24"},
     // Force some ozone settings.
 #if BUILDFLAG(IS_OZONE)
         {switches::kUseGL, "angle"}, {switches::kUseANGLE, "gles-egl"},
@@ -123,10 +129,10 @@ CommandLinePreprocessor::CommandLinePreprocessor(int argc,
   }
 
   // Ensure the window size configs are consistent wherever they are set.
-  if (cmd_line_.HasSwitch(::switches::kWindowSize)) {
+  if (cmd_line_.HasSwitch(switches::kWindowSize)) {
     // --window-size takes priority over other window-size configs.
     const auto window_size =
-        cmd_line_.GetSwitchValueASCII(::switches::kWindowSize);
+        cmd_line_.GetSwitchValueASCII(switches::kWindowSize);
     cmd_line_.AppendSwitchASCII(::switches::kContentShellHostWindowSize,
                                 window_size);
   }
