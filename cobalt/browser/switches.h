@@ -35,6 +35,9 @@ constexpr char kInitialURL[] = "url";
 constexpr char kEnforceCSP[] = "csp-enforcement";
 constexpr char kEnforceHTTPS[] = "https-enforcement";
 
+// Specify the initial window size: --window-size=w,h
+constexpr char kWindowSize[] = "window-size";
+
 // Exposes the window.internals object to JavaScript for interactive development
 // and debugging of web tests that rely on it.
 constexpr char kExposeInternalsForTesting[] = "expose-internals-for-testing";
