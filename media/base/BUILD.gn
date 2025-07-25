@@ -470,6 +470,10 @@ source_set("base") {
         "starboard/starboard_renderer_config.h",
         "starboard/starboard_rendering_mode.h"
     ]
+
+    deps += [
+      "//starboard:starboard_group",
+    ]
   } else if (is_android) {
     sources += [ "demuxer_memory_limit_android.cc" ]
   } else if (is_castos) {
@@ -487,12 +491,6 @@ source_set("base") {
       "media_drm_key_type.h",
       "media_drm_storage.cc",
       "media_drm_storage.h",
-    ]
-  }
-
-  if (is_cobalt && use_starboard_media) {
-    deps += [
-      "//starboard($starboard_toolchain)",
     ]
   }
 }
