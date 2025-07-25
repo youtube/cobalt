@@ -1,0 +1,1 @@
+This tests that javascript: urls in an object tag do not get executed.

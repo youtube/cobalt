@@ -53,6 +53,7 @@
 #include "net/http/http_request_headers.h"
 #include "net/http/http_request_info.h"
 #include "net/http/http_response_headers.h"
+#include "net/http/http_response_headers_test_util.h"
 #include "net/http/http_response_info.h"
 #include "net/http/http_transaction.h"
 #include "net/http/http_transaction_test_util.h"
@@ -98,33 +99,7 @@ class WebSocketEndpointLockManager;
 
 namespace {
 
-// Returns a simple text serialization of the given
-// |HttpResponseHeaders|. This is used by tests to verify that an
-// |HttpResponseHeaders| matches an expectation string.
-//
-//  * One line per header, written as:
-//        HEADER_NAME: HEADER_VALUE\n
-//  * The original case of header names is preserved.
-//  * Whitespace around head names/values is stripped.
-//  * Repeated headers are not aggregated.
-//  * Headers are listed in their original order.
-// TODO(tfarina): this is a duplicate function from
-// http_response_headers_unittest.cc:ToSimpleString(). Figure out how to merge
-// them. crbug.com/488593
-std::string ToSimpleString(const scoped_refptr<HttpResponseHeaders>& parsed) {
-  std::string result = parsed->GetStatusLine() + "\n";
-
-  size_t iter = 0;
-  std::string name;
-  std::string value;
-  while (parsed->EnumerateHeaderLines(&iter, &name, &value)) {
-    std::string new_line = name + ": " + value + "\n";
-
-    result += new_line;
-  }
-
-  return result;
-}
+constexpr auto ToSimpleString = test::HttpResponseHeadersToSimpleString;
 
 // Tests the load timing values of a request that goes through a
 // MockNetworkTransaction.
@@ -781,6 +756,7 @@ std::string GenerateCacheKey(const std::string& url) {
 }  // namespace
 
 using HttpCacheTest = TestWithTaskEnvironment;
+
 class HttpCacheIOCallbackTest : public HttpCacheTest {
  public:
   HttpCacheIOCallbackTest() = default;
@@ -1090,11 +1066,11 @@ TEST_F(HttpCacheTest,
 
 // This test verifies that when the callback passed to SetConnectedCallback()
 // returns
-// `ERR_CACHED_IP_ADDRESS_SPACE_BLOCKED_BY_LOCAL_NETWORK_ACCESS_POLICY`, the
+// `ERR_CACHED_IP_ADDRESS_SPACE_BLOCKED_BY_PRIVATE_NETWORK_ACCESS_POLICY`, the
 // cache entry is invalidated, and we'll retry the connection from the network.
 TEST_F(
     HttpCacheTest,
-    SimpleGET_ConnectedCallbackOnCacheHitReturnLocalNetworkAccessBlockedError) {
+    SimpleGET_ConnectedCallbackOnCacheHitReturnPrivateNetworkAccessBlockedError) {
   MockHttpCache cache;
 
   ScopedMockTransaction mock_transaction(kSimpleGET_Transaction);
@@ -1110,7 +1086,7 @@ TEST_F(
     // connected callback error.
     ConnectedHandler connected_handler;
     connected_handler.set_result(
-        ERR_CACHED_IP_ADDRESS_SPACE_BLOCKED_BY_LOCAL_NETWORK_ACCESS_POLICY);
+        ERR_CACHED_IP_ADDRESS_SPACE_BLOCKED_BY_PRIVATE_NETWORK_ACCESS_POLICY);
 
     std::unique_ptr<HttpTransaction> transaction;
     EXPECT_THAT(cache.CreateTransaction(&transaction), IsOk());
@@ -1125,7 +1101,7 @@ TEST_F(
     EXPECT_THAT(
         callback.WaitForResult(),
         IsError(
-            ERR_CACHED_IP_ADDRESS_SPACE_BLOCKED_BY_LOCAL_NETWORK_ACCESS_POLICY));
+            ERR_CACHED_IP_ADDRESS_SPACE_BLOCKED_BY_PRIVATE_NETWORK_ACCESS_POLICY));
 
     // Used the cache entry only.
     EXPECT_THAT(connected_handler.transports(),
@@ -1203,10 +1179,32 @@ TEST_F(HttpCacheTest, SimpleGET_ConnectedCallbackOnCacheHitFromProxy) {
               ElementsAre(expected_transport_info));
 }
 
+TEST_F(HttpCacheTest, SimpleGET_DelayedCacheLock) {
+  MockHttpCache cache;
+  LoadTimingInfo load_timing_info;
+
+  // Configure the cache to delay the response for AddTransactionToEntry so it
+  // gets sequenced behind any other tasks that get generated when starting the
+  // transaction (i.e. network activity when run in parallel with the cache
+  // lock).
+  cache.http_cache()->DelayAddTransactionToEntryForTesting();
+
+  // Write to the cache.
+  RunTransactionTestAndGetTiming(cache.http_cache(), kSimpleGET_Transaction,
+                                 NetLogWithSource::Make(NetLogSourceType::NONE),
+                                 &load_timing_info);
+
+  EXPECT_EQ(1, cache.network_layer()->transaction_count());
+  EXPECT_EQ(0, cache.disk_cache()->open_count());
+  EXPECT_EQ(1, cache.disk_cache()->create_count());
+  TestLoadTimingNetworkRequest(load_timing_info);
+}
+
 enum class SplitCacheTestCase {
   kSplitCacheDisabled,
   kSplitCacheNikFrameSiteEnabled,
   kSplitCacheNikCrossSiteFlagEnabled,
+  kSplitCacheNikFrameSiteSharedOpaqueEnabled,
 };
 
 void InitializeSplitCacheScopedFeatureList(
@@ -1229,6 +1227,15 @@ void InitializeSplitCacheScopedFeatureList(
     disabled_features.push_back(
         net::features::kEnableCrossSiteFlagNetworkIsolationKey);
   }
+
+  if (test_case ==
+      SplitCacheTestCase::kSplitCacheNikFrameSiteSharedOpaqueEnabled) {
+    enabled_features.push_back(
+        net::features::kEnableFrameSiteSharedOpaqueNetworkIsolationKey);
+  } else {
+    disabled_features.push_back(
+        net::features::kEnableFrameSiteSharedOpaqueNetworkIsolationKey);
+  }
   scoped_feature_list.InitWithFeatures(enabled_features, disabled_features);
 }
 
@@ -1244,18 +1251,11 @@ class HttpCacheTest_SplitCacheFeature
     return GetParam() != SplitCacheTestCase::kSplitCacheDisabled;
   }
 
-  bool IsNikFrameSiteEnabled() const {
-    return GetParam() == SplitCacheTestCase::kSplitCacheNikFrameSiteEnabled;
-  }
-
  private:
   base::test::ScopedFeatureList feature_list_;
 };
 
 TEST_P(HttpCacheTest_SplitCacheFeature, SimpleGETVerifyGoogleFontMetrics) {
-  base::HistogramTester histograms;
-  const std::string histogram_name = "WebFont.HttpCacheStatus_roboto";
-
   SchemefulSite site_a(GURL("http://www.a.com"));
 
   MockHttpCache cache;
@@ -1272,23 +1272,18 @@ TEST_P(HttpCacheTest_SplitCacheFeature, SimpleGETVerifyGoogleFontMetrics) {
   RunTransactionTestWithRequest(cache.http_cache(), transaction, request,
                                 nullptr);
 
-  histograms.ExpectUniqueSample(
-      histogram_name, static_cast<int>(CacheEntryStatus::ENTRY_NOT_IN_CACHE),
-      1);
-
   RunTransactionTestWithRequest(cache.http_cache(), transaction, request,
                                 nullptr);
-
-  histograms.ExpectBucketCount(
-      histogram_name, static_cast<int>(CacheEntryStatus::ENTRY_USED), 1);
 }
 
 INSTANTIATE_TEST_SUITE_P(
     All,
     HttpCacheTest_SplitCacheFeature,
-    testing::ValuesIn({SplitCacheTestCase::kSplitCacheDisabled,
-                       SplitCacheTestCase::kSplitCacheNikFrameSiteEnabled,
-                       SplitCacheTestCase::kSplitCacheNikCrossSiteFlagEnabled}),
+    testing::ValuesIn(
+        {SplitCacheTestCase::kSplitCacheDisabled,
+         SplitCacheTestCase::kSplitCacheNikFrameSiteEnabled,
+         SplitCacheTestCase::kSplitCacheNikCrossSiteFlagEnabled,
+         SplitCacheTestCase::kSplitCacheNikFrameSiteSharedOpaqueEnabled}),
     [](const testing::TestParamInfo<SplitCacheTestCase>& info) {
       switch (info.param) {
         case (SplitCacheTestCase::kSplitCacheDisabled):
@@ -1297,6 +1292,8 @@ INSTANTIATE_TEST_SUITE_P(
           return "SplitCacheNikFrameSiteEnabled";
         case (SplitCacheTestCase::kSplitCacheNikCrossSiteFlagEnabled):
           return "SplitCacheNikCrossSiteFlagEnabled";
+        case (SplitCacheTestCase::kSplitCacheNikFrameSiteSharedOpaqueEnabled):
+          return "SplitCacheNikFrameSiteSharedOpaqueEnabled";
       }
     });
 
@@ -1312,8 +1309,10 @@ class HttpCacheTest_SplitCacheFeatureEnabled
 INSTANTIATE_TEST_SUITE_P(
     All,
     HttpCacheTest_SplitCacheFeatureEnabled,
-    testing::ValuesIn({SplitCacheTestCase::kSplitCacheNikFrameSiteEnabled,
-                       SplitCacheTestCase::kSplitCacheNikCrossSiteFlagEnabled}),
+    testing::ValuesIn(
+        {SplitCacheTestCase::kSplitCacheNikFrameSiteEnabled,
+         SplitCacheTestCase::kSplitCacheNikCrossSiteFlagEnabled,
+         SplitCacheTestCase::kSplitCacheNikFrameSiteSharedOpaqueEnabled}),
     [](const testing::TestParamInfo<SplitCacheTestCase>& info) {
       switch (info.param) {
         case (SplitCacheTestCase::kSplitCacheDisabled):
@@ -1322,6 +1321,8 @@ INSTANTIATE_TEST_SUITE_P(
           return "SplitCacheNikFrameSiteEnabled";
         case (SplitCacheTestCase::kSplitCacheNikCrossSiteFlagEnabled):
           return "SplitCacheNikCrossSiteFlagEnabled";
+        case (SplitCacheTestCase::kSplitCacheNikFrameSiteSharedOpaqueEnabled):
+          return "SplitCacheNikFrameSiteSharedOpaqueEnabled";
       }
     });
 
@@ -3995,9 +3996,6 @@ TEST_F(HttpCacheTest, SimpleGET_ParallelValidationNoMatch) {
   EXPECT_EQ(5, cache.disk_cache()->create_count());
 }
 
-// The error is coming from disk_cache.
-// TODO: b/327656954 -- Reenable unitttests when disk_cache is working.
-#if !defined(STARBOARD)
 TEST_F(HttpCacheTest, RangeGET_Enormous) {
   // Test for how blockfile's limit on range namespace interacts with
   // HttpCache::Transaction.
@@ -4064,7 +4062,6 @@ TEST_F(HttpCacheTest, RangeGET_Enormous) {
     EXPECT_EQ(3, cache.network_layer()->transaction_count());
   }
 }
-#endif
 
 // Parallel validation results in 200 for 1 transaction and validation matches
 // for subsequent transactions.
@@ -7491,7 +7488,7 @@ TEST_F(HttpCacheTest, SimpleHEAD_WithRanges) {
   RemoveMockTransaction(&transaction);
 }
 
-// Tests that a HEAD request can be served from a partialy cached resource.
+// Tests that a HEAD request can be served from a partially cached resource.
 TEST_F(HttpCacheTest, SimpleHEAD_WithCachedRanges) {
   MockHttpCache cache;
   AddMockTransaction(&kRangeGET_TransactionOK);
@@ -11387,13 +11384,23 @@ TEST_P(HttpCacheTest_SplitCacheFeatureEnabled,
   trans_info.network_isolation_key = NetworkIsolationKey(site_b, site_data);
   trans_info.network_anonymization_key =
       net::NetworkAnonymizationKey::CreateCrossSite(site_b);
-  if (IsNikFrameSiteEnabled()) {
-    EXPECT_EQ(absl::nullopt,
-              trans_info.network_isolation_key.ToCacheKeyString());
-  } else {
-    EXPECT_EQ("http://b.com _1",
-              trans_info.network_isolation_key.ToCacheKeyString().value());
+  switch (GetParam()) {
+    case SplitCacheTestCase::kSplitCacheNikFrameSiteEnabled:
+      EXPECT_EQ(absl::nullopt,
+                trans_info.network_isolation_key.ToCacheKeyString());
+      break;
+    case SplitCacheTestCase::kSplitCacheNikCrossSiteFlagEnabled:
+      EXPECT_EQ("http://b.com _1",
+                trans_info.network_isolation_key.ToCacheKeyString().value());
+      break;
+    case SplitCacheTestCase::kSplitCacheNikFrameSiteSharedOpaqueEnabled:
+      EXPECT_EQ("http://b.com _opaque",
+                trans_info.network_isolation_key.ToCacheKeyString().value());
+      break;
+    case SplitCacheTestCase::kSplitCacheDisabled:
+      NOTREACHED_NORETURN();
   }
+
   RunTransactionTestWithRequest(cache.http_cache(), kSimpleGET_Transaction,
                                 trans_info, &response);
   EXPECT_FALSE(response.was_cached);
@@ -11401,10 +11408,16 @@ TEST_P(HttpCacheTest_SplitCacheFeatureEnabled,
   // On the second request, expect a cache miss if the NIK uses the frame site.
   RunTransactionTestWithRequest(cache.http_cache(), kSimpleGET_Transaction,
                                 trans_info, &response);
-  if (IsNikFrameSiteEnabled()) {
-    EXPECT_FALSE(response.was_cached);
-  } else {
-    EXPECT_TRUE(response.was_cached);
+  switch (GetParam()) {
+    case SplitCacheTestCase::kSplitCacheNikFrameSiteEnabled:
+      EXPECT_FALSE(response.was_cached);
+      break;
+    case SplitCacheTestCase::kSplitCacheNikCrossSiteFlagEnabled:
+    case SplitCacheTestCase::kSplitCacheNikFrameSiteSharedOpaqueEnabled:
+      EXPECT_TRUE(response.was_cached);
+      break;
+    case SplitCacheTestCase::kSplitCacheDisabled:
+      NOTREACHED_NORETURN();
   }
 
   // Verify that a post transaction with a data stream uses a separate key.
@@ -11661,9 +11674,6 @@ TEST_P(HttpCacheTest_SplitCacheFeatureEnabled, SplitCache) {
   EXPECT_FALSE(response.was_cached);
 }
 
-// TODO: b/327008491 - Reenable unittests with unused functionality.
-// Cobalt doesn't use Feature module.
-#if !defined(STARBOARD)
 TEST_F(HttpCacheTest, SplitCacheEnabledByDefault) {
   HttpCache::ClearGlobalsForTesting();
   HttpCache::SplitCacheFeatureEnableByDefault();
@@ -11697,7 +11707,6 @@ TEST_F(HttpCacheTest, SplitCacheEnabledByDefault) {
                                 trans_info, &response);
   EXPECT_FALSE(response.was_cached);
 }
-#endif
 
 TEST_F(HttpCacheTest, SplitCacheEnabledByDefaultButOverridden) {
   HttpCache::ClearGlobalsForTesting();
@@ -13322,6 +13331,7 @@ TEST_F(HttpCacheIOCallbackTest, FailedDoomFollowedByOpen) {
       std::make_unique<Transaction>(DEFAULT_PRIORITY, cache.http_cache());
 
   transaction->SetIOCallBackForTest(cb.callback());
+  transaction->SetCacheIOCallBackForTest(cb.callback());
 
   // Create the backend here as our direct calls to DoomEntry and OpenEntry
   // below require that it exists.
@@ -13361,6 +13371,7 @@ TEST_F(HttpCacheIOCallbackTest, FailedDoomFollowedByCreate) {
       std::make_unique<Transaction>(DEFAULT_PRIORITY, cache.http_cache());
 
   transaction->SetIOCallBackForTest(cb.callback());
+  transaction->SetCacheIOCallBackForTest(cb.callback());
 
   // Create the backend here as our direct calls to DoomEntry and CreateEntry
   // below require that it exists.
@@ -13400,6 +13411,7 @@ TEST_F(HttpCacheIOCallbackTest, FailedDoomFollowedByDoom) {
       std::make_unique<Transaction>(DEFAULT_PRIORITY, cache.http_cache());
 
   transaction->SetIOCallBackForTest(cb.callback());
+  transaction->SetCacheIOCallBackForTest(cb.callback());
 
   // Create the backend here as our direct calls to DoomEntry below require that
   // it exists.
@@ -13435,6 +13447,7 @@ TEST_F(HttpCacheIOCallbackTest, FailedOpenFollowedByCreate) {
       std::make_unique<Transaction>(DEFAULT_PRIORITY, cache.http_cache());
 
   transaction->SetIOCallBackForTest(cb.callback());
+  transaction->SetCacheIOCallBackForTest(cb.callback());
 
   // Create the backend here as our direct calls to OpenEntry and CreateEntry
   // below require that it exists.
@@ -13477,6 +13490,7 @@ TEST_F(HttpCacheIOCallbackTest, FailedCreateFollowedByOpen) {
       std::make_unique<Transaction>(DEFAULT_PRIORITY, cache.http_cache());
 
   transaction->SetIOCallBackForTest(cb.callback());
+  transaction->SetCacheIOCallBackForTest(cb.callback());
 
   // Create the backend here as our direct calls to CreateEntry and OpenEntry
   // below require that it exists.
@@ -13519,6 +13533,7 @@ TEST_F(HttpCacheIOCallbackTest, FailedCreateFollowedByCreate) {
       std::make_unique<Transaction>(DEFAULT_PRIORITY, cache.http_cache());
 
   transaction->SetIOCallBackForTest(cb.callback());
+  transaction->SetCacheIOCallBackForTest(cb.callback());
 
   // Create the backend here as our direct calls to CreateEntry below require
   // that it exists.
@@ -13560,6 +13575,7 @@ TEST_F(HttpCacheIOCallbackTest, CreateFollowedByCreate) {
       std::make_unique<Transaction>(DEFAULT_PRIORITY, cache.http_cache());
 
   transaction->SetIOCallBackForTest(cb.callback());
+  transaction->SetCacheIOCallBackForTest(cb.callback());
 
   // Create the backend here as our direct calls to CreateEntry below require
   // that it exists.
@@ -13599,6 +13615,7 @@ TEST_F(HttpCacheIOCallbackTest, OperationFollowedByDoom) {
       std::make_unique<Transaction>(DEFAULT_PRIORITY, cache.http_cache());
 
   transaction->SetIOCallBackForTest(cb.callback());
+  transaction->SetCacheIOCallBackForTest(cb.callback());
 
   // Create the backend here as our direct calls to CreateEntry and DoomEntry
   // below require that it exists.
@@ -13636,6 +13653,7 @@ TEST_F(HttpCacheIOCallbackTest, CreateFollowedByOpenOrCreate) {
       std::make_unique<Transaction>(DEFAULT_PRIORITY, cache.http_cache());
 
   transaction->SetIOCallBackForTest(cb.callback());
+  transaction->SetCacheIOCallBackForTest(cb.callback());
 
   // Create the backend here as our direct calls to CreateEntry and
   // OpenOrCreateEntry below require that it exists.
@@ -13676,6 +13694,7 @@ TEST_F(HttpCacheIOCallbackTest, FailedCreateFollowedByOpenOrCreate) {
       std::make_unique<Transaction>(DEFAULT_PRIORITY, cache.http_cache());
 
   transaction->SetIOCallBackForTest(cb.callback());
+  transaction->SetCacheIOCallBackForTest(cb.callback());
 
   // Create the backend here as our direct calls to CreateEntry and
   // OpenOrCreateEntry below require that it exists.
@@ -13718,6 +13737,7 @@ TEST_F(HttpCacheIOCallbackTest, OpenFollowedByOpenOrCreate) {
       std::make_unique<Transaction>(DEFAULT_PRIORITY, cache.http_cache());
 
   transaction->SetIOCallBackForTest(cb.callback());
+  transaction->SetCacheIOCallBackForTest(cb.callback());
 
   // Create the backend here as our direct calls to OpenEntry and
   // OpenOrCreateEntry below require that it exists.
@@ -13771,6 +13791,7 @@ TEST_F(HttpCacheIOCallbackTest, FailedOpenFollowedByOpenOrCreate) {
       std::make_unique<Transaction>(DEFAULT_PRIORITY, cache.http_cache());
 
   transaction->SetIOCallBackForTest(cb.callback());
+  transaction->SetCacheIOCallBackForTest(cb.callback());
 
   // Create the backend here as our direct calls to OpenEntry and
   // OpenOrCreateEntry below require that it exists.
@@ -13813,6 +13834,7 @@ TEST_F(HttpCacheIOCallbackTest, OpenOrCreateFollowedByCreate) {
       std::make_unique<Transaction>(DEFAULT_PRIORITY, cache.http_cache());
 
   transaction->SetIOCallBackForTest(cb.callback());
+  transaction->SetCacheIOCallBackForTest(cb.callback());
 
   // Create the backend here as our direct calls to OpenOrCreateEntry and
   // CreateEntry below require that it exists.
@@ -13852,6 +13874,7 @@ TEST_F(HttpCacheIOCallbackTest, OpenOrCreateFollowedByOpenOrCreate) {
       std::make_unique<Transaction>(DEFAULT_PRIORITY, cache.http_cache());
 
   transaction->SetIOCallBackForTest(cb.callback());
+  transaction->SetCacheIOCallBackForTest(cb.callback());
 
   // Create the backend here as our direct calls to OpenOrCreateEntry below
   // require that it exists.
@@ -13891,6 +13914,7 @@ TEST_F(HttpCacheIOCallbackTest, FailedOpenOrCreateFollowedByOpenOrCreate) {
       std::make_unique<Transaction>(DEFAULT_PRIORITY, cache.http_cache());
 
   transaction->SetIOCallBackForTest(cb.callback());
+  transaction->SetCacheIOCallBackForTest(cb.callback());
 
   // Create the backend here as our direct calls to OpenOrCreateEntry below
   // require that it exists.
@@ -14104,460 +14128,6 @@ TEST_F(HttpCacheTest, SecurityHeadersAreCopiedToConditionalizedResponse) {
 
   EXPECT_EQ(304, response.headers->response_code());
   EXPECT_EQ("cross-origin", response_corp_header);
-}
-class CacheTransparencyHttpCacheTest
-    : public HttpCacheTest_SplitCacheFeatureEnabled {
- public:
-  CacheTransparencyHttpCacheTest() {
-    // The single-keyed cache feature is meaningless when the split cache is not
-    // enabled. The //net layer doesn't care whether or not the
-    // "CacheTransparency" feature is enabled.
-    CHECK(base::FeatureList::IsEnabled(
-        net::features::kSplitCacheByNetworkIsolationKey));
-  }
-
-  void RunTransactionTestForSingleKeyedCache(
-      HttpCache* cache,
-      const MockTransaction& trans_info,
-      const NetworkIsolationKey& network_isolation_key,
-      const std::string& checksum) {
-    ScopedMockTransaction transaction(trans_info);
-
-    MockHttpRequest request(transaction);
-    request.network_isolation_key = network_isolation_key;
-    request.network_anonymization_key =
-        net::NetworkAnonymizationKey::CreateFromNetworkIsolationKey(
-            network_isolation_key);
-    request.checksum = checksum;
-
-    HttpResponseInfo response_info;
-    RunTransactionTestWithRequest(cache, transaction, request, &response_info);
-  }
-
-  void RunSimpleTransactionTestForSingleKeyedCache(
-      HttpCache* cache,
-      const NetworkIsolationKey& network_isolation_key,
-      const std::string& checksum) {
-    RunTransactionTestForSingleKeyedCache(cache, kSimpleGET_Transaction,
-                                          network_isolation_key, checksum);
-  }
-};
-
-INSTANTIATE_TEST_SUITE_P(
-    All,
-    CacheTransparencyHttpCacheTest,
-    testing::ValuesIn({SplitCacheTestCase::kSplitCacheNikFrameSiteEnabled,
-                       SplitCacheTestCase::kSplitCacheNikCrossSiteFlagEnabled}),
-    [](const testing::TestParamInfo<SplitCacheTestCase>& info) {
-      switch (info.param) {
-        case (SplitCacheTestCase::kSplitCacheDisabled):
-          return "NotUsedForThisTestSuite";
-        case (SplitCacheTestCase::kSplitCacheNikFrameSiteEnabled):
-          return "SplitCacheNikFrameSiteEnabled";
-        case (SplitCacheTestCase::kSplitCacheNikCrossSiteFlagEnabled):
-          return "SplitCacheNikCrossSiteFlagEnabled";
-      }
-    });
-
-constexpr char kChecksumForSimpleGET[] =
-    "80B4C37CEF5CFE69B4A90830282AA2BB772DC4CBC00491A219CE5F2AD75C7B58";
-
-TEST_P(CacheTransparencyHttpCacheTest, SuccessfulGET) {
-  MockHttpCache cache;
-  // The first request adds the item to the cache.
-  {
-    const auto site_a = SchemefulSite(GURL("https://a.com/"));
-    RunSimpleTransactionTestForSingleKeyedCache(
-        cache.http_cache(), NetworkIsolationKey(site_a, site_a),
-        kChecksumForSimpleGET);
-
-    EXPECT_EQ(1, cache.network_layer()->transaction_count());
-    EXPECT_EQ(0, cache.disk_cache()->open_count());
-    EXPECT_EQ(1, cache.disk_cache()->create_count());
-  }
-
-  // The second request verifies that the same cache entry is used with a
-  // different NetworkIsolationKey
-  {
-    const auto site_b = SchemefulSite(GURL("https://b.com/"));
-    RunSimpleTransactionTestForSingleKeyedCache(
-        cache.http_cache(), NetworkIsolationKey(site_b, site_b),
-        kChecksumForSimpleGET);
-
-    EXPECT_EQ(1, cache.network_layer()->transaction_count());
-    EXPECT_EQ(1, cache.disk_cache()->open_count());
-    EXPECT_EQ(1, cache.disk_cache()->create_count());
-  }
-}
-
-TEST_P(CacheTransparencyHttpCacheTest, GETWithChecksumMismatch) {
-  MockHttpCache cache;
-  const auto site_a = SchemefulSite(GURL("https://a.com/"));
-  // The first request adds the item to the cache.
-  {
-    RunSimpleTransactionTestForSingleKeyedCache(
-        cache.http_cache(), NetworkIsolationKey(site_a, site_a),
-        "000000000000000000000000000000000000000000000000000000000000000");
-
-    EXPECT_EQ(1, cache.network_layer()->transaction_count());
-    EXPECT_EQ(0, cache.disk_cache()->open_count());
-    EXPECT_EQ(1, cache.disk_cache()->create_count());
-  }
-
-  // The second request doesn't use the item that was added to the single-keyed
-  // cache, but adds it to the split cache instead.
-  {
-    RunSimpleTransactionTestForSingleKeyedCache(
-        cache.http_cache(), NetworkIsolationKey(site_a, site_a),
-        "000000000000000000000000000000000000000000000000000000000000000");
-
-    // Fetches from the network again, this time into the split cache.
-    EXPECT_EQ(2, cache.network_layer()->transaction_count());
-    EXPECT_EQ(1, cache.disk_cache()->open_count());
-    EXPECT_EQ(2, cache.disk_cache()->create_count());
-  }
-
-  // The third request uses the split cache.
-  {
-    RunSimpleTransactionTestForSingleKeyedCache(
-        cache.http_cache(), NetworkIsolationKey(site_a, site_a),
-        "000000000000000000000000000000000000000000000000000000000000000");
-
-    // Fetches from the split cache.
-    EXPECT_EQ(2, cache.network_layer()->transaction_count());
-    EXPECT_EQ(3, cache.disk_cache()->open_count());  // opens both cache entries
-    EXPECT_EQ(2, cache.disk_cache()->create_count());
-  }
-}
-
-TEST_P(CacheTransparencyHttpCacheTest, GETWithBadResponseCode) {
-  MockHttpCache cache;
-  MockTransaction transaction = kSimpleGET_Transaction;
-  transaction.status = "HTTP/1.1 404 Not Found";
-  const auto site_a = SchemefulSite(GURL("https://a.com/"));
-  // The first request adds the item to the single-keyed cache.
-  {
-    RunTransactionTestForSingleKeyedCache(cache.http_cache(), transaction,
-                                          NetworkIsolationKey(site_a, site_a),
-                                          kChecksumForSimpleGET);
-
-    EXPECT_EQ(1, cache.network_layer()->transaction_count());
-    EXPECT_EQ(0, cache.disk_cache()->open_count());
-    EXPECT_EQ(1, cache.disk_cache()->create_count());
-  }
-
-  // The second request verifies that the cache entry is not re-used
-  // but a new one is created in the split cache.
-  {
-    RunTransactionTestForSingleKeyedCache(cache.http_cache(), transaction,
-                                          NetworkIsolationKey(site_a, site_a),
-                                          kChecksumForSimpleGET);
-
-    EXPECT_EQ(2, cache.network_layer()->transaction_count());
-    EXPECT_EQ(1, cache.disk_cache()->open_count());
-    EXPECT_EQ(2, cache.disk_cache()->create_count());
-  }
-}
-
-// This is identical to GETWithBadResponseCode but with a different response
-// code. It's not very realistic as it doesn't call DoneReading(), but it covers
-// the relevant code path.
-TEST_P(CacheTransparencyHttpCacheTest, RedirectUnusable) {
-  MockHttpCache cache;
-  MockTransaction transaction = kSimpleGET_Transaction;
-  transaction.status = "HTTP/1.1 301 Moved Permanently";
-  const auto site_a = SchemefulSite(GURL("https://a.com/"));
-  // The first request adds the item to the single-keyed cache.
-  {
-    RunTransactionTestForSingleKeyedCache(cache.http_cache(), transaction,
-                                          NetworkIsolationKey(site_a, site_a),
-                                          kChecksumForSimpleGET);
-
-    EXPECT_EQ(1, cache.network_layer()->transaction_count());
-    EXPECT_EQ(0, cache.disk_cache()->open_count());
-    EXPECT_EQ(1, cache.disk_cache()->create_count());
-  }
-
-  // The second request verifies that the cache entry is not re-used
-  // but a new one is created in the split cache.
-  {
-    RunTransactionTestForSingleKeyedCache(cache.http_cache(), transaction,
-                                          NetworkIsolationKey(site_a, site_a),
-                                          kChecksumForSimpleGET);
-
-    EXPECT_EQ(2, cache.network_layer()->transaction_count());
-    EXPECT_EQ(1, cache.disk_cache()->open_count());
-    EXPECT_EQ(2, cache.disk_cache()->create_count());
-  }
-}
-
-TEST_P(CacheTransparencyHttpCacheTest, GETWith206ResponseCode) {
-  MockHttpCache cache;
-  MockTransaction transaction = kSimpleGET_Transaction;
-  // We should never get a partial response since we never send a range request,
-  // but it behaves differently from other bad response codes.
-  transaction.status = "HTTP/1.1 206 Partial";
-  const auto site_a = SchemefulSite(GURL("https://a.com/"));
-  // The response is not cached.
-  {
-    RunTransactionTestForSingleKeyedCache(cache.http_cache(), transaction,
-                                          NetworkIsolationKey(site_a, site_a),
-                                          kChecksumForSimpleGET);
-
-    EXPECT_EQ(1, cache.network_layer()->transaction_count());
-    EXPECT_EQ(0, cache.disk_cache()->open_count());
-    EXPECT_EQ(1, cache.disk_cache()->create_count());
-  }
-
-  // It is fetched from the network again.
-  {
-    RunTransactionTestForSingleKeyedCache(cache.http_cache(), transaction,
-                                          NetworkIsolationKey(site_a, site_a),
-                                          kChecksumForSimpleGET);
-
-    EXPECT_EQ(2, cache.network_layer()->transaction_count());
-    EXPECT_EQ(0, cache.disk_cache()->open_count());
-    EXPECT_EQ(2, cache.disk_cache()->create_count());
-  }
-}
-
-TEST_P(CacheTransparencyHttpCacheTest, SuccessfulRevalidation) {
-  MockHttpCache cache;
-  MockTransaction transaction = kSimpleGET_Transaction;
-  // Add a cache control header to permit the entry to be cached, with max-age 0
-  // to force relatidation next time. Add Etag to permit it to be revalidated.
-  transaction.response_headers =
-      "Etag: \"foo\"\n"
-      "Cache-Control: max-age=0\n";
-  {
-    const auto site_a = SchemefulSite(GURL("https://a.com/"));
-    RunTransactionTestForSingleKeyedCache(cache.http_cache(), transaction,
-                                          NetworkIsolationKey(site_a, site_a),
-                                          kChecksumForSimpleGET);
-
-    EXPECT_EQ(1, cache.network_layer()->transaction_count());
-    EXPECT_EQ(0, cache.disk_cache()->open_count());
-    EXPECT_EQ(1, cache.disk_cache()->create_count());
-  }
-
-  // The second request revalidates the existing entry.
-  {
-    const auto site_b = SchemefulSite(GURL("https://b.com/"));
-    transaction.status = "HTTP/1.1 304 Not Modified";
-    // Allow it to be reused without validation next time by increasing max-age.
-    transaction.response_headers =
-        "Etag: \"foo\"\n"
-        "Cache-Control: max-age=10000\n";
-    RunTransactionTestForSingleKeyedCache(cache.http_cache(), transaction,
-                                          NetworkIsolationKey(site_b, site_b),
-                                          kChecksumForSimpleGET);
-
-    EXPECT_EQ(2, cache.network_layer()->transaction_count());
-    EXPECT_EQ(1, cache.disk_cache()->open_count());
-    EXPECT_EQ(1, cache.disk_cache()->create_count());
-  }
-
-  // The third request re-uses the entry.
-  {
-    const auto site_c = SchemefulSite(GURL("https://c.com/"));
-    // Load from cache again.
-    RunTransactionTestForSingleKeyedCache(cache.http_cache(), transaction,
-                                          NetworkIsolationKey(site_c, site_c),
-                                          kChecksumForSimpleGET);
-
-    EXPECT_EQ(2, cache.network_layer()->transaction_count());
-    EXPECT_EQ(1, cache.disk_cache()->open_count());
-    EXPECT_EQ(1, cache.disk_cache()->create_count());
-  }
-}
-
-TEST_P(CacheTransparencyHttpCacheTest, RevalidationChangingUncheckedHeader) {
-  MockHttpCache cache;
-  MockTransaction transaction = kSimpleGET_Transaction;
-  // Add a cache control header to permit the entry to be cached, with max-age 0
-  // to force relatidation next time. Add Etag to permit it to be revalidated.
-  transaction.response_headers =
-      "Etag: \"foo\"\n"
-      "Cache-Control: max-age=0\n";
-  {
-    const auto site_a = SchemefulSite(GURL("https://a.com/"));
-    RunTransactionTestForSingleKeyedCache(cache.http_cache(), transaction,
-                                          NetworkIsolationKey(site_a, site_a),
-                                          kChecksumForSimpleGET);
-
-    EXPECT_EQ(1, cache.network_layer()->transaction_count());
-    EXPECT_EQ(0, cache.disk_cache()->open_count());
-    EXPECT_EQ(1, cache.disk_cache()->create_count());
-  }
-
-  // The second request revalidates the existing entry.
-  {
-    const auto site_b = SchemefulSite(GURL("https://b.com/"));
-    transaction.status = "HTTP/1.1 304 Not Modified";
-    // Add a response header. This is the only difference from the
-    // SuccessfulRevalidation test.
-    transaction.response_headers =
-        "Etag: \"foo\"\n"
-        "Cache-Control: max-age=10000\n"
-        "X-Unchecked-Header: 1\n";
-    RunTransactionTestForSingleKeyedCache(cache.http_cache(), transaction,
-                                          NetworkIsolationKey(site_b, site_b),
-                                          kChecksumForSimpleGET);
-
-    EXPECT_EQ(2, cache.network_layer()->transaction_count());
-    EXPECT_EQ(1, cache.disk_cache()->open_count());
-    EXPECT_EQ(1, cache.disk_cache()->create_count());
-  }
-
-  // The third request re-uses the entry.
-  {
-    const auto site_c = SchemefulSite(GURL("https://c.com/"));
-    // Load from cache again.
-    RunTransactionTestForSingleKeyedCache(cache.http_cache(), transaction,
-                                          NetworkIsolationKey(site_c, site_c),
-                                          kChecksumForSimpleGET);
-
-    EXPECT_EQ(2, cache.network_layer()->transaction_count());
-    EXPECT_EQ(1, cache.disk_cache()->open_count());
-    EXPECT_EQ(1, cache.disk_cache()->create_count());
-  }
-}
-
-TEST_P(CacheTransparencyHttpCacheTest, RevalidationChangingCheckedHeader) {
-  MockHttpCache cache;
-  MockTransaction transaction = kSimpleGET_Transaction;
-  // Add a cache control header to permit the entry to be cached, with max-age 0
-  // to force relatidation next time. Add Etag to permit it to be revalidated.
-  transaction.response_headers =
-      "Etag: \"foo\"\n"
-      "Cache-Control: max-age=0\n";
-  {
-    const auto site_a = SchemefulSite(GURL("https://a.com/"));
-    RunTransactionTestForSingleKeyedCache(cache.http_cache(), transaction,
-                                          NetworkIsolationKey(site_a, site_a),
-                                          kChecksumForSimpleGET);
-
-    EXPECT_EQ(1, cache.network_layer()->transaction_count());
-    EXPECT_EQ(0, cache.disk_cache()->open_count());
-    EXPECT_EQ(1, cache.disk_cache()->create_count());
-  }
-
-  // The second request marks the single-keyed cache entry unusable because the
-  // checksum no longer matches.
-  {
-    const auto site_b = SchemefulSite(GURL("https://b.com/"));
-    transaction.status = "HTTP/1.1 304 Not Modified";
-    // Add the "Vary" response header.
-    transaction.response_headers =
-        "Etag: \"foo\"\n"
-        "Cache-Control: max-age=10000\n"
-        "Vary: Cookie\n";
-    RunTransactionTestForSingleKeyedCache(cache.http_cache(), transaction,
-                                          NetworkIsolationKey(site_b, site_b),
-                                          kChecksumForSimpleGET);
-
-    EXPECT_EQ(2, cache.network_layer()->transaction_count());
-    EXPECT_EQ(1, cache.disk_cache()->open_count());
-    EXPECT_EQ(1, cache.disk_cache()->create_count());
-  }
-
-  // The third request has to go to the network because the single-keyed cache
-  // entry is unusable. It writes a new entry to the split cache.
-  {
-    const auto site_c = SchemefulSite(GURL("https://c.com/"));
-    RunTransactionTestForSingleKeyedCache(cache.http_cache(), transaction,
-                                          NetworkIsolationKey(site_c, site_c),
-                                          kChecksumForSimpleGET);
-
-    EXPECT_EQ(3, cache.network_layer()->transaction_count());
-    EXPECT_EQ(2, cache.disk_cache()->open_count());
-    EXPECT_EQ(2, cache.disk_cache()->create_count());
-  }
-}
-
-TEST_P(CacheTransparencyHttpCacheTest, SuccessfulGETManyWriters) {
-  MockHttpCache cache;
-
-  MockHttpRequest request(kSimpleGET_Transaction);
-  request.checksum = kChecksumForSimpleGET;
-
-  constexpr int kNumTransactions = 2;
-  std::vector<Context> context_list(kNumTransactions);
-
-  for (Context& c : context_list) {
-    c.result = cache.CreateTransaction(&c.trans);
-    ASSERT_THAT(c.result, IsOk());
-
-    c.result =
-        c.trans->Start(&request, c.callback.callback(), NetLogWithSource());
-  }
-
-  // Allow all requests to move from the Create queue to the active entry.
-  // All would have been added to writers.
-  base::RunLoop().RunUntilIdle();
-  std::string cache_key = cache.http_cache()
-                              ->GenerateCacheKeyForRequest(
-                                  &request, /*use_single_keyed_cache=*/true)
-                              .value();
-  EXPECT_EQ(kNumTransactions, cache.GetCountWriterTransactions(cache_key));
-
-  // The second transaction skipped validation, thus only one network
-  // transaction is created.
-  EXPECT_EQ(1, cache.network_layer()->transaction_count());
-  EXPECT_EQ(0, cache.disk_cache()->open_count());
-  EXPECT_EQ(1, cache.disk_cache()->create_count());
-
-  // Complete the transactions.
-  for (Context& c : context_list) {
-    ReadAndVerifyTransaction(c.trans.get(), kSimpleGET_Transaction);
-  }
-
-  EXPECT_EQ(1, cache.network_layer()->transaction_count());
-  EXPECT_EQ(0, cache.disk_cache()->open_count());
-  EXPECT_EQ(1, cache.disk_cache()->create_count());
-}
-
-TEST_P(CacheTransparencyHttpCacheTest, BadChecksumManyWriters) {
-  MockHttpCache cache;
-
-  MockHttpRequest request(kSimpleGET_Transaction);
-  request.checksum =
-      "0000000000000000000000000000000000000000000000000000000000000000";
-
-  constexpr int kNumTransactions = 2;
-  std::vector<Context> context_list(kNumTransactions);
-
-  for (Context& c : context_list) {
-    c.result = cache.CreateTransaction(&c.trans);
-    ASSERT_THAT(c.result, IsOk());
-
-    c.result =
-        c.trans->Start(&request, c.callback.callback(), NetLogWithSource());
-  }
-
-  // Allow all requests to move from the Create queue to the active entry.
-  // All would have been added to writers.
-  base::RunLoop().RunUntilIdle();
-  std::string cache_key = cache.http_cache()
-                              ->GenerateCacheKeyForRequest(
-                                  &request, /*use_single_keyed_cache=*/true)
-                              .value();
-  EXPECT_EQ(kNumTransactions, cache.GetCountWriterTransactions(cache_key));
-
-  // The second transaction skipped validation, thus only one network
-  // transaction is created.
-  EXPECT_EQ(1, cache.network_layer()->transaction_count());
-  EXPECT_EQ(0, cache.disk_cache()->open_count());
-  EXPECT_EQ(1, cache.disk_cache()->create_count());
-
-  // Complete the transactions.
-  for (Context& c : context_list) {
-    ReadAndVerifyTransaction(c.trans.get(), kSimpleGET_Transaction);
-  }
-
-  EXPECT_EQ(1, cache.network_layer()->transaction_count());
-  EXPECT_EQ(0, cache.disk_cache()->open_count());
-  EXPECT_EQ(1, cache.disk_cache()->create_count());
 }
 
 }  // namespace net

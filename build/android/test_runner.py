@@ -120,6 +120,15 @@ def AddCommandLineOptions(parser):
       action='store_true',
       help='Wether to use the flags file for the apk under test. If set, '
            "the filename will be looked up in the APK's PackageInfo.")
+  parser.add_argument('--variations-test-seed-path',
+                      type=os.path.relpath,
+                      default=None,
+                      help='Path to variations seed file.')
+  parser.add_argument('--webview-variations-test-seed-path',
+                      type=os.path.relpath,
+                      default=None,
+                      help='Path to variations seed file for WebView.')
+
   parser.set_defaults(allow_unknown=True)
   parser.set_defaults(command_line_flags=None)
 
@@ -290,6 +299,10 @@ def AddDeviceOptions(parser):
       type=os.path.realpath,
       help='Specify the absolute path of the adb binary that '
            'should be used.')
+  parser.add_argument(
+      '--use-local-devil-tools',
+      action='store_true',
+      help='Use locally built versions of tools used by devil_chromium.')
   parser.add_argument('--denylist-file',
                       type=os.path.realpath,
                       help='Device denylist file.')
@@ -339,6 +352,13 @@ def AddDeviceOptions(parser):
       help='If set, will merge logcats recorded during test run and dump them '
            'to the specified file.')
 
+  parser.add_argument(
+      '--force-main-user',
+      action='store_true',
+      help='Force the applicable adb commands to run with "--user" param set '
+      'to the id of the main user on device. Only use when the main user is a '
+      'secondary user, e.g. Android Automotive OS.')
+
 
 def AddEmulatorOptions(parser):
   """Adds emulator-specific options to |parser|."""
@@ -366,6 +386,10 @@ def AddEmulatorOptions(parser):
       'disable debug messages from specific parts of the emulator, e.g. '
       'init,snapshot. See "emulator -help-debug-tags" '
       'for a full list of tags.')
+  parser.add_argument(
+      '--emulator-enable-network',
+      action='store_true',
+      help='Enable the network (WiFi and mobile data) on the emulator.')
 
 
 def AddGTestOptions(parser):
@@ -491,10 +515,9 @@ def AddInstrumentationTestOptions(parser):
       '--apk-under-test',
       help='Path or name of the apk under test.')
   parser.add_argument(
-      '--store-data-in-app-directory',
+      '--store-data-dependencies-in-temp',
       action='store_true',
-      help='Store test data in the application\'s data directory. By default '
-      'the test data is stored in the external storage folder.')
+      help='Store data dependencies in /data/local/tmp/chromium_tests_root')
   parser.add_argument(
       '--module',
       action='append',
@@ -562,6 +585,11 @@ def AddInstrumentationTestOptions(parser):
            'The original provider will be restored if possible, '
            "on Nougat the provider can't be determined and so "
            'the system will choose the default provider.')
+  parser.add_argument(
+      '--webview-command-line-arg',
+      default=[],
+      action='append',
+      help="Specifies command line arguments to add to WebView's flag file")
   parser.add_argument(
       '--run-setup-command',
       default=[],
@@ -743,13 +771,16 @@ def AddJUnitTestOptions(parser):
   parser.add_argument(
       '--runner-filter',
       help='Filters tests by runner class. Must be fully qualified.')
+  parser.add_argument('--json-config',
+                      help='Runs only tests listed in this config.')
   parser.add_argument(
       '--shards',
-      default=-1,
       type=int,
       help='Number of shards to run junit tests in parallel on. Only 1 shard '
       'is supported when test-filter is specified. Values less than 1 will '
       'use auto select.')
+  parser.add_argument('--shard-filter',
+                      help='Comma separated list of shard indices to run.')
   parser.add_argument(
       '-s', '--test-suite', required=True,
       help='JUnit test suite to run.')
@@ -930,7 +961,7 @@ def _SinkTestResult(test_result, test_file_name, result_sink_client):
   result_sink_client.Post(test_result.GetNameForResultSink(),
                           test_result.GetType(),
                           test_result.GetDuration(),
-                          log_decoded.encode('utf-8'),
+                          log_decoded,
                           test_file_name,
                           variant=test_result.GetVariantForResultSink(),
                           failure_reason=test_result.GetFailureReason(),

@@ -81,7 +81,7 @@ class AudioOutputTest : public testing::TestWithParam<bool> {
   std::unique_ptr<AudioManager> audio_manager_;
   std::unique_ptr<AudioDeviceInfoAccessorForTests> audio_manager_device_info_;
   AudioParameters stream_params_;
-  raw_ptr<AudioOutputStream> stream_ = nullptr;
+  raw_ptr<AudioOutputStream, DanglingUntriaged> stream_ = nullptr;
   bool should_use_aaudio_ = false;
   bool aaudio_is_supported_ = false;
 #if BUILDFLAG(IS_ANDROID)
@@ -138,7 +138,14 @@ TEST_P(AudioOutputTest, StopTwice) {
 }
 
 // This test produces actual audio for .25 seconds on the default device.
-TEST_P(AudioOutputTest, Play200HzTone) {
+#if BUILDFLAG(IS_IOS)
+// TODO(crbug.com/1489278): audio output unit startup fails with partition
+// alloc.
+#define MAYBE_Play200HzTone DISABLED_Play200HzTone
+#else
+#define MAYBE_Play200HzTone Play200HzTone
+#endif
+TEST_P(AudioOutputTest, MAYBE_Play200HzTone) {
   if (should_use_aaudio_ && !aaudio_is_supported_)
     return;
 

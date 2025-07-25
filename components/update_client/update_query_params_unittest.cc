@@ -1,13 +1,12 @@
-// Copyright 2014 The Chromium Authors. All rights reserved.
+// Copyright 2014 The Chromium Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
 #include "components/update_client/update_query_params.h"
 #include "base/strings/stringprintf.h"
+#include "base/system/sys_info.h"
 #include "components/update_client/update_query_params_delegate.h"
-#if !defined(STARBOARD)
 #include "components/version_info/version_info.h"
-#endif
 #include "testing/gtest/include/gtest/gtest.h"
 
 using base::StringPrintf;
@@ -37,15 +36,10 @@ void TestParams(UpdateQueryParams::ProdId prod_id, bool extra_params) {
       Contains(params, StringPrintf("os=%s", UpdateQueryParams::GetOS())));
   EXPECT_TRUE(
       Contains(params, StringPrintf("arch=%s", UpdateQueryParams::GetArch())));
-#if !defined(STARBOARD)
   EXPECT_TRUE(Contains(
       params,
       StringPrintf("os_arch=%s",
                    base::SysInfo().OperatingSystemArchitecture().c_str())));
-#else
-  EXPECT_TRUE(Contains(params, StringPrintf("os_arch=")));
-#endif
-
   EXPECT_TRUE(Contains(
       params,
       StringPrintf("prod=%s", UpdateQueryParams::GetProdIdString(prod_id))));
@@ -54,10 +48,8 @@ void TestParams(UpdateQueryParams::ProdId prod_id, bool extra_params) {
 }
 
 void TestProdVersion() {
-#if !defined(STARBOARD)
   EXPECT_EQ(version_info::GetVersionNumber(),
             UpdateQueryParams::GetProdVersion());
-#endif
 }
 
 TEST(UpdateQueryParamsTest, GetParams) {

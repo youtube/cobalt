@@ -1,0 +1,2 @@
+CONSOLE WARNING: <iframe gesture="media"> is not supported. Use <iframe allow="autoplay">, https://goo.gl/ximf56
+

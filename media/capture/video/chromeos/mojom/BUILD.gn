@@ -9,6 +9,7 @@ mojom("cros_camera_common") {
     "camera3.mojom",
     "camera_app.mojom",
     "camera_common.mojom",
+    "camera_features.mojom",
     "camera_metadata.mojom",
     "camera_metadata_tags.mojom",
   ]
@@ -38,4 +39,10 @@ mojom("cros_camera") {
     "//media/capture/mojom:image_capture",
   ]
   public_deps = [ ":cros_camera_common" ]
+}
+
+mojom("jpeg_accelerator") {
+  sources = [ "jpeg_accelerator.mojom" ]
+
+  deps = [ "//components/chromeos_camera/common" ]
 }

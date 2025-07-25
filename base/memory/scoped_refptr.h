@@ -27,16 +27,9 @@ class RefCountedThreadSafe;
 template <class>
 class RefCountedDeleteOnSequence;
 class SequencedTaskRunner;
-class WrappedPromise;
 
 template <typename T>
 scoped_refptr<T> AdoptRef(T* t);
-
-namespace internal {
-
-class BasePromise;
-
-}  // namespace internal
 
 namespace subtle {
 
@@ -125,7 +118,7 @@ constexpr void AssertRefCountBaseMatches(...) {}
 template <typename T>
 scoped_refptr<T> AdoptRef(T* obj) {
   using Tag = std::decay_t<decltype(subtle::GetRefCountPreference<T>())>;
-  static_assert(std::is_same<subtle::StartRefCountFromOneTag, Tag>::value,
+  static_assert(std::is_same_v<subtle::StartRefCountFromOneTag, Tag>,
                 "Use AdoptRef only if the reference count starts from one.");
 
   DCHECK(obj);
@@ -234,12 +227,6 @@ class TRIVIAL_ABI scoped_refptr {
 
   constexpr scoped_refptr() = default;
 
-#ifdef COBALT_PENDING_CLEAN_UP
-  constexpr scoped_refptr(T* p) : ptr_(p) {
-    if (ptr_)
-      AddRef(ptr_);
-  }
-#else
   // Allow implicit construction from nullptr.
   constexpr scoped_refptr(std::nullptr_t) {}
 
@@ -253,7 +240,6 @@ class TRIVIAL_ABI scoped_refptr {
     if (ptr_)
       AddRef(ptr_);
   }
-#endif
 
   // Copy constructor. This is required in addition to the copy conversion
   // constructor below.
@@ -261,8 +247,7 @@ class TRIVIAL_ABI scoped_refptr {
 
   // Copy conversion constructor.
   template <typename U,
-            typename = typename std::enable_if<
-                std::is_convertible<U*, T*>::value>::type>
+            typename = std::enable_if_t<std::is_convertible_v<U*, T*>>>
   scoped_refptr(const scoped_refptr<U>& r) : scoped_refptr(r.ptr_) {}
 
   // Move constructor. This is required in addition to the move conversion
@@ -271,8 +256,7 @@ class TRIVIAL_ABI scoped_refptr {
 
   // Move conversion constructor.
   template <typename U,
-            typename = typename std::enable_if<
-                std::is_convertible<U*, T*>::value>::type>
+            typename = std::enable_if_t<std::is_convertible_v<U*, T*>>>
   scoped_refptr(scoped_refptr<U>&& r) noexcept : ptr_(r.ptr_) {
     r.ptr_ = nullptr;
   }
@@ -288,11 +272,6 @@ class TRIVIAL_ABI scoped_refptr {
   }
 
   T* get() const { return ptr_; }
-#if defined(STARBOARD)
-  // TODO[Cobalt]: remove this implicit convertor and replace all occurances of
-  // necessary implicit conversion with scoped_refptr.get().
-  operator T*() const { return ptr_; }
-#endif
 
   T& operator*() const {
     DCHECK(ptr_);
@@ -309,9 +288,7 @@ class TRIVIAL_ABI scoped_refptr {
     return *this;
   }
 
-#if !defined(STARBOARD)
   scoped_refptr& operator=(T* p) { return *this = scoped_refptr(p); }
-#endif
 
   // Unified assignment operator.
   scoped_refptr& operator=(scoped_refptr r) noexcept {
@@ -336,13 +313,6 @@ class TRIVIAL_ABI scoped_refptr {
     return ptr_ == rhs.get();
   }
 
-#if defined(STARBOARD)
-  template <typename U>
-  bool operator!=(U* rhs) const {
-    return ptr_ != rhs;
-  }
-#endif
-
   template <typename U>
   bool operator!=(const scoped_refptr<U>& rhs) const {
     return !operator==(rhs);
@@ -362,11 +332,6 @@ class TRIVIAL_ABI scoped_refptr {
   template <typename U>
   friend scoped_refptr<U> base::AdoptRef(U*);
   friend class ::base::SequencedTaskRunner;
-
-  // Friend access so these classes can use the constructor below as part of a
-  // binary size optimization.
-  friend class ::base::internal::BasePromise;
-  friend class ::base::WrappedPromise;
 
   scoped_refptr(T* p, base::subtle::AdoptRefTag) : ptr_(p) {}
 
@@ -403,7 +368,6 @@ void scoped_refptr<T>::Release(T* ptr) {
   ptr->Release();
 }
 
-#if !defined(STARBOARD)
 template <typename T, typename U>
 bool operator==(const scoped_refptr<T>& lhs, const U* rhs) {
   return lhs.get() == rhs;
@@ -443,7 +407,6 @@ template <typename T>
 bool operator!=(std::nullptr_t null, const scoped_refptr<T>& rhs) {
   return !operator==(null, rhs);
 }
-#endif
 
 template <typename T>
 std::ostream& operator<<(std::ostream& out, const scoped_refptr<T>& p) {

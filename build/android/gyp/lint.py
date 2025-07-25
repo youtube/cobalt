@@ -30,9 +30,11 @@ _DISABLED_ALWAYS = [
     "LintBaseline",  # Don't warn about using baseline.xml files.
     "MissingInflatedId",  # False positives https://crbug.com/1394222
     "MissingApplicationIcon",  # False positive for non-production targets.
+    "NetworkSecurityConfig",  # Breaks on library certificates b/269783280.
     "ObsoleteLintCustomCheck",  # We have no control over custom lint checks.
     "SwitchIntDef",  # Many C++ enums are not used at all in java.
     "Typos",  # Strings are committed in English first and later translated.
+    "VisibleForTests",  # Does not recognize "ForTesting" methods.
     "UniqueConstants",  # Chromium enums allow aliases.
     "UnusedAttribute",  # Chromium apks have various minSdkVersion values.
 ]
@@ -269,9 +271,10 @@ def _RunLint(create_cache,
                                                    extra_manifest_paths,
                                                    min_sdk_version,
                                                    android_sdk_version)
-  # Include the rebased manifest_path in the lint generated path so that it is
-  # clear in error messages where the original AndroidManifest.xml came from.
-  lint_android_manifest_path = os.path.join(lint_gen_dir, manifest_path)
+  # Just use a hardcoded name, since we may have different target names (and
+  # thus different manifest_paths) using the same lint baseline. Eg.
+  # trichrome_chrome_bundle and trichrome_chrome_32_64_bundle.
+  lint_android_manifest_path = os.path.join(lint_gen_dir, 'AndroidManifest.xml')
   _WriteXmlFile(android_manifest_tree.getroot(), lint_android_manifest_path)
 
   resource_root_dir = os.path.join(lint_gen_dir, _RES_ZIP_DIR)
@@ -337,7 +340,7 @@ def _RunLint(create_cache,
 
   start = time.time()
   logging.debug('Lint command %s', ' '.join(cmd))
-  failed = True
+  failed = False
 
   if creating_baseline and not warnings_as_errors:
     # Allow error code 6 when creating a baseline: ERRNO_CREATED_BASELINE
@@ -346,24 +349,20 @@ def _RunLint(create_cache,
     fail_func = lambda returncode, _: returncode != 0
 
   try:
-    failed = bool(
-        build_utils.CheckOutput(cmd,
-                                print_stdout=True,
-                                stdout_filter=stdout_filter,
-                                stderr_filter=stderr_filter,
-                                fail_on_output=warnings_as_errors,
-                                fail_func=fail_func))
+    build_utils.CheckOutput(cmd,
+                            print_stdout=True,
+                            stdout_filter=stdout_filter,
+                            stderr_filter=stderr_filter,
+                            fail_on_output=warnings_as_errors,
+                            fail_func=fail_func)
+  except build_utils.CalledProcessError as e:
+    failed = True
+    # Do not output the python stacktrace because it is lengthy and is not
+    # relevant to the actual lint error.
+    sys.stderr.write(e.output)
   finally:
     # When not treating warnings as errors, display the extra footer.
     is_debug = os.environ.get('LINT_DEBUG', '0') != '0'
-
-    if failed:
-      print('- For more help with lint in Chrome:', _LINT_MD_URL)
-      if is_debug:
-        print('- DEBUG MODE: Here is the project.xml: {}'.format(
-            _SrcRelative(project_xml_path)))
-      else:
-        print('- Run with LINT_DEBUG=1 to enable lint configuration debugging')
 
     end = time.time() - start
     logging.info('Lint command took %ss', end)
@@ -372,6 +371,15 @@ def _RunLint(create_cache,
       shutil.rmtree(resource_root_dir, ignore_errors=True)
       shutil.rmtree(srcjar_root_dir, ignore_errors=True)
       os.unlink(project_xml_path)
+
+    if failed:
+      print('- For more help with lint in Chrome:', _LINT_MD_URL)
+      if is_debug:
+        print('- DEBUG MODE: Here is the project.xml: {}'.format(
+            _SrcRelative(project_xml_path)))
+      else:
+        print('- Run with LINT_DEBUG=1 to enable lint configuration debugging')
+      sys.exit(1)
 
   logging.info('Lint completed')
 

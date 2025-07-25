@@ -9,13 +9,13 @@
 #include <memory>
 #include <string>
 
+#include "base/apple/foundation_util.h"
+#include "base/apple/osstatus_logging.h"
+#include "base/apple/scoped_cftyperef.h"
+#include "base/apple/scoped_mach_port.h"
 #include "base/functional/bind.h"
 #include "base/logging.h"
-#include "base/mac/foundation_util.h"
-#include "base/mac/mac_logging.h"
 #include "base/mac/mac_util.h"
-#include "base/mac/scoped_cftyperef.h"
-#include "base/mac/scoped_mach_port.h"
 #include "base/metrics/histogram_functions.h"
 #include "base/metrics/histogram_macros.h"
 #include "base/strings/strcat.h"
@@ -114,9 +114,9 @@ static OSStatus GetInputDeviceStreamFormat(
   UInt32 property_size = sizeof(*format);
   // Get the audio stream data format on the input scope of the input element
   // since it is connected to the current input device.
-  OSStatus result =
-      AudioUnitGetProperty(audio_unit, kAudioUnitProperty_StreamFormat,
-                           kAudioUnitScope_Input, 1, format, &property_size);
+  OSStatus result = AudioUnitGetProperty(
+      audio_unit, kAudioUnitProperty_StreamFormat, kAudioUnitScope_Input,
+      AUElement::INPUT, format, &property_size);
   DVLOG(1) << "Input device stream format: " << *format;
   return result;
 }
@@ -127,7 +127,7 @@ static AudioDeviceID FindFirstOutputSubdevice(
   const AudioObjectPropertyAddress property_address = {
       kAudioAggregateDevicePropertyFullSubDeviceList,
       kAudioObjectPropertyScopeGlobal, kAudioObjectPropertyElementMain};
-  base::ScopedCFTypeRef<CFArrayRef> subdevices;
+  base::apple::ScopedCFTypeRef<CFArrayRef> subdevices;
   UInt32 size = sizeof(subdevices);
   OSStatus result = AudioObjectGetPropertyData(
       aggregate_device_id, &property_address, 0 /* inQualifierDataSize */,
@@ -142,11 +142,11 @@ static AudioDeviceID FindFirstOutputSubdevice(
   }
 
   AudioDeviceID output_subdevice_id = kAudioObjectUnknown;
-  DCHECK_EQ(CFGetTypeID(subdevices), CFArrayGetTypeID());
-  const CFIndex count = CFArrayGetCount(subdevices);
+  DCHECK_EQ(CFGetTypeID(subdevices.get()), CFArrayGetTypeID());
+  const CFIndex count = CFArrayGetCount(subdevices.get());
   for (CFIndex i = 0; i != count; ++i) {
-    CFStringRef value =
-        base::mac::CFCast<CFStringRef>(CFArrayGetValueAtIndex(subdevices, i));
+    CFStringRef value = base::apple::CFCast<CFStringRef>(
+        CFArrayGetValueAtIndex(subdevices.get(), i));
     if (value) {
       std::string uid = base::SysCFStringRefToUTF8(value);
       output_subdevice_id = AudioManagerMac::GetAudioDeviceIdByUId(false, uid);
@@ -176,7 +176,6 @@ AUAudioInputStream::AUAudioInputStream(
       sink_(nullptr),
       audio_unit_(0),
       input_device_id_(audio_device_id),
-      number_of_channels_in_frame_(0),
       fifo_(input_params.channels(),
             input_params.frames_per_buffer(),
             kNumberOfBlocksBufferInFifo),
@@ -282,10 +281,6 @@ AudioInputStream::OpenOutcome AUAudioInputStream::Open() {
   hardware_latency_ = core_audio_mac::GetHardwareLatency(
       audio_unit_, input_device_id_, kAudioDevicePropertyScopeInput,
       format_.mSampleRate);
-
-  // The master channel is 0, Left and right are channels 1 and 2.
-  // And the master channel is not counted in |number_of_channels_in_frame_|.
-  number_of_channels_in_frame_ = GetNumberOfChannelsFromStream();
 
   return OpenOutcome::kSuccess;
 }
@@ -446,8 +441,8 @@ bool AUAudioInputStream::OpenAUHAL() {
   // For obtaining input from a device, the device format is always expressed
   // on the output scope of the AUHAL's Element 1.
   result = AudioUnitSetProperty(audio_unit_, kAudioUnitProperty_StreamFormat,
-                                kAudioUnitScope_Output, 1, &format_,
-                                sizeof(format_));
+                                kAudioUnitScope_Output, AUElement::INPUT,
+                                &format_, sizeof(format_));
   if (result != noErr) {
     HandleError(result);
     return false;
@@ -729,65 +724,13 @@ void AUAudioInputStream::Close() {
 }
 
 double AUAudioInputStream::GetMaxVolume() {
-  // Verify that we have a valid device.
-  if (input_device_id_ == kAudioObjectUnknown) {
-    LOG(ERROR) << "Device ID is unknown";
-    return 0.0;
-  }
-
-  // Query if any of the master, left or right channels has volume control.
-  for (int i = 0; i <= number_of_channels_in_frame_; ++i) {
-    // If the volume is settable, the  valid volume range is [0.0, 1.0].
-    if (IsVolumeSettableOnChannel(i))
-      return 1.0;
-  }
-
-  // Volume control is not available for the audio stream.
-  return 0.0;
+  return AudioManagerMac::GetMaxInputVolume(input_device_id_);
 }
 
 void AUAudioInputStream::SetVolume(double volume) {
   DVLOG(1) << __FUNCTION__ << " this " << this << " volume=" << volume << ")";
-  DCHECK_GE(volume, 0.0);
-  DCHECK_LE(volume, 1.0);
 
-  // Verify that we have a valid device.
-  if (input_device_id_ == kAudioObjectUnknown) {
-    LOG(ERROR) << "Device ID is unknown";
-    return;
-  }
-
-  Float32 volume_float32 = static_cast<Float32>(volume);
-  AudioObjectPropertyAddress property_address = {
-      kAudioDevicePropertyVolumeScalar, kAudioDevicePropertyScopeInput,
-      kAudioObjectPropertyElementMain};
-
-  // Try to set the volume for master volume channel.
-  if (IsVolumeSettableOnChannel(kAudioObjectPropertyElementMain)) {
-    OSStatus result = AudioObjectSetPropertyData(
-        input_device_id_, &property_address, 0, nullptr, sizeof(volume_float32),
-        &volume_float32);
-    if (result != noErr) {
-      DLOG(WARNING) << "Failed to set volume to " << volume_float32;
-    }
-    return;
-  }
-
-  // There is no master volume control, try to set volume for each channel.
-  [[maybe_unused]] int successful_channels = 0;
-  for (int i = 1; i <= number_of_channels_in_frame_; ++i) {
-    property_address.mElement = static_cast<UInt32>(i);
-    if (IsVolumeSettableOnChannel(i)) {
-      OSStatus result = AudioObjectSetPropertyData(
-          input_device_id_, &property_address, 0, NULL, sizeof(volume_float32),
-          &volume_float32);
-      if (result == noErr)
-        ++successful_channels;
-    }
-  }
-
-  DLOG_IF(WARNING, successful_channels == 0)
-      << "Failed to set volume to " << volume_float32;
+  AudioManagerMac::SetInputVolume(input_device_id_, volume);
 
   // Update the AGC volume level based on the last setting above. Note that,
   // the volume-level resolution is not infinite and it is therefore not
@@ -798,74 +741,11 @@ void AUAudioInputStream::SetVolume(double volume) {
 }
 
 double AUAudioInputStream::GetVolume() {
-  // Verify that we have a valid device.
-  if (input_device_id_ == kAudioObjectUnknown) {
-    LOG(ERROR) << "Device ID is unknown";
-    return 0.0;
-  }
-
-  AudioObjectPropertyAddress property_address = {
-      kAudioDevicePropertyVolumeScalar, kAudioDevicePropertyScopeInput,
-      kAudioObjectPropertyElementMain};
-
-  if (AudioObjectHasProperty(input_device_id_, &property_address)) {
-    // The device supports master volume control, get the volume from the
-    // master channel.
-    Float32 volume_float32 = 0.0;
-    UInt32 size = sizeof(volume_float32);
-    OSStatus result =
-        AudioObjectGetPropertyData(input_device_id_, &property_address, 0,
-                                   nullptr, &size, &volume_float32);
-    if (result == noErr)
-      return static_cast<double>(volume_float32);
-  } else {
-    // There is no master volume control, try to get the average volume of
-    // all the channels.
-    Float32 volume_float32 = 0.0;
-    int successful_channels = 0;
-    for (int i = 1; i <= number_of_channels_in_frame_; ++i) {
-      property_address.mElement = static_cast<UInt32>(i);
-      if (AudioObjectHasProperty(input_device_id_, &property_address)) {
-        Float32 channel_volume = 0;
-        UInt32 size = sizeof(channel_volume);
-        OSStatus result =
-            AudioObjectGetPropertyData(input_device_id_, &property_address, 0,
-                                       nullptr, &size, &channel_volume);
-        if (result == noErr) {
-          volume_float32 += channel_volume;
-          ++successful_channels;
-        }
-      }
-    }
-
-    // Get the average volume of the channels.
-    if (successful_channels != 0)
-      return static_cast<double>(volume_float32 / successful_channels);
-  }
-
-  DLOG(WARNING) << "Failed to get volume";
-  return 0.0;
+  return AudioManagerMac::GetInputVolume(input_device_id_);
 }
 
 bool AUAudioInputStream::IsMuted() {
-  // Verify that we have a valid device.
-  DCHECK_NE(input_device_id_, kAudioObjectUnknown) << "Device ID is unknown";
-
-  AudioObjectPropertyAddress property_address = {
-      kAudioDevicePropertyMute, kAudioDevicePropertyScopeInput,
-      kAudioObjectPropertyElementMain};
-
-  if (!AudioObjectHasProperty(input_device_id_, &property_address)) {
-    DLOG(ERROR) << "Device does not support checking master mute state";
-    return false;
-  }
-
-  UInt32 muted = 0;
-  UInt32 size = sizeof(muted);
-  OSStatus result = AudioObjectGetPropertyData(
-      input_device_id_, &property_address, 0, nullptr, &size, &muted);
-  DLOG_IF(WARNING, result != noErr) << "Failed to get mute state";
-  return result == noErr && muted != 0;
+  return AudioManagerMac::IsMuted(input_device_id_);
 }
 
 void AUAudioInputStream::SetOutputDeviceForAec(
@@ -1155,30 +1035,10 @@ OSStatus AUAudioInputStream::Provide(UInt32 number_of_frames,
 
 int AUAudioInputStream::HardwareSampleRate() {
   // Determine the default input device's sample-rate.
-  AudioDeviceID device_id = kAudioObjectUnknown;
-  UInt32 info_size = sizeof(device_id);
-
-  AudioObjectPropertyAddress default_input_device_address = {
-      kAudioHardwarePropertyDefaultInputDevice, kAudioObjectPropertyScopeGlobal,
-      kAudioObjectPropertyElementMain};
-  OSStatus result = AudioObjectGetPropertyData(kAudioObjectSystemObject,
-                                               &default_input_device_address, 0,
-                                               0, &info_size, &device_id);
-  if (result != noErr)
-    return 0;
-
-  Float64 nominal_sample_rate;
-  info_size = sizeof(nominal_sample_rate);
-
-  AudioObjectPropertyAddress nominal_sample_rate_address = {
-      kAudioDevicePropertyNominalSampleRate, kAudioObjectPropertyScopeGlobal,
-      kAudioObjectPropertyElementMain};
-  result = AudioObjectGetPropertyData(device_id, &nominal_sample_rate_address,
-                                      0, 0, &info_size, &nominal_sample_rate);
-  if (result != noErr)
-    return 0;
-
-  return static_cast<int>(nominal_sample_rate);
+  AudioDeviceID input_device_id = kAudioObjectUnknown;
+  AudioManagerMac::GetDefaultInputDevice(&input_device_id);
+  return static_cast<int>(
+      AudioManagerMac::HardwareSampleRateForDevice(input_device_id));
 }
 
 base::TimeTicks AUAudioInputStream::GetCaptureTime(
@@ -1193,7 +1053,7 @@ base::TimeTicks AUAudioInputStream::GetCaptureTime(
          hardware_latency_;
 }
 
-int AUAudioInputStream::GetNumberOfChannelsFromStream() {
+int AUAudioInputStream::GetNumberOfChannelsForDevice() {
   // Get the stream format, to be able to read the number of channels.
   AudioObjectPropertyAddress property_address = {
       kAudioDevicePropertyStreamFormat, kAudioDevicePropertyScopeInput,
@@ -1216,9 +1076,9 @@ bool AUAudioInputStream::IsRunning() {
     return false;
   UInt32 is_running = 0;
   UInt32 size = sizeof(is_running);
-  OSStatus error =
-      AudioUnitGetProperty(audio_unit_, kAudioOutputUnitProperty_IsRunning,
-                           kAudioUnitScope_Global, 0, &is_running, &size);
+  OSStatus error = AudioUnitGetProperty(
+      audio_unit_, kAudioOutputUnitProperty_IsRunning, kAudioUnitScope_Global,
+      AUElement::OUTPUT, &is_running, &size);
   OSSTATUS_DLOG_IF(ERROR, error != noErr, error)
       << "AudioUnitGetProperty(kAudioOutputUnitProperty_IsRunning) failed";
   DVLOG(1) << " this " << this << " IsRunning: " << is_running;
@@ -1235,16 +1095,6 @@ void AUAudioInputStream::HandleError(OSStatus err) {
       " (" << err << ")";
   if (sink_)
     sink_->OnError();
-}
-
-bool AUAudioInputStream::IsVolumeSettableOnChannel(int channel) {
-  Boolean is_settable = false;
-  AudioObjectPropertyAddress property_address = {
-      kAudioDevicePropertyVolumeScalar, kAudioDevicePropertyScopeInput,
-      static_cast<UInt32>(channel)};
-  OSStatus result = AudioObjectIsPropertySettable(
-      input_device_id_, &property_address, &is_settable);
-  return (result == noErr) ? is_settable : false;
 }
 
 void AUAudioInputStream::SetInputCallbackIsActive(bool enabled) {
@@ -1301,7 +1151,8 @@ void AUAudioInputStream::UpdateCaptureTimestamp(
         lost_frames, input_params_.sample_rate());
     glitch_reporter_.UpdateStats(lost_audio_duration);
     if (lost_audio_duration.is_positive()) {
-      glitch_accumulator_.Add({.duration = lost_audio_duration, .count = 1});
+      glitch_accumulator_.Add(AudioGlitchInfo::SingleBoundedGlitch(
+          lost_audio_duration, AudioGlitchInfo::Direction::kCapture));
     }
   }
 

@@ -39,16 +39,12 @@ class MEDIA_EXPORT ChunkDemuxerStream : public DemuxerStream {
  public:
   using BufferQueue = base::circular_deque<scoped_refptr<StreamParserBuffer>>;
 
-#if defined(STARBOARD)
-  ChunkDemuxerStream(const std::string& mime_type, Type type, MediaTrack::Id media_track_id);
-#else  // defined(STARBOARD)
   ChunkDemuxerStream() = delete;
 
   ChunkDemuxerStream(Type type, MediaTrack::Id media_track_id);
 
   ChunkDemuxerStream(const ChunkDemuxerStream&) = delete;
   ChunkDemuxerStream& operator=(const ChunkDemuxerStream&) = delete;
-#endif  // defined(STARBOARD)
 
   ~ChunkDemuxerStream() override;
 
@@ -82,10 +78,6 @@ class MEDIA_EXPORT ChunkDemuxerStream : public DemuxerStream {
   // Returns false iff buffer is still full after running eviction.
   // https://w3c.github.io/media-source/#sourcebuffer-coded-frame-eviction
   bool EvictCodedFrames(base::TimeDelta media_time, size_t newDataSize);
-
-#if defined(STARBOARD)
-  base::TimeDelta GetWriteHead() const;
-#endif  // defined(STARBOARD)
 
   void OnMemoryPressure(
       base::TimeDelta media_time,
@@ -132,17 +124,11 @@ class MEDIA_EXPORT ChunkDemuxerStream : public DemuxerStream {
   bool UpdateVideoConfig(const VideoDecoderConfig& config,
                          bool allow_codec_change,
                          MediaLog* media_log);
-  void UpdateTextConfig(const TextTrackConfig& config, MediaLog* media_log);
 
   void MarkEndOfStream();
   void UnmarkEndOfStream();
 
   // DemuxerStream methods.
-#if defined(STARBOARD)
-  std::string mime_type() const override { return mime_type_; }
-  size_t GetStreamMemoryLimit();
-  void SetStreamMemoryLimitOverride(size_t memory_limit);
-#endif  // defined(STARBOARD)
   void Read(uint32_t count, ReadCB read_cb) override;
   Type type() const override;
   StreamLiveness liveness() const override;
@@ -152,10 +138,6 @@ class MEDIA_EXPORT ChunkDemuxerStream : public DemuxerStream {
 
   bool IsEnabled() const;
   void SetEnabled(bool enabled, base::TimeDelta timestamp);
-
-  // Returns the text track configuration.  It is an error to call this method
-  // if type() != TEXT.
-  TextTrackConfig text_track_config();
 
   // Sets the memory limit, in bytes, on the SourceBufferStream.
   void SetStreamMemoryLimit(size_t memory_limit);
@@ -194,10 +176,6 @@ class MEDIA_EXPORT ChunkDemuxerStream : public DemuxerStream {
   std::pair<SourceBufferStreamStatus, DemuxerStream::DecoderBufferVector>
   GetPendingBuffers_Locked() EXCLUSIVE_LOCKS_REQUIRED(lock_);
 
-#if defined(STARBOARD)
-  const std::string mime_type_;
-#endif  // defined(STARBOARD)
-
   // Specifies the type of the stream.
   const Type type_;
 
@@ -220,9 +198,6 @@ class MEDIA_EXPORT ChunkDemuxerStream : public DemuxerStream {
   State state_ GUARDED_BY(lock_);
   ReadCB read_cb_ GUARDED_BY(lock_);
   bool is_enabled_ GUARDED_BY(lock_);
-#if defined(STARBOARD)
-  base::TimeDelta write_head_ GUARDED_BY(lock_);
-#endif  // defined(STARBOARD)
 };
 
 // Demuxer implementation that allows chunks of media data to be passed
@@ -295,11 +270,6 @@ class MEDIA_EXPORT ChunkDemuxer : public Demuxer {
   [[nodiscard]] Status AddId(const std::string& id,
                              std::unique_ptr<VideoDecoderConfig> video_config);
 
-#if defined(STARBOARD)
-  // Special version of AddId() that retains the |mime_type| from the web app.
-  Status AddId(const std::string& id, const std::string& mime_type);
-#endif  // defined(STARBOARD)
-
   // Notifies a caller via `tracks_updated_cb` that the set of media tracks
   // for a given `id` has changed. This callback must be set before any calls to
   // AppendToParseBuffer() for this `id`.
@@ -335,6 +305,8 @@ class MEDIA_EXPORT ChunkDemuxer : public Demuxer {
                                    TrackChangeCB change_completed_cb) override;
 
   void SetPlaybackRate(double rate) override {}
+
+  void DisableCanChangeType() override;
 
   // Appends media data to the source buffer's stream parser associated with
   // `id`. No parsing is done, just buffering the media data for future parsing
@@ -423,12 +395,6 @@ class MEDIA_EXPORT ChunkDemuxer : public Demuxer {
   [[nodiscard]] bool EvictCodedFrames(const std::string& id,
                                       base::TimeDelta currentMediaTime,
                                       size_t newDataSize);
-
-#if defined(STARBOARD)
-  base::TimeDelta GetWriteHead(const std::string& id) const;
-  void SetSourceBufferStreamMemoryLimit(const std::string& guid, size_t limit);
-  size_t GetSourceBufferStreamMemoryLimit(const std::string& guid);
-#endif  // defined(STARBOARD)
 
   void OnMemoryPressure(
       base::TimeDelta currentMediaTime,
@@ -533,9 +499,6 @@ class MEDIA_EXPORT ChunkDemuxer : public Demuxer {
   ChunkDemuxerStream* CreateDemuxerStream(const std::string& source_id,
                                           DemuxerStream::Type type);
 
-  void OnNewTextTrack(ChunkDemuxerStream* text_stream,
-                      const TextTrackConfig& config);
-
   // Returns true if |source_id| is valid, false otherwise.
   bool IsValidId_Locked(const std::string& source_id) const;
 
@@ -581,7 +544,10 @@ class MEDIA_EXPORT ChunkDemuxer : public Demuxer {
   State state_ = WAITING_FOR_INIT;
   bool cancel_next_seek_ = false;
 
-  raw_ptr<DemuxerHost> host_ = nullptr;
+  // Found dangling on `linux-rel` in
+  // `benchmarks.system_health_smoke_test.SystemHealthBenchmarkSmokeTest.
+  // system_health.memory_desktop/browse:media:youtubetv:2019`.
+  raw_ptr<DemuxerHost, DanglingUntriaged> host_ = nullptr;
   base::OnceClosure open_cb_;
   const base::RepeatingClosure progress_cb_;
   EncryptedMediaInitDataCB encrypted_media_init_data_cb_;
@@ -600,7 +566,6 @@ class MEDIA_EXPORT ChunkDemuxer : public Demuxer {
       std::vector<std::unique_ptr<ChunkDemuxerStream>>;
   OwnedChunkDemuxerStreamVector audio_streams_;
   OwnedChunkDemuxerStreamVector video_streams_;
-  OwnedChunkDemuxerStreamVector text_streams_;
 
   // Keep track of which ids still remain uninitialized so that we transition
   // into the INITIALIZED only after all ids/SourceBuffers got init segment.
@@ -629,9 +594,7 @@ class MEDIA_EXPORT ChunkDemuxer : public Demuxer {
 
   std::map<MediaTrack::Id, ChunkDemuxerStream*> track_id_to_demux_stream_map_;
 
-#if defined(STARBOARD)
-  std::map<std::string, std::string> id_to_mime_map_;
-#endif  // defined(STARBOARD)
+  bool supports_change_type_ = true;
 };
 
 }  // namespace media

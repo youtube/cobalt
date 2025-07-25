@@ -101,10 +101,8 @@ void QuicChromiumClientStream::Handle::OnDataAvailable() {
   if (!read_body_callback_)
     return;  // Wait for ReadBody to be called.
 
-  // TODO(https://crbug.com/1335423): Change to DCHECK() or remove after bug is
-  // fixed.
-  CHECK(read_body_buffer_);
-  CHECK_GT(read_body_buffer_len_, 0);
+  DCHECK(read_body_buffer_);
+  DCHECK_GT(read_body_buffer_len_, 0);
 
   int rv = stream_->Read(read_body_buffer_, read_body_buffer_len_);
   if (rv == ERR_IO_PENDING)
@@ -206,14 +204,16 @@ int QuicChromiumClientStream::Handle::ReadBody(
   if (!stream_)
     return net_error_;
 
+  if (stream_->read_side_closed()) {
+    return OK;
+  }
+
   int rv = stream_->Read(buffer, buffer_len);
   if (rv != ERR_IO_PENDING)
     return rv;
 
-  // TODO(https://crbug.com/1335423): Change to DCHECK() or remove after bug is
-  // fixed.
-  CHECK(buffer);
-  CHECK_GT(buffer_len, 0);
+  DCHECK(buffer);
+  DCHECK_GT(buffer_len, 0);
 
   SetCallback(std::move(callback), &read_body_callback_);
   read_body_buffer_ = buffer;
@@ -378,13 +378,6 @@ bool QuicChromiumClientStream::Handle::IsFirstStream() const {
   return stream_->IsFirstStream();
 }
 
-void QuicChromiumClientStream::Handle::OnPromiseHeaderList(
-    quic::QuicStreamId promised_id,
-    size_t frame_len,
-    const quic::QuicHeaderList& header_list) {
-  stream_->OnPromiseHeaderList(promised_id, frame_len, header_list);
-}
-
 bool QuicChromiumClientStream::Handle::can_migrate_to_cellular_network() {
   if (!stream_)
     return false;
@@ -526,7 +519,6 @@ void QuicChromiumClientStream::OnInitialHeadersComplete(
   }
 
   ConsumeHeaderList();
-  session_->OnInitialHeadersComplete(id(), header_block);
 
   // Buffer the headers and deliver them when the handle arrives.
   initial_headers_arrived_ = true;
@@ -549,24 +541,6 @@ void QuicChromiumClientStream::OnTrailingHeadersComplete(
     // The handle will be notified of the headers via a posted task.
     NotifyHandleOfTrailingHeadersAvailableLater();
   }
-}
-
-void QuicChromiumClientStream::OnPromiseHeaderList(
-    quic::QuicStreamId promised_id,
-    size_t frame_len,
-    const quic::QuicHeaderList& header_list) {
-  spdy::Http2HeaderBlock promise_headers;
-  int64_t content_length = -1;
-  if (!quic::SpdyUtils::CopyAndValidateHeaders(header_list, &content_length,
-                                               &promise_headers)) {
-    DLOG(ERROR) << "Failed to parse header list: " << header_list.DebugString();
-    ConsumeHeaderList();
-    Reset(quic::QUIC_BAD_APPLICATION_PAYLOAD);
-    return;
-  }
-  ConsumeHeaderList();
-
-  session_->HandlePromised(id(), promised_id, promise_headers);
 }
 
 void QuicChromiumClientStream::OnBodyAvailable() {
@@ -626,7 +600,7 @@ size_t QuicChromiumClientStream::WriteHeaders(
   return len;
 }
 
-bool QuicChromiumClientStream::WriteStreamData(absl::string_view data,
+bool QuicChromiumClientStream::WriteStreamData(std::string_view data,
                                                bool fin) {
   // Writes the data, or buffers it.
   WriteOrBufferBody(data, fin);
@@ -640,7 +614,7 @@ bool QuicChromiumClientStream::WritevStreamData(
   // Writes the data, or buffers it.
   for (size_t i = 0; i < buffers.size(); ++i) {
     bool is_fin = fin && (i == buffers.size() - 1);
-    absl::string_view string_data(buffers[i]->data(), lengths[i]);
+    std::string_view string_data(buffers[i]->data(), lengths[i]);
     WriteOrBufferBody(string_data, is_fin);
   }
   return !HasBufferedData();  // Was all data written?
@@ -673,10 +647,8 @@ void QuicChromiumClientStream::OnError(int error) {
 }
 
 int QuicChromiumClientStream::Read(IOBuffer* buf, int buf_len) {
-  // TODO(https://crbug.com/1335423): Change to DCHECK() or remove after bug
-  // is fixed.
-  CHECK_GT(buf_len, 0);
-  CHECK(buf->data());
+  DCHECK_GT(buf_len, 0);
+  DCHECK(buf->data());
 
   if (IsDoneReading())
     return 0;  // EOF

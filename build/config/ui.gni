@@ -23,11 +23,6 @@ import("//build/config/chromeos/ui_mode.gni")
 import("//build/config/ozone.gni")
 
 declare_args() {
-  # Indicates if the UI toolkit depends on X11.
-  # Enabled by default. Can be disabled if Ozone only build is required and
-  # vice-versa.
-  use_x11 = is_linux && !is_chromecast && !is_chromeos_lacros
-
   # Indicates if Aura is enabled. Aura is a low-level windowing library, sort
   # of a replacement for GDI or GTK.
   use_aura = is_win || is_linux || is_chromeos || is_fuchsia
@@ -39,7 +34,6 @@ declare_args() {
 
   use_glib =
       is_linux && !is_castos &&
-      !is_starboard &&
       # Avoid the need for glib when Android is building things via secondary
       # toolchains.
       target_os != "android"

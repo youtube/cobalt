@@ -200,13 +200,14 @@ source_set("filters") {
     deps += [ "//media/base/android" ]
   }
 
-  if (is_mac) {
+  if (is_apple) {
     sources += [
       "mac/audio_toolbox_audio_decoder.cc",
       "mac/audio_toolbox_audio_decoder.h",
       "mac/audio_toolbox_audio_encoder.cc",
       "mac/audio_toolbox_audio_encoder.h",
     ]
+    deps += [ "//media/base/mac" ]
   }
   if (is_win && enable_platform_dts_audio) {
     sources += [
@@ -218,8 +219,6 @@ source_set("filters") {
     sources += [
       "win/media_foundation_audio_decoder.cc",
       "win/media_foundation_audio_decoder.h",
-      "win/media_foundation_utils.cc",
-      "win/media_foundation_utils.h",
     ]
     deps += [ "//media/base/win:media_foundation_util" ]
     if (enable_platform_dts_audio) {
@@ -245,10 +244,19 @@ source_set("filters") {
 
   if (enable_hls_demuxer) {
     sources += [
+      "hls_codec_detector.cc",
+      "hls_codec_detector.h",
       "hls_data_source_provider.cc",
       "hls_data_source_provider.h",
+      "hls_demuxer_status.h",
+      "hls_live_rendition.cc",
+      "hls_live_rendition.h",
       "hls_manifest_demuxer_engine.cc",
       "hls_manifest_demuxer_engine.h",
+      "hls_rendition.cc",
+      "hls_rendition.h",
+      "hls_vod_rendition.cc",
+      "hls_vod_rendition.h",
       "manifest_demuxer.cc",
       "manifest_demuxer.h",
     ]
@@ -371,7 +379,7 @@ source_set("unit_tests") {
       ]
     }
 
-    if (enable_ffmpeg_video_decoders) {
+    if (enable_ffmpeg_video_decoders && proprietary_codecs) {
       sources += [ "ffmpeg_video_decoder_unittest.cc" ]
     }
   }
@@ -405,7 +413,13 @@ source_set("unit_tests") {
 
   if (enable_hls_demuxer) {
     sources += [
+      "hls_codec_detector_unittest.cc",
       "hls_data_source_provider_unittest.cc",
+      "hls_live_rendition_unittest.cc",
+      "hls_manifest_demuxer_engine_unittest.cc",
+      "hls_test_helpers.cc",
+      "hls_test_helpers.h",
+      "hls_vod_rendition_unittest.cc",
       "manifest_demuxer_unittest.cc",
     ]
   }

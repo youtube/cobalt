@@ -1,0 +1,108 @@
+// Copyright 2021 The Chromium Authors
+// Use of this source code is governed by a BSD-style license that can be
+// found in the LICENSE file.
+
+#ifndef CHROMEOS_CONSTANTS_CHROMEOS_FEATURES_H_
+#define CHROMEOS_CONSTANTS_CHROMEOS_FEATURES_H_
+
+#include "base/component_export.h"
+#include "base/feature_list.h"
+#include "build/buildflag.h"
+
+// This file is only for the feature flags that are shared between ash-chrome
+// and lacros-chrome that are not common. For ash features, please add them
+// in //ash/constants/ash_features.h.
+namespace chromeos {
+
+namespace features {
+
+// All features in alphabetical order. The features should be documented
+// alongside the definition of their values in the .cc file. If a feature is
+// being rolled out via Finch, add a comment in the .cc file.
+
+#if BUILDFLAG(IS_CHROMEOS_ASH)
+COMPONENT_EXPORT(CHROMEOS_CONSTANTS)
+BASE_DECLARE_FEATURE(kAppInstallServiceUri);
+#endif  // BUILDFLAG(IS_CHROMEOS_ASH)
+COMPONENT_EXPORT(CHROMEOS_CONSTANTS)
+BASE_DECLARE_FEATURE(kBluetoothPhoneFilter);
+COMPONENT_EXPORT(CHROMEOS_CONSTANTS)
+BASE_DECLARE_FEATURE(kClipboardHistoryRefresh);
+COMPONENT_EXPORT(CHROMEOS_CONSTANTS) BASE_DECLARE_FEATURE(kCloudGamingDevice);
+COMPONENT_EXPORT(CHROMEOS_CONSTANTS) BASE_DECLARE_FEATURE(kBlinkExtension);
+COMPONENT_EXPORT(CHROMEOS_CONSTANTS)
+BASE_DECLARE_FEATURE(kBlinkExtensionDiagnostics);
+COMPONENT_EXPORT(CHROMEOS_CONSTANTS)
+BASE_DECLARE_FEATURE(kCrosAppsBackgroundEventHandling);
+COMPONENT_EXPORT(CHROMEOS_CONSTANTS) BASE_DECLARE_FEATURE(kCrosComponents);
+COMPONENT_EXPORT(CHROMEOS_CONSTANTS)
+BASE_DECLARE_FEATURE(kCrosWebAppInstallDialog);
+#if BUILDFLAG(IS_CHROMEOS_ASH)
+COMPONENT_EXPORT(CHROMEOS_CONSTANTS)
+BASE_DECLARE_FEATURE(kCrosWebAppShortcutUiUpdate);
+COMPONENT_EXPORT(CHROMEOS_CONSTANTS)
+BASE_DECLARE_FEATURE(kSeparateWebAppShortcutBadgeIcon);
+#endif  // BUILDFLAG(IS_CHROMEOS_ASH)
+COMPONENT_EXPORT(CHROMEOS_CONSTANTS) BASE_DECLARE_FEATURE(kDeskProfiles);
+COMPONENT_EXPORT(CHROMEOS_CONSTANTS)
+BASE_DECLARE_FEATURE(kDisableIdleSocketsCloseOnMemoryPressure);
+COMPONENT_EXPORT(CHROMEOS_CONSTANTS)
+BASE_DECLARE_FEATURE(kDisableOfficeEditingComponentApp);
+COMPONENT_EXPORT(CHROMEOS_CONSTANTS)
+BASE_DECLARE_FEATURE(kDisableQuickAnswersV2Translation);
+COMPONENT_EXPORT(CHROMEOS_CONSTANTS)
+BASE_DECLARE_FEATURE(kExperimentalWebAppStoragePartitionIsolation);
+COMPONENT_EXPORT(CHROMEOS_CONSTANTS)
+BASE_DECLARE_FEATURE(kIWAForTelemetryExtensionAPI);
+COMPONENT_EXPORT(CHROMEOS_CONSTANTS) BASE_DECLARE_FEATURE(kJelly);
+COMPONENT_EXPORT(CHROMEOS_CONSTANTS) BASE_DECLARE_FEATURE(kJellyroll);
+COMPONENT_EXPORT(CHROMEOS_CONSTANTS) BASE_DECLARE_FEATURE(kOrca);
+COMPONENT_EXPORT(CHROMEOS_CONSTANTS) BASE_DECLARE_FEATURE(kOrcaDogfood);
+COMPONENT_EXPORT(CHROMEOS_CONSTANTS)
+BASE_DECLARE_FEATURE(kQuickAnswersRichCard);
+COMPONENT_EXPORT(CHROMEOS_CONSTANTS)
+BASE_DECLARE_FEATURE(kQuickAnswersV2SettingsSubToggle);
+COMPONENT_EXPORT(CHROMEOS_CONSTANTS) BASE_DECLARE_FEATURE(kUploadOfficeToCloud);
+COMPONENT_EXPORT(CHROMEOS_CONSTANTS)
+BASE_DECLARE_FEATURE(kUploadOfficeToCloudForEnterprise);
+COMPONENT_EXPORT(CHROMEOS_CONSTANTS) BASE_DECLARE_FEATURE(kRoundedWindows);
+
+// Keep alphabetized.
+
+COMPONENT_EXPORT(CHROMEOS_CONSTANTS)
+bool IsAppInstallServiceUriEnabled();
+COMPONENT_EXPORT(CHROMEOS_CONSTANTS)
+bool IsClipboardHistoryRefreshEnabled();
+COMPONENT_EXPORT(CHROMEOS_CONSTANTS) bool IsCloudGamingDeviceEnabled();
+COMPONENT_EXPORT(CHROMEOS_CONSTANTS) bool IsBlinkExtensionEnabled();
+COMPONENT_EXPORT(CHROMEOS_CONSTANTS) bool IsBlinkExtensionDiagnosticsEnabled();
+COMPONENT_EXPORT(CHROMEOS_CONSTANTS) bool IsCrosComponentsEnabled();
+COMPONENT_EXPORT(CHROMEOS_CONSTANTS) bool IsCrosWebAppShortcutUiUpdateEnabled();
+COMPONENT_EXPORT(CHROMEOS_CONSTANTS)
+bool IsDeskProfilesEnabled();
+COMPONENT_EXPORT(CHROMEOS_CONSTANTS)
+bool IsIWAForTelemetryExtensionAPIEnabled();
+COMPONENT_EXPORT(CHROMEOS_CONSTANTS) bool IsJellyEnabled();
+COMPONENT_EXPORT(CHROMEOS_CONSTANTS) bool IsJellyrollEnabled();
+COMPONENT_EXPORT(CHROMEOS_CONSTANTS) bool IsRoundedWindowsEnabled();
+COMPONENT_EXPORT(CHROMEOS_CONSTANTS) int RoundedWindowsRadius();
+COMPONENT_EXPORT(CHROMEOS_CONSTANTS) extern const char kRoundedWindowsRadius[];
+COMPONENT_EXPORT(CHROMEOS_CONSTANTS)
+bool IsSeparateWebAppShortcutBadgeIconEnabled();
+COMPONENT_EXPORT(CHROMEOS_CONSTANTS) bool IsOrcaEnabled();
+COMPONENT_EXPORT(CHROMEOS_CONSTANTS) bool IsQuickAnswersV2TranslationDisabled();
+COMPONENT_EXPORT(CHROMEOS_CONSTANTS)
+bool IsQuickAnswersV2SettingsSubToggleEnabled();
+COMPONENT_EXPORT(CHROMEOS_CONSTANTS)
+bool IsQuickAnswersRichCardEnabled();
+COMPONENT_EXPORT(CHROMEOS_CONSTANTS)
+bool IsQuickAnswersAlwaysTriggerForSingleWord();
+COMPONENT_EXPORT(CHROMEOS_CONSTANTS)
+bool IsUploadOfficeToCloudEnabled();
+COMPONENT_EXPORT(CHROMEOS_CONSTANTS)
+bool IsUploadOfficeToCloudForEnterpriseEnabled();
+
+}  // namespace features
+}  // namespace chromeos
+
+#endif  // CHROMEOS_CONSTANTS_CHROMEOS_FEATURES_H_

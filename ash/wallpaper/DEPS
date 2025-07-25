@@ -1,0 +1,9 @@
+include_rules = [
+  "+services/data_decoder/public",
+]
+
+specific_include_rules = {
+  "wallpaper_controller_unittest.cc": [
+    "+components/user_manager",
+  ],
+}

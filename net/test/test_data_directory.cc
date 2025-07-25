@@ -29,11 +29,7 @@ base::FilePath GetTestNetDirectory() {
   base::FilePath src_root;
   {
     base::ScopedAllowBlockingForTesting allow_blocking;
-#if defined(STARBOARD)
-    base::PathService::Get(base::DIR_TEST_DATA, &src_root);
-#else
-    base::PathService::Get(base::DIR_SOURCE_ROOT, &src_root);
-#endif
+    base::PathService::Get(base::DIR_SRC_TEST_DATA_ROOT, &src_root);
   }
 
   return src_root.Append(kNetRelativePath);

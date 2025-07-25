@@ -5,6 +5,9 @@
 import("//build/config/android/build_vars.gni")
 import("//build/config/android/config.gni")
 import("//build/config/android/rules.gni")
+import("//build/config/clang/clang.gni")
+import("//build/config/coverage/coverage.gni")
+import("//build/config/gclient_args.gni")
 import("//build/config/python.gni")
 import("//build_overrides/build.gni")
 
@@ -42,7 +45,6 @@ if (enable_java_templates) {
       "java/src/org/chromium/build/annotations/DoNotInline.java",
       "java/src/org/chromium/build/annotations/DoNotStripLogs.java",
       "java/src/org/chromium/build/annotations/IdentifierNameString.java",
-      "java/src/org/chromium/build/annotations/MainDex.java",
       "java/src/org/chromium/build/annotations/MockedInTests.java",
       "java/src/org/chromium/build/annotations/UsedByReflection.java",
     ]
@@ -71,7 +73,6 @@ if (enable_java_templates) {
     }
     robolectric_binary("build_junit_tests") {
       # Test has no JNI, so skip JNI Generator step.
-      generate_final_jni = false
       resources_package = "org.chromium.build"
       sources = [
         "junit/src/org/chromium/build/AndroidAssetsTest.java",
@@ -118,10 +119,12 @@ python_library("devil_chromium_py") {
 group("apk_installer_data") {
   # Other //build users let devil library fetch these from Google Storage.
   if (build_with_chromium) {
-    data_deps = [
-      "//build/android/pylib/device/commands",
-      "//tools/android/md5sum",
-    ]
+    if (is_component_build) {
+      data_deps = [
+        "//build/android/pylib/device/commands",
+        "//tools/android/md5sum",
+      ]
+    }
     data = [ "//third_party/android_build_tools/bundletool/bundletool.jar" ]
   }
 }
@@ -149,6 +152,13 @@ python_library("test_runner_core_py") {
     "//third_party/requests/",
   ]
   data_deps = [ ":logdog_wrapper_py" ]
+  if (use_clang_coverage && checkout_clang_coverage_tools) {
+    # Test runner script may use `llvm-profdata` (if exists) to merge
+    # clang code coverage data after each instrumentation test to
+    # save space. The tool only exists when `checkout_clang_coverage_tools`
+    # gclient custom_var is true.
+    data += [ "${clang_base_path}/bin/llvm-profdata" ]
+  }
 }
 
 group("test_runner_device_support") {
@@ -171,11 +181,13 @@ group("test_runner_device_support") {
 
   # Other //build users let devil library fetch these from Google Storage.
   if (build_with_chromium) {
-    data_deps += [ "//tools/android/forwarder2" ]
+    if (!is_component_build) {
+      data_deps += [ "//tools/android/forwarder2" ]
+    }
     data += [ "//tools/android/avd/proto/" ]
     if (enable_chrome_android_internal) {
-       data += [ "//clank/tools/android/avd/proto/" ]
-     }
+      data += [ "//clank/tools/android/avd/proto/" ]
+    }
     if (is_asan) {
       data_deps += [ "//tools/android/asan/third_party:asan_device_setup" ]
     }
@@ -200,8 +212,7 @@ python_library("resource_sizes_py") {
 
   data = [
     build_vars_file,
-    android_readelf,
-    rebase_path("$android_ndk_library_path/libc++.so.1", root_build_dir),
+    "//third_party/llvm-build/Release+Asserts/bin/llvm-readobj",
   ]
 }
 

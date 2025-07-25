@@ -21,8 +21,6 @@
 #include "media/base/null_video_sink.h"
 #include "media/base/pipeline_impl.h"
 #include "media/base/pipeline_status.h"
-#include "media/base/text_track.h"
-#include "media/base/text_track_config.h"
 #include "media/base/video_frame.h"
 #include "media/renderers/audio_renderer_impl.h"
 #include "media/renderers/video_renderer_impl.h"
@@ -249,8 +247,6 @@ class PipelineIntegrationTestBase : public Pipeline::Client {
   MOCK_METHOD2(OnBufferingStateChange,
                void(BufferingState, BufferingStateChangeReason));
   MOCK_METHOD0(OnDurationChange, void());
-  MOCK_METHOD2(OnAddTextTrack,
-               void(const TextTrackConfig& config, AddTextTrackDoneCB done_cb));
   MOCK_METHOD1(OnWaiting, void(WaitingReason));
   MOCK_METHOD1(OnVideoNaturalSizeChange, void(const gfx::Size&));
   MOCK_METHOD1(OnVideoConfigChange, void(const VideoDecoderConfig&));
@@ -273,8 +269,17 @@ class PipelineIntegrationTestBase : public Pipeline::Client {
   // RunUntilQuitOrError() on it.
   void RunUntilQuitOrEndedOrError(base::RunLoop* run_loop);
 
+  // Implementation of `Pipeline::Client::OnBufferingStateChange()` used during
+  // seeks.  This handles failed seeks as well as successful ones, which have
+  // different behavior around exiting the seek.
+  void OnBufferingStateChangeForSeek(BufferingState state,
+                                     BufferingStateChangeReason reason);
+
   CreateVideoDecodersCB prepend_video_decoders_cb_;
   CreateAudioDecodersCB prepend_audio_decoders_cb_;
+
+  // First buffering state we get from the pipeline.
+  absl::optional<BufferingState> buffering_state_;
 
   base::OnceClosure on_ended_closure_;
   base::OnceClosure on_error_closure_;

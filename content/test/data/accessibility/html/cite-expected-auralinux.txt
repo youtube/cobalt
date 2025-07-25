@@ -1,0 +1,5 @@
+[document web]
+++[image] name='Pipe'
+++[paragraph]
+++++[static] name='The pipe'
+++++[static] name=' clicked by SomeOne.'

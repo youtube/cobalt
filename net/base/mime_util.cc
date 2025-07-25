@@ -22,7 +22,6 @@
 #include "net/base/mime_util.h"
 #include "net/base/platform_mime_util.h"
 #include "net/http/http_util.h"
-#include "starboard/common/string.h"
 
 using std::string;
 
@@ -47,10 +46,6 @@ class MimeUtil : public PlatformMimeUtil {
   bool MatchesMimeType(const std::string& mime_type_pattern,
                        const std::string& mime_type) const;
 
-#if defined(STARBOARD)
-  bool IsSupportedImageMimeType(const std::string& mime_type) const;
-#endif
-
   bool ParseMimeTypeWithoutParameter(base::StringPiece type_string,
                                      std::string* top_level_type,
                                      std::string* subtype) const;
@@ -61,12 +56,6 @@ class MimeUtil : public PlatformMimeUtil {
   friend struct base::LazyInstanceTraitsBase<MimeUtil>;
 
   MimeUtil();
-
-#if defined(STARBOARD)
-  void InitializeMimeTypesMaps();
-  typedef std::unordered_set<std::string> MimeMappings;
-  MimeMappings image_map_;
-#endif
 
   bool GetMimeTypeFromExtensionHelper(const base::FilePath::StringType& ext,
                                       bool include_platform_types,
@@ -246,27 +235,6 @@ static const MimeInfo kSecondaryMappings[] = {
     {"video/mpeg", "mpeg,mpg"},
 };
 
-#if defined(STARBOARD)
-// The following functions are copied from old Chromium libs.
-// From WebKit's WebCore/platform/MIMETypeRegistry.cpp:
-static const char* const supported_image_types[] = {
-    "image/jpeg",      "image/pjpeg", "image/jpg", "image/webp",
-    "image/png",       "image/gif",   "image/bmp",
-    "image/x-icon",     // ico
-    "image/x-xbitmap",  // xbm
-    "application/json"  //  Lottie animations
-};
-
-void MimeUtil::InitializeMimeTypesMaps() {
-  for (size_t i = 0; i < std::size(supported_image_types); ++i)
-    image_map_.insert(supported_image_types[i]);
-}
-
-bool MimeUtil::IsSupportedImageMimeType(const std::string& mime_type) const {
-  return image_map_.find(mime_type) != image_map_.end();
-}
-#endif
-
 // Finds mime type of |ext| from |mappings|.
 template <size_t num_mappings>
 static const char* FindMimeType(const MimeInfo (&mappings)[num_mappings],
@@ -396,11 +364,7 @@ bool MimeUtil::GetMimeTypeFromExtensionHelper(
   return false;
 }
 
-#if defined(STARBOARD)
-MimeUtil::MimeUtil() { InitializeMimeTypesMaps(); }
-#else
 MimeUtil::MimeUtil() = default;
-#endif
 
 // Tests for MIME parameter equality. Each parameter in the |mime_type_pattern|
 // must be matched by a parameter in the |mime_type|. If there are no
@@ -654,12 +618,6 @@ bool MimeUtil::IsValidTopLevelMimeType(const std::string& type_string) const {
 //----------------------------------------------------------------------------
 // Wrappers for the singleton
 //----------------------------------------------------------------------------
-
-#if defined(STARBOARD)
-bool IsSupportedImageMimeType(const std::string& mime_type) {
-  return g_mime_util.Get().IsSupportedImageMimeType(mime_type);
-}
-#endif
 
 bool GetMimeTypeFromExtension(const base::FilePath::StringType& ext,
                               std::string* mime_type) {

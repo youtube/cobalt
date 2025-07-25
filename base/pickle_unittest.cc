@@ -190,11 +190,7 @@ TEST(PickleTest, CopyWithInvalidHeader) {
   // 1. Actual header size (calculated based on the input buffer) > passed in
   // buffer size. Which results in Pickle's internal |header_| = null.
   {
-#if defined(STARBOARD)
-    Pickle::Header header = {100};
-#else
     Pickle::Header header = {.payload_size = 100};
-#endif
     const char* data = reinterpret_cast<char*>(&header);
     const Pickle pickle(data, sizeof(header));
 
@@ -636,6 +632,18 @@ TEST(PickleTest, ReachedEnd) {
   EXPECT_TRUE(iter.ReachedEnd());
   EXPECT_FALSE(iter.ReadInt(&out));
   EXPECT_TRUE(iter.ReachedEnd());
+}
+
+// Test that reading a value other than 0 or 1 as a bool does not trigger
+// UBSan.
+TEST(PickleTest, NonCanonicalBool) {
+  Pickle pickle;
+  pickle.WriteInt(0xff);
+
+  PickleIterator iter(pickle);
+  bool b;
+  ASSERT_TRUE(iter.ReadBool(&b));
+  EXPECT_TRUE(b);
 }
 
 }  // namespace base

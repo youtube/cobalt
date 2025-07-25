@@ -6,7 +6,6 @@
 
 #include <algorithm>
 #include <atomic>
-#include <cstring>
 
 #include "base/check_op.h"
 #include "base/compiler_specific.h"
@@ -235,7 +234,7 @@ TlsVectorState GetTlsVectorStateAndValue(PlatformThreadLocalStorage::TLSKey key,
   // typical Chromium builds where the code is in a dynamic library. For the
   // static executable case, this is likely equivalent.
   static_assert(
-      std::is_same<PlatformThreadLocalStorage::TLSKey, pthread_key_t>::value,
+      std::is_same_v<PlatformThreadLocalStorage::TLSKey, pthread_key_t>,
       "The special-case below assumes that the platform TLS implementation is "
       "pthread.");
 
@@ -418,7 +417,7 @@ void PlatformThreadLocalStorage::OnThreadExit() {
     return;
   OnThreadExitInternal(tls_vector);
 }
-#elif BUILDFLAG(IS_POSIX) || BUILDFLAG(IS_FUCHSIA) || defined(STARBOARD)
+#elif BUILDFLAG(IS_POSIX) || BUILDFLAG(IS_FUCHSIA)
 void PlatformThreadLocalStorage::OnThreadExit(void* value) {
   // On posix this function may be called twice. The first pass calls dtors and
   // sets state to kDestroyed. The second pass sets kDestroyed to

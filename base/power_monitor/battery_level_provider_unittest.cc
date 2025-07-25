@@ -36,15 +36,9 @@ TEST(BatteryLevelProviderTest, NoBattery) {
 
 TEST(BatteryLevelProviderTest, SingleBatteryWithExternalPower) {
   auto state = FakeBatteryLevelProvider::MakeBatteryState(
-#if defined(STARBOARD)
-      {BatteryDetails({true,
-                       42,
-                       100})});
-#else
       {BatteryDetails({.is_external_power_connected = true,
                        .current_capacity = 42,
                        .full_charged_capacity = 100})});
-#endif
   EXPECT_EQ(1, state.battery_count);
   EXPECT_TRUE(state.is_external_power_connected);
   EXPECT_EQ(42U, state.current_capacity);
@@ -54,15 +48,9 @@ TEST(BatteryLevelProviderTest, SingleBatteryWithExternalPower) {
 
 TEST(BatteryLevelProviderTest, SingleBatteryDischarging) {
   auto state = FakeBatteryLevelProvider::MakeBatteryState(
-#if defined(STARBOARD)
-      {BatteryDetails({false,
-                       42,
-                       100})});
-#else
       {BatteryDetails({.is_external_power_connected = false,
                        .current_capacity = 42,
                        .full_charged_capacity = 100})});
-#endif
   EXPECT_EQ(1, state.battery_count);
   EXPECT_FALSE(state.is_external_power_connected);
   EXPECT_EQ(42U, state.current_capacity);
@@ -72,21 +60,12 @@ TEST(BatteryLevelProviderTest, SingleBatteryDischarging) {
 
 TEST(BatteryLevelProviderTest, MultipleBatteriesWithExternalPower) {
   auto state = FakeBatteryLevelProvider::MakeBatteryState(
-#if defined(STARBOARD)
-      {BatteryDetails({false,
-                       42,
-                       100}),
-       BatteryDetails({true,
-                       10,
-                       100})});
-#else
       {BatteryDetails({.is_external_power_connected = false,
                        .current_capacity = 42,
                        .full_charged_capacity = 100}),
        BatteryDetails({.is_external_power_connected = true,
                        .current_capacity = 10,
                        .full_charged_capacity = 100})});
-#endif
   EXPECT_EQ(2, state.battery_count);
   EXPECT_TRUE(state.is_external_power_connected);
   EXPECT_EQ(absl::nullopt, state.current_capacity);
@@ -96,21 +75,12 @@ TEST(BatteryLevelProviderTest, MultipleBatteriesWithExternalPower) {
 
 TEST(BatteryLevelProviderTest, MultipleBatteriesDischarging) {
   auto state = FakeBatteryLevelProvider::MakeBatteryState(
-#if defined(STARBOARD)
-      {BatteryDetails({false,
-                       42,
-                       100}),
-       BatteryDetails({false,
-                       10,
-                       100})});
-#else
       {BatteryDetails({.is_external_power_connected = false,
                        .current_capacity = 42,
                        .full_charged_capacity = 100}),
        BatteryDetails({.is_external_power_connected = false,
                        .current_capacity = 10,
                        .full_charged_capacity = 100})});
-#endif
   EXPECT_EQ(2, state.battery_count);
   EXPECT_FALSE(state.is_external_power_connected);
   EXPECT_EQ(absl::nullopt, state.current_capacity);
@@ -120,19 +90,11 @@ TEST(BatteryLevelProviderTest, MultipleBatteriesDischarging) {
 
 TEST(BatteryLevelProviderTest, SingleBatteryMAh) {
   auto state = FakeBatteryLevelProvider::MakeBatteryState({BatteryDetails(
-#if defined(STARBOARD)
-      {false,
-       42,
-       100,
-       12,
-       BatteryLevelProvider::BatteryLevelUnit::kMAh})});
-#else
       {.is_external_power_connected = false,
        .current_capacity = 42,
        .full_charged_capacity = 100,
        .voltage_mv = 12,
        .charge_unit = BatteryLevelProvider::BatteryLevelUnit::kMAh})});
-#endif
   EXPECT_EQ(1, state.battery_count);
   EXPECT_FALSE(state.is_external_power_connected);
   EXPECT_EQ(42U, state.current_capacity);

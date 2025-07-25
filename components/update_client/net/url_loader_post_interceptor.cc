@@ -1,16 +1,18 @@
-// Copyright 2018 The Chromium Authors. All rights reserved.
+// Copyright 2018 The Chromium Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
 #include "components/update_client/net/url_loader_post_interceptor.h"
 
-#include "base/bind.h"
+#include "base/check.h"
+#include "base/check_op.h"
+#include "base/containers/contains.h"
 #include "base/files/file_util.h"
-#include "base/macros.h"
+#include "base/functional/bind.h"
 #include "base/run_loop.h"
 #include "base/strings/stringprintf.h"
 #include "base/task/sequenced_task_runner.h"
-#include "base/test/bind_test_util.h"
+#include "base/test/bind.h"
 #include "components/update_client/test_configurator.h"
 #include "net/test/embedded_test_server/embedded_test_server.h"
 #include "net/test/embedded_test_server/http_request.h"
@@ -35,7 +37,7 @@ URLLoaderPostInterceptor::URLLoaderPostInterceptor(
     std::vector<GURL> supported_urls,
     network::TestURLLoaderFactory* url_loader_factory)
     : url_loader_factory_(url_loader_factory) {
-  DCHECK_LT(0u, supported_urls.size());
+  CHECK_LT(0u, supported_urls.size());
   filtered_urls_.swap(supported_urls);
   InitializeWithInterceptor();
 }
@@ -44,12 +46,12 @@ URLLoaderPostInterceptor::URLLoaderPostInterceptor(
     std::vector<GURL> supported_urls,
     net::test_server::EmbeddedTestServer* embedded_test_server)
     : embedded_test_server_(embedded_test_server) {
-  DCHECK_LT(0u, supported_urls.size());
+  CHECK_LT(0u, supported_urls.size());
   filtered_urls_.swap(supported_urls);
   InitializeWithRequestHandler();
 }
 
-URLLoaderPostInterceptor::~URLLoaderPostInterceptor() {}
+URLLoaderPostInterceptor::~URLLoaderPostInterceptor() = default;
 
 bool URLLoaderPostInterceptor::ExpectRequest(
     std::unique_ptr<RequestMatcher> request_matcher) {
@@ -157,7 +159,7 @@ int URLLoaderPostInterceptor::GetHitCountForURL(const GURL& url) {
 }
 
 void URLLoaderPostInterceptor::InitializeWithInterceptor() {
-  DCHECK(url_loader_factory_);
+  CHECK(url_loader_factory_);
   url_loader_factory_->SetInterceptor(
       base::BindLambdaForTesting([&](const network::ResourceRequest& request) {
         GURL url = request.url;
@@ -166,10 +168,7 @@ void URLLoaderPostInterceptor::InitializeWithInterceptor() {
           replacements.ClearQuery();
           url = url.ReplaceComponents(replacements);
         }
-        auto it = std::find_if(
-            filtered_urls_.begin(), filtered_urls_.end(),
-            [url](const GURL& filtered_url) { return filtered_url == url; });
-        if (it == filtered_urls_.end())
+        if (!base::Contains(filtered_urls_, url))
           return;
 
         std::string request_body = network::GetUploadData(request);
@@ -200,8 +199,8 @@ void URLLoaderPostInterceptor::InitializeWithInterceptor() {
 }
 
 void URLLoaderPostInterceptor::InitializeWithRequestHandler() {
-  DCHECK(embedded_test_server_);
-  DCHECK(!url_loader_factory_);
+  CHECK(embedded_test_server_);
+  CHECK(!url_loader_factory_);
   embedded_test_server_->RegisterRequestHandler(base::BindRepeating(
       &URLLoaderPostInterceptor::RequestHandler, base::Unretained(this)));
 }
@@ -219,16 +218,13 @@ URLLoaderPostInterceptor::RequestHandler(
     replacements.ClearQuery();
     url = url.ReplaceComponents(replacements);
   }
-  auto it = std::find_if(
-      filtered_urls_.begin(), filtered_urls_.end(),
-      [url](const GURL& filtered_url) { return filtered_url == url; });
-  if (it == filtered_urls_.end())
+  if (!base::Contains(filtered_urls_, url))
     return nullptr;
 
   std::string request_body = request.content;
   net::HttpRequestHeaders headers;
-  for (auto it : request.headers)
-    headers.SetHeader(it.first, it.second);
+  for (auto pair : request.headers)
+    headers.SetHeader(pair.first, pair.second);
   requests_.push_back({request_body, headers, url});
   if (expectations_.empty())
     return nullptr;

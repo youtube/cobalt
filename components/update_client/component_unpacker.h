@@ -1,4 +1,4 @@
-// Copyright 2014 The Chromium Authors. All rights reserved.
+// Copyright 2014 The Chromium Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -11,12 +11,13 @@
 #include <string>
 #include <vector>
 
-#include "base/callback.h"
 #include "base/files/file_path.h"
-#include "base/macros.h"
+#include "base/functional/callback.h"
 #include "base/memory/ref_counted.h"
-#include "components/update_client/persisted_data.h"
 #include "components/update_client/update_client_errors.h"
+
+// TODO(crbug.com/1349158): Remove this class once Puffin patches are fully
+// implemented.
 
 namespace crx_file {
 enum class VerifierFormat;
@@ -61,6 +62,9 @@ class Unzipper;
 //   EndPatching
 //     \_ EndUnpacking
 //
+// During unzip step we also check for verified_contents.json in the header
+// of crx file and unpack it to metadata_ folder if it doesn't already contain
+// verified_contents file.
 // In both cases, if there is an error at any point, the remaining steps will
 // be skipped and EndUnpacking will be called.
 class ComponentUnpacker : public base::RefCountedThreadSafe<ComponentUnpacker> {
@@ -88,7 +92,6 @@ class ComponentUnpacker : public base::RefCountedThreadSafe<ComponentUnpacker> {
   // |pk_hash| is the expected public developer key's SHA256 hash. If empty,
   // the unpacker accepts any developer key. |path| is the current location
   // of the CRX.
-#if !defined(IN_MEMORY_UPDATES)
   ComponentUnpacker(const std::vector<uint8_t>& pk_hash,
                     const base::FilePath& path,
                     scoped_refptr<CrxInstaller> installer,
@@ -96,19 +99,8 @@ class ComponentUnpacker : public base::RefCountedThreadSafe<ComponentUnpacker> {
                     scoped_refptr<Patcher> patcher,
                     crx_file::VerifierFormat crx_format);
 
-#else
-  // An overload where |crx_str| currently holds the CRX in memory and
-  // |installation_dir| is the location where the CRX should be unpacked to.
-  // Does not take ownership of |crx_str|, which must refer to a valid string
-  // that outlives this object.
-  ComponentUnpacker(const std::vector<uint8_t>& pk_hash,
-                    const std::string* crx_str,
-                    const base::FilePath& installation_dir,
-                    scoped_refptr<CrxInstaller> installer,
-                    std::unique_ptr<Unzipper> unzipper,
-                    scoped_refptr<Patcher> patcher,
-                    crx_file::VerifierFormat crx_format);
-#endif
+  ComponentUnpacker(const ComponentUnpacker&) = delete;
+  ComponentUnpacker& operator=(const ComponentUnpacker&) = delete;
 
   // Begins the actual unpacking of the files. May invoke a patcher and the
   // component installer if the package is a differential update.
@@ -130,10 +122,16 @@ class ComponentUnpacker : public base::RefCountedThreadSafe<ComponentUnpacker> {
   bool BeginUnzipping();
   void EndUnzipping(bool error);
 
+  // Decompresses verified contents fetched from the header of CRX.
+  void UncompressVerifiedContents();
+
+  // Stores the decompressed verified contents fetched from the header of CRX.
+  void StoreVerifiedContentsInExtensionDir(
+      const std::string& verified_contents);
+
   // The third step is to optionally patch files - this is a no-op for full
-  // (non-differential) updates. This step is asynchronous. Returns false if an
-  // error is encountered.
-  bool BeginPatching();
+  // (non-differential) updates. This step is asynchronous.
+  void BeginPatching();
   void EndPatching(UnpackerError error, int extended_error);
 
   // The final step is to do clean-up for things that can't be tidied as we go.
@@ -143,12 +141,7 @@ class ComponentUnpacker : public base::RefCountedThreadSafe<ComponentUnpacker> {
   void EndUnpacking();
 
   std::vector<uint8_t> pk_hash_;
-#if defined(IN_MEMORY_UPDATES)
-  const std::string& crx_str_;
-  base::FilePath installation_dir_;
-#else
   base::FilePath path_;
-#endif
   base::FilePath unpack_path_;
   base::FilePath unpack_diff_path_;
   bool is_delta_;
@@ -162,7 +155,8 @@ class ComponentUnpacker : public base::RefCountedThreadSafe<ComponentUnpacker> {
   int extended_error_;
   std::string public_key_;
 
-  DISALLOW_COPY_AND_ASSIGN(ComponentUnpacker);
+  // The compressed verified contents extracted from the CRX header.
+  std::vector<uint8_t> compressed_verified_contents_;
 };
 
 }  // namespace update_client

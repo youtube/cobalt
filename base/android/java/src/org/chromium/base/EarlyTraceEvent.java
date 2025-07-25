@@ -10,10 +10,9 @@ import android.os.SystemClock;
 
 import androidx.annotation.VisibleForTesting;
 
-import org.chromium.base.annotations.CalledByNative;
-import org.chromium.base.annotations.JNINamespace;
-import org.chromium.base.annotations.NativeMethods;
-import org.chromium.build.annotations.MainDex;
+import org.jni_zero.CalledByNative;
+import org.jni_zero.JNINamespace;
+import org.jni_zero.NativeMethods;
 
 import java.io.File;
 import java.util.ArrayList;
@@ -38,7 +37,6 @@ import javax.annotation.concurrent.GuardedBy;
  * final String| class member. Otherwise NoDynamicStringsInTraceEventCheck error will be thrown.
  */
 @JNINamespace("base::android")
-@MainDex
 public class EarlyTraceEvent {
     /** Single trace event. */
     @VisibleForTesting
@@ -242,10 +240,13 @@ public class EarlyTraceEvent {
      */
     @CalledByNative
     static void setBackgroundStartupTracingFlag(boolean enabled) {
-        ContextUtils.getAppSharedPreferences()
-                .edit()
-                .putBoolean(BACKGROUND_STARTUP_TRACING_ENABLED_KEY, enabled)
-                .apply();
+        // Setting preferences might cause a disk write
+        try (StrictModeContext ignored = StrictModeContext.allowDiskWrites()) {
+            ContextUtils.getAppSharedPreferences()
+                    .edit()
+                    .putBoolean(BACKGROUND_STARTUP_TRACING_ENABLED_KEY, enabled)
+                    .apply();
+        }
     }
 
     /**
@@ -301,7 +302,6 @@ public class EarlyTraceEvent {
         }
     }
 
-    @VisibleForTesting
     static List<Event> getMatchingCompletedEventsForTesting(String eventName) {
         synchronized (sLock) {
             List<Event> matchingEvents = new ArrayList<Event>();

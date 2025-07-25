@@ -1,4 +1,4 @@
-// Copyright 2017 The Chromium Authors. All rights reserved.
+// Copyright 2017 The Chromium Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -6,6 +6,14 @@
 #define COMPONENTS_METRICS_LOG_DECODER_H_
 
 #include <string>
+
+namespace google {
+namespace protobuf {
+
+class MessageLite;
+
+}  // namespace protobuf
+}  // namespace google
 
 namespace metrics {
 
@@ -15,6 +23,11 @@ namespace metrics {
 // Returns true on success, false on failure.
 bool DecodeLogData(const std::string& compressed_log_data,
                    std::string* log_data);
+
+// Decodes |compressed_log_data| and populates |proto| with the decompressed log
+// data. Returns true on success and false on failure.
+bool DecodeLogDataToProto(const std::string& compressed_log_data,
+                          google::protobuf::MessageLite* proto);
 
 }  // namespace metrics
 

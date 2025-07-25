@@ -12,9 +12,6 @@
 
 namespace switches {
 
-#ifdef COBALT_PENDING_CLEAN_UP
-extern const char kFontFormat[];
-#endif
 extern const char kDisableBestEffortTasks[];
 extern const char kDisableBreakpad[];
 extern const char kDisableFeatures[];
@@ -32,7 +29,6 @@ extern const char kProfilingAtStart[];
 extern const char kProfilingFile[];
 extern const char kProfilingFlush[];
 extern const char kTestChildProcess[];
-extern const char kTestDoNotInitializeIcu[];
 extern const char kTraceToFile[];
 extern const char kTraceToFileName[];
 extern const char kV[];
@@ -58,6 +54,12 @@ extern const char kReachedCodeSamplingIntervalUs[];
 extern const char kDefaultCountryCodeAtInstall[];
 extern const char kEnableIdleTracing[];
 extern const char kForceFieldTrialParams[];
+extern const char kHostPackageName[];
+extern const char kHostPackageLabel[];
+extern const char kHostVersionCode[];
+extern const char kPackageName[];
+extern const char kPackageVersionName[];
+extern const char kPackageVersionCode[];
 #endif
 
 #if BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_CHROMEOS)

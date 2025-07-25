@@ -1,4 +1,4 @@
-// Copyright 2014 The Chromium Authors. All rights reserved.
+// Copyright 2014 The Chromium Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -11,18 +11,19 @@
 #include <utility>
 #include <vector>
 
-#include "base/bind.h"
+#include "base/check.h"
+#include "base/functional/bind.h"
 #include "base/location.h"
-#include "base/logging.h"
-#include "base/macros.h"
 #include "base/task/sequenced_task_runner.h"
 #include "components/update_client/component.h"
 #include "components/update_client/configurator.h"
+#include "components/update_client/persisted_data.h"
 #include "components/update_client/protocol_definition.h"
 #include "components/update_client/protocol_handler.h"
 #include "components/update_client/protocol_serializer.h"
 #include "components/update_client/request_sender.h"
 #include "components/update_client/utils.h"
+#include "third_party/abseil-cpp/absl/types/optional.h"
 #include "url/gurl.h"
 
 namespace update_client {
@@ -32,22 +33,19 @@ namespace {
 const int kErrorNoEvents = -1;
 const int kErrorNoUrl = -2;
 
-// When building for STARBOARD add the PingSender to the update_client namespace
-// as we keep a reference to it in PingManager.
-#if defined(STARBOARD)
-}
-#endif
-
 // An instance of this class can send only one ping.
 class PingSender : public base::RefCountedThreadSafe<PingSender> {
  public:
   using Callback = PingManager::Callback;
-  explicit PingSender(scoped_refptr<Configurator> config);
-  void SendPing(const Component& component, Callback callback);
 
-#if defined(STARBOARD)
-  void Cancel();
-#endif
+  explicit PingSender(scoped_refptr<Configurator> config);
+
+  PingSender(const PingSender&) = delete;
+  PingSender& operator=(const PingSender&) = delete;
+
+  void SendPing(const Component& component,
+                const PersistedData& metadata,
+                Callback callback);
 
  protected:
   virtual ~PingSender();
@@ -63,22 +61,16 @@ class PingSender : public base::RefCountedThreadSafe<PingSender> {
   const scoped_refptr<Configurator> config_;
   Callback callback_;
   std::unique_ptr<RequestSender> request_sender_;
-
-  DISALLOW_COPY_AND_ASSIGN(PingSender);
 };
 
 PingSender::PingSender(scoped_refptr<Configurator> config) : config_(config) {}
 
-PingSender::~PingSender() {
-  DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
-}
+PingSender::~PingSender() = default;
 
-void PingSender::SendPing(const Component& component, Callback callback) {
+void PingSender::SendPing(const Component& component,
+                          const PersistedData& metadata,
+                          Callback callback) {
   DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
-
-#if defined(STARBOARD)
-  LOG(INFO) << "PingSender::SendPing";
-#endif
 
   if (component.events().empty()) {
     base::SequencedTaskRunner::GetCurrentDefault()->PostTask(
@@ -86,7 +78,7 @@ void PingSender::SendPing(const Component& component, Callback callback) {
     return;
   }
 
-  DCHECK(component.crx_component());
+  CHECK(component.crx_component());
 
   auto urls(config_->PingUrl());
   if (component.crx_component()->requires_network_encryption)
@@ -101,30 +93,34 @@ void PingSender::SendPing(const Component& component, Callback callback) {
   callback_ = std::move(callback);
 
   std::vector<protocol_request::App> apps;
-  apps.push_back(MakeProtocolApp(component.id(),
-                                 component.crx_component()->version,
-                                 component.GetEvents()));
+  apps.push_back(MakeProtocolApp(
+      component.id(), component.crx_component()->version,
+      component.crx_component()->ap, component.crx_component()->brand,
+      config_->GetLang(), metadata.GetInstallDate(component.id()),
+      component.crx_component()->install_source,
+      component.crx_component()->install_location,
+      component.crx_component()->fingerprint,
+      component.crx_component()->installer_attributes,
+      metadata.GetCohort(component.id()),
+      metadata.GetCohortHint(component.id()),
+      metadata.GetCohortName(component.id()),
+      component.crx_component()->channel,
+      component.crx_component()->disabled_reasons,
+      absl::nullopt /* update check */, {} /* data */, absl::nullopt /* ping */,
+      component.GetEvents()));
   request_sender_ = std::make_unique<RequestSender>(config_);
   request_sender_->Send(
       urls, {},
       config_->GetProtocolHandlerFactory()->CreateSerializer()->Serialize(
           MakeProtocolRequest(
-              component.session_id(), config_->GetProdId(),
-              config_->GetBrowserVersion().GetString(), config_->GetLang(),
+              !config_->IsPerUserInstall(), component.session_id(),
+              config_->GetProdId(), config_->GetBrowserVersion().GetString(),
               config_->GetChannel(), config_->GetOSLongName(),
-              config_->GetDownloadPreference(), config_->ExtraRequestParams(),
-              nullptr, std::move(apps))),
+              config_->GetDownloadPreference(),
+              config_->IsMachineExternallyManaged(),
+              config_->ExtraRequestParams(), {}, std::move(apps))),
       false, base::BindOnce(&PingSender::SendPingComplete, this));
 }
-
-#if defined(STARBOARD)
-void PingSender::Cancel() {
-  LOG(INFO) << "PingSender::Cancel";
-  if (request_sender_.get()) {
-    request_sender_->Cancel();
-  }
-}
-#endif
 
 void PingSender::SendPingComplete(int error,
                                   const std::string& response,
@@ -133,45 +129,22 @@ void PingSender::SendPingComplete(int error,
   std::move(callback_).Run(error, response);
 }
 
-#if !defined(STARBOARD)
 }  // namespace
-#endif
 
 PingManager::PingManager(scoped_refptr<Configurator> config)
-    : config_(config) {
-#if defined(STARBOARD)
-  LOG(INFO) << "PingManager::PingManager";
-#endif
-}
-
-#if defined(STARBOARD)
-void PingManager::Cancel() {
-  LOG(INFO) << "PingManager::Cancel";
-  if (ping_sender_.get()) {
-    ping_sender_->Cancel();
-  }
-}
-#endif
+    : config_(config) {}
 
 PingManager::~PingManager() {
   DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
-#if defined(STARBOARD)
-  LOG(INFO) << "PingManager::~PingManager";
-#endif
 }
 
-void PingManager::SendPing(const Component& component, Callback callback) {
+void PingManager::SendPing(const Component& component,
+                           const PersistedData& metadata,
+                           Callback callback) {
   DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
 
-#if defined(STARBOARD)
-  LOG(INFO) << "PingManager::SendPing";
-
-  ping_sender_ = base::MakeRefCounted<PingSender>(config_);
-  ping_sender_->SendPing(component, std::move(callback));
-#else
   auto ping_sender = base::MakeRefCounted<PingSender>(config_);
-  ping_sender->SendPing(component, std::move(callback));
-#endif
+  ping_sender->SendPing(component, metadata, std::move(callback));
 }
 
 }  // namespace update_client

@@ -28,15 +28,6 @@
 #include "config.h"
 #endif
 
-#ifdef STARBOARD
-#if defined LIBEVENT_PLATFORM_HEADER
-#include LIBEVENT_PLATFORM_HEADER
-#else  //  defined LIBEVENT_PLATFORM_HEADER
-#include "libevent-starboard.h"
-#endif  //  defined LIBEVENT_PLATFORM_HEADER
-
-#include "compat/sys/queue.h"
-#else  // STARBOARD
 #ifdef WIN32
 #include <winsock2.h>
 #define WIN32_LEAN_AND_MEAN
@@ -54,22 +45,17 @@
 #ifdef HAVE_FCNTL_H
 #include <fcntl.h>
 #endif
-#endif  // STARBOARD
 #ifdef HAVE_STDLIB_H
 #include <stdlib.h>
 #endif
 #include <errno.h>
-#ifndef STARBOARD
 #if defined WIN32 && !defined(HAVE_GETTIMEOFDAY_H)
 #include <sys/timeb.h>
 #endif
-#endif
 #include <stdio.h>
-#ifndef STARBOARD
 #include <signal.h>
 
 #include <sys/queue.h>
-#endif
 #include "event.h"
 #include "event-internal.h"
 #include "evutil.h"
@@ -78,9 +64,7 @@
 int
 evutil_socketpair(int family, int type, int protocol, int fd[2])
 {
-#ifdef STARBOARD
-	return -1;
-#elif !defined(WIN32)
+#ifndef WIN32
 	return socketpair(family, type, protocol, fd);
 #else
 	/* This code is originally from Tor.  Used with permission. */
@@ -184,8 +168,6 @@ evutil_make_socket_nonblocking(int fd)
 		ioctlsocket(fd, FIONBIO, (unsigned long*) &nonblocking);
 	}
 #else
-#ifdef HAVE_FCNTL
-		{
 	{
 		int flags;
 		if ((flags = fcntl(fd, F_GETFL, NULL)) < 0) {
@@ -198,11 +180,9 @@ evutil_make_socket_nonblocking(int fd)
 		}
 	}
 #endif
-#endif
 	return 0;
 }
 
-#ifndef STARBOARD
 ev_int64_t
 evutil_strtoll(const char *s, char **endptr, int base)
 {
@@ -230,7 +210,6 @@ evutil_strtoll(const char *s, char **endptr, int base)
 #error "I don't know how to parse 64-bit integers."
 #endif
 }
-#endif
 
 #ifndef _EVENT_HAVE_GETTIMEOFDAY
 int
@@ -298,12 +277,8 @@ evutil_issetugid(void)
 const char *
 evutil_getenv(const char *varname)
 {
-#if defined(STARBOARD)
-  return NULL;
-#else
 	if (evutil_issetugid())
 		return NULL;
 
 	return getenv(varname);
-#endif
 }

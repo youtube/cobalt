@@ -64,10 +64,7 @@ class TestSuspendableThreadDelegate : public SuspendableThreadDelegate {
     RegisterContextStackPointer(thread_context) =
         reinterpret_cast<uintptr_t>(&(*fake_stack_)[0]);
     RegisterContextInstructionPointer(thread_context) =
-/* Cobalt
         reinterpret_cast<uintptr_t>((*fake_stack_)[0]);
-Cobalt */
-        static_cast<uintptr_t>((*fake_stack_)[0]);
     return true;
   }
 

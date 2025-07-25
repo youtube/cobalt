@@ -9,25 +9,28 @@ import("//media/gpu/args.gni")
 import("//media/media_options.gni")
 import("//testing/test.gni")
 import("//third_party/libgav1/options.gni")
-import("//tools/generate_stubs/rules.gni")
 import("//ui/gl/features.gni")
 
 assert(use_v4l2_codec)
 
-generate_stubs("libv4l2_stubs") {
-  extra_header = "v4l2_stub_header.fragment"
-  sigs = [ "v4l2.sig" ]
-  output_name = "v4l2_stubs"
-  deps = [ "//base" ]
-}
-
 source_set("v4l2") {
   defines = [ "MEDIA_GPU_IMPLEMENTATION" ]
   sources = [
-    "buffer_affinity_tracker.cc",
-    "buffer_affinity_tracker.h",
-    "generic_v4l2_device.cc",
-    "generic_v4l2_device.h",
+    "legacy/v4l2_video_decode_accelerator.cc",
+    "legacy/v4l2_video_decode_accelerator.h",
+    "stateless/device.cc",
+    "stateless/device.h",
+    "stateless/queue.cc",
+    "stateless/queue.h",
+    "stateless/stateless_decode_surface_handler.h",
+    "stateless/stateless_device.cc",
+    "stateless/stateless_device.h",
+    "stateless/utils.cc",
+    "stateless/utils.h",
+    "stateless/v4l2_stateless_video_decoder.cc",
+    "stateless/v4l2_stateless_video_decoder.h",
+    "stateless/vp9_delegate.cc",
+    "stateless/vp9_delegate.h",
     "v4l2_decode_surface.cc",
     "v4l2_decode_surface.h",
     "v4l2_decode_surface_handler.h",
@@ -39,16 +42,14 @@ source_set("v4l2") {
     "v4l2_framerate_control.h",
     "v4l2_image_processor_backend.cc",
     "v4l2_image_processor_backend.h",
-    "v4l2_slice_video_decode_accelerator.cc",
-    "v4l2_slice_video_decode_accelerator.h",
-    "v4l2_stateful_workaround.cc",
-    "v4l2_stateful_workaround.h",
+    "v4l2_queue.cc",
+    "v4l2_queue.h",
+    "v4l2_stateful_video_decoder.cc",
+    "v4l2_stateful_video_decoder.h",
     "v4l2_utils.cc",
     "v4l2_utils.h",
     "v4l2_vda_helpers.cc",
     "v4l2_vda_helpers.h",
-    "v4l2_video_decode_accelerator.cc",
-    "v4l2_video_decode_accelerator.h",
     "v4l2_video_decoder.cc",
     "v4l2_video_decoder.h",
     "v4l2_video_decoder_backend.cc",
@@ -63,12 +64,22 @@ source_set("v4l2") {
     "v4l2_video_decoder_delegate_vp8.h",
     "v4l2_video_decoder_delegate_vp9.cc",
     "v4l2_video_decoder_delegate_vp9.h",
+    "v4l2_vp9_helpers.cc",
+    "v4l2_vp9_helpers.h",
   ]
 
   if (enable_hevc_parser_and_hw_decoder) {
     sources += [
       "v4l2_video_decoder_delegate_h265.cc",
       "v4l2_video_decoder_delegate_h265.h",
+    ]
+  }
+
+  if (current_cpu == "arm" || current_cpu == "arm64") {
+    sources += [
+      "mt21/mt21_decompressor.cc",
+      "mt21/mt21_decompressor.h",
+      "mt21/mt21_util.h",
     ]
   }
 
@@ -90,20 +101,11 @@ source_set("v4l2") {
     "GLESv2",
   ]
 
-  if (use_v4l2_codec_aml) {
-    sources += [
-      "aml_v4l2_device.cc",
-      "aml_v4l2_device.h",
-    ]
-    defines += [ "AML_V4L2" ]
-  }
-
   configs += [ "//third_party/libyuv:libyuv_config" ]
 
   public_deps = [ "//ui/gl" ]
 
   deps = [
-    ":libv4l2_stubs",
     ":v4l2_status",
     "//base",
     "//gpu/command_buffer/service:gles2",
@@ -112,6 +114,7 @@ source_set("v4l2") {
     "//media",
     "//media/gpu:buildflags",
     "//media/gpu:common",
+    "//media/gpu:video_frame_mapper_common",
     "//media/gpu/chromeos:common",
     "//media/parsers",
     "//third_party/libyuv",
@@ -128,6 +131,7 @@ source_set("v4l2") {
     ]
 
     deps += [
+      "//chromeos/components/cdm_factory_daemon:cdm_factory_daemon_gpu",
       "//components/chromeos_camera:jpeg_encode_accelerator",
       "//components/chromeos_camera:mjpeg_decode_accelerator",
       "//media/gpu:video_frame_mapper_common",
@@ -155,8 +159,8 @@ source_set("v4l2_status") {
 source_set("unit_test") {
   testonly = true
   sources = [
-    "v4l2_device_unittest.cc",
-    "v4l2_stateful_workaround_unittest.cc",
+    "v4l2_utils_unittest.cc",
+    "v4l2_vp9_helpers_unittest.cc",
   ]
   deps = [
     ":v4l2",
@@ -188,6 +192,15 @@ executable("v4l2_stateless_decoder") {
     "test/vp9_decoder.h",
   ]
 
+  if (enable_hevc_parser_and_hw_decoder) {
+    sources += [
+      "test/h265_decoder.cc",
+      "test/h265_decoder.h",
+      "test/h265_dpb.cc",
+      "test/h265_dpb.h",
+    ]
+  }
+
   if (is_chromeos) {
     sources += [
       "test/av1_decoder.cc",
@@ -211,7 +224,7 @@ executable("v4l2_stateless_decoder") {
 
 test("v4l2_unittest") {
   testonly = true
-  sources = [ "v4l2_unittest.cc" ]
+  sources = [ "test/v4l2_unittest.cc" ]
 
   deps = [
     ":v4l2",
@@ -219,5 +232,40 @@ test("v4l2_unittest") {
     "//build/config/linux/libdrm",
     "//media:test_support",
     "//testing/gtest",
+    "//ui/gfx/linux:gbm",
   ]
+}
+
+if (current_cpu == "arm" || current_cpu == "arm64") {
+  test("mt21_util_unittest") {
+    testonly = true
+    sources = [
+      "mt21/mt21_util.h",
+      "mt21/mt21_util_unittest.cc",
+    ]
+    deps = [
+      "//base:base",
+      "//base/test:test_support",
+      "//testing/gtest",
+    ]
+  }
+
+  test("mt21_decompressor_unittest") {
+    testonly = true
+    sources = [
+      "mt21/mt21_decompressor.cc",
+      "mt21/mt21_decompressor.h",
+      "mt21/mt21_decompressor_unittest.cc",
+      "mt21/mt21_util.h",
+    ]
+    deps = [
+      "//base:base",
+      "//base/test:test_support",
+      "//base/test:test_trace_processor",
+      "//testing/gtest",
+      "//testing/perf",
+      "//third_party/libyuv",
+      "//ui/gfx/geometry",
+    ]
+  }
 }

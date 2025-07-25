@@ -118,6 +118,7 @@ enum CreateSessionFailure {
   CREATION_ERROR_SETTING_RECEIVE_BUFFER,
   CREATION_ERROR_SETTING_SEND_BUFFER,
   CREATION_ERROR_SETTING_DO_NOT_FRAGMENT,
+  CREATION_ERROR_SETTING_RECEIVE_ECN,
   CREATION_ERROR_MAX
 };
 
@@ -417,7 +418,7 @@ class NET_EXPORT_PRIVATE QuicStreamFactory
   // CertDatabase::Observer methods:
 
   // We close all sessions when certificate database is changed.
-  void OnCertDBChanged() override;
+  void OnTrustStoreChanged() override;
 
   // CertVerifier::Observer:
   // We close all sessions when certificate verifier settings have changed.
@@ -443,10 +444,6 @@ class NET_EXPORT_PRIVATE QuicStreamFactory
   QuicChromiumConnectionHelper* helper() { return helper_.get(); }
 
   quic::QuicAlarmFactory* alarm_factory() { return alarm_factory_.get(); }
-
-  void set_server_push_delegate(ServerPushDelegate* push_delegate) {
-    push_delegate_ = push_delegate;
-  }
 
   handles::NetworkHandle default_network() const { return default_network_; }
 
@@ -629,11 +626,10 @@ class NET_EXPORT_PRIVATE QuicStreamFactory
   // the broken alternative service map in HttpServerProperties.
   bool is_quic_known_to_work_on_current_network_ = false;
 
-  raw_ptr<NetLog> net_log_;
+  NetLogWithSource net_log_;
   raw_ptr<HostResolver> host_resolver_;
   raw_ptr<ClientSocketFactory> client_socket_factory_;
   raw_ptr<HttpServerProperties> http_server_properties_;
-  raw_ptr<ServerPushDelegate> push_delegate_ = nullptr;
   const raw_ptr<CertVerifier> cert_verifier_;
   const raw_ptr<CTPolicyEnforcer> ct_policy_enforcer_;
   const raw_ptr<TransportSecurityState> transport_security_state_;
@@ -716,13 +712,11 @@ class NET_EXPORT_PRIVATE QuicStreamFactory
 
   NetworkConnection network_connection_;
 
-  int num_push_streams_created_ = 0;
-
   QuicConnectivityMonitor connectivity_monitor_;
 
-  raw_ptr<const base::TickClock> tick_clock_ = nullptr;
+  raw_ptr<const base::TickClock, DanglingUntriaged> tick_clock_ = nullptr;
 
-  raw_ptr<base::SequencedTaskRunner> task_runner_ = nullptr;
+  raw_ptr<base::SequencedTaskRunner, DanglingUntriaged> task_runner_ = nullptr;
 
   const raw_ptr<SSLConfigService> ssl_config_service_;
 

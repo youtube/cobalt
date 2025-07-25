@@ -1,0 +1,83 @@
+syntax = "proto2";
+
+option optimize_for = LITE_RUNTIME;
+
+package kids_chrome_management;
+
+import "families_common.proto";
+import "permissions_common.proto";
+
+message ListFamilyMembersRequest {
+  // Must always be "mine" (enforced by the API config). Required.
+  optional string family_id = 1;
+
+  // Next id: 2
+}
+
+// See go/chrome-list-family-members-response (Googlers only).
+message ListFamilyMembersResponse {
+  // List of family members from the family requested. Required.
+  // Contains at least the Head of Household.
+  // Throws an exception and fails if the user is not in any family.
+  repeated FamilyMember members = 1;
+}
+
+message RequestRestrictedUrlAccessRequest {
+  // Must be "me". Required.
+  optional string person_id = 1;
+
+  // URL of the restricted website to which the access is requested. Required.
+  // URL scheme must be https, http or ftp.
+  optional string url = 2;
+
+  // Next id: 3
+}
+
+message RequestRestrictedUrlAccessResponse {
+  // Next id: 1
+}
+
+message ClassifyUrlRequest {
+  // Must be "me".
+  optional string person_id = 2;
+
+  // The URL to be classified.
+  optional string url = 3;
+
+  // region_code is a 2-letter ISO 3166-1 code.
+  // When set, uses specific logic to classify URLs for that region.
+  optional string region_code = 4;
+}
+
+message ClassifyUrlResponse {
+  enum DisplayClassification {
+    UNKNOWN_DISPLAY_CLASSIFICATION = 0;
+
+    // Allow url to be displayed
+    ALLOWED = 1;
+
+    // Block url and allow kid to request parent for permission
+    RESTRICTED = 2;
+  }
+
+  optional DisplayClassification display_classification = 2;
+}
+
+message CreatePermissionRequestResponse {
+  optional PermissionRequest permission_request = 2;
+}
+
+message PermissionRequest {
+  // The unique ID of the permission request. The ID is assigned on creation
+  // on the server-side. This is a base64Url representation of the
+  // PermissionRequestId proto.
+  optional string id = 1;
+
+  optional FamilyEventType event_type = 10;
+
+  // The target object of the permission.
+  optional string object_ref = 4;
+
+  // The current state of the request.
+  optional PermissionRequestState state = 5;
+}

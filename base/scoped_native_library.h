@@ -9,8 +9,6 @@
 #include "base/native_library.h"
 #include "base/scoped_generic.h"
 
-#if !defined(STARBOARD)
-
 namespace base {
 
 class FilePath;
@@ -63,5 +61,4 @@ class BASE_EXPORT ScopedNativeLibrary
 
 }  // namespace base
 
-#endif  // !defined(STARBOARD)
 #endif  // BASE_SCOPED_NATIVE_LIBRARY_H_

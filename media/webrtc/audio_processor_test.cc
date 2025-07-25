@@ -11,7 +11,6 @@
 
 #include "base/files/file_path.h"
 #include "base/files/file_util.h"
-#include "base/files/scoped_temp_dir.h"
 #include "base/logging.h"
 #include "base/memory/aligned_memory.h"
 #include "base/path_service.h"
@@ -19,6 +18,7 @@
 #include "base/test/mock_callback.h"
 #include "base/test/scoped_feature_list.h"
 #include "base/test/task_environment.h"
+#include "base/test/test_file_util.h"
 #include "base/time/time.h"
 #include "build/build_config.h"
 #include "build/chromecast_buildflags.h"
@@ -59,7 +59,7 @@ const int kNumberOfPacketsForTest = 100;
 
 void ReadDataFromSpeechFile(char* data, int length) {
   base::FilePath file;
-  CHECK(base::PathService::Get(base::DIR_SOURCE_ROOT, &file));
+  CHECK(base::PathService::Get(base::DIR_SRC_TEST_DATA_ROOT, &file));
   file = file.Append(FILE_PATH_LITERAL("media"))
              .Append(FILE_PATH_LITERAL("test"))
              .Append(FILE_PATH_LITERAL("data"))
@@ -287,11 +287,9 @@ TEST_P(AudioProcessorTestMultichannelAndFormat, MAYBE_TestAllSampleRates) {
 }
 
 TEST_F(AudioProcessorTest, StartStopAecDump) {
-  base::ScopedTempDir temp_directory;
-  ASSERT_TRUE(temp_directory.CreateUniqueTempDir());
+  auto dir = base::CreateUniqueTempDirectoryScopedToTest();
   base::FilePath temp_file_path;
-  ASSERT_TRUE(base::CreateTemporaryFileInDir(temp_directory.GetPath(),
-                                             &temp_file_path));
+  ASSERT_TRUE(base::CreateTemporaryFileInDir(dir, &temp_file_path));
   {
     AudioProcessingSettings settings;
     std::unique_ptr<AudioProcessor> audio_processor = AudioProcessor::Create(
@@ -319,14 +317,12 @@ TEST_F(AudioProcessorTest, StartStopAecDump) {
 }
 
 TEST_F(AudioProcessorTest, StartAecDumpDuringOngoingAecDump) {
-  base::ScopedTempDir temp_directory;
-  ASSERT_TRUE(temp_directory.CreateUniqueTempDir());
+  auto temp_dir = base::CreateUniqueTempDirectoryScopedToTest();
   base::FilePath temp_file_path_a;
-  ASSERT_TRUE(base::CreateTemporaryFileInDir(temp_directory.GetPath(),
-                                             &temp_file_path_a));
+  ASSERT_TRUE(base::CreateTemporaryFileInDir(temp_dir, &temp_file_path_a));
+
   base::FilePath temp_file_path_b;
-  ASSERT_TRUE(base::CreateTemporaryFileInDir(temp_directory.GetPath(),
-                                             &temp_file_path_b));
+  ASSERT_TRUE(base::CreateTemporaryFileInDir(temp_dir, &temp_file_path_b));
   {
     AudioProcessingSettings settings;
     std::unique_ptr<AudioProcessor> audio_processor = AudioProcessor::Create(
@@ -398,7 +394,6 @@ TEST_P(AudioProcessorTestMultichannelAndFormat, TestStereoAudio) {
 
     // Run the test consecutively to make sure the stereo channels are not
     // flipped back and forth.
-    static const int kNumberOfPacketsForTest = 100;
     const base::TimeTicks pushed_capture_time = base::TimeTicks::Now();
 
     for (int num_preferred_channels = 0; num_preferred_channels <= 5;

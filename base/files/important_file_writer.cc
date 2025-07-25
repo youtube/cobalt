@@ -35,10 +35,6 @@
 #include "base/time/time.h"
 #include "build/build_config.h"
 #include "build/chromeos_buildflags.h"
-#if defined(STARBOARD)
-#include "starboard/file.h"
-#include "starboard/types.h"
-#endif  // defined(STARBOARD)
 
 namespace base {
 
@@ -62,8 +58,7 @@ void UmaHistogramTimesWithSuffix(const char* histogram_name,
   std::string histogram_full_name(histogram_name);
   if (!histogram_suffix.empty()) {
     histogram_full_name.append(".");
-    histogram_full_name.append(histogram_suffix.data(),
-                               histogram_suffix.length());
+    histogram_full_name.append(histogram_suffix);
   }
   UmaHistogramTimes(histogram_full_name, sample);
 }
@@ -146,15 +141,6 @@ void ImportantFileWriter::ProduceAndWriteStringToFileAtomically(
     std::move(after_write_callback).Run(result);
 }
 
-#if defined(STARBOARD)
-// static
-bool ImportantFileWriter::WriteFileAtomicallyImpl(const FilePath& path,
-                                                  StringPiece data,
-                                                  StringPiece histogram_suffix,
-                                                  bool from_instance) {
-  return SbFileAtomicReplace(path.value().c_str(), data.data(), data.size());
-}
-#else
 // static
 bool ImportantFileWriter::WriteFileAtomicallyImpl(const FilePath& path,
                                                   StringPiece data,
@@ -280,7 +266,6 @@ bool ImportantFileWriter::WriteFileAtomicallyImpl(const FilePath& path,
 
   return result;
 }
-#endif  // defined(STARBOARD)
 
 ImportantFileWriter::ImportantFileWriter(
     const FilePath& path,

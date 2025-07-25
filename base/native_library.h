@@ -12,10 +12,9 @@
 
 #include "base/base_export.h"
 #include "base/files/file_path.h"
+#include "base/memory/raw_ptr_exclusion.h"
 #include "base/strings/string_piece.h"
 #include "build/build_config.h"
-
-#if !defined(STARBOARD)
 
 #if BUILDFLAG(IS_WIN)
 #include <windows.h>
@@ -42,7 +41,9 @@ struct NativeLibraryStruct {
   NativeLibraryObjCStatus objc_status;
   union {
     CFBundleRef bundle;
-    void* dylib;
+    //// This field is not a raw_ptr<> because it was filtered by the rewriter
+    // for: #union
+    RAW_PTR_EXCLUSION void* dylib;
   };
 };
 using NativeLibrary = NativeLibraryStruct*;
@@ -112,7 +113,7 @@ BASE_EXPORT void UnloadNativeLibrary(NativeLibrary library);
 
 // Gets a function pointer from a native library.
 BASE_EXPORT void* GetFunctionPointerFromNativeLibrary(NativeLibrary library,
-                                                      StringPiece name);
+                                                      const char* name);
 
 // Returns the full platform-specific name for a native library. |name| must be
 // ASCII. This is also the default name for the output of a gn |shared_library|
@@ -131,5 +132,4 @@ BASE_EXPORT std::string GetLoadableModuleName(StringPiece name);
 
 }  // namespace base
 
-#endif  // !defined(STARBOARD)
 #endif  // BASE_NATIVE_LIBRARY_H_

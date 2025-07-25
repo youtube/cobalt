@@ -16,7 +16,6 @@
 #include <vector>
 
 #include "base/memory/raw_ptr.h"
-#include "base/memory/ref_counted.h"
 #include "base/memory/weak_ptr.h"
 #include "base/strings/string_piece.h"
 #include "base/strings/string_piece_forward.h"
@@ -240,10 +239,7 @@ class MockHostResolverBase
     }
 
    private:
-/* Cobalt
     friend class RefCounted<State>;
-Cobalt */
-    friend class base::RefCounted<State>;
 
     ~State();
 
@@ -683,10 +679,7 @@ class HangingHostResolver : public HostResolver {
     void IncrementNumCancellations() { ++num_cancellations_; }
 
    private:
-/* Cobalt
     friend class RefCounted<State>;
-Cobalt */
-    friend class base::RefCounted<State>;
 
     ~State();
 

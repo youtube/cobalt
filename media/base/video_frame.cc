@@ -175,8 +175,7 @@ gfx::Size VideoFrame::SampleSize(VideoPixelFormat format, size_t plane) {
           break;
       }
   }
-  NOTREACHED();
-  return gfx::Size();
+  NOTREACHED_NORETURN();
 }
 
 // Checks if |source_format| can be wrapped into a |target_format| frame.
@@ -389,7 +388,8 @@ scoped_refptr<VideoFrame> VideoFrame::WrapNativeTextures(
       format != PIXEL_FORMAT_I420 && format != PIXEL_FORMAT_ABGR &&
       format != PIXEL_FORMAT_XBGR && format != PIXEL_FORMAT_XR30 &&
       format != PIXEL_FORMAT_XB30 && format != PIXEL_FORMAT_P016LE &&
-      format != PIXEL_FORMAT_RGBAF16 && format != PIXEL_FORMAT_YV12) {
+      format != PIXEL_FORMAT_RGBAF16 && format != PIXEL_FORMAT_YV12 &&
+      format != PIXEL_FORMAT_BGRA) {
     DLOG(ERROR) << "Unsupported pixel format: "
                 << VideoPixelFormatToString(format);
     return nullptr;
@@ -741,7 +741,7 @@ scoped_refptr<VideoFrame> VideoFrame::WrapUnacceleratedIOSurface(
   }
 
   // Only support NV12 IOSurfaces.
-  const OSType cv_pixel_format = IOSurfaceGetPixelFormat(io_surface);
+  const OSType cv_pixel_format = IOSurfaceGetPixelFormat(io_surface.get());
   if (cv_pixel_format != kCVPixelFormatType_420YpCbCr8BiPlanarVideoRange) {
     DLOG(ERROR) << "Invalid (non-NV12) pixel format.";
     return nullptr;
@@ -749,12 +749,12 @@ scoped_refptr<VideoFrame> VideoFrame::WrapUnacceleratedIOSurface(
   const VideoPixelFormat pixel_format = PIXEL_FORMAT_NV12;
 
   // Retrieve the layout parameters for |io_surface_|.
-  const size_t num_planes = IOSurfaceGetPlaneCount(io_surface);
-  const gfx::Size size(IOSurfaceGetWidth(io_surface),
-                       IOSurfaceGetHeight(io_surface));
+  const size_t num_planes = IOSurfaceGetPlaneCount(io_surface.get());
+  const gfx::Size size(IOSurfaceGetWidth(io_surface.get()),
+                       IOSurfaceGetHeight(io_surface.get()));
   std::vector<int32_t> strides;
   for (size_t i = 0; i < num_planes; ++i)
-    strides.push_back(IOSurfaceGetBytesPerRowOfPlane(io_surface, i));
+    strides.push_back(IOSurfaceGetBytesPerRowOfPlane(io_surface.get(), i));
   absl::optional<VideoFrameLayout> layout =
       media::VideoFrameLayout::CreateWithStrides(pixel_format, size, strides);
   if (!layout) {
@@ -771,20 +771,21 @@ scoped_refptr<VideoFrame> VideoFrame::WrapUnacceleratedIOSurface(
   // Lock the IOSurface for CPU read access. After the VideoFrame is created,
   // add a destruction callback to unlock the IOSurface.
   kern_return_t lock_result =
-      IOSurfaceLock(io_surface, kIOSurfaceLockReadOnly, nullptr);
+      IOSurfaceLock(io_surface.get(), kIOSurfaceLockReadOnly, nullptr);
   if (lock_result != kIOReturnSuccess) {
     DLOG(ERROR) << "Failed to lock IOSurface.";
     return nullptr;
   }
-  auto unlock_lambda = [](base::ScopedCFTypeRef<IOSurfaceRef> io_surface) {
-    IOSurfaceUnlock(io_surface, kIOSurfaceLockReadOnly, nullptr);
-  };
+  auto unlock_lambda =
+      [](base::apple::ScopedCFTypeRef<IOSurfaceRef> io_surface) {
+        IOSurfaceUnlock(io_surface.get(), kIOSurfaceLockReadOnly, nullptr);
+      };
 
   scoped_refptr<VideoFrame> frame =
       new VideoFrame(*layout, storage_type, visible_rect, size, timestamp);
   for (size_t i = 0; i < num_planes; ++i) {
     frame->data_[i] = reinterpret_cast<uint8_t*>(
-        IOSurfaceGetBaseAddressOfPlane(io_surface, i));
+        IOSurfaceGetBaseAddressOfPlane(io_surface.get(), i));
   }
   frame->AddDestructionObserver(
       base::BindOnce(unlock_lambda, std::move(io_surface)));
@@ -1107,8 +1108,7 @@ int VideoFrame::BytesPerElement(VideoPixelFormat format, size_t plane) {
     case PIXEL_FORMAT_UNKNOWN:
       break;
   }
-  NOTREACHED();
-  return 0;
+  NOTREACHED_NORETURN();
 }
 
 // static
@@ -1234,21 +1234,27 @@ gfx::ColorSpace VideoFrame::ColorSpace() const {
 }
 
 bool VideoFrame::RequiresExternalSampler() const {
+  const bool is_multiplanar_pixel_format = format() == PIXEL_FORMAT_NV12 ||
+                                           format() == PIXEL_FORMAT_YV12 ||
+                                           format() == PIXEL_FORMAT_P016LE;
+
   // With SharedImageFormats NumTextures() is always 1. Use
   // SharedImageFormatType to check for NumTextures for legacy formats and
-  // kSharedImageFormatExternalSampler for SharedImageFormats
-  const bool result =
-      (format() == PIXEL_FORMAT_NV12 || format() == PIXEL_FORMAT_YV12 ||
-       format() == PIXEL_FORMAT_P016LE) &&
-      ((NumTextures() == 1 &&
-        shared_image_format_type() == SharedImageFormatType::kLegacy) ||
-       shared_image_format_type() ==
-           SharedImageFormatType::kSharedImageFormatExternalSampler);
+  // kSharedImageFormatExternalSampler for SharedImageFormats. Note that
+  // kSharedImageFormatExternalSampler is set only for multiplanar formats.
+  const bool requires_external_sampler =
+      shared_image_format_type() ==
+          SharedImageFormatType::kSharedImageFormatExternalSampler ||
+      (is_multiplanar_pixel_format &&
+       (NumTextures() == 1 &&
+        shared_image_format_type() == SharedImageFormatType::kLegacy));
+
   // The texture target can be 0 for Fuchsia.
-  DCHECK(!result ||
-         (mailbox_holder(0).texture_target == GL_TEXTURE_EXTERNAL_OES ||
-          mailbox_holder(0).texture_target == 0u));
-  return result;
+  DCHECK(!requires_external_sampler ||
+         (is_multiplanar_pixel_format &&
+          (mailbox_holder(0).texture_target == GL_TEXTURE_EXTERNAL_OES ||
+           mailbox_holder(0).texture_target == 0u)));
+  return requires_external_sampler;
 }
 
 int VideoFrame::row_bytes(size_t plane) const {

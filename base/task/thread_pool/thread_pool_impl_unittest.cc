@@ -1056,12 +1056,6 @@ void VerifyHasStringsOnStack(const std::string& pool_str,
 
 }  // namespace
 
-// Starboard does not support switching thread priority and therefore background
-// scheduler worker that has TaskPriority::BEST_EFFORT can not be used.
-// See CanUseBackgroundPriorityForSchedulerWorker() for more details.
-// And Starboard can also reproduce the StackTrace().ToString() crash described
-// down below on Linux.
-#ifndef STARBOARD
 #if BUILDFLAG(IS_POSIX)
 // Many POSIX bots flakily crash on |debug::StackTrace().ToString()|,
 // https://crbug.com/840429.
@@ -1157,7 +1151,6 @@ TEST_P(ThreadPoolImplTest, MAYBE_IdentifiableStacks) {
 
   thread_pool_->FlushForTesting();
 }
-#endif  // STARBOARD
 
 TEST_P(ThreadPoolImplTest, WorkerThreadObserver) {
   auto owned_observer =
@@ -1472,9 +1465,12 @@ std::vector<std::unique_ptr<TaskRunnerAndEvents>> CreateTaskRunnersAndEvents(
   // If the task following the priority update is expected to run in the
   // foreground group, it should be after the task posted to the TaskRunner
   // whose priority is updated to USER_VISIBLE.
-  expected_previous_event = CanUseBackgroundThreadTypeForWorkerThread()
-                                ? nullptr
-                                : &task_runners_and_events.back()->task_ran;
+  expected_previous_event =
+      CanUseBackgroundThreadTypeForWorkerThread() ||
+              (test->GetUseResourceEfficientThreadGroup() &&
+               CanUseUtilityThreadTypeForWorkerThread())
+          ? nullptr
+          : &task_runners_and_events.back()->task_ran;
 
   task_runners_and_events.push_back(std::make_unique<TaskRunnerAndEvents>(
       thread_pool->CreateUpdateableSequencedTaskRunner(

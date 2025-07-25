@@ -616,7 +616,6 @@ TEST_F(RegistryControlledDomainTest, Permissive) {
   EXPECT_EQ(4U, PermissiveGetHostRegistryLength("Www.Googl%45%2e%4Ap"));
 
 // IDN cases (not supported when not linking ICU).
-#if !defined(STARBOARD)
 #if !BUILDFLAG(USE_PLATFORM_ICU_ALTERNATIVES)
   EXPECT_EQ(10U, PermissiveGetHostRegistryLength("foo.xn--fiqs8s"));
   EXPECT_EQ(11U, PermissiveGetHostRegistryLength("foo.xn--fiqs8s."));
@@ -642,7 +641,6 @@ TEST_F(RegistryControlledDomainTest, Permissive) {
   EXPECT_EQ(3U, PermissiveGetHostRegistryLength(
                     u"Www.Google\xFF0E\xFF2A\xFF50\xFF0E"));
 #endif
-#endif  // #if !defined(STARBOARD)
 }
 
 }  // namespace net::registry_controlled_domains

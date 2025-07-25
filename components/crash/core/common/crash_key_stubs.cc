@@ -1,4 +1,4 @@
-// Copyright 2017 The Chromium Authors. All rights reserved.
+// Copyright 2017 The Chromium Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -8,7 +8,7 @@
 #include "build/build_config.h"
 #include "components/crash/core/common/crash_key.h"
 
-#if !defined(STARBOARD) && !BUILDFLAG(USE_CRASH_KEY_STUBS)
+#if !BUILDFLAG(USE_CRASH_KEY_STUBS)
 #error "This file should only be compiled when using stubs."
 #endif
 
@@ -31,6 +31,8 @@ void InitializeCrashKeys() {}
 std::string GetCrashKeyValue(const std::string& key_name) {
   return std::string();
 }
+
+void InitializeCrashKeysForTesting() {}
 
 void ResetCrashKeysForTesting() {}
 

@@ -11,9 +11,17 @@ namespace net {
 
 CertPrincipal::CertPrincipal() = default;
 
-CertPrincipal::CertPrincipal(const std::string& name) : common_name(name) {}
+CertPrincipal::CertPrincipal(const CertPrincipal&) = default;
+
+CertPrincipal::CertPrincipal(CertPrincipal&&) = default;
 
 CertPrincipal::~CertPrincipal() = default;
+
+bool CertPrincipal::operator==(const CertPrincipal& other) const = default;
+
+bool CertPrincipal::EqualsForTesting(const CertPrincipal& other) const {
+  return *this == other;
+}
 
 bool CertPrincipal::ParseDistinguishedName(
     der::Input ber_name_data,
@@ -54,11 +62,6 @@ bool CertPrincipal::ParseDistinguishedName(
                                                            &country_name)) {
           return false;
         }
-      } else if (name_attribute.type == der::Input(kTypeStreetAddressOid)) {
-        std::string s;
-        if (!name_attribute.ValueAsStringWithUnsafeOptions(string_handling, &s))
-          return false;
-        street_addresses.push_back(s);
       } else if (name_attribute.type == der::Input(kTypeOrganizationNameOid)) {
         std::string s;
         if (!name_attribute.ValueAsStringWithUnsafeOptions(string_handling, &s))
@@ -70,11 +73,6 @@ bool CertPrincipal::ParseDistinguishedName(
         if (!name_attribute.ValueAsStringWithUnsafeOptions(string_handling, &s))
           return false;
         organization_unit_names.push_back(s);
-      } else if (name_attribute.type == der::Input(kTypeDomainComponentOid)) {
-        std::string s;
-        if (!name_attribute.ValueAsStringWithUnsafeOptions(string_handling, &s))
-          return false;
-        domain_components.push_back(s);
       }
     }
   }

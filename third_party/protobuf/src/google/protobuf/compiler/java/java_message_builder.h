@@ -37,6 +37,7 @@
 
 #include <map>
 #include <string>
+
 #include <google/protobuf/compiler/java/java_field.h>
 
 namespace google {
@@ -70,12 +71,18 @@ class MessageBuilderGenerator {
   void GenerateCommonBuilderMethods(io::Printer* printer);
   void GenerateDescriptorMethods(io::Printer* printer);
   void GenerateBuilderParsingMethods(io::Printer* printer);
+  void GenerateBuilderFieldParsingCases(io::Printer* printer);
+  void GenerateBuilderFieldParsingCase(io::Printer* printer,
+                                       const FieldDescriptor* field);
+  void GenerateBuilderPackedFieldParsingCase(io::Printer* printer,
+                                             const FieldDescriptor* field);
   void GenerateIsInitialized(io::Printer* printer);
 
   const Descriptor* descriptor_;
   Context* context_;
   ClassNameResolver* name_resolver_;
   FieldGeneratorMap<ImmutableFieldGenerator> field_generators_;
+  std::set<const OneofDescriptor*> oneofs_;
 
   GOOGLE_DISALLOW_EVIL_CONSTRUCTORS(MessageBuilderGenerator);
 };

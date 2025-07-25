@@ -95,15 +95,17 @@ bool ParseManifest(const base::Value& manifest_node_val,
     const absl::optional<double> size = package.FindDouble("size");
     if (size) {
       const double val = size.value();
-      if (0 <= val && val < kProtocolMaxInt)
+      if (0 <= val && val < protocol_request::kProtocolMaxInt) {
         p.size = val;
+      }
     }
 
     const absl::optional<double> sizediff = package.FindDouble("sizediff");
     if (sizediff) {
       const double val = sizediff.value();
-      if (0 <= val && val < kProtocolMaxInt)
+      if (0 <= val && val < protocol_request::kProtocolMaxInt) {
         p.sizediff = val;
+      }
     }
 
     result->manifest.packages.push_back(std::move(p));
@@ -196,7 +198,7 @@ bool ParseUpdateCheck(const base::Value& updatecheck_node_val,
   const base::Value::Dict& updatecheck_node = updatecheck_node_val.GetDict();
 
   for (auto kv : updatecheck_node) {
-    if (kv.first.front() == '_' && kv.second.is_string()) {
+    if (!kv.first.empty() && kv.first.front() == '_' && kv.second.is_string()) {
       result->custom_attributes[kv.first] = kv.second.GetString();
     }
   }
@@ -343,9 +345,9 @@ bool ProtocolParserJSON::DoParse(const std::string& response_json,
     ParseError("Missing/non-string protocol.");
     return false;
   }
-  if (*protocol != kProtocolVersion) {
+  if (*protocol != protocol_request::kProtocolVersion) {
     ParseError("Incorrect protocol. (expected '%s', found '%s')",
-               kProtocolVersion, protocol->c_str());
+               protocol_request::kProtocolVersion, protocol->c_str());
     return false;
   }
 

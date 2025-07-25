@@ -35,8 +35,23 @@ chromium-metrics-reviews@google.com.
   </summary>
 </histogram>
 
+<histogram name="PrintPreview.GetPrintersTime.{PrinterType}" units="ms"
+    expires_after="2024-10-16">
+  <owner>gavinwill@chromium.org</owner>
+  <owner>cros-peripherals@google.com</owner>
+  <summary>
+    The amount of time it takes to fetch {PrinterType} printers. Recorded
+    whenever Print Preview is opened and {PrinterType} printers are requested.
+  </summary>
+  <token key="PrinterType">
+    <variant name="Extension"/>
+    <variant name="Local"/>
+    <variant name="PDF"/>
+  </token>
+</histogram>
+
 <histogram name="PrintPreview.InitialDisplayTime" units="ms"
-    expires_after="2023-08-27">
+    expires_after="2024-03-10">
   <owner>thestig@chromium.org</owner>
   <owner>dhoss@chromium.org</owner>
   <summary>
@@ -66,7 +81,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="PrintPreview.NumberOfPrinters" units="units"
-    expires_after="2023-09-10">
+    expires_after="2024-03-17">
   <owner>thestig@chromium.org</owner>
   <owner>dhoss@chromium.org</owner>
   <summary>
@@ -87,12 +102,27 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="PrintPreview.PrintDocumentType"
-    enum="PrintPreviewPrintDocumentTypeBuckets" expires_after="2023-09-03">
+    enum="PrintPreviewPrintDocumentTypeBuckets" expires_after="2024-03-17">
   <owner>rbpotter@chromium.org</owner>
   <owner>awscreen@chromium.org</owner>
   <summary>
     Track type of documents printed (HTML vs PDF). Recorded immediately after a
     user requests that a document be printed.
+  </summary>
+</histogram>
+
+<histogram name="PrintPreview.PrinterSettingsLaunchSource"
+    enum="PrintPreviewLaunchSourceType" expires_after="2024-01-23">
+  <owner>ashleydp@google.com</owner>
+  <owner>gavinwill@chromium.org</owner>
+  <owner>cros-peripherals@google.com</owner>
+  <summary>
+    Tracks the source element that triggers navigation to Printer settings from
+    Print Preview on ChromeOS. It attempts to capture the state of Print Preview
+    when a user clicks the Printer settings button. Possible states include:
+    preview-area displaying connection error on selected printer,
+    destination-dialog-cros displaying destinations, and destination-dialog-cros
+    displaying empty state.
   </summary>
 </histogram>
 
@@ -165,7 +195,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="PrintPreview.PrintSettings" enum="PrintSettings"
-    expires_after="2023-10-01">
+    expires_after="2024-02-04">
   <owner>thestig@chromium.org</owner>
   <owner>awscreen@chromium.org</owner>
   <summary>
@@ -175,7 +205,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="PrintPreview.PrintSettingsUi"
-    enum="PrintPreviewPrintSettingsUiBuckets" expires_after="2023-07-01">
+    enum="PrintPreviewPrintSettingsUiBuckets" expires_after="2024-07-01">
   <owner>rbpotter@chromium.org</owner>
   <owner>thestig@chromium.org</owner>
   <summary>
@@ -219,7 +249,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="PrintPreview.RendererError" enum="PrintPreviewFailureType"
-    expires_after="2023-09-03">
+    expires_after="2024-01-28">
   <owner>thestig@chromium.org</owner>
   <owner>dhoss@chromium.org</owner>
   <summary>
@@ -228,7 +258,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="PrintPreview.RenderToPDFTime" units="ms"
-    expires_after="2023-10-08">
+    expires_after="2024-02-11">
   <owner>thestig@chromium.org</owner>
   <owner>awscreen@chromium.org</owner>
   <summary>Time taken to render to PDF for print preview.</summary>
@@ -258,7 +288,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="PrintPreview.UserAction" enum="PrintPreviewUserActionType"
-    expires_after="2023-09-03">
+    expires_after="2024-03-10">
   <owner>thestig@chromium.org</owner>
   <owner>awscreen@chromium.org</owner>
   <summary>

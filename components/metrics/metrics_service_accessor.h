@@ -1,4 +1,4 @@
-// Copyright 2014 The Chromium Authors. All rights reserved.
+// Copyright 2014 The Chromium Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -6,10 +6,9 @@
 #define COMPONENTS_METRICS_METRICS_SERVICE_ACCESSOR_H_
 
 #include <stdint.h>
-#include <vector>
 
-#include "base/macros.h"
 #include "base/strings/string_piece.h"
+#include "components/variations/synthetic_trials.h"
 
 class PrefService;
 
@@ -21,6 +20,14 @@ class MetricsService;
 // These methods are protected so each user has to inherit own program-specific
 // specialization and enable access there by declaring friends.
 class MetricsServiceAccessor {
+ public:
+  MetricsServiceAccessor(const MetricsServiceAccessor&) = delete;
+  MetricsServiceAccessor& operator=(const MetricsServiceAccessor&) = delete;
+
+  // Returns the value assigned by
+  // SetForceIsMetricsReportingEnabledPrefLookup(). Default value is false.
+  static bool IsForceMetricsReportingEnabledPrefLookup();
+
  protected:
   // Constructor declared as protected to enable inheritance. Descendants should
   // disallow instantiation.
@@ -31,39 +38,18 @@ class MetricsServiceAccessor {
   // has enabled reporting.
   static bool IsMetricsReportingEnabled(PrefService* pref_service);
 
-
   // Registers a field trial name and group with |metrics_service| (if not
   // null), to be used to annotate a UMA report with a particular configuration
-  // state. Returns true on success.
-  // See the comment on MetricsService::RegisterSyntheticFieldTrial() for
+  // state. The |annotation_mode| parameter determines when UMA reports should
+  // start being annotated with this trial and group. Returns true on success.
+  // See the comment on SyntheticTrialRegistry::RegisterSyntheticFieldTrial()
+  // and ChromeMetricsServiceAccessor::RegisterSyntheticFieldTrial() for more
   // details.
-  static bool RegisterSyntheticFieldTrial(MetricsService* metrics_service,
-                                          base::StringPiece trial_name,
-                                          base::StringPiece group_name);
-
-  // Registers a field trial name and set of groups with |metrics_service| (if
-  // not null), to be used to annotate a UMA report with a particular
-  // configuration state. Returns true on success.
-  // See the comment on MetricsService::RegisterSyntheticMultiGroupFieldTrial()
-  // for details.
-  static bool RegisterSyntheticMultiGroupFieldTrial(
+  static bool RegisterSyntheticFieldTrial(
       MetricsService* metrics_service,
       base::StringPiece trial_name,
-      const std::vector<uint32_t>& group_name_hashes);
-
-  // Same as RegisterSyntheticFieldTrial above, but takes in the trial name as a
-  // hash rather than computing the hash from the string.
-  static bool RegisterSyntheticFieldTrialWithNameHash(
-      MetricsService* metrics_service,
-      uint32_t trial_name_hash,
-      base::StringPiece group_name);
-
-  // Same as RegisterSyntheticFieldTrial above, but takes in the trial and group
-  // names as hashes rather than computing those hashes from the strings.
-  static bool RegisterSyntheticFieldTrialWithNameAndGroupHash(
-      MetricsService* metrics_service,
-      uint32_t trial_name_hash,
-      uint32_t group_name_hash);
+      base::StringPiece group_name,
+      variations::SyntheticTrialAnnotationMode annotation_mode);
 
   // IsMetricsReportingEnabled() in non-official builds unconditionally returns
   // false. This results in different behavior for tests running in official vs
@@ -71,9 +57,6 @@ class MetricsServiceAccessor {
   // forces non-official builds to look at the prefs value official builds look
   // at.
   static void SetForceIsMetricsReportingEnabledPrefLookup(bool value);
-
- private:
-  DISALLOW_COPY_AND_ASSIGN(MetricsServiceAccessor);
 };
 
 }  // namespace metrics

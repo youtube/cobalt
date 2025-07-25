@@ -24,6 +24,7 @@
 #include "media/base/limits.h"
 #include "media/base/media_switches.h"
 #include "media/base/video_aspect_ratio.h"
+#include "media/filters/ffmpeg_video_decoder.h"
 #include "media/filters/frame_buffer_pool.h"
 #include "third_party/libvpx/source/libvpx/vpx/vp8dx.h"
 #include "third_party/libvpx/source/libvpx/vpx/vpx_decoder.h"
@@ -233,8 +234,8 @@ bool VpxVideoDecoder::ConfigureDecoder(const VideoDecoderConfig& config) {
   // When enabled, ffmpeg handles VP8 that doesn't have alpha, and
   // VpxVideoDecoder will handle VP8 with alpha. FFvp8 is being deprecated.
   // See http://crbug.com/992235.
-  if (base::FeatureList::IsEnabled(kFFmpegDecodeOpaqueVP8) &&
-      config.codec() == VideoCodec::kVP8 &&
+  if (config.codec() == VideoCodec::kVP8 &&
+      FFmpegVideoDecoder::IsCodecSupported(config.codec()) &&
       config.alpha_mode() == VideoDecoderConfig::AlphaMode::kIsOpaque) {
     return false;
   }
@@ -364,9 +365,9 @@ bool VpxVideoDecoder::VpxDecode(const DecoderBuffer* buffer,
 
   // Prefer the color space from the config if available. It generally comes
   // from the color tag which is more expressive than the vp8 and vp9 bitstream.
-  if (config_.color_space_info().IsSpecified()) {
-    (*video_frame)
-        ->set_color_space(config_.color_space_info().ToGfxColorSpace());
+  auto config_cs = config_.color_space_info().ToGfxColorSpace();
+  if (config_cs.IsValid()) {
+    (*video_frame)->set_color_space(config_cs);
     return true;
   }
 
@@ -424,26 +425,28 @@ VpxVideoDecoder::AlphaDecodeStatus VpxVideoDecoder::DecodeAlphaPlane(
     const struct vpx_image** vpx_image_alpha,
     const DecoderBuffer* buffer) {
   DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
-  if (!vpx_codec_alpha_ || buffer->side_data_size() < 8) {
+  if (!vpx_codec_alpha_ || !buffer->has_side_data() ||
+      buffer->side_data()->alpha_data.size() < 8) {
     return kAlphaPlaneProcessed;
   }
 
   // First 8 bytes of side data is |side_data_id| in big endian.
-  const uint64_t side_data_id = base::NetToHost64(
-      *(reinterpret_cast<const uint64_t*>(buffer->side_data())));
+  const uint64_t side_data_id =
+      base::NetToHost64(*(reinterpret_cast<const uint64_t*>(
+          buffer->side_data()->alpha_data.data())));
   if (side_data_id != 1) {
     return kAlphaPlaneProcessed;
   }
 
-  // Try and decode buffer->side_data() minus the first 8 bytes as a full
+  // Try and decode buffer->raw_side_data() minus the first 8 bytes as a full
   // frame.
   {
     TRACE_EVENT1("media", "vpx_codec_decode_alpha", "buffer",
                  buffer->AsHumanReadableString());
-    vpx_codec_err_t status =
-        vpx_codec_decode(vpx_codec_alpha_.get(), buffer->side_data() + 8,
-                         buffer->side_data_size() - 8, nullptr /* user_priv */,
-                         0 /* deadline */);
+    vpx_codec_err_t status = vpx_codec_decode(
+        vpx_codec_alpha_.get(), buffer->side_data()->alpha_data.data() + 8,
+        buffer->side_data()->alpha_data.size() - 8, nullptr /* user_priv */,
+        0 /* deadline */);
     if (status != VPX_CODEC_OK) {
       DLOG(ERROR) << "vpx_codec_decode() failed for the alpha: "
                   << vpx_codec_error(vpx_codec_.get());

@@ -1,1 +1,0 @@
-'use strict';(function(b){var c=b.Object.defineProperty,d=function(a){c(this,"highWaterMark",{value:a.highWaterMark,enumerable:!0,configurable:!0,writable:!0})};d.prototype.size=function(a){return a.byteLength};c(b,"ByteLengthQueuingStrategy",{value:d,enumerable:!1,configurable:!0,writable:!0})})(this);

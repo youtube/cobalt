@@ -18,6 +18,9 @@ import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.Paths;
 import java.util.zip.ZipEntry;
 import java.util.zip.ZipInputStream;
 import java.util.zip.ZipOutputStream;
@@ -27,6 +30,14 @@ import java.util.zip.ZipOutputStream;
  */
 public abstract class ByteCodeRewriter {
     private static final String CLASS_FILE_SUFFIX = ".class";
+
+    static String[] expandArgs(String[] args) throws IOException {
+        if (args.length == 1 && args[0].startsWith("@")) {
+            Path path = Paths.get(args[0].substring(1));
+            args = Files.readAllLines(path).toArray(new String[0]);
+        }
+        return args;
+    }
 
     public void rewrite(File inputJar, File outputJar) throws IOException {
         if (!inputJar.exists()) {
@@ -109,8 +120,8 @@ public abstract class ByteCodeRewriter {
             byte[] classData = writer.toByteArray();
             outputStream.write(classData, 0, classData.length);
             return true;
-        } catch (IOException e) {
-            throw new RuntimeException(e);
+        } catch (Throwable e) {
+            throw new RuntimeException("Failed when processing " + entry.getName(), e);
         }
     }
 }

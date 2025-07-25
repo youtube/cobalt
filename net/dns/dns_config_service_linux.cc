@@ -340,7 +340,6 @@ class DnsConfigServiceLinux::Watcher : public DnsConfigService::Watcher {
     CheckOnCorrectSequence();
 
     bool success = true;
-/* Cobalt
     if (!resolv_watcher_.Watch(
             base::FilePath(kFilePathResolv),
             base::FilePathWatcher::Type::kNonRecursive,
@@ -367,7 +366,6 @@ class DnsConfigServiceLinux::Watcher : public DnsConfigService::Watcher {
       LOG(ERROR) << "DNS hosts watch failed to start.";
       success = false;
     }
-Cobalt */
     return success;
   }
 
@@ -386,11 +384,9 @@ Cobalt */
     OnHostsChanged(!error);
   }
 
-/* Cobalt
   base::FilePathWatcher resolv_watcher_;
   base::FilePathWatcher nsswitch_watcher_;
   base::FilePathWatcher hosts_watcher_;
-Cobalt */
 };
 
 // A SerialWorker that uses libresolv to initialize res_state and converts

@@ -1,0 +1,23 @@
+# Copyright 2018 The Chromium Authors
+# Use of this source code is governed by a BSD-style license that can be
+# found in the LICENSE file.
+
+import("//build/config/ios/asset_catalog.gni")
+
+colorset("grid_background_color") {
+  sources = [ "grid_background_color.colorset/Contents.json" ]
+}
+
+imageset("tab_grid_incognito_tabs_empty") {
+  sources = [
+    "tab_grid_incognito_tabs_empty.imageset/Contents.json",
+    "tab_grid_incognito_tabs_empty.imageset/tab_grid_incognito_tabs_empty.pdf",
+  ]
+}
+
+imageset("tab_grid_regular_tabs_empty") {
+  sources = [
+    "tab_grid_regular_tabs_empty.imageset/Contents.json",
+    "tab_grid_regular_tabs_empty.imageset/tab_grid_regular_tabs_empty.pdf",
+  ]
+}

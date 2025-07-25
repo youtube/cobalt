@@ -94,20 +94,6 @@ void AppendToFileThenDelete(const base::FilePath& source_path,
                             base::File* destination_file,
                             char* read_buffer,
                             size_t read_buffer_size) {
-#if defined(STARBOARD)
-  auto source_file =
-      base::File(source_path, base::File::FLAG_OPEN | base::File::FLAG_READ);
-  DCHECK(source_file.IsValid());
-
-  // Read |source_path|'s contents in chunks of read_buffer_size and append
-  // to |destination_file|.
-  size_t num_bytes_read;
-  while ((num_bytes_read = source_file.Read(0, read_buffer, read_buffer_size)) >
-         0) {
-    WriteToFile(destination_file,
-                base::StringPiece(read_buffer, num_bytes_read));
-  }
-#else
   base::ScopedFILE source_file(base::OpenFile(source_path, "rb"));
   if (!source_file)
     return;
@@ -123,7 +109,6 @@ void AppendToFileThenDelete(const base::FilePath& source_path,
 
   // Now that it has been copied, delete the source file.
   source_file.reset();
-#endif
   base::DeleteFile(source_path);
 }
 

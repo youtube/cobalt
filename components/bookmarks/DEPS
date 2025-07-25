@@ -1,0 +1,18 @@
+include_rules = [
+  "+components/bookmarks/common/android/bookmarks_jni_headers",
+  "+components/favicon_base",
+  "+components/keyed_service",
+  "+components/pref_registry",
+  "+components/prefs",
+  "+components/query_parser",
+  "+components/strings/grit/components_strings.h",
+  "+components/url_formatter",
+  "+net/base",
+  "+ui",
+]
+
+specific_include_rules = {
+  "bookmark_model_unittest.cc": [
+    "+third_party/skia",
+  ]
+}

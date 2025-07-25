@@ -1,0 +1,3177 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<issues format="6" by="lint 8.3.0-alpha09" type="baseline" client="" dependencies="true" name="" variant="all" version="8.3.0-alpha09">
+
+    <issue
+        id="WrongCommentType"
+        message="This block comment looks like it was intended to be a KDoc comment"
+        errorLine1="        /* See {@link android.webkit.WebChromeClient}. */"
+        errorLine2="               ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="../../android_webview/java/src/org/chromium/android_webview/AwContentsClient.java"
+            line="78"
+            column="16"/>
+    </issue>
+
+    <issue
+        id="WrongCommentType"
+        message="This block comment looks like it was intended to be a KDoc comment"
+        errorLine1="        /* See {@link android.webkit.GeolocationPermissions}. */"
+        errorLine2="               ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="../../android_webview/java/src/org/chromium/android_webview/AwGeolocationPermissions.java"
+            line="28"
+            column="16"/>
+    </issue>
+
+    <issue
+        id="WrongCommentType"
+        message="This block comment looks like it was intended to be a KDoc comment"
+        errorLine1="    /* See {@link android.webkit.WebSettings}. */"
+        errorLine2="           ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="../../android_webview/java/src/org/chromium/android_webview/AwSettings.java"
+            line="57"
+            column="12"/>
+    </issue>
+
+    <issue
+        id="WrongCommentType"
+        message="This block comment looks like it was intended to be a KDoc comment"
+        errorLine1="    /* See {@link android.webkit.WebSettings}. */"
+        errorLine2="           ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="../../android_webview/java/src/org/chromium/android_webview/AwSettings.java"
+            line="66"
+            column="12"/>
+    </issue>
+
+    <issue
+        id="WrongCommentType"
+        message="This block comment looks like it was intended to be a KDoc comment"
+        errorLine1="    /* See {@link android.webkit.WebSettings}. */"
+        errorLine2="           ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="../../android_webview/java/src/org/chromium/android_webview/AwSettings.java"
+            line="68"
+            column="12"/>
+    </issue>
+
+    <issue
+        id="WrongCommentType"
+        message="This block comment looks like it was intended to be a KDoc comment"
+        errorLine1="     * @param fallbackOnBackPressed Callback executed when a handler claims to intercept back press"
+        errorLine2="       ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="../../chrome/browser/back_press/android/java/src/org/chromium/chrome/browser/back_press/BackPressManager.java"
+            line="232"
+            column="8"/>
+    </issue>
+
+    <issue
+        id="WrongCommentType"
+        message="This block comment looks like it was intended to be a KDoc comment"
+        errorLine1="     * @param intent The intent that was used to bind to the service."
+        errorLine2="       ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="../../base/android/java/src/org/chromium/base/process_launcher/ChildProcessService.java"
+            line="354"
+            column="8"/>
+    </issue>
+
+    <issue
+        id="WrongCommentType"
+        message="This block comment looks like it was intended to be a KDoc comment"
+        errorLine1="     * @param srcDir A directory containing a crashpad::CrashReportDatabase."
+        errorLine2="       ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="../../components/minidump_uploader/android/java/src/org/chromium/components/minidump_uploader/CrashReportMimeWriter.java"
+            line="26"
+            column="8"/>
+    </issue>
+
+    <issue
+        id="WrongCommentType"
+        message="This block comment looks like it was intended to be a KDoc comment"
+        errorLine1="     * @param anrFiles Pairs of serialized ANR proto file names and the versions they happened on."
+        errorLine2="       ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="../../components/minidump_uploader/android/java/src/org/chromium/components/minidump_uploader/CrashReportMimeWriter.java"
+            line="38"
+            column="8"/>
+    </issue>
+
+    <issue
+        id="WrongCommentType"
+        message="This block comment looks like it was intended to be a KDoc comment"
+        errorLine1="     * @param srcDir A directory containing a crashpad::CrashReportDatabase."
+        errorLine2="       ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="../../components/minidump_uploader/android/java/src/org/chromium/components/minidump_uploader/CrashReportMimeWriter.java"
+            line="51"
+            column="8"/>
+    </issue>
+
+    <issue
+        id="WrongCommentType"
+        message="This block comment looks like it was intended to be a KDoc comment"
+        errorLine1="     * @param args arguments of the callback."
+        errorLine2="       ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="../../chrome/android/java/src/org/chromium/chrome/browser/customtabs/CustomTabsConnection.java"
+            line="339"
+            column="8"/>
+    </issue>
+
+    <issue
+        id="WrongCommentType"
+        message="This block comment looks like it was intended to be a KDoc comment"
+        errorLine1="     * @return Display.Modes supported by this Display."
+        errorLine2="       ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="../../ui/android/java/src/org/chromium/ui/display/DisplayAndroid.java"
+            line="212"
+            column="8"/>
+    </issue>
+
+    <issue
+        id="WrongCommentType"
+        message="This block comment looks like it was intended to be a KDoc comment"
+        errorLine1="     * @return Current Display.Mode for the display."
+        errorLine2="       ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="../../ui/android/java/src/org/chromium/ui/display/DisplayAndroid.java"
+            line="219"
+            column="8"/>
+    </issue>
+
+    <issue
+        id="WrongCommentType"
+        message="This block comment looks like it was intended to be a KDoc comment"
+        errorLine1="     * @return whether the observerMap was changed as a result of the call."
+        errorLine2="       ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="../../components/dom_distiller/core/android/java/src/org/chromium/components/dom_distiller/core/DistilledPagePrefs.java"
+            line="83"
+            column="8"/>
+    </issue>
+
+    <issue
+        id="WrongCommentType"
+        message="This block comment looks like it was intended to be a KDoc comment"
+        errorLine1="     * @return whether the observer was removed as a result of the call."
+        errorLine2="       ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="../../components/dom_distiller/core/android/java/src/org/chromium/components/dom_distiller/core/DistilledPagePrefs.java"
+            line="97"
+            column="8"/>
+    </issue>
+
+    <issue
+        id="WrongCommentType"
+        message="This block comment looks like it was intended to be a KDoc comment"
+        errorLine1="     * @param requestShipping Whether the merchant requested a shipping address."
+        errorLine2="       ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="../../components/payments/content/android/java/src/org/chromium/components/payments/JourneyLogger.java"
+            line="143"
+            column="8"/>
+    </issue>
+
+    <issue
+        id="WrongCommentType"
+        message="This block comment looks like it was intended to be a KDoc comment"
+        errorLine1="     * @param methodTypes The list of types of the payment methods, defined in"
+        errorLine2="       ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="../../components/payments/content/android/java/src/org/chromium/components/payments/JourneyLogger.java"
+            line="157"
+            column="8"/>
+    </issue>
+
+    <issue
+        id="WrongCommentType"
+        message="This block comment looks like it was intended to be a KDoc comment"
+        errorLine1="     * @param shouldFake Whether to fake the version check."
+        errorLine2="       ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="../../chrome/android/java/src/org/chromium/chrome/browser/share/LensUtils.java"
+            line="40"
+            column="8"/>
+    </issue>
+
+    <issue
+        id="WrongCommentType"
+        message="This block comment looks like it was intended to be a KDoc comment"
+        errorLine1="     * @param featureName The feature that uses the UKM reporting."
+        errorLine2="       ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="../../chrome/android/java/src/org/chromium/chrome/browser/share/LensUtils.java"
+            line="161"
+            column="8"/>
+    </issue>
+
+    <issue
+        id="WrongCommentType"
+        message="This block comment looks like it was intended to be a KDoc comment"
+        errorLine1="     * @param success Whether provisioning has succeeded or not."
+        errorLine2="       ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="../../media/base/android/java/src/org/chromium/media/MediaDrmBridge.java"
+            line="1293"
+            column="8"/>
+    </issue>
+
+    <issue
+        id="WrongCommentType"
+        message="This block comment looks like it was intended to be a KDoc comment"
+        errorLine1="    /* Returns the {@link WebContentns} for which the message is intended to be shown. */"
+        errorLine2="                   ~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="../../chrome/browser/commerce/merchant_viewer/android/java/src/org/chromium/chrome/browser/merchant_viewer/MerchantTrustMessageContext.java"
+            line="49"
+            column="20"/>
+    </issue>
+
+    <issue
+        id="WrongCommentType"
+        message="This block comment looks like it was intended to be a KDoc comment"
+        errorLine1="     * @param delegate Delegate providing the WindowAndroid and Context to display the UI."
+        errorLine2="       ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="../../chrome/android/java/src/org/chromium/chrome/browser/modules/ModuleInstallUi.java"
+            line="49"
+            column="8"/>
+    </issue>
+
+    <issue
+        id="WrongCommentType"
+        message="This block comment looks like it was intended to be a KDoc comment"
+        errorLine1="    /* Destroy the single tab card on the {@link NewTabPageLayout}. */"
+        errorLine2="                                          ~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="../../chrome/android/java/src/org/chromium/chrome/browser/ntp/NewTabPage.java"
+            line="1201"
+            column="43"/>
+    </issue>
+
+    <issue
+        id="WrongCommentType"
+        message="This block comment looks like it was intended to be a KDoc comment"
+        errorLine1="     * @param activity The activity the share sheet belongs to."
+        errorLine2="       ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="../../chrome/browser/content_creation/notes/internal/android/java/src/org/chromium/chrome/browser/content_creation/notes/NoteCreationDialog.java"
+            line="120"
+            column="8"/>
+    </issue>
+
+    <issue
+        id="WrongCommentType"
+        message="This block comment looks like it was intended to be a KDoc comment"
+        errorLine1="             * @param dataType  The type of the data contained in the section."
+        errorLine2="               ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="../../chrome/android/java/src/org/chromium/chrome/browser/payments/ui/PaymentRequestSection.java"
+            line="832"
+            column="16"/>
+    </issue>
+
+    <issue
+        id="WrongCommentType"
+        message="This block comment looks like it was intended to be a KDoc comment"
+        errorLine1="         * @param response The payment response to send to the merchant."
+        errorLine2="           ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="../../components/payments/content/android/java/src/org/chromium/components/payments/PaymentResponseHelperInterface.java"
+            line="28"
+            column="12"/>
+    </issue>
+
+    <issue
+        id="WrongCommentType"
+        message="This block comment looks like it was intended to be a KDoc comment"
+        errorLine1="     * @param context The Context to create tha handler for."
+        errorLine2="       ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="../../components/paint_preview/player/android/java/src/org/chromium/components/paintpreview/player/PlayerSwipeRefreshHandler.java"
+            line="36"
+            column="8"/>
+    </issue>
+
+    <issue
+        id="WrongCommentType"
+        message="This block comment looks like it was intended to be a KDoc comment"
+        errorLine1="     * @param activity The activity the share sheet belongs to."
+        errorLine2="       ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="../../chrome/browser/share/android/java/src/org/chromium/chrome/browser/share/share_sheet/ShareSheetBottomSheetContent.java"
+            line="133"
+            column="8"/>
+    </issue>
+
+    <issue
+        id="WrongCommentType"
+        message="This block comment looks like it was intended to be a KDoc comment"
+        errorLine1="     * @param tab The tab being tested."
+        errorLine2="       ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="../../chrome/android/java/src/org/chromium/chrome/browser/share/ShareUtils.java"
+            line="21"
+            column="8"/>
+    </issue>
+
+    <issue
+        id="WrongCommentType"
+        message="This block comment looks like it was intended to be a KDoc comment"
+        errorLine1="     * {@link StartSurfaceState#SHOWN_HOMEPAGE} when the refactoring is disabled."
+        errorLine2="       ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="../../chrome/android/features/start_surface/java/src/org/chromium/chrome/features/start_surface/StartSurface.java"
+            line="251"
+            column="8"/>
+    </issue>
+
+    <issue
+        id="WrongCommentType"
+        message="This block comment looks like it was intended to be a KDoc comment"
+        errorLine1="     * @params type Information about where the tab was created from."
+        errorLine2="       ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="../../chrome/browser/tabmodel/android/java/src/org/chromium/chrome/browser/tabmodel/TabCreator.java"
+            line="60"
+            column="8"/>
+    </issue>
+
+    <issue
+        id="WrongCommentType"
+        message="This block comment looks like it was intended to be a KDoc comment"
+        errorLine1="     * @param tabsToolbarView @{link View} used to create the drag shadow."
+        errorLine2="       ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="../../chrome/android/java/src/org/chromium/chrome/browser/compositor/overlays/strip/TabDragSource.java"
+            line="331"
+            column="8"/>
+    </issue>
+
+    <issue
+        id="WrongCommentType"
+        message="This block comment looks like it was intended to be a KDoc comment"
+        errorLine1="    /* Destroy and clean up {@link DragStateTracker} to the content view. */"
+        errorLine2="                            ~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="../../chrome/android/java/src/org/chromium/chrome/browser/tab/TabViewAndroidDelegate.java"
+            line="154"
+            column="29"/>
+    </issue>
+
+    <issue
+        id="WrongCommentType"
+        message="This block comment looks like it was intended to be a KDoc comment"
+        errorLine1="     * Updates the native {@link WebContents} with a new window. This moves the NativeView and"
+        errorLine2="                          ~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="../../content/public/android/java/src/org/chromium/content_public/browser/WebContents.java"
+            line="122"
+            column="27"/>
+    </issue>
+
+    <issue
+        id="ResourceType"
+        message="Expected resource of type styleable"
+        errorLine1="                R.style.SelectPopupDialog, SELECT_DIALOG_ATTRS);"
+        errorLine2="                                           ~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="../../content/public/android/java/src/org/chromium/content/browser/input/SelectPopupDialog.java"
+            line="115"
+            column="44"/>
+    </issue>
+
+    <issue
+        id="DiscouragedPrivateApi"
+        message="Reflective access to sPackageManager, which is not part of the public SDK and therefore likely to change in future Android releases"
+        errorLine1="            Field packageManagerField = activityThreadClass.getDeclaredField(&quot;sPackageManager&quot;);"
+        errorLine2="                                        ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="../../components/embedder_support/android/java/src/org/chromium/components/embedder_support/application/FontPreloadingWorkaround.java"
+            line="68"
+            column="41"/>
+    </issue>
+
+    <issue
+        id="DiscouragedPrivateApi"
+        message="Reflective access to violationsBeingTimed, which is not part of the public SDK and therefore likely to change in future Android releases"
+        errorLine1="        Field violationTimingField = StrictMode.class.getDeclaredField(&quot;violationsBeingTimed&quot;);"
+        errorLine2="                                     ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="../../components/strictmode/android/java/src/org/chromium/components/strictmode/ReflectiveThreadStrictModeInterceptor.java"
+            line="104"
+            column="38"/>
+    </issue>
+
+    <issue
+        id="InternalInsetResource"
+        message="Using internal inset dimension resource `status_bar_height` is not supported"
+        errorLine1="                resources.getIdentifier(&quot;status_bar_height&quot;, &quot;dimen&quot;, &quot;android&quot;);"
+        errorLine2="                ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="../../chrome/android/java/src/org/chromium/chrome/browser/password_manager/AccountChooserDialog.java"
+            line="250"
+            column="17"/>
+    </issue>
+
+    <issue
+        id="InternalInsetResource"
+        message="Using internal inset dimension resource `status_bar_height` is not supported"
+        errorLine1="                    mActivity.getResources().getIdentifier(&quot;status_bar_height&quot;, &quot;dimen&quot;, &quot;android&quot;);"
+        errorLine2="                    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="../../chrome/android/java/src/org/chromium/chrome/browser/customtabs/features/partialcustomtab/PartialCustomTabVersionCompat.java"
+            line="256"
+            column="21"/>
+    </issue>
+
+    <issue
+        id="InternalInsetResource"
+        message="Using internal inset dimension resource `status_bar_height` is not supported"
+        errorLine1="        int statusBarId = resources.getIdentifier(&quot;status_bar_height&quot;, &quot;dimen&quot;, &quot;android&quot;);"
+        errorLine2="                          ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="../../chrome/android/java/src/org/chromium/chrome/browser/tab/TabUtils.java"
+            line="122"
+            column="27"/>
+    </issue>
+
+    <issue
+        id="NewApi"
+        message="Call requires API level 26 (current min is 24): `deleteLegacyChannels`"
+        errorLine1="            mChannelsInitializer.deleteLegacyChannels();"
+        errorLine2="                                 ~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="../../chrome/browser/notifications/android/java/src/org/chromium/chrome/browser/notifications/channels/ChannelsUpdater.java"
+            line="74"
+            column="34"/>
+    </issue>
+
+    <issue
+        id="NewApi"
+        message="Call requires API level 26 (current min is 24): `initializeStartupChannels`"
+        errorLine1="            mChannelsInitializer.initializeStartupChannels();"
+        errorLine2="                                 ~~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="../../chrome/browser/notifications/android/java/src/org/chromium/chrome/browser/notifications/channels/ChannelsUpdater.java"
+            line="75"
+            column="34"/>
+    </issue>
+
+    <issue
+        id="NewApi"
+        message="Call requires API level 26 (current min is 24): `updateLocale`"
+        errorLine1="            mChannelsInitializer.updateLocale(ContextUtils.getApplicationContext().getResources());"
+        errorLine2="                                 ~~~~~~~~~~~~">
+        <location
+            file="../../chrome/browser/notifications/android/java/src/org/chromium/chrome/browser/notifications/channels/ChannelsUpdater.java"
+            line="84"
+            column="34"/>
+    </issue>
+
+    <issue
+        id="NewApi"
+        message="Call requires API level 26 (current min is 24): `onFrameworkExitedPictureInPicture`"
+        errorLine1="            mFullscreenVideoPictureInPictureController.onFrameworkExitedPictureInPicture();"
+        errorLine2="                                                       ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="../../chrome/android/java/src/org/chromium/chrome/browser/app/ChromeActivity.java"
+            line="1183"
+            column="56"/>
+    </issue>
+
+    <issue
+        id="NewApi"
+        message="Call requires API level 26 (current min is 24): `FullscreenVideoPictureInPictureController`"
+        errorLine1="                    new FullscreenVideoPictureInPictureController("
+        errorLine2="                    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="../../chrome/android/java/src/org/chromium/chrome/browser/app/ChromeActivity.java"
+            line="1203"
+            column="21"/>
+    </issue>
+
+    <issue
+        id="NewApi"
+        message="Call requires API level 26 (current min is 24): `attemptPictureInPicture`"
+        errorLine1="        mFullscreenVideoPictureInPictureController.attemptPictureInPicture();"
+        errorLine2="                                                   ~~~~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="../../chrome/android/java/src/org/chromium/chrome/browser/app/ChromeActivity.java"
+            line="1218"
+            column="52"/>
+    </issue>
+
+    <issue
+        id="NewApi"
+        message="Call requires API level 26 (current min is 24): `onFrameworkExitedPictureInPicture`"
+        errorLine1="            mFullscreenVideoPictureInPictureController.onFrameworkExitedPictureInPicture();"
+        errorLine2="                                                       ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="../../chrome/android/java/src/org/chromium/chrome/browser/app/ChromeActivity.java"
+            line="1284"
+            column="56"/>
+    </issue>
+
+    <issue
+        id="NewApi"
+        message="Call requires API level 26 (current min is 24): `getInstance`"
+        errorLine1="        return SiteChannelsManager.getInstance();"
+        errorLine2="                                   ~~~~~~~~~~~">
+        <location
+            file="../../chrome/android/java/src/org/chromium/chrome/browser/dependency_injection/ChromeAppModule.java"
+            line="77"
+            column="36"/>
+    </issue>
+
+    <issue
+        id="NewApi"
+        message="Call requires API level 26 (current min is 24): `getChannelIdForOrigin`"
+        errorLine1="        return SiteChannelsManager.getInstance().getChannelIdForOrigin(origin);"
+        errorLine2="                                                 ~~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="../../chrome/android/java/src/org/chromium/chrome/browser/site_settings/ChromeSiteSettingsDelegate.java"
+            line="175"
+            column="50"/>
+    </issue>
+
+    <issue
+        id="NewApi"
+        message="Call requires API level 26 (current min is 24): `getInstance`"
+        errorLine1="        return SiteChannelsManager.getInstance().getChannelIdForOrigin(origin);"
+        errorLine2="                                   ~~~~~~~~~~~">
+        <location
+            file="../../chrome/android/java/src/org/chromium/chrome/browser/site_settings/ChromeSiteSettingsDelegate.java"
+            line="175"
+            column="36"/>
+    </issue>
+
+    <issue
+        id="NewApi"
+        message="Call requires API level 25 (current min is 24): `reportNewTabShortcutUsed`"
+        errorLine1="                    reportNewTabShortcutUsed(false);"
+        errorLine2="                    ~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="../../chrome/android/java/src/org/chromium/chrome/browser/ChromeTabbedActivity.java"
+            line="1646"
+            column="21"/>
+    </issue>
+
+    <issue
+        id="NewApi"
+        message="Call requires API level 25 (current min is 24): `reportNewTabShortcutUsed`"
+        errorLine1="                        reportNewTabShortcutUsed(true);"
+        errorLine2="                        ~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="../../chrome/android/java/src/org/chromium/chrome/browser/ChromeTabbedActivity.java"
+            line="1686"
+            column="25"/>
+    </issue>
+
+    <issue
+        id="NewApi"
+        message="Call requires API level 25 (current min is 24): `reportNewTabShortcutUsed`"
+        errorLine1="            reportNewTabShortcutUsed(false);"
+        errorLine2="            ~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="../../chrome/android/java/src/org/chromium/chrome/browser/ChromeTabbedActivity.java"
+            line="2245"
+            column="13"/>
+    </issue>
+
+    <issue
+        id="NewApi"
+        message="Call requires API level 25 (current min is 24): `reportNewTabShortcutUsed`"
+        errorLine1="                reportNewTabShortcutUsed(true);"
+        errorLine2="                ~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="../../chrome/android/java/src/org/chromium/chrome/browser/ChromeTabbedActivity.java"
+            line="2260"
+            column="17"/>
+    </issue>
+
+    <issue
+        id="NewApi"
+        message="Call requires API level 29 (current min is 24): `clearAllContentCaptureData`"
+        errorLine1="            contentCaptureController.clearAllContentCaptureData();"
+        errorLine2="                                     ~~~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="../../chrome/android/java/src/org/chromium/chrome/browser/content_capture/ContentCaptureHistoryDeletionObserver.java"
+            line="30"
+            column="38"/>
+    </issue>
+
+    <issue
+        id="NewApi"
+        message="Call requires API level 29 (current min is 24): `clearContentCaptureDataForURLs`"
+        errorLine1="                    contentCaptureController.clearContentCaptureDataForURLs(deletedURLs);"
+        errorLine2="                                             ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="../../chrome/android/java/src/org/chromium/chrome/browser/content_capture/ContentCaptureHistoryDeletionObserver.java"
+            line="35"
+            column="46"/>
+    </issue>
+
+    <issue
+        id="NewApi"
+        message="Call requires API level 29 (current min is 24): `notifyViewAppeared`"
+        errorLine1="        return notifyViewAppeared(parentPlatformSessionData, data);"
+        errorLine2="               ~~~~~~~~~~~~~~~~~~">
+        <location
+            file="../../components/content_capture/android/java/src/org/chromium/components/content_capture/ContentCapturedTask.java"
+            line="23"
+            column="16"/>
+    </issue>
+
+    <issue
+        id="NewApi"
+        message="Extending NotificationTask requires API level 29 (current min is 24): `NotificationTask`"
+        errorLine1="class ContentRemovedTask extends NotificationTask {"
+        errorLine2="                                 ~~~~~~~~~~~~~~~~">
+        <location
+            file="../../components/content_capture/android/java/src/org/chromium/components/content_capture/ContentRemovedTask.java"
+            line="12"
+            column="34"/>
+    </issue>
+
+    <issue
+        id="NewApi"
+        message="Call requires API level 29 (current min is 24): `NotificationTask`"
+        errorLine1="        super(session, platformSession);"
+        errorLine2="        ~~~~~">
+        <location
+            file="../../components/content_capture/android/java/src/org/chromium/components/content_capture/ContentRemovedTask.java"
+            line="17"
+            column="9"/>
+    </issue>
+
+    <issue
+        id="NewApi"
+        message="Call requires API level 29 (current min is 24): `log`"
+        errorLine1="        log(&quot;ContentRemovedTask.removeContent&quot;);"
+        errorLine2="        ~~~">
+        <location
+            file="../../components/content_capture/android/java/src/org/chromium/components/content_capture/ContentRemovedTask.java"
+            line="27"
+            column="9"/>
+    </issue>
+
+    <issue
+        id="NewApi"
+        message="Call requires API level 29 (current min is 24): `buildCurrentSession`"
+        errorLine1="        PlatformSessionData platformSessionData = buildCurrentSession();"
+        errorLine2="                                                  ~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="../../components/content_capture/android/java/src/org/chromium/components/content_capture/ContentRemovedTask.java"
+            line="28"
+            column="51"/>
+    </issue>
+
+    <issue
+        id="NewApi"
+        message="Call requires API level 29 (current min is 24): `getInstance`"
+        errorLine1="        PlatformAPIWrapper.getInstance().notifyViewsDisappeared("
+        errorLine2="                           ~~~~~~~~~~~">
+        <location
+            file="../../components/content_capture/android/java/src/org/chromium/components/content_capture/ContentRemovedTask.java"
+            line="30"
+            column="28"/>
+    </issue>
+
+    <issue
+        id="NewApi"
+        message="Call requires API level 29 (current min is 24): `notifyViewsDisappeared`"
+        errorLine1="        PlatformAPIWrapper.getInstance().notifyViewsDisappeared("
+        errorLine2="                                         ~~~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="../../components/content_capture/android/java/src/org/chromium/components/content_capture/ContentRemovedTask.java"
+            line="30"
+            column="42"/>
+    </issue>
+
+    <issue
+        id="NewApi"
+        message="Field requires API level 29 (current min is 24): `contentCaptureSession`"
+        errorLine1="                platformSessionData.contentCaptureSession,"
+        errorLine2="                                    ~~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="../../components/content_capture/android/java/src/org/chromium/components/content_capture/ContentRemovedTask.java"
+            line="31"
+            column="37"/>
+    </issue>
+
+    <issue
+        id="NewApi"
+        message="Call requires API level 29 (current min is 24): `getRootPlatformSessionData`"
+        errorLine1="                mPlatformSession.getRootPlatformSessionData().autofillId, mRemovedIds);"
+        errorLine2="                                 ~~~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="../../components/content_capture/android/java/src/org/chromium/components/content_capture/ContentRemovedTask.java"
+            line="32"
+            column="34"/>
+    </issue>
+
+    <issue
+        id="NewApi"
+        message="Field requires API level 29 (current min is 24): `autofillId`"
+        errorLine1="                mPlatformSession.getRootPlatformSessionData().autofillId, mRemovedIds);"
+        errorLine2="                                                              ~~~~~~~~~~">
+        <location
+            file="../../components/content_capture/android/java/src/org/chromium/components/content_capture/ContentRemovedTask.java"
+            line="32"
+            column="63"/>
+    </issue>
+
+    <issue
+        id="NewApi"
+        message="Field requires API level 29 (current min is 24): `mPlatformSession`"
+        errorLine1="                mPlatformSession.getRootPlatformSessionData().autofillId, mRemovedIds);"
+        errorLine2="                ~~~~~~~~~~~~~~~~">
+        <location
+            file="../../components/content_capture/android/java/src/org/chromium/components/content_capture/ContentRemovedTask.java"
+            line="32"
+            column="17"/>
+    </issue>
+
+    <issue
+        id="NewApi"
+        message="Call requires API level 29 (current min is 24): `getInstance`"
+        errorLine1="        AutofillId autofillId = PlatformAPIWrapper.getInstance().newAutofillId("
+        errorLine2="                                                   ~~~~~~~~~~~">
+        <location
+            file="../../components/content_capture/android/java/src/org/chromium/components/content_capture/ContentUpdateTask.java"
+            line="28"
+            column="52"/>
+    </issue>
+
+    <issue
+        id="NewApi"
+        message="Call requires API level 29 (current min is 24): `newAutofillId`"
+        errorLine1="        AutofillId autofillId = PlatformAPIWrapper.getInstance().newAutofillId("
+        errorLine2="                                                                 ~~~~~~~~~~~~~">
+        <location
+            file="../../components/content_capture/android/java/src/org/chromium/components/content_capture/ContentUpdateTask.java"
+            line="28"
+            column="66"/>
+    </issue>
+
+    <issue
+        id="NewApi"
+        message="Field requires API level 29 (current min is 24): `contentCaptureSession`"
+        errorLine1="                parentPlatformSessionData.contentCaptureSession,"
+        errorLine2="                                          ~~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="../../components/content_capture/android/java/src/org/chromium/components/content_capture/ContentUpdateTask.java"
+            line="29"
+            column="43"/>
+    </issue>
+
+    <issue
+        id="NewApi"
+        message="Call requires API level 29 (current min is 24): `getRootPlatformSessionData`"
+        errorLine1="                mPlatformSession.getRootPlatformSessionData().autofillId, data.getId());"
+        errorLine2="                                 ~~~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="../../components/content_capture/android/java/src/org/chromium/components/content_capture/ContentUpdateTask.java"
+            line="30"
+            column="34"/>
+    </issue>
+
+    <issue
+        id="NewApi"
+        message="Field requires API level 29 (current min is 24): `autofillId`"
+        errorLine1="                mPlatformSession.getRootPlatformSessionData().autofillId, data.getId());"
+        errorLine2="                                                              ~~~~~~~~~~">
+        <location
+            file="../../components/content_capture/android/java/src/org/chromium/components/content_capture/ContentUpdateTask.java"
+            line="30"
+            column="63"/>
+    </issue>
+
+    <issue
+        id="NewApi"
+        message="Field requires API level 29 (current min is 24): `mPlatformSession`"
+        errorLine1="                mPlatformSession.getRootPlatformSessionData().autofillId, data.getId());"
+        errorLine2="                ~~~~~~~~~~~~~~~~">
+        <location
+            file="../../components/content_capture/android/java/src/org/chromium/components/content_capture/ContentUpdateTask.java"
+            line="30"
+            column="17"/>
+    </issue>
+
+    <issue
+        id="NewApi"
+        message="Call requires API level 29 (current min is 24): `getInstance`"
+        errorLine1="        PlatformAPIWrapper.getInstance().notifyViewTextChanged("
+        errorLine2="                           ~~~~~~~~~~~">
+        <location
+            file="../../components/content_capture/android/java/src/org/chromium/components/content_capture/ContentUpdateTask.java"
+            line="31"
+            column="28"/>
+    </issue>
+
+    <issue
+        id="NewApi"
+        message="Call requires API level 29 (current min is 24): `notifyViewTextChanged`"
+        errorLine1="        PlatformAPIWrapper.getInstance().notifyViewTextChanged("
+        errorLine2="                                         ~~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="../../components/content_capture/android/java/src/org/chromium/components/content_capture/ContentUpdateTask.java"
+            line="31"
+            column="42"/>
+    </issue>
+
+    <issue
+        id="NewApi"
+        message="Field requires API level 29 (current min is 24): `contentCaptureSession`"
+        errorLine1="                parentPlatformSessionData.contentCaptureSession, autofillId, data.getValue());"
+        errorLine2="                                          ~~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="../../components/content_capture/android/java/src/org/chromium/components/content_capture/ContentUpdateTask.java"
+            line="32"
+            column="43"/>
+    </issue>
+
+    <issue
+        id="NewApi"
+        message="Call requires API level 30 (current min is 24): `collectAndWriteAnrs`"
+        errorLine1="            List&lt;String> anrs = AnrCollector.collectAndWriteAnrs(anrDir);"
+        errorLine2="                                             ~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="../../components/minidump_uploader/android/java/src/org/chromium/components/minidump_uploader/CrashFileManager.java"
+            line="371"
+            column="46"/>
+    </issue>
+
+    <issue
+        id="NewApi"
+        message="Call requires API level 34 (current min is 24): `logGestureType`"
+        errorLine1="                StylusGestureConverter.logGestureType("
+        errorLine2="                                       ~~~~~~~~~~~~~~">
+        <location
+            file="../../components/stylus_handwriting/android/java/src/org/chromium/components/stylus_handwriting/DirectWritingServiceCallback.java"
+            line="179"
+            column="40"/>
+    </issue>
+
+    <issue
+        id="NewApi"
+        message="Call requires API level 34 (current min is 24): `logGestureType`"
+        errorLine1="                StylusGestureConverter.logGestureType("
+        errorLine2="                                       ~~~~~~~~~~~~~~">
+        <location
+            file="../../components/stylus_handwriting/android/java/src/org/chromium/components/stylus_handwriting/DirectWritingServiceCallback.java"
+            line="183"
+            column="40"/>
+    </issue>
+
+    <issue
+        id="NewApi"
+        message="Call requires API level 34 (current min is 24): `logGestureType`"
+        errorLine1="                StylusGestureConverter.logGestureType("
+        errorLine2="                                       ~~~~~~~~~~~~~~">
+        <location
+            file="../../components/stylus_handwriting/android/java/src/org/chromium/components/stylus_handwriting/DirectWritingServiceCallback.java"
+            line="187"
+            column="40"/>
+    </issue>
+
+    <issue
+        id="NewApi"
+        message="Call requires API level 34 (current min is 24): `logGestureType`"
+        errorLine1="                StylusGestureConverter.logGestureType("
+        errorLine2="                                       ~~~~~~~~~~~~~~">
+        <location
+            file="../../components/stylus_handwriting/android/java/src/org/chromium/components/stylus_handwriting/DirectWritingServiceCallback.java"
+            line="191"
+            column="40"/>
+    </issue>
+
+    <issue
+        id="NewApi"
+        message="Call requires API level 29 (current min is 24): `getDownloadUriForFileName`"
+        errorLine1="        return getDownloadUriForFileName(fileName) != null;"
+        errorLine2="               ~~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="../../components/download/internal/common/android/java/src/org/chromium/components/download/DownloadCollectionBridge.java"
+            line="245"
+            column="16"/>
+    </issue>
+
+    <issue
+        id="NewApi"
+        message="Call requires API level 29 (current min is 24): `createPendingParams`"
+        errorLine1="                createPendingParams(fileName, mimeType, originalUrl, referrer);"
+        errorLine2="                ~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="../../components/download/internal/common/android/java/src/org/chromium/components/download/DownloadCollectionBridge.java"
+            line="346"
+            column="17"/>
+    </issue>
+
+    <issue
+        id="NewApi"
+        message="Call requires API level 29 (current min is 24): `getDownloadUriForFileName`"
+        errorLine1="                Uri uri = DownloadCollectionBridge.getDownloadUriForFileName(file.getName());"
+        errorLine2="                                                   ~~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="../../chrome/android/java/src/org/chromium/chrome/browser/download/DuplicateDownloadClickableSpan.java"
+            line="56"
+            column="52"/>
+    </issue>
+
+    <issue
+        id="NewApi"
+        message="Extending NotificationTask requires API level 29 (current min is 24): `NotificationTask`"
+        errorLine1="public class FaviconUpdateTask extends NotificationTask {"
+        errorLine2="                                       ~~~~~~~~~~~~~~~~">
+        <location
+            file="../../components/content_capture/android/java/src/org/chromium/components/content_capture/FaviconUpdateTask.java"
+            line="12"
+            column="40"/>
+    </issue>
+
+    <issue
+        id="NewApi"
+        message="Call requires API level 29 (current min is 24): `NotificationTask`"
+        errorLine1="        super(session, platformSession);"
+        errorLine2="        ~~~~~">
+        <location
+            file="../../components/content_capture/android/java/src/org/chromium/components/content_capture/FaviconUpdateTask.java"
+            line="14"
+            column="9"/>
+    </issue>
+
+    <issue
+        id="NewApi"
+        message="Call requires API level 29 (current min is 24): `log`"
+        errorLine1="        log(&quot;FaviconUpdateTask.updateFavicon&quot;);"
+        errorLine2="        ~~~">
+        <location
+            file="../../components/content_capture/android/java/src/org/chromium/components/content_capture/FaviconUpdateTask.java"
+            line="23"
+            column="9"/>
+    </issue>
+
+    <issue
+        id="NewApi"
+        message="Call requires API level 29 (current min is 24): `buildCurrentSession`"
+        errorLine1="        PlatformSessionData parentPlatformSessionData = buildCurrentSession();"
+        errorLine2="                                                        ~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="../../components/content_capture/android/java/src/org/chromium/components/content_capture/FaviconUpdateTask.java"
+            line="24"
+            column="57"/>
+    </issue>
+
+    <issue
+        id="NewApi"
+        message="Call requires API level 29 (current min is 24): `getInstance`"
+        errorLine1="        PlatformAPIWrapper.getInstance().notifyFaviconUpdated("
+        errorLine2="                           ~~~~~~~~~~~">
+        <location
+            file="../../components/content_capture/android/java/src/org/chromium/components/content_capture/FaviconUpdateTask.java"
+            line="26"
+            column="28"/>
+    </issue>
+
+    <issue
+        id="NewApi"
+        message="Call requires API level 29 (current min is 24): `notifyFaviconUpdated`"
+        errorLine1="        PlatformAPIWrapper.getInstance().notifyFaviconUpdated("
+        errorLine2="                                         ~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="../../components/content_capture/android/java/src/org/chromium/components/content_capture/FaviconUpdateTask.java"
+            line="26"
+            column="42"/>
+    </issue>
+
+    <issue
+        id="NewApi"
+        message="Field requires API level 29 (current min is 24): `contentCaptureSession`"
+        errorLine1="                parentPlatformSessionData.contentCaptureSession, mSession.get(0).getFavicon());"
+        errorLine2="                                          ~~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="../../components/content_capture/android/java/src/org/chromium/components/content_capture/FaviconUpdateTask.java"
+            line="27"
+            column="43"/>
+    </issue>
+
+    <issue
+        id="NewApi"
+        message="Field requires API level 29 (current min is 24): `mSession`"
+        errorLine1="                parentPlatformSessionData.contentCaptureSession, mSession.get(0).getFavicon());"
+        errorLine2="                                                                 ~~~~~~~~">
+        <location
+            file="../../components/content_capture/android/java/src/org/chromium/components/content_capture/FaviconUpdateTask.java"
+            line="27"
+            column="66"/>
+    </issue>
+
+    <issue
+        id="NewApi"
+        message="Call requires API level 29 (current min is 24): `addDirectAction`"
+        errorLine1="            reporter.addDirectAction(ACTION_ID).withParameter("
+        errorLine2="                     ~~~~~~~~~~~~~~~">
+        <location
+            file="../../chrome/android/java/src/org/chromium/chrome/browser/directactions/FindInPageDirectActionHandler.java"
+            line="35"
+            column="22"/>
+    </issue>
+
+    <issue
+        id="NewApi"
+        message="Call requires API level 29 (current min is 24): `withParameter`"
+        errorLine1="            reporter.addDirectAction(ACTION_ID).withParameter("
+        errorLine2="                                                ~~~~~~~~~~~~~">
+        <location
+            file="../../chrome/android/java/src/org/chromium/chrome/browser/directactions/FindInPageDirectActionHandler.java"
+            line="35"
+            column="49"/>
+    </issue>
+
+    <issue
+        id="NewApi"
+        message="Call requires API level 31 (current min is 26): `setAutoEnterEnabled`"
+        errorLine1="            ApiHelperForS.setAutoEnterEnabled(builder, true);"
+        errorLine2="                          ~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="../../chrome/android/java/src/org/chromium/chrome/browser/media/FullscreenVideoPictureInPictureController.java"
+            line="444"
+            column="27"/>
+    </issue>
+
+    <issue
+        id="NewApi"
+        message="Call requires API level 31 (current min is 26): `setAutoEnterEnabled`"
+        errorLine1="            ApiHelperForS.setAutoEnterEnabled(builder, false);"
+        errorLine2="                          ~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="../../chrome/android/java/src/org/chromium/chrome/browser/media/FullscreenVideoPictureInPictureController.java"
+            line="446"
+            column="27"/>
+    </issue>
+
+    <issue
+        id="NewApi"
+        message="Field requires API level 26 (current min is 24): `CREATOR`"
+        errorLine1="          _arg0 = data.createTypedArrayList(org.chromium.components.autofill_public.ViewType.CREATOR);"
+        errorLine2="                                                                                             ~~~~~~~">
+        <location
+            file="gen/chrome/android/monochrome_public_bundle__lint/SRCJARS/gen/components/android_autofill/browser/autofill_aidl/org/chromium/components/autofill_public/IViewTypeCallback.java"
+            line="72"
+            column="94"/>
+    </issue>
+
+    <issue
+        id="NewApi"
+        message="Call requires API level 29 (current min is 24): `addDirectAction`"
+        errorLine1="                reporter.addDirectAction(entry.getKey());"
+        errorLine2="                         ~~~~~~~~~~~~~~~">
+        <location
+            file="../../chrome/android/java/src/org/chromium/chrome/browser/directactions/MenuDirectActionHandler.java"
+            line="103"
+            column="26"/>
+    </issue>
+
+    <issue
+        id="NewApi"
+        message="Call requires API level 30 (current min is 24): `getExitReason`"
+        errorLine1="            int reason = ProcessExitReasonFromSystem.getExitReason(previousPid);"
+        errorLine2="                                                     ~~~~~~~~~~~~~">
+        <location
+            file="../../chrome/android/java/src/org/chromium/chrome/browser/crash/MinidumpUploadServiceImpl.java"
+            line="156"
+            column="54"/>
+    </issue>
+
+    <issue
+        id="NewApi"
+        message="Call requires API level 26 (current min is 24): `isValidSiteChannelId`"
+        errorLine1="        if (channelId == null || !SiteChannelsManager.isValidSiteChannelId(channelId)) {"
+        errorLine2="                                                      ~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="../../chrome/android/java/src/org/chromium/chrome/browser/notifications/NotificationPlatformBridge.java"
+            line="412"
+            column="55"/>
+    </issue>
+
+    <issue
+        id="NewApi"
+        message="Call requires API level 26 (current min is 24): `toSiteOrigin`"
+        errorLine1="        return SiteChannelsManager.toSiteOrigin(channelId);"
+        errorLine2="                                   ~~~~~~~~~~~~">
+        <location
+            file="../../chrome/android/java/src/org/chromium/chrome/browser/notifications/NotificationPlatformBridge.java"
+            line="415"
+            column="36"/>
+    </issue>
+
+    <issue
+        id="NewApi"
+        message="Call requires API level 28 (current min is 24): `getBitmapFromIcon`"
+        errorLine1="        return getBitmapFromIcon(notification.getLargeIcon());"
+        errorLine2="               ~~~~~~~~~~~~~~~~~">
+        <location
+            file="../../chrome/android/java/src/org/chromium/chrome/browser/usage_stats/NotificationSuspender.java"
+            line="145"
+            column="16"/>
+    </issue>
+
+    <issue
+        id="NewApi"
+        message="Call requires API level 28 (current min is 24): `getBitmapFromIcon`"
+        errorLine1="        return getBitmapFromIcon(notification.getSmallIcon());"
+        errorLine2="               ~~~~~~~~~~~~~~~~~">
+        <location
+            file="../../chrome/android/java/src/org/chromium/chrome/browser/usage_stats/NotificationSuspender.java"
+            line="149"
+            column="16"/>
+    </issue>
+
+    <issue
+        id="NewApi"
+        message="Call requires API level 26 (current min is 24): `ChannelsInitializer`"
+        errorLine1="        ChannelsInitializer channelsInitializer = new ChannelsInitializer(notificationManagerProxy,"
+        errorLine2="                                                  ~~~~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="../../chrome/browser/notifications/android/java/src/org/chromium/chrome/browser/notifications/NotificationWrapperBuilderFactory.java"
+            line="46"
+            column="51"/>
+    </issue>
+
+    <issue
+        id="NewApi"
+        message="Call requires API level 26 (current min is 24): `getInstance`"
+        errorLine1="                ChromeChannelDefinitions.getInstance(), context.getResources());"
+        errorLine2="                                         ~~~~~~~~~~~">
+        <location
+            file="../../chrome/browser/notifications/android/java/src/org/chromium/chrome/browser/notifications/NotificationWrapperBuilderFactory.java"
+            line="47"
+            column="42"/>
+    </issue>
+
+    <issue
+        id="NewApi"
+        message="Call requires API level 30 (current min is 24): `getMaximumWindowMetricsBounds`"
+        errorLine1="        Rect rect = ApiHelperForR.getMaximumWindowMetricsBounds(windowManager);"
+        errorLine2="                                  ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="../../ui/android/java/src/org/chromium/ui/display/PhysicalDisplayAndroid.java"
+            line="201"
+            column="35"/>
+    </issue>
+
+    <issue
+        id="NewApi"
+        message="Call requires API level 30 (current min is 24): `getDisplay`"
+        errorLine1="                ApiHelperForR.getDisplay(mWindowContext));"
+        errorLine2="                              ~~~~~~~~~~">
+        <location
+            file="../../ui/android/java/src/org/chromium/ui/display/PhysicalDisplayAndroid.java"
+            line="212"
+            column="31"/>
+    </issue>
+
+    <issue
+        id="NewApi"
+        message="Call requires API level 26 (current min is 24): `createNotificationChannel`"
+        errorLine1="                mNotificationManager.createNotificationChannel();"
+        errorLine2="                                     ~~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="../../chrome/android/features/tab_ui/java/src/org/chromium/chrome/browser/tasks/tab_management/PriceMessageService.java"
+            line="245"
+            column="38"/>
+    </issue>
+
+    <issue
+        id="NewApi"
+        message="Extending NotificationTask requires API level 29 (current min is 24): `NotificationTask`"
+        errorLine1="abstract class ProcessContentCaptureDataTask extends NotificationTask {"
+        errorLine2="                                                     ~~~~~~~~~~~~~~~~">
+        <location
+            file="../../components/content_capture/android/java/src/org/chromium/components/content_capture/ProcessContentCaptureDataTask.java"
+            line="16"
+            column="54"/>
+    </issue>
+
+    <issue
+        id="NewApi"
+        message="Call requires API level 29 (current min is 24): `NotificationTask`"
+        errorLine1="        super(session, platformSession);"
+        errorLine2="        ~~~~~">
+        <location
+            file="../../components/content_capture/android/java/src/org/chromium/components/content_capture/ProcessContentCaptureDataTask.java"
+            line="25"
+            column="9"/>
+    </issue>
+
+    <issue
+        id="NewApi"
+        message="Call requires API level 29 (current min is 24): `log`"
+        errorLine1="        log(&quot;ProcessContentTaskBase.processContent&quot;);"
+        errorLine2="        ~~~">
+        <location
+            file="../../components/content_capture/android/java/src/org/chromium/components/content_capture/ProcessContentCaptureDataTask.java"
+            line="35"
+            column="9"/>
+    </issue>
+
+    <issue
+        id="NewApi"
+        message="Call requires API level 29 (current min is 24): `buildCurrentSession`"
+        errorLine1="        PlatformSessionData platformSessionData = buildCurrentSession();"
+        errorLine2="                                                  ~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="../../components/content_capture/android/java/src/org/chromium/components/content_capture/ProcessContentCaptureDataTask.java"
+            line="36"
+            column="51"/>
+    </issue>
+
+    <issue
+        id="NewApi"
+        message="Call requires API level 29 (current min is 24): `createOrGetSession`"
+        errorLine1="                createOrGetSession(parentPlatformSessionData, data);"
+        errorLine2="                ~~~~~~~~~~~~~~~~~~">
+        <location
+            file="../../components/content_capture/android/java/src/org/chromium/components/content_capture/ProcessContentCaptureDataTask.java"
+            line="45"
+            column="17"/>
+    </issue>
+
+    <issue
+        id="NewApi"
+        message="Call requires API level 29 (current min is 24): `PlatformSessionData`"
+        errorLine1="            PlatformSessionData platformSessionData = new PlatformSessionData("
+        errorLine2="                                                      ~~~~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="../../components/content_capture/android/java/src/org/chromium/components/content_capture/ProcessContentCaptureDataTask.java"
+            line="64"
+            column="55"/>
+    </issue>
+
+    <issue
+        id="NewApi"
+        message="Field requires API level 29 (current min is 24): `contentCaptureSession`"
+        errorLine1="                    parentPlatformSessionData.contentCaptureSession, autofillId);"
+        errorLine2="                                              ~~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="../../components/content_capture/android/java/src/org/chromium/components/content_capture/ProcessContentCaptureDataTask.java"
+            line="65"
+            column="47"/>
+    </issue>
+
+    <issue
+        id="NewApi"
+        message="Call requires API level 30 (current min is 24): `getExitReason`"
+        errorLine1="        recordAsEnumHistogram(umaName, getExitReason(pid));"
+        errorLine2="                                       ~~~~~~~~~~~~~">
+        <location
+            file="../../components/crash/android/java/src/org/chromium/components/crash/browser/ProcessExitReasonFromSystem.java"
+            line="86"
+            column="40"/>
+    </issue>
+
+    <issue
+        id="NewApi"
+        message="Call requires API level 29 (current min is 24): `getInstance`"
+        errorLine1="                () -> PlatformContentCaptureController.getInstance()));"
+        errorLine2="                                                       ~~~~~~~~~~~">
+        <location
+            file="../../chrome/android/java/src/org/chromium/chrome/browser/init/ProcessInitializationHandler.java"
+            line="254"
+            column="56"/>
+    </issue>
+
+    <issue
+        id="NewApi"
+        message="Call requires API level 29 (current min is 24): `onPerformDirectAction`"
+        errorLine1="        mDirectActionInitializer.onPerformDirectAction("
+        errorLine2="                                 ~~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="../../chrome/android/java/src/org/chromium/chrome/browser/ui/RootUiCoordinator.java"
+            line="1097"
+            column="34"/>
+    </issue>
+
+    <issue
+        id="NewApi"
+        message="Call requires API level 29 (current min is 24): `onGetDirectActions`"
+        errorLine1="        mDirectActionInitializer.onGetDirectActions(cancellationSignal, callback);"
+        errorLine2="                                 ~~~~~~~~~~~~~~~~~~">
+        <location
+            file="../../chrome/android/java/src/org/chromium/chrome/browser/ui/RootUiCoordinator.java"
+            line="1112"
+            column="34"/>
+    </issue>
+
+    <issue
+        id="NewApi"
+        message="Call requires API level 29 (current min is 24): `DirectActionInitializer`"
+        errorLine1="        mDirectActionInitializer = new DirectActionInitializer(mActivityType,"
+        errorLine2="                                   ~~~~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="../../chrome/android/java/src/org/chromium/chrome/browser/ui/RootUiCoordinator.java"
+            line="1642"
+            column="36"/>
+    </issue>
+
+    <issue
+        id="NewApi"
+        message="Call requires API level 28 (current min is 24): `onSelectionModified`"
+        errorLine1="                        mSmartSelectionEventProcessor.onSelectionModified("
+        errorLine2="                                                      ~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="../../content/public/android/java/src/org/chromium/content/browser/selection/SelectionPopupControllerImpl.java"
+            line="551"
+            column="55"/>
+    </issue>
+
+    <issue
+        id="NewApi"
+        message="Call requires API level 28 (current min is 24): `onSelectionAction`"
+        errorLine1="                        mSmartSelectionEventProcessor.onSelectionAction(mLastSelectedText,"
+        errorLine2="                                                      ~~~~~~~~~~~~~~~~~">
+        <location
+            file="../../content/public/android/java/src/org/chromium/content/browser/selection/SelectionPopupControllerImpl.java"
+            line="555"
+            column="55"/>
+    </issue>
+
+    <issue
+        id="NewApi"
+        message="Call requires API level 28 (current min is 24): `onSelectionStarted`"
+        errorLine1="                        mSmartSelectionEventProcessor.onSelectionStarted("
+        errorLine2="                                                      ~~~~~~~~~~~~~~~~~~">
+        <location
+            file="../../content/public/android/java/src/org/chromium/content/browser/selection/SelectionPopupControllerImpl.java"
+            line="562"
+            column="55"/>
+    </issue>
+
+    <issue
+        id="NewApi"
+        message="Call requires API level 28 (current min is 24): `onSelectionAction`"
+        errorLine1="                mSmartSelectionEventProcessor.onSelectionAction(mLastSelectedText,"
+        errorLine2="                                              ~~~~~~~~~~~~~~~~~">
+        <location
+            file="../../content/public/android/java/src/org/chromium/content/browser/selection/SelectionPopupControllerImpl.java"
+            line="1708"
+            column="47"/>
+    </issue>
+
+    <issue
+        id="NewApi"
+        message="Call requires API level 28 (current min is 24): `onSelectionModified`"
+        errorLine1="                mSmartSelectionEventProcessor.onSelectionModified("
+        errorLine2="                                              ~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="../../content/public/android/java/src/org/chromium/content/browser/selection/SelectionPopupControllerImpl.java"
+            line="1870"
+            column="47"/>
+    </issue>
+
+    <issue
+        id="NewApi"
+        message="Extending NotificationTask requires API level 29 (current min is 24): `NotificationTask`"
+        errorLine1="class SessionRemovedTask extends NotificationTask {"
+        errorLine2="                                 ~~~~~~~~~~~~~~~~">
+        <location
+            file="../../components/content_capture/android/java/src/org/chromium/components/content_capture/SessionRemovedTask.java"
+            line="12"
+            column="34"/>
+    </issue>
+
+    <issue
+        id="NewApi"
+        message="Call requires API level 29 (current min is 24): `NotificationTask`"
+        errorLine1="        super(session, platformSession);"
+        errorLine2="        ~~~~~">
+        <location
+            file="../../components/content_capture/android/java/src/org/chromium/components/content_capture/SessionRemovedTask.java"
+            line="14"
+            column="9"/>
+    </issue>
+
+    <issue
+        id="NewApi"
+        message="Call requires API level 29 (current min is 24): `log`"
+        errorLine1="        log(&quot;SessionRemovedTask.removeSession&quot;);"
+        errorLine2="        ~~~">
+        <location
+            file="../../components/content_capture/android/java/src/org/chromium/components/content_capture/SessionRemovedTask.java"
+            line="23"
+            column="9"/>
+    </issue>
+
+    <issue
+        id="NewApi"
+        message="Call requires API level 29 (current min is 24): `getFrameIdToPlatformSessionData`"
+        errorLine1="                mPlatformSession.getFrameIdToPlatformSessionData().remove(mSession.get(0).getId());"
+        errorLine2="                                 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="../../components/content_capture/android/java/src/org/chromium/components/content_capture/SessionRemovedTask.java"
+            line="25"
+            column="34"/>
+    </issue>
+
+    <issue
+        id="NewApi"
+        message="Field requires API level 29 (current min is 24): `mPlatformSession`"
+        errorLine1="                mPlatformSession.getFrameIdToPlatformSessionData().remove(mSession.get(0).getId());"
+        errorLine2="                ~~~~~~~~~~~~~~~~">
+        <location
+            file="../../components/content_capture/android/java/src/org/chromium/components/content_capture/SessionRemovedTask.java"
+            line="25"
+            column="17"/>
+    </issue>
+
+    <issue
+        id="NewApi"
+        message="Field requires API level 29 (current min is 24): `mSession`"
+        errorLine1="                mPlatformSession.getFrameIdToPlatformSessionData().remove(mSession.get(0).getId());"
+        errorLine2="                                                                          ~~~~~~~~">
+        <location
+            file="../../components/content_capture/android/java/src/org/chromium/components/content_capture/SessionRemovedTask.java"
+            line="25"
+            column="75"/>
+    </issue>
+
+    <issue
+        id="NewApi"
+        message="Call requires API level 29 (current min is 24): `destroyContentCaptureSession`"
+        errorLine1="        PlatformAPIWrapper.getInstance().destroyContentCaptureSession("
+        errorLine2="                                         ~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="../../components/content_capture/android/java/src/org/chromium/components/content_capture/SessionRemovedTask.java"
+            line="27"
+            column="42"/>
+    </issue>
+
+    <issue
+        id="NewApi"
+        message="Call requires API level 29 (current min is 24): `getInstance`"
+        errorLine1="        PlatformAPIWrapper.getInstance().destroyContentCaptureSession("
+        errorLine2="                           ~~~~~~~~~~~">
+        <location
+            file="../../components/content_capture/android/java/src/org/chromium/components/content_capture/SessionRemovedTask.java"
+            line="27"
+            column="28"/>
+    </issue>
+
+    <issue
+        id="NewApi"
+        message="Field requires API level 29 (current min is 24): `contentCaptureSession`"
+        errorLine1="                removedPlatformSessionData.contentCaptureSession);"
+        errorLine2="                                           ~~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="../../components/content_capture/android/java/src/org/chromium/components/content_capture/SessionRemovedTask.java"
+            line="28"
+            column="44"/>
+    </issue>
+
+    <issue
+        id="NewApi"
+        message="Call requires API level 29 (current min is 24): `getRootPlatformSessionData`"
+        errorLine1="                mPlatformSession.getRootPlatformSessionData();"
+        errorLine2="                                 ~~~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="../../components/content_capture/android/java/src/org/chromium/components/content_capture/SessionRemovedTask.java"
+            line="30"
+            column="34"/>
+    </issue>
+
+    <issue
+        id="NewApi"
+        message="Field requires API level 29 (current min is 24): `mPlatformSession`"
+        errorLine1="                mPlatformSession.getRootPlatformSessionData();"
+        errorLine2="                ~~~~~~~~~~~~~~~~">
+        <location
+            file="../../components/content_capture/android/java/src/org/chromium/components/content_capture/SessionRemovedTask.java"
+            line="30"
+            column="17"/>
+    </issue>
+
+    <issue
+        id="NewApi"
+        message="Field requires API level 29 (current min is 24): `mSession`"
+        errorLine1="        if (mSession.size() > 2) {"
+        errorLine2="            ~~~~~~~~">
+        <location
+            file="../../components/content_capture/android/java/src/org/chromium/components/content_capture/SessionRemovedTask.java"
+            line="34"
+            column="13"/>
+    </issue>
+
+    <issue
+        id="NewApi"
+        message="Call requires API level 29 (current min is 24): `getFrameIdToPlatformSessionData`"
+        errorLine1="                    mPlatformSession.getFrameIdToPlatformSessionData().get(mSession.get(1).getId());"
+        errorLine2="                                     ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="../../components/content_capture/android/java/src/org/chromium/components/content_capture/SessionRemovedTask.java"
+            line="36"
+            column="38"/>
+    </issue>
+
+    <issue
+        id="NewApi"
+        message="Field requires API level 29 (current min is 24): `mPlatformSession`"
+        errorLine1="                    mPlatformSession.getFrameIdToPlatformSessionData().get(mSession.get(1).getId());"
+        errorLine2="                    ~~~~~~~~~~~~~~~~">
+        <location
+            file="../../components/content_capture/android/java/src/org/chromium/components/content_capture/SessionRemovedTask.java"
+            line="36"
+            column="21"/>
+    </issue>
+
+    <issue
+        id="NewApi"
+        message="Field requires API level 29 (current min is 24): `mSession`"
+        errorLine1="                    mPlatformSession.getFrameIdToPlatformSessionData().get(mSession.get(1).getId());"
+        errorLine2="                                                                           ~~~~~~~~">
+        <location
+            file="../../components/content_capture/android/java/src/org/chromium/components/content_capture/SessionRemovedTask.java"
+            line="36"
+            column="76"/>
+    </issue>
+
+    <issue
+        id="NewApi"
+        message="Call requires API level 29 (current min is 24): `getInstance`"
+        errorLine1="        PlatformAPIWrapper.getInstance().notifyViewDisappeared("
+        errorLine2="                           ~~~~~~~~~~~">
+        <location
+            file="../../components/content_capture/android/java/src/org/chromium/components/content_capture/SessionRemovedTask.java"
+            line="39"
+            column="28"/>
+    </issue>
+
+    <issue
+        id="NewApi"
+        message="Call requires API level 29 (current min is 24): `notifyViewDisappeared`"
+        errorLine1="        PlatformAPIWrapper.getInstance().notifyViewDisappeared("
+        errorLine2="                                         ~~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="../../components/content_capture/android/java/src/org/chromium/components/content_capture/SessionRemovedTask.java"
+            line="39"
+            column="42"/>
+    </issue>
+
+    <issue
+        id="NewApi"
+        message="Field requires API level 29 (current min is 24): `contentCaptureSession`"
+        errorLine1="                parentPlatformSessionData.contentCaptureSession,"
+        errorLine2="                                          ~~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="../../components/content_capture/android/java/src/org/chromium/components/content_capture/SessionRemovedTask.java"
+            line="40"
+            column="43"/>
+    </issue>
+
+    <issue
+        id="NewApi"
+        message="Field requires API level 29 (current min is 24): `autofillId`"
+        errorLine1="                removedPlatformSessionData.autofillId);"
+        errorLine2="                                           ~~~~~~~~~~">
+        <location
+            file="../../components/content_capture/android/java/src/org/chromium/components/content_capture/SessionRemovedTask.java"
+            line="41"
+            column="44"/>
+    </issue>
+
+    <issue
+        id="NewApi"
+        message="Call requires API level 29 (current min is 24): `addDirectAction`"
+        errorLine1="        if (isAvailable()) reporter.addDirectAction(mActionId);"
+        errorLine2="                                    ~~~~~~~~~~~~~~~">
+        <location
+            file="../../chrome/android/java/src/org/chromium/chrome/browser/directactions/SimpleDirectActionHandler.java"
+            line="24"
+            column="37"/>
+    </issue>
+
+    <issue
+        id="NewApi"
+        message="Call requires API level 26 (current min is 24): `setTextClassifier`"
+        errorLine1="        mProvider.setTextClassifier(textClassifier);"
+        errorLine2="                  ~~~~~~~~~~~~~~~~~">
+        <location
+            file="../../content/public/android/java/src/org/chromium/content/browser/selection/SmartSelectionClient.java"
+            line="128"
+            column="19"/>
+    </issue>
+
+    <issue
+        id="NewApi"
+        message="Call requires API level 26 (current min is 24): `getTextClassifier`"
+        errorLine1="        return mProvider.getTextClassifier();"
+        errorLine2="                         ~~~~~~~~~~~~~~~~~">
+        <location
+            file="../../content/public/android/java/src/org/chromium/content/browser/selection/SmartSelectionClient.java"
+            line="133"
+            column="26"/>
+    </issue>
+
+    <issue
+        id="NewApi"
+        message="Call requires API level 26 (current min is 24): `sendSmartSelectionRequest`"
+        errorLine1="        sendSmartSelectionRequest(RequestType.SUGGEST_AND_CLASSIFY, text, start, end);"
+        errorLine2="        ~~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="../../content/public/android/java/src/org/chromium/content/browser/selection/SmartSelectionProvider.java"
+            line="86"
+            column="9"/>
+    </issue>
+
+    <issue
+        id="NewApi"
+        message="Call requires API level 26 (current min is 24): `sendSmartSelectionRequest`"
+        errorLine1="        sendSmartSelectionRequest(RequestType.CLASSIFY, text, start, end);"
+        errorLine2="        ~~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="../../content/public/android/java/src/org/chromium/content/browser/selection/SmartSelectionProvider.java"
+            line="90"
+            column="9"/>
+    </issue>
+
+    <issue
+        id="NewApi"
+        message="Call requires API level 29 (current min is 24): `android.view.SurfaceControl#writeToParcel`"
+        errorLine1="            mSurfaceControl.writeToParcel(out, 0);"
+        errorLine2="                            ~~~~~~~~~~~~~">
+        <location
+            file="../../content/public/android/java/src/org/chromium/content/common/SurfaceWrapper.java"
+            line="83"
+            column="29"/>
+    </issue>
+
+    <issue
+        id="NewApi"
+        message="Call requires API level 27 (current min is 24): `setNavigationBarScrimFraction`"
+        errorLine1="                        controller.setNavigationBarScrimFraction(scrimFraction);"
+        errorLine2="                                   ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="../../chrome/android/java/src/org/chromium/chrome/browser/tabbed_mode/TabbedRootUiCoordinator.java"
+            line="637"
+            column="36"/>
+    </issue>
+
+    <issue
+        id="NewApi"
+        message="Call requires API level 27 (current min is 24): `destroy`"
+        errorLine1="        if (mNavigationBarColorController != null) mNavigationBarColorController.destroy();"
+        errorLine2="                                                                                 ~~~~~~~">
+        <location
+            file="../../chrome/android/java/src/org/chromium/chrome/browser/tabbed_mode/TabbedSystemUiCoordinator.java"
+            line="55"
+            column="82"/>
+    </issue>
+
+    <issue
+        id="NewApi"
+        message="Extending NotificationTask requires API level 29 (current min is 24): `NotificationTask`"
+        errorLine1="public class TitleUpdateTask extends NotificationTask {"
+        errorLine2="                                     ~~~~~~~~~~~~~~~~">
+        <location
+            file="../../components/content_capture/android/java/src/org/chromium/components/content_capture/TitleUpdateTask.java"
+            line="14"
+            column="38"/>
+    </issue>
+
+    <issue
+        id="NewApi"
+        message="Call requires API level 29 (current min is 24): `NotificationTask`"
+        errorLine1="        super(null, platformSession);"
+        errorLine2="        ~~~~~">
+        <location
+            file="../../components/content_capture/android/java/src/org/chromium/components/content_capture/TitleUpdateTask.java"
+            line="17"
+            column="9"/>
+    </issue>
+
+    <issue
+        id="NewApi"
+        message="Call requires API level 29 (current min is 24): `log`"
+        errorLine1="        log(&quot;TitleUpdateTask.updateTitle&quot;);"
+        errorLine2="        ~~~">
+        <location
+            file="../../components/content_capture/android/java/src/org/chromium/components/content_capture/TitleUpdateTask.java"
+            line="27"
+            column="9"/>
+    </issue>
+
+    <issue
+        id="NewApi"
+        message="Call requires API level 29 (current min is 24): `buildCurrentSession`"
+        errorLine1="        PlatformSessionData parentPlatformSessionData = buildCurrentSession();"
+        errorLine2="                                                        ~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="../../components/content_capture/android/java/src/org/chromium/components/content_capture/TitleUpdateTask.java"
+            line="30"
+            column="57"/>
+    </issue>
+
+    <issue
+        id="NewApi"
+        message="Call requires API level 29 (current min is 24): `getInstance`"
+        errorLine1="        AutofillId autofillId = PlatformAPIWrapper.getInstance().newAutofillId("
+        errorLine2="                                                   ~~~~~~~~~~~">
+        <location
+            file="../../components/content_capture/android/java/src/org/chromium/components/content_capture/TitleUpdateTask.java"
+            line="31"
+            column="52"/>
+    </issue>
+
+    <issue
+        id="NewApi"
+        message="Call requires API level 29 (current min is 24): `newAutofillId`"
+        errorLine1="        AutofillId autofillId = PlatformAPIWrapper.getInstance().newAutofillId("
+        errorLine2="                                                                 ~~~~~~~~~~~~~">
+        <location
+            file="../../components/content_capture/android/java/src/org/chromium/components/content_capture/TitleUpdateTask.java"
+            line="31"
+            column="66"/>
+    </issue>
+
+    <issue
+        id="NewApi"
+        message="Field requires API level 29 (current min is 24): `contentCaptureSession`"
+        errorLine1="                parentPlatformSessionData.contentCaptureSession,"
+        errorLine2="                                          ~~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="../../components/content_capture/android/java/src/org/chromium/components/content_capture/TitleUpdateTask.java"
+            line="32"
+            column="43"/>
+    </issue>
+
+    <issue
+        id="NewApi"
+        message="Call requires API level 29 (current min is 24): `getRootPlatformSessionData`"
+        errorLine1="                mPlatformSession.getRootPlatformSessionData().autofillId, mMainFrame.getId());"
+        errorLine2="                                 ~~~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="../../components/content_capture/android/java/src/org/chromium/components/content_capture/TitleUpdateTask.java"
+            line="33"
+            column="34"/>
+    </issue>
+
+    <issue
+        id="NewApi"
+        message="Field requires API level 29 (current min is 24): `autofillId`"
+        errorLine1="                mPlatformSession.getRootPlatformSessionData().autofillId, mMainFrame.getId());"
+        errorLine2="                                                              ~~~~~~~~~~">
+        <location
+            file="../../components/content_capture/android/java/src/org/chromium/components/content_capture/TitleUpdateTask.java"
+            line="33"
+            column="63"/>
+    </issue>
+
+    <issue
+        id="NewApi"
+        message="Field requires API level 29 (current min is 24): `mPlatformSession`"
+        errorLine1="                mPlatformSession.getRootPlatformSessionData().autofillId, mMainFrame.getId());"
+        errorLine2="                ~~~~~~~~~~~~~~~~">
+        <location
+            file="../../components/content_capture/android/java/src/org/chromium/components/content_capture/TitleUpdateTask.java"
+            line="33"
+            column="17"/>
+    </issue>
+
+    <issue
+        id="NewApi"
+        message="Call requires API level 29 (current min is 24): `getInstance`"
+        errorLine1="        PlatformAPIWrapper.getInstance().notifyViewTextChanged("
+        errorLine2="                           ~~~~~~~~~~~">
+        <location
+            file="../../components/content_capture/android/java/src/org/chromium/components/content_capture/TitleUpdateTask.java"
+            line="34"
+            column="28"/>
+    </issue>
+
+    <issue
+        id="NewApi"
+        message="Call requires API level 29 (current min is 24): `notifyViewTextChanged`"
+        errorLine1="        PlatformAPIWrapper.getInstance().notifyViewTextChanged("
+        errorLine2="                                         ~~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="../../components/content_capture/android/java/src/org/chromium/components/content_capture/TitleUpdateTask.java"
+            line="34"
+            column="42"/>
+    </issue>
+
+    <issue
+        id="NewApi"
+        message="Field requires API level 29 (current min is 24): `contentCaptureSession`"
+        errorLine1="                parentPlatformSessionData.contentCaptureSession, autofillId, mMainFrame.getText());"
+        errorLine2="                                          ~~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="../../components/content_capture/android/java/src/org/chromium/components/content_capture/TitleUpdateTask.java"
+            line="35"
+            column="43"/>
+    </issue>
+
+    <issue
+        id="NewApi"
+        message="Extending ZygotePreload requires API level 29 (current min is 24): `ZygotePreload`"
+        errorLine1="public class TrichromeZygotePreload extends ZygotePreload {"
+        errorLine2="                                            ~~~~~~~~~~~~~">
+        <location
+            file="../../chrome/android/java/src/org/chromium/chrome/app/TrichromeZygotePreload.java"
+            line="16"
+            column="45"/>
+    </issue>
+
+    <issue
+        id="NewApi"
+        message="Call requires API level 29 (current min is 24): `doPreloadCommon`"
+        errorLine1="        doPreloadCommon(appInfo);"
+        errorLine2="        ~~~~~~~~~~~~~~~">
+        <location
+            file="../../chrome/android/java/src/org/chromium/chrome/app/TrichromeZygotePreload.java"
+            line="24"
+            column="9"/>
+    </issue>
+
+    <issue
+        id="NewApi"
+        message="Call requires API level 26 (current min is 24): `addShortcutWithShortcutManager`"
+        errorLine1="            addShortcutWithShortcutManager(id, title, icon, isIconAdaptive, shortcutIntent);"
+        errorLine2="            ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="../../components/webapps/browser/android/java/src/org/chromium/components/webapps/WebappsUtils.java"
+            line="71"
+            column="13"/>
+    </issue>
+
+    <issue
+        id="SuspiciousIndentation"
+        message="Suspicious indentation: This is indented but is not nested under the previous expression (`if (!LibraryLoader.g`...)"
+        errorLine1="            RecordHistogram.recordEnumeratedHistogram("
+        errorLine2="            ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="../../chrome/android/java/src/org/chromium/chrome/browser/download/DownloadNotificationUmaHelper.java"
+            line="82"
+            column="13"/>
+        <location
+            file="../../chrome/android/java/src/org/chromium/chrome/browser/download/DownloadNotificationUmaHelper.java"
+            line="81"
+            column="9"
+            message="Previous statement here"/>
+    </issue>
+
+    <issue
+        id="WrongConstant"
+        message="Must be one of: ViewCompat.IMPORTANT_FOR_ACCESSIBILITY_AUTO, ViewCompat.IMPORTANT_FOR_ACCESSIBILITY_YES, ViewCompat.IMPORTANT_FOR_ACCESSIBILITY_NO, ViewCompat.IMPORTANT_FOR_ACCESSIBILITY_NO_HIDE_DESCENDANTS"
+        errorLine1="                contentsShowing ? View.IMPORTANT_FOR_ACCESSIBILITY_AUTO"
+        errorLine2="                                  ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="../../chrome/android/java/src/org/chromium/chrome/browser/autofill/CardUnmaskPrompt.java"
+            line="565"
+            column="35"/>
+    </issue>
+
+    <issue
+        id="WrongConstant"
+        message="Must be one of: ViewCompat.IMPORTANT_FOR_ACCESSIBILITY_AUTO, ViewCompat.IMPORTANT_FOR_ACCESSIBILITY_YES, ViewCompat.IMPORTANT_FOR_ACCESSIBILITY_NO, ViewCompat.IMPORTANT_FOR_ACCESSIBILITY_NO_HIDE_DESCENDANTS"
+        errorLine1="                                : View.IMPORTANT_FOR_ACCESSIBILITY_NO_HIDE_DESCENDANTS);"
+        errorLine2="                                  ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="../../chrome/android/java/src/org/chromium/chrome/browser/autofill/CardUnmaskPrompt.java"
+            line="566"
+            column="35"/>
+    </issue>
+
+    <issue
+        id="WrongConstant"
+        message="Must be one of: PageTransition.FIRST, PageTransition.LINK, PageTransition.TYPED, PageTransition.AUTO_BOOKMARK, PageTransition.AUTO_SUBFRAME, PageTransition.MANUAL_SUBFRAME, PageTransition.GENERATED, PageTransition.AUTO_TOPLEVEL, PageTransition.FORM_SUBMIT, PageTransition.RELOAD, PageTransition.KEYWORD, PageTransition.KEYWORD_GENERATED, PageTransition.LAST_CORE, PageTransition.CORE_MASK, PageTransition.BLOCKED, PageTransition.FORWARD_BACK, PageTransition.FROM_ADDRESS_BAR, PageTransition.HOME_PAGE, PageTransition.FROM_API, PageTransition.CHAIN_START, PageTransition.CHAIN_END, PageTransition.CLIENT_REDIRECT, PageTransition.SERVER_REDIRECT, PageTransition.IS_REDIRECT_MASK, PageTransition.QUALIFIER_MASK"
+        errorLine1="                    getTransitionType(type, intent, loadUrlParams.getTransitionType()));"
+        errorLine2="                                                    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="../../chrome/android/java/src/org/chromium/chrome/browser/tabmodel/ChromeTabCreator.java"
+            line="307"
+            column="53"/>
+    </issue>
+
+    <issue
+        id="WrongConstant"
+        message="Must be one of: ViewCompat.LAYOUT_DIRECTION_LTR, ViewCompat.LAYOUT_DIRECTION_RTL"
+        errorLine1="        if (ViewCompat.getLayoutDirection(this) == LAYOUT_DIRECTION_LTR) {"
+        errorLine2="                                                   ~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="../../components/browser_ui/widget/android/java/src/org/chromium/components/browser_ui/widget/ClipDrawableProgressBar.java"
+            line="135"
+            column="52"/>
+    </issue>
+
+    <issue
+        id="WrongConstant"
+        message="Must be one of: DirectActionId.GO_BACK, DirectActionId.RELOAD, DirectActionId.GO_FORWARD, DirectActionId.BOOKMARK_THIS_PAGE, DirectActionId.DOWNLOADS, DirectActionId.PREFERENCES, DirectActionId.OPEN_HISTORY, DirectActionId.HELP, DirectActionId.NEW_TAB, DirectActionId.CLOSE_TAB, DirectActionId.CLOSE_ALL_TABS, DirectActionId.FIND_IN_PAGE, DirectActionId.NUM_ENTRIES"
+        errorLine1="        record(DirectActionId.UNKNOWN);"
+        errorLine2="               ~~~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="../../chrome/android/java/src/org/chromium/chrome/browser/directactions/DirectActionUsageHistogram.java"
+            line="81"
+            column="16"/>
+    </issue>
+
+    <issue
+        id="WrongConstant"
+        message="Must be one of: DirectActionId.GO_BACK, DirectActionId.RELOAD, DirectActionId.GO_FORWARD, DirectActionId.BOOKMARK_THIS_PAGE, DirectActionId.DOWNLOADS, DirectActionId.PREFERENCES, DirectActionId.OPEN_HISTORY, DirectActionId.HELP, DirectActionId.NEW_TAB, DirectActionId.CLOSE_TAB, DirectActionId.CLOSE_ALL_TABS, DirectActionId.FIND_IN_PAGE, DirectActionId.NUM_ENTRIES"
+        errorLine1="        record(histogramId);"
+        errorLine2="               ~~~~~~~~~~~">
+        <location
+            file="../../chrome/android/java/src/org/chromium/chrome/browser/directactions/DirectActionUsageHistogram.java"
+            line="94"
+            column="16"/>
+    </issue>
+
+    <issue
+        id="WrongConstant"
+        message="Must be one of: DirectActionId.GO_BACK, DirectActionId.RELOAD, DirectActionId.GO_FORWARD, DirectActionId.BOOKMARK_THIS_PAGE, DirectActionId.DOWNLOADS, DirectActionId.PREFERENCES, DirectActionId.OPEN_HISTORY, DirectActionId.HELP, DirectActionId.NEW_TAB, DirectActionId.CLOSE_TAB, DirectActionId.CLOSE_ALL_TABS, DirectActionId.FIND_IN_PAGE, DirectActionId.NUM_ENTRIES"
+        errorLine1="        record(histogramId);"
+        errorLine2="               ~~~~~~~~~~~">
+        <location
+            file="../../chrome/android/java/src/org/chromium/chrome/browser/directactions/DirectActionUsageHistogram.java"
+            line="94"
+            column="16"/>
+    </issue>
+
+    <issue
+        id="WrongConstant"
+        message="Must be one of: DownloadState.IN_PROGRESS, DownloadState.COMPLETE, DownloadState.CANCELLED, DownloadState.INTERRUPTED, DownloadState.MAX_DOWNLOAD_STATE"
+        errorLine1="        int state = downloadItem.getDownloadInfo().state();"
+        errorLine2="                    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="../../chrome/android/java/src/org/chromium/chrome/browser/download/DownloadManagerService.java"
+            line="1341"
+            column="21"/>
+    </issue>
+
+    <issue
+        id="WrongConstant"
+        message="Must be one of: DownloadState.IN_PROGRESS, DownloadState.COMPLETE, DownloadState.CANCELLED, DownloadState.INTERRUPTED, DownloadState.MAX_DOWNLOAD_STATE"
+        errorLine1="        return (state == DownloadState.INTERRUPTED &amp;&amp; !downloadItem.getDownloadInfo().isResumable())"
+        errorLine2="                ~~~~~">
+        <location
+            file="../../chrome/android/java/src/org/chromium/chrome/browser/download/DownloadManagerService.java"
+            line="1342"
+            column="17"/>
+    </issue>
+
+    <issue
+        id="WrongConstant"
+        message="Must be one of: DownloadState.IN_PROGRESS, DownloadState.COMPLETE, DownloadState.CANCELLED, DownloadState.INTERRUPTED, DownloadState.MAX_DOWNLOAD_STATE"
+        errorLine1="                || state == DownloadState.CANCELLED;"
+        errorLine2="                   ~~~~~">
+        <location
+            file="../../chrome/android/java/src/org/chromium/chrome/browser/download/DownloadManagerService.java"
+            line="1343"
+            column="20"/>
+    </issue>
+
+    <issue
+        id="WrongConstant"
+        message="Must be one of: StreamTabId.DEFAULT, StreamTabId.FOR_YOU, StreamTabId.FOLLOWING"
+        errorLine1="        if (mTabToStreamMap.size() &lt;= tabId) tabId = 0;"
+        errorLine2="                                                     ~">
+        <location
+            file="../../chrome/android/feed/core/java/src/org/chromium/chrome/browser/feed/FeedSurfaceMediator.java"
+            line="493"
+            column="54"/>
+    </issue>
+
+    <issue
+        id="WrongConstant"
+        message="Must be one of: StreamTabId.DEFAULT, StreamTabId.FOR_YOU, StreamTabId.FOLLOWING"
+        errorLine1="        mSectionHeaderModel.set(SectionHeaderListProperties.CURRENT_TAB_INDEX_KEY, tabId);"
+        errorLine2="                                                                                   ~~~~~">
+        <location
+            file="../../chrome/android/feed/core/java/src/org/chromium/chrome/browser/feed/FeedSurfaceMediator.java"
+            line="494"
+            column="84"/>
+    </issue>
+
+    <issue
+        id="WrongConstant"
+        message="Must be one of: WebView.RENDERER_PRIORITY_WAIVED, WebView.RENDERER_PRIORITY_BOUND, WebView.RENDERER_PRIORITY_IMPORTANT"
+        errorLine1="                return detail.rendererPriority();"
+        errorLine2="                       ~~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="../../android_webview/glue/java/src/com/android/webview/chromium/GlueApiHelperForO.java"
+            line="45"
+            column="24"/>
+    </issue>
+
+    <issue
+        id="WrongConstant"
+        message="Must be one of: ViewCompat.LAYOUT_DIRECTION_LTR, ViewCompat.LAYOUT_DIRECTION_RTL"
+        errorLine1="        if (ViewCompat.getLayoutDirection(this) == View.LAYOUT_DIRECTION_RTL) {"
+        errorLine2="                                                   ~~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="../../components/browser_ui/widget/android/java/src/org/chromium/components/browser_ui/widget/MaterialProgressBar.java"
+            line="231"
+            column="52"/>
+    </issue>
+
+    <issue
+        id="WrongConstant"
+        message="Must be one of: ShowQueryTilesSegmentationResult.UNINITIALIZED, ShowQueryTilesSegmentationResult.DONT_SHOW, ShowQueryTilesSegmentationResult.SHOW"
+        errorLine1="        return segmentationResult;"
+        errorLine2="               ~~~~~~~~~~~~~~~~~~">
+        <location
+            file="../../chrome/android/java/src/org/chromium/chrome/browser/query_tiles/QueryTileUtils.java"
+            line="179"
+            column="16"/>
+    </issue>
+
+    <issue
+        id="WrongConstant"
+        message="Must be one of: ShowQueryTilesSegmentationResult.UNINITIALIZED, ShowQueryTilesSegmentationResult.DONT_SHOW, ShowQueryTilesSegmentationResult.SHOW"
+        errorLine1="        return segmentationResult;"
+        errorLine2="               ~~~~~~~~~~~~~~~~~~">
+        <location
+            file="../../chrome/android/java/src/org/chromium/chrome/browser/query_tiles/QueryTileUtils.java"
+            line="179"
+            column="16"/>
+    </issue>
+
+    <issue
+        id="WrongConstant"
+        message="Must be one of: PageTransition.FIRST, PageTransition.LINK, PageTransition.TYPED, PageTransition.AUTO_BOOKMARK, PageTransition.AUTO_SUBFRAME, PageTransition.MANUAL_SUBFRAME, PageTransition.GENERATED, PageTransition.AUTO_TOPLEVEL, PageTransition.FORM_SUBMIT, PageTransition.RELOAD, PageTransition.KEYWORD, PageTransition.KEYWORD_GENERATED, PageTransition.LAST_CORE, PageTransition.CORE_MASK, PageTransition.BLOCKED, PageTransition.FORWARD_BACK, PageTransition.FROM_ADDRESS_BAR, PageTransition.HOME_PAGE, PageTransition.FROM_API, PageTransition.CHAIN_START, PageTransition.CHAIN_END, PageTransition.CLIENT_REDIRECT, PageTransition.SERVER_REDIRECT, PageTransition.IS_REDIRECT_MASK, PageTransition.QUALIFIER_MASK"
+        errorLine1="                    false, url, params.getTransitionType());"
+        errorLine2="                                ~~~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="../../chrome/android/java/src/org/chromium/chrome/browser/tasks/ReturnToChromeUtil.java"
+            line="445"
+            column="33"/>
+    </issue>
+
+    <issue
+        id="ForegroundServicePermission"
+        message="foregroundServiceType:specialUse requires permission:[android.permission.FOREGROUND_SERVICE_SPECIAL_USE]"
+        errorLine1="    &lt;service android:name=&quot;org.chromium.android_webview.services.DeveloperUiService&quot; android:foregroundServiceType=&quot;specialUse&quot; android:exported=&quot;true&quot; android:process=&quot;:webview_service&quot; tools:ignore=&quot;ExportedService&quot;>"
+        errorLine2="    ^">
+        <location
+            file="gen/chrome/android/monochrome_public_bundle__lint/AndroidManifest.xml"
+            line="608"
+            column="5"/>
+    </issue>
+
+    <issue
+        id="UnspecifiedRegisterReceiverFlag"
+        message="`receiver` \&#xA;is missing `RECEIVER_EXPORTED` or `RECEIVER_NOT_EXPORTED` flag for unprotected \&#xA;broadcasts registered for an IntentFilter that cannot be inspected by lint"
+        errorLine1="            return context.registerReceiver(receiver, filter, permission, scheduler);"
+        errorLine2="                   ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="../../base/android/java/src/org/chromium/base/ContextUtils.java"
+            line="305"
+            column="20"/>
+    </issue>
+
+    <issue
+        id="UnspecifiedRegisterReceiverFlag"
+        message="`receiver` \&#xA;is missing `RECEIVER_EXPORTED` or `RECEIVER_NOT_EXPORTED` flag for unprotected \&#xA;broadcasts registered for an IntentFilter that cannot be inspected by lint"
+        errorLine1="            return super.registerReceiver(receiver, filter, permission, handler);"
+        errorLine2="                   ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="../../content/public/android/java/src/org/chromium/content/browser/sms/Wrappers.java"
+            line="100"
+            column="20"/>
+    </issue>
+
+    <issue
+        id="VectorRaster"
+        message="Limit vector icons sizes to 200×200 to keep icon drawing fast; see https://developer.android.com/studio/write/vector-asset-studio#when for more"
+        errorLine1="    android:width=&quot;360dp&quot;"
+        errorLine2="                   ~~~~~">
+        <location
+            file="../../chrome/android/java/res/drawable/adaptive_toolbar_preference_header.xml"
+            line="9"
+            column="20"/>
+    </issue>
+
+    <issue
+        id="SupportAnnotationUsage"
+        message="Top level class can&apos;t have private or protected access level"
+        errorLine1="@VisibleForTesting"
+        errorLine2="~~~~~~~~~~~~~~~~~~">
+        <location
+            file="../../android_webview/java/src/org/chromium/android_webview/policy/AwPolicyProvider.java"
+            line="18"
+            column="1"/>
+    </issue>
+
+    <issue
+        id="SupportAnnotationUsage"
+        message="Top level class can&apos;t have private or protected access level"
+        errorLine1="@VisibleForTesting"
+        errorLine2="~~~~~~~~~~~~~~~~~~">
+        <location
+            file="../../android_webview/java/src/org/chromium/android_webview/AwWebContentsDelegate.java"
+            line="21"
+            column="1"/>
+    </issue>
+
+    <issue
+        id="SupportAnnotationUsage"
+        message="Top level class can&apos;t have private or protected access level"
+        errorLine1="@VisibleForTesting"
+        errorLine2="~~~~~~~~~~~~~~~~~~">
+        <location
+            file="../../content/public/android/java/src/org/chromium/content/browser/BackgroundSyncNetworkObserver.java"
+            line="43"
+            column="1"/>
+    </issue>
+
+    <issue
+        id="SupportAnnotationUsage"
+        message="Top level class can&apos;t have private or protected access level"
+        errorLine1="@VisibleForTesting"
+        errorLine2="~~~~~~~~~~~~~~~~~~">
+        <location
+            file="../../android_webview/java/src/org/chromium/android_webview/FindAddress.java"
+            line="17"
+            column="1"/>
+    </issue>
+
+    <issue
+        id="UseAppTint"
+        message="Must use `app:tint` instead of `android:tint`"
+        errorLine1="        android:tint=&quot;@macro/drag_handlebar_color&quot; />"
+        errorLine2="        ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="../../chrome/android/java/res/layout/custom_tabs_handle_view.xml"
+            line="35"
+            column="9"/>
+    </issue>
+
+    <issue
+        id="UseAppTint"
+        message="Must use `app:tint` instead of `android:tint`"
+        errorLine1="        android:tint=&quot;@macro/checked_item&quot;"
+        errorLine2="        ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="../../chrome/browser/ui/android/multiwindow/java/res/layout/instance_switcher_item.xml"
+            line="85"
+            column="9"/>
+    </issue>
+
+    <issue
+        id="UseAppTint"
+        message="Must use `app:tint` instead of `android:tint`"
+        errorLine1="            android:tint=&quot;@color/photo_picker_tile_bg_color&quot; />"
+        errorLine2="            ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="../../components/browser_ui/photo_picker/android/java/res/layout/photo_picker_bitmap_view.xml"
+            line="109"
+            column="13"/>
+    </issue>
+
+    <issue
+        id="UseAppTint"
+        message="Must use `app:tint` instead of `android:tint`"
+        errorLine1="            android:tint=&quot;@color/default_icon_color_baseline&quot;"
+        errorLine2="            ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="../../chrome/android/java/res/layout/search_widget_template.xml"
+            line="44"
+            column="13"/>
+    </issue>
+
+    <issue
+        id="UseCompatLoadingForDrawables"
+        message="Use `ResourcesCompat.getDrawable()`"
+        errorLine1="                return res.getDrawable(id, null);"
+        errorLine2="                       ~~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="../../base/android/java/src/org/chromium/base/ApiCompatibilityUtils.java"
+            line="189"
+            column="24"/>
+    </issue>
+
+    <issue
+        id="UseCompatLoadingForDrawables"
+        message="Use `AppCompatResources.getDrawable()`"
+        errorLine1="                    iconDrawable = mContext.getDrawable(iconResId);"
+        errorLine2="                                   ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="../../chrome/android/java/src/org/chromium/chrome/browser/compositor/bottombar/contextualsearch/ContextualSearchQuickActionControl.java"
+            line="311"
+            column="36"/>
+    </issue>
+
+    <issue
+        id="UseCompatLoadingForDrawables"
+        message="Use `AppCompatResources.getDrawable()`"
+        errorLine1="        Drawable clearTextIcon = getContext().getDrawable(R.drawable.ic_clear_text);"
+        errorLine2="                                 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="../../android_webview/nonembedded/java/src/org/chromium/android_webview/devui/FlagsFragment.java"
+            line="185"
+            column="34"/>
+    </issue>
+
+    <issue
+        id="UseCompatLoadingForDrawables"
+        message="Use `AppCompatResources.getDrawable()`"
+        errorLine1="            final Drawable statusIcon = mContext.getDrawable(R.drawable.ic_cloud_offline_24dp);"
+        errorLine2="                                        ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="../../chrome/android/java/src/org/chromium/chrome/browser/offlinepages/indicator/OfflineIndicatorControllerV2.java"
+            line="140"
+            column="41"/>
+    </issue>
+
+    <issue
+        id="UseCompatLoadingForDrawables"
+        message="Use `AppCompatResources.getDrawable()`"
+        errorLine1="            final Drawable statusIcon = mContext.getDrawable(R.drawable.ic_globe_24dp);"
+        errorLine2="                                        ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="../../chrome/android/java/src/org/chromium/chrome/browser/offlinepages/indicator/OfflineIndicatorControllerV2.java"
+            line="161"
+            column="41"/>
+    </issue>
+
+    <issue
+        id="UseCompatLoadingForDrawables"
+        message="Use `AppCompatResources.getDrawable()`"
+        errorLine1="            Drawable drawable = context.getDrawable(R.drawable.toolbar_hairline);"
+        errorLine2="                                ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="../../chrome/android/features/tab_ui/java/src/org/chromium/chrome/browser/tasks/tab_management/TabListRecyclerView.java"
+            line="331"
+            column="33"/>
+    </issue>
+
+    <issue
+        id="UseCompatLoadingForDrawables"
+        message="Use `AppCompatResources.getDrawable()`"
+        errorLine1="        GradientDrawable drawable = (GradientDrawable) context.getDrawable("
+        errorLine2="                                                       ^">
+        <location
+            file="../../chrome/browser/ui/android/toolbar/java/src/org/chromium/chrome/browser/toolbar/top/ToolbarPhone.java"
+            line="413"
+            column="56"/>
+    </issue>
+
+    <issue
+        id="UseCompatTextViewDrawableXml"
+        message="Use `app:drawableTopCompat` instead of `android:drawableTop`"
+        errorLine1="            android:drawableTop=&quot;@drawable/ic_action_home&quot;"
+        errorLine2="            ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="../../android_webview/nonembedded/java/res_devui/layout/activity_main.xml"
+            line="50"
+            column="13"/>
+    </issue>
+
+    <issue
+        id="UseCompatTextViewDrawableXml"
+        message="Use `app:drawableTopCompat` instead of `android:drawableTop`"
+        errorLine1="            android:drawableTop=&quot;@drawable/ic_alert_error&quot;"
+        errorLine2="            ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="../../android_webview/nonembedded/java/res_devui/layout/activity_main.xml"
+            line="60"
+            column="13"/>
+    </issue>
+
+    <issue
+        id="UseCompatTextViewDrawableXml"
+        message="Use `app:drawableTopCompat` instead of `android:drawableTop`"
+        errorLine1="            android:drawableTop=&quot;@drawable/ic_flag&quot;"
+        errorLine2="            ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="../../android_webview/nonembedded/java/res_devui/layout/activity_main.xml"
+            line="70"
+            column="13"/>
+    </issue>
+
+    <issue
+        id="UseCompatTextViewDrawableXml"
+        message="Use `app:drawableEndCompat` instead of `android:drawableEnd`"
+        errorLine1="    android:drawableEnd=&quot;@drawable/exclamation_triangle&quot;"
+        errorLine2="    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="../../chrome/android/java/res/layout/os_version_unsupported_text.xml"
+            line="17"
+            column="5"/>
+    </issue>
+
+    <issue
+        id="UseCompatTextViewDrawableXml"
+        message="Use `app:drawableStartCompat` instead of `android:drawableStart`"
+        errorLine1="        android:drawableStart=&quot;@drawable/ic_alert_error&quot;"
+        errorLine2="        ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="../../android_webview/nonembedded/java/res_devui/layout/persistent_error_message.xml"
+            line="26"
+            column="9"/>
+    </issue>
+
+    <issue
+        id="UseCompatTextViewDrawableXml"
+        message="Use `app:drawableTopCompat` instead of `android:drawableTop`"
+        errorLine1="                    android:drawableTop=&quot;@drawable/edit_icon&quot;"
+        errorLine2="                    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="../../chrome/browser/share/android/java/res/layout/screenshot_share_sheet.xml"
+            line="51"
+            column="21"/>
+    </issue>
+
+    <issue
+        id="UseCompatTextViewDrawableXml"
+        message="Use `app:drawableTint` instead of `android:drawableTint`"
+        errorLine1="                    android:drawableTint=&quot;@color/default_icon_color_tint_list&quot;"
+        errorLine2="                    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="../../chrome/browser/share/android/java/res/layout/screenshot_share_sheet.xml"
+            line="52"
+            column="21"/>
+    </issue>
+
+    <issue
+        id="UseCompatTextViewDrawableXml"
+        message="Use `app:drawableTopCompat` instead of `android:drawableTop`"
+        errorLine1="                    android:drawableTop=&quot;@drawable/delete_icon&quot;"
+        errorLine2="                    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="../../chrome/browser/share/android/java/res/layout/screenshot_share_sheet.xml"
+            line="62"
+            column="21"/>
+    </issue>
+
+    <issue
+        id="UseCompatTextViewDrawableXml"
+        message="Use `app:drawableTint` instead of `android:drawableTint`"
+        errorLine1="                    android:drawableTint=&quot;@color/default_icon_color_tint_list&quot;"
+        errorLine2="                    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="../../chrome/browser/share/android/java/res/layout/screenshot_share_sheet.xml"
+            line="63"
+            column="21"/>
+    </issue>
+
+    <issue
+        id="UseCompatTextViewDrawableXml"
+        message="Use `app:drawableTopCompat` instead of `android:drawableTop`"
+        errorLine1="                    android:drawableTop=&quot;@drawable/save_icon&quot;"
+        errorLine2="                    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="../../chrome/browser/share/android/java/res/layout/screenshot_share_sheet.xml"
+            line="73"
+            column="21"/>
+    </issue>
+
+    <issue
+        id="UseCompatTextViewDrawableXml"
+        message="Use `app:drawableTint` instead of `android:drawableTint`"
+        errorLine1="                    android:drawableTint=&quot;@color/default_icon_color_tint_list&quot;"
+        errorLine2="                    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="../../chrome/browser/share/android/java/res/layout/screenshot_share_sheet.xml"
+            line="74"
+            column="21"/>
+    </issue>
+
+    <issue
+        id="UseCompatTextViewDrawableXml"
+        message="Use `app:drawableTopCompat` instead of `android:drawableTop`"
+        errorLine1="                    android:drawableTop=&quot;@drawable/share_icon&quot;"
+        errorLine2="                    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="../../chrome/browser/share/android/java/res/layout/screenshot_share_sheet.xml"
+            line="84"
+            column="21"/>
+    </issue>
+
+    <issue
+        id="UseCompatTextViewDrawableXml"
+        message="Use `app:drawableTint` instead of `android:drawableTint`"
+        errorLine1="                    android:drawableTint=&quot;@color/default_icon_color_tint_list&quot;"
+        errorLine2="                    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="../../chrome/browser/share/android/java/res/layout/screenshot_share_sheet.xml"
+            line="85"
+            column="21"/>
+    </issue>
+
+    <issue
+        id="DataExtractionRules"
+        message="The attribute `android:allowBackup` is deprecated from Android 12 and higher and may be removed in future versions. Consider adding the attribute `android:dataExtractionRules` specifying an `@xml` resource which configures cloud backups and device transfers on Android 12 and higher."
+        errorLine1="  &lt;application android:name=&quot;org.chromium.chrome.browser.base.SplitMonochromeApplication&quot; android:icon=&quot;@drawable/ic_launcher&quot; android:roundIcon=&quot;@drawable/ic_launcher_round&quot; android:label=&quot;@string/app_name&quot; android:memtagMode=&quot;async&quot; android:largeHeap=&quot;false&quot; android:manageSpaceActivity=&quot;@string/manage_space_activity&quot; android:supportsRtl=&quot;true&quot; android:zygotePreloadName=&quot;org.chromium.content_public.app.ZygotePreload&quot; android:allowBackup=&quot;false&quot; android:networkSecurityConfig=&quot;@xml/network_security_config&quot; android:allowAudioPlaybackCapture=&quot;false&quot; android:appComponentFactory=&quot;org.chromium.chrome.browser.base.SplitCompatAppComponentFactory&quot; android:enableOnBackInvokedCallback=&quot;true&quot; android:multiArch=&quot;true&quot; android:extractNativeLibs=&quot;false&quot;>"
+        errorLine2="                                                                                                                                                                                                                                                                                                                                                                                                                                                           ~~~~~">
+        <location
+            file="gen/chrome/android/monochrome_public_bundle__lint/AndroidManifest.xml"
+            line="253"
+            column="444"/>
+    </issue>
+
+    <issue
+        id="NotifyDataSetChanged"
+        message="It will always be more efficient to use more specific change events if you can. Rely on `notifyDataSetChanged` as a last resort."
+        errorLine1="                    notifyDataSetChanged();"
+        errorLine2="                    ~~~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="../../chrome/browser/language/android/java/src/org/chromium/chrome/browser/language/settings/ContentLanguagesPreference.java"
+            line="119"
+            column="21"/>
+    </issue>
+
+    <issue
+        id="NotifyDataSetChanged"
+        message="It will always be more efficient to use more specific change events if you can. Rely on `notifyDataSetChanged` as a last resort."
+        errorLine1="        notifyDataSetChanged();"
+        errorLine2="        ~~~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="../../components/browser_ui/widget/android/java/src/org/chromium/components/browser_ui/widget/DateDividedAdapter.java"
+            line="551"
+            column="9"/>
+    </issue>
+
+    <issue
+        id="NotifyDataSetChanged"
+        message="It will always be more efficient to use more specific change events if you can. Rely on `notifyDataSetChanged` as a last resort."
+        errorLine1="        notifyDataSetChanged();"
+        errorLine2="        ~~~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="../../components/browser_ui/widget/android/java/src/org/chromium/components/browser_ui/widget/DateDividedAdapter.java"
+            line="574"
+            column="9"/>
+    </issue>
+
+    <issue
+        id="NotifyDataSetChanged"
+        message="It will always be more efficient to use more specific change events if you can. Rely on `notifyDataSetChanged` as a last resort."
+        errorLine1="        notifyDataSetChanged();"
+        errorLine2="        ~~~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="../../components/browser_ui/widget/android/java/src/org/chromium/components/browser_ui/widget/DateDividedAdapter.java"
+            line="611"
+            column="9"/>
+    </issue>
+
+    <issue
+        id="NotifyDataSetChanged"
+        message="It will always be more efficient to use more specific change events if you can. Rely on `notifyDataSetChanged` as a last resort."
+        errorLine1="        notifyDataSetChanged();"
+        errorLine2="        ~~~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="../../components/browser_ui/widget/android/java/src/org/chromium/components/browser_ui/widget/DateDividedAdapter.java"
+            line="646"
+            column="9"/>
+    </issue>
+
+    <issue
+        id="NotifyDataSetChanged"
+        message="It will always be more efficient to use more specific change events if you can. Rely on `notifyDataSetChanged` as a last resort."
+        errorLine1="        if (notifyDataSetChanged) notifyDataSetChanged();"
+        errorLine2="                                  ~~~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="../../components/browser_ui/widget/android/java/src/org/chromium/components/browser_ui/widget/DateDividedAdapter.java"
+            line="660"
+            column="35"/>
+    </issue>
+
+    <issue
+        id="NotifyDataSetChanged"
+        message="It will always be more efficient to use more specific change events if you can. Rely on `notifyDataSetChanged` as a last resort."
+        errorLine1="        notifyDataSetChanged();"
+        errorLine2="        ~~~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="../../components/browser_ui/widget/android/java/src/org/chromium/components/browser_ui/widget/DateDividedAdapter.java"
+            line="781"
+            column="9"/>
+    </issue>
+
+    <issue
+        id="NotifyDataSetChanged"
+        message="It will always be more efficient to use more specific change events if you can. Rely on `notifyDataSetChanged` as a last resort."
+        errorLine1="            mPagerAdapter.notifyDataSetChanged();"
+        errorLine2="            ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="../../chrome/android/java/src/org/chromium/chrome/browser/firstrun/FirstRunActivity.java"
+            line="167"
+            column="13"/>
+    </issue>
+
+    <issue
+        id="NotifyDataSetChanged"
+        message="It will always be more efficient to use more specific change events if you can. Rely on `notifyDataSetChanged` as a last resort."
+        errorLine1="        notifyDataSetChanged();"
+        errorLine2="        ~~~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="../../chrome/android/java/src/org/chromium/chrome/browser/history/HistoryAdapter.java"
+            line="137"
+            column="9"/>
+    </issue>
+
+    <issue
+        id="NotifyDataSetChanged"
+        message="It will always be more efficient to use more specific change events if you can. Rely on `notifyDataSetChanged` as a last resort."
+        errorLine1="            notifyDataSetChanged();"
+        errorLine2="            ~~~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="../../chrome/browser/language/android/java/src/org/chromium/chrome/browser/language/settings/LanguageListBaseAdapter.java"
+            line="144"
+            column="13"/>
+    </issue>
+
+    <issue
+        id="NotifyDataSetChanged"
+        message="It will always be more efficient to use more specific change events if you can. Rely on `notifyDataSetChanged` as a last resort."
+        errorLine1="        notifyDataSetChanged();"
+        errorLine2="        ~~~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="../../chrome/browser/language/android/java/src/org/chromium/chrome/browser/language/settings/LanguageListBaseAdapter.java"
+            line="191"
+            column="9"/>
+    </issue>
+
+    <issue
+        id="NotifyDataSetChanged"
+        message="It will always be more efficient to use more specific change events if you can. Rely on `notifyDataSetChanged` as a last resort."
+        errorLine1="        notifyDataSetChanged();"
+        errorLine2="        ~~~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="../../chrome/browser/language/android/java/src/org/chromium/chrome/browser/language/settings/LanguageListBaseAdapter.java"
+            line="202"
+            column="9"/>
+    </issue>
+
+    <issue
+        id="NotifyDataSetChanged"
+        message="It will always be more efficient to use more specific change events if you can. Rely on `notifyDataSetChanged` as a last resort."
+        errorLine1="        noteCarousel.getAdapter().notifyDataSetChanged();"
+        errorLine2="        ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="../../chrome/browser/content_creation/notes/internal/android/java/src/org/chromium/chrome/browser/content_creation/notes/NoteCreationDialog.java"
+            line="113"
+            column="9"/>
+    </issue>
+
+    <issue
+        id="NotifyDataSetChanged"
+        message="It will always be more efficient to use more specific change events if you can. Rely on `notifyDataSetChanged` as a last resort."
+        errorLine1="        notifyDataSetChanged();"
+        errorLine2="        ~~~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="../../components/browser_ui/contacts_picker/android/java/src/org/chromium/components/browser_ui/contacts_picker/PickerAdapter.java"
+            line="169"
+            column="9"/>
+    </issue>
+
+    <issue
+        id="NotifyDataSetChanged"
+        message="It will always be more efficient to use more specific change events if you can. Rely on `notifyDataSetChanged` as a last resort."
+        errorLine1="        notifyDataSetChanged();"
+        errorLine2="        ~~~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="../../components/browser_ui/contacts_picker/android/java/src/org/chromium/components/browser_ui/contacts_picker/PickerAdapter.java"
+            line="196"
+            column="9"/>
+    </issue>
+
+    <issue
+        id="NotifyDataSetChanged"
+        message="It will always be more efficient to use more specific change events if you can. Rely on `notifyDataSetChanged` as a last resort."
+        errorLine1="        notifyDataSetChanged();"
+        errorLine2="        ~~~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="../../components/browser_ui/contacts_picker/android/java/src/org/chromium/components/browser_ui/contacts_picker/PickerAdapter.java"
+            line="213"
+            column="9"/>
+    </issue>
+
+    <issue
+        id="NotifyDataSetChanged"
+        message="It will always be more efficient to use more specific change events if you can. Rely on `notifyDataSetChanged` as a last resort."
+        errorLine1="        notifyDataSetChanged();"
+        errorLine2="        ~~~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="../../components/browser_ui/contacts_picker/android/java/src/org/chromium/components/browser_ui/contacts_picker/PickerAdapter.java"
+            line="342"
+            column="9"/>
+    </issue>
+
+    <issue
+        id="NotifyDataSetChanged"
+        message="It will always be more efficient to use more specific change events if you can. Rely on `notifyDataSetChanged` as a last resort."
+        errorLine1="        mPickerAdapter.notifyDataSetChanged();"
+        errorLine2="        ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="../../components/browser_ui/contacts_picker/android/java/src/org/chromium/components/browser_ui/contacts_picker/PickerCategoryView.java"
+            line="211"
+            column="9"/>
+    </issue>
+
+    <issue
+        id="NotifyDataSetChanged"
+        message="It will always be more efficient to use more specific change events if you can. Rely on `notifyDataSetChanged` as a last resort."
+        errorLine1="            mPickerAdapter.notifyDataSetChanged();"
+        errorLine2="            ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="../../components/browser_ui/photo_picker/android/java/src/org/chromium/components/browser_ui/photo_picker/PickerCategoryView.java"
+            line="260"
+            column="13"/>
+    </issue>
+
+    <issue
+        id="NotifyDataSetChanged"
+        message="It will always be more efficient to use more specific change events if you can. Rely on `notifyDataSetChanged` as a last resort."
+        errorLine1="            mPickerAdapter.notifyDataSetChanged();"
+        errorLine2="            ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="../../components/browser_ui/photo_picker/android/java/src/org/chromium/components/browser_ui/photo_picker/PickerCategoryView.java"
+            line="396"
+            column="13"/>
+    </issue>
+
+    <issue
+        id="NotifyDataSetChanged"
+        message="It will always be more efficient to use more specific change events if you can. Rely on `notifyDataSetChanged` as a last resort."
+        errorLine1="        mPickerAdapter.notifyDataSetChanged();"
+        errorLine2="        ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="../../components/browser_ui/photo_picker/android/java/src/org/chromium/components/browser_ui/photo_picker/PickerCategoryView.java"
+            line="456"
+            column="9"/>
+    </issue>
+
+    <issue
+        id="UseCompoundDrawables"
+        message="This tag and its children can be replaced by one `&lt;TextView/>` and a compound drawable"
+        errorLine1="        &lt;LinearLayout"
+        errorLine2="         ~~~~~~~~~~~~">
+        <location
+            file="../../components/browser_ui/photo_picker/android/java/res/layout/photo_picker_bitmap_view.xml"
+            line="37"
+            column="10"/>
+    </issue>
+
+    <issue
+        id="UseCompoundDrawables"
+        message="This tag and its children can be replaced by one `&lt;TextView/>` and a compound drawable"
+        errorLine1="    &lt;LinearLayout"
+        errorLine2="     ~~~~~~~~~~~~">
+        <location
+            file="../../components/browser_ui/photo_picker/android/java/res/layout/photo_picker_bitmap_view.xml"
+            line="94"
+            column="6"/>
+    </issue>
+
+    <issue
+        id="AssertionSideEffect"
+        message="Assertion condition has a side effect: f.setAccessible(true)"
+        errorLine1="                    assert reachesWindowCallback(activity.getWindow().getCallback());"
+        errorLine2="                           ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="../../base/android/java/src/org/chromium/base/ApplicationStatus.java"
+            line="385"
+            column="28"/>
+    </issue>
+
+    <issue
+        id="AssertionSideEffect"
+        message="Assertion condition has a side effect: nativeMatches[index] = mSuggestions.get(index).getNativeObjectRef()"
+        errorLine1="            assert verifyCoherency("
+        errorLine2="                   ^">
+        <location
+            file="../../components/omnibox/browser/android/java/src/org/chromium/components/omnibox/AutocompleteResult.java"
+            line="236"
+            column="20"/>
+    </issue>
+
+    <issue
+        id="AssertionSideEffect"
+        message="Assertion condition has a side effect: sHaveAccessNetworkState =&#xA;                    ApiCompatibilityUtils.checkPermission(ContextUtils.getApplicationContext(),&#xA;                            Manifest.permission.ACCESS_NETWORK_STATE, Process.myPid(),&#xA;                            Process.myUid())&#xA;                    == PackageManager.PERMISSION_GRANTED"
+        errorLine1="        assert isSupported();"
+        errorLine2="               ~~~~~~~~~~~~~">
+        <location
+            file="../../base/android/java/src/org/chromium/base/RadioUtils.java"
+            line="81"
+            column="16"/>
+    </issue>
+
+    <issue
+        id="AssertionSideEffect"
+        message="Assertion condition has a side effect: sHaveAccessNetworkState =&#xA;                    ApiCompatibilityUtils.checkPermission(ContextUtils.getApplicationContext(),&#xA;                            Manifest.permission.ACCESS_NETWORK_STATE, Process.myPid(),&#xA;                            Process.myUid())&#xA;                    == PackageManager.PERMISSION_GRANTED"
+        errorLine1="        assert isSupported();"
+        errorLine2="               ~~~~~~~~~~~~~">
+        <location
+            file="../../base/android/java/src/org/chromium/base/RadioUtils.java"
+            line="106"
+            column="16"/>
+    </issue>
+
+    <issue
+        id="AssertionSideEffect"
+        message="Assertion condition has a side effect: sHaveAccessNetworkState =&#xA;                    ApiCompatibilityUtils.checkPermission(ContextUtils.getApplicationContext(),&#xA;                            Manifest.permission.ACCESS_NETWORK_STATE, Process.myPid(),&#xA;                            Process.myUid())&#xA;                    == PackageManager.PERMISSION_GRANTED"
+        errorLine1="        assert isSupported();"
+        errorLine2="               ~~~~~~~~~~~~~">
+        <location
+            file="../../base/android/java/src/org/chromium/base/RadioUtils.java"
+            line="132"
+            column="16"/>
+    </issue>
+
+    <issue
+        id="MergeRootFrame"
+        message="This `&lt;FrameLayout>` can be replaced with a `&lt;merge>` tag"
+        errorLine1="&lt;FrameLayout"
+        errorLine2="^">
+        <location
+            file="../../chrome/android/java/res/layout/signin_activity.xml"
+            line="7"
+            column="1"/>
+    </issue>
+
+    <issue
+        id="UnusedResources"
+        message="The resource `R.macro.suggestion_url_color` appears to be unused"
+        errorLine1="    &lt;macro name=&quot;suggestion_url_color&quot;>@macro/default_text_color_link&lt;/macro>"
+        errorLine2="           ~~~~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="../../chrome/browser/ui/android/omnibox/java/res/values/colors.xml"
+            line="12"
+            column="12"/>
+    </issue>
+
+    <issue
+        id="UsableSpace"
+        message="Consider also using `StorageManager#getAllocatableBytes` and `allocateBytes` which will consider clearable cached data"
+        errorLine1="                    dir.getAbsolutePath(), dir.getUsableSpace(), dir.getTotalSpace(), type);"
+        errorLine2="                                               ~~~~~~~~~~~~~~">
+        <location
+            file="../../chrome/browser/download/android/java/src/org/chromium/chrome/browser/download/DownloadDirectoryProvider.java"
+            line="157"
+            column="48"/>
+    </issue>
+
+    <issue
+        id="UsableSpace"
+        message="Consider also using `StorageManager#getAllocatableBytes` and `allocateBytes` which will consider clearable cached data"
+        errorLine1="            mFreeSpace = Environment.getExternalStorageDirectory().getUsableSpace();"
+        errorLine2="                                                                   ~~~~~~~~~~~~~~">
+        <location
+            file="../../chrome/android/java/src/org/chromium/chrome/browser/download/OMADownloadHandler.java"
+            line="348"
+            column="68"/>
+    </issue>
+
+    <issue
+        id="UsableSpace"
+        message="Consider also using `StorageManager#getAllocatableBytes` and `allocateBytes` which will consider clearable cached data"
+        errorLine1="        return Environment.getDataDirectory().getUsableSpace();"
+        errorLine2="                                              ~~~~~~~~~~~~~~">
+        <location
+            file="../../chrome/android/java/src/org/chromium/chrome/browser/offlinepages/OfflinePageUtils.java"
+            line="236"
+            column="47"/>
+    </issue>
+
+    <issue
+        id="UsableSpace"
+        message="Consider also using `StorageManager#getAllocatableBytes` and `allocateBytes` which will consider clearable cached data"
+        errorLine1="                        defaultDownloadDir.getAbsolutePath(), defaultDownloadDir.getUsableSpace(),"
+        errorLine2="                                                                                 ~~~~~~~~~~~~~~">
+        <location
+            file="../../chrome/browser/download/internal/android/java/src/org/chromium/chrome/browser/download/home/storage/StorageSummaryProvider.java"
+            line="88"
+            column="82"/>
+    </issue>
+
+    <issue
+        id="Autofill"
+        message="Missing `autofillHints` attribute"
+        errorLine1="        &lt;EditText"
+        errorLine2="         ~~~~~~~~">
+        <location
+            file="../../android_webview/nonembedded/java/res_devui/layout/fragment_flags.xml"
+            line="25"
+            column="10"/>
+    </issue>
+
+    <issue
+        id="ClickableViewAccessibility"
+        message="Custom view ``ImageView`` has `setOnTouchListener` called on it but does not override `performClick`"
+        errorLine1="        mDragHandle.setOnTouchListener(l);"
+        errorLine2="        ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="../../chrome/android/java/src/org/chromium/chrome/browser/bookmarks/BookmarkRow.java"
+            line="378"
+            column="9"/>
+    </issue>
+
+    <issue
+        id="ClickableViewAccessibility"
+        message="Custom view `BottomSheet` overrides `onTouchEvent` but not `performClick`"
+        errorLine1="    public boolean onTouchEvent(MotionEvent e) {"
+        errorLine2="                   ~~~~~~~~~~~~">
+        <location
+            file="../../components/browser_ui/bottomsheet/android/internal/java/src/org/chromium/components/browser_ui/bottomsheet/BottomSheet.java"
+            line="268"
+            column="20"/>
+    </issue>
+
+    <issue
+        id="ClickableViewAccessibility"
+        message="Custom view ``TextView`` has `setOnTouchListener` called on it but does not override `performClick`"
+        errorLine1="        textView.setOnTouchListener((View v, MotionEvent event) -> {"
+        errorLine2="        ^">
+        <location
+            file="../../chrome/android/java/src/org/chromium/chrome/browser/browsing_data/ClearBrowsingDataCheckBoxPreference.java"
+            line="54"
+            column="9"/>
+    </issue>
+
+    <issue
+        id="ClickableViewAccessibility"
+        message="`onTouch` lambda should call `View#performClick` when a click is detected"
+        errorLine1="        textView.setOnTouchListener((View v, MotionEvent event) -> {"
+        errorLine2="                                    ^">
+        <location
+            file="../../chrome/android/java/src/org/chromium/chrome/browser/browsing_data/ClearBrowsingDataCheckBoxPreference.java"
+            line="54"
+            column="37"/>
+    </issue>
+
+    <issue
+        id="ClickableViewAccessibility"
+        message="Custom view `CompositorViewHolder` overrides `onTouchEvent` but not `performClick`"
+        errorLine1="    public boolean onTouchEvent(MotionEvent e) {"
+        errorLine2="                   ~~~~~~~~~~~~">
+        <location
+            file="../../chrome/android/java/src/org/chromium/chrome/browser/compositor/CompositorViewHolder.java"
+            line="689"
+            column="20"/>
+    </issue>
+
+    <issue
+        id="ClickableViewAccessibility"
+        message="Custom view `ContentView` overrides `onTouchEvent` but not `performClick`"
+        errorLine1="    public boolean onTouchEvent(MotionEvent event) {"
+        errorLine2="                   ~~~~~~~~~~~~">
+        <location
+            file="../../components/embedder_support/android/java/src/org/chromium/components/embedder_support/view/ContentView.java"
+            line="403"
+            column="20"/>
+    </issue>
+
+    <issue
+        id="ClickableViewAccessibility"
+        message="Custom view ``EditText`` has `setOnTouchListener` called on it but does not override `performClick`"
+        errorLine1="            editText.setOnTouchListener((View v, MotionEvent event) -> {"
+        errorLine2="            ^">
+        <location
+            file="../../android_webview/nonembedded/java/src/org/chromium/android_webview/devui/FlagsFragment.java"
+            line="198"
+            column="13"/>
+    </issue>
+
+    <issue
+        id="ClickableViewAccessibility"
+        message="`onTouch` lambda should call `View#performClick` when a click is detected"
+        errorLine1="            editText.setOnTouchListener((View v, MotionEvent event) -> {"
+        errorLine2="                                        ^">
+        <location
+            file="../../android_webview/nonembedded/java/src/org/chromium/android_webview/devui/FlagsFragment.java"
+            line="198"
+            column="41"/>
+    </issue>
+
+    <issue
+        id="ClickableViewAccessibility"
+        message="Custom view ``EditText`` has `setOnTouchListener` called on it but does not override `performClick`"
+        errorLine1="            editText.setOnTouchListener(null);"
+        errorLine2="            ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="../../android_webview/nonembedded/java/src/org/chromium/android_webview/devui/FlagsFragment.java"
+            line="213"
+            column="13"/>
+    </issue>
+
+    <issue
+        id="ClickableViewAccessibility"
+        message="Custom view `FullScreenView` overrides `onTouchEvent` but not `performClick`"
+        errorLine1="    public boolean onTouchEvent(final MotionEvent event) {"
+        errorLine2="                   ~~~~~~~~~~~~">
+        <location
+            file="../../android_webview/java/src/org/chromium/android_webview/FullScreenView.java"
+            line="106"
+            column="20"/>
+    </issue>
+
+    <issue
+        id="ClickableViewAccessibility"
+        message="Custom view `InfoBarMessageView` overrides `onTouchEvent` but not `performClick`"
+        errorLine1="    public boolean onTouchEvent(MotionEvent event) {"
+        errorLine2="                   ~~~~~~~~~~~~">
+        <location
+            file="../../components/infobars/android/java/src/org/chromium/components/infobars/InfoBarMessageView.java"
+            line="32"
+            column="20"/>
+    </issue>
+
+    <issue
+        id="ClickableViewAccessibility"
+        message="Custom view ``ImageView`` has `setOnTouchListener` called on it but does not override `performClick`"
+        errorLine1="        holder.mStartIcon.setOnTouchListener((v, event) -> {"
+        errorLine2="        ^">
+        <location
+            file="../../chrome/browser/language/android/java/src/org/chromium/chrome/browser/language/settings/LanguageListBaseAdapter.java"
+            line="164"
+            column="9"/>
+    </issue>
+
+    <issue
+        id="ClickableViewAccessibility"
+        message="`onTouch` lambda should call `View#performClick` when a click is detected"
+        errorLine1="        holder.mStartIcon.setOnTouchListener((v, event) -> {"
+        errorLine2="                                             ^">
+        <location
+            file="../../chrome/browser/language/android/java/src/org/chromium/chrome/browser/language/settings/LanguageListBaseAdapter.java"
+            line="164"
+            column="46"/>
+    </issue>
+
+    <issue
+        id="ClickableViewAccessibility"
+        message="Custom view ``ImageButton`` has `setOnTouchListener` called on it but does not override `performClick`"
+        errorLine1="        mMenuImageButton.setOnTouchListener(mAppMenuButtonHelper);"
+        errorLine2="        ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="../../chrome/browser/ui/android/toolbar/java/src/org/chromium/chrome/browser/toolbar/menu_button/MenuButton.java"
+            line="79"
+            column="9"/>
+    </issue>
+
+    <issue
+        id="ClickableViewAccessibility"
+        message="`onTouch` lambda should call `View#performClick` when a click is detected"
+        errorLine1="        View.OnTouchListener onTouchListener = (View v, MotionEvent ev) -> {"
+        errorLine2="                                               ^">
+        <location
+            file="../../components/browser_ui/modaldialog/android/java/src/org/chromium/components/browser_ui/modaldialog/ModalDialogView.java"
+            line="259"
+            column="48"/>
+    </issue>
+
+    <issue
+        id="ClickableViewAccessibility"
+        message="Custom view ``Button`` has `setOnTouchListener` called on it but does not override `performClick`"
+        errorLine1="        positiveButton.setOnTouchListener(onTouchListener);"
+        errorLine2="        ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="../../components/browser_ui/modaldialog/android/java/src/org/chromium/components/browser_ui/modaldialog/ModalDialogView.java"
+            line="279"
+            column="9"/>
+    </issue>
+
+    <issue
+        id="ClickableViewAccessibility"
+        message="Custom view ``Button`` has `setOnTouchListener` called on it but does not override `performClick`"
+        errorLine1="        negativeButton.setOnTouchListener(onTouchListener);"
+        errorLine2="        ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="../../components/browser_ui/modaldialog/android/java/src/org/chromium/components/browser_ui/modaldialog/ModalDialogView.java"
+            line="281"
+            column="9"/>
+    </issue>
+
+    <issue
+        id="ClickableViewAccessibility"
+        message="Custom view `NoSwipeViewPager` overrides `onTouchEvent` but not `performClick`"
+        errorLine1="    public boolean onTouchEvent(MotionEvent event) {"
+        errorLine2="                   ~~~~~~~~~~~~">
+        <location
+            file="../../chrome/android/features/keyboard_accessory/internal/java/src/org/chromium/chrome/browser/keyboard_accessory/sheet_component/NoSwipeViewPager.java"
+            line="24"
+            column="20"/>
+    </issue>
+
+    <issue
+        id="ClickableViewAccessibility"
+        message="`onTouch` should call `View#performClick` when a click is detected"
+        errorLine1="            public boolean onTouch(View v, MotionEvent event) {"
+        errorLine2="                           ~~~~~~~">
+        <location
+            file="../../components/browser_ui/photo_picker/android/java/src/org/chromium/components/browser_ui/photo_picker/PickerVideoPlayer.java"
+            line="244"
+            column="28"/>
+    </issue>
+
+    <issue
+        id="ClickableViewAccessibility"
+        message="Custom view `PlayerFrameView` overrides `onTouchEvent` but not `performClick`"
+        errorLine1="    public boolean onTouchEvent(MotionEvent event) {"
+        errorLine2="                   ~~~~~~~~~~~~">
+        <location
+            file="../../components/paint_preview/player/android/java/src/org/chromium/components/paintpreview/player/frame/PlayerFrameView.java"
+            line="130"
+            column="20"/>
+    </issue>
+
+    <issue
+        id="ClickableViewAccessibility"
+        message="Custom view `ScrimView` overrides `onTouchEvent` but not `performClick`"
+        errorLine1="    public boolean onTouchEvent(MotionEvent e) {"
+        errorLine2="                   ~~~~~~~~~~~~">
+        <location
+            file="../../components/browser_ui/widget/android/java/src/org/chromium/components/browser_ui/widget/scrim/ScrimView.java"
+            line="79"
+            column="20"/>
+    </issue>
+
+    <issue
+        id="ClickableViewAccessibility"
+        message="`onTouch` lambda should call `View#performClick` when a click is detected"
+        errorLine1="        mEmptyViewWrapper.setOnTouchListener((v, event) -> true);"
+        errorLine2="                                             ~~~~~~~~~~~~~~~~~~">
+        <location
+            file="../../components/browser_ui/widget/android/java/src/org/chromium/components/browser_ui/widget/selectable_list/SelectableListLayout.java"
+            line="244"
+            column="46"/>
+    </issue>
+
+    <issue
+        id="ClickableViewAccessibility"
+        message="Custom view `ToolbarControlContainer` overrides `onTouchEvent` but not `performClick`"
+        errorLine1="    public boolean onTouchEvent(MotionEvent event) {"
+        errorLine2="                   ~~~~~~~~~~~~">
+        <location
+            file="../../chrome/browser/ui/android/toolbar/java/src/org/chromium/chrome/browser/toolbar/top/ToolbarControlContainer.java"
+            line="566"
+            column="20"/>
+    </issue>
+
+    <issue
+        id="ClickableViewAccessibility"
+        message="Custom view `ToolbarPhone` overrides `onTouchEvent` but not `performClick`"
+        errorLine1="    public boolean onTouchEvent(MotionEvent ev) {"
+        errorLine2="                   ~~~~~~~~~~~~">
+        <location
+            file="../../chrome/browser/ui/android/toolbar/java/src/org/chromium/chrome/browser/toolbar/top/ToolbarPhone.java"
+            line="570"
+            column="20"/>
+    </issue>
+
+    <issue
+        id="ClickableViewAccessibility"
+        message="Custom view `TouchRestrictingFrameLayout` overrides `onTouchEvent` but not `performClick`"
+        errorLine1="    public boolean onTouchEvent(MotionEvent event) {"
+        errorLine2="                   ~~~~~~~~~~~~">
+        <location
+            file="../../components/browser_ui/bottomsheet/android/internal/java/src/org/chromium/components/browser_ui/bottomsheet/TouchRestrictingFrameLayout.java"
+            line="46"
+            column="20"/>
+    </issue>
+
+    <issue
+        id="KeyboardInaccessibleWidget"
+        message="&apos;clickable&apos; attribute found, please also add &apos;focusable&apos;"
+        errorLine1="                android:clickable=&quot;true&quot;"
+        errorLine2="                ~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="../../components/browser_ui/contacts_picker/android/java/res/layout/contacts_list_item_view.xml"
+            line="52"
+            column="17"/>
+    </issue>
+
+    <issue
+        id="KeyboardInaccessibleWidget"
+        message="&apos;clickable&apos; attribute found, please also add &apos;focusable&apos;"
+        errorLine1="                android:clickable=&quot;true&quot;"
+        errorLine2="                ~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="../../components/browser_ui/contacts_picker/android/java/res/layout/contacts_list_item_view.xml"
+            line="76"
+            column="17"/>
+    </issue>
+
+    <issue
+        id="KeyboardInaccessibleWidget"
+        message="&apos;clickable&apos; attribute found, please also add &apos;focusable&apos;"
+        errorLine1="                android:clickable=&quot;true&quot;"
+        errorLine2="                ~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="../../components/browser_ui/contacts_picker/android/java/res/layout/contacts_list_item_view.xml"
+            line="100"
+            column="17"/>
+    </issue>
+
+    <issue
+        id="KeyboardInaccessibleWidget"
+        message="&apos;clickable&apos; attribute found, please also add &apos;focusable&apos;"
+        errorLine1="        android:clickable=&quot;true&quot;"
+        errorLine2="        ~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="../../components/browser_ui/photo_picker/android/java/res/layout/photo_picker_dialog.xml"
+            line="43"
+            column="9"/>
+    </issue>
+
+    <issue
+        id="KeyboardInaccessibleWidget"
+        message="&apos;clickable&apos; attribute found, please also add &apos;focusable&apos;"
+        errorLine1="            android:clickable=&quot;true&quot; >"
+        errorLine2="            ~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="../../chrome/android/java/res/layout/search_activity.xml"
+            line="30"
+            column="13"/>
+    </issue>
+
+    <issue
+        id="KeyboardInaccessibleWidget"
+        message="&apos;clickable&apos; attribute found, please also add &apos;focusable&apos;"
+        errorLine1="    android:clickable=&quot;true&quot;"
+        errorLine2="    ~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="../../chrome/browser/ui/android/toolbar/java/res/layout/start_top_toolbar.xml"
+            line="15"
+            column="5"/>
+    </issue>
+
+    <issue
+        id="KeyboardInaccessibleWidget"
+        message="&apos;clickable&apos; attribute found, please also add &apos;focusable&apos;"
+        errorLine1="        android:clickable=&quot;true&quot;"
+        errorLine2="        ~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="../../components/browser_ui/photo_picker/android/java/res/layout/video_player.xml"
+            line="39"
+            column="9"/>
+    </issue>
+
+    <issue
+        id="KeyboardInaccessibleWidget"
+        message="&apos;clickable&apos; attribute found, please also add &apos;focusable&apos;"
+        errorLine1="                android:clickable=&quot;true&quot;"
+        errorLine2="                ~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="../../components/browser_ui/photo_picker/android/java/res/layout/video_player.xml"
+            line="101"
+            column="17"/>
+    </issue>
+
+    <issue
+        id="KeyboardInaccessibleWidget"
+        message="&apos;clickable&apos; attribute found, please also add &apos;focusable&apos;"
+        errorLine1="                android:clickable=&quot;true&quot;"
+        errorLine2="                ~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="../../components/browser_ui/photo_picker/android/java/res/layout/video_player.xml"
+            line="126"
+            column="17"/>
+    </issue>
+
+</issues>

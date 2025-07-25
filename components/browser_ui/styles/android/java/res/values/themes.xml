@@ -1,0 +1,65 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+Copyright 2021 The Chromium Authors
+Use of this source code is governed by a BSD-style license that can be
+found in the LICENSE file.
+-->
+
+<resources xmlns:tools="http://schemas.android.com/tools">
+    <!-- Theme overlays -->
+
+    <!-- Fullscreen -->
+    <style name="Base.ThemeOverlay.BrowserUI.Fullscreen" parent="">
+        <!-- android:windowContentTransitions is set to true in Theme.Chromium.WithWindowAnimation,
+             which causes a cryptic crash in EditorDialog. See: https://crbug.com/1254821. -->
+        <item name="android:windowContentTransitions">false</item>
+    </style>
+    <style name="ThemeOverlay.BrowserUI.Fullscreen"
+        parent="Base.ThemeOverlay.BrowserUI.Fullscreen" />
+
+    <!-- Applied to the SettingsActivity's AppBarLayout to disable the
+         liftOnScroll color-fill effect. -->
+    <style name="ThemeOverlay.Settings.DisableElevationOverlay" parent="">
+        <item name="elevationOverlayEnabled">false</item>
+    </style>
+
+    <!-- Updated Clank Baseline Surface-N Colors. See https://crbug.com/1410537. -->
+    <style name="SurfaceColorsThemeOverlay" parent="">
+        <item name="elevationOverlayColor">@color/gm3_baseline_surface_tint</item>
+        <item name="elevationOverlayAccentColor">@android:color/transparent</item>
+        <item name="tileViewIconBackgroundModern">@drawable/oval_surface_2</item>
+        <item name="cardElevation">@dimen/default_elevation_2</item>
+    </style>
+
+    <style name="ThemeOverlay.BrowserUI.DynamicColors" parent="ThemeOverlay.Material3.DynamicColors.DayNight">
+        <item name="elevationOverlayColor">?attr/colorPrimary</item>
+        <item name="elevationOverlayAccentColor">@android:color/transparent</item>
+        <!-- android:textColorHighlight applied by Material3 is too dark, so we override it with our
+             own color state list to specify a lower alpha. -->
+        <item name="android:textColorHighlight">@color/text_highlight_color</item>
+        <!-- android:textColorHint applied by Material3 is too faint, so we override it with our own
+             color state list. -->
+        <item name="android:textColorHint">@color/default_text_color_hint_list</item>
+    </style>
+
+    <!-- Add a persistent back button toolbar to automotive -->
+    <style name="ThemeOverlay.BrowserUI.Automotive.PersistentBackButtonToolbar" parent="">
+        <item name="windowActionBar">true</item>
+        <item name="windowNoTitle">false</item>
+        <item name="actionBarStyle">@style/ActionBarWithBackButton</item>
+        <item name="actionBarTheme">@style/DarkModeActionBarTheme</item>
+    </style>
+
+    <!-- Black action bar with back button -->
+    <style name="ActionBarWithBackButton">
+        <item name="displayOptions">homeAsUp</item>
+        <item name="homeAsUpIndicator">@drawable/ic_arrow_back_24dp</item>
+    </style>
+
+    <style name="DarkModeActionBarTheme">
+        <item name="background">@android:color/black</item>
+        <item name="colorControlNormal">@android:color/white</item>
+        <!-- Click event uses dark mode colors -->
+        <item name="colorControlHighlight">@color/ripple_material_dark</item>
+    </style>
+</resources>

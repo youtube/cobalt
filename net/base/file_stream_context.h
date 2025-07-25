@@ -53,7 +53,7 @@ class IOBuffer;
 
 #if BUILDFLAG(IS_WIN)
 class FileStream::Context : public base::MessagePumpForIO::IOHandler {
-#elif BUILDFLAG(IS_POSIX) || BUILDFLAG(IS_FUCHSIA) || defined(STARBOARD)
+#elif BUILDFLAG(IS_POSIX) || BUILDFLAG(IS_FUCHSIA)
 class FileStream::Context {
 #endif
 
@@ -69,7 +69,7 @@ class FileStream::Context {
   Context& operator=(const Context&) = delete;
 #if BUILDFLAG(IS_WIN)
   ~Context() override;
-#elif BUILDFLAG(IS_POSIX) || BUILDFLAG(IS_FUCHSIA) || defined(STARBOARD)
+#elif BUILDFLAG(IS_POSIX) || BUILDFLAG(IS_FUCHSIA)
   ~Context();
 #endif
 
@@ -109,10 +109,6 @@ class FileStream::Context {
     IOResult();
     IOResult(int64_t result, logging::SystemErrorCode os_error);
     static IOResult FromOSError(logging::SystemErrorCode os_error);
-#if defined(STARBOARD)
-    static IOResult FromFileError(
-        base::File::Error file_error, logging::SystemErrorCode os_error);
-#endif
 
     int64_t result;
     logging::SystemErrorCode os_error;  // Set only when result < 0.
@@ -211,7 +207,7 @@ class FileStream::Context {
   // the ReadFile API.
   void ReadAsyncResult(BOOL read_file_ret, DWORD bytes_read, DWORD os_error);
 
-#elif BUILDFLAG(IS_POSIX) || BUILDFLAG(IS_FUCHSIA) || defined(STARBOARD)
+#elif BUILDFLAG(IS_POSIX) || BUILDFLAG(IS_FUCHSIA)
   // ReadFileImpl() is a simple wrapper around read() that handles EINTR
   // signals and calls RecordAndMapError() to map errno to net error codes.
   IOResult ReadFileImpl(scoped_refptr<IOBuffer> buf, int buf_len);

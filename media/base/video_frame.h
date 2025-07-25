@@ -41,7 +41,7 @@
 
 #if BUILDFLAG(IS_APPLE)
 #include <CoreVideo/CVPixelBuffer.h>
-#include "base/mac/scoped_cftyperef.h"
+#include "base/apple/scoped_cftyperef.h"
 #endif  // BUILDFLAG(IS_APPLE)
 
 #if BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_CHROMEOS)
@@ -59,24 +59,21 @@ namespace media {
 // encoder/decoder. Currently, we have (1) one shared image (and texture)
 // created for single planar formats eg. RGBA (2) multiple shared images created
 // for multiplanar formats eg. P010, NV12 with one shared image for each plane
-// eg. Y and UV passing ResourceFormat (or BufferFormat) RED_8, RG_88, R_16 etc.
-// and (3) one shared image created for multiplanar formats passing in
-// ResourceFormat (or BufferFormat) used with external sampler. With
-// SharedImageFormats, we can have single planar format eg. RGBA created with
-// SharedImageFormat::SinglePlane() and multiplanar formats created with
-// SharedImageFormat::MultiPlane(). This enum helps with differentiating between
-// 3 cases between current format and SharedImageFormat (1) Legacy
-// single/multiplanar format i.e. Resource/BufferFormat (2) SharedImageFormat
-// without external sampler and (3) SharedImageFormat with external sampler.
-// NOTE: This enum is interim until all clients are converted to use
-// SharedImageFormat, then it can be replaced with bool for external sampler
-// usage.
+// eg. Y and UV passing singleplanar SharedImageFormats (kR_8, kRG_88, kR_16,
+// etc.) and (3) one shared image created for multiplanar formats passing in
+// legacy multiplanar SharedImageFormats that are used with external sampler.
+// As we roll out usage of MultiPlaneFormat, this enum helps with
+// differentiating between 3 cases: (1) SinglePlaneFormat/LegacyMultiPlaneFormat
+// (2) MultiPlaneFormat without external sampler, and (3) MultiPlaneFormat with
+// external sampler. NOTE: This enum is interim until all clients are converted
+// to use MultiPlaneFormat for all multiplanar use cases; then it will be
+// replaced with bool for external sampler usage.
 enum class SharedImageFormatType : uint8_t {
-  // Legacy formats eg. BufferFormat/ResourceFormat::YUV_420_BIPLANAR, RGBA_888
+  // SinglePlaneFormat/LegacyMultiPlaneFormat
   kLegacy,
-  // SharedImageFormat without external sampler
+  // MultiPlaneFormat without external sampler
   kSharedImageFormat,
-  // SharedImageFormat with external sampler
+  // MultiPlaneFormat with external sampler
   kSharedImageFormatExternalSampler,
 };
 
@@ -548,11 +545,8 @@ class MEDIA_EXPORT VideoFrame : public base::RefCountedThreadSafe<VideoFrame> {
   const gfx::Size& natural_size() const { return natural_size_; }
 
   int stride(size_t plane) const {
-    if (UNLIKELY(!IsValidPlane(format(), plane) ||
-                 plane >= layout_.num_planes())) {
-      NOTREACHED();
-      return 0;
-    }
+    CHECK(IsValidPlane(format(), plane));
+    CHECK_LT(plane, layout_.num_planes());
     return layout_.planes()[plane].stride;
   }
 
@@ -829,11 +823,18 @@ class MEDIA_EXPORT VideoFrame : public base::RefCountedThreadSafe<VideoFrame> {
   // the same DMABUF memory by testing for
   // (&vf1->DmabufFds() == &vf2->DmabufFds()).
   scoped_refptr<DmabufHolder> dmabuf_fds_;
+
+  friend scoped_refptr<VideoFrame>
+  WrapChromeOSCompressedGpuMemoryBufferAsVideoFrame(
+      const gfx::Rect& visible_rect,
+      const gfx::Size& natural_size,
+      std::unique_ptr<gfx::GpuMemoryBuffer> gpu_memory_buffer,
+      base::TimeDelta timestamp);
 #endif
 
 #if BUILDFLAG(IS_APPLE)
   // CVPixelBuffer, if this frame is wrapping one.
-  base::ScopedCFTypeRef<CVPixelBufferRef> cv_pixel_buffer_;
+  base::apple::ScopedCFTypeRef<CVPixelBufferRef> cv_pixel_buffer_;
 #endif
 
   base::Lock done_callbacks_lock_;

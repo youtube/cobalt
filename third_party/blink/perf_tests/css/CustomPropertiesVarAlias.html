@@ -1,0 +1,40 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <script src="../resources/runner.js"></script>
+    <script src="resources/utils.js"></script>
+</head>
+<body>
+    <div id=target></div>
+</body>
+    <script>
+        const propCount = 2000;
+
+        // Create a rule which defines 'propCount' custom properties with a
+        // linear var()-dependency on eachother.
+        function createRule() {
+            let lines = ['#target {'];
+            for (let i = 0; i < propCount; i++) {
+                let value = '#fefefe';
+                if (i > 0) {
+                    value = `var(--prop-${i-1})`;
+                }
+                lines.push(`--prop-${i}: ${value};`);
+            }
+            lines.push('}');
+            return lines.join('\n');
+        }
+
+        applyCSSRule(createRule());
+
+        PerfTestRunner.measureTime({
+            description: 'Measures performance of var()-as-alias resolution',
+            run: function() {
+                target.style = 'display: none';
+                forceStyleRecalc(target);
+                target.style = '';
+                getComputedStyle(target).getPropertyValue('--prop-'+(propCount-1));
+            }
+        });
+    </script>
+</html>

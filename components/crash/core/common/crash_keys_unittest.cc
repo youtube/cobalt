@@ -1,4 +1,4 @@
-// Copyright 2013 The Chromium Authors. All rights reserved.
+// Copyright 2013 The Chromium Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -11,6 +11,7 @@
 #include "base/debug/crash_logging.h"
 #include "base/format_macros.h"
 #include "base/strings/string_piece.h"
+#include "base/strings/string_util.h"
 #include "base/strings/stringprintf.h"
 #include "components/crash/core/common/crash_key.h"
 #include "testing/gtest/include/gtest/gtest.h"
@@ -24,7 +25,7 @@ class CrashKeysTest : public testing::Test {
  public:
   void SetUp() override {
     ResetData();
-    crash_reporter::InitializeCrashKeys();
+    crash_reporter::InitializeCrashKeysForTesting();
   }
 
   void TearDown() override {
@@ -110,4 +111,33 @@ TEST_F(CrashKeysTest, FilterFlags) {
     EXPECT_EQ(switch_value, GetCrashKeyValue(switch_name))
         << "switch_name is " << switch_name;
   }
+}
+
+TEST_F(CrashKeysTest, PrinterInfoReset) {
+  // After ScopedPrinterInfo goes out of scope, printer keys should be reset.
+  {
+    const std::vector<std::string> kPrinterInfoFull{"1", "2", "3", "4"};
+    crash_keys::ScopedPrinterInfo keys(kPrinterInfoFull);
+    EXPECT_EQ(GetCrashKeyValue("prn-info-1"), "1");
+    EXPECT_EQ(GetCrashKeyValue("prn-info-2"), "2");
+    EXPECT_EQ(GetCrashKeyValue("prn-info-3"), "3");
+    EXPECT_EQ(GetCrashKeyValue("prn-info-4"), "4");
+  }
+  EXPECT_TRUE(GetCrashKeyValue("prn-info-1").empty());
+  EXPECT_TRUE(GetCrashKeyValue("prn-info-2").empty());
+  EXPECT_TRUE(GetCrashKeyValue("prn-info-3").empty());
+  EXPECT_TRUE(GetCrashKeyValue("prn-info-4").empty());
+}
+
+TEST_F(CrashKeysTest, PrinterInfoContainsSemicolon) {
+  // Provided data containing semicolons does not get split between keys.
+  constexpr char kWithoutSemicolon[] = "printer name";
+  constexpr char kWithSemicolon[] = "CUPS version 1.2; OS version 3.4";
+  const std::vector<std::string> kPrinterInfo{kWithoutSemicolon,
+                                              kWithSemicolon};
+  crash_keys::ScopedPrinterInfo keys(kPrinterInfo);
+  EXPECT_EQ(GetCrashKeyValue("prn-info-1"), kWithoutSemicolon);
+  EXPECT_EQ(GetCrashKeyValue("prn-info-2"), kWithSemicolon);
+  EXPECT_TRUE(GetCrashKeyValue("prn-info-3").empty());
+  EXPECT_TRUE(GetCrashKeyValue("prn-info-4").empty());
 }

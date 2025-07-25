@@ -72,10 +72,6 @@ NET_EXPORT bool ParseMimeType(const std::string& type_str,
                               std::string* mime_type,
                               base::StringPairs* params);
 
-#if defined(STARBOARD)
-NET_EXPORT bool IsSupportedImageMimeType(const std::string& mime_type);
-#endif
-
 // Returns true if the |type_string| is a correctly-formed mime type specifier
 // with no parameter, i.e. string that matches the following ABNF (see the
 // definition of content ABNF in RFC2045 and media-type ABNF httpbis p2

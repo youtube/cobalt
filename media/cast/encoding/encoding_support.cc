@@ -4,15 +4,6 @@
 
 #include "media/cast/encoding/external_video_encoder.h"
 
-#if DCHECK_IS_ON()
-#include <ios>
-#endif
-
-#if BUILDFLAG(IS_CHROMEOS)
-#include "base/cpu.h"            // nogncheck
-#include "base/no_destructor.h"  // nogncheck
-#endif
-
 #include "base/command_line.h"
 #include "build/build_config.h"
 #include "media/base/media_switches.h"
@@ -58,14 +49,12 @@ bool IsHardwareVP8EncodingEnabled(
     return false;
   }
 
-  // The hardware encoder on ChromeOS has major issues when connecting to a
-  // variety of first and third party devices. See https://crbug.com/1382591.
-  const bool is_enabled_on_platform = !BUILDFLAG(IS_CHROMEOS);
   const bool is_force_enabled =
       command_line.HasSwitch(switches::kCastStreamingForceEnableHardwareVp8);
 
   return IsHardwareEncodingEnabled(profiles, VP8PROFILE_MIN, VP8PROFILE_MAX,
-                                   is_enabled_on_platform, is_force_enabled);
+                                   /*is_enabled_on_platform=*/true,
+                                   is_force_enabled);
 }
 
 // Scan profiles for hardware H.264 encoder support.
@@ -80,15 +69,6 @@ bool IsHardwareH264EncodingEnabled(
 
   // TODO(crbug.com/1015482): hardware encoder broken on Windows, Apple OSes.
   bool is_enabled_on_platform = !BUILDFLAG(IS_APPLE) && !BUILDFLAG(IS_WIN);
-
-// TODO(b/169533953): hardware encoder broken on AMD chipsets on ChromeOS.
-#if BUILDFLAG(IS_CHROMEOS)
-  static const base::NoDestructor<base::CPU> cpuid;
-  static const bool is_amd = cpuid->vendor_name() == "AuthenticAMD";
-  if (is_amd) {
-    is_enabled_on_platform = false;
-  }
-#endif  // BUILDFLAG(IS_CHROMEOS)
 
   const bool is_force_enabled =
       command_line.HasSwitch(switches::kCastStreamingForceEnableHardwareH264);

@@ -31,7 +31,7 @@
 #include "base/profiler/native_unwinder_android.h"
 #endif
 
-#if BUILDFLAG(IS_WIN) || defined(COMPILER_MSVC)
+#if BUILDFLAG(IS_WIN)
 // Windows doesn't provide an alloca function like Linux does.
 // Fortunately, it provides _alloca, which functions identically.
 #include <malloc.h>
@@ -128,7 +128,8 @@ NativeUnwinderAndroidMapDelegateForTesting* GetMapDelegateForTesting() {
 std::unique_ptr<NativeUnwinderAndroid> CreateNativeUnwinderAndroidForTesting(
     uintptr_t exclude_module_with_base_address) {
   return std::make_unique<NativeUnwinderAndroid>(
-      exclude_module_with_base_address, GetMapDelegateForTesting());
+      exclude_module_with_base_address, GetMapDelegateForTesting(),
+      /*is_java_name_hashing_enabled=*/false);
 }
 
 std::unique_ptr<Unwinder> CreateChromeUnwinderAndroidForTesting(
@@ -276,7 +277,6 @@ NOINLINE FunctionAddressRange CallWithAlloca(OnceClosure wait_for_sample) {
   return {start_program_counter, end_program_counter};
 }
 
-#if !defined(STARBOARD)
 // Disable inlining for this function so that it gets its own stack frame.
 NOINLINE FunctionAddressRange
 CallThroughOtherLibrary(NativeLibrary library, OnceClosure wait_for_sample) {
@@ -296,7 +296,6 @@ CallThroughOtherLibrary(NativeLibrary library, OnceClosure wait_for_sample) {
   const void* volatile end_program_counter = GetProgramCounter();
   return {start_program_counter, end_program_counter};
 }
-#endif
 
 void WithTargetThread(UnwindScenario* scenario,
                       ProfileCallback profile_callback) {
@@ -426,13 +425,12 @@ void ExpectStackDoesNotContain(
   }
 }
 
-#if !defined(STARBOARD)
 NativeLibrary LoadTestLibrary(StringPiece library_name) {
   // The lambda gymnastics works around the fact that we can't use ASSERT_*
   // macros in a function returning non-null.
   const auto load = [&](NativeLibrary* library) {
     FilePath library_path;
-#if BUILDFLAG(IS_FUCHSIA)
+#if BUILDFLAG(IS_FUCHSIA) || BUILDFLAG(IS_IOS)
     // TODO(crbug.com/1262430): Find a solution that works across platforms.
     ASSERT_TRUE(PathService::Get(DIR_ASSETS, &library_path));
 #else
@@ -463,7 +461,6 @@ uintptr_t GetAddressInOtherLibrary(NativeLibrary library) {
   EXPECT_NE(address, 0u);
   return address;
 }
-#endif
 
 StackSamplingProfiler::UnwindersFactory CreateCoreUnwindersFactoryForTesting(
     ModuleCache* module_cache) {

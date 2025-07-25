@@ -9,12 +9,12 @@
 #include <stdint.h>
 
 #include <iterator>
+#include <limits>
 #include <memory>
 #include <ostream>
 #include <type_traits>
 #include <unordered_map>
 #include <utility>
-#include <limits>
 
 #include "base/check.h"
 #include "base/check_op.h"

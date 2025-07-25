@@ -1,22 +1,19 @@
-// Copyright 2017 The Chromium Authors. All rights reserved.
+// Copyright 2017 The Chromium Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
 #include "components/ukm/observers/history_delete_observer.h"
 
-#include "components/history/core/browser/history_service.h"
-
 namespace ukm {
 
-HistoryDeleteObserver::HistoryDeleteObserver() : history_observer_(this) {}
+HistoryDeleteObserver::HistoryDeleteObserver() {}
 
 HistoryDeleteObserver::~HistoryDeleteObserver() {}
 
 void HistoryDeleteObserver::ObserveServiceForDeletions(
     history::HistoryService* history_service) {
-  if (history_service) {
-    history_observer_.Add(history_service);
-  }
+  if (history_service)
+    history_observations_.AddObservation(history_service);
 }
 
 void HistoryDeleteObserver::OnURLsDeleted(
@@ -28,7 +25,7 @@ void HistoryDeleteObserver::OnURLsDeleted(
 
 void HistoryDeleteObserver::HistoryServiceBeingDeleted(
     history::HistoryService* history_service) {
-  history_observer_.Remove(history_service);
+  history_observations_.RemoveObservation(history_service);
 }
 
 }  // namespace ukm

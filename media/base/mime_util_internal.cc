@@ -102,6 +102,9 @@ const StringToCodecMap& GetStringToCodecMap() {
       {"dtsx", MimeUtil::DTSXP2},
       {"mp4a.b2", MimeUtil::DTSXP2},
       {"mp4a.B2", MimeUtil::DTSXP2},
+      {"ac-4", MimeUtil::AC4},
+      {"mp4a.ae", MimeUtil::AC4},
+      {"mp4a.AE", MimeUtil::AC4},
   });
 
   return *kStringToCodecMap;
@@ -197,8 +200,8 @@ AudioCodec MimeUtilToAudioCodec(MimeUtil::Codec codec) {
       return AudioCodec::kDTSXP2;
     case MimeUtil::DTSE:
       return AudioCodec::kDTSE;
-    case MimeUtil::IAMF:
-      return AudioCodec::kIAMF;
+    case MimeUtil::AC4:
+      return AudioCodec::kAC4;
     default:
       break;
   }
@@ -304,7 +307,9 @@ void MimeUtil::AddSupportedMediaFormats() {
 
   CodecSet ogg_video_codecs{VP8};
 #if BUILDFLAG(ENABLE_FFMPEG_VIDEO_DECODERS)
-  ogg_video_codecs.emplace(THEORA);
+  if (base::FeatureList::IsEnabled(kTheoraVideoCodec)) {
+    ogg_video_codecs.emplace(THEORA);
+  }
 #endif  // BUILDFLAG(ENABLE_FFMPEG_VIDEO_DECODERS)
 
   CodecSet ogg_codecs(ogg_audio_codecs);
@@ -340,6 +345,10 @@ void MimeUtil::AddSupportedMediaFormats() {
   mp4_audio_codecs.emplace(EAC3);
 #endif  // BUILDFLAG(ENABLE_PLATFORM_AC3_EAC3_AUDIO)
 
+#if BUILDFLAG(ENABLE_PLATFORM_AC4_AUDIO)
+  mp4_audio_codecs.emplace(AC4);
+#endif  // BUILDFLAG(ENABLE_PLATFORM_AC4_AUDIO)
+
 #if BUILDFLAG(ENABLE_PLATFORM_MPEG_H_AUDIO)
   mp4_audio_codecs.emplace(MPEG_H_AUDIO);
 #endif  // BUILDFLAG(ENABLE_PLATFORM_MPEG_H_AUDIO)
@@ -362,10 +371,6 @@ void MimeUtil::AddSupportedMediaFormats() {
   mp4_audio_codecs.emplace(DTSXP2);
   mp4_audio_codecs.emplace(DTSE);
 #endif  // BUILDFLAG(ENABLE_PLATFORM_DTS_AUDIO)
-
-#if BUILDFLAG(ENABLE_PLATFORM_IAMF_AUDIO)
-  mp4_audio_codecs.emplace(IAMF);
-#endif  // BUILDFLAG(ENABLE_PLATFORM_IAMF_AUDIO)
 
   CodecSet mp4_codecs(mp4_audio_codecs);
   mp4_codecs.insert(mp4_video_codecs.begin(), mp4_video_codecs.end());
@@ -402,10 +407,6 @@ void MimeUtil::AddSupportedMediaFormats() {
   video_3gpp_codecs.emplace(H264);
   AddContainerWithCodecs("video/3gpp", video_3gpp_codecs);
 
-#if BUILDFLAG(ENABLE_MSE_MPEG2TS_STREAM_PARSER)
-  CodecSet mp2t_codecs{H264, MPEG2_AAC, MPEG4_AAC, MP3};
-  AddContainerWithCodecs("video/mp2t", mp2t_codecs);
-#endif  // BUILDFLAG(ENABLE_MSE_MPEG2TS_STREAM_PARSER)
 #if BUILDFLAG(IS_ANDROID)
   if (base::FeatureList::IsEnabled(kCanPlayHls)) {
     // HTTP Live Streaming (HLS).
@@ -640,14 +641,10 @@ bool MimeUtil::IsCodecSupportedOnAndroid(Codec codec,
       return is_encrypted ? platform_info.has_platform_vp8_decoder : true;
 
     case VP9: {
-#if !defined(STARBOARD)
-      // Cobalt doesn't support `kReportVp9AsAnUnsupportedMimeType` command line
-      // switch.
       if (base::CommandLine::ForCurrentProcess()->HasSwitch(
               switches::kReportVp9AsAnUnsupportedMimeType)) {
         return false;
       }
-#endif  // !defined(STARBOARD)
 
       // If clear, the unified pipeline can always decode VP9.0,1 in software.
       // If we don't know the profile, then support is ambiguous, but default to
@@ -688,7 +685,7 @@ bool MimeUtil::IsCodecSupportedOnAndroid(Codec codec,
       return false;
 #endif
 
-    case IAMF:
+    case AC4:
       return false;
   }
 
@@ -883,9 +880,9 @@ bool MimeUtil::ParseCodecHelper(base::StringPiece mime_type_lower_case,
   }
 #endif
 
-#if BUILDFLAG(ENABLE_PLATFORM_IAMF_AUDIO)
-  if (ParseIamfCodecId(codec_id.data(), nullptr, nullptr)) {
-    out_result->codec = MimeUtil::IAMF;
+#if BUILDFLAG(ENABLE_PLATFORM_AC4_AUDIO)
+  if (ParseDolbyAc4CodecId(codec_id.data(), nullptr, nullptr, nullptr)) {
+    out_result->codec = MimeUtil::AC4;
     return true;
   }
 #endif

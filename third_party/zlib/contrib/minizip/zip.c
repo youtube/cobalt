@@ -26,11 +26,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <time.h>
-#if defined(USE_SYSTEM_ZLIB)
-#include <zlib.h>
-#else
-#endif
-#include "third_party/zlib/zlib.h"
+#include "zlib.h"
 #include "zip.h"
 
 #ifdef STDC
@@ -42,10 +38,6 @@
     extern int errno;
 #else
 #   include <errno.h>
-#endif
-
-#if defined(STARBOARD)
-#include "third_party/zlib/contrib/minizip/iostarboard.h"
 #endif
 
 
@@ -534,8 +526,8 @@ local ZPOS64_T zip64local_SearchCentralDir(const zlib_filefunc64_32_def* pzlib_f
         break;
       }
 
-    if (uPosFound!=0)
-      break;
+      if (uPosFound!=0)
+        break;
   }
   TRYFREE(buf);
   return uPosFound;
@@ -863,11 +855,7 @@ extern zipFile ZEXPORT zipOpen3 (const void *pathname, int append, zipcharpc* gl
     ziinit.z_filefunc.zseek32_file = NULL;
     ziinit.z_filefunc.ztell32_file = NULL;
     if (pzlib_filefunc64_32_def==NULL)
-#if defined(STARBOARD)
-        fill_starboard_filefunc64(&ziinit.z_filefunc.zfile_func64);
-#else
         fill_fopen64_filefunc(&ziinit.z_filefunc.zfile_func64);
-#endif
     else
         ziinit.z_filefunc = *pzlib_filefunc64_32_def;
 
@@ -1094,6 +1082,17 @@ extern int ZEXPORT zipOpenNewFileInZip4_64 (zipFile file, const char* filename, 
     if ((method!=0) && (method!=Z_DEFLATED))
       return ZIP_PARAMERROR;
 #endif
+
+    // The filename and comment length must fit in 16 bits.
+    if ((filename!=NULL) && (strlen(filename)>0xffff))
+        return ZIP_PARAMERROR;
+    if ((comment!=NULL) && (strlen(comment)>0xffff))
+        return ZIP_PARAMERROR;
+    // The extra field length must fit in 16 bits. If the member also requires
+    // a Zip64 extra block, that will also need to fit within that 16-bit
+    // length, but that will be checked for later.
+    if ((size_extrafield_local>0xffff) || (size_extrafield_global>0xffff))
+        return ZIP_PARAMERROR;
 
     zi = (zip64_internal*)file;
 

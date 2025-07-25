@@ -27,7 +27,7 @@
 #include "starboard/shared/starboard/command_line.h"
 #endif
 
-#include "third_party/crashpad/crashpad/wrapper/wrapper.h"
+#include "starboard/crashpad_wrapper/wrapper.h"
 
 int main(int argc, char** argv) {
   // Set M_ARENA_MAX to a low value to slow memory growth due to fragmentation.

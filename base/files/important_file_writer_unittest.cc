@@ -208,9 +208,6 @@ TEST_F(ImportantFileWriterTest, WriteWithObserver) {
   EXPECT_EQ("baz", GetFileContent(writer.path()));
 }
 
-// Disable the test as win32 SbFileOpen doesn't fail on relative path
-// like bad/../path.tmp
-#if !defined(COMPILER_MSVC)
 TEST_F(ImportantFileWriterTest, FailedWriteWithObserver) {
   // Use an invalid file path (relative paths are invalid) to get a
   // FILE_ERROR_ACCESS_DENIED error when trying to write the file.
@@ -228,7 +225,6 @@ TEST_F(ImportantFileWriterTest, FailedWriteWithObserver) {
             write_callback_observer_.GetAndResetObservationState());
   EXPECT_FALSE(PathExists(writer.path()));
 }
-#endif
 
 TEST_F(ImportantFileWriterTest, CallbackRunsOnWriterThread) {
   base::Thread file_writer_thread("ImportantFileWriter test thread");
@@ -371,7 +367,6 @@ TEST_F(ImportantFileWriterTest, DoScheduledWrite_FailToSerialize) {
   histogram_tester.ExpectTotalCount("ImportantFile.WriteDuration", 0);
 }
 
-#if !defined(STARBOARD)
 TEST_F(ImportantFileWriterTest, ScheduleWriteWithBackgroundDataSerializer) {
   base::HistogramTester histogram_tester;
   base::Thread file_writer_thread("ImportantFileWriter test thread");
@@ -406,7 +401,6 @@ TEST_F(ImportantFileWriterTest, ScheduleWriteWithBackgroundDataSerializer) {
   histogram_tester.ExpectTotalCount("ImportantFile.SerializationDuration", 1);
   histogram_tester.ExpectTotalCount("ImportantFile.WriteDuration", 1);
 }
-#endif  // !defined(STARBOARD)
 
 TEST_F(ImportantFileWriterTest,
        ScheduleWriteWithBackgroundDataSerializer_FailToSerialize) {
@@ -455,7 +449,6 @@ TEST_F(ImportantFileWriterTest, WriteLargeFile) {
   EXPECT_EQ(large_data, actual);
 }
 
-#if !defined(STARBOARD)
 // Verify that a UMA metric for the serialization duration is recorded.
 TEST_F(ImportantFileWriterTest, SerializationDuration) {
   base::HistogramTester histogram_tester;
@@ -483,6 +476,5 @@ TEST_F(ImportantFileWriterTest, SerializationDurationWithCustomSuffix) {
                                     1);
   histogram_tester.ExpectTotalCount("ImportantFile.WriteDuration.Foo", 1);
 }
-#endif  // !defined(STARBOARD)
 
 }  // namespace base

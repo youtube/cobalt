@@ -28,9 +28,12 @@ chromium-metrics-reviews@google.com.
   <variant name="CachedImageFetcherDatabase"
       summary="Database for CachedImageFetcher metadata."/>
   <variant name="CartDatabase" summary="Database for chrome cart."/>
+  <variant name="CommerceParcelTrackingDatabase"
+      summary="Database for Chrome commerce parcel tracking."/>
   <variant name="CommerceSubscriptionDatabase"
       summary="Database for Chrome commerce subscriptions."/>
   <variant name="CouponDatabase" summary="Database for coupons in Chrome."/>
+  <variant name="DiscountsDatabase" summary="Database for shopping discounts."/>
   <variant name="DownloadDB" summary="Databases for in-progress download."/>
   <variant name="DownloadService" summary="Databases for download service."/>
   <variant name="FeatureEngagementTrackerAvailabilityStore"
@@ -50,6 +53,12 @@ chromium-metrics-reviews@google.com.
   <variant name="MerchantTrustSignalDatabase"
       summary="Database for Chrome merchant trust signals events."/>
   <variant name="Metadata" summary="Metadata of shared databases"/>
+  <variant name="NearbyPresenceLocalPublicCredentialDatabase"
+      summary="Database for Nearby Presence local public credentials."/>
+  <variant name="NearbyPresencePrivateCredentialDatabase"
+      summary="Database for Nearby Presence private credentials."/>
+  <variant name="NearbyPresenceRemotePublicCredentialDatabase"
+      summary="Database for Nearby Presence remote public credentials."/>
   <variant name="NearbySharePublicCertificateDatabase"
       summary="Database for Nearby Share public certificates."/>
   <variant name="NotificationSchedulerIcons"
@@ -107,7 +116,7 @@ chromium-metrics-reviews@google.com.
 </variants>
 
 <histogram name="LevelDB.ApproximateMemTableMemoryUse.{LevelDBClient}"
-    units="bytes" expires_after="2023-08-26">
+    units="bytes" expires_after="2024-03-17">
   <owner>nyquist@chromium.org</owner>
   <owner>salg@google.com</owner>
   <owner>chrome-owp-storage@google.com</owner>
@@ -119,7 +128,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="ProtoDB.DestroySuccess.{LevelDBClient}" enum="BooleanSuccess"
-    expires_after="2023-08-26">
+    expires_after="2024-01-14">
   <owner>nyquist@chromium.org</owner>
   <owner>ssid@chromium.org</owner>
   <summary>Whether a ProtoDB Destroy call was successful or not.</summary>
@@ -127,7 +136,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="ProtoDB.GetErrorStatus.{LevelDBClient}" enum="LevelDBStatus"
-    expires_after="2023-08-26">
+    expires_after="2024-01-14">
   <owner>nyquist@chromium.org</owner>
   <owner>ssid@chromium.org</owner>
   <summary>
@@ -137,7 +146,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="ProtoDB.GetFound.{LevelDBClient}" enum="Boolean"
-    expires_after="2023-08-26">
+    expires_after="2024-01-14">
   <owner>nyquist@chromium.org</owner>
   <owner>ssid@chromium.org</owner>
   <summary>Whether a ProtoDB Get call found what was requested.</summary>
@@ -145,7 +154,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="ProtoDB.GetSuccess.{LevelDBClient}" enum="BooleanSuccess"
-    expires_after="2023-08-26">
+    expires_after="2024-03-17">
   <owner>nyquist@chromium.org</owner>
   <owner>ssid@chromium.org</owner>
   <summary>Whether a ProtoDB Get call was successful or not.</summary>
@@ -153,7 +162,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="ProtoDB.InitStatus.{LevelDBClient}" enum="LevelDBStatus"
-    expires_after="2023-08-26">
+    expires_after="2024-01-14">
   <owner>nyquist@chromium.org</owner>
   <owner>ssid@chromium.org</owner>
   <summary>The LevelDB Status from a ProtoDatabase Init call.</summary>
@@ -161,7 +170,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="ProtoDB.LoadEntriesSuccess.{LevelDBClient}"
-    enum="BooleanSuccess" expires_after="2023-08-26">
+    enum="BooleanSuccess" expires_after="2024-03-17">
   <owner>nyquist@chromium.org</owner>
   <owner>ssid@chromium.org</owner>
   <summary>Whether a ProtoDB LoadEntries call was successful or not.</summary>
@@ -169,7 +178,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="ProtoDB.LoadKeysAndEntriesSuccess.{LevelDBClient}"
-    enum="BooleanSuccess" expires_after="2023-08-26">
+    enum="BooleanSuccess" expires_after="2024-01-14">
   <owner>nyquist@chromium.org</owner>
   <owner>ssid@chromium.org</owner>
   <summary>
@@ -179,7 +188,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="ProtoDB.LoadKeysSuccess.{LevelDBClient}" enum="BooleanSuccess"
-    expires_after="2023-08-26">
+    expires_after="2024-01-14">
   <owner>nyquist@chromium.org</owner>
   <owner>ssid@chromium.org</owner>
   <summary>Whether a ProtoDB LoadKeys call was successful or not.</summary>
@@ -187,7 +196,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="ProtoDB.SharedDbInitStatus" enum="ProtoDatabaseInitState"
-    expires_after="2023-08-26">
+    expires_after="2024-01-14">
   <owner>ssid@chromium.org</owner>
   <owner>salg@chromium.org</owner>
   <summary>
@@ -201,7 +210,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="ProtoDB.UpdateErrorStatus.{LevelDBClient}"
-    enum="LevelDBStatus" expires_after="2023-08-26">
+    enum="LevelDBStatus" expires_after="2024-03-17">
   <owner>nyquist@chromium.org</owner>
   <owner>ssid@chromium.org</owner>
   <summary>
@@ -211,7 +220,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="ProtoDB.UpdateSuccess.{LevelDBClient}" enum="BooleanSuccess"
-    expires_after="2023-08-26">
+    expires_after="2024-03-17">
   <owner>nyquist@chromium.org</owner>
   <owner>ssid@chromium.org</owner>
   <summary>Whether a ProtoDB UpdateEntries call was successful or not.</summary>

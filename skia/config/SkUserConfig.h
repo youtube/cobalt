@@ -212,8 +212,6 @@ SK_API void SkDebugf_FileLine(const char* file,
 //
 // Remove these as we update our sites.
 
-#define SK_LEGACY_LAYER_BOUNDS_EXPANSION  // skbug.com/12083, skbug.com/12303
-
 // Workaround for poor anisotropic mipmap quality,
 // pending Skia ripmap support.
 // (https://bugs.chromium.org/p/skia/issues/detail?id=4863)
@@ -233,12 +231,19 @@ SK_API void SkDebugf_FileLine(const char* file,
 
 #define SK_SUPPORT_LEGACY_CONIC_CHOP
 
-// To be replaced with SK_ENABLE_SKSL_IN_RASTER_PIPELINE (go/sksl-rp):
-#define SK_ENABLE_SKVM
+#define SK_RESOLVE_FILTERS_BEFORE_RESTORE
 
-// Use the original std::vector based serializer
-// Remove when new streaming support operations has been verified.
-// #define SK_SUPPORT_LEGACY_STRIKE_SERIALIZATION
+#define SK_USE_LEGACY_CONTENT_BOUNDS_PROPAGATION
+
+#define SK_ENABLE_SKSL_IN_RASTER_PIPELINE
+
+#define SK_USE_PADDED_BLUR_UPSCALE
+
+/* When --disable-skia-runtime-opts is set in Chrome (or when SkGraphics::Init
+   is not called), Skia will prefer precision over performance when computing
+   reciprocals and inverse-square roots.
+*/
+#define SK_IMPROVE_RASTER_PIPELINE_PRECISION
 
 ///////////////////////// Imported from BUILD.gn and skia_common.gypi
 
@@ -249,6 +254,9 @@ SK_API void SkDebugf_FileLine(const char* file,
 
 /* Restrict formats for Skia font matching to SFNT type fonts. */
 #define SK_FONT_CONFIG_INTERFACE_ONLY_ALLOW_SFNT_FONTS
+
+// Temporarily enable new strike cache pinning logic, for staging.
+#define SK_STRIKE_CACHE_DOESNT_AUTO_CHECK_PINNERS
 
 #define SK_IGNORE_BLURRED_RRECT_OPT
 #define SK_USE_DISCARDABLE_SCALEDIMAGECACHE

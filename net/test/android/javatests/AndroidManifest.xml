@@ -8,11 +8,11 @@
     xmlns:tools="http://schemas.android.com/tools"
     package="org.chromium.net.test.support">
 
-    <uses-sdk android:minSdkVersion="24" android:targetSdkVersion="34" />
     <uses-permission android:name="android.permission.WRITE_EXTERNAL_STORAGE"/>
     <uses-permission android:name="android.permission.INTERNET"/>
 
-    <application android:label="ChromiumNetTestSupport">
+    <application android:label="ChromiumNetTestSupport"
+             android:name="androidx.multidex.MultiDexApplication">
 
         <uses-library android:name="android.test.runner" />
 

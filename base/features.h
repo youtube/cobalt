@@ -7,6 +7,7 @@
 
 #include "base/base_export.h"
 #include "base/feature_list.h"
+#include "base/metrics/field_trial_params.h"
 
 namespace base::features {
 
@@ -16,12 +17,21 @@ namespace base::features {
 // Alphabetical:
 BASE_EXPORT BASE_DECLARE_FEATURE(kEnforceNoExecutableFileHandles);
 
+BASE_EXPORT BASE_DECLARE_FEATURE(kNotReachedIsFatal);
+
 BASE_EXPORT BASE_DECLARE_FEATURE(kOptimizeDataUrls);
 
-BASE_EXPORT BASE_DECLARE_FEATURE(kSupportsUserDataFlatHashMap);
+BASE_EXPORT BASE_DECLARE_FEATURE(kUseRustJsonParser);
+
+BASE_EXPORT BASE_DECLARE_FEATURE(kJsonNegativeZero);
+
+#if BUILDFLAG(IS_ANDROID) || BUILDFLAG(IS_CHROMEOS)
+BASE_EXPORT BASE_DECLARE_FEATURE(kPartialLowEndModeOn3GbDevices);
+BASE_EXPORT BASE_DECLARE_FEATURE(kPartialLowEndModeOnMidRangeDevices);
+#endif
 
 #if BUILDFLAG(IS_ANDROID)
-BASE_EXPORT BASE_DECLARE_FEATURE(kPartialLowEndModeOnMidRangeDevices);
+BASE_EXPORT BASE_DECLARE_FEATURE(kCollectAndroidFrameTimelineMetrics);
 #endif
 
 }  // namespace base::features

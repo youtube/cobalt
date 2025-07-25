@@ -80,7 +80,6 @@ bool SkTransferFnIsApproximatelyIdentity(const skcms_TransferFunction& a) {
   return true;
 }
 
-#if !defined(STARBOARD)
 bool SkM44IsApproximatelyIdentity(const SkM44& m) {
   const float kEpsilon = 1.f / 256.f;
   for (int i = 0; i < 4; ++i) {
@@ -93,7 +92,6 @@ bool SkM44IsApproximatelyIdentity(const SkM44& m) {
   }
   return true;
 }
-#endif // !defined(STARBOARD)
 
 SkM44 SkM44FromRowMajor3x3(const float* data) {
   DCHECK(data);

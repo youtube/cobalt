@@ -721,11 +721,7 @@ auto flat_tree<Key, GetKeyFromValue, KeyCompare, Container>::begin()
 template <class Key, class GetKeyFromValue, class KeyCompare, class Container>
 constexpr auto flat_tree<Key, GetKeyFromValue, KeyCompare, Container>::begin()
     const -> const_iterator {
-#if defined(STARBOARD)
-  return body_.begin();
-#else
   return ranges::begin(body_);
-#endif
 }
 
 template <class Key, class GetKeyFromValue, class KeyCompare, class Container>
@@ -742,11 +738,7 @@ auto flat_tree<Key, GetKeyFromValue, KeyCompare, Container>::end() -> iterator {
 template <class Key, class GetKeyFromValue, class KeyCompare, class Container>
 constexpr auto flat_tree<Key, GetKeyFromValue, KeyCompare, Container>::end()
     const -> const_iterator {
-#if defined(STARBOARD)
-  return body_.end();
-#else
   return ranges::end(body_);
-#endif
 }
 
 template <class Key, class GetKeyFromValue, class KeyCompare, class Container>
@@ -1089,7 +1081,7 @@ template <class Key, class GetKeyFromValue, class KeyCompare, class Container>
 template <typename K>
 auto flat_tree<Key, GetKeyFromValue, KeyCompare, Container>::lower_bound(
     const K& key) const -> const_iterator {
-  static_assert(std::is_convertible<const KeyTypeOrK<K>&, const K&>::value,
+  static_assert(std::is_convertible_v<const KeyTypeOrK<K>&, const K&>,
                 "Requested type cannot be bound to the container's key_type "
                 "which is required for a non-transparent compare.");
 
@@ -1123,7 +1115,7 @@ template <class Key, class GetKeyFromValue, class KeyCompare, class Container>
 template <typename K>
 auto flat_tree<Key, GetKeyFromValue, KeyCompare, Container>::upper_bound(
     const K& key) const -> const_iterator {
-  static_assert(std::is_convertible<const KeyTypeOrK<K>&, const K&>::value,
+  static_assert(std::is_convertible_v<const KeyTypeOrK<K>&, const K&>,
                 "Requested type cannot be bound to the container's key_type "
                 "which is required for a non-transparent compare.");
 

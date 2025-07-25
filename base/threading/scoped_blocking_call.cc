@@ -19,12 +19,6 @@
 #if DCHECK_IS_ON()
 #include "base/auto_reset.h"
 #include "third_party/abseil-cpp/absl/base/attributes.h"
-#if defined(STARBOARD)
-#include <pthread.h>
-
-#include "base/check_op.h"
-#include "starboard/thread.h"
-#endif
 #endif
 
 namespace base {
@@ -32,30 +26,10 @@ namespace base {
 namespace {
 
 #if DCHECK_IS_ON()
-#if defined(STARBOARD)
-ABSL_CONST_INIT pthread_once_t s_once_flag = PTHREAD_ONCE_INIT;
-ABSL_CONST_INIT pthread_key_t s_thread_local_key = 0;
-
-void InitThreadLocalKey() {
-  int res = pthread_key_create(&s_thread_local_key , NULL);
-  DCHECK(res == 0);
-}
-
-void EnsureThreadLocalKeyInited() {
-  pthread_once(&s_once_flag, InitThreadLocalKey);
-}
-
-bool GetConstructionInProgress() {
-  EnsureThreadLocalKeyInited();
-  void* construction_in_progress = pthread_getspecific(s_thread_local_key);
-  return !!construction_in_progress ? reinterpret_cast<intptr_t>(construction_in_progress) != 0 : false;
-}
-#else
 // Used to verify that the trace events used in the constructor do not result in
 // instantiating a ScopedBlockingCall themselves (which would cause an infinite
 // reentrancy loop).
 ABSL_CONST_INIT thread_local bool construction_in_progress = false;
-#endif
 #endif
 
 }  // namespace
@@ -66,12 +40,7 @@ ScopedBlockingCall::ScopedBlockingCall(const Location& from_here,
           blocking_type,
           UncheckedScopedBlockingCall::BlockingCallType::kRegular) {
 #if DCHECK_IS_ON()
-#if defined(STARBOARD)
-  EnsureThreadLocalKeyInited();
-  pthread_setspecific(s_thread_local_key, reinterpret_cast<void*>(static_cast<intptr_t>(true)));
-#else
   const AutoReset<bool> resetter(&construction_in_progress, true, false);
-#endif
 #endif
 
   internal::AssertBlockingAllowed();
@@ -80,10 +49,6 @@ ScopedBlockingCall::ScopedBlockingCall(const Location& from_here,
         ctx.event()->set_source_location_iid(
             base::trace_event::InternedSourceLocation::Get(&ctx, from_here));
       });
-
-#if DCHECK_IS_ON() && defined(STARBOARD)
-  pthread_setspecific(s_thread_local_key, reinterpret_cast<void*>(static_cast<intptr_t>(false)));
-#endif
 }
 
 ScopedBlockingCall::~ScopedBlockingCall() {
@@ -99,12 +64,7 @@ ScopedBlockingCallWithBaseSyncPrimitives::
           blocking_type,
           UncheckedScopedBlockingCall::BlockingCallType::kBaseSyncPrimitives) {
 #if DCHECK_IS_ON()
-#if defined(STARBOARD)
-  EnsureThreadLocalKeyInited();
-  pthread_setspecific(s_thread_local_key, reinterpret_cast<void*>(static_cast<intptr_t>(true)));
-#else
   const AutoReset<bool> resetter(&construction_in_progress, true, false);
-#endif
 #endif
 
   internal::AssertBaseSyncPrimitivesAllowed();
@@ -116,10 +76,6 @@ ScopedBlockingCallWithBaseSyncPrimitives::
         source_location_data->set_file_name(from_here.file_name());
         source_location_data->set_function_name(from_here.function_name());
       });
-
-#if DCHECK_IS_ON() && defined(STARBOARD)
-  pthread_setspecific(s_thread_local_key, reinterpret_cast<void*>(static_cast<intptr_t>(false)));
-#endif
 }
 
 ScopedBlockingCallWithBaseSyncPrimitives::

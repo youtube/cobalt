@@ -1,4 +1,4 @@
-// Copyright 2014 The Chromium Authors. All rights reserved.
+// Copyright 2014 The Chromium Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -6,20 +6,21 @@
 
 #include <stdint.h>
 #include <utility>
-#include <vector>
 
-#include "base/bind.h"
+#include "base/check.h"
 #include "base/files/file_util.h"
 #include "base/files/memory_mapped_file.h"
+#include "base/functional/bind.h"
 #include "base/location.h"
+#include "base/notreached.h"
 #include "base/strings/string_number_conversions.h"
 #include "base/task/sequenced_task_runner.h"
-#include "components/courgette/courgette.h"
-#include "components/courgette/third_party/bsdiff/bsdiff.h"
 #include "components/update_client/patcher.h"
 #include "components/update_client/update_client.h"
 #include "components/update_client/update_client_errors.h"
 #include "components/update_client/utils.h"
+#include "courgette/courgette.h"
+#include "courgette/third_party/bsdiff/bsdiff.h"
 
 namespace update_client {
 
@@ -52,11 +53,9 @@ DeltaUpdateOp* CreateDeltaUpdateOp(const std::string& operation,
   return nullptr;
 }
 
-DeltaUpdateOp::DeltaUpdateOp() {
-}
+DeltaUpdateOp::DeltaUpdateOp() = default;
 
-DeltaUpdateOp::~DeltaUpdateOp() {
-}
+DeltaUpdateOp::~DeltaUpdateOp() = default;
 
 void DeltaUpdateOp::Run(const base::Value::Dict& command_args,
                         const base::FilePath& input_dir,
@@ -103,22 +102,14 @@ void DeltaUpdateOp::DoneRunning(UnpackerError error, int extended_error) {
 // Uses the hash as a checksum to confirm that the file now residing in the
 // output directory probably has the contents it should.
 UnpackerError DeltaUpdateOp::CheckHash() {
-#if defined(IN_MEMORY_UPDATES)
-  CHECK(false) << "Delta updates not supported for in-memory updates, or "
-               << "for that matter Cobalt";
-  return UnpackerError::kDeltaUnsupportedCommand;
-#else
   return VerifyFileHash256(output_abs_path_, output_sha256_)
              ? UnpackerError::kNone
              : UnpackerError::kDeltaVerificationFailure;
-#endif
 }
 
-DeltaUpdateOpCopy::DeltaUpdateOpCopy() {
-}
+DeltaUpdateOpCopy::DeltaUpdateOpCopy() = default;
 
-DeltaUpdateOpCopy::~DeltaUpdateOpCopy() {
-}
+DeltaUpdateOpCopy::~DeltaUpdateOpCopy() = default;
 
 UnpackerError DeltaUpdateOpCopy::DoParseArguments(
     const base::Value::Dict& command_args,
@@ -141,11 +132,9 @@ void DeltaUpdateOpCopy::DoRun(ComponentPatcher::Callback callback) {
     std::move(callback).Run(UnpackerError::kNone, 0);
 }
 
-DeltaUpdateOpCreate::DeltaUpdateOpCreate() {
-}
+DeltaUpdateOpCreate::DeltaUpdateOpCreate() = default;
 
-DeltaUpdateOpCreate::~DeltaUpdateOpCreate() {
-}
+DeltaUpdateOpCreate::~DeltaUpdateOpCreate() = default;
 
 UnpackerError DeltaUpdateOpCreate::DoParseArguments(
     const base::Value::Dict& command_args,
@@ -162,24 +151,19 @@ UnpackerError DeltaUpdateOpCreate::DoParseArguments(
 }
 
 void DeltaUpdateOpCreate::DoRun(ComponentPatcher::Callback callback) {
-#if !defined(STARBOARD)
   if (!base::Move(patch_abs_path_, output_abs_path_))
     std::move(callback).Run(UnpackerError::kDeltaOperationFailure, 0);
   else
     std::move(callback).Run(UnpackerError::kNone, 0);
-#else
-  std::move(callback).Run(UnpackerError::kDeltaOperationFailure, 0);
-#endif
 }
 
 DeltaUpdateOpPatch::DeltaUpdateOpPatch(const std::string& operation,
                                        scoped_refptr<Patcher> patcher)
     : operation_(operation), patcher_(patcher) {
-  DCHECK(operation == kBsdiff || operation == kCourgette);
+  CHECK(operation == kBsdiff || operation == kCourgette);
 }
 
-DeltaUpdateOpPatch::~DeltaUpdateOpPatch() {
-}
+DeltaUpdateOpPatch::~DeltaUpdateOpPatch() = default;
 
 UnpackerError DeltaUpdateOpPatch::DoParseArguments(
     const base::Value::Dict& command_args,

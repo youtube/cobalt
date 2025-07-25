@@ -1,0 +1,8 @@
+include_rules = [
+  "+components/device_event_log",
+  "+mojo/public",
+  "+skia/ext",
+  "+third_party/cros_system_api",
+  "+third_party/re2",
+  "+ui/gfx",
+]

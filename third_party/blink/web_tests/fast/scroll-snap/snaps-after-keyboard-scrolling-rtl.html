@@ -1,0 +1,87 @@
+<!DOCTYPE html>
+<link rel="help" href="https://drafts.csswg.org/css-scroll-snap-1" />
+<script src="../../resources/testharness.js"></script>
+<script src="../../resources/testharnessreport.js"></script>
+<script src="../../resources/gesture-util.js"></script>
+<style>
+div {
+  position: absolute;
+}
+#scroller {
+  position: relative;
+  margin-left: auto;
+  writing-mode: vertical-rl;
+  width: 400px;
+  height: 400px;
+  overflow: scroll;
+  scroll-snap-type: both mandatory;
+  padding: 0px;
+}
+.snap {
+  width: 200px;
+  height: 200px;
+  background-color: blue;
+  scroll-snap-align: start;
+}
+#space {
+  width: 1000px;
+  height: 1000px;
+}
+.left {
+  left: -400px;
+  top: 0px;
+}
+.right {
+  left: 0px;
+  top: 0px;
+}
+</style>
+
+<div id='scroller'>
+  <div id="space"></div>
+  <div class="snap left" id="left"></div>
+  <div class="snap right" id="right"></div>
+</div>
+
+<script>
+var scroller = document.getElementById("scroller");
+var width = scroller.clientWidth;
+
+function scrollLeft() {
+  return scroller.scrollLeft;
+}
+
+function keyPress(key) {
+  return new Promise((resolve, reject) => {
+    if (window.eventSender) {
+      eventSender.keyDown(key);
+      resolve();
+    }
+    else {
+      reject('This test requires window.eventSender');
+    }
+  })
+}
+
+promise_test (async () => {
+  await mouseClickOn(510, 10);
+  scroller.scrollTo(-615, 0);
+  await waitForAnimationEndTimeBased(scrollLeft);
+  await keyPress("ArrowRight");
+  // The left border of #right is at -width.
+  // The right border of #right is thus 200 - width.
+  // When right-aligned, the scroll position should be 200 - width.
+  await waitForScrollEnd(scroller, scrollLeft, 200 - width);
+}, "Snaps to #right after pressing ArrowRight");
+
+promise_test (async () => {
+  await mouseClickOn(510, 10);
+  scroller.scrollTo(-215, 0);
+  await waitForAnimationEndTimeBased(scrollLeft);
+  await keyPress("ArrowLeft");
+  // The left border of #left is at -(400 + width).
+  // The right border of #left is thus -(200 + width).
+  // When right-aligned, the scroll position should be -(200 + width).
+  await waitForScrollEnd(scroller, scrollLeft, -(200 + width));
+}, "Snaps to #left after pressing ArrowLeft");
+</script>

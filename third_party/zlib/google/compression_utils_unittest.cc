@@ -1,4 +1,4 @@
-// Copyright 2014 The Chromium Authors. All rights reserved.
+// Copyright 2014 The Chromium Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -7,12 +7,9 @@
 #include <stddef.h>
 #include <stdint.h>
 
+#include <iterator>
 #include <string>
 
-#include "base/logging.h"
-#include "base/stl_util.h"
-#include "base/time/time.h"
-#include "starboard/common/log.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
 namespace compression {
@@ -57,13 +54,9 @@ TEST(CompressionUtilsTest, GzipUncompression) {
   EXPECT_EQ(golden_data, uncompressed_data);
 }
 
-TEST(CompressionUtilsTest, GzipUncompressionFromStringPieceToString) {
-  base::StringPiece compressed_data(
-      reinterpret_cast<const char*>(kCompressedData),
-      std::size(kCompressedData));
-
+TEST(CompressionUtilsTest, GzipUncompressionFromSpanToString) {
   std::string uncompressed_data;
-  EXPECT_TRUE(GzipUncompress(compressed_data, &uncompressed_data));
+  EXPECT_TRUE(GzipUncompress(kCompressedData, &uncompressed_data));
 
   std::string golden_data(reinterpret_cast<const char*>(kData),
                           std::size(kData));
@@ -88,39 +81,6 @@ TEST(CompressionUtilsTest, LargeInput) {
 
   EXPECT_EQ(data, uncompressed_data);
 }
-
-#if defined(STARBOARD)
-// Outputs the duration of GzipCompress() and GzipUncompress() with 32MiB of
-// data.
-TEST(CompressionUtilsTest, OutputCompressionAndDecompressionDuration) {
-  // The Cobalt binary is around 32MiB for some platforms.
-  const size_t kSize = 32 * 1024 * 1024;
-
-  // Generate a data string of |kSize| filled with garbage data for testing.
-  std::string data;
-  data.resize(kSize);
-  for (size_t i = 0; i < kSize; ++i)
-    data[i] = static_cast<char>(i & 0xFF);
-
-  int64_t begin = (base::Time::Now() - base::Time::UnixEpoch()).InMicroseconds();
-
-  std::string compressed_data;
-  EXPECT_TRUE(GzipCompress(data, &compressed_data));
-
-  SB_LOG(INFO) << "GzipCompress() of 32MiB took "
-               << ((base::Time::Now() - base::Time::UnixEpoch()).InMicroseconds() - begin) / 1000
-               << " milliseconds.";
-
-  begin = (base::Time::Now() - base::Time::UnixEpoch()).InMicroseconds();
-
-  std::string uncompressed_data;
-  EXPECT_TRUE(GzipUncompress(compressed_data, &uncompressed_data));
-
-  SB_LOG(INFO) << "GzipUncompress() of 32MiB took "
-               << ((base::Time::Now() - base::Time::UnixEpoch()).InMicroseconds() - begin) / 1000
-               << " milliseconds.";
-}
-#endif
 
 TEST(CompressionUtilsTest, InPlace) {
   const std::string original_data(reinterpret_cast<const char*>(kData),

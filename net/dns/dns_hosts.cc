@@ -14,7 +14,6 @@
 #include "base/strings/string_piece.h"
 #include "base/strings/string_util.h"
 #include "base/trace_event/memory_usage_estimator.h"
-#include "base/tracing_buildflags.h"
 #include "build/build_config.h"
 #include "net/base/cronet_buildflags.h"
 #include "net/base/url_util.h"
@@ -206,7 +205,7 @@ void ParseHosts(const std::string& contents, DnsHosts* dns_hosts) {
   // TODO(crbug.com/1377305): Remove this when we have enough data.
   base::UmaHistogramCounts100000("Net.DNS.DnsHosts.Count", dns_hosts->size());
 
-#if BUILDFLAG(ENABLE_BASE_TRACING)
+#if !BUILDFLAG(CRONET_BUILD)
   // Cronet disables tracing and doesn't provide an implementation of
   // base::trace_event::EstimateMemoryUsage for DnsHosts. Having this
   // conditional is preferred over a fake implementation to avoid reporting fake

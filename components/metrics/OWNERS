@@ -1,5 +1,5 @@
 file://base/metrics/OWNERS
 
 per-file *call_stack_profile*=wittman@chromium.org
-
-# COMPONENT: Internals>Metrics
+per-file BUILD.gn=wittman@chromium.org
+per-file DEPS=wittman@chromium.org

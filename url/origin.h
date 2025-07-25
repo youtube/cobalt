@@ -9,32 +9,24 @@
 
 #include <memory>
 #include <string>
+#include <string_view>
 
 #include "base/component_export.h"
 #include "base/debug/alias.h"
 #include "base/debug/crash_logging.h"
 #include "base/gtest_prod_util.h"
-#include "base/strings/string_piece_forward.h"
 #include "base/strings/string_util.h"
 #include "base/trace_event/base_tracing_forward.h"
 #include "base/unguessable_token.h"
 #include "build/build_config.h"
 #include "build/buildflag.h"
+#include "build/robolectric_buildflags.h"
 #include "third_party/abseil-cpp/absl/types/optional.h"
 #include "url/scheme_host_port.h"
 
-#if BUILDFLAG(IS_ANDROID)
-#include <jni.h>
-
-namespace base {
-namespace android {
-template <typename>
-class ScopedJavaLocalRef;
-template <typename>
-class JavaRef;
-}  // namespace android
-}  // namespace base
-#endif  // BUILDFLAG(IS_ANDROID)
+#if BUILDFLAG(IS_ANDROID) || BUILDFLAG(IS_ROBOLECTRIC)
+#include "base/android/jni_android.h"
+#endif
 
 class GURL;
 
@@ -199,8 +191,8 @@ class COMPONENT_EXPORT(URL) Origin {
   // dangerous recanonicalization); other potential callers should prefer the
   // 'GURL'-based constructor.
   static absl::optional<Origin> UnsafelyCreateTupleOriginWithoutNormalization(
-      base::StringPiece scheme,
-      base::StringPiece host,
+      std::string_view scheme,
+      std::string_view host,
       uint16_t port);
 
   // Creates an origin without sanity checking that the host is canonicalized.
@@ -285,7 +277,7 @@ class COMPONENT_EXPORT(URL) Origin {
   GURL GetURL() const;
 
   // Same as GURL::DomainIs. If |this| origin is opaque, then returns false.
-  bool DomainIs(base::StringPiece canonical_domain) const;
+  bool DomainIs(std::string_view canonical_domain) const;
 
   // Allows Origin to be used as a key in STL (for example, a std::set or
   // std::map).
@@ -314,8 +306,8 @@ class COMPONENT_EXPORT(URL) Origin {
   // and precursor information.
   std::string GetDebugString(bool include_nonce = true) const;
 
-#if BUILDFLAG(IS_ANDROID)
-  base::android::ScopedJavaLocalRef<jobject> CreateJavaObject() const;
+#if BUILDFLAG(IS_ANDROID) || BUILDFLAG(IS_ROBOLECTRIC)
+  base::android::ScopedJavaLocalRef<jobject> ToJavaObject() const;
   static Origin FromJavaObject(
       const base::android::JavaRef<jobject>& java_origin);
   static jlong CreateNative(JNIEnv* env,
@@ -329,7 +321,18 @@ class COMPONENT_EXPORT(URL) Origin {
 
   void WriteIntoTrace(perfetto::TracedValue context) const;
 
+  // Estimates dynamic memory usage.
+  // See base/trace_event/memory_usage_estimator.h for more info.
+  size_t EstimateMemoryUsage() const;
+
  private:
+#if BUILDFLAG(IS_ANDROID) || BUILDFLAG(IS_ROBOLECTRIC)
+  friend Origin CreateOpaqueOriginForAndroid(
+      const std::string& scheme,
+      const std::string& host,
+      uint16_t port,
+      const base::UnguessableToken& nonce_token);
+#endif
   friend class blink::SecurityOrigin;
   friend class blink::SecurityOriginTest;
   friend class blink::StorageKey;
@@ -415,8 +418,8 @@ class COMPONENT_EXPORT(URL) Origin {
   // back and forth over IPC (as transitioning through GURL would risk
   // potentially dangerous recanonicalization).
   static absl::optional<Origin> UnsafelyCreateOpaqueOriginWithoutNormalization(
-      base::StringPiece precursor_scheme,
-      base::StringPiece precursor_host,
+      std::string_view precursor_scheme,
+      std::string_view precursor_host,
       uint16_t precursor_port,
       const Nonce& nonce);
 

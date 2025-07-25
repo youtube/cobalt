@@ -1,10 +1,11 @@
-// Copyright 2018 The Chromium Authors. All rights reserved.
+// Copyright 2018 The Chromium Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
 #ifndef COMPONENTS_UPDATE_CLIENT_COMMAND_LINE_CONFIG_POLICY_H_
 #define COMPONENTS_UPDATE_CLIENT_COMMAND_LINE_CONFIG_POLICY_H_
 
+#include "base/time/time.h"
 class GURL;
 
 namespace update_client {
@@ -32,11 +33,10 @@ class CommandLineConfigPolicy {
   // The override URL for updates. Can be empty.
   virtual GURL UrlSourceOverride() const;
 
-  // If non-zero, time interval in seconds until the first component
-  // update check.
-  virtual int InitialDelay() const;
+  // If non-zero, time interval until the first component update check.
+  virtual base::TimeDelta InitialDelay() const;
 
-  virtual ~CommandLineConfigPolicy() {}
+  virtual ~CommandLineConfigPolicy() = default;
 };
 
 }  // namespace update_client

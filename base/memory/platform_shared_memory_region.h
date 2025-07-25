@@ -124,8 +124,7 @@ class BASE_EXPORT PlatformSharedMemoryRegion {
       Mode mode,
       size_t size,
       const UnguessableToken& guid);
-#if defined(STARBOARD)
-#elif BUILDFLAG(IS_POSIX) && !BUILDFLAG(IS_ANDROID) && !BUILDFLAG(IS_APPLE)
+#if BUILDFLAG(IS_POSIX) && !BUILDFLAG(IS_ANDROID) && !BUILDFLAG(IS_APPLE)
   // Specialized version of Take() for POSIX that takes only one file descriptor
   // instead of pair. Cannot be used with kWritable |mode|.
   static PlatformSharedMemoryRegion Take(ScopedFD handle,
@@ -199,6 +198,10 @@ class BASE_EXPORT PlatformSharedMemoryRegion {
                                       size_t size,
                                       SharedMemoryMapper* mapper) const;
 
+  // Unmaps the provided shared memory mapping, which must have previously been
+  // created by calling |MapAt()| above.
+  static void Unmap(span<uint8_t> mapping, SharedMemoryMapper* mapper);
+
   const UnguessableToken& GetGUID() const { return guid_; }
 
   size_t GetSize() const { return size_; }
@@ -212,8 +215,7 @@ class BASE_EXPORT PlatformSharedMemoryRegion {
                            CheckPlatformHandlePermissionsCorrespondToMode);
   static PlatformSharedMemoryRegion Create(Mode mode,
                                            size_t size
-#if defined(STARBOARD)
-#elif BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_CHROMEOS)
+#if BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_CHROMEOS)
                                            ,
                                            bool executable = false
 #endif

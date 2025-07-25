@@ -1,4 +1,4 @@
-// Copyright 2019 The Chromium project authors. All rights reserved.
+// Copyright 2019 The Chromium Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -17,7 +17,7 @@
 #include <cstdint>
 #include <string>
 #include <vector>
-#include "base/logging.h"  // Provides CHECK
+#include "base/check_op.h"  // Provides CHECK and CHECK_EQ, etc.
 #include "span.h"
 #include "testing/gmock/include/gmock/gmock.h"  // Provides Gunit
 #include "testing/gtest/include/gtest/gtest.h"  // Provides Gmock

@@ -13,6 +13,7 @@
 
 #include "base/functional/callback.h"
 #include "base/memory/weak_ptr.h"
+#include "base/sequence_checker.h"
 #include "base/task/sequenced_task_runner.h"
 #include "build/build_config.h"
 #include "build/chromeos_buildflags.h"
@@ -40,12 +41,11 @@
 #include "media/base/renderer_client.h"
 #include "media/base/renderer_factory.h"
 #include "media/base/stream_parser.h"
-#include "media/base/text_track.h"
-#include "media/base/text_track_config.h"
 #include "media/base/time_source.h"
 #include "media/base/video_decoder.h"
 #include "media/base/video_decoder_config.h"
 #include "media/base/video_encoder.h"
+#include "media/base/video_encoder_metrics_provider.h"
 #include "media/base/video_frame.h"
 #include "media/base/video_renderer.h"
 #include "testing/gmock/include/gmock/gmock.h"
@@ -65,8 +65,6 @@ class MockPipelineClient : public Pipeline::Client {
   MOCK_METHOD2(OnBufferingStateChange,
                void(BufferingState, BufferingStateChangeReason));
   MOCK_METHOD0(OnDurationChange, void());
-  MOCK_METHOD2(OnAddTextTrack,
-               void(const TextTrackConfig&, AddTextTrackDoneCB));
   MOCK_METHOD1(OnWaiting, void(WaitingReason));
   MOCK_METHOD1(OnAudioConfigChange, void(const AudioDecoderConfig&));
   MOCK_METHOD1(OnVideoConfigChange, void(const VideoDecoderConfig&));
@@ -587,23 +585,6 @@ class MockTimeSource : public TimeSource {
                     std::vector<base::TimeTicks>*));
 };
 
-class MockTextTrack : public TextTrack {
- public:
-  MockTextTrack();
-
-  MockTextTrack(const MockTextTrack&) = delete;
-  MockTextTrack& operator=(const MockTextTrack&) = delete;
-
-  ~MockTextTrack() override;
-
-  MOCK_METHOD5(addWebVTTCue,
-               void(base::TimeDelta start,
-                    base::TimeDelta end,
-                    const std::string& id,
-                    const std::string& content,
-                    const std::string& settings));
-};
-
 // Mock CDM callbacks.
 // TODO(xhwang): This could be a subclass of CdmClient if we plan to add one.
 // See http://crbug.com/657940
@@ -858,11 +839,10 @@ class MockStreamParser : public StreamParser {
   ~MockStreamParser() override;
 
   // StreamParser interface
-  MOCK_METHOD8(Init,
+  MOCK_METHOD7(Init,
                void(InitCB init_cb,
                     NewConfigCB config_cb,
                     NewBuffersCB new_buffers_cb,
-                    bool ignore_text_track,
                     EncryptedMediaInitDataCB encrypted_media_init_data_cb,
                     NewMediaSegmentCB new_segment_cb,
                     EndMediaSegmentCB end_of_segment_cb,
@@ -892,6 +872,38 @@ class MockMediaClient : public media::MediaClient {
                    media::AudioParameters audio_parameters));
 };
 
+class MockVideoEncoderMetricsProvider : public VideoEncoderMetricsProvider {
+ public:
+  MockVideoEncoderMetricsProvider();
+  ~MockVideoEncoderMetricsProvider() override;
+
+  void Initialize(VideoCodecProfile codec_profile,
+                  const gfx::Size& encode_size,
+                  bool is_hardware_encoder,
+                  SVCScalabilityMode svc_mode) override {
+    DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
+    MockInitialize(codec_profile, encode_size, is_hardware_encoder, svc_mode);
+  }
+  void IncrementEncodedFrameCount() override {
+    DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
+    MockIncrementEncodedFrameCount();
+  }
+  void SetError(const media::EncoderStatus& status) override {
+    DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
+    MockSetError(status);
+  }
+
+  MOCK_METHOD(
+      void,
+      MockInitialize,
+      (VideoCodecProfile, (const gfx::Size&), bool, SVCScalabilityMode));
+  MOCK_METHOD(void, MockIncrementEncodedFrameCount, ());
+  MOCK_METHOD(void, MockSetError, (const media::EncoderStatus&));
+  MOCK_METHOD(void, MockDestroy, ());
+
+ private:
+  SEQUENCE_CHECKER(sequence_checker_);
+};
 }  // namespace media
 
 #endif  // MEDIA_BASE_MOCK_FILTERS_H_

@@ -1,4 +1,4 @@
-// Copyright 2016 The Chromium Authors. All rights reserved.
+// Copyright 2016 The Chromium Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -6,7 +6,7 @@
 
 #include <memory>
 
-#include "base/test/scoped_task_environment.h"
+#include "base/test/task_environment.h"
 #include "base/values.h"
 #include "components/prefs/persistent_pref_store_unittest.h"
 #include "components/prefs/pref_store_observer_mock.h"
@@ -22,7 +22,7 @@ class InMemoryPrefStoreTest : public testing::Test {
 
   void SetUp() override { store_ = new InMemoryPrefStore(); }
  protected:
-  base::test::ScopedTaskEnvironment scoped_task_environment_;
+  base::test::TaskEnvironment task_environment_;
   scoped_refptr<InMemoryPrefStore> store_;
   PrefStoreObserverMock observer_;
 };
@@ -33,12 +33,12 @@ TEST_F(InMemoryPrefStoreTest, SetGetValue) {
   EXPECT_FALSE(store_->GetValue(kTestPref, &value));
   EXPECT_FALSE(store_->GetMutableValue(kTestPref, &mutable_value));
 
-  store_->SetValue(kTestPref, std::make_unique<base::Value>(42),
+  store_->SetValue(kTestPref, base::Value(42),
                    WriteablePrefStore::DEFAULT_PREF_WRITE_FLAGS);
   EXPECT_TRUE(store_->GetValue(kTestPref, &value));
-  EXPECT_TRUE(base::Value(42).Equals(value));
+  EXPECT_EQ(base::Value(42), *value);
   EXPECT_TRUE(store_->GetMutableValue(kTestPref, &mutable_value));
-  EXPECT_TRUE(base::Value(42).Equals(mutable_value));
+  EXPECT_EQ(base::Value(42), *mutable_value);
 
   store_->RemoveValue(kTestPref, WriteablePrefStore::DEFAULT_PREF_WRITE_FLAGS);
   EXPECT_FALSE(store_->GetValue(kTestPref, &value));
@@ -63,7 +63,7 @@ TEST_F(InMemoryPrefStoreTest, CallObserver) {
   store_->AddObserver(&observer_);
 
   // Triggers on SetValue.
-  store_->SetValue(kTestPref, std::make_unique<base::Value>(42),
+  store_->SetValue(kTestPref, base::Value(42),
                    WriteablePrefStore::DEFAULT_PREF_WRITE_FLAGS);
   observer_.VerifyAndResetChangedKey(kTestPref);
 
@@ -72,7 +72,7 @@ TEST_F(InMemoryPrefStoreTest, CallObserver) {
   observer_.VerifyAndResetChangedKey(kTestPref);
 
   // But not SetValueSilently.
-  store_->SetValueSilently(kTestPref, std::make_unique<base::Value>(42),
+  store_->SetValueSilently(kTestPref, base::Value(42),
                            WriteablePrefStore::DEFAULT_PREF_WRITE_FLAGS);
   EXPECT_EQ(0u, observer_.changed_keys.size());
 
@@ -84,7 +84,7 @@ TEST_F(InMemoryPrefStoreTest, CallObserver) {
 
   // Doesn't make call on removed observers.
   store_->RemoveObserver(&observer_);
-  store_->SetValue(kTestPref, std::make_unique<base::Value>(42),
+  store_->SetValue(kTestPref, base::Value(42),
                    WriteablePrefStore::DEFAULT_PREF_WRITE_FLAGS);
   store_->RemoveValue(kTestPref, WriteablePrefStore::DEFAULT_PREF_WRITE_FLAGS);
   EXPECT_EQ(0u, observer_.changed_keys.size());
@@ -107,7 +107,27 @@ TEST_F(InMemoryPrefStoreTest, ReadPrefs) {
 }
 
 TEST_F(InMemoryPrefStoreTest, CommitPendingWriteWithCallback) {
-  TestCommitPendingWriteWithCallback(store_.get(), &scoped_task_environment_);
+  TestCommitPendingWriteWithCallback(store_.get(), &task_environment_);
+}
+
+TEST_F(InMemoryPrefStoreTest, RemoveValuesByPrefix) {
+  const base::Value* value;
+  const std::string prefix = "pref";
+  const std::string subpref_name1 = "pref.a";
+  const std::string subpref_name2 = "pref.b";
+  const std::string other_name = "other";
+
+  store_->SetValue(subpref_name1, base::Value(42),
+                   WriteablePrefStore::DEFAULT_PREF_WRITE_FLAGS);
+  store_->SetValue(subpref_name2, base::Value(42),
+                   WriteablePrefStore::DEFAULT_PREF_WRITE_FLAGS);
+  store_->SetValue(other_name, base::Value(42),
+                   WriteablePrefStore::DEFAULT_PREF_WRITE_FLAGS);
+
+  store_->RemoveValuesByPrefixSilently(prefix);
+  EXPECT_FALSE(store_->GetValue(subpref_name1, &value));
+  EXPECT_FALSE(store_->GetValue(subpref_name2, &value));
+  EXPECT_TRUE(store_->GetValue(other_name, &value));
 }
 
 }  // namespace

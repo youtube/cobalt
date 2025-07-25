@@ -1,0 +1,10 @@
+[
+    {
+        "duration": "250.0",
+        "name": "jetstream2/JetStream2"
+    },
+    {
+        "duration": "120.0",
+        "name": "speedometer2/Speedometer2"
+    }
+]

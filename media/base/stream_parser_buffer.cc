@@ -13,34 +13,20 @@
 namespace media {
 
 scoped_refptr<StreamParserBuffer> StreamParserBuffer::CreateEOSBuffer() {
-  return base::WrapRefCounted(new StreamParserBuffer(
-      NULL, 0, NULL, 0, false, DemuxerStream::UNKNOWN, 0));
+  return base::WrapRefCounted(
+      new StreamParserBuffer(nullptr, 0, false, DemuxerStream::UNKNOWN, 0));
 }
 
 scoped_refptr<StreamParserBuffer> StreamParserBuffer::CopyFrom(
     const uint8_t* data,
     int data_size,
-    bool is_key_frame,
-    Type type,
-    TrackId track_id) {
-  return base::WrapRefCounted(new StreamParserBuffer(
-      data, data_size, NULL, 0, is_key_frame, type, track_id));
-}
-
-scoped_refptr<StreamParserBuffer> StreamParserBuffer::CopyFrom(
-    const uint8_t* data,
-    int data_size,
-    const uint8_t* side_data,
-    int side_data_size,
     bool is_key_frame,
     Type type,
     TrackId track_id) {
   return base::WrapRefCounted(
-      new StreamParserBuffer(data, data_size, side_data, side_data_size,
-                             is_key_frame, type, track_id));
+      new StreamParserBuffer(data, data_size, is_key_frame, type, track_id));
 }
 
-#if !defined(STARBOARD)
 scoped_refptr<StreamParserBuffer> StreamParserBuffer::FromExternalMemory(
     std::unique_ptr<ExternalMemory> external_memory,
     bool is_key_frame,
@@ -49,7 +35,6 @@ scoped_refptr<StreamParserBuffer> StreamParserBuffer::FromExternalMemory(
   return base::WrapRefCounted(new StreamParserBuffer(
       std::move(external_memory), is_key_frame, type, track_id));
 }
-#endif  // !defined(STARBOARD)
 
 DecodeTimestamp StreamParserBuffer::GetDecodeTimestamp() const {
   if (decode_timestamp_ == kNoDecodeTimestamp)
@@ -63,7 +48,6 @@ void StreamParserBuffer::SetDecodeTimestamp(DecodeTimestamp timestamp) {
     preroll_buffer_->SetDecodeTimestamp(timestamp);
 }
 
-#if !defined(STARBOARD)
 StreamParserBuffer::StreamParserBuffer(
     std::unique_ptr<ExternalMemory> external_memory,
     bool is_key_frame,
@@ -75,16 +59,13 @@ StreamParserBuffer::StreamParserBuffer(
   set_duration(kNoTimestamp);
   set_is_key_frame(is_key_frame);
 }
-#endif  // !defined(STARBOARD)
 
 StreamParserBuffer::StreamParserBuffer(const uint8_t* data,
                                        int data_size,
-                                       const uint8_t* side_data,
-                                       int side_data_size,
                                        bool is_key_frame,
                                        Type type,
                                        TrackId track_id)
-    : DecoderBuffer(data, data_size, side_data, side_data_size),
+    : DecoderBuffer(data, data_size),
       decode_timestamp_(kNoDecodeTimestamp),
       config_id_(kInvalidConfigId),
       type_(type),

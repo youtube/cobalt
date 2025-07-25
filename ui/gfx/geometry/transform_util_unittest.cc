@@ -5,9 +5,10 @@
 #include "ui/gfx/geometry/transform_util.h"
 
 #include <stddef.h>
+
+#include <algorithm>
 #include <limits>
 
-#include "base/cxx17_backports.h"
 #include "base/numerics/math_constants.h"
 #include "testing/gtest/include/gtest/gtest.h"
 #include "ui/gfx/geometry/point.h"
@@ -180,6 +181,19 @@ TEST(TransformUtilTest, Transform2dScaleComponents) {
                            0, 0, 11, 47,
                            0, 0, -0.5, 1),
        Vector2dF(3, 7)},
+      // The result is always non-negative.
+      {Transform::RowMajor(3, 0, 0, -23,
+                           0, -7, 0, 31,
+                           0, 0, 11, 47,
+                           0, 0, -0.5, 1),
+       Vector2dF(3, 7)},
+      // Values are clamped.
+      {Transform::RowMajor(std::numeric_limits<double>::max(), 0, 0, -23,
+                           0, std::numeric_limits<double>::lowest(), 0, 31,
+                           0, 0, 11, 47,
+                           0, 0, -0.5f, 1),
+       Vector2dF(FloatGeometrySaturationHandler<float>::max(),
+                 FloatGeometrySaturationHandler<float>::max())},
       {Transform::RowMajor(3, 0, 0, -23,
                            0, 7, 0, 31,
                            0, 0, 11, 47,
@@ -251,6 +265,7 @@ TEST(TransformUtilTest, Transform2dScaleComponents) {
   for (const auto& test : tests) {
     absl::optional<Vector2dF> try_result =
         TryComputeTransform2dScaleComponents(test.transform);
+    SCOPED_TRACE(test.transform.ToString());
     EXPECT_EQ(try_result, test.expected_scale);
     Vector2dF result =
         ComputeTransform2dScaleComponents(test.transform, fallback);

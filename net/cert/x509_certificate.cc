@@ -11,18 +11,16 @@
 #include <string>
 #include <vector>
 
-#include "base/base64.h"
 #include "base/containers/contains.h"
 #include "base/containers/span.h"
 #include "base/logging.h"
+#include "base/notreached.h"
 #include "base/numerics/safe_conversions.h"
 #include "base/pickle.h"
 #include "base/strings/string_piece.h"
 #include "base/strings/string_util.h"
 #include "base/time/time.h"
-#include "build/build_config.h"
 #include "crypto/openssl_util.h"
-#include "net/base/ip_address.h"
 #include "net/base/registry_controlled_domains/registry_controlled_domain.h"
 #include "net/base/tracing.h"
 #include "net/base/url_util.h"
@@ -35,10 +33,9 @@
 #include "net/cert/pki/verify_certificate_chain.h"
 #include "net/cert/pki/verify_name_match.h"
 #include "net/cert/pki/verify_signed_data.h"
+#include "net/cert/time_conversions.h"
 #include "net/cert/x509_util.h"
-#include "net/der/encode_values.h"
 #include "net/der/parser.h"
-#include "net/dns/dns_util.h"
 #include "third_party/boringssl/src/include/openssl/evp.h"
 #include "third_party/boringssl/src/include/openssl/pool.h"
 #include "third_party/boringssl/src/include/openssl/sha.h"
@@ -119,9 +116,8 @@ bssl::UniquePtr<CRYPTO_BUFFER> CreateCertBufferFromBytesWithSanityCheck(
   der::BitString signature_value;
   // Do a bare minimum of DER parsing here to see if the input looks
   // certificate-ish.
-  if (!ParseCertificate(der::Input(data.data(), data.size()),
-                        &tbs_certificate_tlv, &signature_algorithm_tlv,
-                        &signature_value, nullptr)) {
+  if (!ParseCertificate(der::Input(data), &tbs_certificate_tlv,
+                        &signature_algorithm_tlv, &signature_value, nullptr)) {
     return nullptr;
   }
   return x509_util::CreateCryptoBuffer(data);
@@ -133,12 +129,8 @@ bssl::UniquePtr<CRYPTO_BUFFER> CreateCertBufferFromBytesWithSanityCheck(
 scoped_refptr<X509Certificate> X509Certificate::CreateFromBuffer(
     bssl::UniquePtr<CRYPTO_BUFFER> cert_buffer,
     std::vector<bssl::UniquePtr<CRYPTO_BUFFER>> intermediates) {
-  DCHECK(cert_buffer);
-  auto cert = base::WrapRefCounted(
-      new X509Certificate(std::move(cert_buffer), std::move(intermediates)));
-  if (!cert->cert_buffer())
-    return nullptr;  // Initialize() failed.
-  return cert;
+  return CreateFromBufferUnsafeOptions(std::move(cert_buffer),
+                                       std::move(intermediates), {});
 }
 
 // static
@@ -147,11 +139,12 @@ scoped_refptr<X509Certificate> X509Certificate::CreateFromBufferUnsafeOptions(
     std::vector<bssl::UniquePtr<CRYPTO_BUFFER>> intermediates,
     UnsafeCreateOptions options) {
   DCHECK(cert_buffer);
-  auto cert = base::WrapRefCounted(new X509Certificate(
-      std::move(cert_buffer), std::move(intermediates), options));
-  if (!cert->cert_buffer())
-    return nullptr;  // Initialize() failed.
-  return cert;
+  ParsedFields parsed;
+  if (!parsed.Initialize(cert_buffer.get(), options)) {
+    return nullptr;
+  }
+  return base::WrapRefCounted(new X509Certificate(
+      std::move(parsed), std::move(cert_buffer), std::move(intermediates)));
 }
 
 // static
@@ -301,6 +294,21 @@ CertificateList X509Certificate::CreateCertificateListFromBytes(
   return results;
 }
 
+scoped_refptr<X509Certificate> X509Certificate::CloneWithDifferentIntermediates(
+    std::vector<bssl::UniquePtr<CRYPTO_BUFFER>> intermediates) {
+  // If intermediates are the same, return another reference to the same
+  // object. Note that this only does a pointer equality comparison on the
+  // CRYPTO_BUFFERs, which is generally sufficient, but in some edge cases
+  // buffers have equal contents but with different addresses. This is
+  // acceptable as this is just an optimization.
+  if (intermediates == intermediate_ca_certs_) {
+    return this;
+  }
+
+  return base::WrapRefCounted(
+      new X509Certificate(*this, std::move(intermediates)));
+}
+
 void X509Certificate::Persist(base::Pickle* pickle) const {
   DCHECK(cert_buffer_);
   // This would be an absolutely insane number of intermediates.
@@ -363,10 +371,8 @@ bool X509Certificate::GetSubjectAltName(
       dns_names->push_back(std::string(dns_name));
   }
   if (ip_addrs) {
-    for (const IPAddress& addr : subject_alt_names->ip_addresses) {
-      ip_addrs->push_back(
-          std::string(reinterpret_cast<const char*>(addr.bytes().data()),
-                      addr.bytes().size()));
+    for (const auto& addr : subject_alt_names->ip_addresses) {
+      ip_addrs->push_back(std::string(addr.AsStringView()));
     }
   }
 
@@ -404,7 +410,7 @@ bool X509Certificate::IsIssuedByEncoded(
   for (const auto& raw_issuer : valid_issuers) {
     der::Input issuer_value;
     std::string normalized_issuer;
-    if (!ParseSequenceValue(der::Input(&raw_issuer), &issuer_value) ||
+    if (!ParseSequenceValue(der::Input(raw_issuer), &issuer_value) ||
         !NormalizeName(issuer_value, &normalized_issuer, &errors)) {
       continue;
     }
@@ -706,32 +712,36 @@ bool X509Certificate::IsSelfSigned(CRYPTO_BUFFER* cert_buffer) {
 }
 
 X509Certificate::X509Certificate(
+    ParsedFields parsed,
     bssl::UniquePtr<CRYPTO_BUFFER> cert_buffer,
     std::vector<bssl::UniquePtr<CRYPTO_BUFFER>> intermediates)
-    : X509Certificate(std::move(cert_buffer), std::move(intermediates), {}) {}
+    : parsed_(std::move(parsed)),
+      cert_buffer_(std::move(cert_buffer)),
+      intermediate_ca_certs_(std::move(intermediates)) {}
 
 X509Certificate::X509Certificate(
-    bssl::UniquePtr<CRYPTO_BUFFER> cert_buffer,
-    std::vector<bssl::UniquePtr<CRYPTO_BUFFER>> intermediates,
-    UnsafeCreateOptions options)
-    : cert_buffer_(std::move(cert_buffer)),
-      intermediate_ca_certs_(std::move(intermediates)) {
-  // Platform-specific initialization.
-  if (!Initialize(options) && cert_buffer_) {
-    // Signal initialization failure by clearing cert_buffer_.
-    cert_buffer_.reset();
-  }
-}
+    const X509Certificate& other,
+    std::vector<bssl::UniquePtr<CRYPTO_BUFFER>> intermediates)
+    : parsed_(other.parsed_),
+      cert_buffer_(bssl::UpRef(other.cert_buffer_)),
+      intermediate_ca_certs_(std::move(intermediates)) {}
 
 X509Certificate::~X509Certificate() = default;
 
-bool X509Certificate::Initialize(UnsafeCreateOptions options) {
+X509Certificate::ParsedFields::ParsedFields() = default;
+X509Certificate::ParsedFields::ParsedFields(const ParsedFields&) = default;
+X509Certificate::ParsedFields::ParsedFields(ParsedFields&&) = default;
+X509Certificate::ParsedFields::~ParsedFields() = default;
+
+bool X509Certificate::ParsedFields::Initialize(
+    const CRYPTO_BUFFER* cert_buffer,
+    X509Certificate::UnsafeCreateOptions options) {
   der::Input tbs_certificate_tlv;
   der::Input signature_algorithm_tlv;
   der::BitString signature_value;
 
-  if (!ParseCertificate(der::Input(CRYPTO_BUFFER_data(cert_buffer_.get()),
-                                   CRYPTO_BUFFER_len(cert_buffer_.get())),
+  if (!ParseCertificate(der::Input(CRYPTO_BUFFER_data(cert_buffer),
+                                   CRYPTO_BUFFER_len(cert_buffer)),
                         &tbs_certificate_tlv, &signature_algorithm_tlv,
                         &signature_value, nullptr)) {
     return false;
@@ -754,8 +764,8 @@ bool X509Certificate::Initialize(UnsafeCreateOptions options) {
     return false;
   }
 
-  if (!der::GeneralizedTimeToTime(tbs.validity_not_before, &valid_start_) ||
-      !der::GeneralizedTimeToTime(tbs.validity_not_after, &valid_expiry_)) {
+  if (!GeneralizedTimeToTime(tbs.validity_not_before, &valid_start_) ||
+      !GeneralizedTimeToTime(tbs.validity_not_after, &valid_expiry_)) {
     return false;
   }
   serial_number_ = tbs.serial_number.AsString();

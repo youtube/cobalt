@@ -1,0 +1,8 @@
+include_rules = [
+  "+chrome/grit",
+  "+components/bookmarks",
+  "+components/grit",
+  "+components/prefs",
+  "+components/favicon",
+  "+content/public/browser",
+]

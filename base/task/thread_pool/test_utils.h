@@ -24,7 +24,6 @@
 #include "base/thread_annotations.h"
 #include "build/build_config.h"
 #include "testing/gmock/include/gmock/gmock.h"
-#include "third_party/abseil-cpp/absl/types/variant.h"
 
 namespace base {
 namespace internal {
@@ -98,12 +97,9 @@ class MockJobTask : public base::RefCountedThreadSafe<MockJobTask> {
 
   // Updates the remaining number of time |worker_task| runs to
   // |num_tasks_to_run|.
-/* Cobalt
   void SetNumTasksToRun(size_t num_tasks_to_run) {
     remaining_num_tasks_to_run_ = num_tasks_to_run;
   }
-Cobalt */
-  void SetNumTasksToRun(size_t num_tasks_to_run);
 
   size_t GetMaxConcurrency(size_t worker_count) const;
   void Run(JobDelegate* delegate);
@@ -118,10 +114,7 @@ Cobalt */
 
   ~MockJobTask();
 
-/* Cobalt
   base::RepeatingCallback<void(JobDelegate*)> worker_task_;
-Cobalt */
-  absl::variant<OnceClosure, RepeatingCallback<void(JobDelegate*)>> task_;
   std::atomic_size_t remaining_num_tasks_to_run_;
 };
 

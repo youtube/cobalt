@@ -11,6 +11,7 @@
 
 #include "base/base_export.h"
 #include "base/strings/string_piece.h"
+#include "base/types/always_false.h"
 #include "build/build_config.h"
 
 namespace base {
@@ -66,24 +67,24 @@ BASE_EXPORT bool UTF16ToUTF8(const char16_t* src,
 
 // The conversion functions in this file should not be used to convert string
 // literals. Instead, the corresponding prefixes (e.g. u"" for UTF16 or L"" for
-// Wide) should be used. Deleting the overloads here catches these cases at
-// compile time.
+// Wide) should be used. Catch those cases with overloads that assert at compile
+// time.
 template <size_t N>
-std::u16string WideToUTF16(const wchar_t (&str)[N]) {
-  static_assert(N == 0, "Error: Use the u\"...\" prefix instead.");
-  return std::u16string();
+[[noreturn]] std::u16string WideToUTF16(const wchar_t (&str)[N]) {
+  static_assert(AlwaysFalse<decltype(N)>,
+                "Error: Use u\"...\" to create a std::u16string literal.");
 }
 
 template <size_t N>
-std::u16string UTF8ToUTF16(const char (&str)[N]) {
-  static_assert(N == 0, "Error: Use the u\"...\" prefix instead.");
-  return std::u16string();
+[[noreturn]] std::u16string UTF8ToUTF16(const char (&str)[N]) {
+  static_assert(AlwaysFalse<decltype(N)>,
+                "Error: Use u\"...\" to create a std::u16string literal.");
 }
 
 template <size_t N>
-std::u16string ASCIIToUTF16(const char (&str)[N]) {
-  static_assert(N == 0, "Error: Use the u\"...\" prefix instead.");
-  return std::u16string();
+[[noreturn]] std::u16string ASCIIToUTF16(const char (&str)[N]) {
+  static_assert(AlwaysFalse<decltype(N)>,
+                "Error: Use u\"...\" to create a std::u16string literal.");
 }
 
 // Mutable character arrays are usually only populated during runtime. Continue

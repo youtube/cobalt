@@ -9,7 +9,6 @@
 #include <memory>
 #include <utility>
 
-#include "base/allocator/buildflags.h"
 #include "base/allocator/dispatcher/reentry_guard.h"
 #include "base/allocator/dispatcher/tls.h"
 #include "base/check.h"
@@ -19,14 +18,6 @@
 #include "base/ranges/algorithm.h"
 #include "build/build_config.h"
 #include "third_party/abseil-cpp/absl/base/attributes.h"
-
-#if !BUILDFLAG(USE_ALLOCATION_EVENT_DISPATCHER)
-#include "base/allocator/dispatcher/standard_hooks.h"
-#endif
-
-#if defined(STARBOARD)
-#include "base/notreached.h"
-#endif
 
 namespace base {
 
@@ -42,10 +33,12 @@ const intptr_t kAccumulatedBytesOffset = 1 << 29;
 bool g_deterministic = false;
 
 // Pointer to the current |LockFreeAddressHashSet|.
-std::atomic<LockFreeAddressHashSet*> g_sampled_addresses_set{nullptr};
+ABSL_CONST_INIT std::atomic<LockFreeAddressHashSet*> g_sampled_addresses_set{
+    nullptr};
 
 // Sampling interval parameter, the mean value for intervals between samples.
-std::atomic_size_t g_sampling_interval{kDefaultSamplingIntervalBytes};
+ABSL_CONST_INIT std::atomic_size_t g_sampling_interval{
+    kDefaultSamplingIntervalBytes};
 
 struct ThreadLocalData {
   // Accumulated bytes towards sample.
@@ -72,7 +65,7 @@ ThreadLocalData* GetThreadLocalData() {
   // Clang's implementation of thread_local.
   static base::NoDestructor<
       base::allocator::dispatcher::ThreadLocalStorage<ThreadLocalData>>
-      thread_local_data;
+      thread_local_data("poisson_allocation_sampler");
   return thread_local_data->GetThreadLocalData();
 #else
   // Notes on TLS usage:
@@ -95,13 +88,8 @@ ThreadLocalData* GetThreadLocalData() {
   // https://github.com/gcc-mirror/gcc/blob/master/libgcc/emutls.c
   // macOS version is based on _tlv_get_addr from dyld:
   // https://opensource.apple.com/source/dyld/dyld-635.2/src/threadLocalHelpers.s.auto.html
-#if defined(STARBOARD)
-  NOTIMPLEMENTED();
-  return nullptr;
-#else
   thread_local ThreadLocalData thread_local_data;
   return &thread_local_data;
-#endif
 #endif
 }
 
@@ -183,35 +171,14 @@ PoissonAllocationSampler::ScopedMuteHookedSamplesForTesting::
   ResetProfilingStateFlag(ProfilingStateFlag::kHookedSamplesMutedForTesting);
 }
 
-#if !BUILDFLAG(USE_ALLOCATION_EVENT_DISPATCHER)
-// static
-PoissonAllocationSampler* PoissonAllocationSampler::instance_ = nullptr;
-#endif
-
 // static
 ABSL_CONST_INIT std::atomic<PoissonAllocationSampler::ProfilingStateFlagMask>
     PoissonAllocationSampler::profiling_state_{0};
 
 PoissonAllocationSampler::PoissonAllocationSampler() {
-#if !BUILDFLAG(USE_ALLOCATION_EVENT_DISPATCHER)
-  CHECK_EQ(nullptr, instance_);
-  instance_ = this;
-#endif
-
   Init();
   auto* sampled_addresses = new LockFreeAddressHashSet(64);
   g_sampled_addresses_set.store(sampled_addresses, std::memory_order_release);
-
-#if !BUILDFLAG(USE_ALLOCATION_EVENT_DISPATCHER)
-  // Install the allocator hooks immediately, to better match the behaviour
-  // of base::allocator::Initializer.
-  //
-  // TODO(crbug/1137393): Use base::allocator::Initializer to install the
-  // PoissonAllocationSampler hooks. All observers need to be passed to the
-  // initializer at the same time so this will install the hooks even
-  // earlier in process startup.
-  allocator::dispatcher::InstallStandardAllocatorHooks();
-#endif
 }
 
 // static
@@ -228,7 +195,7 @@ void PoissonAllocationSampler::Init() {
 void PoissonAllocationSampler::SetSamplingInterval(
     size_t sampling_interval_bytes) {
   // TODO(alph): Reset the sample being collected if running.
-  g_sampling_interval = sampling_interval_bytes;
+  g_sampling_interval.store(sampling_interval_bytes, std::memory_order_relaxed);
 }
 
 size_t PoissonAllocationSampler::SamplingInterval() const {

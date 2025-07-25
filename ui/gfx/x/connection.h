@@ -62,7 +62,6 @@ class EVENTS_EXPORT EventObserver {
 class COMPONENT_EXPORT(X11) Connection : public XProto,
                                          public ExtensionManager {
  public:
-  using ErrorHandler = base::RepeatingCallback<void(const Error*, const char*)>;
   using IOErrorHandler = base::OnceClosure;
   using RawReply = scoped_refptr<base::RefCountedMemory>;
   using RawError = scoped_refptr<base::RefCountedMemory>;
@@ -108,10 +107,8 @@ class COMPONENT_EXPORT(X11) Connection : public XProto,
   // Obtain an Xlib display that's connected to the same server as |this|.  This
   // is meant to be used only for compatibility with components like GLX,
   // Vulkan, and VAAPI.  The underlying socket is not shared, so synchronization
-  // with |this| may be necessary.  The |type| parameter can be used to achieve
-  // synchronization.  The returned wrapper should not be saved.
-  XlibDisplayWrapper GetXlibDisplay(
-      XlibDisplayType type = XlibDisplayType::kNormal);
+  // with |this| may be necessary.
+  XlibDisplay& GetXlibDisplay();
 
   size_t MaxRequestSizeInBytes() const;
 
@@ -173,8 +170,6 @@ class COMPONENT_EXPORT(X11) Connection : public XProto,
   // Returns true if an event was read.
   bool ReadResponse(bool queued);
 
-  Event WaitForNextEvent();
-
   // Are there any events, errors, or replies already buffered?
   bool HasPendingResponses();
 
@@ -189,9 +184,6 @@ class COMPONENT_EXPORT(X11) Connection : public XProto,
 
   // Directly dispatch an event, bypassing the event queue.
   void DispatchEvent(const Event& event);
-
-  // Returns the old error handler.
-  ErrorHandler SetErrorHandler(ErrorHandler new_handler);
 
   void SetIOErrorHandler(IOErrorHandler new_handler);
 
@@ -365,7 +357,6 @@ class COMPONENT_EXPORT(X11) Connection : public XProto,
   using ErrorParser = std::unique_ptr<Error> (*)(RawError error_bytes);
   std::array<ErrorParser, 256> error_parsers_{};
 
-  ErrorHandler error_handler_;
   IOErrorHandler io_error_handler_;
 
   SEQUENCE_CHECKER(sequence_checker_);

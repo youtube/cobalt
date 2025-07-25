@@ -150,6 +150,22 @@ struct VideoCodecParams {
 
 struct FrameSenderConfig {
   FrameSenderConfig();
+  FrameSenderConfig(uint32_t sender_ssrc,
+                    uint32_t receiver_ssrc,
+                    base::TimeDelta min_playout_delay,
+                    base::TimeDelta max_playout_delay,
+                    RtpPayloadType rtp_payload_type,
+                    bool use_hardware_encoder,
+                    int rtp_timebase,
+                    int channels,
+                    int max_bitrate,
+                    int min_bitrate,
+                    int start_bitrate,
+                    double max_frame_rate,
+                    Codec codec,
+                    std::string aes_key,
+                    std::string aes_iv_mask,
+                    VideoCodecParams video_codec_params);
   FrameSenderConfig(const FrameSenderConfig& other);
   FrameSenderConfig(FrameSenderConfig&& other);
   FrameSenderConfig& operator=(const FrameSenderConfig& other);
@@ -177,6 +193,10 @@ struct FrameSenderConfig {
 
   // RTP payload type enum: Specifies the type/encoding of frame data.
   RtpPayloadType rtp_payload_type = RtpPayloadType::UNKNOWN;
+  bool is_audio() const {
+    return rtp_payload_type >= media::cast::RtpPayloadType::FIRST &&
+           rtp_payload_type <= media::cast::RtpPayloadType::AUDIO_LAST;
+  }
 
   // If true, use an external HW encoder rather than the built-in
   // software-based one. Note that this may be the ExternalVideoEncoder or

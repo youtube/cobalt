@@ -5,7 +5,6 @@
 import("//build/compiled_action.gni")
 import("//net/features.gni")
 
-if (!use_cobalt_customizations) {
 # Generates a header file based on the real preload list.
 compiled_action("generate_transport_security_state") {
   tool = "//net/tools/transport_security_state_generator"
@@ -60,7 +59,6 @@ compiled_action_foreach("transport_security_state_unittest_data") {
       [ rebase_path("{{source_name_part}}_pins.json", root_build_dir) ] +
       rebase_path(inputs, root_build_dir) + rebase_path(outputs, root_build_dir)
 }
-}
 
 # This has separated source_set not to let other compiles wait for the
 # generate_transport_security_state task to complete.
@@ -70,13 +68,10 @@ source_set("transport_security_state_generated_files") {
 
   sources = [
     "transport_security_state.cc",
-
     # transport_security_state.h is intentionally specified in net/BUILD.gn
     # rather than in this source_set. See this review comment thread for
     # details:
     # https://chromium-review.googlesource.com/c/chromium/src/+/1460639/comment/b781034b_5794ab47/
-
-    "transport_security_state_ct_policies.inc",
   ]
 
   deps = [

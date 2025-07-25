@@ -1,0 +1,79 @@
+# Copyright 2022 The Chromium Authors
+# Use of this source code is governed by a BSD-style license that can be
+# found in the LICENSE file.
+
+import("//ios/build/config.gni")
+import("//ios/web/public/js_messaging/optimize_ts.gni")
+
+source_set("annotations") {
+  deps = [
+    ":annotations_ts",
+    "//base",
+    "//components/shared_highlighting/ios",
+    "//ios/web/common",
+    "//ios/web/public",
+    "//ios/web/public:web_state_observer",
+    "//ios/web/public/annotations",
+    "//ios/web/public/js_messaging",
+    "//ios/web/public/navigation",
+    "//ui/base",
+  ]
+
+  sources = [
+    "annotations_java_script_feature.h",
+    "annotations_java_script_feature.mm",
+    "annotations_text_manager.mm",
+    "annotations_text_manager_impl.h",
+    "annotations_text_manager_impl.mm",
+  ]
+}
+
+compile_ts("compile_ts") {
+  sources = [ "resources/annotations_constants.ts" ]
+}
+
+optimize_ts("annotations_ts") {
+  visibility = [ ":annotations" ]
+
+  sources = [ "resources/annotations.ts" ]
+
+  deps = [
+    ":compile_ts",
+    "//ios/web/public/js_messaging:gcrweb",
+    "//ios/web/public/js_messaging:util_scripts",
+  ]
+}
+
+optimize_ts("annotations_test_ts") {
+  visibility = [ ":inttests" ]
+  testonly = true
+
+  sources = [ "resources/annotations_test.ts" ]
+
+  deps = [
+    ":compile_ts",
+    "//ios/web/public/js_messaging:gcrweb",
+  ]
+}
+
+source_set("inttests") {
+  testonly = true
+  deps = [
+    ":annotations",
+    ":annotations_test_ts",
+    "//base",
+    "//base/test:test_support",
+    "//ios/web/common",
+    "//ios/web/common:features",
+    "//ios/web/js_messaging",
+    "//ios/web/js_messaging:java_script_feature_manager_header",
+    "//ios/web/public",
+    "//ios/web/public:web_state_observer",
+    "//ios/web/public/annotations",
+    "//ios/web/public/js_messaging",
+    "//ios/web/public/test",
+    "//ios/web/public/test:test_fixture",
+    "//ios/web/web_state/ui:wk_web_view_configuration_provider_header",
+  ]
+  sources = [ "annotations_inttest.mm" ]
+}

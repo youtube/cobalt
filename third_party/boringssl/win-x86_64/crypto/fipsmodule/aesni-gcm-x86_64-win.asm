@@ -6,6 +6,7 @@ default	rel
 %define XMMWORD
 %define YMMWORD
 %define ZMMWORD
+%define _CET_ENDBR
 
 %ifdef BORINGSSL_PREFIX
 %include "boringssl_prefix_symbols_nasm.inc"
@@ -343,7 +344,7 @@ $L$6x_done:
 	vpxor	xmm8,xmm8,XMMWORD[((16+8))+rsp]
 	vpxor	xmm8,xmm8,xmm4
 
-	DB	0F3h,0C3h		;repret
+	ret
 
 
 global	aesni_gcm_decrypt
@@ -352,6 +353,7 @@ ALIGN	32
 aesni_gcm_decrypt:
 
 $L$SEH_begin_aesni_gcm_decrypt_1:
+_CET_ENDBR
 	xor	rax,rax
 
 
@@ -414,17 +416,18 @@ $L$SEH_prolog_aesni_gcm_decrypt_20:
 $L$SEH_prolog_aesni_gcm_decrypt_21:
 	vzeroupper
 
+	mov	r12,QWORD[64+rbp]
 	vmovdqu	xmm1,XMMWORD[rdi]
 	add	rsp,-128
 	mov	ebx,DWORD[12+rdi]
 	lea	r11,[$L$bswap_mask]
 	lea	r14,[((-128))+r9]
 	mov	r15,0xf80
-	vmovdqu	xmm8,XMMWORD[rsi]
+	vmovdqu	xmm8,XMMWORD[r12]
 	and	rsp,-128
 	vmovdqu	xmm0,XMMWORD[r11]
 	lea	r9,[128+r9]
-	lea	rsi,[((32+32))+rsi]
+	lea	rsi,[32+rsi]
 	mov	r10d,DWORD[((240-128))+r9]
 	vpshufb	xmm8,xmm8,xmm0
 
@@ -469,6 +472,7 @@ $L$dec_no_key_aliasing:
 
 	call	_aesni_ctr32_ghash_6x
 
+	mov	r12,QWORD[64+rbp]
 	vmovups	XMMWORD[(-96)+rdx],xmm9
 	vmovups	XMMWORD[(-80)+rdx],xmm10
 	vmovups	XMMWORD[(-64)+rdx],xmm11
@@ -477,7 +481,7 @@ $L$dec_no_key_aliasing:
 	vmovups	XMMWORD[(-16)+rdx],xmm14
 
 	vpshufb	xmm8,xmm8,XMMWORD[r11]
-	vmovdqu	XMMWORD[(-64)+rsi],xmm8
+	vmovdqu	XMMWORD[r12],xmm8
 
 	vzeroupper
 	movaps	xmm6,XMMWORD[((-208))+rbp]
@@ -507,7 +511,7 @@ $L$dec_no_key_aliasing:
 	pop	rbp
 
 $L$gcm_dec_abort:
-	DB	0F3h,0C3h		;repret
+	ret
 $L$SEH_end_aesni_gcm_decrypt_22:
 
 
@@ -578,7 +582,7 @@ $L$oop_ctr32:
 	vmovups	XMMWORD[80+rdx],xmm14
 	lea	rdx,[96+rdx]
 
-	DB	0F3h,0C3h		;repret
+	ret
 ALIGN	32
 $L$handle_ctr32_2:
 	vpshufb	xmm6,xmm1,xmm0
@@ -610,6 +614,7 @@ ALIGN	32
 aesni_gcm_encrypt:
 
 $L$SEH_begin_aesni_gcm_encrypt_1:
+_CET_ENDBR
 %ifdef BORINGSSL_DISPATCH_TEST
 EXTERN	BORINGSSL_function_hit
 	mov	BYTE[((BORINGSSL_function_hit+2))],1
@@ -725,8 +730,9 @@ $L$enc_no_key_aliasing:
 
 	call	_aesni_ctr32_6x
 
-	vmovdqu	xmm8,XMMWORD[rsi]
-	lea	rsi,[((32+32))+rsi]
+	mov	r12,QWORD[64+rbp]
+	lea	rsi,[32+rsi]
+	vmovdqu	xmm8,XMMWORD[r12]
 	sub	r8,12
 	mov	rax,0x60*2
 	vpshufb	xmm8,xmm8,xmm0
@@ -904,8 +910,9 @@ $L$enc_no_key_aliasing:
 	vpclmulqdq	xmm8,xmm8,xmm3,0x10
 	vpxor	xmm2,xmm2,xmm7
 	vpxor	xmm8,xmm8,xmm2
+	mov	r12,QWORD[64+rbp]
 	vpshufb	xmm8,xmm8,XMMWORD[r11]
-	vmovdqu	XMMWORD[(-64)+rsi],xmm8
+	vmovdqu	XMMWORD[r12],xmm8
 
 	vzeroupper
 	movaps	xmm6,XMMWORD[((-208))+rbp]
@@ -935,7 +942,7 @@ $L$enc_no_key_aliasing:
 	pop	rbp
 
 $L$gcm_enc_abort:
-	DB	0F3h,0C3h		;repret
+	ret
 $L$SEH_end_aesni_gcm_encrypt_22:
 
 

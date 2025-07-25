@@ -14,10 +14,12 @@
 #include "base/files/scoped_temp_dir.h"
 #include "base/functional/callback.h"
 #include "base/memory/raw_ptr.h"
-#include "base/test/launcher/test_launcher.h"
+#include "build/blink_buildflags.h"
 #include "build/build_config.h"
 
-#if !defined(STARBOARD)
+#if BUILDFLAG(USE_BLINK)
+#include "base/test/launcher/test_launcher.h"
+#endif
 
 namespace base {
 
@@ -34,6 +36,10 @@ int LaunchUnitTests(int argc,
 int LaunchUnitTestsSerially(int argc,
                             char** argv,
                             RunTestSuiteCallback run_test_suite);
+
+// The following is not supported in unit_test_launcher_ios.cc, which is used on
+// iOS unless Blink is enabled.
+#if BUILDFLAG(USE_BLINK)
 
 // Launches unit tests in given test suite. Returns exit code.
 // |parallel_jobs| is the number of parallel test jobs.
@@ -189,8 +195,8 @@ class MergeTestFilterSwitchHandler : public DuplicateSwitchHandler {
                         CommandLine::StringType& out_value) override;
 };
 
-}   // namespace base
+#endif  // BUILDFLAG(USE_BLINK)
 
-#endif  // !defined(STARBOARD)
+}   // namespace base
 
 #endif  // BASE_TEST_LAUNCHER_UNIT_TEST_LAUNCHER_H_

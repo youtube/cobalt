@@ -11,33 +11,62 @@
 #ifndef BASE_TEST_TEST_TRACE_PROCESSOR_H_
 #define BASE_TEST_TEST_TRACE_PROCESSOR_H_
 
-#include <memory>
-#include "test_trace_processor_export.h"
-#include "third_party/abseil-cpp/absl/status/status.h"
-
-namespace perfetto::trace_processor {
-struct Config;
-class TraceProcessor;
-}  // namespace perfetto::trace_processor
+#include "base/test/test_trace_processor_impl.h"
+#include "base/test/trace_test_utils.h"
+#include "base/types/expected.h"
 
 namespace base::test {
 
-class TEST_TRACE_PROCESSOR_EXPORT TestTraceProcessor {
+#if BUILDFLAG(USE_PERFETTO_CLIENT_LIBRARY)
+
+using perfetto::protos::gen::TraceConfig;
+
+TraceConfig DefaultTraceConfig(const StringPiece& category_filter_string,
+                               bool privacy_filtering);
+
+// Use TestTraceProcessor to record Perfetto traces in unit and browser tests.
+// This API can be used to start and stop traces, run SQL queries on the trace
+// and write expectations against the query result.
+//
+// Example:
+//
+//   TestTraceProcessor test_trace_processor;
+//   test_trace_processor.StartTrace();
+//
+//   /* do stuff */
+//
+//   absl::Status status = test_trace_processor.StopAndParseTrace();
+//   ASSERT_TRUE(status.ok()) << status.message();
+//
+//   std::string query = "YOUR QUERY";
+//   auto result = test_trace_processor.RunQuery(query);
+//
+//   ASSERT_TRUE(result.has_value()) << result.message();
+//   EXPECT_THAT(result.value(), /* your expectations */);
+
+class TestTraceProcessor {
  public:
+  using QueryResult = std::vector<std::vector<std::string>>;
+
   TestTraceProcessor();
   ~TestTraceProcessor();
 
-  absl::Status ParseTrace(std::unique_ptr<uint8_t[]> buf, size_t size);
-  absl::Status ParseTrace(const std::vector<char>& raw_trace);
+  void StartTrace(const StringPiece& category_filter_string,
+                  bool privacy_filtering = false);
+  void StartTrace(
+      const TraceConfig& config,
+      perfetto::BackendType backend = perfetto::kUnspecifiedBackend);
 
-  // Runs the sql query on the parsed trace and returns the result as a
-  // vector of strings.
-  std::vector<std::vector<std::string>> ExecuteQuery(const std::string& sql);
+  absl::Status StopAndParseTrace();
+
+  base::expected<QueryResult, std::string> RunQuery(const std::string& query);
 
  private:
-  std::unique_ptr<perfetto::trace_processor::Config> config_;
-  std::unique_ptr<perfetto::trace_processor::TraceProcessor> trace_processor_;
+  TestTraceProcessorImpl test_trace_processor_;
+  std::unique_ptr<perfetto::TracingSession> session_;
 };
+
+#endif  // BUILDFLAG(USE_PERFETTO_CLIENT_LIBRARY)
 
 }  // namespace base::test
 

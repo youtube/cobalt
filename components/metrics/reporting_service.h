@@ -1,4 +1,4 @@
-// Copyright 2017 The Chromium Authors. All rights reserved.
+// Copyright 2017 The Chromium Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -11,12 +11,14 @@
 
 #include <string>
 
-#include "base/macros.h"
+#include "base/memory/raw_ptr.h"
 #include "base/time/time.h"
 #include "build/build_config.h"
 #include "components/metrics/data_use_tracker.h"
 #include "components/metrics/metrics_log_uploader.h"
+#include "components/metrics/metrics_logs_event_manager.h"
 #include "third_party/metrics_proto/reporting_info.pb.h"
+#include "url/gurl.h"
 
 class PrefService;
 class PrefRegistrySimple;
@@ -34,13 +36,20 @@ class MetricsServiceClient;
 // occur while attempting to upload logs.
 class ReportingService {
  public:
-  // Creates a ReportingService with the given |client|, |local_state|, and
-  // |max_retransmit_size|. Does not take ownership of the parameters; instead
-  // it stores a weak pointer to each. Caller should ensure that the parameters
-  // are valid for the lifetime of this class.
+  // Creates a ReportingService with the given |client|, |local_state|,
+  // |max_retransmit_size|, and |logs_event_manager|. Does not take ownership
+  // of the parameters; instead it stores a weak pointer to each. Caller should
+  // ensure that the parameters are valid for the lifetime of this class.
+  // |logs_event_manager| is used to notify observers of log events. Can be set
+  // to null if observing the events is not necessary.
   ReportingService(MetricsServiceClient* client,
                    PrefService* local_state,
-                   size_t max_retransmit_size);
+                   size_t max_retransmit_size,
+                   MetricsLogsEventManager* logs_event_manager);
+
+  ReportingService(const ReportingService&) = delete;
+  ReportingService& operator=(const ReportingService&) = delete;
+
   virtual ~ReportingService();
 
   // Completes setup tasks that can't be done at construction time.
@@ -66,25 +75,26 @@ class ReportingService {
   // True iff reporting is currently enabled.
   bool reporting_active() const;
 
-  // Updates data usage tracking prefs with the specified values.
-  void UpdateMetricsUsagePrefs(const std::string& service_name,
-                               int message_size,
-                               bool is_cellular);
+#if BUILDFLAG(IS_ANDROID) || BUILDFLAG(IS_IOS)
+  void SetIsInForegound(bool is_in_foreground) {
+    is_in_foreground_ = is_in_foreground;
+  }
+#endif  // BUILDFLAG(IS_ANDROID) || BUILDFLAG(IS_IOS)
 
   // Registers local state prefs used by this class. This should only be called
   // once.
   static void RegisterPrefs(PrefRegistrySimple* registry);
 
  protected:
-  MetricsServiceClient* client() const { return client_; };
+  MetricsServiceClient* client() const { return client_; }
 
  private:
   // Retrieves the log store backing this service.
   virtual LogStore* log_store() = 0;
 
   // Getters for MetricsLogUploader parameters.
-  virtual std::string GetUploadUrl() const = 0;
-  virtual std::string GetInsecureUploadUrl() const = 0;
+  virtual GURL GetUploadUrl() const = 0;
+  virtual GURL GetInsecureUploadUrl() const = 0;
   virtual base::StringPiece upload_mime_type() const = 0;
   virtual MetricsLogUploader::MetricServiceType service_type() const = 0;
 
@@ -94,7 +104,8 @@ class ReportingService {
   virtual void LogResponseOrErrorCode(int response_code,
                                       int error_code,
                                       bool was_https) {}
-  virtual void LogSuccess(size_t log_size) {}
+  virtual void LogSuccessLogSize(size_t log_size) {}
+  virtual void LogSuccessMetadata(const std::string& staged_log) {}
   virtual void LogLargeRejection(size_t log_size) {}
 
   // If recording is enabled, begins uploading the next completed log from
@@ -105,14 +116,28 @@ class ReportingService {
   void SendStagedLog();
 
   // Called after transmission completes (either successfully or with failure).
-  void OnLogUploadComplete(int response_code, int error_code, bool was_https);
+  // If |force_discard| is true, discard the log regardless of the response or
+  // error code. For example, this is used for builds that do not include any
+  // metrics server URLs (no reason to keep re-sending to a non-existent URL).
+  void OnLogUploadComplete(int response_code,
+                           int error_code,
+                           bool was_https,
+                           bool force_discard,
+                           base::StringPiece force_discard_reason);
 
   // Used to interact with the embedder. Weak pointer; must outlive |this|
   // instance.
-  MetricsServiceClient* const client_;
+  const raw_ptr<MetricsServiceClient> client_;
+
+  // Used to flush changes to disk after uploading a log. Weak pointer; must
+  // outlive |this| instance.
+  const raw_ptr<PrefService> local_state_;
 
   // Largest log size to attempt to retransmit.
   size_t max_retransmit_size_;
+
+  // Event manager to notify observers of log events.
+  const raw_ptr<MetricsLogsEventManager> logs_event_manager_;
 
   // Indicate whether recording and reporting are currently happening.
   // These should not be set directly, but by calling SetRecording and
@@ -138,14 +163,19 @@ class ReportingService {
   // Info on current reporting state to send along with reports.
   ReportingInfo reporting_info_;
 
+#if BUILDFLAG(IS_ANDROID) || BUILDFLAG(IS_IOS)
+  // Indicates whether the browser is currently in the foreground. Used to
+  // determine whether |local_state_| should be flushed immediately after
+  // uploading a log.
+  bool is_in_foreground_ = false;
+#endif  // BUILDFLAG(IS_ANDROID) || BUILDFLAG(IS_IOS)
+
   SEQUENCE_CHECKER(sequence_checker_);
 
   // Weak pointers factory used to post task on different threads. All weak
   // pointers managed by this factory have the same lifetime as
   // ReportingService.
-  base::WeakPtrFactory<ReportingService> self_ptr_factory_;
-
-  DISALLOW_COPY_AND_ASSIGN(ReportingService);
+  base::WeakPtrFactory<ReportingService> self_ptr_factory_{this};
 };
 
 }  // namespace metrics

@@ -14,11 +14,7 @@ namespace {
 
 base::FilePath GetRoot() {
   base::FilePath root;
-#if defined(STARBOARD)
-  base::PathService::Get(base::DIR_TEST_DATA, &root);
-#else
-  base::PathService::Get(base::DIR_SOURCE_ROOT, &root);
-#endif
+  base::PathService::Get(base::DIR_SRC_TEST_DATA_ROOT, &root);
   return root.AppendASCII("net")
       .AppendASCII("data")
       .AppendASCII("cache_tests")

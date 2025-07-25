@@ -301,7 +301,7 @@ public final class UnknownFieldSetLite {
     return size;
   }
 
-  private static boolean equals(int[] tags1, int[] tags2, int count) {
+  private static boolean tagsEquals(int[] tags1, int[] tags2, int count) {
     for (int i = 0; i < count; ++i) {
       if (tags1[i] != tags2[i]) {
         return false;
@@ -310,7 +310,7 @@ public final class UnknownFieldSetLite {
     return true;
   }
 
-  private static boolean equals(Object[] objects1, Object[] objects2, int count) {
+  private static boolean objectsEquals(Object[] objects1, Object[] objects2, int count) {
     for (int i = 0; i < count; ++i) {
       if (!objects1[i].equals(objects2[i])) {
         return false;
@@ -335,8 +335,8 @@ public final class UnknownFieldSetLite {
 
     UnknownFieldSetLite other = (UnknownFieldSetLite) obj;
     if (count != other.count
-        || !equals(tags, other.tags, count)
-        || !equals(objects, other.objects, count)) {
+        || !tagsEquals(tags, other.tags, count)
+        || !objectsEquals(objects, other.objects, count)) {
       return false;
     }
 
@@ -388,7 +388,7 @@ public final class UnknownFieldSetLite {
   // Package private for unsafe experimental runtime.
   void storeField(int tag, Object value) {
     checkMutable();
-    ensureCapacity();
+    ensureCapacity(count + 1);
 
     tags[count] = tag;
     objects[count] = value;
@@ -396,13 +396,23 @@ public final class UnknownFieldSetLite {
   }
 
   /** Ensures that our arrays are long enough to store more metadata. */
-  private void ensureCapacity() {
-    if (count == tags.length) {
-      int increment = count < (MIN_CAPACITY / 2) ? MIN_CAPACITY : count >> 1;
-      int newLength = count + increment;
+  private void ensureCapacity(int minCapacity) {
+    if (minCapacity > this.tags.length) {
+      // Increase by at least 50%
+      int newCapacity = count + count / 2;
 
-      tags = Arrays.copyOf(tags, newLength);
-      objects = Arrays.copyOf(objects, newLength);
+      // Or new capacity if higher
+      if (newCapacity < minCapacity) {
+        newCapacity = minCapacity;
+      }
+
+      // And never less than MIN_CAPACITY
+      if (newCapacity < MIN_CAPACITY) {
+        newCapacity = MIN_CAPACITY;
+      }
+
+      this.tags = Arrays.copyOf(this.tags, newCapacity);
+      this.objects = Arrays.copyOf(this.objects, newCapacity);
     }
   }
 
@@ -485,6 +495,21 @@ public final class UnknownFieldSetLite {
         break;
       }
     }
+    return this;
+  }
+
+  @CanIgnoreReturnValue
+  UnknownFieldSetLite mergeFrom(UnknownFieldSetLite other) {
+    if (other.equals(getDefaultInstance())) {
+      return this;
+    }
+
+    checkMutable();
+    int newCount = this.count + other.count;
+    ensureCapacity(newCount);
+    System.arraycopy(other.tags, 0, tags, this.count, other.count);
+    System.arraycopy(other.objects, 0, objects, this.count, other.count);
+    this.count = newCount;
     return this;
   }
 }

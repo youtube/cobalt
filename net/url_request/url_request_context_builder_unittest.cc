@@ -226,8 +226,7 @@ TEST_F(URLRequestContextBuilderTest, ShutDownNELAndReportingWithPendingUpload) {
   context.reset();
 }
 
-// # TODO: b/327008491 - Reenable unittests with unused functionality.
-#if !BUILDFLAG(CRONET_BUILD) && !defined(STARBOARD)
+#if !BUILDFLAG(CRONET_BUILD)
 // See crbug.com/935209. This test ensures that shutdown occurs correctly and
 // does not crash while destoying the NEL and Reporting services in the process
 // of destroying the URLRequestContext whilst Reporting has a pending upload.
@@ -412,7 +411,7 @@ TEST_F(URLRequestContextBuilderTest, MigrateSessionsOnNetworkChangeV2Default) {
 
   const QuicParams* quic_params = context->quic_context()->params();
 #if BUILDFLAG(IS_ANDROID)
-  EXPECT_TRUE(quic_params->migrate_sessions_on_network_change_v2);
+  EXPECT_FALSE(quic_params->migrate_sessions_on_network_change_v2);
 #else   // !BUILDFLAG(IS_ANDROID)
   EXPECT_FALSE(quic_params->migrate_sessions_on_network_change_v2);
 #endif  // BUILDFLAG(IS_ANDROID)

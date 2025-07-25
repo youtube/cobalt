@@ -2,24 +2,6 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#if defined(STARBOARD)
-
-#include "starboard/client_porting/wrap_main/wrap_main.h"
-#include "starboard/event.h"
-#include "starboard/system.h"
-#include "testing/gtest/include/gtest/gtest.h"
-
-namespace {
-int InitAndRunAllTests(int argc, char** argv) {
-  ::testing::InitGoogleTest(&argc, argv);
-  return RUN_ALL_TESTS();
-}
-}  // namespace
-
-STARBOARD_WRAP_SIMPLE_MAIN(InitAndRunAllTests);
-
-#else  // defined(STARBOARD)
-
 #include "base/functional/bind.h"
 #include "base/test/launcher/unit_test_launcher.h"
 #include "base/test/test_discardable_memory_allocator.h"
@@ -35,9 +17,21 @@ STARBOARD_WRAP_SIMPLE_MAIN(InitAndRunAllTests);
 #include "media/base/android/media_codec_util.h"
 #endif
 
+#if BUILDFLAG(IS_CHROMEOS)
+#include "ui/gfx/linux/gbm_util.h"  // nogncheck
+#endif                              // BUILDFLAG(IS_CHROMEOS)
+
 class TestSuiteNoAtExit : public base::TestSuite {
  public:
-  TestSuiteNoAtExit(int argc, char** argv) : TestSuite(argc, argv) {}
+  TestSuiteNoAtExit(int argc, char** argv) : TestSuite(argc, argv) {
+#if BUILDFLAG(IS_CHROMEOS)
+    // TODO(b/271455200): the FeatureList has not been initialized by this
+    // point, so this call will always disable Intel media compression. We may
+    // want to move this to a later point to be able to run media unit tests
+    // with Intel media compression enabled.
+    ui::EnsureIntelMediaCompressionEnvVarIsSet();
+#endif
+  }
   ~TestSuiteNoAtExit() override = default;
 
  protected:
@@ -71,5 +65,3 @@ int main(int argc, char** argv) {
       argc, argv,
       base::BindOnce(&TestSuiteNoAtExit::Run, base::Unretained(&test_suite)));
 }
-
-#endif  // defined(STARBOARD)

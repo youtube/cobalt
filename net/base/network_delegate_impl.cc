@@ -56,9 +56,11 @@ bool NetworkDelegateImpl::OnAnnotateAndMoveUserBlockedCookies(
   return true;
 }
 
-bool NetworkDelegateImpl::OnCanSetCookie(const URLRequest& request,
-                                         const net::CanonicalCookie& cookie,
-                                         CookieOptions* options) {
+bool NetworkDelegateImpl::OnCanSetCookie(
+    const URLRequest& request,
+    const net::CanonicalCookie& cookie,
+    CookieOptions* options,
+    CookieInclusionStatus* inclusion_status) {
   return true;
 }
 
@@ -93,14 +95,6 @@ bool NetworkDelegateImpl::OnCanSetReportingClient(const url::Origin& origin,
 bool NetworkDelegateImpl::OnCanUseReportingClient(const url::Origin& origin,
                                                   const GURL& endpoint) const {
   return true;
-}
-
-absl::optional<FirstPartySetsCacheFilter::MatchInfo>
-NetworkDelegateImpl::OnGetFirstPartySetsCacheFilterMatchInfoMaybeAsync(
-    const SchemefulSite& request_site,
-    base::OnceCallback<void(FirstPartySetsCacheFilter::MatchInfo)> callback)
-    const {
-  return {FirstPartySetsCacheFilter::MatchInfo()};
 }
 
 }  // namespace net

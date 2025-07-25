@@ -62,11 +62,6 @@ spdy::SettingsMap AddDefaultHttp2Settings(spdy::SettingsMap http2_settings) {
   if (it == http2_settings.end())
     http2_settings[spdy::SETTINGS_HEADER_TABLE_SIZE] = kSpdyMaxHeaderTableSize;
 
-  it = http2_settings.find(spdy::SETTINGS_MAX_CONCURRENT_STREAMS);
-  if (it == http2_settings.end())
-    http2_settings[spdy::SETTINGS_MAX_CONCURRENT_STREAMS] =
-        kSpdyMaxConcurrentPushedStreams;
-
   it = http2_settings.find(spdy::SETTINGS_INITIAL_WINDOW_SIZE);
   if (it == http2_settings.end())
     http2_settings[spdy::SETTINGS_INITIAL_WINDOW_SIZE] =
@@ -252,8 +247,8 @@ void HttpNetworkSession::RemoveResponseDrainer(
 
 ClientSocketPool* HttpNetworkSession::GetSocketPool(
     SocketPoolType pool_type,
-    const ProxyServer& proxy_server) {
-  return GetSocketPoolManager(pool_type)->GetSocketPool(proxy_server);
+    const ProxyChain& proxy_chain) {
+  return GetSocketPoolManager(pool_type)->GetSocketPool(proxy_chain);
 }
 
 base::Value HttpNetworkSession::SocketPoolInfoToValue() const {
@@ -324,13 +319,11 @@ base::Value HttpNetworkSession::QuicInfoToValue() const {
       "max_num_migrations_to_non_default_network_on_path_degrading",
       quic_params->max_migrations_to_non_default_network_on_path_degrading);
   dict.Set("allow_server_migration", quic_params->allow_server_migration);
-  dict.Set("race_stale_dns_on_connection",
-           quic_params->race_stale_dns_on_connection);
   dict.Set("estimate_initial_rtt", quic_params->estimate_initial_rtt);
-  dict.Set("server_push_cancellation", params_.enable_server_push_cancellation);
   dict.Set("initial_rtt_for_handshake_milliseconds",
            static_cast<int>(
                quic_params->initial_rtt_for_handshake.InMilliseconds()));
+
   return base::Value(std::move(dict));
 }
 
@@ -350,17 +343,6 @@ void HttpNetworkSession::CloseIdleConnections(const char* net_log_reason_utf8) {
   spdy_session_pool_.CloseCurrentIdleSessions(net_log_reason_utf8);
 }
 
-void HttpNetworkSession::SetServerPushDelegate(
-    std::unique_ptr<ServerPushDelegate> push_delegate) {
-  DCHECK(push_delegate);
-  if (!params_.enable_server_push_cancellation || push_delegate_)
-    return;
-
-  push_delegate_ = std::move(push_delegate);
-  spdy_session_pool_.set_server_push_delegate(push_delegate_.get());
-  quic_stream_factory_.set_server_push_delegate(push_delegate_.get());
-}
-
 bool HttpNetworkSession::IsQuicEnabled() const {
   return params_.enable_quic;
 }
@@ -368,35 +350,6 @@ bool HttpNetworkSession::IsQuicEnabled() const {
 void HttpNetworkSession::DisableQuic() {
   params_.enable_quic = false;
 }
-
-#if defined(STARBOARD)
-void HttpNetworkSession::SetEnableQuic(bool enable_quic) {
-  params_.enable_quic = enable_quic;
-}
-void HttpNetworkSession::SetEnableHttp2(bool enable_http2) {
-  if (params_.enable_http2 == enable_http2) {
-    return;
-  }
-  params_.enable_http2 = enable_http2;
-
-  if (params_.enable_http2) {
-    next_protos_.push_back(kProtoHTTP2);
-    if (base::FeatureList::IsEnabled(features::kAlpsForHttp2)) {
-      // Enable ALPS for HTTP/2 with empty data.
-      application_settings_[kProtoHTTP2] = {};
-    }
-  } else {
-    if (next_protos_.back() == kProtoHTTP2) {
-      next_protos_.pop_back();
-    }
-    application_settings_.erase(kProtoHTTP2);
-  }
-}
-
-bool HttpNetworkSession::UseQuicForUnknownOrigin() const {
-  return params_.use_quic_for_unknown_origins;
-}
-#endif  // defined(STARBOARD)
 
 void HttpNetworkSession::ClearSSLSessionCache() {
   ssl_client_session_cache_.Flush();
@@ -410,8 +363,7 @@ CommonConnectJobParams HttpNetworkSession::CreateCommonConnectJobParams(
       context_.client_socket_factory, context_.host_resolver, &http_auth_cache_,
       context_.http_auth_handler_factory, &spdy_session_pool_,
       &context_.quic_context->params()->supported_versions,
-      &quic_stream_factory_,
-      context_.proxy_delegate,
+      &quic_stream_factory_, context_.proxy_delegate,
       context_.http_user_agent_settings, &ssl_client_context_,
       context_.socket_performance_watcher_factory,
       context_.network_quality_estimator, context_.net_log,
