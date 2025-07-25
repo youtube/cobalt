@@ -155,8 +155,11 @@ class MEDIA_EXPORT StarboardRendererClient
   mojo::Receiver<ClientExtension> client_extension_receiver_;
   const BindHostReceiverCallback bind_host_receiver_callback_;
   raw_ptr<GpuVideoAcceleratorFactories> gpu_factories_ = nullptr;
-  RequestOverlayInfoCB request_overlay_info_cb_;
   mojo::Remote<RendererExtension> renderer_extension_;
+
+#if BUILDFLAG(IS_ANDROID)
+  RequestOverlayInfoCB request_overlay_info_cb_;
+#endif  // BUILDFLAG(IS_ANDROID)
 
   raw_ptr<RendererClient> client_ = nullptr;
   PipelineStatusCallback init_cb_;
@@ -166,9 +169,12 @@ class MEDIA_EXPORT StarboardRendererClient
 
   bool is_playing_ = false;
   bool video_renderer_sink_started_ = false;
-  bool overlay_info_requested_ = false;
-  scoped_refptr<VideoFrame> next_video_frame_;
 
+#if BUILDFLAG(IS_ANDROID)
+  bool overlay_info_requested_ = false;
+#endif  // BUILDFLAG(IS_ANDROID)
+
+  scoped_refptr<VideoFrame> next_video_frame_;
   mutable base::Lock lock_;
   bool is_mojo_renderer_initialized_ GUARDED_BY(lock_) = false;
   PipelineStatus pipeline_status_ GUARDED_BY(lock_) =

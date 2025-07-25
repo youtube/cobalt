@@ -15,7 +15,6 @@
 #include "media/mojo/clients/starboard/starboard_renderer_client.h"
 
 #include "base/functional/bind.h"
-#include "base/task/bind_post_task.h"
 #include "base/time/time.h"
 #include "base/unguessable_token.h"
 #include "media/base/media_log.h"
@@ -26,6 +25,10 @@
 #include "media/video/gpu_video_accelerator_factories.h"
 #include "mojo/public/cpp/bindings/pending_receiver.h"
 #include "ui/gfx/geometry/rect_conversions.h"
+
+#if BUILDFLAG(IS_ANDROID)
+#include "base/task/bind_post_task.h"
+#endif  // BUILDFLAG(IS_ANDROID)
 
 namespace media {
 
@@ -69,9 +72,12 @@ StarboardRendererClient::StarboardRendererClient(
 StarboardRendererClient::~StarboardRendererClient() {
   SetPlayingState(false);
   DCHECK(!video_renderer_sink_started_);
+
+#if BUILDFLAG(IS_ANDROID)
   if (request_overlay_info_cb_ && overlay_info_requested_) {
     request_overlay_info_cb_.Run(false, base::NullCallback());
   }
+#endif  // BUILDFLAG(IS_ANDROID)
 }
 
 void StarboardRendererClient::Initialize(MediaResource* media_resource,

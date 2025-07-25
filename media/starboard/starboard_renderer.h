@@ -103,8 +103,12 @@ class MEDIA_EXPORT StarboardRenderer : public Renderer,
       base::RepeatingCallback<void(const gfx::Size&)>;
   using UpdateStarboardRenderingModeCallback =
       base::RepeatingCallback<void(const StarboardRenderingMode mode)>;
+
+#if BUILDFLAG(IS_ANDROID)
   using RequestOverlayInfoCallBack =
       base::RepeatingCallback<void(bool restart_for_transitions)>;
+#endif  // BUILDFLAG(IS_ANDROID)
+
   void SetStarboardRendererCallbacks(
       PaintVideoHoleFrameCallback paint_video_hole_frame_cb,
       UpdateStarboardRenderingModeCallback update_starboard_rendering_mode_cb
@@ -185,7 +189,10 @@ class MEDIA_EXPORT StarboardRenderer : public Renderer,
   raw_ptr<RendererClient> client_ = nullptr;
   PaintVideoHoleFrameCallback paint_video_hole_frame_cb_;
   UpdateStarboardRenderingModeCallback update_starboard_rendering_mode_cb_;
+
+#if BUILDFLAG(IS_ANDROID)
   RequestOverlayInfoCallBack request_overlay_info_cb_;
+#endif  // BUILDFLAG(IS_ANDROID)
 
   // Temporary callback used for Initialize().
   PipelineStatusCallback init_cb_;
