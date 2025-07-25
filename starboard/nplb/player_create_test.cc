@@ -97,9 +97,6 @@ class SbPlayerTest : public ::testing::Test {
     *error_occurred = false;
 
     const int64_t wait_end = CurrentMonotonicTime() + kWaitTimeout;
-    auto predicate = [this]() {
-      return player_error_.has_value() || player_state_.has_value();
-    };
 
     for (;;) {
       std::unique_lock lock(mutex_);
@@ -119,7 +116,11 @@ class SbPlayerTest : public ::testing::Test {
         break;
       }
       condition_variable_.wait_for(
-          lock, std::chrono::microseconds(wait_end - now), predicate);
+          lock, std::chrono::microseconds(wait_end - now), [this]() {
+            return player_error_.has_value() ||
+                   (player_state_.has_value() &&
+                    player_state_.value() == kSbPlayerStateInitialized);
+          });
     }
 
     SB_LOG(INFO) << "WaitForPlayerInitializedOrError() timed out.";

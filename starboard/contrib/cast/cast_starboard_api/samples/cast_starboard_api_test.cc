@@ -170,6 +170,7 @@ void CastStarboardApiTest::EventCallbackInternal() {
 void CastStarboardApiTest::WaitForEventCallback() {
   std::unique_lock lock(received_mutex_);
   received_cond_->wait(lock, [this] { return event_received_; });
+  event_received_ = false;  // Reset for the next wait.
 }
 
 void CastStarboardApiTest::CastStarboardApiThread::Run() {
