@@ -25,7 +25,6 @@ feof
 fflush
 fgets
 fileno
-flock
 fopen
 fprintf
 fputc
