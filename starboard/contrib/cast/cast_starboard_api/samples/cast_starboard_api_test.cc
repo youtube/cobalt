@@ -2,9 +2,10 @@
 
 #include <dlfcn.h>
 
-#include "starboard/common/condition_variable.h"
+#include <condition_variable>
+#include <mutex>
+
 #include "starboard/common/log.h"
-#include "starboard/common/mutex.h"
 #include "starboard/common/thread.h"
 #include "starboard/configuration_constants.h"
 #include "starboard/egl.h"
@@ -71,13 +72,13 @@ class CastStarboardApiTest : public ::testing::Test {
 
   // These properties are used to initialize the main Starboard thread.
   std::unique_ptr<CastStarboardApiThread> sb_thread_;
-  std::unique_ptr<starboard::ConditionVariable> started_cond_;
-  starboard::Mutex started_mutex_;
+  std::unique_ptr<std::condition_variable> started_cond_;
+  std::mutex started_mutex_;
 
   // These properties are used to track event dispatch during tests.
   std::vector<SbEventType> received_;
-  starboard::Mutex received_mutex_;
-  std::unique_ptr<starboard::ConditionVariable> received_cond_;
+  std::mutex received_mutex_;
+  std::unique_ptr<std::condition_variable> received_cond_;
 };
 
 // A behavior in the default implementation prevents dlclose from being used on
@@ -101,10 +102,8 @@ void EventCallbackStatic(void* context) {
 
 CastStarboardApiTest::CastStarboardApiTest() {
   g_test_instance = this;
-  started_cond_ =
-      std::make_unique<starboard::ConditionVariable>(started_mutex_);
-  received_cond_ =
-      std::make_unique<starboard::ConditionVariable>(received_mutex_);
+  started_cond_ = std::make_unique<std::condition_variable>();
+  received_cond_ = std::make_unique<std::condition_variable>();
 
   // Ensure libcast_starboard_api.so has been opened.
   if (!g_lib) {
@@ -133,9 +132,8 @@ CastStarboardApiTest::CastStarboardApiTest() {
   sb_thread_->Start();
 
   // Watch event for initialation completion.
-  started_mutex_.Acquire();
-  started_cond_->Wait();
-  started_mutex_.Release();
+  std::unique_lock lock(started_mutex_);
+  started_cond_->wait(lock);
 }
 
 CastStarboardApiTest::~CastStarboardApiTest() {
@@ -149,7 +147,7 @@ CastStarboardApiTest::~CastStarboardApiTest() {
 void CastStarboardApiTest::EventHandleInternal(const SbEvent* event) {
   switch (event->type) {
     case kSbEventTypeStart:
-      started_cond_->Signal();
+      started_cond_->notify_one();
       break;
     default:
       break;
@@ -159,13 +157,12 @@ void CastStarboardApiTest::EventHandleInternal(const SbEvent* event) {
 }
 
 void CastStarboardApiTest::EventCallbackInternal() {
-  received_cond_->Signal();
+  received_cond_->notify_one();
 }
 
 void CastStarboardApiTest::WaitForEventCallback() {
-  received_mutex_.Acquire();
-  received_cond_->Wait();
-  received_mutex_.Release();
+  std::unique_lock lock(received_mutex_);
+  received_cond_->wait(lock);
 }
 
 void CastStarboardApiTest::CastStarboardApiThread::Run() {

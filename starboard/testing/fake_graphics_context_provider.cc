@@ -14,9 +14,10 @@
 
 #include "starboard/testing/fake_graphics_context_provider.h"
 
-#include "starboard/common/condition_variable.h"
+#include <condition_variable>
+#include <mutex>
+
 #include "starboard/common/log.h"
-#include "starboard/common/mutex.h"
 
 #if defined(ADDRESS_SANITIZER)
 // By default, Leak Sanitizer and Address Sanitizer is expected to exist
@@ -134,16 +135,16 @@ void FakeGraphicsContextProvider::RunOnGlesContextThread(
     functor();
     return;
   }
-  Mutex mutex;
-  ConditionVariable condition_variable(mutex);
-  ScopedLock scoped_lock(mutex);
+  std::mutex mutex;
+  std::condition_variable condition_variable;
+  std::unique_lock lock(mutex);
 
   functor_queue_.Put(functor);
   functor_queue_.Put([&]() {
-    ScopedLock scoped_lock(mutex);
-    condition_variable.Signal();
+    std::lock_guard lock(mutex);
+    condition_variable.notify_one();
   });
-  condition_variable.Wait();
+  condition_variable.wait(lock);
 }
 
 void FakeGraphicsContextProvider::ReleaseDecodeTarget(
@@ -153,16 +154,16 @@ void FakeGraphicsContextProvider::ReleaseDecodeTarget(
     return;
   }
 
-  Mutex mutex;
-  ConditionVariable condition_variable(mutex);
-  ScopedLock scoped_lock(mutex);
+  std::mutex mutex;
+  std::condition_variable condition_variable;
+  std::unique_lock lock(mutex);
 
   functor_queue_.Put(std::bind(SbDecodeTargetRelease, decode_target));
   functor_queue_.Put([&]() {
-    ScopedLock scoped_lock(mutex);
-    condition_variable.Signal();
+    std::lock_guard lock(mutex);
+    condition_variable.notify_one();
   });
-  condition_variable.Wait();
+  condition_variable.wait(lock);
 }
 
 // static
@@ -326,16 +327,16 @@ void FakeGraphicsContextProvider::OnDecodeTargetGlesContextRunner(
     return;
   }
 
-  Mutex mutex;
-  ConditionVariable condition_variable(mutex);
-  ScopedLock scoped_lock(mutex);
+  std::mutex mutex;
+  std::condition_variable condition_variable;
+  std::unique_lock lock(mutex);
 
   functor_queue_.Put(std::bind(target_function, target_function_context));
   functor_queue_.Put([&]() {
-    ScopedLock scoped_lock(mutex);
-    condition_variable.Signal();
+    std::lock_guard lock(mutex);
+    condition_variable.notify_one();
   });
-  condition_variable.Wait();
+  condition_variable.wait(lock);
 }
 
 void FakeGraphicsContextProvider::MakeContextCurrent() {
