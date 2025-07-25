@@ -191,6 +191,11 @@ void DrmSystem::GenerateSessionUpdateRequestWithAppProvisioning(
       SB_LOG(INFO) << "Device is not provisioned. Generating provision request";
       {
         std::lock_guard scoped_lock(mutex_);
+        // For now, we can handle only one pending ticket, which should be
+        // enough for app-assisted provisionig, in which provisioning request
+        // comes in sequence.
+        SB_DCHECK(!pending_ticket_.has_value())
+            << "There should be no pending ticket.";
         pending_ticket_ = request->ticket();
         deferred_session_update_requests_.push_back(
             std::make_unique<SessionUpdateRequest>(
