@@ -24,6 +24,8 @@ import org.chromium.components.embedder_support.view.ContentViewRenderView;
 import org.chromium.content_public.browser.WebContents;
 import org.chromium.ui.base.WindowAndroid;
 
+import java.util.concurrent.Callable;
+
 /**
  * Copied from org.chromium.content_shell.ShellManager.
  * Container and generator of ShellViews.
@@ -57,11 +59,13 @@ public class ShellManager {
     /**
      * @param window The window used to generate all shells.
      */
-    public void setWindow(WindowAndroid window) {
-        assert window != null;
-        mWindow = window;
-        mContentViewRenderView = new ContentViewRenderView(getContext());
-        mContentViewRenderView.onNativeLibraryLoaded(window);
+    public void setWindow(final WindowAndroid window) {
+        ThreadUtils.runOnUiThreadBlocking(() -> {
+            assert window != null;
+            mWindow = window;
+            mContentViewRenderView = new ContentViewRenderView(getContext());
+            mContentViewRenderView.onNativeLibraryLoaded(window);
+        });
     }
 
     /**
@@ -97,28 +101,31 @@ public class ShellManager {
      * @param url The URL the shell should load upon creation.
      */
     public void launchShell(String url) {
-        ThreadUtils.assertOnUiThread();
-        Shell previousShell = mActiveShell;
-        ShellManagerJni.get().launchShell(url);
-        if (previousShell != null) previousShell.close();
+        ThreadUtils.runOnUiThread(() -> {
+            Shell previousShell = mActiveShell;
+            ShellManagerJni.get().launchShell(url);
+            if (previousShell != null) previousShell.close();
+        });
     }
 
     @CalledByNative
-    private Object createShell(long nativeShellPtr) {
-        if (mContentViewRenderView == null) {
-            mContentViewRenderView = new ContentViewRenderView(getContext());
-            mContentViewRenderView.setSurfaceViewBackgroundColor(Color.TRANSPARENT);
-            mContentViewRenderView.onNativeLibraryLoaded(mWindow);
-        }
+    private Object createShell(final long nativeShellPtr) {
+        return ThreadUtils.runOnUiThreadBlockingNoException((Callable<Object>) () -> {
+            if (mContentViewRenderView == null) {
+                mContentViewRenderView = new ContentViewRenderView(getContext());
+                mContentViewRenderView.setSurfaceViewBackgroundColor(Color.TRANSPARENT);
+                mContentViewRenderView.onNativeLibraryLoaded(mWindow);
+            }
 
-        Shell shellView = new Shell(getContext());
-        shellView.initialize(nativeShellPtr, mWindow);
+            Shell shellView = new Shell(getContext());
+            shellView.initialize(nativeShellPtr, mWindow);
 
-        // TODO(tedchoc): Allow switching back to these inactive shells.
-        if (mActiveShell != null) removeShell(mActiveShell);
+            // TODO(tedchoc): Allow switching back to these inactive shells.
+            if (mActiveShell != null) removeShell(mActiveShell);
 
-        showShell(shellView);
-        return shellView;
+            showShell(shellView);
+            return shellView;
+        });
     }
 
     private void showShell(Shell shellView) {
@@ -144,14 +151,16 @@ public class ShellManager {
      */
     @CalledByNative
     public void destroy() {
-        // Remove active shell (Currently single shell support only available).
-        if (mActiveShell != null) {
-            removeShell(mActiveShell);
-        }
-        if (mContentViewRenderView != null) {
-            mContentViewRenderView.destroy();
-            mContentViewRenderView = null;
-        }
+        ThreadUtils.runOnUiThreadBlocking(() -> {
+            // Remove active shell (Currently single shell support only available).
+            if (mActiveShell != null) {
+                removeShell(mActiveShell);
+            }
+            if (mContentViewRenderView != null) {
+                mContentViewRenderView.destroy();
+                mContentViewRenderView = null;
+            }
+        });
     }
 
     @NativeMethods
