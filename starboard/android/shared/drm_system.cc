@@ -38,14 +38,14 @@ namespace {
 using starboard::android::shared::DrmSystem;
 
 // TODO: b/79941850 - Use base::Feature instead for the experimentation.
-constexpr bool kEnableAppProvisioning = true;
+constexpr bool kEnableAppProvisioning = false;
 
 constexpr char kNoUrl[] = "";
 
 DECLARE_INSTANCE_COUNTER(AndroidDrmSystem)
 
 std::string GenerateBridgeSesssionId() {
-  static int counter = 0;
+  static std::atomic<int> counter = 0;
   return "cobalt.sid." + std::to_string(counter++);
 }
 }  // namespace
@@ -77,6 +77,9 @@ DrmSystem::DrmSystem(
   if (!media_drm_bridge_->is_valid()) {
     return;
   }
+  SB_LOG(INFO) << "Creating DrmSystem: key_system=" << key_system
+               << ", enable_app_provisioning="
+               << (kEnableAppProvisioning ? "true" : "false");
 
   Start();
 }
@@ -137,11 +140,7 @@ void DrmSystem::SessionUpdateRequest::Generate(
     const MediaDrmBridge* media_drm_bridge) const {
   SB_LOG(INFO) << __func__;
   SB_DCHECK(media_drm_bridge);
-  media_drm_bridge->CreateSession(
-      ticket_,
-      std::string_view{reinterpret_cast<const char*>(init_data_.data()),
-                       init_data_.size()},
-      mime_);
+  media_drm_bridge->CreateSession(ticket_, init_data_, mime_);
 }
 
 MediaDrmBridge::OperationResult
@@ -151,11 +150,8 @@ DrmSystem::SessionUpdateRequest::GenerateWithAppProvisioning(
 
   SB_LOG(INFO) << __func__;
   SB_DCHECK(media_drm_bridge);
-  return media_drm_bridge->CreateSessionWithAppProvisioning(
-      ticket_,
-      std::string_view{reinterpret_cast<const char*>(init_data_.data()),
-                       init_data_.size()},
-      mime_);
+  return media_drm_bridge->CreateSessionWithAppProvisioning(ticket_, init_data_,
+                                                            mime_);
 }
 
 void DrmSystem::GenerateSessionUpdateRequest(int ticket,
@@ -223,6 +219,7 @@ void DrmSystem::UpdateSession(int ticket,
   std::string_view media_drm_session_id = cdm_session_id;
   std::optional<MediaDrmBridge::OperationResult> completed_status;
   SB_LOG(INFO) << __func__ << ": cdm_session_id=" << cdm_session_id;
+
   if (bridge_session_id_map_.has_value() &&
       bridge_session_id_map_->cdm_id == cdm_session_id) {
     if (bridge_session_id_map_->media_drm_id.empty()) {
@@ -339,6 +336,8 @@ void DrmSystem::OnSessionUpdate(int ticket,
 }
 
 void DrmSystem::OnProvisioningRequest(std::string_view content) {
+  SB_CHECK(kEnableAppProvisioning);
+
   SB_LOG(INFO) << __func__;
   if (!bridge_session_id_map_.has_value()) {
     bridge_session_id_map_.emplace(
@@ -371,8 +370,8 @@ void DrmSystem::OnKeyStatusChange(
     const std::vector<SbDrmKeyStatus>& drm_key_statuses) {
   SB_DCHECK_EQ(drm_key_ids.size(), drm_key_statuses.size());
 
-  std::string session_id_str(session_id);
   {
+    std::string session_id_str(session_id);
     std::lock_guard scoped_lock(mutex_);
     if (cached_drm_key_ids_[session_id_str] != drm_key_ids) {
       cached_drm_key_ids_[session_id_str] = drm_key_ids;
@@ -382,16 +381,6 @@ void DrmSystem::OnKeyStatusChange(
       }
     }
   }
-
-  /*
-  std::string log;
-  for (int i = 0; i < drm_key_ids.size(); i++) {
-    log += (i > 0 ? ", " : "") + drm_key_ids[i] + "=" +
-           BytesToString(drm_key_statuses[i];
-  }
-  SB_LOG(INFO) << "Key status changed: session_id=" << session_id_as_string
-               << ", key_ids={" << log + "}";
-  */
 
   is_key_provided_ = std::any_of(
       drm_key_statuses.cbegin(), drm_key_statuses.cend(),
@@ -404,7 +393,7 @@ void DrmSystem::OnKeyStatusChange(
 }
 
 void DrmSystem::OnInsufficientOutputProtection() {
-  // HDCP has lost, update the statuses of all keys in all known sessions to  be
+  // HDCP has lost, update the statuses of all keys in all known sessions to be
   // restricted.
   std::lock_guard scoped_lock(mutex_);
   if (hdcp_lost_) {
@@ -429,7 +418,11 @@ void DrmSystem::CallKeyStatusesChangedCallbackWithKeyStatusRestricted_Locked() {
 }
 
 bool DrmSystem::IsReady() {
-  return is_key_provided_;
+  if (kEnableAppProvisioning) {
+    return is_key_provided_;
+  }
+
+  return created_media_crypto_session_.load();
 }
 
 }  // namespace starboard::android::shared

@@ -113,8 +113,6 @@ class DrmSystem : public ::SbDrmSystemPrivate,
   void InitializeMediaCryptoSession();
   void CallKeyStatusesChangedCallbackWithKeyStatusRestricted_Locked();
   void HandlePendingRequests();
-  void GenerateSessionUpdateRequestProvisioning(
-      std::unique_ptr<SessionUpdateRequest> request);
   void GenerateSessionUpdateRequestWithAppProvisioning(
       std::unique_ptr<SessionUpdateRequest> request);
 
