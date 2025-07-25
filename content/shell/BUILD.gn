@@ -318,6 +318,7 @@ static_library("content_shell_lib") {
     "//base:base_static",
     "//build:chromeos_buildflags",
     "//cc/base",
+    "//cobalt/media/service",
     "//cobalt/media/service/mojom",
     "//components/cdm/renderer",
     "//components/custom_handlers",
