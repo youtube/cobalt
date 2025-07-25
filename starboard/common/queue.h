@@ -61,13 +61,10 @@ class Queue {
   // guarantees that only one waiter will receive any given queue item.
   T Get() {
     std::unique_lock lock(mutex_);
-    while (queue_.empty()) {
-      if (wake_) {
-        wake_ = false;
-        return T();
-      }
-
-      condition_.wait(lock);
+    condition_.wait(lock, [this] { return !queue_.empty() || wake_; });
+    if (wake_) {
+      wake_ = false;
+      return T();
     }
 
     T entry = queue_.front();
