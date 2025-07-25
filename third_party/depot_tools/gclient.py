@@ -404,7 +404,7 @@ class Dependency(gclient_utils.WorkItem, DependencySettings):
   def __init__(self, parent, name, url, managed, custom_deps,
                custom_vars, custom_hooks, deps_file, should_process,
                should_recurse, relative, condition, protocol='https',
-               print_outbuf=False):
+               print_outbuf=False, git_dependencies_state=gclient_eval.DEPS):
     gclient_utils.WorkItem.__init__(self, name)
     DependencySettings.__init__(
         self, parent, url, managed, custom_deps, custom_vars,
@@ -479,6 +479,7 @@ class Dependency(gclient_utils.WorkItem, DependencySettings):
     self.print_outbuf = print_outbuf
 
     self.protocol = protocol
+    self.git_dependencies_state = git_dependencies_state
 
     if not self.name and self.parent:
       raise gclient_utils.Error('Dependency without name')
@@ -742,7 +743,8 @@ class Dependency(gclient_utils.WorkItem, DependencySettings):
                 should_recurse=name in self.recursedeps,
                 relative=use_relative_paths,
                 condition=condition,
-                protocol=self.protocol))
+                protocol=self.protocol,
+                git_dependencies_state = self.git_dependencies_state))
 
     # TODO(crbug.com/1341285): Understand why we need this and remove
     # it if we don't.
@@ -784,6 +786,8 @@ class Dependency(gclient_utils.WorkItem, DependencySettings):
             deps_content, filepath, self.get_vars(), self.get_builtin_vars())
       except SyntaxError as e:
         gclient_utils.SyntaxErrorToError(filepath, e)
+    if 'git_dependencies' in local_scope:
+      self.git_dependencies_state = local_scope['git_dependencies']
 
     if 'allowed_hosts' in local_scope:
       try:
@@ -1627,7 +1631,7 @@ it or fix the checkout.
             condition=None,
             print_outbuf=True,
             # Pass protocol_override down the tree for child deps to use.
-            protocol=s.get('protocol_override', None)))
+            protocol=s.get('protocol_override', None),git_dependencies_state=self.git_dependencies_state))
       except KeyError:
         raise gclient_utils.Error('Invalid .gclient file. Solution is '
                                   'incomplete: %s' % s)
@@ -1961,7 +1965,7 @@ it or fix the checkout.
                   should_recurse=False,
                   relative=None,
                   condition=None,
-                  protocol=self.protocol))
+                  protocol=self.protocol, git_dependencies_state=self.git_dependencies_state))
           if modified_files and self._options.delete_unversioned_trees:
             print('\nWARNING: \'%s\' is no longer part of this client.\n'
                   'Despite running \'gclient sync -D\' no action was taken '

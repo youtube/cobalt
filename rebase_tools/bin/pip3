@@ -1,4 +1,4 @@
-#!/usr/local/google/home/brianting/rebase_tools/tools/rebase_tools/bin/python3
+#!/Users/ericquinzhang/Documents/cobalt/rebase_tools/rebase_tools/bin/python3.9
 # -*- coding: utf-8 -*-
 import re
 import sys
