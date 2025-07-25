@@ -1,0 +1,126 @@
+<style include="shortcut-customization-shared">
+  :host {
+    --cr-toolbar-field-width: 620px;
+
+    font-family: var(--shortcuts-font-family-default);
+    font-size: var(--shortcuts-font-size-default);
+    font-weight: var(--shortcuts-font-weight-regular);
+    height: 100%;
+  }
+
+  /** 
+   * This breakpoint is when the NavigationViewPanel side nav shrinks to a
+   * smaller width.
+   */
+  @media (max-width: 960px) {
+    :host {
+      --cr-toolbar-field-width: 480px;
+    }
+  }
+
+  /* This breakpoint is when the NavigationViewPanel side nav collapses. */
+  @media (max-width: 768px) {
+    :host {
+      --cr-toolbar-field-width: 80vw;
+    }
+  }
+
+  #navigationPanel::part(title) {
+    color: var(--cros-text-color-secondary);
+    padding-inline-start: 8px;
+  }
+
+  #navigationPanel::part(navigation-item) {
+    padding-inline-start: 28px;
+  }
+
+  #navigationPanel::part(nav-spacer) {
+    height: 20px;
+  }
+
+  #navigationPanel::part(side-nav) {
+    min-width: 216px;
+  }
+
+  #navigationPanel::part(top-nav) {
+    height: 72px;
+  }
+
+  #restoreAllButton {
+    border-radius: 999px;
+  }
+
+  #keyboardSettingsLinkContainer {
+    margin-top: 12px;
+  }
+
+  #keyboardSettingsLinkContainer a {
+    align-items: center;
+    color: var(--cros-link-color);
+    display: flex;
+    font-weight: var(--shortcuts-font-weight-medium);
+    text-decoration: none;
+  }
+
+  #keyboardSettingsLinkContainer a iron-icon {
+    fill: var(--cros-link-color);
+    margin-inline-start: 4px;
+  }
+
+  #bottomNavContentPanel {
+    margin-inline-start: 12px;
+  }
+
+  #searchBoxWrapper {
+    display: flex;
+    font-size: var(--shortcuts-font-size-default);
+    justify-content: center;
+    padding-inline: var(--container-padding-nav);
+    padding-top: 8px;
+  }
+</style>
+<navigation-view-panel id="navigationPanel" title="[[i18n('appTitle')]]"
+    show-tool-bar has-search="[[!shouldHideSearchBox()]]">
+  <div slot="toolbar-main" id="searchBoxWrapper">
+    <search-box hidden="[[shouldHideSearchBox()]]"></search-box>
+  </div>
+  <div slot="bottom-nav-content-panel" id="bottomNavContentPanel">
+    <cr-button id="restoreAllButton" on-click="onRestoreAllDefaultClicked"
+      hidden="[[shouldHideRestoreAllButton()]]">
+      [[i18n('resetAllShortcuts')]]
+    </cr-button>
+    <div id="keyboardSettingsLinkContainer">
+      <a href="chrome://os-settings/keyboard-overlay">
+        <span>[[i18n('keyboardSettings')]]</span>
+        <iron-icon icon="shortcut-customization:open-in-new"></iron-icon>
+      </a>
+    </div>
+  </div>
+</navigation-view-panel>
+
+<template is="dom-if" if="[[showEditDialog]]" restamp>
+  <accelerator-edit-dialog id="editDialog"
+      description="[[dialogShortcutTitle]]"
+      accelerator-infos="[[dialogAccelerators]]"
+      action="[[dialogAction]]"
+      source="[[dialogSource]]">
+  </accelerator-edit-dialog>
+</template>
+
+<template is="dom-if" if="[[showRestoreAllDialog]]" restamp>
+  <cr-dialog id="restoreDialog" show-on-attach
+      on-close="closeRestoreAllDialog">
+    <div slot="body">
+      [[i18n('confirmResetAllShortcutsTitle')]]
+    </div>
+    <div slot="button-container">
+      <cr-button id="cancelButton" on-click="onCancelRestoreButtonClicked">
+        [[i18n('cancel')]]
+      </cr-button>
+      <cr-button id="confirmButton" class="action-button"
+          on-click="onConfirmRestoreButtonClicked">
+        [[i18n('confirmResetAllShortcutsButton')]]
+      </cr-button>
+    </div>
+  </cr-dialog>
+</template>

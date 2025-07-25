@@ -12,5 +12,4 @@ declare_args() {
   # On Linux it slows down the build, so don't enable it by default.
   enable_precompiled_headers =
       !is_official_build && !(use_goma || use_remoteexec) && !is_linux
-      && !is_starboard
 }

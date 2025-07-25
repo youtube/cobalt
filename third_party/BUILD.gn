@@ -7,6 +7,10 @@ import("//build/config/freetype/freetype.gni")
 import("//third_party/harfbuzz-ng/harfbuzz.gni")
 import("//third_party/libjpeg.gni")
 
+assert(
+    use_blink,
+    "This is not used on if blink is not enabled, don't drag it in unintentionally")
+
 config("system_libjpeg_config") {
   libs = [ "jpeg" ]
   defines = [ "USE_SYSTEM_LIBJPEG" ]

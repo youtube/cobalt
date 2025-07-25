@@ -245,7 +245,7 @@ class BASE_EXPORT ScopedStackFrameLinker {
 
 namespace internal {
 
-#if BUILDFLAG(IS_POSIX) && !BUILDFLAG(IS_ANDROID) || defined(STARBOARD)
+#if BUILDFLAG(IS_POSIX) && !BUILDFLAG(IS_ANDROID)
 // POSIX doesn't define any async-signal safe function for converting
 // an integer to ASCII. We'll have to define our own version.
 // itoa_r() converts a (signed) integer to ASCII. It returns "buf", if the

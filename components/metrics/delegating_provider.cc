@@ -1,10 +1,11 @@
-// Copyright 2017 The Chromium Authors. All rights reserved.
+// Copyright 2017 The Chromium Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
 #include "components/metrics/delegating_provider.h"
 
 #include "base/barrier_closure.h"
+#include "base/notreached.h"
 
 namespace metrics {
 
@@ -27,9 +28,9 @@ void DelegatingProvider::Init() {
     provider->Init();
 }
 
-void DelegatingProvider::AsyncInit(const base::Closure& done_callback) {
-  base::Closure barrier =
-      base::BarrierClosure(metrics_providers_.size(), done_callback);
+void DelegatingProvider::AsyncInit(base::OnceClosure done_callback) {
+  base::RepeatingClosure barrier =
+      base::BarrierClosure(metrics_providers_.size(), std::move(done_callback));
   for (auto& provider : metrics_providers_) {
     provider->AsyncInit(barrier);
   }
@@ -50,14 +51,17 @@ void DelegatingProvider::OnRecordingDisabled() {
     provider->OnRecordingDisabled();
 }
 
+void DelegatingProvider::OnClientStateCleared() {
+  for (auto& provider : metrics_providers_)
+    provider->OnClientStateCleared();
+}
+
 void DelegatingProvider::OnAppEnterBackground() {
   for (auto& provider : metrics_providers_)
     provider->OnAppEnterBackground();
 }
 
-bool DelegatingProvider::ProvideIndependentMetrics(
-    SystemProfileProto* system_profile_proto,
-    base::HistogramSnapshotManager* snapshot_manager) {
+bool DelegatingProvider::HasIndependentMetrics() {
   // These are collected seperately for each provider.
   NOTREACHED();
   return false;
@@ -65,8 +69,17 @@ bool DelegatingProvider::ProvideIndependentMetrics(
 
 void DelegatingProvider::ProvideSystemProfileMetrics(
     SystemProfileProto* system_profile_proto) {
-  for (auto& provider : metrics_providers_)
-    provider->ProvideSystemProfileMetrics(system_profile_proto);
+  // ProvideSystemProfileMetricsWithLogCreationTime() should be called instead.
+  NOTREACHED();
+}
+
+void DelegatingProvider::ProvideSystemProfileMetricsWithLogCreationTime(
+    base::TimeTicks log_creation_time,
+    SystemProfileProto* system_profile_proto) {
+  for (auto& provider : metrics_providers_) {
+    provider->ProvideSystemProfileMetricsWithLogCreationTime(
+        log_creation_time, system_profile_proto);
+  }
 }
 
 bool DelegatingProvider::HasPreviousSessionData() {
@@ -90,6 +103,11 @@ void DelegatingProvider::ProvideCurrentSessionData(
     ChromeUserMetricsExtension* uma_proto) {
   for (const auto& provider : metrics_providers_)
     provider->ProvideCurrentSessionData(uma_proto);
+}
+
+void DelegatingProvider::ProvideCurrentSessionUKMData() {
+  for (const auto& provider : metrics_providers_)
+    provider->ProvideCurrentSessionUKMData();
 }
 
 void DelegatingProvider::ClearSavedStabilityMetrics() {

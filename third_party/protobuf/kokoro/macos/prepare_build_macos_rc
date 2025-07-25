@@ -2,13 +2,21 @@
 #
 # This script sets up a Kokoro MacOS worker for running Protobuf tests
 
+set -eux
+
+export HOMEBREW_PREFIX=$(brew --prefix)
+
+##
+# Remove any pre-existing protobuf installation.
+brew uninstall protobuf
+
 ##
 # Select Xcode version
 
-# Remember to udpate the Xcode version when xcode_9.4.1 is not available.
-# If xcode is not available, it will probaly encounter the failure for 
-# "autom4te: need GNU m4 1.4 or later: /usr/bin/m4""
-export DEVELOPER_DIR=/Applications/Xcode_9.4.1.app/Contents/Developer
+##
+# Select Xcode version
+export DEVELOPER_DIR=/Applications/Xcode_13.3.1.app/Contents/Developer
+sudo xcode-select -s "${DEVELOPER_DIR}"
 
 ##
 # Select C/C++ compilers
@@ -17,24 +25,25 @@ export CC=gcc
 export CXX=g++
 
 ##
-# Install Brew and core softwares
+# Install Python 2 by default
 
-ruby -e "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/master/install)"
-source $HOME/.rvm/scripts/rvm
-brew uninstall node icu4c cmake
-brew prune
-brew install gflags gpg gpg2 node openssl pcre ruby cmake
-sudo chown -R $(whoami) /usr/local
-brew postinstall node
+eval "$(pyenv init -)"
+pyenv install -v -s 2.7.18 && pyenv global 2.7.18
 
 ##
 # Install Tox
 
-sudo pip install tox==2.4.1
+if [[ "${KOKORO_INSTALL_TOX:-}" == "yes" ]] ; then
+  pyenv install -v -s 3.7.13
+  pyenv global 3.7.13
+  sudo python -m pip install --upgrade pip tox tox-pyenv
+fi
 
 ##
-# Install RVM
-
-gpg2 --keyserver hkp://keys.gnupg.net --recv-keys 409B6B1796C275462A1703113804BB82D39DC0E3
-command curl -sSL https://rvm.io/mpapis.asc | gpg2 --import -
-curl -sSL https://get.rvm.io | bash -s stable --ruby
+# Setup RVM
+if [[ "${KOKORO_INSTALL_RVM:-}" == "yes" ]] ; then
+    git config --global --add safe.directory $HOMEBREW_PREFIX/Library/Taps/homebrew/homebrew-cask
+    git config --global --add safe.directory $HOMEBREW_PREFIX/Library/Taps/homebrew/homebrew-core
+    git config --global --add safe.directory $HOMEBREW_PREFIX/Library/Taps/homebrew/homebrew-services
+    sudo chown -R $(whoami) $HOME/.rvm/
+fi

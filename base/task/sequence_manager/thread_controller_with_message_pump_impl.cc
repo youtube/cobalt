@@ -731,7 +731,7 @@ void ThreadControllerWithMessagePumpImpl::AttachToMessagePump() {
 void ThreadControllerWithMessagePumpImpl::DetachFromMessagePump() {
   static_cast<MessagePumpCFRunLoopBase*>(pump_.get())->Detach();
 }
-#elif BUILDFLAG(IS_ANDROID) || defined(STARBOARD)
+#elif BUILDFLAG(IS_ANDROID)
 void ThreadControllerWithMessagePumpImpl::AttachToMessagePump() {
   CHECK(main_thread_only().work_batch_size == 1);
   // Aborting the message pump currently relies on the batch size being 1.

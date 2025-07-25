@@ -33,7 +33,7 @@ typedef MultiProcessTest StackTraceTest;
 typedef testing::Test StackTraceTest;
 #endif
 
-#if !defined(__UCLIBC__) && !defined(_AIX) && !defined(COMPILER_MSVC)
+#if !defined(__UCLIBC__) && !defined(_AIX)
 // StackTrace::OutputToStream() is not implemented under uclibc, nor AIX.
 // See https://crbug.com/706728
 
@@ -157,8 +157,7 @@ TEST_F(StackTraceTest, DebugOutputToStreamWithNullPrefix) {
 #endif  // !defined(__UCLIBC__) && !defined(_AIX)
 
 #if BUILDFLAG(IS_POSIX) && !BUILDFLAG(IS_ANDROID)
-// Starboard does not support relative file paths, needed by |SpawnChild()|.
-#if !BUILDFLAG(IS_IOS) && !defined(STARBOARD)
+#if !BUILDFLAG(IS_IOS)
 static char* newArray() {
   // Clang warns about the mismatched new[]/delete if they occur in the same
   // function.
@@ -349,8 +348,7 @@ TEST_F(StackTraceTest, MAYBE_TraceStackFramePointers) {
 // sometimes we read fp / pc from the place that previously held
 // uninitialized value.
 // TODO(crbug.com/1132511): Enable this test on Fuchsia.
-#if defined(MEMORY_SANITIZER) || BUILDFLAG(IS_FUCHSIA) || \
-    defined(STARBOARD) && defined(ADDRESS_SANITIZER) || SB_IS(EVERGREEN)
+#if defined(MEMORY_SANITIZER) || BUILDFLAG(IS_FUCHSIA)
 #define MAYBE_TraceStackFramePointersFromBuffer \
   DISABLED_TraceStackFramePointersFromBuffer
 #else
@@ -423,7 +421,6 @@ TEST(CheckExitCodeAfterSignalHandlerDeathTest,
 
 #endif  // #if !defined(ADDRESS_SANITIZER) && !defined(UNDEFINED_SANITIZER)
 
-#if !defined(STARBOARD)
 TEST(CheckExitCodeAfterSignalHandlerDeathTest, CheckSIGILL) {
   auto const raise_sigill = []() {
 #if defined(ARCH_CPU_X86_FAMILY)
@@ -437,7 +434,6 @@ TEST(CheckExitCodeAfterSignalHandlerDeathTest, CheckSIGILL) {
 
   EXPECT_EXIT(raise_sigill(), ::testing::KilledBySignal(SIGILL), "");
 }
-#endif  // !defined(STARBOARD)
 
 #endif  // BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_ANDROID)
 

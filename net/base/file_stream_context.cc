@@ -46,18 +46,6 @@ FileStream::Context::IOResult FileStream::Context::IOResult::FromOSError(
   return IOResult(MapSystemError(os_error), os_error);
 }
 
-#if defined(STARBOARD)
-//static
-FileStream::Context::IOResult FileStream::Context::IOResult::FromFileError(
-    base::File::Error file_error, logging::SystemErrorCode os_error) {
-  if (file_error == base::File::FILE_ERROR_NOT_FOUND) {
-    return IOResult(ERR_FILE_NOT_FOUND, os_error);
-  } else {
-    return IOResult(ERR_FAILED, os_error);
-  }
-}
-#endif
-
 // ---------------------------------------------------------------------
 
 FileStream::Context::OpenResult::OpenResult() = default;
@@ -171,7 +159,7 @@ bool FileStream::Context::IsOpen() const {
 
 FileStream::Context::OpenResult FileStream::Context::OpenFileImpl(
     const base::FilePath& path, int open_flags) {
-#if BUILDFLAG(IS_POSIX) || defined(STARBOARD)
+#if BUILDFLAG(IS_POSIX)
   // Always use blocking IO.
   open_flags &= ~base::File::FLAG_ASYNC;
 #endif
@@ -196,14 +184,8 @@ FileStream::Context::OpenResult FileStream::Context::OpenFileImpl(
   }
 #endif  // BUILDFLAG(IS_ANDROID)
   if (!file.IsValid()) {
-#if defined(STARBOARD)
-    return OpenResult(
-        base::File(), IOResult::FromFileError(
-            file.error_details(), logging::GetLastSystemErrorCode()));
-#else
     return OpenResult(base::File(),
                       IOResult::FromOSError(logging::GetLastSystemErrorCode()));
-#endif
   }
 
   return OpenResult(std::move(file), IOResult(OK, 0));

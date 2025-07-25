@@ -1,4 +1,4 @@
-// Copyright 2015 The Chromium Authors. All rights reserved.
+// Copyright 2015 The Chromium Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -7,26 +7,20 @@
 
 #include <memory>
 
-#include "base/functional/callback_forward.h"
-#include "base/metrics/field_trial.h"
+#include "base/memory/scoped_refptr.h"
 
 namespace metrics {
 class MetricsServiceClient;
+class MetricsStateManager;
 }
 
-#if !defined(STARBOARD)
 namespace network {
 class SharedURLLoaderFactory;
-}
-
-namespace rappor {
-class RapporServiceImpl;
 }
 
 namespace variations {
 class VariationsService;
 }
-#endif
 
 namespace metrics_services_manager {
 
@@ -37,22 +31,18 @@ class MetricsServicesManagerClient {
   virtual ~MetricsServicesManagerClient() {}
 
   // Methods that create the various services in the context of the embedder.
-#if !defined(STARBOARD)
-  virtual std::unique_ptr<rappor::RapporServiceImpl>
-  CreateRapporServiceImpl() = 0;
   virtual std::unique_ptr<variations::VariationsService>
   CreateVariationsService() = 0;
-#endif
   virtual std::unique_ptr<metrics::MetricsServiceClient>
   CreateMetricsServiceClient() = 0;
-  virtual std::unique_ptr<const base::FieldTrial::EntropyProvider>
-  CreateEntropyProvider() = 0;
 
-#if !defined(STARBOARD)
+  // Gets the MetricsStateManager, creating it if it has not already been
+  // created.
+  virtual metrics::MetricsStateManager* GetMetricsStateManager() = 0;
+
   // Returns the URL loader factory which the metrics services should use.
   virtual scoped_refptr<network::SharedURLLoaderFactory>
   GetURLLoaderFactory() = 0;
-#endif
 
   // Returns whether metrics reporting is enabled.
   virtual bool IsMetricsReportingEnabled() = 0;
@@ -60,15 +50,12 @@ class MetricsServicesManagerClient {
   // Returns whether metrics consent is given.
   virtual bool IsMetricsConsentGiven() = 0;
 
-  // Returns whether there are any Incognito browsers/tabs open.
-  virtual bool IsIncognitoSessionActive() = 0;
+  // Returns whether there are any OffTheRecord browsers/tabs open.
+  virtual bool IsOffTheRecordSessionActive() = 0;
 
   // Update the running state of metrics services managed by the embedder, for
   // example, crash reporting.
   virtual void UpdateRunningServices(bool may_record, bool may_upload) {}
-
-  // If the user has forced metrics collection on via the override flag.
-  virtual bool IsMetricsReportingForceEnabled();
 };
 
 }  // namespace metrics_services_manager

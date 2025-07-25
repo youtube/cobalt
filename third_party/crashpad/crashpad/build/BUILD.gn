@@ -1,4 +1,4 @@
-# Copyright 2017 The Crashpad Authors. All rights reserved.
+# Copyright 2017 The Crashpad Authors
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -30,6 +30,12 @@ config("crashpad_is_in_fuchsia") {
   }
 }
 
+config("flock_always_supported_defines") {
+  defines = [
+    "CRASHPAD_FLOCK_ALWAYS_SUPPORTED=$crashpad_flock_always_supported",
+  ]
+}
+
 group("default_exe_manifest_win") {
   if (crashpad_is_in_chromium) {
     deps = [ "//build/win:default_exe_manifest" ]
@@ -52,7 +58,7 @@ if (crashpad_is_ios) {
       public_configs = [ "//build/config/compiler:enable_arc" ]
     } else if (crashpad_is_standalone) {
       public_configs =
-          [ "//third_party/mini_chromium/mini_chromium/build:ios_enable_arc" ]
+          [ "//third_party/mini_chromium/mini_chromium/build/config:ios_enable_arc" ]
     }
   }
 
@@ -64,14 +70,5 @@ if (crashpad_is_ios) {
         "//third_party/mini_chromium/mini_chromium/build/ios:xctest_config",
       ]
     }
-  }
-}
-
-if (crashpad_is_in_native_target_build) {
-  config("native_target_executable_config") {
-    # This is to undo the "main=StarboardMain" define added for all targets
-    # when final_executable_type == "shared_library", in
-    # starboard/build/config/BUILD.gn, which itself is admittedly a hack.
-    defines = [ "StarboardMain=main" ]
   }
 }

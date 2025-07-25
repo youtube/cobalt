@@ -1,0 +1,165 @@
+<!DOCTYPE html>
+<script src="../../resources/testharness.js"></script>
+<script src="../../resources/testharnessreport.js"></script>
+<script src="../../resources/gesture-util.js"></script>
+<script src="../../virtual/percent-based-scrolling/resources/percent-based-util.js"></script>
+<style>
+.outer {
+  height: 400px;
+  width: 1000px;
+}
+.content {
+  height: 1000px;
+  width: 1200px;
+}
+#container {
+  overflow: scroll;
+}
+#non_scrollable {
+  overflow: hidden;
+}
+</style>
+
+<div id='non_scrollable' class='outer'>
+  <div class='content'></div>
+</div>
+<div id='container' class='outer'>
+  <div class='content'></div>
+</div>
+
+<script>
+const container = document.getElementById('container');
+const non_scrollable = document.getElementById('non_scrollable');
+
+function setUpForWindow() {
+  window.scrollTo(100, 100);
+  container.scrollTo(0, 0);
+  assert_equals(window.scrollY, 100);
+  assert_equals(window.scrollX, 100);
+}
+
+function setUpForContainer() {
+  window.scrollTo(0, 0);
+  container.scrollTo(100, 100);
+  assert_equals(container.scrollTop, 100);
+  assert_equals(container.scrollLeft, 100);
+}
+
+async function test_boundary_prevents_y(source_type) {
+  container.style.overscrollBehaviorX = 'auto';
+  container.style.overscrollBehaviorY = 'none';
+  setUpForWindow();
+  await waitForCompositorCommit();
+
+  const x = 200;
+  const y = 500;
+  const distanceUp = calculatePixelsToScroll(container, 0, 200).y;
+
+  await smoothScroll(distanceUp, x, y, source_type, 'up', SPEED_INSTANT);
+  await waitForAnimationEnd(() => { return window.scrollY; }, 500, 5);
+  assert_equals(window.scrollY, 100);
+  assert_equals(container.scrollTop, 0);
+
+  const distanceLeft = calculatePixelsToScroll(container, 200, 0).x;
+  await smoothScroll(distanceLeft, x, y, source_type, 'left', SPEED_INSTANT);
+  // TODO(bokan): Wait for 10 frames without change. This is a bit long but
+  // otherwise we affect the next test because window.scrollX goes to 0 while
+  // the animation is still ticking. SPEED_INSTANT isn't as instant as it
+  // should be.
+  await waitForAnimationEnd(() => { return window.scrollX; }, 500, 10);
+  assert_equals(window.scrollX, 0);
+  assert_equals(container.scrollLeft, 0);
+}
+
+async function test_boundary_prevents_x(source_type) {
+  container.style.overscrollBehaviorX = 'none';
+  container.style.overscrollBehaviorY = 'auto';
+  setUpForWindow();
+  await waitForCompositorCommit();
+
+  const x = 200;
+  const y = 500;
+  const distanceLeft = calculatePixelsToScroll(container, 200, 0).x;
+
+  await smoothScroll(distanceLeft, x, y, source_type, 'left', SPEED_INSTANT);
+  await waitForAnimationEnd(() => { return window.scrollX; }, 500, 5);
+  assert_equals(window.scrollX, 100);
+  assert_equals(container.scrollTop, 0);
+
+  const distanceUp = calculatePixelsToScroll(container, 0, 200).y;
+  await smoothScroll(distanceUp, x, y, source_type, 'up', SPEED_INSTANT);
+  await waitForAnimationEnd(() => { return window.scrollY; }, 500, 10);
+  assert_equals(window.scrollY, 0);
+  assert_equals(container.scrollLeft, 0);
+}
+
+async function test_boundary_allows_inner(source_type) {
+  container.style.overscrollBehaviorX = 'none';
+  container.style.overscrollBehaviorY = 'none';
+  setUpForContainer();
+  await waitForCompositorCommit();
+
+  const x = 200;
+  const y = 500;
+  const pixelsToScroll = 200;
+  const {x: pixelsToScrollX, y: pixelsToScrollY} = calculatePixelsToScroll(
+    container, pixelsToScroll, pixelsToScroll
+  );
+  const distance = Math.max(pixelsToScrollX, pixelsToScrollY);
+
+  await smoothScroll(distance, x, y, source_type, "upleft", SPEED_INSTANT);
+  await waitForAnimationEnd(() => { return container.scrollLeft; }, 500, 5);
+  await waitForAnimationEnd(() => { return container.scrollTop; }, 500, 10);
+  assert_equals(container.scrollTop, 0);
+  assert_equals(container.scrollLeft, 0);
+}
+
+async function test_boundary_on_nonscrollable_allows_propagation(source_type) {
+  non_scrollable.style.overscrollBehaviorX = 'none';
+  non_scrollable.style.overscrollBehaviorY = 'none';
+  window.scrollTo(0, 0);
+  await waitForCompositorCommit();
+
+  const x = 200;
+  const y = 300;
+
+  const distanceRight = calculatePixelsToScroll(container, 200, 0).x;
+  await smoothScroll(distanceRight, x, y, source_type, "right", SPEED_INSTANT);
+  await waitForAnimationEnd(() => { return window.scrollX; }, 500, 5);
+  assert_greater_than(window.scrollX, 100);
+
+  const distanceDown = calculatePixelsToScroll(container, 0, 200).y;
+  await smoothScroll(distanceDown, x, y, source_type, "down", SPEED_INSTANT);
+  await waitForAnimationEnd(() => { return window.scrollY; }, 500, 10);
+  assert_greater_than(window.scrollY, 100);
+
+  assert_equals(non_scrollable.scrollTop, 0);
+  assert_equals(non_scrollable.scrollLeft, 0);
+}
+
+promise_test(t => {
+    return test_boundary_prevents_y(GestureSourceType.MOUSE_INPUT);
+  }, 'overscroll-behavior-y: none should only prevent scroll propagation on y axis with: wheel.');
+promise_test(t => {
+    return test_boundary_prevents_x(GestureSourceType.MOUSE_INPUT);
+  }, 'overscroll-behavior-x: none should only prevent scroll propagation on x axis with: wheel.');
+promise_test(t => {
+    return test_boundary_allows_inner(GestureSourceType.MOUSE_INPUT);
+  }, 'overscroll-behavior should not affect scrolling inside the applied container with: wheel.');
+promise_test(t => {
+    return test_boundary_on_nonscrollable_allows_propagation(GestureSourceType.MOUSE_INPUT);
+  }, 'overscroll-behavior on non-scrollable area should not affect scroll propagation with: wheel.');
+
+const IS_MAC = navigator.platform.indexOf('Mac') == 0;
+if (!IS_MAC) {
+  promise_test(t => {
+      return test_boundary_prevents_y(GestureSourceType.TOUCH_INPUT);
+    }, 'overscroll-behavior-y: none should only prevent scroll propagation on y axis with: touch.');
+  promise_test(t => {
+      return test_boundary_prevents_x(GestureSourceType.TOUCH_INPUT);
+    }, 'overscroll-behavior-x: none should only prevent scroll propagation on x axis with: touch.');
+  promise_test(t => {
+      return test_boundary_on_nonscrollable_allows_propagation(GestureSourceType.TOUCH_INPUT);
+    }, 'overscroll-behavior on non-scrollable area should not affect scroll propagation with: touch.');
+}
+</script>

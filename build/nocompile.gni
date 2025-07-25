@@ -70,7 +70,7 @@ if (is_mac) {
 declare_args() {
   # TODO(crbug.com/105388): make sure no-compile test is not flaky.
   enable_nocompile_tests = (is_linux || is_chromeos || is_apple) && is_clang &&
-                           host_cpu == target_cpu && !use_cobalt_customizations
+                           host_cpu == target_cpu
 }
 
 if (enable_nocompile_tests) {

@@ -10,9 +10,7 @@
 #include "base/allocator/dispatcher/internal/dispatch_data.h"
 #include "base/allocator/dispatcher/internal/tools.h"
 #include "base/allocator/dispatcher/subsystem.h"
-#if !defined(COBALT_PENDING_CLEAN_UP)
 #include "base/allocator/partition_allocator/partition_alloc_buildflags.h"
-#endif
 #include "base/check.h"
 #include "base/compiler_specific.h"
 #include "build/build_config.h"

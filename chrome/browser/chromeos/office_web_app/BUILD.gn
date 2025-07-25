@@ -1,0 +1,22 @@
+# Copyright 2022 The Chromium Authors
+# Use of this source code is governed by a BSD-style license that can be
+# found in the LICENSE file.
+
+assert(is_chromeos)
+
+source_set("office_web_app") {
+  sources = [
+    "office_web_app.cc",
+    "office_web_app.h",
+  ]
+  deps = [
+    "//chrome/browser/apps/app_service",
+    "//chrome/browser/web_applications",
+
+    # CrosAPI is a transitive dependency of //c/b/apps/app_service, but
+    # compilation breaks unless it is depended upon directly here.
+    "//chromeos/crosapi/mojom",
+    "//components/webapps/browser",
+    "//url",
+  ]
+}

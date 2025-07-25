@@ -14,18 +14,8 @@
 
 #include "base/check.h"
 #include "base/ranges/algorithm.h"
-#include "base/containers/cxx20_erase.h"
 
 namespace base {
-
-#ifdef COBALT_PENDING_CLEAN_UP
-// Test to see if a set or map contains a particular key.
-// Returns true if the key is in the collection.
-template <typename Collection, typename Key>
-bool ContainsKey(const Collection& collection, const Key& key) {
-  return collection.find(key) != collection.end();
-}
-#endif
 
 namespace internal {
 

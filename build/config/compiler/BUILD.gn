@@ -12,9 +12,7 @@ import("//build/config/clang/clang.gni")
 import("//build/config/compiler/compiler.gni")
 import("//build/config/coverage/coverage.gni")
 import("//build/config/dcheck_always_on.gni")
-if (!use_cobalt_customizations) {
 import("//build/config/gclient_args.gni")
-}
 import("//build/config/host_byteorder.gni")
 import("//build/config/rust.gni")
 import("//build/config/sanitizers/sanitizers.gni")
@@ -1409,8 +1407,7 @@ config("compiler_deterministic") {
 }
 
 config("clang_revision") {
-  if (!use_cobalt_customizations && is_clang &&
-      clang_base_path == default_clang_base_path) {
+  if (is_clang && clang_base_path == default_clang_base_path) {
     update_args = [
       "--print-revision",
       "--verify-version=$clang_version",
@@ -1484,7 +1481,7 @@ config("runtime_library") {
   # android:runtime_library.  This is to ensure libc++ appears before
   # libandroid_support in the -isystem include order.  Otherwise, there will be
   # build errors related to symbols declared in math.h.
-  if (!use_cobalt_customizations && use_custom_libcxx) {
+  if (use_custom_libcxx) {
     configs += [ "//build/config/c++:runtime_library" ]
   }
 
@@ -1568,7 +1565,7 @@ config("default_warnings") {
 
     # Suppress warnings about ABI changes on ARM (Clang doesn't give this
     # warning).
-    if (!is_starboard && current_cpu == "arm" && !is_clang) {
+    if (current_cpu == "arm" && !is_clang) {
       cflags += [ "-Wno-psabi" ]
     }
 
@@ -1601,9 +1598,7 @@ config("default_warnings") {
 
       # -Wpacked-not-aligned complains all generated mojom-shared-internal.h
       # files.
-      if (!is_native_target_build) {
       cflags += [ "-Wno-packed-not-aligned" ]
-      }
     }
   }
 
@@ -1615,7 +1610,7 @@ config("default_warnings") {
       "-Wno-unused-parameter",  # Unused function parameters.
     ]
 
-    if (!is_starboard && (!is_nacl || is_nacl_saigo)) {
+    if (!is_nacl || is_nacl_saigo) {
       cflags += [
         # An ABI compat warning we don't care about, https://crbug.com/1102157
         # TODO(thakis): Push this to the (few) targets that need it,
@@ -1635,17 +1630,6 @@ config("default_warnings") {
       "-Wno-unneeded-internal-declaration",
     ]
 
-    if (use_cobalt_customizations) {
-      cflags += [
-        "-Wno-extra-semi",
-        "-Wno-pessimizing-move",
-        "-Wno-shadow",
-        "-Wno-range-loop-bind-reference",
-        "-Wno-range-loop-construct",
-        "-Wno-unused-result",
-      ]
-    }
-
     if (!is_nacl || is_nacl_saigo) {
       if (is_win) {
         # TODO(thakis): https://crbug.com/617318
@@ -1653,7 +1637,6 @@ config("default_warnings") {
         cflags += [ "-Wno-nonportable-include-path" ]
       }
 
-      if (!use_cobalt_customizations) {
       cflags += [
         "-Wenum-compare-conditional",
 
@@ -1661,9 +1644,8 @@ config("default_warnings") {
         # TODO(thakis): Only for no_chromium_code? http://crbug.com/912662
         "-Wno-ignored-pragma-optimize",
       ]
-      }
 
-      if (!use_cobalt_customizations && !is_nacl) {
+      if (!is_nacl) {
         cflags += [
           # TODO(crbug.com/1343975) Evaluate and possibly enable.
           "-Wno-deprecated-builtins",
@@ -1703,18 +1685,13 @@ config("default_warnings") {
 #   configs += [ "//build/config/compiler:prevent_unsafe_narrowing" ]
 
 config("prevent_unsafe_narrowing") {
-  cflags = []
   if (is_clang) {
-    cflags += [
+    cflags = [
+      "-Wshorten-64-to-32",
       "-Wimplicit-int-conversion",
       "-Wsign-compare",
       "-Wsign-conversion",
     ]
-    if (!is_starboard) {
-      cflags += [
-        "-Wshorten-64-to-32",
-      ]
-    }
     if (!is_nacl) {
       cflags += [
         # Avoid bugs of the form `if (size_t i = size; i >= 0; --i)` while
@@ -1732,24 +1709,12 @@ config("prevent_unsafe_narrowing") {
 
 config("chromium_code") {
   if (is_win) {
-    if (is_starboard) {
-      # The platform should set warning flags.
-      cflags = []
-    } else {
     if (is_clang) {
       cflags = [ "/W4" ]  # Warning level 4.
 
       # Opt in to additional [[nodiscard]] on standard library methods.
       defines = [ "_HAS_NODISCARD" ]
     }
-    }
-  } else if (is_starboard) {
-    # TODO(b/205790602): Revisit this code to be more compatible with platforms.
-    defines = [
-      "__STDC_CONSTANT_MACROS",
-      "__STDC_FORMAT_MACROS",
-    ]
-    cflags = [ "-Werror" ]
   } else {
     cflags = [ "-Wall" ]
     if (treat_warnings_as_errors) {
@@ -1807,18 +1772,14 @@ config("chromium_code") {
       # Warn on missing break statements at the end of switch cases.
       # For intentional fallthrough, use [[fallthrough]].
       "-Wimplicit-fallthrough",
-    ]
 
-    if (!is_starboard) {
-      cflags += [
-        # Warn on unnecessary extra semicolons outside of function definitions.
-        "-Wextra-semi",
-      ]
-    }
+      # Warn on unnecessary extra semicolons outside of function definitions.
+      "-Wextra-semi",
+    ]
 
     # TODO(thakis): Enable this more often, https://crbug.com/346399
     # use_fuzzing_engine_with_lpm: https://crbug.com/1063180
-    if (!is_starboard && (!is_nacl || is_nacl_saigo) && !use_fuzzing_engine_with_lpm) {
+    if ((!is_nacl || is_nacl_saigo) && !use_fuzzing_engine_with_lpm) {
       cflags += [ "-Wunreachable-code-aggressive" ]
     }
 
@@ -1834,13 +1795,8 @@ config("chromium_code") {
 
   configs = [
     ":default_warnings",
+    ":noshadowing",
   ]
-
-  if (!is_starboard) {
-    configs += [
-      ":noshadowing",
-    ]
-  }
 }
 
 config("no_chromium_code") {
@@ -1849,7 +1805,7 @@ config("no_chromium_code") {
   defines = []
 
   if (is_win) {
-    if (!is_starboard && is_clang) {
+    if (is_clang) {
       cflags += [ "/W3" ]  # Warning level 3.
     }
     cflags += [
@@ -1880,8 +1836,7 @@ config("no_chromium_code") {
       # third-party libraries.
       "-Wno-c++11-narrowing",
     ]
-    if (!use_cobalt_customizations && !is_nacl &&
-        (current_toolchain == host_toolchain || !use_xcode_clang)) {
+    if (!is_nacl) {
       cflags += [
         # Disabled for similar reasons as -Wunused-variable.
         "-Wno-unused-but-set-variable",
@@ -2018,9 +1973,6 @@ config("no_exceptions") {
 config("wglobal_constructors") {
   if (is_clang) {
     cflags = [ "-Wglobal-constructors" ]
-    if (is_starboard) {
-      cflags -= [ "-Wglobal-constructors" ]
-    }
   }
 }
 
@@ -2030,50 +1982,6 @@ config("wglobal_constructors") {
 config("wexit_time_destructors") {
   if (is_clang) {
     cflags = [ "-Wexit-time-destructors" ]
-  }
-}
-
-# On Windows compiling on x64, VC will issue a warning when converting
-# size_t to int because it will truncate the value. Our code should not have
-# these warnings and one should use a static_cast or a checked_cast for the
-# conversion depending on the case. However, a lot of code still needs to be
-# fixed. Apply this config to such targets to disable the warning.
-#
-# Note that this can be applied regardless of platform and architecture to
-# clean up the call sites. This will only apply the flag when necessary.
-#
-# This config is just an alias to no_shorten_64_warnings and will
-# suppress a superset of warning 4267 and any 64-bit -> 32-bit implicit
-# conversions. Having both for a time means not having to go through and
-# update all references to no_size_t_to_int_warning throughout the codebase
-# atomically.
-#
-# Any new warning suppressions should use the no_shorten_64_warnings
-# config below and not this.
-#
-# TODO(jschuh): crbug.com/167187 fix this and delete this config.
-config("no_size_t_to_int_warning") {
-  configs = [ ":no_shorten_64_warnings" ]
-}
-
-# As part of re-enabling -Wconversion (see issue 588506) some code
-# will continue to generate warnings.
-# The first warning to be enabled will be -Wshorten-64-to-32.
-#
-# Code that currently generates warnings for this can include this
-# config to disable them.
-config("no_shorten_64_warnings") {
-  if (current_cpu == "x64" || current_cpu == "arm64") {
-    if (is_clang) {
-      cflags = [ "-Wno-shorten-64-to-32" ]
-    } else {
-      if (is_win) {
-        # MSVC does not have an explicit warning equivalent to
-        # -Wshorten-64-to-32 but 4267 warns for size_t -> int
-        # on 64-bit builds, so is the closest.
-        cflags = [ "/wd4267" ]
-      }
-    }
   }
 }
 
@@ -2108,15 +2016,11 @@ config("no_incompatible_pointer_warnings") {
 # Shared settings for both "optimize" and "optimize_max" configs.
 # IMPORTANT: On Windows "/O1" and "/O2" must go before the common flags.
 if (is_win) {
-  if (is_starboard) {
-    common_optimize_on_cflags = []
-  } else {
   common_optimize_on_cflags = [
     "/Ob2",  # Both explicit and auto inlining.
     "/Oy-",  # Disable omitting frame pointers, must be after /O2.
     "/Zc:inline",  # Remove unreferenced COMDAT (faster links).
   ]
-  }
   if (!is_asan) {
     common_optimize_on_cflags += [
       # Put data in separate COMDATs. This allows the linker

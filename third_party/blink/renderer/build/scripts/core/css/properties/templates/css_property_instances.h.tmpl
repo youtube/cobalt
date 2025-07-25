@@ -1,0 +1,51 @@
+// Copyright 2019 The Chromium Authors
+// Use of this source code is governed by a BSD-style license that can be
+// found in the LICENSE file.
+
+// clang-format off
+
+// NOTE: Since all the getters declared in this file are returning forward-declared
+// types, you will need to include the right one of these (usually longhands.h)
+// if you wish the compiler to see that they inherit from CSSProperty:
+//
+// #include "third_party/blink/renderer/core/css/properties/longhands.h"
+// #include "third_party/blink/renderer/core/css/properties/shorthands.h"
+
+#ifndef THIRD_PARTY_BLINK_RENDERER_CORE_CSS_PROPERTY_INSTANCES_H_
+#define THIRD_PARTY_BLINK_RENDERER_CORE_CSS_PROPERTY_INSTANCES_H_
+
+#include "third_party/blink/renderer/core/css/css_property_names.h"
+
+namespace blink {
+{% for property in properties %}
+namespace {{property.namespace}} { class {{property.classname}}; }
+{% endfor %}
+{% for property in aliases %}
+namespace {{property.namespace}} { class {{property.classname}}; }
+{% endfor %}
+namespace static_properties {
+{% for property in properties %}
+extern CORE_EXPORT const ::blink::{{property.namespace}}::{{property.classname}} property_{{property.property_id.lower()}};
+{% endfor %}
+{% for property in aliases %}
+extern CORE_EXPORT const ::blink::{{property.namespace}}::{{property.classname}} property_{{property.property_id.lower()}};
+{% endfor %}
+} // namespace static_properties
+
+class CSSUnresolvedProperty;
+class CSSProperty;
+
+extern CORE_EXPORT const CSSUnresolvedProperty* const kPropertyClasses[];
+
+const CSSUnresolvedProperty* GetAliasPropertyInternal(CSSPropertyID);
+
+{% for property in properties %}
+inline const {{property.namespace}}::{{property.classname}}&
+Get{{property.property_id}}() {
+  return ::blink::static_properties::property_{{property.property_id.lower()}};
+}
+{% endfor %}
+
+}  // namespace blink
+
+#endif  // THIRD_PARTY_BLINK_RENDERER_CORE_CSS_PROPERTY_INSTANCES_H_

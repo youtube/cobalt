@@ -1,4 +1,4 @@
-// Copyright 2016 The Chromium Authors. All rights reserved.
+// Copyright 2016 The Chromium Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -18,6 +18,7 @@ enum class Error {
   UPDATE_CHECK_ERROR = 5,
   CRX_NOT_FOUND = 6,
   INVALID_ARGUMENT = 7,
+  BAD_CRX_DATA_CALLBACK = 8,
   MAX_VALUE,
 };
 
@@ -37,9 +38,6 @@ enum class ErrorCategory {
 // the Chrome net stack.
 enum class CrxDownloaderError {
   NONE = 0,
-#if defined(STARBOARD)
-  SLOT_UNAVAILABLE = 9,
-#endif
   NO_URL = 10,
   NO_HASH = 11,
   BAD_HASH = 12,  // The downloaded file fails the hash verification.
@@ -70,9 +68,13 @@ enum class UnpackerError {
   kDeltaPatchProcessFailure = 15,
   kDeltaMissingExistingFile = 16,
   // kFingerprintWriteFailed = 17,    // Deprecated. Don't use.
+  kPuffinMissingPreviousCrx = 18,
+  kFailedToAddToCache = 19,
+  kFailedToCreateCacheDir = 20,
+  kCrxCacheNotProvided = 21,
 };
 
-// These errors are returned with the |kService| error category and
+// These errors are returned with the |kInstall| error category and
 // are returned by the component installers.
 enum class InstallError {
   NONE = 0,
@@ -86,6 +88,9 @@ enum class InstallError {
   NO_DIR_COMPONENT_USER = 14,
   CLEAN_INSTALL_DIR_FAILED = 15,
   INSTALL_VERIFICATION_FAILED = 16,
+  MISSING_INSTALL_PARAMS = 17,
+  // If LaunchProcess is attempted on unsupported non-desktop skus e.g. xbox
+  LAUNCH_PROCESS_FAILED = 18,
   CUSTOM_ERROR_BASE = 100,  // Specific installer errors go above this value.
 };
 
@@ -95,19 +100,12 @@ enum class ServiceError {
   NONE = 0,
   SERVICE_WAIT_FAILED = 1,
   UPDATE_DISABLED = 2,
-};
+  CANCELLED = 3,
 
-// These errors are returned with the |kUpdateCheck| error category and indicate
-// an error during an update check.
-#if defined(STARBOARD)
-enum class UpdateCheckError {
-  NONE = 0,
-  // Using 21 that doesn't conflict with the exsiting error codes and stays away
-  // from the other codes below 20.
-  QUICK_ROLL_FORWARD = 21,
-  OUT_OF_SPACE = 22,
+  // Returned when a `CheckForUpdate` call is made, the server returns a
+  // update response indicating an update is available, and updates are enabled.
+  CHECK_FOR_UPDATE_ONLY = 4,
 };
-#endif
 
 // These errors are related to serialization, deserialization, and parsing of
 // protocol requests.

@@ -1,0 +1,3 @@
+file://ash/login/OOBE_WEBUI_OWNERS
+
+per-file *security_token*=emaxx@chromium.org

@@ -34,13 +34,6 @@
 #include "third_party/abseil-cpp/absl/base/attributes.h"
 #include "third_party/abseil-cpp/absl/types/optional.h"
 
-#if defined(STARBOARD)
-#include <pthread.h>
-
-#include "base/check_op.h"
-#include "starboard/thread.h"
-#endif
-
 namespace base {
 namespace internal {
 
@@ -127,27 +120,7 @@ auto EmitThreadPoolTraceEventMetadata(perfetto::EventContext& ctx,
 #endif  //  BUILDFLAG(ENABLE_BASE_TRACING)
 }
 
-#if defined(STARBOARD)
-ABSL_CONST_INIT pthread_once_t s_once_flag = PTHREAD_ONCE_INIT;
-ABSL_CONST_INIT pthread_key_t  s_thread_local_key = 0;
-
-void InitThreadLocalKey() {
-  int res = pthread_key_create(&s_thread_local_key , NULL);
-  DCHECK(res == 0);
-}
-
-void EnsureThreadLocalKeyInited() {
-  pthread_once(&s_once_flag, InitThreadLocalKey);
-}
-
-bool GetFizzleBlockShutdownTasks() {
-  EnsureThreadLocalKeyInited();
-  void* fizzle_block_shutdown_tasks = pthread_getspecific(s_thread_local_key);
-  return !!fizzle_block_shutdown_tasks ? reinterpret_cast<intptr_t>(fizzle_block_shutdown_tasks) != 0 : false;
-}
-#else
 ABSL_CONST_INIT thread_local bool fizzle_block_shutdown_tasks = false;
-#endif
 
 }  // namespace
 
@@ -340,11 +313,7 @@ bool TaskTracker::WillPostTask(Task* task,
     // A non BLOCK_SHUTDOWN task is allowed to be posted iff shutdown hasn't
     // started and the task is not delayed.
     if (shutdown_behavior != TaskShutdownBehavior::BLOCK_SHUTDOWN ||
-#if defined(STARBOARD)
-        !task->delayed_run_time.is_null() || GetFizzleBlockShutdownTasks()) {
-#else
         !task->delayed_run_time.is_null() || fizzle_block_shutdown_tasks) {
-#endif
       return false;
     }
 
@@ -449,21 +418,11 @@ bool TaskTracker::IsShutdownComplete() const {
 }
 
 void TaskTracker::BeginFizzlingBlockShutdownTasks() {
-#if defined(STARBOARD)
-  EnsureThreadLocalKeyInited();
-  pthread_setspecific(s_thread_local_key, reinterpret_cast<void*>(static_cast<intptr_t>(true)));
-#else
   fizzle_block_shutdown_tasks = true;
-#endif
 }
 
 void TaskTracker::EndFizzlingBlockShutdownTasks() {
-#if defined(STARBOARD)
-  EnsureThreadLocalKeyInited();
-  pthread_setspecific(s_thread_local_key, reinterpret_cast<void*>(static_cast<intptr_t>(false)));
-#else
   fizzle_block_shutdown_tasks = false;
-#endif
 }
 
 void TaskTracker::RunTask(Task task,

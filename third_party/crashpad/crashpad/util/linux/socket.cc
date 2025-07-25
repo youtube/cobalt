@@ -1,4 +1,4 @@
-// Copyright 2019 The Crashpad Authors. All rights reserved.
+// Copyright 2019 The Crashpad Authors
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -16,11 +16,14 @@
 
 #include <unistd.h>
 
+#include "base/check_op.h"
 #include "base/logging.h"
 #include "base/posix/eintr_wrapper.h"
 #include "third_party/lss/lss.h"
 
 namespace crashpad {
+
+constexpr size_t UnixCredentialSocket::kMaxSendRecvMsgFDs;
 
 // static
 bool UnixCredentialSocket::CreateCredentialSocketpair(ScopedFileHandle* sock1,
@@ -43,12 +46,10 @@ bool UnixCredentialSocket::CreateCredentialSocketpair(ScopedFileHandle* sock1,
     return false;
   }
 
-  sock1->swap(local_sock1);
-  sock2->swap(local_sock2);
+  *sock1 = std::move(local_sock1);
+  *sock2 = std::move(local_sock2);
   return true;
 }
-
-const size_t UnixCredentialSocket::kMaxSendRecvMsgFDs = 4;
 
 // static
 int UnixCredentialSocket::SendMsg(int fd,

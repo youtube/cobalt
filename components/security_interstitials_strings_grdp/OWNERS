@@ -1,0 +1,4 @@
+file://components/security_interstitials/OWNERS
+
+# Translation screenshots:
+per-file *.png.sha1=*

@@ -1,0 +1,52 @@
+# Copyright 2019 The Chromium Authors
+# Use of this source code is governed by a BSD-style license that can be
+# found in the LICENSE file.
+
+import("//third_party/closure_compiler/compile_js.gni")
+import("//tools/polymer/html_to_js.gni")
+
+js_type_check("closure_compile") {
+  is_polymer3 = true
+  deps = [
+    ":add_supervision_api_server",
+    ":add_supervision_app",
+    ":add_supervision_ui",
+    "//ash/webui/common/resources/post_message_api:post_message_api_server",
+  ]
+}
+
+js_library("add_supervision_api_server") {
+  deps = [
+    "//ash/webui/common/resources/post_message_api:post_message_api_server",
+    "//chrome/browser/ui/webui/ash/add_supervision:mojo_bindings_js_library_for_compile",
+  ]
+}
+
+js_library("add_supervision_app") {
+  deps = [
+    ":add_supervision_ui",
+    "//chrome/browser/resources/chromeos/supervision:supervised_user_error",
+    "//chrome/browser/resources/chromeos/supervision:supervised_user_offline",
+    "//third_party/polymer/v3_0/components-chromium/polymer:polymer_bundled",
+  ]
+  externs_list = [ "//ui/webui/resources/cr_elements/cr_view_manager/cr_view_manager_externs.js" ]
+}
+
+js_library("add_supervision_ui") {
+  deps = [
+    ":add_supervision_api_server",
+    "//ash/webui/common/resources:load_time_data.m",
+    "//third_party/polymer/v3_0/components-chromium/polymer:polymer_bundled",
+  ]
+  externs_list = [
+    "$externs_path/chrome_extensions.js",
+    "$externs_path/webview_tag.js",
+  ]
+}
+
+html_to_js("web_components") {
+  js_files = [
+    "add_supervision_app.js",
+    "add_supervision_ui.js",
+  ]
+}

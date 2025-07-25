@@ -1,0 +1,112 @@
+# Copyright 2020 The Chromium Authors
+# Use of this source code is governed by a BSD-style license that can be
+# found in the LICENSE file.
+
+static_library("privacy_sandbox_prefs") {
+  sources = [
+    "privacy_sandbox_prefs.cc",
+    "privacy_sandbox_prefs.h",
+  ]
+
+  deps = [
+    "//components/pref_registry:pref_registry",
+    "//components/prefs",
+  ]
+
+  public_deps = [ "//base" ]
+}
+
+component("features") {
+  output_name = "privacy_sandbox_features"
+
+  defines = [ "IS_PRIVACY_SANDBOX_FEATURES_IMPL" ]
+
+  sources = [
+    "privacy_sandbox_features.cc",
+    "privacy_sandbox_features.h",
+  ]
+
+  public_deps = [ "//base" ]
+}
+
+source_set("privacy_sandbox") {
+  sources = [
+    "canonical_topic.cc",
+    "canonical_topic.h",
+    "privacy_sandbox_settings.h",
+    "privacy_sandbox_settings_impl.cc",
+    "privacy_sandbox_settings_impl.h",
+  ]
+
+  deps = [
+    ":privacy_sandbox_prefs",
+    "//components/browsing_topics/common:common",
+    "//components/content_settings/core/browser",
+    "//components/content_settings/core/common",
+    "//components/keyed_service/core:core",
+    "//components/pref_registry:pref_registry",
+    "//components/prefs",
+    "//components/strings:components_strings_grit",
+    "//content/public/browser",
+    "//net:net",
+    "//third_party/blink/public/common",
+    "//ui/base:base",
+    "//url:url",
+  ]
+
+  public_deps = [
+    ":features",
+    "//base",
+  ]
+}
+
+source_set("unit_tests") {
+  testonly = true
+  sources = [
+    "canonical_topic_unittest.cc",
+    "privacy_sandbox_settings_impl_unittest.cc",
+    "privacy_sandbox_test_util_unittest.cc",
+  ]
+
+  deps = [
+    ":privacy_sandbox",
+    ":privacy_sandbox_prefs",
+    ":test_support",
+    "//components/browsing_topics:test_support",
+    "//components/content_settings/core/browser:browser",
+    "//components/content_settings/core/test:test_support",
+    "//components/prefs:test_support",
+    "//components/strings:components_strings_grit",
+    "//components/sync_preferences:test_support",
+    "//content/public/browser",
+    "//content/test:test_support",
+    "//net",
+    "//testing/gtest",
+  ]
+}
+
+source_set("test_support") {
+  testonly = true
+  sources = [
+    "mock_privacy_sandbox_settings.cc",
+    "mock_privacy_sandbox_settings.h",
+    "privacy_sandbox_test_util.cc",
+    "privacy_sandbox_test_util.h",
+  ]
+  deps = [
+    ":privacy_sandbox",
+    ":privacy_sandbox_prefs",
+    "//base/test:test_support",
+    "//components/browsing_topics:test_support",
+    "//components/content_settings/core/browser:browser",
+    "//components/content_settings/core/common:common",
+    "//components/content_settings/core/test:test_support",
+    "//components/prefs:test_support",
+    "//components/sync_preferences:test_support",
+    "//content/test:test_support",
+    "//testing/gmock",
+    "//testing/gtest:gtest",
+    "//ui/base:base",
+    "//url:url",
+  ]
+}

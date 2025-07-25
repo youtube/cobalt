@@ -66,7 +66,7 @@ IPEndPoint GetMdnsReceiveEndPoint(AddressFamily address_family) {
       NOTREACHED();
       return IPEndPoint();
   }
-#elif BUILDFLAG(IS_POSIX) || BUILDFLAG(IS_FUCHSIA) || defined(STARBOARD)
+#elif BUILDFLAG(IS_POSIX) || BUILDFLAG(IS_FUCHSIA)
   // With POSIX/Fuchsia, any socket can receive messages for multicast groups
   // joined by any socket on the system. Sockets intending to receive messages
   // for a specific multicast group should bind to that group address.

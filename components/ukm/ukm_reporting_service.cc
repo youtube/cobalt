@@ -1,4 +1,4 @@
-// Copyright 2017 The Chromium Authors. All rights reserved.
+// Copyright 2017 The Chromium Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -8,30 +8,37 @@
 
 #include <memory>
 
+#include "base/command_line.h"
 #include "base/metrics/field_trial_params.h"
 #include "base/metrics/histogram_functions.h"
 #include "base/metrics/histogram_macros.h"
+#include "build/build_config.h"
+#include "components/metrics/metrics_service_client.h"
+#include "components/metrics/metrics_switches.h"
+#include "components/metrics/url_constants.h"
 #include "components/prefs/pref_registry_simple.h"
-#include "components/ukm/persisted_logs_metrics_impl.h"
 #include "components/ukm/ukm_pref_names.h"
 #include "components/ukm/ukm_service.h"
+#include "components/ukm/unsent_log_store_metrics_impl.h"
+#include "third_party/zlib/google/compression_utils.h"
+
+#if BUILDFLAG(IS_IOS)
+#include "components/ukm/ios/ukm_reporting_ios_util.h"
+#endif
 
 namespace ukm {
 
 namespace {
 
-// The UKM server's URL.
-constexpr char kMimeType[] = "application/vnd.chrome.ukm";
-
-// The number of UKM logs that will be stored in PersistedLogs before logs
+// The number of UKM logs that will be stored in UnsentLogStore before logs
 // start being dropped.
-constexpr int kMinPersistedLogs = 8;
+constexpr int kMinUnsentLogCount = 8;
 
-// The number of bytes UKM logs that will be stored in PersistedLogs before
+// The number of bytes UKM logs that will be stored in UnsentLogStore before
 // logs start being dropped.
 // This ensures that a reasonable amount of history will be stored even if there
 // is a long series of very small logs.
-constexpr int kMinPersistedBytes = 300000;
+constexpr int kMinUnsentLogBytes = 300000;
 
 // If an upload fails, and the transmission was over this byte count, then we
 // will discard the log, and not try to retransmit it.  We also don't persist
@@ -39,50 +46,65 @@ constexpr int kMinPersistedBytes = 300000;
 // limit is exceeded.
 constexpr size_t kMaxLogRetransmitSize = 100 * 1024;
 
-std::string GetServerUrl() {
-  constexpr char kDefaultServerUrl[] = "https://clients4.google.com/ukm";
+GURL GetServerUrl() {
+#ifndef NDEBUG
+  // Only allow overriding the server URL through the command line in debug
+  // builds. This is to prevent, for example, rerouting metrics due to malware.
+  base::CommandLine* command_line = base::CommandLine::ForCurrentProcess();
+  if (command_line->HasSwitch(metrics::switches::kUkmServerUrl)) {
+    return GURL(
+        command_line->GetSwitchValueASCII(metrics::switches::kUkmServerUrl));
+  }
+#endif  // NDEBUG
+
   std::string server_url =
       base::GetFieldTrialParamValueByFeature(kUkmFeature, "ServerUrl");
   if (!server_url.empty())
-    return server_url;
-  return kDefaultServerUrl;
+    return GURL(server_url);
+  return GURL(metrics::kDefaultUkmServerUrl);
 }
 
 }  // namespace
 
 // static
 void UkmReportingService::RegisterPrefs(PrefRegistrySimple* registry) {
-  registry->RegisterListPref(prefs::kUkmPersistedLogs);
+  registry->RegisterListPref(prefs::kUkmUnsentLogStore);
   // Base class already registered by MetricsReportingService::RegisterPrefs
   // ReportingService::RegisterPrefs(registry);
 }
 
 UkmReportingService::UkmReportingService(metrics::MetricsServiceClient* client,
                                          PrefService* local_state)
-    : ReportingService(client, local_state, kMaxLogRetransmitSize),
-      persisted_logs_(std::make_unique<ukm::PersistedLogsMetricsImpl>(),
-                      local_state,
-                      prefs::kUkmPersistedLogs,
-                      kMinPersistedLogs,
-                      kMinPersistedBytes,
-                      kMaxLogRetransmitSize) {}
+    : ReportingService(client,
+                       local_state,
+                       kMaxLogRetransmitSize,
+                       /*logs_event_manager=*/nullptr),
+      unsent_log_store_(std::make_unique<ukm::UnsentLogStoreMetricsImpl>(),
+                        local_state,
+                        prefs::kUkmUnsentLogStore,
+                        nullptr,
+                        kMinUnsentLogCount,
+                        kMinUnsentLogBytes,
+                        kMaxLogRetransmitSize,
+                        client->GetUploadSigningKey(),
+                        /*logs_event_manager=*/nullptr) {}
 
 UkmReportingService::~UkmReportingService() {}
 
 metrics::LogStore* UkmReportingService::log_store() {
-  return &persisted_logs_;
+  return &unsent_log_store_;
 }
 
-std::string UkmReportingService::GetUploadUrl() const {
+GURL UkmReportingService::GetUploadUrl() const {
   return GetServerUrl();
 }
 
-std::string UkmReportingService::GetInsecureUploadUrl() const {
-  return "";
+GURL UkmReportingService::GetInsecureUploadUrl() const {
+  return GURL();
 }
 
 base::StringPiece UkmReportingService::upload_mime_type() const {
-  return kMimeType;
+  return metrics::kUkmMimeType;
 }
 
 metrics::MetricsLogUploader::MetricServiceType
@@ -103,10 +125,45 @@ void UkmReportingService::LogResponseOrErrorCode(int response_code,
                            response_code >= 0 ? response_code : error_code);
 }
 
-void UkmReportingService::LogSuccess(size_t log_size) {
+void UkmReportingService::LogSuccessLogSize(size_t log_size) {
+#if BUILDFLAG(IS_IOS)
+  IncrementUkmLogSizeOnSuccessCounter();
+#endif
   UMA_HISTOGRAM_COUNTS_10000("UKM.LogSize.OnSuccess", log_size / 1024);
+}
+
+void UkmReportingService::LogSuccessMetadata(const std::string& staged_log) {
+  // Recover the report from the compressed staged log.
+  // Note: We don't use metrics::DecodeLogDataToProto() since we to use
+  // |uncompressed_log_data| later in the function.
+  std::string uncompressed_log_data;
+  bool uncompress_successful =
+      compression::GzipUncompress(staged_log, &uncompressed_log_data);
+  DCHECK(uncompress_successful);
+  Report report;
+  report.ParseFromString(uncompressed_log_data);
+
+  // Log the relative size of the report with relevant UKM data omitted. This
+  // helps us to estimate the bandwidth usage of logs upload that is not
+  // directly attributed to UKM data, for example the system profile info.
+  // Note that serialized logs are further compressed before upload, thus the
+  // percentages here are not the exact percentage of bandwidth they ended up
+  // taking.
+  std::string log_without_ukm_data;
+  report.clear_sources();
+  report.clear_source_counts();
+  report.clear_entries();
+  report.clear_aggregates();
+  report.SerializeToString(&log_without_ukm_data);
+
+  int non_ukm_percentage =
+      log_without_ukm_data.length() * 100 / uncompressed_log_data.length();
+  DCHECK_GE(non_ukm_percentage, 0);
+  DCHECK_LE(non_ukm_percentage, 100);
+  base::UmaHistogramPercentage("UKM.ReportSize.NonUkmPercentage",
+                               non_ukm_percentage);
 }
 
 void UkmReportingService::LogLargeRejection(size_t log_size) {}
 
-}  // namespace metrics
+}  // namespace ukm

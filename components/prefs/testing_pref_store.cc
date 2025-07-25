@@ -1,13 +1,15 @@
-// Copyright (c) 2012 The Chromium Authors. All rights reserved.
+// Copyright 2012 The Chromium Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
 #include "components/prefs/testing_pref_store.h"
 
 #include <memory>
+#include <string>
 #include <utility>
 
 #include "base/json/json_writer.h"
+#include "base/strings/string_piece.h"
 #include "base/values.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
@@ -20,7 +22,7 @@ TestingPrefStore::TestingPrefStore()
       init_complete_(false),
       committed_(true) {}
 
-bool TestingPrefStore::GetValue(const std::string& key,
+bool TestingPrefStore::GetValue(base::StringPiece key,
                                 const base::Value** value) const {
   return prefs_.GetValue(key, value);
 }
@@ -53,7 +55,7 @@ bool TestingPrefStore::IsInitializationComplete() const {
 void TestingPrefStore::SetValue(const std::string& key,
                                 base::Value value,
                                 uint32_t flags) {
-  if (prefs_.SetValue(key, base::Value(std::move(value)))) {
+  if (prefs_.SetValue(key, std::move(value))) {
     committed_ = false;
     NotifyPrefValueChanged(key);
   }
@@ -63,7 +65,7 @@ void TestingPrefStore::SetValueSilently(const std::string& key,
                                         base::Value value,
                                         uint32_t flags) {
   CheckPrefIsSerializable(key, value);
-  if (prefs_.SetValue(key, base::Value(std::move(value))))
+  if (prefs_.SetValue(key, std::move(value)))
     committed_ = false;
 }
 
@@ -72,6 +74,10 @@ void TestingPrefStore::RemoveValue(const std::string& key, uint32_t flags) {
     committed_ = false;
     NotifyPrefValueChanged(key);
   }
+}
+
+void TestingPrefStore::RemoveValuesByPrefixSilently(const std::string& prefix) {
+  prefs_.ClearWithPrefix(prefix);
 }
 
 bool TestingPrefStore::ReadOnly() const {
@@ -189,10 +195,6 @@ void TestingPrefStore::SetBlockAsyncRead(bool block_async_read) {
   block_async_read_ = block_async_read;
   if (pending_async_read_ && !block_async_read_)
     NotifyInitializationCompleted();
-}
-
-void TestingPrefStore::ClearMutableValues() {
-  NOTIMPLEMENTED();
 }
 
 void TestingPrefStore::OnStoreDeletionFromDisk() {}

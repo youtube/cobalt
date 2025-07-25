@@ -1,0 +1,6 @@
+Document
+++List
+++++ListItem IsControlElement=false
+++++++Text Name='Coffee'
+++++Text IsControlElement=false
+++++++Text Name='Black hot drink'

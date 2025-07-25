@@ -1,4 +1,4 @@
-# Copyright 2017 The Crashpad Authors. All rights reserved.
+# Copyright 2017 The Crashpad Authors
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -21,35 +21,46 @@ declare_args() {
   if (defined(is_fuchsia_tree) && is_fuchsia_tree) {
     crashpad_dependencies = "fuchsia"
   }
-
-  if (defined(is_starboard) && is_starboard) {
-    crashpad_dependencies = "starboard"
-  }
-
-  if (defined(is_native_target_build) && is_native_target_build) {
-    crashpad_dependencies = "native_target_build"
-  }
 }
 
 assert(
-    crashpad_dependencies == "chromium" || crashpad_dependencies == "starboard" ||
-    crashpad_dependencies == "native_target_build" ||
-    crashpad_dependencies == "fuchsia" || crashpad_dependencies == "standalone" ||
+    crashpad_dependencies == "chromium" || crashpad_dependencies == "fuchsia" ||
+    crashpad_dependencies == "standalone" ||
     crashpad_dependencies == "external" || crashpad_dependencies == "dart")
 
 crashpad_is_in_chromium = crashpad_dependencies == "chromium"
-crashpad_is_in_starboard = crashpad_dependencies == "starboard"
-crashpad_is_in_native_target_build = crashpad_dependencies == "native_target_build"
 crashpad_is_in_fuchsia = crashpad_dependencies == "fuchsia"
 crashpad_is_in_dart = crashpad_dependencies == "dart"
 crashpad_is_external = crashpad_dependencies == "external"
 crashpad_is_standalone = crashpad_dependencies == "standalone"
 
+# This is the parent directory that contains the mini_chromium source dir.
+# This variable is not used when crashpad_is_in_chromium.
+if (crashpad_is_in_fuchsia) {
+  import("//third_party/crashpad/fuchsia_buildconfig.gni")
+  mini_chromium_source_parent =
+      fuchsia_crashpad_root + "/third_party/mini_chromium"
+} else {
+  mini_chromium_source_parent = "../third_party/mini_chromium"
+}
+
+# This is the source directory of mini_chromium (what is checked out).
+_mini_chromium_source_root = "$mini_chromium_source_parent/mini_chromium"
+
+# This references the mini_chromium location for importing GN files.
+if (crashpad_is_external || crashpad_is_in_dart) {
+  mini_chromium_import_root = "../../../$_mini_chromium_source_root"
+} else if (crashpad_is_in_fuchsia) {
+  mini_chromium_import_root = fuchsia_mini_chromium_root
+} else {
+  mini_chromium_import_root = _mini_chromium_source_root
+}
+
 if (crashpad_is_in_chromium) {
   crashpad_is_mac = is_mac
   crashpad_is_ios = is_ios
   crashpad_is_win = is_win
-  crashpad_is_linux = is_linux
+  crashpad_is_linux = is_linux || is_chromeos
   crashpad_is_android = is_android
   crashpad_is_fuchsia = is_fuchsia
 
@@ -57,19 +68,9 @@ if (crashpad_is_in_chromium) {
 
   crashpad_is_clang = is_clang
 } else {
-  # External and Dart SDK builds assume crashpad and mini_chromium are peers.
-  if (crashpad_is_in_starboard || crashpad_is_in_native_target_build) {
-    import("../../../mini_chromium/build/compiler.gni")
-    import("../../../mini_chromium/build/platform.gni")
-  } else if (crashpad_is_external || crashpad_is_in_dart) {
-    import("../../../mini_chromium/mini_chromium/build/compiler.gni")
-    import("../../../mini_chromium/mini_chromium/build/platform.gni")
-  } else {
-    # Both standalone and in Fuchsia tree use mini_chromium, and it's mapped into
-    # the same location in both cases.
-    import("../third_party/mini_chromium/mini_chromium/build/compiler.gni")
-    import("../third_party/mini_chromium/mini_chromium/build/platform.gni")
-  }
+  import("$mini_chromium_import_root/build/compiler.gni")
+  import("$mini_chromium_import_root/build/platform.gni")
+
   crashpad_is_mac = mini_chromium_is_mac
   crashpad_is_ios = mini_chromium_is_ios
   crashpad_is_win = mini_chromium_is_win
@@ -81,6 +82,8 @@ if (crashpad_is_in_chromium) {
 
   crashpad_is_clang = mini_chromium_is_clang
 }
+
+crashpad_flock_always_supported = !(crashpad_is_android || crashpad_is_fuchsia)
 
 template("crashpad_executable") {
   executable(target_name) {
@@ -99,9 +102,10 @@ template("crashpad_executable") {
     }
 
     if (crashpad_is_in_fuchsia) {
-      fdio_config = [ "//build/config/fuchsia:fdio_config" ]
-      if (configs + fdio_config - fdio_config == configs) {
-        configs += fdio_config
+      conversion_config = [ "//build/config:Wno-conversion" ]
+      if (configs + conversion_config - conversion_config == configs) {
+        # TODO(https://fxbug.dev/58162): Decide if these are worth enabling.
+        configs += conversion_config
       }
     }
   }
@@ -124,7 +128,37 @@ template("crashpad_loadable_module") {
     }
 
     if (crashpad_is_in_fuchsia) {
-      configs += [ "//build/config/fuchsia:fdio_config" ]
+      conversion_config = [ "//build/config:Wno-conversion" ]
+      if (configs + conversion_config - conversion_config == configs) {
+        # TODO(https://fxbug.dev/58162): Decide if these are worth enabling.
+        configs += conversion_config
+      }
+    }
+  }
+}
+
+template("crashpad_static_library") {
+  static_library(target_name) {
+    forward_variables_from(invoker,
+                           "*",
+                           [
+                             "configs",
+                             "remove_configs",
+                           ])
+    if (defined(invoker.remove_configs)) {
+      configs -= invoker.remove_configs
+    }
+
+    if (defined(invoker.configs)) {
+      configs += invoker.configs
+    }
+
+    if (crashpad_is_in_fuchsia) {
+      conversion_config = [ "//build/config:Wno-conversion" ]
+      if (configs + conversion_config - conversion_config == configs) {
+        # TODO(https://fxbug.dev/58162): Decide if these are worth enabling.
+        configs += conversion_config
+      }
     }
   }
 }

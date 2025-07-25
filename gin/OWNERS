@@ -1,0 +1,11 @@
+set noparent
+cbruni@chromium.org
+haraken@chromium.org
+hpayer@chromium.org
+jbroman@chromium.org
+leszeks@chromium.org
+mlippautz@chromium.org
+
+# For adding JS/Wasm feature kill-switches.
+per-file gin_features.*=adamk@chromium.org
+per-file v8_initializer.cc=adamk@chromium.org

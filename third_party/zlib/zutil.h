@@ -1,5 +1,5 @@
 /* zutil.h -- internal interface and configuration of the compression library
- * Copyright (C) 1995-2016 Jean-loup Gailly, Mark Adler
+ * Copyright (C) 1995-2022 Jean-loup Gailly, Mark Adler
  * For conditions of distribution and use, see copyright notice in zlib.h
  */
 
@@ -21,13 +21,7 @@
 
 #include "zlib.h"
 
-/* Preemptively include <stdio.h> to prevent compilation errors resulting from
- * redefining fdopen() to |NULL|. */
-#include <stdio.h>
-
-#if defined(STARBOARD)
-#  include <string.h>
-#elif defined(STDC) && !defined(Z_SOLO)
+#if defined(STDC) && !defined(Z_SOLO)
 #  if !(defined(_WIN32_WCE) && defined(_MSC_VER))
 #    include <stddef.h>
 #  endif
@@ -50,10 +44,6 @@
 #  endif
 #endif
 
-#ifdef Z_SOLO
-   typedef long ptrdiff_t;  /* guess -- will be caught if guess is wrong */
-#endif
-
 #ifndef local
 #  define local static
 #endif
@@ -66,6 +56,17 @@ typedef uch FAR uchf;
 typedef unsigned short ush;
 typedef ush FAR ushf;
 typedef unsigned long  ulg;
+
+#if !defined(Z_U8) && !defined(Z_SOLO) && defined(STDC)
+#  include <limits.h>
+#  if (ULONG_MAX == 0xffffffffffffffff)
+#    define Z_U8 unsigned long
+#  elif (ULLONG_MAX == 0xffffffffffffffff)
+#    define Z_U8 unsigned long long
+#  elif (UINT_MAX == 0xffffffffffffffff)
+#    define Z_U8 unsigned
+#  endif
+#endif
 
 extern z_const char * const z_errmsg[10]; /* indexed by 2-zlib_error */
 /* (size given to avoid silly warnings with Visual C++) */
@@ -102,7 +103,7 @@ extern z_const char * const z_errmsg[10]; /* indexed by 2-zlib_error */
 #define PRESET_DICT 0x20 /* preset dictionary flag in zlib header */
 
         /* target dependencies */
-#if !defined(STARBOARD)
+
 #if defined(MSDOS) || (defined(WINDOWS) && !defined(WIN32))
 #  define OS_CODE  0x00
 #  ifndef Z_SOLO
@@ -183,19 +184,14 @@ extern z_const char * const z_errmsg[10]; /* indexed by 2-zlib_error */
 #ifdef __APPLE__
 #  define OS_CODE 19
 #endif
-#endif  // !defined(STARBOARD)
 
-#if defined(STARBOARD)
+#if defined(_BEOS_) || defined(RISCOS)
 #  define fdopen(fd,mode) NULL /* No fdopen() */
-#elif defined(_BEOS_) || defined(RISCOS)
-#  define fdopen(fd,mode) NULL /* No fdopen() */
-#elif (defined(_MSC_VER) && (_MSC_VER > 600)) && !defined __INTERIX && !defined(__LB_XB1__) && !defined(__LB_XB360__)
+#endif
+
+#if (defined(_MSC_VER) && (_MSC_VER > 600)) && !defined __INTERIX
 #  if defined(_WIN32_WCE)
 #    define fdopen(fd,mode) NULL /* No fdopen() */
-#    ifndef _PTRDIFF_T_DEFINED
-       typedef int ptrdiff_t;
-#      define _PTRDIFF_T_DEFINED
-#    endif
 #  else
 #    define fdopen(fd,type)  _fdopen(fd,type)
 #  endif
@@ -212,16 +208,13 @@ extern z_const char * const z_errmsg[10]; /* indexed by 2-zlib_error */
     (!defined(_LARGEFILE64_SOURCE) || _LFS64_LARGEFILE-0 == 0)
     ZEXTERN uLong ZEXPORT adler32_combine64 OF((uLong, uLong, z_off_t));
     ZEXTERN uLong ZEXPORT crc32_combine64 OF((uLong, uLong, z_off_t));
+    ZEXTERN uLong ZEXPORT crc32_combine_gen64 OF((z_off_t));
 #endif
 
         /* common defaults */
 
 #ifndef OS_CODE
 #  define OS_CODE  3     /* assume Unix */
-#endif
-
-#if defined(STARBOARD)
-#  define F_OPEN(name, mode) NULL
 #endif
 
 #ifndef F_OPEN
@@ -248,10 +241,6 @@ extern z_const char * const z_errmsg[10]; /* indexed by 2-zlib_error */
 #    define zmemcpy _fmemcpy
 #    define zmemcmp _fmemcmp
 #    define zmemzero(dest, len) _fmemset(dest, 0, len)
-#  elif defined(STARBOARD)
-#    define zmemcpy memcpy
-#    define zmemcmp(a, b) memcmp((a), (b), kSbInt32Max)
-#    define zmemzero(dest, len) memset(dest, 0, len)
 #  else
 #    define zmemcpy memcpy
 #    define zmemcmp memcmp
@@ -264,7 +253,7 @@ extern z_const char * const z_errmsg[10]; /* indexed by 2-zlib_error */
 #endif
 
 /* Diagnostic functions */
-#if defined(ZLIB_DEBUG) && !defined(STARBOARD)
+#ifdef ZLIB_DEBUG
 #  include <stdio.h>
    extern int ZLIB_INTERNAL z_verbose;
    extern void ZLIB_INTERNAL z_error OF((char *m));

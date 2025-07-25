@@ -1,0 +1,118 @@
+# Copyright 2020 The Chromium Authors
+# Use of this source code is governed by a BSD-style license that can be
+# found in the LICENSE file.
+
+import("//build/config/chrome_build.gni")
+
+if (is_chrome_branded) {
+  browser_name = "Chrome"
+  browser_product_name = "Google Chrome"
+  crash_product_name = "Update4"
+  crash_upload_url = "https://clients2.google.com/cr/report"
+  help_center_url = "http://support.google.com/installer/"
+  app_logo_url = "https://dl.google.com/update2/installers/icons/"
+  keystone_app_name = "GoogleSoftwareUpdate"
+  keystone_bundle_identifier = "com.google.Keystone"
+  mac_browser_bundle_identifier = "com.google.Chrome"
+  mac_updater_bundle_identifier = "com.google.GoogleUpdater"
+  privileged_helper_bundle_name = "GoogleChromeUpdaterPrivilegedHelper"
+  privileged_helper_name = "com.google.Chrome.UpdaterPrivilegedHelper"
+  updater_company_full_name = "Google LLC"
+  updater_company_short_name = "Google"
+  updater_company_short_name_uppercase = "GOOGLE"
+  updater_copyright =
+      "Copyright 2020 The Chromium Authors. All rights reserved."
+  updater_product_full_name = "GoogleUpdater"
+  mac_team_identifier = "EQHXZ8M8AV"
+  updater_appid = "{44fc7fe2-65ce-487c-93f4-edee46eeaaab}"
+  qualification_appid = "{6f0f9a34-a0ab-4a75-a0eb-6eab78d0dc4b}"
+  legacy_service_name_prefix = "gupdate"
+  prefs_access_mutex = "{D8E4A6FE-EA7A-4D20-A8C8-B4628776A101}"
+  setup_mutex_prefix = "{A5732CF5-E5AD-47A5-8131-DC4CCA530B02}"
+  grdfile_name = "google_chrome_strings"
+  extra_args_is_chrome_branded = "IS_CHROME_BRANDED=True"
+
+  # Google-specific Legacy GUIDs that Omaha 4 supports.
+  UpdaterLegacyLibGUID = "69464FF0-D9EC-4037-A35F-8AE4358106CC"
+  GoogleUpdate3WebUserClassGUID = "22181302-A8A6-4F84-A541-E5CBFC70CC43"
+  GoogleUpdate3WebSystemClassGUID = "8A1D4361-2C08-4700-A351-3EAA9CBFF5E4"
+  GoogleUpdate3WebServiceClassGUID = "534F5323-3569-4F42-919D-1E1CF93E5BF6"
+  PolicyStatusUserClassGUID = "6DDCE70D-A4AE-4E97-908C-BE7B2DB750AD"
+  PolicyStatusSystemClassGUID = "521FDB42-7130-4806-822A-FC5163FAD983"
+  ProcessLauncherClassGUID = "ABC01078-F197-4B0B-ADBC-CFE684B39C82"
+  IAppVersionWebGUID = "0CD01D1E-4A1C-489D-93B9-9B6672877C57"
+  ICurrentStateGUID = "247954F9-9EDC-4E68-8CC3-150C2B89EADF"
+  IGoogleUpdate3WebGUID = "494B20CF-282E-4BDD-9F5D-B70CB09D351E"
+  IAppBundleWebGUID = "DD42475D-6D46-496A-924E-BD5630B4CBBA"
+  IAppWebGUID = "18D0F672-18B4-48E6-AD36-6E6BF01DBBC4"
+  IAppCommandWebGUID = "8476CE12-AE1F-4198-805C-BA0F9B783F57"
+  IPolicyStatusGUID = "F63F6F8B-ACD5-413C-A44B-0409136D26CB"
+  IPolicyStatus2GUID = "34527502-D3DB-4205-A69B-789B27EE0414"
+  IPolicyStatus3GUID = "05A30352-EB25-45B6-8449-BCA7B0542CE5"
+  IPolicyStatusValueGUID = "27634814-8E41-4C35-8577-980134A96544"
+  IProcessLauncherGUID = "128C2DA6-2BC0-44C0-B3F6-4EC22E647964"
+  IProcessLauncher2GUID = "D106AB5F-A70E-400E-A21B-96208C1D8DBB"
+
+  if (is_mac) {
+    legacy_google_update_appid = keystone_bundle_identifier
+  } else {
+    legacy_google_update_appid = "{430FD4D0-B729-4F61-AA34-91526481799D}"
+  }
+} else {
+  browser_name = "Chromium"
+  browser_product_name = "Chromium"
+  crash_product_name = "ChromiumUpdater"
+  crash_upload_url = "https://clients2.google.com/cr/staging_report"
+  help_center_url = "http://support.google.com/installer/"
+  app_logo_url = "https://dl.google.com/update2/installers/icons/"
+  keystone_app_name = "ChromiumSoftwareUpdate"
+  keystone_bundle_identifier = "org.chromium.Keystone"
+  mac_browser_bundle_identifier = "org.chromium.Chromium"
+  mac_updater_bundle_identifier = "org.chromium.ChromiumUpdater"
+  privileged_helper_bundle_name = "ChromiumUpdaterPrivilegedHelper"
+  privileged_helper_name = "org.chromium.Chromium.UpdaterPrivilegedHelper"
+  updater_company_full_name = "Chromium Authors"
+  updater_company_short_name = "Chromium"
+  updater_company_short_name_uppercase = "CHROMIUM"
+  updater_copyright =
+      "Copyright 2020 The Chromium Authors. All rights reserved."
+  updater_product_full_name = "ChromiumUpdater"
+  mac_team_identifier = "PLACEHOLDER"
+  updater_appid = "{6e8ffa8f-e7e2-4000-9884-589283c27015}"
+  qualification_appid = "{43f3a046-04b3-4443-a770-d67dae90e440}"
+  legacy_service_name_prefix = "cupdate"
+  prefs_access_mutex = "{A6B9ECD5-772A-4D3F-BFEB-CF9340534A3E}"
+  setup_mutex_prefix = "{25569F82-3B67-4185-8127-88E4CF803680}"
+  grdfile_name = "chromium_strings"
+  extra_args_is_chrome_branded = "IS_CHROME_BRANDED=False"
+
+  UpdaterLegacyLibGUID = "4C61BB05-94D1-4BAB-B69C-C34195AF92CA"
+  GoogleUpdate3WebUserClassGUID = "75828ED1-7BE8-45D0-8950-AA85CBF74510"
+  GoogleUpdate3WebSystemClassGUID = "283209B7-C761-41CA-BE8D-B5321CD78FD6"
+  GoogleUpdate3WebServiceClassGUID = "B52C8B56-9541-4B78-9B2F-665366B78A9C"
+  PolicyStatusUserClassGUID = "4DAC24AB-B340-4B7E-AD01-1504A7F59EEA"
+  PolicyStatusSystemClassGUID = "83FE19AC-72A6-4A72-B136-724444121586"
+  ProcessLauncherClassGUID = "811A664F-703E-407C-A323-E6E31D1EFFA0"
+  IAppVersionWebGUID = "3057E1F8-2498-4C19-99B5-F7F207DA4DC7"
+  ICurrentStateGUID = "BE5D3E90-A66C-4A0A-9B7B-1A6B9BF3971E"
+  IGoogleUpdate3WebGUID = "027234BD-61BB-4F5C-9386-7FE804171C8C"
+  IAppBundleWebGUID = "D734C877-21F4-496E-B857-3E5B2E72E4CC"
+  IAppWebGUID = "2C6218B9-088D-4D25-A4F8-570558124142"
+  IAppCommandWebGUID = "87DBF75E-F590-4802-93FD-F8D07800E2E9"
+  IPolicyStatusGUID = "7D908375-C9D0-44C5-BB98-206F3C24A74C"
+  IPolicyStatus2GUID = "9D31EA63-2E06-4D41-98C7-CB1F307DB597"
+  IPolicyStatus3GUID = "5C674FC1-80E3-48D2-987B-79D9D286065B"
+  IPolicyStatusValueGUID = "47C8886A-A4B5-4F6C-865A-41A207074DFA"
+  IProcessLauncherGUID = "EED70106-3604-4385-866E-6D540E99CA1A"
+  IProcessLauncher2GUID = "BAEE6326-C925-4FA4-AFE9-5FA69902B021"
+
+  if (is_mac) {
+    legacy_google_update_appid = keystone_bundle_identifier
+  } else {
+    legacy_google_update_appid = "{8B2B92A3-1BA2-4154-A89C-DA74C9C505E4}"
+  }
+}
+
+# Chrome and Chromium share the same endpoints for now.
+update_check_url = "https://update.googleapis.com/service/update2/json"
+device_management_server_url = "https://m.google.com/devicemanagement/data/api"

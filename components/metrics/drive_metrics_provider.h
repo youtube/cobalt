@@ -1,4 +1,4 @@
-// Copyright 2015 The Chromium Authors. All rights reserved.
+// Copyright 2015 The Chromium Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -7,8 +7,6 @@
 
 #include "base/functional/callback_forward.h"
 #include "base/gtest_prod_util.h"
-#include "base/macros.h"
-#include "base/memory/ref_counted.h"
 #include "base/memory/weak_ptr.h"
 #include "base/sequence_checker.h"
 #include "components/metrics/metrics_provider.h"
@@ -25,10 +23,14 @@ namespace metrics {
 class DriveMetricsProvider : public metrics::MetricsProvider {
  public:
   explicit DriveMetricsProvider(int local_state_path_key);
+
+  DriveMetricsProvider(const DriveMetricsProvider&) = delete;
+  DriveMetricsProvider& operator=(const DriveMetricsProvider&) = delete;
+
   ~DriveMetricsProvider() override;
 
-  // metrics::MetricsDataProvider:
-  void AsyncInit(const base::Closure& done_callback) override;
+  // metrics::MetricsProvider:
+  void AsyncInit(base::OnceClosure done_callback) override;
   void ProvideSystemProfileMetrics(
       metrics::SystemProfileProto* system_profile_proto) override;
 
@@ -65,7 +67,7 @@ class DriveMetricsProvider : public metrics::MetricsProvider {
   // Called when metrics are done being gathered asynchronously.
   // |done_callback| is the callback that should be called once all metrics are
   // gathered.
-  void GotDriveMetrics(const base::Closure& done_callback,
+  void GotDriveMetrics(base::OnceClosure done_callback,
                        const DriveMetrics& metrics);
 
   // Fills |drive| with information from successful |response|s.
@@ -80,9 +82,7 @@ class DriveMetricsProvider : public metrics::MetricsProvider {
   DriveMetrics metrics_;
 
   SEQUENCE_CHECKER(sequence_checker_);
-  base::WeakPtrFactory<DriveMetricsProvider> weak_ptr_factory_;
-
-  DISALLOW_COPY_AND_ASSIGN(DriveMetricsProvider);
+  base::WeakPtrFactory<DriveMetricsProvider> weak_ptr_factory_{this};
 };
 
 }  // namespace metrics

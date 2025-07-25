@@ -26,10 +26,8 @@ namespace base::allocator::dispatcher {
 namespace {
 using configuration::kMaximumNumberOfObservers;
 using configuration::kMaximumNumberOfOptionalObservers;
-#if BUILDFLAG(USE_PARTITION_ALLOC)
 using partition_alloc::PartitionOptions;
 using partition_alloc::ThreadSafePartitionRoot;
-#endif
 using testing::DispatcherTest;
 
 // A simple observer implementation. Since these tests plug in to Partition

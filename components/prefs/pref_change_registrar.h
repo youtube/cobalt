@@ -1,4 +1,4 @@
-// Copyright (c) 2010 The Chromium Authors. All rights reserved.
+// Copyright 2010 The Chromium Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -8,8 +8,8 @@
 #include <map>
 #include <string>
 
-#include "base/callback.h"
-#include "base/macros.h"
+#include "base/functional/callback.h"
+#include "base/memory/raw_ptr.h"
 #include "components/prefs/pref_observer.h"
 #include "components/prefs/prefs_export.h"
 
@@ -26,6 +26,10 @@ class COMPONENTS_PREFS_EXPORT PrefChangeRegistrar final : public PrefObserver {
   using NamedChangeCallback = base::RepeatingCallback<void(const std::string&)>;
 
   PrefChangeRegistrar();
+
+  PrefChangeRegistrar(const PrefChangeRegistrar&) = delete;
+  PrefChangeRegistrar& operator=(const PrefChangeRegistrar&) = delete;
+
   ~PrefChangeRegistrar();
 
   // Must be called before adding or removing observers. Can be called more
@@ -40,7 +44,7 @@ class COMPONENTS_PREFS_EXPORT PrefChangeRegistrar final : public PrefObserver {
   // the preference that is changing as its parameter.
   //
   // Only one observer may be registered per path.
-  void Add(const std::string& path, const base::Closure& obs);
+  void Add(const std::string& path, const base::RepeatingClosure& obs);
   void Add(const std::string& path, const NamedChangeCallback& obs);
 
   // Removes the pref observer registered for |path|.
@@ -55,9 +59,6 @@ class COMPONENTS_PREFS_EXPORT PrefChangeRegistrar final : public PrefObserver {
   // Check whether |pref| is in the set of preferences being observed.
   bool IsObserved(const std::string& pref);
 
-  // Check whether any of the observed preferences has the managed bit set.
-  bool IsManaged();
-
   // Return the PrefService for this registrar.
   PrefService* prefs();
   const PrefService* prefs() const;
@@ -67,15 +68,13 @@ class COMPONENTS_PREFS_EXPORT PrefChangeRegistrar final : public PrefObserver {
   void OnPreferenceChanged(PrefService* service,
                            const std::string& pref_name) override;
 
-  static void InvokeUnnamedCallback(const base::Closure& callback,
+  static void InvokeUnnamedCallback(const base::RepeatingClosure& callback,
                                     const std::string& pref_name);
 
   using ObserverMap = std::map<std::string, NamedChangeCallback>;
 
   ObserverMap observers_;
-  PrefService* service_;
-
-  DISALLOW_COPY_AND_ASSIGN(PrefChangeRegistrar);
+  raw_ptr<PrefService, DanglingUntriaged> service_;
 };
 
 #endif  // COMPONENTS_PREFS_PREF_CHANGE_REGISTRAR_H_

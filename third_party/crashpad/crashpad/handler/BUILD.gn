@@ -1,4 +1,4 @@
-# Copyright 2015 The Crashpad Authors. All rights reserved.
+# Copyright 2015 The Crashpad Authors
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -16,12 +16,8 @@ import("../build/crashpad_buildconfig.gni")
 
 static_library("handler") {
   sources = [
-    "crash_report_upload_thread.cc",
-    "crash_report_upload_thread.h",
     "handler_main.cc",
     "handler_main.h",
-    "minidump_to_upload_parameters.cc",
-    "minidump_to_upload_parameters.h",
     "prune_crash_reports_thread.cc",
     "prune_crash_reports_thread.h",
     "user_stream_data_source.cc",
@@ -34,8 +30,6 @@ static_library("handler") {
       "mac/crash_report_exception_handler.h",
       "mac/exception_handler_server.cc",
       "mac/exception_handler_server.h",
-      "mac/file_limit_annotation.cc",
-      "mac/file_limit_annotation.h",
     ]
   }
 
@@ -50,11 +44,14 @@ static_library("handler") {
     ]
   }
 
-  if (crashpad_is_linux && !crashpad_is_in_starboard &&
-      !crashpad_is_in_native_target_build) {
+  if (crashpad_is_linux) {
     sources += [
       "linux/cros_crash_report_exception_handler.cc",
       "linux/cros_crash_report_exception_handler.h",
+    ]
+    # TODO(https://crbug.com/1420445): Remove this config when M115 branches.
+    configs += [
+      "../build:crashpad_is_in_chromium",
     ]
   }
 
@@ -68,29 +65,22 @@ static_library("handler") {
   public_configs = [ "..:crashpad_config" ]
 
   public_deps = [
+    ":common",
     "../client",
     "../third_party/mini_chromium:base",
     "../util",
   ]
 
   deps = [
+    ":common",
     "../minidump",
     "../snapshot",
+    "../third_party/mini_chromium:chromeos_buildflags",
     "../tools:tool_support",
   ]
 
-  if (crashpad_is_in_starboard || crashpad_is_in_native_target_build) {
-    sources += [ "../util/net/http_transport_socket.cc" ]
-    defines = [ "CRASHPAD_USE_BORINGSSL" ]
-    deps += [ "//third_party/boringssl" ]
-  }
-
   if (crashpad_is_win) {
     cflags = [ "/wd4201" ]  # nonstandard extension used : nameless struct/union
-  }
-
-  if (crashpad_is_in_starboard) {
-    public_deps += [ "//starboard:starboard_group", ]
   }
 }
 
@@ -104,7 +94,35 @@ if (crashpad_is_android) {
   }
 }
 
-if (!crashpad_is_in_starboard && !crashpad_is_in_native_target_build) {
+static_library("common") {
+  sources = [
+    "crash_report_upload_thread.cc",
+    "crash_report_upload_thread.h",
+    "minidump_to_upload_parameters.cc",
+    "minidump_to_upload_parameters.h",
+  ]
+  if (crashpad_is_mac || crashpad_is_ios) {
+    sources += [
+      "mac/file_limit_annotation.cc",
+      "mac/file_limit_annotation.h",
+    ]
+  }
+  public_configs = [ "..:crashpad_config" ]
+  public_deps = [
+    "../third_party/mini_chromium:base",
+    "../util",
+  ]
+  deps = [
+    "../client:common",
+    "../snapshot",
+    "../util",
+    "../util:net",
+  ]
+  if (crashpad_is_win) {
+    cflags = [ "/wd4201" ]  # nonstandard extension used : nameless struct/union
+  }
+}
+
 source_set("handler_test") {
   testonly = true
 
@@ -131,7 +149,10 @@ source_set("handler_test") {
   ]
 
   if (crashpad_is_win) {
-    deps += [ "../minidump:test_support" ]
+    deps += [
+      "../minidump:test_support",
+      "win/wer:crashpad_wer_test",
+    ]
 
     data_deps = [
       ":crashpad_handler_test_extended_handler",
@@ -139,28 +160,9 @@ source_set("handler_test") {
     ]
   }
 }
-}
 
 if (!crashpad_is_ios) {
-  if (crashpad_is_in_starboard || crashpad_is_in_native_target_build) {
-    config("customized_for_cobalt_crashpad_handler_config") {
-      cflags = [
-        "-ffunction-sections",
-        "-fdata-sections",
-      ]
-      ldflags = [
-        "-Wl,--as-needed",
-        "-Wl,-gc-sections",
-        "-Wl,-z,noexecstack",
-      ]
-    }
-  }
-
   crashpad_executable("crashpad_handler") {
-    if (crashpad_is_in_starboard) {
-      install_target = !crashpad_is_android
-    }
-
     sources = [ "main.cc" ]
 
     deps = [
@@ -171,26 +173,27 @@ if (!crashpad_is_ios) {
       "../tools:tool_support",
     ]
 
-    configs = []
     if (crashpad_is_win) {
       if (crashpad_is_in_chromium || crashpad_is_in_dart) {
         remove_configs = [ "//build/config/win:console" ]
         configs = [ "//build/config/win:windowed" ]
-      } else {
+      } else if (crashpad_is_external) {
         remove_configs =
-            [ "//third_party/mini_chromium/mini_chromium/build:win_console" ]
+            [ "//../../mini_chromium/mini_chromium/build/config:win_console" ]
         configs =
-            [ "//third_party/mini_chromium/mini_chromium/build:win_windowed" ]
+            [ "//../../mini_chromium/mini_chromium/build/config:win_windowed" ]
+      } else {
+        remove_configs = [
+          "//third_party/mini_chromium/mini_chromium/build/config:win_console",
+        ]
+        configs = [
+          "//third_party/mini_chromium/mini_chromium/build/config:win_windowed",
+        ]
       }
     }
 
-    if (crashpad_is_in_starboard || crashpad_is_in_native_target_build) {
-      check_includes = false
-      configs += [ ":customized_for_cobalt_crashpad_handler_config" ]
-    }
-
-    if (crashpad_is_in_native_target_build) {
-      configs += [ "../build:native_target_executable_config" ]
+    if (crashpad_is_linux) {
+      deps += [ "../client:pthread_create" ]
     }
   }
 }
@@ -199,9 +202,7 @@ if (!crashpad_is_ios) {
 # It is normal to package native code as a loadable module but Android's APK
 # installer will ignore files not named like a shared object, so give the
 # handler executable an acceptable name.
-# TODO: b/256660693 Disabled crashpad_handler executables due to build issues on Android
-if (crashpad_is_android &&
-    !(crashpad_is_in_starboard || crashpad_is_in_native_target_build)) {
+if (crashpad_is_android) {
   copy("crashpad_handler_named_as_so") {
     deps = [ ":crashpad_handler" ]
 
@@ -215,18 +216,23 @@ if (crashpad_is_android &&
 
     sources = [ "linux/handler_trampoline.cc" ]
 
-    ldflags = [ "-llog" ]
+    deps = [ "../util:no_cfi_icall" ]
+
+    libs = [ "log" ]
 
     if (crashpad_is_in_chromium) {
-      no_default_deps = true
+      # Chromium's sanitizer runtime libraries do not include an unwinder,
+      # so add Chromium's standard dependencies to link against the in-tree
+      # libunwind.
+      import("//build/config/sanitizers/sanitizers.gni")
+      no_default_deps = !using_sanitizer
+      remove_configs =
+          [ "//build/config/android:default_orderfile_instrumentation" ]
     }
-    remove_configs =
-        [ "//build/config/android:default_orderfile_instrumentation" ]
   }
 }
 
-if (!crashpad_is_ios && !crashpad_is_in_starboard &&
-    !crashpad_is_in_native_target_build) {
+if (!crashpad_is_ios) {
   crashpad_executable("crashpad_handler_test_extended_handler") {
     testonly = true
 
@@ -353,5 +359,21 @@ if (crashpad_is_win) {
         "../third_party/mini_chromium:base",
       ]
     }
+  }
+
+  config("enable_cfg") {
+    cflags = [ "/guard:cf" ]
+    ldflags = [ "/guard:cf" ]
+  }
+  crashpad_executable("fastfail_program") {
+    testonly = true
+
+    sources = [ "win/fastfail_test_program.cc" ]
+    configs = [ ":enable_cfg" ]
+
+    deps = [
+      "../client",
+      "../third_party/mini_chromium:base",
+    ]
   }
 }

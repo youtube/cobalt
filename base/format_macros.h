@@ -26,10 +26,6 @@
 
 #include "build/build_config.h"
 
-#if defined(STARBOARD)
-#include "starboard/types.h"
-#endif
-
 #if (BUILDFLAG(IS_POSIX) || BUILDFLAG(IS_FUCHSIA)) && \
     (defined(_INTTYPES_H) || defined(_INTTYPES_H_)) && !defined(PRId64)
 #error "inttypes.h has already been included before this header file, but "
@@ -57,7 +53,7 @@
 #define PRIuS "Iu"
 #endif
 
-#elif BUILDFLAG(IS_POSIX) || BUILDFLAG(IS_FUCHSIA) || defined(STARBOARD)
+#elif BUILDFLAG(IS_POSIX) || BUILDFLAG(IS_FUCHSIA)
 
 // GCC will concatenate wide and narrow strings correctly, so nothing needs to
 // be done here.

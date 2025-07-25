@@ -29,11 +29,6 @@ absl_test("any_invocable_test") {
     "//third_party/abseil-cpp/absl/meta:type_traits",
     "//third_party/abseil-cpp/absl/utility",
   ]
-
-  # Currently hangs when trying to build. Skip for now.
-  if (is_starboard) {
-    sources = []
-  }
 }
 
 absl_source_set("bind_front") {

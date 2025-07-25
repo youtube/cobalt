@@ -1,0 +1,47 @@
+// Copyright 2019 The Chromium Authors
+// Use of this source code is governed by a BSD-style license that can be
+// found in the LICENSE file.
+
+{% from 'templates/macros.tmpl' import source_files_for_generated_file %}
+{{source_files_for_generated_file(template_file, input_files)}}
+// clang-format off
+
+#include "third_party/blink/renderer/core/css/properties/css_property_instances.h"
+
+#include "third_party/blink/renderer/core/css/properties/longhands.h"
+#include "third_party/blink/renderer/core/css/properties/longhands/variable.h"
+#include "third_party/blink/renderer/core/css/properties/shorthands.h"
+
+namespace blink {
+namespace static_properties {
+{% for property in properties %}
+const ::blink::{{property.namespace}}::{{property.classname}} property_{{property.property_id.lower()}};
+{% endfor %}
+{% for property in aliases %}
+const ::blink::{{property.namespace}}::{{property.classname}} property_{{property.property_id.lower()}};
+{% endfor %}
+} // namespace static_properties
+
+const CSSUnresolvedProperty* GetAliasPropertyInternal(CSSPropertyID id) {
+  DCHECK_GT(id, kLastCSSProperty);  // last property id
+  DCHECK_LE(id, kLastUnresolvedCSSProperty);  // last unresolved property id
+  switch (id) {
+    {% for property in aliases %}
+    case CSSPropertyID::{{property.enum_key}}:
+      return &static_properties::property_{{property.property_id.lower()}};
+    {% endfor %}
+    default:
+      NOTREACHED();
+      return nullptr;
+  }
+}
+
+const CSSUnresolvedProperty* const kPropertyClasses[] = {
+  nullptr,  // kInvalid.
+  nullptr,  // kVariable.
+  {% for property in properties %}
+  &static_properties::property_{{property.property_id.lower()}},  // {{property.property_id}}
+  {% endfor %}
+};
+
+}  // namespace blink

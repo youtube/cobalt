@@ -1,0 +1,32 @@
+// Copyright 2020 The Chromium Authors
+// Use of this source code is governed by a BSD-style license that can be
+// found in the LICENSE file.
+
+syntax = "proto2";
+
+package feedwire;
+
+import "components/feed/core/proto/v2/wire/info_card.proto";
+
+option optimize_for = LITE_RUNTIME;
+
+message ChromeFulfillmentInfo {
+  optional bool notice_card_acknowledged = 1;
+  repeated string acknowledged_notice_key = 2;
+  repeated InfoCardTrackingState info_card_tracking_state = 3;
+  optional ChromeFeatureUsage chrome_feature_usage = 4;
+  optional ChromeSignInStatus sign_in_status = 5;
+}
+message ChromeFeatureUsage {
+  optional int32 times_followed_from_web_page_menu = 1;
+}
+message ChromeSignInStatus {
+  enum SignInStatus {
+    SIGNED_IN_STATUS_UNSPECIFIED = 0;
+    NOT_SIGNED_IN = 1;
+    SIGNED_IN_WITHOUT_SYNC = 2;
+    SYNCED = 3;
+    SIGNIN_DISALLOWED_BY_CONFIG = 4;
+  }
+  optional SignInStatus sign_in_status = 1;
+}

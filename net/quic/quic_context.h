@@ -12,31 +12,9 @@
 #include "base/time/time.h"
 #include "net/base/features.h"
 #include "net/base/host_port_pair.h"
-#if defined(STARBOARD)
-#include "net/socket/next_proto.h"
-#endif  // defined(STARBOARD)
 #include "net/third_party/quiche/src/quiche/quic/core/quic_connection.h"
 
 namespace net {
-
-#if defined(STARBOARD)
-struct ProtocolFilterEntry {
-
-enum QuicVersion {
-  Q046,
-  RFC_V1
-};
-
-struct AltSvc {
-  NextProto protocol;
-  QuicVersion quic_version;
-};
-
-  std::string origin;
-  AltSvc alt_svc;
-};
-using ProtocolFilter = std::vector<ProtocolFilterEntry>;
-#endif  // defined(STARBOARD)
 
 // Default QUIC supported versions used in absence of any external
 // configuration.
@@ -223,10 +201,6 @@ struct NET_EXPORT QuicParams {
   // If true, delay main job even the request can be sent immediately on an
   // available SPDY session.
   bool delay_main_job_with_available_spdy_session = false;
-#if defined(STARBOARD)
-  // Override alternative service for an origin.
-  absl::optional<ProtocolFilter> protocol_filter;
-#endif  // defined(STARBOARD)
 };
 
 // QuicContext contains QUIC-related variables that are shared across all of the

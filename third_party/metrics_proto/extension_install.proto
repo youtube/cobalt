@@ -1,13 +1,13 @@
-// Copyright 2017 The Chromium Authors. All rights reserved.
+// Copyright 2017 The Chromium Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
 syntax = "proto2";
 
 option optimize_for = LITE_RUNTIME;
+option java_package = "org.chromium.components.metrics";
 
 option java_outer_classname = "ExtensionInstallProtos";
-option java_package = "org.chromium.components.metrics";
 
 package metrics;
 
@@ -16,14 +16,15 @@ package metrics;
 message ExtensionInstallProto {
   // The type of extension item this is.
   enum Type {
-    UNKNOWN_TYPE = 0;         // Unknown (hopefully never used)
-    EXTENSION = 1;            // A browser extension
-    THEME = 2;                // A browser theme
-    USER_SCRIPT = 3;          // An extension converted from a user script
-    HOSTED_APP = 4;           // A hosted app
-    LEGACY_PACKAGED_APP = 5;  // A (deprecated) v1 packaged app
-    PLATFORM_APP = 6;         // A platform app
-    SHARED_MODULE = 7;        // A shared module
+    UNKNOWN_TYPE = 0;            // Unknown (hopefully never used)
+    EXTENSION = 1;               // A browser extension
+    THEME = 2;                   // A browser theme
+    USER_SCRIPT = 3;             // An extension converted from a user script
+    HOSTED_APP = 4;              // A hosted app
+    LEGACY_PACKAGED_APP = 5;     // A (deprecated) v1 packaged app
+    PLATFORM_APP = 6;            // A platform app
+    SHARED_MODULE = 7;           // A shared module
+    LOGIN_SCREEN_EXTENSION = 8;  // An extension running on the login screen
   }
   optional Type type = 1;
 
@@ -111,6 +112,8 @@ message ExtensionInstallProto {
     PERSISTENT_BACKGROUND_PAGE = 1;  // The extension has a persistent
                                      // background page.
     EVENT_PAGE = 2;                  // The extension has a (lazy) event page.
+    SERVICE_WORKER = 3;              // The extension has a service worker based
+                                     // background context.
   }
   optional BackgroundScriptType background_script_type = 13;
 
@@ -138,6 +141,14 @@ message ExtensionInstallProto {
                                        // approval for a supervised user.
     BLOCKED_BY_POLICY = 13;  // The extension is disabled because it's blocked
                              // by enterprise policy.
+    // The extension is being reinstalled.
+    REINSTALL = 16;
+    // The extension has been disabled because it's not allowlisted and the Safe
+    // Browsing allowlist is enforced in the user profile.
+    NOT_ALLOWLISTED = 17;
+    // The extension is disabled because it is not in 1st party ash keep list
+    // and the 1st party ash extension keep list is enforced in ash.
+    NOT_ASH_KEEPLISTED = 18;
   }
   // Any DisableReasons in effect for the extension. An empty list means the
   // extension is not disabled. Note that an extension that is not disabled may

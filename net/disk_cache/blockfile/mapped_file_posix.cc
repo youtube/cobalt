@@ -14,7 +14,6 @@
 namespace disk_cache {
 
 void* MappedFile::Init(const base::FilePath& name, size_t size) {
-/* Cobalt
   DCHECK(!init_);
   if (init_ || !File::Init(name))
     return nullptr;
@@ -37,15 +36,12 @@ void* MappedFile::Init(const base::FilePath& name, size_t size) {
     return nullptr;
 
   return buffer_;
-Cobalt */
-  return nullptr;
 }
 
 void MappedFile::Flush() {
 }
 
 MappedFile::~MappedFile() {
-/* Cobalt
   if (!init_)
     return;
 
@@ -53,7 +49,6 @@ MappedFile::~MappedFile() {
     int ret = munmap(buffer_, view_size_);
     DCHECK_EQ(0, ret);
   }
-Cobalt */
 }
 
 }  // namespace disk_cache

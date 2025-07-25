@@ -2,12 +2,10 @@
 # Use of this source code is governed by a BSD-style license that can be
 # found in the LICENSE file.
 
-if (!use_cobalt_customizations) {
 # TODO(crbug.com/1233050): Until the bug is resolved we need to include
 # gclient_args for the definition of build_with_chromium and build_overrides
 # for client overrides of that flag. The latter should go away.
 import("//build/config/gclient_args.gni")
-}
 import("//build_overrides/build.gni")
 declare_args() {
   # Enables DCHECKs to be built-in, but to default to being non-fatal/log-only.

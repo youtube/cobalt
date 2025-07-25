@@ -620,10 +620,7 @@ void SimpleIndex::WriteToDisk(IndexWriteToDiskReason reason) {
   if (cleanup_tracker_) {
     // Make anyone synchronizing with our cleanup wait for the index to be
     // written back.
-/* Cobalt
     after_write = base::DoNothingWithBoundArgs(cleanup_tracker_);
-Cobalt */
-    after_write = base::DoNothingWithBoundArgs(std::move(cleanup_tracker_));
   }
 
   index_file_->WriteToDisk(cache_type_, reason, entries_set_, cache_size_,

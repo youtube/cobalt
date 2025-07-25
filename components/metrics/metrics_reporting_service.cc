@@ -1,4 +1,4 @@
-// Copyright 2017 The Chromium Authors. All rights reserved.
+// Copyright 2017 The Chromium Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -6,26 +6,18 @@
 
 #include "components/metrics/metrics_reporting_service.h"
 
-#include "base/bind.h"
-#include "base/callback.h"
+#include "base/functional/bind.h"
+#include "base/functional/callback.h"
 #include "base/metrics/histogram_functions.h"
 #include "base/metrics/histogram_macros.h"
+#include "components/metrics/metrics_logs_event_manager.h"
 #include "components/metrics/metrics_pref_names.h"
-#include "components/metrics/persisted_logs_metrics_impl.h"
+#include "components/metrics/metrics_service_client.h"
+#include "components/metrics/unsent_log_store_metrics_impl.h"
 #include "components/metrics/url_constants.h"
 #include "components/prefs/pref_registry_simple.h"
 
 namespace metrics {
-
-namespace {
-
-// If an upload fails, and the transmission was over this byte count, then we
-// will discard the log, and not try to retransmit it.  We also don't persist
-// the log to the prefs for transmission during the next chrome session if this
-// limit is exceeded.
-const size_t kUploadLogAvoidRetransmitSize = 100 * 1024;
-
-}  // namespace
 
 // static
 void MetricsReportingService::RegisterPrefs(PrefRegistrySimple* registry) {
@@ -33,10 +25,18 @@ void MetricsReportingService::RegisterPrefs(PrefRegistrySimple* registry) {
   MetricsLogStore::RegisterPrefs(registry);
 }
 
-MetricsReportingService::MetricsReportingService(MetricsServiceClient* client,
-                                                 PrefService* local_state)
-    : ReportingService(client, local_state, kUploadLogAvoidRetransmitSize),
-      metrics_log_store_(local_state, kUploadLogAvoidRetransmitSize) {}
+MetricsReportingService::MetricsReportingService(
+    MetricsServiceClient* client,
+    PrefService* local_state,
+    MetricsLogsEventManager* logs_event_manager_)
+    : ReportingService(client,
+                       local_state,
+                       client->GetStorageLimits().max_ongoing_log_size,
+                       logs_event_manager_),
+      metrics_log_store_(local_state,
+                         client->GetStorageLimits(),
+                         client->GetUploadSigningKey(),
+                         logs_event_manager_) {}
 
 MetricsReportingService::~MetricsReportingService() {}
 
@@ -44,11 +44,11 @@ LogStore* MetricsReportingService::log_store() {
   return &metrics_log_store_;
 }
 
-std::string MetricsReportingService::GetUploadUrl() const {
+GURL MetricsReportingService::GetUploadUrl() const {
   return client()->GetMetricsServerUrl();
 }
 
-std::string MetricsReportingService::GetInsecureUploadUrl() const {
+GURL MetricsReportingService::GetInsecureUploadUrl() const {
   return client()->GetInsecureMetricsServerUrl();
 }
 
@@ -65,7 +65,7 @@ void MetricsReportingService::LogActualUploadInterval(
     base::TimeDelta interval) {
   UMA_HISTOGRAM_CUSTOM_COUNTS("UMA.ActualLogUploadInterval",
                               interval.InMinutes(), 1,
-                              base::TimeDelta::FromHours(12).InMinutes(), 50);
+                              base::Hours(12).InMinutes(), 50);
 }
 
 void MetricsReportingService::LogCellularConstraint(bool upload_canceled) {
@@ -85,13 +85,13 @@ void MetricsReportingService::LogResponseOrErrorCode(int response_code,
   }
 }
 
-void MetricsReportingService::LogSuccess(size_t log_size) {
+void MetricsReportingService::LogSuccessLogSize(size_t log_size) {
   UMA_HISTOGRAM_COUNTS_10000("UMA.LogSize.OnSuccess", log_size / 1024);
 }
 
-void MetricsReportingService::LogLargeRejection(size_t log_size) {
-  UMA_HISTOGRAM_COUNTS_1M("UMA.Large Rejected Log was Discarded",
-                          static_cast<int>(log_size));
-}
+void MetricsReportingService::LogSuccessMetadata(
+    const std::string& staged_log) {}
+
+void MetricsReportingService::LogLargeRejection(size_t log_size) {}
 
 }  // namespace metrics

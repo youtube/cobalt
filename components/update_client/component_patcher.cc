@@ -1,4 +1,4 @@
-// Copyright 2014 The Chromium Authors. All rights reserved.
+// Copyright 2014 The Chromium Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -6,11 +6,10 @@
 
 #include <string>
 #include <utility>
-#include <vector>
 
-#include "base/bind.h"
 #include "base/files/file_path.h"
 #include "base/files/file_util.h"
+#include "base/functional/bind.h"
 #include "base/json/json_file_value_serializer.h"
 #include "base/location.h"
 #include "base/memory/weak_ptr.h"
@@ -54,8 +53,7 @@ ComponentPatcher::ComponentPatcher(const base::FilePath& input_dir,
       installer_(installer),
       patcher_(patcher) {}
 
-ComponentPatcher::~ComponentPatcher() {
-}
+ComponentPatcher::~ComponentPatcher() = default;
 
 void ComponentPatcher::Start(Callback callback) {
   callback_ = std::move(callback);

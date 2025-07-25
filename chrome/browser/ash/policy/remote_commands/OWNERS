@@ -1,0 +1,2 @@
+# For CRD related changes
+per-file *crd*=file://chrome/browser/ash/app_mode/OWNERS

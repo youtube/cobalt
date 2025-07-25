@@ -18,9 +18,7 @@
 #include "base/allocator/partition_allocator/partition_alloc_base/time/time.h"
 #include "build/build_config.h"
 
-#if defined(STARBOARD)
-#include "starboard/thread.h"
-#elif BUILDFLAG(IS_WIN)
+#if BUILDFLAG(IS_WIN)
 #include "base/allocator/partition_allocator/partition_alloc_base/win/windows_types.h"
 #elif BUILDFLAG(IS_FUCHSIA)
 #include <zircon/types.h>
@@ -34,9 +32,7 @@
 namespace partition_alloc::internal::base {
 
 // Used for logging. Always an integer value.
-#if defined(STARBOARD)
-typedef SbThreadId PlatformThreadId;
-#elif BUILDFLAG(IS_WIN)
+#if BUILDFLAG(IS_WIN)
 typedef DWORD PlatformThreadId;
 #elif BUILDFLAG(IS_FUCHSIA)
 typedef zx_handle_t PlatformThreadId;
@@ -49,9 +45,7 @@ typedef pid_t PlatformThreadId;
 // Used to operate on threads.
 class PlatformThreadHandle {
  public:
-#if defined(STARBOARD)
-  typedef SbThread Handle;
-#elif BUILDFLAG(IS_WIN)
+#if BUILDFLAG(IS_WIN)
   typedef void* Handle;
 #elif BUILDFLAG(IS_POSIX) || BUILDFLAG(IS_FUCHSIA)
   typedef pthread_t Handle;

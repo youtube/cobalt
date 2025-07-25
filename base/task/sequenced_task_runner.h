@@ -315,9 +315,7 @@ class BASE_EXPORT SequencedTaskRunner : public TaskRunner {
     friend class SequencedTaskRunner;
     friend class CurrentHandleOverride;
 
-#if !defined(STARBOARD)
     const AutoReset<CurrentDefaultHandle*> resetter_;
-#endif
 
     scoped_refptr<SequencedTaskRunner> task_runner_;
   };

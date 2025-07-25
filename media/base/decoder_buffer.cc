@@ -11,24 +11,6 @@
 
 namespace media {
 
-#if defined(STARBOARD)
-
-namespace {
-DecoderBuffer::Allocator* s_allocator = nullptr;
-}  // namespace
-
-// static
-DecoderBuffer::Allocator* DecoderBuffer::Allocator::GetInstance() {
-  DCHECK(s_allocator);
-  return s_allocator;
-}
-
-// static
-void DecoderBuffer::Allocator::Set(Allocator* allocator) {
-  s_allocator = allocator;
-}
-#endif  // defined(STARBOARD)
-
 DecoderBuffer::TimeInfo::TimeInfo() = default;
 DecoderBuffer::TimeInfo::~TimeInfo() = default;
 DecoderBuffer::TimeInfo::TimeInfo(const TimeInfo&) = default;
@@ -53,11 +35,7 @@ DecoderBuffer::DecoderBuffer(const uint8_t* data,
 
   Initialize();
 
-#if defined(STARBOARD)
-  memcpy(data_, data, size_);
-#else  // defined(STARBOARD)
   memcpy(data_.get(), data, size_);
-#endif  // defined(STARBOARD)
 
   if (!side_data) {
     CHECK_EQ(side_data_size, 0u);
@@ -68,7 +46,6 @@ DecoderBuffer::DecoderBuffer(const uint8_t* data,
   memcpy(side_data_.get(), side_data, side_data_size_);
 }
 
-#if !defined(STARBOARD)
 DecoderBuffer::DecoderBuffer(std::unique_ptr<uint8_t[]> data, size_t size)
     : data_(std::move(data)), size_(size) {}
 
@@ -83,32 +60,14 @@ DecoderBuffer::DecoderBuffer(base::WritableSharedMemoryMapping mapping,
 DecoderBuffer::DecoderBuffer(std::unique_ptr<ExternalMemory> external_memory)
     : size_(external_memory->span().size()),
       external_memory_(std::move(external_memory)) {}
-#endif  // !defined(STARBOARD)
 
 DecoderBuffer::~DecoderBuffer() {
-#if defined(STARBOARD)
-  DCHECK(s_allocator);
-  s_allocator->Free(data_, allocated_size_);
-#else  // defined(STARBOARD)
   data_.reset();
-#endif  // defined(STARBOARD)
   side_data_.reset();
 }
 
 void DecoderBuffer::Initialize() {
-#if defined(STARBOARD)
-  DCHECK(s_allocator);
-  DCHECK(!data_);
-
-  int alignment = s_allocator->GetBufferAlignment();
-  int padding = s_allocator->GetBufferPadding();
-  allocated_size_ = size_ + padding;
-  data_ = static_cast<uint8_t*>(s_allocator->Allocate(allocated_size_,
-                                                      alignment));
-  memset(data_ + size_, 0, padding);
-#else  // defined(STARBOARD)
   data_.reset(new uint8_t[size_]);
-#endif  // defined(STARBOARD)
   if (side_data_size_ > 0)
     side_data_.reset(new uint8_t[side_data_size_]);
 }
@@ -132,8 +91,6 @@ scoped_refptr<DecoderBuffer> DecoderBuffer::CopyFrom(const uint8_t* data,
   return base::WrapRefCounted(
       new DecoderBuffer(data, data_size, side_data, side_data_size));
 }
-
-#if !defined(STARBOARD)
 
 // static
 scoped_refptr<DecoderBuffer> DecoderBuffer::FromArray(
@@ -182,8 +139,6 @@ scoped_refptr<DecoderBuffer> DecoderBuffer::FromExternalMemory(
     return nullptr;
   return base::WrapRefCounted(new DecoderBuffer(std::move(external_memory)));
 }
-
-#endif  // !defined(STARBOARD)
 
 // static
 scoped_refptr<DecoderBuffer> DecoderBuffer::CreateEOSBuffer() {

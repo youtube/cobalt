@@ -34,15 +34,8 @@ void LogMessageFailedUpgradeFromVersion(int version) {
 
 bool WriteFakeIndexFile(disk_cache::BackendFileOperations* file_operations,
                         const base::FilePath& file_name) {
-#if defined(STARBOARD)
-  // Overwrites existing fake index files in case they were not deleted in
-  // previous cache startup. We can consider upstream this change.
-  base::File file = file_operations->OpenFile(
-      file_name, base::File::FLAG_CREATE_ALWAYS | base::File::FLAG_WRITE);
-#else
   base::File file = file_operations->OpenFile(
       file_name, base::File::FLAG_CREATE | base::File::FLAG_WRITE);
-#endif
   if (!file.IsValid())
     return false;
 

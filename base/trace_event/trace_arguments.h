@@ -267,9 +267,6 @@ union BASE_EXPORT TraceValue {
  private:
   void Append(unsigned char type, bool as_json, std::string* out) const;
 
-#if defined(STARBOARD)
- public:
-#endif
   // InnerType<T>::type removes reference, cv-qualifications and decays
   // function and arrays into pointers. Only used internally.
   template <typename T>

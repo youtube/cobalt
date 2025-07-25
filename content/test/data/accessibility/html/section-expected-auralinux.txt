@@ -1,0 +1,10 @@
+[document web]
+++[section]
+++++[static] name='An unnamed section element gets the section role.'
+++[landmark] name='name' xml-roles:region
+++++[static] name='Named section element #1 gets the region role'
+++[landmark] name='Named section element #2 gets the region role' labelled-by xml-roles:region
+++++[section] label-for
+++++++[static] name='Named section element #2 gets the region role'
+++[landmark] name='name' xml-roles:region
+++++[static] name='Named section element #3 gets the region role'

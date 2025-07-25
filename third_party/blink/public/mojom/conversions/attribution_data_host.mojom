@@ -1,0 +1,37 @@
+// Copyright 2022 The Chromium Authors
+// Use of this source code is governed by a BSD-style license that can be
+// found in the LICENSE file.
+
+module blink.mojom;
+
+import "components/attribution_reporting/registration.mojom";
+import "services/network/public/mojom/attribution.mojom";
+import "url/mojom/url.mojom";
+
+// Browser-process interface responsible for processing attribution
+// configurations registered by the renderer. These configurations may be sent
+// out of the normal frame lifecycle, e.g. after the frame is destroyed.
+interface AttributionDataHost {
+  // Called when data from the renderer is available for a given attributionsrc
+  // request.
+  SourceDataAvailable(attribution_reporting.mojom.SuitableOrigin reporting_origin,
+                      attribution_reporting.mojom.SourceRegistration data);
+
+  // Called when trigger data from the renderer is available for a given
+  // attributionsrc request.
+  TriggerDataAvailable(attribution_reporting.mojom.SuitableOrigin reporting_origin,
+                       attribution_reporting.mojom.TriggerRegistration data,
+                       network.mojom.TriggerAttestation? attestation);
+
+  // Called when OS source data from the renderer is available for a given
+  // attributionsrc request. The OS will make a subsequent request to
+  // `registration_url` to obtain the actual registration.
+  [EnableIf=is_android]
+  OsSourceDataAvailable(url.mojom.Url registration_url);
+
+  // Called when OS trigger data from the renderer is available for a given
+  // attributionsrc request. The OS will make a subsequent request to
+  // `registration_url` to obtain the actual registration.
+  [EnableIf=is_android]
+  OsTriggerDataAvailable(url.mojom.Url registration_url);
+};

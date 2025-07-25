@@ -1,0 +1,4 @@
+include_rules = [
+  "+components/qr_code_generator",
+  "+components/vector_icons",
+]

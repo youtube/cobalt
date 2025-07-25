@@ -128,12 +128,7 @@ HttpStreamFactory::Job::Job(Delegate* delegate,
                             quic::ParsedQuicVersion quic_version,
                             bool is_websocket,
                             bool enable_ip_based_pooling,
-#if defined(STARBOARD)
-                            NetLog* net_log,
-                            bool protocol_filter_override)
-#else
                             NetLog* net_log)
-#endif  // defined(STARBOARD)
     : request_info_(request_info),
       priority_(priority),
       proxy_info_(proxy_info),
@@ -170,9 +165,6 @@ HttpStreamFactory::Job::Job(Delegate* delegate,
                                    is_websocket_)) ||
                   job_type == DNS_ALPN_H3 ||
                   job_type == PRECONNECT_DNS_ALPN_H3),
-#if defined(STARBOARD)
-      protocol_filter_override_(protocol_filter_override),
-#endif  //defined(STARBOARD)
       quic_version_(quic_version),
       expect_spdy_(alternative_protocol == kProtoHTTP2 && !using_quic_),
       quic_request_(session_->quic_stream_factory()),
@@ -226,15 +218,9 @@ HttpStreamFactory::Job::Job(Delegate* delegate,
   if (expect_spdy_) {
     DCHECK(origin_url_.SchemeIs(url::kHttpsScheme));
   }
-#if defined(STARBOARD)
-  if (using_quic_ && !protocol_filter_override_) {
-    DCHECK(session_->IsQuicEnabled());
-  }
-#else
   if (using_quic_) {
     DCHECK(session_->IsQuicEnabled());
   }
-#endif  // defined(STARBOARD)
   if (job_type_ == PRECONNECT || is_websocket_) {
     DCHECK(request_info_.socket_tag == SocketTag());
   }
@@ -1356,21 +1342,12 @@ HttpStreamFactory::JobFactory::CreateJob(
     bool enable_ip_based_pooling,
     NetLog* net_log,
     NextProto alternative_protocol,
-#if defined(STARBOARD)
-    quic::ParsedQuicVersion quic_version,
-    bool protocol_filter_override) {
-#else
     quic::ParsedQuicVersion quic_version) {
-#endif  // defined(STARBOARD)
   return std::make_unique<HttpStreamFactory::Job>(
       delegate, job_type, session, request_info, priority, proxy_info,
       server_ssl_config, proxy_ssl_config, std::move(destination), origin_url,
       alternative_protocol, quic_version, is_websocket, enable_ip_based_pooling,
-#if defined(STARBOARD)
-      net_log, protocol_filter_override);
-#else
       net_log);
-#endif  // defined(STARBOARD)
 }
 
 bool HttpStreamFactory::Job::ShouldThrottleConnectForSpdy() const {

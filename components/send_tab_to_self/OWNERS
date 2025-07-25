@@ -1,0 +1,4 @@
+file://chrome/browser/share/OWNERS
+
+# target_device_info is used by multiple sharing teams.
+per-file target_device_info.*=file://chrome/browser/sharing/OWNERS

@@ -140,13 +140,7 @@ const AddressSorterPosix::PolicyEntry kDefaultPrecedenceTable[] = {
     // ::/0 -- any
     {{}, 0, 40},
     // ::ffff:0:0/96 -- IPv4 mapped
-#if defined(STARBOARD)
-    // Cobalt currently prioritizes IPv4 addresses higher, as
-    // suggested in section 10.3 of RFC3484
-    {{0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0xFF, 0xFF}, 96, 100},
-#else
     {{0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0xFF, 0xFF}, 96, 35},
-#endif
     // 2002::/16 -- 6to4
     {{
          0x20,

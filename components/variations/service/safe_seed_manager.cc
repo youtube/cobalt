@@ -1,39 +1,32 @@
-// Copyright 2017 The Chromium Authors. All rights reserved.
+// Copyright 2017 The Chromium Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
 #include "components/variations/service/safe_seed_manager.h"
 
+#include <algorithm>
+
 #include "base/base_switches.h"
 #include "base/command_line.h"
+#include "base/logging.h"
 #include "base/metrics/histogram_functions.h"
 #include "base/metrics/histogram_macros.h"
-#include "base/numerics/ranges.h"
+#include "build/chromeos_buildflags.h"
+#include "components/prefs/pref_registry.h"
 #include "components/prefs/pref_registry_simple.h"
 #include "components/prefs/pref_service.h"
 #include "components/variations/client_filterable_state.h"
 #include "components/variations/pref_names.h"
 #include "components/variations/variations_seed_store.h"
+#include "components/variations/variations_switches.h"
+
+#if BUILDFLAG(IS_CHROMEOS_ASH)
+#include "base/functional/callback.h"
+#include "chromeos/ash/components/dbus/featured/featured_client.h"
+#include "components/variations/cros/featured.pb.h"
+#endif  // BUILDFLAG(IS_CHROMEOS_ASH)
 
 namespace variations {
-
-// As of the time of this writing, January 2018, users at the 99.5th percentile,
-// across all platforms, tend to experience fewer than 3 consecutive crashes:
-// [1], [2], [3], [4]. Note, however, that this is less true for the less-stable
-// channels on some platforms.
-// [1] All platforms, stable channel (consistently stable):
-//     https://uma.googleplex.com/timeline_v2?sid=90ac80f4573249fb341a8e49501bfcfd
-// [2] Most platforms, all channels (consistently stable other than occasional
-//     spikes on Canary):
-//     https://uma.googleplex.com/timeline_v2?sid=7af5ba1969db76689a401f982a1db539
-// [3] A less stable platform, all channels:
-//     https://uma.googleplex.com/timeline_v2?sid=07dbc8e4fa9f08e332fb609309a21882
-// [4] Another less stable platform, all channels:
-//     https://uma.googleplex.com/timeline_v2?sid=a7b529ef5d52863fae2d216e963c4cbc
-// Overall, the only {platform, channel} combinations that spike above 3
-// consecutive crashes are ones with very few users, plus Canary. It's probably
-// not realistic to avoid false positives for these less-stable configurations.
-constexpr int kCrashStreakThreshold = 3;
 
 // Consecutive seed fetch failures are, unfortunately, a bit more common. As of
 // January 2018, users at the 99.5th percentile tend to see fewer than 4
@@ -62,66 +55,80 @@ constexpr int kCrashStreakThreshold = 3;
 // set a threshold that should minimize false-positives.
 // TODO(isherman): Check in with the networking team about their thoughts on how
 // to find a better balance here.
-constexpr int kFetchFailureStreakThreshold = 25;
+constexpr int kFetchFailureStreakSafeSeedThreshold = 25;
+constexpr int kFetchFailureStreakNullSeedThreshold = 50;
 
-SafeSeedManager::SafeSeedManager(bool did_previous_session_exit_cleanly,
-                                 PrefService* local_state)
+#if BUILDFLAG(IS_CHROMEOS_ASH)
+// Number of attempts to send the safe seed from Chrome to CrOS platforms before
+// giving up.
+constexpr int kSendPlatformSafeSeedMaxAttempts = 2;
+#endif  // BUILDFLAG(IS_CHROMEOS_ASH)
+
+SafeSeedManager::SafeSeedManager(PrefService* local_state)
     : local_state_(local_state) {
-  // Increment the crash streak if the previous session crashed.
-  // Note that the streak is not cleared if the previous run didn’t crash.
-  // Instead, it’s incremented on each crash until Chrome is able to
-  // successfully fetch a new seed. This way, a seed update that mostly
-  // destabilizes Chrome will still result in a fallback to safe mode.
-  int num_crashes = local_state->GetInteger(prefs::kVariationsCrashStreak);
-  if (!did_previous_session_exit_cleanly) {
-    ++num_crashes;
-    local_state->SetInteger(prefs::kVariationsCrashStreak, num_crashes);
-  }
-
   int num_failed_fetches =
-      local_state->GetInteger(prefs::kVariationsFailedToFetchSeedStreak);
-  base::UmaHistogramSparse("Variations.SafeMode.Streak.Crashes",
-                           base::ClampToRange(num_crashes, 0, 100));
+      local_state_->GetInteger(prefs::kVariationsFailedToFetchSeedStreak);
   base::UmaHistogramSparse("Variations.SafeMode.Streak.FetchFailures",
-                           base::ClampToRange(num_failed_fetches, 0, 100));
+                           std::clamp(num_failed_fetches, 0, 100));
 }
 
 SafeSeedManager::~SafeSeedManager() = default;
 
 // static
 void SafeSeedManager::RegisterPrefs(PrefRegistrySimple* registry) {
-  // Prefs tracking failures along the way to fetching a seed.
-  registry->RegisterIntegerPref(prefs::kVariationsCrashStreak, 0);
+  // Verify that the crash streak pref has already been registered.
+  DCHECK(
+      registry->defaults()->GetValue(prefs::kVariationsCrashStreak, nullptr));
+
+  // Registers one of two prefs used for tracking variations-seed-related
+  // failures. The other pref, kVariationsCrashStreak, is registered in
+  // CleanExitBeacon::RegisterPrefs(). See components/metrics/
+  // clean_exit_beacon.cc for more details.
   registry->RegisterIntegerPref(prefs::kVariationsFailedToFetchSeedStreak, 0);
 }
 
-bool SafeSeedManager::ShouldRunInSafeMode() const {
-  // Ignore any number of failures if the --force-fieldtrials flag is set. This
-  // flag is only used by developers, and there's no need to make the
-  // development process flakier.
+SeedType SafeSeedManager::GetSeedType() const {
+  // Ignore any number of failures if the --disable-variations-safe-mode flag is
+  // set.
   if (base::CommandLine::ForCurrentProcess()->HasSwitch(
-          ::switches::kForceFieldTrials)) {
-    return false;
+          switches::kDisableVariationsSafeMode)) {
+    return SeedType::kRegularSeed;
   }
-
   int num_crashes = local_state_->GetInteger(prefs::kVariationsCrashStreak);
   int num_failed_fetches =
       local_state_->GetInteger(prefs::kVariationsFailedToFetchSeedStreak);
-  return num_crashes >= kCrashStreakThreshold ||
-         num_failed_fetches >= kFetchFailureStreakThreshold;
+  if (num_crashes >= kCrashStreakNullSeedThreshold ||
+      num_failed_fetches >= kFetchFailureStreakNullSeedThreshold) {
+#if BUILDFLAG(IS_CHROMEOS)
+    // Logging is useful in listnr reports for ChromeOS (http://b/277650823).
+    LOG(ERROR) << "Using finch safe mode null seed: num_crashes=" << num_crashes
+               << ", num_failed_fetches=" << num_failed_fetches;
+#endif  // BUILDFLAG(IS_CHROMEOS)
+    return SeedType::kNullSeed;
+  }
+  if (num_crashes >= kCrashStreakSafeSeedThreshold ||
+      num_failed_fetches >= kFetchFailureStreakSafeSeedThreshold) {
+#if BUILDFLAG(IS_CHROMEOS)
+    LOG(ERROR) << "Using finch safe mode safe seed: num_crashes=" << num_crashes
+               << ", num_failed_fetches=" << num_failed_fetches;
+#endif  // BUILDFLAG(IS_CHROMEOS)
+    return SeedType::kSafeSeed;
+  }
+  return SeedType::kRegularSeed;
 }
 
 void SafeSeedManager::SetActiveSeedState(
     const std::string& seed_data,
     const std::string& base64_seed_signature,
+    int seed_milestone,
     std::unique_ptr<ClientFilterableState> client_filterable_state,
     base::Time seed_fetch_time) {
   DCHECK(!has_set_active_seed_state_);
   has_set_active_seed_state_ = true;
 
   active_seed_state_ = std::make_unique<ActiveSeedState>(
-      seed_data, base64_seed_signature, std::move(client_filterable_state),
-      seed_fetch_time);
+      seed_data, base64_seed_signature, seed_milestone,
+      std::move(client_filterable_state), seed_fetch_time);
 }
 
 void SafeSeedManager::RecordFetchStarted() {
@@ -143,8 +150,16 @@ void SafeSeedManager::RecordSuccessfulFetch(VariationsSeedStore* seed_store) {
   if (active_seed_state_) {
     seed_store->StoreSafeSeed(active_seed_state_->seed_data,
                               active_seed_state_->base64_seed_signature,
+                              active_seed_state_->seed_milestone,
                               *active_seed_state_->client_filterable_state,
                               active_seed_state_->seed_fetch_time);
+#if BUILDFLAG(IS_CHROMEOS_ASH)
+    // `SendSafeSeedToPlatform` will send the safe seed at most twice.
+    // This is a best effort attempt and it is possible that the safe seed for
+    // platform and Chrome are different if sending the safe seed fails twice.
+    send_seed_to_platform_attempts_ = 0;
+    SendSafeSeedToPlatform(GetSafeSeedStateForPlatform());
+#endif  // BUILDFLAG(IS_CHROMEOS_ASH)
 
     // The active seed state is only needed for the first time this code path is
     // reached, so free up its memory once the data is no longer needed.
@@ -162,13 +177,59 @@ void SafeSeedManager::RecordSuccessfulFetch(VariationsSeedStore* seed_store) {
 SafeSeedManager::ActiveSeedState::ActiveSeedState(
     const std::string& seed_data,
     const std::string& base64_seed_signature,
+    int seed_milestone,
     std::unique_ptr<ClientFilterableState> client_filterable_state,
     base::Time seed_fetch_time)
     : seed_data(seed_data),
       base64_seed_signature(base64_seed_signature),
+      seed_milestone(seed_milestone),
       client_filterable_state(std::move(client_filterable_state)),
       seed_fetch_time(seed_fetch_time) {}
 
 SafeSeedManager::ActiveSeedState::~ActiveSeedState() = default;
+
+#if BUILDFLAG(IS_CHROMEOS_ASH)
+featured::SeedDetails SafeSeedManager::GetSafeSeedStateForPlatform() {
+  featured::SeedDetails safe_seed;
+  safe_seed.set_compressed_data(active_seed_state_->seed_data);
+  safe_seed.set_locale(active_seed_state_->client_filterable_state->locale);
+  safe_seed.set_milestone(active_seed_state_->seed_milestone);
+  safe_seed.set_permanent_consistency_country(
+      active_seed_state_->client_filterable_state
+          ->permanent_consistency_country);
+  safe_seed.set_session_consistency_country(
+      active_seed_state_->client_filterable_state->session_consistency_country);
+  safe_seed.set_signature(active_seed_state_->base64_seed_signature);
+  safe_seed.set_date(active_seed_state_->client_filterable_state->reference_date
+                         .ToDeltaSinceWindowsEpoch()
+                         .InMilliseconds());
+  safe_seed.set_fetch_time(
+      active_seed_state_->seed_fetch_time.ToDeltaSinceWindowsEpoch()
+          .InMilliseconds());
+
+  return safe_seed;
+}
+
+void SafeSeedManager::MaybeRetrySendSafeSeed(
+    const featured::SeedDetails& safe_seed,
+    bool success) {
+  // Do not retry after two failed attempts.
+  if (!success &&
+      send_seed_to_platform_attempts_ < kSendPlatformSafeSeedMaxAttempts) {
+    SendSafeSeedToPlatform(safe_seed);
+  }
+}
+
+void SafeSeedManager::SendSafeSeedToPlatform(
+    const featured::SeedDetails& safe_seed) {
+  send_seed_to_platform_attempts_++;
+  ash::featured::FeaturedClient* client = ash::featured::FeaturedClient::Get();
+  if (client) {
+    client->HandleSeedFetched(
+        safe_seed, base::BindOnce(&SafeSeedManager::MaybeRetrySendSafeSeed,
+                                  weak_ptr_factory_.GetWeakPtr(), safe_seed));
+  }
+}
+#endif  // BUILDFLAG(IS_CHROMEOS_ASH)
 
 }  // namespace variations

@@ -1,5 +1,0 @@
-set DIRECTORY=%1
-
-DEL /F /Q /S %DIRECTORY%\*.* > NUL
-
-RMDIR /Q /S %DIRECTORY%

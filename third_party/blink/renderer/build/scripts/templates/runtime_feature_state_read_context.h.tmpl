@@ -1,0 +1,87 @@
+{% from 'templates/macros.tmpl' import license, source_files_for_generated_file %}
+{{license()}}
+
+{{source_files_for_generated_file(template_file, input_files)}}
+
+#ifndef {{header_guard}}
+#define {{header_guard}}
+
+#include "base/containers/flat_map.h"
+#include "base/notreached.h"
+#include "third_party/blink/public/common/common_export.h"
+#include "third_party/blink/public/mojom/runtime_feature_state/runtime_feature_state.mojom-shared.h"
+
+namespace content {
+class RuntimeFeatureStateControllerImpl;
+}
+
+namespace blink {
+
+// A class to represent a read only copy of RuntimeFeatureState override values.
+// This class is not mutable by the browser process but could potentially be
+// modified by the renderer process for features which allow origin trial
+// overrides.
+// See RuntimeFeatureStateContext for additional information.
+
+class BLINK_COMMON_EXPORT RuntimeFeatureStateReadContext {
+ public:
+  // You probably don't want to instantiate this class directly, use
+  // RuntimeFeatureStateContext instead as it will initialize the override map.
+  RuntimeFeatureStateReadContext() = default;
+
+  const base::flat_map<blink::mojom::RuntimeFeatureState, bool>&
+  GetFeatureOverrides() const {
+    return feature_overrides_;
+  }
+
+  {% for feature in browser_read_access_features %}
+  bool Is{{feature.name}}Enabled() const {
+    return IsEnabled(
+        blink::mojom::RuntimeFeatureState::k{{feature.name}});
+  }
+  {% endfor %}
+
+ protected:
+  bool IsEnabled(blink::mojom::RuntimeFeatureState feature) const {
+    auto override_it = feature_overrides_.find(feature);
+    if (override_it != feature_overrides_.end())
+      return override_it->second;
+
+    auto initial_it = initial_values_.find(feature);
+    DCHECK(initial_it != initial_values_.end());
+    return initial_it->second;
+  }
+
+  // Sparse map of overrides collected during initial navigation. This map
+  // will be attached to the navigation on commit.
+  base::flat_map<blink::mojom::RuntimeFeatureState, bool> feature_overrides_;
+
+  // Values for all read/write features on context creation.
+  base::flat_map<blink::mojom::RuntimeFeatureState, bool> initial_values_;
+
+ private:
+  // Only RuntimeFeatureStateControllerImpl should be able to make changes
+  // to the read-only context, when a feature diff is sent from
+  // the renderer process to the browser process via IPC. Thus,
+  // ApplyFeatureChange() is private but will be called in
+  // RuntimeFeatureStateControllerImpl instances.
+  friend class ::content::RuntimeFeatureStateControllerImpl;
+
+  // This function allows RuntimeFeatureStateControllerImpl to update the
+  // browser process's copy of the feature state
+  // (RuntimeFeatureStateReadContext) to match the state found in
+  // the renderer process.
+  void ApplyFeatureChange(
+    const base::flat_map<blink::mojom::RuntimeFeatureState,
+                                       bool>& modified_features) {
+    // Feature values sent from the renderer process take precedence over state
+    // held currently in the browser process, so insert_or_assign is used.
+    for(auto const& feature : modified_features) {
+      feature_overrides_.insert_or_assign(feature.first, feature.second);
+    }
+  }
+};
+
+}  // namespace blink
+
+#endif // {{header_guard}}

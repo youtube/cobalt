@@ -113,15 +113,7 @@ void GrowableIOBuffer::SetCapacity(int capacity) {
   // this will get reset in `set_offset`.
   data_ = nullptr;
   // realloc will crash if it fails.
-  // Calling reallocate with size 0 and a non-null pointer causes memory leaks
-  // on many platforms, since it may return nullptr while also not deallocating
-  // the previously allocated memory.
-  if (real_data_ && capacity == 0) {
-    free(real_data_.release());
-    real_data_.reset();
-  } else {
   real_data_.reset(static_cast<char*>(realloc(real_data_.release(), capacity)));
-  }
 
   capacity_ = capacity;
   if (offset_ > capacity)

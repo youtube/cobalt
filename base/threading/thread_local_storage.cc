@@ -6,7 +6,6 @@
 
 #include <algorithm>
 #include <atomic>
-#include <cstring>
 
 #include "base/check_op.h"
 #include "base/compiler_specific.h"
@@ -418,7 +417,7 @@ void PlatformThreadLocalStorage::OnThreadExit() {
     return;
   OnThreadExitInternal(tls_vector);
 }
-#elif BUILDFLAG(IS_POSIX) || BUILDFLAG(IS_FUCHSIA) || defined(STARBOARD)
+#elif BUILDFLAG(IS_POSIX) || BUILDFLAG(IS_FUCHSIA)
 void PlatformThreadLocalStorage::OnThreadExit(void* value) {
   // On posix this function may be called twice. The first pass calls dtors and
   // sets state to kDestroyed. The second pass sets kDestroyed to

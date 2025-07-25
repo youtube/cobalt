@@ -86,13 +86,6 @@ class BASE_EXPORT RunLoop {
   // (directly or by running the RunLoop::QuitClosure).
   void Run(const Location& location = Location::Current());
 
-#if defined(STARBOARD)
-  // Starboard has its own for loop so it does not call RunLoop::Run and
-  // therefore requires these two functions public.
-  bool BeforeRun();
-  void AfterRun();
-#endif
-
   // Run the current RunLoop::Delegate until it doesn't find any tasks or
   // messages in its queue (it goes idle).
   // WARNING #1: This may run long (flakily timeout) and even never return! Do
@@ -300,13 +293,9 @@ class BASE_EXPORT RunLoop {
   static void SetTimeoutForCurrentThread(const RunLoopTimeout* timeout);
   static const RunLoopTimeout* GetTimeoutForCurrentThread();
 
-#if !defined(STARBOARD)
-  // Starboard has its own for loop so it does not call RunLoop::Run and
-  // therefore requires these two functions public.
   // Return false to abort the Run.
   bool BeforeRun();
   void AfterRun();
-#endif
 
   // A cached reference of RunLoop::Delegate for the thread driven by this
   // RunLoop for quick access without using TLS (also allows access to state

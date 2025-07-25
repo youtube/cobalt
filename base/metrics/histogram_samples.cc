@@ -5,7 +5,6 @@
 #include "base/metrics/histogram_samples.h"
 
 #include <limits>
-#include <cstring>
 
 #include "base/compiler_specific.h"
 #include "base/memory/raw_ptr.h"

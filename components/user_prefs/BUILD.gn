@@ -1,0 +1,27 @@
+# Copyright 2014 The Chromium Authors
+# Use of this source code is governed by a BSD-style license that can be
+# found in the LICENSE file.
+
+component("user_prefs") {
+  sources = [
+    "user_prefs.cc",
+    "user_prefs.h",
+    "user_prefs_export.h",
+  ]
+
+  defines = [ "USER_PREFS_IMPLEMENTATION" ]
+
+  deps = [
+    "//base",
+    "//components/prefs",
+  ]
+
+  if (is_android) {
+    sources += [ "android/user_prefs_android.cc" ]
+    deps += [
+      "android:jni_headers",
+      "//components/prefs",
+      "//content/public/browser",
+    ]
+  }
+}

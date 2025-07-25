@@ -28,4 +28,7 @@ if (is_official_build) {
 # changes to keep this up to date.  (Bots run gn on each build, and for devs
 # the timestamp being 100% accurate doesn't matter.)
 # See compute_build_timestamp.py for tradeoffs for picking the timestamp.
-build_timestamp = "123"
+build_timestamp = exec_script(compute_build_timestamp,
+                              [ official_name ],
+                              "trim string",
+                              [ lastchange_file ])

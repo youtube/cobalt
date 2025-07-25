@@ -1,0 +1,12 @@
+include_rules = [
+  "+chrome/grit",
+
+  "+mojo/public",
+
+  # Services have to list which other services they depend on.
+  "-chrome/services",
+  "-services",
+  "+content/public/browser/service_process_host.h",
+  "+services/service_manager/public",  # Every service talks to Service Manager.
+  "+sandbox/policy/sandbox_type.h",  # Services specify their SandboxType.
+]

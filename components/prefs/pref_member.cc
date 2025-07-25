@@ -1,4 +1,4 @@
-// Copyright (c) 2012 The Chromium Authors. All rights reserved.
+// Copyright 2012 The Chromium Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -6,10 +6,12 @@
 
 #include <utility>
 
-#include "base/json/values_util.h"
-#include "base/callback.h"
+#include "base/functional/callback.h"
 #include "base/functional/callback_helpers.h"
+#include "base/json/values_util.h"
 #include "base/location.h"
+#include "base/task/sequenced_task_runner.h"
+#include "base/values.h"
 #include "components/prefs/pref_service.h"
 
 using base::SequencedTaskRunner;
@@ -53,18 +55,19 @@ void PrefMemberBase::MoveToSequence(
   VerifyValuePrefName();
   // Load the value from preferences if it hasn't been loaded so far.
   if (!internal())
-    UpdateValueFromPref(base::Closure());
+    UpdateValueFromPref(base::OnceClosure());
   internal()->MoveToSequence(std::move(task_runner));
 }
 
 void PrefMemberBase::OnPreferenceChanged(PrefService* service,
                                          const std::string& pref_name) {
   VerifyValuePrefName();
-  UpdateValueFromPref((!setting_value_ && !observer_.is_null()) ?
-      base::Bind(observer_, pref_name) : base::Closure());
+  UpdateValueFromPref((!setting_value_ && !observer_.is_null())
+                          ? base::BindOnce(observer_, pref_name)
+                          : base::OnceClosure());
 }
 
-void PrefMemberBase::UpdateValueFromPref(const base::Closure& callback) const {
+void PrefMemberBase::UpdateValueFromPref(base::OnceClosure callback) const {
   VerifyValuePrefName();
   const PrefService::Preference* pref = prefs_->FindPreference(pref_name_);
   DCHECK(pref);
@@ -72,25 +75,25 @@ void PrefMemberBase::UpdateValueFromPref(const base::Closure& callback) const {
     CreateInternal();
   internal()->UpdateValue(
       base::Value::ToUniquePtrValue(pref->GetValue()->Clone()).release(),
-      pref->IsManaged(), pref->IsUserModifiable(), callback);
+      pref->IsManaged(), pref->IsUserModifiable(), pref->IsDefaultValue(),
+      std::move(callback));
 }
 
 void PrefMemberBase::VerifyPref() const {
   VerifyValuePrefName();
   if (!internal())
-    UpdateValueFromPref(base::Closure());
+    UpdateValueFromPref(base::OnceClosure());
 }
 
-void PrefMemberBase::InvokeUnnamedCallback(const base::Closure& callback,
-                                           const std::string& pref_name) {
+void PrefMemberBase::InvokeUnnamedCallback(
+    const base::RepeatingClosure& callback,
+    const std::string& pref_name) {
   callback.Run();
 }
 
 PrefMemberBase::Internal::Internal()
-    : owning_task_runner_(base::SequencedTaskRunner::GetCurrentDefault()),
-      is_managed_(false),
-      is_user_modifiable_(false) {}
-PrefMemberBase::Internal::~Internal() { }
+    : owning_task_runner_(base::SequencedTaskRunner::GetCurrentDefault()) {}
+PrefMemberBase::Internal::~Internal() = default;
 
 bool PrefMemberBase::Internal::IsOnCorrectSequence() const {
   return owning_task_runner_->RunsTasksInCurrentSequence();
@@ -99,6 +102,7 @@ bool PrefMemberBase::Internal::IsOnCorrectSequence() const {
 void PrefMemberBase::Internal::UpdateValue(base::Value* v,
                                            bool is_managed,
                                            bool is_user_modifiable,
+                                           bool is_default_value,
                                            base::OnceClosure callback) const {
   std::unique_ptr<base::Value> value(v);
   base::ScopedClosureRunner closure_runner(std::move(callback));
@@ -107,12 +111,13 @@ void PrefMemberBase::Internal::UpdateValue(base::Value* v,
     DCHECK(rv);
     is_managed_ = is_managed;
     is_user_modifiable_ = is_user_modifiable;
+    is_default_value_ = is_default_value;
   } else {
     bool may_run = owning_task_runner_->PostTask(
         FROM_HERE,
         base::BindOnce(&PrefMemberBase::Internal::UpdateValue, this,
                        value.release(), is_managed, is_user_modifiable,
-                       closure_runner.Release()));
+                       is_default_value, closure_runner.Release()));
     DCHECK(may_run);
   }
 }
@@ -127,15 +132,12 @@ bool PrefMemberVectorStringUpdate(const base::Value& value,
                                   std::vector<std::string>* string_vector) {
   if (!value.is_list())
     return false;
-  const base::Value::List* list = value.GetIfList();
 
   std::vector<std::string> local_vector;
-  for (auto it = list->begin(); it != list->end(); ++it) {
-    const std::string* string_value = it->GetIfString();
-    if (string_value == nullptr) {
+  for (const auto& item : value.GetList()) {
+    if (!item.is_string())
       return false;
-    }
-    local_vector.push_back(*string_value);
+    local_vector.push_back(item.GetString());
   }
 
   string_vector->swap(local_vector);
@@ -152,10 +154,9 @@ void PrefMember<bool>::UpdatePref(const bool& value) {
 template <>
 bool PrefMember<bool>::Internal::UpdateValueInternal(
     const base::Value& value) const {
-  absl::optional<bool> temp = value.GetIfBool();
   if (value.is_bool())
     value_ = value.GetBool();
-  return value.is_bool();;
+  return value.is_bool();
 }
 
 template <>
@@ -166,7 +167,6 @@ void PrefMember<int>::UpdatePref(const int& value) {
 template <>
 bool PrefMember<int>::Internal::UpdateValueInternal(
     const base::Value& value) const {
-  absl::optional<int> temp = value.GetIfInt();
   if (value.is_int())
     value_ = value.GetInt();
   return value.is_int();
@@ -178,8 +178,8 @@ void PrefMember<double>::UpdatePref(const double& value) {
 }
 
 template <>
-bool PrefMember<double>::Internal::UpdateValueInternal(
-    const base::Value& value) const {
+bool PrefMember<double>::Internal::UpdateValueInternal(const base::Value& value)
+    const {
   if (value.is_double() || value.is_int())
     value_ = value.GetDouble();
   return value.is_double() || value.is_int();
@@ -192,7 +192,8 @@ void PrefMember<std::string>::UpdatePref(const std::string& value) {
 
 template <>
 bool PrefMember<std::string>::Internal::UpdateValueInternal(
-    const base::Value& value) const {
+    const base::Value& value)
+    const {
   if (value.is_string())
     value_ = value.GetString();
   return value.is_string();
@@ -205,7 +206,8 @@ void PrefMember<base::FilePath>::UpdatePref(const base::FilePath& value) {
 
 template <>
 bool PrefMember<base::FilePath>::Internal::UpdateValueInternal(
-    const base::Value& value) const {
+    const base::Value& value)
+    const {
   absl::optional<base::FilePath> path = base::ValueToFilePath(value);
   if (!path)
     return false;

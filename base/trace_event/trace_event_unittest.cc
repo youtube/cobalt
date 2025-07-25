@@ -824,15 +824,6 @@ void CheckTraceDefaultCategoryFilters(const TraceLog& trace_log) {
 
 }  // namespace
 
-TEST_F(TraceEventTestFixture, Simple) {
-  TraceLog::GetInstance()->SetEnabled(TraceConfig(kRecordAllCategoryFilter, ""),
-                                      TraceLog::RECORDING_MODE);
-  TRACE_EVENT0("test_all", "TRACE_EVENT0 call");
-  EndTraceAndFlush();
-  const Value::Dict* item = FindTraceEntry(trace_parsed_, "TRACE_EVENT0 call");
-  EXPECT_TRUE(item);
-}  
-
 // Simple Test for emitting data and validating it was received.
 TEST_F(TraceEventTestFixture, DataCaptured) {
   TraceLog::GetInstance()->SetEnabled(TraceConfig(kRecordAllCategoryFilter, ""),

@@ -1,0 +1,183 @@
+// Copyright 2020 The Chromium Authors
+// Use of this source code is governed by a BSD-style license that can be
+// found in the LICENSE file.
+
+module blink.mojom;
+
+import "url/mojom/url.mojom";
+import "url/mojom/origin.mojom";
+
+// Implementation of the proposed FedCM API.
+//
+// Proposal: https://fedidcg.github.io/FedCM/
+
+// Represents the fetch result from a federated authentication request. It is
+// used to determine whether a JavaScript exception should be thrown, and what
+// the error message of such exception should say. This enum is a subset of
+// FederatedAuthRequestResult in
+// third_party/blink/public/mojom/devtools/inspector_issue.mojom.
+enum RequestTokenStatus {
+  kSuccess,
+  kApprovalDeclined,
+  kErrorTooManyRequests,
+  kErrorCanceled,
+  kError,
+};
+
+// Represents the fetch result from a federated user info request. It is
+// used to determine whether a JavaScript exception should be thrown, and what
+// the error message of such exception should say.
+enum RequestUserInfoStatus {
+  kSuccess,
+  kErrorTooManyRequests,
+  kError,
+};
+
+enum LogoutRpsStatus {
+  kSuccess,
+  kErrorTooManyRequests,
+  kError,
+};
+
+enum IdpSigninStatus {
+  kSignedIn,
+  kSignedOut
+};
+
+enum RpContext {
+  kSignIn,
+  kSignUp,
+  kUse,
+  kContinue
+};
+
+// The details of a single logout request from an identity provider.
+struct LogoutRpsRequest {
+  // URL to which the request will be sent. The origin is validated to
+  // have an associated active session.
+  url.mojom.Url url;
+
+  // Identifier for the account being logged out. This is used to verify that
+  // the logout request correlates to a previous sign-in event, and will
+  // result in the corresponding active session being terminated.
+  string account_id;
+};
+
+// The details of different mechanisms that allows the browser
+// to intermediate the exchange of the user's entities.
+// Currently, federated identities are supported, and mobile driver's license
+// are being prototyped.
+union IdentityProvider {
+  IdentityProviderConfig federated;
+  MDocProvider mdoc;
+};
+
+// The details of an mdoc provider.
+struct MDocProvider {
+  // base64-encoded reader HPKE public key.
+  string reader_public_key;
+
+  // The type of the document (e.g. a passport, a driver's license, etc).
+  string document_type;
+
+  // The attributes requested.
+  array<MDocElement> requested_elements;
+};
+
+// The details of MDocElement.
+struct MDocElement {
+  // The namespace of the element (e.g. a "name" in a passport vs a "name" in a driver's license).
+  string element_namespace;
+  string name;
+};
+
+// The details of a federated identity provider.
+struct IdentityProviderConfig {
+  url.mojom.Url config_url;
+
+  // Can be an empty string to be omitted in the request sent to the provider.
+  string client_id;
+
+  // Can be an empty string to be omitted in the request sent to the provider.
+  string nonce;
+
+  // The login hint for this identity provider. Used by the relying party to
+  // specify which user account they would like to show in the FedCM dialog.
+  // This field is not sent to the provider, but rather used by the user agent.
+  string login_hint;
+
+  // The scope of the federated identity request: name/email/photo or
+  // custom ones (e.g. "access to calendar", "access to social graph", etc).
+  array<string> scope;
+
+  // The types of token the relying party wants to get back (e.g. an id token
+  // or an access token).
+  // More than one type can be requested, e.g. to support OIDC flows:
+  // https://openid.net/specs/openid-connect-core-1_0.html#code-id_token-tokenExample
+  array<string> responseType;
+
+  // Additional parameters that the relying party can send to the IdP after
+  // the user's permission has been gathered.
+  map<string, string> params;
+};
+
+// The list of user information that can be returned to an identity provider during a UserInfo API call.
+struct IdentityUserInfo {
+  string email;
+  string given_name;
+  string name;
+  string picture;
+};
+
+// The parameters for a get call for identity provider(s).
+struct IdentityProviderGetParameters {
+  // Details of identity provider(s).
+  array<IdentityProvider> providers;
+
+  // Whether auto re-authn is enabled by the caller.
+  bool auto_reauthn;
+
+  // Controls the wording of the FedCM prompt.
+  // TODO(crbug.com/1335237): consider moving this up to IdentityProviderConfig
+  // when/if we support the Context API for Multiple IdPs at a time.
+  RpContext context;
+};
+
+// Create a federated sign-in request using the specified provider.
+// This interface is called from a renderer process and implemented in the
+// browser process.
+interface FederatedAuthRequest {
+  // Requests a token to be generated, given an array of
+  // IdentityProviderGetParameters.
+  // Returns:
+  // - Status of token request.
+  // - Configuration URL of the identity provider that the user selected.
+  //   A null URL is returned if the token request failed or did not occur due
+  //   to an error earlier in the flow.
+  // - Raw content of the token.
+  RequestToken(array<IdentityProviderGetParameters> idp_get_params) =>
+      (RequestTokenStatus status,
+      url.mojom.Url? selected_identity_provider_config_url,
+      string? token);
+
+  // Requests user info to be generated, given an IDP config.
+  // Returns an IdentityUserInfo for each of the user's accounts.
+  RequestUserInfo(IdentityProviderConfig provider) =>
+      (RequestUserInfoStatus status, array<IdentityUserInfo>? user_info);
+
+  // Cancels the pending token request, if any.
+  CancelTokenRequest();
+
+  // Contact the list of Relying Party logout endpoints and account IDs to
+  // attempt to initiate user logout.
+  LogoutRps(array<LogoutRpsRequest> rp_logout_requests) => (LogoutRpsStatus status);
+
+  // Marks the user as logged in/out to the IDP on this origin.
+  SetIdpSigninStatus(url.mojom.Origin origin, IdpSigninStatus status);
+
+  // Registers the url as an IdP's configURL of the user's preference.
+  RegisterIdP(url.mojom.Url url) => (bool accepted);
+
+  // Unregisters the url as an IdP's configURL of the user's preference.
+  UnregisterIdP(url.mojom.Url url) => (bool success);
+};

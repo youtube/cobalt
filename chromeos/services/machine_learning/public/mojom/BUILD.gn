@@ -1,0 +1,44 @@
+# Copyright 2018 The Chromium Authors
+# Use of this source code is governed by a BSD-style license that can be
+# found in the LICENSE file.
+
+import("//mojo/public/tools/bindings/mojom.gni")
+
+mojom_component("mojom") {
+  sources = [
+    "document_scanner.mojom",
+    "grammar_checker.mojom",
+    "graph_executor.mojom",
+    "handwriting_recognizer.mojom",
+    "image_content_annotation.mojom",
+    "machine_learning_service.mojom",
+    "model.mojom",
+    "soda.mojom",
+    "tensor.mojom",
+    "text_classifier.mojom",
+    "text_suggester.mojom",
+    "web_platform_handwriting.mojom",
+  ]
+
+  public_deps = [
+    ":document_scanner_param_types",
+    "//mojo/public/mojom/base",
+  ]
+
+  deps = [
+    "//components/ml/mojom",
+    "//ui/gfx/geometry/mojom",
+  ]
+
+  output_prefix = "mlservice_mojom"
+  macro_prefix = "MLSERVICE_MOJOM"
+}
+
+mojom("document_scanner_param_types") {
+  sources = [ "document_scanner_param_types.mojom" ]
+  webui_module_path = "/chromeos/services/machine_learning/public/mojom"
+  use_typescript_sources = true
+
+  # ChromeOS relies heavily on old legacy bindings.
+  generate_legacy_js_bindings = true
+}

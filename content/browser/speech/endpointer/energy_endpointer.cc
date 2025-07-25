@@ -1,6 +1,10 @@
-// Copyright (c) 2012 The Chromium Authors. All rights reserved.
+// Copyright 2012 The Chromium Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
+//
+// To know more about the algorithm used and the original code which this is
+// based of, see
+// https://wiki.corp.google.com/twiki/bin/view/Main/ChromeGoogleCodeXRef
 
 #include "content/browser/speech/endpointer/energy_endpointer.h"
 
@@ -8,7 +12,6 @@
 #include <stddef.h>
 
 #include "base/logging.h"
-#include "base/macros.h"
 
 namespace {
 
@@ -47,6 +50,9 @@ class EnergyEndpointer::HistoryRing {
  public:
   HistoryRing() : insertion_index_(0) {}
 
+  HistoryRing(const HistoryRing&) = delete;
+  HistoryRing& operator=(const HistoryRing&) = delete;
+
   // Resets the ring to |size| elements each with state |initial_state|
   void SetRing(int size, bool initial_state);
 
@@ -69,14 +75,12 @@ class EnergyEndpointer::HistoryRing {
 
   std::vector<DecisionPoint> decision_points_;
   int insertion_index_;  // Index at which the next item gets added/inserted.
-
-  DISALLOW_COPY_AND_ASSIGN(HistoryRing);
 };
 
 void EnergyEndpointer::HistoryRing::SetRing(int size, bool initial_state) {
   insertion_index_ = 0;
   decision_points_.clear();
-  DecisionPoint init = {-1, initial_state};
+  DecisionPoint init = { -1, initial_state };
   decision_points_.resize(size, init);
 }
 
@@ -138,9 +142,11 @@ EnergyEndpointer::EnergyEndpointer()
       rms_adapt_(0),
       start_lag_(0),
       end_lag_(0),
-      user_input_start_time_us_(0) {}
+      user_input_start_time_us_(0) {
+}
 
-EnergyEndpointer::~EnergyEndpointer() {}
+EnergyEndpointer::~EnergyEndpointer() {
+}
 
 int EnergyEndpointer::TimeToFrame(float time) const {
   return static_cast<int32_t>(0.5 + (time / params_.frame_period()));
@@ -181,8 +187,8 @@ void EnergyEndpointer::Init(const EnergyEndpointerParams& params) {
     max_window_dur_ = params_.offset_window();
   Restart(true);
 
-  offset_confirm_dur_sec_ =
-      params_.offset_window() - params_.offset_confirm_dur();
+  offset_confirm_dur_sec_ = params_.offset_window() -
+                            params_.offset_confirm_dur();
   if (offset_confirm_dur_sec_ < 0.0)
     offset_confirm_dur_sec_ = 0.0;
 
@@ -202,10 +208,10 @@ void EnergyEndpointer::Init(const EnergyEndpointerParams& params) {
   frame_counter_ = 0;  // Used for rapid initial update of levels.
 
   sample_rate_ = params_.sample_rate();
-  start_lag_ =
-      static_cast<int>(sample_rate_ / params_.max_fundamental_frequency());
-  end_lag_ =
-      static_cast<int>(sample_rate_ / params_.min_fundamental_frequency());
+  start_lag_ = static_cast<int>(sample_rate_ /
+                                params_.max_fundamental_frequency());
+  end_lag_ = static_cast<int>(sample_rate_ /
+                              params_.min_fundamental_frequency());
 }
 
 void EnergyEndpointer::StartSession() {
@@ -314,9 +320,9 @@ void EnergyEndpointer::ProcessAudioFrame(int64_t time_us,
         } else {
           rms_adapt_ = (0.95f * rms_adapt_) + (0.05f * rms);
         }
-        float target_threshold = 0.3f * rms_adapt_ + noise_level_;
-        decision_threshold_ =
-            (.90f * decision_threshold_) + (0.10f * target_threshold);
+        float target_threshold = 0.3f * rms_adapt_ +  noise_level_;
+        decision_threshold_ = (.90f * decision_threshold_) +
+                              (0.10f * target_threshold);
       }
     }
 
@@ -344,7 +350,7 @@ void EnergyEndpointer::UpdateLevels(float rms) {
     // Alpha increases from 0 to (k-1)/k where k is the number of time
     // steps in the initial adaptation period.
     float alpha = static_cast<float>(frame_counter_) /
-                  static_cast<float>(fast_update_frames_);
+        static_cast<float>(fast_update_frames_);
     noise_level_ = (alpha * noise_level_) + ((1 - alpha) * rms);
     DVLOG(1) << "FAST UPDATE, frame_counter_ " << frame_counter_
              << ", fast_update_frames_ " << fast_update_frames_;
@@ -358,7 +364,7 @@ void EnergyEndpointer::UpdateLevels(float rms) {
       noise_level_ = (0.95f * noise_level_) + (0.05f * rms);
   }
   if (estimating_environment_ || (frame_counter_ < fast_update_frames_)) {
-    decision_threshold_ = noise_level_ * 2;  // 6dB above noise level.
+    decision_threshold_ = noise_level_ * 2; // 6dB above noise level.
     // Set a floor
     if (decision_threshold_ < params_.min_decision_threshold())
       decision_threshold_ = params_.min_decision_threshold();

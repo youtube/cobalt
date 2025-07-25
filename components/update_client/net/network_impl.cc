@@ -1,4 +1,4 @@
-// Copyright 2019 The Chromium Authors. All rights reserved.
+// Copyright 2019 The Chromium Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -6,15 +6,19 @@
 
 #include <utility>
 
-#include "base/bind.h"
+#include "base/check.h"
+#include "base/functional/bind.h"
 #include "base/numerics/safe_conversions.h"
 #include "components/update_client/net/network_chromium.h"
 #include "net/base/load_flags.h"
 #include "net/http/http_response_headers.h"
 #include "net/traffic_annotation/network_traffic_annotation.h"
-#include "services/network/public/cpp/resource_response.h"
+#include "services/network/public/cpp/is_potentially_trustworthy.h"
+#include "services/network/public/cpp/resource_request.h"
 #include "services/network/public/cpp/shared_url_loader_factory.h"
 #include "services/network/public/cpp/simple_url_loader.h"
+#include "services/network/public/cpp/simple_url_loader_throttle.h"
+#include "services/network/public/mojom/url_response_head.mojom.h"
 #include "url/gurl.h"
 
 namespace {
@@ -45,7 +49,8 @@ const net::NetworkTrafficAnnotationTag traffic_annotation =
           destination: GOOGLE_OWNED_SERVICE
         }
         policy {
-          cookies_allowed: NO
+          cookies_allowed: YES
+          cookies_store: "user"
           setting: "This feature cannot be disabled."
           chrome_policy {
             ComponentUpdatesEnabled {
@@ -60,7 +65,7 @@ const net::NetworkTrafficAnnotationTag traffic_annotation =
 // if multiple instances of the same header are present.
 std::string GetStringHeader(const network::SimpleURLLoader* simple_url_loader,
                             const char* header_name) {
-  DCHECK(simple_url_loader);
+  CHECK(simple_url_loader);
 
   const auto* response_info = simple_url_loader->ResponseInfo();
   if (!response_info || !response_info->headers)
@@ -77,7 +82,7 @@ std::string GetStringHeader(const network::SimpleURLLoader* simple_url_loader,
 // if the header is not available or a conversion error has occured.
 int64_t GetInt64Header(const network::SimpleURLLoader* simple_url_loader,
                        const char* header_name) {
-  DCHECK(simple_url_loader);
+  CHECK(simple_url_loader);
 
   const auto* response_info = simple_url_loader->ResponseInfo();
   if (!response_info || !response_info->headers)
@@ -91,32 +96,38 @@ int64_t GetInt64Header(const network::SimpleURLLoader* simple_url_loader,
 namespace update_client {
 
 NetworkFetcherImpl::NetworkFetcherImpl(
-    scoped_refptr<network::SharedURLLoaderFactory> shared_url_network_factory)
-    : shared_url_network_factory_(shared_url_network_factory) {}
+    scoped_refptr<network::SharedURLLoaderFactory> shared_url_network_factory,
+    SendCookiesPredicate cookie_predicate)
+    : shared_url_network_factory_(shared_url_network_factory),
+      cookie_predicate_(cookie_predicate) {}
 NetworkFetcherImpl::~NetworkFetcherImpl() = default;
 
 void NetworkFetcherImpl::PostRequest(
     const GURL& url,
     const std::string& post_data,
+    const std::string& content_type,
     const base::flat_map<std::string, std::string>& post_additional_headers,
     ResponseStartedCallback response_started_callback,
     ProgressCallback progress_callback,
     PostRequestCompleteCallback post_request_complete_callback) {
-  DCHECK(!simple_url_loader_);
+  CHECK(!simple_url_loader_);
   auto resource_request = std::make_unique<network::ResourceRequest>();
   resource_request->url = url;
   resource_request->method = "POST";
-  resource_request->load_flags = net::LOAD_DO_NOT_SEND_COOKIES |
-                                 net::LOAD_DO_NOT_SAVE_COOKIES |
-                                 net::LOAD_DISABLE_CACHE;
+  resource_request->load_flags = net::LOAD_DISABLE_CACHE;
+  resource_request->credentials_mode = network::mojom::CredentialsMode::kOmit;
   for (const auto& header : post_additional_headers)
     resource_request->headers.SetHeader(header.first, header.second);
   simple_url_loader_ = network::SimpleURLLoader::Create(
       std::move(resource_request), traffic_annotation);
+  if (network::SimpleURLLoaderThrottle::IsBatchingEnabled(traffic_annotation))
+    simple_url_loader_->SetAllowBatching();
   simple_url_loader_->SetRetryOptions(
       kMaxRetriesOnNetworkChange,
       network::SimpleURLLoader::RETRY_ON_NETWORK_CHANGE);
-  simple_url_loader_->AttachStringForUpload(post_data, "application/json");
+  // The `Content-Type` header set by |AttachStringForUpload| overwrites any
+  // `Content-Type` header present in the |ResourceRequest| above.
+  simple_url_loader_->AttachStringForUpload(post_data, content_type);
   simple_url_loader_->SetOnResponseStartedCallback(base::BindOnce(
       &NetworkFetcherImpl::OnResponseStartedCallback, base::Unretained(this),
       std::move(response_started_callback)));
@@ -133,6 +144,7 @@ void NetworkFetcherImpl::PostRequest(
             std::move(post_request_complete_callback)
                 .Run(std::move(response_body), simple_url_loader->NetError(),
                      GetStringHeader(simple_url_loader, kHeaderEtag),
+                     GetStringHeader(simple_url_loader, kHeaderXCupServerProof),
                      GetInt64Header(simple_url_loader, kHeaderXRetryAfter));
           },
           simple_url_loader_.get(), std::move(post_request_complete_callback)),
@@ -145,13 +157,17 @@ void NetworkFetcherImpl::DownloadToFile(
     ResponseStartedCallback response_started_callback,
     ProgressCallback progress_callback,
     DownloadToFileCompleteCallback download_to_file_complete_callback) {
-  DCHECK(!simple_url_loader_);
+  CHECK(!simple_url_loader_);
   auto resource_request = std::make_unique<network::ResourceRequest>();
   resource_request->url = url;
   resource_request->method = "GET";
-  resource_request->load_flags = net::LOAD_DO_NOT_SEND_COOKIES |
-                                 net::LOAD_DO_NOT_SAVE_COOKIES |
-                                 net::LOAD_DISABLE_CACHE;
+  resource_request->load_flags = net::LOAD_DISABLE_CACHE;
+  if (!cookie_predicate_.Run(url) ||
+      !network::IsUrlPotentiallyTrustworthy(url)) {
+    resource_request->credentials_mode = network::mojom::CredentialsMode::kOmit;
+  } else {
+    resource_request->site_for_cookies = net::SiteForCookies::FromUrl(url);
+  }
   simple_url_loader_ = network::SimpleURLLoader::Create(
       std::move(resource_request), traffic_annotation);
   simple_url_loader_->SetRetryOptions(
@@ -171,7 +187,7 @@ void NetworkFetcherImpl::DownloadToFile(
              DownloadToFileCompleteCallback download_to_file_complete_callback,
              base::FilePath file_path) {
             std::move(download_to_file_complete_callback)
-                .Run(file_path, simple_url_loader->NetError(),
+                .Run(simple_url_loader->NetError(),
                      simple_url_loader->GetContentSize());
           },
           simple_url_loader_.get(),
@@ -182,10 +198,9 @@ void NetworkFetcherImpl::DownloadToFile(
 void NetworkFetcherImpl::OnResponseStartedCallback(
     ResponseStartedCallback response_started_callback,
     const GURL& final_url,
-    const network::ResourceResponseHead& response_head) {
+    const network::mojom::URLResponseHead& response_head) {
   std::move(response_started_callback)
-      .Run(final_url,
-           response_head.headers ? response_head.headers->response_code() : -1,
+      .Run(response_head.headers ? response_head.headers->response_code() : -1,
            response_head.content_length);
 }
 
@@ -195,13 +210,16 @@ void NetworkFetcherImpl::OnProgressCallback(ProgressCallback progress_callback,
 }
 
 NetworkFetcherChromiumFactory::NetworkFetcherChromiumFactory(
-    scoped_refptr<network::SharedURLLoaderFactory> shared_url_network_factory)
-    : shared_url_network_factory_(shared_url_network_factory) {}
+    scoped_refptr<network::SharedURLLoaderFactory> shared_url_network_factory,
+    SendCookiesPredicate cookie_predicate)
+    : shared_url_network_factory_(shared_url_network_factory),
+      cookie_predicate_(cookie_predicate) {}
 
 NetworkFetcherChromiumFactory::~NetworkFetcherChromiumFactory() = default;
 
 std::unique_ptr<NetworkFetcher> NetworkFetcherChromiumFactory::Create() const {
-  return std::make_unique<NetworkFetcherImpl>(shared_url_network_factory_);
+  return std::make_unique<NetworkFetcherImpl>(shared_url_network_factory_,
+                                              cookie_predicate_);
 }
 
 }  // namespace update_client

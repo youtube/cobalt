@@ -1,4 +1,4 @@
-// Copyright 2017 The Chromium Authors. All rights reserved.
+// Copyright 2017 The Chromium Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -6,88 +6,232 @@
 
 #include <memory>
 #include <string>
+#include <unordered_set>
 #include <utility>
 
-#include "base/bind.h"
 #include "base/feature_list.h"
+#include "base/functional/bind.h"
 #include "base/metrics/field_trial.h"
 #include "base/metrics/field_trial_params.h"
+#include "base/metrics/histogram_functions.h"
 #include "base/metrics/histogram_macros.h"
 #include "base/rand_util.h"
-#include "base/threading/sequenced_task_runner_handle.h"
 #include "base/time/time.h"
+#include "build/build_config.h"
+#include "components/metrics/log_decoder.h"
+#include "components/metrics/metrics_features.h"
 #include "components/metrics/metrics_log.h"
 #include "components/metrics/metrics_service_client.h"
+#include "components/metrics/ukm_demographic_metrics_provider.h"
 #include "components/prefs/pref_registry_simple.h"
 #include "components/prefs/pref_service.h"
-#include "components/ukm/persisted_logs_metrics_impl.h"
+#include "components/ukm/scheme_constants.h"
 #include "components/ukm/ukm_pref_names.h"
+#include "components/ukm/ukm_recorder_impl.h"
 #include "components/ukm/ukm_rotation_scheduler.h"
 #include "services/metrics/public/cpp/delegating_ukm_recorder.h"
+#include "services/metrics/public/cpp/ukm_recorder_client_interface_registry.h"
+#include "services/metrics/public/cpp/ukm_source_id.h"
 #include "third_party/metrics_proto/ukm/report.pb.h"
+#include "third_party/metrics_proto/user_demographics.pb.h"
 
 namespace ukm {
 
 namespace {
 
 // Generates a new client id and stores it in prefs.
-uint64_t GenerateClientId(PrefService* pref_service) {
+uint64_t GenerateAndStoreClientId(PrefService* pref_service) {
   uint64_t client_id = 0;
   while (!client_id)
     client_id = base::RandUint64();
-  pref_service->SetInt64(prefs::kUkmClientId, client_id);
+  pref_service->SetUint64(prefs::kUkmClientId, client_id);
 
   // Also reset the session id counter.
   pref_service->SetInteger(prefs::kUkmSessionId, 0);
   return client_id;
 }
 
-uint64_t LoadOrGenerateClientId(PrefService* pref_service) {
-  uint64_t client_id = pref_service->GetInt64(prefs::kUkmClientId);
-  if (!client_id)
-    client_id = GenerateClientId(pref_service);
-  return client_id;
+uint64_t LoadOrGenerateAndStoreClientId(PrefService* pref_service,
+                                        uint64_t external_client_id) {
+  // If external_client_id is present, save to pref service for
+  // consistency purpose and return it as client id.
+  if (external_client_id) {
+    pref_service->SetUint64(prefs::kUkmClientId, external_client_id);
+    return external_client_id;
+  }
+
+  uint64_t client_id = pref_service->GetUint64(prefs::kUkmClientId);
+  // The pref is stored as a string and GetUint64() uses base::StringToUint64()
+  // to convert it. base::StringToUint64() will treat a negative value as
+  // underflow, which results in 0 (the minimum Uint64 value).
+  if (client_id) {
+    UMA_HISTOGRAM_BOOLEAN("UKM.MigratedClientIdInt64ToUInt64", false);
+    return client_id;
+  }
+
+  // Since client_id was 0, the pref value may have been negative. Attempt to
+  // get it as an Int64 to migrate it to Uint64.
+  client_id = pref_service->GetInt64(prefs::kUkmClientId);
+  if (client_id) {
+    pref_service->SetUint64(prefs::kUkmClientId, client_id);
+    UMA_HISTOGRAM_BOOLEAN("UKM.MigratedClientIdInt64ToUInt64", true);
+    return client_id;
+  }
+
+  // The client_id is still 0, so it wasn't set.
+  return GenerateAndStoreClientId(pref_service);
 }
 
-int32_t LoadSessionId(PrefService* pref_service) {
+int32_t LoadAndIncrementSessionId(PrefService* pref_service) {
   int32_t session_id = pref_service->GetInteger(prefs::kUkmSessionId);
-  ++session_id;  // increment session id, once per session
+  ++session_id;  // Increment session id, once per session.
   pref_service->SetInteger(prefs::kUkmSessionId, session_id);
   return session_id;
 }
 
+// Remove elements satisfying the predicate by moving them to the end of the
+// list then truncate.
+template <typename Predicate, typename ReadElements, typename WriteElements>
+void FilterReportElements(Predicate predicate,
+                          const ReadElements& elements,
+                          WriteElements* mutable_elements) {
+  if (elements.empty())
+    return;
+
+  int entries_size = elements.size();
+  int start = 0;
+  int end = entries_size - 1;
+  while (start < end) {
+    while (start < entries_size && !predicate(elements.Get(start))) {
+      start++;
+    }
+    while (end >= 0 && predicate(elements.Get(end))) {
+      end--;
+    }
+    if (start < end) {
+      mutable_elements->SwapElements(start, end);
+      start++;
+      end--;
+    }
+  }
+  mutable_elements->DeleteSubrange(start, entries_size - start);
+}
+
+template <typename Predicate>
+void PurgeDataFromUnsentLogStore(metrics::UnsentLogStore* ukm_log_store,
+                                 Predicate source_purging_condition) {
+  for (size_t index = 0; index < ukm_log_store->size(); index++) {
+    // Decode log data from store back into a Report.
+    Report report;
+    bool decode_success = metrics::DecodeLogDataToProto(
+        ukm_log_store->GetLogAtIndex(index), &report);
+    DCHECK(decode_success);
+
+    std::unordered_set<SourceId> relevant_source_ids;
+
+    // Grab ids of all sources satisfying the condition for purging.
+    for (const auto& source : report.sources()) {
+      if (source_purging_condition(source)) {
+        relevant_source_ids.insert(source.id());
+      }
+    }
+    if (relevant_source_ids.empty())
+      continue;
+
+    // Remove all relevant sources from the report.
+    FilterReportElements(
+        [&](const Source& element) {
+          return relevant_source_ids.count(element.id());
+        },
+        report.sources(), report.mutable_sources());
+
+    // Remove all entries originating from these sources.
+    FilterReportElements(
+        [&](const Entry& element) {
+          return relevant_source_ids.count(element.source_id());
+        },
+        report.entries(), report.mutable_entries());
+
+    std::string reserialized_log_data =
+        UkmService::SerializeReportProtoToString(&report);
+
+    // Replace the compressed log in the store by its filtered version.
+    const std::string old_compressed_log_data =
+        ukm_log_store->ReplaceLogAtIndex(index, reserialized_log_data,
+                                         metrics::LogMetadata());
+
+    // Reached here only if some Sources satisfied the condition for purging, so
+    // reserialized data should now be different.
+    DCHECK(ukm_log_store->GetLogAtIndex(index) != old_compressed_log_data);
+  }
+}
+
 }  // namespace
+
+// static
+BASE_FEATURE(kReportUserNoisedUserBirthYearAndGender,
+             "UkmReportNoisedUserBirthYearAndGender",
+             base::FEATURE_ENABLED_BY_DEFAULT);
+
+bool UkmService::LogCanBeParsed(const std::string& serialized_data) {
+  Report report;
+  bool report_parse_successful = report.ParseFromString(serialized_data);
+  if (!report_parse_successful)
+    return false;
+  // Make sure the reserialized log from this |report| matches the input
+  // |serialized_data|.
+  std::string reserialized_from_report;
+  report.SerializeToString(&reserialized_from_report);
+  return reserialized_from_report == serialized_data;
+}
+
+std::string UkmService::SerializeReportProtoToString(Report* report) {
+  std::string serialized_full_log;
+  report->SerializeToString(&serialized_full_log);
+
+  // This allows catching errors with bad UKM serialization we've seen before
+  // that would otherwise only be noticed on the server.
+  DCHECK(UkmService::LogCanBeParsed(serialized_full_log));
+  return serialized_full_log;
+}
 
 UkmService::UkmService(PrefService* pref_service,
                        metrics::MetricsServiceClient* client,
-                       bool restrict_to_whitelist_entries)
-    : pref_service_(pref_service),
-      restrict_to_whitelist_entries_(restrict_to_whitelist_entries),
-      client_id_(0),
-      session_id_(0),
-      report_count_(0),
+                       std::unique_ptr<metrics::UkmDemographicMetricsProvider>
+                           demographics_provider,
+                       uint64_t external_client_id)
+    : recorder_client_registry_(
+          std::make_unique<metrics::UkmRecorderClientInterfaceRegistry>()),
+      pref_service_(pref_service),
+      external_client_id_(external_client_id),
       client_(client),
+      demographics_provider_(std::move(demographics_provider)),
       reporting_service_(client, pref_service),
-      initialize_started_(false),
-      initialize_complete_(false),
-      self_ptr_factory_(this) {
+      task_runner_(base::SequencedTaskRunner::GetCurrentDefault()) {
   DCHECK(pref_service_);
   DCHECK(client_);
   DVLOG(1) << "UkmService::Constructor";
-
   reporting_service_.Initialize();
 
-  base::Closure rotate_callback =
-      base::Bind(&UkmService::RotateLog, self_ptr_factory_.GetWeakPtr());
+  if (base::FeatureList::IsEnabled(
+          metrics::features::kMetricsClearLogsOnClonedInstall)) {
+    cloned_install_subscription_ = client->AddOnClonedInstallDetectedCallback(
+        base::BindOnce(&UkmService::OnClonedInstallDetected,
+                       self_ptr_factory_.GetWeakPtr()));
+  }
+
+  base::RepeatingClosure rotate_callback = base::BindRepeating(
+      &UkmService::RotateLog, self_ptr_factory_.GetWeakPtr());
   // MetricsServiceClient outlives UkmService, and
   // MetricsReportingScheduler is tied to the lifetime of |this|.
-  const base::Callback<base::TimeDelta(void)>& get_upload_interval_callback =
-      base::Bind(&metrics::MetricsServiceClient::GetStandardUploadInterval,
-                 base::Unretained(client_));
-  scheduler_.reset(new ukm::UkmRotationScheduler(rotate_callback,
-                                                 get_upload_interval_callback));
-
-  StoreWhitelistedEntries();
+  const base::RepeatingCallback<base::TimeDelta(void)>&
+      get_upload_interval_callback =
+          base::BindRepeating(&metrics::MetricsServiceClient::GetUploadInterval,
+                              base::Unretained(client_));
+  bool fast_startup_for_testing = client_->ShouldStartUpFastForTesting();
+  scheduler_ = std::make_unique<UkmRotationScheduler>(
+      rotate_callback, fast_startup_for_testing, get_upload_interval_callback);
+  InitDecodeMap();
 
   DelegatingUkmRecorder::Get()->AddDelegate(self_ptr_factory_.GetWeakPtr());
 }
@@ -104,8 +248,14 @@ void UkmService::Initialize() {
   initialize_started_ = true;
 
   DCHECK_EQ(0, report_count_);
-  client_id_ = LoadOrGenerateClientId(pref_service_);
-  session_id_ = LoadSessionId(pref_service_);
+  if (client_->ShouldResetClientIdsOnClonedInstall()) {
+    ResetClientState(ResetReason::kClonedInstall);
+  } else {
+    client_id_ =
+        LoadOrGenerateAndStoreClientId(pref_service_, external_client_id_);
+    session_id_ = LoadAndIncrementSessionId(pref_service_);
+  }
+
   metrics_providers_.Init();
 
   StartInitTask();
@@ -117,6 +267,7 @@ void UkmService::EnableReporting() {
   if (reporting_service_.reporting_active())
     return;
 
+  log_creation_time_ = base::TimeTicks::Now();
   metrics_providers_.OnRecordingEnabled();
 
   if (!initialize_started_)
@@ -134,13 +285,15 @@ void UkmService::DisableReporting() {
   metrics_providers_.OnRecordingDisabled();
 
   scheduler_->Stop();
-  Flush();
+  Flush(metrics::MetricsLogsEventManager::CreateReason::kServiceShutdown);
 }
 
-#if defined(OS_ANDROID) || defined(OS_IOS)
+#if BUILDFLAG(IS_ANDROID) || BUILDFLAG(IS_IOS)
 void UkmService::OnAppEnterForeground() {
   DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
   DVLOG(1) << "UkmService::OnAppEnterForeground";
+
+  reporting_service_.SetIsInForegound(true);
 
   // If initialize_started_ is false, UKM has not yet been started, so bail. The
   // scheduler will instead be started via EnableReporting().
@@ -154,6 +307,8 @@ void UkmService::OnAppEnterBackground() {
   DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
   DVLOG(1) << "UkmService::OnAppEnterBackground";
 
+  reporting_service_.SetIsInForegound(false);
+
   if (!initialize_started_)
     return;
 
@@ -162,15 +317,16 @@ void UkmService::OnAppEnterBackground() {
   // Give providers a chance to persist ukm data as part of being backgrounded.
   metrics_providers_.OnAppEnterBackground();
 
-  Flush();
+  Flush(metrics::MetricsLogsEventManager::CreateReason::kBackgrounded);
 }
 #endif
 
-void UkmService::Flush() {
+void UkmService::Flush(metrics::MetricsLogsEventManager::CreateReason reason) {
   DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
   if (initialize_complete_)
-    BuildAndStoreLog();
-  reporting_service_.ukm_log_store()->PersistUnsentLogs();
+    BuildAndStoreLog(reason);
+  reporting_service_.ukm_log_store()->TrimAndPersistUnsentLogs(
+      /*overwrite_in_memory_store=*/true);
 }
 
 void UkmService::Purge() {
@@ -180,13 +336,92 @@ void UkmService::Purge() {
   UkmRecorderImpl::Purge();
 }
 
-// TODO(bmcquade): rename this to something more generic, like
-// ResetClientState. Consider resetting all prefs here.
-void UkmService::ResetClientId() {
+void UkmService::PurgeExtensionsData() {
   DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
-  client_id_ = GenerateClientId(pref_service_);
-  session_id_ = LoadSessionId(pref_service_);
+  DVLOG(1) << "UkmService::PurgeExtensionsData";
+  // Filter out any extension-related data from the serialized logs in the
+  // UnsentLogStore for uploading, base on having kExtensionScheme URL scheme.
+  PurgeDataFromUnsentLogStore(
+      reporting_service_.ukm_log_store(), [&](const Source& source) {
+        // Check if any URL on the Source has the kExtensionScheme URL scheme.
+        // It is possible that only one of multiple URLs does due to redirect,
+        // in this case, we should still purge the source.
+        for (const auto& url_info : source.urls()) {
+          if (GURL(url_info.url()).SchemeIs(kExtensionScheme))
+            return true;
+        }
+        return false;
+      });
+
+  // Purge data currently in the recordings intended for the next
+  // ukm::Report.
+  UkmRecorderImpl::PurgeRecordingsWithUrlScheme(kExtensionScheme);
+}
+
+void UkmService::PurgeAppsData() {
+  DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
+  DVLOG(1) << "UkmService::PurgeAppsData";
+  // Filter out any apps-related data from the serialized logs in the
+  // UnsentLogStore for uploading.
+  // Also purge based on source id type, because some apps don't use app://
+  // scheme.
+  // For example, OS Settings is an ChromeOS app with "chrome://os-settings" as
+  // its URL.
+  PurgeDataFromUnsentLogStore(
+      reporting_service_.ukm_log_store(), [&](const Source& source) {
+        if (GetSourceIdType(source.id()) == SourceIdType::APP_ID)
+          return true;
+        for (const auto& url_info : source.urls()) {
+          if (GURL(url_info.url()).SchemeIs(kAppScheme))
+            return true;
+        }
+        return false;
+      });
+
+  // Purge data currently in the recordings intended for the next ukm::Report.
+  UkmRecorderImpl::PurgeRecordingsWithUrlScheme(kAppScheme);
+  UkmRecorderImpl::PurgeRecordingsWithSourceIdType(SourceIdType::APP_ID);
+}
+
+void UkmService::PurgeMsbbData() {
+  DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
+  // Filter out any MSBB-related data from the serialized logs in the
+  // UnsentLogStore for uploading.
+  PurgeDataFromUnsentLogStore(
+      reporting_service_.ukm_log_store(), [&](const Source& source) {
+        return UkmRecorderImpl::GetConsentType(GetSourceIdType(source.id())) ==
+               MSBB;
+      });
+
+  // Purge data currently in the recordings intended for the next ukm::Report.
+  UkmRecorderImpl::PurgeRecordingsWithMsbbSources();
+}
+
+void UkmService::ResetClientState(ResetReason reason) {
+  DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
+
+  UMA_HISTOGRAM_ENUMERATION("UKM.ResetReason", reason);
+
+  if (external_client_id_) {
+    client_id_ = external_client_id_;
+    pref_service_->SetUint64(prefs::kUkmClientId, client_id_);
+  } else {
+    client_id_ = GenerateAndStoreClientId(pref_service_);
+  }
+
+  // Note: the session_id has already been cleared by GenerateAndStoreClientId.
+  session_id_ = LoadAndIncrementSessionId(pref_service_);
   report_count_ = 0;
+
+  metrics_providers_.OnClientStateCleared();
+}
+
+void UkmService::OnClonedInstallDetected() {
+  // Purge all logs, as they may come from a previous install. Unfortunately,
+  // since the cloned install detector works asynchronously, it is possible that
+  // this is called after logs were already sent. However, practically speaking,
+  // this should not happen, since logs are only sent late into the session.
+  reporting_service_.ukm_log_store()->Purge();
 }
 
 void UkmService::RegisterMetricsProvider(
@@ -194,18 +429,38 @@ void UkmService::RegisterMetricsProvider(
   metrics_providers_.RegisterMetricsProvider(std::move(provider));
 }
 
+void UkmService::RegisterEventFilter(std::unique_ptr<UkmEntryFilter> filter) {
+  SetEntryFilter(std::move(filter));
+}
+
 // static
 void UkmService::RegisterPrefs(PrefRegistrySimple* registry) {
-  registry->RegisterInt64Pref(prefs::kUkmClientId, 0);
+  registry->RegisterUint64Pref(prefs::kUkmClientId, 0);
   registry->RegisterIntegerPref(prefs::kUkmSessionId, 0);
   UkmReportingService::RegisterPrefs(registry);
+}
+
+void UkmService::OnRecorderParametersChanged() {
+  task_runner_->PostTask(
+      FROM_HERE, base::BindOnce(&UkmService::OnRecorderParametersChangedImpl,
+                                self_ptr_factory_.GetWeakPtr()));
+}
+
+void UkmService::OnRecorderParametersChangedImpl() {
+  auto params = mojom::UkmRecorderParameters::New();
+  params->is_enabled = recording_enabled();
+
+  std::set<uint64_t> events = GetObservedEventHashes();
+  params->event_hash_bypass_list.insert(params->event_hash_bypass_list.end(),
+                                        events.begin(), events.end());
+  recorder_client_registry_->SetRecorderParameters(std::move(params));
 }
 
 void UkmService::StartInitTask() {
   DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
   DVLOG(1) << "UkmService::StartInitTask";
-  metrics_providers_.AsyncInit(base::Bind(&UkmService::FinishedInitTask,
-                                          self_ptr_factory_.GetWeakPtr()));
+  metrics_providers_.AsyncInit(base::BindOnce(&UkmService::FinishedInitTask,
+                                              self_ptr_factory_.GetWeakPtr()));
 }
 
 void UkmService::FinishedInitTask() {
@@ -213,24 +468,43 @@ void UkmService::FinishedInitTask() {
   DVLOG(1) << "UkmService::FinishedInitTask";
   initialize_complete_ = true;
   scheduler_->InitTaskComplete();
+  if (initialization_complete_callback_) {
+    std::move(initialization_complete_callback_).Run();
+  }
 }
 
 void UkmService::RotateLog() {
   DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
   DVLOG(1) << "UkmService::RotateLog";
   if (!reporting_service_.ukm_log_store()->has_unsent_logs())
-    BuildAndStoreLog();
+    BuildAndStoreLog(metrics::MetricsLogsEventManager::CreateReason::kPeriodic);
   reporting_service_.Start();
   scheduler_->RotationFinished();
 }
 
-void UkmService::BuildAndStoreLog() {
+void UkmService::AddSyncedUserNoiseBirthYearAndGenderToReport(Report* report) {
+  if (!base::FeatureList::IsEnabled(kReportUserNoisedUserBirthYearAndGender) ||
+      !demographics_provider_) {
+    return;
+  }
+
+  demographics_provider_->ProvideSyncedUserNoisedBirthYearAndGenderToReport(
+      report);
+}
+
+void UkmService::BuildAndStoreLog(
+    metrics::MetricsLogsEventManager::CreateReason reason) {
   DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
   DVLOG(1) << "UkmService::BuildAndStoreLog";
 
+  // This may add new UKMs. This means this needs to be done before the empty
+  // log suppression checks.
+  metrics_providers_.ProvideCurrentSessionUKMData();
+
   // Suppress generating a log if we have no new data to include.
-  // TODO(zhenw): add a histogram here to debug if this case is hitting a lot.
-  if (sources().empty() && entries().empty())
+  bool empty = sources().empty() && entries().empty();
+  UMA_HISTOGRAM_BOOLEAN("UKM.BuildAndStoreLogIsEmpty", empty);
+  if (empty)
     return;
 
   Report report;
@@ -238,21 +512,37 @@ void UkmService::BuildAndStoreLog() {
   report.set_session_id(session_id_);
   report.set_report_id(++report_count_);
 
+  const auto product = static_cast<metrics::ChromeUserMetricsExtension_Product>(
+      client_->GetProduct());
+  // Only set the product if it differs from the default value.
+  if (product != report.product())
+    report.set_product(product);
+
   StoreRecordingsInReport(&report);
 
   metrics::MetricsLog::RecordCoreSystemProfile(client_,
                                                report.mutable_system_profile());
 
-  metrics_providers_.ProvideSystemProfileMetrics(
-      report.mutable_system_profile());
+  metrics_providers_.ProvideSystemProfileMetricsWithLogCreationTime(
+      log_creation_time_, report.mutable_system_profile());
 
-  std::string serialized_log;
-  report.SerializeToString(&serialized_log);
-  reporting_service_.ukm_log_store()->StoreLog(serialized_log);
+  AddSyncedUserNoiseBirthYearAndGenderToReport(&report);
+
+  std::string serialized_log =
+      UkmService::SerializeReportProtoToString(&report);
+  metrics::LogMetadata log_metadata;
+  reporting_service_.ukm_log_store()->StoreLog(serialized_log, log_metadata,
+                                               reason);
 }
 
-bool UkmService::ShouldRestrictToWhitelistedEntries() const {
-  return restrict_to_whitelist_entries_;
+void UkmService::SetInitializationCompleteCallbackForTesting(
+    base::OnceClosure callback) {
+  if (initialize_complete_) {
+    std::move(callback).Run();
+  } else {
+    // Store the callback to be invoked when initialization is complete later.
+    initialization_complete_callback_ = std::move(callback);
+  }
 }
 
 }  // namespace ukm

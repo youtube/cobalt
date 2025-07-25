@@ -35,6 +35,7 @@
 #ifndef GOOGLE_PROTOBUF_COMPILER_JAVA_FIELD_H__
 #define GOOGLE_PROTOBUF_COMPILER_JAVA_FIELD_H__
 
+#include <cstdint>
 #include <map>
 #include <memory>
 #include <string>
@@ -76,13 +77,13 @@ class ImmutableFieldGenerator {
   virtual void GenerateBuilderClearCode(io::Printer* printer) const = 0;
   virtual void GenerateMergingCode(io::Printer* printer) const = 0;
   virtual void GenerateBuildingCode(io::Printer* printer) const = 0;
-  virtual void GenerateParsingCode(io::Printer* printer) const = 0;
-  virtual void GenerateParsingCodeFromPacked(io::Printer* printer) const;
-  virtual void GenerateParsingDoneCode(io::Printer* printer) const = 0;
+  virtual void GenerateBuilderParsingCode(io::Printer* printer) const = 0;
+  virtual void GenerateBuilderParsingCodeFromPacked(io::Printer* printer) const;
   virtual void GenerateSerializationCode(io::Printer* printer) const = 0;
   virtual void GenerateSerializedSizeCode(io::Printer* printer) const = 0;
   virtual void GenerateFieldBuilderInitializationCode(
       io::Printer* printer) const = 0;
+  virtual void GenerateKotlinDslMembers(io::Printer* printer) const = 0;
 
   virtual void GenerateEqualsCode(io::Printer* printer) const = 0;
   virtual void GenerateHashCode(io::Printer* printer) const = 0;
@@ -104,7 +105,8 @@ class ImmutableFieldLiteGenerator {
   virtual void GenerateBuilderMembers(io::Printer* printer) const = 0;
   virtual void GenerateInitializationCode(io::Printer* printer) const = 0;
   virtual void GenerateFieldInfo(io::Printer* printer,
-                                 std::vector<uint16>* output) const = 0;
+                                 std::vector<uint16_t>* output) const = 0;
+  virtual void GenerateKotlinDslMembers(io::Printer* printer) const = 0;
 
   virtual std::string GetBoxedType() const = 0;
 
@@ -153,7 +155,7 @@ template <>
 FieldGeneratorMap<ImmutableFieldLiteGenerator>::~FieldGeneratorMap();
 
 
-// Field information used in FieldGeneartors.
+// Field information used in FieldGenerators.
 struct FieldGeneratorInfo {
   std::string name;
   std::string capitalized_name;

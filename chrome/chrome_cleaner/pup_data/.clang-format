@@ -1,0 +1,7 @@
+# Defines the Chromium style for automatic reformatting.
+# http://clang.llvm.org/docs/ClangFormatStyleOptions.html
+BasedOnStyle: Chromium
+
+# Don't pack arguments on a single line, this ensures that all raw_pup data
+# structures are declared in the same way.
+BinPackArguments: false

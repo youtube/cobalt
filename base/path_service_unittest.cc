@@ -110,10 +110,7 @@ typedef PlatformTest PathServiceTest;
 // failure for the value(s) on that platform in this test.
 TEST_F(PathServiceTest, Get) {
   // Contains keys that are defined but not supported on the platform.
-#if defined(STARBOARD)
-  constexpr std::array kUnsupportedKeys = {DIR_CURRENT, DIR_USER_DESKTOP,
-                                           DIR_SOURCE_ROOT};
-#elif BUILDFLAG(IS_ANDROID)
+#if BUILDFLAG(IS_ANDROID)
   // The following keys are not intended to be implemented on Android (see
   // crbug.com/1257402). Current implementation is described before each key.
   // TODO(crbug.com/1257402): Remove the definition of these keys on Android
@@ -139,22 +136,10 @@ TEST_F(PathServiceTest, Get) {
   constexpr std::array<BasePathKey, 0> kUnsupportedKeys = {};
 #endif  // BUILDFLAG(IS_ANDROID)
   for (int key = PATH_START + 1; key < PATH_END; ++key) {
-#if defined(STARBOARD)
-    if (key == DIR_CURRENT || key == DIR_USER_DESKTOP ||
-        key == DIR_SOURCE_ROOT) {
-      continue;
-    }
-#endif
     EXPECT_PRED1(Contains(kUnsupportedKeys, key) ? &ReturnsInvalidPath
                                                  : &ReturnsValidPath,
                  key);
   }
-#if defined(STARBOARD)
-  // In the three Starboard custom directories, DIR_CACHE should always be
-  // valid while DIR_SYSTEM_FONTS and DIR_SYSTEM_FONTS_CONFIGURATION
-  // can be invalid on some platforms.
-  EXPECT_PRED1(ReturnsValidPath, DIR_CACHE);
-#else  // STARBOARD
 #if BUILDFLAG(IS_WIN)
   for (int key = PATH_WIN_START + 1; key < PATH_WIN_END; ++key) {
     EXPECT_PRED1(ReturnsValidPath, key);
@@ -174,16 +159,11 @@ TEST_F(PathServiceTest, Get) {
     EXPECT_PRED1(ReturnsValidPath, key);
   }
 #endif  // BUILDFLAG(IS_WIN)
-#endif  // defined(STARBOARD)
 }
 
 // Tests that CheckedGet returns the same path as Get.
 TEST_F(PathServiceTest, CheckedGet) {
-#if defined(STARBOARD)
-  constexpr int kKey = DIR_CACHE;
-#else
   constexpr int kKey = DIR_CURRENT;
-#endif // defined(STARBOARD)
   FilePath path;
   ASSERT_TRUE(PathService::Get(kKey, &path));
   EXPECT_EQ(path, PathService::CheckedGet(kKey));
@@ -231,7 +211,7 @@ TEST_F(PathServiceTest, Override) {
       MakeAbsoluteFilePath(temp_dir.GetPath()).AppendASCII("non_existent"));
   EXPECT_TRUE(non_existent.IsAbsolute());
   EXPECT_FALSE(PathExists(non_existent));
-#if !BUILDFLAG(IS_ANDROID) && !defined(STARBOARD)
+#if !BUILDFLAG(IS_ANDROID)
   // This fails because MakeAbsoluteFilePath fails for non-existent files.
   // Earlier versions of Bionic libc don't fail for non-existent files, so
   // skip this check on Android.
@@ -239,7 +219,7 @@ TEST_F(PathServiceTest, Override) {
                                                       non_existent,
                                                       false,
                                                       false));
-#endif  // !BUILDFLAG(IS_ANDROID) && !defined(STARBOARD)
+#endif  // !BUILDFLAG(IS_ANDROID)
   // This works because indicating that |non_existent| is absolute skips the
   // internal MakeAbsoluteFilePath call.
   EXPECT_TRUE(PathService::OverrideAndCreateIfNeeded(my_special_key,

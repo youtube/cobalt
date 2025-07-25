@@ -437,9 +437,8 @@ public final class MapEntry<K, V> extends AbstractMessage {
     }
 
     @Override
-    @SuppressWarnings("unchecked")
     public Builder<K, V> clone() {
-      return new Builder(metadata, key, value, hasKey, hasValue);
+      return new Builder<>(metadata, key, value, hasKey, hasValue);
     }
   }
 

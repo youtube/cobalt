@@ -1,4 +1,4 @@
-// Copyright 2015 The Chromium Authors. All rights reserved.
+// Copyright 2015 The Chromium Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -13,9 +13,6 @@ namespace metrics {
 
 // The type of memory UMA stats to be recorded in RecordMemoryStats.
 enum RecordMemoryStatsType {
-  // When a tab was discarded.
-  RECORD_MEMORY_STATS_TAB_DISCARDED,
-
   // Right after the renderer for contents was killed.
   RECORD_MEMORY_STATS_CONTENTS_OOM_KILLED,
 

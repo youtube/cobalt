@@ -686,7 +686,7 @@ void GlobalHistogramAllocator::CreateWithLocalMemory(
       std::make_unique<LocalPersistentMemoryAllocator>(size, id, name))));
 }
 
-#if !BUILDFLAG(IS_NACL) && !defined(STARBOARD)
+#if !BUILDFLAG(IS_NACL)
 // static
 bool GlobalHistogramAllocator::CreateWithFile(const FilePath& file_path,
                                               size_t size,
@@ -848,9 +848,8 @@ bool GlobalHistogramAllocator::CreateSpareFile(const FilePath& spare_path,
 
   return success;
 }
-#endif  // !BUILDFLAG(IS_NACL) && !defined(STARBOARD)
+#endif  // !BUILDFLAG(IS_NACL)
 
-#if !defined(STARBOARD)
 // static
 void GlobalHistogramAllocator::CreateWithSharedMemoryRegion(
     const WritableSharedMemoryRegion& region) {
@@ -865,7 +864,6 @@ void GlobalHistogramAllocator::CreateWithSharedMemoryRegion(
       std::make_unique<WritableSharedPersistentMemoryAllocator>(
           std::move(mapping), 0, StringPiece()))));
 }
-#endif // !defined(STARBOARD)
 
 // static
 void GlobalHistogramAllocator::Set(

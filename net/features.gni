@@ -11,13 +11,13 @@ declare_args() {
 
   # WebSockets and socket stream code are not used when blink is not used
   # and are optional in cronet.
-  enable_websockets = use_blink || true
+  enable_websockets = use_blink
 
   # Enable Kerberos authentication. It is disabled by default on iOS, Fuchsia
   # and Chromecast, at least for now. This feature needs configuration
   # (krb5.conf and so on).
   # TODO(fuchsia): Enable kerberos on Fuchsia when it's implemented there.
-  use_kerberos = !is_ios && !is_fuchsia && !is_castos && !is_cast_android && false
+  use_kerberos = !is_ios && !is_fuchsia && !is_castos && !is_cast_android
 
   # Do not disable brotli filter by default.
   disable_brotli_filter = false
@@ -34,7 +34,7 @@ declare_args() {
   # size footprint, this flag should not be disabled unless the embedder is
   # willing to take the responsibility to make sure that all important
   # connections use HTTPS.
-  include_transport_security_state_preload_list = false
+  include_transport_security_state_preload_list = true
 
   # Platforms where the cert verifier comparison trial is supported.
   # See https://crbug.com/649026.
@@ -48,11 +48,11 @@ declare_args() {
   # builtin verifier using platform roots, depending on the platform.
   # See https://crbug.com/1216547 for status.
   chrome_root_store_optional =
-      ((is_android && !is_cronet_build) || is_linux || is_chromeos) && !is_starboard
+      (is_android && !is_cronet_build) || is_linux || is_chromeos
 
   # Platforms for which certificate verification can only be performed using
   # the builtin cert verifier with the Chrome Root Store.
-  chrome_root_store_only = (is_win || is_mac) && !is_starboard
+  chrome_root_store_only = is_win || is_mac
 }
 
 assert(!chrome_root_store_optional || !chrome_root_store_only,

@@ -1,4 +1,4 @@
-// Copyright 2019 The Chromium Authors. All rights reserved.
+// Copyright 2019 The Chromium Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -23,10 +23,10 @@ class InstallerStringTest : public testing::Test {
 
 // Tests the strcat/strcpy/length support of the StackString class.
 TEST_F(InstallerStringTest, StackStringOverflow) {
-  static const wchar_t kTestString[] = L"1234567890";
+  static constexpr wchar_t kTestString[] = L"1234567890";
 
   StackString<MAX_PATH> str;
-  EXPECT_EQ(static_cast<size_t>(MAX_PATH), str.capacity());
+  EXPECT_EQ(size_t{MAX_PATH}, str.capacity());
 
   std::wstring compare_str;
 
@@ -42,7 +42,7 @@ TEST_F(InstallerStringTest, StackStringOverflow) {
     EXPECT_EQ(0, compare_str.compare(str.get()));
   }
 
-  EXPECT_GT(static_cast<size_t>(MAX_PATH), str.length());
+  EXPECT_GT(size_t{MAX_PATH}, str.length());
 
   // Now we've exhausted the space we allocated for the string,
   // so append should fail.

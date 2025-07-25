@@ -1,0 +1,64 @@
+<!doctype HTML>
+<html>
+<meta charset="utf8">
+<title>Content Visibility: accessibility</title>
+<link rel="author" title="Rakina Zata Amni" href="mailto:rakina@chromium.org">
+<link rel="help" href="https://github.com/WICG/display-locking">
+<meta name="assert" content="content-visibility hidden subtree is not exposed to accessibility">
+
+<script src="/resources/testharness.js"></script>
+<script src="/resources/testharnessreport.js"></script>
+
+<style>
+.hidden {
+  content-visibility: hidden;
+}
+</style>
+<div id="container">
+  <div role="group" id="target" class=hidden aria-labelledby="target_label">
+    target
+    <div id="child">
+      child
+    </div>
+    <div id="target_label">Label</div>
+  </div>
+</div>
+
+<script>
+function axElementById(id) {
+  return accessibilityController.accessibleElementById(id);
+}
+
+async_test((t) => {
+  let target = document.getElementById("target");
+  let axTarget = axElementById("target");
+  t.step(() => { assert_false(axTarget.isIgnored); });
+  // Note that it's 5 ignored children: one text node "target", two divs and two whitespace text nodes between divs
+  t.step(() => { assert_equals(axTarget.childrenCount, 5); });
+  t.step(() => { assert_equals(axTarget.name, "Label"); });
+  for (let i = 0; i < axTarget.childrenCount; ++i) {
+    const axChild = axTarget.childAtIndex(i);
+    t.step(() => assert_true(axChild.isIgnored, "When locked, nodes in hidden subtree are ignored"));
+  }
+
+  target.classList.remove("hidden");
+  requestAnimationFrame(() => requestAnimationFrame(() => {
+    // The ax object for #target got replaced since the layout object changed, so use the new ax object.
+    axTarget = axElementById("target");
+    // It's still the same 5 children, but the non-whitespace nodes became unignored.
+    // Note whitespace nodes would not be there if the subtree was not hidden in first place, the total would be 3 children.
+    t.step(() => { assert_equals(axTarget.childrenCount, 5); });
+    t.step(() => { assert_equals(axTarget.name, "Label"); });
+    for (let i = 0; i < axTarget.childrenCount; ++i) {
+      const axChild = axTarget.childAtIndex(i);
+      if (i == 0 || axChild == axElementById("child") || axChild == axElementById("target_label")) {
+        t.step(() => { assert_false(axChild.isIgnored, "After update, isIgnored is false on non-whitespace child #" + i); });
+      } else {
+        // These are the whitespace nodes
+        t.step(() => { assert_true(axChild.isIgnored, "After update, isIgnored is true on whitespace child #" + i); });
+      }
+    }
+    t.done();
+  }));
+}, "Nodes in hidden non-activatable tree are not exposed to accessibility tree");
+</script>

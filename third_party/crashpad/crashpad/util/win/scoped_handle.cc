@@ -1,4 +1,4 @@
-// Copyright 2014 The Crashpad Authors. All rights reserved.
+// Copyright 2014 The Crashpad Authors
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -14,7 +14,9 @@
 
 #include "util/win/scoped_handle.h"
 
-#include "base/logging.h"
+#include <ostream>
+
+#include "base/check.h"
 #include "util/file/file_io.h"
 
 namespace crashpad {

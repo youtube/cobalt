@@ -1,0 +1,14 @@
+# Updating policy_templates.json can have drastic effects for systems depending
+# on policy definitions (for example, Google's cloud management tools for
+# Chrome and Chrome OS). Thus, special attention to forward/backward
+# compatibility issues is required and review is restricted to the list of
+# people below.
+# The rules are documented at:
+# https://sites.google.com/a/chromium.org/dev/developers/how-tos/enterprise/adding-new-policies
+
+# Prefer enterprise-policy-review@ to individual owners. Sending code
+# reviews to the alias allows the owners to distribute code review loads.
+enterprise-policy-review@google.com
+
+set noparent
+file://components/policy/ENTERPRISE_POLICY_OWNERS

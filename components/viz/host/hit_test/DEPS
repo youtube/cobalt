@@ -1,0 +1,11 @@
+# Please consult components/viz/README.md about allowable dependencies.
+
+include_rules = [
+  "+services/viz/public/mojom",
+]
+
+specific_include_rules = {
+  "hit_test_query_fuzzer.cc": [
+    "+mojo/core/embedder",
+  ]
+}

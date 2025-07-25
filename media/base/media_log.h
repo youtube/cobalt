@@ -35,39 +35,6 @@
 
 namespace media {
 
-#if defined(STARBOARD)
-
-// A stub MediaLog implementation.
-// TODO(b/230916218): Consider making use of MediaLog for debugging.
-class MEDIA_EXPORT MediaLog {
-public:  template <MediaLogProperty P, typename T>
-  void SetProperty(const T& value) {}
-  MediaLog() {}
-  virtual ~MediaLog() {}
-
-  virtual void AddLogRecordLocked(
-      std::unique_ptr<media::MediaLogRecord> event) {
-    NOTREACHED();
-  }
-
-  template <MediaLogEvent E, typename... T>
-  void AddEvent(const T&... value) {
-  }
-
-  template <MediaLogEvent E, typename... T>
-  int CreateEvent(const T&... value) {
-    return 0;
-  }
-
-  void NotifyError(PipelineStatus status) {}
-};
-
-#define MEDIA_LOG(level, media_log) LOG(INFO)
-
-#define LIMITED_MEDIA_LOG(level, media_log, count, max) DLOG(INFO)
-
-#else  // defined(STARBOARD)
-
 // Interface for media components to log to chrome://media-internals log.
 //
 // To provide a logging implementation, derive from MediaLog instead.
@@ -287,8 +254,6 @@ class MEDIA_EXPORT LogHelper {
       << (((count) == (max)) ? "(Log limit reached. Further similar entries " \
                                "may be suppressed): "                         \
                              : "")
-
-#endif  // defined(STARBOARD)
 
 }  // namespace media
 

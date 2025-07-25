@@ -1,0 +1,255 @@
+<style include="cr-hidden-style cr-icons">
+  #headerContainer {
+    align-items: center;
+    display: flex;
+    height: 20px;
+    margin: 0 16px 16px;
+    padding-top: 16px;
+  }
+
+  cr-icon-button {
+    --cr-icon-button-fill-color: var(--cr-secondary-text-color);
+    --cr-icon-button-margin-start: -8px;
+  }
+
+  h2 {
+    color: var(--cr-primary-text-color);
+    font-size: 14px;
+    font-weight: 500;
+    line-height: 20px;
+    margin: 0;
+    margin-inline-start: 10px;
+  }
+
+  cr-grid {
+    --cr-column-width: 1fr;
+    --cr-grid-gap: 16px 12px;
+    display: block;
+    padding: 0 16px 32px;
+  }
+
+  .tile {
+    cursor: pointer;
+    grid-column: span 2;
+    outline-width: 0;
+    place-self: stretch;
+  }
+
+  .image-container {
+    background-color: var(--google-grey-100);
+    overflow: hidden;
+    padding-top: 100%;
+    position: relative;
+    width: 100%;
+  }
+
+  @media (prefers-color-scheme: dark) {
+    .image-container {
+      background-color: var(--google-grey-900);
+      border: 1px solid var(--google-grey-700);
+    }
+  }
+
+  .image-container img,
+  .image-container div,
+  .image-container svg {
+    position: absolute;
+  }
+
+  .collection img {
+    height: 100%;
+    left: 50%;
+    top: 0;
+    transform: translateX(-50%);
+  }
+
+  .label {
+    color: var(--cr-primary-text-color);
+    text-align: center;
+  }
+
+  .tile:nth-child(-n+4) {
+    grid-column: span 3;
+    padding-inline-end: 2.5px;
+  }
+
+  .tile:nth-child(-n+4):nth-child(even) {
+    padding-inline-end: 0;
+    padding-inline-start: 2.5px;
+  }
+
+  .tile:nth-child(-n+4) .image-container {
+    border-radius: 16px;
+  }
+
+  .tile:nth-child(-n+4) .label {
+    font-size: 13px;
+    line-height: 20px;
+    padding-top: 12px;
+  }
+
+  .image-container {
+    border-radius: 12px;
+  }
+
+  .label {
+    font-size: 11px;
+    line-height: 16px;
+    padding-top: 7px;
+  }
+
+  .icon-external {
+    --cr-icon-size: 13px;
+    display: inline-block;
+    height: 13px;
+    margin-bottom: -2px;
+    margin-inline-end: 4px;
+    margin-inline-start: 0;
+    width: 13px;
+  }
+
+  #uploadIcon {
+    --cr-icon-image: url(icons/upload.svg);
+    --cr-icon-size: 21px;
+    height: 21px;
+    left: 50%;
+    margin: 0;
+    top: 50%;
+    transform: translate(-50%, -50%);
+    width: 21px;
+  }
+
+  #miniNewTabPage {
+    left: 12%;
+    top: 15%;
+  }
+
+  svg {
+    height: 100%;
+    top: 0;
+  }
+
+  #foreground {
+    fill: var(--google-blue-700);
+  }
+
+  #background {
+    fill: var(--google-blue-500);
+  }
+
+  #chromeWebStore {
+    height: 32px;
+    left: 50%;
+    top: 50%;
+    transform: translate(-50%, -50%);
+    width: 32px;
+  }
+
+  .tile:nth-child(-n+4) customize-chrome-check-mark-wrapper {
+    --customize-chrome-check-mark-wrapper-end: -6px;
+    --customize-chrome-check-mark-wrapper-size: 24px;
+    --customize-chrome-check-mark-wrapper-top: -9px;
+  }
+
+  .tile customize-chrome-check-mark-wrapper {
+    --customize-chrome-check-mark-wrapper-end: -4px;
+    --customize-chrome-check-mark-wrapper-size: 20px;
+    --customize-chrome-check-mark-wrapper-top: -6px;
+  }
+
+  customize-chrome-check-mark-wrapper[checked] .image-container {
+    padding-top: calc(100% - 4px);
+    width: calc(100% - 4px);
+  }
+
+  :host-context(.focus-outline-visible) .tile:focus {
+    box-shadow: 0 0 0 2px var(--cr-focus-outline-color);
+  }
+
+  /* Set styles for high contrast mode in Windows. */
+  @media (forced-colors: active) {
+    :host-context(.focus-outline-visible) .tile:focus {
+      /* Set outline to hcm (high contrast mode) value. */
+      outline: var(--cr-focus-outline-hcm);
+    }
+
+    #uploadIcon {
+      background-color: ButtonText;
+    }
+  }
+</style>
+<div id="headerContainer">
+  <cr-icon-button on-click="onBackClick_" id="backButton"
+      class="icon-arrow-back" title="$i18n{backButton}">
+  </cr-icon-button>
+  <h2>$i18n{categoriesHeader}</h2>
+</div>
+<cr-grid columns="6" disable-arrow-navigation>
+  <div class="tile" tabindex="0" id="classicChromeTile"
+      role="button" on-click="onClassicChromeClick_"
+      aria-current$="[[boolToString_(isClassicChromeSelected_)]]">
+    <customize-chrome-check-mark-wrapper
+        checked="[[isClassicChromeSelected_]]">
+      <div class="image-container">
+        <img id="miniNewTabPage" src="icons/corner_new_tab_page.svg"></img>
+      </div>
+    </customize-chrome-check-mark-wrapper>
+    <div class="label">$i18n{classicChrome}</div>
+  </div>
+  <div class="tile" tabindex="0" id="uploadImageTile"
+      role="button" on-click="onUploadImageClick_"
+      aria-current$="[[boolToString_(isLocalImageSelected_)]]">
+    <customize-chrome-check-mark-wrapper
+        checked="[[isLocalImageSelected_]]">
+      <div class="image-container">
+        <div id="uploadIcon" class="cr-icon"></div>
+      </div>
+    </customize-chrome-check-mark-wrapper>
+    <div class="label">$i18n{uploadImage}</div>
+  </div>
+  <div class="tile" tabindex="0" id="chromeColorsTile"
+      role="button" on-click="onChromeColorsClick_"
+      aria-current$="[[boolToString_(isChromeColorsSelected_)]]">
+    <customize-chrome-check-mark-wrapper
+        checked="[[isChromeColorsSelected_]]">
+      <div class="image-container">
+        <svg viewBox="0 0 50 50" xmlns="http://www.w3.org/2000/svg"
+            xmlns:xlink="http://www.w3.org/1999/xlink">
+          <rect id="foreground" x="0" y="0" width="50" height="50">
+          </rect>
+          <rect id="background" x="0" y="25" width="50" height="25">
+          </rect>
+        </svg>
+      </div>
+    </customize-chrome-check-mark-wrapper>
+    <div class="label">$i18n{chromeColors}</div>
+  </div>
+  <template is="dom-repeat" id="collectionsRepeat" items="[[collections_]]"
+      on-rendered-item-count-changed="onCollectionsRendered_">
+    <div class="tile collection" tabindex="0" role="button"
+        on-click="onCollectionClick_"
+        aria-current$=
+            "[[getCollectionCheckedStatus_(item.id, selectedCategory_)]]">
+      <customize-chrome-check-mark-wrapper
+          checked="[[isCollectionSelected_(item.id, selectedCategory_)]]">
+        <div class="image-container">
+          <img is="cr-auto-img"
+              auto-src="[[item.previewImageUrl.url]]"
+              draggable="false">
+          </img>
+        </div>
+      </customize-chrome-check-mark-wrapper>
+      <div class="label">[[item.label]]</div>
+    </div>
+  </template>
+  <div class="tile" tabindex="0" role="button"
+      on-click="onChromeWebStoreClick_" id="chromeWebStoreTile">
+    <div class="image-container">
+      <img id="chromeWebStore" src="icons/chrome_web_store.svg"></img>
+    </div>
+    <div class="label">
+      <div class="cr-icon icon-external"></div>
+      $i18n{chromeWebStore}
+    </div>
+  </div>
+</cr-grid>

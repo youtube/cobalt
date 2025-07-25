@@ -288,38 +288,7 @@
   X(TRACE_DISABLED_BY_DEFAULT("webgpu"))                                 \
   X(TRACE_DISABLED_BY_DEFAULT("webrtc"))                                 \
   X(TRACE_DISABLED_BY_DEFAULT("worker.scheduler"))                       \
-  X(TRACE_DISABLED_BY_DEFAULT("xr.debug"))                               \
-  X("cobalt::cssom")                                                     \
-  X("cobalt::storage")                                                   \
-  X("cobalt::script")                                                    \
-  X("cobalt::renderer")                                                  \
-  X("cobalt::renderer_sandbox")                                          \
-  X("cobalt::network")                                                   \
-  X("cobalt::overlay_info")                                              \
-  X("cobalt::css_parser")                                                \
-  X("renderer::test::png_utils")                                         \
-  X("base::task_runner_util")                                            \
-  X("cobalt::audio")                                                     \
-  X("cobalt::browser")                                                   \
-  X("cobalt::dom::eme")                                                  \
-  X("cobalt::base")                                                      \
-  X("cobalt::dom")                                                       \
-  X("cobalt::worker")                                                    \
-  X("cobalt::loader")                                                    \
-  X("cobalt::layout")                                                    \
-  X("cobalt::Screencast")                                                \
-  X("cobalt::web")                                                       \
-  X("cobalt::media")                                                     \
-  X("cobalt::loader::image")                                             \
-  X("media")                                                             \
-  X("media_stream")                                                      \
-  X("cobalt::webdriver")                                                 \
-  X("cobalt::Webdriver")                                                 \
-  X("cobalt::WebDriver")                                                 \
-  X("media_stack")                                                       \
-  X("cobalt::loader::image_decoder")                                     \
-  X("cobalt::h5vcc::trace_event")                                        \
-  X("net::dial")
+  X(TRACE_DISABLED_BY_DEFAULT("xr.debug"))
 
 #define INTERNAL_TRACE_LIST_BUILTIN_CATEGORY_GROUPS(X)                        \
   X("android_webview,toplevel")                                               \

@@ -206,12 +206,9 @@ TEST(StackContainer, CustomAllocator) {
 
   EXPECT_EQ(0, Allocator::deallocated);
   v->clear();
-// |v->shrink_to_fit()| returns before |deallocate()| is called.
-#if !defined(STARBOARD)
   // shrink_to_fit() makes sure to destroy empty backing store.
   v->shrink_to_fit();
   EXPECT_EQ(1, Allocator::deallocated);
-#endif
 }
 
 }  // namespace base

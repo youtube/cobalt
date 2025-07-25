@@ -2,13 +2,11 @@
 # Use of this source code is governed by a BSD-style license that can be
 # found in the LICENSE file.
 
-import("//build/config/sanitizers/sanitizers.gni")
-import("//testing/test.gni")
 import("//net/features.gni")
 import("//testing/libfuzzer/fuzzer_test.gni")
 import("//third_party/protobuf/proto_library.gni")
 
-enable_built_in_dns = use_blink || use_cobalt_customizations
+enable_built_in_dns = use_blink
 
 source_set("dns") {
   # Due to circular dependencies, should only be depended on through //net.
@@ -97,7 +95,7 @@ source_set("dns") {
     "test_dns_config_service.h",
   ]
 
-  if (is_win && !is_starboard) {
+  if (is_win) {
     sources += [
       "address_sorter_win.cc",
       "dns_config_service_win.cc",
@@ -105,7 +103,7 @@ source_set("dns") {
     ]
   }
 
-  if (is_mac && !is_starboard) {
+  if (is_mac) {
     sources += [
       "dns_config_watcher_mac.cc",
       "dns_config_watcher_mac.h",
@@ -121,9 +119,7 @@ source_set("dns") {
     ]
   }
 
-  if (is_starboard) {
-    sources += [ "dns_config_service_starboard.cc" ]
-  } else if (is_android) {
+  if (is_android) {
     sources += [
       "dns_config_service_android.cc",
       "dns_config_service_android.h",
@@ -143,7 +139,7 @@ source_set("dns") {
   if (enable_built_in_dns) {
     sources += [ "dns_client.cc" ]
 
-    if (is_posix || is_fuchsia || is_starboard) {
+    if (is_posix || is_fuchsia) {
       sources += [
         "address_sorter_posix.cc",
         "address_sorter_posix.h",
@@ -226,11 +222,6 @@ source_set("host_resolver") {
     "//net/*",
     "//services/network/*",
   ]
-
-  if (use_cobalt_customizations) {
-    visibility += [ "//cobalt/network" ]
-    friend += [ "//cobalt/network" ]
-  }
 
   sources = [
     "dns_config.h",
@@ -431,18 +422,16 @@ source_set("tests") {
     "system_dns_config_change_notifier_unittest.cc",
   ]
 
-  if (is_win && !is_starboard) {
+  if (is_win) {
     sources += [ "dns_config_service_win_unittest.cc" ]
   }
 
-  if (!is_starboard) {
   if (is_android) {
     sources += [ "dns_config_service_android_unittest.cc" ]
   } else if (is_linux) {
     sources += [ "dns_config_service_linux_unittest.cc" ]
   } else if (is_posix) {
     sources += [ "dns_config_service_posix_unittest.cc" ]
-  }
   }
 
   if (enable_built_in_dns) {
@@ -523,7 +512,6 @@ if (use_fuzzing_engine) {
   }
 }
 
-if (!use_cobalt_customizations) {
 proto_library("host_cache_fuzzer_proto") {
   proto_in_dir = "//"
   sources = [ "host_cache_fuzzer.proto" ]
@@ -542,7 +530,6 @@ fuzzer_test("net_dns_host_cache_fuzzer") {
     "//third_party/libprotobuf-mutator",
   ]
   dict = "//testing/libfuzzer/fuzzers/dicts/json.dict"
-}
 }
 
 fuzzer_test("net_dns_hosts_parse_fuzzer") {

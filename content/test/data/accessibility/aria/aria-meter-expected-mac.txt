@@ -1,0 +1,3 @@
+AXWebArea
+++AXLevelIndicator AXDescription='funding' AXValue=50
+++AXLevelIndicator AXDescription='funding' AXValue=10

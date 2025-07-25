@@ -1,0 +1,101 @@
+# Copyright 2020 The Chromium Authors
+# Use of this source code is governed by a BSD-style license that can be
+# found in the LICENSE file.
+
+import("//build/config/chromeos/ui_mode.gni")
+import("//third_party/closure_compiler/compile_js.gni")
+import("//tools/typescript/ts_library.gni")
+import("//ui/webui/resources/tools/generate_grd.gni")
+
+assert(is_chromeos_ash)
+
+js_type_check("closure_compile_local") {
+  is_polymer3 = true
+  closure_flags = default_closure_args + mojom_js_args + [
+                    "js_module_root=" + rebase_path("//chrome/test/data/webui/",
+                                                    root_build_dir),
+                    "js_module_root=./gen/chrome/test/data/webui/",
+                  ]
+  deps = [
+    ":chai_assert",
+    ":fake_network_config_mojom",
+    ":mock_controller.m",
+    ":test_browser_proxy",
+    ":test_util",
+  ]
+}
+
+js_library("chai_assert") {
+  externs_list = [ "//third_party/chaijs/externs/chai-3.5.js" ]
+}
+
+js_library("fake_network_config_mojom") {
+  deps = [
+    "//ash/webui/common/resources:assert",
+    "//ash/webui/common/resources:promise_resolver",
+    "//ash/webui/common/resources/network:onc_mojo",
+  ]
+}
+
+js_library("mock_controller.m") {
+}
+
+js_library("test_browser_proxy") {
+  deps = [ "//ash/webui/common/resources:promise_resolver" ]
+}
+
+js_library("test_util") {
+  deps = [ "//ash/webui/common/resources:event_target" ]
+}
+
+group("closure_compile") {
+  public_deps = [
+    ":closure_compile_local",
+    "account_manager:closure_compile",
+    "arc_account_picker:closure_compile",
+    "ash_common:closure_compile",
+    "firmware_update:closure_compile",
+    "gaia_action_buttons:closure_compile",
+    "os_feedback_ui:closure_compile",
+    "scanning:closure_compile",
+    "shimless_rma:closure_compile",
+  ]
+}
+
+ts_library("build_ts") {
+  root_dir = "."
+  out_dir = "$target_gen_dir/tsc"
+  composite = true
+  tsconfig_base = "../tsconfig_base.json"
+  in_files = [
+    "arc_account_picker/test_util.js",
+    "ash_common/i18n_behavior_test.js",
+    "chai_assert.js",
+    "fake_network_config_mojom.js",
+    "mock_controller.js",
+    "mock_controller.m.js",
+    "set_time_dialog_test.js",
+    "test_browser_proxy.js",
+    "test_store.js",
+    "test_util.js",
+  ]
+
+  deps = [
+    "//ash/webui/common/resources:build_ts",
+    "//ui/webui/resources/js:build_ts",
+    "//ui/webui/resources/mojo:build_ts",
+  ]
+  extra_deps = [ "//ash/webui/common/resources:generate_definitions" ]
+}
+
+generate_grd("build_grdp") {
+  testonly = true
+  grd_prefix = "webui_test_chromeos"
+  out_grd = "$target_gen_dir/resources.grdp"
+
+  deps = [ ":build_ts" ]
+
+  manifest_files =
+      filter_include(get_target_outputs(":build_ts"), [ "*.manifest" ])
+  resource_path_prefix = "chromeos"
+}

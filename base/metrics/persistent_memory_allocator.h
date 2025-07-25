@@ -744,7 +744,6 @@ class BASE_EXPORT LocalPersistentMemoryAllocator
 };
 
 
-#if !defined(STARBOARD)
 // This allocator takes a writable shared memory mapping object and performs
 // allocation from it. The allocator takes ownership of the mapping object.
 class BASE_EXPORT WritableSharedPersistentMemoryAllocator
@@ -800,7 +799,6 @@ class BASE_EXPORT ReadOnlySharedPersistentMemoryAllocator
  private:
   base::ReadOnlySharedMemoryMapping shared_memory_;
 };
-#endif  // !defined(STARBOARD)
 
 // NACL doesn't support any kind of file access in build.
 #if !BUILDFLAG(IS_NACL)

@@ -1,25 +1,21 @@
-# Copyright 2021 The Cobalt Authors. All Rights Reserved.
-#
-# Licensed under the Apache License, Version 2.0 (the "License");
-# you may not use this file except in compliance with the License.
-# You may obtain a copy of the License at
-#
-#     http://www.apache.org/licenses/LICENSE-2.0
-#
-# Unless required by applicable law or agreed to in writing, software
-# distributed under the License is distributed on an "AS IS" BASIS,
-# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-# See the License for the specific language governing permissions and
-# limitations under the License.
+# Copyright 2019 The Chromium Authors
+# Use of this source code is governed by a BSD-style license that can be
+# found in the LICENSE file.
 
-angle_has_build = true
+# Override for angle_root
 angle_root = "//third_party/angle"
 
+# True if ANGLE can access build/, testing/ and other Chrome folders.
+angle_has_build = true
+
 # Overrides for ANGLE's dependencies
-angle_glslang_dir = ""
-angle_googletest_dir = "//testing/gtest"
-angle_libjpeg_turbo_dir = ""
-angle_jsoncpp_dir = ""
-angle_libpng_dir = ""
-angle_spirv_cross_dir = ""
-angle_spirv_tools_dir = ""
+angle_glslang_dir = "//third_party/vulkan-deps/glslang/src"
+angle_googletest_dir = "//third_party/googletest/src"
+angle_jsoncpp_dir = "//third_party/jsoncpp"
+angle_libjpeg_turbo_dir = "//third_party/libjpeg_turbo"
+angle_libpng_dir = "//third_party/libpng"
+angle_spirv_cross_dir = "//third_party/vulkan-deps/spirv-cross/src"
+angle_spirv_headers_dir = "//third_party/vulkan-deps/spirv-headers/src"
+angle_spirv_tools_dir = "//third_party/vulkan-deps/spirv-tools/src"
+angle_vulkan_memory_allocator_dir = "//third_party/vulkan_memory_allocator"
+angle_wayland_dir = "//third_party/wayland/src"

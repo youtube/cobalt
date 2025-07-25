@@ -1,17 +1,17 @@
-// Copyright 2015 The Chromium Authors. All rights reserved.
+// Copyright 2015 The Chromium Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
 #include "components/metrics/net/net_metrics_log_uploader.h"
 
+#include <memory>
+
 #include "base/base64.h"
-#include "base/bind.h"
-#include "base/macros.h"
+#include "base/functional/bind.h"
 #include "base/run_loop.h"
-#include "base/test/bind_test_util.h"
-#include "base/test/scoped_task_environment.h"
+#include "base/test/bind.h"
+#include "base/test/task_environment.h"
 #include "components/encrypted_messages/encrypted_message.pb.h"
-#include "net/url_request/test_url_fetcher_factory.h"
 #include "services/network/public/cpp/weak_wrapper_shared_url_loader_factory.h"
 #include "services/network/test/test_url_loader_factory.h"
 #include "services/network/test/test_utils.h"
@@ -37,65 +37,70 @@ class NetMetricsLogUploaderTest : public testing::Test {
         }));
   }
 
+  NetMetricsLogUploaderTest(const NetMetricsLogUploaderTest&) = delete;
+  NetMetricsLogUploaderTest& operator=(const NetMetricsLogUploaderTest&) =
+      delete;
+
   void CreateAndOnUploadCompleteReuseUploader() {
     ReportingInfo reporting_info;
     reporting_info.set_attempt_count(10);
-    uploader_.reset(new NetMetricsLogUploader(
-        test_shared_url_loader_factory_, "https://dummy_server", "dummy_mime",
-        MetricsLogUploader::UMA,
-        base::Bind(&NetMetricsLogUploaderTest::OnUploadCompleteReuseUploader,
-                   base::Unretained(this))));
+    uploader_ = std::make_unique<NetMetricsLogUploader>(
+        test_shared_url_loader_factory_, GURL("https://dummy_server"),
+        "dummy_mime", MetricsLogUploader::UMA,
+        base::BindRepeating(
+            &NetMetricsLogUploaderTest::OnUploadCompleteReuseUploader,
+            base::Unretained(this)));
     uploader_->UploadLog("initial_dummy_data", "initial_dummy_hash",
-                         reporting_info);
+                         "initial_dummy_signature", reporting_info);
   }
 
   void CreateUploaderAndUploadToSecureURL(const std::string& url) {
     ReportingInfo dummy_reporting_info;
-    uploader_.reset(new NetMetricsLogUploader(
-        test_shared_url_loader_factory_, url, "dummy_mime",
+    uploader_ = std::make_unique<NetMetricsLogUploader>(
+        test_shared_url_loader_factory_, GURL(url), "dummy_mime",
         MetricsLogUploader::UMA,
-        base::Bind(&NetMetricsLogUploaderTest::DummyOnUploadComplete,
-                   base::Unretained(this))));
-    uploader_->UploadLog("dummy_data", "dummy_hash", dummy_reporting_info);
+        base::BindRepeating(&NetMetricsLogUploaderTest::DummyOnUploadComplete,
+                            base::Unretained(this)));
+    uploader_->UploadLog("dummy_data", "dummy_hash", "dummy_signature",
+                         dummy_reporting_info);
   }
 
   void CreateUploaderAndUploadToInsecureURL() {
     ReportingInfo dummy_reporting_info;
-    uploader_.reset(new NetMetricsLogUploader(
-        test_shared_url_loader_factory_, "http://dummy_insecure_server",
+    uploader_ = std::make_unique<NetMetricsLogUploader>(
+        test_shared_url_loader_factory_, GURL("http://dummy_insecure_server"),
         "dummy_mime", MetricsLogUploader::UMA,
-        base::Bind(&NetMetricsLogUploaderTest::DummyOnUploadComplete,
-                   base::Unretained(this))));
+        base::BindRepeating(&NetMetricsLogUploaderTest::DummyOnUploadComplete,
+                            base::Unretained(this)));
     std::string compressed_message;
     // Compress the data since the encryption code expects a compressed log,
     // and tries to decompress it before encrypting it.
     compression::GzipCompress("dummy_data", &compressed_message);
-    uploader_->UploadLog(compressed_message, "dummy_hash",
+    uploader_->UploadLog(compressed_message, "dummy_hash", "dummy_signature",
                          dummy_reporting_info);
   }
 
   void DummyOnUploadComplete(int response_code,
                              int error_code,
-                             bool was_https) {}
+                             bool was_https,
+                             bool force_discard,
+                             base::StringPiece force_discard_reason) {
+    log_was_force_discarded_ = force_discard;
+  }
 
   void OnUploadCompleteReuseUploader(int response_code,
                                      int error_code,
-                                     bool was_https) {
+                                     bool was_https,
+                                     bool force_discard,
+                                     base::StringPiece force_discard_reason) {
     ++on_upload_complete_count_;
     if (on_upload_complete_count_ == 1) {
       ReportingInfo reporting_info;
       reporting_info.set_attempt_count(20);
-      uploader_->UploadLog("dummy_data", "dummy_hash", reporting_info);
+      uploader_->UploadLog("dummy_data", "dummy_hash", "dummy_signature",
+                           reporting_info);
     }
-  }
-
-  network::TestURLLoaderFactory::PendingRequest* GetPendingRequest(
-      size_t index) {
-    if (index >= test_url_loader_factory_.pending_requests()->size())
-      return nullptr;
-    auto* request = &(*test_url_loader_factory_.pending_requests())[index];
-    DCHECK(request);
-    return request;
+    log_was_force_discarded_ = force_discard;
   }
 
   int on_upload_complete_count() const {
@@ -112,6 +117,8 @@ class NetMetricsLogUploaderTest : public testing::Test {
 
   void WaitForRequest() { loop_.Run(); }
 
+  bool log_was_force_discarded() { return log_was_force_discarded_; }
+
  private:
   std::unique_ptr<NetMetricsLogUploader> uploader_;
   int on_upload_complete_count_;
@@ -120,13 +127,12 @@ class NetMetricsLogUploaderTest : public testing::Test {
   scoped_refptr<network::SharedURLLoaderFactory>
       test_shared_url_loader_factory_;
 
-  base::test::ScopedTaskEnvironment scoped_task_environment_;
+  base::test::TaskEnvironment task_environment_;
 
   base::RunLoop loop_;
   std::string upload_data_;
   net::HttpRequestHeaders headers_;
-
-  DISALLOW_COPY_AND_ASSIGN(NetMetricsLogUploaderTest);
+  bool log_was_force_discarded_ = false;
 };
 
 void CheckReportingInfoHeader(net::HttpRequestHeaders headers,
@@ -148,15 +154,32 @@ TEST_F(NetMetricsLogUploaderTest, OnUploadCompleteReuseUploader) {
 
   // Mimic the initial fetcher callback.
   CheckReportingInfoHeader(last_request_headers(), 10);
+  auto* pending_request_0 = test_url_loader_factory()->GetPendingRequest(0);
   test_url_loader_factory()->SimulateResponseWithoutRemovingFromPendingList(
-      GetPendingRequest(0), "");
+      pending_request_0, "");
 
   // Mimic the second fetcher callback.
   CheckReportingInfoHeader(last_request_headers(), 20);
+  auto* pending_request_1 = test_url_loader_factory()->GetPendingRequest(1);
   test_url_loader_factory()->SimulateResponseWithoutRemovingFromPendingList(
-      GetPendingRequest(1), "");
+      pending_request_1, "");
 
   EXPECT_EQ(on_upload_complete_count(), 2);
+  EXPECT_FALSE(log_was_force_discarded());
+}
+
+// Verifies that when no server URLs are specified, the logs are forcibly
+// discarded.
+TEST_F(NetMetricsLogUploaderTest, ForceDiscard) {
+  CreateUploaderAndUploadToSecureURL(/*url=*/"");
+  WaitForRequest();
+
+  // Mimic the initial fetcher callback.
+  auto* pending_request_0 = test_url_loader_factory()->GetPendingRequest(0);
+  test_url_loader_factory()->SimulateResponseWithoutRemovingFromPendingList(
+      pending_request_0, "");
+
+  EXPECT_TRUE(log_was_force_discarded());
 }
 
 // Test that attempting to upload to an HTTP URL results in an encrypted

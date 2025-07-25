@@ -42,7 +42,7 @@ class BASE_EXPORT CommandLine {
 #if BUILDFLAG(IS_WIN)
   // The native command line string type.
   using StringType = std::wstring;
-#elif BUILDFLAG(IS_POSIX) || BUILDFLAG(IS_FUCHSIA) || defined(STARBOARD)
+#elif BUILDFLAG(IS_POSIX) || BUILDFLAG(IS_FUCHSIA)
   using StringType = std::string;
 #endif
 

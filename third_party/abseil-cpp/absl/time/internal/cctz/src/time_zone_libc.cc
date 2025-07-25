@@ -27,10 +27,6 @@
 #include "absl/time/internal/cctz/include/cctz/civil_time.h"
 #include "absl/time/internal/cctz/include/cctz/time_zone.h"
 
-#if defined(STARBOARD)
-#include "starboard/client_porting/eztime/eztime.h"
-#endif
-
 #if defined(_AIX)
 extern "C" {
 extern long altzone;
@@ -122,28 +118,7 @@ inline std::tm* gm_time(const std::time_t* timep, std::tm* result) {
 }
 
 inline std::tm* local_time(const std::time_t* timep, std::tm* result) {
-#if defined(STARBOARD)
-  if (timep == nullptr || result == nullptr) {
-    return nullptr;
-  }
-  const EzTimeT eztime_timep = static_cast<const EzTimeT>(*timep);
-  EzTimeExploded eztime_result;
-  if (!EzTimeTExplode(&eztime_timep, EzTimeZone::kEzTimeZoneLocal,
-                      &eztime_result)) {
-    return nullptr;
-  }
-
-  result->tm_sec = eztime_result.tm_sec;
-  result->tm_min = eztime_result.tm_min;
-  result->tm_hour = eztime_result.tm_hour;
-  result->tm_mday = eztime_result.tm_mday;
-  result->tm_mon = eztime_result.tm_mon;
-  result->tm_year = eztime_result.tm_year;
-  result->tm_wday = eztime_result.tm_wday;
-  result->tm_yday = eztime_result.tm_yday;
-  result->tm_isdst = eztime_result.tm_isdst;
-  return result;
-#elif defined(_WIN32) || defined(_WIN64)
+#if defined(_WIN32) || defined(_WIN64)
   return localtime_s(result, timep) ? nullptr : result;
 #else
   return localtime_r(timep, result);
@@ -162,15 +137,7 @@ bool make_time(const civil_second& cs, int is_dst, std::time_t* t, int* off) {
   tm.tm_min = cs.minute();
   tm.tm_sec = cs.second();
   tm.tm_isdst = is_dst;
-#if defined(STARBOARD)
-  EzTimeExploded exploded = {tm.tm_sec,  tm.tm_min,  tm.tm_hour,
-                             tm.tm_mday, tm.tm_mon,  tm.tm_year,
-                             tm.tm_wday, tm.tm_yday, tm.tm_isdst};
-  EzTimeT secs = EzTimeTImplode(&exploded, EzTimeZone::kEzTimeZoneLocal);
-  *t = static_cast<std::time_t>(secs);
-#else
   *t = std::mktime(&tm);
-#endif
   if (*t == std::time_t{-1}) {
     std::tm tm2;
     const std::tm* tmp = local_time(t, &tm2);

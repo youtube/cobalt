@@ -6,19 +6,10 @@ import("dav1d_generated.gni")
 
 import("//build/config/compiler/compiler.gni")
 import("//build/config/sanitizers/sanitizers.gni")
-if (is_starboard) {
-  import("//starboard/build/nasm_assemble.gni")
-} else {
 import("//third_party/nasm/nasm_assemble.gni")
-}
 
 # MemorySanitizer can't handle assembly, https://crbug.com/928357.
 enable_nasm = (current_cpu == "x86" || current_cpu == "x64") && !is_msan
-
-# Some older compilers can't handle AVX-512 instructions.
-if (using_old_compiler) {
-  enable_nasm = false
-}
 
 if (is_win) {
   platform_config_root = "config/win/$current_cpu"
@@ -32,11 +23,7 @@ if (is_win) {
   platform_config_root = "config/linux-noasm/generic"
 } else {
   # Linux configuration files seem to work on Mac, so just reuse them.
-  if (enable_nasm) {
   platform_config_root = "config/linux/$current_cpu"
-  } else {
-    platform_config_root = "config/linux-noasm/$current_cpu"
-  }
 }
 
 # Clang LTO doesn't respect stack alignment and clang-cl doesn't support setting

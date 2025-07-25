@@ -102,18 +102,10 @@ class NET_EXPORT_PRIVATE AlternativeServiceInfo {
       const AlternativeService& alternative_service,
       base::Time expiration);
 
-#if defined(STARBOARD)
-  static AlternativeServiceInfo CreateQuicAlternativeServiceInfo(
-      const AlternativeService& alternative_service,
-      base::Time expiration,
-      const quic::ParsedQuicVersionVector& advertised_versions,
-      bool protocol_filter_override = false);
-#else
   static AlternativeServiceInfo CreateQuicAlternativeServiceInfo(
       const AlternativeService& alternative_service,
       base::Time expiration,
       const quic::ParsedQuicVersionVector& advertised_versions);
-#endif  // defined(STARBOARD)
 
   AlternativeServiceInfo();
   ~AlternativeServiceInfo();
@@ -124,20 +116,11 @@ class NET_EXPORT_PRIVATE AlternativeServiceInfo {
   AlternativeServiceInfo& operator=(
       const AlternativeServiceInfo& alternative_service_info);
 
-#if defined(STARBOARD)
-  bool operator==(const AlternativeServiceInfo& other) const {
-    return alternative_service_ == other.alternative_service() &&
-           expiration_ == other.expiration() &&
-           advertised_versions_ == other.advertised_versions() &&
-           protocol_filter_override_ == other.protocol_filter_override();
-  }
-#else
   bool operator==(const AlternativeServiceInfo& other) const {
     return alternative_service_ == other.alternative_service() &&
            expiration_ == other.expiration() &&
            advertised_versions_ == other.advertised_versions();
   }
-#endif  // defined(STARBOARD)
 
   bool operator!=(const AlternativeServiceInfo& other) const {
     return !this->operator==(other);
@@ -187,25 +170,11 @@ class NET_EXPORT_PRIVATE AlternativeServiceInfo {
     return advertised_versions_;
   }
 
-#if defined(STARBOARD)
-  const bool protocol_filter_override() const {
-    return protocol_filter_override_;
-  }
-#endif  // defined(STARBOARD)
-
  private:
-#if defined(STARBOARD)
-  AlternativeServiceInfo(
-      const AlternativeService& alternative_service,
-      base::Time expiration,
-      const quic::ParsedQuicVersionVector& advertised_versions,
-      bool protocol_filter_override = false);
-#else
   AlternativeServiceInfo(
       const AlternativeService& alternative_service,
       base::Time expiration,
       const quic::ParsedQuicVersionVector& advertised_versions);
-#endif  // defined(STARBOARD)
 
   static bool TransportVersionLessThan(const quic::ParsedQuicVersion& lhs,
                                        const quic::ParsedQuicVersion& rhs);
@@ -217,10 +186,6 @@ class NET_EXPORT_PRIVATE AlternativeServiceInfo {
   // by Chrome. If empty, defaults to versions used by the current instance of
   // the netstack. This list is sorted according to the server's preference.
   quic::ParsedQuicVersionVector advertised_versions_;
-
-#if defined(STARBOARD)
-  bool protocol_filter_override_;
-#endif  // defined(STARBOARD)
 };
 
 using AlternativeServiceInfoVector = std::vector<AlternativeServiceInfo>;

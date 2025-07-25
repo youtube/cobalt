@@ -1,4 +1,4 @@
-# Copyright 2015 The Crashpad Authors. All rights reserved.
+# Copyright 2015 The Crashpad Authors
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -14,31 +14,16 @@
 
 import("../build/crashpad_buildconfig.gni")
 
-static_library("client") {
-  check_includes = false
-
+crashpad_static_library("client") {
   sources = [
-    "annotation.cc",
-    "annotation.h",
-    "annotation_list.cc",
-    "annotation_list.h",
-    "crash_report_database.cc",
-    "crash_report_database.h",
     "crashpad_client.h",
-    "crashpad_info.cc",
-    "crashpad_info.h",
     "prune_crash_reports.cc",
     "prune_crash_reports.h",
-    "settings.cc",
-    "settings.h",
-    "simple_address_range_bag.h",
-    "simple_string_dictionary.h",
     "simulate_crash.h",
   ]
 
   if (crashpad_is_mac) {
     sources += [
-      "crash_report_database_mac.mm",
       "crashpad_client_mac.cc",
       "simulate_crash_mac.cc",
       "simulate_crash_mac.h",
@@ -47,8 +32,17 @@ static_library("client") {
 
   if (crashpad_is_ios) {
     sources += [
-      "crash_report_database_mac.mm",
       "crashpad_client_ios.cc",
+      "ios_handler/exception_processor.h",
+      "ios_handler/exception_processor.mm",
+      "ios_handler/in_process_handler.cc",
+      "ios_handler/in_process_handler.h",
+      "ios_handler/in_process_intermediate_dump_handler.cc",
+      "ios_handler/in_process_intermediate_dump_handler.h",
+      "ios_handler/prune_intermediate_dumps_and_crash_reports_thread.cc",
+      "ios_handler/prune_intermediate_dumps_and_crash_reports_thread.h",
+      "simulate_crash_ios.h",
+      "upload_behavior_ios.h",
     ]
   }
 
@@ -63,13 +57,11 @@ static_library("client") {
     sources += [
       "client_argv_handling.cc",
       "client_argv_handling.h",
-      "crashpad_info_note.S",
     ]
   }
 
   if (crashpad_is_win) {
     sources += [
-      "crash_report_database_win.cc",
       "crashpad_client_win.cc",
       "simulate_crash_win.h",
     ]
@@ -79,34 +71,27 @@ static_library("client") {
     sources += [ "crashpad_client_fuchsia.cc" ]
   }
 
-  if (crashpad_is_linux || crashpad_is_android || crashpad_is_fuchsia) {
-    sources += [ "crash_report_database_generic.cc" ]
-  }
-
   public_configs = [ "..:crashpad_config" ]
 
   public_deps = [
-    "../third_party/mini_chromium:base",
+    ":common",
+    "$mini_chromium_source_parent:base",
     "../util",
   ]
 
-  deps = []
-
-  if (crashpad_is_in_starboard) {
-    public_deps += [ "//starboard/elf_loader:evergreen_info" ]
-  }
-  if (crashpad_is_in_starboard || crashpad_is_in_native_target_build) {
-    deps += [ "../wrapper/proto:crashpad_annotations_proto" ]
-  }
+  deps = [
+    ":common",
+    "$mini_chromium_source_parent:chromeos_buildflags",
+  ]
 
   if (crashpad_is_win) {
     libs = [ "rpcrt4.lib" ]
     cflags = [ "/wd4201" ]  # nonstandard extension used : nameless struct/union
   }
 
-  # TODO(justincohen): Temporary dependency to bring up the iOS client.
   if (crashpad_is_ios) {
     deps += [
+      "../handler:common",
       "../minidump",
       "../snapshot",
     ]
@@ -119,12 +104,63 @@ static_library("client") {
   if (crashpad_is_fuchsia) {
     deps += [ "../third_party/fuchsia" ]
     if (crashpad_is_in_fuchsia) {
-      deps += [ "//zircon/public/lib/fdio" ]
+      deps += [ "//sdk/lib/fdio" ]
     }
   }
 }
 
-if (!crashpad_is_in_starboard && !crashpad_is_in_native_target_build) {
+static_library("common") {
+  sources = [
+    "annotation.cc",
+    "annotation.h",
+    "annotation_list.cc",
+    "annotation_list.h",
+    "crash_report_database.cc",
+    "crash_report_database.h",
+    "crashpad_info.cc",
+    "crashpad_info.h",
+    "length_delimited_ring_buffer.h",
+    "ring_buffer_annotation.h",
+    "settings.cc",
+    "settings.h",
+    "simple_address_range_bag.h",
+    "simple_string_dictionary.h",
+  ]
+
+  if (crashpad_is_mac || crashpad_is_ios) {
+    sources += [ "crash_report_database_mac.mm" ]
+  }
+  if (crashpad_is_win) {
+    sources += [ "crash_report_database_win.cc" ]
+  }
+  if (crashpad_is_linux || crashpad_is_android || crashpad_is_fuchsia) {
+    sources += [
+      "crash_report_database_generic.cc",
+      "crashpad_info_note.S",
+    ]
+  }
+
+  public_configs = [ "..:crashpad_config" ]
+  public_deps = [
+    "$mini_chromium_source_parent:base",
+    "../util",
+  ]
+  deps = [ "../util" ]
+  configs += [ "../build:flock_always_supported_defines" ]
+}
+
+crashpad_executable("ring_buffer_annotation_load_test") {
+  testonly = true
+  sources = [
+    "ring_buffer_annotation_load_test_main.cc",
+  ]
+  deps = [
+    ":client",
+    "../tools:tool_support",
+    "$mini_chromium_source_parent:base",
+  ]
+}
+
 source_set("client_test") {
   testonly = true
 
@@ -132,7 +168,9 @@ source_set("client_test") {
     "annotation_list_test.cc",
     "annotation_test.cc",
     "crash_report_database_test.cc",
+    "length_delimited_ring_buffer_test.cc",
     "prune_crash_reports_test.cc",
+    "ring_buffer_annotation_test.cc",
     "settings_test.cc",
     "simple_address_range_bag_test.cc",
     "simple_string_dictionary_test.cc",
@@ -147,13 +185,11 @@ source_set("client_test") {
   }
 
   if (crashpad_is_ios) {
-    sources += [ "crashpad_client_ios_test.mm" ]
-    sources -= [
-      "annotation_list_test.cc",
-      "annotation_test.cc",
-      "crash_report_database_test.cc",
-      "prune_crash_reports_test.cc",
-      "settings_test.cc",
+    sources += [
+      "crashpad_client_ios_test.mm",
+      "ios_handler/exception_processor_test.mm",
+      "ios_handler/in_process_handler_test.cc",
+      "ios_handler/in_process_intermediate_dump_handler_test.cc",
     ]
   }
 
@@ -163,12 +199,12 @@ source_set("client_test") {
 
   deps = [
     ":client",
+    "$mini_chromium_source_parent:base",
     "../compat",
     "../snapshot",
     "../test",
     "../third_party/googletest:googlemock",
     "../third_party/googletest:googletest",
-    "../third_party/mini_chromium:base",
     "../util",
   ]
 
@@ -177,7 +213,17 @@ source_set("client_test") {
   }
 
   if (crashpad_is_win) {
-    data_deps += [ "../handler:crashpad_handler_console" ]
+    data_deps += [
+      "../handler:crashpad_handler_console",
+      "../handler/win/wer:crashpad_wer_handler",
+    ]
   }
 }
+
+if (crashpad_is_linux || crashpad_is_android) {
+  source_set("pthread_create") {
+    sources = [ "pthread_create_linux.cc" ]
+
+    deps = [ ":client" ]
+  }
 }

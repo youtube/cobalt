@@ -38,72 +38,6 @@ inline constexpr size_t count(std::initializer_list<T> ilist, T value) {
 
 constexpr size_t pack_npos = static_cast<size_t>(-1);
 
-#if defined(COBALT_PENDING_CLEAN_UP)
-template <typename... Ts>
-struct ParameterPack;
-
-template <typename T, typename... Ts>
-struct ParameterPack<T, Ts...> {
-  // Checks if |Type| occurs in the parameter pack.
-  template <typename Type>
-  using HasType =
-      std::bool_constant<std::is_same<Type, T>::value || any_of({std::is_same<Type, Ts>::value...})>;
-
-
-  // Checks if the parameter pack only contains |Type|.
-  template <typename Type>
-  using OnlyHasType =
-      std::bool_constant<std::is_same<Type, T>::value && all_of({std::is_same<Type, Ts>::value...})>;
-
-
-  // Checks if |Type| occurs only once in the parameter pack.
-  template <typename Type>
-  using IsUniqueInPack =
-      std::bool_constant<std::is_same<Type, T>::value + count({std::is_same<Type, Ts>::value...}, true) == 1>;
-
-  // Returns the zero-based index of |Type| within |Pack...| or |pack_npos| if
-  // it's not within the pack.
-  template <typename Type>
-  static constexpr size_t IndexInPack() {
-    size_t index = 0;
-    if (std::is_same<Type, T>::value) {
-      return index;
-    }
-    index++;
-    for (bool value : {std::is_same<Type, Ts>::value...}) {
-      if (value)
-        return index;
-      index++;
-    }
-    return pack_npos;
-  }
-
-  // Helper for extracting the Nth type from a parameter pack.
-  template <size_t N>
-  using NthType = std::tuple_element_t<N, std::tuple<T, Ts...>>;
-
-  // Checks if every type in the parameter pack is the same.
-  using IsAllSameType =
-      std::bool_constant<all_of({std::is_same<T, Ts>::value...})>;
-};
-
-template <>
-struct ParameterPack<> {
-  template <typename Type>
-  using HasType = std::bool_constant<false>;
-
-  template <typename Type>
-  using OnlyHasType = std::bool_constant<true>;
-
-  template <typename Type>
-  using IsUniqueInPack = std::bool_constant<false>;
-
-  template <typename Type>
-  static constexpr size_t IndexInPack() { return pack_npos; }
-
-  static constexpr bool IsAllSameType = true;
-};
-#else
 template <typename... Ts>
 struct ParameterPack {
   // Checks if |Type| occurs in the parameter pack.
@@ -142,7 +76,6 @@ struct ParameterPack {
   using IsAllSameType =
       std::bool_constant<all_of({std::is_same<NthType<0>, Ts>::value...})>;
 };
-#endif
 
 }  // namespace base
 

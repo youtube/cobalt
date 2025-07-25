@@ -1,0 +1,154 @@
+# Copyright 2020 The Chromium Authors
+# Use of this source code is governed by a BSD-style license that can be
+# found in the LICENSE file.
+
+import("//build/config/chromeos/ui_mode.gni")
+import("//build/config/linux/gtk/gtk.gni")
+import("//build/lacros/lacros_resource_sizes.gni")
+import("//chromeos/tast_control.gni")
+
+if (is_chromeos_device) {
+  import("//build/config/chromeos/rules.gni")
+}
+
+# Code lives in the lacros-chrome browser only, not ash-chrome.
+assert(is_chromeos_lacros)
+assert(!use_gtk)
+
+component("lacros") {
+  defines = [ "IS_CHROMEOS_LACROS_IMPL" ]
+  deps = [
+    ":lacros_paths",
+    "//base",
+    "//build:chromeos_buildflags",
+    "//chromeos/crosapi/cpp",
+    "//chromeos/crosapi/cpp:crosapi_constants",
+    "//chromeos/crosapi/mojom",
+    "//chromeos/process_proxy",
+    "//chromeos/startup",
+    "//components/crash/core/common",
+    "//media/mojo/mojom/stable:stable_video_decoder",
+    "//mojo/public/cpp/bindings",
+    "//ui/native_theme",
+  ]
+  sources = [
+    "crosapi_pref_observer.cc",
+    "crosapi_pref_observer.h",
+    "lacros_service.cc",
+    "lacros_service.h",
+    "lacros_service_never_blocking_state.cc",
+    "lacros_service_never_blocking_state.h",
+    "native_theme_cache.cc",
+    "native_theme_cache.h",
+    "system_idle_cache.cc",
+    "system_idle_cache.h",
+  ]
+}
+
+static_library("lacros_paths") {
+  deps = [
+    "//base",
+    "//chromeos/crosapi/cpp:crosapi_constants",
+  ]
+  sources = [
+    "lacros_paths.cc",
+    "lacros_paths.h",
+  ]
+}
+
+source_set("test_support") {
+  testonly = true
+  deps = [
+    "//base",
+    "//chromeos/crosapi/mojom",
+    "//chromeos/lacros",
+    "//chromeos/startup",
+  ]
+  sources = [
+    "lacros_test_helper.cc",
+    "lacros_test_helper.h",
+  ]
+}
+
+lacros_resource_sizes_test("resource_sizes_lacros_chrome") {
+  data_deps = [ "//chrome:chrome" ]
+}
+
+if (is_chromeos_device) {
+  lacros_tast_tests("lacros_all_tast_tests") {
+    # The following expression filters out all non-critical tests. See the link
+    # below for more details:
+    # https://chromium.googlesource.com/chromiumos/platform/tast/+/main/docs/test_attributes.md
+    tast_attr_expr = "\"group:mainline\" && (\"dep:lacros_stable\" || \"dep:lacros\") && !informational"
+
+    # To disable a specific test, add it to the
+    # tast_disabled_tests_from_lacros_all list in "tast_control.gni" and cite
+    # a bug.
+    tast_disabled_tests = tast_disabled_tests_from_lacros_all
+  }
+
+  lacros_tast_tests("lacros_all_tast_tests_informational") {
+    # The following expression runs all informational tests. See the link below
+    # for more details:
+    # https://chromium.googlesource.com/chromiumos/platform/tast/+/main/docs/test_attributes.md
+    tast_attr_expr = "\"group:mainline\" && (\"dep:lacros\" || \"dep:lacros_unstable\") && informational"
+
+    # To disable a specific test, add it to the
+    # tast_disabled_tests_from_lacros_all list in "tast_control.gni" and cite
+    # a bug.
+    tast_disabled_tests = tast_disabled_tests_from_lacros_all
+  }
+
+  # This target is run in lacros CQ builder in addition to lacros_all_tast_tests
+  # on eve board
+  lacros_tast_tests("lacros_cq_tast_tests_eve") {
+    # To disable a specific test, comment out the test and
+    # add the bug number.Please do not just delete it.
+    tast_tests = [
+      "a11y.Smoke.lacros",
+      "dlp.DataLeakPreventionRulesListClipboardOmni.lacros",
+      "feedback.SysInfoPII.third_party_site_on_lacros",
+      "inputs.SpellCheckRemoveWords.lacros",
+      "policy.AutoOpenAllowedForURLs.lacros",
+      "policy.ManagedBookmarks.lacros",
+      "policy.PasswordManagerEnabled.lacros",
+      "policy.SafeBrowsingProtectionLevel.lacros",
+      "ui.NotificationClosePerf.clear_all_lacros",
+    ]
+  }
+
+  # This target is run in lacros CQ builder in addition to lacros_all_tast_tests
+  # on jacuzzi board
+  lacros_tast_tests("lacros_cq_tast_tests_jacuzzi") {
+    # To disable a specific test, comment out the test and
+    # add the bug number.Please do not just delete it.
+    tast_tests = [
+      "apps.LacrosWebApps",
+      "example.Touch.lacros",
+      "holdingspace.Download.lacros_pause_and_resume",
+      "policy.AllowCrossOriginAuthPrompt.lacros",
+      "policy.BasicAuthOverHTTPEnabled",
+      "policy.NotificationsAllowedForUrls.lacros",
+      "policy.PrintingBackgroundGraphicsDefault.lacros",
+      "ui.DragTabInTabletPerf.lacros",
+      "wmp.OverviewDragWindowToNewDesk.lacros",
+    ]
+  }
+
+  lacros_tast_tests("lacros_fyi_tast_tests") {
+    tast_tests = [
+      "lacros.AppLauncherLaunch",
+      "lacros.AppLauncherLaunch.unstable",
+      "lacros.AudioPlay",
+      "lacros.AudioPlay.unstable",
+      "lacros.Basic",
+      "lacros.Basic.unstable",
+      "lacros.ShelfLaunch",
+      "lacros.ShelfLaunch.unstable",
+    ]
+  }
+
+  lacros_tast_tests("lacros_variations_tast_tests") {
+    tast_tests = [ "lacros.VariationSmoke" ]
+  }
+}

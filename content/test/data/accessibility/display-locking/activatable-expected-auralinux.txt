@@ -1,0 +1,12 @@
+[document web]
+++[section]
+++[section]
+++++[static] name='<newline>    '
+++++[static] name='child'
+++++[static] name='<newline>    '
+++++[section]
+++++++[static] name='nested locked element!'
+++++[static] name='<newline>    '
+++++[section]
+++++++[static] name='nested non activatable locked element'
+++++[static] name='<newline>  '

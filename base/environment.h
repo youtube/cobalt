@@ -49,7 +49,7 @@ class BASE_EXPORT Environment {
 
 #if BUILDFLAG(IS_WIN)
 using NativeEnvironmentString = std::wstring;
-#elif BUILDFLAG(IS_POSIX) || BUILDFLAG(IS_FUCHSIA) || defined(STARBOARD)
+#elif BUILDFLAG(IS_POSIX) || BUILDFLAG(IS_FUCHSIA)
 using NativeEnvironmentString = std::string;
 #endif
 using EnvironmentMap =

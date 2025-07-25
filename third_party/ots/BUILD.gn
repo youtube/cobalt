@@ -101,3 +101,10 @@ static_library("ots") {
   configs -= [ "//build/config/compiler:chromium_code" ]
   configs += [ "//build/config/compiler:no_chromium_code" ]
 }
+
+fuzzer_test("ots_fuzzer") {
+  sources = [ "fuzz/ots_fuzzer.cc" ]
+  deps = [ ":ots" ]
+  libfuzzer_options = [ "max_len=16800" ]
+  seed_corpus = "//third_party/harfbuzz-ng/fuzz/seed_corpus"
+}

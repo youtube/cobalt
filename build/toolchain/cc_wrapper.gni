@@ -35,46 +35,6 @@ import("//build/toolchain/rbe.gni")
 declare_args() {
   # Set to "ccache", "icecc" or "distcc".  Probably doesn't work on windows.
   cc_wrapper = ""
-
-  if (is_starboard) {
-    enable_sccache = getenv("SCCACHE") == "1"
-  }
-}
-
-if (is_starboard) {
-  declare_args() {
-    # Set to false to completely ignore the cc_wrapper.
-    enable_cc_wrapper = true
-  }
-  assert(enable_cc_wrapper || cc_wrapper == "",
-         "Do not set `cc_wrapper` if you set `enable_cc_wrapper` to false.")
-}
-
-if (is_starboard && getenv("SCCACHE") == "") {
-  enable_sccache = host_os == "win" && cobalt_fastbuild
-}
-
-if (is_starboard && enable_sccache) {
-  _set_sccache_gcs_bucket = getenv("SCCACHE_GCS_BUCKET") != ""
-  _set_sccache_gcs_key_path = getenv("SCCACHE_GCS_KEY_PATH") != ""
-  _set_sccache_gcs_oauth_url = getenv("SCCACHE_GCS_OAUTH_URL") != ""
-  _set_sccache_gcs_rw_mode = getenv("SCCACHE_GCS_RW_MODE") != ""
-  _set_sccache_dir = getenv("SCCACHE_DIR") != ""
-  assert(_set_sccache_dir ||
-             (_set_sccache_gcs_bucket &&
-                  (_set_sccache_gcs_key_path || _set_sccache_gcs_oauth_url) &&
-                  _set_sccache_gcs_rw_mode),
-         "Set Sccache environment variables before use.")
-}
-
-if (is_starboard && cc_wrapper == "" && enable_cc_wrapper) {
-  # TODO(https://crbug.com/gn/273): Use sccache locally as well.
-  if (enable_sccache) {
-    cc_wrapper = "sccache"
-  } else if (host_os != "win") {
-    cc_wrapper = "ccache"
-  }
-  print("Build Accelerator: " + cc_wrapper)
 }
 
 assert(!use_goma || cc_wrapper == "",

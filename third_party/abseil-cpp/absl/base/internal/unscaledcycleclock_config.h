@@ -19,9 +19,6 @@
 #include <TargetConditionals.h>
 #endif
 
-#if defined(STARBOARD)
-#define ABSL_HAVE_UNSCALED_CYCLECLOCK_IMPLEMENTATION 0
-#else
 // The following platforms have an implementation of a hardware counter.
 #if defined(__i386__) || defined(__x86_64__) || defined(__aarch64__) || \
     defined(__powerpc__) || defined(__ppc__) || defined(__riscv) ||     \
@@ -29,7 +26,6 @@
 #define ABSL_HAVE_UNSCALED_CYCLECLOCK_IMPLEMENTATION 1
 #else
 #define ABSL_HAVE_UNSCALED_CYCLECLOCK_IMPLEMENTATION 0
-#endif
 #endif
 
 // The following platforms often disable access to the hardware

@@ -172,8 +172,6 @@ TEST_F(MemoryMappedFileTest, MapLargePartialRegionInTheMiddle) {
   ASSERT_TRUE(CheckBufferContents(map.data(), kPartialSize, kOffset));
 }
 
-//  ReadFileToStringWithMaxSize() is not implemented in Starboard
-#if !defined(STARBOARD)
 TEST_F(MemoryMappedFileTest, WriteableFile) {
   const size_t kFileSize = 127;
   CreateTemporaryTestFile(kFileSize);
@@ -241,7 +239,6 @@ TEST_F(MemoryMappedFileTest, ExtendableFile) {
   ASSERT_TRUE(ReadFileToString(temp_file_path(), &contents));
   EXPECT_EQ("BAZ", contents.substr(kFileSize, 3));
 }
-#endif
 
 }  // namespace
 

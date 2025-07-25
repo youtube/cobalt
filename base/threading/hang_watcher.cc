@@ -32,13 +32,6 @@
 #include "build/build_config.h"
 #include "third_party/abseil-cpp/absl/base/attributes.h"
 
-#if defined(STARBOARD)
-#include <pthread.h>
-
-#include "base/check_op.h"
-#include "starboard/thread.h"
-#endif
-
 namespace base {
 
 namespace {
@@ -51,30 +44,8 @@ namespace {
 enum class LoggingLevel { kNone = 0, kUmaOnly = 1, kUmaAndCrash = 2 };
 
 HangWatcher* g_instance = nullptr;
-
-#if defined(STARBOARD)
-ABSL_CONST_INIT pthread_once_t s_once_flag = PTHREAD_ONCE_INIT;
-ABSL_CONST_INIT pthread_key_t s_thread_local_key = 0;
-
-void InitThreadLocalKey() {
-  int res = pthread_key_create(&s_thread_local_key , NULL);
-  DCHECK(res == 0);
-}
-
-void EnsureThreadLocalKeyInited() {
-  pthread_once(&s_once_flag, InitThreadLocalKey);
-}
-
-internal::HangWatchState* GetHangWatchState() {
-  EnsureThreadLocalKeyInited();
-  return static_cast<internal::HangWatchState*>(
-      pthread_getspecific(s_thread_local_key));
-}
-#else
 ABSL_CONST_INIT thread_local internal::HangWatchState* hang_watch_state =
     nullptr;
-#endif
-
 std::atomic<bool> g_use_hang_watcher{false};
 std::atomic<HangWatcher::ProcessType> g_hang_watcher_process_type{
     HangWatcher::ProcessType::kBrowserProcess};
@@ -1194,13 +1165,7 @@ uint64_t HangWatchDeadline::SwitchBitsForTesting() {
 }
 
 HangWatchState::HangWatchState(HangWatcher::ThreadType thread_type)
-#if defined(STARBOARD)
-    : thread_type_(thread_type) {
-  EnsureThreadLocalKeyInited();
-  pthread_setspecific(s_thread_local_key, this);
-#else
     : resetter_(&hang_watch_state, this, nullptr), thread_type_(thread_type) {
-#endif
 // TODO(crbug.com/1223033): Remove this once macOS uses system-wide ids.
 // On macOS the thread ids used by CrashPad are not the same as the ones
 // provided by PlatformThread. Make sure to use the same for correct
@@ -1223,11 +1188,6 @@ HangWatchState::~HangWatchState() {
   // Destroying the HangWatchState should not be done if there are live
   // WatchHangsInScopes.
   DCHECK(!current_watch_hangs_in_scope_);
-#endif
-
-#if defined(STARBOARD)
-  EnsureThreadLocalKeyInited();
-  pthread_setspecific(s_thread_local_key, nullptr);
 #endif
 }
 
@@ -1307,16 +1267,12 @@ void HangWatchState::DecrementNestingLevel() {
 
 // static
 HangWatchState* HangWatchState::GetHangWatchStateForCurrentThread() {
-#if defined(STARBOARD)
-  return GetHangWatchState();
-#else
   // Workaround false-positive MSAN use-of-uninitialized-value on
   // thread_local storage for loaded libraries:
   // https://github.com/google/sanitizers/issues/1265
   MSAN_UNPOISON(&hang_watch_state, sizeof(internal::HangWatchState*));
 
   return hang_watch_state;
-#endif
 }
 
 PlatformThreadId HangWatchState::GetThreadID() const {

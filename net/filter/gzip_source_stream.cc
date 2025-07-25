@@ -5,7 +5,6 @@
 #include "net/filter/gzip_source_stream.h"
 
 #include <algorithm>
-#include <cstring>
 #include <memory>
 #include <utility>
 

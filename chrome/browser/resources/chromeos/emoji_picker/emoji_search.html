@@ -1,0 +1,198 @@
+<style>
+  :host {
+    --emoji-picker-search-margins: 14px;
+    --emoji-picker-search-height: 40px;
+    --emoji-picker-top-bar-bottom-padding: 16px;
+    --search-content-width:
+      calc(var(--emoji-picker-width) - 2*var(--emoji-picker-side-padding));
+    display: flex;
+    flex-direction: column;
+    overflow-y: scroll;
+  }
+
+  :host([gif-support]) {
+    --emoji-picker-search-height: 36px;
+    --emoji-picker-top-bar-bottom-padding: 20px;
+    --search-content-width:
+      calc(var(--emoji-picker-width) - 2*var(--emoji-picker-search-side-padding));
+  }
+
+  cr-search-field {
+    --cr-search-field-clear-icon-fill: var(--cros-icon-color-primary);
+    --cr-search-field-clear-icon-margin-end: var(--emoji-picker-search-margins);
+    --cr-search-field-clear-icon-size: 20px;
+    --cr-search-field-input-border-bottom: none;
+    --cr-search-field-input-min-height: var(--emoji-picker-search-height);
+    --cr-search-field-input-padding-bottom: 0;
+    --cr-search-field-input-padding-start: 8px;
+    --cr-search-field-input-padding-top: 0;
+    --cr-search-field-input-width: 100%;
+    --cr-search-field-placeholder-color: var(--cros-text-color-disabled);
+    --cr-search-field-search-icon-display: none;
+    --cr-search-field-search-icon-fill: var(--cros-text-color-secondary);
+    --cr-search-field-search-icon-inline-display: block;
+    --cr-search-field-search-icon-inline-margin-start:
+      var(--emoji-picker-search-margins);
+    --cr-search-field-underline-display: none;
+    align-items: center;
+    background-color: var(--cros-toolbar-search-bg-color);
+    border: 2px solid transparent;
+    border-radius: 40px;
+    font-size: 13px;
+    height: var(--emoji-picker-search-height);
+  }
+
+  cr-search-field:focus-within {
+    border: 2px solid var(--cros-focus-ring-color);
+  }
+
+  .result {
+    border: 2px solid transparent;
+    border-radius: 40px;
+    display: flex;
+    margin-inline-end: var(--emoji-picker-search-margins);
+  }
+
+  .result:focus,
+  .result:active {
+    border-color: var(--cros-focus-ring-color);
+    border-style: solid;
+    border-width: 2px;
+    outline-style: none;
+  }
+
+  .result:hover {
+    background-color: var(--cros-ripple-color);
+  }
+
+  .name {
+    color: var(--cr-primary-text-color);
+    font-size: 13px;
+    line-height: var(--emoji-size);
+    user-select: none;
+  }
+
+  .sr-only {
+    color: transparent;
+    position: absolute;
+    user-select: none;
+    z-index: -2;
+  }
+
+  .no-result {
+    color: var(--cros-button-label-color-secondary-disabled);
+    font-family: 'Google Sans';
+    left: 50%;
+    line-height: 24px;
+    position: absolute;
+    text-align: center;
+    top: 50%;
+    transform: translate(-50%, -50%);
+    width: 340px;
+  }
+
+  #searchShadow {
+    background-color: var(--cros-bg-color);
+    box-shadow: var(--cr-elevation-2);
+    display: flex;
+    margin-bottom: 7px;
+    margin-inline-end: calc(0px - var(--emoji-picker-side-padding));
+    margin-inline-start: calc(0px - var(--emoji-picker-side-padding));
+    padding-bottom: var(--emoji-picker-top-bar-bottom-padding);
+    padding-inline-end: var(--emoji-picker-side-padding);
+    padding-inline-start: var(--emoji-picker-side-padding);
+    position: sticky;
+    top:0;
+    width: var(--search-content-width);
+  }
+
+  :host([gif-support]) #searchShadow {
+    margin-inline-end: calc(0px - var(--emoji-picker-search-side-padding));
+    margin-inline-start: calc(0px - var(--emoji-picker-search-side-padding));
+    padding-inline-end: var(--emoji-picker-search-side-padding);
+    padding-inline-start: var(--emoji-picker-search-side-padding);
+  }
+
+  #results {
+    flex-grow: 1;
+    margin-inline-end: var(--emoji-picker-side-padding);
+    overflow-y: scroll;
+    padding: 13px 2px 2px 2px;
+  }
+
+  #no-emoji-image {
+    display: block;
+    margin: auto;
+  }
+
+  #category-button-group {
+    align-items: center;
+    display: flex;
+    justify-content: space-between;
+    margin-inline-start: 20px;
+    width: 120px;
+  }
+
+  :host([gif-support]) #category-button-group {
+    margin-inline-start: var(--emoji-picker-search-side-padding);
+    width: 168px;
+  }
+
+  #search {
+    width: 240px;
+  }
+
+  :host([gif-support]) #search {
+    /* Set to 200px so the search bar is 204px when displayed */
+    width: 200px;
+  }
+
+  /* TODO(b/233133645): emoji-groups margins need to match the design. */
+  #search-results {
+    width: var(--search-content-width);
+  }
+</style>
+
+<div id="searchShadow">
+  <cr-search-field id="search" label="Search Emojis" autofocus="true">
+  </cr-search-field>
+  <div id="category-button-group">
+    <template is="dom-repeat" items="[[categoryMetadata]]">
+        <emoji-category-button
+          active="[[item.active]]"
+          name="[[item.name]]"
+          icon="[[item.icon]]"
+          search-active="[[searchNotEmpty(searchResults)]]"
+          gif-support$="[[gifSupport]]">
+        </emoji-category-button>
+    </template>
+  </div>
+</div>
+
+<template is="dom-if" if="[[searchNotEmpty(searchResults)]]">
+  <div id="results" on-scroll="onSearchScroll">
+    <div class="sr-only" role="heading" aria-level="1">
+      Emoji Search Results
+    </div>
+    <div id="search-results">
+      <template is="dom-repeat" items="[[searchResults]]">
+        <emoji-group data="[[item.emoji]]" category$="[[item.category]]">
+        </emoji-group>
+      </template>
+    </div>
+    <div class="no-result">
+      <template is="dom-if" if="[[noResults(searchResults)]]">
+        <picture>
+          <source srcset="no_results_dark.svg"
+              media="(prefers-color-scheme: dark)">
+          <img src="no_results.svg" id="no-emoji-image">
+        </picture>
+        No result found
+      </template>
+      <template is="dom-if" if="[[isGifInErrorState(status, searchResults)]]">
+        <emoji-error status="[[status]]" error-message="[[errorMessage]]">
+        </emoji-error>
+      </template>
+    </div>
+  </div>
+</template>

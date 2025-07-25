@@ -1,35 +1,45 @@
-// Copyright 2016 The Chromium Authors. All rights reserved.
+// Copyright 2016 The Chromium Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
 #include "components/metrics/file_metrics_provider.h"
 
+#include <stddef.h>
+
 #include <memory>
+#include <vector>
 
 #include "base/command_line.h"
 #include "base/containers/flat_map.h"
+#include "base/feature_list.h"
 #include "base/files/file.h"
 #include "base/files/file_enumerator.h"
 #include "base/files/file_util.h"
 #include "base/files/memory_mapped_file.h"
+#include "base/functional/bind.h"
 #include "base/logging.h"
 #include "base/metrics/histogram_base.h"
+#include "base/metrics/histogram_functions.h"
 #include "base/metrics/histogram_macros.h"
 #include "base/metrics/persistent_histogram_allocator.h"
 #include "base/metrics/persistent_memory_allocator.h"
+#include "base/metrics/ranges_manager.h"
 #include "base/strings/string_piece.h"
-#include "base/task/post_task.h"
-#include "base/task/task_traits.h"
+#include "base/strings/stringprintf.h"
+#include "base/task/single_thread_task_runner.h"
 #include "base/task/task_runner.h"
+#include "base/task/task_traits.h"
+#include "base/task/thread_pool.h"
 #include "base/time/time.h"
 #include "components/metrics/metrics_pref_names.h"
 #include "components/metrics/metrics_service.h"
+#include "components/metrics/persistent_histograms.h"
 #include "components/metrics/persistent_system_profile.h"
 #include "components/prefs/pref_registry_simple.h"
 #include "components/prefs/pref_service.h"
+#include "components/prefs/scoped_user_pref_update.h"
 
 namespace metrics {
-
 namespace {
 
 // These structures provide values used to define how files are opened and
@@ -46,47 +56,34 @@ struct SourceOptions {
   bool is_read_only;
 };
 
-enum : int {
-  // Opening a file typically requires at least these flags.
-  STD_OPEN = base::File::FLAG_OPEN | base::File::FLAG_READ,
-};
+// Opening a file typically requires at least these flags.
+constexpr int STD_OPEN = base::File::FLAG_OPEN | base::File::FLAG_READ;
 
 constexpr SourceOptions kSourceOptions[] = {
-  // SOURCE_HISTOGRAMS_ATOMIC_FILE
-  {
-    // Ensure that no other process reads this at the same time.
-    STD_OPEN | base::File::FLAG_EXCLUSIVE_READ,
-    base::MemoryMappedFile::READ_ONLY,
-    true
-  },
-  // SOURCE_HISTOGRAMS_ATOMIC_DIR
-  {
-    // Ensure that no other process reads this at the same time.
-    STD_OPEN | base::File::FLAG_EXCLUSIVE_READ,
-    base::MemoryMappedFile::READ_ONLY,
-    true
-  },
-  // SOURCE_HISTOGRAMS_ACTIVE_FILE
-  {
-    // Allow writing (updated "logged" values) to the file.
-    STD_OPEN | base::File::FLAG_WRITE,
-    base::MemoryMappedFile::READ_WRITE,
-    false
-  }
+    // SOURCE_HISTOGRAMS_ATOMIC_FILE
+    {
+        // Ensure that no other process reads this at the same time.
+        STD_OPEN | base::File::FLAG_WIN_EXCLUSIVE_READ,
+        base::MemoryMappedFile::READ_ONLY,
+        true,
+    },
+    // SOURCE_HISTOGRAMS_ATOMIC_DIR
+    {
+        // Ensure that no other process reads this at the same time.
+        STD_OPEN | base::File::FLAG_WIN_EXCLUSIVE_READ,
+        base::MemoryMappedFile::READ_ONLY,
+        true,
+    },
+    // SOURCE_HISTOGRAMS_ACTIVE_FILE
+    {
+        // Allow writing to the file. This is needed so we can keep track of
+        // deltas that have been uploaded (by modifying the file), while the
+        // file may still be open by an external process (e.g. Crashpad).
+        STD_OPEN | base::File::FLAG_WRITE,
+        base::MemoryMappedFile::READ_WRITE,
+        false,
+    },
 };
-
-enum EmbeddedProfileResult : int {
-  EMBEDDED_PROFILE_ATTEMPT,
-  EMBEDDED_PROFILE_FOUND,
-  EMBEDDED_PROFILE_FALLBACK,
-  EMBEDDED_PROFILE_DROPPED,
-  EMBEDDED_PROFILE_ACTION_MAX
-};
-
-void RecordEmbeddedProfileResult(EmbeddedProfileResult result) {
-  UMA_HISTOGRAM_ENUMERATION("UMA.FileMetricsProvider.EmbeddedProfileResult",
-                            result, EMBEDDED_PROFILE_ACTION_MAX);
-}
 
 void DeleteFileWhenPossible(const base::FilePath& path) {
   // Open (with delete) and then immediately close the file by going out of
@@ -106,7 +103,7 @@ scoped_refptr<base::TaskRunner> CreateBackgroundTaskRunner() {
   if (g_task_runner_for_testing)
     return scoped_refptr<base::TaskRunner>(g_task_runner_for_testing);
 
-  return base::CreateTaskRunnerWithTraits(
+  return base::ThreadPool::CreateTaskRunner(
       {base::MayBlock(), base::TaskPriority::BEST_EFFORT,
        base::TaskShutdownBehavior::SKIP_ON_SHUTDOWN});
 }
@@ -127,7 +124,7 @@ struct FileMetricsProvider::SourceInfo {
     switch (type) {
       case SOURCE_HISTOGRAMS_ACTIVE_FILE:
         DCHECK(prefs_key.empty());
-        FALLTHROUGH;
+        [[fallthrough]];
       case SOURCE_HISTOGRAMS_ATOMIC_FILE:
         path = params.path;
         break;
@@ -136,6 +133,10 @@ struct FileMetricsProvider::SourceInfo {
         break;
     }
   }
+
+  SourceInfo(const SourceInfo&) = delete;
+  SourceInfo& operator=(const SourceInfo&) = delete;
+
   ~SourceInfo() {}
 
   struct FoundFile {
@@ -185,9 +186,6 @@ struct FileMetricsProvider::SourceInfo {
   // Once a file has been recognized as needing to be read, it is mapped
   // into memory and assigned to an |allocator| object.
   std::unique_ptr<base::PersistentHistogramAllocator> allocator;
-
- private:
-  DISALLOW_COPY_AND_ASSIGN(SourceInfo);
 };
 
 FileMetricsProvider::Params::Params(const base::FilePath& path,
@@ -199,9 +197,7 @@ FileMetricsProvider::Params::Params(const base::FilePath& path,
 FileMetricsProvider::Params::~Params() {}
 
 FileMetricsProvider::FileMetricsProvider(PrefService* local_state)
-    : task_runner_(CreateBackgroundTaskRunner()),
-      pref_service_(local_state),
-      weak_factory_(this) {
+    : task_runner_(CreateBackgroundTaskRunner()), pref_service_(local_state) {
   base::StatisticsRecorder::RegisterHistogramProvider(
       weak_factory_.GetWeakPtr());
 }
@@ -212,21 +208,21 @@ void FileMetricsProvider::RegisterSource(const Params& params) {
   DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
 
   // Ensure that kSourceOptions has been filled for this type.
-  DCHECK_GT(arraysize(kSourceOptions), static_cast<size_t>(params.type));
+  DCHECK_GT(std::size(kSourceOptions), static_cast<size_t>(params.type));
 
   std::unique_ptr<SourceInfo> source(new SourceInfo(params));
 
   // |prefs_key| may be empty if the caller does not wish to persist the
   // state across instances of the program.
   if (pref_service_ && !params.prefs_key.empty()) {
-    source->last_seen = base::Time::FromInternalValue(
-        pref_service_->GetInt64(metrics::prefs::kMetricsLastSeenPrefix +
-                                source->prefs_key));
+    source->last_seen = pref_service_->GetTime(
+        metrics::prefs::kMetricsLastSeenPrefix + source->prefs_key);
   }
 
   switch (params.association) {
     case ASSOCIATE_CURRENT_RUN:
     case ASSOCIATE_INTERNAL_PROFILE:
+    case ASSOCIATE_INTERNAL_PROFILE_SAMPLES_COUNTER:
       sources_to_check_.push_back(std::move(source));
       break;
     case ASSOCIATE_PREVIOUS_RUN:
@@ -238,10 +234,16 @@ void FileMetricsProvider::RegisterSource(const Params& params) {
 }
 
 // static
-void FileMetricsProvider::RegisterPrefs(PrefRegistrySimple* prefs,
-                                        const base::StringPiece prefs_key) {
-  prefs->RegisterInt64Pref(metrics::prefs::kMetricsLastSeenPrefix +
-                           prefs_key.as_string(), 0);
+void FileMetricsProvider::RegisterSourcePrefs(
+    PrefRegistrySimple* prefs,
+    const base::StringPiece prefs_key) {
+  prefs->RegisterInt64Pref(
+      metrics::prefs::kMetricsLastSeenPrefix + std::string(prefs_key), 0);
+}
+
+//  static
+void FileMetricsProvider::RegisterPrefs(PrefRegistrySimple* prefs) {
+  prefs->RegisterListPref(metrics::prefs::kMetricsFileMetricsMetadata);
 }
 
 // static
@@ -314,7 +316,7 @@ bool FileMetricsProvider::LocateNextFileInDirectory(SourceInfo* source) {
         // have been created by a privileged process like setup.exe. Even if it
         // is not removed, it will continue to be ignored bacuse of the older
         // modification time.
-        base::DeleteFile(found_file.path, /*recursive=*/false);
+        base::DeleteFile(found_file.path);
       }
     }
   }
@@ -334,7 +336,7 @@ bool FileMetricsProvider::LocateNextFileInDirectory(SourceInfo* source) {
         source->max_age != base::TimeDelta() &&
         now_time - found.info.GetLastModifiedTime() > source->max_age;
     if (too_many || too_big || too_old) {
-      base::DeleteFile(found.path, /*recursive=*/false);
+      base::DeleteFile(found.path);
       --file_count;
       total_size_kib -= found.info.GetSize() >> 10;
       RecordAccessResult(too_many ? ACCESS_RESULT_TOO_MANY_FILES
@@ -385,10 +387,12 @@ void FileMetricsProvider::FinishedWithSource(SourceInfo* source,
 }
 
 // static
-void FileMetricsProvider::CheckAndMergeMetricSourcesOnTaskRunner(
+std::vector<size_t> FileMetricsProvider::CheckAndMergeMetricSourcesOnTaskRunner(
     SourceInfoList* sources) {
   // This method has all state information passed in |sources| and is intended
   // to run on a worker thread rather than the UI thread.
+  std::vector<size_t> samples_counts;
+
   for (std::unique_ptr<SourceInfo>& source : *sources) {
     AccessResult result;
     do {
@@ -412,7 +416,19 @@ void FileMetricsProvider::CheckAndMergeMetricSourcesOnTaskRunner(
         if (source->association == ASSOCIATE_INTERNAL_PROFILE)
           break;
 
-        MergeHistogramDeltasFromSource(source.get());
+        if (source->association == ASSOCIATE_INTERNAL_PROFILE_SAMPLES_COUNTER) {
+          samples_counts.push_back(CollectFileMetadataFromSource(source.get()));
+        } else {
+          size_t histograms_count =
+              MergeHistogramDeltasFromSource(source.get());
+          if (!source->prefs_key.empty()) {
+            base::UmaHistogramCounts1000(
+                base::StringPrintf(
+                    "UMA.FileMetricsProvider.%s.MergedHistogramsCount",
+                    source->prefs_key.c_str()),
+                histograms_count);
+          }
+        }
         DCHECK(source->read_complete);
       }
 
@@ -429,6 +445,8 @@ void FileMetricsProvider::CheckAndMergeMetricSourcesOnTaskRunner(
     if (source->found_files && source->found_files->empty())
       source->found_files.reset();
   }
+
+  return samples_counts;
 }
 
 // This method has all state information passed in |source| and is intended
@@ -473,6 +491,41 @@ FileMetricsProvider::AccessResult FileMetricsProvider::CheckAndMapMetricSource(
   if (!file.IsValid())
     return ACCESS_RESULT_NO_OPEN;
 
+  // Check that file is writable if that is expected. If a write is attempted
+  // on an unwritable memory-mapped file, a SIGBUS will cause a crash.
+  const bool read_only = kSourceOptions[source->type].is_read_only;
+  if (!read_only) {
+    constexpr int kTestSize = 16;
+    char header[kTestSize];
+    int amount = file.Read(0, header, kTestSize);
+    if (amount != kTestSize)
+      return ACCESS_RESULT_INVALID_CONTENTS;
+
+    char zeros[kTestSize] = {0};
+    file.Write(0, zeros, kTestSize);
+    file.Flush();
+
+    // A crash here would be unfortunate as the file would be left invalid
+    // and skipped/deleted by later attempts. This is unlikely, however, and
+    // the benefit of avoiding crashes from mapping as read/write a file that
+    // can't be written more than justifies the risk.
+
+    char check[kTestSize];
+    amount = file.Read(0, check, kTestSize);
+    if (amount != kTestSize)
+      return ACCESS_RESULT_INVALID_CONTENTS;
+    if (memcmp(check, zeros, kTestSize) != 0)
+      return ACCESS_RESULT_NOT_WRITABLE;
+
+    file.Write(0, header, kTestSize);
+    file.Flush();
+    amount = file.Read(0, check, kTestSize);
+    if (amount != kTestSize)
+      return ACCESS_RESULT_INVALID_CONTENTS;
+    if (memcmp(check, header, kTestSize) != 0)
+      return ACCESS_RESULT_NOT_WRITABLE;
+  }
+
   std::unique_ptr<base::MemoryMappedFile> mapped(new base::MemoryMappedFile());
   if (!mapped->Initialize(std::move(file),
                           kSourceOptions[source->type].memory_mapped_access)) {
@@ -483,14 +536,13 @@ FileMetricsProvider::AccessResult FileMetricsProvider::CheckAndMapMetricSource(
   source->last_seen = info.last_modified;
 
   // Test the validity of the file contents.
-  const bool read_only = kSourceOptions[source->type].is_read_only;
   if (!base::FilePersistentMemoryAllocator::IsFileAcceptable(*mapped,
                                                              read_only)) {
     return ACCESS_RESULT_INVALID_CONTENTS;
   }
 
   // Map the file and validate it.
-  std::unique_ptr<base::PersistentMemoryAllocator> memory_allocator =
+  std::unique_ptr<base::FilePersistentMemoryAllocator> memory_allocator =
       std::make_unique<base::FilePersistentMemoryAllocator>(
           std::move(mapped), 0, 0, base::StringPiece(), read_only);
   if (memory_allocator->GetMemoryState() ==
@@ -499,6 +551,15 @@ FileMetricsProvider::AccessResult FileMetricsProvider::CheckAndMapMetricSource(
   }
   if (memory_allocator->IsCorrupt())
     return ACCESS_RESULT_DATA_CORRUPTION;
+
+  // Cache the file data while running in a background thread so that there
+  // shouldn't be any I/O when the data is accessed from the main thread.
+  // Files with an internal profile, those from previous runs that include
+  // a full system profile and are fetched via ProvideIndependentMetrics(),
+  // are loaded on a background task and so there's no need to cache the
+  // data in advance.
+  if (source->association != ASSOCIATE_INTERNAL_PROFILE)
+    memory_allocator->Cache();
 
   // Create an allocator for the mapped file. Ownership passes to the allocator.
   source->allocator = std::make_unique<base::PersistentHistogramAllocator>(
@@ -515,18 +576,18 @@ FileMetricsProvider::AccessResult FileMetricsProvider::CheckAndMapMetricSource(
 }
 
 // static
-void FileMetricsProvider::MergeHistogramDeltasFromSource(SourceInfo* source) {
+size_t FileMetricsProvider::MergeHistogramDeltasFromSource(SourceInfo* source) {
   DCHECK(source->allocator);
-  SCOPED_UMA_HISTOGRAM_TIMER("UMA.FileMetricsProvider.SnapshotTime.File");
   base::PersistentHistogramAllocator::Iterator histogram_iter(
       source->allocator.get());
 
   const bool read_only = kSourceOptions[source->type].is_read_only;
-  int histogram_count = 0;
+  size_t histogram_count = 0;
   while (true) {
     std::unique_ptr<base::HistogramBase> histogram = histogram_iter.GetNext();
     if (!histogram)
       break;
+
     if (read_only) {
       source->allocator->MergeHistogramFinalDeltaToStatisticsRecorder(
           histogram.get());
@@ -540,12 +601,14 @@ void FileMetricsProvider::MergeHistogramDeltasFromSource(SourceInfo* source) {
   source->read_complete = true;
   DVLOG(1) << "Reported " << histogram_count << " histograms from "
            << source->path.value();
+  return histogram_count;
 }
 
 // static
 void FileMetricsProvider::RecordHistogramSnapshotsFromSource(
     base::HistogramSnapshotManager* snapshot_manager,
-    SourceInfo* source) {
+    SourceInfo* source,
+    base::HistogramBase::Flags required_flags) {
   DCHECK_NE(SOURCE_HISTOGRAMS_ACTIVE_FILE, source->type);
 
   base::PersistentHistogramAllocator::Iterator histogram_iter(
@@ -556,8 +619,10 @@ void FileMetricsProvider::RecordHistogramSnapshotsFromSource(
     std::unique_ptr<base::HistogramBase> histogram = histogram_iter.GetNext();
     if (!histogram)
       break;
-    snapshot_manager->PrepareFinalDelta(histogram.get());
-    ++histogram_count;
+    if (histogram->HasFlags(required_flags)) {
+      snapshot_manager->PrepareFinalDelta(histogram.get());
+      ++histogram_count;
+    }
   }
 
   source->read_complete = true;
@@ -615,6 +680,48 @@ FileMetricsProvider::AccessResult FileMetricsProvider::HandleFilterSource(
   return ACCESS_RESULT_SUCCESS;
 }
 
+/* static */
+bool FileMetricsProvider::ProvideIndependentMetricsOnTaskRunner(
+    SourceInfo* source,
+    SystemProfileProto* system_profile_proto,
+    base::HistogramSnapshotManager* snapshot_manager) {
+  if (PersistentSystemProfile::GetSystemProfile(
+          *source->allocator->memory_allocator(), system_profile_proto)) {
+    // Pass a custom RangesManager so that we do not register the BucketRanges
+    // with the global statistics recorder. Otherwise, it could add unnecessary
+    // contention, and a low amount of extra memory that will never be released.
+    source->allocator->SetRangesManager(new base::RangesManager());
+    system_profile_proto->mutable_stability()->set_from_previous_run(true);
+    RecordHistogramSnapshotsFromSource(
+        snapshot_manager, source,
+        /*required_flags=*/base::HistogramBase::kUmaTargetedHistogramFlag);
+    return true;
+  }
+
+  return false;
+}
+
+void FileMetricsProvider::AppendToSamplesCountPref(
+    std::vector<size_t> samples_counts) {
+  ScopedListPrefUpdate update(pref_service_,
+                              metrics::prefs::kMetricsFileMetricsMetadata);
+  for (size_t samples_count : samples_counts) {
+    update->Append(static_cast<int>(samples_count));
+  }
+}
+
+// static
+size_t FileMetricsProvider::CollectFileMetadataFromSource(SourceInfo* source) {
+  base::HistogramBase::Count samples_count = 0;
+  base::PersistentHistogramAllocator::Iterator it{source->allocator.get()};
+  std::unique_ptr<base::HistogramBase> histogram;
+  while ((histogram = it.GetNext()) != nullptr) {
+    samples_count += histogram->SnapshotFinalDelta()->TotalCount();
+  }
+  source->read_complete = true;
+  return samples_count;
+}
+
 void FileMetricsProvider::ScheduleSourcesCheck() {
   DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
 
@@ -627,7 +734,7 @@ void FileMetricsProvider::ScheduleSourcesCheck() {
   // because that must complete before the reply runs.
   SourceInfoList* check_list = new SourceInfoList();
   std::swap(sources_to_check_, *check_list);
-  task_runner_->PostTaskAndReply(
+  task_runner_->PostTaskAndReplyWithResult(
       FROM_HERE,
       base::BindOnce(
           &FileMetricsProvider::CheckAndMergeMetricSourcesOnTaskRunner,
@@ -636,8 +743,12 @@ void FileMetricsProvider::ScheduleSourcesCheck() {
                      weak_factory_.GetWeakPtr(), base::Owned(check_list)));
 }
 
-void FileMetricsProvider::RecordSourcesChecked(SourceInfoList* checked) {
+void FileMetricsProvider::RecordSourcesChecked(
+    SourceInfoList* checked,
+    std::vector<size_t> samples_counts) {
   DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
+
+  AppendToSamplesCountPref(std::move(samples_counts));
 
   // Sources that still have an allocator at this point are read/write "active"
   // files that may need their contents merged on-demand. If there is no
@@ -684,9 +795,9 @@ void FileMetricsProvider::RecordSourceAsRead(SourceInfo* source) {
   // Persistently record the "last seen" timestamp of the source file to
   // ensure that the file is never read again unless it is modified again.
   if (pref_service_ && !source->prefs_key.empty()) {
-    pref_service_->SetInt64(
+    pref_service_->SetTime(
         metrics::prefs::kMetricsLastSeenPrefix + source->prefs_key,
-        source->last_seen.ToInternalValue());
+        source->last_seen);
   }
 }
 
@@ -709,51 +820,69 @@ void FileMetricsProvider::OnDidCreateMetricsLog() {
   sources_for_previous_run_.clear();
 }
 
-bool FileMetricsProvider::ProvideIndependentMetrics(
-    SystemProfileProto* system_profile_proto,
+bool FileMetricsProvider::HasIndependentMetrics() {
+  DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
+  return !sources_with_profile_.empty() || SimulateIndependentMetrics();
+}
+
+void FileMetricsProvider::ProvideIndependentMetrics(
+    base::OnceCallback<void(bool)> done_callback,
+    ChromeUserMetricsExtension* uma_proto,
     base::HistogramSnapshotManager* snapshot_manager) {
+  SystemProfileProto* system_profile_proto =
+      uma_proto->mutable_system_profile();
   DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
 
-  while (!sources_with_profile_.empty()) {
-    SourceInfo* source = sources_with_profile_.begin()->get();
-    DCHECK(source->allocator);
-
-    bool success = false;
-    RecordEmbeddedProfileResult(EMBEDDED_PROFILE_ATTEMPT);
-    if (PersistentSystemProfile::GetSystemProfile(
-            *source->allocator->memory_allocator(), system_profile_proto)) {
-      RecordHistogramSnapshotsFromSource(snapshot_manager, source);
-      success = true;
-      RecordEmbeddedProfileResult(EMBEDDED_PROFILE_FOUND);
-    } else {
-      RecordEmbeddedProfileResult(EMBEDDED_PROFILE_DROPPED);
-
-      // TODO(bcwhite): Remove these once crbug/695880 is resolved.
-
-      int histogram_count = 0;
-      base::PersistentHistogramAllocator::Iterator histogram_iter(
-          source->allocator.get());
-      while (histogram_iter.GetNext()) {
-        ++histogram_count;
-      }
-      UMA_HISTOGRAM_COUNTS_10000(
-          "UMA.FileMetricsProvider.EmbeddedProfile.DroppedHistogramCount",
-          histogram_count);
-    }
-
-    // Regardless of whether this source was successfully recorded, it is never
-    // read again.
-    source->read_complete = true;
-    RecordSourceAsRead(source);
-    sources_to_check_.splice(sources_to_check_.end(), sources_with_profile_,
-                             sources_with_profile_.begin());
-    ScheduleSourcesCheck();
-
-    if (success)
-      return true;
+  if (sources_with_profile_.empty()) {
+    std::move(done_callback).Run(false);
+    return;
   }
 
-  return false;
+  std::unique_ptr<SourceInfo> source =
+      std::move(*sources_with_profile_.begin());
+  sources_with_profile_.pop_front();
+  SourceInfo* source_ptr = source.get();
+  DCHECK(source->allocator);
+
+  // Do the actual work as a background task.
+  task_runner_->PostTaskAndReplyWithResult(
+      FROM_HERE,
+      base::BindOnce(
+          &FileMetricsProvider::ProvideIndependentMetricsOnTaskRunner,
+          source_ptr, system_profile_proto, snapshot_manager),
+      base::BindOnce(&FileMetricsProvider::ProvideIndependentMetricsCleanup,
+                     weak_factory_.GetWeakPtr(), std::move(done_callback),
+                     std::move(source)));
+}
+
+void FileMetricsProvider::ProvideIndependentMetricsCleanup(
+    base::OnceCallback<void(bool)> done_callback,
+    std::unique_ptr<SourceInfo> source,
+    bool success) {
+  DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
+
+  // Regardless of whether this source was successfully recorded, it is
+  // never read again.
+  source->read_complete = true;
+  RecordSourceAsRead(source.get());
+  sources_to_check_.push_back(std::move(source));
+  ScheduleSourcesCheck();
+
+  // Execute the chained callback.
+  // TODO(crbug/1052796): Remove the UMA timer code, which is currently used to
+  // determine if it is worth to finalize independent logs in the background
+  // by measuring the time it takes to execute the callback
+  // MetricsService::PrepareProviderMetricsLogDone().
+  base::TimeTicks start_time = base::TimeTicks::Now();
+  std::move(done_callback).Run(success);
+  if (success) {
+    // We don't use the SCOPED_UMA_HISTOGRAM_TIMER macro because we want to
+    // measure the time it takes to finalize an independent log, and that only
+    // happens when |success| is true.
+    base::UmaHistogramTimes(
+        "UMA.IndependentLog.FileMetricsProvider.FinalizeTime",
+        base::TimeTicks::Now() - start_time);
+  }
 }
 
 bool FileMetricsProvider::HasPreviousSessionData() {
@@ -762,8 +891,6 @@ bool FileMetricsProvider::HasPreviousSessionData() {
   // Check all sources for previous run to see if they need to be read.
   for (auto iter = sources_for_previous_run_.begin();
        iter != sources_for_previous_run_.end();) {
-    SCOPED_UMA_HISTOGRAM_TIMER("UMA.FileMetricsProvider.InitialCheckTime.File");
-
     auto temp = iter++;
     SourceInfo* source = temp->get();
 
@@ -794,8 +921,6 @@ bool FileMetricsProvider::HasPreviousSessionData() {
     if (source->association == ASSOCIATE_INTERNAL_PROFILE_OR_PREVIOUS_RUN) {
       if (PersistentSystemProfile::HasSystemProfile(
               *source->allocator->memory_allocator())) {
-        RecordEmbeddedProfileResult(EMBEDDED_PROFILE_ATTEMPT);
-        RecordEmbeddedProfileResult(EMBEDDED_PROFILE_FALLBACK);
         sources_with_profile_.splice(sources_with_profile_.end(),
                                      sources_for_previous_run_, temp);
       }
@@ -810,16 +935,16 @@ void FileMetricsProvider::RecordInitialHistogramSnapshots(
   DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
 
   for (const std::unique_ptr<SourceInfo>& source : sources_for_previous_run_) {
-    SCOPED_UMA_HISTOGRAM_TIMER(
-        "UMA.FileMetricsProvider.InitialSnapshotTime.File");
-
     // The source needs to have an allocator attached to it in order to read
     // histograms out of it.
     DCHECK(!source->read_complete);
     DCHECK(source->allocator);
 
-    // Dump all histograms contained within the source to the snapshot-manager.
-    RecordHistogramSnapshotsFromSource(snapshot_manager, source.get());
+    // Dump all stability histograms contained within the source to the
+    // snapshot-manager.
+    RecordHistogramSnapshotsFromSource(
+        snapshot_manager, source.get(),
+        /*required_flags=*/base::HistogramBase::kUmaStabilityHistogramFlag);
 
     // Update the last-seen time so it isn't read again unless it changes.
     RecordSourceAsRead(source.get());
@@ -832,6 +957,31 @@ void FileMetricsProvider::MergeHistogramDeltas() {
   for (std::unique_ptr<SourceInfo>& source : sources_mapped_) {
     MergeHistogramDeltasFromSource(source.get());
   }
+}
+
+bool FileMetricsProvider::SimulateIndependentMetrics() {
+  if (!pref_service_->HasPrefPath(
+          metrics::prefs::kMetricsFileMetricsMetadata)) {
+    return false;
+  }
+
+  ScopedListPrefUpdate list_pref(pref_service_,
+                                 metrics::prefs::kMetricsFileMetricsMetadata);
+  base::Value::List& list_value = list_pref.Get();
+  if (list_value.empty())
+    return false;
+
+  size_t count = pref_service_->GetInteger(
+      metrics::prefs::kStabilityFileMetricsUnsentSamplesCount);
+  pref_service_->SetInteger(
+      metrics::prefs::kStabilityFileMetricsUnsentSamplesCount,
+      list_value[0].GetInt() + count);
+  pref_service_->SetInteger(
+      metrics::prefs::kStabilityFileMetricsUnsentFilesCount,
+      list_value.size() - 1);
+  list_value.erase(list_value.begin());
+
+  return true;
 }
 
 }  // namespace metrics

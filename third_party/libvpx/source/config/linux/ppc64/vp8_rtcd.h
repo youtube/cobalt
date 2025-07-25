@@ -89,6 +89,16 @@ void vp8_blend_mb_outer_c(unsigned char* y,
                           int stride);
 #define vp8_blend_mb_outer vp8_blend_mb_outer_c
 
+int vp8_block_error_c(short* coeff, short* dqcoeff);
+#define vp8_block_error vp8_block_error_c
+
+void vp8_copy32xn_c(const unsigned char* src_ptr,
+                    int src_stride,
+                    unsigned char* dst_ptr,
+                    int dst_stride,
+                    int height);
+#define vp8_copy32xn vp8_copy32xn_c
+
 void vp8_copy_mem16x16_c(unsigned char* src,
                          int src_stride,
                          unsigned char* dst,
@@ -114,6 +124,26 @@ void vp8_dc_only_idct_add_c(short input_dc,
                             int dst_stride);
 #define vp8_dc_only_idct_add vp8_dc_only_idct_add_c
 
+int vp8_denoiser_filter_c(unsigned char* mc_running_avg_y,
+                          int mc_avg_y_stride,
+                          unsigned char* running_avg_y,
+                          int avg_y_stride,
+                          unsigned char* sig,
+                          int sig_stride,
+                          unsigned int motion_magnitude,
+                          int increase_denoising);
+#define vp8_denoiser_filter vp8_denoiser_filter_c
+
+int vp8_denoiser_filter_uv_c(unsigned char* mc_running_avg,
+                             int mc_avg_stride,
+                             unsigned char* running_avg,
+                             int avg_stride,
+                             unsigned char* sig,
+                             int sig_stride,
+                             unsigned int motion_magnitude,
+                             int increase_denoising);
+#define vp8_denoiser_filter_uv vp8_denoiser_filter_uv_c
+
 void vp8_dequant_idct_add_c(short* input,
                             short* dq,
                             unsigned char* dest,
@@ -137,6 +167,22 @@ void vp8_dequant_idct_add_y_block_c(short* q,
 
 void vp8_dequantize_b_c(struct blockd*, short* DQC);
 #define vp8_dequantize_b vp8_dequantize_b_c
+
+int vp8_diamond_search_sad_c(struct macroblock* x,
+                             struct block* b,
+                             struct blockd* d,
+                             union int_mv* ref_mv,
+                             union int_mv* best_mv,
+                             int search_param,
+                             int sad_per_bit,
+                             int* num00,
+                             struct variance_vtable* fn_ptr,
+                             int* mvcost[2],
+                             union int_mv* center_mv);
+#define vp8_diamond_search_sad vp8_diamond_search_sad_c
+
+void vp8_fast_quantize_b_c(struct block*, struct blockd*);
+#define vp8_fast_quantize_b vp8_fast_quantize_b_c
 
 void vp8_filter_by_weight16x16_c(unsigned char* src,
                                  int src_stride,
@@ -211,6 +257,32 @@ void vp8_loop_filter_simple_vertical_edge_c(unsigned char* y_ptr,
                                             const unsigned char* blimit);
 #define vp8_loop_filter_simple_mbv vp8_loop_filter_simple_vertical_edge_c
 
+int vp8_mbblock_error_c(struct macroblock* mb, int dc);
+#define vp8_mbblock_error vp8_mbblock_error_c
+
+int vp8_mbuverror_c(struct macroblock* mb);
+#define vp8_mbuverror vp8_mbuverror_c
+
+int vp8_refining_search_sad_c(struct macroblock* x,
+                              struct block* b,
+                              struct blockd* d,
+                              union int_mv* ref_mv,
+                              int error_per_bit,
+                              int search_range,
+                              struct variance_vtable* fn_ptr,
+                              int* mvcost[2],
+                              union int_mv* center_mv);
+#define vp8_refining_search_sad vp8_refining_search_sad_c
+
+void vp8_regular_quantize_b_c(struct block*, struct blockd*);
+#define vp8_regular_quantize_b vp8_regular_quantize_b_c
+
+void vp8_short_fdct4x4_c(short* input, short* output, int pitch);
+#define vp8_short_fdct4x4 vp8_short_fdct4x4_c
+
+void vp8_short_fdct8x4_c(short* input, short* output, int pitch);
+#define vp8_short_fdct8x4 vp8_short_fdct8x4_c
+
 void vp8_short_idct4x4llm_c(short* input,
                             unsigned char* pred_ptr,
                             int pred_stride,
@@ -223,6 +295,9 @@ void vp8_short_inv_walsh4x4_c(short* input, short* mb_dqcoeff);
 
 void vp8_short_inv_walsh4x4_1_c(short* input, short* mb_dqcoeff);
 #define vp8_short_inv_walsh4x4_1 vp8_short_inv_walsh4x4_1_c
+
+void vp8_short_walsh4x4_c(short* input, short* output, int pitch);
+#define vp8_short_walsh4x4 vp8_short_walsh4x4_c
 
 void vp8_sixtap_predict16x16_c(unsigned char* src_ptr,
                                int src_pixels_per_line,

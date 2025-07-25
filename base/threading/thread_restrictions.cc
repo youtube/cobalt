@@ -226,12 +226,6 @@ void DisallowSingleton() {
   GetSingletonDisallowedTls() = BooleanWithStack(true);
 }
 
-#if defined(STARBOARD)
-bool GetSingletonAllowed() {
-  return !!GetSingletonDisallowedTls();
-}
-#endif
-
 ScopedDisallowSingleton::ScopedDisallowSingleton()
     : resetter_(&GetSingletonDisallowedTls(), BooleanWithStack(true)) {}
 

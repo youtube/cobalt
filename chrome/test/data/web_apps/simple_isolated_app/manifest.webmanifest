@@ -1,0 +1,20 @@
+{
+  "name": "Simple Isolated App",
+  "id": "/",
+  "scope": "/",
+  "start_url": "/index.html",
+  "display": "standalone",
+  "permissions_policy": {
+    "clipboard-read": [ "*" ],
+    "clipboard-write": [ "*" ],
+    "direct-sockets": [ "*" ],
+    "usb": [ "*" ]
+  },
+  "icons": [
+    {
+      "src": "256x256-green.png",
+      "sizes": "256x256",
+      "type": "image/png"
+    }
+  ]
+}

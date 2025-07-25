@@ -1,4 +1,4 @@
-// Copyright 2016 The Chromium Authors. All rights reserved.
+// Copyright 2016 The Chromium Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -8,8 +8,6 @@
 #include "base/version.h"
 #include "components/update_client/protocol_serializer.h"
 #include "testing/gtest/include/gtest/gtest.h"
-
-using std::string;
 
 namespace update_client {
 

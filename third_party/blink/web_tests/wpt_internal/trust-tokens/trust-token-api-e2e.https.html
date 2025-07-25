@@ -1,0 +1,54 @@
+<!DOCTYPE html>
+<meta charset="utf-8">
+<title>Tests trust token issuance and redemption</title>
+<script src="/resources/testharness.js"></script>
+<script src="/resources/testharnessreport.js"></script>
+<script src="/common/get-host-info.sub.js"></script>
+<script>
+    'use strict';
+
+    promise_test(function () {
+        return fetch('/wpt_internal/trust-tokens/resources/trust_token_issuance.py', {
+            privateToken: { version: 1, operation: 'token-request' }
+        }).then(function (response) {
+            assert_equals(response.status, 200);
+            assert_equals(response.headers.get('Sec-Private-State-Token'), null);
+        })
+    }, 'Token issuance succeeds.');
+
+    promise_test(function () {
+        return fetch('/wpt_internal/trust-tokens/resources/trust_token_redemption.py', {
+            privateToken: { version: 1, operation: 'token-redemption' }
+        }).then(async function (response) {
+            assert_equals(response.status, 200);
+            assert_equals(response.headers.get('Sec-Private-State-Token'), null);
+            const redemptionResponse = await response.text()
+            assert_equals(redemptionResponse, 'dummy redemption record');
+        })
+    }, 'Token redemption succeeds.');
+
+    promise_test(function () {
+        const host_info = get_host_info();
+        return fetch('/wpt_internal/trust-tokens/resources/trust_token_send_redemption_record.py', {
+            privateToken: {
+                version: 1,
+                operation: 'send-redemption-record',
+                issuers: [host_info.ORIGIN]
+            }
+        }).then(async function (response) {
+            assert_equals(response.status, 200);
+            const redemptionRecord = await response.text();
+            assert_true(redemptionRecord.includes('redemption-record="dummy redemption record"'));
+        })
+    }, 'Send redemption record succeeds.');
+
+  test(function() {
+      assert_throws_js(TypeError,
+                       () => new Request('https://some-issuer.test',
+                                         {privateToken: {
+                                             version: 2,
+                                             operation: 'token-request'
+                                         }}),
+                       'Throws a TypeError due to invalid version number');
+  }, 'Creating a request with invalid token version number throws');
+</script>

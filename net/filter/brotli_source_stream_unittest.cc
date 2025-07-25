@@ -34,11 +34,7 @@ class BrotliSourceStreamTest : public PlatformTest {
 
     // Get the path of data directory.
     base::FilePath data_dir;
-  #if defined(STARBOARD)
-    base::PathService::Get(base::DIR_TEST_DATA, &data_dir);
-  #else
     base::PathService::Get(base::DIR_SOURCE_ROOT, &data_dir);
-  #endif
     data_dir = data_dir.AppendASCII("net");
     data_dir = data_dir.AppendASCII("data");
     data_dir = data_dir.AppendASCII("filter_unittests");

@@ -1,0 +1,96 @@
+<style>
+  #showShortcutsToggleContainer {
+    display: flex;
+    justify-content: space-between;
+    margin: 16px;
+  }
+
+  #showShortcutsToggleTitle {
+    font-size: 13px;
+    line-height: 20px;
+  }
+
+  #options {
+    align-items: center;
+    display: flex;
+    line-height: 20px;
+    margin: 0 16px;
+  }
+
+  iron-collapse {
+    --iron-collapse-transition-duration: 300ms;
+  }
+
+  cr-radio-group {
+    --cr-radio-group-item-padding: 0px;
+    width: 100%;
+  }
+
+  cr-radio-button {
+    align-items: flex-end;
+    flex-direction: column;
+    float: right;
+  }
+
+  :host-context([dir='rtl']) cr-radio-button {
+    float: left;
+  }
+
+  /**
+   * Members of this class are accessible text not meant to be seen by the user.
+   * Screen readers ignore elements styled with display:none or
+   * visibility:hidden so we hide it this way instead.
+   */
+  .button-aria-describedby {
+    clip: rect(0,0,0,0);
+    display: block;
+    position: fixed;
+  }
+
+  customize-chrome-button-label {
+    margin-bottom: 16px;
+    margin-inline-start: 24px;
+  }
+
+  hr {
+    background-color: var(--horizontal-rule-color);
+    border: none;
+    height: 1px;
+    margin-bottom: 16px;
+    width: 100%;
+  }
+</style>
+<div id="showShortcutsToggleContainer">
+  <div id="showShortcutsToggleTitle">$i18n{showShortcutsToggle}</div>
+  <cr-toggle id="showShortcutsToggle" title="$i18n{showShortcutsToggle}"
+    checked="[[show_]]" on-change="onShowShortcutsToggleChange_"></cr-toggle>
+</div>
+<div id="options">
+  <iron-collapse opened="[[show_]]" no-animation="[[!initialized_]]">
+    <hr>
+    <cr-radio-group id="shortcutsRadioSelection" disabled="[[!show_]]"
+      selected="[[shortcutsRadioSelection_]]"
+      on-selected-changed="onShortcutsRadioSelectionChanged_">
+      <cr-radio-button id="customLinksButton"
+          name="customLinksOption"
+          label="$i18n{myShortcuts}"
+          hide-label-text>
+        <!-- cr-radio-button's aria description references slotted content -->
+        <span class="button-aria-describedby">$i18n{shortcutsCurated}</span>
+      </cr-radio-button>
+      <customize-chrome-button-label label="$i18n{myShortcuts}"
+          label-description="$i18n{shortcutsCurated}">
+      </customize-chrome-button-label>
+      <cr-radio-button id="mostVisitedButton"
+          name="mostVisitedOption"
+          label="$i18n{mostVisited}"
+          hide-label-text>
+        <!-- cr-radio-button's aria description references slotted content -->
+        <span class="button-aria-describedby">$i18n{shortcutsSuggested}</span>
+      </cr-radio-button>
+      <customize-chrome-button-label label="$i18n{mostVisited}"
+          label-description="$i18n{shortcutsSuggested}">
+      </customize-chrome-button-label>
+    </cr-radio-group>
+  </iron-collapse>
+</div>

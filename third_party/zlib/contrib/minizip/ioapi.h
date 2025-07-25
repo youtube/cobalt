@@ -21,7 +21,7 @@
 #ifndef _ZLIBIOAPI64_H
 #define _ZLIBIOAPI64_H
 
-#if (!defined(_WIN32)) && (!defined(WIN32)) && (!defined(__APPLE__)) && (!defined(__LB_WIIU__))
+#if (!defined(_WIN32)) && (!defined(WIN32)) && (!defined(__APPLE__))
 
   // Linux needs this to support file operation on files larger then 4+GB
   // But might need better if/def to select just the platforms that needs them.
@@ -171,10 +171,8 @@ typedef struct zlib_filefunc64_def_s
     voidpf              opaque;
 } zlib_filefunc64_def;
 
-#if (!defined(STARBOARD))
 void fill_fopen64_filefunc OF((zlib_filefunc64_def* pzlib_filefunc_def));
 void fill_fopen_filefunc OF((zlib_filefunc_def* pzlib_filefunc_def));
-#endif  //!defined(STARBOARD)
 
 /* now internal definition, only for zip.c and unzip.h */
 typedef struct zlib_filefunc64_32_def_s

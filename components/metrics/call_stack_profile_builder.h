@@ -1,83 +1,54 @@
-// Copyright 2018 The Chromium Authors. All rights reserved.
+// Copyright 2018 The Chromium Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
 #ifndef COMPONENTS_METRICS_CALL_STACK_PROFILE_BUILDER_H_
 #define COMPONENTS_METRICS_CALL_STACK_PROFILE_BUILDER_H_
 
+#include <limits>
 #include <map>
+#include <unordered_map>
+#include <utility>
 #include <vector>
 
-#include "base/callback.h"
-#include "base/profiler/stack_sampling_profiler.h"
-#include "base/sampling_heap_profiler/module_cache.h"
+#include "base/functional/callback.h"
+#include "base/memory/raw_ptr.h"
+#include "base/profiler/metadata_recorder.h"
+#include "base/profiler/module_cache.h"
+#include "base/profiler/profile_builder.h"
 #include "base/time/time.h"
+#include "components/metrics/call_stack_profile_metadata.h"
 #include "components/metrics/call_stack_profile_params.h"
 #include "components/metrics/child_call_stack_profile_collector.h"
+#include "mojo/public/cpp/bindings/pending_remote.h"
 #include "third_party/metrics_proto/sampled_profile.pb.h"
 
 namespace metrics {
 
-class SampledProfile;
+// Interface that allows the CallStackProfileBuilder to provide ids for distinct
+// work items. Samples with the same id are tagged as coming from the same work
+// item in the recorded samples.
+class WorkIdRecorder {
+ public:
+  WorkIdRecorder() = default;
+  virtual ~WorkIdRecorder() = default;
+
+  // This function is invoked on the profiler thread while the target thread is
+  // suspended so must not take any locks, including indirectly through use of
+  // heap allocation, LOG, CHECK, or DCHECK.
+  virtual unsigned int RecordWorkId() const = 0;
+
+  WorkIdRecorder(const WorkIdRecorder&) = delete;
+  WorkIdRecorder& operator=(const WorkIdRecorder&) = delete;
+};
 
 // An instance of the class is meant to be passed to base::StackSamplingProfiler
 // to collect profiles. The profiles collected are uploaded via the metrics log.
-class CallStackProfileBuilder
-    : public base::StackSamplingProfiler::ProfileBuilder {
+//
+// This uses the new StackSample encoding rather than the legacy Sample
+// encoding.
+class CallStackProfileBuilder : public base::ProfileBuilder {
  public:
-  // Frame represents an individual sampled stack frame with module information.
-  struct Frame {
-    Frame(uintptr_t instruction_pointer, size_t module_index);
-    ~Frame();
-
-    // Default constructor to satisfy IPC macros. Do not use explicitly.
-    Frame();
-
-    // The sampled instruction pointer within the function.
-    uintptr_t instruction_pointer;
-
-    // Index of the module in the associated vector of mofules. We don't
-    // represent module state directly here to save space.
-    size_t module_index;
-  };
-
-  // Sample represents a set of stack frames with some extra information.
-  struct Sample {
-    Sample();
-    Sample(const Sample& sample);
-    ~Sample();
-
-    // These constructors are used only during testing.
-    Sample(const Frame& frame);
-    Sample(const std::vector<Frame>& frames);
-
-    // The entire stack frame when the sample is taken.
-    std::vector<Frame> frames;
-
-    // A bit-field indicating which process milestones have passed. This can be
-    // used to tell where in the process lifetime the samples are taken. Just
-    // as a "lifetime" can only move forward, these bits mark the milestones of
-    // the processes life as they occur. Bits can be set but never reset. The
-    // actual definition of the individual bits is left to the user of this
-    // module.
-    uint32_t process_milestones = 0;
-  };
-
-  // These milestones of a process lifetime can be passed as process "mile-
-  // stones" to CallStackProfileBuilder::SetProcessMilestone(). Be sure to
-  // update the translation constants at the top of the .cc file when this is
-  // changed.
-  enum Milestones : int {
-    MAIN_LOOP_START,
-    MAIN_NAVIGATION_START,
-    MAIN_NAVIGATION_FINISHED,
-    FIRST_NONEMPTY_PAINT,
-
-    SHUTDOWN_START,
-
-    MILESTONES_MAX_VALUE
-  };
-
   // |completed_callback| is made when sampling a profile completes. Other
   // threads, including the UI thread, may block on callback completion so this
   // should run as quickly as possible.
@@ -85,16 +56,33 @@ class CallStackProfileBuilder
   // IMPORTANT NOTE: The callback is invoked on a thread the profiler
   // constructs, rather than on the thread used to construct the profiler, and
   // thus the callback must be callable on any thread.
-  CallStackProfileBuilder(
+  explicit CallStackProfileBuilder(
       const CallStackProfileParams& profile_params,
+      const WorkIdRecorder* work_id_recorder = nullptr,
       base::OnceClosure completed_callback = base::OnceClosure());
+
+  CallStackProfileBuilder(const CallStackProfileBuilder&) = delete;
+  CallStackProfileBuilder& operator=(const CallStackProfileBuilder&) = delete;
 
   ~CallStackProfileBuilder() override;
 
-  // base::StackSamplingProfiler::ProfileBuilder:
-  void RecordAnnotations() override;
-  void OnSampleCompleted(
-      std::vector<base::StackSamplingProfiler::Frame> frames) override;
+  // Both weight and count are used by the heap profiler only.
+  void OnSampleCompleted(std::vector<base::Frame> frames,
+                         base::TimeTicks sample_timestamp,
+                         size_t weight,
+                         size_t count);
+
+  // base::ProfileBuilder:
+  base::ModuleCache* GetModuleCache() override;
+  void RecordMetadata(const base::MetadataRecorder::MetadataProvider&
+                          metadata_provider) override;
+  void ApplyMetadataRetrospectively(
+      base::TimeTicks period_start,
+      base::TimeTicks period_end,
+      const base::MetadataRecorder::Item& item) override;
+  void AddProfileMetadata(const base::MetadataRecorder::Item& item) override;
+  void OnSampleCompleted(std::vector<base::Frame> frames,
+                         base::TimeTicks sample_timestamp) override;
   void OnProfileCompleted(base::TimeDelta profile_duration,
                           base::TimeDelta sampling_period) override;
 
@@ -105,52 +93,64 @@ class CallStackProfileBuilder
       const base::RepeatingCallback<void(base::TimeTicks, SampledProfile)>&
           callback);
 
-  // Sets the current system state that is recorded with each captured stack
-  // frame. This is thread-safe so can be called from anywhere. The parameter
-  // value should be from an enumeration of the appropriate type with values
-  // ranging from 0 to 31, inclusive. This sets bits within Sample field of
-  // |process_milestones|. The actual meanings of these bits are defined
-  // (globally) by the caller(s).
-  static void SetProcessMilestone(int milestone);
-
   // Sets the CallStackProfileCollector interface from |browser_interface|.
-  // This function must be called within child processes.
+  // This function must be called within child processes, and must only be
+  // called once.
   static void SetParentProfileCollectorForChildProcess(
-      metrics::mojom::CallStackProfileCollectorPtr browser_interface);
+      mojo::PendingRemote<metrics::mojom::CallStackProfileCollector>
+          browser_interface);
+
+  // Resets the ChildCallStackProfileCollector to its default state. This will
+  // discard all collected profiles, remove any CallStackProfileCollector
+  // interface set through SetParentProfileCollectorForChildProcess, and allow
+  // SetParentProfileCollectorForChildProcess to be called multiple times during
+  // tests.
+  static void ResetChildCallStackProfileCollectorForTesting();
 
  protected:
   // Test seam.
-  virtual void PassProfilesToMetricsProvider(SampledProfile sampled_profile);
+  virtual void PassProfilesToMetricsProvider(base::TimeTicks profile_start_time,
+                                             SampledProfile sampled_profile);
 
  private:
-  // The collected stack samples in proto buffer message format.
-  CallStackProfile proto_profile_;
+  // The functor for Stack comparison.
+  struct StackComparer {
+    bool operator()(const CallStackProfile::Stack* stack1,
+                    const CallStackProfile::Stack* stack2) const;
+  };
 
-  // The current sample being recorded.
-  Sample sample_;
+  // The module cache to use for the duration the sampling associated with this
+  // ProfileBuilder.
+  base::ModuleCache module_cache_;
 
-  // The indexes of samples, indexed by the sample.
-  std::map<Sample, int> sample_index_;
+  unsigned int last_work_id_ = std::numeric_limits<unsigned int>::max();
+  bool is_continued_work_ = false;
+  const raw_ptr<const WorkIdRecorder> work_id_recorder_;
 
-  // The indexes of modules, indexed by module's base_address.
-  std::map<uintptr_t, size_t> module_index_;
+  // The SampledProfile protobuf message which contains the collected stack
+  // samples.
+  SampledProfile sampled_profile_;
+
+  // The indexes of stacks, indexed by stack's address.
+  std::map<const CallStackProfile::Stack*, int, StackComparer> stack_index_;
+
+  // The indexes of modules in the modules_ vector below..
+  std::unordered_map<const base::ModuleCache::Module*, size_t> module_index_;
 
   // The distinct modules in the current profile.
-  std::vector<base::ModuleCache::Module> modules_;
+  std::vector<const base::ModuleCache::Module*> modules_;
 
-  // The process milestones of a previous sample.
-  uint32_t milestones_ = 0;
+  // Timestamps recording when each sample was taken.
+  std::vector<base::TimeTicks> sample_timestamps_;
 
   // Callback made when sampling a profile completes.
   base::OnceClosure completed_callback_;
 
-  // The parameters associated with the sampled profile.
-  const CallStackProfileParams profile_params_;
-
   // The start time of a profile collection.
-  const base::TimeTicks profile_start_time_;
+  base::TimeTicks profile_start_time_;
 
-  DISALLOW_COPY_AND_ASSIGN(CallStackProfileBuilder);
+  // Maintains the current metadata to apply to samples.
+  CallStackProfileMetadata metadata_;
 };
 
 }  // namespace metrics

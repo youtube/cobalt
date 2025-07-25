@@ -1690,9 +1690,6 @@ TEST_P(HttpProxyConnectJobTest, ConnectionTimeoutMax) {
   EXPECT_EQ(base::Seconds(30), GetNestedConnectionTimeout());
 }
 
-// TODO: b/327008491 - Reenable unittests with unused functionality.
-// Cobalt does not need FieldTrial yet.
-#if !defined(STARBOARD)
 // Tests the connection timeout values when the field trial parameters are
 // specified.
 TEST_P(HttpProxyConnectJobTest, ConnectionTimeoutWithExperiment) {
@@ -1804,6 +1801,5 @@ TEST_P(HttpProxyConnectJobTest, ProxyPoolTimeoutWithExperimentDefaultParams) {
   network_quality_estimator_->SetStartTimeNullHttpRtt(rtt_estimate);
   EXPECT_LT(rtt_estimate, GetNestedConnectionTimeout());
 }
-#endif
 
 }  // namespace net

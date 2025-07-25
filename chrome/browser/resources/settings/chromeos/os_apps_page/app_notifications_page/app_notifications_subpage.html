@@ -1,0 +1,34 @@
+<style include="cr-shared-style settings-shared iron-flex">
+</style>
+<settings-toggle-button
+    id="doNotDisturbToggle"
+    label="$i18n{doNotDisturbToggleTitle}"
+    sub-label="$i18n{doNotDisturbToggleDescription}"
+    pref="[[virtualDndPref_]]"
+    no-set-pref
+    checked="[[isDndEnabled_]]"
+    on-settings-boolean-control-change="setQuietMode_"
+    deep-link-focus-id$="[[Setting.kDoNotDisturbOnOff]]">
+</settings-toggle-button>
+<template is="dom-if" if="[[showAppBadgingToggle_]]">
+  <settings-toggle-button
+      id="appBadgingToggleButton"
+      class="hr"
+      label="$i18n{appBadgingToggleLabel}"
+      sub-label="$i18n{appBadgingToggleSublabel}"
+      pref="{{prefs.ash.app_notification_badging_enabled}}"
+      deep-link-focus-id$="[[Setting.kAppBadgingOnOff]]">
+  </settings-toggle-button>
+</template>
+<div id="appNotificationsList" class="hr">
+  <template is="dom-repeat" items="[[appList_]]" as="app"
+      sort="alphabeticalSort_">
+    <app-notification-row app="[[app]]"></app-notification-row>
+  </template>
+</div>
+<div class="cr-row" id="browserSettings">
+  <localized-link class="secondary"
+      localized-string="$i18n{appNotificationsLinkToBrowserSettingsDescription}"
+      on-link-clicked="onBrowserSettingsLinkClicked_">
+  </localized-link>
+</div>

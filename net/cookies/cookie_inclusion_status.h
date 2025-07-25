@@ -247,14 +247,8 @@ class NET_EXPORT CookieInclusionStatus {
     kMaxValue = kLaxCrossLaxSecure
   };
 
-#if defined(STARBOARD)
-  using ExclusionReasonBitset =
-      std::bitset<ExclusionReason::NUM_EXCLUSION_REASONS + 1>;
-#else
   using ExclusionReasonBitset =
       std::bitset<ExclusionReason::NUM_EXCLUSION_REASONS>;
-#endif
-
   using WarningReasonBitset = std::bitset<WarningReason::NUM_WARNING_REASONS>;
 
   // Makes a status that says include and should not warn.

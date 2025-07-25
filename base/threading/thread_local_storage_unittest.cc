@@ -96,7 +96,7 @@ void ThreadLocalStorageCleanup(void *value) {
   TLSSlot().Set(value);
 }
 
-#if BUILDFLAG(IS_POSIX) && !defined(STARBOARD)
+#if BUILDFLAG(IS_POSIX)
 constexpr intptr_t kDummyValue = 0xABCD;
 constexpr size_t kKeyCount = 20;
 
@@ -318,7 +318,7 @@ TEST(ThreadLocalStorageTest, TLSReclaim) {
   }
 }
 
-#if BUILDFLAG(IS_POSIX) && !defined(STARBOARD)
+#if BUILDFLAG(IS_POSIX)
 // Unlike POSIX, Windows does not iterate through the OS TLS to cleanup any
 // values there. Instead a per-module thread destruction function is called.
 // However, it is not possible to perform a check after this point (as the code

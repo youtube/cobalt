@@ -29,12 +29,6 @@
 #include "build/build_config.h"
 #include "third_party/abseil-cpp/absl/base/attributes.h"
 
-#if defined(STARBOARD)
-#include <pthread.h>
-
-#include "base/check_op.h"
-#include "starboard/thread.h"
-#else
 #if (BUILDFLAG(IS_POSIX) && !BUILDFLAG(IS_NACL)) || BUILDFLAG(IS_FUCHSIA)
 #include "base/files/file_descriptor_watcher_posix.h"
 #include "third_party/abseil-cpp/absl/types/optional.h"
@@ -43,38 +37,17 @@
 #if BUILDFLAG(IS_WIN)
 #include "base/win/scoped_com_initializer.h"
 #endif
-#endif
 
 namespace base {
 
 #if DCHECK_IS_ON()
 namespace {
 
-#if defined(STARBOARD)
-ABSL_CONST_INIT pthread_once_t s_once_flag = PTHREAD_ONCE_INIT;
-ABSL_CONST_INIT pthread_key_t s_thread_local_key = 0;
-
-void InitThreadLocalKey() {
-  int res = pthread_key_create(&s_thread_local_key , NULL);
-  DCHECK(res == 0);
-}
-
-void EnsureThreadLocalKeyInited() {
-  pthread_once(&s_once_flag, InitThreadLocalKey);
-}
-
-bool GetWasQuitProperly() {
-  EnsureThreadLocalKeyInited();
-  void* was_quit_properly = pthread_getspecific(s_thread_local_key);
-  return !!was_quit_properly ? reinterpret_cast<intptr_t>(was_quit_properly) != 0 : false;
-}
-#else
 // We use this thread-local variable to record whether or not a thread exited
 // because its Stop method was called.  This allows us to catch cases where
 // MessageLoop::QuitWhenIdle() is called directly, which is unexpected when
 // using a Thread to setup and run a MessageLoop.
 ABSL_CONST_INIT thread_local bool was_quit_properly = false;
-#endif
 
 }  // namespace
 #endif
@@ -372,23 +345,14 @@ void Thread::Run(RunLoop* run_loop) {
 // static
 void Thread::SetThreadWasQuitProperly(bool flag) {
 #if DCHECK_IS_ON()
-#if defined(STARBOARD)
-  EnsureThreadLocalKeyInited();
-  pthread_setspecific(s_thread_local_key, reinterpret_cast<void*>(static_cast<intptr_t>(flag)));
-#else
   was_quit_properly = flag;
-#endif
 #endif
 }
 
 // static
 bool Thread::GetThreadWasQuitProperly() {
 #if DCHECK_IS_ON()
-#if defined(STARBOARD)
-  return GetWasQuitProperly();
-#else
   return was_quit_properly;
-#endif
 #else
   return true;
 #endif
@@ -416,7 +380,6 @@ void Thread::ThreadMain() {
   delegate_->BindToCurrentThread(timer_slack_);
   DCHECK(CurrentThread::Get());
   DCHECK(SingleThreadTaskRunner::HasCurrentDefault());
-#if !defined(STARBOARD)
 #if (BUILDFLAG(IS_POSIX) && !BUILDFLAG(IS_NACL)) || BUILDFLAG(IS_FUCHSIA)
   // Allow threads running a MessageLoopForIO to use FileDescriptorWatcher API.
   std::unique_ptr<FileDescriptorWatcher> file_descriptor_watcher;
@@ -434,7 +397,6 @@ void Thread::ThreadMain() {
             ? new win::ScopedCOMInitializer()
             : new win::ScopedCOMInitializer(win::ScopedCOMInitializer::kMTA));
   }
-#endif
 #endif
 
   // Let the thread do extra initialization.

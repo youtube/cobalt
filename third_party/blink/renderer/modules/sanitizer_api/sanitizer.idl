@@ -1,0 +1,22 @@
+// Copyright 2020 The Chromium Authors
+// Use of this source code is governed by a BSD-style license that can be
+// found in the LICENSE file.
+
+// https://github.com/WICG/sanitizer-api
+
+typedef (DocumentFragment or Document) SanitizerInput;
+
+[
+  Exposed=Window,
+  SecureContext
+] interface Sanitizer {
+  [MeasureAs=SanitizerAPICreated, CallWith=ExecutionContext, RaisesException] constructor(optional SanitizerConfig config = {});
+
+  [MeasureAs=SanitizerAPIToFragment, RuntimeEnabled=SanitizerAPI,
+CallWith=ScriptState, RaisesException] DocumentFragment sanitize(SanitizerInput input);
+  [MeasureAs=SanitizerAPISanitizeFor, RuntimeEnabled=SanitizerAPI, CallWith=ScriptState, RaisesException] Element? sanitizeFor(DOMString element, DOMString markup);
+
+  [MeasureAs=SanitizerAPIGetConfig] SanitizerConfig getConfiguration();
+  [MeasureAs=SanitizerAPIGetDefaultConfig] static SanitizerConfig getDefaultConfiguration();
+};
+

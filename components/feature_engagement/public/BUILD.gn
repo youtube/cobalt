@@ -1,0 +1,101 @@
+# Copyright 2017 The Chromium Authors
+# Use of this source code is governed by a BSD-style license that can be
+# found in the LICENSE file.
+
+if (is_android) {
+  import("//build/config/android/config.gni")
+  import("//build/config/android/rules.gni")
+}
+
+source_set("public") {
+  sources = [
+    "configuration.cc",
+    "configuration.h",
+    "event_constants.cc",
+    "event_constants.h",
+    "feature_configurations.cc",
+    "feature_configurations.h",
+    "feature_constants.cc",
+    "feature_constants.h",
+    "feature_list.cc",
+    "feature_list.h",
+    "group_configurations.cc",
+    "group_configurations.h",
+    "group_constants.cc",
+    "group_constants.h",
+    "group_list.cc",
+    "group_list.h",
+    "tracker.cc",
+    "tracker.h",
+  ]
+
+  deps = [
+    "//base",
+    "//components/feed:feature_list",
+    "//components/flags_ui",
+    "//components/keyed_service/core",
+  ]
+
+  if (is_android) {
+    sources += [
+      "android/wrapping_test_tracker.cc",
+      "android/wrapping_test_tracker.h",
+    ]
+
+    deps += [ "//components/feature_engagement/public:jni_headers" ]
+  }
+
+  if (is_ios) {
+    sources += [
+      "ios_promo_feature_configuration.cc",
+      "ios_promo_feature_configuration.h",
+    ]
+  }
+}
+
+source_set("unit_tests") {
+  testonly = true
+
+  visibility = [ "//components/feature_engagement:unit_tests" ]
+
+  # IMPORTANT NOTE: When adding new tests, also remember to update the list of
+  # tests in //components/feature_engagement/components_unittests.filter
+  sources = [ "configuration_unittest.cc" ]
+
+  deps = [
+    ":public",
+    "//testing/gtest",
+  ]
+}
+
+if (is_android) {
+  android_library("public_java") {
+    sources = [
+      "android/java/src/org/chromium/components/feature_engagement/CppWrappedTestTracker.java",
+      "android/java/src/org/chromium/components/feature_engagement/EventConstants.java",
+      "android/java/src/org/chromium/components/feature_engagement/FeatureConstants.java",
+      "android/java/src/org/chromium/components/feature_engagement/Tracker.java",
+      "android/java/src/org/chromium/components/feature_engagement/TriggerDetails.java",
+    ]
+
+    deps = [
+      ":jni_headers",
+      "//base:base_java",
+      "//base:jni_java",
+      "//third_party/androidx:androidx_annotation_annotation_java",
+    ]
+    annotation_processor_deps = [ "//base/android/jni_generator:jni_processor" ]
+
+    srcjar_deps = [ ":public_java_enums_srcjar" ]
+  }
+
+  java_cpp_enum("public_java_enums_srcjar") {
+    visibility = [ ":*" ]
+
+    sources = [ "tracker.h" ]
+  }
+
+  generate_jni("jni_headers") {
+    sources = [ "android/java/src/org/chromium/components/feature_engagement/CppWrappedTestTracker.java" ]
+  }
+}

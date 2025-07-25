@@ -16,11 +16,6 @@
 #include "net/base/network_handle.h"
 #include "net/base/sys_addrinfo.h"
 #include "third_party/abseil-cpp/absl/types/optional.h"
-#if defined(STARBOARD)
-#include "starboard/common/memory.h"
-#include "starboard/common/socket.h"
-#include "starboard/types.h"
-#endif
 
 namespace net {
 

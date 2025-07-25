@@ -1,4 +1,4 @@
-// Copyright 2015 The Chromium Authors. All rights reserved.
+// Copyright 2015 The Chromium Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -8,8 +8,7 @@
 #include <stddef.h>
 #include <stdint.h>
 
-#include "base/macros.h"
-#include "base/strings/string16.h"
+#include "base/memory/raw_ptr.h"
 
 namespace variations {
 
@@ -36,22 +35,19 @@ class UIStringOverrider {
   UIStringOverrider(const uint32_t* resource_hashes,
                     const int* resource_indices,
                     size_t num_resources);
+
+  UIStringOverrider& operator=(const UIStringOverrider&) = delete;
+
   ~UIStringOverrider();
 
   // Returns the resource index corresponding to the given hash or -1 if no
   // resources is found. Visible for testing.
   int GetResourceIndex(uint32_t hash);
 
-  // Overrides the string resource specified by |hash| with |string| in the
-  // resource bundle.
-  void OverrideUIString(uint32_t hash, const base::string16& string);
-
  private:
-  const uint32_t* const resource_hashes_;
-  const int* const resource_indices_;
+  const raw_ptr<const uint32_t, AllowPtrArithmetic> resource_hashes_;
+  const raw_ptr<const int, DanglingUntriaged> resource_indices_;
   size_t const num_resources_;
-
-  DISALLOW_ASSIGN(UIStringOverrider);
 };
 
 }  // namespace variations

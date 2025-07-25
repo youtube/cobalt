@@ -940,42 +940,7 @@ bool SourceBufferState::OnNewConfigs(
   return success;
 }
 
-#if defined(STARBOARD)
-void SourceBufferState::SetSourceBufferStreamMemoryLimit(size_t limit) {
-  LOG(INFO) << "Setting SourceBuffferStream MemoryLimit Override: " << limit;
-  stream_memory_limit_override_ = limit;
-  SetStreamMemoryLimits();
-}
-
-size_t SourceBufferState::GetSourceBufferStreamMemoryLimit() {
-  // a source buffer can be backed my multiple Demuxer streams, although at
-  // YouTube we usually only have a single one. If we've set an override then
-  // all values will be the same, but we shouldn't assume that, so instead we'll
-  // return the largest here if there are multiple.
-  size_t memory_limit = 0;
-  for (const auto& it : audio_streams_) {
-    memory_limit = std::max(memory_limit, it.second->GetStreamMemoryLimit());
-  }
-  for (const auto& it : video_streams_) {
-    memory_limit = std::max(memory_limit, it.second->GetStreamMemoryLimit());
-  }
-  return memory_limit;
-}
-#endif  // defined(STARBOARD)
-
 void SourceBufferState::SetStreamMemoryLimits() {
-#if defined(STARBOARD)
-  LOG(INFO) << "Custom SourceBuffer memory limit="
-            << stream_memory_limit_override_;
-  if (stream_memory_limit_override_) {
-    for (const auto& it : audio_streams_) {
-      it.second->SetStreamMemoryLimitOverride(stream_memory_limit_override_);
-    }
-    for (const auto& it : video_streams_) {
-      it.second->SetStreamMemoryLimitOverride(stream_memory_limit_override_);
-    }
-  }
-#else  // defined(STARBOARD)
   size_t audio_buf_size_limit =
       GetMSEBufferSizeLimitIfExists(switches::kMSEAudioBufferSizeLimitMb);
   if (audio_buf_size_limit) {
@@ -995,7 +960,6 @@ void SourceBufferState::SetStreamMemoryLimits() {
     for (const auto& it : video_streams_)
       it.second->SetStreamMemoryLimit(video_buf_size_limit);
   }
-#endif  // defined(STARBOARD)
 }
 
 void SourceBufferState::OnNewMediaSegment() {

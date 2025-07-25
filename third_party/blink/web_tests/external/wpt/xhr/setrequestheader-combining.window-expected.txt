@@ -1,0 +1,4 @@
+This is a testharness.js-based test.
+FAIL setRequestHeader() combining header values assert_equals: expected "test-me: , , , , x\tx, \n" but got "test-me: , , , , x\tx,\n"
+Harness: the test ran to completion.
+

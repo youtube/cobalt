@@ -1,0 +1,32 @@
+// Copyright 2022 The Chromium Authors
+// Use of this source code is governed by a BSD-style license that can be
+// found in the LICENSE file.
+
+module attribution_reporting.mojom;
+
+// These values are persisted to logs. Entries should not be renumbered and
+// numeric values should never be reused.
+enum SourceRegistrationError {
+  kInvalidJson = 0,
+  kRootWrongType = 1,
+
+  kDestinationMissing = 2,
+  kDestinationWrongType = 3,
+  kDestinationUntrustworthy = 4,
+  kDestinationListTooLong = 18,
+
+  kFilterDataWrongType = 5,
+  kFilterDataTooManyKeys = 6,
+  kFilterDataHasSourceTypeKey = 7,
+  kFilterDataKeyTooLong = 8,
+  kFilterDataListWrongType = 9,
+  kFilterDataListTooLong = 10,
+  kFilterDataValueWrongType = 11,
+  kFilterDataValueTooLong = 12,
+
+  kAggregationKeysWrongType = 13,
+  kAggregationKeysTooManyKeys = 14,
+  kAggregationKeysKeyTooLong = 15,
+  kAggregationKeysValueWrongType = 16,
+  kAggregationKeysValueWrongFormat = 17,
+};

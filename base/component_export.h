@@ -69,9 +69,8 @@
 // Helper which simply selects its third argument. Used in conjunction with
 // |COMPONENT_MACRO_CONDITIONAL_COMMA_()| above to implement conditional macro
 // expansion.
-#define CR_EXPAND_ARG(arg) arg
 #define COMPONENT_MACRO_SELECT_THIRD_ARGUMENT_(...) \
-  CR_EXPAND_ARG(COMPONENT_MACRO_SELECT_THIRD_ARGUMENT_IMPL_(__VA_ARGS__))
+  COMPONENT_MACRO_SELECT_THIRD_ARGUMENT_IMPL_(__VA_ARGS__)
 #define COMPONENT_MACRO_SELECT_THIRD_ARGUMENT_IMPL_(a, b, c, ...) c
 
 #endif  // BASE_COMPONENT_EXPORT_H_

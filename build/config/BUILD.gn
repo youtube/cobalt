@@ -245,7 +245,7 @@ group("common_deps") {
     public_deps += [ "//build/config/sanitizers:deps" ]
   }
 
-  if (!is_starboard && use_custom_libcxx) {
+  if (use_custom_libcxx) {
     public_deps += [ "//buildtools/third_party/libc++" ]
   }
 

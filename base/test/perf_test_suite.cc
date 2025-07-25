@@ -41,9 +41,7 @@ void PerfTestSuite::Initialize() {
     log_path = log_path.ReplaceExtension(FILE_PATH_LITERAL("log"));
     log_path = log_path.InsertBeforeExtension(FILE_PATH_LITERAL("_perf"));
   }
-#if !defined(STARBOARD)
   ASSERT_TRUE(InitPerfLog(log_path));
-#endif
 
   // Raise to high priority to have more precise measurements. Since we don't
   // aim at 1% precision, it is not necessary to run at realtime level.
@@ -53,9 +51,7 @@ void PerfTestSuite::Initialize() {
 
 void PerfTestSuite::Shutdown() {
   TestSuite::Shutdown();
-#if !defined(STARBOARD)
   FinalizePerfLog();
-#endif
 }
 
 }  // namespace base

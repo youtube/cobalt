@@ -7667,6 +7667,7 @@ TEST_P(QuicNetworkTransactionTest, NetworkIsolationTunnel) {
               quic::HttpStreamPriority::kDefaultUrgency));
     }
 
+    std::cout << "MakeRequestHeadersPacket\n";
     mock_quic_data[index]->AddWrite(
         SYNCHRONOUS,
         client_maker.MakeRequestHeadersPacket(

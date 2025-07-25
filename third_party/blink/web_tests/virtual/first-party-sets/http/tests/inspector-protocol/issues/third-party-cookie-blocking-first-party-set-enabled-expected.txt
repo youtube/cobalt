@@ -1,0 +1,33 @@
+Test third-party cookie blocking enabled between sites in same First-Party Set
+Test started
+Number of cookies: 0
+Number of cookies: 1
+Cookie blocked: true
+Reasons: UserPreferences,ThirdPartyBlockedInFirstPartySet
+{
+    issue : {
+        code : CookieIssue
+        details : {
+            cookieIssueDetails : {
+                cookie : {
+                    domain : cookie.test
+                    name : foo
+                    path : /
+                }
+                cookieExclusionReasons : [
+                    [0] : ExcludeThirdPartyCookieBlockedInFirstPartySet
+                ]
+                cookieUrl : https://cookie.test:8443/inspector-protocol/resources/iframe-third-party-cookie-child.php
+                cookieWarningReasons : [
+                ]
+                operation : ReadCookie
+                request : {
+                    requestId : <string>
+                    url : https://cookie.test:8443/inspector-protocol/resources/iframe-third-party-cookie-child.php
+                }
+                siteForCookies : https://firstparty.test/
+            }
+        }
+    }
+}
+

@@ -1,21 +1,94 @@
-# Copyright 2021 The Cobalt Authors. All Rights Reserved.
-#
-# Licensed under the Apache License, Version 2.0 (the "License");
-# you may not use this file except in compliance with the License.
-# You may obtain a copy of the License at
-#
-#     http://www.apache.org/licenses/LICENSE-2.0
-#
-# Unless required by applicable law or agreed to in writing, software
-# distributed under the License is distributed on an "AS IS" BASIS,
-# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-# See the License for the specific language governing permissions and
-# limitations under the License.
+# Copyright 2014 The Chromium Authors
+# Use of this source code is governed by a BSD-style license that can be
+# found in the LICENSE file.
 
-config("update_client_config") {
-  defines = [
-    "LIBXML_READER_ENABLED",
-    "LIBXML_WRITER_ENABLED",
+import("//build/buildflag_header.gni")
+import("//components/update_client/buildflags.gni")
+import("//net/features.gni")
+import("//testing/libfuzzer/fuzzer_test.gni")
+
+buildflag_header("buildflags") {
+  header = "buildflags.h"
+  flags = [ "ENABLE_PUFFIN_PATCHES=$enable_puffin_patches" ]
+}
+
+source_set("network_impl") {
+  sources = [
+    "net/network_chromium.h",
+    "net/network_impl.cc",
+    "net/network_impl.h",
+  ]
+
+  deps = [
+    ":update_client",
+    "//base",
+    "//net",
+    "//services/network/public/cpp:cpp",
+    "//url",
+  ]
+}
+
+source_set("in_process_unzipper") {
+  sources = [
+    "unzip/in_process_unzipper.cc",
+    "unzip/in_process_unzipper.h",
+  ]
+  deps = [
+    ":update_client",
+    "//base",
+    "//third_party/zlib/google:zip",
+  ]
+}
+
+source_set("in_process_patcher") {
+  sources = [
+    "patch/in_process_patcher.cc",
+    "patch/in_process_patcher.h",
+  ]
+  deps = [
+    ":buildflags",
+    ":update_client",
+    "//base",
+    "//courgette:bsdiff",
+    "//courgette:courgette_lib",
+  ]
+  if (enable_puffin_patches) {
+    include_dirs = [ "//third_party/puffin/src/include" ]
+    deps += [ "//third_party/puffin:libpuffpatch" ]
+  }
+}
+
+source_set("unzip_impl") {
+  sources = [
+    "unzip/unzip_impl.cc",
+    "unzip/unzip_impl.h",
+  ]
+  deps = [
+    ":update_client",
+    "//components/services/unzip/public/cpp",
+  ]
+}
+
+source_set("patch_impl") {
+  sources = [
+    "patch/patch_impl.cc",
+    "patch/patch_impl.h",
+  ]
+  deps = [
+    ":buildflags",
+    ":update_client",
+    "//build:chromeos_buildflags",
+    "//components/services/patch/public/cpp",
+    "//components/services/patch/public/mojom",
+    "//mojo/public/cpp/bindings",
+  ]
+}
+
+group("common_impl") {
+  public_deps = [
+    ":network_impl",
+    ":patch_impl",
+    ":unzip_impl",
   ]
 }
 
@@ -24,8 +97,6 @@ static_library("update_client") {
     "action_runner.cc",
     "action_runner.h",
     "activity_data_service.h",
-    "cobalt_slot_management.cc",
-    "cobalt_slot_management.h",
     "command_line_config_policy.cc",
     "command_line_config_policy.h",
     "component.cc",
@@ -39,6 +110,8 @@ static_library("update_client") {
     "configurator.h",
     "crx_downloader.cc",
     "crx_downloader.h",
+    "crx_downloader_factory.cc",
+    "crx_downloader_factory.h",
     "crx_update_item.h",
     "network.cc",
     "network.h",
@@ -62,6 +135,8 @@ static_library("update_client") {
     "request_sender.cc",
     "request_sender.h",
     "task.h",
+    "task_check_for_update.cc",
+    "task_check_for_update.h",
     "task_send_uninstall_ping.cc",
     "task_send_uninstall_ping.h",
     "task_traits.h",
@@ -80,102 +155,97 @@ static_library("update_client") {
     "update_query_params.h",
     "update_query_params_delegate.cc",
     "update_query_params_delegate.h",
-    "updater_state.cc",
-    "updater_state.h",
     "url_fetcher_downloader.cc",
     "url_fetcher_downloader.h",
     "utils.cc",
     "utils.h",
   ]
 
-  configs += [ ":update_client_config" ]
-
   deps = [
+    ":buildflags",
+    "//base",
+    "//build:branding_buildflags",
+    "//build:chromeos_buildflags",
     "//components/client_update_protocol",
     "//components/crx_file",
     "//components/prefs",
+    "//components/version_info:version_info",
+    "//courgette:courgette_lib",
     "//crypto",
-    "//net",
-    "//starboard/loader_app:app_key_files",
-    "//starboard/loader_app:drain_file",
-    "//third_party/libxml",
+    "//third_party/zlib/google:compression_utils",
     "//url",
   ]
-}
 
-if (sb_is_evergreen) {
+  if (is_win) {
+    sources += [
+      "background_downloader_win.cc",
+      "background_downloader_win.h",
+    ]
+  }
+
+  # TODO(crbug.com/1349060) once Puffin patches are fully implemented,
+  # we should remove the enable_puffin_patches flag.
+  if (enable_puffin_patches) {
+    include_dirs = [ "//third_party/puffin/src/include" ]
+    sources += [
+      "crx_cache.cc",
+      "crx_cache.h",
+      "puffin_component_unpacker.cc",
+      "puffin_component_unpacker.h",
+      "puffin_patcher.cc",
+      "puffin_patcher.h",
+    ]
+  }
+}
 
 static_library("test_support") {
   testonly = true
   sources = [
-    "net/network_cobalt.h",
-    "net/network_impl_cobalt.cc",
-    "net/network_impl_cobalt.h",
-    "net/url_request_post_interceptor.cc",
-    "net/url_request_post_interceptor.h",
-    "patch/patch_impl_cobalt.cc",
-    "patch/patch_impl_cobalt.h",
+    "net/url_loader_post_interceptor.cc",
+    "net/url_loader_post_interceptor.h",
+    "test_activity_data_service.cc",
+    "test_activity_data_service.h",
     "test_configurator.cc",
     "test_configurator.h",
-    "unzip/unzip_impl_cobalt.cc",
-    "unzip/unzip_impl_cobalt.h",
+    "test_installer.cc",
+    "test_installer.h",
   ]
 
-  if (cobalt_pending_clean_up) {
-    sources -= [
-      "net/url_request_post_interceptor.cc",
-    ]
-  }
+  public_deps = [ ":update_client" ]
 
   deps = [
-    ":update_client",
+    ":buildflags",
+    ":network_impl",
+    ":patch_impl",
+    ":unzip_impl",
     "//base",
-    "//cobalt/base",
-    "//cobalt/debug:console_command_manager",
-    "//cobalt/loader",
-    "//cobalt/network",
     "//components/prefs",
-    "//net",
+    "//components/services/patch:in_process",
+    "//components/services/unzip:in_process",
+    "//mojo/public/cpp/bindings",
     "//net:test_support",
+    "//services/network:test_support",
     "//testing/gmock",
     "//testing/gtest",
-    "//third_party/zlib:zip",
     "//url",
   ]
 }
 
-copy("update_client_test_files") {
+bundle_data("unit_tests_bundle_data") {
+  visibility = [ ":unit_tests" ]
+  testonly = true
   sources = [
-    "//components/test/data/update_client/ChromeRecovery.crx3",
     "//components/test/data/update_client/binary_bsdiff_patch.bin",
     "//components/test/data/update_client/binary_courgette_patch.bin",
     "//components/test/data/update_client/binary_input.bin",
     "//components/test/data/update_client/binary_output.bin",
-    "//components/test/data/update_client/ihfokbkgjpifnbbojhneepfflplebdkc/ihfokbkgjpifnbbojhneepfflplebdkc.pem",
-    "//components/test/data/update_client/ihfokbkgjpifnbbojhneepfflplebdkc/ihfokbkgjpifnbbojhneepfflplebdkc_1/a_changing_binary_file",
-    "//components/test/data/update_client/ihfokbkgjpifnbbojhneepfflplebdkc/ihfokbkgjpifnbbojhneepfflplebdkc_1/a_changing_text_file",
-    "//components/test/data/update_client/ihfokbkgjpifnbbojhneepfflplebdkc/ihfokbkgjpifnbbojhneepfflplebdkc_1/a_static_text_file",
-    "//components/test/data/update_client/ihfokbkgjpifnbbojhneepfflplebdkc/ihfokbkgjpifnbbojhneepfflplebdkc_1/manifest.json",
-    "//components/test/data/update_client/ihfokbkgjpifnbbojhneepfflplebdkc/ihfokbkgjpifnbbojhneepfflplebdkc_1to2/commands.json",
-    "//components/test/data/update_client/ihfokbkgjpifnbbojhneepfflplebdkc/ihfokbkgjpifnbbojhneepfflplebdkc_1to2/f0",
-    "//components/test/data/update_client/ihfokbkgjpifnbbojhneepfflplebdkc/ihfokbkgjpifnbbojhneepfflplebdkc_1to2/f1",
-    "//components/test/data/update_client/ihfokbkgjpifnbbojhneepfflplebdkc/ihfokbkgjpifnbbojhneepfflplebdkc_1to2/f2",
-    "//components/test/data/update_client/ihfokbkgjpifnbbojhneepfflplebdkc/ihfokbkgjpifnbbojhneepfflplebdkc_1to2_bad/commands.json",
-    "//components/test/data/update_client/ihfokbkgjpifnbbojhneepfflplebdkc/ihfokbkgjpifnbbojhneepfflplebdkc_1to2_bad/f1",
-    "//components/test/data/update_client/ihfokbkgjpifnbbojhneepfflplebdkc/ihfokbkgjpifnbbojhneepfflplebdkc_1to2_bad/f2",
-    "//components/test/data/update_client/ihfokbkgjpifnbbojhneepfflplebdkc/ihfokbkgjpifnbbojhneepfflplebdkc_1to2_bad/f3",
-    "//components/test/data/update_client/ihfokbkgjpifnbbojhneepfflplebdkc/ihfokbkgjpifnbbojhneepfflplebdkc_2/a_changing_binary_file",
-    "//components/test/data/update_client/ihfokbkgjpifnbbojhneepfflplebdkc/ihfokbkgjpifnbbojhneepfflplebdkc_2/a_changing_text_file",
-    "//components/test/data/update_client/ihfokbkgjpifnbbojhneepfflplebdkc/ihfokbkgjpifnbbojhneepfflplebdkc_2/a_static_text_file",
-    "//components/test/data/update_client/ihfokbkgjpifnbbojhneepfflplebdkc/ihfokbkgjpifnbbojhneepfflplebdkc_2/manifest.json",
+    "//components/test/data/update_client/empty_file",
+    "//components/test/data/update_client/gndmhdcefbhlchkhipcnnbkcmicncehk_22_314.crx3",
     "//components/test/data/update_client/ihfokbkgjpifnbbojhneepfflplebdkc_1.crx",
     "//components/test/data/update_client/ihfokbkgjpifnbbojhneepfflplebdkc_1to2.crx",
-    "//components/test/data/update_client/ihfokbkgjpifnbbojhneepfflplebdkc_1to2_bad.crx",
+    "//components/test/data/update_client/ihfokbkgjpifnbbojhneepfflplebdkc_1to2.puff",
     "//components/test/data/update_client/ihfokbkgjpifnbbojhneepfflplebdkc_2.crx",
     "//components/test/data/update_client/jebgalgnebhfojomionfpkfelancnnkf.crx",
-    "//components/test/data/update_client/jebgalgnebhfojomionfpkfelancnnkf.pem",
-    "//components/test/data/update_client/jebgalgnebhfojomionfpkfelancnnkf/component1.dll",
-    "//components/test/data/update_client/jebgalgnebhfojomionfpkfelancnnkf/manifest.json",
     "//components/test/data/update_client/runaction_test_win.crx3",
     "//components/test/data/update_client/updatecheck_reply_1.json",
     "//components/test/data/update_client/updatecheck_reply_4.json",
@@ -183,85 +253,92 @@ copy("update_client_test_files") {
     "//components/test/data/update_client/updatecheck_reply_parse_error.json",
     "//components/test/data/update_client/updatecheck_reply_unknownapp.json",
   ]
-  outputs = [ "$sb_static_contents_output_data_dir/test/{{source_root_relative_dir}}/{{source_file_part}}" ]
+  outputs = [ "{{bundle_resources_dir}}/" +
+              "{{source_root_relative_dir}}/{{source_file_part}}" ]
 }
 
-target(gtest_target_type, "update_client_test") {
+bundle_data("recovery_component_tests_bundle_data") {
+  visibility = [ "//chrome/test:unit_tests" ]
+  testonly = true
+  sources = [ "//components/test/data/update_client/ChromeRecovery.crx3" ]
+  outputs = [ "{{bundle_resources_dir}}/" +
+              "{{source_root_relative_dir}}/{{source_file_part}}" ]
+}
+
+source_set("unit_tests") {
   testonly = true
   sources = [
+    "component_patcher_unittest.cc",
+    "component_patcher_unittest.h",
     "component_unpacker_unittest.cc",
-
-    # TODO: enable the tests commented out
-    "crx_downloader_unittest.cc",
     "persisted_data_unittest.cc",
     "ping_manager_unittest.cc",
     "protocol_parser_json_unittest.cc",
-
-    # "protocol_serializer_json_unittest.cc",
+    "protocol_serializer_json_unittest.cc",
     "protocol_serializer_unittest.cc",
     "request_sender_unittest.cc",
     "update_checker_unittest.cc",
-
-    # "update_client_unittest.cc",
+    "update_client_unittest.cc",
     "update_query_params_unittest.cc",
-    "updater_state_unittest.cc",
     "utils_unittest.cc",
   ]
 
-  if (cobalt_pending_clean_up) {
-    sources -= [
-      "crx_downloader_unittest.cc",
-      "ping_manager_unittest.cc",
-      "update_checker_unittest.cc",
-    ]
+  if (!disable_file_support) {
+    sources += [ "crx_downloader_unittest.cc" ]
   }
 
   deps = [
+    ":buildflags",
+    ":network_impl",
+    ":patch_impl",
     ":test_support",
+    ":unit_tests_bundle_data",
+    ":unzip_impl",
     ":update_client",
-    ":update_client_test_files",
-    "//chrome/updater",
-    "//cobalt/base",
-    "//cobalt/network",
-    "//cobalt/test:run_all_unittests",
+    "//base",
+    "//build:branding_buildflags",
     "//components/crx_file",
     "//components/prefs",
     "//components/prefs:test_support",
-    "//components/version_info",
-    "//crypto",
-    "//net",
+    "//components/services/patch:in_process",
+    "//components/version_info:version_info",
+    "//courgette:courgette_lib",
     "//net:test_support",
+    "//services/network:test_support",
+    "//services/network/public/cpp:cpp",
+    "//services/network/public/cpp:cpp_base",
     "//testing/gmock",
     "//testing/gtest",
-    "//url",
+    "//third_party/re2",
   ]
+
+  # TODO(crbug.com/1349060) once Puffin patches are fully implemented,
+  # we should remove the enable_puffin_patches flag.
+  if (enable_puffin_patches) {
+    sources += [
+      "crx_cache_unittest.cc",
+      "puffin_component_unpacker_unittest.cc",
+      "puffin_patcher_unittest.cc",
+    ]
+    deps += [ "//third_party/puffin:libpuffpatch" ]
+    data_deps = [ "//components/test/data/update_client/puffin_patch_test:puffin_patch_test_files" ]
+  }
 }
 
-target(gtest_target_type, "cobalt_slot_management_test") {
-  testonly = true
-
-  sources = [
-    "//starboard/common/test_main.cc",
-    "//starboard/loader_app/system_get_extension_shim.cc",
-    "cobalt_slot_management_test.cc",
-  ]
-
+fuzzer_test("update_client_protocol_serializer_fuzzer") {
+  sources = [ "protocol_serializer_fuzzer.cc" ]
   deps = [
     ":update_client",
-    "//chrome/updater",
-    "//cobalt/base",
-    "//components/crx_file",
-    "//components/prefs",
-    "//components/prefs:test_support",
-    "//crypto",
-    "//net:test_support",
-    "//starboard/loader_app:app_key_files",
-    "//starboard/loader_app:drain_file",
-    "//starboard/loader_app:drain_file_helper",
-    "//starboard/loader_app:installation_manager",
-    "//testing/gmock",
-    "//testing/gtest",
+    "//base:base",
   ]
-}  # sb_is_evergreen
+  seed_corpus = "fuzzer_corpuses/protocol_serializer/"
+}
 
+fuzzer_test("update_client_protocol_parser_fuzzer") {
+  sources = [ "protocol_parser_fuzzer.cc" ]
+  deps = [
+    ":update_client",
+    "//base:base",
+  ]
+  seed_corpus = "fuzzer_corpuses/protocol_parser/"
 }

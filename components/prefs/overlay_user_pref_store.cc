@@ -1,13 +1,18 @@
-// Copyright (c) 2012 The Chromium Authors. All rights reserved.
+// Copyright 2012 The Chromium Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
 #include "components/prefs/overlay_user_pref_store.h"
 
 #include <memory>
+#include <ostream>
+#include <string>
 #include <utility>
 
 #include "base/memory/ptr_util.h"
+#include "base/memory/raw_ptr.h"
+#include "base/observer_list.h"
+#include "base/strings/string_piece.h"
 #include "base/values.h"
 #include "components/prefs/in_memory_pref_store.h"
 
@@ -30,7 +35,7 @@ class OverlayUserPrefStore::ObserverAdapter : public PrefStore::Observer {
  private:
   // Is the update for the ephemeral?
   const bool ephemeral_user_pref_store_;
-  OverlayUserPrefStore* const parent_;
+  const raw_ptr<OverlayUserPrefStore> parent_;
 };
 
 OverlayUserPrefStore::OverlayUserPrefStore(PersistentPrefStore* persistent)
@@ -71,7 +76,7 @@ bool OverlayUserPrefStore::IsInitializationComplete() const {
          ephemeral_user_pref_store_->IsInitializationComplete();
 }
 
-bool OverlayUserPrefStore::GetValue(const std::string& key,
+bool OverlayUserPrefStore::GetValue(base::StringPiece key,
                                     const base::Value** result) const {
   // If the |key| shall NOT be stored in the ephemeral store, there must not
   // be an entry.
@@ -92,9 +97,10 @@ base::Value::Dict OverlayUserPrefStore::GetValues() const {
   // overwritten by the content of |persistent_user_pref_store_| (the persistent
   // store).
   for (const auto& key : persistent_names_set_) {
-    absl::optional<base::Value> out_value = persistent_values.Extract(key);
-    if (out_value) {
-      values.Set(key, std::move(*out_value));
+    absl::optional<base::Value> out_value =
+        persistent_values.ExtractByDottedPath(key);
+    if (out_value.has_value()) {
+      values.SetByDottedPath(key, std::move(*out_value));
     }
   }
   return values;
@@ -105,7 +111,6 @@ bool OverlayUserPrefStore::GetMutableValue(const std::string& key,
   if (ShallBeStoredInPersistent(key))
     return persistent_user_pref_store_->GetMutableValue(key, result);
 
-  written_ephemeral_names_.insert(key);
   if (ephemeral_user_pref_store_->GetMutableValue(key, result))
     return true;
 
@@ -132,7 +137,6 @@ void OverlayUserPrefStore::SetValue(const std::string& key,
   // TODO(https://crbug.com/861722): If we always store in in-memory storage
   // and conditionally also stored in persistent one, we wouldn't have to do a
   // complex merge in GetValues().
-  written_ephemeral_names_.insert(key);
   ephemeral_user_pref_store_->SetValue(key, std::move(value), flags);
 }
 
@@ -144,7 +148,6 @@ void OverlayUserPrefStore::SetValueSilently(const std::string& key,
     return;
   }
 
-  written_ephemeral_names_.insert(key);
   ephemeral_user_pref_store_->SetValueSilently(key, std::move(value), flags);
 }
 
@@ -154,8 +157,12 @@ void OverlayUserPrefStore::RemoveValue(const std::string& key, uint32_t flags) {
     return;
   }
 
-  written_ephemeral_names_.insert(key);
   ephemeral_user_pref_store_->RemoveValue(key, flags);
+}
+
+void OverlayUserPrefStore::RemoveValuesByPrefixSilently(
+    const std::string& prefix) {
+  NOTIMPLEMENTED();
 }
 
 bool OverlayUserPrefStore::ReadOnly() const {
@@ -204,13 +211,6 @@ void OverlayUserPrefStore::RegisterPersistentPref(const std::string& key) {
   persistent_names_set_.insert(key);
 }
 
-void OverlayUserPrefStore::ClearMutableValues() {
-  for (const auto& key : written_ephemeral_names_) {
-    ephemeral_user_pref_store_->RemoveValue(
-        key, WriteablePrefStore::DEFAULT_PREF_WRITE_FLAGS);
-  }
-}
-
 void OverlayUserPrefStore::OnStoreDeletionFromDisk() {
   persistent_user_pref_store_->OnStoreDeletionFromDisk();
 }
@@ -241,6 +241,6 @@ void OverlayUserPrefStore::OnInitializationCompleted(bool ephemeral,
 }
 
 bool OverlayUserPrefStore::ShallBeStoredInPersistent(
-    const std::string& key) const {
+    base::StringPiece key) const {
   return persistent_names_set_.find(key) != persistent_names_set_.end();
 }

@@ -1,0 +1,20 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+Copyright 2017 The Chromium Authors
+Use of this source code is governed by a BSD-style license that can be
+found in the LICENSE file.
+-->
+
+<layer-list xmlns:android="http://schemas.android.com/apk/res/android">
+    <item>
+        <shape android:shape="rectangle">
+            <solid android:color="@macro/toolbar_background_primary" />
+        </shape>
+    </item>
+    <item
+        android:top="@dimen/search_toolbar_modern_bg_top_bottom_inset"
+        android:bottom="@dimen/search_toolbar_modern_bg_top_bottom_inset"
+        android:left="@dimen/search_toolbar_modern_bg_lateral_inset"
+        android:right="@dimen/search_toolbar_modern_bg_lateral_inset"
+        android:drawable="@drawable/modern_toolbar_text_box_background" />
+</layer-list>

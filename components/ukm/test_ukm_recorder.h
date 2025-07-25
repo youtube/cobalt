@@ -1,4 +1,4 @@
-// Copyright 2017 The Chromium Authors. All rights reserved.
+// Copyright 2017 The Chromium Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -7,13 +7,13 @@
 
 #include <stddef.h>
 
+#include <map>
 #include <memory>
 #include <set>
 #include <utility>
 #include <vector>
 
 #include "base/compiler_specific.h"
-#include "base/macros.h"
 #include "base/memory/weak_ptr.h"
 #include "components/ukm/ukm_recorder_impl.h"
 #include "services/metrics/public/cpp/ukm_recorder.h"
@@ -25,11 +25,29 @@ namespace ukm {
 // Wraps an UkmRecorder with additional accessors used for testing.
 class TestUkmRecorder : public UkmRecorderImpl {
  public:
+  using HumanReadableUkmMetrics = std::map<std::string, int64_t>;
+
+  struct HumanReadableUkmEntry {
+    HumanReadableUkmEntry();
+    HumanReadableUkmEntry(ukm::SourceId source_id,
+                          HumanReadableUkmMetrics ukm_metrics);
+    ~HumanReadableUkmEntry();
+    HumanReadableUkmEntry(const HumanReadableUkmEntry&);
+
+    bool operator==(const HumanReadableUkmEntry& other) const;
+
+    ukm::SourceId source_id = kInvalidSourceId;
+    HumanReadableUkmMetrics metrics;
+  };
+
   TestUkmRecorder();
+
+  TestUkmRecorder(const TestUkmRecorder&) = delete;
+  TestUkmRecorder& operator=(const TestUkmRecorder&) = delete;
+
   ~TestUkmRecorder() override;
 
-  bool ShouldRestrictToWhitelistedSourceIds() const override;
-  bool ShouldRestrictToWhitelistedEntries() const override;
+  void AddEntry(mojom::UkmEntryPtr entry) override;
 
   size_t sources_count() const { return sources().size(); }
 
@@ -44,8 +62,16 @@ class TestUkmRecorder : public UkmRecorderImpl {
     return sources();
   }
 
-  // Gets UkmSource data for a single SourceId.
+  // Gets UkmSource data for a single SourceId. Returns null if not found.
   const UkmSource* GetSourceForSourceId(ukm::SourceId source_id) const;
+
+  // Gets DocumentCreatedEntry for a single SourceId. Returns null if not found.
+  const ukm::mojom::UkmEntry* GetDocumentCreatedEntryForSourceId(
+      ukm::SourceId source_id) const;
+
+  // Sets a callback that will be called when recording an entry for entry name.
+  void SetOnAddEntryCallback(base::StringPiece entry_name,
+                             base::RepeatingClosure on_add_entry);
 
   // Gets all of the entries recorded for entry name.
   std::vector<const mojom::UkmEntry*> GetEntriesByName(
@@ -74,8 +100,28 @@ class TestUkmRecorder : public UkmRecorderImpl {
   static const int64_t* GetEntryMetric(const mojom::UkmEntry* entry,
                                        base::StringPiece metric_name);
 
+  // A test helper returning all metrics for all entries with a given name in a
+  // human-readable form, allowing to write clearer test expectations.
+  std::vector<HumanReadableUkmMetrics> GetMetrics(
+      std::string entry_name,
+      const std::vector<std::string>& metric_names) const;
+
+  // A test helper returning all entries for a given name in a human-readable
+  // form, allowing to write clearer test expectations.
+  std::vector<HumanReadableUkmEntry> GetEntries(
+      std::string entry_name,
+      const std::vector<std::string>& metric_names) const;
+
+  // A test helper returning all logged metrics with the given |metric_name| for
+  // the entry with the given |entry_name|, filtered to remove any empty
+  // HumanReadableUkmEntry results.
+  std::vector<HumanReadableUkmMetrics> FilteredHumanReadableMetricForEntry(
+      const std::string& entry_name,
+      const std::string& metric_name) const;
+
  private:
-  DISALLOW_COPY_AND_ASSIGN(TestUkmRecorder);
+  uint64_t entry_hash_to_wait_for_ = 0;
+  base::RepeatingClosure on_add_entry_;
 };
 
 // Similar to a TestUkmRecorder, but also sets itself as the global UkmRecorder
@@ -86,7 +132,7 @@ class TestAutoSetUkmRecorder : public TestUkmRecorder {
   ~TestAutoSetUkmRecorder() override;
 
  private:
-  base::WeakPtrFactory<TestAutoSetUkmRecorder> self_ptr_factory_;
+  base::WeakPtrFactory<TestAutoSetUkmRecorder> self_ptr_factory_{this};
 };
 
 }  // namespace ukm

@@ -1,0 +1,3 @@
+Tests extracting information about original functions from bound ones
+
+

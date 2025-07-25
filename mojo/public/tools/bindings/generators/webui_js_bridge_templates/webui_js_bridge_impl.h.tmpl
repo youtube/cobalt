@@ -1,0 +1,73 @@
+{%- import "webui_js_bridge_macros.tmpl" as macros -%}
+// Copyright 2023 The Chromium Authors
+// Use of this source code is governed by a BSD-style license that can be
+// found in the LICENSE file.
+
+{%- set header_guard = "%s_WEBUI_JS_BRIDGE_IMPL_H_"|format(
+        module.path|upper|replace("/","_")|replace(".","_")|
+            replace("-", "_")) %}
+
+#ifndef {{header_guard}}
+#define {{header_guard}}
+
+#include "{{module.path}}.h"
+
+#include "mojo/public/cpp/bindings/pending_receiver.h"
+#include "mojo/public/cpp/bindings/pending_remote.h"
+
+namespace content {
+class WebUIController;
+}  // namespace content
+
+{% if webui_controller_namespace != None %}
+namespace {{webui_controller_namespace}} {
+class {{webui_controller_name}};
+}
+{% else %}
+class {{webui_controller_name}};
+{% endif %}
+
+namespace {{module.namespace}} {
+
+{%- set class_name = "%sImpl" % webui_js_bridge.name %}
+
+class {{class_name}} : public {{webui_js_bridge.name}} {
+ public:
+{% for method in webui_js_bridge.methods %}
+  using BinderFor{{method.name}} = base::RepeatingCallback<void(
+{%-  for param in method.parameters %}
+    {{param.kind|cpp_type}}{{"," if not loop.last else ""}}
+{%-   endfor -%}
+  )>;
+{% endfor %}
+
+{% if webui_controller_namespace != None -%}
+  using WebUIControllerSubclass =
+    {{webui_controller_namespace}}::{{webui_controller_name}};
+{%- else %}
+  using WebUIControllerSubclass = {{webui_controller_name}};
+{%- endif %}
+
+  {{class_name}}(
+    content::WebUIController* controller,
+    {{- macros.constructor_params(webui_js_bridge) -}}
+  );
+
+  ~{{class_name}}();
+
+{% for method in webui_js_bridge.methods %}
+  void {{method.name}}(
+{%-  for param in method.parameters %}
+    {{param.kind|cpp_type}} {{param.name}}{{"," if not loop.last else ""}}
+{%-   endfor -%}
+  ) override;
+{% endfor %}
+
+ private:
+{% for method in webui_js_bridge.methods %}
+  BinderFor{{method.name}} {{method|binder_variable_name}}_;
+{% endfor %}
+};
+}  // {{module.namespace}}
+
+#endif // {{header_guard}}

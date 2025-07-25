@@ -1,0 +1,3 @@
+Tests renderer: cookie set from js with cookies disabled.
+requested url: http://www.example.com/
+pass

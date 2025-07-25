@@ -241,11 +241,7 @@ TEST_P(EmbeddedTestServerTest, RegisterRequestHandler) {
 
 TEST_P(EmbeddedTestServerTest, ServeFilesFromDirectory) {
   base::FilePath src_dir;
-#if defined(STARBOARD)
-  ASSERT_TRUE(base::PathService::Get(base::DIR_TEST_DATA, &src_dir));
-#else
   ASSERT_TRUE(base::PathService::Get(base::DIR_SOURCE_ROOT, &src_dir));
-#endif
   server_->ServeFilesFromDirectory(
       src_dir.AppendASCII("net").AppendASCII("data"));
   ASSERT_TRUE(server_->Start());
@@ -274,11 +270,7 @@ TEST_P(EmbeddedTestServerTest, MockHeadersWithoutCRLF) {
     return;
 
   base::FilePath src_dir;
-#if defined(STARBOARD)
-  ASSERT_TRUE(base::PathService::Get(base::DIR_TEST_DATA, &src_dir));
-#else
   ASSERT_TRUE(base::PathService::Get(base::DIR_SOURCE_ROOT, &src_dir));
-#endif
   server_->ServeFilesFromDirectory(
       src_dir.AppendASCII("net").AppendASCII("data").AppendASCII(
           "embedded_test_server"));
@@ -702,11 +694,7 @@ class EmbeddedTestServerThreadingTestDelegate
     // Create the test server instance.
     EmbeddedTestServer server(type_, protocol_);
     base::FilePath src_dir;
-#if defined(STARBOARD)
-    ASSERT_TRUE(base::PathService::Get(base::DIR_TEST_DATA, &src_dir));
-#else
     ASSERT_TRUE(base::PathService::Get(base::DIR_SOURCE_ROOT, &src_dir));
-#endif
     ASSERT_TRUE(server.Start());
 
     // Make a request and wait for the reply.

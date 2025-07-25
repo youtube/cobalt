@@ -331,6 +331,7 @@ base::Value HttpNetworkSession::QuicInfoToValue() const {
   dict.Set("initial_rtt_for_handshake_milliseconds",
            static_cast<int>(
                quic_params->initial_rtt_for_handshake.InMilliseconds()));
+
   return base::Value(std::move(dict));
 }
 
@@ -369,35 +370,6 @@ void HttpNetworkSession::DisableQuic() {
   params_.enable_quic = false;
 }
 
-#if defined(STARBOARD)
-void HttpNetworkSession::SetEnableQuic(bool enable_quic) {
-  params_.enable_quic = enable_quic;
-}
-void HttpNetworkSession::SetEnableHttp2(bool enable_http2) {
-  if (params_.enable_http2 == enable_http2) {
-    return;
-  }
-  params_.enable_http2 = enable_http2;
-
-  if (params_.enable_http2) {
-    next_protos_.push_back(kProtoHTTP2);
-    if (base::FeatureList::IsEnabled(features::kAlpsForHttp2)) {
-      // Enable ALPS for HTTP/2 with empty data.
-      application_settings_[kProtoHTTP2] = {};
-    }
-  } else {
-    if (next_protos_.back() == kProtoHTTP2) {
-      next_protos_.pop_back();
-    }
-    application_settings_.erase(kProtoHTTP2);
-  }
-}
-
-bool HttpNetworkSession::UseQuicForUnknownOrigin() const {
-  return params_.use_quic_for_unknown_origins;
-}
-#endif  // defined(STARBOARD)
-
 void HttpNetworkSession::ClearSSLSessionCache() {
   ssl_client_session_cache_.Flush();
 }
@@ -410,8 +382,7 @@ CommonConnectJobParams HttpNetworkSession::CreateCommonConnectJobParams(
       context_.client_socket_factory, context_.host_resolver, &http_auth_cache_,
       context_.http_auth_handler_factory, &spdy_session_pool_,
       &context_.quic_context->params()->supported_versions,
-      &quic_stream_factory_,
-      context_.proxy_delegate,
+      &quic_stream_factory_, context_.proxy_delegate,
       context_.http_user_agent_settings, &ssl_client_context_,
       context_.socket_performance_watcher_factory,
       context_.network_quality_estimator, context_.net_log,

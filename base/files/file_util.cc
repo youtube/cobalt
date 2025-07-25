@@ -52,7 +52,6 @@ void RunAndReply(OnceCallback<bool()> action_callback,
 
 #endif  // !BUILDFLAG(IS_WIN)
 
-#if !defined(STARBOARD)
 bool ReadStreamToSpanWithMaxSize(
     FILE* stream,
     size_t max_size,
@@ -132,7 +131,6 @@ bool ReadStreamToSpanWithMaxSize(
 
   return read_status;
 }
-#endif
 
 }  // namespace
 
@@ -174,8 +172,7 @@ bool Move(const FilePath& from_path, const FilePath& to_path) {
 }
 
 bool CopyFileContents(File& infile, File& outfile) {
-#if defined(COBALT_PENDING_CLEAN_UP)
-#elif BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_CHROMEOS) || BUILDFLAG(IS_ANDROID)
+#if BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_CHROMEOS) || BUILDFLAG(IS_ANDROID)
   bool retry_slow = false;
   bool res =
       internal::CopyFileContentsWithSendfile(infile, outfile, retry_slow);
@@ -220,24 +217,6 @@ bool ContentsEqual(const FilePath& filename1, const FilePath& filename2) {
   // We open the file in binary format even if they are text files because
   // we are just comparing that bytes are exactly same in both files and not
   // doing anything smart with text formatting.
-#ifdef COBALT_PENDING_CLEAN_UP
-  // std::ifstream doesn't work on all our platforms.
-  base::File file1(filename1, base::File::FLAG_OPEN | base::File::FLAG_READ);
-  base::File file2(filename2, base::File::FLAG_OPEN | base::File::FLAG_READ);
-  auto file1_length = file1.GetLength();
-  if (file1_length != file2.GetLength()) {
-    return false;
-  }
-  std::unique_ptr<char[]> file1_content(new char[file1_length]());
-  std::unique_ptr<char[]> file2_content(new char[file1_length]());
-  if (file1.ReadAtCurrentPos(file1_content.get(), file1_length) != file1_length ||
-      file2.ReadAtCurrentPos(file2_content.get(), file1_length) != file1_length) {
-    return false;
-  }
-
-  return memcmp(file1_content.get(), file2_content.get(),
-                file1_length) == 0;
-#else
 #if BUILDFLAG(IS_WIN)
   std::ifstream file1(filename1.value().c_str(),
                       std::ios::in | std::ios::binary);
@@ -271,10 +250,8 @@ bool ContentsEqual(const FilePath& filename1, const FilePath& filename2) {
   file1.close();
   file2.close();
   return true;
-#endif
 }
 
-#if !defined(COBALT_PENDING_CLEAN_UP)
 bool TextContentsEqual(const FilePath& filename1, const FilePath& filename2) {
 #if BUILDFLAG(IS_WIN)
   std::ifstream file1(filename1.value().c_str(), std::ios::in);
@@ -319,9 +296,7 @@ bool TextContentsEqual(const FilePath& filename1, const FilePath& filename2) {
 
   return true;
 }
-#endif  // !defined(COBALT_PENDING_CLEAN_UP)
 
-#if !defined(STARBOARD)
 bool ReadStreamToString(FILE* stream, std::string* contents) {
   return ReadStreamToStringWithMaxSize(
       stream, std::numeric_limits<size_t>::max(), contents);
@@ -346,15 +321,12 @@ bool ReadStreamToStringWithMaxSize(FILE* stream,
   }
   return read_successs;
 }
-#endif
 
 absl::optional<std::vector<uint8_t>> ReadFileToBytes(const FilePath& path) {
   if (path.ReferencesParent()) {
     return absl::nullopt;
   }
 
-#ifndef COBALT_PENDING_CLEAN_UP
-  // TODO(b/298237462): Implement ScopedFILE for Starboard.
   ScopedFILE file_stream(OpenFile(path, "rb"));
   if (!file_stream) {
     return absl::nullopt;
@@ -369,13 +341,6 @@ absl::optional<std::vector<uint8_t>> ReadFileToBytes(const FilePath& path) {
                                    })) {
     return absl::nullopt;
   }
-#else
-  std::string contents;
-  if (!ReadFileToString(path, &contents)) {
-    return absl::nullopt;
-  }
-  std::vector<uint8_t> bytes(contents.begin(), contents.end());
-#endif
   return bytes;
 }
 
@@ -391,48 +356,10 @@ bool ReadFileToStringWithMaxSize(const FilePath& path,
     contents->clear();
   if (path.ReferencesParent())
     return false;
-#if defined(COBALT_PENDING_CLEAN_UP)
-  base::File file(path, base::File::FLAG_OPEN | base::File::FLAG_READ);
-  if (!file.IsValid()) {
-    return false;
-  }
-
-  // Use a smaller buffer than in Chromium so we don't run out of stack space.
-  const size_t kBufferSize = 1 << 12;
-  char buf[kBufferSize];
-  size_t len;
-  size_t size = 0;
-  bool read_status = true;
-
-  while ((len = file.ReadAtCurrentPos(buf, sizeof(buf))) > 0) {
-    if (contents) {
-      size_t bytes_to_add = std::min(len, max_size - size);
-      if (size + bytes_to_add > contents->max_size()) {
-        read_status = false;
-        break;
-      }
-      contents->append(buf, std::min(len, max_size - size));
-    }
-
-    if ((max_size - size) < len) {
-      read_status = false;
-      break;
-    }
-
-    size += len;
-  }
-
-  if (contents) {
-    contents->resize(contents->size());
-  }
-  read_status = read_status && file.IsValid();
-  return read_status;
-#else
   ScopedFILE file_stream(OpenFile(path, "rb"));
   if (!file_stream)
     return false;
   return ReadStreamToStringWithMaxSize(file_stream.get(), max_size, contents);
-#endif  // defined(COBALT_PENDING_CLEAN_UP)
 }
 
 bool IsDirectoryEmpty(const FilePath& dir_path) {
@@ -490,7 +417,6 @@ bool TouchFile(const FilePath& path,
   return file.SetTimes(last_accessed, last_modified);
 }
 
-#if !defined(COBALT_PENDING_CLEAN_UP)
 bool CloseFile(FILE* file) {
   if (file == nullptr)
     return true;
@@ -514,7 +440,6 @@ bool TruncateFile(FILE* file) {
 #endif
   return true;
 }
-#endif  // !defined(COBALT_PENDING_CLEAN_UP)
 
 bool WriteFile(const FilePath& filename, span<const uint8_t> data) {
   int size = checked_cast<int>(data.size());

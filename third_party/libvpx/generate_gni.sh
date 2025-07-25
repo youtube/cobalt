@@ -16,9 +16,6 @@
 # --only-configs : Excludes generation of GN and GYP files (i.e. only
 #                  configuration headers are generated).
 # --disable-vp9-highbitdepth : Revert x86[_64] builds to low-bit-depth only.
-# --cobalt-config : Uses configuration flags that optimize VP9 decoding
-#                 : performance on Cobalt, while disabling VP8 and the VP9
-#                 : encoder.
 
 set -e
 
@@ -28,7 +25,6 @@ LIBVPX_SRC_DIR="source/libvpx"
 LIBVPX_CONFIG_DIR="source/config"
 DISABLE_AVX512="--disable-avx512"
 HIGHBD="--enable-vp9-highbitdepth"
-COBALT_CONFIG=false
 
 # Only disable avx512 if it is an option.
 grep -q avx512 source/libvpx/configure || unset DISABLE_AVX512
@@ -50,10 +46,6 @@ for i in "$@"; do
       unset HIGHBD
       shift
       ;;
-  --cobalt-config)
-  COBALT_CONFIG=true
-  shift
-  ;;
     *)
       echo "Unknown option: $i"
       exit 1
@@ -385,30 +377,15 @@ cd $TEMP_DIR
 
 echo "Generate config files."
 all_platforms="--enable-external-build"
-all_platforms+=" --disable-libyuv"
 all_platforms+=" --enable-postproc"
+all_platforms+=" --enable-multi-res-encoding"
+all_platforms+=" --enable-temporal-denoising"
 all_platforms+=" --enable-vp9-temporal-denoising"
-
-if [ $COBALT_CONFIG == true ]; then
-  echo "Generating cobalt-specific configs."
-  all_platforms+=" --disable-examples"
-  all_platforms+=" --disable-tools"
-  all_platforms+=" --disable-docs"
-  all_platforms+=" --disable-unit-tests"
-  all_platforms+=" --enable-multithread"
-  all_platforms+=" --enable-runtime-cpu-detect"
-  all_platforms+=" --disable-webm-io"
-  all_platforms+=" --disable-vp9-encoder"
-  all_platforms+=" --disable-vp8"
-else
-  all_platforms+=" --enable-multi-res-encoding"
-  all_platforms+=" --enable-temporal-denoising"
-  all_platforms+=" --enable-vp9-postproc"
-  all_platforms+=" --size-limit=16384x16384"
-  all_platforms+=" --enable-realtime-only"
-  all_platforms+=" --disable-install-docs"
-fi
-
+all_platforms+=" --enable-vp9-postproc"
+all_platforms+=" --size-limit=16384x16384"
+all_platforms+=" --enable-realtime-only"
+all_platforms+=" --disable-install-docs"
+all_platforms+=" --disable-libyuv"
 x86_platforms="--enable-pic --as=yasm $DISABLE_AVX512 $HIGHBD"
 gen_config_files linux/ia32 \
   "--target=x86-linux-gcc ${all_platforms} ${x86_platforms}"
@@ -611,8 +588,6 @@ rm -rf $TEMP_DIR
 
 gn format --in-place $BASE_DIR/BUILD.gn
 gn format --in-place $BASE_DIR/libvpx_srcs.gni
-
-[[ "${COBALT_CONFIG}" == "true" ]] && exit  # don't modify README.chromium
 
 cd $BASE_DIR/$LIBVPX_SRC_DIR
 update_readme

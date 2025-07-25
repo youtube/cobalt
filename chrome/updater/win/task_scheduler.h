@@ -1,4 +1,4 @@
-// Copyright 2019 The Chromium Authors. All rights reserved.
+// Copyright 2019 The Chromium Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -8,10 +8,14 @@
 #include <stdint.h>
 
 #include <memory>
+#include <ostream>
+#include <string>
 #include <vector>
 
 #include "base/files/file_path.h"
-#include "base/macros.h"
+#include "base/functional/callback.h"
+#include "base/memory/ref_counted.h"
+#include "base/memory/scoped_refptr.h"
 
 namespace base {
 class CommandLine;
@@ -20,9 +24,11 @@ class Time;
 
 namespace updater {
 
+enum class UpdaterScope;
+
 // This class wraps a scheduled task and expose an API to parametrize a task
 // before calling |Register|, or to verify its existence, or delete it.
-class TaskScheduler {
+class TaskScheduler : public base::RefCountedThreadSafe<TaskScheduler> {
  public:
   // The type of trigger to register for this task.
   enum TriggerType {
@@ -57,7 +63,7 @@ class TaskScheduler {
   struct TaskExecAction {
     base::FilePath application_path;
     base::FilePath working_dir;
-    base::string16 arguments;
+    std::wstring arguments;
   };
 
   // Detailed description of a scheduled task. This type is returned by the
@@ -70,10 +76,10 @@ class TaskScheduler {
     TaskInfo& operator=(const TaskInfo&);
     TaskInfo& operator=(TaskInfo&&);
 
-    base::string16 name;
+    std::wstring name;
 
     // Description of the task.
-    base::string16 description;
+    std::wstring description;
 
     // A scheduled task can have more than one action associated with it and
     // actions can be of types other than executables (for example, sending
@@ -83,24 +89,32 @@ class TaskScheduler {
     // The log-on requirements for the task's actions to be run. A bit mask with
     // the mapping defined by LogonType.
     uint32_t logon_type = 0;
+
+    // User ID under which the task runs.
+    std::wstring user_id;
+
+    TriggerType trigger_type = TRIGGER_TYPE_MAX;
   };
 
-  // Control the lifespan of static data for the TaskScheduler. |Initialize|
-  // must be called before the first call to |CreateInstance|, and not other
-  // methods can be called after |Terminate| was called (unless |Initialize| is
-  // called again). |Initialize| can't be called out of balance with
-  // |Terminate|. |Terminate| can be called any number of times.
-  static bool Initialize();
-  static void Terminate();
+  // Creates an instance of the task scheduler for the given `scope`.
+  // `use_task_subfolders` dictates whether the scheduler creates and works with
+  // tasks that are created within a subfolder (`true` by default), or tasks
+  // that are created at the root folder. When `use_task_subfolders` is `true`,
+  // the tasks are created within the subfolder returned by
+  // `GetTaskSubfolderName()`.
+  static scoped_refptr<TaskScheduler> CreateInstance(
+      UpdaterScope scope,
+      bool use_task_subfolders = true);
 
-  static std::unique_ptr<TaskScheduler> CreateInstance();
-  virtual ~TaskScheduler() {}
+  TaskScheduler(const TaskScheduler&) = delete;
+  TaskScheduler& operator=(const TaskScheduler&) = delete;
 
   // Identify whether the task is registered or not.
   virtual bool IsTaskRegistered(const wchar_t* task_name) = 0;
 
   // Return the time of the next schedule run for the given task name. Return
   // false on failure.
+  // `next_run_time` is returned as local time on the current system, not UTC.
   virtual bool GetNextTaskRunTime(const wchar_t* task_name,
                                   base::Time* next_run_time) = 0;
 
@@ -115,12 +129,22 @@ class TaskScheduler {
   // Return true if task exists and is enabled.
   virtual bool IsTaskEnabled(const wchar_t* task_name) = 0;
 
+  // Return true if task exists and is running.
+  virtual bool IsTaskRunning(const wchar_t* task_name) = 0;
+
   // List all currently registered scheduled tasks.
-  virtual bool GetTaskNameList(std::vector<base::string16>* task_names) = 0;
+  virtual bool GetTaskNameList(std::vector<std::wstring>* task_names) = 0;
+
+  // Returns the first instance of a scheduled task installed with the given
+  // `task_prefix`.
+  virtual std::wstring FindFirstTaskName(const std::wstring& task_prefix) = 0;
 
   // Return detailed information about a task. Return true if no errors were
   // encountered. On error, the struct is left unmodified.
   virtual bool GetTaskInfo(const wchar_t* task_name, TaskInfo* info) = 0;
+
+  // Returns true if the task folder specified by |folder_name| exists.
+  virtual bool HasTaskFolder(const wchar_t* folder_name) = 0;
 
   // Register the task to run the specified application and using the given
   // |trigger_type|.
@@ -130,11 +154,29 @@ class TaskScheduler {
                             TriggerType trigger_type,
                             bool hidden) = 0;
 
- protected:
-  TaskScheduler();
+  // Returns true if the scheduled task specified by |task_name| can be started
+  // successfully or is currently running.
+  virtual bool StartTask(const wchar_t* task_name) = 0;
 
-  DISALLOW_COPY_AND_ASSIGN(TaskScheduler);
+  // Name of the sub-folder that the scheduled tasks are created in, prefixed
+  // with the company folder `GetTaskCompanyFolder`.
+  virtual std::wstring GetTaskSubfolderName() = 0;
+
+  // Runs `callback` for each task that matches `prefix`.
+  virtual void ForEachTaskWithPrefix(
+      const std::wstring& prefix,
+      base::RepeatingCallback<void(const std::wstring&)> callback) = 0;
+
+ protected:
+  friend class base::RefCountedThreadSafe<TaskScheduler>;
+  TaskScheduler();
+  virtual ~TaskScheduler() = default;
 };
+
+std::ostream& operator<<(std::ostream& stream,
+                         const TaskScheduler::TaskExecAction& t);
+std::ostream& operator<<(std::ostream& stream,
+                         const TaskScheduler::TaskInfo& t);
 
 }  // namespace updater
 

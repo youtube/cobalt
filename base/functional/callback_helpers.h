@@ -18,38 +18,12 @@
 
 #include "base/atomicops.h"
 #include "base/base_export.h"
-#include "base/callback.h"
 #include "base/check.h"
 #include "base/functional/bind.h"
 #include "base/functional/callback.h"
 #include "base/functional/callback_tags.h"
 
 namespace base {
-
-#ifdef COBALT_PENDING_CLEAN_UP
-template <typename CallbackType>
-bool ResetAndRunIfNotNull(CallbackType* cb) {
-  if (cb->is_null()) {
-    return false;
-  }
-  CallbackType ret(std::move(*cb));
-  DCHECK(!*cb);
-  ret.Run();
-  return true;
-}
-
-template <typename Sig, typename... ParamTypes>
-bool ResetAndRunIfNotNull(base::Callback<Sig>* cb,
-                          const ParamTypes&... params) {
-  if (cb->is_null()) {
-    return false;
-  }
-  base::Callback<Sig> ret(std::move(*cb));
-  DCHECK(!*cb);
-  ret.Run(params...);
-  return true;
-}
-#endif
 
 namespace internal {
 

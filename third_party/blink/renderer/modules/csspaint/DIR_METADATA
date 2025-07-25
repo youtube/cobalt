@@ -1,0 +1,4 @@
+monorail {
+  component: "Blink>Canvas"
+}
+team_email: "canvas-dev@chromium.org"

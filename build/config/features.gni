@@ -35,9 +35,9 @@ declare_args() {
 
   use_dbus = is_linux || is_chromeos
 
-  use_gio = is_linux && !is_castos && !is_starboard
+  use_gio = is_linux && !is_castos
 
-  use_blink = !use_cobalt_customizations && !is_ios
+  use_blink = !is_ios
 }
 #
 # =============================================

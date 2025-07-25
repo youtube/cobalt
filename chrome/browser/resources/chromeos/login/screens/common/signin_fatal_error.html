@@ -1,0 +1,28 @@
+<!--
+Copyright 2020 The Chromium Authors
+Use of this source code is governed by a BSD-style license that can be
+found in the LICENSE file.
+-->
+
+<style include="oobe-dialog-host-styles">
+</style>
+<oobe-adaptive-dialog id="signinFatalErrorDialog" role="dialog">
+  <iron-icon slot="icon" icon="oobe-32:alert"></iron-icon>
+  <h1 slot="title">
+    [[i18nDynamic(locale, 'errorGenericFatalErrorTitle')]]
+  </h1>
+  <p id="subtitle" slot="subtitle">
+    [[errorSubtitle_]]
+  </p>
+  <div slot="subtitle" hidden="[[!keyboardHint_]]">[[keyboardHint_]]</div>
+  <div slot="subtitle" hidden="[[!details_]]">[[details_]]</div>
+  <a slot="subtitle" on-click="onHelpLinkClicked_"
+      hidden="[[!helpLinkText_]]" class="oobe-local-link" is="action-link">
+    [[helpLinkText_]]
+  </a>
+  <div slot="bottom-buttons">
+    <oobe-text-button id="actionButton" inverse class="focus-on-show"
+        text-key="[[computeButtonKey_(errorState_)]]" on-tap="onClick_">
+    </oobe-text-button>
+  </div>
+</oobe-adaptive-dialog>

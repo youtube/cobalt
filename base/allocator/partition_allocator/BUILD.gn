@@ -316,7 +316,7 @@ component("partition_alloc") {
   ]
   deps = []
   public_configs = []
-  if (is_android && !use_cobalt_customizations) {
+  if (is_android) {
     # tagging.cc requires __arm_mte_set_* functions.
     deps += [ "//third_party/android_ndk:cpu_features" ]
   }
@@ -359,12 +359,6 @@ component("partition_alloc") {
   # This is incompatible with stack protectors since the TLS won't be pkey-tagged.
   if (enable_pkeys && is_debug) {
     configs += [ ":no_stack_protector" ]
-  }
-
-  # Need to include |component("partition_alloc")| for gn check.
-  if (is_starboard) {
-    # TODO: b/326459868 - Try using |check_includes = false|.
-    sources = []
   }
 }
 

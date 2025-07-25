@@ -1,4 +1,4 @@
-// Copyright 2017 The Chromium Authors. All rights reserved.
+// Copyright 2017 The Chromium Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -8,10 +8,13 @@
 
 #include "base/atomicops.h"
 #include "base/bits.h"
+#include "base/containers/contains.h"
+#include "base/containers/cxx20_erase.h"
+#include "base/debug/crash_logging.h"
 #include "base/memory/singleton.h"
 #include "base/metrics/persistent_memory_allocator.h"
+#include "base/notreached.h"
 #include "base/pickle.h"
-#include "base/stl_util.h"
 #include "components/variations/active_field_trials.h"
 
 namespace metrics {
@@ -33,6 +36,7 @@ union RecordHeader {
 constexpr uint32_t kTypeIdSystemProfile = 0x330A7150;  // SHA1(SystemProfile)
 constexpr size_t kSystemProfileAllocSize = 4 << 10;    // 4 KiB
 constexpr size_t kMaxRecordSize = (1 << 24) - sizeof(RecordHeader);
+constexpr char kFieldTrialDeletionSentinel[] = "";
 
 static_assert(sizeof(RecordHeader) == sizeof(base::subtle::Atomic32),
               "bad RecordHeader size");
@@ -41,8 +45,8 @@ static_assert(sizeof(RecordHeader) == sizeof(base::subtle::Atomic32),
 // for the record header and rounds up to the next multiple of the record-header
 // size.
 size_t CalculateRecordSize(size_t data_amount) {
-  return base::bits::Align(data_amount + sizeof(RecordHeader),
-                           sizeof(RecordHeader));
+  return base::bits::AlignUp(data_amount + sizeof(RecordHeader),
+                             sizeof(RecordHeader));
 }
 
 }  // namespace
@@ -246,6 +250,16 @@ bool PersistentSystemProfile::RecordAllocator::ReadData(
   }
   size_t read_size = header.as_parts.amount;
   if (end_offset_ + sizeof(header) + read_size > alloc_size_) {
+#if !BUILDFLAG(IS_NACL)
+    // TODO(crbug/1432981): Remove these. They are used to investigate
+    // unexpected failures.
+    SCOPED_CRASH_KEY_NUMBER("PersistentSystemProfile", "end_offset_",
+                            end_offset_);
+    SCOPED_CRASH_KEY_NUMBER("PersistentSystemProfile", "read_size", read_size);
+    SCOPED_CRASH_KEY_NUMBER("PersistentSystemProfile", "alloc_size_",
+                            alloc_size_);
+#endif  // !BUILDFLAG(IS_NACL)
+
     NOTREACHED();  // Invalid header amount.
     *type = kUnusedSpace;
     return true;  // Don't try again.
@@ -297,10 +311,8 @@ void PersistentSystemProfile::SetSystemProfile(
     // Don't overwrite a complete profile with an incomplete one.
     if (!complete && allocator.has_complete_profile())
       continue;
-    // A full system profile always starts fresh. Incomplete keeps existing
-    // records for merging.
-    if (complete)
-      allocator.Reset();
+    // System profile always starts fresh.
+    allocator.Reset();
     // Write out the serialized profile.
     allocator.Write(kSystemProfileProto, serialized_profile);
     // Indicate if this is a complete profile.
@@ -330,17 +342,26 @@ void PersistentSystemProfile::AddFieldTrial(base::StringPiece trial,
                                             base::StringPiece group) {
   DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
   DCHECK(!trial.empty());
-  DCHECK(!group.empty());
 
   base::Pickle pickler;
   pickler.WriteString(trial);
   pickler.WriteString(group);
 
   WriteToAll(kFieldTrialInfo,
-             base::StringPiece(pickler.data_as_char(),
-                               pickler.size()));
+             base::StringPiece(pickler.data_as_char(), pickler.size()));
 }
 
+void PersistentSystemProfile::RemoveFieldTrial(base::StringPiece trial) {
+  DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
+  DCHECK(!trial.empty());
+
+  base::Pickle pickler;
+  pickler.WriteString(trial);
+  pickler.WriteString(kFieldTrialDeletionSentinel);
+
+  WriteToAll(kFieldTrialInfo,
+             base::StringPiece(pickler.data_as_char(), pickler.size()));
+}
 // static
 bool PersistentSystemProfile::HasSystemProfile(
     const base::PersistentMemoryAllocator& memory_allocator) {
@@ -379,7 +400,8 @@ void PersistentSystemProfile::MergeUpdateRecords(
 
   RecordType type;
   std::string record;
-  std::set<uint32_t> known_field_trial_ids;
+  std::map<uint32_t, uint32_t> field_trials;
+  bool updated = false;
 
   // This is done separate from the code that gets the profile because it
   // compartmentalizes the code and makes it possible to reuse this section
@@ -398,10 +420,10 @@ void PersistentSystemProfile::MergeUpdateRecords(
 
       case kFieldTrialInfo: {
         // Get the set of known trial IDs so duplicates don't get added.
-        if (known_field_trial_ids.empty()) {
+        if (field_trials.empty()) {
           for (int i = 0; i < system_profile->field_trial_size(); ++i) {
-            known_field_trial_ids.insert(
-                system_profile->field_trial(i).name_id());
+            field_trials[system_profile->field_trial(i).name_id()] =
+                system_profile->field_trial(i).group_id();
           }
         }
 
@@ -412,16 +434,30 @@ void PersistentSystemProfile::MergeUpdateRecords(
         if (iter.ReadStringPiece(&trial) && iter.ReadStringPiece(&group)) {
           variations::ActiveGroupId field_ids =
               variations::MakeActiveGroupId(trial, group);
-          if (!base::ContainsKey(known_field_trial_ids, field_ids.name)) {
-            SystemProfileProto::FieldTrial* field_trial =
-                system_profile->add_field_trial();
-            field_trial->set_name_id(field_ids.name);
-            field_trial->set_group_id(field_ids.group);
-            known_field_trial_ids.insert(field_ids.name);
+          if (group == kFieldTrialDeletionSentinel) {
+            field_trials.erase(field_ids.name);
+          } else {
+            field_trials[field_ids.name] = field_ids.group;
           }
         }
+        updated = true;
       } break;
     }
+  }
+
+  // Skip rewriting the field trials if there was no update.
+  if (!updated) {
+    return;
+  }
+
+  // Rewrite the full list of field trials to avoid duplicates.
+  system_profile->clear_field_trial();
+
+  for (const auto& trial : field_trials) {
+    SystemProfileProto::FieldTrial* field_trial =
+        system_profile->add_field_trial();
+    field_trial->set_name_id(trial.first);
+    field_trial->set_group_id(trial.second);
   }
 }
 

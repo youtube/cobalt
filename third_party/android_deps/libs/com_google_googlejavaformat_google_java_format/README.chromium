@@ -1,0 +1,14 @@
+Name: Google Java Format
+Short Name: google-java-format
+URL: https://github.com/google/google-java-format
+Version: 1.5
+License: Apache 2.0
+License File: NOT_SHIPPED
+CPEPrefix: unknown
+Security Critical: no
+
+Description:
+A Java source code formatter that follows Google Java Style.
+
+Local Modifications:
+No modifications.

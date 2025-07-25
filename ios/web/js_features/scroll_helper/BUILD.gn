@@ -1,0 +1,27 @@
+# Copyright 2021 The Chromium Authors
+# Use of this source code is governed by a BSD-style license that can be
+# found in the LICENSE file.
+
+import("//ios/build/config.gni")
+import("//ios/web/public/js_messaging/optimize_js.gni")
+
+source_set("scroll_helper") {
+  configs += [ "//build/config/compiler:enable_arc" ]
+  deps = [
+    ":scroll_helper_js",
+    "//base",
+    "//ios/web/public/js_messaging",
+  ]
+
+  sources = [
+    "scroll_helper_java_script_feature.h",
+    "scroll_helper_java_script_feature.mm",
+  ]
+}
+
+optimize_js("scroll_helper_js") {
+  visibility = [ ":scroll_helper" ]
+
+  primary_script = "resources/scroll_helper.js"
+  sources = [ "resources/scroll_helper.js" ]
+}

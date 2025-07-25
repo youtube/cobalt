@@ -190,11 +190,7 @@ TEST(PickleTest, CopyWithInvalidHeader) {
   // 1. Actual header size (calculated based on the input buffer) > passed in
   // buffer size. Which results in Pickle's internal |header_| = null.
   {
-#if defined(STARBOARD)
-    Pickle::Header header = {100};
-#else
     Pickle::Header header = {.payload_size = 100};
-#endif
     const char* data = reinterpret_cast<char*>(&header);
     const Pickle pickle(data, sizeof(header));
 

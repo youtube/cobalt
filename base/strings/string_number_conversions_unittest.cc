@@ -18,9 +18,6 @@
 #include "base/strings/stringprintf.h"
 #include "base/strings/utf_string_conversions.h"
 #include "testing/gtest/include/gtest/gtest.h"
-#if defined(STARBOARD)
-#include "starboard/types.h"
-#endif
 
 namespace base {
 

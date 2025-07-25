@@ -17,7 +17,7 @@
 
 #include "absl/debugging/internal/address_is_readable.h"
 
-#if !defined(__linux__) || defined(__ANDROID__) || defined(STARBOARD)
+#if !defined(__linux__) || defined(__ANDROID__)
 
 namespace absl {
 ABSL_NAMESPACE_BEGIN

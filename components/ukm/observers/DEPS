@@ -1,4 +1,6 @@
 include_rules = [
+  "+components/metrics",
   "+components/history/core/browser",
   "+components/sync",
+  "+google_apis",
 ]

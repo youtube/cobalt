@@ -41,42 +41,6 @@ static_library("libevent") {
   } else {
     include_dirs = []
   }
-  if (is_starboard) {
-    sources -= [
-      "buffer.c",
-      "evbuffer.c",
-      "evdns.c",
-      "event_tagging.c",
-      "evrpc.c",
-      "http.c",
-      "poll.c",
-      "select.c",
-      "signal.c",
-      "strlcpy.c",
-    ]
-
-    if (sb_libevent_method == "epoll") {
-      sources += [ "epoll.c" ]
-    } else if (sb_libevent_method == "poll") {
-      sources += [ "poll.c" ]
-    } else if (sb_libevent_method == "kqueue") {
-      sources += [ "kqueue.c" ]
-    }
-    include_dirs = [ "starboard" ]
-    if (is_linux) {
-      # sources += [ "epoll_sub.c" ]
-      include_dirs += [ "starboard/linux" ]
-      libs = [ "rt" ]
-    }
-    if (is_android) {
-      include_dirs += [ "starboard/linux" ]
-      if (current_toolchain == host_toolchain) {
-        libs = [ "rt" ]
-      }
-    }
-    cflags_c = [ "-Wno-unused-function" ]
-    public_deps = [ "//starboard/common" ]
-  } else
   if (is_apple) {
     sources += [
       "kqueue.c",

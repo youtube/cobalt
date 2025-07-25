@@ -1,4 +1,4 @@
-// Copyright (c) 2016 The Chromium Authors. All rights reserved.
+// Copyright 2016 The Chromium Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -6,12 +6,12 @@
 #define COMPONENTS_PREFS_IN_MEMORY_PREF_STORE_H_
 
 #include <stdint.h>
-
 #include <string>
 
 #include "base/compiler_specific.h"
-#include "base/macros.h"
 #include "base/observer_list.h"
+#include "base/strings/string_piece.h"
+#include "base/values.h"
 #include "components/prefs/persistent_pref_store.h"
 #include "components/prefs/pref_value_map.h"
 
@@ -23,8 +23,11 @@ class COMPONENTS_PREFS_EXPORT InMemoryPrefStore : public PersistentPrefStore {
  public:
   InMemoryPrefStore();
 
+  InMemoryPrefStore(const InMemoryPrefStore&) = delete;
+  InMemoryPrefStore& operator=(const InMemoryPrefStore&) = delete;
+
   // PrefStore implementation.
-  bool GetValue(const std::string& key,
+  bool GetValue(base::StringPiece key,
                 const base::Value** result) const override;
   base::Value::Dict GetValues() const override;
   void AddObserver(PrefStore::Observer* observer) override;
@@ -47,9 +50,9 @@ class COMPONENTS_PREFS_EXPORT InMemoryPrefStore : public PersistentPrefStore {
   PersistentPrefStore::PrefReadError ReadPrefs() override;
   void ReadPrefsAsync(ReadErrorDelegate* error_delegate) override {}
   void SchedulePendingLossyWrites() override {}
-  void ClearMutableValues() override {}
   void OnStoreDeletionFromDisk() override {}
   bool IsInMemoryPrefStore() const override;
+  void RemoveValuesByPrefixSilently(const std::string& prefix) override;
 
  protected:
   ~InMemoryPrefStore() override;
@@ -59,8 +62,6 @@ class COMPONENTS_PREFS_EXPORT InMemoryPrefStore : public PersistentPrefStore {
   PrefValueMap prefs_;
 
   base::ObserverList<PrefStore::Observer, true>::Unchecked observers_;
-
-  DISALLOW_COPY_AND_ASSIGN(InMemoryPrefStore);
 };
 
 #endif  // COMPONENTS_PREFS_IN_MEMORY_PREF_STORE_H_

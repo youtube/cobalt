@@ -1,0 +1,10 @@
+Test rule usage tracking
+Used rules offsets: 6
+0
+36
+57
+105
+141
+327
+Unused rules offsets: 0
+

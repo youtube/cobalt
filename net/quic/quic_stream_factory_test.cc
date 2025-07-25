@@ -14177,15 +14177,10 @@ std::string PrintToString(const DnsRaceTestParams& p) {
 std::vector<DnsRaceTestParams> GetDnsRaceTestParams() {
   std::vector<DnsRaceTestParams> ret;
   for (const auto& p : GetTestParams()) {
-#if defined(STARBOARD)
-    DnsRaceTestParams params{p.version,
-                             p.enable_quic_priority_incremental_support, false};
-#else
     DnsRaceTestParams params{.version = p.version,
                              .enable_quic_priority_incremental_support =
                                  p.enable_quic_priority_incremental_support,
                              .require_dns_https_alpn = false};
-#endif
     ret.push_back(params);
     params.require_dns_https_alpn = true;
     ret.push_back(params);

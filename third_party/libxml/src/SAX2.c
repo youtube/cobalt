@@ -28,10 +28,9 @@
 #include <libxml/HTMLtree.h>
 #include <libxml/globals.h>
 
-/* Define SIZE_T_MAX unless defined through <limits.h>. */
-#ifndef SIZE_T_MAX
-# define SIZE_T_MAX     ((size_t)-1)
-#endif /* !SIZE_T_MAX */
+#include "private/error.h"
+#include "private/parser.h"
+#include "private/tree.h"
 
 /* #define DEBUG_SAX2 */
 /* #define DEBUG_SAX2_TREE */
@@ -388,6 +387,9 @@ xmlSAX2ExternalSubset(void *ctx, const xmlChar *name,
 	xmlCharEncoding enc;
 	int oldcharset;
 	const xmlChar *oldencoding;
+	int oldprogressive;
+        unsigned long consumed;
+        size_t buffered;
 
 	/*
 	 * Ask the Entity resolver to load the damn thing
@@ -410,18 +412,22 @@ xmlSAX2ExternalSubset(void *ctx, const xmlChar *name,
 	oldinputTab = ctxt->inputTab;
 	oldcharset = ctxt->charset;
 	oldencoding = ctxt->encoding;
+        oldprogressive = ctxt->progressive;
 	ctxt->encoding = NULL;
+        ctxt->progressive = 0;
 
 	ctxt->inputTab = (xmlParserInputPtr *)
 	                 xmlMalloc(5 * sizeof(xmlParserInputPtr));
 	if (ctxt->inputTab == NULL) {
 	    xmlSAX2ErrMemory(ctxt, "xmlSAX2ExternalSubset");
+            xmlFreeInputStream(input);
 	    ctxt->input = oldinput;
 	    ctxt->inputNr = oldinputNr;
 	    ctxt->inputMax = oldinputMax;
 	    ctxt->inputTab = oldinputTab;
 	    ctxt->charset = oldcharset;
 	    ctxt->encoding = oldencoding;
+            ctxt->progressive = oldprogressive;
 	    return;
 	}
 	ctxt->inputNr = 0;
@@ -456,6 +462,18 @@ xmlSAX2ExternalSubset(void *ctx, const xmlChar *name,
 
 	while (ctxt->inputNr > 1)
 	    xmlPopInput(ctxt);
+
+        consumed = ctxt->input->consumed;
+        buffered = ctxt->input->cur - ctxt->input->base;
+        if (buffered > ULONG_MAX - consumed)
+            consumed = ULONG_MAX;
+        else
+            consumed += buffered;
+        if (consumed > ULONG_MAX - ctxt->sizeentities)
+            ctxt->sizeentities = ULONG_MAX;
+        else
+            ctxt->sizeentities += consumed;
+
 	xmlFreeInputStream(ctxt->input);
         xmlFree(ctxt->inputTab);
 
@@ -472,6 +490,7 @@ xmlSAX2ExternalSubset(void *ctx, const xmlChar *name,
 	     (!xmlDictOwns(ctxt->dict, ctxt->encoding))))
 	    xmlFree((xmlChar *) ctxt->encoding);
 	ctxt->encoding = oldencoding;
+        ctxt->progressive = oldprogressive;
 	/* ctxt->wellFormed = oldwellFormed; */
     }
 }
@@ -1034,7 +1053,7 @@ xmlSAX2EndDocument(void *ctx)
     }
 }
 
-#if defined(LIBXML_SAX1_ENABLED) || defined(LIBXML_HTML_ENABLED) || defined(LIBXML_WRITER_ENABLED) || defined(LIBXML_DOCB_ENABLED) || defined(LIBXML_LEGACY_ENABLED)
+#if defined(LIBXML_SAX1_ENABLED) || defined(LIBXML_HTML_ENABLED) || defined(LIBXML_WRITER_ENABLED) || defined(LIBXML_LEGACY_ENABLED)
 /**
  * xmlNsErrMsg:
  * @ctxt:  an XML parser context
@@ -1316,25 +1335,25 @@ xmlSAX2AttributeInternal(void *ctx, const xmlChar *fullname,
 
     /* !!!!!! <a toto:arg="" xmlns:toto="http://toto.com"> */
     ret = xmlNewNsPropEatName(ctxt->node, namespace, name, NULL);
+    if (ret == NULL)
+        goto error;
 
-    if (ret != NULL) {
-        if ((ctxt->replaceEntities == 0) && (!ctxt->html)) {
-	    xmlNodePtr tmp;
+    if ((ctxt->replaceEntities == 0) && (!ctxt->html)) {
+        xmlNodePtr tmp;
 
-	    ret->children = xmlStringGetNodeList(ctxt->myDoc, value);
-	    tmp = ret->children;
-	    while (tmp != NULL) {
-		tmp->parent = (xmlNodePtr) ret;
-		if (tmp->next == NULL)
-		    ret->last = tmp;
-		tmp = tmp->next;
-	    }
-	} else if (value != NULL) {
-	    ret->children = xmlNewDocText(ctxt->myDoc, value);
-	    ret->last = ret->children;
-	    if (ret->children != NULL)
-		ret->children->parent = (xmlNodePtr) ret;
-	}
+        ret->children = xmlStringGetNodeList(ctxt->myDoc, value);
+        tmp = ret->children;
+        while (tmp != NULL) {
+            tmp->parent = (xmlNodePtr) ret;
+            if (tmp->next == NULL)
+                ret->last = tmp;
+            tmp = tmp->next;
+        }
+    } else if (value != NULL) {
+        ret->children = xmlNewDocText(ctxt->myDoc, value);
+        ret->last = ret->children;
+        if (ret->children != NULL)
+            ret->children->parent = (xmlNodePtr) ret;
     }
 
 #ifdef LIBXML_VALID_ENABLED
@@ -1613,12 +1632,15 @@ xmlSAX2StartElement(void *ctx, const xmlChar *fullname, const xmlChar **atts)
 	ctxt->validate = 0;
     }
 
-
-    /*
-     * Split the full name into a namespace prefix and the tag name
-     */
-    name = xmlSplitQName(ctxt, fullname, &prefix);
-
+    if (ctxt->html) {
+        prefix = NULL;
+        name = xmlStrdup(fullname);
+    } else {
+        /*
+         * Split the full name into a namespace prefix and the tag name
+         */
+        name = xmlSplitQName(ctxt, fullname, &prefix);
+    }
 
     /*
      * Note : the namespace resolution is deferred until the end of the
@@ -1643,8 +1665,8 @@ xmlSAX2StartElement(void *ctx, const xmlChar *fullname, const xmlChar **atts)
     ctxt->nodemem = -1;
     if (ctxt->linenumbers) {
 	if (ctxt->input != NULL) {
-	    if (ctxt->input->line < USHRT_MAX)
-		ret->line = (unsigned short) ctxt->input->line;
+	    if ((unsigned) ctxt->input->line < (unsigned) USHRT_MAX)
+		ret->line = ctxt->input->line;
 	    else
 	        ret->line = USHRT_MAX;
 	}
@@ -1908,8 +1930,8 @@ skip:
 
     if (ctxt->linenumbers) {
 	if (ctxt->input != NULL) {
-	    if (ctxt->input->line < USHRT_MAX)
-		ret->line = (unsigned short) ctxt->input->line;
+	    if ((unsigned) ctxt->input->line < (unsigned) USHRT_MAX)
+		ret->line = ctxt->input->line;
 	    else {
 	        ret->line = USHRT_MAX;
 		if (ctxt->options & XML_PARSE_BIG_LINES)
@@ -2159,7 +2181,7 @@ xmlSAX2AttributeNs(xmlParserCtxtPtr ctxt,
 	     *
 	     * Open issue: normalization of the value.
 	     */
-#if defined(LIBXML_SAX1_ENABLED) || defined(LIBXML_HTML_ENABLED) || defined(LIBXML_WRITER_ENABLED) || defined(LIBXML_DOCB_ENABLED) || defined(LIBXML_LEGACY_ENABLED)
+#if defined(LIBXML_SAX1_ENABLED) || defined(LIBXML_HTML_ENABLED) || defined(LIBXML_WRITER_ENABLED) || defined(LIBXML_LEGACY_ENABLED)
 #ifdef LIBXML_VALID_ENABLED
 	    if (xmlValidateNCName(content, 1) != 0) {
 	        xmlErrValid(ctxt, XML_DTD_XMLID_VALUE,
@@ -2265,6 +2287,7 @@ xmlSAX2StartElementNs(void *ctx,
 	        ret->name = lname;
 	    if (ret->name == NULL) {
 	        xmlSAX2ErrMemory(ctxt, "xmlSAX2StartElementNs");
+                xmlFree(ret);
 		return;
 	    }
 	}
@@ -2286,8 +2309,8 @@ xmlSAX2StartElementNs(void *ctx,
     }
     if (ctxt->linenumbers) {
 	if (ctxt->input != NULL) {
-	    if (ctxt->input->line < USHRT_MAX)
-		ret->line = (unsigned short) ctxt->input->line;
+	    if ((unsigned) ctxt->input->line < (unsigned) USHRT_MAX)
+		ret->line = ctxt->input->line;
 	    else
 	        ret->line = USHRT_MAX;
 	}
@@ -2596,22 +2619,23 @@ xmlSAX2Text(xmlParserCtxtPtr ctxt, const xmlChar *ch, int len,
 		xmlSAX2ErrMemory(ctxt, "xmlSAX2Characters: xmlStrdup returned NULL");
 		return;
  	    }
-            if (((size_t)ctxt->nodelen + (size_t)len > XML_MAX_TEXT_LENGTH) &&
+	    if (ctxt->nodelen > INT_MAX - len) {
+                xmlSAX2ErrMemory(ctxt, "xmlSAX2Characters overflow prevented");
+                return;
+	    }
+            if ((ctxt->nodelen + len > XML_MAX_TEXT_LENGTH) &&
                 ((ctxt->options & XML_PARSE_HUGE) == 0)) {
                 xmlSAX2ErrMemory(ctxt, "xmlSAX2Characters: huge text node");
                 return;
             }
-	    if ((size_t)ctxt->nodelen > SIZE_T_MAX - (size_t)len ||
-	        (size_t)ctxt->nodemem + (size_t)len > SIZE_T_MAX / 2) {
-                xmlSAX2ErrMemory(ctxt, "xmlSAX2Characters overflow prevented");
-                return;
-	    }
 	    if (ctxt->nodelen + len >= ctxt->nodemem) {
 		xmlChar *newbuf;
-		size_t size;
+		int size;
 
-		size = ctxt->nodemem + len;
-		size *= 2;
+		size = ctxt->nodemem > INT_MAX - len ?
+                       INT_MAX :
+                       ctxt->nodemem + len;
+		size = size > INT_MAX / 2 ? INT_MAX : size * 2;
                 newbuf = (xmlChar *) xmlRealloc(lastChild->content,size);
 		if (newbuf == NULL) {
 		    xmlSAX2ErrMemory(ctxt, "xmlSAX2Characters");
@@ -2633,9 +2657,11 @@ xmlSAX2Text(xmlParserCtxtPtr ctxt, const xmlChar *ch, int len,
 	    }
 	} else {
 	    /* Mixed content, first time */
-            if (type == XML_TEXT_NODE)
+            if (type == XML_TEXT_NODE) {
                 lastChild = xmlSAX2TextNode(ctxt, ch, len);
-            else
+                if (lastChild != NULL)
+                    lastChild->doc = ctxt->myDoc;
+            } else
                 lastChild = xmlNewCDataBlock(ctxt->myDoc, ch, len);
 	    if (lastChild != NULL) {
 		xmlAddChild(ctxt->node, lastChild);
@@ -2709,8 +2735,8 @@ xmlSAX2ProcessingInstruction(void *ctx, const xmlChar *target,
 
     if (ctxt->linenumbers) {
 	if (ctxt->input != NULL) {
-	    if (ctxt->input->line < USHRT_MAX)
-		ret->line = (unsigned short) ctxt->input->line;
+	    if ((unsigned) ctxt->input->line < (unsigned) USHRT_MAX)
+		ret->line = ctxt->input->line;
 	    else
 	        ret->line = USHRT_MAX;
 	}
@@ -2769,8 +2795,8 @@ xmlSAX2Comment(void *ctx, const xmlChar *value)
     if (ret == NULL) return;
     if (ctxt->linenumbers) {
 	if (ctxt->input != NULL) {
-	    if (ctxt->input->line < USHRT_MAX)
-		ret->line = (unsigned short) ctxt->input->line;
+	    if ((unsigned) ctxt->input->line < (unsigned) USHRT_MAX)
+		ret->line = ctxt->input->line;
 	    else
 	        ret->line = USHRT_MAX;
 	}
@@ -2827,6 +2853,8 @@ static int xmlSAX2DefaultVersionValue = 2;
 /**
  * xmlSAXDefaultVersion:
  * @version:  the version, 1 or 2
+ *
+ * DEPRECATED: Use parser option XML_PARSE_SAX1.
  *
  * Set the default version of SAX used globally by the library.
  * By default, during initialization the default is set to 2.
@@ -2928,14 +2956,14 @@ xmlSAX2InitDefaultSAXHandler(xmlSAXHandler *hdlr, int warning)
 /**
  * xmlDefaultSAXHandlerInit:
  *
+ * DEPRECATED: This function is a no-op. Call xmlInitParser to
+ * initialize the library.
+ *
  * Initialize the default SAX2 handler
  */
 void
 xmlDefaultSAXHandlerInit(void)
 {
-#ifdef LIBXML_SAX1_ENABLED
-    xmlSAXVersion((xmlSAXHandlerPtr) &xmlDefaultSAXHandler, 1);
-#endif /* LIBXML_SAX1_ENABLED */
 }
 
 #ifdef LIBXML_HTML_ENABLED
@@ -2986,70 +3014,12 @@ xmlSAX2InitHtmlDefaultSAXHandler(xmlSAXHandler *hdlr)
 /**
  * htmlDefaultSAXHandlerInit:
  *
- * Initialize the default SAX handler
+ * DEPRECATED: This function is a no-op. Call xmlInitParser to
+ * initialize the library.
  */
 void
 htmlDefaultSAXHandlerInit(void)
 {
-    xmlSAX2InitHtmlDefaultSAXHandler((xmlSAXHandlerPtr) &htmlDefaultSAXHandler);
 }
 
 #endif /* LIBXML_HTML_ENABLED */
-
-#ifdef LIBXML_DOCB_ENABLED
-
-/**
- * xmlSAX2InitDocbDefaultSAXHandler:
- * @hdlr:  the SAX handler
- *
- * Initialize the default DocBook SAX2 handler
- */
-void
-xmlSAX2InitDocbDefaultSAXHandler(xmlSAXHandler *hdlr)
-{
-    if ((hdlr == NULL) || (hdlr->initialized != 0))
-	return;
-
-    hdlr->internalSubset = xmlSAX2InternalSubset;
-    hdlr->externalSubset = NULL;
-    hdlr->isStandalone = xmlSAX2IsStandalone;
-    hdlr->hasInternalSubset = xmlSAX2HasInternalSubset;
-    hdlr->hasExternalSubset = xmlSAX2HasExternalSubset;
-    hdlr->resolveEntity = xmlSAX2ResolveEntity;
-    hdlr->getEntity = xmlSAX2GetEntity;
-    hdlr->getParameterEntity = NULL;
-    hdlr->entityDecl = xmlSAX2EntityDecl;
-    hdlr->attributeDecl = NULL;
-    hdlr->elementDecl = NULL;
-    hdlr->notationDecl = NULL;
-    hdlr->unparsedEntityDecl = NULL;
-    hdlr->setDocumentLocator = xmlSAX2SetDocumentLocator;
-    hdlr->startDocument = xmlSAX2StartDocument;
-    hdlr->endDocument = xmlSAX2EndDocument;
-    hdlr->startElement = xmlSAX2StartElement;
-    hdlr->endElement = xmlSAX2EndElement;
-    hdlr->reference = xmlSAX2Reference;
-    hdlr->characters = xmlSAX2Characters;
-    hdlr->cdataBlock = NULL;
-    hdlr->ignorableWhitespace = xmlSAX2IgnorableWhitespace;
-    hdlr->processingInstruction = NULL;
-    hdlr->comment = xmlSAX2Comment;
-    hdlr->warning = xmlParserWarning;
-    hdlr->error = xmlParserError;
-    hdlr->fatalError = xmlParserError;
-
-    hdlr->initialized = 1;
-}
-
-/**
- * docbDefaultSAXHandlerInit:
- *
- * Initialize the default SAX handler
- */
-void
-docbDefaultSAXHandlerInit(void)
-{
-    xmlSAX2InitDocbDefaultSAXHandler((xmlSAXHandlerPtr) &docbDefaultSAXHandler);
-}
-
-#endif /* LIBXML_DOCB_ENABLED */

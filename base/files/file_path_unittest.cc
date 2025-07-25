@@ -335,7 +335,7 @@ TEST_F(FilePathTest, Append) {
     // handle the case when AppendASCII is passed UTF8
 #if BUILDFLAG(IS_WIN)
     std::string ascii = WideToUTF8(leaf);
-#elif BUILDFLAG(IS_POSIX) || BUILDFLAG(IS_FUCHSIA) || defined(STARBOARD)
+#elif BUILDFLAG(IS_POSIX) || BUILDFLAG(IS_FUCHSIA)
     std::string ascii = leaf;
 #endif
     observed_str = root.AppendASCII(ascii);

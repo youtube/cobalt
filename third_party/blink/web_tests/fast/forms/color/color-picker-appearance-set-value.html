@@ -1,0 +1,12 @@
+<!DOCTYPE html>
+<script src="../../../resources/testdriver.js"></script>
+<script src="../../../resources/testdriver-vendor.js"></script>
+<script src="../resources/picker-common.js"></script>
+
+<input type='color'>
+
+<script>
+  window.onload = openPickerAppearanceOnly(document.querySelector('input'),() => {
+    document.querySelector('input').value = '#7EFFC9';
+  });
+</script>

@@ -223,7 +223,7 @@ TEST(CommandLineTest, GetArgumentsString) {
   CommandLine::StringType expected_second_arg(UTF8ToWide(kSecondArgName));
   CommandLine::StringType expected_third_arg(UTF8ToWide(kThirdArgName));
   CommandLine::StringType expected_fourth_arg(UTF8ToWide(kFourthArgName));
-#elif BUILDFLAG(IS_POSIX) || BUILDFLAG(IS_FUCHSIA) || defined(STARBOARD)
+#elif BUILDFLAG(IS_POSIX) || BUILDFLAG(IS_FUCHSIA)
   CommandLine::StringType expected_first_arg(kFirstArgName);
   CommandLine::StringType expected_second_arg(kSecondArgName);
   CommandLine::StringType expected_third_arg(kThirdArgName);

@@ -15,9 +15,7 @@
 #include "media/base/media_client.h"
 #include "media/base/media_switches.h"
 #include "media/media_buildflags.h"
-#if !defined(STARBOARD)
 #include "ui/display/display_switches.h"
-#endif  // !defined(STARBOARD)
 #include "ui/gfx/hdr_metadata.h"
 
 #if BUILDFLAG(ENABLE_LIBVPX)
@@ -71,11 +69,7 @@ bool IsSupportedHdrMetadata(const gfx::HdrMetadataType& hdr_metadata_type) {
       return true;
 
     case gfx::HdrMetadataType::kSmpteSt2086:
-#if defined(STARBOARD)
-      return false;
-#else  // defined(STARBOARD)
       return base::FeatureList::IsEnabled(kSupportSmpteSt2086HdrMetadata);
-#endif  // defined(STARBOARD)
 
     case gfx::HdrMetadataType::kSmpteSt2094_10:
     case gfx::HdrMetadataType::kSmpteSt2094_40:
@@ -245,12 +239,6 @@ bool IsHevcProfileSupported(const VideoType& type) {
 }
 
 bool IsVp9ProfileSupported(const VideoType& type) {
-#if defined(STARBOARD)
-  // Assume all profiles are supported, and let the Starboard implementation
-  // filter it out.
-  return type.profile == VP9PROFILE_PROFILE0 || type.profile == VP9PROFILE_PROFILE1 ||
-         type.profile == VP9PROFILE_PROFILE2 || type.profile == VP9PROFILE_PROFILE3;
-#else  // defined(STARBOARD)
 #if BUILDFLAG(ENABLE_LIBVPX)
   // High bit depth capabilities may be toggled via LibVPX config flags.
   static const bool vpx_supports_hbd = (vpx_codec_get_caps(vpx_codec_vp9_dx()) &
@@ -282,7 +270,6 @@ bool IsVp9ProfileSupported(const VideoType& type) {
   }
 #endif  // BUILDFLAG(ENABLE_LIBVPX)
   return false;
-#endif  // defined(STARBOARD)
 }
 
 bool IsAV1Supported(const VideoType& type) {
@@ -396,7 +383,6 @@ bool IsDefaultSupportedAudioType(const AudioType& type) {
     case AudioCodec::kGSM_MS:
     case AudioCodec::kALAC:
     case AudioCodec::kMpegHAudio:
-    case AudioCodec::kIAMF:
     case AudioCodec::kUnknown:
       return false;
     case AudioCodec::kDTS:

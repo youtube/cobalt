@@ -32,18 +32,18 @@
 //  Based on original Protocol Buffers design by
 //  Sanjay Ghemawat, Jeff Dean, and others.
 
+#include <google/protobuf/compiler/java/java_enum.h>
+
 #include <map>
 #include <string>
 
+#include <google/protobuf/io/printer.h>
+#include <google/protobuf/stubs/strutil.h>
 #include <google/protobuf/compiler/java/java_context.h>
 #include <google/protobuf/compiler/java/java_doc_comment.h>
-#include <google/protobuf/compiler/java/java_enum.h>
 #include <google/protobuf/compiler/java/java_helpers.h>
 #include <google/protobuf/compiler/java/java_name_resolver.h>
 #include <google/protobuf/descriptor.pb.h>
-#include <google/protobuf/io/printer.h>
-#include <google/protobuf/stubs/strutil.h>
-
 
 namespace google {
 namespace protobuf {
@@ -78,9 +78,10 @@ void EnumGenerator::Generate(io::Printer* printer) {
   WriteEnumDocComment(printer, descriptor_);
   MaybePrintGeneratedAnnotation(context_, printer, descriptor_, immutable_api_);
   printer->Print(
-      "public enum $classname$\n"
+      "$deprecation$public enum $classname$\n"
       "    implements com.google.protobuf.ProtocolMessageEnum {\n",
-      "classname", descriptor_->name());
+      "classname", descriptor_->name(), "deprecation",
+      descriptor_->options().deprecated() ? "@java.lang.Deprecated " : "");
   printer->Annotate("classname", descriptor_);
   printer->Indent();
 
@@ -143,9 +144,13 @@ void EnumGenerator::Generate(io::Printer* printer) {
     vars["number"] = StrCat(descriptor_->value(i)->number());
     vars["{"] = "";
     vars["}"] = "";
+    vars["deprecation"] = descriptor_->value(i)->options().deprecated()
+                              ? "@java.lang.Deprecated "
+                              : "";
     WriteEnumValueDocComment(printer, descriptor_->value(i));
     printer->Print(vars,
-                   "public static final int ${$$name$_VALUE$}$ = $number$;\n");
+                   "$deprecation$public static final int ${$$name$_VALUE$}$ = "
+                   "$number$;\n");
     printer->Annotate("{", "}", descriptor_->value(i));
   }
   printer->Print("\n");
@@ -175,6 +180,9 @@ void EnumGenerator::Generate(io::Printer* printer) {
       "}\n"
       "\n"
       "/**\n"
+      " * @param value The numeric wire value of the corresponding enum "
+      "entry.\n"
+      " * @return The enum associated with the given numeric wire value.\n"
       " * @deprecated Use {@link #forNumber(int)} instead.\n"
       " */\n"
       "@java.lang.Deprecated\n"
@@ -182,6 +190,11 @@ void EnumGenerator::Generate(io::Printer* printer) {
       "  return forNumber(value);\n"
       "}\n"
       "\n"
+      "/**\n"
+      " * @param value The numeric wire value of the corresponding enum "
+      "entry.\n"
+      " * @return The enum associated with the given numeric wire value.\n"
+      " */\n"
       "public static $classname$ forNumber(int value) {\n"
       "  switch (value) {\n",
       "classname", descriptor_->name());
@@ -221,7 +234,25 @@ void EnumGenerator::Generate(io::Printer* printer) {
   if (HasDescriptorMethods(descriptor_, context_->EnforceLite())) {
     printer->Print(
         "public final com.google.protobuf.Descriptors.EnumValueDescriptor\n"
-        "    getValueDescriptor() {\n"
+        "    getValueDescriptor() {\n");
+    if (SupportUnknownEnumValue(descriptor_->file())) {
+      if (ordinal_is_index) {
+        printer->Print(
+            "  if (this == UNRECOGNIZED) {\n"
+            "    throw new java.lang.IllegalStateException(\n"
+            "        \"Can't get the descriptor of an unrecognized enum "
+            "value.\");\n"
+            "  }\n");
+      } else {
+        printer->Print(
+            "  if (index == -1) {\n"
+            "    throw new java.lang.IllegalStateException(\n"
+            "        \"Can't get the descriptor of an unrecognized enum "
+            "value.\");\n"
+            "  }\n");
+      }
+    }
+    printer->Print(
         "  return getDescriptor().getValues().get($index_text$);\n"
         "}\n"
         "public final com.google.protobuf.Descriptors.EnumDescriptor\n"
@@ -272,15 +303,22 @@ void EnumGenerator::Generate(io::Printer* printer) {
       // for every enum.
       printer->Print("values();\n");
     } else {
+      printer->Print("getStaticValuesArray();\n");
+      printer->Print("private static $classname$[] getStaticValuesArray() {\n",
+                     "classname", descriptor_->name());
+      printer->Indent();
       printer->Print(
-          "{\n"
-          "  ");
+          "return new $classname$[] {\n"
+          "  ",
+          "classname", descriptor_->name());
       for (int i = 0; i < descriptor_->value_count(); i++) {
         printer->Print("$name$, ", "name", descriptor_->value(i)->name());
       }
       printer->Print(
           "\n"
           "};\n");
+      printer->Outdent();
+      printer->Print("}");
     }
 
     printer->Print(

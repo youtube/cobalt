@@ -1,0 +1,5 @@
+include_rules = [
+  # For generated headers
+  "+chrome/grit",
+  "+components/strings/grit"
+]

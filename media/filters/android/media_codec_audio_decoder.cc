@@ -103,7 +103,6 @@ void MediaCodecAudioDecoder::Initialize(const AudioDecoderConfig& config,
     case AudioCodec::kPCM_S24BE:
     case AudioCodec::kPCM_ALAW:
     case AudioCodec::kALAC:
-    case AudioCodec::kIAMF:
       platform_codec_supported = false;
       break;
     case AudioCodec::kAC3:

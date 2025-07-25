@@ -279,9 +279,6 @@ class TCPServerSocketTestWithIPv6Only
   }
 };
 
-// TODO: b/327008491 - Reenable unittests with unused functionality.
-// SetIPv6Only() is stubbed out in Starboard.
-#if !defined(STARBOARD)
 TEST_P(TCPServerSocketTestWithIPv6Only, AcceptIPv6Only) {
   const bool ipv6_only = GetParam();
   ASSERT_NO_FATAL_FAILURE(SetUpIPv6AllInterfaces(ipv6_only));
@@ -295,7 +292,6 @@ TEST_P(TCPServerSocketTestWithIPv6Only, AcceptIPv6Only) {
 }
 
 INSTANTIATE_TEST_SUITE_P(All, TCPServerSocketTestWithIPv6Only, testing::Bool());
-#endif
 
 TEST_F(TCPServerSocketTest, AcceptIO) {
   ASSERT_NO_FATAL_FAILURE(SetUpIPv4());

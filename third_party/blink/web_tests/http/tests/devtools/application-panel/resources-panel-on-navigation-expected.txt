@@ -1,0 +1,79 @@
+Tests Application Panel response to a main frame navigation.
+
+Initial state:
+Application
+  Manifest
+    Identity
+    Presentation
+    Protocol Handlers
+    Icons
+  Service Workers
+  Storage
+Storage
+  Local Storage
+    http://127.0.0.1:8000/
+  Session Storage
+    http://127.0.0.1:8000/
+  IndexedDB
+    Database1 - http://127.0.0.1:8000/
+  Web SQL
+    database-for-test
+  Cookies
+    http://127.0.0.1:8000
+  Private State Tokens
+  Interest Groups
+  Shared Storage
+    http://127.0.0.1:8000
+  Cache Storage
+Background Services
+  Back/forward cache
+  Background Fetch
+  Background Sync
+  Notifications
+  Payment Handler
+  Periodic Background Sync
+  Push Messaging
+  Reporting API
+Frames
+  top
+    inspected-page.html
+Visible view is a query view: true
+Page reloaded.
+After navigation:
+Application
+  Manifest
+    Identity
+    Presentation
+    Protocol Handlers
+    Icons
+  Service Workers
+  Storage
+Storage
+  Local Storage
+    http://127.0.0.1:8000/
+  Session Storage
+    http://127.0.0.1:8000/
+  IndexedDB
+    Database1 - http://127.0.0.1:8000/
+  Web SQL
+  Cookies
+    http://127.0.0.1:8000
+  Private State Tokens
+  Interest Groups
+  Shared Storage
+    http://127.0.0.1:8000
+  Cache Storage
+Background Services
+  Back/forward cache
+  Background Fetch
+  Background Sync
+  Notifications
+  Payment Handler
+  Periodic Background Sync
+  Push Messaging
+  Reporting API
+Frames
+  top
+    inspected-page.html
+Visible view is a query view: false
+

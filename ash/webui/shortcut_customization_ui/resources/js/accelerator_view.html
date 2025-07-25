@@ -1,0 +1,91 @@
+<style>
+  .flex-row {
+    display: flex;
+    flex-direction: row;
+    justify-content: space-between;
+  }
+
+  #accelerator-keys {
+    display: flex;
+    flex-direction: row;
+  }
+
+  #container:focus {
+    outline: none;
+  }
+
+  #acceleratorSeparator {
+    align-items: center;
+    display: flex;
+    padding-inline-end: 5px;
+  }
+
+  #lockIconContainer {
+    align-items: center;
+    display: flex;
+  }
+
+  #lockIconContainer[hidden] {
+    display: none;  /* Required for flexbox hidden. */
+  }
+
+  iron-icon {
+    --iron-icon-width: 16px;
+  }
+</style>
+
+<div id="container" class="flex-row" tabindex$="[[getTabIndex()]]">
+  <template is="dom-if" if="[[!showEditView(viewState)]]">
+    <div id="accelerator-keys">
+      <template is="dom-repeat" items="[[modifiers]]">
+        <input-key key="[[item]]" key-state="modifier-selected"></input-key>
+      </template>
+      <input-key
+          key="[[acceleratorInfo.layoutProperties.standardAccelerator.keyDisplay]]"
+          key-state="alpha-numeric-selected">
+      </input-key>
+    </div>
+    <div 
+      id="lockIconContainer" 
+      hidden="[[!shouldShowLockIcon(acceleratorInfo.locked, sourceIsLocked)]]">
+      <iron-icon icon="shortcut-customization:lock"></iron-icon>
+    </div>
+  </template>
+  <template is="dom-if" if="[[showEditView(viewState)]]">
+    <div id="editContainer" class="flex-row">
+      <input-key id="ctrlKey" key="ctrl"
+          key-state="[[getCtrlState(
+            pendingAcceleratorInfo.layoutProperties.standardAccelerator.accelerator.*
+            )]]">
+      </input-key>
+      <input-key id="altKey" key="alt"
+          key-state="[[getAltState(
+            pendingAcceleratorInfo.layoutProperties.standardAccelerator.*
+            )]]">
+      </input-key>
+      <input-key id="shiftKey" key="shift"
+          key-state="[[getShiftState(
+            pendingAcceleratorInfo.layoutProperties.standardAccelerator.*
+            )]]">
+      </input-key>
+      <input-key id="searchKey" key="search"
+          key-state="[[getSearchState(
+            pendingAcceleratorInfo.layoutProperties.standardAccelerator.*
+            )]]"
+      >
+      </input-key>
+      <!-- TODO(jimmyxgong): Conditionally add this separator based off of the
+           shortcut's layout info. -->
+      <div id="acceleratorSeparator"> + </div>
+      <input-key id="pendingKey"
+          key="[[getPendingKey(
+            pendingAcceleratorInfo.layoutProperties.standardAccelerator.*
+            )]]"
+          key-state=
+              "[[getPendingKeyState(
+                pendingAcceleratorInfo.layoutProperties.standardAccelerator.*
+                )]]">
+      </input-key>
+    </div>
+  </template>
+</div>

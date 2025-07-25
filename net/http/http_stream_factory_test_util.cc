@@ -46,12 +46,7 @@ MockHttpStreamFactoryJob::MockHttpStreamFactoryJob(
                              quic_version,
                              is_websocket,
                              enable_ip_based_pooling,
-#if defined(STARBOARD)
-                             net_log,
-                             /*protocol_filter_override=*/false) {
-#else
                              net_log) {
-#endif  // defined(STARBOARD)
   DCHECK(!is_waiting());
 }
 
@@ -80,14 +75,8 @@ std::unique_ptr<HttpStreamFactory::Job> TestJobFactory::CreateJob(
     bool enable_ip_based_pooling,
     NetLog* net_log,
     NextProto alternative_protocol = kProtoUnknown,
-#if defined(STARBOARD)
-    quic::ParsedQuicVersion quic_version =
-        quic::ParsedQuicVersion::Unsupported(),
-    bool protocol_filter_override = false) {
-#else
     quic::ParsedQuicVersion quic_version =
         quic::ParsedQuicVersion::Unsupported()) {
-#endif  // defined(STARBOARD)
   auto job = std::make_unique<MockHttpStreamFactoryJob>(
       delegate, job_type, session, request_info, priority, proxy_info,
       SSLConfig(), SSLConfig(), std::move(destination), origin_url,

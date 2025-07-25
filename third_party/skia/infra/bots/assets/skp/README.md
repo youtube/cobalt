@@ -1,1 +1,0 @@
-Humans shouldn't have to call this - the RecreateSKPs bot calls this, e.g. https://skia-review.googlesource.com/c/9515/

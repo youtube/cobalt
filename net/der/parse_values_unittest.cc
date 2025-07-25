@@ -370,8 +370,6 @@ TEST(ParseValuesTest, ParseBitStringSevenOneBitsUnusedBitIsOne) {
   EXPECT_FALSE(bit_string.has_value());
 }
 
-// TODO: b/327008491 - Reenable unittests with unused functionality.
-#if !defined(STARBOARD)
 TEST(ParseValuesTest, ParseIA5String) {
   const Input valid_der({0x46, 0x6f, 0x6f, 0x20, 0x62, 0x61, 0x72, 0x01, 0x7f});
   std::string s;
@@ -455,6 +453,5 @@ TEST(ParseValuesTest, ParseUniversalString) {
   const Input invalid_non_4_multiple_der({0x00, 0x00, 0x00, 0x66, 0x00, 0x00});
   EXPECT_FALSE(ParseUniversalString(invalid_non_4_multiple_der, &s));
 }
-#endif
 
 }  // namespace net::der::test

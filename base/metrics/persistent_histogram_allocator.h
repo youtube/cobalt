@@ -372,7 +372,7 @@ class BASE_EXPORT GlobalHistogramAllocator
   // specified |size| taken from the heap.
   static void CreateWithLocalMemory(size_t size, uint64_t id, StringPiece name);
 
-#if !BUILDFLAG(IS_NACL) && !defined(STARBOARD)
+#if !BUILDFLAG(IS_NACL)
   // Create a global allocator by memory-mapping a |file|. If the file does
   // not exist, it will be created with the specified |size|. If the file does
   // exist, the allocator will use and add to its contents, ignoring the passed
@@ -434,14 +434,12 @@ class BASE_EXPORT GlobalHistogramAllocator
   static bool CreateSpareFile(const FilePath& spare_path, size_t size);
 #endif
 
-#if !defined(STARBOARD)
   // Create a global allocator using a block of shared memory accessed
   // through the given |region|. The allocator maps the shared memory into
   // current process's virtual address space and frees it upon destruction.
   // The memory will continue to live if other processes have access to it.
   static void CreateWithSharedMemoryRegion(
       const WritableSharedMemoryRegion& region);
-#endif // !defined(STARBOARD)
 
   // Sets a GlobalHistogramAllocator for globally storing histograms in
   // a space that can be persisted or shared between processes. There is only

@@ -20,10 +20,10 @@ declare_args() {
   # links at once than we do compiles, because linking is memory-intensive.
   # The default to use varies by platform and by the amount of memory
   # available, so we call out to a script to get the right value.
-  concurrent_links = getenv("COBALT_CONCURRENT_LINKS")
+  concurrent_links = -1
 }
 
-if (concurrent_links == "") {
+if (concurrent_links == -1) {
   if (use_thin_lto) {
     _args = [ "--reserve_mem_gb=10" ]
     if (use_goma_thin_lto) {

@@ -26,8 +26,6 @@
 #include "base/timer/timer.h"
 #include "build/build_config.h"
 
-#if !defined(STARBOARD)
-
 namespace base {
 
 // Constants for GTest command-line flags.
@@ -387,5 +385,4 @@ std::string TruncateSnippetFocused(const base::StringPiece snippet,
 
 }  // namespace base
 
-#endif  // !defined(STARBOARD)
 #endif  // BASE_TEST_LAUNCHER_TEST_LAUNCHER_H_

@@ -13,10 +13,6 @@ import("//build/toolchain/goma.gni")
 import("//build/toolchain/rbe.gni")
 import("//build/toolchain/toolchain.gni")
 
-if (use_cobalt_customizations) {
-  import("//starboard/build/config/os_definitions.gni")
-}
-
 if (is_nacl) {
   # To keep NaCl variables out of builds that don't include NaCl, all
   # variables defined in nacl/config.gni referenced here should be protected by
@@ -117,10 +113,6 @@ if (enable_resource_allowlist_generation) {
 # without sanitizers for host-side tools.
 template("single_gcc_toolchain") {
   toolchain(target_name) {
-    is_starboard_toolchain = target_name == "starboard"
-    if (!sb_is_modular || sb_is_evergreen) {
-      not_needed(["is_starboard_toolchain"])
-    }
     assert(defined(invoker.ar), "gcc_toolchain() must specify a \"ar\" value")
     assert(defined(invoker.cc), "gcc_toolchain() must specify a \"cc\" value")
     assert(defined(invoker.cxx), "gcc_toolchain() must specify a \"cxx\" value")
@@ -140,12 +132,6 @@ template("single_gcc_toolchain") {
     assert(defined(invoker.toolchain_args),
            "Toolchains must specify toolchain_args")
     invoker_toolchain_args = invoker.toolchain_args
-    if (is_starboard && !defined(invoker_toolchain_args.current_cpu)) {
-      invoker_toolchain_args.current_cpu = target_cpu
-    }
-    if (is_starboard && !defined(invoker_toolchain_args.current_os)) {
-      invoker_toolchain_args.current_os = target_os
-    }
     assert(defined(invoker_toolchain_args.current_cpu),
            "toolchain_args must specify a current_cpu")
     assert(defined(invoker_toolchain_args.current_os),
@@ -156,13 +142,11 @@ template("single_gcc_toolchain") {
     toolchain_args = {
       # Populate toolchain args from the invoker.
       forward_variables_from(invoker_toolchain_args, "*")
-      build_with_separate_cobalt_toolchain = build_with_separate_cobalt_toolchain
 
       # The host toolchain value computed by the default toolchain's setup
       # needs to be passed through unchanged to all secondary toolchains to
       # ensure that it's always the same, regardless of the values that may be
       # set on those toolchains.
-      if (!use_cobalt_customizations) {
       host_toolchain = host_toolchain
 
       # The same applies to the toolchain we use to build Rust procedural
@@ -171,7 +155,6 @@ template("single_gcc_toolchain") {
 
       if (!defined(invoker_toolchain_args.v8_current_cpu)) {
         v8_current_cpu = invoker_toolchain_args.current_cpu
-      }
       }
     }
 
@@ -312,9 +295,9 @@ template("single_gcc_toolchain") {
           "\"$python_path\" ${_coverage_wrapper} " + compiler_prefix
     }
 
-    cc = "$compiler_prefix\"${invoker.cc}\""
-    cxx = "$compiler_prefix\"${invoker.cxx}\""
-    asm = "$asm_prefix\"${invoker.cc}\""
+    cc = compiler_prefix + invoker.cc
+    cxx = compiler_prefix + invoker.cxx
+    asm = asm_prefix + invoker.cc
     ar = invoker.ar
     ld = link_prefix + invoker.ld
     if (defined(invoker.readelf)) {
@@ -398,12 +381,6 @@ template("single_gcc_toolchain") {
     # Object files go in this directory.
     object_subdir = "{{target_out_dir}}/{{label_name}}"
 
-    if (defined(invoker.tail_lib_dependencies)) {
-      tail_lib_dependencies = " " + invoker.tail_lib_dependencies
-    } else {
-      tail_lib_dependencies = ""
-    }
-
     tool("cc") {
       depfile = "{{output}}.d"
       precompiled_header_type = "gcc"
@@ -425,16 +402,7 @@ template("single_gcc_toolchain") {
     tool("asm") {
       # For GCC we can just use the C compiler to compile assembly.
       depfile = "{{output}}.d"
-
-      # TODO(b/206642994): see if we can remove this condition. It's needed for
-      # now to add cflags for evergreen platforms but we haven't yet decided
-      # whether cflags should be added here for all platforms.
-      if (!is_starboard_toolchain && is_starboard && sb_is_modular) {
-        command = "$asm $md -MF $depfile ${rebuild_string}{{defines}} {{include_dirs}} {{cflags}} {{asmflags}}${extra_asmflags} -c {{source}} -o {{output}}"
-      } else {
       command = "$asm $md -MF $depfile ${rebuild_string}{{defines}} {{include_dirs}} {{asmflags}}${extra_asmflags} -c {{source}} -o {{output}}"
-      }
-
       depsformat = "gcc"
       description = "ASM {{output}}"
       outputs = [ "$object_subdir/{{source_name_part}}.o" ]
@@ -669,17 +637,7 @@ template("single_gcc_toolchain") {
         start_group_flag = "-Wl,--start-group"
         end_group_flag = "-Wl,--end-group "
       }
-
-      if (using_old_compiler) {
-        link_command = "$ld {{ldflags}}${extra_ldflags} -o \"$unstripped_outfile\" $start_group_flag @\"$rspfile\" {{solibs}} $end_group_flag {{libs}} $tail_lib_dependencies"
-      } else {
-        # Windows based platform modular builds dont link directly with the shared library.
-        if (host_os == "win" && sb_is_modular) {
-          link_command = "$ld {{ldflags}}${extra_ldflags} {{libs}} -o \"$unstripped_outfile\" $start_group_flag @\"$rspfile\"  $end_group_flag$tail_lib_dependencies"
-        } else {
-          link_command = "$ld {{ldflags}}${extra_ldflags} {{libs}} -o \"$unstripped_outfile\" $start_group_flag @\"$rspfile\" {{solibs}} $end_group_flag$tail_lib_dependencies"
-        }
-      }
+      link_command = "$ld {{ldflags}}${extra_ldflags} -o \"$unstripped_outfile\" $start_group_flag @\"$rspfile\" {{solibs}} $end_group_flag {{libs}} {{rlibs}}"
 
       # Generate a map file to be used for binary size analysis.
       # Map file adds ~10% to the link time on a z620.
@@ -900,9 +858,6 @@ template("gcc_toolchain") {
 # actually just be doing a native compile. The invoker can optionally override
 # use_gold too.
 template("clang_toolchain") {
-  if (is_starboard) {
-    clang_base_path = invoker.clang_base_path
-  }
   gcc_toolchain(target_name) {
     _path = "$clang_base_path/bin"
     _is_path_absolute = get_path_info(_path, "abspath") == _path

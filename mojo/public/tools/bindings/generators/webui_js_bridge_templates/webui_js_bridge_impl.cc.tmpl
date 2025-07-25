@@ -1,0 +1,41 @@
+{%- import "webui_js_bridge_macros.tmpl" as macros -%}
+// Copyright 2023 The Chromium Authors
+// Use of this source code is governed by a BSD-style license that can be
+// found in the LICENSE file.
+
+#include "{{module.path}}-webui-js-bridge-impl.h"
+
+#include "{{webui_controller_header}}"
+
+namespace {{module.namespace}} {
+
+{%- set class_name = "%sImpl" % webui_js_bridge.name -%}
+
+{{class_name}}::{{class_name}}(
+    content::WebUIController* controller,
+  {{- macros.constructor_params(webui_js_bridge) -}}
+) :
+{%- for method in webui_js_bridge.methods %}
+   {{method|binder_variable_name}}_({{method|binder_variable_name}})
+   {{-"," if not loop.last else ""}}
+ {%- endfor %} {
+  CHECK(controller->GetAs<{{class_name}}::WebUIControllerSubclass>());
+}
+
+{{class_name}}::~{{class_name}}() = default;
+
+{% for method in webui_js_bridge.methods %}
+  void {{class_name}}::{{method.name}}(
+{%-  for param in method.parameters %}
+    {{param.kind|cpp_type}} {{param.name}}{{"," if not loop.last else ""}}
+{%-   endfor -%}
+  ) {
+  {{method|binder_variable_name}}_.Run(
+{%-  for param in method.parameters %}
+    std::move({{param.name}}){{"," if not loop.last else ""}}
+{%-   endfor -%}
+  );
+}
+{% endfor %}
+
+}  // {{module.namespace}}

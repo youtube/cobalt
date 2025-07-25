@@ -1,4 +1,4 @@
-// Copyright 2014 The Chromium Authors. All rights reserved.
+// Copyright 2014 The Chromium Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -7,7 +7,9 @@
 #include <utility>
 
 #include "base/base64.h"
-#include "base/bind.h"
+#include "base/check.h"
+#include "base/functional/bind.h"
+#include "base/functional/callback_helpers.h"
 #include "base/location.h"
 #include "base/logging.h"
 #include "base/numerics/safe_conversions.h"
@@ -24,19 +26,32 @@ namespace update_client {
 namespace {
 
 // This is an ECDSA prime256v1 named-curve key.
-constexpr int kKeyVersion = 9;
-const char kKeyPubBytesBase64[] =
-    "MFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAEsVwVMmIJaWBjktSx9m1JrZWYBvMm"
-    "bsrGGQPhScDtao+DloD871YmEeunAaQvRMZgDh1nCaWkVG6wo75+yDbKDA==";
+constexpr int kKeyVersion = 13;
+constexpr char kKeyPubBytesBase64[] =
+    "MFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAE82WKnMkb4neVRYgyGaXoEY5nDaiO"
+    "renjt0LMSK/WiPs4+fsjz9kQs+T1PjJR7Hv2upGrsJcSaF8E1nK4WrSucA==";
+
+// The content type for all protocol requests.
+constexpr char kContentType[] = "application/json";
+
+// Returns the value of |response_cup_server_proof| or the value of
+// |response_etag|, if the former value is empty.
+const std::string& SelectCupServerProof(
+    const std::string& response_cup_server_proof,
+    const std::string& response_etag) {
+  if (response_cup_server_proof.empty()) {
+    DVLOG(3) << "Using etag as cup server proof.";
+    return response_etag;
+  }
+  return response_cup_server_proof;
+}
 
 }  // namespace
 
 RequestSender::RequestSender(scoped_refptr<Configurator> config)
     : config_(config) {}
 
-RequestSender::~RequestSender() {
-  DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
-}
+RequestSender::~RequestSender() = default;
 
 void RequestSender::Send(
     const std::vector<GURL>& urls,
@@ -45,9 +60,6 @@ void RequestSender::Send(
     bool use_signing,
     RequestSenderCallback request_sender_callback) {
   DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
-#if defined(STARBOARD)
-  LOG(INFO) << "RequestSender::Send";
-#endif
 
   urls_ = urls;
   request_extra_headers_ = request_extra_headers;
@@ -72,20 +84,22 @@ void RequestSender::Send(
 }
 
 void RequestSender::SendInternal() {
-  DCHECK(cur_url_ != urls_.end());
-  DCHECK(cur_url_->is_valid());
+  CHECK(cur_url_ != urls_.end());
+  CHECK(cur_url_->is_valid());
   DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
 
   GURL url(*cur_url_);
 
   if (use_signing_) {
-    DCHECK(!public_key_.empty());
+    CHECK(!public_key_.empty());
     signer_ = client_update_protocol::Ecdsa::Create(kKeyVersion, public_key_);
     std::string request_query_string;
     signer_->SignRequest(request_body_, &request_query_string);
 
     url = BuildUpdateUrl(url, request_query_string);
   }
+
+  VLOG(2) << "Sending Omaha request: " << request_body_;
 
   network_fetcher_ = config_->GetNetworkFetcherFactory()->Create();
   if (!network_fetcher_) {
@@ -94,32 +108,25 @@ void RequestSender::SendInternal() {
         base::BindOnce(&RequestSender::SendInternalComplete,
                        base::Unretained(this),
                        static_cast<int>(ProtocolError::URL_FETCHER_FAILED),
-                       std::string(), std::string(), 0));
+                       std::string(), std::string(), std::string(), 0));
   }
   network_fetcher_->PostRequest(
-      url, request_body_, request_extra_headers_,
+      url, request_body_, kContentType, request_extra_headers_,
       base::BindOnce(&RequestSender::OnResponseStarted, base::Unretained(this)),
-      base::BindRepeating([](int64_t current) {}),
+      base::DoNothing(),
       base::BindOnce(&RequestSender::OnNetworkFetcherComplete,
                      base::Unretained(this), url));
 }
 
-#if defined(STARBOARD)
-void RequestSender::Cancel() {
-  LOG(INFO) << "RequestSender::Cancel";
-  if (network_fetcher_.get()) {
-    network_fetcher_->Cancel();
-  }
-}
-#endif
+void RequestSender::SendInternalComplete(
+    int error,
+    const std::string& response_body,
+    const std::string& response_etag,
+    const std::string& response_cup_server_proof,
+    int retry_after_sec) {
+  VLOG(2) << "Omaha response received: " << response_body;
+  VLOG_IF(2, error) << "Omaha send error: " << error;
 
-void RequestSender::SendInternalComplete(int error,
-                                         const std::string& response_body,
-                                         const std::string& response_etag,
-                                         int retry_after_sec) {
-#if defined(STARBOARD)
-  LOG(INFO) << "RequestSender::SendInternalComplete";
-#endif
   if (!error) {
     if (!use_signing_) {
       base::SequencedTaskRunner::GetCurrentDefault()->PostTask(
@@ -128,9 +135,11 @@ void RequestSender::SendInternalComplete(int error,
       return;
     }
 
-    DCHECK(use_signing_);
-    DCHECK(signer_);
-    if (signer_->ValidateResponse(response_body, response_etag)) {
+    CHECK(use_signing_);
+    CHECK(signer_);
+    if (signer_->ValidateResponse(
+            response_body,
+            SelectCupServerProof(response_cup_server_proof, response_etag))) {
       base::SequencedTaskRunner::GetCurrentDefault()->PostTask(
           FROM_HERE, base::BindOnce(std::move(request_sender_callback_), 0,
                                     response_body, retry_after_sec));
@@ -140,7 +149,7 @@ void RequestSender::SendInternalComplete(int error,
     error = static_cast<int>(ProtocolError::RESPONSE_NOT_TRUSTED);
   }
 
-  DCHECK(error);
+  CHECK(error);
 
   // A positive |retry_after_sec| is a hint from the server that the client
   // should not send further request until the cooldown has expired.
@@ -154,9 +163,8 @@ void RequestSender::SendInternalComplete(int error,
   HandleSendError(error, retry_after_sec);
 }
 
-void RequestSender::OnResponseStarted(const GURL& final_url,
-                                      int response_code,
-                                      int64_t content_length) {
+void RequestSender::OnResponseStarted(int response_code,
+                                      int64_t /*content_length*/) {
   response_code_ = response_code;
 }
 
@@ -165,33 +173,30 @@ void RequestSender::OnNetworkFetcherComplete(
     std::unique_ptr<std::string> response_body,
     int net_error,
     const std::string& header_etag,
+    const std::string& xheader_cup_server_proof,
     int64_t xheader_retry_after_sec) {
   DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
-#if defined(STARBOARD)
-  LOG(INFO) << "RequestSender::OnNetworkFetcherComplete";
-#endif
 
-  VLOG(1) << "request completed from url: " << original_url.spec();
+  VLOG(1) << "Request completed from url: " << original_url.spec();
 
   int error = -1;
-  if (response_body && response_code_ == 200) {
-    DCHECK_EQ(0, net_error);
+  if (!net_error && response_code_ == 200)
     error = 0;
-  } else if (response_code_ != -1) {
+  else if (response_code_ != -1)
     error = response_code_;
-  } else {
+  else
     error = net_error;
-  }
 
   int retry_after_sec = -1;
   if (original_url.SchemeIsCryptographic() && error > 0)
     retry_after_sec = base::saturated_cast<int>(xheader_retry_after_sec);
 
   base::SequencedTaskRunner::GetCurrentDefault()->PostTask(
-      FROM_HERE, base::BindOnce(&RequestSender::SendInternalComplete,
-                                base::Unretained(this), error,
-                                response_body ? *response_body : std::string(),
-                                header_etag, retry_after_sec));
+      FROM_HERE,
+      base::BindOnce(&RequestSender::SendInternalComplete,
+                     base::Unretained(this), error,
+                     response_body ? *response_body : std::string(),
+                     header_etag, xheader_cup_server_proof, retry_after_sec));
 }
 
 void RequestSender::HandleSendError(int error, int retry_after_sec) {

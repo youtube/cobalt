@@ -71,10 +71,6 @@ class MEDIA_EXPORT DemuxerStream {
   using DecoderBufferVector = std::vector<scoped_refptr<DecoderBuffer>>;
   using ReadCB = base::OnceCallback<void(Status, DecoderBufferVector)>;
 
-#if defined(STARBOARD)
-  virtual std::string mime_type() const { return ""; }
-#endif  // defined(STARBOARD)
-
   // Request buffers to be returned via the provided callback.
   // The first parameter indicates the status of the read request.
   // If the status is kAborted, kConfigChanged or kError, the vector must be

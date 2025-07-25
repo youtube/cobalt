@@ -1,0 +1,7 @@
+# Reviewers:
+gab@chromium.org
+grt@chromium.org
+pmonette@chromium.org
+
+# per-file rules:
+per-file chrome_elf_init*=file://chrome/chrome_elf/OWNERS

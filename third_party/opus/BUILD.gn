@@ -12,20 +12,17 @@ use_opus_fixed_point = current_cpu == "arm" || current_cpu == "arm64"
 # TODO(scottmg): Disabled on Fuchsia for now, see https://crbug.com/775272.
 use_opus_arm_optimization =
     current_cpu == "arm" || (current_cpu == "arm64" && (is_ios || is_win))
-    && !is_starboard
 
 # NaCl, unlike Chrome, doesn't target SSE2 minimum, so skip optimizations for
 # the sake of simplicity.
 use_opus_x86_optimization =
     !is_nacl && (current_cpu == "x86" || current_cpu == "x64")
-    && sb_enable_opus_sse
 
 # If OPUS Run Time CPU Detections (RTCD) shall be used.
 # Based on the conditions in celt/arm/armcpu.c:
 # defined(_MSC_VER) || defined(__linux__).
 use_opus_arm_rtcd =
     current_cpu == "arm" && (is_win || is_android || is_linux || is_chromeos)
-    && !is_starboard
 
 config("opus_config") {
   include_dirs = [ "src/include" ]
@@ -52,12 +49,6 @@ config("opus_private_config") {
     "src/celt",
     "src/silk",
   ]
-
-  if (is_starboard) {
-    defines = []  # avoid GN error "Replacing nonempty list."
-    defines = [ "HAVE_CONFIG_H" ]
-    include_dirs += [ "starboard" ]  # for starboard/config.h
-  }
 
   cflags = []
 
@@ -200,9 +191,7 @@ if (use_opus_x86_optimization) {
       "src/silk/x86/VQ_WMat_EC_sse4_1.c",
     ]
 
-if (!is_starboard) {
     configs -= [ "//build/config/compiler:chromium_code" ]
-}
     configs += [ "//build/config/compiler:no_chromium_code" ]
     configs += [
       ":opus_private_config",
@@ -390,9 +379,7 @@ static_library("opus") {
     "src/src/tansig_table.h",
   ]
 
-if (!is_starboard) {
   configs -= [ "//build/config/compiler:chromium_code" ]
-}
   configs += [
     "//build/config/compiler:no_chromium_code",
     ":opus_private_config",
@@ -400,9 +387,7 @@ if (!is_starboard) {
   public_configs = [ ":opus_config" ]
 
   if (!is_debug) {
-if (!is_starboard) {
     configs -= [ "//build/config/compiler:default_optimization" ]
-}
 
     # TODO(crbug.com/621335) Rework this so that we don't have the confusion
     # between "optimize_speed" and "optimize_max".
@@ -542,7 +527,6 @@ if (!is_starboard) {
   }
 }
 
-if (!is_starboard) {
 executable("opus_compare") {
   sources = [ "src/src/opus_compare.c" ]
 
@@ -645,5 +629,4 @@ if (build_with_chromium) {
       ]
     }
   }
-}
 }

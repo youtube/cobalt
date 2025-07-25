@@ -1,4 +1,0 @@
-4-2-numbers-can-be-represented-in-scientific-notation
-5-1-1-em-should-be-relative-to-parent
-5-1-1-rem-should-be-relative-to-root
-5-1-1-vw-vh-should-be-relative-to-viewport-size

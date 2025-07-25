@@ -305,11 +305,7 @@ class BASE_EXPORT SubstringSetMatcher {
     // If not equal to zero, will be a multiple of 4, so that we can use
     // SIMD to accelerate looking for edges.
     uint16_t edges_capacity_ = 0;
-#if defined(STARBOARD) && defined(COMPILER_MSVC)
-  };
-#else
   } __attribute__((packed));
-#endif
 
   using SubstringPatternVector = std::vector<const MatcherStringPattern*>;
 

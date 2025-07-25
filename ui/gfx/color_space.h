@@ -276,30 +276,12 @@ class COLOR_SPACE_EXPORT ColorSpace {
   bool operator!=(const ColorSpace& other) const;
   bool operator<(const ColorSpace& other) const;
   size_t GetHash() const;
-#if defined(STARBOARD)
-  std::string ToString() const {
-    // TODO: Refine ColorSpace::ToString().
-    return "";
-  }
-#else  // defined(STARBOARD)
   std::string ToString() const;
-#endif  // defined(STARBOARD)
 
   bool IsWide() const;
 
   // Returns true if the transfer function is an HDR one (SMPTE 2084, HLG, etc).
-#if defined(STARBOARD)
-  bool IsHDR() const {
-    return transfer_ == TransferID::PQ || transfer_ == TransferID::HLG ||
-         transfer_ == TransferID::LINEAR_HDR ||
-         transfer_ == TransferID::SRGB_HDR ||
-         transfer_ == TransferID::CUSTOM_HDR ||
-         transfer_ == TransferID::PIECEWISE_HDR ||
-         transfer_ == TransferID::SCRGB_LINEAR_80_NITS;
-}
-#else  // defined(STARBOARD)
   bool IsHDR() const;
-#endif  // defined(STARBOARD)
 
   // Returns true if there exists a default tone mapping that should be applied
   // when drawing content with this color space. This is true for spaces with
@@ -386,30 +368,6 @@ class COLOR_SPACE_EXPORT ColorSpace {
   // for |bit_depth|.
   SkM44 GetRangeAdjustMatrix(int bit_depth) const;
 
-#if defined(STARBOARD)
-  // Returns the current primary ID.
-  // Note: if SetCustomPrimaries() has been used, the primary ID returned
-  // may have been set to PrimaryID::CUSTOM, or been coerced to another
-  // PrimaryID if it was very close.
-  PrimaryID GetPrimaryID() const {
-    return primaries_;
-  }
-
-  // Returns the current transfer ID.
-  TransferID GetTransferID() const {
-    return transfer_;
-  }
-
-  // Returns the current matrix ID.
-  MatrixID GetMatrixID() const {
-    return matrix_;
-  }
-
-  // Returns the current range ID.
-  RangeID GetRangeID() const {
-    return range_;
-  }
-#else  // defined(STARBOARD)
   // Returns the current primary ID.
   // Note: if SetCustomPrimaries() has been used, the primary ID returned
   // may have been set to PrimaryID::CUSTOM, or been coerced to another
@@ -424,7 +382,6 @@ class COLOR_SPACE_EXPORT ColorSpace {
 
   // Returns the current range ID.
   RangeID GetRangeID() const;
-#endif  // defined(STARBOARD)
 
   // Returns true if the transfer function is defined by an
   // skcms_TransferFunction which is extended to all real values. This is true

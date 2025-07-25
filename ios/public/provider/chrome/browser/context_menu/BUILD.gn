@@ -1,0 +1,18 @@
+# Copyright 2022 The Chromium Authors
+# Use of this source code is governed by a BSD-style license that can be
+# found in the LICENSE file.
+
+source_set("context_menu_api") {
+  configs += [ "//build/config/compiler:enable_arc" ]
+  sources = [
+    "context_menu_api.h",
+    "context_menu_api.mm",
+  ]
+
+  deps = [
+    "//base",
+    "//ios/web/public/ui",
+  ]
+  frameworks = [ "UIKit.framework" ]
+  public_deps = [ "//third_party/abseil-cpp:absl" ]
+}

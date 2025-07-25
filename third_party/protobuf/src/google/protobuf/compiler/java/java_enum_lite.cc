@@ -32,18 +32,18 @@
 //  Based on original Protocol Buffers design by
 //  Sanjay Ghemawat, Jeff Dean, and others.
 
+#include <google/protobuf/compiler/java/java_enum_lite.h>
+
 #include <map>
 #include <string>
 
+#include <google/protobuf/io/printer.h>
+#include <google/protobuf/stubs/strutil.h>
 #include <google/protobuf/compiler/java/java_context.h>
 #include <google/protobuf/compiler/java/java_doc_comment.h>
-#include <google/protobuf/compiler/java/java_enum_lite.h>
 #include <google/protobuf/compiler/java/java_helpers.h>
 #include <google/protobuf/compiler/java/java_name_resolver.h>
 #include <google/protobuf/descriptor.pb.h>
-#include <google/protobuf/io/printer.h>
-#include <google/protobuf/stubs/strutil.h>
-
 #include <google/protobuf/stubs/map_util.h>
 
 namespace google {
@@ -79,9 +79,10 @@ void EnumLiteGenerator::Generate(io::Printer* printer) {
   WriteEnumDocComment(printer, descriptor_);
   MaybePrintGeneratedAnnotation(context_, printer, descriptor_, immutable_api_);
   printer->Print(
-      "public enum $classname$\n"
+      "$deprecation$public enum $classname$\n"
       "    implements com.google.protobuf.Internal.EnumLite {\n",
-      "classname", descriptor_->name());
+      "classname", descriptor_->name(), "deprecation",
+      descriptor_->options().deprecated() ? "@java.lang.Deprecated " : "");
   printer->Annotate("classname", descriptor_);
   printer->Indent();
 
@@ -125,9 +126,13 @@ void EnumLiteGenerator::Generate(io::Printer* printer) {
     vars["number"] = StrCat(descriptor_->value(i)->number());
     vars["{"] = "";
     vars["}"] = "";
+    vars["deprecation"] = descriptor_->value(i)->options().deprecated()
+                              ? "@java.lang.Deprecated "
+                              : "";
     WriteEnumValueDocComment(printer, descriptor_->value(i));
     printer->Print(vars,
-                   "public static final int ${$$name$_VALUE$}$ = $number$;\n");
+                   "$deprecation$public static final int ${$$name$_VALUE$}$ = "
+                   "$number$;\n");
     printer->Annotate("{", "}", descriptor_->value(i));
   }
   printer->Print("\n");
@@ -150,6 +155,8 @@ void EnumLiteGenerator::Generate(io::Printer* printer) {
       "}\n"
       "\n"
       "/**\n"
+      " * @param value The number of the enum to look for.\n"
+      " * @return The enum associated with the given number.\n"
       " * @deprecated Use {@link #forNumber(int)} instead.\n"
       " */\n"
       "@java.lang.Deprecated\n"

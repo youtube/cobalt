@@ -44,7 +44,7 @@ class NET_EXPORT HttpAuthPreferences {
 
   virtual bool NegotiateDisableCnameLookup() const;
   virtual bool NegotiateEnablePort() const;
-#if BUILDFLAG(IS_POSIX) || BUILDFLAG(IS_FUCHSIA) || defined(COBALT_PENDING_CLEAN_UP)
+#if BUILDFLAG(IS_POSIX) || BUILDFLAG(IS_FUCHSIA)
   virtual bool NtlmV2Enabled() const;
 #endif  // BUILDFLAG(IS_POSIX) || BUILDFLAG(IS_FUCHSIA)
 #if BUILDFLAG(IS_ANDROID)
@@ -80,7 +80,7 @@ class NET_EXPORT HttpAuthPreferences {
     basic_over_http_enabled_ = allow_http;
   }
 
-#if BUILDFLAG(IS_POSIX) || BUILDFLAG(IS_FUCHSIA) || defined(COBALT_PENDING_CLEAN_UP)
+#if BUILDFLAG(IS_POSIX) || BUILDFLAG(IS_FUCHSIA)
   void set_ntlm_v2_enabled(bool ntlm_v2_enabled) {
     ntlm_v2_enabled_ = ntlm_v2_enabled;
   }
@@ -129,7 +129,7 @@ class NET_EXPORT HttpAuthPreferences {
 
   DefaultCredentials allow_default_credentials_ = ALLOW_DEFAULT_CREDENTIALS;
 
-#if BUILDFLAG(IS_POSIX) || BUILDFLAG(IS_FUCHSIA) || defined(COBALT_PENDING_CLEAN_UP)
+#if BUILDFLAG(IS_POSIX) || BUILDFLAG(IS_FUCHSIA)
   bool ntlm_v2_enabled_ = true;
 #endif  // BUILDFLAG(IS_POSIX) || BUILDFLAG(IS_FUCHSIA)
 

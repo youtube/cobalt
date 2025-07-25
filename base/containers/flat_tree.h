@@ -721,11 +721,7 @@ auto flat_tree<Key, GetKeyFromValue, KeyCompare, Container>::begin()
 template <class Key, class GetKeyFromValue, class KeyCompare, class Container>
 constexpr auto flat_tree<Key, GetKeyFromValue, KeyCompare, Container>::begin()
     const -> const_iterator {
-#if defined(STARBOARD)
-  return body_.begin();
-#else
   return ranges::begin(body_);
-#endif
 }
 
 template <class Key, class GetKeyFromValue, class KeyCompare, class Container>
@@ -742,11 +738,7 @@ auto flat_tree<Key, GetKeyFromValue, KeyCompare, Container>::end() -> iterator {
 template <class Key, class GetKeyFromValue, class KeyCompare, class Container>
 constexpr auto flat_tree<Key, GetKeyFromValue, KeyCompare, Container>::end()
     const -> const_iterator {
-#if defined(STARBOARD)
-  return body_.end();
-#else
   return ranges::end(body_);
-#endif
 }
 
 template <class Key, class GetKeyFromValue, class KeyCompare, class Container>

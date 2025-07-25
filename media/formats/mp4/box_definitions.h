@@ -421,22 +421,6 @@ struct MEDIA_EXPORT EC3SpecificBox : Box {
 };
 #endif  // BUILDFLAG(ENABLE_PLATFORM_AC3_EAC3_AUDIO)
 
-#if BUILDFLAG(ENABLE_PLATFORM_IAMF_AUDIO)
-struct MEDIA_EXPORT IamfSpecificBox : Box {
-  DECLARE_BOX_METHODS(IamfSpecificBox);
-  bool ReadOBU(BufferReader* reader);
-  bool ReadOBUHeader(BufferReader* reader,
-                     uint8_t* obu_type,
-                     uint32_t* obu_size);
-  bool ReadLeb128Value(BufferReader* reader, uint32_t* value) const;
-
-  uint8_t profile;
-  bool redundant_copy = false;
-
-  std::vector<uint8_t> ia_descriptors;
-};
-#endif  // BUILDFLAG(ENABLE_PLATFORM_IAMF_AUDIO)
-
 struct MEDIA_EXPORT AudioSampleEntry : Box {
   DECLARE_BOX_METHODS(AudioSampleEntry);
 
@@ -458,9 +442,6 @@ struct MEDIA_EXPORT AudioSampleEntry : Box {
   AC3SpecificBox ac3;
   EC3SpecificBox eac3;
 #endif  // BUILDFLAG(ENABLE_PLATFORM_AC3_EAC3_AUDIO)
-#if BUILDFLAG(ENABLE_PLATFORM_IAMF_AUDIO)
-  IamfSpecificBox iacb;
-#endif  // BUILDFLAG(ENABLE_PLATFORM_IAMF_AUDIO)
 };
 
 struct MEDIA_EXPORT SampleDescription : Box {

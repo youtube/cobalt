@@ -50,7 +50,7 @@ constexpr CommandLine::CharType kSwitchValueSeparator[] =
 // value by changing the value of switch_prefix_count to be one less than
 // the array size.
 constexpr CommandLine::StringPieceType kSwitchPrefixes[] = {L"--", L"-", L"/"};
-#elif BUILDFLAG(IS_POSIX) || BUILDFLAG(IS_FUCHSIA) || defined(STARBOARD)
+#elif BUILDFLAG(IS_POSIX) || BUILDFLAG(IS_FUCHSIA)
 // Unixes don't use slash as a switch.
 constexpr CommandLine::StringPieceType kSwitchPrefixes[] = {"--", "-"};
 #endif
@@ -226,7 +226,7 @@ bool CommandLine::Init(int argc, const char* const* argv) {
   current_process_commandline_ = new CommandLine(NO_PROGRAM);
 #if BUILDFLAG(IS_WIN)
   current_process_commandline_->ParseFromString(::GetCommandLineW());
-#elif BUILDFLAG(IS_POSIX) || BUILDFLAG(IS_FUCHSIA) || defined(STARBOARD)
+#elif BUILDFLAG(IS_POSIX) || BUILDFLAG(IS_FUCHSIA)
   current_process_commandline_->InitFromArgv(argc, argv);
 #else
 #error Unsupported platform
@@ -288,7 +288,7 @@ void CommandLine::SetProgram(const FilePath& program) {
 #endif
 #if BUILDFLAG(IS_WIN)
   argv_[0] = StringType(TrimWhitespace(program.value(), TRIM_ALL));
-#elif BUILDFLAG(IS_POSIX) || BUILDFLAG(IS_FUCHSIA) || defined(STARBOARD)
+#elif BUILDFLAG(IS_POSIX) || BUILDFLAG(IS_FUCHSIA)
   TrimWhitespaceASCII(program.value(), TRIM_ALL, &argv_[0]);
 #else
 #error Unsupported platform
@@ -308,7 +308,7 @@ std::string CommandLine::GetSwitchValueASCII(StringPiece switch_string) const {
   StringType value = GetSwitchValueNative(switch_string);
 #if BUILDFLAG(IS_WIN)
   if (!IsStringASCII(base::AsStringPiece16(value))) {
-#elif BUILDFLAG(IS_POSIX) || BUILDFLAG(IS_FUCHSIA) || defined(STARBOARD)
+#elif BUILDFLAG(IS_POSIX) || BUILDFLAG(IS_FUCHSIA)
   if (!IsStringASCII(value)) {
 #endif
     DLOG(WARNING) << "Value of switch (" << switch_string << ") must be ASCII.";
@@ -316,7 +316,7 @@ std::string CommandLine::GetSwitchValueASCII(StringPiece switch_string) const {
   }
 #if BUILDFLAG(IS_WIN)
   return WideToUTF8(value);
-#elif BUILDFLAG(IS_POSIX) || BUILDFLAG(IS_FUCHSIA) || defined(STARBOARD)
+#elif BUILDFLAG(IS_POSIX) || BUILDFLAG(IS_FUCHSIA)
   return value;
 #endif
 }
@@ -349,7 +349,7 @@ void CommandLine::AppendSwitchNative(StringPiece switch_string,
 #if BUILDFLAG(IS_WIN)
   const std::string switch_key = ToLowerASCII(switch_string);
   StringType combined_switch_string(UTF8ToWide(switch_key));
-#elif BUILDFLAG(IS_POSIX) || BUILDFLAG(IS_FUCHSIA) || defined(STARBOARD)
+#elif BUILDFLAG(IS_POSIX) || BUILDFLAG(IS_FUCHSIA)
   StringPiece switch_key = switch_string;
   StringType combined_switch_string(switch_key);
 #endif
@@ -378,7 +378,7 @@ void CommandLine::AppendSwitchASCII(StringPiece switch_string,
                                     StringPiece value_string) {
 #if BUILDFLAG(IS_WIN)
   AppendSwitchNative(switch_string, UTF8ToWide(value_string));
-#elif BUILDFLAG(IS_POSIX) || BUILDFLAG(IS_FUCHSIA) || defined(STARBOARD)
+#elif BUILDFLAG(IS_POSIX) || BUILDFLAG(IS_FUCHSIA)
   AppendSwitchNative(switch_string, value_string);
 #else
 #error Unsupported platform
@@ -391,7 +391,7 @@ void CommandLine::RemoveSwitch(base::StringPiece switch_key_without_prefix) {
 #endif
 #if BUILDFLAG(IS_WIN)
   StringType switch_key_native = UTF8ToWide(switch_key_without_prefix);
-#elif BUILDFLAG(IS_POSIX) || BUILDFLAG(IS_FUCHSIA) || defined(STARBOARD)
+#elif BUILDFLAG(IS_POSIX) || BUILDFLAG(IS_FUCHSIA)
   StringType switch_key_native(switch_key_without_prefix);
 #endif
 
@@ -443,7 +443,7 @@ void CommandLine::AppendArg(StringPiece value) {
 #if BUILDFLAG(IS_WIN)
   DCHECK(IsStringUTF8(value));
   AppendArgNative(UTF8ToWide(value));
-#elif BUILDFLAG(IS_POSIX) || BUILDFLAG(IS_FUCHSIA) || defined(STARBOARD)
+#elif BUILDFLAG(IS_POSIX) || BUILDFLAG(IS_FUCHSIA)
   AppendArgNative(value);
 #else
 #error Unsupported platform
@@ -539,7 +539,7 @@ void CommandLine::AppendSwitchesAndArguments(
     CommandLine::StringType arg = argv[i];
 #if BUILDFLAG(IS_WIN)
     arg = CommandLine::StringType(TrimWhitespace(arg, TRIM_ALL));
-#elif BUILDFLAG(IS_POSIX) || BUILDFLAG(IS_FUCHSIA) || defined(STARBOARD)
+#elif BUILDFLAG(IS_POSIX) || BUILDFLAG(IS_FUCHSIA)
     TrimWhitespaceASCII(arg, TRIM_ALL, &arg);
 #endif
 
@@ -554,7 +554,7 @@ void CommandLine::AppendSwitchesAndArguments(
         return;
       }
       AppendSwitchNative(WideToUTF8(switch_string), switch_value);
-#elif BUILDFLAG(IS_POSIX) || BUILDFLAG(IS_FUCHSIA) || defined(STARBOARD)
+#elif BUILDFLAG(IS_POSIX) || BUILDFLAG(IS_FUCHSIA)
       AppendSwitchNative(switch_string, switch_value);
 #else
 #error Unsupported platform

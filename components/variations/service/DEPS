@@ -1,9 +1,11 @@
 include_rules = [
-  "+components/data_use_measurement/core",
+  "+chromeos/ash/components/dbus/featured",
   "+components/encrypted_messages",
+  "+components/language/core/browser",
   "+components/metrics",
   "+components/network_time",
   "+components/pref_registry",
+  "+components/sync_preferences",
   "+components/version_info",
   "+components/web_resource",
   "+net",

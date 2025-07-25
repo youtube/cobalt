@@ -4,8 +4,6 @@
 
 #include "net/base/upload_bytes_element_reader.h"
 
-#include <cstring>
-
 #include "base/check_op.h"
 #include "net/base/io_buffer.h"
 #include "net/base/net_errors.h"

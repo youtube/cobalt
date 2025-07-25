@@ -1,0 +1,3 @@
+AXFocusedUIElementChanged on AXTextField AXTitle="Pet name:"
+AXLiveRegionChanged on AXGroup AXDescription="Please enter pet name"
+AXLiveRegionCreated on AXGroup AXDescription="Please enter pet name"

@@ -1,0 +1,16 @@
+specific_include_rules = {
+  # web::HttpServer is deprecated in favor of net::EmbeddedTestServer.
+  # TODO:(crbug.com/891834) Remove this exception.
+  ".*egtest\.mm": [
+    "+ios/web/public/test/http_server",
+  ],
+  "bookmark_earl_grey\.mm": [
+    "+ios/web/public/test/http_server",
+  ],
+  "bookmark_earl_grey_app_interface\.mm": [
+    "+ios/web/public/test/http_server",
+  ],
+  "bookmark_earl_grey_utils\.mm": [
+    "+ios/web/public/test/http_server",
+  ],
+}

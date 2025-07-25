@@ -1,0 +1,20 @@
+// Copyright 2022 The Chromium Authors
+// Use of this source code is governed by a BSD-style license that can be
+// found in the LICENSE file.
+
+module blink.mojom;
+
+import "url/mojom/url.mojom";
+
+// Interface for sending the URL from the renderer side to browser process.
+interface AnchorElementInteractionHost {
+    // On pointer down events for anchor elements that are part of the HTTP family,
+    // the renderer calls OnPointerDown to pass the URL to the browser process.
+    // In the browser process, the URL gets preloaded.
+    OnPointerDown(url.mojom.Url target);
+
+    // On pointer hover events for anchor elements that are part of the HTTP family,
+    // the renderer calls OnPointerHover to pass the URL to the browser process.
+    // In the browser process, the URL gets preloaded.
+    OnPointerHover(url.mojom.Url target);
+};

@@ -1,0 +1,10 @@
+[
+  {
+    "package": "com.google.vr.vrcore",
+    "filename": "VrCoreSettings.xml",
+    "supports_encrypted_path": true,
+    "set": {
+      "EnableDeveloperService": true
+    }
+  }
+]

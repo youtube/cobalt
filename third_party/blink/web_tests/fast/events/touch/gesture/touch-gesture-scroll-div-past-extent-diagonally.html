@@ -1,0 +1,74 @@
+<!DOCTYPE html>
+<script src="../../../../resources/testharness.js"></script>
+<script src="../../../../resources/testharnessreport.js"></script>
+<script src="../../../../resources/gesture-util.js"></script>
+<style type="text/css">
+
+::-webkit-scrollbar {
+  width: 0px;
+  height: 0px;
+}
+
+#contents {
+  width:500px;
+  height:150px;
+  border-right:700px solid black;
+  background:red;
+}
+
+#horizontal {
+  width:600px;
+  height:600px;
+  overflow:scroll;
+  background:green;
+}
+
+#vertical {
+  height:300px;
+  overflow:scroll;
+}
+
+</style>
+
+<body style="margin:0">
+<div id="vertical">
+  <div id="horizontal">
+    <div id="contents"></div>
+  </div>
+</div>
+</body>
+
+<script type="text/javascript">
+promise_test (async () => {
+  var x = 10;
+  var y = 10;
+  // Scroll diagonally, since the child div scrolls horizontally the unused
+  // delta y does not propagate to the parent div.
+  await smoothScroll(15, x, y, GestureSourceType.TOUCH_INPUT, "downright",
+      SPEED_INSTANT);
+  await waitFor( () => {
+      return approx_equals(horizontal.scrollLeft, 15, 2);
+  });
+  assert_equals(vertical.scrollTop, 0);
+
+  // Scroll the horizontal div to extents.
+  await smoothScroll(1000, x, y, GestureSourceType.TOUCH_INPUT, "downright",
+      SPEED_INSTANT);
+  await waitFor( () => { return horizontal.scrollLeft == 600; });
+  // Wait for 100 RAFs to make sure the scroll does not propagate to the
+  // vertical div.
+  await conditionHolds(() => { return vertical.scrollTop == 0; });
+
+  // Since the horizontal div cannot consume any scroll delta, scrolling
+  // propagates to its parent div.
+  await smoothScroll(15, x, y, GestureSourceType.TOUCH_INPUT, "downright",
+      SPEED_INSTANT);
+  await waitFor( () => {
+      return approx_equals(vertical.scrollTop, 15, 2);
+  });
+  assert_equals(horizontal.scrollLeft, 600);
+}, 'This tests that a gesture scroll isn\'t propagated from an ' +
+   'inner div to an outer div when the inner div has ' +
+   'remaining scroll offset on one axis but not on the other, unless ' +
+   'the inner div starts at its scroll extent');
+</script>

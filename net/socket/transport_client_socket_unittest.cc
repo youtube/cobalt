@@ -295,6 +295,7 @@ TEST_F(TransportClientSocketTest, FullDuplex_ReadFirst) {
   // At this point, both read and write have returned ERR_IO_PENDING, and the
   // write callback has executed.  We wait for the read callback to run now to
   // make sure that the socket can handle full duplex communications.
+
   rv = callback.WaitForResult();
   EXPECT_GE(rv, 0);
 }
@@ -316,6 +317,7 @@ TEST_F(TransportClientSocketTest, FullDuplex_WriteFirst) {
         sock_->Write(request_buffer.get(), kWriteBufLen,
                      write_callback.callback(), TRAFFIC_ANNOTATION_FOR_TESTS);
     ASSERT_TRUE(rv >= 0 || rv == ERR_IO_PENDING);
+
     if (rv == ERR_IO_PENDING)
       break;
     bytes_written += rv;

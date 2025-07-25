@@ -124,10 +124,8 @@
 #include "net/base/winsock_init.h"
 #endif
 
-#if BUILDFLAG(IS_POSIX) || BUILDFLAG(IS_FUCHSIA) || defined(STARBOARD)
-#if defined(COBALT_PENDING_CLEAN_UP) && !defined(COMPILER_MSVC)
+#if BUILDFLAG(IS_POSIX) || BUILDFLAG(IS_FUCHSIA)
 #include <net/if.h>
-#endif
 #include "net/base/sys_addrinfo.h"
 #if BUILDFLAG(IS_ANDROID)
 #include "base/android/build_info.h"
@@ -231,7 +229,7 @@ bool HaveOnlyLoopbackAddresses() {
   return false;
 #elif BUILDFLAG(IS_ANDROID)
   return android::HaveOnlyLoopbackAddresses();
-#elif BUILDFLAG(IS_POSIX) || BUILDFLAG(IS_FUCHSIA) || defined(COBALT_PENDING_CLEAN_UP)
+#elif BUILDFLAG(IS_POSIX) || BUILDFLAG(IS_FUCHSIA)
   struct ifaddrs* interface_addr = nullptr;
   int rv = getifaddrs(&interface_addr);
   if (rv != 0) {

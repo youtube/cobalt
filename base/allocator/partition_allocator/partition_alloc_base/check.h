@@ -102,7 +102,7 @@ class PA_COMPONENT_EXPORT(PARTITION_ALLOC) CheckError {
 #error "Debug builds are not expected to be optimized as official builds."
 #endif  // defined(OFFICIAL_BUILD) && !defined(NDEBUG)
 
-#if defined(OFFICIAL_BUILD) && !BUILDFLAG(PA_DCHECK_IS_ON) && !defined(STARBOARD)
+#if defined(OFFICIAL_BUILD) && !BUILDFLAG(PA_DCHECK_IS_ON)
 
 // Discard log strings to reduce code bloat.
 //

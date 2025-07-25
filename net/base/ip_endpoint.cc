@@ -31,36 +31,6 @@
 
 namespace net {
 
-#if defined(STARBOARD)
-bool GetIPAddressFromSbSocketAddress(const SbSocketAddress* address,
-                                     const unsigned char** out_address_data,
-                                     size_t* out_address_len,
-                                     uint16_t* out_port) {
-  DCHECK(address);
-  DCHECK(out_address_data);
-  DCHECK(out_address_len);
-  if (out_port) {
-    *out_port = address->port;
-  }
-
-  *out_address_data = address->address;
-  switch (address->type) {
-    case kSbSocketAddressTypeIpv4:
-      *out_address_len = IPAddress::kIPv4AddressSize;
-      break;
-    case kSbSocketAddressTypeIpv6:
-      *out_address_len = IPAddress::kIPv6AddressSize;
-      break;
-
-    default:
-      NOTREACHED();
-      return false;
-  }
-
-  return true;
-}
-#endif
-
 namespace {
 
 // Value dictionary keys
@@ -109,53 +79,6 @@ uint16_t IPEndPoint::port() const {
 #endif
   return port_;
 }
-
-#if defined(STARBOARD)
-// static
-IPEndPoint IPEndPoint::GetForAllInterfaces(int port) {
-  // Directly construct the 0.0.0.0 address with the given port.
-  IPAddress address(0, 0, 0, 0);
-  return IPEndPoint(address, port);
-}
-
-bool IPEndPoint::ToSbSocketAddress(SbSocketAddress* out_address) const {
-  DCHECK(out_address);
-  out_address->port = port_;
-  memset(out_address->address, 0, sizeof(out_address->address));
-  switch (GetFamily()) {
-    case ADDRESS_FAMILY_IPV4:
-      out_address->type = kSbSocketAddressTypeIpv4;
-      memcpy(&out_address->address, address_.bytes().data(),
-                   IPAddress::kIPv4AddressSize);
-      break;
-    case ADDRESS_FAMILY_IPV6:
-      out_address->type = kSbSocketAddressTypeIpv6;
-      memcpy(&out_address->address, address_.bytes().data(),
-                   IPAddress::kIPv6AddressSize);
-      break;
-    default:
-      NOTREACHED();
-      return false;
-  }
-  return true;
-}
-
-bool IPEndPoint::FromSbSocketAddress(const SbSocketAddress* address) {
-  DCHECK(address);
-
-  const uint8_t* address_data;
-  size_t address_len;
-  uint16_t port;
-  if (!GetIPAddressFromSbSocketAddress(address, &address_data, &address_len,
-                                       &port)) {
-    return false;
-  }
-
-  address_ = net::IPAddress(address_data, address_len);
-  port_ = port;
-  return true;
-}
-#endif  // defined(STARBOARD)
 
 AddressFamily IPEndPoint::GetFamily() const {
   return GetAddressFamily(address_);

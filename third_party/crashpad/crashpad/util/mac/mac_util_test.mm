@@ -1,4 +1,4 @@
-// Copyright 2014 The Crashpad Authors. All rights reserved.
+// Copyright 2014 The Crashpad Authors
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -22,17 +22,6 @@
 #include "base/mac/scoped_nsobject.h"
 #include "base/strings/stringprintf.h"
 #include "gtest/gtest.h"
-
-#ifdef __GLIBCXX__
-// When C++ exceptions are disabled, libstdc++ from GCC 4.2 defines |try| and
-// |catch| so as to allow exception-expecting C++ code to build properly when
-// language support for exceptions is not present. These macros interfere with
-// the use of |@try| and |@catch| in Objective-C files such as this one.
-// Undefine these macros here, after everything has been #included, since there
-// will be no C++ uses and only Objective-C uses from this point on.
-#undef try
-#undef catch
-#endif
 
 namespace crashpad {
 namespace test {
@@ -71,15 +60,22 @@ void SwVers(NSString* argument, std::string* output) {
   }
 }
 
-TEST(MacUtil, MacOSXVersion) {
+TEST(MacUtil, MacOSVersionComponents) {
   int major;
   int minor;
   int bugfix;
   std::string build;
   bool server;
   std::string version_string;
-  ASSERT_TRUE(
-      MacOSXVersion(&major, &minor, &bugfix, &build, &server, &version_string));
+  ASSERT_TRUE(MacOSVersionComponents(
+      &major, &minor, &bugfix, &build, &server, &version_string));
+
+  EXPECT_GE(major, 10);
+  EXPECT_LE(major, 99);
+  EXPECT_GE(minor, 0);
+  EXPECT_LE(minor, 99);
+  EXPECT_GE(bugfix, 0);
+  EXPECT_LE(bugfix, 99);
 
   std::string version;
   if (bugfix) {
@@ -108,20 +104,26 @@ TEST(MacUtil, MacOSXVersion) {
   EXPECT_EQ(version_string.find(expected_product_name), 0u);
 }
 
-TEST(MacUtil, MacOSXMinorVersion) {
-  // Make sure that MacOSXMinorVersion() and MacOSXVersion() agree. The two have
-  // their own distinct implementations, and the latter was checked against
-  // sw_vers above.
+TEST(MacUtil, MacOSVersionNumber) {
+  // Make sure that MacOSVersionNumber() and MacOSVersionComponents() agree. The
+  // two have their own distinct implementations, and the latter was checked
+  // against sw_vers above.
+  int macos_version_number = MacOSVersionNumber();
+  EXPECT_GE(macos_version_number, 10'00'00);
+  EXPECT_LE(macos_version_number, 99'99'99);
+
   int major;
   int minor;
   int bugfix;
   std::string build;
   bool server;
   std::string version_string;
-  ASSERT_TRUE(
-      MacOSXVersion(&major, &minor, &bugfix, &build, &server, &version_string));
+  ASSERT_TRUE(MacOSVersionComponents(
+      &major, &minor, &bugfix, &build, &server, &version_string));
 
-  EXPECT_EQ(MacOSXMinorVersion(), minor);
+  EXPECT_EQ(macos_version_number,
+            major * 1'00'00 + minor * 1'00 +
+                (macos_version_number >= 10'13'04 ? bugfix : 0));
 }
 
 TEST(MacUtil, MacModelAndBoard) {

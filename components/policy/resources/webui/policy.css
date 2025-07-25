@@ -1,0 +1,74 @@
+/* Copyright 2012 The Chromium Authors
+ * Use of this source code is governed by a BSD-style license that can be
+ * found in the LICENSE file. */
+
+html {
+  height: 100%;
+  width: 100%;
+}
+
+body {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  margin: 0;
+  overflow: hidden;
+  width: 100%;
+}
+
+body > header {
+  flex-shrink: 0;
+}
+
+body > main {
+  overflow: auto;
+  padding: 12px;
+}
+
+#status-box-container {
+  display: flex;
+}
+
+body > header {
+  align-items: center;
+  padding: 12px;
+}
+
+.header-row {
+  align-items: center;
+  display: flex;
+  height: 56px;
+}
+
+.show-unset-checkbox,
+.search-field-container {
+  flex: 0 1 200px;
+  margin-inline-start: auto;
+}
+
+.show-unset-checkbox > label {
+  align-items: center;
+  display: flex;
+  justify-content: space-between;
+}
+
+.show-unset-checkbox > label > input {
+  margin: 0;
+}
+
+a {
+  color: rgb(26, 115, 232);
+  cursor: pointer;
+  text-decoration: underline;
+}
+
+#screen-reader-message {
+  clip: rect(0,0,0,0);
+  position: fixed;
+}
+
+<if expr="is_android or is_ios">
+body > main {
+  padding: 0;
+}
+</if>
