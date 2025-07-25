@@ -39,7 +39,7 @@ namespace {
 using starboard::android::shared::DrmSystem;
 
 // TODO: b/79941850 - Use base::Feature instead for the experimentation.
-constexpr bool kEnableAppProvisioning = true;
+constexpr bool kEnableAppProvisioning = false;
 
 constexpr char kNoUrl[] = "";
 
@@ -357,12 +357,9 @@ void DrmSystem::OnProvisioningRequest(std::string_view content) {
   {
     std::lock_guard lock(mutex_);
     cdm_session_id = session_id_mapper_->GetBridgeCdmSessionId();
-  }
-  SB_DCHECK(!cdm_session_id.empty());
+    SB_DCHECK(!cdm_session_id.empty());
 
-  int ticket = kSbDrmTicketInvalid;
-  {
-    std::lock_guard lock(mutex_);
+    int ticket = kSbDrmTicketInvalid;
     if (pending_ticket_.has_value()) {
       ticket = *pending_ticket_;
       SB_LOG(INFO) << "Return provision request using pending_ticket="
