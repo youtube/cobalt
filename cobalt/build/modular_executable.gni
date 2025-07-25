@@ -100,6 +100,10 @@ template("evergreen_final_target") {
     args = [
       "--output",
       rebase_path(outputs[0]),
+
+      # TODO: b/434191035 - Remove once CI supports preferred path.
+      "--outdir",
+      rebase_path(root_out_dir, "//"),
       "--library",
       lib_name,
     ]
