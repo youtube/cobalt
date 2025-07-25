@@ -25,6 +25,7 @@ namespace starboard::android::shared {
 
 // TODO: (cobalt b/372559388) Update namespace to jni_zero.
 using base::android::AttachCurrentThread;
+using base::android::ScopedJavaGlobalRef;
 using base::android::ScopedJavaLocalRef;
 
 CobaltTextToSpeechHelper* CobaltTextToSpeechHelper::GetInstance() {

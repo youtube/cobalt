@@ -31,6 +31,12 @@ namespace starboard::android::shared {
 
 namespace {
 
+// TODO: (cobalt b/372559388) Update namespace to jni_zero.
+using ::base::android::AttachCurrentThread;
+using ::base::android::JavaParamRef;
+using ::base::android::ScopedJavaGlobalRef;
+using ::base::android::ScopedJavaLocalRef;
+
 using ::starboard::shared::starboard::media::GetBytesPerSample;
 
 const jint kNoOffset = 0;
