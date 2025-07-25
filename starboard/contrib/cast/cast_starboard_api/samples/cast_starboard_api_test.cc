@@ -74,11 +74,13 @@ class CastStarboardApiTest : public ::testing::Test {
   std::unique_ptr<CastStarboardApiThread> sb_thread_;
   std::unique_ptr<std::condition_variable> started_cond_;
   std::mutex started_mutex_;
+  bool started_ = false;  // Guarded by |started_mutex_|
 
   // These properties are used to track event dispatch during tests.
   std::vector<SbEventType> received_;
   std::mutex received_mutex_;
   std::unique_ptr<std::condition_variable> received_cond_;
+  bool event_received_;  // Guarded by |received_mutex_|
 };
 
 // A behavior in the default implementation prevents dlclose from being used on
@@ -133,7 +135,7 @@ CastStarboardApiTest::CastStarboardApiTest() {
 
   // Watch event for initialation completion.
   std::unique_lock lock(started_mutex_);
-  started_cond_->wait(lock);
+  started_cond_->wait(lock, [this] { return started_; });
 }
 
 CastStarboardApiTest::~CastStarboardApiTest() {
@@ -146,9 +148,12 @@ CastStarboardApiTest::~CastStarboardApiTest() {
 
 void CastStarboardApiTest::EventHandleInternal(const SbEvent* event) {
   switch (event->type) {
-    case kSbEventTypeStart:
+    case kSbEventTypeStart: {
+      std::lock_guard lock(started_mutex_);
+      started_ = true;
       started_cond_->notify_one();
       break;
+    }
     default:
       break;
   }
@@ -157,12 +162,14 @@ void CastStarboardApiTest::EventHandleInternal(const SbEvent* event) {
 }
 
 void CastStarboardApiTest::EventCallbackInternal() {
+  std::lock_guard lock(received_mutex_);
+  event_received_ = true;
   received_cond_->notify_one();
 }
 
 void CastStarboardApiTest::WaitForEventCallback() {
   std::unique_lock lock(received_mutex_);
-  received_cond_->wait(lock);
+  received_cond_->wait(lock, [this] { return event_received_; });
 }
 
 void CastStarboardApiTest::CastStarboardApiThread::Run() {

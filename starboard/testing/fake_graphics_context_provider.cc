@@ -138,13 +138,14 @@ void FakeGraphicsContextProvider::RunOnGlesContextThread(
   std::mutex mutex;
   std::condition_variable condition_variable;
   std::unique_lock lock(mutex);
-
+  bool functor_done = false;
   functor_queue_.Put(functor);
   functor_queue_.Put([&]() {
     std::lock_guard lock(mutex);
+    functor_done = true;
     condition_variable.notify_one();
   });
-  condition_variable.wait(lock);
+  condition_variable.wait(lock, [&functor_done] { return functor_done; });
 }
 
 void FakeGraphicsContextProvider::ReleaseDecodeTarget(
@@ -157,13 +158,15 @@ void FakeGraphicsContextProvider::ReleaseDecodeTarget(
   std::mutex mutex;
   std::condition_variable condition_variable;
   std::unique_lock lock(mutex);
+  bool functor_done = false;
 
   functor_queue_.Put(std::bind(SbDecodeTargetRelease, decode_target));
   functor_queue_.Put([&]() {
     std::lock_guard lock(mutex);
+    functor_done = true;
     condition_variable.notify_one();
   });
-  condition_variable.wait(lock);
+  condition_variable.wait(lock, [&functor_done] { return functor_done; });
 }
 
 // static
@@ -330,13 +333,15 @@ void FakeGraphicsContextProvider::OnDecodeTargetGlesContextRunner(
   std::mutex mutex;
   std::condition_variable condition_variable;
   std::unique_lock lock(mutex);
+  bool functor_done = false;
 
   functor_queue_.Put(std::bind(target_function, target_function_context));
   functor_queue_.Put([&]() {
     std::lock_guard lock(mutex);
+    functor_done = true;
     condition_variable.notify_one();
   });
-  condition_variable.wait(lock);
+  condition_variable.wait(lock, [&functor_done] { return functor_done; });
 }
 
 void FakeGraphicsContextProvider::MakeContextCurrent() {
