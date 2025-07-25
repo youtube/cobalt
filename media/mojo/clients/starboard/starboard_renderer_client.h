@@ -64,8 +64,7 @@ class MEDIA_EXPORT StarboardRendererClient
       mojo::PendingRemote<RendererExtension> pending_renderer_extension,
       mojo::PendingReceiver<ClientExtension> client_extension_receiver,
       BindHostReceiverCallback bind_host_receiver_callback,
-      GpuVideoAcceleratorFactories* gpu_factories,
-      RequestOverlayInfoCB request_overlay_info_cb);
+      GpuVideoAcceleratorFactories* gpu_factories);
 
   StarboardRendererClient(const StarboardRendererClient&) = delete;
   StarboardRendererClient& operator=(const StarboardRendererClient&) = delete;
@@ -104,7 +103,6 @@ class MEDIA_EXPORT StarboardRendererClient
   // mojom::StarboardRendererClientExtension implementation
   void PaintVideoHoleFrame(const gfx::Size& size) override;
   void UpdateStarboardRenderingMode(const StarboardRenderingMode mode) override;
-  void RequestOverlayInfo(bool restart_for_transitions) override;
 
   // cobalt::media::mojom::VideoGeometryChangeClient implementation.
   void OnVideoGeometryChange(const gfx::RectF& rect_f,
@@ -134,7 +132,6 @@ class MEDIA_EXPORT StarboardRendererClient
   void SetPlayingState(bool is_playing);
   void UpdateCurrentFrame();
   void OnGetCurrentVideoFrameDone(const scoped_refptr<VideoFrame>& frame);
-  void OnOverlayInfoChanged(const OverlayInfo& overlay_info);
   void StartVideoRendererSink();
   void StopVideoRendererSink();
 
@@ -147,7 +144,6 @@ class MEDIA_EXPORT StarboardRendererClient
   mojo::Receiver<ClientExtension> client_extension_receiver_;
   const BindHostReceiverCallback bind_host_receiver_callback_;
   raw_ptr<GpuVideoAcceleratorFactories> gpu_factories_ = nullptr;
-  RequestOverlayInfoCB request_overlay_info_cb_;
 
   mojo::Remote<RendererExtension> renderer_extension_;
 
@@ -159,7 +155,6 @@ class MEDIA_EXPORT StarboardRendererClient
 
   bool is_playing_ = false;
   bool video_renderer_sink_started_ = false;
-  bool overlay_info_requested_ = false;
   scoped_refptr<VideoFrame> next_video_frame_;
 
   mutable base::Lock lock_;

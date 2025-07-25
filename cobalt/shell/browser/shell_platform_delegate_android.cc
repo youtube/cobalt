@@ -22,7 +22,7 @@
 #include "base/containers/contains.h"
 #include "base/notreached.h"
 #include "base/strings/string_piece.h"
-#include "cobalt/android/jni_headers/Shell_jni.h"
+#include "cobalt/shell/android/cobalt_shell_jni_headers/Shell_jni.h"
 #include "cobalt/shell/android/shell_manager.h"
 #include "cobalt/shell/browser/shell.h"
 #include "content/public/browser/render_widget_host_view.h"

@@ -14,7 +14,6 @@ struct utsname {
 	char release[257];
 	char version[257];
 	char machine[257];
-	char domainname[257];
 #else  // defined(STARBOARD)
 	char sysname[65];
 	char nodename[65];

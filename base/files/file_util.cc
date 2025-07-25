@@ -172,6 +172,7 @@ bool Move(const FilePath& from_path, const FilePath& to_path) {
 }
 
 bool CopyFileContents(File& infile, File& outfile) {
+#if !BUILDFLAG(IS_STARBOARD)
 #if BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_CHROMEOS) || BUILDFLAG(IS_ANDROID)
   bool retry_slow = false;
   bool res =
@@ -181,6 +182,7 @@ bool CopyFileContents(File& infile, File& outfile) {
   }
   // Any failures which allow retrying using read/write will not have modified
   // either file offset or size.
+#endif
 #endif
 
   static constexpr size_t kBufferSize = 32768;

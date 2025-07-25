@@ -442,17 +442,56 @@ ScriptPromise MediaKeys::getStatusForPolicy(
 }
 
 #if BUILDFLAG(USE_STARBOARD_MEDIA)
-WebString MediaKeys::getMetrics(ExceptionState& exception_state) {
-  std::string metrics;
-  if (!cdm_ || !cdm_->GetMetrics(metrics)) {
-    exception_state.ThrowDOMException(
-        DOMExceptionCode::kInvalidStateError,
-        !cdm_ ? "No active CDM" : "GetMetrics() failed");
-    return WebString();
+class GetMetricsResultPromise
+    : public ContentDecryptionModuleResultPromise {
+ public:
+  GetMetricsResultPromise(ScriptState* script_state,
+                          const MediaKeysConfig& config,
+                          MediaKeys* media_keys)
+      : ContentDecryptionModuleResultPromise(script_state,
+                                             config,
+                                             EmeApiType::kGetMetrics),
+        media_keys_(media_keys) {}
+
+  ~GetMetricsResultPromise() override = default;
+
+  // ContentDecryptionModuleResult implementation.
+  void CompleteWithString(
+      const WebString& result) override {
+    if (!IsValidToFulfillPromise())
+      return;
+
+    Resolve(result);
   }
-  return WebString::FromUTF8(metrics);
+  void Trace(Visitor* visitor) const override {
+    visitor->Trace(media_keys_);
+    ContentDecryptionModuleResultPromise::Trace(visitor);
+  }
+
+ private:
+  // Keeping a reference to MediaKeys to prevent GC from collecting it while
+  // the promise is pending.
+  Member<MediaKeys> media_keys_;
+};
+
+ScriptPromise MediaKeys::getMetrics(ScriptState* script_state,
+                                    ExceptionState& exception_state) {
+  if (!cdm_) {
+    exception_state.ThrowDOMException(DOMExceptionCode::kInvalidStateError,
+                                      "No active CDM..");
+    return ScriptPromise();
+  }
+
+  GetMetricsResultPromise* result = 
+    MakeGarbageCollected<GetMetricsResultPromise>(script_state, config_, this);
+
+  ScriptPromise promise = result->Promise();
+
+  cdm_->GetMetrics(result->Result());
+
+  return promise;
 }
-#endif // BUILDFLAG(USE_STARBOARD_MEDIA)
+#endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
 
 void MediaKeys::GetStatusForPolicyTask(const String& min_hdcp_version,
                                        ContentDecryptionModuleResult* result) {

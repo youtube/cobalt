@@ -60,8 +60,6 @@ SB_EXPORT int __abi_wrap_uname(struct musl_utsname* musl_uts) {
                sizeof(musl_uts->version));
   CopyUtsField(uts.machine, sizeof(uts.machine), musl_uts->machine,
                sizeof(musl_uts->machine));
-  CopyUtsField(uts.domainname, sizeof(uts.domainname), musl_uts->domainname,
-               sizeof(musl_uts->domainname));
 
   return retval;
 }

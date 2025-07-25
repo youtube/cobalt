@@ -59,7 +59,7 @@ static constexpr auto kCobaltToggleSwitches = std::to_array<const char*>({
       // Disable Zygote (a process fork utility); in turn needs sandbox
       // disabled.
       switches::kNoZygote, sandbox::policy::switches::kNoSandbox,
-      // Rasterize Tiles directly to GPU memory.
+      // Rasterize Tiles directly to GPU memory (ZeroCopyRasterBufferProvider).
       blink::switches::kEnableZeroCopy,
       // Enable low-end device mode. This comes with a load of memory and CPU
       // saving goodies but can degrade the experience considerably. One of the
@@ -69,6 +69,9 @@ static constexpr auto kCobaltToggleSwitches = std::to_array<const char*>({
       // For Starboard the signal handlers are already setup. Disable the
       // Chromium registrations to avoid overriding the Starboard ones.
       switches::kDisableInProcessStackTraces,
+      // Cobalt doesn't use Chrome's accelerated video decoding/encoding.
+      switches::kDisableAcceleratedVideoDecode,
+      switches::kDisableAcceleratedVideoEncode,
 });
 
 // Map of switches with parameters and their defaults.

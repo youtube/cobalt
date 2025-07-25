@@ -37,7 +37,7 @@
 #include "ui/ozone/platform/starboard/platform_event_source_starboard.h"
 
 #if BUILDFLAG(IS_COBALT_HERMETIC_BUILD)
-#include "third_party/musl/src/starboard/internal/hwcap_impl.h"
+#include <init_musl.h>
 #endif
 
 using ui::PlatformEventSourceStarboard;
@@ -104,27 +104,26 @@ int InitCobalt(int argc, const char** argv, const char* initial_deep_link) {
 void SbEventHandle(const SbEvent* event) {
   switch (event->type) {
     case kSbEventTypePreload: {
+#if BUILDFLAG(IS_COBALT_HERMETIC_BUILD)
+      init_musl();
+#endif
       SbEventStartData* data = static_cast<SbEventStartData*>(event->data);
       g_exit_manager = new base::AtExitManager();
       g_content_main_delegate = new cobalt::CobaltMainDelegate();
       g_platform_event_source = new PlatformEventSourceStarboard();
-#if BUILDFLAG(IS_COBALT_HERMETIC_BUILD)
-      init_musl_hwcap();
-#endif
       InitCobalt(data->argument_count,
                  const_cast<const char**>(data->argument_values), data->link);
 
       break;
     }
     case kSbEventTypeStart: {
+#if BUILDFLAG(IS_COBALT_HERMETIC_BUILD)
+      init_musl();
+#endif
       SbEventStartData* data = static_cast<SbEventStartData*>(event->data);
-
       g_exit_manager = new base::AtExitManager();
       g_content_main_delegate = new cobalt::CobaltMainDelegate();
       g_platform_event_source = new PlatformEventSourceStarboard();
-#if BUILDFLAG(IS_COBALT_HERMETIC_BUILD)
-      init_musl_hwcap();
-#endif
       InitCobalt(data->argument_count,
                  const_cast<const char**>(data->argument_values), data->link);
       break;

@@ -60,6 +60,10 @@ class BLINK_PLATFORM_EXPORT WebContentDecryptionModuleResult {
                          uint32_t system_code,
                          const WebString& message);
 
+#if BUILDFLAG(USE_STARBOARD_MEDIA)
+  void CompleteWithString(const WebString& message);
+#endif // BUILDFLAG(USE_STARBOARD_MEDIA)
+
 #if INSIDE_BLINK
   explicit WebContentDecryptionModuleResult(ContentDecryptionModuleResult*);
 #endif
