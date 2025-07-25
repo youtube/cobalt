@@ -18,7 +18,6 @@
 #include <utility>
 #include <variant>
 
-#include "base/strings/string_number_conversions.h"
 #include "cobalt/common/features/features.h"
 #include "starboard/common/log.h"
 #include "starboard/extension/features.h"
@@ -89,7 +88,7 @@ SbParamWrapper::SbParamWrapper(const base::Feature* feature,
     : feature(feature),
       param_name(name),
       type(SbFeatureParamTypeString),
-      default_value(param_value) {}
+      default_value(std::move(param_value)) {}
 
 template <>
 constexpr SbParamWrapper::SbParamWrapper(const base::Feature* feature,
@@ -149,7 +148,7 @@ base::TimeDelta SbParamWrapper::GetValue() const {
   SbParamWrapper(&feature_object_name, param_name,                         \
                  static_cast<T>(default_value)),
 
-#define TIME base::TimeDelta
+#define STARBOARD_FEATURE_PARAM_TIME_TYPE base::TimeDelta
 
 #include "starboard/extension/feature_config.h"
 
@@ -159,7 +158,7 @@ base::TimeDelta SbParamWrapper::GetValue() const {
 #undef FEATURE_LIST_END
 #undef FEATURE_PARAM_LIST_START
 #undef FEATURE_PARAM_LIST_END
-#undef TIME
+#undef STARBOARD_FEATURE_PARAM_TIME_TYPE
 
 void InitializeStarboardFeatures() {
   const StarboardExtensionFeaturesApi* extension_api =
@@ -221,6 +220,15 @@ void InitializeStarboardFeatures() {
       case SbFeatureParamTypeTime:
         param.value.time_value =
             wrapper.GetValue<base::TimeDelta>().InMicroseconds();
+        break;
+      default:
+        LOG(ERROR)
+            << "Parameter " << wrapper.param_name
+            << "was initialized with an invalid type. This shouldn't happen. "
+               "Please check starboard/extension/feature_config.h for how this "
+               "parameter is defined. Setting this parameter to an integer with"
+               "value 0.";
+        param.value.int_value = 0;
     }
     params.push_back(param);
   }

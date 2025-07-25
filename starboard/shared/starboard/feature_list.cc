@@ -21,7 +21,7 @@
 
 namespace starboard::features {
 namespace {
-std::string ParamTypeToString(SbFeatureParamType type) {
+std::string ParamTypeToString(const SbFeatureParamType& type) {
   switch (type) {
     case SbFeatureParamTypeBool:
       return "SbFeatureParamTypeBool";
@@ -33,6 +33,10 @@ std::string ParamTypeToString(SbFeatureParamType type) {
       return "SbFeatureParamTypeString";
     case SbFeatureParamTypeTime:
       return "SbFeatureParamTypeTime";
+    default:
+      SB_LOG(ERROR) << "ParamTypeToString() received an invalid Param type. "
+                       "Please ensure that a valid Param is given.";
+      return "Invalid Param type given.";
   }
 }
 }  // namespace
@@ -45,7 +49,8 @@ void FeatureList::InitializeFeatureList(const SbFeature* features,
                                         const SbFeatureParam* params,
                                         size_t number_of_params) {
   FeatureList* instance = GetInstance();
-  SB_DCHECK(instance);
+  SB_CHECK(instance)
+      << "Starboard FeatureList Instance has not been initialized.";
 
   ScopedLock lock(instance->mutex_);
 
@@ -54,8 +59,10 @@ void FeatureList::InitializeFeatureList(const SbFeature* features,
     const SbFeature& feature = features[i];
     auto& feature_map = instance->features_;
 
-    SB_DCHECK(strlen(feature.name) > 0);
-    SB_DCHECK((feature_map.find(feature.name)) == (feature_map.end()));
+    SB_CHECK(strlen(feature.name) > 0)
+        << "Features are not allowed to have empty strings as names.";
+    SB_CHECK((feature_map.find(feature.name)) == (feature_map.end()))
+        << "Duplicate Features are not allowed.";
     feature_map[feature.name] = feature.is_enabled;
   }
 
@@ -63,8 +70,11 @@ void FeatureList::InitializeFeatureList(const SbFeature* features,
   for (size_t i = 0; i < number_of_params; i++) {
     SbFeatureParam param = params[i];
 
-    SB_DCHECK(strlen(param.feature_name) > 0);
-    SB_DCHECK(strlen(param.param_name) > 0);
+    SB_CHECK(strlen(param.feature_name) > 0)
+        << "A parameter cannot belong to a feature whose name is an empty "
+           "string.";
+    SB_CHECK(strlen(param.param_name) > 0)
+        << "Parameters are not allowed to have empty strings as names.";
     ParamValue value;
     switch (param.type) {
       case SbFeatureParamTypeBool:
@@ -82,14 +92,22 @@ void FeatureList::InitializeFeatureList(const SbFeature* features,
       case SbFeatureParamTypeTime:
         value = param.value.time_value;
         break;
+      default:
+        SB_LOG(ERROR)
+            << "Parameter " << param.param_name
+            << " has an invalid type. This shouldn't happen. Check that the "
+               "params from starboard_features_initialization.cc are passed "
+               "down correctly. Any calls from this parameter will crash the "
+               "app.";
+        value = 0;
     }
 
-    // DCHECK for duplicate parameters
     auto& feature_param_map = instance->params_;
-    SB_DCHECK(feature_param_map.find(param.feature_name) ==
-                  feature_param_map.end() ||
-              feature_param_map[param.feature_name].find(param.param_name) ==
-                  feature_param_map[param.feature_name].end());
+    SB_CHECK(feature_param_map.find(param.feature_name) ==
+                 feature_param_map.end() ||
+             feature_param_map[param.feature_name].find(param.param_name) ==
+                 feature_param_map[param.feature_name].end())
+        << "All parameters that a feature owns must have unique names.";
 
     feature_param_map[param.feature_name][param.param_name] =
         std::make_pair(param.type, value);
@@ -113,7 +131,7 @@ void FeatureList::ValidateParam(const std::string& feature_name,
   const auto& param_it = param_map.find(param_name);
   SB_CHECK(param_it != param_map.end())
       << "Parameter " << param_name
-      << "is not initialized in the Starboard level. Is the parameter "
+      << " is not initialized in the Starboard level. Is the parameter "
          "initialized in starboard/extension/feature_config.h?";
 
   const auto& [param_entry_type, _] = param_it->second;
@@ -138,7 +156,7 @@ bool FeatureList::IsEnabled(const SbFeature& feature) {
   auto feature_it = feature_map.find(feature.name);
   SB_CHECK(feature_it != feature_map.end())
       << "Feature " << feature.name
-      << " is not initialized in the Starboard level. Is the parameter "
+      << " is not initialized in the Starboard level. Is the feature "
          "initialized in starboard/extension/feature_config.h?";
   return feature_it->second;
 }
