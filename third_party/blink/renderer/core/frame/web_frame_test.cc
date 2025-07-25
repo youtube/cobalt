@@ -13458,6 +13458,7 @@ TEST_F(WebFrameTest, ContextMenuDataPasswordSelectedText) {
   EXPECT_FALSE(frame.GetMenuData().selected_text.empty());
 }
 
+#if !BUILDFLAG(IS_COBALT)
 TEST_F(WebFrameTest, ContextMenuDataNonLocatedMenu) {
   ContextMenuWebFrameClient frame;
   frame_test_helpers::WebViewHelper web_view_helper;
@@ -13492,6 +13493,7 @@ TEST_F(WebFrameTest, ContextMenuDataNonLocatedMenu) {
   EXPECT_EQ(frame.GetMenuData().source_type, kMenuSourceTouch);
   EXPECT_FALSE(frame.GetMenuData().selected_text.empty());
 }
+#endif
 
 TEST_F(WebFrameTest, LocalFrameWithRemoteParentIsTransparent) {
   frame_test_helpers::WebViewHelper helper;
