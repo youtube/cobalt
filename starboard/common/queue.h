@@ -79,20 +79,15 @@ class Queue {
   // item, or the given timeout duration (in microseconds) expires, or the queue
   // is woken up. If there are multiple waiters, this Queue guarantees that only
   // one waiter will receive any given queue item.
-  T GetTimed(int64_t duration) {
+  T GetTimed(int64_t duration_usec) {
     std::unique_lock lock(mutex_);
-    int64_t start = CurrentMonotonicTime();
-    while (queue_.empty()) {
-      if (wake_) {
-        wake_ = false;
-        return T();
-      }
-
-      int64_t elapsed = CurrentMonotonicTime() - start;
-      if (elapsed >= duration) {
-        return T();
-      }
-      condition_.wait_for(lock, std::chrono::microseconds(duration - elapsed));
+    if (!condition_.wait_for(lock, std::chrono::microseconds(duration_usec),
+                             [this] { return !queue_.empty() || wake_; })) {
+      return T();
+    }
+    if (wake_) {
+      wake_ = false;
+      return T();
     }
 
     T entry = queue_.front();
