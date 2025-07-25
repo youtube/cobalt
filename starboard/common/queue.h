@@ -22,17 +22,17 @@
 #define STARBOARD_COMMON_QUEUE_H_
 
 #include <algorithm>
+#include <condition_variable>
 #include <deque>
+#include <mutex>
 
-#include "starboard/common/condition_variable.h"
-#include "starboard/common/mutex.h"
 #include "starboard/common/time.h"
 #include "starboard/export.h"
 #include "starboard/types.h"
 
 namespace starboard {
 
-// Synchronized, blocking queue, based on starboard::ConditionVariable. This
+// Synchronized, blocking queue, based on std::condition_variable. This
 // class is designed for T to be a pointer type, or something otherwise
 // inherently Nullable, as there is no way to distinguish T() from "no result".
 // Note: The class allows its user to block and wait for a new item.
@@ -41,12 +41,12 @@ namespace starboard {
 template <typename T>
 class Queue {
  public:
-  Queue() : condition_(mutex_), wake_(false) {}
+  Queue() : wake_(false) {}
   ~Queue() {}
 
   // Polls for an item, returning the default value of T if nothing is present.
   T Poll() {
-    ScopedLock lock(mutex_);
+    std::unique_lock lock(mutex_);
     if (!queue_.empty()) {
       T entry = std::move(queue_.front());
       queue_.pop_front();
@@ -60,14 +60,14 @@ class Queue {
   // item, or the queue is woken up. If there are multiple waiters, this Queue
   // guarantees that only one waiter will receive any given queue item.
   T Get() {
-    ScopedLock lock(mutex_);
+    std::unique_lock lock(mutex_);
     while (queue_.empty()) {
       if (wake_) {
         wake_ = false;
         return T();
       }
 
-      condition_.Wait();
+      condition_.wait(lock);
     }
 
     T entry = queue_.front();
@@ -80,7 +80,7 @@ class Queue {
   // is woken up. If there are multiple waiters, this Queue guarantees that only
   // one waiter will receive any given queue item.
   T GetTimed(int64_t duration) {
-    ScopedLock lock(mutex_);
+    std::unique_lock lock(mutex_);
     int64_t start = CurrentMonotonicTime();
     while (queue_.empty()) {
       if (wake_) {
@@ -92,7 +92,7 @@ class Queue {
       if (elapsed >= duration) {
         return T();
       }
-      condition_.WaitTimed(duration - elapsed);
+      condition_.wait_for(lock, std::chrono::microseconds(duration - elapsed));
     }
 
     T entry = queue_.front();
@@ -103,16 +103,16 @@ class Queue {
   // Pushes |value| onto the back of the queue, waking up a single waiter, if
   // any exist.
   void Put(T value) {
-    ScopedLock lock(mutex_);
+    std::unique_lock lock(mutex_);
     queue_.push_back(std::move(value));
-    condition_.Signal();
+    condition_.notify_one();
   }
 
   // Forces one waiter to wake up empty-handed.
   void Wake() {
-    ScopedLock lock(mutex_);
+    std::unique_lock lock(mutex_);
     wake_ = true;
-    condition_.Signal();
+    condition_.notify_one();
   }
 
   // It is guaranteed that after this function returns there is no element in
@@ -124,24 +124,24 @@ class Queue {
   // this is properly coordinated with the free of resources.  Usually this can
   // be solved by calling Remove() on the same thread that calls Get().
   void Remove(T value) {
-    ScopedLock lock(mutex_);
+    std::unique_lock lock(mutex_);
     queue_.erase(std::remove(queue_.begin(), queue_.end(), value),
                  queue_.end());
   }
 
   void Clear() {
-    ScopedLock lock(mutex_);
+    std::unique_lock lock(mutex_);
     queue_.clear();
   }
 
   size_t Size() const {
-    ScopedLock lock(mutex_);
+    std::unique_lock lock(mutex_);
     return queue_.size();
   }
 
  private:
-  Mutex mutex_;
-  ConditionVariable condition_;
+  mutable std::mutex mutex_;
+  std::condition_variable condition_;
   std::deque<T> queue_;
   bool wake_;
 };
