@@ -80,7 +80,7 @@ class CastStarboardApiTest : public ::testing::Test {
   std::vector<SbEventType> received_;
   std::mutex received_mutex_;
   std::unique_ptr<std::condition_variable> received_cond_;
-  bool event_received_;  // Guarded by |received_mutex_|
+  bool event_received_ = false;  // Guarded by |received_mutex_|
 };
 
 // A behavior in the default implementation prevents dlclose from being used on
