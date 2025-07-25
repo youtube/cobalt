@@ -22,8 +22,9 @@
 namespace starboard::shared::starboard::media {
 
 // Manages the mapping between a CDM session ID and a MediaDrm session ID.
-// This class is NOT thread-safe. The owner of this class should handle locking
-// to ensure thread-safety.
+// This class is thread-compatible. It is not internally thread-safe. The owner
+// of this class should handle locking to ensure thread-safety when the same
+// instance is accessed from multiple threads.
 class DrmSessionIdMapper {
  public:
   DrmSessionIdMapper();
@@ -31,7 +32,7 @@ class DrmSessionIdMapper {
   std::string_view GetCdmSessionId(std::string_view media_drm_session_id) const;
   std::string_view GetMediaDrmSessionId(std::string_view cdm_session_id) const;
 
-  std::string GenerateCdmSessionId();
+  std::string GetBridgeCdmSessionId();
   void RegisterMediaDrmSessionIdIfNotSet(std::string_view media_drm_session_id);
 
  private:

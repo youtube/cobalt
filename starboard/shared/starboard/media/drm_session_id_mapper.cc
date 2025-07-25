@@ -45,19 +45,16 @@ std::string_view DrmSessionIdMapper::GetMediaDrmSessionId(
   return cdm_session_id;
 }
 
-std::string DrmSessionIdMapper::GenerateCdmSessionId() {
+std::string DrmSessionIdMapper::GetBridgeCdmSessionId() {
   if (bridge_session_id_map_.has_value()) {
-    SB_LOG(WARNING) << "New session is requested, though we already have. "
-                       "discard existing ids: cdm_id="
-                    << bridge_session_id_map_->cdm_id << ", media_drm_id="
-                    << (bridge_session_id_map_->media_drm_id.empty()
-                            ? "(empty)"
-                            : bridge_session_id_map_->media_drm_id);
+    SB_LOG(INFO) << __func__ << " re-used exising bridge session id="
+                 << bridge_session_id_map_->cdm_id;
+    return bridge_session_id_map_->cdm_id;
   }
 
   bridge_session_id_map_.emplace(
       SessionIdMap{.cdm_id = GenerateBridgeSesssionId()});
-  SB_LOG(INFO) << "bridge session is created: cdm_id="
+  SB_LOG(INFO) << __func__ << " created new bridge session: cdm_id="
                << bridge_session_id_map_->cdm_id;
   return bridge_session_id_map_->cdm_id;
 }

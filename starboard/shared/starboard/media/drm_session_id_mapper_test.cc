@@ -25,9 +25,9 @@ TEST(DrmSessionIdMapperTest, InitialState) {
   EXPECT_EQ(mapper.GetMediaDrmSessionId("test_id"), "test_id");
 }
 
-TEST(DrmSessionIdMapperTest, GenerateCdmSessionId) {
+TEST(DrmSessionIdMapperTest, GetBridgeCdmSessionId) {
   DrmSessionIdMapper mapper;
-  std::string cdm_session_id = mapper.GenerateCdmSessionId();
+  std::string cdm_session_id = mapper.GetBridgeCdmSessionId();
   EXPECT_FALSE(cdm_session_id.empty());
   EXPECT_NE(cdm_session_id, "test_id");
 
@@ -37,7 +37,7 @@ TEST(DrmSessionIdMapperTest, GenerateCdmSessionId) {
 
 TEST(DrmSessionIdMapperTest, GetCdmSessionId) {
   DrmSessionIdMapper mapper;
-  std::string cdm_session_id = mapper.GenerateCdmSessionId();
+  std::string cdm_session_id = mapper.GetBridgeCdmSessionId();
 
   const std::string media_drm_session_id = "media_drm_session_id";
   mapper.RegisterMediaDrmSessionIdIfNotSet(media_drm_session_id);
@@ -47,7 +47,7 @@ TEST(DrmSessionIdMapperTest, GetCdmSessionId) {
 
 TEST(DrmSessionIdMapperTest, GetMediaDrmSessionId) {
   DrmSessionIdMapper mapper;
-  std::string cdm_session_id = mapper.GenerateCdmSessionId();
+  std::string cdm_session_id = mapper.GetBridgeCdmSessionId();
 
   const std::string media_drm_session_id = "media_drm_session_id";
   mapper.RegisterMediaDrmSessionIdIfNotSet(media_drm_session_id);
@@ -55,11 +55,11 @@ TEST(DrmSessionIdMapperTest, GetMediaDrmSessionId) {
   EXPECT_EQ(mapper.GetMediaDrmSessionId(cdm_session_id), media_drm_session_id);
 }
 
-TEST(DrmSessionIdMapperTest, RegenerateCdmSessionId) {
+TEST(DrmSessionIdMapperTest, GetBridgeCdmSessionIdIsConsistent) {
   DrmSessionIdMapper mapper;
-  std::string cdm_session_id1 = mapper.GenerateCdmSessionId();
-  std::string cdm_session_id2 = mapper.GenerateCdmSessionId();
-  EXPECT_NE(cdm_session_id1, cdm_session_id2);
+  std::string cdm_session_id1 = mapper.GetBridgeCdmSessionId();
+  std::string cdm_session_id2 = mapper.GetBridgeCdmSessionId();
+  EXPECT_EQ(cdm_session_id1, cdm_session_id2);
 }
 
 TEST(DrmSessionIdMapperTest, RegisterMediaDrmSessionIdIfNotSet) {
@@ -67,7 +67,7 @@ TEST(DrmSessionIdMapperTest, RegisterMediaDrmSessionIdIfNotSet) {
 
   // Case 1: Calling before a CDM session is generated should do nothing.
   mapper.RegisterMediaDrmSessionIdIfNotSet("media_id_1");
-  std::string cdm_id = mapper.GenerateCdmSessionId();
+  std::string cdm_id = mapper.GetBridgeCdmSessionId();
   EXPECT_TRUE(mapper.GetMediaDrmSessionId(cdm_id).empty());
 
   // Case 2: Successful registration.
