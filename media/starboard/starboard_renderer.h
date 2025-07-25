@@ -167,6 +167,12 @@ class MEDIA_EXPORT StarboardRenderer : public Renderer,
   // estimate and avoid calling SbPlayerGetInfo too frequently.
   void StoreMediaTime(TimeDelta media_time);
 
+  // AndroidOverlay callbacks.
+  void OnOverlayReady(AndroidOverlay*);
+  void OnOverlayFailed(AndroidOverlay*);
+  void OnOverlayDeleted(AndroidOverlay*);
+  void OnPowerEfficientState(AndroidOverlay* overlay, bool is_power_efficient);
+
   int GetDefaultMaxBuffers(AudioCodec codec,
                            TimeDelta duration_to_write,
                            bool is_preroll);
@@ -190,6 +196,8 @@ class MEDIA_EXPORT StarboardRenderer : public Renderer,
 #if BUILDFLAG(IS_ANDROID)
   const AndroidOverlayMojoFactoryCB android_overlay_factory_cb_;
 #endif  // BUILDFLAG(IS_ANDROID)
+
+  std::unique_ptr<AndroidOverlay> overlay_;
 
   raw_ptr<DemuxerStream> audio_stream_ = nullptr;
   raw_ptr<DemuxerStream> video_stream_ = nullptr;
