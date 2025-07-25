@@ -126,14 +126,14 @@ class Win32StackFrameUnwinderTest : public testing::Test {
       delete;
 
  protected:
-  Win32StackFrameUnwinderTest() {}
+  Win32StackFrameUnwinderTest() = default;
 
   // This exists so that Win32StackFrameUnwinder's constructor can be private
   // with a single friend declaration of this test fixture.
   std::unique_ptr<Win32StackFrameUnwinder> CreateUnwinder();
 
   // Weak pointer to the unwind functions used by last created unwinder.
-  raw_ptr<TestUnwindFunctions> unwind_functions_;
+  raw_ptr<TestUnwindFunctions, DanglingUntriaged> unwind_functions_;
 };
 
 std::unique_ptr<Win32StackFrameUnwinder>

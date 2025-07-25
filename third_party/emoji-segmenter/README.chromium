@@ -1,0 +1,17 @@
+Name: Emoji Segmenter
+Short Name: emoji-segmenter
+URL: https://github.com/googlei18n/emoji-segmenter
+Version: 0.3.0
+Date: 2024-10-09
+Revision: 955936be8b391e00835257059607d7c5b72ce744
+Security Critical: yes
+Shipped: yes
+License: Apache 2.0
+License File: LICENSE
+
+Description:
+This is an import of the Emoji Segmenter maintained at the source URL above. The
+Emoji Segmenter is a Ragel grammar and generated C code for segmenting runs of
+text into text-presentation and emoji-presentation runs. It is currently used
+for deciding which preferred presentation, color or text, a run of text should
+have.

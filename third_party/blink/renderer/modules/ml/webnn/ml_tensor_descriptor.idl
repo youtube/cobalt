@@ -1,0 +1,14 @@
+// Copyright 2024 The Chromium Authors
+// Use of this source code is governed by a BSD-style license that can be
+// found in the LICENSE file.
+
+// https://www.w3.org/TR/webnn/#api-mltensor
+
+dictionary MLTensorDescriptor : MLOperandDescriptor {
+  boolean importableToWebGPU = false;
+  boolean readable = false;
+  boolean writable = false;
+
+  // TODO(crbug.com/343638938): Remove this after the M132 branch cut.
+  MLTensorUsageFlags usage;
+};

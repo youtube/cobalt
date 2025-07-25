@@ -1,11 +1,15 @@
 // Copyright 2015 The Chromium Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
+#ifdef UNSAFE_BUFFERS_BUILD
+// TODO(crbug.com/377326291): Remove this and convert code to safer constructs.
+#pragma allow_unsafe_buffers
+#endif
 
 #ifndef UI_GFX_VECTOR_ICON_TYPES_H_
 #define UI_GFX_VECTOR_ICON_TYPES_H_
 
-#include "base/memory/raw_ptr_exclusion.h"
+#include "base/memory/raw_span.h"
 #include "third_party/skia/include/core/SkScalar.h"
 #include "ui/gfx/animation/tween.h"
 
@@ -19,8 +23,11 @@ namespace gfx {
 // The alternative would be to have the template files pull in the whole gfx
 // namespace via using-directives, which is banned by the style guide.
 #define DECLARE_VECTOR_COMMANDS                                                \
-  /* A new <path> element. For the first path, this is assumed. */             \
+  /* A new <path> element. For the first path, this is assumed. By default */  \
+  /* the path has the 'kEvenOdd' fill type. */                                 \
   DECLARE_VECTOR_COMMAND(NEW_PATH)                                             \
+  /* Set the fill type to Non-zero aka 'kWinding'. */                          \
+  DECLARE_VECTOR_COMMAND(FILL_RULE_NONZERO)                                    \
   /* Sets the alpha for the current path. */                                   \
   DECLARE_VECTOR_COMMAND(PATH_COLOR_ALPHA)                                     \
   /* Sets the color for the current path. */                                   \
@@ -87,38 +94,30 @@ struct PathElement {
 // size or range of sizes.
 struct VectorIconRep {
   VectorIconRep() = default;
-  constexpr VectorIconRep(const PathElement* path, size_t path_size)
-      : path(path), path_size(path_size) {}
+  constexpr VectorIconRep(const PathElement* path_data, size_t path_size)
+      : path(path_data, path_size) {}
 
   VectorIconRep(const VectorIconRep&) = delete;
   VectorIconRep& operator=(const VectorIconRep&) = delete;
 
-  // This field is not a raw_ptr<> because it was filtered by the rewriter for:
-  // #global-scope, #constexpr-ctor-field-initializer
-  RAW_PTR_EXCLUSION const PathElement* path = nullptr;
-
-  // The length of |path|.
-  size_t path_size = 0u;
+  base::raw_span<const PathElement> path;
 };
 
 // A vector icon that stores one or more representations to be used for various
 // scale factors and pixel dimensions.
 struct VectorIcon {
   VectorIcon() = default;
-  constexpr VectorIcon(const VectorIconRep* reps,
+  constexpr VectorIcon(const VectorIconRep* reps_data,
                        size_t reps_size,
                        const char* name)
-      : reps(reps), reps_size(reps_size), name(name) {}
+      : reps(reps_data, reps_size), name(name) {}
 
   VectorIcon(const VectorIcon&) = delete;
   VectorIcon& operator=(const VectorIcon&) = delete;
 
-  bool is_empty() const { return !reps; }
+  bool is_empty() const { return reps.empty(); }
 
-  // This field is not a raw_ptr<> because it was filtered by the rewriter for:
-  // #global-scope, #constexpr-ctor-field-initializer
-  RAW_PTR_EXCLUSION const VectorIconRep* const reps = nullptr;
-  size_t reps_size = 0u;
+  base::raw_span<const VectorIconRep> reps;
 
   // A human-readable name, useful for debugging, derived from the name of the
   // icon file. This can also be used as an identifier, but vector icon targets

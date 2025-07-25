@@ -1,0 +1,5 @@
+include_rules = [
+  "+components/update_client",
+  "+mojo/public",
+  "+third_party/puffin",
+]

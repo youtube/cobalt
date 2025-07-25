@@ -2,14 +2,14 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-
 // Windows Timer Primer
 //
 // A good article:  http://www.ddj.com/windows/184416651
 // A good mozilla bug:  http://bugzilla.mozilla.org/show_bug.cgi?id=363258
 //
-// The default windows timer, GetSystemTimeAsFileTime is not very precise.
-// It is only good to ~15.5ms.
+// The default windows timer, GetSystemTimePreciseAsFileTime is quite precise.
+// However it is not always fast on some hardware and is slower than the
+// performance counters.
 //
 // QueryPerformanceCounter is the logical choice for a high-precision timer.
 // However, it is known to be buggy on some hardware.  Specifically, it can
@@ -33,11 +33,11 @@
 
 #include "base/time/time.h"
 
-#include <windows.foundation.h>
 #include <windows.h>
 
 #include <mmsystem.h>
 #include <stdint.h>
+#include <windows.foundation.h>
 
 #include <atomic>
 #include <ostream>
@@ -79,7 +79,7 @@ FILETIME MicrosecondsToFileTime(int64_t us) {
 
 int64_t CurrentWallclockMicroseconds() {
   FILETIME ft;
-  ::GetSystemTimeAsFileTime(&ft);
+  ::GetSystemTimePreciseAsFileTime(&ft);
   return FileTimeToMicroseconds(ft);
 }
 
@@ -190,8 +190,8 @@ Time TimeNowIgnoringOverride() {
     InitializeClock();
 
   // We implement time using the high-resolution timers so that we can get
-  // timeouts which are smaller than 10-15ms.  If we just used
-  // CurrentWallclockMicroseconds(), we'd have the less-granular timer.
+  // timeouts which likely are smaller than those if we just used
+  // CurrentWallclockMicroseconds().
   //
   // To make this work, we initialize the clock (g_initial_time) and the
   // counter (initial_ctr).  To compute the initial time, we can check
@@ -553,8 +553,8 @@ void InitializeNowFunctionPointer() {
   // counter will cause Windows to provide an alternate QPC implementation that
   // works, but is expensive to use.
   //
-  // Otherwise, Now uses the high-resolution QPC clock. As of 21 August 2015,
-  // ~72% of users fall within this category.
+  // Otherwise, Now uses the high-resolution QPC clock. As of 9 September 2024,
+  // ~97% of users fall within this category.
   CPU cpu;
   const TimeTicksNowFunction now_function =
       (ticks_per_sec.QuadPart <= 0 || !cpu.has_non_stop_time_stamp_counter())
@@ -607,6 +607,10 @@ TimeTicks TimeTicksNowIgnoringOverride() {
   return g_time_ticks_now_ignoring_override_function.load(
       std::memory_order_relaxed)();
 }
+
+TimeTicks TimeTicksLowResolutionNowIgnoringOverride() {
+  return RolloverProtectedNow();
+}
 }  // namespace subtle
 
 // static
@@ -641,6 +645,18 @@ TimeTicks::Clock TimeTicks::GetClock() {
   return IsHighResolution() ? Clock::WIN_QPC
                             : Clock::WIN_ROLLOVER_PROTECTED_TIME_GET_TIME;
 }
+
+// LiveTicks ------------------------------------------------------------------
+
+namespace subtle {
+LiveTicks LiveTicksNowIgnoringOverride() {
+  ULONGLONG unbiased_interrupt_time;
+  QueryUnbiasedInterruptTimePrecise(&unbiased_interrupt_time);
+  // QueryUnbiasedInterruptTimePrecise gets the interrupt time in system time
+  // units of 100 nanoseconds.
+  return LiveTicks() + Nanoseconds(unbiased_interrupt_time * 100);
+}
+}  // namespace subtle
 
 // ThreadTicks ----------------------------------------------------------------
 

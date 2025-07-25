@@ -15,7 +15,6 @@
 //   // http://crbug.com/178677
 //   "interceptor_via_lib:libsqlite3.so\n"
 char kASanDefaultSuppressions[] =
-
     // End of suppressions.
     // PLEASE READ ABOVE BEFORE ADDING NEW SUPPRESSIONS.
     "";  // Please keep this semicolon.

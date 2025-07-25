@@ -40,7 +40,7 @@ SCRIPT_TEMPLATES = {
 }
 
 
-PY_TEMPLATE = textwrap.dedent("""\
+PY_TEMPLATE = textwrap.dedent(r"""
     import os
     import re
     import shlex
@@ -55,8 +55,10 @@ PY_TEMPLATE = textwrap.dedent("""\
 
 
     def ExpandWrappedPath(arg):
-      m = _WRAPPED_PATH_RE.match(arg)
+      m = _WRAPPED_PATH_RE.search(arg)
       if m:
+        head = arg[:m.start()]
+        tail = arg[m.end():]
         relpath = os.path.join(
             os.path.relpath(_SCRIPT_DIR), _PATH_TO_OUTPUT_DIR, m.group(1))
         npath = os.path.normpath(relpath)
@@ -78,8 +80,8 @@ PY_TEMPLATE = textwrap.dedent("""\
           # WrappedPath() somehow to distinguish between the two, or
           # somehow ensure that the wrapped executable doesn't hit cases
           # like this.
-          return '.' + os.path.sep + npath
-        return npath
+          return head + '.' + os.path.sep + npath + tail
+        return head + npath + tail
       return arg
 
 

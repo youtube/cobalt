@@ -57,10 +57,10 @@ class MEDIA_EXPORT RendererImpl final : public Renderer {
                   RendererClient* client,
                   PipelineStatusCallback init_cb) final;
   void SetCdm(CdmContext* cdm_context, CdmAttachedCB cdm_attached_cb) final;
-  void SetLatencyHint(absl::optional<base::TimeDelta> latency_hint) final;
+  void SetLatencyHint(std::optional<base::TimeDelta> latency_hint) final;
   void SetPreservesPitch(bool preserves_pitch) final;
-  void SetWasPlayedWithUserActivation(
-      bool was_played_with_user_activation) final;
+  void SetWasPlayedWithUserActivationAndHighMediaEngagement(
+      bool was_played_with_user_activation_and_high_media_engagement) final;
   void Flush(base::OnceClosure flush_cb) final;
   void StartPlayingFrom(base::TimeDelta time) final;
   void SetPlaybackRate(double playback_rate) final;
@@ -122,7 +122,7 @@ class MEDIA_EXPORT RendererImpl final : public Renderer {
   // renderer must be flushed first, and when the re-init is completed the
   // corresponding callback will be invoked to restart playback.
   // The |stream| parameter specifies the new demuxer stream, and the |time|
-  // parameter specifies the time on media timeline where the switch occured.
+  // parameter specifies the time on media timeline where the switch occurred.
   void ReinitializeAudioRenderer(DemuxerStream* stream,
                                  base::TimeDelta time,
                                  base::OnceClosure reinitialize_completed_cb);
@@ -204,7 +204,7 @@ class MEDIA_EXPORT RendererImpl final : public Renderer {
   void OnAudioConfigChange(const AudioDecoderConfig& config);
   void OnVideoConfigChange(const VideoDecoderConfig& config);
   void OnVideoOpacityChange(bool opaque);
-  void OnVideoFrameRateChange(absl::optional<int> fps);
+  void OnVideoFrameRateChange(std::optional<int> fps);
 
   void OnStreamRestartCompleted();
 

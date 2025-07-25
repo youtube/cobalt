@@ -11,25 +11,28 @@
 #include "base/functional/bind.h"
 #include "base/logging.h"
 #include "base/metrics/histogram_functions.h"
-#include "base/metrics/histogram_macros_local.h"
 #include "base/task/sequenced_task_runner.h"
 #include "base/time/time.h"
 #include "base/timer/elapsed_timer.h"
 #include "sql/database.h"
 #include "sql/error_delegate_util.h"
 
+#if BUILDFLAG(IS_WIN)
+#include <windows.h>
+#endif  // BUILDFLAG(IS_WIN)
+
 namespace net {
 
 SQLitePersistentStoreBackendBase::SQLitePersistentStoreBackendBase(
     const base::FilePath& path,
-    std::string histogram_tag,
+    const std::string& histogram_tag,
     const int current_version_number,
     const int compatible_version_number,
     scoped_refptr<base::SequencedTaskRunner> background_task_runner,
     scoped_refptr<base::SequencedTaskRunner> client_task_runner,
     bool enable_exclusive_access)
     : path_(path),
-      histogram_tag_(std::move(histogram_tag)),
+      histogram_tag_(histogram_tag),
       current_version_number_(current_version_number),
       compatible_version_number_(compatible_version_number),
       background_task_runner_(std::move(background_task_runner)),
@@ -88,7 +91,7 @@ bool SQLitePersistentStoreBackendBase::InitializeDatabase() {
     return false;
   }
 
-  // TODO(crbug.com/1430231): Remove explicit_locking = false. This currently
+  // TODO(crbug.com/40262972): Remove explicit_locking = false. This currently
   // needs to be set to false because of several failing MigrationTests.
   db_ = std::make_unique<sql::Database>(sql::DatabaseOptions{
       .exclusive_locking = false,
@@ -107,12 +110,17 @@ bool SQLitePersistentStoreBackendBase::InitializeDatabase() {
   // because the file cannot be opened again to preload it. In this case,
   // preload before opening the database.
   if (enable_exclusive_access_) {
-    // See coments in Database::Preload for explanation of these values.
-    constexpr int kPreReadSize = 128 * 1024 * 1024;  // 128 MB
-    // TODO(crbug.com/1434166): Consider moving preload behind a database
-    // option.
-    base::PreReadFile(path_, /*is_executable=*/false, kPreReadSize);
     has_been_preloaded = true;
+
+    // Can only attempt to preload before Open if the file exists.
+    if (base::PathExists(path_)) {
+      // See comments in Database::Preload for explanation of these values.
+      constexpr int kPreReadSize = 128 * 1024 * 1024;  // 128 MB
+      // TODO(crbug.com/40904059): Consider moving preload behind a database
+      // option.
+      base::PreReadFile(path_, /*is_executable=*/false, /*sequential=*/false,
+                        kPreReadSize);
+    }
   }
 
   if (!db_->Open(path_)) {
@@ -206,7 +214,7 @@ bool SQLitePersistentStoreBackendBase::MigrateDatabaseSchema() {
 
   // |cur_version| is the version that the database ends up at, after all the
   // database upgrade statements.
-  absl::optional<int> cur_version = DoMigrateDatabaseSchema();
+  std::optional<int> cur_version = DoMigrateDatabaseSchema();
   if (!cur_version.has_value())
     return false;
 
@@ -217,9 +225,10 @@ bool SQLitePersistentStoreBackendBase::MigrateDatabaseSchema() {
     bool recovered = sql::Database::Delete(path_) && db()->Open(path_) &&
                      meta_table_.Init(db(), current_version_number_,
                                       compatible_version_number_);
-    LOCAL_HISTOGRAM_BOOLEAN("Net.SQLite.CorruptMetaTableRecovered", recovered);
+    base::UmaHistogramBoolean(histogram_tag_ + ".CorruptMetaTableRecovered",
+                              recovered);
     if (!recovered) {
-      NOTREACHED() << "Unable to reset the " << histogram_tag_ << " DB.";
+      DLOG(ERROR) << "Unable to recover the " << histogram_tag_ << " DB.";
       meta_table_.Reset();
       db_.reset();
       return false;
@@ -261,6 +270,15 @@ void SQLitePersistentStoreBackendBase::DatabaseErrorCallback(
     return;
 
   corruption_detected_ = true;
+
+  if (!initialized_) {
+    sql::UmaHistogramSqliteResult(histogram_tag_ + ".ErrorInitializeDB", error);
+
+#if BUILDFLAG(IS_WIN)
+    base::UmaHistogramSparse(histogram_tag_ + ".WinGetLastErrorInitializeDB",
+                             ::GetLastError());
+#endif  // BUILDFLAG(IS_WIN)
+  }
 
   // Don't just do the close/delete here, as we are being called by |db| and
   // that seems dangerous.

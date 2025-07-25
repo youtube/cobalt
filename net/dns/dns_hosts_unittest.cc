@@ -2,11 +2,15 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#ifdef UNSAFE_BUFFERS_BUILD
+// TODO(crbug.com/40284755): Remove this and spanify to fix the errors.
+#pragma allow_unsafe_buffers
+#endif
+
 #include "net/dns/dns_hosts.h"
 
 #include "base/test/metrics/histogram_tester.h"
 #include "base/trace_event/memory_usage_estimator.h"
-#include "base/tracing_buildflags.h"
 #include "build/build_config.h"
 #include "net/base/cronet_buildflags.h"
 #include "net/base/ip_address.h"
@@ -86,7 +90,7 @@ TEST(DnsHostsTest, ParseHosts) {
   ASSERT_EQ(expected_hosts, actual_hosts);
   histograms.ExpectUniqueSample("Net.DNS.DnsHosts.Count", std::size(kEntries),
                                 1);
-#if BUILDFLAG(ENABLE_BASE_TRACING)
+#if !BUILDFLAG(CRONET_BUILD)
   histograms.ExpectUniqueSample(
       "Net.DNS.DnsHosts.EstimateMemoryUsage",
       base::trace_event::EstimateMemoryUsage(actual_hosts), 1);

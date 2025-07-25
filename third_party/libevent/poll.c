@@ -30,17 +30,6 @@
 #include "config.h"
 #endif
 
-#ifdef STARBOARD
-#if defined LIBEVENT_PLATFORM_HEADER
-#include LIBEVENT_PLATFORM_HEADER
-#else  //  defined LIBEVENT_PLATFORM_HEADER
-#include "libevent-starboard.h"
-#endif  //  defined LIBEVENT_PLATFORM_HEADER
-
-// Use libevent's local compatibility versions of these.
-#include "third_party/libevent/compat/sys/queue.h"
-#include "third_party/libevent/compat/sys/_libevent_time.h"
-#else  // STARBOARD
 #include <sys/types.h>
 #ifdef HAVE_SYS_TIME_H
 #include <sys/time.h>
@@ -48,11 +37,8 @@
 #include <sys/_libevent_time.h>
 #endif
 #include <sys/queue.h>
-#endif  // STARBOARD
 #include <poll.h>
-#ifndef STARBOARD
 #include <signal.h>
-#endif  // STARBOARD
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -64,9 +50,7 @@
 
 #include "event.h"
 #include "event-internal.h"
-#ifndef STARBOARD
 #include "evsignal.h"
-#endif  // STARBOARD
 #include "log.h"
 
 struct pollop {
@@ -109,9 +93,7 @@ poll_init(struct event_base *base)
 	if (!(pollop = calloc(1, sizeof(struct pollop))))
 		return (NULL);
 
-#ifndef STARBOARD
 	evsignal_init(base);
-#endif
 
 	return (pollop);
 }
@@ -170,16 +152,11 @@ poll_dispatch(struct event_base *base, void *arg, struct timeval *tv)
 			return (-1);
 		}
 
-#ifndef STARBOARD
 		evsignal_process(base);
-#endif
 		return (0);
-	}
-#ifndef STARBOARD
 	} else if (base->sig.evsignal_caught) {
 		evsignal_process(base);
 	}
-#endif
 
 	event_debug(("%s: poll reports %d", __func__, res));
 
@@ -231,10 +208,8 @@ poll_add(void *arg, struct event *ev)
 	struct pollfd *pfd = NULL;
 	int i;
 
-#ifndef STARBOARD
 	if (ev->ev_events & EV_SIGNAL)
 		return (evsignal_add(ev));
-#endif
 	if (!(ev->ev_events & (EV_READ|EV_WRITE)))
 		return (0);
 
@@ -338,10 +313,8 @@ poll_del(void *arg, struct event *ev)
 	struct pollfd *pfd = NULL;
 	int i;
 
-#ifndef STARBOARD
 	if (ev->ev_events & EV_SIGNAL)
 		return (evsignal_del(ev));
-#endif
 
 	if (!(ev->ev_events & (EV_READ|EV_WRITE)))
 		return (0);
@@ -391,10 +364,7 @@ poll_dealloc(struct event_base *base, void *arg)
 {
 	struct pollop *pop = arg;
 
-#ifndef STARBOARD
 	evsignal_dealloc(base);
-#endif
-
 	if (pop->event_set)
 		free(pop->event_set);
 	if (pop->event_r_back)

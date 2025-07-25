@@ -2,6 +2,11 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#ifdef UNSAFE_BUFFERS_BUILD
+// TODO(crbug.com/40285824): Remove this and convert code to safer constructs.
+#pragma allow_unsafe_buffers
+#endif
+
 #include "media/cdm/simple_cdm_allocator.h"
 
 #include <memory>
@@ -42,6 +47,9 @@ class SimpleCdmVideoFrame final : public VideoFrameImpl {
             buffer->Data() + PlaneOffset(cdm::kVPlane),
             base::Microseconds(Timestamp()));
 
+    frame->metadata().power_efficient = false;
+
+    // TODO(b/183748013): Set HDRMetadata once supported by the CDM interface.
     frame->set_color_space(MediaColorSpace().ToGfxColorSpace());
 
     // The FrameBuffer needs to remain around until |frame| is destroyed.

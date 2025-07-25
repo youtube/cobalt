@@ -8,7 +8,10 @@
 #include <stdint.h>
 
 #include <ostream>
+#include <string_view>
 
+#include "base/containers/span.h"
+#include "base/hash/hash.h"
 #include "base/rand_util.h"
 #include "base/strings/string_util.h"
 #include "base/strings/stringprintf.h"
@@ -61,25 +64,12 @@ std::string GetCanonicalUuidInternal(StringPieceType input, bool strict) {
 
 }  // namespace
 
-std::string GenerateUuid() {
-  Uuid uuid = Uuid::GenerateRandomV4();
-  return uuid.AsLowercaseString();
-}
-
-bool IsValidUuid(StringPiece input) {
-  return !GetCanonicalUuidInternal(input, /*strict=*/false).empty();
-}
-
-bool IsValidUuidOutputString(StringPiece input) {
-  return !GetCanonicalUuidInternal(input, /*strict=*/true).empty();
-}
-
 // static
 Uuid Uuid::GenerateRandomV4() {
   uint8_t sixteen_bytes[kGuidV4InputLength];
   // Use base::RandBytes instead of crypto::RandBytes, because crypto calls the
   // base version directly, and to prevent the dependency from base/ to crypto/.
-  RandBytes(&sixteen_bytes, sizeof(sixteen_bytes));
+  RandBytes(sixteen_bytes);
   return FormatRandomDataAsV4Impl(sixteen_bytes);
 }
 
@@ -127,28 +117,28 @@ Uuid Uuid::FormatRandomDataAsV4Impl(base::span<const uint8_t, 16> input) {
 }
 
 // static
-Uuid Uuid::ParseCaseInsensitive(StringPiece input) {
+Uuid Uuid::ParseCaseInsensitive(std::string_view input) {
   Uuid uuid;
   uuid.lowercase_ = GetCanonicalUuidInternal(input, /*strict=*/false);
   return uuid;
 }
 
 // static
-Uuid Uuid::ParseCaseInsensitive(StringPiece16 input) {
+Uuid Uuid::ParseCaseInsensitive(std::u16string_view input) {
   Uuid uuid;
   uuid.lowercase_ = GetCanonicalUuidInternal(input, /*strict=*/false);
   return uuid;
 }
 
 // static
-Uuid Uuid::ParseLowercase(StringPiece input) {
+Uuid Uuid::ParseLowercase(std::string_view input) {
   Uuid uuid;
   uuid.lowercase_ = GetCanonicalUuidInternal(input, /*strict=*/true);
   return uuid;
 }
 
 // static
-Uuid Uuid::ParseLowercase(StringPiece16 input) {
+Uuid Uuid::ParseLowercase(std::u16string_view input) {
   Uuid uuid;
   uuid.lowercase_ = GetCanonicalUuidInternal(input, /*strict=*/true);
   return uuid;
@@ -168,44 +158,14 @@ const std::string& Uuid::AsLowercaseString() const {
   return lowercase_;
 }
 
-bool Uuid::operator==(const Uuid& other) const {
-  return AsLowercaseString() == other.AsLowercaseString();
-}
-
-bool Uuid::operator!=(const Uuid& other) const {
-  return !(*this == other);
-}
-
-bool Uuid::operator<(const Uuid& other) const {
-  return AsLowercaseString() < other.AsLowercaseString();
-}
-
-bool Uuid::operator<=(const Uuid& other) const {
-  return *this < other || *this == other;
-}
-
-bool Uuid::operator>(const Uuid& other) const {
-  return !(*this <= other);
-}
-
-bool Uuid::operator>=(const Uuid& other) const {
-  return !(*this < other);
-}
-
 std::ostream& operator<<(std::ostream& out, const Uuid& uuid) {
   return out << uuid.AsLowercaseString();
 }
 
-std::string GenerateGUID() {
-  return GenerateUuid();
-}
-
-bool IsValidGUID(StringPiece input) {
-  return IsValidUuid(input);
-}
-
-bool IsValidGUIDOutputString(StringPiece input) {
-  return IsValidUuidOutputString(input);
+size_t UuidHash::operator()(const Uuid& uuid) const {
+  // TODO(crbug.com/40108138): Avoid converting to string to take the hash when
+  // the internal type is migrated to a non-string type.
+  return FastHash(uuid.AsLowercaseString());
 }
 
 }  // namespace base

@@ -2,12 +2,18 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#ifdef UNSAFE_BUFFERS_BUILD
+// TODO(crbug.com/40284755): Remove this and spanify to fix the errors.
+#pragma allow_unsafe_buffers
+#endif
+
 #include "base/system/sys_info.h"
 
 #include <stddef.h>
 #include <stdint.h>
 #include <sys/utsname.h>
 
+#include "base/compiler_specific.h"
 #include "base/environment.h"
 #include "base/files/file.h"
 #include "base/files/file_path.h"
@@ -15,7 +21,6 @@
 #include "base/no_destructor.h"
 #include "base/notreached.h"
 #include "base/strings/string_number_conversions.h"
-#include "base/strings/string_piece.h"
 #include "base/strings/string_split.h"
 #include "base/strings/string_tokenizer.h"
 #include "base/strings/string_util.h"
@@ -58,7 +63,7 @@ class ChromeOSVersionInfo {
     if (parsed_from_env) {
       double us = 0;
       if (StringToDouble(lsb_release_time_str, &us))
-        lsb_release_time_ = Time::FromDoubleT(us);
+        lsb_release_time_ = Time::FromSecondsSinceUnixEpoch(us);
     } else {
       // If the LSB_RELEASE and LSB_RELEASE_TIME environment variables are not
       // set, fall back to a blocking read of the lsb_release file. This should
@@ -97,7 +102,9 @@ class ChromeOSVersionInfo {
     *bugfix_version = bugfix_version_;
   }
 
-  const Time& lsb_release_time() const { return lsb_release_time_; }
+  const Time& lsb_release_time() const LIFETIME_BOUND {
+    return lsb_release_time_;
+  }
   void set_lsb_release_time(const Time& time) { lsb_release_time_ = time; }
 
   bool is_running_on_chromeos() const { return is_running_on_chromeos_; }
@@ -172,6 +179,9 @@ ChromeOSVersionInfo& GetChromeOSVersionInfo() {
 // static
 std::string SysInfo::HardwareModelName() {
   std::string board = GetLsbReleaseBoard();
+  if (board == "unknown") {
+    return "";
+  }
   // GetLsbReleaseBoard() may be suffixed with a "-signed-" and other extra
   // info. Strip it.
   const size_t index = board.find("-signed-");
@@ -201,7 +211,6 @@ std::string SysInfo::KernelVersion() {
   struct utsname info;
   if (uname(&info) < 0) {
     NOTREACHED();
-    return std::string();
   }
   return std::string(info.release);
 }

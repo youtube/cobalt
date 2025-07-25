@@ -5,12 +5,12 @@
 #include "media/cast/common/openscreen_conversion_helpers.h"
 
 #include "media/cast/cast_config.h"
-#include "media/cast/cast_sender.h"
 #include "media/cast/common/sender_encoded_frame.h"
+#include "testing/gmock/include/gmock/gmock.h"
 #include "testing/gtest/include/gtest/gtest.h"
-#include "third_party/openscreen/src/cast/streaming/encoded_frame.h"
+#include "third_party/openscreen/src/cast/streaming/public/encoded_frame.h"
+#include "third_party/openscreen/src/cast/streaming/public/sender.h"
 #include "third_party/openscreen/src/cast/streaming/rtp_time.h"
-#include "third_party/openscreen/src/cast/streaming/sender.h"
 #include "third_party/openscreen/src/platform/api/time.h"
 
 namespace media::cast {
@@ -28,7 +28,10 @@ TEST(OpenscreenConversionHelpersTest, EncodedFrameConversions) {
   original.rtp_timestamp = ToRtpTimeTicks(base::Seconds(3), 9000);
   original.reference_time = base::TimeTicks() + base::Milliseconds(1338);
   original.new_playout_delay_ms = 564;
-  original.data = "i am actually a very complex video image!";
+  constexpr const char kData[] = "i am actually a very complex video image!";
+
+  original.data =
+      base::HeapArray<uint8_t>::CopiedFrom(base::byte_span_from_cstring(kData));
 
   const openscreen::cast::EncodedFrame converted =
       ToOpenscreenEncodedFrame(original);
@@ -39,8 +42,7 @@ TEST(OpenscreenConversionHelpersTest, EncodedFrameConversions) {
   EXPECT_EQ(openscreen::Clock::time_point() + std::chrono::milliseconds(1338),
             converted.reference_time);
   EXPECT_EQ(std::chrono::milliseconds(564), converted.new_playout_delay);
-  EXPECT_STREQ(reinterpret_cast<const char*>(converted.data.data()),
-               original.data.data());
+  EXPECT_THAT(converted.data, ::testing::ElementsAreArray(original.data));
 }
 
 TEST(OpenscreenConversionHelpersTest, TimeConversions) {

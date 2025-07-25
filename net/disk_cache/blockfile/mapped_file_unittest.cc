@@ -34,7 +34,6 @@ class FileCallbackTest: public disk_cache::FileIOCallback {
 void FileCallbackTest::OnFileIOComplete(int bytes_copied) {
   if (id_ > *max_id_) {
     NOTREACHED();
-    helper_->set_callback_reused_error(true);
   }
 
   helper_->CallbackWasCalled();

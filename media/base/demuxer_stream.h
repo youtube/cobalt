@@ -33,8 +33,7 @@ class MEDIA_EXPORT DemuxerStream {
     UNKNOWN,
     AUDIO,
     VIDEO,
-    TEXT,
-    TYPE_MAX = TEXT,
+    TYPE_MAX = VIDEO,
   };
 
   // Returns a string representation of |type|.
@@ -70,10 +69,6 @@ class MEDIA_EXPORT DemuxerStream {
 
   using DecoderBufferVector = std::vector<scoped_refptr<DecoderBuffer>>;
   using ReadCB = base::OnceCallback<void(Status, DecoderBufferVector)>;
-
-#if defined(STARBOARD)
-  virtual std::string mime_type() const { return ""; }
-#endif  // defined(STARBOARD)
 
   // Request buffers to be returned via the provided callback.
   // The first parameter indicates the status of the read request.

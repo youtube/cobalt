@@ -2,6 +2,11 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#ifdef UNSAFE_BUFFERS_BUILD
+// TODO(crbug.com/40284755): Remove this and spanify to fix the errors.
+#pragma allow_unsafe_buffers
+#endif
+
 #include "base/i18n/icu_string_conversions.h"
 
 #include <math.h>
@@ -13,7 +18,6 @@
 
 #include "base/check_op.h"
 #include "base/format_macros.h"
-#include "base/strings/string_piece.h"
 #include "base/strings/stringprintf.h"
 #include "base/strings/utf_string_conversions.h"
 #include "build/build_config.h"
@@ -32,9 +36,9 @@ namespace {
 // This is to help write tests for functions with std::u16string params until
 // the C++ 0x UTF-16 literal is well-supported by compilers.
 std::u16string BuildString16(const wchar_t* s) {
-#if defined(WCHAR_T_IS_UTF16)
+#if defined(WCHAR_T_IS_16_BIT)
   return WideToUTF16(s);
-#elif defined(WCHAR_T_IS_UTF32)
+#elif defined(WCHAR_T_IS_32_BIT)
   std::u16string u16;
   while (*s != 0) {
     DCHECK_LE(static_cast<unsigned int>(*s), 0xFFFFu);
@@ -99,9 +103,9 @@ static const struct {
      L"\x00A5\x00A8", nullptr},
     // Chinese (GB18030) : A 4 byte sequence mapped to plane 2 (U+20000)
     {"gb18030", "\x95\x32\x82\x36\xD2\xBB", OnStringConversionError::FAIL, true,
-#if defined(WCHAR_T_IS_UTF16)
+#if defined(WCHAR_T_IS_16_BIT)
      L"\xD840\xDC00\x4E00",
-#elif defined(WCHAR_T_IS_UTF32)
+#elif defined(WCHAR_T_IS_32_BIT)
      L"\x20000\x4E00",
 #endif
      L"\xD840\xDC00\x4E00"},
@@ -162,7 +166,6 @@ static const struct {
      nullptr},
 };
 
-#if !defined(UCONFIG_NO_LEGACY_CONVERSION)
 TEST(ICUStringConversionsTest, ConvertBetweenCodepageAndUTF16) {
   for (size_t i = 0; i < std::size(kConvertCodepageCases); ++i) {
     SCOPED_TRACE(base::StringPrintf(
@@ -232,6 +235,5 @@ TEST(ICUStringConversionsTest, ConvertToUtf8AndNormalize) {
     EXPECT_EQ(kConvertAndNormalizeCases[i].expected_value, result);
   }
 }
-#endif  // !defined(UCONFIG_NO_LEGACY_CONVERSION)
 
 }  // namespace base

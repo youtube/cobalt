@@ -9,6 +9,8 @@
 
 #include <limits>
 
+#include "base/command_line.h"
+#include "base/containers/contains.h"
 #include "base/containers/fixed_flat_set.h"
 #include "base/dcheck_is_on.h"
 #include "base/files/file.h"
@@ -18,13 +20,15 @@
 #include "base/functional/callback_helpers.h"
 #include "base/no_destructor.h"
 #include "base/posix/eintr_wrapper.h"
+#include "base/strings/strcat.h"
+#include "base/strings/string_number_conversions.h"
 #include "base/strings/string_util.h"
 #include "base/strings/stringprintf.h"
 #include "base/synchronization/lock.h"
 #include "gpu/ipc/common/gpu_memory_buffer_support.h"
 #include "media/base/color_plane_layout.h"
 #include "media/base/format_utils.h"
-#include "media/base/scopedfd_helper.h"
+#include "media/base/media_switches.h"
 #include "media/base/video_frame_layout.h"
 #include "media/base/video_util.h"
 #include "media/gpu/buffer_validation.h"
@@ -40,17 +44,89 @@
 #include "ui/gfx/linux/gbm_wrapper.h"
 #include "ui/gfx/linux/native_pixmap_dmabuf.h"
 #include "ui/gfx/native_pixmap.h"
+#include "ui/gfx/switches.h"
 
 namespace media {
 
 namespace {
+struct DrmVersionDeleter {
+  void operator()(drmVersion* version) const { drmFreeVersion(version); }
+};
+
+using ScopedDrmVersionPtr = std::unique_ptr<drmVersion, DrmVersionDeleter>;
+
+// Returns the gbm device using the |drm_node_file_prefix|.
+static std::unique_ptr<ui::GbmDevice> CreateGbmDevice(
+    std::string_view drm_node_file_prefix,
+    int first_drm_file_index,
+    const char* only_supported_driver_name_for_testing = nullptr) {
+  constexpr int kMaximumNumberOfDrmNodes = 100;
+
+  for (int i = first_drm_file_index;
+       i < first_drm_file_index + kMaximumNumberOfDrmNodes; ++i) {
+    const base::FilePath dev_path(FILE_PATH_LITERAL(
+        base::StrCat({drm_node_file_prefix, base::NumberToString(i)})));
+
+#if BUILDFLAG(IS_LINUX) && BUILDFLAG(USE_V4L2_CODEC)
+    const bool is_render_node = base::Contains(drm_node_file_prefix, "render");
+
+    // TODO(b/313513760): don't guard base::File::FLAG_WRITE behind
+    // BUILDFLAG(IS_LINUX) && BUILDFLAG(USE_V4L2_CODEC) once the hardware video
+    // decoding sandbox allows R+W access to the render nodes.
+    // base::File::FLAG_WRITE is needed on Linux for gbm_create_device().
+    const uint32_t kDrmNodeFileFlags =
+        base::File::FLAG_OPEN | base::File::FLAG_READ |
+        (is_render_node ? base::File::FLAG_WRITE : 0);
+#else
+    const uint32_t kDrmNodeFileFlags =
+        base::File::FLAG_OPEN | base::File::FLAG_READ;
+#endif
+
+    base::File drm_node_file(dev_path, kDrmNodeFileFlags);
+    if (!drm_node_file.IsValid()) {
+      return nullptr;
+    }
+
+    ScopedDrmVersionPtr version(drmGetVersion(drm_node_file.GetPlatformFile()));
+    if (!version) {
+      continue;
+    }
+    const std::string driver_name(
+        version->name,
+        base::checked_cast<std::string::size_type>(version->name_len));
+
+    // Skips the virtual graphics memory manager device.
+    if (base::EqualsCaseInsensitiveASCII(driver_name, "vgem")) {
+      continue;
+    }
+
+    if (only_supported_driver_name_for_testing == nullptr ||
+        (driver_name == only_supported_driver_name_for_testing)) {
+      // |gbm_device| expects its owner to keep |drm_node_file| open during the
+      // former's lifetime. We give it away here since GbmDeviceWrapper is a
+      // singleton that fully owns |gbm_device|.
+      auto gbm_device = ui::CreateGbmDevice(drm_node_file.GetPlatformFile());
+      if (gbm_device) {
+        drm_node_file.TakePlatformFile();
+        return gbm_device;
+      }
+    }
+  }
+
+  return nullptr;
+}
+
 // GbmDeviceWrapper is a singleton that provides thread-safe access to a
 // ui::GbmDevice for the purposes of creating native BOs. The ui::GbmDevice is
 // initialized with the first non-vgem render node found that works starting at
-// /dev/dri/renderD128. Note that we have our own FD to the render node (i.e.,
-// it's not shared with other components). Therefore, there should not be any
-// concurrency issues if other components in the GPU process (like the VA-API
-// driver) access the render node using their own FD.
+// /dev/dri/renderD128. Render node doesn't exist when minigbm buffer allocation
+// is done using dumb driver with vkms. If this happens, the ui::GbmDevice is
+// initialized with the first primary node found that works starting at
+// /dev/dri/card0. Note that we have our own FD to the render node or the
+// primary node (i.e., it's not shared with other components). Therefore, there
+// should not be any concurrency issues if other components in the GPU process
+// (like the VA-API driver) access the render node or the primary node using
+// their own FD.
 class GbmDeviceWrapper {
  public:
   GbmDeviceWrapper(const GbmDeviceWrapper&) = delete;
@@ -68,8 +144,10 @@ class GbmDeviceWrapper {
       const gfx::Size& size,
       gfx::BufferUsage buffer_usage) {
     base::AutoLock lock(lock_);
-    if (!gbm_device_)
+
+    if (!IsInitialized()) {
       return gfx::GpuMemoryBufferHandle();
+    }
 
     const int fourcc_format = ui::GetFourCCFormatFromBufferFormat(format);
     if (fourcc_format == DRM_FORMAT_INVALID)
@@ -97,8 +175,9 @@ class GbmDeviceWrapper {
       gfx::NativePixmapHandle handle) {
     CHECK_LE(handle.planes.size(), base::checked_cast<size_t>(GBM_MAX_PLANES));
     base::AutoLock lock(lock_);
-    if (!gbm_device_)
+    if (!IsInitialized()) {
       return nullptr;
+    }
     const int fourcc_format = ui::GetFourCCFormatFromBufferFormat(format);
     if (fourcc_format == DRM_FORMAT_INVALID)
       return nullptr;
@@ -108,33 +187,44 @@ class GbmDeviceWrapper {
 
  private:
   GbmDeviceWrapper() {
-    constexpr char kRenderNodeFilePattern[] = "/dev/dri/renderD%d";
-    // This loop ends on either the first card that does not exist or the first
-    // one that results in the creation of a gbm device.
-    for (int i = 128;; i++) {
-      base::FilePath dev_path(FILE_PATH_LITERAL(
-          base::StringPrintf(kRenderNodeFilePattern, i).c_str()));
-      render_node_file_ =
-          base::File(dev_path, base::File::FLAG_OPEN | base::File::FLAG_READ);
-      if (!render_node_file_.IsValid())
-        return;
-      // Skip the virtual graphics memory manager device.
-      drmVersionPtr version =
-          drmGetVersion(render_node_file_.GetPlatformFile());
-      if (!version)
-        continue;
-      std::string version_name(
-          version->name,
-          base::checked_cast<std::string::size_type>(version->name_len));
-      drmFreeVersion(version);
-      if (base::EqualsCaseInsensitiveASCII(version_name, "vgem"))
-        continue;
-      gbm_device_ = ui::CreateGbmDevice(render_node_file_.GetPlatformFile());
-      if (gbm_device_)
-        return;
+    constexpr char kRenderNodeFilePrefix[] = "/dev/dri/renderD";
+    constexpr int kMinRenderNodeNum = 128;
+
+    auto gbm_device_from_render_node =
+        CreateGbmDevice(kRenderNodeFilePrefix, kMinRenderNodeNum);
+
+    if (gbm_device_from_render_node) {
+      gbm_device_ = std::move(gbm_device_from_render_node);
+      return;
     }
+
+    // For V4L2 testing with VISL, dumb driver is used with vkms for minigbm
+    // backend. In this case, the primary node needs to be used instead of the
+    // render node.
+    // TODO(b/316993034): Remove this when having a render node for vkms.
+#if BUILDFLAG(USE_V4L2_CODEC)
+    const base::CommandLine* cmd_line = base::CommandLine::ForCurrentProcess();
+    CHECK(cmd_line);
+
+    if (cmd_line->HasSwitch(switches::kEnablePrimaryNodeAccessForVkmsTesting)) {
+      constexpr char kPrimaryNodeFilePrefix[] = "/dev/dri/card";
+      const int kMinPrimaryNodeNum = 0;
+
+      auto gbm_device_from_primary_node =
+          CreateGbmDevice(kPrimaryNodeFilePrefix, kMinPrimaryNodeNum, "vkms");
+
+      if (gbm_device_from_primary_node) {
+        gbm_device_ = std::move(gbm_device_from_primary_node);
+      }
+    }
+#endif
   }
   ~GbmDeviceWrapper() = default;
+
+  // Returns true iff this class has successfully Initialize()d.
+  bool IsInitialized() const EXCLUSIVE_LOCKS_REQUIRED(lock_) {
+    return !!gbm_device_;
+  }
 
   std::unique_ptr<ui::GbmBuffer> CreateGbmBuffer(int fourcc_format,
                                                  const gfx::Size& size,
@@ -153,7 +243,10 @@ class GbmDeviceWrapper {
     // flag.
     constexpr auto kScanoutUsages = base::MakeFixedFlatSet<gfx::BufferUsage>(
         {gfx::BufferUsage::SCANOUT,
+         gfx::BufferUsage::PROTECTED_SCANOUT,
+#if !BUILDFLAG(USE_V4L2_CODEC)
          gfx::BufferUsage::PROTECTED_SCANOUT_VDA_WRITE,
+#endif
          gfx::BufferUsage::SCANOUT_FRONT_RENDERING});
     if (!kScanoutUsages.contains(buffer_usage))
       flags &= ~GBM_BO_USE_SCANOUT;
@@ -163,9 +256,9 @@ class GbmDeviceWrapper {
   friend class base::NoDestructor<GbmDeviceWrapper>;
 
   base::Lock lock_;
-  base::File render_node_file_ GUARDED_BY(lock_);
   std::unique_ptr<ui::GbmDevice> gbm_device_ GUARDED_BY(lock_);
 };
+}  // namespace
 
 gfx::GpuMemoryBufferHandle AllocateGpuMemoryBufferHandle(
     VideoPixelFormat pixel_format,
@@ -178,7 +271,70 @@ gfx::GpuMemoryBufferHandle AllocateGpuMemoryBufferHandle(
   return GbmDeviceWrapper::Get()->CreateGpuMemoryBuffer(
       *buffer_format, coded_size, buffer_usage);
 }
-}  // namespace
+
+UniqueTrackingTokenHelper::UniqueTrackingTokenHelper() {
+  Initialize();
+}
+
+UniqueTrackingTokenHelper::~UniqueTrackingTokenHelper() = default;
+
+void UniqueTrackingTokenHelper::ClearTokens() {
+  tokens_.clear();
+  Initialize();
+}
+
+void UniqueTrackingTokenHelper::Initialize() {
+  // This should only be run with an empty token list.
+  CHECK_EQ(0u, tokens_.size());
+
+  // Insert an empty tracking token. This guarantees that all returned tokens
+  // will be non-empty.
+  tokens_.insert(base::UnguessableToken());
+}
+
+void UniqueTrackingTokenHelper::ClearToken(
+    const base::UnguessableToken& token) {
+  // Only non-empty tokens are stored.
+  CHECK(!token.is_empty());
+  auto iter = tokens_.find(token);
+  CHECK(iter != tokens_.end());
+  tokens_.erase(iter);
+}
+
+base::UnguessableToken UniqueTrackingTokenHelper::GenerateToken() {
+  CHECK(tokens_.size() < kMaxNumberOfTokens);
+
+  // Capping the number of insertion attempts is done to avoid an unbounded
+  // while loop. The expected collision frequency is very low since
+  // base::UnguessableToken is a 128-bit number. If we can't find a unique token
+  // in 1024 attempts, then something is likely wrong.
+  constexpr int kMaxAttempts = 1024;
+  for (int attempt_count = 0; attempt_count < kMaxAttempts; ++attempt_count) {
+    // Generate an UnguessableToken and attempt to insert it into |tokens_|.
+    auto res = tokens_.insert(base::UnguessableToken::Create());
+    if (res.second) {
+      // Success
+      return *res.first;
+    }
+  }
+  LOG(FATAL) << "Unable to generate a unique UnguessableToken. Aborting.";
+}
+
+void UniqueTrackingTokenHelper::SetUniqueTrackingToken(
+    VideoFrameMetadata& metadata) {
+  CHECK(tokens_.size() < kMaxNumberOfTokens);
+
+  if (metadata.tracking_token.has_value()) {
+    if (auto res = tokens_.insert(*metadata.tracking_token);
+        true == res.second) {
+      // We were able to insert the tracking token into |tokens_|. There is
+      // nothing left to do.
+      return;
+    }
+  }
+  // Otherwise, it needs to be generated.
+  metadata.tracking_token = GenerateToken();
+}
 
 gfx::GpuMemoryBufferId GetNextGpuMemoryBufferId() {
   static base::NoDestructor<base::Lock> id_lock;
@@ -200,6 +356,19 @@ scoped_refptr<VideoFrame> CreateGpuMemoryBufferVideoFrame(
   if (gmb_handle.is_null() || gmb_handle.type != gfx::NATIVE_PIXMAP)
     return nullptr;
 
+  return CreateVideoFrameFromGpuMemoryBufferHandle(
+      std::move(gmb_handle), pixel_format, coded_size, visible_rect,
+      natural_size, timestamp, buffer_usage);
+}
+
+scoped_refptr<VideoFrame> CreateVideoFrameFromGpuMemoryBufferHandle(
+    gfx::GpuMemoryBufferHandle gmb_handle,
+    VideoPixelFormat pixel_format,
+    const gfx::Size& coded_size,
+    const gfx::Rect& visible_rect,
+    const gfx::Size& natural_size,
+    base::TimeDelta timestamp,
+    gfx::BufferUsage buffer_usage) {
   const bool supports_zero_copy_webgpu_import =
       gmb_handle.native_pixmap_handle.supports_zero_copy_webgpu_import;
 
@@ -213,16 +382,15 @@ scoped_refptr<VideoFrame> CreateGpuMemoryBufferVideoFrame(
   if (!gpu_memory_buffer)
     return nullptr;
 
-  // The empty mailbox is ok because this VideoFrame is not rendered.
-  const gpu::MailboxHolder mailbox_holders[VideoFrame::kMaxPlanes] = {};
-  auto frame = VideoFrame::WrapExternalGpuMemoryBuffer(
-      visible_rect, natural_size, std::move(gpu_memory_buffer), mailbox_holders,
-      base::NullCallback(), timestamp);
+  // It is not necessary to pass a SharedImage because this VideoFrame is not
+  // rendered.
+  scoped_refptr<VideoFrame> frame = VideoFrame::WrapExternalGpuMemoryBuffer(
+      visible_rect, natural_size, std::move(gpu_memory_buffer), timestamp);
   if (!frame)
     return nullptr;
 
   // We only support importing non-DISJOINT multi-planar GbmBuffer right now.
-  // TODO(crbug.com/1258986): Add DISJOINT support.
+  // TODO(crbug.com/40201271): Add DISJOINT support.
   frame->metadata().is_webgpu_compatible = supports_zero_copy_webgpu_import;
 
   return frame;
@@ -264,7 +432,7 @@ scoped_refptr<VideoFrame> CreatePlatformVideoFrame(
   return frame;
 }
 
-absl::optional<VideoFrameLayout> GetPlatformVideoFrameLayout(
+std::optional<VideoFrameLayout> GetPlatformVideoFrameLayout(
     VideoPixelFormat pixel_format,
     const gfx::Size& coded_size,
     gfx::BufferUsage buffer_usage) {
@@ -273,8 +441,8 @@ absl::optional<VideoFrameLayout> GetPlatformVideoFrameLayout(
   auto frame =
       CreatePlatformVideoFrame(pixel_format, coded_size, gfx::Rect(coded_size),
                                coded_size, base::TimeDelta(), buffer_usage);
-  return frame ? absl::make_optional<VideoFrameLayout>(frame->layout())
-               : absl::nullopt;
+  return frame ? std::make_optional<VideoFrameLayout>(frame->layout())
+               : std::nullopt;
 }
 
 gfx::GpuMemoryBufferHandle CreateGpuMemoryBufferHandle(
@@ -284,7 +452,7 @@ gfx::GpuMemoryBufferHandle CreateGpuMemoryBufferHandle(
   gfx::GpuMemoryBufferHandle handle;
   switch (video_frame->storage_type()) {
     case VideoFrame::STORAGE_GPU_MEMORY_BUFFER:
-      handle = video_frame->GetGpuMemoryBuffer()->CloneHandle();
+      handle = video_frame->GetGpuMemoryBufferHandle();
       // TODO(crbug.com/1097956): handle a failure gracefully.
       CHECK_EQ(handle.type, gfx::NATIVE_PIXMAP)
           << "The cloned handle has an unexpected type: " << handle.type;
@@ -293,17 +461,20 @@ gfx::GpuMemoryBufferHandle CreateGpuMemoryBufferHandle(
       break;
     case VideoFrame::STORAGE_DMABUFS: {
       const size_t num_planes = VideoFrame::NumPlanes(video_frame->format());
-      std::vector<base::ScopedFD> duped_fds =
-          DuplicateFDs(video_frame->DmabufFds());
-      // TODO(crbug.com/1036174): Replace this duplication with a check.
-      // Duplicate the fd of the last plane until the number of fds are the same
-      // as the number of planes.
-      while (num_planes != duped_fds.size()) {
-        int duped_fd = -1;
-        duped_fd = HANDLE_EINTR(dup(duped_fds.back().get()));
+      std::vector<base::ScopedFD> duped_fds;
+      for (size_t i = 0; i < num_planes; ++i) {
+        // TODO(crbug.com/1036174): Replace this duplication with a check.
+        // Duplicate the FD's that are present. If there are more planes than
+        // FD's, then duplicate the fd of the last plane until the number of
+        // fds are the same as the number of planes.
+        int source_fd = (i < video_frame->NumDmabufFds())
+                            ? video_frame->GetDmabufFd(i)
+                            : duped_fds.back().get();
+
+        base::ScopedFD dup_fd = base::ScopedFD(HANDLE_EINTR(dup(source_fd)));
         // TODO(crbug.com/1097956): handle a failure gracefully.
-        PCHECK(duped_fd >= 0) << "Failed duplicating a dma-buf fd";
-        duped_fds.emplace_back(duped_fd);
+        PCHECK(dup_fd.is_valid());
+        duped_fds.push_back(std::move(dup_fd));
       }
 
       handle.type = gfx::NATIVE_PIXMAP;
@@ -360,6 +531,16 @@ scoped_refptr<gfx::NativePixmapDmaBuf> CreateNativePixmapDmaBuf(
 
   DCHECK(native_pixmap->AreDmaBufFdsValid());
   return native_pixmap;
+}
+
+gfx::GenericSharedMemoryId GetSharedMemoryId(const VideoFrame& frame) {
+  if (auto* gmb = frame.GetGpuMemoryBuffer()) {
+    return gmb->GetId();
+  }
+  if (frame.HasDmaBufs()) {
+    return gfx::GenericSharedMemoryId(frame.GetDmabufFd(0));
+  }
+  NOTREACHED() << "The frame is not backed by shared memory";
 }
 
 bool CanImportGpuMemoryBufferHandle(

@@ -9,6 +9,7 @@
 
 #include <memory>
 #include <string>
+#include <string_view>
 
 #include "base/base_export.h"
 #include "base/metrics/histogram_base.h"
@@ -27,7 +28,7 @@ class BASE_EXPORT DummyHistogram : public HistogramBase {
   DummyHistogram& operator=(const DummyHistogram&) = delete;
 
   // HistogramBase:
-  void CheckName(const StringPiece& name) const override {}
+  void CheckName(std::string_view name) const override {}
   uint64_t name_hash() const override;
   HistogramType GetHistogramType() const override;
   bool HasConstructionArguments(Sample expected_minimum,
@@ -35,7 +36,7 @@ class BASE_EXPORT DummyHistogram : public HistogramBase {
                                 size_t expected_bucket_count) const override;
   void Add(Sample value) override {}
   void AddCount(Sample value, int count) override {}
-  void AddSamples(const HistogramSamples& samples) override {}
+  bool AddSamples(const HistogramSamples& samples) override;
   bool AddSamplesFromPickle(PickleIterator* iter) override;
   std::unique_ptr<HistogramSamples> SnapshotSamples() const override;
   std::unique_ptr<HistogramSamples> SnapshotUnloggedSamples() const override;
@@ -54,7 +55,7 @@ class BASE_EXPORT DummyHistogram : public HistogramBase {
   friend class NoDestructor<DummyHistogram>;
 
   DummyHistogram() : HistogramBase("dummy_histogram") {}
-  ~DummyHistogram() override {}
+  ~DummyHistogram() override = default;
 };
 
 }  // namespace base

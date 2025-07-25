@@ -5,7 +5,11 @@
 #ifndef MEDIA_BASE_DECODER_STATUS_H_
 #define MEDIA_BASE_DECODER_STATUS_H_
 
+#include <ostream>
+
+#include "base/time/time.h"
 #include "media/base/decoder_buffer.h"
+#include "media/base/media_export.h"
 #include "media/base/status.h"
 
 namespace media {
@@ -41,11 +45,17 @@ struct DecoderStatusTraits {
     kFailedToCreateDecoder = 205,
     kTooManyDecoders = 206,
     kMediaFoundationNotAvailable = 207,
+
+    // Success, but requires action by downstream recipient.
+    kElidedEndOfStreamForConfigChange = 300
   };
   static constexpr StatusGroupType Group() { return "DecoderStatus"; }
 };
 
 using DecoderStatus = TypedStatus<DecoderStatusTraits>;
+
+MEDIA_EXPORT std::ostream& operator<<(std::ostream& os,
+                                      const DecoderStatus& status);
 
 // Helper class for ensuring that Decode() traces are properly unique and closed
 // if the Decode is aborted via a WeakPtr invalidation. We use the |this|
@@ -59,6 +69,9 @@ class MEDIA_EXPORT ScopedDecodeTrace {
   ScopedDecodeTrace(const char* trace_name,
                     bool is_key_frame,
                     base::TimeDelta timestamp);
+
+  // For EOS decodes.
+  explicit ScopedDecodeTrace(const char* trace_name);
 
   ScopedDecodeTrace(const ScopedDecodeTrace&) = delete;
   ScopedDecodeTrace& operator=(const ScopedDecodeTrace&) = delete;

@@ -42,6 +42,7 @@ FakeVideoDecoder::~FakeVideoDecoder() {
     SatisfyReset();
 
   decoded_frames_.clear();
+  total_decoded_frames_ = 0;
 }
 
 void FakeVideoDecoder::EnableEncryptedConfigSupport() {
@@ -121,7 +122,7 @@ void FakeVideoDecoder::Decode(scoped_refptr<DecoderBuffer> buffer,
             max_parallel_decoding_requests_);
   DCHECK_NE(state_, STATE_END_OF_STREAM);
 
-  int buffer_size = buffer->end_of_stream() ? 0 : buffer->data_size();
+  int buffer_size = buffer->end_of_stream() ? 0 : buffer->size();
   DecodeCB wrapped_decode_cb = base::BindOnce(
       &FakeVideoDecoder::OnFrameDecoded, weak_factory_.GetWeakPtr(),
       buffer_size, base::BindPostTaskToCurrentDefault(std::move(decode_cb)));
@@ -132,6 +133,19 @@ void FakeVideoDecoder::Decode(scoped_refptr<DecoderBuffer> buffer,
   }
 
   if (buffer->end_of_stream()) {
+    if (buffer->next_config()) {
+      eos_next_configs_.emplace_back(
+          absl::get<VideoDecoderConfig>(*buffer->next_config()));
+
+      if (enable_eliding_eos_) {
+        DCHECK(held_decode_callbacks_.empty());
+        current_config_ = eos_next_configs_.back();
+        std::move(wrapped_decode_cb)
+            .Run(DecoderStatus::Codes::kElidedEndOfStreamForConfigChange);
+        return;
+      }
+    }
+
     state_ = STATE_END_OF_STREAM;
   } else {
     DCHECK(VerifyFakeVideoBufferForTest(*buffer, current_config_));
@@ -143,8 +157,11 @@ void FakeVideoDecoder::Decode(scoped_refptr<DecoderBuffer> buffer,
 
 scoped_refptr<VideoFrame> FakeVideoDecoder::MakeVideoFrame(
     const DecoderBuffer& buffer) {
-  return VideoFrame::CreateColorFrame(current_config_.coded_size(), 0, 0, 0,
-                                      buffer.timestamp());
+  auto frame = VideoFrame::CreateVideoHoleFrame(base::UnguessableToken(),
+                                                current_config_.coded_size(),
+                                                buffer.timestamp());
+  DCHECK(frame);
+  return frame;
 }
 
 void FakeVideoDecoder::Reset(base::OnceClosure closure) {
@@ -201,6 +218,7 @@ void FakeVideoDecoder::SatisfySingleDecode() {
 
   DecodeCB decode_cb = std::move(held_decode_callbacks_.front());
   held_decode_callbacks_.pop_front();
+  total_decoded_frames_++;
   RunDecodeCallback(std::move(decode_cb));
 
   if (!reset_cb_.IsNull() && held_decode_callbacks_.empty())

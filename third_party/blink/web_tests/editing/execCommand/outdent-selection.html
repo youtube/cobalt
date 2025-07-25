@@ -1,0 +1,57 @@
+<!DOCTYPE html>
+<script src="../../resources/testharness.js"></script>
+<script src="../../resources/testharnessreport.js"></script>
+<script src="../assert_selection.js"></script>
+<script>
+
+// Note: The behavior here is different from Firefox which removes the
+// outermost blockquote preserving its children and not unlistifying
+// the list with "Foo", "Bar", and "Baz".
+
+selection_test(
+    [
+      '<div contenteditable="true" id="editable">',
+          '<span id="item1">^Lorem</span><br>',
+          'more Lorem!',
+          '<blockquote class="webkit-indent-blockquote" style="margin: 0 0 0 40px;">',
+              'ipsum<br>',
+              '',
+              '<ul>',
+                  '<li>Foo</li>',
+                  '<li>Bar</li>',
+                  '<li>Baz</li>',
+              '</ul>',
+              'Dolor',
+          '</blockquote>',
+          '<ul>',
+              '<li>Dinner time?</li>',
+          '</ul>',
+          'Sum!<br>',
+          '<span id="item2">T|hing</span>',
+      '</div>',
+    ],
+    'outdent',
+    [
+      '<div contenteditable="true" id="editable">',
+          '<span id="item1">^Lorem</span><br>',
+          'more Lorem!',
+          '<br>',
+          'ipsum<br>',
+          '',
+          '<blockquote class="webkit-indent-blockquote" style="margin: 0 0 0 40px;">',
+              'Foo',
+              '<br>',
+              'Bar',
+              '<br>',
+              'Baz',
+              '<br>',
+          '</blockquote>',
+          'Dolor',
+          '<br>',
+          'Dinner time?',
+          '<br>',
+          'Sum!<br>',
+          '<span id="item2">T|hing</span>',
+      '</div>',
+    ]);
+</script>

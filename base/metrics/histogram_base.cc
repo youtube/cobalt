@@ -8,6 +8,7 @@
 
 #include <memory>
 #include <set>
+#include <string_view>
 #include <utility>
 
 #include "base/check_op.h"
@@ -45,7 +46,6 @@ std::string HistogramTypeToString(HistogramType type) {
       return "DUMMY_HISTOGRAM";
   }
   NOTREACHED();
-  return "UNKNOWN";
 }
 
 HistogramBase* DeserializeHistogramInfo(PickleIterator* iter) {
@@ -89,8 +89,8 @@ HistogramBase::HistogramBase(const char* name)
 
 HistogramBase::~HistogramBase() = default;
 
-void HistogramBase::CheckName(const StringPiece& name) const {
-  DCHECK_EQ(StringPiece(histogram_name()), name)
+void HistogramBase::CheckName(std::string_view name) const {
+  DCHECK_EQ(std::string_view(histogram_name()), name)
       << "Provided histogram name doesn't match instance name. Are you using a "
          "dynamic string in a macro?";
 }
@@ -159,8 +159,6 @@ uint32_t HistogramBase::FindCorruption(const HistogramSamples& samples) const {
   return NO_INCONSISTENCIES;
 }
 
-void HistogramBase::ValidateHistogramContents() const {}
-
 void HistogramBase::WriteJSON(std::string* output,
                               JSONVerbosityLevel verbosity_level) const {
   CountAndBucketData count_and_bucket_data = GetCountAndBucketData();
@@ -210,8 +208,8 @@ HistogramBase::CountAndBucketData HistogramBase::GetCountAndBucketData() const {
 
     Value::Dict bucket_value;
     bucket_value.Set("low", bucket_min);
-    // TODO(crbug.com/1334256): Make base::Value able to hold int64_t and remove
-    // this cast.
+    // TODO(crbug.com/40228085): Make base::Value able to hold int64_t and
+    // remove this cast.
     bucket_value.Set("high", static_cast<int>(bucket_max));
     bucket_value.Set("count", bucket_count);
     buckets.Append(std::move(bucket_value));
@@ -252,7 +250,7 @@ void HistogramBase::WriteAscii(std::string* output) const {
 }
 
 // static
-char const* HistogramBase::GetPermanentName(const std::string& name) {
+char const* HistogramBase::GetPermanentName(std::string_view name) {
   // A set of histogram names that provides the "permanent" lifetime required
   // by histogram objects for those strings that are not already code constants
   // or held in persistent memory.
@@ -260,7 +258,7 @@ char const* HistogramBase::GetPermanentName(const std::string& name) {
   static base::NoDestructor<Lock> permanent_names_lock;
 
   AutoLock lock(*permanent_names_lock);
-  auto result = permanent_names->insert(name);
+  auto result = permanent_names->insert(std::string(name));
   return result.first->c_str();
 }
 

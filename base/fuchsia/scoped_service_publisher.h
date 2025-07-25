@@ -5,10 +5,6 @@
 #ifndef BASE_FUCHSIA_SCOPED_SERVICE_PUBLISHER_H_
 #define BASE_FUCHSIA_SCOPED_SERVICE_PUBLISHER_H_
 
-#include <memory>
-#include <string>
-#include <utility>
-
 #include <lib/async/dispatcher.h>
 #include <lib/fidl/cpp/interface_request.h>
 #include <lib/fidl/cpp/wire/connect_service.h>
@@ -17,9 +13,14 @@
 #include <lib/vfs/cpp/service.h>
 #include <lib/zx/channel.h>
 
+#include <memory>
+#include <string>
+#include <string_view>
+#include <utility>
+
 #include "base/base_export.h"
 #include "base/fuchsia/fuchsia_logging.h"
-#include "base/strings/string_piece.h"
+#include "base/memory/raw_ptr.h"
 
 namespace base {
 
@@ -30,15 +31,16 @@ class BASE_EXPORT ScopedServicePublisher {
   // |outgoing_directory| and |handler| must outlive the binding.
   ScopedServicePublisher(sys::OutgoingDirectory* outgoing_directory,
                          fidl::InterfaceRequestHandler<Interface> handler,
-                         base::StringPiece name = Interface::Name_)
+                         std::string_view name = Interface::Name_)
       : ScopedServicePublisher(outgoing_directory->GetOrCreateDirectory("svc"),
-                               std::move(handler), name) {}
+                               std::move(handler),
+                               name) {}
 
   // Publishes a service in the specified |pseudo_dir|. |pseudo_dir| and
   // |handler| must outlive the binding.
   ScopedServicePublisher(vfs::PseudoDir* pseudo_dir,
                          fidl::InterfaceRequestHandler<Interface> handler,
-                         base::StringPiece name = Interface::Name_)
+                         std::string_view name = Interface::Name_)
       : pseudo_dir_(pseudo_dir), name_(name) {
     zx_status_t status = pseudo_dir_->AddEntry(
         name_, std::make_unique<vfs::Service>(std::move(handler)));
@@ -51,7 +53,7 @@ class BASE_EXPORT ScopedServicePublisher {
   ~ScopedServicePublisher() { pseudo_dir_->RemoveEntry(name_); }
 
  private:
-  vfs::PseudoDir* const pseudo_dir_ = nullptr;
+  const raw_ptr<vfs::PseudoDir> pseudo_dir_ = nullptr;
   std::string name_;
 };
 
@@ -64,7 +66,7 @@ class BASE_EXPORT ScopedNaturalServicePublisher {
   ScopedNaturalServicePublisher(
       sys::OutgoingDirectory* outgoing_directory,
       fidl::ProtocolHandler<Protocol> handler,
-      base::StringPiece name = fidl::DiscoverableProtocolName<Protocol>)
+      std::string_view name = fidl::DiscoverableProtocolName<Protocol>)
       : ScopedNaturalServicePublisher(
             outgoing_directory->GetOrCreateDirectory("svc"),
             std::move(handler),
@@ -76,7 +78,7 @@ class BASE_EXPORT ScopedNaturalServicePublisher {
   ScopedNaturalServicePublisher(
       vfs::PseudoDir* pseudo_dir,
       fidl::ProtocolHandler<Protocol> handler,
-      base::StringPiece name = fidl::DiscoverableProtocolName<Protocol>)
+      std::string_view name = fidl::DiscoverableProtocolName<Protocol>)
       : pseudo_dir_(pseudo_dir), name_(name) {
     zx_status_t status = pseudo_dir_->AddEntry(
         name_, std::make_unique<vfs::Service>(
@@ -94,7 +96,7 @@ class BASE_EXPORT ScopedNaturalServicePublisher {
   ~ScopedNaturalServicePublisher() { pseudo_dir_->RemoveEntry(name_); }
 
  private:
-  vfs::PseudoDir* const pseudo_dir_ = nullptr;
+  const raw_ptr<vfs::PseudoDir> pseudo_dir_ = nullptr;
   std::string name_;
 };
 

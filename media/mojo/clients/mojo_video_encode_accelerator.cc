@@ -58,7 +58,7 @@ class VideoEncodeAcceleratorClient
   void NotifyEncoderInfoChange(const VideoEncoderInfo& info) override;
 
  private:
-  raw_ptr<VideoEncodeAccelerator::Client> client_;
+  raw_ptr<VideoEncodeAccelerator::Client, DanglingUntriaged> client_;
   mojo::AssociatedReceiver<mojom::VideoEncodeAcceleratorClient> receiver_;
 };
 
@@ -120,9 +120,8 @@ VideoEncodeAccelerator::SupportedProfiles
 MojoVideoEncodeAccelerator::GetSupportedProfiles() {
   DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
 
-  NOTREACHED() << "GetSupportedProfiles() should never be called."
-               << "Use VEA provider or GPU factories";
-  return {};
+  NOTREACHED() << "GetSupportedProfiles() should never be called. Use VEA "
+                  "provider or GPU factories";
 }
 
 bool MojoVideoEncodeAccelerator::Initialize(
@@ -159,8 +158,16 @@ bool MojoVideoEncodeAccelerator::Initialize(
 
 void MojoVideoEncodeAccelerator::Encode(scoped_refptr<VideoFrame> frame,
                                         bool force_keyframe) {
+  media::VideoEncoder::EncodeOptions options;
+  options.key_frame = force_keyframe;
+  Encode(std::move(frame), options);
+}
+
+void MojoVideoEncodeAccelerator::Encode(
+    scoped_refptr<VideoFrame> frame,
+    const VideoEncoder::EncodeOptions& options) {
   TRACE_EVENT1("media", "MojoVideoEncodeAccelerator::Encode", "timestamp",
-               frame->timestamp());
+               frame->timestamp().InMicroseconds());
   DVLOG(2) << __func__ << " tstamp=" << frame->timestamp();
   DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
   DCHECK_EQ(VideoFrame::NumPlanes(frame->format()),
@@ -181,7 +188,7 @@ void MojoVideoEncodeAccelerator::Encode(scoped_refptr<VideoFrame> frame,
     return;
   }
 
-  vea_->Encode(frame, force_keyframe, base::DoNothingWithBoundArgs(frame));
+  vea_->Encode(frame, options, base::DoNothingWithBoundArgs(frame));
 }
 
 void MojoVideoEncodeAccelerator::UseOutputBitstreamBuffer(
@@ -197,22 +204,24 @@ void MojoVideoEncodeAccelerator::UseOutputBitstreamBuffer(
 
 void MojoVideoEncodeAccelerator::RequestEncodingParametersChange(
     const Bitrate& bitrate,
-    uint32_t framerate) {
+    uint32_t framerate,
+    const std::optional<gfx::Size>& size) {
   DVLOG(2) << __func__;
   DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
   DCHECK(vea_.is_bound());
 
-  vea_->RequestEncodingParametersChangeWithBitrate(bitrate, framerate);
+  vea_->RequestEncodingParametersChangeWithBitrate(bitrate, framerate, size);
 }
 
 void MojoVideoEncodeAccelerator::RequestEncodingParametersChange(
     const VideoBitrateAllocation& bitrate,
-    uint32_t framerate) {
+    uint32_t framerate,
+    const std::optional<gfx::Size>& size) {
   DVLOG(2) << __func__;
   DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
   DCHECK(vea_.is_bound());
 
-  vea_->RequestEncodingParametersChangeWithLayers(bitrate, framerate);
+  vea_->RequestEncodingParametersChangeWithLayers(bitrate, framerate, size);
 }
 
 bool MojoVideoEncodeAccelerator::IsFlushSupported() {

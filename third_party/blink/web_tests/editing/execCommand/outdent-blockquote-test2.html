@@ -1,0 +1,38 @@
+<!DOCTYPE html>
+<script src="../../resources/testharness.js"></script>
+<script src="../../resources/testharnessreport.js"></script>
+<script src="../assert_selection.js"></script>
+<script>
+
+// Note: The behavior here is different from Firefox which removes the
+// outermost blockquote leaving the editable div with two children (the
+// inner blockquotes).
+
+selection_test(
+    [
+        '<div contenteditable="true" id="contentDiv">',
+            '^<blockquote class="webkit-indent-blockquote">',
+                '<blockquote class="webkit-indent-blockquote" id="a">',
+                    'A',
+                '</blockquote>',
+                '<blockquote class="webkit-indent-blockquote" id="bc">',
+                    'B',
+                    '<br>',
+                    'C',
+                '</blockquote>',
+            '</blockquote>|',
+        '</div>',
+    ],
+    'outdent',
+    [
+        '<div contenteditable="true" id="contentDiv">',
+            '<blockquote class="webkit-indent-blockquote">',
+                '^A',
+                '<br>',
+                'B',
+                '<br>',
+                'C|',
+            '</blockquote>',
+        '</div>',
+    ]);
+</script>

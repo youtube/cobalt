@@ -9,6 +9,7 @@
 #include "base/functional/callback_helpers.h"
 #include "base/logging.h"
 #include "base/task/single_thread_task_runner.h"
+#include "media/base/media_serializers.h"
 #include "media/base/timestamp_constants.h"
 
 namespace media {
@@ -24,7 +25,6 @@ MediaCodecLoop::InputData::InputData() {}
 
 MediaCodecLoop::InputData::InputData(const InputData& other)
     : memory(other.memory),
-      length(other.length),
       key_id(other.key_id),
       iv(other.iv),
       subsamples(other.subsamples),
@@ -81,7 +81,7 @@ bool MediaCodecLoop::TryFlush() {
   // Actually try to flush!
   io_timer_.Stop();
 
-  if (media_codec_->Flush() != MEDIA_CODEC_OK) {
+  if (!media_codec_->Flush().is_ok()) {
     // TODO(liberato): we might not want to notify the client about this.
     SetState(STATE_ERROR);
     return false;
@@ -140,7 +140,7 @@ bool MediaCodecLoop::ProcessOneInputBuffer() {
 MediaCodecLoop::InputBuffer MediaCodecLoop::DequeueInputBuffer() {
   DVLOG(2) << __func__;
 
-  // Do not dequeue a new input buffer if we failed with MEDIA_CODEC_NO_KEY.
+  // Do not dequeue a new input buffer if we failed with kNoKey.
   // That status does not return the input buffer back to the pool of
   // available input buffers. We have to reuse it later when calling
   // MediaCodec's QueueSecureInputBuffer().
@@ -152,24 +152,23 @@ MediaCodecLoop::InputBuffer MediaCodecLoop::DequeueInputBuffer() {
 
   int input_buf_index = kInvalidBufferIndex;
 
-  media::MediaCodecStatus status =
+  MediaCodecResult result =
       media_codec_->DequeueInputBuffer(kNoWaitTimeout, &input_buf_index);
-  switch (status) {
-    case media::MEDIA_CODEC_TRY_AGAIN_LATER:
+  switch (result.code()) {
+    case MediaCodecResult::Codes::kTryAgainLater:
       break;
 
-    case media::MEDIA_CODEC_ERROR:
-      DLOG(ERROR) << __func__ << ": MEDIA_CODEC_ERROR from DequeInputBuffer";
+    case MediaCodecResult::Codes::kError:
+      DLOG(ERROR) << __func__ << ": " << result.message();
       SetState(STATE_ERROR);
       break;
 
-    case media::MEDIA_CODEC_OK:
+    case MediaCodecResult::Codes::kOk:
       break;
 
     default:
-      NOTREACHED() << "Unknown DequeueInputBuffer status " << status;
-      SetState(STATE_ERROR);
-      break;
+      NOTREACHED() << "Unexpected DequeueInputBuffer result: "
+                   << result.message();
   }
 
   return InputBuffer(input_buf_index, false);
@@ -193,34 +192,35 @@ void MediaCodecLoop::EnqueueInputBuffer(const InputBuffer& input_buffer) {
     return;
   }
 
-  media::MediaCodecStatus status = MEDIA_CODEC_OK;
+  MediaCodecResult result = OkStatus();
 
   if (input_data.encryption_scheme != EncryptionScheme::kUnencrypted) {
     // Note that input_data might not have a valid memory ptr if this is a
     // re-send of a buffer that was sent before decryption keys arrived.
 
-    status = media_codec_->QueueSecureInputBuffer(
-        input_buffer.index, input_data.memory, input_data.length,
-        input_data.key_id, input_data.iv, input_data.subsamples,
-        input_data.encryption_scheme, input_data.encryption_pattern,
-        input_data.presentation_time);
+    result = media_codec_->QueueSecureInputBuffer(
+        input_buffer.index, input_data.memory, input_data.key_id, input_data.iv,
+        input_data.subsamples, input_data.encryption_scheme,
+        input_data.encryption_pattern, input_data.presentation_time);
 
   } else {
-    status = media_codec_->QueueInputBuffer(
-        input_buffer.index, input_data.memory, input_data.length,
-        input_data.presentation_time);
+    result = media_codec_->QueueInputBuffer(
+        input_buffer.index, input_data.memory, input_data.presentation_time);
   }
 
-  switch (status) {
-    case MEDIA_CODEC_ERROR:
-      DLOG(ERROR) << __func__ << ": MEDIA_CODEC_ERROR from QueueInputBuffer";
+  switch (result.code()) {
+    case MediaCodecResult::Codes::kError:
+      DLOG(ERROR)
+          << __func__
+          << ": MediaCodecResult::Codes::kError from QueueInputBuffer : "
+          << result.message();
       client_->OnInputDataQueued(false);
       // Transition to the error state after running the completion cb, to keep
       // it in order if the client chooses to flush its queue.
       SetState(STATE_ERROR);
       break;
 
-    case MEDIA_CODEC_NO_KEY:
+    case MediaCodecResult::Codes::kNoKey:
       // Do not call the completion cb here.  It will be called when we retry
       // after getting the key.
       pending_input_buf_index_ = input_buffer.index;
@@ -228,21 +228,19 @@ void MediaCodecLoop::EnqueueInputBuffer(const InputBuffer& input_buffer) {
       // MediaCodec has a copy of the data already.  When we call again, be sure
       // to send in nullptr for the source.  Note that the client doesn't
       // guarantee that the pointer will remain valid after we return anyway.
-      pending_input_buf_data_.memory = nullptr;
+      pending_input_buf_data_.memory = {};
       client_->OnWaiting(WaitingReason::kNoDecryptionKey);
       SetState(STATE_WAITING_FOR_KEY);
       // Do not call OnInputDataQueued yet.
       break;
 
-    case MEDIA_CODEC_OK:
+    case MediaCodecResult::Codes::kOk:
       client_->OnInputDataQueued(true);
       break;
 
     default:
-      NOTREACHED() << "Unknown Queue(Secure)InputBuffer status " << status;
-      client_->OnInputDataQueued(false);
-      SetState(STATE_ERROR);
-      break;
+      NOTREACHED() << "Unknown Queue(Secure)InputBuffer status "
+                   << result.message();
   }
 }
 
@@ -254,24 +252,24 @@ bool MediaCodecLoop::ProcessOneOutputBuffer() {
     return false;
 
   OutputBuffer out;
-  MediaCodecStatus status = media_codec_->DequeueOutputBuffer(
+  MediaCodecResult result = media_codec_->DequeueOutputBuffer(
       kNoWaitTimeout, &out.index, &out.offset, &out.size, &out.pts, &out.is_eos,
       &out.is_key_frame);
 
   bool did_work = false;
-  switch (status) {
-    case MEDIA_CODEC_OUTPUT_BUFFERS_CHANGED:
+  switch (result.code()) {
+    case MediaCodecResult::Codes::kOutputBuffersChanged:
       // Output buffers are replaced in MediaCodecBridge, nothing to do.
       did_work = true;
       break;
 
-    case MEDIA_CODEC_OUTPUT_FORMAT_CHANGED:
+    case MediaCodecResult::Codes::kOutputFormatChanged:
       if (!client_->OnOutputFormatChanged())
         SetState(STATE_ERROR);
       did_work = state_ != STATE_ERROR;
       break;
 
-    case MEDIA_CODEC_OK:
+    case MediaCodecResult::Codes::kOk:
       // We got the decoded frame or EOS.
       if (out.is_eos) {
         // Set state STATE_DRAINED after we have received EOS frame at the
@@ -295,19 +293,21 @@ bool MediaCodecLoop::ProcessOneOutputBuffer() {
       did_work = true;
       break;
 
-    case MEDIA_CODEC_TRY_AGAIN_LATER:
+    case MediaCodecResult::Codes::kTryAgainLater:
       // Nothing to do.
       break;
 
-    case MEDIA_CODEC_ERROR:
-      DLOG(ERROR) << __func__ << ": MEDIA_CODEC_ERROR from DequeueOutputBuffer";
+    case MediaCodecResult::Codes::kError:
+      DLOG(ERROR) << __func__
+                  << ": MediaCodecResult::Codes::kError from "
+                     "DequeueOutputBuffer, result: "
+                  << result.message();
       SetState(STATE_ERROR);
       break;
 
     default:
-      NOTREACHED() << "Unknown DequeueOutputBuffer status " << status;
-      SetState(STATE_ERROR);
-      break;
+      NOTREACHED() << "Unexpected DequeueOutputBuffer result: "
+                   << result.message();
   }
 
   return did_work;
@@ -365,7 +365,6 @@ const char* MediaCodecLoop::AsString(State state) {
 #undef RETURN_STRING
 
   NOTREACHED() << "Unknown state " << state;
-  return nullptr;
 }
 
 }  // namespace media

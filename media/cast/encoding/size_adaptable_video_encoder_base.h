@@ -18,6 +18,9 @@
 #include "ui/gfx/geometry/size.h"
 
 namespace media {
+
+class VideoEncoderMetricsProvider;
+
 namespace cast {
 
 struct SenderEncodedFrame;
@@ -32,6 +35,7 @@ class SizeAdaptableVideoEncoderBase : public VideoEncoder {
   SizeAdaptableVideoEncoderBase(
       const scoped_refptr<CastEnvironment>& cast_environment,
       const FrameSenderConfig& video_config,
+      std::unique_ptr<VideoEncoderMetricsProvider> metrics_provider,
       StatusChangeCallback status_change_cb);
 
   SizeAdaptableVideoEncoderBase(const SizeAdaptableVideoEncoderBase&) = delete;
@@ -46,7 +50,6 @@ class SizeAdaptableVideoEncoderBase : public VideoEncoder {
                         FrameEncodedCallback frame_encoded_callback) final;
   void SetBitRate(int new_bit_rate) final;
   void GenerateKeyFrame() final;
-  std::unique_ptr<VideoFrameFactory> CreateVideoFrameFactory() final;
   void EmitFrames() final;
 
  protected:
@@ -55,6 +58,9 @@ class SizeAdaptableVideoEncoderBase : public VideoEncoder {
   const FrameSenderConfig& video_config() const { return video_config_; }
   const gfx::Size& frame_size() const { return frame_size_; }
   FrameId next_frame_id() const { return next_frame_id_; }
+  VideoEncoderMetricsProvider& metrics_provider() const {
+    return *metrics_provider_.get();
+  }
 
   // Returns a callback that calls OnEncoderStatusChange().  The callback is
   // canceled by invalidating its bound weak pointer just before a replacement
@@ -92,6 +98,8 @@ class SizeAdaptableVideoEncoderBase : public VideoEncoder {
   // This is not const since |video_config_.starting_bitrate| is modified by
   // SetBitRate(), for when a replacement encoder is spawned.
   FrameSenderConfig video_config_;
+
+  const std::unique_ptr<VideoEncoderMetricsProvider> metrics_provider_;
 
   // Run whenever the underlying encoder reports a status change.
   const StatusChangeCallback status_change_cb_;

@@ -5,10 +5,12 @@
 #include "base/win/shortcut.h"
 
 #include <objbase.h>
+
 #include <propkey.h>
 #include <shlobj.h>
 #include <wrl/client.h>
 
+#include "base/files/block_tests_writing_to_special_dirs.h"
 #include "base/files/file_util.h"
 #include "base/logging.h"
 #include "base/strings/string_util.h"
@@ -72,6 +74,9 @@ bool CreateOrUpdateShortcutLink(const FilePath& shortcut_path,
                                 ShortcutOperation operation) {
   ScopedBlockingCall scoped_blocking_call(FROM_HERE, BlockingType::MAY_BLOCK);
 
+  if (!BlockTestsWritingToSpecialDirs::CanWriteToPath(shortcut_path)) {
+    return false;
+  }
   // Make sure the parent directories exist when creating the shortcut.
   if (operation == ShortcutOperation::kCreateAlways &&
       !base::CreateDirectory(shortcut_path.DirName())) {
@@ -82,7 +87,6 @@ bool CreateOrUpdateShortcutLink(const FilePath& shortcut_path,
   if (operation != ShortcutOperation::kUpdateExisting &&
       !(properties.options & ShortcutProperties::PROPERTIES_TARGET)) {
     NOTREACHED();
-    return false;
   }
 
   bool shortcut_existed = PathExists(shortcut_path);
@@ -293,7 +297,6 @@ bool ResolveShortcutProperties(const FilePath& shortcut_path,
           break;
         default:
           NOTREACHED() << "Unexpected variant type: " << pv_app_id.get().vt;
-          return false;
       }
     }
 
@@ -312,7 +315,6 @@ bool ResolveShortcutProperties(const FilePath& shortcut_path,
           break;
         default:
           NOTREACHED() << "Unexpected variant type: " << pv_dual_mode.get().vt;
-          return false;
       }
     }
 
@@ -334,7 +336,6 @@ bool ResolveShortcutProperties(const FilePath& shortcut_path,
         default:
           NOTREACHED() << "Unexpected variant type: "
                        << pv_toast_activator_clsid.get().vt;
-          return false;
       }
     }
   }

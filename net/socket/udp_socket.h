@@ -9,7 +9,7 @@
 
 #if BUILDFLAG(IS_WIN)
 #include "net/socket/udp_socket_win.h"
-#else
+#elif BUILDFLAG(IS_POSIX) || BUILDFLAG(IS_FUCHSIA)
 #include "net/socket/udp_socket_posix.h"
 #endif
 
@@ -37,7 +37,7 @@ namespace net {
 //                             // address.
 #if BUILDFLAG(IS_WIN)
 typedef UDPSocketWin UDPSocket;
-#else
+#elif BUILDFLAG(IS_POSIX) || BUILDFLAG(IS_FUCHSIA)
 typedef UDPSocketPosix UDPSocket;
 #endif
 

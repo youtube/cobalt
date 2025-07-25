@@ -82,10 +82,19 @@ void FieldTrialParamAssociator::ClearParamsForTesting(
     const std::string& group_name) {
   AutoLock scoped_lock(lock_);
   const FieldTrialRefKey key(trial_name, group_name);
-  field_trial_params_.erase(key);
+  auto it = field_trial_params_.find(key);
+  if (it != field_trial_params_.end()) {
+    field_trial_params_.erase(it);
+  }
 }
 
 void FieldTrialParamAssociator::ClearAllCachedParamsForTesting() {
+  AutoLock scoped_lock(lock_);
+  field_trial_params_.clear();
+}
+
+void FieldTrialParamAssociator::ClearAllCachedParams(
+    PassKey<AppShimController>) {
   AutoLock scoped_lock(lock_);
   field_trial_params_.clear();
 }

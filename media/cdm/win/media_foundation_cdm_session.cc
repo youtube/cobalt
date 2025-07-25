@@ -2,6 +2,11 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#ifdef UNSAFE_BUFFERS_BUILD
+// TODO(crbug.com/40285824): Remove this and convert code to safer constructs.
+#pragma allow_unsafe_buffers
+#endif
+
 #include "media/cdm/win/media_foundation_cdm_session.h"
 
 #include <memory>
@@ -327,7 +332,8 @@ HRESULT MediaFoundationCdmSession::UpdateExpirationIfNeeded() {
   // an instant in time with millisecond accuracy.
   double new_expiration_ms = 0.0;
   RETURN_IF_FAILED(mf_cdm_session_->GetExpiration(&new_expiration_ms));
-  auto new_expiration = base::Time::FromJsTime(new_expiration_ms);
+  auto new_expiration =
+      base::Time::FromMillisecondsSinceUnixEpoch(new_expiration_ms);
 
   if (new_expiration == expiration_)
     return S_OK;

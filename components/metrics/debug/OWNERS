@@ -1,0 +1,6 @@
+# For trivial or mechanical horizontal JS/CSS/HTML changes.
+file://ui/webui/PLATFORM_OWNERS
+
+lucnguyen@google.com
+
+per-file field_trials.*=harringtond@chromium.org

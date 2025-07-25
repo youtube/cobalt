@@ -5,12 +5,14 @@
 #include "media/cdm/aes_decryptor.h"
 
 #include <stddef.h>
+
 #include <list>
 #include <memory>
 #include <utility>
 #include <vector>
 
 #include "base/logging.h"
+#include "base/not_fatal_until.h"
 #include "base/strings/string_number_conversions.h"
 #include "base/time/time.h"
 #include "crypto/symmetric_key.h"
@@ -153,7 +155,7 @@ void AesDecryptor::SessionIdDecryptionKeyMap::Erase(
 static scoped_refptr<DecoderBuffer> DecryptData(
     const DecoderBuffer& input,
     const crypto::SymmetricKey& key) {
-  CHECK(input.data_size());
+  CHECK(!input.empty());
   CHECK(input.decrypt_config());
 
   if (input.decrypt_config()->encryption_scheme() == EncryptionScheme::kCenc)
@@ -234,9 +236,6 @@ void AesDecryptor::CreateSessionAndGenerateRequest(
     }
     default:
       NOTREACHED();
-      promise->reject(CdmPromise::Exception::NOT_SUPPORTED_ERROR, 0,
-                      "init_data_type not supported.");
-      return;
   }
   CreateLicenseRequest(keys, session_type, &message);
 
@@ -252,8 +251,6 @@ void AesDecryptor::LoadSession(CdmSessionType session_type,
   // the session state. Should not be called as blink should not allow
   // persistent sessions for ClearKey.
   NOTREACHED();
-  promise->reject(CdmPromise::Exception::NOT_SUPPORTED_ERROR, 0,
-                  "LoadSession() is not supported.");
 }
 
 void AesDecryptor::UpdateSession(const std::string& session_id,
@@ -290,7 +287,7 @@ bool AesDecryptor::UpdateSessionWithJWK(const std::string& session_id,
                                         CdmPromise::Exception* exception,
                                         std::string* error_message) {
   auto open_session = open_sessions_.find(session_id);
-  DCHECK(open_session != open_sessions_.end());
+  CHECK(open_session != open_sessions_.end(), base::NotFatalUntil::M130);
   CdmSessionType session_type = open_session->second;
 
   KeyIdAndKeyPairs keys;
@@ -410,7 +407,7 @@ void AesDecryptor::RemoveSession(const std::string& session_id,
   if (it->second == CdmSessionType::kPersistentLicense) {
     // The license release message is specified in the spec:
     // https://w3c.github.io/encrypted-media/#clear-key-release-format.
-    // TODO(crbug.com/1107614) Move session message for persistent-license
+    // TODO(crbug.com/40706999) Move session message for persistent-license
     // session from AesDecryptor to ClearKeyPersistentSessionCdm.
     KeyIdList key_ids;
     key_ids.reserve(keys_info.size());

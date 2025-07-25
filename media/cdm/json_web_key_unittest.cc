@@ -2,6 +2,11 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#ifdef UNSAFE_BUFFERS_BUILD
+// TODO(crbug.com/40285824): Remove this and convert code to safer constructs.
+#pragma allow_unsafe_buffers
+#endif
+
 #include "media/cdm/json_web_key.h"
 
 #include <stddef.h>
@@ -467,10 +472,8 @@ TEST_F(JSONWebKeyTest, Base64UrlEncoding) {
 
   // Verify that |data1| contains invalid base64url characters '+' and '/'
   // and is padded with = when converted to base64.
-  std::string encoded_text;
-  base::Base64Encode(
-      std::string(reinterpret_cast<const char*>(&data1[0]), std::size(data1)),
-      &encoded_text);
+  std::string encoded_text = base::Base64Encode(
+      std::string(reinterpret_cast<const char*>(&data1[0]), std::size(data1)));
   EXPECT_EQ(encoded_text, "+/37/fv9+w==");
   EXPECT_NE(encoded_text.find('+'), std::string::npos);
   EXPECT_NE(encoded_text.find('/'), std::string::npos);

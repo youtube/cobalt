@@ -24,10 +24,11 @@
 #include <memory>
 #include <vector>
 
+#include "base/component_export.h"
+#include "base/containers/span.h"
 #include "base/memory/scoped_policy.h"
 #include "base/memory/scoped_refptr.h"
 #include "build/build_config.h"
-#include "ui/gfx/gfx_export.h"
 #include "ui/gfx/native_widget_types.h"
 
 #if BUILDFLAG(IS_MAC)
@@ -50,7 +51,7 @@ class ImageRep;
 class ImageStorage;
 }
 
-class GFX_EXPORT Image {
+class COMPONENT_EXPORT(GFX) Image {
  public:
   enum RepresentationType {
     kImageRepCocoa,
@@ -107,10 +108,8 @@ class GFX_EXPORT Image {
   // Creates an image from the PNG encoded input.
   // For example (from an std::vector):
   // std::vector<unsigned char> png = ...;
-  // gfx::Image image =
-  //     Image::CreateFrom1xPNGBytes(&png.front(), png.size());
-  static Image CreateFrom1xPNGBytes(const unsigned char* input,
-                                    size_t input_size);
+  // gfx::Image image = Image::CreateFrom1xPNGBytes(png);
+  static Image CreateFrom1xPNGBytes(base::span<const uint8_t> input);
 
   // Creates an image from the PNG encoded input.
   static Image CreateFrom1xPNGBytes(
@@ -158,13 +157,6 @@ class GFX_EXPORT Image {
   int Width() const;
   int Height() const;
   gfx::Size Size() const;
-
-#if BUILDFLAG(IS_MAC)
-  // Set the default representation's color space. This is used for converting
-  // to NSImage. This is used to compensate for PNGCodec not writing or reading
-  // colorspace ancillary chunks. (sRGB, iCCP).
-  void SetSourceColorSpace(CGColorSpaceRef color_space);
-#endif  // BUILDFLAG(IS_MAC)
 
  private:
   // Returns the type of the default representation.

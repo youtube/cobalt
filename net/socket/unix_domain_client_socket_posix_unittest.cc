@@ -2,6 +2,11 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#ifdef UNSAFE_BUFFERS_BUILD
+// TODO(crbug.com/40284755): Remove this and spanify to fix the errors.
+#pragma allow_unsafe_buffers
+#endif
+
 #include "net/socket/unix_domain_client_socket_posix.h"
 
 #include <unistd.h>
@@ -201,8 +206,7 @@ TEST_F(UnixDomainClientSocketTest, ConnectWithSocketDescriptor) {
 
   // Try to read data.
   const int kReadDataSize = 10;
-  scoped_refptr<IOBuffer> read_buffer =
-      base::MakeRefCounted<IOBuffer>(kReadDataSize);
+  auto read_buffer = base::MakeRefCounted<IOBufferWithSize>(kReadDataSize);
   TestCompletionCallback read_callback;
   EXPECT_EQ(ERR_IO_PENDING,
             rewrapped_socket.Read(
@@ -284,8 +288,7 @@ TEST_F(UnixDomainClientSocketTest, DisconnectFromClient) {
 
   // Try to read data.
   const int kReadDataSize = 10;
-  scoped_refptr<IOBuffer> read_buffer =
-      base::MakeRefCounted<IOBuffer>(kReadDataSize);
+  auto read_buffer = base::MakeRefCounted<IOBufferWithSize>(kReadDataSize);
   TestCompletionCallback read_callback;
   EXPECT_EQ(ERR_IO_PENDING,
             accepted_socket->Read(
@@ -318,8 +321,7 @@ TEST_F(UnixDomainClientSocketTest, DisconnectFromServer) {
 
   // Try to read data.
   const int kReadDataSize = 10;
-  scoped_refptr<IOBuffer> read_buffer =
-      base::MakeRefCounted<IOBuffer>(kReadDataSize);
+  auto read_buffer = base::MakeRefCounted<IOBufferWithSize>(kReadDataSize);
   TestCompletionCallback read_callback;
   EXPECT_EQ(ERR_IO_PENDING,
             client_socket.Read(
@@ -352,7 +354,7 @@ TEST_F(UnixDomainClientSocketTest, ReadAfterWrite) {
 
   // Send data from client to server.
   const int kWriteDataSize = 10;
-  scoped_refptr<IOBuffer> write_buffer =
+  auto write_buffer =
       base::MakeRefCounted<StringIOBuffer>(std::string(kWriteDataSize, 'd'));
   EXPECT_EQ(
       kWriteDataSize,
@@ -360,8 +362,7 @@ TEST_F(UnixDomainClientSocketTest, ReadAfterWrite) {
 
   // The buffer is bigger than write data size.
   const int kReadBufferSize = kWriteDataSize * 2;
-  scoped_refptr<IOBuffer> read_buffer =
-      base::MakeRefCounted<IOBuffer>(kReadBufferSize);
+  auto read_buffer = base::MakeRefCounted<IOBufferWithSize>(kReadBufferSize);
   EXPECT_EQ(kWriteDataSize,
             ReadSynchronously(accepted_socket.get(),
                               read_buffer.get(),
@@ -425,15 +426,14 @@ TEST_F(UnixDomainClientSocketTest, ReadBeforeWrite) {
   const int kReadBufferSize = kWriteDataSize * 2;
   const int kSmallReadBufferSize = kWriteDataSize / 3;
   // Read smaller than write data size first.
-  scoped_refptr<IOBuffer> read_buffer =
-      base::MakeRefCounted<IOBuffer>(kReadBufferSize);
+  auto read_buffer = base::MakeRefCounted<IOBufferWithSize>(kReadBufferSize);
   TestCompletionCallback read_callback;
   EXPECT_EQ(
       ERR_IO_PENDING,
       accepted_socket->Read(
           read_buffer.get(), kSmallReadBufferSize, read_callback.callback()));
 
-  scoped_refptr<IOBuffer> write_buffer =
+  auto write_buffer =
       base::MakeRefCounted<StringIOBuffer>(std::string(kWriteDataSize, 'd'));
   EXPECT_EQ(
       kWriteDataSize,

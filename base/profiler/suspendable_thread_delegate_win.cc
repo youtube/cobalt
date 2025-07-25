@@ -5,6 +5,7 @@
 #include "base/profiler/suspendable_thread_delegate_win.h"
 
 #include <windows.h>
+
 #include <winternl.h>
 
 #include <vector>
@@ -41,7 +42,7 @@ win::ScopedHandle GetCurrentThreadHandle() {
 }
 
 win::ScopedHandle GetThreadHandle(PlatformThreadId thread_id) {
-  // TODO(https://crbug.com/947459): Move this logic to
+  // TODO(crbug.com/40620762): Move this logic to
   // GetSamplingProfilerCurrentThreadToken() and pass the handle in
   // SamplingProfilerThreadToken.
   if (thread_id == ::GetCurrentThreadId())
@@ -69,7 +70,7 @@ win::ScopedHandle GetThreadHandle(PlatformThreadId thread_id) {
 // Returns the thread environment block pointer for |thread_handle|.
 const TEB* GetThreadEnvironmentBlock(PlatformThreadId thread_id,
                                      HANDLE thread_handle) {
-  // TODO(https://crbug.com/947459): Move this logic to
+  // TODO(crbug.com/40620762): Move this logic to
   // GetSamplingProfilerCurrentThreadToken() and pass the TEB* in
   // SamplingProfilerThreadToken.
   if (thread_id == ::GetCurrentThreadId())
@@ -79,7 +80,8 @@ const TEB* GetThreadEnvironmentBlock(PlatformThreadId thread_id,
   constexpr auto ThreadBasicInformation = static_cast<THREADINFOCLASS>(0);
   struct THREAD_BASIC_INFORMATION {
     NTSTATUS ExitStatus;
-    RAW_PTR_EXCLUSION TEB* Teb;  // Filled in by the OS so cannot use raw_ptr<>.
+    // RAW_PTR_EXCLUSION: Filled in by the OS so cannot use raw_ptr<>.
+    RAW_PTR_EXCLUSION TEB* Teb;
     CLIENT_ID ClientId;
     KAFFINITY AffinityMask;
     LONG Priority;
@@ -172,7 +174,7 @@ SuspendableThreadDelegateWin::ScopedSuspendThread::~ScopedSuspendThread() {
   ScopedDisablePriorityBoost disable_priority_boost(thread_handle_);
   bool resume_thread_succeeded =
       ::ResumeThread(thread_handle_) != static_cast<DWORD>(-1);
-  CHECK(resume_thread_succeeded) << "ResumeThread failed: " << GetLastError();
+  PCHECK(resume_thread_succeeded) << "ResumeThread failed";
 }
 
 bool SuspendableThreadDelegateWin::ScopedSuspendThread::WasSuccessful() const {

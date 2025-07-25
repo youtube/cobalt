@@ -1,4 +1,4 @@
-// Copyright 2017 The Chromium Authors. All rights reserved.
+// Copyright 2017 The Chromium Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -14,7 +14,9 @@ namespace {
 
 class CrashKeyStringTest : public testing::Test {
  public:
-  void SetUp() override { InitializeCrashKeys(); }
+  void SetUp() override { InitializeCrashKeysForTesting(); }
+
+  void TearDown() override { ResetCrashKeysForTesting(); }
 };
 
 TEST_F(CrashKeyStringTest, ScopedCrashKeyString) {
@@ -34,8 +36,12 @@ TEST_F(CrashKeyStringTest, FormatStackTrace) {
   const uintptr_t addresses[] = {
       0x0badbeef, 0x77778888, 0xabc, 0x000ddeeff, 0x12345678,
   };
-  base::debug::StackTrace trace(reinterpret_cast<const void* const*>(addresses),
-                                arraysize(addresses));
+  base::debug::StackTrace trace(
+      // SAFETY: The span uses the array's first element and size. We have to
+      // use the unsafe constructor because of the cast which throws away the
+      // size information from the type.
+      UNSAFE_BUFFERS(base::span(reinterpret_cast<const void* const*>(addresses),
+                                std::size(addresses))));
 
   std::string too_small = internal::FormatStackTrace(trace, 3);
   EXPECT_EQ(0u, too_small.size());
@@ -55,8 +61,12 @@ TEST_F(CrashKeyStringTest, FormatStackTrace64) {
   const uintptr_t addresses[] = {
       0xbaaaabaaaaba, 0x1000000000000000,
   };
-  base::debug::StackTrace trace(reinterpret_cast<const void* const*>(addresses),
-                                arraysize(addresses));
+  base::debug::StackTrace trace(
+      // SAFETY: The span uses the array's first element and size. We have to
+      // use the unsafe constructor because of the cast which throws away the
+      // size information from the type.
+      UNSAFE_BUFFERS(base::span(reinterpret_cast<const void* const*>(addresses),
+                                std::size(addresses))));
 
   std::string too_small = internal::FormatStackTrace(trace, 8);
   EXPECT_EQ(0u, too_small.size());

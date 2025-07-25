@@ -2,6 +2,11 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#ifdef UNSAFE_BUFFERS_BUILD
+// TODO(crbug.com/40284755): Remove this and spanify to fix the errors.
+#pragma allow_unsafe_buffers
+#endif
+
 #include "net/url_request/url_request_test_job.h"
 
 #include <algorithm>
@@ -9,7 +14,6 @@
 #include <memory>
 
 #include "base/compiler_specific.h"
-#include "base/containers/cxx20_erase_list.h"
 #include "base/functional/bind.h"
 #include "base/lazy_instance.h"
 #include "base/location.h"
@@ -143,7 +147,7 @@ URLRequestTestJob::URLRequestTestJob(URLRequest* request,
       response_headers_length_(response_headers.size()) {}
 
 URLRequestTestJob::~URLRequestTestJob() {
-  base::Erase(g_pending_jobs.Get(), this);
+  std::erase(g_pending_jobs.Get(), this);
 }
 
 bool URLRequestTestJob::GetMimeType(std::string* mime_type) const {
@@ -275,7 +279,7 @@ void URLRequestTestJob::Kill() {
   stage_ = DONE;
   URLRequestJob::Kill();
   weak_factory_.InvalidateWeakPtrs();
-  base::Erase(g_pending_jobs.Get(), this);
+  std::erase(g_pending_jobs.Get(), this);
 }
 
 void URLRequestTestJob::ProcessNextOperation() {
@@ -288,8 +292,9 @@ void URLRequestTestJob::ProcessNextOperation() {
       // OK if ReadRawData wasn't called yet.
       if (async_buf_) {
         int result = CopyDataForRead(async_buf_.get(), async_buf_size_);
-        if (result < 0)
+        if (result < 0) {
           NOTREACHED() << "Reads should not fail in DATA_AVAILABLE.";
+        }
         if (NextReadAsync()) {
           // Make all future reads return io pending until the next
           // ProcessNextOperation().
@@ -309,7 +314,6 @@ void URLRequestTestJob::ProcessNextOperation() {
       return;
     default:
       NOTREACHED() << "Invalid stage";
-      return;
   }
 }
 

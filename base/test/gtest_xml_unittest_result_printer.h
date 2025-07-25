@@ -49,10 +49,10 @@ class XmlUnitTestResultPrinter : public testing::EmptyTestEventListener {
 
  private:
   // testing::EmptyTestEventListener:
-  void OnTestCaseStart(const testing::TestCase& test_case) override;
+  void OnTestSuiteStart(const testing::TestSuite& test_suite) override;
   void OnTestStart(const testing::TestInfo& test_info) override;
   void OnTestEnd(const testing::TestInfo& test_info) override;
-  void OnTestCaseEnd(const testing::TestCase& test_case) override;
+  void OnTestSuiteEnd(const testing::TestSuite& test_suite) override;
 
   void WriteTestPartResult(const char* file,
                            int line,
@@ -61,8 +61,12 @@ class XmlUnitTestResultPrinter : public testing::EmptyTestEventListener {
                            const std::string& message);
 
   static XmlUnitTestResultPrinter* instance_;
-  raw_ptr<FILE> output_file_{nullptr};
-  bool open_failed_{false};
+  raw_ptr<FILE> output_file_ = nullptr;
+  bool open_failed_ = false;
+
+  // Flag that's true iff a test has been started but not yet ended.
+  bool test_running_ = false;
+
   ThreadChecker thread_checker_;
 };
 

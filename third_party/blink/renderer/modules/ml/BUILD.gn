@@ -1,0 +1,64 @@
+# Copyright 2022 The Chromium Authors
+# Use of this source code is governed by a BSD-style license that can be
+# found in the LICENSE file.
+
+import("//build/buildflag_header.gni")
+import("//third_party/blink/renderer/modules/modules.gni")
+
+blink_modules_sources("ml") {
+  sources = [
+    "ml.cc",
+    "ml.h",
+    "ml_context.cc",
+    "ml_context.h",
+    "ml_trace.cc",
+    "ml_trace.h",
+    "navigator_ml.cc",
+    "navigator_ml.h",
+    "webnn/ml_constant_operand.cc",
+    "webnn/ml_constant_operand.h",
+    "webnn/ml_error.cc",
+    "webnn/ml_error.h",
+    "webnn/ml_graph.cc",
+    "webnn/ml_graph.h",
+    "webnn/ml_graph_builder.cc",
+    "webnn/ml_graph_builder.h",
+    "webnn/ml_graph_type_converter.cc",
+    "webnn/ml_graph_type_converter.h",
+    "webnn/ml_graph_utils.cc",
+    "webnn/ml_graph_utils.h",
+    "webnn/ml_operand.cc",
+    "webnn/ml_operand.h",
+    "webnn/ml_operator.cc",
+    "webnn/ml_operator.h",
+    "webnn/ml_tensor.cc",
+    "webnn/ml_tensor.h",
+  ]
+
+  deps = [
+    "//services/webnn/public/cpp",
+    "//services/webnn/public/mojom:mojom_blink",
+  ]
+}
+
+source_set("unit_tests") {
+  testonly = true
+  sources = [
+    "ml_trace_unittest.cc",
+    "webnn/ml_graph_builder_test_utils.cc",
+    "webnn/ml_graph_builder_test_utils.h",
+    "webnn/ml_graph_test.cc",
+  ]
+
+  deps = [
+    "//services/webnn/public/mojom:mojom_blink",
+    "//testing/gtest",
+    "//third_party/blink/public:test_headers",
+    "//third_party/blink/renderer/controller:blink_bindings_test_sources",
+    "//third_party/blink/renderer/core:unit_test_support",
+    "//third_party/blink/renderer/modules",
+    "//third_party/blink/renderer/platform",
+    "//third_party/blink/renderer/platform:test_support",
+    "//third_party/blink/renderer/platform/wtf",
+  ]
+}

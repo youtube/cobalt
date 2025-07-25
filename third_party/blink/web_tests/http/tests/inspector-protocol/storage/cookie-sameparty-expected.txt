@@ -1,0 +1,3 @@
+Verifies that the sameParty field will be handled correctly.
+
+

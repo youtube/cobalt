@@ -7,7 +7,6 @@
 
 #include "base/feature_list.h"
 #include "build/build_config.h"
-#include "build/chromeos_buildflags.h"
 #include "media/capture/capture_export.h"
 
 namespace switches {
@@ -17,13 +16,17 @@ CAPTURE_EXPORT extern const char kDisableVideoCaptureUseGpuMemoryBuffer[];
 
 CAPTURE_EXPORT bool IsVideoCaptureUseGpuMemoryBufferEnabled();
 
+#if BUILDFLAG(IS_WIN)
+CAPTURE_EXPORT bool IsMediaFoundationCameraUsageMonitoringEnabled();
+#endif
+
 }  // namespace switches
 
 namespace features {
 
-#if BUILDFLAG(IS_CHROMEOS_LACROS)
-CAPTURE_EXPORT BASE_DECLARE_FEATURE(kLacrosAuraCapture);
-#endif
+#if defined(WEBRTC_USE_PIPEWIRE)
+CAPTURE_EXPORT BASE_DECLARE_FEATURE(kWebRtcPipeWireCamera);
+#endif  // defined(WEBRTC_USE_PIPEWIRE)
 
 }  // namespace features
 

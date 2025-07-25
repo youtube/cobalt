@@ -4,6 +4,9 @@
 
 package org.chromium.android.commands.unzip;
 
+import android.system.ErrnoException;
+import android.system.Os;
+
 import java.io.BufferedInputStream;
 import java.io.BufferedOutputStream;
 import java.io.File;
@@ -15,16 +18,14 @@ import java.io.PrintStream;
 import java.util.zip.ZipEntry;
 import java.util.zip.ZipInputStream;
 
-/**
- *  Minimal implementation of the command-line unzip utility for Android.
- */
+/** Minimal implementation of the command-line unzip utility for Android. */
 public class Unzip {
 
     private static final String TAG = "Unzip";
 
     public static void main(String[] args) {
         try {
-            (new Unzip()).run(args);
+            new Unzip().run(args);
         } catch (RuntimeException e) {
             e.printStackTrace();
             System.exit(1);
@@ -60,17 +61,16 @@ public class Unzip {
                     }
                     OutputStream out = new BufferedOutputStream(new FileOutputStream(outputFile));
                     int actual_bytes = 0;
-                    int total_bytes = 0;
                     while ((actual_bytes = zis.read(bytes)) != -1) {
                         out.write(bytes, 0, actual_bytes);
-                        total_bytes += actual_bytes;
                     }
                     out.close();
+                    Os.chmod(ze.getName(), 0777);
                 }
                 zis.closeEntry();
             }
 
-        } catch (IOException e) {
+        } catch (IOException | ErrnoException e) {
             throw new RuntimeException("Error while unzipping", e);
         } finally {
             try {
@@ -90,4 +90,3 @@ public class Unzip {
         unzip(args);
     }
 }
-

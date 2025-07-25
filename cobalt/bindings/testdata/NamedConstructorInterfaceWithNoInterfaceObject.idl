@@ -1,6 +1,0 @@
-[
-  NamedConstructor=Orange(),
-  NoInterfaceObject
-]
-interface NamedConstructorInterfaceWithNoInterfaceObject {
-};

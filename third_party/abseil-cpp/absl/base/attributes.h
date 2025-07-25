@@ -31,6 +31,8 @@
 // `__has_attribute()` first. If the check fails, we check if we are on GCC and
 // assume the attribute exists on GCC (which is verified on GCC 4.7).
 
+// SKIP_ABSL_INLINE_NAMESPACE_CHECK
+
 #ifndef ABSL_BASE_ATTRIBUTES_H_
 #define ABSL_BASE_ATTRIBUTES_H_
 
@@ -133,12 +135,14 @@
 // Tags a function as weak for the purposes of compilation and linking.
 // Weak attributes did not work properly in LLVM's Windows backend before
 // 9.0.0, so disable them there. See https://bugs.llvm.org/show_bug.cgi?id=37598
-// for further information.
+// for further information. Weak attributes do not work across DLL boundary.
 // The MinGW compiler doesn't complain about the weak attribute until the link
 // step, presumably because Windows doesn't use ELF binaries.
-#if (ABSL_HAVE_ATTRIBUTE(weak) ||                                         \
-     (defined(__GNUC__) && !defined(__clang__))) &&                       \
-    (!defined(_WIN32) || (defined(__clang__) && __clang_major__ >= 9)) && \
+#if (ABSL_HAVE_ATTRIBUTE(weak) ||                                 \
+     (defined(__GNUC__) && !defined(__clang__))) &&               \
+    (!defined(_WIN32) ||                                          \
+     (defined(__clang__) && __clang_major__ >= 9 &&               \
+      !defined(ABSL_BUILD_DLL) && !defined(ABSL_CONSUME_DLL))) && \
     !defined(__MINGW32__)
 #undef ABSL_ATTRIBUTE_WEAK
 #define ABSL_ATTRIBUTE_WEAK __attribute__((weak))
@@ -195,6 +199,9 @@
 // ABSL_ATTRIBUTE_NORETURN
 //
 // Tells the compiler that a given function never returns.
+//
+// Deprecated: Prefer the `[[noreturn]]` attribute standardized by C++11 over
+// this macro.
 #if ABSL_HAVE_ATTRIBUTE(noreturn) || (defined(__GNUC__) && !defined(__clang__))
 #define ABSL_ATTRIBUTE_NORETURN __attribute__((noreturn))
 #elif defined(_MSC_VER)
@@ -274,7 +281,7 @@
 //
 // Tells the ControlFlowIntegrity sanitizer to not instrument a given function.
 // See https://clang.llvm.org/docs/ControlFlowIntegrity.html for details.
-#if ABSL_HAVE_ATTRIBUTE(no_sanitize)
+#if ABSL_HAVE_ATTRIBUTE(no_sanitize) && defined(__llvm__)
 #define ABSL_ATTRIBUTE_NO_SANITIZE_CFI __attribute__((no_sanitize("cfi")))
 #else
 #define ABSL_ATTRIBUTE_NO_SANITIZE_CFI
@@ -331,8 +338,8 @@
 // This functionality is supported by GNU linker.
 #ifndef ABSL_ATTRIBUTE_SECTION_VARIABLE
 #ifdef _AIX
-// __attribute__((section(#name))) on AIX is achived by using the `.csect` psudo
-// op which includes an additional integer as part of its syntax indcating
+// __attribute__((section(#name))) on AIX is achieved by using the `.csect`
+// psudo op which includes an additional integer as part of its syntax indcating
 // alignment. If data fall under different alignments then you might get a
 // compilation error indicating a `Section type conflict`.
 #define ABSL_ATTRIBUTE_SECTION_VARIABLE(name)
@@ -685,6 +692,33 @@
 #define ABSL_DEPRECATED(message)
 #endif
 
+// When deprecating Abseil code, it is sometimes necessary to turn off the
+// warning within Abseil, until the deprecated code is actually removed. The
+// deprecated code can be surrounded with these directives to achieve that
+// result.
+//
+// class ABSL_DEPRECATED("Use Bar instead") Foo;
+//
+// ABSL_INTERNAL_DISABLE_DEPRECATED_DECLARATION_WARNING
+// Baz ComputeBazFromFoo(Foo f);
+// ABSL_INTERNAL_RESTORE_DEPRECATED_DECLARATION_WARNING
+#if defined(__GNUC__) || defined(__clang__)
+// Clang also supports these GCC pragmas.
+#define ABSL_INTERNAL_DISABLE_DEPRECATED_DECLARATION_WARNING \
+  _Pragma("GCC diagnostic push")             \
+  _Pragma("GCC diagnostic ignored \"-Wdeprecated-declarations\"")
+#define ABSL_INTERNAL_RESTORE_DEPRECATED_DECLARATION_WARNING \
+  _Pragma("GCC diagnostic pop")
+#elif defined(_MSC_VER)
+#define ABSL_INTERNAL_DISABLE_DEPRECATED_DECLARATION_WARNING \
+  _Pragma("warning(push)") _Pragma("warning(disable: 4996)")
+#define ABSL_INTERNAL_RESTORE_DEPRECATED_DECLARATION_WARNING \
+  _Pragma("warning(pop)")
+#else
+#define ABSL_INTERNAL_DISABLE_DEPRECATED_DECLARATION_WARNING
+#define ABSL_INTERNAL_RESTORE_DEPRECATED_DECLARATION_WARNING
+#endif  // defined(__GNUC__) || defined(__clang__)
+
 // ABSL_CONST_INIT
 //
 // A variable declaration annotated with the `ABSL_CONST_INIT` attribute will
@@ -725,9 +759,52 @@
 #define ABSL_CONST_INIT
 #endif
 
-// These annotations are not available yet due to fear of breaking code.
-#define ABSL_ATTRIBUTE_PURE_FUNCTION
-#define ABSL_ATTRIBUTE_CONST_FUNCTION
+// ABSL_ATTRIBUTE_PURE_FUNCTION
+//
+// ABSL_ATTRIBUTE_PURE_FUNCTION is used to annotate declarations of "pure"
+// functions. A function is pure if its return value is only a function of its
+// arguments. The pure attribute prohibits a function from modifying the state
+// of the program that is observable by means other than inspecting the
+// function's return value. Declaring such functions with the pure attribute
+// allows the compiler to avoid emitting some calls in repeated invocations of
+// the function with the same argument values.
+//
+// Example:
+//
+//  ABSL_ATTRIBUTE_PURE_FUNCTION std::string FormatTime(Time t);
+#if ABSL_HAVE_CPP_ATTRIBUTE(gnu::pure)
+#define ABSL_ATTRIBUTE_PURE_FUNCTION [[gnu::pure]]
+#elif ABSL_HAVE_ATTRIBUTE(pure)
+#define ABSL_ATTRIBUTE_PURE_FUNCTION __attribute__((pure))
+#else
+// If the attribute isn't defined, we'll fallback to ABSL_MUST_USE_RESULT since
+// pure functions are useless if its return is ignored.
+#define ABSL_ATTRIBUTE_PURE_FUNCTION ABSL_MUST_USE_RESULT
+#endif
+
+// ABSL_ATTRIBUTE_CONST_FUNCTION
+//
+// ABSL_ATTRIBUTE_CONST_FUNCTION is used to annotate declarations of "const"
+// functions. A const function is similar to a pure function, with one
+// exception: Pure functions may return value that depend on a non-volatile
+// object that isn't provided as a function argument, while the const function
+// is guaranteed to return the same result given the same arguments.
+//
+// Example:
+//
+//  ABSL_ATTRIBUTE_CONST_FUNCTION int64_t ToInt64Milliseconds(Duration d);
+#if defined(_MSC_VER) && !defined(__clang__)
+// Put the MSVC case first since MSVC seems to parse const as a C++ keyword.
+#define ABSL_ATTRIBUTE_CONST_FUNCTION ABSL_ATTRIBUTE_PURE_FUNCTION
+#elif ABSL_HAVE_CPP_ATTRIBUTE(gnu::const)
+#define ABSL_ATTRIBUTE_CONST_FUNCTION [[gnu::const]]
+#elif ABSL_HAVE_ATTRIBUTE(const)
+#define ABSL_ATTRIBUTE_CONST_FUNCTION __attribute__((const))
+#else
+// Since const functions are more restrictive pure function, we'll fallback to a
+// pure function if the const attribute is not handled.
+#define ABSL_ATTRIBUTE_CONST_FUNCTION ABSL_ATTRIBUTE_PURE_FUNCTION
+#endif
 
 // ABSL_ATTRIBUTE_LIFETIME_BOUND indicates that a resource owned by a function
 // parameter or implicit object parameter is retained by the return value of the
@@ -743,12 +820,76 @@
 //
 // See also the upstream documentation:
 // https://clang.llvm.org/docs/AttributeReference.html#lifetimebound
+// https://learn.microsoft.com/en-us/cpp/code-quality/c26816?view=msvc-170
 #if ABSL_HAVE_CPP_ATTRIBUTE(clang::lifetimebound)
 #define ABSL_ATTRIBUTE_LIFETIME_BOUND [[clang::lifetimebound]]
+#elif ABSL_HAVE_CPP_ATTRIBUTE(msvc::lifetimebound)
+#define ABSL_ATTRIBUTE_LIFETIME_BOUND [[msvc::lifetimebound]]
 #elif ABSL_HAVE_ATTRIBUTE(lifetimebound)
 #define ABSL_ATTRIBUTE_LIFETIME_BOUND __attribute__((lifetimebound))
 #else
 #define ABSL_ATTRIBUTE_LIFETIME_BOUND
+#endif
+
+// ABSL_ATTRIBUTE_VIEW indicates that a type is solely a "view" of data that it
+// points to, similarly to a span, string_view, or other non-owning reference
+// type.
+// This enables diagnosing certain lifetime issues similar to those enabled by
+// ABSL_ATTRIBUTE_LIFETIME_BOUND, such as:
+//
+//   struct ABSL_ATTRIBUTE_VIEW StringView {
+//     template<class R>
+//     StringView(const R&);
+//   };
+//
+//   StringView f(std::string s) {
+//     return s;  // warning: address of stack memory returned
+//   }
+//
+// We disable this on Clang versions < 13 because of the following
+// false-positive:
+//
+//   absl::string_view f(absl::optional<absl::string_view> sv) { return *sv; }
+//
+// See the following links for details:
+// https://reviews.llvm.org/D64448
+// https://lists.llvm.org/pipermail/cfe-dev/2018-November/060355.html
+#if ABSL_HAVE_CPP_ATTRIBUTE(gsl::Pointer) && \
+    (!defined(__clang_major__) || __clang_major__ >= 13)
+#define ABSL_ATTRIBUTE_VIEW [[gsl::Pointer]]
+#else
+#define ABSL_ATTRIBUTE_VIEW
+#endif
+
+// ABSL_ATTRIBUTE_OWNER indicates that a type is a container, smart pointer, or
+// similar class that owns all the data that it points to.
+// This enables diagnosing certain lifetime issues similar to those enabled by
+// ABSL_ATTRIBUTE_LIFETIME_BOUND, such as:
+//
+//   struct ABSL_ATTRIBUTE_VIEW StringView {
+//     template<class R>
+//     StringView(const R&);
+//   };
+//
+//   struct ABSL_ATTRIBUTE_OWNER String {};
+//
+//   StringView f(String s) {
+//     return s;  // warning: address of stack memory returned
+//   }
+//
+// We disable this on Clang versions < 13 because of the following
+// false-positive:
+//
+//   absl::string_view f(absl::optional<absl::string_view> sv) { return *sv; }
+//
+// See the following links for details:
+// https://reviews.llvm.org/D64448
+// https://lists.llvm.org/pipermail/cfe-dev/2018-November/060355.html
+#if ABSL_HAVE_CPP_ATTRIBUTE(gsl::Owner) && \
+    (!defined(__clang_major__) || __clang_major__ >= 13)
+#define ABSL_ATTRIBUTE_OWNER [[gsl::Owner]]
+#else
+#define ABSL_ATTRIBUTE_OWNER
 #endif
 
 // ABSL_ATTRIBUTE_TRIVIAL_ABI
@@ -778,15 +919,11 @@
 // See also the upstream documentation:
 // https://clang.llvm.org/docs/AttributeReference.html#trivial-abi
 //
-#if ABSL_HAVE_CPP_ATTRIBUTE(clang::trivial_abi)
-#define ABSL_ATTRIBUTE_TRIVIAL_ABI [[clang::trivial_abi]]
-#define ABSL_HAVE_ATTRIBUTE_TRIVIAL_ABI 1
-#elif ABSL_HAVE_ATTRIBUTE(trivial_abi)
-#define ABSL_ATTRIBUTE_TRIVIAL_ABI __attribute__((trivial_abi))
-#define ABSL_HAVE_ATTRIBUTE_TRIVIAL_ABI 1
-#else
+// b/321691395 - This is currently disabled in open-source builds since
+// compiler support differs. If system libraries compiled with GCC are mixed
+// with libraries compiled with Clang, types will have different ideas about
+// their ABI, leading to hard to debug crashes.
 #define ABSL_ATTRIBUTE_TRIVIAL_ABI
-#endif
 
 // ABSL_ATTRIBUTE_NO_UNIQUE_ADDRESS
 //
@@ -808,6 +945,53 @@
 #define ABSL_ATTRIBUTE_NO_UNIQUE_ADDRESS [[no_unique_address]]
 #else
 #define ABSL_ATTRIBUTE_NO_UNIQUE_ADDRESS
+#endif
+
+// ABSL_ATTRIBUTE_UNINITIALIZED
+//
+// GCC and Clang support a flag `-ftrivial-auto-var-init=<option>` (<option>
+// can be "zero" or "pattern") that can be used to initialize automatic stack
+// variables. Variables with this attribute will be left uninitialized,
+// overriding the compiler flag.
+//
+// See https://clang.llvm.org/docs/AttributeReference.html#uninitialized
+// and https://gcc.gnu.org/onlinedocs/gcc/Common-Variable-Attributes.html#index-uninitialized-variable-attribute
+#if ABSL_HAVE_CPP_ATTRIBUTE(clang::uninitialized)
+#define ABSL_ATTRIBUTE_UNINITIALIZED [[clang::uninitialized]]
+#elif ABSL_HAVE_CPP_ATTRIBUTE(gnu::uninitialized)
+#define ABSL_ATTRIBUTE_UNINITIALIZED [[gnu::uninitialized]]
+#elif ABSL_HAVE_ATTRIBUTE(uninitialized)
+#define ABSL_ATTRIBUTE_UNINITIALIZED __attribute__((uninitialized))
+#else
+#define ABSL_ATTRIBUTE_UNINITIALIZED
+#endif
+
+// ABSL_ATTRIBUTE_WARN_UNUSED
+//
+// Compilers routinely warn about trivial variables that are unused.  For
+// non-trivial types, this warning is suppressed since the
+// constructor/destructor may be intentional and load-bearing, for example, with
+// a RAII scoped lock.
+//
+// For example:
+//
+// class ABSL_ATTRIBUTE_WARN_UNUSED MyType {
+//  public:
+//   MyType();
+//   ~MyType();
+// };
+//
+// void foo() {
+//   // Warns with ABSL_ATTRIBUTE_WARN_UNUSED attribute present.
+//   MyType unused;
+// }
+//
+// See https://clang.llvm.org/docs/AttributeReference.html#warn-unused and
+// https://gcc.gnu.org/onlinedocs/gcc/C_002b_002b-Attributes.html#index-warn_005funused-type-attribute
+#if ABSL_HAVE_CPP_ATTRIBUTE(gnu::warn_unused)
+#define ABSL_ATTRIBUTE_WARN_UNUSED [[gnu::warn_unused]]
+#else
+#define ABSL_ATTRIBUTE_WARN_UNUSED
 #endif
 
 #endif  // ABSL_BASE_ATTRIBUTES_H_

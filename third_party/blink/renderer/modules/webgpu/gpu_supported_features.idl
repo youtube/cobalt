@@ -1,0 +1,40 @@
+// Copyright 2021 The Chromium Authors
+// Use of this source code is governed by a BSD-style license that can be
+// found in the LICENSE file.
+
+// https://gpuweb.github.io/gpuweb/
+
+enum GPUFeatureName {
+    "depth-clip-control",
+    "depth32float-stencil8",
+    "texture-compression-bc",
+    "texture-compression-etc2",
+    "texture-compression-astc",
+    "timestamp-query",
+    "indirect-first-instance",
+    "shader-f16",
+    "rg11b10ufloat-renderable",
+    "bgra8unorm-storage",
+    "float32-filterable",
+    "float32-blendable",
+    "clip-distances",
+    "dual-source-blending",
+
+    // Non-standard (not currently in the spec).
+    "chromium-experimental-timestamp-query-inside-passes",
+    "chromium-experimental-subgroups",
+    "chromium-experimental-subgroup-uniform-control-flow",
+    "chromium-experimental-multi-draw-indirect",
+    "chromium-experimental-unorm16-texture-formats",
+    "chromium-experimental-snorm16-texture-formats",
+    // Currently subgroups features are under OT.
+    "subgroups",
+    "subgroups-f16",
+};
+
+[
+    Exposed=(Window, Worker),
+    SecureContext
+] interface GPUSupportedFeatures {
+    readonly setlike<DOMString>;
+};

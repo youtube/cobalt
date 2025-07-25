@@ -7,11 +7,12 @@ package org.chromium.media;
 import android.media.MediaPlayer;
 import android.os.SystemClock;
 
+import org.jni_zero.CalledByNative;
+import org.jni_zero.JNINamespace;
+import org.jni_zero.NativeMethods;
+
 import org.chromium.base.ContextUtils;
 import org.chromium.base.Log;
-import org.chromium.base.annotations.CalledByNative;
-import org.chromium.base.annotations.JNINamespace;
-import org.chromium.base.annotations.NativeMethods;
 
 /**
  * Class for listening to Android MediaServer crashes to throttle media decoding
@@ -24,9 +25,6 @@ public class MediaServerCrashListener implements MediaPlayer.OnErrorListener {
 
     // Watchdog player. Used to listen to all media server crashes.
     private MediaPlayer mPlayer;
-
-    // Protecting the creation/release of the watchdog player.
-    private final Object mLock = new Object();
 
     // Approximate time necessary for the MediaServer to restart after a crash.
     private static final int APPROX_MEDIA_SERVER_RESTART_TIME_IN_MS = 5000;
@@ -84,8 +82,9 @@ public class MediaServerCrashListener implements MediaPlayer.OnErrorListener {
                 || (currentTime - mLastReportedWatchdogCreationFailure)
                         > APPROX_MEDIA_SERVER_RESTART_TIME_IN_MS) {
             Log.e(TAG, "Unable to create watchdog player, treating it as server crash.");
-            MediaServerCrashListenerJni.get().onMediaServerCrashDetected(
-                    mNativeMediaServerCrashListener, MediaServerCrashListener.this, false);
+            MediaServerCrashListenerJni.get()
+                    .onMediaServerCrashDetected(
+                            mNativeMediaServerCrashListener, MediaServerCrashListener.this, false);
             mLastReportedWatchdogCreationFailure = currentTime;
         }
         return false;
@@ -94,8 +93,9 @@ public class MediaServerCrashListener implements MediaPlayer.OnErrorListener {
     @Override
     public boolean onError(MediaPlayer mp, int what, int extra) {
         if (what == MediaPlayer.MEDIA_ERROR_SERVER_DIED) {
-            MediaServerCrashListenerJni.get().onMediaServerCrashDetected(
-                    mNativeMediaServerCrashListener, MediaServerCrashListener.this, true);
+            MediaServerCrashListenerJni.get()
+                    .onMediaServerCrashDetected(
+                            mNativeMediaServerCrashListener, MediaServerCrashListener.this, true);
             releaseWatchdog();
         }
         return true;
@@ -103,7 +103,9 @@ public class MediaServerCrashListener implements MediaPlayer.OnErrorListener {
 
     @NativeMethods
     interface Natives {
-        void onMediaServerCrashDetected(long nativeMediaServerCrashListener,
-                MediaServerCrashListener caller, boolean watchdogNeedsRelease);
+        void onMediaServerCrashDetected(
+                long nativeMediaServerCrashListener,
+                MediaServerCrashListener caller,
+                boolean watchdogNeedsRelease);
     }
 }

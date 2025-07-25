@@ -147,10 +147,10 @@ group("starboard_group") {
     if (!sb_is_modular || sb_is_evergreen) {
       if (sb_is_evergreen_compatible &&
           current_toolchain == starboard_toolchain) {
-        public_deps += [ "//third_party/crashpad/crashpad/wrapper" ]
+        public_deps += [ "//starboard/crashpad_wrapper" ]
       } else {
         public_deps +=
-            [ "//third_party/crashpad/crashpad/wrapper:wrapper_stub" ]
+            [ "//starboard/crashpad_wrapper:wrapper_stub" ]
       }
     }
 

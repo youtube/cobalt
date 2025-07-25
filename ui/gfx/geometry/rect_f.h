@@ -8,11 +8,13 @@
 #include <iosfwd>
 #include <string>
 
+#include "base/containers/span.h"
 #include "build/build_config.h"
 #include "ui/gfx/geometry/insets_f.h"
 #include "ui/gfx/geometry/outsets_f.h"
 #include "ui/gfx/geometry/point_f.h"
 #include "ui/gfx/geometry/rect.h"
+#include "ui/gfx/geometry/size.h"
 #include "ui/gfx/geometry/size_f.h"
 #include "ui/gfx/geometry/vector2d_f.h"
 
@@ -30,6 +32,7 @@ class GEOMETRY_EXPORT RectF {
   constexpr RectF(float x, float y, float width, float height)
       : origin_(x, y), size_(width, height) {}
   constexpr explicit RectF(const SizeF& size) : size_(size) {}
+  constexpr explicit RectF(const Size& size) : size_(size) {}
   constexpr RectF(const PointF& origin, const SizeF& size)
       : origin_(origin), size_(size) {}
 
@@ -188,8 +191,11 @@ class GEOMETRY_EXPORT RectF {
   // Transpose x and y axis.
   void Transpose();
 
-  // Splits |this| in two halves, |left_half| and |right_half|.
-  void SplitVertically(RectF* left_half, RectF* right_half) const;
+  // Splits `this` in two halves, `left_half` and `right_half`.
+  void SplitVertically(RectF& left_half, RectF& right_half) const;
+
+  // Splits `this` in two halves, `top_half` and `bottom_half`.
+  void SplitHorizontally(RectF& top_half, RectF& bottom_half) const;
 
   // Returns true if this rectangle shares an entire edge (i.e., same width or
   // same height) with the given rectangle, and the rectangles do not overlap.
@@ -267,12 +273,21 @@ inline RectF operator+(const Vector2dF& lhs, const RectF& rhs) {
 
 GEOMETRY_EXPORT RectF IntersectRects(const RectF& a, const RectF& b);
 GEOMETRY_EXPORT RectF UnionRects(const RectF& a, const RectF& b);
+GEOMETRY_EXPORT RectF UnionRects(base::span<const RectF> rects);
 GEOMETRY_EXPORT RectF UnionRectsEvenIfEmpty(const RectF& a, const RectF& b);
 GEOMETRY_EXPORT RectF SubtractRects(const RectF& a, const RectF& b);
 
 inline RectF ScaleRect(const RectF& r, float x_scale, float y_scale) {
   return RectF(r.x() * x_scale, r.y() * y_scale,
        r.width() * x_scale, r.height() * y_scale);
+}
+
+inline RectF ScaleRect(const RectF& r, const SizeF& size) {
+  return ScaleRect(r, size.width(), size.height());
+}
+
+inline RectF ScaleRect(const RectF& r, const Size& size) {
+  return ScaleRect(r, SizeF(size));
 }
 
 inline RectF ScaleRect(const RectF& r, float scale) {

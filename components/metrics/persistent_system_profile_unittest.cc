@@ -1,4 +1,4 @@
-// Copyright 2017 The Chromium Authors. All rights reserved.
+// Copyright 2017 The Chromium Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -6,7 +6,7 @@
 
 #include <memory>
 
-#include "base/logging.h"
+#include "base/check_op.h"
 #include "base/metrics/persistent_memory_allocator.h"
 #include "base/rand_util.h"
 #include "components/variations/hashing.h"
@@ -18,8 +18,13 @@ class PersistentSystemProfileTest : public testing::Test {
  public:
   const int32_t kAllocatorMemorySize = 1 << 20;  // 1 MiB
 
-  PersistentSystemProfileTest() {}
-  ~PersistentSystemProfileTest() override {}
+  PersistentSystemProfileTest() = default;
+
+  PersistentSystemProfileTest(const PersistentSystemProfileTest&) = delete;
+  PersistentSystemProfileTest& operator=(const PersistentSystemProfileTest&) =
+      delete;
+
+  ~PersistentSystemProfileTest() override = default;
 
   void SetUp() override {
     memory_allocator_ = std::make_unique<base::LocalPersistentMemoryAllocator>(
@@ -35,7 +40,7 @@ class PersistentSystemProfileTest : public testing::Test {
     memory_allocator_.reset();
   }
 
-  void WriteRecord(uint8_t type, const std::string& record) {
+  void WriteRecord(uint8_t type, std::string_view record) {
     persistent_profile_.allocators_[0].Write(
         static_cast<PersistentSystemProfile::RecordType>(type), record);
   }
@@ -58,8 +63,6 @@ class PersistentSystemProfileTest : public testing::Test {
   PersistentSystemProfile persistent_profile_;
   std::unique_ptr<base::PersistentMemoryAllocator> memory_allocator_;
   std::unique_ptr<PersistentSystemProfile::RecordAllocator> records_;
-
-  DISALLOW_COPY_AND_ASSIGN(PersistentSystemProfileTest);
 };
 
 TEST_F(PersistentSystemProfileTest, Create) {
@@ -72,19 +75,16 @@ TEST_F(PersistentSystemProfileTest, Create) {
 
 TEST_F(PersistentSystemProfileTest, RecordSplitting) {
   const size_t kRecordSize = 100 << 10;  // 100 KiB
-  std::vector<char> buffer;
-  buffer.resize(kRecordSize);
-  base::RandBytes(&buffer[0], kRecordSize);
+  std::string buffer(kRecordSize, '\0');
+  base::RandBytes(base::as_writable_byte_span(buffer));
 
-  WriteRecord(42, std::string(&buffer[0], kRecordSize));
+  WriteRecord(42, buffer);
 
   uint8_t type;
   std::string record;
   ASSERT_TRUE(ReadRecord(&type, &record));
   EXPECT_EQ(42U, type);
-  ASSERT_EQ(kRecordSize, record.size());
-  for (size_t i = 0; i < kRecordSize; ++i)
-    EXPECT_EQ(buffer[i], record[i]);
+  EXPECT_EQ(buffer, record);
 }
 
 TEST_F(PersistentSystemProfileTest, ProfileStorage) {
@@ -103,7 +103,23 @@ TEST_F(PersistentSystemProfileTest, ProfileStorage) {
   EXPECT_EQ(123U, proto2.field_trial(0).name_id());
   EXPECT_EQ(456U, proto2.field_trial(0).group_id());
 
-  // Check that the profile can be overwritten.
+  // Check that the profile can be overwritten by another incomplete profile.
+
+  trial = proto1.add_field_trial();
+  trial->set_name_id(34);
+  trial->set_group_id(50);
+
+  persistent_profile()->SetSystemProfile(proto1, false);
+
+  ASSERT_TRUE(
+      PersistentSystemProfile::GetSystemProfile(*memory_allocator(), &proto2));
+  ASSERT_EQ(2, proto2.field_trial_size());
+  EXPECT_EQ(123U, proto2.field_trial(0).name_id());
+  EXPECT_EQ(456U, proto2.field_trial(0).group_id());
+  EXPECT_EQ(34U, proto2.field_trial(1).name_id());
+  EXPECT_EQ(50U, proto2.field_trial(1).group_id());
+
+  // Check that the profile can be overwritten by a complete profile.
 
   trial = proto1.add_field_trial();
   trial->set_name_id(78);
@@ -113,11 +129,13 @@ TEST_F(PersistentSystemProfileTest, ProfileStorage) {
 
   ASSERT_TRUE(
       PersistentSystemProfile::GetSystemProfile(*memory_allocator(), &proto2));
-  ASSERT_EQ(2, proto2.field_trial_size());
+  ASSERT_EQ(3, proto2.field_trial_size());
   EXPECT_EQ(123U, proto2.field_trial(0).name_id());
   EXPECT_EQ(456U, proto2.field_trial(0).group_id());
-  EXPECT_EQ(78U, proto2.field_trial(1).name_id());
-  EXPECT_EQ(90U, proto2.field_trial(1).group_id());
+  EXPECT_EQ(34U, proto2.field_trial(1).name_id());
+  EXPECT_EQ(50U, proto2.field_trial(1).group_id());
+  EXPECT_EQ(78U, proto2.field_trial(2).name_id());
+  EXPECT_EQ(90U, proto2.field_trial(2).group_id());
 
   // Check that the profile won't be overwritten by a new non-complete profile.
 
@@ -129,11 +147,13 @@ TEST_F(PersistentSystemProfileTest, ProfileStorage) {
 
   ASSERT_TRUE(
       PersistentSystemProfile::GetSystemProfile(*memory_allocator(), &proto2));
-  ASSERT_EQ(2, proto2.field_trial_size());
+  ASSERT_EQ(3, proto2.field_trial_size());
   EXPECT_EQ(123U, proto2.field_trial(0).name_id());
   EXPECT_EQ(456U, proto2.field_trial(0).group_id());
-  EXPECT_EQ(78U, proto2.field_trial(1).name_id());
-  EXPECT_EQ(90U, proto2.field_trial(1).group_id());
+  EXPECT_EQ(34U, proto2.field_trial(1).name_id());
+  EXPECT_EQ(50U, proto2.field_trial(1).group_id());
+  EXPECT_EQ(78U, proto2.field_trial(2).name_id());
+  EXPECT_EQ(90U, proto2.field_trial(2).group_id());
 }
 
 TEST_F(PersistentSystemProfileTest, ProfileExtensions) {
@@ -148,25 +168,87 @@ TEST_F(PersistentSystemProfileTest, ProfileExtensions) {
   trial->set_name_id(123);
   trial->set_group_id(456);
 
+  // The system profile should now start fresh. In practice, field trials should
+  // already be properly updated in subsequent system profiles.
   persistent_profile()->SetSystemProfile(proto, false);
+  ASSERT_TRUE(
+      PersistentSystemProfile::GetSystemProfile(*memory_allocator(), &fetched));
+  ASSERT_EQ(1, fetched.field_trial_size());
+  EXPECT_EQ(123U, fetched.field_trial(0).name_id());
+  EXPECT_EQ(456U, fetched.field_trial(0).group_id());
+
+  persistent_profile()->AddFieldTrial("foo", "bar");
   ASSERT_TRUE(
       PersistentSystemProfile::GetSystemProfile(*memory_allocator(), &fetched));
   ASSERT_EQ(2, fetched.field_trial_size());
   EXPECT_EQ(123U, fetched.field_trial(0).name_id());
   EXPECT_EQ(456U, fetched.field_trial(0).group_id());
-  EXPECT_EQ(variations::HashName("sna"), fetched.field_trial(1).name_id());
-  EXPECT_EQ(variations::HashName("foo"), fetched.field_trial(1).group_id());
+  EXPECT_EQ(variations::HashName("foo"), fetched.field_trial(1).name_id());
+  EXPECT_EQ(variations::HashName("bar"), fetched.field_trial(1).group_id());
+}
 
+TEST_F(PersistentSystemProfileTest, OverwriteFieldTrialsInProfile) {
+  // Set system profile with the field trial.
+  SystemProfileProto proto;
+  SystemProfileProto::FieldTrial* trial = proto.add_field_trial();
+  trial->set_name_id(variations::HashName("foo"));
+  trial->set_group_id(456);
+  persistent_profile()->SetSystemProfile(proto, false);
+
+  // Overwrite the same trial with different group.
   persistent_profile()->AddFieldTrial("foo", "bar");
+
+  // The fetched profile should have the latest group name,
+  SystemProfileProto fetched;
   ASSERT_TRUE(
       PersistentSystemProfile::GetSystemProfile(*memory_allocator(), &fetched));
-  ASSERT_EQ(3, fetched.field_trial_size());
-  EXPECT_EQ(123U, fetched.field_trial(0).name_id());
-  EXPECT_EQ(456U, fetched.field_trial(0).group_id());
-  EXPECT_EQ(variations::HashName("sna"), fetched.field_trial(1).name_id());
-  EXPECT_EQ(variations::HashName("foo"), fetched.field_trial(1).group_id());
-  EXPECT_EQ(variations::HashName("foo"), fetched.field_trial(2).name_id());
-  EXPECT_EQ(variations::HashName("bar"), fetched.field_trial(2).group_id());
+  ASSERT_EQ(1, fetched.field_trial_size());
+  EXPECT_EQ(variations::HashName("foo"), fetched.field_trial(0).name_id());
+  EXPECT_EQ(variations::HashName("bar"), fetched.field_trial(0).group_id());
+}
+
+TEST_F(PersistentSystemProfileTest, OverwriteFieldTrials) {
+  // Set up a non-empty system profile.
+  SystemProfileProto proto;
+  proto.set_client_uuid("id");
+  persistent_profile()->SetSystemProfile(proto, false);
+
+  // Set and overwrite the same trial with different group.
+  persistent_profile()->AddFieldTrial("foo", "bar");
+  persistent_profile()->AddFieldTrial("foo", "bar2");
+
+  // The fetched profile should have the latest group name,
+  SystemProfileProto fetched;
+  ASSERT_TRUE(
+      PersistentSystemProfile::GetSystemProfile(*memory_allocator(), &fetched));
+  ASSERT_EQ(1, fetched.field_trial_size());
+  EXPECT_EQ(variations::HashName("foo"), fetched.field_trial(0).name_id());
+  EXPECT_EQ(variations::HashName("bar2"), fetched.field_trial(0).group_id());
+}
+
+TEST_F(PersistentSystemProfileTest, DeleteFieldTrials) {
+  // Set up a non-empty system profile.
+  SystemProfileProto proto;
+  proto.set_client_uuid("id");
+  persistent_profile()->SetSystemProfile(proto, false);
+
+  // Set and delete the trial.
+  persistent_profile()->AddFieldTrial("foo", "bar");
+  persistent_profile()->RemoveFieldTrial("foo");
+
+  // The fetched profile should not have the deleted trial.
+  SystemProfileProto fetched;
+  ASSERT_TRUE(
+      PersistentSystemProfile::GetSystemProfile(*memory_allocator(), &fetched));
+  ASSERT_EQ(0, fetched.field_trial_size());
+
+  // Reset the trial and the fetched profile should have the latest group name.
+  persistent_profile()->AddFieldTrial("foo", "bar2");
+  ASSERT_TRUE(
+      PersistentSystemProfile::GetSystemProfile(*memory_allocator(), &fetched));
+  ASSERT_EQ(1, fetched.field_trial_size());
+  EXPECT_EQ(variations::HashName("foo"), fetched.field_trial(0).name_id());
+  EXPECT_EQ(variations::HashName("bar2"), fetched.field_trial(0).group_id());
 }
 
 }  // namespace metrics

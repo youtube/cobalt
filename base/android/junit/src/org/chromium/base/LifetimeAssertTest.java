@@ -6,6 +6,7 @@ package org.chromium.base;
 
 import org.junit.After;
 import org.junit.Assert;
+import org.junit.Assume;
 import org.junit.Before;
 import org.junit.Test;
 import org.junit.runner.RunWith;
@@ -14,9 +15,7 @@ import org.robolectric.annotation.Config;
 import org.chromium.base.test.BaseRobolectricTestRunner;
 import org.chromium.build.BuildConfig;
 
-/**
- * junit tests for {@link LifetimeAssert}.
- */
+/** junit tests for {@link LifetimeAssert}. */
 @RunWith(BaseRobolectricTestRunner.class)
 @Config(manifest = Config.NONE)
 public class LifetimeAssertTest {
@@ -33,37 +32,29 @@ public class LifetimeAssertTest {
 
     @Before
     public void setUp() {
-        if (!BuildConfig.ENABLE_ASSERTS) {
-            return;
-        }
+        Assume.assumeTrue("Requires asserts", BuildConfig.ENABLE_ASSERTS);
         mTestClass = new TestClass();
         mTargetRef = mTestClass.mLifetimeAssert.mWrapper;
         mFound = false;
         mHookMessage = null;
-        LifetimeAssert.sTestHook = (ref, msg) -> {
-            if (ref == mTargetRef) {
-                synchronized (mLock) {
-                    mFound = true;
-                    mHookMessage = msg;
-                    mLock.notify();
-                }
-            }
-        };
+        LifetimeAssert.sTestHook =
+                (ref, msg) -> {
+                    if (ref == mTargetRef) {
+                        synchronized (mLock) {
+                            mFound = true;
+                            mHookMessage = msg;
+                            mLock.notify();
+                        }
+                    }
+                };
     }
 
     @After
     public void tearDown() {
-        if (!BuildConfig.ENABLE_ASSERTS) {
-            return;
-        }
         LifetimeAssert.sTestHook = null;
     }
 
     private void runTest(boolean setSafe) {
-        if (!BuildConfig.ENABLE_ASSERTS) {
-            return;
-        }
-
         synchronized (mLock) {
             if (setSafe) {
                 LifetimeAssert.setSafeToGc(mTestClass.mLifetimeAssert, true);
@@ -97,24 +88,13 @@ public class LifetimeAssertTest {
         runTest(false);
     }
 
-    @Test
+    @Test(expected = LifetimeAssert.LifetimeAssertException.class)
     public void testAssertAllInstancesDestroyedForTesting_notSafeToGc() {
-        if (!BuildConfig.ENABLE_ASSERTS) {
-            return;
-        }
-        try {
-            LifetimeAssert.assertAllInstancesDestroyedForTesting();
-            Assert.fail();
-        } catch (LifetimeAssert.LifetimeAssertException e) {
-            // Expected.
-        }
+        LifetimeAssert.assertAllInstancesDestroyedForTesting();
     }
 
     @Test
     public void testAssertAllInstancesDestroyedForTesting_safeToGc() {
-        if (!BuildConfig.ENABLE_ASSERTS) {
-            return;
-        }
         LifetimeAssert.setSafeToGc(mTestClass.mLifetimeAssert, true);
         // Should not throw.
         LifetimeAssert.assertAllInstancesDestroyedForTesting();
@@ -122,9 +102,6 @@ public class LifetimeAssertTest {
 
     @Test
     public void testAssertAllInstancesDestroyedForTesting_resetAfterAssert() {
-        if (!BuildConfig.ENABLE_ASSERTS) {
-            return;
-        }
         try {
             LifetimeAssert.assertAllInstancesDestroyedForTesting();
             Assert.fail();
@@ -137,9 +114,6 @@ public class LifetimeAssertTest {
 
     @Test
     public void testResetForTesting() {
-        if (!BuildConfig.ENABLE_ASSERTS) {
-            return;
-        }
         LifetimeAssert.resetForTesting();
         // Should not throw.
         LifetimeAssert.assertAllInstancesDestroyedForTesting();

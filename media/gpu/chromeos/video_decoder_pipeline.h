@@ -7,8 +7,10 @@
 
 #include <atomic>
 #include <memory>
+#include <optional>
 
 #include "base/functional/callback_forward.h"
+#include "base/gtest_prod_util.h"
 #include "base/memory/weak_ptr.h"
 #include "base/sequence_checker.h"
 #include "build/build_config.h"
@@ -21,11 +23,11 @@
 #include "media/base/video_decoder_config.h"
 #include "media/gpu/chromeos/chromeos_status.h"
 #include "media/gpu/chromeos/fourcc.h"
+#include "media/gpu/chromeos/frame_resource.h"
+#include "media/gpu/chromeos/frame_resource_converter.h"
 #include "media/gpu/chromeos/image_processor_with_pool.h"
-#include "media/gpu/chromeos/mailbox_video_frame_converter.h"
 #include "media/gpu/media_gpu_export.h"
 #include "media/mojo/mojom/stable/stable_video_decoder.mojom.h"
-#include "third_party/abseil-cpp/absl/types/optional.h"
 #include "ui/gfx/geometry/size.h"
 #include "ui/gfx/native_pixmap.h"
 #include "ui/gfx/native_pixmap_handle.h"
@@ -47,6 +49,11 @@ class MediaLog;
 // destroyed on |decoder_task_runner_|.
 class MEDIA_GPU_EXPORT VideoDecoderMixin : public VideoDecoder {
  public:
+  // Used by decoders to send FrameResource objects to the decoder pipeline for
+  // conversion, image processing, etc.
+  using PipelineOutputCB =
+      base::RepeatingCallback<void(scoped_refptr<FrameResource>)>;
+
   // Client interface of VideoDecoderMixin.
   class MEDIA_GPU_EXPORT Client {
    public:
@@ -64,6 +71,10 @@ class MEDIA_GPU_EXPORT VideoDecoderMixin : public VideoDecoder {
     // flushed.
     virtual void PrepareChangeResolution() = 0;
 
+    // Notify of the estimated maximum possible number of DecodeRequests. This
+    // method can be called from any thread and as many times as desired.
+    virtual void NotifyEstimatedMaxDecodeRequests(int num) = 0;
+
     // Negotiates the output format and size of the decoder: if not scaling
     // (i.e., the size of |decoder_visible_rect| is equal to |output_size|), it
     // selects a renderable format out of |candidates| and initializes the main
@@ -77,7 +88,7 @@ class MEDIA_GPU_EXPORT VideoDecoderMixin : public VideoDecoder {
     // initialized and that pool can be obtained by calling GetVideoFramePool().
     // This pool will provide buffers consistent with the selected candidate out
     // of |candidates|. If false, the caller must allocate its own buffers.
-    // if |allocator| is not absl::nullopt, the frame pool will be set
+    // if |allocator| is not std::nullopt, the frame pool will be set
     // to use the allocator provided for allocating video frames.
     //
     // The client also provides the |num_codec_reference_frames|, which is
@@ -91,11 +102,11 @@ class MEDIA_GPU_EXPORT VideoDecoderMixin : public VideoDecoder {
         const std::vector<ImageProcessor::PixelLayoutCandidate>& candidates,
         const gfx::Rect& decoder_visible_rect,
         const gfx::Size& decoder_natural_size,
-        absl::optional<gfx::Size> output_size,
+        std::optional<gfx::Size> output_size,
         size_t num_codec_reference_frames,
         bool use_protected,
         bool need_aux_frame_pool,
-        absl::optional<DmabufVideoFramePool::CreateFrameCB> allocator) = 0;
+        std::optional<DmabufVideoFramePool::CreateFrameCB> allocator) = 0;
   };
 
   VideoDecoderMixin(
@@ -114,9 +125,18 @@ class MEDIA_GPU_EXPORT VideoDecoderMixin : public VideoDecoder {
   virtual void ApplyResolutionChange() = 0;
 
   // For protected content implementations that require transcryption of the
-  // content before being sent into the HW decoders. (Currently only used by
-  // AMD). Default implementation returns false.
+  // content before being sent into the HW decoders. (Currently used by AMD and
+  // ARM). Default implementation returns false.
   virtual bool NeedsTranscryption();
+
+  // For protected content implementations that decrypt to a secure memory
+  // buffer (i.e. TrustZone on ARM), this is used to attach the appropriate
+  // handle for the secure buffer to the DecoderBuffer.
+  virtual CroStatus AttachSecureBuffer(scoped_refptr<DecoderBuffer>& buffer);
+  // Counterpart to AttachSecureBuffer, this should be invoked when the
+  // DecoderBuffer is no longer in use and the attached secure buffer can be
+  // released.
+  virtual void ReleaseSecureBuffer(uint64_t secure_handle);
 
   // Set the DMA coherency of the video decoder buffers. Only relevant for
   // V4L2.
@@ -126,6 +146,25 @@ class MEDIA_GPU_EXPORT VideoDecoderMixin : public VideoDecoder {
   // on the size of the frame pool that the decoder writes into. The default
   // implementation indicates no limit.
   virtual size_t GetMaxOutputFramePoolSize() const;
+
+  // Implementers should override the other Initialize(). The decoder
+  // pipeline wants a FrameResource, not a VideoFrame.
+  void Initialize(const VideoDecoderConfig& config,
+                  bool low_delay,
+                  CdmContext* cdm_context,
+                  InitCB init_cb,
+                  const OutputCB& output_cb,
+                  const WaitingCB& waiting_cb) final;
+
+  // VideoDecoderMixins should implement the following Initialize instead of
+  // VideoFrame::Initialize. This lets the decoder use FrameResource instead
+  // of VideoFrame as an output type.
+  virtual void Initialize(const VideoDecoderConfig& config,
+                          bool low_delay,
+                          CdmContext* cdm_context,
+                          InitCB init_cb,
+                          const PipelineOutputCB& output_cb,
+                          const WaitingCB& waiting_cb) = 0;
 
  protected:
   const std::unique_ptr<MediaLog> media_log_;
@@ -155,10 +194,19 @@ class MEDIA_GPU_EXPORT VideoDecoderPipeline : public VideoDecoder,
       const gpu::GpuDriverBugWorkarounds& workarounds,
       scoped_refptr<base::SequencedTaskRunner> client_task_runner,
       std::unique_ptr<DmabufVideoFramePool> frame_pool,
-      std::unique_ptr<MailboxVideoFrameConverter> frame_converter,
+      std::unique_ptr<FrameResourceConverter> frame_converter,
       std::vector<Fourcc> renderable_fourccs,
       std::unique_ptr<MediaLog> media_log,
-      mojo::PendingRemote<stable::mojom::StableVideoDecoder> oop_video_decoder);
+      mojo::PendingRemote<stable::mojom::StableVideoDecoder> oop_video_decoder,
+      bool in_video_decoder_process);
+  // Same idea but creates a VideoDecoderPipeline instance intended to be
+  // adapted or bridged to a VideoDecodeAccelerator interface, for ARC clients.
+  static std::unique_ptr<VideoDecoder> CreateForARC(
+      const gpu::GpuDriverBugWorkarounds& workarounds,
+      scoped_refptr<base::SequencedTaskRunner> client_task_runner,
+      std::unique_ptr<DmabufVideoFramePool> frame_pool,
+      std::vector<Fourcc> renderable_fourccs,
+      std::unique_ptr<MediaLog> media_log);
 
   static std::unique_ptr<VideoDecoder> CreateForTesting(
       scoped_refptr<base::SequencedTaskRunner> client_task_runner,
@@ -186,7 +234,7 @@ class MEDIA_GPU_EXPORT VideoDecoderPipeline : public VideoDecoder,
       base::OnceCallback<
           void(mojo::PendingRemote<stable::mojom::StableVideoDecoder>)> cb);
 
-  static absl::optional<SupportedVideoDecoderConfigs> GetSupportedConfigs(
+  static std::optional<SupportedVideoDecoderConfigs> GetSupportedConfigs(
       VideoDecoderType decoder_type,
       const gpu::GpuDriverBugWorkarounds& workarounds);
 
@@ -212,15 +260,16 @@ class MEDIA_GPU_EXPORT VideoDecoderPipeline : public VideoDecoder,
   // VideoDecoderMixin::Client implementation.
   DmabufVideoFramePool* GetVideoFramePool() const override;
   void PrepareChangeResolution() override;
+  void NotifyEstimatedMaxDecodeRequests(int num) override;
   CroStatus::Or<ImageProcessor::PixelLayoutCandidate> PickDecoderOutputFormat(
       const std::vector<ImageProcessor::PixelLayoutCandidate>& candidates,
       const gfx::Rect& decoder_visible_rect,
       const gfx::Size& decoder_natural_size,
-      absl::optional<gfx::Size> output_size,
+      std::optional<gfx::Size> output_size,
       size_t num_codec_reference_frames,
       bool use_protected,
       bool need_aux_frame_pool,
-      absl::optional<DmabufVideoFramePool::CreateFrameCB> allocator) override;
+      std::optional<DmabufVideoFramePool::CreateFrameCB> allocator) override;
 
  private:
   friend class VideoDecoderPipelineTest;
@@ -233,11 +282,12 @@ class MEDIA_GPU_EXPORT VideoDecoderPipeline : public VideoDecoder,
       const gpu::GpuDriverBugWorkarounds& workarounds,
       scoped_refptr<base::SequencedTaskRunner> client_task_runner,
       std::unique_ptr<DmabufVideoFramePool> frame_pool,
-      std::unique_ptr<MailboxVideoFrameConverter> frame_converter,
+      std::unique_ptr<FrameResourceConverter> frame_converter,
       std::vector<Fourcc> renderable_fourccs,
       std::unique_ptr<MediaLog> media_log,
       CreateDecoderFunctionCB create_decoder_function_cb,
-      bool uses_oop_video_decoder);
+      bool uses_oop_video_decoder,
+      bool in_video_decoder_process);
 
   void InitializeTask(const VideoDecoderConfig& config,
                       bool low_delay,
@@ -257,11 +307,11 @@ class MEDIA_GPU_EXPORT VideoDecoderPipeline : public VideoDecoder,
   void OnError(const std::string& msg);
 
   // Called when |decoder_| finishes decoding a frame.
-  void OnFrameDecoded(scoped_refptr<VideoFrame> frame);
+  void OnFrameDecoded(scoped_refptr<FrameResource> frame);
   // Called when |image_processor_| finishes processing a frame.
-  void OnFrameProcessed(scoped_refptr<VideoFrame> frame);
+  void OnFrameProcessed(scoped_refptr<FrameResource> frame);
   // Called when |frame_converter_| finishes converting a frame.
-  void OnFrameConverted(scoped_refptr<VideoFrame> frame);
+  void OnFrameConverted(scoped_refptr<VideoFrame> video_frame);
   // Called when |decoder_| invokes the waiting callback.
   void OnDecoderWaiting(WaitingReason reason);
 
@@ -286,7 +336,7 @@ class MEDIA_GPU_EXPORT VideoDecoderPipeline : public VideoDecoder,
   // flush callback but we should pass a DecoderStatus of kAborted instead of
   // kOk. In this scenario, the original DecoderStatus is kOk and
   // *|override_status| is kAborted.
-  void CallFlushCbIfNeeded(absl::optional<DecoderStatus> override_status);
+  void CallFlushCbIfNeeded(std::optional<DecoderStatus> override_status);
 
 #if BUILDFLAG(IS_CHROMEOS)
   // Callback for when transcryption of a buffer completes.
@@ -332,7 +382,7 @@ class MEDIA_GPU_EXPORT VideoDecoderPipeline : public VideoDecoder,
 
   // The frame converter passed from the client, otherwise used and destroyed on
   // |decoder_task_runner_|.
-  std::unique_ptr<MailboxVideoFrameConverter> frame_converter_
+  std::unique_ptr<FrameResourceConverter> frame_converter_
       GUARDED_BY_CONTEXT(decoder_sequence_checker_);
 
   // The set of output formats allowed to be used in order of preference.
@@ -348,12 +398,24 @@ class MEDIA_GPU_EXPORT VideoDecoderPipeline : public VideoDecoder,
   // decoder implementation.
   std::unique_ptr<DecoderBufferTranscryptor> buffer_transcryptor_
       GUARDED_BY_CONTEXT(decoder_sequence_checker_);
+
+  // While |drop_transcrypted_buffers_| is true, we don't pass transcrypted
+  // buffers to the |decoder_|, and instead, we call the corresponding decode
+  // callback with kAborted. This is the case while a reset is ongoing, and it's
+  // needed because the VideoDecoderMixin interface (by virtue of deriving from
+  // VideoDecoder) requires that no VideoDecoder calls are made until the reset
+  // closure has been executed.
+  bool drop_transcrypted_buffers_
+      GUARDED_BY_CONTEXT(decoder_sequence_checker_) = false;
 #endif  // BUILDFLAG(IS_CHROMEOS)
 
   // The current video decoder implementation. Valid after initialization is
   // successfully done.
   std::unique_ptr<VideoDecoderMixin> decoder_
       GUARDED_BY_CONTEXT(decoder_sequence_checker_);
+
+  static constexpr int kDefaultMaxDecodeRequests = 8;
+  std::atomic_int decoder_max_decode_requests_ = kDefaultMaxDecodeRequests;
 
   // Only used after initialization on |decoder_task_runner_|.
   CreateDecoderFunctionCB create_decoder_function_cb_
@@ -372,7 +434,7 @@ class MEDIA_GPU_EXPORT VideoDecoderPipeline : public VideoDecoder,
     DecodeCB flush_cb;
     const DecoderStatus decoder_decode_status;
   };
-  absl::optional<ClientFlushCBState> client_flush_cb_state_
+  std::optional<ClientFlushCBState> client_flush_cb_state_
       GUARDED_BY_CONTEXT(decoder_sequence_checker_);
   WaitingCB waiting_cb_ GUARDED_BY_CONTEXT(decoder_sequence_checker_);
 
@@ -421,6 +483,11 @@ class MEDIA_GPU_EXPORT VideoDecoderPipeline : public VideoDecoder,
 
   // See VP9Decoder for information on this.
   bool ignore_resolution_changes_to_smaller_for_testing_ = false;
+
+  // If we will need to tell the DecoderBufferTranscryptor to do VP9 superframe
+  // splitting.
+  bool decryption_needs_vp9_superframe_splitting_
+      GUARDED_BY_CONTEXT(decoder_sequence_checker_) = false;
 
   base::WeakPtr<VideoDecoderPipeline> decoder_weak_this_;
   // The weak pointer of this, bound to |decoder_task_runner_|.

@@ -1,0 +1,3 @@
+[document web]
+++[block quote] xml-roles:blockquote
+++++[static] name='Blockquote'

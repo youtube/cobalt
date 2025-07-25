@@ -4,10 +4,15 @@
 
 #include <limits>
 #include "mojo/public/cpp/test_support/test_utils.h"
+#include "skia/ext/skcolorspace_primaries.h"
 #include "skia/public/mojom/bitmap.mojom.h"
 #include "skia/public/mojom/bitmap_skbitmap_mojom_traits.h"
 #include "skia/public/mojom/image_info.mojom-shared.h"
 #include "skia/public/mojom/image_info.mojom.h"
+#include "skia/public/mojom/skcolorspace.mojom.h"
+#include "skia/public/mojom/skcolorspace_mojom_traits.h"
+#include "skia/public/mojom/skcolorspace_primaries.mojom.h"
+#include "skia/public/mojom/skcolorspace_primaries_mojom_traits.h"
 #include "skia/public/mojom/tile_mode.mojom.h"
 #include "skia/public/mojom/tile_mode_mojom_traits.h"
 #include "testing/gtest/include/gtest/gtest.h"
@@ -26,10 +31,10 @@ namespace {
 // to bypass checks on the sending/serialization side.
 mojo::StructPtr<skia::mojom::BitmapN32> ConstructBitmapN32(
     SkImageInfo info,
-    std::vector<unsigned char> pixels) {
+    const std::vector<unsigned char>& pixels) {
   auto mojom_bitmap = skia::mojom::BitmapN32::New();
   mojom_bitmap->image_info = std::move(info);
-  mojom_bitmap->pixel_data = std::move(pixels);
+  mojom_bitmap->pixel_data = {pixels};
   return mojom_bitmap;
 }
 
@@ -38,24 +43,25 @@ mojo::StructPtr<skia::mojom::BitmapN32> ConstructBitmapN32(
 mojo::StructPtr<skia::mojom::BitmapWithArbitraryBpp>
 ConstructBitmapWithArbitraryBpp(SkImageInfo info,
                                 int row_bytes,
-                                std::vector<unsigned char> pixels) {
+                                const std::vector<unsigned char>& pixels) {
   auto mojom_bitmap = skia::mojom::BitmapWithArbitraryBpp::New();
   mojom_bitmap->image_info = std::move(info);
   mojom_bitmap->UNUSED_row_bytes = row_bytes;
-  mojom_bitmap->pixel_data = std::move(pixels);
+  mojom_bitmap->pixel_data = {pixels};
   return mojom_bitmap;
 }
 
 // A helper to construct a skia.mojom.BitmapMappedFromTrustedProcess without
 // using StructTraits to bypass checks on the sending/serialization side.
 mojo::StructPtr<skia::mojom::BitmapMappedFromTrustedProcess>
-ConstructBitmapMappedFromTrustedProcess(SkImageInfo info,
-                                        int row_bytes,
-                                        std::vector<unsigned char> pixels) {
+ConstructBitmapMappedFromTrustedProcess(
+    SkImageInfo info,
+    int row_bytes,
+    const std::vector<unsigned char>& pixels) {
   auto mojom_bitmap = skia::mojom::BitmapMappedFromTrustedProcess::New();
   mojom_bitmap->image_info = std::move(info);
   mojom_bitmap->UNUSED_row_bytes = row_bytes;
-  mojom_bitmap->pixel_data = mojo_base::BigBuffer(std::move(pixels));
+  mojom_bitmap->pixel_data = {pixels};
   return mojom_bitmap;
 }
 
@@ -63,11 +69,11 @@ ConstructBitmapMappedFromTrustedProcess(SkImageInfo info,
 // to bypass checks on the sending/serialization side.
 mojo::StructPtr<skia::mojom::InlineBitmap> ConstructInlineBitmap(
     SkImageInfo info,
-    std::vector<unsigned char> pixels) {
+    const std::vector<unsigned char>& pixels) {
   DCHECK_EQ(info.colorType(), kN32_SkColorType);
   auto mojom_bitmap = skia::mojom::InlineBitmap::New();
   mojom_bitmap->image_info = std::move(info);
-  mojom_bitmap->pixel_data = std::move(pixels);
+  mojom_bitmap->pixel_data = {pixels};
   return mojom_bitmap;
 }
 
@@ -143,6 +149,41 @@ TEST(StructTraitsTest, ImageInfoCustomColorSpace) {
       input, output));
   EXPECT_TRUE(output.colorSpace());
   EXPECT_EQ(input, output);
+}
+
+TEST(StructTraitsTest, SkColorSpace) {
+  skcms_TransferFunction in_trfn{0.1f, 0.2f, 0.3f, 0.4f, 0.5f, 0.6f, 0.7f};
+  skcms_TransferFunction out_trfn;
+  ASSERT_TRUE(
+      mojo::test::SerializeAndDeserialize<skia::mojom::SkcmsTransferFunction>(
+          in_trfn, out_trfn));
+  EXPECT_EQ(memcmp(&in_trfn, &out_trfn, sizeof(in_trfn)), 0);
+
+  skcms_Matrix3x3 in_to_xyzd50{
+      .vals = {{0.1f, 0.2f, 0.3f}, {0.4f, 0.5f, 0.6f}, {0.7f, 0.8f, 0.9f}}};
+  skcms_Matrix3x3 out_to_xyzd50;
+  ASSERT_TRUE(mojo::test::SerializeAndDeserialize<skia::mojom::SkcmsMatrix3x3>(
+      in_to_xyzd50, out_to_xyzd50));
+  EXPECT_EQ(memcmp(&in_to_xyzd50, &out_to_xyzd50, sizeof(in_to_xyzd50)), 0);
+
+  sk_sp<SkColorSpace> in_cs = SkColorSpace::MakeRGB(in_trfn, in_to_xyzd50);
+  sk_sp<SkColorSpace> out_cs;
+  ASSERT_TRUE(mojo::test::SerializeAndDeserialize<skia::mojom::SkColorSpace>(
+      in_cs, out_cs));
+  EXPECT_TRUE(SkColorSpace::Equals(in_cs.get(), out_cs.get()));
+
+  sk_sp<SkColorSpace> in_null_cs;
+  sk_sp<SkColorSpace> out_null_cs;
+  ASSERT_TRUE(mojo::test::SerializeAndDeserialize<skia::mojom::SkColorSpace>(
+      in_null_cs, out_null_cs));
+  EXPECT_EQ(out_null_cs.get(), nullptr);
+
+  SkColorSpacePrimaries in_p = SkNamedPrimariesExt::kGenericFilm;
+  SkColorSpacePrimaries out_p;
+  ASSERT_TRUE(
+      mojo::test::SerializeAndDeserialize<skia::mojom::SkColorSpacePrimaries>(
+          in_p, out_p));
+  EXPECT_TRUE(in_p == out_p);
 }
 
 TEST(StructTraitsTest, TileMode) {

@@ -2,6 +2,11 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#ifdef UNSAFE_BUFFERS_BUILD
+// TODO(crbug.com/354829279): Remove this and convert code to safer constructs.
+#pragma allow_unsafe_buffers
+#endif
+
 #include "ui/gfx/skbitmap_operations.h"
 
 #include <stddef.h>
@@ -775,7 +780,6 @@ SkBitmap SkBitmapOperations::Rotate(const SkBitmap& source,
   canvas.translate(-SkFloatToScalar(source.width() * 0.5f),
                    -SkFloatToScalar(source.height() * 0.5f));
   canvas.drawImage(source.asImage(), 0, 0);
-  canvas.flush();
 
   return result;
 }

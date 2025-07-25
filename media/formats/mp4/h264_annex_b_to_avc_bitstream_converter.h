@@ -14,7 +14,7 @@
 #include "media/base/media_export.h"
 #include "media/formats/mp4/box_definitions.h"
 #include "media/formats/mp4/mp4_status.h"
-#include "media/video/h264_parser.h"
+#include "media/parsers/h264_parser.h"
 
 namespace media {
 
@@ -36,7 +36,7 @@ class MEDIA_EXPORT H264AnnexBToAvcBitstreamConverter {
   //
   // |input| - where to read the data from
   // |output| - where to put the converted video data
-  // If error kH264BufferTooSmall is returned, it means that |output| was not
+  // If error kBufferTooSmall is returned, it means that |output| was not
   // big enough to contain a converted video chunk. In this case |size_out|
   // is populated.
   // |config_changed_out| is set to True if the video chunk
@@ -60,6 +60,7 @@ class MEDIA_EXPORT H264AnnexBToAvcBitstreamConverter {
 
   using blob = std::vector<uint8_t>;
   base::flat_map<int, blob> id2sps_;
+  base::flat_map<int, blob> id2sps_ext_;
   base::flat_map<int, blob> id2pps_;
 
   int active_sps_id_ = -1;

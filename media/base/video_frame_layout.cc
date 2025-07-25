@@ -4,10 +4,11 @@
 
 #include "media/base/video_frame_layout.h"
 
-#include <string.h>
 #include <numeric>
 #include <sstream>
+#include <string>
 
+#include "base/check_op.h"
 #include "base/notreached.h"
 #include "base/numerics/checked_math.h"
 
@@ -31,9 +32,11 @@ std::string VectorToString(const std::vector<T>& vec) {
 }
 
 std::vector<ColorPlaneLayout> PlanesFromStrides(
-    const std::vector<int32_t> strides) {
+    const std::vector<int32_t>& strides) {
   std::vector<ColorPlaneLayout> planes(strides.size());
   for (size_t i = 0; i < strides.size(); i++) {
+    // TODO(crbug.com/338570700): Make strides unsigned and remove the CHECK().
+    CHECK_GE(strides[i], 0) << " plane: " << i;
     planes[i].stride = strides[i];
   }
   return planes;
@@ -59,8 +62,12 @@ size_t VideoFrameLayout::NumPlanes(VideoPixelFormat format) {
     case PIXEL_FORMAT_RGBAF16:
       return 1;
     case PIXEL_FORMAT_NV12:
+    case PIXEL_FORMAT_NV16:
     case PIXEL_FORMAT_NV21:
-    case PIXEL_FORMAT_P016LE:
+    case PIXEL_FORMAT_NV24:
+    case PIXEL_FORMAT_P010LE:
+    case PIXEL_FORMAT_P210LE:
+    case PIXEL_FORMAT_P410LE:
       return 2;
     case PIXEL_FORMAT_I420:
     case PIXEL_FORMAT_YV12:
@@ -90,11 +97,10 @@ size_t VideoFrameLayout::NumPlanes(VideoPixelFormat format) {
       return 0;
   }
   NOTREACHED() << "Unsupported video frame format: " << format;
-  return 0;
 }
 
 // static
-absl::optional<VideoFrameLayout> VideoFrameLayout::Create(
+std::optional<VideoFrameLayout> VideoFrameLayout::Create(
     VideoPixelFormat format,
     const gfx::Size& coded_size) {
   return CreateWithStrides(format, coded_size,
@@ -102,7 +108,7 @@ absl::optional<VideoFrameLayout> VideoFrameLayout::Create(
 }
 
 // static
-absl::optional<VideoFrameLayout> VideoFrameLayout::CreateWithStrides(
+std::optional<VideoFrameLayout> VideoFrameLayout::CreateWithStrides(
     VideoPixelFormat format,
     const gfx::Size& coded_size,
     std::vector<int32_t> strides,
@@ -113,32 +119,32 @@ absl::optional<VideoFrameLayout> VideoFrameLayout::CreateWithStrides(
 }
 
 // static
-absl::optional<VideoFrameLayout> VideoFrameLayout::CreateWithPlanes(
+std::optional<VideoFrameLayout> VideoFrameLayout::CreateWithPlanes(
     VideoPixelFormat format,
     const gfx::Size& coded_size,
     std::vector<ColorPlaneLayout> planes,
     size_t buffer_addr_align,
     uint64_t modifier) {
   // NOTE: Even if format is UNKNOWN, it is valid if coded_sizes is not Empty().
-  // TODO(crbug.com/896135): Return absl::nullopt,
+  // TODO(crbug.com/41421131): Return std::nullopt,
   // if (format != PIXEL_FORMAT_UNKNOWN || !coded_sizes.IsEmpty())
-  // TODO(crbug.com/896135): Return absl::nullopt,
+  // TODO(crbug.com/41421131): Return std::nullopt,
   // if (planes.size() != NumPlanes(format))
   return VideoFrameLayout(format, coded_size, std::move(planes),
                           false /*is_multi_planar */, buffer_addr_align,
                           modifier);
 }
 
-absl::optional<VideoFrameLayout> VideoFrameLayout::CreateMultiPlanar(
+std::optional<VideoFrameLayout> VideoFrameLayout::CreateMultiPlanar(
     VideoPixelFormat format,
     const gfx::Size& coded_size,
     std::vector<ColorPlaneLayout> planes,
     size_t buffer_addr_align,
     uint64_t modifier) {
   // NOTE: Even if format is UNKNOWN, it is valid if coded_sizes is not Empty().
-  // TODO(crbug.com/896135): Return absl::nullopt,
+  // TODO(crbug.com/41421131): Return std::nullopt,
   // if (format != PIXEL_FORMAT_UNKNOWN || !coded_sizes.IsEmpty())
-  // TODO(crbug.com/896135): Return absl::nullopt,
+  // TODO(crbug.com/41421131): Return std::nullopt,
   // if (planes.size() != NumPlanes(format))
   return VideoFrameLayout(format, coded_size, std::move(planes),
                           true /*is_multi_planar */, buffer_addr_align,
@@ -156,7 +162,10 @@ VideoFrameLayout::VideoFrameLayout(VideoPixelFormat format,
       planes_(std::move(planes)),
       is_multi_planar_(is_multi_planar),
       buffer_addr_align_(buffer_addr_align),
-      modifier_(modifier) {}
+      modifier_(modifier) {
+  // Trigger NOTREACHED() if `format` is not valid.
+  NumPlanes(format);
+}
 
 VideoFrameLayout::~VideoFrameLayout() = default;
 VideoFrameLayout::VideoFrameLayout(const VideoFrameLayout&) = default;
@@ -180,7 +189,6 @@ bool VideoFrameLayout::FitsInContiguousBufferOfSize(size_t data_size) const {
     return false;
   }
 
-  base::CheckedNumeric<size_t> required_size = 0;
   for (const auto& plane : planes_) {
     if (plane.offset > data_size || plane.size > data_size) {
       return false;
@@ -192,12 +200,6 @@ bool VideoFrameLayout::FitsInContiguousBufferOfSize(size_t data_size) const {
     if (!plane_end.IsValid() || plane_end.ValueOrDie() > data_size) {
       return false;
     }
-
-    required_size += plane.size;
-  }
-
-  if (!required_size.IsValid() || required_size.ValueOrDie() > data_size) {
-    return false;
   }
 
   return true;

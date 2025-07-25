@@ -2,6 +2,11 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#ifdef UNSAFE_BUFFERS_BUILD
+// TODO(crbug.com/40284755): Remove this and spanify to fix the errors.
+#pragma allow_unsafe_buffers
+#endif
+
 #include <limits>
 #include <memory>
 #include <string>
@@ -183,9 +188,9 @@ class WriteHandler {
   int pending_result_ = net::OK;
 
   scoped_refptr<net::IOBuffer> headers_buffer_ =
-      base::MakeRefCounted<net::IOBuffer>(kHeadersSize);
+      base::MakeRefCounted<net::IOBufferWithSize>(kHeadersSize);
   scoped_refptr<net::IOBuffer> body_buffer_ =
-      base::MakeRefCounted<net::IOBuffer>(kChunkSize);
+      base::MakeRefCounted<net::IOBufferWithSize>(kChunkSize);
 };
 
 void WriteHandler::Run() {
@@ -278,7 +283,7 @@ class ReadHandler {
         cache_(cache),
         final_callback_(std::move(final_callback)) {
     for (auto& read_buffer : read_buffers_) {
-      read_buffer = base::MakeRefCounted<net::IOBuffer>(
+      read_buffer = base::MakeRefCounted<net::IOBufferWithSize>(
           std::max(kHeadersSize, kChunkSize));
     }
   }
@@ -509,7 +514,7 @@ void DiskCachePerfTest::CacheBackendPerformance(const std::string& story) {
 }
 
 #if BUILDFLAG(IS_FUCHSIA)
-// TODO(crbug.com/851083): Fix this test on Fuchsia and re-enable.
+// TODO(crbug.com/41393579): Fix this test on Fuchsia and re-enable.
 #define MAYBE_CacheBackendPerformance DISABLED_CacheBackendPerformance
 #else
 #define MAYBE_CacheBackendPerformance CacheBackendPerformance
@@ -519,7 +524,7 @@ TEST_F(DiskCachePerfTest, MAYBE_CacheBackendPerformance) {
 }
 
 #if BUILDFLAG(IS_FUCHSIA)
-// TODO(crbug.com/851083): Fix this test on Fuchsia and re-enable.
+// TODO(crbug.com/41393579): Fix this test on Fuchsia and re-enable.
 #define MAYBE_SimpleCacheBackendPerformance \
   DISABLED_SimpleCacheBackendPerformance
 #else
@@ -587,10 +592,8 @@ TEST_F(DiskCachePerfTest, SimpleCacheInitialReadPortion) {
 
   InitCache();
   // Write out the entries, and keep their objects around.
-  scoped_refptr<net::IOBuffer> buffer1 =
-      base::MakeRefCounted<net::IOBuffer>(kHeadersSize);
-  scoped_refptr<net::IOBuffer> buffer2 =
-      base::MakeRefCounted<net::IOBuffer>(kBodySize);
+  auto buffer1 = base::MakeRefCounted<net::IOBufferWithSize>(kHeadersSize);
+  auto buffer2 = base::MakeRefCounted<net::IOBufferWithSize>(kBodySize);
 
   CacheTestFillBuffer(buffer1->data(), kHeadersSize, false);
   CacheTestFillBuffer(buffer2->data(), kBodySize, false);
@@ -660,7 +663,7 @@ TEST_F(DiskCachePerfTest, SimpleCacheInitialReadPortion) {
 }
 
 #if BUILDFLAG(IS_FUCHSIA)
-// TODO(crbug.com/1318120): Fix this test on Fuchsia and re-enable.
+// TODO(crbug.com/40222788): Fix this test on Fuchsia and re-enable.
 #define MAYBE_EvictionPerformance DISABLED_EvictionPerformance
 #else
 #define MAYBE_EvictionPerformance EvictionPerformance

@@ -1,4 +1,4 @@
-// Copyright 2017 The Chromium Authors. All rights reserved.
+// Copyright 2017 The Chromium Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -6,11 +6,12 @@
 #define COMPONENTS_METRICS_EXPIRED_HISTOGRAMS_CHECKER_H_
 
 #include <stdint.h>
+
 #include <set>
 
-#include "base/macros.h"
+#include "base/containers/span.h"
+#include "base/memory/raw_span.h"
 #include "base/metrics/record_histogram_checker.h"
-#include "base/strings/string_piece.h"
 
 namespace metrics {
 
@@ -18,32 +19,31 @@ namespace metrics {
 // to avoid recording expired metrics.
 class ExpiredHistogramsChecker final : public base::RecordHistogramChecker {
  public:
-  // Takes sorted in nondecreasing order array of histogram hashes, its size and
-  // list of whitelisted histogram names concatenated as a comma-separated
-  // string.
-  ExpiredHistogramsChecker(const uint32_t* array,
-                           size_t size,
-                           const std::string& whitelist_str);
+  // Takes a sorted array of histogram hashes in ascending order and a
+  // list of explicitly allowed histogram names as a comma-separated string.
+  // Histograms in the |allowlist_str| are logged even if their hash is in the
+  // |expired_histograms_hashes|.
+  ExpiredHistogramsChecker(base::span<const uint32_t> expired_histogram_hashes,
+                           const std::string& allowlist_str);
+
+  ExpiredHistogramsChecker(const ExpiredHistogramsChecker&) = delete;
+  ExpiredHistogramsChecker& operator=(const ExpiredHistogramsChecker&) = delete;
+
   ~ExpiredHistogramsChecker() override;
 
   // Checks if the given |histogram_hash| corresponds to an expired histogram.
   bool ShouldRecord(uint32_t histogram_hash) const override;
 
  private:
-  // Initializes the |whitelist_| array of histogram hashes that should be
+  // Initializes the |allowlist_| array of histogram hashes that should be
   // recorded regardless of their expiration.
-  void InitWhitelist(const std::string& whitelist_str);
+  void InitAllowlist(const std::string& allowlist_str);
 
   // Array of expired histogram hashes.
-  const uint32_t* const array_;
+  const base::raw_span<const uint32_t> expired_histogram_hashes_;
 
-  // Size of the |array_|.
-  const size_t size_;
-
-  // List of expired histogram hashes that should be recorded.
-  std::set<uint32_t> whitelist_;
-
-  DISALLOW_COPY_AND_ASSIGN(ExpiredHistogramsChecker);
+  // Set of expired histogram hashes that should be recorded.
+  std::set<uint32_t> allowlist_;
 };
 
 }  // namespace metrics

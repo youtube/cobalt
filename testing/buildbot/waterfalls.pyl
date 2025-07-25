@@ -1,0 +1,1686 @@
+# Copyright 2017 The Chromium Authors
+# Use of this source code is governed by a BSD-style license that can be
+# found in the LICENSE file.
+
+# This is a .pyl, or "Python Literal", file. You can treat it just like a
+# .json file, with the following exceptions:
+# * all keys must be quoted (use single quotes, please);
+# * comments are allowed, using '#' syntax; and
+# * trailing commas are allowed.
+
+[
+  # The following builder groups have been migrated to set their targets in the
+  # builders' declarations in //infra/config/subprojects/ci/<builder-group>.star
+  #   chromium
+  #   chromium.accessibility
+  #   chromium.android
+  #   chromium.android.fyi
+  #   chromium.angle
+  #   chromium.cft
+  #   chromium.coverage
+  #   chromium.enterprise_companion
+  #   chromium.fuchsia
+  #   chromium.fuchsia.fyi
+  #   chromium.gpu
+  #   chromium.linux
+  #   chromium.mac
+  #   chromium.memory
+  #   chromium.memory.fyi
+  #   chromium.rust
+  #   chromium.swangle
+  #   chromium.updater
+  #   chromium.win
+  #
+  # The following builder groups have been migrated to set their targets in the
+  # builders' declarations in
+  # //infra/config/subprojects/try/<builder-group>.star
+  #   tryserver.blink
+  #   tryserver.chromium.android
+  #   tryserver.chromium.linux
+  #   tryserver.chromium.mac
+  #   tryserver.chromium.win
+  #
+  # The following builder group has been migrated to set their targets in the
+  # builders' declarations in
+  # //infra/config/subprojects/build/build.fyi.star
+  #   chromium.build.fyi
+  #
+  # The following builder group has been migrated to set their targets in the
+  # builders' declarations in //infra/config/subprojects/webrtc/webrtc.star
+  #   chromium.webrtc
+  #
+  # The following builder group has been migrated to set their targets in the
+  # builders' declarations in //infra/config/subprojects/webrtc/webrtc.fyi.star
+  #   chromium.webrtc.fyi
+  #
+  # The following builder group has been migrated to set their targets in the
+  # builders' declarations in //infra/config/dev/subprojects/chromium/ci.star
+  #   chromium.dev
+  {
+    'name': 'chrome',
+    'mixins': ['chrome-tester-service-account'],
+    'machines': {
+      'chromeos-arm-generic-cfi-thin-lto-chrome': {
+        'additional_compile_targets': [
+          'chromiumos_preflight',
+        ],
+      },
+      'chromeos-arm64-generic-cfi-thin-lto-chrome': {
+        'additional_compile_targets': [
+          'chromiumos_preflight',
+        ],
+      },
+      'chromeos-betty-cfi-thin-lto-chrome': {
+        'additional_compile_targets': [
+          'chromiumos_preflight',
+        ],
+        'os_type': 'chromeos',
+        'cros_board': 'betty',
+      },
+      'chromeos-betty-cfi-thin-lto-chrome-tests': {
+        'test_suites': {
+          'skylab_tests': 'chromeos_vmlab_tests_no_gtests',
+        },
+        'os_type': 'chromeos',
+        'cros_board': 'betty',
+        'cros_dut_pool': 'vmlab',
+      },
+      'chromeos-betty-chrome': {
+        'additional_compile_targets': [
+          'chromiumos_preflight',
+        ],
+        'os_type': 'chromeos',
+        'cros_board': 'betty',
+      },
+      'chromeos-betty-chrome-dchecks': {
+        'additional_compile_targets': [
+          'chromiumos_preflight',
+        ],
+        'test_suites': {
+          'skylab_tests': 'chromeos_vmlab_tests',
+        },
+        'os_type': 'chromeos',
+        'cros_board': 'betty',
+        'cros_dut_pool': 'vmlab',
+      },
+      'chromeos-betty-chrome-tests': {
+        'test_suites': {
+          'skylab_tests': 'chromeos_vmlab_tests',
+        },
+        'os_type': 'chromeos',
+        'cros_board': 'betty',
+        'cros_dut_pool': 'vmlab',
+      },
+      'chromeos-brya-chrome': {
+        'additional_compile_targets': [
+          'chromiumos_preflight',
+        ],
+        'os_type': 'chromeos',
+        'cros_board': 'brya',
+      },
+      # TODO(b/339354038): Remove all configs with skylab suffix.
+      'chromeos-brya-chrome-skylab': {
+        'additional_compile_targets': [
+          'chromiumos_preflight',
+        ],
+        'mixins': [
+          'cros-cbx-dut',
+        ],
+        'test_suites': {
+          'skylab_tests': 'chromeos_brya_skylab_tests',
+        },
+        'os_type': 'chromeos',
+        'cros_board': 'brya',
+      },
+      'chromeos-brya-chrome-tests': {
+        'mixins': [
+            'cros-cbx-dut',
+        ],
+        'test_suites': {
+          'skylab_tests': 'chromeos_brya_skylab_tests',
+        },
+        'os_type': 'chromeos',
+        'cros_board': 'brya',
+      },
+      'chromeos-jacuzzi-chrome': {
+        'additional_compile_targets': [
+          'chromiumos_preflight',
+        ],
+      },
+      'chromeos-jacuzzi-chrome-tests': {
+        'test_suites': {
+          'skylab_tests': 'chromeos_jacuzzi_skylab_tests',
+        },
+        'os_type': 'chromeos',
+        'cros_board': 'jacuzzi',
+      },
+      'chromeos-octopus-chrome': {
+        'additional_compile_targets': [
+          'chromiumos_preflight',
+        ],
+      },
+      'chromeos-octopus-chrome-tests': {
+        'test_suites': {
+          'skylab_tests': 'chromeos_octopus_skylab_tests',
+        },
+        'os_type': 'chromeos',
+        'cros_board': 'octopus',
+      },
+      'chromeos-reven-chrome': {
+        'additional_compile_targets': [
+          'chromiumos_preflight',
+        ],
+      },
+      'chromeos-reven-chrome-tests': {
+        'test_suites': {
+          'skylab_tests': 'chromeos_vmlab_tests_no_gtests_no_arc',
+        },
+        'os_type': 'chromeos',
+        'cros_board': 'reven-vmtest',
+        'cros_dut_pool': 'vmlab',
+      },
+      'chromeos-trogdor-chrome': {
+        'additional_compile_targets': [
+          'chromiumos_preflight',
+        ],
+        'os_type': 'chromeos',
+        'cros_board': 'trogdor',
+      },
+      'chromeos-trogdor-chrome-tests': {
+        'test_suites': {
+          'skylab_tests': 'chromeos_trogdor_skylab_tests',
+        },
+        'os_type': 'chromeos',
+        'cros_board': 'trogdor',
+      },
+      'chromeos-volteer-chrome': {
+        'additional_compile_targets': [
+          'chromiumos_preflight',
+        ],
+      },
+      # TODO(b/339354084): Remove all configs with skylab suffix.
+      'chromeos-volteer-chrome-skylab': {
+        'additional_compile_targets': [
+          'chromiumos_preflight',
+        ],
+        'test_suites': {
+          'skylab_tests': 'chromeos_volteer_skylab_tests',
+        },
+        'os_type': 'chromeos',
+        'cros_board': 'volteer',
+      },
+      'chromeos-volteer-chrome-tests': {
+        'test_suites': {
+          'skylab_tests': 'chromeos_volteer_skylab_tests',
+        },
+        'os_type': 'chromeos',
+        'cros_board': 'volteer',
+      },
+      'linux-chrome': {
+        'additional_compile_targets': [
+          'chrome',
+          'chrome/installer/linux',
+        ],
+        'mixins': [
+          'chrome-swarming-pool',
+          'linux-jammy',
+        ],
+        'test_suites': {
+          'isolated_scripts': 'chrome_linux_isolated_script_tests',
+
+          # TODO(crbug.com/40191621): This is a fake finch smoke test for
+          # prototyping purpose, remove and switch to use the real one once the
+          # pipeline is ready for production integration.
+          'gtest_tests': 'finch_smoke_tests',
+        },
+      },
+      'linux-chromeos-chrome': {
+        'additional_compile_targets': [
+          'chrome',
+          'chrome_sandbox',
+          'linux_symbols',
+          'symupload'
+        ],
+        'mixins': [
+          'chrome-swarming-pool',
+          'linux-jammy',
+        ],
+        'swarming': {
+          'dimensions': {
+            'ssd': '0',
+          },
+        },
+        'test_suites': {
+          'gtest_tests': 'linux_chromeos_gtests',
+          'isolated_scripts': 'linux_chromeos_isolated_scripts',
+        },
+      },
+      'mac-chrome': {
+        'additional_compile_targets': [
+          'chrome',
+          'chrome/installer/mac',
+        ],
+        'mixins': [
+          'chrome-swarming-pool',
+          'mac_14_x64',
+        ],
+        'test_suites': {
+          'isolated_scripts': 'chrome_isolated_script_tests',
+        },
+      },
+      'win-branded-rel': {
+        'additional_compile_targets': [
+          'chrome',
+          'chrome_official_builder',
+        ],
+      },
+      'win-chrome': {
+        'additional_compile_targets': [
+          'all',
+        ],
+        'mixins': [
+          'chrome-swarming-pool',
+          'win10-any',
+        ],
+        'test_suites': {
+          'isolated_scripts': 'chrome_isolated_script_tests',
+          # TODO(crbug.com/40191621): This is a fake finch smoke test for
+          # prototyping purpose, remove and switch to use the real one once the
+          # pipeline is ready for production integration.
+          'gtest_tests': 'finch_smoke_tests',
+        },
+      },
+      'win64-chrome': {
+        'additional_compile_targets': [
+          'all',
+        ],
+        'mixins': [
+          'chrome-swarming-pool',
+          'win10-any',
+        ],
+        'test_suites': {
+          'isolated_scripts': 'chrome_sizes_suite',
+        },
+      },
+    },
+  },
+  {
+    'project': 'chrome',
+    'bucket': 'ci',
+    'name': 'chrome.gpu.fyi',
+    'mixins': [
+      'chrome-tester-service-account',
+      'swarming_containment_auto',
+    ],
+    'machines': {
+      'ChromeOS FYI Release Skylab (jacuzzi)': {
+        'additional_compile_targets': [
+          'chromiumos_preflight',
+          'nacl_helper',
+        ],
+        'browser_config': 'cros-chrome',
+        'os_type': 'chromeos',
+        'skip_merge_script': True,
+        'use_swarming': False,
+        'mixins': [
+          'limited_capacity_bot',
+          'long_skylab_timeout',
+        ],
+        'test_suites': {
+          # There should be the same gtests here as on a normal CrOS bot,
+          # but mixing test types on a single bot is not supported in Skylab
+          # yet.
+          'skylab_gpu_telemetry_tests': 'gpu_fyi_chromeos_release_telemetry_tests_jacuzzi_skylab',
+        },
+      },
+      'gpu-fyi-chromeos-brya-chrome': {
+        'additional_compile_targets': [
+          'chromiumos_preflight',
+          'nacl_helper',
+        ],
+        'browser_config': 'cros-chrome',
+        'os_type': 'chromeos',
+        'skip_merge_script': True,
+        'use_swarming': False,
+        'mixins': [
+          'limited_capacity_bot',
+          'long_skylab_timeout',
+        ],
+        'test_suites': {
+          'skylab_gpu_telemetry_tests': 'gpu_fyi_chromeos_brya_telemetry_tests',
+        },
+      },
+      'gpu-fyi-chromeos-corsola-chrome': {
+        'additional_compile_targets': [
+          'chromiumos_preflight',
+          'nacl_helper',
+        ],
+        'browser_config': 'cros-chrome',
+        'os_type': 'chromeos',
+        'skip_merge_script': True,
+        'use_swarming': False,
+        'mixins': [
+          'limited_capacity_bot',
+          'long_skylab_timeout',
+        ],
+        'test_suites': {
+          'skylab_gpu_telemetry_tests': 'gpu_fyi_chromeos_corsola_telemetry_tests',
+        },
+      },
+      'gpu-fyi-chromeos-skyrim-chrome': {
+        'additional_compile_targets': [
+          'chromiumos_preflight',
+          'nacl_helper',
+        ],
+        'browser_config': 'cros-chrome',
+        'os_type': 'chromeos',
+        'skip_merge_script': True,
+        'use_swarming': False,
+        'mixins': [
+          'limited_capacity_bot',
+          'long_skylab_timeout',
+        ],
+        'test_suites': {
+          'skylab_gpu_telemetry_tests': 'gpu_fyi_chromeos_skyrim_telemetry_tests',
+        },
+      },
+    }
+  },
+  {
+    'project': 'chrome',
+    'bucket': 'ci',
+    'name': 'chromeos.preuprev',
+    'mixins': ['chrome-tester-service-account'],
+    'machines': {
+      'chromeos-betty-chrome-preuprev': {
+        'additional_compile_targets': [
+          'chromiumos_preflight',
+        ],
+        'test_suites': {
+          'skylab_tests': 'chromeos_ctp_preuprev_tests',
+        },
+        'os_type': 'chromeos',
+        'cros_board': 'betty',
+        'cros_dut_pool': 'vmlab',
+      },
+      'chromeos-brya-chrome-preuprev': {
+        'additional_compile_targets': [
+          'chromiumos_preflight',
+        ],
+        'mixins': [
+          'cros-cbx-dut',
+        ],
+        'test_suites': {
+          'skylab_tests': 'chromeos_ctp_preuprev_tests',
+        },
+        'os_type': 'chromeos',
+        'cros_board': 'brya',
+      },
+      'chromeos-jacuzzi-chrome-preuprev': {
+        'additional_compile_targets': [
+          'chromiumos_preflight',
+        ],
+        'test_suites': {
+          'skylab_tests': 'chromeos_ctp_preuprev_tests_slow_boards',
+        },
+        'os_type': 'chromeos',
+        'cros_board': 'jacuzzi',
+      },
+      'chromeos-volteer-chrome-preuprev': {
+        'additional_compile_targets': [
+          'chromiumos_preflight',
+        ],
+        'test_suites': {
+          'skylab_tests': 'chromeos_ctp_preuprev_tests',
+        },
+        'os_type': 'chromeos',
+        'cros_board': 'volteer',
+      },
+      'linux-chromeos-chrome-preuprev': {
+        'additional_compile_targets': [
+          'chrome',
+          'chrome_sandbox',
+          'linux_symbols',
+          'symupload'
+        ],
+        'mixins': [
+          'chrome-swarming-pool',
+          'linux-jammy',
+        ],
+        'swarming': {
+          'dimensions': {
+            'ssd': '0',
+          },
+        },
+        'test_suites': {
+          'gtest_tests': 'linux_chromeos_gtests',
+        },
+      },
+    },
+  },
+  {
+    # The following builders in this group have been migrated to set their
+    # targets in the builders' declarations in
+    # //infra/config/subprojects/ci/chromium.chromiumos.star
+    #   chromeos-amd64-generic-asan-rel
+    #   chromeos-amd64-generic-cfi-thin-lto-rel
+    #   chromeos-amd64-generic-dbg
+    #   chromeos-amd64-generic-rel
+    #   chromeos-amd64-generic-rel-gtest
+    #   chromeos-amd64-generic-rel-tast
+    #   chromeos-arm-generic-dbg
+    #   chromeos-arm-generic-rel
+    #   chromeos-arm64-generic-rel
+    #   linux-cfm-rel
+    #   linux-chromeos-dbg
+    #   linux-chromeos-rel
+    'name': 'chromium.chromiumos',
+    'mixins': ['chromium-tester-service-account'],
+    'machines': {
+      # Builders running skylab tests cannot be migrated to starlark currently
+      'chromeos-jacuzzi-rel': {
+        'additional_compile_targets': [
+          'chromiumos_preflight',
+        ],
+        'test_suites': {
+          'skylab_tests': 'chromeos_jacuzzi_rel_skylab_tests',
+        },
+        'os_type': 'chromeos',
+        'cros_board': 'jacuzzi',
+      },
+      # Builders running skylab tests cannot be migrated to starlark currently
+      'chromeos-octopus-rel': {
+        'additional_compile_targets': [
+          'chromiumos_preflight',
+        ],
+        'test_suites': {
+          'skylab_tests': 'chromeos_octopus_rel_skylab_tests',
+        },
+        'os_type': 'chromeos',
+        'cros_board': 'octopus',
+      },
+    },
+  },
+  {
+    # The following builders in this group have been migrated to set their
+    # targets in the builders' declarations in
+    # //infra/config/subprojects/ci/chromium.clang.star
+    #   CFI Linux CF
+    #   CFI Linux ToT
+    #   CrWinAsan
+    #   CrWinAsan(dll)
+    #   ToTAndroid
+    #   ToTAndroid (dbg)
+    #   ToTAndroid x64
+    #   ToTAndroid x86
+    #   ToTAndroid64
+    #   ToTAndroidASan
+    #   ToTAndroidCoverage x86
+    #   ToTAndroidOfficial
+    #   ToTChromeOS
+    #   ToTChromeOS (dbg)
+    #   ToTFuchsia x64
+    #   ToTFuchsiaOfficial arm64
+    #   ToTLinux
+    #   ToTLinux (dbg)
+    #   ToTLinux
+    #   ToTLinuxASan
+    #   ToTLinuxASanLibfuzzer
+    #   ToTLinuxMSan
+    #   ToTLinuxPGO
+    #   ToTLinuxTSan
+    #   ToTLinuxUBSanVptr
+    #   ToTMac
+    #   ToTMac (dbg)
+    #   ToTMacASan
+    #   ToTMacArm64
+    #   ToTMacArm64PGO
+    #   ToTMacPGO
+    #   ToTWin
+    #   ToTWin(dbg)
+    #   ToTWin(dll)
+    #   ToTWin64
+    #   ToTWin64(dbg)
+    #   ToTWin64(dll)
+    #   ToTWin64PGO
+    #   ToTWinASanLibfuzzer
+    #   ToTWinArm64PGO
+    #   ToTiOS
+    #   ToTiOSDevice
+    #   linux-win-cross-clang-tot-rel
+    'name': 'chromium.clang',
+    'mixins': ['chromium-tester-service-account'],
+    'machines': {
+      # Used on an internal builder.
+      'ToTLinuxOfficial': {
+        'mixins': [
+          'chrome-tester-service-account',
+          'linux-jammy',
+          'chrome-swarming-pool',
+        ],
+        'test_suites': {
+          'gtest_tests': 'clang_tot_gtests',
+          'isolated_scripts': 'chrome_sizes_suite',
+        },
+        'additional_compile_targets': [
+          'all',
+        ],
+      },
+      # Used on an internal builder.
+      'ToTMacOfficial': {
+        'mixins': [
+          'chrome-tester-service-account',
+          'mac_default_x64',
+          'chrome-swarming-pool',
+        ],
+        'test_suites': {
+          'gtest_tests': 'clang_tot_gtests',
+          'isolated_scripts': 'chromium_mac_rel_isolated_scripts_and_sizes',
+        },
+        'additional_compile_targets': [
+          'all',
+        ],
+      },
+      # Used on an internal builder.
+      'ToTWinOfficial': {
+        'mixins': [
+          'chrome-tester-service-account',
+          'chrome-swarming-pool',
+        ],
+        'test_suites': {
+          'gtest_tests': 'clang_tot_gtests',
+          'isolated_scripts': 'win_specific_isolated_scripts_and_sizes',
+        },
+        'additional_compile_targets': [
+          'chrome_official_builder',
+        ],
+        'swarming': {
+          'dimensions': {
+            'os': 'Windows-10',
+          },
+        },
+      },
+      # Used on an internal builder.
+      'ToTWinOfficial64': {
+        'mixins': [
+          'chrome-tester-service-account',
+          'chrome-swarming-pool',
+        ],
+        'test_suites': {
+          'gtest_tests': 'clang_tot_gtests',
+          'isolated_scripts': 'win_specific_isolated_scripts_and_sizes',
+        },
+        'additional_compile_targets': [
+          'chrome_official_builder',
+        ],
+        'swarming': {
+          'dimensions': {
+            'os': 'Windows-10',
+          },
+        },
+      },
+    },
+  },
+  {
+    # The following builders in this group have been migrated to set their
+    # targets in the builders' declarations in
+    # //infra/config/subprojects/ci/chromium.dawn.star
+    #   Dawn Android arm DEPS Release (Nexus 5X)
+    #   Dawn Android arm DEPS Release (Pixel 4)
+    #   Dawn Android arm Release (Nexus 5X)
+    #   Dawn Android arm Release (Pixel 4)
+    #   Dawn Android arm64 DEPS Release (Pixel 6)
+    #   Dawn Android arm64 Experimental Release (Pixel 6)
+    #   Dawn Android arm64 Release (Pixel 6)
+    #   Dawn Android arm64 Release (Samsung S24)
+    #   Dawn Chromium Presubmit
+    #   Dawn Linux x64 Builder
+    #   Dawn Linux x64 DEPS Builder
+    #   Dawn Linux x64 DEPS Release (Intel UHD 630)
+    #   Dawn Linux x64 DEPS Release (NVIDIA)
+    #   Dawn Linux x64 Experimental Release (Intel UHD 630)
+    #   Dawn Linux x64 Experimental Release (NVIDIA GTX 1660)
+    #   Dawn Linux x64 Release (Intel UHD 630)
+    #   Dawn Linux x64 Release (Intel UHD 770)
+    #   Dawn Linux x64 Release (NVIDIA)
+    #   Dawn Linux TSAN Release
+    #   Dawn Mac arm64 DEPS Release (Apple M2)
+    #   Dawn Mac arm64 Experimental Release (Apple M2)
+    #   Dawn Mac arm64 Release (Apple M2)
+    #   Dawn Mac x64 Builder
+    #   Dawn Mac x64 DEPS Builder
+    #   Dawn Mac x64 DEPS Release (AMD)
+    #   Dawn Mac x64 DEPS Release (Intel)
+    #   Dawn Mac x64 Experimental Release (AMD)
+    #   Dawn Mac x64 Experimental Release (Intel)
+    #   Dawn Mac x64 Release (AMD)
+    #   Dawn Mac x64 Release (Intel)
+    #   Dawn Win10 x64 ASAN Builder
+    #   Dawn Win10 x64 ASAN Release (Intel)
+    #   Dawn Win10 x64 ASAN Release (NVIDIA)
+    #   Dawn Win10 x64 Builder
+    #   Dawn Win10 x64 DEPS Builder
+    #   Dawn Win10 x64 DEPS Release (Intel)
+    #   Dawn Win10 x64 DEPS Release (NVIDIA)
+    #   Dawn Win10 x64 Experimental Release (Intel)
+    #   Dawn Win10 x64 Experimental Release (NVIDIA)
+    #   Dawn Win10 x64 Release (Intel)
+    #   Dawn Win10 x64 Release (Intel UHD 770)
+    #   Dawn Win10 x64 Release (NVIDIA)
+    #   Dawn Win10 x86 Builder
+    #   Dawn Win10 x86 DEPS Builder
+    #   Dawn Win10 x86 DEPS Release (Intel)
+    #   Dawn Win10 x86 DEPS Release (NVIDIA)
+    #   Dawn Win10 x86 Experimental Release (Intel)
+    #   Dawn Win10 x86 Experimental Release (NVIDIA)
+    #   Dawn Win10 x86 Release (Intel)
+    #   Dawn Win10 x86 Release (NVIDIA)
+    #   Dawn Win11 arm64 Builder
+    #   Dawn Win11 arm64 DEPS Builder
+    'name': 'chromium.dawn',
+    'mixins': [
+      'chromium-tester-service-account',
+      'timeout_30m',
+    ],
+    'machines': {
+      # Builders running skylab tests cannot be migrated to starlark currently
+      'Dawn ChromeOS Skylab Release (volteer)': {
+        'additional_compile_targets': [
+          'chromiumos_preflight',
+        ],
+        'browser_config': 'cros-chrome',
+        'os_type': 'chromeos',
+        'skip_merge_script': True,
+        'use_swarming': False,
+        'test_suites': {
+          'skylab_tests': 'dawn_chromeos_release_tests_volteer_skylab',
+          'skylab_gpu_telemetry_tests': 'dawn_chromeos_release_telemetry_tests_volteer_skylab',
+          # TODO(crbug.com/340815322): Add isolated_scripts once Skylab
+          # incompatibilities are resolved.
+        },
+      },
+    },
+  },
+  {
+    # The following builders in this group have been migrated to set their
+    # targets in the builders' declarations in
+    # //infra/config/subprojects/ci/chromium.fyi.star
+    #   android-fieldtrial-rel
+    #   android-perfetto-rel
+    #   ios-blink-dbg-fyi
+    #   ios-fieldtrial-rel
+    #   ios-m1-simulator
+    #   ios-vm
+    #   ios-webkit-tot
+    #   ios-wpt-fyi-rel
+    #   ios17-beta-simulator
+    #   ios17-sdk-device
+    #   ios17-sdk-simulator
+    #   ios18-beta-simulator
+    #   ios18-sdk-simulator
+    #   Linux Viz
+    #   linux-annotator-rel
+    #   linux-blink-heap-verification
+    #   linux-blink-wpt-reset-rel
+    #   linux-chromeos-annotator-rel
+    #   linux-chromeos-dbg-oslogin
+    #   linux-fieldtrial-rel
+    #   linux-headless-shell-rel
+    #   linux-multiscreen-fyi-rel
+    #   linux-perfetto-rel
+    #   linux-rel-no-external-ip
+    #   linux-upload-perfetto
+    #   linux-wpt-chromium-rel
+    #   Mac Builder (reclient compare)
+    #   Mac Builder Next
+    #   mac-fieldtrial-tester
+    #   mac-osxbeta-rel
+    #   mac-perfetto-rel
+    #   mac13-wpt-chromium-rel
+    #   Site Isolation Android
+    #   Win 10 Fast Ring
+    #   Win x64 Builder (reclient compare)
+    #   Win x64 Builder (reclient)
+    #   win-annotator-rel
+    #   win-fieldtrial-rel
+    #   win-perfetto-rel
+    #   win-upload-perfetto
+    #   win10-rel-no-external-ip
+    #   win10-wpt-chromium-rel
+    'name': 'chromium.fyi',
+    'mixins': ['chromium-tester-service-account'],
+    'machines': {
+      # This builder uses a recipe that is incompatible with tests in starlark
+      'Comparison Android (reclient)': {
+        'additional_compile_targets': [
+          'all'
+        ],
+      },
+      # This builder uses a recipe that is incompatible with tests in starlark
+      'Comparison Mac (reclient)': {
+        'additional_compile_targets': [
+          'all'
+        ],
+      },
+      # This builder uses a recipe that is incompatible with tests in starlark
+      'Comparison Mac arm64 (reclient)': {
+        'additional_compile_targets': [
+          'all'
+        ],
+      },
+      # This builder uses a recipe that is incompatible with tests in starlark
+      'Comparison Mac arm64 on arm64 (reclient)': {
+        'additional_compile_targets': [
+          'all'
+        ],
+      },
+      # This builder uses a recipe that is incompatible with tests in starlark
+      'Comparison Simple Chrome (reclient)': {
+        'additional_compile_targets': [
+          'chromiumos_preflight',
+        ],
+        'mixins': [
+          'chromeos-generic-vm',
+        ],
+        'browser_config': 'cros-chrome',
+        'os_type': 'chromeos',
+      },
+      # This builder uses a recipe that is incompatible with tests in starlark
+      'Comparison Windows (8 cores) (reclient)': {
+        'mixins': [
+          'isolate_profile_data',
+        ],
+        'additional_compile_targets': [
+          'all'
+        ],
+      },
+      # This builder uses a recipe that is incompatible with tests in starlark
+      'Comparison Windows (reclient)': {
+        'mixins': [
+          'isolate_profile_data',
+        ],
+        'additional_compile_targets': [
+          'all'
+        ],
+      },
+      # This builder uses a recipe that is incompatible with tests in starlark
+      'Comparison ios (reclient)': {
+        'additional_compile_targets': [
+          'all',
+        ],
+        'mixins': [
+          'has_native_resultdb_integration',
+          'isolate_profile_data',
+          'mac_default_x64',
+          'mac_toolchain',
+          'out_dir_arg',
+          'xcode_16_main',
+          'xctest',
+        ],
+      },
+    },
+  },
+  {
+    # The following builders in this group have been migrated to set their
+    # targets in the builders' declarations in
+    # //infra/config/subprojects/ci/chromium.gpu.fyi.star
+    #   Android FYI Experimental Release (Pixel 6)
+    #   Android FYI Release (Motorola Moto G Power 5G)
+    #   Android FYI Release (NVIDIA Shield TV)
+    #   Android FYI Release (Nexus 5X)
+    #   Android FYI Release (Pixel 2)
+    #   Android FYI Release (Pixel 4)
+    #   Android FYI Release (Pixel 6)
+    #   Android FYI Release (Samsung A13)
+    #   Android FYI Release (Samsung A23)
+    #   Android FYI Release (Samsung S23)
+    #   ChromeOS FYI Release (amd64-generic)
+    #   GPU FYI Android arm Builder
+    #   GPU FYI Android arm64 Builder
+    #   GPU FYI Linux Builder
+    #   GPU FYI Linux Builder (dbg)
+    #   GPU FYI Mac Builder
+    #   GPU FYI Mac Builder (asan)
+    #   GPU FYI Mac Builder (dbg)
+    #   GPU FYI Win Builder
+    #   GPU FYI Win x64 Builder
+    #   GPU FYI Win x64 Builder (dbg)
+    #   GPU FYI Win x64 DX12 Vulkan Builder
+    #   GPU FYI Win x64 DX12 Vulkan Builder (dbg)
+    #   Linux FYI Debug (NVIDIA)
+    #   Linux FYI Experimental Release (Intel UHD 630)
+    #   Linux FYI Experimental Release (NVIDIA)
+    #   Linux FYI GPU TSAN Release
+    #   Linux FYI Release (AMD RX 5500 XT)
+    #   Linux FYI Release (Intel UHD 630)
+    #   Linux FYI Release (Intel UHD 770)
+    #   Linux FYI Release (NVIDIA)
+    #   Linux Wayland FYI Release (AMD)
+    #   Linux Wayland FYI Release (Intel)
+    #   Mac FYI ASAN (Intel)
+    #   Mac FYI Debug (Intel)
+    #   Mac FYI Experimental Release (Apple M1)
+    #   Mac FYI Experimental Release (Intel)
+    #   Mac FYI Experimental Retina Release (AMD)
+    #   Mac FYI Experimental Retina Release (Apple M2)
+    #   Mac FYI Experimental Retina Release (NVIDIA)
+    #   Mac FYI Release (Apple M1)
+    #   Mac FYI Release (Intel)
+    #   Mac FYI Retina ASAN (AMD)
+    #   Mac FYI Retina Debug (AMD)
+    #   Mac FYI Retina Release (AMD)
+    #   Mac FYI Retina Release (Apple M2)
+    #   Mac FYI Retina Release (NVIDIA)
+    #   Mac Pro FYI Release (AMD)
+    #   Win10 FYI x64 DX12 Vulkan Debug (NVIDIA)
+    #   Win10 FYI x64 DX12 Vulkan Release (NVIDIA)
+    #   Win10 FYI x64 Debug (NVIDIA)
+    #   Win10 FYI x64 Exp Release (NVIDIA)
+    #   Win10 FYI x64 Experimental Release (Intel)
+    #   Win10 FYI x64 Release (AMD RX 5500 XT)
+    #   Win10 FYI x64 Release (Intel)
+    #   Win10 FYI x64 Release (Intel UHD 770)
+    #   Win10 FYI x64 Release (NVIDIA)
+    #   Win10 FYI x64 Release (NVIDIA RTX 4070 Super)
+    #   Win10 FYI x64 Release XR Perf (NVIDIA)
+    #   Win10 FYI x86 Release (NVIDIA)
+    #   Win11 FYI arm64 Release (Qualcomm Adreno 690)
+    'name': 'chromium.gpu.fyi',
+    'forbid_script_tests': True,
+    'mixins': [
+      'chromium-tester-service-account',
+      'swarming_containment_auto',
+      'timeout_30m',
+    ],
+    'machines': {
+      # Builders running skylab tests cannot be migrated to starlark currently
+      'ChromeOS FYI Release Skylab (volteer)': {
+        'additional_compile_targets': [
+          'chromiumos_preflight',
+        ],
+        'browser_config': 'cros-chrome',
+        'os_type': 'chromeos',
+        'skip_merge_script': True,
+        'use_swarming': False,
+        'test_suites': {
+          'skylab_tests': 'gpu_fyi_chromeos_release_gtests_volteer_skylab',
+          'skylab_gpu_telemetry_tests': 'gpu_fyi_chromeos_release_telemetry_tests_volteer_skylab',
+        },
+      },
+    },
+  },
+  {
+    # The following builders in this group have been migrated to set their
+    # targets in the builders' declarations in
+    # //infra/config/subprojects/reclient/reclient.star
+    #   Linux Builder reclient staging
+    #   Linux Builder reclient staging untrusted
+    #   Linux Builder reclient test
+    #   Linux Builder reclient test untrusted
+    #   Mac Builder reclient staging
+    #   Mac Builder reclient staging untrusted
+    #   Simple Chrome Builder reclient staging
+    #   Simple Chrome Builder reclient staging untrusted
+    #   Simple Chrome Builder reclient test
+    #   Simple Chrome Builder reclient test untrusted
+    #   ios-simulator reclient staging
+    #   ios-simulator reclient staging untrusted
+    #   mac-arm64-rel reclient staging
+    #   mac-arm64-rel reclient staging unrtusted
+    'name': 'chromium.reclient.fyi',
+    'mixins': ['chromium-tester-service-account'],
+    'machines': {
+      # This builder uses a recipe that is incompatible with tests in starlark
+      'Comparison Linux (reclient vs reclient remote links)': {
+        'mixins': [
+          'isolate_profile_data',
+        ],
+        'additional_compile_targets': [
+          'all'
+        ],
+      },
+      # This builder uses a recipe that is incompatible with tests in starlark
+      'Comparison Linux (reclient)': {
+        'mixins': [
+          'isolate_profile_data',
+        ],
+        'additional_compile_targets': [
+          'all'
+        ],
+      },
+    },
+  },
+  {
+    'name': 'client.devtools-frontend.integration',
+    'mixins': ['chromium-tester-service-account'],
+    'machines': {
+      'DevTools Linux': {
+        'mixins': [
+          'linux-jammy',
+        ],
+        'additional_compile_targets': ['blink_tests'],
+        'test_suites': {
+          'gtest_tests': 'devtools_gtests',
+          'isolated_scripts': 'devtools_web_isolated_scripts',
+        },
+      },
+      'DevTools Linux Fastbuild': {
+        'mixins': [
+          'linux-jammy',
+        ],
+        'additional_compile_targets': ['blink_tests'],
+        'test_suites': {
+          'gtest_tests': 'devtools_gtests',
+          'isolated_scripts': 'devtools_web_isolated_scripts',
+        },
+      },
+    },
+  },
+  {
+    'name': 'client.openscreen.chromium',
+    'machines': {
+      'chromium_linux_x64': {
+        'additional_compile_targets': [
+          'chrome/browser/media/router',
+          'chrome/browser/media/router:openscreen_unittests',
+          'chrome/browser/media/router:unittests',
+          'components/media_router/common/providers/cast/channel',
+          'components/media_router/common/providers/cast/channel:unit_tests',
+          'components/media_router/common/providers/cast/certificate',
+          'components/media_router/common/providers/cast/certificate:unit_tests',
+          'components/mirroring/browser',
+          'components/mirroring/service:mirroring_service',
+          'components/mirroring:mirroring_tests',
+          'components/mirroring:mirroring_unittests',
+          'components/openscreen_platform',
+        ],
+      },
+      'chromium_mac_x64': {
+        'additional_compile_targets': [
+          'chrome/browser/media/router',
+          'chrome/browser/media/router:openscreen_unittests',
+          'chrome/browser/media/router:unittests',
+          'components/media_router/common/providers/cast/channel',
+          'components/media_router/common/providers/cast/channel:unit_tests',
+          'components/media_router/common/providers/cast/certificate',
+          'components/media_router/common/providers/cast/certificate:unit_tests',
+          'components/mirroring/browser',
+          'components/mirroring/service:mirroring_service',
+          'components/mirroring:mirroring_tests',
+          'components/mirroring:mirroring_unittests',
+          'components/openscreen_platform',
+        ],
+      },
+      'chromium_win_x64': {
+        'additional_compile_targets': [
+          'chrome/browser/media/router',
+          'chrome/browser/media/router:openscreen_unittests',
+          'chrome/browser/media/router:unittests',
+          'components/media_router/common/providers/cast/channel',
+          'components/media_router/common/providers/cast/channel:unit_tests',
+          'components/media_router/common/providers/cast/certificate',
+          'components/media_router/common/providers/cast/certificate:unit_tests',
+          'components/mirroring/browser',
+          'components/mirroring/service:mirroring_service',
+          'components/mirroring:mirroring_tests',
+          'components/mirroring:mirroring_unittests',
+          'components/openscreen_platform',
+        ],
+      },
+    },
+  },
+  {
+    'name': 'client.v8.branches',
+    'machines': {},
+  },
+  {
+    'name': 'client.v8.chromium',
+    'mixins': ['chromium-tester-service-account'],
+    'machines': {
+      'Linux - Future': {
+        'mixins': [
+          'linux-jammy',
+        ],
+        'additional_compile_targets': ['all'],
+        'test_suites': {
+          'gtest_tests': 'client_v8_chromium_gtests',
+          'isolated_scripts': 'client_v8_chromium_isolated_scripts',
+        },
+      },
+      'Linux - Future (dbg)': {
+        'mixins': [
+          'linux-jammy',
+        ],
+        'additional_compile_targets': ['all'],
+        'test_suites': {
+          'gtest_tests': 'client_v8_chromium_gtests',
+          'isolated_scripts': 'client_v8_chromium_isolated_scripts',
+        },
+      },
+      'Linux V8 API Stability': {
+        'additional_compile_targets': ['all'],
+      },
+    },
+  },
+  {
+    'name': 'client.v8.fyi',
+    'mixins': ['chromium-tester-service-account'],
+    'machines': {
+      'Android V8 FYI Release': {
+        'browser_config': 'android-chromium',
+        'os_type': 'android',
+        'skip_merge_script': True,
+        'mixins': [
+          'chromium_pixel_2_pie',
+        ],
+        'test_suites': {
+          'gpu_telemetry_tests': 'gpu_telemetry_tests_v8',
+        },
+      },
+      'Linux ASAN Builder': {
+        'additional_compile_targets': [
+          'extensions_browsertests',
+          'net_unittests',
+          'unit_tests',
+        ],
+      },
+      'Linux V8 FYI Release (NVIDIA)': {
+        'os_type': 'linux',
+        'browser_config': 'release',
+        'mixins': [
+          'linux_nvidia_gtx_1660_stable',
+        ],
+        'test_suites': {
+          'gpu_telemetry_tests': 'gpu_fyi_linux_release_vulkan_telemetry_tests',
+        },
+      },
+      'Linux V8 FYI Release - pointer compression (NVIDIA)': {
+        'os_type': 'linux',
+        'browser_config': 'release',
+        'mixins': [
+          'linux_nvidia_gtx_1660_stable',
+        ],
+        'test_suites': {
+          'gpu_telemetry_tests': 'gpu_fyi_linux_release_vulkan_telemetry_tests',
+        },
+      },
+      'Mac V8 FYI Release (Intel)': {
+        'browser_config': 'release',
+        'os_type': 'mac',
+        'mixins': [
+          'mac_mini_intel_gpu_stable',
+        ],
+        'test_suites': {
+          'gpu_telemetry_tests': 'gpu_fyi_only_mac_release_telemetry_tests',
+        },
+      },
+      'V8 Android GN (dbg)': {
+        'additional_compile_targets': [
+          'chrome_public_apk',
+          'blink_tests',
+          'gin_unittests',
+          'net_unittests',
+        ],
+      },
+      'V8 Blink Linux': {
+        'mixins': [
+          'linux-jammy',
+        ],
+        'additional_compile_targets': ['blink_tests'],
+        'test_suites': {
+          'gtest_tests': 'blink_unittests_suite',
+          'isolated_scripts': 'chromium_webkit_isolated_scripts',
+        },
+      },
+      'V8 Blink Linux Debug': {
+        'mixins': [
+          'linux-jammy',
+        ],
+        'additional_compile_targets': ['blink_tests'],
+        'test_suites': {
+          'gtest_tests': 'blink_unittests_suite',
+          'isolated_scripts': 'chromium_webkit_isolated_scripts',
+        },
+      },
+      'V8 Blink Linux Future': {
+        'mixins': [
+          'linux-jammy',
+        ],
+        'additional_compile_targets': ['blink_tests'],
+        'test_suites': {
+          'gtest_tests': 'blink_unittests_suite',
+          'isolated_scripts': 'chromium_webkit_isolated_scripts',
+        },
+      },
+      'V8 Blink Mac': {
+        'swarming': {
+          'dimensions': {
+            'cpu': 'x86-64',
+            'os': 'Mac-14',
+          },
+        },
+        'additional_compile_targets': ['blink_tests'],
+        'test_suites': {
+          'gtest_tests': 'blink_unittests_suite',
+          'isolated_scripts': 'chromium_webkit_isolated_scripts',
+        },
+      },
+      'V8 Blink Win': {
+        'mixins': [
+          'win10',
+        ],
+        'additional_compile_targets': ['blink_tests'],
+        'test_suites': {
+          'isolated_scripts': 'chromium_webkit_isolated_scripts',
+        },
+      },
+      'V8 Linux GN': {
+        'additional_compile_targets': [
+          'accessibility_unittests',
+          'aura_unittests',
+          'blink_tests',
+          'browser_tests',
+          'capture_unittests',
+          'cast_unittests',
+          'cc_unittests',
+          'chromedriver_unittests',
+          'components_browsertests',
+          'components_unittests',
+          'content_browsertests',
+          'content_unittests',
+          'crypto_unittests',
+          'dbus_unittests',
+          'device_unittests',
+          'display_unittests',
+          'events_unittests',
+          'extensions_browsertests',
+          'extensions_unittests',
+          'gcm_unit_tests',
+          'gfx_unittests',
+          'gin_unittests',
+          'google_apis_unittests',
+          'gpu_unittests',
+          'interactive_ui_tests',
+          'ipc_tests',
+          'media_unittests',
+          'mojo_unittests',
+          'net_unittests',
+          'pdf_unittests',
+          'pdfium_test',
+          'printing_unittests',
+          'remoting_unittests',
+          'sandbox_linux_unittests',
+          'skia_unittests',
+          'sql_unittests',
+          'storage_unittests',
+          'sync_integration_tests',
+          'ui_base_unittests',
+          'ui_touch_selection_unittests',
+          'unit_tests',
+          'url_unittests',
+          'views_unittests',
+          'wm_unittests',
+        ],
+      },
+      'Win V8 FYI Release (NVIDIA)': {
+        'os_type': 'win',
+        'browser_config': 'release',
+        'mixins': [
+          'win10_nvidia_gtx_1660_stable',
+        ],
+        'test_suites': {
+          'gpu_telemetry_tests': 'gpu_fyi_win_release_telemetry_tests',
+        },
+      },
+    },
+  },
+  {
+    'project': 'chrome',
+    'bucket': 'ci',
+    'name': 'internal.chrome.fyi',
+    'mixins': ['chrome-tester-service-account'],
+    'machines': {
+      'android-emulator-finch-smoke-chrome': {
+        'mixins': [
+          'chrome-finch-swarming-pool',
+          'linux-jammy',
+          '11-x86-emulator',
+          'skia_gold_test',
+        ],
+        'test_suites': {
+          'isolated_scripts': 'chrome_android_finch_smoke_tests',
+        },
+        'os_type': 'android',
+      },
+      'chromeos-arm-generic-cfi-thin-lto-chrome-reclient': {
+        'additional_compile_targets': [
+          'chromiumos_preflight',
+        ],
+      },
+      'linux-chrome-reclient': {
+        'additional_compile_targets': [
+           # same build target as linux-chrome even if it doesn't run the tests
+           'base_unittests',
+           'chrome',
+           'chrome/installer/linux',
+           'chrome_sizes',
+           'variations_smoke_tests',
+        ],
+        # no tests. stay compile only.
+      },
+      'linux-finch-smoke-chrome': {
+        'mixins': [
+          'chrome-finch-swarming-pool',
+          'linux-jammy',
+        ],
+        'test_suites': {
+          'isolated_scripts': 'chrome_finch_smoke_tests',
+        },
+        'os_type': 'linux',
+      },
+      'mac-arm64-finch-smoke-chrome': {
+        'mixins': [
+          'chrome-finch-swarming-pool',
+          'mac_default_arm64',
+        ],
+        'test_suites': {
+          'isolated_scripts': 'chrome_finch_smoke_tests',
+        },
+        'os_type': 'mac',
+      },
+      'mac-chrome-reclient': {
+        'additional_compile_targets': [
+           # same build target as mac-chrome even if it doesn't run the tests
+          'chrome',
+          'chrome/installer/mac',
+          'chrome_sizes',
+          'variations_smoke_tests',
+        ],
+        # no tests, stay compile only.
+      },
+      'win-chrome-reclient': {
+        'additional_compile_targets': [
+           # same build target as win-chrome even if it doesn't run the tests
+          'base_unittests',
+          'chrome',
+          'chrome_official_builder',
+          'chrome_sizes',
+          'variations_smoke_tests',
+        ],
+        # no tests, stay compile only.
+      },
+      'win-finch-smoke-chrome': {
+        'mixins': [
+          'chrome-finch-swarming-pool',
+          'win10-any',
+        ],
+        'test_suites': {
+          'isolated_scripts': 'chrome_finch_smoke_tests',
+        },
+        'os_type': 'win',
+      },
+    },
+  },
+  {
+    'project': 'chrome',
+    'bucket': 'ci',
+    'name': 'internal.chromeos.fyi',
+    'mixins': ['chrome-tester-service-account'],
+    'machines': {
+      'chromeos-betty-finch-smoke-chrome': {
+        'mixins': [
+          'chromeos-betty-finch',
+        ],
+        'test_suites': {
+          'isolated_scripts': 'chrome_finch_smoke_tests',
+        },
+        'os_type': 'chromeos',
+      },
+      'chromeos-brya-chrome-dchecks-skylab': {
+        'additional_compile_targets': [
+          'chromiumos_preflight',
+        ],
+        'mixins': [
+          'cros-cbx-dut',
+        ],
+        'test_suites': {
+          'skylab_tests': 'chromeos_brya_skylab_tests',
+        },
+        'os_type': 'chromeos',
+        'cros_board': 'brya',
+      },
+      'chromeos-eve-chrome': {
+        # This builder is build only.
+        'additional_compile_targets': [
+          'chromiumos_preflight',
+        ],
+        'os_type': 'chromeos'
+      },
+      'chromeos-jacuzzi-chrome-dchecks-skylab': {
+        'additional_compile_targets': [
+          'chromiumos_preflight',
+        ],
+        'test_suites': {
+          'skylab_tests': 'chromeos_jacuzzi_skylab_tests',
+        },
+        'os_type': 'chromeos',
+        'cros_board': 'jacuzzi',
+      },
+      # TODO(b/330335155): Remove after infra config changed to non-fyi builder.
+      'chromeos-trogdor-chrome-skylab-fyi': {
+        'additional_compile_targets': [
+          'chromiumos_preflight',
+        ],
+        'os_type': 'chromeos',
+        'cros_board': 'trogdor',
+      },
+      'chromeos-trogdor-chrome-skylab-tests-fyi': {
+        'test_suites': {
+          'skylab_tests': 'chromeos_trogdor_skylab_tests',
+        },
+        'os_type': 'chromeos',
+        'cros_board': 'trogdor',
+      },
+    },
+  },
+  {
+    'project': 'chrome',
+    'bucket': 'ci',
+    'name': 'internal.optimization_guide',
+    'mixins': [
+      'chrome-tester-service-account',
+    ],
+    'machines': {
+      'optimization_guide-android-arm64': {
+        'mixins': [
+          'android',
+          'chrome-flame-fleet-pool',
+        ],
+        'test_suites': {
+           'gtest_tests': 'optimization_guide_android_gtests',
+        },
+        'os_type': 'android',
+      },
+      'optimization_guide-chromeos': {
+        'mixins': [
+          'chrome-swarming-pool',
+          'linux-jammy',
+          'x86-64',
+        ],
+        'test_suites': {
+           'gtest_tests': 'optimization_guide_cros_gtests',
+        },
+        'os_type': 'chromeos',
+      },
+      'optimization_guide-ios-device': {
+        'mixins': [
+          'chrome-swarming-pool',
+          'mac_default_arm64',
+          'mac_toolchain',
+          'out_dir_arg',
+          'xctest',
+          'xcode_16_main',
+        ],
+        'test_suites': {
+           'gtest_tests': 'optimization_guide_ios_device_gtests',
+        },
+        'os_type': 'ios',
+      },
+      'optimization_guide-ios-simulator': {
+        'mixins': [
+          'chrome-swarming-pool',
+          'mac_default_arm64',
+          'mac_toolchain',
+          'out_dir_arg',
+          'xctest',
+          'xcode_16_main',
+        ],
+        'test_suites': {
+           'gtest_tests': 'optimization_guide_ios_sim_gtests',
+        },
+        'os_type': 'ios',
+      },
+      'optimization_guide-linux': {
+        'mixins': [
+          'chrome-intelligence-swarming-pool',
+          'linux-jammy',
+          'x86-64',
+        ],
+        'test_suites': {
+           'gtest_tests': 'optimization_guide_linux_gtests',
+           'isolated_scripts': 'optimization_guide_linux_script_tests',
+        },
+        'os_type': 'linux',
+      },
+      'optimization_guide-mac-arm64': {
+        'additional_compile_targets': [
+          'ondevice_model_benchmark',
+          'ondevice_model_example',
+        ],
+        'mixins': [
+          'chrome-swarming-pool',
+          'mac_default_arm64',
+        ],
+        'test_suites': {
+           'gtest_tests': 'optimization_guide_desktop_gtests',
+           'isolated_scripts': 'optimization_guide_mac_script_tests',
+        },
+        'os_type': 'mac',
+      },
+      'optimization_guide-mac-x64': {
+        'additional_compile_targets': [
+          'ondevice_model_benchmark',
+          'ondevice_model_example',
+        ],
+        'mixins': [
+          'chrome-swarming-pool',
+          'mac_default_x64',
+        ],
+        'test_suites': {
+           'gtest_tests': 'optimization_guide_desktop_gtests',
+           'isolated_scripts': 'optimization_guide_mac_script_tests',
+        },
+        'os_type': 'mac',
+      },
+      'optimization_guide-win-arm64': {
+        'additional_compile_targets': [
+          'ondevice_model_benchmark',
+          'ondevice_model_example',
+        ],
+        'mixins': [
+          'chrome-swarming-pool',
+          'win-arm64',
+        ],
+        'test_suites': {
+           'gtest_tests': 'optimization_guide_desktop_gtests',
+           'isolated_scripts': 'optimization_guide_win_arm64_script_tests',
+        },
+        'os_type': 'win',
+      },
+      'optimization_guide-win32': {
+        'additional_compile_targets': [
+          'ondevice_model_benchmark',
+          'ondevice_model_example',
+        ],
+        'mixins': [
+          'chrome-intelligence-swarming-pool',
+          'win10',
+        ],
+        'test_suites': {
+           'gtest_tests': 'optimization_guide_win_gtests',
+           'isolated_scripts': 'optimization_guide_win_script_tests',
+        },
+        'os_type': 'win',
+      },
+      'optimization_guide-win64': {
+        'additional_compile_targets': [
+          'ondevice_model_benchmark',
+          'ondevice_model_example',
+        ],
+        'mixins': [
+          'chrome-intelligence-swarming-pool',
+          'win10',
+        ],
+        'test_suites': {
+           'gtest_tests': 'optimization_guide_win_gtests',
+           'isolated_scripts': 'optimization_guide_win_script_tests',
+        },
+        'os_type': 'win',
+      },
+      # The following official builders are for catching
+      # official-specific ODML issues. Thus, they only run the
+      # optimization_guide_gpu_gtests on NVIDIA GeForce GTX 1660.
+      'optimization_guide_official-linux': {
+        'mixins': [
+          'chrome-intelligence-swarming-pool',
+          'nvidia_geforce_gtx_1660',
+          'linux-jammy',
+        ],
+        'test_suites': {
+           'gtest_tests': 'optimization_guide_gpu_gtests',
+        },
+        'os_type': 'linux',
+      },
+      'optimization_guide_official-win64': {
+        'browser_config': 'release_x64',
+        'mixins': [
+          'chrome-intelligence-swarming-pool',
+          'nvidia_geforce_gtx_1660',
+          'win10',
+        ],
+        'test_suites': {
+           'gtest_tests': 'optimization_guide_gpu_gtests',
+        },
+        'os_type': 'win',
+      },
+    },
+  },
+  {
+    'name': 'tryserver.devtools-frontend',
+    'mixins': ['chromium-tester-service-account'],
+    'machines': {
+      'devtools_frontend_linux_blink_light_rel': {
+        'mixins': [
+          'linux-jammy',
+        ],
+        'test_suites': {
+          'gtest_tests': 'devtools_browser_tests_suite',
+          'isolated_scripts': 'devtools_web_isolated_scripts',
+        },
+      },
+      'devtools_frontend_linux_blink_light_rel_fastbuild': {
+        'mixins': [
+          'linux-jammy',
+        ],
+        'test_suites': {
+          'gtest_tests': 'devtools_browser_tests_suite',
+          'isolated_scripts': 'devtools_web_isolated_scripts',
+        },
+      },
+      'devtools_frontend_linux_blink_rel': {
+        'mixins': [
+          'linux-jammy',
+        ],
+        'test_suites': {
+          'isolated_scripts': 'devtools_web_isolated_scripts',
+        },
+      },
+    }
+  },
+  {
+    'name': 'tryserver.v8',
+    'mixins': ['chromium-tester-service-account'],
+    'machines': {
+      # Should be kept in sync with linux-blink-rel in tryserver.blink
+      'v8_linux_blink_rel': {
+        'mixins': [
+          'linux-jammy',
+        ],
+        'test_suites': {
+          'isolated_scripts': 'chromium_linux_blink_rel_isolated_scripts',
+        },
+      },
+    },
+  },
+  {
+    'name': 'tryserver.webrtc',
+    'mixins': ['chromium-tester-service-account'],
+    'machines': {
+      'android_chromium_compile': {
+        'additional_compile_targets': [
+          'blink_unittests',
+          'capture_unittests',
+          'content_browsertests',
+          'content_unittests',
+          'remoting_unittests',
+        ],
+      },
+      'linux_chromium_compile': {
+        'additional_compile_targets': [
+          'blink_unittests',
+          'browser_tests',
+          'capture_unittests',
+          'content_browsertests',
+          'content_unittests',
+          'remoting_unittests',
+        ],
+      },
+      'linux_chromium_compile_dbg': {
+        'additional_compile_targets': [
+          'blink_unittests',
+          'browser_tests',
+          'capture_unittests',
+          'content_browsertests',
+          'content_unittests',
+          'remoting_unittests',
+        ],
+      },
+      'mac_chromium_compile': {
+        'additional_compile_targets': [
+          'blink_unittests',
+          'browser_tests',
+          'capture_unittests',
+          'content_browsertests',
+          'content_unittests',
+          'remoting_unittests',
+        ],
+      },
+      'webrtc_linux_chromium': {
+        'mixins': [
+          'linux-jammy',
+        ],
+        'additional_compile_targets': [
+          'blink_unittests',
+          'browser_tests',
+          'capture_unittests',
+          'content_browsertests',
+          'content_unittests',
+          'remoting_unittests',
+        ],
+        'test_suites': {
+          'isolated_scripts': 'webrtc_chromium_wpt_tests',
+        },
+      },
+      'win_chromium_compile': {
+        'additional_compile_targets': [
+          'blink_unittests',
+          'browser_tests',
+          'capture_unittests',
+          'content_browsertests',
+          'content_unittests',
+          'remoting_unittests',
+        ],
+      },
+      'win_chromium_compile_dbg': {
+        'additional_compile_targets': [
+          'blink_unittests',
+          'browser_tests',
+          'capture_unittests',
+          'content_browsertests',
+          'content_unittests',
+          'remoting_unittests',
+        ],
+      },
+    },
+  },
+]

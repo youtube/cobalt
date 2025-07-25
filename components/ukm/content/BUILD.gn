@@ -1,17 +1,14 @@
-# Copyright 2017 The Chromium Authors. All rights reserved.
+# Copyright 2017 The Chromium Authors
 # Use of this source code is governed by a BSD-style license that can be
 # found in the LICENSE file.
 
 static_library("content") {
   sources = [
-    "app_source_url_recorder.cc",
-    "app_source_url_recorder.h",
     "source_url_recorder.cc",
     "source_url_recorder.h",
   ]
   deps = [
     "//base",
-    "//components/crx_file",
     "//content/public/browser",
     "//services/metrics/public/cpp:metrics_cpp",
     "//services/metrics/public/cpp:ukm_builders",
@@ -22,10 +19,7 @@ static_library("content") {
 
 source_set("unit_tests") {
   testonly = true
-  sources = [
-    "app_source_url_recorder_test.cc",
-    "source_url_recorder_test.cc",
-  ]
+  sources = [ "source_url_recorder_test.cc" ]
   deps = [
     ":content",
     "//base",

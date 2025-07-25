@@ -122,6 +122,21 @@ void DecryptingVideoDecoder::Decode(scoped_refptr<DecoderBuffer> buffer,
     return;
   }
 
+  // One time set of `has_clear_lead_`.
+  if (!has_clear_lead_.has_value()) {
+    has_clear_lead_ = !buffer->end_of_stream() && !buffer->decrypt_config();
+  }
+
+  // Although the stream may switch from clear to encrypted to clear multiple
+  // times (e.g ad-insertions), we only log to the Media log the first switch
+  // from clear to encrypted.
+  if (HasClearLead() && !switched_clear_to_encrypted_ &&
+      !buffer->end_of_stream() && buffer->is_encrypted()) {
+    MEDIA_LOG(INFO, media_log_)
+        << "First switch from clear to encrypted buffers.";
+    switched_clear_to_encrypted_ = true;
+  }
+
   pending_buffer_to_decode_ = std::move(buffer);
   state_ = kPendingDecode;
   DecodePendingBuffer();
@@ -213,17 +228,20 @@ void DecryptingVideoDecoder::DecodePendingBuffer() {
   DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
   DCHECK_EQ(state_, kPendingDecode) << state_;
 
+  auto& buffer = pending_buffer_to_decode_;
+
   // Note: Traces require a unique ID per decode, if we ever support multiple
   // in flight decodes, the trace begin+end macros need the same unique id.
   DCHECK_EQ(GetMaxDecodeRequests(), 1);
-  TRACE_EVENT_ASYNC_BEGIN1(
+  const bool is_end_of_stream = buffer->end_of_stream();
+  const bool is_encrypted = !is_end_of_stream && buffer->decrypt_config();
+  const auto timestamp_us =
+      is_end_of_stream ? 0 : buffer->timestamp().InMicroseconds();
+  TRACE_EVENT_NESTABLE_ASYNC_BEGIN2(
       "media", "DecryptingVideoDecoder::DecodePendingBuffer", this,
-      "timestamp_us",
-      pending_buffer_to_decode_->end_of_stream()
-          ? 0
-          : pending_buffer_to_decode_->timestamp().InMicroseconds());
+      "is_encrypted", is_encrypted, "timestamp_us", timestamp_us);
 
-  if (!DecoderBuffer::DoSubsamplesMatch(*pending_buffer_to_decode_)) {
+  if (!DecoderBuffer::DoSubsamplesMatch(*buffer)) {
     MEDIA_LOG(ERROR, media_log_)
         << "DecryptingVideoDecoder: Subsamples for Buffer do not match";
     state_ = kError;
@@ -232,7 +250,7 @@ void DecryptingVideoDecoder::DecodePendingBuffer() {
   }
 
   decryptor_->DecryptAndDecodeVideo(
-      pending_buffer_to_decode_,
+      buffer,
       base::BindPostTaskToCurrentDefault(base::BindRepeating(
           &DecryptingVideoDecoder::DeliverFrame, weak_factory_.GetWeakPtr())));
 }
@@ -272,7 +290,7 @@ void DecryptingVideoDecoder::DeliverFrame(Decryptor::Status status,
     std::string key_id =
         scoped_pending_buffer_to_decode->decrypt_config()->key_id();
     std::string log_message =
-        "no key for key ID " + base::HexEncode(key_id.data(), key_id.size()) +
+        "no key for key ID " + base::HexEncode(key_id) +
         "; will resume decoding after new usable key is available";
     DVLOG(1) << __func__ << ": " << log_message;
     MEDIA_LOG(INFO, media_log_) << GetDecoderType() << ": " << log_message;
@@ -289,7 +307,7 @@ void DecryptingVideoDecoder::DeliverFrame(Decryptor::Status status,
       return;
     }
 
-    TRACE_EVENT_ASYNC_BEGIN0(
+    TRACE_EVENT_NESTABLE_ASYNC_BEGIN0(
         "media", "DecryptingVideoDecoder::WaitingForDecryptionKey", this);
     state_ = kWaitingForKey;
     waiting_cb_.Run(WaitingReason::kNoDecryptionKey);
@@ -315,6 +333,11 @@ void DecryptingVideoDecoder::DeliverFrame(Decryptor::Status status,
     DVLOG(3) << "Setting color space using information in the config.";
     if (config_.color_space_info().IsSpecified())
       frame->set_color_space(config_.color_space_info().ToGfxColorSpace());
+  }
+
+  // Attach the HDR metadata from the `config_` if it's not set on the `frame`.
+  if (!frame->hdr_metadata() && config_.hdr_metadata()) {
+    frame->set_hdr_metadata(config_.hdr_metadata());
   }
 
   output_cb_.Run(std::move(frame));
@@ -361,13 +384,14 @@ void DecryptingVideoDecoder::DoReset() {
 
 void DecryptingVideoDecoder::CompletePendingDecode(Decryptor::Status status) {
   DCHECK_EQ(state_, kPendingDecode);
-  TRACE_EVENT_ASYNC_END1("media", "DecryptingVideoDecoder::DecodePendingBuffer",
-                         this, "status", Decryptor::GetStatusName(status));
+  TRACE_EVENT_NESTABLE_ASYNC_END1(
+      "media", "DecryptingVideoDecoder::DecodePendingBuffer", this, "status",
+      Decryptor::GetStatusName(status));
 }
 
 void DecryptingVideoDecoder::CompleteWaitingForDecryptionKey() {
   DCHECK_EQ(state_, kWaitingForKey);
-  TRACE_EVENT_ASYNC_END0(
+  TRACE_EVENT_NESTABLE_ASYNC_END0(
       "media", "DecryptingVideoDecoder::WaitingForDecryptionKey", this);
 }
 

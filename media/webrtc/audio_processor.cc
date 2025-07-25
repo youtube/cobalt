@@ -2,6 +2,11 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#ifdef UNSAFE_BUFFERS_BUILD
+// TODO(crbug.com/40285824): Remove this and convert code to safer constructs.
+#pragma allow_unsafe_buffers
+#endif
+
 #include "media/webrtc/audio_processor.h"
 
 #include <stddef.h>
@@ -11,6 +16,7 @@
 #include <array>
 #include <limits>
 #include <memory>
+#include <optional>
 #include <utility>
 
 #include "base/feature_list.h"
@@ -30,7 +36,6 @@
 #include "media/webrtc/constants.h"
 #include "media/webrtc/helpers.h"
 #include "media/webrtc/webrtc_features.h"
-#include "third_party/abseil-cpp/absl/types/optional.h"
 #include "third_party/webrtc/modules/audio_processing/include/audio_processing.h"
 #include "third_party/webrtc_overrides/task_queue_factory.h"
 
@@ -82,8 +87,8 @@ bool ApmNeedsPlayoutReference(const webrtc::AudioProcessing* apm,
     // needed.
     return false;
   }
-  // TODO(crbug.com/1410129): Move the logic below into WebRTC APM since APM may
-  // use injected sub-modules the usage of which is not reflected in the APM
+  // TODO(crbug.com/40889535): Move the logic below into WebRTC APM since APM
+  // may use injected sub-modules the usage of which is not reflected in the APM
   // config (e.g., render side processing).
   const webrtc::AudioProcessing::Config config = apm->GetConfig();
   const bool aec = config.echo_canceller.enabled;
@@ -336,8 +341,10 @@ void AudioProcessor::ProcessCapturedAudio(const media::AudioBus& audio_source,
   DCHECK_EQ(audio_source.frames(), input_format_.frames_per_buffer());
 
   base::TimeDelta capture_delay = base::TimeTicks::Now() - audio_capture_time;
-  TRACE_EVENT1("audio", "AudioProcessor::ProcessCapturedAudio", "delay (ms)",
-               capture_delay.InMillisecondsF());
+  TRACE_EVENT("audio", "AudioProcessor::ProcessCapturedAudio",
+              "capture_time (ms)",
+              (audio_capture_time - base::TimeTicks()).InMillisecondsF(),
+              "capture_delay (ms)", capture_delay.InMillisecondsF());
 
   capture_fifo_->Push(audio_source, capture_delay);
 
@@ -347,7 +354,7 @@ void AudioProcessor::ProcessCapturedAudio(const media::AudioBus& audio_source,
   while (capture_fifo_->Consume(&process_bus, &capture_delay)) {
     // Use the process bus directly if audio processing is disabled.
     AudioProcessorCaptureBus* output_bus = process_bus;
-    absl::optional<double> new_volume;
+    std::optional<double> new_volume;
     if (webrtc_audio_processing_) {
       output_bus = output_bus_.get();
       new_volume =
@@ -383,8 +390,8 @@ void AudioProcessor::OnStartDump(base::File dump_file) {
 
   if (webrtc_audio_processing_) {
     if (!worker_queue_) {
-      worker_queue_ = std::make_unique<rtc::TaskQueue>(
-          CreateWebRtcTaskQueue(rtc::TaskQueue::Priority::LOW));
+      worker_queue_ =
+          CreateWebRtcTaskQueue(webrtc::TaskQueueFactory::Priority::LOW);
     }
     // Here tasks will be posted on the |worker_queue_|. It must be
     // kept alive until media::StopEchoCancellationDump is called or the
@@ -405,13 +412,13 @@ void AudioProcessor::OnStopDump() {
     return;
   if (webrtc_audio_processing_)
     media::StopEchoCancellationDump(webrtc_audio_processing_.get());
-  worker_queue_.reset(nullptr);
+  worker_queue_ = nullptr;
 }
 
 void AudioProcessor::OnPlayoutData(const AudioBus& audio_bus,
                                    int sample_rate,
                                    base::TimeDelta audio_delay) {
-  TRACE_EVENT1("audio", "AudioProcessor::OnPlayoutData", "delay (ms)",
+  TRACE_EVENT1("audio", "AudioProcessor::OnPlayoutData", "playout_delay (ms)",
                audio_delay.InMillisecondsF());
 
   if (!webrtc_audio_processing_) {
@@ -444,8 +451,9 @@ void AudioProcessor::AnalyzePlayoutData(const AudioBus& audio_bus,
       unbuffered_playout_delay_ +
       AudioTimestampHelper::FramesToTime(frame_delay, *playout_sample_rate_hz_);
   playout_delay_ = playout_delay;
-  TRACE_EVENT1("audio", "AudioProcessor::AnalyzePlayoutData", "delay (ms)",
-               playout_delay.InMillisecondsF());
+  TRACE_EVENT("audio", "AudioProcessor::AnalyzePlayoutData", "delay (frames)",
+              frame_delay, "playout_delay (ms)",
+              playout_delay.InMillisecondsF());
 
   webrtc::StreamConfig input_stream_config(*playout_sample_rate_hz_,
                                            audio_bus.channels());
@@ -469,7 +477,7 @@ webrtc::AudioProcessingStats AudioProcessor::GetStats() {
   return webrtc_audio_processing_->GetStatistics();
 }
 
-absl::optional<double> AudioProcessor::ProcessData(
+std::optional<double> AudioProcessor::ProcessData(
     const float* const* process_ptrs,
     int process_frames,
     base::TimeDelta capture_delay,
@@ -569,7 +577,7 @@ absl::optional<double> AudioProcessor::ProcessData(
   const int recommended_analog_gain_level =
       ap->recommended_stream_analog_level();
   if (recommended_analog_gain_level == current_analog_gain_level) {
-    return absl::nullopt;
+    return std::nullopt;
   } else {
     return static_cast<double>(recommended_analog_gain_level) /
            media::MaxWebRtcAnalogGainLevel();
@@ -583,7 +591,7 @@ void AudioProcessor::SendLogMessage(const std::string& message) {
                                        reinterpret_cast<uintptr_t>(this)));
 }
 
-absl::optional<AudioParameters> AudioProcessor::ComputeInputFormat(
+std::optional<AudioParameters> AudioProcessor::ComputeInputFormat(
     const AudioParameters& device_format,
     const AudioProcessingSettings& audio_processing_settings) {
   const ChannelLayout channel_layout = device_format.channel_layout();
@@ -592,7 +600,7 @@ absl::optional<AudioParameters> AudioProcessor::ComputeInputFormat(
   if (channel_layout != CHANNEL_LAYOUT_MONO &&
       channel_layout != CHANNEL_LAYOUT_STEREO &&
       channel_layout != CHANNEL_LAYOUT_DISCRETE) {
-    return absl::nullopt;
+    return std::nullopt;
   }
 
   AudioParameters params(
@@ -622,14 +630,15 @@ AudioParameters AudioProcessor::GetDefaultOutputFormat(
   // TODO(crbug.com/1336055): Investigate why chromecast devices need special
   // logic here.
   const int output_sample_rate =
-      need_webrtc_audio_processing ?
+      need_webrtc_audio_processing
+          ?
 #if BUILDFLAG(IS_CASTOS) || BUILDFLAG(IS_CAST_ANDROID)
-                                   std::min(media::kAudioProcessingSampleRateHz,
-                                            input_format.sample_rate())
+          std::min(media::WebRtcAudioProcessingSampleRateHz(),
+                   input_format.sample_rate())
 #else
-                                   media::kAudioProcessingSampleRateHz
+          media::WebRtcAudioProcessingSampleRateHz()
 #endif
-                                   : input_format.sample_rate();
+          : input_format.sample_rate();
 
   media::ChannelLayoutConfig output_channel_layout_config;
   if (!need_webrtc_audio_processing) {

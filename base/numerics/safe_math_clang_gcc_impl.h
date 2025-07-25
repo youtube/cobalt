@@ -5,14 +5,16 @@
 #ifndef BASE_NUMERICS_SAFE_MATH_CLANG_GCC_IMPL_H_
 #define BASE_NUMERICS_SAFE_MATH_CLANG_GCC_IMPL_H_
 
-#include <cassert>
+// IWYU pragma: private
+
+#include <stdint.h>
 #include <limits>
 #include <type_traits>
 
 #include "base/numerics/safe_conversions.h"
 
 #if !defined(__native_client__) && (defined(__ARMEL__) || defined(__arch64__))
-#include "base/numerics/safe_math_arm_impl.h"
+#include "base/numerics/safe_math_arm_impl.h"  // IWYU pragma: export
 #define BASE_HAS_ASSEMBLER_SAFE_MATH (1)
 #else
 #define BASE_HAS_ASSEMBLER_SAFE_MATH (0)
@@ -136,7 +138,7 @@ struct ClampedMulFastOp {
 
 template <typename T>
 struct ClampedNegFastOp {
-  static const bool is_supported = std::is_signed<T>::value;
+  static const bool is_supported = std::is_signed_v<T>;
   __attribute__((always_inline)) static T Do(T value) {
     // Use this when there is no assembler path available.
     if (!ClampedSubFastAsmOp<T, T>::is_supported) {

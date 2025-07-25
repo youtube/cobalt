@@ -50,23 +50,25 @@ else
   rescue LoadError
     require 'google/protobuf_c'
   end
+
 end
 
+require 'google/protobuf/descriptor_dsl'
 require 'google/protobuf/repeated_field'
 
 module Google
   module Protobuf
 
-    def self.encode(msg)
-      msg.to_proto
+    def self.encode(msg, options = {})
+      msg.to_proto(options)
     end
 
     def self.encode_json(msg, options = {})
       msg.to_json(options)
     end
 
-    def self.decode(klass, proto)
-      klass.decode(proto)
+    def self.decode(klass, proto, options = {})
+      klass.decode(proto, options)
     end
 
     def self.decode_json(klass, json, options = {})

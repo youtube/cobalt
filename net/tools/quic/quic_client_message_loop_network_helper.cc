@@ -28,7 +28,6 @@
 #include "net/third_party/quiche/src/quiche/quic/core/quic_packets.h"
 #include "net/third_party/quiche/src/quiche/quic/core/quic_server_id.h"
 #include "net/third_party/quiche/src/quiche/quic/platform/api/quic_flags.h"
-#include "net/third_party/quiche/src/quiche/spdy/core/http2_header_block.h"
 
 using std::string;
 
@@ -89,10 +88,10 @@ bool QuicClientMessageLooplNetworkHelper::CreateUDPSocketAndBind(
 
   socket_.swap(socket);
   packet_reader_ = std::make_unique<QuicChromiumPacketReader>(
-      socket_.get(), clock_, this, kQuicYieldAfterPacketsRead,
+      std::move(socket_), clock_, this, kQuicYieldAfterPacketsRead,
       quic::QuicTime::Delta::FromMilliseconds(
           kQuicYieldAfterDurationMilliseconds),
-      NetLogWithSource());
+      /*report_ecn=*/true, NetLogWithSource());
 
   if (socket != nullptr) {
     socket->Close();
@@ -128,7 +127,8 @@ QuicClientMessageLooplNetworkHelper::CreateQuicPacketWriter() {
   packet_reader_started_ = false;
 
   return new QuicChromiumPacketWriter(
-      socket_.get(), base::SingleThreadTaskRunner::GetCurrentDefault().get());
+      packet_reader_->socket(),
+      base::SingleThreadTaskRunner::GetCurrentDefault().get());
 }
 
 bool QuicClientMessageLooplNetworkHelper::OnReadError(

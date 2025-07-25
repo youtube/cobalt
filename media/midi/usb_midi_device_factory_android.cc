@@ -9,8 +9,10 @@
 
 #include "base/functional/bind.h"
 #include "base/synchronization/lock.h"
-#include "media/midi/midi_jni_headers/UsbMidiDeviceFactoryAndroid_jni.h"
 #include "media/midi/usb_midi_device_android.h"
+
+// Must come after all headers that specialize FromJniType() / ToJniType().
+#include "media/midi/midi_jni_headers/UsbMidiDeviceFactoryAndroid_jni.h"
 
 using base::android::JavaParamRef;
 
@@ -26,7 +28,7 @@ UsbMidiDeviceFactoryAndroid::UsbMidiDeviceFactoryAndroid()
     : delegate_(nullptr) {}
 
 UsbMidiDeviceFactoryAndroid::~UsbMidiDeviceFactoryAndroid() {
-  JNIEnv* env = base::android::AttachCurrentThread();
+  JNIEnv* env = jni_zero::AttachCurrentThread();
   if (!raw_factory_.is_null())
     Java_UsbMidiDeviceFactoryAndroid_close(env, raw_factory_);
 }
@@ -35,7 +37,7 @@ void UsbMidiDeviceFactoryAndroid::EnumerateDevices(
     UsbMidiDeviceDelegate* delegate,
     Callback callback) {
   DCHECK(!delegate_);
-  JNIEnv* env = base::android::AttachCurrentThread();
+  JNIEnv* env = jni_zero::AttachCurrentThread();
   uintptr_t pointer = reinterpret_cast<uintptr_t>(this);
   raw_factory_.Reset(Java_UsbMidiDeviceFactoryAndroid_create(env, pointer));
 

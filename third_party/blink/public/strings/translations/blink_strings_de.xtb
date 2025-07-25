@@ -1,0 +1,102 @@
+<?xml version="1.0" ?>
+<!DOCTYPE translationbundle>
+<translationbundle lang="de">
+<translation id="1012241361789814178">Der Debugger wurde auf einem anderen Tab pausiert. Klicke, um zu diesem Tab zu wechseln.</translation>
+<translation id="1171774979989969504">Gib eine E-Mail-Adresse ein.</translation>
+<translation id="1178581264944972037">Pause</translation>
+<translation id="1306460908038601864">Aus</translation>
+<translation id="1311894908970423688">Der Wert muss <ph name="VALUE_DATE_OR_TIME" /> sein.</translation>
+<translation id="1588438908519853928">Normal</translation>
+<translation id="1591562245178063882">Aktueller Monat</translation>
+<translation id="1637811476055996098">Dateien auswählen</translation>
+<translation id="1729654308190250600">Gib eine E-Mail-Adresse ein.</translation>
+<translation id="1758486001363313524">Andere...</translation>
+<translation id="1921819250265091946">tt</translation>
+<translation id="1938124657309484470">Verwende <ph name="MAXIMUM_DATE_OR_TIME" /> oder einen früheren Wert.</translation>
+<translation id="1993104285338243655">Zu 1:1-Wiedergabe gewechselt</translation>
+<translation id="2060505056492490888">Das Punktzeichen "<ph name="DOT" />" steht in "<ph name="INVALIDDOMAIN" />" an einer falschen Stelle.</translation>
+<translation id="2068711044993563745">Der Mindestwert (<ph name="MINIMUM" />) muss kleiner als der Höchstwert (<ph name="MAXIMUM" />) sein.</translation>
+<translation id="2148716181193084225">Heute</translation>
+<translation id="2226276347425096477">Kürze diesen Text auf max. <ph name="MAX_CHARACTERS" /> Zeichen. Zurzeit verwendest du <ph name="CURRENT_LENGTH" /> Zeichen.</translation>
+<translation id="2247351761944213033">Woche <ph name="WEEKNUMBER" />, <ph name="YEAR" /></translation>
+<translation id="2277199496770840904">Titel <ph name="NUMBER" /></translation>
+<translation id="2507943997699731163">Fülle dieses Feld aus.</translation>
+<translation id="2613802280814924224">Gib einen gültigen Wert ein. Der nächstliegende gültige Wert ist <ph name="VALID_VALUE" />.</translation>
+<translation id="2653659639078652383">Senden</translation>
+<translation id="2746543609216772311">Verwende <ph name="MINIMUM_DATE_OR_TIME" /> oder einen späteren Wert.</translation>
+<translation id="2761667185364618470">Klicke dieses Kästchen an, wenn du fortfahren möchtest.</translation>
+<translation id="2908441821576996758">Gib eine durch Kommas getrennte Liste der E-Mail-Adressen ein.</translation>
+<translation id="3049748772180311791"><ph name="QUANTITY" /> MB</translation>
+<translation id="3075154866155599887">Gib einen gültigen Wert ein. Das Feld ist nicht vollständig oder enthält ein ungültiges Datum.</translation>
+<translation id="310520048233152454">Gib eine URL ein.</translation>
+<translation id="3321030238473337787">Wiedergabegeschwindigkeit</translation>
+<translation id="3450233048674729344">Wert muss kleiner als oder gleich <ph name="MAXIMUM" /> sein.</translation>
+<translation id="3732799496749320381">mm</translation>
+<translation id="3754210790023674521">Bild im Bild beenden</translation>
+<translation id="3757388668994797779"><ph name="QUANTITY" /> GB</translation>
+<translation id="3822383571486410024">Verlängere diesen Text auf mindestens <ph name="MIN_CHARACTERS" /> Zeichen. Derzeit verwendest du <ph name="CURRENT_LENGTH" /> Zeichen.</translation>
+<translation id="383465348367842624">Vor dem <ph name="ATSIGN" />-Zeichen darf das Zeichen "<ph name="INVALIDCHARACTER" />" nicht verwendet werden.</translation>
+<translation id="3846214748874656680">Vollbildmodus beenden</translation>
+<translation id="4360991593054037559">Gib einen gültigen Wert ein. Die zwei nächstliegenden gültigen Werte sind <ph name="VALID_VALUE_LOW" /> und <ph name="VALID_VALUE_HIGHER" />.</translation>
+<translation id="4522570452068850558">Details</translation>
+<translation id="4664250907885839816">Nach dem <ph name="ATSIGN" />-Zeichen darf das Zeichen "<ph name="INVALIDCHARACTER" />" nicht verwendet werden.</translation>
+<translation id="4718048029184481307">Wird als Bild im Bild abgespielt</translation>
+<translation id="4812940957355064477">Gib eine Nummer ein.</translation>
+<translation id="4975562563186953947"><ph name="SELECTED_COUNT" /> ausgewählt</translation>
+<translation id="4992066212339426712">Stummschaltung aufheben</translation>
+<translation id="49969490063480558">Gib etwas nach dem <ph name="ATSIGN" />-Zeichen ein. Die Angabe „<ph name="INVALIDADDRESS" />“ ist unvollständig.</translation>
+<translation id="5164977714490026579">Wert muss größer als oder gleich <ph name="MINIMUM" /> sein.</translation>
+<translation id="5196716972587102051">2</translation>
+<translation id="520299402983819650"><ph name="QUANTITY" /> PB</translation>
+<translation id="5307600278924710095">Gib etwas vor dem <ph name="ATSIGN" />-Zeichen ein. Die Angabe „<ph name="INVALIDADDRESS" />“ ist unvollständig.</translation>
+<translation id="5334352251556557839">Medien können nicht abgespielt werden.</translation>
+<translation id="537648784377940524">Das Mindestdatum (<ph name="MIN_DATE_OR_TIME" />) muss vor dem Maximaldatum (<ph name="MAX_DATE_OR_TIME" />) liegen.</translation>
+<translation id="5466621249238537318">Wähle eine oder mehrere Dateien aus.</translation>
+<translation id="5514612371225420585">Datei auf deinem Gerät</translation>
+<translation id="5516235301412634559">0,75</translation>
+<translation id="5537725057119320332">Streamen</translation>
+<translation id="5630795885300617244">Tippe links oder rechts doppelt, um 10 s zu überspringen</translation>
+<translation id="57838592816432529">Stummschalten</translation>
+<translation id="588258955323874662">Vollbild</translation>
+<translation id="5888666972993069672">Wird gerade auf <ph name="DEVICE_FRIENDLY_NAME" /> gestreamt</translation>
+<translation id="5939518447894949180">Zurücksetzen</translation>
+<translation id="5966707198760109579">Woche</translation>
+<translation id="5985507339671257014">0,5</translation>
+<translation id="6310801910862476708">Bild im Bild beenden</translation>
+<translation id="6484738902856791350">Quelltextformatierung</translation>
+<translation id="6550675742724504774">Optionen</translation>
+<translation id="6643016212128521049">Löschen</translation>
+<translation id="668171684555832681">Andere...</translation>
+<translation id="6709093583001123835">Der Wert muss <ph name="VALUE" /> sein.</translation>
+<translation id="6709570249143506788">Schlechte Wiedergabequalität</translation>
+<translation id="6790428901817661496">Wiedergabe</translation>
+<translation id="6820355525329141109">Plug-in konnte nicht geladen werden.</translation>
+<translation id="6919891270253167948">1,5</translation>
+<translation id="6989848892321993519">Verlängere diesen Text auf mindestens <ph name="MIN_CHARACTERS" /> Zeichen. Derzeit verwendest du 1 Zeichen.</translation>
+<translation id="709897737746224366">Deine Eingabe muss mit dem geforderten Format übereinstimmen.</translation>
+<translation id="7263440858009898357">Wähle ein Element in der Liste aus.</translation>
+<translation id="7364796246159120393">Datei auswählen</translation>
+<translation id="739024184232394898">Andere...</translation>
+<translation id="7460907917090416791"><ph name="QUANTITY" /> TB</translation>
+<translation id="7514365320538308">Herunterladen</translation>
+<translation id="7750228210027921155">Bild im Bild</translation>
+<translation id="7782515065589691344">1,25</translation>
+<translation id="7888071071722539607">Die E-Mail-Adresse muss ein <ph name="ATSIGN" />-Zeichen enthalten. In der Angabe "<ph name="INVALIDADDRESS" />" fehlt ein <ph name="ATSIGN" />-Zeichen.</translation>
+<translation id="795667975304826397">Keine ausgewählt</translation>
+<translation id="8117451130807776954">Diese Woche</translation>
+<translation id="8131955114056917397">0,25</translation>
+<translation id="8199524924445686405">jjjj</translation>
+<translation id="8284326494547611709">Untertitel</translation>
+<translation id="835897206747267392">Ungültiger Wert.</translation>
+<translation id="839593075537728968">Der Wert muss zwischen <ph name="MINIMUM_TIME" /> und <ph name="MAXIMUM_TIME" /> liegen.</translation>
+<translation id="8444882422881193423"><ph name="NUMBER_OF_FILES" /> Dateien</translation>
+<translation id="8451268428117625855">Wähle eine Datei aus.</translation>
+<translation id="8637593834423658414">1,75</translation>
+<translation id="8668988909814782445">Zeilenumbruch</translation>
+<translation id="8750798805984357768">Wähle eine dieser Optionen aus.</translation>
+<translation id="8845239796550121995">Wird gerade auf deinen Fernseher gestreamt</translation>
+<translation id="8875657656876809964">Videowiedergabefehler</translation>
+<translation id="8901569739625249689"><ph name="QUANTITY" /> KB</translation>
+<translation id="9132465097189459683">Andere...</translation>
+<translation id="916607977885256133">Bild im Bild</translation>
+</translationbundle>

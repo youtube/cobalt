@@ -14,15 +14,15 @@
 #include "media/gpu/macros.h"
 #include "media/gpu/v4l2/v4l2_device.h"
 #include "media/gpu/v4l2/v4l2_image_processor_backend.h"
-#include "media/video/h264_parser.h"
+#include "media/parsers/h264_parser.h"
 #if BUILDFLAG(ENABLE_HEVC_PARSER_AND_HW_DECODER)
-#include "media/video/h265_parser.h"
+#include "media/parsers/h265_parser.h"
 #endif  // BUILDFLAG(ENABLE_HEVC_PARSER_AND_HW_DECODER)
 
 namespace media {
 namespace v4l2_vda_helpers {
 
-absl::optional<Fourcc> FindImageProcessorInputFormat(V4L2Device* vda_device) {
+std::optional<Fourcc> FindImageProcessorInputFormat(V4L2Device* vda_device) {
   std::vector<uint32_t> processor_input_formats =
       V4L2ImageProcessorBackend::GetSupportedInputFormats();
 
@@ -36,10 +36,10 @@ absl::optional<Fourcc> FindImageProcessorInputFormat(V4L2Device* vda_device) {
     }
     ++fmtdesc.index;
   }
-  return absl::nullopt;
+  return std::nullopt;
 }
 
-absl::optional<Fourcc> FindImageProcessorOutputFormat(V4L2Device* ip_device) {
+std::optional<Fourcc> FindImageProcessorOutputFormat(V4L2Device* ip_device) {
   // Prefer YVU420 and NV12 because ArcGpuVideoDecodeAccelerator only supports
   // single physical plane.
   static constexpr uint32_t kPreferredFormats[] = {V4L2_PIX_FMT_NV12,
@@ -65,7 +65,7 @@ absl::optional<Fourcc> FindImageProcessorOutputFormat(V4L2Device* ip_device) {
     }
   }
 
-  return absl::nullopt;
+  return std::nullopt;
 }
 
 std::unique_ptr<ImageProcessor> CreateImageProcessor(
@@ -89,10 +89,10 @@ std::unique_ptr<ImageProcessor> CreateImageProcessor(
       base::BindRepeating(&V4L2ImageProcessorBackend::Create,
                           image_processor_device, nb_buffers),
       ImageProcessor::PortConfig(vda_output_format, vda_output_coded_size, {},
-                                 visible_rect, {VideoFrame::STORAGE_DMABUFS}),
+                                 visible_rect, VideoFrame::STORAGE_DMABUFS),
       ImageProcessor::PortConfig(ip_output_format, ip_output_coded_size, {},
-                                 visible_rect, {output_storage_type}),
-      image_processor_output_mode, VIDEO_ROTATION_0, std::move(error_cb),
+                                 visible_rect, output_storage_type),
+      image_processor_output_mode, std::move(error_cb),
       std::move(client_task_runner));
   if (!image_processor)
     return nullptr;
@@ -266,10 +266,9 @@ bool H264InputBufferFragmentSplitter::AdvanceFrameFragment(const uint8_t* data,
         return true;
       }
     }
-    *endpos = (nalu.data + nalu.size) - data;
+    *endpos = (nalu.data + base::checked_cast<size_t>(nalu.size)) - data;
   }
   NOTREACHED();
-  return false;
 }
 
 void H264InputBufferFragmentSplitter::Reset() {
@@ -401,10 +400,9 @@ bool HEVCInputBufferFragmentSplitter::AdvanceFrameFragment(const uint8_t* data,
         return true;
       }
     }
-    *endpos = (nalu.data + nalu.size) - data;
+    *endpos = (nalu.data + base::checked_cast<size_t>(nalu.size)) - data;
   }
   NOTREACHED();
-  return false;
 }
 
 void HEVCInputBufferFragmentSplitter::Reset() {

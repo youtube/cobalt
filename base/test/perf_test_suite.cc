@@ -10,9 +10,11 @@
 #include "base/path_service.h"
 #include "base/process/launch.h"
 #include "base/strings/string_util.h"
+#include "base/test/allow_check_is_test_for_testing.h"
 #include "base/test/perf_log.h"
 #include "build/build_config.h"
 #include "testing/gtest/include/gtest/gtest.h"
+#include "third_party/google_benchmark/src/include/benchmark/benchmark.h"
 
 #if BUILDFLAG(IS_FUCHSIA)
 #include "base/fuchsia/file_utils.h"
@@ -24,6 +26,8 @@ PerfTestSuite::PerfTestSuite(int argc, char** argv) : TestSuite(argc, argv) {}
 
 void PerfTestSuite::Initialize() {
   TestSuite::Initialize();
+
+  test::AllowCheckIsTestForTesting();
 
   // Initialize the perf timer log
   FilePath log_path =
@@ -41,9 +45,7 @@ void PerfTestSuite::Initialize() {
     log_path = log_path.ReplaceExtension(FILE_PATH_LITERAL("log"));
     log_path = log_path.InsertBeforeExtension(FILE_PATH_LITERAL("_perf"));
   }
-#if !defined(STARBOARD)
   ASSERT_TRUE(InitPerfLog(log_path));
-#endif
 
   // Raise to high priority to have more precise measurements. Since we don't
   // aim at 1% precision, it is not necessary to run at realtime level.
@@ -51,11 +53,21 @@ void PerfTestSuite::Initialize() {
     RaiseProcessToHighPriority();
 }
 
+void PerfTestSuite::InitializeFromCommandLine(int* argc, char** argv) {
+  TestSuite::InitializeFromCommandLine(argc, argv);
+  ::benchmark::Initialize(argc, argv);
+}
+
+int PerfTestSuite::RunAllTests() {
+  const int result = TestSuite::RunAllTests();
+  ::benchmark::RunSpecifiedBenchmarks();
+  return result;
+}
+
 void PerfTestSuite::Shutdown() {
   TestSuite::Shutdown();
-#if !defined(STARBOARD)
+  ::benchmark::Shutdown();
   FinalizePerfLog();
-#endif
 }
 
 }  // namespace base

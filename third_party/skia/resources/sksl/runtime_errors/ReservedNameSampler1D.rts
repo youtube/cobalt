@@ -1,5 +1,0 @@
-int sampler1D;
-
-/*%%*
-expected an identifier, but found type 'sampler1D'
-*%%*/

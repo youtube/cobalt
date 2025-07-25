@@ -35,7 +35,7 @@ bool VP8Decoder::Flush() {
 
 void VP8Decoder::SetStream(int32_t id, const DecoderBuffer& decoder_buffer) {
   const uint8_t* ptr = decoder_buffer.data();
-  const size_t size = decoder_buffer.data_size();
+  const size_t size = decoder_buffer.size();
   const DecryptConfig* decrypt_config = decoder_buffer.decrypt_config();
 
   DCHECK(ptr);
@@ -193,9 +193,15 @@ VideoChromaSampling VP8Decoder::GetChromaSampling() const {
   return VideoChromaSampling::kUnknown;
 }
 
-absl::optional<gfx::HDRMetadata> VP8Decoder::GetHDRMetadata() const {
+VideoColorSpace VP8Decoder::GetVideoColorSpace() const {
+  // VP8 decoder currently does not store color space information and trigger
+  // changes for color space.
+  return VideoColorSpace();
+}
+
+std::optional<gfx::HDRMetadata> VP8Decoder::GetHDRMetadata() const {
   // VP8 doesn't support HDR metadata.
-  return absl::nullopt;
+  return std::nullopt;
 }
 
 size_t VP8Decoder::GetRequiredNumOfPictures() const {

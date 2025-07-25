@@ -45,6 +45,10 @@ class RenderTextTestApi {
     render_text_->Draw(canvas, select_all);
   }
 
+  HorizontalAlignment GetCurrentHorizontalAlignment() {
+    return render_text_->GetCurrentHorizontalAlignment();
+  }
+
   const std::u16string& GetLayoutText() {
     return render_text_->GetLayoutText();
   }
@@ -61,6 +65,14 @@ class RenderTextTestApi {
 
   const BreakList<Font::Weight>& weights() const {
     return render_text_->weights();
+  }
+
+  const BreakList<cc::PaintFlags::Style>& fill_styles() const {
+    return render_text_->fill_styles();
+  }
+
+  const BreakList<SkScalar>& stroke_widths() const {
+    return render_text_->stroke_widths();
   }
 
   const internal::StyleArray& styles() const { return render_text_->styles(); }

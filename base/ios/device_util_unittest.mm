@@ -11,6 +11,7 @@
 #include "testing/platform_test.h"
 
 namespace {
+
 // The behavior of most of these utility functions depends on what they are run
 // on, so there is not much to unittest them. The APIs are run to make sure they
 // don't choke. Additional checks are added for particular APIs when needed.
@@ -23,10 +24,6 @@ void CleanNSUserDefaultsForDeviceId() {
   [defaults removeObjectForKey:@"ChromiumClientID"];
   [defaults removeObjectForKey:@"ClientIDGenerationHardwareType"];
   [defaults synchronize];
-}
-
-TEST_F(DeviceUtilTest, GetPlatform) {
-  GTEST_ASSERT_GT(ios::device_util::GetPlatform().length(), 0U);
 }
 
 TEST_F(DeviceUtilTest, IsSingleCoreDevice) {

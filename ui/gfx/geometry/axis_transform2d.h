@@ -5,8 +5,9 @@
 #ifndef UI_GFX_GEOMETRY_AXIS_TRANSFORM2D_H_
 #define UI_GFX_GEOMETRY_AXIS_TRANSFORM2D_H_
 
+#include <optional>
+
 #include "base/check_op.h"
-#include "third_party/abseil-cpp/absl/types/optional.h"
 #include "ui/gfx/geometry/clamp_float_geometry.h"
 #include "ui/gfx/geometry/geometry_export.h"
 #include "ui/gfx/geometry/rect_f.h"
@@ -68,7 +69,7 @@ class GEOMETRY_EXPORT AxisTransform2d {
   bool IsInvertible() const {
     // Check float determinant (stricter than checking each component or double
     // determinant) to keep consistency with Matrix44.
-    // TODO(crbug.com/1359528): This may be stricter than necessary. Revisit
+    // TODO(crbug.com/40237414): This may be stricter than necessary. Revisit
     // this after combination of gfx::Transform and blink::TransformationMatrix.
     return std::isnormal(scale_.x() * scale_.y());
   }

@@ -2,6 +2,11 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#ifdef UNSAFE_BUFFERS_BUILD
+// TODO(crbug.com/40284755): Remove this and spanify to fix the errors.
+#pragma allow_unsafe_buffers
+#endif
+
 #include "base/strings/string_util.h"
 
 #include <math.h>
@@ -11,14 +16,13 @@
 
 #include <algorithm>
 #include <string>
+#include <string_view>
 #include <type_traits>
 
 #include "base/bits.h"
-#include "base/strings/string_piece.h"
+#include "base/strings/utf_ostream_operators.h"
 #include "base/strings/utf_string_conversions.h"
 #include "build/build_config.h"
-#include "starboard/common/string.h"
-#include "starboard/types.h"
 #include "testing/gmock/include/gmock/gmock.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
@@ -72,7 +76,7 @@ bool Truncated(const std::string& input,
     return prev != output->length();
 }
 
-using TestFunction = bool (*)(StringPiece str);
+using TestFunction = bool (*)(std::string_view str);
 
 // Helper used to test IsStringUTF8[AllowingNoncharacters].
 void TestStructurallyValidUtf8(TestFunction fn) {
@@ -353,66 +357,60 @@ TEST(StringUtilTest, TruncateUTF8ToByteSize) {
   EXPECT_EQ(output.compare(""), 0);
 }
 
-#if defined(WCHAR_T_IS_UTF16)
+#if defined(WCHAR_T_IS_16_BIT)
 TEST(StringUtilTest, as_wcstr) {
   char16_t rw_buffer[10] = {};
   static_assert(
-      std::is_same<wchar_t*, decltype(as_writable_wcstr(rw_buffer))>::value,
-      "");
+      std::is_same_v<wchar_t*, decltype(as_writable_wcstr(rw_buffer))>, "");
   EXPECT_EQ(static_cast<void*>(rw_buffer), as_writable_wcstr(rw_buffer));
 
   std::u16string rw_str(10, '\0');
-  static_assert(
-      std::is_same<wchar_t*, decltype(as_writable_wcstr(rw_str))>::value, "");
+  static_assert(std::is_same_v<wchar_t*, decltype(as_writable_wcstr(rw_str))>,
+                "");
   EXPECT_EQ(static_cast<const void*>(rw_str.data()), as_writable_wcstr(rw_str));
 
   const char16_t ro_buffer[10] = {};
-  static_assert(
-      std::is_same<const wchar_t*, decltype(as_wcstr(ro_buffer))>::value, "");
+  static_assert(std::is_same_v<const wchar_t*, decltype(as_wcstr(ro_buffer))>,
+                "");
   EXPECT_EQ(static_cast<const void*>(ro_buffer), as_wcstr(ro_buffer));
 
   const std::u16string ro_str(10, '\0');
-  static_assert(std::is_same<const wchar_t*, decltype(as_wcstr(ro_str))>::value,
-                "");
+  static_assert(std::is_same_v<const wchar_t*, decltype(as_wcstr(ro_str))>, "");
   EXPECT_EQ(static_cast<const void*>(ro_str.data()), as_wcstr(ro_str));
 
-  StringPiece16 piece = ro_buffer;
-  static_assert(std::is_same<const wchar_t*, decltype(as_wcstr(piece))>::value,
-                "");
+  std::u16string_view piece = ro_buffer;
+  static_assert(std::is_same_v<const wchar_t*, decltype(as_wcstr(piece))>, "");
   EXPECT_EQ(static_cast<const void*>(piece.data()), as_wcstr(piece));
 }
 
 TEST(StringUtilTest, as_u16cstr) {
   wchar_t rw_buffer[10] = {};
   static_assert(
-      std::is_same<char16_t*, decltype(as_writable_u16cstr(rw_buffer))>::value,
-      "");
+      std::is_same_v<char16_t*, decltype(as_writable_u16cstr(rw_buffer))>, "");
   EXPECT_EQ(static_cast<void*>(rw_buffer), as_writable_u16cstr(rw_buffer));
 
   std::wstring rw_str(10, '\0');
   static_assert(
-      std::is_same<char16_t*, decltype(as_writable_u16cstr(rw_str))>::value,
-      "");
+      std::is_same_v<char16_t*, decltype(as_writable_u16cstr(rw_str))>, "");
   EXPECT_EQ(static_cast<const void*>(rw_str.data()),
             as_writable_u16cstr(rw_str));
 
   const wchar_t ro_buffer[10] = {};
   static_assert(
-      std::is_same<const char16_t*, decltype(as_u16cstr(ro_buffer))>::value,
-      "");
+      std::is_same_v<const char16_t*, decltype(as_u16cstr(ro_buffer))>, "");
   EXPECT_EQ(static_cast<const void*>(ro_buffer), as_u16cstr(ro_buffer));
 
   const std::wstring ro_str(10, '\0');
-  static_assert(
-      std::is_same<const char16_t*, decltype(as_u16cstr(ro_str))>::value, "");
+  static_assert(std::is_same_v<const char16_t*, decltype(as_u16cstr(ro_str))>,
+                "");
   EXPECT_EQ(static_cast<const void*>(ro_str.data()), as_u16cstr(ro_str));
 
-  WStringPiece piece = ro_buffer;
-  static_assert(
-      std::is_same<const char16_t*, decltype(as_u16cstr(piece))>::value, "");
+  std::wstring_view piece = ro_buffer;
+  static_assert(std::is_same_v<const char16_t*, decltype(as_u16cstr(piece))>,
+                "");
   EXPECT_EQ(static_cast<const void*>(piece.data()), as_u16cstr(piece));
 }
-#endif  // defined(WCHAR_T_IS_UTF16)
+#endif  // defined(WCHAR_T_IS_16_BIT)
 
 TEST(StringUtilTest, TrimWhitespace) {
   std::u16string output;  // Allow contents to carry over to next testcase
@@ -542,10 +540,11 @@ TEST(StringUtilTest, IsStringASCII) {
     for (size_t offset = 0; offset < 8; ++offset) {
       for (size_t len = 0, max_len = string_length - offset; len < max_len;
            ++len) {
-        EXPECT_TRUE(IsStringASCII(StringPiece(char_ascii + offset, len)));
+        EXPECT_TRUE(IsStringASCII(std::string_view(char_ascii + offset, len)));
         for (size_t char_pos = offset; char_pos < len; ++char_pos) {
           char_ascii[char_pos] |= '\x80';
-          EXPECT_FALSE(IsStringASCII(StringPiece(char_ascii + offset, len)));
+          EXPECT_FALSE(
+              IsStringASCII(std::string_view(char_ascii + offset, len)));
           char_ascii[char_pos] &= ~'\x80';
         }
       }
@@ -557,23 +556,24 @@ TEST(StringUtilTest, IsStringASCII) {
     for (size_t offset = 0; offset < 4; ++offset) {
       for (size_t len = 0, max_len = string_length - offset; len < max_len;
            ++len) {
-        EXPECT_TRUE(IsStringASCII(StringPiece16(char16_ascii + offset, len)));
+        EXPECT_TRUE(
+            IsStringASCII(std::u16string_view(char16_ascii + offset, len)));
         for (size_t char_pos = offset; char_pos < len; ++char_pos) {
           char16_ascii[char_pos] |= 0x80;
           EXPECT_FALSE(
-              IsStringASCII(StringPiece16(char16_ascii + offset, len)));
+              IsStringASCII(std::u16string_view(char16_ascii + offset, len)));
           char16_ascii[char_pos] &= ~0x80;
           // Also test when the upper half is non-zero.
           char16_ascii[char_pos] |= 0x100;
           EXPECT_FALSE(
-              IsStringASCII(StringPiece16(char16_ascii + offset, len)));
+              IsStringASCII(std::u16string_view(char16_ascii + offset, len)));
           char16_ascii[char_pos] &= ~0x100;
         }
       }
     }
   }
 
-#if defined(WCHAR_T_IS_UTF32)
+#if defined(WCHAR_T_IS_32_BIT)
   {
     const size_t string_length = wchar_ascii.length();
     for (size_t len = 0; len < string_length; ++len) {
@@ -591,7 +591,7 @@ TEST(StringUtilTest, IsStringASCII) {
       }
     }
   }
-#endif  // WCHAR_T_IS_UTF32
+#endif  // WCHAR_T_IS_32_BIT
 }
 
 TEST(StringUtilTest, ConvertASCII) {
@@ -708,11 +708,11 @@ TEST(StringUtilTest, FormatBytesUnlocalized) {
 }
 TEST(StringUtilTest, ReplaceSubstringsAfterOffset) {
   static const struct {
-    StringPiece str;
+    std::string_view str;
     size_t start_offset;
-    StringPiece find_this;
-    StringPiece replace_with;
-    StringPiece expected;
+    std::string_view find_this;
+    std::string_view replace_with;
+    std::string_view expected;
   } cases[] = {
       {"aaa", 0, "", "b", "aaa"},
       {"aaa", 1, "", "b", "aaa"},
@@ -878,11 +878,11 @@ TEST(StringUtilTest, JoinString16) {
 
 TEST(StringUtilTest, JoinStringPiece) {
   std::string separator(", ");
-  std::vector<StringPiece> parts;
+  std::vector<std::string_view> parts;
   EXPECT_EQ(std::string(), JoinString(parts, separator));
 
   // Test empty first part (https://crbug.com/698073).
-  parts.push_back(StringPiece());
+  parts.push_back(std::string_view());
   EXPECT_EQ(std::string(), JoinString(parts, separator));
   parts.clear();
 
@@ -893,7 +893,7 @@ TEST(StringUtilTest, JoinStringPiece) {
   parts.push_back("c");
   EXPECT_EQ("a, b, c", JoinString(parts, separator));
 
-  parts.push_back(StringPiece());
+  parts.push_back(std::string_view());
   EXPECT_EQ("a, b, c, ", JoinString(parts, separator));
   parts.push_back(" ");
   EXPECT_EQ("a|b|c|| ", JoinString(parts, "|"));
@@ -901,11 +901,11 @@ TEST(StringUtilTest, JoinStringPiece) {
 
 TEST(StringUtilTest, JoinStringPiece16) {
   std::u16string separator = u", ";
-  std::vector<StringPiece16> parts;
+  std::vector<std::u16string_view> parts;
   EXPECT_EQ(std::u16string(), JoinString(parts, separator));
 
   // Test empty first part (https://crbug.com/698073).
-  parts.push_back(StringPiece16());
+  parts.push_back(std::u16string_view());
   EXPECT_EQ(std::u16string(), JoinString(parts, separator));
   parts.clear();
 
@@ -919,7 +919,7 @@ TEST(StringUtilTest, JoinStringPiece16) {
   parts.push_back(kC);
   EXPECT_EQ(u"a, b, c", JoinString(parts, separator));
 
-  parts.push_back(StringPiece16());
+  parts.push_back(std::u16string_view());
   EXPECT_EQ(u"a, b, c, ", JoinString(parts, separator));
   const std::u16string kSpace = u" ";
   parts.push_back(kSpace);
@@ -931,13 +931,15 @@ TEST(StringUtilTest, JoinStringInitializerList) {
   EXPECT_EQ(std::string(), JoinString({}, separator));
 
   // Test empty first part (https://crbug.com/698073).
-  EXPECT_EQ(std::string(), JoinString({StringPiece()}, separator));
+  EXPECT_EQ(std::string(), JoinString({std::string_view()}, separator));
 
   // With const char*s.
   EXPECT_EQ("a", JoinString({"a"}, separator));
   EXPECT_EQ("a, b, c", JoinString({"a", "b", "c"}, separator));
-  EXPECT_EQ("a, b, c, ", JoinString({"a", "b", "c", StringPiece()}, separator));
-  EXPECT_EQ("a|b|c|| ", JoinString({"a", "b", "c", StringPiece(), " "}, "|"));
+  EXPECT_EQ("a, b, c, ",
+            JoinString({"a", "b", "c", std::string_view()}, separator));
+  EXPECT_EQ("a|b|c|| ",
+            JoinString({"a", "b", "c", std::string_view(), " "}, "|"));
 
   // With std::strings.
   const std::string kA = "a";
@@ -945,8 +947,8 @@ TEST(StringUtilTest, JoinStringInitializerList) {
   EXPECT_EQ("a, b", JoinString({kA, kB}, separator));
 
   // With StringPieces.
-  const StringPiece kPieceA = kA;
-  const StringPiece kPieceB = kB;
+  const std::string_view kPieceA = kA;
+  const std::string_view kPieceB = kB;
   EXPECT_EQ("a, b", JoinString({kPieceA, kPieceB}, separator));
 }
 
@@ -955,7 +957,7 @@ TEST(StringUtilTest, JoinStringInitializerList16) {
   EXPECT_EQ(std::u16string(), JoinString({}, separator));
 
   // Test empty first part (https://crbug.com/698073).
-  EXPECT_EQ(std::u16string(), JoinString({StringPiece16()}, separator));
+  EXPECT_EQ(std::u16string(), JoinString({std::u16string_view()}, separator));
 
   // With string16s.
   const std::u16string kA = u"a";
@@ -965,14 +967,15 @@ TEST(StringUtilTest, JoinStringInitializerList16) {
   const std::u16string kC = u"c";
   EXPECT_EQ(u"a, b, c", JoinString({kA, kB, kC}, separator));
 
-  EXPECT_EQ(u"a, b, c, ", JoinString({kA, kB, kC, StringPiece16()}, separator));
+  EXPECT_EQ(u"a, b, c, ",
+            JoinString({kA, kB, kC, std::u16string_view()}, separator));
   const std::u16string kSpace = u" ";
   EXPECT_EQ(u"a|b|c|| ",
-            JoinString({kA, kB, kC, StringPiece16(), kSpace}, u"|"));
+            JoinString({kA, kB, kC, std::u16string_view(), kSpace}, u"|"));
 
   // With StringPiece16s.
-  const StringPiece16 kPieceA = kA;
-  const StringPiece16 kPieceB = kB;
+  const std::u16string_view kPieceA = kA;
+  const std::u16string_view kPieceB = kB;
   EXPECT_EQ(u"a, b", JoinString({kPieceA, kPieceB}, separator));
 }
 
@@ -1222,6 +1225,16 @@ TEST(StringUtilTest, LcpyTest) {
     EXPECT_EQ(0, memcmp(u16dst, u"abcdefg", sizeof(u16dst[0]) * 8));
     EXPECT_EQ(7U, wcslcpy(wdst, L"abcdefg", std::size(wdst)));
     EXPECT_EQ(0, memcmp(wdst, L"abcdefg", sizeof(wdst[0]) * 8));
+
+    EXPECT_EQ(7U, strlcpy(dst, "abcdefg"));
+    EXPECT_EQ(base::span(dst).first(8u),
+              base::span_with_nul_from_cstring("abcdefg"));
+    EXPECT_EQ(7U, u16cstrlcpy(u16dst, u"abcdefg"));
+    EXPECT_EQ(base::span(u16dst).first(8u),
+              base::span_with_nul_from_cstring(u"abcdefg"));
+    EXPECT_EQ(7U, wcslcpy(wdst, L"abcdefg"));
+    EXPECT_EQ(base::span(wdst).first(8u),
+              base::span_with_nul_from_cstring(L"abcdefg"));
   }
 
   // Test dst_size == 0, nothing should be written to |dst| and we should
@@ -1239,6 +1252,16 @@ TEST(StringUtilTest, LcpyTest) {
     EXPECT_EQ(7U, wcslcpy(wdst, L"abcdefg", 0));
     EXPECT_EQ(static_cast<wchar_t>(1), wdst[0]);
     EXPECT_EQ(static_cast<wchar_t>(2), wdst[1]);
+
+    EXPECT_EQ(7U, strlcpy(base::span(dst).first(0u), "abcdefg"));
+    EXPECT_EQ(1, dst[0]);
+    EXPECT_EQ(2, dst[1]);
+    EXPECT_EQ(7U, u16cstrlcpy(base::span(u16dst).first(0u), u"abcdefg"));
+    EXPECT_EQ(char16_t{1}, u16dst[0]);
+    EXPECT_EQ(char16_t{2}, u16dst[1]);
+    EXPECT_EQ(7U, wcslcpy(base::span(wdst).first(0u), L"abcdefg"));
+    EXPECT_EQ(static_cast<wchar_t>(1), wdst[0]);
+    EXPECT_EQ(static_cast<wchar_t>(2), wdst[1]);
   }
 
   // Test the case were we _just_ competely fit including the null.
@@ -1252,6 +1275,13 @@ TEST(StringUtilTest, LcpyTest) {
     EXPECT_EQ(0, memcmp(u16dst, u"abcdefg", sizeof(u16dst)));
     EXPECT_EQ(7U, wcslcpy(wdst, L"abcdefg", std::size(wdst)));
     EXPECT_EQ(0, memcmp(wdst, L"abcdefg", sizeof(wdst)));
+
+    EXPECT_EQ(7U, strlcpy(dst, "abcdefg"));
+    EXPECT_EQ(base::span(dst), base::span_with_nul_from_cstring("abcdefg"));
+    EXPECT_EQ(7U, u16cstrlcpy(u16dst, u"abcdefg"));
+    EXPECT_EQ(base::span(u16dst), base::span_with_nul_from_cstring(u"abcdefg"));
+    EXPECT_EQ(7U, wcslcpy(wdst, L"abcdefg"));
+    EXPECT_EQ(base::span(wdst), base::span_with_nul_from_cstring(L"abcdefg"));
   }
 
   // Test the case were we we are one smaller, so we can't fit the null.
@@ -1265,6 +1295,13 @@ TEST(StringUtilTest, LcpyTest) {
     EXPECT_EQ(0, memcmp(u16dst, u"abcdef", sizeof(u16dst[0]) * 7));
     EXPECT_EQ(7U, wcslcpy(wdst, L"abcdefg", std::size(wdst)));
     EXPECT_EQ(0, memcmp(wdst, L"abcdef", sizeof(wdst[0]) * 7));
+
+    EXPECT_EQ(7U, strlcpy(dst, "abcdefg"));
+    EXPECT_EQ(base::span(dst), base::span_with_nul_from_cstring("abcdef"));
+    EXPECT_EQ(7U, u16cstrlcpy(u16dst, u"abcdefg"));
+    EXPECT_EQ(base::span(u16dst), base::span_with_nul_from_cstring(u"abcdef"));
+    EXPECT_EQ(7U, wcslcpy(wdst, L"abcdefg"));
+    EXPECT_EQ(base::span(wdst), base::span_with_nul_from_cstring(L"abcdef"));
   }
 
   // Test the case were we are just too small.
@@ -1278,6 +1315,13 @@ TEST(StringUtilTest, LcpyTest) {
     EXPECT_EQ(0, memcmp(u16dst, u"ab", sizeof(u16dst)));
     EXPECT_EQ(7U, wcslcpy(wdst, L"abcdefg", std::size(wdst)));
     EXPECT_EQ(0, memcmp(wdst, L"ab", sizeof(wdst)));
+
+    EXPECT_EQ(7U, strlcpy(dst, "abcdefg"));
+    EXPECT_EQ(base::span(dst), base::span_with_nul_from_cstring("ab"));
+    EXPECT_EQ(7U, u16cstrlcpy(u16dst, u"abcdefg"));
+    EXPECT_EQ(base::span(u16dst), base::span_with_nul_from_cstring(u"ab"));
+    EXPECT_EQ(7U, wcslcpy(wdst, L"abcdefg"));
+    EXPECT_EQ(base::span(wdst), base::span_with_nul_from_cstring(L"ab"));
   }
 }
 
@@ -1340,17 +1384,17 @@ TEST(StringUtilTest, MakeBasicStringPieceTest) {
   EXPECT_TRUE(MakeStringPiece16(bar.end(), bar.end()).empty());
 
   constexpr wchar_t kBaz[] = L"Baz";
-  static_assert(MakeWStringPiece(kBaz, kBaz + 3) == kBaz, "");
-  static_assert(MakeWStringPiece(kBaz, kBaz + 3).data() == kBaz, "");
-  static_assert(MakeWStringPiece(kBaz, kBaz + 3).size() == 3, "");
-  static_assert(MakeWStringPiece(kBaz + 3, kBaz + 3).empty(), "");
-  static_assert(MakeWStringPiece(kBaz + 4, kBaz + 4).empty(), "");
+  static_assert(MakeWStringView(kBaz, kBaz + 3) == kBaz, "");
+  static_assert(MakeWStringView(kBaz, kBaz + 3).data() == kBaz, "");
+  static_assert(MakeWStringView(kBaz, kBaz + 3).size() == 3, "");
+  static_assert(MakeWStringView(kBaz + 3, kBaz + 3).empty(), "");
+  static_assert(MakeWStringView(kBaz + 4, kBaz + 4).empty(), "");
 
   std::wstring baz = kBaz;
-  EXPECT_EQ(MakeWStringPiece(baz.begin(), baz.end()), baz);
-  EXPECT_EQ(MakeWStringPiece(baz.begin(), baz.end()).data(), baz.data());
-  EXPECT_EQ(MakeWStringPiece(baz.begin(), baz.end()).size(), baz.size());
-  EXPECT_TRUE(MakeWStringPiece(baz.end(), baz.end()).empty());
+  EXPECT_EQ(MakeWStringView(baz.begin(), baz.end()), baz);
+  EXPECT_EQ(MakeWStringView(baz.begin(), baz.end()).data(), baz.data());
+  EXPECT_EQ(MakeWStringView(baz.begin(), baz.end()).size(), baz.size());
+  EXPECT_TRUE(MakeWStringView(baz.end(), baz.end()).empty());
 }
 
 TEST(StringUtilTest, RemoveChars) {
@@ -1530,7 +1574,7 @@ TEST(StringUtilTest, EqualsCaseInsensitiveASCII) {
   EXPECT_TRUE(EqualsCaseInsensitiveASCII("aaa \xc3\xa4", "AAA \xc3\xa4"));
   EXPECT_FALSE(EqualsCaseInsensitiveASCII("aaa \xc3\x84", "AAA \xc3\xa4"));
 
-  // The `WStringPiece` overloads are only defined on Windows.
+  // The `std::wstring_view` overloads are only defined on Windows.
 #if BUILDFLAG(IS_WIN)
   EXPECT_TRUE(EqualsCaseInsensitiveASCII(L"", L""));
   EXPECT_TRUE(EqualsCaseInsensitiveASCII(L"Asdf", L"aSDF"));
@@ -1567,6 +1611,34 @@ TEST(StringUtilTest, IsUnicodeWhitespace) {
   EXPECT_TRUE(IsUnicodeWhitespace(L'\v'));
   EXPECT_TRUE(IsUnicodeWhitespace(L'\f'));
   EXPECT_TRUE(IsUnicodeWhitespace(L'\n'));
+}
+
+// Tests that MakeStringViewWithNulChars preserves internal NUL characters.
+TEST(StringUtilTest, MakeStringViewWithNulChars) {
+  {
+    const char kTestString[] = "abd\0def";
+    auto s = MakeStringViewWithNulChars(kTestString);
+    EXPECT_EQ(s.size(), 7u);
+    EXPECT_EQ(base::span(s), base::span_from_cstring(kTestString));
+  }
+  {
+    const wchar_t kTestString[] = L"abd\0def";
+    auto s = MakeStringViewWithNulChars(kTestString);
+    EXPECT_EQ(s.size(), 7u);
+    ASSERT_TRUE(base::span(s) == base::span_from_cstring(kTestString));
+  }
+  {
+    const char16_t kTestString[] = u"abd\0def";
+    auto s = MakeStringViewWithNulChars(kTestString);
+    EXPECT_EQ(s.size(), 7u);
+    EXPECT_TRUE(base::span(s) == base::span_from_cstring(kTestString));
+  }
+  {
+    const char32_t kTestString[] = U"abd\0def";
+    auto s = MakeStringViewWithNulChars(kTestString);
+    EXPECT_EQ(s.size(), 7u);
+    EXPECT_TRUE(base::span(s) == base::span_from_cstring(kTestString));
+  }
 }
 
 class WriteIntoTest : public testing::Test {

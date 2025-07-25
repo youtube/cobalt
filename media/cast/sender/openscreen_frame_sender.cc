@@ -2,6 +2,11 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#ifdef UNSAFE_BUFFERS_BUILD
+// TODO(crbug.com/40285824): Remove this and convert code to safer constructs.
+#pragma allow_unsafe_buffers
+#endif
+
 #include "media/cast/sender/openscreen_frame_sender.h"
 
 #include <algorithm>
@@ -19,7 +24,7 @@
 #include "media/cast/common/openscreen_conversion_helpers.h"
 #include "media/cast/common/sender_encoded_frame.h"
 #include "media/cast/constants.h"
-#include "third_party/openscreen/src/cast/streaming/encoded_frame.h"
+#include "third_party/openscreen/src/cast/streaming/public/encoded_frame.h"
 
 namespace media::cast {
 namespace {
@@ -73,12 +78,15 @@ OpenscreenFrameSender::OpenscreenFrameSender(
     : cast_environment_(cast_environment),
       sender_(std::move(sender)),
       client_(client),
-      get_bitrate_cb_(std::move(get_bitrate_cb)),
       max_frame_rate_(config.max_frame_rate),
       is_audio_(config.rtp_payload_type <= RtpPayloadType::AUDIO_LAST),
       min_playout_delay_(config.min_playout_delay),
       max_playout_delay_(config.max_playout_delay) {
-  DCHECK_GT(sender_->config().rtp_timebase, 0);
+  CHECK_GT(sender_->config().rtp_timebase, 0);
+  if (!is_audio_) {
+    bitrate_suggester_ = std::make_unique<VideoBitrateSuggester>(
+        config, std::move(get_bitrate_cb));
+  }
 
   const std::chrono::milliseconds target_playout_delay =
       sender_->config().target_playout_delay;
@@ -95,11 +103,6 @@ OpenscreenFrameSender::~OpenscreenFrameSender() {
 
 bool OpenscreenFrameSender::NeedsKeyFrame() const {
   return sender_->NeedsKeyFrame();
-}
-
-void OpenscreenFrameSender::OnMeasuredRoundTripTime(
-    base::TimeDelta round_trip_time) {
-  NOTIMPLEMENTED();
 }
 
 void OpenscreenFrameSender::SetTargetPlayoutDelay(
@@ -141,7 +144,13 @@ void OpenscreenFrameSender::RecordLatestFrameTimestamps(
 }
 
 base::TimeDelta OpenscreenFrameSender::GetInFlightMediaDuration() const {
+  // Start by including the encoder backlog duration, defined as the
+  // difference between the timestamps of the last frame to enter the encoder
+  // and the last frame to exit the encoder.
   base::TimeDelta duration = client_->GetEncoderBacklogDuration();
+
+  // If we have sent at least one frame, then include the duration currently
+  // in flight (as recorded by the Open Screen sender).
   if (!last_enqueued_frame_id_.is_null()) {
     const RtpTimeTicks newest_timestamp =
         GetRecordedRtpTimestamp(last_enqueued_frame_id_);
@@ -168,7 +177,7 @@ int OpenscreenFrameSender::GetSuggestedBitrate(base::TimeTicks playout_time,
                                                base::TimeDelta playout_delay) {
   // Currently only used by the video sender.
   DCHECK(!is_audio_);
-  return get_bitrate_cb_.Run();
+  return bitrate_suggester_->GetSuggestedBitrate();
 }
 
 double OpenscreenFrameSender::MaxFrameRate() const {
@@ -205,11 +214,12 @@ base::TimeDelta OpenscreenFrameSender::GetAllowedInFlightMediaDuration() const {
 CastStreamingFrameDropReason OpenscreenFrameSender::EnqueueFrame(
     std::unique_ptr<SenderEncodedFrame> encoded_frame) {
   DCHECK(cast_environment_->CurrentlyOn(CastEnvironment::MAIN));
+  CHECK(encoded_frame);
+  VLOG_WITH_SSRC(2) << "About to send another frame ("
+                    << encoded_frame->frame_id
+                    << "). last enqueued=" << last_enqueued_frame_id_;
 
-  VLOG_WITH_SSRC(2) << "About to send another frame. last enqueued="
-                    << last_enqueued_frame_id_;
-
-  DCHECK_GE(encoded_frame->frame_id, last_enqueued_frame_id_)
+  CHECK_GE(encoded_frame->frame_id, last_enqueued_frame_id_)
       << "enqueued frames out of order.";
   last_enqueued_frame_id_ = encoded_frame->frame_id;
   last_send_time_ = cast_environment_->Clock()->NowTicks();
@@ -220,24 +230,6 @@ CastStreamingFrameDropReason OpenscreenFrameSender::EnqueueFrame(
                       << encoded_frame->frame_id;
     frame_id_map_.clear();
   }
-
-  auto encode_event = std::make_unique<FrameEvent>();
-  encode_event->timestamp = encoded_frame->encode_completion_time;
-  encode_event->type = FRAME_ENCODED;
-  encode_event->media_type = is_audio_ ? AUDIO_EVENT : VIDEO_EVENT;
-  encode_event->rtp_timestamp = encoded_frame->rtp_timestamp;
-  encode_event->frame_id = encoded_frame->frame_id;
-  encode_event->size = base::checked_cast<uint32_t>(encoded_frame->data.size());
-  encode_event->key_frame =
-      encoded_frame->dependency ==
-      openscreen::cast::EncodedFrame::Dependency::kKeyFrame;
-  encode_event->target_bitrate = encoded_frame->encoder_bitrate;
-  encode_event->encoder_cpu_utilization = encoded_frame->encoder_utilization;
-  encode_event->idealized_bitrate_utilization = encoded_frame->lossiness;
-
-  // This is used specifically for testing and is no longer consumed in
-  // production.
-  cast_environment_->logger()->DispatchFrameEvent(std::move(encode_event));
 
   RecordLatestFrameTimestamps(encoded_frame->frame_id,
                               encoded_frame->reference_time,
@@ -267,36 +259,48 @@ CastStreamingFrameDropReason OpenscreenFrameSender::EnqueueFrame(
   // the Open Screen Sender choose to not send a frame, it does not advance the
   // frame identifier.
   const FrameId openscreen_frame_id = sender_->GetNextFrameId();
-  DCHECK_GE(encoded_frame->frame_id, openscreen_frame_id);
-  frame_id_map_.insert_or_assign(encoded_frame->frame_id, openscreen_frame_id);
+  CHECK_GE(encoded_frame->frame_id, openscreen_frame_id);
+
+  // We only need to use the frame ID map if the identifiers have diverged and
+  // are no longer in sync. The remoting sender should always be in sync, so
+  // this optimization improves memory usage significantly for remoting cases as
+  // well as high quality mirroring sessions that do not have any dropped
+  // frames.
+  if (!diverged_frame_id_ && encoded_frame->frame_id != openscreen_frame_id) {
+    diverged_frame_id_ = encoded_frame->frame_id;
+  }
 
   // Finally, convert to an Open Screen encoded frame using the equivalent frame
   // identifiers generated by the Open Screen sender.
   auto openscreen_frame = ToOpenscreenEncodedFrame(*encoded_frame);
-  openscreen_frame.frame_id = openscreen_frame_id;
-  auto it = frame_id_map_.find(encoded_frame->referenced_frame_id);
-  DCHECK(it != frame_id_map_.end());
-  openscreen_frame.referenced_frame_id = it->second;
+  if (diverged_frame_id_) {
+    frame_id_map_.insert_or_assign(encoded_frame->frame_id,
+                                   openscreen_frame_id);
+    openscreen_frame.frame_id = openscreen_frame_id;
+
+    // We should have the referenced ID in the map if it was added after we
+    // started tracking.
+    if (encoded_frame->referenced_frame_id >= *diverged_frame_id_) {
+      auto it = frame_id_map_.find(encoded_frame->referenced_frame_id);
+      if (it == frame_id_map_.end()) {
+        return CastStreamingFrameDropReason::kInvalidReferencedFrameId;
+      }
+      openscreen_frame.referenced_frame_id = it->second;
+    }
+  }
+
   const auto result = sender_->EnqueueFrame(std::move(openscreen_frame));
   return ToFrameDropReason(result);
 }
 
-void OpenscreenFrameSender::OnReceivedCastFeedback(
-    const RtcpCastMessage& cast_feedback) {
-  NOTIMPLEMENTED();
-}
-
-void OpenscreenFrameSender::OnReceivedPli() {
-  OnPictureLost();
-}
-
 CastStreamingFrameDropReason OpenscreenFrameSender::ShouldDropNextFrame(
-    base::TimeDelta frame_duration) const {
+    base::TimeDelta frame_duration) {
   // Check that accepting the next frame won't cause more frames to become
   // in-flight than the system's design limit.
   const int count_frames_in_flight =
       GetUnacknowledgedFrameCount() + client_->GetNumberOfFramesInEncoder();
   if (count_frames_in_flight >= kMaxUnackedFrames) {
+    RecordShouldDropNextFrame(/*should_drop=*/true);
     return CastStreamingFrameDropReason::kTooManyFramesInFlight;
   }
 
@@ -306,11 +310,14 @@ CastStreamingFrameDropReason OpenscreenFrameSender::ShouldDropNextFrame(
   const double max_frames_in_flight =
       max_frame_rate_ * duration_in_flight.InSecondsF();
   if (count_frames_in_flight >= max_frames_in_flight + kMaxFrameBurst) {
+    RecordShouldDropNextFrame(/*should_drop=*/true);
     return CastStreamingFrameDropReason::kBurstThresholdExceeded;
   }
 
-  // Check that accepting the next frame won't exceed the allowed in-flight
-  // media duration.
+  // At this point, we know we don't have too many frames, but we still need
+  // to ensure we don't have too much duration in flight. This case should
+  // not be hit very often, unless some frames have a higher duration than
+  // expected.
   const base::TimeDelta duration_would_be_in_flight =
       duration_in_flight + frame_duration;
   const base::TimeDelta allowed_in_flight = GetAllowedInFlightMediaDuration();
@@ -330,11 +337,18 @@ CastStreamingFrameDropReason OpenscreenFrameSender::ShouldDropNextFrame(
     }
   }
   if (duration_would_be_in_flight > allowed_in_flight) {
+    RecordShouldDropNextFrame(/*should_drop=*/true);
     return CastStreamingFrameDropReason::kInFlightDurationTooHigh;
   }
 
   // Next frame is accepted.
+  RecordShouldDropNextFrame(/*should_drop=*/false);
   return CastStreamingFrameDropReason::kNotDropped;
 }
 
+void OpenscreenFrameSender::RecordShouldDropNextFrame(bool should_drop) {
+  if (bitrate_suggester_) {
+    bitrate_suggester_->RecordShouldDropNextFrame(should_drop);
+  }
+}
 }  // namespace media::cast

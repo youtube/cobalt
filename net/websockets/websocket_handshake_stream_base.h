@@ -17,6 +17,7 @@
 #include "base/memory/weak_ptr.h"
 #include "base/supports_user_data.h"
 #include "net/base/net_export.h"
+#include "net/http/http_raw_request_headers.h"
 #include "net/http/http_stream.h"
 #include "net/quic/quic_chromium_client_session.h"
 #include "net/websockets/websocket_deflate_parameters.h"
@@ -29,6 +30,7 @@ class SpdySession;
 class HttpRequestHeaders;
 class HttpResponseHeaders;
 class WebSocketEndpointLockManager;
+class WebSocketStream;
 
 // WebSocketHandshakeStreamBase is the base class of
 // WebSocketBasicHandshakeStream.  net/http code uses this interface to handle
@@ -164,9 +166,11 @@ class NET_EXPORT WebSocketHandshakeStreamBase : public HttpStream {
     WebSocketDeflateParameters deflate_parameters;
   };
 
-  static void AddVectorHeaderIfNonEmpty(const char* name,
-                                        const std::vector<std::string>& value,
-                                        HttpRequestHeaders* headers);
+  // Add the Sec-WebSocket-Extensions and Sec-WebSocket-Protocol headers to
+  // `headers`.
+  static void AddVectorHeaders(const std::vector<std::string>& extensions,
+                               const std::vector<std::string>& protocols,
+                               HttpRequestHeaders* headers);
 
   static bool ValidateSubProtocol(
       const HttpResponseHeaders* headers,

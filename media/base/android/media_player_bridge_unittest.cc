@@ -7,6 +7,7 @@
 #include "base/functional/bind.h"
 #include "base/test/task_environment.h"
 #include "net/cookies/site_for_cookies.h"
+#include "net/storage_access_api/status.h"
 #include "testing/gmock/include/gmock/gmock.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
@@ -35,12 +36,13 @@ class MediaPlayerBridgeTest : public testing::Test {
       : bridge_(GURL(),
                 net::SiteForCookies(),
                 url::Origin(),
-                false,
+                net::StorageAccessApiStatus::kNone,
                 "",
                 false,
                 &client_,
                 false,
-                false) {}
+                false,
+                base::flat_map<std::string, std::string>{}) {}
 
   MediaPlayerBridgeTest(const MediaPlayerBridgeTest&) = delete;
   MediaPlayerBridgeTest& operator=(const MediaPlayerBridgeTest&) = delete;

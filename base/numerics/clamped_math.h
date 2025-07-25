@@ -5,19 +5,18 @@
 #ifndef BASE_NUMERICS_CLAMPED_MATH_H_
 #define BASE_NUMERICS_CLAMPED_MATH_H_
 
-#include <stddef.h>
-
-#include <limits>
 #include <type_traits>
 
-#include "base/numerics/clamped_math_impl.h"
+#include "base/numerics/clamped_math_impl.h"  // IWYU pragma: export
+#include "base/numerics/safe_conversions.h"
+#include "base/numerics/safe_math_shared_impl.h"  // IWYU pragma: export
 
 namespace base {
 namespace internal {
 
 template <typename T>
 class ClampedNumeric {
-  static_assert(std::is_arithmetic<T>::value,
+  static_assert(std::is_arithmetic_v<T>,
                 "ClampedNumeric<T>: T must be a numeric type.");
 
  public:
@@ -148,9 +147,7 @@ class ClampedNumeric {
 
   // These perform the actual math operations on the ClampedNumerics.
   // Binary arithmetic operations.
-  template <template <typename, typename, typename> class M,
-            typename L,
-            typename R>
+  template <template <typename, typename> class M, typename L, typename R>
   static constexpr ClampedNumeric MathOp(const L lhs, const R rhs) {
     using Math = typename MathWrapper<M, L, R>::math;
     return ClampedNumeric<T>(
@@ -158,7 +155,7 @@ class ClampedNumeric {
   }
 
   // Assignment arithmetic operations.
-  template <template <typename, typename, typename> class M, typename R>
+  template <template <typename, typename> class M, typename R>
   constexpr ClampedNumeric& MathOp(const R rhs) {
     using Math = typename MathWrapper<M, T, R>::math;
     *this =
@@ -199,9 +196,7 @@ constexpr ClampedNumeric<typename UnderlyingType<T>::type> MakeClampedNum(
 }
 
 // These implement the variadic wrapper for the math operations.
-template <template <typename, typename, typename> class M,
-          typename L,
-          typename R>
+template <template <typename, typename> class M, typename L, typename R>
 constexpr ClampedNumeric<typename MathWrapper<M, L, R>::type> ClampMathOp(
     const L lhs,
     const R rhs) {
@@ -211,7 +206,7 @@ constexpr ClampedNumeric<typename MathWrapper<M, L, R>::type> ClampMathOp(
 }
 
 // General purpose wrapper template for arithmetic operations.
-template <template <typename, typename, typename> class M,
+template <template <typename, typename> class M,
           typename L,
           typename R,
           typename... Args>

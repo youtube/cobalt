@@ -6,10 +6,10 @@
 
 #include <stddef.h>
 
+#include <string_view>
 #include <vector>
 
 #include "base/ranges/algorithm.h"
-#include "base/strings/string_piece.h"
 #include "base/strings/string_util.h"
 #include "base/strings/utf_string_conversions.h"
 #include "build/build_config.h"
@@ -140,11 +140,9 @@ TEST(BreakIteratorTest, BreakWordThai) {
 // dictionary to detect word boundaries in Thai, Chinese, Japanese, Burmese,
 // and Khmer. Due to the size of such a table, the part for Chinese and
 // Japanese is not shipped on mobile.
-// Cobalt does not support Chinese/Japanese word breaking yet. This feature
-// requires a big dictionary(cjdict.txt) to support.
 #if !(BUILDFLAG(IS_IOS) || BUILDFLAG(IS_ANDROID))
 
-TEST(BreakIteratorTest, DISABLED_BreakWordChinese) {
+TEST(BreakIteratorTest, BreakWordChinese) {
   // Terms in Traditional Chinese, without spaces in between.
   const char16_t term1[] = u"瀏覽";
   const char16_t term2[] = u"速度";
@@ -166,7 +164,7 @@ TEST(BreakIteratorTest, DISABLED_BreakWordChinese) {
   EXPECT_FALSE(iter.IsWord());
 }
 
-TEST(BreakIteratorTest, DISABLED_BreakWordJapanese) {
+TEST(BreakIteratorTest, BreakWordJapanese) {
   // Terms in Japanese, without spaces in between.
   const char16_t term1[] = u"モバイル";
   const char16_t term2[] = u"でも";
@@ -184,7 +182,7 @@ TEST(BreakIteratorTest, DISABLED_BreakWordJapanese) {
   EXPECT_FALSE(iter.IsWord());
 }
 
-TEST(BreakIteratorTest, DISABLED_BreakWordChineseEnglish) {
+TEST(BreakIteratorTest, BreakWordChineseEnglish) {
   // Terms in Simplified Chinese mixed with English and wide punctuations.
   std::u16string space(u" ");
   const char16_t token1[] = u"下载";
@@ -522,7 +520,7 @@ TEST(BreakIteratorTest, GetStringAfterSetText) {
   ASSERT_TRUE(iter.Init());
 
   const std::u16string long_string(u"another,string");
-  EXPECT_TRUE(iter.SetText(long_string.c_str(), long_string.size()));
+  EXPECT_TRUE(iter.SetText(long_string));
   EXPECT_TRUE(iter.Advance());
   EXPECT_TRUE(iter.Advance());  // Advance to ',' in |long_string|
 
@@ -533,19 +531,19 @@ TEST(BreakIteratorTest, GetStringAfterSetText) {
   EXPECT_EQ(u",", iter.GetString());
 }
 
-TEST(BreakIteratorTest, GetStringPiece) {
+TEST(BreakIteratorTest, GetStringView) {
   const std::u16string initial_string(u"some string");
   BreakIterator iter(initial_string, BreakIterator::BREAK_WORD);
   ASSERT_TRUE(iter.Init());
 
   EXPECT_TRUE(iter.Advance());
-  EXPECT_EQ(iter.GetString(), iter.GetStringPiece());
-  EXPECT_EQ(StringPiece16(u"some"), iter.GetStringPiece());
+  EXPECT_EQ(iter.GetString(), iter.GetStringView());
+  EXPECT_EQ(std::u16string_view(u"some"), iter.GetStringView());
 
   EXPECT_TRUE(iter.Advance());
   EXPECT_TRUE(iter.Advance());
-  EXPECT_EQ(iter.GetString(), iter.GetStringPiece());
-  EXPECT_EQ(StringPiece16(u"string"), iter.GetStringPiece());
+  EXPECT_EQ(iter.GetString(), iter.GetStringView());
+  EXPECT_EQ(std::u16string_view(u"string"), iter.GetStringView());
 }
 
 // Make sure that when not in RULE_BASED or BREAK_WORD mode we're getting

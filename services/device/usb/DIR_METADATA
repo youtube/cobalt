@@ -1,0 +1,7 @@
+mixins: "//chrome/browser/usb/COMMON_METADATA"
+monorail: {
+  component: "IO>USB"
+}
+buganizer_public: {
+  component_id: 1456367
+}

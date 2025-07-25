@@ -2,6 +2,11 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#ifdef UNSAFE_BUFFERS_BUILD
+// TODO(crbug.com/40284755): Remove this and spanify to fix the errors.
+#pragma allow_unsafe_buffers
+#endif
+
 #include "base/containers/flat_tree.h"
 
 // Following tests are ported and extended tests from libcpp for std::set.
@@ -36,9 +41,7 @@
 #include <string>
 #include <vector>
 
-#include "base/functional/identity.h"
 #include "base/ranges/algorithm.h"
-#include "base/template_util.h"
 #include "base/test/gtest_util.h"
 #include "base/test/move_only_int.h"
 #include "testing/gmock/include/gmock/gmock.h"
@@ -152,28 +155,28 @@ struct LessByFirst {
 // Common test trees.
 template <typename ContainerT>
 using TypedTree = flat_tree<typename ContainerT::value_type,
-                            base::identity,
+                            std::identity,
                             std::less<>,
                             ContainerT>;
 using IntTree = TypedTree<std::vector<int>>;
 using IntPair = std::pair<int, int>;
 using IntPairTree = flat_tree<IntPair,
-                              base::identity,
+                              std::identity,
                               LessByFirst<IntPair>,
                               std::vector<IntPair>>;
 using MoveOnlyTree = flat_tree<MoveOnlyInt,
-                               base::identity,
+                               std::identity,
                                std::less<>,
                                std::vector<MoveOnlyInt>>;
 using EmplaceableTree = flat_tree<Emplaceable,
-                                  base::identity,
+                                  std::identity,
                                   std::less<>,
                                   std::vector<Emplaceable>>;
 using ReversedTree =
-    flat_tree<int, base::identity, std::greater<int>, std::vector<int>>;
+    flat_tree<int, std::identity, std::greater<int>, std::vector<int>>;
 
 using TreeWithStrangeCompare = flat_tree<int,
-                                         base::identity,
+                                         std::identity,
                                          NonDefaultConstructibleCompare,
                                          std::vector<int>>;
 
@@ -186,20 +189,6 @@ template <typename T>
 class FlatTreeTest : public testing::Test {};
 TYPED_TEST_SUITE_P(FlatTreeTest);
 
-TEST(FlatTree, IsMultipass) {
-  static_assert(!is_multipass<std::istream_iterator<int>>(),
-                "InputIterator is not multipass");
-  static_assert(!is_multipass<std::ostream_iterator<int>>(),
-                "OutputIterator is not multipass");
-
-  static_assert(is_multipass<std::forward_list<int>::iterator>(),
-                "ForwardIterator is multipass");
-  static_assert(is_multipass<std::list<int>::iterator>(),
-                "BidirectionalIterator is multipass");
-  static_assert(is_multipass<std::vector<int>::iterator>(),
-                "RandomAccessIterator is multipass");
-}
-
 // Tests that the compiler generated move operators propagrate noexcept
 // specifiers.
 TEST(FlatTree, NoExcept) {
@@ -208,17 +197,17 @@ TEST(FlatTree, NoExcept) {
     MoveThrows& operator=(MoveThrows&&) noexcept(false) { return *this; }
   };
 
-  using MoveThrowsTree = flat_tree<MoveThrows, base::identity, std::less<>,
+  using MoveThrowsTree = flat_tree<MoveThrows, std::identity, std::less<>,
                                    std::array<MoveThrows, 1>>;
 
-  static_assert(std::is_nothrow_move_constructible<IntTree>::value,
+  static_assert(std::is_nothrow_move_constructible_v<IntTree>,
                 "Error: IntTree is not nothrow move constructible");
-  static_assert(std::is_nothrow_move_assignable<IntTree>::value,
+  static_assert(std::is_nothrow_move_assignable_v<IntTree>,
                 "Error: IntTree is not nothrow move assignable");
 
-  static_assert(!std::is_nothrow_move_constructible<MoveThrowsTree>::value,
+  static_assert(!std::is_nothrow_move_constructible_v<MoveThrowsTree>,
                 "Error: MoveThrowsTree is nothrow move constructible");
-  static_assert(!std::is_nothrow_move_assignable<MoveThrowsTree>::value,
+  static_assert(!std::is_nothrow_move_assignable_v<MoveThrowsTree>,
                 "Error: MoveThrowsTree is nothrow move assignable");
 }
 
@@ -230,7 +219,7 @@ TEST(FlatTree, NoExcept) {
 
 TEST(FlatTree, IncompleteType) {
   struct A {
-    using Tree = flat_tree<A, base::identity, std::less<A>, std::vector<A>>;
+    using Tree = flat_tree<A, std::identity, std::less<A>, std::vector<A>>;
     int data;
     Tree set_with_incomplete_type;
     Tree::iterator it;
@@ -246,7 +235,7 @@ TEST(FlatTree, Stability) {
   using Pair = std::pair<int, int>;
 
   using Tree =
-      flat_tree<Pair, base::identity, LessByFirst<Pair>, std::vector<Pair>>;
+      flat_tree<Pair, std::identity, LessByFirst<Pair>, std::vector<Pair>>;
 
   // Constructors are stable.
   Tree cont({{0, 0}, {1, 0}, {0, 1}, {2, 0}, {0, 2}, {1, 1}});
@@ -291,14 +280,13 @@ TEST(FlatTree, Stability) {
 
 TEST(FlatTree, Types) {
   // These are guaranteed to be portable.
-  static_assert((std::is_same<int, IntTree::key_type>::value), "");
-  static_assert((std::is_same<int, IntTree::value_type>::value), "");
-  static_assert((std::is_same<std::less<>, IntTree::key_compare>::value), "");
-  static_assert((std::is_same<int&, IntTree::reference>::value), "");
-  static_assert((std::is_same<const int&, IntTree::const_reference>::value),
-                "");
-  static_assert((std::is_same<int*, IntTree::pointer>::value), "");
-  static_assert((std::is_same<const int*, IntTree::const_pointer>::value), "");
+  static_assert((std::is_same_v<int, IntTree::key_type>), "");
+  static_assert((std::is_same_v<int, IntTree::value_type>), "");
+  static_assert((std::is_same_v<std::less<>, IntTree::key_compare>), "");
+  static_assert((std::is_same_v<int&, IntTree::reference>), "");
+  static_assert((std::is_same_v<const int&, IntTree::const_reference>), "");
+  static_assert((std::is_same_v<int*, IntTree::pointer>), "");
+  static_assert((std::is_same_v<const int*, IntTree::const_pointer>), "");
 }
 
 // ----------------------------------------------------------------------------
@@ -395,7 +383,7 @@ TEST(FlatTree, ContainerMoveConstructor) {
   storage.push_back(Pair(2, MoveOnlyInt(1)));
 
   using Tree =
-      flat_tree<Pair, base::identity, LessByFirst<Pair>, std::vector<Pair>>;
+      flat_tree<Pair, std::identity, LessByFirst<Pair>, std::vector<Pair>>;
   Tree tree(std::move(storage));
 
   // The list should be two items long, with only the first "2" saved.
@@ -478,7 +466,7 @@ TEST(FlatTree, SortedUniqueVectorMoveConstructor) {
   storage.push_back(Pair(2, MoveOnlyInt(0)));
 
   using Tree =
-      flat_tree<Pair, base::identity, LessByFirst<Pair>, std::vector<Pair>>;
+      flat_tree<Pair, std::identity, LessByFirst<Pair>, std::vector<Pair>>;
   Tree tree(sorted_unique, std::move(storage));
 
   ASSERT_EQ(2u, tree.size());
@@ -816,7 +804,7 @@ TEST(FlatTree, InsertIterIter) {
   {
     IntIntMap cont;
     IntPair int_pairs[] = {{3, 1}, {1, 1}, {4, 1}, {2, 1}};
-    cont.insert(std::begin(int_pairs), std::end(int_pairs));
+    UNSAFE_BUFFERS(cont.insert(std::begin(int_pairs), std::end(int_pairs)));
     EXPECT_THAT(cont, ElementsAre(IntPair(1, 1), IntPair(2, 1), IntPair(3, 1),
                                   IntPair(4, 1)));
   }
@@ -824,7 +812,7 @@ TEST(FlatTree, InsertIterIter) {
   {
     IntIntMap cont({{1, 1}, {2, 1}, {3, 1}, {4, 1}});
     std::vector<IntPair> int_pairs;
-    cont.insert(std::begin(int_pairs), std::end(int_pairs));
+    UNSAFE_BUFFERS(cont.insert(std::begin(int_pairs), std::end(int_pairs)));
     EXPECT_THAT(cont, ElementsAre(IntPair(1, 1), IntPair(2, 1), IntPair(3, 1),
                                   IntPair(4, 1)));
   }
@@ -832,7 +820,7 @@ TEST(FlatTree, InsertIterIter) {
   {
     IntIntMap cont({{1, 1}, {2, 1}, {3, 1}, {4, 1}});
     IntPair int_pairs[] = {{1, 1}};
-    cont.insert(std::begin(int_pairs), std::end(int_pairs));
+    UNSAFE_BUFFERS(cont.insert(std::begin(int_pairs), std::end(int_pairs)));
     EXPECT_THAT(cont, ElementsAre(IntPair(1, 1), IntPair(2, 1), IntPair(3, 1),
                                   IntPair(4, 1)));
   }
@@ -840,7 +828,7 @@ TEST(FlatTree, InsertIterIter) {
   {
     IntIntMap cont({{1, 1}, {2, 1}, {3, 1}, {4, 1}});
     IntPair int_pairs[] = {{5, 1}};
-    cont.insert(std::begin(int_pairs), std::end(int_pairs));
+    UNSAFE_BUFFERS(cont.insert(std::begin(int_pairs), std::end(int_pairs)));
     EXPECT_THAT(cont, ElementsAre(IntPair(1, 1), IntPair(2, 1), IntPair(3, 1),
                                   IntPair(4, 1), IntPair(5, 1)));
   }
@@ -848,7 +836,7 @@ TEST(FlatTree, InsertIterIter) {
   {
     IntIntMap cont({{1, 1}, {2, 1}, {3, 1}, {4, 1}});
     IntPair int_pairs[] = {{3, 2}, {1, 2}, {4, 2}, {2, 2}};
-    cont.insert(std::begin(int_pairs), std::end(int_pairs));
+    UNSAFE_BUFFERS(cont.insert(std::begin(int_pairs), std::end(int_pairs)));
     EXPECT_THAT(cont, ElementsAre(IntPair(1, 1), IntPair(2, 1), IntPair(3, 1),
                                   IntPair(4, 1)));
   }
@@ -857,7 +845,71 @@ TEST(FlatTree, InsertIterIter) {
     IntIntMap cont({{1, 1}, {2, 1}, {3, 1}, {4, 1}});
     IntPair int_pairs[] = {{3, 2}, {1, 2}, {4, 2}, {2, 2}, {7, 2}, {6, 2},
                            {8, 2}, {5, 2}, {5, 3}, {6, 3}, {7, 3}, {8, 3}};
-    cont.insert(std::begin(int_pairs), std::end(int_pairs));
+    UNSAFE_BUFFERS(cont.insert(std::begin(int_pairs), std::end(int_pairs)));
+    EXPECT_THAT(cont, ElementsAre(IntPair(1, 1), IntPair(2, 1), IntPair(3, 1),
+                                  IntPair(4, 1), IntPair(5, 2), IntPair(6, 2),
+                                  IntPair(7, 2), IntPair(8, 2)));
+  }
+}
+
+// template <class Range>
+//   void insert_range(Range range);
+
+TEST(FlatTree, InsertRange) {
+  struct GetKeyFromIntIntPair {
+    const int& operator()(const std::pair<int, int>& p) const {
+      return p.first;
+    }
+  };
+
+  using IntIntMap = flat_tree<int, GetKeyFromIntIntPair, std::less<int>,
+                              std::vector<IntPair>>;
+
+  {
+    IntIntMap cont;
+    IntPair int_pairs[] = {{3, 1}, {1, 1}, {4, 1}, {2, 1}};
+    cont.insert_range(int_pairs);
+    EXPECT_THAT(cont, ElementsAre(IntPair(1, 1), IntPair(2, 1), IntPair(3, 1),
+                                  IntPair(4, 1)));
+  }
+
+  {
+    IntIntMap cont({{1, 1}, {2, 1}, {3, 1}, {4, 1}});
+    std::vector<IntPair> int_pairs;
+    cont.insert_range(int_pairs);
+    EXPECT_THAT(cont, ElementsAre(IntPair(1, 1), IntPair(2, 1), IntPair(3, 1),
+                                  IntPair(4, 1)));
+  }
+
+  {
+    IntIntMap cont({{1, 1}, {2, 1}, {3, 1}, {4, 1}});
+    IntPair int_pairs[] = {{1, 1}};
+    cont.insert_range(int_pairs);
+    EXPECT_THAT(cont, ElementsAre(IntPair(1, 1), IntPair(2, 1), IntPair(3, 1),
+                                  IntPair(4, 1)));
+  }
+
+  {
+    IntIntMap cont({{1, 1}, {2, 1}, {3, 1}, {4, 1}});
+    IntPair int_pairs[] = {{5, 1}};
+    cont.insert_range(int_pairs);
+    EXPECT_THAT(cont, ElementsAre(IntPair(1, 1), IntPair(2, 1), IntPair(3, 1),
+                                  IntPair(4, 1), IntPair(5, 1)));
+  }
+
+  {
+    IntIntMap cont({{1, 1}, {2, 1}, {3, 1}, {4, 1}});
+    IntPair int_pairs[] = {{3, 2}, {1, 2}, {4, 2}, {2, 2}};
+    cont.insert_range(int_pairs);
+    EXPECT_THAT(cont, ElementsAre(IntPair(1, 1), IntPair(2, 1), IntPair(3, 1),
+                                  IntPair(4, 1)));
+  }
+
+  {
+    IntIntMap cont({{1, 1}, {2, 1}, {3, 1}, {4, 1}});
+    IntPair int_pairs[] = {{3, 2}, {1, 2}, {4, 2}, {2, 2}, {7, 2}, {6, 2},
+                           {8, 2}, {5, 2}, {5, 3}, {6, 3}, {7, 3}, {8, 3}};
+    cont.insert_range(int_pairs);
     EXPECT_THAT(cont, ElementsAre(IntPair(1, 1), IntPair(2, 1), IntPair(3, 1),
                                   IntPair(4, 1), IntPair(5, 2), IntPair(6, 2),
                                   IntPair(7, 2), IntPair(8, 2)));
@@ -1005,7 +1057,7 @@ TYPED_TEST_P(FlatTreeTest, ErasePosition) {
   {
     using T = TemplateConstructor;
 
-    flat_tree<T, base::identity, std::less<>, std::vector<T>> cont;
+    flat_tree<T, std::identity, std::less<>, std::vector<T>> cont;
     T v(0);
 
     auto it = cont.find(v);

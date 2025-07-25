@@ -2,6 +2,11 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#ifdef UNSAFE_BUFFERS_BUILD
+// TODO(crbug.com/40284755): Remove this and spanify to fix the errors.
+#pragma allow_unsafe_buffers
+#endif
+
 #ifndef NET_DISK_CACHE_BLOCKFILE_BITMAP_H_
 #define NET_DISK_CACHE_BLOCKFILE_BITMAP_H_
 
@@ -10,6 +15,7 @@
 
 #include <memory>
 
+#include "base/containers/span.h"
 #include "base/memory/raw_ptr.h"
 #include "net/base/net_export.h"
 
@@ -74,6 +80,11 @@ class NET_EXPORT_PRIVATE Bitmap {
 
   // Gets a pointer to the internal map.
   const uint32_t* GetMap() const { return map_; }
+
+  // Gets a span describing the internal map.
+  base::span<const uint32_t> GetSpan() const {
+    return base::make_span(GetMap(), static_cast<size_t>(ArraySize()));
+  }
 
   // Sets a range of bits to |value|.
   void SetRange(int begin, int end, bool value);

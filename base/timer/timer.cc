@@ -95,10 +95,6 @@ void DelayTimerBase::StartInternal(const Location& posted_from,
   Reset();
 }
 
-void DelayTimerBase::AbandonAndStop() {
-  Stop();
-}
-
 void DelayTimerBase::Reset() {
   DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
 
@@ -180,7 +176,7 @@ void OneShotTimer::RunUserTask() {
 }
 
 void OneShotTimer::EnsureNonNullUserTask() {
-  DCHECK(user_task_);
+  CHECK(user_task_);
 }
 
 RepeatingTimer::RepeatingTimer() = default;

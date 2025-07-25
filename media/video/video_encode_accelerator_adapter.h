@@ -6,6 +6,7 @@
 #define MEDIA_VIDEO_VIDEO_ENCODE_ACCELERATOR_ADAPTER_H_
 
 #include <memory>
+#include <optional>
 
 #include "base/containers/circular_deque.h"
 #include "base/containers/queue.h"
@@ -18,8 +19,9 @@
 #include "base/time/time.h"
 #include "media/base/media_export.h"
 #include "media/base/video_encoder.h"
+#include "media/base/video_frame_converter.h"
+#include "media/media_buildflags.h"
 #include "media/video/video_encode_accelerator.h"
-#include "third_party/abseil-cpp/absl/types/optional.h"
 #include "ui/gfx/color_space.h"
 #include "ui/gfx/geometry/size.h"
 
@@ -95,7 +97,8 @@ class MEDIA_EXPORT VideoEncodeAcceleratorAdapter
     kWaitingForFirstFrame,
     kInitializing,
     kReadyToEncode,
-    kFlushing
+    kFlushing,
+    kReconfiguring
   };
   struct PendingOp {
     PendingOp();
@@ -115,7 +118,7 @@ class MEDIA_EXPORT VideoEncodeAcceleratorAdapter
                                      EncoderStatusCB done_cb);
   void InitializeInternalOnAcceleratorThread();
   void EncodeOnAcceleratorThread(scoped_refptr<VideoFrame> frame,
-                                 const EncodeOptions& encode_options,
+                                 EncodeOptions encode_options,
                                  EncoderStatusCB done_cb);
   void FlushOnAcceleratorThread(EncoderStatusCB done_cb);
   void ChangeOptionsOnAcceleratorThread(const Options options,
@@ -169,7 +172,7 @@ class MEDIA_EXPORT VideoEncodeAcceleratorAdapter
   scoped_refptr<base::SequencedTaskRunner> callback_task_runner_;
 
   State state_ = State::kNotInitialized;
-  absl::optional<bool> flush_support_;
+  std::optional<bool> flush_support_;
 
   // True if underlying instance of VEA can handle GPU backed frames with a
   // size different from what VEA was configured for.
@@ -180,19 +183,22 @@ class MEDIA_EXPORT VideoEncodeAcceleratorAdapter
 
   VideoPixelFormat format_;
   InputBufferKind input_buffer_preference_ = InputBufferKind::Any;
-  std::vector<uint8_t> resize_buf_;
+  VideoFrameConverter frame_converter_;
 
   VideoCodecProfile profile_ = VIDEO_CODEC_PROFILE_UNKNOWN;
   VideoEncodeAccelerator::SupportedRateControlMode supported_rc_modes_ =
       VideoEncodeAccelerator::kNoMode;
+  std::vector<VideoPixelFormat> gpu_supported_pixel_formats_;
   Options options_;
   EncoderInfoCB info_cb_;
   OutputCB output_cb_;
+  EncoderStatusCB reconfigure_cb_;
 
   gfx::Size input_coded_size_;
 
   VideoEncodeAccelerator::Config::EncoderType required_encoder_type_ =
       VideoEncodeAccelerator::Config::EncoderType::kHardware;
+  bool supports_frame_size_change_ = false;
 };
 
 }  // namespace media

@@ -2,6 +2,11 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#ifdef UNSAFE_BUFFERS_BUILD
+// TODO(crbug.com/40284755): Remove this and spanify to fix the errors.
+#pragma allow_unsafe_buffers
+#endif
+
 #include "base/threading/thread_local_storage.h"
 
 #include "base/memory/raw_ptr.h"
@@ -96,7 +101,7 @@ void ThreadLocalStorageCleanup(void *value) {
   TLSSlot().Set(value);
 }
 
-#if BUILDFLAG(IS_POSIX) && !defined(STARBOARD)
+#if BUILDFLAG(IS_POSIX)
 constexpr intptr_t kDummyValue = 0xABCD;
 constexpr size_t kKeyCount = 20;
 
@@ -318,7 +323,7 @@ TEST(ThreadLocalStorageTest, TLSReclaim) {
   }
 }
 
-#if BUILDFLAG(IS_POSIX) && !defined(STARBOARD)
+#if BUILDFLAG(IS_POSIX)
 // Unlike POSIX, Windows does not iterate through the OS TLS to cleanup any
 // values there. Instead a per-module thread destruction function is called.
 // However, it is not possible to perform a check after this point (as the code

@@ -160,7 +160,7 @@ class MEDIA_EXPORT WASAPIAudioOutputStream
   bool started() const { return render_thread_.get() != NULL; }
 
  private:
-  void SendLogMessage(const char* format, ...) PRINTF_FORMAT(2, 3);
+  PRINTF_FORMAT(2, 3) void SendLogMessage(const char* format, ...);
 
   // DelegateSimpleThread::Delegate implementation.
   void Run() override;
@@ -196,6 +196,9 @@ class MEDIA_EXPORT WASAPIAudioOutputStream
 
   // Called by AudioSessionEventListener() when a device change occurs.
   void OnDeviceChanged();
+
+  // Set up the desired render format specified by the client.
+  void SetupWaveFormat();
 
   // Contains the thread ID of the creating thread.
   const base::PlatformThreadId creating_thread_id_;
@@ -256,10 +259,10 @@ class MEDIA_EXPORT WASAPIAudioOutputStream
   // Counts the number of audio frames written to the endpoint buffer.
   UINT64 num_written_frames_;
 
-  // The position read during the last call to RenderAudioFromSource
+  // The position read during the last call to RenderAudioFromSource.
   UINT64 last_position_ = 0;
 
-  // The performance counter read during the last call to RenderAudioFromSource
+  // The performance counter read during the last call to RenderAudioFromSource.
   UINT64 last_qpc_position_ = 0;
 
   // Pointer to the client that will deliver audio samples to be played out.
@@ -289,6 +292,8 @@ class MEDIA_EXPORT WASAPIAudioOutputStream
   Microsoft::WRL::ComPtr<IAudioClock> audio_clock_;
 
   bool device_changed_ = false;
+
+  bool enable_audio_offload_ = false;
 
   // Generates Windows audio session events for `session_listener_` to handle.
   Microsoft::WRL::ComPtr<IAudioSessionControl> audio_session_control_;

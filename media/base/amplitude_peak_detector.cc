@@ -2,6 +2,11 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#ifdef UNSAFE_BUFFERS_BUILD
+// TODO(crbug.com/40285824): Remove this and convert code to safer constructs.
+#pragma allow_unsafe_buffers
+#endif
+
 #include "media/base/amplitude_peak_detector.h"
 
 #include "base/compiler_specific.h"
@@ -16,11 +21,6 @@ constexpr float kLoudnessThreshold = 0.5;  // Corresponds to approximately -6dbs
 
 AmplitudePeakDetector::AmplitudePeakDetector(PeakDetectedCB peak_detected_cb)
     : peak_detected_cb_(std::move(peak_detected_cb)) {
-  // AmplitudePeakDetector might be created from different a thread than
-  // `FindPeak()` is called. This is fine, as long as all `FindPeak()` calls
-  // come from the same thread.
-  DETACH_FROM_THREAD(thread_checker_);
-
   // For performance reasons, we only check whether we are tracing once, at
   // construction time, since we don't expect this category to be enabled often.
   // This comes at a usability cost: tracing must be started before a website
@@ -43,9 +43,7 @@ void AmplitudePeakDetector::SetIsTracingEnabledForTests(
 void AmplitudePeakDetector::FindPeak(const void* data,
                                      int frames,
                                      int bytes_per_sample) {
-  DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
-
-  if (LIKELY(!is_tracing_enabled_)) {
+  if (!is_tracing_enabled_) [[likely]] {
     return;
   }
 
@@ -53,9 +51,7 @@ void AmplitudePeakDetector::FindPeak(const void* data,
 }
 
 void AmplitudePeakDetector::FindPeak(const AudioBus* audio_bus) {
-  DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
-
-  if (LIKELY(!is_tracing_enabled_)) {
+  if (!is_tracing_enabled_) [[likely]] {
     return;
   }
 
@@ -123,12 +119,20 @@ bool AmplitudePeakDetector::AreFramesLoud(const void* data,
       return LoudDetector<int32_t>(data, frames);
     default:
       NOTREACHED();
-      return false;
   };
 }
 
 void AmplitudePeakDetector::MaybeReportPeak(bool are_frames_loud) {
-  DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
+  // We never expect two threads to be calling into the peak detector at the
+  // same time. However, some platform implementations can unpredictably change
+  // underlying realtime audio threads (e.g. during a device change).
+  // This prevents us from using a ThreadChecker, which is bound to a specific
+  // thread ID.
+  // Instead, check that there is never be contention on `lock_`. If there ever
+  // was, we would know there is a valid threading issue that needs to be
+  // investigated.
+  lock_.AssertNotHeld();
+  base::AutoLock auto_lock(lock_);
 
   // No change.
   if (in_a_peak_ == are_frames_loud) {

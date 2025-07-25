@@ -2,12 +2,18 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#ifdef UNSAFE_BUFFERS_BUILD
+// TODO(crbug.com/40285824): Remove this and convert code to safer constructs.
+#pragma allow_unsafe_buffers
+#endif
+
 #include "media/formats/mp4/avc.h"
 
 #include <stddef.h>
 #include <stdint.h>
 #include <string.h>
 
+#include <optional>
 #include <ostream>
 
 #include "base/strings/string_split.h"
@@ -17,9 +23,8 @@
 #include "media/formats/mp4/bitstream_converter.h"
 #include "media/formats/mp4/box_definitions.h"
 #include "media/formats/mp4/nalu_test_helper.h"
-#include "media/video/h264_parser.h"
+#include "media/parsers/h264_parser.h"
 #include "testing/gtest/include/gtest/gtest.h"
-#include "third_party/abseil-cpp/absl/types/optional.h"
 
 namespace media {
 namespace mp4 {
@@ -339,19 +344,19 @@ TEST_F(AVCConversionTest, ValidAnnexBConstructs) {
 TEST_F(AVCConversionTest, InvalidAnnexBConstructs) {
   struct {
     const char* case_string;
-    const absl::optional<bool> is_keyframe;
+    const std::optional<bool> is_keyframe;
   } test_cases[] = {
       // For these cases, lack of conformance is determined before detecting any
       // IDR or non-IDR slices, so the non-conformant frames' keyframe analysis
-      // reports absl::nullopt (which means undetermined analysis result).
-      {"AUD", absl::nullopt},            // No VCL present.
-      {"AUD,SEI", absl::nullopt},        // No VCL present.
-      {"SPS PPS", absl::nullopt},        // No VCL present.
-      {"SPS PPS AUD I", absl::nullopt},  // Parameter sets must come after AUD.
-      {"SPSExt SPS P", absl::nullopt},   // SPS must come before SPSExt.
-      {"SPS PPS SPSExt P", absl::nullopt},  // SPSExt must follow an SPS.
-      {"EOSeq", absl::nullopt},             // EOSeq must come after a VCL.
-      {"EOStr", absl::nullopt},             // EOStr must come after a VCL.
+      // reports std::nullopt (which means undetermined analysis result).
+      {"AUD", std::nullopt},            // No VCL present.
+      {"AUD,SEI", std::nullopt},        // No VCL present.
+      {"SPS PPS", std::nullopt},        // No VCL present.
+      {"SPS PPS AUD I", std::nullopt},  // Parameter sets must come after AUD.
+      {"SPSExt SPS P", std::nullopt},   // SPS must come before SPSExt.
+      {"SPS PPS SPSExt P", std::nullopt},  // SPSExt must follow an SPS.
+      {"EOSeq", std::nullopt},             // EOSeq must come after a VCL.
+      {"EOStr", std::nullopt},             // EOStr must come after a VCL.
 
       // For these cases, IDR slice is first VCL and is detected before
       // conformance failure, so the non-conformant frame is reported as a

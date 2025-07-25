@@ -18,6 +18,19 @@
 #include "testing/gtest/include/gtest/gtest.h"
 
 namespace base {
+
+namespace subtle {
+
+class BindWeakPtrFactoryForTesting {
+ public:
+  template <typename T>
+  static void BindToCurrentSequence(WeakPtrFactory<T>& factory) {
+    factory.BindToCurrentSequence(BindWeakPtrFactoryPassKey());
+  }
+};
+
+}  // namespace subtle
+
 namespace {
 
 WeakPtr<int> PassThru(WeakPtr<int> ptr) {
@@ -51,8 +64,13 @@ struct Base {
 struct Derived : public Base {};
 
 struct TargetBase {};
-struct Target : public TargetBase, public SupportsWeakPtr<Target> {
+
+struct Target : public TargetBase {
   virtual ~Target() = default;
+  WeakPtr<Target> AsWeakPtr() { return weak_ptr_factory_.GetWeakPtr(); }
+
+ private:
+  WeakPtrFactory<Target> weak_ptr_factory_{this};
 };
 
 struct DerivedTarget : public Target {};
@@ -79,7 +97,7 @@ struct Arrow {
   WeakPtr<Target> target;
 };
 struct TargetWithFactory : public Target {
-  TargetWithFactory() {}
+  TargetWithFactory() = default;
   WeakPtrFactory<Target> factory{this};
 };
 
@@ -156,6 +174,15 @@ class BackgroundThread : public Thread {
     return result;
   }
 
+  void BindToCurrentSequence(TargetWithFactory* target_with_factory) {
+    WaitableEvent completion(WaitableEvent::ResetPolicy::MANUAL,
+                             WaitableEvent::InitialState::NOT_SIGNALED);
+    task_runner()->PostTask(
+        FROM_HERE, base::BindOnce(&BackgroundThread::DoBindToCurrentSequence,
+                                  target_with_factory, &completion));
+    completion.Wait();
+  }
+
  protected:
   static void DoCreateArrowFromArrow(Arrow** arrow,
                                      const Arrow* other,
@@ -206,6 +233,13 @@ class BackgroundThread : public Thread {
 
   static void DoDeleteArrow(Arrow* object, WaitableEvent* completion) {
     delete object;
+    completion->Signal();
+  }
+
+  static void DoBindToCurrentSequence(TargetWithFactory* target_with_factory,
+                                      WaitableEvent* completion) {
+    subtle::BindWeakPtrFactoryForTesting::BindToCurrentSequence(
+        target_with_factory->factory);
     completion->Signal();
   }
 };
@@ -297,43 +331,6 @@ TEST(WeakPtrFactoryTest, UpCast) {
 TEST(WeakPtrTest, ConstructFromNullptr) {
   WeakPtr<int> ptr = PassThru(nullptr);
   EXPECT_EQ(nullptr, ptr.get());
-}
-
-TEST(WeakPtrTest, SupportsWeakPtr) {
-  Target target;
-  WeakPtr<Target> ptr = target.AsWeakPtr();
-  EXPECT_EQ(&target, ptr.get());
-}
-
-TEST(WeakPtrTest, DerivedTarget) {
-  DerivedTarget target;
-  WeakPtr<DerivedTarget> ptr = AsWeakPtr(&target);
-  EXPECT_EQ(&target, ptr.get());
-}
-
-TEST(WeakPtrTest, DerivedTargetWithNestedBase) {
-  DerivedTargetWithNestedBase target;
-  WeakPtr<DerivedTargetWithNestedBase> ptr = AsWeakPtr(&target);
-  EXPECT_EQ(&target, ptr.get());
-}
-
-TEST(WeakPtrTest, DerivedTargetMultipleInheritance) {
-  DerivedTargetMultipleInheritance derived_target;
-  Target& target = derived_target;
-  EXPECT_NE(static_cast<void*>(&derived_target), static_cast<void*>(&target));
-
-  WeakPtr<Target> target_weak_ptr = AsWeakPtr(&target);
-  EXPECT_EQ(target_weak_ptr.get(), &target);
-
-  WeakPtr<DerivedTargetMultipleInheritance> derived_target_weak_ptr =
-      AsWeakPtr(&derived_target);
-  EXPECT_EQ(derived_target_weak_ptr.get(), &derived_target);
-
-  target_weak_ptr = derived_target_weak_ptr;
-  EXPECT_EQ(target_weak_ptr.get(), &target);
-
-  target_weak_ptr = std::move(derived_target_weak_ptr);
-  EXPECT_EQ(target_weak_ptr.get(), &target);
 }
 
 TEST(WeakPtrFactoryTest, BooleanTesting) {
@@ -771,10 +768,31 @@ TEST(WeakPtrTest, GetMutableWeakPtr) {
   EXPECT_EQ(test_struct.member, 1);
 }
 
+TEST(WeakPtrDeathTest, BindToCurrentSequence) {
+  BackgroundThread background;
+  background.Start();
+
+  TargetWithFactory target_with_factory;
+  Arrow arrow{
+      .target = target_with_factory.factory.GetWeakPtr(),
+  };
+
+  // WeakPtr can be accessed on main thread.
+  EXPECT_TRUE(arrow.target.get());
+
+  background.BindToCurrentSequence(&target_with_factory);
+
+  // Now WeakPtr can be accessed on background thread.
+  EXPECT_TRUE(background.DeRef(&arrow));
+
+  // WeakPtr can no longer be accessed on main thread.
+  EXPECT_DCHECK_DEATH(arrow.target.get());
+}
+
 TEST(WeakPtrDeathTest, WeakPtrCopyDoesNotChangeThreadBinding) {
   // The default style "fast" does not support multi-threaded tests
   // (introduces deadlock on Linux).
-  ::testing::FLAGS_gtest_death_test_style = "threadsafe";
+  GTEST_FLAG_SET(death_test_style, "threadsafe");
 
   BackgroundThread background;
   background.Start();
@@ -802,7 +820,7 @@ TEST(WeakPtrDeathTest, WeakPtrCopyDoesNotChangeThreadBinding) {
 TEST(WeakPtrDeathTest, NonOwnerThreadDereferencesWeakPtrAfterReference) {
   // The default style "fast" does not support multi-threaded tests
   // (introduces deadlock on Linux).
-  ::testing::FLAGS_gtest_death_test_style = "threadsafe";
+  GTEST_FLAG_SET(death_test_style, "threadsafe");
 
   // Main thread creates a Target object.
   Target target;
@@ -822,7 +840,7 @@ TEST(WeakPtrDeathTest, NonOwnerThreadDereferencesWeakPtrAfterReference) {
 TEST(WeakPtrDeathTest, NonOwnerThreadDeletesWeakPtrAfterReference) {
   // The default style "fast" does not support multi-threaded tests
   // (introduces deadlock on Linux).
-  ::testing::FLAGS_gtest_death_test_style = "threadsafe";
+  GTEST_FLAG_SET(death_test_style, "threadsafe");
 
   std::unique_ptr<Target> target(new Target());
 
@@ -846,7 +864,7 @@ TEST(WeakPtrDeathTest, NonOwnerThreadDeletesWeakPtrAfterReference) {
 TEST(WeakPtrDeathTest, NonOwnerThreadDeletesObjectAfterReference) {
   // The default style "fast" does not support multi-threaded tests
   // (introduces deadlock on Linux).
-  ::testing::FLAGS_gtest_death_test_style = "threadsafe";
+  GTEST_FLAG_SET(death_test_style, "threadsafe");
 
   std::unique_ptr<Target> target(new Target());
 
@@ -865,7 +883,7 @@ TEST(WeakPtrDeathTest, NonOwnerThreadDeletesObjectAfterReference) {
 TEST(WeakPtrDeathTest, NonOwnerThreadReferencesObjectAfterDeletion) {
   // The default style "fast" does not support multi-threaded tests
   // (introduces deadlock on Linux).
-  ::testing::FLAGS_gtest_death_test_style = "threadsafe";
+  GTEST_FLAG_SET(death_test_style, "threadsafe");
 
   std::unique_ptr<Target> target(new Target());
 
@@ -885,7 +903,7 @@ TEST(WeakPtrDeathTest, NonOwnerThreadReferencesObjectAfterDeletion) {
 TEST(WeakPtrDeathTest, ArrowOperatorChecksOnBadDereference) {
   // The default style "fast" does not support multi-threaded tests
   // (introduces deadlock on Linux).
-  ::testing::FLAGS_gtest_death_test_style = "threadsafe";
+  GTEST_FLAG_SET(death_test_style, "threadsafe");
 
   auto target = std::make_unique<Target>();
   WeakPtr<Target> weak = target->AsWeakPtr();
@@ -896,7 +914,7 @@ TEST(WeakPtrDeathTest, ArrowOperatorChecksOnBadDereference) {
 TEST(WeakPtrDeathTest, StarOperatorChecksOnBadDereference) {
   // The default style "fast" does not support multi-threaded tests
   // (introduces deadlock on Linux).
-  ::testing::FLAGS_gtest_death_test_style = "threadsafe";
+  GTEST_FLAG_SET(death_test_style, "threadsafe");
 
   auto target = std::make_unique<Target>();
   WeakPtr<Target> weak = target->AsWeakPtr();

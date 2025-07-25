@@ -2,6 +2,11 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#ifdef UNSAFE_BUFFERS_BUILD
+// TODO(crbug.com/40284755): Remove this and spanify to fix the errors.
+#pragma allow_unsafe_buffers
+#endif
+
 #include "base/files/file_path_watcher_fsevents.h"
 
 #include <dispatch/dispatch.h>
@@ -9,11 +14,12 @@
 #include <algorithm>
 #include <list>
 
+#include "base/apple/foundation_util.h"
+#include "base/apple/scoped_cftyperef.h"
 #include "base/check.h"
 #include "base/files/file_util.h"
 #include "base/functional/bind.h"
 #include "base/lazy_instance.h"
-#include "base/mac/scoped_cftyperef.h"
 #include "base/strings/stringprintf.h"
 #include "base/task/sequenced_task_runner.h"
 #include "base/threading/scoped_blocking_call.h"
@@ -99,8 +105,8 @@ bool FilePathWatcherFSEvents::Watch(const FilePath& path,
   // captured by the block's scope.
   const FilePath path_copy(path);
 
-  dispatch_async(queue_, ^{
-      StartEventStream(start_event, path_copy);
+  dispatch_async(queue_.get(), ^{
+    StartEventStream(start_event, path_copy);
   });
   return true;
 }
@@ -113,7 +119,7 @@ void FilePathWatcherFSEvents::Cancel() {
   // Switch to the dispatch queue to tear down the event stream. As the queue is
   // owned by |this|, and this method is called from the destructor, execute the
   // block synchronously.
-  dispatch_sync(queue_, ^{
+  dispatch_sync(queue_.get(), ^{
     if (fsevent_stream_) {
       DestroyEventStream();
       target_.clear();
@@ -166,7 +172,7 @@ void FilePathWatcherFSEvents::FSEventsCallback(
                          if (!weak_watcher)
                            return;
                          FilePathWatcherFSEvents* watcher = weak_watcher.get();
-                         dispatch_async(watcher->queue_, ^{
+                         dispatch_async(watcher->queue_.get(), ^{
                            watcher->UpdateEventStream(root_change_at);
                          });
                        },
@@ -207,19 +213,20 @@ void FilePathWatcherFSEvents::UpdateEventStream(
     FSEventStreamEventId start_event) {
   // It can happen that the watcher gets canceled while tasks that call this
   // function are still in flight, so abort if this situation is detected.
-  if (resolved_target_.empty())
+  if (resolved_target_.empty()) {
     return;
+  }
 
-  if (fsevent_stream_)
+  if (fsevent_stream_) {
     DestroyEventStream();
+  }
 
-  ScopedCFTypeRef<CFStringRef> cf_path(CFStringCreateWithCString(
-      NULL, resolved_target_.value().c_str(), kCFStringEncodingMacHFS));
-  ScopedCFTypeRef<CFStringRef> cf_dir_path(CFStringCreateWithCString(
-      NULL, resolved_target_.DirName().value().c_str(),
-      kCFStringEncodingMacHFS));
-  CFStringRef paths_array[] = { cf_path.get(), cf_dir_path.get() };
-  ScopedCFTypeRef<CFArrayRef> watched_paths(
+  apple::ScopedCFTypeRef<CFStringRef> cf_path =
+      apple::FilePathToCFString(resolved_target_);
+  apple::ScopedCFTypeRef<CFStringRef> cf_dir_path =
+      apple::FilePathToCFString(resolved_target_.DirName());
+  CFStringRef paths_array[] = {cf_path.get(), cf_dir_path.get()};
+  apple::ScopedCFTypeRef<CFArrayRef> watched_paths(
       CFArrayCreate(NULL, reinterpret_cast<const void**>(paths_array),
                     std::size(paths_array), &kCFTypeArrayCallBacks));
 
@@ -230,12 +237,10 @@ void FilePathWatcherFSEvents::UpdateEventStream(
   context.release = NULL;
   context.copyDescription = NULL;
 
-  fsevent_stream_ = FSEventStreamCreate(NULL, &FSEventsCallback, &context,
-                                        watched_paths,
-                                        start_event,
-                                        kEventLatencySeconds,
-                                        kFSEventStreamCreateFlagWatchRoot);
-  FSEventStreamSetDispatchQueue(fsevent_stream_, queue_);
+  fsevent_stream_ = FSEventStreamCreate(
+      NULL, &FSEventsCallback, &context, watched_paths.get(), start_event,
+      kEventLatencySeconds, kFSEventStreamCreateFlagWatchRoot);
+  FSEventStreamSetDispatchQueue(fsevent_stream_, queue_.get());
 
   if (!FSEventStreamStart(fsevent_stream_)) {
     task_runner()->PostTask(FROM_HERE,

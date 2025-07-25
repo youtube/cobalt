@@ -8,7 +8,7 @@ import("//mojo/public/tools/bindings/mojom.gni")
 mojom("mojom") {
   generate_java = true
 
-  # TODO(crbug.com/676224): Conditionally add source files in this list when we
+  # TODO(crbug.com/40499115): Conditionally add source files in this list when we
   # support EnabledIf attribute in mojom files.
   sources = [
     "audio_data_pipe.mojom",
@@ -29,7 +29,6 @@ mojom("mojom") {
     "demuxer_stream.mojom",
     "display_media_information.mojom",
     "frame_interface_factory.mojom",
-    "gpu_accelerated_video_decoder.mojom",
     "interface_factory.mojom",
     "key_system_support.mojom",
     "media_log.mojom",
@@ -47,6 +46,7 @@ mojom("mojom") {
     "video_decoder.mojom",
     "video_encode_accelerator.mojom",
     "video_encoder_info.mojom",
+    "video_encoder_metrics_provider.mojom",
     "watch_time_recorder.mojom",
     "webrtc_video_perf.mojom",
   ]
@@ -56,7 +56,10 @@ mojom("mojom") {
   }
 
   if (is_android) {
-    sources += [ "android_overlay.mojom" ]
+    sources += [
+      "android_overlay.mojom",
+      "mediadrm_support.mojom",
+    ]
   } else {
     sources += [ "speech_recognition_service.mojom" ]
   }
@@ -70,6 +73,7 @@ mojom("mojom") {
   if (is_win) {
     sources += [
       "dcomp_surface_registry.mojom",
+      "media_foundation_preferences.mojom",
       "media_foundation_service.mojom",
     ]
   }
@@ -77,6 +81,8 @@ mojom("mojom") {
   public_deps = [
     ":audio_data",
     ":encryption_pattern",
+    ":speech_recognition",
+    ":web_speech_recognition",
     "//gpu/ipc/common:interfaces",
     "//media/learning/mojo/public/mojom",
     "//media/mojo/mojom/stable:stable_video_decoder",
@@ -85,9 +91,12 @@ mojom("mojom") {
     "//services/media_session/public/mojom",
     "//services/network/public/mojom",
     "//services/network/public/mojom:cookies_mojom",
+    "//services/network/public/mojom:mojom_storage_access_api",
     "//services/service_manager/public/mojom",
+    "//services/viz/public/mojom:shared_image_format",
     "//ui/gfx/geometry/mojom",
     "//ui/gfx/mojom",
+    "//ui/gfx/mojom:hdr_metadata",
     "//ui/gl/mojom",
     "//url/mojom:url_mojom_gurl",
     "//url/mojom:url_mojom_origin",
@@ -99,13 +108,13 @@ mojom("mojom") {
     public_deps += [ "//sandbox/mac/mojom" ]
   }
 
-  if (!is_android) {
-    public_deps += [ ":speech_recognition" ]
-  }
-
   enabled_features = []
   if (is_linux || is_chromeos) {
     enabled_features += [ "is_linux_or_chromeos" ]
+  }
+
+  if (allow_oop_video_decoder) {
+    enabled_features += [ "allow_oop_video_decoder" ]
   }
 
   # Help select ServiceSandbox for media_service.mojom.
@@ -235,21 +244,6 @@ mojom("mojom") {
         "//base",
         "//media",
       ]
-    },
-    {
-      types = [
-        {
-          mojom = "media.mojom.BitstreamBuffer"
-          cpp = "::media::BitstreamBuffer"
-          move_only = true
-        },
-        {
-          mojom = "media.mojom.VideoDecodeAcceleratorConfig"
-          cpp = "::media::VideoDecodeAccelerator::Config"
-        },
-      ]
-      traits_headers = [ "//media/gpu/ipc/common/media_param_traits.h" ]
-      traits_public_deps = [ "//media/gpu/ipc/common" ]
     },
     {
       types = [
@@ -384,23 +378,32 @@ mojom("mojom") {
     {
       types = [
         {
+          mojom = "media.mojom.VideoAspectRatio"
+          cpp = "::media::VideoAspectRatio"
+        },
+      ]
+      traits_headers = [ "video_aspect_ratio_mojom_traits.h" ]
+    },
+    {
+      types = [
+        {
           mojom = "media.mojom.VideoColorSpace.PrimaryID"
           cpp = "::media::VideoColorSpace::PrimaryID"
         },
         {
-          mojom = "media.mojom.VideoColorSpace.TransferID:"
+          mojom = "media.mojom.VideoColorSpace.TransferID"
           cpp = "::media::VideoColorSpace::TransferID"
         },
         {
-          mojom = "media.mojom.VideoColorSpace.MatrixID:"
+          mojom = "media.mojom.VideoColorSpace.MatrixID"
           cpp = "::media::VideoColorSpace::MatrixID"
         },
         {
-          mojom = "media.mojom.VideoColorSpace.RangeID:"
+          mojom = "media.mojom.VideoColorSpace.RangeID"
           cpp = "::gfx::ColorSpace::RangeID"
         },
         {
-          mojom = "media.mojom.VideoColorSpace:"
+          mojom = "media.mojom.VideoColorSpace"
           cpp = "::media::VideoColorSpace"
         },
       ]
@@ -454,6 +457,20 @@ mojom("mojom") {
     {
       types = [
         {
+          mojom = "media.mojom.SupportedAudioDecoderConfig"
+          cpp = "::media::SupportedAudioDecoderConfig"
+        },
+      ]
+      traits_headers = [ "supported_audio_decoder_config_mojom_traits.h" ]
+      traits_sources = [ "supported_audio_decoder_config_mojom_traits.cc" ]
+      traits_public_deps = [
+        "//base",
+        "//media",
+      ]
+    },
+    {
+      types = [
+        {
           mojom = "media.mojom.BitstreamBufferMetadata"
           cpp = "::media::BitstreamBufferMetadata"
         },
@@ -466,12 +483,16 @@ mojom("mojom") {
           cpp = "::media::VideoEncodeAccelerator::Error"
         },
         {
+          mojom = "media.mojom.VideoEncodeOptions"
+          cpp = "::media::VideoEncoder::EncodeOptions"
+        },
+        {
           mojom = "media.mojom.VideoEncodeAcceleratorConfig"
           cpp = "::media::VideoEncodeAccelerator::Config"
         },
         {
-          mojom = "media.mojom.InterLayerPredMode"
-          cpp = "::media::VideoEncodeAccelerator::Config::InterLayerPredMode"
+          mojom = "media.mojom.SVCInterLayerPredMode"
+          cpp = "::media::SVCInterLayerPredMode"
         },
         {
           mojom = "media.mojom.SpatialLayer"
@@ -646,6 +667,17 @@ mojom("mojom") {
     {
       types = [
         {
+          mojom = "media.mojom.KeySystemCapability"
+          cpp = "::media::KeySystemCapability"
+        },
+      ]
+      traits_headers = [ "key_system_capability_mojom_traits.h" ]
+      traits_sources = [ "key_system_capability_mojom_traits.cc" ]
+      traits_public_deps = [ "//media" ]
+    },
+    {
+      types = [
+        {
           mojom = "media.mojom.CdmSessionClosedReason"
           cpp = "::media::CdmSessionClosedReason"
         },
@@ -657,6 +689,15 @@ mojom("mojom") {
         {
           mojom = "media.mojom.RendererType"
           cpp = "::media::RendererType"
+        },
+      ]
+      traits_headers = [ "media_types_enum_mojom_traits.h" ]
+    },
+    {
+      types = [
+        {
+          mojom = "media.mojom.CreateCdmStatus"
+          cpp = "::media::CreateCdmStatus"
         },
       ]
       traits_headers = [ "media_types_enum_mojom_traits.h" ]
@@ -760,9 +801,16 @@ mojom("encryption_pattern") {
   ]
 }
 
+mojom("speech_recognition_audio_forwarder") {
+  generate_java = true
+  sources = [ "speech_recognition_audio_forwarder.mojom" ]
+  public_deps = [ ":audio_data" ]
+}
+
 # Speech recognition API used between renderer/browser/service and between
 # LaCrOS/Ash.
 mojom("speech_recognition") {
+  generate_java = true
   sources = [ "speech_recognition.mojom" ]
   cpp_typemaps = [
     {
@@ -793,6 +841,8 @@ mojom("speech_recognition") {
   ]
   public_deps = [
     ":audio_data",
+    ":speech_recognition_audio_forwarder",
+    ":web_speech_recognition",
     "//mojo/public/mojom/base",
     "//sandbox/policy/mojom",
     "//ui/gfx/geometry/mojom",
@@ -854,6 +904,7 @@ source_set("unit_tests") {
   }
 
   deps = [
+    ":speech_recognition",
     "//base",
     "//base/test:test_support",
     "//media:test_support",
@@ -863,8 +914,26 @@ source_set("unit_tests") {
     "//testing/gtest",
     "//ui/gfx:test_support",
   ]
+}
 
-  if (!is_android) {
-    deps += [ ":speech_recognition" ]
-  }
+mojom("web_speech_recognition") {
+  generate_java = true
+
+  sources = [
+    "speech_recognition_error.mojom",
+    "speech_recognition_error_code.mojom",
+    "speech_recognition_grammar.mojom",
+    "speech_recognition_result.mojom",
+    "speech_recognizer.mojom",
+  ]
+
+  deps = [
+    ":speech_recognition_audio_forwarder",
+    "//mojo/public/mojom/base",
+    "//url/mojom:url_mojom_gurl",
+  ]
+
+  export_class_attribute_blink = "BLINK_PLATFORM_EXPORT"
+  export_define_blink = "BLINK_PLATFORM_IMPLEMENTATION=1"
+  export_header_blink = "third_party/blink/public/platform/web_common.h"
 }

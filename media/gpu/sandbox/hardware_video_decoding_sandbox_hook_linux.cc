@@ -7,6 +7,7 @@
 #include <dlfcn.h>
 #include <sys/stat.h>
 
+#include "base/process/process_metrics.h"
 #include "base/strings/stringprintf.h"
 #include "media/gpu/buildflags.h"
 #include "sandbox/policy/linux/bpf_hardware_video_decoding_policy_linux.h"
@@ -73,6 +74,13 @@ bool HardwareVideoDecodingPreSandboxHookForVaapiOnIntel(
   // TODO(b/210759684): we probably will need to do this for Linux as well.
   command_set.set(sandbox::syscall_broker::COMMAND_STAT);
 
+  // This is added because libdrm calls access() from drmGetMinorType() that is
+  // called from drmGetNodeTypeFromFd(). libva calls drmGetNodeTypeFromFd()
+  // during initialization.
+  //
+  // TODO(b/210759684): we probably will need to do this for Linux as well.
+  command_set.set(sandbox::syscall_broker::COMMAND_ACCESS);
+
   AllowAccessToRenderNodes(permissions, /*include_sys_dev_char=*/true,
                            /*read_write=*/false);
 #endif  // BUILDFLAG(IS_CHROMEOS_ASH)
@@ -81,7 +89,6 @@ bool HardwareVideoDecodingPreSandboxHookForVaapiOnIntel(
   return true;
 #else
   NOTREACHED();
-  return false;
 #endif  // BUILDFLAG(USE_VAAPI)
 }
 
@@ -92,25 +99,45 @@ bool HardwareVideoDecodingPreSandboxHookForVaapiOnAMD(
   command_set.set(sandbox::syscall_broker::COMMAND_STAT);
   command_set.set(sandbox::syscall_broker::COMMAND_READLINK);
 
+#if BUILDFLAG(IS_CHROMEOS_ASH)
+  // This is added because libdrm calls access() from drmGetMinorType() that is
+  // called from drmGetNodeTypeFromFd(). libva calls drmGetNodeTypeFromFd()
+  // during initialization.
+  //
+  // TODO(b/210759684): we probably will need to do this for Linux as well.
+  command_set.set(sandbox::syscall_broker::COMMAND_ACCESS);
+#endif  // BUILDFLAG(IS_CHROMEOS_ASH)
+
   AllowAccessToRenderNodes(permissions, /*include_sys_dev_char=*/true,
                            /*read_write=*/true);
   permissions.push_back(BrokerFilePermission::ReadOnly("/dev/dri"));
 
+  permissions.push_back(
+      BrokerFilePermission::ReadOnly("/usr/share/vulkan/icd.d"));
+  permissions.push_back(BrokerFilePermission::ReadOnly(
+      "/usr/share/vulkan/icd.d/radeon_icd.x86_64.json"));
+
+  constexpr int kDlopenFlags = RTLD_NOW | RTLD_GLOBAL | RTLD_NODELETE;
   const char* radeonsi_lib = "/usr/lib64/dri/radeonsi_dri.so";
 #if defined(DRI_DRIVER_DIR)
   radeonsi_lib = DRI_DRIVER_DIR "/radeonsi_dri.so";
 #endif
-  if (nullptr == dlopen(radeonsi_lib, RTLD_NOW | RTLD_GLOBAL | RTLD_NODELETE)) {
+  if (nullptr == dlopen(radeonsi_lib, kDlopenFlags)) {
     LOG(ERROR) << "dlopen(radeonsi_dri.so) failed with error: " << dlerror();
     return false;
   }
+
+  // minigbm may use the DRI driver (requires Mesa 24.0 or older) or the
+  // Vulkan driver (requires VK_EXT_image_drm_format_modifier).  Preload the
+  // Vulkan driver as well but ignore failures.
+  dlopen("libvulkan.so.1", kDlopenFlags);
+  dlopen("libvulkan_radeon.so", kDlopenFlags);
 
 #if BUILDFLAG(USE_VAAPI)
   VaapiWrapper::PreSandboxInitialization(/*allow_disabling_global_lock=*/true);
   return true;
 #else
   NOTREACHED();
-  return false;
 #endif  // BUILDFLAG(USE_VAAPI)
 }
 
@@ -153,19 +180,12 @@ bool HardwareVideoDecodingPreSandboxHookForV4L2(
   static const char kDevImageProc0Path[] = "/dev/image-proc0";
   permissions.push_back(BrokerFilePermission::ReadWrite(kDevImageProc0Path));
 
-  // Some platforms (RK3399) need libv4l2 to interact with the kernel V4L2
-  // driver, so we need to load that library prior to entering the sandbox.
-#if BUILDFLAG(USE_LIBV4L2)
-#if defined(__aarch64__)
-  dlopen("/usr/lib64/libv4l2.so", RTLD_NOW | RTLD_GLOBAL | RTLD_NODELETE);
-#else
-  dlopen("/usr/lib/libv4l2.so", RTLD_NOW | RTLD_GLOBAL | RTLD_NODELETE);
-#endif  // defined(__aarch64__)
-#endif  // BUILDFLAG(USE_LIBV4L2)
+  // Files needed for protected DMA allocations.
+  static const char kDmaHeapPath[] = "/dev/dma_heap/restricted_mtk_cma";
+  permissions.push_back(BrokerFilePermission::ReadWrite(kDmaHeapPath));
   return true;
 #else
   NOTREACHED();
-  return false;
 #endif  // BUILDFLAG(USE_V4L2_CODEC)
 }
 
@@ -187,6 +207,15 @@ bool HardwareVideoDecodingPreSandboxHook(
       sandbox::policy::HardwareVideoDecodingProcessPolicy;
   using PolicyType =
       sandbox::policy::HardwareVideoDecodingProcessPolicy::PolicyType;
+
+  // When decoding many video streams at once, the video utility process can hit
+  // FD limits. Increase the limit of maximum FDs allowed to (at least) 8192.
+  // IncreaseFdLimitTo() will only increase the FD limit to a value in:
+  // [max(soft limit, requested value), min(hard limit, requested value)], never
+  // decrease it. See https://man7.org/linux/man-pages/man2/getrlimit.2.html for
+  // context on resource limits.
+  constexpr unsigned int kAttemptedFdSoftLimit = 1u << 13;
+  base::IncreaseFdLimitTo(kAttemptedFdSoftLimit);
 
   const PolicyType policy_type =
       HardwareVideoDecodingProcessPolicy::ComputePolicyType(
@@ -218,8 +247,7 @@ bool HardwareVideoDecodingPreSandboxHook(
   // TODO(b/210759684): should this still be called if |command_set| or
   // |permissions| is empty?
   sandbox::policy::SandboxLinux::GetInstance()->StartBrokerProcess(
-      command_set, permissions, sandbox::policy::SandboxLinux::PreSandboxHook(),
-      options);
+      command_set, permissions, options);
   return true;
 }
 

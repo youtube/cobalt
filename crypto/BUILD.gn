@@ -4,9 +4,7 @@
 
 import("//build/buildflag_header.gni")
 import("//build/config/chromeos/ui_mode.gni")
-if (!use_cobalt_customizations) {
 import("//components/nacl/toolchain.gni")
-}
 import("//crypto/features.gni")
 import("//testing/test.gni")
 
@@ -20,6 +18,8 @@ component("crypto") {
   sources = [
     "aead.cc",
     "aead.h",
+    "aes_cbc.cc",
+    "aes_cbc.h",
     "crypto_export.h",
     "ec_private_key.cc",
     "ec_private_key.h",
@@ -29,14 +29,20 @@ component("crypto") {
     "ec_signature_creator_impl.h",
     "encryptor.cc",
     "encryptor.h",
+    "features.cc",
+    "features.h",
+    "hash.cc",
+    "hash.h",
     "hkdf.cc",
     "hkdf.h",
     "hmac.cc",
     "hmac.h",
+    "kdf.cc",
+    "kdf.h",
     "openssl_util.cc",
     "openssl_util.h",
-    "p224_spake.cc",
-    "p224_spake.h",
+    "process_bound_string.cc",
+    "process_bound_string.h",
     "random.cc",
     "random.h",
     "rsa_private_key.cc",
@@ -52,72 +58,72 @@ component("crypto") {
     "signature_creator.h",
     "signature_verifier.cc",
     "signature_verifier.h",
+    "subtle_passkey.cc",
+    "subtle_passkey.h",
     "symmetric_key.cc",
     "symmetric_key.h",
     "unexportable_key.cc",
     "unexportable_key.h",
     "unexportable_key_metrics.cc",
     "unexportable_key_metrics.h",
+    "unexportable_key_software_unsecure.cc",
+    "user_verifying_key.cc",
+    "user_verifying_key.h",
   ]
 
-  deps = [
-    "//base",
-    "//base/third_party/dynamic_annotations",
-  ]
+  deps = []
 
   public_deps = [
     ":buildflags",
+    "//base",
     "//third_party/boringssl",
   ]
 
-  if (is_apple && !is_starboard) {
+  if (is_apple) {
     sources += [
       "apple_keychain.h",
-
-      # TODO(brettw): these mocks should be moved to a test_support_crypto
-      # target if possible.
-      "mock_apple_keychain.cc",
-      "mock_apple_keychain.h",
+      "apple_keychain_util.h",
+      "apple_keychain_util.mm",
+      "apple_keychain_v2.h",
+      "apple_keychain_v2.mm",
     ]
 
     if (is_mac) {
       sources += [
         "apple_keychain_mac.cc",
-
-        # TODO(brettw): these mocks should be moved to a test_support_crypto
-        # target if possible.
-        "mock_apple_keychain_mac.cc",
+        "mac_security_services_lock.cc",
+        "mac_security_services_lock.h",
+        "scoped_lacontext.h",
+        "scoped_lacontext.mm",
+        "unexportable_key_mac.h",
+        "unexportable_key_mac.mm",
+        "user_verifying_key_mac.mm",
       ]
-    }
-    if (is_ios) {
-      sources += [
-        "apple_keychain_ios.mm",
-
-        # TODO(brettw): these mocks should be moved to a test_support_crypto
-        # target if possible.
-        "mock_apple_keychain_ios.cc",
-      ]
+    } else if (is_ios) {
+      sources += [ "apple_keychain_ios.mm" ]
     }
 
     frameworks = [
+      "LocalAuthentication.framework",
       "CoreFoundation.framework",
+      "CryptoTokenKit.framework",
+      "Foundation.framework",
       "Security.framework",
     ]
   }
 
-  if (is_mac) {
-    sources += [
-      "mac_security_services_lock.cc",
-      "mac_security_services_lock.h",
-    ]
-  }
   if (is_win) {
     sources += [
       "scoped_capi_types.h",
       "scoped_cng_types.h",
       "unexportable_key_win.cc",
+      "unexportable_key_win.h",
+      "user_verifying_key_win.cc",
     ]
-    libs = [ "ncrypt.lib" ]
+    libs = [
+      "crypt32.lib",
+      "ncrypt.lib",
+    ]
   }
 
   # Some files are built when NSS is used for the platform certificate library.
@@ -151,14 +157,37 @@ component("crypto") {
   defines = [ "CRYPTO_IMPLEMENTATION" ]
 }
 
+if (is_apple) {
+  source_set("mock_apple_keychain") {
+    sources = [
+      "mock_apple_keychain.cc",
+      "mock_apple_keychain.h",
+    ]
+
+    if (is_mac) {
+      sources += [ "mock_apple_keychain_mac.cc" ]
+    } else if (is_ios) {
+      sources += [ "mock_apple_keychain_ios.cc" ]
+    }
+
+    deps = [
+      ":crypto",
+      "//base",
+    ]
+  }
+}
+
 test("crypto_unittests") {
   sources = [
     "aead_unittest.cc",
+    "aes_cbc_unittest.cc",
     "ec_private_key_unittest.cc",
     "ec_signature_creator_unittest.cc",
     "encryptor_unittest.cc",
+    "hash_unittest.cc",
     "hmac_unittest.cc",
-    "p224_spake_unittest.cc",
+    "kdf_unittest.cc",
+    "process_bound_string_unittest.cc",
     "random_unittest.cc",
     "rsa_private_key_unittest.cc",
     "secure_hash_unittest.cc",
@@ -169,13 +198,20 @@ test("crypto_unittests") {
     "unexportable_key_unittest.cc",
   ]
 
-  if (is_win) {
+  if (is_win || is_mac) {
     sources += [ "unexportable_key_metrics_unittest.cc" ]
+  }
 
-    if (cobalt_pending_clean_up) {
-      # TODO: b/329904264 - Re-enable on Windows once on clang.
-      sources -= [ "secure_hash_unittest.cc" ]
-    }
+  if (is_apple) {
+    sources += [ "mock_apple_keychain_unittest.cc" ]
+  }
+
+  if (is_mac) {
+    sources += [
+      "apple_keychain_util_unittest.mm",
+      "unexportable_key_mac_unittest.mm",
+      "user_verifying_key_mac_unittest.mm",
+    ]
   }
 
   # Some files are built when NSS is used for the platform certificate library.
@@ -196,11 +232,17 @@ test("crypto_unittests") {
     "//testing/gmock",
     "//testing/gtest",
   ]
+
+  if (is_apple) {
+    deps += [ ":mock_apple_keychain" ]
+  }
 }
 
 static_library("test_support") {
   testonly = true
   sources = [
+    "scoped_fake_user_verifying_key_provider.cc",
+    "scoped_fake_user_verifying_key_provider.h",
     "scoped_mock_unexportable_key_provider.cc",
     "scoped_mock_unexportable_key_provider.h",
   ]
@@ -222,37 +264,23 @@ static_library("test_support") {
     ]
   }
 
+  if (is_mac) {
+    sources += [
+      "fake_apple_keychain_v2.h",
+      "fake_apple_keychain_v2.mm",
+      "scoped_fake_apple_keychain_v2.h",
+      "scoped_fake_apple_keychain_v2.mm",
+    ]
+    frameworks = [
+      "CoreFoundation.framework",
+      "Foundation.framework",
+      "LocalAuthentication.framework",
+      "Security.framework",
+    ]
+  }
+
   deps = [
     ":crypto",
     "//base",
   ]
-}
-
-config("platform_config") {
-  if (use_nss_certs && is_clang) {
-    # There is a broken header guard in /usr/include/nss/secmod.h:
-    # https://bugzilla.mozilla.org/show_bug.cgi?id=884072
-    cflags = [ "-Wno-header-guard" ]
-  }
-}
-
-# This is a meta-target that forwards to NSS's SSL library or OpenSSL,
-# according to the state of the crypto flags. A target just wanting to depend
-# on the current SSL library should just depend on this.
-group("platform") {
-  if (is_starboard) {
-    deps = [ "//starboard:starboard_group", ]
-    public_deps = [ "//third_party/boringssl" ]
-  } else {
-  public_deps = [
-    "//third_party/boringssl",
-  ]
-
-  # Link in NSS if it is used for the platform certificate library
-  # (use_nss_certs).
-  if (use_nss_certs) {
-    public_configs = [ ":platform_config" ]
-    public_configs += [ "//build/config/linux/nss:system_nss_no_ssl_config" ]
-  }
-  }
 }

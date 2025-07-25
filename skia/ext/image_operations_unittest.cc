@@ -2,6 +2,11 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#ifdef UNSAFE_BUFFERS_BUILD
+// TODO(crbug.com/351564777): Remove this and convert code to safer constructs.
+#pragma allow_unsafe_buffers
+#endif
+
 #include "skia/ext/image_operations.h"
 
 #include <stddef.h>
@@ -10,11 +15,11 @@
 #include <algorithm>
 #include <cmath>
 #include <iomanip>
+#include <numbers>
 #include <vector>
 
 #include "base/compiler_specific.h"
 #include "base/files/file_util.h"
-#include "base/numerics/math_constants.h"
 #include "base/strings/string_util.h"
 #include "testing/gtest/include/gtest/gtest.h"
 #include "third_party/skia/include/core/SkBitmap.h"
@@ -165,18 +170,17 @@ void DrawCheckerToBitmap(int w, int h,
 
 #if DEBUG_BITMAP_GENERATION
 void SaveBitmapToPNG(const SkBitmap& bmp, const char* path) {
-  std::vector<unsigned char> png;
-  gfx::PNGCodec::ColorFormat color_format = gfx::PNGCodec::FORMAT_RGBA;
-  if (!gfx::PNGCodec::Encode(
-          reinterpret_cast<const unsigned char*>(bmp.getPixels()),
-          color_format, gfx::Size(bmp.width(), bmp.height()),
-          static_cast<int>(bmp.rowBytes()),
-          false, std::vector<gfx::PNGCodec::Comment>(), &png)) {
+  std::optional<std::vector<uint8_t>> png = gfx::PNGCodec::Encode(
+      reinterpret_cast<const unsigned char*>(bmp.getPixels()),
+      gfx::PNGCodec::FORMAT_RGBA, gfx::Size(bmp.width(), bmp.height()),
+      static_cast<int>(bmp.rowBytes()), false,
+      std::vector<gfx::PNGCodec::Comment>());
+  if (!png) {
     FAIL() << "Failed to encode image";
   }
 
   const base::FilePath fpath(path);
-  if (!base::WriteFile(fpath, png)) {
+  if (!base::WriteFile(fpath, png.value())) {
     FAIL() << "Failed to write dest \"" << path << '"';
   }
 }
@@ -504,7 +508,7 @@ TEST(ImageOperations, ResizeShouldAverageColors) {
 
 static double sinc(double x) {
   if (x == 0.0) return 1.0;
-  x *= base::kPiDouble;
+  x *= std::numbers::pi;
   return sin(x) / x;
 }
 

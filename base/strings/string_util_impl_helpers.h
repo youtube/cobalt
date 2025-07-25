@@ -2,19 +2,24 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#ifdef UNSAFE_BUFFERS_BUILD
+// TODO(crbug.com/40284755): Remove this and spanify to fix the errors.
+#pragma allow_unsafe_buffers
+#endif
+
 #ifndef BASE_STRINGS_STRING_UTIL_IMPL_HELPERS_H_
 #define BASE_STRINGS_STRING_UTIL_IMPL_HELPERS_H_
 
 #include <algorithm>
+#include <optional>
+#include <string_view>
 
 #include "base/check.h"
 #include "base/check_op.h"
 #include "base/logging.h"
 #include "base/notreached.h"
 #include "base/ranges/algorithm.h"
-#include "base/strings/string_piece.h"
 #include "base/third_party/icu/icu_utf.h"
-#include "third_party/abseil-cpp/absl/types/optional.h"
 
 namespace base::internal {
 
@@ -68,8 +73,8 @@ TrimPositions TrimStringT(T input,
                           TrimPositions positions,
                           std::basic_string<CharT>* output) {
   // Find the edges of leading/trailing whitespace as desired. Need to use
-  // a StringPiece version of input to be able to call find* on it with the
-  // StringPiece version of trim_chars (normally the trim_chars will be a
+  // a std::string_view version of input to be able to call find* on it with the
+  // std::string_view version of trim_chars (normally the trim_chars will be a
   // constant so avoid making a copy).
   const size_t last_char = input.length() - 1;
   const size_t first_good_char =
@@ -201,7 +206,7 @@ bool DoIsStringASCII(const Char* characters, size_t length) {
 }
 
 template <bool (*Validator)(base_icu::UChar32)>
-inline bool DoIsStringUTF8(StringPiece str) {
+inline bool DoIsStringUTF8(std::string_view str) {
   const uint8_t* src = reinterpret_cast<const uint8_t*>(str.data());
   size_t src_len = str.length();
   size_t char_index = 0;
@@ -220,7 +225,7 @@ bool StartsWithT(T str, T search_for, CompareCase case_sensitivity) {
   if (search_for.size() > str.size())
     return false;
 
-  BasicStringPiece<CharT> source = str.substr(0, search_for.size());
+  std::basic_string_view<CharT> source = str.substr(0, search_for.size());
 
   switch (case_sensitivity) {
     case CompareCase::SENSITIVE:
@@ -237,7 +242,7 @@ bool EndsWithT(T str, T search_for, CompareCase case_sensitivity) {
   if (search_for.size() > str.size())
     return false;
 
-  BasicStringPiece<CharT> source =
+  std::basic_string_view<CharT> source =
       str.substr(str.size() - search_for.size(), search_for.size());
 
   switch (case_sensitivity) {
@@ -253,7 +258,7 @@ bool EndsWithT(T str, T search_for, CompareCase case_sensitivity) {
 // A Matcher for DoReplaceMatchesAfterOffset() that matches substrings.
 template <class CharT>
 struct SubstringMatcher {
-  BasicStringPiece<CharT> find_this;
+  std::basic_string_view<CharT> find_this;
 
   size_t Find(const std::basic_string<CharT>& input, size_t pos) {
     return input.find(find_this.data(), pos, find_this.length());
@@ -270,7 +275,7 @@ auto MakeSubstringMatcher(T find_this) {
 // A Matcher for DoReplaceMatchesAfterOffset() that matches single characters.
 template <class CharT>
 struct CharacterMatcher {
-  BasicStringPiece<CharT> find_any_of_these;
+  std::basic_string_view<CharT> find_any_of_these;
 
   size_t Find(const std::basic_string<CharT>& input, size_t pos) {
     return input.find_first_of(find_any_of_these.data(), pos,
@@ -457,13 +462,13 @@ inline typename string_type::value_type* WriteIntoT(string_type* str,
   DCHECK_GE(length_with_null, 1u);
   str->reserve(length_with_null);
   str->resize(length_with_null - 1);
-  return &((*str)[0]);
+  return str->data();
 }
 
 // Generic version for all JoinString overloads. |list_type| must be a sequence
 // (base::span or std::initializer_list) of strings/StringPieces (std::string,
-// std::u16string, StringPiece or StringPiece16). |CharT| is either char or
-// char16_t.
+// std::u16string, std::string_view or std::u16string_view). |CharT| is either
+// char or char16_t.
 template <typename list_type,
           typename T,
           typename CharT = typename T::value_type>
@@ -480,13 +485,13 @@ static std::basic_string<CharT> JoinStringT(list_type parts, T sep) {
   result.reserve(total_size);
 
   auto iter = parts.begin();
-  DCHECK(iter != parts.end());
-  result.append(iter->data(), iter->size());
+  CHECK(iter != parts.end(), base::NotFatalUntil::M125);
+  result.append(*iter);
   ++iter;
 
   for (; iter != parts.end(); ++iter) {
-    result.append(sep.data(), sep.size());
-    result.append(iter->data(), iter->size());
+    result.append(sep);
+    result.append(*iter);
   }
 
   // Sanity-check that we pre-allocated correctly.
@@ -507,11 +512,11 @@ static std::basic_string<CharT> JoinStringT(list_type parts, T sep) {
 //   instance, with `%` as the `placeholder_prefix`: %%->%, %%%%->%%, etc.
 // * `is_strict_mode`:
 //   * If this parameter is `true`, error handling is stricter. The function
-//   returns `absl::nullopt` if:
+//   returns `std::nullopt` if:
 //     * a placeholder %N is encountered where N > substitutions.size().
 //     * a literal `%` is not escaped with a `%`.
 template <typename T, typename CharT = typename T::value_type>
-absl::optional<std::basic_string<CharT>> DoReplaceStringPlaceholders(
+std::optional<std::basic_string<CharT>> DoReplaceStringPlaceholders(
     T format_string,
     const std::vector<std::basic_string<CharT>>& subst,
     const CharT placeholder_prefix,
@@ -519,7 +524,7 @@ absl::optional<std::basic_string<CharT>> DoReplaceStringPlaceholders(
     const bool is_strict_mode,
     std::vector<size_t>* offsets) {
   size_t substitutions = subst.size();
-  DCHECK_LT(substitutions, 11U);
+  DCHECK_LT(substitutions, 10U);
 
   size_t sub_length = 0;
   for (const auto& cur : subst) {
@@ -547,7 +552,7 @@ absl::optional<std::basic_string<CharT>> DoReplaceStringPlaceholders(
               DLOG(ERROR) << "Invalid placeholder after placeholder prefix: "
                           << std::basic_string<CharT>(1, placeholder_prefix)
                           << std::basic_string<CharT>(1, *i);
-              return absl::nullopt;
+              return std::nullopt;
             }
 
             continue;
@@ -564,12 +569,12 @@ absl::optional<std::basic_string<CharT>> DoReplaceStringPlaceholders(
           } else if (is_strict_mode) {
             DLOG(ERROR) << "index out of range: " << index << ": "
                         << substitutions;
-            return absl::nullopt;
+            return std::nullopt;
           }
         }
       } else if (is_strict_mode) {
         DLOG(ERROR) << "unexpected placeholder prefix at end of string";
-        return absl::nullopt;
+        return std::nullopt;
       }
     } else {
       formatted.push_back(*i);
@@ -588,20 +593,23 @@ absl::optional<std::basic_string<CharT>> DoReplaceStringPlaceholders(
 //   ftp://ftp.openbsd.org/pub/OpenBSD/src/lib/libc/string/{wcs,str}lcpy.c
 
 template <typename CHAR>
-size_t lcpyT(CHAR* dst, const CHAR* src, size_t dst_size) {
-  for (size_t i = 0; i < dst_size; ++i) {
-    if ((dst[i] = src[i]) == 0)  // We hit and copied the terminating NULL.
-      return i;
+size_t lcpyT(span<CHAR> dst, std::basic_string_view<CHAR> src) {
+  size_t i = 0;
+
+  const size_t dst_size = dst.size();
+  for (; i + 1u < dst_size; ++i) {
+    if (i == src.size()) {
+      break;
+    }
+    dst[i] = src[i];
   }
 
-  // We were left off at dst_size.  We over copied 1 byte.  Null terminate.
-  if (dst_size != 0)
-    dst[dst_size - 1] = 0;
+  // Write the terminating NUL.
+  if (!dst.empty()) {
+    dst[i] = 0;
+  }
 
-  // Count the rest of the |src|, and return it's length in characters.
-  while (src[dst_size])
-    ++dst_size;
-  return dst_size;
+  return src.size();
 }
 
 }  // namespace base::internal

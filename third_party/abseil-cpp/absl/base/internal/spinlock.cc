@@ -91,11 +91,7 @@ uint32_t SpinLock::SpinLoop() {
   ABSL_CONST_INIT static absl::once_flag init_adaptive_spin_count;
   ABSL_CONST_INIT static int adaptive_spin_count = 0;
   base_internal::LowLevelCallOnce(&init_adaptive_spin_count, []() {
-#if defined(STARBOARD)
-    adaptive_spin_count = 1000;
-#else
     adaptive_spin_count = base_internal::NumCPUs() > 1 ? 1000 : 1;
-#endif  // defined(STARBOARD)
   });
 
   int c = adaptive_spin_count;

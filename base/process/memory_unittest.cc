@@ -2,7 +2,10 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include "base/memory/raw_ptr_exclusion.h"
+#ifdef UNSAFE_BUFFERS_BUILD
+// TODO(crbug.com/40284755): Remove this and spanify to fix the errors.
+#pragma allow_unsafe_buffers
+#endif
 
 #define _CRT_SECURE_NO_WARNINGS
 
@@ -15,14 +18,13 @@
 #include <vector>
 
 #include "base/allocator/allocator_check.h"
-#include "base/allocator/buildflags.h"
-#include "base/allocator/partition_allocator/page_allocator.h"
-#include "base/allocator/partition_allocator/partition_alloc_buildflags.h"
 #include "base/compiler_specific.h"
 #include "base/debug/alias.h"
 #include "base/memory/aligned_memory.h"
 #include "base/memory/page_size.h"
 #include "build/build_config.h"
+#include "partition_alloc/buildflags.h"
+#include "partition_alloc/page_allocator.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
 #if BUILDFLAG(IS_WIN)
@@ -33,9 +35,10 @@
 #endif
 #if BUILDFLAG(IS_MAC)
 #include <malloc/malloc.h>
-#include "base/allocator/partition_allocator/shim/allocator_interception_mac.h"
-#include "base/allocator/partition_allocator/shim/allocator_shim.h"
+#include "base/check_op.h"
 #include "base/process/memory_unittest_mac.h"
+#include "partition_alloc/shim/allocator_interception_apple.h"
+#include "partition_alloc/shim/allocator_shim.h"
 #endif
 #if BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_CHROMEOS)
 #include <malloc.h>
@@ -75,7 +78,7 @@ static void callFree(void *ptr) {
 }
 
 TEST(ProcessMemoryTest, MacTerminateOnHeapCorruption) {
-#if BUILDFLAG(USE_ALLOCATOR_SHIM)
+#if PA_BUILDFLAG(USE_ALLOCATOR_SHIM)
   allocator_shim::InitializeAllocatorShim();
 #endif
   // Assert that freeing an unallocated pointer will crash the process.
@@ -94,18 +97,17 @@ TEST(ProcessMemoryTest, MacTerminateOnHeapCorruption) {
   ADD_FAILURE() << "This test is not supported in this build configuration.";
 #endif
 
-#if BUILDFLAG(USE_ALLOCATOR_SHIM)
+#if PA_BUILDFLAG(USE_ALLOCATOR_SHIM)
   allocator_shim::UninterceptMallocZonesForTesting();
 #endif
 }
 
 #endif  // BUILDFLAG(IS_MAC)
 
+#if PA_BUILDFLAG(USE_ALLOCATOR_SHIM)
 TEST(MemoryTest, AllocatorShimWorking) {
 #if BUILDFLAG(IS_MAC)
-#if BUILDFLAG(USE_ALLOCATOR_SHIM)
   allocator_shim::InitializeAllocatorShim();
-#endif
   allocator_shim::InterceptAllocationsMac();
 #endif
   ASSERT_TRUE(base::allocator::IsAllocatorInitialized());
@@ -114,10 +116,11 @@ TEST(MemoryTest, AllocatorShimWorking) {
   allocator_shim::UninterceptMallocZonesForTesting();
 #endif
 }
+#endif  // PA_BUILDFLAG(USE_ALLOCATOR_SHIM)
 
 // OpenBSD does not support these tests. Don't test these on ASan/TSan/MSan
 // configurations: only test the real allocator.
-#if !BUILDFLAG(IS_OPENBSD) && BUILDFLAG(USE_ALLOCATOR_SHIM) && \
+#if !BUILDFLAG(IS_OPENBSD) && PA_BUILDFLAG(USE_ALLOCATOR_SHIM) && \
     !defined(MEMORY_TOOL_REPLACES_ALLOCATOR)
 
 namespace {
@@ -140,9 +143,8 @@ namespace {
 class OutOfMemoryTest : public testing::Test {
  public:
   OutOfMemoryTest()
-      : value_(nullptr),
-        // Make test size as large as possible minus a few pages so that
-        // alignment or other rounding doesn't make it wrap.
+      :  // Make test size as large as possible minus a few pages so that
+         // alignment or other rounding doesn't make it wrap.
         test_size_(std::numeric_limits<std::size_t>::max() -
                    3 * base::GetPageSize()),
         // A test size that is > 2Gb and will cause the allocators to reject
@@ -151,9 +153,6 @@ class OutOfMemoryTest : public testing::Test {
         signed_test_size_(std::numeric_limits<ssize_t>::max()) {}
 
  protected:
-  // This field is not a raw_ptr<> because it was filtered by the rewriter for:
-  // #addr-of
-  RAW_PTR_EXCLUSION void* value_;
   size_t test_size_;
   size_t insecure_test_size_;
   ssize_t signed_test_size_;
@@ -162,7 +161,7 @@ class OutOfMemoryTest : public testing::Test {
 class OutOfMemoryDeathTest : public OutOfMemoryTest {
  public:
   void SetUpInDeathAssert() {
-#if BUILDFLAG(IS_MAC) && BUILDFLAG(USE_ALLOCATOR_SHIM)
+#if BUILDFLAG(IS_MAC) && PA_BUILDFLAG(USE_ALLOCATOR_SHIM)
     allocator_shim::InitializeAllocatorShim();
 #endif
 
@@ -197,7 +196,7 @@ TEST_F(OutOfMemoryDeathTest, New) {
   }
   ASSERT_OOM_DEATH({
     SetUpInDeathAssert();
-    value_ = operator new(test_size_);
+    [[maybe_unused]] void* volatile ptr = operator new(test_size_);
   });
 }
 
@@ -207,7 +206,7 @@ TEST_F(OutOfMemoryDeathTest, NewArray) {
   }
   ASSERT_OOM_DEATH({
     SetUpInDeathAssert();
-    value_ = new char[test_size_];
+    [[maybe_unused]] void* volatile ptr = new char[test_size_];
   });
 }
 
@@ -217,7 +216,7 @@ TEST_F(OutOfMemoryDeathTest, Malloc) {
   }
   ASSERT_OOM_DEATH({
     SetUpInDeathAssert();
-    value_ = malloc(test_size_);
+    [[maybe_unused]] void* volatile ptr = malloc(test_size_);
   });
 }
 
@@ -227,7 +226,7 @@ TEST_F(OutOfMemoryDeathTest, Realloc) {
   }
   ASSERT_OOM_DEATH({
     SetUpInDeathAssert();
-    value_ = realloc(nullptr, test_size_);
+    [[maybe_unused]] void* volatile ptr = realloc(nullptr, test_size_);
   });
 }
 
@@ -237,7 +236,7 @@ TEST_F(OutOfMemoryDeathTest, Calloc) {
   }
   ASSERT_OOM_DEATH({
     SetUpInDeathAssert();
-    value_ = calloc(1024, test_size_ / 1024L);
+    [[maybe_unused]] void* volatile ptr = calloc(1024, test_size_ / 1024L);
   });
 }
 
@@ -247,7 +246,7 @@ TEST_F(OutOfMemoryDeathTest, AlignedAlloc) {
   }
   ASSERT_OOM_DEATH({
     SetUpInDeathAssert();
-    value_ = base::AlignedAlloc(test_size_, 8);
+    [[maybe_unused]] void* volatile ptr = base::AlignedAlloc(test_size_, 8);
   });
 }
 
@@ -259,7 +258,8 @@ TEST_F(OutOfMemoryDeathTest, AlignedRealloc) {
   }
   ASSERT_OOM_DEATH({
     SetUpInDeathAssert();
-    value_ = _aligned_realloc(nullptr, test_size_, 8);
+    [[maybe_unused]] void* volatile ptr =
+        _aligned_realloc(nullptr, test_size_, 8);
   });
 }
 
@@ -281,7 +281,7 @@ TEST_F(OutOfMemoryDeathTest, NewHandlerGeneratesUnhandledException) {
       {
         SetUpInDeathAssert();
         SetUnhandledExceptionFilter(&ExitingUnhandledExceptionFilter);
-        value_ = new char[test_size_];
+        [[maybe_unused]] void* volatile ptr = new char[test_size_];
       },
       testing::ExitedWithCode(kUnhandledExceptionExitCode), "");
 }
@@ -299,7 +299,7 @@ TEST_F(OutOfMemoryDeathTest, SecurityNew) {
   }
   ASSERT_OOM_DEATH({
     SetUpInDeathAssert();
-    value_ = operator new(insecure_test_size_);
+    [[maybe_unused]] void* volatile ptr = operator new(insecure_test_size_);
   });
 }
 
@@ -309,7 +309,7 @@ TEST_F(OutOfMemoryDeathTest, SecurityNewArray) {
   }
   ASSERT_OOM_DEATH({
     SetUpInDeathAssert();
-    value_ = new char[insecure_test_size_];
+    [[maybe_unused]] void* volatile ptr = new char[insecure_test_size_];
   });
 }
 
@@ -319,7 +319,7 @@ TEST_F(OutOfMemoryDeathTest, SecurityMalloc) {
   }
   ASSERT_OOM_DEATH({
     SetUpInDeathAssert();
-    value_ = malloc(insecure_test_size_);
+    [[maybe_unused]] void* volatile ptr = malloc(insecure_test_size_);
   });
 }
 
@@ -329,7 +329,7 @@ TEST_F(OutOfMemoryDeathTest, SecurityRealloc) {
   }
   ASSERT_OOM_DEATH({
     SetUpInDeathAssert();
-    value_ = realloc(nullptr, insecure_test_size_);
+    [[maybe_unused]] void* volatile ptr = realloc(nullptr, insecure_test_size_);
   });
 }
 
@@ -339,7 +339,8 @@ TEST_F(OutOfMemoryDeathTest, SecurityCalloc) {
   }
   ASSERT_OOM_DEATH({
     SetUpInDeathAssert();
-    value_ = calloc(1024, insecure_test_size_ / 1024L);
+    [[maybe_unused]] void* volatile ptr =
+        calloc(1024, insecure_test_size_ / 1024L);
   });
 }
 
@@ -349,7 +350,8 @@ TEST_F(OutOfMemoryDeathTest, SecurityAlignedAlloc) {
   }
   ASSERT_OOM_DEATH({
     SetUpInDeathAssert();
-    value_ = base::AlignedAlloc(insecure_test_size_, 8);
+    [[maybe_unused]] void* volatile ptr =
+        base::AlignedAlloc(insecure_test_size_, 8);
   });
 }
 
@@ -361,7 +363,8 @@ TEST_F(OutOfMemoryDeathTest, SecurityAlignedRealloc) {
   }
   ASSERT_OOM_DEATH({
     SetUpInDeathAssert();
-    value_ = _aligned_realloc(nullptr, insecure_test_size_, 8);
+    [[maybe_unused]] void* volatile ptr =
+        _aligned_realloc(nullptr, insecure_test_size_, 8);
   });
 }
 #endif  // BUILDFLAG(IS_WIN)
@@ -372,36 +375,36 @@ TEST_F(OutOfMemoryDeathTest, SecurityAlignedRealloc) {
 TEST_F(OutOfMemoryDeathTest, Valloc) {
   ASSERT_OOM_DEATH({
     SetUpInDeathAssert();
-    value_ = valloc(test_size_);
-    EXPECT_TRUE(value_);
+    [[maybe_unused]] void* volatile ptr = valloc(test_size_);
+    EXPECT_TRUE(ptr);
   });
 }
 
 TEST_F(OutOfMemoryDeathTest, SecurityValloc) {
   ASSERT_OOM_DEATH({
     SetUpInDeathAssert();
-    value_ = valloc(insecure_test_size_);
+    [[maybe_unused]] void* volatile ptr = valloc(insecure_test_size_);
   });
 }
 
 TEST_F(OutOfMemoryDeathTest, Pvalloc) {
   ASSERT_OOM_DEATH({
     SetUpInDeathAssert();
-    value_ = pvalloc(test_size_);
+    [[maybe_unused]] void* volatile ptr = pvalloc(test_size_);
   });
 }
 
 TEST_F(OutOfMemoryDeathTest, SecurityPvalloc) {
   ASSERT_OOM_DEATH({
     SetUpInDeathAssert();
-    value_ = pvalloc(insecure_test_size_);
+    [[maybe_unused]] void* volatile ptr = pvalloc(insecure_test_size_);
   });
 }
 
 TEST_F(OutOfMemoryDeathTest, Memalign) {
   ASSERT_OOM_DEATH({
     SetUpInDeathAssert();
-    value_ = memalign(4, test_size_);
+    [[maybe_unused]] void* volatile ptr = memalign(4, test_size_);
   });
 }
 
@@ -410,7 +413,7 @@ TEST_F(OutOfMemoryDeathTest, ViaSharedLibraries) {
   // shared libraries as well as for our code.
   ASSERT_OOM_DEATH({
     SetUpInDeathAssert();
-    value_ = MallocWrapper(test_size_);
+    [[maybe_unused]] void* volatile ptr = MallocWrapper(test_size_);
   });
 }
 #endif  // BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_CHROMEOS)
@@ -423,7 +426,8 @@ TEST_F(OutOfMemoryDeathTest, Posix_memalign) {
   // value, since we're asserting death.
   ASSERT_OOM_DEATH({
     SetUpInDeathAssert();
-    EXPECT_EQ(ENOMEM, posix_memalign(&value_, 8, test_size_));
+    void* ptr;
+    EXPECT_EQ(ENOMEM, posix_memalign(&ptr, 8, test_size_));
   });
 }
 #endif  // BUILDFLAG(IS_POSIX) && !BUILDFLAG(IS_ANDROID)
@@ -436,7 +440,7 @@ TEST_F(OutOfMemoryDeathTest, MallocPurgeable) {
   malloc_zone_t* zone = malloc_default_purgeable_zone();
   ASSERT_OOM_DEATH({
     SetUpInDeathAssert();
-    value_ = malloc_zone_malloc(zone, test_size_);
+    [[maybe_unused]] void* volatile ptr = malloc_zone_malloc(zone, test_size_);
   });
 }
 
@@ -444,7 +448,8 @@ TEST_F(OutOfMemoryDeathTest, ReallocPurgeable) {
   malloc_zone_t* zone = malloc_default_purgeable_zone();
   ASSERT_OOM_DEATH({
     SetUpInDeathAssert();
-    value_ = malloc_zone_realloc(zone, nullptr, test_size_);
+    [[maybe_unused]] void* volatile ptr =
+        malloc_zone_realloc(zone, nullptr, test_size_);
   });
 }
 
@@ -452,7 +457,8 @@ TEST_F(OutOfMemoryDeathTest, CallocPurgeable) {
   malloc_zone_t* zone = malloc_default_purgeable_zone();
   ASSERT_OOM_DEATH({
     SetUpInDeathAssert();
-    value_ = malloc_zone_calloc(zone, 1024, test_size_ / 1024L);
+    [[maybe_unused]] void* volatile ptr =
+        malloc_zone_calloc(zone, 1024, test_size_ / 1024L);
   });
 }
 
@@ -460,7 +466,7 @@ TEST_F(OutOfMemoryDeathTest, VallocPurgeable) {
   malloc_zone_t* zone = malloc_default_purgeable_zone();
   ASSERT_OOM_DEATH({
     SetUpInDeathAssert();
-    value_ = malloc_zone_valloc(zone, test_size_);
+    [[maybe_unused]] void* volatile ptr = malloc_zone_valloc(zone, test_size_);
   });
 }
 
@@ -468,7 +474,8 @@ TEST_F(OutOfMemoryDeathTest, PosixMemalignPurgeable) {
   malloc_zone_t* zone = malloc_default_purgeable_zone();
   ASSERT_OOM_DEATH({
     SetUpInDeathAssert();
-    value_ = malloc_zone_memalign(zone, 8, test_size_);
+    [[maybe_unused]] void* volatile ptr =
+        malloc_zone_memalign(zone, 8, test_size_);
   });
 }
 
@@ -482,12 +489,13 @@ TEST_F(OutOfMemoryDeathTest, PosixMemalignPurgeable) {
 TEST_F(OutOfMemoryDeathTest, CFAllocatorMalloc) {
   ASSERT_OOM_DEATH({
     SetUpInDeathAssert();
-    while ((value_ = base::AllocateViaCFAllocatorMalloc(signed_test_size_))) {
+    [[maybe_unused]] void* ptr;
+    while ((ptr = base::AllocateViaCFAllocatorMalloc(signed_test_size_))) {
     }
   });
 }
 
-#if BUILDFLAG(USE_PARTITION_ALLOC_AS_MALLOC)
+#if PA_BUILDFLAG(USE_PARTITION_ALLOC_AS_MALLOC)
 // PartitionAlloc-Everywhere does not intercept other malloc zones than the
 // default (the top) malloc zone.  Plus,
 // CFAllocatorAllocate(kCFAllocatorSystemDefault, size, 0) does not call the
@@ -500,13 +508,14 @@ TEST_F(OutOfMemoryDeathTest, CFAllocatorMalloc) {
 TEST_F(OutOfMemoryDeathTest, MAYBE_CFAllocatorSystemDefault) {
   ASSERT_OOM_DEATH({
     SetUpInDeathAssert();
-    while ((value_ =
-                base::AllocateViaCFAllocatorSystemDefault(signed_test_size_))) {
+    [[maybe_unused]] void* ptr;
+    while (
+        (ptr = base::AllocateViaCFAllocatorSystemDefault(signed_test_size_))) {
     }
   });
 }
 
-#if BUILDFLAG(USE_PARTITION_ALLOC_AS_MALLOC)
+#if PA_BUILDFLAG(USE_PARTITION_ALLOC_AS_MALLOC)
 // PartitionAlloc-Everywhere does not intercept other malloc zones than the
 // default (the top) malloc zone.  Plus,
 // CFAllocatorAllocate(kCFAllocatorMallocZone, size, 0) does not call the
@@ -519,8 +528,8 @@ TEST_F(OutOfMemoryDeathTest, MAYBE_CFAllocatorSystemDefault) {
 TEST_F(OutOfMemoryDeathTest, MAYBE_CFAllocatorMallocZone) {
   ASSERT_OOM_DEATH({
     SetUpInDeathAssert();
-    while (
-        (value_ = base::AllocateViaCFAllocatorMallocZone(signed_test_size_))) {
+    [[maybe_unused]] void* ptr;
+    while ((ptr = base::AllocateViaCFAllocatorMallocZone(signed_test_size_))) {
     }
   });
 }
@@ -649,7 +658,7 @@ TEST_F(OutOfMemoryHandledTest, NewReleasesReservation) {
 
 // Android's allocator does not allow overcommits, so very large
 // UncheckedMallocs will yield OOM errors.
-// TODO(crbug.com/1112840): Fails on some Android bots.
+// TODO(crbug.com/40143202): Fails on some Android bots.
 #define MAYBE_UncheckedMallocDies DISABLED_UncheckedMallocDies
 #define MAYBE_UncheckedCallocDies DISABLED_UncheckedCallocDies
 TEST_F(OutOfMemoryDeathTest, MAYBE_UncheckedMallocDies) {
@@ -673,45 +682,46 @@ TEST_F(OutOfMemoryDeathTest, MAYBE_UncheckedCallocDies) {
 #else
 
 TEST_F(OutOfMemoryHandledTest, UncheckedMalloc) {
-  EXPECT_TRUE(base::UncheckedMalloc(kSafeMallocSize, &value_));
-  EXPECT_TRUE(value_ != nullptr);
-  base::UncheckedFree(value_);
+  void* ptr;
+  EXPECT_TRUE(base::UncheckedMalloc(kSafeMallocSize, &ptr));
+  EXPECT_TRUE(ptr != nullptr);
+  base::UncheckedFree(ptr);
 
-  EXPECT_FALSE(base::UncheckedMalloc(test_size_, &value_));
-  EXPECT_TRUE(value_ == nullptr);
+  EXPECT_FALSE(base::UncheckedMalloc(test_size_, &ptr));
+  EXPECT_TRUE(ptr == nullptr);
 }
 
 TEST_F(OutOfMemoryHandledTest, UncheckedCalloc) {
-  EXPECT_TRUE(base::UncheckedCalloc(1, kSafeMallocSize, &value_));
-  EXPECT_TRUE(value_ != nullptr);
-  const char* bytes = static_cast<const char*>(value_);
+  void* ptr;
+  EXPECT_TRUE(base::UncheckedCalloc(1, kSafeMallocSize, &ptr));
+  EXPECT_TRUE(ptr != nullptr);
+  const char* bytes = static_cast<const char*>(ptr);
   for (size_t i = 0; i < kSafeMallocSize; ++i)
     EXPECT_EQ(0, bytes[i]);
-  base::UncheckedFree(value_);
+  base::UncheckedFree(ptr);
 
-  EXPECT_TRUE(
-      base::UncheckedCalloc(kSafeCallocItems, kSafeCallocSize, &value_));
-  EXPECT_TRUE(value_ != nullptr);
-  bytes = static_cast<const char*>(value_);
+  EXPECT_TRUE(base::UncheckedCalloc(kSafeCallocItems, kSafeCallocSize, &ptr));
+  EXPECT_TRUE(ptr != nullptr);
+  bytes = static_cast<const char*>(ptr);
   for (size_t i = 0; i < (kSafeCallocItems * kSafeCallocSize); ++i)
     EXPECT_EQ(0, bytes[i]);
-  base::UncheckedFree(value_);
+  base::UncheckedFree(ptr);
 
-  EXPECT_FALSE(base::UncheckedCalloc(1, test_size_, &value_));
-  EXPECT_TRUE(value_ == nullptr);
+  EXPECT_FALSE(base::UncheckedCalloc(1, test_size_, &ptr));
+  EXPECT_TRUE(ptr == nullptr);
 }
 
 #endif  // BUILDFLAG(IS_ANDROID)
-#endif  // !BUILDFLAG(IS_OPENBSD) && BUILDFLAG(USE_ALLOCATOR_SHIM) &&
+#endif  // !BUILDFLAG(IS_OPENBSD) && PA_BUILDFLAG(USE_ALLOCATOR_SHIM) &&
         // !defined(MEMORY_TOOL_REPLACES_ALLOCATOR)
 
-#if BUILDFLAG(IS_MAC) && BUILDFLAG(USE_PARTITION_ALLOC_AS_MALLOC)
+#if BUILDFLAG(IS_MAC) && PA_BUILDFLAG(USE_PARTITION_ALLOC_AS_MALLOC)
 
 // Not a proper test because it needs to be in a static initializer, see the
 // comment in UncheckedMalloc() in memory_mac.mm.
 //
 // The "test" passes if the binary doesn't crash.
-size_t need_a_static_initializer = []() {
+size_t need_a_static_initializer = [] {
   void* ptr;
   constexpr size_t kRequestedSize = 1000u;
   bool ok = base::UncheckedMalloc(kRequestedSize, &ptr);
@@ -725,4 +735,4 @@ size_t need_a_static_initializer = []() {
   return actual_size;
 }();
 
-#endif  // BUILDFLAG(IS_MAC) && BUILDFLAG(USE_PARTITION_ALLOC_AS_MALLOC)
+#endif  // BUILDFLAG(IS_MAC) && PA_BUILDFLAG(USE_PARTITION_ALLOC_AS_MALLOC)

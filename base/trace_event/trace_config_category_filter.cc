@@ -4,9 +4,10 @@
 
 #include "base/trace_event/trace_config_category_filter.h"
 
+#include <string_view>
+
 #include "base/memory/ptr_util.h"
 #include "base/strings/pattern.h"
-#include "base/strings/string_piece.h"
 #include "base/strings/string_split.h"
 #include "base/strings/string_tokenizer.h"
 #include "base/strings/string_util.h"
@@ -16,8 +17,16 @@
 namespace base::trace_event {
 
 namespace {
+
 const char kIncludedCategoriesParam[] = "included_categories";
 const char kExcludedCategoriesParam[] = "excluded_categories";
+
+bool AreStringListsEquivalent(const std::vector<std::string>& list1,
+                              const std::vector<std::string>& list2) {
+  std::unordered_set<std::string> set1(list1.begin(), list1.end());
+  std::unordered_set<std::string> set2(list2.begin(), list2.end());
+  return set1 == set2;
+}
 }
 
 TraceConfigCategoryFilter::TraceConfigCategoryFilter() = default;
@@ -30,11 +39,21 @@ TraceConfigCategoryFilter::~TraceConfigCategoryFilter() = default;
 TraceConfigCategoryFilter& TraceConfigCategoryFilter::operator=(
     const TraceConfigCategoryFilter& rhs) = default;
 
+bool TraceConfigCategoryFilter::IsEquivalentTo(
+    const TraceConfigCategoryFilter& other) const {
+  return AreStringListsEquivalent(included_categories_,
+                                  other.included_categories_) &&
+         AreStringListsEquivalent(disabled_categories_,
+                                  other.disabled_categories_) &&
+         AreStringListsEquivalent(excluded_categories_,
+                                  other.excluded_categories_);
+}
+
 void TraceConfigCategoryFilter::InitializeFromString(
-    const StringPiece& category_filter_string) {
-  std::vector<StringPiece> split = SplitStringPiece(
+    std::string_view category_filter_string) {
+  std::vector<std::string_view> split = SplitStringPiece(
       category_filter_string, ",", TRIM_WHITESPACE, SPLIT_WANT_ALL);
-  for (const StringPiece& category : split) {
+  for (std::string_view category : split) {
     // Ignore empty categories.
     if (category.empty())
       continue;
@@ -63,13 +82,12 @@ void TraceConfigCategoryFilter::InitializeFromConfigDict(
 }
 
 bool TraceConfigCategoryFilter::IsCategoryGroupEnabled(
-    const StringPiece& category_group_name) const {
+    std::string_view category_group_name) const {
   bool had_enabled_by_default = false;
   DCHECK(!category_group_name.empty());
-  CStringTokenizer category_group_tokens(category_group_name.begin(),
-                                         category_group_name.end(), ",");
+  StringViewTokenizer category_group_tokens(category_group_name, ",");
   while (category_group_tokens.GetNext()) {
-    StringPiece category_group_token = category_group_tokens.token_piece();
+    std::string_view category_group_token = category_group_tokens.token_piece();
     // Don't allow empty tokens, nor tokens with leading or trailing space.
     DCHECK(IsCategoryNameAllowed(category_group_token))
         << "Disallowed category string";
@@ -84,7 +102,7 @@ bool TraceConfigCategoryFilter::IsCategoryGroupEnabled(
   category_group_tokens.Reset();
   bool category_group_disabled = false;
   while (category_group_tokens.GetNext()) {
-    StringPiece category_group_token = category_group_tokens.token_piece();
+    std::string_view category_group_token = category_group_tokens.token_piece();
     for (const std::string& category : excluded_categories_) {
       if (MatchPattern(category_group_token, category)) {
         // Current token of category_group_name is present in excluded_list.
@@ -115,7 +133,7 @@ bool TraceConfigCategoryFilter::IsCategoryGroupEnabled(
 }
 
 bool TraceConfigCategoryFilter::IsCategoryEnabled(
-    const StringPiece& category_name) const {
+    std::string_view category_name) const {
   // Check the disabled- filters and the disabled-* wildcard first so that a
   // "*" filter does not include the disabled.
   for (const std::string& category : disabled_categories_) {
@@ -229,7 +247,7 @@ void TraceConfigCategoryFilter::WriteCategoryFilterString(
 }
 
 // static
-bool TraceConfigCategoryFilter::IsCategoryNameAllowed(StringPiece str) {
+bool TraceConfigCategoryFilter::IsCategoryNameAllowed(std::string_view str) {
   return !str.empty() && str.front() != ' ' && str.back() != ' ';
 }
 

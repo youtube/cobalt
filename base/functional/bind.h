@@ -11,13 +11,9 @@
 #include <utility>
 
 #include "base/compiler_specific.h"
-#include "base/functional/bind_internal.h"
+#include "base/functional/bind_internal.h"  // IWYU pragma: export
 #include "base/memory/raw_ptr.h"
 #include "build/build_config.h"
-
-#if BUILDFLAG(IS_APPLE) && !HAS_FEATURE(objc_arc)
-#include "base/mac/scoped_block.h"
-#endif
 
 // -----------------------------------------------------------------------------
 // Usage documentation
@@ -59,33 +55,16 @@ namespace base {
 
 // Bind as OnceCallback.
 template <typename Functor, typename... Args>
-inline OnceCallback<internal::MakeUnboundRunType<Functor, Args...>> BindOnce(
-    Functor&& functor,
-    Args&&... args) {
-  static_assert(!internal::IsOnceCallback<std::decay_t<Functor>>() ||
-                    (std::is_rvalue_reference<Functor&&>() &&
-                     !std::is_const<std::remove_reference_t<Functor>>()),
-                "BindOnce requires non-const rvalue for OnceCallback binding."
-                " I.e.: base::BindOnce(std::move(callback)).");
-  static_assert(
-      std::conjunction<
-          internal::AssertBindArgIsNotBasePassed<std::decay_t<Args>>...>::value,
-      "Use std::move() instead of base::Passed() with base::BindOnce()");
-
-  return internal::BindImpl<OnceCallback>(std::forward<Functor>(functor),
-                                          std::forward<Args>(args)...);
+inline auto BindOnce(Functor&& functor, Args&&... args) {
+  return internal::BindHelper<OnceCallback>::Bind(
+      std::forward<Functor>(functor), std::forward<Args>(args)...);
 }
 
 // Bind as RepeatingCallback.
 template <typename Functor, typename... Args>
-inline RepeatingCallback<internal::MakeUnboundRunType<Functor, Args...>>
-BindRepeating(Functor&& functor, Args&&... args) {
-  static_assert(
-      !internal::IsOnceCallback<std::decay_t<Functor>>(),
-      "BindRepeating cannot bind OnceCallback. Use BindOnce with std::move().");
-
-  return internal::BindImpl<RepeatingCallback>(std::forward<Functor>(functor),
-                                               std::forward<Args>(args)...);
+inline auto BindRepeating(Functor&& functor, Args&&... args) {
+  return internal::BindHelper<RepeatingCallback>::Bind(
+      std::forward<Functor>(functor), std::forward<Args>(args)...);
 }
 
 // Overloads to allow nicer compile errors when attempting to pass the address
@@ -107,12 +86,6 @@ BindRepeating(Functor&& functor, Args&&... args) {
 //
 // So these overloads will only be selected as a last resort iff template type
 // deduction fails.
-//
-// These overloads also intentionally do not return `void`, as this prevents
-// clang from emitting spurious errors such as "variable has incomplete type
-// 'void'" when assigning the result of `BindOnce()`/`BindRepeating()` to a
-// variable with type `auto` or `decltype(auto)`.
-struct BindFailedCheckPreviousErrors {};
 BindFailedCheckPreviousErrors BindOnce(...);
 BindFailedCheckPreviousErrors BindRepeating(...);
 
@@ -426,8 +399,10 @@ internal::OwnedRefWrapper<std::decay_t<T>> OwnedRef(T&& t) {
 //
 // Both versions of Passed() prevent T from being an lvalue reference. The first
 // via use of enable_if, and the second takes a T* which will not bind to T&.
-template <typename T,
-          std::enable_if_t<!std::is_lvalue_reference_v<T>>* = nullptr>
+//
+// DEPRECATED - Do not use in new code. See https://crbug.com/1326449
+template <typename T>
+  requires(!std::is_lvalue_reference_v<T>)
 inline internal::PassedWrapper<T> Passed(T&& scoper) {
   return internal::PassedWrapper<T>(std::move(scoper));
 }
@@ -455,26 +430,6 @@ template <typename T>
 inline internal::IgnoreResultHelper<T> IgnoreResult(T data) {
   return internal::IgnoreResultHelper<T>(std::move(data));
 }
-
-#if BUILDFLAG(IS_APPLE) && !HAS_FEATURE(objc_arc)
-
-// RetainBlock() is used to adapt an Objective-C block when Automated Reference
-// Counting (ARC) is disabled. This is unnecessary when ARC is enabled, as the
-// BindOnce and BindRepeating already support blocks then.
-//
-// EXAMPLE OF RetainBlock():
-//
-//   // Wrap the block and bind it to a callback.
-//   OnceCallback<void(int)> cb =
-//       BindOnce(RetainBlock(^(int n) { NSLog(@"%d", n); }));
-//   std::move(cb).Run(1);  // Logs "1".
-template <typename R, typename... Args>
-base::mac::ScopedBlock<R (^)(Args...)> RetainBlock(R (^block)(Args...)) {
-  return base::mac::ScopedBlock<R (^)(Args...)>(block,
-                                                base::scoped_policy::RETAIN);
-}
-
-#endif  // BUILDFLAG(IS_APPLE) && !HAS_FEATURE(objc_arc)
 
 }  // namespace base
 

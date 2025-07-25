@@ -2,14 +2,16 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include "base/memory/raw_ptr.h"
 #include "base/task/sequence_manager/sequence_manager.h"
 
 #include <stddef.h>
+
 #include <memory>
+#include <optional>
 
 #include "base/functional/bind.h"
 #include "base/logging.h"
+#include "base/memory/raw_ptr.h"
 #include "base/message_loop/message_pump_default.h"
 #include "base/message_loop/message_pump_type.h"
 #include "base/run_loop.h"
@@ -30,7 +32,6 @@
 #include "build/build_config.h"
 #include "testing/gtest/include/gtest/gtest.h"
 #include "testing/perf/perf_result_reporter.h"
-#include "third_party/abseil-cpp/absl/types/optional.h"
 
 namespace base {
 namespace sequence_manager {
@@ -58,7 +59,7 @@ class PerfTestTimeDomain : public MockTimeDomain {
   PerfTestTimeDomain& operator=(const PerfTestTimeDomain&) = delete;
   ~PerfTestTimeDomain() override = default;
 
-  bool MaybeFastForwardToWakeUp(absl::optional<WakeUp> wake_up,
+  bool MaybeFastForwardToWakeUp(std::optional<WakeUp> wake_up,
                                 bool quit_when_idle_requested) override {
     if (wake_up) {
       SetNowTicks(wake_up->time);
@@ -101,7 +102,7 @@ class PerfTestDelegate {
 
 class BaseSequenceManagerPerfTestDelegate : public PerfTestDelegate {
  public:
-  BaseSequenceManagerPerfTestDelegate() {}
+  BaseSequenceManagerPerfTestDelegate() = default;
 
   ~BaseSequenceManagerPerfTestDelegate() override = default;
 
@@ -110,10 +111,9 @@ class BaseSequenceManagerPerfTestDelegate : public PerfTestDelegate {
   bool MultipleQueuesSupported() const override { return true; }
 
   scoped_refptr<TaskRunner> CreateTaskRunner() override {
-    scoped_refptr<TaskQueue> task_queue =
-        manager_->CreateTaskQueue(TaskQueue::Spec(QueueName::TEST_TQ));
-    owned_task_queues_.push_back(task_queue);
-    return task_queue->task_runner();
+    owned_task_queues_.push_back(
+        manager_->CreateTaskQueue(TaskQueue::Spec(QueueName::TEST_TQ)));
+    return owned_task_queues_.back()->task_runner();
   }
 
   void WaitUntilDone() override {
@@ -141,7 +141,7 @@ class BaseSequenceManagerPerfTestDelegate : public PerfTestDelegate {
   std::unique_ptr<SequenceManager> manager_;
   std::unique_ptr<TimeDomain> time_domain_;
   std::unique_ptr<RunLoop> run_loop_;
-  std::vector<scoped_refptr<TaskQueue>> owned_task_queues_;
+  std::vector<TaskQueue::Handle> owned_task_queues_;
 };
 
 class SequenceManagerWithMessagePumpPerfTestDelegate
@@ -163,9 +163,9 @@ class SequenceManagerWithMessagePumpPerfTestDelegate
 
     // ThreadControllerWithMessagePumpImpl doesn't provide a default task
     // runner.
-    scoped_refptr<TaskQueue> default_task_queue =
+    default_task_queue_ =
         GetManager()->CreateTaskQueue(TaskQueue::Spec(QueueName::DEFAULT_TQ));
-    GetManager()->SetDefaultTaskRunner(default_task_queue->task_runner());
+    GetManager()->SetDefaultTaskRunner(default_task_queue_->task_runner());
   }
 
   ~SequenceManagerWithMessagePumpPerfTestDelegate() override { ShutDown(); }
@@ -174,6 +174,7 @@ class SequenceManagerWithMessagePumpPerfTestDelegate
 
  private:
   const char* const name_;
+  TaskQueue::Handle default_task_queue_;
 };
 
 class SingleThreadInThreadPoolPerfTestDelegate : public PerfTestDelegate {
@@ -553,7 +554,6 @@ class SequenceManagerPerfTest : public testing::TestWithParam<PerfTestType> {
 
       default:
         NOTREACHED();
-        return nullptr;
     }
   }
 

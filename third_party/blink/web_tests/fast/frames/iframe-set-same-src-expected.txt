@@ -1,0 +1,3 @@
+Test for bug 3400: setting the .src of an iframe to the same value does not reload page.
+
+SUCCESS

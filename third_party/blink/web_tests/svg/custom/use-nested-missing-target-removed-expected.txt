@@ -1,0 +1,2 @@
+CONSOLE ERROR: Uncaught TypeError: Cannot set properties of null (setting 'id')
+PASS

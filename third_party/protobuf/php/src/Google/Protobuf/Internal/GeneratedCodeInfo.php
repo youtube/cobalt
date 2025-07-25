@@ -26,7 +26,6 @@ class GeneratedCodeInfo extends \Google\Protobuf\Internal\Message
      * Generated from protobuf field <code>repeated .google.protobuf.GeneratedCodeInfo.Annotation annotation = 1;</code>
      */
     private $annotation;
-    private $has_annotation = false;
 
     /**
      * Constructor.
@@ -34,7 +33,7 @@ class GeneratedCodeInfo extends \Google\Protobuf\Internal\Message
      * @param array $data {
      *     Optional. Data for populating the Message object.
      *
-     *     @type \Google\Protobuf\Internal\GeneratedCodeInfo\Annotation[]|\Google\Protobuf\Internal\RepeatedField $annotation
+     *     @type array<\Google\Protobuf\Internal\GeneratedCodeInfo\Annotation>|\Google\Protobuf\Internal\RepeatedField $annotation
      *           An Annotation connects some span of text in generated code to an element
      *           of its generating .proto file.
      * }
@@ -61,21 +60,15 @@ class GeneratedCodeInfo extends \Google\Protobuf\Internal\Message
      * of its generating .proto file.
      *
      * Generated from protobuf field <code>repeated .google.protobuf.GeneratedCodeInfo.Annotation annotation = 1;</code>
-     * @param \Google\Protobuf\Internal\GeneratedCodeInfo\Annotation[]|\Google\Protobuf\Internal\RepeatedField $var
+     * @param array<\Google\Protobuf\Internal\GeneratedCodeInfo\Annotation>|\Google\Protobuf\Internal\RepeatedField $var
      * @return $this
      */
     public function setAnnotation($var)
     {
         $arr = GPBUtil::checkRepeatedField($var, \Google\Protobuf\Internal\GPBType::MESSAGE, \Google\Protobuf\Internal\GeneratedCodeInfo\Annotation::class);
         $this->annotation = $arr;
-        $this->has_annotation = true;
 
         return $this;
-    }
-
-    public function hasAnnotation()
-    {
-        return $this->has_annotation;
     }
 
 }

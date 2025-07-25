@@ -4,14 +4,15 @@
 
 #include "base/task/sequence_manager/work_queue.h"
 
-#include "base/containers/stack_container.h"
+#include <optional>
+
 #include "base/debug/alias.h"
 #include "base/task/sequence_manager/fence.h"
 #include "base/task/sequence_manager/sequence_manager_impl.h"
 #include "base/task/sequence_manager/task_order.h"
 #include "base/task/sequence_manager/work_queue_sets.h"
 #include "build/build_config.h"
-#include "third_party/abseil-cpp/absl/types/optional.h"
+#include "third_party/abseil-cpp/absl/container/inlined_vector.h"
 
 namespace base {
 namespace sequence_manager {
@@ -56,9 +57,9 @@ bool WorkQueue::BlockedByFence() const {
   return tasks_.empty() || tasks_.front().task_order() >= fence_->task_order();
 }
 
-absl::optional<TaskOrder> WorkQueue::GetFrontTaskOrder() const {
+std::optional<TaskOrder> WorkQueue::GetFrontTaskOrder() const {
   if (tasks_.empty() || BlockedByFence())
-    return absl::nullopt;
+    return std::nullopt;
   // Quick sanity check.
   DCHECK(tasks_.front().task_order() <= tasks_.back().task_order())
       << task_queue_->GetName() << " : " << work_queue_sets_->GetName() << " : "
@@ -227,16 +228,16 @@ bool WorkQueue::RemoveAllCanceledTasksFromFront() {
   // Since task destructors could have a side-effect of deleting this task queue
   // we move cancelled tasks into a temporary container which can be emptied
   // without accessing |this|.
-  StackVector<Task, 8> tasks_to_delete;
+  absl::InlinedVector<Task, 8> tasks_to_delete;
 
   while (!tasks_.empty()) {
     const auto& pending_task = tasks_.front();
     if (pending_task.task && !pending_task.IsCanceled())
       break;
-    tasks_to_delete->push_back(std::move(tasks_.front()));
+    tasks_to_delete.push_back(std::move(tasks_.front()));
     tasks_.pop_front();
   }
-  if (!tasks_to_delete->empty()) {
+  if (!tasks_to_delete.empty()) {
     if (tasks_.empty()) {
       // NB delayed tasks are inserted via Push, no don't need to reload those.
       if (queue_type_ == QueueType::kImmediate) {
@@ -254,7 +255,7 @@ bool WorkQueue::RemoveAllCanceledTasksFromFront() {
       work_queue_sets_->OnQueuesFrontTaskChanged(this);
     task_queue_->TraceQueueSize();
   }
-  return !tasks_to_delete->empty();
+  return !tasks_to_delete.empty();
 }
 
 void WorkQueue::AssignToWorkQueueSets(WorkQueueSets* work_queue_sets) {
@@ -297,7 +298,7 @@ bool WorkQueue::InsertFence(Fence fence) {
 
 bool WorkQueue::RemoveFence() {
   bool was_blocked_by_fence = BlockedByFence();
-  fence_ = absl::nullopt;
+  fence_ = std::nullopt;
   if (work_queue_sets_ && !tasks_.empty() && was_blocked_by_fence) {
     work_queue_sets_->OnTaskPushedToEmptyQueue(this);
     return true;

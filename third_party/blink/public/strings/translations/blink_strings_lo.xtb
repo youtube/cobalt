@@ -1,0 +1,102 @@
+<?xml version="1.0" ?>
+<!DOCTYPE translationbundle>
+<translationbundle lang="lo">
+<translation id="1012241361789814178">ຕົວດີບັກໄດ້ຢຸດຊົ່ວຄາວໃນແຖບອື່ນ, ຄລິກເພື່ອປ່ຽນໄປຫາແຖບນັ້ນ.</translation>
+<translation id="1171774979989969504">ກະ​ລຸ​ນາ​ໃສ່​ທີ່​ຢູ່​ອີ​ເມວ.</translation>
+<translation id="1178581264944972037">ຢຸດຊົ່ວຄາວ</translation>
+<translation id="1306460908038601864">ປິດ</translation>
+<translation id="1311894908970423688">ຄ່າຕ້ອງເປັນ <ph name="VALUE_DATE_OR_TIME" />.</translation>
+<translation id="1588438908519853928">ປົກ​ກະ​ຕິ</translation>
+<translation id="1591562245178063882">ເດືອນ​ນີ້</translation>
+<translation id="1637811476055996098">ເລືອກ​ໄຟລ​໌</translation>
+<translation id="1729654308190250600">ກະ​ລຸ​ນາ​ໃສ່​ທີ່​ຢູ່​ອີ​ເມວທີ່​ບໍ່​ວ່າງ​ເປົ່າ​.</translation>
+<translation id="1758486001363313524">ອື່ນ...</translation>
+<translation id="1921819250265091946">ວວ</translation>
+<translation id="1938124657309484470">ຄ່າ​ຈະ​ຕ້ອງ <ph name="MAXIMUM_DATE_OR_TIME" /> ຫຼື​ໄວກ່ອນ​ນັ້ນ​.</translation>
+<translation id="1993104285338243655">ປ່ຽນເປັນການສະທ້ອນພາບແລ້ວ</translation>
+<translation id="2060505056492490888">'<ph name="DOT" />' ຖືກໃຊ້ຢູ່ຜິດຕໍາແໜ່ງ​ໃນ '<ph name="INVALIDDOMAIN" />'.</translation>
+<translation id="2068711044993563745">ຄ່າຕ່ຳສຸດ (<ph name="MINIMUM" />) ຕ້ອງໜ້ອຍກວ່າຄ່າສູງສຸດ (<ph name="MAXIMUM" />).</translation>
+<translation id="2148716181193084225">ມື້​ນີ້</translation>
+<translation id="2226276347425096477">ກະລຸນາຫຍໍ້ຂໍ້ຄວາມນີ້ລົງໃຫ້ເຫຼືອ <ph name="MAX_CHARACTERS" /> ຕົວອັກສອນ ຫຼືໜ້ອຍກ່ວາ (ປະຈຸບັນທ່ານກໍາລັງໃຊ້ <ph name="CURRENT_LENGTH" /> ຕົວອັກສອນ).</translation>
+<translation id="2247351761944213033">ອາ​ທິດ <ph name="WEEKNUMBER" />, <ph name="YEAR" /></translation>
+<translation id="2277199496770840904">ແທຣັກ <ph name="NUMBER" /></translation>
+<translation id="2507943997699731163">ກະລຸນາຕື່ມຂໍ້ມູນໃສ່ປ່ອງນີ້.</translation>
+<translation id="2613802280814924224">ກະ​ລຸ​ນາ​ປ້ອນຄ່າທີ່ໃຊ້ໄດ້ເຂົ້າໄປ​. ຄ່າໃຊ້ໄດ້ໃກ້ທີ່ສຸດແມ່ນ <ph name="VALID_VALUE" />.</translation>
+<translation id="2653659639078652383">ສົ່ງ</translation>
+<translation id="2746543609216772311">ມູນຄ່າຕ້ອງ <ph name="MINIMUM_DATE_OR_TIME" /> ຫຼື​ຕໍ່​ມາ​.</translation>
+<translation id="2761667185364618470">ກະລຸນາໝາຍຕິກໃສ່ຫ້ອງນີ້ ຖ້າທ່ານຕ້ອງການດໍາເນີນຕໍ່.</translation>
+<translation id="2908441821576996758">ກະລຸນາໃສ່ລາຍຊື່ທີ່ຢູ່ອີເມວທີ່​ແຍກ​ກັນ​ດ້ວຍ​ໝາຍ​ຈຸດ.</translation>
+<translation id="3049748772180311791"><ph name="QUANTITY" /> MB</translation>
+<translation id="3075154866155599887">ກະ​ລຸ​ນາ​ປ້ອນ​ຄ່າທີ່ໃຊ້ໄດ້​. ບ່ອນໃສ່ຂໍ້ມູນ​ບໍ່​ຄົບ​ຖ້ວນ​ ຫຼື​ມີ​ວັນທີໃຊ້ບໍ່ໄດ້.</translation>
+<translation id="310520048233152454">ກະລຸນາປ້ອນ URL.</translation>
+<translation id="3321030238473337787">ຄວາມໄວການຫຼິ້ນ</translation>
+<translation id="3450233048674729344">ຄ່າຕ້ອງນ້ອຍກ່ວາ ຫຼືເທົ່າກັບ <ph name="MAXIMUM" />.</translation>
+<translation id="3732799496749320381">ມ​ມ</translation>
+<translation id="3754210790023674521">ອອກຈາກໂໝດສະແດງຜົນຊ້ອນກັນ</translation>
+<translation id="3757388668994797779"><ph name="QUANTITY" /> GB</translation>
+<translation id="3822383571486410024">ກະລຸນາຂະຫຍາຍຂໍ້ຄວາມນີ້ໃຫ້ຍາວເປັນ <ph name="MIN_CHARACTERS" /> ອັກຂະລະຂຶ້ນໄປ (ປະຈຸບັນ ທ່ານກຳລັງໃຊ້ <ph name="CURRENT_LENGTH" /> ອັກຂະລະ).</translation>
+<translation id="383465348367842624">ສ່ວນ​ຫນຶ່ງ​ຕິດຕາມດ້ວຍ  '<ph name="ATSIGN" />' ບໍ່​ຄວນ​ໃຫ້​ມີ​ສັນ​ຍາ​ລັກ '<ph name="INVALIDCHARACTER" />'.</translation>
+<translation id="3846214748874656680">ອອກຈາກເຕັມໜ້າຈໍ</translation>
+<translation id="4360991593054037559">ກະ​ລຸ​ນາ​ປ້ອນຄ່າທີ່ໃຊ້ໄດ້ເຂົ້າໄປ​. ຄ່າທີ່ໃຊ້ໄດ້ຢູ່ໃກ້ທີ່ສຸດທັງສອງ​ແມ່ນ <ph name="VALID_VALUE_LOW" /> ແລະ <ph name="VALID_VALUE_HIGHER" /> .</translation>
+<translation id="4522570452068850558">ລາຍ​ລະ​ອຽດ</translation>
+<translation id="4664250907885839816">ສ່ວນ​ຫນຶ່ງ​ຕໍ່​ໄປ​ນີ້  '<ph name="ATSIGN" />' ບໍ່​ຄວນ​ໃຫ້​ມີ​ສັນ​ຍາ​ລັກ '<ph name="INVALIDCHARACTER" />'.</translation>
+<translation id="4718048029184481307">ກຳລັງຫຼິ້ນໃນໂໝດສະແດງຜົນຊ້ອນກັນ</translation>
+<translation id="4812940957355064477">ກະ​ລຸ​ນາ​ປ້ອນຕົວເລກ​.</translation>
+<translation id="4975562563186953947">ເລືອກ <ph name="SELECTED_COUNT" /> ແລ້ວ</translation>
+<translation id="4992066212339426712">ເປີດສຽງ</translation>
+<translation id="49969490063480558">ກະ​ລຸ​ນາ​ໃສ່​ພາກ​ສ່ວນໜຶ່ງ​ຫຼັງຈາກ '<ph name="ATSIGN" />'. '<ph name="INVALIDADDRESS" />' ບໍ່ສໍາເລັດ.</translation>
+<translation id="5164977714490026579">ຄ່າຕ້ອງໃຫຍ່ກ່ວາ ຫຼືເທົ່າກັບ <ph name="MINIMUM" />.</translation>
+<translation id="5196716972587102051">2</translation>
+<translation id="520299402983819650"><ph name="QUANTITY" /> PB</translation>
+<translation id="5307600278924710095">ກະ​ລຸ​ນາ​ໃສ່​ພາກ​ສ່ວນໜຶ່ງ​ຕາມມາ​ດ້ວຍ '<ph name="ATSIGN" />'. '<ph name="INVALIDADDRESS" />' ບໍ່ສົມບູນ.</translation>
+<translation id="5334352251556557839">ບໍ່ສາມາດຫຼິ້ນສື່ໄດ້.</translation>
+<translation id="537648784377940524">ວັນທີໜ້ອຍສຸດ (<ph name="MIN_DATE_OR_TIME" />) ຕ້ອງມາກ່ອນວັນທີຫຼາຍສຸດ (<ph name="MAX_DATE_OR_TIME" />).</translation>
+<translation id="5466621249238537318">ກະລຸນາເລືອກໜຶ່ງ ຫຼືຫຼາຍໄຟລ໌.</translation>
+<translation id="5514612371225420585">ໄຟລ໌ຢູ່ອຸປະກອນຂອງທ່ານ</translation>
+<translation id="5516235301412634559">0.75</translation>
+<translation id="5537725057119320332">ຄາສທ໌</translation>
+<translation id="5630795885300617244">ແຕະຊ້າຍ ຫຼື ຂວາສອງຄັ້ງເພື່ອຂ້າມ 10 ວິ</translation>
+<translation id="57838592816432529">ປິດສຽງ</translation>
+<translation id="588258955323874662">ເຕັມໜ້າຈໍ</translation>
+<translation id="5888666972993069672">ຕອນນີ້ກຳລັງສົ່ງສັນຍານໃສ່ <ph name="DEVICE_FRIENDLY_NAME" /></translation>
+<translation id="5939518447894949180">ຕັ້ງຄ່າຄືນໃໝ່</translation>
+<translation id="5966707198760109579">ອາທິດ</translation>
+<translation id="5985507339671257014">0.5</translation>
+<translation id="6310801910862476708">ອອກຈາກໂໝດສະແດງຜົນຊ້ອນກັນ</translation>
+<translation id="6484738902856791350">Pretty-print</translation>
+<translation id="6550675742724504774">ທາງ​ເລືອກ</translation>
+<translation id="6643016212128521049">ລຶບ</translation>
+<translation id="668171684555832681">ອື່ນໆ...</translation>
+<translation id="6709093583001123835">ຄ່າຕ້ອງເປັນ <ph name="VALUE" />.</translation>
+<translation id="6709570249143506788">ຄຸນນະພາບການຫຼິ້ນບໍ່ດີ</translation>
+<translation id="6790428901817661496">​ຫຼິ້ນ</translation>
+<translation id="6820355525329141109">ບໍ່ສາມາດໂຫຼດປລັກອິນໄດ້.</translation>
+<translation id="6919891270253167948">1.5</translation>
+<translation id="6989848892321993519">ກະລຸນາຂະຫຍາຍຄວາມຍາວຂອງຂໍ້ຄວາມນີ້ເປັນ <ph name="MIN_CHARACTERS" /> ຕົວອັກສອນຂຶ້ນໄປ (ໃນປັດຈຸບັນທ່ານກຳລັງໃຊ້ 1 ຕົວອັກສອນ).</translation>
+<translation id="709897737746224366">ກະລຸນາຈັບຄູ່ຮູບແບບທີ່ໄດ້ສະເໜີ.</translation>
+<translation id="7263440858009898357">ກະລຸນາເລືອກລາຍການຢູ່ໃນລາຍຊື່.</translation>
+<translation id="7364796246159120393">ເລືອກ​ໄຟລ​໌</translation>
+<translation id="739024184232394898">ອື່ນ...</translation>
+<translation id="7460907917090416791"><ph name="QUANTITY" /> TB</translation>
+<translation id="7514365320538308">ດາວ​ໂຫລດ</translation>
+<translation id="7750228210027921155">ສະແດງຜົນຊ້ອນກັນ</translation>
+<translation id="7782515065589691344">1.25</translation>
+<translation id="7888071071722539607">ກະລຸນາເອົາ '<ph name="ATSIGN" />' ເຂົ້າຢູ່ໃນທີ່ຢູ່ອີເມວ. '<ph name="INVALIDADDRESS" />' ຂາດ '<ph name="ATSIGN" />' ໄປ.</translation>
+<translation id="795667975304826397">ບໍ່ມີໄຟລ໌ເລືອກໄວ້</translation>
+<translation id="8117451130807776954">ອາ​ທິດ​ນີ້</translation>
+<translation id="8131955114056917397">0.25</translation>
+<translation id="8199524924445686405">ປປປປ</translation>
+<translation id="8284326494547611709">ຄໍາບັນຍາຍພາບ</translation>
+<translation id="835897206747267392">ຄ່າບໍ່ຖືກຕ້ອງ</translation>
+<translation id="839593075537728968">ຄ່າຕ້ອງຢູ່ລະຫວ່າງ <ph name="MINIMUM_TIME" /> ຫາ <ph name="MAXIMUM_TIME" />.</translation>
+<translation id="8444882422881193423"><ph name="NUMBER_OF_FILES" /> ໄຟລ໌</translation>
+<translation id="8451268428117625855">ກະ​ລຸ​ນາ​ເລືອກ​ໄຟລ​໌​.</translation>
+<translation id="8637593834423658414">1.75</translation>
+<translation id="8668988909814782445">ການຕັດຂຶ້ນແຖວໃໝ່</translation>
+<translation id="8750798805984357768">ກະລຸນາເລືອກໜຶ່ງໃນທາງເລືອກເຫຼົ່ານີ້.</translation>
+<translation id="8845239796550121995">ດຽວນີ້ກຳລັງສົ່ງສັນຍານຫາໂທລະພາບຂອງທ່ານ</translation>
+<translation id="8875657656876809964">ການຫຼິ້ນວິດີໂອມີຂໍ້ຜິດພາດ</translation>
+<translation id="8901569739625249689"><ph name="QUANTITY" /> KB</translation>
+<translation id="9132465097189459683">ອື່ນໆ...</translation>
+<translation id="916607977885256133">ສະແດງຜົນຫຼາຍຢ່າງພ້ອມກັນ</translation>
+</translationbundle>

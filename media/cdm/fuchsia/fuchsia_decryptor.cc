@@ -48,14 +48,12 @@ void FuchsiaDecryptor::DecryptAndDecodeAudio(
     scoped_refptr<DecoderBuffer> encrypted,
     AudioDecodeCB audio_decode_cb) {
   NOTREACHED();
-  std::move(audio_decode_cb).Run(Status::kError, AudioFrames());
 }
 
 void FuchsiaDecryptor::DecryptAndDecodeVideo(
     scoped_refptr<DecoderBuffer> encrypted,
     VideoDecodeCB video_decode_cb) {
   NOTREACHED();
-  std::move(video_decode_cb).Run(Status::kError, nullptr);
 }
 
 void FuchsiaDecryptor::ResetDecoder(StreamType stream_type) {

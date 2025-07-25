@@ -43,6 +43,14 @@ VideoDecoderConfig::VideoDecoderConfig(VideoCodec codec,
 VideoDecoderConfig::VideoDecoderConfig(const VideoDecoderConfig& other) =
     default;
 
+VideoDecoderConfig::VideoDecoderConfig(VideoDecoderConfig&& other) = default;
+
+VideoDecoderConfig& VideoDecoderConfig::operator=(
+    const VideoDecoderConfig& other) = default;
+
+VideoDecoderConfig& VideoDecoderConfig::operator=(VideoDecoderConfig&& other) =
+    default;
+
 VideoDecoderConfig::~VideoDecoderConfig() = default;
 
 void VideoDecoderConfig::Initialize(VideoCodec codec,
@@ -81,6 +89,7 @@ bool VideoDecoderConfig::Matches(const VideoDecoderConfig& config) const {
          coded_size() == config.coded_size() &&
          visible_rect() == config.visible_rect() &&
          natural_size() == config.natural_size() &&
+         aspect_ratio() == config.aspect_ratio() &&
          extra_data() == config.extra_data() &&
          encryption_scheme() == config.encryption_scheme() &&
          color_space_info() == config.color_space_info() &&
@@ -108,22 +117,7 @@ std::string VideoDecoderConfig::AsHumanReadableString() const {
     << ", color space: " << color_space_info().ToGfxColorSpace().ToString();
 
   if (hdr_metadata().has_value()) {
-    s << std::setprecision(4) << ", luminance range: "
-      << hdr_metadata()->color_volume_metadata.luminance_min << "-"
-      << hdr_metadata()->color_volume_metadata.luminance_max
-      << ", primaries: r("
-      << hdr_metadata()->color_volume_metadata.primaries.fRX << ","
-      << hdr_metadata()->color_volume_metadata.primaries.fRY << ") g("
-      << hdr_metadata()->color_volume_metadata.primaries.fGX << ","
-      << hdr_metadata()->color_volume_metadata.primaries.fGY << ") b("
-      << hdr_metadata()->color_volume_metadata.primaries.fBX << ","
-      << hdr_metadata()->color_volume_metadata.primaries.fBY << ") wp("
-      << hdr_metadata()->color_volume_metadata.primaries.fWX << ","
-      << hdr_metadata()->color_volume_metadata.primaries.fWY
-      << "), max_content_light_level="
-      << hdr_metadata()->max_content_light_level
-      << ", max_frame_average_light_level="
-      << hdr_metadata()->max_frame_average_light_level;
+    s << ", hdr metadata: " << hdr_metadata()->ToString();
   }
 
   return s.str();

@@ -2,13 +2,18 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#ifdef UNSAFE_BUFFERS_BUILD
+// TODO(crbug.com/40285824): Remove this and convert code to safer constructs.
+#pragma allow_unsafe_buffers
+#endif
+
 #include "media/gpu/vaapi/test/h265_decoder.h"
 
 #include <algorithm>
 
 #include "base/logging.h"
 #include "base/notreached.h"
-#include "media/video/h265_parser.h"
+#include "media/parsers/h265_parser.h"
 
 namespace media {
 
@@ -121,10 +126,10 @@ void H265Decoder::Reset() {
   state_ = kAfterReset;
 }
 
-H265Decoder::DecodeResult H265Decoder::Decode() {
+H265Decoder::DecodeResult H265Decoder::DecodeNALUs() {
   DCHECK(state_ != kError) << "Decoder in error state";
 
-  while (true) {
+  while (output_queue.empty()) {
     H265Parser::Result par_res;
 
     if (!curr_nalu_) {
@@ -293,6 +298,8 @@ H265Decoder::DecodeResult H265Decoder::Decode() {
              << static_cast<int>(curr_nalu_->nal_unit_type);
     curr_nalu_.reset();
   }
+
+  return kOk;
 }
 
 bool H265Decoder::ProcessPPS(int pps_id, bool* need_new_buffers) {
@@ -425,8 +432,9 @@ void H265Decoder::CalcPictureOrderCount(const H265PPS* pps,
                                         const H265SliceHeader* slice_hdr) {
   // 8.3.1 Decoding process for picture order count.
   curr_pic_->valid_for_prev_tid0_pic_ =
-      !pps->temporal_id && (slice_hdr->nal_unit_type < H265NALU::RADL_N ||
-                            slice_hdr->nal_unit_type > H265NALU::RSV_VCL_N14);
+      !slice_hdr->temporal_id &&
+      (slice_hdr->nal_unit_type < H265NALU::RADL_N ||
+       slice_hdr->nal_unit_type > H265NALU::RSV_VCL_N14);
   curr_pic_->slice_pic_order_cnt_lsb_ = slice_hdr->slice_pic_order_cnt_lsb;
 
   // Calculate POC for current picture.
@@ -876,7 +884,7 @@ void H265Decoder::Flush() {
 
 VideoDecoder::Result H265Decoder::DecodeNextFrame() {
   while (!is_stream_over_ && output_queue.empty())
-    Decode();
+    DecodeNALUs();
 
   if (is_stream_over_)
     OutputAllRemainingPics();
@@ -887,8 +895,8 @@ VideoDecoder::Result H265Decoder::DecodeNextFrame() {
 
   last_decoded_surface_ = output_queue.front()->surface;
   LOG_PIC_INFO(__func__, output_queue.front(), fetch_policy_);
-  LOG(INFO) << "Outputting frame poc: "
-            << output_queue.front()->pic_order_cnt_val_;
+  DVLOG(3) << "Outputting frame poc: "
+           << output_queue.front()->pic_order_cnt_val_;
   last_decoded_frame_visible_ = output_queue.front()->pic_output_flag_;
   output_queue.pop();
   return VideoDecoder::kOk;

@@ -2,9 +2,9 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include "base/allocator/partition_allocator/partition_alloc_buildflags.h"
+#include "partition_alloc/buildflags.h"
 
-#if BUILDFLAG(USE_ASAN_BACKUP_REF_PTR)
+#if PA_BUILDFLAG(USE_ASAN_BACKUP_REF_PTR)
 
 #include <sanitizer/asan_interface.h>
 #include <thread>
@@ -431,7 +431,7 @@ TEST_F(AsanBackupRefPtrTest, AccessOnThreadPoolThread) {
         EXPECT_DEATH_IF_SUPPORTED(protected_ptr->func(),
                                   kAsanBrpMaybeProtected_ThreadPool);
       }),
-      base::BindLambdaForTesting([&run_loop]() { run_loop.Quit(); }));
+      base::BindLambdaForTesting([&run_loop] { run_loop.Quit(); }));
   run_loop.Run();
 }
 
@@ -450,4 +450,4 @@ TEST_F(AsanBackupRefPtrTest, DanglingUnretained) {
 
 }  // namespace base::internal
 
-#endif  // BUILDFLAG(USE_ASAN_BACKUP_REF_PTR)
+#endif  // PA_BUILDFLAG(USE_ASAN_BACKUP_REF_PTR)

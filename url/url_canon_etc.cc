@@ -2,6 +2,11 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#ifdef UNSAFE_BUFFERS_BUILD
+// TODO(crbug.com/350788890): Remove this and spanify to fix the errors.
+#pragma allow_unsafe_buffers
+#endif
+
 // Canonicalizers for random bits that aren't big enough for their own files.
 
 #include <string.h>
@@ -217,11 +222,7 @@ bool DoUserInfo(const CHAR* username_spec,
 
 // Helper functions for converting port integers to strings.
 inline void WritePortInt(char* output, int output_len, int port) {
-#if defined(STARBOARD)
-  snprintf(output, output_len, "%d", port);
-#else
   _itoa_s(port, output, output_len, 10);
-#endif
 }
 
 // This function will prepend the colon if there will be a port.

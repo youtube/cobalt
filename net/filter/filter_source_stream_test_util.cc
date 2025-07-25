@@ -2,11 +2,15 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#ifdef UNSAFE_BUFFERS_BUILD
+// TODO(crbug.com/40284755): Remove this and spanify to fix the errors.
+#pragma allow_unsafe_buffers
+#endif
+
 #include "net/filter/filter_source_stream_test_util.h"
 
 #include <cstring>
 
-#include "base/bit_cast.h"
 #include "base/check_op.h"
 #include "third_party/zlib/zlib.h"
 
@@ -52,9 +56,9 @@ void CompressGzip(const char* source,
     dest_left -= sizeof(gzip_header);
   }
 
-  zlib_stream.next_in = base::bit_cast<Bytef*>(source);
+  zlib_stream.next_in = reinterpret_cast<Bytef*>(const_cast<char*>(source));
   zlib_stream.avail_in = source_len;
-  zlib_stream.next_out = base::bit_cast<Bytef*>(dest);
+  zlib_stream.next_out = reinterpret_cast<Bytef*>(dest);
   zlib_stream.avail_out = dest_left;
 
   code = deflate(&zlib_stream, Z_FINISH);

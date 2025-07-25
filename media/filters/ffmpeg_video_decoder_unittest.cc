@@ -11,14 +11,15 @@
 #include "base/functional/bind.h"
 #include "base/functional/callback_helpers.h"
 #include "base/memory/ref_counted.h"
-#include "base/memory/singleton.h"
 #include "base/run_loop.h"
 #include "base/strings/string_util.h"
 #include "base/test/gmock_callback_support.h"
+#include "base/test/scoped_feature_list.h"
 #include "base/test/task_environment.h"
 #include "media/base/decoder_buffer.h"
 #include "media/base/limits.h"
 #include "media/base/media_log.h"
+#include "media/base/media_switches.h"
 #include "media/base/media_util.h"
 #include "media/base/mock_filters.h"
 #include "media/base/mock_media_log.h"
@@ -42,9 +43,9 @@ using ::testing::StrictMock;
 
 namespace media {
 
-static const gfx::Size kCodedSize(320, 240);
-static const gfx::Rect kVisibleRect(320, 240);
-static const gfx::Size kNaturalSize(320, 240);
+constexpr gfx::Size kCodedSize(320, 180);
+constexpr gfx::Rect kVisibleRect(kCodedSize);
+constexpr gfx::Size kNaturalSize = kCodedSize;
 
 ACTION_P(ReturnBuffer, buffer) {
   arg0.Run(buffer.get() ? DemuxerStream::kOk : DemuxerStream::kAborted, buffer);
@@ -54,6 +55,10 @@ MATCHER(ContainsFailedToSendLog, "") {
   return CONTAINS_STRING(arg, "Failed to send");
 }
 
+MATCHER(ContainsFailedToDecode, "") {
+  return CONTAINS_STRING(arg, "failed to decode");
+}
+
 class FFmpegVideoDecoderTest : public testing::Test {
  public:
   FFmpegVideoDecoderTest()
@@ -61,8 +66,10 @@ class FFmpegVideoDecoderTest : public testing::Test {
     // Initialize various test buffers.
     frame_buffer_ = std::make_unique<uint8_t[]>(kCodedSize.GetArea());
     end_of_stream_buffer_ = DecoderBuffer::CreateEOSBuffer();
-    i_frame_buffer_ = ReadTestDataFile("vp8-I-frame-320x240");
-    corrupt_i_frame_buffer_ = ReadTestDataFile("vp8-corrupt-I-frame");
+    i_frame_buffer_ = ReadTestDataFile("h264-320x180-frame-0");
+    corrupt_i_frame_buffer_ = ReadTestDataFile("h264-320x180-frame-0");
+    memset(corrupt_i_frame_buffer_->writable_data(), 0,
+           corrupt_i_frame_buffer_->size() / 2);
   }
 
   FFmpegVideoDecoderTest(const FFmpegVideoDecoderTest&) = delete;
@@ -71,7 +78,7 @@ class FFmpegVideoDecoderTest : public testing::Test {
   ~FFmpegVideoDecoderTest() override { Destroy(); }
 
   void Initialize() {
-    InitializeWithConfig(TestVideoConfig::Normal());
+    InitializeWithConfig(TestVideoConfig::Normal(VideoCodec::kH264));
   }
 
   void InitializeWithConfigWithResult(const VideoDecoderConfig& config,
@@ -94,7 +101,7 @@ class FFmpegVideoDecoderTest : public testing::Test {
   }
 
   void Reinitialize() {
-    InitializeWithConfig(TestVideoConfig::Large());
+    InitializeWithConfig(TestVideoConfig::Large(VideoCodec::kH264));
   }
 
   void Reset() {
@@ -136,7 +143,6 @@ class FFmpegVideoDecoderTest : public testing::Test {
           break;
         case DecoderStatus::Codes::kAborted:
           NOTREACHED();
-          [[fallthrough]];
         default:
           DCHECK(output_frames_.empty());
           return status;
@@ -162,7 +168,8 @@ class FFmpegVideoDecoderTest : public testing::Test {
   // to decode to frames that are the same size.
   void DecodeIFrameThenTestFile(const std::string& test_file_name,
                                 int expected_width,
-                                int expected_height) {
+                                int expected_height,
+                                size_t expected_frames = 2u) {
     Initialize();
     scoped_refptr<DecoderBuffer> buffer = ReadTestDataFile(test_file_name);
 
@@ -174,7 +181,7 @@ class FFmpegVideoDecoderTest : public testing::Test {
     DecoderStatus status = DecodeMultipleFrames(input_buffers);
 
     EXPECT_TRUE(status.is_ok());
-    ASSERT_EQ(2U, output_frames_.size());
+    ASSERT_EQ(expected_frames, output_frames_.size());
 
     gfx::Size original_size = kVisibleRect.size();
     EXPECT_EQ(original_size.width(),
@@ -209,6 +216,7 @@ class FFmpegVideoDecoderTest : public testing::Test {
   StrictMock<MockMediaLog> media_log_;
 
   base::test::SingleThreadTaskEnvironment task_environment_;
+  base::test::ScopedFeatureList scoped_feature_list_{kBuiltInH264Decoder};
   std::unique_ptr<FFmpegVideoDecoder> decoder_;
 
   // Various buffers for testing.
@@ -291,34 +299,22 @@ TEST_F(FFmpegVideoDecoderTest, DecodeFrame_DecodeError) {
 TEST_F(FFmpegVideoDecoderTest, DecodeFrame_DecodeErrorAtEndOfStream) {
   Initialize();
 
-  EXPECT_MEDIA_LOG(ContainsFailedToSendLog());
+  EXPECT_MEDIA_LOG(ContainsFailedToDecode());
 
   EXPECT_THAT(DecodeSingleFrame(corrupt_i_frame_buffer_),
               IsDecodeErrorStatus());
 }
 
-// Decode |i_frame_buffer_| and then a frame with a larger width and verify
-// the output size was adjusted.
-TEST_F(FFmpegVideoDecoderTest, DecodeFrame_LargerWidth) {
-  DecodeIFrameThenTestFile("vp8-I-frame-640x240", 640, 240);
+// Decode |i_frame_buffer_| and then a smaller frame and verify the output size
+// was adjusted.
+TEST_F(FFmpegVideoDecoderTest, DecodeFrame_Smaller) {
+  DecodeIFrameThenTestFile("red-green.h264", 80, 128, /*expected_frames=*/4);
 }
 
-// Decode |i_frame_buffer_| and then a frame with a smaller width and verify
-// the output size was adjusted.
-TEST_F(FFmpegVideoDecoderTest, DecodeFrame_SmallerWidth) {
-  DecodeIFrameThenTestFile("vp8-I-frame-160x240", 160, 240);
-}
-
-// Decode |i_frame_buffer_| and then a frame with a larger height and verify
-// the output size was adjusted.
-TEST_F(FFmpegVideoDecoderTest, DecodeFrame_LargerHeight) {
-  DecodeIFrameThenTestFile("vp8-I-frame-320x480", 320, 480);
-}
-
-// Decode |i_frame_buffer_| and then a frame with a smaller height and verify
-// the output size was adjusted.
-TEST_F(FFmpegVideoDecoderTest, DecodeFrame_SmallerHeight) {
-  DecodeIFrameThenTestFile("vp8-I-frame-320x120", 320, 120);
+// Decode |i_frame_buffer_| and then a larger frame and verify the output size
+// was adjusted.
+TEST_F(FFmpegVideoDecoderTest, DecodeFrame_Larger) {
+  DecodeIFrameThenTestFile("bear-320x192-baseline-frame-0.h264", 320, 192);
 }
 
 // Test resetting when decoder has initialized but not decoded.

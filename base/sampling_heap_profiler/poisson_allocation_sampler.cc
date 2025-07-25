@@ -9,7 +9,6 @@
 #include <memory>
 #include <utility>
 
-#include "base/allocator/buildflags.h"
 #include "base/allocator/dispatcher/reentry_guard.h"
 #include "base/allocator/dispatcher/tls.h"
 #include "base/check.h"
@@ -18,15 +17,6 @@
 #include "base/rand_util.h"
 #include "base/ranges/algorithm.h"
 #include "build/build_config.h"
-#include "third_party/abseil-cpp/absl/base/attributes.h"
-
-#if !BUILDFLAG(USE_ALLOCATION_EVENT_DISPATCHER)
-#include "base/allocator/dispatcher/standard_hooks.h"
-#endif
-
-#if defined(STARBOARD)
-#include "base/notreached.h"
-#endif
 
 namespace base {
 
@@ -42,10 +32,10 @@ const intptr_t kAccumulatedBytesOffset = 1 << 29;
 bool g_deterministic = false;
 
 // Pointer to the current |LockFreeAddressHashSet|.
-std::atomic<LockFreeAddressHashSet*> g_sampled_addresses_set{nullptr};
+constinit std::atomic<LockFreeAddressHashSet*> g_sampled_addresses_set{nullptr};
 
 // Sampling interval parameter, the mean value for intervals between samples.
-std::atomic_size_t g_sampling_interval{kDefaultSamplingIntervalBytes};
+constinit std::atomic_size_t g_sampling_interval{kDefaultSamplingIntervalBytes};
 
 struct ThreadLocalData {
   // Accumulated bytes towards sample.
@@ -72,7 +62,7 @@ ThreadLocalData* GetThreadLocalData() {
   // Clang's implementation of thread_local.
   static base::NoDestructor<
       base::allocator::dispatcher::ThreadLocalStorage<ThreadLocalData>>
-      thread_local_data;
+      thread_local_data("poisson_allocation_sampler");
   return thread_local_data->GetThreadLocalData();
 #else
   // Notes on TLS usage:
@@ -95,13 +85,8 @@ ThreadLocalData* GetThreadLocalData() {
   // https://github.com/gcc-mirror/gcc/blob/master/libgcc/emutls.c
   // macOS version is based on _tlv_get_addr from dyld:
   // https://opensource.apple.com/source/dyld/dyld-635.2/src/threadLocalHelpers.s.auto.html
-#if defined(STARBOARD)
-  NOTIMPLEMENTED();
-  return nullptr;
-#else
   thread_local ThreadLocalData thread_local_data;
   return &thread_local_data;
-#endif
 #endif
 }
 
@@ -183,40 +168,27 @@ PoissonAllocationSampler::ScopedMuteHookedSamplesForTesting::
   ResetProfilingStateFlag(ProfilingStateFlag::kHookedSamplesMutedForTesting);
 }
 
-#if !BUILDFLAG(USE_ALLOCATION_EVENT_DISPATCHER)
-// static
-PoissonAllocationSampler* PoissonAllocationSampler::instance_ = nullptr;
-#endif
+PoissonAllocationSampler::ScopedMuteHookedSamplesForTesting::
+    ScopedMuteHookedSamplesForTesting(ScopedMuteHookedSamplesForTesting&&) =
+        default;
+
+PoissonAllocationSampler::ScopedMuteHookedSamplesForTesting&
+PoissonAllocationSampler::ScopedMuteHookedSamplesForTesting::operator=(
+    ScopedMuteHookedSamplesForTesting&&) = default;
 
 // static
-ABSL_CONST_INIT std::atomic<PoissonAllocationSampler::ProfilingStateFlagMask>
+constinit std::atomic<PoissonAllocationSampler::ProfilingStateFlagMask>
     PoissonAllocationSampler::profiling_state_{0};
 
 PoissonAllocationSampler::PoissonAllocationSampler() {
-#if !BUILDFLAG(USE_ALLOCATION_EVENT_DISPATCHER)
-  CHECK_EQ(nullptr, instance_);
-  instance_ = this;
-#endif
-
   Init();
   auto* sampled_addresses = new LockFreeAddressHashSet(64);
   g_sampled_addresses_set.store(sampled_addresses, std::memory_order_release);
-
-#if !BUILDFLAG(USE_ALLOCATION_EVENT_DISPATCHER)
-  // Install the allocator hooks immediately, to better match the behaviour
-  // of base::allocator::Initializer.
-  //
-  // TODO(crbug/1137393): Use base::allocator::Initializer to install the
-  // PoissonAllocationSampler hooks. All observers need to be passed to the
-  // initializer at the same time so this will install the hooks even
-  // earlier in process startup.
-  allocator::dispatcher::InstallStandardAllocatorHooks();
-#endif
 }
 
 // static
 void PoissonAllocationSampler::Init() {
-  [[maybe_unused]] static bool init_once = []() {
+  [[maybe_unused]] static bool init_once = [] {
     // Touch thread local data on initialization to enforce proper setup of
     // underlying storage system.
     GetThreadLocalData();
@@ -228,7 +200,7 @@ void PoissonAllocationSampler::Init() {
 void PoissonAllocationSampler::SetSamplingInterval(
     size_t sampling_interval_bytes) {
   // TODO(alph): Reset the sample being collected if running.
-  g_sampling_interval = sampling_interval_bytes;
+  g_sampling_interval.store(sampling_interval_bytes, std::memory_order_relaxed);
 }
 
 size_t PoissonAllocationSampler::SamplingInterval() const {
@@ -237,7 +209,7 @@ size_t PoissonAllocationSampler::SamplingInterval() const {
 
 // static
 size_t PoissonAllocationSampler::GetNextSampleInterval(size_t interval) {
-  if (UNLIKELY(g_deterministic)) {
+  if (g_deterministic) [[unlikely]] {
     return interval;
   }
 
@@ -258,10 +230,10 @@ size_t PoissonAllocationSampler::GetNextSampleInterval(size_t interval) {
   // huge gaps in the sampling stream. Probability of the upper bound gets hit
   // is exp(-20) ~ 2e-9, so it should not skew the distribution.
   size_t max_value = interval * 20;
-  if (UNLIKELY(value < min_value)) {
+  if (value < min_value) [[unlikely]] {
     return min_value;
   }
-  if (UNLIKELY(value > max_value)) {
+  if (value > max_value) [[unlikely]] {
     return max_value;
   }
   return static_cast<size_t>(value);
@@ -277,11 +249,11 @@ void PoissonAllocationSampler::DoRecordAllocation(
 
   thread_local_data->accumulated_bytes += size;
   intptr_t accumulated_bytes = thread_local_data->accumulated_bytes;
-  if (LIKELY(accumulated_bytes < 0)) {
+  if (accumulated_bytes < 0) [[likely]] {
     return;
   }
 
-  if (UNLIKELY(!(state & ProfilingStateFlag::kIsRunning))) {
+  if (!(state & ProfilingStateFlag::kIsRunning)) [[unlikely]] {
     // Sampling was in fact disabled when the hook was called. Reset the state
     // of the sampler. We do this check off the fast-path, because it's quite a
     // rare state when the sampler is stopped after it's started. (The most
@@ -293,12 +265,12 @@ void PoissonAllocationSampler::DoRecordAllocation(
   }
 
   // Failed allocation? Skip the sample.
-  if (UNLIKELY(!address)) {
+  if (!address) [[unlikely]] {
     return;
   }
 
   size_t mean_interval = g_sampling_interval.load(std::memory_order_relaxed);
-  if (UNLIKELY(!thread_local_data->sampling_interval_initialized)) {
+  if (!thread_local_data->sampling_interval_initialized) [[unlikely]] {
     thread_local_data->sampling_interval_initialized = true;
     // This is the very first allocation on the thread. It always makes it
     // passing the condition at |RecordAlloc|, because accumulated_bytes
@@ -324,7 +296,7 @@ void PoissonAllocationSampler::DoRecordAllocation(
 
   thread_local_data->accumulated_bytes = accumulated_bytes;
 
-  if (UNLIKELY(ScopedMuteThreadSamples::IsMuted())) {
+  if (ScopedMuteThreadSamples::IsMuted()) [[unlikely]] {
     return;
   }
 
@@ -344,7 +316,8 @@ void PoissonAllocationSampler::DoRecordAllocation(
   }
 
   size_t total_allocated = mean_interval * samples;
-  for (auto* observer : observers_copy) {
+  for (base::PoissonAllocationSampler::SamplesObserver* observer :
+       observers_copy) {
     observer->SampleAdded(address, size, total_allocated, type, context);
   }
 }
@@ -361,7 +334,8 @@ void PoissonAllocationSampler::DoRecordFree(void* address) {
     observers_copy = observers_;
     sampled_addresses_set().Remove(address);
   }
-  for (auto* observer : observers_copy) {
+  for (base::PoissonAllocationSampler::SamplesObserver* observer :
+       observers_copy) {
     observer->SampleRemoved(address);
   }
 }
@@ -455,7 +429,7 @@ void PoissonAllocationSampler::RemoveSamplesObserver(
   ScopedMuteThreadSamples no_reentrancy_scope;
   AutoLock lock(mutex_);
   auto it = ranges::find(observers_, observer);
-  DCHECK(it != observers_.end());
+  CHECK(it != observers_.end(), base::NotFatalUntil::M125);
   observers_.erase(it);
 
   // Stop the profiler if there are no more observers. Setting/resetting

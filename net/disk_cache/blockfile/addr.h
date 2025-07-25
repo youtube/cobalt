@@ -141,7 +141,6 @@ class NET_EXPORT_PRIVATE Addr {
         return 48;
       case EXTERNAL:
         NOTREACHED();
-        return 0;
     }
     return 0;
   }

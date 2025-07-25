@@ -37,15 +37,14 @@ TCPClientSocket::TCPClientSocket(
     net::NetLog* net_log,
     const net::NetLogSource& source,
     handles::NetworkHandle network)
-    : TCPClientSocket(
-          std::make_unique<TCPSocket>(std::move(socket_performance_watcher),
-                                      net_log,
-                                      source),
-          addresses,
-          -1 /* current_address_index */,
-          nullptr /* bind_address */,
-          network_quality_estimator,
-          network) {}
+    : TCPClientSocket(TCPSocket::Create(std::move(socket_performance_watcher),
+                                        net_log,
+                                        source),
+                      addresses,
+                      -1 /* current_address_index */,
+                      nullptr /* bind_address */,
+                      network_quality_estimator,
+                      network) {}
 
 TCPClientSocket::TCPClientSocket(std::unique_ptr<TCPSocket> connected_socket,
                                  const IPEndPoint& peer_address)
@@ -61,18 +60,19 @@ TCPClientSocket::TCPClientSocket(std::unique_ptr<TCPSocket> connected_socket,
 TCPClientSocket::TCPClientSocket(
     std::unique_ptr<TCPSocket> unconnected_socket,
     const AddressList& addresses,
+    std::unique_ptr<IPEndPoint> bound_address,
     NetworkQualityEstimator* network_quality_estimator)
     : TCPClientSocket(std::move(unconnected_socket),
                       addresses,
                       -1 /* current_address_index */,
-                      nullptr /* bind_address */,
+                      std::move(bound_address),
                       network_quality_estimator,
                       handles::kInvalidNetworkHandle) {}
 
 TCPClientSocket::~TCPClientSocket() {
   Disconnect();
 #if defined(TCP_CLIENT_SOCKET_OBSERVES_SUSPEND)
-  base::PowerMonitor::RemovePowerSuspendObserver(this);
+  base::PowerMonitor::GetInstance()->RemovePowerSuspendObserver(this);
 #endif  // defined(TCP_CLIENT_SOCKET_OBSERVES_SUSPEND)
 }
 
@@ -91,7 +91,6 @@ int TCPClientSocket::Bind(const IPEndPoint& address) {
   if (current_address_index_ >= 0 || bind_address_) {
     // Cannot bind the socket if we are already connected or connecting.
     NOTREACHED();
-    return ERR_UNEXPECTED;
   }
 
   int result = OK;
@@ -172,7 +171,7 @@ TCPClientSocket::TCPClientSocket(
   if (socket_->IsValid())
     socket_->SetDefaultOptionsForClient();
 #if defined(TCP_CLIENT_SOCKET_OBSERVES_SUSPEND)
-  base::PowerMonitor::AddPowerSuspendObserver(this);
+  base::PowerMonitor::GetInstance()->AddPowerSuspendObserver(this);
 #endif  // defined(TCP_CLIENT_SOCKET_OBSERVES_SUSPEND)
 }
 
@@ -222,8 +221,6 @@ int TCPClientSocket::DoConnectLoop(int result) {
         break;
       default:
         NOTREACHED() << "bad state " << state;
-        rv = ERR_UNEXPECTED;
-        break;
     }
   } while (rv != ERR_IO_PENDING && next_connect_state_ != CONNECT_STATE_NONE);
 
@@ -287,7 +284,7 @@ int TCPClientSocket::DoConnect() {
 int TCPClientSocket::DoConnectComplete(int result) {
   if (start_connect_attempt_) {
     EmitConnectAttemptHistograms(result);
-    start_connect_attempt_ = absl::nullopt;
+    start_connect_attempt_ = std::nullopt;
     connect_attempt_timer_.Stop();
   }
 
@@ -341,12 +338,11 @@ void TCPClientSocket::Disconnect() {
 void TCPClientSocket::DoDisconnect() {
   if (start_connect_attempt_) {
     EmitConnectAttemptHistograms(ERR_ABORTED);
-    start_connect_attempt_ = absl::nullopt;
+    start_connect_attempt_ = std::nullopt;
     connect_attempt_timer_.Stop();
   }
 
   total_received_bytes_ = 0;
-  EmitTCPMetricsHistogramsOnDisconnect();
 
   // If connecting or already connected, record that the socket has been
   // disconnected.
@@ -390,10 +386,6 @@ const NetLogWithSource& TCPClientSocket::NetLog() const {
 
 bool TCPClientSocket::WasEverUsed() const {
   return was_ever_used_;
-}
-
-bool TCPClientSocket::WasAlpnNegotiated() const {
-  return false;
 }
 
 NextProto TCPClientSocket::GetNegotiatedProtocol() const {
@@ -563,14 +555,6 @@ int TCPClientSocket::OpenSocket(AddressFamily family) {
   return OK;
 }
 
-void TCPClientSocket::EmitTCPMetricsHistogramsOnDisconnect() {
-  base::TimeDelta rtt;
-  if (socket_->GetEstimatedRoundTripTime(&rtt)) {
-    UMA_HISTOGRAM_CUSTOM_TIMES("Net.TcpRtt.AtDisconnect", rtt,
-                               base::Milliseconds(1), base::Minutes(10), 100);
-  }
-}
-
 void TCPClientSocket::EmitConnectAttemptHistograms(int result) {
   // This should only be called in response to completing a connect attempt.
   DCHECK(start_connect_attempt_);
@@ -582,10 +566,11 @@ void TCPClientSocket::EmitConnectAttemptHistograms(int result) {
   // failure. Note that failures also include cases when the connect attempt
   // was cancelled by the client before the handshake completed.
   if (result == OK) {
-    UMA_HISTOGRAM_MEDIUM_TIMES("Net.TcpConnectAttempt.Latency.Success",
-                               duration);
+    DEPRECATED_UMA_HISTOGRAM_MEDIUM_TIMES(
+        "Net.TcpConnectAttempt.Latency.Success", duration);
   } else {
-    UMA_HISTOGRAM_MEDIUM_TIMES("Net.TcpConnectAttempt.Latency.Error", duration);
+    DEPRECATED_UMA_HISTOGRAM_MEDIUM_TIMES("Net.TcpConnectAttempt.Latency.Error",
+                                          duration);
   }
 }
 
@@ -593,7 +578,7 @@ base::TimeDelta TCPClientSocket::GetConnectAttemptTimeout() {
   if (!base::FeatureList::IsEnabled(features::kTimeoutTcpConnectAttempt))
     return base::TimeDelta::Max();
 
-  absl::optional<base::TimeDelta> transport_rtt = absl::nullopt;
+  std::optional<base::TimeDelta> transport_rtt = std::nullopt;
   if (network_quality_estimator_)
     transport_rtt = network_quality_estimator_->GetTransportRTT();
 

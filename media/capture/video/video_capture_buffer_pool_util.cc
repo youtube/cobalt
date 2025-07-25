@@ -6,11 +6,9 @@
 
 #include "build/build_config.h"
 #include "build/chromeos_buildflags.h"
+#include "media/base/media_switches.h"
 #include "media/capture/capture_switches.h"
-
-#if BUILDFLAG(IS_CHROMEOS_ASH)
-#include "ash/constants/ash_features.h"
-#endif  // BUILDFLAG(IS_CHROMEOS_ASH)
+#include "services/video_effects/public/cpp/buildflags.h"
 
 namespace media {
 
@@ -20,7 +18,7 @@ int DeviceVideoCaptureMaxBufferPoolSize() {
   // those frames get dropped.
   static int max_buffer_count = kVideoCaptureDefaultMaxBufferPoolSize;
 
-#if BUILDFLAG(IS_MAC)
+#if BUILDFLAG(IS_APPLE)
   // On macOS, we allow a few more buffers as it's routinely observed that it
   // runs out of three when just displaying 60 FPS media in a video element.
   // Also, this must be greater than the frame delay of VideoToolbox encoder
@@ -32,22 +30,30 @@ int DeviceVideoCaptureMaxBufferPoolSize() {
   // here to take into account the delay caused by the consumer (e.g. display or
   // video encoder).
   if (switches::IsVideoCaptureUseGpuMemoryBufferEnabled()) {
-    if (base::FeatureList::IsEnabled(ash::features::kMoreVideoCaptureBuffers)) {
-      // Some devices might need more buffers to enable advanced features and
-      // might report pipeline depth as 8 for preview, 8 for video snapshot and
-      // 36 for recording. And some extra buffers are needed for the possible
-      // delay of display and video encoder, and also a few for spare usage.
-      max_buffer_count = 76;
-    } else {
-      max_buffer_count = 36;
-    }
+    max_buffer_count = 36;
   }
 #elif BUILDFLAG(IS_WIN)
   // On Windows, for GMB backed zero-copy more buffers are needed because it's
   // routinely observed that it runs out of default buffer count when just
   // displaying 60 FPS media in a video element
+
+  // It's confirmed that MFCaptureEngine may terminate the capture with
+  // MF_E_SAMPLEALLOCATOR_EMPTY error if more than 10 buffers are held by the
+  // client. Usually there are 3-5 frames in flight, unless there's some
+  // micro-freeze in the renderer or the gpu service.
   if (switches::IsVideoCaptureUseGpuMemoryBufferEnabled()) {
-    max_buffer_count = 30;
+    max_buffer_count = 10;
+  }
+#endif
+
+#if BUILDFLAG(ENABLE_VIDEO_EFFECTS)
+  if (base::FeatureList::IsEnabled(media::kCameraMicEffects)) {
+    // We may need 2x as many buffers if video effects are going to be applied
+    // to account for the fact that each captured video frame will have
+    // additional buffer allocated for post-processing result.
+    // TODO(crbug.com//375229156): Make pool size dependant on whether there is
+    // an effects processor in use.
+    max_buffer_count = max_buffer_count * 2;
   }
 #endif
 

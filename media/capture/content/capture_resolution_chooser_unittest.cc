@@ -2,9 +2,16 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#ifdef UNSAFE_BUFFERS_BUILD
+// TODO(crbug.com/40285824): Remove this and convert code to safer constructs.
+#pragma allow_unsafe_buffers
+#endif
+
 #include "media/capture/content/capture_resolution_chooser.h"
 
 #include <stddef.h>
+
+#include <numeric>
 
 #include "base/location.h"
 #include "testing/gtest/include/gtest/gtest.h"
@@ -263,8 +270,8 @@ TEST(CaptureResolutionChooserTest, ReasonableCaptureSizeWhenMissingSourceSize) {
   // Finally, updating the source size to be exactly in the middle of the
   // constraints range should result in the capture size being updated to that
   // same size.
-  const gfx::Size middle_size((kMinFrameWidth + kMaxFrameWidth) / 2,
-                              (kMinFrameHeight + kMaxFrameHeight) / 2);
+  static constexpr gfx::Size middle_size(std::midpoint(kMinFrameWidth, kMaxFrameWidth),
+                              std::midpoint(kMinFrameHeight, kMaxFrameHeight));
   chooser.SetSourceSize(middle_size);
   EXPECT_EQ(middle_size, chooser.capture_size());
 }

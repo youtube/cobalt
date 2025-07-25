@@ -1,0 +1,94 @@
+<!--
+Copyright 2024 The Chromium Authors
+Use of this source code is governed by a BSD-style license that can be
+found in the LICENSE file.
+-->
+
+<!--
+
+This file describes the enumerations referenced by entries in histograms.xml for
+this directory. Some enums may instead be listed in the central enums.xml file
+at src/tools/metrics/histograms/enums.xml when multiple files use them.
+
+For best practices on writing enumerations descriptions, see
+https://chromium.googlesource.com/chromium/src.git/+/HEAD/tools/metrics/histograms/README.md#Enum-Histograms
+
+Please follow the instructions in the OWNERS file in this directory to find a
+reviewer.
+-->
+
+<histogram-configuration>
+
+<!-- Enum types -->
+
+<enums>
+
+<!-- LINT.IfChange(FacilitatedPayments.FopSelectorAction) -->
+
+<enum name="FacilitatedPayments.FopSelectorAction">
+  <int value="0" label="FOP selected."/>
+  <int value="1" label="Turn off payment prompt link clicked."/>
+  <int value="2" label="Manage payment methods option selected."/>
+</enum>
+
+<!-- LINT.ThenChange(/components/facilitated_payments/core/ui_utils/facilitated_payments_ui_utils.h:FopSelectorAction) -->
+
+<enum name="FacilitatedPayments.InitiatePurchaseActionResult">
+  <int value="0" label="Failed"/>
+  <int value="1" label="Succeeded"/>
+  <int value="2" label="Abandoned"/>
+</enum>
+
+<enum name="FacilitatedPayments.PayFlowExitedReason">
+  <int value="0" label="Code validator failed"/>
+  <int value="1" label="Invalid code"/>
+  <int value="2"
+      label="User opted out of the flow using the Settings page pref"/>
+  <int value="3" label="No linked account"/>
+  <int value="4"
+      label="The device was in landscape orientation when the payflow was
+             triggered"/>
+  <int value="5" label="API client not available"/>
+  <int value="6" label="Risk data not available"/>
+  <int value="7" label="Client token not available"/>
+  <int value="8" label="InitiatePayment request failed"/>
+  <int value="9" label="Action token not available"/>
+  <int value="10" label="User logged out after selecting payment method"/>
+  <int value="11"
+      label="The FOP selector either wasn't shown, or was dismissed not as a
+             result of a user action"/>
+  <int value="12" label="The FOP selector was closed by the user"/>
+</enum>
+
+<enum name="FacilitatedPayments.PaymentNotOfferedReason">
+  <obsolete>
+    Replaced by FacilitatedPayments.PayFlowExitedReason. To be removed after
+    implementation is finished.
+  </obsolete>
+  <int value="0" label="Api not available"/>
+  <int value="1" label="Risk data empty"/>
+  <int value="2" label="Code validtor failed"/>
+  <int value="3" label="Invalid code"/>
+  <int value="4" label="Landscape screen orientation"/>
+</enum>
+
+<enum name="FacilitatedPayments.TransactionResult">
+  <int value="0" label="Failed"/>
+  <int value="1" label="Succeeded"/>
+  <int value="2" label="Abandoned"/>
+</enum>
+
+<!-- LINT.IfChange(FacilitatedPayments.UiScreen) -->
+
+<enum name="FacilitatedPayments.UiScreen">
+  <int value="0" label="Hidden"/>
+  <int value="1" label="FOP selector"/>
+  <int value="2" label="Progress screen"/>
+  <int value="3" label="Error screen"/>
+</enum>
+
+<!-- LINT.ThenChange(/components/facilitated_payments/core/ui_utils/facilitated_payments_ui_utils.h:UiState) -->
+
+</enums>
+
+</histogram-configuration>

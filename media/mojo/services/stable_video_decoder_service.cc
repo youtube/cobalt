@@ -4,18 +4,46 @@
 
 #include "media/mojo/services/stable_video_decoder_service.h"
 
+#include "base/notreached.h"
+#include "media/gpu/chromeos/frame_registry.h"
 #include "media/mojo/common/media_type_converters.h"
+
+#if BUILDFLAG(IS_CHROMEOS_ASH) && BUILDFLAG(USE_VAAPI)
+#include "media/gpu/vaapi/vaapi_wrapper.h"
+#endif
 
 namespace media {
 
 namespace {
 
+// GetGpuMemoryBufferHandle() is a helper function that gets or creates a
+// GpuMemoryBufferHandle from |media_frame|. For decoders that use VDA, the
+// storage type is STORAGE_GPU_MEMORY_BUFFER. For decoders that use VD directly,
+// the storage type is STORAGE_OPAQUE.
+gfx::GpuMemoryBufferHandle GetGpuMemoryBufferHandle(
+    scoped_refptr<VideoFrame> media_frame,
+    scoped_refptr<const FrameRegistry> frame_registry) {
+  switch (media_frame->storage_type()) {
+    case VideoFrame::STORAGE_GPU_MEMORY_BUFFER:
+      CHECK(media_frame->HasMappableGpuBuffer());
+      return media_frame->GetGpuMemoryBufferHandle();
+    case VideoFrame::STORAGE_OPAQUE: {
+      CHECK(frame_registry);
+      CHECK(media_frame->metadata().tracking_token.has_value());
+      auto frame_resource =
+          frame_registry->AccessFrame(*media_frame->metadata().tracking_token);
+      CHECK(frame_resource);
+      return frame_resource->CreateGpuMemoryBufferHandle();
+    }
+    default:
+      NOTREACHED();
+  }
+}
+
 stable::mojom::VideoFramePtr MediaVideoFrameToMojoVideoFrame(
-    scoped_refptr<VideoFrame> media_frame) {
+    scoped_refptr<VideoFrame> media_frame,
+    scoped_refptr<const FrameRegistry> frame_registry) {
   CHECK(!media_frame->metadata().end_of_stream);
-  CHECK_EQ(media_frame->storage_type(),
-           media::VideoFrame::STORAGE_GPU_MEMORY_BUFFER);
-  CHECK(media_frame->HasGpuMemoryBuffer());
 
   stable::mojom::VideoFramePtr mojo_frame = stable::mojom::VideoFrame::New();
   CHECK(mojo_frame);
@@ -69,7 +97,7 @@ stable::mojom::VideoFramePtr MediaVideoFrameToMojoVideoFrame(
   mojo_frame->timestamp = media_frame->timestamp();
 
   gfx::GpuMemoryBufferHandle gpu_memory_buffer_handle =
-      media_frame->GetGpuMemoryBuffer()->CloneHandle();
+      GetGpuMemoryBufferHandle(media_frame, frame_registry);
   CHECK_EQ(gpu_memory_buffer_handle.type, gfx::NATIVE_PIXMAP);
   CHECK(!gpu_memory_buffer_handle.native_pixmap_handle.planes.empty());
   mojo_frame->gpu_memory_buffer_handle = std::move(gpu_memory_buffer_handle);
@@ -109,9 +137,13 @@ stable::mojom::VideoFramePtr MediaVideoFrameToMojoVideoFrame(
 }  // namespace
 
 StableVideoDecoderService::StableVideoDecoderService(
+    mojo::PendingRemote<stable::mojom::StableVideoDecoderTracker>
+        tracker_remote,
     std::unique_ptr<mojom::VideoDecoder> dst_video_decoder,
-    MojoCdmServiceContext* cdm_service_context)
-    : video_decoder_client_receiver_(this),
+    MojoCdmServiceContext* cdm_service_context,
+    scoped_refptr<const FrameRegistry> frame_registry)
+    : tracker_remote_(std::move(tracker_remote)),
+      video_decoder_client_receiver_(this),
       media_log_receiver_(this),
       stable_video_frame_handle_releaser_receiver_(this),
       dst_video_decoder_(std::move(dst_video_decoder)),
@@ -120,7 +152,8 @@ StableVideoDecoderService::StableVideoDecoderService(
       ,
       cdm_service_context_(cdm_service_context)
 #endif  // BUILDFLAG(IS_CHROMEOS_ASH)
-{
+      ,
+      frame_registry_(frame_registry) {
   DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
   CHECK(!!dst_video_decoder_);
   dst_video_decoder_remote_.Bind(
@@ -189,9 +222,12 @@ void StableVideoDecoderService::Initialize(
     std::move(callback).Run(DecoderStatus::Codes::kFailedToCreateDecoder,
                             /*needs_bitstream_conversion=*/false,
                             /*max_decode_requests=*/1,
-                            VideoDecoderType::kUnknown);
+                            VideoDecoderType::kUnknown,
+                            /*needs_transcryption=*/false);
     return;
   }
+
+  bool needs_transcryption = false;
 
   // The |config| should have been validated at deserialization time.
   DCHECK(config.IsValidConfig());
@@ -202,7 +238,8 @@ void StableVideoDecoderService::Initialize(
         std::move(callback).Run(DecoderStatus::Codes::kMissingCDM,
                                 /*needs_bitstream_conversion=*/false,
                                 /*max_decode_requests=*/1,
-                                VideoDecoderType::kUnknown);
+                                VideoDecoderType::kUnknown,
+                                /*needs_transcryption=*/false);
         return;
       }
       remote_cdm_context_ = base::WrapRefCounted(
@@ -210,11 +247,16 @@ void StableVideoDecoderService::Initialize(
       cdm_id_ = cdm_service_context_->RegisterRemoteCdmContext(
           remote_cdm_context_.get());
     }
+#if BUILDFLAG(USE_VAAPI)
+    needs_transcryption = (VaapiWrapper::GetImplementationType() ==
+                           VAImplementation::kMesaGallium);
+#endif
 #else
     std::move(callback).Run(DecoderStatus::Codes::kUnsupportedConfig,
                             /*needs_bitstream_conversion=*/false,
                             /*max_decode_requests=*/1,
-                            VideoDecoderType::kUnknown);
+                            VideoDecoderType::kUnknown,
+                            /*needs_transcryption=*/false);
     return;
 #endif  // BUILDFLAG(IS_CHROMEOS_ASH)
   }
@@ -222,8 +264,28 @@ void StableVideoDecoderService::Initialize(
   // Even though this is in-process, we still need to pass a |cdm_id_|
   // instead of a media::CdmContext* since this goes through Mojo IPC. This is
   // why we need to register with the |cdm_service_context_| above.
-  dst_video_decoder_remote_->Initialize(config, low_delay, cdm_id_,
-                                        std::move(callback));
+  //
+  // Note: base::Unretained() is safe because *|this| fully owns
+  // |dst_video_decoder_remote_|, so the response callback will never run beyond
+  // the lifetime of *|this|.
+  dst_video_decoder_remote_->Initialize(
+      config, low_delay, cdm_id_,
+      base::BindOnce(&StableVideoDecoderService::OnInitializeDone,
+                     base::Unretained(this), std::move(callback),
+                     needs_transcryption));
+}
+
+void StableVideoDecoderService::OnInitializeDone(
+    InitializeCallback init_cb,
+    bool needs_transcryption,
+    const DecoderStatus& status,
+    bool needs_bitstream_conversion,
+    int32_t max_decode_requests,
+    VideoDecoderType decoder_type) {
+  DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
+  std::move(init_cb).Run(status, needs_bitstream_conversion,
+                         max_decode_requests, decoder_type,
+                         needs_transcryption);
 }
 
 void StableVideoDecoderService::Decode(
@@ -262,13 +324,13 @@ void StableVideoDecoderService::ReleaseVideoFrame(
   // ultimate client (the renderer process) before calling ReleaseVideoFrame()
   // on the out-of-process video decoder.
   video_frame_handle_releaser_remote_->ReleaseVideoFrame(
-      release_token, /*release_sync_token=*/absl::nullopt);
+      release_token, /*release_sync_token=*/std::nullopt);
 }
 
 void StableVideoDecoderService::OnVideoFrameDecoded(
     const scoped_refptr<VideoFrame>& frame,
     bool can_read_without_stalling,
-    const absl::optional<base::UnguessableToken>& release_token) {
+    const std::optional<base::UnguessableToken>& release_token) {
   DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
   DCHECK(stable_video_decoder_client_remote_.is_bound());
   DCHECK(release_token.has_value());
@@ -279,7 +341,7 @@ void StableVideoDecoderService::OnVideoFrameDecoded(
   CHECK(frame->metadata().power_efficient);
 
   stable_video_decoder_client_remote_->OnVideoFrameDecoded(
-      MediaVideoFrameToMojoVideoFrame(std::move(frame)),
+      MediaVideoFrameToMojoVideoFrame(std::move(frame), frame_registry_),
       can_read_without_stalling, *release_token);
 }
 

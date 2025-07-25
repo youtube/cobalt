@@ -2,6 +2,11 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#ifdef UNSAFE_BUFFERS_BUILD
+// TODO(crbug.com/40284755): Remove this and spanify to fix the errors.
+#pragma allow_unsafe_buffers
+#endif
+
 #include "net/spdy/spdy_http_stream.h"
 
 #include <stdint.h>
@@ -13,12 +18,15 @@
 #include "base/memory/raw_ptr.h"
 #include "base/run_loop.h"
 #include "base/task/single_thread_task_runner.h"
+#include "base/test/scoped_feature_list.h"
 #include "crypto/ec_private_key.h"
 #include "crypto/ec_signature_creator.h"
 #include "crypto/signature_creator.h"
 #include "net/base/chunked_upload_data_stream.h"
+#include "net/base/features.h"
 #include "net/base/load_timing_info.h"
 #include "net/base/load_timing_info_test_util.h"
+#include "net/base/session_usage.h"
 #include "net/base/test_completion_callback.h"
 #include "net/cert/asn1_util.h"
 #include "net/dns/public/secure_dns_policy.h"
@@ -26,6 +34,7 @@
 #include "net/http/http_response_headers.h"
 #include "net/http/http_response_info.h"
 #include "net/log/net_log_with_source.h"
+#include "net/quic/quic_http_utils.h"
 #include "net/socket/socket_tag.h"
 #include "net/socket/socket_test_util.h"
 #include "net/spdy/spdy_http_utils.h"
@@ -34,6 +43,7 @@
 #include "net/test/gtest_util.h"
 #include "net/test/test_data_directory.h"
 #include "net/test/test_with_task_environment.h"
+#include "net/third_party/quiche/src/quiche/common/http/http_header_block.h"
 #include "net/traffic_annotation/network_traffic_annotation_test_helper.h"
 #include "testing/gmock/include/gmock/gmock.h"
 #include "testing/gtest/include/gtest/gtest.h"
@@ -124,19 +134,27 @@ class CancelStreamCallback : public TestCompletionCallbackBase {
 
 }  // namespace
 
-class SpdyHttpStreamTest : public TestWithTaskEnvironment {
+class SpdyHttpStreamTest : public testing::TestWithParam<bool>,
+                           public WithTaskEnvironment {
  public:
   SpdyHttpStreamTest()
-      : url_(kDefaultUrl),
+      : spdy_util_(/*use_priority_header=*/true),
+        url_(kDefaultUrl),
         host_port_pair_(HostPortPair::FromURL(url_)),
         key_(host_port_pair_,
-             ProxyServer::Direct(),
              PRIVACY_MODE_DISABLED,
-             SpdySessionKey::IsProxySession::kFalse,
+             ProxyChain::Direct(),
+             SessionUsage::kDestination,
              SocketTag(),
              NetworkAnonymizationKey(),
-             SecureDnsPolicy::kAllow),
+             SecureDnsPolicy::kAllow,
+             /*disable_cert_verification_network_fetches=*/false),
         ssl_(SYNCHRONOUS, OK) {
+    if (PriorityHeaderEnabled()) {
+      feature_list_.InitAndEnableFeature(net::features::kPriorityHeader);
+    } else {
+      feature_list_.InitAndDisableFeature(net::features::kPriorityHeader);
+    }
     session_deps_.net_log = NetLog::Get();
   }
 
@@ -157,12 +175,15 @@ class SpdyHttpStreamTest : public TestWithTaskEnvironment {
 
     ssl_.ssl_info.cert =
         ImportCertFromFile(GetTestCertsDirectory(), "spdy_pooling.pem");
+    ssl_.next_proto = NextProto::kProtoHTTP2;
     ASSERT_TRUE(ssl_.ssl_info.cert);
     session_deps_.socket_factory->AddSSLSocketDataProvider(&ssl_);
 
     http_session_ = SpdySessionDependencies::SpdyCreateSession(&session_deps_);
     session_ = CreateSpdySession(http_session_.get(), key_, NetLogWithSource());
   }
+
+  bool PriorityHeaderEnabled() const { return GetParam(); }
 
   SpdyTestUtil spdy_util_;
   SpdySessionDependencies session_deps_;
@@ -175,9 +196,12 @@ class SpdyHttpStreamTest : public TestWithTaskEnvironment {
 
  private:
   SSLSocketDataProvider ssl_;
+  base::test::ScopedFeatureList feature_list_;
 };
 
-TEST_F(SpdyHttpStreamTest, SendRequest) {
+INSTANTIATE_TEST_SUITE_P(All, SpdyHttpStreamTest, testing::Values(true, false));
+
+TEST_P(SpdyHttpStreamTest, SendRequest) {
   spdy::SpdySerializedFrame req(
       spdy_util_.ConstructSpdyGet(nullptr, 0, 1, LOWEST));
   MockWrite writes[] = {
@@ -200,9 +224,9 @@ TEST_F(SpdyHttpStreamTest, SendRequest) {
   HttpResponseInfo response;
   HttpRequestHeaders headers;
   NetLogWithSource net_log;
-  auto http_stream = std::make_unique<SpdyHttpStream>(
-      session_, kNoPushedStreamFound, net_log.source(),
-      /*dns_aliases=*/std::set<std::string>());
+  auto http_stream =
+      std::make_unique<SpdyHttpStream>(session_, net_log.source(),
+                                       /*dns_aliases=*/std::set<std::string>());
   // Make sure getting load timing information the stream early does not crash.
   LoadTimingInfo load_timing_info;
   EXPECT_FALSE(http_stream->GetLoadTimingInfo(&load_timing_info));
@@ -238,7 +262,7 @@ TEST_F(SpdyHttpStreamTest, SendRequest) {
             http_stream->GetTotalReceivedBytes());
 }
 
-TEST_F(SpdyHttpStreamTest, RequestInfoDestroyedBeforeRead) {
+TEST_P(SpdyHttpStreamTest, RequestInfoDestroyedBeforeRead) {
   spdy::SpdySerializedFrame req(
       spdy_util_.ConstructSpdyGet(nullptr, 0, 1, LOWEST));
   MockWrite writes[] = {CreateMockWrite(req, 0)};
@@ -263,9 +287,9 @@ TEST_F(SpdyHttpStreamTest, RequestInfoDestroyedBeforeRead) {
   HttpResponseInfo response;
   HttpRequestHeaders headers;
   NetLogWithSource net_log;
-  auto http_stream = std::make_unique<SpdyHttpStream>(
-      session_, kNoPushedStreamFound, net_log.source(),
-      /*dns_aliases=*/std::set<std::string>());
+  auto http_stream =
+      std::make_unique<SpdyHttpStream>(session_, net_log.source(),
+                                       /*dns_aliases=*/std::set<std::string>());
 
   http_stream->RegisterRequest(request.get());
   ASSERT_THAT(http_stream->InitializeStream(true, DEFAULT_PRIORITY, net_log,
@@ -288,7 +312,7 @@ TEST_F(SpdyHttpStreamTest, RequestInfoDestroyedBeforeRead) {
   request.reset();
 
   // Read stream to completion.
-  scoped_refptr<IOBuffer> buf = base::MakeRefCounted<IOBuffer>(1);
+  auto buf = base::MakeRefCounted<IOBufferWithSize>(1);
   ASSERT_EQ(0,
             http_stream->ReadResponseBody(buf.get(), 1, callback.callback()));
 
@@ -300,7 +324,7 @@ TEST_F(SpdyHttpStreamTest, RequestInfoDestroyedBeforeRead) {
             http_stream->GetTotalReceivedBytes());
 }
 
-TEST_F(SpdyHttpStreamTest, LoadTimingTwoRequests) {
+TEST_P(SpdyHttpStreamTest, LoadTimingTwoRequests) {
   spdy::SpdySerializedFrame req1(
       spdy_util_.ConstructSpdyGet(nullptr, 0, 1, LOWEST));
   spdy::SpdySerializedFrame req2(
@@ -333,9 +357,9 @@ TEST_F(SpdyHttpStreamTest, LoadTimingTwoRequests) {
   HttpResponseInfo response1;
   HttpRequestHeaders headers1;
   NetLogWithSource net_log;
-  auto http_stream1 = std::make_unique<SpdyHttpStream>(
-      session_, kNoPushedStreamFound, net_log.source(),
-      /*dns_aliases=*/std::set<std::string>());
+  auto http_stream1 =
+      std::make_unique<SpdyHttpStream>(session_, net_log.source(),
+                                       /*dns_aliases=*/std::set<std::string>());
 
   HttpRequestInfo request2;
   request2.method = "GET";
@@ -345,9 +369,9 @@ TEST_F(SpdyHttpStreamTest, LoadTimingTwoRequests) {
   TestCompletionCallback callback2;
   HttpResponseInfo response2;
   HttpRequestHeaders headers2;
-  auto http_stream2 = std::make_unique<SpdyHttpStream>(
-      session_, kNoPushedStreamFound, net_log.source(),
-      /*dns_aliases=*/std::set<std::string>());
+  auto http_stream2 =
+      std::make_unique<SpdyHttpStream>(session_, net_log.source(),
+                                       /*dns_aliases=*/std::set<std::string>());
 
   // First write.
   http_stream1->RegisterRequest(&request1);
@@ -388,7 +412,7 @@ TEST_F(SpdyHttpStreamTest, LoadTimingTwoRequests) {
 
   // Read stream 1 to completion, before making sure we can still read load
   // timing from both streams.
-  scoped_refptr<IOBuffer> buf1 = base::MakeRefCounted<IOBuffer>(1);
+  auto buf1 = base::MakeRefCounted<IOBufferWithSize>(1);
   ASSERT_EQ(
       0, http_stream1->ReadResponseBody(buf1.get(), 1, callback1.callback()));
 
@@ -409,7 +433,7 @@ TEST_F(SpdyHttpStreamTest, LoadTimingTwoRequests) {
             http_stream2->GetTotalReceivedBytes());
 }
 
-TEST_F(SpdyHttpStreamTest, SendChunkedPost) {
+TEST_P(SpdyHttpStreamTest, SendChunkedPost) {
   spdy::SpdySerializedFrame req(
       spdy_util_.ConstructChunkedSpdyPost(nullptr, 0));
   spdy::SpdySerializedFrame body(
@@ -429,10 +453,11 @@ TEST_F(SpdyHttpStreamTest, SendChunkedPost) {
   InitSession(reads, writes);
 
   ChunkedUploadDataStream upload_stream(0);
-  const int kFirstChunkSize = kUploadDataSize/2;
-  upload_stream.AppendData(kUploadData, kFirstChunkSize, false);
-  upload_stream.AppendData(kUploadData + kFirstChunkSize,
-                            kUploadDataSize - kFirstChunkSize, true);
+  const size_t kFirstChunkSize = kUploadDataSize / 2;
+  auto [first_chunk, second_chunk] =
+      base::byte_span_from_cstring(kUploadData).split_at(kFirstChunkSize);
+  upload_stream.AppendData(first_chunk, false);
+  upload_stream.AppendData(second_chunk, true);
 
   HttpRequestInfo request;
   request.method = "POST";
@@ -449,8 +474,7 @@ TEST_F(SpdyHttpStreamTest, SendChunkedPost) {
   HttpResponseInfo response;
   HttpRequestHeaders headers;
   NetLogWithSource net_log;
-  SpdyHttpStream http_stream(session_, kNoPushedStreamFound, net_log.source(),
-                             {} /* dns_aliases */);
+  SpdyHttpStream http_stream(session_, net_log.source(), {} /* dns_aliases */);
   http_stream.RegisterRequest(&request);
   ASSERT_THAT(http_stream.InitializeStream(false, DEFAULT_PRIORITY, net_log,
                                            CompletionOnceCallback()),
@@ -473,7 +497,7 @@ TEST_F(SpdyHttpStreamTest, SendChunkedPost) {
 }
 
 // This unittest tests the request callback is properly called and handled.
-TEST_F(SpdyHttpStreamTest, SendChunkedPostLastEmpty) {
+TEST_P(SpdyHttpStreamTest, SendChunkedPostLastEmpty) {
   spdy::SpdySerializedFrame req(
       spdy_util_.ConstructChunkedSpdyPost(nullptr, 0));
   spdy::SpdySerializedFrame chunk(
@@ -492,7 +516,7 @@ TEST_F(SpdyHttpStreamTest, SendChunkedPostLastEmpty) {
   InitSession(reads, writes);
 
   ChunkedUploadDataStream upload_stream(0);
-  upload_stream.AppendData(nullptr, 0, true);
+  upload_stream.AppendData(base::byte_span_from_cstring(""), true);
 
   HttpRequestInfo request;
   request.method = "POST";
@@ -509,8 +533,7 @@ TEST_F(SpdyHttpStreamTest, SendChunkedPostLastEmpty) {
   HttpResponseInfo response;
   HttpRequestHeaders headers;
   NetLogWithSource net_log;
-  SpdyHttpStream http_stream(session_, kNoPushedStreamFound, net_log.source(),
-                             {} /* dns_aliases */);
+  SpdyHttpStream http_stream(session_, net_log.source(), {} /* dns_aliases */);
   http_stream.RegisterRequest(&request);
   ASSERT_THAT(http_stream.InitializeStream(false, DEFAULT_PRIORITY, net_log,
                                            CompletionOnceCallback()),
@@ -531,7 +554,7 @@ TEST_F(SpdyHttpStreamTest, SendChunkedPostLastEmpty) {
   EXPECT_FALSE(HasSpdySession(http_session_->spdy_session_pool(), key_));
 }
 
-TEST_F(SpdyHttpStreamTest, ConnectionClosedDuringChunkedPost) {
+TEST_P(SpdyHttpStreamTest, ConnectionClosedDuringChunkedPost) {
   spdy::SpdySerializedFrame req(
       spdy_util_.ConstructChunkedSpdyPost(nullptr, 0));
   spdy::SpdySerializedFrame body(
@@ -551,7 +574,7 @@ TEST_F(SpdyHttpStreamTest, ConnectionClosedDuringChunkedPost) {
 
   ChunkedUploadDataStream upload_stream(0);
   // Append first chunk.
-  upload_stream.AppendData(kUploadData, kUploadDataSize, false);
+  upload_stream.AppendData(base::byte_span_from_cstring(kUploadData), false);
 
   HttpRequestInfo request;
   request.method = "POST";
@@ -568,8 +591,7 @@ TEST_F(SpdyHttpStreamTest, ConnectionClosedDuringChunkedPost) {
   HttpResponseInfo response;
   HttpRequestHeaders headers;
   NetLogWithSource net_log;
-  SpdyHttpStream http_stream(session_, kNoPushedStreamFound, net_log.source(),
-                             {} /* dns_aliases */);
+  SpdyHttpStream http_stream(session_, net_log.source(), {} /* dns_aliases */);
   http_stream.RegisterRequest(&request);
   ASSERT_THAT(http_stream.InitializeStream(false, DEFAULT_PRIORITY, net_log,
                                            CompletionOnceCallback()),
@@ -590,7 +612,7 @@ TEST_F(SpdyHttpStreamTest, ConnectionClosedDuringChunkedPost) {
   EXPECT_FALSE(HasSpdySession(http_session_->spdy_session_pool(), key_));
 
   // Appending a second chunk now should not result in a crash.
-  upload_stream.AppendData(kUploadData, kUploadDataSize, true);
+  upload_stream.AppendData(base::byte_span_from_cstring(kUploadData), true);
   // Appending data is currently done synchronously, but seems best to be
   // paranoid.
   base::RunLoop().RunUntilIdle();
@@ -603,7 +625,7 @@ TEST_F(SpdyHttpStreamTest, ConnectionClosedDuringChunkedPost) {
 
 // Test to ensure the SpdyStream state machine does not get confused when a
 // chunk becomes available while a write is pending.
-TEST_F(SpdyHttpStreamTest, DelayedSendChunkedPost) {
+TEST_P(SpdyHttpStreamTest, DelayedSendChunkedPost) {
   const char kUploadData1[] = "12345678";
   const int kUploadData1Size = std::size(kUploadData1) - 1;
   spdy::SpdySerializedFrame req(
@@ -638,12 +660,12 @@ TEST_F(SpdyHttpStreamTest, DelayedSendChunkedPost) {
   ASSERT_THAT(upload_stream.Init(TestCompletionCallback().callback(),
                                  NetLogWithSource()),
               IsOk());
-  upload_stream.AppendData(kUploadData, kUploadDataSize, false);
+  upload_stream.AppendData(base::byte_span_from_cstring(kUploadData), false);
 
   NetLogWithSource net_log;
-  auto http_stream = std::make_unique<SpdyHttpStream>(
-      session_, kNoPushedStreamFound, net_log.source(),
-      /*dns_aliases=*/std::set<std::string>());
+  auto http_stream =
+      std::make_unique<SpdyHttpStream>(session_, net_log.source(),
+                                       /*dns_aliases=*/std::set<std::string>());
   http_stream->RegisterRequest(&request);
   ASSERT_THAT(http_stream->InitializeStream(false, DEFAULT_PRIORITY, net_log,
                                             CompletionOnceCallback()),
@@ -663,8 +685,8 @@ TEST_F(SpdyHttpStreamTest, DelayedSendChunkedPost) {
   ASSERT_FALSE(callback.have_result());
 
   // Now append the final two chunks which will enqueue two more writes.
-  upload_stream.AppendData(kUploadData1, kUploadData1Size, false);
-  upload_stream.AppendData(kUploadData, kUploadDataSize, true);
+  upload_stream.AppendData(base::byte_span_from_cstring(kUploadData1), false);
+  upload_stream.AppendData(base::byte_span_from_cstring(kUploadData), true);
 
   // Finish writing all the chunks and do all reads.
   base::RunLoop().RunUntilIdle();
@@ -682,24 +704,21 @@ TEST_F(SpdyHttpStreamTest, DelayedSendChunkedPost) {
   ASSERT_THAT(http_stream->ReadResponseHeaders(callback.callback()), IsOk());
 
   // Check |chunk1| response.
-  scoped_refptr<IOBuffer> buf1 =
-      base::MakeRefCounted<IOBuffer>(kUploadDataSize);
+  auto buf1 = base::MakeRefCounted<IOBufferWithSize>(kUploadDataSize);
   ASSERT_EQ(kUploadDataSize,
             http_stream->ReadResponseBody(
                 buf1.get(), kUploadDataSize, callback.callback()));
   EXPECT_EQ(kUploadData, std::string(buf1->data(), kUploadDataSize));
 
   // Check |chunk2| response.
-  scoped_refptr<IOBuffer> buf2 =
-      base::MakeRefCounted<IOBuffer>(kUploadData1Size);
+  auto buf2 = base::MakeRefCounted<IOBufferWithSize>(kUploadData1Size);
   ASSERT_EQ(kUploadData1Size,
             http_stream->ReadResponseBody(
                 buf2.get(), kUploadData1Size, callback.callback()));
   EXPECT_EQ(kUploadData1, std::string(buf2->data(), kUploadData1Size));
 
   // Check |chunk3| response.
-  scoped_refptr<IOBuffer> buf3 =
-      base::MakeRefCounted<IOBuffer>(kUploadDataSize);
+  auto buf3 = base::MakeRefCounted<IOBufferWithSize>(kUploadDataSize);
   ASSERT_EQ(kUploadDataSize,
             http_stream->ReadResponseBody(
                 buf3.get(), kUploadDataSize, callback.callback()));
@@ -711,7 +730,7 @@ TEST_F(SpdyHttpStreamTest, DelayedSendChunkedPost) {
 
 // Test that the SpdyStream state machine can handle sending a final empty data
 // frame when uploading a chunked data stream.
-TEST_F(SpdyHttpStreamTest, DelayedSendChunkedPostWithEmptyFinalDataFrame) {
+TEST_P(SpdyHttpStreamTest, DelayedSendChunkedPostWithEmptyFinalDataFrame) {
   spdy::SpdySerializedFrame req(
       spdy_util_.ConstructChunkedSpdyPost(nullptr, 0));
   spdy::SpdySerializedFrame chunk1(spdy_util_.ConstructSpdyDataFrame(1, false));
@@ -742,12 +761,12 @@ TEST_F(SpdyHttpStreamTest, DelayedSendChunkedPostWithEmptyFinalDataFrame) {
   ASSERT_THAT(upload_stream.Init(TestCompletionCallback().callback(),
                                  NetLogWithSource()),
               IsOk());
-  upload_stream.AppendData(kUploadData, kUploadDataSize, false);
+  upload_stream.AppendData(base::byte_span_from_cstring(kUploadData), false);
 
   NetLogWithSource net_log;
-  auto http_stream = std::make_unique<SpdyHttpStream>(
-      session_, kNoPushedStreamFound, net_log.source(),
-      /*dns_aliases=*/std::set<std::string>());
+  auto http_stream =
+      std::make_unique<SpdyHttpStream>(session_, net_log.source(),
+                                       /*dns_aliases=*/std::set<std::string>());
   http_stream->RegisterRequest(&request);
   ASSERT_THAT(http_stream->InitializeStream(false, DEFAULT_PRIORITY, net_log,
                                             CompletionOnceCallback()),
@@ -771,7 +790,7 @@ TEST_F(SpdyHttpStreamTest, DelayedSendChunkedPostWithEmptyFinalDataFrame) {
   EXPECT_EQ(0, http_stream->GetTotalReceivedBytes());
 
   // Now end the stream with an empty data frame and the FIN set.
-  upload_stream.AppendData(nullptr, 0, true);
+  upload_stream.AppendData(base::byte_span_from_cstring(""), true);
 
   // Finish writing the final frame, and perform all reads.
   base::RunLoop().RunUntilIdle();
@@ -787,8 +806,7 @@ TEST_F(SpdyHttpStreamTest, DelayedSendChunkedPostWithEmptyFinalDataFrame) {
             http_stream->GetTotalReceivedBytes());
 
   // Check |chunk1| response.
-  scoped_refptr<IOBuffer> buf1 =
-      base::MakeRefCounted<IOBuffer>(kUploadDataSize);
+  auto buf1 = base::MakeRefCounted<IOBufferWithSize>(kUploadDataSize);
   ASSERT_EQ(kUploadDataSize,
             http_stream->ReadResponseBody(
                 buf1.get(), kUploadDataSize, callback.callback()));
@@ -805,7 +823,7 @@ TEST_F(SpdyHttpStreamTest, DelayedSendChunkedPostWithEmptyFinalDataFrame) {
 
 // Test that the SpdyStream state machine handles a chunked upload with no
 // payload. Unclear if this is a case worth supporting.
-TEST_F(SpdyHttpStreamTest, ChunkedPostWithEmptyPayload) {
+TEST_P(SpdyHttpStreamTest, ChunkedPostWithEmptyPayload) {
   spdy::SpdySerializedFrame req(
       spdy_util_.ConstructChunkedSpdyPost(nullptr, 0));
   spdy::SpdySerializedFrame chunk(
@@ -833,12 +851,12 @@ TEST_F(SpdyHttpStreamTest, ChunkedPostWithEmptyPayload) {
   ASSERT_THAT(upload_stream.Init(TestCompletionCallback().callback(),
                                  NetLogWithSource()),
               IsOk());
-  upload_stream.AppendData("", 0, true);
+  upload_stream.AppendData(base::byte_span_from_cstring(""), true);
 
   NetLogWithSource net_log;
-  auto http_stream = std::make_unique<SpdyHttpStream>(
-      session_, kNoPushedStreamFound, net_log.source(),
-      /*dns_aliases=*/std::set<std::string>());
+  auto http_stream =
+      std::make_unique<SpdyHttpStream>(session_, net_log.source(),
+                                       /*dns_aliases=*/std::set<std::string>());
   http_stream->RegisterRequest(&request);
   ASSERT_THAT(http_stream->InitializeStream(false, DEFAULT_PRIORITY, net_log,
                                             CompletionOnceCallback()),
@@ -867,7 +885,7 @@ TEST_F(SpdyHttpStreamTest, ChunkedPostWithEmptyPayload) {
   ASSERT_THAT(http_stream->ReadResponseHeaders(callback.callback()), IsOk());
 
   // Check |chunk| response.
-  scoped_refptr<IOBuffer> buf = base::MakeRefCounted<IOBuffer>(1);
+  auto buf = base::MakeRefCounted<IOBufferWithSize>(1);
   ASSERT_EQ(0,
             http_stream->ReadResponseBody(
                 buf.get(), 1, callback.callback()));
@@ -877,7 +895,7 @@ TEST_F(SpdyHttpStreamTest, ChunkedPostWithEmptyPayload) {
 }
 
 // Test case for https://crbug.com/50058.
-TEST_F(SpdyHttpStreamTest, SpdyURLTest) {
+TEST_P(SpdyHttpStreamTest, SpdyURLTest) {
   const char* const full_url = "https://www.example.org/foo?query=what#anchor";
   const char* const base_url = "https://www.example.org/foo?query=what";
   spdy::SpdySerializedFrame req(
@@ -902,9 +920,9 @@ TEST_F(SpdyHttpStreamTest, SpdyURLTest) {
   HttpResponseInfo response;
   HttpRequestHeaders headers;
   NetLogWithSource net_log;
-  auto http_stream = std::make_unique<SpdyHttpStream>(
-      session_, kNoPushedStreamFound, net_log.source(),
-      /*dns_aliases=*/std::set<std::string>());
+  auto http_stream =
+      std::make_unique<SpdyHttpStream>(session_, net_log.source(),
+                                       /*dns_aliases=*/std::set<std::string>());
   http_stream->RegisterRequest(&request);
   ASSERT_THAT(http_stream->InitializeStream(true, DEFAULT_PRIORITY, net_log,
                                             CompletionOnceCallback()),
@@ -928,7 +946,7 @@ TEST_F(SpdyHttpStreamTest, SpdyURLTest) {
 
 // Test the receipt of a WINDOW_UPDATE frame while waiting for a chunk to be
 // made available is handled correctly.
-TEST_F(SpdyHttpStreamTest, DelayedSendChunkedPostWithWindowUpdate) {
+TEST_P(SpdyHttpStreamTest, DelayedSendChunkedPostWithWindowUpdate) {
   spdy::SpdySerializedFrame req(
       spdy_util_.ConstructChunkedSpdyPost(nullptr, 0));
   spdy::SpdySerializedFrame chunk1(spdy_util_.ConstructSpdyDataFrame(1, true));
@@ -960,9 +978,9 @@ TEST_F(SpdyHttpStreamTest, DelayedSendChunkedPostWithWindowUpdate) {
               IsOk());
 
   NetLogWithSource net_log;
-  auto http_stream = std::make_unique<SpdyHttpStream>(
-      session_, kNoPushedStreamFound, net_log.source(),
-      /*dns_aliases=*/std::set<std::string>());
+  auto http_stream =
+      std::make_unique<SpdyHttpStream>(session_, net_log.source(),
+                                       /*dns_aliases=*/std::set<std::string>());
   http_stream->RegisterRequest(&request);
   ASSERT_THAT(http_stream->InitializeStream(false, DEFAULT_PRIORITY, net_log,
                                             CompletionOnceCallback()),
@@ -984,7 +1002,7 @@ TEST_F(SpdyHttpStreamTest, DelayedSendChunkedPostWithWindowUpdate) {
   EXPECT_EQ(static_cast<int64_t>(req.size()), http_stream->GetTotalSentBytes());
   EXPECT_EQ(0, http_stream->GetTotalReceivedBytes());
 
-  upload_stream.AppendData(kUploadData, kUploadDataSize, true);
+  upload_stream.AppendData(base::byte_span_from_cstring(kUploadData), true);
 
   // Verify that the window size has decreased.
   ASSERT_TRUE(http_stream->stream() != nullptr);
@@ -1020,8 +1038,7 @@ TEST_F(SpdyHttpStreamTest, DelayedSendChunkedPostWithWindowUpdate) {
   ASSERT_THAT(http_stream->ReadResponseHeaders(callback.callback()), IsOk());
 
   // Check |chunk1| response.
-  scoped_refptr<IOBuffer> buf1 =
-      base::MakeRefCounted<IOBuffer>(kUploadDataSize);
+  auto buf1 = base::MakeRefCounted<IOBufferWithSize>(kUploadDataSize);
   ASSERT_EQ(kUploadDataSize,
             http_stream->ReadResponseBody(
                 buf1.get(), kUploadDataSize, callback.callback()));
@@ -1031,7 +1048,7 @@ TEST_F(SpdyHttpStreamTest, DelayedSendChunkedPostWithWindowUpdate) {
   ASSERT_EQ(200, response.headers->response_code());
 }
 
-TEST_F(SpdyHttpStreamTest, DataReadErrorSynchronous) {
+TEST_P(SpdyHttpStreamTest, DataReadErrorSynchronous) {
   spdy::SpdySerializedFrame req(
       spdy_util_.ConstructChunkedSpdyPost(nullptr, 0));
 
@@ -1071,8 +1088,7 @@ TEST_F(SpdyHttpStreamTest, DataReadErrorSynchronous) {
   HttpResponseInfo response;
   HttpRequestHeaders headers;
   NetLogWithSource net_log;
-  SpdyHttpStream http_stream(session_, kNoPushedStreamFound, net_log.source(),
-                             {} /* dns_aliases */);
+  SpdyHttpStream http_stream(session_, net_log.source(), {} /* dns_aliases */);
   http_stream.RegisterRequest(&request);
   ASSERT_THAT(http_stream.InitializeStream(false, DEFAULT_PRIORITY, net_log,
                                            CompletionOnceCallback()),
@@ -1089,7 +1105,7 @@ TEST_F(SpdyHttpStreamTest, DataReadErrorSynchronous) {
   EXPECT_FALSE(HasSpdySession(http_session_->spdy_session_pool(), key_));
 }
 
-TEST_F(SpdyHttpStreamTest, DataReadErrorAsynchronous) {
+TEST_P(SpdyHttpStreamTest, DataReadErrorAsynchronous) {
   spdy::SpdySerializedFrame req(
       spdy_util_.ConstructChunkedSpdyPost(nullptr, 0));
 
@@ -1129,8 +1145,7 @@ TEST_F(SpdyHttpStreamTest, DataReadErrorAsynchronous) {
   HttpResponseInfo response;
   HttpRequestHeaders headers;
   NetLogWithSource net_log;
-  SpdyHttpStream http_stream(session_, kNoPushedStreamFound, net_log.source(),
-                             {} /* dns_aliases */);
+  SpdyHttpStream http_stream(session_, net_log.source(), {} /* dns_aliases */);
   http_stream.RegisterRequest(&request);
   ASSERT_THAT(http_stream.InitializeStream(false, DEFAULT_PRIORITY, net_log,
                                            CompletionOnceCallback()),
@@ -1149,7 +1164,7 @@ TEST_F(SpdyHttpStreamTest, DataReadErrorAsynchronous) {
 }
 
 // Regression test for https://crbug.com/622447.
-TEST_F(SpdyHttpStreamTest, RequestCallbackCancelsStream) {
+TEST_P(SpdyHttpStreamTest, RequestCallbackCancelsStream) {
   spdy::SpdySerializedFrame req(
       spdy_util_.ConstructChunkedSpdyPost(nullptr, 0));
   spdy::SpdySerializedFrame chunk(
@@ -1173,11 +1188,10 @@ TEST_F(SpdyHttpStreamTest, RequestCallbackCancelsStream) {
   ASSERT_THAT(
       upload_stream.Init(upload_callback.callback(), NetLogWithSource()),
       IsOk());
-  upload_stream.AppendData("", 0, true);
+  upload_stream.AppendData(base::byte_span_from_cstring(""), true);
 
   NetLogWithSource net_log;
-  SpdyHttpStream http_stream(session_, kNoPushedStreamFound, net_log.source(),
-                             {} /* dns_aliases */);
+  SpdyHttpStream http_stream(session_, net_log.source(), {} /* dns_aliases */);
   http_stream.RegisterRequest(&request);
   ASSERT_THAT(http_stream.InitializeStream(false, DEFAULT_PRIORITY, net_log,
                                            CompletionOnceCallback()),
@@ -1204,11 +1218,11 @@ TEST_F(SpdyHttpStreamTest, RequestCallbackCancelsStream) {
 // Regression test for https://crbug.com/1082683.
 // SendRequest() callback should be called as soon as sending is done,
 // even when sending greased frame type is allowed.
-TEST_F(SpdyHttpStreamTest, DownloadWithEmptyDataFrame) {
+TEST_P(SpdyHttpStreamTest, DownloadWithEmptyDataFrame) {
   session_deps_.http2_end_stream_with_data_frame = true;
 
   // HEADERS frame without END_STREAM
-  spdy::Http2HeaderBlock request_headers;
+  quiche::HttpHeaderBlock request_headers;
   request_headers[spdy::kHttp2MethodHeader] = "GET";
   spdy_util_.AddUrlToHeaderBlock(kDefaultUrl, &request_headers);
   spdy::SpdySerializedFrame req = spdy_util_.ConstructSpdyHeaders(
@@ -1239,9 +1253,9 @@ TEST_F(SpdyHttpStreamTest, DownloadWithEmptyDataFrame) {
   HttpResponseInfo response;
   HttpRequestHeaders headers;
   NetLogWithSource net_log;
-  auto http_stream = std::make_unique<SpdyHttpStream>(
-      session_, kNoPushedStreamFound, net_log.source(),
-      /*dns_aliases=*/std::set<std::string>());
+  auto http_stream =
+      std::make_unique<SpdyHttpStream>(session_, net_log.source(),
+                                       /*dns_aliases=*/std::set<std::string>());
 
   http_stream->RegisterRequest(&request);
   int rv = http_stream->InitializeStream(true, DEFAULT_PRIORITY, net_log,

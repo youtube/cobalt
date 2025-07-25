@@ -2,6 +2,11 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#ifdef UNSAFE_BUFFERS_BUILD
+// TODO(crbug.com/40284755): Remove this and spanify to fix the errors.
+#pragma allow_unsafe_buffers
+#endif
+
 #include "base/strings/string_number_conversions.h"
 
 #include <errno.h>
@@ -12,15 +17,13 @@
 
 #include <cmath>
 #include <limits>
+#include <string_view>
 
 #include "base/bit_cast.h"
 #include "base/format_macros.h"
 #include "base/strings/stringprintf.h"
 #include "base/strings/utf_string_conversions.h"
 #include "testing/gtest/include/gtest/gtest.h"
-#if defined(STARBOARD)
-#include "starboard/types.h"
-#endif
 
 namespace base {
 
@@ -922,12 +925,36 @@ TEST(StringNumberConversionsTest, DoubleToString) {
   EXPECT_EQ("1.33489033216e+12", NumberToString(input));
 }
 
+TEST(StringNumberConversionsTest, AppendHexEncodedByte) {
+  std::string hex;
+  AppendHexEncodedByte(0, hex);
+  AppendHexEncodedByte(0, hex, false);
+  AppendHexEncodedByte(1, hex);
+  AppendHexEncodedByte(1, hex, false);
+  AppendHexEncodedByte(0xf, hex);
+  AppendHexEncodedByte(0xf, hex, false);
+  AppendHexEncodedByte(0x8a, hex);
+  AppendHexEncodedByte(0x8a, hex, false);
+  AppendHexEncodedByte(0xe0, hex);
+  AppendHexEncodedByte(0xe0, hex, false);
+  AppendHexEncodedByte(0xff, hex);
+  AppendHexEncodedByte(0xff, hex, false);
+  EXPECT_EQ(hex, "000001010F0f8A8aE0e0FFff");
+}
+
 TEST(StringNumberConversionsTest, HexEncode) {
-  std::string hex(HexEncode(nullptr, 0));
-  EXPECT_EQ(hex.length(), 0U);
-  unsigned char bytes[] = {0x01, 0xff, 0x02, 0xfe, 0x03, 0x80, 0x81};
-  hex = HexEncode(bytes, sizeof(bytes));
-  EXPECT_EQ(hex.compare("01FF02FE038081"), 0);
+  EXPECT_EQ(HexEncode(nullptr, 0), "");
+  EXPECT_EQ(HexEncode(base::span<uint8_t>()), "");
+  EXPECT_EQ(HexEncode(std::string()), "");
+
+  const uint8_t kBytes[] = {0x01, 0xff, 0x02, 0xfe, 0x03, 0x80, 0x81};
+  EXPECT_EQ(HexEncode(kBytes, sizeof(kBytes)), "01FF02FE038081");
+  EXPECT_EQ(HexEncode(kBytes), "01FF02FE038081");  // Implicit span conversion.
+
+  const std::string kString = "\x01\xff";
+  EXPECT_EQ(HexEncode(kString.c_str(), kString.size()), "01FF");
+  EXPECT_EQ(HexEncode(kString),
+            "01FF");  // Implicit std::string_view conversion.
 }
 
 // Test cases of known-bad strtod conversions that motivated the use of dmg_fp.

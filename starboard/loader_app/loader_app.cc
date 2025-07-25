@@ -37,8 +37,8 @@
 #include "starboard/loader_app/system_get_extension_shim.h"
 #include "starboard/shared/starboard/command_line.h"
 
-#include "third_party/crashpad/crashpad/wrapper/annotations.h"
-#include "third_party/crashpad/crashpad/wrapper/wrapper.h"
+#include "starboard/crashpad_wrapper/annotations.h"
+#include "starboard/crashpad_wrapper/wrapper.h"
 
 namespace {
 

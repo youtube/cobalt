@@ -2,6 +2,10 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#ifdef UNSAFE_BUFFERS_BUILD
+// TODO(crbug.com/40284755): Remove this and spanify to fix the errors.
+#pragma allow_unsafe_buffers
+#endif
 
 #ifndef BASE_TRACE_EVENT_TRACE_EVENT_IMPL_H_
 #define BASE_TRACE_EVENT_TRACE_EVENT_IMPL_H_
@@ -12,7 +16,9 @@
 #include <string>
 
 #include "base/base_export.h"
+#include "base/compiler_specific.h"
 #include "base/functional/callback.h"
+#include "base/memory/raw_ptr.h"
 #include "base/process/process_handle.h"
 #include "base/strings/string_util.h"
 #include "base/threading/platform_thread.h"
@@ -47,7 +53,7 @@ struct TraceEventHandle {
 
 class BASE_EXPORT TraceEvent {
  public:
-  // TODO(898794): Remove once all users have been updated.
+  // TODO(crbug.com/40599662): Remove once all users have been updated.
   using TraceValue = base::trace_event::TraceValue;
 
   TraceEvent();
@@ -117,7 +123,7 @@ class BASE_EXPORT TraceEvent {
   unsigned long long bind_id() const { return bind_id_; }
   // Exposed for unittesting:
 
-  const StringStorage& parameter_copy_storage() const {
+  const StringStorage& parameter_copy_storage() const LIFETIME_BOUND {
     return parameter_copy_storage_;
   }
 
@@ -155,7 +161,7 @@ class BASE_EXPORT TraceEvent {
   // The equivalence is checked with a static_assert() in trace_event_impl.cc.
   const char* scope_ = nullptr;
   unsigned long long id_ = 0u;
-  const unsigned char* category_group_enabled_ = nullptr;
+  raw_ptr<const unsigned char> category_group_enabled_ = nullptr;
   const char* name_ = nullptr;
   StringStorage parameter_copy_storage_;
   TraceArguments args_;

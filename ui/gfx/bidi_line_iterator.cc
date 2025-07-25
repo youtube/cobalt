@@ -22,7 +22,6 @@ UBiDiLevel GetParagraphLevelForDirection(base::i18n::TextDirection direction) {
       return 0;  // Highest LTR level.
     default:
       NOTREACHED();
-      return 0;
   }
 }
 

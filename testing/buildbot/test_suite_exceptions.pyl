@@ -1,0 +1,468 @@
+# Copyright 2017 The Chromium Authors
+# Use of this source code is governed by a BSD-style license that can be
+# found in the LICENSE file.
+
+# This is a .pyl, or "Python Literal", file. You can treat it just like a
+# .json file, with the following exceptions:
+# * all keys must be quoted (use single quotes, please);
+# * comments are allowed, using '#' syntax; and
+# * trailing commas are allowed.
+
+# Exceptions to the common test suites can only include removal from
+# particular bots, and modifications on particular bots. By design,
+# it's not possible to add one-off tests to bots. Instead they have to
+# be added to one of the test suites in test_suites.pyl.
+#
+# Note that if you are excluding with variants, you will need to exclude
+# per variant, with the identifier appended to the test suite name.
+# For example, if you have ios_chrome_ui_eg2tests_module with variant
+# SIM_IPHONE_6S_14_0 (identifier = "iPhone 6s 14.0"), you
+# must exclude with the test name as:
+# "ios_chrome_ui_eg2tests_module_iPhone 6s 14.0"
+
+# The goal is to drive the number of exceptions to zero, to make all
+# the bots behave similarly. whitespace
+{
+  'android_webview_unittests': {
+  },
+  'blink_web_tests': {
+    'modifications': {
+      'V8 Blink Linux Future': {
+        'args': [
+          '--flag-specific=future-js',
+        ],
+      },
+      'devtools_frontend_linux_blink_light_rel': {
+        'args': [
+          'http/tests/devtools',
+        ],
+        'swarming': {
+          'shards': 2,
+        },
+      },
+      'devtools_frontend_linux_blink_light_rel_fastbuild': {
+        'args': [
+          'http/tests/devtools',
+        ],
+        'swarming': {
+          'shards': 2,
+        },
+      },
+    },
+  },
+  'blink_wpt_tests': {
+    'remove_from': [
+      'devtools_frontend_linux_blink_light_rel',
+      'devtools_frontend_linux_blink_light_rel_fastbuild',
+    ],
+    'modifications': {
+      'V8 Blink Linux Future': {
+        'args': [
+          '--flag-specific=future-js',
+        ],
+      },
+    },
+  },
+  'browser_tests': {
+    'remove_from': [
+      'linux-chromeos-chrome-preuprev', # http://b/331706144
+    ],
+    'modifications': {
+      'Linux - Future (dbg)': {  # client.v8.chromium
+        'swarming': {
+          'shards': 10,
+        },
+      },
+      'linux-chromeos-chrome': {
+        # TODO(crbug.com/40614042): Promote out of experiment when the
+        # tests are green.
+        'args': [
+          '--test-launcher-filter-file=../../testing/buildbot/filters/chromeos.browser_tests.filter',
+        ],
+        'swarming': {
+          'shards': 20,
+        },
+      },
+    },
+  },
+  'chrome_all_tast_tests': {
+    'modifications': {
+      'chromeos-eve-chrome': {
+        'swarming': {
+          # Increased timeout to 4 hours due to shard timeout.
+          'hard_timeout': 14400,
+        }
+      },
+      # TODO(crbug.com/40727045): Move out of experimental if/when the bots are
+      # stable.
+      'chromeos-jacuzzi-chrome': {
+        'experiment_percentage': 100,
+      },
+      'chromeos-reven-chrome': {
+        'args': [
+          '--tast-shard-method=hash',
+        ],
+      },
+    },
+  },
+  'content_browsertests': {
+    'remove_from': [
+      'linux-chromeos-chrome-preuprev', # http://b/331706144
+    ],
+  },
+  'expected_color_pixel_gl_passthrough_ganesh_test': {
+    'replacements': {
+      'Mac V8 FYI Release (Intel)': {
+        'args': {
+          '--git-revision': '${got_cr_revision}',
+        },
+      },
+    },
+  },
+  'expected_color_pixel_metal_passthrough_ganesh_test': {
+    'replacements': {
+      'Mac V8 FYI Release (Intel)': {
+        'args': {
+          '--git-revision': '${got_cr_revision}',
+        },
+      },
+    },
+  },
+  'expected_color_pixel_metal_passthrough_graphite_test': {
+    'replacements': {
+      'Mac V8 FYI Release (Intel)': {
+        'args': {
+          '--git-revision': '${got_cr_revision}',
+        },
+      },
+    },
+  },
+  'expected_color_pixel_passthrough_test': {
+    'replacements': {
+      # The V8 builders pass the V8 revision for ${got_revision}, so instead
+      # use ${got_cr_revision}, which is only set on the V8 bots.
+      'Linux V8 FYI Release (NVIDIA)': {
+        'args': {
+          '--git-revision': '${got_cr_revision}',
+        },
+      },
+      'Linux V8 FYI Release - pointer compression (NVIDIA)': {
+        'args': {
+          '--git-revision': '${got_cr_revision}',
+        },
+      },
+      'Win V8 FYI Release (NVIDIA)': {
+        'args': {
+          '--git-revision': '${got_cr_revision}',
+        },
+      },
+    },
+  },
+  'expected_color_pixel_passthrough_test JACUZZI_RELEASE_LKGM': {
+    'modifications': {
+      'ChromeOS FYI Release Skylab (jacuzzi)': {
+        'args': [
+          # Skylab currently doesn't support use of LUCI_CONTEXT, so Gold cannot
+          # automatically get the service account to authenticate with.
+          '--service-account=/creds/service_accounts/skylab-drone.json',
+        ],
+      },
+    },
+  },
+  'expected_color_pixel_passthrough_test VOLTEER_PUBLIC_RELEASE_LKGM': {
+    'modifications': {
+      'ChromeOS FYI Release Skylab (volteer)': {
+        'args': [
+          # Skylab currently doesn't support use of LUCI_CONTEXT, so Gold cannot
+          # automatically get the service account to authenticate with.
+          '--service-account=/creds/service_accounts/skylab-drone.json',
+        ],
+      },
+    },
+  },
+  'expected_color_pixel_validating_test': {
+    'replacements': {
+      # The V8 builders pass the V8 revision for ${got_revision}, so instead
+      # use ${got_cr_revision}, which is only set on the V8 bots.
+      'Android V8 FYI Release': {
+        'args': {
+          '--git-revision': '${got_cr_revision}',
+        },
+      },
+    },
+  },
+  'info_collection_tests': {
+    'remove_from': [
+      'Android V8 FYI Release',
+      'Linux V8 FYI Release (NVIDIA)',
+      'Linux V8 FYI Release - pointer compression (NVIDIA)',
+      'Mac V8 FYI Release (Intel)',
+      'Win V8 FYI Release (NVIDIA)',
+    ],
+  },
+  'interactive_ui_tests': {
+    'modifications': {
+      'Linux - Future (dbg)': {  # client.v8.chromium
+        'swarming': {
+          'shards': 3,
+        },
+      },
+      # TODO(crbug.com/40630654): Remove these filters.
+      'linux-chromeos-chrome': {
+        'args': [
+          '--gtest_filter=-SadTabViewInteractiveUITest.ReloadMultipleSadTabs',
+        ],
+      },
+    },
+  },
+  'model_validation_tests MODEL_VALIDATION_BASE': {
+    'modifications': {
+      'optimization_guide-win32': {
+        'args': [
+          '--target-platform=win32',
+        ],
+      },
+    },
+  },
+  'net_unittests RELEASE_LKGM': {
+    # TODO(b/319364912): vpython cannot be delivered via CIPD on skylab builders
+    'remove_from': [
+      'chromeos-brya-chrome-dchecks-skylab',
+      'chromeos-brya-chrome-skylab',
+      'chromeos-brya-chrome-tests',
+    ],
+  },
+  'notification_helper_unittests': {
+    'remove_from': [
+      # all these bots run Windows 7.
+      'ToTWinOfficial',
+      'ToTWinOfficial64',
+    ],
+  },
+  'ondevice_stability_tests AMD Radeon RX 5500 XT': {
+    'modifications': {
+      'optimization_guide-win32': {
+        'args': [
+          '--target-platform=win32',
+        ],
+      },
+    },
+  },
+  'ondevice_stability_tests Intel UHD 630': {
+    'modifications': {
+      'optimization_guide-win32': {
+        'args': [
+          '--target-platform=win32',
+        ],
+      },
+    },
+  },
+  'ondevice_stability_tests NVIDIA GeForce GTX 1660': {
+    'modifications': {
+      'optimization_guide-win32': {
+        'args': [
+          '--target-platform=win32',
+        ],
+      },
+    },
+  },
+  'ozone_unittests': {
+    'modifications': {
+      'linux-chromeos-chrome': {
+        'args': [
+          '--test-launcher-filter-file=../../testing/buildbot/filters/chromeos.ozone_unittests.filter',
+        ],
+      },
+      'linux-chromeos-chrome-preuprev': {
+        'args': [
+          '--test-launcher-filter-file=../../testing/buildbot/filters/chromeos.ozone_unittests.filter',
+        ],
+      },
+    },
+  },
+  'pixel_skia_gold_gl_passthrough_ganesh_test': {
+    'replacements': {
+      'Mac V8 FYI Release (Intel)': {
+        'args': {
+          '--git-revision': '${got_cr_revision}',
+        },
+      },
+    },
+  },
+  'pixel_skia_gold_metal_passthrough_ganesh_test': {
+    'replacements': {
+      'Mac V8 FYI Release (Intel)': {
+        'args': {
+          '--git-revision': '${got_cr_revision}',
+        },
+      },
+    },
+  },
+  'pixel_skia_gold_metal_passthrough_graphite_test': {
+    'replacements': {
+      'Mac V8 FYI Release (Intel)': {
+        'args': {
+          '--git-revision': '${got_cr_revision}',
+        },
+      },
+    },
+  },
+  'pixel_skia_gold_passthrough_test': {
+    'replacements': {
+      # The V8 builders pass the V8 revision for ${got_revision}, so instead
+      # use ${got_cr_revision}, which is only set on the V8 bots.
+      'Linux V8 FYI Release (NVIDIA)': {
+        'args': {
+          '--git-revision': '${got_cr_revision}',
+        },
+      },
+      'Linux V8 FYI Release - pointer compression (NVIDIA)': {
+        'args': {
+          '--git-revision': '${got_cr_revision}',
+        },
+      },
+      'Win V8 FYI Release (NVIDIA)': {
+        'args': {
+          '--git-revision': '${got_cr_revision}',
+        },
+      },
+    },
+  },
+  'pixel_skia_gold_passthrough_test JACUZZI_RELEASE_LKGM': {
+    'modifications': {
+      'ChromeOS FYI Release Skylab (jacuzzi)': {
+        'args': [
+          # Skylab currently doesn't support use of LUCI_CONTEXT, so Gold cannot
+          # automatically get the service account to authenticate with.
+          '--service-account=/creds/service_accounts/skylab-drone.json',
+        ],
+      },
+    },
+  },
+  'pixel_skia_gold_passthrough_test VOLTEER_PUBLIC_RELEASE_LKGM': {
+    'modifications': {
+      'ChromeOS FYI Release Skylab (volteer)': {
+        'args': [
+          # Skylab currently doesn't support use of LUCI_CONTEXT, so Gold cannot
+          # automatically get the service account to authenticate with.
+          '--service-account=/creds/service_accounts/skylab-drone.json',
+        ],
+      },
+    },
+  },
+  'pixel_skia_gold_validating_test': {
+    'replacements': {
+      # The V8 builders pass the V8 revision for ${got_revision}, so instead
+      # use ${got_cr_revision}, which is only set on the V8 bots.
+      'Android V8 FYI Release': {
+        'args': {
+          '--git-revision': '${got_cr_revision}',
+        },
+      },
+    },
+  },
+  'telemetry_perf_unittests': {
+    'modifications': {
+      'chromeos-eve-chrome': {
+        'args': [
+          # TODO(crbug.com/40756418): Re-enable.
+          '--skip=benchmarks.benchmark_smoke_unittest.BenchmarkSmokeTest.wasmpspdfkit',
+        ],
+      },
+    },
+    'remove_from': [
+      'Linux - Future (dbg)',  # client.v8.chromium
+    ],
+  },
+  'telemetry_unittests': {
+    'remove_from': [
+      # TODO(crbug.com/40727045): Restore when there's more DUTs
+      'chromeos-eve-chrome',
+    ],
+  },
+  'unit_tests': {
+    'modifications': {
+      'linux-chromeos-chrome': {
+        'args': [
+          '--test-launcher-filter-file=../../testing/buildbot/filters/chromeos.unit_tests.filter',
+        ],
+      },
+      'linux-chromeos-chrome-preuprev': {
+        'args': [
+          '--test-launcher-filter-file=../../testing/buildbot/filters/chromeos.unit_tests.filter',
+        ],
+      },
+    },
+  },
+  'variations_smoke_tests': {
+    'modifications': {
+      'linux-chrome': {
+        'swarming': {
+          'dimensions': {
+            'pool': 'chrome.tests.finch',
+          },
+        },
+      },
+      'win-chrome': {
+        'experiment_percentage': 100,
+        'swarming': {
+          'dimensions': {
+            'pool': 'chrome.tests.finch',
+          },
+        },
+      },
+    },
+  },
+  'vulkan_pixel_skia_gold_test': {
+    'replacements': {
+      # The V8 builders pass the V8 revision for ${got_revision}, so instead
+      # use ${got_cr_revision}, which is only set on the V8 bots.
+      'Linux V8 FYI Release (NVIDIA)': {
+        'args': {
+          '--git-revision': '${got_cr_revision}',
+        },
+      },
+      'Linux V8 FYI Release - pointer compression (NVIDIA)': {
+        'args': {
+          '--git-revision': '${got_cr_revision}',
+        },
+      },
+      'Mac V8 FYI Release (Intel)': {
+        'args': {
+          '--git-revision': '${got_cr_revision}',
+        },
+      },
+      'Win V8 FYI Release (NVIDIA)': {
+        'args': {
+          '--git-revision': '${got_cr_revision}',
+        },
+      },
+    },
+  },
+  'webgl2_conformance_d3d11_passthrough_tests': {
+    'remove_from': [
+      # Removed from V8 builder since WebGL 1 should provide reasonable
+      # upstream test coverage without the capacity hit from WebGL 2.
+      'Win V8 FYI Release (NVIDIA)',
+    ],
+  },
+  'webgl2_conformance_gl_passthrough_ganesh_tests': {
+    'remove_from': [
+      'Mac V8 FYI Release (Intel)',
+    ],
+  },
+  'webgl2_conformance_gl_passthrough_tests': {
+    'remove_from': [
+      # Removed from V8 builders since WebGL 1 should provide reasonable
+      # upstream test coverage without the capacity hit from WebGL 2.
+      'Linux V8 FYI Release - pointer compression (NVIDIA)',
+    ],
+  },
+  'webgl2_conformance_metal_passthrough_graphite_tests': {
+    'remove_from': [
+      # Removed from V8 builders since WebGL 1 should provide reasonable
+      # upstream test coverage without the capacity hit from WebGL 2.
+      'Mac V8 FYI Release (Intel)',
+    ],
+  },
+}

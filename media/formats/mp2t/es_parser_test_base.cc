@@ -2,6 +2,11 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#ifdef UNSAFE_BUFFERS_BUILD
+// TODO(crbug.com/40285824): Remove this and convert code to safer constructs.
+#pragma allow_unsafe_buffers
+#endif
+
 #include "media/formats/mp2t/es_parser_test_base.h"
 
 #include "base/check_op.h"
@@ -43,8 +48,8 @@ std::vector<EsParserTestBase::Packet> EsParserTestBase::LoadPacketsFromFiles(
     size_t file_count) {
   std::vector<Packet> packets;
   for (size_t i = 0; i < file_count; ++i) {
-    base::FilePath file_path =
-        GetTestDataFilePath(base::StringPrintf(filename_template, i));
+    base::FilePath file_path = GetTestDataFilePath(
+        base::StringPrintfNonConstexpr(filename_template, i));
     base::MemoryMappedFile stream;
     EXPECT_TRUE(stream.Initialize(file_path)) << "Couldn't open stream file: "
                                               << file_path.MaybeAsASCII();

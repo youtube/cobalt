@@ -226,8 +226,9 @@ class NET_EXPORT NetLog {
            const NetLogSource& source,
            NetLogEventPhase phase,
            const ParametersCallback& get_params) {
-    if (LIKELY(!IsCapturing()))
+    if (!IsCapturing()) [[likely]] {
       return;
+    }
 
     AddEntryWithMaterializedParams(type, source, phase, get_params());
   }
@@ -243,8 +244,9 @@ class NET_EXPORT NetLog {
            const NetLogSource& source,
            NetLogEventPhase phase,
            const ParametersCallback& get_params) {
-    if (LIKELY(!IsCapturing()))
+    if (!IsCapturing()) [[likely]] {
       return;
+    }
 
     // Indirect through virtual dispatch to reduce code bloat, as this is
     // inlined in a number of places.
@@ -278,8 +280,8 @@ class NET_EXPORT NetLog {
   }
 
   void AddGlobalEntryWithStringParams(NetLogEventType type,
-                                      base::StringPiece name,
-                                      base::StringPiece value);
+                                      std::string_view name,
+                                      std::string_view value);
 
   // Returns a unique ID which can be used as a source ID.  All returned IDs
   // will be unique and not equal to 0.
@@ -414,9 +416,10 @@ class NET_EXPORT NetLog {
   //
   // In practice |observers_| will be very small (<5) so O(n)
   // operations on it are fine.
-  std::vector<ThreadSafeObserver*> observers_;
+  std::vector<raw_ptr<ThreadSafeObserver, VectorExperimental>> observers_;
 
-  std::vector<ThreadSafeCaptureModeObserver*> capture_mode_observers_;
+  std::vector<raw_ptr<ThreadSafeCaptureModeObserver, VectorExperimental>>
+      capture_mode_observers_;
 };
 
 }  // namespace net

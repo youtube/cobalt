@@ -18,6 +18,7 @@
 #include "base/task/sequenced_task_runner.h"
 #include "base/task/thread_pool.h"
 #include "base/test/bind.h"
+#include "base/test/gtest_util.h"
 #include "base/test/null_task_runner.h"
 #include "base/test/task_environment.h"
 #include "base/test/test_mock_time_task_runner.h"
@@ -117,7 +118,7 @@ TEST_F(SequencedTaskRunnerTest, DelayedTaskHandle_RunTask) {
   DelayedTaskHandle delayed_task_handle =
       task_runner->PostCancelableDelayedTask(
           subtle::PostDelayedTaskPassKeyForTesting(), FROM_HERE,
-          BindLambdaForTesting([&task_ran]() { task_ran = true; }), Seconds(1));
+          BindLambdaForTesting([&task_ran] { task_ran = true; }), Seconds(1));
   EXPECT_TRUE(delayed_task_handle.IsValid());
   EXPECT_TRUE(task_runner->HasPendingTask());
 
@@ -136,7 +137,7 @@ TEST_F(SequencedTaskRunnerTest, DelayedTaskHandle_CancelTask) {
   DelayedTaskHandle delayed_task_handle =
       task_runner->PostCancelableDelayedTask(
           subtle::PostDelayedTaskPassKeyForTesting(), FROM_HERE,
-          BindLambdaForTesting([&task_ran]() { task_ran = true; }), Seconds(1));
+          BindLambdaForTesting([&task_ran] { task_ran = true; }), Seconds(1));
   EXPECT_TRUE(delayed_task_handle.IsValid());
   EXPECT_TRUE(task_runner->HasPendingTask());
 
@@ -155,7 +156,7 @@ TEST_F(SequencedTaskRunnerTest, DelayedTaskHandle_DestroyTask) {
   DelayedTaskHandle delayed_task_handle =
       task_runner->PostCancelableDelayedTask(
           subtle::PostDelayedTaskPassKeyForTesting(), FROM_HERE,
-          BindLambdaForTesting([&task_ran]() { task_ran = true; }), Seconds(1));
+          BindLambdaForTesting([&task_ran] { task_ran = true; }), Seconds(1));
   EXPECT_TRUE(delayed_task_handle.IsValid());
   EXPECT_TRUE(task_runner->HasPendingTask());
 
@@ -176,7 +177,7 @@ TEST_F(SequencedTaskRunnerTest, DelayedTaskHandle_PostTaskFailed) {
   DelayedTaskHandle delayed_task_handle =
       task_runner->PostCancelableDelayedTask(
           subtle::PostDelayedTaskPassKeyForTesting(), FROM_HERE,
-          BindLambdaForTesting([&task_ran]() { task_ran = true; }), Seconds(1));
+          BindLambdaForTesting([&task_ran] { task_ran = true; }), Seconds(1));
   EXPECT_FALSE(delayed_task_handle.IsValid());
   EXPECT_FALSE(task_ran);
 }
@@ -231,8 +232,47 @@ TEST_F(SequencedTaskRunnerCurrentDefaultHandleTest,
 TEST_F(SequencedTaskRunnerCurrentDefaultHandleTest,
        NoHandleFromUnsequencedTask) {
   base::ThreadPool::PostTask(base::BindOnce(
-      []() { EXPECT_FALSE(SequencedTaskRunner::HasCurrentDefault()); }));
+      [] { EXPECT_FALSE(SequencedTaskRunner::HasCurrentDefault()); }));
   task_environment_.RunUntilIdle();
+}
+
+// Verify that `CurrentDefaultHandle` can be used to set the current default
+// `SequencedTaskRunner` to null in a scope that already has a default.
+TEST_F(SequencedTaskRunnerCurrentDefaultHandleTest, OverrideWithNull) {
+  EXPECT_TRUE(SequencedTaskRunner::HasCurrentDefault());
+  auto tr1 = SequencedTaskRunner::GetCurrentDefault();
+  EXPECT_TRUE(tr1);
+
+  {
+    SequencedTaskRunner::CurrentDefaultHandle handle(
+        nullptr, SequencedTaskRunner::CurrentDefaultHandle::MayAlreadyExist{});
+    EXPECT_FALSE(SequencedTaskRunner::HasCurrentDefault());
+    EXPECT_CHECK_DEATH(
+        { auto tr2 = SequencedTaskRunner::GetCurrentDefault(); });
+  }
+
+  EXPECT_TRUE(SequencedTaskRunner::HasCurrentDefault());
+  EXPECT_EQ(tr1, SequencedTaskRunner::GetCurrentDefault());
+}
+
+// Verify that `CurrentDefaultHandle` can be used to set the current default
+// `SequencedTaskRunner` to a non-null value in a scope that already has a
+// default.
+TEST_F(SequencedTaskRunnerCurrentDefaultHandleTest, OverrideWithNonNull) {
+  EXPECT_TRUE(SequencedTaskRunner::HasCurrentDefault());
+  auto tr1 = SequencedTaskRunner::GetCurrentDefault();
+  EXPECT_TRUE(tr1);
+
+  {
+    auto tr2 = MakeRefCounted<TestSimpleTaskRunner>();
+    SequencedTaskRunner::CurrentDefaultHandle handle(
+        tr2, SequencedTaskRunner::CurrentDefaultHandle::MayAlreadyExist{});
+    EXPECT_TRUE(SequencedTaskRunner::HasCurrentDefault());
+    EXPECT_EQ(tr2, SequencedTaskRunner::GetCurrentDefault());
+  }
+
+  EXPECT_TRUE(SequencedTaskRunner::HasCurrentDefault());
+  EXPECT_EQ(tr1, SequencedTaskRunner::GetCurrentDefault());
 }
 
 TEST(SequencedTaskRunnerCurrentDefaultHandleTestWithoutTaskEnvironment,

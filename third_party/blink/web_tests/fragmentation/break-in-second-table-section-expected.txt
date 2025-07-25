@@ -1,0 +1,19 @@
+There should be a blue square below.
+
+
+
+
+
+
+	
+
+
+
+
+
+
+
+	
+
+
+PASS

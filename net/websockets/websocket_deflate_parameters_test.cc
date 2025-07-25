@@ -2,8 +2,15 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#ifdef UNSAFE_BUFFERS_BUILD
+// TODO(crbug.com/40284755): Remove this and spanify to fix the errors.
+#pragma allow_unsafe_buffers
+#endif
+
 #include "net/websockets/websocket_deflate_parameters.h"
 
+#include <iterator>
+#include <ostream>
 #include <string>
 #include <vector>
 
@@ -120,7 +127,7 @@ TEST_P(WebSocketDeflateParametersInitializeTest, Initialize) {
 
   if (expected) {
     EXPECT_TRUE(actual);
-    EXPECT_TRUE(extension.Equals(parameters.AsExtension()));
+    EXPECT_TRUE(extension.Equivalent(parameters.AsExtension()));
   } else {
     EXPECT_FALSE(actual);
   }
@@ -220,7 +227,7 @@ std::vector<InitializeTestParameter> InitializeTestParameters() {
       parameters, parameters + std::size(parameters));
 }
 
-const CompatibilityTestParameter kCompatibilityTestParameters[] = {
+constexpr CompatibilityTestParameter kCompatibilityTestParameters[] = {
     {"", "", true},
     // server_no_context_takeover
     {"", "; server_no_context_takeover", true},

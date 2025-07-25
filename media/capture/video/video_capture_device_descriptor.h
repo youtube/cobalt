@@ -5,6 +5,7 @@
 #ifndef MEDIA_CAPTURE_VIDEO_VIDEO_CAPTURE_DEVICE_DESCRIPTOR_H_
 #define MEDIA_CAPTURE_VIDEO_VIDEO_CAPTURE_DEVICE_DESCRIPTOR_H_
 
+#include <optional>
 #include <string>
 #include <vector>
 
@@ -31,7 +32,8 @@ enum class VideoCaptureApi {
   ANDROID_API2_LIMITED = 10,
   FUCHSIA_CAMERA3 = 11,
   VIRTUAL_DEVICE = 12,
-  kMaxValue = VIRTUAL_DEVICE,
+  WEBRTC_LINUX_PIPEWIRE_SINGLE_PLANE = 13,
+  kMaxValue = WEBRTC_LINUX_PIPEWIRE_SINGLE_PLANE,
 };
 
 // Represents capture device's support for different controls.
@@ -43,9 +45,16 @@ struct VideoCaptureControlSupport {
 
 enum class VideoCaptureTransportType {
   // For AVFoundation Api, identify devices that are built-in or USB.
-  MACOSX_USB_OR_BUILT_IN,
+  APPLE_USB_OR_BUILT_IN,
   OTHER_TRANSPORT
 };
+
+// LINT.IfChange
+enum class CameraAvailability {
+  kAvailable,
+  kUnavailableExclusivelyUsedByOtherApplication,
+};
+// LINT.ThenChange(//media/capture/mojom/video_capture_types.mojom)
 
 // Represents information about a capture device as returned by
 // VideoCaptureDeviceFactory::GetDeviceDescriptors().
@@ -76,7 +85,8 @@ struct CAPTURE_EXPORT VideoCaptureDeviceDescriptor {
       const VideoCaptureControlSupport& control_support,
       VideoCaptureTransportType transport_type =
           VideoCaptureTransportType::OTHER_TRANSPORT,
-      VideoFacingMode facing = VideoFacingMode::MEDIA_VIDEO_FACING_NONE);
+      VideoFacingMode facing = VideoFacingMode::MEDIA_VIDEO_FACING_NONE,
+      std::optional<CameraAvailability> availability = std::nullopt);
   VideoCaptureDeviceDescriptor(const VideoCaptureDeviceDescriptor& other);
   ~VideoCaptureDeviceDescriptor();
 
@@ -110,6 +120,7 @@ struct CAPTURE_EXPORT VideoCaptureDeviceDescriptor {
   std::string model_id;
 
   VideoFacingMode facing;
+  std::optional<CameraAvailability> availability;
 
   VideoCaptureApi capture_api;
   VideoCaptureTransportType transport_type;

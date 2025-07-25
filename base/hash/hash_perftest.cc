@@ -2,14 +2,16 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include "base/hash/sha1.h"
+#include "base/hash/hash.h"
 
 #include <stddef.h>
 #include <stdint.h>
+
 #include <string>
 #include <vector>
 
-#include "base/hash/hash.h"
+#include "base/containers/span.h"
+#include "base/hash/sha1.h"
 #include "base/rand_util.h"
 #include "base/ranges/algorithm.h"
 #include "base/strings/string_number_conversions.h"
@@ -21,18 +23,16 @@
 namespace base {
 namespace {
 
-void Sha1Hash(void* data, size_t size) {
-  unsigned char digest[kSHA1Length];
-  memset(digest, 0, kSHA1Length);
-  SHA1HashBytes(reinterpret_cast<uint8_t*>(data), size, digest);
+void Sha1Hash(base::span<const uint8_t> data) {
+  SHA1Hash(data);
 }
 
-void FastHash(void* data, size_t size) {
-  base::Hash(reinterpret_cast<uint8_t*>(data), size);
+void FastHash(base::span<const uint8_t> data) {
+  base::FastHash(data);
 }
 
 void RunTest(const char* hash_name,
-             void (*hash)(void*, size_t),
+             void (*hash)(base::span<const uint8_t>),
              const size_t len) {
   constexpr char kMetricRuntime[] = "runtime";
   constexpr char kMetricThroughput[] = "throughput";
@@ -51,11 +51,11 @@ void RunTest(const char* hash_name,
   TimeDelta total_test_time;
   {
     std::vector<uint8_t> buf(len);
-    RandBytes(buf.data(), len);
+    RandBytes(buf);
 
     for (int i = 0; i < kNumRuns; ++i) {
       const auto start = TimeTicks::Now();
-      hash(buf.data(), len);
+      hash(buf);
       utime[i] = TimeTicks::Now() - start;
       total_test_time += utime[i];
     }

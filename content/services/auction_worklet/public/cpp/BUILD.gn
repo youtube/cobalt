@@ -1,0 +1,43 @@
+source_set("cpp") {
+  sources = [
+    "auction_downloader.cc",
+    "auction_downloader.h",
+    "auction_network_events_delegate.cc",
+    "auction_network_events_delegate.h",
+    "private_aggregation_reporting.cc",
+    "private_aggregation_reporting.h",
+    "real_time_reporting.h",
+  ]
+
+  configs += [
+    "//build/config/compiler:wexit_time_destructors",
+    "//content:content_implementation",
+  ]
+
+  deps = [
+    "//base",
+    "//content:export",
+    "//content/common",
+    "//content/services/auction_worklet/public/mojom",
+    "//mojo/public/cpp/bindings",
+    "//net",
+    "//services/network/public/cpp",
+    "//url",
+  ]
+}
+
+static_library("test_support") {
+  testonly = true
+
+  sources = [
+    "cbor_test_util.cc",
+    "cbor_test_util.h",
+  ]
+
+  deps = [ "//base/test:test_support" ]
+
+  public_deps = [
+    "//base",
+    "//components/cbor",
+  ]
+}

@@ -1,15 +1,17 @@
-// Copyright (c) 2011 The Chromium Authors. All rights reserved.
+// Copyright 2011 The Chromium Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
 #include "components/prefs/pref_store_observer_mock.h"
+
+#include <string_view>
 
 #include "testing/gtest/include/gtest/gtest.h"
 
 PrefStoreObserverMock::PrefStoreObserverMock()
     : initialized(false), initialization_success(false) {}
 
-PrefStoreObserverMock::~PrefStoreObserverMock() {}
+PrefStoreObserverMock::~PrefStoreObserverMock() = default;
 
 void PrefStoreObserverMock::VerifyAndResetChangedKey(
     const std::string& expected) {
@@ -19,8 +21,8 @@ void PrefStoreObserverMock::VerifyAndResetChangedKey(
   changed_keys.clear();
 }
 
-void PrefStoreObserverMock::OnPrefValueChanged(const std::string& key) {
-  changed_keys.push_back(key);
+void PrefStoreObserverMock::OnPrefValueChanged(std::string_view key) {
+  changed_keys.emplace_back(key);
 }
 
 void PrefStoreObserverMock::OnInitializationCompleted(bool success) {

@@ -12,6 +12,7 @@ import "media/mojo/mojom/audio_parameters.mojom";
 import "media/mojo/mojom/audio_processing.mojom";
 import "mojo/public/mojom/base/shared_memory.mojom";
 import "mojo/public/mojom/base/unguessable_token.mojom";
+import "sandbox/policy/mojom/context.mojom";
 
 // Mutes a group of AudioOutputStreams while at least one binding to an instance
 // exists. Once the last binding is dropped, all streams in the group are
@@ -25,6 +26,9 @@ interface LocalMuter {};
 //
 // The client must keep the connection to the factory while streams are
 // running.
+// Note: requires kPrivilegedUtility (rather than kBrowser) as the speech
+// recognition service & libassistant call these directly.
+[RequireContext=sandbox.mojom.Context.kPrivilegedUtility]
 interface AudioStreamFactory {
   // Creates an AudioInputStream and returns the AudioDataPipe it writes data to
   // and a bool indicating whether the stream is initially muted. |data_pipe| is
@@ -68,6 +72,17 @@ interface AudioStreamFactory {
   // is used for muting streams or capturing them for loopback.
   CreateOutputStream(
     pending_receiver<media.mojom.AudioOutputStream> stream,
+    pending_associated_remote<media.mojom.AudioOutputStreamObserver>? observer,
+    pending_remote<media.mojom.AudioLog>? log,
+    string device_id, media.mojom.AudioParameters params,
+    mojo_base.mojom.UnguessableToken group_id)
+    => (media.mojom.ReadWriteAudioDataPipe? data_pipe);
+
+  // Same as CreateOutputStream(), but the output device of the resulting
+  // AudioOutputStream can be switched via DeviceSwitchInterface.
+  CreateSwitchableOutputStream(
+    pending_receiver<media.mojom.AudioOutputStream> stream,
+    pending_receiver<media.mojom.DeviceSwitchInterface> device_switch_receiver,
     pending_associated_remote<media.mojom.AudioOutputStreamObserver>? observer,
     pending_remote<media.mojom.AudioLog>? log,
     string device_id, media.mojom.AudioParameters params,

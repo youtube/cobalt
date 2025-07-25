@@ -54,7 +54,6 @@ scoped_refptr<SingleThreadTaskRunner> CastEnvironment::GetTaskRunner(
       return video_thread_proxy_;
     default:
       NOTREACHED() << "Invalid Thread identifier";
-      return nullptr;
   }
 }
 
@@ -71,7 +70,6 @@ bool CastEnvironment::CurrentlyOn(ThreadId identifier) {
              video_thread_proxy_->RunsTasksInCurrentSequence();
     default:
       NOTREACHED() << "Invalid thread identifier";
-      return false;
   }
 }
 

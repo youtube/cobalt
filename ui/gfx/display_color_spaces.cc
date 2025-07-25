@@ -2,10 +2,14 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#ifdef UNSAFE_BUFFERS_BUILD
+// TODO(crbug.com/354829279): Remove this and convert code to safer constructs.
+#pragma allow_unsafe_buffers
+#endif
+
 #include "ui/gfx/display_color_spaces.h"
 
 #include "build/build_config.h"
-#include "build/chromeos_buildflags.h"
 
 namespace gfx {
 
@@ -20,7 +24,10 @@ const ContentColorUsage kAllColorUsages[] = {
 gfx::BufferFormat DefaultBufferFormat() {
   // ChromeOS expects the default buffer format be BGRA_8888 in several places.
   // https://crbug.com/1057501, https://crbug.com/1073237
-#if BUILDFLAG(IS_CHROMEOS_ASH)
+  // The default format on Mac is BGRA in screen_mac.cc, so we set it here
+  // too so that it matches with --ensure-forced-color-profile.
+  // https://crbug.com/1478708
+#if BUILDFLAG(IS_CHROMEOS) || BUILDFLAG(IS_MAC)
   return gfx::BufferFormat::BGRA_8888;
 #else
   return gfx::BufferFormat::RGBA_8888;
@@ -41,7 +48,7 @@ size_t GetIndex(ContentColorUsage color_usage, bool needs_alpha) {
 }  // namespace
 
 DisplayColorSpaces::DisplayColorSpaces() {
-  // TODO(crbug/1309228): Revert back to range-based for loops if possible
+  // TODO(crbug.com/40219387): Revert back to range-based for loops if possible
   for (size_t i = 0; i < kConfigCount; i++) {
     color_spaces_[i] = gfx::ColorSpace::CreateSRGB();
     buffer_formats_[i] = DefaultBufferFormat();
@@ -118,7 +125,8 @@ gfx::ColorSpace DisplayColorSpaces::GetCompositingColorSpace(
 
 bool DisplayColorSpaces::SupportsHDR() const {
   return GetOutputColorSpace(ContentColorUsage::kHDR, false).IsHDR() ||
-         GetOutputColorSpace(ContentColorUsage::kHDR, true).IsHDR();
+         GetOutputColorSpace(ContentColorUsage::kHDR, true).IsHDR() ||
+         hdr_max_luminance_relative_ > 1.f;
 }
 
 ColorSpace DisplayColorSpaces::GetScreenInfoColorSpace() const {
@@ -203,6 +211,15 @@ bool DisplayColorSpaces::operator==(const DisplayColorSpaces& other) const {
 
 bool DisplayColorSpaces::operator!=(const DisplayColorSpaces& other) const {
   return !(*this == other);
+}
+
+// static
+bool DisplayColorSpaces::EqualExceptForHdrHeadroom(
+    const DisplayColorSpaces& a,
+    const DisplayColorSpaces& b) {
+  DisplayColorSpaces b_with_a_params = b;
+  b_with_a_params.hdr_max_luminance_relative_ = a.hdr_max_luminance_relative_;
+  return a == b_with_a_params;
 }
 
 }  // namespace gfx

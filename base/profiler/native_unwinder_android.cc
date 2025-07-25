@@ -9,18 +9,19 @@
 #include <string>
 #include <vector>
 
+#include "base/memory/ptr_util.h"
+#include "base/metrics/histogram_macros.h"
+#include "base/metrics/metrics_hashes.h"
+#include "base/notreached.h"
+#include "base/profiler/module_cache.h"
+#include "base/profiler/native_unwinder_android_map_delegate.h"
+#include "base/profiler/native_unwinder_android_memory_regions_map_impl.h"
+#include "base/profiler/profile_builder.h"
+#include "build/build_config.h"
 #include "third_party/libunwindstack/src/libunwindstack/include/unwindstack/Elf.h"
 #include "third_party/libunwindstack/src/libunwindstack/include/unwindstack/Maps.h"
 #include "third_party/libunwindstack/src/libunwindstack/include/unwindstack/Memory.h"
 #include "third_party/libunwindstack/src/libunwindstack/include/unwindstack/Regs.h"
-
-#include "base/memory/ptr_util.h"
-#include "base/notreached.h"
-#include "base/profiler/module_cache.h"
-#include "base/profiler/native_unwinder_android_map_delegate.h"
-#include "base/profiler/native_unwinder_android_memory_regions_map.h"
-#include "base/profiler/profile_builder.h"
-#include "build/build_config.h"
 
 #if defined(ARCH_CPU_ARM_FAMILY) && defined(ARCH_CPU_32_BITS)
 #include "third_party/libunwindstack/src/libunwindstack/include/unwindstack/MachineArm.h"
@@ -43,7 +44,7 @@ class NonElfModule : public ModuleCache::Module {
 
   uintptr_t GetBaseAddress() const override { return start_; }
 
-  std::string GetId() const override { return std::string(); }
+  std::string GetId() const override { return ""; }
 
   FilePath GetDebugBasename() const override {
     return FilePath(map_info_name_);
@@ -71,7 +72,6 @@ std::unique_ptr<unwindstack::Regs> CreateFromRegisterContext(
       reinterpret_cast<void*>(&thread_context->regs[0])));
 #else   // #if defined(ARCH_CPU_ARM_FAMILY) && defined(ARCH_CPU_32_BITS)
   NOTREACHED();
-  return nullptr;
 #endif  // #if defined(ARCH_CPU_ARM_FAMILY) && defined(ARCH_CPU_32_BITS)
 }
 
@@ -87,28 +87,6 @@ void CopyToRegisterContext(unwindstack::Regs* regs,
   NOTREACHED();
 #endif  // #if defined(ARCH_CPU_ARM_FAMILY) && defined(ARCH_CPU_32_BITS)
 }
-
-// The wrapper class exists to avoid the reference of concrete libunwindstack
-// types in chrome code. Only code in the stack unwinder DFM has the access to
-// third_party/libunwindstack/src/libunwindstack. Files within the stack
-// unwinder DFM can be found by searching `native_unwinder_android` source set
-// in `base/BUILD.gn`.
-class MemoryRegionsMap : public base::NativeUnwinderAndroidMemoryRegionsMap {
- public:
-  MemoryRegionsMap(std::unique_ptr<unwindstack::Maps> maps,
-                   std::unique_ptr<unwindstack::Memory> memory)
-      : maps_(std::move(maps)), memory_(std::move(memory)) {}
-
-  unwindstack::Maps* GetMaps() override { return maps_.get(); }
-  unwindstack::Memory* GetMemory() override { return memory_.get(); }
-  std::unique_ptr<unwindstack::Memory> TakeMemory() override {
-    return std::move(memory_);
-  }
-
- private:
-  std::unique_ptr<unwindstack::Maps> maps_;
-  std::unique_ptr<unwindstack::Memory> memory_;
-};
 
 }  // namespace
 
@@ -141,7 +119,7 @@ NativeUnwinderAndroid::CreateMemoryRegionsMap(bool use_updatable_maps) {
   const bool success = maps->Parse();
   DCHECK(success);
 
-  return std::make_unique<MemoryRegionsMap>(
+  return std::make_unique<NativeUnwinderAndroidMemoryRegionsMapImpl>(
       std::move(maps), unwindstack::Memory::CreateLocalProcessMemory());
 }
 
@@ -150,7 +128,9 @@ NativeUnwinderAndroid::NativeUnwinderAndroid(
     NativeUnwinderAndroidMapDelegate* map_delegate)
     : exclude_module_with_base_address_(exclude_module_with_base_address),
       map_delegate_(map_delegate),
-      memory_regions_map_(map_delegate->GetMapReference()) {
+      memory_regions_map_(
+          static_cast<NativeUnwinderAndroidMemoryRegionsMapImpl*>(
+              map_delegate->GetMapReference())) {
   DCHECK(map_delegate_);
   DCHECK(memory_regions_map_);
 }
@@ -172,9 +152,11 @@ bool NativeUnwinderAndroid::CanUnwindFrom(const Frame& current_frame) const {
              exclude_module_with_base_address_;
 }
 
-UnwindResult NativeUnwinderAndroid::TryUnwind(RegisterContext* thread_context,
-                                              uintptr_t stack_top,
-                                              std::vector<Frame>* stack) {
+UnwindResult NativeUnwinderAndroid::TryUnwind(
+    UnwinderStateCapture* capture_state,
+    RegisterContext* thread_context,
+    uintptr_t stack_top,
+    std::vector<Frame>* stack) {
   auto regs = CreateFromRegisterContext(thread_context);
   DCHECK(regs);
   unwindstack::ArchEnum arch = regs->Arch();
@@ -183,14 +165,14 @@ UnwindResult NativeUnwinderAndroid::TryUnwind(RegisterContext* thread_context,
     uint64_t cur_pc = regs->pc();
     uint64_t cur_sp = regs->sp();
     unwindstack::MapInfo* map_info =
-        memory_regions_map_->GetMaps()->Find(cur_pc).get();
+        memory_regions_map_->maps()->Find(cur_pc).get();
     if (map_info == nullptr ||
         map_info->flags() & unwindstack::MAPS_FLAGS_DEVICE_MAP) {
       break;
     }
 
-    unwindstack::Elf* elf = map_info->GetElf(
-        {memory_regions_map_->GetMemory(), [](unwindstack::Memory*) {}}, arch);
+    unwindstack::Elf* elf =
+        map_info->GetElf(memory_regions_map_->memory(), arch);
     if (!elf->valid())
       break;
 
@@ -198,10 +180,15 @@ UnwindResult NativeUnwinderAndroid::TryUnwind(RegisterContext* thread_context,
     uintptr_t rel_pc = elf->GetRelPc(cur_pc, map_info);
     bool is_signal_frame = false;
     bool finished = false;
+    // map_info->GetElf() may return a valid elf whose memory() is nullptr.
+    // In the case, elf->StepIfSignalHandler() and elf->Step() are not
+    // available, because the method depends on elf->memory().
+    // (Regarding Step(), EvalRegister() needs memory.)
     bool stepped =
-        elf->StepIfSignalHandler(rel_pc, regs.get(), &stack_memory) ||
-        elf->Step(rel_pc, regs.get(), &stack_memory, &finished,
-                  &is_signal_frame);
+        elf->memory() &&
+        (elf->StepIfSignalHandler(rel_pc, regs.get(), &stack_memory) ||
+         elf->Step(rel_pc, regs.get(), &stack_memory, &finished,
+                   &is_signal_frame));
     if (stepped && finished)
       return UnwindResult::kCompleted;
 
@@ -232,7 +219,7 @@ UnwindResult NativeUnwinderAndroid::TryUnwind(RegisterContext* thread_context,
 
     if (regs->dex_pc() != 0) {
       // Add a frame to represent the dex file.
-      EmitDexFrame(regs->dex_pc(), stack);
+      EmitDexFrame(regs->dex_pc(), arch, stack);
 
       // Clear the dex pc so that we don't repeat this frame later.
       regs->set_dex_pc(0);
@@ -254,7 +241,7 @@ UnwindResult NativeUnwinderAndroid::TryUnwind(RegisterContext* thread_context,
 std::unique_ptr<const ModuleCache::Module>
 NativeUnwinderAndroid::TryCreateModuleForAddress(uintptr_t address) {
   unwindstack::MapInfo* map_info =
-      memory_regions_map_->GetMaps()->Find(address).get();
+      memory_regions_map_->maps()->Find(address).get();
   if (map_info == nullptr || !(map_info->flags() & PROT_EXEC) ||
       map_info->flags() & unwindstack::MAPS_FLAGS_DEVICE_MAP) {
     return nullptr;
@@ -262,8 +249,18 @@ NativeUnwinderAndroid::TryCreateModuleForAddress(uintptr_t address) {
   return std::make_unique<NonElfModule>(map_info);
 }
 
+unwindstack::DexFiles* NativeUnwinderAndroid::GetOrCreateDexFiles(
+    unwindstack::ArchEnum arch) {
+  if (!dex_files_) {
+    dex_files_ = unwindstack::CreateDexFiles(
+        arch, memory_regions_map_->memory(), search_libs_);
+  }
+  return dex_files_.get();
+}
+
 void NativeUnwinderAndroid::EmitDexFrame(uintptr_t dex_pc,
-                                         std::vector<Frame>* stack) const {
+                                         unwindstack::ArchEnum arch,
+                                         std::vector<Frame>* stack) {
   const ModuleCache::Module* module =
       module_cache()->GetExistingModuleForAddress(dex_pc);
   if (!module) {
@@ -272,14 +269,15 @@ void NativeUnwinderAndroid::EmitDexFrame(uintptr_t dex_pc,
     // are used much less commonly, it's lazily added here instead of from
     // AddInitialModulesFromMaps().
     unwindstack::MapInfo* map_info =
-        memory_regions_map_->GetMaps()->Find(dex_pc).get();
+        memory_regions_map_->maps()->Find(dex_pc).get();
     if (map_info) {
       auto new_module = std::make_unique<NonElfModule>(map_info);
       module = new_module.get();
       module_cache()->AddCustomNativeModule(std::move(new_module));
     }
   }
-  stack->emplace_back(dex_pc, module);
+
+    stack->emplace_back(dex_pc, module);
 }
 
 }  // namespace base

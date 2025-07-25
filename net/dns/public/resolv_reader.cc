@@ -2,6 +2,11 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#ifdef UNSAFE_BUFFERS_BUILD
+// TODO(crbug.com/40284755): Remove this and spanify to fix the errors.
+#pragma allow_unsafe_buffers
+#endif
+
 #include "net/dns/public/resolv_reader.h"
 
 #include <netinet/in.h>
@@ -9,6 +14,7 @@
 #include <sys/types.h>
 
 #include <memory>
+#include <optional>
 #include <type_traits>
 #include <utility>
 #include <vector>
@@ -17,7 +23,6 @@
 #include "base/functional/bind.h"
 #include "build/build_config.h"
 #include "net/base/ip_endpoint.h"
-#include "third_party/abseil-cpp/absl/types/optional.h"
 
 namespace net {
 
@@ -28,12 +33,12 @@ std::unique_ptr<ScopedResState> ResolvReader::GetResState() {
   return res;
 }
 
-absl::optional<std::vector<IPEndPoint>> GetNameservers(
+std::optional<std::vector<IPEndPoint>> GetNameservers(
     const struct __res_state& res) {
   std::vector<IPEndPoint> nameservers;
 
   if (!(res.options & RES_INIT))
-    return absl::nullopt;
+    return std::nullopt;
 
 #if BUILDFLAG(IS_APPLE) || BUILDFLAG(IS_FREEBSD)
   union res_sockaddr_union addresses[MAXNS];
@@ -45,7 +50,7 @@ absl::optional<std::vector<IPEndPoint>> GetNameservers(
     if (!ipe.FromSockAddr(
             reinterpret_cast<const struct sockaddr*>(&addresses[i]),
             sizeof addresses[i])) {
-      return absl::nullopt;
+      return std::nullopt;
     }
     nameservers.push_back(ipe);
   }
@@ -68,10 +73,10 @@ absl::optional<std::vector<IPEndPoint>> GetNameservers(
       addr = reinterpret_cast<const struct sockaddr*>(res._u._ext.nsaddrs[i]);
       addr_len = sizeof *res._u._ext.nsaddrs[i];
     } else {
-      return absl::nullopt;
+      return std::nullopt;
     }
     if (!ipe.FromSockAddr(addr, addr_len))
-      return absl::nullopt;
+      return std::nullopt;
     nameservers.push_back(ipe);
   }
 #else  // !(BUILDFLAG(IS_CHROMEOS) || BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_APPLE)
@@ -82,7 +87,7 @@ absl::optional<std::vector<IPEndPoint>> GetNameservers(
     if (!ipe.FromSockAddr(
             reinterpret_cast<const struct sockaddr*>(&res.nsaddr_list[i]),
             sizeof res.nsaddr_list[i])) {
-      return absl::nullopt;
+      return std::nullopt;
     }
     nameservers.push_back(ipe);
   }

@@ -29,7 +29,6 @@ proto::EventType ToProtoEventType(CastLoggingEvent event) {
     TO_PROTO_ENUM(PACKET_RECEIVED);
   }
   NOTREACHED();
-  return proto::UNKNOWN;
 }
 
 }  // namespace cast

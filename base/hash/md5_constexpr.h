@@ -5,7 +5,9 @@
 #ifndef BASE_HASH_MD5_CONSTEXPR_H_
 #define BASE_HASH_MD5_CONSTEXPR_H_
 
-#include "base/hash/md5_constexpr_internal.h"
+#include "base/hash/md5_constexpr_internal.h" // IWYU pragma: export
+
+#include <string_view>
 
 namespace base {
 
@@ -17,10 +19,8 @@ namespace base {
 // convenience:
 //
 // printf("%08x\n", MD5Hash32Constexpr("foo"));
-constexpr uint64_t MD5Hash64Constexpr(const char* string);
-constexpr uint64_t MD5Hash64Constexpr(const char* data, uint32_t length);
-constexpr uint32_t MD5Hash32Constexpr(const char* string);
-constexpr uint32_t MD5Hash32Constexpr(const char* data, uint32_t length);
+constexpr uint64_t MD5Hash64Constexpr(std::string_view string);
+constexpr uint32_t MD5Hash32Constexpr(std::string_view string);
 
 }  // namespace base
 

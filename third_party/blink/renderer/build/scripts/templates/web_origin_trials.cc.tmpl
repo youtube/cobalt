@@ -1,0 +1,34 @@
+{% from 'templates/macros.tmpl' import license, source_files_for_generated_file %}
+{{license()}}
+
+{{source_files_for_generated_file(template_file, input_files)}}
+
+#include "third_party/blink/public/web/web_origin_trials.h"
+
+#include "third_party/blink/renderer/core/dom/document.h"
+#include "third_party/blink/renderer/core/execution_context/execution_context.h"
+#include "third_party/blink/public/mojom/origin_trials/origin_trial_feature.mojom-shared.h"
+#include "third_party/blink/public/common/origin_trials/origin_trials.h"
+#include "third_party/blink/public/platform/web_string.h"
+#include "third_party/blink/public/web/web_document.h"
+#include "v8/include/v8.h"
+
+namespace blink {
+
+{% for feature in features %}
+{% if feature.public and feature.in_origin_trial %}
+// static
+bool WebOriginTrials::Is{{feature.name}}Enabled(const WebDocument* web_document) {
+  if (!web_document) return false;
+  Document* document = *web_document;
+  return RuntimeEnabledFeatures::{{feature.name}}Enabled(document->GetExecutionContext());
+}
+
+// static
+bool WebOriginTrials::Is{{feature.name}}Enabled(const v8::Local<v8::Context> context) {
+  return RuntimeEnabledFeatures::{{feature.name}}Enabled(ExecutionContext::From(context));
+}
+
+{% endif %}
+{% endfor %}
+} // namespace blink

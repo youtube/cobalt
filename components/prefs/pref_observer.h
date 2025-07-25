@@ -1,11 +1,11 @@
-// Copyright (c) 2012 The Chromium Authors. All rights reserved.
+// Copyright 2012 The Chromium Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
 #ifndef COMPONENTS_PREFS_PREF_OBSERVER_H_
 #define COMPONENTS_PREFS_PREF_OBSERVER_H_
 
-#include <string>
+#include <string_view>
 
 class PrefService;
 
@@ -15,7 +15,7 @@ class PrefService;
 class PrefObserver {
  public:
   virtual void OnPreferenceChanged(PrefService* service,
-                                   const std::string& pref_name) = 0;
+                                   std::string_view pref_name) = 0;
 };
 
 #endif  // COMPONENTS_PREFS_PREF_OBSERVER_H_

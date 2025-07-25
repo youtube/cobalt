@@ -15,6 +15,7 @@
 #include <windows.devices.enumeration.h>
 #include <wrl.h>
 
+#include "base/feature_list.h"
 #include "base/memory/ref_counted.h"
 #include "base/memory/weak_ptr.h"
 #include "base/task/single_thread_task_runner.h"
@@ -23,6 +24,8 @@
 #include "media/capture/video/video_capture_device_factory.h"
 
 namespace media {
+
+CAPTURE_EXPORT BASE_DECLARE_FEATURE(kMediaFoundationD3D11VideoCaptureBlocklist);
 
 using ABI::Windows::Foundation::IAsyncOperation;
 using ABI::Windows::Devices::Enumeration::DeviceInformationCollection;
@@ -111,6 +114,10 @@ class CAPTURE_EXPORT VideoCaptureDeviceFactoryWin
   std::vector<VideoCaptureDeviceInfo> GetDevicesInfoDirectShow(
       const std::vector<VideoCaptureDeviceInfo>& known_devices);
 
+  void UpdateDevicesInfoAvailability(
+      std::vector<VideoCaptureDeviceInfo>* devices_info);
+  void CreateUsageMonitorAndReportHandler();
+
   bool use_media_foundation_;
   bool use_d3d11_with_media_foundation_;
 
@@ -122,6 +129,11 @@ class CAPTURE_EXPORT VideoCaptureDeviceFactoryWin
   scoped_refptr<ComThreadData> com_thread_data_;
   // For hardware acceleration in MediaFoundation capture engine
   scoped_refptr<DXGIDeviceManager> dxgi_device_manager_;
+
+  class UsageReportHandler;
+  scoped_refptr<UsageReportHandler> report_handler_;
+  Microsoft::WRL::ComPtr<IMFSensorActivityMonitor> monitor_;
+
   base::WeakPtrFactory<VideoCaptureDeviceFactoryWin> weak_ptr_factory_{this};
 };
 

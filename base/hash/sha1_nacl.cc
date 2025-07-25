@@ -2,13 +2,14 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include "base/hash/sha1.h"
-
 #include <stddef.h>
 #include <stdint.h>
 #include <string.h>
 
-#include "base/sys_byteorder.h"
+#include <string_view>
+
+#include "base/hash/sha1.h"
+#include "base/numerics/byte_conversions.h"
 
 namespace base {
 // Implementation of SHA-1. Only handles data in byte-sized blocks,
@@ -167,7 +168,7 @@ void SHA1Init(SHA1Context& context) {
   context.Init();
 }
 
-void SHA1Update(const StringPiece data, SHA1Context& context) {
+void SHA1Update(std::string_view data, SHA1Context& context) {
   context.Update(data.data(), data.size());
 }
 
@@ -176,26 +177,19 @@ void SHA1Final(SHA1Context& context, SHA1Digest& digest) {
   memcpy(digest.data(), context.GetDigest(), kSHA1Length);
 }
 
-SHA1Digest SHA1HashSpan(span<const uint8_t> data) {
-  SHA1Digest hash;
-  SHA1HashBytes(data.data(), data.size(), hash.data());
-  return hash;
-}
-
-std::string SHA1HashString(StringPiece str) {
-  char hash[kSHA1Length];
-  SHA1HashBytes(reinterpret_cast<const unsigned char*>(str.data()),
-                str.length(), reinterpret_cast<unsigned char*>(hash));
-  return std::string(hash, kSHA1Length);
-}
-
-void SHA1HashBytes(const unsigned char* data, size_t len, unsigned char* hash) {
+SHA1Digest SHA1Hash(span<const uint8_t> data) {
   SHA1Context context;
   context.Init();
-  context.Update(data, len);
+  context.Update(data.data(), data.size());
   context.Final();
 
-  memcpy(hash, context.GetDigest(), kSHA1Length);
+  SHA1Digest digest;
+  memcpy(digest.data(), context.GetDigest(), kSHA1Length);
+  return digest;
+}
+
+std::string SHA1HashString(std::string_view str) {
+  return std::string(as_string_view(SHA1Hash(base::as_byte_span(str))));
 }
 
 }  // namespace base

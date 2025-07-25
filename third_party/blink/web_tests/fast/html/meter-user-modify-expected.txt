@@ -1,0 +1,9 @@
+PASS layoutTreeAfterType is layoutTreeBeforeType
+PASS successfullyParsed is true
+
+TEST COMPLETE
+
+
+The meter content doesn't get rendered.
+
+(before)(after)

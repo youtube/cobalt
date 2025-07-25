@@ -1,0 +1,5 @@
+# crbug.com/1523061
+-DCompPresenterPixelTest/DCompPresenterPixelTest.SoftwareVideoSwapchain/0
+-DCompPresenterPixelTest/DCompPresenterPixelTest.SoftwareVideoSwapchain/1
+-DCompPresenterPixelTest/DCompPresenterPixelTest.YUY2SwapChain/0
+-DCompPresenterPixelTest/DCompPresenterPixelTest.YUY2SwapChain/1

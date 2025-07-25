@@ -1,0 +1,10 @@
+{
+  "name": "Permissions Update Test",
+  "permissions": [
+    "history",
+    "topSites",
+    "storage"
+  ],
+  "manifest_version": 3,
+  "version": "5"
+}

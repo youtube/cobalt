@@ -1,3 +1,0 @@
-struct Bad { sampler x; };
-uniform Bad b;
-void main() {}

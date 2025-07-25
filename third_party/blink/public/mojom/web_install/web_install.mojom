@@ -1,0 +1,35 @@
+// Copyright 2024 The Chromium Authors
+// Use of this source code is governed by a BSD-style license that can be
+// found in the LICENSE file.
+
+module blink.mojom;
+
+import "url/mojom/url.mojom";
+
+// The result of an installation request.
+enum WebInstallServiceResult {
+  kSuccess,
+  kAbortError,
+  // TODO(crbug.com/333795265): Follow up later when implementation is complete
+  // and add appropriate error codes.
+};
+
+// Parameters passed into calls to Install.
+struct InstallOptions {
+  url.mojom.Url manifest_id;
+  url.mojom.Url install_url;
+};
+
+// Allows installation of web apps via JS. This mojo interface is only bound on
+// the main frame in browser contexts that support web app installation.
+interface WebInstallService {
+  // Installs a site as a web app. If `InstallOptions` is not set, it installs
+  // the current document as a web app if the app defines an 'id' in the web
+  // app manifest file or returns an 'AbortError' if the 'id' is not defined.
+  // if `InstallOptions` is set, it installs the web content at `install_url`,
+  // verifying that the provided `manifest_id` matches the app's computed id.
+  // Returns a success/failure result. If success, populates the absolute
+  // computed manifest id for the installed app.
+  Install(InstallOptions? options)
+      => (WebInstallServiceResult result, url.mojom.Url manifest_id);
+};

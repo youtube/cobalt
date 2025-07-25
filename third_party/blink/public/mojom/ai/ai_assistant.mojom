@@ -1,0 +1,112 @@
+// Copyright 2024 The Chromium Authors
+// Use of this source code is governed by a BSD-style license that can be
+// found in the LICENSE file.
+
+module blink.mojom;
+
+import "third_party/blink/public/mojom/ai/model_streaming_responder.mojom";
+
+// Most of the mojo definition in this file can be viewed as a representation
+// of the corresponding built-in API prompt API. Please note that the prompt
+// text string below in various methods are directly passed from the JavaScript
+// API, so they could contain arbitrary content provided from a untrustworthy
+// source.
+// See the explainer (https://github.com/explainers-by-googlers/prompt-api)
+// for more information.
+
+// This struct contains the parameters that control the sampling behavior of
+// the model execution behind the session.
+struct AIAssistantSamplingParams {
+  uint32 top_k;
+  float temperature;
+};
+
+// This struct contains the information describing the default and max values
+// for session creation.
+struct AIModelInfo {
+  uint32 default_top_k;
+  uint32 max_top_k;
+  float default_temperature;
+};
+
+// The information of an AIAssistant, this should be returned from any method
+// that creates a new AIAssistant.
+struct AIAssistantInfo {
+  uint64 max_tokens;
+
+  AIAssistantSamplingParams sampling_params;
+};
+
+// The enum describes the possible roles in the initial prompt.
+enum AIAssistantInitialPromptRole {
+  kSystem = 0,
+  kUser = 1,
+  kAssistant = 2,
+
+  // Append new line here
+};
+
+// Each initial prompt contains a role and the actual content.
+struct AIAssistantInitialPrompt {
+  AIAssistantInitialPromptRole role;
+  // This can be any arbitrary string taken from the JavaScript API.
+  string content;
+};
+
+// This is used when creating a new AIAssistant.
+struct AIAssistantCreateOptions {
+  AIAssistantSamplingParams? sampling_params;
+  // This can be any arbitrary string taken from the JavaScript API.
+  string? system_prompt;
+  array<AIAssistantInitialPrompt> initial_prompts;
+};
+
+// The client interface that receives an AIAssistant from an AIManager.
+interface AIManagerCreateAssistantClient {
+  // Called with a created assistant's mojo interface as a result for the
+  // CreateAssistant() method of the AIManager. When failed to create a
+  // AIAssistant, this method is called with a null pending remote.
+  // It also returns the assistant info if the assistant is created
+  // successfully.
+  OnResult(
+    pending_remote<blink.mojom.AIAssistant>? assistant_remote,
+    AIAssistantInfo? info
+  );
+};
+
+// The client interface that receives the number of tokens counted by the
+// AIManager.
+interface AIAssistantCountPromptTokensClient {
+  // Called with a created assistant's mojo interface as a result for the
+  // CountPromptTokens() method of the AIManager.
+  OnResult(uint32 number_of_tokens);
+};
+
+// A session for a model that allows executing an input and streaming the
+// output.
+interface AIAssistant {
+  // Prompts the model on the given input which can be an arbitrary string
+  // from the JavaScript API.
+  Prompt(
+    string input, pending_remote<ModelStreamingResponder> pending_responder
+  );
+  // Creates a new session with the same configuration and existing context
+  // as the current session.
+  // Note that this method is called by the `AIAssistant.clone()` method from
+  // blink, but it is named as `Fork` instead of `Clone` to avoid confusion
+  // with the "clone" term in mojo context (which indicates binding another
+  // client to the same instance).
+  // Similar to `AIManager.CreateAssistant()`, this method returns the
+  // information of the created session.
+  Fork(
+    pending_remote<AIManagerCreateAssistantClient> client
+  );
+  // Destroys the session.
+  Destroy();
+  // Counts the number of token in the given prompt text `input` which can
+  // be an arbitrary string from the JavaScript API.
+  CountPromptTokens(
+    string input,
+    pending_remote<AIAssistantCountPromptTokensClient> client
+  );
+};

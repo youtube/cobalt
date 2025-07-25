@@ -13,7 +13,7 @@
 
 #include "base/check_op.h"
 #include "base/containers/contains.h"
-#include "base/notreached.h"
+#include "base/notimplemented.h"
 #include "base/win/vector.h"
 #include "base/win/winrt_foundation_helpers.h"
 
@@ -152,7 +152,7 @@ class Map
 
   // Iterates over base::win::Map.
   // Its methods return E_CHANGED_STATE is the map is modified.
-  // TODO(https://crbug.com/987533): Refactor MapIterator to leverage
+  // TODO(crbug.com/40637532): Refactor MapIterator to leverage
   // std::map::iterator.
   class MapIterator
       : public Microsoft::WRL::RuntimeClass<
