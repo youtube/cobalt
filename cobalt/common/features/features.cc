@@ -27,6 +27,7 @@ namespace {
 // To make the code consistent for when we do rebase to m134, we will define the
 // macro ourselves. Once the rebase happens, we should be able to delete this
 // macro.
+// TODO: (cobalt b/434023340) Delete this macro once Cobalt rebases to m138.
 #define BASE_FEATURE_PARAM(T, feature_object_name, feature, name, \
                            default_value)                         \
   const base::FeatureParam<T> feature_object_name{feature, name, default_value};
@@ -48,7 +49,7 @@ namespace {
 #define FEATURE_PARAM_LIST_START namespace cobalt::features {
 #define FEATURE_PARAM_LIST_END }
 
-#define TIME base::TimeDelta
+#define STARBOARD_FEATURE_PARAM_TIME_TYPE base::TimeDelta
 
 #include "starboard/extension/feature_config.h"
 
@@ -58,4 +59,4 @@ namespace {
 #undef FEATURE_LIST_END
 #undef FEATURE_PARAM_LIST_START
 #undef FEATURE_PARAM_LIST_END
-#undef TIME
+#undef STARBOARD_FEATURE_PARAM_TIME_TYPE

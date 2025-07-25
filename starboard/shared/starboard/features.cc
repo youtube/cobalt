@@ -37,7 +37,7 @@
 #define FEATURE_PARAM_LIST_START namespace starboard::features {
 #define FEATURE_PARAM_LIST_END }
 
-#define TIME int64_t
+#define STARBOARD_FEATURE_PARAM_TIME_TYPE int64_t
 
 #include "starboard/extension/feature_config.h"
 
@@ -47,4 +47,4 @@
 #undef FEATURE_LIST_END
 #undef FEATURE_PARAM_LIST_START
 #undef FEATURE_PARAM_LIST_END
-#undef TIME
+#undef STARBOARD_FEATURE_PARAM_TIME_TYPE

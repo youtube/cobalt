@@ -54,8 +54,9 @@
 #error "FEATURE_PARAM_LIST_END has to be defined before including this file"
 #endif
 
-#ifndef TIME
-#error "TIME has to be defined before including this file"
+#ifndef STARBOARD_FEATURE_PARAM_TIME_TYPE
+#error \
+    "STARBOARD_FEATURE_PARAM_TIME_TYPE has to be defined before including this file"
 #endif
 
 // To add a feature to Starboard, use the macro
@@ -77,11 +78,24 @@
 
 FEATURE_LIST_START
 // Be sure to add the feature in between FEATURE_LIST_START and
-// FEATURE_LIST_END. An example of what a feature might look like, with a
+// FEATURE_LIST_END. Some examples of what a feature might look like, with a
 // defined platform and starboard version is:
 //
 // #if BUILDFLAG(IS_ANDROID) && (SB_API_VERSION >= 17)
 //   STARBOARD_FEATURE(kFeatureFoo, "foo", true)
+//   STARBOARD_FEATURE(kCobaltMaxVideoExperiment,
+//                     "CobaltMaxVideoExperiment",
+//                     false)
+//   STARBOARD_FEATURE(kCobaltCustomPlayback,
+//                     "CobaltCustomPlayback",
+//                     false)
+//   STARBOARD_FEATURE(kCobaltArtificialDelay,
+//                     "CobaltArtificialDelay",
+//                     false)
+//   STARBOARD_FEATURE(kCobaltPlaybackParamsExperiment,
+//                     "CobaltPlaybackParamsExperiment",
+//                     false)
+//   STARBOARD_FEATURE(kCobaltVideoDebug, "CobaltVideoDebug", false)
 // #endif // BUILDFLAG(IS_ANDROID) && (SB_API_VERSION >= 17)
 FEATURE_LIST_END
 
@@ -99,13 +113,15 @@ FEATURE_LIST_END
 //    - double
 //    - base::TimeDelta (represented as int64_t below Starboard)
 //
-// When wanting to use base::TimeDelta, use the |TIME| macro. Starboard does not
-// support base::TimeDelta, so a base::TimeDelta value is read as an int64_t
-// value instead. The |TIME| macro is used to help differentiate whether
-// base::TimeDelta or int64_t is used. When a parameter using type |TIME| is
-// used on the Chrobalt level, |TIME| is defined as base::TimeDelta. When a
-// parameter using type |TIME| is used on the Starboard level, |TIME| is defined
-// as int64_t.
+// When wanting to use base::TimeDelta, use the
+// |STARBOARD_FEATURE_PARAM_TIME_TYPE| macro. Starboard does not support
+// base::TimeDelta, so a base::TimeDelta value is read as an int64_t value
+// instead. The |STARBOARD_FEATURE_PARAM_TIME_TYPE| macro is used to help
+// differentiate whether base::TimeDelta or int64_t is used. When a parameter
+// using type |STARBOARD_FEATURE_PARAM_TIME_TYPE| is used on the Chrobalt level,
+// |STARBOARD_FEATURE_PARAM_TIME_TYPE| is defined as base::TimeDelta. When a
+// parameter using type |STARBOARD_FEATURE_PARAM_TIME_TYPE| is used on the
+// Starboard level, |STARBOARD_FEATURE_PARAM_TIME_TYPE| is defined as int64_t.
 //
 // - `kParam` is the C++ identifier that will be used for Starboard Parameters
 //    and base::FeatureParameters.
@@ -121,10 +137,25 @@ FEATURE_LIST_END
 
 FEATURE_PARAM_LIST_START
 // Be sure to add the parameter macro in between FEATURE_PARAM_LIST_START and
-// FEATURE_PARAM_LIST_END. An example of what a feature parameter
+// FEATURE_PARAM_LIST_END. Some examples of what a feature parameter
 // might look like with a defined platform and starboard version is:
 //
 // #if BUILDFLAG(IS_ANDROID) && (SB_API_VERSION >= 17)
 //   STARBOARD_FEATURE_PARAM(int, kFeatureParamBoo, kFeatureFoo, "boo", 10)
+//   STARBOARD_FEATURE_PARAM(double,
+//                           kCustomPlaybackRate,
+//                           kCobaltCustomPlayback,
+//                           "CustomPlaybackRate",
+//                           .75)
+//   STARBOARD_FEATURE_PARAM(STARBOARD_FEATURE_PARAM_TIME_TYPE,
+//                           kArtificialDelayTime,
+//                           kCobaltArtificialDelay,
+//                           "ArtificialDelayTime",
+//                           base::Milliseconds(10))
+//   STARBOARD_FEATURE_PARAM(std::string,
+//                           kCobaltDebugSetting,
+//                           kCobaltVideoDebug,
+//                           "CobaltDebugSetting",
+//                           "standard")
 // #endif // BUILDFLAG(IS_ANDROID) && (SB_API_VERSION >= 17)
 FEATURE_PARAM_LIST_END

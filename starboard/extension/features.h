@@ -1,4 +1,4 @@
-// Copyright 2019 The Cobalt Authors. All Rights Reserved.
+// Copyright 2025 The Cobalt Authors. All Rights Reserved.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -59,7 +59,9 @@ typedef struct StarboardExtensionFeaturesApi {
   // This helps to validate that the extension API is correct.
   const char* name;
 
-  // This specifies the version of the API that is implemented.
+  // This specifies the version of the API that is implemented. The current
+  // version of the API that is used can be seen and changed in the
+  // features_extension.cc file.
   uint32_t version;
 
   // The function to initialize starboard features and params.
