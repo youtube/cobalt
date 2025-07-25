@@ -24,8 +24,15 @@ runs:
         set -eux
         cd src/
         mkdir -p "${GITHUB_WORKSPACE}/artifacts/"
+        if [[ "${{ matrix.platform }}" == *raspi* ]]; then
+          mkdir -p "${GITHUB_WORKSPACE}/artifacts/out/${{ matrix.platform }}_${{ matrix.config }}/"
+        fi
         for target in $(cat "${TEST_TARGETS_JSON_FILE}" | jq -r '.executables | .[]'); do
-          cp "${target}" "${GITHUB_WORKSPACE}/artifacts/"
+          if [[ "${{ matrix.platform }}" == *android* ]]; then
+            cp "${target}" "${GITHUB_WORKSPACE}/artifacts/"
+          elif [[ "${{ matrix.platform }}" == *raspi* ]]; then
+            cp "${target}" "${GITHUB_WORKSPACE}/artifacts/out/${{ matrix.platform }}_${{ matrix.config }}/"
+          fi
         done
       shell: bash
     - name: Archive Test Dependencies
@@ -64,6 +71,7 @@ runs:
       if: inputs.upload_on_device_test_artifacts == 'true'
       env:
         WORKFLOW: ${{ github.workflow }}
+        TEST_TARGETS_JSON_FILE: ${{ inputs.test_targets_json_file }}
       run: |
         set -eux
         project_name=$(gcloud config get-value project)
@@ -77,5 +85,14 @@ runs:
         # Upload gtest target artifacts.
         gsutil -m cp "${GITHUB_WORKSPACE}/artifacts/*" \
           "gs://${project_name}-test-artifacts/${WORKFLOW}/${GITHUB_RUN_NUMBER}/${{matrix.platform}}/"
+
+        cd src/
+        if [[ "${{ matrix.platform }}" == *raspi* ]]; then
+          for target in $(cat "${TEST_TARGETS_JSON_FILE}" | jq -r '.executables | .[]'); do
+            filename=$(basename "${target}")
+            gsutil -m cp "${GITHUB_WORKSPACE}/artifacts/out/${{ matrix.platform }}_${{ matrix.config }}/${filename}" \
+              "gs://${project_name}-test-artifacts/${WORKFLOW}/${GITHUB_RUN_NUMBER}/${{matrix.platform}}/out/${{ matrix.platform }}_${{ matrix.config }}/"
+          done
+        fi
 
       shell: bash
