@@ -213,18 +213,23 @@ class MediaCodecBridge {
   FrameSize GetOutputSize();
   AudioOutputFormatResult GetAudioOutputFormat();
 
-  void OnMediaCodecError(bool is_recoverable,
-                         bool is_transient,
-                         const std::string& diagnostic_info);
-  void OnMediaCodecInputBufferAvailable(int buffer_index);
-  void OnMediaCodecOutputBufferAvailable(int buffer_index,
-                                         int flags,
-                                         int offset,
-                                         int64_t presentation_time_us,
-                                         int size);
-  void OnMediaCodecOutputFormatChanged();
-  void OnMediaCodecFrameRendered(int64_t frame_timestamp);
-  void OnMediaCodecFirstTunnelFrameReady();
+  void OnMediaCodecError(
+      JNIEnv* env,
+      jboolean is_recoverable,
+      jboolean is_transient,
+      const base::android::JavaParamRef<jstring>& diagnostic_info);
+  void OnMediaCodecInputBufferAvailable(JNIEnv* env, jint buffer_index);
+  void OnMediaCodecOutputBufferAvailable(JNIEnv* env,
+                                         jint buffer_index,
+                                         jint flags,
+                                         jint offset,
+                                         jlong presentation_time_us,
+                                         jint size);
+  void OnMediaCodecOutputFormatChanged(JNIEnv* env);
+  void OnMediaCodecFrameRendered(JNIEnv* env,
+                                 jlong presentation_time_us,
+                                 jlong render_at_system_time_ns);
+  void OnMediaCodecFirstTunnelFrameReady(JNIEnv* env);
 
   static jboolean IsFrameRenderedCallbackEnabled();
 

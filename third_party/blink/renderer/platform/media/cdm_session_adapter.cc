@@ -261,4 +261,13 @@ WebContentDecryptionModuleSessionImpl* CdmSessionAdapter::GetSession(
   return (session != sessions_.end()) ? session->second.get() : NULL;
 }
 
+#if BUILDFLAG(USE_STARBOARD_MEDIA)
+// TODO(b/432075710) move to starboard cdm extension
+void CdmSessionAdapter::GetMetrics(
+    std::unique_ptr<media::GetMetricsCdmPromise> promise) {
+  DCHECK(cdm_);
+  cdm_->GetMetrics(std::move(promise));
+}
+#endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
+
 }  // namespace blink

@@ -121,6 +121,7 @@ DrmOperationResult ToOperationResult(
   switch (status) {
     case DRM_OPERATION_STATUS_SUCCESS:
     case DRM_OPERATION_STATUS_OPERATION_FAILED:
+    case DRM_OPERATION_STATUS_NOT_PROVISIONED:
       break;
     default:
       SB_NOTREACHED() << "Unknown status " << static_cast<int>(status);
@@ -135,14 +136,16 @@ DrmOperationResult ToOperationResult(
 }  // namespace
 
 MediaDrmBridge::MediaDrmBridge(raw_ref<MediaDrmBridge::Host> host,
-                               std::string_view key_system)
+                               std::string_view key_system,
+                               bool enable_app_provisioning)
     : host_(host) {
   JNIEnv* env = AttachCurrentThread();
 
   ScopedJavaLocalRef<jstring> j_key_system(
       ConvertUTF8ToJavaString(env, key_system));
-  ScopedJavaLocalRef<jobject> j_media_drm_bridge(Java_MediaDrmBridge_create(
-      env, j_key_system, reinterpret_cast<jlong>(this)));
+  ScopedJavaLocalRef<jobject> j_media_drm_bridge(
+      Java_MediaDrmBridge_create(env, j_key_system, enable_app_provisioning,
+                                 reinterpret_cast<jlong>(this)));
 
   if (j_media_drm_bridge.is_null()) {
     SB_LOG(ERROR) << "Failed to create MediaDrmBridge.";
@@ -180,6 +183,34 @@ void MediaDrmBridge::CreateSession(int ticket,
 
   Java_MediaDrmBridge_createSession(env, j_media_drm_bridge_, j_ticket,
                                     j_init_data, j_mime);
+}
+
+DrmOperationResult MediaDrmBridge::CreateSessionWithAppProvisioning(
+    int ticket,
+    std::string_view init_data,
+    std::string_view mime) const {
+  JNIEnv* env = AttachCurrentThread();
+
+  jint j_ticket = static_cast<jint>(ticket);
+  auto j_init_data = ToScopedJavaByteArray(env, init_data);
+  auto j_mime = ScopedJavaLocalRef(ConvertUTF8ToJavaString(env, mime));
+
+  return ToOperationResult(
+      env, Java_MediaDrmBridge_createSessionWithAppProvisioning(
+               env, j_media_drm_bridge_, j_ticket, j_init_data, j_mime));
+}
+
+void MediaDrmBridge::GenerateProvisionRequest() const {
+  JNIEnv* env = AttachCurrentThread();
+  Java_MediaDrmBridge_generateProvisionRequest(env, j_media_drm_bridge_);
+}
+
+DrmOperationResult MediaDrmBridge::ProvideProvisionResponse(
+    std::string_view response) const {
+  JNIEnv* env = AttachCurrentThread();
+  return ToOperationResult(
+      env, Java_MediaDrmBridge_provideProvisionResponse(
+               env, j_media_drm_bridge_, ToScopedJavaByteArray(env, response)));
 }
 
 DrmOperationResult MediaDrmBridge::UpdateSession(
@@ -250,6 +281,12 @@ void MediaDrmBridge::OnSessionMessage(
       JavaByteArrayToString(env, message));
 }
 
+void MediaDrmBridge::OnProvisioningRequestMessage(
+    JNIEnv* env,
+    const JavaParamRef<jbyteArray>& message) {
+  host_->OnProvisioningRequest(JavaByteArrayToString(env, message));
+}
+
 void MediaDrmBridge::OnKeyStatusChange(
     JNIEnv* env,
     const JavaParamRef<jbyteArray>& session_id,
@@ -308,6 +345,8 @@ std::ostream& operator<<(std::ostream& os, DrmOperationStatus status) {
       return os << "success";
     case DRM_OPERATION_STATUS_OPERATION_FAILED:
       return os << "operation-failed";
+    case DRM_OPERATION_STATUS_NOT_PROVISIONED:
+      return os << "not-provisioned";
     default:
       SB_NOTREACHED();
       return os << "unknown-status";

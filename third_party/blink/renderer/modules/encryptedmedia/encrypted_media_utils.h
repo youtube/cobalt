@@ -37,6 +37,9 @@ enum class EmeApiType {
   kUpdate = 6,
   kClose = 7,
   kRemove = 8,
+#if BUILDFLAG(USE_STARBOARD_MEDIA)
+  kGetMetrics = 9,
+#endif //BUILDFLAG(USE_STARBOARD_MEDIA)
 };
 
 // Config associated with a MediaKeys and its sessions.

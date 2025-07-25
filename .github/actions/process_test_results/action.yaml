@@ -76,5 +76,5 @@ runs:
         set -x
         # Enable globstar shell option for globstar paths e.g. /**/*.xml
         shopt -s globstar
-        ./datadog-ci junit upload --service ${DD_SERVICE} ${{ inputs.results_path }}
+        ./datadog-ci junit upload --service ${DD_SERVICE} ${{ inputs.results_glob }}
       shell: bash

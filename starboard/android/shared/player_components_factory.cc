@@ -589,8 +589,9 @@ class PlayerComponentsFactory : public starboard::shared::starboard::player::
         force_big_endian_hdr_metadata, max_video_input_size,
         enable_flush_during_seek, reset_delay_usec, flush_delay_usec,
         error_message);
-    if (creation_parameters.video_codec() == kSbMediaVideoCodecAv1 ||
-        video_decoder->is_decoder_created()) {
+    if ((*error_message).empty() &&
+        (creation_parameters.video_codec() == kSbMediaVideoCodecAv1 ||
+         video_decoder->is_decoder_created())) {
       return video_decoder;
     }
     *error_message =

@@ -20,6 +20,13 @@ void ContentDecryptionModule::GetStatusForPolicy(
                   "GetStatusForPolicy() is not supported.");
 }
 
+#if BUILDFLAG(USE_STARBOARD_MEDIA)
+void ContentDecryptionModule::GetMetrics(std::unique_ptr<GetMetricsCdmPromise> promise) {
+  promise->reject(CdmPromise::Exception::NOT_SUPPORTED_ERROR, 0,
+                  "GeMetrics() is not supported.");
+}
+#endif // BUILDFLAG(USE_STARBOARD_MEDIA)
+
 void ContentDecryptionModule::DeleteOnCorrectThread() const {
   delete this;
 }

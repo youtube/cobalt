@@ -2987,6 +2987,10 @@ void WebFrameWidgetImpl::AutoscrollEnd() {
 }
 
 void WebFrameWidgetImpl::DidMeaningfulLayout(WebMeaningfulLayout layout_type) {
+// TODO: b/432242322 Cobalt - Fix the crash on raspi2
+#if defined(ARCH_CPU_ARM_FAMILY) && BUILDFLAG(ENABLE_COBALT_HERMETIC_HACKS)
+  LOG(WARNING) << "DidMeaningfulLayout: Disabled";
+#else
   if (layout_type == blink::WebMeaningfulLayout::kVisuallyNonEmpty) {
     NotifyPresentationTime(WTF::BindOnce(
         &WebFrameWidgetImpl::PresentationCallbackForMeaningfulLayout,
@@ -2997,6 +3001,8 @@ void WebFrameWidgetImpl::DidMeaningfulLayout(WebMeaningfulLayout layout_type) {
       local_root_->GetFrame(), [layout_type](WebLocalFrameImpl* local_frame) {
         local_frame->Client()->DidMeaningfulLayout(layout_type);
       });
+
+#endif
 }
 
 void WebFrameWidgetImpl::PresentationCallbackForMeaningfulLayout(
