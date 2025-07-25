@@ -963,11 +963,20 @@ void StarboardRenderer::OnOverlayReady(AndroidOverlay* overlay) {
   // update our internal state if the client drops it without being told.
   overlay_->AddOverlayDeletedCallback(base::BindOnce(
       &StarboardRenderer::OnOverlayDeleted, weak_factory_.GetWeakPtr()));
+
+  // TODO: b/429435008 - Pass JavaSurface to Starboard via StarboardExtension.
+
+  CreatePlayerBridge();
 }
 
 void StarboardRenderer::OnOverlayFailed(AndroidOverlay* overlay) {
   DCHECK_EQ(overlay, overlay_.get());
   overlay_ = nullptr;
+  state_ = STATE_ERROR;
+  std::move(init_cb_).Run(
+      PipelineStatus(DECODER_ERROR_NOT_SUPPORTED,
+                     "StarboardRenderer::OnOverlayFailed() failed to create a "
+                     "valid AndroidOverlay"));
 }
 
 void StarboardRenderer::OnOverlayDeleted(AndroidOverlay* overlay) {
