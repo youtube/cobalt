@@ -115,12 +115,7 @@ class SbPlayerTest : public ::testing::Test {
       if (now > wait_end) {
         break;
       }
-      condition_variable_.wait_for(
-          lock, std::chrono::microseconds(wait_end - now), [this]() {
-            return player_error_.has_value() ||
-                   (player_state_.has_value() &&
-                    player_state_.value() == kSbPlayerStateInitialized);
-          });
+      condition_variable_.wait(lock, std::chrono::microseconds(wait_end - now));
     }
 
     SB_LOG(INFO) << "WaitForPlayerInitializedOrError() timed out.";
