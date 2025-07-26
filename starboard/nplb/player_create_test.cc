@@ -15,10 +15,10 @@
 #include <string>
 #include <vector>
 
+#include <condition_variable>
+#include <mutex>
 #include <optional>
-#include "starboard/common/condition_variable.h"
 #include "starboard/common/media.h"
-#include "starboard/common/mutex.h"
 #include "starboard/common/time.h"
 #include "starboard/configuration_constants.h"
 #include "starboard/decode_target.h"
@@ -73,19 +73,19 @@ class SbPlayerTest : public ::testing::Test {
   }
 
   void OnPlayerStatus(SbPlayerState state) {
-    ScopedLock scoped_lock(mutex_);
+    std::lock_guard lock(mutex_);
     player_state_ = state;
-    condition_variable_.Signal();
+    condition_variable_.notify_one();
   }
 
   void OnPlayerError(SbPlayerError error) {
-    ScopedLock scoped_lock(mutex_);
+    std::lock_guard lock(mutex_);
     player_error_ = error;
-    condition_variable_.Signal();
+    condition_variable_.notify_one();
   }
 
   void ClearPlayerStateAndError() {
-    ScopedLock scoped_lock(mutex_);
+    std::lock_guard lock(mutex_);
     player_state_ = std::nullopt;
     player_error_ = std::nullopt;
   }
@@ -99,7 +99,7 @@ class SbPlayerTest : public ::testing::Test {
     const int64_t wait_end = CurrentMonotonicTime() + kWaitTimeout;
 
     for (;;) {
-      ScopedLock scoped_lock(mutex_);
+      std::unique_lock lock(mutex_);
 
       if (player_error_.has_value()) {
         *error_occurred = true;
@@ -115,7 +115,8 @@ class SbPlayerTest : public ::testing::Test {
       if (now > wait_end) {
         break;
       }
-      condition_variable_.WaitTimed(wait_end - now);
+      condition_variable_.wait_for(lock,
+                                   std::chrono::microseconds(wait_end - now));
     }
 
     SB_LOG(INFO) << "WaitForPlayerInitializedOrError() timed out.";
@@ -124,8 +125,8 @@ class SbPlayerTest : public ::testing::Test {
 
   FakeGraphicsContextProvider fake_graphics_context_provider_;
 
-  Mutex mutex_;
-  ConditionVariable condition_variable_{mutex_};
+  std::mutex mutex_;
+  std::condition_variable condition_variable_;
   std::optional<SbPlayerState> player_state_;
   std::optional<SbPlayerError> player_error_;
 };
