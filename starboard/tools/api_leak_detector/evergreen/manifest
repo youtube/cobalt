@@ -10,11 +10,6 @@ __res_state
 access
 chmod
 closelog
-dladdr
-dlclose
-dlerror
-dlopen
-dlsym
 fallocate
 fchmod
 fchown

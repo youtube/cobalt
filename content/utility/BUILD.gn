@@ -143,6 +143,13 @@ source_set("utility") {
     deps += [ "//components/services/screen_ai:screen_ai_sandbox_hook" ]
   }
 
+  if (is_starboard) {
+    deps -= [ 
+      "//content/utility/speech:speech_recognition_sandbox_hook",
+      "//components/services/screen_ai:screen_ai_sandbox_hook",
+    ]
+  }
+
   if (enable_accessibility_service) {
     deps += [ "//services/accessibility:lib" ]
   }

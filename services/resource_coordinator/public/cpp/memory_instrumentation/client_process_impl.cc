@@ -166,6 +166,11 @@ void ClientProcessImpl::RequestOSMemoryDump(
 }
 
 void ClientProcessImpl::PerformOSMemoryDump(OSMemoryDumpArgs args) {
+#if BUILDFLAG(IS_STARBOARD)
+  NOTREACHED() << "PerformOSMemoryDump was called, but Starboard does not "
+               << "support dladdr, which this function's library depends on. "
+               << "This call will fail.";
+#else
   bool global_success = true;
   base::flat_map<base::ProcessId, mojom::RawOSMemDumpPtr> results;
   for (const base::ProcessId& pid : args.pids) {
@@ -184,6 +189,7 @@ void ClientProcessImpl::PerformOSMemoryDump(OSMemoryDumpArgs args) {
     global_success = global_success && success;
   }
   std::move(args.callback).Run(global_success, std::move(results));
+#endif
 }
 
 ClientProcessImpl::OSMemoryDumpArgs::OSMemoryDumpArgs() = default;
