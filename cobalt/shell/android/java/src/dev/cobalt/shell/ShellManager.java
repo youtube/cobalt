@@ -47,7 +47,10 @@ public class ShellManager {
      */
     public ShellManager(final Context context) {
         mContext = context;
-        ShellManagerJni.get().init(this);
+        if (sNatives == null) {
+            sNatives = ShellManagerJni.get();
+        }
+        sNatives.init(this);
     }
 
     public Context getContext() {
@@ -99,7 +102,7 @@ public class ShellManager {
     public void launchShell(String url) {
         ThreadUtils.assertOnUiThread();
         Shell previousShell = mActiveShell;
-        ShellManagerJni.get().launchShell(url);
+        sNatives.launchShell(url);
         if (previousShell != null) previousShell.close();
     }
 
@@ -122,6 +125,9 @@ public class ShellManager {
     }
 
     private void showShell(Shell shellView) {
+        if (mActiveShell != null) {
+            mActiveShell.setContentViewRenderView(null);
+        }
         shellView.setContentViewRenderView(mContentViewRenderView);
         mActiveShell = shellView;
         WebContents webContents = mActiveShell.getWebContents();
@@ -154,9 +160,26 @@ public class ShellManager {
         }
     }
 
+    private static Natives sNatives;
+
+    public static void setNativesForTesting(Natives natives) {
+        sNatives = natives;
+    }
+
+    /**
+     * Interface for the native implementation of ShellManager.
+     */
     @NativeMethods
-    interface Natives {
+    public interface Natives {
+        /**
+         * Creates the native ShellManager object.
+         * @param shellManagerInstance The Java instance of the ShellManager.
+         */
         void init(Object shellManagerInstance);
+        /**
+         * Creates a new shell pointing to the specified URL.
+         * @param url The URL the shell should load upon creation.
+         */
         void launchShell(String url);
     }
 }
