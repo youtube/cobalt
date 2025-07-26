@@ -181,7 +181,6 @@ test("cobalt_unittests") {
 
   # All configs that provide definitions for switch constants.
   deps += [
-    "//chrome/common:non_code_constants",
     "//cobalt/browser:switches",
 
     # TODO(cobalt b/375241103) This dependency is large in scope. It would be
