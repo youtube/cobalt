@@ -12,6 +12,7 @@
 #include "base/check_op.h"
 #include "base/files/file_util.h"
 #include "base/functional/bind.h"
+#include "base/not_fatal_until.h"
 #include "base/numerics/safe_conversions.h"
 #include "base/pickle.h"
 #include "base/strings/string_number_conversions.h"
@@ -21,8 +22,10 @@
 #include "base/time/time.h"
 #include "base/trace_event/memory_usage_estimator.h"
 #include "build/build_config.h"
+#include "net/base/features.h"
 #include "net/base/net_errors.h"
 #include "net/disk_cache/backend_cleanup_tracker.h"
+#include "net/disk_cache/memory_entry_data_hints.h"
 #include "net/disk_cache/simple/simple_entry_format.h"
 #include "net/disk_cache/simple/simple_histogram_macros.h"
 #include "net/disk_cache/simple/simple_index_delegate.h"
@@ -184,11 +187,21 @@ SimpleIndex::SimpleIndex(
       cache_type_(cache_type),
       index_file_(std::move(index_file)),
       task_runner_(task_runner),
-      // Creating the callback once so it is reused every time
-      // write_to_disk_timer_.Start() is called.
-      write_to_disk_cb_(base::BindRepeating(&SimpleIndex::WriteToDisk,
-                                            AsWeakPtr(),
-                                            INDEX_WRITE_REASON_IDLE)) {}
+      prioritized_caching_enabled_(base::FeatureList::IsEnabled(
+          net::features::kSimpleCachePrioritizedCaching)),
+      caching_prioritization_factor_(
+          net::features::kSimpleCachePrioritizedCachingPrioritizationFactor
+              .Get()),
+      caching_prioritization_period_in_seconds_(static_cast<uint64_t>(
+          net::features::kSimpleCachePrioritizedCachingPrioritizationPeriod
+              .Get()
+              .InSeconds())) {
+  // Creating the callback once so it is reused every time
+  // write_to_disk_timer_.Start() is called.
+  write_to_disk_cb_ = base::BindRepeating(&SimpleIndex::WriteToDisk,
+                                          weak_ptr_factory_.GetWeakPtr(),
+                                          INDEX_WRITE_REASON_IDLE);
+}
 
 SimpleIndex::~SimpleIndex() {
   DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
@@ -203,14 +216,22 @@ void SimpleIndex::Initialize(base::Time cache_mtime) {
   DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
 
 #if BUILDFLAG(IS_ANDROID)
-  if (app_status_listener_) {
-    app_status_listener_->SetCallback(base::BindRepeating(
-        &SimpleIndex::OnApplicationStateChange, AsWeakPtr()));
+  if (app_status_listener_getter_) {
+    base::android::ApplicationStatusListener* listener =
+        app_status_listener_getter_.Run();
+    if (listener) {
+      listener->SetCallback(
+          base::BindRepeating(&SimpleIndex::OnApplicationStateChange,
+                              weak_ptr_factory_.GetWeakPtr()));
+    }
+    // Not using the fallback on purpose here --- if the getter is set, we may
+    // be in a process where the base::android::ApplicationStatusListener::New
+    // impl is unavailable.
+    // (See https://crbug.com/881572)
   } else if (base::android::IsVMInitialized()) {
-    owned_app_status_listener_ =
-        base::android::ApplicationStatusListener::New(base::BindRepeating(
-            &SimpleIndex::OnApplicationStateChange, AsWeakPtr()));
-    app_status_listener_ = owned_app_status_listener_.get();
+    owned_app_status_listener_ = base::android::ApplicationStatusListener::New(
+        base::BindRepeating(&SimpleIndex::OnApplicationStateChange,
+                            weak_ptr_factory_.GetWeakPtr()));
   }
 #endif
 
@@ -218,8 +239,8 @@ void SimpleIndex::Initialize(base::Time cache_mtime) {
   auto* load_result_ptr = load_result.get();
   index_file_->LoadIndexEntries(
       cache_mtime,
-      base::BindOnce(&SimpleIndex::MergeInitializingSet, AsWeakPtr(),
-                     std::move(load_result)),
+      base::BindOnce(&SimpleIndex::MergeInitializingSet,
+                     weak_ptr_factory_.GetWeakPtr(), std::move(load_result)),
       load_result_ptr);
 }
 
@@ -316,7 +337,7 @@ base::Time SimpleIndex::GetLastUsedTime(uint64_t entry_hash) {
 void SimpleIndex::SetLastUsedTimeForTest(uint64_t entry_hash,
                                          const base::Time last_used) {
   auto it = entries_set_.find(entry_hash);
-  DCHECK(it != entries_set_.end());
+  CHECK(it != entries_set_.end(), base::NotFatalUntil::M130);
   it->second.SetLastUsedTime(last_used);
 }
 
@@ -406,7 +427,7 @@ void SimpleIndex::StartEvictionIfNeeded() {
   eviction_in_progress_ = true;
   eviction_start_time_ = base::TimeTicks::Now();
 
-  bool use_size_heuristic =
+  const bool use_size_heuristic =
       (cache_type_ != net::GENERATED_BYTE_CODE_CACHE &&
        cache_type_ != net::GENERATED_WEBUI_BYTE_CODE_CACHE);
 
@@ -416,13 +437,24 @@ void SimpleIndex::StartEvictionIfNeeded() {
   uint32_t now = (base::Time::Now() - base::Time::UnixEpoch()).InSeconds();
   for (EntrySet::const_iterator i = entries_set_.begin();
        i != entries_set_.end(); ++i) {
-    uint64_t sort_value = now - i->second.RawTimeForSorting();
+    const uint64_t time_since_last_used = now - i->second.RawTimeForSorting();
+    uint64_t sort_value = time_since_last_used;
     // See crbug.com/736437 for context.
     //
     // Will not overflow since we're multiplying two 32-bit values and storing
     // them in a 64-bit variable.
-    if (use_size_heuristic)
+    if (use_size_heuristic) {
       sort_value *= i->second.GetEntrySize() + kEstimatedEntryOverhead;
+      // When prioritized caching is enabled, we want to evict entries that are
+      // not prioritized before entries that are prioritized. So we divide the
+      // sort value by the `caching_prioritization_factor`.
+      if (prioritized_caching_enabled_ &&
+          time_since_last_used < caching_prioritization_period_in_seconds_ &&
+          (i->second.GetInMemoryData() & HINT_HIGH_PRIORITY) ==
+              HINT_HIGH_PRIORITY) {
+        sort_value /= caching_prioritization_factor_;
+      }
+    }
     // Subtract so we don't need a custom comparator.
     entries.emplace_back(std::numeric_limits<uint64_t>::max() - sort_value,
                          &*i);
@@ -445,8 +477,9 @@ void SimpleIndex::StartEvictionIfNeeded() {
                    "Eviction.TimeToSelectEntries", cache_type_,
                    base::TimeTicks::Now() - eviction_start_time_);
 
-  delegate_->DoomEntries(
-      &entry_hashes, base::BindOnce(&SimpleIndex::EvictionDone, AsWeakPtr()));
+  delegate_->DoomEntries(&entry_hashes,
+                         base::BindOnce(&SimpleIndex::EvictionDone,
+                                        weak_ptr_factory_.GetWeakPtr()));
 }
 
 int32_t SimpleIndex::GetTrailerPrefetchSize(uint64_t entry_hash) const {
@@ -503,7 +536,7 @@ bool SimpleIndex::InsertInEntrySet(
     const disk_cache::EntryMetadata& entry_metadata,
     EntrySet* entry_set) {
   DCHECK(entry_set);
-  auto result = entry_set->insert(std::make_pair(entry_hash, entry_metadata));
+  auto result = entry_set->emplace(entry_hash, entry_metadata);
   return result.second;
 }
 
@@ -579,10 +612,10 @@ void SimpleIndex::MergeInitializingSet(
                    entries_set_.size(), 0, 100000, 50);
   SIMPLE_CACHE_UMA(
       MEMORY_KB, "CacheSizeOnInit", cache_type_,
-      static_cast<base::HistogramBase::Sample>(cache_size_ / kBytesInKb));
+      static_cast<base::HistogramBase::Sample32>(cache_size_ / kBytesInKb));
   SIMPLE_CACHE_UMA(
       MEMORY_KB, "MaxCacheSizeOnInit", cache_type_,
-      static_cast<base::HistogramBase::Sample>(max_size_ / kBytesInKb));
+      static_cast<base::HistogramBase::Sample32>(max_size_ / kBytesInKb));
 
   // Run all callbacks waiting for the index to come up.
   for (auto& callback : to_run_when_initialized_) {
@@ -614,16 +647,13 @@ void SimpleIndex::WriteToDisk(IndexWriteToDiskReason reason) {
     return;
 
   // Cancel any pending writes since we are about to write to disk now.
-  write_to_disk_timer_.AbandonAndStop();
+  write_to_disk_timer_.Stop();
 
   base::OnceClosure after_write;
   if (cleanup_tracker_) {
     // Make anyone synchronizing with our cleanup wait for the index to be
     // written back.
-/* Cobalt
     after_write = base::DoNothingWithBoundArgs(cleanup_tracker_);
-Cobalt */
-    after_write = base::DoNothingWithBoundArgs(std::move(cleanup_tracker_));
   }
 
   index_file_->WriteToDisk(cache_type_, reason, entries_set_, cache_size_,

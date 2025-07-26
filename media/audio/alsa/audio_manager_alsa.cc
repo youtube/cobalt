@@ -2,11 +2,19 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#ifdef UNSAFE_BUFFERS_BUILD
+// TODO(crbug.com/40285824): Remove this and convert code to safer constructs.
+#pragma allow_unsafe_buffers
+#endif
+
 #include "media/audio/alsa/audio_manager_alsa.h"
 
 #include <stddef.h>
 
+#include <array>
+
 #include "base/command_line.h"
+#include "base/containers/contains.h"
 #include "base/logging.h"
 #include "base/memory/free_deleter.h"
 #include "base/metrics/histogram.h"
@@ -35,9 +43,13 @@ static const int kDefaultSampleRate = 48000;
 // real devices, we remove them from the list to avoiding duplicate counting.
 // In addition, note that we support no more than 2 channels for recording,
 // hence surround devices are not stored in the list.
-static const char* const kInvalidAudioInputDevices[] = {
-    "default", "dmix", "null", "pulse", "surround",
-};
+const auto kInvalidAudioInputDevices = std::to_array<const char*>({
+    "default",
+    "dmix",
+    "null",
+    "pulse",
+    "surround",
+});
 
 AudioManagerAlsa::AudioManagerAlsa(std::unique_ptr<AudioThread> audio_thread,
                                    AudioLogFactory* audio_log_factory)
@@ -49,23 +61,29 @@ AudioManagerAlsa::AudioManagerAlsa(std::unique_ptr<AudioThread> audio_thread,
 AudioManagerAlsa::~AudioManagerAlsa() = default;
 
 bool AudioManagerAlsa::HasAudioOutputDevices() {
-  return HasAnyAlsaAudioDevice(kStreamPlayback);
+  return base::CommandLine::ForCurrentProcess()->HasSwitch(
+             switches::kAlsaOutputDevice) ||
+         HasAnyAlsaAudioDevice(kStreamPlayback);
 }
 
 bool AudioManagerAlsa::HasAudioInputDevices() {
-  return HasAnyAlsaAudioDevice(kStreamCapture);
+  return base::CommandLine::ForCurrentProcess()->HasSwitch(
+             switches::kAlsaInputDevice) ||
+         HasAnyAlsaAudioDevice(kStreamCapture);
 }
 
 void AudioManagerAlsa::GetAudioInputDeviceNames(
     AudioDeviceNames* device_names) {
   DCHECK(device_names->empty());
   GetAlsaAudioDevices(kStreamCapture, device_names);
+  AddAlsaDeviceFromSwitch(switches::kAlsaInputDevice, device_names);
 }
 
 void AudioManagerAlsa::GetAudioOutputDeviceNames(
     AudioDeviceNames* device_names) {
   DCHECK(device_names->empty());
   GetAlsaAudioDevices(kStreamPlayback, device_names);
+  AddAlsaDeviceFromSwitch(switches::kAlsaOutputDevice, device_names);
 }
 
 AudioParameters AudioManagerAlsa::GetInputStreamParameters(
@@ -87,7 +105,7 @@ void AudioManagerAlsa::GetAlsaAudioDevices(StreamType type,
   static const char kPcmInterfaceName[] = "pcm";
   int card = -1;
 
-  // Loop through the sound cards to get ALSA device hints.
+  // Loop through the physical sound cards to get ALSA device hints.
   while (!wrapper_->CardNext(&card) && card >= 0) {
     void** hints = NULL;
     int error = wrapper_->DeviceNameHint(card, kPcmInterfaceName, &hints);
@@ -186,6 +204,36 @@ bool AudioManagerAlsa::IsAlsaDeviceAvailable(
   static const char kDeviceTypeDesired[] = "plughw";
   return strncmp(kDeviceTypeDesired, device_name,
                  std::size(kDeviceTypeDesired) - 1) == 0;
+}
+
+// static
+void AudioManagerAlsa::AddAlsaDeviceFromSwitch(const char* switch_name,
+                                               AudioDeviceNames* device_names) {
+  // If an ALSA device is specified via the given switch, but the device list
+  // does not contain the specified device, append it to the list.
+  // GetAlsaAudioDevices only returns hardware ALSA devices, so this logic
+  // ensures that if a virtual ALSA device is specified via switch, it is
+  // included in the list of audio devices.
+  if (base::CommandLine::ForCurrentProcess()->HasSwitch(switch_name)) {
+    // If the device list is empty, prepend the default device since we always
+    // want it to be on the top of the list for all platforms.
+    if (device_names->empty()) {
+      device_names->push_front(AudioDeviceName::CreateDefault());
+    }
+    std::string switch_device_name =
+        base::CommandLine::ForCurrentProcess()->GetSwitchValueASCII(
+            switch_name);
+    // Only append the specified device if it is not already present on the
+    // list.
+    if (!base::Contains(
+            *device_names, switch_device_name,
+            [](const auto& device_name) { return device_name.unique_id; })) {
+      AudioDeviceName name;
+      name.unique_id = switch_device_name;
+      name.device_name = switch_device_name;
+      device_names->push_back(name);
+    }
+  }
 }
 
 // static

@@ -1,0 +1,71 @@
+// Copyright 2024 The Chromium Authors
+// Use of this source code is governed by a BSD-style license that can be
+// found in the LICENSE file.
+
+module blink.mojom;
+
+// Implementation of the proposed Digital Identity Credential API.
+//
+// Proposal: https://wicg.github.io/digital-identities
+
+// The specification of the request to digital credentials.
+struct DigitalCredentialRequest {
+  string protocol;
+  string data;
+};
+
+// Represents the format of the request that should be used when communicating
+// with the digital wallet via the Android platform. Renderer picks a format
+// based on the request that was provided by the website when invoking the
+// digital credential API.
+enum GetRequestFormat {
+  kLegacy,
+  kModern,
+};
+
+// Represents the fetch result from a digital identity request. It is
+// used to determine whether a JavaScript exception should be thrown, and what
+// the error message of such exception should say.
+enum RequestDigitalIdentityStatus {
+  kSuccess,
+  kError,
+  kErrorTooManyRequests,
+  kErrorCanceled,
+  kErrorNoRequests,
+  kErrorNoTransientUserActivation,
+  kErrorInvalidJson,
+};
+
+// Create a digital identity request using the specified request data.
+// This interface is called from a renderer process and is implemented in the
+// browser process.
+interface DigitalIdentityRequest {
+  // Requests a token to be generated, given a DigitalCredentialRequest.
+  // Returns:
+  // - Status of the request.
+  // - Raw content of the token.
+  // - Protocol of the selected request.
+  //
+  // Does not support concurrent requests. Throws an error on a new request if
+  // there is a pending request.
+  Get(array<DigitalCredentialRequest> digital_credential_requests, GetRequestFormat format) =>
+      (RequestDigitalIdentityStatus status,
+      string? protocol,
+      string? token);
+
+  // Requests a token to be generated, given a DigitalCredentialRequest.
+  // Returns:
+  // - Status of the request.
+  // - Raw content of the token.
+  // - Protocol of the selected provider.
+  //
+  // Does not support concurrent requests. Throws an error on a new request if
+  // there is a pending request.
+  Create(DigitalCredentialRequest digital_credential_request) =>
+      (RequestDigitalIdentityStatus status,
+      string? protocol,
+      string? token);
+
+  // Aborts the pending request, if any.
+  Abort();
+};

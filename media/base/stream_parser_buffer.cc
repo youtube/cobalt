@@ -7,14 +7,24 @@
 #include <algorithm>
 
 #include "base/check_op.h"
-#include "base/memory/ptr_util.h"
+#include "base/compiler_specific.h"
+#include "base/containers/span.h"
+#include "base/memory/scoped_refptr.h"
+#include "base/numerics/safe_conversions.h"
+#include "base/types/pass_key.h"
+#include "media/base/media_client.h"
 #include "media/base/timestamp_constants.h"
 
 namespace media {
 
-scoped_refptr<StreamParserBuffer> StreamParserBuffer::CreateEOSBuffer() {
-  return base::WrapRefCounted(new StreamParserBuffer(
-      NULL, 0, NULL, 0, false, DemuxerStream::UNKNOWN, 0));
+static_assert(StreamParserBuffer::Type::TYPE_MAX < 4,
+              "StreamParserBuffer::type_ has a max storage size of two bits.");
+
+scoped_refptr<StreamParserBuffer> StreamParserBuffer::CreateEOSBuffer(
+    std::optional<ConfigVariant> next_config) {
+  return base::MakeRefCounted<StreamParserBuffer>(
+      base::PassKey<StreamParserBuffer>(), DecoderBufferType::kEndOfStream,
+      std::move(next_config));
 }
 
 scoped_refptr<StreamParserBuffer> StreamParserBuffer::CopyFrom(
@@ -23,33 +33,38 @@ scoped_refptr<StreamParserBuffer> StreamParserBuffer::CopyFrom(
     bool is_key_frame,
     Type type,
     TrackId track_id) {
-  return base::WrapRefCounted(new StreamParserBuffer(
-      data, data_size, NULL, 0, is_key_frame, type, track_id));
+  if (auto* media_client = GetMediaClient()) {
+    if (auto* alloc = media_client->GetMediaAllocator()) {
+      auto data_span =
+          UNSAFE_TODO(base::span(data, base::checked_cast<size_t>(data_size)));
+      return StreamParserBuffer::FromExternalMemory(
+          alloc->CopyFrom(data_span), is_key_frame, type, track_id);
+    }
+  }
+  return base::MakeRefCounted<StreamParserBuffer>(
+      base::PassKey<StreamParserBuffer>(), data, data_size, is_key_frame, type,
+      track_id);
 }
 
-scoped_refptr<StreamParserBuffer> StreamParserBuffer::CopyFrom(
-    const uint8_t* data,
-    int data_size,
-    const uint8_t* side_data,
-    int side_data_size,
-    bool is_key_frame,
-    Type type,
-    TrackId track_id) {
-  return base::WrapRefCounted(
-      new StreamParserBuffer(data, data_size, side_data, side_data_size,
-                             is_key_frame, type, track_id));
-}
-
-#if !defined(STARBOARD)
 scoped_refptr<StreamParserBuffer> StreamParserBuffer::FromExternalMemory(
     std::unique_ptr<ExternalMemory> external_memory,
     bool is_key_frame,
     Type type,
     TrackId track_id) {
-  return base::WrapRefCounted(new StreamParserBuffer(
-      std::move(external_memory), is_key_frame, type, track_id));
+  return base::MakeRefCounted<StreamParserBuffer>(
+      base::PassKey<StreamParserBuffer>(), std::move(external_memory),
+      is_key_frame, type, track_id);
 }
-#endif  // !defined(STARBOARD)
+
+scoped_refptr<StreamParserBuffer> StreamParserBuffer::FromArray(
+    base::HeapArray<uint8_t> heap_array,
+    bool is_key_frame,
+    Type type,
+    TrackId track_id) {
+  return base::MakeRefCounted<StreamParserBuffer>(
+      base::PassKey<StreamParserBuffer>(), std::move(heap_array), is_key_frame,
+      type, track_id);
+}
 
 DecodeTimestamp StreamParserBuffer::GetDecodeTimestamp() const {
   if (decode_timestamp_ == kNoDecodeTimestamp)
@@ -63,8 +78,8 @@ void StreamParserBuffer::SetDecodeTimestamp(DecodeTimestamp timestamp) {
     preroll_buffer_->SetDecodeTimestamp(timestamp);
 }
 
-#if !defined(STARBOARD)
 StreamParserBuffer::StreamParserBuffer(
+    base::PassKey<StreamParserBuffer>,
     std::unique_ptr<ExternalMemory> external_memory,
     bool is_key_frame,
     Type type,
@@ -75,21 +90,29 @@ StreamParserBuffer::StreamParserBuffer(
   set_duration(kNoTimestamp);
   set_is_key_frame(is_key_frame);
 }
-#endif  // !defined(STARBOARD)
 
-StreamParserBuffer::StreamParserBuffer(const uint8_t* data,
-                                       int data_size,
-                                       const uint8_t* side_data,
-                                       int side_data_size,
+StreamParserBuffer::StreamParserBuffer(base::PassKey<StreamParserBuffer>,
+                                       base::HeapArray<uint8_t> heap_array,
                                        bool is_key_frame,
                                        Type type,
                                        TrackId track_id)
-    : DecoderBuffer(data, data_size, side_data, side_data_size),
-      decode_timestamp_(kNoDecodeTimestamp),
-      config_id_(kInvalidConfigId),
+    : DecoderBuffer(std::move(heap_array)), type_(type), track_id_(track_id) {
+  set_duration(kNoTimestamp);
+  set_is_key_frame(is_key_frame);
+}
+
+StreamParserBuffer::StreamParserBuffer(base::PassKey<StreamParserBuffer>,
+                                       const uint8_t* data,
+                                       int data_size,
+                                       bool is_key_frame,
+                                       Type type,
+                                       TrackId track_id)
+    : DecoderBuffer(
+          // TODO(crbug.com/40284755): Convert `StreamBufferParser` to
+          // `size_t` and `base::span`.
+          UNSAFE_TODO(base::span(data, base::checked_cast<size_t>(data_size)))),
       type_(type),
-      track_id_(track_id),
-      is_duration_estimated_(false) {
+      track_id_(track_id) {
   // TODO(scherkus): Should DataBuffer constructor accept a timestamp and
   // duration to force clients to set them? Today they end up being zero which
   // is both a common and valid value and could lead to bugs.
@@ -100,6 +123,13 @@ StreamParserBuffer::StreamParserBuffer(const uint8_t* data,
   if (is_key_frame)
     set_is_key_frame(true);
 }
+
+StreamParserBuffer::StreamParserBuffer(base::PassKey<StreamParserBuffer>,
+                                       DecoderBufferType decoder_buffer_type,
+                                       std::optional<ConfigVariant> next_config)
+    : DecoderBuffer(decoder_buffer_type, next_config),
+      type_(Type::UNKNOWN),
+      track_id_(-1) {}
 
 StreamParserBuffer::~StreamParserBuffer() = default;
 
@@ -142,6 +172,17 @@ void StreamParserBuffer::set_timestamp(base::TimeDelta timestamp) {
   DecoderBuffer::set_timestamp(timestamp);
   if (preroll_buffer_)
     preroll_buffer_->set_timestamp(timestamp);
+}
+
+size_t StreamParserBuffer::GetMemoryUsage() const {
+  size_t memory_usage = DecoderBuffer::GetMemoryUsage() -
+                        sizeof(DecoderBuffer) + sizeof(StreamParserBuffer);
+
+  if (preroll_buffer_) {
+    memory_usage += preroll_buffer_->GetMemoryUsage();
+  }
+
+  return memory_usage;
 }
 
 }  // namespace media

@@ -12,10 +12,14 @@
 #include "mojo/public/cpp/bindings/remote.h"
 #include "mojo/public/cpp/test_support/test_utils.h"
 #include "testing/gtest/include/gtest/gtest.h"
+#include "third_party/skia/include/core/SkColorSpace.h"
 #include "ui/gfx/geometry/rrect_f.h"
 #include "ui/gfx/geometry/transform.h"
+#include "ui/gfx/hdr_metadata.h"
 #include "ui/gfx/mojom/accelerated_widget_mojom_traits.h"
 #include "ui/gfx/mojom/buffer_types_mojom_traits.h"
+#include "ui/gfx/mojom/hdr_metadata.mojom.h"
+#include "ui/gfx/mojom/hdr_metadata_mojom_traits.h"
 #include "ui/gfx/mojom/presentation_feedback.mojom.h"
 #include "ui/gfx/mojom/presentation_feedback_mojom_traits.h"
 #include "ui/gfx/mojom/traits_test_service.mojom.h"
@@ -179,7 +183,7 @@ TEST_F(StructTraitsTest, GpuMemoryBufferHandle) {
   gfx::GpuMemoryBufferHandle handle;
   handle.type = gfx::SHARED_MEMORY_BUFFER;
   handle.id = kId;
-  handle.region = shared_memory_region.Duplicate();
+  handle.set_region(shared_memory_region.Duplicate());
   handle.offset = kOffset;
   handle.stride = kStride;
 
@@ -191,7 +195,7 @@ TEST_F(StructTraitsTest, GpuMemoryBufferHandle) {
   EXPECT_EQ(kOffset, output.offset);
   EXPECT_EQ(kStride, output.stride);
 
-  base::UnsafeSharedMemoryRegion output_memory = std::move(output.region);
+  base::UnsafeSharedMemoryRegion output_memory = std::move(output.region());
   EXPECT_TRUE(output_memory.Map().IsValid());
 
 #if BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_CHROMEOS) || BUILDFLAG(IS_OZONE)
@@ -327,6 +331,46 @@ TEST_F(StructTraitsTest, RRectF) {
   input.SetCornerRadii(RRectF::Corner::kLowerRight, 0, 0);
   input.SetCornerRadii(RRectF::Corner::kLowerLeft, 0, 0);
   remote->EchoRRectF(input, &output);
+  EXPECT_EQ(input, output);
+}
+
+TEST_F(StructTraitsTest, HDRMetadata) {
+  // Test an empty input/output.
+  gfx::HDRMetadata input;
+  gfx::HDRMetadata output;
+  mojo::test::SerializeAndDeserialize<gfx::mojom::HDRMetadata>(input, output);
+  EXPECT_EQ(input, output);
+
+  // Include CTA 861.3.
+  input.cta_861_3.emplace(123, 456);
+  EXPECT_NE(input, output);
+  mojo::test::SerializeAndDeserialize<gfx::mojom::HDRMetadata>(input, output);
+  EXPECT_EQ(input, output);
+
+  // Include SMPTE ST 2086.
+  input.smpte_st_2086.emplace(SkNamedPrimaries::kRec2020, 789, 123);
+  EXPECT_NE(input, output);
+  mojo::test::SerializeAndDeserialize<gfx::mojom::HDRMetadata>(input, output);
+  EXPECT_EQ(input, output);
+
+  // Include SDR white level.
+  input.ndwl.emplace(123.f);
+  EXPECT_NE(input, output);
+  mojo::test::SerializeAndDeserialize<gfx::mojom::HDRMetadata>(input, output);
+  EXPECT_EQ(input, output);
+
+  // Include extended range.
+  input.extended_range.emplace(10.f, 4.f);
+  EXPECT_NE(input, output);
+  mojo::test::SerializeAndDeserialize<gfx::mojom::HDRMetadata>(input, output);
+  EXPECT_EQ(input, output);
+
+  // Include agtm.
+  const size_t agtm_size = 4;
+  const uint8_t agtm_data[agtm_size] = {0xde, 0xad, 0xbe, 0xef};
+  input.agtm.emplace(agtm_data, agtm_size);
+  EXPECT_NE(input, output);
+  mojo::test::SerializeAndDeserialize<gfx::mojom::HDRMetadata>(input, output);
   EXPECT_EQ(input, output);
 }
 

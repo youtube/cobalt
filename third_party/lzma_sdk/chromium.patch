@@ -1,0 +1,46 @@
+diff -r /Users/waffles/Downloads/lzma2409/Asm/x86/LzmaDecOpt.asm ./Asm/x86/LzmaDecOpt.asm
+42c42,44
+< _TEXT$LZMADECOPT SEGMENT ALIGN(64) 'CODE'
+---
+> ; Make this deterministic
+> ; _TEXT$LZMADECOPT SEGMENT ALIGN(64) 'CODE'
+> LZMADEC SEGMENT ALIGN(64) 'CODE'
+1336c1338
+< _TEXT$LZMADECOPT ENDS
+---
+> LZMADEC ENDS
+diff -r /Users/waffles/Downloads/lzma2409/C/CpuArch.h ./C/CpuArch.h
+413c413,417
+< 
+---
+> // Disable MY_CPU_LE_UNALIGN. Although the underlying ISA may be able to load
+> // unaligned words, doing so via pointer casts is undefined behavior in C and
+> // C++, under both strict aliasing and because it is invalid to construct
+> // unaligned pointers. Instead, load the bytes generically and leave optimizing
+> // this to the compiler.
+419,420c423,424
+<     #define MY_CPU_LE_UNALIGN
+<     #define MY_CPU_LE_UNALIGN_64
+---
+>     // #define MY_CPU_LE_UNALIGN
+>     // #define MY_CPU_LE_UNALIGN_64
+diff -r /Users/waffles/Downloads/lzma2409/C/LzFind.c ./C/LzFind.c
+598c598
+< 
+---
+> #if 0
+642c642
+< 
+---
+> #endif // #if 0
+diff -r /Users/waffles/Downloads/lzma2409/C/Util/SfxSetup/SfxSetup.c ./C/Util/SfxSetup/SfxSetup.c
+13a14,17
+> // SHELLEXECUTEINFO
+> #include <windows.h>
+> #include <shellapi.h>
+> 
+144c148
+< #define kSignatureSearchLimit (1 << 22)
+---
+> #define kSignatureSearchLimit (1 << 26)
+

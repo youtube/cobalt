@@ -1,12 +1,15 @@
-# Copyright 2014 The Chromium Authors. All rights reserved.
+# Copyright 2014 The Chromium Authors
 # Use of this source code is governed by a BSD-style license that can be
 # found in the LICENSE file.
 
-if (!use_cobalt_customizations) {
+import("//build/config/features.gni")
+
 static_library("net") {
   sources = [
     "variations_command_line.cc",
     "variations_command_line.h",
+    "variations_flags.cc",
+    "variations_flags.h",
     "variations_http_headers.cc",
     "variations_http_headers.h",
   ]
@@ -18,12 +21,27 @@ static_library("net") {
     "//services/network/public/cpp:cpp_base",
     "//url",
   ]
+
   deps = [
     "//base",
-    "//components/google/core/browser",
-    "//components/metrics",
+    "//components/google/core/common",
+    "//components/variations:variations_mojom",
     "//components/variations/field_trial_config",
     "//components/variations/proto",
   ]
-}
+
+  if (!is_chromeos) {
+    deps += [ "//third_party/boringssl" ]
+  }
+
+  if (use_blink) {
+    sources += [
+      "variations_url_loader_throttle.cc",
+      "variations_url_loader_throttle.h",
+    ]
+    deps += [
+      "//components/variations:variations_mojom",
+      "//third_party/blink/public/common",
+    ]
+  }
 }

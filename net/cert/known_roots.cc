@@ -2,6 +2,11 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#ifdef UNSAFE_BUFFERS_BUILD
+// TODO(crbug.com/390223051): Remove C-library calls to fix the errors.
+#pragma allow_unsafe_libc_calls
+#endif
+
 #include "net/cert/known_roots.h"
 
 #include <string.h>
@@ -50,11 +55,6 @@ int32_t GetNetTrustAnchorHistogramIdForSPKI(const HashValue& spki_hash) {
   if (!root_data)
     return 0;
   return root_data->histogram_id;
-}
-
-bool IsLegacyPubliclyTrustedCA(const HashValue& spki_hash) {
-  const RootCertData* root_data = GetRootCertData(spki_hash);
-  return root_data && root_data->legacy_ca;
 }
 
 }  // namespace net

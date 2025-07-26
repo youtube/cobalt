@@ -2,8 +2,6 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include "base/fuchsia/scoped_service_publisher.h"
-
 #include <fidl/base.testfidl/cpp/fidl.h>
 #include <fuchsia/io/cpp/fidl.h>
 #include <lib/async/default.h>
@@ -14,6 +12,7 @@
 #include <lib/vfs/cpp/pseudo_dir.h>
 
 #include "base/fuchsia/process_context.h"
+#include "base/fuchsia/scoped_service_publisher.h"
 #include "base/fuchsia/test_component_context_for_process.h"
 #include "base/fuchsia/test_interface_natural_impl.h"
 #include "base/test/task_environment.h"
@@ -50,10 +49,10 @@ TEST_F(ScopedNaturalServicePublisherTest, OutgoingDirectory) {
   // Existing channels remain valid after the publisher goes out of scope.
   EXPECT_EQ(VerifyTestInterface(client_a), ZX_OK);
 
-  // New connections attempts will be dropped.
+  // New connection attempts should fail immediately.
   auto client_b = base::CreateTestInterfaceClient(
       test_context_.published_services_natural());
-  EXPECT_EQ(VerifyTestInterface(client_b), ZX_ERR_PEER_CLOSED);
+  EXPECT_EQ(VerifyTestInterface(client_b), ZX_ERR_NOT_FOUND);
 }
 
 TEST_F(ScopedNaturalServicePublisherTest, PseudoDir) {
@@ -61,9 +60,9 @@ TEST_F(ScopedNaturalServicePublisherTest, PseudoDir) {
   auto pseudodir_endpoints = fidl::CreateEndpoints<fuchsia_io::Directory>();
   ASSERT_TRUE(pseudodir_endpoints.is_ok())
       << pseudodir_endpoints.status_string();
-  directory.Serve(fuchsia::io::OpenFlags::RIGHT_READABLE |
-                      fuchsia::io::OpenFlags::RIGHT_WRITABLE,
-                  pseudodir_endpoints->server.TakeChannel());
+  directory.Serve(fuchsia_io::wire::kPermReadable,
+                  fidl::ServerEnd<fuchsia_io::Directory>(
+                      pseudodir_endpoints->server.TakeChannel()));
 
   fidl::Client<base_testfidl::TestInterface> client_a;
 
@@ -80,10 +79,10 @@ TEST_F(ScopedNaturalServicePublisherTest, PseudoDir) {
   // Existing channels remain valid after the publisher goes out of scope.
   EXPECT_EQ(VerifyTestInterface(client_a), ZX_OK);
 
-  // New connection attempts will be dropped.
+  // New connection attempts should fail immediately.
   auto client_b =
       base::CreateTestInterfaceClient(pseudodir_endpoints->client.borrow());
-  EXPECT_EQ(VerifyTestInterface(client_b), ZX_ERR_PEER_CLOSED);
+  EXPECT_EQ(VerifyTestInterface(client_b), ZX_ERR_NOT_FOUND);
 }
 
 }  // namespace base

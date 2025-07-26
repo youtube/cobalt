@@ -2,11 +2,13 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+
 #include "net/disk_cache/simple/simple_index_file.h"
 
 #include <utility>
 #include <vector>
 
+#include "base/containers/heap_array.h"
 #include "base/files/file.h"
 #include "base/files/file_util.h"
 #include "base/functional/bind.h"
@@ -42,7 +44,7 @@ const int64_t kMaxIndexFileSizeBytes =
     kMaxEntriesInIndex * (8 + EntryMetadata::kOnDiskSizeBytes);
 
 uint32_t CalculatePickleCRC(const base::Pickle& pickle) {
-  return simple_util::Crc32(pickle.payload(), pickle.payload_size());
+  return simple_util::Crc32(pickle.payload_bytes());
 }
 
 // Used in histograms. Please only add new values at the end.
@@ -101,8 +103,8 @@ struct PickleHeader : public base::Pickle::Header {
 class SimpleIndexPickle : public base::Pickle {
  public:
   SimpleIndexPickle() : base::Pickle(sizeof(PickleHeader)) {}
-  SimpleIndexPickle(const char* data, int data_len)
-      : base::Pickle(data, data_len) {}
+  explicit SimpleIndexPickle(base::span<const uint8_t> data)
+      : base::Pickle(base::Pickle::kUnownedData, data) {}
 
   bool HeaderValid() const { return header_size() == sizeof(PickleHeader); }
 };
@@ -116,8 +118,8 @@ bool WritePickleFile(BackendFileOperations* file_operations,
   if (!file.IsValid())
     return false;
 
-  int bytes_written = file.Write(0, pickle->data_as_char(), pickle->size());
-  if (bytes_written != base::checked_cast<int>(pickle->size())) {
+  bool write_ok = file.WriteAndCheck(0, *pickle);
+  if (!write_ok) {
     file_operations->DeleteFile(
         file_name,
         BackendFileOperations::DeleteFileMode::kEnsureImmediateAvailability);
@@ -142,7 +144,7 @@ void ProcessEntryFile(BackendFileOperations* file_operations,
   const std::string file_name(base_name.begin(), base_name.end());
 
   // Cleanup any left over doomed entries.
-  if (base::StartsWith(file_name, "todelete_", base::CompareCase::SENSITIVE)) {
+  if (file_name.starts_with("todelete_")) {
     file_operations->DeleteFile(file_path);
     return;
   }
@@ -309,7 +311,7 @@ void SimpleIndexFile::SyncWriteToDisk(
   // flush delay. This simple approach will be reconsidered if it does not allow
   // for maintaining freshness.
   base::Time cache_dir_mtime;
-  absl::optional<base::File::Info> file_info =
+  std::optional<base::File::Info> file_info =
       file_operations->GetFileInfo(cache_directory);
   if (!file_info) {
     LOG(ERROR) << "Could not obtain information about cache age";
@@ -437,8 +439,8 @@ void SimpleIndexFile::SyncLoadIndexEntries(
   const base::TimeTicks start = base::TimeTicks::Now();
   SyncRestoreFromDisk(file_operations.get(), cache_type, cache_directory,
                       index_file_path, out_result);
-  SIMPLE_CACHE_UMA(MEDIUM_TIMES, "IndexRestoreTime", cache_type,
-                   base::TimeTicks::Now() - start);
+  DEPRECATED_SIMPLE_CACHE_UMA_MEDIUM_TIMES("IndexRestoreTime", cache_type,
+                                           base::TimeTicks::Now() - start);
   if (index_file_existed) {
     out_result->init_method = SimpleIndex::INITIALIZE_METHOD_RECOVERED;
 
@@ -490,17 +492,17 @@ void SimpleIndexFile::SyncLoadFromDisk(BackendFileOperations* file_operations,
 
   // Make sure to preallocate in one chunk, so we don't induce fragmentation
   // reallocating a growing buffer.
-  auto buffer = std::make_unique<char[]>(file_length);
+  auto buffer = base::HeapArray<uint8_t>::Uninit(file_length);
 
-  int read = file.Read(0, buffer.get(), file_length);
-  if (read < file_length) {
+  bool read_ok = file.ReadAndCheck(0, buffer.as_span());
+  if (!read_ok) {
     file_operations->DeleteFile(
         index_filename,
         BackendFileOperations::DeleteFileMode::kEnsureImmediateAvailability);
     return;
   }
 
-  SimpleIndexFile::Deserialize(cache_type, buffer.get(), read,
+  SimpleIndexFile::Deserialize(cache_type, buffer.as_span(),
                                out_last_cache_seen_by_index, out_result);
 
   if (!out_result->did_load) {
@@ -527,16 +529,13 @@ std::unique_ptr<base::Pickle> SimpleIndexFile::Serialize(
 
 // static
 void SimpleIndexFile::Deserialize(net::CacheType cache_type,
-                                  const char* data,
-                                  int data_len,
+                                  base::span<const uint8_t> data,
                                   base::Time* out_cache_last_modified,
                                   SimpleIndexLoadResult* out_result) {
-  DCHECK(data);
-
   out_result->Reset();
   SimpleIndex::EntrySet* entries = &out_result->entries;
 
-  SimpleIndexPickle pickle(data, data_len);
+  SimpleIndexPickle pickle(data);
   if (!pickle.data() || !pickle.HeaderValid()) {
     LOG(WARNING) << "Corrupt Simple Index File.";
     return;
@@ -605,7 +604,7 @@ void SimpleIndexFile::SyncRestoreFromDisk(
   SimpleIndex::EntrySet* entries = &out_result->entries;
 
   auto enumerator = file_operations->EnumerateFiles(cache_directory);
-  while (absl::optional<SimpleFileEnumerator::Entry> entry =
+  while (std::optional<SimpleFileEnumerator::Entry> entry =
              enumerator->Next()) {
     ProcessEntryFile(file_operations, cache_type, entries, entry->path,
                      entry->last_accessed, entry->last_modified, entry->size);

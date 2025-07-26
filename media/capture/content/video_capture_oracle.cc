@@ -2,6 +2,11 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#ifdef UNSAFE_BUFFERS_BUILD
+// TODO(crbug.com/40285824): Remove this and convert code to safer constructs.
+#pragma allow_unsafe_buffers
+#endif
+
 #include "media/capture/content/video_capture_oracle.h"
 
 #include <algorithm>
@@ -47,7 +52,7 @@ constexpr auto kMaxTimeSinceLastFeedbackUpdate = base::Seconds(1);
 
 // The amount of additional time, since content animation was last detected, to
 // continue being extra-careful about increasing the capture size.  This is used
-// to prevent breif periods of non-animating content from throwing off the
+// to prevent brief periods of non-animating content from throwing off the
 // heuristics that decide whether to increase the capture size.
 constexpr auto kDebouncingPeriodForAnimatedContent = base::Seconds(3);
 
@@ -113,8 +118,9 @@ void VideoCaptureOracle::SetCaptureSizeConstraints(
 void VideoCaptureOracle::SetAutoThrottlingEnabled(bool enabled) {
   const bool was_enabled =
       (capture_size_throttling_mode_ != kThrottlingDisabled);
-  if (was_enabled == enabled)
+  if (was_enabled == enabled) {
     return;
+  }
   capture_size_throttling_mode_ =
       enabled ? kThrottlingEnabled : kThrottlingDisabled;
   VLOG(1) << "Capture size auto-throttling is now "
@@ -122,19 +128,22 @@ void VideoCaptureOracle::SetAutoThrottlingEnabled(bool enabled) {
 
   // When not auto-throttling, have the CaptureResolutionChooser target the max
   // resolution within constraints.
-  if (!enabled)
+  if (!enabled) {
     resolution_chooser_.SetTargetFrameArea(std::numeric_limits<int>::max());
+  }
 
-  if (next_frame_number_ > 0)
+  if (next_frame_number_ > 0) {
     CommitCaptureSizeAndReset(GetFrameTimestamp(next_frame_number_ - 1));
+  }
 }
 
 void VideoCaptureOracle::SetSourceSize(const gfx::Size& source_size) {
   resolution_chooser_.SetSourceSize(source_size);
   // If the |resolution_chooser_| computed a new capture size, that will become
   // visible via a future call to ObserveEventAndDecideCapture().
-  source_size_change_time_ = (next_frame_number_ == 0) ?
-      base::TimeTicks() : GetFrameTimestamp(next_frame_number_ - 1);
+  source_size_change_time_ = (next_frame_number_ == 0)
+                                 ? base::TimeTicks()
+                                 : GetFrameTimestamp(next_frame_number_ - 1);
 }
 
 bool VideoCaptureOracle::ObserveEventAndDecideCapture(
@@ -167,6 +176,15 @@ bool VideoCaptureOracle::ObserveEventAndDecideCapture(
         if (should_sample) {
           event_time = content_sampler_.frame_timestamp();
           duration_of_next_frame_ = content_sampler_.sampling_period();
+        } else {
+          // https://crbug.com/391118566
+          // The content sampler may not sample the frame, if the
+          // `detected_region_` does not match the `damage_rect`. In this case,
+          // the capture may halt up to kNonAnimatingThreshold (250ms) and cause
+          // the video stutter, until it recovers and do another animation
+          // detection. To avoid this, we should use the smoothing sampler as a
+          // fallback to prevent the bad output.
+          should_sample = smoothing_sampler_.ShouldSample();
         }
         last_time_animation_was_detected_ = event_time;
       } else {
@@ -191,11 +209,11 @@ bool VideoCaptureOracle::ObserveEventAndDecideCapture(
 
     case kNumEvents:
       NOTREACHED();
-      break;
   }
 
-  if (!should_sample)
+  if (!should_sample) {
     return false;
+  }
 
   // If the exact duration of the next frame has not been determined, estimate
   // it using the difference between the current and last frame.
@@ -230,8 +248,8 @@ bool VideoCaptureOracle::ObserveEventAndDecideCapture(
   return true;
 }
 
-void VideoCaptureOracle::RecordCapture(double pool_utilization) {
-  DCHECK(std::isfinite(pool_utilization) && pool_utilization >= 0.0);
+void VideoCaptureOracle::RecordCapture(float pool_utilization) {
+  DCHECK(std::isfinite(pool_utilization) && pool_utilization >= 0.0f);
 
   smoothing_sampler_.RecordSample();
   const base::TimeTicks timestamp = GetFrameTimestamp(next_frame_number_);
@@ -246,12 +264,12 @@ void VideoCaptureOracle::RecordCapture(double pool_utilization) {
   next_frame_number_++;
 }
 
-void VideoCaptureOracle::RecordWillNotCapture(double pool_utilization) {
+void VideoCaptureOracle::RecordWillNotCapture(float pool_utilization) {
   VLOG(1) << "Client rejects proposal to capture frame (at #"
           << next_frame_number_ << ").";
 
   if (capture_size_throttling_mode_ == kThrottlingActive) {
-    DCHECK(std::isfinite(pool_utilization) && pool_utilization >= 0.0);
+    DCHECK(std::isfinite(pool_utilization) && pool_utilization >= 0.0f);
     const base::TimeTicks timestamp = GetFrameTimestamp(next_frame_number_);
     buffer_pool_utilization_.Update(pool_utilization, timestamp);
     AnalyzeAndAdjust(timestamp);
@@ -369,16 +387,18 @@ void VideoCaptureOracle::RecordConsumerFeedback(
 
   // resource_utilization feedback.
 
-  if (capture_size_throttling_mode_ == kThrottlingDisabled)
+  if (capture_size_throttling_mode_ == kThrottlingDisabled) {
     return;
+  }
 
   if (!std::isfinite(feedback.resource_utilization)) {
     LOG(DFATAL) << "Non-finite utilization provided by consumer for frame #"
                 << frame_number << ": " << feedback.resource_utilization;
     return;
   }
-  if (feedback.resource_utilization <= 0.0)
+  if (feedback.resource_utilization <= 0.0) {
     return;  // Non-positive values are normal, meaning N/A.
+  }
 
   if (capture_size_throttling_mode_ != kThrottlingActive) {
     VLOG(1) << "Received consumer feedback at frame #" << frame_number
@@ -423,7 +443,6 @@ const char* VideoCaptureOracle::EventAsString(Event event) {
       break;
   }
   NOTREACHED();
-  return "unknown";
 }
 
 base::TimeTicks VideoCaptureOracle::GetFrameTimestamp(int frame_number) const {
@@ -550,12 +569,14 @@ int VideoCaptureOracle::AnalyzeForIncreasedArea(base::TimeTicks analyze_time) {
   const int current_area = capture_size_.GetArea();
   const int increased_area =
       resolution_chooser_.FindLargerFrameSize(current_area, 1).GetArea();
-  if (increased_area <= current_area)
+  if (increased_area <= current_area) {
     return -1;
+  }
 
   // Determine whether the buffer pool could handle an increase in area.
-  if (!HasSufficientRecentFeedback(buffer_pool_utilization_, analyze_time))
+  if (!HasSufficientRecentFeedback(buffer_pool_utilization_, analyze_time)) {
     return -1;
+  }
   if (buffer_pool_utilization_.current() > 0.0) {
     const int buffer_capable_area = base::saturated_cast<int>(
         current_area / buffer_pool_utilization_.current());
@@ -590,8 +611,9 @@ int VideoCaptureOracle::AnalyzeForIncreasedArea(base::TimeTicks analyze_time) {
 
   // At this point, the system is currently under-utilized.  Reset the start
   // time if the system was not under-utilized when the last analysis was made.
-  if (start_time_of_underutilization_.is_null())
+  if (start_time_of_underutilization_.is_null()) {
     start_time_of_underutilization_ = analyze_time;
+  }
 
   // If the under-utilization started soon after the last source size change,
   // permit an immediate increase in the capture area.  This allows the system

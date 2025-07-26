@@ -7,36 +7,19 @@
 //    ../../third_party/xcbproto/src \
 //    gen/ui/gfx/x \
 //    bigreq \
-//    composite \
-//    damage \
-//    dpms \
-//    dri2 \
 //    dri3 \
-//    ge \
 //    glx \
-//    present \
 //    randr \
-//    record \
 //    render \
-//    res \
 //    screensaver \
 //    shape \
 //    shm \
 //    sync \
-//    xc_misc \
-//    xevie \
-//    xf86dri \
-//    xf86vidmode \
 //    xfixes \
-//    xinerama \
 //    xinput \
 //    xkb \
-//    xprint \
 //    xproto \
-//    xselinux \
-//    xtest \
-//    xv \
-//    xvmc
+//    xtest
 
 #include "xinput.h"
 
@@ -46,6 +29,7 @@
 
 #include "base/logging.h"
 #include "base/posix/eintr_wrapper.h"
+#include "ui/gfx/x/connection.h"
 #include "ui/gfx/x/xproto_internal.h"
 
 namespace x11 {
@@ -65,7 +49,6 @@ void ReadEvent<Input::DeviceValuatorEvent>(Input::DeviceValuatorEvent* event_,
   auto& num_valuators = (*event_).num_valuators;
   auto& first_valuator = (*event_).first_valuator;
   auto& valuators = (*event_).valuators;
-  size_t valuators_len = valuators.size();
 
   // response_type
   uint8_t response_type;
@@ -92,7 +75,7 @@ void ReadEvent<Input::DeviceValuatorEvent>(Input::DeviceValuatorEvent* event_,
     Read(&valuators_elem, &buf);
   }
 
-  DCHECK_LE(buf.offset, 32ul);
+  CHECK_LE(buf.offset, 32ul);
 }
 
 template <>
@@ -160,7 +143,7 @@ void ReadEvent<Input::LegacyDeviceEvent>(Input::LegacyDeviceEvent* event_,
   // device_id
   Read(&device_id, &buf);
 
-  DCHECK_LE(buf.offset, 32ul);
+  CHECK_LE(buf.offset, 32ul);
 }
 
 template <>
@@ -205,7 +188,7 @@ void ReadEvent<Input::DeviceFocusEvent>(Input::DeviceFocusEvent* event_,
   // pad0
   Pad(&buf, 18);
 
-  DCHECK_LE(buf.offset, 32ul);
+  CHECK_LE(buf.offset, 32ul);
 }
 
 template <>
@@ -223,11 +206,8 @@ void ReadEvent<Input::DeviceStateNotifyEvent>(
   auto& num_valuators = (*event_).num_valuators;
   auto& classes_reported = (*event_).classes_reported;
   auto& buttons = (*event_).buttons;
-  size_t buttons_len = buttons.size();
   auto& keys = (*event_).keys;
-  size_t keys_len = keys.size();
   auto& valuators = (*event_).valuators;
-  size_t valuators_len = valuators.size();
 
   // response_type
   uint8_t response_type;
@@ -274,7 +254,7 @@ void ReadEvent<Input::DeviceStateNotifyEvent>(
     Read(&valuators_elem, &buf);
   }
 
-  DCHECK_LE(buf.offset, 32ul);
+  CHECK_LE(buf.offset, 32ul);
 }
 
 template <>
@@ -321,7 +301,7 @@ void ReadEvent<Input::DeviceMappingNotifyEvent>(
   // pad1
   Pad(&buf, 20);
 
-  DCHECK_LE(buf.offset, 32ul);
+  CHECK_LE(buf.offset, 32ul);
 }
 
 template <>
@@ -357,7 +337,7 @@ void ReadEvent<Input::ChangeDeviceNotifyEvent>(
   // pad0
   Pad(&buf, 23);
 
-  DCHECK_LE(buf.offset, 32ul);
+  CHECK_LE(buf.offset, 32ul);
 }
 
 template <>
@@ -370,7 +350,6 @@ void ReadEvent<Input::DeviceKeyStateNotifyEvent>(
   auto& device_id = (*event_).device_id;
   auto& sequence = (*event_).sequence;
   auto& keys = (*event_).keys;
-  size_t keys_len = keys.size();
 
   // response_type
   uint8_t response_type;
@@ -388,7 +367,7 @@ void ReadEvent<Input::DeviceKeyStateNotifyEvent>(
     Read(&keys_elem, &buf);
   }
 
-  DCHECK_LE(buf.offset, 32ul);
+  CHECK_LE(buf.offset, 32ul);
 }
 
 template <>
@@ -401,7 +380,6 @@ void ReadEvent<Input::DeviceButtonStateNotifyEvent>(
   auto& device_id = (*event_).device_id;
   auto& sequence = (*event_).sequence;
   auto& buttons = (*event_).buttons;
-  size_t buttons_len = buttons.size();
 
   // response_type
   uint8_t response_type;
@@ -419,7 +397,7 @@ void ReadEvent<Input::DeviceButtonStateNotifyEvent>(
     Read(&buttons_elem, &buf);
   }
 
-  DCHECK_LE(buf.offset, 32ul);
+  CHECK_LE(buf.offset, 32ul);
 }
 
 template <>
@@ -462,7 +440,7 @@ void ReadEvent<Input::DevicePresenceNotifyEvent>(
   // pad1
   Pad(&buf, 20);
 
-  DCHECK_LE(buf.offset, 32ul);
+  CHECK_LE(buf.offset, 32ul);
 }
 
 template <>
@@ -502,7 +480,7 @@ void ReadEvent<Input::DevicePropertyNotifyEvent>(
   // device_id
   Read(&device_id, &buf);
 
-  DCHECK_LE(buf.offset, 32ul);
+  CHECK_LE(buf.offset, 32ul);
 }
 
 template <>
@@ -518,7 +496,6 @@ void ReadEvent<Input::DeviceChangedEvent>(Input::DeviceChangedEvent* event_,
   auto& sourceid = (*event_).sourceid;
   auto& reason = (*event_).reason;
   auto& classes = (*event_).classes;
-  size_t classes_len = classes.size();
 
   // response_type
   uint8_t response_type;
@@ -583,10 +560,9 @@ void ReadEvent<Input::DeviceChangedEvent>(Input::DeviceChangedEvent* event_,
       // data
       auto data_expr = type;
       if (CaseEq(data_expr, Input::DeviceClassType::Key)) {
-        data.key.emplace();
+        data.key.emplace(decltype(data.key)::value_type());
         uint16_t num_keys{};
         auto& keys = (*data.key).keys;
-        size_t keys_len = keys.size();
 
         // num_keys
         Read(&num_keys, &buf);
@@ -599,12 +575,10 @@ void ReadEvent<Input::DeviceChangedEvent>(Input::DeviceChangedEvent* event_,
         }
       }
       if (CaseEq(data_expr, Input::DeviceClassType::Button)) {
-        data.button.emplace();
+        data.button.emplace(decltype(data.button)::value_type());
         uint16_t num_buttons{};
         auto& state = (*data.button).state;
-        size_t state_len = state.size();
         auto& labels = (*data.button).labels;
-        size_t labels_len = labels.size();
 
         // num_buttons
         Read(&num_buttons, &buf);
@@ -624,7 +598,7 @@ void ReadEvent<Input::DeviceChangedEvent>(Input::DeviceChangedEvent* event_,
         }
       }
       if (CaseEq(data_expr, Input::DeviceClassType::Valuator)) {
-        data.valuator.emplace();
+        data.valuator.emplace(decltype(data.valuator)::value_type());
         auto& number = (*data.valuator).number;
         auto& label = (*data.valuator).label;
         auto& min = (*data.valuator).min;
@@ -687,7 +661,7 @@ void ReadEvent<Input::DeviceChangedEvent>(Input::DeviceChangedEvent* event_,
         Pad(&buf, 3);
       }
       if (CaseEq(data_expr, Input::DeviceClassType::Scroll)) {
-        data.scroll.emplace();
+        data.scroll.emplace(decltype(data.scroll)::value_type());
         auto& number = (*data.scroll).number;
         auto& scroll_type = (*data.scroll).scroll_type;
         auto& flags = (*data.scroll).flags;
@@ -722,7 +696,7 @@ void ReadEvent<Input::DeviceChangedEvent>(Input::DeviceChangedEvent* event_,
         }
       }
       if (CaseEq(data_expr, Input::DeviceClassType::Touch)) {
-        data.touch.emplace();
+        data.touch.emplace(decltype(data.touch)::value_type());
         auto& mode = (*data.touch).mode;
         auto& num_touches = (*data.touch).num_touches;
 
@@ -735,7 +709,7 @@ void ReadEvent<Input::DeviceChangedEvent>(Input::DeviceChangedEvent* event_,
         Read(&num_touches, &buf);
       }
       if (CaseEq(data_expr, Input::DeviceClassType::Gesture)) {
-        data.gesture.emplace();
+        data.gesture.emplace(decltype(data.gesture)::value_type());
         auto& num_touches = (*data.gesture).num_touches;
 
         // num_touches
@@ -748,7 +722,7 @@ void ReadEvent<Input::DeviceChangedEvent>(Input::DeviceChangedEvent* event_,
   }
 
   Align(&buf, 4);
-  DCHECK_EQ(buf.offset, 32 + 4 * length);
+  CHECK_EQ(buf.offset, 32 + 4 * length);
 }
 
 template <>
@@ -775,11 +749,8 @@ void ReadEvent<Input::DeviceEvent>(Input::DeviceEvent* event_,
   auto& mods = (*event_).mods;
   auto& group = (*event_).group;
   auto& button_mask = (*event_).button_mask;
-  size_t button_mask_len = button_mask.size();
   auto& valuator_mask = (*event_).valuator_mask;
-  size_t valuator_mask_len = valuator_mask.size();
   auto& axisvalues = (*event_).axisvalues;
-  size_t axisvalues_len = axisvalues.size();
 
   // response_type
   uint8_t response_type;
@@ -920,7 +891,7 @@ void ReadEvent<Input::DeviceEvent>(Input::DeviceEvent* event_,
   }
 
   Align(&buf, 4);
-  DCHECK_EQ(buf.offset, 32 + 4 * length);
+  CHECK_EQ(buf.offset, 32 + 4 * length);
 }
 
 template <>
@@ -1065,7 +1036,7 @@ void ReadEvent<Input::CrossingEvent>(Input::CrossingEvent* event_,
   }
 
   Align(&buf, 4);
-  DCHECK_EQ(buf.offset, 32 + 4 * length);
+  CHECK_EQ(buf.offset, 32 + 4 * length);
 }
 
 template <>
@@ -1080,7 +1051,6 @@ void ReadEvent<Input::HierarchyEvent>(Input::HierarchyEvent* event_,
   auto& flags = (*event_).flags;
   uint16_t num_infos{};
   auto& infos = (*event_).infos;
-  size_t infos_len = infos.size();
 
   // response_type
   uint8_t response_type;
@@ -1154,7 +1124,7 @@ void ReadEvent<Input::HierarchyEvent>(Input::HierarchyEvent* event_,
   }
 
   Align(&buf, 4);
-  DCHECK_EQ(buf.offset, 32 + 4 * length);
+  CHECK_EQ(buf.offset, 32 + 4 * length);
 }
 
 template <>
@@ -1206,7 +1176,7 @@ void ReadEvent<Input::PropertyEvent>(Input::PropertyEvent* event_,
   Pad(&buf, 11);
 
   Align(&buf, 4);
-  DCHECK_EQ(buf.offset, 32 + 4 * length);
+  CHECK_EQ(buf.offset, 32 + 4 * length);
 }
 
 template <>
@@ -1223,11 +1193,8 @@ void ReadEvent<Input::RawDeviceEvent>(Input::RawDeviceEvent* event_,
   uint16_t valuators_len{};
   auto& flags = (*event_).flags;
   auto& valuator_mask = (*event_).valuator_mask;
-  size_t valuator_mask_len = valuator_mask.size();
   auto& axisvalues = (*event_).axisvalues;
-  size_t axisvalues_len = axisvalues.size();
   auto& axisvalues_raw = (*event_).axisvalues_raw;
-  size_t axisvalues_raw_len = axisvalues_raw.size();
 
   // response_type
   uint8_t response_type;
@@ -1315,7 +1282,7 @@ void ReadEvent<Input::RawDeviceEvent>(Input::RawDeviceEvent* event_,
   }
 
   Align(&buf, 4);
-  DCHECK_EQ(buf.offset, 32 + 4 * length);
+  CHECK_EQ(buf.offset, 32 + 4 * length);
 }
 
 template <>
@@ -1386,7 +1353,7 @@ void ReadEvent<Input::TouchOwnershipEvent>(Input::TouchOwnershipEvent* event_,
   Pad(&buf, 8);
 
   Align(&buf, 4);
-  DCHECK_EQ(buf.offset, 32 + 4 * length);
+  CHECK_EQ(buf.offset, 32 + 4 * length);
 }
 
 template <>
@@ -1492,7 +1459,7 @@ void ReadEvent<Input::BarrierEvent>(Input::BarrierEvent* event_,
   }
 
   Align(&buf, 4);
-  DCHECK_EQ(buf.offset, 32 + 4 * length);
+  CHECK_EQ(buf.offset, 32 + 4 * length);
 }
 
 template <>
@@ -1642,7 +1609,7 @@ void ReadEvent<Input::GesturePinchEvent>(Input::GesturePinchEvent* event_,
   flags = static_cast<Input::GesturePinchEventFlags>(tmp27);
 
   Align(&buf, 4);
-  DCHECK_EQ(buf.offset, 32 + 4 * length);
+  CHECK_EQ(buf.offset, 32 + 4 * length);
 }
 
 template <>
@@ -1784,7 +1751,7 @@ void ReadEvent<Input::GestureSwipeEvent>(Input::GestureSwipeEvent* event_,
   flags = static_cast<Input::GestureSwipeEventFlags>(tmp28);
 
   Align(&buf, 4);
-  DCHECK_EQ(buf.offset, 32 + 4 * length);
+  CHECK_EQ(buf.offset, 32 + 4 * length);
 }
 
 std::string Input::DeviceError::ToString() const {
@@ -1828,8 +1795,9 @@ void ReadError<Input::DeviceError>(Input::DeviceError* error_,
   // major_opcode
   Read(&major_opcode, &buf);
 
-  DCHECK_LE(buf.offset, 32ul);
+  CHECK_LE(buf.offset, 32ul);
 }
+
 std::string Input::EventError::ToString() const {
   std::stringstream ss_;
   ss_ << "Input::EventError{";
@@ -1871,8 +1839,9 @@ void ReadError<Input::EventError>(Input::EventError* error_,
   // major_opcode
   Read(&major_opcode, &buf);
 
-  DCHECK_LE(buf.offset, 32ul);
+  CHECK_LE(buf.offset, 32ul);
 }
+
 std::string Input::ModeError::ToString() const {
   std::stringstream ss_;
   ss_ << "Input::ModeError{";
@@ -1913,8 +1882,9 @@ void ReadError<Input::ModeError>(Input::ModeError* error_, ReadBuffer* buffer) {
   // major_opcode
   Read(&major_opcode, &buf);
 
-  DCHECK_LE(buf.offset, 32ul);
+  CHECK_LE(buf.offset, 32ul);
 }
+
 std::string Input::DeviceBusyError::ToString() const {
   std::stringstream ss_;
   ss_ << "Input::DeviceBusyError{";
@@ -1956,8 +1926,9 @@ void ReadError<Input::DeviceBusyError>(Input::DeviceBusyError* error_,
   // major_opcode
   Read(&major_opcode, &buf);
 
-  DCHECK_LE(buf.offset, 32ul);
+  CHECK_LE(buf.offset, 32ul);
 }
+
 std::string Input::ClassError::ToString() const {
   std::stringstream ss_;
   ss_ << "Input::ClassError{";
@@ -1999,8 +1970,9 @@ void ReadError<Input::ClassError>(Input::ClassError* error_,
   // major_opcode
   Read(&major_opcode, &buf);
 
-  DCHECK_LE(buf.offset, 32ul);
+  CHECK_LE(buf.offset, 32ul);
 }
+
 Future<Input::GetExtensionVersionReply> Input::GetExtensionVersion(
     const Input::GetExtensionVersionRequest& request) {
   if (!connection_->Ready() || !present())
@@ -2031,7 +2003,7 @@ Future<Input::GetExtensionVersionReply> Input::GetExtensionVersion(
   Pad(&buf, 2);
 
   // name
-  DCHECK_EQ(static_cast<size_t>(name_len), name.size());
+  CHECK_EQ(static_cast<size_t>(name_len), name.size());
   for (auto& name_elem : name) {
     // name_elem
     buf.Write(&name_elem);
@@ -2088,7 +2060,7 @@ std::unique_ptr<Input::GetExtensionVersionReply> detail::ReadReply<
   Pad(&buf, 19);
 
   Align(&buf, 4);
-  DCHECK_EQ(buf.offset < 32 ? 0 : buf.offset - 32, 4 * length);
+  CHECK_EQ(buf.offset < 32 ? 0 : buf.offset - 32, 4 * length);
 
   return reply;
 }
@@ -2134,9 +2106,7 @@ std::unique_ptr<Input::ListInputDevicesReply> detail::ReadReply<
   uint8_t devices_len{};
   auto& devices = (*reply).devices;
   auto& infos = (*reply).infos;
-  size_t infos_len = infos.size();
   auto& names = (*reply).names;
-  size_t names_len = names.size();
 
   // response_type
   uint8_t response_type;
@@ -2217,7 +2187,7 @@ std::unique_ptr<Input::ListInputDevicesReply> detail::ReadReply<
       // info
       auto info_expr = class_id;
       if (CaseEq(info_expr, Input::InputClass::Key)) {
-        info.key.emplace();
+        info.key.emplace(decltype(info.key)::value_type());
         auto& min_keycode = (*info.key).min_keycode;
         auto& max_keycode = (*info.key).max_keycode;
         auto& num_keys = (*info.key).num_keys;
@@ -2235,14 +2205,14 @@ std::unique_ptr<Input::ListInputDevicesReply> detail::ReadReply<
         Pad(&buf, 2);
       }
       if (CaseEq(info_expr, Input::InputClass::Button)) {
-        info.button.emplace();
+        info.button.emplace(decltype(info.button)::value_type());
         auto& num_buttons = (*info.button).num_buttons;
 
         // num_buttons
         Read(&num_buttons, &buf);
       }
       if (CaseEq(info_expr, Input::InputClass::Valuator)) {
-        info.valuator.emplace();
+        info.valuator.emplace(decltype(info.valuator)::value_type());
         uint8_t axes_len{};
         auto& mode = (*info.valuator).mode;
         auto& motion_size = (*info.valuator).motion_size;
@@ -2306,7 +2276,7 @@ std::unique_ptr<Input::ListInputDevicesReply> detail::ReadReply<
   Pad(&buf, 1);
 
   Align(&buf, 4);
-  DCHECK_EQ(buf.offset < 32 ? 0 : buf.offset - 32, 4 * length);
+  CHECK_EQ(buf.offset < 32 ? 0 : buf.offset - 32, 4 * length);
 
   return reply;
 }
@@ -2359,7 +2329,6 @@ std::unique_ptr<Input::OpenDeviceReply> detail::ReadReply<
   auto& sequence = (*reply).sequence;
   uint8_t num_classes{};
   auto& class_info = (*reply).class_info;
-  size_t class_info_len = class_info.size();
 
   // response_type
   uint8_t response_type;
@@ -2403,7 +2372,7 @@ std::unique_ptr<Input::OpenDeviceReply> detail::ReadReply<
   Align(&buf, 4);
 
   Align(&buf, 4);
-  DCHECK_EQ(buf.offset < 32 ? 0 : buf.offset - 32, 4 * length);
+  CHECK_EQ(buf.offset < 32 ? 0 : buf.offset - 32, 4 * length);
 
   return reply;
 }
@@ -2522,7 +2491,7 @@ std::unique_ptr<Input::SetDeviceModeReply> detail::ReadReply<
   Pad(&buf, 23);
 
   Align(&buf, 4);
-  DCHECK_EQ(buf.offset < 32 ? 0 : buf.offset - 32, 4 * length);
+  CHECK_EQ(buf.offset < 32 ? 0 : buf.offset - 32, 4 * length);
 
   return reply;
 }
@@ -2562,7 +2531,7 @@ Future<void> Input::SelectExtensionEvent(
   Pad(&buf, 2);
 
   // classes
-  DCHECK_EQ(static_cast<size_t>(num_classes), classes.size());
+  CHECK_EQ(static_cast<size_t>(num_classes), classes.size());
   for (auto& classes_elem : classes) {
     // classes_elem
     buf.Write(&classes_elem);
@@ -2630,9 +2599,7 @@ std::unique_ptr<Input::GetSelectedExtensionEventsReply> detail::ReadReply<
   uint16_t num_this_classes{};
   uint16_t num_all_classes{};
   auto& this_classes = (*reply).this_classes;
-  size_t this_classes_len = this_classes.size();
   auto& all_classes = (*reply).all_classes;
-  size_t all_classes_len = all_classes.size();
 
   // response_type
   uint8_t response_type;
@@ -2672,7 +2639,7 @@ std::unique_ptr<Input::GetSelectedExtensionEventsReply> detail::ReadReply<
   }
 
   Align(&buf, 4);
-  DCHECK_EQ(buf.offset < 32 ? 0 : buf.offset - 32, 4 * length);
+  CHECK_EQ(buf.offset < 32 ? 0 : buf.offset - 32, 4 * length);
 
   return reply;
 }
@@ -2718,7 +2685,7 @@ Future<void> Input::ChangeDeviceDontPropagateList(
   Pad(&buf, 1);
 
   // classes
-  DCHECK_EQ(static_cast<size_t>(num_classes), classes.size());
+  CHECK_EQ(static_cast<size_t>(num_classes), classes.size());
   for (auto& classes_elem : classes) {
     // classes_elem
     buf.Write(&classes_elem);
@@ -2786,7 +2753,6 @@ std::unique_ptr<Input::GetDeviceDontPropagateListReply> detail::ReadReply<
   auto& sequence = (*reply).sequence;
   uint16_t num_classes{};
   auto& classes = (*reply).classes;
-  size_t classes_len = classes.size();
 
   // response_type
   uint8_t response_type;
@@ -2816,7 +2782,7 @@ std::unique_ptr<Input::GetDeviceDontPropagateListReply> detail::ReadReply<
   }
 
   Align(&buf, 4);
-  DCHECK_EQ(buf.offset < 32 ? 0 : buf.offset - 32, 4 * length);
+  CHECK_EQ(buf.offset < 32 ? 0 : buf.offset - 32, 4 * length);
 
   return reply;
 }
@@ -2883,7 +2849,6 @@ std::unique_ptr<Input::GetDeviceMotionEventsReply> detail::ReadReply<
   auto& num_axes = (*reply).num_axes;
   auto& device_mode = (*reply).device_mode;
   auto& events = (*reply).events;
-  size_t events_len = events.size();
 
   // response_type
   uint8_t response_type;
@@ -2920,7 +2885,6 @@ std::unique_ptr<Input::GetDeviceMotionEventsReply> detail::ReadReply<
     {
       auto& time = events_elem.time;
       auto& axisvalues = events_elem.axisvalues;
-      size_t axisvalues_len = axisvalues.size();
 
       // time
       Read(&time, &buf);
@@ -2935,7 +2899,7 @@ std::unique_ptr<Input::GetDeviceMotionEventsReply> detail::ReadReply<
   }
 
   Align(&buf, 4);
-  DCHECK_EQ(buf.offset < 32 ? 0 : buf.offset - 32, 4 * length);
+  CHECK_EQ(buf.offset < 32 ? 0 : buf.offset - 32, 4 * length);
 
   return reply;
 }
@@ -3013,7 +2977,7 @@ std::unique_ptr<Input::ChangeKeyboardDeviceReply> detail::ReadReply<
   Pad(&buf, 23);
 
   Align(&buf, 4);
-  DCHECK_EQ(buf.offset < 32 ? 0 : buf.offset - 32, 4 * length);
+  CHECK_EQ(buf.offset < 32 ? 0 : buf.offset - 32, 4 * length);
 
   return reply;
 }
@@ -3101,7 +3065,7 @@ std::unique_ptr<Input::ChangePointerDeviceReply> detail::ReadReply<
   Pad(&buf, 23);
 
   Align(&buf, 4);
-  DCHECK_EQ(buf.offset < 32 ? 0 : buf.offset - 32, 4 * length);
+  CHECK_EQ(buf.offset < 32 ? 0 : buf.offset - 32, 4 * length);
 
   return reply;
 }
@@ -3165,7 +3129,7 @@ Future<Input::GrabDeviceReply> Input::GrabDevice(
   Pad(&buf, 2);
 
   // classes
-  DCHECK_EQ(static_cast<size_t>(num_classes), classes.size());
+  CHECK_EQ(static_cast<size_t>(num_classes), classes.size());
   for (auto& classes_elem : classes) {
     // classes_elem
     buf.Write(&classes_elem);
@@ -3224,7 +3188,7 @@ std::unique_ptr<Input::GrabDeviceReply> detail::ReadReply<
   Pad(&buf, 23);
 
   Align(&buf, 4);
-  DCHECK_EQ(buf.offset < 32 ? 0 : buf.offset - 32, 4 * length);
+  CHECK_EQ(buf.offset < 32 ? 0 : buf.offset - 32, 4 * length);
 
   return reply;
 }
@@ -3336,7 +3300,7 @@ Future<void> Input::GrabDeviceKey(const Input::GrabDeviceKeyRequest& request) {
   Pad(&buf, 2);
 
   // classes
-  DCHECK_EQ(static_cast<size_t>(num_classes), classes.size());
+  CHECK_EQ(static_cast<size_t>(num_classes), classes.size());
   for (auto& classes_elem : classes) {
     // classes_elem
     buf.Write(&classes_elem);
@@ -3486,7 +3450,7 @@ Future<void> Input::GrabDeviceButton(
   Pad(&buf, 2);
 
   // classes
-  DCHECK_EQ(static_cast<size_t>(num_classes), classes.size());
+  CHECK_EQ(static_cast<size_t>(num_classes), classes.size());
   for (auto& classes_elem : classes) {
     // classes_elem
     buf.Write(&classes_elem);
@@ -3701,7 +3665,7 @@ std::unique_ptr<Input::GetDeviceFocusReply> detail::ReadReply<
   Pad(&buf, 15);
 
   Align(&buf, 4);
-  DCHECK_EQ(buf.offset < 32 ? 0 : buf.offset - 32, 4 * length);
+  CHECK_EQ(buf.offset < 32 ? 0 : buf.offset - 32, 4 * length);
 
   return reply;
 }
@@ -3809,7 +3773,6 @@ std::unique_ptr<Input::GetFeedbackControlReply> detail::ReadReply<
   auto& sequence = (*reply).sequence;
   uint16_t num_feedbacks{};
   auto& feedbacks = (*reply).feedbacks;
-  size_t feedbacks_len = feedbacks.size();
 
   // response_type
   uint8_t response_type;
@@ -3855,7 +3818,7 @@ std::unique_ptr<Input::GetFeedbackControlReply> detail::ReadReply<
       // data
       auto data_expr = class_id;
       if (CaseEq(data_expr, Input::FeedbackClass::Keyboard)) {
-        data.keyboard.emplace();
+        data.keyboard.emplace(decltype(data.keyboard)::value_type());
         auto& pitch = (*data.keyboard).pitch;
         auto& duration = (*data.keyboard).duration;
         auto& led_mask = (*data.keyboard).led_mask;
@@ -3864,7 +3827,6 @@ std::unique_ptr<Input::GetFeedbackControlReply> detail::ReadReply<
         auto& click = (*data.keyboard).click;
         auto& percent = (*data.keyboard).percent;
         auto& auto_repeats = (*data.keyboard).auto_repeats;
-        size_t auto_repeats_len = auto_repeats.size();
 
         // pitch
         Read(&pitch, &buf);
@@ -3897,7 +3859,7 @@ std::unique_ptr<Input::GetFeedbackControlReply> detail::ReadReply<
         }
       }
       if (CaseEq(data_expr, Input::FeedbackClass::Pointer)) {
-        data.pointer.emplace();
+        data.pointer.emplace(decltype(data.pointer)::value_type());
         auto& accel_num = (*data.pointer).accel_num;
         auto& accel_denom = (*data.pointer).accel_denom;
         auto& threshold = (*data.pointer).threshold;
@@ -3915,11 +3877,10 @@ std::unique_ptr<Input::GetFeedbackControlReply> detail::ReadReply<
         Read(&threshold, &buf);
       }
       if (CaseEq(data_expr, Input::FeedbackClass::String)) {
-        data.string.emplace();
+        data.string.emplace(decltype(data.string)::value_type());
         auto& max_symbols = (*data.string).max_symbols;
         uint16_t num_keysyms{};
         auto& keysyms = (*data.string).keysyms;
-        size_t keysyms_len = keysyms.size();
 
         // max_symbols
         Read(&max_symbols, &buf);
@@ -3935,7 +3896,7 @@ std::unique_ptr<Input::GetFeedbackControlReply> detail::ReadReply<
         }
       }
       if (CaseEq(data_expr, Input::FeedbackClass::Integer)) {
-        data.integer.emplace();
+        data.integer.emplace(decltype(data.integer)::value_type());
         auto& resolution = (*data.integer).resolution;
         auto& min_value = (*data.integer).min_value;
         auto& max_value = (*data.integer).max_value;
@@ -3950,7 +3911,7 @@ std::unique_ptr<Input::GetFeedbackControlReply> detail::ReadReply<
         Read(&max_value, &buf);
       }
       if (CaseEq(data_expr, Input::FeedbackClass::Led)) {
-        data.led.emplace();
+        data.led.emplace(decltype(data.led)::value_type());
         auto& led_mask = (*data.led).led_mask;
         auto& led_values = (*data.led).led_values;
 
@@ -3961,7 +3922,7 @@ std::unique_ptr<Input::GetFeedbackControlReply> detail::ReadReply<
         Read(&led_values, &buf);
       }
       if (CaseEq(data_expr, Input::FeedbackClass::Bell)) {
-        data.bell.emplace();
+        data.bell.emplace(decltype(data.bell)::value_type());
         auto& percent = (*data.bell).percent;
         auto& pitch = (*data.bell).pitch;
         auto& duration = (*data.bell).duration;
@@ -3982,7 +3943,7 @@ std::unique_ptr<Input::GetFeedbackControlReply> detail::ReadReply<
   }
 
   Align(&buf, 4);
-  DCHECK_EQ(buf.offset < 32 ? 0 : buf.offset - 32, 4 * length);
+  CHECK_EQ(buf.offset < 32 ? 0 : buf.offset - 32, 4 * length);
 
   return reply;
 }
@@ -4108,7 +4069,6 @@ Future<void> Input::ChangeFeedbackControl(
     if (CaseEq(data_expr, FeedbackClass::String)) {
       uint16_t num_keysyms{};
       auto& keysyms = (*data.string).keysyms;
-      size_t keysyms_len = keysyms.size();
 
       // pad1
       Pad(&buf, 2);
@@ -4118,7 +4078,7 @@ Future<void> Input::ChangeFeedbackControl(
       buf.Write(&num_keysyms);
 
       // keysyms
-      DCHECK_EQ(static_cast<size_t>(num_keysyms), keysyms.size());
+      CHECK_EQ(static_cast<size_t>(num_keysyms), keysyms.size());
       for (auto& keysyms_elem : keysyms) {
         // keysyms_elem
         buf.Write(&keysyms_elem);
@@ -4233,7 +4193,6 @@ std::unique_ptr<Input::GetDeviceKeyMappingReply> detail::ReadReply<
   auto& sequence = (*reply).sequence;
   auto& keysyms_per_keycode = (*reply).keysyms_per_keycode;
   auto& keysyms = (*reply).keysyms;
-  size_t keysyms_len = keysyms.size();
 
   // response_type
   uint8_t response_type;
@@ -4263,7 +4222,7 @@ std::unique_ptr<Input::GetDeviceKeyMappingReply> detail::ReadReply<
   }
 
   Align(&buf, 4);
-  DCHECK_EQ(buf.offset < 32 ? 0 : buf.offset - 32, 4 * length);
+  CHECK_EQ(buf.offset < 32 ? 0 : buf.offset - 32, 4 * length);
 
   return reply;
 }
@@ -4307,8 +4266,8 @@ Future<void> Input::ChangeDeviceKeyMapping(
   buf.Write(&keycode_count);
 
   // keysyms
-  DCHECK_EQ(static_cast<size_t>((keycode_count) * (keysyms_per_keycode)),
-            keysyms.size());
+  CHECK_EQ(static_cast<size_t>((keycode_count) * (keysyms_per_keycode)),
+           keysyms.size());
   for (auto& keysyms_elem : keysyms) {
     // keysyms_elem
     buf.Write(&keysyms_elem);
@@ -4379,7 +4338,6 @@ std::unique_ptr<Input::GetDeviceModifierMappingReply> detail::ReadReply<
   auto& sequence = (*reply).sequence;
   auto& keycodes_per_modifier = (*reply).keycodes_per_modifier;
   auto& keymaps = (*reply).keymaps;
-  size_t keymaps_len = keymaps.size();
 
   // response_type
   uint8_t response_type;
@@ -4409,7 +4367,7 @@ std::unique_ptr<Input::GetDeviceModifierMappingReply> detail::ReadReply<
   }
 
   Align(&buf, 4);
-  DCHECK_EQ(buf.offset < 32 ? 0 : buf.offset - 32, 4 * length);
+  CHECK_EQ(buf.offset < 32 ? 0 : buf.offset - 32, 4 * length);
 
   return reply;
 }
@@ -4448,7 +4406,7 @@ Future<Input::SetDeviceModifierMappingReply> Input::SetDeviceModifierMapping(
   Pad(&buf, 2);
 
   // keymaps
-  DCHECK_EQ(static_cast<size_t>((keycodes_per_modifier) * (8)), keymaps.size());
+  CHECK_EQ(static_cast<size_t>((keycodes_per_modifier) * (8)), keymaps.size());
   for (auto& keymaps_elem : keymaps) {
     // keymaps_elem
     buf.Write(&keymaps_elem);
@@ -4502,7 +4460,7 @@ std::unique_ptr<Input::SetDeviceModifierMappingReply> detail::ReadReply<
   Pad(&buf, 23);
 
   Align(&buf, 4);
-  DCHECK_EQ(buf.offset < 32 ? 0 : buf.offset - 32, 4 * length);
+  CHECK_EQ(buf.offset < 32 ? 0 : buf.offset - 32, 4 * length);
 
   return reply;
 }
@@ -4557,7 +4515,6 @@ std::unique_ptr<Input::GetDeviceButtonMappingReply> detail::ReadReply<
   auto& sequence = (*reply).sequence;
   uint8_t map_size{};
   auto& map = (*reply).map;
-  size_t map_len = map.size();
 
   // response_type
   uint8_t response_type;
@@ -4590,7 +4547,7 @@ std::unique_ptr<Input::GetDeviceButtonMappingReply> detail::ReadReply<
   Align(&buf, 4);
 
   Align(&buf, 4);
-  DCHECK_EQ(buf.offset < 32 ? 0 : buf.offset - 32, 4 * length);
+  CHECK_EQ(buf.offset < 32 ? 0 : buf.offset - 32, 4 * length);
 
   return reply;
 }
@@ -4630,7 +4587,7 @@ Future<Input::SetDeviceButtonMappingReply> Input::SetDeviceButtonMapping(
   Pad(&buf, 2);
 
   // map
-  DCHECK_EQ(static_cast<size_t>(map_size), map.size());
+  CHECK_EQ(static_cast<size_t>(map_size), map.size());
   for (auto& map_elem : map) {
     // map_elem
     buf.Write(&map_elem);
@@ -4683,7 +4640,7 @@ std::unique_ptr<Input::SetDeviceButtonMappingReply> detail::ReadReply<
   Pad(&buf, 23);
 
   Align(&buf, 4);
-  DCHECK_EQ(buf.offset < 32 ? 0 : buf.offset - 32, 4 * length);
+  CHECK_EQ(buf.offset < 32 ? 0 : buf.offset - 32, 4 * length);
 
   return reply;
 }
@@ -4737,7 +4694,6 @@ std::unique_ptr<Input::QueryDeviceStateReply> detail::ReadReply<
   auto& sequence = (*reply).sequence;
   uint8_t num_classes{};
   auto& classes = (*reply).classes;
-  size_t classes_len = classes.size();
 
   // response_type
   uint8_t response_type;
@@ -4779,10 +4735,9 @@ std::unique_ptr<Input::QueryDeviceStateReply> detail::ReadReply<
       // data
       auto data_expr = class_id;
       if (CaseEq(data_expr, Input::InputClass::Key)) {
-        data.key.emplace();
+        data.key.emplace(decltype(data.key)::value_type());
         auto& num_keys = (*data.key).num_keys;
         auto& keys = (*data.key).keys;
-        size_t keys_len = keys.size();
 
         // num_keys
         Read(&num_keys, &buf);
@@ -4797,10 +4752,9 @@ std::unique_ptr<Input::QueryDeviceStateReply> detail::ReadReply<
         }
       }
       if (CaseEq(data_expr, Input::InputClass::Button)) {
-        data.button.emplace();
+        data.button.emplace(decltype(data.button)::value_type());
         auto& num_buttons = (*data.button).num_buttons;
         auto& buttons = (*data.button).buttons;
-        size_t buttons_len = buttons.size();
 
         // num_buttons
         Read(&num_buttons, &buf);
@@ -4815,11 +4769,10 @@ std::unique_ptr<Input::QueryDeviceStateReply> detail::ReadReply<
         }
       }
       if (CaseEq(data_expr, Input::InputClass::Valuator)) {
-        data.valuator.emplace();
+        data.valuator.emplace(decltype(data.valuator)::value_type());
         uint8_t num_valuators{};
         auto& mode = (*data.valuator).mode;
         auto& valuators = (*data.valuator).valuators;
-        size_t valuators_len = valuators.size();
 
         // num_valuators
         Read(&num_valuators, &buf);
@@ -4840,7 +4793,7 @@ std::unique_ptr<Input::QueryDeviceStateReply> detail::ReadReply<
   }
 
   Align(&buf, 4);
-  DCHECK_EQ(buf.offset < 32 ? 0 : buf.offset - 32, 4 * length);
+  CHECK_EQ(buf.offset < 32 ? 0 : buf.offset - 32, 4 * length);
 
   return reply;
 }
@@ -4932,7 +4885,7 @@ Future<Input::SetDeviceValuatorsReply> Input::SetDeviceValuators(
   Pad(&buf, 1);
 
   // valuators
-  DCHECK_EQ(static_cast<size_t>(num_valuators), valuators.size());
+  CHECK_EQ(static_cast<size_t>(num_valuators), valuators.size());
   for (auto& valuators_elem : valuators) {
     // valuators_elem
     buf.Write(&valuators_elem);
@@ -4986,7 +4939,7 @@ std::unique_ptr<Input::SetDeviceValuatorsReply> detail::ReadReply<
   Pad(&buf, 23);
 
   Align(&buf, 4);
-  DCHECK_EQ(buf.offset < 32 ? 0 : buf.offset - 32, 4 * length);
+  CHECK_EQ(buf.offset < 32 ? 0 : buf.offset - 32, 4 * length);
 
   return reply;
 }
@@ -5086,14 +5039,11 @@ std::unique_ptr<Input::GetDeviceControlReply> detail::ReadReply<
     // data
     auto data_expr = control_id;
     if (CaseEq(data_expr, Input::DeviceControl::resolution)) {
-      data.resolution.emplace();
+      data.resolution.emplace(decltype(data.resolution)::value_type());
       uint32_t num_valuators{};
       auto& resolution_values = (*data.resolution).resolution_values;
-      size_t resolution_values_len = resolution_values.size();
       auto& resolution_min = (*data.resolution).resolution_min;
-      size_t resolution_min_len = resolution_min.size();
       auto& resolution_max = (*data.resolution).resolution_max;
-      size_t resolution_max_len = resolution_max.size();
 
       // num_valuators
       Read(&num_valuators, &buf);
@@ -5120,7 +5070,7 @@ std::unique_ptr<Input::GetDeviceControlReply> detail::ReadReply<
       }
     }
     if (CaseEq(data_expr, Input::DeviceControl::abs_calib)) {
-      data.abs_calib.emplace();
+      data.abs_calib.emplace(decltype(data.abs_calib)::value_type());
       auto& min_x = (*data.abs_calib).min_x;
       auto& max_x = (*data.abs_calib).max_x;
       auto& min_y = (*data.abs_calib).min_y;
@@ -5155,7 +5105,7 @@ std::unique_ptr<Input::GetDeviceControlReply> detail::ReadReply<
       Read(&button_threshold, &buf);
     }
     if (CaseEq(data_expr, Input::DeviceControl::core)) {
-      data.core.emplace();
+      data.core.emplace(decltype(data.core)::value_type());
       auto& status = (*data.core).status;
       auto& iscore = (*data.core).iscore;
 
@@ -5169,7 +5119,7 @@ std::unique_ptr<Input::GetDeviceControlReply> detail::ReadReply<
       Pad(&buf, 2);
     }
     if (CaseEq(data_expr, Input::DeviceControl::enable)) {
-      data.enable.emplace();
+      data.enable.emplace(decltype(data.enable)::value_type());
       auto& enable = (*data.enable).enable;
 
       // enable
@@ -5179,7 +5129,7 @@ std::unique_ptr<Input::GetDeviceControlReply> detail::ReadReply<
       Pad(&buf, 3);
     }
     if (CaseEq(data_expr, Input::DeviceControl::abs_area)) {
-      data.abs_area.emplace();
+      data.abs_area.emplace(decltype(data.abs_area)::value_type());
       auto& offset_x = (*data.abs_area).offset_x;
       auto& offset_y = (*data.abs_area).offset_y;
       auto& width = (*data.abs_area).width;
@@ -5208,7 +5158,7 @@ std::unique_ptr<Input::GetDeviceControlReply> detail::ReadReply<
   }
 
   Align(&buf, 4);
-  DCHECK_EQ(buf.offset < 32 ? 0 : buf.offset - 32, 4 * length);
+  CHECK_EQ(buf.offset < 32 ? 0 : buf.offset - 32, 4 * length);
 
   return reply;
 }
@@ -5276,7 +5226,6 @@ Future<Input::ChangeDeviceControlReply> Input::ChangeDeviceControl(
       auto& first_valuator = (*data.resolution).first_valuator;
       uint8_t num_valuators{};
       auto& resolution_values = (*data.resolution).resolution_values;
-      size_t resolution_values_len = resolution_values.size();
 
       // first_valuator
       buf.Write(&first_valuator);
@@ -5289,7 +5238,7 @@ Future<Input::ChangeDeviceControlReply> Input::ChangeDeviceControl(
       Pad(&buf, 2);
 
       // resolution_values
-      DCHECK_EQ(static_cast<size_t>(num_valuators), resolution_values.size());
+      CHECK_EQ(static_cast<size_t>(num_valuators), resolution_values.size());
       for (auto& resolution_values_elem : resolution_values) {
         // resolution_values_elem
         buf.Write(&resolution_values_elem);
@@ -5421,7 +5370,7 @@ std::unique_ptr<Input::ChangeDeviceControlReply> detail::ReadReply<
   Pad(&buf, 23);
 
   Align(&buf, 4);
-  DCHECK_EQ(buf.offset < 32 ? 0 : buf.offset - 32, 4 * length);
+  CHECK_EQ(buf.offset < 32 ? 0 : buf.offset - 32, 4 * length);
 
   return reply;
 }
@@ -5476,7 +5425,6 @@ std::unique_ptr<Input::ListDevicePropertiesReply> detail::ReadReply<
   auto& sequence = (*reply).sequence;
   uint16_t num_atoms{};
   auto& atoms = (*reply).atoms;
-  size_t atoms_len = atoms.size();
 
   // response_type
   uint8_t response_type;
@@ -5506,7 +5454,7 @@ std::unique_ptr<Input::ListDevicePropertiesReply> detail::ReadReply<
   }
 
   Align(&buf, 4);
-  DCHECK_EQ(buf.offset < 32 ? 0 : buf.offset - 32, 4 * length);
+  CHECK_EQ(buf.offset < 32 ? 0 : buf.offset - 32, 4 * length);
 
   return reply;
 }
@@ -5570,10 +5518,9 @@ Future<void> Input::ChangeDeviceProperty(
   auto items_expr = format;
   if (CaseEq(items_expr, PropertyFormat::c_8Bits)) {
     auto& data8 = *items.data8;
-    size_t data8_len = data8.size();
 
     // data8
-    DCHECK_EQ(static_cast<size_t>(num_items), data8.size());
+    CHECK_EQ(static_cast<size_t>(num_items), data8.size());
     for (auto& data8_elem : data8) {
       // data8_elem
       buf.Write(&data8_elem);
@@ -5584,10 +5531,9 @@ Future<void> Input::ChangeDeviceProperty(
   }
   if (CaseEq(items_expr, PropertyFormat::c_16Bits)) {
     auto& data16 = *items.data16;
-    size_t data16_len = data16.size();
 
     // data16
-    DCHECK_EQ(static_cast<size_t>(num_items), data16.size());
+    CHECK_EQ(static_cast<size_t>(num_items), data16.size());
     for (auto& data16_elem : data16) {
       // data16_elem
       buf.Write(&data16_elem);
@@ -5598,10 +5544,9 @@ Future<void> Input::ChangeDeviceProperty(
   }
   if (CaseEq(items_expr, PropertyFormat::c_32Bits)) {
     auto& data32 = *items.data32;
-    size_t data32_len = data32.size();
 
     // data32
-    DCHECK_EQ(static_cast<size_t>(num_items), data32.size());
+    CHECK_EQ(static_cast<size_t>(num_items), data32.size());
     for (auto& data32_elem : data32) {
       // data32_elem
       buf.Write(&data32_elem);
@@ -5620,9 +5565,9 @@ Future<void> Input::ChangeDeviceProperty(
     const uint8_t& device_id,
     const PropMode& mode,
     const uint32_t& num_items,
-    const absl::optional<std::vector<uint8_t>>& data8,
-    const absl::optional<std::vector<uint16_t>>& data16,
-    const absl::optional<std::vector<uint32_t>>& data32) {
+    const std::optional<std::vector<uint8_t>>& data8,
+    const std::optional<std::vector<uint16_t>>& data16,
+    const std::optional<std::vector<uint32_t>>& data32) {
   return Input::ChangeDeviceProperty(Input::ChangeDevicePropertyRequest{
       property, type, device_id, mode, num_items, data8, data16, data32});
 }
@@ -5787,9 +5732,8 @@ std::unique_ptr<Input::GetDevicePropertyReply> detail::ReadReply<
   // items
   auto items_expr = format;
   if (CaseEq(items_expr, Input::PropertyFormat::c_8Bits)) {
-    items.data8.emplace();
+    items.data8.emplace(decltype(items.data8)::value_type());
     auto& data8 = *items.data8;
-    size_t data8_len = data8.size();
 
     // data8
     data8.resize(num_items);
@@ -5802,9 +5746,8 @@ std::unique_ptr<Input::GetDevicePropertyReply> detail::ReadReply<
     Align(&buf, 4);
   }
   if (CaseEq(items_expr, Input::PropertyFormat::c_16Bits)) {
-    items.data16.emplace();
+    items.data16.emplace(decltype(items.data16)::value_type());
     auto& data16 = *items.data16;
-    size_t data16_len = data16.size();
 
     // data16
     data16.resize(num_items);
@@ -5817,9 +5760,8 @@ std::unique_ptr<Input::GetDevicePropertyReply> detail::ReadReply<
     Align(&buf, 4);
   }
   if (CaseEq(items_expr, Input::PropertyFormat::c_32Bits)) {
-    items.data32.emplace();
+    items.data32.emplace(decltype(items.data32)::value_type());
     auto& data32 = *items.data32;
-    size_t data32_len = data32.size();
 
     // data32
     data32.resize(num_items);
@@ -5830,7 +5772,7 @@ std::unique_ptr<Input::GetDevicePropertyReply> detail::ReadReply<
   }
 
   Align(&buf, 4);
-  DCHECK_EQ(buf.offset < 32 ? 0 : buf.offset - 32, 4 * length);
+  CHECK_EQ(buf.offset < 32 ? 0 : buf.offset - 32, 4 * length);
 
   return reply;
 }
@@ -5987,7 +5929,7 @@ std::unique_ptr<Input::XIQueryPointerReply> detail::ReadReply<
   }
 
   Align(&buf, 4);
-  DCHECK_EQ(buf.offset < 32 ? 0 : buf.offset - 32, 4 * length);
+  CHECK_EQ(buf.offset < 32 ? 0 : buf.offset - 32, 4 * length);
 
   return reply;
 }
@@ -6147,7 +6089,7 @@ Future<void> Input::XIChangeHierarchy(
   Pad(&buf, 3);
 
   // changes
-  DCHECK_EQ(static_cast<size_t>(num_changes), changes.size());
+  CHECK_EQ(static_cast<size_t>(num_changes), changes.size());
   for (auto& changes_elem : changes) {
     // changes_elem
     {
@@ -6190,7 +6132,7 @@ Future<void> Input::XIChangeHierarchy(
         buf.Write(&enable);
 
         // name
-        DCHECK_EQ(static_cast<size_t>(name_len), name.size());
+        CHECK_EQ(static_cast<size_t>(name_len), name.size());
         for (auto& name_elem : name) {
           // name_elem
           buf.Write(&name_elem);
@@ -6371,7 +6313,7 @@ std::unique_ptr<Input::XIGetClientPointerReply> detail::ReadReply<
   Pad(&buf, 20);
 
   Align(&buf, 4);
-  DCHECK_EQ(buf.offset < 32 ? 0 : buf.offset - 32, 4 * length);
+  CHECK_EQ(buf.offset < 32 ? 0 : buf.offset - 32, 4 * length);
 
   return reply;
 }
@@ -6411,7 +6353,7 @@ Future<void> Input::XISelectEvents(
   Pad(&buf, 2);
 
   // masks
-  DCHECK_EQ(static_cast<size_t>(num_mask), masks.size());
+  CHECK_EQ(static_cast<size_t>(num_mask), masks.size());
   for (auto& masks_elem : masks) {
     // masks_elem
     {
@@ -6427,7 +6369,7 @@ Future<void> Input::XISelectEvents(
       buf.Write(&mask_len);
 
       // mask
-      DCHECK_EQ(static_cast<size_t>(mask_len), mask.size());
+      CHECK_EQ(static_cast<size_t>(mask_len), mask.size());
       for (auto& mask_elem : mask) {
         // mask_elem
         uint32_t tmp71;
@@ -6523,7 +6465,7 @@ std::unique_ptr<Input::XIQueryVersionReply> detail::ReadReply<
   Pad(&buf, 20);
 
   Align(&buf, 4);
-  DCHECK_EQ(buf.offset < 32 ? 0 : buf.offset - 32, 4 * length);
+  CHECK_EQ(buf.offset < 32 ? 0 : buf.offset - 32, 4 * length);
 
   return reply;
 }
@@ -6576,7 +6518,6 @@ std::unique_ptr<Input::XIQueryDeviceReply> detail::ReadReply<
   auto& sequence = (*reply).sequence;
   uint16_t num_infos{};
   auto& infos = (*reply).infos;
-  size_t infos_len = infos.size();
 
   // response_type
   uint8_t response_type;
@@ -6611,7 +6552,6 @@ std::unique_ptr<Input::XIQueryDeviceReply> detail::ReadReply<
       auto& enabled = infos_elem.enabled;
       auto& name = infos_elem.name;
       auto& classes = infos_elem.classes;
-      size_t classes_len = classes.size();
 
       // deviceid
       Read(&deviceid, &buf);
@@ -6670,10 +6610,9 @@ std::unique_ptr<Input::XIQueryDeviceReply> detail::ReadReply<
           // data
           auto data_expr = type;
           if (CaseEq(data_expr, Input::DeviceClassType::Key)) {
-            data.key.emplace();
+            data.key.emplace(decltype(data.key)::value_type());
             uint16_t num_keys{};
             auto& keys = (*data.key).keys;
-            size_t keys_len = keys.size();
 
             // num_keys
             Read(&num_keys, &buf);
@@ -6686,12 +6625,10 @@ std::unique_ptr<Input::XIQueryDeviceReply> detail::ReadReply<
             }
           }
           if (CaseEq(data_expr, Input::DeviceClassType::Button)) {
-            data.button.emplace();
+            data.button.emplace(decltype(data.button)::value_type());
             uint16_t num_buttons{};
             auto& state = (*data.button).state;
-            size_t state_len = state.size();
             auto& labels = (*data.button).labels;
-            size_t labels_len = labels.size();
 
             // num_buttons
             Read(&num_buttons, &buf);
@@ -6711,7 +6648,7 @@ std::unique_ptr<Input::XIQueryDeviceReply> detail::ReadReply<
             }
           }
           if (CaseEq(data_expr, Input::DeviceClassType::Valuator)) {
-            data.valuator.emplace();
+            data.valuator.emplace(decltype(data.valuator)::value_type());
             auto& number = (*data.valuator).number;
             auto& label = (*data.valuator).label;
             auto& min = (*data.valuator).min;
@@ -6774,7 +6711,7 @@ std::unique_ptr<Input::XIQueryDeviceReply> detail::ReadReply<
             Pad(&buf, 3);
           }
           if (CaseEq(data_expr, Input::DeviceClassType::Scroll)) {
-            data.scroll.emplace();
+            data.scroll.emplace(decltype(data.scroll)::value_type());
             auto& number = (*data.scroll).number;
             auto& scroll_type = (*data.scroll).scroll_type;
             auto& flags = (*data.scroll).flags;
@@ -6809,7 +6746,7 @@ std::unique_ptr<Input::XIQueryDeviceReply> detail::ReadReply<
             }
           }
           if (CaseEq(data_expr, Input::DeviceClassType::Touch)) {
-            data.touch.emplace();
+            data.touch.emplace(decltype(data.touch)::value_type());
             auto& mode = (*data.touch).mode;
             auto& num_touches = (*data.touch).num_touches;
 
@@ -6822,7 +6759,7 @@ std::unique_ptr<Input::XIQueryDeviceReply> detail::ReadReply<
             Read(&num_touches, &buf);
           }
           if (CaseEq(data_expr, Input::DeviceClassType::Gesture)) {
-            data.gesture.emplace();
+            data.gesture.emplace(decltype(data.gesture)::value_type());
             auto& num_touches = (*data.gesture).num_touches;
 
             // num_touches
@@ -6837,7 +6774,7 @@ std::unique_ptr<Input::XIQueryDeviceReply> detail::ReadReply<
   }
 
   Align(&buf, 4);
-  DCHECK_EQ(buf.offset < 32 ? 0 : buf.offset - 32, 4 * length);
+  CHECK_EQ(buf.offset < 32 ? 0 : buf.offset - 32, 4 * length);
 
   return reply;
 }
@@ -6955,7 +6892,7 @@ std::unique_ptr<Input::XIGetFocusReply> detail::ReadReply<
   Pad(&buf, 20);
 
   Align(&buf, 4);
-  DCHECK_EQ(buf.offset < 32 ? 0 : buf.offset - 32, 4 * length);
+  CHECK_EQ(buf.offset < 32 ? 0 : buf.offset - 32, 4 * length);
 
   return reply;
 }
@@ -7024,7 +6961,7 @@ Future<Input::XIGrabDeviceReply> Input::XIGrabDevice(
   buf.Write(&mask_len);
 
   // mask
-  DCHECK_EQ(static_cast<size_t>(mask_len), mask.size());
+  CHECK_EQ(static_cast<size_t>(mask_len), mask.size());
   for (auto& mask_elem : mask) {
     // mask_elem
     buf.Write(&mask_elem);
@@ -7083,7 +7020,7 @@ std::unique_ptr<Input::XIGrabDeviceReply> detail::ReadReply<
   Pad(&buf, 23);
 
   Align(&buf, 4);
-  DCHECK_EQ(buf.offset < 32 ? 0 : buf.offset - 32, 4 * length);
+  CHECK_EQ(buf.offset < 32 ? 0 : buf.offset - 32, 4 * length);
 
   return reply;
 }
@@ -7267,14 +7204,14 @@ Future<Input::XIPassiveGrabDeviceReply> Input::XIPassiveGrabDevice(
   Pad(&buf, 2);
 
   // mask
-  DCHECK_EQ(static_cast<size_t>(mask_len), mask.size());
+  CHECK_EQ(static_cast<size_t>(mask_len), mask.size());
   for (auto& mask_elem : mask) {
     // mask_elem
     buf.Write(&mask_elem);
   }
 
   // modifiers
-  DCHECK_EQ(static_cast<size_t>(num_modifiers), modifiers.size());
+  CHECK_EQ(static_cast<size_t>(num_modifiers), modifiers.size());
   for (auto& modifiers_elem : modifiers) {
     // modifiers_elem
     buf.Write(&modifiers_elem);
@@ -7313,7 +7250,6 @@ std::unique_ptr<Input::XIPassiveGrabDeviceReply> detail::ReadReply<
   auto& sequence = (*reply).sequence;
   uint16_t num_modifiers{};
   auto& modifiers = (*reply).modifiers;
-  size_t modifiers_len = modifiers.size();
 
   // response_type
   uint8_t response_type;
@@ -7357,7 +7293,7 @@ std::unique_ptr<Input::XIPassiveGrabDeviceReply> detail::ReadReply<
   }
 
   Align(&buf, 4);
-  DCHECK_EQ(buf.offset < 32 ? 0 : buf.offset - 32, 4 * length);
+  CHECK_EQ(buf.offset < 32 ? 0 : buf.offset - 32, 4 * length);
 
   return reply;
 }
@@ -7411,7 +7347,7 @@ Future<void> Input::XIPassiveUngrabDevice(
   Pad(&buf, 3);
 
   // modifiers
-  DCHECK_EQ(static_cast<size_t>(num_modifiers), modifiers.size());
+  CHECK_EQ(static_cast<size_t>(num_modifiers), modifiers.size());
   for (auto& modifiers_elem : modifiers) {
     // modifiers_elem
     buf.Write(&modifiers_elem);
@@ -7481,7 +7417,6 @@ std::unique_ptr<Input::XIListPropertiesReply> detail::ReadReply<
   auto& sequence = (*reply).sequence;
   uint16_t num_properties{};
   auto& properties = (*reply).properties;
-  size_t properties_len = properties.size();
 
   // response_type
   uint8_t response_type;
@@ -7511,7 +7446,7 @@ std::unique_ptr<Input::XIListPropertiesReply> detail::ReadReply<
   }
 
   Align(&buf, 4);
-  DCHECK_EQ(buf.offset < 32 ? 0 : buf.offset - 32, 4 * length);
+  CHECK_EQ(buf.offset < 32 ? 0 : buf.offset - 32, 4 * length);
 
   return reply;
 }
@@ -7572,10 +7507,9 @@ Future<void> Input::XIChangeProperty(
   auto items_expr = format;
   if (CaseEq(items_expr, PropertyFormat::c_8Bits)) {
     auto& data8 = *items.data8;
-    size_t data8_len = data8.size();
 
     // data8
-    DCHECK_EQ(static_cast<size_t>(num_items), data8.size());
+    CHECK_EQ(static_cast<size_t>(num_items), data8.size());
     for (auto& data8_elem : data8) {
       // data8_elem
       buf.Write(&data8_elem);
@@ -7586,10 +7520,9 @@ Future<void> Input::XIChangeProperty(
   }
   if (CaseEq(items_expr, PropertyFormat::c_16Bits)) {
     auto& data16 = *items.data16;
-    size_t data16_len = data16.size();
 
     // data16
-    DCHECK_EQ(static_cast<size_t>(num_items), data16.size());
+    CHECK_EQ(static_cast<size_t>(num_items), data16.size());
     for (auto& data16_elem : data16) {
       // data16_elem
       buf.Write(&data16_elem);
@@ -7600,10 +7533,9 @@ Future<void> Input::XIChangeProperty(
   }
   if (CaseEq(items_expr, PropertyFormat::c_32Bits)) {
     auto& data32 = *items.data32;
-    size_t data32_len = data32.size();
 
     // data32
-    DCHECK_EQ(static_cast<size_t>(num_items), data32.size());
+    CHECK_EQ(static_cast<size_t>(num_items), data32.size());
     for (auto& data32_elem : data32) {
       // data32_elem
       buf.Write(&data32_elem);
@@ -7621,9 +7553,9 @@ Future<void> Input::XIChangeProperty(
     const Atom& property,
     const Atom& type,
     const uint32_t& num_items,
-    const absl::optional<std::vector<uint8_t>>& data8,
-    const absl::optional<std::vector<uint16_t>>& data16,
-    const absl::optional<std::vector<uint32_t>>& data32) {
+    const std::optional<std::vector<uint8_t>>& data8,
+    const std::optional<std::vector<uint16_t>>& data16,
+    const std::optional<std::vector<uint32_t>>& data32) {
   return Input::XIChangeProperty(Input::XIChangePropertyRequest{
       deviceid, mode, property, type, num_items, data8, data16, data32});
 }
@@ -7781,9 +7713,8 @@ std::unique_ptr<Input::XIGetPropertyReply> detail::ReadReply<
   // items
   auto items_expr = format;
   if (CaseEq(items_expr, Input::PropertyFormat::c_8Bits)) {
-    items.data8.emplace();
+    items.data8.emplace(decltype(items.data8)::value_type());
     auto& data8 = *items.data8;
-    size_t data8_len = data8.size();
 
     // data8
     data8.resize(num_items);
@@ -7796,9 +7727,8 @@ std::unique_ptr<Input::XIGetPropertyReply> detail::ReadReply<
     Align(&buf, 4);
   }
   if (CaseEq(items_expr, Input::PropertyFormat::c_16Bits)) {
-    items.data16.emplace();
+    items.data16.emplace(decltype(items.data16)::value_type());
     auto& data16 = *items.data16;
-    size_t data16_len = data16.size();
 
     // data16
     data16.resize(num_items);
@@ -7811,9 +7741,8 @@ std::unique_ptr<Input::XIGetPropertyReply> detail::ReadReply<
     Align(&buf, 4);
   }
   if (CaseEq(items_expr, Input::PropertyFormat::c_32Bits)) {
-    items.data32.emplace();
+    items.data32.emplace(decltype(items.data32)::value_type());
     auto& data32 = *items.data32;
-    size_t data32_len = data32.size();
 
     // data32
     data32.resize(num_items);
@@ -7824,7 +7753,7 @@ std::unique_ptr<Input::XIGetPropertyReply> detail::ReadReply<
   }
 
   Align(&buf, 4);
-  DCHECK_EQ(buf.offset < 32 ? 0 : buf.offset - 32, 4 * length);
+  CHECK_EQ(buf.offset < 32 ? 0 : buf.offset - 32, 4 * length);
 
   return reply;
 }
@@ -7874,7 +7803,6 @@ std::unique_ptr<Input::XIGetSelectedEventsReply> detail::ReadReply<
   auto& sequence = (*reply).sequence;
   uint16_t num_masks{};
   auto& masks = (*reply).masks;
-  size_t masks_len = masks.size();
 
   // response_type
   uint8_t response_type;
@@ -7923,7 +7851,7 @@ std::unique_ptr<Input::XIGetSelectedEventsReply> detail::ReadReply<
   }
 
   Align(&buf, 4);
-  DCHECK_EQ(buf.offset < 32 ? 0 : buf.offset - 32, 4 * length);
+  CHECK_EQ(buf.offset < 32 ? 0 : buf.offset - 32, 4 * length);
 
   return reply;
 }
@@ -7956,7 +7884,7 @@ Future<void> Input::XIBarrierReleasePointer(
   buf.Write(&num_barriers);
 
   // barriers
-  DCHECK_EQ(static_cast<size_t>(num_barriers), barriers.size());
+  CHECK_EQ(static_cast<size_t>(num_barriers), barriers.size());
   for (auto& barriers_elem : barriers) {
     // barriers_elem
     {
@@ -8040,14 +7968,14 @@ Future<void> Input::SendExtensionEvent(
   Pad(&buf, 3);
 
   // events
-  DCHECK_EQ(static_cast<size_t>(num_events), events.size());
+  CHECK_EQ(static_cast<size_t>(num_events), events.size());
   for (auto& events_elem : events) {
     // events_elem
     buf.Write(&events_elem);
   }
 
   // classes
-  DCHECK_EQ(static_cast<size_t>(num_classes), classes.size());
+  CHECK_EQ(static_cast<size_t>(num_classes), classes.size());
   for (auto& classes_elem : classes) {
     // classes_elem
     buf.Write(&classes_elem);

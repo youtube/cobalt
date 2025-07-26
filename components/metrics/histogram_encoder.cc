@@ -1,4 +1,4 @@
-// Copyright 2014 The Chromium Authors. All rights reserved.
+// Copyright 2014 The Chromium Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -30,14 +30,16 @@ void EncodeHistogramDelta(const std::string& histogram_name,
 
   for (std::unique_ptr<SampleCountIterator> it = snapshot.Iterator();
        !it->Done(); it->Next()) {
-    base::Histogram::Sample min;
+    base::Histogram::Sample32 min;
     int64_t max;
-    base::Histogram::Count count;
+    base::Histogram::Count32 count;
     it->Get(&min, &max, &count);
     HistogramEventProto::Bucket* bucket = histogram_proto->add_bucket();
     bucket->set_min(min);
     bucket->set_max(max);
     // Note: The default for count is 1 in the proto, so omit it in that case.
+    // The iterator also skips over empty buckets, so no need to manually omit
+    // them.
     if (count != 1)
       bucket->set_count(count);
   }

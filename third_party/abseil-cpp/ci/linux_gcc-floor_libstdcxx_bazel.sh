@@ -25,7 +25,7 @@ if [[ -z ${ABSEIL_ROOT:-} ]]; then
 fi
 
 if [[ -z ${STD:-} ]]; then
-  STD="c++14"
+  STD="c++17"
 fi
 
 if [[ -z ${COMPILATION_MODE:-} ]]; then
@@ -78,7 +78,7 @@ for std in ${STD}; do
           --copt="-DGTEST_REMOVE_LEGACY_TEST_CASEAPI_=1" \
           --copt=-Werror \
           --define="absl=1" \
-          --distdir="/bazel-distdir" \
+          --enable_bzlmod=false \
           --features=external_include_paths \
           --keep_going \
           --show_timestamps \

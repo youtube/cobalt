@@ -1,0 +1,648 @@
+Tests DOMSnapshot.getSnapshot method returning input values.
+{
+    computedStyles : <object>
+    domNodes : [
+        [0] : {
+            backendNodeId : <number>
+            baseURL : <string>
+            childNodeIndexes : [
+                [0] : 1
+            ]
+            documentEncoding : windows-1252
+            documentURL : <string>
+            frameId : <string>
+            layoutNodeIndex : 0
+            nodeName : #document
+            nodeType : 9
+            nodeValue : 
+            scrollOffsetX : 0
+            scrollOffsetY : 0
+        }
+        [1] : {
+            backendNodeId : <number>
+            childNodeIndexes : [
+                [0] : 2
+                [1] : 3
+            ]
+            frameId : <string>
+            layoutNodeIndex : 1
+            nodeName : HTML
+            nodeType : 1
+            nodeValue : 
+        }
+        [2] : {
+            backendNodeId : <number>
+            nodeName : HEAD
+            nodeType : 1
+            nodeValue : 
+        }
+        [3] : {
+            attributes : [
+                [0] : {
+                    name : class
+                    value : body-class
+                }
+            ]
+            backendNodeId : <number>
+            childNodeIndexes : [
+                [0] : 4
+                [1] : 5
+                [2] : 46
+            ]
+            layoutNodeIndex : 2
+            nodeName : BODY
+            nodeType : 1
+            nodeValue : 
+        }
+        [4] : {
+            backendNodeId : <number>
+            nodeName : #text
+            nodeType : 3
+            nodeValue :  
+        }
+        [5] : {
+            attributes : [
+                [0] : {
+                    name : style
+                    value : width: 200px
+                }
+            ]
+            backendNodeId : <number>
+            childNodeIndexes : [
+                [0] : 6
+                [1] : 7
+                [2] : 26
+                [3] : 27
+                [4] : 30
+                [5] : 31
+                [6] : 33
+                [7] : 34
+                [8] : 35
+                [9] : 36
+                [10] : 37
+                [11] : 38
+                [12] : 39
+                [13] : 40
+                [14] : 41
+                [15] : 42
+                [16] : 45
+            ]
+            layoutNodeIndex : 3
+            nodeName : DIV
+            nodeType : 1
+            nodeValue : 
+        }
+        [6] : {
+            backendNodeId : <number>
+            nodeName : #text
+            nodeType : 3
+            nodeValue :    
+        }
+        [7] : {
+            backendNodeId : <number>
+            childNodeIndexes : [
+                [0] : 8
+                [1] : 10
+                [2] : 21
+                [3] : 22
+                [4] : 24
+            ]
+            layoutNodeIndex : 4
+            nodeName : SELECT
+            nodeType : 1
+            nodeValue : 
+        }
+        [8] : {
+            attributes : [
+                [0] : {
+                    name : aria-hidden
+                    value : true
+                }
+            ]
+            backendNodeId : <number>
+            childNodeIndexes : [
+                [0] : 9
+            ]
+            layoutNodeIndex : 5
+            nodeName : DIV
+            nodeType : 1
+            nodeValue : 
+            shadowRootType : user-agent
+        }
+        [9] : {
+            backendNodeId : <number>
+            layoutNodeIndex : 6
+            nodeName : #text
+            nodeType : 3
+            nodeValue : Option 1
+            shadowRootType : user-agent
+        }
+        [10] : {
+            attributes : [
+                [0] : {
+                    name : id
+                    value : select-options
+                }
+            ]
+            backendNodeId : <number>
+            childNodeIndexes : [
+                [0] : 11
+                [1] : 16
+            ]
+            nodeName : SLOT
+            nodeType : 1
+            nodeValue : 
+            shadowRootType : user-agent
+        }
+        [11] : {
+            attributes : [
+                [0] : {
+                    name : id
+                    value : OptionSelected
+                }
+            ]
+            backendNodeId : <number>
+            childNodeIndexes : [
+                [0] : 12
+                [1] : 14
+            ]
+            nodeName : OPTION
+            nodeType : 1
+            nodeValue : 
+            optionSelected : true
+        }
+        [12] : {
+            attributes : [
+                [0] : {
+                    name : pseudo
+                    value : -internal-option-label-container
+                }
+                [1] : {
+                    name : aria-hidden
+                    value : true
+                }
+            ]
+            backendNodeId : <number>
+            childNodeIndexes : [
+                [0] : 13
+            ]
+            nodeName : SPAN
+            nodeType : 1
+            nodeValue : 
+            shadowRootType : user-agent
+        }
+        [13] : {
+            backendNodeId : <number>
+            nodeName : #text
+            nodeType : 3
+            nodeValue : Option 1
+            shadowRootType : user-agent
+        }
+        [14] : {
+            attributes : [
+                [0] : {
+                    name : pseudo
+                    value : -internal-option-slot
+                }
+            ]
+            backendNodeId : <number>
+            childNodeIndexes : [
+                [0] : 15
+            ]
+            nodeName : SLOT
+            nodeType : 1
+            nodeValue : 
+            shadowRootType : user-agent
+        }
+        [15] : {
+            backendNodeId : <number>
+            nodeName : #text
+            nodeType : 3
+            nodeValue : Option 1
+        }
+        [16] : {
+            attributes : [
+                [0] : {
+                    name : id
+                    value : OptionNotSelected
+                }
+            ]
+            backendNodeId : <number>
+            childNodeIndexes : [
+                [0] : 17
+                [1] : 19
+            ]
+            nodeName : OPTION
+            nodeType : 1
+            nodeValue : 
+            optionSelected : false
+        }
+        [17] : {
+            attributes : [
+                [0] : {
+                    name : pseudo
+                    value : -internal-option-label-container
+                }
+                [1] : {
+                    name : aria-hidden
+                    value : true
+                }
+            ]
+            backendNodeId : <number>
+            childNodeIndexes : [
+                [0] : 18
+            ]
+            nodeName : SPAN
+            nodeType : 1
+            nodeValue : 
+            shadowRootType : user-agent
+        }
+        [18] : {
+            backendNodeId : <number>
+            nodeName : #text
+            nodeType : 3
+            nodeValue : Option 2
+            shadowRootType : user-agent
+        }
+        [19] : {
+            attributes : [
+                [0] : {
+                    name : pseudo
+                    value : -internal-option-slot
+                }
+            ]
+            backendNodeId : <number>
+            childNodeIndexes : [
+                [0] : 20
+            ]
+            nodeName : SLOT
+            nodeType : 1
+            nodeValue : 
+            shadowRootType : user-agent
+        }
+        [20] : {
+            backendNodeId : <number>
+            nodeName : #text
+            nodeType : 3
+            nodeValue : Option 2
+        }
+        [21] : {
+            attributes : [
+                [0] : {
+                    name : id
+                    value : select-button
+                }
+            ]
+            backendNodeId : <number>
+            nodeName : SLOT
+            nodeType : 1
+            nodeValue : 
+            shadowRootType : user-agent
+        }
+        [22] : {
+            attributes : [
+                [0] : {
+                    name : pseudo
+                    value : picker(select)
+                }
+                [1] : {
+                    name : popover
+                    value : auto
+                }
+            ]
+            backendNodeId : <number>
+            childNodeIndexes : [
+                [0] : 23
+            ]
+            nodeName : DIV
+            nodeType : 1
+            nodeValue : 
+            shadowRootType : user-agent
+        }
+        [23] : {
+            attributes : [
+                [0] : {
+                    name : id
+                    value : select-popover-options
+                }
+            ]
+            backendNodeId : <number>
+            nodeName : SLOT
+            nodeType : 1
+            nodeValue : 
+            shadowRootType : user-agent
+        }
+        [24] : {
+            attributes : [
+                [0] : {
+                    name : popover
+                    value : manual
+                }
+                [1] : {
+                    name : pseudo
+                    value : -internal-select-autofill-preview
+                }
+            ]
+            backendNodeId : <number>
+            childNodeIndexes : [
+                [0] : 25
+            ]
+            nodeName : DIV
+            nodeType : 1
+            nodeValue : 
+            shadowRootType : user-agent
+        }
+        [25] : {
+            attributes : [
+                [0] : {
+                    name : pseudo
+                    value : -internal-select-autofill-preview-text
+                }
+            ]
+            backendNodeId : <number>
+            nodeName : DIV
+            nodeType : 1
+            nodeValue : 
+            shadowRootType : user-agent
+        }
+        [26] : {
+            backendNodeId : <number>
+            layoutNodeIndex : 7
+            nodeName : #text
+            nodeType : 3
+            nodeValue :    
+        }
+        [27] : {
+            attributes : [
+                [0] : {
+                    name : id
+                    value : TextInput
+                }
+                [1] : {
+                    name : value
+                    value : InputValue
+                }
+            ]
+            backendNodeId : <number>
+            childNodeIndexes : [
+                [0] : 28
+            ]
+            inputValue : InputValue
+            isClickable : true
+            layoutNodeIndex : 8
+            nodeName : INPUT
+            nodeType : 1
+            nodeValue : 
+        }
+        [28] : {
+            backendNodeId : <number>
+            childNodeIndexes : [
+                [0] : 29
+            ]
+            isClickable : true
+            layoutNodeIndex : 9
+            nodeName : DIV
+            nodeType : 1
+            nodeValue : 
+            shadowRootType : user-agent
+        }
+        [29] : {
+            backendNodeId : <number>
+            isClickable : true
+            layoutNodeIndex : 10
+            nodeName : #text
+            nodeType : 3
+            nodeValue : InputValue
+            shadowRootType : user-agent
+        }
+        [30] : {
+            backendNodeId : <number>
+            layoutNodeIndex : 11
+            nodeName : #text
+            nodeType : 3
+            nodeValue :    
+        }
+        [31] : {
+            attributes : [
+                [0] : {
+                    name : id
+                    value : ButtonInput
+                }
+                [1] : {
+                    name : type
+                    value : button
+                }
+                [2] : {
+                    name : value
+                    value : ButtonValue
+                }
+            ]
+            backendNodeId : <number>
+            childNodeIndexes : [
+                [0] : 32
+            ]
+            inputValue : ButtonValue
+            isClickable : true
+            layoutNodeIndex : 12
+            nodeName : INPUT
+            nodeType : 1
+            nodeValue : 
+        }
+        [32] : {
+            backendNodeId : <number>
+            layoutNodeIndex : 13
+            nodeName : #text
+            nodeType : 3
+            nodeValue : ButtonValue
+            shadowRootType : user-agent
+        }
+        [33] : {
+            backendNodeId : <number>
+            layoutNodeIndex : 14
+            nodeName : #text
+            nodeType : 3
+            nodeValue :    
+        }
+        [34] : {
+            attributes : [
+                [0] : {
+                    name : id
+                    value : RadioInputChecked
+                }
+                [1] : {
+                    name : value
+                    value : RadioInputValue
+                }
+                [2] : {
+                    name : type
+                    value : radio
+                }
+                [3] : {
+                    name : checked
+                    value : 
+                }
+            ]
+            backendNodeId : <number>
+            inputChecked : true
+            inputValue : RadioInputValue
+            isClickable : true
+            layoutNodeIndex : 15
+            nodeName : INPUT
+            nodeType : 1
+            nodeValue : 
+        }
+        [35] : {
+            backendNodeId : <number>
+            layoutNodeIndex : 16
+            nodeName : #text
+            nodeType : 3
+            nodeValue :    
+        }
+        [36] : {
+            attributes : [
+                [0] : {
+                    name : id
+                    value : RadioInputUnchecked
+                }
+                [1] : {
+                    name : type
+                    value : radio
+                }
+            ]
+            backendNodeId : <number>
+            inputChecked : false
+            inputValue : on
+            isClickable : true
+            layoutNodeIndex : 17
+            nodeName : INPUT
+            nodeType : 1
+            nodeValue : 
+        }
+        [37] : {
+            backendNodeId : <number>
+            layoutNodeIndex : 18
+            nodeName : #text
+            nodeType : 3
+            nodeValue :    
+        }
+        [38] : {
+            attributes : [
+                [0] : {
+                    name : id
+                    value : CheckboxInputChecked
+                }
+                [1] : {
+                    name : value
+                    value : CheckInputValue
+                }
+                [2] : {
+                    name : type
+                    value : checkbox
+                }
+                [3] : {
+                    name : checked
+                    value : 
+                }
+            ]
+            backendNodeId : <number>
+            inputChecked : true
+            inputValue : CheckInputValue
+            isClickable : true
+            layoutNodeIndex : 19
+            nodeName : INPUT
+            nodeType : 1
+            nodeValue : 
+        }
+        [39] : {
+            backendNodeId : <number>
+            layoutNodeIndex : 20
+            nodeName : #text
+            nodeType : 3
+            nodeValue :    
+        }
+        [40] : {
+            attributes : [
+                [0] : {
+                    name : id
+                    value : CheckboxInputUnchecked
+                }
+                [1] : {
+                    name : type
+                    value : checkbox
+                }
+                [2] : {
+                    name : value
+                    value : 
+                }
+            ]
+            backendNodeId : <number>
+            inputChecked : false
+            inputValue : 
+            isClickable : true
+            layoutNodeIndex : 21
+            nodeName : INPUT
+            nodeType : 1
+            nodeValue : 
+        }
+        [41] : {
+            backendNodeId : <number>
+            layoutNodeIndex : 22
+            nodeName : #text
+            nodeType : 3
+            nodeValue :    
+        }
+        [42] : {
+            attributes : [
+                [0] : {
+                    name : id
+                    value : TextArea
+                }
+            ]
+            backendNodeId : <number>
+            childNodeIndexes : [
+                [0] : 43
+            ]
+            layoutNodeIndex : 23
+            nodeName : TEXTAREA
+            nodeType : 1
+            nodeValue : 
+            textValue : TextAreaValue
+        }
+        [43] : {
+            backendNodeId : <number>
+            childNodeIndexes : [
+                [0] : 44
+            ]
+            isClickable : true
+            layoutNodeIndex : 24
+            nodeName : DIV
+            nodeType : 1
+            nodeValue : 
+            shadowRootType : user-agent
+        }
+        [44] : {
+            backendNodeId : <number>
+            isClickable : true
+            layoutNodeIndex : 25
+            nodeName : #text
+            nodeType : 3
+            nodeValue : TextAreaValue
+            shadowRootType : user-agent
+        }
+        [45] : {
+            backendNodeId : <number>
+            layoutNodeIndex : 26
+            nodeName : #text
+            nodeType : 3
+            nodeValue :  
+        }
+        [46] : {
+            backendNodeId : <number>
+            nodeName : #text
+            nodeType : 3
+            nodeValue :    
+        }
+    ]
+    layoutTreeNodes : <object>
+}
+

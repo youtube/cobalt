@@ -10,8 +10,10 @@
 #include "base/android/library_loader/library_loader_hooks.h"
 #include "base/android/library_loader/library_prefetcher.h"
 #include "base/android/scoped_java_ref.h"
-#include "base/base_jni_headers/LibraryPrefetcher_jni.h"
 #include "base/logging.h"
+
+// Must come after all headers that specialize FromJniType() / ToJniType().
+#include "base/library_loader_jni/LibraryPrefetcher_jni.h"
 
 namespace base {
 namespace android {
@@ -20,6 +22,12 @@ static void JNI_LibraryPrefetcher_ForkAndPrefetchNativeLibrary(JNIEnv* env) {
 #if BUILDFLAG(SUPPORTS_CODE_ORDERING)
   return NativeLibraryPrefetcher::ForkAndPrefetchNativeLibrary(
       IsUsingOrderfileOptimization());
+#endif
+}
+
+static void JNI_LibraryPrefetcher_PrefetchNativeLibraryForWebView(JNIEnv* env) {
+#if BUILDFLAG(SUPPORTS_CODE_ORDERING)
+  return NativeLibraryPrefetcher::ForkAndPrefetchNativeLibrary(false);
 #endif
 }
 

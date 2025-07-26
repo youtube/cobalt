@@ -23,9 +23,13 @@ If you are using Maven, use the following:
 <dependency>
   <groupId>com.google.protobuf</groupId>
   <artifactId>protobuf-java</artifactId>
-  <version>3.6.1</version>
+  <version><!--version--></version>
 </dependency>
 ```
+
+And **replace `<!--version-->` with a version from the
+[Maven Protocol Buffers Repository](https://mvnrepository.com/artifact/com.google.protobuf/protobuf-java).**
+For example, `3.25.3`.
 
 Make sure the version number of the runtime matches (or is newer than) the
 version number of the protoc.
@@ -37,17 +41,9 @@ protobuf-java-util package:
 <dependency>
   <groupId>com.google.protobuf</groupId>
   <artifactId>protobuf-java-util</artifactId>
-  <version>3.6.1</version>
+  <version><!--version--></version>
 </dependency>
 ```
-
-### Gradle
-
-If you are using Gradle, add the following to your `build.gradle` file's dependencies:
-```
-    compile 'com.google.protobuf:protobuf-java:3.6.1'
-```
-Again, be sure to check that the version number maches (or is newer than) the version number of protoc that you are using.
 
 ### Use Java Protocol Buffers on Android
 
@@ -68,10 +64,38 @@ how to use them.
 
 Most users should follow the instructions above to use protobuf Java runtime.
 If you are contributing code to protobuf or want to use a protobuf version
-that hasn't been officially released yet, you can folllow the instructions
+that hasn't been officially released yet, you can follow the instructions
 below to build protobuf from source code.
 
+### Build from Source
+
+You may follow these instructions to build from source. This does not require
+Maven to be installed. Note that these instructions skip running unit tests and
+only describes how to install the core protobuf library (without the util
+package).
+
+1) Build the C++ code, or obtain a binary distribution of protoc (see
+   the toplevel [README.md](../README.md)). If you install a binary
+   distribution, make sure that it is the same version as this package.
+   If in doubt, run:
+
+     $ protoc --version
+
+   If you built the C++ code without installing, the compiler binary
+   should be located in ../src.
+
+2) Invoke protoc to build DescriptorProtos.java:
+
+     $ protoc --java_out=core/src/main/java -I../src \
+         ../src/google/protobuf/descriptor.proto
+
+3) Compile the code in core/src/main/java using whatever means you prefer.
+
+4) Install the classes wherever you prefer.
+
 ### Build from Source - With Maven
+
+WARNING: Building from source with Maven is deprecated and will be removed in the 4.28.x release.
 
 1) Install Apache Maven if you don't have it:
 
@@ -113,31 +137,6 @@ The above instructions will install 2 maven artifacts:
                         as well as utilities to work with proto3 well-known
                         types.
 
-### Build from Source - Without Maven
-
-If you would rather not install Maven to build the library, you may
-follow these instructions instead.  Note that these instructions skip
-running unit tests and only describes how to install the core protobuf
-library (without the util package).
-
-1) Build the C++ code, or obtain a binary distribution of protoc.  If
-   you install a binary distribution, make sure that it is the same
-   version as this package.  If in doubt, run:
-
-     $ protoc --version
-
-   If you built the C++ code without installing, the compiler binary
-   should be located in ../src.
-
-2) Invoke protoc to build DescriptorProtos.java:
-
-     $ protoc --java_out=core/src/main/java -I../src \
-         ../src/google/protobuf/descriptor.proto
-
-3) Compile the code in core/src/main/java using whatever means you prefer.
-
-4) Install the classes wherever you prefer.
-
 ## Compatibility Notice
 
 * Protobuf minor version releases are backwards-compatible. If your code
@@ -146,7 +145,7 @@ library (without the util package).
   are guaranteed for minor version releases if the user follows the guideline
   described in this section.
 
-* Protobuf major version releases may also be backwards-compatbile with the
+* Protobuf major version releases may also be backwards-compatible with the
   last release of the previous major version. See the release notice for more
   details.
 
@@ -178,3 +177,8 @@ The complete documentation for Protocol Buffers is available via the
 web at:
 
   https://developers.google.com/protocol-buffers/
+
+## Kotlin Protocol Buffers
+
+Code to support more idiomatic Kotlin protocol buffers has been added to the
+repository, and Kotlin support will be launched in the next numbered release.

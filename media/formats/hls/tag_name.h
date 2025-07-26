@@ -6,10 +6,10 @@
 #define MEDIA_FORMATS_HLS_TAG_NAME_H_
 
 #include <cstdint>
+#include <optional>
+#include <string_view>
 
-#include "base/strings/string_piece.h"
 #include "media/base/media_export.h"
-#include "third_party/abseil-cpp/absl/types/optional.h"
 
 namespace media::hls {
 
@@ -110,11 +110,11 @@ constexpr TagName ToTagName(TagName name) {
 }
 
 // Parses the tag name, converting it to one of the `*TagName` enum values.
-// If the tag is not recognized, returns `absl::nullopt`.
-MEDIA_EXPORT absl::optional<TagName> ParseTagName(base::StringPiece name);
+// If the tag is not recognized, returns `std::nullopt`.
+MEDIA_EXPORT std::optional<TagName> ParseTagName(std::string_view name);
 
 // Prints the corresponding string representation of the given `TagName`.
-MEDIA_EXPORT base::StringPiece TagNameToString(TagName name);
+MEDIA_EXPORT std::string_view TagNameToString(TagName name);
 
 constexpr TagName kMinTagName = ToTagName(CommonTagName::kMinValue);
 constexpr TagName kMaxTagName = ToTagName(MediaPlaylistTagName::kMaxValue);

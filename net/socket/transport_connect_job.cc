@@ -5,6 +5,7 @@
 #include "net/socket/transport_connect_job.h"
 
 #include <memory>
+#include <set>
 #include <utility>
 
 #include "base/check_op.h"
@@ -35,7 +36,7 @@ namespace net {
 
 namespace {
 
-// TODO(crbug.com/1206799): Delete once endpoint usage is converted to using
+// TODO(crbug.com/40181080): Delete once endpoint usage is converted to using
 // url::SchemeHostPort when available.
 HostPortPair ToLegacyDestinationEndpoint(
     const TransportSocketParams::Endpoint& endpoint) {
@@ -119,7 +120,7 @@ TransportConnectJob::TransportConnectJob(
     const scoped_refptr<TransportSocketParams>& params,
     Delegate* delegate,
     const NetLogWithSource* net_log,
-    absl::optional<EndpointResultOverride> endpoint_result_override)
+    std::optional<EndpointResultOverride> endpoint_result_override)
     : ConnectJob(priority,
                  socket_tag,
                  ConnectionTimeout(),
@@ -183,7 +184,7 @@ ResolveErrorInfo TransportConnectJob::GetResolveErrorInfo() const {
   return resolve_error_info_;
 }
 
-absl::optional<HostResolverEndpointResult>
+std::optional<HostResolverEndpointResult>
 TransportConnectJob::GetHostResolverEndpointResult() const {
   CHECK_LT(current_endpoint_result_, endpoint_results_.size());
   return endpoint_results_[current_endpoint_result_];
@@ -233,8 +234,6 @@ int TransportConnectJob::DoLoop(int result) {
         break;
       default:
         NOTREACHED();
-        rv = ERR_FAILED;
-        break;
     }
   } while (rv != ERR_IO_PENDING && next_state_ != STATE_NONE);
 
@@ -347,8 +346,26 @@ int TransportConnectJob::DoResolveHostCallbackComplete() {
     return ERR_NAME_NOT_RESOLVED;
   }
 
-  next_state_ = STATE_TRANSPORT_CONNECT;
-  return OK;
+  Error result = OK;
+  // If DNS aliases are resolved, have the delegate process the aliases to
+  // determine if further action is needed.
+  // Only invoke `HandleDnsAliasesResolved` if aliases contains at least one
+  // element that is not the destination hostname.
+  const std::string& endpoint_hostname =
+      absl::holds_alternative<url::SchemeHostPort>(params_->destination())
+          ? absl::get<url::SchemeHostPort>(params_->destination()).host()
+          : absl::get<HostPortPair>(params_->destination()).host();
+  if (dns_aliases_.size() > 1 ||
+      (dns_aliases_.size() == 1 && !dns_aliases_.contains(endpoint_hostname))) {
+    result = HandleDnsAliasesResolved(dns_aliases_);
+    CHECK_NE(result, ERR_IO_PENDING);
+  }
+
+  if (result == OK) {
+    next_state_ = STATE_TRANSPORT_CONNECT;
+  }
+
+  return result;
 }
 
 int TransportConnectJob::DoTransportConnect() {
@@ -519,9 +536,7 @@ bool TransportConnectJob::IsSvcbOptional(
   }
 
   if (!common_connect_job_params()->ssl_client_context ||
-      !common_connect_job_params()
-           ->ssl_client_context->config()
-           .EncryptedClientHelloEnabled()) {
+      !common_connect_job_params()->ssl_client_context->config().ech_enabled) {
     return true;  // ECH is not supported for this request.
   }
 

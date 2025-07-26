@@ -11,8 +11,24 @@
 #include "third_party/perfetto/protos/perfetto/trace/track_event/source_location.pbzero.h"
 #include "third_party/perfetto/protos/perfetto/trace/track_event/task_execution.pbzero.h"
 
-namespace base {
-namespace trace_event {
+namespace base::trace_event {
+
+namespace {
+
+const void* const kModuleCacheForTracingKey = &kModuleCacheForTracingKey;
+
+class ModuleCacheForTracing : public perfetto::TrackEventTlsStateUserData {
+ public:
+  ModuleCacheForTracing() = default;
+  ~ModuleCacheForTracing() override = default;
+
+  base::ModuleCache& GetModuleCache() { return module_cache_; }
+
+ private:
+  base::ModuleCache module_cache_;
+};
+
+}  // namespace
 
 //  static
 void InternedSourceLocation::Add(
@@ -21,10 +37,12 @@ void InternedSourceLocation::Add(
     const TraceSourceLocation& location) {
   auto* msg = interned_data->add_source_locations();
   msg->set_iid(iid);
-  if (location.file_name != nullptr)
+  if (location.file_name != nullptr) {
     msg->set_file_name(location.file_name);
-  if (location.function_name != nullptr)
+  }
+  if (location.function_name != nullptr) {
     msg->set_function_name(location.function_name);
+  }
   // TODO(ssid): Add line number once it is allowed in internal proto.
   // TODO(ssid): Add program counter to the proto fields when
   // !BUILDFLAG(ENABLE_LOCATION_SOURCE).
@@ -95,14 +113,21 @@ void InternedMapping::Add(perfetto::EventContext* ctx,
 }
 
 // static
-absl::optional<size_t> InternedUnsymbolizedSourceLocation::Get(
+std::optional<size_t> InternedUnsymbolizedSourceLocation::Get(
     perfetto::EventContext* ctx,
     uintptr_t address) {
   auto* index_for_field = GetOrCreateIndexForField(ctx->GetIncrementalState());
+  ModuleCacheForTracing* module_cache = static_cast<ModuleCacheForTracing*>(
+      ctx->GetTlsUserData(kModuleCacheForTracingKey));
+  if (!module_cache) {
+    auto new_module_cache = std::make_unique<ModuleCacheForTracing>();
+    module_cache = new_module_cache.get();
+    ctx->SetTlsUserData(kModuleCacheForTracingKey, std::move(new_module_cache));
+  }
   const base::ModuleCache::Module* module =
-      index_for_field->module_cache_.GetModuleForAddress(address);
+      module_cache->GetModuleCache().GetModuleForAddress(address);
   if (!module) {
-    return absl::nullopt;
+    return std::nullopt;
   }
   size_t iid;
   if (index_for_field->index_.LookUpOrInsert(&iid, address)) {
@@ -127,5 +152,4 @@ void InternedUnsymbolizedSourceLocation::Add(
   msg->set_rel_pc(location.rel_pc);
 }
 
-}  // namespace trace_event
-}  // namespace base
+}  // namespace base::trace_event

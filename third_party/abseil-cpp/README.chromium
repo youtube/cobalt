@@ -1,11 +1,12 @@
 Name: Abseil
 Short Name: absl
 URL: https://github.com/abseil/abseil-cpp
-License: Apache 2.0
+License: Apache-2.0
 License File: LICENSE
-Version: 0
-Revision: fb0debf5835320a261612a541520ba3c3a11685f
+Version: N/A
+Revision: 05e72a328599d71d095e0ff591540e7ddec4f7a7
 Security Critical: yes
+Shipped: yes
 
 Description:
 This directory contains the source code of Abseil for C++. This can be used by

@@ -138,6 +138,12 @@
  */
 #define SK_PDF_USE_HARFBUZZ_SUBSET
 
+/*  This controls how much space should be pre-allocated in an SkCanvas object
+    to store the SkMatrix and clip via calls to SkCanvas::save() (and balanced
+    with SkCanvas::restore()).
+*/
+#define SK_CANVAS_SAVE_RESTORE_PREALLOC_COUNT 16
+
 // Handle exporting using base/component_export.h
 #define SK_API COMPONENT_EXPORT(SKIA)
 
@@ -212,8 +218,6 @@ SK_API void SkDebugf_FileLine(const char* file,
 //
 // Remove these as we update our sites.
 
-#define SK_LEGACY_LAYER_BOUNDS_EXPANSION  // skbug.com/12083, skbug.com/12303
-
 // Workaround for poor anisotropic mipmap quality,
 // pending Skia ripmap support.
 // (https://bugs.chromium.org/p/skia/issues/detail?id=4863)
@@ -225,20 +229,13 @@ SK_API void SkDebugf_FileLine(const char* file,
 // Max. verb count for paths rendered by the edge-AA tessellating path renderer.
 #define GR_AA_TESSELLATOR_MAX_VERB_COUNT 100
 
-#define SK_FORCE_AAA
-
-#define SK_SUPPORT_LEGACY_DRAWLOOPER
-
 #define SK_USE_LEGACY_MIPMAP_BUILDER
 
 #define SK_SUPPORT_LEGACY_CONIC_CHOP
 
-// To be replaced with SK_ENABLE_SKSL_IN_RASTER_PIPELINE (go/sksl-rp):
-#define SK_ENABLE_SKVM
+#define SK_USE_PADDED_BLUR_UPSCALE
 
-// Use the original std::vector based serializer
-// Remove when new streaming support operations has been verified.
-// #define SK_SUPPORT_LEGACY_STRIKE_SERIALIZATION
+#define SK_LEGACY_INITWITHPREV_LAYER_SIZING
 
 ///////////////////////// Imported from BUILD.gn and skia_common.gypi
 
@@ -250,10 +247,15 @@ SK_API void SkDebugf_FileLine(const char* file,
 /* Restrict formats for Skia font matching to SFNT type fonts. */
 #define SK_FONT_CONFIG_INTERFACE_ONLY_ALLOW_SFNT_FONTS
 
+// Temporarily enable new strike cache pinning logic, for staging.
+#define SK_STRIKE_CACHE_DOESNT_AUTO_CHECK_PINNERS
+
 #define SK_IGNORE_BLURRED_RRECT_OPT
 #define SK_USE_DISCARDABLE_SCALEDIMAGECACHE
 
 #define SK_ATTR_DEPRECATED          SK_NOTHING_ARG1
-#define GR_GL_CUSTOM_SETUP_HEADER   "GrGLConfig_chrome.h"
+
+// glGetError() forces a sync with gpu process on chrome
+#define GR_GL_CHECK_ERROR_START 0
 
 #endif  // SKIA_CONFIG_SKUSERCONFIG_H_

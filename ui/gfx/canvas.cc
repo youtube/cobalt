@@ -2,10 +2,16 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#ifdef UNSAFE_BUFFERS_BUILD
+// TODO(crbug.com/390223051): Remove C-library calls to fix the errors.
+#pragma allow_unsafe_libc_calls
+#endif
+
 #include "ui/gfx/canvas.h"
 
 #include <cmath>
 #include <limits>
+#include <string_view>
 
 #include "base/i18n/rtl.h"
 #include "base/logging.h"
@@ -16,7 +22,6 @@
 #include "third_party/skia/include/core/SkBitmap.h"
 #include "third_party/skia/include/core/SkPath.h"
 #include "third_party/skia/include/core/SkRefCnt.h"
-#include "third_party/skia/include/effects/SkDashPathEffect.h"
 #include "third_party/skia/include/effects/SkGradientShader.h"
 #include "ui/gfx/font_list.h"
 #include "ui/gfx/geometry/insets_f.h"
@@ -65,7 +70,7 @@ void Canvas::RecreateBackingCanvas(const Size& size,
 }
 
 // static
-void Canvas::SizeStringInt(const std::u16string& text,
+void Canvas::SizeStringInt(std::u16string_view text,
                            const FontList& font_list,
                            int* width,
                            int* height,
@@ -80,7 +85,7 @@ void Canvas::SizeStringInt(const std::u16string& text,
 }
 
 // static
-int Canvas::GetStringWidth(const std::u16string& text,
+int Canvas::GetStringWidth(std::u16string_view text,
                            const FontList& font_list) {
   int width = 0, height = 0;
   SizeStringInt(text, font_list, &width, &height, 0, NO_ELLIPSIS);
@@ -88,7 +93,7 @@ int Canvas::GetStringWidth(const std::u16string& text,
 }
 
 // static
-float Canvas::GetStringWidthF(const std::u16string& text,
+float Canvas::GetStringWidthF(std::u16string_view text,
                               const FontList& font_list) {
   float width = 0, height = 0;
   SizeStringFloat(text, font_list, &width, &height, 0, NO_ELLIPSIS);
@@ -402,7 +407,7 @@ void Canvas::DrawSkottie(scoped_refptr<cc::SkottieWrapper> skottie,
                        std::move(images), color_map, std::move(text_map));
 }
 
-void Canvas::DrawStringRect(const std::u16string& text,
+void Canvas::DrawStringRect(std::u16string_view text,
                             const FontList& font_list,
                             SkColor color,
                             const Rect& display_rect) {
@@ -479,7 +484,7 @@ SkBitmap Canvas::GetBitmap() const {
   return bitmap_.value();
 }
 
-bool Canvas::IntersectsClipRect(const SkRect& rect) {
+bool Canvas::IntersectsClipRect(const SkRect& rect) const {
   SkRect clip;
   return canvas_->getLocalClipBounds(&clip) && clip.intersects(rect);
 }
@@ -499,7 +504,8 @@ void Canvas::DrawImageIntHelper(const ImageSkiaRep& image_rep,
   DLOG_ASSERT(src_x + src_w < std::numeric_limits<int16_t>::max() &&
               src_y + src_h < std::numeric_limits<int16_t>::max());
   if (src_w <= 0 || src_h <= 0) {
-    NOTREACHED() << "Attempting to draw bitmap from an empty rect!";
+    DUMP_WILL_BE_NOTREACHED()
+        << "Attempting to draw bitmap from an empty rect!";
     return;
   }
 

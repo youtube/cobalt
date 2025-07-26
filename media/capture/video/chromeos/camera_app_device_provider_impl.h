@@ -18,12 +18,14 @@ class CAPTURE_EXPORT CameraAppDeviceProviderImpl
     : public cros::mojom::CameraAppDeviceProvider {
  public:
   using WithRealIdCallback =
-      base::OnceCallback<void(const absl::optional<std::string>&)>;
+      base::OnceCallback<void(const std::optional<std::string>&)>;
   using DeviceIdMappingCallback =
       base::RepeatingCallback<void(const std::string&, WithRealIdCallback)>;
+  using ConnectToBridgeCallback = base::RepeatingCallback<void(
+      mojo::PendingReceiver<cros::mojom::CameraAppDeviceBridge>)>;
 
   CameraAppDeviceProviderImpl(
-      mojo::PendingRemote<cros::mojom::CameraAppDeviceBridge> bridge,
+      ConnectToBridgeCallback connect_to_bridge_callback,
       DeviceIdMappingCallback mapping_callback);
 
   CameraAppDeviceProviderImpl(const CameraAppDeviceProviderImpl&) = delete;
@@ -38,24 +40,24 @@ class CAPTURE_EXPORT CameraAppDeviceProviderImpl
   void GetCameraAppDevice(const std::string& source_id,
                           GetCameraAppDeviceCallback callback) override;
   void IsSupported(IsSupportedCallback callback) override;
-  void SetVirtualDeviceEnabled(
-      const std::string& device_id,
-      bool enabled,
-      SetVirtualDeviceEnabledCallback callback) override;
+  void IsDeviceInUse(const std::string& source_id,
+                     IsDeviceInUseCallback callback) override;
 
  private:
   void GetCameraAppDeviceWithDeviceId(
       GetCameraAppDeviceCallback callback,
-      const absl::optional<std::string>& device_id);
+      const std::optional<std::string>& device_id);
 
-  void SetVirtualDeviceEnabledWithDeviceId(
-      bool enable,
-      SetVirtualDeviceEnabledCallback callback,
-      const absl::optional<std::string>& device_id);
+  void IsDeviceInUseWithDeviceId(IsDeviceInUseCallback callback,
+                                 const std::optional<std::string>& device_id);
 
-  mojo::Remote<cros::mojom::CameraAppDeviceBridge> bridge_;
+  void ConnectToCameraAppDeviceBridge();
+
+  ConnectToBridgeCallback connect_to_bridge_callback_;
 
   DeviceIdMappingCallback mapping_callback_;
+
+  mojo::Remote<cros::mojom::CameraAppDeviceBridge> bridge_;
 
   mojo::Receiver<cros::mojom::CameraAppDeviceProvider> receiver_{this};
 

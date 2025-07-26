@@ -6,12 +6,18 @@
 
 #include <stddef.h>
 
+#include <string>
+#include <string_view>
+#include <vector>
+
 #include "base/strings/string_util.h"
 #include "base/strings/utf_string_conversions.h"
 #include "testing/gmock/include/gmock/gmock.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
 using ::testing::ElementsAre;
+using ::testing::Optional;
+using ::testing::Pair;
 
 namespace base {
 
@@ -116,8 +122,8 @@ TEST_F(SplitStringIntoKeyValuePairsTest, EmptyKeyWithKeyValueDelimiter) {
 
 TEST_F(SplitStringIntoKeyValuePairsTest, TrailingAndLeadingPairDelimiter) {
   EXPECT_TRUE(SplitStringIntoKeyValuePairs(",key1:value1,key2:value2,",
-                                           ':',   // Key-value delimiter
-                                           ',',   // Key-value pair delimiter
+                                           ':',  // Key-value delimiter
+                                           ',',  // Key-value pair delimiter
                                            &kv_pairs));
   ASSERT_EQ(2U, kv_pairs.size());
   EXPECT_EQ("key1", kv_pairs[0].first);
@@ -128,8 +134,8 @@ TEST_F(SplitStringIntoKeyValuePairsTest, TrailingAndLeadingPairDelimiter) {
 
 TEST_F(SplitStringIntoKeyValuePairsTest, EmptyPair) {
   EXPECT_TRUE(SplitStringIntoKeyValuePairs("key1:value1,,key3:value3",
-                                           ':',   // Key-value delimiter
-                                           ',',   // Key-value pair delimiter
+                                           ':',  // Key-value delimiter
+                                           ',',  // Key-value pair delimiter
                                            &kv_pairs));
   ASSERT_EQ(2U, kv_pairs.size());
   EXPECT_EQ("key1", kv_pairs[0].first);
@@ -140,8 +146,8 @@ TEST_F(SplitStringIntoKeyValuePairsTest, EmptyPair) {
 
 TEST_F(SplitStringIntoKeyValuePairsTest, EmptyValue) {
   EXPECT_FALSE(SplitStringIntoKeyValuePairs("key1:,key2:value2",
-                                            ':',   // Key-value delimiter
-                                            ',',   // Key-value pair delimiter
+                                            ':',  // Key-value delimiter
+                                            ',',  // Key-value pair delimiter
                                             &kv_pairs));
   ASSERT_EQ(2U, kv_pairs.size());
   EXPECT_EQ("key1", kv_pairs[0].first);
@@ -162,8 +168,8 @@ TEST_F(SplitStringIntoKeyValuePairsTest, UntrimmedWhitespace) {
 
 TEST_F(SplitStringIntoKeyValuePairsTest, TrimmedWhitespace) {
   EXPECT_TRUE(SplitStringIntoKeyValuePairs("key1:value1 , key2:value2",
-                                           ':',   // Key-value delimiter
-                                           ',',   // Key-value pair delimiter
+                                           ':',  // Key-value delimiter
+                                           ',',  // Key-value pair delimiter
                                            &kv_pairs));
   ASSERT_EQ(2U, kv_pairs.size());
   EXPECT_EQ("key1", kv_pairs[0].first);
@@ -174,8 +180,8 @@ TEST_F(SplitStringIntoKeyValuePairsTest, TrimmedWhitespace) {
 
 TEST_F(SplitStringIntoKeyValuePairsTest, MultipleKeyValueDelimiters) {
   EXPECT_TRUE(SplitStringIntoKeyValuePairs("key1:::value1,key2:value2",
-                                           ':',   // Key-value delimiter
-                                           ',',   // Key-value pair delimiter
+                                           ':',  // Key-value delimiter
+                                           ',',  // Key-value pair delimiter
                                            &kv_pairs));
   ASSERT_EQ(2U, kv_pairs.size());
   EXPECT_EQ("key1", kv_pairs[0].first);
@@ -197,11 +203,10 @@ TEST_F(SplitStringIntoKeyValuePairsTest, OnlySplitAtGivenSeparator) {
   EXPECT_EQ(a, kv_pairs[1].second);
 }
 
-
 TEST_F(SplitStringIntoKeyValuePairsTest, DelimiterInValue) {
   EXPECT_TRUE(SplitStringIntoKeyValuePairs("key1:va:ue1,key2:value2",
-                                           ':',   // Key-value delimiter
-                                           ',',   // Key-value pair delimiter
+                                           ':',  // Key-value delimiter
+                                           ',',  // Key-value pair delimiter
                                            &kv_pairs));
   ASSERT_EQ(2U, kv_pairs.size());
   EXPECT_EQ("key1", kv_pairs[0].first);
@@ -238,8 +243,9 @@ TEST(StringUtilTest, SplitString_Basics) {
   // Should split on any of the separators.
   r = SplitString("::,,;;", ",:;", KEEP_WHITESPACE, SPLIT_WANT_ALL);
   ASSERT_EQ(7u, r.size());
-  for (auto str : r)
+  for (auto str : r) {
     ASSERT_TRUE(str.empty());
+  }
 
   r = SplitString("red, green; blue:", ",:;", TRIM_WHITESPACE,
                   SPLIT_WANT_NONEMPTY);
@@ -300,16 +306,15 @@ TEST(StringUtilTest, SplitString_WhitespaceAndResultType) {
 
 TEST(SplitStringUsingSubstrTest, StringWithNoDelimiter) {
   std::vector<std::string> results = SplitStringUsingSubstr(
-      "alongwordwithnodelimiter", "DELIMITER", TRIM_WHITESPACE,
-      SPLIT_WANT_ALL);
+      "alongwordwithnodelimiter", "DELIMITER", TRIM_WHITESPACE, SPLIT_WANT_ALL);
   ASSERT_EQ(1u, results.size());
   EXPECT_THAT(results, ElementsAre("alongwordwithnodelimiter"));
 }
 
 TEST(SplitStringUsingSubstrTest, LeadingDelimitersSkipped) {
   std::vector<std::string> results = SplitStringUsingSubstr(
-      "DELIMITERDELIMITERDELIMITERoneDELIMITERtwoDELIMITERthree",
-      "DELIMITER", TRIM_WHITESPACE, SPLIT_WANT_ALL);
+      "DELIMITERDELIMITERDELIMITERoneDELIMITERtwoDELIMITERthree", "DELIMITER",
+      TRIM_WHITESPACE, SPLIT_WANT_ALL);
   ASSERT_EQ(6u, results.size());
   EXPECT_THAT(results, ElementsAre("", "", "", "one", "two", "three"));
 }
@@ -327,12 +332,12 @@ TEST(SplitStringUsingSubstrTest, TrailingDelimitersSkipped) {
       "unDELIMITERdeuxDELIMITERtroisDELIMITERquatreDELIMITERDELIMITERDELIMITER",
       "DELIMITER", TRIM_WHITESPACE, SPLIT_WANT_ALL);
   ASSERT_EQ(7u, results.size());
-  EXPECT_THAT(
-      results, ElementsAre("un", "deux", "trois", "quatre", "", "", ""));
+  EXPECT_THAT(results,
+              ElementsAre("un", "deux", "trois", "quatre", "", "", ""));
 }
 
 TEST(SplitStringPieceUsingSubstrTest, StringWithNoDelimiter) {
-  std::vector<base::StringPiece> results =
+  std::vector<std::string_view> results =
       SplitStringPieceUsingSubstr("alongwordwithnodelimiter", "DELIMITER",
                                   base::TRIM_WHITESPACE, base::SPLIT_WANT_ALL);
   ASSERT_EQ(1u, results.size());
@@ -340,7 +345,7 @@ TEST(SplitStringPieceUsingSubstrTest, StringWithNoDelimiter) {
 }
 
 TEST(SplitStringPieceUsingSubstrTest, LeadingDelimitersSkipped) {
-  std::vector<base::StringPiece> results = SplitStringPieceUsingSubstr(
+  std::vector<std::string_view> results = SplitStringPieceUsingSubstr(
       "DELIMITERDELIMITERDELIMITERoneDELIMITERtwoDELIMITERthree", "DELIMITER",
       base::TRIM_WHITESPACE, base::SPLIT_WANT_ALL);
   ASSERT_EQ(6u, results.size());
@@ -348,7 +353,7 @@ TEST(SplitStringPieceUsingSubstrTest, LeadingDelimitersSkipped) {
 }
 
 TEST(SplitStringPieceUsingSubstrTest, ConsecutiveDelimitersSkipped) {
-  std::vector<base::StringPiece> results = SplitStringPieceUsingSubstr(
+  std::vector<std::string_view> results = SplitStringPieceUsingSubstr(
       "unoDELIMITERDELIMITERDELIMITERdosDELIMITERtresDELIMITERDELIMITERcuatro",
       "DELIMITER", base::TRIM_WHITESPACE, base::SPLIT_WANT_ALL);
   ASSERT_EQ(7u, results.size());
@@ -356,7 +361,7 @@ TEST(SplitStringPieceUsingSubstrTest, ConsecutiveDelimitersSkipped) {
 }
 
 TEST(SplitStringPieceUsingSubstrTest, TrailingDelimitersSkipped) {
-  std::vector<base::StringPiece> results = SplitStringPieceUsingSubstr(
+  std::vector<std::string_view> results = SplitStringPieceUsingSubstr(
       "unDELIMITERdeuxDELIMITERtroisDELIMITERquatreDELIMITERDELIMITERDELIMITER",
       "DELIMITER", base::TRIM_WHITESPACE, base::SPLIT_WANT_ALL);
   ASSERT_EQ(7u, results.size());
@@ -365,7 +370,7 @@ TEST(SplitStringPieceUsingSubstrTest, TrailingDelimitersSkipped) {
 }
 
 TEST(SplitStringPieceUsingSubstrTest, KeepWhitespace) {
-  std::vector<base::StringPiece> results = SplitStringPieceUsingSubstr(
+  std::vector<std::string_view> results = SplitStringPieceUsingSubstr(
       "un DELIMITERdeux\tDELIMITERtrois\nDELIMITERquatre", "DELIMITER",
       base::KEEP_WHITESPACE, base::SPLIT_WANT_ALL);
   ASSERT_EQ(4u, results.size());
@@ -373,7 +378,7 @@ TEST(SplitStringPieceUsingSubstrTest, KeepWhitespace) {
 }
 
 TEST(SplitStringPieceUsingSubstrTest, TrimWhitespace) {
-  std::vector<base::StringPiece> results = SplitStringPieceUsingSubstr(
+  std::vector<std::string_view> results = SplitStringPieceUsingSubstr(
       "un DELIMITERdeux\tDELIMITERtrois\nDELIMITERquatre", "DELIMITER",
       base::TRIM_WHITESPACE, base::SPLIT_WANT_ALL);
   ASSERT_EQ(4u, results.size());
@@ -381,7 +386,7 @@ TEST(SplitStringPieceUsingSubstrTest, TrimWhitespace) {
 }
 
 TEST(SplitStringPieceUsingSubstrTest, SplitWantAll) {
-  std::vector<base::StringPiece> results = SplitStringPieceUsingSubstr(
+  std::vector<std::string_view> results = SplitStringPieceUsingSubstr(
       "unDELIMITERdeuxDELIMITERtroisDELIMITERDELIMITER", "DELIMITER",
       base::TRIM_WHITESPACE, base::SPLIT_WANT_ALL);
   ASSERT_EQ(5u, results.size());
@@ -389,11 +394,79 @@ TEST(SplitStringPieceUsingSubstrTest, SplitWantAll) {
 }
 
 TEST(SplitStringPieceUsingSubstrTest, SplitWantNonEmpty) {
-  std::vector<base::StringPiece> results = SplitStringPieceUsingSubstr(
+  std::vector<std::string_view> results = SplitStringPieceUsingSubstr(
       "unDELIMITERdeuxDELIMITERtroisDELIMITERDELIMITER", "DELIMITER",
       base::TRIM_WHITESPACE, base::SPLIT_WANT_NONEMPTY);
   ASSERT_EQ(3u, results.size());
   EXPECT_THAT(results, ElementsAre("un", "deux", "trois"));
+}
+
+TEST(StringSplitTest, SplitStringOnce) {
+  // None of the separators are in the input, so should always be std::nullopt.
+  EXPECT_EQ(std::nullopt, SplitStringOnce("", ""));
+  EXPECT_EQ(std::nullopt, SplitStringOnce("a", ""));
+  EXPECT_EQ(std::nullopt, SplitStringOnce("ab", ""));
+
+  EXPECT_THAT(SplitStringOnce("a:b:c", ':'), Optional(Pair("a", "b:c")));
+  EXPECT_THAT(SplitStringOnce("a:", ':'), Optional(Pair("a", "")));
+  EXPECT_THAT(SplitStringOnce(":b", ':'), Optional(Pair("", "b")));
+
+  // Now the same using the multiple separators overload, but with only one
+  // separator specified.
+  EXPECT_THAT(SplitStringOnce("a:b:c", ":"), Optional(Pair("a", "b:c")));
+  EXPECT_THAT(SplitStringOnce("a:", ":"), Optional(Pair("a", "")));
+  EXPECT_THAT(SplitStringOnce(":b", ":"), Optional(Pair("", "b")));
+
+  // Multiple separators overload, but only the first one present.
+  EXPECT_THAT(SplitStringOnce("a:b:c", ":="), Optional(Pair("a", "b:c")));
+  EXPECT_THAT(SplitStringOnce("a:", ":="), Optional(Pair("a", "")));
+  EXPECT_THAT(SplitStringOnce(":b", ":="), Optional(Pair("", "b")));
+
+  // Multiple separators overload, but only the second one present.
+  EXPECT_THAT(SplitStringOnce("a:b:c", "=:"), Optional(Pair("a", "b:c")));
+  EXPECT_THAT(SplitStringOnce("a:", "=:"), Optional(Pair("a", "")));
+  EXPECT_THAT(SplitStringOnce(":b", "=:"), Optional(Pair("", "b")));
+
+  // Multiple separators overload, both present. The separator that comes first
+  // in the input string (not separators string) should win.
+  EXPECT_THAT(SplitStringOnce("a:b=c", ":="), Optional(Pair("a", "b=c")));
+  EXPECT_THAT(SplitStringOnce("a:b=c", "=:"), Optional(Pair("a", "b=c")));
+  EXPECT_THAT(SplitStringOnce("a=b:c", ":="), Optional(Pair("a", "b:c")));
+  EXPECT_THAT(SplitStringOnce("a=b:c", "=:"), Optional(Pair("a", "b:c")));
+}
+
+TEST(StringSplitTest, RSplitStringOnce) {
+  // None of the separators are in the input, so should always be std::nullopt.
+  EXPECT_EQ(std::nullopt, RSplitStringOnce("", ""));
+  EXPECT_EQ(std::nullopt, RSplitStringOnce("a", ""));
+  EXPECT_EQ(std::nullopt, RSplitStringOnce("ab", ""));
+
+  EXPECT_THAT(RSplitStringOnce("a:b:c", ':'), Optional(Pair("a:b", "c")));
+  EXPECT_THAT(RSplitStringOnce("a:", ':'), Optional(Pair("a", "")));
+  EXPECT_THAT(RSplitStringOnce(":b", ':'), Optional(Pair("", "b")));
+
+  // Now the same using the multiple separators overload, but with only one
+  // separator specified.
+  EXPECT_THAT(RSplitStringOnce("a:b:c", ":"), Optional(Pair("a:b", "c")));
+  EXPECT_THAT(RSplitStringOnce("a:", ":"), Optional(Pair("a", "")));
+  EXPECT_THAT(RSplitStringOnce(":b", ":"), Optional(Pair("", "b")));
+
+  // Multiple separators overload, but only the first one present.
+  EXPECT_THAT(RSplitStringOnce("a:b:c", ":="), Optional(Pair("a:b", "c")));
+  EXPECT_THAT(RSplitStringOnce("a:", ":="), Optional(Pair("a", "")));
+  EXPECT_THAT(RSplitStringOnce(":b", ":="), Optional(Pair("", "b")));
+
+  // Multiple separators overload, but only the second one present.
+  EXPECT_THAT(RSplitStringOnce("a:b:c", "=:"), Optional(Pair("a:b", "c")));
+  EXPECT_THAT(RSplitStringOnce("a:", "=:"), Optional(Pair("a", "")));
+  EXPECT_THAT(RSplitStringOnce(":b", "=:"), Optional(Pair("", "b")));
+
+  // Multiple separators overload, both present. The separator that comes first
+  // in the input string (not separators string) should win.
+  EXPECT_THAT(RSplitStringOnce("a:b=c", ":="), Optional(Pair("a:b", "c")));
+  EXPECT_THAT(RSplitStringOnce("a:b=c", "=:"), Optional(Pair("a:b", "c")));
+  EXPECT_THAT(RSplitStringOnce("a=b:c", ":="), Optional(Pair("a=b", "c")));
+  EXPECT_THAT(RSplitStringOnce("a=b:c", "=:"), Optional(Pair("a=b", "c")));
 }
 
 TEST(StringSplitTest, StringSplitKeepWhitespace) {
@@ -425,29 +498,63 @@ TEST(StringSplitTest, SplitStringAlongWhitespace) {
     const char* output1;
     const char* output2;
   } data[] = {
-    { "a",       1, "a",  ""   },
-    { " ",       0, "",   ""   },
-    { " a",      1, "a",  ""   },
-    { " ab ",    1, "ab", ""   },
-    { " ab c",   2, "ab", "c"  },
-    { " ab c ",  2, "ab", "c"  },
-    { " ab cd",  2, "ab", "cd" },
-    { " ab cd ", 2, "ab", "cd" },
-    { " \ta\t",  1, "a",  ""   },
-    { " b\ta\t", 2, "b",  "a"  },
-    { " b\tat",  2, "b",  "at" },
-    { "b\tat",   2, "b",  "at" },
-    { "b\t at",  2, "b",  "at" },
+      {"a", 1, "a", ""},         {" ", 0, "", ""},
+      {" a", 1, "a", ""},        {" ab ", 1, "ab", ""},
+      {" ab c", 2, "ab", "c"},   {" ab c ", 2, "ab", "c"},
+      {" ab cd", 2, "ab", "cd"}, {" ab cd ", 2, "ab", "cd"},
+      {" \ta\t", 1, "a", ""},    {" b\ta\t", 2, "b", "a"},
+      {" b\tat", 2, "b", "at"},  {"b\tat", 2, "b", "at"},
+      {"b\t at", 2, "b", "at"},
   };
-  for (const auto& i : data) {
+  for (const TestData& i : data) {
     std::vector<std::string> results =
         base::SplitString(i.input, kWhitespaceASCII, base::KEEP_WHITESPACE,
                           base::SPLIT_WANT_NONEMPTY);
     ASSERT_EQ(i.expected_result_count, results.size());
-    if (i.expected_result_count > 0)
+    if (i.expected_result_count > 0) {
       ASSERT_EQ(i.output1, results[0]);
-    if (i.expected_result_count > 1)
+    }
+    if (i.expected_result_count > 1) {
       ASSERT_EQ(i.output2, results[1]);
+    }
+  }
+}
+
+TEST(StringSplitTest, NullSeparatorWantNonEmpty) {
+  struct TestData {
+    std::string_view test_case;
+    std::vector<std::string_view> expected;
+  } data[] = {
+      {base::MakeStringViewWithNulChars("a"), {"a"}},
+      {base::MakeStringViewWithNulChars("a\0"), {"a"}},
+      {base::MakeStringViewWithNulChars("a\0a"), {"a", "a"}},
+      {base::MakeStringViewWithNulChars("\0a\0\0a\0"), {"a", "a"}},
+  };
+
+  for (const auto& i : data) {
+    std::vector<std::string_view> results = base::SplitStringPiece(
+        i.test_case, base::MakeStringViewWithNulChars("\0"),
+        base::KEEP_WHITESPACE, base::SPLIT_WANT_NONEMPTY);
+    EXPECT_EQ(results, i.expected);
+  }
+}
+
+TEST(StringSplitTest, NullSeparatorWantAll) {
+  struct TestData {
+    std::string_view test_case;
+    std::vector<std::string_view> expected;
+  } data[] = {
+      {base::MakeStringViewWithNulChars("a"), {"a"}},
+      {base::MakeStringViewWithNulChars("a\0"), {"a", ""}},
+      {base::MakeStringViewWithNulChars("a\0a"), {"a", "a"}},
+      {base::MakeStringViewWithNulChars("\0a\0\0a\0"), {"", "a", "", "a", ""}},
+  };
+
+  for (const TestData& i : data) {
+    std::vector<std::string_view> results = base::SplitStringPiece(
+        i.test_case, base::MakeStringViewWithNulChars("\0"),
+        base::KEEP_WHITESPACE, base::SPLIT_WANT_ALL);
+    EXPECT_EQ(results, i.expected);
   }
 }
 

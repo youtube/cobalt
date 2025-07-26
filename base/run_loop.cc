@@ -13,59 +13,14 @@
 #include "base/task/single_thread_task_runner.h"
 #include "base/trace_event/base_tracing.h"
 #include "build/build_config.h"
-#include "third_party/abseil-cpp/absl/base/attributes.h"
-
-#if defined(STARBOARD)
-#include <pthread.h>
-
-#include "starboard/thread.h"
-#endif
 
 namespace base {
 
 namespace {
 
-#if defined(STARBOARD)
-ABSL_CONST_INIT pthread_once_t s_once_delegate_flag = PTHREAD_ONCE_INIT;
-ABSL_CONST_INIT pthread_key_t s_thread_local_delegate_key = 0;
-
-void InitThreadLocalDelegateKey() {
-  int res = pthread_key_create(&s_thread_local_delegate_key , NULL);
-  DCHECK(res == 0);
-}
-
-void EnsureThreadLocalDelegateKeyInited() {
-  pthread_once(&s_once_delegate_flag, InitThreadLocalDelegateKey);
-}
-
-RunLoop::Delegate* GetDelegate() {
-  EnsureThreadLocalDelegateKeyInited();
-  return static_cast<RunLoop::Delegate*>(
-      pthread_getspecific(s_thread_local_delegate_key));
-}
-
-ABSL_CONST_INIT pthread_once_t s_once_timeout_flag = PTHREAD_ONCE_INIT;
-ABSL_CONST_INIT pthread_key_t s_thread_local_timeout_key = 0;
-
-void InitThreadLocalTimeoutKey() {
-  int res = pthread_key_create(&s_thread_local_timeout_key, NULL);
-  DCHECK(res == 0);
-}
-
-void EnsureThreadLocalTimeoutKeyInited() {
-  pthread_once(&s_once_timeout_flag, InitThreadLocalTimeoutKey);
-}
-
-const RunLoop::RunLoopTimeout* GetRunLoopTimeout() {
-  EnsureThreadLocalTimeoutKeyInited();
-  return static_cast<const RunLoop::RunLoopTimeout*>(
-      pthread_getspecific(s_thread_local_timeout_key));
-}
-#else
-ABSL_CONST_INIT thread_local RunLoop::Delegate* delegate = nullptr;
-ABSL_CONST_INIT thread_local const RunLoop::RunLoopTimeout* run_loop_timeout =
+constinit thread_local RunLoop::Delegate* delegate = nullptr;
+constinit thread_local const RunLoop::RunLoopTimeout* run_loop_timeout =
     nullptr;
-#endif
 
 // Runs |closure| immediately if this is called on |task_runner|, otherwise
 // forwards |closure| to it.
@@ -100,19 +55,13 @@ RunLoop::Delegate::~Delegate() {
   // be on its creation thread (e.g. a Thread that fails to start) and
   // shouldn't disrupt that thread's state.
   if (bound_) {
-#if defined(STARBOARD)
-    DCHECK_EQ(this, GetDelegate());
-    EnsureThreadLocalDelegateKeyInited();
-    pthread_setspecific(s_thread_local_delegate_key, nullptr);
-#else
     DCHECK_EQ(this, delegate);
     delegate = nullptr;
-#endif
   }
 }
 
 bool RunLoop::Delegate::ShouldQuitWhenIdle() {
-  const auto* top_loop = active_run_loops_.top();
+  const auto* top_loop = active_run_loops_.top().get();
   if (top_loop->quit_when_idle_) {
     TRACE_EVENT_WITH_FLOW0("toplevel.flow", "RunLoop_ExitedOnIdle",
                            TRACE_ID_LOCAL(top_loop), TRACE_EVENT_FLAG_FLOW_IN);
@@ -128,30 +77,16 @@ void RunLoop::RegisterDelegateForCurrentThread(Delegate* new_delegate) {
   DCHECK_CALLED_ON_VALID_THREAD(new_delegate->bound_thread_checker_);
 
   // There can only be one RunLoop::Delegate per thread.
-#if defined(STARBOARD)
-  DCHECK(!GetDelegate())
-#else
   DCHECK(!delegate)
-#endif
       << "Error: Multiple RunLoop::Delegates registered on the same thread.\n\n"
          "Hint: You perhaps instantiated a second "
          "MessageLoop/TaskEnvironment on a thread that already had one?";
-#if defined(STARBOARD)
-  EnsureThreadLocalDelegateKeyInited();
-  pthread_setspecific(s_thread_local_delegate_key, new_delegate);
-  new_delegate->bound_ = true;
-#else
   delegate = new_delegate;
   delegate->bound_ = true;
-#endif
 }
 
 RunLoop::RunLoop(Type type)
-#if defined(STARBOARD)
-    : delegate_(GetDelegate()),
-#else
     : delegate_(delegate),
-#endif
       type_(type),
       origin_task_runner_(SingleThreadTaskRunner::GetCurrentDefault()) {
   DCHECK(delegate_) << "A RunLoop::Delegate must be bound to this thread prior "
@@ -176,11 +111,12 @@ void RunLoop::Run(const Location& location) {
   // explicit action making this trace event very useful.
   TRACE_EVENT("test", "RunLoop::Run", "location", location);
 
-  if (!BeforeRun())
+  if (!BeforeRun()) {
     return;
+  }
 
   // If there is a RunLoopTimeout active then set the timeout.
-  // TODO(crbug.com/905412): Use real-time for Run() timeouts so that they
+  // TODO(crbug.com/40602467): Use real-time for Run() timeouts so that they
   // can be applied even in tests which mock TimeTicks::Now().
   CancelableOnceClosure cancelable_timeout;
   const RunLoopTimeout* run_timeout = GetTimeoutForCurrentThread();
@@ -260,24 +196,22 @@ void RunLoop::QuitWhenIdle() {
   quit_when_idle_called_ = true;
 }
 
-RepeatingClosure RunLoop::QuitClosure() {
+RepeatingClosure RunLoop::QuitClosure() & {
   // Obtaining the QuitClosure() is not thread-safe; either obtain the
   // QuitClosure() from the owning thread before Run() or invoke Quit() directly
   // (which is thread-safe).
   DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
-  allow_quit_current_deprecated_ = false;
 
   return BindRepeating(
       &ProxyToTaskRunner, origin_task_runner_,
       BindRepeating(&RunLoop::Quit, weak_factory_.GetWeakPtr()));
 }
 
-RepeatingClosure RunLoop::QuitWhenIdleClosure() {
+RepeatingClosure RunLoop::QuitWhenIdleClosure() & {
   // Obtaining the QuitWhenIdleClosure() is not thread-safe; either obtain the
   // QuitWhenIdleClosure() from the owning thread before Run() or invoke
   // QuitWhenIdle() directly (which is thread-safe).
   DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
-  allow_quit_current_deprecated_ = false;
 
   return BindRepeating(
       &ProxyToTaskRunner, origin_task_runner_,
@@ -290,91 +224,41 @@ bool RunLoop::AnyQuitCalled() {
 
 // static
 bool RunLoop::IsRunningOnCurrentThread() {
-#if defined(STARBOARD)
-  auto delegate = GetDelegate();
-#endif
   return delegate && !delegate->active_run_loops_.empty();
 }
 
 // static
 bool RunLoop::IsNestedOnCurrentThread() {
-#if defined(STARBOARD)
-  auto delegate = GetDelegate();
-#endif
   return delegate && delegate->active_run_loops_.size() > 1;
 }
 
 // static
 void RunLoop::AddNestingObserverOnCurrentThread(NestingObserver* observer) {
-#if defined(STARBOARD)
-  auto delegate = GetDelegate();
-#endif
   DCHECK(delegate);
   delegate->nesting_observers_.AddObserver(observer);
 }
 
 // static
 void RunLoop::RemoveNestingObserverOnCurrentThread(NestingObserver* observer) {
-#if defined(STARBOARD)
-  auto delegate = GetDelegate();
-#endif
   DCHECK(delegate);
   delegate->nesting_observers_.RemoveObserver(observer);
 }
 
-// static
-void RunLoop::QuitCurrentDeprecated() {
-  DCHECK(IsRunningOnCurrentThread());
-#if defined(STARBOARD)
-  auto delegate = GetDelegate();
-#endif
-  DCHECK(delegate->active_run_loops_.top()->allow_quit_current_deprecated_)
-      << "Please migrate off QuitCurrentDeprecated(), e.g. to QuitClosure().";
-  delegate->active_run_loops_.top()->Quit();
-}
-
-// static
-void RunLoop::QuitCurrentWhenIdleDeprecated() {
-  DCHECK(IsRunningOnCurrentThread());
-#if defined(STARBOARD)
-  auto delegate = GetDelegate();
-#endif
-  DCHECK(delegate->active_run_loops_.top()->allow_quit_current_deprecated_)
-      << "Please migrate off QuitCurrentWhenIdleDeprecated(), e.g. to "
-         "QuitWhenIdleClosure().";
-  delegate->active_run_loops_.top()->QuitWhenIdle();
-}
-
-// static
-RepeatingClosure RunLoop::QuitCurrentWhenIdleClosureDeprecated() {
-  // TODO(844016): Fix callsites and enable this check, or remove the API.
-  // DCHECK(delegate->active_run_loops_.top()->allow_quit_current_deprecated_)
-  //     << "Please migrate off QuitCurrentWhenIdleClosureDeprecated(), e.g to "
-  //        "QuitWhenIdleClosure().";
-  return BindRepeating(&RunLoop::QuitCurrentWhenIdleDeprecated);
-}
-
 #if DCHECK_IS_ON()
 ScopedDisallowRunningRunLoop::ScopedDisallowRunningRunLoop()
-#if defined(STARBOARD)
-    : current_delegate_(GetDelegate()),
-#else
     : current_delegate_(delegate),
-#endif
       previous_run_allowance_(current_delegate_ &&
                               current_delegate_->allow_running_for_testing_) {
-  if (current_delegate_)
+  if (current_delegate_) {
     current_delegate_->allow_running_for_testing_ = false;
+  }
 }
 
 ScopedDisallowRunningRunLoop::~ScopedDisallowRunningRunLoop() {
-#if defined(STARBOARD)
-  DCHECK_EQ(current_delegate_, GetDelegate());
-#else
   DCHECK_EQ(current_delegate_, delegate);
-#endif
-  if (current_delegate_)
+  if (current_delegate_) {
     current_delegate_->allow_running_for_testing_ = previous_run_allowance_;
+  }
 }
 #else   // DCHECK_IS_ON()
 // Defined out of line so that the compiler doesn't inline these and realize
@@ -390,26 +274,17 @@ RunLoop::RunLoopTimeout::~RunLoopTimeout() = default;
 
 // static
 void RunLoop::SetTimeoutForCurrentThread(const RunLoopTimeout* timeout) {
-#if defined(STARBOARD)
-  EnsureThreadLocalTimeoutKeyInited();
-  pthread_setspecific(s_thread_local_timeout_key, const_cast<RunLoopTimeout*>(timeout));
-#else
   run_loop_timeout = timeout;
-#endif
 }
 
 // static
 const RunLoop::RunLoopTimeout* RunLoop::GetTimeoutForCurrentThread() {
-#if defined(STARBOARD)
-  return GetRunLoopTimeout();
-#else
   // Workaround false-positive MSAN use-of-uninitialized-value on
   // thread_local storage for loaded libraries:
   // https://github.com/google/sanitizers/issues/1265
   MSAN_UNPOISON(&run_loop_timeout, sizeof(RunLoopTimeout*));
 
   return run_loop_timeout;
-#endif
 }
 
 bool RunLoop::BeforeRun() {
@@ -438,10 +313,12 @@ bool RunLoop::BeforeRun() {
   const bool is_nested = active_run_loops.size() > 1;
 
   if (is_nested) {
-    for (auto& observer : delegate_->nesting_observers_)
+    for (auto& observer : delegate_->nesting_observers_) {
       observer.OnBeginNestedRunLoop();
-    if (type_ == Type::kNestableTasksAllowed)
+    }
+    if (type_ == Type::kNestableTasksAllowed) {
       delegate_->EnsureWorkScheduled();
+    }
   }
 
   running_ = true;
@@ -462,12 +339,14 @@ void RunLoop::AfterRun() {
 
   // Exiting a nested RunLoop?
   if (!active_run_loops.empty()) {
-    for (auto& observer : delegate_->nesting_observers_)
+    for (auto& observer : delegate_->nesting_observers_) {
       observer.OnExitNestedRunLoop();
+    }
 
     // Execute deferred Quit, if any:
-    if (active_run_loops.top()->quit_called_)
+    if (active_run_loops.top()->quit_called_) {
       delegate_->Quit();
+    }
   }
 }
 

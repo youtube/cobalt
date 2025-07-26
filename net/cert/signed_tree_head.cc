@@ -2,6 +2,11 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#ifdef UNSAFE_BUFFERS_BUILD
+// TODO(crbug.com/390223051): Remove C-library calls to fix the errors.
+#pragma allow_unsafe_libc_calls
+#endif
+
 #include "net/cert/signed_tree_head.h"
 
 #include <string.h>
@@ -39,8 +44,7 @@ void PrintTo(const SignedTreeHead& sth, std::ostream* os) {
         << "\t\"tree_size\": " << sth.tree_size << ",\n"
         << "\t\"sha256_root_hash\": \""
         << base::HexEncode(sth.sha256_root_hash, kSthRootHashLength)
-        << "\",\n\t\"log_id\": \""
-        << base::HexEncode(sth.log_id.data(), sth.log_id.size()) << "\"\n"
+        << "\",\n\t\"log_id\": \"" << base::HexEncode(sth.log_id) << "\"\n"
         << "}";
 }
 

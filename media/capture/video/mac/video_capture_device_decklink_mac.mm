@@ -457,7 +457,9 @@ void VideoCaptureDeviceDeckLinkMac::OnIncomingCapturedData(
   if (!client_)
     return;
   client_->OnIncomingCapturedData(data, length, frame_format, color_space,
-                                  rotation, flip_y, reference_time, timestamp);
+                                  rotation, flip_y, reference_time, timestamp,
+                                  /*capture_begin_timestamp=*/std::nullopt,
+                                  /*metadata=*/std::nullopt);
 }
 
 void VideoCaptureDeviceDeckLinkMac::SendErrorString(

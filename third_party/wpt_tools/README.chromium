@@ -1,0 +1,15 @@
+Name: web-platform-tests - Test Suites for Web Platform specifications
+Short Name: wpt
+URL: https://github.com/web-platform-tests/wpt/
+Version: N/A
+Revision: ddbe997d45a40bdf5e490cee210d3202f8de4f3b
+License: BSD-3-Clause
+Security Critical: no
+Shipped: no
+Description: This includes code for the manifest tool, lint tool, and wptserve.
+    Used to run all supported web-platform-tests as part of Blink
+    web tests. The wpt/wpt directory only contains the tools, whereas
+    web_tests/external/wpt contains the tests. Also see wpt/README.chromium
+    for more details on maintenance.
+Local Modifications:
+- Removed all files except for those listed in wpt/WPTIncludeList.

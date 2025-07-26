@@ -2,6 +2,11 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#ifdef UNSAFE_BUFFERS_BUILD
+// TODO(crbug.com/40285824): Remove this and convert code to safer constructs.
+#pragma allow_unsafe_buffers
+#endif
+
 #include "media/formats/mpeg/mpeg_audio_stream_parser_base.h"
 
 #include <memory>
@@ -16,7 +21,6 @@
 #include "media/base/media_util.h"
 #include "media/base/stream_parser.h"
 #include "media/base/stream_parser_buffer.h"
-#include "media/base/text_track_config.h"
 #include "media/base/timestamp_constants.h"
 #include "media/base/video_decoder_config.h"
 
@@ -69,7 +73,6 @@ void MPEGAudioStreamParserBase::Init(
     InitCB init_cb,
     NewConfigCB config_cb,
     NewBuffersCB new_buffers_cb,
-    bool ignore_text_tracks,
     EncryptedMediaInitDataCB encrypted_media_init_data_cb,
     NewMediaSegmentCB new_segment_cb,
     EndMediaSegmentCB end_of_segment_cb,
@@ -102,12 +105,11 @@ bool MPEGAudioStreamParserBase::GetGenerateTimestampsFlag() const {
   return true;
 }
 
-bool MPEGAudioStreamParserBase::AppendToParseBuffer(const uint8_t* buf,
-                                                    size_t size) {
-  DVLOG(1) << __func__ << "(" << size << ")";
+bool MPEGAudioStreamParserBase::AppendToParseBuffer(
+    base::span<const uint8_t> buf) {
+  DVLOG(1) << __func__ << "(" << buf.size() << ")";
 
-  DCHECK(buf);
-  DCHECK_GT(size, 0UL);
+  DCHECK(!buf.empty());
   DCHECK_NE(state_, UNINITIALIZED);
 
   if (state_ == PARSE_ERROR) {
@@ -119,8 +121,8 @@ bool MPEGAudioStreamParserBase::AppendToParseBuffer(const uint8_t* buf,
     // synchronous with the app's appendBuffer() call, instead of async decode
     // error during async parse. Since Parse() cannot succeed in kError state,
     // don't even copy `buf` into `queue_` in this case.
-    // TODO(crbug.com/1379160): Instrument this path to see if it can be changed
-    // to just DCHECK_NE(state_, PARSE_ERROR).
+    // TODO(crbug.com/40244241): Instrument this path to see if it can be
+    // changed to just DCHECK_NE(state_, PARSE_ERROR).
     return true;
   }
 
@@ -132,9 +134,10 @@ bool MPEGAudioStreamParserBase::AppendToParseBuffer(const uint8_t* buf,
   // could lead to memory corruption, preferring CHECK.
   CHECK_EQ(uninspected_pending_bytes_, 0);
 
-  uninspected_pending_bytes_ = base::checked_cast<int>(size);
-  if (!queue_.Push(buf, uninspected_pending_bytes_)) {
-    DVLOG(2) << "AppendToParseBuffer(): Failed to push buf of size " << size;
+  uninspected_pending_bytes_ = base::checked_cast<int>(buf.size());
+  if (!queue_.Push(buf)) {
+    DVLOG(2) << "AppendToParseBuffer(): Failed to push buf of size "
+             << buf.size();
     return false;
   }
 
@@ -298,12 +301,13 @@ int MPEGAudioStreamParserBase::ParseFrame(const uint8_t* data,
 
     std::unique_ptr<MediaTracks> media_tracks(new MediaTracks());
     if (config_.IsValidConfig()) {
-      media_tracks->AddAudioTrack(config_, kMpegAudioTrackId,
+      media_tracks->AddAudioTrack(config_, true, kMpegAudioTrackId,
                                   MediaTrack::Kind("main"), MediaTrack::Label(),
                                   MediaTrack::Language());
     }
-    if (!config_cb_.Run(std::move(media_tracks), TextTrackConfigMap()))
+    if (!config_cb_.Run(std::move(media_tracks))) {
       return -1;
+    }
 
     if (init_cb_) {
       InitParameters params(kInfiniteDuration);
@@ -356,9 +360,6 @@ int MPEGAudioStreamParserBase::ParseIcecastHeader(const uint8_t* data,
 int MPEGAudioStreamParserBase::ParseID3v1(const uint8_t* data, int size) {
   DVLOG(1) << __func__ << "(" << size << ")";
 
-  // TODO(acolwell): Add code to actually validate ID3v1 data and
-  // expose it as a metadata text track.
-
   if (size < 4)
     return 0;
 
@@ -394,8 +395,6 @@ int MPEGAudioStreamParserBase::ParseID3v2(const uint8_t* data, int size) {
   if (size < actual_tag_size)
     return 0;
 
-  // TODO(acolwell): Add code to actually validate ID3v2 data and
-  // expose it as a metadata text track.
   return actual_tag_size;
 }
 

@@ -23,19 +23,17 @@ class FieldOptions extends \Google\Protobuf\Internal\Message
      *
      * Generated from protobuf field <code>optional .google.protobuf.FieldOptions.CType ctype = 1 [default = STRING];</code>
      */
-    private $ctype = 0;
-    private $has_ctype = false;
+    protected $ctype = null;
     /**
      * The packed option can be enabled for repeated primitive fields to enable
      * a more efficient representation on the wire. Rather than repeatedly
      * writing the tag and type for each element, the entire array is encoded as
-     * a single length-delimited blob. In proto3, only explicit setting it to
+     * a single length-prefixed blob. In proto3, only explicit setting it to
      * false will avoid using packed encoding.
      *
      * Generated from protobuf field <code>optional bool packed = 2;</code>
      */
-    private $packed = false;
-    private $has_packed = false;
+    protected $packed = null;
     /**
      * The jstype option determines the JavaScript type used for values of the
      * field.  The option is permitted only for 64 bit integral and fixed types
@@ -50,8 +48,7 @@ class FieldOptions extends \Google\Protobuf\Internal\Message
      *
      * Generated from protobuf field <code>optional .google.protobuf.FieldOptions.JSType jstype = 6 [default = JS_NORMAL];</code>
      */
-    private $jstype = 0;
-    private $has_jstype = false;
+    protected $jstype = null;
     /**
      * Should this field be parsed lazily?  Lazy applies only to message-type
      * fields.  It means that when the outer message is initially parsed, the
@@ -77,11 +74,20 @@ class FieldOptions extends \Google\Protobuf\Internal\Message
      * implementation must either *always* check its required fields, or *never*
      * check its required fields, regardless of whether or not the message has
      * been parsed.
+     * As of May 2022, lazy verifies the contents of the byte stream during
+     * parsing.  An invalid byte stream will cause the overall parsing to fail.
      *
      * Generated from protobuf field <code>optional bool lazy = 5 [default = false];</code>
      */
-    private $lazy = false;
-    private $has_lazy = false;
+    protected $lazy = null;
+    /**
+     * unverified_lazy does no correctness checks on the byte stream. This should
+     * only be used where lazy with verification is prohibitive for performance
+     * reasons.
+     *
+     * Generated from protobuf field <code>optional bool unverified_lazy = 15 [default = false];</code>
+     */
+    protected $unverified_lazy = null;
     /**
      * Is this field deprecated?
      * Depending on the target platform, this can emit Deprecated annotations
@@ -90,22 +96,19 @@ class FieldOptions extends \Google\Protobuf\Internal\Message
      *
      * Generated from protobuf field <code>optional bool deprecated = 3 [default = false];</code>
      */
-    private $deprecated = false;
-    private $has_deprecated = false;
+    protected $deprecated = null;
     /**
      * For Google-internal migration only. Do not use.
      *
      * Generated from protobuf field <code>optional bool weak = 10 [default = false];</code>
      */
-    private $weak = false;
-    private $has_weak = false;
+    protected $weak = null;
     /**
      * The parser stores options it doesn't recognize here. See above.
      *
      * Generated from protobuf field <code>repeated .google.protobuf.UninterpretedOption uninterpreted_option = 999;</code>
      */
     private $uninterpreted_option;
-    private $has_uninterpreted_option = false;
 
     /**
      * Constructor.
@@ -122,7 +125,7 @@ class FieldOptions extends \Google\Protobuf\Internal\Message
      *           The packed option can be enabled for repeated primitive fields to enable
      *           a more efficient representation on the wire. Rather than repeatedly
      *           writing the tag and type for each element, the entire array is encoded as
-     *           a single length-delimited blob. In proto3, only explicit setting it to
+     *           a single length-prefixed blob. In proto3, only explicit setting it to
      *           false will avoid using packed encoding.
      *     @type int $jstype
      *           The jstype option determines the JavaScript type used for values of the
@@ -160,6 +163,12 @@ class FieldOptions extends \Google\Protobuf\Internal\Message
      *           implementation must either *always* check its required fields, or *never*
      *           check its required fields, regardless of whether or not the message has
      *           been parsed.
+     *           As of May 2022, lazy verifies the contents of the byte stream during
+     *           parsing.  An invalid byte stream will cause the overall parsing to fail.
+     *     @type bool $unverified_lazy
+     *           unverified_lazy does no correctness checks on the byte stream. This should
+     *           only be used where lazy with verification is prohibitive for performance
+     *           reasons.
      *     @type bool $deprecated
      *           Is this field deprecated?
      *           Depending on the target platform, this can emit Deprecated annotations
@@ -167,7 +176,7 @@ class FieldOptions extends \Google\Protobuf\Internal\Message
      *           is a formalization for deprecating fields.
      *     @type bool $weak
      *           For Google-internal migration only. Do not use.
-     *     @type \Google\Protobuf\Internal\UninterpretedOption[]|\Google\Protobuf\Internal\RepeatedField $uninterpreted_option
+     *     @type array<\Google\Protobuf\Internal\UninterpretedOption>|\Google\Protobuf\Internal\RepeatedField $uninterpreted_option
      *           The parser stores options it doesn't recognize here. See above.
      * }
      */
@@ -187,7 +196,17 @@ class FieldOptions extends \Google\Protobuf\Internal\Message
      */
     public function getCtype()
     {
-        return $this->ctype;
+        return isset($this->ctype) ? $this->ctype : 0;
+    }
+
+    public function hasCtype()
+    {
+        return isset($this->ctype);
+    }
+
+    public function clearCtype()
+    {
+        unset($this->ctype);
     }
 
     /**
@@ -202,23 +221,17 @@ class FieldOptions extends \Google\Protobuf\Internal\Message
      */
     public function setCtype($var)
     {
-        GPBUtil::checkEnum($var, \Google\Protobuf\Internal\FieldOptions_CType::class);
+        GPBUtil::checkEnum($var, \Google\Protobuf\Internal\FieldOptions\CType::class);
         $this->ctype = $var;
-        $this->has_ctype = true;
 
         return $this;
-    }
-
-    public function hasCtype()
-    {
-        return $this->has_ctype;
     }
 
     /**
      * The packed option can be enabled for repeated primitive fields to enable
      * a more efficient representation on the wire. Rather than repeatedly
      * writing the tag and type for each element, the entire array is encoded as
-     * a single length-delimited blob. In proto3, only explicit setting it to
+     * a single length-prefixed blob. In proto3, only explicit setting it to
      * false will avoid using packed encoding.
      *
      * Generated from protobuf field <code>optional bool packed = 2;</code>
@@ -226,7 +239,17 @@ class FieldOptions extends \Google\Protobuf\Internal\Message
      */
     public function getPacked()
     {
-        return $this->packed;
+        return isset($this->packed) ? $this->packed : false;
+    }
+
+    public function hasPacked()
+    {
+        return isset($this->packed);
+    }
+
+    public function clearPacked()
+    {
+        unset($this->packed);
     }
 
     /**
@@ -244,14 +267,8 @@ class FieldOptions extends \Google\Protobuf\Internal\Message
     {
         GPBUtil::checkBool($var);
         $this->packed = $var;
-        $this->has_packed = true;
 
         return $this;
-    }
-
-    public function hasPacked()
-    {
-        return $this->has_packed;
     }
 
     /**
@@ -271,7 +288,17 @@ class FieldOptions extends \Google\Protobuf\Internal\Message
      */
     public function getJstype()
     {
-        return $this->jstype;
+        return isset($this->jstype) ? $this->jstype : 0;
+    }
+
+    public function hasJstype()
+    {
+        return isset($this->jstype);
+    }
+
+    public function clearJstype()
+    {
+        unset($this->jstype);
     }
 
     /**
@@ -292,16 +319,10 @@ class FieldOptions extends \Google\Protobuf\Internal\Message
      */
     public function setJstype($var)
     {
-        GPBUtil::checkEnum($var, \Google\Protobuf\Internal\FieldOptions_JSType::class);
+        GPBUtil::checkEnum($var, \Google\Protobuf\Internal\FieldOptions\JSType::class);
         $this->jstype = $var;
-        $this->has_jstype = true;
 
         return $this;
-    }
-
-    public function hasJstype()
-    {
-        return $this->has_jstype;
     }
 
     /**
@@ -329,13 +350,25 @@ class FieldOptions extends \Google\Protobuf\Internal\Message
      * implementation must either *always* check its required fields, or *never*
      * check its required fields, regardless of whether or not the message has
      * been parsed.
+     * As of May 2022, lazy verifies the contents of the byte stream during
+     * parsing.  An invalid byte stream will cause the overall parsing to fail.
      *
      * Generated from protobuf field <code>optional bool lazy = 5 [default = false];</code>
      * @return bool
      */
     public function getLazy()
     {
-        return $this->lazy;
+        return isset($this->lazy) ? $this->lazy : false;
+    }
+
+    public function hasLazy()
+    {
+        return isset($this->lazy);
+    }
+
+    public function clearLazy()
+    {
+        unset($this->lazy);
     }
 
     /**
@@ -363,6 +396,8 @@ class FieldOptions extends \Google\Protobuf\Internal\Message
      * implementation must either *always* check its required fields, or *never*
      * check its required fields, regardless of whether or not the message has
      * been parsed.
+     * As of May 2022, lazy verifies the contents of the byte stream during
+     * parsing.  An invalid byte stream will cause the overall parsing to fail.
      *
      * Generated from protobuf field <code>optional bool lazy = 5 [default = false];</code>
      * @param bool $var
@@ -372,14 +407,48 @@ class FieldOptions extends \Google\Protobuf\Internal\Message
     {
         GPBUtil::checkBool($var);
         $this->lazy = $var;
-        $this->has_lazy = true;
 
         return $this;
     }
 
-    public function hasLazy()
+    /**
+     * unverified_lazy does no correctness checks on the byte stream. This should
+     * only be used where lazy with verification is prohibitive for performance
+     * reasons.
+     *
+     * Generated from protobuf field <code>optional bool unverified_lazy = 15 [default = false];</code>
+     * @return bool
+     */
+    public function getUnverifiedLazy()
     {
-        return $this->has_lazy;
+        return isset($this->unverified_lazy) ? $this->unverified_lazy : false;
+    }
+
+    public function hasUnverifiedLazy()
+    {
+        return isset($this->unverified_lazy);
+    }
+
+    public function clearUnverifiedLazy()
+    {
+        unset($this->unverified_lazy);
+    }
+
+    /**
+     * unverified_lazy does no correctness checks on the byte stream. This should
+     * only be used where lazy with verification is prohibitive for performance
+     * reasons.
+     *
+     * Generated from protobuf field <code>optional bool unverified_lazy = 15 [default = false];</code>
+     * @param bool $var
+     * @return $this
+     */
+    public function setUnverifiedLazy($var)
+    {
+        GPBUtil::checkBool($var);
+        $this->unverified_lazy = $var;
+
+        return $this;
     }
 
     /**
@@ -393,7 +462,17 @@ class FieldOptions extends \Google\Protobuf\Internal\Message
      */
     public function getDeprecated()
     {
-        return $this->deprecated;
+        return isset($this->deprecated) ? $this->deprecated : false;
+    }
+
+    public function hasDeprecated()
+    {
+        return isset($this->deprecated);
+    }
+
+    public function clearDeprecated()
+    {
+        unset($this->deprecated);
     }
 
     /**
@@ -410,14 +489,8 @@ class FieldOptions extends \Google\Protobuf\Internal\Message
     {
         GPBUtil::checkBool($var);
         $this->deprecated = $var;
-        $this->has_deprecated = true;
 
         return $this;
-    }
-
-    public function hasDeprecated()
-    {
-        return $this->has_deprecated;
     }
 
     /**
@@ -428,7 +501,17 @@ class FieldOptions extends \Google\Protobuf\Internal\Message
      */
     public function getWeak()
     {
-        return $this->weak;
+        return isset($this->weak) ? $this->weak : false;
+    }
+
+    public function hasWeak()
+    {
+        return isset($this->weak);
+    }
+
+    public function clearWeak()
+    {
+        unset($this->weak);
     }
 
     /**
@@ -442,14 +525,8 @@ class FieldOptions extends \Google\Protobuf\Internal\Message
     {
         GPBUtil::checkBool($var);
         $this->weak = $var;
-        $this->has_weak = true;
 
         return $this;
-    }
-
-    public function hasWeak()
-    {
-        return $this->has_weak;
     }
 
     /**
@@ -467,21 +544,15 @@ class FieldOptions extends \Google\Protobuf\Internal\Message
      * The parser stores options it doesn't recognize here. See above.
      *
      * Generated from protobuf field <code>repeated .google.protobuf.UninterpretedOption uninterpreted_option = 999;</code>
-     * @param \Google\Protobuf\Internal\UninterpretedOption[]|\Google\Protobuf\Internal\RepeatedField $var
+     * @param array<\Google\Protobuf\Internal\UninterpretedOption>|\Google\Protobuf\Internal\RepeatedField $var
      * @return $this
      */
     public function setUninterpretedOption($var)
     {
         $arr = GPBUtil::checkRepeatedField($var, \Google\Protobuf\Internal\GPBType::MESSAGE, \Google\Protobuf\Internal\UninterpretedOption::class);
         $this->uninterpreted_option = $arr;
-        $this->has_uninterpreted_option = true;
 
         return $this;
-    }
-
-    public function hasUninterpretedOption()
-    {
-        return $this->has_uninterpreted_option;
     }
 
 }

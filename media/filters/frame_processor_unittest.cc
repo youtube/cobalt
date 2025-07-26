@@ -2,6 +2,12 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#ifdef UNSAFE_BUFFERS_BUILD
+// TODO(crbug.com/390223051): Remove C-library calls to fix the errors.
+#pragma allow_unsafe_libc_calls
+#endif
+
+
 #include <stddef.h>
 #include <stdint.h>
 
@@ -45,7 +51,7 @@ std::string EncodeTestPayload(base::TimeDelta timestamp) {
   return base::NumberToString(timestamp.InMicroseconds());
 }
 
-base::TimeDelta DecodeTestPayload(std::string payload) {
+base::TimeDelta DecodeTestPayload(std::string_view payload) {
   int64_t microseconds = 0;
   CHECK(base::StringToInt64(payload, &microseconds));
   return base::Microseconds(microseconds);
@@ -208,9 +214,7 @@ class FrameProcessorTest : public ::testing::TestWithParam<bool> {
       scoped_refptr<StreamParserBuffer> buffer = StreamParserBuffer::CopyFrom(
           reinterpret_cast<const uint8_t*>(pts_as_cstr), strlen(pts_as_cstr),
           is_keyframe, type, track_id);
-      CHECK(DecodeTestPayload(
-                std::string(reinterpret_cast<const char*>(buffer->data()),
-                            buffer->data_size())) == pts);
+      CHECK(DecodeTestPayload(base::as_string_view(*buffer)) == pts);
 
       buffer->set_timestamp(pts);
       if (DecodeTimestamp::FromPresentationTime(pts) != dts) {
@@ -251,7 +255,6 @@ class FrameProcessorTest : public ::testing::TestWithParam<bool> {
   // range in integer milliseconds.
   void CheckExpectedRangesByTimestamp(ChunkDemuxerStream* stream,
                                       const std::string& expected) {
-    // Note, DemuxerStream::TEXT streams return [0,duration (==infinity here))
     Ranges<base::TimeDelta> r = stream->GetBufferedRanges(kInfiniteDuration);
 
     std::stringstream ss;
@@ -334,11 +337,8 @@ class FrameProcessorTest : public ::testing::TestWithParam<bool> {
       ss << time_in_ms;
 
       // Decode the original_time_in_ms from the buffer's data.
-      double original_time_in_ms;
-      original_time_in_ms =
-          DecodeTestPayload(std::string(reinterpret_cast<const char*>(
-                                            last_read_buffer_->data()),
-                                        last_read_buffer_->data_size()))
+      double original_time_in_ms =
+          DecodeTestPayload(base::as_string_view(*last_read_buffer_))
               .InMillisecondsF();
       if (original_time_in_ms != time_in_ms)
         ss << ":" << original_time_in_ms;
@@ -457,8 +457,6 @@ class FrameProcessorTest : public ::testing::TestWithParam<bool> {
         stream = video_.get();
         break;
       }
-      // TODO(wolenetz): Test text coded frame processing.
-      case DemuxerStream::TEXT:
       case DemuxerStream::UNKNOWN: {
         ASSERT_FALSE(true);
       }

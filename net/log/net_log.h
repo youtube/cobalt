@@ -7,10 +7,10 @@
 
 #include <stdint.h>
 
+#include <atomic>
 #include <string>
 #include <vector>
 
-#include "base/atomicops.h"
 #include "base/compiler_specific.h"
 #include "base/memory/raw_ptr.h"
 #include "base/memory/raw_ref.h"
@@ -226,8 +226,9 @@ class NET_EXPORT NetLog {
            const NetLogSource& source,
            NetLogEventPhase phase,
            const ParametersCallback& get_params) {
-    if (LIKELY(!IsCapturing()))
+    if (!IsCapturing()) [[likely]] {
       return;
+    }
 
     AddEntryWithMaterializedParams(type, source, phase, get_params());
   }
@@ -243,8 +244,9 @@ class NET_EXPORT NetLog {
            const NetLogSource& source,
            NetLogEventPhase phase,
            const ParametersCallback& get_params) {
-    if (LIKELY(!IsCapturing()))
+    if (!IsCapturing()) [[likely]] {
       return;
+    }
 
     // Indirect through virtual dispatch to reduce code bloat, as this is
     // inlined in a number of places.
@@ -278,8 +280,8 @@ class NET_EXPORT NetLog {
   }
 
   void AddGlobalEntryWithStringParams(NetLogEventType type,
-                                      base::StringPiece name,
-                                      base::StringPiece value);
+                                      std::string_view name,
+                                      std::string_view value);
 
   // Returns a unique ID which can be used as a source ID.  All returned IDs
   // will be unique and not equal to 0.
@@ -362,7 +364,7 @@ class NET_EXPORT NetLog {
 
   // Returns the set of all capture modes being observed.
   NetLogCaptureModeSet GetObserverCaptureModes() const {
-    return base::subtle::NoBarrier_Load(&observer_capture_modes_);
+    return observer_capture_modes_.load(std::memory_order_relaxed);
   }
 
   // Adds an entry using already materialized parameters, when it is already
@@ -398,13 +400,13 @@ class NET_EXPORT NetLog {
   base::Lock lock_;
 
   // Last assigned source ID.  Incremented to get the next one.
-  base::subtle::Atomic32 last_id_ = 0;
+  std::atomic<int32_t> last_id_ = {};
 
   // Holds the set of all capture modes that observers are watching the log at.
   //
   // Is 0 when there are no observers. Stored as an Atomic32 so it can be
   // accessed and updated more efficiently.
-  base::subtle::Atomic32 observer_capture_modes_ = 0;
+  std::atomic<NetLogCaptureModeSet> observer_capture_modes_ = {};
 
   // |observers_| is a list of observers, ordered by when they were added.
   // Pointers contained in |observers_| are non-owned, and must
@@ -414,9 +416,10 @@ class NET_EXPORT NetLog {
   //
   // In practice |observers_| will be very small (<5) so O(n)
   // operations on it are fine.
-  std::vector<ThreadSafeObserver*> observers_;
+  std::vector<raw_ptr<ThreadSafeObserver, VectorExperimental>> observers_;
 
-  std::vector<ThreadSafeCaptureModeObserver*> capture_mode_observers_;
+  std::vector<raw_ptr<ThreadSafeCaptureModeObserver, VectorExperimental>>
+      capture_mode_observers_;
 };
 
 }  // namespace net

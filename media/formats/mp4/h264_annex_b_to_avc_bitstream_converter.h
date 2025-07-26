@@ -14,7 +14,7 @@
 #include "media/base/media_export.h"
 #include "media/formats/mp4/box_definitions.h"
 #include "media/formats/mp4/mp4_status.h"
-#include "media/video/h264_parser.h"
+#include "media/parsers/h264_parser.h"
 
 namespace media {
 
@@ -22,7 +22,22 @@ namespace media {
 // Annex B (ISO/IEC 14496-10) to AVC (as specified in ISO/IEC 14496-15).
 class MEDIA_EXPORT H264AnnexBToAvcBitstreamConverter {
  public:
-  H264AnnexBToAvcBitstreamConverter();
+  // Construct the bitstream converter.
+  //
+  // `add_parameter_sets_in_bitstream` - indicates whether the parameter sets
+  // can be copied to the output bitstream or not. When set to false, parameter
+  // sets are only stored in the `AVCDecoderConfigurationRecord`, which complies
+  // with the requirements of `avc1` as defined in ISO/IEC 14496-15:2019
+  // - 5.3.2. When set to true, parameter sets are stored both in the output
+  // bitstream and in the `AVCDecoderConfigurationRecord`, which complies with
+  // the requirements of `avc3` as defined in ISO/IEC 14496-15:2019 - 5.3.2.
+  //
+  // NOTE: for `avc3`, the spec doesn't require the muxer to insert parameter
+  // sets into the bitstream, and only states that it is optional, nevertheless,
+  // this converter always assumes that they need to have the parameter sets
+  // inserted.
+  explicit H264AnnexBToAvcBitstreamConverter(
+      bool add_parameter_sets_in_bitstream);
 
   H264AnnexBToAvcBitstreamConverter(const H264AnnexBToAvcBitstreamConverter&) =
       delete;
@@ -34,17 +49,17 @@ class MEDIA_EXPORT H264AnnexBToAvcBitstreamConverter {
   // Converts a video chunk from a format with in-place decoder configuration
   // into a format where configuration needs to be sent separately.
   //
-  // |input| - where to read the data from
-  // |output| - where to put the converted video data
-  // If error kH264BufferTooSmall is returned, it means that |output| was not
-  // big enough to contain a converted video chunk. In this case |size_out|
+  // `input` - where to read the data from
+  // `output` - where to put the converted video data
+  // If error kBufferTooSmall is returned, it means that `output` was not
+  // big enough to contain a converted video chunk. In this case `size_out`
   // is populated.
-  // |config_changed_out| is set to True if the video chunk
+  // `config_changed_out` is set to True if the video chunk
   // processed by this call contained decoder configuration information.
   // In this case latest configuration information can be obtained
   // from GetCurrentConfig().
-  // |size_out| - number of bytes written to |output|, or desired size of
-  // |output| if it's too small.
+  // `size_out` - number of bytes written to `output`, or desired size of
+  // `output` if it's too small.
   MP4Status ConvertChunk(base::span<const uint8_t> input,
                          base::span<uint8_t> output,
                          bool* config_changed_out,
@@ -60,10 +75,13 @@ class MEDIA_EXPORT H264AnnexBToAvcBitstreamConverter {
 
   using blob = std::vector<uint8_t>;
   base::flat_map<int, blob> id2sps_;
+  base::flat_map<int, blob> id2sps_ext_;
   base::flat_map<int, blob> id2pps_;
 
   int active_sps_id_ = -1;
   int active_pps_id_ = -1;
+
+  const bool add_parameter_sets_in_bitstream_ = false;
 };
 
 }  // namespace media

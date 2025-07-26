@@ -2,6 +2,11 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#ifdef UNSAFE_BUFFERS_BUILD
+// TODO(crbug.com/40284755): Remove this and spanify to fix the errors.
+#pragma allow_unsafe_buffers
+#endif
+
 #include "base/i18n/file_util_icu.h"
 
 #include <stddef.h>
@@ -10,17 +15,14 @@
 #include "base/logging.h"
 #include "base/strings/utf_string_conversions.h"
 #include "build/build_config.h"
-#include "build/chromeos_buildflags.h"
 #include "testing/gtest/include/gtest/gtest.h"
 #include "testing/platform_test.h"
 
-namespace base {
-namespace i18n {
+namespace base::i18n {
 
 // file_util winds up using autoreleased objects on the Mac, so this needs
 // to be a PlatformTest
-class FileUtilICUTest : public PlatformTest {
-};
+class FileUtilICUTest : public PlatformTest {};
 
 #if BUILDFLAG(IS_POSIX) && !BUILDFLAG(IS_APPLE)
 
@@ -29,13 +31,13 @@ static const struct GoodBadPairLinux {
   const char* bad_name;
   const char* good_name;
 } kLinuxIllegalCharacterCases[] = {
-  {"bad*\\/file:name?.jpg", "bad---file-name-.jpg"},
-  {"**********::::.txt", "--------------.txt"},
-  {"\xe9\xf0zzzz.\xff", "\xe9\xf0zzzz.\xff"},
-  {" _ ", "-_-"},
-  {".", "-"},
-  {" .( ). ", "-.( ).-"},
-  {"     ", "-   -"},
+    {"bad*\\/file:name?.jpg", "bad---file-name-.jpg"},
+    {"**********::::.txt", "--------------.txt"},
+    {"\xe9\xf0zzzz.\xff", "\xe9\xf0zzzz.\xff"},
+    {" _ ", "-_-"},
+    {".", "-"},
+    {" .( ). ", "-.( ).-"},
+    {"     ", "-   -"},
 };
 
 TEST_F(FileUtilICUTest, ReplaceIllegalCharactersInPathLinuxTest) {
@@ -157,22 +159,22 @@ TEST_F(FileUtilICUTest, IsFilenameLegalTest) {
     std::u16string good_name = test_case.good_name_with_dash;
 
     EXPECT_TRUE(IsFilenameLegal(good_name)) << good_name;
-    if (good_name != bad_name)
+    if (good_name != bad_name) {
       EXPECT_FALSE(IsFilenameLegal(bad_name)) << bad_name;
+    }
   }
 }
 
-#if BUILDFLAG(IS_CHROMEOS_ASH)
+#if BUILDFLAG(IS_CHROMEOS)
 static const struct normalize_name_encoding_test_cases {
   const char* original_path;
   const char* normalized_path;
 } kNormalizeFileNameEncodingTestCases[] = {
-  { "foo_na\xcc\x88me.foo", "foo_n\xc3\xa4me.foo"},
-  { "foo_dir_na\xcc\x88me/foo_na\xcc\x88me.foo",
-    "foo_dir_na\xcc\x88me/foo_n\xc3\xa4me.foo"},
-  { "", ""},
-  { "foo_dir_na\xcc\x88me/", "foo_dir_n\xc3\xa4me"}
-};
+    {"foo_na\xcc\x88me.foo", "foo_n\xc3\xa4me.foo"},
+    {"foo_dir_na\xcc\x88me/foo_na\xcc\x88me.foo",
+     "foo_dir_na\xcc\x88me/foo_n\xc3\xa4me.foo"},
+    {"", ""},
+    {"foo_dir_na\xcc\x88me/", "foo_dir_n\xc3\xa4me"}};
 
 TEST_F(FileUtilICUTest, NormalizeFileNameEncoding) {
   for (size_t i = 0; i < std::size(kNormalizeFileNameEncodingTestCases); i++) {
@@ -185,5 +187,4 @@ TEST_F(FileUtilICUTest, NormalizeFileNameEncoding) {
 
 #endif
 
-}  // namespace i18n
-}  // namespace base
+}  // namespace base::i18n

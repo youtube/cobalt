@@ -23,16 +23,18 @@ struct NativePixmapPlane {
 struct NativePixmapHandle {
   array<NativePixmapPlane> planes;
 
-  [EnableIf=is_linux_or_chromeos_ash]
+  [EnableIf=is_chromeos|is_linux]
   uint64 modifier;
 
-  [EnableIf=is_linux_or_chromeos_ash]
+  [EnableIf=is_chromeos|is_linux]
   bool supports_zero_copy_webgpu_import;
 
   [EnableIf=is_fuchsia]
   handle<platform> buffer_collection_handle;
+
   [EnableIf=is_fuchsia]
   uint32 buffer_index;
+
   [EnableIf=is_fuchsia]
   bool ram_coherency;
 };
@@ -52,6 +54,15 @@ struct AHardwareBufferHandle {
 };
 
 // gfx::DXGIHandleToken
+// A unique identifier to identify one of the below resources
+// (cannot identify the other at the same time):
+// - Texture corresponding to the GMB handle. Handles get duplicated and OS
+//   provides no other identifier. DXGISharedHandleManager in the GPU services
+//   uses this as a key to cache state across calls that reference the same
+//   texture via different handles.
+// - Fence corresponding to the GPUFenceHandle. Fence handle get duplicated
+//   and OS provides no other identifier. D3DImageBacking in the GPU services
+//   uses this as a key to reference the same fence via different handles.
 [EnableIf=is_win]
 struct DXGIHandleToken {
   mojo_base.mojom.UnguessableToken value;

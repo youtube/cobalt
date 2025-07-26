@@ -5,6 +5,7 @@
 #include "base/at_exit.h"
 
 #include <stddef.h>
+
 #include <ostream>
 #include <utility>
 
@@ -28,7 +29,7 @@ static bool g_disable_managers = false;
 AtExitManager::AtExitManager() : next_manager_(g_top_manager) {
 // If multiple modules instantiate AtExitManagers they'll end up living in this
 // module... they have to coexist.
-#if !defined(COMPONENT_BUILD) && !defined(STARBOARD)
+#if !defined(COMPONENT_BUILD)
   DCHECK(!g_top_manager);
 #endif
   g_top_manager = this;
@@ -37,12 +38,12 @@ AtExitManager::AtExitManager() : next_manager_(g_top_manager) {
 AtExitManager::~AtExitManager() {
   if (!g_top_manager) {
     NOTREACHED() << "Tried to ~AtExitManager without an AtExitManager";
-    return;
   }
   DCHECK_EQ(this, g_top_manager);
 
-  if (!g_disable_managers)
+  if (!g_disable_managers) {
     ProcessCallbacksNow();
+  }
   g_top_manager = next_manager_;
 }
 
@@ -56,7 +57,6 @@ void AtExitManager::RegisterCallback(AtExitCallbackType func, void* param) {
 void AtExitManager::RegisterTask(base::OnceClosure task) {
   if (!g_top_manager) {
     NOTREACHED() << "Tried to RegisterCallback without an AtExitManager";
-    return;
   }
 
   AutoLock lock(g_top_manager->lock_);
@@ -70,7 +70,6 @@ void AtExitManager::RegisterTask(base::OnceClosure task) {
 void AtExitManager::ProcessCallbacksNow() {
   if (!g_top_manager) {
     NOTREACHED() << "Tried to ProcessCallbacksNow without an AtExitManager";
-    return;
   }
 
   // Callbacks may try to add new callbacks, so run them without holding

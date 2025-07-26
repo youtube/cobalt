@@ -2,6 +2,8 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#include "media/capture/video/win/video_capture_device_mf_win.h"
+
 #include <d3d11_4.h>
 #include <ks.h>
 #include <ksmedia.h>
@@ -10,6 +12,7 @@
 #include <stddef.h>
 #include <wincodec.h>
 
+#include <algorithm>
 #include <cmath>
 #include <memory>
 #include <string>
@@ -17,7 +20,7 @@
 
 #include "base/functional/bind.h"
 #include "base/functional/callback_helpers.h"
-#include "base/ranges/algorithm.h"
+#include "base/memory/scoped_refptr.h"
 #include "base/task/sequenced_task_runner.h"
 #include "base/task/thread_pool.h"
 #include "base/test/bind.h"
@@ -27,9 +30,9 @@
 #include "media/capture/video/win/d3d_capture_test_utils.h"
 #include "media/capture/video/win/sink_filter_win.h"
 #include "media/capture/video/win/video_capture_device_factory_win.h"
-#include "media/capture/video/win/video_capture_device_mf_win.h"
 #include "testing/gmock/include/gmock/gmock.h"
 #include "testing/gtest/include/gtest/gtest.h"
+#include "ui/gfx/gpu_memory_buffer.h"
 
 using ::testing::_;
 using ::testing::Invoke;
@@ -74,38 +77,53 @@ class MockClient : public VideoCaptureDevice::Client {
                               bool flip_y,
                               base::TimeTicks reference_time,
                               base::TimeDelta timestamp,
+                              std::optional<base::TimeTicks> capture_begin_time,
+                              const std::optional<VideoFrameMetadata>& metadata,
                               int frame_feedback_id) override {}
 
-  void OnIncomingCapturedGfxBuffer(gfx::GpuMemoryBuffer* buffer,
-                                   const VideoCaptureFormat& frame_format,
-                                   int clockwise_rotation,
-                                   base::TimeTicks reference_time,
-                                   base::TimeDelta timestamp,
-                                   int frame_feedback_id) override {}
+  void OnIncomingCapturedImage(
+      scoped_refptr<gpu::ClientSharedImage> shared_image,
+      const VideoCaptureFormat& frame_format,
+      int clockwise_rotation,
+      base::TimeTicks reference_time,
+      base::TimeDelta timestamp,
+      std::optional<base::TimeTicks> capture_begin_time,
+      const std::optional<VideoFrameMetadata>& metadata,
+      int frame_feedback_id) override {}
 
   void OnIncomingCapturedExternalBuffer(
       CapturedExternalVideoBuffer buffer,
-      std::vector<CapturedExternalVideoBuffer> scaled_buffers,
       base::TimeTicks reference_time,
       base::TimeDelta timestamp,
-      gfx::Rect visible_rect) override {}
+      std::optional<base::TimeTicks> capture_begin_time,
+      const gfx::Rect& visible_rect,
+      const std::optional<VideoFrameMetadata>& metadata) override {}
 
-  MOCK_METHOD4(ReserveOutputBuffer,
-               ReserveResult(const gfx::Size&, VideoPixelFormat, int, Buffer*));
+  MOCK_METHOD6(ReserveOutputBuffer,
+               ReserveResult(const gfx::Size&,
+                             VideoPixelFormat,
+                             int,
+                             Buffer*,
+                             int*,
+                             int*));
 
-  void OnIncomingCapturedBuffer(Buffer buffer,
-                                const VideoCaptureFormat& format,
-                                base::TimeTicks reference_,
-                                base::TimeDelta timestamp) override {}
+  void OnIncomingCapturedBuffer(
+      Buffer buffer,
+      const VideoCaptureFormat& format,
+      base::TimeTicks reference_,
+      base::TimeDelta timestamp,
+      std::optional<base::TimeTicks> capture_begin_time,
+      const std::optional<VideoFrameMetadata>& metadata) override {}
 
-  MOCK_METHOD7(OnIncomingCapturedBufferExt,
+  MOCK_METHOD8(OnIncomingCapturedBufferExt,
                void(Buffer,
                     const VideoCaptureFormat&,
                     const gfx::ColorSpace&,
                     base::TimeTicks,
                     base::TimeDelta,
+                    std::optional<base::TimeTicks>,
                     gfx::Rect,
-                    const VideoFrameMetadata&));
+                    const std::optional<VideoFrameMetadata>&));
 
   MOCK_METHOD3(OnError,
                void(VideoCaptureError,
@@ -193,7 +211,6 @@ class MockAMCameraControl final : public MockInterface<IAMCameraControl> {
         return S_OK;
       default:
         NOTREACHED();
-        return E_NOTIMPL;
     }
   }
   IFACEMETHODIMP GetRange(long property,
@@ -218,7 +235,6 @@ class MockAMCameraControl final : public MockInterface<IAMCameraControl> {
         return S_OK;
       default:
         NOTREACHED();
-        return E_NOTIMPL;
     }
   }
   IFACEMETHODIMP Set(long property, long value, long flags) override {
@@ -248,7 +264,6 @@ class MockAMVideoProcAmp final : public MockInterface<IAMVideoProcAmp> {
         return S_OK;
       default:
         NOTREACHED();
-        return E_NOTIMPL;
     }
   }
   IFACEMETHODIMP GetRange(long property,
@@ -276,7 +291,6 @@ class MockAMVideoProcAmp final : public MockInterface<IAMVideoProcAmp> {
         return S_OK;
       default:
         NOTREACHED();
-        return E_NOTIMPL;
     }
   }
   IFACEMETHODIMP Set(long property, long value, long flags) override {
@@ -287,6 +301,11 @@ class MockAMVideoProcAmp final : public MockInterface<IAMVideoProcAmp> {
   ~MockAMVideoProcAmp() override = default;
 };
 
+std::optional<ULONGLONG>& GetFakeBackgroundBlurState() {
+  static std::optional<ULONGLONG> background_blur_state;
+  return background_blur_state;
+}
+
 class MockMFExtendedCameraControl final
     : public MockInterface<IMFExtendedCameraControl> {
  public:
@@ -295,8 +314,17 @@ class MockMFExtendedCameraControl final
   IFACEMETHODIMP_(ULONGLONG) GetCapabilities() override {
     switch (property_id_) {
       case KSPROPERTY_CAMERACONTROL_EXTENDED_BACKGROUNDSEGMENTATION:
-        return (KSCAMERA_EXTENDEDPROP_BACKGROUNDSEGMENTATION_OFF |
-                KSCAMERA_EXTENDEDPROP_BACKGROUNDSEGMENTATION_BLUR);
+        return GetFakeBackgroundBlurState().has_value()
+                   ? (KSCAMERA_EXTENDEDPROP_BACKGROUNDSEGMENTATION_OFF |
+                      KSCAMERA_EXTENDEDPROP_BACKGROUNDSEGMENTATION_BLUR)
+                   : 0;
+      case KSPROPERTY_CAMERACONTROL_EXTENDED_DIGITALWINDOW:
+        return (KSCAMERA_EXTENDEDPROP_DIGITALWINDOW_AUTOFACEFRAMING |
+                KSCAMERA_EXTENDEDPROP_DIGITALWINDOW_MANUAL);
+      case KSPROPERTY_CAMERACONTROL_EXTENDED_EYEGAZECORRECTION:
+        return (KSCAMERA_EXTENDEDPROP_EYEGAZECORRECTION_OFF |
+                KSCAMERA_EXTENDEDPROP_EYEGAZECORRECTION_ON |
+                KSCAMERA_EXTENDEDPROP_EYEGAZECORRECTION_STARE);
       default:
         return 0;
     }
@@ -304,7 +332,12 @@ class MockMFExtendedCameraControl final
   IFACEMETHODIMP_(ULONGLONG) GetFlags() override {
     switch (property_id_) {
       case KSPROPERTY_CAMERACONTROL_EXTENDED_BACKGROUNDSEGMENTATION:
-        return KSCAMERA_EXTENDEDPROP_BACKGROUNDSEGMENTATION_OFF;
+        return GetFakeBackgroundBlurState().value_or(
+            KSCAMERA_EXTENDEDPROP_BACKGROUNDSEGMENTATION_OFF);
+      case KSPROPERTY_CAMERACONTROL_EXTENDED_DIGITALWINDOW:
+        return KSCAMERA_EXTENDEDPROP_DIGITALWINDOW_MANUAL;
+      case KSPROPERTY_CAMERACONTROL_EXTENDED_EYEGAZECORRECTION:
+        return KSCAMERA_EXTENDEDPROP_EYEGAZECORRECTION_OFF;
       default:
         return 0;
     }
@@ -1138,14 +1171,9 @@ class MockCaptureHandleProvider
 
   // Clone a |GpuMemoryBufferHandle| for IPC.
   gfx::GpuMemoryBufferHandle GetGpuMemoryBufferHandle() override {
-    // Create a fake DXGI buffer handle
-    // (ensure that the fake is still a valid NT handle by using an event
-    // handle)
-    base::win::ScopedHandle fake_dxgi_handle(
-        CreateEvent(nullptr, FALSE, FALSE, nullptr));
     gfx::GpuMemoryBufferHandle handle;
     handle.type = gfx::GpuMemoryBufferType::DXGI_SHARED_HANDLE;
-    handle.dxgi_handle = std::move(fake_dxgi_handle);
+    handle.set_dxgi_handle(gfx::DXGIHandle::CreateFakeForTest());
     return handle;
   }
 };
@@ -1185,6 +1213,9 @@ class VideoCaptureDeviceMFWinTest : public ::testing::Test {
     device_->set_dxgi_device_manager_for_testing(dxgi_device_manager_);
     engine_->set_expect_mf_dxgi_device_manager_attribute(dxgi_device_manager_ !=
                                                          nullptr);
+
+    GetFakeBackgroundBlurState().emplace(
+        KSCAMERA_EXTENDEDPROP_BACKGROUNDSEGMENTATION_OFF);
 
     EXPECT_CALL(*(engine_.Get()), OnCorrectInitializeQueued());
     task_runner_->PostTask(FROM_HERE, base::BindLambdaForTesting([&] {
@@ -1869,27 +1900,27 @@ TEST_F(VideoCaptureDeviceMFWinTest, GetPhotoStateViaPhotoStream) {
   EXPECT_EQ(state->height->max, kArbitraryValidPhotoHeight);
 
   EXPECT_EQ(state->supported_white_balance_modes.size(), 2u);
-  EXPECT_EQ(base::ranges::count(state->supported_white_balance_modes,
-                                mojom::MeteringMode::CONTINUOUS),
+  EXPECT_EQ(std::ranges::count(state->supported_white_balance_modes,
+                               mojom::MeteringMode::CONTINUOUS),
             1);
-  EXPECT_EQ(base::ranges::count(state->supported_white_balance_modes,
-                                mojom::MeteringMode::MANUAL),
+  EXPECT_EQ(std::ranges::count(state->supported_white_balance_modes,
+                               mojom::MeteringMode::MANUAL),
             1);
   EXPECT_EQ(state->current_white_balance_mode, mojom::MeteringMode::CONTINUOUS);
   EXPECT_EQ(state->supported_exposure_modes.size(), 2u);
-  EXPECT_EQ(base::ranges::count(state->supported_exposure_modes,
-                                mojom::MeteringMode::CONTINUOUS),
+  EXPECT_EQ(std::ranges::count(state->supported_exposure_modes,
+                               mojom::MeteringMode::CONTINUOUS),
             1);
-  EXPECT_EQ(base::ranges::count(state->supported_exposure_modes,
-                                mojom::MeteringMode::MANUAL),
+  EXPECT_EQ(std::ranges::count(state->supported_exposure_modes,
+                               mojom::MeteringMode::MANUAL),
             1);
   EXPECT_EQ(state->current_exposure_mode, mojom::MeteringMode::CONTINUOUS);
   EXPECT_EQ(state->supported_focus_modes.size(), 2u);
-  EXPECT_EQ(base::ranges::count(state->supported_focus_modes,
-                                mojom::MeteringMode::CONTINUOUS),
+  EXPECT_EQ(std::ranges::count(state->supported_focus_modes,
+                               mojom::MeteringMode::CONTINUOUS),
             1);
-  EXPECT_EQ(base::ranges::count(state->supported_focus_modes,
-                                mojom::MeteringMode::MANUAL),
+  EXPECT_EQ(std::ranges::count(state->supported_focus_modes,
+                               mojom::MeteringMode::MANUAL),
             1);
   EXPECT_EQ(state->current_focus_mode, mojom::MeteringMode::CONTINUOUS);
   EXPECT_EQ(state->points_of_interest.size(), 0u);
@@ -1985,13 +2016,70 @@ TEST_F(VideoCaptureDeviceMFWinTest, GetPhotoStateViaPhotoStream) {
 
   ASSERT_TRUE(state->supported_background_blur_modes);
   EXPECT_EQ(state->supported_background_blur_modes->size(), 2u);
-  EXPECT_EQ(base::ranges::count(*state->supported_background_blur_modes,
-                                mojom::BackgroundBlurMode::OFF),
+  EXPECT_EQ(std::ranges::count(*state->supported_background_blur_modes,
+                               mojom::BackgroundBlurMode::OFF),
             1);
-  EXPECT_EQ(base::ranges::count(*state->supported_background_blur_modes,
-                                mojom::BackgroundBlurMode::BLUR),
+  EXPECT_EQ(std::ranges::count(*state->supported_background_blur_modes,
+                               mojom::BackgroundBlurMode::BLUR),
             1);
   EXPECT_EQ(state->background_blur_mode, mojom::BackgroundBlurMode::OFF);
+
+  ASSERT_TRUE(state->supported_eye_gaze_correction_modes);
+  EXPECT_EQ(state->supported_eye_gaze_correction_modes->size(), 3u);
+  EXPECT_EQ(std::ranges::count(*state->supported_eye_gaze_correction_modes,
+                               mojom::EyeGazeCorrectionMode::OFF),
+            1);
+  EXPECT_EQ(std::ranges::count(*state->supported_eye_gaze_correction_modes,
+                               mojom::EyeGazeCorrectionMode::ON),
+            1);
+  EXPECT_EQ(std::ranges::count(*state->supported_eye_gaze_correction_modes,
+                               mojom::EyeGazeCorrectionMode::STARE),
+            1);
+  EXPECT_EQ(state->current_eye_gaze_correction_mode,
+            mojom::EyeGazeCorrectionMode::OFF);
+
+  ASSERT_TRUE(state->supported_face_framing_modes);
+  EXPECT_EQ(2u, state->supported_face_framing_modes->size());
+  EXPECT_EQ(1, std::ranges::count(*state->supported_face_framing_modes,
+                                  mojom::MeteringMode::CONTINUOUS));
+  EXPECT_EQ(1, std::ranges::count(*state->supported_face_framing_modes,
+                                  mojom::MeteringMode::NONE));
+  EXPECT_EQ(mojom::MeteringMode::NONE, state->current_face_framing_mode);
+}
+
+TEST_F(VideoCaptureDeviceMFWinTest, GetBackgroundBlurState) {
+  if (ShouldSkipTest()) {
+    return;
+  }
+
+  PrepareMFDeviceWithOneVideoStream(MFVideoFormat_MJPG);
+
+  EXPECT_CALL(*(engine_.Get()), OnStartPreview());
+  EXPECT_CALL(*client_, OnStarted());
+
+  task_runner_->PostTask(FROM_HERE, base::BindLambdaForTesting([&] {
+                           device_->AllocateAndStart(VideoCaptureParams(),
+                                                     std::move(client_));
+                         }));
+  task_environment_.RunUntilIdle();
+
+  capture_preview_sink_->sample_callback->OnSample(nullptr);
+  task_environment_.RunUntilIdle();
+
+  auto actual_blur_state = device_->GetBackgroundBlurState();
+  EXPECT_TRUE(actual_blur_state.has_value());
+  EXPECT_FALSE(actual_blur_state->enabled);
+
+  auto& fake_state = GetFakeBackgroundBlurState();
+  fake_state = KSCAMERA_EXTENDEDPROP_BACKGROUNDSEGMENTATION_BLUR;
+
+  actual_blur_state = device_->GetBackgroundBlurState();
+  EXPECT_TRUE(actual_blur_state.has_value());
+  EXPECT_TRUE(actual_blur_state->enabled);
+
+  fake_state.reset();
+  actual_blur_state = device_->GetBackgroundBlurState();
+  EXPECT_FALSE(actual_blur_state.has_value());
 }
 
 // Given an |IMFCaptureSource| offering a video stream and a photo stream to
@@ -2094,7 +2182,7 @@ class VideoCaptureDeviceMFWinTestWithDXGI : public VideoCaptureDeviceMFWinTest {
     HRESULT hr = MFCreateDXGIDeviceManager(&d3d_device_reset_token,
                                            &mf_dxgi_device_manager);
     ASSERT_EQ(hr, S_OK);
-    dxgi_device_manager_ = new MockDXGIDeviceManager(
+    dxgi_device_manager_ = base::MakeRefCounted<MockDXGIDeviceManager>(
         std::move(mf_dxgi_device_manager), d3d_device_reset_token);
     VideoCaptureDeviceMFWinTest::SetUp();
   }
@@ -2167,9 +2255,10 @@ TEST_F(VideoCaptureDeviceMFWinTestWithDXGI, DeliverGMBCaptureBuffers) {
   // Verify that an output capture buffer is reserved from the client
   EXPECT_CALL(*client_, ReserveOutputBuffer)
       .WillOnce(Invoke(
-          [expected_size](const gfx::Size& size, VideoPixelFormat format,
-                          int feedback_id,
-                          VideoCaptureDevice::Client::Buffer* capture_buffer) {
+          [expected_size](
+              const gfx::Size& size, VideoPixelFormat format, int feedback_id,
+              VideoCaptureDevice::Client::Buffer* capture_buffer,
+              int* require_new_buffer_id, int* retire_old_buffer_id) {
             EXPECT_EQ(size.width(), expected_size.width());
             EXPECT_EQ(size.height(), expected_size.height());
             EXPECT_EQ(format, PIXEL_FORMAT_NV12);
@@ -2223,12 +2312,16 @@ TEST_F(VideoCaptureDeviceMFWinTestWithDXGI, DeliverGMBCaptureBuffers) {
   EXPECT_CALL(*client_, OnIncomingCapturedBufferExt)
       .WillOnce(Invoke([](VideoCaptureDevice::Client::Buffer buffer,
                           const VideoCaptureFormat&, const gfx::ColorSpace&,
-                          base::TimeTicks, base::TimeDelta, gfx::Rect,
-                          const VideoFrameMetadata&) {
+                          base::TimeTicks, base::TimeDelta,
+                          std::optional<base::TimeTicks>, gfx::Rect,
+                          const std::optional<VideoFrameMetadata>& metadata) {
         gfx::GpuMemoryBufferHandle gmb_handle =
             buffer.handle_provider->GetGpuMemoryBufferHandle();
         EXPECT_EQ(gmb_handle.type,
                   gfx::GpuMemoryBufferType::DXGI_SHARED_HANDLE);
+        EXPECT_TRUE(metadata.has_value());
+        EXPECT_TRUE(metadata->background_blur.has_value());
+        EXPECT_FALSE(metadata->background_blur->enabled);
       }));
 
   // Init capture

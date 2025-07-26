@@ -1,0 +1,44 @@
+<!DOCTYPE html>
+<script src="../../resources/testharness.js"></script>
+<script src="../../resources/testharnessreport.js"></script>
+<script src="../../resources/gesture-util.js"></script>
+<script src="../../resources/testdriver.js"></script>
+<script src="../../resources/testdriver-actions.js"></script>
+<script src="../../resources/testdriver-vendor.js"></script>
+<title>Tests that overflow scrolls are animated.</title>
+<style>
+  #container {
+    overflow: scroll;
+    width: 200px;
+    height: 200px;
+  }
+  #content {
+    width: 750px;
+    height: 10000px;
+    background-color: blue;
+  }
+</style>
+<div id="container">
+  <div id="content"></div>
+</div>
+
+<script>
+if (!window.internals) {
+  assert_unreached("This test must be run in the test harness");
+}
+internals.settings.setScrollAnimatorEnabled(true);
+
+promise_test(async () => {
+  const container = document.getElementById("container");
+  await waitForCompositorCommit();
+  await waitForScrollReset(container);
+  const pos = elementCenter(container);
+  await mouseClick(pos.x, pos.y);
+  await Promise.all([
+    animatedScrollPromise(container),
+    keyboardScroll("PageDown", container),
+  ]);
+  assert_true(container.scrollTop > 0);
+}, 'Overflow scrolls are animated');
+
+</script>

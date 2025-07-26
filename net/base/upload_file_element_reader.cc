@@ -154,7 +154,6 @@ int UploadFileElementReader::DoLoop(int result) {
     switch (state) {
       case State::IDLE:
         NOTREACHED();
-        break;
       case State::OPEN:
         // Ignore previous result here. It's typically OK, but if Init()
         // interrupted the previous operation, it may be an error.

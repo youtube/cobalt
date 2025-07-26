@@ -54,19 +54,18 @@ template("nacl_toolchain") {
       use_clang_coverage = false
       coverage_instrumentation_input_file = ""
 
-      if (use_remoteexec) {
+      if (use_reclient) {
         if (is_win) {
-          rbe_cc_cfg_file = "${rbe_cfg_dir}/nacl/rewrapper_windows.cfg"
+          reclient_cc_cfg_file = rebase_path(reclient_cfg_dir, root_build_dir) +
+                                 "/nacl/rewrapper_windows.cfg"
         } else if (is_mac) {
-          rbe_cc_cfg_file = "${rbe_cfg_dir}/nacl/rewrapper_mac.cfg"
+          reclient_cc_cfg_file = rebase_path(reclient_cfg_dir, root_build_dir) +
+                                 "/nacl/rewrapper_mac.cfg"
         } else {
           # TODO(ukai): non linux?
-          rbe_cc_cfg_file = "${rbe_cfg_dir}/nacl/rewrapper_linux.cfg"
+          reclient_cc_cfg_file = rebase_path(reclient_cfg_dir, root_build_dir) +
+                                 "/nacl/rewrapper_linux.cfg"
         }
-      }
-
-      if (use_remoteexec_links) {
-        rbe_link_cfg_file = "${rbe_cfg_dir}/nacl/rewrapper_linux_link.cfg"
       }
     }
   }

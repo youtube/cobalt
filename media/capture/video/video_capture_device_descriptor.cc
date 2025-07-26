@@ -4,6 +4,8 @@
 
 #include "media/capture/video/video_capture_device_descriptor.h"
 
+#include <array>
+
 #include "base/strings/string_util.h"
 
 namespace media {
@@ -41,10 +43,12 @@ VideoCaptureDeviceDescriptor::VideoCaptureDeviceDescriptor(
     VideoCaptureApi capture_api,
     const VideoCaptureControlSupport& control_support,
     VideoCaptureTransportType transport_type,
-    VideoFacingMode facing)
+    VideoFacingMode facing,
+    std::optional<CameraAvailability> availability)
     : device_id(device_id),
       model_id(model_id),
       facing(facing),
+      availability(std::move(availability)),
       capture_api(capture_api),
       transport_type(transport_type),
       display_name_(TrimDisplayName(display_name)),
@@ -57,7 +61,8 @@ VideoCaptureDeviceDescriptor::VideoCaptureDeviceDescriptor(
 
 bool VideoCaptureDeviceDescriptor::operator<(
     const VideoCaptureDeviceDescriptor& other) const {
-  static constexpr int kFacingMapping[NUM_MEDIA_VIDEO_FACING_MODES] = {0, 2, 1};
+  constexpr static std::array<int, NUM_MEDIA_VIDEO_FACING_MODES>
+      kFacingMapping = {0, 2, 1};
   static_assert(kFacingMapping[MEDIA_VIDEO_FACING_NONE] == 0,
                 "FACING_NONE has a wrong value");
   static_assert(kFacingMapping[MEDIA_VIDEO_FACING_ENVIRONMENT] == 1,
@@ -99,6 +104,8 @@ const char* VideoCaptureDeviceDescriptor::GetCaptureApiTypeString() const {
       return "Virtual Device";
     case VideoCaptureApi::UNKNOWN:
       return "Unknown";
+    case VideoCaptureApi::WEBRTC_LINUX_PIPEWIRE_SINGLE_PLANE:
+      return "WEBRTC Single Plane";
   }
 }
 

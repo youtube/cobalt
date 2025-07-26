@@ -6,6 +6,8 @@ package org.chromium.net;
 
 import androidx.annotation.VisibleForTesting;
 
+import org.chromium.build.annotations.NullMarked;
+
 import java.nio.charset.StandardCharsets;
 
 /**
@@ -20,6 +22,7 @@ import java.nio.charset.StandardCharsets;
  *   3. Where does the request go? (e.g. a Google server, a website the user is viewing...)
  *   4. How can I disable it if I don't like it?
  */
+@NullMarked
 public class NetworkTrafficAnnotationTag {
     /**
      * For network requests that aren't documented yet. These should be
@@ -38,6 +41,7 @@ public class NetworkTrafficAnnotationTag {
     /** For network requests made in tests, don't bother writing documentation. */
     public static final NetworkTrafficAnnotationTag TRAFFIC_ANNOTATION_FOR_TESTS =
             createComplete("test", "Traffic annotation for unit, browser and other tests");
+
     /**
      * Create a self-contained tag describing a network request made by Chromium. This is the most
      * common factory method.
@@ -53,17 +57,17 @@ public class NetworkTrafficAnnotationTag {
         return new NetworkTrafficAnnotationTag(uniqueId);
     }
 
-    // TODO(crbug.com/1231780): Add Partial, Completing, Branched-Completing, and
+    // TODO(crbug.com/40190832): Add Partial, Completing, Branched-Completing, and
     // Mutable(?) factory methods.
 
     /**
      * At runtime, an annotation tag is just a hashCode. Most of the validation is done on CQ, so
      * there's no point keeping track of everything at runtime.
      *
-     * This field is referenced from C++, so don't change it without updating
+     * <p>This field is referenced from C++, so don't change it without updating
      * net/traffic_annotation/network_traffic_annotation.h.
      */
-    // TODO(crbug.com/1231780): Unlike the C++ version though, the string will still get compiled
+    // TODO(crbug.com/40190832): Unlike the C++ version though, the string will still get compiled
     // into the APK, and get loaded into memory when the constructor is called... Is there a way to
     // tell Java, "No, I don't actually need this string at runtime"? We should investigate.
     private final int mHashCode;

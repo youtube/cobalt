@@ -2,20 +2,19 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include <windows.h>
+#include "base/win/scoped_handle.h"
 
+#include <windows.h>
 #include <winternl.h>
 
 #include <string>
 #include <utility>
 
-#include "base/base_switches.h"
 #include "base/command_line.h"
 #include "base/files/file_path.h"
 #include "base/scoped_native_library.h"
 #include "base/test/multiprocess_test.h"
 #include "base/test/test_timeouts.h"
-#include "base/win/scoped_handle.h"
 #include "build/build_config.h"
 #include "testing/gtest/include/gtest/gtest.h"
 #include "testing/multiprocess_func_list.h"
@@ -111,8 +110,9 @@ TEST_F(ScopedHandleDeathTest, HandleVerifierDoubleTracking) {
 
   base::win::CheckedScopedHandle handle_holder(handle);
 
-  ASSERT_DEATH({ base::win::CheckedScopedHandle handle_holder2(handle); },
-               FailureMessage("Handle Already Tracked"));
+  ASSERT_DEATH(
+      { base::win::CheckedScopedHandle handle_holder2(handle); },
+      FailureMessage("Handle Already Tracked"));
 }
 
 TEST_F(ScopedHandleDeathTest, HandleVerifierWrongOwner) {
@@ -153,11 +153,7 @@ TEST_F(ScopedHandleDeathTest, HandleVerifierUntrackedHandle) {
 #endif
 
 TEST_F(ScopedHandleTest, MAYBE_MultiProcess) {
-  // Initializing ICU in the child process causes a scoped handle to be created
-  // before the test gets a chance to test the race condition, so disable ICU
-  // for the child process here.
   CommandLine command_line(base::GetMultiProcessTestChildBaseCommandLine());
-  command_line.AppendSwitch(switches::kTestDoNotInitializeIcu);
 
   base::Process test_child_process = base::SpawnMultiProcessTestChild(
       "HandleVerifierChildProcess", command_line, LaunchOptions());
@@ -172,14 +168,17 @@ MULTIPROCESS_TEST_MAIN(HandleVerifierChildProcess) {
   ScopedNativeLibrary module(
       FilePath(FILE_PATH_LITERAL("scoped_handle_test_dll.dll")));
 
-  if (!module.is_valid())
+  if (!module.is_valid()) {
     return 1;
+  }
   auto run_test_function = reinterpret_cast<decltype(&testing::RunTest)>(
       module.GetFunctionPointer("RunTest"));
-  if (!run_test_function)
+  if (!run_test_function) {
     return 1;
-  if (!run_test_function())
+  }
+  if (!run_test_function()) {
     return 1;
+  }
 
   return 0;
 }

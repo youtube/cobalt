@@ -2,20 +2,27 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#ifdef UNSAFE_BUFFERS_BUILD
+// TODO(crbug.com/40284755): Remove this and spanify to fix the errors.
+#pragma allow_unsafe_buffers
+#endif
+
+#include "base/profiler/stack_copier_signal.h"
+
 #include <string.h>
+
 #include <algorithm>
 #include <utility>
 
 #include "base/debug/alias.h"
+#include "base/profiler/register_context_registers.h"
 #include "base/profiler/sampling_profiler_thread_token.h"
 #include "base/profiler/stack_buffer.h"
-#include "base/profiler/stack_copier_signal.h"
 #include "base/profiler/thread_delegate_posix.h"
 #include "base/synchronization/waitable_event.h"
 #include "base/threading/platform_thread.h"
 #include "base/threading/simple_thread.h"
 #include "build/build_config.h"
-#include "build/chromeos_buildflags.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
 namespace base {
@@ -41,8 +48,9 @@ class TargetThread : public SimpleThread {
     // Copy the sentinel values onto the stack. Volatile to defeat compiler
     // optimizations.
     volatile uint32_t sentinels[std::size(kStackSentinels)];
-    for (size_t i = 0; i < std::size(kStackSentinels); ++i)
+    for (size_t i = 0; i < std::size(kStackSentinels); ++i) {
       sentinels[i] = kStackSentinels[i];
+    }
 
     started_.Signal();
     copy_finished_.Wait();
@@ -63,9 +71,7 @@ class TargetThread : public SimpleThread {
 
 class TestStackCopierDelegate : public StackCopier::Delegate {
  public:
-  void OnStackCopy() override {
-    on_stack_copy_was_invoked_ = true;
-  }
+  void OnStackCopy() override { on_stack_copy_was_invoked_ = true; }
 
   bool on_stack_copy_was_invoked() const { return on_stack_copy_was_invoked_; }
 
@@ -81,9 +87,6 @@ class TestStackCopierDelegate : public StackCopier::Delegate {
 // TSAN hangs on the AsyncSafeWaitableEvent FUTEX_WAIT call.
 #if defined(ADDRESS_SANITIZER) || defined(MEMORY_SANITIZER) || \
     defined(THREAD_SANITIZER)
-#define MAYBE_CopyStack DISABLED_CopyStack
-#elif BUILDFLAG(IS_CHROMEOS_ASH)
-// https://crbug.com/1042974
 #define MAYBE_CopyStack DISABLED_CopyStack
 #elif BUILDFLAG(IS_LINUX)
 // We don't support getting the stack base address on Linux, and thus can't
@@ -107,8 +110,9 @@ TEST(StackCopierSignalTest, MAYBE_CopyStack) {
 
   // Copy the sentinel values onto the stack.
   uint32_t sentinels[std::size(kStackSentinels)];
-  for (size_t i = 0; i < std::size(kStackSentinels); ++i)
+  for (size_t i = 0; i < std::size(kStackSentinels); ++i) {
     sentinels[i] = kStackSentinels[i];
+  }
   base::debug::Alias((void*)sentinels);  // Defeat compiler optimizations.
 
   bool result = copier.CopyStack(&stack_buffer, &stack_top, &timestamp,

@@ -17,12 +17,14 @@ MessagePumpIOSForIO::FdWatchController::~FdWatchController() {
 }
 
 bool MessagePumpIOSForIO::FdWatchController::StopWatchingFileDescriptor() {
-  if (fdref_ == NULL)
+  if (fdref_ == NULL) {
     return true;
+  }
 
   CFFileDescriptorDisableCallBacks(fdref_.get(), callback_types_);
-  if (pump_)
+  if (pump_) {
     pump_->RemoveRunLoopSource(fd_source_);
+  }
   fd_source_.reset();
   fdref_.reset();
   callback_types_ = 0;
@@ -58,11 +60,9 @@ void MessagePumpIOSForIO::FdWatchController::OnFileCanWriteWithoutBlocking(
   watcher_->OnFileCanWriteWithoutBlocking(fd);
 }
 
-MessagePumpIOSForIO::MessagePumpIOSForIO() : weak_factory_(this) {
-}
+MessagePumpIOSForIO::MessagePumpIOSForIO() = default;
 
-MessagePumpIOSForIO::~MessagePumpIOSForIO() {
-}
+MessagePumpIOSForIO::~MessagePumpIOSForIO() = default;
 
 bool MessagePumpIOSForIO::WatchFileDescriptor(int fd,
                                               bool persistent,
@@ -91,23 +91,21 @@ bool MessagePumpIOSForIO::WatchFileDescriptor(int fd,
 
   CFFileDescriptorRef fdref = controller->fdref_.get();
   if (fdref == NULL) {
-    base::ScopedCFTypeRef<CFFileDescriptorRef> scoped_fdref(
-        CFFileDescriptorCreate(
-            kCFAllocatorDefault, fd, false, HandleFdIOEvent, &source_context));
+    apple::ScopedCFTypeRef<CFFileDescriptorRef> scoped_fdref(
+        CFFileDescriptorCreate(kCFAllocatorDefault, fd, false, HandleFdIOEvent,
+                               &source_context));
     if (scoped_fdref == NULL) {
       NOTREACHED() << "CFFileDescriptorCreate failed";
-      return false;
     }
 
     CFFileDescriptorEnableCallBacks(scoped_fdref, callback_types);
 
     // TODO(wtc): what should the 'order' argument be?
-    base::ScopedCFTypeRef<CFRunLoopSourceRef> scoped_fd_source(
-        CFFileDescriptorCreateRunLoopSource(
-            kCFAllocatorDefault, scoped_fdref, 0));
+    apple::ScopedCFTypeRef<CFRunLoopSourceRef> scoped_fd_source(
+        CFFileDescriptorCreateRunLoopSource(kCFAllocatorDefault, scoped_fdref,
+                                            0));
     if (scoped_fd_source == NULL) {
       NOTREACHED() << "CFFileDescriptorCreateRunLoopSource failed";
-      return false;
     }
     CFRunLoopAddSource(run_loop(), scoped_fd_source, kCFRunLoopCommonModes);
 
@@ -121,11 +119,9 @@ bool MessagePumpIOSForIO::WatchFileDescriptor(int fd,
       NOTREACHED() << "FDs don't match: "
                    << CFFileDescriptorGetNativeDescriptor(fdref)
                    << " != " << fd;
-      return false;
     }
     if (persistent != controller->is_persistent_) {
       NOTREACHED() << "persistent doesn't match";
-      return false;
     }
 
     // Combine old/new event masks.
@@ -154,14 +150,23 @@ void MessagePumpIOSForIO::HandleFdIOEvent(CFFileDescriptorRef fdref,
   // Ensure that |fdref| will remain live for the duration of this function
   // call even if |controller| is deleted or |StopWatchingFileDescriptor()| is
   // called, either of which will cause |fdref| to be released.
-  ScopedCFTypeRef<CFFileDescriptorRef> scoped_fdref(
+  apple::ScopedCFTypeRef<CFFileDescriptorRef> scoped_fdref(
       fdref, base::scoped_policy::RETAIN);
 
   int fd = CFFileDescriptorGetNativeDescriptor(fdref);
   MessagePumpIOSForIO* pump = controller->pump().get();
   DCHECK(pump);
-  if (callback_types & kCFFileDescriptorWriteCallBack)
+
+  // Inform ThreadController of this native work item for tracking and tracing
+  // purposes.
+  Delegate::ScopedDoWorkItem scoped_do_work_item;
+  if (pump->delegate()) {
+    scoped_do_work_item = pump->delegate()->BeginWorkItem();
+  }
+
+  if (callback_types & kCFFileDescriptorWriteCallBack) {
     controller->OnFileCanWriteWithoutBlocking(fd, pump);
+  }
 
   // Perform the read callback only if the file descriptor has not been
   // invalidated in the write callback. As |FdWatchController| invalidates

@@ -4,9 +4,9 @@
 
 package org.chromium.base.supplier;
 
-import androidx.annotation.Nullable;
-
 import org.chromium.base.Callback;
+import org.chromium.build.annotations.NullMarked;
+import org.chromium.build.annotations.Nullable;
 
 /**
  * OneshotSupplier wraps an asynchronously provided, non-null object {@code T}, notifying
@@ -39,6 +39,7 @@ import org.chromium.base.Callback;
  *
  * @param <T> The type of the wrapped object.
  */
+@NullMarked
 public interface OneshotSupplier<T> extends Supplier<T> {
     /**
      * Add a callback that's called when the object owned by this supplier is available.
@@ -50,4 +51,18 @@ public interface OneshotSupplier<T> extends Supplier<T> {
      */
     @Nullable
     T onAvailable(Callback<T> callback);
+
+    /**
+     * Runs the {@link Callback} synchronously if there is already a value assigned, otherwise, it
+     * will add the callback to be notified when a value becomes available.
+     *
+     * @param callback The callback to be called (either async or sync).
+     */
+    default void runSyncOrOnAvailable(Callback<T> callback) {
+        if (hasValue()) {
+            callback.onResult(get());
+        } else {
+            onAvailable(callback);
+        }
+    }
 }

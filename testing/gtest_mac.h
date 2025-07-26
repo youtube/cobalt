@@ -1,12 +1,12 @@
-// Copyright (c) 2010 The Chromium Authors. All rights reserved.
+// Copyright 2010 The Chromium Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
 #ifndef TESTING_GTEST_MAC_H_
 #define TESTING_GTEST_MAC_H_
 
-#include <gtest/internal/gtest-port.h>
-#include <gtest/gtest.h>
+#include "testing/gtest/include/gtest/gtest.h"
+#include "third_party/googletest/src/googletest/include/gtest/internal/gtest-port.h"
 
 #ifdef GTEST_OS_MAC
 
@@ -16,18 +16,64 @@ namespace testing {
 namespace internal {
 
 // This overloaded version allows comparison between ObjC objects that conform
-// to the NSObject protocol. Used to implement {ASSERT|EXPECT}_EQ().
+// to the NSObject protocol. Used to implement {ASSERT|EXPECT}_NSEQ().
 GTEST_API_ AssertionResult CmpHelperNSEQ(const char* expected_expression,
                                          const char* actual_expression,
                                          id<NSObject> expected,
                                          id<NSObject> actual);
 
 // This overloaded version allows comparison between ObjC objects that conform
-// to the NSObject protocol. Used to implement {ASSERT|EXPECT}_NE().
+// to the NSObject protocol. Used to implement {ASSERT|EXPECT}_NSNE().
 GTEST_API_ AssertionResult CmpHelperNSNE(const char* expected_expression,
                                          const char* actual_expression,
                                          id<NSObject> expected,
                                          id<NSObject> actual);
+
+#if !defined(GTEST_OS_IOS)
+
+// This overloaded version allows comparison between NSRect objects using
+// NSEqualRects. Used to implement {ASSERT|EXPECT}_NSEQ().
+GTEST_API_ AssertionResult CmpHelperNSEQ(const char* expected_expression,
+                                         const char* actual_expression,
+                                         const NSRect& expected,
+                                         const NSRect& actual);
+
+// This overloaded version allows comparison between NSRect objects using
+// NSEqualRects. Used to implement {ASSERT|EXPECT}_NSNE().
+GTEST_API_ AssertionResult CmpHelperNSNE(const char* expected_expression,
+                                         const char* actual_expression,
+                                         const NSRect& expected,
+                                         const NSRect& actual);
+
+// This overloaded version allows comparison between NSPoint objects using
+// NSEqualPoints. Used to implement {ASSERT|EXPECT}_NSEQ().
+GTEST_API_ AssertionResult CmpHelperNSEQ(const char* expected_expression,
+                                         const char* actual_expression,
+                                         const NSPoint& expected,
+                                         const NSPoint& actual);
+
+// This overloaded version allows comparison between NSPoint objects using
+// NSEqualPoints. Used to implement {ASSERT|EXPECT}_NSNE().
+GTEST_API_ AssertionResult CmpHelperNSNE(const char* expected_expression,
+                                         const char* actual_expression,
+                                         const NSPoint& expected,
+                                         const NSPoint& actual);
+
+// This overloaded version allows comparison between NSRange objects using
+// NSEqualRanges. Used to implement {ASSERT|EXPECT}_NSEQ().
+GTEST_API_ AssertionResult CmpHelperNSEQ(const char* expected_expression,
+                                         const char* actual_expression,
+                                         const NSRange& expected,
+                                         const NSRange& actual);
+
+// This overloaded version allows comparison between NSRange objects using
+// NSEqualRanges. Used to implement {ASSERT|EXPECT}_NSNE().
+GTEST_API_ AssertionResult CmpHelperNSNE(const char* expected_expression,
+                                         const char* actual_expression,
+                                         const NSRange& expected,
+                                         const NSRange& actual);
+
+#endif  // !GTEST_OS_IOS
 
 }  // namespace internal
 }  // namespace testing

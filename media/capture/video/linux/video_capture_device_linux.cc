@@ -86,6 +86,7 @@ void VideoCaptureDeviceLinux::AllocateAndStart(
                     FROM_HERE, "Failed to create VideoCaptureDelegate");
     return;
   }
+
   task_runner_->PostTask(
       FROM_HERE,
       base::BindOnce(&V4L2CaptureDelegate::AllocateAndStart,

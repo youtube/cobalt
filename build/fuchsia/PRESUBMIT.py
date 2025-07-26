@@ -7,7 +7,6 @@ See http://dev.chromium.org/developers/how-tos/depottools/presubmit-scripts for
 details on the presubmit API built into depot_tools.
 """
 
-USE_PYTHON3 = True
 
 import os
 
@@ -24,7 +23,6 @@ def CommonChecks(input_api, output_api):
       J('binary_sizes_test.py'),
       J('binary_size_differ_test.py'),
       J('gcs_download_test.py'),
-      J('update_images_test.py'),
       J('update_product_bundles_test.py'),
       J('update_sdk_test.py'),
   ]
@@ -32,10 +30,7 @@ def CommonChecks(input_api, output_api):
   tests.extend(
       input_api.canned_checks.GetUnitTests(input_api,
                                            output_api,
-                                           unit_tests=unit_tests,
-                                           run_on_python2=False,
-                                           run_on_python3=True,
-                                           skip_shebang_check=True))
+                                           unit_tests=unit_tests))
   return input_api.RunTests(tests)
 
 

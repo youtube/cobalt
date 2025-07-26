@@ -1,4 +1,4 @@
-// Copyright (c) 2012 The Chromium Authors. All rights reserved.
+// Copyright 2012 The Chromium Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -6,8 +6,8 @@
 
 #include <memory>
 
-#include "base/bind.h"
 #include "base/compiler_specific.h"
+#include "base/functional/bind.h"
 #include "components/prefs/default_pref_store.h"
 #include "components/prefs/pref_notifier_impl.h"
 #include "components/prefs/pref_registry_simple.h"
@@ -16,39 +16,46 @@
 
 template <>
 TestingPrefServiceBase<PrefService, PrefRegistry>::TestingPrefServiceBase(
-    TestingPrefStore* managed_prefs,
-    TestingPrefStore* extension_prefs,
-    TestingPrefStore* user_prefs,
-    TestingPrefStore* recommended_prefs,
-    PrefRegistry* pref_registry,
+    scoped_refptr<TestingPrefStore> managed_prefs,
+    scoped_refptr<TestingPrefStore> supervised_user_prefs,
+    scoped_refptr<TestingPrefStore> extension_prefs,
+    scoped_refptr<TestingPrefStore> user_prefs,
+    scoped_refptr<TestingPrefStore> recommended_prefs,
+    scoped_refptr<PrefRegistry> pref_registry,
     PrefNotifierImpl* pref_notifier)
     : PrefService(
+          // Warning: `pref_notifier` is used for 2 arguments and the order of
+          // computation isn't guaranteed. So making it a unique_ptr would cause
+          // std::unique_ptr<>::get() after std::move().
           std::unique_ptr<PrefNotifierImpl>(pref_notifier),
-          std::make_unique<PrefValueStore>(managed_prefs,
-                                           nullptr,
-                                           extension_prefs,
-                                           nullptr,
-                                           user_prefs,
-                                           recommended_prefs,
+          std::make_unique<PrefValueStore>(managed_prefs.get(),
+                                           supervised_user_prefs.get(),
+                                           extension_prefs.get(),
+                                           /*command_line_prefs=*/nullptr,
+                                           user_prefs.get(),
+                                           recommended_prefs.get(),
                                            pref_registry->defaults().get(),
                                            pref_notifier),
           user_prefs,
           pref_registry,
-          base::Bind(&TestingPrefServiceBase<PrefService,
-                                             PrefRegistry>::HandleReadError),
+          base::BindRepeating(
+              &TestingPrefServiceBase<PrefService,
+                                      PrefRegistry>::HandleReadError),
           false),
       managed_prefs_(managed_prefs),
+      supervised_user_prefs_(supervised_user_prefs),
       extension_prefs_(extension_prefs),
       user_prefs_(user_prefs),
       recommended_prefs_(recommended_prefs) {}
 
 TestingPrefServiceSimple::TestingPrefServiceSimple()
     : TestingPrefServiceBase<PrefService, PrefRegistry>(
-          new TestingPrefStore(),
-          new TestingPrefStore(),
-          new TestingPrefStore(),
-          new TestingPrefStore(),
-          new PrefRegistrySimple(),
+          /*managed_prefs=*/base::MakeRefCounted<TestingPrefStore>(),
+          /*supervised_user_prefs=*/base::MakeRefCounted<TestingPrefStore>(),
+          /*extension_prefs=*/base::MakeRefCounted<TestingPrefStore>(),
+          /*user_prefs=*/base::MakeRefCounted<TestingPrefStore>(),
+          /*recommended_prefs=*/base::MakeRefCounted<TestingPrefStore>(),
+          base::MakeRefCounted<PrefRegistrySimple>(),
           new PrefNotifierImpl()) {}
 
 TestingPrefServiceSimple::~TestingPrefServiceSimple() {

@@ -16,6 +16,7 @@ MEDIA_EXPORT BASE_DECLARE_FEATURE(kDumpOnAudioServiceHang);
 
 #if BUILDFLAG(IS_ANDROID)
 MEDIA_EXPORT BASE_DECLARE_FEATURE(kUseAAudioDriver);
+MEDIA_EXPORT BASE_DECLARE_FEATURE(kUseAAudioInput);
 #endif
 
 #if BUILDFLAG(IS_WIN)
@@ -23,5 +24,13 @@ MEDIA_EXPORT BASE_DECLARE_FEATURE(kAllowIAudioClient3);
 #endif
 
 }  // namespace features
+
+namespace media {
+
+// Returns true if system audio loopback capture is implemented for the current
+// OS.
+MEDIA_EXPORT bool IsSystemLoopbackCaptureSupported();
+
+}  // namespace media
 
 #endif  // MEDIA_AUDIO_AUDIO_FEATURES_H_

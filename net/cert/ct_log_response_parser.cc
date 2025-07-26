@@ -2,14 +2,19 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#ifdef UNSAFE_BUFFERS_BUILD
+// TODO(crbug.com/390223051): Remove C-library calls to fix the errors.
+#pragma allow_unsafe_libc_calls
+#endif
+
 #include "net/cert/ct_log_response_parser.h"
 
 #include <memory>
+#include <string_view>
 
 #include "base/base64.h"
 #include "base/json/json_value_converter.h"
 #include "base/logging.h"
-#include "base/strings/string_piece.h"
 #include "base/time/time.h"
 #include "base/values.h"
 #include "net/cert/ct_serialization.h"
@@ -31,17 +36,17 @@ struct JsonSignedTreeHead {
       base::JSONValueConverter<JsonSignedTreeHead>* converted);
 };
 
-bool ConvertSHA256RootHash(base::StringPiece s, std::string* result) {
+bool ConvertSHA256RootHash(std::string_view s, std::string* result) {
   return base::Base64Decode(s, result) && result->size() == kSthRootHashLength;
 }
 
-bool ConvertTreeHeadSignature(base::StringPiece s, DigitallySigned* result) {
+bool ConvertTreeHeadSignature(std::string_view s, DigitallySigned* result) {
   std::string tree_head_signature;
   if (!base::Base64Decode(s, &tree_head_signature)) {
     return false;
   }
 
-  base::StringPiece sp(tree_head_signature);
+  std::string_view sp(tree_head_signature);
   return DecodeDigitallySigned(&sp, result);
 }
 
@@ -97,7 +102,8 @@ bool FillSignedTreeHead(const base::Value& json_signed_tree_head,
 
   signed_tree_head->version = SignedTreeHead::V1;
   signed_tree_head->tree_size = parsed_sth.tree_size;
-  signed_tree_head->timestamp = base::Time::FromJsTime(parsed_sth.timestamp);
+  signed_tree_head->timestamp =
+      base::Time::FromMillisecondsSinceUnixEpoch(parsed_sth.timestamp);
   signed_tree_head->signature = parsed_sth.signature;
   memcpy(signed_tree_head->sha256_root_hash,
          parsed_sth.sha256_root_hash.c_str(),

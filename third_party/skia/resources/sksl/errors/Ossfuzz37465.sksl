@@ -1,5 +1,0 @@
-float f(const float x) { 5+x; }
-
-/*%%*
-function 'f' can exit without returning a value
-*%%*/

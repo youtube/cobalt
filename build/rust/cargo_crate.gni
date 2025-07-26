@@ -2,8 +2,9 @@
 # Use of this source code is governed by a BSD-style license that can be
 # found in the LICENSE file.
 
-import("//build/config/rust.gni")
-import("//build/rust/rust_target.gni")
+import("//build/rust/rust_executable.gni")
+import("//build/rust/rust_macro.gni")
+import("//build/rust/rust_static_library.gni")
 
 # This template allows for building Cargo crates within gn.
 #
@@ -22,7 +23,6 @@ import("//build/rust/rust_target.gni")
 # Arguments:
 #  sources
 #  crate_root
-#  epoch
 #  deps
 #  aliased_deps
 #  features
@@ -32,6 +32,20 @@ import("//build/rust/rust_target.gni")
 #    All just as in rust_static_library.gni
 #  library_configs/executable_configs
 #    All just as in rust_target.gni
+#
+#  epoch (optional)
+#    The major version of the library, which is used to differentiate between
+#    multiple versions of the same library name. This includes all leading 0s
+#    and the first non-zero value in the crate's version. This should be left
+#    as the default, which is "0", for first-party code unless there are
+#    multiple versions of a crate present. For third-party code, the version
+#    epoch (matching the directory it is found in) should be specified.
+#
+#    Examples:
+#      1.0.2 => epoch = "1"
+#      4.2.0 => epoch = "4"
+#      0.2.7 => epoch = "0.2"
+#      0.0.3 => epoch = "0.0.3"
 #
 #  dev_deps
 #    Same meaning as test_deps in rust_static_library.gni, but called
@@ -62,6 +76,11 @@ import("//build/rust/rust_target.gni")
 #    files here. Again, this doesn't correspond to a Cargo variable
 #    but is necessary for gn.
 #
+#  native_libs (optional)
+#    Paths to library files that need to be in the linking search path when
+#    depending on the crate's library, as it links against them via #[link]
+#    directives.
+#
 #  crate_type "bin", "proc-macro" or "rlib" (optional)
 #    Whether to build an executable. The default is "rlib".
 #    At present others are not supported.
@@ -81,6 +100,15 @@ template("cargo_crate") {
   _crate_name = _orig_target_name
   if (defined(invoker.crate_name)) {
     _crate_name = invoker.crate_name
+  }
+
+  # Construct metadata from the crate epoch or an explicitly provided metadata
+  # field.
+  _rustc_metadata = ""
+  if (defined(invoker.rustc_metadata)) {
+    _rustc_metadata = invoker.rustc_metadata
+  } else if (defined(invoker.epoch)) {
+    _rustc_metadata = "${_crate_name}-${invoker.epoch}"
   }
 
   # Executables need to have unique names. Work out a prefix.
@@ -120,8 +148,89 @@ template("cargo_crate") {
     _rustenv += [ "CARGO_PKG_DESCRIPTION=${invoker.cargo_pkg_description}" ]
   }
 
+  # Try to determine the CARGO_MANIFEST_DIR, preferring the directory
+  # with build.rs and otherwise assuming that the target contains a
+  # `crate/` subdirectory.
+  if (defined(invoker.build_root)) {
+    manifest_dir = "."
+  } else {
+    build_gn_dir = get_label_info(target_name, "dir")
+    manifest_dir = rebase_path(build_gn_dir + "/crate", root_build_dir)
+  }
+  _rustenv += [ "CARGO_MANIFEST_DIR=${manifest_dir}" ]
+
+  # cargo_crate() should set library_configs, executable_configs,
+  # proc_macro_configs. Not configs.
+  assert(!defined(invoker.configs))
+
+  # Work out what we're building.
+  _crate_type = "rlib"
+  if (defined(invoker.crate_type)) {
+    _crate_type = invoker.crate_type
+  }
+  if (_crate_type == "cdylib") {
+    # Crates are rarely cdylibs. The example encountered so far aims
+    # to expose a C API to other code. In a Chromium context, we don't
+    # want to build that as a dylib for a couple of reasons:
+    # * rust_shared_library does not work on Mac. rustc does not know
+    #   how to export the __llvm_profile_raw_version symbol.
+    # * even if it did work, this might require us to distribute extra
+    #   binaries (.so/.dylib etc.)
+    # For the only case we've had so far, it makes more sense to build
+    # the code as a static library which we can then link into downstream
+    # binaries.
+    _crate_type = "rlib"
+  }
+  if (_crate_type == "bin") {
+    _target_type = "rust_executable"
+    assert(!defined(invoker.epoch))
+    _configs = invoker.executable_configs
+  } else if (_crate_type == "proc-macro") {
+    _target_type = "rust_macro"
+    _configs = invoker.proc_macro_configs
+  } else {
+    assert(_crate_type == "rlib")
+    _target_type = "rust_static_library"
+    _configs = invoker.library_configs
+  }
+
+  if (defined(invoker.output_name)) {
+    _output_name = invoker.output_name
+  } else if (_crate_type != "bin") {
+    # Note that file names of libraries must start with the crate name in
+    # order for the compiler to find transitive dependencies in the
+    # directory search paths (since they are not all explicitly specified).
+    #
+    # For bin targets, we expect the target name to be unique, and the name
+    # of the exe should not add magic stuff to it. And bin crates can not be
+    # transitive dependencies.
+    _output_name = "${_crate_name}_${_orig_target_name}"
+  }
+
+  _testonly = false
+  if (defined(invoker.testonly)) {
+    _testonly = invoker.testonly
+  }
+
+  if (defined(invoker.native_libs)) {
+    _native_libs_action = "copy_${target_name}_native_libs"
+    _native_libs_config = "config_${target_name}_native_libs"
+    _native_libs_dir =
+        "${root_out_dir}/rustlib/${_crate_name}_${target_name}_${_epochlabel}"
+
+    copy(_native_libs_action) {
+      testonly = _testonly
+      visibility = [ ":$target_name" ]
+      sources = invoker.native_libs
+      outputs = [ "${_native_libs_dir}/{{source_file_part}}" ]
+    }
+    config(_native_libs_config) {
+      lib_dirs = [ "${_native_libs_dir}" ]
+    }
+  }
+
   # The main target, either a Rust source set or an executable.
-  rust_target(target_name) {
+  target(_target_type, target_name) {
     forward_variables_from(invoker,
                            "*",
                            TESTONLY_AND_VISIBILITY + [
@@ -130,39 +239,59 @@ template("cargo_crate") {
                                  "build_sources",
                                  "build_script_inputs",
                                  "build_script_outputs",
+                                 "epoch",
                                  "unit_test_target",
-                                 "target_type",
                                  "configs",
+                                 "executable_configs",
+                                 "library_configs",
+                                 "proc_macro_configs",
                                  "rustenv",
+                                 "dev_deps",
+                                 "native_libs_dir",
                                ])
-    forward_variables_from(invoker, TESTONLY_AND_VISIBILITY)
 
-    # Work out what we're building.
-    crate_type = "rlib"
-    if (defined(invoker.crate_type)) {
-      crate_type = invoker.crate_type
+    testonly = _testonly
+    if (defined(invoker.visibility)) {
+      visibility = invoker.visibility
+    }
+    if (defined(crate_type) && crate_type == "cdylib") {
+      # See comments above about cdylib.
+      crate_type = "rlib"
+    }
+    crate_name = _crate_name
+
+    if (defined(_output_name)) {
+      output_name = _output_name
     }
 
-    # TODO(crbug.com/1422745): don't default to true. This requires changes to
+    # Don't import the `chromium` crate into third-party code.
+    no_chromium_prelude = true
+
+    rustc_metadata = _rustc_metadata
+
+    # TODO(crbug.com/40259764): don't default to true. This requires changes to
     # third_party.toml and gnrt when generating third-party build targets.
     allow_unsafe = true
+
+    configs = []
+    configs = _configs
+    if (_crate_type == "rlib") {
+      # Forward configs for unit tests.
+      executable_configs = invoker.executable_configs
+    }
 
     if (!defined(rustflags)) {
       rustflags = []
     }
     rustenv = _rustenv
-    if (crate_type == "bin") {
-      target_type = "executable"
-      assert(!defined(invoker.epoch))
-    } else if (crate_type == "proc-macro") {
-      target_type = "rust_proc_macro"
-    } else {
-      assert(crate_type == "rlib")
-      target_type = "rust_library"
-    }
 
     if (!defined(build_native_rust_unit_tests)) {
-      build_native_rust_unit_tests = true
+      build_native_rust_unit_tests = _crate_type != "proc-macro"
+    }
+    if (build_native_rust_unit_tests) {
+      # Unit tests in a proc-macro crate type don't make sense, you can't
+      # compile executables against the `proc_macro` crate.
+      assert(_crate_type != "proc-macro")
     }
 
     # The unit tests for each target, if generated, should be unique as well.
@@ -184,11 +313,15 @@ template("cargo_crate") {
     }
     unit_test_target = "${_unit_test_unique_target_name}${_crate_name}_${_unit_test_unique_epoch}unittests"
 
-    if ((!defined(output_dir) || output_dir == "") && crate_type == "rlib") {
+    if ((!defined(output_dir) || output_dir == "") && _crate_type == "rlib") {
       # Cargo crate rlibs can be compiled differently for tests, and must not
       # collide with the production outputs. This does *not* override the
       # unit_test_output_dir, which is set above, as that target is not an rlib.
       output_dir = "$target_out_dir/$_orig_target_name"
+    }
+
+    if (defined(invoker.dev_deps)) {
+      test_deps = invoker.dev_deps
     }
 
     if (defined(invoker.build_root)) {
@@ -199,8 +332,8 @@ template("cargo_crate") {
       if (!defined(sources)) {
         sources = []
       }
-      if (defined(invoker.dev_deps)) {
-        test_deps = invoker.dev_deps
+      if (!defined(inputs)) {
+        inputs = []
       }
 
       # This... is a bit weird. We generate a file called cargo_flags.rs which
@@ -221,38 +354,78 @@ template("cargo_crate") {
                 filter_include(invoker.build_script_outputs, [ "*.rs" ])) {
           sources += [ "$_build_script_env_out_dir/$extra_source" ]
         }
-        inputs = []
         foreach(extra_source,
                 filter_exclude(invoker.build_script_outputs, [ "*.rs" ])) {
           inputs += [ "$_build_script_env_out_dir/$extra_source" ]
         }
       }
       deps += [ ":${_build_script_name}_output" ]
+      if (defined(_native_libs_action)) {
+        deps += [ ":${_native_libs_action}" ]
+        configs += [ ":${_native_libs_config}" ]
+      }
     }
   }
 
   if (defined(invoker.build_root)) {
+    action("${_build_script_name}_write_rustflags") {
+      _rustflags_txt = "$_build_script_env_out_dir/rustflags.txt"
+      outputs = [ _rustflags_txt ]
+      script = rebase_path("//build/rust/write_rustflags.py")
+      args = [
+        "--output",
+        rebase_path(_rustflags_txt, root_build_dir),
+        "--",
+        "{{rustflags}}",
+      ]
+
+      # The configs are required to get `{{rustflags}}` so that the build script
+      # is compiled with the same flags as the library/binary will be. The build
+      # script is an executable so it also gets the executable configs. If this
+      # is ever a problem we can add a separate build_script_configs to the
+      # cargo_crate template and just have it default to the same thing as
+      # executable_configs.
+      configs = invoker.executable_configs
+    }
+
     # Extra targets required to make build script work
     action("${_build_script_name}_output") {
       script = rebase_path("//build/rust/run_build_script.py")
-      build_script_target =
-          ":${_build_script_name}($host_toolchain_no_sanitizers)"
-      deps = [ build_script_target ]
+      _write_rustflags_outputs =
+          get_target_outputs(":${_build_script_name}_write_rustflags")
+      _rustflags_txt = _write_rustflags_outputs[0]
+      inputs = [
+        "//build/action_helpers.py",
+        "//build/gn_helpers.py",
+        _rustflags_txt,
+      ]
+      build_script_target = ":${_build_script_name}($rust_macro_toolchain)"
+      deps = [
+        ":${_build_script_name}_write_rustflags",
+        build_script_target,
+      ]
+      testonly = _testonly
+      if (defined(invoker.visibility)) {
+        visibility = invoker.visibility
+      }
 
-      # The build script output is always in the name-specific output dir. It
-      # may be built with a different toolchain when cross-compiling (the host
-      # toolchain) so we must find the path relative to that.
-      _build_script_target_out_dir =
-          get_label_info(build_script_target, "target_out_dir")
-      _build_script_exe =
-          "$_build_script_target_out_dir/$_orig_target_name/$_build_script_name"
-      if (is_win) {
+      # The build script may be built with a different toolchain when
+      # cross-compiling (the host toolchain) so we must find the path relative
+      # to that.
+      _build_script_root_out_dir =
+          get_label_info(build_script_target, "root_out_dir")
+      _build_script_exe = "$_build_script_root_out_dir/$_build_script_name"
+
+      # The executable is always built with the `rust_macro_toolchain` which
+      # targets the `host_os`. The rule here is on the `target_toolchain` which
+      # can be different (e.g. compiling on Linux, targeting Windows).
+      if (host_os == "win") {
         _build_script_exe = "${_build_script_exe}.exe"
       }
 
       _flags_file = "$_build_script_env_out_dir/cargo_flags.rs"
 
-      inputs = [ _build_script_exe ]
+      inputs += [ _build_script_exe ]
       outputs = [ _flags_file ]
       args = [
         "--build-script",
@@ -260,17 +433,35 @@ template("cargo_crate") {
         "--output",
         rebase_path(_flags_file, root_build_dir),
         "--rust-prefix",
-        rebase_path("${rust_sysroot}/bin"),
+        rebase_path("${rust_sysroot}/bin", root_build_dir),
         "--out-dir",
         rebase_path(_build_script_env_out_dir, root_build_dir),
         "--src-dir",
         rebase_path(get_path_info(invoker.build_root, "dir"), root_build_dir),
+        "--target",
+        rust_abi_target,
+        "--rustflags",
+        rebase_path(_rustflags_txt, root_build_dir),
       ]
-      if (defined(rust_abi_target) && rust_abi_target != "") {
+      if (cargo_target_abi != "") {
         args += [
-          "--target",
-          rust_abi_target,
+          "--target-abi",
+          cargo_target_abi,
         ]
+      }
+      if (current_cpu == "arm64" || current_cpu == "x64" ||
+          current_cpu == "loong64" || current_cpu == "riscv64") {
+        args += [
+          "--pointer-width",
+          "64",
+        ]
+      } else if (current_cpu == "arm" || current_cpu == "x86") {
+        args += [
+          "--pointer-width",
+          "32",
+        ]
+      } else {
+        assert(false, "Architecture not supported")
       }
       if (defined(invoker.features)) {
         args += [ "--features" ]
@@ -292,20 +483,36 @@ template("cargo_crate") {
       }
     }
 
-    if (current_toolchain == host_toolchain_no_sanitizers) {
-      rust_target(_build_script_name) {
-        target_type = "executable"
+    if (toolchain_for_rust_host_build_tools) {
+      # The build script is only available to be built on the host, and we use
+      # the rust_macro_toolchain for it to unblock building them while the
+      # Chromium stdlib is still being compiled.
+      rust_executable(_build_script_name) {
+        crate_name = _build_script_name
         sources = invoker.build_sources
         crate_root = invoker.build_root
+        testonly = _testonly
+        if (defined(invoker.visibility)) {
+          visibility = invoker.visibility
+        }
         if (defined(invoker.build_deps)) {
           deps = invoker.build_deps
         }
+        if (defined(invoker.build_script_inputs)) {
+          inputs = invoker.build_script_inputs
+        }
 
-        # An rlib's build script may be built differently for tests and for
-        # production, so they must be in a name specific to the GN target. The
-        # ${_build_script_name}_output target looks for the exe in this
-        # location.
-        output_dir = "$target_out_dir/$_orig_target_name"
+        # Don't import the `chromium` crate into third-party code.
+        no_chromium_prelude = true
+
+        # The ${_build_script_name}_output target looks for the exe in this
+        # location. Due to how the Windows component build works, this has to
+        # be $root_out_dir for all EXEs. In component build, C++ links to the
+        # CRT as a DLL, and if Rust does not match, we can't link mixed target
+        # Rust EXE/DLLs, as the headers in C++ said something different than
+        # what Rust links. Since the CRT DLL is placed in the $root_out_dir,
+        # an EXE can find it if it's also placed in that dir.
+        output_dir = root_out_dir
         rustenv = _rustenv
         forward_variables_from(invoker,
                                [
@@ -313,8 +520,22 @@ template("cargo_crate") {
                                  "edition",
                                  "rustflags",
                                ])
-        executable_configs -= [ "//build/config/compiler:chromium_code" ]
-        executable_configs += [ "//build/config/compiler:no_chromium_code" ]
+        configs -= [
+          "//build/config/compiler:chromium_code",
+
+          # Avoid generating profiling data for build scripts.
+          #
+          # TODO(crbug.com/40261306): determine for sure whether to remove this
+          # config. I'm not sure of the overlap between PGO instrumentation and
+          # code coverage instrumentation, but we definitely don't want build
+          # script coverage for PGO, while we might for test coverage metrics.
+          #
+          # If we do include build script output in test metrics, it could be
+          # misleading: exercising some code from a build script doesn't give us
+          # the same signal as an actual test.
+          "//build/config/coverage:default_coverage",
+        ]
+        configs += [ "//build/config/compiler:no_chromium_code" ]
       }
     } else {
       not_needed(invoker,
@@ -337,4 +558,5 @@ template("cargo_crate") {
 set_defaults("cargo_crate") {
   library_configs = default_compiler_configs
   executable_configs = default_executable_configs
+  proc_macro_configs = default_rust_proc_macro_configs
 }

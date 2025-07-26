@@ -6,7 +6,8 @@
 
 namespace media::internal {
 
-FakeDriver::FakeDriver() = default;
+FakeDriver::FakeDriver(int drm_fd) : scoped_bo_mapping_factory_(drm_fd) {}
+
 FakeDriver::~FakeDriver() = default;
 
 FakeConfig::IdType FakeDriver::CreateConfig(
@@ -33,7 +34,8 @@ FakeSurface::IdType FakeDriver::CreateSurface(
     unsigned int width,
     unsigned int height,
     std::vector<VASurfaceAttrib> attrib_list) {
-  return surface_.CreateObject(format, width, height, std::move(attrib_list));
+  return surface_.CreateObject(format, width, height, std::move(attrib_list),
+                               scoped_bo_mapping_factory_);
 }
 
 bool FakeDriver::SurfaceExists(FakeSurface::IdType id) {
@@ -54,8 +56,8 @@ FakeContext::IdType FakeDriver::CreateContext(
     int picture_height,
     int flag,
     std::vector<VASurfaceID> render_targets) {
-  return context_.CreateObject(config_id, picture_width, picture_height, flag,
-                               std::move(render_targets));
+  return context_.CreateObject(GetConfig(config_id), picture_width,
+                               picture_height, flag, std::move(render_targets));
 }
 
 bool FakeDriver::ContextExists(FakeContext::IdType id) {
@@ -68,6 +70,46 @@ const FakeContext& FakeDriver::GetContext(FakeContext::IdType id) {
 
 void FakeDriver::DestroyContext(FakeContext::IdType id) {
   context_.DestroyObject(id);
+}
+
+FakeBuffer::IdType FakeDriver::CreateBuffer(VAContextID context,
+                                            VABufferType type,
+                                            unsigned int size_per_element,
+                                            unsigned int num_elements,
+                                            const void* data) {
+  return buffers_.CreateObject(context, type, size_per_element, num_elements,
+                               data);
+}
+
+bool FakeDriver::BufferExists(FakeBuffer::IdType id) {
+  return buffers_.ObjectExists(id);
+}
+
+const FakeBuffer& FakeDriver::GetBuffer(FakeBuffer::IdType id) {
+  return buffers_.GetObject(id);
+}
+
+void FakeDriver::DestroyBuffer(FakeBuffer::IdType id) {
+  buffers_.DestroyObject(id);
+}
+
+void FakeDriver::CreateImage(const VAImageFormat& format,
+                             int width,
+                             int height,
+                             VAImage* va_image) {
+  images_.CreateObject(format, width, height, /*fake_driver=*/*this, va_image);
+}
+
+bool FakeDriver::ImageExists(FakeImage::IdType id) {
+  return images_.ObjectExists(id);
+}
+
+const FakeImage& FakeDriver::GetImage(FakeImage::IdType id) {
+  return images_.GetObject(id);
+}
+
+void FakeDriver::DestroyImage(FakeImage::IdType id) {
+  images_.DestroyObject(id);
 }
 
 }  // namespace media::internal

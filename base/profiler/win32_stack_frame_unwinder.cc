@@ -8,6 +8,7 @@
 
 #include <utility>
 
+#include "base/check_op.h"
 #include "base/notreached.h"
 #include "build/build_config.h"
 
@@ -37,8 +38,8 @@ class Win32UnwindFunctions : public Win32StackFrameUnwinder::UnwindFunctions {
                      CONTEXT* context) override;
 };
 
-Win32UnwindFunctions::Win32UnwindFunctions() {}
-Win32UnwindFunctions::~Win32UnwindFunctions() {}
+Win32UnwindFunctions::Win32UnwindFunctions() = default;
+Win32UnwindFunctions::~Win32UnwindFunctions() = default;
 
 PRUNTIME_FUNCTION Win32UnwindFunctions::LookupFunctionEntry(
     DWORD64 program_counter,
@@ -47,7 +48,6 @@ PRUNTIME_FUNCTION Win32UnwindFunctions::LookupFunctionEntry(
   return ::RtlLookupFunctionEntry(program_counter, image_base, nullptr);
 #else
   NOTREACHED();
-  return nullptr;
 #endif
 }
 
@@ -77,7 +77,7 @@ Win32StackFrameUnwinder::UnwindFunctions::UnwindFunctions() = default;
 Win32StackFrameUnwinder::Win32StackFrameUnwinder()
     : Win32StackFrameUnwinder(std::make_unique<Win32UnwindFunctions>()) {}
 
-Win32StackFrameUnwinder::~Win32StackFrameUnwinder() {}
+Win32StackFrameUnwinder::~Win32StackFrameUnwinder() = default;
 
 bool Win32StackFrameUnwinder::TryUnwind(
     bool at_top_frame,
@@ -134,7 +134,6 @@ bool Win32StackFrameUnwinder::TryUnwind(
   return false;
 #else
   NOTREACHED();
-  return false;
 #endif
 }
 

@@ -26,14 +26,17 @@ PlatformSharedMemoryRegion PlatformSharedMemoryRegion::Take(
     Mode mode,
     size_t size,
     const UnguessableToken& guid) {
-  if (!handle.is_valid())
+  if (!handle.is_valid()) {
     return {};
+  }
 
-  if (size == 0)
+  if (size == 0) {
     return {};
+  }
 
-  if (size > static_cast<size_t>(std::numeric_limits<int>::max()))
+  if (size > static_cast<size_t>(std::numeric_limits<int>::max())) {
     return {};
+  }
 
   CHECK(CheckPlatformHandlePermissionsCorrespondToMode(zx::unowned_vmo(handle),
                                                        mode, size));
@@ -50,8 +53,9 @@ bool PlatformSharedMemoryRegion::IsValid() const {
 }
 
 PlatformSharedMemoryRegion PlatformSharedMemoryRegion::Duplicate() const {
-  if (!IsValid())
+  if (!IsValid()) {
     return {};
+  }
 
   CHECK_NE(mode_, Mode::kWritable)
       << "Duplicating a writable shared memory region is prohibited";
@@ -68,8 +72,9 @@ PlatformSharedMemoryRegion PlatformSharedMemoryRegion::Duplicate() const {
 }
 
 bool PlatformSharedMemoryRegion::ConvertToReadOnly() {
-  if (!IsValid())
+  if (!IsValid()) {
     return false;
+  }
 
   CHECK_EQ(mode_, Mode::kWritable)
       << "Only writable shared memory region can be converted to read-only";
@@ -85,8 +90,9 @@ bool PlatformSharedMemoryRegion::ConvertToReadOnly() {
 }
 
 bool PlatformSharedMemoryRegion::ConvertToUnsafe() {
-  if (!IsValid())
+  if (!IsValid()) {
     return false;
+  }
 
   CHECK_EQ(mode_, Mode::kWritable)
       << "Only writable shared memory region can be converted to unsafe";
@@ -98,8 +104,9 @@ bool PlatformSharedMemoryRegion::ConvertToUnsafe() {
 // static
 PlatformSharedMemoryRegion PlatformSharedMemoryRegion::Create(Mode mode,
                                                               size_t size) {
-  if (size == 0)
+  if (size == 0) {
     return {};
+  }
 
   // Aligning may overflow so check that the result doesn't decrease.
   size_t rounded_size = bits::AlignUp(size, GetPageSize());
@@ -118,7 +125,7 @@ PlatformSharedMemoryRegion PlatformSharedMemoryRegion::Create(Mode mode,
     return {};
   }
 
-  // TODO(crbug.com/991805): Take base::Location from the caller and use it to
+  // TODO(crbug.com/40639453): Take base::Location from the caller and use it to
   // generate the name here.
   constexpr char kVmoName[] = "cr-shared-memory-region";
   status = vmo.set_property(ZX_PROP_NAME, kVmoName, strlen(kVmoName));
@@ -146,7 +153,7 @@ bool PlatformSharedMemoryRegion::CheckPlatformHandlePermissionsCorrespondToMode(
   ZX_CHECK(status == ZX_OK, status) << "zx_object_get_info";
 
   if (basic.type != ZX_OBJ_TYPE_VMO) {
-    // TODO(crbug.com/838365): convert to DLOG when bug fixed.
+    // TODO(crbug.com/40574272): convert to DLOG when bug fixed.
     LOG(ERROR) << "Received zircon handle is not a VMO";
     return false;
   }
@@ -155,7 +162,7 @@ bool PlatformSharedMemoryRegion::CheckPlatformHandlePermissionsCorrespondToMode(
   bool expected_read_only = mode == Mode::kReadOnly;
 
   if (is_read_only != expected_read_only) {
-    // TODO(crbug.com/838365): convert to DLOG when bug fixed.
+    // TODO(crbug.com/40574272): convert to DLOG when bug fixed.
     LOG(ERROR) << "VMO object has wrong access rights: it is"
                << (is_read_only ? " " : " not ") << "read-only but it should"
                << (expected_read_only ? " " : " not ") << "be";

@@ -7,6 +7,8 @@
 #include <stdint.h>
 
 #include <memory>
+#include <string_view>
+#include <utility>
 
 #include "build/build_config.h"
 #include "cc/paint/paint_canvas.h"
@@ -57,7 +59,7 @@ void ElideTextAndAdjustRange(const FontList& font_list,
 
 // Updates |render_text| from the specified parameters.
 void UpdateRenderText(const Rect& rect,
-                      const std::u16string& text,
+                      std::u16string_view text,
                       const FontList& font_list,
                       int flags,
                       SkColor color,
@@ -93,13 +95,15 @@ void UpdateRenderText(const Rect& rect,
   render_text->SetStyle(TEXT_STYLE_ITALIC, (font_style & Font::ITALIC) != 0);
   render_text->SetStyle(TEXT_STYLE_UNDERLINE,
                         (font_style & Font::UNDERLINE) != 0);
+  render_text->SetStyle(TEXT_STYLE_STRIKE,
+                        (font_style & Font::STRIKE_THROUGH) != 0);
   render_text->SetWeight(font_list.GetFontWeight());
 }
 
 }  // namespace
 
 // static
-void Canvas::SizeStringFloat(const std::u16string& text,
+void Canvas::SizeStringFloat(std::u16string_view text,
                              const FontList& font_list,
                              float* width,
                              float* height,
@@ -129,7 +133,7 @@ void Canvas::SizeStringFloat(const std::u16string& text,
     float w = 0;
     for (size_t i = 0; i < strings.size(); ++i) {
       StripAcceleratorChars(flags, &strings[i]);
-      render_text->SetText(strings[i]);
+      render_text->SetText(std::move(strings[i]));
       const SizeF& string_size = render_text->GetStringSizeF();
       w = std::max(w, string_size.width());
       h += (i > 0 && line_height > 0) ?
@@ -143,7 +147,7 @@ void Canvas::SizeStringFloat(const std::u16string& text,
 
     Rect rect(base::saturated_cast<int>(*width),
               base::saturated_cast<int>(*height));
-    std::u16string adjusted_text = text;
+    std::u16string adjusted_text(text);
     StripAcceleratorChars(flags, &adjusted_text);
     UpdateRenderText(rect, adjusted_text, font_list, flags, 0,
                      render_text.get());
@@ -153,7 +157,20 @@ void Canvas::SizeStringFloat(const std::u16string& text,
   }
 }
 
-void Canvas::DrawStringRectWithFlags(const std::u16string& text,
+void Canvas::AdjustClipRectForTextBounds(const Rect& text_bounds) {
+  gfx::RectF clip_rect(text_bounds);
+
+  // Pixels on the border of `text_bounds` will get clipped if the
+  // border is not pixel-aligned. This can only happen when the canvas
+  // is scaled. Expand the clip rect by 0.5 dip to fix that.
+  // See crbug.com/1469229.
+  if (std::abs(std::trunc(image_scale()) - image_scale()) > 1e-5f) {
+    clip_rect.Outset(0.5f);
+  }
+  ClipRect(clip_rect);
+}
+
+void Canvas::DrawStringRectWithFlags(std::u16string_view text,
                                      const FontList& font_list,
                                      SkColor color,
                                      const Rect& text_bounds,
@@ -162,11 +179,13 @@ void Canvas::DrawStringRectWithFlags(const std::u16string& text,
     return;
 
   canvas_->save();
-  ClipRect(text_bounds);
+
+  AdjustClipRectForTextBounds(text_bounds);
 
   Rect rect(text_bounds);
 
   std::unique_ptr<RenderText> render_text = RenderText::CreateRenderText();
+  render_text->set_clip_to_display_rect(false);
 
   if (flags & MULTI_LINE) {
     WordWrapBehavior wrap_behavior = IGNORE_LONG_WORDS;
@@ -196,7 +215,7 @@ void Canvas::DrawStringRectWithFlags(const std::u16string& text,
       rect += Vector2d(0, line_height);
     }
   } else {
-    std::u16string adjusted_text = text;
+    std::u16string adjusted_text(text);
     Range range = StripAcceleratorChars(flags, &adjusted_text);
     bool elide_text = ((flags & NO_ELLIPSIS) == 0);
 

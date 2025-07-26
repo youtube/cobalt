@@ -2,19 +2,19 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include "v4l2_video_decoder_delegate_vp8.h"
-
-// ChromeOS specific header; does not exist upstream
-#if BUILDFLAG(IS_CHROMEOS)
-#define __LINUX_MEDIA_VP8_CTRLS_LEGACY_H
-#include <linux/media/vp8-ctrls-upstream.h>
+#ifdef UNSAFE_BUFFERS_BUILD
+// TODO(crbug.com/40285824): Remove this and spanify to fix the errors.
+#pragma allow_unsafe_buffers
 #endif
 
+#include "v4l2_video_decoder_delegate_vp8.h"
+
+#include <linux/v4l2-controls.h>
 #include <linux/videodev2.h>
 
+#include <algorithm>
 #include <type_traits>
 
-#include "base/cxx17_backports.h"
 #include "base/logging.h"
 #include "base/numerics/safe_conversions.h"
 #include "media/gpu/macros.h"
@@ -226,6 +226,7 @@ bool V4L2VideoDecoderDelegateVP8::SubmitDecode(
   ext_ctrls.controls = &ctrl;
   dec_surface->PrepareSetCtrls(&ext_ctrls);
   if (device_->Ioctl(VIDIOC_S_EXT_CTRLS, &ext_ctrls) != 0) {
+    RecordVidiocIoctlErrorUMA(VidiocIoctlRequests::kVidiocSExtCtrls);
     VPLOGF(1) << "ioctl() failed: VIDIOC_S_EXT_CTRLS";
     return false;
   }

@@ -6,8 +6,10 @@
 
 #include <stdint.h>
 
+#include <array>
 #include <limits>
 #include <set>
+#include <string_view>
 #include <unordered_set>
 
 #include "base/strings/string_util.h"
@@ -15,33 +17,6 @@
 #include "testing/gtest/include/gtest/gtest.h"
 
 namespace base {
-
-TEST(UuidTest, DeprecatedUuidCorrectlyFormatted) {
-  constexpr int kIterations = 10;
-  for (int i = 0; i < kIterations; ++i) {
-    const std::string guid = GenerateUuid();
-    EXPECT_TRUE(IsValidUuid(guid));
-    EXPECT_TRUE(IsValidUuidOutputString(guid));
-    EXPECT_TRUE(IsValidUuid(ToLowerASCII(guid)));
-    EXPECT_TRUE(IsValidUuid(ToUpperASCII(guid)));
-  }
-}
-
-TEST(UuidTest, DeprecatedUuidBasicUniqueness) {
-  constexpr int kIterations = 10;
-  for (int i = 0; i < kIterations; ++i) {
-    const std::string guid_str1 = GenerateUuid();
-    const std::string guid_str2 = GenerateUuid();
-    EXPECT_EQ(36U, guid_str1.length());
-    EXPECT_EQ(36U, guid_str2.length());
-    EXPECT_NE(guid_str1, guid_str2);
-
-    const Uuid guid1 = Uuid::ParseCaseInsensitive(guid_str1);
-    EXPECT_TRUE(guid1.is_valid());
-    const Uuid guid2 = Uuid::ParseCaseInsensitive(guid_str2);
-    EXPECT_TRUE(guid2.is_valid());
-  }
-}
 
 namespace {
 
@@ -71,7 +46,9 @@ TEST(UuidTest, UuidBasicUniqueness) {
 
 namespace {
 
-void TestUuidValidity(StringPiece input, bool case_insensitive, bool strict) {
+void TestUuidValidity(std::string_view input,
+                      bool case_insensitive,
+                      bool strict) {
   SCOPED_TRACE(input);
   {
     const Uuid guid = Uuid::ParseCaseInsensitive(input);
@@ -92,7 +69,7 @@ TEST(UuidTest, Validity) {
   enum Parsability { kDoesntParse, kParsesCaseInsensitiveOnly, kAlwaysParses };
 
   static constexpr struct {
-    StringPiece input;
+    std::string_view input;
     Parsability parsability;
   } kUuidValidity[] = {
       {"invalid", kDoesntParse},
@@ -213,8 +190,8 @@ TEST(UuidTest, Compare) {
 }
 
 TEST(UuidTest, FormatRandomDataAsV4) {
-  static constexpr uint64_t bytes1a[] = {0x0123456789abcdefull,
-                                         0x5a5a5a5aa5a5a5a5ull};
+  constexpr static const auto bytes1a =
+      std::to_array<uint64_t>({0x0123456789abcdefull, 0x5a5a5a5aa5a5a5a5ull});
   static constexpr uint64_t bytes1b[] = {bytes1a[0], bytes1a[1]};
   static constexpr uint64_t bytes2[] = {0xfffffffffffffffdull,
                                         0xfffffffffffffffeull};
@@ -222,13 +199,11 @@ TEST(UuidTest, FormatRandomDataAsV4) {
                                         0xfffffffffffffffcull};
 
   const Uuid guid1a =
-      Uuid::FormatRandomDataAsV4ForTesting(as_bytes(make_span(bytes1a)));
+      Uuid::FormatRandomDataAsV4ForTesting(as_byte_span(bytes1a));
   const Uuid guid1b =
-      Uuid::FormatRandomDataAsV4ForTesting(as_bytes(make_span(bytes1b)));
-  const Uuid guid2 =
-      Uuid::FormatRandomDataAsV4ForTesting(as_bytes(make_span(bytes2)));
-  const Uuid guid3 =
-      Uuid::FormatRandomDataAsV4ForTesting(as_bytes(make_span(bytes3)));
+      Uuid::FormatRandomDataAsV4ForTesting(as_byte_span(bytes1b));
+  const Uuid guid2 = Uuid::FormatRandomDataAsV4ForTesting(as_byte_span(bytes2));
+  const Uuid guid3 = Uuid::FormatRandomDataAsV4ForTesting(as_byte_span(bytes3));
 
   EXPECT_TRUE(guid1a.is_valid());
   EXPECT_TRUE(guid1b.is_valid());

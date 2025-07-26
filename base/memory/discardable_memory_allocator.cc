@@ -35,8 +35,9 @@ DiscardableMemoryAllocator::AllocateLockedDiscardableMemoryWithRetryOrDie(
     OnceClosure on_no_memory) {
   auto* allocator = GetInstance();
   auto memory = allocator->AllocateLockedDiscardableMemory(size);
-  if (memory)
+  if (memory) {
     return memory;
+  }
 
   std::move(on_no_memory).Run();
   // The call above will likely have freed some memory, which will end up in the
@@ -45,10 +46,9 @@ DiscardableMemoryAllocator::AllocateLockedDiscardableMemoryWithRetryOrDie(
   ReleaseFreeMemory();
 
   memory = allocator->AllocateLockedDiscardableMemory(size);
-#if !defined(COBALT_PENDING_CLEAN_UP)
-  if (!memory)
+  if (!memory) {
     TerminateBecauseOutOfMemory(size);
-#endif
+  }
 
   return memory;
 }

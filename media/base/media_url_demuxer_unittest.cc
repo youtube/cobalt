@@ -12,6 +12,7 @@
 #include "base/task/single_thread_task_runner.h"
 #include "base/test/task_environment.h"
 #include "net/cookies/site_for_cookies.h"
+#include "net/storage_access_api/status.h"
 #include "testing/gmock/include/gmock/gmock.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
@@ -32,7 +33,7 @@ class MediaUrlDemuxerTest : public testing::Test {
     demuxer_ = std::make_unique<MediaUrlDemuxer>(
         base::SingleThreadTaskRunner::GetCurrentDefault(), media_url,
         net::SiteForCookies::FromUrl(first_party),
-        url::Origin::Create(first_party), /*has_storage_access=*/false,
+        url::Origin::Create(first_party), net::StorageAccessApiStatus::kNone,
         allow_credentials, false);
   }
 
@@ -55,7 +56,7 @@ class MediaUrlDemuxerTest : public testing::Test {
 TEST_F(MediaUrlDemuxerTest, BaseCase) {
   InitializeTest();
 
-  EXPECT_EQ(MediaResource::Type::URL, demuxer_->GetType());
+  EXPECT_EQ(MediaResource::Type::KUrl, demuxer_->GetType());
 
   const MediaUrlParams& params = demuxer_->GetMediaUrlParams();
   EXPECT_EQ(default_media_url_, params.media_url);
@@ -68,9 +69,9 @@ TEST_F(MediaUrlDemuxerTest, AcceptsEmptyStrings) {
   InitializeTest(GURL(), GURL(), false);
 
   const MediaUrlParams& params = demuxer_->GetMediaUrlParams();
-  EXPECT_EQ(GURL::EmptyGURL(), params.media_url);
-  EXPECT_TRUE(net::SiteForCookies::FromUrl(GURL::EmptyGURL())
-                  .IsEquivalent(params.site_for_cookies));
+  EXPECT_EQ(GURL(), params.media_url);
+  EXPECT_TRUE(net::SiteForCookies::FromUrl(GURL()).IsEquivalent(
+      params.site_for_cookies));
   EXPECT_EQ(false, params.allow_credentials);
 }
 

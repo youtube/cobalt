@@ -1,0 +1,5 @@
+include_rules = [
+  "+chromeos/ash/components/fwupd",
+  "+ui/chromeos",
+  "+ui/resources",
+]

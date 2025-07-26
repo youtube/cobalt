@@ -2,9 +2,16 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#ifdef UNSAFE_BUFFERS_BUILD
+// TODO(crbug.com/40285824): Remove this and convert code to safer constructs.
+#pragma allow_unsafe_buffers
+#endif
+
 #include "media/midi/usb_midi_input_stream.h"
 
 #include <string.h>
+
+#include <array>
 
 #include "base/logging.h"
 #include "media/midi/usb_midi_device.h"
@@ -69,8 +76,8 @@ void UsbMidiInputStream::ProcessOnePacket(UsbMidiDevice* device,
   // The first 4 bytes of the packet is accessible here.
   uint8_t code_index = packet[0] & 0x0f;
   uint8_t cable_number = packet[0] >> 4;
-  const size_t packet_size_table[16] = {
-    0, 0, 2, 3, 3, 1, 2, 3, 3, 3, 3, 3, 2, 2, 3, 1,
+  const std::array<size_t, 16> packet_size_table = {
+      0, 0, 2, 3, 3, 1, 2, 3, 3, 3, 3, 3, 2, 2, 3, 1,
   };
   size_t packet_size = packet_size_table[code_index];
   if (packet_size == 0) {

@@ -8,8 +8,10 @@
 #include <string>
 
 #include "base/android/jni_string.h"
-#include "media/midi/midi_jni_headers/MidiDeviceAndroid_jni.h"
 #include "media/midi/midi_output_port_android.h"
+
+// Must come after all headers that specialize FromJniType() / ToJniType().
+#include "media/midi/midi_jni_headers/MidiDeviceAndroid_jni.h"
 
 using base::android::JavaRef;
 using base::android::ScopedJavaLocalRef;
@@ -48,19 +50,19 @@ MidiDeviceAndroid::MidiDeviceAndroid(JNIEnv* env,
 MidiDeviceAndroid::~MidiDeviceAndroid() {}
 
 std::string MidiDeviceAndroid::GetManufacturer() {
-  JNIEnv* env = base::android::AttachCurrentThread();
+  JNIEnv* env = jni_zero::AttachCurrentThread();
   return ConvertMaybeJavaString(
       env, Java_MidiDeviceAndroid_getManufacturer(env, raw_device_));
 }
 
 std::string MidiDeviceAndroid::GetProductName() {
-  JNIEnv* env = base::android::AttachCurrentThread();
+  JNIEnv* env = jni_zero::AttachCurrentThread();
   return ConvertMaybeJavaString(
       env, Java_MidiDeviceAndroid_getProduct(env, raw_device_));
 }
 
 std::string MidiDeviceAndroid::GetDeviceVersion() {
-  JNIEnv* env = base::android::AttachCurrentThread();
+  JNIEnv* env = jni_zero::AttachCurrentThread();
   return ConvertMaybeJavaString(
       env, Java_MidiDeviceAndroid_getVersion(env, raw_device_));
 }

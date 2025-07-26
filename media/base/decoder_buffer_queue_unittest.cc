@@ -2,8 +2,10 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include "media/base/decoder_buffer.h"
 #include "media/base/decoder_buffer_queue.h"
+
+#include "base/memory/scoped_refptr.h"
+#include "media/base/decoder_buffer.h"
 #include "media/base/timestamp_constants.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
@@ -19,17 +21,21 @@ static base::TimeDelta ToTimeDelta(int seconds) {
 //
 // Negative numbers will be converted to kNoTimestamp;
 static scoped_refptr<DecoderBuffer> CreateBuffer(int timestamp) {
-  scoped_refptr<DecoderBuffer> buffer = new DecoderBuffer(0);
+  auto buffer = base::MakeRefCounted<DecoderBuffer>(0);
   buffer->set_timestamp(ToTimeDelta(timestamp));
   buffer->set_duration(ToTimeDelta(0));
   return buffer;
 }
 
 static scoped_refptr<DecoderBuffer> CreateBuffer(int timestamp, int size) {
-  scoped_refptr<DecoderBuffer> buffer = new DecoderBuffer(size);
+  auto buffer = base::MakeRefCounted<DecoderBuffer>(size);
   buffer->set_timestamp(ToTimeDelta(timestamp));
   buffer->set_duration(ToTimeDelta(0));
   return buffer;
+}
+
+static size_t GetExpectedMemoryUsage(int number_of_buffers, int data_size) {
+  return number_of_buffers * sizeof(DecoderBuffer) + data_size;
 }
 
 TEST(DecoderBufferQueueTest, IsEmpty) {
@@ -142,28 +148,34 @@ TEST(DecoderBufferQueueTest, Duration_NoTimestamp) {
   EXPECT_EQ(0, queue.Duration().InSeconds());
 }
 
-TEST(DecoderBufferQueueTest, DataSize) {
+TEST(DecoderBufferQueueTest, MemoryUsage) {
   DecoderBufferQueue queue;
-  EXPECT_EQ(queue.data_size(), 0u);
+  EXPECT_EQ(queue.memory_usage_in_bytes(), 0u);
 
-  queue.Push(CreateBuffer(0, 1200u));
-  EXPECT_EQ(queue.data_size(), 1200u);
-
-  queue.Push(CreateBuffer(1, 1000u));
-  EXPECT_EQ(queue.data_size(), 2200u);
+  queue.Push(CreateBuffer(0, 0u));
+  EXPECT_EQ(queue.memory_usage_in_bytes(), GetExpectedMemoryUsage(1, 0));
 
   queue.Pop();
-  EXPECT_EQ(queue.data_size(), 1000u);
+  EXPECT_EQ(queue.memory_usage_in_bytes(), 0u);
 
-  queue.Push(CreateBuffer(2, 999u));
+  queue.Push(CreateBuffer(1, 1200u));
+  EXPECT_EQ(queue.memory_usage_in_bytes(), GetExpectedMemoryUsage(1, 1200));
+
+  queue.Push(CreateBuffer(2, 1000u));
+  EXPECT_EQ(queue.memory_usage_in_bytes(), GetExpectedMemoryUsage(2, 2200));
+
+  queue.Pop();
+  EXPECT_EQ(queue.memory_usage_in_bytes(), GetExpectedMemoryUsage(1, 1000));
+
   queue.Push(CreateBuffer(3, 999u));
-  EXPECT_EQ(queue.data_size(), 2998u);
+  queue.Push(CreateBuffer(4, 999u));
+  EXPECT_EQ(queue.memory_usage_in_bytes(), GetExpectedMemoryUsage(3, 2998));
 
   queue.Clear();
-  EXPECT_EQ(queue.data_size(), 0u);
+  EXPECT_EQ(queue.memory_usage_in_bytes(), GetExpectedMemoryUsage(0, 0));
 
-  queue.Push(CreateBuffer(4, 1400u));
-  EXPECT_EQ(queue.data_size(), 1400u);
+  queue.Push(CreateBuffer(5, 1400u));
+  EXPECT_EQ(queue.memory_usage_in_bytes(), GetExpectedMemoryUsage(1, 1400));
 }
 
 }  // namespace media

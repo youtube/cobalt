@@ -2,30 +2,31 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#ifdef UNSAFE_BUFFERS_BUILD
+// TODO(crbug.com/40284755): Remove this and spanify to fix the errors.
+#pragma allow_unsafe_buffers
+#endif
+
 // File utilities that use the ICU library go in this file.
 
 #include "base/i18n/file_util_icu.h"
 
 #include <stdint.h>
-#include <unicode/utf8.h>
 
 #include "base/check.h"
 #include "base/files/file_path.h"
 #include "base/i18n/icu_string_conversions.h"
 #include "base/i18n/string_compare.h"
 #include "base/memory/singleton.h"
-#include "base/notreached.h"
 #include "base/numerics/safe_conversions.h"
 #include "base/strings/string_util.h"
 #include "base/strings/sys_string_conversions.h"
 #include "base/strings/utf_string_conversions.h"
 #include "build/build_config.h"
-#include "build/chromeos_buildflags.h"
 #include "third_party/icu/source/common/unicode/uniset.h"
 #include "third_party/icu/source/i18n/unicode/coll.h"
 
-namespace base {
-namespace i18n {
+namespace base::i18n {
 
 namespace {
 
@@ -172,7 +173,7 @@ UChar32 GetNextCodePoint(const FilePath::StringType* const file_name,
   // Windows uses UTF-16 encoding for filenames.
   U16_NEXT(file_name->data(), cursor, static_cast<int>(file_name->length()),
            code_point);
-#elif BUILDFLAG(IS_POSIX) || BUILDFLAG(IS_FUCHSIA) || defined(STARBOARD)
+#elif BUILDFLAG(IS_POSIX) || BUILDFLAG(IS_FUCHSIA)
   // Mac and Chrome OS use UTF-8 encoding for filenames.
   // Linux doesn't actually define file system encoding. Try to parse as
   // UTF-8.
@@ -244,13 +245,15 @@ void ReplaceIllegalCharactersInPath(FilePath::StringType* file_name,
       // character again.
       cursor = char_begin + 1;
     } else if (!is_illegal_at_ends) {
-      if (unreplaced_legal_range_begin == -1)
+      if (unreplaced_legal_range_begin == -1) {
         unreplaced_legal_range_begin = char_begin;
+      }
       unreplaced_legal_range_end = cursor;
     }
 
-    if (code_point == kExtensionSeparator)
+    if (code_point == kExtensionSeparator) {
       last_extension_separator = char_begin;
+    }
   }
 
   // If |replace_char| is not a legal starting/ending character, ensure that
@@ -284,7 +287,6 @@ void ReplaceIllegalCharactersInPath(FilePath::StringType* file_name,
   }
 }
 
-#if !defined(UCONFIG_NO_COLLATION)
 bool LocaleAwareCompareFilenames(const FilePath& a, const FilePath& b) {
   UErrorCode error_code = U_ZERO_ERROR;
   // Use the default collator. The default locale should have been properly
@@ -307,15 +309,9 @@ bool LocaleAwareCompareFilenames(const FilePath& a, const FilePath& b) {
              WideToUTF16(SysNativeMBToWide(b.value()))) == UCOL_LESS;
 #endif
 }
-#else
-bool LocaleAwareCompareFilenames(const FilePath& a, const FilePath& b) {
-  NOTIMPLEMENTED();
-  return false;
-}
-#endif
 
 void NormalizeFileNameEncoding(FilePath* file_name) {
-#if BUILDFLAG(IS_CHROMEOS_ASH)
+#if BUILDFLAG(IS_CHROMEOS)
   std::string normalized_str;
   if (ConvertToUtf8AndNormalize(file_name->BaseName().value(), kCodepageUTF8,
                                 &normalized_str) &&
@@ -325,5 +321,4 @@ void NormalizeFileNameEncoding(FilePath* file_name) {
 #endif
 }
 
-}  // namespace i18n
-}  // namespace base
+}  // namespace base::i18n

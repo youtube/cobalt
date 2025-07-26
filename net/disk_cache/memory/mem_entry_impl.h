@@ -146,7 +146,7 @@ class NET_EXPORT_PRIVATE MemEntryImpl final
                MemEntryImpl* parent,
                net::NetLog* net_log);
 
-  using EntryMap = std::map<int64_t, MemEntryImpl*>;
+  using EntryMap = std::map<int64_t, raw_ptr<MemEntryImpl, CtnExperimental>>;
 
   static const int kNumStreams = 3;
 
@@ -181,7 +181,7 @@ class NET_EXPORT_PRIVATE MemEntryImpl final
   void Compact();
 
   std::string key_;
-  std::vector<char> data_[kNumStreams];  // User data.
+  std::array<std::vector<char>, kNumStreams> data_;  // User data.
   uint32_t ref_count_ = 0;
 
   int64_t child_id_;     // The ID of a child entry.

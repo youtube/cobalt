@@ -1,32 +1,9 @@
 # Protocol Buffers - Google's data interchange format
 # Copyright 2008 Google Inc.  All rights reserved.
-# https://developers.google.com/protocol-buffers/
 #
-# Redistribution and use in source and binary forms, with or without
-# modification, are permitted provided that the following conditions are
-# met:
-#
-#     * Redistributions of source code must retain the above copyright
-# notice, this list of conditions and the following disclaimer.
-#     * Redistributions in binary form must reproduce the above
-# copyright notice, this list of conditions and the following disclaimer
-# in the documentation and/or other materials provided with the
-# distribution.
-#     * Neither the name of Google Inc. nor the names of its
-# contributors may be used to endorse or promote products derived from
-# this software without specific prior written permission.
-#
-# THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
-# "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
-# LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR
-# A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT
-# OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
-# SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT
-# LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
-# DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
-# THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
-# (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
-# OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+# Use of this source code is governed by a BSD-style
+# license that can be found in the LICENSE file or at
+# https://developers.google.com/open-source/licenses/bsd
 
 """Code for encoding protocol message primitives.
 
@@ -67,8 +44,6 @@ sizer rather than when calling them.  In particular:
 __author__ = 'kenton@google.com (Kenton Varda)'
 
 import struct
-
-import six
 
 from google.protobuf.internal import wire_format
 
@@ -372,14 +347,16 @@ def MapSizer(field_descriptor, is_message_map):
 def _VarintEncoder():
   """Return an encoder for a basic varint value (does not include tag)."""
 
+  local_int2byte = struct.Struct('>B').pack
+
   def EncodeVarint(write, value, unused_deterministic=None):
     bits = value & 0x7f
     value >>= 7
     while value:
-      write(six.int2byte(0x80|bits))
+      write(local_int2byte(0x80|bits))
       bits = value & 0x7f
       value >>= 7
-    return write(six.int2byte(bits))
+    return write(local_int2byte(bits))
 
   return EncodeVarint
 
@@ -388,16 +365,18 @@ def _SignedVarintEncoder():
   """Return an encoder for a basic signed varint value (does not include
   tag)."""
 
+  local_int2byte = struct.Struct('>B').pack
+
   def EncodeSignedVarint(write, value, unused_deterministic=None):
     if value < 0:
       value += (1 << 64)
     bits = value & 0x7f
     value >>= 7
     while value:
-      write(six.int2byte(0x80|bits))
+      write(local_int2byte(0x80|bits))
       bits = value & 0x7f
       value >>= 7
-    return write(six.int2byte(bits))
+    return write(local_int2byte(bits))
 
   return EncodeSignedVarint
 
@@ -418,8 +397,7 @@ def _VarintBytes(value):
 def TagBytes(field_number, wire_type):
   """Encode the given tag and return the bytes.  Only called at startup."""
 
-  return six.binary_type(
-      _VarintBytes(wire_format.PackTag(field_number, wire_type)))
+  return bytes(_VarintBytes(wire_format.PackTag(field_number, wire_type)))
 
 # --------------------------------------------------------------------
 # As with sizers (see above), we have a number of common encoder

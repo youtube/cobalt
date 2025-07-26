@@ -20,6 +20,10 @@ chromium-third-party@google.com
 
 thakis@chromium.org
 
+# For approving third-party metadata clean-ups.
+per-file ...README.chromium=jsca@google.com
+per-file ...README.chromium=renewitt@google.com
+
 per-file .gitignore=*
 
 # Translation artifacts:

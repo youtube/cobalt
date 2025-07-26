@@ -13,9 +13,15 @@
 #include "base/files/file_util.h"
 #include "base/files/scoped_temp_dir.h"
 #include "base/logging.h"
+#include "base/strings/string_util.h"
 #include "build/build_config.h"
 #include "testing/gmock/include/gmock/gmock.h"
 #include "testing/gtest/include/gtest/gtest.h"
+
+#if BUILDFLAG(IS_ANDROID)
+#include "base/android/content_uri_utils.h"
+#include "base/test/android/content_uri_test_utils.h"
+#endif
 
 using testing::ElementsAre;
 using testing::IsEmpty;
@@ -91,19 +97,20 @@ circular_deque<FilePath> RunEnumerator(
   FileEnumerator enumerator(root_path, recursive, file_type, pattern,
                             folder_search_policy,
                             FileEnumerator::ErrorPolicy::IGNORE_ERRORS);
-  for (auto file = enumerator.Next(); !file.empty(); file = enumerator.Next())
+  for (auto file = enumerator.Next(); !file.empty(); file = enumerator.Next()) {
     rv.emplace_back(std::move(file));
+  }
   return rv;
 }
 
 bool CreateDummyFile(const FilePath& path) {
-  return WriteFile(path, "42", sizeof("42")) == sizeof("42");
+  return WriteFile(path, byte_span_from_cstring("42"));
 }
 
 bool GetFileInfo(const FilePath& file_path, File::Info& info) {
   // FLAG_WIN_BACKUP_SEMANTICS: Needed to open directories on Windows.
   File f(file_path,
-        File::FLAG_OPEN | File::FLAG_READ | File::FLAG_WIN_BACKUP_SEMANTICS);
+         File::FLAG_OPEN | File::FLAG_READ | File::FLAG_WIN_BACKUP_SEMANTICS);
   if (!f.IsValid()) {
     LOG(ERROR) << "Could not open " << file_path.value() << ": "
                << File::ErrorToString(f.error_details());
@@ -184,8 +191,6 @@ TEST(FileEnumerator, SingleFileInFolderForDirSearch) {
   }
 }
 
-// Starboard does not support patterns.
-#if !defined(STARBOARD)
 TEST(FileEnumerator, SingleFileInFolderWithFiltering) {
   ScopedTempDir temp_dir;
   ASSERT_TRUE(temp_dir.CreateUniqueTempDir());
@@ -204,10 +209,7 @@ TEST(FileEnumerator, SingleFileInFolderWithFiltering) {
     EXPECT_THAT(files, IsEmpty());
   }
 }
-#endif  // !defined(STARBOARD)
 
-// Starboard does not support patterns.
-#if !defined(STARBOARD)
 TEST(FileEnumerator, TwoFilesInFolder) {
   ScopedTempDir temp_dir;
   ASSERT_TRUE(temp_dir.CreateUniqueTempDir());
@@ -236,7 +238,6 @@ TEST(FileEnumerator, TwoFilesInFolder) {
     EXPECT_THAT(files, UnorderedElementsAre(foo_txt, bar_txt));
   }
 }
-#endif  // !defined(STARBOARD)
 
 TEST(FileEnumerator, SingleFolderInFolderForFileSearch) {
   ScopedTempDir temp_dir;
@@ -270,8 +271,6 @@ TEST(FileEnumerator, SingleFolderInFolderForDirSearch) {
   }
 }
 
-// Starboard does not support patterns.
-#if !defined(STARBOARD)
 TEST(FileEnumerator, TwoFoldersInFolder) {
   ScopedTempDir temp_dir;
   ASSERT_TRUE(temp_dir.CreateUniqueTempDir());
@@ -293,7 +292,6 @@ TEST(FileEnumerator, TwoFoldersInFolder) {
     EXPECT_THAT(files, ElementsAre(subdir_foo));
   }
 }
-#endif  // !defined(STARBOARD)
 
 TEST(FileEnumerator, FolderAndFileInFolder) {
   ScopedTempDir temp_dir;
@@ -363,8 +361,6 @@ TEST(FileEnumerator, FileInSubfolder) {
   }
 }
 
-// Starboard does not support patterns.
-#if !defined(STARBOARD)
 TEST(FileEnumerator, FilesInSubfoldersWithFiltering) {
   ScopedTempDir temp_dir;
   ASSERT_TRUE(temp_dir.CreateUniqueTempDir());
@@ -402,7 +398,6 @@ TEST(FileEnumerator, FilesInSubfoldersWithFiltering) {
                         FileEnumerator::FolderSearchPolicy::ALL);
   EXPECT_THAT(files, UnorderedElementsAre(subdir_foo, foo_foo, bar_foo));
 }
-#endif  // !defined(STARBOARD)
 
 TEST(FileEnumerator, InvalidDirectory) {
   ScopedTempDir temp_dir;
@@ -427,7 +422,7 @@ TEST(FileEnumerator, InvalidDirectory) {
 #endif
 }
 
-#if BUILDFLAG(IS_POSIX) && !defined(STARBOARD)
+#if BUILDFLAG(IS_POSIX)
 TEST(FileEnumerator, SymLinkLoops) {
   ScopedTempDir temp_dir;
   ASSERT_TRUE(temp_dir.CreateUniqueTempDir());
@@ -470,8 +465,15 @@ TEST(FileEnumerator, GetInfo) {
       TestFile(FILE_PATH_LITERAL("file3"), "Third-third-third")};
   SetUpTestFiles(temp_dir, files);
 
-  FileEnumerator file_enumerator(temp_dir.GetPath(), false,
-                                 FileEnumerator::FILES);
+#if BUILDFLAG(IS_ANDROID)
+  FilePath root_dir =
+      *base::test::android::GetInMemoryContentTreeUriFromCacheDirDirectory(
+          temp_dir.GetPath());
+#else
+  FilePath root_dir = temp_dir.GetPath();
+#endif
+  FileEnumerator file_enumerator(
+      root_dir, false, FileEnumerator::FILES | FileEnumerator::DIRECTORIES);
   while (!file_enumerator.Next().empty()) {
     auto info = file_enumerator.GetInfo();
     bool found = false;
@@ -499,9 +501,9 @@ TEST(FileEnumerator, GetInfoRecursive) {
   ASSERT_TRUE(temp_dir.CreateUniqueTempDir());
 
   TestDirectory directories[] = {TestDirectory(FILE_PATH_LITERAL("dir1")),
-                                 TestDirectory(FILE_PATH_LITERAL("dir2")),
+                                 TestDirectory(FILE_PATH_LITERAL("dir2-empty")),
                                  TestDirectory(FILE_PATH_LITERAL("dir3")),
-                                 TestDirectory(FILE_PATH_LITERAL("dirempty"))};
+                                 TestDirectory(FILE_PATH_LITERAL("dir4"))};
 
   for (const TestDirectory& dir : directories) {
     const FilePath dir_path = temp_dir.GetPath().Append(dir.name);
@@ -511,37 +513,31 @@ TEST(FileEnumerator, GetInfoRecursive) {
   std::vector<TestFile> files = {
       TestFile(FILE_PATH_LITERAL("dir1"), FILE_PATH_LITERAL("file1"), "First"),
       TestFile(FILE_PATH_LITERAL("dir1"), FILE_PATH_LITERAL("file2"), "Second"),
-      TestFile(FILE_PATH_LITERAL("dir2"), FILE_PATH_LITERAL("fileA"),
+      TestFile(FILE_PATH_LITERAL("dir3"), FILE_PATH_LITERAL("fileA"),
                "Third-third-3"),
-      TestFile(FILE_PATH_LITERAL("dir3"), FILE_PATH_LITERAL(".file"), "Dot")};
+      TestFile(FILE_PATH_LITERAL("dir4"), FILE_PATH_LITERAL(".file"), "Dot")};
   SetUpTestFiles(temp_dir, files);
 
   // Get last-modification times for directories. Must be done after we create
   // all the files.
   for (TestDirectory& dir : directories) {
     const FilePath dir_path = temp_dir.GetPath().Append(dir.name);
-#if defined(STARBOARD)
-#ifdef _WIN32
-// TODO: Reable this test when support directory open in base::File for Windows.
-// Below tests would fail because we are now using _open from <io.h> instead of 
-// CreateFile from <fileapi.h>.
-#else
     ASSERT_TRUE(GetFileInfo(dir_path, dir.info));
-#endif
-#endif
   }
 
+#if BUILDFLAG(IS_ANDROID)
+  FilePath root_dir =
+      *base::test::android::GetInMemoryContentTreeUriFromCacheDirDirectory(
+          temp_dir.GetPath());
+#else
+  FilePath root_dir = temp_dir.GetPath();
+#endif
   FileEnumerator file_enumerator(
-      temp_dir.GetPath(), true,
-      FileEnumerator::FILES | FileEnumerator::DIRECTORIES);
+      root_dir, true, FileEnumerator::FILES | FileEnumerator::DIRECTORIES);
   while (!file_enumerator.Next().empty()) {
     auto info = file_enumerator.GetInfo();
     bool found = false;
     if (info.IsDirectory()) {
-#if defined(STARBOARD)
-#ifdef _WIN32
-// Reable this test when support directory open in base::File for Windows.
-#else
       for (TestDirectory& dir : directories) {
         if (info.GetName() == dir.name) {
           CheckDirectoryAgainstInfo(info, dir);
@@ -549,36 +545,28 @@ TEST(FileEnumerator, GetInfoRecursive) {
           break;
         }
       }
-#endif
-#endif
     } else {
       for (TestFile& file : files) {
         if (info.GetName() == file.path.BaseName()) {
           CheckFileAgainstInfo(info, file);
+#if BUILDFLAG(IS_ANDROID)
+          std::string expected =
+              temp_dir.GetPath().BaseName().Append(file.path.DirName()).value();
+          EXPECT_EQ(base::JoinString(info.subdirs(), "/"), expected);
+#endif
           found = true;
           break;
         }
       }
     }
-#if defined(STARBOARD)
-#ifdef _WIN32
-// Reable this test when support directory open in base::File for Windows.
-#else
+
     EXPECT_TRUE(found) << "Got unexpected result " << info.GetName().value();
-#endif
-#endif
   }
 
-  #if defined(STARBOARD)
-#ifdef _WIN32
-// Reable this test when support directory open in base::File for Windows.
-#else
   for (const TestDirectory& dir : directories) {
     EXPECT_TRUE(dir.found) << "Directory " << dir.name.value()
                            << " was not returned";
   }
-#endif
-#endif
   for (const TestFile& file : files) {
     EXPECT_TRUE(file.found)
         << "File " << file.path.value() << " was not returned";
@@ -594,10 +582,6 @@ TEST(FileEnumerator, GetInfoRecursive) {
 // a bug in Windows, not us -- you can see it with the "dir" command (notice
 // that the time of . and .. always match). Skip this test.
 // https://crbug.com/1119546
-#elif defined(STARBOARD)
-#ifdef _WIN32
-// Reable this test when support directory open in base::File for Windows.
-#endif
 #else
 // Tests that FileEnumerator::GetInfo() returns the correct info for the ..
 // directory.
@@ -669,6 +653,63 @@ TEST(FileEnumerator, OnlyName) {
       path, /*recursive=*/false, FileEnumerator::FileType::NAMES_ONLY,
       FilePath::StringType(), FileEnumerator::FolderSearchPolicy::MATCH_ONLY);
   EXPECT_THAT(found_paths, UnorderedElementsAre(subdir, dummy_file));
+}
+
+struct FileEnumeratorForEachTestCase {
+  const bool recursive;
+  const int file_type;
+  const int expected_invocation_count;
+};
+
+class FileEnumeratorForEachTest
+    : public ::testing::TestWithParam<FileEnumeratorForEachTestCase> {};
+
+INSTANTIATE_TEST_SUITE_P(
+    FileEnumeratorForEachTestCases,
+    FileEnumeratorForEachTest,
+    ::testing::ValuesIn(std::vector<FileEnumeratorForEachTestCase>{
+        {false, FileEnumerator::FILES, 2},
+        {true, FileEnumerator::FILES, 8},
+        {false, FileEnumerator::DIRECTORIES, 3},
+        {true, FileEnumerator::DIRECTORIES, 3},
+        {false, FileEnumerator::FILES | FileEnumerator::DIRECTORIES, 5},
+        {true, FileEnumerator::FILES | FileEnumerator::DIRECTORIES, 11},
+    }));
+
+TEST_P(FileEnumeratorForEachTest, TestCases) {
+  ScopedTempDir temp_dir;
+  ASSERT_TRUE(temp_dir.CreateUniqueTempDir());
+  const FilePath mock_path(temp_dir.GetPath());
+
+  // Create a top-level directory, and 3 sub-directories, with 2 files within
+  // each directory.
+  for (const FilePath& path :
+       {mock_path, mock_path.Append(FILE_PATH_LITERAL("1.2.3.4")),
+        mock_path.Append(FILE_PATH_LITERAL("Download")),
+        mock_path.Append(FILE_PATH_LITERAL("Install"))}) {
+    ASSERT_TRUE(CreateDirectory(path));
+    for (const FilePath::StringType& file_name :
+         {FILE_PATH_LITERAL("mock.executable"),
+          FILE_PATH_LITERAL("mock.text")}) {
+      ASSERT_TRUE(
+          File(path.Append(file_name), File::FLAG_CREATE | File::FLAG_WRITE)
+              .IsValid());
+    }
+  }
+
+  int invocation_count = 0;
+
+  FileEnumerator(mock_path, GetParam().recursive, GetParam().file_type)
+      .ForEach([&invocation_count](const FilePath& item) {
+        ++invocation_count;
+        if (invocation_count > GetParam().expected_invocation_count) {
+          ADD_FAILURE() << "Unexpected file/directory found: " << item << ": "
+                        << invocation_count << ": "
+                        << GetParam().expected_invocation_count;
+        }
+      });
+
+  EXPECT_EQ(invocation_count, GetParam().expected_invocation_count);
 }
 
 }  // namespace base

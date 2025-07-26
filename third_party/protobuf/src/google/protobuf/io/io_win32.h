@@ -1,32 +1,9 @@
 // Protocol Buffers - Google's data interchange format
 // Copyright 2008 Google Inc.  All rights reserved.
-// https://developers.google.com/protocol-buffers/
 //
-// Redistribution and use in source and binary forms, with or without
-// modification, are permitted provided that the following conditions are
-// met:
-//
-//     * Redistributions of source code must retain the above copyright
-// notice, this list of conditions and the following disclaimer.
-//     * Redistributions in binary form must reproduce the above
-// copyright notice, this list of conditions and the following disclaimer
-// in the documentation and/or other materials provided with the
-// distribution.
-//     * Neither the name of Google Inc. nor the names of its
-// contributors may be used to endorse or promote products derived from
-// this software without specific prior written permission.
-//
-// THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
-// "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
-// LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR
-// A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT
-// OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
-// SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT
-// LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
-// DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
-// THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
-// (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
-// OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+// Use of this source code is governed by a BSD-style
+// license that can be found in the LICENSE file or at
+// https://developers.google.com/open-source/licenses/bsd
 
 // Author: laszlocsomor@google.com (Laszlo Csomor)
 //  Based on original Protocol Buffers design by
@@ -49,10 +26,13 @@
 
 #if defined(_WIN32)
 
+#include <functional>
 #include <string>
-#include <google/protobuf/port.h>
 
-#include <google/protobuf/port_def.inc>
+#include "google/protobuf/port.h"
+
+// Must be included last.
+#include "google/protobuf/port_def.inc"
 
 // Compilers on Windows other than MSVC (e.g. Cygwin, MinGW32) define the
 // following functions already, except for mkdir.
@@ -74,6 +54,24 @@ PROTOBUF_EXPORT int setmode(int fd, int mode);
 PROTOBUF_EXPORT int stat(const char* path, struct _stat* buffer);
 PROTOBUF_EXPORT int write(int fd, const void* buffer, size_t size);
 PROTOBUF_EXPORT std::wstring testonly_utf8_to_winpath(const char* path);
+
+enum class ExpandWildcardsResult {
+  kSuccess = 0,
+  kErrorNoMatchingFile = 1,
+  kErrorInputPathConversion = 2,
+  kErrorOutputPathConversion = 3,
+};
+
+// Expand wildcards in a path pattern, feed the result to a consumer function.
+//
+// `path` must be a valid, Windows-style path. It may be absolute, or relative
+// to the current working directory, and it may contain wildcards ("*" and "?")
+// in the last path segment. This function passes all matching file names to
+// `consume`. The resulting paths may not be absolute nor normalized.
+//
+// The function returns a value from `ExpandWildcardsResult`.
+PROTOBUF_EXPORT ExpandWildcardsResult ExpandWildcards(
+    const std::string& path, std::function<void(const std::string&)> consume);
 
 namespace strings {
 
@@ -113,7 +111,7 @@ PROTOBUF_EXPORT bool wcs_to_utf8(const wchar_t* input, std::string* out);
 #define STDOUT_FILENO 1
 #endif
 
-#include <google/protobuf/port_undef.inc>
+#include "google/protobuf/port_undef.inc"
 
 #endif  // defined(_WIN32)
 

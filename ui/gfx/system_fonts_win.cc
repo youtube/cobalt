@@ -9,6 +9,7 @@
 #include "base/containers/flat_map.h"
 #include "base/logging.h"
 #include "base/no_destructor.h"
+#include "base/not_fatal_until.h"
 #include "base/numerics/safe_conversions.h"
 #include "base/strings/sys_string_conversions.h"
 #include "base/trace_event/trace_event.h"
@@ -29,7 +30,7 @@ class SystemFonts {
       Initialize();
 
     auto it = system_fonts_.find(system_font);
-    DCHECK(it != system_fonts_.end())
+    CHECK(it != system_fonts_.end(), base::NotFatalUntil::M130)
         << "System font #" << static_cast<int>(system_font) << " not found!";
     return it->second;
   }
@@ -89,7 +90,7 @@ class SystemFonts {
   static Font GetFontFromLOGFONT(const LOGFONT& logfont) {
     // Finds a matching font by triggering font mapping. The font mapper finds
     // the closest physical font for a given logical font.
-    base::win::ScopedHFONT font(::CreateFontIndirect(&logfont));
+    base::win::ScopedGDIObject<HFONT> font(::CreateFontIndirect(&logfont));
     base::win::ScopedGetDC screen_dc(NULL);
     base::win::ScopedSelectObject scoped_font(screen_dc, font.get());
 
@@ -178,7 +179,7 @@ class SystemFonts {
     // we don't have to).
     FontAdjustment font_adjustment;
     if (adjust_font_callback_) {
-      adjust_font_callback_(&font_adjustment);
+      adjust_font_callback_(font_adjustment);
     }
 
     // Factor out system DPI scale that Windows will include in reported font

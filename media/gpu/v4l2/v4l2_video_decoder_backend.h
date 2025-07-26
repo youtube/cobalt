@@ -5,12 +5,14 @@
 #ifndef MEDIA_GPU_V4L2_V4L2_VIDEO_DECODER_BACKEND_H_
 #define MEDIA_GPU_V4L2_V4L2_VIDEO_DECODER_BACKEND_H_
 
+#include "base/memory/raw_ptr.h"
 #include "base/memory/scoped_refptr.h"
 #include "media/base/decoder_status.h"
 #include "media/base/video_color_space.h"
 #include "media/base/video_decoder.h"
 #include "media/gpu/chromeos/chromeos_status.h"
 #include "media/gpu/chromeos/dmabuf_video_frame_pool.h"
+#include "media/gpu/chromeos/frame_resource.h"
 #include "ui/gfx/geometry/rect.h"
 
 namespace media {
@@ -30,7 +32,7 @@ using V4L2ReadableBufferRef = scoped_refptr<V4L2ReadableBuffer>;
 // |OutputBufferDequeued| is automatically called from the decoder.
 //
 // The backend can call into some of the decoder methods, notably OutputFrame()
-// to send a |VideoFrame| to the decoder's client, and Error() to signal that
+// to send a |FrameResource| to the decoder's client, and Error() to signal that
 // an unrecoverable error has occurred.
 //
 // This class must run entirely inside the decoder thread. All overridden
@@ -55,13 +57,12 @@ class V4L2VideoDecoderBackend {
     virtual void RestartStream() = 0;
     // Stop the stream to reallocate the CAPTURE buffers. Can only be done
     // between calls to |InitiateFlush| and |CompleteFlush|.
-    // |bit_depth| is the
     virtual void ChangeResolution(gfx::Size pic_size,
                                   gfx::Rect visible_rect,
                                   size_t num_codec_reference_frames,
                                   uint8_t bit_depth) = 0;
     // Convert the frame and call the output callback.
-    virtual void OutputFrame(scoped_refptr<VideoFrame> frame,
+    virtual void OutputFrame(scoped_refptr<FrameResource> frame,
                              const gfx::Rect& visible_rect,
                              const VideoColorSpace& color_space,
                              base::TimeDelta timestamp) = 0;
@@ -76,11 +77,10 @@ class V4L2VideoDecoderBackend {
 
   virtual bool Initialize() = 0;
 
-  // Schedule |buffer| to be processed, with bitstream ID |bitstream_id|.
+  // Schedule |buffer| to be processed.
   // The backend must call |decode_cb| once the buffer is not used anymore.
   virtual void EnqueueDecodeTask(scoped_refptr<DecoderBuffer> buffer,
-                                 VideoDecoder::DecodeCB decode_cb,
-                                 int32_t bitstream_id) = 0;
+                                 VideoDecoder::DecodeCB decode_cb) = 0;
   // Called by the decoder when it has dequeued a buffer from the CAPTURE queue.
   virtual void OnOutputBufferDequeued(V4L2ReadableBufferRef buf) = 0;
   // Backend can overload this method if it needs to do specific work when
@@ -108,7 +108,7 @@ class V4L2VideoDecoderBackend {
   virtual bool StopInputQueueOnResChange() const = 0;
   // Returns the amount of OUTPUT queue buffers needed or estimated to be
   // needed by the specific backend.
-  virtual size_t GetNumOUTPUTQueueBuffers() const = 0;
+  virtual size_t GetNumOUTPUTQueueBuffers(bool secure_mode) const = 0;
 
  protected:
   V4L2VideoDecoderBackend(Client* const client,
@@ -117,7 +117,7 @@ class V4L2VideoDecoderBackend {
   // The decoder we are serving. |client_| is the owner of this backend
   // instance, and is guaranteed to live longer than it. Thus it is safe to use
   // a raw pointer here.
-  Client* const client_;
+  raw_ptr<Client> const client_;
   // V4L2 device to use.
   scoped_refptr<V4L2Device> device_;
   // Input and output queued from which to get buffers.

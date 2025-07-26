@@ -7,20 +7,22 @@ package org.chromium.media;
 import android.annotation.SuppressLint;
 import android.media.MediaPlayer;
 import android.net.Uri;
-import android.os.ParcelFileDescriptor;
 import android.text.TextUtils;
 import android.util.Base64;
 import android.util.Base64InputStream;
 import android.view.Surface;
 
+import org.jni_zero.CalledByNative;
+import org.jni_zero.JNINamespace;
+import org.jni_zero.NativeMethods;
+
 import org.chromium.base.ApiCompatibilityUtils;
 import org.chromium.base.ContextUtils;
 import org.chromium.base.Log;
 import org.chromium.base.StreamUtil;
-import org.chromium.base.annotations.CalledByNative;
-import org.chromium.base.annotations.JNINamespace;
-import org.chromium.base.annotations.NativeMethods;
 import org.chromium.base.task.AsyncTask;
+import org.chromium.build.annotations.NullMarked;
+import org.chromium.build.annotations.Nullable;
 
 import java.io.ByteArrayInputStream;
 import java.io.File;
@@ -32,17 +34,18 @@ import java.lang.reflect.Method;
 import java.util.HashMap;
 
 /**
-* A wrapper around android.media.MediaPlayer that allows the native code to use it.
-* See media/base/android/media_player_bridge.cc for the corresponding native code.
-*/
+ * A wrapper around android.media.MediaPlayer that allows the native code to use it. See
+ * media/base/android/media_player_bridge.cc for the corresponding native code.
+ */
 @JNINamespace("media")
+@NullMarked
 public class MediaPlayerBridge {
     private static final String TAG = "media";
 
     // Local player to forward this to. We don't initialize it here since the subclass might not
     // want it.
-    private LoadDataUriTask mLoadDataUriTask;
-    private MediaPlayer mPlayer;
+    private @Nullable LoadDataUriTask mLoadDataUriTask;
+    private @Nullable MediaPlayer mPlayer;
     private long mNativeMediaPlayerBridge;
 
     @CalledByNative
@@ -54,8 +57,7 @@ public class MediaPlayerBridge {
         mNativeMediaPlayerBridge = nativeMediaPlayerBridge;
     }
 
-    protected MediaPlayerBridge() {
-    }
+    protected MediaPlayerBridge() {}
 
     @CalledByNative
     protected void destroy() {
@@ -67,6 +69,10 @@ public class MediaPlayerBridge {
         if (mPlayer == null) {
             mPlayer = new MediaPlayer();
         }
+        return mPlayer;
+    }
+
+    protected @Nullable MediaPlayer getLocalPlayerWithoutCreation() {
         return mPlayer;
     }
 
@@ -121,7 +127,10 @@ public class MediaPlayerBridge {
     @CalledByNative
     protected void release() {
         cancelLoadDataUriTask();
-        getLocalPlayer().release();
+        MediaPlayer localPlayer = getLocalPlayerWithoutCreation();
+        if (localPlayer != null) {
+            localPlayer.release();
+        }
     }
 
     @CalledByNative
@@ -146,7 +155,7 @@ public class MediaPlayerBridge {
 
     @CalledByNative
     protected boolean setDataSource(
-            String url, String cookies, String userAgent, boolean hideUrlLog) {
+            String url, String cookies, String userAgent, boolean hideUrlLog, HashMap headers) {
         Uri uri = Uri.parse(url);
         HashMap<String, String> headersMap = new HashMap<String, String>();
         if (hideUrlLog) headersMap.put("x-hide-urls-from-log", "true");
@@ -155,23 +164,17 @@ public class MediaPlayerBridge {
 
         headersMap.put("android-allow-cross-domain-redirect", "0");
 
+        headers.forEach(
+                (key, value) -> {
+                    if (!TextUtils.isEmpty(value.toString())) {
+                        headersMap.put(key.toString(), value.toString());
+                    }
+                });
+
         try {
             getLocalPlayer().setDataSource(ContextUtils.getApplicationContext(), uri, headersMap);
             return true;
         } catch (Exception e) {
-            return false;
-        }
-    }
-
-    @CalledByNative
-    protected boolean setDataSourceFromFd(int fd, long offset, long length) {
-        try {
-            ParcelFileDescriptor parcelFd = ParcelFileDescriptor.adoptFd(fd);
-            getLocalPlayer().setDataSource(parcelFd.getFileDescriptor(), offset, length);
-            parcelFd.close();
-            return true;
-        } catch (IOException e) {
-            Log.e(TAG, "Failed to set data source from file descriptor: " + e);
             return false;
         }
     }
@@ -187,7 +190,7 @@ public class MediaPlayerBridge {
         final String data = url.substring(headerStop + 1);
 
         String headerContent = header.substring(5);
-        String headerInfo[] = headerContent.split(";");
+        String[] headerInfo = headerContent.split(";");
         if (headerInfo.length != 2) return false;
         if (!"base64".equals(headerInfo[1])) return false;
 
@@ -198,7 +201,7 @@ public class MediaPlayerBridge {
 
     private class LoadDataUriTask extends AsyncTask<Boolean> {
         private final String mData;
-        private File mTempFile;
+        private @Nullable File mTempFile;
 
         public LoadDataUriTask(String data) {
             mData = data;
@@ -236,8 +239,9 @@ public class MediaPlayerBridge {
 
             if (result) {
                 try {
-                    getLocalPlayer().setDataSource(
-                            ContextUtils.getApplicationContext(), Uri.fromFile(mTempFile));
+                    getLocalPlayer()
+                            .setDataSource(
+                                    ContextUtils.getApplicationContext(), Uri.fromFile(mTempFile));
                 } catch (IOException e) {
                     result = false;
                 }
@@ -245,8 +249,9 @@ public class MediaPlayerBridge {
 
             deleteFile();
             assert (mNativeMediaPlayerBridge != 0);
-            MediaPlayerBridgeJni.get().onDidSetDataUriDataSource(
-                    mNativeMediaPlayerBridge, MediaPlayerBridge.this, result);
+            MediaPlayerBridgeJni.get()
+                    .onDidSetDataUriDataSource(
+                            mNativeMediaPlayerBridge, MediaPlayerBridge.this, result);
         }
 
         private void deleteFile() {
@@ -254,7 +259,7 @@ public class MediaPlayerBridge {
             if (!mTempFile.delete()) {
                 // File will be deleted when MediaPlayer releases its handler.
                 Log.e(TAG, "Failed to delete temporary file: " + mTempFile);
-                assert (false);
+                assert false;
             }
         }
     }
@@ -306,8 +311,9 @@ public class MediaPlayerBridge {
         boolean canSeekBackward = true;
         try {
             @SuppressLint({"DiscouragedPrivateApi", "PrivateApi"})
-            Method getMetadata = player.getClass().getDeclaredMethod(
-                    "getMetadata", boolean.class, boolean.class);
+            Method getMetadata =
+                    player.getClass()
+                            .getDeclaredMethod("getMetadata", boolean.class, boolean.class);
             getMetadata.setAccessible(true);
             Object data = getMetadata.invoke(player, false, false);
             if (data != null) {
@@ -321,10 +327,12 @@ public class MediaPlayerBridge {
                         (Integer) metadataClass.getField("SEEK_BACKWARD_AVAILABLE").get(null);
                 hasMethod.setAccessible(true);
                 getBooleanMethod.setAccessible(true);
-                canSeekForward = !((Boolean) hasMethod.invoke(data, seekForward))
-                        || ((Boolean) getBooleanMethod.invoke(data, seekForward));
-                canSeekBackward = !((Boolean) hasMethod.invoke(data, seekBackward))
-                        || ((Boolean) getBooleanMethod.invoke(data, seekBackward));
+                canSeekForward =
+                        !((Boolean) hasMethod.invoke(data, seekForward))
+                                || ((Boolean) getBooleanMethod.invoke(data, seekForward));
+                canSeekBackward =
+                        !((Boolean) hasMethod.invoke(data, seekBackward))
+                                || ((Boolean) getBooleanMethod.invoke(data, seekBackward));
             }
         } catch (NoSuchMethodException e) {
             Log.e(TAG, "Cannot find getMetadata() method: " + e);

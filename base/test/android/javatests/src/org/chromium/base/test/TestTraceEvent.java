@@ -15,9 +15,7 @@ import java.io.FileNotFoundException;
 import java.io.FileOutputStream;
 import java.io.PrintStream;
 
-/**
- * TestTraceEvent is a modified version of TraceEvent, intended for tracing test runs.
- */
+/** TestTraceEvent is a modified version of TraceEvent, intended for tracing test runs. */
 public class TestTraceEvent {
     private static final String TAG = "TestTraceEvent";
 
@@ -53,7 +51,7 @@ public class TestTraceEvent {
      * Enable tracing, and set a specific output file. If tracing was previously enabled and
      * disabled, that data is cleared.
      *
-     * @param file Which file to append the trace data to.
+     * @param outputFile Which file to append the trace data to.
      */
     public static void enable(File outputFile) {
         synchronized (sLock) {
@@ -65,9 +63,7 @@ public class TestTraceEvent {
         }
     }
 
-    /**
-     * Disabling of tracing will dump trace data to the system log.
-     */
+    /** Disabling of tracing will dump trace data to the system log. */
     public static void disable() {
         synchronized (sLock) {
             if (!sEnabled) return;
@@ -87,9 +83,7 @@ public class TestTraceEvent {
         }
     }
 
-    /**
-     * Record an "instant" trace event. E.g. "screen update happened".
-     */
+    /** Record an "instant" trace event. E.g. "screen update happened". */
     public static void instant(String name) {
         synchronized (sLock) {
             if (!sEnabled) return;

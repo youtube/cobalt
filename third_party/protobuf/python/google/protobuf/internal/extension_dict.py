@@ -1,32 +1,9 @@
 # Protocol Buffers - Google's data interchange format
 # Copyright 2008 Google Inc.  All rights reserved.
-# https://developers.google.com/protocol-buffers/
 #
-# Redistribution and use in source and binary forms, with or without
-# modification, are permitted provided that the following conditions are
-# met:
-#
-#     * Redistributions of source code must retain the above copyright
-# notice, this list of conditions and the following disclaimer.
-#     * Redistributions in binary form must reproduce the above
-# copyright notice, this list of conditions and the following disclaimer
-# in the documentation and/or other materials provided with the
-# distribution.
-#     * Neither the name of Google Inc. nor the names of its
-# contributors may be used to endorse or promote products derived from
-# this software without specific prior written permission.
-#
-# THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
-# "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
-# LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR
-# A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT
-# OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
-# SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT
-# LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
-# DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
-# THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
-# (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
-# OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+# Use of this source code is governed by a BSD-style
+# license that can be found in the LICENSE file or at
+# https://developers.google.com/open-source/licenses/bsd
 
 """Contains _ExtensionDict class to represent extensions.
 """
@@ -57,8 +34,8 @@ def _VerifyExtensionHandle(message, extension_handle):
                     message.DESCRIPTOR.full_name))
 
 
-# TODO(robinson): Unify error handling of "unknown extension" crap.
-# TODO(robinson): Support iteritems()-style iteration over all
+# TODO: Unify error handling of "unknown extension" crap.
+# TODO: Support iteritems()-style iteration over all
 # extensions with the "has" bits turned on?
 class _ExtensionDict(object):
 
@@ -87,10 +64,14 @@ class _ExtensionDict(object):
     if extension_handle.label == FieldDescriptor.LABEL_REPEATED:
       result = extension_handle._default_constructor(self._extended_message)
     elif extension_handle.cpp_type == FieldDescriptor.CPPTYPE_MESSAGE:
-      assert getattr(extension_handle.message_type, '_concrete_class', None), (
-          'Uninitialized concrete class found for field %r (message type %r)'
-          % (extension_handle.full_name,
-             extension_handle.message_type.full_name))
+      message_type = extension_handle.message_type
+      if not hasattr(message_type, '_concrete_class'):
+        # pylint: disable=g-import-not-at-top
+        from google.protobuf import message_factory
+        message_factory.GetMessageClass(message_type)
+      if not hasattr(extension_handle.message_type, '_concrete_class'):
+        from google.protobuf import message_factory
+        message_factory.GetMessageClass(extension_handle.message_type)
       result = extension_handle.message_type._concrete_class()
       try:
         result._SetListener(self._extended_message._listener_for_children)
@@ -139,7 +120,7 @@ class _ExtensionDict(object):
 
   # Note that this is only meaningful for non-repeated, scalar extension
   # fields.  Note also that we may have to call _Modified() when we do
-  # successfully set a field this way, to set any necssary "has" bits in the
+  # successfully set a field this way, to set any necessary "has" bits in the
   # ancestors of the extended message.
   def __setitem__(self, extension_handle, value):
     """If extension_handle specifies a non-repeated, scalar extension
@@ -162,6 +143,9 @@ class _ExtensionDict(object):
         type_checker.CheckValue(value))
     self._extended_message._Modified()
 
+  def __delitem__(self, extension_handle):
+    self._extended_message.ClearExtension(extension_handle)
+
   def _FindExtensionByName(self, name):
     """Tries to find a known extension with the specified name.
 
@@ -171,7 +155,9 @@ class _ExtensionDict(object):
     Returns:
       Extension field descriptor.
     """
-    return self._extended_message._extensions_by_name.get(name, None)
+    descriptor = self._extended_message.DESCRIPTOR
+    extensions = descriptor.file.pool._extensions_by_name[descriptor]
+    return extensions.get(name, None)
 
   def _FindExtensionByNumber(self, number):
     """Tries to find a known extension with the field number.
@@ -182,7 +168,9 @@ class _ExtensionDict(object):
     Returns:
       Extension field descriptor.
     """
-    return self._extended_message._extensions_by_number.get(number, None)
+    descriptor = self._extended_message.DESCRIPTOR
+    extensions = descriptor.file.pool._extensions_by_number[descriptor]
+    return extensions.get(number, None)
 
   def __iter__(self):
     # Return a generator over the populated extension fields

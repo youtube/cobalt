@@ -2,6 +2,11 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#ifdef UNSAFE_BUFFERS_BUILD
+// TODO(crbug.com/390223051): Remove C-library calls to fix the errors.
+#pragma allow_unsafe_libc_calls
+#endif
+
 #include "net/cert/merkle_tree_leaf.h"
 
 #include <string.h>
@@ -46,8 +51,8 @@ class MerkleTreeLeafTest : public ::testing::Test {
  public:
   void SetUp() override {
     std::string der_test_cert(ct::GetDerEncodedX509Cert());
-    test_cert_ = X509Certificate::CreateFromBytes(
-        base::as_bytes(base::make_span(der_test_cert)));
+    test_cert_ =
+        X509Certificate::CreateFromBytes(base::as_byte_span(der_test_cert));
     ASSERT_TRUE(test_cert_);
 
     GetX509CertSCT(&x509_sct_);

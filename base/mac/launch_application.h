@@ -14,7 +14,6 @@
 #include "base/command_line.h"
 #include "base/files/file_path.h"
 #include "base/functional/callback_forward.h"
-#include "base/types/expected.h"
 #include "third_party/abseil-cpp/absl/types/variant.h"
 
 // Launches an application.
@@ -31,10 +30,17 @@ struct LaunchApplicationOptions {
   bool activate = true;
   bool create_new_instance = false;
   bool prompt_user_if_needed = false;
+
+  // When this option is set to true, a private SPI is used to launch the app
+  // "invisibly". Apps launched this way do not show up as running.
+  // Note that opening URLs in an already running hidden-in-background app
+  // appears to always cause the app to transition to foreground, even if we've
+  // requested a background launch.
+  bool hidden_in_background = false;
 };
 
 using LaunchApplicationCallback =
-    base::OnceCallback<void(base::expected<NSRunningApplication*, NSError*>)>;
+    base::OnceCallback<void(NSRunningApplication*, NSError*)>;
 
 using CommandLineArgs =
     absl::variant<absl::monostate, CommandLine, std::vector<std::string>>;
@@ -52,8 +58,9 @@ using CommandLineArgs =
 //   - `callback`: the result callback
 //
 // When the launch is complete, `callback` is called on the main thread. If the
-// launch succeeded, it will be called with an `NSRunningApplication*`. If the
-// launch failed, it will be called with an `NSError*`.
+// launch succeeded, it will be called with an `NSRunningApplication*` and the
+// `NSError*` will be nil. If the launch failed, it will be called with an
+// `NSError*`, and the `NSRunningApplication*` will be nil.
 BASE_EXPORT void LaunchApplication(const FilePath& app_bundle_path,
                                    const CommandLineArgs& command_line_args,
                                    const std::vector<std::string>& url_specs,

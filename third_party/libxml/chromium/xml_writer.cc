@@ -1,4 +1,4 @@
-// Copyright 2019 The Chromium Authors. All rights reserved.
+// Copyright 2019 The Chromium Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -63,5 +63,6 @@ bool XmlWriter::WriteElement(const std::string& element_name,
 }
 
 std::string XmlWriter::GetWrittenString() {
-  return buffer_ ? internal::XmlStringToStdString(buffer_->content) : "";
+  return buffer_ ? internal::XmlStringToStdString(xmlBufferContent(buffer_))
+                 : "";
 }

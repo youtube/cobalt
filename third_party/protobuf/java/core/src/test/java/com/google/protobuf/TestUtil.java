@@ -1,32 +1,9 @@
 // Protocol Buffers - Google's data interchange format
 // Copyright 2008 Google Inc.  All rights reserved.
-// https://developers.google.com/protocol-buffers/
 //
-// Redistribution and use in source and binary forms, with or without
-// modification, are permitted provided that the following conditions are
-// met:
-//
-//     * Redistributions of source code must retain the above copyright
-// notice, this list of conditions and the following disclaimer.
-//     * Redistributions in binary form must reproduce the above
-// copyright notice, this list of conditions and the following disclaimer
-// in the documentation and/or other materials provided with the
-// distribution.
-//     * Neither the name of Google Inc. nor the names of its
-// contributors may be used to endorse or promote products derived from
-// this software without specific prior written permission.
-//
-// THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
-// "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
-// LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR
-// A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT
-// OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
-// SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT
-// LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
-// DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
-// THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
-// (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
-// OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+// Use of this source code is governed by a BSD-style
+// license that can be found in the LICENSE file or at
+// https://developers.google.com/open-source/licenses/bsd
 
 package com.google.protobuf;
 
@@ -80,6 +57,7 @@ import static com.google.protobuf.UnittestLite.optionalStringExtensionLite;
 import static com.google.protobuf.UnittestLite.optionalStringPieceExtensionLite;
 import static com.google.protobuf.UnittestLite.optionalUint32ExtensionLite;
 import static com.google.protobuf.UnittestLite.optionalUint64ExtensionLite;
+import static com.google.protobuf.UnittestLite.optionalUnverifiedLazyMessageExtensionLite;
 import static com.google.protobuf.UnittestLite.packedBoolExtensionLite;
 import static com.google.protobuf.UnittestLite.packedDoubleExtensionLite;
 import static com.google.protobuf.UnittestLite.packedEnumExtensionLite;
@@ -169,6 +147,7 @@ import static protobuf_unittest.UnittestProto.optionalStringExtension;
 import static protobuf_unittest.UnittestProto.optionalStringPieceExtension;
 import static protobuf_unittest.UnittestProto.optionalUint32Extension;
 import static protobuf_unittest.UnittestProto.optionalUint64Extension;
+import static protobuf_unittest.UnittestProto.optionalUnverifiedLazyMessageExtension;
 import static protobuf_unittest.UnittestProto.packedBoolExtension;
 import static protobuf_unittest.UnittestProto.packedDoubleExtension;
 import static protobuf_unittest.UnittestProto.packedEnumExtension;
@@ -231,15 +210,13 @@ import protobuf_unittest.UnittestProto.TestPackedExtensions;
 import protobuf_unittest.UnittestProto.TestPackedTypes;
 import protobuf_unittest.UnittestProto.TestRequired;
 import protobuf_unittest.UnittestProto.TestUnpackedTypes;
-import java.io.File;
-import java.io.IOException;
-import java.io.RandomAccessFile;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
 import java.util.logging.Handler;
 import java.util.logging.LogRecord;
-import junit.framework.Assert;
+import org.junit.Assert;
 
 /**
  * Contains methods for setting all fields of {@code TestAllTypes} to some values as well as
@@ -254,14 +231,289 @@ import junit.framework.Assert;
 public final class TestUtil {
   private TestUtil() {}
 
+  public static final String ALL_FIELDS_SET_TEXT =
+      ""
+          + "optional_int32: 101\n"
+          + "optional_int64: 102\n"
+          + "optional_uint32: 103\n"
+          + "optional_uint64: 104\n"
+          + "optional_sint32: 105\n"
+          + "optional_sint64: 106\n"
+          + "optional_fixed32: 107\n"
+          + "optional_fixed64: 108\n"
+          + "optional_sfixed32: 109\n"
+          + "optional_sfixed64: 110\n"
+          + "optional_float: 111.0\n"
+          + "optional_double: 112.0\n"
+          + "optional_bool: true\n"
+          + "optional_string: \"115\"\n"
+          + "optional_bytes: \"116\"\n"
+          + "OptionalGroup {\n"
+          + "  a: 117\n"
+          + "}\n"
+          + "optional_nested_message {\n"
+          + "  bb: 118\n"
+          + "}\n"
+          + "optional_foreign_message {\n"
+          + "  c: 119\n"
+          + "}\n"
+          + "optional_import_message {\n"
+          + "  d: 120\n"
+          + "}\n"
+          + "optional_nested_enum: BAZ\n"
+          + "optional_foreign_enum: FOREIGN_BAZ\n"
+          + "optional_import_enum: IMPORT_BAZ\n"
+          + "optional_string_piece: \"124\"\n"
+          + "optional_cord: \"125\"\n"
+          + "optional_public_import_message {\n"
+          + "  e: 126\n"
+          + "}\n"
+          + "optional_lazy_message {\n"
+          + "  bb: 127\n"
+          + "}\n"
+          + "optional_unverified_lazy_message {\n"
+          + "  bb: 128\n"
+          + "}\n"
+          + "repeated_int32: 201\n"
+          + "repeated_int32: 301\n"
+          + "repeated_int64: 202\n"
+          + "repeated_int64: 302\n"
+          + "repeated_uint32: 203\n"
+          + "repeated_uint32: 303\n"
+          + "repeated_uint64: 204\n"
+          + "repeated_uint64: 304\n"
+          + "repeated_sint32: 205\n"
+          + "repeated_sint32: 305\n"
+          + "repeated_sint64: 206\n"
+          + "repeated_sint64: 306\n"
+          + "repeated_fixed32: 207\n"
+          + "repeated_fixed32: 307\n"
+          + "repeated_fixed64: 208\n"
+          + "repeated_fixed64: 308\n"
+          + "repeated_sfixed32: 209\n"
+          + "repeated_sfixed32: 309\n"
+          + "repeated_sfixed64: 210\n"
+          + "repeated_sfixed64: 310\n"
+          + "repeated_float: 211.0\n"
+          + "repeated_float: 311.0\n"
+          + "repeated_double: 212.0\n"
+          + "repeated_double: 312.0\n"
+          + "repeated_bool: true\n"
+          + "repeated_bool: false\n"
+          + "repeated_string: \"215\"\n"
+          + "repeated_string: \"315\"\n"
+          + "repeated_bytes: \"216\"\n"
+          + "repeated_bytes: \"316\"\n"
+          + "RepeatedGroup {\n"
+          + "  a: 217\n"
+          + "}\n"
+          + "RepeatedGroup {\n"
+          + "  a: 317\n"
+          + "}\n"
+          + "repeated_nested_message {\n"
+          + "  bb: 218\n"
+          + "}\n"
+          + "repeated_nested_message {\n"
+          + "  bb: 318\n"
+          + "}\n"
+          + "repeated_foreign_message {\n"
+          + "  c: 219\n"
+          + "}\n"
+          + "repeated_foreign_message {\n"
+          + "  c: 319\n"
+          + "}\n"
+          + "repeated_import_message {\n"
+          + "  d: 220\n"
+          + "}\n"
+          + "repeated_import_message {\n"
+          + "  d: 320\n"
+          + "}\n"
+          + "repeated_nested_enum: BAR\n"
+          + "repeated_nested_enum: BAZ\n"
+          + "repeated_foreign_enum: FOREIGN_BAR\n"
+          + "repeated_foreign_enum: FOREIGN_BAZ\n"
+          + "repeated_import_enum: IMPORT_BAR\n"
+          + "repeated_import_enum: IMPORT_BAZ\n"
+          + "repeated_string_piece: \"224\"\n"
+          + "repeated_string_piece: \"324\"\n"
+          + "repeated_cord: \"225\"\n"
+          + "repeated_cord: \"325\"\n"
+          + "repeated_lazy_message {\n"
+          + "  bb: 227\n"
+          + "}\n"
+          + "repeated_lazy_message {\n"
+          + "  bb: 327\n"
+          + "}\n"
+          + "default_int32: 401\n"
+          + "default_int64: 402\n"
+          + "default_uint32: 403\n"
+          + "default_uint64: 404\n"
+          + "default_sint32: 405\n"
+          + "default_sint64: 406\n"
+          + "default_fixed32: 407\n"
+          + "default_fixed64: 408\n"
+          + "default_sfixed32: 409\n"
+          + "default_sfixed64: 410\n"
+          + "default_float: 411.0\n"
+          + "default_double: 412.0\n"
+          + "default_bool: false\n"
+          + "default_string: \"415\"\n"
+          + "default_bytes: \"416\"\n"
+          + "default_nested_enum: FOO\n"
+          + "default_foreign_enum: FOREIGN_FOO\n"
+          + "default_import_enum: IMPORT_FOO\n"
+          + "default_string_piece: \"424\"\n"
+          + "default_cord: \"425\"\n"
+          + "oneof_bytes: \"604\"\n";
+
+  public static final String ALL_EXTENSIONS_SET_TEXT =
+      ""
+          + "[protobuf_unittest.optional_int32_extension]: 101\n"
+          + "[protobuf_unittest.optional_int64_extension]: 102\n"
+          + "[protobuf_unittest.optional_uint32_extension]: 103\n"
+          + "[protobuf_unittest.optional_uint64_extension]: 104\n"
+          + "[protobuf_unittest.optional_sint32_extension]: 105\n"
+          + "[protobuf_unittest.optional_sint64_extension]: 106\n"
+          + "[protobuf_unittest.optional_fixed32_extension]: 107\n"
+          + "[protobuf_unittest.optional_fixed64_extension]: 108\n"
+          + "[protobuf_unittest.optional_sfixed32_extension]: 109\n"
+          + "[protobuf_unittest.optional_sfixed64_extension]: 110\n"
+          + "[protobuf_unittest.optional_float_extension]: 111.0\n"
+          + "[protobuf_unittest.optional_double_extension]: 112.0\n"
+          + "[protobuf_unittest.optional_bool_extension]: true\n"
+          + "[protobuf_unittest.optional_string_extension]: \"115\"\n"
+          + "[protobuf_unittest.optional_bytes_extension]: \"116\"\n"
+          + "[protobuf_unittest.optionalgroup_extension] {\n"
+          + "  a: 117\n"
+          + "}\n"
+          + "[protobuf_unittest.optional_nested_message_extension] {\n"
+          + "  bb: 118\n"
+          + "}\n"
+          + "[protobuf_unittest.optional_foreign_message_extension] {\n"
+          + "  c: 119\n"
+          + "}\n"
+          + "[protobuf_unittest.optional_import_message_extension] {\n"
+          + "  d: 120\n"
+          + "}\n"
+          + "[protobuf_unittest.optional_nested_enum_extension]: BAZ\n"
+          + "[protobuf_unittest.optional_foreign_enum_extension]: FOREIGN_BAZ\n"
+          + "[protobuf_unittest.optional_import_enum_extension]: IMPORT_BAZ\n"
+          + "[protobuf_unittest.optional_string_piece_extension]: \"124\"\n"
+          + "[protobuf_unittest.optional_cord_extension]: \"125\"\n"
+          + "[protobuf_unittest.optional_public_import_message_extension] {\n"
+          + "  e: 126\n"
+          + "}\n"
+          + "[protobuf_unittest.optional_lazy_message_extension] {\n"
+          + "  bb: 127\n"
+          + "}\n"
+          + "[protobuf_unittest.optional_unverified_lazy_message_extension] {\n"
+          + "  bb: 128\n"
+          + "}\n"
+          + "[protobuf_unittest.repeated_int32_extension]: 201\n"
+          + "[protobuf_unittest.repeated_int32_extension]: 301\n"
+          + "[protobuf_unittest.repeated_int64_extension]: 202\n"
+          + "[protobuf_unittest.repeated_int64_extension]: 302\n"
+          + "[protobuf_unittest.repeated_uint32_extension]: 203\n"
+          + "[protobuf_unittest.repeated_uint32_extension]: 303\n"
+          + "[protobuf_unittest.repeated_uint64_extension]: 204\n"
+          + "[protobuf_unittest.repeated_uint64_extension]: 304\n"
+          + "[protobuf_unittest.repeated_sint32_extension]: 205\n"
+          + "[protobuf_unittest.repeated_sint32_extension]: 305\n"
+          + "[protobuf_unittest.repeated_sint64_extension]: 206\n"
+          + "[protobuf_unittest.repeated_sint64_extension]: 306\n"
+          + "[protobuf_unittest.repeated_fixed32_extension]: 207\n"
+          + "[protobuf_unittest.repeated_fixed32_extension]: 307\n"
+          + "[protobuf_unittest.repeated_fixed64_extension]: 208\n"
+          + "[protobuf_unittest.repeated_fixed64_extension]: 308\n"
+          + "[protobuf_unittest.repeated_sfixed32_extension]: 209\n"
+          + "[protobuf_unittest.repeated_sfixed32_extension]: 309\n"
+          + "[protobuf_unittest.repeated_sfixed64_extension]: 210\n"
+          + "[protobuf_unittest.repeated_sfixed64_extension]: 310\n"
+          + "[protobuf_unittest.repeated_float_extension]: 211.0\n"
+          + "[protobuf_unittest.repeated_float_extension]: 311.0\n"
+          + "[protobuf_unittest.repeated_double_extension]: 212.0\n"
+          + "[protobuf_unittest.repeated_double_extension]: 312.0\n"
+          + "[protobuf_unittest.repeated_bool_extension]: true\n"
+          + "[protobuf_unittest.repeated_bool_extension]: false\n"
+          + "[protobuf_unittest.repeated_string_extension]: \"215\"\n"
+          + "[protobuf_unittest.repeated_string_extension]: \"315\"\n"
+          + "[protobuf_unittest.repeated_bytes_extension]: \"216\"\n"
+          + "[protobuf_unittest.repeated_bytes_extension]: \"316\"\n"
+          + "[protobuf_unittest.repeatedgroup_extension] {\n"
+          + "  a: 217\n"
+          + "}\n"
+          + "[protobuf_unittest.repeatedgroup_extension] {\n"
+          + "  a: 317\n"
+          + "}\n"
+          + "[protobuf_unittest.repeated_nested_message_extension] {\n"
+          + "  bb: 218\n"
+          + "}\n"
+          + "[protobuf_unittest.repeated_nested_message_extension] {\n"
+          + "  bb: 318\n"
+          + "}\n"
+          + "[protobuf_unittest.repeated_foreign_message_extension] {\n"
+          + "  c: 219\n"
+          + "}\n"
+          + "[protobuf_unittest.repeated_foreign_message_extension] {\n"
+          + "  c: 319\n"
+          + "}\n"
+          + "[protobuf_unittest.repeated_import_message_extension] {\n"
+          + "  d: 220\n"
+          + "}\n"
+          + "[protobuf_unittest.repeated_import_message_extension] {\n"
+          + "  d: 320\n"
+          + "}\n"
+          + "[protobuf_unittest.repeated_nested_enum_extension]: BAR\n"
+          + "[protobuf_unittest.repeated_nested_enum_extension]: BAZ\n"
+          + "[protobuf_unittest.repeated_foreign_enum_extension]: FOREIGN_BAR\n"
+          + "[protobuf_unittest.repeated_foreign_enum_extension]: FOREIGN_BAZ\n"
+          + "[protobuf_unittest.repeated_import_enum_extension]: IMPORT_BAR\n"
+          + "[protobuf_unittest.repeated_import_enum_extension]: IMPORT_BAZ\n"
+          + "[protobuf_unittest.repeated_string_piece_extension]: \"224\"\n"
+          + "[protobuf_unittest.repeated_string_piece_extension]: \"324\"\n"
+          + "[protobuf_unittest.repeated_cord_extension]: \"225\"\n"
+          + "[protobuf_unittest.repeated_cord_extension]: \"325\"\n"
+          + "[protobuf_unittest.repeated_lazy_message_extension] {\n"
+          + "  bb: 227\n"
+          + "}\n"
+          + "[protobuf_unittest.repeated_lazy_message_extension] {\n"
+          + "  bb: 327\n"
+          + "}\n"
+          + "[protobuf_unittest.default_int32_extension]: 401\n"
+          + "[protobuf_unittest.default_int64_extension]: 402\n"
+          + "[protobuf_unittest.default_uint32_extension]: 403\n"
+          + "[protobuf_unittest.default_uint64_extension]: 404\n"
+          + "[protobuf_unittest.default_sint32_extension]: 405\n"
+          + "[protobuf_unittest.default_sint64_extension]: 406\n"
+          + "[protobuf_unittest.default_fixed32_extension]: 407\n"
+          + "[protobuf_unittest.default_fixed64_extension]: 408\n"
+          + "[protobuf_unittest.default_sfixed32_extension]: 409\n"
+          + "[protobuf_unittest.default_sfixed64_extension]: 410\n"
+          + "[protobuf_unittest.default_float_extension]: 411.0\n"
+          + "[protobuf_unittest.default_double_extension]: 412.0\n"
+          + "[protobuf_unittest.default_bool_extension]: false\n"
+          + "[protobuf_unittest.default_string_extension]: \"415\"\n"
+          + "[protobuf_unittest.default_bytes_extension]: \"416\"\n"
+          + "[protobuf_unittest.default_nested_enum_extension]: FOO\n"
+          + "[protobuf_unittest.default_foreign_enum_extension]: FOREIGN_FOO\n"
+          + "[protobuf_unittest.default_import_enum_extension]: IMPORT_FOO\n"
+          + "[protobuf_unittest.default_string_piece_extension]: \"424\"\n"
+          + "[protobuf_unittest.default_cord_extension]: \"425\"\n"
+          + "[protobuf_unittest.oneof_uint32_extension]: 601\n"
+          + "[protobuf_unittest.oneof_nested_message_extension] {\n"
+          + "  bb: 602\n"
+          + "}\n"
+          + "[protobuf_unittest.oneof_string_extension]: \"603\"\n"
+          + "[protobuf_unittest.oneof_bytes_extension]: \"604\"\n";
+
   public static final TestRequired TEST_REQUIRED_UNINITIALIZED =
       TestRequired.newBuilder().setA(1).buildPartial();
   public static final TestRequired TEST_REQUIRED_INITIALIZED =
       TestRequired.newBuilder().setA(1).setB(2).setC(3).build();
 
   /** Helper to convert a String to ByteString. */
-  static ByteString toBytes(String str) {
-    return ByteString.copyFrom(str.getBytes(Internal.UTF_8));
+  public static ByteString toBytes(String str) {
+    return ByteString.copyFromUtf8(str);
   }
 
   // BEGIN FULL-RUNTIME
@@ -343,6 +595,8 @@ public final class TestUtil {
     message.setOptionalImportMessage(ImportMessage.newBuilder().setD(120).build());
     message.setOptionalPublicImportMessage(PublicImportMessage.newBuilder().setE(126).build());
     message.setOptionalLazyMessage(TestAllTypes.NestedMessage.newBuilder().setBb(127).build());
+    message.setOptionalUnverifiedLazyMessage(
+        TestAllTypes.NestedMessage.newBuilder().setBb(128).build());
 
     message.setOptionalNestedEnum(TestAllTypes.NestedEnum.BAZ);
     message.setOptionalForeignEnum(ForeignEnum.FOREIGN_BAZ);
@@ -901,8 +1155,8 @@ public final class TestUtil {
     Assert.assertEquals(208L, message.getRepeatedFixed64(0));
     Assert.assertEquals(209, message.getRepeatedSfixed32(0));
     Assert.assertEquals(210L, message.getRepeatedSfixed64(0));
-    Assert.assertEquals(211F, message.getRepeatedFloat(0));
-    Assert.assertEquals(212D, message.getRepeatedDouble(0));
+    Assert.assertEquals(211F, message.getRepeatedFloat(0), 0.0);
+    Assert.assertEquals(212D, message.getRepeatedDouble(0), 0.0);
     Assert.assertEquals(true, message.getRepeatedBool(0));
     Assert.assertEquals("215", message.getRepeatedString(0));
     Assert.assertEquals(toBytes("216"), message.getRepeatedBytes(0));
@@ -931,8 +1185,8 @@ public final class TestUtil {
     Assert.assertEquals(508L, message.getRepeatedFixed64(1));
     Assert.assertEquals(509, message.getRepeatedSfixed32(1));
     Assert.assertEquals(510L, message.getRepeatedSfixed64(1));
-    Assert.assertEquals(511F, message.getRepeatedFloat(1));
-    Assert.assertEquals(512D, message.getRepeatedDouble(1));
+    Assert.assertEquals(511F, message.getRepeatedFloat(1), 0.0);
+    Assert.assertEquals(512D, message.getRepeatedDouble(1), 0.0);
     Assert.assertEquals(true, message.getRepeatedBool(1));
     Assert.assertEquals("515", message.getRepeatedString(1));
     Assert.assertEquals(toBytes("516"), message.getRepeatedBytes(1));
@@ -1240,6 +1494,9 @@ public final class TestUtil {
         optionalPublicImportMessageExtension, PublicImportMessage.newBuilder().setE(126).build());
     message.setExtension(
         optionalLazyMessageExtension, TestAllTypes.NestedMessage.newBuilder().setBb(127).build());
+    message.setExtension(
+        optionalUnverifiedLazyMessageExtension,
+        TestAllTypes.NestedMessage.newBuilder().setBb(128).build());
 
     message.setExtension(optionalNestedEnumExtension, TestAllTypes.NestedEnum.BAZ);
     message.setExtension(optionalForeignEnumExtension, ForeignEnum.FOREIGN_BAZ);
@@ -1459,6 +1716,8 @@ public final class TestUtil {
     assertEqualsExactType(120, message.getExtension(optionalImportMessageExtension).getD());
     assertEqualsExactType(126, message.getExtension(optionalPublicImportMessageExtension).getE());
     assertEqualsExactType(127, message.getExtension(optionalLazyMessageExtension).getBb());
+    assertEqualsExactType(
+        128, message.getExtension(optionalUnverifiedLazyMessageExtension).getBb());
 
     assertEqualsExactType(
         TestAllTypes.NestedEnum.BAZ, message.getExtension(optionalNestedEnumExtension));
@@ -1910,6 +2169,55 @@ public final class TestUtil {
     assertEqualsExactType("525", message.getExtension(repeatedCordExtension, 1));
   }
 
+  public static void assertRepeatedExtensionsImmutable(TestAllExtensionsOrBuilder message) {
+    List<List<?>> extensions =
+        Arrays.asList(
+            message.getExtension(repeatedInt32Extension),
+            message.getExtension(repeatedInt64Extension),
+            message.getExtension(repeatedUint32Extension),
+            message.getExtension(repeatedUint64Extension),
+            message.getExtension(repeatedSint32Extension),
+            message.getExtension(repeatedSint64Extension),
+            message.getExtension(repeatedFixed32Extension),
+            message.getExtension(repeatedFixed64Extension),
+            message.getExtension(repeatedSfixed32Extension),
+            message.getExtension(repeatedSfixed64Extension),
+            message.getExtension(repeatedFloatExtension),
+            message.getExtension(repeatedDoubleExtension),
+            message.getExtension(repeatedBoolExtension),
+            message.getExtension(repeatedStringExtension),
+            message.getExtension(repeatedBytesExtension),
+            message.getExtension(repeatedGroupExtension),
+            message.getExtension(repeatedNestedMessageExtension),
+            message.getExtension(repeatedForeignMessageExtension),
+            message.getExtension(repeatedImportMessageExtension),
+            message.getExtension(repeatedLazyMessageExtension),
+            message.getExtension(repeatedNestedEnumExtension),
+            message.getExtension(repeatedForeignEnumExtension),
+            message.getExtension(repeatedImportEnumExtension),
+            message.getExtension(repeatedStringPieceExtension),
+            message.getExtension(repeatedCordExtension));
+
+    ArrayList<String> errors = new ArrayList<>();
+    for (List<?> extension : extensions) {
+      String listContents = extension.toString();
+      try {
+        extension.clear();
+        errors.add(
+            "List should not be immutable, but was able to be cleared, so it's mutable: "
+                + listContents
+                + " "
+                + extension.getClass());
+      } catch (UnsupportedOperationException expected) {
+        // We expect this exception to be thrown, since the list should be
+        // immutable.
+      }
+    }
+    if (!errors.isEmpty()) {
+      throw new AssertionError(String.join("\n", errors));
+    }
+  }
+
   public static void setPackedExtensions(TestPackedExtensions.Builder message) {
     message.addExtension(packedInt32Extension, 601);
     message.addExtension(packedInt64Extension, 602L);
@@ -2051,6 +2359,8 @@ public final class TestUtil {
     assertEqualsExactType(
         126, message.getExtension(optionalPublicImportMessageExtensionLite).getE());
     assertEqualsExactType(127, message.getExtension(optionalLazyMessageExtensionLite).getBb());
+    assertEqualsExactType(
+        128, message.getExtension(optionalUnverifiedLazyMessageExtensionLite).getBb());
 
     assertEqualsExactType(
         TestAllTypesLite.NestedEnum.BAZ, message.getExtension(optionalNestedEnumExtensionLite));
@@ -2244,6 +2554,7 @@ public final class TestUtil {
     Assert.assertFalse(message.hasExtension(optionalImportMessageExtensionLite));
     Assert.assertFalse(message.hasExtension(optionalPublicImportMessageExtensionLite));
     Assert.assertFalse(message.hasExtension(optionalLazyMessageExtensionLite));
+    Assert.assertFalse(message.hasExtension(optionalUnverifiedLazyMessageExtensionLite));
 
     Assert.assertFalse(message.hasExtension(optionalNestedEnumExtensionLite));
     Assert.assertFalse(message.hasExtension(optionalForeignEnumExtensionLite));
@@ -2276,6 +2587,7 @@ public final class TestUtil {
     Assert.assertFalse(message.getExtension(optionalImportMessageExtensionLite).hasD());
     Assert.assertFalse(message.getExtension(optionalPublicImportMessageExtensionLite).hasE());
     Assert.assertFalse(message.getExtension(optionalLazyMessageExtensionLite).hasBb());
+    Assert.assertFalse(message.getExtension(optionalUnverifiedLazyMessageExtensionLite).hasBb());
 
     assertEqualsExactType(0, message.getExtension(optionalGroupExtensionLite).getA());
     assertEqualsExactType(0, message.getExtension(optionalNestedMessageExtensionLite).getBb());
@@ -2283,6 +2595,8 @@ public final class TestUtil {
     assertEqualsExactType(0, message.getExtension(optionalImportMessageExtensionLite).getD());
     assertEqualsExactType(0, message.getExtension(optionalPublicImportMessageExtensionLite).getE());
     assertEqualsExactType(0, message.getExtension(optionalLazyMessageExtensionLite).getBb());
+    assertEqualsExactType(
+        0, message.getExtension(optionalUnverifiedLazyMessageExtensionLite).getBb());
 
     // Enums without defaults are set to the first value in the enum.
     assertEqualsExactType(
@@ -2537,7 +2851,7 @@ public final class TestUtil {
   // ===================================================================
   // oneof
   public static void setOneof(TestOneof2.Builder message) {
-    message.setFooLazyMessage(TestOneof2.NestedMessage.newBuilder().setQuxInt(100).build());
+    message.setFooLazyMessage(TestOneof2.NestedMessage.newBuilder().setMooInt(100).build());
     message.setBarString("101");
     message.setBazInt(102);
     message.setBazString("103");
@@ -2545,13 +2859,13 @@ public final class TestUtil {
 
   public static void assertOneofSet(TestOneof2 message) {
     Assert.assertTrue(message.hasFooLazyMessage());
-    Assert.assertTrue(message.getFooLazyMessage().hasQuxInt());
+    Assert.assertTrue(message.getFooLazyMessage().hasMooInt());
 
     Assert.assertTrue(message.hasBarString());
     Assert.assertTrue(message.hasBazInt());
     Assert.assertTrue(message.hasBazString());
 
-    Assert.assertEquals(100, message.getFooLazyMessage().getQuxInt());
+    Assert.assertEquals(100, message.getFooLazyMessage().getMooInt());
     Assert.assertEquals("101", message.getBarString());
     Assert.assertEquals(102, message.getBazInt());
     Assert.assertEquals("103", message.getBazString());
@@ -2637,9 +2951,12 @@ public final class TestUtil {
       case FOO_LAZY_MESSAGE:
         Assert.assertTrue(message.hasFooLazyMessage());
         break;
+      case FOO_BYTES_CORD:
+        Assert.assertTrue(message.hasFooBytesCord());
+        break;
       case FOO_NOT_SET:
         break;
-        // TODO(b/18683919): go/enum-switch-lsc
+        // TODO: go/enum-switch-lsc
     }
   }
 
@@ -2776,7 +3093,7 @@ public final class TestUtil {
     }
 
     /** Shorthand to get a FieldDescriptor for a field of unittest::TestAllTypes. */
-    private Descriptors.FieldDescriptor f(String name) {
+    Descriptors.FieldDescriptor f(String name) {
       Descriptors.FieldDescriptor result;
       if (extensionRegistry == null) {
         result = baseDescriptor.findFieldByName(name);
@@ -2850,6 +3167,11 @@ public final class TestUtil {
       message.setField(
           f("optional_lazy_message"),
           newBuilderForField(message, f("optional_lazy_message")).setField(nestedB, 127).build());
+      message.setField(
+          f("optional_unverified_lazy_message"),
+          newBuilderForField(message, f("optional_unverified_lazy_message"))
+              .setField(nestedB, 128)
+              .build());
 
       message.setField(f("optional_nested_enum"), nestedBaz);
       message.setField(f("optional_foreign_enum"), foreignBaz);
@@ -3100,6 +3422,9 @@ public final class TestUtil {
           126, ((Message) message.getField(f("optional_public_import_message"))).getField(importE));
       Assert.assertEquals(
           127, ((Message) message.getField(f("optional_lazy_message"))).getField(nestedB));
+      Assert.assertEquals(
+          128,
+          ((Message) message.getField(f("optional_unverified_lazy_message"))).getField(nestedB));
 
       Assert.assertEquals(nestedBaz, message.getField(f("optional_nested_enum")));
       Assert.assertEquals(foreignBaz, message.getField(f("optional_foreign_enum")));
@@ -3351,6 +3676,8 @@ public final class TestUtil {
           ((Message) message.getField(f("optional_public_import_message"))).hasField(importE));
       Assert.assertFalse(
           ((Message) message.getField(f("optional_lazy_message"))).hasField(nestedB));
+      Assert.assertFalse(
+          ((Message) message.getField(f("optional_unverified_lazy_message"))).hasField(nestedB));
 
       Assert.assertEquals(0, ((Message) message.getField(f("optionalgroup"))).getField(groupA));
       Assert.assertEquals(
@@ -3363,6 +3690,8 @@ public final class TestUtil {
           0, ((Message) message.getField(f("optional_public_import_message"))).getField(importE));
       Assert.assertEquals(
           0, ((Message) message.getField(f("optional_lazy_message"))).getField(nestedB));
+      Assert.assertEquals(
+          0, ((Message) message.getField(f("optional_unverified_lazy_message"))).getField(nestedB));
 
       // Enums without defaults are set to the first value in the enum.
       Assert.assertEquals(nestedFoo, message.getField(f("optional_nested_enum")));
@@ -3756,92 +4085,6 @@ public final class TestUtil {
     }
   }
 
-  /** @param filePath The path relative to {@link #getTestDataDir}. */
-  public static String readTextFromFile(String filePath) {
-    return readBytesFromFile(filePath).toStringUtf8();
-  }
-
-  private static File getTestDataDir() {
-    // Search each parent directory looking for "src/google/protobuf".
-    File ancestor = new File(System.getProperty("protobuf.dir", "."));
-    String initialPath = ancestor.getAbsolutePath();
-    try {
-      ancestor = ancestor.getCanonicalFile();
-    } catch (IOException e) {
-      throw new RuntimeException("Couldn't get canonical name of working directory.", e);
-    }
-    while (ancestor != null && ancestor.exists()) {
-      if (new File(ancestor, "src/google/protobuf").exists()) {
-        return new File(ancestor, "src/google/protobuf/testdata");
-      }
-      ancestor = ancestor.getParentFile();
-    }
-
-    throw new RuntimeException(
-        "Could not find golden files.  This test must be run from within the "
-            + "protobuf source package so that it can read test data files from the "
-            + "C++ source tree: "
-            + initialPath);
-  }
-
-  /** @param filename The path relative to {@link #getTestDataDir}. */
-  public static ByteString readBytesFromFile(String filename) {
-    File fullPath = new File(getTestDataDir(), filename);
-    try {
-      RandomAccessFile file = new RandomAccessFile(fullPath, "r");
-      byte[] content = new byte[(int) file.length()];
-      file.readFully(content);
-      return ByteString.copyFrom(content);
-    } catch (IOException e) {
-      // Throw a RuntimeException here so that we can call this function from
-      // static initializers.
-      throw new IllegalArgumentException("Couldn't read file: " + fullPath.getPath(), e);
-    }
-  }
-  // END FULL-RUNTIME
-
-  private static ByteString readBytesFromResource(String name) {
-    try {
-      return ByteString.copyFrom(
-          com.google.common.io.ByteStreams.toByteArray(TestUtil.class.getResourceAsStream(name)));
-    } catch (IOException e) {
-      throw new RuntimeException(e);
-    }
-  }
-
-  /**
-   * Get the bytes of the "golden message". This is a serialized TestAllTypes with all fields set as
-   * they would be by {@link #setAllFields(TestAllTypes.Builder)}, but it is loaded from a file on
-   * disk rather than generated dynamically. The file is actually generated by C++ code, so testing
-   * against it verifies compatibility with C++.
-   */
-  public static ByteString getGoldenMessage() {
-    if (goldenMessage == null) {
-      goldenMessage =
-          readBytesFromResource("/google/protobuf/testdata/golden_message_oneof_implemented");
-    }
-    return goldenMessage;
-  }
-
-  private static ByteString goldenMessage = null;
-
-  /**
-   * Get the bytes of the "golden packed fields message". This is a serialized TestPackedTypes with
-   * all fields set as they would be by {@link #setPackedFields(TestPackedTypes.Builder)}, but it is
-   * loaded from a file on disk rather than generated dynamically. The file is actually generated by
-   * C++ code, so testing against it verifies compatibility with C++.
-   */
-  public static ByteString getGoldenPackedFieldsMessage() {
-    if (goldenPackedFieldsMessage == null) {
-      goldenPackedFieldsMessage =
-          readBytesFromResource("/google/protobuf/testdata/golden_packed_fields_message");
-    }
-    return goldenPackedFieldsMessage;
-  }
-
-  private static ByteString goldenPackedFieldsMessage = null;
-
-  // BEGIN FULL-RUNTIME
   /**
    * Mock implementation of {@link GeneratedMessage.BuilderParent} for testing.
    *

@@ -1,0 +1,40 @@
+<!DOCTYPE html>
+
+<head>
+  <title>CanvasRenderingContext2D.PlaceElement() with different writing modes</title>
+  <link rel="author" title="Aaron Krajeski" href="mailto:aaronhk@chromium.org" />
+  <link rel="help" href="https://github.com/WICG/canvas-place-element" />
+  <link rel="match" href="placeElement-writingMode-ref.html">
+  <meta name="fuzzy" content="maxDifference=0-50; totalPixels=0-14000">
+  <style>
+    canvas {
+      display: block;
+    }
+  </style>
+</head>
+
+<body>
+</body>
+
+<script>
+  const WRITING_MODES = [
+    "horizontal-tb",
+    "vertical-lr",
+    "vertical-rl",
+    "sideways-lr",
+    "sideways-rl"
+  ];
+  WRITING_MODES.forEach((mode, index) => {
+    const canvas = document.createElement("canvas");
+    document.body.appendChild(canvas);
+    canvas.style.writingMode = mode;
+    const ctx = canvas.getContext("2d");
+
+    const element = document.createElement("div");
+    element.style.backgroundColor = "green";
+    element.innerText = mode;
+
+    canvas.appendChild(element);
+    ctx.placeElement(element, 0, 0);
+  });
+</script>

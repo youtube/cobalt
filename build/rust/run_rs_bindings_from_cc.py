@@ -34,9 +34,9 @@ def format_cmdline(args):
 
 def main():
   parser = argparse.ArgumentParser()
-  parser.add_argument("--targets_and_headers_from_gn",
+  parser.add_argument("--targets_and_args_from_gn",
                       metavar="FILE",
-                      help="File parsed into --targets_and_headers Crubit arg",
+                      help="File parsed into --targets_and_args Crubit arg",
                       required=True),
   parser.add_argument("--public_headers",
                       metavar="FILE",
@@ -69,14 +69,15 @@ def main():
       [os.path.relpath(hdr) for hdr in args.public_headers.split(",")])))
 
   # Targets to headers map.
-  with open(args.targets_and_headers_from_gn, "r") as f:
-    targets_and_headers = json.load(f)
-  for entry in targets_and_headers:
+  with open(args.targets_and_args_from_gn, "r") as f:
+    targets_and_args = json.load(f)
+  for entry in targets_and_args:
+    entry["f"] = ["supported"]
     hdrs = entry["h"]
     for i in range(len(hdrs)):
       hdrs[i] = os.path.relpath(hdrs[i])
-  generator_args.append("--targets_and_headers={0}".format(
-      json.dumps(targets_and_headers)))
+  generator_args.append("--targets_and_args={0}".format(
+      json.dumps(targets_and_args)))
 
   # All Crubit invocations in Chromium share the following cmdline args.
   generator_args.append(f"--rustfmt_exe_path={RUSTFMT_EXE_PATH}")
@@ -102,7 +103,7 @@ def main():
   # error: unable to find plugin 'find-bad-constructs'
   clang_args = []
   clang_args.extend(filter_clang_args(args.clang_args))
-  # TODO(crbug.com/1329611): This warning needs to be suppressed, because
+  # TODO(crbug.com/40226863): This warning needs to be suppressed, because
   # otherwise Crubit/Clang complains as follows:
   #     error: .../third_party/rust-toolchain/bin/rs_bindings_from_cc:
   #     'linker' input unused [-Werror,-Wunused-command-line-argument]
@@ -117,7 +118,7 @@ def main():
     pretty_cmdline = format_cmdline(cmdline)
     print(f"CRUBIT_DEBUG: CMDLINE: {pretty_cmdline}", file=sys.stderr)
 
-  # TODO(crbug.com/1329611): run_bindgen.py removes the outputs when the tool
+  # TODO(crbug.com/40226863): run_bindgen.py removes the outputs when the tool
   # fails.  Maybe we need to do something similar here?  OTOH in most failure
   # modes Crubit will fail *before* generating its outputs...
   return subprocess.run(cmdline).returncode

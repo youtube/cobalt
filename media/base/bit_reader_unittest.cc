@@ -2,6 +2,11 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#ifdef UNSAFE_BUFFERS_BUILD
+// TODO(crbug.com/40285824): Remove this and convert code to safer constructs.
+#pragma allow_unsafe_buffers
+#endif
+
 #include "media/base/bit_reader.h"
 
 #include <stddef.h>
@@ -75,7 +80,7 @@ TEST(BitReaderTest, SkipBitsTest) {
 }
 
 TEST(BitReaderTest, VariableSkipBitsTest) {
-  uint8_t buffer[256] = {0};
+  uint8_t buffer[256] = {};
 
   // The test alternates between ReadBits and SkipBits.
   // The first number is the number of bits to read, the second one is the

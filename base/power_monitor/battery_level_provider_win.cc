@@ -2,6 +2,11 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#ifdef UNSAFE_BUFFERS_BUILD
+// TODO(crbug.com/374320451): Fix and remove.
+#pragma allow_unsafe_buffers
+#endif
+
 #include "base/power_monitor/battery_level_provider.h"
 
 #define INITGUID
@@ -40,8 +45,9 @@ base::win::ScopedHandle GetBatteryHandle(
   ::SetupDiGetDeviceInterfaceDetail(devices, interface_data, nullptr, 0,
                                     &required_size, nullptr);
   DWORD error = ::GetLastError();
-  if (error != ERROR_INSUFFICIENT_BUFFER)
+  if (error != ERROR_INSUFFICIENT_BUFFER) {
     return base::win::ScopedHandle();
+  }
 
   // |interface_detail->DevicePath| is variable size.
   std::vector<uint8_t> raw_buf(required_size);
@@ -52,8 +58,9 @@ base::win::ScopedHandle GetBatteryHandle(
   BOOL success = ::SetupDiGetDeviceInterfaceDetail(
       devices, interface_data, interface_detail, required_size, nullptr,
       nullptr);
-  if (!success)
+  if (!success) {
     return base::win::ScopedHandle();
+  }
 
   base::ScopedBlockingCall scoped_blocking_call(FROM_HERE,
                                                 base::BlockingType::MAY_BLOCK);
@@ -68,7 +75,7 @@ base::win::ScopedHandle GetBatteryHandle(
 // no battery present in this interface or nullopt on retrieval error.
 // See
 // https://docs.microsoft.com/en-us/windows/win32/power/ioctl-battery-query-tag
-absl::optional<ULONG> GetBatteryTag(HANDLE battery) {
+std::optional<ULONG> GetBatteryTag(HANDLE battery) {
   ULONG battery_tag = 0;
   ULONG wait = 0;
   DWORD bytes_returned = 0;
@@ -79,13 +86,13 @@ absl::optional<ULONG> GetBatteryTag(HANDLE battery) {
     if (::GetLastError() == ERROR_FILE_NOT_FOUND) {
       // No battery present in this interface.
       //
-      // TODO(crbug.com/1191045): Change CHECK to DCHECK in October 2022 after
+      // TODO(crbug.com/40756364): Change CHECK to DCHECK in October 2022 after
       // verifying that there are no crash reports.
       CHECK_EQ(battery_tag, static_cast<ULONG>(BATTERY_TAG_INVALID));
       return battery_tag;
     }
     // Retrieval error.
-    return absl::nullopt;
+    return std::nullopt;
   }
   return battery_tag;
 }
@@ -93,8 +100,8 @@ absl::optional<ULONG> GetBatteryTag(HANDLE battery) {
 // Returns BATTERY_INFORMATION structure containing battery information, given
 // battery handle and tag, or nullopt if the request failed. Battery handle and
 // tag are obtained with GetBatteryHandle() and GetBatteryTag(), respectively.
-absl::optional<BATTERY_INFORMATION> GetBatteryInformation(HANDLE battery,
-                                                          ULONG battery_tag) {
+std::optional<BATTERY_INFORMATION> GetBatteryInformation(HANDLE battery,
+                                                         ULONG battery_tag) {
   BATTERY_QUERY_INFORMATION query_information = {};
   query_information.BatteryTag = battery_tag;
   query_information.InformationLevel = BatteryInformation;
@@ -104,13 +111,14 @@ absl::optional<BATTERY_INFORMATION> GetBatteryInformation(HANDLE battery,
       battery, IOCTL_BATTERY_QUERY_INFORMATION, &query_information,
       sizeof(query_information), &battery_information,
       sizeof(battery_information), &bytes_returned, nullptr);
-  if (!success)
-    return absl::nullopt;
+  if (!success) {
+    return std::nullopt;
+  }
   return battery_information;
 }
 
 // Returns the granularity of the battery discharge.
-absl::optional<uint32_t> GetBatteryBatteryDischargeGranularity(
+std::optional<uint32_t> GetBatteryBatteryDischargeGranularity(
     HANDLE battery,
     ULONG battery_tag,
     ULONG current_capacity,
@@ -132,13 +140,15 @@ absl::optional<uint32_t> GetBatteryBatteryDischargeGranularity(
       battery, IOCTL_BATTERY_QUERY_INFORMATION, &query_information,
       sizeof(query_information), &battery_reporting_scales,
       sizeof(battery_reporting_scales), &bytes_returned, nullptr);
-  if (!success)
-    return absl::nullopt;
+  if (!success) {
+    return std::nullopt;
+  }
 
   ptrdiff_t nb_elements = base::checked_cast<ptrdiff_t>(
       bytes_returned / sizeof(BATTERY_REPORTING_SCALE));
-  if (!nb_elements)
-    return absl::nullopt;
+  if (!nb_elements) {
+    return std::nullopt;
+  }
 
   // The granularities are ordered from the highest capacity to the lowest
   // capacity, or from the most coarse granularity to the most precise
@@ -165,8 +175,8 @@ absl::optional<uint32_t> GetBatteryBatteryDischargeGranularity(
 // Returns BATTERY_STATUS structure containing battery state, given battery
 // handle and tag, or nullopt if the request failed. Battery handle and tag are
 // obtained with GetBatteryHandle() and GetBatteryTag(), respectively.
-absl::optional<BATTERY_STATUS> GetBatteryStatus(HANDLE battery,
-                                                ULONG battery_tag) {
+std::optional<BATTERY_STATUS> GetBatteryStatus(HANDLE battery,
+                                               ULONG battery_tag) {
   BATTERY_WAIT_STATUS wait_status = {};
   wait_status.BatteryTag = battery_tag;
   BATTERY_STATUS battery_status;
@@ -174,8 +184,9 @@ absl::optional<BATTERY_STATUS> GetBatteryStatus(HANDLE battery,
   BOOL success = ::DeviceIoControl(
       battery, IOCTL_BATTERY_QUERY_STATUS, &wait_status, sizeof(wait_status),
       &battery_status, sizeof(battery_status), &bytes_returned, nullptr);
-  if (!success)
-    return absl::nullopt;
+  if (!success) {
+    return std::nullopt;
+  }
   return battery_status;
 }
 
@@ -187,7 +198,7 @@ class BatteryLevelProviderWin : public BatteryLevelProvider {
   ~BatteryLevelProviderWin() override = default;
 
   void GetBatteryState(
-      base::OnceCallback<void(const absl::optional<BatteryState>&)> callback)
+      base::OnceCallback<void(const std::optional<BatteryState>&)> callback)
       override {
     // This is run on |blocking_task_runner_| since `GetBatteryStateImpl()` has
     // blocking calls and can take several seconds to complete.
@@ -199,11 +210,11 @@ class BatteryLevelProviderWin : public BatteryLevelProvider {
   }
 
  private:
-  static absl::optional<BatteryState> GetBatteryStateImpl();
+  static std::optional<BatteryState> GetBatteryStateImpl();
 
   void OnBatteryStateObtained(
-      base::OnceCallback<void(const absl::optional<BatteryState>&)> callback,
-      const absl::optional<BatteryState>& battery_state) {
+      base::OnceCallback<void(const std::optional<BatteryState>&)> callback,
+      const std::optional<BatteryState>& battery_state) {
     std::move(callback).Run(battery_state);
   }
 
@@ -222,7 +233,7 @@ std::unique_ptr<BatteryLevelProvider> BatteryLevelProvider::Create() {
 }
 
 // static
-absl::optional<BatteryLevelProvider::BatteryState>
+std::optional<BatteryLevelProvider::BatteryState>
 BatteryLevelProviderWin::GetBatteryStateImpl() {
   // Proactively mark as blocking to fail early, since calls below may also
   // trigger ScopedBlockingCall.
@@ -235,7 +246,7 @@ BatteryLevelProviderWin::GetBatteryStateImpl() {
   base::win::ScopedDevInfo devices(::SetupDiGetClassDevs(
       &GUID_DEVICE_BATTERY, 0, 0, DIGCF_PRESENT | DIGCF_DEVICEINTERFACE));
   if (!devices.is_valid()) {
-    return absl::nullopt;
+    return std::nullopt;
   }
 
   std::vector<BatteryDetails> battery_details_list;
@@ -253,20 +264,22 @@ BatteryLevelProviderWin::GetBatteryStateImpl() {
                                       device_index, &interface_data);
     if (!success) {
       // Enumeration ended normally.
-      if (::GetLastError() == ERROR_NO_MORE_ITEMS)
+      if (::GetLastError() == ERROR_NO_MORE_ITEMS) {
         break;
+      }
       // Error.
-      return absl::nullopt;
+      return std::nullopt;
     }
 
     base::win::ScopedHandle battery =
         GetBatteryHandle(devices.get(), &interface_data);
-    if (!battery.IsValid())
-      return absl::nullopt;
+    if (!battery.IsValid()) {
+      return std::nullopt;
+    }
 
-    absl::optional<ULONG> battery_tag = GetBatteryTag(battery.Get());
+    std::optional<ULONG> battery_tag = GetBatteryTag(battery.Get());
     if (!battery_tag.has_value()) {
-      return absl::nullopt;
+      return std::nullopt;
     } else if (battery_tag.value() == BATTERY_TAG_INVALID) {
       // No battery present in this interface.
       continue;
@@ -275,15 +288,15 @@ BatteryLevelProviderWin::GetBatteryStateImpl() {
     auto battery_information =
         GetBatteryInformation(battery.Get(), *battery_tag);
     if (!battery_information.has_value()) {
-      return absl::nullopt;
+      return std::nullopt;
     }
 
     auto battery_status = GetBatteryStatus(battery.Get(), *battery_tag);
     if (!battery_status.has_value()) {
-      return absl::nullopt;
+      return std::nullopt;
     }
 
-    absl::optional<uint32_t> battery_discharge_granularity =
+    std::optional<uint32_t> battery_discharge_granularity =
         GetBatteryBatteryDischargeGranularity(
             battery.Get(), *battery_tag, battery_status->Capacity,
             battery_information->DesignedCapacity);

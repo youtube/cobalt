@@ -2,15 +2,19 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#ifdef UNSAFE_BUFFERS_BUILD
+// TODO(crbug.com/390223051): Remove C-library calls to fix the errors.
+#pragma allow_unsafe_libc_calls
+#endif
+
 #include "net/base/sockaddr_util_posix.h"
 
 #include <stddef.h>
 #include <string.h>
-#include <stddef.h>
-
 #include <sys/socket.h>
 #include <sys/un.h>
 
+#include "base/compiler_specific.h"
 #include "build/build_config.h"
 #include "net/base/sockaddr_storage.h"
 
@@ -32,7 +36,7 @@ bool FillUnixAddress(const std::string& socket_path,
     return false;
 
   struct sockaddr_un* socket_addr =
-      reinterpret_cast<struct sockaddr_un*>(address->addr);
+      reinterpret_cast<struct sockaddr_un*>(address->addr());
   memset(socket_addr, 0, address->addr_len);
   socket_addr->sun_family = AF_UNIX;
   address->addr_len = path_size + offsetof(struct sockaddr_un, sun_path);
@@ -47,7 +51,8 @@ bool FillUnixAddress(const std::string& socket_path,
   // length of the structure exactly, as potentially the socket name may
   // have '\0' characters embedded (although we don't support this).
   // Note that addr.sun_path is already zero initialized.
-  memcpy(socket_addr->sun_path + 1, socket_path.c_str(), socket_path.size());
+  UNSAFE_TODO(memcpy(socket_addr->sun_path + 1, socket_path.c_str(),
+                     socket_path.size());)
   return true;
 #else
   return false;

@@ -1,4 +1,4 @@
-// Copyright 2018 The Chromium Authors. All rights reserved.
+// Copyright 2018 The Chromium Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -22,7 +22,6 @@ const char* kJSONValid = R"()]}'
                     {"codebasediff":"http://diff.example.com/"}]},
      "manifest":{
       "version":"1.2.3.4",
-      "prodversionmin":"2.0.143.0",
       "packages":{"package":[{"name":"extension_1_2_3_4.crx"}]}}
      }
     }
@@ -40,7 +39,6 @@ const char* kJSONHash = R"()]}'
      "urls":{"url":[{"codebase":"http://example.com/"}]},
      "manifest":{
       "version":"1.2.3.4",
-      "prodversionmin":"2.0.143.0",
       "packages":{"package":[{"name":"extension_1_2_3_4.crx",
                               "hash_sha256":"1234",
                               "hashdiff_sha256":"5678"}]}}
@@ -60,7 +58,6 @@ const char* kJSONInvalidSizes = R"()]}'
      "urls":{"url":[{"codebase":"http://example.com/"}]},
      "manifest":{
       "version":"1.2.3.4",
-      "prodversionmin":"2.0.143.0",
       "packages":{"package":[{"name":"1","size":1234},
                              {"name":"2","size":9007199254740991},
                              {"name":"3","size":-1234},
@@ -90,7 +87,6 @@ const char* kJSONInvalidMissingCodebase = R"()]}'
      "urls":{"url":[{"codebasediff":"http://diff.example.com"}]},
      "manifest":{
       "version":"1.2.3.4",
-      "prodversionmin":"2.0.143.0",
       "packages":{"package":[{"namediff":"extension_1_2_3_4.crx"}]}}
      }
     }
@@ -107,6 +103,23 @@ const char* kJSONInvalidMissingManifest = R"()]}'
      "status":"ok",
      "urls":{"url":[{"codebase":"http://localhost/download/"}]}
      }
+    }
+   ]
+  }})";
+
+// `manifest` is supposed to be a dictionary. It is a list here.
+const char* kJSONInvalidManifest = R"()]}'
+  {"response":{
+   "protocol":"3.1",
+   "app":[
+    {
+      "appid":"12345",
+      "status":"ok",
+      "updatecheck":{
+        "status":"ok",
+        "urls":{"url":[{"codebase":"http://localhost/download/"}]},
+        "manifest": []
+      }
     }
    ]
   }})";
@@ -186,7 +199,6 @@ const char* kJSONWithDaystart = R"()]}'
                     {"codebasediff":"http://diff.example.com/"}]},
      "manifest":{
       "version":"1.2.3.4",
-      "prodversionmin":"2.0.143.0",
       "packages":{"package":[{"name":"extension_1_2_3_4.crx"}]}}
      }
     }
@@ -224,7 +236,6 @@ const char* kJSONTwoAppsOneError = R"()]}'
      "urls":{"url":[{"codebase":"http://example.com/"}]},
      "manifest":{
       "version":"1.2.3.4",
-      "prodversionmin":"2.0.143.0",
       "packages":{"package":[{"name":"extension_1_2_3_4.crx"}]}}
      }
     }
@@ -249,7 +260,6 @@ const char* kJSONTwoAppsSetCohort = R"()]}'
      "urls":{"url":[{"codebase":"http://example.com/"}]},
      "manifest":{
       "version":"1.2.3.4",
-      "prodversionmin":"2.0.143.0",
       "packages":{"package":[{"name":"extension_1_2_3_4.crx"}]}}
      }
     }
@@ -269,7 +279,6 @@ const char* kJSONUpdateCheckStatusOkWithRunAction = R"()]}'
                     {"codebasediff":"http://diff.example.com/"}]},
      "manifest":{
       "version":"1.2.3.4",
-      "prodversionmin":"2.0.143.0",
       "packages":{"package":[{"name":"extension_1_2_3_4.crx"}]}}
      }
     }
@@ -304,7 +313,7 @@ const char* kJSONUpdateCheckStatusErrorWithRunAction = R"()]}'
    ]
   }})";
 
-// Includes four app objects with status different than 'ok'.
+// Includes nine app objects with status different than 'ok'.
 const char* kJSONAppsStatusError = R"()]}'
   {"response":{
    "protocol":"3.1",
@@ -322,11 +331,79 @@ const char* kJSONAppsStatusError = R"()]}'
      "updatecheck":{"status":"error-internal"}
     },
     {"appid":"dddddddd",
+     "status":"error-osnotsupported",
+     "updatecheck":{"status":"error-internal"}
+    },
+    {"appid":"eeeeeeee",
+     "status":"error-hwnotsupported",
+     "updatecheck":{"status":"error-internal"}
+    },
+    {"appid":"ffffffff",
+     "status":"error-hash",
+     "updatecheck":{"status":"error-internal"}
+    },
+    {"appid":"gggggggg",
+     "status":"error-unsupportedprotocol",
+     "updatecheck":{"status":"error-internal"}
+    },
+    {"appid":"hhhhhhhh",
+     "status":"error-internal",
+     "updatecheck":{"status":"error-internal"}
+    },
+    {"appid":"iiiiiiii",
      "status":"foobar",
      "updatecheck":{"status":"error-internal"}
     }
    ]
   }})";
+
+// Includes a manifest |run| value for an update check with status='ok'. Also
+// includes install data in the `data` element.
+const char* kJSONManifestRun = R"()]}'
+  {"response":{
+   "protocol":"3.1",
+   "app":[
+    {"appid":"12345",
+     "data":[{
+      "status":"ok",
+      "name":"install",
+      "index":"foobar_install_data_index",
+      "#text":"sampledata"
+     }],
+     "updatecheck":{
+     "status":"ok",
+     "urls":{"url":[{"codebase":"http://example.com/"},
+                    {"codebasediff":"http://diff.example.com/"}]},
+     "manifest":{
+      "version":"1.2.3.4",
+      "run":"UpdaterSetup.exe",
+      "arguments":"--arg1 --arg2",
+      "packages":{"package":[{"name":"extension_1_2_3_4.crx"}]}}
+     }
+    }
+   ]
+  }})";
+
+// Includes two custom response attributes in the update_check.
+const char* kJSONCustomAttributes = R"()]}'
+  {"response":{
+   "protocol":"3.1",
+   "app":[
+    {"appid":"12345",
+     "updatecheck":{
+     "_example1":"example_value1",
+     "_example2":"example_value2",
+     "_example_bad": {"value": "bad-non-string-value"},
+     "_example_bad2": 15,
+     "status":"noupdate"
+     }
+    }
+   ]
+  }})";
+
+const char* kBadJSONBadAppIdNoNewlinesBadUCKey =
+    R"()]}'{"response":{"app":[{"appid":";","updatecheck":{"":1}}],)"
+    R"("protocol":"3.1"}})";
 
 TEST(UpdateClientProtocolParserJSONTest, Parse) {
   const auto parser = std::make_unique<ProtocolParserJSON>();
@@ -359,6 +436,10 @@ TEST(UpdateClientProtocolParserJSONTest, Parse) {
   EXPECT_TRUE(parser->results().list.empty());
   EXPECT_FALSE(parser->errors().empty());
 
+  EXPECT_TRUE(parser->Parse(kJSONInvalidManifest));
+  EXPECT_TRUE(parser->results().list.empty());
+  EXPECT_FALSE(parser->errors().empty());
+
   {
     // Parse some valid XML, and check that all params came out as expected.
     EXPECT_TRUE(parser->Parse(kJSONValid));
@@ -370,7 +451,6 @@ TEST(UpdateClientProtocolParserJSONTest, Parse) {
     EXPECT_EQ(GURL("http://example.com/"), first_result->crx_urls[0]);
     EXPECT_EQ(GURL("http://diff.example.com/"), first_result->crx_diffurls[0]);
     EXPECT_EQ("1.2.3.4", first_result->manifest.version);
-    EXPECT_EQ("2.0.143.0", first_result->manifest.browser_min_version);
     EXPECT_EQ(1u, first_result->manifest.packages.size());
     EXPECT_EQ("extension_1_2_3_4.crx", first_result->manifest.packages[0].name);
   }
@@ -487,20 +567,64 @@ TEST(UpdateClientProtocolParserJSONTest, Parse) {
   {
     EXPECT_TRUE(parser->Parse(kJSONAppsStatusError));
     EXPECT_STREQ("Unknown app status", parser->errors().c_str());
-    EXPECT_EQ(3u, parser->results().list.size());
-    const auto* first_result = &parser->results().list[0];
-    EXPECT_EQ(first_result->extension_id, "aaaaaaaa");
-    EXPECT_STREQ("error-unknownApplication", first_result->status.c_str());
-    EXPECT_TRUE(first_result->manifest.version.empty());
-    const auto* second_result = &parser->results().list[1];
-    EXPECT_EQ(second_result->extension_id, "bbbbbbbb");
-    EXPECT_STREQ("restricted", second_result->status.c_str());
-    EXPECT_TRUE(second_result->manifest.version.empty());
-    const auto* third_result = &parser->results().list[2];
-    EXPECT_EQ(third_result->extension_id, "cccccccc");
-    EXPECT_STREQ("error-invalidAppId", third_result->status.c_str());
-    EXPECT_TRUE(third_result->manifest.version.empty());
+    EXPECT_EQ(8u, parser->results().list.size());
+    size_t index = 0;
+    for (const std::string expected_status : {
+             "error-unknownApplication",
+             "restricted",
+             "error-invalidAppId",
+             "error-osnotsupported",
+             "error-hwnotsupported",
+             "error-hash",
+             "error-unsupportedprotocol",
+             "error-internal",
+         }) {
+      const auto* result = &parser->results().list[index];
+      EXPECT_EQ(result->extension_id, std::string(8, 'a' + index++));
+      EXPECT_EQ(expected_status, result->status);
+      EXPECT_TRUE(result->manifest.version.empty());
+    }
   }
+  {
+    EXPECT_TRUE(parser->Parse(kJSONManifestRun));
+    EXPECT_TRUE(parser->errors().empty());
+    EXPECT_EQ(1u, parser->results().list.size());
+    const auto& result = parser->results().list[0];
+    EXPECT_STREQ("UpdaterSetup.exe", result.manifest.run.c_str());
+    EXPECT_STREQ("--arg1 --arg2", result.manifest.arguments.c_str());
+
+    ASSERT_EQ(1u, result.data.size());
+    EXPECT_STREQ("ok", result.data[0].status.c_str());
+    EXPECT_STREQ("install", result.data[0].name.c_str());
+    EXPECT_STREQ("foobar_install_data_index",
+                 result.data[0].install_data_index.c_str());
+    EXPECT_STREQ("sampledata", result.data[0].text.c_str());
+  }
+}
+
+TEST(UpdateClientProtocolParserJSONTest, ParseAttrs) {
+  const auto parser = std::make_unique<ProtocolParserJSON>();
+  {  // No custom attrs in kJSONManifestRun
+    EXPECT_TRUE(parser->Parse(kJSONManifestRun));
+    EXPECT_TRUE(parser->errors().empty());
+    EXPECT_EQ(1u, parser->results().list.size());
+    const auto& result = parser->results().list[0];
+    EXPECT_EQ(0u, result.custom_attributes.size());
+  }
+  {  // Two custom attrs in kJSONCustomAttributes
+    EXPECT_TRUE(parser->Parse(kJSONCustomAttributes));
+    EXPECT_TRUE(parser->errors().empty());
+    EXPECT_EQ(1u, parser->results().list.size());
+    const auto& result = parser->results().list[0];
+    EXPECT_EQ(2u, result.custom_attributes.size());
+    EXPECT_EQ("example_value1", result.custom_attributes.at("_example1"));
+    EXPECT_EQ("example_value2", result.custom_attributes.at("_example2"));
+  }
+}
+
+TEST(UpdateClientProtocolParserJSONTest, ParseBadJSONNoCrash) {
+  const auto parser = std::make_unique<ProtocolParserJSON>();
+  EXPECT_TRUE(parser->Parse(kBadJSONBadAppIdNoNewlinesBadUCKey));
 }
 
 }  // namespace update_client

@@ -8,12 +8,12 @@
 
 #include <ostream>
 #include <string>
+#include <string_view>
 
 #include "base/check.h"
 #include "base/notreached.h"
 #include "base/numerics/safe_conversions.h"
 #include "base/process/memory.h"
-#include "base/strings/string_piece.h"
 #include "base/strings/utf_string_conversions.h"
 
 namespace base {
@@ -32,12 +32,13 @@ namespace win {
 ScopedHString::ScopedHString(HSTRING hstr) : ScopedGeneric(hstr) {}
 
 // static
-ScopedHString ScopedHString::Create(WStringPiece str) {
+ScopedHString ScopedHString::Create(std::wstring_view str) {
   HSTRING hstr;
   HRESULT hr = ::WindowsCreateString(str.data(),
                                      checked_cast<UINT32>(str.length()), &hstr);
-  if (SUCCEEDED(hr))
+  if (SUCCEEDED(hr)) {
     return ScopedHString(hstr);
+  }
 
   if (hr == E_OUTOFMEMORY) {
     // This size is an approximation. The actual size likely includes
@@ -48,19 +49,18 @@ ScopedHString ScopedHString::Create(WStringPiece str) {
   // This should not happen at runtime. Otherwise we could silently pass nullptr
   // or an empty string to downstream code.
   NOTREACHED() << "Failed to create HSTRING: " << std::hex << hr;
-  return ScopedHString(nullptr);
 }
 
 // static
-ScopedHString ScopedHString::Create(StringPiece str) {
+ScopedHString ScopedHString::Create(std::string_view str) {
   return Create(UTF8ToWide(str));
 }
 
 // static
-WStringPiece ScopedHString::Get() const {
+std::wstring_view ScopedHString::Get() const {
   UINT32 length = 0;
   const wchar_t* buffer = ::WindowsGetStringRawBuffer(get(), &length);
-  return WStringPiece(buffer, length);
+  return std::wstring_view(buffer, length);
 }
 
 std::string ScopedHString::GetAsUTF8() const {

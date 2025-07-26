@@ -4,12 +4,12 @@
 
 #include "base/memory/platform_shared_memory_region.h"
 
+#include <algorithm>
 #include <tuple>
 
 #include "base/check.h"
 #include "base/memory/shared_memory_mapping.h"
 #include "base/process/process_metrics.h"
-#include "base/ranges/algorithm.h"
 #include "base/system/sys_info.h"
 #include "base/test/gtest_util.h"
 #include "base/test/test_shared_memory_util.h"
@@ -21,18 +21,20 @@
 #include <sys/mman.h>
 #elif BUILDFLAG(IS_POSIX)
 #include <sys/mman.h>
+
 #include "base/debug/proc_maps_linux.h"
 #elif BUILDFLAG(IS_WIN)
 #include <windows.h>
+
 #include "base/logging.h"
 #elif BUILDFLAG(IS_FUCHSIA)
 #include <lib/zx/object.h>
 #include <lib/zx/process.h>
+
 #include "base/fuchsia/fuchsia_logging.h"
 #endif
 
-namespace base {
-namespace subtle {
+namespace base::subtle {
 
 const size_t kRegionSize = 1024;
 
@@ -150,7 +152,7 @@ TEST_F(PlatformSharedMemoryRegionTest, InvalidAfterMove) {
       PlatformSharedMemoryRegion::CreateWritable(kRegionSize);
   ASSERT_TRUE(region.IsValid());
   PlatformSharedMemoryRegion moved_region = std::move(region);
-  EXPECT_FALSE(region.IsValid());
+  EXPECT_FALSE(region.IsValid());  // NOLINT(bugprone-use-after-move)
   EXPECT_TRUE(moved_region.IsValid());
 }
 
@@ -257,7 +259,7 @@ void CheckReadOnlyMapProtection(void* addr) {
   ASSERT_TRUE(base::debug::ReadProcMaps(&proc_maps));
   std::vector<base::debug::MappedMemoryRegion> regions;
   ASSERT_TRUE(base::debug::ParseProcMaps(proc_maps, &regions));
-  auto it = ranges::find_if(
+  auto it = std::ranges::find_if(
       regions, [addr](const base::debug::MappedMemoryRegion& region) {
         return region.start == reinterpret_cast<uintptr_t>(addr);
       });
@@ -307,11 +309,17 @@ TEST_F(PlatformSharedMemoryRegionTest, MappingProtectionSetCorrectly) {
   ASSERT_TRUE(region.ConvertToReadOnly());
   WritableSharedMemoryMapping ro_mapping = MapForTesting(&region);
   ASSERT_TRUE(ro_mapping.IsValid());
-  CheckReadOnlyMapProtection(ro_mapping.memory());
+  CheckReadOnlyMapProtection(ro_mapping.data());
 
-  EXPECT_FALSE(TryToRestoreWritablePermissions(ro_mapping.memory(),
-                                               ro_mapping.mapped_size()));
-  CheckReadOnlyMapProtection(ro_mapping.memory());
+  // SAFETY: There's no public way to get a span of the full mapped memory size.
+  // The `mapped_size()` is larger then `size()` but is the actual size of the
+  // shared memory backing.
+  auto full_map_mem =
+      UNSAFE_BUFFERS(span(ro_mapping.data(), ro_mapping.mapped_size()));
+  EXPECT_FALSE(TryToRestoreWritablePermissions(full_map_mem.data(),
+                                               full_map_mem.size()));
+
+  CheckReadOnlyMapProtection(ro_mapping.data());
 }
 
 // Tests that platform handle permissions are checked correctly.
@@ -435,5 +443,4 @@ TEST_F(PlatformSharedMemoryRegionTest, UnsafeRegionConvertToUnsafeDeathTest) {
   EXPECT_DEATH_IF_SUPPORTED(region.ConvertToUnsafe(), kErrorRegex);
 }
 
-}  // namespace subtle
-}  // namespace base
+}  // namespace base::subtle

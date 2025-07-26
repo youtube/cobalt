@@ -9,7 +9,7 @@
 #include "base/sequence_checker.h"
 #include "base/thread_annotations.h"
 #include "base/unguessable_token.h"
-#include "build/chromeos_buildflags.h"
+#include "build/build_config.h"
 #include "media/mojo/mojom/media_log.mojom.h"
 #include "media/mojo/mojom/stable/stable_video_decoder.mojom.h"
 #include "media/mojo/mojom/video_decoder.mojom.h"
@@ -20,12 +20,13 @@
 #include "mojo/public/cpp/bindings/receiver.h"
 #include "mojo/public/cpp/bindings/remote.h"
 
-#if BUILDFLAG(IS_CHROMEOS_ASH)
+#if BUILDFLAG(IS_CHROMEOS)
 #include "chromeos/components/cdm_factory_daemon/remote_cdm_context.h"
-#endif  // BUILDFLAG(IS_CHROMEOS_ASH)
+#endif  // BUILDFLAG(IS_CHROMEOS)
 
 namespace media {
 
+class FrameRegistry;
 // A StableVideoDecoderService serves as an adapter between the
 // stable::mojom::StableVideoDecoder interface and the mojom::VideoDecoder
 // interface. This allows us to provide hardware video decoding capabilities to
@@ -53,8 +54,11 @@ class MEDIA_MOJO_EXPORT StableVideoDecoderService
       public mojom::MediaLog {
  public:
   StableVideoDecoderService(
+      mojo::PendingRemote<stable::mojom::StableVideoDecoderTracker>
+          tracker_remote,
       std::unique_ptr<mojom::VideoDecoder> dst_video_decoder,
-      MojoCdmServiceContext* cdm_service_context);
+      MojoCdmServiceContext* cdm_service_context,
+      scoped_refptr<const FrameRegistry> frame_registry);
   StableVideoDecoderService(const StableVideoDecoderService&) = delete;
   StableVideoDecoderService& operator=(const StableVideoDecoderService&) =
       delete;
@@ -86,7 +90,7 @@ class MEDIA_MOJO_EXPORT StableVideoDecoderService
   void OnVideoFrameDecoded(
       const scoped_refptr<VideoFrame>& frame,
       bool can_read_without_stalling,
-      const absl::optional<base::UnguessableToken>& release_token) final;
+      const std::optional<base::UnguessableToken>& release_token) final;
   void OnWaiting(WaitingReason reason) final;
   void RequestOverlayInfo(bool restart_for_transitions) final;
 
@@ -94,6 +98,16 @@ class MEDIA_MOJO_EXPORT StableVideoDecoderService
   void AddLogRecord(const MediaLogRecord& event) final;
 
  private:
+  void OnInitializeDone(InitializeCallback init_cb,
+                        bool needs_transcryption,
+                        const DecoderStatus& status,
+                        bool needs_bitstream_conversion,
+                        int32_t max_decode_requests,
+                        VideoDecoderType decoder_type);
+
+  mojo::Remote<stable::mojom::StableVideoDecoderTracker> tracker_remote_
+      GUARDED_BY_CONTEXT(sequence_checker_);
+
   // Incoming calls from the |dst_video_decoder_| to
   // |video_decoder_client_receiver_| are forwarded to
   // |stable_video_decoder_client_remote_|.
@@ -133,16 +147,20 @@ class MEDIA_MOJO_EXPORT StableVideoDecoderService
   mojo::Remote<mojom::VideoDecoder> dst_video_decoder_remote_
       GUARDED_BY_CONTEXT(sequence_checker_);
 
-#if BUILDFLAG(IS_CHROMEOS_ASH)
+#if BUILDFLAG(IS_CHROMEOS)
   // Used for registering the |remote_cdm_context_| so that it can be resolved
   // from the |cdm_id_| later.
   const raw_ptr<MojoCdmServiceContext> cdm_service_context_
       GUARDED_BY_CONTEXT(sequence_checker_);
   scoped_refptr<chromeos::RemoteCdmContext> remote_cdm_context_
       GUARDED_BY_CONTEXT(sequence_checker_);
-#endif  // BUILDFLAG(IS_CHROMEOS_ASH)
+#endif  // BUILDFLAG(IS_CHROMEOS)
 
-  absl::optional<base::UnguessableToken> cdm_id_
+  // Used by OnVideoFrameDecoded() to convert media VideoFrames to a
+  // stable::mojo::VideoFrame.
+  const scoped_refptr<const FrameRegistry> frame_registry_;
+
+  std::optional<base::UnguessableToken> cdm_id_
       GUARDED_BY_CONTEXT(sequence_checker_);
 
   SEQUENCE_CHECKER(sequence_checker_);

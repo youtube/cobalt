@@ -2,6 +2,11 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#ifdef UNSAFE_BUFFERS_BUILD
+// TODO(crbug.com/40285824): Remove this and convert code to safer constructs.
+#pragma allow_unsafe_buffers
+#endif
+
 #include "media/formats/common/offset_byte_queue.h"
 
 #include "base/check.h"
@@ -19,9 +24,9 @@ void OffsetByteQueue::Reset() {
   head_ = 0;
 }
 
-bool OffsetByteQueue::Push(const uint8_t* buf, int size) {
-  if (!queue_.Push(buf, size)) {
-    DVLOG(4) << "Failed to push buf of size " << size;
+bool OffsetByteQueue::Push(base::span<const uint8_t> buf) {
+  if (!queue_.Push(buf)) {
+    DVLOG(4) << "Failed to push buf of size " << buf.size();
     Sync();
     return false;
   }
@@ -42,7 +47,6 @@ void OffsetByteQueue::Pop(int count) {
 }
 
 void OffsetByteQueue::PeekAt(int64_t offset, const uint8_t** buf, int* size) {
-  DCHECK(offset >= head());
   if (offset < head() || offset >= tail()) {
     *buf = nullptr;
     *size = 0;
@@ -63,7 +67,7 @@ bool OffsetByteQueue::Trim(int64_t max_offset) {
 }
 
 void OffsetByteQueue::Sync() {
-  queue_.Peek(&buf_, &size_);
+  queue_.Peek(&buf_.AsEphemeralRawAddr(), &size_);
 }
 
 }  // namespace media

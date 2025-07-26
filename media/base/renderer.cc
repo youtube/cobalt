@@ -63,8 +63,12 @@ void Renderer::SetPreservesPitch(bool preserves_pitch) {
   // Not supported by most renderers.
 }
 
-void Renderer::SetWasPlayedWithUserActivation(
-    bool was_played_with_user_activation) {
+void Renderer::SetRenderMutedAudio(bool render_muted_audio) {
+  // Not supported by most renderers.
+}
+
+void Renderer::SetWasPlayedWithUserActivationAndHighMediaEngagement(
+    bool was_played_with_user_activation_and_high_media_engagement) {
   // Not supported by most renderers.
 }
 

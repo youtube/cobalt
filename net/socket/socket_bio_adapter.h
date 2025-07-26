@@ -5,9 +5,11 @@
 #ifndef NET_SOCKET_SOCKET_BIO_ADAPTER_H_
 #define NET_SOCKET_SOCKET_BIO_ADAPTER_H_
 
+#include "base/containers/span.h"
 #include "base/memory/raw_ptr.h"
 #include "base/memory/scoped_refptr.h"
 #include "base/memory/weak_ptr.h"
+#include "base/sequence_checker.h"
 #include "net/base/completion_repeating_callback.h"
 #include "net/base/net_errors.h"
 #include "net/base/net_export.h"
@@ -88,12 +90,12 @@ class NET_EXPORT_PRIVATE SocketBIOAdapter {
   size_t GetAllocationSize() const;
 
  private:
-  int BIORead(char* out, int len);
+  int BIORead(base::span<uint8_t> out);
   void HandleSocketReadResult(int result);
   void OnSocketReadComplete(int result);
   void OnSocketReadIfReadyComplete(int result);
 
-  int BIOWrite(const char* in, int len);
+  int BIOWrite(base::span<const uint8_t> in);
   void SocketWrite();
   void HandleSocketWriteResult(int result);
   void OnSocketWriteComplete(int result);
@@ -104,7 +106,7 @@ class NET_EXPORT_PRIVATE SocketBIOAdapter {
   static int BIOWriteWrapper(BIO* bio, const char* in, int len);
   static long BIOCtrlWrapper(BIO* bio, int cmd, long larg, void* parg);
 
-  static const BIO_METHOD kBIOMethod;
+  static const BIO_METHOD* BIOMethod();
 
   bssl::UniquePtr<BIO> bio_;
 
@@ -121,7 +123,7 @@ class NET_EXPORT_PRIVATE SocketBIOAdapter {
   // deallocated when unused.
   scoped_refptr<IOBuffer> read_buffer_;
   // The number of bytes of read_buffer_ consumed.
-  int read_offset_ = 0;
+  size_t read_offset_ = 0;
   // The result of the most recent socket Read(). If ERR_IO_PENDING, there is a
   // socket Read() in progress. If another error, Read() has failed. Otherwise,
   // it is the number of bytes in the buffer (zero if empty).
@@ -134,7 +136,7 @@ class NET_EXPORT_PRIVATE SocketBIOAdapter {
   // Write(). The buffer is deallocated when unused.
   scoped_refptr<GrowableIOBuffer> write_buffer_;
   // The number of bytes of data in write_buffer_.
-  int write_buffer_used_ = 0;
+  size_t write_buffer_used_ = 0;
   // The most recent socket Write() error. If ERR_IO_PENDING, there is a socket
   // Write() in progress. If OK, there is no socket Write() in progress and none
   // have failed.
@@ -142,6 +144,7 @@ class NET_EXPORT_PRIVATE SocketBIOAdapter {
 
   raw_ptr<Delegate> delegate_;
 
+  SEQUENCE_CHECKER(sequence_checker_);
   base::WeakPtrFactory<SocketBIOAdapter> weak_factory_{this};
 };
 

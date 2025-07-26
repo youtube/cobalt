@@ -23,9 +23,9 @@ Playlist::~Playlist() = default;
 
 // static
 ParseStatus::Or<Playlist::Identification> Playlist::IdentifyPlaylist(
-    base::StringPiece source) {
-  absl::optional<Kind> playlist_kind;
-  absl::optional<XVersionTag> version_tag;
+    std::string_view source) {
+  std::optional<Kind> playlist_kind;
+  std::optional<XVersionTag> version_tag;
 
   // Iterate through playlist lines until we can identify the version and the
   // playlist kind.
@@ -80,7 +80,12 @@ ParseStatus::Or<Playlist::Identification> Playlist::IdentifyPlaylist(
           break;
         case TagKind::kMediaPlaylistTag:
           if (playlist_kind == Kind::kMultivariantPlaylist) {
-            return ParseStatusCode::kMultivariantPlaylistHasMediaPlaylistTag;
+            // TODO(crbug.com/395950145): It's really common for multivariant
+            // playlists to incorrectly add an "EXT-X-ENDLIST" tag at the end,
+            // which, while disallowed by spec, is accepted by most other HLS
+            // implementations. We can't fail parsing and thus playback as a
+            // result, in order to maintain compatibility.
+            break;
           }
           playlist_kind = Kind::kMediaPlaylist;
           break;

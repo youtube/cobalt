@@ -9,8 +9,6 @@
 #include <utility>
 
 #include "base/android/jni_string.h"
-#include "base/android_runtime_unchecked_jni_headers/Runnable_jni.h"
-#include "base/base_jni_headers/TaskRunnerImpl_jni.h"
 #include "base/check.h"
 #include "base/compiler_specific.h"
 #include "base/functional/bind.h"
@@ -24,6 +22,10 @@
 #include "base/time/time.h"
 #include "base/trace_event/base_tracing.h"
 
+// Must come after all headers that specialize FromJniType() / ToJniType().
+#include "base/android_runtime_jni_headers/Runnable_jni.h"
+#include "base/tasks_jni/TaskRunnerImpl_jni.h"
+
 namespace base {
 
 namespace {
@@ -34,29 +36,8 @@ TaskRunnerAndroid::UiThreadTaskRunnerCallback& GetUiThreadTaskRunnerCallback() {
   return *callback;
 }
 
-void RunJavaTask(base::android::ScopedJavaGlobalRef<jobject> task,
-                 const std::string& runnable_class_name) {
-  TRACE_EVENT("toplevel", nullptr, [&](::perfetto::EventContext& ctx) {
-    std::string event_name =
-        base::StrCat({"JniPostTask: ", runnable_class_name});
-    ctx.event()->set_name(event_name.c_str());
-  });
-  JNIEnv* env = base::android::AttachCurrentThread();
-  JNI_Runnable::Java_Runnable_run(env, task);
-  if (UNLIKELY(base::android::HasException(env))) {
-    // We can only return control to Java on UI threads (eg. JavaHandlerThread
-    // or the Android Main Thread).
-    if (base::CurrentUIThread::IsSet()) {
-      // Tell the message loop to not perform any tasks after the current one -
-      // we want to make sure we return to Java cleanly without first making any
-      // new JNI calls. This will cause the uncaughtExceptionHandler to catch
-      // and report the Java exception, rather than catching a JNI Exception
-      // with an associated Java stack.
-      base::CurrentUIThread::Get()->Abort();
-    } else {
-      base::android::CheckException(env);
-    }
-  }
+void RunJavaTask(jint task_index) {
+  Java_TaskRunnerImpl_runTask(jni_zero::AttachCurrentThread(), task_index);
 }
 
 }  // namespace
@@ -80,28 +61,13 @@ void TaskRunnerAndroid::Destroy(JNIEnv* env) {
   delete this;
 }
 
-void TaskRunnerAndroid::PostDelayedTask(
-    JNIEnv* env,
-    const base::android::JavaRef<jobject>& task,
-    jlong delay,
-    jstring runnable_class_name) {
+void TaskRunnerAndroid::PostDelayedTask(JNIEnv* env,
+                                        jlong delay,
+                                        jint task_index) {
   // This could be run on any java thread, so we can't cache |env| in the
   // BindOnce because JNIEnv is thread specific.
   task_runner_->PostDelayedTask(
-      FROM_HERE,
-      base::BindOnce(
-          &RunJavaTask, base::android::ScopedJavaGlobalRef<jobject>(task),
-          android::ConvertJavaStringToUTF8(env, runnable_class_name)),
-      Milliseconds(delay));
-}
-
-bool TaskRunnerAndroid::BelongsToCurrentThread(JNIEnv* env) {
-  // TODO(crbug.com/1026641): Move BelongsToCurrentThread from TaskRunnerImpl to
-  // SequencedTaskRunnerImpl on the Java side too.
-  if (type_ == TaskRunnerType::BASE)
-    return false;
-  return static_cast<SequencedTaskRunner*>(task_runner_.get())
-      ->RunsTasksInCurrentSequence();
+      FROM_HERE, base::BindOnce(&RunJavaTask, task_index), Milliseconds(delay));
 }
 
 // static

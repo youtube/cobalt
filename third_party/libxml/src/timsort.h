@@ -36,14 +36,9 @@
 #include <string.h>
 #ifdef HAVE_STDINT_H
 #include <stdint.h>
-#elif defined(_WIN32) && !defined(STARBOARD)
+#elif defined(_WIN32)
 typedef unsigned __int64 uint64_t;
 #endif
-
-#if defined(STARBOARD)
-#include "starboard/system.h"
-#define exit(x) SbSystemBreakIntoDebugger()
-#endif  // #if defined(STARBOARD)
 
 #ifndef SORT_NAME
 #error "Must declare SORT_NAME"
@@ -174,7 +169,9 @@ typedef struct {
 } TIM_SORT_RUN_T;
 
 
+XML_HIDDEN
 void BINARY_INSERTION_SORT(SORT_TYPE *dst, const size_t size);
+XML_HIDDEN
 void TIM_SORT(SORT_TYPE *dst, const size_t size);
 
 

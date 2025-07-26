@@ -22,7 +22,11 @@ declare_args() {
 
   # Set to true to enable settings for high end Android devices, typically
   # enhancing speed at the expense of resources such as binary sizes and memory.
-  is_high_end_android = false
+  is_high_end_android = target_cpu == "arm64" || target_cpu == "x64"
+
+  # Set to true to set defaults that enable features on Android that are more
+  # typically available on desktop.
+  is_desktop_android = false
 
   if (is_android) {
     # By default, Trichrome channels are compiled using separate package names.
@@ -33,13 +37,28 @@ declare_args() {
   }
 }
 
-assert(
-    !is_chrome_for_testing || !is_chrome_branded,
-    "`is_chrome_for_testing = true` is incompatible with `is_chrome_branded = true`")
+# Ensure !is_android implies !is_high_end_android.
+is_high_end_android = is_high_end_android && is_android
 
-assert(
-    is_chrome_for_testing || !is_chrome_for_testing_branded,
-    "`is_chrome_for_testing_branded = true` requires `is_chrome_for_testing = true`")
+if (is_desktop_android) {
+  assert(target_os == "android",
+         "Target must be Android to use is_desktop_android.")
+
+  # Disable for non-android secondary toolchains.
+  is_desktop_android = is_android
+}
+
+declare_args() {
+  # Whether to apply size->speed trade-offs to the secondary toolchain.
+  # Relevant only for 64-bit target_cpu.
+  is_high_end_android_secondary_toolchain = false
+}
+
+assert(!is_chrome_for_testing || !is_chrome_branded,
+       "`is_chrome_for_testing` is incompatible with `is_chrome_branded`")
+
+assert(is_chrome_for_testing || !is_chrome_for_testing_branded,
+       "`is_chrome_for_testing_branded` requires `is_chrome_for_testing`")
 
 declare_args() {
   # Refers to the subdirectory for branding in various places including

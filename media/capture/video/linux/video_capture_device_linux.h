@@ -28,7 +28,7 @@ namespace media {
 class V4L2CaptureDelegate;
 
 // Linux V4L2 implementation of VideoCaptureDevice.
-class VideoCaptureDeviceLinux : public VideoCaptureDevice {
+class CAPTURE_EXPORT VideoCaptureDeviceLinux : public VideoCaptureDevice {
  public:
   static VideoPixelFormat V4l2FourCcToChromiumPixelFormat(uint32_t v4l2_fourcc);
   static std::vector<uint32_t> GetListOfUsableFourCCs(bool favour_mjpeg);

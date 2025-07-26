@@ -2,8 +2,8 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#ifndef UI_GFX_LINEAR_GRADIENT_H_
-#define UI_GFX_LINEAR_GRADIENT_H_
+#ifndef UI_GFX_GEOMETRY_LINEAR_GRADIENT_H_
+#define UI_GFX_GEOMETRY_LINEAR_GRADIENT_H_
 
 #include <stdint.h>
 
@@ -12,7 +12,7 @@
 #include <cstdint>
 #include <string>
 
-#include "ui/gfx/geometry/geometry_skia_export.h"
+#include "base/component_export.h"
 
 namespace gfx {
 
@@ -28,7 +28,7 @@ class Transform;
 // gradient.AddStep(30, 255);
 // gradient.AddStep(70, 255);
 // gradient.AddStep(80, 0);
-class GEOMETRY_SKIA_EXPORT LinearGradient {
+class COMPONENT_EXPORT(GEOMETRY_SKIA) LinearGradient {
  public:
   struct Step {
     // Fraction that defines a position in diagonal, from 0 to 1.
@@ -92,4 +92,4 @@ inline bool operator!=(const LinearGradient& lhs, const LinearGradient& rhs) {
 
 }  // namespace gfx
 
-#endif  // UI_GFX_LINEAR_GRADIENT_H_
+#endif  // UI_GFX_GEOMETRY_LINEAR_GRADIENT_H_

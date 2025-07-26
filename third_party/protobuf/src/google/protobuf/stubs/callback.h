@@ -1,11 +1,16 @@
+// Protocol Buffers - Google's data interchange format
+// Copyright 2008 Google Inc.  All rights reserved.
+//
+// Use of this source code is governed by a BSD-style
+// license that can be found in the LICENSE file or at
+// https://developers.google.com/open-source/licenses/bsd
+
 #ifndef GOOGLE_PROTOBUF_STUBS_CALLBACK_H_
 #define GOOGLE_PROTOBUF_STUBS_CALLBACK_H_
 
 #include <type_traits>
 
-#include <google/protobuf/stubs/macros.h>
-
-#include <google/protobuf/port_def.inc>
+#include "google/protobuf/port_def.inc"
 
 // ===================================================================
 // emulates google3/base/callback.h
@@ -62,59 +67,55 @@ namespace protobuf {
 // Note that NewCallback() is a bit touchy regarding argument types.  Generally,
 // the values you provide for the parameter bindings must exactly match the
 // types accepted by the callback function.  For example:
-//   void Foo(string s);
+//   void Foo(std::string s);
 //   NewCallback(&Foo, "foo");          // WON'T WORK:  const char* != string
-//   NewCallback(&Foo, string("foo"));  // WORKS
+//   NewCallback(&Foo, std::string("foo"));  // WORKS
 // Also note that the arguments cannot be references:
-//   void Foo(const string& s);
-//   string my_str;
-//   NewCallback(&Foo, my_str);  // WON'T WORK:  Can't use referecnes.
+//   void Foo(const std::string& s);
+//   std::string my_str;
+//   NewCallback(&Foo, my_str);  // WON'T WORK:  Can't use references.
 // However, correctly-typed pointers will work just fine.
 class PROTOBUF_EXPORT Closure {
  public:
   Closure() {}
+  Closure(const Closure&) = delete;
+  Closure& operator=(const Closure&) = delete;
   virtual ~Closure();
 
   virtual void Run() = 0;
-
- private:
-  GOOGLE_DISALLOW_EVIL_CONSTRUCTORS(Closure);
 };
 
 template<typename R>
 class ResultCallback {
  public:
   ResultCallback() {}
+  ResultCallback(const ResultCallback&) = delete;
+  ResultCallback& operator=(const ResultCallback&) = delete;
   virtual ~ResultCallback() {}
 
   virtual R Run() = 0;
-
- private:
-  GOOGLE_DISALLOW_EVIL_CONSTRUCTORS(ResultCallback);
 };
 
 template <typename R, typename A1>
 class PROTOBUF_EXPORT ResultCallback1 {
  public:
   ResultCallback1() {}
+  ResultCallback1(const ResultCallback1&) = delete;
+  ResultCallback1& operator=(const ResultCallback1&) = delete;
   virtual ~ResultCallback1() {}
 
   virtual R Run(A1) = 0;
-
- private:
-  GOOGLE_DISALLOW_EVIL_CONSTRUCTORS(ResultCallback1);
 };
 
 template <typename R, typename A1, typename A2>
 class PROTOBUF_EXPORT ResultCallback2 {
  public:
   ResultCallback2() {}
+  ResultCallback2(const ResultCallback2&) = delete;
+  ResultCallback2& operator=(const ResultCallback2&) = delete;
   virtual ~ResultCallback2() {}
 
   virtual R Run(A1,A2) = 0;
-
- private:
-  GOOGLE_DISALLOW_EVIL_CONSTRUCTORS(ResultCallback2);
 };
 
 namespace internal {
@@ -578,6 +579,6 @@ void PROTOBUF_EXPORT DoNothing();
 }  // namespace protobuf
 }  // namespace google
 
-#include <google/protobuf/port_undef.inc>
+#include "google/protobuf/port_undef.inc"
 
 #endif  // GOOGLE_PROTOBUF_STUBS_CALLBACK_H_

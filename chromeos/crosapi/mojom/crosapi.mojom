@@ -1,0 +1,625 @@
+// Copyright 2020 The Chromium Authors
+// Use of this source code is governed by a BSD-style license that can be
+// found in the LICENSE file.
+
+module crosapi.mojom;
+
+import "chromeos/components/in_session_auth/mojom/in_session_auth.mojom";
+import "chromeos/components/payments/mojom/payment_app.mojom";
+import "chromeos/components/remote_apps/mojom/remote_apps.mojom";
+import "chromeos/components/sensors/mojom/cros_sensor_service.mojom";
+import "chromeos/crosapi/mojom/account_manager.mojom";
+import "chromeos/crosapi/mojom/arc.mojom";
+import "chromeos/crosapi/mojom/audio_service.mojom";
+import "chromeos/crosapi/mojom/guest_os_sk_forwarder.mojom";
+import "chromeos/crosapi/mojom/cert_database.mojom";
+import "chromeos/crosapi/mojom/cert_provisioning.mojom";
+import "chromeos/crosapi/mojom/chaps_service.mojom";
+import "chromeos/crosapi/mojom/chrome_app_kiosk_service.mojom";
+import "chromeos/crosapi/mojom/clipboard_history.mojom";
+import "chromeos/crosapi/mojom/content_protection.mojom";
+import "chromeos/crosapi/mojom/cros_display_config.mojom";
+import "chromeos/crosapi/mojom/debug_interface.mojom";
+import "chromeos/crosapi/mojom/desk.mojom";
+import "chromeos/crosapi/mojom/desk_profiles.mojom";
+import "chromeos/crosapi/mojom/desk_template.mojom";
+import "chromeos/crosapi/mojom/device_attributes.mojom";
+import "chromeos/crosapi/mojom/device_local_account_extension_service.mojom";
+import "chromeos/crosapi/mojom/device_oauth2_token_service.mojom";
+import "chromeos/crosapi/mojom/diagnostics_service.mojom";
+import "chromeos/crosapi/mojom/document_scan.mojom";
+import "chromeos/crosapi/mojom/download_controller.mojom";
+import "chromeos/crosapi/mojom/drive_integration_service.mojom";
+import "chromeos/crosapi/mojom/echo_private.mojom";
+import "chromeos/crosapi/mojom/extension_info_private.mojom";
+import "chromeos/crosapi/mojom/file_change_service_bridge.mojom";
+import "chromeos/crosapi/mojom/file_system_access_cloud_identifier.mojom";
+import "chromeos/crosapi/mojom/file_system_provider.mojom";
+import "chromeos/crosapi/mojom/force_installed_tracker.mojom";
+import "chromeos/crosapi/mojom/full_restore.mojom";
+import "chromeos/crosapi/mojom/fullscreen_controller.mojom";
+import "chromeos/crosapi/mojom/identity_manager.mojom";
+import "chromeos/crosapi/mojom/idle_service.mojom";
+import "chromeos/crosapi/mojom/image_writer.mojom";
+import "chromeos/crosapi/mojom/input_methods.mojom";
+import "chromeos/crosapi/mojom/kerberos_in_browser.mojom";
+import "chromeos/crosapi/mojom/keystore_service.mojom";
+import "chromeos/crosapi/mojom/local_printer.mojom";
+import "chromeos/crosapi/mojom/login.mojom";
+import "chromeos/crosapi/mojom/login_screen_storage.mojom";
+import "chromeos/crosapi/mojom/login_state.mojom";
+import "chromeos/crosapi/mojom/policy_service.mojom";
+import "chromeos/crosapi/mojom/magic_boost.mojom";
+import "chromeos/crosapi/mojom/mahi.mojom";
+import "chromeos/crosapi/mojom/multi_capture_service.mojom";
+import "chromeos/crosapi/mojom/native_theme.mojom";
+import "chromeos/crosapi/mojom/network_change.mojom";
+import "chromeos/crosapi/mojom/networking_attributes.mojom";
+import "chromeos/crosapi/mojom/networking_private.mojom";
+import "chromeos/crosapi/mojom/one_drive_notification_service.mojom";
+import "chromeos/crosapi/mojom/one_drive_integration_service.mojom";
+import "chromeos/crosapi/mojom/power.mojom";
+import "chromeos/crosapi/mojom/parent_access.mojom";
+import "chromeos/crosapi/mojom/nonclosable_app_toast_service.mojom";
+import "chromeos/crosapi/mojom/print_preview_cros.mojom";
+import "chromeos/crosapi/mojom/printing_metrics.mojom";
+import "chromeos/crosapi/mojom/probe_service.mojom";
+import "chromeos/crosapi/mojom/remoting.mojom";
+import "chromeos/crosapi/mojom/resource_manager.mojom";
+import "chromeos/crosapi/mojom/screen_ai_downloader.mojom";
+import "chromeos/crosapi/mojom/structured_metrics_service.mojom";
+import "chromeos/crosapi/mojom/suggestion_service.mojom";
+import "chromeos/crosapi/mojom/telemetry_diagnostic_routine_service.mojom";
+import "chromeos/crosapi/mojom/telemetry_event_service.mojom";
+import "chromeos/crosapi/mojom/telemetry_management_service.mojom";
+import "chromeos/crosapi/mojom/timezone.mojom";
+import "chromeos/crosapi/mojom/vpn_service.mojom";
+import "chromeos/services/chromebox_for_meetings/public/mojom/cfm_service_manager.mojom";
+import "chromeos/services/machine_learning/public/mojom/machine_learning_service.mojom";
+import "chromeos/crosapi/mojom/video_capture.mojom";
+import "chromeos/crosapi/mojom/video_conference.mojom";
+import "chromeos/crosapi/mojom/kiosk_session_service.mojom";
+import "chromeos/crosapi/mojom/virtual_keyboard.mojom";
+import "chromeos/crosapi/mojom/volume_manager.mojom";
+import "chromeos/crosapi/mojom/web_kiosk_service.mojom";
+import "chromeos/crosapi/mojom/media_ui.mojom";
+import "mojo/public/mojom/base/big_string.mojom";
+import "mojo/public/mojom/base/generic_pending_receiver.mojom";
+import "mojo/public/mojom/base/string16.mojom";
+import "mojo/public/mojom/base/token.mojom";
+import "mojo/public/mojom/base/values.mojom";
+import "services/device/public/mojom/hid.mojom";
+import "services/media_session/public/mojom/audio_focus.mojom";
+import "services/media_session/public/mojom/media_controller.mojom";
+import "chromeos/crosapi/mojom/embedded_accessibility_helper.mojom";
+
+// Crosapi defines the APIs that live in ash-chrome and are accessed from
+// client applications (such as lacros-chrome). When adding a major new API
+// please note the milestone when you added it, to help us reason about
+// compatibility between the client applications and older ash-chrome binaries.
+//
+// Next version: 145
+// Next method id: 147
+[Uuid="8b79c34f-2bf8-4499-979a-b17cac522c1e",
+ RenamedFrom="crosapi.mojom.AshChromeService"]
+interface Crosapi {
+  // Binds the audio devices service which provides audio info to Lacros
+  [MinVersion=82] BindAudioService@85(
+      pending_receiver<AudioService> receiver);
+
+  // REMOVED_62@62 was removed.
+
+  // Binds Chrome OS Account Manager for Identity management.
+  // Added in M87.
+  [MinVersion=4]
+  BindAccountManager@7(pending_receiver<AccountManager> receiver);
+
+  // Bind ARC.
+  // Added in M98.
+  [MinVersion=59]
+  BindArc@63(pending_receiver<Arc> receiver);
+
+  // BindAppServiceProxy@45 was removed.
+  // BindAutomationDeprecated@23 was removed.
+  // BindAutomationFactory@26 was removed.
+  // BindBrowserServiceHost@20 was removed.
+  // BindBrowserVersionService@50 was removed.
+  // BindBrowserAppInstanceRegistry@54 was removed.
+  // BindBrowserShortcutPublisher@125 was removed.
+
+  // Binds the BrowserCdmFactory interface for proxying communication to the
+  // HWDRM CDM hosted in a ChromeOS daemon process. We need to use a
+  // GenericPendingReceiver to avoid dependency circularities.
+  // Added in M95.
+  [MinVersion=42] BindBrowserCdmFactory@47(
+      mojo_base.mojom.GenericPendingReceiver receiver);
+
+  // BindCecPrivate@140 was removed.
+
+  // Binds the CertDatabase interface for initializing certificate database in
+  // client applications.
+  // Added in M89.
+  [MinVersion=7] BindCertDatabase@12(pending_receiver<CertDatabase> receiver);
+
+  // Binds the CertProvisioning interface for implementing certificate
+  // provisioning UI.
+  // Added in M102.
+  [MinVersion=83]
+  BindCertProvisioning@86(pending_receiver<CertProvisioning> receiver);
+
+  // Binds the CfmServiceContext interface for communicating with the Hotline
+  // daemon available only on Meet Devices platforms
+  // Added in M86.
+  [MinVersion=140]
+  BindCfmServiceContext@142(
+      pending_receiver<chromeos.cfm.mojom.CfmServiceContext> receiver);
+
+  // Binds the ChapsService interface for communicating with the Chaps daemon.
+  // Added in M121.
+  [MinVersion=125] BindChapsService@127(
+      pending_receiver<ChapsService> receiver);
+
+  // BindChromeAppPublisher@43 was removed.
+
+  // BindChromeAppWindowTracker@49 was removed.
+
+  // BindClipboard@15 was removed.
+
+  // Bind the ClipboardHistory interface to allow lacros-chrome to show
+  // ClipboardHistory.
+  [MinVersion=23] BindClipboardHistory@28(
+      pending_receiver<ClipboardHistory> receiver);
+
+  // Binds the ContentProtection interface which is one dependency of the
+  // content decryption module.
+  [MinVersion=26] BindContentProtection@31(
+      pending_receiver<ContentProtection> receiver);
+
+  // Binds the CrosDisplayConfigController interface for querying display info.
+  // Added in M106.
+  [MinVersion=89] BindCrosDisplayConfigController@93(
+      pending_receiver<CrosDisplayConfigController> receiver);
+
+  // Binds the DebugInterfaceRegisterer for registering DebugInterface.
+  // Added in M122.
+  [MinVersion=131] BindDebugInterfaceRegisterer@133(
+      pending_receiver<DebugInterfaceRegisterer> receiver);
+
+  // Binds the desk factory interface.
+  // Added in M109.
+  [MinVersion=99] BindDesk@103(pending_receiver<Desk> receiver);
+
+  // Binds the desk profiles interface.
+  // Added in M119.
+  [MinVersion=122] BindDeskProfileObserver@124(
+      pending_receiver<DeskProfileObserver> receiver);
+
+  // Binds the desk template factory interface.
+  // Added in M101.
+  [MinVersion=68] BindDeskTemplate@71(pending_receiver<DeskTemplate> receiver);
+
+  // Binds the device attributes service which is used by enterprise extension
+  // APIs to query information about the device.
+  // Added in M89.
+  [MinVersion=12] BindDeviceAttributes@17(
+      pending_receiver<DeviceAttributes> receiver);
+
+  // Binds the DeviceOAuth2TokenService interface for the device oauth2 token
+  // service in Lacros-Chrome.
+  // Added in M106.
+  [MinVersion=91] BindDeviceOAuth2TokenService@95(
+    pending_receiver<DeviceOAuth2TokenService> receiver);
+
+  // BindDeviceSettingsService@59 was removed.
+
+  // Binds the diagnostics service to allow Lacros to initiate diagnostics
+  // routines from Ash.
+  // Added in M106.
+  [MinVersion=95] BindDiagnosticsService@99(
+    pending_receiver<crosapi.mojom.DiagnosticsService> receiver);
+
+  // BindDigitalGoodsFactory@79 was removed.
+  // BindDlp@64 was removed.
+
+  // Binds the DocumentScan interface, which allows Lacros to get scanner access
+  // via Ash Chrome.
+  // Added in M104.
+  [MinVersion=77] BindDocumentScan@80(pending_receiver<DocumentScan> receiver);
+
+  // Binds the DownloadController interface, which allows Lacros download
+  // information to be passed into Ash Chrome.
+  // Added in M92.
+  [MinVersion=28] BindDownloadController@33(
+      pending_receiver<DownloadController> receiver);
+
+  // Binds the DriveIntegrationService interface for getting information about
+  // the local Google Drive mount.
+  // Added in M93.
+  [MinVersion=29] BindDriveIntegrationService@34(
+      pending_receiver<DriveIntegrationService> receiver);
+
+  // EchoPrivate is a service used to provide trusted websites a mechanism to
+  // confirm the device is a ChromeOS device.
+  [MinVersion=71] BindEchoPrivate@74(
+      pending_receiver<EchoPrivate> receiver);
+
+  // BindEditorPanelManager@120 was removed.
+
+  // Binds the accessibility helper client factory interface which allows Lacros
+  // to send information to Ash needed for accessibility features.
+  [MinVersion=115]
+  BindEmbeddedAccessibilityHelperClientFactory@118(
+      pending_receiver<EmbeddedAccessibilityHelperClientFactory> receiver);
+
+  // BindEmojiPicker@89 was removed.
+
+  // ExtensionInfoPrivate is a service that allows trusted extensions in Lacros
+  // to get and set system properties. Implemented in Ash.
+  [MinVersion=72] BindExtensionInfoPrivate@75(
+      pending_receiver<ExtensionInfoPrivate> receiver);
+
+  // REMOVED_105@105 was removed.
+
+  // NetworkingPrivate is a service that allows users to modify
+  // network settings in Lacros. Implemented in Ash.
+  [MinVersion=80] BindNetworkingPrivate@83(
+      pending_receiver<NetworkingPrivate> receiver);
+
+  // BindExtensionPublisher@73 was removed.
+
+  // Binds the bridge implemented in Ash which is connected to the
+  // `FileChangeServiceBridge` in Lacros via crosapi. This bridge enables file
+  // change events originating from Lacros to be propagated to the
+  // `FileChangeService`, and its observers, in Ash.
+  // Added in M122.
+  [MinVersion=128]
+  BindFileChangeServiceBridge@130(
+      pending_receiver<FileChangeServiceBridge> receiver);
+
+  // Binds the provider for cloud identifiers for files and folders used through
+  // the file system access web API.
+  // Added in M117.
+  [MinVersion=114]
+  BindFileSystemAccessCloudIdentifierProvider@117(
+    pending_receiver<FileSystemAccessCloudIdentifierProvider> receiver);
+
+  // This interface allows Lacros extensions to implement file systems.
+  // Added in M104.
+  [MinVersion=78]
+  BindFileSystemProviderService@81(
+      pending_receiver<FileSystemProviderService> receiver);
+
+  // Binds the ForceInstalledTracker interface for track the status of
+  // force-installed extensions.
+  // Added in M96.
+  [MinVersion=53]
+  BindForceInstalledTracker@57(
+    pending_receiver<ForceInstalledTracker> receiver);
+
+  // Binds the full restore interface for getting session restore data needed
+  // to display the pine dialog.
+  [MinVersion=135] BindFullRestore@137(
+      pending_receiver<FullRestore> receiver);
+
+  // Binds the full screen controller which determines whether to keep or exit
+  // full screen mode.
+  [MinVersion=94] BindFullscreenController@98(
+      pending_receiver<FullscreenController> receiver);
+
+  // BindGeolocationService@48 was removed.
+
+  // Binds the IdentityManager interface for reading identity information.
+  // Added in M96.
+  [MinVersion=51]
+  BindIdentityManager@55(pending_receiver<IdentityManager> receiver);
+
+  // Binds the IdleService interface for reading idle states.
+  // Added in M90.
+  [MinVersion=16]
+  BindIdleService@21(pending_receiver<IdleService> receiver);
+
+  // Binds the ImageWriter interface for managing removable storage devices.
+  // Added in M93.
+  [MinVersion=37]
+  BindImageWriter@42(pending_receiver<ImageWriter> receiver);
+
+  // Binds the InSessionAuth interface for authenticating users in session
+  // on ChromeOS
+  // Added in M106.
+  [MinVersion=92]
+  BindInSessionAuth@96(
+      pending_receiver<chromeos.auth.mojom.InSessionAuth> receiver);
+
+  // BindNetworkSettingsService@46 was removed.
+
+  // Binds the KerberosInBrowser interface for showing Kerberos UI.
+  // Added in M114.
+  [MinVersion=108]
+  BindKerberosInBrowser@111(pending_receiver<KerberosInBrowser> receiver);
+
+  // Binds the KeystoreService interface for challenging keys.
+  // Added in M87.
+  BindKeystoreService@2(pending_receiver<KeystoreService> receiver);
+
+  // BindLacrosShelfItemTracker@128 was removed.
+
+  // BindLacrosAppPublisher@119 was removed.
+
+  // Binds the LocalPrinter interface for printing.
+  // Added in M91.
+  [MinVersion=25] BindLocalPrinter@30(pending_receiver<LocalPrinter> receiver);
+
+  // Binds the login service.
+  // Added in M99.
+  [MinVersion=63] BindLogin@67(pending_receiver<Login> receiver);
+
+  // Binds the login screen storage service.
+  [MinVersion=64] BindLoginScreenStorage@68(
+      pending_receiver<LoginScreenStorage> receiver);
+
+  // Binds the login state service.
+  [MinVersion=57] BindLoginState@61(pending_receiver<LoginState> receiver);
+
+  // Binds the machine learning service.
+  // Added in M90.
+  [MinVersion=17] BindMachineLearningService@22(
+      pending_receiver<chromeos.machine_learning.mojom.MachineLearningService> receiver);
+
+  // BindMagicBoostController@144 was removed.
+
+  // Binds the mahi browser delegate to the mahi browser client.
+  // Added in M123.
+  [MinVersion=132] BindMahiBrowserDelegate@134(
+      pending_receiver<MahiBrowserDelegate> receiver);
+
+  // Binds the MediaUI interface for the Global Media Controls UI.
+  // Added in M113.
+  [MinVersion=105] BindMediaUI@108(pending_receiver<MediaUI> receiver);
+
+  // Binds the NativeThemeService interface for reading native theme changes.
+  // Added in M93.
+  [MinVersion=33]
+  BindNativeThemeService@38(pending_receiver<NativeThemeService> receiver);
+
+  // BindMetrics@106 was removed.
+
+  // Binds the MultiCaptureService interface that handles multi capture related
+  // usage indicators and notifications.
+  [MinVersion=100]
+  BindMultiCaptureService@104(pending_receiver<MultiCaptureService> receiver);
+
+  // Binds the NetworkChange interface for getting network change notification.
+  [MinVersion=88]
+  BindNetworkChange@92(pending_receiver<NetworkChange> receiver);
+
+  // Binds the networking attributes service which is used by enterprise
+  // extension APIs to query details about the network.
+  [MinVersion=39]
+  BindNetworkingAttributes@44(pending_receiver<NetworkingAttributes> receiver);
+
+  // Binds the OneDrive notification service which is used by the
+  // odfsConfigPrivate extension API to show notifications.
+  [MinVersion=130]
+  BindOneDriveNotificationService@132(
+      pending_receiver<OneDriveNotificationService> receiver);
+
+  // Binds the OneDrive integration service which is used by Lacros to observe
+  // OneDrive mount path changes. Added in M124.
+  [MinVersion=133]
+  BindOneDriveIntegrationService@135(
+    pending_receiver<OneDriveIntegrationService> receiver);
+
+  // Binds the Parent Access UI to allow Lacros to request parent access
+  // from Ash when needed.
+  [MinVersion=97]
+  BindParentAccess@101(pending_receiver<ParentAccess> receiver);
+
+  // BindPasskeyAuthenticatorDeprecated@126 was removed.
+
+  // Binds the PaymentAppInstance to allow Playstore payment to be made for
+  // web apps listing in Playstore.
+  [MinVersion=113] BindPaymentAppInstance@116(
+    pending_receiver<chromeos.payments.mojom.PaymentAppInstance> receiver);
+
+  // Binds the Policy service to allow Lacros request policy data from Ash when
+  // needed.
+  [MinVersion=56] BindPolicyService@60(
+      pending_receiver<PolicyService> receiver);
+
+  // BindPrefs@16 was removed.
+
+  // Binds the prevent close service which can be used to provide user feedback
+  // about nonclosable web apps.
+  [MinVersion=129] BindNonclosableAppToastService@131(
+      pending_receiver<NonclosableAppToastService> receiver);
+
+  // Binds the RemoteAppsLacrosBridge for the Remote Apps private Mojo API.
+  // Added in M103.
+  [MinVersion=74] BindRemoteAppsLacrosBridge@77(
+      pending_receiver<chromeos.remote_apps.mojom.RemoteAppsLacrosBridge>
+          receiver);
+
+  // Binds the Remoting service to allow websites running in Lacros to interact
+  // with Chrome Remote Desktop functionality available in ash-chrome.
+  // Added in M93.
+  [MinVersion=32] BindRemoting@37(pending_receiver<Remoting> receiver);
+
+  // Binds the Screen AI downloader interface which allows Lacros to send
+  // component download request to Ash.
+  // Added in M117.
+  [MinVersion=110]
+  BindScreenAIDownloader@113(pending_receiver<ScreenAIDownloader> receiver);
+
+  // BindScreenManager@1 was removed.
+
+  // Binds the SensorHalClient interface for IIO sensors' data.
+  // Added in M90.
+  [MinVersion=14]
+  BindSensorHalClient@19(
+      pending_remote<chromeos.sensors.mojom.SensorHalClient> receiver);
+
+  // BindSharesheet@70 was removed.
+  // BindSmartReaderClient@107 was removed.
+  // BindSpeechRecognition@84 was removed.
+  // BindStableVideoDecoderFactory@56 was removed.
+
+  // Binds the StructuredMetricsService interface to record events.
+  // Added in M96.
+  [MinVersion=48]
+  BindStructuredMetricsService@52(
+      pending_receiver<StructuredMetricsService> receiver);
+
+  // Binds the suggestion service.
+  [MinVersion=134]
+  BindSuggestionService@136(pending_receiver<SuggestionService> receiver);
+
+  // BindTrustedVaultBackend@121 was removed.
+  // BindTrustedVaultBackendService@145 was removed.
+
+  // Binds the HidManager interface for support HID devices.
+  // Added in M87.
+  BindHidManager@4(pending_receiver<device.mojom.HidManager> receiver);
+
+  // BindEyeDropper@122 was removed.
+  // BindFeedback@5 was removed.
+  // BindFieldTrialService@51 was removed.
+  // BindMediaApp@146 was removed.
+
+  // Binds the Media Session service (controller) for enabling media playback
+  // control.
+  // Added in M88.
+  [MinVersion=6] BindMediaSessionController@9(
+      pending_receiver<media_session.mojom.MediaControllerManager> receiver);
+
+  // Binds the Media Session service (audio focus) for enabling media sessions
+  // to register with the service so they can be controlled.
+  // Added in M88.
+  [MinVersion=6] BindMediaSessionAudioFocus@10(
+      pending_receiver<media_session.mojom.AudioFocusManager> receiver);
+
+  // Binds the Media Session service (audio focus debug) for enabling debugging
+  // of media playback sessions.
+  // Added in M88.
+  [MinVersion=6] BindMediaSessionAudioFocusDebug@11(
+      pending_receiver<media_session.mojom.AudioFocusManagerDebug> receiver);
+
+  // Binds the Power interface for power management.
+  // Added in M93.
+  [MinVersion=35] BindPower@40(pending_receiver<Power> receiver);
+
+  // Binds the PrintingMetrics interface for chrome.printingMetrics API.
+  [MinVersion=86] BindPrintingMetrics@90(
+      pending_receiver<PrintingMetrics> receiver);
+
+  // Binds the PrintPreviewCrosDelegate interface.
+  [MinVersion=141] BindPrintPreviewCrosDelegate@143(
+      pending_receiver<PrintPreviewCrosDelegate> receiver);
+
+  // Binds the Resource Manager interface for querying resource status.
+  // Added in M93.
+  [MinVersion=36] BindResourceManager@41(
+      pending_receiver<ResourceManager> receiver);
+
+  // REMOVED_29@29 was removed.
+  // BindSearchControllerFactory@138 was removed.
+  // BindSearchControllerRegistry@66 was removed.
+  // BindSyncService@69 was removed.
+  // BindTaskManager@24 was removed.
+
+  // Binds the TelemetryDiagnosticRoutineService interface to allow Lacros to
+  // initiate diagnostic routines from Ash.
+  // Added in M116.
+  [MinVersion=112] BindTelemetryDiagnosticRoutinesService@115(
+    pending_receiver<TelemetryDiagnosticRoutinesService> receiver);
+
+  // Binds the TelemetryEventService interface for registering telemetry events
+  // in Lacros-Chrome.
+  // Added in M114.
+  [MinVersion=106] BindTelemetryEventService@109(
+    pending_receiver<TelemetryEventService> receiver);
+
+  // Binds the TelemetryManagementService interface for managing ChromeOS
+  // settings in Lacros-Chrome.
+  // Added in M122.
+  [MinVersion=127] BindTelemetryManagementService@129(
+    pending_receiver<TelemetryManagementService> receiver);
+
+  // Binds the telemetry probe service to allow Lacros request telemetry data
+  // from Ash.
+  // Added in M106.
+  [MinVersion=93] BindTelemetryProbeService@97(
+      pending_receiver<crosapi.mojom.TelemetryProbeService> receiver);
+
+  // BindTestController@14 was removed.
+
+  // Binds the TimeZoneService which notifies system timezone change.
+  // Added in M99.
+  [MinVersion=61] BindTimeZoneService@65(
+      pending_receiver<TimeZoneService> receiver);
+
+  // BindTts@58 was removed.
+  // BindUrlHandler@18 was removed.
+
+  // Binds the device factory in video capture service.
+  // Added in M90.
+  [MinVersion=20] BindVideoCaptureDeviceFactory@25(
+      pending_receiver<crosapi.mojom.VideoCaptureDeviceFactory> receiver);
+
+  // BindVideoConferenceManager@102 was removed.
+
+  // VirtualKeyboard is a service that allows trusted extensions in Lacros
+  // to control the virtual keyboard. Implemented in Ash.
+  [MinVersion=87] BindVirtualKeyboard@91(
+      pending_receiver<VirtualKeyboard> receiver);
+
+  // BindVpnExtensionObserver@78 was removed.
+
+  // Binds the Kiosk session service which sends session status changes from
+  // lacros to ash.
+  // Added in M96.
+  [MinVersion=49] BindKioskSessionService@53(
+      pending_receiver<KioskSessionService> receiver);
+
+  // Binds the chrome app kiosk service. This service is used to install and
+  // launch the chrome app inside lacros.
+  [MinVersion=73] BindChromeAppKioskService@76(
+      pending_receiver<ChromeAppKioskService> receiver);
+
+  // Binds the web kiosk service. This service is used to install and launch the
+  // web app inside lacros.
+  [MinVersion=111] BindWebKioskService@114(
+      pending_receiver<WebKioskService> receiver);
+
+  // Binds the extension service for device local accounts. This service manages
+  // the cached install of extensions into Lacros.
+  [MinVersion=96] BindDeviceLocalAccountExtensionService@100(
+      pending_receiver<DeviceLocalAccountExtensionService> receiver);
+
+  // Binds the VolumeManager interface for accessing volume list, etc.
+  // Added in M106.
+  [MinVersion=90]
+  BindVolumeManager@94(pending_receiver<VolumeManager> receiver);
+
+  // Binds the vpn service. This service is used to facilirate
+  // communication between chrome.vpnProvider extension in lacros and the
+  // network services in ash.
+  [MinVersion=79] BindVpnService@82(
+      pending_receiver<VpnService> receiver);
+
+  // BindWallpaper@87 was removed.
+  // BindWebPageInfoFactory@39 was removed.
+  // BindWebAppPublisher@27 was removed.
+  // BindWebAppService@72 was removed.
+
+  // Binds the GuestOS security key forwarding service.
+  // Added in M120.
+  [MinVersion=121] BindGuestOsSkForwarderFactory@123(
+      pending_receiver<GuestOsSkForwarderFactory> receiver);
+
+  // OnBrowserStartup@6 was removed.
+
+  // Binds the service containing input method related functionality such
+  // as changing the keyboard input language.
+  [MinVersion=137]
+    BindInputMethods@139(pending_receiver<InputMethods> receiver);
+};

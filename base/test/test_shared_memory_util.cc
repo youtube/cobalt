@@ -5,7 +5,6 @@
 #include "base/test/test_shared_memory_util.h"
 
 #include <gtest/gtest.h>
-
 #include <stddef.h>
 #include <stdint.h>
 
@@ -60,8 +59,8 @@ static bool CheckReadOnlySharedMemoryFdPosix(int fd) {
     return false;
   }
   if (errno != kExpectedErrno) {
-    LOG(ERROR) << "Expected mmap() to return " << kExpectedErrno
-               << " but returned " << errno << ": " << strerror(errno) << "\n";
+    PLOG(ERROR) << "Expected mmap() to return " << kExpectedErrno
+                << " but returned";  // PLOG will append the actual errno value.
     return false;
   }
   return true;
@@ -132,7 +131,7 @@ bool CheckReadOnlyPlatformSharedMemoryRegionForTesting(
   return CheckReadOnlySharedMemoryFuchsiaHandle(region.GetPlatformHandle());
 #elif BUILDFLAG(IS_WIN)
   return CheckReadOnlySharedMemoryWindowsHandle(region.GetPlatformHandle());
-#elif BUILDFLAG(IS_ANDROID) || defined(STARBOARD)
+#elif BUILDFLAG(IS_ANDROID)
   return CheckReadOnlySharedMemoryFdPosix(region.GetPlatformHandle());
 #else
   return CheckReadOnlySharedMemoryFdPosix(region.GetPlatformHandle().fd);
@@ -152,8 +151,9 @@ WritableSharedMemoryMapping MapAtForTesting(
     size_t size) {
   SharedMemoryMapper* mapper = SharedMemoryMapper::GetDefaultInstance();
   auto result = region->MapAt(offset, size, mapper);
-  if (!result.has_value())
+  if (!result.has_value()) {
     return {};
+  }
 
   return WritableSharedMemoryMapping(result.value(), size, region->GetGUID(),
                                      mapper);

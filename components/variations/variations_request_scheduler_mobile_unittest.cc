@@ -1,11 +1,11 @@
-// Copyright 2014 The Chromium Authors. All rights reserved.
+// Copyright 2014 The Chromium Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
 #include "components/variations/variations_request_scheduler_mobile.h"
 
-#include "base/bind.h"
-#include "base/task/sequenced_task_runner.h"
+#include "base/functional/bind.h"
+#include "base/test/task_environment.h"
 #include "components/prefs/pref_registry_simple.h"
 #include "components/prefs/testing_pref_service.h"
 #include "components/variations/pref_names.h"
@@ -16,7 +16,7 @@ namespace variations {
 namespace {
 
 // Simple method used to verify a Callback has been triggered.
-void Increment(int *n) {
+void Increment(int* n) {
   (*n)++;
 }
 
@@ -28,7 +28,8 @@ TEST(VariationsRequestSchedulerMobileTest, StartNoRun) {
   prefs.registry()->RegisterTimePref(prefs::kVariationsLastFetchTime,
                                      base::Time::Now());
   int executed = 0;
-  const base::Closure task = base::Bind(&Increment, &executed);
+  const base::RepeatingClosure task =
+      base::BindRepeating(&Increment, &executed);
   VariationsRequestSchedulerMobile scheduler(task, &prefs);
   scheduler.Start();
   // We expect it the task to not have triggered.
@@ -38,10 +39,11 @@ TEST(VariationsRequestSchedulerMobileTest, StartNoRun) {
 TEST(VariationsRequestSchedulerMobileTest, StartRun) {
   TestingPrefServiceSimple prefs;
   // Verify it doesn't take more than a day.
-  base::Time old = base::Time::Now() - base::TimeDelta::FromHours(24);
+  base::Time old = base::Time::Now() - base::Hours(24);
   prefs.registry()->RegisterTimePref(prefs::kVariationsLastFetchTime, old);
   int executed = 0;
-  const base::Closure task = base::Bind(&Increment, &executed);
+  const base::RepeatingClosure task =
+      base::BindRepeating(&Increment, &executed);
   VariationsRequestSchedulerMobile scheduler(task, &prefs);
   scheduler.Start();
   // We expect the task to have triggered.
@@ -49,7 +51,7 @@ TEST(VariationsRequestSchedulerMobileTest, StartRun) {
 }
 
 TEST(VariationsRequestSchedulerMobileTest, OnAppEnterForegroundNoRun) {
-  base::MessageLoopForUI message_loop_;
+  base::test::SingleThreadTaskEnvironment task_environment;
 
   TestingPrefServiceSimple prefs;
 
@@ -57,7 +59,8 @@ TEST(VariationsRequestSchedulerMobileTest, OnAppEnterForegroundNoRun) {
   prefs.registry()->RegisterTimePref(prefs::kVariationsLastFetchTime,
                                      base::Time::Now());
   int executed = 0;
-  const base::Closure task = base::Bind(&Increment, &executed);
+  const base::RepeatingClosure task =
+      base::BindRepeating(&Increment, &executed);
   VariationsRequestSchedulerMobile scheduler(task, &prefs);
 
   // Verify timer not running.
@@ -76,14 +79,15 @@ TEST(VariationsRequestSchedulerMobileTest, OnAppEnterForegroundNoRun) {
 }
 
 TEST(VariationsRequestSchedulerMobileTest, OnAppEnterForegroundRun) {
-  base::MessageLoopForUI message_loop_;
+  base::test::SingleThreadTaskEnvironment task_environment;
 
   TestingPrefServiceSimple prefs;
 
-  base::Time old = base::Time::Now() - base::TimeDelta::FromHours(24);
+  base::Time old = base::Time::Now() - base::Hours(24);
   prefs.registry()->RegisterTimePref(prefs::kVariationsLastFetchTime, old);
   int executed = 0;
-  const base::Closure task = base::Bind(&Increment, &executed);
+  const base::RepeatingClosure task =
+      base::BindRepeating(&Increment, &executed);
   VariationsRequestSchedulerMobile scheduler(task, &prefs);
 
   // Verify timer not running.
@@ -102,14 +106,15 @@ TEST(VariationsRequestSchedulerMobileTest, OnAppEnterForegroundRun) {
 }
 
 TEST(VariationsRequestSchedulerMobileTest, OnAppEnterForegroundOnStartup) {
-  base::MessageLoopForUI message_loop_;
+  base::test::SingleThreadTaskEnvironment task_environment;
 
   TestingPrefServiceSimple prefs;
 
-  base::Time old = base::Time::Now() - base::TimeDelta::FromHours(24);
+  base::Time old = base::Time::Now() - base::Hours(24);
   prefs.registry()->RegisterTimePref(prefs::kVariationsLastFetchTime, old);
   int executed = 0;
-  const base::Closure task = base::Bind(&Increment, &executed);
+  const base::RepeatingClosure task =
+      base::BindRepeating(&Increment, &executed);
   VariationsRequestSchedulerMobile scheduler(task, &prefs);
 
   scheduler.Start();
@@ -127,10 +132,9 @@ TEST(VariationsRequestSchedulerMobileTest, OnAppEnterForegroundOnStartup) {
   // Simulate letting time pass.
   const base::Time last_fetch_time =
       prefs.GetTime(prefs::kVariationsLastFetchTime);
-  const base::Time one_day_earlier =
-      last_fetch_time - base::TimeDelta::FromHours(24);
+  const base::Time one_day_earlier = last_fetch_time - base::Hours(24);
   prefs.SetTime(prefs::kVariationsLastFetchTime, one_day_earlier);
-  scheduler.last_request_time_ -= base::TimeDelta::FromHours(24);
+  scheduler.last_request_time_ -= base::Hours(24);
 
   scheduler.OnAppEnterForeground();
   EXPECT_TRUE(scheduler.schedule_fetch_timer_.IsRunning());

@@ -1,5 +1,0 @@
-int static;
-
-/*%%*
-'static' is a reserved word
-*%%*/

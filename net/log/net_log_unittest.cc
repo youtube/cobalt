@@ -4,6 +4,8 @@
 
 #include "net/log/net_log.h"
 
+#include <array>
+
 #include "base/memory/raw_ptr.h"
 #include "base/synchronization/waitable_event.h"
 #include "base/test/task_environment.h"
@@ -211,7 +213,7 @@ class LoggingObserver : public NetLog::ThreadSafeObserver {
   }
 
   void OnAddEntry(const NetLogEntry& entry) override {
-    // TODO(https://crbug.com/1418110): This should be updated to be a
+    // TODO(crbug.com/40257546): This should be updated to be a
     // base::Value::Dict instead of a std::unique_ptr.
     std::unique_ptr<base::Value::Dict> dict =
         std::make_unique<base::Value::Dict>(entry.ToDict());
@@ -323,7 +325,7 @@ void RunTestThreads(NetLog* net_log) {
       base::WaitableEvent::ResetPolicy::MANUAL,
       base::WaitableEvent::InitialState::NOT_SIGNALED);
 
-  ThreadType threads[kThreads];
+  std::array<ThreadType, kThreads> threads;
   for (size_t i = 0; i < std::size(threads); ++i) {
     threads[i].Init(net_log, &start_event);
     threads[i].Start();
@@ -396,7 +398,7 @@ TEST(NetLogTest, NetLogAddRemoveObserver) {
 
 // Test adding and removing two observers at different log levels.
 TEST(NetLogTest, NetLogTwoObservers) {
-  LoggingObserver observer[2];
+  std::array<LoggingObserver, 2> observer;
 
   // Add first observer.
   NetLog::Get()->AddObserver(&observer[0],
@@ -416,7 +418,7 @@ TEST(NetLogTest, NetLogTwoObservers) {
 
   // Add event and make sure both observers receive it at their respective log
   // levels.
-  absl::optional<int> param;
+  std::optional<int> param;
   AddEvent(NetLog::Get());
   ASSERT_EQ(1U, observer[0].GetNumValues());
   param = observer[0].GetDict(0)->FindDict("params")->FindInt("capture_mode");

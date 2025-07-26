@@ -17,29 +17,28 @@ namespace base {
 
 const MemoryMappedFile::Region MemoryMappedFile::Region::kWholeFile = {0, 0};
 
-bool MemoryMappedFile::Region::operator==(
-    const MemoryMappedFile::Region& other) const {
-  return other.offset == offset && other.size == size;
-}
-
-bool MemoryMappedFile::Region::operator!=(
-    const MemoryMappedFile::Region& other) const {
-  return other.offset != offset || other.size != size;
-}
-
 MemoryMappedFile::~MemoryMappedFile() {
   CloseHandles();
 }
 
 #if !BUILDFLAG(IS_NACL)
 bool MemoryMappedFile::Initialize(const FilePath& file_name, Access access) {
-  if (IsValid())
+  if (IsValid()) {
     return false;
+  }
 
   uint32_t flags = 0;
   switch (access) {
     case READ_ONLY:
       flags = File::FLAG_OPEN | File::FLAG_READ;
+      break;
+    case READ_WRITE_COPY:
+      flags = File::FLAG_OPEN | File::FLAG_READ;
+#if BUILDFLAG(IS_FUCHSIA)
+      // Fuchsia's mmap() implementation does not allow us to create a
+      // copy-on-write mapping of a file opened as read-only.
+      flags |= File::FLAG_WRITE;
+#endif
       break;
     case READ_WRITE:
       flags = File::FLAG_OPEN | File::FLAG_READ | File::FLAG_WRITE;
@@ -47,7 +46,6 @@ bool MemoryMappedFile::Initialize(const FilePath& file_name, Access access) {
     case READ_WRITE_EXTEND:
       // Can't open with "extend" because no maximum size is known.
       NOTREACHED();
-      break;
 #if BUILDFLAG(IS_WIN)
     case READ_CODE_IMAGE:
       flags |= File::FLAG_OPEN | File::FLAG_READ |
@@ -92,6 +90,7 @@ bool MemoryMappedFile::Initialize(File file,
       [[fallthrough]];
     case READ_ONLY:
     case READ_WRITE:
+    case READ_WRITE_COPY:
       // Ensure that the region values are valid.
       if (region.offset < 0) {
         DLOG(ERROR) << "Region bounds are not valid.";
@@ -100,18 +99,18 @@ bool MemoryMappedFile::Initialize(File file,
       break;
 #if BUILDFLAG(IS_WIN)
     case READ_CODE_IMAGE:
-      // Can't open with "READ_CODE_IMAGE", not supported outside Windows
-      // or with a |region|.
-      NOTREACHED();
+      DCHECK(Region::kWholeFile == region);
       break;
 #endif
   }
 
-  if (IsValid())
+  if (IsValid()) {
     return false;
+  }
 
-  if (region != Region::kWholeFile)
+  if (region != Region::kWholeFile) {
     DCHECK_GE(region.offset, 0);
+  }
 
   file_ = std::move(file);
 
@@ -124,7 +123,7 @@ bool MemoryMappedFile::Initialize(File file,
 }
 
 bool MemoryMappedFile::IsValid() const {
-  return data_ != nullptr;
+  return !bytes_.empty();
 }
 
 // static
@@ -138,7 +137,7 @@ void MemoryMappedFile::CalculateVMAlignedBoundaries(int64_t start,
   CHECK(IsValueInRangeForNumericType<int32_t>(mask));
   *offset = static_cast<int32_t>(static_cast<uint64_t>(start) & mask);
   *aligned_start = static_cast<int64_t>(static_cast<uint64_t>(start) & ~mask);
-  // The DCHECK above means bit 31 is not set in `mask`, which in turn means
+  // The CHECK above means bit 31 is not set in `mask`, which in turn means
   // *offset is positive.  Therefore casting it to a size_t is safe.
   *aligned_size =
       (size + static_cast<size_t>(*offset) + static_cast<size_t>(mask)) & ~mask;

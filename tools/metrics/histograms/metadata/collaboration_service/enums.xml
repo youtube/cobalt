@@ -1,0 +1,96 @@
+<!--
+Copyright 2024 The Chromium Authors
+Use of this source code is governed by a BSD-style license that can be
+found in the LICENSE file.
+-->
+
+<!--
+
+This file describes the enumerations referenced by entries in histograms.xml for
+this directory. Some enums may instead be listed in the central enums.xml file
+at src/tools/metrics/histograms/enums.xml when multiple files use them.
+
+For best practices on writing enumerations descriptions, see
+https://chromium.googlesource.com/chromium/src.git/+/HEAD/tools/metrics/histograms/README.md#Enum-Histograms
+
+Please follow the instructions in the OWNERS file in this directory to find a
+reviewer. If no OWNERS file exists, please consider signing up at
+go/reviewing-metrics (Googlers only), as all subdirectories are expected to
+have an OWNERS file. As a last resort you can send the CL to
+chromium-metrics-reviews@google.com.
+-->
+
+<histogram-configuration>
+
+<!-- Enum types -->
+
+<enums>
+
+<!-- LINT.IfChange(CollaborationServiceJoinEvent) -->
+
+<enum name="CollaborationServiceJoinEvent">
+  <int value="0" label="Unknown"/>
+  <int value="1" label="Started"/>
+  <int value="2" label="Canceled - after sign in requirement"/>
+  <int value="3" label="Canceled - due to sign in requirement"/>
+  <int value="4" label="Not signed in on join attempt"/>
+  <int value="5" label="Accepted - the join invitation"/>
+  <int value="6" label="Opened - new group"/>
+  <int value="7" label="Opened - existing group"/>
+  <int value="8" label="Signin and sync requirements met"/>
+  <int value="9" label="Failed - URL parsing"/>
+  <int value="10" label="Signin not verified when finished"/>
+  <int value="11" label="Signin verified when finished"/>
+  <int value="12" label="Signin verified in observer"/>
+  <int value="13" label="Found collaboration, not tab group"/>
+  <int value="14" label="Read new group failed"/>
+  <int value="15" label="Read new group success"/>
+  <int value="16" label="Adding user to group"/>
+  <int value="17" label="Failed - Preview group full"/>
+  <int value="18" label="Failed - Preview fetch"/>
+  <int value="19" label="Preview successful"/>
+  <int value="20" label="Group exists when joined"/>
+  <int value="21" label="Tab group fetched"/>
+  <int value="22" label="People group fetched"/>
+  <int value="23" label="Success - Promote tab group"/>
+  <int value="24" label="Data sharing service ready when started"/>
+  <int value="25" label="Data sharing service ready observed"/>
+  <int value="26" label="Tab group sync service ready"/>
+  <int value="27" label="All services ready for flow"/>
+</enum>
+
+<!-- LINT.ThenChange(//components/collaboration/internal/metrics.h:CollaborationServiceJoinEvent) -->
+
+<!-- LINT.IfChange(CollaborationServiceShareOrManageEvent) -->
+
+<enum name="CollaborationServiceShareOrManageEvent">
+  <int value="0" label="Unknown"/>
+  <int value="1" label="Started"/>
+  <int value="2" label="Canceled - due to sign in requirement"/>
+  <int value="3" label="Not signed in on share or manage attempt"/>
+  <int value="4" label="Share dialog shown"/>
+  <int value="5" label="Manage dialog shown"/>
+  <int value="6" label="Tab group shared"/>
+  <int value="7" label="Urls ready to share"/>
+  <int value="8" label="Signin and sync requirements met"/>
+  <int value="9" label="Signin verified when finished"/>
+  <int value="10" label="Signin not verified when finished"/>
+  <int value="11" label="Signin verified in observer"/>
+  <int value="12" label="Failed - Sync group not found"/>
+  <int value="13" label="Failed - Created group missing ID"/>
+  <int value="14" label="Failed - Created group ID invalid"/>
+  <int value="15" label="Failed - Tab group null before migration"/>
+  <int value="16" label="Failed - Migration"/>
+  <int value="17" label="Failed - Read group"/>
+  <int value="18" label="Failed - URL creation"/>
+  <int value="19" label="Data sharing service ready when started"/>
+  <int value="20" label="Data sharing service ready observed"/>
+  <int value="21" label="Tab group sync service ready"/>
+  <int value="22" label="All services ready for flow"/>
+</enum>
+
+<!-- LINT.ThenChange(//components/collaboration/internal/metrics.h:CollaborationServiceShareOrManageEvent) -->
+
+</enums>
+
+</histogram-configuration>

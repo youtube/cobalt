@@ -14,10 +14,9 @@ generation functionality.
 
 ## Requirements
 
-To use PHP runtime library requires:
-
-- C extension: PHP 5.5, 5.6, or 7.
-- [PHP package](http://php.net/downloads.php): PHP 5.5, 5.6 or 7.
+For information on supported language versions and how the support levels for
+PHP versions will change over time, see
+[Supported PHP versions](https://cloud.google.com/php/getting-started/supported-php-versions).
 
 ## Installation
 
@@ -26,8 +25,6 @@ To use PHP runtime library requires:
 #### Prerequirements
 
 To install the c extension, the following tools are needed:
-* autoconf
-* automake
 * libtool
 * make
 * gcc
@@ -36,7 +33,7 @@ To install the c extension, the following tools are needed:
 
 On Ubuntu, you can install them with:
 ```
-sudo apt-get install -y php-pear php5-dev autoconf automake libtool make gcc
+sudo apt-get install -y php-pear php-dev libtool make gcc
 ```
 On other platforms, please use the corresponding package managing tool to
 install them before proceeding.
@@ -67,6 +64,8 @@ sudo pecl install protobuf-{VERSION}
 Simply add "google/protobuf" to the 'require' section of composer.json in your
 project.
 
+To use the pure PHP implementation, you need to install bcmath.
+
 ### Protoc
 
 Once the extension or package is installed, if you wish to generate PHP code
@@ -95,3 +94,39 @@ Known Issues
 * HHVM not tested.
 * C extension not tested on windows, mac, php 7.0.
 * Message name cannot be Empty.
+
+## Development
+
+### Test Native PHP
+
+```
+# Install Dependencies (Linux)
+apt-get install bazel composer php-dev
+
+# Download protobuf
+git clone https://github.com/protocolbuffers/protobuf.git
+cd protobuf
+
+# Build protoc
+bazel build :protoc
+
+# Test native php
+cd php
+composer install
+composer test
+```
+
+### Test C Extension
+
+After you have finished testing the native php, you can test the c extension:
+```
+cd tests
+./test.sh 5.6 # The php runtime version.
+              # We provide 5.5, 5.5-zts, 5.6, 5.6-zts, 7.0, 7.0-zts, 7.1, 7.1-zts, 7.2, 7.2-zts, 7.3 and 7.3-zts
+              # ls /usr/local for more details
+```
+
+If you want to use gdb to debug the c extension, you can do:
+```
+./gdb_test.sh
+```

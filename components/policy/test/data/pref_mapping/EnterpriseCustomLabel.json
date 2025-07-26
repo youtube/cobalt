@@ -1,0 +1,62 @@
+[
+  {
+    "os": [
+      "win",
+      "linux",
+      "mac"
+    ],
+    "policy_pref_mapping_tests": [
+      {
+        "policies": {},
+        "prefs": {
+          "enterprise_label.custom_value.for_browser": {
+            "location": "local_state",
+            "default_value": ""
+          },
+          "enterprise_label.custom_value.for_profile": {
+            "location": "user_profile",
+            "default_value": ""
+          }
+        }
+      },
+      {
+        "policies": {
+          "EnterpriseCustomLabel": "Label"
+        },
+        "policies_settings": {
+          "EnterpriseCustomLabel": {
+            "scope": "machine",
+            "source": "cloud"
+          }
+        },
+        "prefs": {
+          "enterprise_label.custom_value.for_browser": {
+            "location": "local_state",
+            "value": "Label"
+          },
+          "enterprise_label.custom_value.for_profile": {
+            "location": "user_profile",
+            "default_value": ""
+          }
+        }
+      },
+      {
+        "policies": {
+          "EnterpriseCustomLabel": "Label"
+        },
+        "policies_settings": {
+          "EnterpriseCustomLabel": {
+            "scope": "user",
+            "source": "cloud"
+          }
+        },
+        "prefs": {
+          "enterprise_label.custom_value.for_profile": {
+            "location": "user_profile",
+            "value": "Label"
+          }
+        }
+      }
+    ]
+  }
+]

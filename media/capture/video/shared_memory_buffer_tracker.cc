@@ -19,7 +19,7 @@ namespace {
 class SharedMemoryBufferTrackerHandle : public media::VideoCaptureBufferHandle {
  public:
   explicit SharedMemoryBufferTrackerHandle(
-      const base::WritableSharedMemoryMapping& mapping)
+      base::WritableSharedMemoryMapping& mapping)
       : mapped_size_(mapping.size()),
         data_(mapping.GetMemoryAsSpan<uint8_t>().data()) {}
 
@@ -99,16 +99,13 @@ SharedMemoryBufferTracker::DuplicateAsUnsafeRegion() {
   return region_.Duplicate();
 }
 
-mojo::ScopedSharedBufferHandle
-SharedMemoryBufferTracker::DuplicateAsMojoBuffer() {
-  DCHECK(region_.IsValid());
-  return mojo::WrapUnsafeSharedMemoryRegion(region_.Duplicate());
-}
-
 gfx::GpuMemoryBufferHandle
 SharedMemoryBufferTracker::GetGpuMemoryBufferHandle() {
   NOTREACHED() << "Unsupported operation";
-  return gfx::GpuMemoryBufferHandle();
+}
+
+VideoCaptureBufferType SharedMemoryBufferTracker::GetBufferType() {
+  return VideoCaptureBufferType::kSharedMemory;
 }
 
 uint32_t SharedMemoryBufferTracker::GetMemorySizeInBytes() {

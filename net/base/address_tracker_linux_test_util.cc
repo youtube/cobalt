@@ -2,6 +2,11 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#ifdef UNSAFE_BUFFERS_BUILD
+// TODO(crbug.com/40284755): Remove this and spanify to fix the errors.
+#pragma allow_unsafe_buffers
+#endif
+
 #include "net/base/address_tracker_linux_test_util.h"
 
 #include <linux/if.h>
@@ -134,7 +139,7 @@ void MakeWirelessLinkMessage(uint16_t type,
   msg.ifi_flags = flags;
   msg.ifi_change = 0;
   nlmsg.AddPayload(msg);
-  char data[8] = {0};
+  char data[8] = {};
   nlmsg.AddAttribute(IFLA_WIRELESS, data, sizeof(data));
   if (clear_output) {
     output->clear();

@@ -1,10 +1,13 @@
-// Copyright (c) 2012 The Chromium Authors. All rights reserved.
+// Copyright 2012 The Chromium Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
 #include "components/prefs/pref_value_store.h"
 
 #include <stddef.h>
+
+#include <string>
+#include <string_view>
 
 #include "base/logging.h"
 #include "components/prefs/pref_notifier.h"
@@ -36,8 +39,7 @@ void PrefValueStore::PrefStoreKeeper::Initialize(
     pref_store_->AddObserver(this);
 }
 
-void PrefValueStore::PrefStoreKeeper::OnPrefValueChanged(
-    const std::string& key) {
+void PrefValueStore::PrefStoreKeeper::OnPrefValueChanged(std::string_view key) {
   pref_value_store_->OnPrefValueChanged(type_, key);
 }
 
@@ -53,11 +55,8 @@ PrefValueStore::PrefValueStore(PrefStore* managed_prefs,
                                PrefStore* user_prefs,
                                PrefStore* recommended_prefs,
                                PrefStore* default_prefs,
-                               PrefNotifier* pref_notifier,
-                               std::unique_ptr<Delegate> delegate)
-    : pref_notifier_(pref_notifier),
-      initialization_failed_(false),
-      delegate_(std::move(delegate)) {
+                               PrefNotifier* pref_notifier)
+    : pref_notifier_(pref_notifier), initialization_failed_(false) {
   InitPrefStore(MANAGED_STORE, managed_prefs);
   InitPrefStore(SUPERVISED_USER_STORE, supervised_user_prefs);
   InitPrefStore(EXTENSION_STORE, extension_prefs);
@@ -67,14 +66,9 @@ PrefValueStore::PrefValueStore(PrefStore* managed_prefs,
   InitPrefStore(DEFAULT_STORE, default_prefs);
 
   CheckInitializationCompleted();
-  if (delegate_) {
-    delegate_->Init(managed_prefs, supervised_user_prefs, extension_prefs,
-                    command_line_prefs, user_prefs, recommended_prefs,
-                    default_prefs, pref_notifier);
-  }
 }
 
-PrefValueStore::~PrefValueStore() {}
+PrefValueStore::~PrefValueStore() = default;
 
 std::unique_ptr<PrefValueStore> PrefValueStore::CloneAndSpecialize(
     PrefStore* managed_prefs,
@@ -84,8 +78,7 @@ std::unique_ptr<PrefValueStore> PrefValueStore::CloneAndSpecialize(
     PrefStore* user_prefs,
     PrefStore* recommended_prefs,
     PrefStore* default_prefs,
-    PrefNotifier* pref_notifier,
-    std::unique_ptr<Delegate> delegate) {
+    PrefNotifier* pref_notifier) {
   DCHECK(pref_notifier);
   if (!managed_prefs)
     managed_prefs = GetPrefStore(MANAGED_STORE);
@@ -104,15 +97,20 @@ std::unique_ptr<PrefValueStore> PrefValueStore::CloneAndSpecialize(
 
   return std::make_unique<PrefValueStore>(
       managed_prefs, supervised_user_prefs, extension_prefs, command_line_prefs,
-      user_prefs, recommended_prefs, default_prefs, pref_notifier,
-      std::move(delegate));
+      user_prefs, recommended_prefs, default_prefs, pref_notifier);
 }
 
-void PrefValueStore::set_callback(const PrefChangedCallback& callback) {
-  pref_changed_callback_ = callback;
+PrefValueStore::PrefStoreType PrefValueStore::ControllingPrefStoreForPref(
+    const std::string& name) const {
+  for (size_t i = 0; i <= PREF_STORE_TYPE_MAX; ++i) {
+    if (PrefValueInStore(name, static_cast<PrefStoreType>(i))) {
+      return static_cast<PrefStoreType>(i);
+    }
+  }
+  return INVALID_STORE;
 }
 
-bool PrefValueStore::GetValue(const std::string& name,
+bool PrefValueStore::GetValue(std::string_view name,
                               base::Value::Type type,
                               const base::Value** out_value) const {
   // Check the |PrefStore|s in order of their priority from highest to lowest,
@@ -132,15 +130,13 @@ bool PrefValueStore::GetRecommendedValue(const std::string& name,
 }
 
 void PrefValueStore::NotifyPrefChanged(
-    const std::string& path,
+    std::string_view path,
     PrefValueStore::PrefStoreType new_store) {
   DCHECK(new_store != INVALID_STORE);
   // A notification is sent when the pref value in any store changes. If this
   // store is currently being overridden by a higher-priority store, the
   // effective value of the pref will not have changed.
   pref_notifier_->OnPreferenceChanged(path);
-  if (!pref_changed_callback_.is_null())
-    pref_changed_callback_.Run(path);
 }
 
 bool PrefValueStore::PrefValueInManagedStore(const std::string& name) const {
@@ -192,21 +188,16 @@ bool PrefValueStore::PrefValueExtensionModifiable(
 
 void PrefValueStore::UpdateCommandLinePrefStore(PrefStore* command_line_prefs) {
   InitPrefStore(COMMAND_LINE_STORE, command_line_prefs);
-  if (delegate_)
-    delegate_->UpdateCommandLinePrefStore(command_line_prefs);
 }
 
 bool PrefValueStore::IsInitializationComplete() const {
   for (size_t i = 0; i <= PREF_STORE_TYPE_MAX; ++i) {
     const PrefStore* pref_store = GetPrefStore(static_cast<PrefStoreType>(i));
-    if (pref_store && !pref_store->IsInitializationComplete())
+    if (pref_store && !pref_store->IsInitializationComplete()) {
       return false;
+    }
   }
   return true;
-}
-
-bool PrefValueStore::HasPrefStore(PrefStoreType type) const {
-  return GetPrefStore(type);
 }
 
 bool PrefValueStore::PrefValueInStore(
@@ -224,7 +215,6 @@ bool PrefValueStore::PrefValueInStoreRange(
     PrefValueStore::PrefStoreType last_checked_store) const {
   if (first_checked_store > last_checked_store) {
     NOTREACHED();
-    return false;
   }
 
   for (size_t i = first_checked_store;
@@ -235,16 +225,7 @@ bool PrefValueStore::PrefValueInStoreRange(
   return false;
 }
 
-PrefValueStore::PrefStoreType PrefValueStore::ControllingPrefStoreForPref(
-    const std::string& name) const {
-  for (size_t i = 0; i <= PREF_STORE_TYPE_MAX; ++i) {
-    if (PrefValueInStore(name, static_cast<PrefStoreType>(i)))
-      return static_cast<PrefStoreType>(i);
-  }
-  return INVALID_STORE;
-}
-
-bool PrefValueStore::GetValueFromStore(const std::string& name,
+bool PrefValueStore::GetValueFromStore(std::string_view name,
                                        PrefValueStore::PrefStoreType store_type,
                                        const base::Value** out_value) const {
   // Only return true if we find a value and it is the correct type, so stale
@@ -260,7 +241,7 @@ bool PrefValueStore::GetValueFromStore(const std::string& name,
 }
 
 bool PrefValueStore::GetValueFromStoreWithType(
-    const std::string& name,
+    std::string_view name,
     base::Value::Type type,
     PrefStoreType store,
     const base::Value** out_value) const {
@@ -278,7 +259,7 @@ bool PrefValueStore::GetValueFromStoreWithType(
 }
 
 void PrefValueStore::OnPrefValueChanged(PrefValueStore::PrefStoreType type,
-                                        const std::string& key) {
+                                        std::string_view key) {
   NotifyPrefChanged(key, type);
 }
 

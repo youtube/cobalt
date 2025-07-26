@@ -1,0 +1,66 @@
+// Copyright 2024 The Chromium Authors
+// Use of this source code is governed by a BSD-style license that can be
+// found in the LICENSE file.
+
+// Example WebIDL compatible schema for testing API definition features.
+// This will be added to as support for each features is implemented.
+
+// This comment is an example of a top level API description, which will be
+// extracted and added to the processed python dictionary as a description.
+//
+// Note: All comment lines preceding the thing they are attached to will be part
+// of the description, until a blank new line or non-comment is reached.
+interface TestWebIdl {
+
+  static undefined returnsUndefined();
+  static boolean returnsBoolean();
+  static double returnsDouble();
+  static long returnsLong();
+  static DOMString returnsDOMString();
+
+  static undefined takesNoArguments();
+  static undefined takesDOMString(DOMString stringArgument);
+  static undefined takesOptionalBoolean(optional boolean optionalBoolean);
+  static undefined takesMultipleArguments(
+      DOMString argument1, optional double argument2);
+  static undefined takesOptionalInnerArgument(
+      DOMString first, optional DOMString optionalInner, DOMString last);
+
+  static ExampleType returnsCustomType();
+  static undefined takesCustomType(ExampleType customTypeArgument);
+  static undefined takesOptionalCustomType(
+  optional ExampleType optionalCustomTypeArgument);
+
+  static Promise<DOMString> stringPromiseReturn();
+  static Promise<DOMString?> nullablePromiseReturn();
+  static Promise<ExampleType> customTypePromiseReturn();
+  static Promise<undefined> undefinedPromiseReturn();
+
+  // Test items for comment to description processing:
+
+  static undefined noDescription();
+  // One line description.
+  static undefined oneLineDescription();
+  // Multi line description.
+  // Split over.
+  // Multiple lines.
+  static undefined multiLineDescription();
+  // Paragraphed description.
+  //
+  // With blank comment line for paragraph tags.
+  static undefined paragraphedDescription();
+
+};
+
+dictionary ExampleType {
+  // Attribute comment attached to ExampleType.someString.
+  DOMString someString;
+  // Comment where <var>someNumber</var> has some markup.
+  double someNumber;
+  // Comment with HTML comment. <!-- Which should get through -->
+  boolean? optionalBoolean;
+};
+
+partial interface Browser {
+  static attribute TestWebIdl testWebIdl;
+};

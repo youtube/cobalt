@@ -43,9 +43,9 @@
 #define EXPECT_DCHECK_DEATH_WITH(statement, msg) \
   GTEST_UNSUPPORTED_DEATH_TEST(statement, msg, )
 #define ASSERT_DCHECK_DEATH(statement) \
-  GTEST_UNSUPPORTED_DEATH_TEST(statement, "Check failed", return )
+  GTEST_UNSUPPORTED_DEATH_TEST(statement, "Check failed", return)
 #define ASSERT_DCHECK_DEATH_WITH(statement, msg) \
-  GTEST_UNSUPPORTED_DEATH_TEST(statement, msg, return )
+  GTEST_UNSUPPORTED_DEATH_TEST(statement, msg, return)
 
 #endif  // DCHECK_IS_ON() && defined(GTEST_HAS_DEATH_TEST) &&
         // !BUILDFLAG(DCHECK_IS_CONFIGURABLE) && !BUILDFLAG(IS_ANDROID)
@@ -57,10 +57,16 @@
 #define EXPECT_CHECK_DEATH(statement) EXPECT_DEATH(statement, "Check failed")
 #define EXPECT_CHECK_DEATH_WITH(statement, msg) EXPECT_DEATH(statement, msg)
 #define ASSERT_CHECK_DEATH(statement) ASSERT_DEATH(statement, "Check failed")
+#define EXPECT_NOTREACHED_DEATH(statement) \
+  EXPECT_DEATH(statement, "NOTREACHED hit")
+#define ASSERT_NOTREACHED_DEATH(statement) \
+  ASSERT_DEATH(statement, "NOTREACHED hit")
 #else
 #define EXPECT_CHECK_DEATH(statement) EXPECT_DEATH(statement, "")
 #define EXPECT_CHECK_DEATH_WITH(statement, msg) EXPECT_DEATH(statement, "")
 #define ASSERT_CHECK_DEATH(statement) ASSERT_DEATH(statement, "")
+#define EXPECT_NOTREACHED_DEATH(statement) EXPECT_DEATH(statement, "")
+#define ASSERT_NOTREACHED_DEATH(statement) ASSERT_DEATH(statement, "")
 #endif  // CHECK_WILL_STREAM()
 
 #else  // defined(GTEST_HAS_DEATH_TEST) && !BUILDFLAG(IS_ANDROID)
@@ -72,7 +78,11 @@
 #define EXPECT_CHECK_DEATH_WITH(statement, msg) \
   GTEST_UNSUPPORTED_DEATH_TEST(statement, "", )
 #define ASSERT_CHECK_DEATH(statement) \
-  GTEST_UNSUPPORTED_DEATH_TEST(statement, "", return )
+  GTEST_UNSUPPORTED_DEATH_TEST(statement, "", return)
+#define EXPECT_NOTREACHED_DEATH(statement) \
+  GTEST_UNSUPPORTED_DEATH_TEST(statement, "", )
+#define ASSERT_NOTREACHED_DEATH(statement) \
+  GTEST_UNSUPPORTED_DEATH_TEST(statement, "", return)
 
 #endif  // defined(GTEST_HAS_DEATH_TEST) && !BUILDFLAG(IS_ANDROID)
 

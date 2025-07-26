@@ -1,5 +1,0 @@
-s{int i;};
-
-/*%%*
-interface blocks are not allowed in this kind of program
-*%%*/

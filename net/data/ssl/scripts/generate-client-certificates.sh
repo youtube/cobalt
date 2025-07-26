@@ -220,45 +220,52 @@ try /bin/sh -c "cat out/J.pem out/J.key out/E.pem out/C.pem > out/J-chain.pem"
 
 try openssl pkcs12 \
   -in out/A-chain.pem \
-  -out client_1.p12 \
+  -out out/client_1.p12 \
   -export \
   -passout pass:chrome
 
 try openssl pkcs12 \
   -in out/D-chain.pem \
-  -out client_2.p12 \
+  -out out/client_2.p12 \
   -export \
   -passout pass:chrome
 
 try openssl pkcs12 \
   -in out/F-chain.pem \
-  -out client_3.p12 \
+  -out out/client_3.p12 \
   -export \
   -passout pass:chrome
 
 try openssl pkcs12 \
   -in out/G-chain.pem \
-  -out client_4.p12 \
+  -out out/client_4.p12 \
   -export \
   -passout pass:chrome
 
 try openssl pkcs12 \
   -in out/H-chain.pem \
-  -out client_5.p12 \
+  -out out/client_5.p12 \
   -export \
   -passout pass:chrome
 
 try openssl pkcs12 \
   -in out/I-chain.pem \
-  -out client_6.p12 \
+  -out out/client_6.p12 \
   -export \
   -passout pass:chrome
 
 try openssl pkcs12 \
   -in out/J-chain.pem \
-  -out client_7.p12 \
+  -out out/client_7.p12 \
   -export \
   -passout pass:chrome
+
+try openssl pkcs12 \
+  -inkey out/A.key \
+  -in out/A.pem \
+  -out out/client_1_u16_password.p12 \
+  -export \
+  -passout pass:"Hello, 世界"
 
 echo Package the client certs for unit tests
 try cp out/A.pem ../certificates/client_1.pem
@@ -295,5 +302,14 @@ try cp out/J.pem ../certificates/client_7.pem
 try cp out/J.key ../certificates/client_7.key
 try cp out/J.pk8 ../certificates/client_7.pk8
 try cp out/E.pem ../certificates/client_7_ca.pem
+
+try cp out/client_1.p12 ../certificates/client_1.p12
+try cp out/client_2.p12 ../certificates/client_2.p12
+try cp out/client_3.p12 ../certificates/client_3.p12
+try cp out/client_4.p12 ../certificates/client_4.p12
+try cp out/client_5.p12 ../certificates/client_5.p12
+try cp out/client_6.p12 ../certificates/client_6.p12
+try cp out/client_7.p12 ../certificates/client_7.p12
+try cp out/client_1_u16_password.p12 ../certificates/client_1_u16_password.p12
 
 try cp out/C.pem ../certificates/client_root_ca.pem

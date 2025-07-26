@@ -2,33 +2,10 @@
 #
 # Protocol Buffers - Google's data interchange format
 # Copyright 2008 Google Inc.  All rights reserved.
-# https://developers.google.com/protocol-buffers/
 #
-# Redistribution and use in source and binary forms, with or without
-# modification, are permitted provided that the following conditions are
-# met:
-#
-#     * Redistributions of source code must retain the above copyright
-# notice, this list of conditions and the following disclaimer.
-#     * Redistributions in binary form must reproduce the above
-# copyright notice, this list of conditions and the following disclaimer
-# in the documentation and/or other materials provided with the
-# distribution.
-#     * Neither the name of Google Inc. nor the names of its
-# contributors may be used to endorse or promote products derived from
-# this software without specific prior written permission.
-#
-# THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
-# "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
-# LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR
-# A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT
-# OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
-# SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT
-# LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
-# DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
-# THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
-# (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
-# OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+# Use of this source code is governed by a BSD-style
+# license that can be found in the LICENSE file or at
+# https://developers.google.com/open-source/licenses/bsd
 
 """Adds support for parameterized tests to Python's unittest TestCase class.
 
@@ -37,8 +14,8 @@ argument tuples.
 
 A simple example:
 
-  class AdditionExample(parameterized.TestCase):
-    @parameterized.parameters(
+  class AdditionExample(_parameterized.TestCase):
+    @_parameterized.parameters(
        (1, 2, 3),
        (4, 5, 9),
        (1, 1, 3))
@@ -51,11 +28,11 @@ like a normal test method, with its own setUp/tearDown cycle. In the
 example above, there are three separate testcases, one of which will
 fail due to an assertion error (1 + 1 != 3).
 
-Parameters for invididual test cases can be tuples (with positional parameters)
+Parameters for individual test cases can be tuples (with positional parameters)
 or dictionaries (with named parameters):
 
-  class AdditionExample(parameterized.TestCase):
-    @parameterized.parameters(
+  class AdditionExample(_parameterized.TestCase):
+    @_parameterized.parameters(
        {'op1': 1, 'op2': 2, 'result': 3},
        {'op1': 4, 'op2': 5, 'result': 9},
     )
@@ -82,8 +59,8 @@ this case, only tuples are supported, and the first parameters has to
 be a string (or an object that returns an apt name when converted via
 str()):
 
-  class NamedExample(parameterized.TestCase):
-    @parameterized.named_parameters(
+  class NamedExample(_parameterized.TestCase):
+    @_parameterized.named_parameters(
        ('Normal', 'aa', 'aaa', True),
        ('EmptyPrefix', '', 'abc', True),
        ('BothEmpty', '', '', True))
@@ -106,10 +83,10 @@ If invocation arguments are shared across test methods in a single
 TestCase class, instead of decorating all test methods
 individually, the class itself can be decorated:
 
-  @parameterized.parameters(
+  @_parameterized.parameters(
     (1, 2, 3)
     (4, 5, 9))
-  class ArithmeticTest(parameterized.TestCase):
+  class ArithmeticTest(_parameterized.TestCase):
     def testAdd(self, arg1, arg2, result):
       self.assertEqual(arg1 + arg2, result)
 
@@ -122,8 +99,8 @@ If parameters should be shared across several test cases, or are dynamically
 created from other sources, a single non-tuple iterable can be passed into
 the decorator. This iterable will be used to obtain the test cases:
 
-  class AdditionExample(parameterized.TestCase):
-    @parameterized.parameters(
+  class AdditionExample(_parameterized.TestCase):
+    @_parameterized.parameters(
       c.op1, c.op2, c.result for c in testcases
     )
     def testAddition(self, op1, op2, result):
@@ -135,8 +112,8 @@ Single-Argument Test Methods
 If a test method takes only one argument, the single argument does not need to
 be wrapped into a tuple:
 
-  class NegativeNumberExample(parameterized.TestCase):
-    @parameterized.parameters(
+  class NegativeNumberExample(_parameterized.TestCase):
+    @_parameterized.parameters(
        -1, -3, -4, -5
     )
     def testIsNegative(self, arg):
@@ -148,13 +125,8 @@ __author__ = 'tmarek@google.com (Torsten Marek)'
 import functools
 import re
 import types
-try:
-  import unittest2 as unittest
-except ImportError:
-  import unittest
+import unittest
 import uuid
-
-import six
 
 try:
   # Since python 3
@@ -180,8 +152,8 @@ def _StrClass(cls):
 
 
 def _NonStringIterable(obj):
-  return (isinstance(obj, collections_abc.Iterable) and not
-          isinstance(obj, six.string_types))
+  return (isinstance(obj, collections_abc.Iterable) and
+          not isinstance(obj, str))
 
 
 def _FormatParameterList(testcase_params):
@@ -359,7 +331,7 @@ class TestGeneratorMetaclass(type):
 
   def __new__(mcs, class_name, bases, dct):
     dct['_id_suffix'] = id_suffix = {}
-    for name, obj in dct.items():
+    for name, obj in dct.copy().items():
       if (name.startswith(unittest.TestLoader.testMethodPrefix) and
           _NonStringIterable(obj)):
         iterator = iter(obj)
@@ -391,9 +363,8 @@ def _UpdateClassDictForParamTestCase(dct, id_suffix, name, iterator):
     id_suffix[new_name] = getattr(func, '__x_extra_id__', '')
 
 
-class TestCase(unittest.TestCase):
+class TestCase(unittest.TestCase, metaclass=TestGeneratorMetaclass):
   """Base class for test cases using the parameters decorator."""
-  __metaclass__ = TestGeneratorMetaclass
 
   def _OriginalName(self):
     return self._testMethodName.split(_SEPARATOR)[0]
@@ -429,7 +400,7 @@ def CoopTestCase(other_base_class):
     import google3
     import mox
 
-    from google3.testing.pybase import parameterized
+    from google.protobuf.internal import _parameterized
 
     class ExampleTest(parameterized.CoopTestCase(mox.MoxTestBase)):
       ...

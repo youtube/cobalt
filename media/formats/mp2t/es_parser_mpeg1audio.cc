@@ -2,12 +2,18 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#ifdef UNSAFE_BUFFERS_BUILD
+// TODO(crbug.com/40285824): Remove this and convert code to safer constructs.
+#pragma allow_unsafe_buffers
+#endif
+
 #include "media/formats/mp2t/es_parser_mpeg1audio.h"
 
 #include <vector>
 
 #include "base/functional/bind.h"
 #include "base/logging.h"
+#include "base/memory/raw_ptr.h"
 #include "base/strings/string_number_conversions.h"
 #include "media/base/audio_timestamp_helper.h"
 #include "media/base/bit_reader.h"
@@ -24,7 +30,7 @@ namespace mp2t {
 
 struct EsParserMpeg1Audio::Mpeg1AudioFrame {
   // Pointer to the ES data.
-  const uint8_t* data;
+  raw_ptr<const uint8_t> data;
 
   // Frame size.
   int size;
@@ -62,7 +68,7 @@ bool EsParserMpeg1Audio::ParseFromEsQueue() {
     if (current_timing_desc.pts != kNoTimestamp)
       audio_timestamp_helper_->SetBaseTimestamp(current_timing_desc.pts);
 
-    if (audio_timestamp_helper_->base_timestamp() == kNoTimestamp) {
+    if (!audio_timestamp_helper_->base_timestamp()) {
       DVLOG(1) << "Skipping audio frame with unknown timestamp";
       SkipMpeg1AudioFrame(mpeg1audio_frame);
       continue;
@@ -141,7 +147,7 @@ bool EsParserMpeg1Audio::LookForMpeg1AudioFrame(
     }
 
     es_queue_->Pop(offset);
-    es_queue_->Peek(&mpeg1audio_frame->data, &es_size);
+    es_queue_->Peek(&mpeg1audio_frame->data.AsEphemeralRawAddr(), &es_size);
     mpeg1audio_frame->queue_offset = es_queue_->head();
     mpeg1audio_frame->size = header.frame_size;
     mpeg1audio_frame->sample_count = header.sample_count;
@@ -183,8 +189,7 @@ bool EsParserMpeg1Audio::UpdateAudioConfiguration(
     DVLOG(1) << "Sampling frequency: " << header.sample_rate;
     DVLOG(1) << "Channel layout: " << header.channel_layout;
     // Reset the timestamp helper to use a new time scale.
-    if (audio_timestamp_helper_ &&
-        audio_timestamp_helper_->base_timestamp() != kNoTimestamp) {
+    if (audio_timestamp_helper_ && audio_timestamp_helper_->base_timestamp()) {
       base::TimeDelta base_timestamp = audio_timestamp_helper_->GetTimestamp();
       audio_timestamp_helper_.reset(
         new AudioTimestampHelper(header.sample_rate));

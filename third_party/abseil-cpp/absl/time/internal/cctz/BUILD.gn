@@ -36,8 +36,12 @@ absl_source_set("time_zone") {
     "include/cctz/time_zone.h",
     "include/cctz/zone_info_source.h",
   ]
+  defines = []
   if (is_apple) {
     frameworks = [ "Foundation.framework" ]
+
+    # Work-around for https://github.com/llvm/llvm-project/issues/117630
+    defines += [ "_XOPEN_SOURCE=700" ]
   }
   deps = [
     ":civil_time",
@@ -50,12 +54,6 @@ absl_source_set("time_zone") {
       "//third_party/fuchsia-sdk/sdk/pkg/async-loop-cpp",
       "//third_party/fuchsia-sdk/sdk/pkg/sys_cpp",
       "//third_party/fuchsia-sdk/sdk/pkg/zx",
-    ]
-  }
-  if (is_starboard) {
-    deps += [
-      "//starboard/common",
-      "//starboard:starboard_group"
     ]
   }
 }

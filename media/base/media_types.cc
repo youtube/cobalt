@@ -10,7 +10,7 @@ namespace media {
 
 // static
 AudioType AudioType::FromDecoderConfig(const AudioDecoderConfig& config) {
-  return {config.codec(), AudioCodecProfile::kUnknown, false};
+  return {config.codec(), config.profile(), false};
 }
 
 // static
@@ -24,7 +24,7 @@ VideoType VideoType::FromDecoderConfig(const VideoDecoderConfig& config) {
 
   // Zero is not a valid level for any of the following codecs. It means
   // "unknown" or "no level" (e.g. VP8).
-  int level = 0;
+  VideoCodecLevel level = 0;
 
   switch (config.codec()) {
     // These have no notion of level.
@@ -63,6 +63,11 @@ bool operator==(const AudioType& x, const AudioType& y) {
 
 bool operator!=(const AudioType& x, const AudioType& y) {
   return !(x == y);
+}
+
+bool operator<(const AudioType& x, const AudioType& y) {
+  return std::tie(x.codec, x.profile, x.spatial_rendering) <
+         std::tie(y.codec, y.profile, y.spatial_rendering);
 }
 
 bool operator==(const VideoType& x, const VideoType& y) {

@@ -5,12 +5,14 @@
 #include "media/audio/win/audio_low_latency_input_win.h"
 
 #include <windows.h>
+
 #include <mmsystem.h>
 #include <stddef.h>
 #include <stdint.h>
 
 #include <memory>
 
+#include "base/containers/span.h"
 #include "base/environment.h"
 #include "base/files/file_util.h"
 #include "base/functional/bind.h"
@@ -20,7 +22,6 @@
 #include "base/strings/stringprintf.h"
 #include "base/task/single_thread_task_runner.h"
 #include "base/test/metrics/histogram_tester.h"
-#include "base/test/scoped_feature_list.h"
 #include "base/test/task_environment.h"
 #include "base/test/test_timeouts.h"
 #include "base/win/scoped_com_initializer.h"
@@ -120,17 +121,16 @@ class WriteToFileAudioSink : public AudioInputStream::AudioInputCallback {
   ~WriteToFileAudioSink() override {
     size_t bytes_written = 0;
     while (bytes_written < bytes_to_write_) {
-      const uint8_t* chunk;
-      int chunk_size;
-
       // Stop writing if no more data is available.
-      if (!buffer_.GetCurrentChunk(&chunk, &chunk_size))
+      const base::span<const uint8_t> chunk = buffer_.GetCurrentChunk();
+      if (chunk.empty()) {
         break;
+      }
 
       // Write recorded data chunk to the file and prepare for next chunk.
-      fwrite(chunk, 1, chunk_size, binary_file_);
-      buffer_.Seek(chunk_size);
-      bytes_written += chunk_size;
+      fwrite(chunk.data(), 1, chunk.size(), binary_file_);
+      buffer_.Seek(chunk.size());
+      bytes_written += chunk.size();
     }
     base::CloseFile(binary_file_);
   }
@@ -141,17 +141,16 @@ class WriteToFileAudioSink : public AudioInputStream::AudioInputCallback {
               double volume,
               const AudioGlitchInfo& glitch_info) override {
     const int num_samples = src->frames() * src->channels();
-    auto interleaved = std::make_unique<int16_t[]>(num_samples);
-    const int bytes_per_sample = sizeof(interleaved[0]);
+    auto interleaved = base::HeapArray<int16_t>::Uninit(num_samples);
     src->ToInterleaved<SignedInt16SampleTypeTraits>(src->frames(),
-                                                    interleaved.get());
+                                                    interleaved.data());
 
     // Store data data in a temporary buffer to avoid making blocking
     // fwrite() calls in the audio callback. The complete buffer will be
     // written to file in the destructor.
-    const int size = bytes_per_sample * num_samples;
-    if (buffer_.Append((const uint8_t*)interleaved.get(), size)) {
-      bytes_to_write_ += size;
+    const auto byte_span = base::as_bytes(interleaved.as_span());
+    if (buffer_.Append(byte_span)) {
+      bytes_to_write_ += byte_span.size();
     }
   }
 
@@ -271,7 +270,9 @@ class ScopedAudioInputStream {
   }
 
  private:
-  raw_ptr<AudioInputStream> stream_;
+  // TODO(crbug.com/377749732): Fix dangling pointer when used with
+  // `AudioInputStreamDataInterceptor`.
+  raw_ptr<AudioInputStream, DanglingUntriaged> stream_;
 };
 
 class WinAudioInputTest : public ::testing::Test,
@@ -387,13 +388,8 @@ TEST_F(WinAudioInputTest, WASAPIAudioInputStreamOpenStartAndClose) {
 }
 
 // Test Open(), Start(), Stop(), Close() calling sequence.
-TEST_P(WinAudioInputTest, WASAPIAudioInputStreamOpenStartStopAndClose) {
+TEST_F(WinAudioInputTest, WASAPIAudioInputStreamOpenStartStopAndClose) {
   ABORT_AUDIO_TEST_IF_NOT(HasCoreAudioAndInputDevices(audio_manager_.get()));
-  base::test::ScopedFeatureList feature_list;
-  const bool use_raw_audio = GetParam();
-  use_raw_audio
-      ? feature_list.InitAndEnableFeature(media::kWasapiRawAudioCapture)
-      : feature_list.InitAndDisableFeature(media::kWasapiRawAudioCapture);
   ScopedAudioInputStream ais(
       CreateDefaultAudioInputStream(audio_manager_.get()));
   EXPECT_TRUE(ais->SetAutomaticGainControl(true));
@@ -584,9 +580,6 @@ TEST_F(WinAudioInputTest, DISABLED_WASAPIAudioInputStreamRecordToFile) {
 TEST_F(WinAudioInputTest, DISABLED_WASAPIAudioInputStreamRecordToFileRAW) {
   ABORT_AUDIO_TEST_IF_NOT(HasCoreAudioAndInputDevices(audio_manager_.get()));
 
-  base::test::ScopedFeatureList feature_list;
-  feature_list.InitAndEnableFeature(media::kWasapiRawAudioCapture);
-
   // Name of the output PCM file containing captured data. The output file
   // will be stored in the directory containing 'media_unittests.exe'.
   // Example of full name: \src\build\Debug\out_stereo_10sec_raw.pcm.
@@ -662,9 +655,5 @@ TEST_F(WinAudioInputTest, DISABLED_WASAPIAudioInputStreamResampleToFile) {
     ais.Close();
   }
 }
-
-INSTANTIATE_TEST_SUITE_P(WinAudioInputTests,
-                         WinAudioInputTest,
-                         testing::Bool());
 
 }  // namespace media

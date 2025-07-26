@@ -2,23 +2,34 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#ifdef UNSAFE_BUFFERS_BUILD
+// TODO(crbug.com/40285824): Remove this and convert code to safer constructs.
+#pragma allow_unsafe_buffers
+#endif
+
 #include "media/cdm/cdm_adapter.h"
 
 #include <stddef.h>
+
 #include <iomanip>
 #include <memory>
 #include <utility>
 
+#include "base/compiler_specific.h"
+#include "base/containers/span.h"
 #include "base/functional/bind.h"
 #include "base/functional/callback_helpers.h"
 #include "base/logging.h"
+#include "base/memory/scoped_refptr.h"
 #include "base/metrics/histogram_functions.h"
 #include "base/metrics/histogram_macros.h"
+#include "base/numerics/clamped_math.h"
 #include "base/numerics/safe_conversions.h"
 #include "base/strings/string_number_conversions.h"
 #include "base/task/single_thread_task_runner.h"
 #include "base/time/time.h"
 #include "base/trace_event/trace_event.h"
+#include "base/types/pass_key.h"
 #include "media/base/audio_decoder_config.h"
 #include "media/base/callback_registry.h"
 #include "media/base/cdm_initialized_promise.h"
@@ -30,7 +41,6 @@
 #include "media/base/video_decoder_config.h"
 #include "media/base/video_frame.h"
 #include "media/base/video_util.h"
-#include "media/cdm/cdm_auxiliary_helper.h"
 #include "media/cdm/cdm_helpers.h"
 #include "media/cdm/cdm_type_conversion.h"
 #include "media/cdm/cdm_wrapper.h"
@@ -97,7 +107,6 @@ std::string CdmStatusToString(cdm::Status status) {
   }
 
   NOTREACHED();
-  return "Invalid Status!";
 }
 
 inline std::ostream& operator<<(std::ostream& out, cdm::Status status) {
@@ -123,7 +132,7 @@ void* GetCdmHost(int host_interface_version, void* user_data) {
 
   static_assert(
       CheckSupportedCdmHostVersions(cdm::Host_10::kVersion,
-                                    cdm::Host_11::kVersion),
+                                    cdm::Host_12::kVersion),
       "Mismatch between GetCdmHost() and IsSupportedCdmHostVersion()");
 
   DCHECK(IsSupportedCdmHostVersion(host_interface_version));
@@ -135,9 +144,12 @@ void* GetCdmHost(int host_interface_version, void* user_data) {
       return static_cast<cdm::Host_10*>(cdm_adapter);
     case cdm::Host_11::kVersion:
       return static_cast<cdm::Host_11*>(cdm_adapter);
+    case cdm::Host_12::kVersion:
+      return static_cast<cdm::Host_12*>(cdm_adapter);
+    // When future Host versions are used, update to include them over here.
+    // Older Chrome versions that don't support new host versions would return
+    // nullptr.
     default:
-      NOTREACHED() << "Unexpected host interface version "
-                   << host_interface_version;
       return nullptr;
   }
 }
@@ -164,6 +176,28 @@ void ReportOutputProtectionUMA(OutputProtectionStatus status) {
                             OutputProtectionStatus::kStatusCount);
 }
 
+void ReportDecoderBypassBlockCountUMA(uint64_t bypass_count,
+                                      uint64_t total_frames) {
+  // Keep track of the average number of decoder bypass blocks per frame. As
+  // `bypass_count` is typically expected to be low, multiply by 100. So if
+  // `bypass_count` == `total_frames`, then the reported value would be 100.
+  // Need to round-up so that if `bypass_count` is small then the value reported
+  // is at least 1. UMA has a maximum value of 10000.
+  constexpr std::string_view kDecoderBypassBlockCountUMAName =
+      "Media.EME.DecoderBypassBlockCount";
+  int report_result = 0;
+
+  if (bypass_count > 0u && total_frames > 0u) {
+    double ratio = (bypass_count * 100.0) / total_frames;
+    report_result = base::ClampRound<int>(ratio);
+    if (report_result == 0) {
+      // As at least 1 bypass was recorded, make sure we don't record 0.
+      report_result = 1;
+    }
+  }
+  base::UmaHistogramCounts10000(kDecoderBypassBlockCountUMAName, report_result);
+}
+
 crash_reporter::CrashKeyString<256> g_origin_crash_key("cdm-origin");
 using crash_reporter::ScopedCrashKeyString;
 
@@ -185,9 +219,10 @@ void CdmAdapter::Create(
   DCHECK(session_keys_change_cb);
   DCHECK(session_expiration_update_cb);
 
-  scoped_refptr<CdmAdapter> cdm = new CdmAdapter(
-      cdm_config, create_cdm_func, std::move(helper), session_message_cb,
-      session_closed_cb, session_keys_change_cb, session_expiration_update_cb);
+  auto cdm = base::MakeRefCounted<CdmAdapter>(
+      base::PassKey<CdmAdapter>(), cdm_config, create_cdm_func,
+      std::move(helper), session_message_cb, session_closed_cb,
+      session_keys_change_cb, session_expiration_update_cb);
 
   // |cdm| ownership passed to the promise.
   cdm->Initialize(
@@ -195,6 +230,7 @@ void CdmAdapter::Create(
 }
 
 CdmAdapter::CdmAdapter(
+    base::PassKey<CdmAdapter>,
     const CdmConfig& cdm_config,
     CreateCdmFunc create_cdm_func,
     std::unique_ptr<CdmAuxiliaryHelper> helper,
@@ -209,10 +245,10 @@ CdmAdapter::CdmAdapter(
       session_closed_cb_(session_closed_cb),
       session_keys_change_cb_(session_keys_change_cb),
       session_expiration_update_cb_(session_expiration_update_cb),
-      cdm_origin_(helper_->GetCdmOrigin().Serialize()),
-      scoped_crash_key_(&g_origin_crash_key, cdm_origin_),
+      scoped_crash_key_(&g_origin_crash_key,
+                        helper_->GetCdmOrigin().Serialize()),
       task_runner_(base::SingleThreadTaskRunner::GetCurrentDefault()),
-      pool_(new AudioBufferMemoryPool()) {
+      pool_(base::MakeRefCounted<AudioBufferMemoryPool>()) {
   DVLOG(1) << __func__;
 
   DCHECK(!cdm_config.key_system.empty());
@@ -223,12 +259,23 @@ CdmAdapter::CdmAdapter(
   DCHECK(session_keys_change_cb_);
   DCHECK(session_expiration_update_cb_);
 
+  cdm_metrics_data_.cdm_origin = helper_->GetCdmOrigin();
+
   helper_->SetFileReadCB(
       base::BindRepeating(&CdmAdapter::OnFileRead, weak_factory_.GetWeakPtr()));
 }
 
 CdmAdapter::~CdmAdapter() {
   DVLOG(1) << __func__;
+
+  // Only Cdms using an interface version greater than 10 have access to the
+  // ReportMetrics function, so to prevent from reporting a lot of metrics that
+  // are left unset, check if the interface version is greater than 10. We
+  // should also only report to the UKM in cases where at least one of the CDM
+  // values are set, otherwise too many impractical values will be reported.
+  if (GetInterfaceVersion() > 10 && cdm_metrics_data_.IsCdmValueSet()) {
+    helper_->RecordUkm(cdm_metrics_data_);
+  }
 
   // Reject any outstanding promises and close all the existing sessions.
   cdm_promise_adapter_.Clear(CdmPromiseAdapter::ClearReason::kDestruction);
@@ -367,6 +414,8 @@ void CdmAdapter::UpdateSession(const std::string& session_id,
   DCHECK(!response.empty());
   TRACE_EVENT1("media", "CdmAdapter::UpdateSession", "session_id", session_id);
 
+  cdm_metrics_data_.number_of_update_calls++;
+
   uint32_t promise_id =
       cdm_promise_adapter_.SavePromise(std::move(promise), __func__);
   DVLOG(2) << __func__ << ": session_id = " << session_id
@@ -419,9 +468,9 @@ Decryptor* CdmAdapter::GetDecryptor() {
   return this;
 }
 
-absl::optional<base::UnguessableToken> CdmAdapter::GetCdmId() const {
+std::optional<base::UnguessableToken> CdmAdapter::GetCdmId() const {
   DCHECK(task_runner_->BelongsToCurrentThread());
-  return absl::nullopt;
+  return std::nullopt;
 }
 
 void CdmAdapter::Decrypt(StreamType stream_type,
@@ -449,9 +498,10 @@ void CdmAdapter::Decrypt(StreamType stream_type,
     return;
   }
 
-  scoped_refptr<DecoderBuffer> decrypted_buffer(
-      DecoderBuffer::CopyFrom(decrypted_block->DecryptedBuffer()->Data(),
-                              decrypted_block->DecryptedBuffer()->Size()));
+  scoped_refptr<DecoderBuffer> decrypted_buffer(DecoderBuffer::CopyFrom(
+      // SAFETY: `Data()` must return a buffer of `Size()` bytes.
+      UNSAFE_BUFFERS(base::span(decrypted_block->DecryptedBuffer()->Data(),
+                                decrypted_block->DecryptedBuffer()->Size()))));
   decrypted_buffer->set_timestamp(
       base::Microseconds(decrypted_block->Timestamp()));
   std::move(decrypt_cb).Run(Decryptor::kSuccess, std::move(decrypted_buffer));
@@ -533,6 +583,7 @@ void CdmAdapter::InitializeVideoDecoder(const VideoDecoderConfig& config,
 
   aspect_ratio_ = config.aspect_ratio();
   is_video_encrypted_ = config.is_encrypted();
+  frames_processed_ = 0;
 
   if (status == cdm::kDeferredInitialization) {
     DVLOG(1) << "Deferred initialization in " << __func__;
@@ -619,6 +670,7 @@ void CdmAdapter::DecryptAndDecodeVideo(scoped_refptr<DecoderBuffer> encrypted,
   }
 
   decoded_frame->metadata().protected_video = is_video_encrypted_;
+  ++frames_processed_;
 
   std::move(video_decode_cb).Run(Decryptor::kSuccess, decoded_frame);
 }
@@ -684,7 +736,7 @@ void CdmAdapter::TimerExpired(void* context) {
 
 cdm::Time CdmAdapter::GetCurrentWallTime() {
   DCHECK(task_runner_->BelongsToCurrentThread());
-  return base::Time::Now().ToDoubleT();
+  return base::Time::Now().InSecondsFSinceUnixEpoch();
 }
 
 void CdmAdapter::OnInitialized(bool success) {
@@ -763,6 +815,8 @@ void CdmAdapter::OnSessionMessage(const char* session_id,
   DVLOG(2) << __func__ << ": session_id = " << session_id_str;
   DCHECK(task_runner_->BelongsToCurrentThread());
 
+  cdm_metrics_data_.number_of_on_message_events++;
+
   TRACE_EVENT2("media", "CdmAdapter::OnSessionMessage", "session_id",
                session_id_str, "message_type", message_type);
 
@@ -809,7 +863,8 @@ void CdmAdapter::OnExpirationChange(const char* session_id,
            << ", new_expiry_time = " << new_expiry_time;
   DCHECK(task_runner_->BelongsToCurrentThread());
 
-  base::Time expiration = base::Time::FromDoubleT(new_expiry_time);
+  base::Time expiration =
+      base::Time::FromSecondsSinceUnixEpoch(new_expiry_time);
   TRACE_EVENT2("media", "CdmAdapter::OnExpirationChange", "session_id",
                session_id_str, "new_expiry_time", expiration);
   session_expiration_update_cb_.Run(session_id_str, expiration);
@@ -1025,6 +1080,22 @@ void CdmAdapter::RequestStorageId(uint32_t version) {
   helper_->GetStorageId(version,
                         base::BindOnce(&CdmAdapter::OnStorageIdObtained,
                                        weak_factory_.GetWeakPtr()));
+}
+
+void CdmAdapter::ReportMetrics(cdm::MetricName metric_name, uint64_t value) {
+  switch (metric_name) {
+    case cdm::kSdkVersion:
+      cdm_metrics_data_.license_sdk_version = value;
+      return;
+    case cdm::kCertificateSerialNumber:
+      cdm_metrics_data_.certificate_serial_number = value;
+      return;
+    case cdm::kDecoderBypassBlockCount:
+      cdm_metrics_data_.decoder_bypass_block_count =
+          cdm_metrics_data_.decoder_bypass_block_count.value_or(0) + value;
+      ReportDecoderBypassBlockCountUMA(value, frames_processed_);
+      return;
+  }
 }
 
 void CdmAdapter::OnStorageIdObtained(uint32_t version,

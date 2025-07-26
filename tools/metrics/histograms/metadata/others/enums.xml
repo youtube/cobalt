@@ -1,0 +1,726 @@
+<!--
+Copyright 2024 The Chromium Authors
+Use of this source code is governed by a BSD-style license that can be
+found in the LICENSE file.
+-->
+
+<!--
+
+This file describes the enumerations referenced by entries in histograms.xml for
+this directory. Some enums may instead be listed in the central enums.xml file
+at src/tools/metrics/histograms/enums.xml when multiple files use them.
+
+For best practices on writing enumerations descriptions, see
+https://chromium.googlesource.com/chromium/src.git/+/HEAD/tools/metrics/histograms/README.md#Enum-Histograms
+
+Please follow the instructions in the OWNERS file in this directory to find a
+reviewer. If no OWNERS file exists, please consider signing up at
+go/reviewing-metrics (Googlers only), as all subdirectories are expected to
+have an OWNERS file. As a last resort you can send the CL to
+chromium-metrics-reviews@google.com.
+-->
+
+<histogram-configuration>
+
+<!-- Enum types -->
+
+<enums>
+
+<enum name="AuctionReportingIdField">
+  <int value="0" label="None"/>
+  <int value="1" label="InterestGroupName"/>
+  <int value="2" label="BuyerReportingId"/>
+  <int value="3" label="BuyerAndSellerReportingId"/>
+</enum>
+
+<enum name="EmbeddingModelLoadDlcStatus">
+  <int value="0" label="kSuccess"/>
+  <int value="1" label="kInvalidUuid"/>
+  <int value="2" label="kReadJsonFailed"/>
+  <int value="3" label="kParseJsonFailed"/>
+  <int value="4" label="kNoModelType"/>
+  <int value="5" label="kNoModelVersion"/>
+  <int value="6" label="kNoTfliteInfo"/>
+  <int value="7" label="kUnknownModelType"/>
+  <int value="8" label="kNoTflitePath"/>
+  <int value="9" label="kNoBuiltinSpm"/>
+  <int value="10" label="kNoSpmPath"/>
+  <int value="11" label="kNoDelegate"/>
+  <int value="12" label="kInstallFailed"/>
+</enum>
+
+<enum name="EmbeddingModelLoadEmbeddingStatus">
+  <int value="0" label="kSuccess"/>
+  <int value="1" label="kRetryBlocked"/>
+  <int value="2" label="kBuildRunnerFailed"/>
+  <int value="3" label="kRunnerLoadFailed"/>
+</enum>
+
+<enum name="EmbeddingModelTfliteRunnerLoadStatus">
+  <int value="0" label="kSuccess"/>
+  <int value="1" label="kUnsupportedDelegate"/>
+  <int value="2" label="kNoOdmlShim"/>
+  <int value="3" label="kFailedToLoadTokenizer"/>
+  <int value="4" label="kFailedToLoadFlatBufferModel"/>
+  <int value="5" label="kCantResolveModelOps"/>
+  <int value="6" label="kNoGpuOpenClDelegate"/>
+  <int value="7" label="kGpuOpenClDelegateModifyFailed"/>
+  <int value="8" label="kCantAllocateTensors"/>
+  <int value="9" label="kIncorrectInputSize"/>
+  <int value="10" label="kIncorrectOutputSize"/>
+</enum>
+
+<enum name="EmbeddingModelTfliteRunnerRunStatus">
+  <int value="0" label="kSuccess"/>
+  <int value="1" label="kNotLoaded"/>
+  <int value="2" label="kNoFormatFunctionInShim"/>
+  <int value="3" label="kFormatFailed"/>
+  <int value="4" label="kTokenizeFailed"/>
+  <int value="5" label="kTooLong"/>
+  <int value="6" label="kInvokeFailed"/>
+</enum>
+
+<enum name="EncryptionPrefixVersion">
+  <int value="0" label="No prefix found"/>
+  <int value="1" label="Version v10"/>
+  <int value="2" label="Version v11"/>
+</enum>
+
+<enum name="FreedesktopSecretKeyProviderErrorDetail">
+  <summary>
+    Fine-grained error details for FreedesktopSecretKeyProvider.
+  </summary>
+  <int value="0" label="None"/>
+  <int value="1" label="DestructedBeforeComplete"/>
+  <int value="2" label="EmptyObjectPaths"/>
+  <int value="3" label="InvalidReplyFormat"/>
+  <int value="4" label="InvalidSignalFormat"/>
+  <int value="5" label="InvalidVariantFormat"/>
+  <int value="6" label="NoResponse"/>
+  <int value="7" label="PromptDismissed"/>
+  <int value="8" label="PromptFailedSignalConnection"/>
+</enum>
+
+<enum name="FreedesktopSecretKeyProviderInitStatus">
+  <summary>
+    High-level error categories for FreedesktopSecretKeyProvider.
+  </summary>
+  <int value="0" label="Success"/>
+  <int value="1" label="CreateCollectionFailed"/>
+  <int value="2" label="CreateItemFailed"/>
+  <int value="3" label="EmptySecret"/>
+  <int value="4" label="GetSecretFailed"/>
+  <int value="5" label="GnomeKeyringDeadlock"/>
+  <int value="6" label="NoService"/>
+  <int value="7" label="ReadAliasFailed"/>
+  <int value="8" label="SearchItemsFailed"/>
+  <int value="9" label="SessionFailure"/>
+  <int value="10" label="UnlockFailed"/>
+</enum>
+
+<enum name="HappinessTrackingSurvey">
+  <summary>Possible survey states and answers for each question.</summary>
+  <int value="1" label="Survey Triggered"/>
+  <int value="2" label="Survey Loaded"/>
+  <int value="3" label="Survey Completed"/>
+  <int value="8" label="Survey Question Answer Parse Error"/>
+  <int value="9" label="Survey Unknown State"/>
+  <int value="101" label="Question 1 - Answer 1"/>
+  <int value="102" label="Question 1 - Answer 2"/>
+  <int value="103" label="Question 1 - Answer 3"/>
+  <int value="104" label="Question 1 - Answer 4"/>
+  <int value="105" label="Question 1 - Answer 5"/>
+  <int value="106" label="Question 1 - Answer 6"/>
+  <int value="107" label="Question 1 - Answer 7"/>
+  <int value="108" label="Question 1 - Answer 8"/>
+  <int value="109" label="Question 1 - Answer 9"/>
+  <int value="110" label="Question 1 - Answer 10"/>
+  <int value="201" label="Question 2 - Answer 1"/>
+  <int value="202" label="Question 2 - Answer 2"/>
+  <int value="203" label="Question 2 - Answer 3"/>
+  <int value="204" label="Question 2 - Answer 4"/>
+  <int value="205" label="Question 2 - Answer 5"/>
+  <int value="206" label="Question 2 - Answer 6"/>
+  <int value="207" label="Question 2 - Answer 7"/>
+  <int value="208" label="Question 2 - Answer 8"/>
+  <int value="209" label="Question 2 - Answer 9"/>
+  <int value="210" label="Question 2 - Answer 10"/>
+  <int value="301" label="Question 3 - Answer 1"/>
+  <int value="302" label="Question 3 - Answer 2"/>
+  <int value="303" label="Question 3 - Answer 3"/>
+  <int value="304" label="Question 3 - Answer 4"/>
+  <int value="305" label="Question 3 - Answer 5"/>
+  <int value="306" label="Question 3 - Answer 6"/>
+  <int value="307" label="Question 3 - Answer 7"/>
+  <int value="308" label="Question 3 - Answer 8"/>
+  <int value="309" label="Question 3 - Answer 9"/>
+  <int value="310" label="Question 3 - Answer 10"/>
+  <int value="401" label="Question 4 - Answer 1"/>
+  <int value="402" label="Question 4 - Answer 2"/>
+  <int value="403" label="Question 4 - Answer 3"/>
+  <int value="404" label="Question 4 - Answer 4"/>
+  <int value="405" label="Question 4 - Answer 5"/>
+  <int value="406" label="Question 4 - Answer 6"/>
+  <int value="407" label="Question 4 - Answer 7"/>
+  <int value="408" label="Question 4 - Answer 8"/>
+  <int value="409" label="Question 4 - Answer 9"/>
+  <int value="410" label="Question 4 - Answer 10"/>
+  <int value="501" label="Question 5 - Answer 1"/>
+  <int value="502" label="Question 5 - Answer 2"/>
+  <int value="503" label="Question 5 - Answer 3"/>
+  <int value="504" label="Question 5 - Answer 4"/>
+  <int value="505" label="Question 5 - Answer 5"/>
+  <int value="506" label="Question 5 - Answer 6"/>
+  <int value="507" label="Question 5 - Answer 7"/>
+  <int value="508" label="Question 5 - Answer 8"/>
+  <int value="509" label="Question 5 - Answer 9"/>
+  <int value="510" label="Question 5 - Answer 10"/>
+</enum>
+
+<enum name="ImportantFileReplaceResult">
+  <int value="0" label="Succeeded on first attempt"/>
+  <int value="1" label="Succeeded after retries"/>
+  <int value="2" label="Failed after retry limit"/>
+</enum>
+
+<enum name="RedactionToolCaller">
+  <summary>The caller of the redaction tool.</summary>
+  <int value="1" label="System Logs Uploader"/>
+  <int value="2" label="System Logs Fetcher"/>
+  <int value="3" label="Support Tool"/>
+  <int value="4" label="Error Reporting"/>
+  <int value="5" label="(Obsolete) Feedback Tool. Removed on 5/2024"/>
+  <int value="6" label="(Obsolete) Browser System Logs. Removed on 5/2024"/>
+  <int value="7" label="Unit Tests"/>
+  <int value="8" label="Undetermined"/>
+  <int value="9" label="Unknown"/>
+  <int value="10" label="Crash Tool"/>
+  <int value="11" label="Crash Tool Javascript Errors"/>
+  <int value="12" label="Feedback Tool Hot Rod"/>
+  <int value="13" label="Feedback Tool User Descriptions"/>
+  <int value="14" label="Feedback Tool System Logs"/>
+</enum>
+
+<enum name="RequestWorkletServiceOutcome">
+  <summary>
+    The outcome of AuctionProcessManager::RequestWorkletService().
+  </summary>
+  <int value="0" label="Hit process limit"/>
+  <int value="1" label="Used shared process"/>
+  <int value="2" label="Used existing dedicated process"/>
+  <int value="3" label="Created new dedicated process"/>
+  <int value="4" label="Used idle process"/>
+</enum>
+
+<enum name="SalientImageUrlFetchResult">
+  <int value="0" label="Failed to fetch salient image url from network."/>
+  <int value="1" label="A previous network request failed."/>
+  <int value="2" label="Successfully fetched salient image url from network."/>
+  <int value="3" label="Succeessfully got salient image url from local cache."/>
+</enum>
+
+<enum name="SecretPortalKeyProviderInitStatus">
+  <int value="0" label="Success"/>
+  <int value="1" label="NoService"/>
+  <int value="2" label="PipeFailed"/>
+  <int value="3" label="InvalidResponseFormat"/>
+  <int value="4" label="ResponsePathMismatch"/>
+  <int value="5" label="PipeReadFailed"/>
+  <int value="6" label="EmptySecret"/>
+  <int value="7" label="NoResponse"/>
+  <int value="8" label="SignalReadFailed"/>
+  <int value="9" label="UserCancelledUnlock"/>
+  <int value="10" label="(Obsolete) DestructedBeforeComplete"/>
+  <int value="11" label="SignalConnectFailed"/>
+  <int value="12" label="SignalParseFailed"/>
+</enum>
+
+<!-- From https://github.com/apple-oss-distributions/Security/blob/3dab46a11f45f2ffdbd70e2127cc5a8ce4a1f222/base/SecBase.h#L320 -->
+
+<enum name="SecurityFrameworkOSStatus">
+  <int value="-67903" label="errSecCertificateDuplicateExtension"/>
+  <int value="-67902" label="errSecCertificateIsCA"/>
+  <int value="-67901" label="errSecCertificateValidityPeriodTooLong"/>
+  <int value="-67900" label="errSecCertificateNameNotAllowed"/>
+  <int value="-67899" label="errSecCertificatePolicyNotAllowed"/>
+  <int value="-67898" label="errSecTimestampRevocationNotification"/>
+  <int value="-67897" label="errSecTimestampRevocationWarning"/>
+  <int value="-67896" label="errSecTimestampWaiting"/>
+  <int value="-67895" label="errSecTimestampRejection"/>
+  <int value="-67894" label="errSecSigningTimeMissing"/>
+  <int value="-67893" label="errSecTimestampSystemFailure"/>
+  <int value="-67892" label="errSecTimestampAddInfoNotAvailable"/>
+  <int value="-67891" label="errSecTimestampUnacceptedExtension"/>
+  <int value="-67890" label="errSecTimestampUnacceptedPolicy"/>
+  <int value="-67889" label="errSecTimestampTimeNotAvailable"/>
+  <int value="-67888" label="errSecTimestampBadDataFormat"/>
+  <int value="-67887" label="errSecTimestampBadRequest"/>
+  <int value="-67886" label="errSecTimestampBadAlg"/>
+  <int value="-67885" label="errSecTimestampServiceNotAvailable"/>
+  <int value="-67884" label="errSecTimestampNotTrusted"/>
+  <int value="-67883" label="errSecTimestampInvalid"/>
+  <int value="-67882" label="errSecTimestampMissing"/>
+  <int value="-67881" label="errSecExtendedKeyUsageNotCritical"/>
+  <int value="-67880" label="errSecMissingRequiredExtension"/>
+  <int value="-67879" label="errSecInvalidModifyMode"/>
+  <int value="-67878" label="errSecInvalidNewOwner"/>
+  <int value="-67877" label="errSecInvalidIndexInfo"/>
+  <int value="-67876" label="errSecInvalidAccessRequest"/>
+  <int value="-67875" label="errSecInvalidDBLocation"/>
+  <int value="-67874" label="errSecUnsupportedOperator"/>
+  <int value="-67873" label="errSecUnsupportedNumSelectionPreds"/>
+  <int value="-67872" label="errSecUnsupportedQueryLimits"/>
+  <int value="-67871" label="errSecMissingValue"/>
+  <int value="-67870" label="errSecDatastoreIsOpen"/>
+  <int value="-67869" label="errSecDatabaseLocked"/>
+  <int value="-67868" label="errSecInvalidParsingModule"/>
+  <int value="-67867" label="errSecIncompatibleFieldFormat"/>
+  <int value="-67866" label="errSecFieldSpecifiedMultiple"/>
+  <int value="-67865" label="errSecUnsupportedNumRecordTypes"/>
+  <int value="-67864" label="errSecUnsupportedNumIndexes"/>
+  <int value="-67863" label="errSecUnsupportedNumAttributes"/>
+  <int value="-67862" label="errSecUnsupportedLocality"/>
+  <int value="-67861" label="errSecUnsupportedIndexInfo"/>
+  <int value="-67860" label="errSecUnsupportedFieldFormat"/>
+  <int value="-67859" label="errSecNoFieldValues"/>
+  <int value="-67858" label="errSecInvalidCRLIndex"/>
+  <int value="-67857" label="errSecInvalidBundleInfo"/>
+  <int value="-67856" label="errSecRequestDescriptor"/>
+  <int value="-67855" label="errSecInvalidRequestor"/>
+  <int value="-67854" label="errSecInvalidValidityPeriod"/>
+  <int value="-67853" label="errSecInvalidEncoding"/>
+  <int value="-67852" label="errSecInvalidTupleCredentials"/>
+  <int value="-67851" label="errSecInvalidBaseACLs"/>
+  <int value="-67850" label="errSecInvalidTupleGroup"/>
+  <int value="-67849" label="errSecUnsupportedService"/>
+  <int value="-67848" label="errSecUnsupportedAddressType"/>
+  <int value="-67847" label="errSecRequestRejected"/>
+  <int value="-67846" label="errSecRequestLost"/>
+  <int value="-67845" label="errSecRejectedForm"/>
+  <int value="-67844" label="errSecNoDefaultAuthority"/>
+  <int value="-67843" label="errSecNotTrusted"/>
+  <int value="-67842" label="errSecMultipleValuesUnsupported"/>
+  <int value="-67841" label="errSecInvalidTuple"/>
+  <int value="-67840" label="errSecInvalidStopOnPolicy"/>
+  <int value="-67839" label="errSecInvalidResponseVector"/>
+  <int value="-67838" label="errSecInvalidRequestInputs"/>
+  <int value="-67837" label="errSecInvalidReason"/>
+  <int value="-67836" label="errSecInvalidTimeString"/>
+  <int value="-67835" label="errSecInvalidPolicyIdentifiers"/>
+  <int value="-67834" label="errSecInvalidIndex"/>
+  <int value="-67833" label="errSecInvalidIdentifier"/>
+  <int value="-67832" label="errSecInvalidID"/>
+  <int value="-67831" label="errSecInvalidFormType"/>
+  <int value="-67830" label="errSecInvalidCRL"/>
+  <int value="-67829" label="errSecInvalidCRLType"/>
+  <int value="-67828" label="errSecInvalidCRLEncoding"/>
+  <int value="-67827" label="errSecInvalidCRLAuthority"/>
+  <int value="-67826" label="errSecInvalidCertAuthority"/>
+  <int value="-67825" label="errSecVerifyActionFailed"/>
+  <int value="-67824" label="errSecInvalidAuthority"/>
+  <int value="-67823" label="errSecInvalidAction"/>
+  <int value="-67822" label="errSecInsufficientCredentials"/>
+  <int value="-67821" label="errSecCertificateSuspended"/>
+  <int value="-67820" label="errSecCertificateRevoked"/>
+  <int value="-67819" label="errSecCertificateNotValidYet"/>
+  <int value="-67818" label="errSecCertificateExpired"/>
+  <int value="-67817" label="errSecCertificateCannotOperate"/>
+  <int value="-67816" label="errSecInvalidCRLGroup"/>
+  <int value="-67815" label="errSecInvalidDigestAlgorithm"/>
+  <int value="-67814" label="errSecAlreadyLoggedIn"/>
+  <int value="-67813" label="errSecInvalidLoginName"/>
+  <int value="-67812" label="errSecDeviceVerifyFailed"/>
+  <int value="-67811" label="errSecPublicKeyInconsistent"/>
+  <int value="-67810" label="errSecBlockSizeMismatch"/>
+  <int value="-67809" label="errSecQuerySizeUnknown"/>
+  <int value="-67808" label="errSecVerifyFailed"/>
+  <int value="-67807" label="errSecStagedOperationNotStarted"/>
+  <int value="-67806" label="errSecStagedOperationInProgress"/>
+  <int value="-67805" label="errSecMissingAttributeWrappedKeyFormat"/>
+  <int value="-67804" label="errSecInvalidAttributeWrappedKeyFormat"/>
+  <int value="-67803" label="errSecMissingAttributeSymmetricKeyFormat"/>
+  <int value="-67802" label="errSecInvalidAttributeSymmetricKeyFormat"/>
+  <int value="-67801" label="errSecMissingAttributePrivateKeyFormat"/>
+  <int value="-67800" label="errSecInvalidAttributePrivateKeyFormat"/>
+  <int value="-67799" label="errSecMissingAttributePublicKeyFormat"/>
+  <int value="-67798" label="errSecInvalidAttributePublicKeyFormat"/>
+  <int value="-67797" label="errSecMissingAttributeAccessCredentials"/>
+  <int value="-67796" label="errSecInvalidAttributeAccessCredentials"/>
+  <int value="-67795" label="errSecMissingAttributeDLDBHandle"/>
+  <int value="-67794" label="errSecInvalidAttributeDLDBHandle"/>
+  <int value="-67793" label="errSecMissingAttributeIterationCount"/>
+  <int value="-67792" label="errSecInvalidAttributeIterationCount"/>
+  <int value="-67791" label="errSecMissingAttributeSubprime"/>
+  <int value="-67790" label="errSecInvalidAttributeSubprime"/>
+  <int value="-67789" label="errSecMissingAttributeBase"/>
+  <int value="-67788" label="errSecInvalidAttributeBase"/>
+  <int value="-67787" label="errSecMissingAttributePrime"/>
+  <int value="-67786" label="errSecInvalidAttributePrime"/>
+  <int value="-67785" label="errSecMissingAttributeVersion"/>
+  <int value="-67784" label="errSecInvalidAttributeVersion"/>
+  <int value="-67783" label="errSecMissingAttributeEndDate"/>
+  <int value="-67782" label="errSecInvalidAttributeEndDate"/>
+  <int value="-67781" label="errSecMissingAttributeStartDate"/>
+  <int value="-67780" label="errSecInvalidAttributeStartDate"/>
+  <int value="-67779" label="errSecMissingAttributeEffectiveBits"/>
+  <int value="-67778" label="errSecInvalidAttributeEffectiveBits"/>
+  <int value="-67777" label="errSecMissingAttributeMode"/>
+  <int value="-67776" label="errSecInvalidAttributeMode"/>
+  <int value="-67775" label="errSecMissingAttributeKeyType"/>
+  <int value="-67774" label="errSecInvalidAttributeKeyType"/>
+  <int value="-67773" label="errSecMissingAttributeLabel"/>
+  <int value="-67772" label="errSecInvalidAttributeLabel"/>
+  <int value="-67771" label="errSecMissingAlgorithmParms"/>
+  <int value="-67770" label="errSecInvalidAlgorithmParms"/>
+  <int value="-67769" label="errSecMissingAttributeRounds"/>
+  <int value="-67768" label="errSecInvalidAttributeRounds"/>
+  <int value="-67767" label="errSecMissingAttributeOutputSize"/>
+  <int value="-67766" label="errSecInvalidAttributeOutputSize"/>
+  <int value="-67765" label="errSecMissingAttributeBlockSize"/>
+  <int value="-67764" label="errSecInvalidAttributeBlockSize"/>
+  <int value="-67763" label="errSecMissingAttributeKeyLength"/>
+  <int value="-67762" label="errSecInvalidAttributeKeyLength"/>
+  <int value="-67761" label="errSecMissingAttributePassphrase"/>
+  <int value="-67760" label="errSecInvalidAttributePassphrase"/>
+  <int value="-67759" label="errSecMissingAttributeSeed"/>
+  <int value="-67758" label="errSecInvalidAttributeSeed"/>
+  <int value="-67757" label="errSecMissingAttributeRandom"/>
+  <int value="-67756" label="errSecInvalidAttributeRandom"/>
+  <int value="-67755" label="errSecMissingAttributePadding"/>
+  <int value="-67754" label="errSecInvalidAttributePadding"/>
+  <int value="-67753" label="errSecMissingAttributeSalt"/>
+  <int value="-67752" label="errSecInvalidAttributeSalt"/>
+  <int value="-67751" label="errSecMissingAttributeInitVector"/>
+  <int value="-67750" label="errSecInvalidAttributeInitVector"/>
+  <int value="-67749" label="errSecMissingAttributeKey"/>
+  <int value="-67748" label="errSecInvalidAttributeKey"/>
+  <int value="-67747" label="errSecInvalidAlgorithm"/>
+  <int value="-67746" label="errSecInvalidContext"/>
+  <int value="-67745" label="errSecInvalidOutputVector"/>
+  <int value="-67744" label="errSecInvalidInputVector"/>
+  <int value="-67743" label="errSecUnsupportedVectorOfBuffers"/>
+  <int value="-67742" label="errSecInvalidKeyFormat"/>
+  <int value="-67741" label="errSecUnsupportedKeyLabel"/>
+  <int value="-67740" label="errSecInvalidKeyLabel"/>
+  <int value="-67739" label="errSecUnsupportedKeyAttributeMask"/>
+  <int value="-67738" label="errSecInvalidKeyAttributeMask"/>
+  <int value="-67737" label="errSecUnsupportedKeyUsageMask"/>
+  <int value="-67736" label="errSecInvalidKeyUsageMask"/>
+  <int value="-67735" label="errSecUnsupportedKeySize"/>
+  <int value="-67734" label="errSecUnsupportedKeyFormat"/>
+  <int value="-67733" label="errSecKeyHeaderInconsistent"/>
+  <int value="-67732" label="errSecKeyBlobTypeIncorrect"/>
+  <int value="-67731" label="errSecKeyUsageIncorrect"/>
+  <int value="-67730" label="errSecAlgorithmMismatch"/>
+  <int value="-67729" label="errSecNotLoggedIn"/>
+  <int value="-67728" label="errSecAttachHandleBusy"/>
+  <int value="-67727" label="errSecDeviceError"/>
+  <int value="-67726" label="errSecPrivilegeNotSupported"/>
+  <int value="-67725" label="errSecOutputLengthError"/>
+  <int value="-67724" label="errSecInputLengthError"/>
+  <int value="-67723" label="errSecEventNotificationCallbackNotFound"/>
+  <int value="-67722" label="errSecModuleManagerNotFound"/>
+  <int value="-67721" label="errSecModuleManagerInitializeFailed"/>
+  <int value="-67720" label="errSecAttributeNotInContext"/>
+  <int value="-67719" label="errSecInvalidSubServiceID"/>
+  <int value="-67718" label="errSecModuleNotLoaded"/>
+  <int value="-67717" label="errSecInvalidServiceMask"/>
+  <int value="-67716" label="errSecInvalidAddinFunctionTable"/>
+  <int value="-67715" label="errSecLibraryReferenceNotFound"/>
+  <int value="-67714" label="errSecAddinUnloadFailed"/>
+  <int value="-67713" label="errSecInvalidKeyHierarchy"/>
+  <int value="-67712" label="errSecInvalidKeyRef"/>
+  <int value="-67711" label="errSecAddinLoadFailed"/>
+  <int value="-67710" label="errSecEMMUnloadFailed"/>
+  <int value="-67709" label="errSecEMMLoadFailed"/>
+  <int value="-67708" label="errSecInvalidPVC"/>
+  <int value="-67707" label="errSecPVCAlreadyConfigured"/>
+  <int value="-67706" label="errSecInvalidScope"/>
+  <int value="-67705" label="errSecPrivilegeNotGranted"/>
+  <int value="-67704" label="errSecIncompatibleVersion"/>
+  <int value="-67703" label="errSecInvalidSampleValue"/>
+  <int value="-67702" label="errSecInvalidACL"/>
+  <int value="-67701" label="errSecInvalidRecord"/>
+  <int value="-67700" label="errSecInvalidAccessCredentials"/>
+  <int value="-67699" label="errSecACLChangeFailed"/>
+  <int value="-67698" label="errSecACLAddFailed"/>
+  <int value="-67697" label="errSecACLReplaceFailed"/>
+  <int value="-67696" label="errSecACLDeleteFailed"/>
+  <int value="-67695" label="errSecCallbackFailed"/>
+  <int value="-67694" label="errSecInvalidValue"/>
+  <int value="-67693" label="errSecInvalidQuery"/>
+  <int value="-67692" label="errSecTagNotFound"/>
+  <int value="-67691" label="errSecInvalidCertificateGroup"/>
+  <int value="-67690" label="errSecInvalidCertificateRef"/>
+  <int value="-67689" label="errSecInvalidName"/>
+  <int value="-67688" label="errSecInvalidSignature"/>
+  <int value="-67687" label="errSecUnknownTag"/>
+  <int value="-67686" label="errSecVerificationFailure"/>
+  <int value="-67685" label="errSecInvalidNumberOfFields"/>
+  <int value="-67684" label="errSecCRLAlreadySigned"/>
+  <int value="-67683" label="errSecInvalidNetworkAddress"/>
+  <int value="-67682" label="errSecInvalidPassthroughID"/>
+  <int value="-67681" label="errSecInvalidDBList"/>
+  <int value="-67680" label="errSecInvalidHandle"/>
+  <int value="-67679" label="errSecInvalidGUID"/>
+  <int value="-67678" label="errSecModuleManifestVerifyFailed"/>
+  <int value="-67677" label="errSecFunctionFailed"/>
+  <int value="-67676" label="errSecSelfCheckFailed"/>
+  <int value="-67675" label="errSecInvalidPointer"/>
+  <int value="-67674" label="errSecMDSError"/>
+  <int value="-67673" label="errSecInvalidData"/>
+  <int value="-67672" label="errSecMemoryError"/>
+  <int value="-67671" label="errSecInternalError"/>
+  <int value="-67670" label="errSecFunctionIntegrityFail"/>
+  <int value="-67669" label="errSecPVCReferentNotFound"/>
+  <int value="-67668" label="errSecInvalidHandleUsage"/>
+  <int value="-67667" label="errSecNotInitialized"/>
+  <int value="-67666" label="errSecMobileMeFailedConsistencyCheck"/>
+  <int value="-67665" label="errSecMobileMeCSRVerifyFailure"/>
+  <int value="-67664" label="errSecMobileMeNoRequestPending"/>
+  <int value="-67663" label="errSecMobileMeRequestAlreadyPending"/>
+  <int value="-67662" label="errSecMobileMeServerServiceErr"/>
+  <int value="-67661" label="errSecMobileMeServerAlreadyExists"/>
+  <int value="-67660" label="errSecMobileMeServerNotAvailable"/>
+  <int value="-67659" label="errSecMobileMeServerError"/>
+  <int value="-67658" label="errSecMobileMeRequestRedirected"/>
+  <int value="-67657" label="errSecMobileMeRequestQueued"/>
+  <int value="-67656" label="errSecUnknownQualifiedCertStatement"/>
+  <int value="-67655" label="errSecInvalidSubjectName"/>
+  <int value="-67654" label="errSecTrustSettingDeny"/>
+  <int value="-67653" label="errSecResourceSignBadExtKeyUsage"/>
+  <int value="-67652" label="errSecResourceSignBadCertChainLength"/>
+  <int value="-67651" label="errSecCodeSigningDevelopment"/>
+  <int value="-67650" label="errSecCodeSigningNoExtendedKeyUsage"/>
+  <int value="-67649" label="errSecCodeSigningBadPathLengthConstraint"/>
+  <int value="-67648" label="errSecCodeSigningNoBasicConstraints"/>
+  <int value="-67647" label="errSecCodeSigningBadCertChainLength"/>
+  <int value="-67646" label="errSecOCSPResponseNonceMismatch"/>
+  <int value="-67645" label="errSecOCSPResponderUnauthorized"/>
+  <int value="-67644" label="errSecOCSPResponderSignatureRequired"/>
+  <int value="-67643" label="errSecOCSPResponderTryLater"/>
+  <int value="-67642" label="errSecOCSPResponderInternalError"/>
+  <int value="-67641" label="errSecOCSPResponderMalformedReq"/>
+  <int value="-67640" label="errSecOCSPNoSigner"/>
+  <int value="-67639" label="errSecOCSPSignatureError"/>
+  <int value="-67638" label="errSecRecordModified"/>
+  <int value="-67637" label="errSecOCSPNotTrustedToAnchor"/>
+  <int value="-67636" label="errSecNetworkFailure"/>
+  <int value="-67635" label="errSecIncompleteCertRevocationCheck"/>
+  <int value="-67634" label="errSecEndOfData"/>
+  <int value="-67633" label="errSecOCSPStatusUnrecognized"/>
+  <int value="-67632" label="errSecOCSPUnavailable"/>
+  <int value="-67631" label="errSecOCSPBadRequest"/>
+  <int value="-67630" label="errSecOCSPBadResponse"/>
+  <int value="-67629" label="errSecSSLBadExtendedKeyUsage"/>
+  <int value="-67628" label="errSecSMIMESubjAltNameNotCritical"/>
+  <int value="-67627" label="errSecSMIMENoEmailAddress"/>
+  <int value="-67626" label="errSecSMIMEKeyUsageNotCritical"/>
+  <int value="-67625" label="errSecSMIMEBadKeyUsage"/>
+  <int value="-67624" label="errSecSMIMEBadExtendedKeyUsage"/>
+  <int value="-67623" label="errSecSMIMEEmailAddressesNotFound"/>
+  <int value="-67622" label="errSecIDPFailure"/>
+  <int value="-67621" label="errSecCRLPolicyFailed"/>
+  <int value="-67620" label="errSecCRLNotTrusted"/>
+  <int value="-67619" label="errSecUnknownCRLExtension"/>
+  <int value="-67618" label="errSecUnknownCertExtension"/>
+  <int value="-67617" label="errSecCRLBadURI"/>
+  <int value="-67616" label="errSecCRLServerDown"/>
+  <int value="-67615" label="errSecCRLNotFound"/>
+  <int value="-67614" label="errSecCRLNotValidYet"/>
+  <int value="-67613" label="errSecCRLExpired"/>
+  <int value="-67612" label="errSecInvalidRoot"/>
+  <int value="-67611" label="errSecPathLengthConstraintExceeded"/>
+  <int value="-67610" label="errSecInvalidIDLinkage"/>
+  <int value="-67609" label="errSecInvalidExtendedKeyUsage"/>
+  <int value="-67608" label="errSecInvalidKeyUsageForPolicy"/>
+  <int value="-67607" label="errSecInvalidSubjectKeyID"/>
+  <int value="-67606" label="errSecInvalidAuthorityKeyID"/>
+  <int value="-67605" label="errSecNoBasicConstraintsCA"/>
+  <int value="-67604" label="errSecNoBasicConstraints"/>
+  <int value="-67603" label="errSecUnknownCriticalExtensionFlag"/>
+  <int value="-67602" label="errSecHostNameMismatch"/>
+  <int value="-67601" label="errSecIncompatibleKeyBlob"/>
+  <int value="-67600" label="errSecIncompatibleDatabaseBlob"/>
+  <int value="-67599" label="errSecInvalidKeyBlob"/>
+  <int value="-67598" label="errSecInvalidDatabaseBlob"/>
+  <int value="-67597" label="errSecFileTooBig"/>
+  <int value="-67596" label="errSecQuotaExceeded"/>
+  <int value="-67595" label="errSecAppleSSLv2Rollback"/>
+  <int value="-67594" label="errSecConversionError"/>
+  <int value="-67593" label="errSecAppleInvalidKeyEndDate"/>
+  <int value="-67592" label="errSecAppleInvalidKeyStartDate"/>
+  <int value="-67591" label="errSecAppleSignatureMismatch"/>
+  <int value="-67590" label="errSecApplePublicKeyIncomplete"/>
+  <int value="-67589" label="errSecAppleAddAppACLSubject"/>
+  <int value="-67588" label="errSecDeviceFailed"/>
+  <int value="-67587" label="errSecDeviceReset"/>
+  <int value="-67586" label="errSecInsufficientClientID"/>
+  <int value="-67585" label="errSecServiceNotAvailable"/>
+  <int value="-34020" label="errSecRestrictedAPI"/>
+  <int value="-34018" label="errSecMissingEntitlement"/>
+  <int value="-26275" label="errSecDecode"/>
+  <int value="-26267" label="errSecNotSigner"/>
+  <int value="-25320" label="errSecInDarkWake"/>
+  <int value="-25319" label="errSecInvalidPrefsDomain"/>
+  <int value="-25318" label="errSecCreateChainFailed"/>
+  <int value="-25317" label="errSecDataNotModifiable"/>
+  <int value="-25316" label="errSecDataNotAvailable"/>
+  <int value="-25315" label="errSecInteractionRequired"/>
+  <int value="-25314" label="errSecNoPolicyModule"/>
+  <int value="-25313" label="errSecNoCertificateModule"/>
+  <int value="-25312" label="errSecNoStorageModule"/>
+  <int value="-25311" label="errSecKeySizeNotAllowed"/>
+  <int value="-25310" label="errSecWrongSecVersion"/>
+  <int value="-25309" label="errSecReadOnlyAttr"/>
+  <int value="-25308" label="errSecInteractionNotAllowed"/>
+  <int value="-25307" label="errSecNoDefaultKeychain"/>
+  <int value="-25306" label="errSecNoSuchClass"/>
+  <int value="-25305" label="errSecInvalidSearchRef"/>
+  <int value="-25304" label="errSecInvalidItemRef"/>
+  <int value="-25303" label="errSecNoSuchAttr"/>
+  <int value="-25302" label="errSecDataTooLarge"/>
+  <int value="-25301" label="errSecBufferTooSmall"/>
+  <int value="-25300" label="errSecItemNotFound"/>
+  <int value="-25299" label="errSecDuplicateItem"/>
+  <int value="-25298" label="errSecInvalidCallback"/>
+  <int value="-25297" label="errSecDuplicateCallback"/>
+  <int value="-25296" label="errSecDuplicateKeychain"/>
+  <int value="-25295" label="errSecInvalidKeychain"/>
+  <int value="-25294" label="errSecNoSuchKeychain"/>
+  <int value="-25293" label="errSecAuthFailed"/>
+  <int value="-25292" label="errSecReadOnly"/>
+  <int value="-25291" label="errSecNotAvailable"/>
+  <int value="-25264" label="errSecPkcs12VerifyFailure"/>
+  <int value="-25263" label="errSecNoTrustSettings"/>
+  <int value="-25262" label="errSecInvalidTrustSettings"/>
+  <int value="-25261" label="errSecInvalidPasswordRef"/>
+  <int value="-25260" label="errSecPassphraseRequired"/>
+  <int value="-25259" label="errSecMultiplePrivKeys"/>
+  <int value="-25258" label="errSecKeyIsSensitive"/>
+  <int value="-25257" label="errSecUnknownFormat"/>
+  <int value="-25256" label="errSecUnsupportedFormat"/>
+  <int value="-25245" label="errSecTrustNotAvailable"/>
+  <int value="-25244" label="errSecInvalidOwnerEdit"/>
+  <int value="-25243" label="errSecNoAccessForItem"/>
+  <int value="-25242" label="errSecInvalidTrustSetting"/>
+  <int value="-25241" label="errSecPolicyNotFound"/>
+  <int value="-25240" label="errSecACLNotSimple"/>
+  <int value="-4960" label="errSecCoreFoundationUnknown"/>
+  <int value="-2070" label="errSecInternalComponent"/>
+  <int value="-909" label="errSecBadReq"/>
+  <int value="-128" label="errSecUserCanceled"/>
+  <int value="-108" label="errSecAllocate"/>
+  <int value="-61" label="errSecWrPerm"/>
+  <int value="-50" label="errSecParam"/>
+  <int value="-49" label="errSecOpWr"/>
+  <int value="-36" label="errSecIO"/>
+  <int value="-34" label="errSecDiskFull"/>
+  <int value="-4" label="errSecUnimplemented"/>
+  <int value="0" label="errSecSuccess"/>
+</enum>
+
+<enum name="SilentPushEvent">
+  <int value="0" label="New Silent Push request"/>
+  <int value="1" label="Notification enforcement skipped"/>
+  <int value="2" label="Silent push without notification"/>
+  <int value="3" label="Silent push with generic notification"/>
+</enum>
+
+<!--
+  Names are converted to ASCII before hashing - generate new hashes with:
+  cpp: static_cast<int32_t>(base::HashMetricName(base::WideToASCII(name)))
+  py3: struct.unpack('>i', hashlib.md5(name.encode('utf-8')).digest()[4:8])[0]
+-->
+
+<enum name="WinTroublesomeDllName">
+  <int value="-2136060246" label="ssldivx.dll"/>
+  <int value="-2126469685" label="protector.dll"/>
+  <int value="-2106419917" label="madchook.dll"/>
+  <int value="-2040788942" label="moonsysh.dll"/>
+  <int value="-1914344523" label="babylonchromepi.dll"/>
+  <int value="-1902674913" label="btkeyind.dll"/>
+  <int value="-1831476411" label="imon.dll"/>
+  <int value="-1767746938" label="npggNT.dll"/>
+  <int value="-1755907375" label="prls64.dll"/>
+  <int value="-1654699686" label="mpk.dll"/>
+  <int value="-1605880474" label="acpiz.dll"/>
+  <int value="-1603105999" label="opls64.dll"/>
+  <int value="-1577789031" label="rndlpepperbrowserrecordhelper.dll"/>
+  <int value="-1483143647" label="sahook.dll"/>
+  <int value="-1390739352" label="winstylerthemehelper.dll"/>
+  <int value="-1305539158" label="cooliris.dll"/>
+  <int value="-1228730188" label="wbhelp.dll"/>
+  <int value="-1215828013" label="npdivx32.dll"/>
+  <int value="-1109670284" label="atcuf64.dll"/>
+  <int value="-1093067714" label="pctgmhk.dll"/>
+  <int value="-1081403800" label="esspd.dll"/>
+  <int value="-1029559747" label="akinsofthook32.dll"/>
+  <int value="-996492407" label="wblind.dll"/>
+  <int value="-956625413" label="picrmi64.dll"/>
+  <int value="-851687289" label="pmls64.dll"/>
+  <int value="-775479020" label="sbrige.dll"/>
+  <int value="-714136468" label="rapportnikko.dll"/>
+  <int value="-685636232" label="icdcnl.dll"/>
+  <int value="-629812910" label="fwhook.dll"/>
+  <int value="-570442231" label="npggNT.des"/>
+  <int value="-534417221" label="mdnsnsp.dll"/>
+  <int value="-434631356" label="cmsetac.dll"/>
+  <int value="-432495155" label="radhslib.dll"/>
+  <int value="-287676129" label="guard64.dll"/>
+  <int value="-125421553" label="syncor11.dll"/>
+  <int value="-124260377" label="rlls.dll"/>
+  <int value="-79559580" label="kloehk.dll"/>
+  <int value="-78325637" label="hookprintapis.dll"/>
+  <int value="-52533834" label="rlhook.dll"/>
+  <int value="2882390" label="avcuf64.dll"/>
+  <int value="39638237" label="sdhook32.dll"/>
+  <int value="97128692" label="prntrack.dll"/>
+  <int value="126542371" label="pavhook.dll"/>
+  <int value="175146990" label="dockshellhook.dll"/>
+  <int value="206501686" label="pavshookwow.dll"/>
+  <int value="252722056" label="lawenforcer.dll"/>
+  <int value="575528993" label="icatcdll.dll"/>
+  <int value="617473348" label="radprlib.dll"/>
+  <int value="715053861" label="sguard.dll"/>
+  <int value="722284901" label="ioloHL.dll"/>
+  <int value="783638774" label="pavlsphook.dll"/>
+  <int value="812345817" label="easyhook32.dll"/>
+  <int value="819514643" label="windowsapihookdll32.dll"/>
+  <int value="822115018" label="pctavhook.dll"/>
+  <int value="864947373" label="picrmi32.dll"/>
+  <int value="884293529" label="oawatch.dll"/>
+  <int value="894321503" label="prochook.dll"/>
+  <int value="903913585" label="easyhook64.dll"/>
+  <int value="925866871" label="activedetect64.dll"/>
+  <int value="951683420" label="cplushook.dll"/>
+  <int value="952330710" label="rlls64.dll"/>
+  <int value="965468547" label="systools.dll"/>
+  <int value="1071142858" label="pavshook.dll"/>
+  <int value="1137605502" label="adialhk.dll"/>
+  <int value="1159731816" label="nphooks.dll"/>
+  <int value="1192118800" label="sc2hook.dll"/>
+  <int value="1215761196" label="tfwah.dll"/>
+  <int value="1267111211" label="assistant_x64.dll"/>
+  <int value="1294418200" label="smumhook.dll"/>
+  <int value="1306386228" label="windowsapihookdll64.dll"/>
+  <int value="1326886646" label="smum32.dll"/>
+  <int value="1339459563" label="lvprcinj01.dll"/>
+  <int value="1429888422" label="n64hooks.dll"/>
+  <int value="1485244555" label="pastali32.dll"/>
+  <int value="1495379146" label="avgrsstx.dll"/>
+  <int value="1575369430" label="cmcsyshk.dll"/>
+  <int value="1621941361" label="rooksdol.dll"/>
+  <int value="1648869474" label="hookterminateapis.dll"/>
+  <int value="1650495634" label="activedetect32.dll"/>
+  <int value="1685086961" label="rpchromebrowserrecordhelper.dll"/>
+  <int value="1848200256" label="airfoilinject3.dll"/>
+  <int value="1933769896" label="googledesktopnetwork3.dll"/>
+  <int value="1999347514" label="r3hook.dll"/>
+  <int value="2042034656" label="hookprocesscreation.dll"/>
+  <int value="2068928877" label="libdivx.dll"/>
+</enum>
+
+</enums>
+
+</histogram-configuration>

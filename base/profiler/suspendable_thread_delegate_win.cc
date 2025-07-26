@@ -41,11 +41,12 @@ win::ScopedHandle GetCurrentThreadHandle() {
 }
 
 win::ScopedHandle GetThreadHandle(PlatformThreadId thread_id) {
-  // TODO(https://crbug.com/947459): Move this logic to
+  // TODO(crbug.com/40620762): Move this logic to
   // GetSamplingProfilerCurrentThreadToken() and pass the handle in
   // SamplingProfilerThreadToken.
-  if (thread_id == ::GetCurrentThreadId())
+  if (thread_id.raw() == ::GetCurrentThreadId()) {
     return GetCurrentThreadHandle();
+  }
 
   // TODO(http://crbug.com/947459): Remove the test_handle* CHECKs once we
   // understand which flag is triggering the failure.
@@ -53,15 +54,15 @@ win::ScopedHandle GetThreadHandle(PlatformThreadId thread_id) {
   base::debug::Alias(&flags);
 
   flags |= THREAD_GET_CONTEXT;
-  win::ScopedHandle test_handle1(::OpenThread(flags, FALSE, thread_id));
+  win::ScopedHandle test_handle1(::OpenThread(flags, FALSE, thread_id.raw()));
   CHECK(test_handle1.is_valid());
 
   flags |= THREAD_QUERY_INFORMATION;
-  win::ScopedHandle test_handle2(::OpenThread(flags, FALSE, thread_id));
+  win::ScopedHandle test_handle2(::OpenThread(flags, FALSE, thread_id.raw()));
   CHECK(test_handle2.is_valid());
 
   flags |= THREAD_SUSPEND_RESUME;
-  win::ScopedHandle handle(::OpenThread(flags, FALSE, thread_id));
+  win::ScopedHandle handle(::OpenThread(flags, FALSE, thread_id.raw()));
   CHECK(handle.is_valid());
   return handle;
 }
@@ -69,17 +70,19 @@ win::ScopedHandle GetThreadHandle(PlatformThreadId thread_id) {
 // Returns the thread environment block pointer for |thread_handle|.
 const TEB* GetThreadEnvironmentBlock(PlatformThreadId thread_id,
                                      HANDLE thread_handle) {
-  // TODO(https://crbug.com/947459): Move this logic to
+  // TODO(crbug.com/40620762): Move this logic to
   // GetSamplingProfilerCurrentThreadToken() and pass the TEB* in
   // SamplingProfilerThreadToken.
-  if (thread_id == ::GetCurrentThreadId())
+  if (thread_id.raw() == ::GetCurrentThreadId()) {
     return reinterpret_cast<TEB*>(NtCurrentTeb());
+  }
 
   // Define types not in winternl.h needed to invoke NtQueryInformationThread().
   constexpr auto ThreadBasicInformation = static_cast<THREADINFOCLASS>(0);
   struct THREAD_BASIC_INFORMATION {
     NTSTATUS ExitStatus;
-    RAW_PTR_EXCLUSION TEB* Teb;  // Filled in by the OS so cannot use raw_ptr<>.
+    // RAW_PTR_EXCLUSION: Filled in by the OS so cannot use raw_ptr<>.
+    RAW_PTR_EXCLUSION TEB* Teb;
     CLIENT_ID ClientId;
     KAFFINITY AffinityMask;
     LONG Priority;
@@ -90,8 +93,9 @@ const TEB* GetThreadEnvironmentBlock(PlatformThreadId thread_id,
   NTSTATUS status = ::NtQueryInformationThread(
       thread_handle, ThreadBasicInformation, &basic_info,
       sizeof(THREAD_BASIC_INFORMATION), nullptr);
-  if (status != 0)
+  if (status != 0) {
     return nullptr;
+  }
 
   return basic_info.Teb;
 }
@@ -138,8 +142,9 @@ ScopedDisablePriorityBoost::ScopedDisablePriorityBoost(HANDLE thread_handle)
 }
 
 ScopedDisablePriorityBoost::~ScopedDisablePriorityBoost() {
-  if (got_previous_boost_state_)
+  if (got_previous_boost_state_) {
     ::SetThreadPriorityBoost(thread_handle_, boost_state_was_disabled_);
+  }
 }
 
 }  // namespace
@@ -156,8 +161,9 @@ SuspendableThreadDelegateWin::ScopedSuspendThread::ScopedSuspendThread(
 // NO HEAP ALLOCATIONS. The CHECK is OK because it provides a more noisy failure
 // mode than deadlocking.
 SuspendableThreadDelegateWin::ScopedSuspendThread::~ScopedSuspendThread() {
-  if (!was_successful_)
+  if (!was_successful_) {
     return;
+  }
 
   // Disable the priority boost that the thread would otherwise receive on
   // resume. We do this to avoid artificially altering the dynamics of the
@@ -172,7 +178,7 @@ SuspendableThreadDelegateWin::ScopedSuspendThread::~ScopedSuspendThread() {
   ScopedDisablePriorityBoost disable_priority_boost(thread_handle_);
   bool resume_thread_succeeded =
       ::ResumeThread(thread_handle_) != static_cast<DWORD>(-1);
-  CHECK(resume_thread_succeeded) << "ResumeThread failed: " << GetLastError();
+  PCHECK(resume_thread_succeeded) << "ResumeThread failed";
 }
 
 bool SuspendableThreadDelegateWin::ScopedSuspendThread::WasSuccessful() const {
@@ -227,15 +233,17 @@ std::vector<uintptr_t*> SuspendableThreadDelegateWin::GetRegistersToRewrite(
   // Return the set of non-volatile registers.
   return {
 #if defined(ARCH_CPU_X86_64)
-    &thread_context->R12, &thread_context->R13, &thread_context->R14,
-        &thread_context->R15, &thread_context->Rdi, &thread_context->Rsi,
-        &thread_context->Rbx, &thread_context->Rbp, &thread_context->Rsp
+      &thread_context->R12, &thread_context->R13,
+      &thread_context->R14, &thread_context->R15,
+      &thread_context->Rdi, &thread_context->Rsi,
+      &thread_context->Rbx, &thread_context->Rbp,
+      &thread_context->Rsp
 #elif defined(ARCH_CPU_ARM64)
-    &thread_context->X19, &thread_context->X20, &thread_context->X21,
-        &thread_context->X22, &thread_context->X23, &thread_context->X24,
-        &thread_context->X25, &thread_context->X26, &thread_context->X27,
-        &thread_context->X28, &thread_context->Fp, &thread_context->Lr,
-        &thread_context->Sp
+      &thread_context->X19, &thread_context->X20, &thread_context->X21,
+      &thread_context->X22, &thread_context->X23, &thread_context->X24,
+      &thread_context->X25, &thread_context->X26, &thread_context->X27,
+      &thread_context->X28, &thread_context->Fp,  &thread_context->Lr,
+      &thread_context->Sp
 #endif
   };
 }

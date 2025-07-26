@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include "net/base/filename_util.h"
+#include "net/base/filename_util_internal.h"
 
 #include "base/containers/contains.h"
 #include "base/files/file_path.h"
@@ -13,7 +13,7 @@
 #include "base/strings/utf_string_conversions.h"
 #include "base/threading/thread_restrictions.h"
 #include "build/build_config.h"
-#include "net/base/filename_util_internal.h"
+#include "net/base/filename_util.h"
 #include "net/base/mime_util.h"
 #include "net/base/net_string_util.h"
 #include "net/http/http_content_disposition.h"
@@ -89,7 +89,7 @@ void SanitizeGeneratedFileName(base::FilePath::StringType* filename,
     filename->resize((pos == std::string::npos) ? 0 : (pos + 1));
 #if BUILDFLAG(IS_WIN)
     base::TrimWhitespace(*filename, base::TRIM_TRAILING, filename);
-#elif BUILDFLAG(IS_POSIX) || BUILDFLAG(IS_FUCHSIA) || defined(STARBOARD)
+#elif BUILDFLAG(IS_POSIX) || BUILDFLAG(IS_FUCHSIA)
     base::TrimWhitespaceASCII(*filename, base::TRIM_TRAILING, filename);
 #else
 #error Unsupported platform
@@ -209,7 +209,7 @@ bool FilePathToString16(const base::FilePath& path, std::u16string* converted) {
 #if BUILDFLAG(IS_WIN)
   converted->assign(path.value().begin(), path.value().end());
   return true;
-#elif BUILDFLAG(IS_POSIX) || BUILDFLAG(IS_FUCHSIA) || defined(STARBOARD)
+#elif BUILDFLAG(IS_POSIX) || BUILDFLAG(IS_FUCHSIA)
   std::string component8 = path.AsUTF8Unsafe();
   return !component8.empty() &&
          base::UTF8ToUTF16(component8.c_str(), component8.size(), converted);
@@ -268,7 +268,7 @@ std::u16string GetSuggestedFilenameImpl(
   replace_trailing = true;
   result_str = base::UTF8ToWide(filename);
   default_name_str = base::UTF8ToWide(default_name);
-#elif BUILDFLAG(IS_POSIX) || BUILDFLAG(IS_FUCHSIA) || defined(STARBOARD)
+#elif BUILDFLAG(IS_POSIX) || BUILDFLAG(IS_FUCHSIA)
   result_str = filename;
   default_name_str = default_name;
 #else
@@ -319,8 +319,8 @@ base::FilePath GenerateFileNameImpl(
       replace_illegal_characters_function);
 
 #if BUILDFLAG(IS_WIN)
-  base::FilePath generated_name(base::AsWStringPiece(file_name));
-#elif BUILDFLAG(IS_POSIX) || BUILDFLAG(IS_FUCHSIA) || defined(COBALT_PENDING_CLEAN_UP)
+  base::FilePath generated_name(base::AsWStringView(file_name));
+#elif BUILDFLAG(IS_POSIX) || BUILDFLAG(IS_FUCHSIA)
   base::FilePath generated_name(
       base::SysWideToNativeMB(base::UTF16ToWide(file_name)));
 #endif

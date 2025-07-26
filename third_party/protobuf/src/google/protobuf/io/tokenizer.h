@@ -1,32 +1,9 @@
 // Protocol Buffers - Google's data interchange format
 // Copyright 2008 Google Inc.  All rights reserved.
-// https://developers.google.com/protocol-buffers/
 //
-// Redistribution and use in source and binary forms, with or without
-// modification, are permitted provided that the following conditions are
-// met:
-//
-//     * Redistributions of source code must retain the above copyright
-// notice, this list of conditions and the following disclaimer.
-//     * Redistributions in binary form must reproduce the above
-// copyright notice, this list of conditions and the following disclaimer
-// in the documentation and/or other materials provided with the
-// distribution.
-//     * Neither the name of Google Inc. nor the names of its
-// contributors may be used to endorse or promote products derived from
-// this software without specific prior written permission.
-//
-// THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
-// "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
-// LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR
-// A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT
-// OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
-// SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT
-// LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
-// DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
-// THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
-// (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
-// OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+// Use of this source code is governed by a BSD-style
+// license that can be found in the LICENSE file or at
+// https://developers.google.com/open-source/licenses/bsd
 
 // Author: kenton@google.com (Kenton Varda)
 //  Based on original Protocol Buffers design by
@@ -39,10 +16,14 @@
 
 #include <string>
 #include <vector>
-#include <google/protobuf/stubs/common.h>
-#include <google/protobuf/stubs/logging.h>
 
-#include <google/protobuf/port_def.inc>
+#include "google/protobuf/stubs/common.h"
+#include "absl/log/absl_log.h"
+#include "absl/strings/string_view.h"
+#include "google/protobuf/port.h"
+
+// Must be included last.
+#include "google/protobuf/port_def.inc"
 
 namespace google {
 namespace protobuf {
@@ -66,22 +47,41 @@ typedef int ColumnNumber;
 class PROTOBUF_EXPORT ErrorCollector {
  public:
   inline ErrorCollector() {}
+  ErrorCollector(const ErrorCollector&) = delete;
+  ErrorCollector& operator=(const ErrorCollector&) = delete;
   virtual ~ErrorCollector();
 
   // Indicates that there was an error in the input at the given line and
   // column numbers.  The numbers are zero-based, so you may want to add
   // 1 to each before printing them.
-  virtual void AddError(int line, ColumnNumber column,
-                        const std::string& message) = 0;
+  virtual void RecordError(int line, ColumnNumber column,
+                           absl::string_view message) {
+    PROTOBUF_IGNORE_DEPRECATION_START
+    AddError(line, column, std::string(message));
+    PROTOBUF_IGNORE_DEPRECATION_STOP
+  }
 
   // Indicates that there was a warning in the input at the given line and
   // column numbers.  The numbers are zero-based, so you may want to add
   // 1 to each before printing them.
-  virtual void AddWarning(int line, ColumnNumber column,
-                          const std::string& message) {}
+  virtual void RecordWarning(int line, ColumnNumber column,
+                             absl::string_view message) {
+    PROTOBUF_IGNORE_DEPRECATION_START
+    AddWarning(line, column, std::string(message));
+    PROTOBUF_IGNORE_DEPRECATION_STOP
+  }
 
  private:
-  GOOGLE_DISALLOW_EVIL_CONSTRUCTORS(ErrorCollector);
+  // These should never be called directly, but if a legacy class overrides
+  // them they'll get routed to by the Record* methods.
+  ABSL_DEPRECATED("Use RecordError")
+  virtual void AddError(int line, ColumnNumber column,
+                        const std::string& message) {
+    ABSL_LOG(FATAL) << "AddError or RecordError must be implemented.";
+  }
+  ABSL_DEPRECATED("Use RecordWarning")
+  virtual void AddWarning(int line, ColumnNumber column,
+                          const std::string& message) {}
 };
 
 // This class converts a stream of raw text into a stream of tokens for
@@ -96,6 +96,8 @@ class PROTOBUF_EXPORT Tokenizer {
   // input stream and writes errors to the given error_collector.
   // The caller keeps ownership of input and error_collector.
   Tokenizer(ZeroCopyInputStream* input, ErrorCollector* error_collector);
+  Tokenizer(const Tokenizer&) = delete;
+  Tokenizer& operator=(const Tokenizer&) = delete;
   ~Tokenizer();
 
   enum TokenType {
@@ -121,6 +123,13 @@ class PROTOBUF_EXPORT Tokenizer {
     TYPE_SYMBOL,      // Any other printable character, like '!' or '+'.
                       // Symbols are always a single character, so "!+$%" is
                       // four tokens.
+    TYPE_WHITESPACE,  // A sequence of whitespace.  This token type is only
+                      // produced if report_whitespace() is true.  It is not
+                      // reported for whitespace within comments or strings.
+    TYPE_NEWLINE,     // A newline (\n).  This token type is only
+                      // produced if report_whitespace() is true and
+                      // report_newlines() is true.  It is not reported for
+                      // newlines in comments or strings.
   };
 
   // Structure representing a token read from the token stream.
@@ -139,11 +148,11 @@ class PROTOBUF_EXPORT Tokenizer {
 
   // Get the current token.  This is updated when Next() is called.  Before
   // the first call to Next(), current() has type TYPE_START and no contents.
-  const Token& current();
+  const Token& current() const;
 
   // Return the previous token -- i.e. what current() returned before the
   // previous call to Next().
-  const Token& previous();
+  const Token& previous() const;
 
   // Advance to the next token.  Returns false if the end of the input is
   // reached.
@@ -203,6 +212,10 @@ class PROTOBUF_EXPORT Tokenizer {
   // result is undefined (possibly an assert failure).
   static double ParseFloat(const std::string& text);
 
+  // Parses given text as if it were a TYPE_FLOAT token.  Returns false if the
+  // given text is not actually a valid float literal.
+  static bool TryParseFloat(const std::string& text, double* result);
+
   // Parses a TYPE_STRING token.  This never fails, so long as the text actually
   // comes from a TYPE_STRING token parsed by Tokenizer.  If it doesn't, the
   // result is undefined (possibly an assert failure).
@@ -216,8 +229,8 @@ class PROTOBUF_EXPORT Tokenizer {
   // result.  If the text is not from a Token of type TYPE_INTEGER originally
   // parsed by a Tokenizer, the result is undefined (possibly an assert
   // failure).
-  static bool ParseInteger(const std::string& text, uint64 max_value,
-                           uint64* output);
+  static bool ParseInteger(const std::string& text, uint64_t max_value,
+                           uint64_t* output);
 
   // Options ---------------------------------------------------------
 
@@ -251,13 +264,21 @@ class PROTOBUF_EXPORT Tokenizer {
     allow_multiline_strings_ = allow;
   }
 
+  // If true, whitespace tokens are reported by Next().
+  // Note: `set_report_whitespace(false)` implies `set_report_newlines(false)`.
+  bool report_whitespace() const;
+  void set_report_whitespace(bool report);
+
+  // If true, newline tokens are reported by Next().
+  // Note: `set_report_newlines(true)` implies `set_report_whitespace(true)`.
+  bool report_newlines() const;
+  void set_report_newlines(bool report);
+
   // External helper: validate an identifier.
   static bool IsIdentifier(const std::string& text);
 
   // -----------------------------------------------------------------
  private:
-  GOOGLE_DISALLOW_EVIL_CONSTRUCTORS(Tokenizer);
-
   Token current_;   // Returned by current().
   Token previous_;  // Returned by previous().
 
@@ -286,6 +307,8 @@ class PROTOBUF_EXPORT Tokenizer {
   CommentStyle comment_style_;
   bool require_space_after_number_;
   bool allow_multiline_strings_;
+  bool report_whitespace_ = false;
+  bool report_newlines_ = false;
 
   // Since we count columns we need to interpret tabs somehow.  We'll take
   // the standard 8-character definition for lack of any way to do better.
@@ -314,7 +337,7 @@ class PROTOBUF_EXPORT Tokenizer {
 
   // Convenience method to add an error at the current line and column.
   void AddError(const std::string& message) {
-    error_collector_->AddError(line_, column_, message);
+    error_collector_->RecordError(line_, column_, message);
   }
 
   // -----------------------------------------------------------------
@@ -359,6 +382,14 @@ class PROTOBUF_EXPORT Tokenizer {
   // of comment it is.
   NextCommentStatus TryConsumeCommentStart();
 
+  // If we're looking at a TYPE_WHITESPACE token and `report_whitespace_` is
+  // true, consume it and return true.
+  bool TryConsumeWhitespace();
+
+  // If we're looking at a TYPE_NEWLINE token and `report_newlines_` is true,
+  // consume it and return true.
+  bool TryConsumeNewline();
+
   // -----------------------------------------------------------------
   // These helper methods make the parsing code more readable.  The
   // "character classes" referred to are defined at the top of the .cc file.
@@ -393,9 +424,9 @@ class PROTOBUF_EXPORT Tokenizer {
 };
 
 // inline methods ====================================================
-inline const Tokenizer::Token& Tokenizer::current() { return current_; }
+inline const Tokenizer::Token& Tokenizer::current() const { return current_; }
 
-inline const Tokenizer::Token& Tokenizer::previous() { return previous_; }
+inline const Tokenizer::Token& Tokenizer::previous() const { return previous_; }
 
 inline void Tokenizer::ParseString(const std::string& text,
                                    std::string* output) {
@@ -407,6 +438,6 @@ inline void Tokenizer::ParseString(const std::string& text,
 }  // namespace protobuf
 }  // namespace google
 
-#include <google/protobuf/port_undef.inc>
+#include "google/protobuf/port_undef.inc"
 
 #endif  // GOOGLE_PROTOBUF_IO_TOKENIZER_H__

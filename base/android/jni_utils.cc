@@ -10,7 +10,8 @@
 #include "base/no_destructor.h"
 #include "base/synchronization/lock.h"
 
-#include "base/base_jni_headers/JNIUtils_jni.h"
+// Must come after all headers that specialize FromJniType() / ToJniType().
+#include "base/base_minimal_jni/JNIUtils_jni.h"
 
 namespace base {
 namespace android {
@@ -28,8 +29,8 @@ jobject GetSplitClassLoader(JNIEnv* env, const char* split_name) {
     return it->second.obj();
   }
 
-  ScopedJavaGlobalRef<jobject> class_loader(Java_JNIUtils_getSplitClassLoader(
-      env, ConvertUTF8ToJavaString(env, split_name)));
+  ScopedJavaGlobalRef<jobject> class_loader(
+      Java_JNIUtils_getSplitClassLoader(env, split_name));
   jobject class_loader_obj = class_loader.obj();
   lock_and_map->map.insert({split_name, std::move(class_loader)});
   return class_loader_obj;
@@ -37,4 +38,3 @@ jobject GetSplitClassLoader(JNIEnv* env, const char* split_name) {
 
 }  // namespace android
 }  // namespace base
-

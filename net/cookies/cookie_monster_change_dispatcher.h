@@ -33,8 +33,7 @@ class CookieMonsterChangeDispatcher : public CookieChangeDispatcher {
       base::RepeatingCallbackList<void(const CookieChangeInfo&)>;
 
   // Expects |cookie_monster| to outlive this.
-  CookieMonsterChangeDispatcher(const CookieMonster* cookie_monster,
-                                bool same_party_attribute_enabled);
+  explicit CookieMonsterChangeDispatcher(const CookieMonster* cookie_monster);
 
   CookieMonsterChangeDispatcher(const CookieMonsterChangeDispatcher&) = delete;
   CookieMonsterChangeDispatcher& operator=(
@@ -55,11 +54,11 @@ class CookieMonsterChangeDispatcher : public CookieChangeDispatcher {
   [[nodiscard]] std::unique_ptr<CookieChangeSubscription> AddCallbackForCookie(
       const GURL& url,
       const std::string& name,
-      const absl::optional<CookiePartitionKey>& cookie_partition_key,
+      const std::optional<CookiePartitionKey>& cookie_partition_key,
       CookieChangeCallback callback) override;
   [[nodiscard]] std::unique_ptr<CookieChangeSubscription> AddCallbackForUrl(
       const GURL& url,
-      const absl::optional<CookiePartitionKey>& cookie_partition_key,
+      const std::optional<CookiePartitionKey>& cookie_partition_key,
       CookieChangeCallback callback) override;
   [[nodiscard]] std::unique_ptr<CookieChangeSubscription>
   AddCallbackForAllChanges(CookieChangeCallback callback) override;
@@ -79,7 +78,6 @@ class CookieMonsterChangeDispatcher : public CookieChangeDispatcher {
                  std::string name_key,
                  GURL url,
                  CookiePartitionKeyCollection cookie_partition_key_collection,
-                 bool same_party_attribute_enabled,
                  net::CookieChangeCallback callback);
 
     Subscription(const Subscription&) = delete;
@@ -107,7 +105,6 @@ class CookieMonsterChangeDispatcher : public CookieChangeDispatcher {
     const GURL url_;                // empty() means no URL-based filtering.
     const CookiePartitionKeyCollection cookie_partition_key_collection_;
     const net::CookieChangeCallback callback_;
-    bool same_party_attribute_enabled_;
 
     void DoDispatchChange(const CookieChangeInfo& change) const;
 
@@ -156,8 +153,6 @@ class CookieMonsterChangeDispatcher : public CookieChangeDispatcher {
   raw_ptr<const CookieMonster> cookie_monster_;
 
   CookieDomainMap cookie_domain_map_;
-
-  const bool same_party_attribute_enabled_;
 
   THREAD_CHECKER(thread_checker_);
 

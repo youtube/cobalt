@@ -2,6 +2,11 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#ifdef UNSAFE_BUFFERS_BUILD
+// TODO(crbug.com/390223051): Remove C-library calls to fix the errors.
+#pragma allow_unsafe_libc_calls
+#endif
+
 #include "net/base/network_interfaces_linux.h"
 
 #include <net/if.h>
@@ -61,7 +66,7 @@ TEST(NetworkInterfacesTest, NetworkListTrimmingLinux) {
   };
 
   // Address of offline links should be ignored.
-  ASSERT_TRUE(address_map.insert(std::make_pair(ipv6_address, msg)).second);
+  ASSERT_TRUE(address_map.insert(std::pair(ipv6_address, msg)).second);
   EXPECT_TRUE(internal::GetNetworkListImpl(
       &results, INCLUDE_HOST_SCOPE_VIRTUAL_INTERFACES, online_links,
       address_map, GetInterfaceName));
@@ -72,8 +77,7 @@ TEST(NetworkInterfacesTest, NetworkListTrimmingLinux) {
 
   // Local address should be trimmed out.
   address_map.clear();
-  ASSERT_TRUE(
-      address_map.insert(std::make_pair(ipv6_local_address, msg)).second);
+  ASSERT_TRUE(address_map.insert(std::pair(ipv6_local_address, msg)).second);
   EXPECT_TRUE(internal::GetNetworkListImpl(
       &results, INCLUDE_HOST_SCOPE_VIRTUAL_INTERFACES, online_links,
       address_map, GetInterfaceName));
@@ -81,7 +85,7 @@ TEST(NetworkInterfacesTest, NetworkListTrimmingLinux) {
 
   // vmware address should return by default.
   address_map.clear();
-  ASSERT_TRUE(address_map.insert(std::make_pair(ipv6_address, msg)).second);
+  ASSERT_TRUE(address_map.insert(std::pair(ipv6_address, msg)).second);
   EXPECT_TRUE(internal::GetNetworkListImpl(
       &results, INCLUDE_HOST_SCOPE_VIRTUAL_INTERFACES, online_links,
       address_map, GetInterfaceNameVM));
@@ -93,7 +97,7 @@ TEST(NetworkInterfacesTest, NetworkListTrimmingLinux) {
 
   // vmware address should be trimmed out if policy specified so.
   address_map.clear();
-  ASSERT_TRUE(address_map.insert(std::make_pair(ipv6_address, msg)).second);
+  ASSERT_TRUE(address_map.insert(std::pair(ipv6_address, msg)).second);
   EXPECT_TRUE(internal::GetNetworkListImpl(
       &results, EXCLUDE_HOST_SCOPE_VIRTUAL_INTERFACES, online_links,
       address_map, GetInterfaceNameVM));
@@ -103,7 +107,7 @@ TEST(NetworkInterfacesTest, NetworkListTrimmingLinux) {
   // Addresses with banned attributes should be ignored.
   address_map.clear();
   msg.ifa_flags = IFA_F_TENTATIVE;
-  ASSERT_TRUE(address_map.insert(std::make_pair(ipv6_address, msg)).second);
+  ASSERT_TRUE(address_map.insert(std::pair(ipv6_address, msg)).second);
   EXPECT_TRUE(internal::GetNetworkListImpl(
       &results, INCLUDE_HOST_SCOPE_VIRTUAL_INTERFACES, online_links,
       address_map, GetInterfaceName));
@@ -114,7 +118,7 @@ TEST(NetworkInterfacesTest, NetworkListTrimmingLinux) {
   // attributes should be translated correctly.
   address_map.clear();
   msg.ifa_flags = IFA_F_TEMPORARY;
-  ASSERT_TRUE(address_map.insert(std::make_pair(ipv6_address, msg)).second);
+  ASSERT_TRUE(address_map.insert(std::pair(ipv6_address, msg)).second);
   EXPECT_TRUE(internal::GetNetworkListImpl(
       &results, INCLUDE_HOST_SCOPE_VIRTUAL_INTERFACES, online_links,
       address_map, GetInterfaceName));
@@ -129,7 +133,7 @@ TEST(NetworkInterfacesTest, NetworkListTrimmingLinux) {
   // attributes should be translated correctly.
   address_map.clear();
   msg.ifa_flags = IFA_F_DEPRECATED;
-  ASSERT_TRUE(address_map.insert(std::make_pair(ipv6_address, msg)).second);
+  ASSERT_TRUE(address_map.insert(std::pair(ipv6_address, msg)).second);
   EXPECT_TRUE(internal::GetNetworkListImpl(
       &results, INCLUDE_HOST_SCOPE_VIRTUAL_INTERFACES, online_links,
       address_map, GetInterfaceName));

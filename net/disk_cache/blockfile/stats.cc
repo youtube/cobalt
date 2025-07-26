@@ -2,16 +2,19 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#ifdef UNSAFE_BUFFERS_BUILD
+// TODO(crbug.com/40284755): Remove this and spanify to fix the errors.
+#pragma allow_unsafe_buffers
+#endif
+
 #include "net/disk_cache/blockfile/stats.h"
+
+#include <array>
+#include <bit>
+#include <cstdint>
 
 #include "base/check.h"
 #include "base/format_macros.h"
-#include "base/metrics/bucket_ranges.h"
-#include "base/metrics/histogram.h"
-#include "base/metrics/histogram_samples.h"
-#include "base/metrics/sample_vector.h"
-#include "base/metrics/statistics_recorder.h"
-#include "base/notreached.h"
 #include "base/strings/string_util.h"
 #include "base/strings/stringprintf.h"
 
@@ -27,47 +30,17 @@ struct OnDiskStats {
 };
 static_assert(sizeof(OnDiskStats) < 512, "needs more than 2 blocks");
 
-// Returns the "floor" (as opposed to "ceiling") of log base 2 of number.
-int LogBase2(int32_t number) {
-  unsigned int value = static_cast<unsigned int>(number);
-  const unsigned int mask[] = {0x2, 0xC, 0xF0, 0xFF00, 0xFFFF0000};
-  const unsigned int s[] = {1, 2, 4, 8, 16};
-
-  unsigned int result = 0;
-  for (int i = 4; i >= 0; i--) {
-    if (value & mask[i]) {
-      value >>= s[i];
-      result |= s[i];
-    }
-  }
-  return static_cast<int>(result);
-}
-
 // WARNING: Add new stats only at the end, or change LoadStats().
-const char* const kCounterNames[] = {
-  "Open miss",
-  "Open hit",
-  "Create miss",
-  "Create hit",
-  "Resurrect hit",
-  "Create error",
-  "Trim entry",
-  "Doom entry",
-  "Doom cache",
-  "Invalid entry",
-  "Open entries",
-  "Max entries",
-  "Timer",
-  "Read data",
-  "Write data",
-  "Open rankings",
-  "Get rankings",
-  "Fatal error",
-  "Last report",
-  "Last report timer",
-  "Doom recent entries",
-  "unused"
-};
+const auto kCounterNames = std::to_array<const char*>({
+    "Open miss",     "Open hit",          "Create miss",
+    "Create hit",    "Resurrect hit",     "Create error",
+    "Trim entry",    "Doom entry",        "Doom cache",
+    "Invalid entry", "Open entries",      "Max entries",
+    "Timer",         "Read data",         "Write data",
+    "Open rankings", "Get rankings",      "Fatal error",
+    "Last report",   "Last report timer", "Doom recent entries",
+    "unused",
+});
 static_assert(std::size(kCounterNames) == disk_cache::Stats::MAX_COUNTER,
               "update the names");
 
@@ -199,14 +172,6 @@ void Stats::GetItems(StatsItems* items) {
   }
 }
 
-int Stats::GetHitRatio() const {
-  return GetRatio(OPEN_HIT, OPEN_MISS);
-}
-
-int Stats::GetResurrectRatio() const {
-  return GetRatio(RESURRECT_HIT, CREATE_HIT);
-}
-
 void Stats::ResetRatios() {
   SetCounter(OPEN_HIT, 0);
   SetCounter(OPEN_MISS, 0);
@@ -239,6 +204,7 @@ int Stats::SerializeStats(void* data, int num_bytes, Addr* address) {
 }
 
 int Stats::GetBucketRange(size_t i) const {
+  CHECK_LE(i, static_cast<size_t>(kDataSizesLength));
   if (i < 2)
     return static_cast<int>(1024 * i);
 
@@ -249,10 +215,6 @@ int Stats::GetBucketRange(size_t i) const {
     return static_cast<int>(4096 * (i - 11)) + 20 * 1024;
 
   int n = 64 * 1024;
-  if (i > static_cast<size_t>(kDataSizesLength)) {
-    NOTREACHED();
-    i = kDataSizesLength;
-  }
 
   i -= 17;
   n <<= i;
@@ -293,7 +255,7 @@ int Stats::GetStatsBucket(int32_t size) {
     return (size - 20 * 1024) / 4096 + 11;
 
   // From this point on, use a logarithmic scale.
-  int result =  LogBase2(size) + 1;
+  int result = std::bit_width<uint32_t>(size);
 
   static_assert(kDataSizesLength > 16, "update the scale");
   if (result >= kDataSizesLength)

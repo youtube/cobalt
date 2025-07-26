@@ -1,0 +1,16 @@
+abhishek.shanthkumar@microsoft.com
+estade@chromium.org
+fergal@chromium.org
+horo@chromium.org
+leimy@chromium.org
+mych@chromium.org
+rakina@chromium.org
+stevebe@microsoft.com
+
+# Emeritus
+jsbell@chromium.org
+
+file://storage/OWNERS  #{LAST_RESORT_SUGGESTION}
+
+per-file *.mojom=set noparent
+per-file *.mojom=file://ipc/SECURITY_OWNERS

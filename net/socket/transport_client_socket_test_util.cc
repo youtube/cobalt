@@ -2,6 +2,11 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#ifdef UNSAFE_BUFFERS_BUILD
+// TODO(crbug.com/390223051): Remove C-library calls to fix the errors.
+#pragma allow_unsafe_libc_calls
+#endif
+
 #include <memory>
 #include <string>
 
@@ -23,7 +28,7 @@ void SendRequestAndResponse(StreamSocket* socket,
   int request_len = strlen(request_text);
   scoped_refptr<DrainableIOBuffer> request_buffer =
       base::MakeRefCounted<DrainableIOBuffer>(
-          base::MakeRefCounted<IOBuffer>(request_len), request_len);
+          base::MakeRefCounted<IOBufferWithSize>(request_len), request_len);
   memcpy(request_buffer->data(), request_text, request_len);
 
   int bytes_written = 0;
@@ -75,7 +80,7 @@ void SendServerResponse(StreamSocket* socket) {
   int reply_len = strlen(kServerReply);
   scoped_refptr<DrainableIOBuffer> write_buffer =
       base::MakeRefCounted<DrainableIOBuffer>(
-          base::MakeRefCounted<IOBuffer>(reply_len), reply_len);
+          base::MakeRefCounted<IOBufferWithSize>(reply_len), reply_len);
   memcpy(write_buffer->data(), kServerReply, reply_len);
   int bytes_written = 0;
   while (write_buffer->BytesRemaining() > 0) {

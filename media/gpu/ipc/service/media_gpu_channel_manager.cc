@@ -11,8 +11,12 @@
 #include "gpu/ipc/service/gpu_channel_manager.h"
 #include "ipc/ipc_message_macros.h"
 #include "ipc/param_traits_macros.h"
-#include "media/gpu/ipc/service/gpu_video_decode_accelerator.h"
+#include "media/base/media_switches.h"
 #include "media/gpu/ipc/service/media_gpu_channel.h"
+
+#if BUILDFLAG(IS_WIN)
+#include "media/gpu/windows/d3d12_helpers.h"
+#endif
 
 namespace media {
 
@@ -64,6 +68,13 @@ void MediaGpuChannelManager::SetOverlayFactory(
 
 AndroidOverlayMojoFactoryCB MediaGpuChannelManager::GetOverlayFactory() {
   return overlay_factory_cb_;
+}
+
+scoped_refptr<gpu::SharedContextState>
+MediaGpuChannelManager::GetSharedContextState() {
+  // FIXME: Should we be checking `result` == SUCCESS?
+  gpu::ContextResult result;
+  return channel_manager_->GetSharedContextState(&result);
 }
 
 }  // namespace media

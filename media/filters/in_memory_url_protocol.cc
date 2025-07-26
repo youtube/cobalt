@@ -2,6 +2,11 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#ifdef UNSAFE_BUFFERS_BUILD
+// TODO(crbug.com/390223051): Remove C-library calls to fix the errors.
+#pragma allow_unsafe_libc_calls
+#endif
+
 #include "media/filters/in_memory_url_protocol.h"
 
 #include "media/ffmpeg/ffmpeg_common.h"
@@ -34,7 +39,7 @@ int InMemoryUrlProtocol::Read(int size, uint8_t* data) {
     size = available_bytes;
 
   if (size > 0) {
-    memcpy(data, data_ + position_, size);
+    memcpy(data, data_ + base::checked_cast<size_t>(position_), size);
     position_ += size;
   }
 

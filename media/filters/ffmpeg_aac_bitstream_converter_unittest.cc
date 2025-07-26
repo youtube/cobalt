@@ -2,6 +2,11 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#ifdef UNSAFE_BUFFERS_BUILD
+// TODO(crbug.com/40285824): Remove this and convert code to safer constructs.
+#pragma allow_unsafe_buffers
+#endif
+
 #include <stddef.h>
 #include <stdint.h>
 
@@ -88,7 +93,7 @@ TEST_F(FFmpegAACBitstreamConverterTest, Conversion_FailureNullParams) {
   dummy_parameters.extradata_size = 0;
   FFmpegAACBitstreamConverter converter(&dummy_parameters);
 
-  uint8_t dummy_packet[1000] = {0};
+  uint8_t dummy_packet[1000] = {};
 
   // Try out the actual conversion with NULL parameter.
   EXPECT_FALSE(converter.ConvertPacket(NULL));
@@ -104,7 +109,7 @@ TEST_F(FFmpegAACBitstreamConverterTest, Conversion_FailureNullParams) {
 TEST_F(FFmpegAACBitstreamConverterTest, Conversion_AudioProfileType) {
   FFmpegAACBitstreamConverter converter(&test_parameters_);
 
-  uint8_t dummy_packet[1000] = {0};
+  uint8_t dummy_packet[1000] = {};
 
   auto test_packet = ScopedAVPacket::Allocate();
   CreatePacket(test_packet.get(), dummy_packet,

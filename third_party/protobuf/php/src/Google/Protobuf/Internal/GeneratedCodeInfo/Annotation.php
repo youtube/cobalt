@@ -22,31 +22,31 @@ class Annotation extends \Google\Protobuf\Internal\Message
      * Generated from protobuf field <code>repeated int32 path = 1 [packed = true];</code>
      */
     private $path;
-    private $has_path = false;
     /**
      * Identifies the filesystem path to the original source .proto.
      *
      * Generated from protobuf field <code>optional string source_file = 2;</code>
      */
-    private $source_file = '';
-    private $has_source_file = false;
+    protected $source_file = null;
     /**
      * Identifies the starting offset in bytes in the generated code
      * that relates to the identified object.
      *
      * Generated from protobuf field <code>optional int32 begin = 3;</code>
      */
-    private $begin = 0;
-    private $has_begin = false;
+    protected $begin = null;
     /**
      * Identifies the ending offset in bytes in the generated code that
-     * relates to the identified offset. The end offset should be one past
+     * relates to the identified object. The end offset should be one past
      * the last relevant byte (so the length of the text = end - begin).
      *
      * Generated from protobuf field <code>optional int32 end = 4;</code>
      */
-    private $end = 0;
-    private $has_end = false;
+    protected $end = null;
+    /**
+     * Generated from protobuf field <code>optional .google.protobuf.GeneratedCodeInfo.Annotation.Semantic semantic = 5;</code>
+     */
+    protected $semantic = null;
 
     /**
      * Constructor.
@@ -54,7 +54,7 @@ class Annotation extends \Google\Protobuf\Internal\Message
      * @param array $data {
      *     Optional. Data for populating the Message object.
      *
-     *     @type int[]|\Google\Protobuf\Internal\RepeatedField $path
+     *     @type array<int>|\Google\Protobuf\Internal\RepeatedField $path
      *           Identifies the element in the original source .proto file. This field
      *           is formatted the same as SourceCodeInfo.Location.path.
      *     @type string $source_file
@@ -64,8 +64,9 @@ class Annotation extends \Google\Protobuf\Internal\Message
      *           that relates to the identified object.
      *     @type int $end
      *           Identifies the ending offset in bytes in the generated code that
-     *           relates to the identified offset. The end offset should be one past
+     *           relates to the identified object. The end offset should be one past
      *           the last relevant byte (so the length of the text = end - begin).
+     *     @type int $semantic
      * }
      */
     public function __construct($data = NULL) {
@@ -90,21 +91,15 @@ class Annotation extends \Google\Protobuf\Internal\Message
      * is formatted the same as SourceCodeInfo.Location.path.
      *
      * Generated from protobuf field <code>repeated int32 path = 1 [packed = true];</code>
-     * @param int[]|\Google\Protobuf\Internal\RepeatedField $var
+     * @param array<int>|\Google\Protobuf\Internal\RepeatedField $var
      * @return $this
      */
     public function setPath($var)
     {
         $arr = GPBUtil::checkRepeatedField($var, \Google\Protobuf\Internal\GPBType::INT32);
         $this->path = $arr;
-        $this->has_path = true;
 
         return $this;
-    }
-
-    public function hasPath()
-    {
-        return $this->has_path;
     }
 
     /**
@@ -115,7 +110,17 @@ class Annotation extends \Google\Protobuf\Internal\Message
      */
     public function getSourceFile()
     {
-        return $this->source_file;
+        return isset($this->source_file) ? $this->source_file : '';
+    }
+
+    public function hasSourceFile()
+    {
+        return isset($this->source_file);
+    }
+
+    public function clearSourceFile()
+    {
+        unset($this->source_file);
     }
 
     /**
@@ -129,14 +134,8 @@ class Annotation extends \Google\Protobuf\Internal\Message
     {
         GPBUtil::checkString($var, True);
         $this->source_file = $var;
-        $this->has_source_file = true;
 
         return $this;
-    }
-
-    public function hasSourceFile()
-    {
-        return $this->has_source_file;
     }
 
     /**
@@ -148,7 +147,17 @@ class Annotation extends \Google\Protobuf\Internal\Message
      */
     public function getBegin()
     {
-        return $this->begin;
+        return isset($this->begin) ? $this->begin : 0;
+    }
+
+    public function hasBegin()
+    {
+        return isset($this->begin);
+    }
+
+    public function clearBegin()
+    {
+        unset($this->begin);
     }
 
     /**
@@ -163,19 +172,13 @@ class Annotation extends \Google\Protobuf\Internal\Message
     {
         GPBUtil::checkInt32($var);
         $this->begin = $var;
-        $this->has_begin = true;
 
         return $this;
     }
 
-    public function hasBegin()
-    {
-        return $this->has_begin;
-    }
-
     /**
      * Identifies the ending offset in bytes in the generated code that
-     * relates to the identified offset. The end offset should be one past
+     * relates to the identified object. The end offset should be one past
      * the last relevant byte (so the length of the text = end - begin).
      *
      * Generated from protobuf field <code>optional int32 end = 4;</code>
@@ -183,12 +186,22 @@ class Annotation extends \Google\Protobuf\Internal\Message
      */
     public function getEnd()
     {
-        return $this->end;
+        return isset($this->end) ? $this->end : 0;
+    }
+
+    public function hasEnd()
+    {
+        return isset($this->end);
+    }
+
+    public function clearEnd()
+    {
+        unset($this->end);
     }
 
     /**
      * Identifies the ending offset in bytes in the generated code that
-     * relates to the identified offset. The end offset should be one past
+     * relates to the identified object. The end offset should be one past
      * the last relevant byte (so the length of the text = end - begin).
      *
      * Generated from protobuf field <code>optional int32 end = 4;</code>
@@ -199,14 +212,40 @@ class Annotation extends \Google\Protobuf\Internal\Message
     {
         GPBUtil::checkInt32($var);
         $this->end = $var;
-        $this->has_end = true;
 
         return $this;
     }
 
-    public function hasEnd()
+    /**
+     * Generated from protobuf field <code>optional .google.protobuf.GeneratedCodeInfo.Annotation.Semantic semantic = 5;</code>
+     * @return int
+     */
+    public function getSemantic()
     {
-        return $this->has_end;
+        return isset($this->semantic) ? $this->semantic : 0;
+    }
+
+    public function hasSemantic()
+    {
+        return isset($this->semantic);
+    }
+
+    public function clearSemantic()
+    {
+        unset($this->semantic);
+    }
+
+    /**
+     * Generated from protobuf field <code>optional .google.protobuf.GeneratedCodeInfo.Annotation.Semantic semantic = 5;</code>
+     * @param int $var
+     * @return $this
+     */
+    public function setSemantic($var)
+    {
+        GPBUtil::checkEnum($var, \Google\Protobuf\Internal\GeneratedCodeInfo\Annotation\Semantic::class);
+        $this->semantic = $var;
+
+        return $this;
     }
 
 }

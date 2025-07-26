@@ -20,8 +20,7 @@
 using ::testing::_;
 using ::testing::Return;
 
-namespace base {
-namespace internal {
+namespace base::internal {
 
 class MockPooledTaskRunnerDelegate : public PooledTaskRunnerDelegate {
  public:
@@ -125,7 +124,7 @@ TEST_F(ThreadPoolJobTaskSourceTest, Clear) {
   {
     EXPECT_EQ(1U, task_source->GetRemainingConcurrency());
     auto task = registered_task_source_c.Clear();
-    std::move(task.task).Run();
+    EXPECT_FALSE(task);
     registered_task_source_c.DidProcessTask();
     EXPECT_EQ(0U, task_source->GetRemainingConcurrency());
   }
@@ -137,7 +136,7 @@ TEST_F(ThreadPoolJobTaskSourceTest, Clear) {
   // Another outstanding RunStatus can still call Clear.
   {
     auto task = registered_task_source_d.Clear();
-    std::move(task.task).Run();
+    EXPECT_FALSE(task);
     registered_task_source_d.DidProcessTask();
     EXPECT_EQ(0U, task_source->GetRemainingConcurrency());
   }
@@ -539,5 +538,4 @@ TEST_F(ThreadPoolJobTaskSourceTest, GetTaskId) {
   registered_task_source.DidProcessTask();
 }
 
-}  // namespace internal
-}  // namespace base
+}  // namespace base::internal

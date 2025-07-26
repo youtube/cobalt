@@ -1,0 +1,8 @@
+include_rules = [
+  "+ash/webui/media_app_ui",
+  # Individual components must explicitly declare their dependencies
+  # on other components.
+  "+chromeos/ash/components/mojo_service_manager",
+  "+chromeos/ash/components/specialized_features",
+  "+components/signin/public/identity_manager",
+]

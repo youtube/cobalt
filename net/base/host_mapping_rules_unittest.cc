@@ -2,6 +2,11 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#ifdef UNSAFE_BUFFERS_BUILD
+// TODO(crbug.com/390223051): Remove C-library calls to fix the errors.
+#pragma allow_unsafe_libc_calls
+#endif
+
 #include "net/base/host_mapping_rules.h"
 
 #include <string.h>
@@ -177,11 +182,11 @@ TEST(HostMappingRulesTest, IgnoresInvalidReplacementUrls) {
   EXPECT_EQ(url, GURL("http://initial.test"));
 }
 
-// Remapping to "~NOTFOUND" is documented as a special case for
+// Remapping to "^NOTFOUND" is documented as a special case for
 // MappedHostResolver usage. Ensure that it is handled as invalid as expected.
 TEST(HostMappingRulesTest, NotFoundIgnoredAsInvalidUrl) {
   HostMappingRules rules;
-  rules.AddRuleFromString("MAP initial.test ~NOTFOUND");
+  rules.AddRuleFromString("MAP initial.test ^NOTFOUND");
 
   GURL url("http://initial.test");
   EXPECT_EQ(rules.RewriteUrl(url),

@@ -16,8 +16,12 @@
 #include "build/build_config.h"
 #include "net/base/net_errors.h"
 
-#if BUILDFLAG(IS_ANDROID)
-#include "base/android/content_uri_utils.h"
+#if BUILDFLAG(IS_MAC)
+#include "net/base/apple/guarded_fd.h"
+#endif  // BUILDFLAG(IS_MAC)
+
+#if BUILDFLAG(IS_WIN)
+#include <windows.h>
 #endif
 
 namespace net {
@@ -45,18 +49,6 @@ FileStream::Context::IOResult FileStream::Context::IOResult::FromOSError(
     logging::SystemErrorCode os_error) {
   return IOResult(MapSystemError(os_error), os_error);
 }
-
-#if defined(STARBOARD)
-//static
-FileStream::Context::IOResult FileStream::Context::IOResult::FromFileError(
-    base::File::Error file_error, logging::SystemErrorCode os_error) {
-  if (file_error == base::File::FILE_ERROR_NOT_FOUND) {
-    return IOResult(ERR_FILE_NOT_FOUND, os_error);
-  } else {
-    return IOResult(ERR_FAILED, os_error);
-  }
-}
-#endif
 
 // ---------------------------------------------------------------------
 
@@ -171,39 +163,23 @@ bool FileStream::Context::IsOpen() const {
 
 FileStream::Context::OpenResult FileStream::Context::OpenFileImpl(
     const base::FilePath& path, int open_flags) {
-#if BUILDFLAG(IS_POSIX) || defined(STARBOARD)
+#if BUILDFLAG(IS_POSIX)
   // Always use blocking IO.
   open_flags &= ~base::File::FLAG_ASYNC;
 #endif
-  base::File file;
-#if BUILDFLAG(IS_ANDROID)
-  if (path.IsContentUri()) {
-    // Check that only Read flags are set.
-    DCHECK_EQ(open_flags & ~base::File::FLAG_ASYNC,
-              base::File::FLAG_OPEN | base::File::FLAG_READ);
-    file = base::OpenContentUriForRead(path);
-  } else {
-#endif  // BUILDFLAG(IS_ANDROID)
-    // FileStream::Context actually closes the file asynchronously,
-    // independently from FileStream's destructor. It can cause problems for
-    // users wanting to delete the file right after FileStream deletion. Thus
-    // we are always adding SHARE_DELETE flag to accommodate such use case.
-    // TODO(rvargas): This sounds like a bug, as deleting the file would
-    // presumably happen on the wrong thread. There should be an async delete.
-    open_flags |= base::File::FLAG_WIN_SHARE_DELETE;
-    file.Initialize(path, open_flags);
-#if BUILDFLAG(IS_ANDROID)
-  }
-#endif  // BUILDFLAG(IS_ANDROID)
+  // FileStream::Context actually closes the file asynchronously,
+  // independently from FileStream's destructor. It can cause problems for
+  // users wanting to delete the file right after FileStream deletion. Thus
+  // we are always adding SHARE_DELETE flag to accommodate such use case.
+  // TODO(rvargas): This sounds like a bug, as deleting the file would
+  // presumably happen on the wrong thread. There should be an async delete.
+#if BUILDFLAG(IS_WIN)
+  open_flags |= base::File::FLAG_WIN_SHARE_DELETE;
+#endif
+  base::File file(path, open_flags);
   if (!file.IsValid()) {
-#if defined(STARBOARD)
-    return OpenResult(
-        base::File(), IOResult::FromFileError(
-            file.error_details(), logging::GetLastSystemErrorCode()));
-#else
     return OpenResult(base::File(),
                       IOResult::FromOSError(logging::GetLastSystemErrorCode()));
-#endif
   }
 
   return OpenResult(std::move(file), IOResult(OK, 0));
@@ -218,6 +194,17 @@ FileStream::Context::IOResult FileStream::Context::GetFileInfoImpl(
 }
 
 FileStream::Context::IOResult FileStream::Context::CloseFileImpl() {
+#if BUILDFLAG(IS_MAC)
+  // https://crbug.com/330771755: Guard against a file descriptor being closed
+  // out from underneath the file.
+  if (file_.IsValid()) {
+    guardid_t guardid = reinterpret_cast<guardid_t>(this);
+    PCHECK(change_fdguard_np(file_.GetPlatformFile(), &guardid,
+                             GUARD_CLOSE | GUARD_DUP,
+                             /*nguard=*/nullptr, /*nguardflags=*/0,
+                             /*fdflagsp=*/nullptr) == 0);
+  }
+#endif
   file_.Close();
   return IOResult(OK, 0);
 }
@@ -234,6 +221,18 @@ void FileStream::Context::OnOpenCompleted(CompletionOnceCallback callback,
   file_ = std::move(open_result.file);
   if (file_.IsValid() && !orphaned_)
     OnFileOpened();
+
+#if BUILDFLAG(IS_MAC)
+  // https://crbug.com/330771755: Guard against a file descriptor being closed
+  // out from underneath the file.
+  if (file_.IsValid()) {
+    guardid_t guardid = reinterpret_cast<guardid_t>(this);
+    PCHECK(change_fdguard_np(file_.GetPlatformFile(), /*guard=*/nullptr,
+                             /*guardflags=*/0, &guardid,
+                             GUARD_CLOSE | GUARD_DUP,
+                             /*fdflagsp=*/nullptr) == 0);
+  }
+#endif
 
   OnAsyncCompleted(IntToInt64(std::move(callback)), open_result.error_code);
 }

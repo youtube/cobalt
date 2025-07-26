@@ -13,12 +13,18 @@ import androidx.annotation.VisibleForTesting;
 import org.chromium.base.ContextUtils;
 import org.chromium.base.MemoryPressureLevel;
 import org.chromium.base.MemoryPressureListener;
+import org.chromium.base.ResettersForTesting;
 import org.chromium.base.ThreadUtils;
 import org.chromium.base.supplier.Supplier;
-import org.chromium.build.annotations.MainDex;
+import org.chromium.base.task.PostTask;
+import org.chromium.base.task.TaskTraits;
+import org.chromium.build.annotations.NullMarked;
+import org.chromium.build.annotations.Nullable;
 
 /**
- * This class monitors memory pressure and reports it to the native side.
+ *
+ *
+ * <pre> This class monitors memory pressure and reports it to the native side.
  * Even though there can be other callbacks besides MemoryPressureListener (which reports
  * pressure to the native side, and is added implicitly), the class is designed to suite
  * needs of native MemoryPressureListeners.
@@ -68,9 +74,9 @@ import org.chromium.build.annotations.MainDex;
  *    from the main process.
  *
  * NOTE: This class should only be used on UiThread as defined by ThreadUtils (which is
- *       Android main thread for Chrome, but can be some other thread for WebView).
+ *       Android main thread for Chrome, but can be some other thread for WebView).</pre>
  */
-@MainDex
+@NullMarked
 public class MemoryPressureMonitor {
     private static final int DEFAULT_THROTTLING_INTERVAL_MS = 60 * 1000;
 
@@ -81,22 +87,20 @@ public class MemoryPressureMonitor {
 
     // Pressure received (but not reported) during the current throttling interval,
     // or null if no pressure was received.
-    private @MemoryPressureLevel Integer mThrottledPressure;
+    private @MemoryPressureLevel @Nullable Integer mThrottledPressure;
 
     // Whether we need to throttle pressure signals.
     private boolean mIsInsideThrottlingInterval;
 
     private boolean mPollingEnabled;
 
-    // Changed by tests.
-    private Supplier<Integer> mCurrentPressureSupplier =
-            MemoryPressureMonitor::getCurrentMemoryPressure;
+    // That's for an experiment to run the broadcast receiver in the background
+    private boolean mPostToBackgroundIsEnabled;
 
-    // Changed by tests.
-    private MemoryPressureCallback mReportingCallback =
-            MemoryPressureListener::notifyMemoryPressure;
+    private @Nullable Supplier<Integer> mCurrentPressureSupplierForTesting;
+    private @Nullable MemoryPressureCallback mReportingCallbackForTesting;
 
-    private final Runnable mThrottlingIntervalTask = this ::onThrottlingIntervalFinished;
+    private final Runnable mThrottlingIntervalTask = this::onThrottlingIntervalFinished;
 
     // The only instance.
     public static final MemoryPressureMonitor INSTANCE =
@@ -107,49 +111,62 @@ public class MemoryPressureMonitor {
         mThrottlingIntervalMs = throttlingIntervalMs;
     }
 
-    /**
-     * Starts listening to ComponentCallbacks2.
-     */
+    /** Starts listening to ComponentCallbacks2. */
     public void registerComponentCallbacks() {
         ThreadUtils.assertOnUiThread();
 
-        ContextUtils.getApplicationContext().registerComponentCallbacks(new ComponentCallbacks2() {
-            @Override
-            public void onTrimMemory(int level) {
-                Integer pressure = memoryPressureFromTrimLevel(level);
-                if (pressure != null) {
-                    notifyPressure(pressure);
-                }
-            }
+        ContextUtils.getApplicationContext()
+                .registerComponentCallbacks(
+                        new ComponentCallbacks2() {
+                            @Override
+                            public void onTrimMemory(int level) {
+                                Integer pressure = memoryPressureFromTrimLevel(level);
+                                if (pressure != null) {
+                                    PostTask.runOrPostTask(
+                                            TaskTraits.UI_DEFAULT, () -> notifyPressure(pressure));
+                                }
 
-            @Override
-            public void onLowMemory() {
-                notifyPressure(MemoryPressureLevel.CRITICAL);
-            }
+                                // We start from Android U due to changes in
+                                // how App Freezer works in that release.
+                                //
+                                // See |PreFreezeBackgroundMemoryTrimmer| for
+                                // more details.
+                                if (level == ComponentCallbacks2.TRIM_MEMORY_BACKGROUND
+                                        && android.os.Build.VERSION.SDK_INT
+                                                >= android.os.Build.VERSION_CODES
+                                                        .UPSIDE_DOWN_CAKE) {
+                                    MemoryPressureListener.onPreFreeze();
+                                }
+                            }
 
-            @Override
-            public void onConfigurationChanged(Configuration configuration) {}
-        });
+                            @Override
+                            public void onLowMemory() {
+                                PostTask.runOrPostTask(
+                                        TaskTraits.UI_DEFAULT,
+                                        () -> notifyPressure(MemoryPressureLevel.CRITICAL));
+                            }
+
+                            @Override
+                            public void onConfigurationChanged(Configuration configuration) {}
+                        });
     }
 
     /**
-     * Enables memory pressure polling.
-     * See class comment for specifics. This method also does a single pressure check to get
-     * the current pressure.
+     * Enables memory pressure polling. See class comment for specifics. This method also does a
+     * single pressure check to get the current pressure.
      */
-    public void enablePolling() {
+    public void enablePolling(boolean postToBackground) {
         ThreadUtils.assertOnUiThread();
+        mPostToBackgroundIsEnabled = postToBackground;
         if (mPollingEnabled) return;
 
         mPollingEnabled = true;
         if (!mIsInsideThrottlingInterval) {
-            reportCurrentPressure();
+            queryCurrentPressure();
         }
     }
 
-    /**
-     * Disables memory pressure polling.
-     */
+    /** Disables memory pressure polling. */
     public void disablePolling() {
         ThreadUtils.assertOnUiThread();
         if (!mPollingEnabled) return;
@@ -190,12 +207,15 @@ public class MemoryPressureMonitor {
         startThrottlingInterval();
 
         mLastReportedPressure = pressure;
-        mReportingCallback.onPressure(pressure);
+        if (mReportingCallbackForTesting != null) {
+            mReportingCallbackForTesting.onPressure(pressure);
+        } else {
+            MemoryPressureListener.notifyMemoryPressure(pressure);
+        }
     }
 
     private void onThrottlingIntervalFinished() {
         mIsInsideThrottlingInterval = false;
-
         // If there was a pressure change during the interval, report it.
         if (mThrottledPressure != null && mLastReportedPressure != mThrottledPressure) {
             int throttledPressure = mThrottledPressure;
@@ -207,14 +227,30 @@ public class MemoryPressureMonitor {
         // The pressure didn't change during the interval. Report current pressure
         // (starting a new interval) if we need to.
         if (mPollingEnabled && mLastReportedPressure == MemoryPressureLevel.CRITICAL) {
-            reportCurrentPressure();
+            queryCurrentPressure();
         }
     }
 
-    private void reportCurrentPressure() {
-        Integer pressure = mCurrentPressureSupplier.get();
-        if (pressure != null) {
-            reportPressure(pressure);
+    private void queryCurrentPressure() {
+        if (mCurrentPressureSupplierForTesting != null) {
+            Integer pressure = mCurrentPressureSupplierForTesting.get();
+            if (pressure != null) reportPressure(pressure);
+            return;
+        }
+
+        if (mPostToBackgroundIsEnabled) {
+            PostTask.postTask(
+                    TaskTraits.BEST_EFFORT_MAY_BLOCK,
+                    () -> {
+                        Integer pressure = MemoryPressureMonitor.getCurrentMemoryPressure();
+                        if (pressure != null) {
+                            PostTask.postTask(
+                                    TaskTraits.UI_DEFAULT, () -> notifyPressure(pressure));
+                        }
+                    });
+        } else {
+            Integer pressure = MemoryPressureMonitor.getCurrentMemoryPressure();
+            if (pressure != null) notifyPressure(pressure);
         }
     }
 
@@ -223,23 +259,23 @@ public class MemoryPressureMonitor {
         mIsInsideThrottlingInterval = true;
     }
 
-    @VisibleForTesting
     public void setCurrentPressureSupplierForTesting(Supplier<Integer> supplier) {
-        mCurrentPressureSupplier = supplier;
+        mCurrentPressureSupplierForTesting = supplier;
+        ResettersForTesting.register(() -> mCurrentPressureSupplierForTesting = null);
     }
 
-    @VisibleForTesting
     public void setReportingCallbackForTesting(MemoryPressureCallback callback) {
-        mReportingCallback = callback;
+        mReportingCallbackForTesting = callback;
+        ResettersForTesting.register(() -> mReportingCallbackForTesting = null);
     }
 
     /**
      * Queries current memory pressure.
      * Returns null if the pressure couldn't be determined.
      */
-    private static @MemoryPressureLevel Integer getCurrentMemoryPressure() {
-        // We used to have a histogram here to measure the duration of each successful 
-        // ActivityManager.getMyMemoryState() call called 
+    private static @MemoryPressureLevel @Nullable Integer getCurrentMemoryPressure() {
+        // We used to have a histogram here to measure the duration of each successful
+        // ActivityManager.getMyMemoryState() call called
         // Android.MemoryPressureMonitor.GetMyMemoryState.Succeeded.Time. 50th percentile was 0.8ms.
         try {
             ActivityManager.RunningAppProcessInfo processInfo =
@@ -257,14 +293,16 @@ public class MemoryPressureMonitor {
      * Returns null if |level| couldn't be mapped and should be ignored.
      */
     @VisibleForTesting
-    public static @MemoryPressureLevel Integer memoryPressureFromTrimLevel(int level) {
+    public static @MemoryPressureLevel @Nullable Integer memoryPressureFromTrimLevel(int level) {
         if (level >= ComponentCallbacks2.TRIM_MEMORY_COMPLETE
                 || level == ComponentCallbacks2.TRIM_MEMORY_RUNNING_CRITICAL) {
             return MemoryPressureLevel.CRITICAL;
         } else if (level >= ComponentCallbacks2.TRIM_MEMORY_BACKGROUND) {
             // Don't notify on TRIM_MEMORY_UI_HIDDEN, since this class only
             // dispatches actionable memory pressure signals to native.
-            return MemoryPressureLevel.MODERATE;
+            return MemoryPressureListener.isTrimMemoryBackgroundCritical()
+                    ? MemoryPressureLevel.CRITICAL
+                    : MemoryPressureLevel.MODERATE;
         }
         return null;
     }

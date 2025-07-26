@@ -2,9 +2,16 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#ifdef UNSAFE_BUFFERS_BUILD
+// TODO(crbug.com/40284755): Remove this and spanify to fix the errors.
+#pragma allow_unsafe_buffers
+#endif
+
 #include "base/win/access_control_list.h"
 
-#include <windows.h>
+// clang-format off
+#include <windows.h>  // Must be in front of other Windows header files.
+// clang-format on
 
 #include <sddl.h>
 
@@ -12,7 +19,7 @@
 #include <vector>
 
 #include "base/check.h"
-#include "base/strings/stringprintf.h"
+#include "base/strings/string_number_conversions_win.h"
 #include "base/win/scoped_localalloc.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
@@ -55,12 +62,16 @@ std::vector<char> ConvertSddlToAcl(const wchar_t* sddl) {
 
 std::wstring ConvertAclToSddl(const AccessControlList& acl,
                               bool label = false) {
+  // WinAPI is not const-correct so even non-modifying methods accept non-const
+  // pointers. Copy the const-qualified `acl` so that we can call non-const
+  // versions of getters on it and pass the results to WinAPI.
+  auto acl_copy = acl.Clone();
   SECURITY_DESCRIPTOR sd = {};
   CHECK(::InitializeSecurityDescriptor(&sd, SECURITY_DESCRIPTOR_REVISION));
   if (label) {
-    CHECK(::SetSecurityDescriptorSacl(&sd, TRUE, acl.get(), FALSE));
+    CHECK(::SetSecurityDescriptorSacl(&sd, TRUE, acl_copy.get(), FALSE));
   } else {
-    CHECK(::SetSecurityDescriptorDacl(&sd, TRUE, acl.get(), FALSE));
+    CHECK(::SetSecurityDescriptorDacl(&sd, TRUE, acl_copy.get(), FALSE));
   }
   LPWSTR sddl_str = nullptr;
   CHECK(::ConvertSecurityDescriptorToStringSecurityDescriptor(
@@ -213,8 +224,8 @@ TEST(AccessControlListTest, SetEntriesError) {
   EXPECT_EQ(ConvertAclToSddl(acl), kEvent);
   // ACL has a maximum capacity of 2^16-1 bytes or 2^16-1 ACEs. Force a fail.
   while (ace_list.size() < 0x10000) {
-    auto sid = Sid::FromSddlString(
-        base::StringPrintf(L"S-1-5-1234-%zu", ace_list.size()).c_str());
+    auto sid =
+        Sid::FromSddlString(L"S-1-5-1234-" + NumberToWString(ace_list.size()));
     ASSERT_TRUE(sid);
     ace_list.emplace_back(*sid, SecurityAccessMode::kGrant, GENERIC_ALL, 0);
   }

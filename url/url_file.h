@@ -2,6 +2,11 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#ifdef UNSAFE_BUFFERS_BUILD
+// TODO(crbug.com/350788890): Remove this and spanify to fix the errors.
+#pragma allow_unsafe_buffers
+#endif
+
 #ifndef URL_URL_FILE_H_
 #define URL_URL_FILE_H_
 
@@ -19,16 +24,6 @@ inline bool IsWindowsDriveSeparator(char16_t ch) {
 }
 inline bool IsWindowsDriveSeparator(char ch) {
   return IsWindowsDriveSeparator(static_cast<char16_t>(ch));
-}
-
-// Returns the index of the next slash in the input after the given index, or
-// spec_len if the end of the input is reached.
-template<typename CHAR>
-inline int FindNextSlash(const CHAR* spec, int begin_index, int spec_len) {
-  int idx = begin_index;
-  while (idx < spec_len && !IsURLSlash(spec[idx]))
-    idx++;
-  return idx;
 }
 
 // DoesContainWindowsDriveSpecUntil returns the least number between
@@ -91,7 +86,8 @@ inline bool DoesBeginUNCPath(const CHAR* text,
 
   if (strict_slashes)
     return text[start_offset] == '\\' && text[start_offset + 1] == '\\';
-  return IsURLSlash(text[start_offset]) && IsURLSlash(text[start_offset + 1]);
+  return IsSlashOrBackslash(text[start_offset]) &&
+         IsSlashOrBackslash(text[start_offset + 1]);
 }
 
 #endif  // WIN32

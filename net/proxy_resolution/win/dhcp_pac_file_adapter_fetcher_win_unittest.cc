@@ -142,7 +142,7 @@ class MockDhcpPacFileAdapterFetcher : public DhcpPacFileAdapterFetcher {
   int fetcher_delay_ms_ = 1;
   int fetcher_result_ = OK;
   std::string pac_script_;
-  raw_ptr<MockPacFileFetcher> fetcher_;
+  raw_ptr<MockPacFileFetcher, DanglingUntriaged> fetcher_;
   base::OneShotTimer fetcher_timer_;
   scoped_refptr<DelayingDhcpQuery> dhcp_query_;
 };
@@ -169,6 +169,10 @@ class FetcherClient {
   void FinishTestAllowCleanup() {
     fetcher_->FinishTest();
     base::RunLoop().RunUntilIdle();
+  }
+
+  URLRequestContext* url_request_context() {
+    return url_request_context_.get();
   }
 
   TestCompletionCallback callback_;
@@ -311,9 +315,8 @@ TEST(DhcpPacFileAdapterFetcher, MockDhcpRealFetch) {
   GURL configured_url = test_server.GetURL("/downloadable.pac");
 
   FetcherClient client;
-  auto url_request_context = CreateTestURLRequestContextBuilder()->Build();
   client.fetcher_ = std::make_unique<MockDhcpRealFetchPacFileAdapterFetcher>(
-      url_request_context.get(),
+      client.url_request_context(),
       base::ThreadPool::CreateTaskRunner(
           {base::MayBlock(),
            base::TaskShutdownBehavior::CONTINUE_ON_SHUTDOWN}));

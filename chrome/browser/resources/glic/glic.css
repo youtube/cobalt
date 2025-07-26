@@ -1,0 +1,174 @@
+/* Copyright 2024 The Chromium Authors
+ * Use of this source code is governed by a BSD-style license that can be
+ * found in the LICENSE file. */
+
+html, body {
+  margin: 0;
+  height: 100%
+}
+
+body {
+  overflow: hidden;
+}
+
+webview:not([hidden]) {
+  display: block;
+  height: 100%;
+}
+
+.dialog {
+  position: absolute;
+  right: 0;
+  width: 300px;
+  font-family: Roboto, sans-serif;
+  font-size: 13px;
+  font-weight: 300;
+  line-height: 20px;
+  color: #C4C7C5;
+}
+
+.dialog .container {
+  background: #1b1c1d;
+  border-radius: 12px;
+  color: white;
+  padding-bottom: 24px;
+}
+
+#loadingPanel .container {
+  padding-bottom: 0px;
+}
+
+.panel .header {
+  padding: 12px 20px 12px 12px;
+  height: 24px;
+  display: flex;
+  justify-content: space-between;
+}
+
+.panel .logo {
+  padding: 0 0 0 2px;
+}
+
+.panel .close-button {
+  --cr-icon-button-size: 24px;
+  --cr-icon-button-icon-size: 14px;
+  color: #C4C7C5;
+}
+
+.dialog .notice {
+  background-color: #282a2c;
+  border-radius: 10px;
+  padding: 12px;
+  margin: 0 14px;
+}
+
+.dialog p {
+  margin: 0 0 8px;
+}
+
+.dialog .headline {
+  font-size: 14px;
+  font-weight: 400;
+  margin: 8px 0 4px;
+}
+
+/* Guest panel contains glic webview. If in the show-header state, a header
+   will also be visible. */
+#guestPanel {
+  width: 100%;
+  height: 100%;
+  border: 0;
+}
+
+.hidden {
+ display: none;
+}
+
+.outerheader {
+  background: #1b1c1d;
+  position: absolute;
+  width: 100%;
+  height: 48px;
+}
+
+#webviewHeader {
+  display: none;
+}
+
+#guestPanel.show-header #webviewHeader {
+  display: block;
+}
+
+#webviewContainer {
+  position: absolute;
+  width: 100%;
+  height: 100%;
+}
+
+#guestPanel.show-header #webviewContainer {
+  position: absolute;
+  width: 100%;
+  /* If showing a login page, the window height will always be 800px */
+  height: 752px;
+  bottom: 0;
+}
+.tonal-button {
+  width: 100%;
+  background-color: #004a77;
+  color: #c2e7ff;
+}
+
+#debug {
+  position: absolute;
+  right: 30px;
+}
+cr-progress {
+  width: 80%;
+  margin: 20px 10% 0;
+  --cr-progress-active-color: #A8C7FA;
+}
+
+.placeholder {
+  width: 200px;
+  height: 24px;
+  background-color: #d3dbc5;
+  background-image:
+    linear-gradient(135deg, #16161733 0%,
+                            #16161733 10%,
+                            #1e1f20ff 30%,
+                            #35383bff 50%,
+                            #1e1f20ff 70%,
+                            #16161733 90%,
+                            #16161733 100%);
+  background-size: 200% 200%;
+  border-radius: 8px;
+  animation: 1.5s infinite linear gradient-move,
+    1.5s infinite ease-in-out pulse;
+}
+
+@keyframes pulse {
+  0% {
+    opacity: 0;
+  }
+  22% {
+    opacity: 1;
+  }
+  67% {
+    opacity: 1;
+  }
+  80% {
+    opacity: 0;
+  }
+  100% {
+    opacity: 0;
+  }
+}
+
+@keyframes gradient-move {
+  0% {
+    background-position: 100% 0;
+  }
+  100% {
+    background-position: 0 0;
+  }
+}

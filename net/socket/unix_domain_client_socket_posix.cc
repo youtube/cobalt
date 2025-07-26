@@ -94,12 +94,8 @@ bool UnixDomainClientSocket::WasEverUsed() const {
   return true;  // We don't care.
 }
 
-bool UnixDomainClientSocket::WasAlpnNegotiated() const {
-  return false;
-}
-
 NextProto UnixDomainClientSocket::GetNegotiatedProtocol() const {
-  return kProtoUnknown;
+  return NextProto::kProtoUnknown;
 }
 
 bool UnixDomainClientSocket::GetSSLInfo(SSLInfo* ssl_info) {

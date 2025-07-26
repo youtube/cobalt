@@ -18,7 +18,7 @@
 // ANNOTATE_LEAKING_OBJECT_PTR(X): the heap object referenced by pointer X will
 // be annotated as a leak.
 
-#if defined(LEAK_SANITIZER) && !BUILDFLAG(IS_NACL) || defined(STARBOARD) && defined(ADDRESS_SANITIZER)
+#if defined(LEAK_SANITIZER) && !BUILDFLAG(IS_NACL)
 
 #include <sanitizer/lsan_interface.h>
 
@@ -33,8 +33,9 @@ class ScopedLeakSanitizerDisabler {
   ~ScopedLeakSanitizerDisabler() { __lsan_enable(); }
 };
 
-#define ANNOTATE_SCOPED_MEMORY_LEAK \
-    ScopedLeakSanitizerDisabler leak_sanitizer_disabler; static_cast<void>(0)
+#define ANNOTATE_SCOPED_MEMORY_LEAK                    \
+  ScopedLeakSanitizerDisabler leak_sanitizer_disabler; \
+  static_cast<void>(0)
 
 #define ANNOTATE_LEAKING_OBJECT_PTR(X) __lsan_ignore_object(X);
 

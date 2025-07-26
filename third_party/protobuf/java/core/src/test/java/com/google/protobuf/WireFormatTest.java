@@ -1,34 +1,13 @@
 // Protocol Buffers - Google's data interchange format
 // Copyright 2008 Google Inc.  All rights reserved.
-// https://developers.google.com/protocol-buffers/
 //
-// Redistribution and use in source and binary forms, with or without
-// modification, are permitted provided that the following conditions are
-// met:
-//
-//     * Redistributions of source code must retain the above copyright
-// notice, this list of conditions and the following disclaimer.
-//     * Redistributions in binary form must reproduce the above
-// copyright notice, this list of conditions and the following disclaimer
-// in the documentation and/or other materials provided with the
-// distribution.
-//     * Neither the name of Google Inc. nor the names of its
-// contributors may be used to endorse or promote products derived from
-// this software without specific prior written permission.
-//
-// THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
-// "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
-// LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR
-// A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT
-// OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
-// SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT
-// LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
-// DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
-// THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
-// (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
-// OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+// Use of this source code is governed by a BSD-style
+// license that can be found in the LICENSE file or at
+// https://developers.google.com/open-source/licenses/bsd
 
 package com.google.protobuf;
+
+import static com.google.common.truth.Truth.assertThat;
 
 import protobuf_unittest.UnittestMset.RawMessageSet;
 import protobuf_unittest.UnittestMset.TestMessageSetExtension1;
@@ -46,14 +25,14 @@ import proto2_wireformat_unittest.UnittestMsetWireFormat.TestMessageSet;
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
 import java.util.List;
-import junit.framework.TestCase;
+import org.junit.After;
+import org.junit.Test;
+import org.junit.runner.RunWith;
+import org.junit.runners.JUnit4;
 
-/**
- * Tests related to parsing and serialization.
- *
- * @author kenton@google.com (Kenton Varda)
- */
-public class WireFormatTest extends TestCase {
+/** Tests related to parsing and serialization. */
+@RunWith(JUnit4.class)
+public class WireFormatTest {
 
   private static final int TYPE_ID_1 =
       TestMessageSetExtension1.getDescriptor().getExtensions().get(0).getNumber();
@@ -61,28 +40,38 @@ public class WireFormatTest extends TestCase {
       TestMessageSetExtension2.getDescriptor().getExtensions().get(0).getNumber();
   private static final int UNKNOWN_TYPE_ID = 1550055;
 
+  @After
+  public void tearDown() {
+    // Whether to parse message sets eagerly is stored in a global static. Since some tests modify
+    // the value, make sure to reset it between test runs.
+    ExtensionRegistryLite.setEagerlyParseMessageSets(false);
+  }
+
+  @Test
   public void testSerialization() throws Exception {
     TestAllTypes message = TestUtil.getAllSet();
 
     ByteString rawBytes = message.toByteString();
-    assertEquals(rawBytes.size(), message.getSerializedSize());
+    assertThat(rawBytes.size()).isEqualTo(message.getSerializedSize());
 
     TestAllTypes message2 = TestAllTypes.parseFrom(rawBytes);
 
     TestUtil.assertAllFieldsSet(message2);
   }
 
+  @Test
   public void testSerializationPacked() throws Exception {
     TestPackedTypes message = TestUtil.getPackedSet();
 
     ByteString rawBytes = message.toByteString();
-    assertEquals(rawBytes.size(), message.getSerializedSize());
+    assertThat(message.getSerializedSize()).isEqualTo(rawBytes.size());
 
     TestPackedTypes message2 = TestPackedTypes.parseFrom(rawBytes);
 
     TestUtil.assertPackedFieldsSet(message2);
   }
 
+  @Test
   public void testSerializeExtensions() throws Exception {
     // TestAllTypes and TestAllExtensions should have compatible wire formats,
     // so if we serialize a TestAllExtensions then parse it as TestAllTypes
@@ -90,13 +79,14 @@ public class WireFormatTest extends TestCase {
 
     TestAllExtensions message = TestUtil.getAllExtensionsSet();
     ByteString rawBytes = message.toByteString();
-    assertEquals(rawBytes.size(), message.getSerializedSize());
+    assertThat(message.getSerializedSize()).isEqualTo(rawBytes.size());
 
     TestAllTypes message2 = TestAllTypes.parseFrom(rawBytes);
 
     TestUtil.assertAllFieldsSet(message2);
   }
 
+  @Test
   public void testSerializePackedExtensions() throws Exception {
     // TestPackedTypes and TestPackedExtensions should have compatible wire
     // formats; check that they serialize to the same string.
@@ -106,9 +96,10 @@ public class WireFormatTest extends TestCase {
     TestPackedTypes message2 = TestUtil.getPackedSet();
     ByteString rawBytes2 = message2.toByteString();
 
-    assertEquals(rawBytes, rawBytes2);
+    assertThat(rawBytes).isEqualTo(rawBytes2);
   }
 
+  @Test
   public void testSerializationPackedWithoutGetSerializedSize() throws Exception {
     // Write directly to an OutputStream, without invoking getSerializedSize()
     // This used to be a bug where the size of a packed field was incorrect,
@@ -129,6 +120,7 @@ public class WireFormatTest extends TestCase {
     TestUtil.assertPackedFieldsSet(message2);
   }
 
+  @Test
   public void testParseExtensions() throws Exception {
     // TestAllTypes and TestAllExtensions should have compatible wire formats,
     // so if we serialize a TestAllTypes then parse it as TestAllExtensions
@@ -144,6 +136,7 @@ public class WireFormatTest extends TestCase {
     TestUtil.assertAllExtensionsSet(message2);
   }
 
+  @Test
   public void testParsePackedExtensions() throws Exception {
     // Ensure that packed extensions can be properly parsed.
     TestPackedExtensions message = TestUtil.getPackedExtensionsSet();
@@ -156,6 +149,7 @@ public class WireFormatTest extends TestCase {
     TestUtil.assertPackedExtensionsSet(message2);
   }
 
+  @Test
   public void testSerializeDelimited() throws Exception {
     ByteArrayOutputStream output = new ByteArrayOutputStream();
     TestUtil.getAllSet().writeDelimitedTo(output);
@@ -166,13 +160,13 @@ public class WireFormatTest extends TestCase {
     ByteArrayInputStream input = new ByteArrayInputStream(output.toByteArray());
 
     TestUtil.assertAllFieldsSet(TestAllTypes.parseDelimitedFrom(input));
-    assertEquals(12, input.read());
+    assertThat(input.read()).isEqualTo(12);
     TestUtil.assertPackedFieldsSet(TestPackedTypes.parseDelimitedFrom(input));
-    assertEquals(34, input.read());
-    assertEquals(-1, input.read());
+    assertThat(input.read()).isEqualTo(34);
+    assertThat(input.read()).isEqualTo(-1);
 
     // We're at EOF, so parsing again should return null.
-    assertTrue(TestAllTypes.parseDelimitedFrom(input) == null);
+    assertThat(TestAllTypes.parseDelimitedFrom(input)).isNull();
   }
 
   private void assertFieldsInOrder(ByteString data) throws Exception {
@@ -185,12 +179,13 @@ public class WireFormatTest extends TestCase {
         break;
       }
 
-      assertTrue(tag > previousTag);
+      assertThat(tag).isGreaterThan(previousTag);
       previousTag = tag;
       input.skipField(tag);
     }
   }
 
+  @Test
   public void testInterleavedFieldsAndExtensions() throws Exception {
     // Tests that fields are written in order even when extension ranges
     // are interleaved with field numbers.
@@ -225,6 +220,7 @@ public class WireFormatTest extends TestCase {
     return result;
   }
 
+  @Test
   public void testParseMultipleExtensionRanges() throws Exception {
     // Make sure we can parse a message that contains multiple extensions
     // ranges.
@@ -238,7 +234,7 @@ public class WireFormatTest extends TestCase {
             .build();
     TestFieldOrderings dest =
         TestFieldOrderings.parseFrom(source.toByteString(), getTestFieldOrderingsRegistry());
-    assertEquals(source, dest);
+    assertThat(source).isEqualTo(dest);
   }
 
   private static ExtensionRegistry getTestExtensionInsideTableRegistry() {
@@ -247,6 +243,7 @@ public class WireFormatTest extends TestCase {
     return result;
   }
 
+  @Test
   public void testExtensionInsideTable() throws Exception {
     // Make sure the extension within the range of table is parsed correctly in experimental
     // runtime.
@@ -258,9 +255,10 @@ public class WireFormatTest extends TestCase {
     TestExtensionInsideTable dest =
         TestExtensionInsideTable.parseFrom(
             source.toByteString(), getTestExtensionInsideTableRegistry());
-    assertEquals(source, dest);
+    assertThat(source).isEqualTo(dest);
   }
 
+  @Test
   public void testParseMultipleExtensionRangesDynamic() throws Exception {
     // Same as above except with DynamicMessage.
     Descriptors.Descriptor descriptor = TestFieldOrderings.getDescriptor();
@@ -275,13 +273,15 @@ public class WireFormatTest extends TestCase {
     DynamicMessage dest =
         DynamicMessage.parseFrom(
             descriptor, source.toByteString(), getTestFieldOrderingsRegistry());
-    assertEquals(source, dest);
+    assertThat(source).isEqualTo(dest);
   }
 
+  @Test
   public void testSerializeMessageSetEagerly() throws Exception {
     testSerializeMessageSetWithFlag(true);
   }
 
+  @Test
   public void testSerializeMessageSetNotEagerly() throws Exception {
     testSerializeMessageSetWithFlag(false);
   }
@@ -312,28 +312,30 @@ public class WireFormatTest extends TestCase {
     // Parse back using RawMessageSet and check the contents.
     RawMessageSet raw = RawMessageSet.parseFrom(data);
 
-    assertTrue(raw.getUnknownFields().asMap().isEmpty());
+    assertThat(raw.getUnknownFields().asMap()).isEmpty();
 
-    assertEquals(3, raw.getItemCount());
-    assertEquals(TYPE_ID_1, raw.getItem(0).getTypeId());
-    assertEquals(TYPE_ID_2, raw.getItem(1).getTypeId());
-    assertEquals(UNKNOWN_TYPE_ID, raw.getItem(2).getTypeId());
+    assertThat(raw.getItemCount()).isEqualTo(3);
+    assertThat(raw.getItem(0).getTypeId()).isEqualTo(TYPE_ID_1);
+    assertThat(raw.getItem(1).getTypeId()).isEqualTo(TYPE_ID_2);
+    assertThat(raw.getItem(2).getTypeId()).isEqualTo(UNKNOWN_TYPE_ID);
 
     TestMessageSetExtension1 message1 =
         TestMessageSetExtension1.parseFrom(raw.getItem(0).getMessage());
-    assertEquals(123, message1.getI());
+    assertThat(message1.getI()).isEqualTo(123);
 
     TestMessageSetExtension2 message2 =
         TestMessageSetExtension2.parseFrom(raw.getItem(1).getMessage());
-    assertEquals("foo", message2.getStr());
+    assertThat(message2.getStr()).isEqualTo("foo");
 
-    assertEquals("bar", raw.getItem(2).getMessage().toStringUtf8());
+    assertThat(raw.getItem(2).getMessage().toStringUtf8()).isEqualTo("bar");
   }
 
+  @Test
   public void testParseMessageSetEagerly() throws Exception {
     testParseMessageSetWithFlag(true);
   }
 
+  @Test
   public void testParseMessageSetNotEagerly() throws Exception {
     testParseMessageSetWithFlag(false);
   }
@@ -371,25 +373,28 @@ public class WireFormatTest extends TestCase {
     // Parse as a TestMessageSet and check the contents.
     TestMessageSet messageSet = TestMessageSet.parseFrom(data, extensionRegistry);
 
-    assertEquals(123, messageSet.getExtension(TestMessageSetExtension1.messageSetExtension).getI());
-    assertEquals(
-        "foo", messageSet.getExtension(TestMessageSetExtension2.messageSetExtension).getStr());
+    assertThat(messageSet.getExtension(TestMessageSetExtension1.messageSetExtension).getI())
+        .isEqualTo(123);
+    assertThat(messageSet.getExtension(TestMessageSetExtension2.messageSetExtension).getStr())
+        .isEqualTo("foo");
 
     // Check for unknown field with type LENGTH_DELIMITED,
     //   number UNKNOWN_TYPE_ID, and contents "bar".
     UnknownFieldSet unknownFields = messageSet.getUnknownFields();
-    assertEquals(1, unknownFields.asMap().size());
-    assertTrue(unknownFields.hasField(UNKNOWN_TYPE_ID));
+    assertThat(unknownFields.asMap()).hasSize(1);
+    assertThat(unknownFields.hasField(UNKNOWN_TYPE_ID)).isTrue();
 
     UnknownFieldSet.Field field = unknownFields.getField(UNKNOWN_TYPE_ID);
-    assertEquals(1, field.getLengthDelimitedList().size());
-    assertEquals("bar", field.getLengthDelimitedList().get(0).toStringUtf8());
+    assertThat(field.getLengthDelimitedList()).hasSize(1);
+    assertThat(field.getLengthDelimitedList().get(0).toStringUtf8()).isEqualTo("bar");
   }
 
+  @Test
   public void testParseMessageSetExtensionEagerly() throws Exception {
     testParseMessageSetExtensionWithFlag(true);
   }
 
+  @Test
   public void testParseMessageSetExtensionNotEagerly() throws Exception {
     testParseMessageSetExtensionWithFlag(false);
   }
@@ -414,13 +419,16 @@ public class WireFormatTest extends TestCase {
 
     // Parse as a TestMessageSet and check the contents.
     TestMessageSet messageSet = TestMessageSet.parseFrom(data, extensionRegistry);
-    assertEquals(123, messageSet.getExtension(TestMessageSetExtension1.messageSetExtension).getI());
+    assertThat(messageSet.getExtension(TestMessageSetExtension1.messageSetExtension).getI())
+        .isEqualTo(123);
   }
 
+  @Test
   public void testMergeLazyMessageSetExtensionEagerly() throws Exception {
     testMergeLazyMessageSetExtensionWithFlag(true);
   }
 
+  @Test
   public void testMergeLazyMessageSetExtensionNotEagerly() throws Exception {
     testMergeLazyMessageSetExtensionWithFlag(false);
   }
@@ -447,13 +455,16 @@ public class WireFormatTest extends TestCase {
     TestMessageSet messageSet = TestMessageSet.parseFrom(data, extensionRegistry);
     // Merge lazy field check the contents.
     messageSet = messageSet.toBuilder().mergeFrom(data, extensionRegistry).build();
-    assertEquals(123, messageSet.getExtension(TestMessageSetExtension1.messageSetExtension).getI());
+    assertThat(messageSet.getExtension(TestMessageSetExtension1.messageSetExtension).getI())
+        .isEqualTo(123);
   }
 
+  @Test
   public void testMergeMessageSetExtensionEagerly() throws Exception {
     testMergeMessageSetExtensionWithFlag(true);
   }
 
+  @Test
   public void testMergeMessageSetExtensionNotEagerly() throws Exception {
     testMergeMessageSetExtensionWithFlag(false);
   }
@@ -490,30 +501,33 @@ public class WireFormatTest extends TestCase {
     // Merge bytes into TestMessageSet and check the contents.
     TestMessageSet messageSet =
         TestMessageSet.newBuilder().mergeFrom(data, extensionRegistry).build();
-    assertEquals(123, messageSet.getExtension(TestMessageSetExtension1.messageSetExtension).getI());
+    assertThat(messageSet.getExtension(TestMessageSetExtension1.messageSetExtension).getI())
+        .isEqualTo(123);
   }
 
   // ================================================================
   // oneof
+  @Test
   public void testOneofWireFormat() throws Exception {
     TestOneof2.Builder builder = TestOneof2.newBuilder();
     TestUtil.setOneof(builder);
     TestOneof2 message = builder.build();
     ByteString rawBytes = message.toByteString();
 
-    assertEquals(rawBytes.size(), message.getSerializedSize());
+    assertThat(message.getSerializedSize()).isEqualTo(rawBytes.size());
 
     TestOneof2 message2 = TestOneof2.parseFrom(rawBytes);
     TestUtil.assertOneofSet(message2);
   }
 
+  @Test
   public void testOneofOnlyLastSet() throws Exception {
     TestOneofBackwardsCompatible source =
         TestOneofBackwardsCompatible.newBuilder().setFooInt(100).setFooString("101").build();
 
     ByteString rawBytes = source.toByteString();
     TestOneof2 message = TestOneof2.parseFrom(rawBytes);
-    assertFalse(message.hasFooInt());
-    assertTrue(message.hasFooString());
+    assertThat(message.hasFooInt()).isFalse();
+    assertThat(message.hasFooString()).isTrue();
   }
 }

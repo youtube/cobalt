@@ -2,6 +2,11 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#ifdef UNSAFE_BUFFERS_BUILD
+// TODO(crbug.com/40285824): Remove this and convert code to safer constructs.
+#pragma allow_unsafe_buffers
+#endif
+
 #include "media/video/mock_gpu_video_accelerator_factories.h"
 
 #include <memory>
@@ -110,20 +115,6 @@ bool MockGpuVideoAcceleratorFactories::IsGpuVideoEncodeAcceleratorEnabled() {
   return true;
 }
 
-std::unique_ptr<gfx::GpuMemoryBuffer>
-MockGpuVideoAcceleratorFactories::CreateGpuMemoryBuffer(
-    const gfx::Size& size,
-    gfx::BufferFormat format,
-    gfx::BufferUsage /* usage */) {
-  base::AutoLock guard(lock_);
-  if (fail_to_allocate_gpu_memory_buffer_)
-    return nullptr;
-  auto ret = std::make_unique<GpuMemoryBufferImpl>(
-      size, format, fail_to_map_gpu_memory_buffer_);
-  created_memory_buffers_.push_back(ret.get());
-  return ret;
-}
-
 base::UnsafeSharedMemoryRegion
 MockGpuVideoAcceleratorFactories::CreateSharedMemoryRegion(size_t size) {
   return base::UnsafeSharedMemoryRegion::Create(size);
@@ -137,11 +128,6 @@ MockGpuVideoAcceleratorFactories::CreateVideoEncodeAccelerator() {
 bool MockGpuVideoAcceleratorFactories::ShouldUseGpuMemoryBuffersForVideoFrames(
     bool for_media_stream) const {
   return false;
-}
-
-unsigned MockGpuVideoAcceleratorFactories::ImageTextureTarget(
-    gfx::BufferFormat format) {
-  return GL_TEXTURE_2D;
 }
 
 }  // namespace media

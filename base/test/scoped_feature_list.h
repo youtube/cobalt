@@ -5,25 +5,25 @@
 #ifndef BASE_TEST_SCOPED_FEATURE_LIST_H_
 #define BASE_TEST_SCOPED_FEATURE_LIST_H_
 
-#include <map>
 #include <memory>
 #include <string>
 #include <vector>
 
+#include "base/compiler_specific.h"
+#include "base/containers/flat_map.h"
 #include "base/feature_list.h"
 #include "base/memory/raw_ptr.h"
 #include "base/memory/raw_ref.h"
 #include "base/metrics/field_trial.h"
 #include "base/metrics/field_trial_params.h"
 #include "base/types/pass_key.h"
-#include "third_party/abseil-cpp/absl/base/attributes.h"
 
 namespace base::test {
 
 // A reference to a base::Feature and field trial params that should be force
 // enabled and overwritten for test purposes.
 struct FeatureRefAndParams {
-  FeatureRefAndParams(const Feature& feature ABSL_ATTRIBUTE_LIFETIME_BOUND,
+  FeatureRefAndParams(const Feature& feature LIFETIME_BOUND,
                       const FieldTrialParams& params);
 
   FeatureRefAndParams(const FeatureRefAndParams& other);
@@ -41,8 +41,7 @@ struct FeatureRefAndParams {
 class FeatureRef {
  public:
   // NOLINTNEXTLINE(google-explicit-constructor)
-  FeatureRef(const Feature& feature ABSL_ATTRIBUTE_LIFETIME_BOUND)
-      : feature_(feature) {}
+  FeatureRef(const Feature& feature LIFETIME_BOUND) : feature_(feature) {}
 
   const Feature& operator*() const { return *feature_; }
   const Feature* operator->() const { return &*feature_; }
@@ -58,9 +57,11 @@ class FeatureRef {
   raw_ref<const Feature> feature_;
 };
 
-// ScopedFeatureList resets the global FeatureList instance to a new empty
-// instance and restores the original instance upon destruction. When using the
-// non-deprecated APIs, a corresponding FieldTrialList is also created.
+// ScopedFeatureList resets the global FeatureList instance to a new instance
+// and restores the original instance upon destruction. Whether the existing
+// FeatureList state is kept or discarded depends on the `Init` method called.
+// When using the non-deprecated APIs, a corresponding FieldTrialList is also
+// created.
 //
 // Note: Re-using the same object is allowed. To reset the feature list and
 // initialize it anew, call `Reset` and then one of the `Init` methods.
@@ -170,6 +171,12 @@ class ScopedFeatureList final {
   // FeatureList and overridden with a single feature either enabled or
   // disabled depending on |enabled|.
   void InitWithFeatureState(const Feature& feature, bool enabled);
+
+  // Same as `InitWithFeatureState()`, but supports multiple features at a time.
+  // `feature_states` - a map where the keys are features and the values are
+  //                    their overridden states (`false` for force-disabled,
+  //                    `true` for force-enabled).
+  void InitWithFeatureStates(const flat_map<FeatureRef, bool>& feature_states);
 
  private:
   using PassKey = base::PassKey<ScopedFeatureList>;

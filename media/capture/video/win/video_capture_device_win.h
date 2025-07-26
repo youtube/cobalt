@@ -16,10 +16,11 @@
 #include <wrl/client.h>
 
 #include <map>
+#include <optional>
 #include <string>
 
 #include "base/containers/queue.h"
-#include "base/memory/raw_ptr_exclusion.h"
+#include "base/memory/raw_ptr.h"
 #include "base/threading/thread_checker.h"
 #include "base/time/time.h"
 #include "media/capture/video/video_capture_device.h"
@@ -27,7 +28,6 @@
 #include "media/capture/video/win/sink_filter_win.h"
 #include "media/capture/video/win/sink_input_pin_win.h"
 #include "media/capture/video_capture_types.h"
-#include "third_party/abseil-cpp/absl/types/optional.h"
 
 namespace base {
 class Location;
@@ -50,15 +50,13 @@ class VideoCaptureDeviceWin : public VideoCaptureDevice,
     AM_MEDIA_TYPE* operator->() { return media_type_; }
     AM_MEDIA_TYPE* get() { return media_type_; }
     void Free();
-    AM_MEDIA_TYPE** Receive();
+    raw_ptr<AM_MEDIA_TYPE>* Receive();
 
    private:
     void FreeMediaType(AM_MEDIA_TYPE* mt);
     void DeleteMediaType(AM_MEDIA_TYPE* mt);
 
-    // This field is not a raw_ptr<> because it was filtered by the rewriter
-    // for: #addr-of
-    RAW_PTR_EXCLUSION AM_MEDIA_TYPE* media_type_;
+    raw_ptr<AM_MEDIA_TYPE> media_type_;
   };
 
   static VideoCaptureControlSupport GetControlSupport(
@@ -171,7 +169,7 @@ class VideoCaptureDeviceWin : public VideoCaptureDevice,
 
   bool enable_get_photo_state_;
 
-  absl::optional<int> camera_rotation_;
+  std::optional<int> camera_rotation_;
 };
 
 }  // namespace media

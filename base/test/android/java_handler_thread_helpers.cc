@@ -7,6 +7,8 @@
 #include "base/android/java_handler_thread.h"
 #include "base/synchronization/waitable_event.h"
 #include "base/task/current_thread.h"
+
+// Must come after all headers that specialize FromJniType() / ToJniType().
 #include "base/test/base_unittests_jni_headers/JavaHandlerThreadHelpers_jni.h"
 
 namespace base {
@@ -16,14 +18,14 @@ namespace android {
 std::unique_ptr<JavaHandlerThread> JavaHandlerThreadHelpers::CreateJavaFirst() {
   return std::make_unique<JavaHandlerThread>(
       nullptr, Java_JavaHandlerThreadHelpers_testAndGetJavaHandlerThread(
-                   base::android::AttachCurrentThread()));
+                   jni_zero::AttachCurrentThread()));
 }
 
 // static
 void JavaHandlerThreadHelpers::ThrowExceptionAndAbort(WaitableEvent* event) {
-  JNIEnv* env = AttachCurrentThread();
+  JNIEnv* env = jni_zero::AttachCurrentThread();
   Java_JavaHandlerThreadHelpers_throwException(env);
-  DCHECK(HasException(env));
+  DCHECK(jni_zero::HasException(env));
   base::CurrentUIThread::Get()->Abort();
   event->Signal();
 }
@@ -31,7 +33,7 @@ void JavaHandlerThreadHelpers::ThrowExceptionAndAbort(WaitableEvent* event) {
 // static
 bool JavaHandlerThreadHelpers::IsExceptionTestException(
     ScopedJavaLocalRef<jthrowable> exception) {
-  JNIEnv* env = AttachCurrentThread();
+  JNIEnv* env = jni_zero::AttachCurrentThread();
   return Java_JavaHandlerThreadHelpers_isExceptionTestException(env, exception);
 }
 

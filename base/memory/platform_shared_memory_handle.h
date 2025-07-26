@@ -9,7 +9,8 @@
 
 #if BUILDFLAG(IS_APPLE)
 #include <mach/mach.h>
-#include "base/mac/scoped_mach_port.h"
+
+#include "base/apple/scoped_mach_port.h"
 #elif BUILDFLAG(IS_FUCHSIA)
 #include <lib/zx/vmo.h>
 #elif BUILDFLAG(IS_WIN)
@@ -17,15 +18,13 @@
 #include "base/win/windows_types.h"
 #elif BUILDFLAG(IS_POSIX)
 #include <sys/types.h>
-#include "base/files/scoped_file.h"
-#elif defined(STARBOARD)
+
 #include "base/files/scoped_file.h"
 #endif
 
 namespace base::subtle {
 
-#if defined(STARBOARD)
-#elif BUILDFLAG(IS_POSIX) && !BUILDFLAG(IS_APPLE) && !BUILDFLAG(IS_ANDROID)
+#if BUILDFLAG(IS_POSIX) && !BUILDFLAG(IS_APPLE) && !BUILDFLAG(IS_ANDROID)
 // Helper structs to keep two descriptors on POSIX. It's needed to support
 // ConvertToReadOnly().
 struct BASE_EXPORT FDPair {
@@ -52,12 +51,9 @@ struct BASE_EXPORT ScopedFDPair {
 #endif
 
 // Platform-specific shared memory type used by the shared memory system.
-#if defined(STARBOARD)
-using PlatformSharedMemoryHandle = int;
-using ScopedPlatformSharedMemoryHandle = ScopedFD;
-#elif BUILDFLAG(IS_APPLE)
+#if BUILDFLAG(IS_APPLE)
 using PlatformSharedMemoryHandle = mach_port_t;
-using ScopedPlatformSharedMemoryHandle = mac::ScopedMachSendRight;
+using ScopedPlatformSharedMemoryHandle = apple::ScopedMachSendRight;
 #elif BUILDFLAG(IS_FUCHSIA)
 using PlatformSharedMemoryHandle = zx::unowned_vmo;
 using ScopedPlatformSharedMemoryHandle = zx::vmo;

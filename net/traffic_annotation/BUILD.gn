@@ -1,10 +1,7 @@
 source_set("traffic_annotation") {
   sources = [ "network_traffic_annotation.h" ]
-  deps = [
-    "//base",
-    "//build:chromeos_buildflags",
-  ]
-  if (is_android && !is_starboard) {
+  deps = [ "//base" ]
+  if (is_android) {
     sources += [ "network_traffic_annotation_android.cc" ]
   }
 }

@@ -6,17 +6,16 @@
 
 #include <stddef.h>
 
+#include <algorithm>
+#include <string_view>
 #include <vector>
 
-#include "base/ranges/algorithm.h"
-#include "base/strings/string_piece.h"
 #include "base/strings/string_util.h"
 #include "base/strings/utf_string_conversions.h"
 #include "build/build_config.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
-namespace base {
-namespace i18n {
+namespace base::i18n {
 
 TEST(BreakIteratorTest, BreakWordEmpty) {
   std::u16string empty;
@@ -140,11 +139,9 @@ TEST(BreakIteratorTest, BreakWordThai) {
 // dictionary to detect word boundaries in Thai, Chinese, Japanese, Burmese,
 // and Khmer. Due to the size of such a table, the part for Chinese and
 // Japanese is not shipped on mobile.
-// Cobalt does not support Chinese/Japanese word breaking yet. This feature
-// requires a big dictionary(cjdict.txt) to support.
 #if !(BUILDFLAG(IS_IOS) || BUILDFLAG(IS_ANDROID))
 
-TEST(BreakIteratorTest, DISABLED_BreakWordChinese) {
+TEST(BreakIteratorTest, BreakWordChinese) {
   // Terms in Traditional Chinese, without spaces in between.
   const char16_t term1[] = u"瀏覽";
   const char16_t term2[] = u"速度";
@@ -166,7 +163,7 @@ TEST(BreakIteratorTest, DISABLED_BreakWordChinese) {
   EXPECT_FALSE(iter.IsWord());
 }
 
-TEST(BreakIteratorTest, DISABLED_BreakWordJapanese) {
+TEST(BreakIteratorTest, BreakWordJapanese) {
   // Terms in Japanese, without spaces in between.
   const char16_t term1[] = u"モバイル";
   const char16_t term2[] = u"でも";
@@ -184,7 +181,7 @@ TEST(BreakIteratorTest, DISABLED_BreakWordJapanese) {
   EXPECT_FALSE(iter.IsWord());
 }
 
-TEST(BreakIteratorTest, DISABLED_BreakWordChineseEnglish) {
+TEST(BreakIteratorTest, BreakWordChineseEnglish) {
   // Terms in Simplified Chinese mixed with English and wide punctuations.
   std::u16string space(u" ");
   const char16_t token1[] = u"下载";
@@ -342,7 +339,7 @@ TEST(BreakIteratorTest, BreakLineEmpty) {
   ASSERT_TRUE(iter.Init());
   EXPECT_FALSE(iter.Advance());
   EXPECT_FALSE(iter.IsWord());
-  EXPECT_FALSE(iter.Advance());   // Test unexpected advance after end.
+  EXPECT_FALSE(iter.Advance());  // Test unexpected advance after end.
   EXPECT_FALSE(iter.IsWord());
 }
 
@@ -365,7 +362,7 @@ TEST(BreakIteratorTest, BreakLine) {
   EXPECT_EQ(u"pouet boom", iter.GetString());
   EXPECT_FALSE(iter.Advance());
   EXPECT_FALSE(iter.IsWord());
-  EXPECT_FALSE(iter.Advance());   // Test unexpected advance after end.
+  EXPECT_FALSE(iter.Advance());  // Test unexpected advance after end.
   EXPECT_FALSE(iter.IsWord());
 }
 
@@ -410,7 +407,7 @@ TEST(BreakIteratorTest, IsSentenceBoundary) {
   sentence_breaks.push_back(24);
   sentence_breaks.push_back(42);
   for (size_t i = 0; i < str.size(); i++) {
-    if (ranges::find(sentence_breaks, i) != sentence_breaks.end()) {
+    if (std::ranges::find(sentence_breaks, i) != sentence_breaks.end()) {
       EXPECT_TRUE(iter.IsSentenceBoundary(i)) << " at index=" << i;
     } else {
       EXPECT_FALSE(iter.IsSentenceBoundary(i)) << " at index=" << i;
@@ -437,7 +434,7 @@ TEST(BreakIteratorTest, BreakLineNL) {
   EXPECT_EQ(u"pouet boom\n", iter.GetString());
   EXPECT_FALSE(iter.Advance());
   EXPECT_FALSE(iter.IsWord());
-  EXPECT_FALSE(iter.Advance());   // Test unexpected advance after end.
+  EXPECT_FALSE(iter.Advance());  // Test unexpected advance after end.
   EXPECT_FALSE(iter.IsWord());
 }
 
@@ -458,7 +455,7 @@ TEST(BreakIteratorTest, BreakLineWide16) {
   EXPECT_EQ(line2, iter.GetString());
   EXPECT_FALSE(iter.Advance());
   EXPECT_FALSE(iter.IsWord());
-  EXPECT_FALSE(iter.Advance());   // Test unexpected advance after end.
+  EXPECT_FALSE(iter.Advance());  // Test unexpected advance after end.
   EXPECT_FALSE(iter.IsWord());
 }
 
@@ -475,7 +472,7 @@ TEST(BreakIteratorTest, BreakLineWide32) {
   EXPECT_EQ(u"a", iter.GetString());
   EXPECT_FALSE(iter.Advance());
   EXPECT_FALSE(iter.IsWord());
-  EXPECT_FALSE(iter.Advance());   // Test unexpected advance after end.
+  EXPECT_FALSE(iter.Advance());  // Test unexpected advance after end.
   EXPECT_FALSE(iter.IsWord());
 }
 
@@ -522,7 +519,7 @@ TEST(BreakIteratorTest, GetStringAfterSetText) {
   ASSERT_TRUE(iter.Init());
 
   const std::u16string long_string(u"another,string");
-  EXPECT_TRUE(iter.SetText(long_string.c_str(), long_string.size()));
+  EXPECT_TRUE(iter.SetText(long_string));
   EXPECT_TRUE(iter.Advance());
   EXPECT_TRUE(iter.Advance());  // Advance to ',' in |long_string|
 
@@ -531,21 +528,6 @@ TEST(BreakIteratorTest, GetStringAfterSetText) {
 
   // Check that we can get a valid substring of |long_string|.
   EXPECT_EQ(u",", iter.GetString());
-}
-
-TEST(BreakIteratorTest, GetStringPiece) {
-  const std::u16string initial_string(u"some string");
-  BreakIterator iter(initial_string, BreakIterator::BREAK_WORD);
-  ASSERT_TRUE(iter.Init());
-
-  EXPECT_TRUE(iter.Advance());
-  EXPECT_EQ(iter.GetString(), iter.GetStringPiece());
-  EXPECT_EQ(StringPiece16(u"some"), iter.GetStringPiece());
-
-  EXPECT_TRUE(iter.Advance());
-  EXPECT_TRUE(iter.Advance());
-  EXPECT_EQ(iter.GetString(), iter.GetStringPiece());
-  EXPECT_EQ(StringPiece16(u"string"), iter.GetStringPiece());
 }
 
 // Make sure that when not in RULE_BASED or BREAK_WORD mode we're getting
@@ -631,5 +613,4 @@ TEST(BreakIteratorTest, GetWordBreakStatusBreakWord) {
   EXPECT_FALSE(iter.Advance());
 }
 
-}  // namespace i18n
-}  // namespace base
+}  // namespace base::i18n

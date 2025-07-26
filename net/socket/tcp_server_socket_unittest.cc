@@ -2,6 +2,11 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#ifdef UNSAFE_BUFFERS_BUILD
+// TODO(crbug.com/390223051): Remove C-library calls to fix the errors.
+#pragma allow_unsafe_libc_calls
+#endif
+
 #include "net/socket/tcp_server_socket.h"
 
 #include <memory>
@@ -40,7 +45,7 @@ class TCPServerSocketTest : public PlatformTest, public WithTaskEnvironment {
   void SetUpIPv4() {
     IPEndPoint address(IPAddress::IPv4Localhost(), 0);
     ASSERT_THAT(
-        socket_.Listen(address, kListenBacklog, /*ipv6_only=*/absl::nullopt),
+        socket_.Listen(address, kListenBacklog, /*ipv6_only=*/std::nullopt),
         IsOk());
     ASSERT_THAT(socket_.GetLocalAddress(&local_address_), IsOk());
   }
@@ -48,7 +53,7 @@ class TCPServerSocketTest : public PlatformTest, public WithTaskEnvironment {
   void SetUpIPv6(bool* success) {
     *success = false;
     IPEndPoint address(IPAddress::IPv6Localhost(), 0);
-    if (socket_.Listen(address, kListenBacklog, /*ipv6_only=*/absl::nullopt) !=
+    if (socket_.Listen(address, kListenBacklog, /*ipv6_only=*/std::nullopt) !=
         0) {
       LOG(ERROR) << "Failed to listen on ::1 - probably because IPv6 is "
           "disabled. Skipping the test";
@@ -279,9 +284,6 @@ class TCPServerSocketTestWithIPv6Only
   }
 };
 
-// TODO: b/327008491 - Reenable unittests with unused functionality.
-// SetIPv6Only() is stubbed out in Starboard.
-#if !defined(STARBOARD)
 TEST_P(TCPServerSocketTestWithIPv6Only, AcceptIPv6Only) {
   const bool ipv6_only = GetParam();
   ASSERT_NO_FATAL_FAILURE(SetUpIPv6AllInterfaces(ipv6_only));
@@ -295,7 +297,6 @@ TEST_P(TCPServerSocketTestWithIPv6Only, AcceptIPv6Only) {
 }
 
 INSTANTIATE_TEST_SUITE_P(All, TCPServerSocketTestWithIPv6Only, testing::Bool());
-#endif
 
 TEST_F(TCPServerSocketTest, AcceptIO) {
   ASSERT_NO_FATAL_FAILURE(SetUpIPv4());

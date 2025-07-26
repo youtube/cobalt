@@ -24,18 +24,20 @@ ClientSocketHandle::ClientSocketHandle()
     : resolve_error_info_(ResolveErrorInfo(OK)) {}
 
 ClientSocketHandle::~ClientSocketHandle() {
+  weak_factory_.InvalidateWeakPtrs();
   Reset();
 }
 
 int ClientSocketHandle::Init(
     const ClientSocketPool::GroupId& group_id,
     scoped_refptr<ClientSocketPool::SocketParams> socket_params,
-    const absl::optional<NetworkTrafficAnnotationTag>& proxy_annotation_tag,
+    const std::optional<NetworkTrafficAnnotationTag>& proxy_annotation_tag,
     RequestPriority priority,
     const SocketTag& socket_tag,
     ClientSocketPool::RespectLimits respect_limits,
     CompletionOnceCallback callback,
     const ClientSocketPool::ProxyAuthCallback& proxy_auth_callback,
+    bool fail_if_alias_requires_proxy_override,
     ClientSocketPool* pool,
     const NetLogWithSource& net_log) {
   requesting_source_ = net_log.source();
@@ -50,7 +52,7 @@ int ClientSocketHandle::Init(
   int rv = pool_->RequestSocket(
       group_id, std::move(socket_params), proxy_annotation_tag, priority,
       socket_tag, respect_limits, this, std::move(io_complete_callback),
-      proxy_auth_callback, net_log);
+      proxy_auth_callback, fail_if_alias_requires_proxy_override, net_log);
   if (rv == ERR_IO_PENDING) {
     callback_ = std::move(callback);
   } else {
@@ -60,7 +62,7 @@ int ClientSocketHandle::Init(
 }
 
 void ClientSocketHandle::SetPriority(RequestPriority priority) {
-  if (socket_) {
+  if (socket()) {
     // The priority of the handle is no longer relevant to the socket pool;
     // just return.
     return;
@@ -76,8 +78,9 @@ void ClientSocketHandle::Reset() {
 }
 
 void ClientSocketHandle::ResetAndCloseSocket() {
-  if (is_initialized() && socket_)
-    socket_->Disconnect();
+  if (is_initialized() && socket()) {
+    socket()->Disconnect();
+  }
   ResetInternal(true /* cancel */, true /* cancel_connect_job */);
   ResetErrorState();
 }
@@ -126,40 +129,12 @@ void ClientSocketHandle::CloseIdleSocketsInGroup(
     pool_->CloseIdleSocketsInGroup(group_id_, net_log_reason_utf8);
 }
 
-bool ClientSocketHandle::GetLoadTimingInfo(
-    bool is_reused,
-    LoadTimingInfo* load_timing_info) const {
-  if (socket_) {
-    load_timing_info->socket_log_id = socket_->NetLog().source().id;
-  } else {
-    // Only return load timing information when there's a socket.
-    return false;
-  }
-
-  load_timing_info->socket_reused = is_reused;
-
-  // No times if the socket is reused.
-  if (is_reused)
-    return true;
-
-  load_timing_info->connect_timing = connect_timing_;
-  return true;
-}
-
-void ClientSocketHandle::SetSocket(std::unique_ptr<StreamSocket> s) {
-  socket_ = std::move(s);
-}
-
 void ClientSocketHandle::SetAdditionalErrorState(ConnectJob* connect_job) {
   connection_attempts_ = connect_job->GetConnectionAttempts();
 
   resolve_error_info_ = connect_job->GetResolveErrorInfo();
   is_ssl_error_ = connect_job->IsSSLError();
   ssl_cert_request_info_ = connect_job->GetCertRequestInfo();
-}
-
-std::unique_ptr<StreamSocket> ClientSocketHandle::PassSocket() {
-  return std::move(socket_);
 }
 
 void ClientSocketHandle::OnIOComplete(int result) {
@@ -173,15 +148,16 @@ void ClientSocketHandle::OnIOComplete(int result) {
 void ClientSocketHandle::HandleInitCompletion(int result) {
   CHECK_NE(ERR_IO_PENDING, result);
   if (result != OK) {
-    if (!socket_.get())
+    if (!socket()) {
       ResetInternal(false /* cancel */,
                     false /* cancel_connect_job */);  // Nothing to cancel since
                                                       // the request failed.
-    else
-      is_initialized_ = true;
+    } else {
+      set_is_initialized(true);
+    }
     return;
   }
-  is_initialized_ = true;
+  set_is_initialized(true);
   CHECK_NE(-1, group_generation_)
       << "Pool should have set |group_generation_| to a valid value.";
 
@@ -189,9 +165,9 @@ void ClientSocketHandle::HandleInitCompletion(int result) {
   // TODO(eroman): This logging is not complete, in particular set_socket() and
   // release() socket. It ends up working though, since those methods are being
   // used to layer sockets (and the destination sources are the same).
-  DCHECK(socket_.get());
-  socket_->NetLog().BeginEventReferencingSource(NetLogEventType::SOCKET_IN_USE,
-                                                requesting_source_);
+  DCHECK(socket());
+  socket()->NetLog().BeginEventReferencingSource(NetLogEventType::SOCKET_IN_USE,
+                                                 requesting_source_);
 }
 
 void ClientSocketHandle::ResetInternal(bool cancel, bool cancel_connect_job) {
@@ -202,11 +178,11 @@ void ClientSocketHandle::ResetInternal(bool cancel, bool cancel_connect_job) {
     // If so, we must have a pool.
     CHECK(pool_);
     if (is_initialized()) {
-      if (socket_) {
-        socket_->NetLog().EndEvent(NetLogEventType::SOCKET_IN_USE);
+      if (socket()) {
+        socket()->NetLog().EndEvent(NetLogEventType::SOCKET_IN_USE);
         // Release the socket back to the ClientSocketPool so it can be
         // deleted or reused.
-        pool_->ReleaseSocket(group_id_, std::move(socket_), group_generation_);
+        pool_->ReleaseSocket(group_id_, PassSocket(), group_generation_);
       } else {
         // If the handle has been initialized, we should still have a
         // socket.
@@ -218,16 +194,16 @@ void ClientSocketHandle::ResetInternal(bool cancel, bool cancel_connect_job) {
       pool_->CancelRequest(group_id_, this, cancel_connect_job);
     }
   }
-  is_initialized_ = false;
-  socket_.reset();
+  set_is_initialized(false);
+  PassSocket();
   group_id_ = ClientSocketPool::GroupId();
-  reuse_type_ = ClientSocketHandle::UNUSED;
+  set_reuse_type(SocketReuseType::kUnused);
   callback_.Reset();
   if (higher_pool_)
     RemoveHigherLayeredPool(higher_pool_);
   pool_ = nullptr;
   idle_time_ = base::TimeDelta();
-  connect_timing_ = LoadTimingInfo::ConnectTiming();
+  set_connect_timing(LoadTimingInfo::ConnectTiming());
   group_generation_ = -1;
 }
 

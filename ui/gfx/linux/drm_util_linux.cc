@@ -6,6 +6,7 @@
 
 #include <drm_fourcc.h>
 
+#include "base/logging.h"
 #include "base/notreached.h"
 
 namespace ui {
@@ -37,7 +38,7 @@ int GetFourCCFormatFromBufferFormat(gfx::BufferFormat format) {
     case gfx::BufferFormat::RGBA_1010102:
       return DRM_FORMAT_ABGR2101010;
     case gfx::BufferFormat::RGBA_F16:
-      return DRM_FORMAT_INVALID;
+      return DRM_FORMAT_ABGR16161616F;
     case gfx::BufferFormat::YVU_420:
       return DRM_FORMAT_YVU420;
     case gfx::BufferFormat::YUV_420_BIPLANAR:
@@ -76,9 +77,10 @@ gfx::BufferFormat GetBufferFormatFromFourCCFormat(int format) {
       return gfx::BufferFormat::YVU_420;
     case DRM_FORMAT_P010:
       return gfx::BufferFormat::P010;
+    case DRM_FORMAT_ABGR16161616F:
+      return gfx::BufferFormat::RGBA_F16;
     default:
       NOTREACHED();
-      return gfx::BufferFormat::BGRA_8888;
   }
 }
 
@@ -96,10 +98,35 @@ bool IsValidBufferFormat(uint32_t current_format) {
     case DRM_FORMAT_NV12:
     case DRM_FORMAT_YVU420:
     case DRM_FORMAT_P010:
+    case DRM_FORMAT_ABGR16161616F:
       return true;
     default:
       return false;
   }
 }
 
+const char* DrmFormatToString(uint32_t format) {
+#define STRINGIFY(V) \
+  case V:            \
+    return #V
+  switch (format) {
+    STRINGIFY(DRM_FORMAT_R8);
+    STRINGIFY(DRM_FORMAT_GR88);
+    STRINGIFY(DRM_FORMAT_ABGR8888);
+    STRINGIFY(DRM_FORMAT_XBGR8888);
+    STRINGIFY(DRM_FORMAT_ARGB8888);
+    STRINGIFY(DRM_FORMAT_XRGB8888);
+    STRINGIFY(DRM_FORMAT_ARGB2101010);
+    STRINGIFY(DRM_FORMAT_ABGR2101010);
+    STRINGIFY(DRM_FORMAT_RGB565);
+    STRINGIFY(DRM_FORMAT_NV12);
+    STRINGIFY(DRM_FORMAT_YVU420);
+    STRINGIFY(DRM_FORMAT_P010);
+    STRINGIFY(DRM_FORMAT_ABGR16161616F);
+    case DRM_FORMAT_INVALID:  // fallthroughs
+    default:
+      return "DRM_FORMAT_INVALID";
+  }
+#undef STRINGIFY
+}
 }  // namespace ui

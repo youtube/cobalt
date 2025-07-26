@@ -333,6 +333,7 @@ int MemEntryImpl::InternalReadData(int index, int offset, IOBuffer* buf,
   int entry_size = data_[index].size();
   if (offset >= entry_size || offset < 0 || !buf_len)
     return 0;
+  unsigned u_offset = static_cast<unsigned>(offset);
 
   int end_offset;
   if (!base::CheckAdd(offset, buf_len).AssignIfValid(&end_offset) ||
@@ -340,8 +341,9 @@ int MemEntryImpl::InternalReadData(int index, int offset, IOBuffer* buf,
     buf_len = entry_size - offset;
 
   UpdateStateOnUse(ENTRY_WAS_NOT_MODIFIED);
-  std::copy(data_[index].begin() + offset,
-            data_[index].begin() + offset + buf_len, buf->data());
+  buf->span().copy_prefix_from(
+      base::as_byte_span(data_[index])
+          .subspan(u_offset, base::checked_cast<size_t>(buf_len)));
   return buf_len;
 }
 
@@ -357,7 +359,10 @@ int MemEntryImpl::InternalWriteData(int index, int offset, IOBuffer* buf,
   if (offset < 0 || buf_len < 0)
     return net::ERR_INVALID_ARGUMENT;
 
-  int max_file_size = backend_->MaxFileSize();
+  unsigned u_offset = static_cast<unsigned>(offset);
+  unsigned u_buf_len = static_cast<unsigned>(buf_len);
+
+  const int max_file_size = backend_->MaxFileSize();
 
   int end_offset;
   if (offset > max_file_size || buf_len > max_file_size ||
@@ -366,30 +371,55 @@ int MemEntryImpl::InternalWriteData(int index, int offset, IOBuffer* buf,
     return net::ERR_FAILED;
   }
 
-  int old_data_size = data_[index].size();
-  if (truncate || old_data_size < end_offset) {
-    int delta = end_offset - old_data_size;
+  // Trim to the portion of the buffer we're actually asked to work on.
+  // We need to be careful here since `buf` may be null if the length is 0;
+  // this may still affect the file if it gets truncated or extended.
+  base::span<uint8_t> to_write;
+  if (buf) {
+    to_write = buf->span().first(u_buf_len);
+  }
+
+  std::vector<char>& data = data_[index];
+  const int old_data_size = base::checked_cast<int>(data.size());
+
+  // Overwrite any data that fits inside the existing file.
+  if (u_offset < data.size() && !to_write.empty()) {
+    auto overwrite_chunk =
+        to_write.first(std::min(data.size() - u_offset, to_write.size()));
+    base::as_writable_byte_span(data).subspan(u_offset).copy_prefix_from(
+        overwrite_chunk);
+  }
+
+  const int delta = end_offset - old_data_size;
+  if (truncate && delta < 0) {
+    // We permit reducing the size even if the storage size has been exceeded,
+    // since it can only improve the situation. See https://crbug.com/331839344.
+    backend_->ModifyStorageSize(delta);
+    data.resize(end_offset);
+  } else if (delta > 0) {
     backend_->ModifyStorageSize(delta);
     if (backend_->HasExceededStorageSize()) {
       backend_->ModifyStorageSize(-delta);
       return net::ERR_INSUFFICIENT_RESOURCES;
     }
 
-    data_[index].resize(end_offset);
-
     // Zero fill any hole.
-    if (old_data_size < offset) {
-      std::fill(data_[index].begin() + old_data_size,
-                data_[index].begin() + offset, 0);
+    int current_size = old_data_size;
+    if (current_size < offset) {
+      data.resize(offset);
+      current_size = offset;
+    }
+    // Append any data after the old end of the file.
+    if (end_offset > current_size) {
+      auto append_chunk =
+          to_write.subspan(base::checked_cast<size_t>(current_size - offset));
+
+      data.insert(data.end(), append_chunk.begin(), append_chunk.end());
     }
   }
 
   UpdateStateOnUse(ENTRY_WAS_MODIFIED);
 
-  if (!buf_len)
-    return 0;
-
-  std::copy(buf->data(), buf->data() + buf_len, data_[index].begin() + offset);
   return buf_len;
 }
 

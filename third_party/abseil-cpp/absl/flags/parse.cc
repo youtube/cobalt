@@ -35,7 +35,7 @@
 #include "absl/algorithm/container.h"
 #include "absl/base/attributes.h"
 #include "absl/base/config.h"
-#include "absl/base/const_init.h"
+#include "absl/base/no_destructor.h"
 #include "absl/base/thread_annotations.h"
 #include "absl/flags/commandlineflag.h"
 #include "absl/flags/config.h"
@@ -64,14 +64,17 @@ ABSL_NAMESPACE_BEGIN
 namespace flags_internal {
 namespace {
 
-ABSL_CONST_INIT absl::Mutex processing_checks_guard(absl::kConstInit);
+absl::Mutex* ProcessingChecksMutex() {
+  static absl::NoDestructor<absl::Mutex> mutex;
+  return mutex.get();
+}
 
 ABSL_CONST_INIT bool flagfile_needs_processing
-    ABSL_GUARDED_BY(processing_checks_guard) = false;
+    ABSL_GUARDED_BY(ProcessingChecksMutex()) = false;
 ABSL_CONST_INIT bool fromenv_needs_processing
-    ABSL_GUARDED_BY(processing_checks_guard) = false;
+    ABSL_GUARDED_BY(ProcessingChecksMutex()) = false;
 ABSL_CONST_INIT bool tryfromenv_needs_processing
-    ABSL_GUARDED_BY(processing_checks_guard) = false;
+    ABSL_GUARDED_BY(ProcessingChecksMutex()) = false;
 
 ABSL_CONST_INIT absl::Mutex specified_flags_guard(absl::kConstInit);
 ABSL_CONST_INIT std::vector<const CommandLineFlag*>* specified_flags
@@ -99,12 +102,14 @@ struct SpecifiedFlagsCompare {
 ABSL_NAMESPACE_END
 }  // namespace absl
 
+// These flags influence how command line flags are parsed and are only intended
+// to be set on the command line.  Avoid reading or setting them from C++ code.
 ABSL_FLAG(std::vector<std::string>, flagfile, {},
           "comma-separated list of files to load flags from")
     .OnUpdate([]() {
       if (absl::GetFlag(FLAGS_flagfile).empty()) return;
 
-      absl::MutexLock l(&absl::flags_internal::processing_checks_guard);
+      absl::MutexLock l(absl::flags_internal::ProcessingChecksMutex());
 
       // Setting this flag twice before it is handled most likely an internal
       // error and should be reviewed by developers.
@@ -120,7 +125,7 @@ ABSL_FLAG(std::vector<std::string>, fromenv, {},
     .OnUpdate([]() {
       if (absl::GetFlag(FLAGS_fromenv).empty()) return;
 
-      absl::MutexLock l(&absl::flags_internal::processing_checks_guard);
+      absl::MutexLock l(absl::flags_internal::ProcessingChecksMutex());
 
       // Setting this flag twice before it is handled most likely an internal
       // error and should be reviewed by developers.
@@ -136,7 +141,7 @@ ABSL_FLAG(std::vector<std::string>, tryfromenv, {},
     .OnUpdate([]() {
       if (absl::GetFlag(FLAGS_tryfromenv).empty()) return;
 
-      absl::MutexLock l(&absl::flags_internal::processing_checks_guard);
+      absl::MutexLock l(absl::flags_internal::ProcessingChecksMutex());
 
       // Setting this flag twice before it is handled most likely an internal
       // error and should be reviewed by developers.
@@ -148,6 +153,8 @@ ABSL_FLAG(std::vector<std::string>, tryfromenv, {},
       absl::flags_internal::tryfromenv_needs_processing = true;
     });
 
+// Rather than reading or setting --undefok from C++ code, please consider using
+// ABSL_RETIRED_FLAG instead.
 ABSL_FLAG(std::vector<std::string>, undefok, {},
           "comma-separated list of flag names that it is okay to specify "
           "on the command line even if the program does not define a flag "
@@ -411,13 +418,13 @@ bool HandleGeneratorFlags(std::vector<ArgsList>& input_args,
                           std::vector<std::string>& flagfile_value) {
   bool success = true;
 
-  absl::MutexLock l(&flags_internal::processing_checks_guard);
+  absl::MutexLock l(flags_internal::ProcessingChecksMutex());
 
   // flagfile could have been set either on a command line or
   // programmatically before invoking ParseCommandLine. Note that we do not
   // actually process arguments specified in the flagfile, but instead
   // create a secondary arguments list to be processed along with the rest
-  // of the comamnd line arguments. Since we always the process most recently
+  // of the command line arguments. Since we always the process most recently
   // created list of arguments first, this will result in flagfile argument
   // being processed before any other argument in the command line. If
   // FLAGS_flagfile contains more than one file name we create multiple new
@@ -474,7 +481,7 @@ void ResetGeneratorFlags(const std::vector<std::string>& flagfile_value) {
   // going to be {"f1", "f2"}
   if (!flagfile_value.empty()) {
     absl::SetFlag(&FLAGS_flagfile, flagfile_value);
-    absl::MutexLock l(&flags_internal::processing_checks_guard);
+    absl::MutexLock l(flags_internal::ProcessingChecksMutex());
     flags_internal::flagfile_needs_processing = false;
   }
 
@@ -486,7 +493,7 @@ void ResetGeneratorFlags(const std::vector<std::string>& flagfile_value) {
     absl::SetFlag(&FLAGS_tryfromenv, {});
   }
 
-  absl::MutexLock l(&flags_internal::processing_checks_guard);
+  absl::MutexLock l(flags_internal::ProcessingChecksMutex());
   flags_internal::fromenv_needs_processing = false;
   flags_internal::tryfromenv_needs_processing = false;
 }
@@ -633,7 +640,7 @@ void ReportUnrecognizedFlags(
 // --------------------------------------------------------------------
 
 bool WasPresentOnCommandLine(absl::string_view flag_name) {
-  absl::MutexLock l(&specified_flags_guard);
+  absl::ReaderMutexLock l(&specified_flags_guard);
   ABSL_INTERNAL_CHECK(specified_flags != nullptr,
                       "ParseCommandLine is not invoked yet");
 

@@ -5,8 +5,8 @@
 #ifndef UI_GFX_RANGE_RANGE_F_H_
 #define UI_GFX_RANGE_RANGE_F_H_
 
+#include <iosfwd>
 #include <limits>
-#include <ostream>
 #include <string>
 
 #include "ui/gfx/range/gfx_range_export.h"
@@ -36,6 +36,16 @@ class GFX_RANGE_EXPORT RangeF {
   // Checks if the range is valid through comparison to InvalidRange().
   constexpr bool IsValid() const { return *this != InvalidRange(); }
 
+  // Ensures that the direction of this range matches the direction of the
+  // provided range, reversing this range if necessary. Returns a reference to
+  // `this` to allow method chaining.
+  RangeF& MatchDirection(const RangeF& other) {
+    if (is_reversed() != other.is_reversed()) {
+      std::swap(start_, end_);
+    }
+    return *this;
+  }
+
   // Getters and setters.
   constexpr float start() const { return start_; }
   void set_start(float start) { start_ = start; }
@@ -53,12 +63,8 @@ class GFX_RANGE_EXPORT RangeF {
   constexpr float GetMin() const { return start() < end() ? start() : end(); }
   constexpr float GetMax() const { return start() > end() ? start() : end(); }
 
-  constexpr bool operator==(const RangeF& other) const {
-    return start() == other.start() && end() == other.end();
-  }
-  constexpr bool operator!=(const RangeF& other) const {
-    return !(*this == other);
-  }
+  constexpr bool operator==(const RangeF& other) const = default;
+  constexpr auto operator<=>(const RangeF& other) const = default;
   constexpr bool EqualsIgnoringDirection(const RangeF& other) const {
     return GetMin() == other.GetMin() && GetMax() == other.GetMax();
   }

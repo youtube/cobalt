@@ -2,6 +2,11 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#ifdef UNSAFE_BUFFERS_BUILD
+// TODO(crbug.com/377326291): Remove this and convert code to safer constructs.
+#pragma allow_unsafe_buffers
+#endif
+
 #include "media/formats/webm/webm_webvtt_parser.h"
 
 namespace media {
@@ -23,7 +28,7 @@ void WebMWebVTTParser::Parse(std::string* id,
                              std::string* content) {
   ParseLine(id);
   ParseLine(settings);
-  content->assign(ptr_, ptr_end_);
+  content->assign(ptr_.get(), ptr_end_.get());
 }
 
 bool WebMWebVTTParser::GetByte(uint8_t* byte) {

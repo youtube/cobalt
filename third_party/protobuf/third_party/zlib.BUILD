@@ -1,6 +1,8 @@
-package(default_visibility = ["//visibility:public"])
+load("@rules_cc//cc:defs.bzl", "cc_library")
 
 licenses(["notice"])  # BSD/MIT-like license (for zlib)
+
+exports_files(["zlib.BUILD"])
 
 _ZLIB_HEADERS = [
     "crc32.h",
@@ -25,8 +27,11 @@ genrule(
     name = "copy_public_headers",
     srcs = _ZLIB_HEADERS,
     outs = _ZLIB_PREFIXED_HEADERS,
-    cmd = "cp $(SRCS) $(@D)/zlib/include/",
-    visibility = ["//visibility:private"],
+    cmd_bash = "cp $(SRCS) $(@D)/zlib/include/",
+    cmd_bat = " && ".join(
+        ["@copy /Y $(location %s) $(@D)\\zlib\\include\\  >NUL" %
+         s for s in _ZLIB_HEADERS],
+    ),
 )
 
 cc_library(
@@ -52,9 +57,18 @@ cc_library(
         # choice of <> or "" delimiter when including itself.
     ] + _ZLIB_HEADERS,
     hdrs = _ZLIB_PREFIXED_HEADERS,
-    copts = [
-        "-Wno-unused-variable",
-        "-Wno-implicit-function-declaration",
-    ],
+    copts = select({
+        "@platforms//os:windows": [],
+        "@platforms//os:macos": [
+            "-Wno-unused-variable",
+            "-Wno-implicit-function-declaration",
+        ],
+        "//conditions:default": [
+            "-Wno-deprecated-non-prototype",
+            "-Wno-unused-variable",
+            "-Wno-implicit-function-declaration",
+        ],
+    }),
     includes = ["zlib/include/"],
+    visibility = ["//visibility:public"],
 )

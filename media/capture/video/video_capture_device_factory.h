@@ -9,7 +9,6 @@
 #include "base/task/single_thread_task_runner.h"
 #include "base/threading/thread_checker.h"
 #include "build/build_config.h"
-#include "build/chromeos_buildflags.h"
 #include "gpu/command_buffer/client/gpu_memory_buffer_manager.h"
 #include "media/capture/video/video_capture_device.h"
 #include "media/capture/video/video_capture_device_info.h"
@@ -79,7 +78,7 @@ class CAPTURE_EXPORT VideoCaptureDeviceFactory {
 
 #if BUILDFLAG(IS_WIN)
   // Returns used DXGI device manager.
-  // This is used for testing and to allow sharing the same DXGI device manger
+  // This is used for testing and to allow sharing the same DXGI device manager
   // with GpuMemoryBufferTracker in VideoCaptureBufferPool. Default
   // implementation always returns nullptr. Should be overridden by actual
   // factory implementation on Windows.
