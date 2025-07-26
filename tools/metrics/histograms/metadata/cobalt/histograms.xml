@@ -30,6 +30,19 @@ Always run the pretty print utility on this file after editing:
 <histogram-configuration>
 
 <histograms>
+
+<histogram name="HangWatcher.IsThreadHung.BrowserProcess.RendererThread"
+    enum="BooleanHung" expires_after="never">
+  <owner>antonlunev@google.com</owner>
+  <summary>
+    Every 10 seconds, a boolean is recorded to this histogram to indicate
+    whether the RendererThread of a Browser process was hung. The thread is hung
+    if the current work unit started running more than 10 seconds ago. This is
+    emitted only in single process mode(when renderer is a thread inside
+    BrowserProcess).
+  </summary>
+</histogram>
+
 </histograms>
 
 </histogram-configuration>
