@@ -18,8 +18,10 @@
 #include "starboard/shared/starboard/drm/drm_system_internal.h"
 
 #include <jni.h>
+#include <deque>
 
 #include <atomic>
+#include <condition_variable>
 #include <mutex>
 #include <optional>
 #include <ostream>
@@ -125,6 +127,7 @@ class DrmSystem : public ::SbDrmSystemPrivate,
 
   // From Thread.
   void Run() override;
+  void RunWithAppProvisioning();
 
   const std::string key_system_;
   void* context_;
@@ -154,11 +157,12 @@ class DrmSystem : public ::SbDrmSystemPrivate,
   // only after provisioning). In such scenarios, `DrmSystem` still needs a CDM
   // session ID to interact with the Cobalt CDM module.
   const std::unique_ptr<starboard::shared::starboard::media::DrmSessionIdMapper>
-      session_id_mapper_;
+      session_id_mapper_;  //  Guarded by |mutex_|.
 
   std::unique_ptr<starboard::shared::starboard::player::JobQueue> job_queue_;
+  std::condition_variable job_queue_created_;
 
-  std::optional<int> pending_ticket_;
+  std::deque<int> pending_tickets_;  // Guarded by |mutex_|.
 };
 
 }  // namespace starboard::android::shared

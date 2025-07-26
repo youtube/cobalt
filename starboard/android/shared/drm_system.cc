@@ -78,23 +78,23 @@ DrmSystem::DrmSystem(
                << (kEnableAppProvisioning ? "true" : "false");
 
   Start();
+
+  if (kEnableAppProvisioning) {
+    if (std::unique_lock lock(mutex_);
+        !job_queue_created_.wait_for(lock, std::chrono::seconds(1), [this] {
+          return job_queue_ != nullptr;
+        })) {
+      SB_LOG(WARNING) << "job_queue is not created in time";
+    }
+  }
 }
 
 void DrmSystem::Run() {
-  if (!kEnableAppProvisioning) {
-    InitializeMediaCryptoSession();
+  if (kEnableAppProvisioning) {
+    RunWithAppProvisioning();
     return;
   }
 
-  job_queue_ =
-      std::make_unique<starboard::shared::starboard::player::JobQueue>();
-  job_queue_->RunUntilStopped();
-
-  // job_queue_ should be destroyed at the same thread that it was created.
-  job_queue_.reset();
-}
-
-void DrmSystem::InitializeMediaCryptoSession() {
   if (media_drm_bridge_->CreateMediaCryptoSession()) {
     created_media_crypto_session_.store(true);
   } else {
@@ -109,6 +109,22 @@ void DrmSystem::InitializeMediaCryptoSession() {
     }
     deferred_session_update_requests_.clear();
   }
+}
+
+void DrmSystem::RunWithAppProvisioning() {
+  SB_LOG(INFO) << __func__;
+  auto job_queue =
+      std::make_unique<starboard::shared::starboard::player::JobQueue>();
+  {
+    std::lock_guard lock(mutex_);
+    job_queue_ = std::move(job_queue);
+  }
+  job_queue_created_.notify_one();
+
+  job_queue_->RunUntilStopped();
+
+  // job_queue_ should be destroyed at the same thread that it was created.
+  job_queue_.reset();
 }
 
 DrmSystem::~DrmSystem() {
@@ -191,12 +207,7 @@ void DrmSystem::GenerateSessionUpdateRequestWithAppProvisioning(
       SB_LOG(INFO) << "Device is not provisioned. Generating provision request";
       {
         std::lock_guard scoped_lock(mutex_);
-        // For now, we can handle only one pending ticket, which should be
-        // enough for app-assisted provisionig, in which provisioning request
-        // comes in sequence.
-        SB_DCHECK(!pending_ticket_.has_value())
-            << "There should be no pending ticket.";
-        pending_ticket_ = request->ticket();
+        pending_tickets_.push_back(request->ticket());
         deferred_session_update_requests_.push_back(
             std::make_unique<SessionUpdateRequest>(
                 request->CloneWithoutTicket()));
@@ -312,7 +323,6 @@ void DrmSystem::CloseSession(const void* session_id, int session_id_size) {
   }
 
   if (media_drm_session_id.empty()) {
-    // There is no MediaDrmSession to close.
     return;
   }
   media_drm_bridge_->CloseSession(media_drm_session_id);
@@ -359,20 +369,19 @@ void DrmSystem::OnProvisioningRequest(std::string_view content) {
 
   SB_LOG(INFO) << __func__;
   std::string cdm_session_id;
+  int ticket = kSbDrmTicketInvalid;
   {
     std::lock_guard lock(mutex_);
     cdm_session_id = session_id_mapper_->GetBridgeCdmSessionId();
     SB_DCHECK(!cdm_session_id.empty());
 
-    int ticket = kSbDrmTicketInvalid;
-    if (pending_ticket_.has_value()) {
-      ticket = *pending_ticket_;
-      SB_LOG(INFO) << "Return provision request using pending_ticket="
-                   << ticket;
-      pending_ticket_ = std::nullopt;
+    if (!pending_tickets_.empty()) {
+      ticket = pending_tickets_.front();
+      pending_tickets_.pop_front();
     }
   }
 
+  SB_LOG(INFO) << "Return provision request using pending ticket=" << ticket;
   update_request_callback_(this, context_, ticket, kSbDrmStatusSuccess,
                            kSbDrmSessionRequestTypeIndividualizationRequest,
                            /*error_message=*/nullptr, cdm_session_id.data(),
