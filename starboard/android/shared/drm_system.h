@@ -21,6 +21,7 @@
 
 #include <atomic>
 #include <condition_variable>
+#include <memory>
 #include <mutex>
 #include <optional>
 #include <ostream>
@@ -103,12 +104,11 @@ class DrmSystem : public ::SbDrmSystemPrivate,
     MediaDrmBridge::OperationResult GenerateWithAppProvisioning(
         const MediaDrmBridge* media_drm_bridge) const;
 
-    SessionUpdateRequest CloneWithoutTicket() const;
-
+    void ResetTicket();
     int ticket() const { return ticket_; }
 
    private:
-    const int ticket_;
+    int ticket_;
     const std::string init_data_;
     const std::string mime_;
   };
@@ -159,8 +159,6 @@ class DrmSystem : public ::SbDrmSystemPrivate,
 
   std::unique_ptr<starboard::shared::starboard::player::JobQueue> job_queue_;
   std::condition_variable job_queue_created_;
-
-  std::vector<int> pending_tickets_;  // Guarded by |mutex_|.
 };
 
 }  // namespace starboard::android::shared

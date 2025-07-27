@@ -142,10 +142,8 @@ DrmSystem::SessionUpdateRequest::SessionUpdateRequest(
     std::string_view initialization_data)
     : ticket_(ticket), init_data_(initialization_data), mime_(mime_type) {}
 
-DrmSystem::SessionUpdateRequest
-DrmSystem::SessionUpdateRequest::CloneWithoutTicket() const {
-  return DrmSystem::SessionUpdateRequest(kSbDrmTicketInvalid, mime_,
-                                         init_data_);
+void DrmSystem::SessionUpdateRequest::ResetTicket() {
+  ticket_ = kSbDrmTicketInvalid;
 }
 
 void DrmSystem::SessionUpdateRequest::Generate(
@@ -207,10 +205,7 @@ void DrmSystem::GenerateSessionUpdateRequestWithAppProvisioning(
       SB_LOG(INFO) << "Device is not provisioned. Generating provision request";
       {
         std::lock_guard scoped_lock(mutex_);
-        pending_tickets_.push_back(request->ticket());
-        deferred_session_update_requests_.push_back(
-            std::make_unique<SessionUpdateRequest>(
-                request->CloneWithoutTicket()));
+        deferred_session_update_requests_.push_back(std::move(request));
       }
       media_drm_bridge_->GenerateProvisionRequest();
       return;
@@ -375,9 +370,15 @@ void DrmSystem::OnProvisioningRequest(std::string_view content) {
     cdm_session_id = session_id_mapper_->GetBridgeCdmSessionId();
     SB_DCHECK(!cdm_session_id.empty());
 
-    if (!pending_tickets_.empty()) {
-      ticket = pending_tickets_.front();
-      pending_tickets_.erase(pending_tickets_.begin());
+    // Grabs first valid ticket id from pending requests.
+    for (auto& request : deferred_session_update_requests_) {
+      if (request->ticket() == kSbDrmTicketInvalid) {
+        continue;
+      }
+
+      ticket = request->ticket();
+      request->ResetTicket();
+      break;
     }
   }
 
