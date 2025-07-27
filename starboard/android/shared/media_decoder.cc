@@ -24,6 +24,7 @@
 #include "starboard/audio_sink.h"
 #include "starboard/common/log.h"
 #include "starboard/common/string.h"
+#include "starboard/common/time.h"
 #include "starboard/shared/pthread/thread_create_priority.h"
 
 namespace starboard::android::shared {
@@ -689,6 +690,8 @@ void MediaDecoder::OnMediaCodecOutputBufferAvailable(
     if (!decoder_flow_control_->SetFrameDecoded(presentation_time_us)) {
       SB_LOG(ERROR) << "SetFrameDecoded() called on empty frame tracker.";
     }
+    decoded_frame_timestamps_[presentation_time_us] =
+        starboard::CurrentMonotonicTime();
   } else {
     SB_LOG(INFO) << __func__ << " > size is 0, which may mean EOS";
   }
@@ -725,6 +728,27 @@ void MediaDecoder::OnMediaCodecOutputFormatChanged() {
 
 void MediaDecoder::OnMediaCodecFrameRendered(int64_t frame_timestamp,
                                              int64_t frame_rendered_us) {
+  // The frame_rendered_us is a system time which may not be monotonic.
+  // Use our own monotonic clock for latency calculations.
+  int64_t now_us = starboard::CurrentMonotonicTime();
+
+  int64_t gap_ms = -1;
+  if (last_frame_rendered_us_) {
+    gap_ms = (now_us - *last_frame_rendered_us_) / 1000;
+  }
+  last_frame_rendered_us_ = now_us;
+
+  int64_t latency_ms = -1;
+  auto it = decoded_frame_timestamps_.find(frame_timestamp);
+  if (it != decoded_frame_timestamps_.end()) {
+    latency_ms = (now_us - it->second) / 1000;
+    decoded_frame_timestamps_.erase(it);
+  }
+
+  SB_LOG(INFO) << "Frame rendered: pts(msec)=" << frame_timestamp / 1000
+               << ", gap(msec)=" << gap_ms
+               << ", decode_to_render(msec)=" << latency_ms
+               << ", pts(msec)=" << (frame_timestamp / 1'000);
   frame_rendered_cb_(frame_timestamp);
 }
 
