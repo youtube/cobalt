@@ -18,17 +18,16 @@
 #include "starboard/shared/starboard/drm/drm_system_internal.h"
 
 #include <jni.h>
-#include <deque>
 
 #include <atomic>
 #include <condition_variable>
+#include <deque>
 #include <mutex>
 #include <optional>
 #include <ostream>
 #include <string>
 #include <string_view>
 #include <unordered_map>
-#include <vector>
 
 #include "starboard/android/shared/media_common.h"
 #include "starboard/android/shared/media_drm_bridge.h"
@@ -136,7 +135,7 @@ class DrmSystem : public ::SbDrmSystemPrivate,
   // TODO: Update key statuses to Cobalt.
   SbDrmSessionKeyStatusesChangedFunc key_statuses_changed_callback_;
 
-  std::vector<std::unique_ptr<SessionUpdateRequest>>
+  std::deque<std::unique_ptr<SessionUpdateRequest>>
       deferred_session_update_requests_;
 
   std::mutex mutex_;

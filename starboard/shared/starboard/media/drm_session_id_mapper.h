@@ -36,7 +36,7 @@ class DrmSessionIdMapper {
   void RegisterMediaDrmSessionIdIfNotSet(std::string_view media_drm_session_id);
 
  private:
-  static std::string GenerateBridgeSesssionId();
+  static std::string GenerateBridgeSessionId();
 
   struct SessionIdMap {
     const std::string cdm_id;

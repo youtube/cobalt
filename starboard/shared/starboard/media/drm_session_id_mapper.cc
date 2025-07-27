@@ -22,7 +22,7 @@ namespace starboard::shared::starboard::media {
 
 DrmSessionIdMapper::DrmSessionIdMapper() = default;
 
-std::string DrmSessionIdMapper::GenerateBridgeSesssionId() {
+std::string DrmSessionIdMapper::GenerateBridgeSessionId() {
   static std::atomic<int> counter = 0;
   return "cobalt.sid." + std::to_string(counter++);
 }
@@ -53,7 +53,7 @@ std::string DrmSessionIdMapper::GetBridgeCdmSessionId() {
   }
 
   bridge_session_id_map_.emplace(
-      SessionIdMap{.cdm_id = GenerateBridgeSesssionId()});
+      SessionIdMap{.cdm_id = GenerateBridgeSessionId()});
   SB_LOG(INFO) << __func__ << " created new bridge session: cdm_id="
                << bridge_session_id_map_->cdm_id;
   return bridge_session_id_map_->cdm_id;

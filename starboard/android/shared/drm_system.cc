@@ -261,7 +261,7 @@ void DrmSystem::UpdateSessionWithAppProvisioning(int ticket,
   MediaDrmBridge::OperationResult result;
   if (media_drm_session_id.empty()) {
     SB_LOG(INFO) << __func__
-                 << "Handle the given key as provision response, since "
+                 << " >  Handle the given key as provision response, since "
                     "MediaDrm session is not created yet for "
                  << cdm_session_id;
     result = media_drm_bridge_->ProvideProvisionResponse(key_view);
