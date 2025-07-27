@@ -226,6 +226,12 @@ class MediaDecoder final
   bool is_output_restricted_ = false;
   bool first_call_on_handler_thread_ = true;
 
+  // Map of presentation timestamp to the monotonic time (in us) when the frame
+  // finished decoding.
+  std::map<int64_t, int64_t> decoded_frame_timestamps_;
+  // The monotonic time (in us) when the last frame was rendered.
+  std::optional<int64_t> last_frame_rendered_us_;
+
   // Working thread to avoid lengthy decoding work block the player thread.
   pthread_t decoder_thread_ = 0;
   std::unique_ptr<MediaCodecBridge> media_codec_bridge_;
