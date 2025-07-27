@@ -21,6 +21,7 @@
 #include <deque>
 #include <memory>
 #include <optional>
+#include <queue>
 #include <string>
 #include <vector>
 
@@ -31,6 +32,7 @@
 #include "starboard/common/ref_counted.h"
 #include "starboard/media.h"
 #include "starboard/shared/internal_only.h"
+#include "starboard/shared/starboard/media/decoder_flow_control.h"
 #include "starboard/shared/starboard/media/media_util.h"
 #include "starboard/shared/starboard/player/filter/common.h"
 #include "starboard/shared/starboard/player/input_buffer_internal.h"
@@ -117,6 +119,11 @@ class MediaDecoder final
 
   bool Flush();
 
+  ::starboard::shared::starboard::media::DecoderFlowControl*
+  decoder_flow_control() {
+    return decoder_flow_control_.get();
+  }
+
  private:
   // Holding inputs to be processed.  They are mostly InputBuffer objects, but
   // can also be codec configs or end of streams.
@@ -154,6 +161,7 @@ class MediaDecoder final
   static void* DecoderThreadEntryPoint(void* context);
   void DecoderThreadFunc();
 
+  void ResetDecoderFlowControl();
   void TerminateDecoderThread();
 
   void CollectPendingData_Locked(
@@ -178,7 +186,8 @@ class MediaDecoder final
                                          int64_t presentation_time_us,
                                          int size) override;
   void OnMediaCodecOutputFormatChanged() override;
-  void OnMediaCodecFrameRendered(int64_t frame_timestamp) override;
+  void OnMediaCodecFrameRendered(int64_t frame_timestamp,
+                                 int64_t frame_rendered_us) override;
   void OnMediaCodecFirstTunnelFrameReady() override;
 
   ::starboard::shared::starboard::ThreadChecker thread_checker_;
@@ -211,8 +220,17 @@ class MediaDecoder final
   std::vector<int> input_buffer_indices_;
   std::vector<DequeueOutputResult> dequeue_output_results_;
 
+  std::unique_ptr<::starboard::shared::starboard::media::DecoderFlowControl>
+      decoder_flow_control_;
+
   bool is_output_restricted_ = false;
   bool first_call_on_handler_thread_ = true;
+
+  // Map of presentation timestamp to the monotonic time (in us) when the frame
+  // finished decoding.
+  std::map<int64_t, int64_t> decoded_frame_timestamps_;
+  // The monotonic time (in us) when the last frame was rendered.
+  std::optional<int64_t> last_frame_rendered_us_;
 
   // Working thread to avoid lengthy decoding work block the player thread.
   pthread_t decoder_thread_ = 0;

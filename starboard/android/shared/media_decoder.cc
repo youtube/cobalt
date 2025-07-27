@@ -24,14 +24,21 @@
 #include "starboard/audio_sink.h"
 #include "starboard/common/log.h"
 #include "starboard/common/string.h"
+#include "starboard/common/time.h"
 #include "starboard/shared/pthread/thread_create_priority.h"
 
 namespace starboard::android::shared {
+
+using ::starboard::shared::starboard::media::DecoderFlowControl;
 
 // TODO: (cobalt b/372559388) Update namespace to jni_zero.
 using base::android::AttachCurrentThread;
 
 namespace {
+
+constexpr int kMaxFramesInDecoder = 10;
+constexpr bool kForceLimiting = true;
+constexpr int kFrameTrackerLogIntervalUs = 1'000'000;  // 1 sec.
 
 const jint kNoOffset = 0;
 const jlong kNoPts = 0;
@@ -81,7 +88,14 @@ MediaDecoder::MediaDecoder(Host* host,
       drm_system_(static_cast<DrmSystem*>(drm_system)),
       tunnel_mode_enabled_(false),
       flush_delay_usec_(0),
-      condition_variable_(mutex_) {
+      condition_variable_(mutex_),
+      decoder_flow_control_(
+          DecoderFlowControl::CreateThrottling(kMaxFramesInDecoder,
+                                               kFrameTrackerLogIntervalUs,
+                                               [this]() {
+                                                 ScopedLock lock(mutex_);
+                                                 condition_variable_.Signal();
+                                               })) {
   SB_DCHECK(host_);
 
   jobject j_media_crypto = drm_system_ ? drm_system_->GetMediaCrypto() : NULL;
@@ -130,8 +144,14 @@ MediaDecoder::MediaDecoder(
       first_tunnel_frame_ready_cb_(first_tunnel_frame_ready_cb),
       tunnel_mode_enabled_(tunnel_mode_audio_session_id != -1),
       flush_delay_usec_(flush_delay_usec),
-      condition_variable_(mutex_) {
-  SB_DCHECK(frame_rendered_cb_);
+      condition_variable_(mutex_),
+      decoder_flow_control_(
+          DecoderFlowControl::CreateThrottling(kMaxFramesInDecoder,
+                                               kFrameTrackerLogIntervalUs,
+                                               [this]() {
+                                                 ScopedLock lock(mutex_);
+                                                 condition_variable_.Signal();
+                                               })) {
   SB_DCHECK(first_tunnel_frame_ready_cb_);
 
   jobject j_media_crypto = drm_system_ ? drm_system_->GetMediaCrypto() : NULL;
@@ -349,7 +369,7 @@ void MediaDecoder::DecoderThreadFunc() {
       bool can_process_input =
           pending_input_to_retry_ ||
           (!pending_inputs.empty() && !input_buffer_indices.empty());
-      if (can_process_input) {
+      if (decoder_flow_control_->CanAcceptMore() && can_process_input) {
         ProcessOneInputBuffer(&pending_inputs, &input_buffer_indices);
       }
 
@@ -502,8 +522,15 @@ bool MediaDecoder::ProcessOneInputBuffer(
     memcpy(address, data, size);
   }
 
+  if (size > 0) {
+    decoder_flow_control_->AddFrame(input_buffer->timestamp());
+  } else {
+    SB_LOG(WARNING) << __func__ << " > size=" << size;
+  }
+
   jint status;
   if (drm_system_ && !drm_system_->IsReady()) {
+    SB_NOTREACHED();
     // Drm system initialization is asynchronous. If there's a drm system, we
     // should wait until it's initialized to avoid errors.
     status = MEDIA_CODEC_NO_KEY;
@@ -529,6 +556,7 @@ bool MediaDecoder::ProcessOneInputBuffer(
   }
 
   if (status != MEDIA_CODEC_OK) {
+    SB_LOG(FATAL) << "QueueInputBuffer returns status=" << status;
     HandleError("queue(Secure)?InputBuffer", status);
     // TODO: Stop the decoding loop and call error_cb_ on fatal error.
     SB_DCHECK(!pending_input_to_retry_);
@@ -629,6 +657,7 @@ void MediaDecoder::OnMediaCodecError(bool is_recoverable,
 }
 
 void MediaDecoder::OnMediaCodecInputBufferAvailable(int buffer_index) {
+  SB_LOG(INFO) << __func__ << " > buffer_index=" << buffer_index;
   if (media_type_ == kSbMediaTypeVideo && first_call_on_handler_thread_) {
     // Set the thread priority of the Handler thread to dispatch the async
     // decoder callbacks to high.
@@ -657,6 +686,16 @@ void MediaDecoder::OnMediaCodecOutputBufferAvailable(
     return;
   }
 
+  if (size > 0) {
+    if (!decoder_flow_control_->SetFrameDecoded(presentation_time_us)) {
+      SB_LOG(ERROR) << "SetFrameDecoded() called on empty frame tracker.";
+    }
+    decoded_frame_timestamps_[presentation_time_us] =
+        starboard::CurrentMonotonicTime();
+  } else {
+    SB_LOG(INFO) << __func__ << " > size is 0, which may mean EOS";
+  }
+
   DequeueOutputResult dequeue_output_result;
   dequeue_output_result.status = 0;
   dequeue_output_result.index = buffer_index;
@@ -673,6 +712,12 @@ void MediaDecoder::OnMediaCodecOutputBufferAvailable(
 void MediaDecoder::OnMediaCodecOutputFormatChanged() {
   SB_DCHECK(media_codec_bridge_);
 
+  FrameSize frame_size = media_codec_bridge_->GetOutputSize();
+
+  SB_LOG(INFO) << __func__
+               << " > texture_resolution=" << frame_size.texture_width << "x"
+               << frame_size.texture_height;
+
   DequeueOutputResult dequeue_output_result = {};
   dequeue_output_result.index = -1;
 
@@ -681,7 +726,29 @@ void MediaDecoder::OnMediaCodecOutputFormatChanged() {
   condition_variable_.Signal();
 }
 
-void MediaDecoder::OnMediaCodecFrameRendered(int64_t frame_timestamp) {
+void MediaDecoder::OnMediaCodecFrameRendered(int64_t frame_timestamp,
+                                             int64_t frame_rendered_us) {
+  // The frame_rendered_us is a system time which may not be monotonic.
+  // Use our own monotonic clock for latency calculations.
+  int64_t now_us = starboard::CurrentMonotonicTime();
+
+  int64_t gap_ms = -1;
+  if (last_frame_rendered_us_) {
+    gap_ms = (now_us - *last_frame_rendered_us_) / 1000;
+  }
+  last_frame_rendered_us_ = now_us;
+
+  int64_t latency_ms = -1;
+  auto it = decoded_frame_timestamps_.find(frame_timestamp);
+  if (it != decoded_frame_timestamps_.end()) {
+    latency_ms = (now_us - it->second) / 1000;
+    decoded_frame_timestamps_.erase(it);
+  }
+
+  SB_LOG(INFO) << "Frame rendered: pts(msec)=" << frame_timestamp / 1000
+               << ", gap(msec)=" << gap_ms
+               << ", decode_to_render(msec)=" << latency_ms
+               << ", pts(msec)=" << (frame_timestamp / 1'000);
   frame_rendered_cb_(frame_timestamp);
 }
 
@@ -746,6 +813,30 @@ bool MediaDecoder::Flush() {
   stream_ended_.store(false);
   destroying_.store(false);
   return true;
+}
+
+void MediaDecoder::ResetDecoderFlowControl() {
+  if (media_codec_bridge_ != nullptr) {
+    SB_LOG(INFO) << "DecoderFrameControl is already created";
+    return;
+  }
+
+  if (kForceLimiting) {
+    SB_LOG(INFO) << "kForceLimiting=" << (kForceLimiting ? "true" : "false");
+  }
+
+  FrameSize frame_size = media_codec_bridge_->GetOutputSize();
+  constexpr int kArea4k = 3840 * 2160;
+  decoder_flow_control_ =
+      kForceLimiting ||
+              frame_size.texture_width * frame_size.texture_height > kArea4k
+          ? DecoderFlowControl::CreateThrottling(kMaxFramesInDecoder,
+                                                 kFrameTrackerLogIntervalUs,
+                                                 [this]() {
+                                                   ScopedLock lock(mutex_);
+                                                   condition_variable_.Signal();
+                                                 })
+          : DecoderFlowControl::CreateNoOp();
 }
 
 }  // namespace starboard::android::shared
