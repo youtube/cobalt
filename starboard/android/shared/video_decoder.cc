@@ -51,6 +51,8 @@ using VideoRenderAlgorithmBase =
 using std::placeholders::_1;
 using std::placeholders::_2;
 
+constexpr bool kSetReleaseTimeExplicitly = true;
+
 template <typename T>
 inline std::ostream& operator<<(std::ostream& stream,
                                 const std::optional<T>& maybe_value) {
@@ -220,16 +222,18 @@ class VideoFrameImpl : public VideoFrame {
     SB_DCHECK(!is_end_of_stream());
     released_ = true;
 
+    if (kSetReleaseTimeExplicitly) {
+      media_codec_bridge_->ReleaseOutputBufferAtTimestamp(
+          dequeue_output_result_.index, release_time_in_nanoseconds);
+      release_callback_(release_time_in_nanoseconds / 1'000);
+      return;
+    }
+
     media_codec_bridge_->ReleaseOutputBuffer(dequeue_output_result_.index,
                                              true);
     if (!is_end_of_stream()) {
       release_callback_(std::nullopt);
     }
-    /*
-    media_codec_bridge_->ReleaseOutputBufferAtTimestamp(
-        dequeue_output_result_.index, release_time_in_nanoseconds);
-    release_callback_(release_time_in_nanoseconds / 1'000);
-    */
   }
 
  private:
@@ -437,6 +441,8 @@ VideoDecoder::VideoDecoder(const VideoStreamInfo& video_stream_info,
                << ", max video capabilities \"" << max_video_capabilities_
                << "\", and tunnel mode audio session id "
                << tunnel_mode_audio_session_id_;
+  SB_LOG(INFO) << "kSetReleaseTimeExplicitly="
+               << (kSetReleaseTimeExplicitly ? "true" : "false");
 }
 
 VideoDecoder::~VideoDecoder() {

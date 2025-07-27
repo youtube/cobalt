@@ -690,8 +690,9 @@ void MediaDecoder::OnMediaCodecOutputBufferAvailable(
     if (!decoder_flow_control_->SetFrameDecoded(presentation_time_us)) {
       SB_LOG(ERROR) << "SetFrameDecoded() called on empty frame tracker.";
     }
-    decoded_frame_timestamps_[presentation_time_us] =
-        starboard::CurrentMonotonicTime();
+    frame_timestamps_[presentation_time_us] = {
+        .decoded_us = CurrentMonotonicTime(),
+    };
   } else {
     SB_LOG(INFO) << __func__ << " > size is 0, which may mean EOS";
   }
@@ -728,26 +729,31 @@ void MediaDecoder::OnMediaCodecOutputFormatChanged() {
 
 void MediaDecoder::OnMediaCodecFrameRendered(int64_t frame_timestamp,
                                              int64_t frame_rendered_us) {
-  // The frame_rendered_us is a system time which may not be monotonic.
-  // Use our own monotonic clock for latency calculations.
-  int64_t now_us = starboard::CurrentMonotonicTime();
-
   int64_t gap_ms = -1;
   if (last_frame_rendered_us_) {
-    gap_ms = (now_us - *last_frame_rendered_us_) / 1000;
+    gap_ms = (frame_rendered_us - *last_frame_rendered_us_) / 1'000;
   }
-  last_frame_rendered_us_ = now_us;
+  last_frame_rendered_us_ = frame_rendered_us;
 
-  int64_t latency_ms = -1;
-  auto it = decoded_frame_timestamps_.find(frame_timestamp);
-  if (it != decoded_frame_timestamps_.end()) {
-    latency_ms = (now_us - it->second) / 1000;
-    decoded_frame_timestamps_.erase(it);
+  std::optional<int64_t> latency_ms;
+  std::optional<int64_t> render_gap_ms;
+  auto it = frame_timestamps_.find(frame_timestamp);
+  if (it != frame_timestamps_.end()) {
+    latency_ms = (frame_rendered_us - it->second.decoded_us) / 1'000;
+    if (auto render_scheduled_us = it->second.render_scheduled_us;
+        render_scheduled_us != 0) {
+      render_gap_ms = (frame_rendered_us - render_scheduled_us);
+    }
+    frame_timestamps_.erase(it);
   }
 
-  SB_LOG(INFO) << "Frame rendered: pts(msec)=" << frame_timestamp / 1000
-               << ", gap(msec)=" << gap_ms
-               << ", decode_to_render(msec)=" << latency_ms
+  SB_LOG(INFO) << "Frame rendered: pts(msec)=" << frame_timestamp / 1'000
+               << ", gap(msec)=" << gap_ms << ", decode_to_render(msec)="
+               << (latency_ms.has_value() ? std::to_string(*latency_ms)
+                                          : "(n/a)")
+               << ", render(sceduled - actual in msec)="
+               << (render_gap_ms.has_value() ? std::to_string(*render_gap_ms)
+                                             : "(n/a)")
                << ", pts(msec)=" << (frame_timestamp / 1'000);
   frame_rendered_cb_(frame_timestamp);
 }
