@@ -21,13 +21,13 @@
 
 #include <atomic>
 #include <condition_variable>
-#include <deque>
 #include <mutex>
 #include <optional>
 #include <ostream>
 #include <string>
 #include <string_view>
 #include <unordered_map>
+#include <vector>
 
 #include "starboard/android/shared/media_common.h"
 #include "starboard/android/shared/media_drm_bridge.h"
@@ -113,7 +113,6 @@ class DrmSystem : public ::SbDrmSystemPrivate,
     const std::string mime_;
   };
 
-  void InitializeMediaCryptoSession();
   void CallKeyStatusesChangedCallbackWithKeyStatusRestricted_Locked();
   void HandlePendingRequests();
   void GenerateSessionUpdateRequestWithAppProvisioning(
@@ -135,7 +134,7 @@ class DrmSystem : public ::SbDrmSystemPrivate,
   // TODO: Update key statuses to Cobalt.
   SbDrmSessionKeyStatusesChangedFunc key_statuses_changed_callback_;
 
-  std::deque<std::unique_ptr<SessionUpdateRequest>>
+  std::vector<std::unique_ptr<SessionUpdateRequest>>
       deferred_session_update_requests_;
 
   std::mutex mutex_;
@@ -161,7 +160,7 @@ class DrmSystem : public ::SbDrmSystemPrivate,
   std::unique_ptr<starboard::shared::starboard::player::JobQueue> job_queue_;
   std::condition_variable job_queue_created_;
 
-  std::deque<int> pending_tickets_;  // Guarded by |mutex_|.
+  std::vector<int> pending_tickets_;  // Guarded by |mutex_|.
 };
 
 }  // namespace starboard::android::shared

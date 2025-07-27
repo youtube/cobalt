@@ -158,7 +158,7 @@ void DrmSystem::SessionUpdateRequest::Generate(
 MediaDrmBridge::OperationResult
 DrmSystem::SessionUpdateRequest::GenerateWithAppProvisioning(
     const MediaDrmBridge* media_drm_bridge) const {
-  SB_CHECK(kEnableAppProvisioning);
+  SB_DCHECK(kEnableAppProvisioning);
 
   SB_LOG(INFO) << __func__;
   SB_DCHECK(media_drm_bridge);
@@ -195,7 +195,7 @@ void DrmSystem::GenerateSessionUpdateRequest(int ticket,
 
 void DrmSystem::GenerateSessionUpdateRequestWithAppProvisioning(
     std::unique_ptr<SessionUpdateRequest> request) {
-  SB_CHECK(kEnableAppProvisioning);
+  SB_DCHECK(kEnableAppProvisioning);
 
   SB_LOG(INFO) << __func__;
   MediaDrmBridge::OperationResult status =
@@ -246,7 +246,7 @@ void DrmSystem::UpdateSessionWithAppProvisioning(int ticket,
                                                  int key_size,
                                                  const void* session_id,
                                                  int session_id_size) {
-  SB_CHECK(kEnableAppProvisioning);
+  SB_DCHECK(kEnableAppProvisioning);
   const std::string_view key_view(static_cast<const char*>(key), key_size);
   const std::string_view cdm_session_id(static_cast<const char*>(session_id),
                                         session_id_size);
@@ -365,7 +365,7 @@ void DrmSystem::OnSessionUpdate(int ticket,
 }
 
 void DrmSystem::OnProvisioningRequest(std::string_view content) {
-  SB_CHECK(kEnableAppProvisioning);
+  SB_DCHECK(kEnableAppProvisioning);
 
   SB_LOG(INFO) << __func__;
   std::string cdm_session_id;
@@ -377,7 +377,7 @@ void DrmSystem::OnProvisioningRequest(std::string_view content) {
 
     if (!pending_tickets_.empty()) {
       ticket = pending_tickets_.front();
-      pending_tickets_.pop_front();
+      pending_tickets_.erase(pending_tickets_.begin());
     }
   }
 
