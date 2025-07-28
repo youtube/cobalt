@@ -137,5 +137,4 @@ runs:
             --json_path=cobalt/build/android/package.json \
             --out_dir=out/${{ matrix.platform }}_${{ matrix.config }} \
             --package_dir=out/test-package
-          exit 1
         shell: bash
