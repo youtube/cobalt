@@ -69,18 +69,6 @@ public final class CommandLineOverrideHelper {
         // causes rendering artifacts when
         // low-end-device-mode is enabled.
         paramOverrides.add("--disable-rgba-4444-textures");
-<<<<<<< HEAD
-        // Limit the total amount of memory that may be allocated for GPU
-        // resources.
-        paramOverrides.add("--force-gpu-mem-available-mb=32");
-=======
-        // Disable Chrome's accelerated video encoding and decoding (Cobalt uses
-        // Starboard's stack).
-        paramOverrides.add("--disable-accelerated-video-decode");
-        paramOverrides.add("--disable-accelerated-video-encode");
-        // Rasterize Tiles directly to GPU memory.
-        paramOverrides.add("--enable-zero-copy");
->>>>>>> bd6462f963c (cobalt: Remove --force-gpu-mem-available-mb startup flag (#6579))
 
         return paramOverrides;
     }
