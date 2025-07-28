@@ -213,6 +213,9 @@ class MEDIA_EXPORT StarboardRenderer : public Renderer,
   RequestOverlayInfoCallBack request_overlay_info_cb_;
 #endif  // BUILDFLAG(IS_ANDROID)
 
+  // The current overlay info, which possibly specifies an overlay to render to.
+  OverlayInfo overlay_info_;
+
   // Temporary callback used for Initialize().
   PipelineStatusCallback init_cb_;
 

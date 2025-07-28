@@ -475,9 +475,11 @@ void StarboardRenderer::OnVideoGeometryChange(const gfx::Rect& output_rect) {
 #if BUILDFLAG(IS_ANDROID)
 void StarboardRenderer::OnOverlayInfoChanged(const OverlayInfo& overlay_info) {
   // TODO: b/429435008 - Request AndroidOverlay() for SbPlayer.
-  // https://source.chromium.org/chromium/chromium/src/+/main:media/gpu/android/media_codec_video_decoder.cc;drc=dcf719eabeb25d9efee139d0294fee2d5976c0f2;l=603
-  // Check if the the overlay_info has stayed the same as expected.
-  // bool overlay_changed = !overlay_info_.RefersToSameOverlayAs(overlay_info);
+  // Check if the the overlay_info has stayed the same --> do not request
+  // AndroidOverlay.
+  bool overlay_changed = !overlay_info_.RefersToSameOverlayAs(overlay_info);
+  overlay_info_ = overlay_info;
+
   AndroidOverlayConfig config;
 
   config.ready_cb = base::BindOnce(&StarboardRenderer::OnOverlayReady,
@@ -491,8 +493,20 @@ void StarboardRenderer::OnOverlayInfoChanged(const OverlayInfo& overlay_info) {
   config.power_cb = base::BindRepeating(
       &StarboardRenderer::OnPowerEfficientState, weak_factory_.GetWeakPtr());
 
-  overlay_ = android_overlay_factory_cb_.Run(*overlay_info.routing_token,
-                                             std::move(config));
+  if (overlay_changed) {
+    LOG(INFO) << __func__ << "Overlay info before request: "
+              << overlay_info.routing_token.value().ToString();
+    LOG(INFO) << __func__
+              << "Callback is: " << android_overlay_factory_cb_.is_null();
+    overlay_ = android_overlay_factory_cb_.Run(*overlay_info.routing_token,
+                                               std::move(config));
+    LOG(INFO) << "Overlay info changed, requested AndroidOverlay. Token: "
+              << overlay_info.routing_token.value().ToString();
+  } else {
+    LOG(INFO)
+        << "Overlay info not changed, did not request AndroidOverlay. Token: "
+        << overlay_info.routing_token.value().ToString();
+  }
 }
 #endif  // BUILDFLAG(IS_ANDROID)
 
@@ -966,7 +980,7 @@ void StarboardRenderer::OnOverlayReady(AndroidOverlay* overlay) {
   overlay_->AddOverlayDeletedCallback(base::BindOnce(
       &StarboardRenderer::OnOverlayDeleted, weak_factory_.GetWeakPtr()));
 
-  overlay_->GetJavaSurface();
+  LOG(INFO) << __func__ << overlay_->GetJavaSurface().obj();
 
   // TODO: b/431850939 - Pass JavaSurface to Starboard via StarboardExtension.
 
