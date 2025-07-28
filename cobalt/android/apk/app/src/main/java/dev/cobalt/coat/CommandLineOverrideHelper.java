@@ -83,9 +83,6 @@ public final class CommandLineOverrideHelper {
         paramOverrides.add("--disable-rgba-4444-textures");
         // Use passthrough command decoder.
         paramOverrides.add("--use-cmd-decoder=passthrough");
-        // Limit the total amount of memory that may be allocated for GPU
-        // resources.
-        paramOverrides.add("--force-gpu-mem-available-mb=32");
 
         return paramOverrides;
     }

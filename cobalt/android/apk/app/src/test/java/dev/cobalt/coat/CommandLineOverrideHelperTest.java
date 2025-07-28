@@ -37,7 +37,6 @@ public class CommandLineOverrideHelperTest {
     public void testDefaultCommandLineOverridesList() {
         List<String> overrides = CommandLineOverrideHelper.getDefaultCommandLineOverridesList();
         assertThat(overrides.contains("--enable-low-end-device-mode")).isTrue();
-        assertThat(overrides.contains("--force-gpu-mem-available-mb=32")).isTrue();
     }
 
     @Test
@@ -85,10 +84,6 @@ public class CommandLineOverrideHelperTest {
 
       expected = "passthrough";
       actual = CommandLine.getInstance().getSwitchValue("use-cmd-decoder");
-      Assert.assertEquals(expected, actual);
-
-      expected = "32";
-      actual = CommandLine.getInstance().getSwitchValue("force-gpu-mem-available-mb");
       Assert.assertEquals(expected, actual);
 
       actual = CommandLine.getInstance().getSwitchValue("enable-features");
