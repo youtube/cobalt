@@ -80,7 +80,10 @@ if (!is_android) {
 
     sources = [ "app/cobalt.cc" ]
 
-    configs += [ "//build/config/gcc:rpath_for_built_shared_libraries" ]
+    # Exclude tvOS since it platforms don't support $ORIGIN rpath syntax
+    if (!(is_ios && target_platform == "tvos")) {
+      configs += [ "//build/config/gcc:rpath_for_built_shared_libraries" ]
+    }
 
     deps = [
       ":common",
