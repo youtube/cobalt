@@ -35,7 +35,6 @@ fwrite
 getc
 getcwd
 getrlimit
-gmtime
 initstate
 ioctl
 link
@@ -67,8 +66,6 @@ syscall
 syslog
 timegm
 tmpfile
-tzname
-tzset
 ungetc
 uselocale
 utimes
