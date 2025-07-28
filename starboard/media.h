@@ -127,6 +127,9 @@ typedef enum SbMediaAudioCodingType {
   kSbMediaAudioCodingTypeMpeg2,
   kSbMediaAudioCodingTypeMpeg3,
   kSbMediaAudioCodingTypePcm,
+#if SB_API_VERSION >= 15
+  kSbMediaAudioCodingTypeIamfBaseProfileOpus,
+#endif  // SB_API_VERSION >= 15
 } SbMediaAudioCodingType;
 
 // Possible audio sample types.
