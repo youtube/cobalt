@@ -54,16 +54,11 @@ class MediaCodecBridge {
   // non-decreasing for the remaining frames.
   private static final long MAX_PRESENTATION_TIMESTAMP_SHIFT_US = 100000;
 
-  // We use only one output audio format (PCM16) that has 2 bytes per sample
-  private static final int PCM16_BYTES_PER_SAMPLE = 2;
-
   // TODO: Use MediaFormat constants when part of the public API.
   private static final String KEY_CROP_LEFT = "crop-left";
   private static final String KEY_CROP_RIGHT = "crop-right";
   private static final String KEY_CROP_BOTTOM = "crop-bottom";
   private static final String KEY_CROP_TOP = "crop-top";
-
-  private static final int BITRATE_ADJUSTMENT_FPS = 30;
 
   private long mNativeMediaCodecBridge;
   private final SynchronizedHolder<MediaCodec, IllegalStateException> mMediaCodec =
@@ -72,7 +67,6 @@ class MediaCodecBridge {
   private MediaCodec.Callback mCallback;
   private boolean mFlushed;
   private long mLastPresentationTimeUs;
-  private final String mMime;
   private double mPlaybackRate = 1.0;
   private int mFps = 30;
   private final boolean mIsTunnelingPlayback;
@@ -80,24 +74,7 @@ class MediaCodecBridge {
   private MediaCodec.OnFrameRenderedListener mFrameRendererListener;
   private MediaCodec.OnFirstTunnelFrameReadyListener mFirstTunnelFrameReadyListener;
 
-  // Functions that require this will be called frequently in a tight loop.
-  // Only create one of these and reuse it to avoid excessive allocations,
-  // which would cause GC cycles long enough to impact playback.
-  private final MediaCodec.BufferInfo info = new MediaCodec.BufferInfo();
-
-  // Type of bitrate adjustment for video encoder.
-  public enum BitrateAdjustmentTypes {
-    // No adjustment - video encoder has no known bitrate problem.
-    NO_ADJUSTMENT,
-    // Framerate based bitrate adjustment is required - HW encoder does not use frame
-    // timestamps to calculate frame bitrate budget and instead is relying on initial
-    // fps configuration assuming that all frames are coming at fixed initial frame rate.
-    FRAMERATE_ADJUSTMENT,
-  }
-
   public static final class MimeTypes {
-    public static final String VIDEO_MP4 = "video/mp4";
-    public static final String VIDEO_WEBM = "video/webm";
     public static final String VIDEO_H264 = "video/avc";
     public static final String VIDEO_H265 = "video/hevc";
     public static final String VIDEO_VP8 = "video/x-vnd.on2.vp8";
@@ -144,99 +121,6 @@ class MediaCodecBridge {
   }
 
   private FrameRateEstimator mFrameRateEstimator = null;
-  private BitrateAdjustmentTypes mBitrateAdjustmentType = BitrateAdjustmentTypes.NO_ADJUSTMENT;
-
-  public static class DequeueInputResult {
-    private int mStatus;
-    private int mIndex;
-
-    @CalledByNative("DequeueInputResult")
-    private DequeueInputResult() {
-      mStatus = MediaCodecStatus.ERROR;
-      mIndex = -1;
-    }
-
-    @CalledByNative("DequeueInputResult")
-    private DequeueInputResult(int status, int index) {
-      mStatus = status;
-      mIndex = index;
-    }
-
-    @CalledByNative("DequeueInputResult")
-    private int status() {
-      return mStatus;
-    }
-
-    @CalledByNative("DequeueInputResult")
-    private int index() {
-      return mIndex;
-    }
-  }
-
-  private static class DequeueOutputResult {
-    private int mStatus;
-    private int mIndex;
-    private int mFlags;
-    private int mOffset;
-    private long mPresentationTimeMicroseconds;
-    private int mNumBytes;
-
-    @CalledByNative("DequeueOutputResult")
-    private DequeueOutputResult() {
-      mStatus = MediaCodecStatus.ERROR;
-      mIndex = -1;
-      mFlags = 0;
-      mOffset = 0;
-      mPresentationTimeMicroseconds = 0;
-      mNumBytes = 0;
-    }
-
-    @CalledByNative("DequeueOutputResult")
-    private DequeueOutputResult(
-        int status,
-        int index,
-        int flags,
-        int offset,
-        long presentationTimeMicroseconds,
-        int numBytes) {
-      mStatus = status;
-      mIndex = index;
-      mFlags = flags;
-      mOffset = offset;
-      mPresentationTimeMicroseconds = presentationTimeMicroseconds;
-      mNumBytes = numBytes;
-    }
-
-    @CalledByNative("DequeueOutputResult")
-    private int status() {
-      return mStatus;
-    }
-
-    @CalledByNative("DequeueOutputResult")
-    private int index() {
-      return mIndex;
-    }
-
-    @CalledByNative("DequeueOutputResult")
-    private int flags() {
-      return mFlags;
-    }
-
-    @CalledByNative("DequeueOutputResult")
-    private int offset() {
-      return mOffset;
-    }
-
-    @CalledByNative("DequeueOutputResult")
-    private long presentationTimeMicroseconds() {
-      return mPresentationTimeMicroseconds;
-    }
-
-    @CalledByNative("DequeueOutputResult")
-    private int numBytes() {
-      return mNumBytes;
-    }
-  }
 
   /** A wrapper around a MediaFormat. */
   private static class GetOutputFormatResult {
@@ -405,18 +289,14 @@ class MediaCodecBridge {
   public MediaCodecBridge(
       long nativeMediaCodecBridge,
       MediaCodec mediaCodec,
-      String mime,
-      BitrateAdjustmentTypes bitrateAdjustmentType,
       int tunnelModeAudioSessionId) {
     if (mediaCodec == null) {
       throw new IllegalArgumentException();
     }
     mNativeMediaCodecBridge = nativeMediaCodecBridge;
     mMediaCodec.set(mediaCodec);
-    mMime = mime; // TODO: Delete the unused mMime field
     mLastPresentationTimeUs = 0;
     mFlushed = true;
-    mBitrateAdjustmentType = bitrateAdjustmentType;
     mIsTunnelingPlayback = tunnelModeAudioSessionId != -1;
     mCallback =
         new MediaCodec.Callback() {
@@ -586,8 +466,6 @@ class MediaCodecBridge {
         new MediaCodecBridge(
             nativeMediaCodecBridge,
             mediaCodec,
-            mime,
-            BitrateAdjustmentTypes.NO_ADJUSTMENT,
             tunnelModeAudioSessionId);
     MediaFormat mediaFormat =
         createVideoDecoderFormat(mime, widthHint, heightHint, videoCapabilities);
