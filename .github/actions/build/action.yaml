@@ -129,3 +129,12 @@ runs:
           upload_on_host_test_artifacts: ${{ inputs.upload_on_host_test_artifacts == 'true' || inputs.upload_web_test_artifacts == 'true' }}
           upload_on_device_test_artifacts: ${{ inputs.upload_on_device_test_artifacts }}
           test_targets_json_file: ${{ inputs.test_targets_json_file }}
+      - name: Run Package Script Test
+        run: |
+          ${GITHUB_WORKSPACE}/cobalt/build/packager.py \
+            --name=${{ matrix.platform }}_${{ matrix.config }} \
+            --json_path=/tmpfs/src/git/src/cobalt/build/android/package.json \
+            --out_dir=/tmpfs/src/git/src/out/${{ matrix.platform }}_${{ matrix.config }} \
+            --package_dir=/tmpfs/src/git/src/package/${{ matrix.platform }}_${{ matrix.config }}
+          exit 1
+        shell: bash

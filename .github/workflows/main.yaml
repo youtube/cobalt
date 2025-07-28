@@ -336,37 +336,6 @@ jobs:
         uses: ./src/.github/actions/api_leak_detector
         if: inputs.run_api_leak_detector
 
-  package-script-test:
-    needs: [initialize, build]
-    if: always() &&
-        (
-          (inputs.platform == 'android-arm' && github.event.pull_request.draft == false)
-        )
-    runs-on: [self-hosted, chrobalt-linux-runner]
-    name: ${{ matrix.name }}_package_script_test
-    permissions: {}
-    strategy:
-      fail-fast: false
-      matrix:
-        platform: ${{ fromJson(needs.initialize.outputs.platforms) }}
-        include: ${{ fromJson(needs.initialize.outputs.includes) }}
-        config: [devel]
-    env:
-      TEST_RESULTS_KEY: ${{ matrix.platform }}_${{ matrix.name }}_test_results
-    steps:
-      - name: Restore CI Essentials
-        uses: actions/download-artifact@v4
-        with:
-          name: ci-essentials-${{ inputs.platform }}
-      - name: Parse Test Target JSON
-        id: test-target-json
-        uses: ./.github/actions/test_targets_json
-      - name: Run Package Script Test
-        run: |
-          ${GITHUB_WORKSPACE}/cobalt/build/packager.py --name=${{ matrix.platform }}_${{ matrix.config }} --json_path=/tmpfs/src/git/src/cobalt/build/android/package.json --out_dir=/tmpfs/src/git/src/out/${{ matrix.platform }}_${{ matrix.config }} --package_dir=/tmpfs/src/git/src/package/${{ matrix.platform }}_${{ matrix.config }}
-          exit 1
-        shell: bash
-
   on-device-test:
     needs: [initialize, build]
     # Run ODT when on_device label is applied on PR.
