@@ -76,6 +76,7 @@ StarboardRendererClient::~StarboardRendererClient() {
 #if BUILDFLAG(IS_ANDROID)
   if (request_overlay_info_cb_ && overlay_info_requested_) {
     request_overlay_info_cb_.Run(false, base::NullCallback());
+    overlay_info_requested_ = false;
   }
 #endif  // BUILDFLAG(IS_ANDROID)
 }

@@ -155,11 +155,10 @@ class MEDIA_EXPORT StarboardRendererClient
   mojo::Receiver<ClientExtension> client_extension_receiver_;
   const BindHostReceiverCallback bind_host_receiver_callback_;
   raw_ptr<GpuVideoAcceleratorFactories> gpu_factories_ = nullptr;
-  mojo::Remote<RendererExtension> renderer_extension_;
-
 #if BUILDFLAG(IS_ANDROID)
   RequestOverlayInfoCB request_overlay_info_cb_;
 #endif  // BUILDFLAG(IS_ANDROID)
+  mojo::Remote<RendererExtension> renderer_extension_;
 
   raw_ptr<RendererClient> client_ = nullptr;
   PipelineStatusCallback init_cb_;
