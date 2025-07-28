@@ -45,12 +45,11 @@ class PosixStatTest : public ::testing::Test {
 
     // Create a file within the test directory.
     file_path_ = test_dir_ + "/the_file.txt";
-    int fd = open(file_path_.c_str(), O_CREAT | O_WRONLY, 0644);
+    int fd = open(file_path_.c_str(), O_CREAT | O_WRONLY, 0600);
     ASSERT_NE(fd, -1) << "Failed to create test file: " << strerror(errno);
-    ASSERT_EQ(static_cast<unsigned long>(
-                  write(fd, kTestFileContent, strlen(kTestFileContent))),
-              strlen(kTestFileContent));
-    close(fd);
+    int write_res = write(fd, kTestFileContent, strlen(kTestFileContent));
+    ASSERT_EQ(static_cast<unsigned long>(write_res), strlen(kTestFileContent));
+    ASSERT_EQ(0, close(fd));
 
     // Create a symbolic link to the file.
     symlink_path_ = test_dir_ + "/the_symlink";
@@ -116,18 +115,18 @@ TEST_F(PosixStatTest, AllFieldsArePopulated) {
   ASSERT_EQ(stat(test_dir_.c_str(), &parent_statbuf), 0);
 
   // Check device and inode numbers.
-  EXPECT_GT(statbuf.st_dev, static_cast<unsigned long>(0));
+  EXPECT_GT(statbuf.st_dev, 0u);
   EXPECT_EQ(statbuf.st_dev, parent_statbuf.st_dev);
-  EXPECT_GT(statbuf.st_ino, static_cast<unsigned long>(0));
+  EXPECT_GT(statbuf.st_ino, 0u);
 
   // Check mode and permissions.
   EXPECT_TRUE(S_ISREG(statbuf.st_mode));
   EXPECT_FALSE(S_ISDIR(statbuf.st_mode));
   // 0644 comes from permissions in test setup.
-  EXPECT_EQ(statbuf.st_mode & 0777, static_cast<mode_t>(0644));
+  EXPECT_EQ(statbuf.st_mode & 0777, static_cast<mode_t>(0600));
 
   // Check link count
-  EXPECT_EQ(statbuf.st_nlink, static_cast<unsigned long>(1));
+  EXPECT_EQ(statbuf.st_nlink, 1u);
 
   // Check file size.
   EXPECT_EQ(static_cast<size_t>(statbuf.st_size), strlen(kTestFileContent));
@@ -177,16 +176,15 @@ TEST_F(PosixStatTest, PathComponentNotDirectoryFails) {
   EXPECT_EQ(errno, ENOTDIR);
 }
 
-// TODO: b/432312684 : Remove this test if we don't allow chmod.
 TEST_F(PosixStatTest, PermissionDeniedFails) {
   struct stat statbuf;
   std::string protected_dir = test_dir_ + "/protected";
   ASSERT_EQ(mkdir(protected_dir.c_str(), 0755), 0);
 
   std::string file_in_protected = protected_dir + "/inner_file";
-  int fd = open(file_in_protected.c_str(), O_CREAT | O_WRONLY, 0644);
+  int fd = open(file_in_protected.c_str(), O_CREAT | O_WRONLY, 0600);
   ASSERT_NE(fd, -1);
-  close(fd);
+  ASSERT_EQ(0, close(fd));
 
   // Remove search (execute) permission from the directory.
   ASSERT_EQ(chmod(protected_dir.c_str(), 0655), 0);
