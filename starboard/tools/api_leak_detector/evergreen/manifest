@@ -13,7 +13,6 @@ fallocate
 fchmod
 fchown
 fclose
-fdatasync
 fdopen
 feof
 fflush
