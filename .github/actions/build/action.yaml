@@ -130,6 +130,7 @@ runs:
           upload_on_device_test_artifacts: ${{ inputs.upload_on_device_test_artifacts }}
           test_targets_json_file: ${{ inputs.test_targets_json_file }}
       - name: Run Package Script Test
+        if: (matrix.config == 'qa' || matrix.config == 'gold')
         run: |
           ${GITHUB_WORKSPACE}/cobalt/build/packager.py \
             --name=${{ matrix.platform }}_${{ matrix.config }} \
