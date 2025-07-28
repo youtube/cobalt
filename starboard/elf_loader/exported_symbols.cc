@@ -147,7 +147,6 @@ ExportedSymbols::ExportedSymbols() {
   REGISTER_SYMBOL(SbMediaGetBufferGarbageCollectionDurationThreshold);
   REGISTER_SYMBOL(SbMediaGetBufferPadding);
   REGISTER_SYMBOL(SbMediaGetInitialBufferCapacity);
-  REGISTER_SYMBOL(SbMediaGetMaxBufferCapacity);
   REGISTER_SYMBOL(SbMediaGetProgressiveBufferBudget);
   REGISTER_SYMBOL(SbMediaGetVideoBufferBudget);
   REGISTER_SYMBOL(SbMediaIsBufferPoolAllocateOnDemand);
