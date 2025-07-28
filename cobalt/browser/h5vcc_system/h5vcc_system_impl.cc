@@ -62,6 +62,9 @@ std::string GetAdvertisingIdShared() {
   JNIEnv* env = base::android::AttachCurrentThread();
   StarboardBridge* starboard_bridge = StarboardBridge::GetInstance();
   advertising_id = starboard_bridge->GetAdvertisingId(env);
+#elif BUILDFLAG(IS_IOS_TVOS)
+  // TODO: Implement advertising ID retrieval for tvOS.
+  NOTIMPLEMENTED();
 #else
 #error "Unsupported platform."
 #endif
@@ -82,6 +85,9 @@ bool GetLimitAdTrackingShared() {
   JNIEnv* env = base::android::AttachCurrentThread();
   StarboardBridge* starboard_bridge = StarboardBridge::GetInstance();
   limit_ad_tracking = starboard_bridge->GetLimitAdTracking(env);
+#elif BUILDFLAG(IS_IOS_TVOS)
+  // TODO: Implement ad tracking limit status for tvOS.
+  NOTIMPLEMENTED();
 #else
 #error "Unsupported platform."
 #endif
@@ -162,6 +168,10 @@ void H5vccSystemImpl::GetUserOnExitStrategy(
   std::move(callback).Run(GetUserOnExitStrategyInternal());
 #elif BUILDFLAG(IS_ANDROIDTV)
   std::move(callback).Run(h5vcc_system::mojom::UserOnExitStrategy::kMinimize);
+#elif BUILDFLAG(IS_IOS_TVOS)
+  // TODO: Determine appropriate user exit strategy for tvOS.
+  NOTIMPLEMENTED();
+  std::move(callback).Run(h5vcc_system::mojom::UserOnExitStrategy::kNoExit);
 #else
 #error "Unsupported platform."
 #endif
@@ -184,6 +194,9 @@ void H5vccSystemImpl::Exit() {
   JNIEnv* env = base::android::AttachCurrentThread();
   StarboardBridge* starboard_bridge = StarboardBridge::GetInstance();
   starboard_bridge->RequestSuspend(env);
+#elif BUILDFLAG(IS_IOS_TVOS)
+  // TODO: Implement application exit/suspend functionality for tvOS.
+  NOTIMPLEMENTED();
 #else
 #error "Unsupported platform."
 #endif

@@ -67,6 +67,10 @@ void H5vccAccessibilityImpl::IsTextToSpeechEnabledSync(
   bool enabled =
       CobaltTextToSpeechHelper::GetInstance()->IsTextToSpeechEnabled(env);
   std::move(callback).Run(enabled);
+#elif BUILDFLAG(IS_IOS_TVOS)
+  // TODO: Implement text-to-speech availability check for tvOS.
+  NOTIMPLEMENTED();
+  std::move(callback).Run(false);
 #else
 #error "Unsupported platform."
 #endif
