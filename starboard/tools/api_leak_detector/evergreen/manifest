@@ -17,7 +17,6 @@ dlsym
 fchmod
 fchown
 fclose
-fdatasync
 fdopen
 feof
 fflush
