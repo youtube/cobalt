@@ -71,8 +71,6 @@ stdout
 syscall
 syslog
 timegm
-timerfd_create
-timerfd_settime
 tmpfile
 tzname
 tzset
