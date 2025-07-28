@@ -24,10 +24,10 @@ TtsPlatform* TtsPlatform::GetInstance() {
 
 // This hack exists to ensure that Starboard does not make use of dl* symbols
 // for hermetic builds.
-if BUILDFLAG(ENABLE_COBALT_HERMETIC_HACKS) {
+#if BUILDFLAG(ENABLE_COBALT_HERMETIC_HACKS)
   // TODO: (b/420913744) Add/Decide how to properly support the tts platform.
   return nullptr;
-}
+#endif 
 
 #if BUILDFLAG(IS_CHROMEOS)
   // On Chrome OS, the platform TTS definition is provided by the content
@@ -37,9 +37,6 @@ if BUILDFLAG(ENABLE_COBALT_HERMETIC_HACKS) {
   // trying to do TTS on a platform where the content client implementation
   // is not provided, that's probably not intended. It's not important
   // if this is hit in something like a content-only unit test.
-  //
-  // TtsPlatformImpl relies on the library speech-dispatcher, which 
-  // Starboard does not support.
   NOTREACHED();
   return nullptr;
 #else
