@@ -266,6 +266,7 @@ std::unique_ptr<media::AndroidOverlay> GpuChildThread::CreateAndroidOverlay(
     scoped_refptr<base::SingleThreadTaskRunner> main_task_runner,
     const base::UnguessableToken& routing_token,
     media::AndroidOverlayConfig config) {
+  LOG(INFO) << "Cobalt: " << __func__;
   mojo::PendingRemote<media::mojom::AndroidOverlayProvider> overlay_provider;
   if (main_task_runner->RunsTasksInCurrentSequence()) {
     ChildThread::Get()->BindHostReceiver(
