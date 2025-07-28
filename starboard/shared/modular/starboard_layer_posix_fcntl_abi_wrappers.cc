@@ -23,6 +23,8 @@ int MuslCmdToPlatformCmd(int musl_cmd) {
   switch (musl_cmd) {
     case MUSL_F_DUPFD:
       return F_DUPFD;
+    case MUSL_F_DUPFD_CLOEXEC:
+      return F_DUPFD_CLOEXEC;
     case MUSL_F_GETFD:
       return F_GETFD;
     case MUSL_F_SETFD:
