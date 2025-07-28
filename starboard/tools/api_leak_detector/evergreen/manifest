@@ -9,11 +9,6 @@ __nl_langinfo_l
 access
 chmod
 closelog
-dladdr
-dlclose
-dlerror
-dlopen
-dlsym
 fallocate
 fchmod
 fchown

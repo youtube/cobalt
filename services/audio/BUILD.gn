@@ -91,7 +91,7 @@ source_set("audio") {
     "//services/audio/public/mojom",
   ]
 
-  if (is_linux || is_chromeos) {
+  if (is_linux && !is_starboard || is_chromeos) {
     sources += [
       "audio_sandbox_hook_linux.cc",
       "audio_sandbox_hook_linux.h",
