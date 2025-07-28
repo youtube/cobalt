@@ -167,11 +167,13 @@ class MEDIA_EXPORT StarboardRenderer : public Renderer,
   // estimate and avoid calling SbPlayerGetInfo too frequently.
   void StoreMediaTime(TimeDelta media_time);
 
+#if BUILDFLAG(IS_ANDROID)
   // AndroidOverlay callbacks.
   void OnOverlayReady(AndroidOverlay*);
   void OnOverlayFailed(AndroidOverlay*);
   void OnOverlayDeleted(AndroidOverlay*);
   void OnPowerEfficientState(AndroidOverlay* overlay, bool is_power_efficient);
+#endif  // BUILDFLAG(IS_ANDROID)
 
   int GetDefaultMaxBuffers(AudioCodec codec,
                            TimeDelta duration_to_write,

@@ -17,6 +17,7 @@ if (is_android) {
     visibility = [
       "//media",
       "//media/filters",
+      "//media/starboard"
     ]
 
     sources = [
