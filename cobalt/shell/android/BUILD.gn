@@ -19,11 +19,10 @@ import("//third_party/icu/config.gni")
 cobalt_shell_test_manifest =
     "$target_gen_dir/cobalt_shell_test_manifest/AndroidManifest.xml"
 
-# TODO(b/432786200): Rename the `content_shell_*` targets to `cobalt_shell_*`.
 generate_jni("cobalt_shell_jni_headers") {
   sources = [
-    "//cobalt/android/apk/app/src/main/java/dev/cobalt/shell/Shell.java",
-    "//cobalt/android/apk/app/src/main/java/dev/cobalt/shell/ShellManager.java",
+    "java/src/dev/cobalt/shell/Shell.java",
+    "java/src/dev/cobalt/shell/ShellManager.java",
   ]
 }
 
@@ -42,29 +41,33 @@ shared_library("libcobalt_native_test") {
   configs += [ "//build/config/android:hide_all_but_jni" ]
 }
 
-android_resources("content_shell_java_resources") {
+android_resources("cobalt_shell_java_resources") {
   testonly = true
   sources = [
-    "java/res/drawable/ic_refresh.png",
-    "java/res/drawable/progress.xml",
-    "java/res/layout/shell_view.xml",
-    "java/res/mipmap-hdpi/app_icon.png",
-    "java/res/mipmap-mdpi/app_icon.png",
-    "java/res/mipmap-xhdpi/app_icon.png",
-    "java/res/mipmap-xxhdpi/app_icon.png",
-    "java/res/mipmap-xxxhdpi/app_icon.png",
+    "java/res/drawable-xhdpi/app_banner.png",
+    "java/res/layout/coat_error_dialog.xml",
+    "java/res/mipmap-hdpi/ic_app.png",
+    "java/res/mipmap-mdpi/ic_app.png",
+    "java/res/mipmap-xhdpi/ic_app.png",
+    "java/res/mipmap-xxhdpi/ic_app.png",
+    "java/res/values/colors.xml",
+    "java/res/values/ids.xml",
+    "java/res/values/overlayable.xml",
+    "java/res/values/rro_variables.xml",
     "java/res/values/strings.xml",
+    "java/res/values/styles.xml",
   ]
 
-  deps = [ "//cobalt/android:cobalt_java_resources" ]
+  deps = [ "//third_party/androidx:androidx_leanback_leanback_java" ]
 }
 
-android_library("content_shell_java") {
+android_library("cobalt_shell_java") {
   testonly = true
-  resources_package = "org.chromium.content_shell"
+
+  resources_package = "dev.cobalt.shell"
   deps = [
+    ":cobalt_shell_java_resources",
     ":cobalt_shell_test_manifest",
-    ":content_shell_java_resources",
     "//base:base_java",
     "//base:jni_java",
     "//build/android:build_java",
@@ -82,9 +85,9 @@ android_library("content_shell_java") {
     "//url:gurl_java",
   ]
   sources = [
-    "//cobalt/android/apk/app/src/main/java/dev/cobalt/shell/Shell.java",
-    "//cobalt/android/apk/app/src/main/java/dev/cobalt/shell/ShellManager.java",
-    "//cobalt/android/apk/app/src/main/java/dev/cobalt/shell/ShellViewAndroidDelegate.java",
+    "java/src/dev/cobalt/shell/Shell.java",
+    "java/src/dev/cobalt/shell/ShellManager.java",
+    "java/src/dev/cobalt/shell/ShellViewAndroidDelegate.java",
   ]
 
   annotation_processor_deps = [ "//base/android/jni_generator:jni_processor" ]
@@ -93,7 +96,7 @@ android_library("content_shell_java") {
 jinja_template("cobalt_shell_test_manifest") {
   testonly = true
   input = "javatests/AndroidManifest.xml"
-  includes = [ "//cobalt/android/apk/app/src/app/AndroidManifest.xml.jinja2" ]
+  includes = [ "shell_apk/AndroidManifest.xml.jinja2" ]
   output = cobalt_shell_test_manifest
   variables = [
     "manifest_package=dev.cobalt.app",
@@ -101,25 +104,16 @@ jinja_template("cobalt_shell_test_manifest") {
   ]
 }
 
-android_resources("content_shell_apk_resources") {
-  testonly = true
-  sources = [
-    "shell_apk/res/layout/content_shell_activity.xml",
-    "shell_apk/res/values/strings.xml",
-  ]
-  deps = [ ":content_shell_java_resources" ]
-}
-
-android_library("content_shell_test_apk_java") {
+android_library("cobalt_shell_test_apk_java") {
   testonly = true
 
   srcjar_deps = [ ":content_javatests_aidl" ]
 
   resources_package = "org.chromium.content_shell_apk"
   deps = [
+    ":cobalt_shell_java",
+    ":cobalt_shell_java_resources",
     ":cobalt_shell_test_manifest",
-    ":content_shell_apk_resources",
-    ":content_shell_java",
     "//base:base_java",
     "//base:process_launcher_java",
     "//build/android:build_java",
@@ -140,10 +134,11 @@ android_library("content_shell_test_apk_java") {
 
 android_aidl("content_javatests_aidl") {
   import_include = [ "shell_apk/src" ]
-  sources = [ "//cobalt/shell/android/shell_apk/src/org/chromium/content_shell_apk/IChildProcessTest.aidl" ]
+  sources =
+      [ "shell_apk/src/org/chromium/content_shell_apk/IChildProcessTest.aidl" ]
 }
 
-android_assets("content_shell_assets") {
+android_assets("cobalt_shell_assets") {
   testonly = true
   sources = [ "$root_out_dir/cobalt_shell.pak" ]
   disable_compression = true
@@ -154,7 +149,7 @@ android_assets("content_shell_assets") {
   ]
 }
 
-template("content_shell_apk_tmpl") {
+template("cobalt_shell_apk_tmpl") {
   _target_type = invoker.target_type
   target(_target_type, target_name) {
     forward_variables_from(invoker, "*")
@@ -163,9 +158,9 @@ template("content_shell_apk_tmpl") {
       deps = []
     }
     deps += [
-      ":content_shell_assets",
-      ":content_shell_java",
-      ":content_shell_test_apk_java",
+      ":cobalt_shell_assets",
+      ":cobalt_shell_java",
+      ":cobalt_shell_test_apk_java",
       "//base:base_java_test_support",
       "//components/metrics:metrics_java",
       "//content/public/android:content_java",
@@ -179,7 +174,7 @@ template("content_shell_apk_tmpl") {
   }
 }
 
-content_shell_apk_tmpl("cobalt_shell_test_apk") {
+cobalt_shell_apk_tmpl("cobalt_shell_test_apk") {
   target_type = "instrumentation_test_apk"
   apk_name = "CobaltShellTest"
   android_manifest = cobalt_shell_test_manifest
@@ -199,11 +194,11 @@ content_shell_apk_tmpl("cobalt_shell_test_apk") {
   target_sdk_version = 24
 }
 
-android_library("content_shell_test_java") {
+android_library("cobalt_shell_test_java") {
   testonly = true
   deps = [
-    ":content_shell_java",
-    ":content_shell_test_apk_java",
+    ":cobalt_shell_java",
+    ":cobalt_shell_test_apk_java",
     "//base:base_java",
     "//base:base_java_test_support",
     "//content/public/android:content_java",
@@ -224,15 +219,15 @@ android_library("content_shell_test_java") {
   ]
 }
 
-android_library("content_shell_browsertests_java") {
+android_library("cobalt_shell_browsertests_java") {
   testonly = true
   deps = [
-    ":content_shell_java",
+    ":cobalt_shell_java",
     "//base:base_java",
     "//content/public/android:content_java",
     "//testing/android/native_test:native_test_java",
     "//third_party/androidx:androidx_core_core_java",
     "//ui/android:ui_java",
   ]
-  sources = [ "//cobalt/shell/android/browsertests/src/org/chromium/content_shell/browsertests/ContentShellBrowserTestActivity.java" ]
+  sources = [ "browsertests/src/org/chromium/content_shell/browsertests/ContentShellBrowserTestActivity.java" ]
 }
