@@ -185,7 +185,7 @@ SourceBufferStream::SourceBufferStream(const VideoDecoderConfig& video_config,
                                            &video_config)) {
   DCHECK(video_config.IsValidConfig());
   video_configs_.push_back(video_config);
-  DVLOG(2) << __func__ << ": video_buffer_size= " << memory_limit_;
+  LOG(INFO) << __func__ << ": decoder: video_buffer_size= " << memory_limit_;
 }
 
 SourceBufferStream::SourceBufferStream(const TextTrackConfig& text_config,
