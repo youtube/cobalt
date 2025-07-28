@@ -56,7 +56,6 @@ class MediaCodecBridgeBuilder {
         new MediaCodecBridge(
             nativeMediaCodecBridge,
             mediaCodec,
-            mime,
             -1);
 
     byte[][] csds = {};

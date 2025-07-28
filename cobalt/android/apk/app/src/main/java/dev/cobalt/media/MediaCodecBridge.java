@@ -289,7 +289,6 @@ class MediaCodecBridge {
   public MediaCodecBridge(
       long nativeMediaCodecBridge,
       MediaCodec mediaCodec,
-      String mime,
       int tunnelModeAudioSessionId) {
     if (mediaCodec == null) {
       throw new IllegalArgumentException();
@@ -467,7 +466,6 @@ class MediaCodecBridge {
         new MediaCodecBridge(
             nativeMediaCodecBridge,
             mediaCodec,
-            mime,
             tunnelModeAudioSessionId);
     MediaFormat mediaFormat =
         createVideoDecoderFormat(mime, widthHint, heightHint, videoCapabilities);
