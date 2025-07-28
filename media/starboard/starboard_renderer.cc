@@ -17,6 +17,7 @@
 #include "base/feature_list.h"
 #include "base/logging.h"
 #include "base/trace_event/trace_event.h"
+#include "media/base/android/android_overlay.h"
 #include "media/base/android_overlay_config.h"
 #include "media/base/audio_codecs.h"
 #include "media/base/media_switches.h"
@@ -953,6 +954,7 @@ void StarboardRenderer::StoreMediaTime(TimeDelta media_time) {
   last_time_media_time_retrieved_ = Time::Now();
 }
 
+#if BUILDFLAG(IS_ANDROID)
 void StarboardRenderer::OnOverlayReady(AndroidOverlay* overlay) {
   // Check that the passed overlay and overlay_ point to the same object.
   DCHECK_EQ(overlay, overlay_.get());
@@ -962,7 +964,9 @@ void StarboardRenderer::OnOverlayReady(AndroidOverlay* overlay) {
   overlay_->AddOverlayDeletedCallback(base::BindOnce(
       &StarboardRenderer::OnOverlayDeleted, weak_factory_.GetWeakPtr()));
 
-  // TODO: b/429435008 - Pass JavaSurface to Starboard via StarboardExtension.
+  overlay_->GetJavaSurface();
+
+  // TODO: b/431850939 - Pass JavaSurface to Starboard via StarboardExtension.
 
   CreatePlayerBridge();
 }
@@ -985,6 +989,7 @@ void StarboardRenderer::OnPowerEfficientState(AndroidOverlay* overlay,
                                               bool is_power_efficient) {
   // Needed?
 }
+#endif  // BUILDFLAG(IS_ANDROID)
 
 int StarboardRenderer::GetDefaultMaxBuffers(AudioCodec codec,
                                             TimeDelta duration_to_write,
