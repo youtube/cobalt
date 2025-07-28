@@ -19,7 +19,9 @@
 
 #include <atomic>
 #include <deque>
+#include <map>
 #include <memory>
+#include <mutex>
 #include <optional>
 #include <queue>
 #include <string>
@@ -108,6 +110,7 @@ class MediaDecoder final
   void Initialize(const ErrorCB& error_cb);
   void WriteInputBuffers(const InputBuffers& input_buffers);
   void WriteEndOfStream();
+  void SetRenderScheduledTime(int64_t pts_us, int64_t scheduled_us);
 
   void SetPlaybackRate(double playback_rate);
 
@@ -119,10 +122,17 @@ class MediaDecoder final
 
   bool Flush();
 
-  ::starboard::shared::starboard::media::DecoderFlowControl*
+  starboard::shared::starboard::media::DecoderFlowControl*
   decoder_flow_control() {
     return decoder_flow_control_.get();
   }
+
+  struct Timestamp {
+    int64_t decoded_us = 0;
+    int64_t render_scheduled_us = 0;
+  };
+  std::map<int64_t, Timestamp>& frame_timestamps() { return frame_timestamps_; }
+  int64_t last_decoded_us_ = 0;
 
  private:
   // Holding inputs to be processed.  They are mostly InputBuffer objects, but
@@ -226,16 +236,13 @@ class MediaDecoder final
   bool is_output_restricted_ = false;
   bool first_call_on_handler_thread_ = true;
 
-  struct Timestamp {
-    int64_t decoded_us = 0;
-    int64_t render_scheduled_us = 0;
-  };
-
   // Map of presentation timestamp to the monotonic time (in us) when the frame
   // finished decoding.
   std::map<int64_t, Timestamp> frame_timestamps_;
   // The monotonic time (in us) when the last frame was rendered.
   std::optional<int64_t> last_frame_rendered_us_;
+
+  std::mutex frame_timestamps_mutex_;
 
   // Working thread to avoid lengthy decoding work block the player thread.
   pthread_t decoder_thread_ = 0;

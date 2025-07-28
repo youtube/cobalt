@@ -335,6 +335,10 @@ class VideoRenderAlgorithmTunneled : public VideoRenderAlgorithmBase {
 
 class VideoDecoder::Sink : public VideoDecoder::VideoRendererSink {
  public:
+  explicit Sink(VideoDecoder* video_decoder) : video_decoder_(*video_decoder) {
+    SB_CHECK(video_decoder != nullptr);
+  }
+
   bool Render() {
     SB_DCHECK(render_cb_);
 
@@ -360,8 +364,20 @@ class VideoDecoder::Sink : public VideoDecoder::VideoRendererSink {
     static_cast<VideoFrameImpl*>(frame.get())
         ->Draw(release_time_in_nanoseconds);
 
+    int64_t pts = frame->timestamp();
+    if (video_decoder_.media_decoder_ != nullptr) {
+      auto& media_decoder = *video_decoder_.media_decoder_;
+
+      media_decoder.SetRenderScheduledTime(pts,
+                                           release_time_in_nanoseconds / 1000);
+    } else {
+      SB_LOG(INFO) << "MediaDecoder is null";
+    }
+
     return kReleased;
   }
+
+  VideoDecoder& video_decoder_;
 
   RenderCB render_cb_;
   bool rendered_;
@@ -456,7 +472,7 @@ VideoDecoder::~VideoDecoder() {
 
 scoped_refptr<VideoDecoder::VideoRendererSink> VideoDecoder::GetSink() {
   if (sink_ == NULL) {
-    sink_ = new Sink;
+    sink_ = new Sink(this);
   }
   return sink_;
 }

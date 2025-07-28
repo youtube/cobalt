@@ -244,6 +244,18 @@ void MediaDecoder::WriteEndOfStream() {
   }
 }
 
+void MediaDecoder::SetRenderScheduledTime(int64_t pts_us,
+                                          int64_t scheduled_us) {
+  std::lock_guard lock(frame_timestamps_mutex_);
+  auto it = frame_timestamps_.find(pts_us);
+  if (it != frame_timestamps_.end()) {
+    it->second.render_scheduled_us = scheduled_us;
+  } else {
+    SB_LOG(WARNING) << "Could not find timestamp for PTS " << pts_us
+                    << " to set scheduled render time.";
+  }
+}
+
 void MediaDecoder::SetPlaybackRate(double playback_rate) {
   SB_DCHECK_EQ(media_type_, kSbMediaTypeVideo);
   SB_DCHECK(media_codec_bridge_);
@@ -657,7 +669,7 @@ void MediaDecoder::OnMediaCodecError(bool is_recoverable,
 }
 
 void MediaDecoder::OnMediaCodecInputBufferAvailable(int buffer_index) {
-  SB_LOG(INFO) << __func__ << " > buffer_index=" << buffer_index;
+  // SB_LOG(INFO) << __func__ << " > buffer_index=" << buffer_index;
   if (media_type_ == kSbMediaTypeVideo && first_call_on_handler_thread_) {
     // Set the thread priority of the Handler thread to dispatch the async
     // decoder callbacks to high.
@@ -690,9 +702,12 @@ void MediaDecoder::OnMediaCodecOutputBufferAvailable(
     if (!decoder_flow_control_->SetFrameDecoded(presentation_time_us)) {
       SB_LOG(ERROR) << "SetFrameDecoded() called on empty frame tracker.";
     }
-    frame_timestamps_[presentation_time_us] = {
-        .decoded_us = CurrentMonotonicTime(),
-    };
+    {
+      std::lock_guard lock(frame_timestamps_mutex_);
+      frame_timestamps_[presentation_time_us] = {
+          .decoded_us = CurrentMonotonicTime(),
+      };
+    }
   } else {
     SB_LOG(INFO) << __func__ << " > size is 0, which may mean EOS";
   }
@@ -736,26 +751,47 @@ void MediaDecoder::OnMediaCodecFrameRendered(int64_t frame_timestamp,
   last_frame_rendered_us_ = frame_rendered_us;
 
   std::optional<int64_t> latency_ms;
+  std::optional<int64_t> decoded_gap_ms;
   std::optional<int64_t> render_gap_ms;
-  auto it = frame_timestamps_.find(frame_timestamp);
-  if (it != frame_timestamps_.end()) {
-    latency_ms = (frame_rendered_us - it->second.decoded_us) / 1'000;
+  std::optional<int64_t> render_scheduled_ms;
+  [&] {
+    std::lock_guard lock(frame_timestamps_mutex_);
+    auto it = frame_timestamps_.find(frame_timestamp);
+    if (it == frame_timestamps_.end()) {
+      SB_LOG(WARNING) << "Cannot find timestamps for pts="
+                      << (frame_timestamp / 1'000);
+      return;
+    }
+
+    const auto decoded_us = it->second.decoded_us;
+
+    latency_ms = (frame_rendered_us - decoded_us) / 1'000;
+    if (last_decoded_us_ != 0) {
+      decoded_gap_ms = (decoded_us - last_decoded_us_) / 1'000;
+    }
+    last_decoded_us_ = decoded_us;
+
     if (auto render_scheduled_us = it->second.render_scheduled_us;
         render_scheduled_us != 0) {
-      render_gap_ms = (frame_rendered_us - render_scheduled_us);
+      render_scheduled_ms = render_scheduled_us / 1'000;
+      render_gap_ms = (frame_rendered_us - render_scheduled_us) / 1'000;
     }
     frame_timestamps_.erase(it);
-  }
+  }();
+
+  auto ValOrNA = [](std::optional<int64_t> val) {
+    return val.has_value() ? std::to_string(*val) : "(n/a)";
+  };
 
   SB_LOG(INFO) << "Frame rendered: pts(msec)=" << frame_timestamp / 1'000
-               << ", gap(msec)=" << gap_ms << ", decode_to_render(msec)="
-               << (latency_ms.has_value() ? std::to_string(*latency_ms)
-                                          : "(n/a)")
+               << ", rendered gap(msec)=" << gap_ms
+               << ", decode_to_render(msec)=" << ValOrNA(latency_ms)
                << ", render(sceduled - actual in msec)="
-               << (render_gap_ms.has_value() ? std::to_string(*render_gap_ms)
-                                             : "(n/a)")
-               << ", pts(msec)=" << (frame_timestamp / 1'000);
-  frame_rendered_cb_(frame_timestamp);
+               << ValOrNA(render_gap_ms)
+               << ", pts(msec)=" << (frame_timestamp / 1'000)
+               << ", render/scheduled(msec)=" << ValOrNA(render_scheduled_ms)
+               << ", render/actual(msec)=" << (frame_rendered_us / 1'000)
+               << ", decoded gap(msec)=" << ValOrNA(decoded_gap_ms);
 }
 
 void MediaDecoder::OnMediaCodecFirstTunnelFrameReady() {
