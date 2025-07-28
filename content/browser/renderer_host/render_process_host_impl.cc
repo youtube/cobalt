@@ -5307,7 +5307,9 @@ uint64_t RenderProcessHostImpl::GetPrivateMemoryFootprint() {
   auto dump = memory_instrumentation::mojom::RawOSMemDump::New();
   dump->platform_private_footprint =
       memory_instrumentation::mojom::PlatformPrivateFootprint::New();
-#if BUILDFLAG(IS_APPLE) && !BUILDFLAG(IS_IOS_TVOS)
+#if BUILDFLAG(IS_STARBOARD)
+  bool success = false;
+#elif BUILDFLAG(IS_APPLE) && !BUILDFLAG(IS_IOS_TVOS)
   bool success = memory_instrumentation::OSMetrics::FillOSMemoryDump(
       GetProcess().Handle(), {}, ChildProcessTaskPortProvider::GetInstance(),
       dump.get());
