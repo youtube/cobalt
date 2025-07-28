@@ -18,17 +18,10 @@
 #include "starboard/common/log.h"
 #include "starboard/media.h"
 
-namespace {
-constexpr bool kForceLimit = true;
-}
-
 int SbMediaGetVideoBufferBudget(SbMediaVideoCodec codec,
                                 int resolution_width,
                                 int resolution_height,
                                 int bits_per_pixel) {
-  if (kForceLimit) {
-    return 100 * 1024 * 1024;
-  }
   constexpr int kMaxVideoBufferBudget = 300 * 1024 * 1024;
   auto get_overlaid_video_buffer_budget = []() {
     int buffer_budget =

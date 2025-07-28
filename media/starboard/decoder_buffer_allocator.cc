@@ -17,7 +17,9 @@
 #include <algorithm>
 
 #include "base/feature_list.h"
+#include "base/functional/bind.h"
 #include "base/logging.h"
+#include "base/threading/thread.h"
 #include "media/base/media_switches.h"
 #include "media/base/video_codecs.h"
 #include "media/starboard/decoder_buffer_allocator_strategy.h"
@@ -30,6 +32,34 @@
 #include "starboard/media.h"
 
 namespace media {
+
+namespace {
+// constexpr int64_t kLoggingIntervalUsec = 1'000'000;  // 1 second
+
+std::string FormatNumber(size_t n) {
+  std::string s = std::to_string(n);
+  int len = s.length();
+  int num_commas = (len - 1) / 3;
+  if (num_commas == 0) {
+    return s;
+  }
+  std::string result = "";
+  result.reserve(len + num_commas);
+  int first_part_len = len % 3;
+  if (first_part_len != 0) {
+    result.append(s, 0, first_part_len);
+    result += ',';
+  }
+  for (int i = first_part_len; i < len; i += 3) {
+    result.append(s, i, 3);
+    if (i + 3 < len) {
+      result += ',';
+    }
+  }
+  return result;
+}
+
+}  // namespace
 
 DecoderBufferAllocator::DecoderBufferAllocator(Type type /*= Type::kGlobal*/)
     : DecoderBufferAllocator(type,
@@ -62,11 +92,22 @@ DecoderBufferAllocator::DecoderBufferAllocator(
   if (type_ == Type::kGlobal) {
     Allocator::Set(this);
   }
+  logging_thread_ = std::make_unique<base::Thread>("media_memory_logger");
+  logging_thread_->Start();
+  logging_thread_->task_runner()->PostDelayedTask(
+      FROM_HERE,
+      base::BindOnce(&DecoderBufferAllocator::LogMemoryUsageAndReschedule,
+                     base::Unretained(this)),
+      base::Seconds(1));
 }
 
 DecoderBufferAllocator::~DecoderBufferAllocator() {
   if (type_ == Type::kGlobal) {
     Allocator::Set(nullptr);
+  }
+
+  if (logging_thread_) {
+    logging_thread_->Stop();
   }
 
   base::AutoLock scoped_lock(mutex_);
@@ -75,6 +116,22 @@ DecoderBufferAllocator::~DecoderBufferAllocator() {
     DCHECK_EQ(strategy_->GetAllocated(), 0u);
     strategy_.reset();
   }
+}
+
+void DecoderBufferAllocator::LogMemoryUsageAndReschedule() {
+  SB_LOG(INFO) << "Media memory usage: "
+               << "allocated(KB)=" << FormatNumber(GetAllocatedMemory() / 1024)
+               << ", capacity(KB)="
+               << FormatNumber(GetCurrentMemoryCapacity() / 1024)
+               << ", max_capacity(KB)="
+               << FormatNumber(GetMaximumMemoryCapacity() / 1024);
+
+  base::AutoLock scoped_lock(mutex_);
+  logging_thread_->task_runner()->PostDelayedTask(
+      FROM_HERE,
+      base::BindOnce(&DecoderBufferAllocator::LogMemoryUsageAndReschedule,
+                     base::Unretained(this)),
+      base::Seconds(1));
 }
 
 void DecoderBufferAllocator::Suspend() {
