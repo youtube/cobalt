@@ -36,7 +36,7 @@ using base::android::AttachCurrentThread;
 
 namespace {
 
-constexpr int kMaxFramesInDecoder = 10;
+constexpr int kMaxFramesInDecoder = 6;
 constexpr bool kForceLimiting = true;
 constexpr int kFrameTrackerLogIntervalUs = 1'000'000;  // 1 sec.
 

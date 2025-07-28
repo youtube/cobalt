@@ -9,7 +9,7 @@ namespace starboard::shared::starboard::media {
 
 class DecoderFlowControl {
  public:
-  using FrameReleasedCB = std::function<void()>;
+  using StateChangedCB = std::function<void()>;
 
   struct State {
     int decoding_frames = 0;
@@ -28,7 +28,7 @@ class DecoderFlowControl {
   static std::unique_ptr<DecoderFlowControl> CreateThrottling(
       int max_frames,
       int64_t log_interval_us,
-      FrameReleasedCB frame_released_cb);
+      StateChangedCB state_changed_cb);
 
   virtual ~DecoderFlowControl() = default;
 

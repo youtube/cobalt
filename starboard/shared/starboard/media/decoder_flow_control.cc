@@ -29,13 +29,13 @@ namespace starboard::shared::starboard::media {
 namespace {
 
 constexpr int kMaxDecodingHistory = 30;
-constexpr int64_t kDecodingTimeWarningThresholdUs = 1'000'000;  // 50 ms
+constexpr int64_t kDecodingTimeWarningThresholdUs = 1'000'000;
 
 class ThrottlingDecoderFlowControl : public DecoderFlowControl {
  public:
   ThrottlingDecoderFlowControl(int max_frames,
                                int64_t log_interval_us,
-                               FrameReleasedCB frame_released_cb);
+                               StateChangedCB state_changed_cb);
   ~ThrottlingDecoderFlowControl() override = default;
 
   bool AddFrame(int64_t presentation_time_us) override;
@@ -51,7 +51,7 @@ class ThrottlingDecoderFlowControl : public DecoderFlowControl {
   void LogStateAndReschedule(int64_t log_interval_us);
 
   const int max_frames_;
-  const FrameReleasedCB frame_released_cb_;
+  const StateChangedCB state_changed_cb_;
 
   mutable std::mutex mutex_;
   State state_;  // GUARDED_BY mutex_;
@@ -63,18 +63,17 @@ class ThrottlingDecoderFlowControl : public DecoderFlowControl {
 
   int entering_frame_id_ = 0;
   int decoded_frame_id_ = 0;
-  bool started_ = true;
 };
 
 ThrottlingDecoderFlowControl::ThrottlingDecoderFlowControl(
     int max_frames,
     int64_t log_interval_us,
-    FrameReleasedCB frame_released_cb)
+    StateChangedCB state_changed_cb)
     : max_frames_(max_frames),
-      frame_released_cb_(std::move(frame_released_cb)),
+      state_changed_cb_(std::move(state_changed_cb)),
       state_({}),
       task_runner_("frame_tracker") {
-  SB_CHECK(frame_released_cb_);
+  SB_CHECK(state_changed_cb_);
   if (log_interval_us > 0) {
     task_runner_.Schedule(
         [this, log_interval_us]() { LogStateAndReschedule(log_interval_us); },
@@ -89,10 +88,9 @@ bool ThrottlingDecoderFlowControl::AddFrame(int64_t presentation_time_us) {
   std::lock_guard lock(mutex_);
 
   if (state_.total_frames() >= max_frames_) {
-    SB_LOG(WARNING) << __func__ << " < total_frame=" << state_.total_frames();
-    if (started_) {
-      return false;
-    }
+    SB_LOG(WARNING) << __func__ << " accepts no more frames: frames="
+                    << state_.total_frames() << "/" << max_frames_;
+    return false;
   }
   state_.decoding_frames++;
   decoding_start_times_us_.push_back(CurrentMonotonicTime());
@@ -109,7 +107,7 @@ bool ThrottlingDecoderFlowControl::AddFrame(int64_t presentation_time_us) {
 bool ThrottlingDecoderFlowControl::SetFrameDecoded(
     int64_t presentation_time_us) {
   std::lock_guard lock(mutex_);
-  started_ = true;
+
   if (state_.decoding_frames == 0) {
     SB_LOG(FATAL) << __func__ << " < no decoding frames"
                   << ", pts(msec)=" << presentation_time_us / 1000;
@@ -155,7 +153,7 @@ bool ThrottlingDecoderFlowControl::ReleaseFrameAt(int64_t release_us) {
   int64_t delay_us = std::max<int64_t>(release_us - CurrentMonotonicTime(), 0);
   task_runner_.Schedule(
       [this] {
-        frame_released_cb_();
+        state_changed_cb_();
 
         std::lock_guard lock(mutex_);
         state_.decoded_frames--;
@@ -174,11 +172,11 @@ DecoderFlowControl::State ThrottlingDecoderFlowControl::GetCurrentState()
 
 bool ThrottlingDecoderFlowControl::CanAcceptMore() {
   std::lock_guard lock(mutex_);
-  if (!started_) {
-    SB_LOG(INFO) << __func__ << ": returning true until started";
+  if (state_.total_frames() < max_frames_) {
     return true;
   }
-  return state_.total_frames() < max_frames_;
+
+  return false;
 }
 
 void ThrottlingDecoderFlowControl::UpdateDecodingStat_Locked() {
@@ -250,9 +248,9 @@ std::unique_ptr<DecoderFlowControl> DecoderFlowControl::CreateNoOp() {
 std::unique_ptr<DecoderFlowControl> DecoderFlowControl::CreateThrottling(
     int max_frames,
     int64_t log_interval_us,
-    FrameReleasedCB frame_released_cb) {
+    StateChangedCB state_changed_cb) {
   return std::make_unique<ThrottlingDecoderFlowControl>(
-      max_frames, log_interval_us, std::move(frame_released_cb));
+      max_frames, log_interval_us, std::move(state_changed_cb));
 }
 
 std::ostream& operator<<(std::ostream& os,
