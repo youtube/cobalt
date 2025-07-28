@@ -36,7 +36,7 @@ constexpr int kSecondsInHour = 3600;
 // Number of seconds in a minute.
 constexpr int kSecondsInMinute = 60;
 
-std::optional<int> StringViewToInt(std::string_view string_to_convert) {
+std::optional<int> StringViewToInt(const std::string_view& string_to_convert) {
   int integer_value;
   auto [end_pointer, error_code] = std::from_chars(
       string_to_convert.data(),
@@ -94,7 +94,7 @@ bool ParseOptionalTimeComponent(std::string_view& timezone_view,
 
 // Parses a time offset string (e.g., "8", "+2", or "-1:30") into seconds.
 // On success, returns the offset in seconds and advances the string_view.
-// On failure, returns nullopt and the view is not modified.
+// On failure, returns nullopt.
 std::optional<TimeOffset> ParseTimeOffset(std::string_view& timezone_view) {
   if (timezone_view.empty()) {
     return std::nullopt;
