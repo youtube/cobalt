@@ -12,41 +12,23 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-static_library("libc") {
+static_library("tz") {
   sources = [
-    "no_destructor.h",
-    "syslog/syslog.cc",
+    "parse_posix_tz.cc",
+    "parse_posix_tz.h",
   ]
-  if (!is_android) {
-    sources += [
-      "stdlib/environment.cc",
-      "time/tzset.cc",
-    ]
-  }
-  deps = [
-    "//cobalt/common/libc/tz",
-    "//starboard:starboard_headers_only",
-    "//starboard/common:common_headers_only",
-    "//third_party/icu:icui18n",
-    "//third_party/icu:icuuc_public",
-  ]
-  if (is_cobalt_hermetic_build) {
-    deps += [ "//cobalt/common/icu_init" ]
-  }
+
+  deps = [ "//starboard:starboard_headers_only" ]
 }
 
-source_set("libc_test") {
+source_set("tz_test") {
   testonly = true
 
-  sources = [ "time/tzset_test.cc" ]
+  sources = [ "parse_posix_tz_test.cc" ]
 
   deps = [
-    ":libc",
-    "//cobalt/common/libc/tz:tz_test",
-    "//starboard/common:common_headers_only",
+    ":tz",
     "//testing/gmock",
     "//testing/gtest",
-    "//third_party/icu:icui18n",
-    "//third_party/icu:icuuc_public",
   ]
 }
