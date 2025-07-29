@@ -29,11 +29,11 @@
 #include "starboard/nplb/file_helpers.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
-namespace starboard {
-namespace nplb {
+namespace starboard::nplb {
 namespace {
 
 constexpr char kTestFileContent[] = "Hello, stat!";
+constexpr mode_t user_rw = S_IRUSR | S_IWUSR;
 
 class PosixStatTest : public ::testing::Test {
  protected:
@@ -45,7 +45,7 @@ class PosixStatTest : public ::testing::Test {
 
     // Create a file within the test directory.
     file_path_ = test_dir_ + "/the_file.txt";
-    int fd = open(file_path_.c_str(), O_CREAT | O_WRONLY, 0600);
+    int fd = open(file_path_.c_str(), O_CREAT | O_WRONLY, user_rw);
     ASSERT_NE(fd, -1) << "Failed to create test file: " << strerror(errno);
     int write_res = write(fd, kTestFileContent, strlen(kTestFileContent));
     ASSERT_EQ(static_cast<unsigned long>(write_res), strlen(kTestFileContent));
@@ -123,7 +123,7 @@ TEST_F(PosixStatTest, AllFieldsArePopulated) {
   EXPECT_TRUE(S_ISREG(statbuf.st_mode));
   EXPECT_FALSE(S_ISDIR(statbuf.st_mode));
   // 0644 comes from permissions in test setup.
-  EXPECT_EQ(statbuf.st_mode & 0777, static_cast<mode_t>(0600));
+  EXPECT_EQ(statbuf.st_mode & 0777, S_IRUSR | S_IWUSR);
 
   // Check link count
   EXPECT_EQ(statbuf.st_nlink, 1u);
@@ -179,22 +179,23 @@ TEST_F(PosixStatTest, PathComponentNotDirectoryFails) {
 TEST_F(PosixStatTest, PermissionDeniedFails) {
   struct stat statbuf;
   std::string protected_dir = test_dir_ + "/protected";
-  ASSERT_EQ(mkdir(protected_dir.c_str(), 0755), 0);
+  constexpr mode_t user_rwx = S_IRUSR | S_IWUSR | S_IXUSR;
+  ASSERT_EQ(mkdir(protected_dir.c_str(), user_rwx), 0);
 
   std::string file_in_protected = protected_dir + "/inner_file";
-  int fd = open(file_in_protected.c_str(), O_CREAT | O_WRONLY, 0600);
+  int fd = open(file_in_protected.c_str(), O_CREAT | O_WRONLY, user_rw);
   ASSERT_NE(fd, -1);
   ASSERT_EQ(0, close(fd));
 
   // Remove search (execute) permission from the directory.
-  ASSERT_EQ(chmod(protected_dir.c_str(), 0655), 0);
+  ASSERT_EQ(chmod(protected_dir.c_str(), user_rw), 0);
 
   errno = 0;
   EXPECT_EQ(stat(file_in_protected.c_str(), &statbuf), -1);
   EXPECT_EQ(errno, EACCES);
 
   // Restore permissions for cleanup.
-  chmod(protected_dir.c_str(), 0755);
+  chmod(protected_dir.c_str(), user_rwx);
 }
 
 TEST_F(PosixStatTest, PathTooLongFails) {
@@ -221,5 +222,4 @@ TEST_F(PosixStatTest, SymlinkLoopFails) {
 }
 
 }  // namespace
-}  // namespace nplb
-}  // namespace starboard
+}  // namespace starboard::nplb
