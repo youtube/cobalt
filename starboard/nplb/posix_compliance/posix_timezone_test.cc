@@ -12,8 +12,6 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include "starboard/nplb/posix_compliance/posix_timezone_test_helper.h"
-
 #include <gtest/gtest.h>
 #include <string.h>
 #include <time.h>
@@ -25,11 +23,14 @@
 #include <string>
 #include <vector>
 
+#include "starboard/nplb/posix_compliance/posix_timezone_test_helper.h"
+#include "starboard/nplb/posix_compliance/scoped_tz_set.h"
+
 namespace starboard {
 namespace nplb {
 
 TEST(PosixTimezoneTests, HandlesUnsetTZEnvironmentVariable) {
-  ScopedTZ tz_manager(nullptr);
+  ScopedTzSet tz_manager(nullptr);
   // We can't assert specific values as they depend on the system's default.
   // We can assert that tzname pointers are not null.
   ASSERT_NE(tzname[0], nullptr);
@@ -37,37 +38,53 @@ TEST(PosixTimezoneTests, HandlesUnsetTZEnvironmentVariable) {
   ASSERT_NE(tzname[1], nullptr);
 }
 
-TEST(PosixTimezoneTests, MultipleScopedTZCallsEnsureCorrectUpdates) {
+TEST(PosixTimezoneTests, TimezoneIsNotSet) {
+  // Note: We are not setting the TZ environment variable to any value.
+  ScopedTzSet tz_manager(nullptr);
+  tzset();
+  // The value of |timezone| is unspecified if TZ is not set.
+  // No assertion can be made.
+}
+
+TEST(PosixTimezoneTests, MultipleScopedTzSetCallsEnsureCorrectUpdates) {
+  // Test that multiple ScopedTzSet objects correctly save and restore the TZ
+  // environment variable.
   {
-    ScopedTZ tz_manager_pst("PST8PDT");
-    ASSERT_NE(tzname[0], nullptr);
-    EXPECT_STREQ(tzname[0], "PST");
-    ASSERT_NE(tzname[1], nullptr);
-    EXPECT_STREQ(tzname[1], "PDT");
-    EXPECT_EQ(timezone, 8 * kSecondsInHour);
-    EXPECT_NE(daylight, 0);
+    ScopedTzSet tz_manager_pst("PST8PDT");
+    struct tm result_tm = {};
+    time_t time_in_s = 0;
+    localtime_r(&time_in_s, &result_tm);
+    EXPECT_EQ(result_tm.tm_gmtoff, -8 * kSecondsInHour);
   }
+  // After tz_manager_pst goes out of scope, the original TZ should be
+  // restored.
   {
-    ScopedTZ tz_manager_est("EST5EDT");
-    ASSERT_NE(tzname[0], nullptr);
-    EXPECT_STREQ(tzname[0], "EST");
-    ASSERT_NE(tzname[1], nullptr);
-    EXPECT_STREQ(tzname[1], "EDT");
-    EXPECT_EQ(timezone, 5 * kSecondsInHour);
-    EXPECT_NE(daylight, 0);
+    ScopedTzSet tz_manager_est("EST5EDT");
+    struct tm result_tm = {};
+    time_t time_in_s = 0;
+    localtime_r(&time_in_s, &result_tm);
+    EXPECT_EQ(result_tm.tm_gmtoff, -5 * kSecondsInHour);
   }
+  // After tz_manager_est goes out of scope, the original TZ should be
+  // restored.
   {
-    ScopedTZ tz_manager_utc("UTC0");
-    ASSERT_NE(tzname[0], nullptr);
-    EXPECT_STREQ(tzname[0], "UTC");
-    EXPECT_EQ(timezone, 0L);
-    EXPECT_EQ(daylight, 0);
+    ScopedTzSet tz_manager_utc("UTC0");
+    struct tm result_tm = {};
+    time_t time_in_s = 0;
+    localtime_r(&time_in_s, &result_tm);
+    EXPECT_EQ(result_tm.tm_gmtoff, 0);
   }
+}
+
+TEST(PosixTimezoneTests, InvalidTimezone) {
+  ScopedTzSet tz_manager("ThisIsClearlyInvalid!@#123");
+  // The value of |timezone| is unspecified for invalid TZ values.
+  // No assertion can be made.
 }
 
 TEST(PosixTimezoneTests, HandlesInvalidTZStringGracefully) {
   // POSIX does not specify behavior for invalid TZ strings.
-  ScopedTZ tz_manager("ThisIsClearlyInvalid!@#123");
+  ScopedTzSet tz_manager("ThisIsClearlyInvalid!@#123");
   // We only check that there is not a crash, that tzname is not nullptr, and
   // that timezone is set to 0.
   ASSERT_NE(tzname[0], nullptr);

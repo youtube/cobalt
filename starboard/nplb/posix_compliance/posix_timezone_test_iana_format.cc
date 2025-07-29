@@ -12,8 +12,6 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include "starboard/nplb/posix_compliance/posix_timezone_test_helper.h"
-
 #include <gtest/gtest.h>
 #include <string.h>
 #include <time.h>
@@ -24,6 +22,9 @@
 #include <set>
 #include <string>
 #include <vector>
+
+#include "starboard/nplb/posix_compliance/posix_timezone_test_helper.h"
+#include "starboard/nplb/posix_compliance/scoped_tz_set.h"
 
 namespace starboard {
 namespace nplb {
@@ -1002,7 +1003,7 @@ const std::array<IANATestData, 367> IANAFormat::kAllTests = {
 // `dst` is provided.
 TEST_P(IANAFormat, Handles) {
   const auto& param = GetParam();
-  ScopedTZ tz_manager(param.tz);
+  ScopedTzSet tz_manager(param.tz);
 
   // Assert that the global variables match the expected values.
   EXPECT_EQ(timezone, param.offset)
