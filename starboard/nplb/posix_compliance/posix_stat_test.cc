@@ -123,7 +123,7 @@ TEST_F(PosixStatTest, AllFieldsArePopulated) {
   EXPECT_TRUE(S_ISREG(statbuf.st_mode));
   EXPECT_FALSE(S_ISDIR(statbuf.st_mode));
   // 0644 comes from permissions in test setup.
-  EXPECT_EQ(statbuf.st_mode & 0777, S_IRUSR | S_IWUSR);
+  EXPECT_EQ(statbuf.st_mode & 0777, user_rw);
 
   // Check link count
   EXPECT_EQ(statbuf.st_nlink, 1u);
