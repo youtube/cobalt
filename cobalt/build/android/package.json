@@ -2,7 +2,7 @@
     "archive_datas": [
         {
             "files": [
-                "cobalt_shell.pak",
+                "content_shell.pak",
                 "gen/build_info.json",
                 "gen/licenses_cobalt.spdx",
                 "gen/licenses_cobalt.txt",
