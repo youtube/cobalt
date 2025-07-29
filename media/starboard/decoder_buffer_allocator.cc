@@ -79,6 +79,11 @@ DecoderBufferAllocator::DecoderBufferAllocator(
   DCHECK_GE(initial_capacity_, 0);
   DCHECK_GE(allocation_unit_, 0);
 
+  LOG(INFO) << "DecoderBufferAllocator: initial_capacity(KB)="
+            << FormatNumber(initial_capacity_ / 1024)
+            << ", allocation_unit(KB)="
+            << FormatNumber(allocation_unit_ / 1024);
+
   if (is_memory_pool_allocated_on_demand_) {
     LOG(INFO) << "Allocated media buffer pool on demand.";
     if (type_ == Type::kGlobal) {

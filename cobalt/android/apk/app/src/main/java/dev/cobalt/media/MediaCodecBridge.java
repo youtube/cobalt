@@ -364,6 +364,7 @@ class MediaCodecBridge {
               if (mNativeMediaCodecBridge == 0) {
                 return;
               }
+              Log.i(TAG, "onOutputBufferAvailable: index=" + index + ", flags=" + bufferFlagsToString(info.flags) + ", offset=" + info.offset + ", presentationTimeUs=" + info.presentationTimeUs + ", size=" + info.size);
               MediaCodecBridgeJni.get()
                   .onMediaCodecOutputBufferAvailable(
                       mNativeMediaCodecBridge,
