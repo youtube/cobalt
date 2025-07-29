@@ -38,6 +38,9 @@ using base::android::AppendJavaStringArrayToStringVector;
 using base::android::AttachCurrentThread;
 using base::android::ConvertJavaStringToUTF8;
 using base::android::GetClass;
+using base::android::JavaParamRef;
+using base::android::ScopedJavaGlobalRef;
+using base::android::ScopedJavaLocalRef;
 
 // Global pointer to hold the single instance of ApplicationAndroid.
 ApplicationAndroid* g_native_app_instance = nullptr;
