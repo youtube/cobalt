@@ -1318,7 +1318,14 @@ TEST(ExpectedVoid, EqualityOperators) {
   EXPECT_NE(unexpected(0), Ex());
 }
 
-TEST(ExpectedVoidTest, DeathTests) {
+// TODO: b/435013868 - Cobalt: Investigate and re-enable
+#if BUILDFLAG(IS_ANDROID) && BUILDFLAG(USE_STARBOARD_MEDIA)
+#define MAYBE_LinuxExpectedVoidDeathTest DISABLED_DeathTests
+#else
+#define MAYBE_LinuxExpectedVoidDeathTest DeathTests
+#endif
+
+TEST(ExpectedVoidTest, MAYBE_LinuxExpectedVoidDeathTest) {
   using ExpectedInt = expected<void, int>;
   using ExpectedDouble = expected<void, double>;
 
