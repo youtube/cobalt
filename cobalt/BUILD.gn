@@ -78,8 +78,8 @@ if (!is_android) {
     }
 
     data_deps = [
+      "//cobalt/shell:pak",
       "//components/crash/core/app:chrome_crashpad_handler",
-      "//content/shell:pak",
       "//tools/v8_context_snapshot:v8_context_snapshot",
     ]
   }
@@ -116,10 +116,10 @@ source_set("common") {
     "//cobalt/renderer",
     "//cobalt/shell:content_shell_app",
     "//cobalt/shell:content_shell_lib",
+    "//cobalt/shell:pak",
     "//cobalt/utility",
     "//components/memory_system:memory_system",
     "//content/public/app",
-    "//content/shell:pak",
     "//gpu/command_buffer/service",
     "//media",
     "//sandbox/policy",
