@@ -1635,7 +1635,7 @@ component("net") {
   if (is_cobalt && (!chrome_root_store_optional || chrome_root_store_only)) {
     sources += [
       "cert/test_root_certs_builtin.cc",
-    "cert/internal/system_trust_store_cobalt.cc"
+      "cert/internal/system_trust_store_cobalt.cc"
     ]
   }
   if (is_cobalt_hermetic_build) {
