@@ -122,7 +122,6 @@ TEST_F(PosixStatTest, AllFieldsArePopulated) {
   // Check mode and permissions.
   EXPECT_TRUE(S_ISREG(statbuf.st_mode));
   EXPECT_FALSE(S_ISDIR(statbuf.st_mode));
-  // 0644 comes from permissions in test setup.
   EXPECT_EQ(statbuf.st_mode & 0777, user_rw);
 
   // Check link count
@@ -177,6 +176,12 @@ TEST_F(PosixStatTest, PathComponentNotDirectoryFails) {
 }
 
 TEST_F(PosixStatTest, PermissionDeniedFails) {
+  // This test will not work correctly if run as root, as root bypasses
+  // file permission checks.
+  if (geteuid() == 0) {
+    GTEST_SKIP() << "Test cannot run as root; permission checks are bypassed.";
+  }
+
   struct stat statbuf;
   std::string protected_dir = test_dir_ + "/protected";
   constexpr mode_t user_rwx = S_IRUSR | S_IWUSR | S_IXUSR;
