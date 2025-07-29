@@ -996,7 +996,7 @@ bool AllocateFileRegion(File* file, int64_t offset, size_t size) {
   // space. It can fail because the filesystem doesn't support it. In that case,
   // use the manual method below.
 
-#if BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_CHROMEOS)
+#if (BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_CHROMEOS)) && !BUILDFLAG(IS_STARBOARD)
   if (HANDLE_EINTR(fallocate(file->GetPlatformFile(), 0, offset,
                              static_cast<off_t>(size))) != -1)
     return true;
