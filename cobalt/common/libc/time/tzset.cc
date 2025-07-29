@@ -12,6 +12,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+#include "cobalt/common/libc/time/timezone.h"
+
 #include <limits.h>
 #include <pthread.h>
 #include <string.h>
@@ -81,12 +83,14 @@ class TzsetGuard {
     g_in_tzset = false;
   }
 };
-}  // namespace
 
 // A class to encapsulate timezone-related logic and state.
 class Timezone {
  public:
   static void Tzset();
+  static void SetTmTimezoneFields(struct tm* tm,
+                                  const UChar* zone_id,
+                                  UDate date);
 
  private:
   struct Correction {
@@ -432,15 +436,18 @@ bool Timezone::ExtractZoneName(const icu::TimeZone& tz,
     tz_db_names->getDisplayName(timezone_id, name_type, date, result_name);
   }
 
-  if (U_FAILURE(status) || result_name.isEmpty() ||
+  if (U_FAILURE(status) || result_name.isBogus() || result_name.isEmpty() ||
       result_name.length() > TZNAME_MAX) {
     // The main TZDB lookup failed or returned an empty/invalid name.
+    // Try without a date.
+    if (date_for_name &&
+        ExtractZoneName(tz, is_daylight, std::nullopt, tz_name)) {
+      return true;
+    }
     // Try the original fallback display name.
     icu::UnicodeString fallback_name;
     tz.getDisplayName(is_daylight, icu::TimeZone::SHORT, locale, fallback_name);
-    if (result_name.isEmpty()) {
-      result_name = fallback_name;
-    }
+    result_name = fallback_name;
   }
 
   // Extract the final result.
@@ -644,6 +651,57 @@ void Timezone::Tzset() {
   // If parsing fails, assume 'timezone_name' is an IANA ID (e.g.,
   // "America/Los_Angeles").
   SetFromIana(timezone_name);
+}
+
+void Timezone::SetTmTimezoneFields(struct tm* tm,
+                                   const UChar* zone_id,
+                                   UDate date) {
+  if (!tm) {
+    return;
+  }
+
+  std::unique_ptr<icu::TimeZone> tz;
+  if (zone_id) {
+    tz.reset(icu::TimeZone::createTimeZone(icu::UnicodeString(zone_id)));
+  } else {
+    tz.reset(icu::TimeZone::createDefault());
+  }
+
+  if (!tz || *tz == icu::TimeZone::getUnknown()) {
+    tm->tm_gmtoff = 0;
+    tm->tm_zone = nullptr;
+    return;
+  }
+
+  UErrorCode status = U_ZERO_ERROR;
+  int32_t raw_offset, dst_offset;
+  tz->getOffset(date, false, raw_offset, dst_offset, status);
+  if (U_FAILURE(status)) {
+    tm->tm_gmtoff = 0;
+    tm->tm_zone = nullptr;
+    return;
+  }
+
+  tm->tm_gmtoff = (raw_offset + dst_offset) / 1000;
+
+  bool is_daylight = (dst_offset != 0);
+
+  // This static buffer is thread-local, so it's safe for concurrent use.
+  static thread_local Timezone::Name tz_name_buffer;
+
+  // For timezone name extraction, always use a current date to get the
+  // modern abbreviation, which is what POSIX tests expect.
+  if (Timezone::ExtractZoneName(*tz, is_daylight, date, &tz_name_buffer)) {
+    tm->tm_zone = tz_name_buffer.data();
+  } else {
+    // Fallback for safety, though ExtractZoneName should handle errors.
+    tm->tm_zone = nullptr;
+  }
+}
+}  // namespace
+
+void SetTmTimezoneFields(struct tm* tm, const UChar* zone_id, UDate date) {
+  Timezone::SetTmTimezoneFields(tm, zone_id, date);
 }
 
 }  // namespace time

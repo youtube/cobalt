@@ -23,11 +23,15 @@
 #include <cstddef>
 #include <string>
 
+#include "cobalt/common/icu_init/init.h"
+#include "cobalt/common/libc/time/timezone.h"
 #include "third_party/icu/source/common/unicode/udata.h"
 #include "third_party/icu/source/common/unicode/uloc.h"
 #include "third_party/icu/source/common/unicode/ustring.h"
 #include "third_party/icu/source/i18n/unicode/ucal.h"
 
+// This file implements localtime_r(), gmtime_r(), gmtime(), localtime(),
+// mktime(), and timegm() using ICU.
 namespace {
 
 const UChar kTimeZoneUTC[] = u"Etc/UTC";
@@ -58,7 +62,7 @@ static UDate TimevalToUDate(const struct timeval* tv) {
   return tv->tv_sec * 1'000 + tv->tv_usec / 1'000;
 }
 
-// Explodes |value| to a time in the given |timezone|, placing the result in
+// Explodes |value| to a time in the given |zone_id|, placing the result in
 // |out_exploded|, with the remainder milliseconds in |out_millisecond|, if not
 // nullptr. Returns whether the explosion was successful. NOTE: This is LOSSY.
 bool timevalExplode(const struct timeval* value,
@@ -68,6 +72,8 @@ bool timevalExplode(const struct timeval* value,
   if (!value || !out_exploded) {
     return false;
   }
+  cobalt::common::icu_init::EnsureInitialized();
+
   UErrorCode status = U_ZERO_ERROR;
 
   // Always query the time using a gregorian calendar.  This is
@@ -104,6 +110,8 @@ bool timevalExplode(const struct timeval* value,
     out_exploded->tm_isdst = -1;
   }
 
+  cobalt::common::libc::time::SetTmTimezoneFields(out_exploded, zone_id, udate);
+
   ucal_close(calendar);
   return U_SUCCESS(status);
 }
@@ -117,6 +125,8 @@ struct timeval timevalImplode(struct tm* exploded,
   if (!exploded) {
     return zero_time;
   }
+  cobalt::common::icu_init::EnsureInitialized();
+
   UErrorCode status = U_ZERO_ERROR;
 
   // Always query the time using a gregorian calendar.  This is
@@ -142,6 +152,18 @@ struct timeval timevalImplode(struct tm* exploded,
     ucal_add(calendar, UCAL_MILLISECOND, millisecond, &status);
   }
 
+  // Update the exploded struct with the normalized values.
+  exploded->tm_year = ucal_get(calendar, UCAL_YEAR, &status) - 1900;
+  exploded->tm_mon = ucal_get(calendar, UCAL_MONTH, &status) - UCAL_JANUARY;
+  exploded->tm_mday = ucal_get(calendar, UCAL_DATE, &status);
+  exploded->tm_hour = ucal_get(calendar, UCAL_HOUR_OF_DAY, &status);
+  exploded->tm_min = ucal_get(calendar, UCAL_MINUTE, &status);
+  exploded->tm_sec = ucal_get(calendar, UCAL_SECOND, &status);
+  exploded->tm_wday =
+      ucal_get(calendar, UCAL_DAY_OF_WEEK, &status) - UCAL_SUNDAY;
+  exploded->tm_yday = ucal_get(calendar, UCAL_DAY_OF_YEAR, &status) - 1;
+  exploded->tm_isdst = ucal_inDaylightTime(calendar, &status) ? 1 : 0;
+
   UDate udate = ucal_getMillis(calendar, &status);
   ucal_close(calendar);
 
@@ -160,6 +182,8 @@ const time_t kMinTimeValForStructTm =
     -67768040609712422;  // Thu Jan  1 00:00:00 -2147481748
 
 }  // namespace
+
+extern "C" {
 
 struct tm* localtime_r(const time_t* in_time, struct tm* out_exploded) {
   if (!in_time) {
@@ -200,11 +224,13 @@ struct tm* gmtime(const time_t* in_time) {
   return gmtime_r(in_time, &gmtime);
 }
 struct tm* localtime(const time_t* in_time) {
+  tzset();
   static thread_local struct tm localtime;
   return localtime_r(in_time, &localtime);
 }
 
 time_t mktime(struct tm* exploded) {
+  tzset();
   struct timeval value = timevalImplode(exploded, 0, kTimeZoneLocal);
   return value.tv_sec;
 }
@@ -213,3 +239,5 @@ time_t timegm(struct tm* exploded) {
   struct timeval value = timevalImplode(exploded, 0, kTimeZoneUTC);
   return value.tv_sec;
 }
+
+}  // extern "C"

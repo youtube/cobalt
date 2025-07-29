@@ -12,6 +12,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+#include "cobalt/common/icu_init/init.h"
+
 #include <fcntl.h>
 #include <pthread.h>
 #include <sys/mman.h>
@@ -140,6 +142,18 @@ bool IcuInit() {
 // guaranteed to be early enough for ICU to be used by other global
 // initializers.
 static bool g_icu_is_initialized = IcuInit();
+
+void EnsureInitialized() {
+  // Even though IcuInit() is called before main() is called, when the static
+  // initializers are called, the order of execution of static initializers is
+  // undefined. This function allows functions that may use ICU from static
+  // initializers themselves to guarantee that ICU is initialized first.
+  // Note: This is thread-safe because spurious calls to IcuInit() are
+  // thread-safe.
+  if (!g_icu_is_initialized) {
+    g_icu_is_initialized = IcuInit();
+  }
+}
 
 }  // namespace icu_init
 }  // namespace common
