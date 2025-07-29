@@ -32,7 +32,7 @@ class PosixFcntlTest : public ::testing::Test {
   void SetUp() override { errno = 0; }
 };
 
-// Tests F_DUPFD
+// Tests F_DUPFD.
 TEST_F(PosixFcntlTest, DuplicateFileDescriptor) {
   ScopedRandomFile random_file;
   const std::string& filename = random_file.filename();
@@ -42,51 +42,51 @@ TEST_F(PosixFcntlTest, DuplicateFileDescriptor) {
 
   // Duplicate the file descriptor.
   int new_fd = fcntl(fd, F_DUPFD, 0);
-  ASSERT_TRUE(new_fd != -1);
+  ASSERT_NE(new_fd, -1) << "fcntl failed: " << strerror(errno);
   ASSERT_NE(new_fd, fd);
 
   // Verify that the new file descriptor has the same file status flags.
   int original_flags = fcntl(fd, F_GETFL);
-  ASSERT_TRUE(original_flags != -1);
+  ASSERT_NE(original_flags, -1) << "fcntl failed: " << strerror(errno);
   int new_flags = fcntl(new_fd, F_GETFL);
-  ASSERT_TRUE(new_flags != -1);
+  ASSERT_NE(new_flags, -1) << "fcntl failed: " << strerror(errno);
   ASSERT_EQ(original_flags, new_flags);
 
   close(fd);
   close(new_fd);
 }
 
-// Tests F_GETFD
+// Tests F_GETFD.
 TEST_F(PosixFcntlTest, GetFileDescriptorFlags) {
   ScopedRandomFile random_file;
   const std::string& filename = random_file.filename();
 
   int fd = open(filename.c_str(), O_RDWR);
-  ASSERT_NE(-1, fd) << "Failed to open test file: " << strerror(errno);
+  ASSERT_NE(fd, -1) << "Failed to open test file: " << strerror(errno);
 
   // Get the file descriptor flags.
   int flags = fcntl(fd, F_GETFD);
-  ASSERT_TRUE(flags != -1);
+  ASSERT_NE(flags, -1) << "fcntl failed: " << strerror(errno);
   ASSERT_FALSE((flags & FD_CLOEXEC) == FD_CLOEXEC);
 
   close(fd);
 }
 
-// Tests F_SETFD
+// Tests F_SETFD.
 TEST_F(PosixFcntlTest, SetFileDescriptorFlags) {
   ScopedRandomFile random_file;
   const std::string& filename = random_file.filename();
 
   int fd = open(filename.c_str(), O_RDWR);
-  ASSERT_NE(-1, fd) << "Failed to open test file: " << strerror(errno);
+  ASSERT_NE(fd, -1) << "Failed to open test file: " << strerror(errno);
 
   // Set the FD_CLOEXEC flag.
   int result = fcntl(fd, F_SETFD, FD_CLOEXEC);
-  ASSERT_TRUE(result != -1);
+  ASSERT_NE(result, -1) << "fcntl failed: " << strerror(errno);
 
   // Verify that the FD_CLOEXEC flag is set.
   int updated_flags = fcntl(fd, F_GETFD);
-  ASSERT_TRUE(updated_flags != -1);
+  ASSERT_NE(updated_flags, -1) << "fcntl failed: " << strerror(errno);
   ASSERT_TRUE((updated_flags & FD_CLOEXEC) == FD_CLOEXEC);
 
   close(fd);
@@ -94,36 +94,38 @@ TEST_F(PosixFcntlTest, SetFileDescriptorFlags) {
 
 // Verify that the F_GETFL and F_SETFL commands properly get and set file status
 // flags, respectively.
-TEST_F(PosixFcntlTest, GetFileStatusFlags) {
+TEST_F(PosixFcntlTest, GetAndSetFileStatusFlags) {
   ScopedRandomFile random_file;
   const std::string& filename = random_file.filename();
 
   int fd = open(filename.c_str(), O_RDWR);
-  ASSERT_NE(-1, fd) << "Failed to open test file: " << strerror(errno);
+  ASSERT_NE(fd, -1) << "Failed to open test file: " << strerror(errno);
 
   int initial_flags = fcntl(fd, F_GETFL);
+  ASSERT_NE(initial_flags, -1) << "fcntl failed: " << strerror(errno);
   ASSERT_TRUE((initial_flags & O_ACCMODE) == O_RDWR)
       << "Status flag " << (initial_flags & O_ACCMODE) << " is not O_RDWR ("
       << O_RDWR << ")";
 
   int result = fcntl(fd, F_SETFL, initial_flags | O_APPEND);
-  ASSERT_TRUE(result != -1) << "Failed to set status flag O_APPEND";
+  ASSERT_NE(result, -1) << "Failed to set status flag O_APPEND: "
+                        << strerror(errno);
 
   // Verify that the O_APPEND flag is set.
   int updated_flags = fcntl(fd, F_GETFL);
-  ASSERT_TRUE(updated_flags != -1);
+  ASSERT_NE(updated_flags, -1) << "fcntl failed: " << strerror(errno);
   ASSERT_TRUE((updated_flags & O_APPEND) == O_APPEND);
 
   close(fd);
 }
 
-// Tests F_GETLK
+// Tests F_GETLK.
 TEST_F(PosixFcntlTest, GetLock) {
   ScopedRandomFile random_file;
   const std::string& filename = random_file.filename();
 
   int fd = open(filename.c_str(), O_RDWR);
-  ASSERT_NE(-1, fd) << "Failed to open test file: " << strerror(errno);
+  ASSERT_NE(fd, -1) << "Failed to open test file: " << strerror(errno);
 
   // Check the lock.
   struct flock lock_status;
@@ -132,19 +134,19 @@ TEST_F(PosixFcntlTest, GetLock) {
   lock_status.l_start = 0;
   lock_status.l_len = 0;
   int result = fcntl(fd, F_GETLK, &lock_status);
-  ASSERT_TRUE(result != -1);
+  ASSERT_NE(result, -1) << "fcntl failed: " << strerror(errno);
   ASSERT_EQ(lock_status.l_type, F_UNLCK);
 
   close(fd);
 }
 
-// Tests F_SETLK
+// Tests F_SETLK.
 TEST_F(PosixFcntlTest, SetLock) {
   ScopedRandomFile random_file;
   const std::string& filename = random_file.filename();
 
   int fd = open(filename.c_str(), O_RDWR);
-  ASSERT_NE(-1, fd) << "Failed to open test file: " << strerror(errno);
+  ASSERT_NE(fd, -1) << "Failed to open test file: " << strerror(errno);
 
   // Create a lock.
   struct flock lock;
@@ -155,12 +157,12 @@ TEST_F(PosixFcntlTest, SetLock) {
 
   // Set the lock.
   int result = fcntl(fd, F_SETLK, &lock);
-  ASSERT_TRUE(result != -1);
+  ASSERT_NE(result, -1) << "fcntl failed: " << strerror(errno);
 
   // Unlock the file.
   lock.l_type = F_UNLCK;
   result = fcntl(fd, F_SETLK, &lock);
-  ASSERT_TRUE(result != -1);
+  ASSERT_NE(result, -1) << "fcntl failed: " << strerror(errno);
 
   close(fd);
 }
@@ -171,11 +173,11 @@ TEST_F(PosixFcntlTest, InvalidCommand) {
   const std::string& filename = random_file.filename();
 
   int fd = open(filename.c_str(), O_RDWR);
-  ASSERT_NE(-1, fd) << "Failed to open test file: " << strerror(errno);
+  ASSERT_NE(fd, -1) << "Failed to open test file: " << strerror(errno);
 
   int result = fcntl(fd, -1, 0);
-  EXPECT_EQ(-1, result);
-  EXPECT_EQ(EINVAL, errno);
+  EXPECT_EQ(result, -1);
+  EXPECT_EQ(EINVAL, errno) << "Expected EINVAL, got " << strerror(errno);
 
   close(fd);
 }
@@ -183,21 +185,21 @@ TEST_F(PosixFcntlTest, InvalidCommand) {
 // Tests that fcntl() with an invalid fd fails and sets EBADF.
 TEST_F(PosixFcntlTest, InvalidFileDescriptor) {
   int result = fcntl(-1, F_GETFL);
-  EXPECT_EQ(-1, result);
-  EXPECT_EQ(EBADF, errno);
+  EXPECT_EQ(result, -1);
+  EXPECT_EQ(EBADF, errno) << "Expected EBADF, got " << strerror(errno);
 }
 
-// Tests that fcntl() with F_DUPFD with an arg of INT_MAX fails and sets EMFILE.
+// Tests that fcntl() with F_DUPFD with an arg of INT_MAX fails and sets EINVAL.
 TEST_F(PosixFcntlTest, SetFileDescriptorTooHigh) {
   ScopedRandomFile random_file;
   const std::string& filename = random_file.filename();
 
   int fd = open(filename.c_str(), O_RDWR);
-  ASSERT_NE(-1, fd) << "Failed to open test file: " << strerror(errno);
+  ASSERT_NE(fd, -1) << "Failed to open test file: " << strerror(errno);
 
   int result = fcntl(fd, F_DUPFD, INT_MAX);
-  EXPECT_EQ(-1, result);
-  EXPECT_EQ(EINVAL, errno);
+  EXPECT_EQ(result, -1);
+  EXPECT_EQ(EINVAL, errno) << "Expected EINVAL, got " << strerror(errno);
 
   close(fd);
 }
