@@ -18,44 +18,20 @@
 #include <string>
 #include <vector>
 
+#include "starboard/nplb/file_helpers.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
 namespace starboard {
 namespace nplb {
 namespace {
 
-// A helper class that creates a temporary file and ensures it is unlinked
-// when the object goes out of scope.
-class ScopedTempFile {
- public:
-  ScopedTempFile() : fd_(-1) {
-    char temp_path_template[] = "/tmp/fdatasync_test_XXXXXX";
-    fd_ = mkstemp(temp_path_template);
-    if (fd_ != -1) {
-      // The file is created with 0600 permissions, which is what we want.
-      // We close it immediately so the test can open it with desired flags.
-      close(fd_);
-    }
-    filename_ = temp_path_template;
-  }
-
-  ~ScopedTempFile() { unlink(filename_.c_str()); }
-
-  const char* filename() const { return filename_.c_str(); }
-  bool is_valid() const { return fd_ != -1; }
-
- private:
-  std::string filename_;
-  int fd_;
-};
-
 TEST(PosixFdatasyncTest, SunnyDay) {
-  ScopedTempFile temp_file;
-  ASSERT_TRUE(temp_file.is_valid());
+  ScopedRandomFile temp_file(0, ScopedRandomFile::kCreate);
+  ASSERT_FALSE(temp_file.filename().empty());
   const char kData[] = "test data";
   const size_t kDataSize = sizeof(kData) - 1;
 
-  int fd = open(temp_file.filename(), O_WRONLY);
+  int fd = open(temp_file.filename().c_str(), O_WRONLY);
   ASSERT_NE(fd, -1) << "Failed to open temp file: " << strerror(errno);
 
   ssize_t bytes_written = write(fd, kData, kDataSize);
@@ -67,7 +43,7 @@ TEST(PosixFdatasyncTest, SunnyDay) {
   // Close and reopen to ensure we are not just reading from a dirty buffer.
   EXPECT_EQ(close(fd), 0);
 
-  fd = open(temp_file.filename(), O_RDONLY);
+  fd = open(temp_file.filename().c_str(), O_RDONLY);
   ASSERT_NE(fd, -1);
 
   char read_buffer[kDataSize];
@@ -86,9 +62,9 @@ TEST(PosixFdatasyncTest, FailureInvalidFileDescriptor) {
 }
 
 TEST(PosixFdatasyncTest, FailureClosedFileDescriptor) {
-  ScopedTempFile temp_file;
-  ASSERT_TRUE(temp_file.is_valid());
-  int fd = open(temp_file.filename(), O_WRONLY);
+  ScopedRandomFile temp_file(0, ScopedRandomFile::kCreate);
+  ASSERT_FALSE(temp_file.filename().empty());
+  int fd = open(temp_file.filename().c_str(), O_WRONLY);
   ASSERT_NE(fd, -1);
   EXPECT_EQ(close(fd), 0);
 
@@ -99,9 +75,9 @@ TEST(PosixFdatasyncTest, FailureClosedFileDescriptor) {
 }
 
 TEST(PosixFdatasyncTest, ReadOnlyFileDescriptor) {
-  ScopedTempFile temp_file;
-  ASSERT_TRUE(temp_file.is_valid());
-  int fd = open(temp_file.filename(), O_RDONLY);
+  ScopedRandomFile temp_file(0, ScopedRandomFile::kCreate);
+  ASSERT_FALSE(temp_file.filename().empty());
+  int fd = open(temp_file.filename().c_str(), O_RDONLY);
   ASSERT_NE(fd, -1);
 
   // The POSIX standard for fsync (which fdatasync is based on) states that
