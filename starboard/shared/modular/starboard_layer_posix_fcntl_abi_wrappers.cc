@@ -14,6 +14,7 @@
 
 #include "starboard/shared/modular/starboard_layer_posix_fcntl_abi_wrappers.h"
 
+#include <errno.h>
 #include <fcntl.h>
 #include <stdarg.h>
 
@@ -83,6 +84,12 @@ int ConvertMuslFlagsToPlatformFlags(int flags) {
     platform_flags |= O_RDWR;
   }
 
+  if (platform_flags == 0) {
+    SB_LOG(ERROR) << "Cannot convert musl flags " << flags
+                  << " to platform flags.";
+    return -1;
+  }
+
   return platform_flags;
 }
 
@@ -115,11 +122,23 @@ int ConvertPlatformFlagsToMuslFlags(int flags) {
     musl_flags |= MUSL_O_RDWR;
   }
 
+  if (musl_flags == 0) {
+    SB_LOG(ERROR) << "Cannot convert platform flags " << flags
+                  << " to musl flags.";
+    return -1;
+  }
+
   return musl_flags;
 }
 
-SB_EXPORT int __abi_wrap_fcntl(int fd, int cmd, va_list args) {
+SB_EXPORT int __abi_wrap_fcntl(int fildes, int cmd, va_list args) {
+  SB_LOG(INFO) << "Called __Abi_wrap_fcntl";
   int platform_cmd = MuslCmdToPlatformCmd(cmd);
+  if (platform_cmd == -1) {
+    errno = EINVAL;
+    return -1;
+  }
+  SB_LOG(INFO) << "Converted " << cmd << "to " << platform_cmd;
 
   int arg_int;
   void* arg_ptr;
@@ -127,27 +146,30 @@ SB_EXPORT int __abi_wrap_fcntl(int fd, int cmd, va_list args) {
   switch (platform_cmd) {
     // The following commands have an int third argument.
     case F_DUPFD:
+    case F_DUPFD_CLOEXEC:
     case F_SETFD:
     case F_SETFL:
     case F_SETOWN:
       arg_int = ConvertMuslFlagsToPlatformFlags(va_arg(args, int));
-      result = fcntl(fd, platform_cmd, arg_int);
+      result = fcntl(fildes, platform_cmd, arg_int);
       break;
     // The following commands have a pointer third argument.
     case F_GETLK:
     case F_SETLK:
     case F_SETLKW:
       arg_ptr = va_arg(args, void*);
-      result = fcntl(fd, platform_cmd, arg_ptr);
+      result = fcntl(fildes, platform_cmd, arg_ptr);
       break;
     default:
-      result = fcntl(fd, platform_cmd);
+      SB_LOG(INFO) << "Calling fcntl with no args";
+      result = fcntl(fildes, platform_cmd);
       break;
   }
 
   // Commands F_GETFD and F_GETFL return flags, we need to convert them to their
   // musl counterparts.
   if (platform_cmd == F_GETFD || platform_cmd == F_GETFL) {
+    SB_LOG(INFO) << "Returning fcntl for " << platform_cmd;
     int musl_flags = ConvertPlatformFlagsToMuslFlags(result);
     return musl_flags;
   }

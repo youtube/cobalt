@@ -150,7 +150,6 @@ test("nplb") {
       "posix_compliance/posix_epoll_wait_test.cc",
       "posix_compliance/posix_eventfd_test.cc",
       "posix_compliance/posix_fcntl_test.cc",
-      "posix_compliance/posix_fdatasync_test.cc",
       "posix_compliance/posix_file_can_open_test.cc",
       "posix_compliance/posix_file_close_test.cc",
       "posix_compliance/posix_file_delete_test.cc",

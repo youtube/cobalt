@@ -15,7 +15,6 @@
 #ifndef STARBOARD_SHARED_MODULAR_STARBOARD_LAYER_POSIX_FCNTL_ABI_WRAPPERS_H_
 #define STARBOARD_SHARED_MODULAR_STARBOARD_LAYER_POSIX_FCNTL_ABI_WRAPPERS_H_
 
-#include <fcntl.h>
 #include <stdarg.h>
 
 #include "starboard/export.h"
@@ -52,7 +51,7 @@ extern "C" {
 #define MUSL_O_WRONLY 01
 #define MUSL_O_RDWR 02
 
-SB_EXPORT int __abi_wrap_fcntl(int fd, int cmd, va_list args);
+SB_EXPORT int __abi_wrap_fcntl(int fildes, int cmd, va_list args);
 
 #ifdef __cplusplus
 }  // extern "C"
