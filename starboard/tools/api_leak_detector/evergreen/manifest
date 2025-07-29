@@ -9,7 +9,6 @@ __nl_langinfo_l
 access
 chmod
 closelog
-fallocate
 fchmod
 fchown
 fclose
