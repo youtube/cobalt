@@ -74,7 +74,7 @@ def create_archive(
   combined_deps = set()
   for target in targets:
     target_path, target_name = target.split(':')
-    target_generates_runtime_deps = _target_generates_runtime_deps(target)
+    target_generates_runtime_deps = _target_generates_runtime_deps(target_name)
     # Paths are configured in test.gni:
     # https://github.com/youtube/cobalt/blob/main/testing/test.gni
     if target_generates_runtime_deps:
