@@ -29,7 +29,7 @@ __declspec(dllimport) unsigned long __stdcall GetCurrentThreadId();
 }
 #elif PERFETTO_BUILDFLAG(PERFETTO_OS_FUCHSIA)
 #include <zircon/types.h>
-#elif PERFETTO_BUILDFLAG(PERFETTO_OS_LINUX) || \
+#elif PERFETTO_BUILDFLAG(PERFETTO_OS_LINUX) && !defined(STARBOARD) || \
     PERFETTO_BUILDFLAG(PERFETTO_OS_ANDROID)
 #include <sys/syscall.h>
 #include <sys/types.h>
@@ -46,7 +46,7 @@ using PlatformThreadId = pid_t;
 inline PlatformThreadId GetThreadId() {
   return gettid();
 }
-#elif PERFETTO_BUILDFLAG(PERFETTO_OS_LINUX)
+#elif PERFETTO_BUILDFLAG(PERFETTO_OS_LINUX) && !defined(STARBOARD)
 using PlatformThreadId = pid_t;
 inline PlatformThreadId GetThreadId() {
   return static_cast<pid_t>(syscall(__NR_gettid));
