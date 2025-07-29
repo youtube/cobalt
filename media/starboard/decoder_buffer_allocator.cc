@@ -124,12 +124,17 @@ DecoderBufferAllocator::~DecoderBufferAllocator() {
 }
 
 void DecoderBufferAllocator::LogMemoryUsageAndReschedule() {
+  size_t tracked_allocated_size;
+  {
+    base::AutoLock scoped_lock(mutex_);
+    tracked_allocated_size = allocated_size_;
+  }
   SB_LOG(INFO) << "Media memory usage: "
                << "allocated(KB)=" << FormatNumber(GetAllocatedMemory() / 1024)
                << ", capacity(KB)="
                << FormatNumber(GetCurrentMemoryCapacity() / 1024)
-               << ", max_capacity(KB)="
-               << FormatNumber(GetMaximumMemoryCapacity() / 1024);
+               << ", allocated_size(KB)="
+               << FormatNumber(tracked_allocated_size / 1024);
 
   base::AutoLock scoped_lock(mutex_);
   logging_thread_->task_runner()->PostDelayedTask(
@@ -166,6 +171,7 @@ void* DecoderBufferAllocator::Allocate(DemuxerStream::Type type,
                                        size_t size,
                                        size_t alignment) {
   base::AutoLock scoped_lock(mutex_);
+  allocated_size_ += size;
 
   EnsureStrategyIsCreated();
 
@@ -191,6 +197,7 @@ void DecoderBufferAllocator::Free(void* p, size_t size) {
   }
 
   base::AutoLock scoped_lock(mutex_);
+  allocated_size_ -= size;
 
   DCHECK(strategy_);
 

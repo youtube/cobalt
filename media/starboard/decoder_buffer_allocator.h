@@ -116,6 +116,8 @@ class DecoderBufferAllocator : public DecoderBuffer::Allocator,
   int pending_allocation_operations_count_ GUARDED_BY(mutex_) = 0;
   int allocation_operation_index_ GUARDED_BY(mutex_) = 0;
 #endif  // !defined(COBALT_BUILD_TYPE_GOLD)
+
+  std::atomic<int> allocated_size_ = 0;
 };
 
 }  // namespace media
