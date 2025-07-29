@@ -4,7 +4,7 @@
             "files": [
                 "chromedriver",
                 "cobalt.stripped",
-                "content_shell.pak",
+                "cobalt_shell.pak",
                 "gen/build_info.json",
                 "gen/licenses_cobalt.spdx",
                 "gen/licenses_cobalt.txt",

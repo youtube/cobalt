@@ -9,11 +9,6 @@ __nl_langinfo_l
 access
 chmod
 closelog
-dladdr
-dlclose
-dlerror
-dlopen
-dlsym
 fallocate
 fchmod
 fchown
@@ -40,7 +35,6 @@ fwrite
 getc
 getcwd
 getrlimit
-gmtime
 initstate
 ioctl
 link
@@ -71,11 +65,7 @@ stdout
 syscall
 syslog
 timegm
-timerfd_create
-timerfd_settime
 tmpfile
-tzname
-tzset
 ungetc
 uselocale
 utimes
