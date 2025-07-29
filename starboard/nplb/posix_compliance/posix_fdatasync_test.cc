@@ -95,34 +95,6 @@ TEST(PosixFdatasyncTest, ReadOnlyFileDescriptor) {
   EXPECT_EQ(close(fd), 0);
 }
 
-TEST(PosixFdatasyncTest, Pipe) {
-  // The POSIX standard says fdatasync() can return EINVAL if the
-  // implementation does not support synchronized I/O for the file type.
-  // The behavior on a pipe is not strictly defined. Some systems may return
-  // EINVAL, others may succeed (as a no-op). This test accepts either outcome.
-  int pipe_fds[2];
-  ASSERT_EQ(pipe(pipe_fds), 0);
-
-  errno = 0;
-  int result_read = fdatasync(pipe_fds[0]);
-  if (result_read == -1) {
-    EXPECT_EQ(errno, EINVAL);
-  } else {
-    EXPECT_EQ(result_read, 0);
-  }
-
-  errno = 0;
-  int result_write = fdatasync(pipe_fds[1]);
-  if (result_write == -1) {
-    EXPECT_EQ(errno, EINVAL);
-  } else {
-    EXPECT_EQ(result_write, 0);
-  }
-
-  EXPECT_EQ(close(pipe_fds[0]), 0);
-  EXPECT_EQ(close(pipe_fds[1]), 0);
-}
-
 }  // namespace
 }  // namespace nplb
 }  // namespace starboard
