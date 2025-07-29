@@ -4,6 +4,7 @@
 """
 import os
 import sys
+import shutil
 import argparse
 import logging
 import collections
@@ -27,7 +28,7 @@ def parse_depfile(deps_path, package):
   dep_deps = depfile['deps']
   select = dep_deps.get(package, None) or dep_deps.get('src/' + package, None)
   if not select:
-    raise RuntimeError(f'Package {package} not found in {deps_path}')
+    raise ValueError(f'Package {package} not found in {deps_path}')
   dep_type = select['dep_type']
   if dep_type != 'git':
     raise RuntimeError(
@@ -50,12 +51,28 @@ def clone_dep(dest_dir, url, rev):
       delete_unversioned_trees=True,
       merge=False,
       reset=True)
-  wrapper = gclient_scm.GitWrapper(url, root_dir=dest_dir, relpath='tmp')
+  wrapper = gclient_scm.GitWrapper(url, root_dir=dest_dir)
   dict_files = []
   wrapper.update(opts, [], dict_files)
   # pylint: disable=protected-access
   wrapper._Run(['checkout', '-b', 'squash_insert'], opts)
   return wrapper.GetCheckoutRoot()
+
+
+def eval_local_module_diffs(repo, module_dir, patch_path):
+  """Writes out any local modifications to a patch file."""
+  subtree_commit_hash = repo.git.log(
+            '--grep', '^git-subtree-dir: %s/*$' % module_dir,
+            '-1',
+            '--pretty=%H'
+        ).strip()
+  if not subtree_commit_hash:
+    return False
+  diff = repo.git.diff(subtree_commit_hash, '@:%s' % module_dir)
+  os.makedirs(os.path.dirname(patch_path), exist_ok=True)
+  with open(patch_path, 'w') as f:
+    f.write(diff)
+  return True
 
 
 def main():

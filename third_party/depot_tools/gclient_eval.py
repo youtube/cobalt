@@ -23,6 +23,13 @@ else:
   # pylint: disable=redefined-builtin
   basestring = str
 
+# git_dependencies migration states. Used within the DEPS file to indicate
+# the current migration state.
+DEPS = 'DEPS'
+SYNC = 'SYNC'
+SUBMODULES = 'SUBMODULES'
+
+
 
 class ConstantString(object):
   def __init__(self, value):
@@ -156,6 +163,11 @@ _GCLIENT_HOOKS_SCHEMA = [
 
 _GCLIENT_SCHEMA = schema.Schema(
     _NodeDictSchema({
+        # Current state of the git submodule migration.
+        # git_dependencies = [DEPS (default) | SUBMODULES | SYNC]
+        schema.Optional('git_dependencies'):
+        schema.Or(DEPS, SYNC, SUBMODULES),
+        
         # List of host names from which dependencies are allowed (allowlist).
         # NOTE: when not present, all hosts are allowed.
         # NOTE: scoped to current DEPS file, not recursive.
