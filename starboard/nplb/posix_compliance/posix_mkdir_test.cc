@@ -16,73 +16,195 @@
   The following error conditions are not tested due to the difficulty of
   reliably triggering them in a portable unit testing environment:
   - EACCES (permission errors)
-  - ENAMETOOLONG (path length limits)
+  - EILSEQ (invalid byte sequence in path)
   - EIO (I/O errors)
-  - ELOOP (symbolic link loops)
+  - EMLINK (link count exceeds {LINK_MAX})
   - ENOSPC (out-of-space/inode errors)
   - EROFS (read-only filesystem errors)
 */
 
+#include <dirent.h>
 #include <errno.h>
+#include <fcntl.h>
+#include <limits.h>
+#include <string.h>
 #include <sys/stat.h>
 #include <unistd.h>
 
 #include "starboard/nplb/file_helpers.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
-namespace starboard {
-namespace nplb {
+namespace starboard::nplb {
 namespace {
 
-TEST(PosixMkdirTest, SuccessfulCreation) {
-  const char* dir_path = "success_dir.tmp";
-  const mode_t mode = 0755;
+// Helper function to clean up a directory and its contents
+void RemoveDirectoryRecursively(const std::string& path) {
+  DIR* dir = opendir(path.c_str());
+  if (dir == nullptr) {
+    return;  // Directory might not exist or already cleaned up
+  }
 
-  // Create the directory.
-  ASSERT_EQ(mkdir(dir_path, mode), 0);
+  struct dirent* entry;
+  while ((entry = readdir(dir)) != nullptr) {
+    if (std::string(entry->d_name) == "." ||
+        std::string(entry->d_name) == "..") {
+      continue;
+    }
+    std::string entry_path = path + "/" + entry->d_name;
+    if (entry->d_type == DT_DIR) {
+      RemoveDirectoryRecursively(entry_path);
+    } else {
+      unlink(entry_path.c_str());
+    }
+  }
+  closedir(dir);
+  rmdir(path.c_str());
+}
+
+constexpr mode_t user_rwx = S_IRUSR | S_IWUSR | S_IXUSR;
+
+class PosixMkdirTest : public ::testing::Test {
+ protected:
+  void SetUp() override {
+    char template_name[] = "/tmp/mkdir_test_XXXXXX";
+    char* dir_name = mkdtemp(template_name);
+    ASSERT_NE(dir_name, nullptr) << "mkdtemp failed: " << strerror(errno);
+    test_dir_ = dir_name;
+  }
+
+  void TearDown() override {
+    if (!test_dir_.empty()) {
+      RemoveDirectoryRecursively(test_dir_.c_str());
+    }
+  }
+
+  std::string test_dir_;
+};
+
+TEST_F(PosixMkdirTest, FailsWithEmptyPath) {
+  // An empty path should result in a "No such file or directory" error.
+  EXPECT_EQ(mkdir("", user_rwx), -1);
+  EXPECT_EQ(errno, ENOENT);
+}
+
+TEST_F(PosixMkdirTest, SuccessfulCreation) {
+  std::string dir_path = test_dir_ + "/new_dir";
+  const mode_t mode = user_rwx;
+
+  ASSERT_EQ(mkdir(dir_path.c_str(), mode), 0);
 
   // Verify that the directory was created with the correct properties.
   struct stat sb;
-  ASSERT_EQ(stat(dir_path, &sb), 0);
+  ASSERT_EQ(stat(dir_path.c_str(), &sb), 0);
   EXPECT_TRUE(S_ISDIR(sb.st_mode));
+
+  // Verify user ID matches the process's effective user ID.
+  EXPECT_EQ(sb.st_uid, geteuid());
+
   // The requested mode is masked by the process's umask. We can only check
   // that the resulting permissions are a subset of the requested ones.
   EXPECT_EQ((sb.st_mode & ~S_IFMT) & mode, (sb.st_mode & ~S_IFMT));
-  rmdir(dir_path);
+
+  // Verify the directory is empty (contains only "." and "..").
+  DIR* dirp = opendir(dir_path.c_str());
+  ASSERT_NE(dirp, nullptr);
+  int entry_count = 0;
+  errno = 0;
+  while (struct dirent* dp = readdir(dirp)) {
+    entry_count++;
+  }
+  EXPECT_EQ(errno, 0) << "readdir failed";
+  EXPECT_EQ(entry_count, 2);  // Should only contain "." and ".."
+  closedir(dirp);
 }
 
-TEST(PosixMkdirTest, FailsIfPathExistsAsFile) {
-  starboard::nplb::ScopedRandomFile existing_file;
-
-  // Attempt to create a directory where a file with the same name exists.
-  EXPECT_EQ(mkdir(existing_file.filename().c_str(), 0755), -1);
-  EXPECT_EQ(errno, EEXIST);
-}
-
-TEST(PosixMkdirTest, FailsIfPathExistsAsDirectory) {
-  const char* dir_path = "existing_dir.tmp";
-  ASSERT_EQ(mkdir(dir_path, 0755), 0);
-
-  // Attempt to create a directory that already exists.
-  EXPECT_EQ(mkdir(dir_path, 0755), -1);
-  EXPECT_EQ(errno, EEXIST);
-  rmdir(dir_path);
-}
-
-TEST(PosixMkdirTest, FailsIfParentDoesNotExist) {
-  const char* path = "non_existent_parent/new_dir";
-
-  // Attempt to create a directory where a component of the path does not exist.
-  EXPECT_EQ(mkdir(path, 0755), -1);
+TEST_F(PosixMkdirTest, FailsOnEmptyPath) {
+  errno = 0;
+  EXPECT_EQ(mkdir("", user_rwx), -1);
   EXPECT_EQ(errno, ENOENT);
 }
 
-TEST(PosixMkdirTest, FailsWithEmptyPath) {
-  // An empty path should result in a "No such file or directory" error.
-  EXPECT_EQ(mkdir("", 0755), -1);
+TEST_F(PosixMkdirTest, HandlesTrailingSeparators) {
+  std::string dir_base = test_dir_ + "/new_dir";
+  std::string path_with_separators = dir_base + "//";
+
+  errno = 0;
+  ASSERT_EQ(mkdir(path_with_separators.c_str(), user_rwx), 0)
+      << "mkdir with trailing separators failed: " << strerror(errno);
+
+  // Verify the directory was created correctly, without the separators.
+  struct stat statbuf;
+  ASSERT_EQ(stat(dir_base.c_str(), &statbuf), 0);
+  EXPECT_TRUE(S_ISDIR(statbuf.st_mode));
+}
+
+TEST_F(PosixMkdirTest, FailsIfPathExistsAsFile) {
+  std::string file_path = test_dir_ + "/a_file";
+  int fd = open(file_path.c_str(), O_CREAT | O_WRONLY, 0600);
+  ASSERT_NE(fd, -1);
+  close(fd);
+
+  EXPECT_EQ(mkdir(file_path.c_str(), user_rwx), -1);
+  EXPECT_EQ(errno, EEXIST);
+}
+
+TEST_F(PosixMkdirTest, FailsIfPathExistsAsDirectory) {
+  std::string dir_path = test_dir_ + "/existing_dir";
+  ASSERT_EQ(mkdir(dir_path.c_str(), user_rwx), 0);
+
+  EXPECT_EQ(mkdir(dir_path.c_str(), user_rwx), -1);
+  EXPECT_EQ(errno, EEXIST);
+}
+
+TEST_F(PosixMkdirTest, FailsIfPathIsSymbolicLink) {
+  std::string target_path = test_dir_ + "/target";
+  std::string link_path = test_dir_ + "/the_link";
+  ASSERT_EQ(mkdir(target_path.c_str(), user_rwx), 0);
+  ASSERT_EQ(symlink(target_path.c_str(), link_path.c_str()), 0);
+
+  // Per spec, mkdir() on a path that is a symlink should fail with EEXIST.
+  EXPECT_EQ(mkdir(link_path.c_str(), user_rwx), -1);
+  EXPECT_EQ(errno, EEXIST);
+}
+
+TEST_F(PosixMkdirTest, FailsIfParentDoesNotExist) {
+  std::string path = test_dir_ + "/non_existent_parent/new_dir";
+  EXPECT_EQ(mkdir(path.c_str(), user_rwx), -1);
   EXPECT_EQ(errno, ENOENT);
+}
+
+TEST_F(PosixMkdirTest, FailsIfPathComponentIsNotDirectory) {
+  std::string file_path = test_dir_ + "/a_file";
+  int fd = open(file_path.c_str(), O_CREAT | O_WRONLY, 0600);
+  ASSERT_NE(fd, -1);
+  close(fd);
+
+  std::string bad_path = file_path + "/new_dir";
+  errno = 0;
+  EXPECT_EQ(mkdir(bad_path.c_str(), user_rwx), -1);
+  EXPECT_EQ(errno, ENOTDIR);
+}
+
+TEST_F(PosixMkdirTest, FailsWithSymbolicLinkLoop) {
+  std::string link_a_path = test_dir_ + "/link_a";
+  std::string link_b_path = test_dir_ + "/link_b";
+
+  ASSERT_EQ(symlink("link_b", link_a_path.c_str()), 0);
+  ASSERT_EQ(symlink("link_a", link_b_path.c_str()), 0);
+
+  std::string path_in_loop = test_dir_ + "/link_a/new_dir";
+  errno = 0;
+  EXPECT_EQ(mkdir(path_in_loop.c_str(), user_rwx), -1);
+  EXPECT_EQ(errno, ELOOP);
+}
+
+TEST_F(PosixMkdirTest, FailsOnPathTooLong) {
+  std::string long_name(NAME_MAX + 1, 'b');
+  std::string long_path = test_dir_ + "/" + long_name;
+  errno = 0;
+  EXPECT_EQ(mkdir(long_path.c_str(), user_rwx), -1);
+  EXPECT_EQ(errno, ENAMETOOLONG);
 }
 
 }  // namespace
-}  // namespace nplb
-}  // namespace starboard
+}  // namespace starboard::nplb

@@ -139,7 +139,6 @@ test("nplb") {
       "posix_compliance/posix_condition_variable_signal_test.cc",
       "posix_compliance/posix_condition_variable_wait_test.cc",
       "posix_compliance/posix_condition_variable_wait_timed_test.cc",
-      "posix_compliance/posix_directory_create_test.cc",
       "posix_compliance/posix_directory_get_next_readdir_r_test.cc",
       "posix_compliance/posix_directory_get_next_readdir_test.cc",
       "posix_compliance/posix_directory_open_test.cc",
