@@ -18,11 +18,28 @@
 #include "starboard/common/log.h"
 #include "starboard/media.h"
 
+namespace {
+
+// We set the maximum memory budget to 200MB, balancing the following factors:
+//
+// 1. 8K Video Playback
+// Playing 8K video requires significant memory for decoded frames. For
+// instance, a specific device needs to hold 6 frames in its  decoder, which can
+// take up to ~300MB. See b/405467220#comment46 for details.  Because of this
+// large requirement for decoded frames, we can't allocate too much budget for
+// encoded frames.
+//
+// 2. Chromium's Budget
+// Chromium has a max memory budget of 150MB.
+// https://github.com/youtube/cobalt/blob/a3c966f929aabea1d71813c31d404e1b319c2fcd/media/base/demuxer_memory_limit.h#L44
+constexpr int kMaxVideoBufferBudget = 200 * 1024 * 1024;
+
+}  // namespace
+
 int SbMediaGetVideoBufferBudget(SbMediaVideoCodec codec,
                                 int resolution_width,
                                 int resolution_height,
                                 int bits_per_pixel) {
-  constexpr int kMaxVideoBufferBudget = 300 * 1024 * 1024;
   auto get_overlaid_video_buffer_budget = []() {
     int buffer_budget =
         starboard::android::shared::RuntimeResourceOverlay::GetInstance()
