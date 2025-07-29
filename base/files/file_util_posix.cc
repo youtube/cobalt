@@ -402,7 +402,7 @@ std::string AppendModeCharacter(std::string_view mode, char mode_char) {
 #endif
 
 #if !BUILDFLAG(IS_LINUX) && !BUILDFLAG(IS_CHROMEOS) && !BUILDFLAG(IS_APPLE) && \
-    !(BUILDFLAG(IS_ANDROID) && __ANDROID_API__ >= 21)
+    !(BUILDFLAG(IS_ANDROID) && __ANDROID_API__ >= 21) || BUILDFLAG(IS_STARBOARD)
 bool PreReadFileSlow(const FilePath& file_path, int64_t max_bytes) {
   DCHECK_GE(max_bytes, 0);
 
@@ -1406,7 +1406,7 @@ bool PreReadFile(const FilePath& file_path,
   // posix_fadvise() is only available in the Android NDK in API 21+. Older
   // versions may have the required kernel support, but don't have enough usage
   // to justify backporting.
-#if BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_CHROMEOS) || \
+#if (BUILDFLAG(IS_LINUX) && !BUILDFLAG(IS_STARBOARD)) || BUILDFLAG(IS_CHROMEOS) || \
     (BUILDFLAG(IS_ANDROID) && __ANDROID_API__ >= 21)
   File file(file_path, File::FLAG_OPEN | File::FLAG_READ);
   if (!file.IsValid()) {
