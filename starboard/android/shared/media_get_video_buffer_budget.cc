@@ -18,11 +18,21 @@
 #include "starboard/common/log.h"
 #include "starboard/media.h"
 
+namespace {
+
+constexpr bool kForceLimit = true;
+
+}
+
 int SbMediaGetVideoBufferBudget(SbMediaVideoCodec codec,
                                 int resolution_width,
                                 int resolution_height,
                                 int bits_per_pixel) {
-  constexpr int kMaxVideoBufferBudget = 300 * 1024 * 1024;
+  constexpr int kMaxVideoBufferBudget = 200 * 1024 * 1024;
+  if (kForceLimit) {
+    return kMaxVideoBufferBudget;
+  }
+
   auto get_overlaid_video_buffer_budget = []() {
     int buffer_budget =
         starboard::android::shared::RuntimeResourceOverlay::GetInstance()
@@ -56,7 +66,7 @@ int SbMediaGetVideoBufferBudget(SbMediaVideoCodec codec,
       // Specifies the maximum amount of memory used by video buffers of media
       // source before triggering a garbage collection when video resolution is
       // lower than 4k (3840x2160) and bit per pixel is greater than 8.
-      video_buffer_budget = 160 * 1024 * 1024;
+      video_buffer_budget = 120 * 1024 * 1024;
     }
   } else {
     // Specifies the maximum amount of memory used by video buffers of media

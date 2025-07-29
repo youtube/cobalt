@@ -15,5 +15,5 @@
 #include "starboard/media.h"
 
 int SbMediaGetInitialBufferCapacity() {
-  return 200 * 1024 * 1024;
+  return 4 * 1024 * 1024;
 }

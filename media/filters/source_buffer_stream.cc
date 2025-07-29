@@ -187,7 +187,7 @@ SourceBufferStream::SourceBufferStream(const VideoDecoderConfig& video_config,
   DCHECK(video_config.IsValidConfig());
   video_configs_.push_back(video_config);
   LOG(INFO) << __func__ << ":starboard:decoder:allocator: video_buffer_size= "
-            << memory_limit_;
+            << memory_limit_ << ", config=" << video_config.AsHumanReadableString();
 }
 
 SourceBufferStream::SourceBufferStream(const TextTrackConfig& text_config,

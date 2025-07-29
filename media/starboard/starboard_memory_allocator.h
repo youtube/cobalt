@@ -20,7 +20,6 @@
 #include <algorithm>
 
 #include "starboard/common/allocator.h"
-#include "starboard/common/log.h"
 #include "starboard/configuration.h"
 
 namespace media {
@@ -33,7 +32,6 @@ class StarboardMemoryAllocator : public starboard::common::Allocator {
 
   void* Allocate(std::size_t size, std::size_t alignment) override {
     void* p = nullptr;
-    SB_LOG(INFO) << __func__ << " > size = " << size;
     std::ignore = posix_memalign(&p, std::max(alignment, sizeof(void*)), size);
     return p;
   }
