@@ -45,7 +45,7 @@ int MuslCmdToPlatformCmd(int musl_cmd) {
     case MUSL_F_SETLKW:
       return F_SETLKW;
     default:
-      SB_LOG(WARNING) << "Unknown musl fcntl command: " << musl_cmd;
+      SB_LOG(ERROR) << "Unknown musl fcntl command: " << musl_cmd;
       return -1;
   }
 }
@@ -132,13 +132,11 @@ int ConvertPlatformFlagsToMuslFlags(int flags) {
 }
 
 SB_EXPORT int __abi_wrap_fcntl(int fildes, int cmd, va_list args) {
-  SB_LOG(INFO) << "Called __Abi_wrap_fcntl";
   int platform_cmd = MuslCmdToPlatformCmd(cmd);
   if (platform_cmd == -1) {
     errno = EINVAL;
     return -1;
   }
-  SB_LOG(INFO) << "Converted " << cmd << "to " << platform_cmd;
 
   int arg_int;
   void* arg_ptr;
@@ -147,9 +145,13 @@ SB_EXPORT int __abi_wrap_fcntl(int fildes, int cmd, va_list args) {
     // The following commands have an int third argument.
     case F_DUPFD:
     case F_DUPFD_CLOEXEC:
+    case F_SETOWN:
+      arg_int = va_arg(args, int);
+      result = fcntl(fildes, platform_cmd, arg_int);
+      break;
+    // The following commands have an int flag third argument.
     case F_SETFD:
     case F_SETFL:
-    case F_SETOWN:
       arg_int = ConvertMuslFlagsToPlatformFlags(va_arg(args, int));
       result = fcntl(fildes, platform_cmd, arg_int);
       break;
@@ -161,7 +163,6 @@ SB_EXPORT int __abi_wrap_fcntl(int fildes, int cmd, va_list args) {
       result = fcntl(fildes, platform_cmd, arg_ptr);
       break;
     default:
-      SB_LOG(INFO) << "Calling fcntl with no args";
       result = fcntl(fildes, platform_cmd);
       break;
   }
@@ -169,7 +170,6 @@ SB_EXPORT int __abi_wrap_fcntl(int fildes, int cmd, va_list args) {
   // Commands F_GETFD and F_GETFL return flags, we need to convert them to their
   // musl counterparts.
   if (platform_cmd == F_GETFD || platform_cmd == F_GETFL) {
-    SB_LOG(INFO) << "Returning fcntl for " << platform_cmd;
     int musl_flags = ConvertPlatformFlagsToMuslFlags(result);
     return musl_flags;
   }
