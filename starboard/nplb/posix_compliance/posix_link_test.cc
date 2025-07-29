@@ -42,7 +42,7 @@ namespace nplb {
 namespace {
 
 TEST(PosixLinkTest, SuccessfulCreation) {
-  starboard::nplb::ScopedRandomFile old_path;
+  ScopedRandomFile old_path;
   const std::string new_path = old_path.filename() + ".link";
 
   ASSERT_EQ(link(old_path.filename().c_str(), new_path.c_str()), 0);
@@ -68,8 +68,8 @@ TEST(PosixLinkTest, FailsIfOldPathDoesNotExist) {
 }
 
 TEST(PosixLinkTest, FailsIfNewPathExists) {
-  starboard::nplb::ScopedRandomFile old_path;
-  starboard::nplb::ScopedRandomFile new_path;  // This file already exists
+  ScopedRandomFile old_path;
+  ScopedRandomFile new_path;  // This file already exists
 
   EXPECT_EQ(link(old_path.filename().c_str(), new_path.filename().c_str()), -1);
   EXPECT_EQ(errno, EEXIST);
@@ -91,7 +91,7 @@ TEST(PosixLinkTest, FailsWithSymbolicLinkLoop) {
   const char* dir_path = "eloop_test_dir";
   ASSERT_EQ(mkdir(dir_path, 0755), 0);
 
-  starboard::nplb::ScopedRandomFile old_path;
+  ScopedRandomFile old_path;
   const std::string link_a_path = std::string(dir_path) + "/link_a";
   const std::string link_b_path = std::string(dir_path) + "/link_b";
 
@@ -112,7 +112,7 @@ TEST(PosixLinkTest, FailsWithSymbolicLinkLoop) {
 }
 
 TEST(PosixLinkTest, FailsIfPathComponentNotDirectory) {
-  starboard::nplb::ScopedRandomFile file;
+  ScopedRandomFile file;
   std::string new_path = file.filename() + "/new_link";
 
   EXPECT_EQ(link(file.filename().c_str(), new_path.c_str()), -1);
@@ -126,7 +126,7 @@ TEST(PosixLinkTest, FailsWithEmptyOldPath) {
 }
 
 TEST(PosixLinkTest, FailsWithEmptyNewPath) {
-  starboard::nplb::ScopedRandomFile old_path;
+  ScopedRandomFile old_path;
   EXPECT_EQ(link(old_path.filename().c_str(), ""), -1);
   EXPECT_EQ(errno, ENOENT);
 }
