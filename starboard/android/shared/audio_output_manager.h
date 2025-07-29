@@ -24,17 +24,12 @@
 
 namespace starboard::android::shared {
 
-// TODO: (cobalt b/372559388) Update namespace to jni_zero.
-using base::android::JavaParamRef;
-using base::android::ScopedJavaGlobalRef;
-using base::android::ScopedJavaLocalRef;
-
 class AudioOutputManager {
  public:
   // Returns the singleton.
   static AudioOutputManager* GetInstance();
 
-  ScopedJavaLocalRef<jobject> CreateAudioTrackBridge(
+  base::android::ScopedJavaLocalRef<jobject> CreateAudioTrackBridge(
       JNIEnv* env,
       int sample_type,
       int sample_rate,
@@ -43,11 +38,12 @@ class AudioOutputManager {
       int tunnel_mode_audio_session_id,
       jboolean is_web_audio);
 
-  void DestroyAudioTrackBridge(JNIEnv* env, ScopedJavaLocalRef<jobject>& obj);
+  void DestroyAudioTrackBridge(JNIEnv* env,
+                               base::android::ScopedJavaLocalRef<jobject>& obj);
 
   bool GetOutputDeviceInfo(JNIEnv* env,
                            jint index,
-                           ScopedJavaLocalRef<jobject>& obj);
+                           base::android::ScopedJavaLocalRef<jobject>& obj);
 
   int GetMinBufferSize(JNIEnv* env,
                        jint sample_type,
@@ -82,7 +78,7 @@ class AudioOutputManager {
   friend struct base::DefaultSingletonTraits<AudioOutputManager>;
 
   // Java AudioOutputManager instance.
-  ScopedJavaGlobalRef<jobject> j_audio_output_manager_;
+  base::android::ScopedJavaGlobalRef<jobject> j_audio_output_manager_;
 };
 
 }  // namespace starboard::android::shared

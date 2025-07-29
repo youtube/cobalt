@@ -289,11 +289,7 @@ void ShellMainDelegate::InitializeResourceBundle() {
       bool r = base::PathService::Get(base::DIR_ANDROID_APP_DATA, &pak_file);
       DCHECK(r);
       pak_file = pak_file.Append(FILE_PATH_LITERAL("paks"));
-#if BUILDFLAG(IS_ANDROID)
       pak_file = pak_file.Append(FILE_PATH_LITERAL("cobalt_shell.pak"));
-#else
-      pak_file = pak_file.Append(FILE_PATH_LITERAL("content_shell.pak"));
-#endif
       int flags = base::File::FLAG_OPEN | base::File::FLAG_READ;
       pak_fd = base::File(pak_file, flags).TakePlatformFile();
       pak_region = base::MemoryMappedFile::Region::kWholeFile;
@@ -315,7 +311,7 @@ void ShellMainDelegate::InitializeResourceBundle() {
   base::FilePath pak_file;
   bool r = base::PathService::Get(base::DIR_ASSETS, &pak_file);
   DCHECK(r);
-  pak_file = pak_file.Append(FILE_PATH_LITERAL("content_shell.pak"));
+  pak_file = pak_file.Append(FILE_PATH_LITERAL("cobalt_shell.pak"));
   ui::ResourceBundle::InitSharedInstanceWithPakPath(pak_file);
 #endif
 }

@@ -88,7 +88,6 @@ android_library("cobalt_shell_java") {
     "java/src/dev/cobalt/shell/Shell.java",
     "java/src/dev/cobalt/shell/ShellManager.java",
     "java/src/dev/cobalt/shell/ShellViewAndroidDelegate.java",
-    "java/src/dev/cobalt/shell/Util.java",
   ]
 
   annotation_processor_deps = [ "//base/android/jni_generator:jni_processor" ]
@@ -105,16 +104,6 @@ jinja_template("cobalt_shell_test_manifest") {
   ]
 }
 
-android_resources("cobalt_shell_apk_resources") {
-  testonly = true
-  sources = [
-    # TODO: can this be removed for test?
-    "shell_apk/res/layout/content_shell_activity.xml",
-    "shell_apk/res/values/strings.xml",
-  ]
-  deps = [ ":cobalt_shell_java_resources" ]
-}
-
 android_library("cobalt_shell_test_apk_java") {
   testonly = true
 
@@ -122,8 +111,8 @@ android_library("cobalt_shell_test_apk_java") {
 
   resources_package = "org.chromium.content_shell_apk"
   deps = [
-    ":cobalt_shell_apk_resources",
     ":cobalt_shell_java",
+    ":cobalt_shell_java_resources",
     ":cobalt_shell_test_manifest",
     "//base:base_java",
     "//base:process_launcher_java",

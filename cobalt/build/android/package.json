@@ -2,7 +2,7 @@
     "archive_datas": [
         {
             "files": [
-                "content_shell.pak",
+                "cobalt_shell.pak",
                 "gen/build_info.json",
                 "gen/licenses_cobalt.spdx",
                 "gen/licenses_cobalt.txt",
@@ -12,7 +12,7 @@
                 "libnplb__library.so",
                 "libstarboard_jni_state.so",
                 "libtest_trace_processor.so",
-                "obj/cobalt/android/cobalt_java_resources.resources.zip",
+                "obj/cobalt/shell/android/cobalt_shell_java_resources.resources.zip",
                 "obj/components/metrics/metrics_java.javac.jar",
                 "obj/third_party/android_deps/chromium_play_services_availability_java.javac.jar"
             ],
