@@ -90,6 +90,9 @@ int ConvertMuslFlagsToPlatformFlags(int flags) {
     return -1;
   }
 
+  SB_LOG(INFO) << "Converted musl flags " << flags << " to platform flags "
+               << platform_flags;
+
   return platform_flags;
 }
 
@@ -128,11 +131,19 @@ int ConvertPlatformFlagsToMuslFlags(int flags) {
     return -1;
   }
 
+  SB_LOG(INFO) << "Converted platform flag " << flags << " to musl flags "
+               << musl_flags;
   return musl_flags;
 }
 
 SB_EXPORT int __abi_wrap_fcntl(int fildes, int cmd, va_list args) {
+#if BUILDFLAG(IS_COBALT)
+  SB_LOG(INFO) << "Cobalt build, converting cmd";
   int platform_cmd = MuslCmdToPlatformCmd(cmd);
+#else
+  SB_LOG(INFO) << "Starboard build, no cmd conversion";
+  int platform_cmd = cmd;
+#endif
   if (platform_cmd == -1) {
     errno = EINVAL;
     return -1;
@@ -152,7 +163,13 @@ SB_EXPORT int __abi_wrap_fcntl(int fildes, int cmd, va_list args) {
     // The following commands have an int flag third argument.
     case F_SETFD:
     case F_SETFL:
+#if BUILDFLAG(IS_COBALT)
+      SB_LOG(INFO) << "Cobalt build, converting flags";
       arg_int = ConvertMuslFlagsToPlatformFlags(va_arg(args, int));
+#else
+      SB_LOG(INFO) << "Starboard build, no flag conversion";
+      arg_int = va_arg(args, int);
+#endif
       result = fcntl(fildes, platform_cmd, arg_int);
       break;
     // The following commands have a pointer third argument.
@@ -170,7 +187,13 @@ SB_EXPORT int __abi_wrap_fcntl(int fildes, int cmd, va_list args) {
   // Commands F_GETFD and F_GETFL return flags, we need to convert them to their
   // musl counterparts.
   if (platform_cmd == F_GETFD || platform_cmd == F_GETFL) {
+#if BUILDFLAG(IS_COBALT)
+    SB_LOG(INFO) << "Cobalt build, return converting flags";
     int musl_flags = ConvertPlatformFlagsToMuslFlags(result);
+#else
+    SB_LOG(INFO) << "Starboard build, no return flagconversion";
+    int musl_flags = result;
+#endif
     return musl_flags;
   }
 
