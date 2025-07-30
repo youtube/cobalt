@@ -19,7 +19,9 @@
 #include <utility>
 
 #include "base/android/jni_android.h"
+#include "base/android/jni_array.h"
 #include "base/android/jni_string.h"
+#include "base/android/scoped_java_ref.h"
 #include "starboard/android/shared/audio_output_manager.h"
 #include "starboard/android/shared/jni_utils.h"
 #include "starboard/android/shared/media_common.h"
@@ -38,6 +40,7 @@ namespace {
 
 using base::android::AttachCurrentThread;
 using base::android::ConvertJavaStringToUTF8;
+using base::android::ScopedJavaLocalRef;
 using ::starboard::shared::starboard::media::KeySystemSupportabilityCache;
 using ::starboard::shared::starboard::media::MimeSupportabilityCache;
 
@@ -108,7 +111,7 @@ std::set<SbMediaTransferId> GetSupportedHdrTypes() {
   base::android::ScopedJavaLocalRef<jintArray> j_supported_hdr_types =
       StarboardBridge::GetInstance()->GetSupportedHdrTypes(env);
 
-  if (!j_supported_hdr_types) {
+  if (j_supported_hdr_types.is_null()) {
     // Failed to get supported hdr types.
     SB_LOG(ERROR) << "Failed to load supported hdr types.";
     return std::set<SbMediaTransferId>();
@@ -155,26 +158,27 @@ bool GetIsPassthroughSupported(SbMediaAudioCodec codec) {
 }
 }  // namespace
 
-CodecCapability::CodecCapability(JNIEnv* env, jobject j_codec_info) {
+CodecCapability::CodecCapability(JNIEnv* env,
+                                 ScopedJavaLocalRef<jobject>& j_codec_info) {
   SB_DCHECK(env);
   SB_DCHECK(j_codec_info);
 
-  ScopedJavaLocalRef<jobject> j_codec_info_ref(env, j_codec_info);
   name_ = ConvertJavaStringToUTF8(
-      env, Java_CodecCapabilityInfo_getDecoderName(env, j_codec_info_ref));
+      env, Java_CodecCapabilityInfo_getDecoderName(env, j_codec_info));
   is_secure_required_ =
-      Java_CodecCapabilityInfo_isSecureRequired(env, j_codec_info_ref);
+      Java_CodecCapabilityInfo_isSecureRequired(env, j_codec_info);
   is_secure_supported_ =
-      Java_CodecCapabilityInfo_isSecureSupported(env, j_codec_info_ref);
+      Java_CodecCapabilityInfo_isSecureSupported(env, j_codec_info);
   is_tunnel_mode_required_ =
-      Java_CodecCapabilityInfo_isTunnelModeRequired(env, j_codec_info_ref);
+      Java_CodecCapabilityInfo_isTunnelModeRequired(env, j_codec_info);
   is_tunnel_mode_supported_ =
-      Java_CodecCapabilityInfo_isTunnelModeSupported(env, j_codec_info_ref);
+      Java_CodecCapabilityInfo_isTunnelModeSupported(env, j_codec_info);
 }
 
-AudioCodecCapability::AudioCodecCapability(JNIEnv* env,
-                                           jobject j_codec_info,
-                                           jobject j_audio_capabilities)
+AudioCodecCapability::AudioCodecCapability(
+    JNIEnv* env,
+    ScopedJavaLocalRef<jobject>& j_codec_info,
+    ScopedJavaLocalRef<jobject>& j_audio_capabilities)
     : CodecCapability(env, j_codec_info) {
   SB_DCHECK(env);
   SB_DCHECK(j_codec_info);
@@ -189,7 +193,8 @@ AudioCodecCapability::AudioCodecCapability(JNIEnv* env,
   SB_DCHECK(getBitrateRangeMethod);
 
   ScopedJavaLocalRef<jobject> j_bitrate_range(
-      env, env->CallObjectMethod(j_audio_capabilities, getBitrateRangeMethod));
+      env,
+      env->CallObjectMethod(j_audio_capabilities.obj(), getBitrateRangeMethod));
   supported_bitrates_ = ConvertJavaRangeToRange(env, j_bitrate_range.obj());
 
   // Overwrite the lower bound to 0.
@@ -200,24 +205,20 @@ bool AudioCodecCapability::IsBitrateSupported(int bitrate) const {
   return supported_bitrates_.Contains(bitrate);
 }
 
-VideoCodecCapability::VideoCodecCapability(JNIEnv* env,
-                                           jobject j_codec_info,
-                                           jobject j_video_capabilities)
+VideoCodecCapability::VideoCodecCapability(
+    JNIEnv* env,
+    ScopedJavaLocalRef<jobject>& j_codec_info,
+    ScopedJavaLocalRef<jobject>& j_video_capabilities)
     : CodecCapability(env, j_codec_info) {
   SB_DCHECK(env);
   SB_DCHECK(j_codec_info);
   SB_DCHECK(j_video_capabilities);
 
-  ScopedJavaLocalRef<jobject> j_codec_info_ref(env, j_codec_info);
-  is_software_decoder_ =
-      Java_CodecCapabilityInfo_isSoftware(env, j_codec_info_ref);
+  is_software_decoder_ = Java_CodecCapabilityInfo_isSoftware(env, j_codec_info);
 
-  is_hdr_capable_ =
-      Java_CodecCapabilityInfo_isHdrCapable(env, j_codec_info_ref);
+  is_hdr_capable_ = Java_CodecCapabilityInfo_isHdrCapable(env, j_codec_info);
 
-  // ScopedJavaLocalRef<jobject> j_video_capabilities_ref(env,
-  // j_video_capabilities);
-  j_video_capabilities_.Reset(env, j_video_capabilities);
+  j_video_capabilities_.Reset(env, j_video_capabilities.obj());
 
   static jclass videoCapabilitiesClass =
       env->FindClass("android/media/MediaCodecInfo$VideoCapabilities");
@@ -280,14 +281,14 @@ bool VideoCodecCapability::AreResolutionAndRateSupported(int frame_width,
     static jmethodID areSizeAndRateSupportedMethod = env->GetMethodID(
         videoCapabilitiesClass, "areSizeAndRateSupported", "(IID)Z");
     SB_DCHECK(areSizeAndRateSupportedMethod);
-    return env->CallObjectMethod(j_video_capabilities_.obj(),
+    return env->CallBooleanMethod(j_video_capabilities_.obj(),
                                  areSizeAndRateSupportedMethod, frame_width,
                                  frame_height, static_cast<jdouble>(fps));
   } else if (frame_width != 0 && frame_height != 0) {
     static jmethodID isSizeSupportedMethod =
         env->GetMethodID(videoCapabilitiesClass, "isSizeSupported", "(II)Z");
     SB_DCHECK(isSizeSupportedMethod);
-    return env->CallObjectMethod(j_video_capabilities_.obj(),
+    return env->CallBooleanMethod(j_video_capabilities_.obj(),
                                  isSizeSupportedMethod, frame_width,
                                  frame_height);
   }
@@ -540,22 +541,20 @@ void MediaCapabilitiesCache::LoadCodecInfos_Locked() {
 
     ScopedJavaLocalRef<jobject> j_audio_capabilities =
         Java_CodecCapabilityInfo_getAudioCapabilities(env, j_codec_info);
-    if (j_audio_capabilities) {
+    if (!j_audio_capabilities.is_null()) {
       // Found an audio decoder.
       std::unique_ptr<AudioCodecCapability> audio_codec_capabilities(
-          new AudioCodecCapability(env, j_codec_info.obj(),
-                                   j_audio_capabilities.obj()));
+          new AudioCodecCapability(env, j_codec_info, j_audio_capabilities));
       audio_codec_capabilities_map_[mime_type].push_back(
           std::move(audio_codec_capabilities));
       continue;
     }
     ScopedJavaLocalRef<jobject> j_video_capabilities =
         Java_CodecCapabilityInfo_getVideoCapabilities(env, j_codec_info);
-    if (j_video_capabilities) {
+    if (!j_video_capabilities.is_null()) {
       // Found a video decoder.
       std::unique_ptr<VideoCodecCapability> video_codec_capabilities(
-          new VideoCodecCapability(env, j_codec_info.obj(),
-                                   j_video_capabilities.obj()));
+          new VideoCodecCapability(env, j_codec_info, j_video_capabilities));
       video_codec_capabilities_map_[mime_type].push_back(
           std::move(video_codec_capabilities));
     }

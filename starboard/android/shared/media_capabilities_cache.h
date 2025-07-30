@@ -31,6 +31,7 @@
 
 namespace starboard::android::shared {
 
+using base::android::ScopedJavaLocalRef;
 using base::android::ScopedJavaGlobalRef;
 
 // TODO: encapsulate a common Range class.
@@ -45,7 +46,7 @@ struct Range {
 
 class CodecCapability {
  public:
-  CodecCapability(JNIEnv* env, jobject j_codec_info);
+  CodecCapability(JNIEnv* env, ScopedJavaLocalRef<jobject>& j_codec_info);
   virtual ~CodecCapability() {}
 
   const std::string& name() const { return name_; }
@@ -68,8 +69,8 @@ class CodecCapability {
 class AudioCodecCapability : public CodecCapability {
  public:
   AudioCodecCapability(JNIEnv* env,
-                       jobject j_codec_info,
-                       jobject j_audio_capabilities);
+                       ScopedJavaLocalRef<jobject>& j_codec_info,
+                       ScopedJavaLocalRef<jobject>& j_audio_capabilities);
   ~AudioCodecCapability() override {}
 
   bool IsBitrateSupported(int bitrate) const;
@@ -84,8 +85,8 @@ class AudioCodecCapability : public CodecCapability {
 class VideoCodecCapability : public CodecCapability {
  public:
   VideoCodecCapability(JNIEnv* env,
-                       jobject j_codec_info,
-                       jobject j_video_capabilities);
+                       ScopedJavaLocalRef<jobject>& j_codec_info,
+                       ScopedJavaLocalRef<jobject>& j_video_capabilities);
   ~VideoCodecCapability() override;
 
   bool is_software_decoder() const { return is_software_decoder_; }
