@@ -45,6 +45,43 @@ constexpr int kSecondsInHour = 3600;
 // Number of seconds in a minute.
 constexpr int kSecondsInMinute = 60;
 
+// Helper to create a time_t for a specific UTC date.
+__attribute__((unused)) static time_t CreateTime(int year, int month, int day) {
+  struct tm tminfo = {0};
+  tminfo.tm_year = year - 1900;
+  tminfo.tm_mon = month - 1;
+  tminfo.tm_mday = day;
+  return timegm(&tminfo);
+}
+
+// Helper to assert the values of a tm struct.
+__attribute__((unused)) static void AssertTM(
+    const tm& tminfo,
+    long offset,
+    const char* zone,
+    bool is_dst,
+    const std::optional<const char*>& dst_zone,
+    const char* tz,
+    const char* message_suffix = "") {
+  if (is_dst) {
+    EXPECT_EQ(tminfo.tm_gmtoff, -offset + 3600)
+        << "Daylight time gmtoff mismatch for " << tz << message_suffix;
+    ASSERT_NE(tminfo.tm_zone, nullptr);
+    EXPECT_STREQ(tminfo.tm_zone, dst_zone.value())
+        << "Daylight time tm_zone mismatch for " << tz << message_suffix;
+    EXPECT_GT(tminfo.tm_isdst, 0)
+        << "Daylight time tm_isdst should be > 0 for " << tz << message_suffix;
+  } else {
+    EXPECT_EQ(tminfo.tm_gmtoff, -offset)
+        << "Standard time gmtoff mismatch for " << tz << message_suffix;
+    ASSERT_NE(tminfo.tm_zone, nullptr);
+    EXPECT_STREQ(tminfo.tm_zone, zone)
+        << "Standard time tm_zone mismatch for " << tz << message_suffix;
+    EXPECT_EQ(tminfo.tm_isdst, 0)
+        << "Standard time tm_isdst should be 0 for " << tz << message_suffix;
+  }
+}
+
 }  // namespace nplb
 }  // namespace starboard
 

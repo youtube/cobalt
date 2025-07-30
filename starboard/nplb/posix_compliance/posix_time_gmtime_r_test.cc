@@ -96,7 +96,7 @@ TEST(PosixGmtimeRTests, HandlesNegativeStdTimeBeforeEpoch) {
   ASSERT_NE(result_tm_ptr, nullptr)
       << "gmtime_r returned nullptr for negative_time.";
 
-  struct tm expected_tm{};
+  struct tm expected_tm {};
   expected_tm.tm_sec = 0;
   expected_tm.tm_min = 0;
   expected_tm.tm_hour = 0;
@@ -125,7 +125,7 @@ TEST(PosixGmtimeRTests, HandlesNegativeDstTimeBeforeEpoch) {
   ASSERT_NE(result_tm_ptr, nullptr)
       << "gmtime_r returned nullptr for negative_time.";
 
-  struct tm expected_tm{};
+  struct tm expected_tm {};
   expected_tm.tm_sec = 0;
   expected_tm.tm_min = 0;
   expected_tm.tm_hour = 0;

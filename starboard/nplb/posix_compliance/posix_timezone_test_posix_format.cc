@@ -131,6 +131,103 @@ TEST_P(PosixFormat, TzSetHandles) {
   }
 }
 
+TEST_P(PosixFormat, Localtime) {
+  const auto& param = GetParam();
+  ScopedTzSet tz_manager(param.tz);
+
+  time_t jan_1 = CreateTime(2023, 1, 1);
+  time_t jul_1 = CreateTime(2023, 7, 1);
+
+  struct tm* tm_jan = localtime(&jan_1);
+  ASSERT_NE(tm_jan, nullptr);
+
+  time_t standard_time;
+  time_t daylight_time;
+
+  if (tm_jan->tm_isdst > 0) {
+    daylight_time = jan_1;
+    standard_time = jul_1;
+  } else {
+    standard_time = jan_1;
+    daylight_time = jul_1;
+  }
+
+  struct tm* tm_standard = localtime(&standard_time);
+  ASSERT_NE(tm_standard, nullptr);
+  AssertTM(*tm_standard, param.offset, param.std, false, param.dst, param.tz);
+
+  struct tm* tm_daylight = localtime(&daylight_time);
+  ASSERT_NE(tm_daylight, nullptr);
+  AssertTM(*tm_daylight, param.offset, param.std, param.dst.has_value(),
+           param.dst, param.tz);
+}
+
+TEST_P(PosixFormat, Localtime_r) {
+  const auto& param = GetParam();
+  ScopedTzSet tz_manager(param.tz);
+
+  time_t jan_1 = CreateTime(2023, 1, 1);
+  time_t jul_1 = CreateTime(2023, 7, 1);
+
+  struct tm* tm_jan = localtime(&jan_1);
+  ASSERT_NE(tm_jan, nullptr);
+
+  time_t standard_time;
+  time_t daylight_time;
+
+  if (tm_jan->tm_isdst > 0) {
+    daylight_time = jan_1;
+    standard_time = jul_1;
+  } else {
+    standard_time = jan_1;
+    daylight_time = jul_1;
+  }
+
+  struct tm tm_standard_r;
+  struct tm* tm_standard_r_res = localtime_r(&standard_time, &tm_standard_r);
+  ASSERT_EQ(tm_standard_r_res, &tm_standard_r);
+  AssertTM(tm_standard_r, param.offset, param.std, false, param.dst, param.tz,
+           " with localtime_r");
+
+  struct tm tm_daylight_r;
+  struct tm* tm_daylight_r_res = localtime_r(&daylight_time, &tm_daylight_r);
+  ASSERT_EQ(tm_daylight_r_res, &tm_daylight_r);
+  AssertTM(tm_daylight_r, param.offset, param.std, param.dst.has_value(),
+           param.dst, param.tz, " with localtime_r");
+}
+
+TEST_P(PosixFormat, Mktime) {
+  const auto& param = GetParam();
+  ScopedTzSet tz_manager(param.tz);
+
+  time_t jan_1 = CreateTime(2023, 1, 1);
+  time_t jul_1 = CreateTime(2023, 7, 1);
+
+  struct tm* tm_jan = localtime(&jan_1);
+  ASSERT_NE(tm_jan, nullptr);
+
+  time_t standard_time;
+  time_t daylight_time;
+
+  if (tm_jan->tm_isdst > 0) {
+    daylight_time = jan_1;
+    standard_time = jul_1;
+  } else {
+    standard_time = jan_1;
+    daylight_time = jul_1;
+  }
+
+  struct tm* tm_standard = localtime(&standard_time);
+  ASSERT_NE(tm_standard, nullptr);
+  time_t standard_time_rt = mktime(tm_standard);
+  EXPECT_EQ(standard_time_rt, standard_time);
+
+  struct tm* tm_daylight = localtime(&daylight_time);
+  ASSERT_NE(tm_daylight, nullptr);
+  time_t daylight_time_rt = mktime(tm_daylight);
+  EXPECT_EQ(daylight_time_rt, daylight_time);
+}
+
 INSTANTIATE_TEST_SUITE_P(PosixTimezoneTests,
                          PosixFormat,
                          ::testing::ValuesIn(PosixFormat::kAllTests),

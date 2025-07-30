@@ -605,8 +605,7 @@ void Timezone::SetFromTimezoneData(const tz::TimezoneData& timezone_data,
   data.std_name = timezone_data.std;
 
   data.daylight_active = timezone_data.dst.has_value() ? 1 : 0;
-  data.dst_name =
-      data.daylight_active ? *timezone_data.dst : timezone_data.std;
+  data.dst_name = data.daylight_active ? *timezone_data.dst : timezone_data.std;
 }
 
 void Timezone::SetFromIana(const char* timezone_name, TzsetInternalData& data) {
