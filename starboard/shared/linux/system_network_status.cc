@@ -26,9 +26,9 @@
 #include "starboard/common/log.h"
 #include "starboard/shared/linux/singleton.h"
 #include "starboard/shared/linux/system_network_status.h"
-#include "starboard/shared/pthread/thread_create_priority.h"
 #include "starboard/shared/starboard/application.h"
 #include "starboard/system.h"
+#include "starboard/thread.h"
 
 namespace {
 

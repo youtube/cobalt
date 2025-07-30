@@ -29,7 +29,7 @@
 #include "starboard/common/time.h"
 #include "starboard/configuration.h"
 #include "starboard/shared/alsa/alsa_util.h"
-#include "starboard/shared/pthread/thread_create_priority.h"
+#include "starboard/thread.h"
 
 namespace starboard::shared::alsa {
 namespace {
