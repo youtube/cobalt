@@ -130,7 +130,9 @@ runs:
           upload_on_device_test_artifacts: ${{ inputs.upload_on_device_test_artifacts }}
           test_targets_json_file: ${{ inputs.test_targets_json_file }}
       - name: Run Package Script Test
-        if: (( ${{ matrix.config }} == 'qa' || ${{ matrix.config }} == 'gold') && (! ${{ matrix.platform }} == *"chromium"*) )
+        if: ( "${{ matrix.config }}" == "qa" || "${{ matrix.config }}" == "gold" ) && \
+            ! ( "${{ matrix.platform }}" =~ "chromium" ) && \
+            ! ( "${{ matrix.platform }}" =~ "evergreen" )
         run: |
           # Use the real variable from your environment
           MATRIX_PLATFORM="${{ matrix.platform }}"
