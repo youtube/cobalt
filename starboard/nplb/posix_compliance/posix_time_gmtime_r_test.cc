@@ -18,50 +18,16 @@
 #include <ctime>
 #include <limits>
 
+#include "starboard/nplb/posix_compliance/posix_time_helper.h"
+
 namespace starboard {
 namespace nplb {
 namespace {
 
 // gmtime_r converts a time_t value to a struct tm in UTC.
 // According to POSIX:
-// - If the time_t value cannot be converted (e.g., too large/small for struct
-// tm), it returns EOVERFLOW.
-
-// Comment on testing gmtime_r(nullptr) argument:
-// Calling gmtime_r with a nullptr argument for `const time_t *timer` results in
-// undefined behavior (typically a crash due to dereferencing a null pointer).
-// The POSIX standard does not specify behavior for this case, and it's the
-// caller's responsibility to provide a valid pointer. Therefore, such a test is
-// not included as it tests for caller error leading to UB, not specified POSIX
-// behavior of gmtime_r itself.
-
-void CompareTm(const struct tm& actual,
-               const struct tm& expected,
-               const std::string& context) {
-  EXPECT_EQ(actual.tm_sec, expected.tm_sec)
-      << "tm_sec mismatch for " << context;
-  EXPECT_EQ(actual.tm_min, expected.tm_min)
-      << "tm_min mismatch for " << context;
-  EXPECT_EQ(actual.tm_hour, expected.tm_hour)
-      << "tm_hour mismatch for " << context;
-  EXPECT_EQ(actual.tm_mday, expected.tm_mday)
-      << "tm_mday mismatch for " << context;
-  EXPECT_EQ(actual.tm_mon, expected.tm_mon)
-      << "tm_mon mismatch for " << context;
-  EXPECT_EQ(actual.tm_year, expected.tm_year)
-      << "tm_year mismatch for " << context;
-  EXPECT_EQ(actual.tm_wday, expected.tm_wday)
-      << "tm_wday mismatch for " << context;
-  EXPECT_EQ(actual.tm_yday, expected.tm_yday)
-      << "tm_yday mismatch for " << context;
-  // POSIX specifies that for gmtime, tm_isdst is set to 0.
-  EXPECT_EQ(actual.tm_isdst, expected.tm_isdst)
-      << "tm_isdst mismatch for " << context;
-  EXPECT_EQ(actual.tm_isdst, 0)
-      << "tm_isdst should be 0 for UTC time from gmtime_r for " << context;
-}
-
-static constexpr time_t kSecondsInDay = 24 * 60 * 60;
+// - It returns a pointer to the user-provided struct tm.
+// - If the time_t value cannot be converted, it returns nullptr.
 
 TEST(PosixGmtimeRTests, HandlesEpochTime) {
   time_t epoch_time = 0;  // January 1, 1970, 00:00:00 UTC.
@@ -82,7 +48,10 @@ TEST(PosixGmtimeRTests, HandlesEpochTime) {
   expected_tm.tm_yday = 0;   // Day of the year (0-365). Jan 1st is day 0.
   expected_tm.tm_isdst = 0;  // Daylight Saving Time is not in effect for UTC.
 
-  CompareTm(*result_tm_ptr, expected_tm, "epoch_time");
+  ExpectTmEqual(*result_tm_ptr, expected_tm, "epoch_time");
+  EXPECT_EQ(result_tm_ptr->tm_gmtoff, 0);
+  EXPECT_TRUE(strcmp(result_tm_ptr->tm_zone, "UTC") == 0 ||
+              strcmp(result_tm_ptr->tm_zone, "GMT") == 0);
 }
 
 TEST(PosixGmtimeRTests, HandlesSpecificKnownPositiveTime) {
@@ -112,10 +81,13 @@ TEST(PosixGmtimeRTests, HandlesSpecificKnownPositiveTime) {
   expected_tm.tm_yday = 298;
   expected_tm.tm_isdst = 0;
 
-  CompareTm(*result_tm_ptr, expected_tm, "specific_time (2023-10-26)");
+  ExpectTmEqual(*result_tm_ptr, expected_tm, "specific_time (2023-10-26)");
+  EXPECT_EQ(result_tm_ptr->tm_gmtoff, 0);
+  EXPECT_TRUE(strcmp(result_tm_ptr->tm_zone, "UTC") == 0 ||
+              strcmp(result_tm_ptr->tm_zone, "GMT") == 0);
 }
 
-TEST(PosixGmtimeRTests, HandlesNegativeTimeBeforeEpoch) {
+TEST(PosixGmtimeRTests, HandlesNegativeStdTimeBeforeEpoch) {
   // Timestamp for 1969-12-31 00:00:00 UTC
   time_t negative_time = -kSecondsInDay;  // -86400 seconds.
 
@@ -124,7 +96,7 @@ TEST(PosixGmtimeRTests, HandlesNegativeTimeBeforeEpoch) {
   ASSERT_NE(result_tm_ptr, nullptr)
       << "gmtime_r returned nullptr for negative_time.";
 
-  struct tm expected_tm {};
+  struct tm expected_tm{};
   expected_tm.tm_sec = 0;
   expected_tm.tm_min = 0;
   expected_tm.tm_hour = 0;
@@ -137,7 +109,39 @@ TEST(PosixGmtimeRTests, HandlesNegativeTimeBeforeEpoch) {
   expected_tm.tm_yday = 364;
   expected_tm.tm_isdst = 0;
 
-  CompareTm(*result_tm_ptr, expected_tm, "negative_time (1969-12-31)");
+  ExpectTmEqual(*result_tm_ptr, expected_tm, "negative_time (1969-12-31)");
+  EXPECT_EQ(result_tm_ptr->tm_gmtoff, 0);
+  EXPECT_TRUE(strcmp(result_tm_ptr->tm_zone, "UTC") == 0 ||
+              strcmp(result_tm_ptr->tm_zone, "GMT") == 0);
+}
+
+TEST(PosixGmtimeRTests, HandlesNegativeDstTimeBeforeEpoch) {
+  // Timestamp for 1969-06-30 00:00:00 UTC
+  // Six months and one day before December, 4 of which have 31 days.
+  time_t negative_time = -(30 * 6 + 5) * kSecondsInDay;
+
+  struct tm result_tm = {};
+  struct tm* result_tm_ptr = gmtime_r(&negative_time, &result_tm);
+  ASSERT_NE(result_tm_ptr, nullptr)
+      << "gmtime_r returned nullptr for negative_time.";
+
+  struct tm expected_tm{};
+  expected_tm.tm_sec = 0;
+  expected_tm.tm_min = 0;
+  expected_tm.tm_hour = 0;
+  expected_tm.tm_mday = 30;  // June 30th.
+  expected_tm.tm_mon = 5;    // June (0-11).
+  expected_tm.tm_year = 69;  // 1969 - 1900.
+  expected_tm.tm_wday = 1;   // Monday.
+  // tm_yday for Jun 30, 1969 (non-leap year): 1969 had 365 days. Jun 30 is the
+  // 181st day. So, 0-indexed tm_yday is 180.
+  expected_tm.tm_yday = 180;  // Day of the year (0-365).
+  expected_tm.tm_isdst = 0;   // Daylight Saving Time is not in effect for UTC.
+
+  ExpectTmEqual(*result_tm_ptr, expected_tm, "negative_time (1969-06-30)");
+  EXPECT_EQ(result_tm_ptr->tm_gmtoff, 0);
+  EXPECT_TRUE(strcmp(result_tm_ptr->tm_zone, "UTC") == 0 ||
+              strcmp(result_tm_ptr->tm_zone, "GMT") == 0);
 }
 
 TEST(PosixGmtimeRTests, ReturnsPointerToGivenBufferAndDoesNotOverwrite) {
@@ -159,8 +163,7 @@ TEST(PosixGmtimeRTests, ReturnsPointerToGivenBufferAndDoesNotOverwrite) {
   EXPECT_NE(tm_ptr_call1, tm_ptr_call2)
       << "gmtime_r should return different pointers on subsequent calls.";
 
-  // 2. Verify that the content of the given buffer (pointed to by
-  // tm_ptr_call1/tm_ptr_call2) now corresponds to the data for time2.
+  // 2. Verify that the content of the first buffer was not overwritten.
   struct tm expected_tm_for_time1 {};
   expected_tm_for_time1.tm_sec = 0;
   expected_tm_for_time1.tm_min = 0;
@@ -171,8 +174,11 @@ TEST(PosixGmtimeRTests, ReturnsPointerToGivenBufferAndDoesNotOverwrite) {
   expected_tm_for_time1.tm_wday = 4;   // Thursday.
   expected_tm_for_time1.tm_yday = 0;   // Day 1 of year (0-indexed).
   expected_tm_for_time1.tm_isdst = 0;
-  CompareTm(*tm_ptr_call1, expected_tm_for_time1,
-            "given buffer content after second call (time1)");
+  ExpectTmEqual(*tm_ptr_call1, expected_tm_for_time1,
+                "given buffer content after second call (time1)");
+  EXPECT_EQ(tm_ptr_call1->tm_gmtoff, 0);
+  EXPECT_TRUE(strcmp(tm_ptr_call1->tm_zone, "UTC") == 0 ||
+              strcmp(tm_ptr_call1->tm_zone, "GMT") == 0);
 
   // 3. Verify that the content of the given buffer (pointed to by
   // tm_ptr_call1/tm_ptr_call2) now corresponds to the data for time2.
@@ -186,8 +192,11 @@ TEST(PosixGmtimeRTests, ReturnsPointerToGivenBufferAndDoesNotOverwrite) {
   expected_tm_for_time2.tm_wday = 5;   // Friday.
   expected_tm_for_time2.tm_yday = 1;   // Day 2 of year (0-indexed).
   expected_tm_for_time2.tm_isdst = 0;
-  CompareTm(*tm_ptr_call2, expected_tm_for_time2,
-            "given buffer content after second call (time2)");
+  ExpectTmEqual(*tm_ptr_call2, expected_tm_for_time2,
+                "given buffer content after second call (time2)");
+  EXPECT_EQ(tm_ptr_call2->tm_gmtoff, 0);
+  EXPECT_TRUE(strcmp(tm_ptr_call2->tm_zone, "UTC") == 0 ||
+              strcmp(tm_ptr_call2->tm_zone, "GMT") == 0);
 
   // 4. Verify that the original content (tm_val_call1, copied from the buffer
   // after the first call) is not different from the current content of the
@@ -202,12 +211,15 @@ TEST(PosixGmtimeRTests, ReturnsPointerToGivenBufferAndDoesNotOverwrite) {
 
   // 5. For completeness, ensure tm_val_call1 (the copied data from the first
   // call) still matches the expected data for time1.
-  CompareTm(tm_val_call1, expected_tm_for_time1,
-            "copied data from first call (time1)");
+  ExpectTmEqual(tm_val_call1, expected_tm_for_time1,
+                "copied data from first call (time1)");
+  EXPECT_EQ(tm_val_call1.tm_gmtoff, 0);
+  EXPECT_TRUE(strcmp(tm_val_call1.tm_zone, "UTC") == 0 ||
+              strcmp(tm_val_call1.tm_zone, "GMT") == 0);
 }
 
 TEST(PosixGmtimeRTests, HandlesTimeTMaxValueOverflow) {
-  ASSERT_GE(sizeof(time_t), 8)
+  ASSERT_GE(sizeof(time_t), static_cast<size_t>(8))
       << "The size of time_t has to be at least 64 bit";
   time_t time_val_max = std::numeric_limits<time_t>::max();
   struct tm result_tm = {};
@@ -227,7 +239,7 @@ TEST(PosixGmtimeRTests, HandlesTimeTMaxValueOverflow) {
       << time_val_max << ", errno: " << errno << " (" << strerror(errno) << ")";
 }
 
-// Test gmtime's behavior with time_t's high value.
+// Test gmtime_r's behavior with time_t's high value.
 // While technically not specified in POSIX. Various functions can not process
 // values for tm_year that overflow in 32-bit. This tests that the value is not
 // exceeded.
@@ -235,7 +247,7 @@ TEST(PosixGmtimeRTests, HandlesTimeTHighValueOverflow) {
 #if !BUILDFLAG(IS_COBALT_HERMETIC_BUILD)
   GTEST_SKIP() << "Non-hermetic builds fail this test.";
 #endif
-  ASSERT_GE(sizeof(time_t), 8)
+  ASSERT_GE(sizeof(time_t), static_cast<size_t>(8))
       << "The size of time_t has to be at least 64 bit";
   time_t time_val = 67767976233521999;  // Tue Dec 31 23:59:59  2147483647
   // Ensure that time_val will overflow the tm_year member variable.
@@ -260,7 +272,7 @@ TEST(PosixGmtimeRTests, HandlesTimeTHighValueOverflow) {
 // object has a value that is too small)... gmtime_r() shall return a null
 // pointer."
 TEST(PosixGmtimeRTests, HandlesTimeTMinValueOverflow) {
-  ASSERT_GE(sizeof(time_t), 8)
+  ASSERT_GE(sizeof(time_t), static_cast<size_t>(8))
       << "The size of time_t has to be at least 64 bit";
   time_t time_val_min = std::numeric_limits<time_t>::min();
   struct tm result_tm = {};
@@ -290,7 +302,7 @@ TEST(PosixGmtimeRTests, HandlesTimeTLowValueOverflow) {
 #if !BUILDFLAG(IS_COBALT_HERMETIC_BUILD)
   GTEST_SKIP() << "Non-hermetic builds fail this test.";
 #endif
-  ASSERT_GE(sizeof(time_t), 8)
+  ASSERT_GE(sizeof(time_t), static_cast<size_t>(8))
       << "The size of time_t has to be at least 64 bit";
   time_t time_val = -67768040609712422;  // Thu Jan  1 00:00:00 -2147481748
   // Ensure that time_val will overflow the tm_year member variable.
@@ -331,6 +343,9 @@ TEST(PosixGmtimeRTests, Gmtime) {
             212);  // Zero-indexed; 2024 is a leap year.
   EXPECT_LE(gmt_result_ptr->tm_isdst,
             0);  // <=0; GMT/UTC never has DST (even in July).
+  EXPECT_EQ(gmt_result_ptr->tm_gmtoff, 0);
+  EXPECT_TRUE(strcmp(gmt_result_ptr->tm_zone, "UTC") == 0 ||
+              strcmp(gmt_result_ptr->tm_zone, "GMT") == 0);
 }
 
 }  // namespace
