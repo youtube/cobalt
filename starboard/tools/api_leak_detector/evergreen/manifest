@@ -34,7 +34,6 @@ fseek
 fseeko
 ftell
 ftello
-futimes
 fwrite
 getc
 getcwd
@@ -71,6 +70,5 @@ timegm
 tmpfile
 ungetc
 uselocale
-utimes
 vfprintf
 vprintf

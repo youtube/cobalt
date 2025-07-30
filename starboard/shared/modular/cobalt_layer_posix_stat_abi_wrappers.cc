@@ -19,6 +19,10 @@ extern "C" {
 int __abi_wrap_fstat(int fildes, struct stat* info);
 int __abi_wrap_lstat(const char* path, struct stat* info);
 int __abi_wrap_stat(const char* path, struct stat* info);
+int __abi_wrap_utimensat(int fildes,
+                         const char* path,
+                         const struct timespec times[2],
+                         int flag);
 
 int fstat(int fildes, struct stat* info) {
   return __abi_wrap_fstat(fildes, info);
@@ -30,5 +34,12 @@ int lstat(const char* path, struct stat* info) {
 
 int stat(const char* path, struct stat* info) {
   return __abi_wrap_stat(path, info);
+}
+
+int utimensat(int fildes,
+              const char* path,
+              const struct timespec times[2],
+              int flag) {
+  return __abi_wrap_utimensat(fildes, path, times, flag);
 }
 }

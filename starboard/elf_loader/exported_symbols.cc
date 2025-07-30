@@ -413,6 +413,7 @@ ExportedSymbols::ExportedSymbols() {
   REGISTER_WRAPPER(statvfs);
   REGISTER_WRAPPER(sysconf);
   REGISTER_WRAPPER(uname);
+  REGISTER_WRAPPER(utimensat);
   REGISTER_WRAPPER(writev);
 
 }  // NOLINT
