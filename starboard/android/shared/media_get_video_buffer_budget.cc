@@ -18,11 +18,30 @@
 #include "starboard/common/log.h"
 #include "starboard/media.h"
 
+namespace {
+
+// We set the maximum memory budget to 200MB, balancing the following factors:
+//
+// 1. 8K Video Playback
+// Playing 8K video requires significant memory for decoded frames. For
+// instance, a specific device needs to hold up to 6 frames inside its decoder,
+// which can take almost 300MB. See b/405467220#comment46 for details. Because
+// of this large requirement for decoded frames, we can't allocate too much
+// budget for encoded frames.
+//
+// 2. Chromium's Budget
+// Chromium has a max memory budget of 150MB.
+// https://github.com/youtube/cobalt/blob/a3c966f929aabea1d71813c31d404e1b319c2fcd/media/base/demuxer_memory_limit.h#L44
+// TODO: b/416039556 - Allow starboard::feature to override this value, once
+// b/416039556 is completed.
+constexpr int kMaxVideoBufferBudget = 200 * 1024 * 1024;
+
+}  // namespace
+
 int SbMediaGetVideoBufferBudget(SbMediaVideoCodec codec,
                                 int resolution_width,
                                 int resolution_height,
                                 int bits_per_pixel) {
-  constexpr int kMaxVideoBufferBudget = 300 * 1024 * 1024;
   auto get_overlaid_video_buffer_budget = []() {
     int buffer_budget =
         starboard::android::shared::RuntimeResourceOverlay::GetInstance()
@@ -44,24 +63,24 @@ int SbMediaGetVideoBufferBudget(SbMediaVideoCodec codec,
       resolution_height == kSbMediaVideoResolutionDimensionInvalid) {
     // Specifies the maximum amount of memory used by video buffers of media
     // source before triggering a garbage collection when the video resolution
-    // is lower than 1080p (1920x1080).
+    // is up to 1080p (1920x1080) or invalid.
     video_buffer_budget = 30 * 1024 * 1024;
   } else if (resolution_width <= 3840 && resolution_height <= 2160) {
     if (bits_per_pixel <= 8) {
       // Specifies the maximum amount of memory used by video buffers of media
       // source before triggering a garbage collection when the video resolution
-      // is lower than 4k (3840x2160) and bit per pixel is lower than 8.
+      // is up to 4k (3840x2160) and bit per pixel is up to 8.
       video_buffer_budget = 100 * 1024 * 1024;
     } else {
       // Specifies the maximum amount of memory used by video buffers of media
       // source before triggering a garbage collection when video resolution is
-      // lower than 4k (3840x2160) and bit per pixel is greater than 8.
+      // up to 4k (3840x2160) and bit per pixel is greater than 8.
       video_buffer_budget = 160 * 1024 * 1024;
     }
   } else {
     // Specifies the maximum amount of memory used by video buffers of media
     // source before triggering a garbage collection when the video resolution
-    // is lower than 8k (7680x4320).
+    // is above 4K (e.g., 8K).
     video_buffer_budget = kMaxVideoBufferBudget;
   }
 
