@@ -72,7 +72,7 @@ def create_archive(
     # Paths are configured in test.gni:
     # https://github.com/youtube/cobalt/blob/main/testing/test.gni
     if use_android_deps_path:
-      if target == 'cobalt_browsertests':
+      if target == 'cobalt:cobalt_browsertests':
         deps_file = os.path.join(
             out_dir, 'gen.runtime', target_path, 'testing', 'browser_tests',
             f'{target_name}__test_runner_script.runtime_deps')
