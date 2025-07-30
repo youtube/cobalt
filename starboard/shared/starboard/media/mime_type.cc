@@ -354,7 +354,6 @@ std::ostream& operator<<(std::ostream& os, const MimeType& mime_type) {
   if (mime_type.codecs_.empty()) {
     os << "null";
   } else {
-    os << mime_type.codecs_[0];
     const char* sep = "";
     for (const auto& codec : mime_type.codecs_) {
       os << sep << codec;
