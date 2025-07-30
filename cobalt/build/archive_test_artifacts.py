@@ -55,11 +55,6 @@ def _make_tar(archive_path: str, file_lists: List[Tuple[str, str]]):
   print(f'Created {os.path.basename(archive_path)} ({archive_size})')
 
 
-def _target_generates_runtime_deps(target: str) -> bool:
-  """Add android test targets here that do not generate runtime_deps."""
-  return target not in ('cobalt_browsertests')
-
-
 def create_archive(
     *,
     targets: List[str],
@@ -74,62 +69,59 @@ def create_archive(
   combined_deps = set()
   for target in targets:
     target_path, target_name = target.split(':')
-    target_generates_runtime_deps = _target_generates_runtime_deps(target_name)
     # Paths are configured in test.gni:
     # https://github.com/youtube/cobalt/blob/main/testing/test.gni
-    if target_generates_runtime_deps:
-      if use_android_deps_path:
-        deps_file = os.path.join(
-            out_dir, 'gen.runtime', target_path,
-            f'{target_name}__test_runner_script.runtime_deps')
-      else:
-        deps_file = os.path.join(out_dir, f'{target_name}.runtime_deps')
-        if not os.path.exists(deps_file):
-          # If |deps_file| doesn't exist it could be due to being generated with
-          # the starboard_toolchain. In that case, we should look in subfolders.
-          # For the time being, just try with an extra starboard/ in the path.
-          deps_file = os.path.join(out_dir, 'starboard',
-                                   f'{target_name}.runtime_deps')
+    if use_android_deps_path:
+      deps_file = os.path.join(
+          out_dir, 'gen.runtime', target_path,
+          f'{target_name}__test_runner_script.runtime_deps')
+    else:
+      deps_file = os.path.join(out_dir, f'{target_name}.runtime_deps')
+      if not os.path.exists(deps_file):
+        # If |deps_file| doesn't exist it could be due to being generated with
+        # the starboard_toolchain. In that case, we should look in subfolders.
+        # For the time being, just try with an extra starboard/ in the path.
+        deps_file = os.path.join(out_dir, 'starboard',
+                                 f'{target_name}.runtime_deps')
 
-      print('Collecting runtime dependencies for', target)
-      with open(deps_file, 'r', encoding='utf-8') as runtime_deps_file:
-        # The paths in the runtime_deps files are relative to the out folder.
-        # Android tests expects files both in the out and source root folders
-        # to be working directory archive whereas Linux tests expect it relative
-        # to the binary.
-        tar_root = '.' if flatten_deps else out_dir
-        target_deps = set()
-        target_src_root_deps = set()
+    print('Collecting runtime dependencies for', target)
+    with open(deps_file, 'r', encoding='utf-8') as runtime_deps_file:
+      # The paths in the runtime_deps files are relative to the out folder.
+      # Android tests expects files both in the out and source root folders
+      # to be working directory archive whereas Linux tests expect it relative
+      # to the binary.
+      tar_root = '.' if flatten_deps else out_dir
+      target_deps = set()
+      target_src_root_deps = set()
 
-        # Add test_targets.json to archive so that test runners know
-        # what to run.
-        test_targets_json = os.path.join(out_dir, 'test_targets.json')
-        if os.path.exists(test_targets_json):
-          target_deps.add(os.path.join(tar_root, 'test_targets.json'))
+      # Add test_targets.json to archive so that test runners know what to run.
+      test_targets_json = os.path.join(out_dir, 'test_targets.json')
+      if os.path.exists(test_targets_json):
+        target_deps.add(os.path.join(tar_root, 'test_targets.json'))
 
-        for line in runtime_deps_file:
-          if any(line.startswith(path) for path in _EXCLUDE_DIRS):
-            continue
+      for line in runtime_deps_file:
+        if any(line.startswith(path) for path in _EXCLUDE_DIRS):
+          continue
 
-          if flatten_deps and line.startswith('../../'):
-            target_src_root_deps.add(line[6:])
-          else:
-            # Rebase all files to be relative to their respective root (source
-            # or out dir) to be able to flatten them below. Chromium test
-            # runners have access to the source directory in '../..' which ours
-            # (ODTs especially) do not.
-            rel_path = os.path.relpath(os.path.join(tar_root, line.strip()))
-            target_deps.add(rel_path)
-        combined_deps |= target_deps
+        if flatten_deps and line.startswith('../../'):
+          target_src_root_deps.add(line[6:])
+        else:
+          # Rebase all files to be relative to their respective root (source or
+          # out dir) to be able to flatten them below. Chromium test runners
+          # have access to the source directory in '../..' which ours (ODTs
+          # especially) do not.
+          rel_path = os.path.relpath(os.path.join(tar_root, line.strip()))
+          target_deps.add(rel_path)
+      combined_deps |= target_deps
 
-        if archive_per_target:
-          output_path = os.path.join(destination_dir,
-                                     f'{target_name}_deps.tar.gz')
-          if flatten_deps:
-            _make_tar(output_path, [(target_deps, out_dir),
-                                    (target_src_root_deps, source_dir)])
-          else:
-            raise ValueError('Unsupported configuration.')
+      if archive_per_target:
+        output_path = os.path.join(destination_dir,
+                                   f'{target_name}_deps.tar.gz')
+        if flatten_deps:
+          _make_tar(output_path, [(target_deps, out_dir),
+                                  (target_src_root_deps, source_dir)])
+        else:
+          raise ValueError('Unsupported configuration.')
   # Linux tests and deps are all bundled into a single tar file.
   if not archive_per_target:
     output_path = os.path.join(destination_dir, 'test_artifacts.tar.gz')
