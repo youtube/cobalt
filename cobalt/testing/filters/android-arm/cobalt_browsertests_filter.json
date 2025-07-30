@@ -1,5 +1,3 @@
 {
-  "failing_tests": [
-    "*"
-  ]
+  "failing_tests": []
 }
