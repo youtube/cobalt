@@ -310,7 +310,7 @@ component("network_service") {
     "//url",
   ]
 
-  if (is_linux || is_chromeos) {
+  if (is_linux && !is_cobalt_hermetic_build || is_chromeos) {
     deps += [
       ":network_sandbox_hook",
       "//sandbox/linux:sandbox_services",  # TODO(crbug.com/1312224): remove.
@@ -354,7 +354,7 @@ component("network_service") {
   defines = [ "IS_NETWORK_SERVICE_IMPL" ]
 }
 
-if (is_linux || is_chromeos) {
+if (is_linux && !is_cobalt_hermetic_build || is_chromeos) {
   source_set("network_sandbox_hook") {
     sources = [
       "network_sandbox_hook_linux.cc",

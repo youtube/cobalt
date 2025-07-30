@@ -119,8 +119,6 @@ component("policy") {
     deps += [
       ":chromecast_sandbox_allowlist_buildflags",
       "//sandbox:sandbox_buildflags",
-      "//sandbox/linux:sandbox_services",
-      "//sandbox/linux:suid_sandbox_client",
     ]
   }
   if (is_chromeos_ash) {

@@ -55,7 +55,6 @@ setvbuf
 stderr
 stdin
 stdout
-syscall
 syslog
 timegm
 tmpfile

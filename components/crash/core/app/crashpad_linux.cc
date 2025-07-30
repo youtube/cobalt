@@ -197,6 +197,7 @@ bool PlatformCrashpadInitialization(
     int fd = base::GlobalDescriptors::GetInstance()->Get(kCrashDumpSignal);
 
     pid_t pid = 0;
+#if !BUILDFLAG(ENABLE_COBALT_HERMETIC_HACKS)
     if (!sandbox::NamespaceSandbox::InNewUserNamespace()) {
       std::string pid_string =
           base::CommandLine::ForCurrentProcess()->GetSwitchValueASCII(
@@ -204,6 +205,7 @@ bool PlatformCrashpadInitialization(
       bool parsed = base::StringToInt(pid_string, &pid);
       DCHECK(parsed);
     }
+#endif
 
     // SIGSYS handling is reserved for the sandbox.
     client.SetUnhandledSignals({SIGSYS});
