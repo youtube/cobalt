@@ -124,7 +124,7 @@ def create_archive(
 
         if archive_per_target:
           output_path = os.path.join(destination_dir,
-                                    f'{target_name}_deps.tar.gz')
+                                     f'{target_name}_deps.tar.gz')
           if flatten_deps:
             _make_tar(output_path, [(target_deps, out_dir),
                                     (target_src_root_deps, source_dir)])
