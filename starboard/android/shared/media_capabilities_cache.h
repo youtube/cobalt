@@ -31,6 +31,8 @@
 
 namespace starboard::android::shared {
 
+using base::android::ScopedJavaGlobalRef;
+
 // TODO: encapsulate a common Range class.
 struct Range {
   Range() : minimum(0), maximum(0) {}
