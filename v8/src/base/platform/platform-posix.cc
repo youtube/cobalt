@@ -73,6 +73,10 @@
 #include <sys/syscall.h>
 #endif
 
+#if defined(STARBOARD)
+#include "starboard/thread.h"
+#endif
+
 #if V8_OS_FREEBSD || V8_OS_DARWIN || V8_OS_OPENBSD || V8_OS_SOLARIS
 #define MAP_ANONYMOUS MAP_ANON
 #endif
@@ -803,7 +807,9 @@ int OS::GetCurrentProcessId() {
 int OS::GetCurrentThreadId() {
 #if V8_OS_DARWIN || (V8_OS_ANDROID && defined(__APPLE__))
   return static_cast<int>(pthread_mach_thread_np(pthread_self()));
-#elif V8_OS_LINUX && !defined(STARBOARD)
+#elif defined(STARBOARD)
+  return SbThreadGetId();
+#elif V8_OS_LINUX
   return static_cast<int>(syscall(__NR_gettid));
 #elif V8_OS_ANDROID
   return static_cast<int>(gettid());
@@ -814,7 +820,7 @@ int OS::GetCurrentThreadId() {
 #elif V8_OS_SOLARIS
   return static_cast<int>(pthread_self());
 #else
-  return static_cast<int>(static_cast<intptr_t>(pthread_self()));
+  return static_cast<int>(reinterpret_cast<intptr_t>(pthread_self()));
 #endif
 }
 

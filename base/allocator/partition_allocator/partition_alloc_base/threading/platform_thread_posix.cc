@@ -26,6 +26,10 @@
 #include <zircon/process.h>
 #endif
 
+#if BUILDFLAG(IS_STARBOARD)
+#include "starboard/thread.h"
+#endif
+
 namespace partition_alloc::internal::base {
 
 #if BUILDFLAG(IS_LINUX) && !BUILDFLAG(IS_STARBOARD) || BUILDFLAG(IS_CHROMEOS)
@@ -79,7 +83,9 @@ PlatformThreadId PlatformThread::CurrentId() {
   // into the kernel.
 #if BUILDFLAG(IS_APPLE)
   return pthread_mach_thread_np(pthread_self());
-#elif BUILDFLAG(IS_LINUX) && !BUILDFLAG(IS_STARBOARD) || BUILDFLAG(IS_CHROMEOS)
+#elif BUILDFLAG(IS_STARBOARD)
+  return SbThreadGetId();
+#elif BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_CHROMEOS)
   static InitAtFork init_at_fork;
   if (g_thread_id == -1 ||
       (g_is_main_thread &&
@@ -119,7 +125,7 @@ PlatformThreadId PlatformThread::CurrentId() {
 #elif BUILDFLAG(IS_POSIX) && BUILDFLAG(IS_AIX)
   return pthread_self();
 #elif BUILDFLAG(IS_POSIX) && !BUILDFLAG(IS_AIX)
-  return static_cast<int64_t>(pthread_self());
+  return reinterpret_cast<int64_t>(pthread_self());
 #endif
 }
 

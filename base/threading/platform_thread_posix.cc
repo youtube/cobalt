@@ -27,6 +27,7 @@
 #include "base/threading/thread_id_name_manager.h"
 #include "base/threading/thread_restrictions.h"
 #include "build/build_config.h"
+#include "starboard/thread.h"
 
 #if !BUILDFLAG(IS_APPLE) && !BUILDFLAG(IS_FUCHSIA) && !BUILDFLAG(IS_NACL)
 #include "base/posix/can_lower_nice_to.h"
@@ -46,6 +47,10 @@
 #if BUILDFLAG(USE_PARTITION_ALLOC_AS_MALLOC) && BUILDFLAG(USE_STARSCAN)
 #include "base/allocator/partition_allocator/starscan/pcscan.h"
 #include "base/allocator/partition_allocator/starscan/stack/stack.h"
+#endif
+
+#if BUILDFLAG(IS_STARBOARD)
+#include "starboard/thread.h"
 #endif
 
 namespace base {
@@ -214,7 +219,9 @@ PlatformThreadId PlatformThread::CurrentId() {
   // into the kernel.
 #if BUILDFLAG(IS_APPLE)
   return pthread_mach_thread_np(pthread_self());
-#elif BUILDFLAG(IS_LINUX) && !BUILDFLAG(IS_STARBOARD) || BUILDFLAG(IS_CHROMEOS)
+#elif BUILDFLAG(IS_STARBOARD)
+  return SbThreadGetId();
+#elif BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_CHROMEOS)
   // Workaround false-positive MSAN use-of-uninitialized-value on
   // thread_local storage for loaded libraries:
   // https://github.com/google/sanitizers/issues/1265
@@ -264,7 +271,7 @@ PlatformThreadId PlatformThread::CurrentId() {
 #elif BUILDFLAG(IS_POSIX) && BUILDFLAG(IS_AIX)
   return pthread_self();
 #elif BUILDFLAG(IS_POSIX) && !BUILDFLAG(IS_AIX)
-  return static_cast<int64_t>(pthread_self());
+  return reinterpret_cast<int64_t>(pthread_self());
 #endif
 }
 
