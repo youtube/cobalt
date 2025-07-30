@@ -46,7 +46,12 @@ using PlatformThreadId = pid_t;
 inline PlatformThreadId GetThreadId() {
   return gettid();
 }
-#elif PERFETTO_BUILDFLAG(PERFETTO_OS_LINUX) && !defined(STARBOARD)
+#elif defined(STARBOARD)
+using PlatformThreadId = pid_t;
+inline PlatformThreadId GetThreadId() {
+  return static_cast<int32_t>(pthread_self());
+}
+#elif PERFETTO_BUILDFLAG(PERFETTO_OS_LINUX)
 using PlatformThreadId = pid_t;
 inline PlatformThreadId GetThreadId() {
   return static_cast<pid_t>(syscall(__NR_gettid));
