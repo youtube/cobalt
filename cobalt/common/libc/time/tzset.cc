@@ -26,6 +26,7 @@
 #include <map>
 #include <memory>
 #include <optional>
+#include <string>
 #include <string_view>
 #include <utility>
 #include <vector>
@@ -100,21 +101,30 @@ class Timezone {
     std::optional<int> timezone;
   };
 
-  using Name = std::array<char, TZNAME_MAX + 1>;
+  // A struct to hold the timezone data that `tzset()` calculates.
+  // This struct uses C++11 types for ease of manipulation.
+  struct TzsetInternalData {
+    std::string std_name;
+    std::string dst_name;
+    long timezone_offset = 0;
+    int daylight_active = 0;
+  };
 
-  // Static arrays to hold the strings for tzname[0] and tzname[1].
-  static Name std_name_;
-  static Name dst_name_;
+  using Name = std::array<char, TZNAME_MAX + 1>;
 
   // The number of characters to reserve for the cached time zone name.
   static constexpr int kMaxTimezoneNameSize = 128;
   static std::array<char, kMaxTimezoneNameSize> cached_timezone_name_;
 
+  // Calculates timezone data from a timezone name.
+  static TzsetInternalData CalculateTimezoneData(const char* timezone_name);
+
   // Use the TimezoneData to set the tset() state.
-  static void SetFromTimezoneData(tz::TimezoneData timezone_data);
+  static void SetFromTimezoneData(const tz::TimezoneData& timezone_data,
+                                  TzsetInternalData& data);
 
   // Use the IANA time zone name to set the tset() state using data from ICU.
-  static void SetFromIana(const char* timezone_name);
+  static void SetFromIana(const char* timezone_name, TzsetInternalData& data);
 
   // Copy src to Name without overflowing.
   static void SafeCopyToName(const std::string_view& src, Name& dest) {
@@ -145,20 +155,20 @@ class Timezone {
 
   // Applies corrections for specific timezones where the ICU data is incorrect
   // or doesn't match test expectations.
-  static void MaybeApplyCorrection(const icu::UnicodeString& time_zone_id);
+  static void MaybeApplyCorrection(const icu::UnicodeString& time_zone_id,
+                                   TzsetInternalData& data);
 
   // Robustly extracts a timezone name using a layered approach.
-  static bool ExtractZoneName(const icu::TimeZone& tz,
-                              bool is_daylight,
-                              std::optional<UDate> date_for_name,
-                              Name* tz_name);
+  static std::string ExtractZoneName(const icu::TimeZone& tz,
+                                     bool is_daylight,
+                                     std::optional<UDate> date_for_name);
 
   // Finds the last date a timezone used DST since 1970 by iterating through
   // all transitions.
   static std::optional<UDate> FindLastDateWithDst(const icu::TimeZone& tz);
 
   // Set the returned timezone to UTC.
-  static void SetToUTC();
+  static void SetToUTC(TzsetInternalData& data);
 
   // Return true if the timezone has changed.
   static bool TimezoneIsChanged(const char* timezone_name);
@@ -167,10 +177,30 @@ class Timezone {
   static void CacheTimeZoneName(const char* timezone_name);
 };
 
-Timezone::Name Timezone::std_name_{};
-Timezone::Name Timezone::dst_name_{};
 std::array<char, Timezone::kMaxTimezoneNameSize>
     Timezone::cached_timezone_name_{};
+
+Timezone::TzsetInternalData Timezone::CalculateTimezoneData(
+    const char* timezone_name) {
+  TzsetInternalData data;
+
+  // No timezone is specified, default to UTC.
+  if (!timezone_name || !timezone_name[0]) {
+    SetToUTC(data);
+  } else {
+    // Attempt to parse the timezone using the POSIX format:
+    // "stdoffset[dst[offset][,start[/time],end[/time]]]"
+    auto timezone_data = tz::ParsePosixTz(timezone_name);
+    if (timezone_data) {
+      SetFromTimezoneData(*timezone_data, data);
+    } else {
+      // If parsing fails, assume 'timezone_name' is an IANA ID (e.g.,
+      // "America/Los_Angeles").
+      SetFromIana(timezone_name, data);
+    }
+  }
+  return data;
+}
 
 // Helper function to get the current year from ICU's calendar.
 std::optional<int> Timezone::GetCurrentYear() {
@@ -324,7 +354,8 @@ std::unique_ptr<icu::TimeZone> Timezone::CreateIcuTimezoneFromParsedData(
 // bundled with Cobalt may be out of date. It applies corrections for timezones
 // that have changed since the ICU data was last updated. This function should
 // be updated or removed when the ICU data is updated.
-void Timezone::MaybeApplyCorrection(const icu::UnicodeString& time_zone_id) {
+void Timezone::MaybeApplyCorrection(const icu::UnicodeString& time_zone_id,
+                                    TzsetInternalData& data) {
   // Corrections for certain timezones, necessary since the tzdata in our
   // current ICU is version 2023c.
   static const NoDestructor<std::map<std::string_view, Correction>>
@@ -381,28 +412,23 @@ void Timezone::MaybeApplyCorrection(const icu::UnicodeString& time_zone_id) {
   if (it != kCorrections->end()) {
     const auto& correction = it->second;
     if (correction.daylight) {
-      daylight = *correction.daylight;
+      data.daylight_active = *correction.daylight;
     }
     if (correction.timezone) {
-      timezone = *correction.timezone;
+      data.timezone_offset = *correction.timezone;
     }
     if (correction.std) {
-      std::string_view name(correction.std);
-      SafeCopyToName(name, std_name_);
-      std_name_[name.length()] = '\0';
+      data.std_name = correction.std;
     }
     if (correction.dst) {
-      std::string_view name(correction.dst);
-      SafeCopyToName(name, dst_name_);
-      dst_name_[name.length()] = '\0';
+      data.dst_name = correction.dst;
     }
   }
 }
 
-bool Timezone::ExtractZoneName(const icu::TimeZone& tz,
-                               bool is_daylight,
-                               std::optional<UDate> date_for_name,
-                               Name* tz_name) {
+std::string Timezone::ExtractZoneName(const icu::TimeZone& tz,
+                                      bool is_daylight,
+                                      std::optional<UDate> date_for_name) {
   UErrorCode status = U_ZERO_ERROR;
   icu::Locale locale = icu::Locale::getRoot();
   icu::UnicodeString timezone_id;
@@ -418,15 +444,13 @@ bool Timezone::ExtractZoneName(const icu::TimeZone& tz,
   } else {
     std::optional<int> current_year_opt = GetCurrentYear();
     if (!current_year_opt) {
-      (*tz_name)[0] = '\0';
-      return false;
+      return "";
     }
     icu::GregorianCalendar calendar(tz, locale, status);
     calendar.set(*current_year_opt, is_daylight ? UCAL_JULY : UCAL_JANUARY, 1);
     date = calendar.getTime(status);
     if (U_FAILURE(status)) {
-      (*tz_name)[0] = '\0';
-      return false;
+      return "";
     }
   }
 
@@ -440,9 +464,8 @@ bool Timezone::ExtractZoneName(const icu::TimeZone& tz,
       result_name.length() > TZNAME_MAX) {
     // The main TZDB lookup failed or returned an empty/invalid name.
     // Try without a date.
-    if (date_for_name &&
-        ExtractZoneName(tz, is_daylight, std::nullopt, tz_name)) {
-      return true;
+    if (date_for_name) {
+      return ExtractZoneName(tz, is_daylight, std::nullopt);
     }
     // Try the original fallback display name.
     icu::UnicodeString fallback_name;
@@ -452,14 +475,12 @@ bool Timezone::ExtractZoneName(const icu::TimeZone& tz,
 
   // Extract the final result.
   if (!result_name.isEmpty() && result_name.length() <= TZNAME_MAX) {
-    result_name.extract(0, result_name.length(), tz_name->data(),
-                        std::size(*tz_name));
-    (*tz_name)[result_name.length()] = '\0';
-    return true;
+    std::string name_str;
+    result_name.toUTF8String(name_str);
+    return name_str;
   }
 
-  (*tz_name)[0] = '\0';
-  return false;
+  return "";
 }
 
 // Finds the last date a timezone used DST since 1970 by manually iterating
@@ -518,21 +539,18 @@ std::optional<UDate> Timezone::FindLastDateWithDst(const icu::TimeZone& tz) {
   return last_dst_date;
 }
 
-void Timezone::SetToUTC() {
-  // Set the C library globals
-  constexpr char kUTC[] = "UTC";
-  std::copy_n(kUTC, 4, std_name_.begin());
-  tzname[0] = std_name_.data();
-  std::copy_n(kUTC, 4, dst_name_.begin());
-  tzname[1] = dst_name_.data();
-  timezone = 0;
-  daylight = 0;
+void Timezone::SetToUTC(TzsetInternalData& data) {
+  data.std_name = "UTC";
+  data.dst_name = "UTC";
+  data.timezone_offset = 0;
+  data.daylight_active = 0;
 
   // Also set the ICU default timezone to UTC for consistency.
   icu::TimeZone::setDefault(*icu::TimeZone::getGMT());
 }
 
-void Timezone::SetFromTimezoneData(tz::TimezoneData timezone_data) {
+void Timezone::SetFromTimezoneData(const tz::TimezoneData& timezone_data,
+                                   TzsetInternalData& data) {
   // We have valid POSIX data. Attempt to create a custom ICU Timezone
   // so that all parts of the system (ICU and C-library) are in sync.
   std::unique_ptr<icu::TimeZone> custom_tz =
@@ -548,16 +566,15 @@ void Timezone::SetFromTimezoneData(tz::TimezoneData timezone_data) {
   // set correctly below, but ICU will retain its previous default.
 
   // Populate the C-library global variables from the parsed data.
-  timezone = timezone_data.std_offset;
-  SafeCopyToName(timezone_data.std, std_name_);
-  tzname[0] = std_name_.data();
+  data.timezone_offset = timezone_data.std_offset;
+  data.std_name = timezone_data.std;
 
-  daylight = timezone_data.dst.has_value() ? 1 : 0;
-  SafeCopyToName(daylight ? *timezone_data.dst : timezone_data.std, dst_name_);
-  tzname[1] = dst_name_.data();
+  data.daylight_active = timezone_data.dst.has_value() ? 1 : 0;
+  data.dst_name =
+      data.daylight_active ? *timezone_data.dst : timezone_data.std;
 }
 
-void Timezone::SetFromIana(const char* timezone_name) {
+void Timezone::SetFromIana(const char* timezone_name, TzsetInternalData& data) {
   icu::UnicodeString time_zone_id = icu::UnicodeString::fromUTF8(timezone_name);
 
   std::unique_ptr<icu::TimeZone> tz(
@@ -565,7 +582,7 @@ void Timezone::SetFromIana(const char* timezone_name) {
 
   // ICU failed to decode the timezone name, default to UTC.
   if (!tz || *tz == icu::TimeZone::getUnknown()) {
-    SetToUTC();
+    SetToUTC(data);
     return;
   }
 
@@ -573,31 +590,23 @@ void Timezone::SetFromIana(const char* timezone_name) {
 
   // Set the daylight flag based on whether DST has been observed since 1970.
   std::optional<UDate> last_dst_date = FindLastDateWithDst(*tz);
-  daylight = last_dst_date.has_value();
+  data.daylight_active = last_dst_date.has_value();
 
   // The standard name should always be the current one.
-  ExtractZoneName(*tz, false, std::nullopt, &std_name_);
+  data.std_name = ExtractZoneName(*tz, false, std::nullopt);
 
-  if (daylight) {
+  if (data.daylight_active) {
     // A DST period was found, so get the name from that specific date.
-    ExtractZoneName(*tz, true, last_dst_date, &dst_name_);
+    data.dst_name = ExtractZoneName(*tz, true, last_dst_date);
   } else {
     // No DST, so the daylight name should be the same as the standard name.
-    std::copy(std::begin(std_name_), std::end(std_name_),
-              std::begin(dst_name_));
+    data.dst_name = data.std_name;
   }
 
-  timezone = -(tz->getRawOffset() / 1000);
+  data.timezone_offset = -(tz->getRawOffset() / 1000);
 
   // Apply manual corrections for specific timezones.
-  MaybeApplyCorrection(time_zone_id);
-
-  tzname[0] = std_name_.data();
-  if (daylight) {
-    tzname[1] = dst_name_.data();
-  } else {
-    tzname[1] = std_name_.data();
-  }
+  MaybeApplyCorrection(time_zone_id, data);
 }
 
 bool Timezone::TimezoneIsChanged(const char* timezone_name) {
@@ -634,23 +643,21 @@ void Timezone::Tzset() {
 
   CacheTimeZoneName(timezone_name);
 
-  // No timezone is specified, default to UTC.
-  if (!timezone_name || !timezone_name[0]) {
-    SetToUTC();
-    return;
-  }
+  TzsetInternalData data = CalculateTimezoneData(timezone_name);
 
-  // Attempt to parse the timezone using the POSIX format:
-  // "stdoffset[dst[offset][,start[/time],end[/time]]]"
-  auto timezone_data = tz::ParsePosixTz(timezone_name);
-  if (timezone_data) {
-    SetFromTimezoneData(*timezone_data);
-    return;
-  }
+  // Now, update the global variables from the populated struct.
+  timezone = data.timezone_offset;
+  daylight = data.daylight_active;
 
-  // If parsing fails, assume 'timezone_name' is an IANA ID (e.g.,
-  // "America/Los_Angeles").
-  SetFromIana(timezone_name);
+  // These static buffers are for tzname to point to.
+  static Name std_name_buffer;
+  static Name dst_name_buffer;
+
+  SafeCopyToName(data.std_name, std_name_buffer);
+  tzname[0] = std_name_buffer.data();
+
+  SafeCopyToName(data.dst_name, dst_name_buffer);
+  tzname[1] = dst_name_buffer.data();
 }
 
 void Timezone::SetTmTimezoneFields(struct tm* tm,
@@ -687,11 +694,13 @@ void Timezone::SetTmTimezoneFields(struct tm* tm,
   bool is_daylight = (dst_offset != 0);
 
   // This static buffer is thread-local, so it's safe for concurrent use.
-  static thread_local Timezone::Name tz_name_buffer;
+  static thread_local Name tz_name_buffer;
 
   // For timezone name extraction, always use a current date to get the
   // modern abbreviation, which is what POSIX tests expect.
-  if (Timezone::ExtractZoneName(*tz, is_daylight, date, &tz_name_buffer)) {
+  std::string tz_name_str = ExtractZoneName(*tz, is_daylight, date);
+  if (!tz_name_str.empty()) {
+    SafeCopyToName(tz_name_str, tz_name_buffer);
     tm->tm_zone = tz_name_buffer.data();
   } else {
     // Fallback for safety, though ExtractZoneName should handle errors.

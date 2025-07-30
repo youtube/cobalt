@@ -1001,7 +1001,7 @@ const std::array<IANATestData, 367> IANAFormat::kAllTests = {
 // The unified test case for all enabled IANA timezones.
 // It conditionally validates DST properties based on whether
 // `dst` is provided.
-TEST_P(IANAFormat, Handles) {
+TEST_P(IANAFormat, TzSetHandles) {
   const auto& param = GetParam();
   ScopedTzSet tz_manager(param.tz);
 

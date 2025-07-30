@@ -113,7 +113,7 @@ const std::array<PosixTestData, 12> PosixFormat::kAllTests = {{
      .dst = "CDT"},
 }};
 
-TEST_P(PosixFormat, Handles) {
+TEST_P(PosixFormat, TzSetHandles) {
   const auto& param = GetParam();
   ScopedTzSet tz_manager(param.tz);
 
