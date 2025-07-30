@@ -130,7 +130,7 @@ runs:
           upload_on_device_test_artifacts: ${{ inputs.upload_on_device_test_artifacts }}
           test_targets_json_file: ${{ inputs.test_targets_json_file }}
       - name: Run Package Script Test
-        if: ((matrix.config == 'qa' || matrix.config == 'gold') && (! ${{ matrix.platform }} == *"evergreen"*) && (! ${{ matrix.platform }} == *"chromium"*) )
+        if: (( ${{ matrix.config }} == 'qa' || ${{ matrix.config }} == 'gold') && (! ${{ matrix.platform }} == *"chromium"*) )
         run: |
           # Use the real variable from your environment
           MATRIX_PLATFORM="${{ matrix.platform }}"
@@ -139,6 +139,8 @@ runs:
             BUILD_PLATFORM="android"
           else
             BUILD_PLATFORM="linux"
+            src/cobalt/build/gn.py -p linux-x64x11-no-starboard -c $MATRIX_PLATFORM
+            autoninja -C src/out/linux-x64x11-no-starboard_$MATRIX_PLATFORM chrome/test/chromedriver
           fi
           src/cobalt/build/packager.py \
             --name=${{ matrix.platform }}_${{ matrix.config }} \
