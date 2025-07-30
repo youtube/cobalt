@@ -136,7 +136,7 @@ runs:
           MATRIX_PLATFORM="${{ matrix.platform }}"
           # Determine the correct build platform directory name
           if [[ "$MATRIX_PLATFORM" == *"android"* ]]; then
-            BUILD_PLATFORM="android-arm"
+            BUILD_PLATFORM="android"
           else
             BUILD_PLATFORM="linux"
           fi
