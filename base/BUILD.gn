@@ -1670,11 +1670,6 @@ component("base") {
         "profiler/thread_delegate_posix.cc",
         "profiler/thread_delegate_posix.h",
       ]
-
-      if (is_starboard) {
-        sources -= ["native_library_posix.cc"]
-        sources += ["native_library_starboard.cc"]
-      }
     }
 
     if (is_posix && !is_android) {
