@@ -185,7 +185,7 @@ SourceBufferStream::SourceBufferStream(const VideoDecoderConfig& video_config,
                                            &video_config)) {
   DCHECK(video_config.IsValidConfig());
   video_configs_.push_back(video_config);
-  DVLOG(2) << __func__ << ": video_buffer_size= " << memory_limit_;
+  LOG(INFO) << __func__ << ": video_buffer_size= " << memory_limit_;
 }
 
 SourceBufferStream::SourceBufferStream(const TextTrackConfig& text_config,
@@ -761,7 +761,7 @@ void SourceBufferStream::OnMemoryPressure(
     base::TimeDelta media_time,
     base::MemoryPressureListener::MemoryPressureLevel memory_pressure_level,
     bool force_instant_gc) {
-  DVLOG(4) << __func__ << " level=" << memory_pressure_level;
+  LOG(INFO) << __func__ << " level=" << memory_pressure_level;
   // TODO(sebmarchand): Check if MEMORY_PRESSURE_LEVEL_MODERATE should also be
   // ignored.
   if (memory_pressure_level ==
