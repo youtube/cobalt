@@ -109,8 +109,6 @@ jobs:
           set -x
           test_on_device=$(cat ${GITHUB_WORKSPACE}/.github/config/${{ inputs.platform }}.json | jq -rc '.test_on_device')
           echo "test_on_device=${test_on_device}" >> $GITHUB_OUTPUT
-<<<<<<< HEAD
-=======
       - name: Set e2e tests
         id: set-test-e2e
         shell: bash
@@ -118,14 +116,6 @@ jobs:
           set -x
           test_e2e=$(cat ${GITHUB_WORKSPACE}/.github/config/${{ inputs.platform }}.json | jq -rc '.test_e2e')
           echo "test_e2e=${test_e2e}" >> $GITHUB_OUTPUT
-      - name: Set web tests
-        id: set-web-tests
-        shell: bash
-        run: |
-          set -x
-          web_tests=$(cat ${GITHUB_WORKSPACE}/.github/config/${{ inputs.platform }}.json | jq -rc '.web_tests')
-          echo "web_tests=${web_tests}" >> $GITHUB_OUTPUT
->>>>>>> 066a21360ce (ODT gateway E2E testing upgrade (#6247))
       - name: Set root target for unit tests
         id: set-test-root-target
         shell: bash
@@ -188,11 +178,7 @@ jobs:
       gtest_shards: ${{ steps.set-gtest-shards.outputs.gtest_shards }}
       test_on_host: ${{ steps.set-test-on-host.outputs.test_on_host }}
       test_on_device: ${{ steps.set-test-on-device.outputs.test_on_device }}
-<<<<<<< HEAD
-=======
       test_e2e: ${{ steps.set-test-e2e.outputs.test_e2e }}
-      web_tests: ${{ steps.set-web-tests.outputs.web_tests }}
->>>>>>> 066a21360ce (ODT gateway E2E testing upgrade (#6247))
       test_root_target: ${{ steps.set-test-root-target.outputs.test_root_target }}
       test_device_family: ${{ steps.set-test-device-family.outputs.test_device_family }}
       e2e_test_targets: ${{ steps.set-e2e-test-targets.outputs.e2e_test_targets }}
@@ -308,15 +294,7 @@ jobs:
           test_root_target: ${{ needs.initialize.outputs.test_root_target }}
           test_targets_json_file: out/${{ matrix.platform }}_${{ matrix.config }}/test_targets.json
           upload_on_host_test_artifacts: ${{ matrix.config == 'devel' && needs.initialize.outputs.test_on_host == 'true' }}
-<<<<<<< HEAD
-          upload_on_device_test_artifacts: ${{ matrix.config == 'devel' && needs.initialize.outputs.test_on_device == 'true' }}
-=======
           upload_on_device_test_artifacts: ${{ matrix.config == 'devel' && ( needs.initialize.outputs.test_on_device == 'true' || needs.initialize.outputs.test_e2e == 'true' ) }}
-          upload_web_test_artifacts: ${{ matrix.config == 'devel' && needs.initialize.outputs.web_tests == 'true' }}
-      - name: Run API Leak Detector
-        uses: ./src/.github/actions/api_leak_detector
-        if: inputs.run_api_leak_detector
->>>>>>> 066a21360ce (ODT gateway E2E testing upgrade (#6247))
 
   on-device-test:
     needs: [initialize, build]
