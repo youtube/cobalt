@@ -372,7 +372,6 @@ public class MediaCodecUtil {
     public MediaCodecInfo.AudioCapabilities audioCapabilities;
     public MediaCodecInfo.VideoCapabilities videoCapabilities;
 
-    // @CalledByNative("CodecCapabilityInfo")
     CodecCapabilityInfo(MediaCodecInfo codecInfo, String mimeType) {
       this.codecInfo = codecInfo;
       this.mimeType = mimeType;
@@ -382,7 +381,6 @@ public class MediaCodecUtil {
       this.videoCapabilities = this.codecCapabilities.getVideoCapabilities();
     }
 
-    // @CalledByNative("CodecCapabilityInfo")
     public MediaCodecInfo getCodecInfo() {
       return codecInfo;
     }
@@ -397,7 +395,6 @@ public class MediaCodecUtil {
       return decoderName;
     }
 
-    // @CalledByNative("CodecCapabilityInfo")
     public MediaCodecInfo.CodecCapabilities getCodecCapabilities() {
       return codecCapabilities;
     }

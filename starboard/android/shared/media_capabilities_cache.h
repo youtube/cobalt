@@ -31,9 +31,6 @@
 
 namespace starboard::android::shared {
 
-using base::android::ScopedJavaLocalRef;
-using base::android::ScopedJavaGlobalRef;
-
 // TODO: encapsulate a common Range class.
 struct Range {
   Range() : minimum(0), maximum(0) {}
@@ -46,7 +43,7 @@ struct Range {
 
 class CodecCapability {
  public:
-  CodecCapability(JNIEnv* env, ScopedJavaLocalRef<jobject>& j_codec_info);
+  CodecCapability(JNIEnv* env, base::android::ScopedJavaLocalRef<jobject>& j_codec_info);
   virtual ~CodecCapability() {}
 
   const std::string& name() const { return name_; }
@@ -59,18 +56,18 @@ class CodecCapability {
   CodecCapability(const CodecCapability&) = delete;
   CodecCapability& operator=(const CodecCapability&) = delete;
 
-  std::string name_;
-  bool is_secure_required_;
-  bool is_secure_supported_;
-  bool is_tunnel_mode_required_;
-  bool is_tunnel_mode_supported_;
+  const std::string name_;
+  const bool is_secure_required_;
+  const bool is_secure_supported_;
+  const bool is_tunnel_mode_required_;
+  const bool is_tunnel_mode_supported_;
 };
 
 class AudioCodecCapability : public CodecCapability {
  public:
   AudioCodecCapability(JNIEnv* env,
-                       ScopedJavaLocalRef<jobject>& j_codec_info,
-                       ScopedJavaLocalRef<jobject>& j_audio_capabilities);
+                       base::android::ScopedJavaLocalRef<jobject>& j_codec_info,
+                       base::android::ScopedJavaLocalRef<jobject>& j_audio_capabilities);
   ~AudioCodecCapability() override {}
 
   bool IsBitrateSupported(int bitrate) const;
@@ -85,8 +82,8 @@ class AudioCodecCapability : public CodecCapability {
 class VideoCodecCapability : public CodecCapability {
  public:
   VideoCodecCapability(JNIEnv* env,
-                       ScopedJavaLocalRef<jobject>& j_codec_info,
-                       ScopedJavaLocalRef<jobject>& j_video_capabilities);
+                       base::android::ScopedJavaLocalRef<jobject>& j_codec_info,
+                       base::android::ScopedJavaLocalRef<jobject>& j_video_capabilities);
   ~VideoCodecCapability() override;
 
   bool is_software_decoder() const { return is_software_decoder_; }
@@ -108,7 +105,7 @@ class VideoCodecCapability : public CodecCapability {
 
   bool is_software_decoder_;
   bool is_hdr_capable_;
-  ScopedJavaGlobalRef<jobject> j_video_capabilities_;
+  base::android::ScopedJavaGlobalRef<jobject> j_video_capabilities_;
   Range supported_widths_;
   Range supported_heights_;
   Range supported_bitrates_;
