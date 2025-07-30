@@ -19,7 +19,7 @@ extern "C" {
 
 int __abi_wrap_fcntl(int fildes, int cmd, va_list args);
 
-int fcntl(int fildesss, int cmd, ...) {
+int fcntl(int fildes, int cmd, ...) {
   va_list args;
   va_start(args, cmd);
   int result = __abi_wrap_fcntl(fildes, cmd, args);
