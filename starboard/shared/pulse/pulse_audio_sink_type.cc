@@ -553,7 +553,7 @@ void PulseAudioSinkType::StateCallback(pa_context* context, void* userdata) {
 void* PulseAudioSinkType::ThreadEntryPoint(void* context) {
   pthread_setname_np(pthread_self(), "pulse_audio");
 
-  ::starboard::shared::pthread::ThreadSetPriority(kSbThreadPriorityRealTime);
+  SbThreadSetPriority(kSbThreadPriorityRealTime);
 
   SB_DCHECK(context);
   PulseAudioSinkType* type = static_cast<PulseAudioSinkType*>(context);

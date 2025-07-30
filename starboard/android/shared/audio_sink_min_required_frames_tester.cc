@@ -91,7 +91,7 @@ void MinRequiredFramesTester::Start() {
 
 // static
 void* MinRequiredFramesTester::TesterThreadEntryPoint(void* context) {
-  ::starboard::shared::pthread::ThreadSetPriority(kSbThreadPriorityLowest);
+  SbThreadSetPriority(kSbThreadPriorityLowest);
 
   pthread_setname_np(pthread_self(), "audio_track_tester");
 

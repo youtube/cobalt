@@ -237,9 +237,9 @@ void* MediaDecoder::DecoderThreadEntryPoint(void* context) {
   MediaDecoder* decoder = static_cast<MediaDecoder*>(context);
   pthread_setname_np(pthread_self(), GetDecoderName(decoder->media_type_));
   if (decoder->media_type_ == kSbMediaTypeAudio) {
-    ::starboard::shared::pthread::ThreadSetPriority(kSbThreadPriorityNormal);
+    SbThreadSetPriority(kSbThreadPriorityNormal);
   } else {
-    ::starboard::shared::pthread::ThreadSetPriority(kSbThreadPriorityHigh);
+    SbThreadSetPriority(kSbThreadPriorityHigh);
   }
 
   decoder->DecoderThreadFunc();
@@ -633,7 +633,7 @@ void MediaDecoder::OnMediaCodecInputBufferAvailable(int buffer_index) {
   if (media_type_ == kSbMediaTypeVideo && first_call_on_handler_thread_) {
     // Set the thread priority of the Handler thread to dispatch the async
     // decoder callbacks to high.
-    ::starboard::shared::pthread::ThreadSetPriority(kSbThreadPriorityHigh);
+    SbThreadSetPriority(kSbThreadPriorityHigh);
     first_call_on_handler_thread_ = false;
   }
   ScopedLock scoped_lock(mutex_);

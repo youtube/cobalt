@@ -191,7 +191,7 @@ void PlayerWorker::UpdatePlayerError(SbPlayerError error,
 // static
 void* PlayerWorker::ThreadEntryPoint(void* context) {
   pthread_setname_np(pthread_self(), "player_worker");
-  shared::pthread::ThreadSetPriority(kSbThreadPriorityHigh);
+  SbThreadSetPriority(kSbThreadPriorityHigh);
   ThreadParam* param = static_cast<ThreadParam*>(context);
   SB_DCHECK(param != NULL);
   PlayerWorker* player_worker = param->player_worker;

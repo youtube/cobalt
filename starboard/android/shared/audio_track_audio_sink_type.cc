@@ -194,7 +194,7 @@ void AudioTrackAudioSink::SetPlaybackRate(double playback_rate) {
 void* AudioTrackAudioSink::ThreadEntryPoint(void* context) {
   pthread_setname_np(pthread_self(), "audio_track_out");
   SB_DCHECK(context);
-  ::starboard::shared::pthread::ThreadSetPriority(kSbThreadPriorityRealTime);
+  SbThreadSetPriority(kSbThreadPriorityRealTime);
 
   AudioTrackAudioSink* sink = reinterpret_cast<AudioTrackAudioSink*>(context);
   sink->AudioThreadFunc();

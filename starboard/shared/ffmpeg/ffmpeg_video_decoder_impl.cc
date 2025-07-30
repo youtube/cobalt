@@ -219,7 +219,7 @@ bool VideoDecoderImpl<FFMPEG>::is_valid() const {
 // static
 void* VideoDecoderImpl<FFMPEG>::ThreadEntryPoint(void* context) {
   pthread_setname_np(pthread_self(), "ff_video_dec");
-  shared::pthread::ThreadSetPriority(kSbThreadPriorityHigh);
+  SbThreadSetPriority(kSbThreadPriorityHigh);
   SB_DCHECK(context);
   VideoDecoderImpl<FFMPEG>* decoder =
       reinterpret_cast<VideoDecoderImpl<FFMPEG>*>(context);

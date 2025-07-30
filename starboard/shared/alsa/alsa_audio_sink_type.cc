@@ -214,7 +214,7 @@ AlsaAudioSink::~AlsaAudioSink() {
 // static
 void* AlsaAudioSink::ThreadEntryPoint(void* context) {
   pthread_setname_np(pthread_self(), "alsa_audio_out");
-  ::starboard::shared::pthread::ThreadSetPriority(kSbThreadPriorityRealTime);
+  SbThreadSetPriority(kSbThreadPriorityRealTime);
   SB_DCHECK(context);
   AlsaAudioSink* sink = reinterpret_cast<AlsaAudioSink*>(context);
   sink->AudioThreadFunc();

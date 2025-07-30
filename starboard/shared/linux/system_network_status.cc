@@ -117,7 +117,7 @@ bool NetworkNotifier::Initialize() {
 
 void* NetworkNotifier::NotifierThreadEntry(void* context) {
   pthread_setname_np(pthread_self(), "NetworkNotifier");
-  starboard::shared::pthread::ThreadSetPriority(kSbThreadPriorityLow);
+  SbThreadSetPriority(kSbThreadPriorityLow);
   auto* notifier = static_cast<NetworkNotifier*>(context);
   int netlink_fd = socket(AF_NETLINK, SOCK_RAW, NETLINK_ROUTE);
   bool is_online;
