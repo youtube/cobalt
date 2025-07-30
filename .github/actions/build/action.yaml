@@ -132,9 +132,17 @@ runs:
       - name: Run Package Script Test
         if: (matrix.config == 'qa' || matrix.config == 'gold')
         run: |
+          # Use the real variable from your environment
+          MATRIX_PLATFORM="${{ matrix.platform }}"
+          # Determine the correct build platform directory name
+          if [[ "$MATRIX_PLATFORM" == *"android"* ]]; then
+            BUILD_PLATFORM="android-arm"
+          else
+            BUILD_PLATFORM="linux"
+          fi
           src/cobalt/build/packager.py \
             --name=${{ matrix.platform }}_${{ matrix.config }} \
-            --json_path=src/cobalt/build/${{ matrix.platform }}/package.json \
+            --json_path=src/cobalt/build/$BUILD_PLATFORM/package.json \
             --out_dir=src/out/${{ matrix.platform }}_${{ matrix.config }} \
             --package_dir=src/out/test-package
         shell: bash
