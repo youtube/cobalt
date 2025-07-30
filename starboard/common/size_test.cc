@@ -22,21 +22,25 @@ namespace starboard {
 namespace {
 
 TEST(SizeTest, DefaultConstructor) {
-  Size size;
+  constexpr Size size;
+
   EXPECT_EQ(0, size.width);
   EXPECT_EQ(0, size.height);
 }
 
 TEST(SizeTest, Constructor) {
-  Size size(1920, 1080);
+  constexpr Size size(1920, 1080);
+
   EXPECT_EQ(1920, size.width);
   EXPECT_EQ(1080, size.height);
 }
 
 TEST(SizeTest, StreamInsertion) {
-  Size size(1280, 720);
+  constexpr Size size(1280, 720);
   std::stringstream ss;
+
   ss << size;
+
   EXPECT_EQ("1280x720", ss.str());
 }
 

@@ -14,6 +14,8 @@
 
 #include "starboard/android/shared/max_media_codec_output_buffers_lookup_table.h"
 
+#include <sstream>
+
 #include "starboard/common/log.h"
 #include "starboard/common/once.h"
 #include "starboard/common/string.h"
@@ -35,12 +37,12 @@ bool VideoOutputFormat::operator<(const VideoOutputFormat& key) const {
 }
 
 std::string VideoOutputFormat::ToString() const {
-  std::string info = FormatString("Video codec = %d res = [%s]", codec_,
-                                  output_size_.ToString().c_str());
+  std::stringstream ss;
+  ss << "Video codec = " << codec_ << ", res = [" << output_size_ << "]";
   if (is_hdr_) {
-    info += "+ HDR";
+    ss << "+ HDR";
   }
-  return info;
+  return ss.str();
 }
 
 SB_ONCE_INITIALIZE_FUNCTION(MaxMediaCodecOutputBuffersLookupTable,

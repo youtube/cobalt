@@ -21,13 +21,11 @@
 namespace starboard {
 
 struct Size {
-  Size() : width(0), height(0) {}
-  Size(int width, int height) : width(width), height(height) {}
+  constexpr Size() : width(0), height(0) {}
+  constexpr Size(int width, int height) : width(width), height(height) {}
 
   int width;
   int height;
-
-  std::string ToString() const;
 };
 
 std::ostream& operator<<(std::ostream& os, const Size& size);

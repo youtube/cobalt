@@ -15,17 +15,8 @@
 #include "starboard/common/size.h"
 
 #include <ostream>
-#include <sstream>
-
-#include "starboard/common/string.h"
 
 namespace starboard {
-
-std::string Size::ToString() const {
-  std::stringstream ss;
-  ss << *this;
-  return ss.str();
-}
 
 std::ostream& operator<<(std::ostream& os, const Size& size) {
   return os << size.width << "x" << size.height;
