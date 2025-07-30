@@ -31,7 +31,7 @@ config("common_sqlite3_compile_options") {
   defines += [
     # Skip writing transaction rollback journals on f2fs.
     # f2fs tends to be used on Android, and may be used on ChromeOS.
-    "SQLITE_ENABLE_BATCH_ATOMIC_WRITE",
+    # "SQLITE_ENABLE_BATCH_ATOMIC_WRITE",
 
     # Forces SQLite to only store temporary data in memory.
     #
