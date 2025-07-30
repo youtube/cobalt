@@ -153,10 +153,20 @@ class Timezone {
   static std::unique_ptr<icu::TimeZone> CreateIcuTimezoneFromParsedData(
       const tz::TimezoneData& timezone_data);
 
+  // Retrieves a correction from the kCorrections map.
+  static const Correction* GetCorrection(
+      const icu::UnicodeString& time_zone_id);
+
   // Applies corrections for specific timezones where the ICU data is incorrect
   // or doesn't match test expectations.
   static void MaybeApplyCorrection(const icu::UnicodeString& time_zone_id,
                                    TzsetInternalData& data);
+
+  // Applies corrections for specific timezones where the ICU data is incorrect
+  // or doesn't match test expectations.
+  static std::optional<std::string> ApplyZoneNameCorrection(
+      const icu::UnicodeString& time_zone_id,
+      bool is_daylight);
 
   // Robustly extracts a timezone name using a layered approach.
   static std::string ExtractZoneName(const icu::TimeZone& tz,
@@ -350,12 +360,8 @@ std::unique_ptr<icu::TimeZone> Timezone::CreateIcuTimezoneFromParsedData(
   return custom_tz;
 }
 
-// This function is a temporary workaround for the fact that the ICU data
-// bundled with Cobalt may be out of date. It applies corrections for timezones
-// that have changed since the ICU data was last updated. This function should
-// be updated or removed when the ICU data is updated.
-void Timezone::MaybeApplyCorrection(const icu::UnicodeString& time_zone_id,
-                                    TzsetInternalData& data) {
+const Timezone::Correction* Timezone::GetCorrection(
+    const icu::UnicodeString& time_zone_id) {
   // Corrections for certain timezones, necessary since the tzdata in our
   // current ICU is version 2023c.
   static const NoDestructor<std::map<std::string_view, Correction>>
@@ -406,24 +412,53 @@ void Timezone::MaybeApplyCorrection(const icu::UnicodeString& time_zone_id,
 
   std::string time_zone_id_str;
   time_zone_id.toUTF8String(time_zone_id_str);
-
-  // Apply corrections from the static table.
   auto it = kCorrections->find(time_zone_id_str);
   if (it != kCorrections->end()) {
-    const auto& correction = it->second;
-    if (correction.daylight) {
-      data.daylight_active = *correction.daylight;
-    }
-    if (correction.timezone) {
-      data.timezone_offset = *correction.timezone;
-    }
-    if (correction.std) {
-      data.std_name = correction.std;
-    }
-    if (correction.dst) {
-      data.dst_name = correction.dst;
-    }
+    return &it->second;
   }
+  return nullptr;
+}
+
+// This function is a temporary workaround for the fact that the ICU data
+// bundled with Cobalt may be out of date. It applies corrections for timezones
+// that have changed since the ICU data was last updated. This function should
+// be updated or removed when the ICU data is updated.
+void Timezone::MaybeApplyCorrection(const icu::UnicodeString& time_zone_id,
+                                    TzsetInternalData& data) {
+  const Correction* correction = GetCorrection(time_zone_id);
+  if (!correction) {
+    return;
+  }
+
+  if (correction->daylight) {
+    data.daylight_active = *correction->daylight;
+  }
+  if (correction->timezone) {
+    data.timezone_offset = *correction->timezone;
+  }
+  if (correction->std) {
+    data.std_name = correction->std;
+  }
+  if (correction->dst) {
+    data.dst_name = correction->dst;
+  }
+}
+
+std::optional<std::string> Timezone::ApplyZoneNameCorrection(
+    const icu::UnicodeString& time_zone_id,
+    bool is_daylight) {
+  const Correction* correction = GetCorrection(time_zone_id);
+  if (!correction) {
+    return std::nullopt;
+  }
+
+  if (is_daylight && correction->dst) {
+    return correction->dst;
+  }
+  if (!is_daylight && correction->std) {
+    return correction->std;
+  }
+  return std::nullopt;
 }
 
 std::string Timezone::ExtractZoneName(const icu::TimeZone& tz,
@@ -696,9 +731,21 @@ void Timezone::SetTmTimezoneFields(struct tm* tm,
   // This static buffer is thread-local, so it's safe for concurrent use.
   static thread_local Name tz_name_buffer;
 
-  // For timezone name extraction, always use a current date to get the
-  // modern abbreviation, which is what POSIX tests expect.
-  std::string tz_name_str = ExtractZoneName(*tz, is_daylight, date);
+  icu::UnicodeString time_zone_id;
+  tz->getID(time_zone_id);
+
+  std::optional<std::string> corrected_name =
+      ApplyZoneNameCorrection(time_zone_id, is_daylight);
+
+  std::string tz_name_str;
+  if (corrected_name) {
+    tz_name_str = *corrected_name;
+  } else {
+    // For timezone name extraction, always use a current date to get the
+    // modern abbreviation, which is what POSIX tests expect.
+    tz_name_str = ExtractZoneName(*tz, is_daylight, date);
+  }
+
   if (!tz_name_str.empty()) {
     SafeCopyToName(tz_name_str, tz_name_buffer);
     tm->tm_zone = tz_name_buffer.data();
