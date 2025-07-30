@@ -388,6 +388,11 @@ void MediaCodecBridge::SetPlaybackRate(double playback_rate) {
                                         playback_rate);
 }
 
+void MediaCodecBridge::Seek(int64_t seek_to_time) {
+  JNIEnv* env = AttachCurrentThread();
+  Java_MediaCodecBridge_seek(env, j_media_codec_bridge_, seek_to_time);
+}
+
 bool MediaCodecBridge::Restart() {
   JNIEnv* env = AttachCurrentThread();
   return Java_MediaCodecBridge_restart(env, j_media_codec_bridge_) == JNI_TRUE;

@@ -758,6 +758,7 @@ bool VideoDecoder::InitializeCodec(const VideoStreamInfo& video_stream_info,
           std::bind(&VideoDecoder::ReportError, this, _1, _2));
     }
     media_decoder_->SetPlaybackRate(playback_rate_);
+    media_decoder_->Seek(seek_to_time_);
 
     if (video_stream_info.codec == kSbMediaVideoCodecAv1) {
       SB_DCHECK(!pending_input_buffers_.empty());
@@ -1265,6 +1266,16 @@ void VideoDecoder::ReportError(SbPlayerError error,
   }
 
   error_cb_(kSbPlayerErrorDecode, error_message);
+}
+
+void VideoDecoder::Seek(int64_t seek_to_time) {
+  seek_to_time_ = seek_to_time;
+  if (video_frame_tracker_) {
+    video_frame_tracker_->Seek(seek_to_time_);
+  }
+  if (media_decoder_) {
+    media_decoder_->Seek(seek_to_time_);
+  }
 }
 
 }  // namespace starboard::android::shared
