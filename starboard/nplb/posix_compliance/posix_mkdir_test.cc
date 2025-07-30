@@ -37,30 +37,6 @@
 namespace starboard::nplb {
 namespace {
 
-// Helper function to clean up a directory and its contents
-void RemoveDirectoryRecursively(const std::string& path) {
-  DIR* dir = opendir(path.c_str());
-  if (dir == nullptr) {
-    return;  // Directory might not exist or already cleaned up
-  }
-
-  struct dirent* entry;
-  while ((entry = readdir(dir)) != nullptr) {
-    if (std::string(entry->d_name) == "." ||
-        std::string(entry->d_name) == "..") {
-      continue;
-    }
-    std::string entry_path = path + "/" + entry->d_name;
-    if (entry->d_type == DT_DIR) {
-      RemoveDirectoryRecursively(entry_path);
-    } else {
-      unlink(entry_path.c_str());
-    }
-  }
-  closedir(dir);
-  rmdir(path.c_str());
-}
-
 constexpr mode_t user_rwx = S_IRUSR | S_IWUSR | S_IXUSR;
 
 class PosixMkdirTest : public ::testing::Test {
@@ -162,7 +138,7 @@ TEST_F(PosixMkdirTest, FailsIfPathIsSymbolicLink) {
   ASSERT_EQ(mkdir(target_path.c_str(), user_rwx), 0);
   ASSERT_EQ(symlink(target_path.c_str(), link_path.c_str()), 0);
 
-  // Per spec, mkdir() on a path that is a symlink should fail with EEXIST.
+  // mkdir() on a path that is a symlink should fail with EEXIST.
   EXPECT_EQ(mkdir(link_path.c_str(), user_rwx), -1);
   EXPECT_EQ(errno, EEXIST);
 }
