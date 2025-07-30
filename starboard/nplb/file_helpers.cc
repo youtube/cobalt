@@ -14,6 +14,7 @@
 
 #include "starboard/nplb/file_helpers.h"
 
+#include <dirent.h>
 #include <fcntl.h>
 #include <sys/stat.h>
 #include <unistd.h>
@@ -117,6 +118,30 @@ void ScopedRandomFile::ExpectPattern(int pattern_offset,
     EXPECT_EQ(static_cast<char>((i + pattern_offset) & 0xFF), char_buffer[i])
         << "original line=" << line;
   }
+}
+
+// Helper function to clean up a directory and its contents
+void RemoveDirectoryRecursively(const std::string& path) {
+  DIR* dir = opendir(path.c_str());
+  if (dir == nullptr) {
+    return;  // Directory might not exist or already cleaned up
+  }
+
+  struct dirent* entry;
+  while ((entry = readdir(dir)) != nullptr) {
+    if (std::string(entry->d_name) == "." ||
+        std::string(entry->d_name) == "..") {
+      continue;
+    }
+    std::string entry_path = path + "/" + entry->d_name;
+    if (entry->d_type == DT_DIR) {
+      RemoveDirectoryRecursively(entry_path);
+    } else {
+      unlink(entry_path.c_str());
+    }
+  }
+  closedir(dir);
+  rmdir(path.c_str());
 }
 
 // static

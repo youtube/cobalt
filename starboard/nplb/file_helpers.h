@@ -38,6 +38,9 @@ std::vector<std::string> GetFileTestsDirectoryPaths();
 // Gets the expected content in a static data test file.
 std::string GetTestFileExpectedContent(const std::string& path);
 
+// Removes directory and all of its contents.
+void RemoveDirectoryRecursively(const std::string& path);
+
 // Creates a random file of the given length, and deletes it when the instance
 // falls out of scope.
 class ScopedRandomFile {
