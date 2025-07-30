@@ -134,13 +134,14 @@ runs:
         run: |
           # Use the real variable from your environment
           MATRIX_PLATFORM="${{ matrix.platform }}"
+          MATRIX_CONFIG="${{ matrix.config }}"
           # Determine the correct build platform directory name
           if [[ "$MATRIX_PLATFORM" == *"android"* ]]; then
             BUILD_PLATFORM="android"
           else
             BUILD_PLATFORM="linux"
-            src/cobalt/build/gn.py -p linux-x64x11-no-starboard -c $MATRIX_PLATFORM
-            autoninja -C src/out/linux-x64x11-no-starboard_$MATRIX_PLATFORM chrome/test/chromedriver
+            src/cobalt/build/gn.py -p linux-x64x11-no-starboard -c $MATRIX_CONFIG
+            autoninja -C src/out/linux-x64x11-no-starboard_$MATRIX_CONFIG chrome/test/chromedriver
           fi
           src/cobalt/build/packager.py \
             --name=${{ matrix.platform }}_${{ matrix.config }} \
