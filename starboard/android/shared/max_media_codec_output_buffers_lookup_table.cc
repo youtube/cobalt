@@ -23,10 +23,10 @@ namespace starboard::android::shared {
 bool VideoOutputFormat::operator<(const VideoOutputFormat& key) const {
   if (codec_ != key.codec_) {
     return codec_ < key.codec_;
-  } else if (output_width_ != key.output_width_) {
-    return output_width_ < key.output_width_;
-  } else if (output_height_ != key.output_height_) {
-    return output_height_ < key.output_height_;
+  } else if (output_size_.width != key.output_size_.width) {
+    return output_size_.width < key.output_size_.width;
+  } else if (output_size_.height != key.output_size_.height) {
+    return output_size_.height < key.output_size_.height;
   } else if (is_hdr_ != key.is_hdr_) {
     return is_hdr_ < key.is_hdr_;
   } else {
@@ -35,8 +35,8 @@ bool VideoOutputFormat::operator<(const VideoOutputFormat& key) const {
 }
 
 std::string VideoOutputFormat::ToString() const {
-  std::string info = FormatString("Video codec  = %d res = [%d x %d]", codec_,
-                                  output_width_, output_height_);
+  std::string info = FormatString("Video codec = %d res = [%s]", codec_,
+                                  output_size_.ToString().c_str());
   if (is_hdr_) {
     info += "+ HDR";
   }

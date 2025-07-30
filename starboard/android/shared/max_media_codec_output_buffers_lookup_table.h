@@ -20,6 +20,7 @@
 #include <mutex>
 #include <string>
 
+#include "starboard/common/size.h"
 #include "starboard/media.h"
 
 namespace starboard::android::shared {
@@ -27,13 +28,9 @@ namespace starboard::android::shared {
 class VideoOutputFormat {
  public:
   VideoOutputFormat(SbMediaVideoCodec codec,
-                    int output_width,
-                    int output_height,
+                    const Size& output_size,
                     bool is_hdr)
-      : codec_(codec),
-        output_width_(output_width),
-        output_height_(output_height),
-        is_hdr_(is_hdr) {}
+      : codec_(codec), output_size_(output_size), is_hdr_(is_hdr) {}
 
   bool operator<(const VideoOutputFormat& key) const;
 
@@ -41,8 +38,7 @@ class VideoOutputFormat {
 
  private:
   SbMediaVideoCodec codec_;
-  int output_width_;
-  int output_height_;
+  Size output_size_;
   bool is_hdr_;
 };
 
