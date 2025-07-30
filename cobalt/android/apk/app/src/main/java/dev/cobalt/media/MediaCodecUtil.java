@@ -17,16 +17,12 @@ package dev.cobalt.media;
 import static dev.cobalt.media.Log.TAG;
 
 import android.media.MediaCodecInfo;
-import android.media.MediaCodecInfo.AudioCapabilities;
-import android.media.MediaCodecInfo.CodecCapabilities;
 import android.media.MediaCodecInfo.CodecProfileLevel;
-import android.media.MediaCodecInfo.VideoCapabilities;
 import android.media.MediaCodecList;
 import android.os.Build;
 import android.util.Range;
 import dev.cobalt.util.IsEmulator;
 import dev.cobalt.util.Log;
-import dev.cobalt.util.UsedByNative;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.HashSet;
@@ -34,8 +30,12 @@ import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 import java.util.Set;
+import org.chromium.base.annotations.CalledByNative;
+import org.chromium.base.annotations.JNINamespace;
+import org.chromium.base.annotations.NativeMethods;
 
 /** Utility functions for dealing with MediaCodec related things. */
+@JNINamespace("starboard::android::shared")
 public class MediaCodecUtil {
   // A low priority deny list of video codec names that should never be used.
   private static final Set<String> videoCodecDenyList = new HashSet<>();
@@ -364,8 +364,15 @@ public class MediaCodecUtil {
   private MediaCodecUtil() {}
 
   /** A wrapper class of codec capability infos. */
-  @UsedByNative
   public static class CodecCapabilityInfo {
+    public MediaCodecInfo codecInfo;
+    public String mimeType;
+    public String decoderName;
+    public MediaCodecInfo.CodecCapabilities codecCapabilities;
+    public MediaCodecInfo.AudioCapabilities audioCapabilities;
+    public MediaCodecInfo.VideoCapabilities videoCapabilities;
+
+    // @CalledByNative("CodecCapabilityInfo")
     CodecCapabilityInfo(MediaCodecInfo codecInfo, String mimeType) {
       this.codecInfo = codecInfo;
       this.mimeType = mimeType;
@@ -375,14 +382,37 @@ public class MediaCodecUtil {
       this.videoCapabilities = this.codecCapabilities.getVideoCapabilities();
     }
 
-    @UsedByNative public MediaCodecInfo codecInfo;
-    @UsedByNative public String mimeType;
-    @UsedByNative public String decoderName;
-    @UsedByNative public CodecCapabilities codecCapabilities;
-    @UsedByNative public AudioCapabilities audioCapabilities;
-    @UsedByNative public VideoCapabilities videoCapabilities;
+    // @CalledByNative("CodecCapabilityInfo")
+    public MediaCodecInfo getCodecInfo() {
+      return codecInfo;
+    }
 
-    @UsedByNative
+    @CalledByNative("CodecCapabilityInfo")
+    public String getMimeType() {
+      return mimeType;
+    }
+
+    @CalledByNative("CodecCapabilityInfo")
+    public String getDecoderName() {
+      return decoderName;
+    }
+
+    // @CalledByNative("CodecCapabilityInfo")
+    public MediaCodecInfo.CodecCapabilities getCodecCapabilities() {
+      return codecCapabilities;
+    }
+
+    @CalledByNative("CodecCapabilityInfo")
+    public MediaCodecInfo.AudioCapabilities getAudioCapabilities() {
+      return audioCapabilities;
+    }
+
+    @CalledByNative("CodecCapabilityInfo")
+    public MediaCodecInfo.VideoCapabilities getVideoCapabilities() {
+      return videoCapabilities;
+    }
+
+    @CalledByNative("CodecCapabilityInfo")
     public boolean isSecureRequired() {
       // MediaCodecList is supposed to feed us names of decoders that do NOT end in ".secure".  We
       // are then supposed to check if FEATURE_SecurePlayback is supported, and if it is and we
@@ -398,38 +428,38 @@ public class MediaCodecUtil {
           MediaCodecInfo.CodecCapabilities.FEATURE_SecurePlayback);
     }
 
-    @UsedByNative
+    @CalledByNative("CodecCapabilityInfo")
     public boolean isSecureSupported() {
       return this.codecCapabilities.isFeatureSupported(
           MediaCodecInfo.CodecCapabilities.FEATURE_SecurePlayback);
     }
 
-    @UsedByNative
+    @CalledByNative("CodecCapabilityInfo")
     public boolean isTunnelModeRequired() {
       return this.codecCapabilities.isFeatureRequired(
           MediaCodecInfo.CodecCapabilities.FEATURE_TunneledPlayback);
     }
 
-    @UsedByNative
+    @CalledByNative("CodecCapabilityInfo")
     public boolean isTunnelModeSupported() {
       return this.codecCapabilities.isFeatureSupported(
           MediaCodecInfo.CodecCapabilities.FEATURE_TunneledPlayback);
     }
 
-    @UsedByNative
+    @CalledByNative("CodecCapabilityInfo")
     public boolean isSoftware() {
       return isSoftwareDecoder(this.codecInfo);
     }
 
-    @UsedByNative
+    @CalledByNative("CodecCapabilityInfo")
     public boolean isHdrCapable() {
       return isHdrCapableVideoDecoder(this.mimeType, this.codecCapabilities);
     }
   }
 
-  /** Returns an array of CodecCapabilityInfo for all available decoder. */
+  /** Returns an array of CodecCapabilityInfo for all available decoders. */
   @SuppressWarnings("unused")
-  @UsedByNative
+  @CalledByNative
   public static CodecCapabilityInfo[] getAllCodecCapabilityInfos() {
     List<CodecCapabilityInfo> codecCapabilityInfos = new ArrayList<>();
 
@@ -477,7 +507,7 @@ public class MediaCodecUtil {
 
   /** Determine whether codecCapabilities is capable of playing HDR. */
   public static boolean isHdrCapableVideoDecoder(
-      String mimeType, CodecCapabilities codecCapabilities) {
+      String mimeType, MediaCodecInfo.CodecCapabilities codecCapabilities) {
     // AV1ProfileMain10HDR10 value was not added until API level 29.  See
     // https://developer.android.com/reference/android/media/MediaCodecInfo.CodecProfileLevel.html.
     if (mimeType.equals(AV1_MIME_TYPE) && Build.VERSION.SDK_INT < 29) {
@@ -534,7 +564,7 @@ public class MediaCodecUtil {
    * <p>NOTE: This code path is called repeatedly by the player to determine the decoding
    * capabilities of the device. To ensure speedy playback the code below should be kept performant.
    */
-  @UsedByNative
+  @CalledByNative
   public static String findVideoDecoder(
       String mimeType,
       boolean mustSupportSecure,
@@ -649,7 +679,7 @@ public class MediaCodecUtil {
         continue;
       }
 
-      VideoCapabilities videoCapabilities = decoder.videoCapabilities;
+      MediaCodecInfo.VideoCapabilities videoCapabilities = decoder.videoCapabilities;
       Range<Integer> supportedWidths = decoder.supportedWidths;
       Range<Integer> supportedHeights = decoder.supportedHeights;
 
@@ -717,7 +747,7 @@ public class MediaCodecUtil {
    * The same as hasAudioDecoderFor, only return the name of the audio decoder if it is found, and
    * "" otherwise.
    */
-  @UsedByNative
+  @CalledByNative
   public static String findAudioDecoder(String mimeType, int bitrate) {
     // Note: MediaCodecList is sorted by the framework such that the best decoders come first.
     for (MediaCodecInfo info : new MediaCodecList(MediaCodecList.ALL_CODECS).getCodecInfos()) {
@@ -729,8 +759,8 @@ public class MediaCodecUtil {
           continue;
         }
         String name = info.getName();
-        CodecCapabilities codecCapabilities = info.getCapabilitiesForType(supportedType);
-        AudioCapabilities audioCapabilities = codecCapabilities.getAudioCapabilities();
+        MediaCodecInfo.CodecCapabilities codecCapabilities = info.getCapabilitiesForType(supportedType);
+        MediaCodecInfo.AudioCapabilities audioCapabilities = codecCapabilities.getAudioCapabilities();
         Range<Integer> bitrateRange =
             Range.create(0, audioCapabilities.getBitrateRange().getUpper());
         if (!bitrateRange.contains(bitrate)) {

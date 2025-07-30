@@ -25,11 +25,13 @@
 
 #include <mutex>
 
-#include "starboard/android/shared/jni_env_ext.h"
+#include "base/android/jni_android.h"
 #include "starboard/media.h"
 #include "starboard/shared/internal_only.h"
 
 namespace starboard::android::shared {
+
+using base::android::ScopedJavaGlobalRef;
 
 // TODO: encapsulate a common Range class.
 struct Range {
@@ -43,7 +45,7 @@ struct Range {
 
 class CodecCapability {
  public:
-  CodecCapability(JniEnvExt* env, jobject j_codec_info);
+  CodecCapability(JNIEnv* env, jobject j_codec_info);
   virtual ~CodecCapability() {}
 
   const std::string& name() const { return name_; }
@@ -65,7 +67,7 @@ class CodecCapability {
 
 class AudioCodecCapability : public CodecCapability {
  public:
-  AudioCodecCapability(JniEnvExt* env,
+  AudioCodecCapability(JNIEnv* env,
                        jobject j_codec_info,
                        jobject j_audio_capabilities);
   ~AudioCodecCapability() override {}
@@ -81,7 +83,7 @@ class AudioCodecCapability : public CodecCapability {
 
 class VideoCodecCapability : public CodecCapability {
  public:
-  VideoCodecCapability(JniEnvExt* env,
+  VideoCodecCapability(JNIEnv* env,
                        jobject j_codec_info,
                        jobject j_video_capabilities);
   ~VideoCodecCapability() override;
@@ -105,7 +107,7 @@ class VideoCodecCapability : public CodecCapability {
 
   bool is_software_decoder_;
   bool is_hdr_capable_;
-  jobject j_video_capabilities_;
+  ScopedJavaGlobalRef<jobject> j_video_capabilities_;
   Range supported_widths_;
   Range supported_heights_;
   Range supported_bitrates_;
