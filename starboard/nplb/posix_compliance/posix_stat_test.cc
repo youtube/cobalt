@@ -47,7 +47,7 @@ class PosixStatTest : public ::testing::Test {
     file_path_ = test_dir_ + "/the_file.txt";
     int fd = open(file_path_.c_str(), O_CREAT | O_WRONLY, user_rw);
     ASSERT_NE(fd, -1) << "Failed to create test file: " << strerror(errno);
-    int write_res = write(fd, kTestFileContent, strlen(kTestFileContent));
+    ssize_t write_res = write(fd, kTestFileContent, strlen(kTestFileContent));
     ASSERT_EQ(static_cast<unsigned long>(write_res), strlen(kTestFileContent));
     ASSERT_EQ(0, close(fd));
 
