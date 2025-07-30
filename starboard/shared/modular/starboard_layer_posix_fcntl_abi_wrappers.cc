@@ -53,34 +53,34 @@ int MuslCmdToPlatformCmd(int musl_cmd) {
 int ConvertMuslFlagsToPlatformFlags(int flags) {
   int platform_flags = 0;
 
-  if (flags | MUSL_O_APPEND) {
+  if (flags & MUSL_O_APPEND) {
     platform_flags |= O_APPEND;
   }
-  if (flags | MUSL_O_DSYNC) {
+  if (flags & MUSL_O_DSYNC) {
     platform_flags |= O_DSYNC;
   }
-  if (flags | MUSL_O_NONBLOCK) {
+  if (flags & MUSL_O_NONBLOCK) {
     platform_flags |= O_NONBLOCK;
   }
-  if (flags | MUSL_O_RSYNC) {
+  if (flags & MUSL_O_RSYNC) {
     platform_flags |= O_RSYNC;
   }
-  if (flags | MUSL_O_SYNC) {
+  if (flags & MUSL_O_SYNC) {
     platform_flags |= O_SYNC;
   }
-  if (flags | MUSL_O_PATH) {
+  if (flags & MUSL_O_PATH) {
     platform_flags |= O_PATH;
   }
-  if (flags | MUSL_O_ACCMODE) {
+  if (flags & MUSL_O_ACCMODE) {
     platform_flags |= O_ACCMODE;
   }
-  if (flags | MUSL_O_RDONLY) {
+  if (flags & MUSL_O_RDONLY) {
     platform_flags |= O_RDONLY;
   }
-  if (flags | MUSL_O_WRONLY) {
+  if (flags & MUSL_O_WRONLY) {
     platform_flags |= O_WRONLY;
   }
-  if (flags | MUSL_O_RDWR) {
+  if (flags & MUSL_O_RDWR) {
     platform_flags |= O_RDWR;
   }
 
@@ -96,29 +96,29 @@ int ConvertMuslFlagsToPlatformFlags(int flags) {
 int ConvertPlatformFlagsToMuslFlags(int flags) {
   int musl_flags = 0;
 
-  if (flags | O_APPEND) {
+  if (flags & O_APPEND) {
     musl_flags |= MUSL_O_APPEND;
   }
-  if (flags | O_DSYNC) {
+  if (flags & O_DSYNC) {
     musl_flags |= MUSL_O_DSYNC;
   }
-  if (flags | O_NONBLOCK) {
+  if (flags & O_NONBLOCK) {
     musl_flags |= MUSL_O_NONBLOCK;
   }
-  if (flags | O_RSYNC) {
+  if (flags & O_RSYNC) {
     musl_flags |= MUSL_O_RSYNC;
   }
-  if (flags | O_SYNC) {
+  if (flags & O_SYNC) {
     musl_flags |= MUSL_O_SYNC;
   }
-  if (flags | O_PATH) {
+  if (flags & O_PATH) {
     musl_flags |= MUSL_O_PATH;
   }
-  if (flags | O_RDONLY) {
+  if (flags & O_RDONLY) {
     musl_flags |= MUSL_O_RDONLY;
-  } else if (flags | O_WRONLY) {
+  } else if (flags & O_WRONLY) {
     musl_flags |= MUSL_O_WRONLY;
-  } else if (flags | O_RDWR) {
+  } else if (flags & O_RDWR) {
     musl_flags |= MUSL_O_RDWR;
   }
 

@@ -21,6 +21,8 @@
 #include "starboard/nplb/file_helpers.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
+#include "starboard/common/log.h"
+
 namespace starboard {
 namespace nplb {
 namespace {
@@ -37,17 +39,21 @@ TEST_F(PosixFcntlTest, DuplicateFileDescriptor) {
   ScopedRandomFile random_file;
   const std::string& filename = random_file.filename();
 
+  SB_LOG(INFO) << "Opening fd";
   int fd = open(filename.c_str(), O_RDWR);
   ASSERT_NE(-1, fd) << "Failed to open test file: " << strerror(errno);
 
+  SB_LOG(INFO) << "Duplicating fd";
   // Duplicate the file descriptor.
   int new_fd = fcntl(fd, F_DUPFD, 0);
   ASSERT_NE(new_fd, -1) << "fcntl failed: " << strerror(errno);
   ASSERT_NE(new_fd, fd);
 
   // Verify that the new file descriptor has the same file status flags.
+  SB_LOG(INFO) << "Getting original flags";
   int original_flags = fcntl(fd, F_GETFL);
   ASSERT_NE(original_flags, -1) << "fcntl failed: " << strerror(errno);
+  SB_LOG(INFO) << "Getting new flags";
   int new_flags = fcntl(new_fd, F_GETFL);
   ASSERT_NE(new_flags, -1) << "fcntl failed: " << strerror(errno);
   ASSERT_EQ(original_flags, new_flags);
