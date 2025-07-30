@@ -17,8 +17,6 @@
 
 #import <UIKit/UIKit.h>
 
-#import "starboard/tvos/shared/search_controller_focus_delegate.h"
-
 @class SBDKeyboardInputDevice;
 
 NS_ASSUME_NONNULL_BEGIN
@@ -26,7 +24,7 @@ NS_ASSUME_NONNULL_BEGIN
 /**
  *  @brief Represents a viewport for the starboard application.
  */
-@interface SBDApplicationView : UIView <SBDSearchControllerFocusDelegate>
+@interface SBDApplicationView : UIView
 
 /**
  *  @brief The @c UIView that contains the rendered interface as well as any
