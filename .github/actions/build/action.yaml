@@ -140,8 +140,10 @@ runs:
             BUILD_PLATFORM="android"
           else
             BUILD_PLATFORM="linux"
-            src/cobalt/build/gn.py -p linux-x64x11-no-starboard -c $MATRIX_CONFIG
-            autoninja -C src/out/linux-x64x11-no-starboard_$MATRIX_CONFIG chrome/test/chromedriver
+            cd src/
+            cobalt/build/gn.py -p linux-x64x11-no-starboard -c $MATRIX_CONFIG
+            autoninja -C out/linux-x64x11-no-starboard_$MATRIX_CONFIG chrome/test/chromedriver
+            cd ..
           fi
           src/cobalt/build/packager.py \
             --name=${{ matrix.platform }}_${{ matrix.config }} \
