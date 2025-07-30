@@ -27,7 +27,6 @@
 #include "base/threading/thread_id_name_manager.h"
 #include "base/threading/thread_restrictions.h"
 #include "build/build_config.h"
-#include "starboard/thread.h"
 
 #if !BUILDFLAG(IS_APPLE) && !BUILDFLAG(IS_FUCHSIA) && !BUILDFLAG(IS_NACL)
 #include "base/posix/can_lower_nice_to.h"
