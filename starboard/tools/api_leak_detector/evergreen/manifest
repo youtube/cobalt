@@ -14,7 +14,6 @@ dlclose
 dlerror
 dlopen
 dlsym
-fallocate
 fchmod
 fchown
 fclose
@@ -40,7 +39,6 @@ fwrite
 getc
 getcwd
 getrlimit
-gmtime
 initstate
 ioctl
 link
@@ -50,7 +48,6 @@ localtime_r
 mktime
 newlocale
 openlog
-posix_fadvise
 prctl
 printf
 puts
@@ -71,11 +68,7 @@ stdout
 syscall
 syslog
 timegm
-timerfd_create
-timerfd_settime
 tmpfile
-tzname
-tzset
 ungetc
 uselocale
 utimes

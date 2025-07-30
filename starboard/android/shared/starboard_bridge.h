@@ -23,11 +23,6 @@
 
 namespace starboard::android::shared {
 
-// TODO: (cobalt b/372559388) Update namespace to jni_zero.
-using base::android::JavaParamRef;
-using base::android::ScopedJavaGlobalRef;
-using base::android::ScopedJavaLocalRef;
-
 // This class serves as a bridge between the native code and Android
 // StarboardBridge Java class.
 class StarboardBridge {
@@ -49,13 +44,14 @@ class StarboardBridge {
 
   void AppendArgs(JNIEnv* env, std::vector<std::string>* args_vector);
 
-  ScopedJavaLocalRef<jintArray> GetSupportedHdrTypes(JNIEnv* env);
+  base::android::ScopedJavaLocalRef<jintArray> GetSupportedHdrTypes(
+      JNIEnv* env);
 
   void RaisePlatformError(JNIEnv* env, jint errorType, jlong data);
 
   void RequestSuspend(JNIEnv* env);
 
-  ScopedJavaLocalRef<jobject> GetTextToSpeechHelper(JNIEnv* env);
+  base::android::ScopedJavaLocalRef<jobject> GetTextToSpeechHelper(JNIEnv* env);
 
   std::string GetAdvertisingId(JNIEnv* env);
   bool GetLimitAdTracking(JNIEnv* env);
@@ -64,9 +60,9 @@ class StarboardBridge {
 
   std::string GetTimeZoneId(JNIEnv* env);
 
-  ScopedJavaLocalRef<jobject> GetDisplayDpi(JNIEnv* env);
+  base::android::ScopedJavaLocalRef<jobject> GetDisplayDpi(JNIEnv* env);
 
-  ScopedJavaLocalRef<jobject> GetDeviceResolution(JNIEnv* env);
+  base::android::ScopedJavaLocalRef<jobject> GetDeviceResolution(JNIEnv* env);
 
   bool IsNetworkConnected(JNIEnv* env);
 
@@ -74,12 +70,13 @@ class StarboardBridge {
 
   bool IsMicrophoneDisconnected(JNIEnv* env);
   bool IsMicrophoneMute(JNIEnv* env);
-  ScopedJavaLocalRef<jobject> GetAudioPermissionRequester(JNIEnv* env);
+  base::android::ScopedJavaLocalRef<jobject> GetAudioPermissionRequester(
+      JNIEnv* env);
 
   void ResetVideoSurface(JNIEnv* env);
   void SetVideoSurfaceBounds(JNIEnv* env, int x, int y, int width, int height);
 
-  ScopedJavaLocalRef<jobject> GetAudioOutputManager(JNIEnv* env);
+  base::android::ScopedJavaLocalRef<jobject> GetAudioOutputManager(JNIEnv* env);
 
   std::string GetUserAgentAuxField(JNIEnv* env) const;
 
@@ -100,7 +97,7 @@ class StarboardBridge {
   friend struct base::DefaultSingletonTraits<StarboardBridge>;
 
   // Java StarboardBridge instance.
-  ScopedJavaGlobalRef<jobject> j_starboard_bridge_;
+  base::android::ScopedJavaGlobalRef<jobject> j_starboard_bridge_;
 };
 
 }  // namespace starboard::android::shared

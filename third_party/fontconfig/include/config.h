@@ -142,8 +142,11 @@
 /* Define to 1 if you have the <ndir.h> header file, and it defines `DIR'. */
 /* #undef HAVE_NDIR_H */
 
+// TODO: b/428969097 - Cobalt: Investigate removing this condition
+#if !BUILDFLAG(IS_STARBOARD)
 /* Define to 1 if you have the 'posix_fadvise' function. */
 #define HAVE_POSIX_FADVISE 1
+#endif // BUILDFLAG(IS_STARBOARD)
 
 /* Have POSIX threads */
 #define HAVE_PTHREAD 1
