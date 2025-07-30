@@ -104,7 +104,7 @@ class MimeType {
                                const std::string& pattern = "") const;
   bool ValidateBoolParameter(const char* name) const;
 
-  std::string ToString() const;
+  friend std::ostream& operator<<(std::ostream& os, const MimeType& mime_type);
 
  private:
   // Use std::vector as the number of components are usually small and we'd like

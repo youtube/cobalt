@@ -34,7 +34,8 @@ class VideoOutputFormat {
 
   bool operator<(const VideoOutputFormat& key) const;
 
-  std::string ToString() const;
+  friend std::ostream& operator<<(std::ostream& os,
+                                  const VideoOutputFormat& format);
 
  private:
   SbMediaVideoCodec codec_;

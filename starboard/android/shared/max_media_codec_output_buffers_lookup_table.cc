@@ -36,27 +36,25 @@ bool VideoOutputFormat::operator<(const VideoOutputFormat& key) const {
   }
 }
 
-std::string VideoOutputFormat::ToString() const {
-  std::stringstream ss;
-  ss << "Video codec = " << codec_ << ", res = [" << output_size_ << "]";
-  if (is_hdr_) {
-    ss << "+ HDR";
+std::ostream& operator<<(std::ostream& os, const VideoOutputFormat& format) {
+  os << "Video codec = " << format.codec_ << " res = " << format.output_size_;
+  if (format.is_hdr_) {
+    os << "+ HDR";
   }
-  return ss.str();
+  return os;
 }
 
 SB_ONCE_INITIALIZE_FUNCTION(MaxMediaCodecOutputBuffersLookupTable,
                             MaxMediaCodecOutputBuffersLookupTable::GetInstance)
 
 std::string MaxMediaCodecOutputBuffersLookupTable::DumpContent() const {
-  std::string table_content =
-      "[Preroll] MaxMediaCodecOutputBuffersLookupTable:\n";
+  std::stringstream ss;
+  ss << "[Preroll] MaxMediaCodecOutputBuffersLookupTable:\n";
   for (const auto& item : lookup_table_) {
-    table_content += item.first.ToString();
-    table_content +=
-        FormatString(": max output video frame capacity = %d\n", item.second);
+    ss << item.first << ": max output video frame capacity = " << item.second
+       << "\n";
   }
-  return table_content;
+  return ss.str();
 }
 
 int MaxMediaCodecOutputBuffersLookupTable::GetMaxOutputVideoBuffers(
