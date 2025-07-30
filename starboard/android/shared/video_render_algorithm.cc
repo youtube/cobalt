@@ -118,8 +118,8 @@ void VideoRenderAlgorithm::Render(
 }
 
 void VideoRenderAlgorithm::Seek(int64_t seek_to_time) {
-  if (frame_tracker_) {
-    frame_tracker_->Seek(seek_to_time);
+  if (video_decoder_) {
+    video_decoder_->Seek(seek_to_time);
   }
 }
 

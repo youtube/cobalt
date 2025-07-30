@@ -231,6 +231,15 @@ void MediaDecoder::SetPlaybackRate(double playback_rate) {
   media_codec_bridge_->SetPlaybackRate(playback_rate);
 }
 
+void MediaDecoder::Seek(int64_t seek_to_time) {
+  SB_DCHECK(media_type_ == kSbMediaTypeVideo);
+  SB_DCHECK(media_codec_bridge_);
+  if (!media_codec_bridge_) {
+    return;
+  }
+  media_codec_bridge_->Seek(seek_to_time);
+}
+
 // static
 void* MediaDecoder::DecoderThreadEntryPoint(void* context) {
   SB_DCHECK(context);
