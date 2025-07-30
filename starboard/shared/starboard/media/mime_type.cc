@@ -355,8 +355,10 @@ std::ostream& operator<<(std::ostream& os, const MimeType& mime_type) {
     os << "null";
   } else {
     os << mime_type.codecs_[0];
-    for (size_t i = 1; i < mime_type.codecs_.size(); i++) {
-      os << "|" << mime_type.codecs_[i];
+    const char* sep = "";
+    for (const auto& codec : mime_type.codecs_) {
+      os << sep << codec;
+      sep = "|";
     }
   }
   os << ", params: ";
