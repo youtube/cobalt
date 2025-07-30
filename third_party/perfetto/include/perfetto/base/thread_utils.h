@@ -38,6 +38,10 @@ __declspec(dllimport) unsigned long __stdcall GetCurrentThreadId();
 #include <pthread.h>
 #endif
 
+#if defined(STARBOARD)
+#include "starboard/thread.h"
+#endif
+
 namespace perfetto {
 namespace base {
 
@@ -49,7 +53,7 @@ inline PlatformThreadId GetThreadId() {
 #elif defined(STARBOARD)
 using PlatformThreadId = pid_t;
 inline PlatformThreadId GetThreadId() {
-  return static_cast<int32_t>(pthread_self());
+  return SbThreadGetId();
 }
 #elif PERFETTO_BUILDFLAG(PERFETTO_OS_LINUX)
 using PlatformThreadId = pid_t;
