@@ -51,6 +51,7 @@ def remove_empty_directories(directory):
 def layout(archive_data, out_dir, base_dir):
   files = archive_data.get('files')
   if files:
+    print(files, os.getcwd())
     for f in files:
       copy(os.path.join(out_dir, f), os.path.join(base_dir, f))
 
