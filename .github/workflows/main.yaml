@@ -81,8 +81,22 @@ jobs:
           set -x
           targets=$(cat ${GITHUB_WORKSPACE}/.github/config/${{ inputs.platform }}.json | jq -cr '.targets  | join(" ")')
           echo "targets=${targets}" >> $GITHUB_OUTPUT
+<<<<<<< HEAD
       - name: Set platform extra includes
         id: set-includes
+=======
+      - id: set-build-configs
+        shell: bash
+        run: |
+          set -x
+          # Attempt to load build configs from JSON. If not present use default.
+          build_configs=$(cat ${GITHUB_WORKSPACE}/.github/config/${{ inputs.platform }}.json | jq -cr '.build_configs')
+          if [[ "${build_configs}" == "null" ]]; then
+            build_configs='["devel", "qa", "gold"]'
+          fi
+          echo "build_configs=${build_configs}" >> $GITHUB_OUTPUT
+      - id: set-includes
+>>>>>>> cc70b37fa6a (Add web tests build config to GitHub CI (#5253))
         shell: bash
         run: |
           set -x
@@ -109,8 +123,18 @@ jobs:
           set -x
           test_on_device=$(cat ${GITHUB_WORKSPACE}/.github/config/${{ inputs.platform }}.json | jq -rc '.test_on_device')
           echo "test_on_device=${test_on_device}" >> $GITHUB_OUTPUT
+<<<<<<< HEAD
       - name: Set root target for unit tests
         id: set-test-root-target
+=======
+      - id: set-run-web-tests
+        shell: bash
+        run: |
+          set -x
+          web_tests=$(cat ${GITHUB_WORKSPACE}/.github/config/${{ inputs.platform }}.json | jq -rc '.web_tests')
+          echo "web_tests=${web_tests}" >> $GITHUB_OUTPUT
+      - id: set-test-root-target
+>>>>>>> cc70b37fa6a (Add web tests build config to GitHub CI (#5253))
         shell: bash
         run: |
           set -x
@@ -145,11 +169,13 @@ jobs:
     outputs:
       platforms: ${{ steps.set-platforms.outputs.platforms }}
       targets: ${{ steps.set-targets.outputs.targets }}
+      build_configs: ${{ steps.set-build-configs.outputs.build_configs }}
       includes: ${{ steps.set-includes.outputs.includes }}
       docker_service: ${{ steps.set-docker-service.outputs.docker_service }}
       gtest_shards: ${{ steps.set-gtest-shards.outputs.gtest_shards }}
       test_on_host: ${{ steps.set-test-on-host.outputs.test_on_host }}
       test_on_device: ${{ steps.set-test-on-device.outputs.test_on_device }}
+      web_tests: ${{ steps.set-run-web-tests.outputs.web_tests }}
       test_root_target: ${{ steps.set-test-root-target.outputs.test_root_target }}
       test_dimensions: ${{ steps.set-test-dimensions.outputs.test_dimensions }}
       test_attempts: ${{ steps.set-test-attempts.outputs.test_attempts }}
@@ -227,7 +253,7 @@ jobs:
       matrix:
         platform: ${{ fromJson(needs.initialize.outputs.platforms) }}
         include: ${{ fromJson(needs.initialize.outputs.includes) }}
-        config: [devel, qa, gold]
+        config: ${{ fromJson(needs.initialize.outputs.build_configs) }}
     container: ${{ needs.docker-build-image.outputs.docker_tag }}
     env:
       TEST_ARTIFACTS_KEY: ${{ matrix.platform }}_${{ matrix.name }}_test_artifacts
@@ -310,7 +336,6 @@ jobs:
     needs: [initialize, docker-unittest-image, build]
     if: needs.initialize.outputs.test_on_host == 'true'
     permissions: {}
-    # TODO(b/372303096): Should have dedicated runner?
     runs-on: [self-hosted, chrobalt-linux-runner]
     name: ${{ matrix.name }}_on_host_tests_${{ matrix.shard }}
     strategy:
@@ -346,9 +371,16 @@ jobs:
   test-results:
     needs: [initialize, build, on-device-test, on-host-test]
     if: always() &&
+<<<<<<< HEAD
         (
           needs.on-device-test.result != 'skipped' || needs.on-host-test.result != 'skipped'
         )
+=======
+      (
+        (needs.on-device-test.result != 'skipped' || needs.on-host-test.result != 'skipped') &&
+        fromJson(needs.build.outputs.test_targets_count) > 0
+      )
+>>>>>>> cc70b37fa6a (Add web tests build config to GitHub CI (#5253))
     permissions: {}
     runs-on: ubuntu-latest
     name: ${{ matrix.test_target }}
