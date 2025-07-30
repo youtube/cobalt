@@ -31,6 +31,7 @@
 
 namespace starboard::android::shared {
 
+using base::android::ScopedJavaLocalRef;
 using base::android::ScopedJavaGlobalRef;
 
 // TODO: encapsulate a common Range class.
