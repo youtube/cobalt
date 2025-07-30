@@ -85,7 +85,6 @@ bool IsFDOwned(int fd) {
 #if !defined(COMPONENT_BUILD)
 using LibcCloseFuncPtr = int (*)(int);
 
-#if !BUILDFLAG(IS_STARBOARD)
 // Load the libc close symbol to forward to from the close wrapper.
 LibcCloseFuncPtr LoadCloseSymbol() {
 #if defined(THREAD_SANITIZER)
@@ -98,6 +97,7 @@ LibcCloseFuncPtr LoadCloseSymbol() {
 #endif
 }
 
+#if !BUILDFLAG(IS_STARBOARD)
 extern "C" {
 
 NO_SANITIZE("cfi-icall")

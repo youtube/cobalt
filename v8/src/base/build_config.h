@@ -6,7 +6,6 @@
 #define V8_BASE_BUILD_CONFIG_H_
 
 #include "include/v8config.h"
-#include "build/build_config.h"
 
 #if defined(__ARM_ARCH_7A__) || defined(__ARM_ARCH_7R__) || \
     defined(__ARM_ARCH_7__)
