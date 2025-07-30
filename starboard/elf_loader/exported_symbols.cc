@@ -232,6 +232,7 @@ ExportedSymbols::ExportedSymbols() {
   REGISTER_SYMBOL(aligned_alloc);
   REGISTER_SYMBOL(calloc);
   REGISTER_SYMBOL(close);
+  REGISTER_SYMBOL(fdatasync);
   REGISTER_SYMBOL(dup);
   REGISTER_SYMBOL(dup2);
   REGISTER_SYMBOL(epoll_create);
@@ -317,7 +318,6 @@ ExportedSymbols::ExportedSymbols() {
     REGISTER_SYMBOL(__errno_location);
   }
   REGISTER_WRAPPER(eventfd);
-  REGISTER_SYMBOL(fdatasync);
   REGISTER_WRAPPER(fstat);
   REGISTER_WRAPPER(freeaddrinfo);
   REGISTER_WRAPPER(ftruncate);
