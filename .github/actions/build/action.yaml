@@ -134,7 +134,7 @@ runs:
         run: |
           src/cobalt/build/packager.py \
             --name=${{ matrix.platform }}_${{ matrix.config }} \
-            --json_path=src/cobalt/build/android/package.json \
+            --json_path=src/cobalt/build/${{ matrix.platform }}/package.json \
             --out_dir=out/${{ matrix.platform }}_${{ matrix.config }} \
             --package_dir=out/test-package
         shell: bash
