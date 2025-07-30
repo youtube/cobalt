@@ -52,6 +52,8 @@ using VideoRenderAlgorithmBase =
 using std::placeholders::_1;
 using std::placeholders::_2;
 
+constexpr bool kSetReleaseTimeExplicitly = true;
+
 template <typename T>
 inline std::ostream& operator<<(std::ostream& stream,
                                 const std::optional<T>& maybe_value) {
@@ -189,7 +191,8 @@ void ParseMaxResolution(const std::string& max_video_capabilities,
 
 class VideoFrameImpl : public VideoFrame {
  public:
-  typedef std::function<void()> VideoFrameReleaseCallback;
+  typedef std::function<void(std::optional<int64_t> release_us)>
+      VideoFrameReleaseCallback;
 
   VideoFrameImpl(const DequeueOutputResult& dequeue_output_result,
                  MediaCodecBridge* media_codec_bridge,
@@ -210,7 +213,7 @@ class VideoFrameImpl : public VideoFrame {
       media_codec_bridge_->ReleaseOutputBuffer(dequeue_output_result_.index,
                                                false);
       if (!is_end_of_stream()) {
-        release_callback_();
+        release_callback_(std::nullopt);
       }
     }
   }
@@ -219,9 +222,19 @@ class VideoFrameImpl : public VideoFrame {
     SB_DCHECK(!released_);
     SB_DCHECK(!is_end_of_stream());
     released_ = true;
-    media_codec_bridge_->ReleaseOutputBufferAtTimestamp(
-        dequeue_output_result_.index, release_time_in_nanoseconds);
-    release_callback_();
+
+    if (kSetReleaseTimeExplicitly) {
+      media_codec_bridge_->ReleaseOutputBufferAtTimestamp(
+          dequeue_output_result_.index, release_time_in_nanoseconds);
+      release_callback_(release_time_in_nanoseconds / 1'000);
+      return;
+    }
+
+    media_codec_bridge_->ReleaseOutputBuffer(dequeue_output_result_.index,
+                                             true);
+    if (!is_end_of_stream()) {
+      release_callback_(std::nullopt);
+    }
   }
 
  private:
@@ -323,6 +336,10 @@ class VideoRenderAlgorithmTunneled : public VideoRenderAlgorithmBase {
 
 class VideoDecoder::Sink : public VideoDecoder::VideoRendererSink {
  public:
+  explicit Sink(VideoDecoder* video_decoder) : video_decoder_(*video_decoder) {
+    SB_CHECK(video_decoder != nullptr);
+  }
+
   bool Render() {
     SB_DCHECK(render_cb_);
 
@@ -348,8 +365,20 @@ class VideoDecoder::Sink : public VideoDecoder::VideoRendererSink {
     static_cast<VideoFrameImpl*>(frame.get())
         ->Draw(release_time_in_nanoseconds);
 
+    int64_t pts = frame->timestamp();
+    if (video_decoder_.media_decoder_ != nullptr) {
+      auto& media_decoder = *video_decoder_.media_decoder_;
+
+      media_decoder.SetRenderScheduledTime(pts,
+                                           release_time_in_nanoseconds / 1000);
+    } else {
+      SB_LOG(INFO) << "MediaDecoder is null";
+    }
+
     return kReleased;
   }
+
+  VideoDecoder& video_decoder_;
 
   RenderCB render_cb_;
   bool rendered_;
@@ -429,6 +458,8 @@ VideoDecoder::VideoDecoder(const VideoStreamInfo& video_stream_info,
                << ", max video capabilities \"" << max_video_capabilities_
                << "\", and tunnel mode audio session id "
                << tunnel_mode_audio_session_id_;
+  SB_LOG(INFO) << "kSetReleaseTimeExplicitly="
+               << (kSetReleaseTimeExplicitly ? "true" : "false");
 }
 
 VideoDecoder::~VideoDecoder() {
@@ -442,7 +473,7 @@ VideoDecoder::~VideoDecoder() {
 
 scoped_refptr<VideoDecoder::VideoRendererSink> VideoDecoder::GetSink() {
   if (sink_ == NULL) {
-    sink_ = new Sink;
+    sink_ = new Sink(this);
   }
   return sink_;
 }
@@ -928,7 +959,9 @@ void VideoDecoder::ProcessOutputBuffer(
   decoder_status_cb_(
       is_end_of_stream ? kBufferFull : kNeedMoreInput,
       new VideoFrameImpl(dequeue_output_result, media_codec_bridge,
-                         std::bind(&VideoDecoder::OnVideoFrameRelease, this)));
+                         [this](std::optional<int64_t> release_us) {
+                           OnVideoFrameRelease(release_us);
+                         }));
 }
 
 void VideoDecoder::RefreshOutputFormat(MediaCodecBridge* media_codec_bridge) {
@@ -1232,10 +1265,15 @@ void VideoDecoder::OnTunnelModeCheckForNeedMoreInput() {
            kNeedMoreInputCheckIntervalInTunnelMode);
 }
 
-void VideoDecoder::OnVideoFrameRelease() {
+void VideoDecoder::OnVideoFrameRelease(std::optional<int64_t> release_us) {
   if (output_format_) {
     --buffered_output_frames_;
     SB_DCHECK_GE(buffered_output_frames_, 0);
+  }
+  // TODO: check thread correctness.
+  if (media_decoder_ && media_decoder_->decoder_flow_control()) {
+    media_decoder_->decoder_flow_control()->ReleaseFrameAt(
+        release_us.value_or(CurrentMonotonicTime()));
   }
 }
 
