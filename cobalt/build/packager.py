@@ -48,20 +48,9 @@ def remove_empty_directories(directory):
         pass
 
 
-def _print_curr_dir():
-  # Get a list of all entries (files and directories) in the current directory
-  entries = os.listdir('.')
-
-  # Filter the list to include only files
-  files = [entry for entry in entries if os.path.isfile(entry)]
-  print(files, '\n')
-
-
 def layout(archive_data, out_dir, base_dir):
   files = archive_data.get('files')
   if files:
-    _print_curr_dir()
-    print(files, os.getcwd())
     for f in files:
       copy(os.path.join(out_dir, f), os.path.join(base_dir, f))
 
