@@ -35,7 +35,7 @@ TEST(PosixFdatasyncTest, SunnyDay) {
   ASSERT_NE(fd, -1) << "Failed to open temp file: " << strerror(errno);
 
   ssize_t bytes_written = write(fd, kData, kDataSize);
-  ASSERT_EQ(bytes_written, kDataSize);
+  ASSERT_EQ(bytes_written, static_cast<ssize_t>(kDataSize));
 
   // fdatasync() should succeed.
   EXPECT_EQ(fdatasync(fd), 0);
@@ -48,7 +48,7 @@ TEST(PosixFdatasyncTest, SunnyDay) {
 
   char read_buffer[kDataSize];
   ssize_t bytes_read = read(fd, read_buffer, kDataSize);
-  EXPECT_EQ(bytes_read, kDataSize);
+  EXPECT_EQ(bytes_read, static_cast<ssize_t>(kDataSize));
   EXPECT_EQ(memcmp(kData, read_buffer, kDataSize), 0);
 
   EXPECT_EQ(close(fd), 0);
