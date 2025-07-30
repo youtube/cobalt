@@ -14,6 +14,8 @@
 
 #include "starboard/shared/modular/starboard_layer_posix_stat_abi_wrappers.h"
 
+#include <errno.h>
+#include <fcntl.h>
 #include <sys/stat.h>
 
 static_assert(S_ISUID == 04000,
@@ -47,7 +49,6 @@ static_assert(S_IWOTH == 02,
 static_assert(S_IXOTH == 01,
               "The Starboard layer wrapper expects this value from musl");
 
-namespace {
 int stat_helper(int retval,
                 struct stat* stat_info,
                 struct musl_stat* musl_info) {
@@ -75,6 +76,29 @@ int stat_helper(int retval,
   musl_info->st_blocks = stat_info->st_blocks;
 
   return retval;
+}
+
+int musl_flag_to_platform_flag(int musl_flag) {
+  switch (musl_flag) {
+    case 0:
+      return 0;
+    case MUSL_AT_SYMLINK_NOFOLLOW:
+      return AT_SYMLINK_NOFOLLOW;
+    default:
+      errno = EINVAL;
+      return -1;
+  }
+}
+
+__MUSL_LONG_TYPE musl_nsec_to_platform_nsec(__MUSL_LONG_TYPE musl_nsec) {
+  switch (musl_nsec) {
+    case MUSL_UTIME_NOW:
+      return UTIME_NOW;
+    case MUSL_UTIME_OMIT:
+      return UTIME_OMIT;
+    default:
+      return musl_nsec;
+  }
 }
 
 mode_t musl_mode_to_platform_mode(musl_mode_t musl_mode) {
@@ -108,7 +132,6 @@ mode_t musl_mode_to_platform_mode(musl_mode_t musl_mode) {
 
   return platform_mode;
 }
-}  // namespace
 
 int __abi_wrap_fstat(int fildes, struct musl_stat* musl_info) {
   struct stat stat_info;  // The type from platform toolchain.
@@ -134,4 +157,27 @@ int __abi_wrap_chmod(const char* path, musl_mode_t mode) {
 
 int __abi_wrap_fchmod(int fd, musl_mode_t mode) {
   return fchmod(fd, musl_mode_to_platform_mode(mode));
+}
+
+int __abi_wrap_utimensat(int fildes,
+                         const char* path,
+                         const struct musl_timespec musl_times[2],
+                         int musl_flag) {
+  fildes = (fildes == MUSL_AT_FDCWD) ? AT_FDCWD : fildes;
+
+  int flag = musl_flag_to_platform_flag(musl_flag);
+  if (flag == -1) {
+    return -1;
+  }
+
+  const struct timespec* platform_times = NULL;
+  struct timespec times[2];
+  if (musl_times) {
+    for (int i = 0; i < 2; i++) {
+      times[i].tv_nsec = musl_nsec_to_platform_nsec(musl_times[i].tv_nsec);
+      times[i].tv_sec = musl_times[i].tv_sec;
+    }
+    platform_times = times;
+  }
+  return utimensat(fildes, path, platform_times, flag);
 }
