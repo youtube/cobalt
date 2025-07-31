@@ -71,4 +71,4 @@ class ContentViewRenderView : public content::CompositorClient {
 
 }  // namespace embedder_support
 
-#endif  // COMPONENTS_EMBEDDER_SUPPORT_ANDROID_VIEW_CONTENT_VIEW_RENDER_VIEW_H_
+#endif  // COBALT_SHELL_ANDROID_CONTENT_VIEW_RENDER_VIEW_H_
