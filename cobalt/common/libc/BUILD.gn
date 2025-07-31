@@ -19,8 +19,8 @@ static_library("libc") {
   ]
   if (!is_android) {
     sources += [
-      "icutime.cc",
       "stdlib/environment.cc",
+      "time/icutime.cc",
       "time/timezone.h",
       "time/tzset.cc",
     ]
