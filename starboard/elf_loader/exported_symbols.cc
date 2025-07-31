@@ -306,6 +306,7 @@ ExportedSymbols::ExportedSymbols() {
   // TODO: b/316603042 - Detect via NPLB and only add the wrapper if needed.
 
   REGISTER_WRAPPER(accept);
+  REGISTER_WRAPPER(access);
   REGISTER_WRAPPER(bind);
   REGISTER_WRAPPER(clock_gettime);
   REGISTER_WRAPPER(closedir);
