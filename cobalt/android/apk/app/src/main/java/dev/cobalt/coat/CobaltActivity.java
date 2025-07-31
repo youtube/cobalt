@@ -43,7 +43,6 @@ import dev.cobalt.media.MediaCodecCapabilitiesLogger;
 import dev.cobalt.media.VideoSurfaceView;
 import dev.cobalt.shell.Shell;
 import dev.cobalt.shell.ShellManager;
-import dev.cobalt.shell.Util;
 import dev.cobalt.util.DisplayUtil;
 import dev.cobalt.util.Log;
 import java.util.ArrayList;
@@ -69,10 +68,6 @@ public abstract class CobaltActivity extends Activity {
 
   // This key differs in naming format for legacy reasons
   public static final String COMMAND_LINE_ARGS_KEY = "commandLineArgs";
-  public static final String COMMAND_LINE_JS_FLAGS_KEY = "js-flags";
-  public static final String COMMAND_LINE_ENABLE_FEATURES_KEY = "enable-features";
-  public static final String COMMAND_LINE_DISABLE_FEATURES_KEY = "disable-features";
-  public static final String COMMAND_LINE_BLINK_ENABLE_FEATURES_KEY = "blink-enable-features";
 
   private static final Pattern URL_PARAM_PATTERN = Pattern.compile("^[a-zA-Z0-9_=]*$");
 
@@ -105,30 +100,14 @@ public abstract class CobaltActivity extends Activity {
     if (!CommandLine.isInitialized()) {
       CommandLine.init(null);
 
-      String[] commandLineOverrides =
+      String[] commandLineArgs =
           getCommandLineParamsFromIntent(
               getIntent(), COMMAND_LINE_ARGS_KEY);
-      String[] jsFlagOverrides =
-          getCommandLineParamsFromIntent(
-              getIntent(), COMMAND_LINE_JS_FLAGS_KEY);
-      String[] enableFeaturesCommandLineOverrides =
-          getCommandLineParamsFromIntent(
-              getIntent(), COMMAND_LINE_ENABLE_FEATURES_KEY);
-      String[] disableFeaturesCommandLineOverrides =
-          getCommandLineParamsFromIntent(
-              getIntent(), COMMAND_LINE_DISABLE_FEATURES_KEY);
-      String[] blinkEnableFeaturesCommandLineOverrides =
-          getCommandLineParamsFromIntent(
-              getIntent(), COMMAND_LINE_BLINK_ENABLE_FEATURES_KEY);
       CommandLineOverrideHelper.getFlagOverrides(
           new CommandLineOverrideHelper.CommandLineOverrideHelperParams(
               shouldSetJNIPrefix,
               VersionInfo.isOfficialBuild(),
-              commandLineOverrides,
-              jsFlagOverrides,
-              enableFeaturesCommandLineOverrides,
-              disableFeaturesCommandLineOverrides,
-              blinkEnableFeaturesCommandLineOverrides
+              commandLineArgs
         ));
     }
 
@@ -155,8 +134,7 @@ public abstract class CobaltActivity extends Activity {
       getStarboardBridge().handleDeepLink(startDeepLink);
     }
 
-    setContentView(R.layout.content_shell_activity);
-    mShellManager = findViewById(R.id.shell_container);
+    mShellManager = new ShellManager(this);
     final boolean listenToActivityState = true;
     mIntentRequestTracker = IntentRequestTracker.createFromActivity(this);
     mWindowAndroid = new ActivityWindowAndroid(this, listenToActivityState, mIntentRequestTracker);
@@ -323,10 +301,6 @@ public abstract class CobaltActivity extends Activity {
     videoSurfaceView = new VideoSurfaceView(this);
     a11yHelper = new CobaltA11yHelper(this, videoSurfaceView);
     addContentView(videoSurfaceView, new LayoutParams(LayoutParams.MATCH_PARENT, LayoutParams.MATCH_PARENT));
-
-    Log.i(TAG, "CobaltActivity onCreate, all Layout Views:");
-    View rootView = getWindow().getDecorView().getRootView();
-    Util.printRootViewHierarchy(rootView);
   }
 
   /**
@@ -593,10 +567,6 @@ public abstract class CobaltActivity extends Activity {
     ViewParent parent = videoSurfaceView.getParent();
     if (parent instanceof FrameLayout) {
       FrameLayout frameLayout = (FrameLayout) parent;
-      Log.i(TAG, "createNewSurfaceView, before removing videoSurfaceView, all Views:");
-      View rootView = getWindow().getDecorView().getRootView();
-      Util.printRootViewHierarchy(rootView);
-
       int index = frameLayout.indexOfChild(videoSurfaceView);
       frameLayout.removeView(videoSurfaceView);
       Log.i(TAG, "removed videoSurfaceView at index:" + index);
@@ -608,8 +578,6 @@ public abstract class CobaltActivity extends Activity {
           index,
           new LayoutParams(LayoutParams.MATCH_PARENT, LayoutParams.MATCH_PARENT));
       Log.i(TAG, "inserted new videoSurfaceView at index:" + index);
-      Log.i(TAG, "after createNewSurfaceView, all Views:");
-      Util.printRootViewHierarchy(rootView);
     } else {
       Log.w(TAG, "Unexpected surface view parent class " + parent.getClass().getName());
     }

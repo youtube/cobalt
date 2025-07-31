@@ -36,27 +36,15 @@ public final class CommandLineOverrideHelper {
         public CommandLineOverrideHelperParams(
             boolean shouldSetJNIPrefix,
             boolean isOfficialBuild,
-            String[] commandLineOverrides,
-            String[] jsFlagCommandLineOverrides,
-            String[] enableFeaturesCommandLineOverrides,
-            String[] disableFeaturesCommandLineOverrides,
-            String[] blinkEnableFeaturesCommandLineOverrides) {
+            String[] commandLineArgs) {
             mShouldSetJNIPrefix = shouldSetJNIPrefix;
             mIsOfficialBuild = isOfficialBuild;
-            mCommandLineOverrides = commandLineOverrides;
-            mJsFlagCommandLineOverrides = jsFlagCommandLineOverrides;
-            mEnableFeaturesCommandLineOverrides = enableFeaturesCommandLineOverrides;
-            mDisableFeaturesCommandLineOverrides = disableFeaturesCommandLineOverrides;
-            mBlinkEnableFeaturesCommandLineOverrides = blinkEnableFeaturesCommandLineOverrides;
+            mCommandLineArgs = commandLineArgs;
         }
 
         private boolean mShouldSetJNIPrefix;
         private boolean mIsOfficialBuild;
-        private String[] mCommandLineOverrides;
-        private String[] mJsFlagCommandLineOverrides;
-        private String[] mEnableFeaturesCommandLineOverrides;
-        private String[] mDisableFeaturesCommandLineOverrides;
-        private String[] mBlinkEnableFeaturesCommandLineOverrides;
+        private String[] mCommandLineArgs;
     }
 
     // This can be returned as a list, since it does not need to be a single
@@ -81,9 +69,12 @@ public final class CommandLineOverrideHelper {
         // causes rendering artifacts when
         // low-end-device-mode is enabled.
         paramOverrides.add("--disable-rgba-4444-textures");
-        // Limit the total amount of memory that may be allocated for GPU
-        // resources.
-        paramOverrides.add("--force-gpu-mem-available-mb=32");
+        // Disable Chrome's accelerated video encoding and decoding (Cobalt uses
+        // Starboard's stack).
+        paramOverrides.add("--disable-accelerated-video-decode");
+        paramOverrides.add("--disable-accelerated-video-encode");
+        // Rasterize Tiles directly to GPU memory.
+        paramOverrides.add("--enable-zero-copy");
 
         return paramOverrides;
     }
@@ -153,42 +144,33 @@ public final class CommandLineOverrideHelper {
                   + "https://chrome-devtools-frontend.appspot.com");
             }
 
-            if (params.mCommandLineOverrides != null) {
-                for (String param: params.mCommandLineOverrides) {
-                    cliOverrides.add(param);
-                }
-            }
-            if (params.mJsFlagCommandLineOverrides != null) {
-                for (String param: params.mJsFlagCommandLineOverrides) {
+            if (params.mCommandLineArgs != null) {
+                for (String param: params.mCommandLineArgs) {
                     if (param == null || param.isEmpty()) {
                         continue; // Skip null or empty params
                     }
-                    jsFlagOverrides.add(param);
-                }
-            }
-            if (params.mEnableFeaturesCommandLineOverrides != null) {
-                for (String param: params.mEnableFeaturesCommandLineOverrides) {
-                    if (param == null || param.isEmpty()) {
-                        continue; // Skip null or empty params
+                    String[] parts = param.split("=", 2);
+                    if (parts.length == 2) {
+                        String key = parts[0];
+                        String value = parts[1];
+                        String[] values = value.split(";");
+                        for (String v : values) {
+                            if (key.equals("--js-flags")) {
+                                jsFlagOverrides.add(v);
+                            } else if (key.equals("--enable-features")) {
+                                enableFeatureOverrides.add(v);
+                            } else if (key.equals("--disable-features")) {
+                                disableFeatureOverrides.add(v);
+                            } else if (key.equals("--blink-enable-features")) {
+                                blinkEnableFeatureOverrides.add(v);
+                            } else {
+                                cliOverrides.add(param);
+                                break; // Avoid adding the same param multiple times
+                            }
+                        }
+                    } else {
+                        cliOverrides.add(param);
                     }
-                    enableFeatureOverrides.add(param);
-                }
-            }
-
-            if (params.mDisableFeaturesCommandLineOverrides != null) {
-                for (String param: params.mDisableFeaturesCommandLineOverrides) {
-                    if (param == null || param.isEmpty()) {
-                        continue; // Skip null or empty params
-                    }
-                    disableFeatureOverrides.add(param);
-                }
-            }
-            if (params.mBlinkEnableFeaturesCommandLineOverrides != null) {
-                for (String param: params.mBlinkEnableFeaturesCommandLineOverrides) {
-                    if (param == null || param.isEmpty()) {
-                        continue; // Skip null or empty params
-                    }
-                    blinkEnableFeatureOverrides.add(param);
                 }
             }
         }

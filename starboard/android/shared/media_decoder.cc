@@ -18,6 +18,7 @@
 #include <unistd.h>
 
 #include "base/android/jni_android.h"
+#include "base/android/scoped_java_ref.h"
 #include "starboard/android/shared/jni_env_ext.h"
 #include "starboard/android/shared/jni_utils.h"
 #include "starboard/android/shared/media_common.h"
@@ -27,11 +28,11 @@
 #include "starboard/shared/pthread/thread_create_priority.h"
 
 namespace starboard::android::shared {
+namespace {
 
 // TODO: (cobalt b/372559388) Update namespace to jni_zero.
 using base::android::AttachCurrentThread;
-
-namespace {
+using base::android::ScopedJavaLocalRef;
 
 const jint kNoOffset = 0;
 const jlong kNoPts = 0;
@@ -672,6 +673,10 @@ void MediaDecoder::OnMediaCodecOutputBufferAvailable(
 
 void MediaDecoder::OnMediaCodecOutputFormatChanged() {
   SB_DCHECK(media_codec_bridge_);
+
+  FrameSize frame_size = media_codec_bridge_->GetOutputSize();
+  SB_LOG(INFO) << __func__ << " > resolution=" << frame_size.display_width()
+               << "x" << frame_size.display_height();
 
   DequeueOutputResult dequeue_output_result = {};
   dequeue_output_result.index = -1;

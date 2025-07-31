@@ -17,7 +17,9 @@
 
 #include <jni.h>
 
+#include <ostream>
 #include <string>
+#include <string_view>
 #include <vector>
 
 #include "base/android/jni_android.h"
@@ -27,6 +29,14 @@
 
 namespace starboard::android::shared {
 
+// A "status" for MediaDrmBridge operations.
+// GENERATED_JAVA_ENUM_PACKAGE: dev.cobalt.media
+enum DrmOperationStatus {
+  DRM_OPERATION_STATUS_SUCCESS,
+  DRM_OPERATION_STATUS_OPERATION_FAILED,
+  DRM_OPERATION_STATUS_NOT_PROVISIONED,
+};
+
 class MediaDrmBridge {
  public:
   class Host {
@@ -35,6 +45,7 @@ class MediaDrmBridge {
                                  SbDrmSessionRequestType request_type,
                                  std::string_view session_id,
                                  std::string_view content) = 0;
+    virtual void OnProvisioningRequest(std::string_view content) = 0;
     virtual void OnKeyStatusChange(
         std::string_view session_id,
         const std::vector<SbDrmKeyId>& drm_key_ids,
@@ -44,8 +55,16 @@ class MediaDrmBridge {
     ~Host() = default;
   };
 
+  struct OperationResult {
+    const DrmOperationStatus status;
+    const std::string error_message;
+
+    bool ok() const { return status == DRM_OPERATION_STATUS_SUCCESS; }
+  };
+
   MediaDrmBridge(raw_ref<MediaDrmBridge::Host> host,
-                 std::string_view key_system);
+                 std::string_view key_system,
+                 bool enable_app_provisioning);
   ~MediaDrmBridge();
 
   MediaDrmBridge(const MediaDrmBridge&) = delete;
@@ -60,11 +79,16 @@ class MediaDrmBridge {
   void CreateSession(int ticket,
                      std::string_view init_data,
                      std::string_view mime) const;
-  // Updates the session. Returns true on success.
-  bool UpdateSession(int ticket,
-                     std::string_view key,
-                     std::string_view session_id,
-                     std::string* error_msg) const;
+
+  OperationResult CreateSessionWithAppProvisioning(int ticket,
+                                                   std::string_view init_data,
+                                                   std::string_view mime) const;
+  void GenerateProvisionRequest() const;
+  OperationResult ProvideProvisionResponse(std::string_view response) const;
+
+  OperationResult UpdateSession(int ticket,
+                                std::string_view key,
+                                std::string_view session_id) const;
   void CloseSession(std::string_view session_id) const;
   const void* GetMetrics(int* size);
   bool CreateMediaCryptoSession();
@@ -79,6 +103,9 @@ class MediaDrmBridge {
       JNIEnv* env,
       const base::android::JavaParamRef<jbyteArray>& session_id,
       const base::android::JavaParamRef<jobjectArray>& key_information);
+  void OnProvisioningRequestMessage(
+      JNIEnv* env,
+      const base::android::JavaParamRef<jbyteArray>& message);
 
   static bool IsWidevineSupported(JNIEnv* env);
   static bool IsCbcsSupported(JNIEnv* env);
@@ -90,6 +117,10 @@ class MediaDrmBridge {
   base::android::ScopedJavaGlobalRef<jobject> j_media_drm_bridge_;
   base::android::ScopedJavaGlobalRef<jobject> j_media_crypto_;
 };
+
+std::ostream& operator<<(std::ostream& os, DrmOperationStatus);
+std::ostream& operator<<(std::ostream& os,
+                         const MediaDrmBridge::OperationResult& result);
 
 }  // namespace starboard::android::shared
 

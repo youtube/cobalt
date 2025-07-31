@@ -20,6 +20,7 @@
 #include <utility>
 
 #include "starboard/android/shared/media_common.h"
+#include "starboard/android/shared/media_drm_bridge.h"
 #include "starboard/common/instance_counter.h"
 #include "starboard/common/thread.h"
 
@@ -37,6 +38,9 @@ static bool operator==(const SbDrmKeyId& left, const SbDrmKeyId& right) {
 namespace starboard::android::shared {
 namespace {
 using starboard::android::shared::DrmSystem;
+
+// TODO: b/79941850 - Use base::Feature instead for the experimentation.
+constexpr bool kEnableAppProvisioning = false;
 
 constexpr char kNoUrl[] = "";
 
@@ -59,7 +63,8 @@ DrmSystem::DrmSystem(
   ON_INSTANCE_CREATED(AndroidDrmSystem);
 
   media_drm_bridge_ = std::make_unique<MediaDrmBridge>(
-      base::raw_ref<MediaDrmBridge::Host>(*this), key_system_);
+      base::raw_ref<MediaDrmBridge::Host>(*this), key_system_,
+      kEnableAppProvisioning);
   if (!media_drm_bridge_->is_valid()) {
     return;
   }
@@ -126,15 +131,13 @@ void DrmSystem::UpdateSession(int ticket,
                               int key_size,
                               const void* session_id,
                               int session_id_size) {
-  std::string error_msg;
-  bool update_success = media_drm_bridge_->UpdateSession(
+  MediaDrmBridge::OperationResult result = media_drm_bridge_->UpdateSession(
       ticket, std::string_view(static_cast<const char*>(key), key_size),
-      std::string_view(static_cast<const char*>(session_id), session_id_size),
-      &error_msg);
+      std::string_view(static_cast<const char*>(session_id), session_id_size));
   session_updated_callback_(
       this, context_, ticket,
-      update_success ? kSbDrmStatusSuccess : kSbDrmStatusUnknownError,
-      error_msg.c_str(), session_id, session_id_size);
+      result.ok() ? kSbDrmStatusSuccess : kSbDrmStatusUnknownError,
+      result.error_message.c_str(), session_id, session_id_size);
 }
 
 void DrmSystem::CloseSession(const void* session_id, int session_id_size) {
@@ -174,6 +177,10 @@ void DrmSystem::OnSessionUpdate(int ticket,
                            request_type, /*error_message=*/nullptr,
                            session_id.data(), session_id.size(), content.data(),
                            content.size(), kNoUrl);
+}
+
+void DrmSystem::OnProvisioningRequest(std::string_view content) {
+  // TODO: b/79941850 - Implement this method for app-assisted provisioning.
 }
 
 void DrmSystem::OnKeyStatusChange(

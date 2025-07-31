@@ -50,6 +50,9 @@
 #include "starboard/shared/starboard/player/filter/video_renderer_sink.h"
 
 namespace starboard::android::shared {
+namespace {
+
+using base::android::AttachCurrentThread;
 
 // Tunnel mode has to be enabled explicitly by the web app via mime attributes
 // "tunnelmode", set the following variable to true to force enabling tunnel
@@ -179,6 +182,7 @@ class PlayerComponentsPassthrough
   std::unique_ptr<AudioRendererPassthrough> audio_renderer_;
   std::unique_ptr<VideoRenderer> video_renderer_;
 };
+}  // namespace
 
 class PlayerComponentsFactory : public starboard::shared::starboard::player::
                                     filter::PlayerComponents::Factory {
@@ -589,8 +593,9 @@ class PlayerComponentsFactory : public starboard::shared::starboard::player::
         force_big_endian_hdr_metadata, max_video_input_size,
         enable_flush_during_seek, reset_delay_usec, flush_delay_usec,
         error_message);
-    if (creation_parameters.video_codec() == kSbMediaVideoCodecAv1 ||
-        video_decoder->is_decoder_created()) {
+    if ((*error_message).empty() &&
+        (creation_parameters.video_codec() == kSbMediaVideoCodecAv1 ||
+         video_decoder->is_decoder_created())) {
       return video_decoder;
     }
     *error_message =
