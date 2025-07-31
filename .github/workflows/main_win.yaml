@@ -133,7 +133,7 @@ jobs:
     needs: [initialize]
     permissions:
       packages: write
-    runs-on: windows-2019
+    runs-on: windows-2025
     timeout-minutes: 120
     steps:
       - name: Checkout files
