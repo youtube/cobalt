@@ -27,17 +27,15 @@ Calling free() on a pointer not returned by an allocation function
 namespace starboard::nplb {
 namespace {
 
-// The POSIX spec states that if ptr is a null pointer, no action shall occur.
+// If ptr is a null pointer, no action shall occur.
 TEST(PosixFreeTest, FreeNullDoesNothing) {
-  free(NULL);
-  // The test passes if the above line does not crash.
-  SUCCEED();
+  free(nullptr);
 }
 
 // The free() function shall not modify errno if ptr is a null pointer.
 TEST(PosixFreeTest, FreeNullDoesNotModifyErrno) {
   errno = EIO;
-  free(NULL);
+  free(nullptr);
   EXPECT_EQ(errno, EIO);
 }
 
@@ -46,7 +44,6 @@ TEST(PosixFreeTest, FreesMemoryFromMalloc) {
   void* mem = malloc(1024);
   ASSERT_NE(mem, nullptr);
   free(mem);
-  SUCCEED();
 }
 
 // Tests that a valid pointer from posix_memalign() can be freed.
@@ -56,7 +53,6 @@ TEST(PosixFreeTest, FreesMemoryFromPosixMemalign) {
   ASSERT_EQ(result, 0);
   ASSERT_NE(mem, nullptr);
   free(mem);
-  SUCCEED();
 }
 
 // The free() function shall not modify errno for a valid pointer.
