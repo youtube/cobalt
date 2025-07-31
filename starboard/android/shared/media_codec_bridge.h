@@ -26,10 +26,6 @@
 
 namespace starboard::android::shared {
 
-// TODO: (cobalt b/372559388) Update namespace to jni_zero.
-using base::android::ScopedJavaGlobalRef;
-using base::android::ScopedJavaLocalRef;
-
 // GENERATED_JAVA_ENUM_PACKAGE: dev.cobalt.media
 // GENERATED_JAVA_PREFIX_TO_STRIP: MEDIA_CODEC_
 enum MediaCodecStatus {
@@ -189,7 +185,7 @@ class MediaCodecBridge {
 
   // It is the responsibility of the client to manage the lifetime of the
   // jobject that |GetInputBuffer| returns.
-  ScopedJavaLocalRef<jobject> GetInputBuffer(jint index);
+  base::android::ScopedJavaLocalRef<jobject> GetInputBuffer(jint index);
   jint QueueInputBuffer(jint index,
                         jint offset,
                         jint size,
@@ -202,7 +198,7 @@ class MediaCodecBridge {
 
   // It is the responsibility of the client to manage the lifetime of the
   // jobject that |GetOutputBuffer| returns.
-  ScopedJavaLocalRef<jobject> GetOutputBuffer(jint index);
+  base::android::ScopedJavaLocalRef<jobject> GetOutputBuffer(jint index);
   void ReleaseOutputBuffer(jint index, jboolean render);
   void ReleaseOutputBufferAtTimestamp(jint index, jlong render_timestamp_ns);
 
@@ -213,18 +209,23 @@ class MediaCodecBridge {
   FrameSize GetOutputSize();
   AudioOutputFormatResult GetAudioOutputFormat();
 
-  void OnMediaCodecError(bool is_recoverable,
-                         bool is_transient,
-                         const std::string& diagnostic_info);
-  void OnMediaCodecInputBufferAvailable(int buffer_index);
-  void OnMediaCodecOutputBufferAvailable(int buffer_index,
-                                         int flags,
-                                         int offset,
-                                         int64_t presentation_time_us,
-                                         int size);
-  void OnMediaCodecOutputFormatChanged();
-  void OnMediaCodecFrameRendered(int64_t frame_timestamp);
-  void OnMediaCodecFirstTunnelFrameReady();
+  void OnMediaCodecError(
+      JNIEnv* env,
+      jboolean is_recoverable,
+      jboolean is_transient,
+      const base::android::JavaParamRef<jstring>& diagnostic_info);
+  void OnMediaCodecInputBufferAvailable(JNIEnv* env, jint buffer_index);
+  void OnMediaCodecOutputBufferAvailable(JNIEnv* env,
+                                         jint buffer_index,
+                                         jint flags,
+                                         jint offset,
+                                         jlong presentation_time_us,
+                                         jint size);
+  void OnMediaCodecOutputFormatChanged(JNIEnv* env);
+  void OnMediaCodecFrameRendered(JNIEnv* env,
+                                 jlong presentation_time_us,
+                                 jlong render_at_system_time_ns);
+  void OnMediaCodecFirstTunnelFrameReady(JNIEnv* env);
 
   static jboolean IsFrameRenderedCallbackEnabled();
 
@@ -234,14 +235,15 @@ class MediaCodecBridge {
   void Initialize(jobject j_media_codec_bridge);
 
   Handler* handler_ = NULL;
-  ScopedJavaGlobalRef<jobject> j_media_codec_bridge_ = NULL;
+  base::android::ScopedJavaGlobalRef<jobject> j_media_codec_bridge_ = NULL;
 
   // Profiling and allocation tracking has identified this area to be hot,
   // and, capable of enough to cause GC times to raise high enough to impact
   // playback.  We mitigate this by reusing these output objects between calls
   // to |DequeueInputBuffer|, |DequeueOutputBuffer|, and
   // |GetOutputDimensions|.
-  ScopedJavaGlobalRef<jobject> j_reused_get_output_format_result_ = NULL;
+  base::android::ScopedJavaGlobalRef<jobject>
+      j_reused_get_output_format_result_ = NULL;
 
   MediaCodecBridge(const MediaCodecBridge&) = delete;
   void operator=(const MediaCodecBridge&) = delete;

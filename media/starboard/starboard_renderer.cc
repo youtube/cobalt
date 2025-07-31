@@ -135,18 +135,9 @@ StarboardRenderer::~StarboardRenderer() {
 
   LOG(INFO) << "Destructing StarboardRenderer.";
 
-  // Explicitly reset |player_bridge_| before destroying it.
-  // Some functions in this class using `player_bridge_` can be called
-  // asynchronously on arbitrary threads (e.g. `GetMediaTime()`), this ensures
-  // that they won't access `player_bridge_` when it's being destroyed.
-  decltype(player_bridge_) player_bridge;
-  if (player_bridge_) {
-    base::AutoLock auto_lock(lock_);
-    player_bridge = std::move(player_bridge_);
-  }
-  player_bridge.reset();
+  player_bridge_.reset();
 
-  LOG(INFO) << "StarboardRenderer destructed.";
+  LOG(INFO) << "SbPlayerBridge destructed.";
 }
 
 void StarboardRenderer::Initialize(MediaResource* media_resource,
@@ -322,10 +313,7 @@ void StarboardRenderer::StartPlayingFrom(TimeDelta time) {
   // decide when to delay.
   audio_read_delayed_ = false;
 
-  {
-    base::AutoLock auto_lock(lock_);
-    seek_time_ = time;
-  }
+  seek_time_ = time;
 
   if (state_ != STATE_FLUSHED) {
     DCHECK_EQ(state_, STATE_ERROR);
@@ -390,10 +378,8 @@ void StarboardRenderer::SetVolume(float volume) {
   }
 }
 
-// Note: Renderer::GetMediaTime() could be called on both main and media
-// threads.
 TimeDelta StarboardRenderer::GetMediaTime() {
-  base::AutoLock auto_lock(lock_);
+  DCHECK(task_runner_->RunsTasksInCurrentSequence());
 
   if (!player_bridge_) {
     StoreMediaTime(TimeDelta());
@@ -498,48 +484,45 @@ void StarboardRenderer::CreatePlayerBridge() {
 
   std::string error_message;
 
-  {
-    base::AutoLock auto_lock(lock_);
-    DCHECK(!player_bridge_);
+  DCHECK(!player_bridge_);
 
-    // In the unexpected case that CreatePlayerBridge() is called when a
-    // |player_bridge_| is set, reset the existing player first to reduce the
-    // number of active players.
+  // In the unexpected case that CreatePlayerBridge() is called when a
+  // |player_bridge_| is set, reset the existing player first to reduce the
+  // number of active players.
+  player_bridge_.reset();
+
+  LOG(INFO) << "Creating SbPlayerBridge.";
+
+  player_bridge_.reset(new SbPlayerBridge(
+      GetSbPlayerInterface(), task_runner_,
+      // TODO(b/375070492): Implement decode-to-texture support
+      SbPlayerBridge::GetDecodeTargetGraphicsContextProviderFunc(),
+      audio_config, audio_mime_type, video_config, video_mime_type,
+      // TODO(b/326497953): Support suspend/resume.
+      // TODO(b/326508279): Support background mode.
+      kSbWindowInvalid, drm_system_, this, set_bounds_helper_.get(),
+      // TODO(b/326497953): Support suspend/resume.
+      false,
+      // TODO(b/326825450): Revisit 360 videos.
+      kSbPlayerOutputModeInvalid, max_video_capabilities_,
+      // TODO(b/326654546): Revisit HTMLVideoElement.setMaxVideoInputSize.
+      -1));
+  if (player_bridge_->IsValid()) {
+    // TODO(b/267678497): When `player_bridge_->GetAudioConfigurations()`
+    // returns no audio configurations, update the write durations again
+    // before the SbPlayer reaches `kSbPlayerStatePresenting`.
+    audio_write_duration_for_preroll_ = audio_write_duration_ =
+        HasRemoteAudioOutputs(player_bridge_->GetAudioConfigurations())
+            ? audio_write_duration_remote_
+            : audio_write_duration_local_;
+    LOG(INFO) << "SbPlayerBridge created, with audio write duration at "
+              << audio_write_duration_for_preroll_
+              << " and with max_video_capabilities_ at "
+              << max_video_capabilities_;
+  } else {
+    error_message = player_bridge_->GetPlayerCreationErrorMessage();
     player_bridge_.reset();
-
-    LOG(INFO) << "Creating SbPlayerBridge.";
-
-    player_bridge_.reset(new SbPlayerBridge(
-        GetSbPlayerInterface(), task_runner_,
-        // TODO(b/375070492): Implement decode-to-texture support
-        SbPlayerBridge::GetDecodeTargetGraphicsContextProviderFunc(),
-        audio_config, audio_mime_type, video_config, video_mime_type,
-        // TODO(b/326497953): Support suspend/resume.
-        // TODO(b/326508279): Support background mode.
-        kSbWindowInvalid, drm_system_, this, set_bounds_helper_.get(),
-        // TODO(b/326497953): Support suspend/resume.
-        false,
-        // TODO(b/326825450): Revisit 360 videos.
-        kSbPlayerOutputModeInvalid, max_video_capabilities_,
-        // TODO(b/326654546): Revisit HTMLVideoElement.setMaxVideoInputSize.
-        -1));
-    if (player_bridge_->IsValid()) {
-      // TODO(b/267678497): When `player_bridge_->GetAudioConfigurations()`
-      // returns no audio configurations, update the write durations again
-      // before the SbPlayer reaches `kSbPlayerStatePresenting`.
-      audio_write_duration_for_preroll_ = audio_write_duration_ =
-          HasRemoteAudioOutputs(player_bridge_->GetAudioConfigurations())
-              ? audio_write_duration_remote_
-              : audio_write_duration_local_;
-      LOG(INFO) << "SbPlayerBridge created, with audio write duration at "
-                << audio_write_duration_for_preroll_
-                << " and with max_video_capabilities_ at "
-                << max_video_capabilities_;
-    } else {
-      error_message = player_bridge_->GetPlayerCreationErrorMessage();
-      player_bridge_.reset();
-      LOG(INFO) << "Failed to create a valid SbPlayerBridge.";
-    }
+    LOG(INFO) << "Failed to create a valid SbPlayerBridge.";
   }
 
   if (player_bridge_ && player_bridge_->IsValid()) {
@@ -599,7 +582,6 @@ void StarboardRenderer::UpdateDecoderConfig(DemuxerStream* stream) {
     DCHECK_EQ(stream->type(), DemuxerStream::VIDEO);
     const VideoDecoderConfig& decoder_config = stream->video_decoder_config();
 
-    base::AutoLock auto_lock(lock_);
     player_bridge_->UpdateVideoConfig(decoder_config, stream->mime_type());
 
     // TODO(b/375275033): Refine natural size change handling.
@@ -762,15 +744,12 @@ void StarboardRenderer::OnNeedData(DemuxerStream::Type type,
     if (!is_video_eos_written_ && time_ahead_of_playback_for_preroll >
                                       adjusted_write_duration_for_preroll) {
       TimeDelta time_ahead_of_playback;
-      {
-        base::AutoLock auto_lock(lock_);
-        TimeDelta time_since_last_update =
-            Time::Now() - last_time_media_time_retrieved_;
-        // The estimated time ahead of playback may be negative if no audio has
-        // been written.
-        time_ahead_of_playback = timestamp_of_last_written_audio_ -
-                                 (last_media_time_ + time_since_last_update);
-      }
+      TimeDelta time_since_last_update =
+          Time::Now() - last_time_media_time_retrieved_;
+      // The estimated time ahead of playback may be negative if no audio has
+      // been written.
+      time_ahead_of_playback = timestamp_of_last_written_audio_ -
+                               (last_media_time_ + time_since_last_update);
 
       auto adjusted_write_duration = AdjustWriteDurationForPlaybackRate(
           audio_write_duration_, playback_rate_);

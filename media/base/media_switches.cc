@@ -19,6 +19,10 @@
 #include "base/cpu.h"
 #endif
 
+#if BUILDFLAG(USE_STARBOARD_MEDIA)
+#include "starboard/player.h"  // nogncheck
+#endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
+
 namespace switches {
 
 // Allow users to specify a custom buffer size for debugging purpose.
@@ -482,6 +486,19 @@ const base::FeatureParam<int> kDecreaseProcessingAudioFifoSizeValue{
 #endif
 
 #if BUILDFLAG(USE_STARBOARD_MEDIA)
+// When enabled, Cobalt uses |kAudioWriteDuration{Local/Remote}| as
+// audio write duration during SbPlayer prerolling.
+// TODO: b/433993748 - Disable it and make it to kSbPlayerWriteDurationLocal.
+BASE_FEATURE(kCobaltAudioWriteDurationLocal,
+             "CobaltAudioWriteDurationLocal",
+             base::FEATURE_ENABLED_BY_DEFAULT);
+const base::FeatureParam<int> kAudioWriteDurationLocal{
+    &kCobaltAudioWriteDurationLocal, "us", 1000000};
+BASE_FEATURE(kCobaltAudioWriteDurationRemote,
+             "CobaltAudioWriteDurationRemote",
+             base::FEATURE_DISABLED_BY_DEFAULT);
+const base::FeatureParam<int> kAudioWriteDurationRemote{
+    &kCobaltAudioWriteDurationRemote, "us", kSbPlayerWriteDurationRemote};
 // When enabled, Cobalt stores allocation meta data in place for DecoderBuffers.
 BASE_FEATURE(kCobaltDecoderBufferAllocatorWithInPlaceMetadata,
              "CobaltDecoderBufferAllocatorWithInPlaceMetadata",

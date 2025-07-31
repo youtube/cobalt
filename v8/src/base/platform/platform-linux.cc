@@ -44,6 +44,8 @@
 #include "src/base/platform/platform-posix.h"
 #include "src/base/platform/platform.h"
 
+#include "build/build_config.h"
+
 namespace v8 {
 namespace base {
 
@@ -75,6 +77,7 @@ void OS::SignalCodeMovingGC() {
 
 void OS::AdjustSchedulingParams() {}
 
+#if !BUILDFLAG(IS_STARBOARD)
 void* OS::RemapShared(void* old_address, void* new_address, size_t size) {
   void* result =
       mremap(old_address, 0, size, MREMAP_FIXED | MREMAP_MAYMOVE, new_address);
@@ -85,6 +88,7 @@ void* OS::RemapShared(void* old_address, void* new_address, size_t size) {
   DCHECK(result == new_address);
   return result;
 }
+#endif
 
 std::vector<OS::MemoryRange> OS::GetFreeMemoryRangesWithin(
     OS::Address boundary_start, OS::Address boundary_end, size_t minimum_size,
