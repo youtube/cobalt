@@ -20,8 +20,6 @@
 
 #include "base/memory/raw_ptr.h"
 #include "base/memory/scoped_refptr.h"
-#include "base/memory/weak_ptr.h"
-#include "base/synchronization/lock.h"
 #include "base/task/sequenced_task_runner.h"
 #include "base/time/time.h"
 #include "media/base/cdm_context.h"
@@ -208,8 +206,6 @@ class MEDIA_EXPORT StarboardRenderer : public Renderer,
 
   SbDrmSystem drm_system_{kSbDrmSystemInvalid};
 
-  mutable base::Lock lock_;
-  // TODO: b/407063029 - Guard player_bridge_ and annotate with GUARDED_BY.
   std::unique_ptr<SbPlayerBridge> player_bridge_;
 
   bool player_bridge_initialized_ = false;
