@@ -2,8 +2,8 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#ifndef COMPONENTS_EMBEDDER_SUPPORT_ANDROID_VIEW_CONTENT_VIEW_RENDER_VIEW_H_
-#define COMPONENTS_EMBEDDER_SUPPORT_ANDROID_VIEW_CONTENT_VIEW_RENDER_VIEW_H_
+#ifndef COBALT_SHELL_ANDROID_CONTENT_VIEW_RENDER_VIEW_H_
+#define COBALT_SHELL_ANDROID_CONTENT_VIEW_RENDER_VIEW_H_
 
 #include <memory>
 
@@ -15,7 +15,7 @@ namespace content {
 class Compositor;
 }  // namespace content
 
-namespace embedder_support {
+namespace cobalt {
 
 class ContentViewRenderView : public content::CompositorClient {
  public:
@@ -69,6 +69,6 @@ class ContentViewRenderView : public content::CompositorClient {
   int current_surface_format_;
 };
 
-}  // namespace embedder_support
+}  // namespace cobalt
 
 #endif  // COBALT_SHELL_ANDROID_CONTENT_VIEW_RENDER_VIEW_H_

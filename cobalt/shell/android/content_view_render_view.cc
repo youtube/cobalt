@@ -24,7 +24,7 @@
 using base::android::JavaParamRef;
 using base::android::ScopedJavaLocalRef;
 
-namespace embedder_support {
+namespace cobalt {
 
 ContentViewRenderView::ContentViewRenderView(JNIEnv* env,
                                              jobject obj,
@@ -126,7 +126,7 @@ void ContentViewRenderView::UpdateLayerTreeHost() {
 
 void ContentViewRenderView::DidSwapFrame(int pending_frames) {
   JNIEnv* env = base::android::AttachCurrentThread();
-  Java_ContentViewRenderView_didSwapFrame(env, java_obj_);
+  cobalt::Java_ContentViewRenderView_didSwapFrame(env, java_obj_);
 }
 
 void ContentViewRenderView::InitCompositor() {
@@ -135,4 +135,4 @@ void ContentViewRenderView::InitCompositor() {
   }
 }
 
-}  // namespace embedder_support
+}  // namespace cobalt

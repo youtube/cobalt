@@ -25,7 +25,7 @@ import org.chromium.ui.base.WindowAndroid;
  * managing the content.
  * Note that only one WebContents can be shown at a time.
  */
-@JNINamespace("embedder_support")
+@JNINamespace("cobalt")
 public class ContentViewRenderView extends FrameLayout {
     // The native side of this object.
     private long mNativeContentViewRenderView;
