@@ -29,15 +29,15 @@ python3 main.py commits --repo-path=/usr/local/google/home/brianting/chromium/sr
 
 `commits.json` is currently provided up to
 48f6c4861a2455800aa40b9ba2e9858505dc5981 which is the linearized equivalent of
-9a69c6a6b1364e6f7b69d475fda5030a4bf738c4 and cane be used to skip this step.
+9a69c6a6b1364e6f7b69d475fda5030a4bf738c4 and can be used to skip this step.
 
 
 To rebase...
 
-Build a base branch such as `experimental/base_120`. `experimental/rebase_120`
-is a partially rebased branch.
+Start with a rebase branch (in a separate repository clone / directory) such as
+`feature/rebase_m120`.
 
-python3 main.py rebase --repo-path=/usr/local/google/home/brianting/chromium/src --rebase-branch=experimental/rebase_m120 --conflicts-dir=m114_to_m120_conflicts
+python3 main.py rebase --repo-path=/usr/local/google/home/brianting/chromium/src --rebase-branch=feature/rebase_m120 --conflicts-dir=m114_to_m120_conflicts
 
 Conflict records including patch files are stored in the `m114_to_m120_conflicts`
 directory. Rebasing can also be restarted non-inclusively using the
