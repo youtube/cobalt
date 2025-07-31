@@ -100,12 +100,11 @@ class DrmSystem : public ::SbDrmSystemPrivate,
     MediaDrmBridge::OperationResult GenerateWithAppProvisioning(
         const MediaDrmBridge* media_drm_bridge) const;
 
-    SessionUpdateRequest CloneWithoutTicket() const;
-
     int ticket() const { return ticket_; }
+    void ResetTicket();
 
    private:
-    const int ticket_;
+    int ticket_;
     const std::string init_data_;
     const std::string mime_;
   };
@@ -113,13 +112,12 @@ class DrmSystem : public ::SbDrmSystemPrivate,
   void InitializeMediaCryptoSession();
   void CallKeyStatusesChangedCallbackWithKeyStatusRestricted_Locked();
   void HandlePendingRequests();
-  void GenerateSessionUpdateRequestProvisioning(
-      std::unique_ptr<SessionUpdateRequest> request);
   void GenerateSessionUpdateRequestWithAppProvisioning(
       std::unique_ptr<SessionUpdateRequest> request);
 
   // From Thread.
   void Run() override;
+  void RunWithAppProvisioning();
 
   struct SessionIdMap;
   friend std::ostream& operator<<(std::ostream& os, const SessionIdMap& map);
@@ -151,8 +149,6 @@ class DrmSystem : public ::SbDrmSystemPrivate,
   std::optional<SessionIdMap> bridge_session_id_map_;
 
   std::unique_ptr<starboard::shared::starboard::player::JobQueue> job_queue_;
-
-  std::optional<int> pending_ticket_;
 };
 
 }  // namespace starboard::android::shared
