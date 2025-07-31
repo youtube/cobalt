@@ -25,6 +25,7 @@
 #include "cobalt/renderer/egl_and_gles.h"
 #include "starboard/configuration.h"
 #include "starboard/extension/graphics.h"
+#include "starboard/extension/video_renderer.h"
 #include "third_party/glm/glm/gtc/type_ptr.hpp"
 
 namespace cobalt {
@@ -136,6 +137,14 @@ const float* GetColorMatrixForImageType(
 void TexturedMeshRenderer::RenderVBO(uint32 vbo, int num_vertices, uint32 mode,
                                      const Image& image,
                                      const glm::mat4& mvp_transform) {
+  const CobaltExtensionVideoRendererApi* renderer_extension =
+      static_cast<const CobaltExtensionVideoRendererApi*>(
+          SbSystemGetExtension(kCobaltExtensionVideoRendererName));
+  if (renderer_extension && renderer_extension->Render(image, vbo, num_vertices,
+                                                       mode, mvp_transform)) {
+    return;
+  }
+
   ProgramInfo blit_program = GetBlitProgram(image);
 
   GL_CALL(glUseProgram(blit_program.gl_program_id));
