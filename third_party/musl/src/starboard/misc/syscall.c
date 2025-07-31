@@ -23,8 +23,10 @@ long syscall(long n, ...) {
     case __NR_gettid: {
       return SbThreadGetId();
     }
-    default:
+    default: {
+      SB_NOTIMPLEMENTED();
       errno = ENOSYS;
       return -1;
+    }
   }
 }
