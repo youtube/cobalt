@@ -51,7 +51,9 @@ extern "C" {
 #define MUSL_O_WRONLY 01
 #define MUSL_O_RDWR 02
 
-SB_EXPORT int __abi_wrap_fcntl(int fd, int cmd, va_list args);
+SB_EXPORT int __abi_wrap_fcntl(int fildes, int cmd);
+SB_EXPORT int __abi_wrap_fcntl2(int fildes, int cmd, int arg);
+SB_EXPORT int __abi_wrap_fcntl3(int fildes, int cmd, void* arg);
 
 #ifdef __cplusplus
 }  // extern "C"

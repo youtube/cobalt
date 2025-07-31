@@ -116,39 +116,41 @@ int ConvertPlatformFlagsToMuslFlags(int flags) {
   return musl_flags;
 }
 
-SB_EXPORT int __abi_wrap_fcntl(int fd, int cmd, va_list args) {
+int __abi_wrap_fcntl(int fildes, int cmd) {
   int platform_cmd = MuslCmdToPlatformCmd(cmd);
-
-  int arg_int;
-  void* arg_ptr;
-  int result;
-  switch (platform_cmd) {
-    // The following commands have an int third argument.
-    case F_DUPFD:
-    case F_SETFD:
-    case F_SETFL:
-    case F_SETOWN:
-      arg_int = ConvertMuslFlagsToPlatformFlags(va_arg(args, int));
-      result = fcntl(fd, platform_cmd, arg_int);
-      break;
-    // The following commands have a pointer third argument.
-    case F_GETLK:
-    case F_SETLK:
-    case F_SETLKW:
-      arg_ptr = va_arg(args, void*);
-      result = fcntl(fd, platform_cmd, arg_ptr);
-      break;
-    default:
-      result = fcntl(fd, platform_cmd);
-      break;
+  if (platform_cmd == -1) {
+    errno = EINVAL;
+    return -1;
   }
 
-  // Commands F_GETFD and F_GETFL return flags, we need to convert them to their
-  // musl counterparts.
+  int result = fcntl(fildes, platform_cmd);
   if (platform_cmd == F_GETFD || platform_cmd == F_GETFL) {
     int musl_flags = ConvertPlatformFlagsToMuslFlags(result);
+
     return musl_flags;
   }
 
   return result;
 }
+
+int __abi_wrap_fcntl2(int fildes, int cmd, int arg) {
+  int platform_cmd = MuslCmdToPlatformCmd(cmd);
+  if (platform_cmd == -1) {
+    errno = EINVAL;
+    return -1;
+  }
+
+  return fcntl(fildes, platform_cmd, arg);
+}
+
+int __abi_wrap_fcntl3(int fildes, int cmd, void* arg) {
+  SB_CHECK(arg);
+  int platform_cmd = MuslCmdToPlatformCmd(cmd);
+  if (platform_cmd == -1) {
+    errno = EINVAL;
+    return -1;
+  }
+
+  return fcntl(fildes, platform_cmd, arg);
+}
+ 
