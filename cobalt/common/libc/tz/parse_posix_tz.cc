@@ -351,9 +351,6 @@ bool ParseDst(std::string_view& timezone_view, TimezoneData& result) {
   // After parsing DST, if the remaining string is not empty and doesn't
   // start with a comma, it's a malformed entry.
   if (!timezone_view.empty() && timezone_view.front() != ',') {
-    // The DST part was malformed. Discard it and reset the string view.
-    result.dst.reset();
-    result.dst_offset.reset();
     return false;
   }
   return true;

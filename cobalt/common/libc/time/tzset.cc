@@ -175,6 +175,10 @@ std::array<char, Timezone::kMaxTimezoneNameSize>
 
 std::unique_ptr<icu::TimeZone> Timezone::CalculateTimezoneData(
     const char* timezone_name) {
+  // If TZ is not set, use the system default.
+  const char* tz_to_process =
+      timezone_name ? timezone_name : SbTimeZoneGetName();
+
   // 1. Per POSIX, an empty TZ string specifies UTC. This is the highest
   // priority rule.
   if (timezone_name && timezone_name[0] == '\0') {
@@ -183,10 +187,6 @@ std::unique_ptr<icu::TimeZone> Timezone::CalculateTimezoneData(
     return std::make_unique<icu::SimpleTimeZone>(
         0, icu::UnicodeString::fromUTF8("UTC"));
   }
-
-  // If TZ is not set, use the system default.
-  const char* tz_to_process =
-      timezone_name ? timezone_name : SbTimeZoneGetName();
 
   // 2. Attempt to parse the string as a POSIX timezone.
   auto timezone_data = tz::ParsePosixTz(tz_to_process);
@@ -199,13 +199,11 @@ std::unique_ptr<icu::TimeZone> Timezone::CalculateTimezoneData(
   auto* tz = icu::TimeZone::createTimeZone(time_zone_id);
 
   // 4. If IANA parsing fails (or if the original TZ was invalid), fall back
-  // to the system default as our implementation-defined behavior.
+  // to UTC as our implementation-defined behavior.
   if (!tz || *tz == icu::TimeZone::getUnknown()) {
     delete tz;
-    icu::UnicodeString default_id =
-        icu::UnicodeString::fromUTF8(SbTimeZoneGetName());
     return std::unique_ptr<icu::TimeZone>(
-        icu::TimeZone::createTimeZone(default_id));
+        icu::TimeZone::createTimeZone("UTC"));
   }
 
   return std::unique_ptr<icu::TimeZone>(tz);
@@ -614,6 +612,8 @@ void Timezone::Tzset() {
   }
 
   icu::TimeZone::setDefault(*tz);
+  icu::UnicodeString id;
+  tz->getID(id);
 
   // Now, update the global variables from the TimeZone object.
   timezone = -(tz->getRawOffset() / 1000);
@@ -677,6 +677,12 @@ void Timezone::SetTmTimezoneFields(struct tm* tm,
   }
 
   tm->tm_gmtoff = (raw_offset + dst_offset) / 1000;
+  if (!g_posix_tz_names.std_name.empty()) {
+    tm->tm_gmtoff = -timezone;
+    if (dst_offset != 0) {
+      tm->tm_gmtoff += 3600;
+    }
+  }
   bool is_daylight = (dst_offset != 0);
 
   // This static buffer is thread-local, so it's safe for concurrent use.
