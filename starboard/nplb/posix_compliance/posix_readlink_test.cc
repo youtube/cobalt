@@ -21,6 +21,7 @@
 // 3. ENOMEM: Insufficient kernel memory was available. This is not feasible
 //    to trigger in a standard unit test.
 
+#include <dirent.h>
 #include <fcntl.h>
 #include <limits.h>
 #include <sys/stat.h>
@@ -31,6 +32,7 @@
 #include <vector>
 
 #include "starboard/common/file.h"
+#include "starboard/configuration_constants.h"
 #include "starboard/nplb/file_helpers.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
@@ -38,7 +40,46 @@ namespace starboard {
 namespace nplb {
 namespace {
 
-class ReadlinkTest : public ::testing::Test {
+bool FileDeleteRecursive(const std::string& path) {
+  struct stat st;
+
+  if (lstat(path.c_str(), &st) != 0) {
+    return (errno == ENOENT);  // File doesn't exist, do nothing.
+  }
+
+  if (!S_ISDIR(st.st_mode)) {
+    return (unlink(path.c_str()) == 0);  // Remove file or symlink.
+  }
+
+  DIR* dir = opendir(path.c_str());
+  if (!dir) {
+    return false;
+  }
+
+  bool success = true;
+  struct dirent* entry;
+  while ((entry = readdir(dir)) != nullptr) {
+    if (strcmp(entry->d_name, ".") == 0 || strcmp(entry->d_name, "..") == 0) {
+      continue;
+    }
+
+    std::string entry_path = path + kSbFileSepString + entry->d_name;
+    if (!FileDeleteRecursive(entry_path)) {
+      success = false;
+      break;  // Stop on the first error.
+    }
+  }
+
+  closedir(dir);
+
+  if (success) {
+    return (rmdir(path.c_str()) == 0);
+  }
+
+  return false;
+}
+
+class PosixReadlinkTest : public ::testing::Test {
  protected:
   void SetUp() override {
     char template_name[] = "/tmp/readlink_test_XXXXXX";
@@ -56,7 +97,7 @@ class ReadlinkTest : public ::testing::Test {
 
   void TearDown() override {
     if (!test_dir_.empty()) {
-      ASSERT_TRUE(SbFileDeleteRecursive(test_dir_.c_str(), false));
+      ASSERT_TRUE(FileDeleteRecursive(test_dir_.c_str()));
     }
   }
 
@@ -65,7 +106,7 @@ class ReadlinkTest : public ::testing::Test {
   std::string link_target_content_;
 };
 
-TEST_F(ReadlinkTest, SunnyDay) {
+TEST_F(PosixReadlinkTest, SunnyDay) {
   char buf[PATH_MAX];
   ssize_t len = readlink(link_path_.c_str(), buf, sizeof(buf));
   ASSERT_NE(len, -1);
@@ -73,7 +114,7 @@ TEST_F(ReadlinkTest, SunnyDay) {
   ASSERT_EQ(std::string(buf, len), link_target_content_);
 }
 
-TEST_F(ReadlinkTest, Truncation) {
+TEST_F(PosixReadlinkTest, Truncation) {
   char buf[10];
   ssize_t len = readlink(link_path_.c_str(), buf, sizeof(buf));
   ASSERT_NE(len, -1);
@@ -81,7 +122,7 @@ TEST_F(ReadlinkTest, Truncation) {
   ASSERT_EQ(std::string(buf, len), link_target_content_.substr(0, sizeof(buf)));
 }
 
-TEST_F(ReadlinkTest, DoesNotNullTerminate) {
+TEST_F(PosixReadlinkTest, DoesNotNullTerminate) {
   size_t content_len = link_target_content_.length();
   char buf[content_len + 5];
   memset(buf, 'X', sizeof(buf));
@@ -95,7 +136,7 @@ TEST_F(ReadlinkTest, DoesNotNullTerminate) {
   ASSERT_EQ(buf[content_len], 'X');
 }
 
-TEST_F(ReadlinkTest, PathIsNotSymlinkFails) {
+TEST_F(PosixReadlinkTest, PathIsNotSymlinkFails) {
   std::string regular_file = test_dir_ + "/regular.txt";
   int fd = open(regular_file.c_str(), O_CREAT | O_WRONLY, 0644);
   ASSERT_NE(fd, -1) << "Failed to create test file: " << strerror(errno);
@@ -108,7 +149,7 @@ TEST_F(ReadlinkTest, PathIsNotSymlinkFails) {
   EXPECT_EQ(errno, EINVAL);
 }
 
-TEST_F(ReadlinkTest, NonExistentPathFails) {
+TEST_F(PosixReadlinkTest, NonExistentPathFails) {
   std::string non_existent_path = test_dir_ + "/does_not_exist";
   char buf[PATH_MAX];
   errno = 0;
@@ -116,14 +157,14 @@ TEST_F(ReadlinkTest, NonExistentPathFails) {
   EXPECT_EQ(errno, ENOENT);
 }
 
-TEST_F(ReadlinkTest, EmptyPathFails) {
+TEST_F(PosixReadlinkTest, EmptyPathFails) {
   char buf[PATH_MAX];
   errno = 0;
   EXPECT_EQ(readlink("", buf, sizeof(buf)), -1);
   EXPECT_EQ(errno, ENOENT);
 }
 
-TEST_F(ReadlinkTest, PathComponentNotDirectoryFails) {
+TEST_F(PosixReadlinkTest, PathComponentNotDirectoryFails) {
   std::string file_as_dir = test_dir_ + "/file_as_dir";
   int fd = open(file_as_dir.c_str(), O_CREAT | O_WRONLY, 0644);
   ASSERT_NE(fd, -1);
@@ -136,15 +177,22 @@ TEST_F(ReadlinkTest, PathComponentNotDirectoryFails) {
   EXPECT_EQ(errno, ENOTDIR);
 }
 
-TEST_F(ReadlinkTest, PermissionDeniedFails) {
+TEST_F(PosixReadlinkTest, PermissionDeniedFails) {
+  // This test will not work correctly if run as root, as root bypasses
+  // file permission checks.
+  if (geteuid() == 0) {
+    GTEST_SKIP() << "Test cannot run as root; permission checks are bypassed.";
+  }
+
+  constexpr mode_t user_rwx = S_IRUSR | S_IWUSR | S_IXUSR;
   std::string protected_dir = test_dir_ + "/protected";
   std::string link_in_protected = protected_dir + "/inner_link";
 
-  ASSERT_EQ(mkdir(protected_dir.c_str(), 0755), 0);
+  ASSERT_EQ(mkdir(protected_dir.c_str(), user_rwx), 0);
   ASSERT_EQ(symlink("target", link_in_protected.c_str()), 0);
 
   // Remove search (execute) permission from a component of the path.
-  ASSERT_EQ(chmod(protected_dir.c_str(), 0655), 0);
+  ASSERT_EQ(chmod(protected_dir.c_str(), S_IRUSR | S_IWUSR), 0);
 
   char buf[PATH_MAX];
   errno = 0;
@@ -152,10 +200,10 @@ TEST_F(ReadlinkTest, PermissionDeniedFails) {
   EXPECT_EQ(errno, EACCES);
 
   // Restore permissions for cleanup.
-  chmod(protected_dir.c_str(), 0755);
+  chmod(protected_dir.c_str(), user_rwx);
 }
 
-TEST_F(ReadlinkTest, InvalidBufferSizeFails) {
+TEST_F(PosixReadlinkTest, InvalidBufferSizeFails) {
   char buf[1];
 
   errno = 0;
@@ -167,7 +215,7 @@ TEST_F(ReadlinkTest, InvalidBufferSizeFails) {
   EXPECT_EQ(errno, EINVAL);
 }
 
-TEST_F(ReadlinkTest, SymlinkLoopFails) {
+TEST_F(PosixReadlinkTest, SymlinkLoopFails) {
   std::string link_a_path = test_dir_ + "/link_a";
   std::string link_b_path = test_dir_ + "/link_b";
 
@@ -185,7 +233,7 @@ TEST_F(ReadlinkTest, SymlinkLoopFails) {
   EXPECT_EQ(errno, ELOOP);
 }
 
-TEST_F(ReadlinkTest, PathTooLongFails) {
+TEST_F(PosixReadlinkTest, PathTooLongFails) {
   std::string long_name(PATH_MAX + 1, 'a');
   std::string long_path = test_dir_ + "/" + long_name;
 
