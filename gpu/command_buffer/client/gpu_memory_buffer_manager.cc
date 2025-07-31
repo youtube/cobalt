@@ -23,7 +23,9 @@ GpuMemoryBufferManager::AllocatedBufferInfo::AllocatedBufferInfo(
     : buffer_id_(handle.id),
       type_(handle.type),
       size_in_bytes_(gfx::BufferSizeForBufferFormat(size, format)) {
+#if BUILDFLAG(IS_COBALT_HERMETIC_BUILD)
   DCHECK_NE(gfx::EMPTY_BUFFER, type_);
+#endif
 
   if (type_ == gfx::SHARED_MEMORY_BUFFER)
     shared_memory_guid_ = handle.region.GetGUID();
