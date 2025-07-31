@@ -1,0 +1,25 @@
+name: Build Chromium
+description: Builds Chromium targets
+runs:
+  using: "composite"
+  steps:
+      - name: GN gen
+        run: |
+          cd src
+          # cobalt/build/gn.py -p ${{ matrix.platform }} -C ${{ matrix.config }}
+          gn gen out/${{ matrix.platform }}_${{ matrix.config }}
+        shell: bash
+      - name: List GN args
+        run: |
+          cd src
+          gn args --list --short --overrides-only out/${{ matrix.platform }}_${{ matrix.config }}
+        shell: bash
+      - name: Ninja build
+        env:
+          TARGETS_JSON: ${{ inputs.targets }}
+        run: |
+          set -ex
+          cd src
+          TARGETS=$(echo "${TARGETS_JSON}" | jq -cr '. | join(" ")')
+          time autoninja -C out/${{ matrix.platform }}_${{ matrix.config }} ${TARGETS}
+        shell: bash
