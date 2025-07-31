@@ -108,6 +108,10 @@ jobs:
         uses: actions/download-artifact@v4
         with:
           name: ci-essentials-${{ inputs.platform }}
+      - name: Check the filesystem
+        shell: bash
+        run: |
+          find . -type f
       - name: Build docker image
         id: build-docker-image
         uses: ./.github/actions/docker
