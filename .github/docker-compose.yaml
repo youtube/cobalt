@@ -1,0 +1,6 @@
+services:
+  linux:
+    build:
+      context: docker/linux
+    image: "${DOCKER_COMPOSE_IMAGE:-linux}"
+    platform: linux/amd64

@@ -1,0 +1,36 @@
+name: Set Up Depot Tools
+description: Sets up Depot Tools and initializes gclient. Requires source code to be cloned to src/ directory.
+inputs:
+  run_sync:
+    description: "Whether or not to run gclient sync."
+    default: "true"
+runs:
+  using: "composite"
+  steps:
+      - name: Get depot tools
+        run: git clone https://chromium.googlesource.com/chromium/tools/depot_tools.git
+        shell: bash
+      - name: Bootstrap bundled python3
+        run: |
+          # Must be run manually as $DEPOT_TOOLS_UPDATE is 0 in CI, skipping the bootstrap.
+          source depot_tools/bootstrap_python3 && bootstrap_python3
+        shell: bash
+      - name: Add depot tools to PATH
+        run: echo "$GITHUB_WORKSPACE/depot_tools" >> $GITHUB_PATH
+        shell: bash
+      - name: Generate gclient file
+        run: gclient config --name=src --custom-var=download_remoteexec_cfg=True --custom-var='rbe_instance="projects/cobalt-actions-prod/instances/default_instance"' https://github.com/${{ github.repository }}
+        shell: bash
+      - name: Set target OS for Android
+        if: ${{ contains(matrix.platform, 'android') }}
+        run: |
+          echo "target_os=['android']" >> .gclient
+          gclient validate
+        shell: bash
+      - name: gclient sync
+        if: inputs.run_sync == 'true'
+        run: gclient sync -v --shallow --no-history -r ${{ github.sha }}
+        shell: bash
+      - name: Disable Chromium client side build telemetry
+        run: build_telemetry opt-out
+        shell: bash

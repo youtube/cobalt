@@ -1,0 +1,118 @@
+name: Docker Image Build
+description: Builds Chromium build docker images.
+inputs:
+  docker_service:
+    description: "Docker compose service."
+    required: true
+  is_pr:
+    description: "True if the event is a pull request from a forked repository."
+    required: true
+  docker_content_sha:
+    description: "The git hash for the latest docker related changes."
+    required: true
+  github_token:
+    description: "The github token."
+    required: true
+outputs:
+  docker_tag:
+    description: "The full docker image tag."
+    value: ${{ steps.pull-cached-image.outputs.docker_tag }}
+runs:
+  using: "composite"
+  steps:
+    - name: Set up Cloud SDK
+      uses: isarkis/setup-gcloud@40dce7857b354839efac498d3632050f568090b6 # v1.1.1
+      if: ${{ inputs.is_pr == 'true' }}
+
+    - name: Set Docker Build Vars
+      env:
+        DOCKER_SERVICE: ${{ inputs.docker_service }}
+      run: |
+        # Set Docker Build Vars
+        set -x
+
+        # Set floating to either the PR number (for PRs) or the branch name (for post-submit).
+        FLOATING_TAG="${{ inputs.is_pr == 'true' && github.event.pull_request.number || github.ref_name }}"
+        # Replace slashes with double underscore.
+        FLOATING_TAG="${FLOATING_TAG//\//__}"
+        # Remove url unsafe suffix from LTS branches.
+        FLOATING_TAG="${FLOATING_TAG%.1[+,-]}"
+
+        echo "DOCKER_FLOATING_TAG=${FLOATING_TAG}" >> $GITHUB_ENV
+      shell: bash
+
+    - name: Login to GAR
+      run: |
+        # Login to GAR
+        TOKEN_ENDPOINT="http://metadata.google.internal/computeMetadata/v1/instance/service-accounts/default/token"
+        ACCESS_TOKEN=$(curl -H 'Metadata-Flavor: Google' ${TOKEN_ENDPOINT} | jq -r .access_token)
+
+        # Login to GAR to be able to push images created by fork based PR workflows.
+        if [[ "${{ inputs.is_pr }}" == "true" ]]; then
+          printf ${ACCESS_TOKEN} | docker login -u oauth2accesstoken --password-stdin https://us-central1-docker.pkg.dev
+        fi
+
+        # Login to Marketplace GAR to be able to pull base images.
+        printf ${ACCESS_TOKEN} | docker login -u oauth2accesstoken --password-stdin https://marketplace.gcr.io
+      shell: bash
+
+    - name: Login to GitHub Docker Registry
+      uses: docker/login-action@9780b0c442fbb1117ed29e0efdff1e18412f7567 # v3.3.0
+      with:
+        registry: ghcr.io
+        username: ${{ github.actor }}
+        password: ${{ inputs.github_token }}
+
+    - name: Pull Existing Docker Image
+      id: pull-cached-image
+      env:
+        GITHUB_DOCKER_REGISTRY_URL: ghcr.io
+        PR_DOCKER_REGISTRY_URL: us-central1-docker.pkg.dev
+        DOCKER_SERVICE: ${{ inputs.docker_service }}
+        DOCKER_CONTENT_SHA: ${{ inputs.docker_content_sha }}
+        IS_PR: ${{ inputs.is_pr }}
+      run: |
+        # Pull Existing Docker Image
+        set -x
+        DOCKER_COMPOSE_IMAGE="${GITHUB_DOCKER_REGISTRY_URL}/${{ github.repository }}/${DOCKER_SERVICE}"
+
+        if docker manifest inspect "${DOCKER_COMPOSE_IMAGE}:${DOCKER_CONTENT_SHA}"; then
+          # A postsubmit image exists, use it.
+          echo "Using existing ${DOCKER_COMPOSE_IMAGE}"
+
+        elif [[ "${IS_PR}" == "true" ]]; then
+          # No post-submit image was found. Check PR registry to see if there's an image there.
+          PROJECT_NAME=$(gcloud config get-value project)
+          DOCKER_COMPOSE_IMAGE="${PR_DOCKER_REGISTRY_URL}/${PROJECT_NAME}/github/${DOCKER_SERVICE}"
+
+          if ! docker manifest inspect "${DOCKER_COMPOSE_IMAGE}:${DOCKER_CONTENT_SHA}"; then
+            echo "::warning::No pre-built docker image found for commit ${DOCKER_CONTENT_SHA}."
+            echo "build_image=true" >> $GITHUB_OUTPUT
+          fi
+        else
+          echo "::warning::No pre-built docker image found for commit ${DOCKER_CONTENT_SHA}."
+          echo "build_image=true" >> $GITHUB_OUTPUT
+        fi
+
+        # Tell builders which image tag to use.
+        echo "docker_tag=${DOCKER_COMPOSE_IMAGE}:${DOCKER_CONTENT_SHA}" >> $GITHUB_OUTPUT
+
+        # Make the compose image tag available to the build step below.
+        echo "DOCKER_COMPOSE_IMAGE=${DOCKER_COMPOSE_IMAGE}" >> $GITHUB_ENV
+      shell: bash
+
+    - name: Build and Push Docker Image
+      if: steps.pull-cached-image.outputs.build_image == 'true'
+      env:
+        DOCKER_CONTENT_SHA: ${{ inputs.docker_content_sha }}
+        DOCKER_SERVICE: ${{ inputs.docker_service }}
+      run: |
+        # Build and Push Docker Image
+        set -x
+        docker compose build ${DOCKER_SERVICE}
+
+        # The compose build tags the built image with $DOCKER_COMPOSE_IMAGE. Add the Docker content sha and floating tag and push.
+        docker tag "${DOCKER_COMPOSE_IMAGE}" "${DOCKER_COMPOSE_IMAGE}:${DOCKER_CONTENT_SHA}"
+        docker tag "${DOCKER_COMPOSE_IMAGE}" "${DOCKER_COMPOSE_IMAGE}:${DOCKER_FLOATING_TAG}"
+        docker push --all-tags "${DOCKER_COMPOSE_IMAGE}"
+      shell: bash

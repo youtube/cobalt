@@ -1,0 +1,27 @@
+name: linux
+
+on:
+  pull_request:
+    types: [opened, reopened, synchronize, labeled]
+    branches:
+      - main
+      - experimental/*
+      - feature/*
+  push:
+    branches:
+      - main
+      - experimental/*
+      - feature/*
+
+jobs:
+  # This is default Chromium build config
+  chromium_linux-x64:
+    uses: ./.github/workflows/main.yaml
+    permissions:
+      packages: write
+      pull-requests: write
+    with:
+      platform: chromium_linux
+      nightly: ${{ github.event.inputs.nightly }}
+    secrets:
+      datadog_api_key: ${{ secrets.DD_API_KEY }}

@@ -1,0 +1,156 @@
+# Reusable Chromium CI workflow.
+
+name: main
+
+on:
+  workflow_call:
+    inputs:
+      platform:
+        description: 'Chromium platform.'
+        required: true
+        type: string
+
+concurrency:
+  # Cancel existing jobs on the same workflow, platform, and branch (or sha if merged).
+  group: ${{ github.workflow }}-${{ inputs.platform }} @ ${{ github.head_ref || github.sha }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  # Retrieves configuration from json file.
+  initialize:
+    runs-on: ubuntu-latest
+    permissions:
+      pull-requests: write
+    env:
+      # Tell gclient not to automatically update depot tools every time it runs.
+      DEPOT_TOOLS_UPDATE: 0
+      GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      GITHUB_PR_REPO_URL: ${{ github.event.pull_request.base.repo.url }}
+      GITHUB_EVENT_NUMBER: ${{ github.event.number }}
+    if: |
+      github.event.action != 'labeled' || github.event.pull_request.merged == false
+    timeout-minutes: 10
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          ref: ${{ github.event.pull_request.head.sha }}
+      - name: Cache CI Essentials
+        uses: actions/upload-artifact@v4
+        with:
+          name: ci-essentials-${{ inputs.platform }}
+          include-hidden-files: true
+          retention-days: 14
+          path: |
+            .github
+      - name: Set platforms
+        id: set-platforms
+        shell: bash
+        run: |
+          set -x
+          platforms=$(cat ${GITHUB_WORKSPACE}/.github/config/${{ inputs.platform }}.json | jq -c '.platforms')
+          echo "platforms=${platforms}" >> $GITHUB_OUTPUT
+      - name: Set build targets
+        id: set-targets
+        shell: bash
+        run: |
+          set -x
+          targets=$(cat ${GITHUB_WORKSPACE}/.github/config/${{ inputs.platform }}.json | jq -cr '.targets')
+          echo "targets=${targets}" >> $GITHUB_OUTPUT
+      - name: Set build configs
+        id: set-build-configs
+        shell: bash
+        run: |
+          set -x
+          # Attempt to load build configs from JSON. If not present use default.
+          build_configs=$(cat ${GITHUB_WORKSPACE}/.github/config/${{ inputs.platform }}.json | jq -cr '.build_configs')
+          if [[ "${build_configs}" == "null" ]]; then
+            build_configs='["devel"]'
+          fi
+          echo "build_configs=${build_configs}" >> $GITHUB_OUTPUT
+      - name: Set platform extra includes
+        id: set-includes
+        shell: bash
+        run: |
+          set -x
+          includes=$(cat ${GITHUB_WORKSPACE}/.github/config/${{ inputs.platform }}.json | jq -c '.includes')
+          echo "includes=${includes}" >> $GITHUB_OUTPUT
+      - name: Set Docker service
+        id: set-docker-service
+        shell: bash
+        run: |
+          set -x
+          docker_service=$(cat ${GITHUB_WORKSPACE}/.github/config/${{ inputs.platform }}.json | jq -r '.docker_service')
+          echo "docker_service=${docker_service}" >> $GITHUB_OUTPUT
+      - name: Set git hash for Docker changes
+        id: set-docker-hash
+        shell: bash
+        run: |
+          set -x
+          docker_content_sha=$(git log -n 1 --pretty=format:%h -- .github/docker .github/docker-compose.yaml)
+          git show ${docker_content_sha}
+          echo "docker_content_sha=${docker_content_sha}" >> $GITHUB_OUTPUT
+    outputs:
+      platforms: ${{ steps.set-platforms.outputs.platforms }}
+      targets: ${{ steps.set-targets.outputs.targets }}
+      build_configs: ${{ steps.set-build-configs.outputs.build_configs }}
+      includes: ${{ steps.set-includes.outputs.includes }}
+      docker_service: ${{ steps.set-docker-service.outputs.docker_service }}
+      docker_content_sha: ${{ steps.set-docker-hash.outputs.docker_content_sha }}
+
+  # Builds, tags, and pushes Chromium docker build images to ghr.
+  docker-build-image:
+    needs: [initialize]
+    runs-on: [self-hosted, chrobalt-linux-runner]
+    steps:
+      - name: Restore CI Essentials
+        uses: actions/download-artifact@v4
+        with:
+          name: ci-essentials-${{ inputs.platform }}
+      - name: Build docker image
+        id: build-docker-image
+        uses: ./.github/actions/docker
+        with:
+          docker_service: ${{ needs.initialize.outputs.docker_service }}
+          is_pr: ${{ (github.event_name == 'pull_request') }}
+          docker_content_sha: ${{ needs.initialize.outputs.docker_content_sha }}
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+    outputs:
+      docker_tag: ${{ steps.build-docker-image.outputs.docker_tag }}
+
+  build:
+    needs: [initialize, docker-build-image]
+    permissions: {}
+    runs-on: [self-hosted, chrobalt-linux-runner]
+    name: ${{ matrix.name }}_${{ matrix.config }}
+    strategy:
+      fail-fast: false
+      matrix:
+        platform: ${{ fromJson(needs.initialize.outputs.platforms) }}
+        include: ${{ fromJson(needs.initialize.outputs.includes) }}
+        config: ${{ fromJson(needs.initialize.outputs.build_configs) }}
+    container: ${{ needs.docker-build-image.outputs.docker_tag }}
+    env:
+      DEPOT_TOOLS_UPDATE: 0
+      DEPOT_TOOLS_REPORT_BUILD: 0
+      DEPOT_TOOLS_COLLECT_METRICS: 0
+      DEPOT_TOOLS_METRICS: 0
+      # We want temp folder to be on tmpfs which makes workloads faster.
+      # However, dind container ends up having / folder mounted on overlay
+      # filesystem, whereas /__w which contains Chromium source code is on tmpfs.
+      TMPDIR: /__w/_temp
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          path: src
+          # Use fetch depth of 0 to get full history for a valid build id.
+          fetch-depth: 0
+      - name: Set Up Depot Tools
+        uses: ./src/.github/actions/depot_tools
+      - name: Build Chromium
+        id: build
+        uses: ./src/.github/actions/build
+        with:
+          targets: ${{ needs.initialize.outputs.targets }}
