@@ -135,97 +135,79 @@ TEST_P(PosixFormat, Localtime) {
   const auto& param = GetParam();
   ScopedTzSet tz_manager(param.tz);
 
-  time_t jan_1 = CreateTime(2023, 1, 1);
-  time_t jul_1 = CreateTime(2023, 7, 1);
+  TimeSamples samples = GetTimeSamples(2023);
 
-  struct tm* tm_jan = localtime(&jan_1);
-  ASSERT_NE(tm_jan, nullptr);
-
-  time_t standard_time;
-  time_t daylight_time;
-
-  if (tm_jan->tm_isdst > 0) {
-    daylight_time = jan_1;
-    standard_time = jul_1;
-  } else {
-    standard_time = jan_1;
-    daylight_time = jul_1;
-  }
-
-  struct tm* tm_standard = localtime(&standard_time);
+  // Every timezone must have a standard time.
+  ASSERT_TRUE(samples.standard.has_value());
+  struct tm* tm_standard = localtime(&samples.standard.value());
   ASSERT_NE(tm_standard, nullptr);
   AssertTM(*tm_standard, param.offset, param.std, false, param.dst, param.tz);
 
-  struct tm* tm_daylight = localtime(&daylight_time);
-  ASSERT_NE(tm_daylight, nullptr);
-  AssertTM(*tm_daylight, param.offset, param.std, param.dst.has_value(),
-           param.dst, param.tz);
+  if (param.dst.has_value()) {
+    // If the test data expects DST, we must have found a DST sample.
+    ASSERT_TRUE(samples.daylight.has_value())
+        << "Test data has DST, but no DST time was found for " << param.tz;
+    struct tm* tm_daylight = localtime(&samples.daylight.value());
+    ASSERT_NE(tm_daylight, nullptr);
+    AssertTM(*tm_daylight, param.offset, param.std, true, param.dst, param.tz);
+  } else {
+    // If the test data does not expect DST, we must not have found one.
+    ASSERT_FALSE(samples.daylight.has_value())
+        << "Test data has no DST, but a DST time was found for " << param.tz;
+  }
 }
 
 TEST_P(PosixFormat, Localtime_r) {
   const auto& param = GetParam();
   ScopedTzSet tz_manager(param.tz);
 
-  time_t jan_1 = CreateTime(2023, 1, 1);
-  time_t jul_1 = CreateTime(2023, 7, 1);
+  TimeSamples samples = GetTimeSamples(2023);
 
-  struct tm* tm_jan = localtime(&jan_1);
-  ASSERT_NE(tm_jan, nullptr);
-
-  time_t standard_time;
-  time_t daylight_time;
-
-  if (tm_jan->tm_isdst > 0) {
-    daylight_time = jan_1;
-    standard_time = jul_1;
-  } else {
-    standard_time = jan_1;
-    daylight_time = jul_1;
-  }
-
+  // Every timezone must have a standard time.
+  ASSERT_TRUE(samples.standard.has_value());
   struct tm tm_standard_r;
-  struct tm* tm_standard_r_res = localtime_r(&standard_time, &tm_standard_r);
+  struct tm* tm_standard_r_res =
+      localtime_r(&samples.standard.value(), &tm_standard_r);
   ASSERT_EQ(tm_standard_r_res, &tm_standard_r);
   AssertTM(tm_standard_r, param.offset, param.std, false, param.dst, param.tz,
            " with localtime_r");
 
-  struct tm tm_daylight_r;
-  struct tm* tm_daylight_r_res = localtime_r(&daylight_time, &tm_daylight_r);
-  ASSERT_EQ(tm_daylight_r_res, &tm_daylight_r);
-  AssertTM(tm_daylight_r, param.offset, param.std, param.dst.has_value(),
-           param.dst, param.tz, " with localtime_r");
+  if (param.dst.has_value()) {
+    // If the test data expects DST, we must have found a DST sample.
+    ASSERT_TRUE(samples.daylight.has_value())
+        << "Test data has DST, but no DST time was found for " << param.tz;
+    struct tm tm_daylight_r;
+    struct tm* tm_daylight_r_res =
+        localtime_r(&samples.daylight.value(), &tm_daylight_r);
+    ASSERT_EQ(tm_daylight_r_res, &tm_daylight_r);
+    AssertTM(tm_daylight_r, param.offset, param.std, true, param.dst, param.tz,
+             " with localtime_r");
+  } else {
+    // If the test data does not expect DST, we must not have found one.
+    ASSERT_FALSE(samples.daylight.has_value())
+        << "Test data has no DST, but a DST time was found for " << param.tz;
+  }
 }
 
 TEST_P(PosixFormat, Mktime) {
   const auto& param = GetParam();
   ScopedTzSet tz_manager(param.tz);
 
-  time_t jan_1 = CreateTime(2023, 1, 1);
-  time_t jul_1 = CreateTime(2023, 7, 1);
+  TimeSamples samples = GetTimeSamples(2023);
 
-  struct tm* tm_jan = localtime(&jan_1);
-  ASSERT_NE(tm_jan, nullptr);
-
-  time_t standard_time;
-  time_t daylight_time;
-
-  if (tm_jan->tm_isdst > 0) {
-    daylight_time = jan_1;
-    standard_time = jul_1;
-  } else {
-    standard_time = jan_1;
-    daylight_time = jul_1;
-  }
-
-  struct tm* tm_standard = localtime(&standard_time);
+  // Every timezone must have a standard time.
+  ASSERT_TRUE(samples.standard.has_value());
+  struct tm* tm_standard = localtime(&samples.standard.value());
   ASSERT_NE(tm_standard, nullptr);
   time_t standard_time_rt = mktime(tm_standard);
-  EXPECT_EQ(standard_time_rt, standard_time);
+  EXPECT_EQ(standard_time_rt, samples.standard.value());
 
-  struct tm* tm_daylight = localtime(&daylight_time);
-  ASSERT_NE(tm_daylight, nullptr);
-  time_t daylight_time_rt = mktime(tm_daylight);
-  EXPECT_EQ(daylight_time_rt, daylight_time);
+  if (samples.daylight.has_value()) {
+    struct tm* tm_daylight = localtime(&samples.daylight.value());
+    ASSERT_NE(tm_daylight, nullptr);
+    time_t daylight_time_rt = mktime(tm_daylight);
+    EXPECT_EQ(daylight_time_rt, samples.daylight.value());
+  }
 }
 
 INSTANTIATE_TEST_SUITE_P(PosixTimezoneTests,

@@ -21,6 +21,7 @@ static_library("libc") {
     sources += [
       "icutime.cc",
       "stdlib/environment.cc",
+      "time/timezone.h",
       "time/tzset.cc",
     ]
   }

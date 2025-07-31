@@ -585,10 +585,7 @@ const std::array<IANATestData, 367> IANAFormat::kAllTests = {
       .offset = -10 * kSecondsInHour,
       .std = "AEST",
       .dst = "AEDT"},
-     {.tz = "Australia/West",
-      .offset = -8 * kSecondsInHour,
-      .std = "AWST",
-      .dst = "AWDT"},
+     {.tz = "Australia/West", .offset = -8 * kSecondsInHour, .std = "AWST"},
      {.tz = "Australia/Yancowinna",
       .offset = -static_cast<long>(9.5 * kSecondsInHour),
       .std = "ACST",
@@ -706,7 +703,10 @@ const std::array<IANATestData, 367> IANAFormat::kAllTests = {
       .offset = -1 * kSecondsInHour,
       .std = "CET",
       .dst = "CEST"},
-     {.tz = "Europe/Busingen", .offset = -1 * kSecondsInHour, .std = "CET"},
+     {.tz = "Europe/Busingen",
+      .offset = -1 * kSecondsInHour,
+      .std = "CET",
+      .dst = "CEST"},
      {.tz = "Europe/Chisinau",
       .offset = -2 * kSecondsInHour,
       .std = "EET",
@@ -849,7 +849,10 @@ const std::array<IANATestData, 367> IANAFormat::kAllTests = {
       .offset = -1 * kSecondsInHour,
       .std = "CET",
       .dst = "CEST"},
-     {.tz = "Europe/Zaporozhye", .offset = -2 * kSecondsInHour, .std = "EET"},
+     {.tz = "Europe/Zaporozhye",
+      .offset = -2 * kSecondsInHour,
+      .std = "EET",
+      .dst = "EEST"},
      {.tz = "Europe/Zurich",
       .offset = -1 * kSecondsInHour,
       .std = "CET",
@@ -892,10 +895,7 @@ const std::array<IANATestData, 367> IANAFormat::kAllTests = {
      {.tz = "GMT+0", .offset = 0, .std = "GMT"},
      {.tz = "GMT0", .offset = 0, .std = "GMT"},
      {.tz = "Greenwich", .offset = 0, .std = "GMT"},
-     {.tz = "Hongkong",
-      .offset = -8 * kSecondsInHour,
-      .std = "HKT",
-      .dst = "HKST"},
+     {.tz = "Hongkong", .offset = -8 * kSecondsInHour, .std = "HKT"},
      {.tz = "Iceland", .offset = 0, .std = "GMT"},
      {.tz = "Indian/Antananarivo", .offset = -3 * kSecondsInHour, .std = "EAT"},
      {.tz = "Indian/Comoro", .offset = -3 * kSecondsInHour, .std = "EAT"},
@@ -904,24 +904,15 @@ const std::array<IANATestData, 367> IANAFormat::kAllTests = {
       .offset = -2 * kSecondsInHour,
       .std = "IST",
       .dst = "IDT"},
-     {.tz = "Jamaica",
-      .offset = 5 * kSecondsInHour,
-      .std = "EST",
-      .dst = "EDT"},
+     {.tz = "Jamaica", .offset = 5 * kSecondsInHour, .std = "EST"},
      {.tz = "Japan", .offset = -9 * kSecondsInHour, .std = "JST"},
      {.tz = "Libya", .offset = -2 * kSecondsInHour, .std = "EET"},
      {.tz = "Mexico/BajaNorte",
       .offset = 8 * kSecondsInHour,
       .std = "PST",
       .dst = "PDT"},
-     {.tz = "Mexico/BajaSur",
-      .offset = 7 * kSecondsInHour,
-      .std = "MST",
-      .dst = "MDT"},
-     {.tz = "Mexico/General",
-      .offset = 6 * kSecondsInHour,
-      .std = "CST",
-      .dst = "CDT"},
+     {.tz = "Mexico/BajaSur", .offset = 7 * kSecondsInHour, .std = "MST"},
+     {.tz = "Mexico/General", .offset = 6 * kSecondsInHour, .std = "CST"},
      {.tz = "MST7MDT",
       .offset = 7 * kSecondsInHour,
       .std = "MST",
@@ -947,8 +938,8 @@ const std::array<IANATestData, 367> IANAFormat::kAllTests = {
       .offset = 8 * kSecondsInHour,
       .std = "PST",
       .dst = "PDT"},
-     {.tz = "ROC", .offset = -8 * kSecondsInHour, .std = "CST", .dst = "CDT"},
-     {.tz = "ROK", .offset = -9 * kSecondsInHour, .std = "KST", .dst = "KDT"},
+     {.tz = "ROC", .offset = -8 * kSecondsInHour, .std = "CST"},
+     {.tz = "ROK", .offset = -9 * kSecondsInHour, .std = "KST"},
      {.tz = "Turkey", .offset = -3 * kSecondsInHour, .std = "TRT"},
      {.tz = "UCT", .offset = 0, .std = "UTC"},
      {.tz = "Universal", .offset = 0, .std = "UTC"},
@@ -965,7 +956,10 @@ const std::array<IANATestData, 367> IANAFormat::kAllTests = {
       .offset = 6 * kSecondsInHour,
       .std = "CST",
       .dst = "CDT"},
-     {.tz = "US/East-Indiana", .offset = 5 * kSecondsInHour, .std = "EST"},
+     {.tz = "US/East-Indiana",
+      .offset = 5 * kSecondsInHour,
+      .std = "EST",
+      .dst = "EDT"},
      {.tz = "US/Eastern",
       .offset = 5 * kSecondsInHour,
       .std = "EST",
@@ -1031,97 +1025,79 @@ TEST_P(IANAFormat, Localtime) {
   const auto& param = GetParam();
   ScopedTzSet tz_manager(param.tz);
 
-  time_t jan_1 = CreateTime(2023, 1, 1);
-  time_t jul_1 = CreateTime(2023, 7, 1);
+  TimeSamples samples = GetTimeSamples(2023);
 
-  struct tm* tm_jan = localtime(&jan_1);
-  ASSERT_NE(tm_jan, nullptr);
-
-  time_t standard_time;
-  time_t daylight_time;
-
-  if (tm_jan->tm_isdst > 0) {
-    daylight_time = jan_1;
-    standard_time = jul_1;
-  } else {
-    standard_time = jan_1;
-    daylight_time = jul_1;
-  }
-
-  struct tm* tm_standard = localtime(&standard_time);
+  // Every timezone must have a standard time.
+  ASSERT_TRUE(samples.standard.has_value());
+  struct tm* tm_standard = localtime(&samples.standard.value());
   ASSERT_NE(tm_standard, nullptr);
   AssertTM(*tm_standard, param.offset, param.std, false, param.dst, param.tz);
 
-  struct tm* tm_daylight = localtime(&daylight_time);
-  ASSERT_NE(tm_daylight, nullptr);
-  AssertTM(*tm_daylight, param.offset, param.std, param.dst.has_value(),
-           param.dst, param.tz);
+  if (param.dst.has_value()) {
+    // If the test data expects DST, we must have found a DST sample.
+    ASSERT_TRUE(samples.daylight.has_value())
+        << "Test data has DST, but no DST time was found for " << param.tz;
+    struct tm* tm_daylight = localtime(&samples.daylight.value());
+    ASSERT_NE(tm_daylight, nullptr);
+    AssertTM(*tm_daylight, param.offset, param.std, true, param.dst, param.tz);
+  } else {
+    // If the test data does not expect DST, we must not have found one.
+    ASSERT_FALSE(samples.daylight.has_value())
+        << "Test data has no DST, but a DST time was found for " << param.tz;
+  }
 }
 
 TEST_P(IANAFormat, Localtime_r) {
   const auto& param = GetParam();
   ScopedTzSet tz_manager(param.tz);
 
-  time_t jan_1 = CreateTime(2023, 1, 1);
-  time_t jul_1 = CreateTime(2023, 7, 1);
+  TimeSamples samples = GetTimeSamples(2023);
 
-  struct tm* tm_jan = localtime(&jan_1);
-  ASSERT_NE(tm_jan, nullptr);
-
-  time_t standard_time;
-  time_t daylight_time;
-
-  if (tm_jan->tm_isdst > 0) {
-    daylight_time = jan_1;
-    standard_time = jul_1;
-  } else {
-    standard_time = jan_1;
-    daylight_time = jul_1;
-  }
-
+  // Every timezone must have a standard time.
+  ASSERT_TRUE(samples.standard.has_value());
   struct tm tm_standard_r;
-  struct tm* tm_standard_r_res = localtime_r(&standard_time, &tm_standard_r);
+  struct tm* tm_standard_r_res =
+      localtime_r(&samples.standard.value(), &tm_standard_r);
   ASSERT_EQ(tm_standard_r_res, &tm_standard_r);
   AssertTM(tm_standard_r, param.offset, param.std, false, param.dst, param.tz,
            " with localtime_r");
 
-  struct tm tm_daylight_r;
-  struct tm* tm_daylight_r_res = localtime_r(&daylight_time, &tm_daylight_r);
-  ASSERT_EQ(tm_daylight_r_res, &tm_daylight_r);
-  AssertTM(tm_daylight_r, param.offset, param.std, param.dst.has_value(),
-           param.dst, param.tz, " with localtime_r");
+  if (param.dst.has_value()) {
+    // If the test data expects DST, we must have found a DST sample.
+    ASSERT_TRUE(samples.daylight.has_value())
+        << "Test data has DST, but no DST time was found for " << param.tz;
+    struct tm tm_daylight_r;
+    struct tm* tm_daylight_r_res =
+        localtime_r(&samples.daylight.value(), &tm_daylight_r);
+    ASSERT_EQ(tm_daylight_r_res, &tm_daylight_r);
+    AssertTM(tm_daylight_r, param.offset, param.std, true, param.dst, param.tz,
+             " with localtime_r");
+  } else {
+    // If the test data does not expect DST, we must not have found one.
+    ASSERT_FALSE(samples.daylight.has_value())
+        << "Test data has no DST, but a DST time was found for " << param.tz;
+  }
 }
 
 TEST_P(IANAFormat, Mktime) {
   const auto& param = GetParam();
   ScopedTzSet tz_manager(param.tz);
 
-  time_t jan_1 = CreateTime(2023, 1, 1);
-  time_t jul_1 = CreateTime(2023, 7, 1);
+  TimeSamples samples = GetTimeSamples(2023);
 
-  struct tm* tm_jan = localtime(&jan_1);
-  ASSERT_NE(tm_jan, nullptr);
-
-  time_t standard_time;
-  time_t daylight_time;
-
-  if (tm_jan->tm_isdst > 0) {
-    daylight_time = jan_1;
-    standard_time = jul_1;
-  } else {
-    standard_time = jan_1;
-    daylight_time = jul_1;
-  }
-
-  struct tm* tm_standard = localtime(&standard_time);
+  // Every timezone must have a standard time.
+  ASSERT_TRUE(samples.standard.has_value());
+  struct tm* tm_standard = localtime(&samples.standard.value());
   ASSERT_NE(tm_standard, nullptr);
   time_t standard_time_rt = mktime(tm_standard);
-  EXPECT_EQ(standard_time_rt, standard_time);
+  EXPECT_EQ(standard_time_rt, samples.standard.value());
 
-  struct tm* tm_daylight = localtime(&daylight_time);
-  ASSERT_NE(tm_daylight, nullptr);
-  time_t daylight_time_rt = mktime(tm_daylight);
-  EXPECT_EQ(daylight_time_rt, daylight_time);
+  if (samples.daylight.has_value()) {
+    struct tm* tm_daylight = localtime(&samples.daylight.value());
+    ASSERT_NE(tm_daylight, nullptr);
+    time_t daylight_time_rt = mktime(tm_daylight);
+    EXPECT_EQ(daylight_time_rt, samples.daylight.value());
+  }
 }
 
 // This function holds the set of IANA names for tests to be disabled.

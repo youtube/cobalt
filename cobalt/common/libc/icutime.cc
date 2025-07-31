@@ -17,6 +17,11 @@
 #include <sys/time.h>
 #include <sys/types.h>
 #include <time.h>
+#include <memory>
+#include "unicode/calendar.h"
+#include "unicode/gregocal.h"
+#include "unicode/timezone.h"
+#include "unicode/unistr.h"
 
 #include <array>
 #include <cerrno>
@@ -33,9 +38,6 @@
 // This file implements localtime_r(), gmtime_r(), gmtime(), localtime(),
 // mktime(), and timegm() using ICU.
 namespace {
-
-const UChar kTimeZoneUTC[] = u"Etc/UTC";
-const UChar* kTimeZoneLocal = nullptr;
 
 // Converts time_usec to struct timeval.
 static struct timeval TimeToTimeval(const time_t time_sec) {
@@ -66,7 +68,7 @@ static UDate TimevalToUDate(const struct timeval* tv) {
 // |out_exploded|, with the remainder milliseconds in |out_millisecond|, if not
 // nullptr. Returns whether the explosion was successful. NOTE: This is LOSSY.
 bool timevalExplode(const struct timeval* value,
-                    const UChar* zone_id,
+                    const icu::TimeZone* zone,
                     struct tm* out_exploded,
                     int* out_milliseconds) {
   if (!value || !out_exploded) {
@@ -75,44 +77,39 @@ bool timevalExplode(const struct timeval* value,
   cobalt::common::icu_init::EnsureInitialized();
 
   UErrorCode status = U_ZERO_ERROR;
-
-  // Always query the time using a gregorian calendar.  This is
-  // implied in opengroup documentation for tm struct, even though it is not
-  // specified.  E.g. in gmtime's documentation, it states that UTC time is
-  // used, and in tm struct's documentation it is specified that year should
-  // be an offset from 1900.
-
-  // See:
-  // http://pubs.opengroup.org/onlinepubs/009695399/functions/gmtime.html
-  UCalendar* calendar =
-      ucal_open(zone_id, -1, uloc_getDefault(), UCAL_GREGORIAN, &status);
-  if (!calendar) {
+  std::unique_ptr<icu::Calendar> calendar(
+      new icu::GregorianCalendar(zone ? zone->clone() : nullptr, status));
+  if (!calendar || U_FAILURE(status)) {
     return false;
   }
 
   UDate udate = TimevalToUDate(value);
-  ucal_setMillis(calendar, udate, &status);
-  out_exploded->tm_year = ucal_get(calendar, UCAL_YEAR, &status) - 1900;
-  out_exploded->tm_mon = ucal_get(calendar, UCAL_MONTH, &status) - UCAL_JANUARY;
-  out_exploded->tm_mday = ucal_get(calendar, UCAL_DATE, &status);
-  out_exploded->tm_hour = ucal_get(calendar, UCAL_HOUR_OF_DAY, &status);
-  out_exploded->tm_min = ucal_get(calendar, UCAL_MINUTE, &status);
-  out_exploded->tm_sec = ucal_get(calendar, UCAL_SECOND, &status);
-  out_exploded->tm_wday =
-      ucal_get(calendar, UCAL_DAY_OF_WEEK, &status) - UCAL_SUNDAY;
-  out_exploded->tm_yday = ucal_get(calendar, UCAL_DAY_OF_YEAR, &status) - 1;
+  calendar->setTime(udate, status);
+  out_exploded->tm_year = calendar->get(UCAL_YEAR, status) - 1900;
+  out_exploded->tm_mon = calendar->get(UCAL_MONTH, status);
+  out_exploded->tm_mday = calendar->get(UCAL_DATE, status);
+  out_exploded->tm_hour = calendar->get(UCAL_HOUR_OF_DAY, status);
+  out_exploded->tm_min = calendar->get(UCAL_MINUTE, status);
+  out_exploded->tm_sec = calendar->get(UCAL_SECOND, status);
+  out_exploded->tm_wday = calendar->get(UCAL_DAY_OF_WEEK, status) - UCAL_SUNDAY;
+  out_exploded->tm_yday = calendar->get(UCAL_DAY_OF_YEAR, status) - 1;
   if (out_milliseconds) {
-    *out_milliseconds = ucal_get(calendar, UCAL_MILLISECOND, &status);
+    *out_milliseconds = calendar->get(UCAL_MILLISECOND, status);
   }
-  out_exploded->tm_isdst = ucal_inDaylightTime(calendar, &status) ? 1 : 0;
+  out_exploded->tm_isdst = calendar->inDaylightTime(status) ? 1 : 0;
   if (U_FAILURE(status)) {
     status = U_ZERO_ERROR;
     out_exploded->tm_isdst = -1;
   }
 
-  cobalt::common::libc::time::SetTmTimezoneFields(out_exploded, zone_id, udate);
+  icu::UnicodeString zone_id;
+  if (zone) {
+    zone->getID(zone_id);
+  }
+  cobalt::common::libc::time::SetTmTimezoneFields(
+      out_exploded, zone_id.isEmpty() ? nullptr : zone_id.getTerminatedBuffer(),
+      udate);
 
-  ucal_close(calendar);
   return U_SUCCESS(status);
 }
 
@@ -120,7 +117,7 @@ bool timevalExplode(const struct timeval* value,
 // result as an struct timeval.
 struct timeval timevalImplode(struct tm* exploded,
                               int millisecond,
-                              const UChar* zone_id) {
+                              const icu::TimeZone* zone) {
   struct timeval zero_time = {};
   if (!exploded) {
     return zero_time;
@@ -128,44 +125,31 @@ struct timeval timevalImplode(struct tm* exploded,
   cobalt::common::icu_init::EnsureInitialized();
 
   UErrorCode status = U_ZERO_ERROR;
-
-  // Always query the time using a gregorian calendar.  This is
-  // implied in opengroup documentation for tm struct, even though it is not
-  // specified.  E.g. in gmtime's documentation, it states that UTC time is
-  // used, and in tm struct's documentation it is specified that year should
-  // be an offset from 1900.
-
-  // See:
-  // http://pubs.opengroup.org/onlinepubs/009695399/functions/gmtime.html
-  UCalendar* calendar =
-      ucal_open(zone_id, -1, uloc_getDefault(), UCAL_GREGORIAN, &status);
-  if (!calendar) {
+  std::unique_ptr<icu::Calendar> calendar(
+      new icu::GregorianCalendar(zone ? zone->clone() : nullptr, status));
+  if (!calendar || U_FAILURE(status)) {
     return zero_time;
   }
 
-  ucal_setMillis(calendar, 0, &status);  // Clear the calendar.
-  ucal_setDateTime(calendar, exploded->tm_year + 1900,
-                   exploded->tm_mon + UCAL_JANUARY, exploded->tm_mday,
-                   exploded->tm_hour, exploded->tm_min, exploded->tm_sec,
-                   &status);
+  calendar->clear();
+  calendar->set(exploded->tm_year + 1900, exploded->tm_mon, exploded->tm_mday,
+                exploded->tm_hour, exploded->tm_min, exploded->tm_sec);
   if (millisecond) {
-    ucal_add(calendar, UCAL_MILLISECOND, millisecond, &status);
+    calendar->add(UCAL_MILLISECOND, millisecond, status);
   }
 
   // Update the exploded struct with the normalized values.
-  exploded->tm_year = ucal_get(calendar, UCAL_YEAR, &status) - 1900;
-  exploded->tm_mon = ucal_get(calendar, UCAL_MONTH, &status) - UCAL_JANUARY;
-  exploded->tm_mday = ucal_get(calendar, UCAL_DATE, &status);
-  exploded->tm_hour = ucal_get(calendar, UCAL_HOUR_OF_DAY, &status);
-  exploded->tm_min = ucal_get(calendar, UCAL_MINUTE, &status);
-  exploded->tm_sec = ucal_get(calendar, UCAL_SECOND, &status);
-  exploded->tm_wday =
-      ucal_get(calendar, UCAL_DAY_OF_WEEK, &status) - UCAL_SUNDAY;
-  exploded->tm_yday = ucal_get(calendar, UCAL_DAY_OF_YEAR, &status) - 1;
-  exploded->tm_isdst = ucal_inDaylightTime(calendar, &status) ? 1 : 0;
+  exploded->tm_year = calendar->get(UCAL_YEAR, status) - 1900;
+  exploded->tm_mon = calendar->get(UCAL_MONTH, status);
+  exploded->tm_mday = calendar->get(UCAL_DATE, status);
+  exploded->tm_hour = calendar->get(UCAL_HOUR_OF_DAY, status);
+  exploded->tm_min = calendar->get(UCAL_MINUTE, status);
+  exploded->tm_sec = calendar->get(UCAL_SECOND, status);
+  exploded->tm_wday = calendar->get(UCAL_DAY_OF_WEEK, status) - UCAL_SUNDAY;
+  exploded->tm_yday = calendar->get(UCAL_DAY_OF_YEAR, status) - 1;
+  exploded->tm_isdst = calendar->inDaylightTime(status) ? 1 : 0;
 
-  UDate udate = ucal_getMillis(calendar, &status);
-  ucal_close(calendar);
+  UDate udate = calendar->getTime(status);
 
   if (status <= U_ZERO_ERROR) {
     return UDateToTimeval(udate);
@@ -194,8 +178,16 @@ struct tm* localtime_r(const time_t* in_time, struct tm* out_exploded) {
     errno = EOVERFLOW;
     return nullptr;
   }
+
+  std::unique_ptr<icu::TimeZone> zone;
+  if (auto* posix_tz = cobalt::common::libc::time::GetPosixTimeZone()) {
+    zone.reset(posix_tz->clone());
+  } else {
+    zone.reset(icu::TimeZone::createDefault());
+  }
+
   struct timeval value = TimeToTimeval(*in_time);
-  if (timevalExplode(&value, kTimeZoneLocal, out_exploded, nullptr)) {
+  if (timevalExplode(&value, zone.get(), out_exploded, nullptr)) {
     return out_exploded;
   }
 
@@ -212,7 +204,7 @@ struct tm* gmtime_r(const time_t* in_time, struct tm* out_exploded) {
     return nullptr;
   }
   struct timeval value = TimeToTimeval(*in_time);
-  if (timevalExplode(&value, kTimeZoneUTC, out_exploded, nullptr)) {
+  if (timevalExplode(&value, icu::TimeZone::getGMT(), out_exploded, nullptr)) {
     return out_exploded;
   }
 
@@ -231,12 +223,18 @@ struct tm* localtime(const time_t* in_time) {
 
 time_t mktime(struct tm* exploded) {
   tzset();
-  struct timeval value = timevalImplode(exploded, 0, kTimeZoneLocal);
+  std::unique_ptr<icu::TimeZone> zone;
+  if (auto* posix_tz = cobalt::common::libc::time::GetPosixTimeZone()) {
+    zone.reset(posix_tz->clone());
+  } else {
+    zone.reset(icu::TimeZone::createDefault());
+  }
+  struct timeval value = timevalImplode(exploded, 0, zone.get());
   return value.tv_sec;
 }
 
 time_t timegm(struct tm* exploded) {
-  struct timeval value = timevalImplode(exploded, 0, kTimeZoneUTC);
+  struct timeval value = timevalImplode(exploded, 0, icu::TimeZone::getGMT());
   return value.tv_sec;
 }
 

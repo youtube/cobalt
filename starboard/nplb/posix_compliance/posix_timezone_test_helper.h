@@ -54,6 +54,35 @@ __attribute__((unused)) static time_t CreateTime(int year, int month, int day) {
   return timegm(&tminfo);
 }
 
+struct TimeSamples {
+  std::optional<time_t> standard;
+  std::optional<time_t> daylight;
+};
+
+// Helper to deterministically find a sample of standard and daylight time
+// for a given year.
+__attribute__((unused)) static TimeSamples GetTimeSamples(int year) {
+  TimeSamples samples;
+  for (int month = 1; month <= 12; ++month) {
+    time_t current_time = CreateTime(year, month, 1);
+    struct tm* tm_current = localtime(&current_time);
+    if (!tm_current) {
+      continue;
+    }
+
+    if (tm_current->tm_isdst > 0) {
+      if (!samples.daylight) {
+        samples.daylight = current_time;
+      }
+    } else {
+      if (!samples.standard) {
+        samples.standard = current_time;
+      }
+    }
+  }
+  return samples;
+}
+
 // Helper to assert the values of a tm struct.
 __attribute__((unused)) static void AssertTM(
     const tm& tminfo,
