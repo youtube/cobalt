@@ -143,6 +143,7 @@ runs:
             cd src/
             cobalt/build/gn.py -p linux-x64x11-no-starboard -c $MATRIX_CONFIG
             autoninja -C out/linux-x64x11-no-starboard_$MATRIX_CONFIG chrome/test/chromedriver
+            cp out/linux-x64x11-no-starboard_$MATRIX_CONFIG/chromedriver out/${{ matrix.platform }}_${{ matrix.config }}
             cd ..
           fi
           src/cobalt/build/packager.py \
