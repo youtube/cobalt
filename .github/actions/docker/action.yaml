@@ -109,7 +109,7 @@ runs:
       run: |
         # Build and Push Docker Image
         set -x
-        docker compose build ${DOCKER_SERVICE}
+        docker compose -f .github/docker-compose.yaml build ${DOCKER_SERVICE}
 
         # The compose build tags the built image with $DOCKER_COMPOSE_IMAGE. Add the Docker content sha and floating tag and push.
         docker tag "${DOCKER_COMPOSE_IMAGE}" "${DOCKER_COMPOSE_IMAGE}:${DOCKER_CONTENT_SHA}"
