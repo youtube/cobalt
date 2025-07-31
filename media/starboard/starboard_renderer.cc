@@ -135,17 +135,9 @@ StarboardRenderer::~StarboardRenderer() {
 
   LOG(INFO) << "Destructing StarboardRenderer.";
 
-  // Explicitly reset |player_bridge_| before destroying it.
-  // Some functions in this class using `player_bridge_` can be called
-  // asynchronously on arbitrary threads (e.g. `GetMediaTime()`), this ensures
-  // that they won't access `player_bridge_` when it's being destroyed.
-  decltype(player_bridge_) player_bridge;
-  if (player_bridge_) {
-    player_bridge = std::move(player_bridge_);
-  }
-  player_bridge.reset();
+  player_bridge_.reset();
 
-  LOG(INFO) << "StarboardRenderer destructed.";
+  LOG(INFO) << "SbPlayerBridge destructed.";
 }
 
 void StarboardRenderer::Initialize(MediaResource* media_resource,
