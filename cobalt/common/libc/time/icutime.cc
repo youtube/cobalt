@@ -102,13 +102,7 @@ bool timevalExplode(const struct timeval* value,
     out_exploded->tm_isdst = -1;
   }
 
-  icu::UnicodeString zone_id;
-  if (zone) {
-    zone->getID(zone_id);
-  }
-  cobalt::common::libc::time::SetTmTimezoneFields(
-      out_exploded, zone_id.isEmpty() ? nullptr : zone_id.getTerminatedBuffer(),
-      udate);
+  cobalt::common::libc::time::SetTmTimezoneFields(out_exploded, *zone, udate);
 
   return U_SUCCESS(status);
 }

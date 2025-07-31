@@ -98,7 +98,7 @@ class Timezone {
  public:
   static void Tzset();
   static void SetTmTimezoneFields(struct tm* tm,
-                                  const UChar* zone_id,
+                                  const icu::TimeZone& zone,
                                   UDate date);
 
  private:
@@ -169,8 +169,6 @@ class Timezone {
   // Cache the new timezone name.
   static void CacheTimeZoneName(const char* timezone_name);
 };
-
-
 
 std::array<char, Timezone::kMaxTimezoneNameSize>
     Timezone::cached_timezone_name_{};
@@ -657,20 +655,13 @@ void Timezone::Tzset() {
 }
 
 void Timezone::SetTmTimezoneFields(struct tm* tm,
-                                   const UChar* zone_id,
+                                   const icu::TimeZone& zone,
                                    UDate date) {
   if (!tm) {
     return;
   }
 
-  std::unique_ptr<icu::TimeZone> tz;
-  if (zone_id) {
-    tz.reset(icu::TimeZone::createTimeZone(icu::UnicodeString(zone_id)));
-  } else {
-    tz.reset(icu::TimeZone::createDefault());
-  }
-
-  if (!tz || *tz == icu::TimeZone::getUnknown()) {
+  if (zone == icu::TimeZone::getUnknown()) {
     tm->tm_gmtoff = 0;
     tm->tm_zone = nullptr;
     return;
@@ -678,7 +669,7 @@ void Timezone::SetTmTimezoneFields(struct tm* tm,
 
   UErrorCode status = U_ZERO_ERROR;
   int32_t raw_offset, dst_offset;
-  tz->getOffset(date, false, raw_offset, dst_offset, status);
+  zone.getOffset(date, false, raw_offset, dst_offset, status);
   if (U_FAILURE(status)) {
     tm->tm_gmtoff = 0;
     tm->tm_zone = nullptr;
@@ -699,7 +690,7 @@ void Timezone::SetTmTimezoneFields(struct tm* tm,
   } else {
     // Fallback to IANA logic
     icu::UnicodeString time_zone_id;
-    tz->getID(time_zone_id);
+    zone.getID(time_zone_id);
 
     long corrected_timezone = -(raw_offset / 1000);
     std::string std_name, dst_name;
@@ -725,7 +716,7 @@ void Timezone::SetTmTimezoneFields(struct tm* tm,
     } else {
       // For timezone name extraction, always use a current date to get the
       // modern abbreviation, which is what POSIX tests expect.
-      tz_name_str = ExtractZoneName(*tz, is_daylight, date);
+      tz_name_str = ExtractZoneName(zone, is_daylight, date);
     }
   }
 
@@ -739,8 +730,8 @@ void Timezone::SetTmTimezoneFields(struct tm* tm,
 }
 }  // namespace
 
-void SetTmTimezoneFields(struct tm* tm, const UChar* zone_id, UDate date) {
-  Timezone::SetTmTimezoneFields(tm, zone_id, date);
+void SetTmTimezoneFields(struct tm* tm, const icu::TimeZone& zone, UDate date) {
+  Timezone::SetTmTimezoneFields(tm, zone, date);
 }
 
 }  // namespace time

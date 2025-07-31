@@ -11,7 +11,7 @@ namespace libc {
 namespace time {
 
 // Sets the timezone fields on a `struct tm` object.
-void SetTmTimezoneFields(struct tm* tm, const UChar* zone_id, UDate date);
+void SetTmTimezoneFields(struct tm* tm, const icu::TimeZone& zone, UDate date);
 
 }  // namespace time
 }  // namespace libc
