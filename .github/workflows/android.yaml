@@ -21,7 +21,6 @@ jobs:
       pull-requests: write
     with:
       platform: chromium_android-arm64
-      nightly: ${{ github.event.inputs.nightly }}
     secrets:
       datadog_api_key: ${{ secrets.DD_API_KEY }}
   chromium_android-arm:
@@ -31,7 +30,6 @@ jobs:
       pull-requests: write
     with:
       platform: chromium_android-arm
-      nightly: ${{ github.event.inputs.nightly }}
     secrets:
       datadog_api_key: ${{ secrets.DD_API_KEY }}
   chromium_android-x86:
@@ -41,6 +39,5 @@ jobs:
       pull-requests: write
     with:
       platform: chromium_android-x86
-      nightly: ${{ github.event.inputs.nightly }}
     secrets:
       datadog_api_key: ${{ secrets.DD_API_KEY }}
