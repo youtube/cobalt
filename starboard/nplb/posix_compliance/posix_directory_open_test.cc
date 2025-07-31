@@ -18,7 +18,6 @@
   - [ENFILE]: Cannot reliably trigger the system-wide file descriptor limit.
   - [EMFILE]: Triggering the per-process file descriptor limit can lead to
     flaky tests.
-  - [ENAMETOOLONG]: Max path size varies from system to system.
 */
 
 #include <dirent.h>
@@ -33,8 +32,6 @@
 namespace starboard {
 namespace nplb {
 namespace {
-
-constexpr mode_t user_rwx = S_IRUSR | S_IWUSR | S_IXUSR;
 
 void ExpectFileExists(const char* path) {
   struct stat info;
@@ -136,7 +133,7 @@ TEST(PosixDirectoryOpenTest, FailsNoAccess) {
   }
 
   std::string dir_path = GetTempDir() + kSbFileSepString + "no_access_dir";
-  ASSERT_EQ(mkdir(dir_path.c_str(), user_rwx), 0);
+  ASSERT_EQ(mkdir(dir_path.c_str(), kUserRwx), 0);
 
   // Remove read and search permissions.
   ASSERT_EQ(chmod(dir_path.c_str(), S_IWUSR), 0);
@@ -147,7 +144,7 @@ TEST(PosixDirectoryOpenTest, FailsNoAccess) {
   EXPECT_EQ(errno, EACCES);
 
   // Cleanup: Restore permissions to allow removal.
-  chmod(dir_path.c_str(), user_rwx);
+  chmod(dir_path.c_str(), kUserRwx);
   rmdir(dir_path.c_str());
 }
 
@@ -175,6 +172,17 @@ TEST(PosixDirectoryOpenTest, FailsSymlinkLoop) {
   // Cleanup
   unlink(path_a.c_str());
   unlink(path_b.c_str());
+}
+
+TEST(PosixDirectoryOpenTest, FailsNameTooLong) {
+  std::string temp_dir = GetTempDir();
+  std::string long_name(kSbFileMaxPath + 1, 'a');
+  std::string long_path = temp_dir + kSbFileSepString + long_name;
+
+  errno = 0;
+  DIR* directory = opendir(long_path.c_str());
+  EXPECT_EQ(directory, nullptr);
+  EXPECT_EQ(errno, ENAMETOOLONG);
 }
 
 }  // namespace
