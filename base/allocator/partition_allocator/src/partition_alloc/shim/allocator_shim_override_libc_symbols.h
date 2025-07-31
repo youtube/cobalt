@@ -92,6 +92,10 @@ SHIM_ALWAYS_EXPORT size_t malloc_usable_size(void* address) __THROW {
 
 }  // extern "C"
 
+<<<<<<< HEAD:base/allocator/partition_allocator/src/partition_alloc/shim/allocator_shim_override_libc_symbols.h
 #endif  // PA_BUILDFLAG(USE_ALLOCATOR_SHIM)
 
 #endif  // PARTITION_ALLOC_SHIM_ALLOCATOR_SHIM_OVERRIDE_LIBC_SYMBOLS_H_
+=======
+#endif  // BASE_ALLOCATOR_PARTITION_ALLOCATOR_SHIM_ALLOCATOR_SHIM_OVERRIDE_LIBC_SYMBOLS_H_
+>>>>>>> 216d6ca3ac8 (Build nplb hermetically (#4587)):base/allocator/partition_allocator/shim/allocator_shim_override_libc_symbols.h

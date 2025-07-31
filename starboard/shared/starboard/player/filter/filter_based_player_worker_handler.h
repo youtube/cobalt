@@ -17,6 +17,7 @@
 
 #include <functional>
 #include <memory>
+#include <mutex>
 #include <string>
 
 #include "starboard/configuration.h"
@@ -33,11 +34,7 @@
 #include "starboard/shared/starboard/player/job_queue.h"
 #include "starboard/shared/starboard/player/player_worker.h"
 
-namespace starboard {
-namespace shared {
-namespace starboard {
-namespace player {
-namespace filter {
+namespace starboard::shared::starboard::player::filter {
 
 class FilterBasedPlayerWorkerHandler : public PlayerWorker::Handler,
                                        private JobQueue::JobOwner {
@@ -89,7 +86,7 @@ class FilterBasedPlayerWorkerHandler : public PlayerWorker::Handler,
   // reads from the video renderer held by |player_components_|.  This is
   // because GetCurrentDecodeTarget() won't modify |player_components_|, and all
   // other accesses are happening from the same thread.
-  Mutex player_components_existence_mutex_;
+  std::mutex player_components_existence_mutex_;
 
   std::unique_ptr<PlayerComponents> player_components_;
   // The following three variables cache the return values of member functions
@@ -117,10 +114,6 @@ class FilterBasedPlayerWorkerHandler : public PlayerWorker::Handler,
   const media::VideoStreamInfo video_stream_info_;
 };
 
-}  // namespace filter
-}  // namespace player
-}  // namespace starboard
-}  // namespace shared
-}  // namespace starboard
+}  // namespace starboard::shared::starboard::player::filter
 
 #endif  // STARBOARD_SHARED_STARBOARD_PLAYER_FILTER_FILTER_BASED_PLAYER_WORKER_HANDLER_H_

@@ -17,7 +17,9 @@
 
 #include "third_party/dav1d/libdav1d/include/dav1d/dav1d.h"
 
+#include <limits>
 #include <memory>
+#include <mutex>
 #include <queue>
 #include <string>
 
@@ -29,9 +31,7 @@
 #include "starboard/shared/starboard/player/input_buffer_internal.h"
 #include "starboard/shared/starboard/player/job_thread.h"
 
-namespace starboard {
-namespace shared {
-namespace libdav1d {
+namespace starboard::shared::libdav1d {
 
 class VideoDecoder : public starboard::player::filter::VideoDecoder,
                      private starboard::player::JobQueue::JobOwner {
@@ -39,7 +39,8 @@ class VideoDecoder : public starboard::player::filter::VideoDecoder,
   VideoDecoder(SbMediaVideoCodec video_codec,
                SbPlayerOutputMode output_mode,
                SbDecodeTargetGraphicsContextProvider*
-                   decode_target_graphics_context_provider);
+                   decode_target_graphics_context_provider,
+               bool may_reduce_quality_for_speed);
   ~VideoDecoder() override;
 
   void Initialize(const DecoderStatusCB& decoder_status_cb,
@@ -47,7 +48,9 @@ class VideoDecoder : public starboard::player::filter::VideoDecoder,
 
   // TODO: Verify if these values are correct.
   size_t GetPrerollFrameCount() const override { return 8; }
-  int64_t GetPrerollTimeout() const override { return kSbInt64Max; }
+  int64_t GetPrerollTimeout() const override {
+    return std::numeric_limits<int64_t>::max();
+  }
   size_t GetMaxNumberOfCachedFrames() const override { return 12; }
 
   void WriteInputBuffers(const InputBuffers& input_buffers) override;
@@ -80,13 +83,15 @@ class VideoDecoder : public starboard::player::filter::VideoDecoder,
 
   void UpdateDecodeTarget_Locked(const scoped_refptr<CpuVideoFrame>& frame);
 
+  const bool may_reduce_quality_for_speed_;
+
   // The following callbacks will be initialized in Initialize() and won't be
   // changed during the life time of this class.
   DecoderStatusCB decoder_status_cb_;
   ErrorCB error_cb_;
 
-  int current_frame_height_ = 0;
   int current_frame_width_ = 0;
+  int current_frame_height_ = 0;
   int frames_being_decoded_ = 0;
   Dav1dContext* dav1d_context_ = NULL;
 
@@ -109,13 +114,11 @@ class VideoDecoder : public starboard::player::filter::VideoDecoder,
   // to obtain the current decode target (which ultimately ends up being a
   // copy of |decode_target_|), we need to safe-guard access to |decode_target_|
   // and we do so through this mutex.
-  Mutex decode_target_mutex_;
+  std::mutex decode_target_mutex_;
 
   std::queue<scoped_refptr<CpuVideoFrame>> frames_;
 };
 
-}  // namespace libdav1d
-}  // namespace shared
-}  // namespace starboard
+}  // namespace starboard::shared::libdav1d
 
 #endif  // STARBOARD_SHARED_LIBDAV1D_DAV1D_VIDEO_DECODER_H_

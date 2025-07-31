@@ -55,7 +55,11 @@
 #include "content/public/common/webplugininfo.h"
 #include "content/public/renderer/content_renderer_client.h"
 #include "content/public/renderer/render_frame.h"
+#if BUILDFLAG(IS_COBALT)
+#include "cobalt/media/audio/audio_decoder.h"
+#else // BUILDFLAG(IS_COBALT)
 #include "content/renderer/media/audio_decoder.h"
+#endif // BUILDFLAG(IS_COBALT)
 #include "content/renderer/media/batching_media_log.h"
 #include "content/renderer/media/inspector_media_event_handler.h"
 #include "content/renderer/media/render_media_event_handler.h"
@@ -439,6 +443,34 @@ void RendererBlinkPlatformImpl::SetIsLockedToSite() {
   is_locked_to_site_ = true;
 }
 
+#if BUILDFLAG(USE_STARBOARD_MEDIA)
+uint64_t RendererBlinkPlatformImpl::GetMediaSourceMaximumMemoryCapacity()
+    const {
+  RenderThreadImpl* thread = RenderThreadImpl::current();
+  if (thread) {
+    return thread->GetMediaSourceMaximumMemoryCapacity();
+  }
+  return 0;
+}
+
+uint64_t RendererBlinkPlatformImpl::GetMediaSourceCurrentMemoryCapacity()
+    const {
+  RenderThreadImpl* thread = RenderThreadImpl::current();
+  if (thread) {
+    return thread->GetMediaSourceCurrentMemoryCapacity();
+  }
+  return 0;
+}
+
+uint64_t RendererBlinkPlatformImpl::GetMediaSourceTotalAllocatedMemory() const {
+  RenderThreadImpl* thread = RenderThreadImpl::current();
+  if (thread) {
+    return thread->GetMediaSourceTotalAllocatedMemory();
+  }
+  return 0;
+}
+#endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
+
 bool RendererBlinkPlatformImpl::IsGpuCompositingDisabled() const {
   DCHECK_CALLED_ON_VALID_THREAD(main_thread_checker_);
   RenderThreadImpl* thread = RenderThreadImpl::current();
@@ -517,8 +549,13 @@ bool RendererBlinkPlatformImpl::DecodeAudioFileData(
     blink::WebAudioBus* destination_bus,
     const char* audio_file_data,
     size_t data_size) {
+#if BUILDFLAG(IS_COBALT)
+  return cobalt::DecodeAudioFileData(destination_bus, audio_file_data,
+                                      data_size);
+#else // BUILDFLAG(IS_COBALT)
   return content::DecodeAudioFileData(destination_bus, audio_file_data,
                                       data_size);
+#endif // BUILDFLAG(IS_COBALT)
 }
 
 //------------------------------------------------------------------------------

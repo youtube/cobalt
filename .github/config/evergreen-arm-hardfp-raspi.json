@@ -1,0 +1,18 @@
+{
+    "docker_service": "raspi",
+    "platforms": [
+      "evergreen-arm-hardfp-raspi"
+    ],
+    "test_on_host": false,
+    "test_root_target": "//cobalt:gn_all",
+    "num_gtest_shards": 1,
+    "targets": [
+      "loader_app"
+    ],
+    "includes": [
+      {
+        "name": "arm-hardfp-raspi",
+        "platform": "evergreen-arm-hardfp-raspi"
+      }
+    ]
+  }

@@ -27,6 +27,7 @@
 #include "base/test/test_support_android.h"
 #endif
 
+<<<<<<< HEAD
 #if !BUILDFLAG(IS_IOS)
 #include "base/message_loop/message_pump_default.h"
 #endif
@@ -35,6 +36,8 @@
 #include <windows.h>
 #endif
 
+=======
+>>>>>>> 743c174bb41 (Migrate to MessagePumpEpoll and remove MessagePumpLibevent (#5420))
 using ::testing::_;
 using ::testing::AnyNumber;
 using ::testing::AtMost;

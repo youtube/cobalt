@@ -57,6 +57,10 @@
 #include "base/strings/string_number_conversions.h"
 
 #if defined(USE_SYMBOLIZE)
+<<<<<<< HEAD
+=======
+// TODO(cobalt, b/377295011): remove the nogncheck annotation.
+>>>>>>> c07df321540 (Fix/disable errors and enable gn check (#4518))
 #include "base/third_party/symbolize/symbolize.h"  // nogncheck
 #endif
 

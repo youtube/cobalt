@@ -45,8 +45,13 @@ _ANDROID_TO_CHROMIUM_LANGUAGE_MAP = {
 ALL_RESOURCE_TYPES = {
     'anim', 'animator', 'array', 'attr', 'bool', 'color', 'dimen', 'drawable',
     'font', 'fraction', 'id', 'integer', 'interpolator', 'layout', 'macro',
+<<<<<<< HEAD
     'menu', 'mipmap', 'overlayable', 'plurals', 'raw', 'string', 'style',
     'styleable', 'transition', 'xml'
+=======
+    'menu', 'mipmap', 'plurals', 'raw', 'string', 'style', 'styleable',
+    'transition', 'xml', 'overlayable'
+>>>>>>> f28ac7d8996 (`cobalt_apk` to build dev.cobalt.coat (#4304))
 }
 
 AAPT_IGNORE_PATTERN = ':'.join([

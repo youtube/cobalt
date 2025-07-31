@@ -4778,6 +4778,7 @@ LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 
+<<<<<<< HEAD
 ------------------
 
 Creative Commons CC0 1.0 Universal
@@ -4867,6 +4868,8 @@ to this document and has no duty or obligation with respect to this CC0 or use
 of the Work.
 
 
+=======
+>>>>>>> 513c3cbbc2d (Reduce minSdkVersion to 24 and Downgrade Google Ads Identifier Version (#6077))
 Kotlin coroutines:
 
                                  Apache License
@@ -6050,6 +6053,7 @@ kotlinx_atomicfu:
    distributed under the License is distributed on an "AS IS" BASIS,
    WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
    See the License for the specific language governing permissions and
+<<<<<<< HEAD
    limitations under the License.
 
 kotlinx_serialization:
@@ -6254,4 +6258,6 @@ kotlinx_serialization:
    distributed under the License is distributed on an "AS IS" BASIS,
    WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
    See the License for the specific language governing permissions and
+=======
+>>>>>>> 513c3cbbc2d (Reduce minSdkVersion to 24 and Downgrade Google Ads Identifier Version (#6077))
    limitations under the License.

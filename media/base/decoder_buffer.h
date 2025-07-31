@@ -27,8 +27,12 @@
 #include "build/build_config.h"
 #include "media/base/decoder_buffer_side_data.h"
 #include "media/base/decrypt_config.h"
+#include "media/base/demuxer_stream.h"
+#if BUILDFLAG(USE_STARBOARD_MEDIA)
 #include "media/base/media_export.h"
+#endif // BUILDFLAG(USE_STARBOARD_MEDIA)
 #include "media/base/timestamp_constants.h"
+#include "media/base/video_codecs.h"
 
 namespace media {
 
@@ -69,10 +73,45 @@ class MEDIA_EXPORT DecoderBuffer
     DiscardPadding discard_padding;
   };
 
+<<<<<<< HEAD
   // Allocates buffer with |size| > 0. |is_key_frame_| will default to false.
   // If size is 0, no buffer will be allocated.
   // TODO(crbug.com/365814210): Remove this constructor. Clients should use the
   // FromArray constructor instead asking for a writable DecoderBuffer.
+=======
+#if BUILDFLAG(USE_STARBOARD_MEDIA)
+  class Allocator {
+   public:
+    static Allocator* GetInstance();
+
+    // The function should never return nullptr.  It may terminate the app on
+    // allocation failure.
+    virtual void* Allocate(DemuxerStream::Type type, size_t size, size_t alignment) = 0;
+    virtual void Free(void* p, size_t size) = 0;
+
+    virtual int GetAudioBufferBudget() const = 0;
+    virtual int GetBufferAlignment() const = 0;
+    virtual int GetBufferPadding() const = 0;
+    virtual base::TimeDelta GetBufferGarbageCollectionDurationThreshold()
+        const = 0;
+    virtual int GetProgressiveBufferBudget(VideoCodec codec,
+                                           int resolution_width,
+                                           int resolution_height,
+                                           int bits_per_pixel) const = 0;
+    virtual int GetVideoBufferBudget(VideoCodec codec,
+                                     int resolution_width,
+                                     int resolution_height,
+                                     int bits_per_pixel) const = 0;
+
+   protected:
+    ~Allocator() {}
+
+    static void Set(Allocator* allocator);
+  };
+#endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
+
+  // Allocates buffer with |size| >= 0. |is_key_frame_| will default to false.
+>>>>>>> af3d7334d8c ([media] Support DecoderBufferAllocator (#4348))
   explicit DecoderBuffer(size_t size);
 
   // Allocates a buffer with a copy of `data` in it. `is_key_frame_` will
@@ -172,9 +211,27 @@ class MEDIA_EXPORT DecoderBuffer
   // TODO(crbug.com/365814210): Remove in favor of AsSpan().
   const uint8_t* data() const {
     DCHECK(!end_of_stream());
+<<<<<<< HEAD
     if (external_memory_)
       return external_memory_->Span().data();
     return data_.data();
+=======
+#if BUILDFLAG(USE_STARBOARD_MEDIA)
+    return data_;
+#else   // BUILDFLAG(USE_STARBOARD_MEDIA)
+    if (read_only_mapping_.IsValid())
+      return read_only_mapping_.GetMemoryAs<const uint8_t>();
+    if (writable_mapping_.IsValid())
+      return writable_mapping_.GetMemoryAs<const uint8_t>();
+    if (external_memory_)
+      return external_memory_->span().data();
+    return data_.get();
+<<<<<<< HEAD
+#endif // BUILDFLAG(USE_STARBOARD_MEDIA)
+>>>>>>> af3d7334d8c ([media] Support DecoderBufferAllocator (#4348))
+=======
+#endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
+>>>>>>> 537681c39b4 ([media] Refine DecoderBufferAllocator memory budget (#4674))
   }
 
   // The number of bytes in the buffer.
@@ -187,9 +244,21 @@ class MEDIA_EXPORT DecoderBuffer
   //
   // TODO(crbug.com/41383992): Remove writable_data().
   uint8_t* writable_data() const {
+#if BUILDFLAG(USE_STARBOARD_MEDIA)
+    return data_;
+#else   // BUILDFLAG(USE_STARBOARD_MEDIA)
     DCHECK(!end_of_stream());
     DCHECK(!external_memory_);
+<<<<<<< HEAD
     return const_cast<uint8_t*>(data_.data());
+=======
+    return data_.get();
+<<<<<<< HEAD
+#endif // BUILDFLAG(USE_STARBOARD_MEDIA)
+>>>>>>> af3d7334d8c ([media] Support DecoderBufferAllocator (#4348))
+=======
+#endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
+>>>>>>> 537681c39b4 ([media] Refine DecoderBufferAllocator memory budget (#4674))
   }
 
   // TODO(crbug.com/41383992): Remove writable_span().
@@ -245,7 +314,27 @@ class MEDIA_EXPORT DecoderBuffer
     decrypt_config_ = std::move(decrypt_config);
   }
 
+<<<<<<< HEAD
   bool end_of_stream() const { return is_end_of_stream_; }
+=======
+  // If there's no data in this buffer, it represents end of stream.
+#if BUILDFLAG(USE_STARBOARD_MEDIA)
+  bool end_of_stream() const { return !data_; }
+  void shrink_to(size_t size) {
+    DCHECK_LE(size, size_);
+    size_ = size;
+  }
+#else   // BUILDFLAG(USE_STARBOARD_MEDIA)
+  bool end_of_stream() const {
+    return !read_only_mapping_.IsValid() && !writable_mapping_.IsValid() &&
+           !external_memory_ && !data_;
+  }
+<<<<<<< HEAD
+#endif // BUILDFLAG(USE_STARBOARD_MEDIA)
+>>>>>>> af3d7334d8c ([media] Support DecoderBufferAllocator (#4348))
+=======
+#endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
+>>>>>>> 537681c39b4 ([media] Refine DecoderBufferAllocator memory budget (#4674))
 
   bool is_key_frame() const {
     DCHECK(!end_of_stream());
@@ -295,10 +384,42 @@ class MEDIA_EXPORT DecoderBuffer
     return side_data_ ? side_data_->next_config : std::nullopt;
   }
 
+  // Returns total memory usage for both bookkeeping and buffered data. The
+  // function is added for more accurately memory management.
+  virtual size_t GetMemoryUsage() const;
+
  protected:
   friend class base::RefCountedThreadSafe<DecoderBuffer>;
+<<<<<<< HEAD
+=======
+
+  // Allocates a buffer of size |size| >= 0 and copies |data| into it. If |data|
+  // is NULL then |data_| is set to NULL and |buffer_size_| to 0.
+  // |is_key_frame_| will default to false.
+  DecoderBuffer(const uint8_t* data,
+                size_t size,
+                const uint8_t* side_data,
+                size_t side_data_size);
+#if BUILDFLAG(USE_STARBOARD_MEDIA)
+  DecoderBuffer(DemuxerStream::Type type,
+                const uint8_t* data,
+                size_t size,
+                const uint8_t* side_data,
+                size_t side_data_size);
+#endif // BUILDFLAG(USE_STARBOARD_MEDIA)
+
+  DecoderBuffer(std::unique_ptr<uint8_t[]> data, size_t size);
+
+  DecoderBuffer(base::ReadOnlySharedMemoryMapping mapping, size_t size);
+
+  DecoderBuffer(base::WritableSharedMemoryMapping mapping, size_t size);
+
+  explicit DecoderBuffer(std::unique_ptr<ExternalMemory> external_memory);
+
+>>>>>>> f071bafe36a ([media] Improve DecoderBufferAllocator logging (#5036))
   virtual ~DecoderBuffer();
 
+<<<<<<< HEAD
   // Allocates a buffer with a copy of `data` in it. `is_key_frame_` will
   // default to false.
   explicit DecoderBuffer(base::span<const uint8_t> data);
@@ -309,6 +430,20 @@ class MEDIA_EXPORT DecoderBuffer
 
   // Encoded data, if it is stored on the heap.
   const base::HeapArray<uint8_t> data_;
+=======
+#if BUILDFLAG(USE_STARBOARD_MEDIA)
+  // Encoded data, allocated from DecoderBuffer::Allocator.
+  uint8_t* data_ = nullptr;
+  size_t allocated_size_ = 0;
+#else   // BUILDFLAG(USE_STARBOARD_MEDIA)
+  // Encoded data, if it is stored on the heap.
+  std::unique_ptr<uint8_t[]> data_;
+<<<<<<< HEAD
+#endif // BUILDFLAG(USE_STARBOARD_MEDIA)
+>>>>>>> af3d7334d8c ([media] Support DecoderBufferAllocator (#4348))
+=======
+#endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
+>>>>>>> 537681c39b4 ([media] Refine DecoderBufferAllocator memory budget (#4674))
 
  private:
   // ***************************************************************************
@@ -335,8 +470,16 @@ class MEDIA_EXPORT DecoderBuffer
   // Whether the frame was marked as a keyframe in the container.
   bool is_key_frame_ : 1 = false;
 
+<<<<<<< HEAD
   // Whether the buffer represent the end of stream.
   const bool is_end_of_stream_ : 1 = false;
+=======
+  // Constructor helper method for memory allocations.
+  void Initialize();
+#if BUILDFLAG(USE_STARBOARD_MEDIA)
+  void Initialize(DemuxerStream::Type type);
+#endif // BUILDFLAG(USE_STARBOARD_MEDIA)
+>>>>>>> f071bafe36a ([media] Improve DecoderBufferAllocator logging (#5036))
 };
 
 }  // namespace media

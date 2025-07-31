@@ -18,27 +18,27 @@
 #include "starboard/shared/starboard/drm/drm_system_internal.h"
 
 #include <jni.h>
-#include <memory>
 
 #include <atomic>
+#include <memory>
+#include <mutex>
 #include <string>
+#include <string_view>
 #include <unordered_map>
 #include <vector>
 
-#include "starboard/android/shared/jni_utils.h"
 #include "starboard/android/shared/media_common.h"
-#include "starboard/common/log.h"
-#include "starboard/common/mutex.h"
+#include "starboard/android/shared/media_drm_bridge.h"
 #include "starboard/common/thread.h"
 #include "starboard/types.h"
 
-namespace starboard {
-namespace android {
-namespace shared {
+namespace starboard::android::shared {
 
-class DrmSystem : public ::SbDrmSystemPrivate, private Thread {
+class DrmSystem : public ::SbDrmSystemPrivate,
+                  public MediaDrmBridge::Host,
+                  private Thread {
  public:
-  DrmSystem(const char* key_system,
+  DrmSystem(std::string_view key_system,
             void* context,
             SbDrmSessionUpdateRequestFunc update_request_callback,
             SbDrmSessionUpdatedFunc session_updated_callback,
@@ -63,24 +63,21 @@ class DrmSystem : public ::SbDrmSystemPrivate, private Thread {
                                int certificate_size) override {}
   const void* GetMetrics(int* size) override;
 
-  jobject GetMediaCrypto() const { return j_media_crypto_; }
-  void CallUpdateRequestCallback(int ticket,
-                                 SbDrmSessionRequestType request_type,
-                                 const void* session_id,
-                                 int session_id_size,
-                                 const void* content,
-                                 int content_size,
-                                 const char* url);
-  void CallDrmSessionKeyStatusesChangedCallback(
-      const void* session_id,
-      int session_id_size,
+  jobject GetMediaCrypto() const { return media_drm_bridge_->GetMediaCrypto(); }
+
+  // MediaDrmBridge::Host methods.
+  void OnSessionUpdate(int ticket,
+                       SbDrmSessionRequestType request_type,
+                       std::string_view session_id,
+                       std::string_view content) override;
+  void OnKeyStatusChange(
+      std::string_view session_id,
       const std::vector<SbDrmKeyId>& drm_key_ids,
-      const std::vector<SbDrmKeyStatus>& drm_key_statuses);
+      const std::vector<SbDrmKeyStatus>& drm_key_statuses) override;
+
   void OnInsufficientOutputProtection();
 
-  bool is_valid() const {
-    return j_media_drm_bridge_ != NULL && j_media_crypto_ != NULL;
-  }
+  bool is_valid() const { return media_drm_bridge_->is_valid(); }
   bool require_secured_decoder() const {
     return IsWidevineL1(key_system_.c_str());
   }
@@ -92,19 +89,16 @@ class DrmSystem : public ::SbDrmSystemPrivate, private Thread {
   class SessionUpdateRequest {
    public:
     SessionUpdateRequest(int ticket,
-                         const char* type,
-                         const void* initialization_data,
-                         int initialization_data_size);
-    ~SessionUpdateRequest();
+                         std::string_view mime_type,
+                         std::string_view initialization_data);
+    ~SessionUpdateRequest() = default;
 
-    void ConvertLocalRefToGlobalRef();
-    void Generate(jobject j_media_drm_bridge) const;
+    void Generate(const MediaDrmBridge* media_drm_bridge) const;
 
    private:
-    bool references_are_global_ = false;
-    jint j_ticket_;
-    jobject j_init_data_;
-    jobject j_mime_;
+    const int ticket_;
+    const std::string init_data_;
+    const std::string mime_;
   };
 
   void CallKeyStatusesChangedCallbackWithKeyStatusRestricted_Locked();
@@ -119,22 +113,17 @@ class DrmSystem : public ::SbDrmSystemPrivate, private Thread {
   // TODO: Update key statuses to Cobalt.
   SbDrmSessionKeyStatusesChangedFunc key_statuses_changed_callback_;
 
-  jobject j_media_drm_bridge_;
-  jobject j_media_crypto_;
-
   std::vector<std::unique_ptr<SessionUpdateRequest>>
       deferred_session_update_requests_;
 
-  Mutex mutex_;
+  std::mutex mutex_;
   std::unordered_map<std::string, std::vector<SbDrmKeyId>> cached_drm_key_ids_;
   bool hdcp_lost_;
   std::atomic_bool created_media_crypto_session_{false};
 
-  std::vector<uint8_t> metrics_;
+  std::unique_ptr<MediaDrmBridge> media_drm_bridge_;
 };
 
-}  // namespace shared
-}  // namespace android
-}  // namespace starboard
+}  // namespace starboard::android::shared
 
 #endif  // STARBOARD_ANDROID_SHARED_DRM_SYSTEM_H_

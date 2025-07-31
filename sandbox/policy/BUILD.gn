@@ -29,6 +29,7 @@ component("policy") {
     "//sandbox/policy/mojom",
   ]
   public_deps = [ "//sandbox:common" ]
+<<<<<<< HEAD
   if (is_android) {
     sources += [
       "linux/bpf_base_policy_linux.cc",
@@ -44,6 +45,9 @@ component("policy") {
     ]
   }
   if (is_linux || is_chromeos) {
+=======
+  if ((is_linux || is_chromeos) && !is_cobalt_hermetic_build) {
+>>>>>>> c0045d9f20c (Remove build failures related to //sandbox (#5128))
     sources += [
       "linux/bpf_audio_policy_linux.cc",
       "linux/bpf_audio_policy_linux.h",
@@ -114,7 +118,29 @@ component("policy") {
       "//sandbox/linux:suid_sandbox_client",
     ]
   }
+<<<<<<< HEAD
   if (is_chromeos) {
+=======
+  if (is_cobalt_hermetic_build) {
+    sources += [
+      "export.h",
+      "linux/sandbox_debug_handling_linux.cc",
+      "linux/sandbox_debug_handling_linux.h",
+      "linux/sandbox_linux.h",
+
+      # // TODO: b/b/411720612 - Cobalt: Make sandbox changes which can
+      # be upstreamed to Chromium.
+      "linux/sandbox_linux_starboard_stub.cc",
+    ]
+    deps += [
+      ":chromecast_sandbox_allowlist_buildflags",
+      "//sandbox:sandbox_buildflags",
+      "//sandbox/linux:sandbox_services",
+      "//sandbox/linux:suid_sandbox_client",
+    ]
+  }
+  if (is_chromeos_ash) {
+>>>>>>> 012aa2c7693 (Add sandbox related symbol stubs to build cobalt (#5472))
     sources += [
       "linux/bpf_ime_policy_linux.cc",
       "linux/bpf_ime_policy_linux.h",

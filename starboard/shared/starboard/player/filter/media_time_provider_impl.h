@@ -16,19 +16,15 @@
 #define STARBOARD_SHARED_STARBOARD_PLAYER_FILTER_MEDIA_TIME_PROVIDER_IMPL_H_
 
 #include <memory>
+#include <mutex>
 
-#include "starboard/common/mutex.h"
 #include "starboard/common/time.h"
 #include "starboard/media.h"
 #include "starboard/shared/internal_only.h"
 #include "starboard/shared/starboard/player/filter/media_time_provider.h"
 #include "starboard/shared/starboard/player/job_queue.h"
 
-namespace starboard {
-namespace shared {
-namespace starboard {
-namespace player {
-namespace filter {
+namespace starboard::shared::starboard::player::filter {
 
 // This class provides the media playback time when there isn't an audio track.
 class MediaTimeProviderImpl : public MediaTimeProvider,
@@ -61,7 +57,7 @@ class MediaTimeProviderImpl : public MediaTimeProvider,
 
   std::unique_ptr<MonotonicSystemTimeProvider> system_time_provider_;
 
-  Mutex mutex_;
+  std::mutex mutex_;
 
   double playback_rate_ = 0.0;
   bool is_playing_ = false;
@@ -69,10 +65,6 @@ class MediaTimeProviderImpl : public MediaTimeProvider,
   int64_t seek_to_time_set_at_ = CurrentMonotonicTime();
 };
 
-}  // namespace filter
-}  // namespace player
-}  // namespace starboard
-}  // namespace shared
-}  // namespace starboard
+}  // namespace starboard::shared::starboard::player::filter
 
 #endif  // STARBOARD_SHARED_STARBOARD_PLAYER_FILTER_MEDIA_TIME_PROVIDER_IMPL_H_

@@ -35,6 +35,7 @@ config("compiler_rt_config") {
 
 static_library("compiler_rt") {
   sources = [
+    "lib/builtins/emutls.c",    
     "lib/builtins/udivmodti4.c",
     "lib/builtins/udivti3.c",
     "lib/builtins/umodti3.c",
@@ -92,5 +93,4 @@ static_library("compiler_rt") {
   }
 
   configs += [ ":compiler_rt_config" ]
-  configs -= [ "//starboard/build/config:default_cpp_standard" ]
 }

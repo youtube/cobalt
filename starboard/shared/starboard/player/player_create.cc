@@ -38,6 +38,7 @@ using ::starboard::shared::media_session::
     UpdateActiveSessionPlatformPlaybackState;
 using ::starboard::shared::starboard::media::MimeType;
 using ::starboard::shared::starboard::player::PlayerWorker;
+using ::starboard::shared::starboard::player::SbPlayerPrivateImpl;
 using ::starboard::shared::starboard::player::filter::
     FilterBasedPlayerWorkerHandler;
 
@@ -131,7 +132,7 @@ SbPlayer SbPlayerCreate(SbWindow window,
   const int64_t kDefaultBitRate = 0;
   if (audio_codec != kSbMediaAudioCodecNone) {
     const MimeType audio_mime_type(audio_mime);
-    if (!SbMediaIsAudioSupported(
+    if (!MediaIsAudioSupported(
             audio_codec, strlen(audio_mime) > 0 ? &audio_mime_type : nullptr,
             kDefaultBitRate)) {
       SB_LOG(ERROR) << "Unsupported audio codec "
@@ -153,7 +154,7 @@ SbPlayer SbPlayerCreate(SbWindow window,
   const int kDefaultFrameRate = 0;
   if (video_codec != kSbMediaVideoCodecNone) {
     const MimeType video_mime_type(video_mime);
-    if (!SbMediaIsVideoSupported(
+    if (!MediaIsVideoSupported(
             video_codec, strlen(video_mime) > 0 ? &video_mime_type : nullptr,
             kDefaultProfile, kDefaultLevel, kDefaultColorDepth,
             kSbMediaPrimaryIdUnspecified, kSbMediaTransferIdUnspecified,
@@ -208,7 +209,7 @@ SbPlayer SbPlayerCreate(SbWindow window,
   std::unique_ptr<PlayerWorker::Handler> handler(
       new FilterBasedPlayerWorkerHandler(creation_param, provider));
 
-  SbPlayer player = SbPlayerPrivate::CreateInstance(
+  SbPlayer player = SbPlayerPrivateImpl::CreateInstance(
       audio_codec, video_codec, sample_deallocate_func, decoder_status_func,
       player_status_func, player_error_func, context, std::move(handler));
 

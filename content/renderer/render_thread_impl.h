@@ -301,6 +301,18 @@ class CONTENT_EXPORT RenderThreadImpl
   scoped_refptr<viz::ContextProviderCommandBuffer>
   SharedMainThreadContextProvider();
 
+<<<<<<< HEAD
+=======
+  scoped_refptr<viz::ContextProviderCommandBuffer>
+  PepperVideoDecodeContextProvider();
+
+#if BUILDFLAG(USE_STARBOARD_MEDIA)
+  uint64_t GetMediaSourceMaximumMemoryCapacity() const;
+  uint64_t GetMediaSourceCurrentMemoryCapacity() const;
+  uint64_t GetMediaSourceTotalAllocatedMemory() const;
+#endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
+
+>>>>>>> 55859f56c58 (Implement mediasource MemoryInfo extension (#4960))
   // For producing custom V8 histograms. Custom histograms are produced if all
   // `blink::WebView`s share the same host, and the host is in the pre-specified
   // set of hosts we want to produce custom diagrams for. The name for a custom

@@ -1,25 +1,31 @@
 {
-  "docker_service": "build-android",
-  "on_device_test": {
-    "enabled": true,
-    "tests": [
-      "0",
-      "1",
-      "2",
-      "3",
-      "black_box_test"
-    ]
-  },
+  "docker_service": "linux",
   "platforms": [
     "android-arm"
   ],
+  "test_on_device": true,
+  "test_device_family": "android",
+  "test_e2e": true,
+  "test_root_target": "//cobalt/android:cobalt_apk",
+  "test_attempts": "3",
+  "e2e_test_targets": [
+    {
+      "target": "web/living_room/kabuki/testing/end2end/browse:infra_smoke_test_custom_coat_sabrina",
+      "test_attempts": "4"
+    }
+  ],
+  "test_dimensions": {
+    "device_type": "arm_devices",
+    "device_pool": "maneki"
+  },
+  "targets": [
+    "content_shell",
+    "cobalt:gn_all"
+  ],
   "includes": [
     {
-      "name":"arm",
-      "platform":"android-arm",
-      "target_platform":"android-arm",
-      "target_cpu":"target_cpu=\\\"arm\\\"",
-      "target_os":"target_os=\\\"android\\\""
+      "name": "arm",
+      "platform": "android-arm"
     }
   ]
 }

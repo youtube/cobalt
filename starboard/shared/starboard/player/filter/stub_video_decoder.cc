@@ -14,16 +14,13 @@
 
 #include "starboard/shared/starboard/player/filter/stub_video_decoder.h"
 
+#include <limits>
 #include <string>
 
 #include "starboard/common/media.h"
 #include "starboard/shared/starboard/player/filter/cpu_video_frame.h"
 
-namespace starboard {
-namespace shared {
-namespace starboard {
-namespace player {
-namespace filter {
+namespace starboard::shared::starboard::player::filter {
 
 void StubVideoDecoder::Initialize(const DecoderStatusCB& decoder_status_cb,
                                   const ErrorCB& error_cb) {
@@ -38,7 +35,7 @@ size_t StubVideoDecoder::GetPrerollFrameCount() const {
 }
 
 int64_t StubVideoDecoder::GetPrerollTimeout() const {
-  return kSbInt64Max;
+  return std::numeric_limits<int64_t>::max();
 }
 
 size_t StubVideoDecoder::GetMaxNumberOfCachedFrames() const {
@@ -148,8 +145,4 @@ scoped_refptr<VideoFrame> StubVideoDecoder::CreateOutputFrame(
       reinterpret_cast<const uint8_t*>(data.data()));
 }
 
-}  // namespace filter
-}  // namespace player
-}  // namespace starboard
-}  // namespace shared
-}  // namespace starboard
+}  // namespace starboard::shared::starboard::player::filter

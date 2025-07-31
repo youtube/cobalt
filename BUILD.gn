@@ -870,6 +870,10 @@ group("gn_all") {
       deps += [ "//components/cronet:cronet_tests" ]
     }
   }
+<<<<<<< HEAD
+<<<<<<< HEAD
+<<<<<<< HEAD
+<<<<<<< HEAD
 
   if (is_chrome_for_testing) {
     deps += [ "//chrome/browser/chrome_for_testing:chrome_for_testing" ]
@@ -877,7 +881,22 @@ group("gn_all") {
 
   if (checkout_src_internal) {
     deps += [ "//internal:all" ]
+=======
+  if (chrobalt) {
+    deps += [ "//chrobalt:gn_all" ]
+>>>>>>> c4a0b5d0a8c (Build starboard shared library for linux-x64x11 (#4215))
   }
+=======
+>>>>>>> d45fd1a3537 (Revert "Build starboard shared library for linux-x64x11 (#4215)" (#4245))
+=======
+  if (chrobalt) {
+    deps += [ "//chrobalt:gn_all" ]
+=======
+  if (is_cobalt) {
+    deps += [ "//cobalt:gn_all" ]
+>>>>>>> cf86d0eb72c (Rename Chrobalt to Cobalt. (#4276))
+  }
+>>>>>>> 9049b1718b7 (Revert "Revert "Build starboard shared library for linux-x64x11 (#4215)"" (#4247))
 }
 
 # All Rust targets. This is provided for convenience while developing Rust to
@@ -1558,6 +1577,12 @@ if (use_blink && !is_cronet_build) {
         "//third_party/blink/web_tests/FlagSpecificConfig",
         "//third_party/blink/web_tests/FlagExpectations/",
         "//third_party/blink/web_tests/flag-specific/",
+      ]
+    }
+
+    if (is_cobalt) {
+      data += [
+        "//third_party/blink/web_tests/wpt_internal/cobalt",
       ]
     }
   }

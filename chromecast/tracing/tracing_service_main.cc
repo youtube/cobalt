@@ -110,7 +110,13 @@ class TraceCopyTask : public base::MessagePumpEpoll::FdWatcher {
   }
 
   // base::MessagePumpEpoll::FdWatcher:
+<<<<<<< HEAD
   void OnFileCanReadWithoutBlocking(int fd) override { NOTREACHED(); }
+=======
+  void OnFileCanReadWithoutBlocking(int fd) override {
+    NOTREACHED_IN_MIGRATION();
+  }
+>>>>>>> 743c174bb41 (Migrate to MessagePumpEpoll and remove MessagePumpLibevent (#5420))
   void OnFileCanWriteWithoutBlocking(int fd) override {
     DCHECK_EQ(out_fd_.get(), fd);
     CopyTraceData();

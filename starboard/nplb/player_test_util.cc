@@ -15,6 +15,7 @@
 #include "starboard/nplb/player_test_util.h"
 
 #include <atomic>
+#include <cstring>
 #include <functional>
 
 #include "starboard/audio_sink.h"
@@ -24,7 +25,6 @@
 #include "starboard/nplb/maximum_player_configuration_explorer.h"
 #include "starboard/nplb/player_creation_param_helpers.h"
 #include "starboard/shared/starboard/player/video_dmp_reader.h"
-#include "starboard/testing/fake_graphics_context_provider.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
 namespace starboard {
@@ -39,7 +39,6 @@ using std::placeholders::_1;
 using std::placeholders::_2;
 using std::placeholders::_3;
 using std::placeholders::_4;
-using testing::FakeGraphicsContextProvider;
 
 const char* kAudioTestFiles[] = {
     "beneath_the_canopy_aac_stereo.dmp",
@@ -79,19 +78,20 @@ const char* kVideoTestFiles[] = {
 const SbPlayerOutputMode kOutputModes[] = {kSbPlayerOutputModeDecodeToTexture,
                                            kSbPlayerOutputModePunchOut};
 
-void ErrorFunc(SbPlayer player,
-               void* context,
-               SbPlayerError error,
-               const char* message) {
-  std::atomic_bool* error_occurred = static_cast<std::atomic_bool*>(context);
-  error_occurred->exchange(true);
-}
-
 }  // namespace
 
-std::vector<const char*> GetAudioTestFiles() {
-  return std::vector<const char*>(std::begin(kAudioTestFiles),
-                                  std::end(kAudioTestFiles));
+std::vector<const char*> GetStereoAudioTestFiles() {
+  static std::vector<const char*> stereo_audio_test_files;
+  if (!stereo_audio_test_files.empty()) {
+    return stereo_audio_test_files;
+  }
+
+  for (const char* audio_filename : kAudioTestFiles) {
+    if (std::strstr(audio_filename, "stereo") != nullptr) {
+      stereo_audio_test_files.emplace_back(audio_filename);
+    }
+  }
+  return stereo_audio_test_files;
 }
 
 std::vector<const char*> GetVideoTestFiles() {
@@ -112,59 +112,33 @@ std::vector<const char*> GetKeySystems() {
   return key_systems;
 }
 
-std::vector<SbPlayerTestConfig> GetSupportedSbPlayerTestConfigs(
-    const char* key_system) {
-  SB_DCHECK(key_system);
+std::vector<SbPlayerTestConfig> GetAllPlayerTestConfigs() {
+  const char* kEmptyName = nullptr;
+  static std::vector<SbPlayerTestConfig> test_configs;
 
-  const char* kEmptyName = NULL;
-
-  std::vector<const char*> supported_audio_files;
-  supported_audio_files.push_back(kEmptyName);
-  for (auto audio_filename : kAudioTestFiles) {
-    VideoDmpReader dmp_reader(audio_filename,
-                              VideoDmpReader::kEnableReadOnDemand);
-    SB_DCHECK(dmp_reader.number_of_audio_buffers() > 0);
-    if (SbMediaCanPlayMimeAndKeySystem(dmp_reader.audio_mime_type().c_str(),
-                                       key_system)) {
-      supported_audio_files.push_back(audio_filename);
-    }
+  if (!test_configs.empty()) {
+    return test_configs;
   }
 
-  std::vector<const char*> supported_video_files;
-  supported_video_files.push_back(kEmptyName);
-  for (auto video_filename : kVideoTestFiles) {
-    VideoDmpReader dmp_reader(video_filename,
-                              VideoDmpReader::kEnableReadOnDemand);
-    SB_DCHECK(dmp_reader.number_of_video_buffers() > 0);
-    if (SbMediaCanPlayMimeAndKeySystem(dmp_reader.video_mime_type().c_str(),
-                                       key_system)) {
-      supported_video_files.push_back(video_filename);
-    }
-  }
-
-  std::vector<SbPlayerTestConfig> test_configs;
-  for (auto audio_filename : supported_audio_files) {
-    SbMediaAudioCodec audio_codec = kSbMediaAudioCodecNone;
-    if (audio_filename) {
-      VideoDmpReader audio_dmp_reader(audio_filename,
-                                      VideoDmpReader::kEnableReadOnDemand);
-      audio_codec = audio_dmp_reader.audio_codec();
-    }
-    for (auto video_filename : supported_video_files) {
-      SbMediaVideoCodec video_codec = kSbMediaVideoCodecNone;
-      if (video_filename) {
-        VideoDmpReader video_dmp_reader(video_filename,
-                                        VideoDmpReader::kEnableReadOnDemand);
-        video_codec = video_dmp_reader.video_codec();
+  for (auto key_system : kKeySystems) {
+    for (auto output_mode : kOutputModes) {
+      // Add audio only tests.
+      for (auto audio_filename : kAudioTestFiles) {
+        test_configs.emplace_back(audio_filename, kEmptyName, output_mode,
+                                  key_system);
       }
-      if (audio_codec == kSbMediaAudioCodecNone &&
-          video_codec == kSbMediaVideoCodecNone) {
-        continue;
+      for (auto audio_filename : kAudioOnlyTestFiles) {
+        test_configs.emplace_back(audio_filename, kEmptyName, output_mode,
+                                  key_system);
       }
-
-      for (auto output_mode : kOutputModes) {
-        if (IsOutputModeSupported(output_mode, audio_codec, video_codec,
-                                  key_system)) {
+      // Add video only tests.
+      for (auto video_filename : kVideoTestFiles) {
+        test_configs.emplace_back(kEmptyName, video_filename, output_mode,
+                                  key_system);
+      }
+      // Add audio and video tests.
+      for (auto audio_filename : kAudioTestFiles) {
+        for (auto video_filename : kVideoTestFiles) {
           test_configs.emplace_back(audio_filename, video_filename, output_mode,
                                     key_system);
         }
@@ -172,22 +146,7 @@ std::vector<SbPlayerTestConfig> GetSupportedSbPlayerTestConfigs(
     }
   }
 
-  for (auto audio_filename : kAudioOnlyTestFiles) {
-    VideoDmpReader dmp_reader(audio_filename,
-                              VideoDmpReader::kEnableReadOnDemand);
-    SB_DCHECK(dmp_reader.number_of_audio_buffers() > 0);
-    if (SbMediaCanPlayMimeAndKeySystem(dmp_reader.audio_mime_type().c_str(),
-                                       key_system)) {
-      for (auto output_mode : kOutputModes) {
-        if (IsOutputModeSupported(output_mode, dmp_reader.audio_codec(),
-                                  kSbMediaVideoCodecNone, key_system)) {
-          test_configs.emplace_back(audio_filename, kEmptyName, output_mode,
-                                    key_system);
-        }
-      }
-    }
-  }
-
+  SB_DCHECK(!test_configs.empty());
   return test_configs;
 }
 
@@ -209,6 +168,37 @@ std::string GetSbPlayerTestConfigName(
   std::replace(name.begin(), name.end(), '(', '_');
   std::replace(name.begin(), name.end(), ')', '_');
   return name;
+}
+
+void SkipTestIfNotSupported(const SbPlayerTestConfig& config) {
+  SbMediaAudioCodec audio_codec = kSbMediaAudioCodecNone;
+  if (config.audio_filename && strlen(config.audio_filename) > 0) {
+    VideoDmpReader dmp_reader(config.audio_filename,
+                              VideoDmpReader::kEnableReadOnDemand);
+    SB_DCHECK(dmp_reader.number_of_audio_buffers() > 0);
+    if (!SbMediaCanPlayMimeAndKeySystem(dmp_reader.audio_mime_type().c_str(),
+                                        config.key_system)) {
+      GTEST_SKIP() << "Unsupported audio config.";
+    }
+    audio_codec = dmp_reader.audio_codec();
+  }
+
+  SbMediaVideoCodec video_codec = kSbMediaVideoCodecNone;
+  if (config.video_filename && strlen(config.video_filename) > 0) {
+    VideoDmpReader dmp_reader(config.video_filename,
+                              VideoDmpReader::kEnableReadOnDemand);
+    SB_DCHECK(dmp_reader.number_of_video_buffers() > 0);
+    if (!SbMediaCanPlayMimeAndKeySystem(dmp_reader.video_mime_type().c_str(),
+                                        config.key_system)) {
+      GTEST_SKIP() << "Unsupported video config.";
+    }
+    video_codec = dmp_reader.video_codec();
+  }
+
+  if (!IsOutputModeSupported(config.output_mode, audio_codec, video_codec,
+                             config.key_system)) {
+    GTEST_SKIP() << "Unsupported output mode.";
+  }
 }
 
 void DummyDeallocateSampleFunc(SbPlayer player,
@@ -283,7 +273,7 @@ void CallSbPlayerWriteSamples(
   if (sample_type == kSbMediaTypeAudio) {
     SB_DCHECK(discarded_durations_from_front.empty() ||
               discarded_durations_from_front.size() ==
-                  number_of_samples_to_write);
+                  static_cast<size_t>(number_of_samples_to_write));
     SB_DCHECK(discarded_durations_from_front.size() ==
               discarded_durations_from_back.size());
   } else {

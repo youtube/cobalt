@@ -455,6 +455,21 @@ BASE_FEATURE(kEnforceSystemEchoCancellation,
              base::FEATURE_DISABLED_BY_DEFAULT);
 #endif
 
+#if BUILDFLAG(USE_STARBOARD_MEDIA)
+// When enabled, Cobalt stores allocation meta data in place for DecoderBuffers.
+BASE_FEATURE(kCobaltDecoderBufferAllocatorWithInPlaceMetadata,
+             "CobaltDecoderBufferAllocatorWithInPlaceMetadata",
+             base::FEATURE_DISABLED_BY_DEFAULT);
+// When disabled, Cobalt rejects progressive video formats.
+BASE_FEATURE(kCobaltProgressivePlayback,
+             "CobaltProgressivePlayback",
+             base::FEATURE_DISABLED_BY_DEFAULT);
+// When enabled, Cobalt reports buffering state during flush.
+BASE_FEATURE(kCobaltReportBufferingStateDuringFlush,
+             "CobaltReportBufferingStateDuringFlush",
+             base::FEATURE_DISABLED_BY_DEFAULT);
+#endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
+
 #if BUILDFLAG(IS_CHROMEOS)
 // To control running audio communication effect on Chrome OS Audio Server.
 BASE_FEATURE(kCrOSSystemAEC,

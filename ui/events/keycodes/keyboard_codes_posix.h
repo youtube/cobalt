@@ -257,6 +257,7 @@ enum KeyboardCode : unsigned short {
   VKEY_DICTATE = 0xEE,
   // All applications - this also triggers the launcher in Chrome OS.
   VKEY_ALL_APPLICATIONS = 0xEF,
+<<<<<<< HEAD
 
 #if BUILDFLAG(IS_CHROMEOS)
   VKEY_FUNCTION = 0xFF,
@@ -290,6 +291,12 @@ enum KeyboardCode : unsigned short {
   VKEY_BUTTON_Y = 0xFF0E,
   VKEY_BUTTON_Z = 0xFF0F,
 #endif
+=======
+#if BUILDFLAG(IS_COBALT)
+  // Toggle subtitles
+  KEY_SUBTITLES = 0x1CC,
+#endif  // BUILDFLAG(IS_COBALT)
+>>>>>>> de6627cb652 ([ATV] Add mapping for android captions button (#5846))
 };
 
 }  // namespace ui

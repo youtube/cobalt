@@ -297,6 +297,14 @@ CONTENT_EXPORT BASE_DECLARE_FEATURE(
 CONTENT_EXPORT BASE_DECLARE_FEATURE(kReduceGpuPriorityOnBackground);
 CONTENT_EXPORT BASE_DECLARE_FEATURE(kSmartZoom);
 CONTENT_EXPORT BASE_DECLARE_FEATURE(kUserMediaScreenCapturing);
+<<<<<<< HEAD
+=======
+CONTENT_EXPORT BASE_DECLARE_FEATURE(kWarmUpNetworkProcess);
+CONTENT_EXPORT BASE_DECLARE_FEATURE(kWebNfc);
+// TODO (b/391708407): bypass Chromium's a11y, this can be reverted when Cobalt can safely use Chromium's a11y.
+CONTENT_EXPORT BASE_DECLARE_FEATURE(kDoNotGenerateChromiumA11yTree);
+
+>>>>>>> 7067342136f (Stop creating a11y node provder for Chrobalt (#5271))
 #endif  // BUILDFLAG(IS_ANDROID)
 
 #if BUILDFLAG(IS_MAC)

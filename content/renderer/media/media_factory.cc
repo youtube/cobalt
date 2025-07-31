@@ -137,6 +137,11 @@
 #include "media/mojo/mojom/speech_recognition_service.mojom.h"
 #endif  // BUILDFLAG(IS_WIN)
 
+#if BUILDFLAG(USE_STARBOARD_MEDIA)
+#include "media/base/starboard/renderer_factory_traits.h"
+#include "media/mojo/clients/starboard/starboard_renderer_client_factory.h"
+#endif // BUILDFLAG(USE_STARBOARD_MEDIA)
+
 namespace {
 
 // This limit is much higher than it needs to be right now, because the logic
@@ -419,8 +424,21 @@ std::unique_ptr<blink::WebMediaPlayer> MediaFactory::CreateMediaPlayer(
   auto factory_selector = CreateRendererFactorySelector(
       player_id, media_log.get(), url,
       render_frame_->GetRenderFrameMediaPlaybackOptions(),
+<<<<<<< HEAD
       decoder_factory_.get(), client->RemotePlaybackClientWrapper(),
+=======
+      decoder_factory_.get(),
+      std::make_unique<blink::RemotePlaybackClientWrapperImpl>(client),
+<<<<<<< HEAD
+>>>>>>> 11f52fe6f8a (BACKPORT: Pass HTMLMediaElement identifier to ::media::Renderer (#5463))
+=======
+#if BUILDFLAG(USE_STARBOARD_MEDIA)
+      &media_observer, client->GetElementId(), 
+      client->GetMaxVideoCapabilities());
+#else // BUILDFLAG(USE_STARBOARD_MEDIA)
+>>>>>>> 9beff864642 ([media] Send maxVideoCapabilities to StarboardRenderer (#5756))
       &media_observer, client->GetElementId());
+#endif // BUILDFLAG(USE_STARBOARD_MEDIA)
 
 #if BUILDFLAG(ENABLE_MEDIA_REMOTING)
   DCHECK(media_observer);
@@ -511,9 +529,17 @@ MediaFactory::CreateRendererFactorySelector(
     blink::WebURL url,
     const RenderFrameMediaPlaybackOptions& renderer_media_playback_options,
     media::DecoderFactory* decoder_factory,
+<<<<<<< HEAD
     media::RemotePlaybackClientWrapper* client_wrapper,
+=======
+    std::unique_ptr<media::RemotePlaybackClientWrapper> client_wrapper,
+>>>>>>> 11f52fe6f8a (BACKPORT: Pass HTMLMediaElement identifier to ::media::Renderer (#5463))
     base::WeakPtr<media::MediaObserver>* out_media_observer,
+#if BUILDFLAG(USE_STARBOARD_MEDIA)
+    int element_id, const std::string& max_video_capabilities) {
+#else // BUILDFLAG(USE_STARBOARD_MEDIA)
     int element_id) {
+#endif // BUILDFLAG(USE_STARBOARD_MEDIA)
   using media::RendererType;
 
   RenderThreadImpl* render_thread = RenderThreadImpl::current();
@@ -581,6 +607,18 @@ MediaFactory::CreateRendererFactorySelector(
 #endif  // BUILDFLAG(IS_ANDROID)
 
 #if BUILDFLAG(ENABLE_MOJO_RENDERER)
+#if BUILDFLAG(USE_STARBOARD_MEDIA)
+  media::RendererFactoryTraits renderer_factory_traits;
+  GetContentClient()->renderer()->GetStarboardRendererFactoryTraits(&renderer_factory_traits);
+  renderer_factory_traits.max_video_capabilities = max_video_capabilities;
+  is_base_renderer_factory_set = true;
+  factory_selector->AddBaseFactory(RendererType::kStarboard,
+    std::make_unique<media::StarboardRendererClientFactory>(media_log,
+        CreateMojoRendererFactory(),
+        base::BindRepeating(&RenderThreadImpl::GetGpuFactories,
+          base::Unretained(render_thread)),
+        &renderer_factory_traits));
+#endif // BUILDFLAG(USE_STARBOARD_MEDIA)
   if (!is_base_renderer_factory_set &&
       renderer_media_playback_options.is_mojo_renderer_enabled()) {
     is_base_renderer_factory_set = true;
@@ -842,8 +880,17 @@ media::CdmFactory* MediaFactory::GetCdmFactory() {
 
 #if BUILDFLAG(IS_FUCHSIA)
   cdm_factory_ = std::make_unique<media::FuchsiaCdmFactory>(
+<<<<<<< HEAD
       std::make_unique<media::MojoFuchsiaCdmProvider>(&GetInterfaceBroker()),
       GetKeySystems());
+=======
+      std::make_unique<media::MojoFuchsiaCdmProvider>(interface_broker_));
+<<<<<<< HEAD
+#elif BUILDFLAG(USE_STARBOARD_MEDIA)
+  cdm_factory_ = std::make_unique<media::StarboardCdmFactory>();
+>>>>>>> 72257ee34ee (Implement media::ContentDecryptionModule interface for Starboard (#4368))
+=======
+>>>>>>> cc3b37c47c8 ([media] Move StarboardRenderer to MojoRenderer (#5113))
 #elif BUILDFLAG(ENABLE_MOJO_CDM)
   cdm_factory_ = std::make_unique<media::MojoCdmFactory>(
       GetMediaInterfaceFactory(), GetKeySystems());

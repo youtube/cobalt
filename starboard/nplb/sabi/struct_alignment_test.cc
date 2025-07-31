@@ -151,7 +151,7 @@ TEST(SbSabiStructAlignmentTest, NestedStruct) {
 }
 
 TEST(SbSabiStructAlignmentTest, NestedUnion) {
-  const Struct4 struct4 = {kInt8, kInt32, kInt8};
+  const Struct4 struct4 = {kInt8, {kInt32}, kInt8};
   const int8_t* base = reinterpret_cast<const int8_t*>(&struct4);
 
   EXPECT_EQ(kInt8, *base);

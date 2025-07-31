@@ -12,7 +12,13 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+<<<<<<< HEAD
+=======
+import("//cobalt/build/configs/hacks.gni")
+import("//starboard/build/buildflags.gni")
+>>>>>>> bdd9d7a451e (Don't compile with starboard flags for android build (#5963))
 import("//starboard/build/config/os_definitions.gni")
+import("//testing/test.gni")
 
 declare_args() {
   sb_enable_cast_codec_tests = false
@@ -22,24 +28,25 @@ config("cast_codec_tests") {
   cflags = [ "ENABLE_CAST_CODEC_TESTS" ]
 }
 
-target(gtest_target_type, "nplb") {
+config("wnos") {
+  cflags = [
+    "-Wno-ignored-qualifiers",
+    "-Wno-self-assign-overloaded",
+    "-Wno-pessimizing-move",
+    "-Wno-unused-local-typedef",
+    "-Wno-unreachable-code",
+    "-Wno-unreachable-code-break",
+  ]
+}
+
+test("nplb") {
   testonly = true
 
   sources = [
     "//starboard/common/test_main.cc",
-    "//starboard/nplb/sabi/alignment_test.cc",
-    "//starboard/nplb/sabi/endianness_test.cc",
-    "//starboard/nplb/sabi/signedness_and_size_of_enum_test.cc",
-    "//starboard/nplb/sabi/signedness_of_char_test.cc",
-    "//starboard/nplb/sabi/size_test.cc",
-    "//starboard/nplb/sabi/struct_alignment_test.cc",
     "//starboard/shared/starboard/drm/drm_test_helpers.cc",
     "//starboard/shared/starboard/drm/drm_test_helpers.h",
-    "//starboard/testing/fake_graphics_context_provider.cc",
-    "//starboard/testing/fake_graphics_context_provider.h",
     "align_test.cc",
-    "atomic_base_test.cc",
-    "atomic_test.cc",
     "audio_sink_create_test.cc",
     "audio_sink_destroy_test.cc",
     "audio_sink_get_max_channels_test.cc",
@@ -79,11 +86,9 @@ target(gtest_target_type, "nplb") {
     "drm_create_system_test.cc",
     "maximum_player_configuration_explorer.cc",
     "maximum_player_configuration_explorer.h",
-    "maximum_player_configuration_explorer_test.cc",
     "media_buffer_test.cc",
     "media_can_play_mime_and_key_system_test.cc",
     "media_configuration_test.cc",
-    "media_set_audio_write_duration_test.cc",
     "microphone_close_test.cc",
     "microphone_create_test.cc",
     "microphone_destroy_test.cc",
@@ -91,21 +96,17 @@ target(gtest_target_type, "nplb") {
     "microphone_is_sample_rate_supported_test.cc",
     "microphone_open_test.cc",
     "microphone_read_test.cc",
-    "multiple_player_test.cc",
     "murmurhash2_test.cc",
-    "optional_test.cc",
-    "player_create_test.cc",
     "player_creation_param_helpers.cc",
     "player_creation_param_helpers.h",
-    "player_get_audio_configuration_test.cc",
-    "player_get_media_time_test.cc",
     "player_get_preferred_output_mode_test.cc",
-    "player_test_fixture.cc",
-    "player_test_fixture.h",
     "player_test_util.cc",
     "player_test_util.h",
-    "player_write_sample_test.cc",
+    "posix_compliance/madvise_test.cc",
+    "posix_compliance/malloc_usable_size_test.cc",
     "posix_compliance/posix_arpa_inet_test.cc",
+    "posix_compliance/posix_auxv_getauxval_test.cc",
+    "posix_compliance/posix_clock_nanosleep_test.cc",
     "posix_compliance/posix_condition_variable_broadcast_test.cc",
     "posix_compliance/posix_condition_variable_create_test.cc",
     "posix_compliance/posix_condition_variable_destroy_test.cc",
@@ -114,20 +115,32 @@ target(gtest_target_type, "nplb") {
     "posix_compliance/posix_condition_variable_wait_timed_test.cc",
     "posix_compliance/posix_directory_can_open_test.cc",
     "posix_compliance/posix_directory_create_test.cc",
-    "posix_compliance/posix_directory_get_next_test.cc",
+    "posix_compliance/posix_directory_get_next_readdir_r_test.cc",
+    "posix_compliance/posix_directory_get_next_readdir_test.cc",
     "posix_compliance/posix_directory_open_test.cc",
+    "posix_compliance/posix_environment_test.cc",
+    "posix_compliance/posix_epoll_create_test.cc",
+    "posix_compliance/posix_epoll_ctl_test.cc",
+    "posix_compliance/posix_epoll_test_helper.cc",
+    "posix_compliance/posix_epoll_test_helper.h",
+    "posix_compliance/posix_epoll_wait_test.cc",
+    "posix_compliance/posix_eventfd_test.cc",
     "posix_compliance/posix_file_can_open_test.cc",
     "posix_compliance/posix_file_close_test.cc",
     "posix_compliance/posix_file_delete_test.cc",
+    "posix_compliance/posix_file_descriptor_duplicate_test.cc",
     "posix_compliance/posix_file_fsync_test.cc",
     "posix_compliance/posix_file_ftruncate_test.cc",
     "posix_compliance/posix_file_get_info_test.cc",
     "posix_compliance/posix_file_get_path_info_test.cc",
     "posix_compliance/posix_file_mode_string_to_flags_test.cc",
     "posix_compliance/posix_file_open_test.cc",
+    "posix_compliance/posix_file_pathconf_test.cc",
     "posix_compliance/posix_file_read_test.cc",
     "posix_compliance/posix_file_seek_test.cc",
+    "posix_compliance/posix_file_temp_test.cc",
     "posix_compliance/posix_file_write_test.cc",
+    "posix_compliance/posix_isatty_test.cc",
     "posix_compliance/posix_memory_allocate_aligned_test.cc",
     "posix_compliance/posix_memory_allocate_test.cc",
     "posix_compliance/posix_memory_deallocate_aligned_test.cc",
@@ -137,7 +150,15 @@ target(gtest_target_type, "nplb") {
     "posix_compliance/posix_mutex_acquire_try_test.cc",
     "posix_compliance/posix_mutex_create_test.cc",
     "posix_compliance/posix_mutex_destroy_test.cc",
+    "posix_compliance/posix_nanosleep_test.cc",
     "posix_compliance/posix_once_test.cc",
+    "posix_compliance/posix_pipe_test.cc",
+    "posix_compliance/posix_process_test.cc",
+    "posix_compliance/posix_rand_r_test.cc",
+    "posix_compliance/posix_rand_test.cc",
+    "posix_compliance/posix_semaphore_test.cc",
+    "posix_compliance/posix_signal_test.cc",
+    "posix_compliance/posix_sleep_test.cc",
     "posix_compliance/posix_socket_accept_test.cc",
     "posix_compliance/posix_socket_bind_test.cc",
     "posix_compliance/posix_socket_connect_test.cc",
@@ -152,10 +173,8 @@ target(gtest_target_type, "nplb") {
     "posix_compliance/posix_socket_send_test.cc",
     "posix_compliance/posix_socket_sendto_test.cc",
     "posix_compliance/posix_socket_set_options_test.cc",
-    "posix_compliance/posix_socket_waiter_add_test.cc",
-    "posix_compliance/posix_socket_waiter_remove_test.cc",
-    "posix_compliance/posix_socket_waiter_wait_test.cc",
-    "posix_compliance/posix_socket_waiter_wait_timed_test.cc",
+    "posix_compliance/posix_socket_shutdown_test.cc",
+    "posix_compliance/posix_socketpair_test.cc",
     "posix_compliance/posix_string_compare_no_case_n_test.cc",
     "posix_compliance/posix_string_compare_no_case_test.cc",
     "posix_compliance/posix_string_format_test.cc",
@@ -169,28 +188,23 @@ target(gtest_target_type, "nplb") {
     "posix_compliance/posix_thread_helpers.cc",
     "posix_compliance/posix_thread_is_equal_test.cc",
     "posix_compliance/posix_thread_join_test.cc",
+    "posix_compliance/posix_thread_kill_test.cc",
     "posix_compliance/posix_thread_local_value_test.cc",
+    "posix_compliance/posix_thread_mutexattr_test.cc",
+    "posix_compliance/posix_thread_rwlock_test.cc",
     "posix_compliance/posix_thread_set_name_test.cc",
     "posix_compliance/posix_thread_sleep_test.cc",
     "posix_compliance/posix_thread_yield_test.cc",
+    "posix_compliance/posix_time_clock_gettime_test.cc",
+    "posix_compliance/posix_time_clock_test.cc",
+    "posix_compliance/posix_time_gettimeofday_test.cc",
     "posix_compliance/posix_time_test.cc",
+    "posix_compliance/posix_time_time_test.cc",
+    "posix_compliance/posix_unistd_sysconf_test.cc",
+    "posix_compliance/posix_usleep_test.cc",
     "random_helpers.cc",
     "recursive_mutex_test.cc",
     "semaphore_test.cc",
-    "socket_clear_last_error_test.cc",
-    "socket_destroy_test.cc",
-    "socket_get_interface_address_test.cc",
-    "socket_get_last_error_test.cc",
-    "socket_get_local_address_test.cc",
-    "socket_helpers.cc",
-    "socket_is_connected_and_idle_test.cc",
-    "socket_is_connected_test.cc",
-    "socket_receive_from_test.cc",
-    "socket_waiter_create_test.cc",
-    "socket_waiter_destroy_test.cc",
-    "socket_waiter_wake_up_test.cc",
-    "socket_wrapper_test.cc",
-    "speech_synthesis_basic_test.cc",
     "storage_close_record_test.cc",
     "storage_get_record_size_test.cc",
     "storage_read_record_test.cc",
@@ -225,15 +239,42 @@ target(gtest_target_type, "nplb") {
     "ui_navigation_test.cc",
     "undefined_behavior_test.cc",
     "url_player_create_test.cc",
-    "vertical_video_test.cc",
-    "window_create_test.cc",
-    "window_destroy_test.cc",
-    "window_get_diagonal_size_in_inches_test.cc",
-    "window_get_platform_handle_test.cc",
-    "window_get_size_test.cc",
   ]
 
-  configs += [ "//starboard/build/config:starboard_implementation" ]
+  if (!is_androidtv) {
+    sources += [
+      "//starboard/nplb/sabi/alignment_test.cc",
+      "//starboard/nplb/sabi/endianness_test.cc",
+      "//starboard/nplb/sabi/signedness_and_size_of_enum_test.cc",
+      "//starboard/nplb/sabi/signedness_of_char_test.cc",
+      "//starboard/nplb/sabi/size_test.cc",
+      "//starboard/nplb/sabi/struct_alignment_test.cc",
+      "//starboard/testing/fake_graphics_context_provider.cc",
+      "//starboard/testing/fake_graphics_context_provider.h",
+      "maximum_player_configuration_explorer_test.cc",
+      "media_set_audio_write_duration_test.cc",
+      "multiple_player_test.cc",
+      "player_create_test.cc",
+      "player_get_audio_configuration_test.cc",
+      "player_get_media_time_test.cc",
+      "player_test_fixture.cc",
+      "player_test_fixture.h",
+      "player_write_sample_test.cc",
+      "posix_compliance/posix_aligned_alloc_test.cc",
+      "speech_synthesis_basic_test.cc",
+      "vertical_video_test.cc",
+      "window_create_test.cc",
+      "window_destroy_test.cc",
+      "window_get_diagonal_size_in_inches_test.cc",
+      "window_get_platform_handle_test.cc",
+      "window_get_size_test.cc",
+    ]
+  }
+
+  configs += [
+    "//starboard/build/config:starboard_implementation",
+    ":wnos",
+  ]
   if (sb_enable_cast_codec_tests) {
     configs += [ ":cast_codec_tests" ]
   }
@@ -264,12 +305,11 @@ target(gtest_target_type, "nplb") {
   }
 
   data_deps = [
-    "//starboard/content/ssl:copy_ssl_certificates",
     "//starboard/nplb/testdata/file_tests:nplb_file_tests_data",
     "//starboard/shared/starboard/player:player_download_test_data",
   ]
 
-  if (is_clang && !is_android) {
+  if (is_clang) {
     # signedness_and_size_of_enum_test.cc casts -1 to enum value
     cflags = [ "-Wno-enum-constexpr-conversion" ]
   }
@@ -301,5 +341,23 @@ target(gtest_target_type, "nplb") {
       "//starboard/shared/starboard/media:media_util",
       "//starboard/shared/starboard/player:video_dmp",
     ]
+  }
+
+  if (sb_is_evergreen_compatible) {
+    sources += [
+      "nplb_evergreen_compat_tests/checks.h",
+      "nplb_evergreen_compat_tests/crashpad_config_test.cc",
+      "nplb_evergreen_compat_tests/executable_memory_test.cc",
+      "nplb_evergreen_compat_tests/fonts_test.cc",
+      "nplb_evergreen_compat_tests/loader_app_metrics_test.cc",
+      "nplb_evergreen_compat_tests/max_file_name_test.cc",
+      "nplb_evergreen_compat_tests/sabi_test.cc",
+      "nplb_evergreen_compat_tests/storage_test.cc",
+    ]
+    data_deps += [
+      "//starboard/content/fonts:copy_font_data",
+      "//starboard/content/ssl:copy_ssl_certificates_evergreen",
+    ]
+    deps += [ "//starboard/content/fonts:copy_font_data" ]
   }
 }

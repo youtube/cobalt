@@ -325,8 +325,25 @@ std::unique_ptr<PrefService> CreateLocalState() {
   return pref_service_factory.Create(pref_registry);
 }
 
+<<<<<<< HEAD
 bool AreIsolatedWebAppsEnabled() {
   return base::FeatureList::IsEnabled(features::kIsolatedWebApps);
+=======
+}  // namespace
+
+std::string GetShellUserAgent() {
+  if (base::FeatureList::IsEnabled(blink::features::kFullUserAgent))
+    return GetShellFullUserAgent();
+
+  if (base::FeatureList::IsEnabled(blink::features::kReduceUserAgent))
+    return GetShellReducedUserAgent();
+
+  return GetShellFullUserAgent();
+<<<<<<< HEAD
+#endif
+>>>>>>> f28ac7d8996 (`cobalt_apk` to build dev.cobalt.coat (#4304))
+=======
+>>>>>>> f12dd7235ed (Chrobalt ATV UA String Implementation With No Dependencies on SB (#4388))
 }
 
 }  // namespace

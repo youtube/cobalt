@@ -14210,6 +14210,7 @@
             ]
         }
     ],
+<<<<<<< HEAD
     "MemoryPurgeInBackground": [
         {
             "platforms": [
@@ -14268,6 +14269,9 @@
         }
     ],
     "MerchantTrust": [
+=======
+    "MessagesForAndroidOfferNotification": [
+>>>>>>> 743c174bb41 (Migrate to MessagePumpEpoll and remove MessagePumpLibevent (#5420))
         {
             "platforms": [
                 "chromeos",

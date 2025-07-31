@@ -27,12 +27,7 @@
 #include "starboard/shared/starboard/player/video_dmp_reader.h"
 #include "third_party/google_benchmark/src/include/benchmark/benchmark.h"
 
-namespace starboard {
-namespace shared {
-namespace starboard {
-namespace player {
-namespace filter {
-namespace testing {
+namespace starboard::shared::starboard::player::filter::testing {
 namespace {
 
 using video_dmp::VideoDmpReader;
@@ -129,12 +124,7 @@ void RunBenchmark(::benchmark::State& state, const char* filename) {
   state.SetItemsProcessed(state.iterations() * number_of_inputs);
 }
 
-}  // namespace testing
-}  // namespace filter
-}  // namespace player
-}  // namespace starboard
-}  // namespace shared
-}  // namespace starboard
+}  // namespace starboard::shared::starboard::player::filter::testing
 
 // This function has to reside in the global namespace for BENCHMARK_CAPTURE to
 // pick it up.

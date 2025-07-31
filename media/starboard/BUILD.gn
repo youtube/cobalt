@@ -1,0 +1,153 @@
+# Copyright 2024 The Cobalt Authors. All Rights Reserved.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+assert(is_cobalt, "This file builds for cobalt builds, not Chromium builds")
+
+import("//starboard/build/buildflags.gni")
+
+assert(use_starboard_media, "This file is only for use_starboard_media builds")
+
+import("//media/media_options.gni")
+import("//starboard/build/buildflags.gni")
+
+source_set("starboard") {
+  visibility = [ "//media" ]
+
+  defines = [
+    # TODO(b/326508279): Revisit background mode
+    "COBALT_MEDIA_ENABLE_BACKGROUND_MODE=0",
+
+    # TODO(b/375069564): Revisit CValStats
+    "COBALT_MEDIA_ENABLE_CVAL=0",
+
+    # TODO(b/375070492): Revisit decode-to-texture
+    "COBALT_MEDIA_ENABLE_DECODE_TARGET_PROVIDER=0",
+
+    # TODO(b/375218518): Revisit FormatSupportQueryMetrics
+    "COBALT_MEDIA_ENABLE_FORMAT_SUPPORT_QUERY_METRICS=0",
+
+    # TODO(b/375232937): Enable IAMF
+    "COBALT_MEDIA_ENABLE_IAMF_SUPPORT=0",
+
+    # TODO(b/326654546): Revisit max video input size
+    "COBALT_MEDIA_ENABLE_PLAYER_SET_MAX_VIDEO_INPUT_SIZE=0",
+
+    # TODO(b/375234428): Revisit startup latency tracking
+    "COBALT_MEDIA_ENABLE_STARTUP_LATENCY_TRACKING=0",
+
+    # TODO(b/326497953): Revisit suspend/resume support
+    "COBALT_MEDIA_ENABLE_SUSPEND_RESUME=0",
+
+    # TODO(b/375241265): Re-enable UMA metrics
+    "COBALT_MEDIA_ENABLE_UMA_METRICS=0",
+  ]
+
+  sources = []
+  if (!media_use_ffmpeg) {
+    sources += [
+      "progressive/avc_access_unit.cc",
+      "progressive/avc_access_unit.h",
+      "progressive/avc_parser.cc",
+      "progressive/avc_parser.h",
+      "progressive/data_source_reader.cc",
+      "progressive/data_source_reader.h",
+      "progressive/mp4_map.cc",
+      "progressive/mp4_map.h",
+      "progressive/mp4_parser.cc",
+      "progressive/mp4_parser.h",
+      "progressive/progressive_demuxer.cc",
+      "progressive/progressive_demuxer.h",
+      "progressive/progressive_parser.cc",
+      "progressive/progressive_parser.h",
+      "progressive/rbsp_stream.cc",
+      "progressive/rbsp_stream.h",
+    ]
+  }
+
+  if (use_starboard_media) {
+    sources += [
+      "bidirectional_fit_reuse_allocator.h",
+      "bind_host_receiver_callback.h",
+      "decoder_buffer_allocator.cc",
+      "decoder_buffer_allocator.h",
+      "decoder_buffer_allocator_strategy.h",
+      "decoder_buffer_memory_info.h",
+      "sbplayer_bridge.cc",
+      "sbplayer_bridge.h",
+      "sbplayer_interface.cc",
+      "sbplayer_interface.h",
+      "sbplayer_set_bounds_helper.cc",
+      "sbplayer_set_bounds_helper.h",
+      "starboard_cdm.cc",
+      "starboard_cdm.h",
+      "starboard_cdm_factory.cc",
+      "starboard_cdm_factory.h",
+      "starboard_memory_allocator.h",
+      "starboard_renderer.cc",
+      "starboard_renderer.h",
+      "starboard_utils.cc",
+      "starboard_utils.h",
+    ]
+  }
+
+  deps = [
+    "//base",
+    "//media:media_buildflags",
+    "//media/base",
+    "//media/renderers",
+    "//mojo/public/cpp/bindings:bindings",
+    "//starboard($starboard_toolchain)",
+    "//starboard/common",
+    "//url",
+  ]
+
+  if (!media_use_ffmpeg) {
+    deps += [ "//third_party/abseil-cpp:absl" ]
+  }
+
+  # TODO(b/380940036): remove the circular dependency.
+  allow_circular_includes_from = [ "//media/base" ]
+
+  configs += [ "//media:subcomponent_config" ]
+}
+
+source_set("unit_tests") {
+  testonly = true
+  sources = []
+  if (!media_use_ffmpeg) {
+    sources += [
+      "progressive/mock_data_source_reader.h",
+      "progressive/mp4_map_unittest.cc",
+      "progressive/rbsp_stream_unittest.cc",
+    ]
+  }
+  if (use_starboard_media) {
+    sources += [
+      "bidirectional_fit_reuse_allocator_test.cc",
+      "decoder_buffer_allocator_test.cc",
+      "starboard_renderer_unittest.cc",
+      "starboard_utils_test.cc",
+    ]
+  }
+  configs += [ "//media:media_config" ]
+  deps = [
+    "//base",
+    "//base/test:test_support",
+    "//media:test_support",
+    "//starboard($starboard_toolchain)",
+    "//starboard/common",
+    "//testing/gmock",
+    "//testing/gtest",
+  ]
+}

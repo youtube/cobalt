@@ -27,9 +27,7 @@
 #include "third_party/dav1d/libdav1d/include/dav1d/headers.h"
 #include "third_party/dav1d/libdav1d/include/dav1d/picture.h"
 
-namespace starboard {
-namespace shared {
-namespace libdav1d {
+namespace starboard::shared::libdav1d {
 
 namespace {
 
@@ -37,8 +35,9 @@ using starboard::player::InputBuffer;
 using starboard::player::JobThread;
 using starboard::player::filter::CpuVideoFrame;
 
-constexpr int kMaxDecodedFrameWidth = 3840;
-constexpr int kMaxDecodedFrameHeight = 2160;
+// Set max resolutions to 8K.
+constexpr int kMaxDecodedFrameWidth = 7680;
+constexpr int kMaxDecodedFrameHeight = 4320;
 
 void ReleaseInputBuffer(const uint8_t* buf, void* context) {
   SB_DCHECK(context);
@@ -55,8 +54,10 @@ void ReleaseInputBuffer(const uint8_t* buf, void* context) {
 VideoDecoder::VideoDecoder(SbMediaVideoCodec video_codec,
                            SbPlayerOutputMode output_mode,
                            SbDecodeTargetGraphicsContextProvider*
-                               decode_target_graphics_context_provider)
-    : output_mode_(output_mode),
+                               decode_target_graphics_context_provider,
+                           bool may_reduce_quality_for_speed)
+    : may_reduce_quality_for_speed_(may_reduce_quality_for_speed),
+      output_mode_(output_mode),
       decode_target_graphics_context_provider_(
           decode_target_graphics_context_provider),
       decode_target_(kSbDecodeTargetInvalid) {
@@ -137,7 +138,7 @@ void VideoDecoder::Reset() {
   CancelPendingJobs();
   frames_being_decoded_ = 0;
 
-  ScopedLock lock(decode_target_mutex_);
+  std::lock_guard lock(decode_target_mutex_);
   frames_ = std::queue<scoped_refptr<CpuVideoFrame>>();
 }
 
@@ -170,11 +171,15 @@ void VideoDecoder::InitializeCodec() {
 
   Dav1dSettings dav1d_settings{0};
   dav1d_default_settings(&dav1d_settings);
-  // TODO: Verify this setting is optimal.
-  dav1d_settings.n_threads = 8;
 
+  dav1d_settings.n_threads = 0;  // Use all logic cores
   dav1d_settings.frame_size_limit =
       kMaxDecodedFrameHeight * kMaxDecodedFrameWidth;
+
+  if (current_frame_height_ > 1080 && may_reduce_quality_for_speed_) {
+    dav1d_settings.apply_grain = false;
+    dav1d_settings.inloop_filters = DAV1D_INLOOPFILTER_NONE;
+  }
 
   int result = dav1d_open(&dav1d_context_, &dav1d_settings);
   if (result != kDav1dSuccess) {
@@ -194,7 +199,7 @@ void VideoDecoder::TeardownCodec() {
   if (output_mode_ == kSbPlayerOutputModeDecodeToTexture) {
     SbDecodeTarget decode_target_to_release;
     {
-      ScopedLock lock(decode_target_mutex_);
+      std::lock_guard lock(decode_target_mutex_);
       decode_target_to_release = decode_target_;
       decode_target_ = kSbDecodeTargetInvalid;
     }
@@ -351,7 +356,7 @@ bool VideoDecoder::TryToOutputFrames() {
     SB_DCHECK(frames_being_decoded_ > 0);
     --frames_being_decoded_;
     if (output_mode_ == kSbPlayerOutputModeDecodeToTexture) {
-      ScopedLock lock(decode_target_mutex_);
+      std::lock_guard lock(decode_target_mutex_);
       frames_.push(frame);
     }
     Schedule(std::bind(decoder_status_cb_, kNeedMoreInput, frame));
@@ -366,7 +371,7 @@ SbDecodeTarget VideoDecoder::GetCurrentDecodeTarget() {
 
   // We must take a lock here since this function can be called from a
   // separate thread.
-  ScopedLock lock(decode_target_mutex_);
+  std::lock_guard lock(decode_target_mutex_);
   while (frames_.size() > 1 && frames_.front()->HasOneRef()) {
     frames_.pop();
   }
@@ -382,6 +387,4 @@ SbDecodeTarget VideoDecoder::GetCurrentDecodeTarget() {
   }
 }
 
-}  // namespace libdav1d
-}  // namespace shared
-}  // namespace starboard
+}  // namespace starboard::shared::libdav1d

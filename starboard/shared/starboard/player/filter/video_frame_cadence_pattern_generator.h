@@ -18,11 +18,7 @@
 #include "starboard/shared/internal_only.h"
 #include "starboard/types.h"
 
-namespace starboard {
-namespace shared {
-namespace starboard {
-namespace player {
-namespace filter {
+namespace starboard::shared::starboard::player::filter {
 
 // Generate the cadence pattern according to the graphics refresh rate and the
 // video frame rate.  For example, for 30 fps video on 60 fps graphics, each
@@ -59,10 +55,6 @@ class VideoFrameCadencePatternGenerator {
   int64_t frame_index_ = 0;
 };
 
-}  // namespace filter
-}  // namespace player
-}  // namespace starboard
-}  // namespace shared
-}  // namespace starboard
+}  // namespace starboard::shared::starboard::player::filter
 
 #endif  // STARBOARD_SHARED_STARBOARD_PLAYER_FILTER_VIDEO_FRAME_CADENCE_PATTERN_GENERATOR_H_

@@ -262,6 +262,7 @@ component("capture_lib") {
     deps += [ "//gpu/command_buffer/client" ]
   }
 
+<<<<<<< HEAD
   if (is_linux) {
     sources += [
       "video/linux/v4l2_capture_delegate_gpu_helper.cc",
@@ -272,6 +273,14 @@ component("capture_lib") {
   }
 
   if (is_chromeos) {
+=======
+  if (is_cobalt_hermetic_build) {
+    sources +=
+        [ "video/linux/video_capture_device_factory_linux_starboard_stub.cc" ]
+  }
+
+  if (is_chromeos_ash) {
+>>>>>>> 0021f465d30 (Add media changes to build cobalt hermetically (#5499))
     sources += [
       "video/chromeos/camera_3a_controller.cc",
       "video/chromeos/camera_3a_controller.h",
@@ -429,7 +438,11 @@ source_set("test_support") {
     "//ui/gfx:test_support",
   ]
 
+<<<<<<< HEAD
   if (is_linux) {
+=======
+  if (is_linux && !is_cobalt_hermetic_build || is_chromeos_lacros) {
+>>>>>>> 25d07a9da36 (Build almost all linux targets hermetically (#6097))
     sources += [
       "video/linux/fake_device_provider.cc",
       "video/linux/fake_device_provider.h",
@@ -472,6 +485,10 @@ test("capture_unittests") {
     "video/video_capture_metrics_unittest.cc",
     "video_capture_types_unittest.cc",
   ]
+  if (is_cobalt_hermetic_build) {
+    sources += [ "starboard/run_all_unittests.cc" ]
+    sources -= [ "run_all_unittests.cc" ]
+  }
 
   if (enable_video_effects) {
     sources += [ "video/video_capture_effects_processor_unittest.cc" ]
@@ -499,11 +516,15 @@ test("capture_unittests") {
     "//ui/gfx:test_support",
   ]
 
+<<<<<<< HEAD
   if (enable_video_effects) {
     deps += [ "//components/viz/test:test_support" ]
   }
 
   if (is_linux) {
+=======
+  if (is_linux && !is_cobalt_hermetic_build || is_chromeos_lacros) {
+>>>>>>> 25d07a9da36 (Build almost all linux targets hermetically (#6097))
     sources += [
       "video/linux/v4l2_capture_delegate_unittest.cc",
       "video/linux/video_capture_device_factory_v4l2_unittest.cc",

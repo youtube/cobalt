@@ -190,12 +190,14 @@ std::atomic<bool> g_main_thread_tid_cache_valid = false;
 // also updated by PlatformThread::CurrentId().
 thread_local bool g_is_main_thread = true;
 
+#if !BUILDFLAG(IS_STARBOARD)
 class InitAtFork {
  public:
   InitAtFork() {
     pthread_atfork(nullptr, nullptr, internal::InvalidateTidCache);
   }
 };
+#endif // !BUILDFLAG(IS_STARBOARD)
 
 #endif  // BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_CHROMEOS)
 
@@ -227,7 +229,9 @@ PlatformThreadId PlatformThreadBase::CurrentId() {
   // https://github.com/google/sanitizers/issues/1265
   MSAN_UNPOISON(&g_thread_id, sizeof(pid_t));
   MSAN_UNPOISON(&g_is_main_thread, sizeof(bool));
+#if !BUILDFLAG(IS_STARBOARD)
   static InitAtFork init_at_fork;
+#endif
   if (g_thread_id == -1 ||
       (g_is_main_thread &&
        !g_main_thread_tid_cache_valid.load(std::memory_order_relaxed))) {
@@ -364,8 +368,13 @@ void PlatformThreadBase::Detach(PlatformThreadHandle thread_handle) {
 #if !BUILDFLAG(IS_APPLE) && !BUILDFLAG(IS_FUCHSIA)
 
 // static
+<<<<<<< HEAD
 bool PlatformThreadBase::CanChangeThreadType(ThreadType from, ThreadType to) {
 #if BUILDFLAG(IS_NACL)
+=======
+bool PlatformThread::CanChangeThreadType(ThreadType from, ThreadType to) {
+#if BUILDFLAG(IS_NACL) || BUILDFLAG(IS_COBALT_HERMETIC_BUILD)
+>>>>>>> 1181c533483 (Build base_unittests hermetically. (#4935))
   return false;
 #else
   if (from >= to) {
@@ -377,7 +386,7 @@ bool PlatformThreadBase::CanChangeThreadType(ThreadType from, ThreadType to) {
   }
 
   return internal::CanLowerNiceTo(internal::ThreadTypeToNiceValue(to));
-#endif  // BUILDFLAG(IS_NACL)
+#endif  // BUILDFLAG(IS_NACL) || BUILDFLAG(IS_COBALT_HERMETIC_BUILD)
 }
 
 namespace internal {

@@ -15,15 +15,14 @@
 #include "starboard/shared/starboard/localized_strings.h"
 
 #include <algorithm>
+#include <limits>
 
 #include "starboard/common/file.h"
 #include "starboard/common/log.h"
 #include "starboard/system.h"
 #include "starboard/types.h"
 
-namespace starboard {
-namespace shared {
-namespace starboard {
+namespace starboard::shared::starboard {
 
 namespace {
 
@@ -71,7 +70,8 @@ bool ReadFile(const std::string& filename, std::string* out_result) {
   char* buffer_pos = buffer;
   while (bytes_to_read > 0) {
     int max_bytes_to_read = static_cast<int>(
-        std::min(static_cast<int64_t>(kSbInt32Max), bytes_to_read));
+        std::min(static_cast<int64_t>(std::numeric_limits<int32_t>::max()),
+                 bytes_to_read));
     int bytes_read = file.Read(buffer_pos, max_bytes_to_read);
     if (bytes_read < 0) {
       SB_DLOG(ERROR) << "Read from i18n file failed.";
@@ -164,6 +164,4 @@ bool LocalizedStrings::LoadSingleString(const std::string& message) {
   return true;
 }
 
-}  // namespace starboard
-}  // namespace shared
-}  // namespace starboard
+}  // namespace starboard::shared::starboard

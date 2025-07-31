@@ -20,11 +20,18 @@
 #ifndef STARBOARD_COMMON_CONDITION_VARIABLE_H_
 #define STARBOARD_COMMON_CONDITION_VARIABLE_H_
 
+// TODO: b/390503926 - Remove the starboard condition variable API and all it's
+// references. See work done in 25lts as an example.
+
 #include <pthread.h>
 
 #include "starboard/common/mutex.h"
 #include "starboard/configuration.h"
 #include "starboard/types.h"
+
+#ifdef __cplusplus
+
+extern "C++" {
 
 namespace starboard {
 
@@ -53,5 +60,8 @@ class ConditionVariable {
 };
 
 }  // namespace starboard
+}
+
+#endif  //__cplusplus
 
 #endif  // STARBOARD_COMMON_CONDITION_VARIABLE_H_

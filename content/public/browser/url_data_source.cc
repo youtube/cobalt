@@ -109,6 +109,13 @@ std::string URLDataSource::GetContentSecurityPolicy(
     case network::mojom::CSPDirectiveName::TreatAsPublicAddress:
     case network::mojom::CSPDirectiveName::WorkerSrc:
     case network::mojom::CSPDirectiveName::ReportTo:
+<<<<<<< HEAD
+=======
+    case network::mojom::CSPDirectiveName::NavigateTo:
+#if BUILDFLAG(IS_COBALT)
+    case network::mojom::CSPDirectiveName::CobaltLocationSrc:
+#endif
+>>>>>>> cc1427c80d0 (Add h5vcc-location-src custom CSP directive (#5016))
     case network::mojom::CSPDirectiveName::Unknown:
       return std::string();
   }

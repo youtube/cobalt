@@ -208,6 +208,7 @@ static_library("test_support") {
 
   if (enable_base_tracing) {
     public_deps += [ "//third_party/perfetto:perfetto_test_support" ]
+<<<<<<< HEAD
     public_deps += [ ":test_trace_processor" ]
     sources += [
       "test_trace_processor.cc",
@@ -222,6 +223,18 @@ static_library("test_support") {
         ":test_trace_processor+bundle",
         ":test_trace_processor+link",
       ]
+=======
+    if (!is_chromeos && !is_cobalt_hermetic_build) {
+      # TODO(rasikan): Add to ios and chromeos when unblocked by the chromiumos
+      # change to add the shared lib to the chrome-binary-tests directory.
+      public_deps += [ ":test_trace_processor" ]
+      if (is_ios) {
+        deps += [
+          ":test_trace_processor+bundle",
+          ":test_trace_processor+link",
+        ]
+      }
+>>>>>>> 1181c533483 (Build base_unittests hermetically. (#4935))
     }
   }
 
@@ -264,6 +277,12 @@ static_library("test_support") {
     ]
   }
 
+  if (is_starboard) {
+    sources += [
+      "test_support_starboard.cc",
+      "test_support_starboard.h",
+    ]
+  }
   if (is_android) {
     sources += [
       "android/content_uri_test_utils.cc",
@@ -342,6 +361,13 @@ static_library("test_support") {
       "launcher/unit_test_launcher.cc",
       "multiprocess_test.cc",
     ]
+<<<<<<< HEAD
+=======
+  }
+  if (is_cobalt_hermetic_build) {
+    sources -= [ "multiprocess_test.cc" ]
+    sources += [ "multiprocess_test_starboard.cc" ]
+>>>>>>> 473112b0f73 (Add entry points for modular targets (#6302))
   }
 
   if (enable_base_tracing) {
@@ -398,7 +424,11 @@ config("perf_test_config") {
 # this, you always want the object file anyway.
 source_set("test_support_perf") {
   testonly = true
-  sources = [ "run_all_perftests.cc" ]
+  if (is_cobalt_hermetic_build) {
+    sources = [ "starboard/run_all_perftests.cc" ]
+  } else {
+    sources = [ "run_all_perftests.cc" ]
+  }
   deps = [
     ":test_support",
     "//base",
@@ -448,14 +478,20 @@ shared_library("immediate_crash_test_helper") {
   if (is_android) {
     configs -= [ "//build/config/android:hide_all_but_jni_onload" ]
   }
+
+  if (is_starboard) {
+    deps = [ "//starboard:starboard_group" ]
+  }
 }
 
+if (!is_starboard) {
 # This shared library is dynamically loaded by NativeLibrary unittests.
 shared_library("test_shared_library") {
   testonly = true
   sources = [ "test_shared_library.cc" ]
 
   deps = [ ":native_library_test_utils" ]
+}
 }
 
 if (is_ios) {
@@ -569,13 +605,16 @@ if (is_ios) {
   }
 }
 
+if (!is_starboard) {
 # Trivial executable which outputs space-delimited argv to stdout,
 # used for testing.
 executable("test_child_process") {
   testonly = true
   sources = [ "test_child_process.cc" ]
 }
+}
 
+<<<<<<< HEAD
 if (enable_base_tracing) {
   perfetto_cc_proto_descriptor("gen_cc_chrome_track_event_descriptor") {
     descriptor_name = "chrome_track_event.descriptor"
@@ -599,6 +638,9 @@ if (enable_base_tracing) {
            ] + rebase_path(sources, root_build_dir)
   }
 
+=======
+if (enable_base_tracing && !is_cobalt_hermetic_build) {
+>>>>>>> 1181c533483 (Build base_unittests hermetically. (#4935))
   # We encapsulate the trace processor in a separate shared library to prevent
   # any duplicate symbol issues. Perfetto symbols are exported by chromium’s
   # base via a public_dep on libperfetto; libtrace_processor also depends on

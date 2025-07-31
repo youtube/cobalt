@@ -77,7 +77,21 @@ public class ContentShellActivity extends Activity {
         mWindowAndroid.setAnimationPlaceholderView(
                 mShellManager.getContentViewRenderView().getSurfaceView());
 
+<<<<<<< HEAD
+<<<<<<< HEAD
         mStartupUrl = getUrlFromIntent(getIntent());
+=======
+        // TODO(cobalt, b/376148547): set Chrobalt initial url and remove this function.
+        if (mStartupUrl.isEmpty()) {
+            mStartupUrl = getUrlFromIntent(getIntent());
+        }
+=======
+        mStartupUrl = getUrlFromIntent(getIntent());
+>>>>>>> bf19c1b5744 (Copy ContentShellActivity instead of inheriting (#4336))
+        if (!TextUtils.isEmpty(mStartupUrl)) {
+            mShellManager.setStartupUrl(Shell.sanitizeUrl(mStartupUrl));
+        }
+>>>>>>> f28ac7d8996 (`cobalt_apk` to build dev.cobalt.coat (#4304))
 
         if (CommandLine.getInstance().hasSwitch(RUN_WEB_TESTS_SWITCH)) {
             BrowserStartupController.getInstance()

@@ -54,7 +54,7 @@ enable_built_in_dns = use_blink
 enable_client_certificates = !is_ios || (use_blink && !is_cronet_build)
 
 # Unix sockets are not supported on iOS.
-enable_unix_sockets = is_posix && !is_ios
+enable_unix_sockets = (is_posix && !is_starboard) && !is_ios
 
 # x86/x64 cast_shell builds run on regular trybots and can use python runtime
 # and remote test server. ARM cast_shell builds don't have python runtime.
@@ -1740,8 +1740,31 @@ component("net") {
     configs += [ "//build/config/compiler:optimize_max" ]
   }
 
+<<<<<<< HEAD
   if (!is_cronet_build) {
     deps += [ "//mojo/public/cpp/bindings:default_construct_tag" ]
+=======
+  if(is_starboard) {
+    sources += [
+      "cert/test_root_certs_builtin.cc",
+      "cert/internal/system_trust_store_starboard.cc"
+    ]
+  }
+  if (is_cobalt_hermetic_build) {
+    sources += [
+      "base/network_interfaces_starboard.cc",
+      "base/platform_mime_util_starboard.cc",
+      "base/network_change_notifier_starboard.h",
+      "base/network_change_notifier_passive_starboard_stub.cc",
+      "proxy_resolution/proxy_config_service_linux_starboard_stub.cc"
+    ]
+  }
+  if (is_cobalt && is_linux && current_toolchain == host_toolchain) {
+    sources -= [
+      #  # TODO: b/413491685 - Cobalt: Fix errors building host tools.
+      "base/network_change_notifier_passive.cc",
+    ]
+>>>>>>> 2dca681f1d1 (Disable NSS certificates (#5334))
   }
 }
 
@@ -2960,6 +2983,10 @@ target(_test_target_type, "net_unittests") {
     "url_request/url_request_unittest.cc",
     "url_request/view_cache_helper_unittest.cc",
   ]
+  if (is_cobalt_hermetic_build) {
+    sources += [ "test/starboard/run_all_unittests.cc" ]
+    sources -= [ "test/run_all_unittests.cc" ]
+  }
 
   if (is_android) {
     sources += [

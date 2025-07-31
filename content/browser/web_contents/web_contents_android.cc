@@ -494,6 +494,25 @@ void WebContentsAndroid::ResumeLoadingCreatedWebContents(JNIEnv* env) {
   web_contents_->ResumeLoadingCreatedWebContents();
 }
 
+<<<<<<< HEAD
+=======
+void WebContentsAndroid::OnHide(JNIEnv* env) {
+  web_contents_->WasHidden();
+}
+
+void WebContentsAndroid::OnShow(JNIEnv* env) {
+  web_contents_->WasShown();
+}
+
+void WebContentsAndroid::OnFreeze(JNIEnv* env) {
+  web_contents_->SetPageFrozen(true);
+}
+
+void WebContentsAndroid::OnResume(JNIEnv* env) {
+  web_contents_->SetPageFrozen(false);
+}
+
+>>>>>>> 12f70003265 (Add freeze and resume events on suspend/resume (#5613))
 void WebContentsAndroid::SetImportance(JNIEnv* env,
                                        jint primary_main_frame_importance) {
   web_contents_->SetPrimaryMainFrameImportance(

@@ -15,11 +15,13 @@
 #include "starboard/shared/starboard/player/filter/filter_based_player_worker_handler.h"
 
 #include <memory>
+#include <mutex>
 #include <utility>
 
 #include "starboard/audio_sink.h"
 #include "starboard/common/log.h"
 #include "starboard/common/murmurhash2.h"
+#include "starboard/common/player.h"
 #include "starboard/common/string.h"
 #include "starboard/shared/starboard/application.h"
 #include "starboard/shared/starboard/drm/drm_system_internal.h"
@@ -27,14 +29,11 @@
 #include "starboard/shared/starboard/player/filter/video_decoder_internal.h"
 #include "starboard/shared/starboard/player/input_buffer_internal.h"
 
-namespace starboard {
-namespace shared {
-namespace starboard {
-namespace player {
-namespace filter {
+namespace starboard::shared::starboard::player::filter {
 
 namespace {
 
+using ::starboard::GetPlayerStateName;
 using std::placeholders::_1;
 using std::placeholders::_2;
 
@@ -134,7 +133,7 @@ HandlerResult FilterBasedPlayerWorkerHandler::Init(
       drm_system_);
 
   {
-    ::starboard::ScopedLock lock(player_components_existence_mutex_);
+    std::lock_guard lock(player_components_existence_mutex_);
     std::string components_error_message;
     player_components_ = factory->CreateComponents(creation_parameters,
                                                    &components_error_message);
@@ -207,6 +206,8 @@ HandlerResult FilterBasedPlayerWorkerHandler::Seek(int64_t seek_to_time,
   media_time_provider_->Seek(seek_to_time);
   audio_prerolled_ = false;
   video_prerolled_ = false;
+  audio_ended_ = false;
+  video_ended_ = false;
   return HandlerResult{true};
 }
 
@@ -393,7 +394,8 @@ HandlerResult FilterBasedPlayerWorkerHandler::SetBounds(const Bounds& bounds) {
     bounds_.z_index = bounds.z_index;
     bool bounds_changed = memcmp(&bounds_, &bounds, sizeof(bounds_)) != 0;
     SB_LOG_IF(INFO, bounds_changed)
-        << "Set bounds to " << "x: " << bounds.x << ", y: " << bounds.y
+        << "Set bounds to "
+        << "x: " << bounds.x << ", y: " << bounds.y
         << ", width: " << bounds.width << ", height: " << bounds.height
         << ", z_index: " << bounds.z_index;
 
@@ -431,7 +433,7 @@ void FilterBasedPlayerWorkerHandler::OnPrerolled(SbMediaType media_type) {
   }
 
   SB_DCHECK(get_player_state_cb_() == kSbPlayerStatePrerolling)
-      << "Invalid player state " << get_player_state_cb_();
+      << "Invalid player state " << GetPlayerStateName(get_player_state_cb_());
 
   if (media_type == kSbMediaTypeAudio) {
     SB_LOG(INFO) << "Audio prerolled.";
@@ -515,7 +517,7 @@ void FilterBasedPlayerWorkerHandler::Stop() {
     // it outside of the lock.  This is because the VideoRenderer destructor
     // may post a task to destroy the SbDecodeTarget to the same thread that
     // might call GetCurrentDecodeTarget(), which would try to take this lock.
-    ::starboard::ScopedLock lock(player_components_existence_mutex_);
+    std::lock_guard lock(player_components_existence_mutex_);
     player_components = std::move(player_components_);
     media_time_provider_ = nullptr;
     audio_renderer_ = nullptr;
@@ -529,11 +531,12 @@ SbDecodeTarget FilterBasedPlayerWorkerHandler::GetCurrentDecodeTarget() {
     return kSbDecodeTargetInvalid;
   }
   SbDecodeTarget decode_target = kSbDecodeTargetInvalid;
-  if (player_components_existence_mutex_.AcquireTry()) {
+  if (std::unique_lock lock(player_components_existence_mutex_,
+                            std::try_to_lock);
+      lock.owns_lock()) {
     if (video_renderer_) {
       decode_target = video_renderer_->GetCurrentDecodeTarget();
     }
-    player_components_existence_mutex_.Release();
   }
   return decode_target;
 }
@@ -545,8 +548,4 @@ void FilterBasedPlayerWorkerHandler::SetMaxVideoInputSize(
   max_video_input_size_ = max_video_input_size;
 }
 
-}  // namespace filter
-}  // namespace player
-}  // namespace starboard
-}  // namespace shared
-}  // namespace starboard
+}  // namespace starboard::shared::starboard::player::filter

@@ -251,6 +251,29 @@ public interface WebContents extends Parcelable {
     void stop();
 
     /**
+<<<<<<< HEAD
+=======
+     * To be called when the ContentView is hidden.
+     */
+    void onHide();
+
+    /**
+     * To be called when the ContentView is shown.
+     */
+    void onShow();
+
+    /**
+     * To be called when freeze event is exepcted.
+     */
+    void onFreeze();
+
+    /**
+     * To be called when resume event is exepcted.
+     */
+    void onResume();
+
+    /**
+>>>>>>> 12f70003265 (Add freeze and resume events on suspend/resume (#5613))
      * ChildProcessImportance on Android allows controls of the renderer process bindings
      * independent of visibility. Note this does not affect importance of subframe processes or main
      * frames processeses for non-primary pages.

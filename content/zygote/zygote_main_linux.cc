@@ -141,7 +141,8 @@ static void EnterLayerOneSandbox(sandbox::policy::SandboxLinux* linux_sandbox,
 // Check that the pre-sandbox initialization didn't spawn threads.
 // It's not just our code which may do so - some system-installed libraries
 // are known to be culprits, e.g. lttng.
-#if !defined(THREAD_SANITIZER)
+// TODO: (cobalt b/393131403) Investigate clean way to turn off Zygote support.
+#if !defined(THREAD_SANITIZER) && !BUILDFLAG(IS_STARBOARD)
   CHECK(sandbox::ThreadHelpers::IsSingleThreaded());
 #endif
 
@@ -160,7 +161,9 @@ static void EnterLayerOneSandbox(sandbox::policy::SandboxLinux* linux_sandbox,
 
 bool ZygoteMain(
     std::vector<std::unique_ptr<ZygoteForkDelegate>> fork_delegates) {
+#if !BUILDFLAG(IS_STARBOARD)
   sandbox::SetAmZygoteOrRenderer(true, GetSandboxFD());
+#endif
 
   auto* linux_sandbox = sandbox::policy::SandboxLinux::GetInstance();
 

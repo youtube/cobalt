@@ -180,7 +180,6 @@ class ProcCpuInfo {
     }
 
     // Look for first feature occurrence, and ensure it starts the line.
-    size_t feature_name_size = strlen(feature);
     const char* feature_ptr = nullptr;
     char* file_data_ptr = file_data_.get();
 
@@ -252,7 +251,7 @@ class ProcCpuInfo {
     // Get the size of the feature data
     int feature_size = line_end_ptr - feature_ptr;
 
-    if (out_feature_size < feature_size + 1) {
+    if (out_feature_size < static_cast<size_t>(feature_size + 1)) {
       SB_LOG(WARNING) << "CPU Feature " << feature << " is truncated.";
       feature_size = out_feature_size - 1;
     }
@@ -348,13 +347,15 @@ bool HasItemInList(const char* list, const char* flag) {
   }
   while (*list_ptr != '\0') {
     // Skip whitespace.
-    while (isspace(*list_ptr))
+    while (isspace(*list_ptr)) {
       ++list_ptr;
+    }
 
     // Find end of current list flag.
     const char* end_ptr = list_ptr;
-    while (*end_ptr != '\0' && !isspace(*end_ptr))
+    while (*end_ptr != '\0' && !isspace(*end_ptr)) {
       ++end_ptr;
+    }
 
     if (flag_length == end_ptr - list_ptr &&
         memcmp(list_ptr, flag, flag_length) == 0) {
@@ -367,6 +368,7 @@ bool HasItemInList(const char* list, const char* flag) {
   return false;
 }
 
+#if SB_IS(32_BIT)
 // Construct hwcap bitmask by the feature flags in /proc/cpuinfo
 uint32_t ConstructHwcapFromCPUInfo(ProcCpuInfo* cpu_info,
                                    int16_t architecture_generation,
@@ -411,6 +413,7 @@ uint32_t ConstructHwcapFromCPUInfo(ProcCpuInfo* cpu_info,
   }
   return hwcap_value;
 }
+#endif  // SB_IS(32_BIT)
 
 bool SbCPUFeaturesGet_ARM(SbCPUFeatures* features) {
   memset(features, 0, sizeof(*features));
@@ -431,7 +434,7 @@ bool SbCPUFeaturesGet_ARM(SbCPUFeatures* features) {
 
   ProcCpuInfo cpu_info;
 
-  // Extract CPU implementor, variant, revision and part information, which
+  // Extract CPU implementer, variant, revision and part information, which
   // are all integers.
   features->arm.implementer = cpu_info.ExtractIntegerFeature("CPU implementer");
   features->arm.variant = cpu_info.ExtractIntegerFeature("CPU variant");

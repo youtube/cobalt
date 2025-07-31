@@ -1208,6 +1208,20 @@ RenderThreadImpl::SharedMainThreadContextProvider() {
   return shared_main_thread_contexts_;
 }
 
+#if BUILDFLAG(USE_STARBOARD_MEDIA)
+uint64_t RenderThreadImpl::GetMediaSourceMaximumMemoryCapacity() const {
+  return RenderMediaClient::GetMediaSourceMaximumMemoryCapacity();
+}
+
+uint64_t RenderThreadImpl::GetMediaSourceCurrentMemoryCapacity() const {
+  return RenderMediaClient::GetMediaSourceCurrentMemoryCapacity();
+}
+
+uint64_t RenderThreadImpl::GetMediaSourceTotalAllocatedMemory() const {
+  return RenderMediaClient::GetMediaSourceTotalAllocatedMemory();
+}
+#endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
+
 #if BUILDFLAG(IS_ANDROID)
 scoped_refptr<StreamTextureFactory> RenderThreadImpl::GetStreamTexureFactory() {
   DCHECK(IsMainThread());

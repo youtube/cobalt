@@ -1,0 +1,19 @@
+{
+  "docker_service": "linux",
+  "platforms": [
+    "chromium_linux-x64x11"
+  ],
+  "targets": [
+    "chromedriver",
+    "content_shell",
+    "crashpad_handler",
+    "dump_syms",
+    "minidump_stackwalk"
+  ],
+  "includes": [
+    {
+      "name": "x64",
+      "platform": "chromium_linux-x64x11"
+    }
+  ]
+}

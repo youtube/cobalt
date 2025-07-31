@@ -88,7 +88,11 @@ BASE_FEATURE(kTemporalSkipOverlaysWithRootCopyOutputRequests,
 
 BASE_FEATURE(kUseMultipleOverlays,
              "UseMultipleOverlays",
+<<<<<<< HEAD
 #if BUILDFLAG(IS_CHROMEOS)
+=======
+#if BUILDFLAG(IS_CHROMEOS_ASH) || BUILDFLAG(USE_STARBOARD_MEDIA)
+>>>>>>> ea1cebb060a ([android] Support multiple punchout players via video holes (#5422))
              base::FEATURE_ENABLED_BY_DEFAULT
 #else
              base::FEATURE_DISABLED_BY_DEFAULT

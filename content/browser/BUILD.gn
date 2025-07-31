@@ -29,8 +29,12 @@ import("//tools/ipc_fuzzer/ipc_fuzzer.gni")
 if (is_mac) {
   import("//content/public/app/mac_helpers.gni")
 }
+<<<<<<< HEAD
 if (is_android) {
   import("//third_party/jni_zero/jni_zero.gni")
+=======
+import("//cobalt/build/configs/hacks.gni")
+>>>>>>> 6c543aa0958 (Fix compiler error building cobalt (#5365))
 
   rust_static_library("fontations_name_table_ffi") {
     allow_unsafe = true  # Needed for FFI that underpins the `cxx` crate.
@@ -2461,7 +2465,21 @@ source_set("browser") {
     "worker_host/worker_script_loader_factory.h",
   ]
 
+<<<<<<< HEAD
+<<<<<<< HEAD
   if (is_android) {
+=======
+  if (is_cobalt) {
+    sources += [
+      "cobalt/crash_annotator/crash_annotator_impl.cc",
+      "cobalt/crash_annotator/crash_annotator_impl.h",
+    ]
+  }
+
+=======
+>>>>>>> 9cf39210e4f (Refactor CrashAnnotator impl as a Cobalt service (#4709))
+  if (use_starscan) {
+>>>>>>> 8631cdb0c28 (Add web IDL interface for crash annotations (#4574))
     sources += [
       "memory_pressure/user_level_memory_pressure_signal_generator.cc",
       "memory_pressure/user_level_memory_pressure_signal_generator.h",
@@ -2532,9 +2550,15 @@ source_set("browser") {
   }
 
   if (is_linux || is_chromeos) {
+<<<<<<< HEAD
+<<<<<<< HEAD
     sources -=
         [ "file_system_access/file_path_watcher/file_path_watcher_stub.cc" ]
 
+=======
+    # TODO: b/410019699 - Cobalt: Fix target dependencies on deps in this section
+    if (!enable_cobalt_hermetic_hacks) {
+>>>>>>> 6c543aa0958 (Fix compiler error building cobalt (#5365))
     sources += [
       "child_process_launcher_helper_linux.cc",
       "child_thread_type_switcher_linux.cc",
@@ -2556,6 +2580,27 @@ source_set("browser") {
       "zygote_host/zygote_host_impl_linux.cc",
       "zygote_host/zygote_host_impl_linux.h",
     ]
+    }
+=======
+      sources += [
+        "child_process_launcher_helper_linux.cc",
+        "font_access/font_enumeration_data_source_linux.cc",
+        "font_access/font_enumeration_data_source_linux.h",
+        "font_service.cc",
+        "font_service.h",
+        "media/stable_video_decoder_factory.cc",
+        "media/video_encode_accelerator_provider_launcher.cc",
+        "media/video_encode_accelerator_provider_launcher.h",
+        "memory/swap_metrics_driver_impl_linux.cc",
+        "memory/swap_metrics_driver_impl_linux.h",
+        "sandbox_host_linux.cc",
+        "sandbox_host_linux.h",
+        "sandbox_ipc_linux.cc",
+        "sandbox_ipc_linux.h",
+        "zygote_host/zygote_host_impl_linux.cc",
+        "zygote_host/zygote_host_impl_linux.h",
+      ]
+>>>>>>> 0212eca0cf7 (content/ changes to build cobalt (#5517))
 
     public_deps += [ "//components/services/font/public/mojom" ]
 
@@ -2563,6 +2608,20 @@ source_set("browser") {
       "//components/services/font:lib",
       "//content/common:sandbox_support_linux",
       "//third_party/blink/public/mojom:memory_usage_monitor_linux_mojo_bindings",
+    ]
+  }
+  if (is_cobalt_hermetic_build) {
+    sources -= [
+      "child_process_launcher_helper_linux.cc",
+      "sandbox_host_linux.cc",
+      "sandbox_host_linux.h",
+      "sandbox_ipc_linux.cc",
+      "sandbox_ipc_linux.h",
+      "zygote_host/zygote_host_impl_linux.cc",
+      "zygote_host/zygote_host_impl_linux.h",
+    ]
+    sources += [
+      "child_process_launcher_helper_starboard.cc",
     ]
   }
 

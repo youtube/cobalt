@@ -1014,7 +1014,15 @@ DispatchEventResult EventTarget::FireEventListeners(Event& event) {
   return GetDispatchEventResult(event);
 }
 
+<<<<<<< HEAD
 // Fire event listeners, creates a copy of EventListenerVector on being called.
+=======
+// NOTE: To future Cobalt rebasers, this change to use
+// a copy of listeners_vector can be overriden entirely upon rebasing as
+// long as the code uses EventListenerVectorSnapshot. It's based on
+// an upstream patch in Chromium to fix this crash b/420931375. You should
+// be introducing the more complete fix and this patch is no longer needed.
+>>>>>>> 9ddd45a60b9 (BACKPORT: Improve event listener dispatch (#5981))
 bool EventTarget::FireEventListeners(Event& event,
                                      EventTargetData* d,
                                      EventListenerVector entry) {

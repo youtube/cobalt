@@ -67,7 +67,7 @@ bool CheckMapEquality(const MapA_Type& map_a, const MapB_Type& map_b) {
                                   vector_b.begin(), vector_b.end(),
                                   std::back_inserter(diff_vector));
 
-    for (int i = 0; i < diff_vector.size(); ++i) {
+    for (size_t i = 0; i < diff_vector.size(); ++i) {
       EXPECT_TRUE(false) << "Mismatched key: " << diff_vector[i] << "\n";
     }
     return false;
@@ -135,7 +135,7 @@ struct MapTester {
     CheckEquality();
   }
 
-  void BulkInsert(const std::vector<std::pair<int, int> >& values) {
+  void BulkInsert(const std::vector<std::pair<int, int>>& values) {
     std::map<int, int> old_std_map = std_map;
     FlatMap<int, int> old_flat_map = flat_map;
 
@@ -194,7 +194,7 @@ TEST(FlatMap, BasicUse) {
   int_map[4] = 3;
   int_map[3] = 4;
 
-  EXPECT_EQ(2, int_map.size());
+  EXPECT_EQ(2lu, int_map.size());
 
   EXPECT_EQ(3, int_map[4]);
   EXPECT_EQ(4, int_map[3]);
@@ -234,9 +234,9 @@ TEST(FlatMap, CustomKeyType) {
 
 TEST(FlatMap, size) {
   FlatMap<std::string, std::string> flat_map;
-  EXPECT_EQ(0, flat_map.size());
+  EXPECT_EQ(0u, flat_map.size());
   flat_map["one"] = "one-value";
-  EXPECT_EQ(1, flat_map.size());
+  EXPECT_EQ(1u, flat_map.size());
 }
 
 TEST(FlatMap, empty) {
@@ -285,7 +285,7 @@ TEST(FlatMap, swap) {
   FlatMap<int, int> other_map;
   map.swap(other_map);
   EXPECT_TRUE(map.empty());
-  EXPECT_EQ(1, other_map.size());
+  EXPECT_EQ(1u, other_map.size());
   EXPECT_EQ(-1, other_map[1]);
 }
 
@@ -347,8 +347,8 @@ TEST(FlatMap, count) {
   typedef FlatMap<int, int>::iterator iterator;
   map[1] = 1;
 
-  EXPECT_EQ(1, map.count(1));
-  EXPECT_EQ(0, map.count(4));  // We don't expect this to be found.
+  EXPECT_EQ(1u, map.count(1));
+  EXPECT_EQ(0u, map.count(4));  // We don't expect this to be found.
 }
 
 TEST(FlatMap, OperatorEquals) {
@@ -370,12 +370,12 @@ TEST(FlatMap, Insert) {
   FlatMap<int, int> int_map;
 
   EXPECT_TRUE(int_map.empty());
-  EXPECT_EQ(0, int_map.size());
+  EXPECT_EQ(0u, int_map.size());
 
   int_map.insert(std::make_pair(1, 10));
 
   EXPECT_FALSE(int_map.empty());
-  EXPECT_EQ(1, int_map.size());
+  EXPECT_EQ(1u, int_map.size());
 
   FlatMap<int, int>::iterator found = int_map.find(1);
   EXPECT_EQ(10, found->second);
@@ -403,8 +403,8 @@ TEST(FlatMap, BulkInsertZero) {
   std::map<std::string, std::string> string_map;  // empty.
   const size_t num_inserted =
       flat_string_map.insert(string_map.begin(), string_map.end());
-  ASSERT_EQ(0, num_inserted);
-  EXPECT_EQ(5, flat_string_map.size());
+  ASSERT_EQ(0u, num_inserted);
+  EXPECT_EQ(5u, flat_string_map.size());
   // According to the sort invariant, "five" is the lowest value key and
   // therefore should be the first element found in the map.
   EXPECT_EQ(std::string("value-five"), flat_string_map.begin()->second);
@@ -433,7 +433,7 @@ TEST(FlatMap, BulkInsertOne) {
 
   reference_map.insert(string_map.begin(), string_map.end());
 
-  ASSERT_EQ(1, num_inserted);  // "six" = "value-six" was inserted.
+  ASSERT_EQ(1u, num_inserted);  // "six" = "value-six" was inserted.
   EXPECT_EQ(std::string("value-six"), flat_string_map["six"]);
 
   CheckMapEquality(flat_string_map, reference_map);
@@ -443,7 +443,7 @@ TEST(FlatMap, BulkInsertDuplicate) {
   FlatMap<int, int> flat_int_map;
   flat_int_map[1] = 1;
 
-  std::vector<std::pair<int, int> > bulk_entries;
+  std::vector<std::pair<int, int>> bulk_entries;
   bulk_entries.push_back(std::pair<int, int>(1, -1));
   flat_int_map.insert(bulk_entries.begin(), bulk_entries.end());
 
@@ -475,7 +475,7 @@ TEST(FlatMap, BulkInsert) {
   // Now insert again.
   size_t num_inserted =
       flat_string_map.insert(string_map.begin(), string_map.end());
-  EXPECT_EQ(0, num_inserted)
+  EXPECT_EQ(0u, num_inserted)
       << "No elements should be inserted because they all preexist.";
   reference_map.insert(string_map.begin(), string_map.end());
 
@@ -501,7 +501,7 @@ TEST(FlatMap, UnsortedInsertWithDuplicates) {
   flat_string_map.insert(vector.begin(), vector.end());
 
   // Asserts that the duplicate with key "one" was removed.
-  ASSERT_EQ(4, flat_string_map.size());
+  ASSERT_EQ(4u, flat_string_map.size());
 
   std::map<std::string, std::string> string_map;
   string_map["one"] = "value-one";
@@ -512,7 +512,7 @@ TEST(FlatMap, UnsortedInsertWithDuplicates) {
 
   const size_t num_inserted =
       flat_string_map.insert(string_map.begin(), string_map.end());
-  ASSERT_EQ(1, num_inserted) << "Only one element should have been inserted.";
+  ASSERT_EQ(1u, num_inserted) << "Only one element should have been inserted.";
 
   bool is_equal_range = std::equal(string_map.begin(), string_map.end(),
                                    flat_string_map.begin(), StringPairEquals);
@@ -534,7 +534,7 @@ TEST(FlatMap, FlatMapDetail_IsPod) {
   EXPECT_TRUE(flat_map_detail::IsPod<CustomKey*>::value);
 
   EXPECT_FALSE(flat_map_detail::IsPod<std::string>::value);
-  EXPECT_FALSE(flat_map_detail::IsPod<std::vector<int> >::value);
+  EXPECT_FALSE(flat_map_detail::IsPod<std::vector<int>>::value);
 }
 
 ////////////////////////////// PERFORMANCE TEST ///////////////////////////////
@@ -549,11 +549,10 @@ std::vector<int> GenerateRandomIntVector(size_t size_vector,
   return output;
 }
 
-std::vector<std::pair<int, int> > GenerateRandomIntPairVector(
-    size_t size_vector,
-    int min_random,
-    int max_random) {
-  std::vector<std::pair<int, int> > output;
+std::vector<std::pair<int, int>> GenerateRandomIntPairVector(size_t size_vector,
+                                                             int min_random,
+                                                             int max_random) {
+  std::vector<std::pair<int, int>> output;
   for (size_t i = 0; i < size_vector; ++i) {
     std::pair<int, int> entry(Random(min_random, max_random),
                               Random(min_random, max_random));
@@ -594,7 +593,7 @@ TEST(FlatMap, DISABLED_PerformanceTestFind) {
   test_sizes.push_back(10000);
   test_sizes.push_back(100000);
 
-  std::vector<std::pair<int, int> > insert_data;
+  std::vector<std::pair<int, int>> insert_data;
 
   const std::vector<int> query_data =
       GenerateRandomIntVector(1000,     // Number of elements.
@@ -669,7 +668,7 @@ TEST(FlatMap, FuzzerTest) {
       } else {
         // Bulk insert
         const size_t num_values = Random(0, 20);
-        std::vector<std::pair<int, int> > values;
+        std::vector<std::pair<int, int>> values;
         for (size_t i = 0; i < num_values; ++i) {
           int key = MapTester::RandomKey();
           int value = MapTester::RandomValue();

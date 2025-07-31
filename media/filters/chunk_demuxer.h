@@ -40,9 +40,13 @@ class MEDIA_EXPORT ChunkDemuxerStream : public DemuxerStream {
  public:
   using BufferQueue = base::circular_deque<scoped_refptr<StreamParserBuffer>>;
 
-  ChunkDemuxerStream() = delete;
-
+#if BUILDFLAG(USE_STARBOARD_MEDIA)
+  ChunkDemuxerStream(const std::string& mime_type,
+                     Type type,
+                     MediaTrack::Id media_track_id);
+#endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
   ChunkDemuxerStream(Type type, MediaTrack::Id media_track_id);
+  ChunkDemuxerStream() = delete;
 
   ChunkDemuxerStream(const ChunkDemuxerStream&) = delete;
   ChunkDemuxerStream& operator=(const ChunkDemuxerStream&) = delete;
@@ -79,6 +83,12 @@ class MEDIA_EXPORT ChunkDemuxerStream : public DemuxerStream {
   // Returns false iff buffer is still full after running eviction.
   // https://w3c.github.io/media-source/#sourcebuffer-coded-frame-eviction
   bool EvictCodedFrames(base::TimeDelta media_time, size_t newDataSize);
+
+#if BUILDFLAG(USE_STARBOARD_MEDIA)
+  // Returns the latest presentation timestamp of the buffers queued in the
+  // stream.
+  base::TimeDelta GetWriteHead() const;
+#endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
 
   void OnMemoryPressure(
       base::TimeDelta media_time,
@@ -130,6 +140,9 @@ class MEDIA_EXPORT ChunkDemuxerStream : public DemuxerStream {
   void UnmarkEndOfStream();
 
   // DemuxerStream methods.
+#if BUILDFLAG(USE_STARBOARD_MEDIA)
+  std::string mime_type() const override;
+#endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
   void Read(uint32_t count, ReadCB read_cb) override;
   Type type() const override;
   StreamLiveness liveness() const override;
@@ -176,6 +189,11 @@ class MEDIA_EXPORT ChunkDemuxerStream : public DemuxerStream {
 
   std::pair<SourceBufferStreamStatus, DemuxerStream::DecoderBufferVector>
   GetPendingBuffers_Locked() EXCLUSIVE_LOCKS_REQUIRED(lock_);
+
+#if BUILDFLAG(USE_STARBOARD_MEDIA)
+  const std::string mime_type_;
+  base::TimeDelta write_head_ GUARDED_BY(lock_);
+#endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
 
   // Specifies the type of the stream.
   const Type type_;
@@ -271,6 +289,7 @@ class MEDIA_EXPORT ChunkDemuxer : public Demuxer {
   [[nodiscard]] Status AddId(const std::string& id,
                              std::unique_ptr<VideoDecoderConfig> video_config);
 
+<<<<<<< HEAD
   // `AddAutoDetectedCodecsId` operates similarly to the `AddId` methods, except
   // that it creates parsers which are capable of auto-detecting the codecs
   // present. It is used internally by the HLS demuxer.
@@ -279,6 +298,13 @@ class MEDIA_EXPORT ChunkDemuxer : public Demuxer {
       const std::string& id,
       RelaxedParserSupportedType mime_type);
 #endif
+=======
+#if BUILDFLAG(USE_STARBOARD_MEDIA)
+  // Special version of AddId() that retains the |mime_type| from the web app.
+  [[nodiscard]] Status AddId(const std::string& id,
+                             const std::string& mime_type);
+#endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
+>>>>>>> c3ca15e6d12 ([media] Pass full mime type to SbPlayer (#4378))
 
   // Notifies a caller via `tracks_updated_cb` that the set of media tracks
   // for a given `id` has changed. This callback must be set before any calls to
@@ -404,6 +430,12 @@ class MEDIA_EXPORT ChunkDemuxer : public Demuxer {
   [[nodiscard]] bool EvictCodedFrames(const std::string& id,
                                       base::TimeDelta currentMediaTime,
                                       size_t newDataSize);
+
+#if BUILDFLAG(USE_STARBOARD_MEDIA)
+  // Returns the latest presentation timestamp of the buffers to be read
+  // from the DemuxerStream.
+  [[nodiscard]] base::TimeDelta GetWriteHead(const std::string& id) const;
+#endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
 
   void OnMemoryPressure(
       base::TimeDelta currentMediaTime,
@@ -603,10 +635,18 @@ class MEDIA_EXPORT ChunkDemuxer : public Demuxer {
   // in a shut down state, so reading from them will return EOS.
   std::vector<std::unique_ptr<ChunkDemuxerStream>> removed_streams_;
 
+<<<<<<< HEAD
   std::map<MediaTrack::Id, raw_ptr<ChunkDemuxerStream, CtnExperimental>>
       track_id_to_demux_stream_map_;
 
   bool supports_change_type_ = true;
+=======
+  std::map<MediaTrack::Id, ChunkDemuxerStream*> track_id_to_demux_stream_map_;
+
+#if BUILDFLAG(USE_STARBOARD_MEDIA)
+  std::map<std::string, std::string> id_to_mime_map_;
+#endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
+>>>>>>> c3ca15e6d12 ([media] Pass full mime type to SbPlayer (#4378))
 };
 
 }  // namespace media

@@ -22,9 +22,7 @@
 #include "starboard/shared/ffmpeg/ffmpeg_dispatch.h"
 #include "starboard/shared/ffmpeg/ffmpeg_video_decoder_impl_interface.h"
 
-namespace starboard {
-namespace shared {
-namespace ffmpeg {
+namespace starboard::shared::ffmpeg {
 
 // static
 VideoDecoder* VideoDecoder::Create(
@@ -64,6 +62,10 @@ VideoDecoder* VideoDecoder::Create(
       video_decoder = VideoDecoderImpl<601>::Create(
           video_codec, output_mode, decode_target_graphics_context_provider);
       break;
+    case 611:
+      video_decoder = VideoDecoderImpl<611>::Create(
+          video_codec, output_mode, decode_target_graphics_context_provider);
+      break;
     default:
       SB_LOG(WARNING) << "Unsupported FFMPEG version "
                       << ffmpeg->specialization_version();
@@ -71,6 +73,5 @@ VideoDecoder* VideoDecoder::Create(
   }
   return video_decoder;
 }
-}  // namespace ffmpeg
-}  // namespace shared
-}  // namespace starboard
+
+}  // namespace starboard::shared::ffmpeg

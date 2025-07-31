@@ -24,9 +24,7 @@
 #include "starboard/android/shared/jni_utils.h"
 #include "starboard/key.h"
 
-namespace starboard {
-namespace android {
-namespace shared {
+namespace starboard::android::shared {
 
 using ::starboard::shared::starboard::Application;
 typedef ::starboard::android::shared::InputEventsGenerator::Event Event;
@@ -433,7 +431,7 @@ void InputEventsGenerator::ProcessJoyStickEvent(
   SB_DCHECK(android_motion_event->pointerCount > 0);
 
   int32_t device_id = android_motion_event->deviceId;
-  SB_DCHECK(device_flat_.find(device_id) != device_flat_.end());
+  SB_DCHECK_NE(device_flat_.find(device_id), device_flat_.end());
 
   float flat = device_flat_[device_id][axis];
   float offset = GameActivityPointerAxes_getAxisValue(
@@ -964,5 +962,5 @@ void InputEventsGenerator::CreateInputEventsFromSbKey(SbKey key,
 }
 
 }  // namespace shared
-}  // namespace android
+}  // namespace starboard::android::shared
 }  // namespace starboard

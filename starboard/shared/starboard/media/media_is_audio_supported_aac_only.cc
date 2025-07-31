@@ -18,11 +18,13 @@
 #include "starboard/configuration_constants.h"
 #include "starboard/media.h"
 
-using ::starboard::shared::starboard::media::MimeType;
+namespace starboard::shared::starboard::media {
 
-bool SbMediaIsAudioSupported(SbMediaAudioCodec audio_codec,
-                             const MimeType* mime_type,
-                             int64_t bitrate) {
+bool MediaIsAudioSupported(SbMediaAudioCodec audio_codec,
+                           const MimeType* mime_type,
+                           int64_t bitrate) {
   return audio_codec == kSbMediaAudioCodecAac &&
          bitrate <= kSbMediaMaxAudioBitrateInBitsPerSecond;
 }
+
+}  // namespace starboard::shared::starboard::media

@@ -118,8 +118,16 @@ source_set("utility") {
       "//services/network:network_sandbox_hook",
       "//third_party/angle:angle_gpu_info_util",
     ]
+<<<<<<< HEAD
     if (enable_oop_printing) {
       deps += [ "//printing:printing_sandbox_hook" ]
+=======
+    if (is_cobalt_hermetic_build) {
+      deps -= [
+        "//gpu/config",
+        "//third_party/angle:angle_gpu_info_util",
+      ]
+>>>>>>> 0212eca0cf7 (content/ changes to build cobalt (#5517))
     }
   }
 

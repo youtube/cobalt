@@ -9,7 +9,11 @@
 #include "base/debug/leak_annotations.h"
 #include "base/functional/bind.h"
 #include "base/message_loop/message_pump_type.h"
+<<<<<<< HEAD
 #include "base/metrics/histogram_functions.h"
+=======
+#include "base/notreached.h"
+>>>>>>> 0021f465d30 (Add media changes to build cobalt hermetically (#5499))
 #include "base/power_monitor/power_monitor.h"
 #include "base/run_loop.h"
 #include "base/task/single_thread_task_executor.h"
@@ -54,6 +58,10 @@
 // gn check is not smart enough to realize that this include only applies to
 // Linux/ChromeOS and the BUILD.gn dependencies correctly account for that.
 #include "third_party/angle/src/gpu_info_util/SystemInfo.h"  //nogncheck
+
+#if BUILDFLAG(ENABLE_COBALT_HERMETIC_HACKS)
+#include "base/starboard/linker_stub.h"
+#endif  // BUILDFLAG(ENABLE_COBALT_HERMETIC_HACKS)
 
 #if BUILDFLAG(ENABLE_PRINTING)
 #include "printing/sandbox/print_backend_sandbox_hook_linux.h"
@@ -311,8 +319,12 @@ int UtilityMain(MainFunctionParams parameters) {
 #endif  // BUILDFLAG(IS_LINUX)
 #if BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_CHROMEOS)
     case sandbox::mojom::Sandbox::kHardwareVideoDecoding:
+#if BUILDFLAG(ENABLE_COBALT_HERMETIC_HACKS)
+      COBALT_LINKER_STUB();
+#else  // BUILDFLAG(ENABLE_COBALT_HERMETIC_HACKS)
       pre_sandbox_hook =
           base::BindOnce(&media::HardwareVideoDecodingPreSandboxHook);
+#endif  // BUILDFLAG(ENABLE_COBALT_HERMETIC_HACKS)
       break;
 #endif  // BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_CHROMEOS)
     case sandbox::mojom::Sandbox::kHardwareVideoEncoding:

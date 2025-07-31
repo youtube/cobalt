@@ -18,9 +18,7 @@
 #include "starboard/extension/enhanced_audio.h"
 #include "starboard/shared/enhanced_audio/enhanced_audio_player_write_samples.h"
 
-namespace starboard {
-namespace shared {
-namespace enhanced_audio {
+namespace starboard::shared::enhanced_audio {
 
 namespace {
 
@@ -37,6 +35,4 @@ const void* GetEnhancedAudioApi() {
   return &kEnhancedAudioApi;
 }
 
-}  // namespace enhanced_audio
-}  // namespace shared
-}  // namespace starboard
+}  // namespace starboard::shared::enhanced_audio

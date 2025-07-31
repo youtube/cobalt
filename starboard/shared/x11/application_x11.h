@@ -18,6 +18,7 @@
 #include <X11/Xlib.h>
 
 #include <memory>
+#include <mutex>
 #include <queue>
 #include <unordered_map>
 #include <vector>
@@ -31,9 +32,7 @@
 #include "starboard/types.h"
 #include "starboard/window.h"
 
-namespace starboard {
-namespace shared {
-namespace x11 {
+namespace starboard::shared::x11 {
 
 // This application engine combines the generic queue with the X11 event queue.
 class ApplicationX11 : public shared::starboard::QueueApplication {
@@ -125,7 +124,7 @@ class ApplicationX11 : public shared::starboard::QueueApplication {
   Atom wm_change_state_atom_;
 
   SbEventId composite_event_id_;
-  Mutex frame_mutex_;
+  std::mutex frame_mutex_;
 
   // The latest frame for every active player.
   std::unordered_map<SbPlayer, scoped_refptr<VideoFrame>> next_video_frames_;
@@ -156,8 +155,6 @@ class ApplicationX11 : public shared::starboard::QueueApplication {
   bool touchscreen_pointer_;
 };
 
-}  // namespace x11
-}  // namespace shared
-}  // namespace starboard
+}  // namespace starboard::shared::x11
 
 #endif  // STARBOARD_SHARED_X11_APPLICATION_X11_H_

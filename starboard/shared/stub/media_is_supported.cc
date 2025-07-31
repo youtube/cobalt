@@ -16,8 +16,12 @@
 
 #include "starboard/media.h"
 
-bool SbMediaIsSupported(SbMediaVideoCodec video_codec,
-                        SbMediaAudioCodec audio_codec,
-                        const char* key_system) {
+namespace starboard::shared::starboard::media {
+
+bool MediaIsSupported(SbMediaVideoCodec video_codec,
+                      SbMediaAudioCodec audio_codec,
+                      const char* key_system) {
   return false;
 }
+
+}  // namespace starboard::shared::starboard::media

@@ -119,11 +119,31 @@ TypeConverter<media::mojom::DecoderBufferPtr, media::DecoderBuffer>::Convert(
     return media::mojom::DecoderBuffer::NewEos(std::move(eos));
   }
 
+<<<<<<< HEAD
   auto data_buffer = media::mojom::DataDecoderBuffer::New();
   data_buffer->timestamp = input.timestamp();
   data_buffer->duration = input.duration();
   data_buffer->is_key_frame = input.is_key_frame();
   data_buffer->data_size = base::checked_cast<uint32_t>(input.size());
+=======
+#if BUILDFLAG(USE_STARBOARD_MEDIA)
+  // Reuse the existing DecoderBuffer to avoid allocating
+  // a new DecoderBuffer with MojoRenderer. This increases
+  // ref-count of DecoderBuffer to ensure it is not released
+  // before MojoRenderer has it.
+  mojo_buffer->address = reinterpret_cast<uint64_t>(&input);
+  input.AddRef();
+#else // BUILDFLAG(USE_STARBOARD_MEDIA)
+  mojo_buffer->is_end_of_stream = false;
+  mojo_buffer->timestamp = input.timestamp();
+  mojo_buffer->duration = input.duration();
+  mojo_buffer->is_key_frame = input.is_key_frame();
+  mojo_buffer->data_size = base::checked_cast<uint32_t>(input.data_size());
+  mojo_buffer->front_discard = input.discard_padding().first;
+  mojo_buffer->back_discard = input.discard_padding().second;
+
+  // Note: The side data is always small, so this copy is okay.
+>>>>>>> 1ffd80e7a5c ([media] Avoid extra allocation and copy for DecoderBuffer on renderer process (#5464))
   if (input.side_data()) {
     data_buffer->side_data =
         media::mojom::DecoderBufferSideData::From(*input.side_data());
@@ -133,6 +153,7 @@ TypeConverter<media::mojom::DecoderBufferPtr, media::DecoderBuffer>::Convert(
     data_buffer->decrypt_config =
         media::mojom::DecryptConfig::From(*input.decrypt_config());
   }
+#endif // BUILDFLAG(USE_STARBOARD_MEDIA)
 
   // TODO(dalecurtis): We intentionally do not serialize the data section of
   // the DecoderBuffer here; this must instead be done by clients via their
@@ -158,6 +179,7 @@ TypeConverter<scoped_refptr<media::DecoderBuffer>,
       }
     }
     return media::DecoderBuffer::CreateEOSBuffer();
+<<<<<<< HEAD
   }
 
   const auto& mojo_buffer = input->get_data();
@@ -179,6 +201,37 @@ TypeConverter<scoped_refptr<media::DecoderBuffer>,
         mojo_buffer->decrypt_config
             .To<std::unique_ptr<media::DecryptConfig>>());
   }
+=======
+
+#if BUILDFLAG(USE_STARBOARD_MEDIA)
+  // Reuse the existing DecoderBuffer to avoid allocating
+  // a new DecoderBuffer. Note that DecoderBuffer is released
+  // here as its ref-count was increased manually to ensure
+  // media thread won't release it before MojoRenderer has it.
+  scoped_refptr<media::DecoderBuffer> buffer(
+      reinterpret_cast<media::DecoderBuffer*>(input->address));
+  buffer->Release();
+#else // BUILDFLAG(USE_STARBOARD_MEDIA)
+  scoped_refptr<media::DecoderBuffer> buffer(
+      new media::DecoderBuffer(input->data_size));
+
+  if (!input->side_data.empty())
+    buffer->CopySideDataFrom(input->side_data.data(), input->side_data.size());
+
+  buffer->set_timestamp(input->timestamp);
+  buffer->set_duration(input->duration);
+  buffer->set_is_key_frame(input->is_key_frame);
+
+  if (input->decrypt_config) {
+    buffer->set_decrypt_config(
+        input->decrypt_config.To<std::unique_ptr<media::DecryptConfig>>());
+  }
+
+  media::DecoderBuffer::DiscardPadding discard_padding(input->front_discard,
+                                                       input->back_discard);
+  buffer->set_discard_padding(discard_padding);
+#endif // BUILDFLAG(USE_STARBOARD_MEDIA)
+>>>>>>> 1ffd80e7a5c ([media] Avoid extra allocation and copy for DecoderBuffer on renderer process (#5464))
 
   // TODO(dalecurtis): We intentionally do not deserialize the data section of
   // the DecoderBuffer here; this must instead be done by clients via their

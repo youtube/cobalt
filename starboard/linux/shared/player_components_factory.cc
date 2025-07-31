@@ -15,6 +15,7 @@
 #include <memory>
 
 #include "starboard/common/log.h"
+#include "starboard/common/media.h"
 #include "starboard/common/ref_counted.h"
 #include "starboard/common/string.h"
 #include "starboard/gles.h"
@@ -72,13 +73,17 @@ class PlayerComponentsFactory : public PlayerComponents::Factory {
       typedef ::starboard::shared::libfdkaac::FdkAacAudioDecoder
           FdkAacAudioDecoder;
 
-      auto decoder_creator = [](const media::AudioStreamInfo& audio_stream_info,
-                                SbDrmSystem drm_system) {
+      auto decoder_creator =
+          [](const media::AudioStreamInfo& audio_stream_info,
+             SbDrmSystem drm_system) -> std::unique_ptr<AudioDecoder> {
         if (audio_stream_info.codec == kSbMediaAudioCodecOpus) {
           std::unique_ptr<OpusAudioDecoder> audio_decoder_impl(
               new OpusAudioDecoder(audio_stream_info));
           if (audio_decoder_impl->is_valid()) {
             return std::unique_ptr<AudioDecoder>(std::move(audio_decoder_impl));
+          } else {
+            SB_LOG(ERROR) << "Failed to create audio decoder for codec "
+                          << GetMediaAudioCodecName(audio_stream_info.codec);
           }
         } else if (audio_stream_info.codec == kSbMediaAudioCodecAac &&
                    audio_stream_info.number_of_channels <=
@@ -92,9 +97,12 @@ class PlayerComponentsFactory : public PlayerComponents::Factory {
           if (audio_decoder_impl && audio_decoder_impl->is_valid()) {
             SB_LOG(INFO) << "Playing audio using FfmpegAudioDecoder";
             return std::unique_ptr<AudioDecoder>(std::move(audio_decoder_impl));
+          } else {
+            SB_LOG(ERROR) << "Failed to create audio decoder for codec "
+                          << GetMediaAudioCodecName(audio_stream_info.codec);
           }
         }
-        return std::unique_ptr<AudioDecoder>();
+        return nullptr;
       };
 
       audio_decoder->reset(new AdaptiveAudioDecoder(
@@ -130,7 +138,8 @@ class PlayerComponentsFactory : public PlayerComponents::Factory {
         video_decoder->reset(new Av1VideoDecoderImpl(
             creation_parameters.video_codec(),
             creation_parameters.output_mode(),
-            creation_parameters.decode_target_graphics_context_provider()));
+            creation_parameters.decode_target_graphics_context_provider(),
+            /* may_reduce_quality_for_speed = */ true));
       } else if (creation_parameters.video_codec() == kSbMediaVideoCodecH265) {
         video_decoder->reset(new H265VideoDecoderImpl(
             creation_parameters.video_codec(),
@@ -154,11 +163,12 @@ class PlayerComponentsFactory : public PlayerComponents::Factory {
           SB_LOG(INFO) << "Playing video using ffmpeg::VideoDecoder.";
           video_decoder->reset(ffmpeg_video_decoder.release());
         } else {
+          const char* codec_name =
+              GetMediaVideoCodecName(creation_parameters.video_codec());
           SB_LOG(ERROR) << "Failed to create video decoder for codec "
-                        << creation_parameters.video_codec();
-          *error_message =
-              FormatString("Failed to create video decoder for codec %d.",
-                           creation_parameters.video_codec());
+                        << codec_name;
+          *error_message = FormatString(
+              "Failed to create video decoder for codec %s.", codec_name);
           return false;
         }
       }

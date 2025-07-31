@@ -19878,6 +19878,8 @@ from previous Chrome versions.
   <int value="9" label="kCastStreaming"/>
   <int value="10" label="kContentEmbedderDefined"/>
   <int value="11" label="kTest"/>
+<!-- Cobalt: Renderer for Starboard (SbPlayer) -->
+  <int value="12" label="kStarboard"/>
 </enum>
 
 <enum name="MediaSessionAction">

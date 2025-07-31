@@ -27,7 +27,13 @@ public class ContentFeatureList {
     public static final String ACCESSIBILITY_MANAGE_BROADCAST_RECEIVER_ON_BACKGROUND =
             "AccessibilityManageBroadcastReceiverOnBackground";
 
+<<<<<<< HEAD
     public static final String ANDROID_OPEN_PDF_INLINE = "AndroidOpenPdfInline";
+=======
+    public static final String DO_NOT_GENERATE_CHROMIUM_A11Y_TREE = "DoNotGenerateChromiumA11yTree";
+
+    public static final String ON_DEMAND_ACCESSIBILITY_EVENTS = "OnDemandAccessibilityEvents";
+>>>>>>> 7067342136f (Stop creating a11y node provder for Chrobalt (#5271))
 
     public static final String HIDE_PASTE_POPUP_ON_GSB = "HidePastePopupOnGSB";
 

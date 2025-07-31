@@ -15,14 +15,10 @@
 #ifndef STARBOARD_ANDROID_SHARED_SYSTEM_INFO_API_H_
 #define STARBOARD_ANDROID_SHARED_SYSTEM_INFO_API_H_
 
-namespace starboard {
-namespace android {
-namespace shared {
+namespace starboard::android::shared {
 
 const void* GetSystemInfoApi();
 
-}  // namespace shared
-}  // namespace android
-}  // namespace starboard
+}  // namespace starboard::android::shared
 
 #endif  // STARBOARD_ANDROID_SHARED_SYSTEM_INFO_API_H_

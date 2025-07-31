@@ -9,7 +9,10 @@
 #include <unistd.h>
 
 #include <memory>
+<<<<<<< HEAD
 #include <string_view>
+=======
+>>>>>>> 743c174bb41 (Migrate to MessagePumpEpoll and remove MessagePumpLibevent (#5420))
 #include <utility>
 
 #include "base/containers/span.h"
@@ -31,7 +34,10 @@
 #include "base/task/single_thread_task_executor.h"
 #include "base/task/single_thread_task_runner.h"
 #include "base/test/gtest_util.h"
+<<<<<<< HEAD
 #include "base/test/scoped_feature_list.h"
+=======
+>>>>>>> 743c174bb41 (Migrate to MessagePumpEpoll and remove MessagePumpLibevent (#5420))
 #include "base/test/task_environment.h"
 #include "base/threading/thread.h"
 #include "testing/gtest/include/gtest/gtest.h"
@@ -99,6 +105,20 @@ class MessagePumpEpollTest : public testing::Test {
 
 namespace {
 
+<<<<<<< HEAD
+=======
+// Concrete implementation of MessagePumpEpoll::FdWatcher that does
+// nothing useful.
+class StupidWatcher : public MessagePumpEpoll::FdWatcher {
+ public:
+  ~StupidWatcher() override = default;
+
+  // base:MessagePumpEpoll::FdWatcher interface
+  void OnFileCanReadWithoutBlocking(int fd) override {}
+  void OnFileCanWriteWithoutBlocking(int fd) override {}
+};
+
+>>>>>>> 743c174bb41 (Migrate to MessagePumpEpoll and remove MessagePumpLibevent (#5420))
 TEST_F(MessagePumpEpollTest, QuitOutsideOfRun) {
   auto pump = std::make_unique<MessagePumpEpoll>();
   ASSERT_DCHECK_DEATH(pump->Quit());
@@ -209,7 +229,11 @@ void FatalClosure() {
 
 class QuitWatcher : public BaseWatcher {
  public:
+<<<<<<< HEAD
   explicit QuitWatcher(base::OnceClosure quit_closure)
+=======
+  QuitWatcher(base::OnceClosure quit_closure)
+>>>>>>> 743c174bb41 (Migrate to MessagePumpEpoll and remove MessagePumpLibevent (#5420))
       : quit_closure_(std::move(quit_closure)) {}
 
   void OnFileCanReadWithoutBlocking(int /* fd */) override {
@@ -230,7 +254,11 @@ void WriteFDWrapper(const int fd,
                     const char* buf,
                     int size,
                     WaitableEvent* event) {
+<<<<<<< HEAD
   ASSERT_TRUE(WriteFileDescriptor(fd, std::string_view(buf, size)));
+=======
+  ASSERT_TRUE(WriteFileDescriptor(fd, StringPiece(buf, size)));
+>>>>>>> 743c174bb41 (Migrate to MessagePumpEpoll and remove MessagePumpLibevent (#5420))
 }
 
 // Tests that MessagePumpEpoll quits immediately when it is quit from

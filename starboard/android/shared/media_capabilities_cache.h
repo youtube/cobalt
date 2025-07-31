@@ -23,14 +23,13 @@
 #include <string>
 #include <vector>
 
+#include <mutex>
+
 #include "starboard/android/shared/jni_env_ext.h"
-#include "starboard/common/mutex.h"
 #include "starboard/media.h"
 #include "starboard/shared/internal_only.h"
 
-namespace starboard {
-namespace android {
-namespace shared {
+namespace starboard::android::shared {
 
 // TODO: encapsulate a common Range class.
 struct Range {
@@ -165,7 +164,7 @@ class MediaCapabilitiesCache {
   void LoadAudioConfigurations_Locked();
   void LoadCodecInfos_Locked();
 
-  Mutex mutex_;
+  std::mutex mutex_;
 
   std::set<SbMediaTransferId> supported_transfer_ids_;
   std::map<SbMediaAudioCodec, bool> passthrough_supportabilities_;
@@ -185,8 +184,6 @@ class MediaCapabilitiesCache {
   std::atomic_bool capabilities_is_dirty_{true};
 };
 
-}  // namespace shared
-}  // namespace android
-}  // namespace starboard
+}  // namespace starboard::android::shared
 
 #endif  // STARBOARD_ANDROID_SHARED_MEDIA_CAPABILITIES_CACHE_H_

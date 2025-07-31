@@ -114,8 +114,9 @@ std::vector<void*> TryToAllocateMemory(int size,
     int allocation_increment = allocation_unit != 0
                                    ? allocation_unit
                                    : (std::rand() % 500 + 100) * 1024;
-    void* allocated_memory = NULL;
-    posix_memalign(&allocated_memory, alignment, allocation_increment);
+    void* allocated_memory = nullptr;
+    std::ignore =
+        posix_memalign(&allocated_memory, alignment, allocation_increment);
     EXPECT_NE(allocated_memory, nullptr);
     if (!allocated_memory) {
       return allocated_ptrs;
@@ -160,7 +161,7 @@ TEST(SbMediaBufferTest, MediaTypes) {
 }
 
 TEST(SbMediaBufferTest, Alignment) {
-  for (auto type : kMediaTypes) {
+  for (int i = 0; i < SB_ARRAY_SIZE_INT(kMediaTypes); ++i) {
     // The test will be run more than once, it's redundant but allows us to keep
     // the test logic in one place.
     int alignment = SbMediaGetBufferAlignment();
@@ -172,7 +173,7 @@ TEST(SbMediaBufferTest, Alignment) {
     // optimal alignment for the platform, but not guaranteed.
     // An implementation that has specific alignment requirement should check
     // the alignment of the incoming buffer, and make a copy when necessary.
-    EXPECT_EQ(alignment, sizeof(void*));
+    EXPECT_EQ(static_cast<size_t>(alignment), sizeof(void*));
   }
 }
 

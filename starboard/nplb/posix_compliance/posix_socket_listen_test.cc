@@ -32,7 +32,7 @@ TEST(PosixSocketListenTest, SunnyDayUnbound) {
   int socket_fd = socket(AF_INET, SOCK_STREAM, IPPROTO_TCP);
   ASSERT_TRUE(socket_fd >= 0);
 
-  // set socket reuseable
+  // set socket reusable
   const int on = 1;
   result = setsockopt(socket_fd, SOL_SOCKET, SO_REUSEADDR, &on, sizeof(on));
   EXPECT_TRUE(result == 0);
@@ -46,7 +46,7 @@ TEST(PosixSocketListenTest, SunnyDayUnbound) {
   EXPECT_TRUE(
       PosixGetLocalAddressIPv4(reinterpret_cast<sockaddr*>(&address)) == 0 ||
       PosixGetLocalAddressIPv6(reinterpret_cast<sockaddr*>(&address)) == 0);
-  address.sin6_port = htons(GetPortNumberForTests());
+  address.sin6_port = htons(PosixGetPortNumberForTests());
 
   result =
       bind(socket_fd, reinterpret_cast<sockaddr*>(&address), sizeof(sockaddr));

@@ -44,6 +44,7 @@
 #define EGL_CONTEXT_CLIENT_VERSION SB_EGL_CONTEXT_CLIENT_VERSION
 #define EGL_DEFAULT_DISPLAY SB_EGL_DEFAULT_DISPLAY
 #define EGL_GREEN_SIZE SB_EGL_GREEN_SIZE
+#define EGL_HEIGHT SB_EGL_HEIGHT
 #define EGL_NONE SB_EGL_NONE
 #define EGL_NO_CONTEXT SB_EGL_NO_CONTEXT
 #define EGL_NO_DISPLAY SB_EGL_NO_DISPLAY
@@ -54,7 +55,42 @@
 #define EGL_RENDERABLE_TYPE SB_EGL_RENDERABLE_TYPE
 #define EGL_SUCCESS SB_EGL_SUCCESS
 #define EGL_SURFACE_TYPE SB_EGL_SURFACE_TYPE
+#define EGL_WIDTH SB_EGL_WIDTH
 #define EGL_WINDOW_BIT SB_EGL_WINDOW_BIT
+
+#ifndef EGL_ANGLE_platform_angle
+#define EGL_ANGLE_platform_angle 1
+#define EGL_PLATFORM_ANGLE_ANGLE 0x3202
+#define EGL_PLATFORM_ANGLE_TYPE_ANGLE 0x3203
+#define EGL_PLATFORM_ANGLE_DEVICE_TYPE_ANGLE 0x3209
+#define EGL_PLATFORM_ANGLE_DEVICE_TYPE_EGL_ANGLE 0x348E
+#endif /* EGL_ANGLE_platform_angle */
+
+#ifndef EGL_ANGLE_platform_angle_opengl
+#define EGL_ANGLE_platform_angle_opengl 1
+#define EGL_PLATFORM_ANGLE_TYPE_OPENGL_ANGLE 0x320D
+#define EGL_PLATFORM_ANGLE_TYPE_OPENGLES_ANGLE 0x320E
+#endif /* EGL_ANGLE_platform_angle_opengl */
+
+#if !defined(EGL_VERSION_1_5)
+// Lifted verbatim from egl.h.
+#if defined(_WIN32) && !defined(_WIN32_WCE) && !defined(__SCITECH_SNAP__)
+/* Win32 but not WinCE */
+#define KHRONOS_APIENTRY __stdcall
+#else
+#define KHRONOS_APIENTRY
+#endif
+
+#ifndef EGLAPIENTRY
+#define EGLAPIENTRY KHRONOS_APIENTRY
+#endif
+#define EGLAPIENTRYP EGLAPIENTRY*
+
+typedef SbEglDisplay(EGLAPIENTRYP PFNEGLGETPLATFORMDISPLAYEXTPROC)(
+    SbEglEnum platform,
+    void* native_display,
+    const EGLint* attrib_list);
+#endif  // !defined(EGL_VERSION_1_5)
 
 #define EGL_CALL(x)                                          \
   do {                                                       \
@@ -72,24 +108,6 @@
 
 namespace starboard {
 namespace testing {
-
-namespace {
-
-EGLint const kAttributeList[] = {EGL_RED_SIZE,
-                                 8,
-                                 EGL_GREEN_SIZE,
-                                 8,
-                                 EGL_BLUE_SIZE,
-                                 8,
-                                 EGL_ALPHA_SIZE,
-                                 8,
-                                 EGL_SURFACE_TYPE,
-                                 EGL_WINDOW_BIT | EGL_PBUFFER_BIT,
-                                 EGL_RENDERABLE_TYPE,
-                                 EGL_OPENGL_ES2_BIT,
-                                 EGL_NONE};
-
-}  // namespace
 
 FakeGraphicsContextProvider::FakeGraphicsContextProvider()
     : display_(EGL_NO_DISPLAY),
@@ -174,7 +192,38 @@ void FakeGraphicsContextProvider::InitializeWindow() {
 }
 
 void FakeGraphicsContextProvider::InitializeEGL() {
+#if !defined(EGL_VERSION_1_5)
+  std::vector<EGLint> display_attribs = {
+#else
+  std::vector<SbEglAttrib> display_attribs = {
+#endif  // !defined(EGL_VERSION_1_5)
+    EGL_PLATFORM_ANGLE_DEVICE_TYPE_ANGLE,
+    EGL_PLATFORM_ANGLE_DEVICE_TYPE_EGL_ANGLE,
+    EGL_PLATFORM_ANGLE_TYPE_ANGLE,
+    EGL_PLATFORM_ANGLE_TYPE_OPENGLES_ANGLE,
+    EGL_NONE  // Terminate the attribute list
+  };
+#if BUILDFLAG(IS_ANDROID)
   display_ = EGL_CALL_SIMPLE(eglGetDisplay(EGL_DEFAULT_DISPLAY));
+#else
+#if !defined(EGL_VERSION_1_5)
+  // Manually retrieve the eglGetPlatformDisplayEXT function pointer.
+  // This allows us to use the display platform extension without enforcing
+  // full EGL 1.5 compliance.
+  PFNEGLGETPLATFORMDISPLAYEXTPROC eglGetPlatformDisplayEXT_func =
+      reinterpret_cast<PFNEGLGETPLATFORMDISPLAYEXTPROC>(
+          EGL_CALL_SIMPLE(eglGetProcAddress("eglGetPlatformDisplayEXT")));
+  SB_CHECK(eglGetPlatformDisplayEXT_func);
+  display_ = eglGetPlatformDisplayEXT_func(
+      EGL_PLATFORM_ANGLE_ANGLE, reinterpret_cast<void*>(EGL_DEFAULT_DISPLAY),
+      display_attribs.data());
+#else
+  display_ = EGL_CALL_SIMPLE(eglGetPlatformDisplay(
+      EGL_PLATFORM_ANGLE_ANGLE, reinterpret_cast<void*>(EGL_DEFAULT_DISPLAY),
+      display_attribs.data()));
+#endif  // !defined(EGL_VERSION_1_5)
+#endif  // BUILDFLAG(IS_ANDROID)
+
   SB_DCHECK(EGL_SUCCESS == EGL_CALL_SIMPLE(eglGetError()));
   SB_CHECK(EGL_NO_DISPLAY != display_);
 
@@ -192,34 +241,51 @@ void FakeGraphicsContextProvider::InitializeEGL() {
   // from configs that do allow that. To handle that, we have to attempt
   // eglCreateWindowSurface() until we find a config that succeeds.
 
+  constexpr EGLint kAttributeList[] = {EGL_RED_SIZE,
+                                       8,
+                                       EGL_GREEN_SIZE,
+                                       8,
+                                       EGL_BLUE_SIZE,
+                                       8,
+                                       EGL_ALPHA_SIZE,
+                                       8,
+                                       EGL_SURFACE_TYPE,
+                                       EGL_WINDOW_BIT | EGL_PBUFFER_BIT,
+                                       EGL_RENDERABLE_TYPE,
+                                       EGL_OPENGL_ES2_BIT,
+                                       EGL_NONE};
+
   // First, query how many configs match the given attribute list.
   EGLint num_configs = 0;
   EGL_CALL(eglChooseConfig(display_, kAttributeList, NULL, 0, &num_configs));
   SB_CHECK(0 != num_configs);
 
   // Allocate space to receive the matching configs and retrieve them.
-  EGLConfig* configs =
-      reinterpret_cast<EGLConfig*>(malloc(num_configs * sizeof(EGLConfig)));
-  EGL_CALL(eglChooseConfig(display_, kAttributeList, configs, num_configs,
-                           &num_configs));
+  std::vector<EGLConfig> configs(num_configs);
+  EGL_CALL(eglChooseConfig(display_, kAttributeList, configs.data(),
+                           num_configs, &num_configs));
+  // "If configs is not NULL, up to config_size configs will be returned in the
+  // array pointed to by configs. The number of configs actually returned will
+  // be returned in *num_config." Assert that and resize if needed.
+  SB_CHECK(static_cast<size_t>(num_configs) <= configs.size());
+  configs.resize(num_configs);
 
-  EGLNativeWindowType native_window =
-      (EGLNativeWindowType)SbWindowGetPlatformHandle(window_);
+  // Find the first config that successfully allows a pBuffer surface (i.e. an
+  // offscreen EGLsurface) to be created.
   EGLConfig config = EGLConfig();
-
-  // Find the first config that successfully allow a window surface to be
-  // created.
-  for (int config_number = 0; config_number < num_configs; ++config_number) {
-    config = configs[config_number];
+  for (auto maybe_config : configs) {
+    constexpr EGLint kPBufferAttribs[] = {EGL_WIDTH, 1920, EGL_HEIGHT, 1080,
+                                          EGL_NONE};
     surface_ = EGL_CALL_SIMPLE(
-        eglCreateWindowSurface(display_, config, native_window, NULL));
-    if (EGL_SUCCESS == EGL_CALL_SIMPLE(eglGetError()))
+        eglCreatePbufferSurface(display_, maybe_config, kPBufferAttribs));
+    if (EGL_SUCCESS == EGL_CALL_SIMPLE(eglGetError())) {
+      config = maybe_config;
       break;
+    }
   }
   SB_DCHECK(surface_ != EGL_NO_SURFACE);
 
-  free(configs);
-  // Create the GLES2 or GLEX3 Context.
+  // Create the GLES2 or GLES3 Context.
   EGLint context_attrib_list[] = {
       EGL_CONTEXT_CLIENT_VERSION,
       3,

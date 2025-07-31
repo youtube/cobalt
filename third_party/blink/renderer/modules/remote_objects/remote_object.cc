@@ -7,6 +7,7 @@
 #include <tuple>
 
 #include "base/numerics/safe_conversions.h"
+#include "base/strings/strcat.h"
 #include "gin/converter.h"
 #include "third_party/blink/public/web/blink.h"
 #include "third_party/blink/renderer/platform/bindings/v8_binding.h"
@@ -316,16 +317,28 @@ gin::ObjectTemplateBuilder RemoteObject::GetObjectTemplateBuilder(
 void RemoteObject::RemoteObjectInvokeCallback(
     const v8::FunctionCallbackInfo<v8::Value>& info) {
   v8::Isolate* isolate = info.GetIsolate();
+  String method_name = ToCoreString(info.Data().As<v8::String>());
   if (info.IsConstructCall()) {
     // This is not a constructor. Throw and return.
+<<<<<<< HEAD
     isolate->ThrowException(v8::Exception::Error(
         V8String(isolate, kMethodInvocationAsConstructorDisallowed)));
+=======
+    isolate->ThrowException(v8::Exception::Error(V8String(
+        isolate, base::StrCat({"Error invoking ", method_name.Utf8(), ": ",
+                               kMethodInvocationAsConstructorDisallowed})
+                     .c_str())));
+    UMA_HISTOGRAM_ENUMERATION(
+        "Blink.JavaJsBridge.MethodInvocationError",
+        JavaJsBridgeMethodInvocationError::kAsConstructorDisallowed);
+>>>>>>> 10c80623958 (Add method name to Java Bridge error messages (#6091))
     return;
   }
 
   RemoteObject* remote_object;
   if (!gin::ConvertFromV8(isolate, info.This(), &remote_object)) {
     // Someone messed with the |this| pointer. Throw and return.
+<<<<<<< HEAD
     isolate->ThrowException(v8::Exception::Error(
         V8String(isolate, kMethodInvocationOnNonInjectedObjectDisallowed)));
     return;
@@ -333,6 +346,18 @@ void RemoteObject::RemoteObjectInvokeCallback(
 
   String method_name = ToCoreString(isolate, info.Data().As<v8::String>());
 
+=======
+    isolate->ThrowException(v8::Exception::Error(V8String(
+        isolate, base::StrCat({"Error invoking ", ": ", method_name.Utf8(),
+                               kMethodInvocationOnNonInjectedObjectDisallowed})
+                     .c_str())));
+    UMA_HISTOGRAM_ENUMERATION(
+        "Blink.JavaJsBridge.MethodInvocationError",
+        JavaJsBridgeMethodInvocationError::kOnNonInjectedObjectDisallowed);
+    return;
+  }
+
+>>>>>>> 10c80623958 (Add method name to Java Bridge error messages (#6091))
   v8::Local<v8::Object> method_cache = GetMethodCache(
       isolate, remote_object->GetWrapper(isolate).ToLocalChecked());
   if (method_cache.IsEmpty())
@@ -344,8 +369,18 @@ void RemoteObject::RemoteObjectInvokeCallback(
           .ToLocalChecked();
 
   if (cached_method->IsUndefined()) {
+<<<<<<< HEAD
     isolate->ThrowException(v8::Exception::Error(
         V8String(isolate, kMethodInvocationNonexistentMethod)));
+=======
+    isolate->ThrowException(v8::Exception::Error(V8String(
+        isolate, base::StrCat({"Error invoking ", ": ", method_name.Utf8(),
+                               kMethodInvocationNonexistentMethod})
+                     .c_str())));
+    UMA_HISTOGRAM_ENUMERATION(
+        "Blink.JavaJsBridge.MethodInvocationError",
+        JavaJsBridgeMethodInvocationError::kNonexistentMethod);
+>>>>>>> 10c80623958 (Add method name to Java Bridge error messages (#6091))
     return;
   }
 
@@ -366,9 +401,20 @@ void RemoteObject::RemoteObjectInvokeCallback(
                                        &result);
 
   if (result->error != mojom::blink::RemoteInvocationError::OK) {
+<<<<<<< HEAD
     String message = String::Format("%s : ", kMethodInvocationErrorMessage) +
                      RemoteInvocationErrorToString(result->error);
     isolate->ThrowException(v8::Exception::Error(V8String(isolate, message)));
+=======
+    isolate->ThrowException(v8::Exception::Error(V8String(
+        isolate,
+        base::StrCat({"Error invoking ", method_name.Utf8(), ": ",
+                      kMethodInvocationErrorMessage, ": ",
+                      RemoteInvocationErrorToString(result->error).Utf8()})
+            .c_str())));
+    UMA_HISTOGRAM_ENUMERATION("Blink.JavaJsBridge.MethodInvocationError",
+                              JavaJsBridgeMethodInvocationError::kErrorMessage);
+>>>>>>> 10c80623958 (Add method name to Java Bridge error messages (#6091))
     return;
   }
 

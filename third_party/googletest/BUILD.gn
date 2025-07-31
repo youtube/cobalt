@@ -152,6 +152,39 @@ source_set("gtest") {
       "//third_party/fuchsia-sdk/sdk/pkg/zx",
     ]
   }
+<<<<<<< HEAD
+=======
+
+  if (gtest_enable_absl_printers) {
+    deps += [ "//third_party/abseil-cpp:absl" ]
+  }
+
+  if (is_cobalt_hermetic_build) {
+    deps += [
+      "//starboard:starboard_group",
+      "//starboard/common:common_headers_only",
+    ]
+
+    # TODO: b/399507045 - Cobalt: Investigate removing this code after fixing build/runtime errors.
+    if (enable_cobalt_hermetic_hacks) {
+      sources -= [
+        "custom/gtest/internal/custom/chrome_custom_temp_dir.cc",
+        "custom/gtest/internal/custom/chrome_custom_temp_dir.h",
+        "custom/gtest/internal/custom/gtest.h",
+        "custom/gtest/internal/custom/gtest_port_wrapper.cc",
+        "custom/gtest/internal/custom/stack_trace_getter.cc",
+        "custom/gtest/internal/custom/stack_trace_getter.h",
+      ]
+      sources += [ "src/googletest/src/gtest-port.cc" ]
+      configs += [ "//build/config/compiler:chromium_code" ]
+
+      # TODO: b/399507045 - Cobalt: Fix build errors related to print API's, remove hack
+      if (gtest_enable_absl_printers) {
+        deps -= [ "//third_party/abseil-cpp:absl" ]
+      }
+    }
+  }
+>>>>>>> 79df5f45508 (Remove unnecessary rtti config (#5021))
 }
 
 # Do NOT depend on this directly. Use //testing/gtest:gtest_main instead.

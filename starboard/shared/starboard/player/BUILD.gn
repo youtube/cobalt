@@ -32,7 +32,9 @@ static_library("video_dmp") {
 }
 
 action("player_download_test_data") {
-  install_content = true
+  if (enable_install_targets) {
+    install_content = true
+  }
 
   script = "//starboard/tools/download_from_gcs.py"
 
@@ -64,7 +66,7 @@ action("player_download_test_data") {
 
   args = [
     "--bucket",
-    "cobalt-static-storage",
+    "cobalt-static-storage-public",
     "--sha1",
     sha1_dir,
     "--output",

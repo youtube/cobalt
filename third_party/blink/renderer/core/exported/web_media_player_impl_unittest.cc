@@ -207,6 +207,10 @@ class MockWebMediaPlayerClient : public MediaPlayerClient {
   MOCK_METHOD0(DidSeek, void());
   MOCK_METHOD2(OnFirstFrame, void(base::TimeTicks, size_t));
   MOCK_METHOD0(OnRequestVideoFrameCallback, void());
+<<<<<<< HEAD
+=======
+  MOCK_METHOD0(GetTextTrackMetadata, Vector<TextTrackMetadata>());
+>>>>>>> 11f52fe6f8a (BACKPORT: Pass HTMLMediaElement identifier to ::media::Renderer (#5463))
   MOCK_METHOD0(GetElementId, int());
 };
 

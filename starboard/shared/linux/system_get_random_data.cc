@@ -31,7 +31,7 @@ namespace {
 class URandomFile {
  public:
   URandomFile() {
-    file_ = open("/dev/urandom", O_RDONLY, S_IRUSR | S_IWUSR);
+    file_ = open("/dev/urandom", O_RDONLY);
     SB_DCHECK(starboard::IsValid(file_)) << "Cannot open /dev/urandom";
   }
 
@@ -70,8 +70,9 @@ void SbSystemGetRandomData(void* out_buffer, int buffer_size) {
     // threads. It doesn't appear that there is any locking in the Chromium
     // POSIX implementation that is very similar.
     int result = read(file, buffer, remaining);
-    if (result <= 0)
+    if (result <= 0) {
       break;
+    }
 
     remaining -= result;
     buffer += result;

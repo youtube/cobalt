@@ -32,10 +32,7 @@
 #include "starboard/shared/starboard/player/job_queue.h"
 #include "starboard/window.h"
 
-namespace starboard {
-namespace shared {
-namespace starboard {
-namespace player {
+namespace starboard::shared::starboard::player {
 
 // This class creates a thread that executes events posted to an internally
 // created queue. This guarantees that all such events are processed on the same
@@ -156,7 +153,7 @@ class PlayerWorker {
   void SetPlaybackRate(double playback_rate) {
     // Arbitrary values to give the playback rate a valid range.  A particular
     // implementation may have stricter or looser requirement, or even only
-    // support several discreet values.
+    // support several discrete values.
     // Ideally the range of the playback rate should be determined by the audio
     // graph but that will break the thread invariant of the handler.
     const double kMinimumNonZeroPlaybackRate = 0.1;
@@ -237,9 +234,6 @@ class PlayerWorker {
   JobQueue::JobToken write_pending_sample_job_token_;
 };
 
-}  // namespace player
-}  // namespace starboard
-}  // namespace shared
-}  // namespace starboard
+}  // namespace starboard::shared::starboard::player
 
 #endif  // STARBOARD_SHARED_STARBOARD_PLAYER_PLAYER_WORKER_H_

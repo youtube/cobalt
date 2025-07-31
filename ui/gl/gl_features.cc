@@ -29,6 +29,15 @@
 namespace features {
 namespace {
 
+<<<<<<< HEAD
+=======
+#if BUILDFLAG(IS_APPLE)
+BASE_FEATURE(kGpuVsync, "GpuVsync", base::FEATURE_DISABLED_BY_DEFAULT);
+#else
+BASE_FEATURE(kGpuVsync, "GpuVsync", base::FEATURE_ENABLED_BY_DEFAULT);
+#endif
+
+>>>>>>> 4ea35a7c288 (Add the missing ENABLE_VALIDATING_COMMAND_DECODER build flag (#5439))
 #if BUILDFLAG(IS_ANDROID) && BUILDFLAG(ENABLE_VALIDATING_COMMAND_DECODER)
 const base::FeatureParam<std::string>
     kPassthroughCommandDecoderBlockListByBrand{
@@ -230,6 +239,7 @@ bool UsePassthroughCommandDecoder() {
           kPassthroughCommandDecoderBlockListByAndroidBuildFP.Get()))
     return false;
 
+<<<<<<< HEAD
   // Only check system info once and cache if the vendor is blocked.
   static std::optional<bool> gpu_vendor_blocked;
   if (!gpu_vendor_blocked.has_value()) {
@@ -253,6 +263,14 @@ bool UsePassthroughCommandDecoder() {
   if (gpu_vendor_blocked.value()) {
     return false;
   }
+=======
+#if BUILDFLAG(USE_STARBOARD_MEDIA)
+  // TODO(crbug.com/41482978): Fix single process rendering on nvidia Shield.
+  if (base::MatchPattern(build_info->manufacturer(), "NVIDIA") &&
+      base::MatchPattern(build_info->model(), "SHIELD*"))
+    return false;
+#endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
+>>>>>>> 802b3aaf51e (Limit rendering restrictions to shield (#4919))
 #endif  // BUILDFLAG(IS_ANDROID)
 
   return true;

@@ -22,6 +22,13 @@
 
 #include "starboard/configuration.h"
 
+// TODO: b/390503926 - Remove the starboard mutex API and all it's
+// references. See work done in 25lts as an example.
+
+#ifdef __cplusplus
+
+extern "C++" {
+
 namespace starboard {
 
 // Inline class wrapper for mutex.
@@ -33,23 +40,10 @@ class Mutex {
   void Acquire() const;
   bool AcquireTry() const;
   void Release() const;
-  void DCheckAcquired() const;
 
  private:
-#ifdef _DEBUG
-  void debugInit();
-  void debugSetReleased() const;
-  void debugPreAcquire() const;
-  void debugSetAcquired() const;
-  mutable pthread_t current_thread_acquired_;
-#else
-  void debugInit();
-  void debugSetReleased() const;
-  void debugPreAcquire() const;
-  void debugSetAcquired() const;
-#endif
-
   friend class ConditionVariable;
+
   pthread_mutex_t* mutex() const;
   mutable pthread_mutex_t mutex_;
   Mutex(const Mutex&) = delete;
@@ -87,5 +81,8 @@ class ScopedTryLock {
 };
 
 }  // namespace starboard
+}
+
+#endif  //__cplusplus
 
 #endif  // STARBOARD_COMMON_MUTEX_H_

@@ -14,81 +14,69 @@
 
 #include "starboard/android/shared/file_internal.h"
 
-#include <android/asset_manager.h>
 #include <android/asset_manager_jni.h>
 #include <android/log.h>
-#include <jni.h>
-#include <string>
 
-#include "starboard/android/shared/jni_env_ext.h"
-#include "starboard/android/shared/jni_utils.h"
+#include "starboard/common/check_op.h"
 #include "starboard/common/log.h"
 #include "starboard/common/string.h"
 
-namespace starboard {
-namespace android {
-namespace shared {
+namespace starboard::android::shared {
 
 const char* g_app_assets_dir = "/cobalt/assets";
+// Representing the absolute path to the application-specific directory
+// where persistent files should be stored
+// (Context.getFilesDir().getAbsolutePath()). This path is used
+// by Cobalt's file operations to access application-private storage.
 const char* g_app_files_dir = NULL;
+// Representing the absolute path to the application-specific cache directory
+// on the filesystem (Context.getCacheDir().getAbsolutePath()). This directory
+// is intended for temporary files that can be deleted by the system if storage
+// runs low.
 const char* g_app_cache_dir = NULL;
+// Representing the absolute path to the directory where the application's
+// native libraries are located (ApplicationInfo.nativeLibraryDir). This path
+// might be used by Cobalt or underlying libraries for dynamic loading or
+// related operations.
 const char* g_app_lib_dir = NULL;
 
 namespace {
-jobject g_java_asset_manager;
+// A ScopedJavaGlobalRef<jobject> representing the Android AssetManager
+// instance. This global reference ensures the AssetManager Java object
+// remains valid and accessible throughout the native application's lifetime,
+// allowing native code to load assets packaged within the APK.
+ScopedJavaGlobalRef<jobject> g_java_asset_manager;
 AAssetManager* g_asset_manager;
-
-// Copies the characters from a jstring and returns a newly allocated buffer
-// with the result.
-const char* DuplicateJavaString(JniEnvExt* env, jstring j_string) {
-  SB_DCHECK(j_string);
-  std::string utf_str = env->GetStringStandardUTFOrAbort(j_string);
-  const char* result = strdup(utf_str.c_str());
-  return result;
-}
-
 }  // namespace
 
-void SbFileAndroidInitialize() {
-  JniEnvExt* env = JniEnvExt::Get();
+void SbFileAndroidInitialize(ScopedJavaGlobalRef<jobject> asset_manager,
+                             const std::string& files_dir,
+                             const std::string& cache_dir,
+                             const std::string& native_library_dir) {
+  JNIEnv* env = base::android::AttachCurrentThread();
 
-  SB_DCHECK(g_java_asset_manager == NULL);
-  SB_DCHECK(g_asset_manager == NULL);
-  ScopedLocalJavaRef<jstring> j_app(env->CallStarboardObjectMethodOrAbort(
-      "getApplicationContext", "()Landroid/content/Context;"));
-  g_java_asset_manager =
-      env->ConvertLocalRefToGlobalRef(env->CallObjectMethodOrAbort(
-          j_app.Get(), "getAssets", "()Landroid/content/res/AssetManager;"));
-  g_asset_manager = AAssetManager_fromJava(env, g_java_asset_manager);
+  SB_DCHECK(g_java_asset_manager.is_null());
+  SB_DCHECK_EQ(g_asset_manager, nullptr);
 
-  SB_DCHECK(g_app_files_dir == NULL);
-  ScopedLocalJavaRef<jstring> j_string(env->CallStarboardObjectMethodOrAbort(
-      "getFilesAbsolutePath", "()Ljava/lang/String;"));
-  g_app_files_dir = DuplicateJavaString(env, j_string.Get());
+  g_java_asset_manager = asset_manager;
+  g_asset_manager = AAssetManager_fromJava(env, asset_manager.obj());
+
+  SB_DCHECK_EQ(g_app_files_dir, nullptr);
+  g_app_files_dir = strdup(files_dir.c_str());
   SB_DLOG(INFO) << "Files dir: " << g_app_files_dir;
 
-  SB_DCHECK(g_app_cache_dir == NULL);
-  j_string.Reset(env->CallStarboardObjectMethodOrAbort("getCacheAbsolutePath",
-                                                       "()Ljava/lang/String;"));
-  g_app_cache_dir = DuplicateJavaString(env, j_string.Get());
+  SB_DCHECK_EQ(g_app_cache_dir, nullptr);
+  g_app_cache_dir = strdup(cache_dir.c_str());
   SB_DLOG(INFO) << "Cache dir: " << g_app_cache_dir;
 
-  SB_DCHECK(g_app_lib_dir == NULL);
-  ScopedLocalJavaRef<jobject> j_app_info(
-      env->CallObjectMethodOrAbort(j_app.Get(), "getApplicationInfo",
-                                   "()Landroid/content/pm/ApplicationInfo;"));
-  j_string.Reset(
-      env->GetStringFieldOrAbort(j_app_info.Get(), "nativeLibraryDir"));
-  g_app_lib_dir = DuplicateJavaString(env, j_string.Get());
+  SB_DCHECK_EQ(g_app_lib_dir, nullptr);
+  g_app_lib_dir = strdup(native_library_dir.c_str());
   SB_DLOG(INFO) << "Lib dir: " << g_app_lib_dir;
 }
 
 void SbFileAndroidTeardown() {
-  JniEnvExt* env = JniEnvExt::Get();
-
   if (g_java_asset_manager) {
-    env->DeleteGlobalRef(g_java_asset_manager);
-    g_java_asset_manager = NULL;
+    g_java_asset_manager.Reset();
     g_asset_manager = NULL;
   }
 
@@ -148,6 +136,4 @@ AAssetDir* OpenAndroidAssetDir(const char* path) {
   }
 }
 
-}  // namespace shared
-}  // namespace android
-}  // namespace starboard
+}  // namespace starboard::android::shared

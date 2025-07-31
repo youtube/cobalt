@@ -189,11 +189,14 @@ SupportedCodecs GetSupportedCodecs(const media::CdmCapability& capability,
         supported_codecs |= media::EME_CODEC_EAC3;
         break;
 #endif  // BUILDFLAG(ENABLE_PLATFORM_AC3_EAC3_AUDIO)
+<<<<<<< HEAD
 #if BUILDFLAG(ENABLE_PLATFORM_AC4_AUDIO)
       case media::AudioCodec::kAC4:
         supported_codecs |= media::EME_CODEC_AC4;
         break;
 #endif  // BUILDFLAG(ENABLE_PLATFORM_AC4_AUDIO)
+=======
+>>>>>>> 70d4a39d0a2 (Audio: Add AC3/EAC3 support in EME on Windows platform (#4744))
 #endif  // BUILDFLAG(USE_PROPRIETARY_CODECS)
       default:
         DVLOG(1) << "Unexpected supported codec: " << GetCodecName(codec);

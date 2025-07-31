@@ -1,7 +1,11 @@
 Name: play-services-basement
 Short Name: play-services-basement
 URL: https://developers.google.com/android/guides/setup
+<<<<<<< HEAD
 Version: 18.5.0
+=======
+Version: 18.4.0
+>>>>>>> 513c3cbbc2d (Reduce minSdkVersion to 24 and Downgrade Google Ads Identifier Version (#6077))
 License: Android Software Development Kit License
 License File: LICENSE
 CPEPrefix: unknown

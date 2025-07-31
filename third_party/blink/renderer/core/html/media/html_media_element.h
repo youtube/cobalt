@@ -560,6 +560,7 @@ class CORE_EXPORT HTMLMediaElement
 
   int GetElementId() override { return GetDomNodeId(); }
 
+<<<<<<< HEAD
   void SetCcLayer(cc::Layer*) override;
 
   void AddMediaTrack(const media::MediaTrack&) final;
@@ -567,6 +568,25 @@ class CORE_EXPORT HTMLMediaElement
 
   void MediaSourceOpened(std::unique_ptr<WebMediaSource>) final;
   void RemotePlaybackCompatibilityChanged(const KURL&,
+=======
+  void SetCcLayer(cc::Layer*) final;
+  WebMediaPlayer::TrackId AddAudioTrack(const WebString&,
+                                        WebMediaPlayerClient::AudioTrackKind,
+                                        const WebString&,
+                                        const WebString&,
+                                        bool) final;
+  void RemoveAudioTrack(WebMediaPlayer::TrackId) final;
+  WebMediaPlayer::TrackId AddVideoTrack(const WebString&,
+                                        WebMediaPlayerClient::VideoTrackKind,
+                                        const WebString&,
+                                        const WebString&,
+                                        bool) final;
+  void RemoveVideoTrack(WebMediaPlayer::TrackId) final;
+  void AddTextTrack(WebInbandTextTrack*) final;
+  void RemoveTextTrack(WebInbandTextTrack*) final;
+  void MediaSourceOpened(WebMediaSource*) final;
+  void RemotePlaybackCompatibilityChanged(const WebURL&,
+>>>>>>> 11f52fe6f8a (BACKPORT: Pass HTMLMediaElement identifier to ::media::Renderer (#5463))
                                           bool is_compatible) final;
   bool HasSelectedVideoTrack() final;
   WebMediaPlayer::TrackId GetSelectedVideoTrackId() final;

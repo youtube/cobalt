@@ -23,17 +23,14 @@
 #include "starboard/common/log.h"
 #include "starboard/common/string.h"
 
-namespace starboard {
-namespace shared {
-namespace starboard {
-namespace player {
+namespace starboard::shared::starboard::player {
 
 InputBuffer::~InputBuffer() {
   DeallocateSampleBuffer(data_);
 }
 
 void InputBuffer::SetDecryptedContent(std::vector<uint8_t> decrypted_content) {
-  SB_DCHECK(decrypted_content.size() == size_);
+  SB_DCHECK(decrypted_content.size() == static_cast<size_t>(size_));
   DeallocateSampleBuffer(data_);
 
   if (decrypted_content.empty()) {
@@ -111,7 +108,4 @@ void InputBuffer::DeallocateSampleBuffer(const void* buffer) {
   }
 }
 
-}  // namespace player
-}  // namespace starboard
-}  // namespace shared
-}  // namespace starboard
+}  // namespace starboard::shared::starboard::player

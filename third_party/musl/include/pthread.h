@@ -2,11 +2,8 @@
 #define _PTHREAD_H
 
 #if defined(STARBOARD)
-
-#include "third_party/musl/src/starboard/pthread/pthread.h"
-
+#include "third_party/musl/src/starboard/include/pthread.h"
 #else
-
 #ifdef __cplusplus
 extern "C" {
 #endif
@@ -249,5 +246,5 @@ __REDIR(pthread_timedjoin_np, __pthread_timedjoin_np_time64);
 }
 #endif
 
-#endif  // defined(STARBOARD)
+#endif
 #endif

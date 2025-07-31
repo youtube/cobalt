@@ -12,6 +12,9 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+#include "starboard/configuration.h"
+
+#include "build/build_config.h"
 #include "starboard/client_porting/wrap_main/wrap_main.h"
 #include "starboard/event.h"
 #include "starboard/system.h"
@@ -24,9 +27,19 @@ int InitAndRunAllTests(int argc, char** argv) {
 }
 }  // namespace
 
-// When we are building Evergreen we need to export SbEventHandle so that the
-// ELF loader can find and invoke it.
-#if SB_IS(MODULAR)
-SB_EXPORT
-#endif  // SB_IS(MODULAR)
-STARBOARD_WRAP_SIMPLE_MAIN(InitAndRunAllTests);
+#if BUILDFLAG(IS_STARBOARD)
+// For the Starboard OS define SbEventHandle as the entry point
+SB_EXPORT STARBOARD_WRAP_SIMPLE_MAIN(InitAndRunAllTests)
+
+#if !SB_IS(EVERGREEN)
+// Define main() for non-Evergreen Starboard OS.
+int main(int argc, char** argv) {
+  return SbRunStarboardMain(argc, argv, SbEventHandle);
+}
+#endif  // !SB_IS(EVERGREEN)
+#else
+// If the OS is not Starboard use the regular main e.g. ATV.
+int main(int argc, char** argv) {
+  return InitAndRunAllTests(argc, argv);
+}
+#endif  // BUILDFLAG(IS_STARBOARD)

@@ -12,6 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+import("//cobalt/build/configs/hacks.gni")
 import("//starboard/build/config/os_definitions.gni")
 import("//third_party/protobuf/proto_library.gni")
 
@@ -33,11 +34,17 @@ if (sb_is_evergreen_compatible && current_toolchain == starboard_toolchain) {
       ":reset_evergreen_update",
       ":slot_management",
       "//starboard:starboard_group",
+      "//starboard/common:common_headers_only",
+      "//starboard/crashpad_wrapper",
       "//starboard/elf_loader:constants",
       "//starboard/elf_loader:evergreen_info",
       "//starboard/elf_loader:sabi_string",
-      "//starboard/crashpad_wrapper",
     ]
+
+    if (enable_cobalt_hermetic_hacks) {
+      public_deps -= [ "//starboard/crashpad_wrapper" ]
+      public_deps += [ "//starboard/crashpad_wrapper:wrapper_stub" ]
+    }
   }
 }
 
@@ -90,7 +97,7 @@ static_library("record_loader_app_status") {
 
 if (sb_is_evergreen_compatible && current_toolchain == starboard_toolchain) {
   target(starboard_level_final_executable_type, "loader_app") {
-    build_loader = false
+    output_dir = root_build_dir
     if (target_cpu == "x64" || target_cpu == "arm" || target_cpu == "arm64") {
       if (cobalt_font_package == "empty") {
         data_deps = [ "//starboard/content/fonts:copy_font_data" ]
@@ -160,19 +167,15 @@ static_library("app_key_files") {
   ]
 }
 
-if (sb_is_evergreen) {
-  target(gtest_target_type, "app_key_files_test") {
-    testonly = true
-    sources = [
-      "//starboard/common/test_main.cc",
-      "app_key_files_test.cc",
-    ]
-    deps = [
-      ":app_key_files",
-      "//testing/gmock",
-      "//testing/gtest",
-    ]
-  }
+source_set("app_key_files_test") {
+  testonly = true
+  sources = [ "app_key_files_test.cc" ]
+  deps = [
+    ":app_key_files",
+    "//starboard:starboard_group",
+    "//testing/gmock",
+    "//testing/gtest",
+  ]
 }
 
 static_library("app_key") {
@@ -189,19 +192,14 @@ static_library("app_key") {
   ]
 }
 
-if (sb_is_evergreen) {
-  target(gtest_target_type, "app_key_test") {
-    testonly = true
-    sources = [
-      "//starboard/common/test_main.cc",
-      "app_key_test.cc",
-    ]
-    deps = [
-      ":app_key",
-      "//testing/gmock",
-      "//testing/gtest",
-    ]
-  }
+source_set("app_key_test") {
+  testonly = true
+  sources = [ "app_key_test.cc" ]
+  deps = [
+    ":app_key",
+    "//testing/gmock",
+    "//testing/gtest",
+  ]
 }
 
 static_library("drain_file") {
@@ -225,21 +223,16 @@ static_library("drain_file_helper") {
   ]
 }
 
-if (sb_is_evergreen) {
-  target(gtest_target_type, "drain_file_test") {
-    testonly = true
-    sources = [
-      "//starboard/common/test_main.cc",
-      "drain_file_test.cc",
-    ]
-    deps = [
-      ":drain_file",
-      ":drain_file_helper",
-      "//starboard/common",
-      "//testing/gmock",
-      "//testing/gtest",
-    ]
-  }
+source_set("drain_file_test") {
+  testonly = true
+  sources = [ "drain_file_test.cc" ]
+  deps = [
+    ":drain_file",
+    ":drain_file_helper",
+    "//starboard/common",
+    "//testing/gmock",
+    "//testing/gtest",
+  ]
 }
 
 proto_library("installation_store_proto") {
@@ -268,10 +261,9 @@ static_library("installation_manager") {
 }
 
 if (sb_is_evergreen_compatible && current_toolchain == starboard_toolchain) {
-  target(starboard_level_gtest_target_type, "installation_manager_test") {
+  source_set("installation_manager_test") {
     testonly = true
     sources = [
-      "//starboard/common/test_main.cc",
       "installation_manager_test.cc",
       "pending_restart_test.cc",
     ]
@@ -280,6 +272,7 @@ if (sb_is_evergreen_compatible && current_toolchain == starboard_toolchain) {
       ":installation_store_proto",
       ":pending_restart",
       "//starboard:starboard_with_main",
+      "//starboard/common",
       "//testing/gmock",
       "//testing/gtest",
     ]
@@ -305,7 +298,8 @@ static_library("slot_management") {
     "//third_party/jsoncpp:jsoncpp",
   ]
 
-  if (sb_is_evergreen_compatible && current_toolchain == starboard_toolchain) {
+  if (sb_is_evergreen_compatible && !enable_cobalt_hermetic_hacks &&
+      current_toolchain == starboard_toolchain) {
     deps += [ "//starboard/crashpad_wrapper" ]
   } else {
     deps += [ "//starboard/crashpad_wrapper:wrapper_stub" ]
@@ -314,14 +308,11 @@ static_library("slot_management") {
   configs += [ "//third_party/jsoncpp:jsoncpp_config" ]
 }
 if (sb_is_evergreen) {
-  target(starboard_level_gtest_target_type, "slot_management_test") {
+  source_set("slot_management_test") {
     testonly = true
     build_loader = false
 
-    sources = [
-      "//starboard/common/test_main.cc",
-      "slot_management_test.cc",
-    ]
+    sources = [ "slot_management_test.cc" ]
     deps = [
       ":app_key_files",
       ":drain_file",
@@ -366,15 +357,15 @@ if (sb_is_evergreen_compatible && current_toolchain == starboard_toolchain) {
       "reset_evergreen_update.cc",
       "reset_evergreen_update.h",
     ]
-    deps = [ "//starboard:starboard_group" ]
+    deps = [
+      "//starboard:starboard_group",
+      "//starboard/common:common",
+    ]
   }
 
-  target(starboard_level_gtest_target_type, "reset_evergreen_update_test") {
+  source_set("reset_evergreen_update_test") {
     testonly = true
-    sources = [
-      "//starboard/common/test_main.cc",
-      "reset_evergreen_update_test.cc",
-    ]
+    sources = [ "reset_evergreen_update_test.cc" ]
     deps = [
       ":reset_evergreen_update",
       "//starboard:starboard_with_main",

@@ -18,9 +18,9 @@
 #include <atomic>
 #include <list>
 #include <memory>
+#include <mutex>
 
 #include "starboard/common/log.h"
-#include "starboard/common/mutex.h"
 #include "starboard/common/ref_counted.h"
 #include "starboard/media.h"
 #include "starboard/shared/internal_only.h"
@@ -34,11 +34,7 @@
 #include "starboard/shared/starboard/player/input_buffer_internal.h"
 #include "starboard/shared/starboard/player/job_queue.h"
 
-namespace starboard {
-namespace shared {
-namespace starboard {
-namespace player {
-namespace filter {
+namespace starboard::shared::starboard::player::filter {
 
 // A class that sits in between the video decoder, the video sink and the
 // pipeline to coordinate data transfer between these parties.
@@ -114,9 +110,9 @@ class VideoRendererImpl : public VideoRenderer, private JobQueue::JobOwner {
   // both |decoder_frames_| and |sink_frames_| can be used on multiple threads.
   // When they are being modified at the same time, |decoder_frames_mutex_|
   // should always be locked before |sink_frames_mutex_| to avoid deadlock.
-  Mutex decoder_frames_mutex_;
+  std::mutex decoder_frames_mutex_;
   Frames decoder_frames_;
-  Mutex sink_frames_mutex_;
+  std::mutex sink_frames_mutex_;
   Frames sink_frames_;
 
 #if SB_PLAYER_FILTER_ENABLE_STATE_CHECK
@@ -148,10 +144,6 @@ class VideoRendererImpl : public VideoRenderer, private JobQueue::JobOwner {
 #endif                                  // SB_PLAYER_FILTER_ENABLE_STATE_CHECK
 };
 
-}  // namespace filter
-}  // namespace player
-}  // namespace starboard
-}  // namespace shared
-}  // namespace starboard
+}  // namespace starboard::shared::starboard::player::filter
 
 #endif  // STARBOARD_SHARED_STARBOARD_PLAYER_FILTER_VIDEO_RENDERER_INTERNAL_IMPL_H_

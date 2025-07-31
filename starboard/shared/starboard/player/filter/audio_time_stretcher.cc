@@ -27,11 +27,7 @@
 #include "starboard/shared/starboard/media/media_util.h"
 #include "starboard/shared/starboard/player/filter/wsola_internal.h"
 
-namespace starboard {
-namespace shared {
-namespace starboard {
-namespace player {
-namespace filter {
+namespace starboard::shared::starboard::player::filter {
 
 // Waveform Similarity Overlap-and-add (WSOLA).
 //
@@ -146,11 +142,11 @@ void AudioTimeStretcher::Initialize(SbMediaAudioSampleType sample_type,
       num_candidate_blocks_ / 2 + (ola_window_size_ / 2 - 1);
 
   ola_window_.reset(new float[ola_window_size_]);
-  internal::GetSymmetricHanningWindow(ola_window_size_, ola_window_.get());
+  internal::GetPeriodicHanningWindow(ola_window_size_, ola_window_.get());
 
   transition_window_.reset(new float[ola_window_size_ * 2]);
-  internal::GetSymmetricHanningWindow(2 * ola_window_size_,
-                                      transition_window_.get());
+  internal::GetPeriodicHanningWindow(2 * ola_window_size_,
+                                     transition_window_.get());
 
   wsola_output_ = new DecodedAudio(
       channels_, sample_type_, kSbMediaAudioFrameStorageTypeInterleaved, 0,
@@ -277,8 +273,9 @@ int AudioTimeStretcher::ConvertMillisecondsToFrames(int ms) const {
 bool AudioTimeStretcher::RunOneWsolaIteration(double playback_rate) {
   SB_DCHECK(bytes_per_frame_ > 0);
 
-  if (!CanPerformWsola())
+  if (!CanPerformWsola()) {
     return false;
+  }
 
   GetOptimalBlock();
 
@@ -321,8 +318,9 @@ void AudioTimeStretcher::UpdateOutputTime(double playback_rate,
 void AudioTimeStretcher::RemoveOldInputFrames(double playback_rate) {
   const int earliest_used_index =
       std::min(target_block_index_, search_block_index_);
-  if (earliest_used_index <= 0)
+  if (earliest_used_index <= 0) {
     return;  // Nothing to remove.
+  }
 
   // Remove frames from input and adjust indices accordingly.
   audio_buffer_.SeekFrames(earliest_used_index);
@@ -342,8 +340,9 @@ int AudioTimeStretcher::WriteCompletedFramesTo(int requested_frames,
 
   int rendered_frames = std::min(num_complete_frames_, requested_frames);
 
-  if (rendered_frames == 0)
+  if (rendered_frames == 0) {
     return 0;  // There is nothing to read from |wsola_output_|, return.
+  }
 
   memcpy(dest->data() + bytes_per_frame_ * dest_offset, wsola_output_->data(),
          rendered_frames * bytes_per_frame_);
@@ -438,8 +437,4 @@ void AudioTimeStretcher::PeekAudioWithZeroPrepend(int read_offset_frames,
                            dest);
 }
 
-}  // namespace filter
-}  // namespace player
-}  // namespace starboard
-}  // namespace shared
-}  // namespace starboard
+}  // namespace starboard::shared::starboard::player::filter

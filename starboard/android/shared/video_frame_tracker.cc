@@ -14,21 +14,60 @@
 
 #include "starboard/android/shared/video_frame_tracker.h"
 
+#include <algorithm>
 #include <cmath>
 #include <cstdint>
 #include <cstdlib>
+#include <mutex>
 #include <vector>
 
 #include "starboard/common/log.h"
-#include "starboard/common/mutex.h"
 
-namespace starboard {
-namespace android {
-namespace shared {
+namespace starboard::android::shared {
 namespace {
 
 const int64_t kMaxAllowedSkew = 5'000;  // 5ms
 
+// TODO: b/409362474 - Add unit test once starboard unittests are enable on
+// Android.
+void RemoveUnexpectedRenderedFrames(const std::list<int64_t>& frames_to_render,
+                                    std::vector<int64_t>* rendered_frames) {
+  SB_DCHECK(rendered_frames);
+  if (rendered_frames->empty()) {
+    return;
+  }
+  if (frames_to_render.empty()) {
+    SB_LOG(WARNING) << "There should be no frames to render, though there are "
+                       "rendered frames: count="
+                    << rendered_frames->size();
+    rendered_frames->clear();
+    return;
+  }
+
+  const int64_t min_valid_rendered_frame =
+      std::max<int64_t>(0, frames_to_render.front() - kMaxAllowedSkew);
+  const int64_t max_valid_rendered_frame =
+      frames_to_render.back() + kMaxAllowedSkew;
+  auto is_not_expected = [min_valid_rendered_frame,
+                          max_valid_rendered_frame](int64_t timestamp) {
+    return timestamp < min_valid_rendered_frame ||
+           max_valid_rendered_frame < timestamp;
+  };
+
+  auto to_remove = std::remove_if(rendered_frames->begin(),
+                                  rendered_frames->end(), is_not_expected);
+  const int removed_rendered_frames =
+      std::distance(to_remove, rendered_frames->end());
+  rendered_frames->erase(to_remove, rendered_frames->end());
+
+  if (removed_rendered_frames > 0) {
+    SB_LOG(WARNING)
+        << "Removed unexpected timestamps. This can happen during "
+           "seek, since flushed frames are reported to be as rendered frames"
+           "on Android 14+: # of removed timestamps="
+        << removed_rendered_frames;
+  }
+}
 }  // namespace
 
 int64_t VideoFrameTracker::seek_to_time() const {
@@ -43,7 +82,8 @@ void VideoFrameTracker::OnInputBuffer(int64_t timestamp) {
     return;
   }
 
-  if (frames_to_be_rendered_.size() > max_pending_frames_size_) {
+  if (frames_to_be_rendered_.size() >
+      static_cast<size_t>(max_pending_frames_size_)) {
     // OnFrameRendered() is only available after API level 23.  Cap the size
     // of |frames_to_be_rendered_| in case OnFrameRendered() is not available.
     frames_to_be_rendered_.pop_front();
@@ -67,7 +107,7 @@ void VideoFrameTracker::OnInputBuffer(int64_t timestamp) {
 }
 
 void VideoFrameTracker::OnFrameRendered(int64_t frame_timestamp) {
-  ScopedLock lock(rendered_frames_mutex_);
+  std::lock_guard lock(rendered_frames_mutex_);
   rendered_frames_on_decoder_thread_.push_back(frame_timestamp);
 }
 
@@ -91,7 +131,7 @@ void VideoFrameTracker::UpdateDroppedFrames() {
   SB_DCHECK(thread_checker_.CalledOnValidThread());
 
   {
-    ScopedLock lock(rendered_frames_mutex_);
+    std::lock_guard lock(rendered_frames_mutex_);
     rendered_frames_on_tracker_thread_.swap(rendered_frames_on_decoder_thread_);
   }
 
@@ -103,6 +143,9 @@ void VideoFrameTracker::UpdateDroppedFrames() {
     // after we align seek time to the next video key frame.
     frames_to_be_rendered_.pop_front();
   }
+
+  RemoveUnexpectedRenderedFrames(frames_to_be_rendered_,
+                                 &rendered_frames_on_tracker_thread_);
 
   // Loop over all timestamps from OnFrameRendered and compare against ones from
   // OnInputBuffer.
@@ -139,6 +182,4 @@ void VideoFrameTracker::UpdateDroppedFrames() {
   rendered_frames_on_tracker_thread_.clear();
 }
 
-}  // namespace shared
-}  // namespace android
-}  // namespace starboard
+}  // namespace starboard::android::shared

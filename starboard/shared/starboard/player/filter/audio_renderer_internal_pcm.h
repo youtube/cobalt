@@ -17,13 +17,13 @@
 
 #include <atomic>
 #include <functional>
+#include <limits>
 #include <memory>
+#include <mutex>
+#include <optional>
 #include <string>
-#include <vector>
 
 #include "starboard/common/log.h"
-#include "starboard/common/mutex.h"
-#include "starboard/common/optional.h"
 #include "starboard/media.h"
 #include "starboard/shared/internal_only.h"
 #include "starboard/shared/starboard/media/media_util.h"
@@ -43,11 +43,7 @@
 // when GetCurrentMediaTime() is called.
 // #define SB_LOG_MEDIA_TIME_STATS 1
 
-namespace starboard {
-namespace shared {
-namespace starboard {
-namespace player {
-namespace filter {
+namespace starboard::shared::starboard::player::filter {
 
 const int kFramesInBufferBeginUnderflow = 1024;
 
@@ -114,7 +110,7 @@ class AudioRendererPcm : public AudioRenderer,
   PrerolledCB prerolled_cb_;
   EndedCB ended_cb_;
 
-  Mutex mutex_;
+  mutable std::mutex mutex_;
 
   bool paused_ = true;
   bool consume_frames_called_ = false;
@@ -162,7 +158,7 @@ class AudioRendererPcm : public AudioRenderer,
   const int bytes_per_frame_;
 
   std::unique_ptr<AudioResampler> resampler_;
-  optional<int> decoder_sample_rate_;
+  std::optional<int> decoder_sample_rate_;
   AudioTimeStretcher time_stretcher_;
 
   std::vector<uint8_t> frame_buffer_;
@@ -191,9 +187,9 @@ class AudioRendererPcm : public AudioRenderer,
   int64_t silence_frames_written_after_eos_on_sink_thread_ = 0;
 
 #if SB_LOG_MEDIA_TIME_STATS
-  int64_t system_and_media_time_offset_ = -1;  // microseconds
-  int64_t min_drift_ = kSbInt64Max;            // microseconds
-  int64_t max_drift_ = 0;                      // microseconds
+  int64_t system_and_media_time_offset_ = -1;                // microseconds
+  int64_t min_drift_ = std::numeric_limits<int64_t>::max();  // microseconds
+  int64_t max_drift_ = 0;                                    // microseconds
   int64_t total_frames_consumed_ = 0;
 #endif  // SB_LOG_MEDIA_TIME_STATS
 
@@ -210,10 +206,6 @@ class AudioRendererPcm : public AudioRenderer,
 #endif  // SB_PLAYER_FILTER_ENABLE_STATE_CHECK
 };
 
-}  // namespace filter
-}  // namespace player
-}  // namespace starboard
-}  // namespace shared
-}  // namespace starboard
+}  // namespace starboard::shared::starboard::player::filter
 
 #endif  // STARBOARD_SHARED_STARBOARD_PLAYER_FILTER_AUDIO_RENDERER_INTERNAL_PCM_H_

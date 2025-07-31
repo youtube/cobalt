@@ -141,6 +141,13 @@ Shell* Shell::CreateShell(std::unique_ptr<WebContents> web_contents,
   if (raw_web_contents->GetPrimaryMainFrame()->IsRenderFrameLive())
     g_platform->MainFrameCreated(shell);
 
+#if BUILDFLAG(USE_STARBOARD_MEDIA)
+#if BUILDFLAG(IS_ANDROID)
+  // TODO(b/390021478): Revisit this when decoupling from content_shell.
+  g_platform->SetOverlayMode(shell, true);
+#endif  // BUILDFLAG(IS_ANDROID)
+#endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
+
   return shell;
 }
 
@@ -207,8 +214,10 @@ void Shell::Shutdown() {
   if (quit_loop)
     std::move(quit_loop).Run();
 
+#if !BUILDFLAG(IS_STARBOARD)
   // Pump the message loop to allow window teardown tasks to run.
   base::RunLoop().RunUntilIdle();
+#endif  // !BUILDFLAG(IS_STARBOARD)
 }
 
 gfx::Size Shell::AdjustWindowSize(const gfx::Size& initial_size) {

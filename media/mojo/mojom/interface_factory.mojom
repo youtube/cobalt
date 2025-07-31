@@ -17,6 +17,9 @@ import "media/mojo/mojom/video_decoder.mojom";
 import "mojo/public/mojom/base/token.mojom";
 import "mojo/public/mojom/base/unguessable_token.mojom";
 
+[EnableIf=use_starboard_media]
+import "media/mojo/mojom/starboard/starboard_media_types.mojom";
+
 // A factory for creating media mojo interfaces. Renderers can only access
 // ContentDecryptionModules created with the same factory.
 interface InterfaceFactory {
@@ -99,6 +102,20 @@ interface InterfaceFactory {
       string presentation_id,
       pending_remote<FlingingRendererClientExtension> client_extension,
       pending_receiver<Renderer> renderer);
+  
+  [EnableIf=use_starboard_media]
+  // Creates a StarboardRenderer (StarboardRendererClientFactory).
+  // - |config| for StarboardRenderer.
+  // - |renderer_extension| is bound in StarboardRenderer, and receives
+  //   calls from StarboardRendererClient.
+  // - |client_extension| is bound in StarboardRendererClient, and
+  //   received calls from StarboardRenderer.
+  CreateStarboardRenderer(
+      pending_remote<MediaLog> media_log,
+      StarboardRendererConfig config,
+      pending_receiver<Renderer> renderer,
+      pending_receiver<StarboardRendererExtension> renderer_extension,
+      pending_remote<StarboardRendererClientExtension> client_extension);
 
   // Creates a CDM based on the `cdm_config` provided. The `key_system` in the
   // `cdm_config` is a generic term for a decryption mechanism and/or content

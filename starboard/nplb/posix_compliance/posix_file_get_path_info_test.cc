@@ -41,6 +41,14 @@ TEST(PosixFileGetPathInfoTest, InvalidFileErrors) {
   EXPECT_TRUE(stat(".", &file_info) == 0);
 }
 
+<<<<<<< HEAD
+=======
+constexpr int64_t kMicrosecond = 1'000'000;
+auto ToMicroseconds(const struct timespec& ts) {
+  return ts.tv_sec * kMicrosecond + ts.tv_nsec / 1000;
+}
+
+>>>>>>> 9b65ab2257f (Fix clang warnings for modular builds (#6138))
 TEST(PosixFileGetPathInfoTest, WorksOnARegularFile) {
   // This test is potentially flaky because it's comparing times. So, building
   // in extra sensitivity to make flakiness more apparent.
@@ -48,7 +56,7 @@ TEST(PosixFileGetPathInfoTest, WorksOnARegularFile) {
   for (int i = 0; i < kTrials; ++i) {
     // We can't assume filesystem timestamp precision, so go back a minute
     // for a better chance to contain the imprecision and rounding errors.
-    const int64_t kOneSecondInMicroseconds = 1'000'000;
+    const int64_t kOneMinuteInMicroseconds = 60'000'000;
     int64_t time = PosixTimeToWindowsTime(CurrentPosixTime());
 
     const int kFileSize = 12;
@@ -62,11 +70,11 @@ TEST(PosixFileGetPathInfoTest, WorksOnARegularFile) {
       EXPECT_FALSE(S_ISDIR(file_info.st_mode));
       EXPECT_FALSE(S_ISLNK(file_info.st_mode));
       EXPECT_NEAR(time, TimeTToWindowsUsecTest(file_info.st_mtime),
-                  kOneSecondInMicroseconds);
+                  kOneMinuteInMicroseconds);
       EXPECT_NEAR(time, TimeTToWindowsUsecTest(file_info.st_atime),
-                  kOneSecondInMicroseconds);
+                  kOneMinuteInMicroseconds);
       EXPECT_NEAR(time, TimeTToWindowsUsecTest(file_info.st_ctime),
-                  kOneSecondInMicroseconds);
+                  kOneMinuteInMicroseconds);
     }
   }
 }
@@ -79,7 +87,7 @@ TEST(PosixFileGetPathInfoTest, WorksOnADirectory) {
 
   {
     struct stat file_info;
-    bool result = stat(path.data(), &file_info) == 0;
+    EXPECT_TRUE(stat(path.data(), &file_info) == 0);
     EXPECT_LE(0, file_info.st_size);
     EXPECT_TRUE(S_ISDIR(file_info.st_mode));
     EXPECT_FALSE(S_ISLNK(file_info.st_mode));
@@ -94,7 +102,7 @@ TEST(PosixFileGetPathInfoTest, WorksOnStaticContentFiles) {
     struct stat info;
     EXPECT_TRUE(stat(filename.c_str(), &info) == 0);
     size_t content_length = GetTestFileExpectedContent(filename).length();
-    EXPECT_EQ(content_length, info.st_size);
+    EXPECT_EQ(static_cast<long>(content_length), info.st_size);
     EXPECT_FALSE(S_ISDIR(info.st_mode));
     EXPECT_FALSE(S_ISLNK(info.st_mode));
   }

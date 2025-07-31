@@ -23,15 +23,14 @@
 #include "starboard/common/condition_variable.h"
 #include "starboard/common/instance_counter.h"
 #include "starboard/common/mutex.h"
+#include "starboard/common/player.h"
 #include "starboard/shared/pthread/thread_create_priority.h"
 
-namespace starboard {
-namespace shared {
-namespace starboard {
-namespace player {
+namespace starboard::shared::starboard::player {
 
 namespace {
 
+using ::starboard::GetPlayerStateName;
 using std::placeholders::_1;
 using std::placeholders::_2;
 using std::placeholders::_3;
@@ -52,7 +51,7 @@ const int kPlayerStackSize = 0;
 //       backlogs.
 const int64_t kWritePendingSampleDelayUsec = 8'000;  // 8ms
 
-DECLARE_INSTANCE_COUNTER(PlayerWorker);
+DECLARE_INSTANCE_COUNTER(PlayerWorker)
 
 struct ThreadParam {
   explicit ThreadParam(PlayerWorker* player_worker)
@@ -278,7 +277,7 @@ void PlayerWorker::DoWriteSamples(InputBuffers input_buffers) {
       player_state_ == kSbPlayerStateEndOfStream ||
       player_state_ == kSbPlayerStateDestroyed) {
     SB_LOG(ERROR) << "Tried to write sample when |player_state_| is "
-                  << player_state_;
+                  << GetPlayerStateName(player_state_);
     return;
   }
   if (error_occurred_) {
@@ -301,10 +300,11 @@ void PlayerWorker::DoWriteSamples(InputBuffers input_buffers) {
     UpdatePlayerError(kSbPlayerErrorDecode, result, "Failed to write sample.");
     return;
   }
-  if (samples_written == input_buffers.size()) {
+  if (static_cast<size_t>(samples_written) == input_buffers.size()) {
     UpdateDecoderState(media_type, kSbPlayerDecoderStateNeedsData);
   } else {
-    SB_DCHECK(samples_written >= 0 && samples_written <= input_buffers.size());
+    SB_DCHECK(samples_written >= 0 &&
+              static_cast<size_t>(samples_written) <= input_buffers.size());
 
     size_t num_of_pending_buffers = input_buffers.size() - samples_written;
     input_buffers.erase(input_buffers.begin(),
@@ -347,7 +347,7 @@ void PlayerWorker::DoWriteEndOfStream(SbMediaType sample_type) {
   if (player_state_ == kSbPlayerStateInitialized ||
       player_state_ == kSbPlayerStateEndOfStream) {
     SB_LOG(ERROR) << "Tried to write EOS when |player_state_| is "
-                  << player_state_;
+                  << GetPlayerStateName(player_state_);
     return;
   }
 
@@ -426,7 +426,4 @@ void PlayerWorker::UpdateDecoderState(SbMediaType type,
   decoder_status_func_(player_, context_, type, state, ticket_);
 }
 
-}  // namespace player
-}  // namespace starboard
-}  // namespace shared
-}  // namespace starboard
+}  // namespace starboard::shared::starboard::player

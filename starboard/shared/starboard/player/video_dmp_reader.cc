@@ -17,11 +17,7 @@
 #include <algorithm>
 #include <functional>
 
-namespace starboard {
-namespace shared {
-namespace starboard {
-namespace player {
-namespace video_dmp {
+namespace starboard::shared::starboard::player::video_dmp {
 
 namespace {
 
@@ -48,10 +44,6 @@ int64_t CalculateAverageBitrate(const std::vector<AccessUnit>& access_units) {
 
   return total_bitrate * 8 * 1'000'000LL / duration;
 }
-
-static void DeallocateSampleFunc(SbPlayer player,
-                                 void* context,
-                                 const void* sample_buffer) {}
 
 SbPlayerSampleInfo ConvertToPlayerSampleInfo(
     const VideoDmpReader::AudioAccessUnit& audio_unit) {
@@ -87,7 +79,7 @@ bool VideoDmpReader::Registry::GetDmpInfo(const std::string& filename,
   SB_DCHECK(!filename.empty());
   SB_DCHECK(dmp_info);
 
-  ScopedLock scoped_lock(mutex_);
+  std::lock_guard scoped_lock(mutex_);
   auto iter = dmp_infos_.find(filename);
   if (iter == dmp_infos_.end()) {
     return false;
@@ -100,7 +92,7 @@ void VideoDmpReader::Registry::Register(const std::string& filename,
                                         const DmpInfo& dmp_info) {
   SB_DCHECK(!filename.empty());
 
-  ScopedLock scoped_lock(mutex_);
+  std::lock_guard scoped_lock(mutex_);
   SB_DCHECK(dmp_infos_.find(filename) == dmp_infos_.end());
   dmp_infos_[filename] = dmp_info;
 }
@@ -108,9 +100,9 @@ void VideoDmpReader::Registry::Register(const std::string& filename,
 VideoDmpReader::VideoDmpReader(
     const char* filename,
     ReadOnDemandOptions read_on_demand_options /*= kDisableReadOnDemand*/)
-    : file_reader_(filename, 1024 * 1024),
-      read_cb_(std::bind(&FileCacheReader::Read, &file_reader_, _1, _2)),
-      allow_read_on_demand_(read_on_demand_options == kEnableReadOnDemand) {
+    : allow_read_on_demand_(read_on_demand_options == kEnableReadOnDemand),
+      file_reader_(filename, 1024 * 1024),
+      read_cb_(std::bind(&FileCacheReader::Read, &file_reader_, _1, _2)) {
   bool already_cached =
       GetRegistry()->GetDmpInfo(file_reader_.GetAbsolutePathName(), &dmp_info_);
 
@@ -238,7 +230,7 @@ const media::AudioSampleInfo& VideoDmpReader::GetAudioSampleInfo(size_t index) {
 
 void VideoDmpReader::ParseHeader(uint32_t* dmp_writer_version) {
   SB_DCHECK(dmp_writer_version);
-  SB_DCHECK(!reverse_byte_order_.has_engaged());
+  SB_DCHECK(!reverse_byte_order_.has_value());
 
   int64_t file_size = file_reader_.GetSize();
   SB_CHECK(file_size >= 0);
@@ -296,7 +288,7 @@ bool VideoDmpReader::ParseOneRecord() {
 }
 
 void VideoDmpReader::Parse() {
-  SB_DCHECK(!reverse_byte_order_.has_engaged());
+  SB_DCHECK(!reverse_byte_order_.has_value());
 
   uint32_t dmp_writer_version = 0;
   ParseHeader(&dmp_writer_version);
@@ -353,7 +345,7 @@ void VideoDmpReader::Parse() {
 }
 
 void VideoDmpReader::EnsureSampleLoaded(SbMediaType type, size_t index) {
-  if (!reverse_byte_order_.has_engaged()) {
+  if (!reverse_byte_order_.has_value()) {
     uint32_t dmp_writer_version = 0;
     ParseHeader(&dmp_writer_version);
     SB_DCHECK(dmp_writer_version == kSupportedWriterVersion);
@@ -427,8 +419,4 @@ VideoDmpReader::Registry* VideoDmpReader::GetRegistry() {
   return &s_registry;
 }
 
-}  // namespace video_dmp
-}  // namespace player
-}  // namespace starboard
-}  // namespace shared
-}  // namespace starboard
+}  // namespace starboard::shared::starboard::player::video_dmp

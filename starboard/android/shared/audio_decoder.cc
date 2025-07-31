@@ -14,6 +14,7 @@
 
 #include "starboard/android/shared/audio_decoder.h"
 
+#include "base/android/jni_android.h"
 #include "starboard/android/shared/jni_env_ext.h"
 #include "starboard/android/shared/jni_utils.h"
 #include "starboard/android/shared/media_common.h"
@@ -47,9 +48,10 @@
 #define VERBOSE_MEDIA_LOG() SB_EAT_STREAM_PARAMETERS
 #endif
 
-namespace starboard {
-namespace android {
-namespace shared {
+namespace starboard::android::shared {
+
+// TODO: (cobalt b/372559388) Update namespace to jni_zero.
+using base::android::AttachCurrentThread;
 
 namespace {
 
@@ -120,9 +122,9 @@ void AudioDecoder::Decode(const InputBuffers& input_buffers,
     media_decoder_->WriteInputBuffers(input_buffers);
   }
 
-  ScopedLock lock(decoded_audios_mutex_);
+  std::lock_guard lock(decoded_audios_mutex_);
   if (media_decoder_ &&
-      (media_decoder_->GetNumberOfPendingTasks() + decoded_audios_.size() <=
+      (media_decoder_->GetNumberOfPendingInputs() + decoded_audios_.size() <=
        kMaxPendingWorkSize)) {
     Schedule(consumed_cb);
   } else {
@@ -147,7 +149,7 @@ scoped_refptr<AudioDecoder::DecodedAudio> AudioDecoder::Read(
 
   scoped_refptr<DecodedAudio> result;
   {
-    starboard::ScopedLock lock(decoded_audios_mutex_);
+    std::lock_guard lock(decoded_audios_mutex_);
     SB_DCHECK(!decoded_audios_.empty());
     if (!decoded_audios_.empty()) {
       result = decoded_audios_.front();
@@ -212,23 +214,26 @@ void AudioDecoder::ProcessOutputBuffer(
   SB_DCHECK(dequeue_output_result.index >= 0);
 
   if (dequeue_output_result.num_bytes > 0) {
-    ScopedJavaByteBuffer byte_buffer(
+    ScopedJavaLocalRef<jobject> byte_buffer(
         media_codec_bridge->GetOutputBuffer(dequeue_output_result.index));
 
-    if (byte_buffer.IsNull()) {
+    if (byte_buffer.is_null()) {
       ReportError(kSbPlayerErrorDecode,
                   "Failed to process audio output buffer.");
       return;
     }
 
-    int16_t* data = static_cast<int16_t*>(IncrementPointerByBytes(
-        byte_buffer.address(), dequeue_output_result.offset));
+    JNIEnv* env = AttachCurrentThread();
+    void* address = env->GetDirectBufferAddress(byte_buffer.obj());
+    int16_t* data = static_cast<int16_t*>(
+        IncrementPointerByBytes(address, dequeue_output_result.offset));
     int size = dequeue_output_result.num_bytes;
-    if (2 * audio_stream_info_.samples_per_second == output_sample_rate_) {
+    if (2 * audio_stream_info_.samples_per_second ==
+        static_cast<uint32_t>(output_sample_rate_)) {
       // The audio is encoded using implicit HE-AAC.  As the audio sink has
       // been created already we try to down-mix the decoded data to half of
       // its channels so the audio sink can play it with the correct pitch.
-      for (int i = 0; i < size / sizeof(int16_t); i++) {
+      for (size_t i = 0; i < size / sizeof(int16_t); i++) {
         data[i / 2] = (static_cast<int32_t>(data[i]) +
                        static_cast<int32_t>(data[i + 1]) / 2);
       }
@@ -245,7 +250,7 @@ void AudioDecoder::ProcessOutputBuffer(
         audio_stream_info_.samples_per_second, &decoded_audio);
 
     {
-      starboard::ScopedLock lock(decoded_audios_mutex_);
+      std::lock_guard lock(decoded_audios_mutex_);
       decoded_audios_.push(decoded_audio);
       VERBOSE_MEDIA_LOG() << "T2: timestamp "
                           << decoded_audios_.front()->timestamp();
@@ -256,7 +261,7 @@ void AudioDecoder::ProcessOutputBuffer(
   // BUFFER_FLAG_END_OF_STREAM may come with the last valid output buffer.
   if (dequeue_output_result.flags & BUFFER_FLAG_END_OF_STREAM) {
     {
-      starboard::ScopedLock lock(decoded_audios_mutex_);
+      std::lock_guard lock(decoded_audios_mutex_);
       decoded_audios_.push(new DecodedAudio());
     }
     audio_frame_discarder_.OnDecodedAudioEndOfStream();
@@ -288,6 +293,4 @@ void AudioDecoder::ReportError(SbPlayerError error,
   error_cb_(kSbPlayerErrorDecode, error_message);
 }
 
-}  // namespace shared
-}  // namespace android
-}  // namespace starboard
+}  // namespace starboard::android::shared

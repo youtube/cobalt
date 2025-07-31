@@ -74,6 +74,7 @@ cargo_crate("lib") {
     "//third_party/rust/serde/v1:lib",
   ]
   features = [ "std" ]
+<<<<<<< HEAD
   build_root =
       "//third_party/rust/chromium_crates_io/vendor/serde_json-1.0.138/build.rs"
   build_sources = [
@@ -83,5 +84,12 @@ cargo_crate("lib") {
     "--cap-lints=allow",  # Suppress all warnings in crates.io crates
   ]
 
+=======
+  build_root = "crate/build.rs"
+  build_sources = [ "crate/build.rs" ]
+}
+group("test_support") {
+  public_deps = [ ":lib" ]
+>>>>>>> fbb02b6e81b (Remove third_party/rust gnrt dependencies)
   testonly = true
 }

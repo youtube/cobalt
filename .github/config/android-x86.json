@@ -1,15 +1,16 @@
 {
-  "docker_service": "build-android",
+  "docker_service": "linux",
   "platforms": [
     "android-x86"
   ],
+  "targets": [
+    "content_shell",
+    "cobalt:gn_all"
+  ],
   "includes": [
     {
-      "name":"x86",
-      "platform":"android-x86",
-      "target_platform":"android-x86",
-      "target_cpu":"target_cpu=\\\"x86\\\"",
-      "target_os": "target_os=\\\"android\\\""
+      "name": "x86",
+      "platform": "android-x86"
     }
   ]
 }

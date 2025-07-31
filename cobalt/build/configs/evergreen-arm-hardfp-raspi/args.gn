@@ -1,0 +1,11 @@
+import("//cobalt/build/configs/linux-x64x11-modular/args.gn")
+
+use_asan = false
+target_os = "linux"
+target_cpu = "arm"
+target_platform = "raspi-2"
+use_evergreen = true
+
+# Avoid using the gold linker on raspi
+# See b/389972301#comment14 for more details
+use_gold = false

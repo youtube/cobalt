@@ -21,9 +21,10 @@
 #include <pthread.h>
 
 #include <memory>
+#include <mutex>
 #include <vector>
 
-#include "starboard/atomic.h"
+#include "starboard/common/command_line.h"
 #include "starboard/common/condition_variable.h"
 #include "starboard/common/log.h"
 #include "starboard/common/ref_counted.h"
@@ -31,18 +32,15 @@
 #include "starboard/event.h"
 #include "starboard/player.h"
 #include "starboard/shared/internal_only.h"
-#include "starboard/shared/starboard/command_line.h"
 #include "starboard/shared/starboard/player/filter/video_frame_internal.h"
 #include "starboard/types.h"
 #include "starboard/window.h"
 
-namespace starboard {
-namespace shared {
-namespace starboard {
+namespace starboard::shared::starboard {
 
 // A small application framework for managing the application life-cycle, and
 // dispatching events to the Starboard event handler, SbEventHandle.
-class Application {
+class SB_EXPORT_ANDROID Application {
  public:
   typedef player::filter::VideoFrame VideoFrame;
 
@@ -161,8 +159,7 @@ class Application {
   // Gets the current instance of the Application. DCHECKS if called before the
   // application has been constructed.
   static inline Application* Get() {
-    Application* instance = reinterpret_cast<Application*>(
-        SbAtomicAcquire_LoadPtr(reinterpret_cast<SbAtomicPtr*>(&g_instance)));
+    Application* instance = g_instance.load(std::memory_order_acquire);
     SB_DCHECK(instance);
     return instance;
   }
@@ -291,7 +288,7 @@ class Application {
   // Registers a |callback| function that will be called when |Teardown| is
   // called.
   void RegisterTeardownCallback(TeardownCallback callback) {
-    ScopedLock lock(callbacks_lock_);
+    std::lock_guard lock(callbacks_lock_);
     teardown_callbacks_.push_back(callback);
   }
 
@@ -355,13 +352,17 @@ class Application {
 
   // Gets the next time in microseconds that a TimedEvent is due. Returns
   // CurrentMonotonicTime() if the next TimedEvent is past due. Returns
-  // kSbInt64Max if there are no queued TimedEvents.
+  // std::numeric_limits<int64_t>::max() if there are no queued TimedEvents.
   virtual int64_t GetNextTimedEventTargetTime() = 0;
 
   // Sets the command-line parameters for the application. Used to support
   // system message pump-based implementations, which don't call |Run()|.
   void SetCommandLine(int argc, const char** argv) {
     command_line_.reset(new CommandLine(argc, argv));
+  }
+
+  void SetCommandLine(std::unique_ptr<CommandLine> command_line) {
+    command_line_ = std::move(command_line);
   }
 
   // Sets the launch deep link string, if any, which is passed in the start
@@ -426,7 +427,7 @@ class Application {
   bool HandleEventAndUpdateState(Application::Event* event);
 
   // The single application instance.
-  static Application* g_instance;
+  static std::atomic<Application*> g_instance;
 
   // The error_level set by the last call to Stop().
   int error_level_;
@@ -447,14 +448,12 @@ class Application {
   State state_;
 
   // Protect the teardown_callbacks_ vector.
-  Mutex callbacks_lock_;
+  std::mutex callbacks_lock_;
 
   // Callbacks that must be called when Teardown is called.
   std::vector<TeardownCallback> teardown_callbacks_;
 };
 
-}  // namespace starboard
-}  // namespace shared
-}  // namespace starboard
+}  // namespace starboard::shared::starboard
 
 #endif  // STARBOARD_SHARED_STARBOARD_APPLICATION_H_

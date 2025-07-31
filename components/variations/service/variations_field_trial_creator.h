@@ -43,6 +43,17 @@ class VariationsFieldTrialCreator : public VariationsFieldTrialCreatorBase {
   bool IsOverrideResourceMapEmpty() override;
 
  protected:
+<<<<<<< HEAD
+<<<<<<< HEAD
+=======
+#endif  // !BUILDFLAG(IS_COBALT)
+=======
+>>>>>>> 3bfc4b91027 (Revert "Fix missing Feature flags initialization" (#6092))
+  // Get the platform we're running on, respecting OverrideVariationsPlatform().
+  // Protected for testing.
+  Study::Platform GetPlatform();
+
+>>>>>>> a80acfde33e (Fix missing Feature flags initialization (#5897))
   // Overrides the string resource specified by |hash| with |str| in the
   // resource bundle. Protected for testing.
   void OverrideUIString(uint32_t hash, const std::u16string& str) override;

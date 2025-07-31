@@ -40,6 +40,14 @@ TEST(PosixFileGetInfoTest, InvalidFileErrors) {
   EXPECT_FALSE(result == 0);
 }
 
+<<<<<<< HEAD
+=======
+constexpr int64_t kMicrosecond = 1'000'000;
+auto ToMicroseconds(const struct timespec& ts) {
+  return ts.tv_sec * kMicrosecond + ts.tv_nsec / 1000;
+}
+
+>>>>>>> 9b65ab2257f (Fix clang warnings for modular builds (#6138))
 TEST(PosixFileGetInfoTest, WorksOnARegularFile) {
   // This test is potentially flaky because it's comparing times. So, building
   // in extra sensitivity to make flakiness more apparent.
@@ -60,7 +68,7 @@ TEST(PosixFileGetInfoTest, WorksOnARegularFile) {
 
     {
       struct stat info;
-      int result = fstat(file, &info);
+      fstat(file, &info);
       EXPECT_EQ(kFileSize, info.st_size);
       EXPECT_FALSE(S_ISDIR(info.st_mode));
       EXPECT_FALSE(S_ISLNK(info.st_mode));
@@ -75,7 +83,6 @@ TEST(PosixFileGetInfoTest, WorksOnARegularFile) {
 }
 
 TEST(PosixFileGetInfoTest, WorksOnStaticContentFiles) {
-  int count = 1;
   for (auto filename : GetFileTestsFilePaths()) {
     int file = open(filename.c_str(), O_RDONLY);
     ASSERT_TRUE(file >= 0);
@@ -83,7 +90,7 @@ TEST(PosixFileGetInfoTest, WorksOnStaticContentFiles) {
     struct stat info;
     EXPECT_TRUE(fstat(file, &info) == 0);
     size_t content_length = GetTestFileExpectedContent(filename).length();
-    EXPECT_EQ(content_length, info.st_size);
+    EXPECT_EQ(static_cast<long>(content_length), info.st_size);
     EXPECT_FALSE(S_ISDIR(info.st_mode));
     EXPECT_FALSE(S_ISLNK(info.st_mode));
 

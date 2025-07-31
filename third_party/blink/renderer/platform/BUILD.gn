@@ -2388,7 +2388,19 @@ source_set("blink_platform_unittests_sources") {
     sources += [ "text/locale_icu_test.cc" ]
   }
 
+<<<<<<< HEAD
   sources += [ "testing/run_all_tests.cc" ]
+=======
+  if (enable_av1_decoder) {
+    sources += [ "image-decoders/avif/avif_image_decoder_test.cc" ]
+  }
+
+  if (is_cobalt_hermetic_build) {
+    sources += [ "testing/starboard/run_all_tests.cc" ]
+  } else {
+    sources += [ "testing/run_all_tests.cc" ]
+  }
+>>>>>>> 473112b0f73 (Add entry points for modular targets (#6302))
 
   configs += [
     ":blink_platform_pch",
@@ -2538,6 +2550,10 @@ test("blink_platform_perftests") {
     "testing/shaping_line_breaker_perf_test.cc",
   ]
 
+  if (is_cobalt_hermetic_build) {
+    sources += [ "testing/starboard/run_all_perf_tests.cc" ]
+    sources -= [ "testing/run_all_perf_tests.cc" ]
+  }
   configs += [
     "//third_party/blink/renderer/platform/wtf:wtf_config",
     "//third_party/blink/renderer:config",

@@ -25,15 +25,19 @@
 #include "starboard/shared/ffmpeg/ffmpeg_dispatch.h"
 #include "starboard/shared/starboard/lazy_initialization_internal.h"
 
-namespace starboard {
-namespace shared {
-namespace ffmpeg {
+namespace starboard::shared::ffmpeg {
 
 namespace {
 
 const char kAVCodecLibraryName[] = "libavcodec.so";
 const char kAVFormatLibraryName[] = "libavformat.so";
 const char kAVUtilLibraryName[] = "libavutil.so";
+
+std::string VersionString(int version) {
+  return std::to_string((version >> 16) & 0xFF) + "." +
+         std::to_string((version >> 8) & 0xFF) + "." +
+         std::to_string(version & 0xFF);
+}
 
 pthread_once_t g_dynamic_load_once = PTHREAD_ONCE_INIT;
 
@@ -268,12 +272,10 @@ void FFMPEGDispatchImpl::LoadSymbols() {
   // Load symbols from the avutil shared library.
   INITSYMBOL(avutil_, avutil_version);
   SB_DCHECK(ffmpeg_->avutil_version);
-  SB_LOG(INFO) << "Opened libavutil  - version is:"
-               << ffmpeg_->avutil_version();
+  SB_LOG(INFO) << "Opened libavutil: version="
+               << VersionString(ffmpeg_->avutil_version());
   INITSYMBOL(avutil_, av_malloc);
   INITSYMBOL(avutil_, av_freep);
-  INITSYMBOL(avutil_, av_free);
-  INITSYMBOL(avutil_, av_rescale_rnd);
   INITSYMBOL(avutil_, av_samples_get_buffer_size);
   INITSYMBOL(avutil_, av_opt_set_int);
   INITSYMBOL(avutil_, av_image_check_size);
@@ -284,14 +286,13 @@ void FFMPEGDispatchImpl::LoadSymbols() {
   // Load symbols from the avcodec shared library.
   INITSYMBOL(avcodec_, avcodec_version);
   SB_DCHECK(ffmpeg_->avcodec_version);
-  SB_LOG(INFO) << "Opened libavcodec - version is:"
-               << ffmpeg_->avcodec_version();
+  SB_LOG(INFO) << "Opened libavcodec: version="
+               << VersionString(ffmpeg_->avcodec_version());
 
   if (ffmpeg_->avcodec_version() > kAVCodecSupportsAvFrameAlloc) {
     INITSYMBOL(avcodec_, av_frame_alloc);
     INITSYMBOL(avcodec_, av_frame_unref);
     INITSYMBOL(avcodec_, av_frame_free);
-    INITSYMBOL(avcodec_, av_dict_get);
   } else {
     INITSYMBOL(avcodec_, avcodec_alloc_frame);
     INITSYMBOL(avcodec_, avcodec_get_frame_defaults);
@@ -317,31 +318,15 @@ void FFMPEGDispatchImpl::LoadSymbols() {
   INITSYMBOL(avcodec_, avcodec_flush_buffers);
   INITSYMBOL(avcodec_, avcodec_align_dimensions2);
 
-  if (ffmpeg_->avcodec_version() > kAVCodecSupportsAvPacketAlloc) {
-    INITSYMBOL(avcodec_, av_packet_alloc);
-    INITSYMBOL(avcodec_, av_packet_free);
-    INITSYMBOL(avcodec_, av_packet_unref);
-    INITSYMBOL(avcodec_, avcodec_parameters_to_context);
-  } else {
-    INITSYMBOL(avcodec_, av_free_packet);
-  }
-
   // Load symbols from the avformat shared library.
   INITSYMBOL(avformat_, avformat_version);
   SB_DCHECK(ffmpeg_->avformat_version);
-  SB_LOG(INFO) << "Opened libavformat - version is:"
-               << ffmpeg_->avformat_version();
+  SB_LOG(INFO) << "Opened libavformat: version="
+               << VersionString(ffmpeg_->avformat_version());
   if (ffmpeg_->avformat_version() < kAVFormatDoesNotHaveRegisterAll) {
     INITSYMBOL(avformat_, av_register_all);
     SB_DCHECK(ffmpeg_->av_register_all);
   }
-  INITSYMBOL(avformat_, av_read_frame);
-  INITSYMBOL(avformat_, av_seek_frame);
-  INITSYMBOL(avformat_, avformat_open_input);
-  INITSYMBOL(avformat_, avformat_close_input);
-  INITSYMBOL(avformat_, avformat_alloc_context);
-  INITSYMBOL(avformat_, avformat_find_stream_info);
-  INITSYMBOL(avformat_, avio_alloc_context);
 
 #undef INITSYMBOL
 }
@@ -375,6 +360,4 @@ int FFMPEGDispatch::specialization_version() const {
   return (avcodec_version() >> 16) * 10 + ((avcodec_version() & 0xFF) >= 100);
 }
 
-}  // namespace ffmpeg
-}  // namespace shared
-}  // namespace starboard
+}  // namespace starboard::shared::ffmpeg

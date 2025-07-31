@@ -23,16 +23,15 @@
 #include <sys/stat.h>
 #include <unistd.h>
 
+#include <mutex>
+
 #include "starboard/android/shared/file_internal.h"
 #include "starboard/common/log.h"
-#include "starboard/common/mutex.h"
 #include "starboard/common/once.h"
 #include "starboard/common/string.h"
 #include "starboard/system.h"
 
-namespace starboard {
-namespace android {
-namespace shared {
+namespace starboard::android::shared {
 
 namespace {
 
@@ -87,7 +86,7 @@ AssetManager::AssetManager() {
 }
 
 uint64_t AssetManager::AcquireInternalFd() {
-  ScopedLock scoped_lock(mutex_);
+  std::lock_guard scoped_lock(mutex_);
   do {
     ++internal_fd_;
   } while (in_use_internal_fd_set_.count(internal_fd_) == 1);
@@ -117,7 +116,8 @@ int AssetManager::Open(const char* path, int oflag) {
   // Create temporary POSIX file for the asset
   uint64_t internal_fd = AcquireInternalFd();
   std::string filepath = TempFilepath(internal_fd);
-  int fd = open(filepath.c_str(), O_RDWR | O_TRUNC | O_CREAT);
+  int fd =
+      open(filepath.c_str(), O_RDWR | O_TRUNC | O_CREAT, S_IRUSR | S_IWUSR);
   if (fd < 0) {
     mutex_.Acquire();
     in_use_internal_fd_set_.erase(internal_fd);
@@ -146,7 +146,7 @@ int AssetManager::Open(const char* path, int oflag) {
 }
 
 bool AssetManager::IsAssetFd(int fd) const {
-  ScopedLock scoped_lock(mutex_);
+  std::lock_guard scoped_lock(mutex_);
   return fd_to_internal_fd_map_.count(fd) == 1;
 }
 
@@ -176,6 +176,4 @@ void AssetManager::ClearTempDir() {
   mkdir(tmp_root_.c_str(), 0700);
 }
 
-}  // namespace shared
-}  // namespace android
-}  // namespace starboard
+}  // namespace starboard::android::shared

@@ -90,6 +90,7 @@ void ShellWebContentsViewDelegate::ShowContextMenu(
                                                  &screen_point);
   }
 
+#if defined(SHELL_USE_TOOLKIT_VIEWS)
   context_menu_model_ =
       std::make_unique<ContextMenuModel>(web_contents_, params);
   context_menu_runner_ = std::make_unique<views::MenuRunner>(
@@ -99,7 +100,12 @@ void ShellWebContentsViewDelegate::ShowContextMenu(
       web_contents_->GetTopLevelNativeWindow());
   context_menu_runner_->RunMenuAt(
       widget, nullptr, gfx::Rect(screen_point, gfx::Size()),
+<<<<<<< HEAD
       views::MenuAnchorPosition::kTopRight, ui::mojom::MenuSourceType::kNone);
+=======
+      views::MenuAnchorPosition::kTopRight, ui::MENU_SOURCE_NONE);
+#endif
+>>>>>>> adbc31dd69c (Initial decoupling of content shell to Cobalt (#5974))
 }
 
 }  // namespace content

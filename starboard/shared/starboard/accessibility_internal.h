@@ -26,9 +26,7 @@
 
 #include "starboard/common/log.h"
 
-namespace starboard {
-namespace shared {
-namespace starboard {
+namespace starboard::shared::starboard {
 
 const int kRgbWhite = 0xFFFFFF;
 const int kRgbBlack = 0x000000;
@@ -49,7 +47,7 @@ SbAccessibilityCaptionColor GetClosestCaptionColorRGB(int r, int g, int b) {
   int min_distance = std::numeric_limits<int>::max();
 
   // Find the reference color with the least distance (squared).
-  for (int i = 0; i < SB_ARRAY_SIZE(kRgbColors); i++) {
+  for (size_t i = 0; i < SB_ARRAY_SIZE(kRgbColors); i++) {
     int r_ref = 0xFF & (kRgbColors[i] >> 16);
     int g_ref = 0xFF & (kRgbColors[i] >> 8);
     int b_ref = 0xFF & (kRgbColors[i]);
@@ -97,7 +95,7 @@ int FindClosestReferenceValue(int value,
   int result = reference[0];
   int min_difference = std::numeric_limits<int>::max();
 
-  for (int i = 0; i < reference_size; i++) {
+  for (size_t i = 0; i < reference_size; i++) {
     int difference = abs(reference[i] - value);
     if (difference < min_difference) {
       result = reference[i];
@@ -169,8 +167,6 @@ SbAccessibilityCaptionOpacityPercentage GetClosestOpacity(int opacity_percent) {
   }
 }
 
-}  // namespace starboard
-}  // namespace shared
-}  // namespace starboard
+}  // namespace starboard::shared::starboard
 
 #endif  // STARBOARD_SHARED_STARBOARD_ACCESSIBILITY_INTERNAL_H_

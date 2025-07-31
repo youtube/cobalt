@@ -25,9 +25,7 @@
 #include "starboard/media.h"
 #include "starboard/shared/starboard/media/media_util.h"
 
-namespace starboard {
-namespace shared {
-namespace ffmpeg {
+namespace starboard::shared::ffmpeg {
 
 namespace {
 
@@ -219,9 +217,13 @@ void AudioDecoderImpl<FFMPEG>::Decode(const InputBuffers& input_buffers,
 void AudioDecoderImpl<FFMPEG>::ProcessDecodedFrame(
     const InputBuffer& input_buffer,
     const AVFrame& av_frame) {
+#if LIBAVCODEC_VERSION_MAJOR >= 61
+  const int channel_count = codec_context_->ch_layout.nb_channels;
+#else
+  const int channel_count = codec_context_->channels;
+#endif
   int decoded_audio_size = ffmpeg_->av_samples_get_buffer_size(
-      NULL, codec_context_->channels, av_frame.nb_samples,
-      codec_context_->sample_fmt, 1);
+      NULL, channel_count, av_frame.nb_samples, codec_context_->sample_fmt, 1);
   audio_stream_info_.samples_per_second = codec_context_->sample_rate;
 
   if (decoded_audio_size <= 0) {
@@ -231,9 +233,9 @@ void AudioDecoderImpl<FFMPEG>::ProcessDecodedFrame(
   }
 
   scoped_refptr<DecodedAudio> decoded_audio = new DecodedAudio(
-      codec_context_->channels, GetSampleType(), GetStorageType(),
+      channel_count, GetSampleType(), GetStorageType(),
       input_buffer.timestamp(),
-      codec_context_->channels * av_frame.nb_samples *
+      channel_count * av_frame.nb_samples *
           starboard::media::GetBytesPerSample(GetSampleType()));
   if (GetStorageType() == kSbMediaAudioFrameStorageTypeInterleaved) {
     memcpy(decoded_audio->data(), *av_frame.extended_data,
@@ -358,7 +360,11 @@ void AudioDecoderImpl<FFMPEG>::InitializeCodec() {
     codec_context_->request_sample_fmt = AV_SAMPLE_FMT_FLT;
   }
 
+#if LIBAVCODEC_VERSION_MAJOR >= 61
+  codec_context_->ch_layout.nb_channels = audio_stream_info_.number_of_channels;
+#else
   codec_context_->channels = audio_stream_info_.number_of_channels;
+#endif
   codec_context_->sample_rate = audio_stream_info_.samples_per_second;
   codec_context_->extradata = NULL;
   codec_context_->extradata_size = 0;
@@ -415,6 +421,4 @@ void AudioDecoderImpl<FFMPEG>::TeardownCodec() {
   ffmpeg_->FreeFrame(&av_frame_);
 }
 
-}  // namespace ffmpeg
-}  // namespace shared
-}  // namespace starboard
+}  // namespace starboard::shared::ffmpeg

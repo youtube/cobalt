@@ -247,7 +247,11 @@ static_library("test_support") {
 
 source_set("run_all_unittests") {
   testonly = true
-  sources = [ "run_all_unittests.cc" ]
+  if (is_cobalt_hermetic_build) {
+    sources = [ "starboard/run_all_unittests.cc" ]
+  } else {
+    sources = [ "run_all_unittests.cc" ]
+  }
 
   deps = [
     "//base/test:test_support",

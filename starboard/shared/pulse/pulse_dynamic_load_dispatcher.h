@@ -19,9 +19,7 @@
 
 #include "starboard/shared/internal_only.h"
 
-namespace starboard {
-namespace shared {
-namespace pulse {
+namespace starboard::shared::pulse {
 
 bool pulse_load_library();
 void pulse_unload_library();
@@ -87,8 +85,6 @@ extern int (*pa_stream_write)(pa_stream*,
                               int64_t,
                               pa_seek_mode_t);
 
-}  // namespace pulse
-}  // namespace shared
-}  // namespace starboard
+}  // namespace starboard::shared::pulse
 
 #endif  // STARBOARD_SHARED_PULSE_PULSE_DYNAMIC_LOAD_DISPATCHER_H_

@@ -30,8 +30,9 @@ bool Base64Decode(const std::string& input, std::string* output) {
   // does not null terminate result since result is binary data!
   size_t input_size = input.size();
   int output_size = modp_b64_decode(&(temp[0]), input.data(), input_size);
-  if (output_size == MODP_B64_ERROR)
+  if (output_size == MODP_B64_ERROR) {
     return false;
+  }
 
   temp.resize(output_size);
   output->swap(temp);
@@ -39,9 +40,7 @@ bool Base64Decode(const std::string& input, std::string* output) {
 }
 }  // namespace
 
-namespace starboard {
-namespace shared {
-namespace deviceauth {
+namespace starboard::shared::deviceauth {
 
 // This function is meant to exist purely for reference.
 //
@@ -79,5 +78,4 @@ bool SignWithCertificationSecretKey(const char* secret_key,
 }
 
 }  // namespace deviceauth
-}  // namespace shared
-}  // namespace starboard
+}  // namespace starboard::shared::deviceauth

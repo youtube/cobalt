@@ -5,6 +5,10 @@
 import("//services/device/public/cpp/compute_pressure/buildflags.gni")
 import("//third_party/blink/renderer/config.gni")
 
+if (is_cobalt) {
+  import("//starboard/build/buildflags.gni")
+}
+
 # Statically-defined (not build-time-generated) IDL files in 'modules' component
 # for production.
 static_idl_files_in_modules = [
@@ -1303,6 +1307,32 @@ static_idl_files_in_modules = [
   "//third_party/blink/renderer/modules/xr/xr_webgl_layer_init.idl",
   "//third_party/blink/renderer/modules/xr/xr_webgl_sub_image.idl",
 ]
+
+if (is_cobalt) {
+  static_idl_files_in_modules += get_path_info(
+          [
+            "//third_party/blink/renderer/modules/cobalt/crash_log/crash_log.idl",
+            "//third_party/blink/renderer/modules/cobalt/h5vcc_accessibility/h_5_vcc_accessibility.idl",
+            "//third_party/blink/renderer/modules/cobalt/h5vcc_experiments/h_5_vcc_experiments.idl",
+            "//third_party/blink/renderer/modules/cobalt/h5vcc_metrics/metrics_event.idl",
+            "//third_party/blink/renderer/modules/cobalt/h5vcc_metrics/h_5_vcc_metrics.idl",
+            "//third_party/blink/renderer/modules/cobalt/h5vcc_runtime/deep_link_event.idl",
+            "//third_party/blink/renderer/modules/cobalt/h5vcc_runtime/h_5_vcc_runtime.idl",
+            "//third_party/blink/renderer/modules/cobalt/h5vcc_system/h_5_vcc_system.idl",
+            "//third_party/blink/renderer/modules/cobalt/h_5_vcc.idl",
+            "//third_party/blink/renderer/modules/cobalt/window_h_5_vcc.idl",
+          ],
+          "abspath")
+
+  if (use_starboard_media) {
+    static_idl_files_in_modules += get_path_info(
+            [
+              "//third_party/blink/renderer/modules/cobalt/encryptedmedia/media_keys_extensions.idl",
+              "//third_party/blink/renderer/modules/cobalt/mediasource/source_buffer_extensions.idl",
+            ],
+            "abspath")
+  }
+}
 
 # Direct Sockets
 # This uses target_os rather than current_os (which is what is_android is set

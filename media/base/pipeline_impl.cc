@@ -1640,6 +1640,51 @@ void PipelineImpl::SetCdm(CdmContext* cdm_context,
           base::BindPostTaskToCurrentDefault(std::move(cdm_attached_cb))));
 }
 
+<<<<<<< HEAD
+=======
+#define RETURN_STRING(state) \
+  case state:                \
+    return #state;
+
+// static
+const char* PipelineImpl::GetStateString(State state) {
+  switch (state) {
+    RETURN_STRING(kCreated);
+    RETURN_STRING(kStarting);
+    RETURN_STRING(kSeeking);
+    RETURN_STRING(kPlaying);
+    RETURN_STRING(kStopping);
+    RETURN_STRING(kStopped);
+    RETURN_STRING(kSuspending);
+    RETURN_STRING(kSuspended);
+    RETURN_STRING(kResuming);
+  }
+  NOTREACHED();
+  return "INVALID";
+}
+
+#undef RETURN_STRING
+
+<<<<<<< HEAD
+<<<<<<< HEAD
+<<<<<<< HEAD
+=======
+>>>>>>> b93b7ecbd01 (Revert "Add VideoGeometrySetter Service for Cobalt" (#4918))
+#if BUILDFLAG(USE_STARBOARD_MEDIA)
+Pipeline::SetBoundsCB PipelineImpl::GetSetBoundsCB() {
+  DCHECK(thread_checker_.CalledOnValidThread());
+  return renderer_wrapper_->GetSetBoundsCB();
+}
+#endif // BUILDFLAG(USE_STARBOARD_MEDIA)
+
+<<<<<<< HEAD
+>>>>>>> 7eaf663e928 ([media] Set the bounds of Sbplayer via video_painter.cc (#4385))
+=======
+>>>>>>> f0842a76c14 (Add VideoGeometrySetter Service for Cobalt (#4810))
+=======
+>>>>>>> b93b7ecbd01 (Revert "Add VideoGeometrySetter Service for Cobalt" (#4918))
+=======
+>>>>>>> fcf6b388565 (Reland "Add VideoGeometrySetter Service for Cobalt (#4810)" (#4921))
 void PipelineImpl::AsyncCreateRenderer(
     std::optional<RendererType> renderer_type,
     RendererCreatedCB renderer_created_cb) {

@@ -16,19 +16,18 @@
 
 #include <pthread.h>
 
+#include "starboard/common/check_op.h"
 #include "starboard/common/log.h"
 #include "starboard/thread.h"
 
-namespace starboard {
-namespace android {
-namespace shared {
+namespace starboard::android::shared {
 
 pthread_once_t s_once_flag = PTHREAD_ONCE_INIT;
 pthread_key_t s_thread_local_key = 0;
 
 void InitThreadLocalKey() {
   int res = pthread_key_create(&s_thread_local_key, NULL);
-  SB_DCHECK(res == 0);
+  SB_DCHECK_EQ(res, 0);
 }
 
 void EnsureThreadLocalKeyInited() {
@@ -48,6 +47,4 @@ void SetMaxVideoInputSizeForCurrentThread(int max_video_input_size) {
                       reinterpret_cast<void*>(max_video_input_size));
 }
 
-}  // namespace shared
-}  // namespace android
-}  // namespace starboard
+}  // namespace starboard::android::shared

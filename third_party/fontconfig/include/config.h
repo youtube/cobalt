@@ -5,6 +5,12 @@
 
 #pragma once
 
+<<<<<<< HEAD
+=======
+#include "build/build_config.h"
+
+/* The normal alignment of `double', in bytes. */
+>>>>>>> 1181c533483 (Build base_unittests hermetically. (#4935))
 #define ALIGNOF_DOUBLE 8
 
 #define ALIGNOF_VOID_P 8
@@ -74,7 +80,16 @@
 
 #define HAVE_RANDOM 1
 
+<<<<<<< HEAD
+=======
+#if BUILDFLAG(ENABLE_COBALT_HERMETIC_HACKS)
+/* TODO: (cobalt b/398295440) Add `random_r' support to Evergreen. */
+#define HAVE_RANDOM_R 0
+#else
+/* Define to 1 if you have the `random_r' function. */
+>>>>>>> 1181c533483 (Build base_unittests hermetically. (#4935))
 #define HAVE_RANDOM_R 1
+#endif
 
 #define HAVE_RAND_R 1
 

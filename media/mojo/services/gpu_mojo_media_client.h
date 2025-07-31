@@ -23,6 +23,18 @@
 #include "media/base/supported_video_decoder_config.h"
 #include "media/media_buildflags.h"
 #include "media/mojo/services/mojo_media_client.h"
+<<<<<<< HEAD
+=======
+#include "third_party/abseil-cpp/absl/types/optional.h"
+
+#if BUILDFLAG(USE_STARBOARD_MEDIA)
+#include "media/gpu/starboard/starboard_gpu_factory.h"
+#endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
+
+namespace gpu {
+class GpuMemoryBufferFactory;
+}  // namespace gpu
+>>>>>>> 3ff3999ebba ([media] Allow StarboardRenderer to Post Tasks on Gpu (#5712))
 
 namespace media {
 
@@ -69,6 +81,87 @@ struct MEDIA_MOJO_EXPORT GpuMojoMediaClientTraits {
   // Only used on Android.
   AndroidOverlayMojoFactoryCB android_overlay_factory_cb;
 
+<<<<<<< HEAD
+=======
+// Queries the platform-specific VideoDecoder implementation for its
+// supported profiles. Many platforms fall back to use the VDAVideoDecoder
+// so that implementation is shared, and its supported configs can be
+// queries using the |get_vda_configs| callback.
+absl::optional<SupportedVideoDecoderConfigs>
+GetPlatformSupportedVideoDecoderConfigs(
+    gpu::GpuDriverBugWorkarounds gpu_workarounds,
+    gpu::GpuPreferences gpu_preferences,
+    const gpu::GPUInfo& gpu_info,
+    base::OnceCallback<SupportedVideoDecoderConfigs()> get_vda_configs);
+
+// Creates a platform-specific media::AudioDecoder. Most platforms don't do
+// anything here, but android, for example, does.
+std::unique_ptr<AudioDecoder> CreatePlatformAudioDecoder(
+    scoped_refptr<base::SequencedTaskRunner> task_runner,
+    std::unique_ptr<MediaLog> media_log);
+
+// Creates a platform-specific media::AudioEncoder. Most platforms don't do
+// anything here.
+std::unique_ptr<AudioEncoder> CreatePlatformAudioEncoder(
+    scoped_refptr<base::SequencedTaskRunner> task_runner);
+
+#if BUILDFLAG(USE_STARBOARD_MEDIA)
+using GetStarboardCommandBufferStubCB = StarboardGpuFactory::GetStubCB;
+
+// Encapsulate parameters to pass to StarboardRenderer.
+struct StarboardRendererTraits {
+  scoped_refptr<base::SequencedTaskRunner> task_runner;
+  scoped_refptr<base::SingleThreadTaskRunner> gpu_task_runner;
+  mojo::PendingRemote<mojom::MediaLog> media_log_remote;
+  const base::UnguessableToken& overlay_plane_id;
+  base::TimeDelta audio_write_duration_local;
+  base::TimeDelta audio_write_duration_remote;
+  const std::string& max_video_capabilities;
+  mojo::PendingReceiver<mojom::StarboardRendererExtension>
+        renderer_extension_receiver;
+  mojo::PendingRemote<mojom::StarboardRendererClientExtension>
+        client_extension_remote;
+
+  // StarboardRenderer uses this to post tasks on gpu thread.
+  GetStarboardCommandBufferStubCB get_starboard_command_buffer_stub_cb;
+
+  StarboardRendererTraits(
+      scoped_refptr<base::SequencedTaskRunner> task_runner,
+      scoped_refptr<base::SingleThreadTaskRunner> gpu_task_runner,
+      mojo::PendingRemote<mojom::MediaLog> media_log_remote,
+      const base::UnguessableToken& overlay_plane_id,
+      base::TimeDelta audio_write_duration_local,
+      base::TimeDelta audio_write_duration_remote,
+      const std::string& max_video_capabilities,
+      mojo::PendingReceiver<mojom::StarboardRendererExtension>
+          renderer_extension_receiver,
+      mojo::PendingRemote<mojom::StarboardRendererClientExtension>
+          client_extension_remote,
+      GetStarboardCommandBufferStubCB
+          get_starboard_command_buffer_stub_cb);
+  StarboardRendererTraits(StarboardRendererTraits&& that) = default;
+  ~StarboardRendererTraits();
+};
+
+// Creates a platform-specific media::StarboardRenderer.
+// This is used on Cobalt (android/linux).
+std::unique_ptr<Renderer> CreatePlatformStarboardRenderer(
+    StarboardRendererTraits traits);
+#endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
+
+// Creates a CDM factory, right now only used on android and chromeos.
+std::unique_ptr<CdmFactory> CreatePlatformCdmFactory(
+    mojom::FrameInterfaceFactory* frame_interfaces);
+
+// Queries the platform decoder type.
+VideoDecoderType GetPlatformDecoderImplementationType(
+    gpu::GpuDriverBugWorkarounds gpu_workarounds,
+    gpu::GpuPreferences gpu_preferences,
+    const gpu::GPUInfo& gpu_info);
+
+class MEDIA_MOJO_EXPORT GpuMojoMediaClient final : public MojoMediaClient {
+ public:
+>>>>>>> cc3b37c47c8 ([media] Move StarboardRenderer to MojoRenderer (#5113))
   // |media_gpu_channel_manager| must only be used on |gpu_task_runner|, which
   // is expected to be the GPU main thread task runner.
   base::WeakPtr<MediaGpuChannelManager> media_gpu_channel_manager;
@@ -121,6 +214,17 @@ class MEDIA_MOJO_EXPORT GpuMojoMediaClient : public MojoMediaClient {
       const gfx::ColorSpace& target_color_space,
       mojo::PendingRemote<stable::mojom::StableVideoDecoder> oop_video_decoder)
       final;
+#if BUILDFLAG(USE_STARBOARD_MEDIA)
+  std::unique_ptr<Renderer> CreateStarboardRenderer(
+      mojom::FrameInterfaceFactory* frame_interfaces,
+      scoped_refptr<base::SingleThreadTaskRunner> task_runner,
+      mojo::PendingRemote<mojom::MediaLog> media_log_remote,
+      const StarboardRendererConfig& config,
+      mojo::PendingReceiver<mojom::StarboardRendererExtension>
+          renderer_extension_receiver,
+      mojo::PendingRemote<mojom::StarboardRendererClientExtension>
+          client_extension_remote) final;
+#endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
   std::unique_ptr<CdmFactory> CreateCdmFactory(
       mojom::FrameInterfaceFactory* interface_provider) final;
 

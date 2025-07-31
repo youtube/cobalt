@@ -97,6 +97,7 @@ LibcCloseFuncPtr LoadCloseSymbol() {
 #endif
 }
 
+#if !BUILDFLAG(IS_STARBOARD)
 extern "C" {
 
 NO_SANITIZE("cfi-icall")
@@ -112,5 +113,10 @@ __attribute__((visibility("default"), noinline)) int close(int fd) {
   return libc_close(fd);
 }
 
+<<<<<<< HEAD
 }       // extern "C"
 #endif  // !defined(COMPONENT_BUILD)
+=======
+}  // extern "C"
+#endif  // !BUILDFLAG(IS_STARBOARD)
+>>>>>>> 85bca2dbe4e (Disable the scoped_file close intercept (#5954))

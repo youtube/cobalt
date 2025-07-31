@@ -15,12 +15,12 @@
 #include "starboard/shared/widevine/drm_system_widevine.h"
 
 #include <algorithm>
+#include <mutex>
 #include <utility>
 #include <vector>
 
 #include "starboard/common/instance_counter.h"
 #include "starboard/common/log.h"
-#include "starboard/common/mutex.h"
 #include "starboard/common/once.h"
 #include "starboard/common/string.h"
 #include "starboard/common/time.h"
@@ -34,9 +34,7 @@
 
 using wv3cdm = ::widevine::Cdm;
 
-namespace starboard {
-namespace shared {
-namespace widevine {
+namespace starboard::shared::widevine {
 namespace {
 
 const int kInitializationVectorSize = 16;
@@ -61,27 +59,27 @@ class Registry {
  public:
   void Register(SbDrmSystem drm_system) {
     SB_DCHECK(SbDrmSystemIsValid(drm_system));
-    ScopedLock scoped_lock(mutex_);
+    std::lock_guard scoped_lock(mutex_);
     auto iter = std::find(drm_systems_.begin(), drm_systems_.end(), drm_system);
     SB_DCHECK(iter == drm_systems_.end());
     drm_systems_.push_back(drm_system);
   }
 
   void Unregister(SbDrmSystem drm_system) {
-    ScopedLock scoped_lock(mutex_);
+    std::lock_guard scoped_lock(mutex_);
     auto iter = std::find(drm_systems_.begin(), drm_systems_.end(), drm_system);
     SB_DCHECK(iter != drm_systems_.end());
     drm_systems_.erase(iter);
   }
 
   bool Contains(SbDrmSystem drm_system) const {
-    ScopedLock scoped_lock(mutex_);
+    std::lock_guard scoped_lock(mutex_);
     auto iter = std::find(drm_systems_.begin(), drm_systems_.end(), drm_system);
     return iter != drm_systems_.end();
   }
 
  private:
-  Mutex mutex_;
+  std::mutex mutex_;
   // Use std::vector<> as usually there is only one active instance of widevine
   // drm system.
   std::vector<SbDrmSystem> drm_systems_;
@@ -163,7 +161,7 @@ void EnsureWidevineCdmIsInitialized(const std::string& company_name,
   static WidevineTimer s_timer;
   static bool s_initialized = false;
 
-  ScopedLock scoped_lock(*GetInitializationMutex());
+  std::lock_guard scoped_lock(*GetInitializationMutex());
 
   if (s_initialized) {
     return;
@@ -390,8 +388,9 @@ void DrmSystemWidevine::UpdateServerCertificate(int ticket,
 }
 
 void IncrementIv(uint8_t* iv, size_t block_count) {
-  if (0 == block_count)
+  if (0 == block_count) {
     return;
+  }
   uint8_t carry = 0;
   uint8_t n = static_cast<uint8_t>(kInitializationVectorSize - 1);
 
@@ -496,7 +495,7 @@ SbDrmSystemPrivate::DecryptStatus DrmSystemWidevine::Decrypt(
         }
         if (status == wv3cdm::kKeyUsageBlockedByPolicy) {
           {
-            ScopedLock lock(unblock_key_retry_mutex_);
+            std::lock_guard lock(unblock_key_retry_mutex_);
             if (!unblock_key_retry_start_time_) {
               unblock_key_retry_start_time_ = CurrentMonotonicTime();
             }
@@ -515,8 +514,8 @@ SbDrmSystemPrivate::DecryptStatus DrmSystemWidevine::Decrypt(
         return kFailure;
       }
       {
-        ScopedLock lock(unblock_key_retry_mutex_);
-        unblock_key_retry_start_time_ = nullopt;
+        std::lock_guard lock(unblock_key_retry_mutex_);
+        unblock_key_retry_start_time_ = std::nullopt;
       }
       input.data += subsample.encrypted_byte_count;
       output.data += subsample.encrypted_byte_count;
@@ -796,6 +795,4 @@ void DrmSystemWidevine::SendSessionUpdateRequest(
       message.c_str(), static_cast<int>(message.size()), NULL);
 }
 
-}  // namespace widevine
-}  // namespace shared
-}  // namespace starboard
+}  // namespace starboard::shared::widevine

@@ -15,6 +15,7 @@
 
 namespace media {
 
+<<<<<<< HEAD
 namespace {
 
 template <class T>
@@ -32,6 +33,34 @@ class ExternalSharedMemoryAdapter : public DecoderBuffer::ExternalMemory {
 };
 
 }  // namespace
+=======
+#if BUILDFLAG(USE_STARBOARD_MEDIA)
+namespace {
+DecoderBuffer::Allocator* s_allocator = nullptr;
+}  // namespace
+
+// static
+DecoderBuffer::Allocator* DecoderBuffer::Allocator::GetInstance() {
+  DCHECK(s_allocator);
+  return s_allocator;
+}
+
+// static
+void DecoderBuffer::Allocator::Set(Allocator* allocator) {
+  // One of them has to be nullptr, i.e. either setting a valid allocator, or
+  // resetting an existing allocator.  Setting an allocator while another
+  // allocator is in place will fail.
+  DCHECK(s_allocator == nullptr || allocator == nullptr);
+  s_allocator = allocator;
+}
+#endif // BUILDFLAG(USE_STARBOARD_MEDIA)
+
+DecoderBuffer::TimeInfo::TimeInfo() = default;
+DecoderBuffer::TimeInfo::~TimeInfo() = default;
+DecoderBuffer::TimeInfo::TimeInfo(const TimeInfo&) = default;
+DecoderBuffer::TimeInfo& DecoderBuffer::TimeInfo::operator=(const TimeInfo&) =
+    default;
+>>>>>>> af3d7334d8c ([media] Support DecoderBufferAllocator (#4348))
 
 DecoderBuffer::DecoderBuffer(size_t size)
     : data_(base::HeapArray<uint8_t>::Uninit(size)) {}
@@ -39,12 +68,76 @@ DecoderBuffer::DecoderBuffer(size_t size)
 DecoderBuffer::DecoderBuffer(base::span<const uint8_t> data)
     : data_(base::HeapArray<uint8_t>::CopiedFrom(data)) {}
 
+<<<<<<< HEAD
 DecoderBuffer::DecoderBuffer(base::HeapArray<uint8_t> data)
     : data_(std::move(data)) {}
+=======
+  Initialize();
+
+#if BUILDFLAG(USE_STARBOARD_MEDIA)
+  memcpy(data_, data, size_);
+#else // BUILDFLAG(USE_STARBOARD_MEDIA)
+  memcpy(data_.get(), data, size_);
+#endif // BUILDFLAG(USE_STARBOARD_MEDIA)
+
+  if (!side_data) {
+    CHECK_EQ(side_data_size, 0u);
+    return;
+  }
+
+  DCHECK_GT(side_data_size_, 0u);
+  memcpy(side_data_.get(), side_data, side_data_size_);
+}
+
+#if BUILDFLAG(USE_STARBOARD_MEDIA)
+DecoderBuffer::DecoderBuffer(DemuxerStream::Type type,
+                             const uint8_t* data,
+                             size_t size,
+                             const uint8_t* side_data,
+                             size_t side_data_size)
+    : size_(size), side_data_size_(side_data_size), is_key_frame_(false) {
+  if (!data) {
+    CHECK_EQ(size_, 0u);
+    CHECK(!side_data);
+    return;
+  }
+
+  Initialize(type);
+
+  memcpy(data_, data, size_);
+
+  if (!side_data) {
+    CHECK_EQ(side_data_size, 0u);
+    return;
+  }
+
+  DCHECK_GT(side_data_size_, 0u);
+  memcpy(side_data_.get(), side_data, side_data_size_);
+}
+#endif // BUILDFLAG(USE_STARBOARD_MEDIA)
+
+DecoderBuffer::DecoderBuffer(std::unique_ptr<uint8_t[]> data, size_t size)
+#if BUILDFLAG(USE_STARBOARD_MEDIA)
+  : DecoderBuffer(data.get(), size, nullptr, 0) {
+  // TODO(b/378106931): revisit DecoderBufferAllocator once rebase to m126+
+}
+#else // BUILDFLAG(USE_STARBOARD_MEDIA)
+    : data_(std::move(data)), size_(size) {}
+#endif // BUILDFLAG(USE_STARBOARD_MEDIA)
+
+DecoderBuffer::DecoderBuffer(base::ReadOnlySharedMemoryMapping mapping,
+                             size_t size)
+    : size_(size), read_only_mapping_(std::move(mapping)) {}
+
+DecoderBuffer::DecoderBuffer(base::WritableSharedMemoryMapping mapping,
+                             size_t size)
+    : size_(size), writable_mapping_(std::move(mapping)) {}
+>>>>>>> af3d7334d8c ([media] Support DecoderBufferAllocator (#4348))
 
 DecoderBuffer::DecoderBuffer(std::unique_ptr<ExternalMemory> external_memory)
     : external_memory_(std::move(external_memory)) {}
 
+<<<<<<< HEAD
 DecoderBuffer::DecoderBuffer(DecoderBufferType decoder_buffer_type,
                              std::optional<ConfigVariant> next_config)
     : is_end_of_stream_(decoder_buffer_type ==
@@ -74,6 +167,49 @@ DecoderBuffer::DecoderBuffer(base::PassKey<DecoderBuffer>,
     : DecoderBuffer(decoder_buffer_type, std::move(next_config)) {}
 
 DecoderBuffer::~DecoderBuffer() = default;
+=======
+DecoderBuffer::~DecoderBuffer() {
+#if BUILDFLAG(USE_STARBOARD_MEDIA)
+  DCHECK(s_allocator);
+  s_allocator->Free(data_, allocated_size_);
+#else // BUILDFLAG(USE_STARBOARD_MEDIA)
+  data_.reset();
+#endif // BUILDFLAG(USE_STARBOARD_MEDIA)
+  side_data_.reset();
+}
+
+void DecoderBuffer::Initialize() {
+#if BUILDFLAG(USE_STARBOARD_MEDIA)
+  // This is used by Mojo.
+  Initialize(DemuxerStream::UNKNOWN);
+#else // BUILDFLAG(USE_STARBOARD_MEDIA)
+  data_.reset(new uint8_t[size_]);
+  if (side_data_size_ > 0)
+    side_data_.reset(new uint8_t[side_data_size_]);
+#endif // BUILDFLAG(USE_STARBOARD_MEDIA)
+}
+
+#if BUILDFLAG(USE_STARBOARD_MEDIA)
+void DecoderBuffer::Initialize(DemuxerStream::Type type) {
+  DCHECK(s_allocator);
+  DCHECK(!data_);
+
+  int alignment = s_allocator->GetBufferAlignment();
+  int padding = s_allocator->GetBufferPadding();
+  allocated_size_ = size_ + padding;
+  data_ = static_cast<uint8_t*>(s_allocator->Allocate(type,
+                                                      allocated_size_,
+                                                      alignment));
+  memset(data_ + size_, 0, padding);
+
+  if (side_data_size_ > 0)
+    side_data_.reset(new uint8_t[side_data_size_]);
+}
+<<<<<<< HEAD
+>>>>>>> af3d7334d8c ([media] Support DecoderBufferAllocator (#4348))
+=======
+#endif // BUILDFLAG(USE_STARBOARD_MEDIA)
+>>>>>>> f071bafe36a ([media] Improve DecoderBufferAllocator logging (#5036))
 
 // static
 scoped_refptr<DecoderBuffer> DecoderBuffer::CopyFrom(
@@ -288,6 +424,30 @@ size_t DecoderBuffer::GetMemoryUsage() const {
     memory_usage += sizeof(decltype(side_data_->spatial_layers)::value_type) *
                     side_data_->spatial_layers.capacity();
     memory_usage += side_data_->alpha_data.size();
+  }
+  if (decrypt_config_) {
+    memory_usage += sizeof(DecryptConfig);
+    memory_usage += decrypt_config_->key_id().capacity();
+    memory_usage += decrypt_config_->iv().capacity();
+    memory_usage +=
+        sizeof(SubsampleEntry) * decrypt_config_->subsamples().capacity();
+  }
+
+  return memory_usage;
+}
+
+size_t DecoderBuffer::GetMemoryUsage() const {
+  size_t memory_usage = sizeof(DecoderBuffer);
+
+  if (end_of_stream()) {
+    return memory_usage;
+  }
+
+  memory_usage += data_size();
+
+  // Side data and decrypt config would not change after construction.
+  if (side_data_size_ > 0) {
+    memory_usage += side_data_size_;
   }
   if (decrypt_config_) {
     memory_usage += sizeof(DecryptConfig);

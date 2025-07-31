@@ -619,7 +619,39 @@ public class WebContentsImpl
         WebContentsImplJni.get().collapseSelection(mNativeWebContentsAndroid);
     }
 
+<<<<<<< HEAD
     private @Nullable SelectionPopupControllerImpl getSelectionPopupController() {
+=======
+    @Override
+    public void onHide() {
+        checkNotDestroyed();
+        SelectionPopupControllerImpl controller = getSelectionPopupController();
+        if (controller != null) controller.hidePopupsAndPreserveSelection();
+        WebContentsImplJni.get().onHide(mNativeWebContentsAndroid);
+    }
+
+    @Override
+    public void onFreeze() {
+        checkNotDestroyed();
+        WebContentsImplJni.get().onFreeze(mNativeWebContentsAndroid);
+    }
+
+    @Override
+    public void onResume() {
+        checkNotDestroyed();
+        WebContentsImplJni.get().onResume(mNativeWebContentsAndroid);
+    }
+
+    @Override
+    public void onShow() {
+        checkNotDestroyed();
+        SelectionPopupControllerImpl controller = getSelectionPopupController();
+        if (controller != null) controller.restoreSelectionPopupsIfNecessary();
+        WebContentsImplJni.get().onShow(mNativeWebContentsAndroid);
+    }
+
+    private SelectionPopupControllerImpl getSelectionPopupController() {
+>>>>>>> 12f70003265 (Add freeze and resume events on suspend/resume (#5613))
         return SelectionPopupControllerImpl.fromWebContents(this);
     }
 
@@ -1337,7 +1369,14 @@ public class WebContentsImpl
         void selectAll(long nativeWebContentsAndroid);
 
         void collapseSelection(long nativeWebContentsAndroid);
+<<<<<<< HEAD
 
+=======
+        void onHide(long nativeWebContentsAndroid);
+        void onShow(long nativeWebContentsAndroid);
+        void onFreeze(long nativeWebContentsAndroid);
+        void onResume(long nativeWebContentsAndroid);
+>>>>>>> 12f70003265 (Add freeze and resume events on suspend/resume (#5613))
         void setImportance(long nativeWebContentsAndroid, int importance);
 
         void suspendAllMediaPlayers(long nativeWebContentsAndroid);

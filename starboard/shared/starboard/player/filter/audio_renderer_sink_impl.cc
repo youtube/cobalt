@@ -20,11 +20,7 @@
 #include "starboard/configuration_constants.h"
 #include "starboard/shared/starboard/thread_checker.h"
 
-namespace starboard {
-namespace shared {
-namespace starboard {
-namespace player {
-namespace filter {
+namespace starboard::shared::starboard::player::filter {
 
 AudioRendererSinkImpl::AudioRendererSinkImpl()
     : create_audio_sink_func_(
@@ -39,7 +35,7 @@ AudioRendererSinkImpl::AudioRendererSinkImpl()
              SbAudioSinkPrivate::ConsumeFramesFunc consume_frames_func,
              SbAudioSinkPrivate::ErrorFunc error_func,
              void* context) {
-            return SbAudioSinkPrivate::Create(
+            return audio_sink::SbAudioSinkImpl::Create(
                 channels, sampling_frequency_hz, audio_sample_type,
                 audio_frame_storage_type, frame_buffers,
                 frame_buffers_size_in_frames, update_source_status_func,
@@ -191,8 +187,4 @@ void AudioRendererSinkImpl::ErrorFunc(bool capability_changed,
                                                  error_message);
 }
 
-}  // namespace filter
-}  // namespace player
-}  // namespace starboard
-}  // namespace shared
-}  // namespace starboard
+}  // namespace starboard::shared::starboard::player::filter

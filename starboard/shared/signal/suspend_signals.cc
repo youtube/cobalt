@@ -17,6 +17,8 @@
 #include <signal.h>
 #include <sys/socket.h>
 
+#include <limits>
+
 #include "starboard/common/log.h"
 #include "starboard/common/thread.h"
 #include "starboard/configuration.h"
@@ -28,9 +30,7 @@
 #include "starboard/loader_app/pending_restart.h"  // nogncheck
 #endif  // SB_IS(EVERGREEN_COMPATIBLE) && !SB_IS(EVERGREEN_COMPATIBLE_LITE)
 
-namespace starboard {
-namespace shared {
-namespace signal {
+namespace starboard::shared::signal {
 
 namespace {
 
@@ -49,7 +49,7 @@ int SignalMask(std::initializer_list<int> signal_ids, int action) {
 }
 
 void SetSignalHandler(int signal_id, SignalHandlerFunction handler) {
-  struct sigaction action = {0};
+  struct sigaction action = {};
 
   action.sa_handler = handler;
   action.sa_flags = 0;
@@ -94,11 +94,13 @@ void LowMemory(int signal_id) {
   SignalMask(kAllSignals, SIG_UNBLOCK);
 }
 
+#if !defined(MSG_NOSIGNAL)
 void Ignore(int signal_id) {
   LogSignalCaught(signal_id);
   SbLogRawDumpStack(1);
   SbLogFlush();
 }
+#endif
 
 }  // namespace
 
@@ -116,7 +118,7 @@ class SignalHandlerThread : public ::starboard::Thread {
 
   void Run() override {
     SignalMask(kAllSignals, SIG_UNBLOCK);
-    while (!WaitForJoin(kSbInt64Max)) {
+    while (!WaitForJoin(std::numeric_limits<int64_t>::max())) {
     }
   }
 };
@@ -163,6 +165,4 @@ void UninstallSuspendSignalHandlers() {
   ConfigureSignalHandlerThread(false);
 }
 
-}  // namespace signal
-}  // namespace shared
-}  // namespace starboard
+}  // namespace starboard::shared::signal

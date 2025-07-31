@@ -68,7 +68,13 @@ struct WebCSPSourceList {
   bool allow_dynamic;
   bool allow_unsafe_hashes;
   bool report_sample;
+<<<<<<< HEAD
   std::optional<network::mojom::IntegrityAlgorithm> report_hash_algorithm;
+=======
+#if BUILDFLAG(IS_COBALT)
+  bool cobalt_insecure_local_network;
+#endif
+>>>>>>> a40bc8ae05d (Add custom cobalt-insecure-local-network csp source (#4958))
 };
 
 struct WebContentSecurityPolicyDirective {

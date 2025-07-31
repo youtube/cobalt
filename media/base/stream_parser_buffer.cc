@@ -96,6 +96,7 @@ StreamParserBuffer::StreamParserBuffer(base::PassKey<StreamParserBuffer>,
                                        bool is_key_frame,
                                        Type type,
                                        TrackId track_id)
+<<<<<<< HEAD
     : DecoderBuffer(std::move(heap_array)), type_(type), track_id_(track_id) {
   set_duration(kNoTimestamp);
   set_is_key_frame(is_key_frame);
@@ -111,6 +112,15 @@ StreamParserBuffer::StreamParserBuffer(base::PassKey<StreamParserBuffer>,
           // TODO(crbug.com/40284755): Convert `StreamBufferParser` to
           // `size_t` and `base::span`.
           UNSAFE_TODO(base::span(data, base::checked_cast<size_t>(data_size)))),
+=======
+#if BUILDFLAG(USE_STARBOARD_MEDIA)
+    : DecoderBuffer(type, data, data_size, side_data, side_data_size),
+#else // BUILDFLAG(USE_STARBOARD_MEDIA)
+    : DecoderBuffer(data, data_size, side_data, side_data_size),
+#endif // BUILDFLAG(USE_STARBOARD_MEDIA)
+      decode_timestamp_(kNoDecodeTimestamp),
+      config_id_(kInvalidConfigId),
+>>>>>>> f071bafe36a ([media] Improve DecoderBufferAllocator logging (#5036))
       type_(type),
       track_id_(track_id) {
   // TODO(scherkus): Should DataBuffer constructor accept a timestamp and

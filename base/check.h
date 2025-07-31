@@ -253,11 +253,28 @@ class BASE_EXPORT NotReachedNoreturnError : public CheckError {
   base::ImmediateCrash();
 }
 
+<<<<<<< HEAD
 // Discard log strings to reduce code bloat when there is no NotFatalUntil
 // argument (which temporarily preserves logging both locally and in crash
 // reports).
 #define CHECK_INTERNAL_IMPL(cond) \
   DISCARDING_CHECK_FUNCTION_IMPL(::logging::CheckFailure(), cond)
+=======
+// Discard log strings to reduce code bloat.
+//
+// This is not calling BreakDebugger since this is called frequently, and
+// calling an out-of-line function instead of a noreturn inline macro prevents
+// compiler optimizations.
+#define CHECK(condition) \
+  UNLIKELY(!(condition)) ? ::logging::CheckFailure() : EAT_CHECK_STREAM_PARAMS()
+
+#define CHECK_WILL_STREAM() false
+
+// Strip the conditional string from official builds.
+#define PCHECK(condition)                                                \
+  CHECK_FUNCTION_IMPL(::logging::CheckError::PCheck(__FILE__, __LINE__), \
+                      condition)
+>>>>>>> 5a95b1d472b (Bring 25.lts.1+ base customizations to trunk (#4800))
 
 #else
 

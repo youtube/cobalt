@@ -14,10 +14,7 @@
 
 #include "starboard/shared/starboard/media/vp9_util.h"
 
-namespace starboard {
-namespace shared {
-namespace starboard {
-namespace media {
+namespace starboard::shared::starboard::media {
 
 namespace {
 
@@ -113,7 +110,4 @@ bool Vp9FrameParser::ParseSuperFrame(const uint8_t* frame,
   return true;
 }
 
-}  // namespace media
-}  // namespace starboard
-}  // namespace shared
-}  // namespace starboard
+}  // namespace starboard::shared::starboard::media

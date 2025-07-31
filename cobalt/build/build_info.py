@@ -106,7 +106,7 @@ def _get_cobalt_version():
   return compiled_cobalt_version_pattern.search(contents).group(1)
 
 
-def main(output_path, cwd=_FILE_DIR):
+def write_build_json(output_path, cwd=_FILE_DIR):
   """Writes a Cobalt build_info json file."""
   build_rev = _get_hash_from_last_commit(cwd=cwd)
   build_id, git_rev = _get_build_id_and_git_rev(cwd=cwd, build_rev=build_rev)
@@ -143,5 +143,68 @@ Commit: {commit}
 ''')
 
 
+BUILD_ID_HEADER_TEMPLATE = """
+#ifndef _COBALT_BUILD_ID_H_
+#define _COBALT_BUILD_ID_H_
+
+#ifndef COBALT_BUILD_VERSION_NUMBER
+#define COBALT_BUILD_VERSION_NUMBER "{cobalt_build_version_number}"
+#endif  // COBALT_BUILD_VERSION_NUMBER
+
+
+#endif  // _COBALT_BUILD_ID_H_
+"""
+
+
+def write_build_id_header(output_path):
+  """Writes a cobalt_build_id header file.
+
+  Args:
+    output_path: Location to write Cobalt build ID header to.
+  Returns:
+    Nothing
+  """
+  with open(output_path, 'w', encoding='utf-8') as f:
+    f.write(
+        BUILD_ID_HEADER_TEMPLATE.format(
+            cobalt_build_version_number=get_build_id()))
+
+
+def write_licenses(txt_path, spdx_path):
+  """Writes Cobalt licenses files if they do not already exist."""
+  out_dir = os.getcwd()
+  src_dir = os.path.dirname(os.path.dirname(out_dir))
+  txt_file = os.path.join(out_dir, txt_path)
+  spdx_file = os.path.join(out_dir, spdx_path)
+
+  if not os.path.isfile(txt_file):
+    command = [
+        'tools/licenses/licenses.py',
+        'license_file',
+        txt_file,
+        '--gn-target',
+        'cobalt:gn_all',
+        '--gn-out-dir',
+        out_dir,
+    ]
+    subprocess.call(command, cwd=src_dir)
+
+  if not os.path.isfile(spdx_file):
+    command = [
+        'tools/licenses/licenses.py',
+        'license_file',
+        spdx_file,
+        '--gn-target',
+        'cobalt:gn_all',
+        '--gn-out-dir',
+        out_dir,
+        '--format',
+        'spdx',
+    ]
+    subprocess.call(command, cwd=src_dir)
+
+
 if __name__ == '__main__':
-  main(sys.argv[1])
+  write_build_id_header(sys.argv[1])
+  write_build_json(sys.argv[2])
+  write_licenses(sys.argv[3], sys.argv[4])

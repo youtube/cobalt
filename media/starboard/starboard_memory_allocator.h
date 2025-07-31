@@ -12,8 +12,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#ifndef COBALT_MEDIA_STARBOARD_MEMORY_ALLOCATOR_H_
-#define COBALT_MEDIA_STARBOARD_MEMORY_ALLOCATOR_H_
+#ifndef MEDIA_STARBOARD_STARBOARD_MEMORY_ALLOCATOR_H_
+#define MEDIA_STARBOARD_STARBOARD_MEMORY_ALLOCATOR_H_
 
 #include <stdlib.h>
 
@@ -22,7 +22,6 @@
 #include "starboard/common/allocator.h"
 #include "starboard/configuration.h"
 
-namespace cobalt {
 namespace media {
 
 // StarboardMemoryAllocator is an allocator that allocates and frees memory
@@ -33,7 +32,7 @@ class StarboardMemoryAllocator : public starboard::common::Allocator {
 
   void* Allocate(std::size_t size, std::size_t alignment) override {
     void* p = nullptr;
-    posix_memalign(&p, std::max(alignment, sizeof(void*)), size);
+    std::ignore = posix_memalign(&p, std::max(alignment, sizeof(void*)), size);
     return p;
   }
 
@@ -50,10 +49,10 @@ class StarboardMemoryAllocator : public starboard::common::Allocator {
     // Returns 0 here to avoid tracking the allocated memory.
     return 0;
   }
-  void PrintAllocations() const override {}
+  void PrintAllocations(bool align_allocated_size,
+                        int max_allocations_to_print) const override {}
 };
 
 }  // namespace media
-}  // namespace cobalt
 
-#endif  // COBALT_MEDIA_STARBOARD_MEMORY_ALLOCATOR_H_
+#endif  // MEDIA_STARBOARD_STARBOARD_MEMORY_ALLOCATOR_H_

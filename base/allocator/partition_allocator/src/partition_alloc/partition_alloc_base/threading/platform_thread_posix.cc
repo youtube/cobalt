@@ -56,12 +56,14 @@ std::atomic<bool> g_main_thread_tid_cache_valid = false;
 // also updated by PlatformThread::CurrentId().
 thread_local bool g_is_main_thread = true;
 
+#if !BUILDFLAG(IS_STARBOARD)
 class InitAtFork {
  public:
   InitAtFork() {
     pthread_atfork(nullptr, nullptr, internal::InvalidateTidCache);
   }
 };
+#endif // !BUILDFLAG(IS_STARBOARD)
 
 }  // namespace
 
@@ -81,8 +83,15 @@ PlatformThreadId PlatformThread::CurrentId() {
   // into the kernel.
 #if PA_BUILDFLAG(IS_APPLE)
   return pthread_mach_thread_np(pthread_self());
+<<<<<<< HEAD:base/allocator/partition_allocator/src/partition_alloc/partition_alloc_base/threading/platform_thread_posix.cc
 #elif PA_BUILDFLAG(IS_LINUX) || PA_BUILDFLAG(IS_CHROMEOS)
+=======
+#elif BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_CHROMEOS)
+
+#if !BUILDFLAG(IS_STARBOARD)
+>>>>>>> 0295a58a6e5 ([POSIX] Remove unnecessary pthread_atfork call (#5924)):base/allocator/partition_allocator/partition_alloc_base/threading/platform_thread_posix.cc
   static InitAtFork init_at_fork;
+#endif // !BUILDFLAG(IS_STARBOARD)
   if (g_thread_id == -1 ||
       (g_is_main_thread &&
        !g_main_thread_tid_cache_valid.load(std::memory_order_relaxed))) {

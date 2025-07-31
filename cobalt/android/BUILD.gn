@@ -1,0 +1,298 @@
+import("//build/config/android/config.gni")
+import("//build/config/android/rules.gni")
+import("//starboard/build/buildflags.gni")
+import("//third_party/icu/config.gni")
+
+cobalt_manifest = "$target_gen_dir/cobalt_manifest/AndroidManifest.xml"
+
+android_resources("cobalt_java_resources") {
+  sources = [
+    "apk/app/src/app/res/drawable-xhdpi/app_banner.png",
+    "apk/app/src/app/res/mipmap-hdpi/ic_app.png",
+    "apk/app/src/app/res/mipmap-mdpi/ic_app.png",
+    "apk/app/src/app/res/mipmap-xhdpi/ic_app.png",
+    "apk/app/src/app/res/mipmap-xxhdpi/ic_app.png",
+    "apk/app/src/app/res/values/strings.xml",
+    "apk/app/src/main/res/layout/coat_error_dialog.xml",
+    "apk/app/src/main/res/layout/content_shell_activity.xml",
+    "apk/app/src/main/res/values/colors.xml",
+    "apk/app/src/main/res/values/ids.xml",
+    "apk/app/src/main/res/values/overlayable.xml",
+    "apk/app/src/main/res/values/rro_variables.xml",
+    "apk/app/src/main/res/values/strings.xml",
+    "apk/app/src/main/res/values/styles.xml",
+  ]
+  deps = [ "//third_party/androidx:androidx_leanback_leanback_java" ]
+}
+
+jinja_template("cobalt_manifest") {
+  input = "apk/app/src/app/AndroidManifest.xml.jinja2"
+  output = cobalt_manifest
+  variables = [
+    "manifest_package=dev.cobalt.coat",
+    "build_type=$build_type",
+  ]
+}
+
+generate_jni("jni_headers") {
+  sources = [
+    "apk/app/src/main/java/dev/cobalt/coat/AudioPermissionRequester.java",
+    "apk/app/src/main/java/dev/cobalt/coat/CobaltTextToSpeechHelper.java",
+    "apk/app/src/main/java/dev/cobalt/coat/StarboardBridge.java",
+    "apk/app/src/main/java/dev/cobalt/media/AudioOutputManager.java",
+    "apk/app/src/main/java/dev/cobalt/media/AudioTrackBridge.java",
+    "apk/app/src/main/java/dev/cobalt/media/MediaCodecBridge.java",
+    "apk/app/src/main/java/dev/cobalt/media/MediaCodecBridgeBuilder.java",
+    "apk/app/src/main/java/dev/cobalt/media/MediaDrmBridge.java",
+    "apk/app/src/main/java/dev/cobalt/shell/Shell.java",
+    "apk/app/src/main/java/dev/cobalt/shell/ShellManager.java",
+  ]
+
+  if (!use_evergreen) {
+    sources += [
+      "apk/app/src/main/java/dev/cobalt/browser/CobaltInterfaceRegistrar.java",
+    ]
+  }
+}
+
+android_library("cobalt_shell_java") {
+  testonly = true
+  resources_package = "org.chromium.content_shell"
+  deps = [
+    ":cobalt_java_resources",
+    "//base:base_java",
+    "//base:jni_java",
+    "//build/android:build_java",
+    "//components/download/internal/common:internal_java",
+    "//components/embedder_support/android:content_view_java",
+    "//components/embedder_support/android:view_java",
+    "//components/viz/service:service_java",
+    "//content/public/android:content_java",
+    "//media/base/android:media_java",
+    "//media/capture/video/android:capture_java",
+    "//mojo/public/java:system_java",
+    "//net/android:net_java",
+    "//ui/android:ui_java",
+    "//ui/base/cursor/mojom:cursor_type_java",
+    "//url:gurl_java",
+  ]
+  sources = [
+    "apk/app/src/main/java/dev/cobalt/shell/Shell.java",
+    "apk/app/src/main/java/dev/cobalt/shell/ShellManager.java",
+    "apk/app/src/main/java/dev/cobalt/shell/ShellViewAndroidDelegate.java",
+    "apk/app/src/main/java/dev/cobalt/shell/Util.java",
+  ]
+
+  annotation_processor_deps = [ "//base/android/jni_generator:jni_processor" ]
+}
+
+android_library("cobalt_main_java") {
+  testonly = true
+  resources_package = "dev.cobalt.coat"
+  deps = [
+    ":cobalt_java_resources",
+    ":cobalt_shell_java",
+    ":jni_headers",
+    "//base:base_java",
+    "//base:jni_java",
+    "//base:process_launcher_java",
+    "//build/android:build_java",
+    "//components/embedder_support/android:view_java",
+    "//components/version_info/android:version_constants_java",
+    "//content/public/android:content_java",
+    "//media/capture/video/android:capture_java",
+    "//net/android:net_java",
+    "//services/media_session/public/cpp/android:media_session_java",
+    "//services/media_session/public/mojom:mojom_java",
+    "//third_party/android_deps:com_google_code_findbugs_jsr305_java",
+    "//third_party/android_deps:google_play_services_ads_identifier_java",
+    "//third_party/android_deps:google_play_services_basement_java",
+    "//third_party/androidx:androidx_annotation_annotation_java",
+    "//third_party/androidx:androidx_core_core_java",
+    "//third_party/androidx:androidx_customview_customview_java",
+    "//third_party/androidx:androidx_media_media_java",
+    "//ui/android:ui_java",
+    "//ui/android:ui_no_recycler_view_java",
+    "//url:gurl_java",
+  ]
+
+  if (!use_evergreen) {
+    deps += [
+      "//cobalt/browser/crash_annotator/public/mojom:mojom_java",
+      "//mojo/public/java:base_java",
+      "//mojo/public/java:bindings_java",
+      "//mojo/public/java:system_java",
+      "//services/service_manager/public/java:service_manager_java",
+    ]
+  }
+
+  srcjar_deps = [ "//starboard/android/shared:java_enums" ]
+
+  sources = [
+    "apk/app/src/main/java/dev/cobalt/coat/AdvertisingId.java",
+    "apk/app/src/main/java/dev/cobalt/coat/ArtworkDownloader.java",
+    "apk/app/src/main/java/dev/cobalt/coat/ArtworkDownloaderDefault.java",
+    "apk/app/src/main/java/dev/cobalt/coat/ArtworkLoader.java",
+    "apk/app/src/main/java/dev/cobalt/coat/AudioPermissionRequester.java",
+    "apk/app/src/main/java/dev/cobalt/coat/CaptionSettings.java",
+    "apk/app/src/main/java/dev/cobalt/coat/CobaltA11yHelper.java",
+    "apk/app/src/main/java/dev/cobalt/coat/CobaltActivity.java",
+    "apk/app/src/main/java/dev/cobalt/coat/CobaltHttpHelper.java",
+    "apk/app/src/main/java/dev/cobalt/coat/CobaltMediaSession.java",
+    "apk/app/src/main/java/dev/cobalt/coat/CobaltService.java",
+    "apk/app/src/main/java/dev/cobalt/coat/CobaltSystemConfigChangeReceiver.java",
+    "apk/app/src/main/java/dev/cobalt/coat/CobaltTextToSpeechHelper.java",
+    "apk/app/src/main/java/dev/cobalt/coat/CommandLineOverrideHelper.java",
+    "apk/app/src/main/java/dev/cobalt/coat/CrashContext.java",
+    "apk/app/src/main/java/dev/cobalt/coat/CrashContextUpdateHandler.java",
+    "apk/app/src/main/java/dev/cobalt/coat/ErrorDialog.java",
+    "apk/app/src/main/java/dev/cobalt/coat/NetworkStatus.java",
+    "apk/app/src/main/java/dev/cobalt/coat/NullCobaltFactory.java",
+    "apk/app/src/main/java/dev/cobalt/coat/PlatformError.java",
+    "apk/app/src/main/java/dev/cobalt/coat/ResourceOverlay.java",
+    "apk/app/src/main/java/dev/cobalt/coat/StarboardBridge.java",
+    "apk/app/src/main/java/dev/cobalt/coat/VolumeStateReceiver.java",
+    "apk/app/src/main/java/dev/cobalt/coat/javabridge/AmatiDeviceInspector.java",
+    "apk/app/src/main/java/dev/cobalt/coat/javabridge/CobaltJavaScriptAndroidObject.java",
+    "apk/app/src/main/java/dev/cobalt/coat/javabridge/CobaltJavaScriptInterface.java",
+    "apk/app/src/main/java/dev/cobalt/coat/javabridge/H5vccPlatformService.java",
+    "apk/app/src/main/java/dev/cobalt/coat/javabridge/HTMLMediaElementExtension.java",
+    "apk/app/src/main/java/dev/cobalt/libraries/services/clientloginfo/ClientLogInfo.java",
+    "apk/app/src/main/java/dev/cobalt/libraries/services/clientloginfo/ClientLogInfoModule.java",
+    "apk/app/src/main/java/dev/cobalt/media/AudioOutputManager.java",
+    "apk/app/src/main/java/dev/cobalt/media/AudioTrackBridge.java",
+    "apk/app/src/main/java/dev/cobalt/media/Log.java",
+    "apk/app/src/main/java/dev/cobalt/media/MediaCodecBridge.java",
+    "apk/app/src/main/java/dev/cobalt/media/MediaCodecBridgeBuilder.java",
+    "apk/app/src/main/java/dev/cobalt/media/MediaCodecCapabilitiesLogger.java",
+    "apk/app/src/main/java/dev/cobalt/media/MediaCodecUtil.java",
+    "apk/app/src/main/java/dev/cobalt/media/MediaDrmBridge.java",
+    "apk/app/src/main/java/dev/cobalt/media/MediaFormatBuilder.java",
+    "apk/app/src/main/java/dev/cobalt/media/VideoDecoderCache.java",
+    "apk/app/src/main/java/dev/cobalt/media/VideoFrameReleaseTimeHelper.java",
+    "apk/app/src/main/java/dev/cobalt/media/VideoSurfaceTexture.java",
+    "apk/app/src/main/java/dev/cobalt/media/VideoSurfaceView.java",
+    "apk/app/src/main/java/dev/cobalt/util/AssetLoader.java",
+    "apk/app/src/main/java/dev/cobalt/util/DisplayUtil.java",
+    "apk/app/src/main/java/dev/cobalt/util/Holder.java",
+    "apk/app/src/main/java/dev/cobalt/util/IsEmulator.java",
+    "apk/app/src/main/java/dev/cobalt/util/Log.java",
+    "apk/app/src/main/java/dev/cobalt/util/SynchronizedHolder.java",
+    "apk/app/src/main/java/dev/cobalt/util/SystemPropertiesHelper.java",
+    "apk/app/src/main/java/dev/cobalt/util/UsedByNative.java",
+  ]
+
+  if (!use_evergreen) {
+    sources += [
+      "apk/app/src/main/java/dev/cobalt/browser/CobaltInterfaceRegistrar.java",
+      "apk/app/src/main/java/dev/cobalt/browser/crashannotator/CrashAnnotatorImplFactory.java",
+      "apk/app/src/main/java/dev/cobalt/browser/crashannotator/CrashAnnotatorImplFirstParty.java",
+    ]
+  }
+
+  annotation_processor_deps = [ "//base/android/jni_generator:jni_processor" ]
+}
+
+android_library("cobalt_apk_java") {
+  testonly = true
+  resources_package = "dev.cobalt.coat"
+
+  deps = [ ":cobalt_main_java" ]
+
+  sources = [
+    "apk/app/src/app/java/dev/cobalt/app/CobaltApplication.java",
+    "apk/app/src/app/java/dev/cobalt/app/MainActivity.java",
+  ]
+}
+
+android_assets("coat_assets") {
+  sources = [
+    "apk/app/src/app/assets/not_empty.txt",
+    "apk/app/src/app/assets/test/not_empty.txt",
+    "apk/app/src/app/assets/web/cobalt_logo_1024.png",
+  ]
+  disable_compression = true
+}
+
+# Copied from target: libcontent_shell_content_view
+# TODO(b/376867565) rename this library, NO shell
+shared_library("libchrobalt") {
+  # TODO(b/375655377): remove testonly
+  testonly = true
+  deps = [
+    "//cobalt/browser",
+    "//cobalt/gpu",
+    "//cobalt/renderer",
+    "//cobalt/utility",
+    "//gpu/command_buffer/service",
+
+    # TODO: what can be removed in the dependencies?
+    "//cobalt/shell:content_shell_app",
+    "//cobalt/shell:content_shell_lib",
+    "//components/crash/content/browser",
+    "//components/memory_system",
+    "//content/shell:pak",
+    "//media",
+    "//skia",
+    "//starboard/android/shared:starboard_jni_state",
+    "//third_party/blink/public/common",
+  ]
+
+  # Explicit dependency required for JNI registration to be able to
+  # find the native side functions.
+  if (is_component_build) {
+    deps += [
+      "//device/gamepad",
+      "//media/midi",
+    ]
+  }
+  sources = [
+    "//cobalt/app/cobalt_main_delegate.cc",
+    "//cobalt/app/cobalt_main_delegate.h",
+    "cobalt_library_loader.cc",
+  ]
+  configs -= [ "//build/config/android:hide_all_but_jni_onload" ]
+  configs += [ "//build/config/android:hide_all_but_jni" ]
+  if (is_official_build) {
+    configs += [ "//build/config/compiler:strip_debug" ]
+  }
+}
+
+android_apk("cobalt_apk") {
+  testonly = true
+  apk_name = "Cobalt"
+  android_manifest = cobalt_manifest
+  android_manifest_dep = ":cobalt_manifest"
+  deps = [
+    ":coat_assets",
+    ":cobalt_apk_java",
+    ":cobalt_shell_java",
+    "//components/metrics:metrics_java",
+    "//content/public/android:content_java",
+    "//content/shell/android:content_shell_assets",
+    "//media/capture/video/android:capture_java",
+    "//net/android:net_java",
+    "//services/shape_detection:shape_detection_java",
+    "//third_party/mesa_headers",
+    "//ui/android:ui_java",
+  ]
+  shared_libraries = [ ":libchrobalt" ]
+  include_size_info = is_official_build
+}
+
+robolectric_binary("cobalt_coat_junit_tests") {
+  sources = [
+    "apk/app/src/test/java/dev/cobalt/coat/CobaltActivityTest.java",
+    "apk/app/src/test/java/dev/cobalt/coat/CommandLineOverrideHelperTest.java",
+  ]
+  deps = [
+    ":cobalt_apk_java",
+    "//base:base_java",
+    "//base:base_java_test_support",
+    "//base:base_junit_test_support",
+    "//content/public/android:content_java",
+    "//third_party/androidx:androidx_test_runner_java",
+    "//third_party/google-truth:google_truth_java",
+    "//third_party/junit",
+  ]
+}

@@ -24,11 +24,7 @@
 #include "starboard/shared/internal_only.h"
 #include "starboard/shared/starboard/player/filter/video_frame_internal.h"
 
-namespace starboard {
-namespace shared {
-namespace starboard {
-namespace player {
-namespace filter {
+namespace starboard::shared::starboard::player::filter {
 
 // Holds frame data in memory buffer (instead of in textures).
 class CpuVideoFrame : public VideoFrame {
@@ -87,10 +83,6 @@ class CpuVideoFrame : public VideoFrame {
   std::unique_ptr<uint8_t[]> pixel_buffer_;
 };
 
-}  // namespace filter
-}  // namespace player
-}  // namespace starboard
-}  // namespace shared
-}  // namespace starboard
+}  // namespace starboard::shared::starboard::player::filter
 
 #endif  // STARBOARD_SHARED_STARBOARD_PLAYER_FILTER_CPU_VIDEO_FRAME_H_

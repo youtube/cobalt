@@ -291,6 +291,11 @@ bool SourceBufferState::EvictCodedFrames(base::TimeDelta media_time,
     total_buffered_size += it.second->GetMemoryUsage();
   for (const auto& it : video_streams_)
     total_buffered_size += it.second->GetMemoryUsage();
+<<<<<<< HEAD
+=======
+  for (const auto& it : text_streams_)
+    total_buffered_size += it.second->GetMemoryUsage();
+>>>>>>> d4facfdbbb9 (Refine Demuxer GC for low resolution videos (#4483))
 
   DVLOG(3) << __func__ << " media_time=" << media_time.InSecondsF()
            << " newDataSize=" << newDataSize
@@ -311,6 +316,18 @@ bool SourceBufferState::EvictCodedFrames(base::TimeDelta media_time,
   }
   for (const auto& it : video_streams_) {
     uint64_t curr_size = it.second->GetMemoryUsage();
+<<<<<<< HEAD
+=======
+    if (curr_size == 0)
+      continue;
+    uint64_t estimated_new_size = newDataSize * curr_size / total_buffered_size;
+    DCHECK_LE(estimated_new_size, SIZE_MAX);
+    success &= it.second->EvictCodedFrames(
+        media_time, static_cast<size_t>(estimated_new_size));
+  }
+  for (const auto& it : text_streams_) {
+    uint64_t curr_size = it.second->GetMemoryUsage();
+>>>>>>> d4facfdbbb9 (Refine Demuxer GC for low resolution videos (#4483))
     if (curr_size == 0)
       continue;
     uint64_t estimated_new_size = newDataSize * curr_size / total_buffered_size;

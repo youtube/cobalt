@@ -17,6 +17,8 @@
 
 #if defined(STARBOARD)
 
+#include <limits>
+
 #include "starboard/common/log.h"
 #include "starboard/types.h"
 
@@ -101,7 +103,7 @@ typedef enum EzTimeZone {
 #define kEzTimeTDay (kEzTimeTHour * 24)
 
 // The maximum value of an EzTimeT.
-#define kEzTimeTMax (kSbInt64Max)
+#define kEzTimeTMax (std::numeric_limits<int64_t>::max())
 
 // A term that can be added to an EzTimeT to convert it into the number of
 // microseconds since the Windows epoch.
@@ -133,12 +135,20 @@ static SB_C_FORCE_INLINE EzTimeValue EzTimeValueFromSbTime(int64_t in_time) {
 }
 
 // Converts EzTimeValue to SbTime.
+<<<<<<< HEAD:starboard/client_porting/eztime/eztime.h
 static SB_C_FORCE_INLINE int64_t EzTimeValueToSbTime(const EzTimeValue* value) {
+=======
+[[maybe_unused]] static int64_t EzTimeValueToSbTime(const EzTimeValue* value) {
+>>>>>>> 9b65ab2257f (Fix clang warnings for modular builds (#6138)):cobalt/common/eztime/eztime.h
   return EzTimeTToSbTime(value->tv_sec) + value->tv_usec;
 }
 
 // Converts EzTimeT to EzTimeValue.
+<<<<<<< HEAD:starboard/client_porting/eztime/eztime.h
 static SB_C_FORCE_INLINE EzTimeValue EzTimeTToEzTimeValue(EzTimeT in_time) {
+=======
+[[maybe_unused]] static EzTimeValue EzTimeTToEzTimeValue(EzTimeT in_time) {
+>>>>>>> 9b65ab2257f (Fix clang warnings for modular builds (#6138)):cobalt/common/eztime/eztime.h
   return EzTimeValueFromSbTime(EzTimeTToSbTime(in_time));
 }
 

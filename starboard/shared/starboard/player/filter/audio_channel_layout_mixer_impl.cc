@@ -20,11 +20,7 @@
 #include "starboard/common/log.h"
 #include "starboard/shared/starboard/media/media_util.h"
 
-namespace starboard {
-namespace shared {
-namespace starboard {
-namespace player {
-namespace filter {
+namespace starboard::shared::starboard::player::filter {
 
 namespace {
 
@@ -175,7 +171,7 @@ const SampleType* GetInterleavedSamplesOfFrame(
     return input_buffer + frame_index * input->channels();
   }
   SB_DCHECK(input->storage_type() == kSbMediaAudioFrameStorageTypePlanar);
-  for (size_t channel_index = 0; channel_index < input->channels();
+  for (int channel_index = 0; channel_index < input->channels();
        channel_index++) {
     aux_buffer[channel_index] =
         input_buffer[channel_index * input->frames() + frame_index];
@@ -189,7 +185,7 @@ void StoreInterleavedSamplesOfFrame(const SampleType* samples,
                                     int frame_index) {
   SampleType* dest_buffer =
       reinterpret_cast<SampleType*>((*destination)->data());
-  for (size_t channel_index = 0; channel_index < (*destination)->channels();
+  for (int channel_index = 0; channel_index < (*destination)->channels();
        channel_index++) {
     if ((*destination)->storage_type() ==
         kSbMediaAudioFrameStorageTypeInterleaved) {
@@ -231,10 +227,10 @@ void MixFrameWithMatrix(const SampleType* input_frame,
                         const float* matrix,
                         SampleType* output_frame,
                         int number_of_output_channels) {
-  for (size_t output_index = 0; output_index < number_of_output_channels;
+  for (int output_index = 0; output_index < number_of_output_channels;
        output_index++) {
     float output_sample = 0;
-    for (size_t input_index = 0; input_index < number_of_input_channels;
+    for (int input_index = 0; input_index < number_of_input_channels;
          input_index++) {
       output_sample +=
           input_frame[input_index] *
@@ -345,7 +341,7 @@ scoped_refptr<DecodedAudio> AudioChannelLayoutMixerImpl::Mix(
       frames * output_channels_ * GetBytesPerSample(sample_type_)));
   SampleType aux_buffer[8];
   SampleType output_buffer[8];
-  for (int frame_index = 0; frame_index < frames; frame_index++) {
+  for (size_t frame_index = 0; frame_index < frames; frame_index++) {
     const SampleType* interleavedSamplesOfFrame =
         GetInterleavedSamplesOfFrame(input, frame_index, aux_buffer);
     MixFrameWithMatrix(interleavedSamplesOfFrame, input->channels(), matrix,
@@ -398,8 +394,4 @@ std::unique_ptr<AudioChannelLayoutMixer> AudioChannelLayoutMixer::Create(
                                       output_channels));
 }
 
-}  // namespace filter
-}  // namespace player
-}  // namespace starboard
-}  // namespace shared
-}  // namespace starboard
+}  // namespace starboard::shared::starboard::player::filter

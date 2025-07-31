@@ -25,10 +25,7 @@
 #include "starboard/configuration_constants.h"
 #include "starboard/shared/pthread/thread_create_priority.h"
 
-namespace starboard {
-namespace shared {
-namespace starboard {
-namespace audio_sink {
+namespace starboard::shared::starboard::audio_sink {
 namespace {
 
 class StubAudioSink : public SbAudioSinkPrivate {
@@ -144,7 +141,4 @@ SbAudioSink StubAudioSinkType::Create(
                            context);
 }
 
-}  // namespace audio_sink
-}  // namespace starboard
-}  // namespace shared
-}  // namespace starboard
+}  // namespace starboard::shared::starboard::audio_sink

@@ -6962,6 +6962,39 @@ net::Error NavigationRequest::CheckCSPDirectives(
       // overridden by the checks below.
       error = net::ERR_ABORTED;
     }
+<<<<<<< HEAD
+=======
+
+    if (base::FeatureList::IsEnabled(
+            features::kExperimentalContentSecurityPolicyFeatures)) {
+      // [navigate-to]
+      if (!IsAllowedByCSPDirective(
+              initiator_policies->content_security_policies, &initiator_context,
+              network::mojom::CSPDirectiveName::NavigateTo,
+              has_followed_redirect, url_upgraded_after_redirect,
+              is_response_check, /*is_opaque_fenced_frame=*/false,
+              disposition)) {
+        // net::ERR_ABORTED is used instead of net::ERR_BLOCKED_BY_CSP. This is
+        // a better user experience as the user is not presented with an error
+        // page. However if other CSP directives life frame-src are violated, it
+        // may be appropriate for them to use ERR_BLOCKED_BY_CSP so this can be
+        // overridden by the checks below.
+        error = net::ERR_ABORTED;
+      }
+    }
+#if BUILDFLAG(IS_COBALT)
+    // [cobalt-location-src] or [h5vcc-location-src]
+    if (!IsAllowedByCSPDirective(
+            initiator_policies->content_security_policies, &initiator_context,
+            network::mojom::CSPDirectiveName::CobaltLocationSrc,
+            has_followed_redirect, url_upgraded_after_redirect,
+            is_response_check, /*is_opaque_fenced_frame=*/false,
+            disposition)) {
+      error = net::ERR_ABORTED;
+      return error;
+    }
+#endif
+>>>>>>> cc1427c80d0 (Add h5vcc-location-src custom CSP directive (#5016))
   }
 
   // [frame-src] or [fenced-frame-src]

@@ -14,21 +14,26 @@
 
 #include "starboard/android/shared/media_capabilities_cache.h"
 
+#include <jni.h>
+
 #include <utility>
 
+#include "base/android/jni_android.h"
+#include "starboard/android/shared/audio_output_manager.h"
 #include "starboard/android/shared/jni_utils.h"
 #include "starboard/android/shared/media_common.h"
+#include "starboard/android/shared/media_drm_bridge.h"
+#include "starboard/android/shared/starboard_bridge.h"
 #include "starboard/common/log.h"
 #include "starboard/common/once.h"
 #include "starboard/shared/starboard/media/key_system_supportability_cache.h"
 #include "starboard/shared/starboard/media/mime_supportability_cache.h"
 #include "starboard/thread.h"
 
-namespace starboard {
-namespace android {
-namespace shared {
+namespace starboard::android::shared {
 namespace {
 
+using base::android::AttachCurrentThread;
 using ::starboard::shared::starboard::media::KeySystemSupportabilityCache;
 using ::starboard::shared::starboard::media::MimeSupportabilityCache;
 
@@ -39,112 +44,6 @@ const jint HDR_TYPE_HLG = 3;
 const jint HDR_TYPE_HDR10_PLUS = 4;
 
 const char SECURE_DECODER_SUFFIX[] = ".secure";
-
-// Constants for output types from
-// https://developer.android.com/reference/android/media/AudioDeviceInfo.
-constexpr int TYPE_AUX_LINE = 19;
-constexpr int TYPE_BLE_BROADCAST = 30;
-constexpr int TYPE_BLE_HEADSET = 26;
-constexpr int TYPE_BLE_SPEAKER = 27;
-constexpr int TYPE_BLUETOOTH_A2DP = 8;
-constexpr int TYPE_BLUETOOTH_SCO = 7;
-constexpr int TYPE_BUILTIN_EARPIECE = 1;
-constexpr int TYPE_BUILTIN_MIC = 15;
-constexpr int TYPE_BUILTIN_SPEAKER = 2;
-constexpr int TYPE_BUILTIN_SPEAKER_SAFE = 24;
-constexpr int TYPE_BUS = 21;
-constexpr int TYPE_DOCK = 13;
-constexpr int TYPE_DOCK_ANALOG = 31;
-constexpr int TYPE_FM = 14;
-constexpr int TYPE_FM_TUNER = 16;
-constexpr int TYPE_HDMI = 9;
-constexpr int TYPE_HDMI_ARC = 10;
-constexpr int TYPE_HDMI_EARC = 29;
-constexpr int TYPE_HEARING_AID = 23;
-constexpr int TYPE_IP = 20;
-constexpr int TYPE_LINE_ANALOG = 5;
-constexpr int TYPE_LINE_DIGITAL = 6;
-constexpr int TYPE_REMOTE_SUBMIX = 25;
-constexpr int TYPE_TELEPHONY = 18;
-constexpr int TYPE_TV_TUNER = 17;
-constexpr int TYPE_UNKNOWN = 0;
-constexpr int TYPE_USB_ACCESSORY = 12;
-constexpr int TYPE_USB_DEVICE = 11;
-constexpr int TYPE_USB_HEADSET = 22;
-constexpr int TYPE_WIRED_HEADPHONES = 4;
-constexpr int TYPE_WIRED_HEADSET = 3;
-
-SbMediaAudioConnector GetConnectorFromAndroidOutputType(
-    int android_output_device_type) {
-  switch (android_output_device_type) {
-    case TYPE_AUX_LINE:
-      return kSbMediaAudioConnectorAnalog;
-    case TYPE_BLE_BROADCAST:
-      return kSbMediaAudioConnectorBluetooth;
-    case TYPE_BLE_HEADSET:
-      return kSbMediaAudioConnectorBluetooth;
-    case TYPE_BLE_SPEAKER:
-      return kSbMediaAudioConnectorBluetooth;
-    case TYPE_BLUETOOTH_A2DP:
-      return kSbMediaAudioConnectorBluetooth;
-    case TYPE_BLUETOOTH_SCO:
-      return kSbMediaAudioConnectorBluetooth;
-    case TYPE_BUILTIN_EARPIECE:
-      return kSbMediaAudioConnectorBuiltIn;
-    case TYPE_BUILTIN_MIC:
-      return kSbMediaAudioConnectorBuiltIn;
-    case TYPE_BUILTIN_SPEAKER:
-      return kSbMediaAudioConnectorBuiltIn;
-    case TYPE_BUILTIN_SPEAKER_SAFE:
-      return kSbMediaAudioConnectorBuiltIn;
-    case TYPE_BUS:
-      return kSbMediaAudioConnectorUnknown;
-    case TYPE_DOCK:
-      return kSbMediaAudioConnectorUnknown;
-    case TYPE_DOCK_ANALOG:
-      return kSbMediaAudioConnectorAnalog;
-    case TYPE_FM:
-      return kSbMediaAudioConnectorUnknown;
-    case TYPE_FM_TUNER:
-      return kSbMediaAudioConnectorUnknown;
-    case TYPE_HDMI:
-      return kSbMediaAudioConnectorHdmi;
-    case TYPE_HDMI_ARC:
-      return kSbMediaAudioConnectorHdmi;
-    case TYPE_HDMI_EARC:
-      return kSbMediaAudioConnectorHdmi;
-    case TYPE_HEARING_AID:
-      return kSbMediaAudioConnectorUnknown;
-    case TYPE_IP:
-      return kSbMediaAudioConnectorRemoteWired;
-    case TYPE_LINE_ANALOG:
-      return kSbMediaAudioConnectorAnalog;
-    case TYPE_LINE_DIGITAL:
-      return kSbMediaAudioConnectorUnknown;
-    case TYPE_REMOTE_SUBMIX:
-      return kSbMediaAudioConnectorRemoteOther;
-    case TYPE_TELEPHONY:
-      return kSbMediaAudioConnectorUnknown;
-    case TYPE_TV_TUNER:
-      return kSbMediaAudioConnectorUnknown;
-    case TYPE_UNKNOWN:
-      return kSbMediaAudioConnectorUnknown;
-    case TYPE_USB_ACCESSORY:
-      return kSbMediaAudioConnectorUsb;
-    case TYPE_USB_DEVICE:
-      return kSbMediaAudioConnectorUsb;
-    case TYPE_USB_HEADSET:
-      return kSbMediaAudioConnectorUsb;
-    case TYPE_WIRED_HEADPHONES:
-      return kSbMediaAudioConnectorAnalog;
-    case TYPE_WIRED_HEADSET:
-      return kSbMediaAudioConnectorAnalog;
-  }
-
-  SB_LOG(WARNING) << "Encountered unknown audio output device type "
-                  << android_output_device_type;
-  return kSbMediaAudioConnectorUnknown;
-}
 
 bool EndsWith(const std::string& str, const std::string& suffix) {
   if (str.size() < suffix.size()) {
@@ -168,29 +67,25 @@ Range ConvertJavaRangeToRange(JniEnvExt* env, jobject j_range) {
 }
 
 void ConvertStringToLowerCase(std::string* str) {
-  for (int i = 0; i < str->length(); i++) {
+  for (size_t i = 0; i < str->length(); i++) {
     (*str)[i] = std::tolower((*str)[i]);
   }
 }
 
 bool GetIsWidevineSupported() {
-  return JniEnvExt::Get()->CallStaticBooleanMethodOrAbort(
-             "dev/cobalt/media/MediaDrmBridge",
-             "isWidevineCryptoSchemeSupported", "()Z") == JNI_TRUE;
+  return MediaDrmBridge::IsWidevineSupported(AttachCurrentThread());
 }
 
 bool GetIsCbcsSupported() {
-  return JniEnvExt::Get()->CallStaticBooleanMethodOrAbort(
-             "dev/cobalt/media/MediaDrmBridge", "isCbcsSchemeSupported",
-             "()Z") == JNI_TRUE;
+  return MediaDrmBridge::IsCbcsSupported(AttachCurrentThread());
 }
 
 std::set<SbMediaTransferId> GetSupportedHdrTypes() {
   std::set<SbMediaTransferId> supported_transfer_ids;
 
-  JniEnvExt* env = JniEnvExt::Get();
-  jintArray j_supported_hdr_types = static_cast<jintArray>(
-      env->CallStarboardObjectMethodOrAbort("getSupportedHdrTypes", "()[I"));
+  JNIEnv* env = base::android::AttachCurrentThread();
+  base::android::ScopedJavaLocalRef<jintArray> j_supported_hdr_types =
+      StarboardBridge::GetInstance()->GetSupportedHdrTypes(env);
 
   if (!j_supported_hdr_types) {
     // Failed to get supported hdr types.
@@ -198,8 +93,9 @@ std::set<SbMediaTransferId> GetSupportedHdrTypes() {
     return std::set<SbMediaTransferId>();
   }
 
-  jsize length = env->GetArrayLength(j_supported_hdr_types);
-  jint* numbers = env->GetIntArrayElements(j_supported_hdr_types, 0);
+  jsize length = env->GetArrayLength(j_supported_hdr_types.obj());
+  jint* numbers =
+      env->GetIntArrayElements(j_supported_hdr_types.obj(), nullptr);
   for (int i = 0; i < length; i++) {
     switch (numbers[i]) {
       case HDR_TYPE_DOLBY_VISION:
@@ -214,7 +110,7 @@ std::set<SbMediaTransferId> GetSupportedHdrTypes() {
         continue;
     }
   }
-  env->ReleaseIntArrayElements(j_supported_hdr_types, numbers, 0);
+  env->ReleaseIntArrayElements(j_supported_hdr_types.obj(), numbers, 0);
 
   return supported_transfer_ids;
 }
@@ -232,54 +128,10 @@ bool GetIsPassthroughSupported(SbMediaAudioCodec codec) {
       return false;
   }
   int encoding = GetAudioFormatSampleType(coding_type);
-  JniEnvExt* env = JniEnvExt::Get();
-  ScopedLocalJavaRef<jobject> j_audio_output_manager(
-      env->CallStarboardObjectMethodOrAbort(
-          "getAudioOutputManager", "()Ldev/cobalt/media/AudioOutputManager;"));
-  return env->CallBooleanMethodOrAbort(j_audio_output_manager.Get(),
-                                       "hasPassthroughSupportFor", "(I)Z",
-                                       encoding) == JNI_TRUE;
+  JNIEnv* env = AttachCurrentThread();
+  return AudioOutputManager::GetInstance()->HasPassthroughSupportFor(env,
+                                                                     encoding);
 }
-
-bool GetAudioConfiguration(int index,
-                           SbMediaAudioConfiguration* configuration) {
-  *configuration = {};
-
-  JniEnvExt* env = JniEnvExt::Get();
-  ScopedLocalJavaRef<jobject> j_audio_output_manager(
-      env->CallStarboardObjectMethodOrAbort(
-          "getAudioOutputManager", "()Ldev/cobalt/media/AudioOutputManager;"));
-  ScopedLocalJavaRef<jobject> j_output_device_info(env->NewObjectOrAbort(
-      "dev/cobalt/media/AudioOutputManager$OutputDeviceInfo", "()V"));
-
-  bool succeeded = env->CallBooleanMethodOrAbort(
-      j_audio_output_manager.Get(), "getOutputDeviceInfo",
-      "(ILdev/cobalt/media/AudioOutputManager$OutputDeviceInfo;)Z", index,
-      j_output_device_info.Get());
-
-  if (!succeeded) {
-    SB_LOG(WARNING)
-        << "Call to AudioOutputManager.getOutputDeviceInfo() failed.";
-    return false;
-  }
-
-  auto call_int_method = [env, &j_output_device_info](const char* name) {
-    return env->CallIntMethodOrAbort(j_output_device_info.Get(), name, "()I");
-  };
-
-  configuration->connector =
-      GetConnectorFromAndroidOutputType(call_int_method("getType"));
-  configuration->latency = 0;
-  configuration->coding_type = kSbMediaAudioCodingTypePcm;
-  configuration->number_of_channels = call_int_method("getChannels");
-
-  if (configuration->connector != kSbMediaAudioConnectorHdmi) {
-    configuration->number_of_channels = 2;
-  }
-
-  return true;
-}
-
 }  // namespace
 
 CodecCapability::CodecCapability(JniEnvExt* env, jobject j_codec_info) {
@@ -394,13 +246,13 @@ bool VideoCodecCapability::AreResolutionAndRateSupported(int frame_width,
 
 // static
 SB_ONCE_INITIALIZE_FUNCTION(MediaCapabilitiesCache,
-                            MediaCapabilitiesCache::GetInstance);
+                            MediaCapabilitiesCache::GetInstance)
 
 bool MediaCapabilitiesCache::IsWidevineSupported() {
   if (!is_enabled_) {
     return GetIsWidevineSupported();
   }
-  ScopedLock scoped_lock(mutex_);
+  std::lock_guard scoped_lock(mutex_);
   UpdateMediaCapabilities_Locked();
   return is_widevine_supported_;
 }
@@ -409,7 +261,7 @@ bool MediaCapabilitiesCache::IsCbcsSchemeSupported() {
   if (!is_enabled_) {
     return GetIsCbcsSupported();
   }
-  ScopedLock scoped_lock(mutex_);
+  std::lock_guard scoped_lock(mutex_);
   UpdateMediaCapabilities_Locked();
   return is_cbcs_supported_;
 }
@@ -421,7 +273,7 @@ bool MediaCapabilitiesCache::IsHDRTransferCharacteristicsSupported(
     return supported_transfer_ids.find(transfer_id) !=
            supported_transfer_ids.end();
   }
-  ScopedLock scoped_lock(mutex_);
+  std::lock_guard scoped_lock(mutex_);
   UpdateMediaCapabilities_Locked();
   return supported_transfer_ids_.find(transfer_id) !=
          supported_transfer_ids_.end();
@@ -433,7 +285,7 @@ bool MediaCapabilitiesCache::IsPassthroughSupported(SbMediaAudioCodec codec) {
   }
   // IsPassthroughSupported() caches the results of previous quiries, and does
   // not rely on LazyInitialize(), which is different from other functions.
-  ScopedLock scoped_lock(mutex_);
+  std::lock_guard scoped_lock(mutex_);
   auto iter = passthrough_supportabilities_.find(codec);
   if (iter != passthrough_supportabilities_.end()) {
     return iter->second;
@@ -448,13 +300,14 @@ bool MediaCapabilitiesCache::GetAudioConfiguration(
     SbMediaAudioConfiguration* configuration) {
   SB_DCHECK(index >= 0);
   if (!is_enabled_) {
-    return ::starboard::android::shared::GetAudioConfiguration(index,
-                                                               configuration);
+    JNIEnv* env = AttachCurrentThread();
+    return AudioOutputManager::GetInstance()->GetAudioConfiguration(
+        env, index, configuration);
   }
 
-  ScopedLock scoped_lock(mutex_);
+  std::lock_guard scoped_lock(mutex_);
   UpdateMediaCapabilities_Locked();
-  if (index < audio_configurations_.size()) {
+  if (static_cast<size_t>(index) < audio_configurations_.size()) {
     *configuration = audio_configurations_[index];
     return true;
   }
@@ -494,7 +347,7 @@ std::string MediaCapabilitiesCache::FindAudioDecoder(
         static_cast<jstring>(j_decoder_name));
   }
 
-  ScopedLock scoped_lock(mutex_);
+  std::lock_guard scoped_lock(mutex_);
   UpdateMediaCapabilities_Locked();
 
   for (auto& audio_capability : audio_codec_capabilities_map_[mime_type]) {
@@ -533,7 +386,7 @@ std::string MediaCapabilitiesCache::FindVideoDecoder(
         static_cast<jstring>(j_decoder_name));
   }
 
-  ScopedLock scoped_lock(mutex_);
+  std::lock_guard scoped_lock(mutex_);
   UpdateMediaCapabilities_Locked();
 
   for (auto& video_capability : video_codec_capabilities_map_[mime_type]) {
@@ -593,7 +446,6 @@ MediaCapabilitiesCache::MediaCapabilitiesCache() {
 }
 
 void MediaCapabilitiesCache::UpdateMediaCapabilities_Locked() {
-  mutex_.DCheckAcquired();
   if (capabilities_is_dirty_.exchange(false)) {
     // We use a different cache strategy (load and cache) for passthrough
     // supportabilities, so we only clear |passthrough_supportabilities_| here.
@@ -613,7 +465,6 @@ void MediaCapabilitiesCache::UpdateMediaCapabilities_Locked() {
 void MediaCapabilitiesCache::LoadCodecInfos_Locked() {
   SB_DCHECK(audio_codec_capabilities_map_.empty());
   SB_DCHECK(video_codec_capabilities_map_.empty());
-  mutex_.DCheckAcquired();
 
   JniEnvExt* env = JniEnvExt::Get();
   ScopedLocalJavaRef<jobjectArray> j_codec_infos(
@@ -662,16 +513,16 @@ void MediaCapabilitiesCache::LoadCodecInfos_Locked() {
 
 void MediaCapabilitiesCache::LoadAudioConfigurations_Locked() {
   SB_DCHECK(audio_configurations_.empty());
-  mutex_.DCheckAcquired();
 
   // SbPlayerBridge::GetAudioConfigurations() reads up to 32 configurations. The
   // limit here is to avoid infinite loop and also match
   // SbPlayerBridge::GetAudioConfigurations().
   const int kMaxAudioConfigurations = 32;
   SbMediaAudioConfiguration configuration;
+  JNIEnv* env = AttachCurrentThread();
   while (audio_configurations_.size() < kMaxAudioConfigurations &&
-         ::starboard::android::shared::GetAudioConfiguration(
-             audio_configurations_.size(), &configuration)) {
+         AudioOutputManager::GetInstance()->GetAudioConfiguration(
+             env, audio_configurations_.size(), &configuration)) {
     audio_configurations_.push_back(configuration);
   }
 }
@@ -683,14 +534,4 @@ Java_dev_cobalt_util_DisplayUtil_nativeOnDisplayChanged() {
   MimeSupportabilityCache::GetInstance()->ClearCachedMimeSupportabilities();
 }
 
-extern "C" SB_EXPORT_PLATFORM void
-Java_dev_cobalt_media_AudioOutputManager_nativeOnAudioDeviceChanged() {
-  // Audio output device change could change passthrough decoder capabilities,
-  // so we have to reload codec capabilities.
-  MediaCapabilitiesCache::GetInstance()->ClearCache();
-  MimeSupportabilityCache::GetInstance()->ClearCachedMimeSupportabilities();
-}
-
-}  // namespace shared
-}  // namespace android
-}  // namespace starboard
+}  // namespace starboard::android::shared

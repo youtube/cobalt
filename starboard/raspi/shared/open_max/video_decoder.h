@@ -16,10 +16,11 @@
 #define STARBOARD_RASPI_SHARED_OPEN_MAX_VIDEO_DECODER_H_
 
 #include <functional>
+#include <limits>
+#include <mutex>
 #include <queue>
 
 #include "starboard/common/log.h"
-#include "starboard/common/mutex.h"
 #include "starboard/common/queue.h"
 #include "starboard/common/ref_counted.h"
 #include "starboard/media.h"
@@ -48,7 +49,9 @@ class VideoDecoder
   void Initialize(const DecoderStatusCB& decoder_status_cb,
                   const ErrorCB& error_cb) override;
   size_t GetPrerollFrameCount() const override { return 1; }
-  int64_t GetPrerollTimeout() const override { return kSbInt64Max; }
+  int64_t GetPrerollTimeout() const override {
+    return std::numeric_limits<int64_t>::max();
+  }
   size_t GetMaxNumberOfCachedFrames() const override { return 12; }
   void WriteInputBuffers(const InputBuffers& input_buffers) override;
   void WriteEndOfStream() override;
@@ -89,7 +92,7 @@ class VideoDecoder
   bool request_thread_termination_;
   Queue<Event*> queue_;
 
-  Mutex mutex_;
+  std::mutex mutex_;
   std::queue<OMX_BUFFERHEADERTYPE*> filled_buffers_;
   std::queue<OMX_BUFFERHEADERTYPE*> freed_buffers_;
 

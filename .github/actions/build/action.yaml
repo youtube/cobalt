@@ -1,40 +1,137 @@
 name: Build Cobalt
 description: Builds Cobalt targets
+inputs:
+  targets:
+    description: "JSON list of ninja targets for Cobalt build."
+    required: true
+  test_root_target:
+    description: "The root target from which to deduce what tests to run."
+    required: true
+  test_targets_json_file:
+    description: "The path to the file the test targets are written to."
+    required: true
+  upload_on_host_test_artifacts:
+    description: "Indicates if on-host test artifacts should be uploaded."
+    required: true
+  upload_on_device_test_artifacts:
+    description: "Indicates if on-device test artifacts should be uploaded."
+    required: true
+  upload_web_test_artifacts:
+    description: "Indicates if web test artifacts should be uploaded."
+    required: true
+  test_artifacts_key:
+    description: "Artifact key used to store on-host test artifacts."
+    required: true
 runs:
   using: "composite"
   steps:
-    - name: Set up Cloud SDK
-      if: startsWith(${{matrix.target_platform}}, 'android')
-      uses: isarkis/setup-gcloud@40dce7857b354839efac498d3632050f568090b6 # v1.1.1
-    - name: Set Android env vars
-      if: startsWith(${{matrix.target_platform}}, 'android')
-      run: |
-        echo "ANDROID_HOME=/root/starboard-toolchains/AndroidSdk/" >> $GITHUB_ENV
-        PROJECT_NAME=$(gcloud config get-value project)
-        echo "GCS_NIGHTLY_PATH=gs://${PROJECT_NAME}-build-artifacts" >> $GITHUB_ENV
-      shell: bash
-    - name: Build
-      run: |
-        set -x
-        env
-        if [ -z ${COBALT_EVERGREEN_LOADER+x} ]; then
-          BUILD_PLATFORM=${{ matrix.target_platform }}
-          BUILD_TARGET=all
-          if [[ "${{matrix.config}}" =~ ^(qa|gold)$ ]]; then
-            BUILD_TARGET=default
+      - name: GN gen
+        run: |
+          cd src
+          cobalt/build/gn.py -p ${{ matrix.platform }} -C ${{ matrix.config }}
+        shell: bash
+      - name: List GN args
+        run: |
+          cd src
+          gn args --list --short --overrides-only out/${{ matrix.platform }}_${{ matrix.config }}
+        shell: bash
+      - name: Get list of changed files
+        if: github.event_name == 'pull_request'
+        id: changed-files
+        env:
+          CHANGED_FILES_LIST: changed_files.txt
+        run: |
+          set -x
+          cd src
+          git diff --name-only -r ${{ github.event.pull_request.base.sha }} ${{ github.event.pull_request.head.sha }} > ${CHANGED_FILES_LIST}
+        shell: bash
+      - name: Calculate test targets
+        if: matrix.config == 'devel' && (inputs.test_root_target != 'null' || inputs.upload_web_test_artifacts == 'true')
+        id: calculate-test-targets
+        env:
+          CHANGED_FILES_LIST: changed_files.txt
+          ROOT_TARGET: ${{ inputs.test_root_target }}
+          IS_WEB_TESTS: ${{ inputs.upload_web_test_artifacts }}
+          STATIC_TEST_TARGETS_JSON_FILE: cobalt/build/testing/targets/${{ matrix.platform }}/test_targets.json
+          # TODO(b/382508397): Replace hardcoded list with dynamically generated one.
+          DYN_TEST_TARGETS_JSON_FILE: out/${{ matrix.platform }}_${{ matrix.config }}/dyn_targets.json
+        run: |
+          set -x
+
+          if [[ ${IS_WEB_TESTS} == "true" ]]; then
+            test_targets_json='[":blink_web_tests"]'
+            echo "test_targets_json=${test_targets_json}" >> $GITHUB_OUTPUT
+            echo "test_targets_count=1" >> $GITHUB_OUTPUT
+            exit 0
           fi
-        else
-          BUILD_PLATFORM=${COBALT_EVERGREEN_LOADER}
-          BUILD_TARGET='loader_app_install elf_loader_sandbox_install native_target/crashpad_handler'
-        fi
-        # GitHub Runners have home set to /github/home.
-        if [ -d /root/starboard-toolchains ]; then
-          ln -s /root/starboard-toolchains /github/home/starboard-toolchains
-        fi
-        # Set Ninja output format
-        NINJA_STATUS="[%e sec | %f/%t %u remaining | %c/sec | j%r] "
-        ninja -C ${GITHUB_WORKSPACE}/out/${BUILD_PLATFORM}_${{matrix.config}} ${BUILD_TARGET}
-      shell: bash
-    - name: Show Sccache Stats
-      run: sccache -s
-      shell: bash
+
+          cd src
+          gn desc out/${{ matrix.platform }}_${{ matrix.config }}/ "*" --format=json > gn_desc.json
+          # Trim any warning gn printed before the json (all lines above the first curly brace).
+          sed -n '/^{/,$p' -i gn_desc.json
+
+          changed_files_arg=""
+
+          # TODO(oxv): If this list is too it will blow out the command line. Pass list in a file to the script instead.
+          # Since the output of the script below isn't currently used the arg is disabled.
+          # if [[ -s "${CHANGED_FILES_LIST}" ]]; then
+          #   changed_files_arg="--sources $(cat ${CHANGED_FILES_LIST} | jq -cr '. | join(",")')"
+          # fi
+
+          vpython3 cobalt/build/test_targets.py \
+              --root-target "${ROOT_TARGET}" \
+              ${changed_files_arg} \
+              --gn-json gn_desc.json \
+              --json-output > "${DYN_TEST_TARGETS_JSON_FILE}"
+
+          # Currently, override with static test targets, TODO(b/382508397)
+          cp -av "${STATIC_TEST_TARGETS_JSON_FILE}" "${{ inputs.test_targets_json_file }}"
+
+          test_targets_json=$(cat ${{ inputs.test_targets_json_file }} | jq -cr '.test_targets')
+          echo "test_targets_json=${test_targets_json}" >> $GITHUB_OUTPUT
+
+          test_targets_count=$(echo ${test_targets_json} | jq -cr 'length')
+          echo "test_targets_count=${test_targets_count}" >> $GITHUB_OUTPUT
+        shell: bash
+      - name: Archive test target JSON
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ matrix.platform }}_test_targets_json
+          path: |
+            src/out/${{ matrix.platform }}_${{ matrix.config }}/test_targets.json
+            src/out/${{ matrix.platform }}_${{ matrix.config }}/dyn_targets.json
+      - name: Ninja build test targets
+        if: ${{ matrix.config == 'devel' && fromJSON(steps.calculate-test-targets.outputs.test_targets_count || 0) > 0 }}
+        id: build-test-targets
+        run: |
+          set -ex
+          cd src
+          test_targets=$(echo '${{ steps.calculate-test-targets.outputs.test_targets_json }}' | jq -cr 'join(" ")')
+          time autoninja -C out/${{ matrix.platform }}_${{ matrix.config }} ${test_targets}
+        shell: bash
+      - name: Ninja build
+        env:
+          TARGETS_JSON: ${{ inputs.targets }}
+        run: |
+          set -ex
+          cd src
+          TARGETS=$(echo "${TARGETS_JSON}" | jq -cr '. | join(" ")')
+          time autoninja -C out/${{ matrix.platform }}_${{ matrix.config }} ${TARGETS}
+        shell: bash
+      - name: Archive Android APKs
+        if: startsWith(matrix.platform, 'android') && matrix.config == 'qa'
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ matrix.platform }} APKs
+          path: |
+            src/out/${{ matrix.platform }}_qa/apks/*.apk
+            src/out/${{ matrix.platform }}_qa/*_apk/*.apk
+            src/out/${{ matrix.platform }}_qa/gen/build_info.json
+      - name: Upload Test Artifacts
+        if: steps.build-test-targets.outcome == 'success'
+        uses: ./src/.github/actions/upload_test_artifacts
+        with:
+          test_artifacts_key: ${{ inputs.test_artifacts_key }}
+          upload_on_host_test_artifacts: ${{ inputs.upload_on_host_test_artifacts == 'true' || inputs.upload_web_test_artifacts == 'true' }}
+          upload_on_device_test_artifacts: ${{ inputs.upload_on_device_test_artifacts }}
+          test_targets_json: ${{ steps.calculate-test-targets.outputs.test_targets_json }}

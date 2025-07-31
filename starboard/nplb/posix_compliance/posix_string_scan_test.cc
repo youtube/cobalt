@@ -38,19 +38,19 @@ const double kExpectedDouble = 3.14159;
 TEST(PosixStringScanTest, SunnyDayIp1) {
   unsigned int in[4] = {0};
   EXPECT_EQ(4, sscanf(kIpGood, kIpFormat, in, in + 1, in + 2, in + 3));
-  EXPECT_EQ(192, in[0]);
-  EXPECT_EQ(168, in[1]);
-  EXPECT_EQ(1, in[2]);
-  EXPECT_EQ(2, in[3]);
+  EXPECT_EQ(192u, in[0]);
+  EXPECT_EQ(168u, in[1]);
+  EXPECT_EQ(1u, in[2]);
+  EXPECT_EQ(2u, in[3]);
 }
 
 TEST(PosixStringScanTest, SunnyDayIp2) {
   unsigned int in[4] = {0};
   EXPECT_EQ(4, sscanf(kIpBad4, kIpFormat, in, in + 1, in + 2, in + 3));
-  EXPECT_EQ(192, in[0]);
-  EXPECT_EQ(168, in[1]);
-  EXPECT_EQ(1, in[2]);
-  EXPECT_EQ(2, in[3]);
+  EXPECT_EQ(192u, in[0]);
+  EXPECT_EQ(168u, in[1]);
+  EXPECT_EQ(1u, in[2]);
+  EXPECT_EQ(2u, in[3]);
 }
 
 TEST(PosixStringScanTest, SunnyDayFloat) {
@@ -66,28 +66,28 @@ TEST(PosixStringScanTest, SunnyDayFloat) {
 TEST(PosixStringScanTest, RainyDayIp1) {
   unsigned int in[4] = {0};
   EXPECT_EQ(2, sscanf(kIpBad1, kIpFormat, in, in + 1, in + 2, in + 3));
-  EXPECT_EQ(192, in[0]);
-  EXPECT_EQ(1, in[1]);
-  EXPECT_EQ(0, in[2]);
-  EXPECT_EQ(0, in[3]);
+  EXPECT_EQ(192u, in[0]);
+  EXPECT_EQ(1u, in[1]);
+  EXPECT_EQ(0u, in[2]);
+  EXPECT_EQ(0u, in[3]);
 }
 
 TEST(PosixStringScanTest, RainyDayIp2) {
   unsigned int in[4] = {0};
   EXPECT_EQ(2, sscanf(kIpBad2, kIpFormat, in, in + 1, in + 2, in + 3));
-  EXPECT_EQ(192, in[0]);
-  EXPECT_EQ(1, in[1]);
-  EXPECT_EQ(0, in[2]);
-  EXPECT_EQ(0, in[3]);
+  EXPECT_EQ(192u, in[0]);
+  EXPECT_EQ(1u, in[1]);
+  EXPECT_EQ(0u, in[2]);
+  EXPECT_EQ(0u, in[3]);
 }
 
 TEST(PosixStringScanTest, RainyDayIp3) {
   unsigned int in[4] = {0};
   EXPECT_EQ(0, sscanf(kIpBad3, kIpFormat, in, in + 1, in + 2, in + 3));
-  EXPECT_EQ(0, in[0]);
-  EXPECT_EQ(0, in[1]);
-  EXPECT_EQ(0, in[2]);
-  EXPECT_EQ(0, in[3]);
+  EXPECT_EQ(0u, in[0]);
+  EXPECT_EQ(0u, in[1]);
+  EXPECT_EQ(0u, in[2]);
+  EXPECT_EQ(0u, in[3]);
 }
 
 }  // namespace

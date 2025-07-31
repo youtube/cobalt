@@ -16,16 +16,14 @@
 
 #include <algorithm>
 #include <functional>
+#include <limits>
 #include <memory>
+#include <mutex>
 #include <utility>
 
 #include "starboard/common/time.h"
 
-namespace starboard {
-namespace shared {
-namespace starboard {
-namespace player {
-namespace filter {
+namespace starboard::shared::starboard::player::filter {
 
 namespace {
 
@@ -169,13 +167,12 @@ void VideoRendererImpl::Seek(int64_t seek_to_time) {
   CancelPendingJobs();
 
   auto preroll_timeout = decoder_->GetPrerollTimeout();
-  if (preroll_timeout != kSbInt64Max) {
+  if (preroll_timeout != std::numeric_limits<int64_t>::max()) {
     Schedule(std::bind(&VideoRendererImpl::OnSeekTimeout, this),
              preroll_timeout);
   }
 
-  ScopedLock scoped_lock_decoder_frames(decoder_frames_mutex_);
-  ScopedLock scoped_lock_sink_frames(sink_frames_mutex_);
+  std::scoped_lock lock(decoder_frames_mutex_, sink_frames_mutex_);
   decoder_frames_.clear();
   sink_frames_.clear();
   number_of_frames_.store(0);
@@ -244,8 +241,7 @@ void VideoRendererImpl::OnDecoderStatus(
     VideoDecoder::Status status,
     const scoped_refptr<VideoFrame>& frame) {
   if (status == VideoDecoder::kReleaseAllFrames) {
-    ScopedLock scoped_lock_decoder_frames(decoder_frames_mutex_);
-    ScopedLock scoped_lock_sink_frames(sink_frames_mutex_);
+    std::scoped_lock scoped_lock(decoder_frames_mutex_, sink_frames_mutex_);
     decoder_frames_.clear();
     sink_frames_.clear();
     number_of_frames_.store(0);
@@ -275,7 +271,7 @@ void VideoRendererImpl::OnDecoderStatus(
         CheckForFrameLag(frame->timestamp());
       }
 #endif  // SB_PLAYER_FILTER_ENABLE_STATE_CHECK
-      ScopedLock scoped_lock(decoder_frames_mutex_);
+      std::lock_guard scoped_lock(decoder_frames_mutex_);
       if (decoder_frames_.empty() || frame->is_end_of_stream() ||
           frame->timestamp() > decoder_frames_.back()->timestamp()) {
         decoder_frames_.push_back(frame);
@@ -317,8 +313,8 @@ void VideoRendererImpl::Render(VideoRendererSink::DrawFrameCB draw_frame_cb) {
   }
 #endif  // SB_PLAYER_FILTER_ENABLE_STATE_CHECK
   {
-    ScopedLock scoped_lock_decoder_frames(decoder_frames_mutex_);
-    sink_frames_mutex_.Acquire();
+    std::lock_guard scoped_lock_decoder_frames(decoder_frames_mutex_);
+    sink_frames_mutex_.lock();
     for (auto decoder_frame : decoder_frames_) {
       if (sink_frames_.empty()) {
         sink_frames_.push_back(decoder_frame);
@@ -343,7 +339,7 @@ void VideoRendererImpl::Render(VideoRendererSink::DrawFrameCB draw_frame_cb) {
     ended_cb_called_.store(true);
     Schedule(ended_cb_);
   }
-  sink_frames_mutex_.Release();
+  sink_frames_mutex_.unlock();
 
 #if SB_PLAYER_FILTER_ENABLE_STATE_CHECK
   // Update this at last to ensure that the delay of Render() call isn't caused
@@ -426,8 +422,4 @@ void VideoRendererImpl::CheckForFrameLag(int64_t last_decoded_frame_timestamp) {
 
 #endif  // SB_PLAYER_FILTER_ENABLE_STATE_CHECK
 
-}  // namespace filter
-}  // namespace player
-}  // namespace starboard
-}  // namespace shared
-}  // namespace starboard
+}  // namespace starboard::shared::starboard::player::filter

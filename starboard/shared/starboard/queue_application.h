@@ -18,18 +18,16 @@
 #define STARBOARD_SHARED_STARBOARD_QUEUE_APPLICATION_H_
 
 #include <map>
+#include <mutex>
 #include <set>
 
 #include "starboard/common/condition_variable.h"
-#include "starboard/common/mutex.h"
 #include "starboard/common/queue.h"
 #include "starboard/shared/internal_only.h"
 #include "starboard/shared/starboard/application.h"
 #include "starboard/types.h"
 
-namespace starboard {
-namespace shared {
-namespace starboard {
+namespace starboard::shared::starboard {
 
 // An application implementation that uses a signaling thread-safe queue to
 // manage event dispatching.
@@ -113,7 +111,7 @@ class QueueApplication : public Application {
                                          const TimedEvent* rhs);
     static bool IsLess(const TimedEvent* lhs, const TimedEvent* rhs);
 
-    Mutex mutex_;
+    std::mutex mutex_;
     typedef std::map<SbEventId, TimedEvent*> TimedEventMap;
     TimedEventMap map_;
     typedef std::set<TimedEvent*, TimedEventComparator> TimedEventSet;
@@ -134,8 +132,6 @@ class QueueApplication : public Application {
   EventQueue event_queue_;
 };
 
-}  // namespace starboard
-}  // namespace shared
-}  // namespace starboard
+}  // namespace starboard::shared::starboard
 
 #endif  // STARBOARD_SHARED_STARBOARD_QUEUE_APPLICATION_H_

@@ -15,12 +15,20 @@
 #include <string.h>
 #include <unistd.h>
 
+<<<<<<< HEAD
 #include <algorithm>
 #include <array>
 #include <charconv>
 #include <cstdint>
 #include <limits>
 #include <system_error>
+=======
+#include "base/debug/buffered_dwarf_reader.h"
+#include "base/debug/stack_trace.h"
+#include "base/memory/raw_ptr.h"
+// TODO(cobalt, b/377295011): remove the nogncheck annotation.
+#include "base/third_party/symbolize/symbolize.h"  // nogncheck
+>>>>>>> c07df321540 (Fix/disable errors and enable gn check (#4518))
 
 #include "base/debug/buffered_dwarf_reader.h"
 #include "base/third_party/symbolize/symbolize.h"

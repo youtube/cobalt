@@ -55,13 +55,30 @@
 #include "media/base/media_switches.h"
 #endif
 
+<<<<<<< HEAD
+<<<<<<< HEAD
+<<<<<<< HEAD
 #if (BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_CHROMEOS)) && \
     (defined(ARCH_CPU_X86_64) || defined(ARCH_CPU_ARM64))
 #define ENABLE_WEB_ASSEMBLY_TRAP_HANDLER_LINUX
 #include "base/debug/stack_trace.h"
 #include "v8/include/v8-wasm-trap-handler-posix.h"
 #endif
+=======
+#if BUILDFLAG(IS_COBALT)
+#if BUILDFLAG(USE_STARBOARD_MEDIA)
+#include "starboard/media.h"
+#endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
+#endif  // BUILDFLAG(IS_COBALT)
+>>>>>>> fee33909c55 ([media] Integrate SbMediaCanPlayMimeAndKeySystem() (#4340))
+=======
+#if BUILDFLAG(USE_STARBOARD_MEDIA)
+#include "starboard/media.h"
+#endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
+>>>>>>> fadd93d2326 (Clean up existing media buildflags (#4393))
 
+=======
+>>>>>>> 72257ee34ee (Implement media::ContentDecryptionModule interface for Starboard (#4368))
 namespace content {
 
 namespace {

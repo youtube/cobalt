@@ -16,6 +16,7 @@
 #define STARBOARD_SHARED_STARBOARD_PLAYER_FILTER_VIDEO_DECODER_INTERNAL_H_
 
 #include <functional>
+#include <limits>
 
 #include "starboard/common/ref_counted.h"
 #include "starboard/configuration.h"
@@ -25,11 +26,7 @@
 #include "starboard/shared/starboard/player/filter/video_frame_internal.h"
 #include "starboard/shared/starboard/player/input_buffer_internal.h"
 
-namespace starboard {
-namespace shared {
-namespace starboard {
-namespace player {
-namespace filter {
+namespace starboard::shared::starboard::player::filter {
 
 // This class decodes encoded video stream into video frames.
 class VideoDecoder {
@@ -73,7 +70,8 @@ class VideoDecoder {
   // finished.  Once the first frame is decoded and the timeout has passed, the
   // preroll will be considered as finished even if there isn't enough frames
   // decoded as suggested by GetPrerollFrameCount().
-  // On most platforms this can be simply set to |kSbInt64Max|.
+  // On most platforms this can be simply set to
+  // |std::numeric_limits<int64_t>::max()|.
   virtual int64_t GetPrerollTimeout() const = 0;
 
   // Returns a soft limit of the maximum number of frames the user of this class
@@ -111,10 +109,6 @@ class VideoDecoder {
   virtual SbDecodeTarget GetCurrentDecodeTarget() = 0;
 };
 
-}  // namespace filter
-}  // namespace player
-}  // namespace starboard
-}  // namespace shared
-}  // namespace starboard
+}  // namespace starboard::shared::starboard::player::filter
 
 #endif  // STARBOARD_SHARED_STARBOARD_PLAYER_FILTER_VIDEO_DECODER_INTERNAL_H_

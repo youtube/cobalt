@@ -503,10 +503,18 @@ vars = {
   'libcxx_revision':       'e36be6784f33c592ecc89da2a829807920d374ef',
 
   # GN CIPD package version.
+<<<<<<< HEAD
+<<<<<<< HEAD
   'gn_version': 'git_revision:ed1abc107815210dc66ec439542bee2f6cbabc00',
 
   # ninja CIPD package.
   'ninja_package': 'infra/3pp/tools/ninja/',
+=======
+  'gn_version': 'git_revision:8ea3af9118a65387fe4d8428db6f59c5927dd55a',  # Cobalt: keep until updating past mid-2025
+>>>>>>> 3dbd451bf77 (Clean up runtime deps for modular build  (#6066))
+=======
+  'gn_version': 'git_revision:5a004f9427a050c6c393c07ddb85cba8ff3849fa',
+>>>>>>> b64e5843413 (Revert "Clean up runtime deps for modular build " (#6167))
 
   # ninja CIPD package version.
   # https://chrome-infra-packages.appspot.com/p/infra/3pp/tools/ninja
@@ -1012,6 +1020,22 @@ deps = {
     'dep_type': 'cipd',
     'condition': 'host_os == "mac"',
   },
+<<<<<<< HEAD
+=======
+# Cobalt: imported
+# 'src/buildtools/third_party/libc++/trunk':
+#   Var('chromium_git') +
+#   '/external/github.com/llvm/llvm-project/libcxx.git' + '@' +
+#   Var('libcxx_revision'),
+  'src/buildtools/third_party/libc++abi/trunk':
+    Var('chromium_git') +
+    '/external/github.com/llvm/llvm-project/libcxxabi.git' + '@' +
+    Var('libcxxabi_revision'),
+  'src/buildtools/third_party/libunwind/trunk':
+    Var('chromium_git') +
+    '/external/github.com/llvm/llvm-project/libunwind.git' + '@' +
+    Var('libunwind_revision'),
+>>>>>>> c522bbe3365 (Import libc++/trunk from commit 34b0f973 (#6259))
   'src/buildtools/win': {
     'packages': [
       {
@@ -3082,7 +3106,25 @@ deps = {
       'dep_type': 'cipd',
   },
 
+<<<<<<< HEAD
+<<<<<<< HEAD
   'src/third_party/android_deps/cipd/libs/com_google_android_gms_play_services_auth': {
+=======
+  'src/third_party/android_deps/cipd/libs/com_google_android_gms_play_services_ads_identifier': {
+      'packages': [
+          {
+              'package': 'chromium/third_party/android_deps/libs/com_google_android_gms_play_services_ads_identifier',
+              'version': 'version:2@18.2.0.cr1',
+          },
+      ],
+      'condition': 'checkout_android',
+      'dep_type': 'cipd',
+  },
+  
+=======
+>>>>>>> 513c3cbbc2d (Reduce minSdkVersion to 24 and Downgrade Google Ads Identifier Version (#6077))
+  'src/third_party/android_deps/libs/com_google_android_gms_play_services_auth': {
+>>>>>>> a6de1c352f5 (Add play-services-ads-identifier-18.2.0 to the dependency and re-enable AdvertisingId.java. (#4579))
       'packages': [
           {
               'package': 'chromium/third_party/android_deps/libs/com_google_android_gms_play_services_auth',
@@ -3141,7 +3183,11 @@ deps = {
       'packages': [
           {
               'package': 'chromium/third_party/android_deps/libs/com_google_android_gms_play_services_basement',
+<<<<<<< HEAD
               'version': 'version:2@18.5.0.cr1',
+=======
+              'version': 'version:2@18.4.0.cr1',
+>>>>>>> 513c3cbbc2d (Reduce minSdkVersion to 24 and Downgrade Google Ads Identifier Version (#6077))
           },
       ],
       'condition': 'checkout_android and non_git_source',
@@ -5037,7 +5083,10 @@ hooks = [
     'name': 'lastchange',
     'pattern': '.',
     'action': ['python3', 'src/build/util/lastchange.py',
-               '-o', 'src/build/util/LASTCHANGE'],
+               '-o', 'src/build/util/LASTCHANGE',
+               # Cobalt addition, don't look for Change-Id in commits.
+               '--filter=\(#[1-9][0-9]*\)'
+               ],
   },
   {
     # Update GPU lists version string (for gpu/config).

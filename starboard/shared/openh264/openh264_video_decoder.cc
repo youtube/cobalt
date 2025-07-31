@@ -21,9 +21,7 @@
 #include "starboard/shared/starboard/player/filter/cpu_video_frame.h"
 #include "starboard/shared/starboard/player/job_queue.h"
 
-namespace starboard {
-namespace shared {
-namespace openh264 {
+namespace starboard::shared::openh264 {
 
 namespace {
 
@@ -71,14 +69,14 @@ void VideoDecoder::Reset() {
     decoder_thread_.reset();
   }
 
-  video_config_ = nullopt;
+  video_config_ = std::nullopt;
   stream_ended_ = false;
 
   CancelPendingJobs();
   frames_being_decoded_ = 0;
   time_sequential_queue_ = TimeSequentialQueue();
 
-  ScopedLock lock(decode_target_mutex_);
+  std::lock_guard lock(decode_target_mutex_);
   frames_ = std::queue<scoped_refptr<CpuVideoFrame>>();
 }
 
@@ -116,7 +114,7 @@ void VideoDecoder::TeardownCodec() {
   if (output_mode_ == kSbPlayerOutputModeDecodeToTexture) {
     SbDecodeTarget decode_target_to_release;
     {
-      ScopedLock lock(decode_target_mutex_);
+      std::lock_guard lock(decode_target_mutex_);
       decode_target_to_release = decode_target_;
       decode_target_ = kSbDecodeTargetInvalid;
     }
@@ -208,7 +206,7 @@ void VideoDecoder::FlushFrames() {
   while (!time_sequential_queue_.empty()) {
     auto output_frame = time_sequential_queue_.top();
     if (output_mode_ == kSbPlayerOutputModeDecodeToTexture) {
-      ScopedLock lock(decode_target_mutex_);
+      std::lock_guard lock(decode_target_mutex_);
       frames_.push(output_frame);
     }
     Schedule(std::bind(decoder_status_cb_, kBufferFull, output_frame));
@@ -244,7 +242,7 @@ void VideoDecoder::ProcessDecodedImage(unsigned char* decoded_frame[],
     has_new_output = true;
     auto output_frame = time_sequential_queue_.top();
     if (output_mode_ == kSbPlayerOutputModeDecodeToTexture) {
-      ScopedLock lock(decode_target_mutex_);
+      std::lock_guard lock(decode_target_mutex_);
       frames_.push(output_frame);
     }
     if (flushing) {
@@ -305,7 +303,7 @@ SbDecodeTarget VideoDecoder::GetCurrentDecodeTarget() {
 
   // We must take a lock here since this function can be called from a
   // separate thread.
-  ScopedLock lock(decode_target_mutex_);
+  std::lock_guard lock(decode_target_mutex_);
   while (frames_.size() > 1 && frames_.front()->HasOneRef()) {
     frames_.pop();
   }
@@ -331,6 +329,4 @@ void VideoDecoder::ReportError(const std::string& error_message) {
   error_cb_(kSbPlayerErrorDecode, error_message);
 }
 
-}  // namespace openh264
-}  // namespace shared
-}  // namespace starboard
+}  // namespace starboard::shared::openh264

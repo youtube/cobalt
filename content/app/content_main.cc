@@ -352,7 +352,15 @@ NO_STACK_PROTECTOR int RunContentProcess(
     CommonSubprocessInit();
   exit_code = content_main_runner->Run();
 
+<<<<<<< HEAD
 #if !BUILDFLAG(IS_ANDROID) && !BUILDFLAG(IS_IOS)
+=======
+#if BUILDFLAG(IS_MAC)
+  autorelease_pool.reset();
+#endif
+
+#if !BUILDFLAG(IS_ANDROID) && !BUILDFLAG(IS_IOS) && !BUILDFLAG(IS_STARBOARD)
+>>>>>>> 8f694c58f23 (Use the Starboard message pump. (#4772))
   content_main_runner->Shutdown();
 #endif
 

@@ -21,10 +21,7 @@
 #include "starboard/common/log.h"
 #include "starboard/configuration_constants.h"
 
-namespace starboard {
-namespace shared {
-namespace starboard {
-namespace player {
+namespace starboard::shared::starboard::player {
 
 namespace {
 
@@ -36,15 +33,33 @@ std::string ResolveTestFileName(const char* filename) {
   std::vector<char> content_path(kSbFileMaxPath + 1);
   SB_CHECK(SbSystemGetPath(kSbSystemPathContentDirectory, content_path.data(),
                            content_path.size()));
-  std::string directory_path = std::string(content_path.data()) +
-                               kSbFileSepChar + "test" + kSbFileSepChar +
-                               "starboard" + kSbFileSepChar + "shared" +
-                               kSbFileSepChar + "starboard" + kSbFileSepChar +
-                               "player" + kSbFileSepChar + "testdata";
+
+  const auto content_path_as_string = std::string(content_path.data());
+  const auto path_inside_content =
+      std::string({kSbFileSepChar}) + "test" + kSbFileSepChar + "starboard" +
+      kSbFileSepChar + "shared" + kSbFileSepChar + "starboard" +
+      kSbFileSepChar + "player" + kSbFileSepChar + "testdata";
+  std::string path = content_path_as_string + path_inside_content;
+
   struct stat info;
-  SB_CHECK(stat(directory_path.c_str(), &info) == 0 && S_ISDIR(info.st_mode))
-      << "Cannot open directory " << directory_path;
-  return directory_path + kSbFileSepChar + filename;
+  bool does_path_exist =
+      stat(path.c_str(), &info) == 0 && S_ISDIR(info.st_mode);
+  if (!does_path_exist) {
+    // If |path| doesn't exist it could be due to |content_path_as_string| not
+    // including the starboard_toolchain's output folder, i.e. it's e.g.
+    // out/linux.../content when it should be out/linux.../starboard/content.
+    // TODO(b/384819454): Use EvergreenConfig here to overwrite the path. For
+    // the time being, just try inserting "starboard" in the path and try again.
+    std::size_t last_separation_char_pos =
+        content_path_as_string.find_last_of(kSbFileSepChar);
+    path = content_path_as_string.substr(0, last_separation_char_pos) +
+           kSbFileSepChar + "starboard" + kSbFileSepChar +
+           content_path_as_string.substr(last_separation_char_pos + 1) +
+           path_inside_content;
+    does_path_exist = stat(path.c_str(), &info) == 0 && S_ISDIR(info.st_mode);
+  }
+  SB_CHECK(does_path_exist) << "Cannot open directory: " << path;
+  return path + kSbFileSepChar + filename;
 }
 
 }  // namespace
@@ -93,7 +108,7 @@ void FileCacheReader::EnsureFileOpened() {
 }
 
 int FileCacheReader::ReadFromCache(void* out_buffer, int bytes_to_read) {
-  SB_CHECK(file_cache_offset_ <= file_cache_.size());
+  SB_CHECK(static_cast<size_t>(file_cache_offset_) <= file_cache_.size());
   bytes_to_read = std::min(
       static_cast<int>(file_cache_.size()) - file_cache_offset_, bytes_to_read);
   memcpy(out_buffer, file_cache_.data() + file_cache_offset_, bytes_to_read);
@@ -102,7 +117,7 @@ int FileCacheReader::ReadFromCache(void* out_buffer, int bytes_to_read) {
 }
 
 void FileCacheReader::RefillCacheIfEmpty() {
-  if (file_cache_offset_ != file_cache_.size()) {
+  if (static_cast<size_t>(file_cache_offset_) != file_cache_.size()) {
     return;
   }
   file_cache_offset_ = 0;
@@ -113,7 +128,4 @@ void FileCacheReader::RefillCacheIfEmpty() {
   }
 }
 
-}  // namespace player
-}  // namespace starboard
-}  // namespace shared
-}  // namespace starboard
+}  // namespace starboard::shared::starboard::player

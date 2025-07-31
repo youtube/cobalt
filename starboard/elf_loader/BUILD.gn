@@ -12,6 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+import("//cobalt/build/configs/hacks.gni")
 import("//starboard/build/config/os_definitions.gni")
 
 _elf_loader_sources = [
@@ -66,7 +67,7 @@ static_library("elf_loader") {
   }
 }
 
-if (sb_is_evergreen_compatible && current_toolchain == starboard_toolchain) {
+if (current_toolchain == starboard_toolchain) {
   static_library("elf_loader_sys") {
     # System loader based on dlopen/dlsym.
     # Should be used only for debugging/troubleshooting.
@@ -85,7 +86,6 @@ if (sb_is_evergreen_compatible && current_toolchain == starboard_toolchain) {
       "//starboard:starboard_group",
       "//starboard/common",
       "//starboard/shared/modular:starboard_layer_posix_abi_wrappers",
-      "//starboard/crashpad_wrapper",
     ]
   }
 }
@@ -93,6 +93,7 @@ if (sb_is_evergreen_compatible && current_toolchain == starboard_toolchain) {
 # TODO: b/309493306 - Stop building evergreen targets for all non-evergreen platforms.
 if (current_toolchain == starboard_toolchain) {
   target(starboard_level_final_executable_type, "elf_loader_sandbox") {
+    output_dir = root_build_dir
     if (cobalt_font_package == "empty") {
       data_deps = [ "//starboard/content/fonts:copy_font_data" ]
     } else {
@@ -114,8 +115,10 @@ if (current_toolchain == starboard_toolchain) {
       "//starboard/content/fonts:copy_font_data",
     ]
 
-    if (!sb_is_evergreen_compatible) {
+    if (!sb_is_evergreen_compatible || enable_cobalt_hermetic_hacks) {
       deps += [ "//starboard/crashpad_wrapper:wrapper_stub" ]
+    } else {
+      deps += [ "//starboard/crashpad_wrapper" ]
     }
     if (sb_is_evergreen_compatible && sb_evergreen_compatible_package) {
       deps += [ "//starboard/loader_app:copy_crashpad_handler_named_as_so" ]
@@ -123,8 +126,8 @@ if (current_toolchain == starboard_toolchain) {
   }
 }
 
-if (sb_is_evergreen_compatible && current_toolchain == starboard_toolchain) {
-  target(final_executable_type, "elf_loader_sys_sandbox") {
+if (current_toolchain == starboard_toolchain) {
+  target(starboard_level_final_executable_type, "elf_loader_sys_sandbox") {
     # To properly function the system loader requires the starboard
     # symbols to be exported from the binary.
     # To allow symbols to be exported remove the '-fvisibility=hidden' flag
@@ -133,6 +136,8 @@ if (sb_is_evergreen_compatible && current_toolchain == starboard_toolchain) {
     # Example run:
     # export LD_LIBRARY_PATH=.
     # ./elf_loader_sys_sandbox --evergreen_library=app/cobalt/lib/libcobalt.so --evergreen_content=app/cobalt/content
+    output_dir = root_build_dir
+
     sources = [ "elf_loader_sandbox.cc" ]
     configs += [ ":elf_loader_config" ]
 
@@ -150,25 +155,29 @@ if (sb_is_evergreen_compatible && current_toolchain == starboard_toolchain) {
       ":sabi_string",
       "//starboard:starboard_group",
     ]
+    if (!sb_is_evergreen_compatible || enable_cobalt_hermetic_hacks) {
+      deps += [ "//starboard/crashpad_wrapper:wrapper_stub" ]
+    } else {
+      deps += [ "//starboard/crashpad_wrapper" ]
+    }
   }
 }
 
 # TODO: b/309493306 - Stop building evergreen targets for all non-evergreen platforms.
 if (current_toolchain == starboard_toolchain) {
-  target(starboard_level_gtest_target_type, "elf_loader_test") {
+  source_set("elf_loader_test") {
     testonly = true
-    build_loader = false
 
-    sources = [ "//starboard/common/test_main.cc" ]
     deps = [
       "//starboard:starboard_with_main",
+      "//starboard/common",
       "//testing/gmock",
       "//testing/gtest",
     ]
 
     if (target_cpu == "x86" || target_cpu == "x64" || target_cpu == "arm" ||
         target_cpu == "arm64") {
-      sources += [
+      sources = [
         "dynamic_section_test.cc",
         "elf_header_test.cc",
         "elf_loader_test.cc",
@@ -187,7 +196,9 @@ if (current_toolchain == starboard_toolchain) {
 }
 
 copy("copy_elf_loader_testdata") {
-  install_content = true
+  if (enable_install_targets) {
+    install_content = true
+  }
   sources = [
     "testdata/compressed.lz4",
     "testdata/compressed_no_content_size.lz4",

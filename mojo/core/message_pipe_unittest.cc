@@ -375,8 +375,13 @@ TEST_F(MessagePipeTest, DataPipeProducerHandlePingPong) {
     MojoClose(p[i]);
 }
 
+<<<<<<< HEAD
 #if BUILDFLAG(IS_IOS)
 // TODO(crbug.com/40257752): Test currently fails on iOS.
+=======
+#if BUILDFLAG(IS_IOS) || BUILDFLAG(IS_STARBOARD)
+// TODO(crbug.com/1418597): Test currently fails on iOS.
+>>>>>>> 8088a4fd6a6 ([POSIX] Disable multi-process functions (#6146))
 #define MAYBE_SharedBufferHandlePingPong DISABLED_SharedBufferHandlePingPong
 #else
 #define MAYBE_SharedBufferHandlePingPong SharedBufferHandlePingPong

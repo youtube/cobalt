@@ -15,16 +15,15 @@
 #include "starboard/shared/starboard/player/job_queue.h"
 
 #include <pthread.h>
+
+#include <limits>
 #include <utility>
 
 #include "starboard/common/log.h"
 #include "starboard/system.h"
 #include "starboard/thread.h"
 
-namespace starboard {
-namespace shared {
-namespace starboard {
-namespace player {
+namespace starboard::shared::starboard::player {
 
 namespace {
 
@@ -228,7 +227,7 @@ bool JobQueue::TryToRunOneJob(bool wait_for_next_job) {
       return false;
     }
     if (time_to_job_record_map_.empty() && wait_for_next_job) {
-      condition_.WaitTimed(kSbInt64Max);
+      condition_.WaitTimed(std::numeric_limits<int64_t>::max());
 #if ENABLE_JOB_QUEUE_PROFILING
       ++wait_times_;
 #endif  // ENABLE_JOB_QUEUE_PROFILING
@@ -303,7 +302,4 @@ bool JobQueue::TryToRunOneJob(bool wait_for_next_job) {
   return true;
 }
 
-}  // namespace player
-}  // namespace starboard
-}  // namespace shared
-}  // namespace starboard
+}  // namespace starboard::shared::starboard::player

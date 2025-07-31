@@ -14,39 +14,27 @@
 
 #include "starboard/shared/starboard/application.h"
 
+#include <atomic>
 #include <string>
 
-#include "starboard/atomic.h"
+#include "starboard/common/command_line.h"
 #include "starboard/common/condition_variable.h"
 #include "starboard/common/log.h"
 #include "starboard/common/string.h"
 #include "starboard/configuration.h"
 #include "starboard/event.h"
 
-#include "starboard/shared/starboard/command_line.h"
-
-namespace starboard {
-namespace shared {
-namespace starboard {
+namespace starboard::shared::starboard {
 
 namespace {
 
 const char kPreloadSwitch[] = "preload";
 const char kLinkSwitch[] = "link";
 const char kMinLogLevel[] = "min_log_level";
-
-// Dispatches an event of |type| with |data| to the system event handler,
-// calling |destructor| on |data| when finished dispatching. Does all
-// appropriate NULL checks so you don't have to.
-void Dispatch(SbEventType type, void* data, SbEventDataDestructor destructor) {
-  SbEvent event;
-  event.type = type;
-  event.data = data;
-  Application::Get()->sb_event_handle_callback_(&event);
-  if (destructor) {
-    destructor(event.data);
-  }
-}
+// Chromium's base/base_switches.h "--v". Positive numbers are equivalent to
+// debug (0), info, warning, error, fatal. Note that Starboard has no debug;
+// levels start at kSbLogPriorityInfo which is a 1.
+const char kV[] = "v";
 
 void DeleteStartData(void* data) {
   SbEventStartData* start_data = static_cast<SbEventStartData*>(data);
@@ -59,32 +47,28 @@ void DeleteStartData(void* data) {
 }  // namespace
 
 // The next event ID to use for Schedule().
-volatile SbAtomic32 g_next_event_id = 0;
+volatile std::atomic<int32_t> g_next_event_id{0};
 
-Application* Application::g_instance = NULL;
+std::atomic<Application*> Application::g_instance{NULL};
 
 Application::Application(SbEventHandleCallback sb_event_handle_callback)
-    : error_level_(0),
+    : sb_event_handle_callback_(sb_event_handle_callback),
+      error_level_(0),
       thread_(pthread_self()),
-      start_link_(NULL),
-      state_(kStateUnstarted),
-      sb_event_handle_callback_(sb_event_handle_callback) {
+      start_link_(nullptr),
+      state_(kStateUnstarted) {
   SB_CHECK(sb_event_handle_callback_)
       << "sb_event_handle_callback_ has not been set.";
-  Application* old_instance =
-      reinterpret_cast<Application*>(SbAtomicAcquire_CompareAndSwapPtr(
-          reinterpret_cast<SbAtomicPtr*>(&g_instance),
-          reinterpret_cast<SbAtomicPtr>(reinterpret_cast<void*>(NULL)),
-          reinterpret_cast<SbAtomicPtr>(this)));
+  Application* old_instance = nullptr;
+  g_instance.compare_exchange_weak(old_instance, this,
+                                   std::memory_order_acquire);
   SB_DCHECK(!old_instance);
 }
 
 Application::~Application() {
-  Application* old_instance =
-      reinterpret_cast<Application*>(SbAtomicAcquire_CompareAndSwapPtr(
-          reinterpret_cast<SbAtomicPtr*>(&g_instance),
-          reinterpret_cast<SbAtomicPtr>(this),
-          reinterpret_cast<SbAtomicPtr>(reinterpret_cast<void*>(NULL))));
+  Application* old_instance = this;
+  g_instance.compare_exchange_weak(old_instance, NULL,
+                                   std::memory_order_acquire);
   SB_DCHECK(old_instance);
   SB_DCHECK(old_instance == this);
   free(start_link_);
@@ -111,9 +95,14 @@ int Application::Run(CommandLine command_line) {
     }
   }
 
+  // kMinLogLevel should take priority over kV if both are defined.
   if (command_line_->HasSwitch(kMinLogLevel)) {
     ::starboard::logging::SetMinLogLevel(::starboard::logging::StringToLogLevel(
         command_line_->GetSwitchValue(kMinLogLevel)));
+  } else if (command_line_->HasSwitch(kV)) {
+    ::starboard::logging::SetMinLogLevel(
+        ::starboard::logging::ChromiumIntToStarboardLogLevel(
+            command_line_->GetSwitchValue(kV)));
   } else {
 #if SB_LOGGING_IS_OFFICIAL_BUILD
     ::starboard::logging::SetMinLogLevel(::starboard::logging::SB_LOG_FATAL);
@@ -184,7 +173,7 @@ void Application::WindowSizeChanged(void* context,
 SbEventId Application::Schedule(SbEventCallback callback,
                                 void* context,
                                 int64_t delay) {
-  SbEventId id = SbAtomicNoBarrier_Increment(&g_next_event_id, 1);
+  SbEventId id = ++g_next_event_id;
   InjectTimedEvent(new TimedEvent(id, callback, context, delay));
   return id;
 }
@@ -269,7 +258,7 @@ bool Application::DispatchAndDelete(Application::Event* event) {
         case kStateFrozen:
           HandleEventAndUpdateState(
               new Event(kSbEventTypeUnfreeze, timestamp, NULL, NULL));
-        // The fall-through is intentional.
+          [[fallthrough]];
         case kStateConcealed:
           HandleEventAndUpdateState(
               new Event(kSbEventTypeReveal, timestamp, NULL, NULL));
@@ -323,7 +312,7 @@ bool Application::DispatchAndDelete(Application::Event* event) {
         case kStateStarted:
           HandleEventAndUpdateState(
               new Event(kSbEventTypeBlur, timestamp, NULL, NULL));
-        // The fall-through is intentional
+          [[fallthrough]];
         case kStateBlurred:
           HandleEventAndUpdateState(
               new Event(kSbEventTypeConceal, timestamp, NULL, NULL));
@@ -356,11 +345,11 @@ bool Application::DispatchAndDelete(Application::Event* event) {
         case kStateStarted:
           HandleEventAndUpdateState(
               new Event(kSbEventTypeBlur, timestamp, NULL, NULL));
-        // The fall-through is intentional.
+          [[fallthrough]];
         case kStateBlurred:
           HandleEventAndUpdateState(
               new Event(kSbEventTypeConceal, timestamp, NULL, NULL));
-        // The fall-through is intentional.
+          [[fallthrough]];
         case kStateConcealed:
           HandleEventAndUpdateState(
               new Event(kSbEventTypeFreeze, timestamp, NULL, NULL));
@@ -455,7 +444,7 @@ bool Application::HandleEventAndUpdateState(Application::Event* event) {
 }
 
 void Application::CallTeardownCallbacks() {
-  ScopedLock lock(callbacks_lock_);
+  std::lock_guard lock(callbacks_lock_);
   for (size_t i = 0; i < teardown_callbacks_.size(); ++i) {
     teardown_callbacks_[i]();
   }
@@ -498,6 +487,4 @@ int Application::RunLoop() {
   return error_level_;
 }
 
-}  // namespace starboard
-}  // namespace shared
-}  // namespace starboard
+}  // namespace starboard::shared::starboard

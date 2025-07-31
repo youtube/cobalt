@@ -17,17 +17,18 @@
 #include <android/native_activity.h>
 #include <jni.h>
 
+#include <sys/prctl.h>
 #include <algorithm>
 #include <string>
 
+#include "starboard/common/check_op.h"
 #include "starboard/thread.h"
+
+#include "jni_state.h"
 
 namespace {
 
 pthread_key_t g_tls_key = 0;
-JavaVM* g_vm = NULL;
-jobject g_application_class_loader = NULL;
-jobject g_starboard_bridge = NULL;
 
 void Destroy(void* value) {
   if (value != NULL) {
@@ -37,28 +38,26 @@ void Destroy(void* value) {
 
 }  // namespace
 
-namespace starboard {
-namespace android {
-namespace shared {
+namespace starboard::android::shared {
 
 // Warning: use __android_log_write for logging in this file.
 
 // static
 void JniEnvExt::Initialize(JniEnvExt* env, jobject starboard_bridge) {
-  SB_DCHECK(g_tls_key == 0);
+  SB_DCHECK_EQ(g_tls_key, 0);
   pthread_key_create(&g_tls_key, Destroy);
 
-  SB_DCHECK(g_vm == NULL);
-  env->GetJavaVM(&g_vm);
+  // This must be initialized separately from JNI_OnLoad
+  SB_DCHECK_NE(JNIState::GetVM(), nullptr);
 
-  SB_DCHECK(g_application_class_loader == NULL);
-  g_application_class_loader =
+  SB_DCHECK_EQ(JNIState::GetApplicationClassLoader(), nullptr);
+  JNIState::SetApplicationClassLoader(
       env->ConvertLocalRefToGlobalRef(env->CallObjectMethodOrAbort(
           env->GetObjectClass(starboard_bridge), "getClassLoader",
-          "()Ljava/lang/ClassLoader;"));
+          "()Ljava/lang/ClassLoader;")));
 
-  SB_DCHECK(g_starboard_bridge == NULL);
-  g_starboard_bridge = env->NewGlobalRef(starboard_bridge);
+  SB_DCHECK_EQ(JNIState::GetStarboardBridge(), nullptr);
+  JNIState::SetStarboardBridge(env->NewGlobalRef(starboard_bridge));
 }
 
 // static
@@ -67,19 +66,24 @@ void JniEnvExt::OnThreadShutdown() {
   // previously called AttachCurrentThread() on it.
   //   http://docs.oracle.com/javase/7/docs/technotes/guides/jni/spec/invocation.html
   if (pthread_getspecific(g_tls_key)) {
-    g_vm->DetachCurrentThread();
+    JNIState::GetVM()->DetachCurrentThread();
     pthread_setspecific(g_tls_key, NULL);
   }
 }
 
 JniEnvExt* JniEnvExt::Get() {
   JNIEnv* env = nullptr;
-  if (JNI_OK != g_vm->GetEnv(reinterpret_cast<void**>(&env), JNI_VERSION_1_6)) {
+  if (JNI_OK != JNIState::GetVM()->GetEnv(reinterpret_cast<void**>(&env),
+                                          JNI_VERSION_1_4)) {
     // Tell the JVM our thread name so it doesn't change it.
     char thread_name[16];
+#if __ANDROID_API__ < 26
+    prctl(PR_GET_NAME, thread_name, 0L, 0L, 0L);
+#else
     pthread_getname_np(pthread_self(), thread_name, sizeof(thread_name));
-    JavaVMAttachArgs args{JNI_VERSION_1_6, thread_name, NULL};
-    g_vm->AttachCurrentThread(&env, &args);
+#endif  // __ANDROID_API__ < 26
+    JavaVMAttachArgs args{JNI_VERSION_1_4, thread_name, NULL};
+    JNIState::GetVM()->AttachCurrentThread(&env, &args);
     // We don't use the value, but any non-NULL means we have to detach.
     pthread_setspecific(g_tls_key, env);
   }
@@ -88,7 +92,7 @@ JniEnvExt* JniEnvExt::Get() {
 }
 
 jobject JniEnvExt::GetStarboardBridge() {
-  return g_starboard_bridge;
+  return JNIState::GetStarboardBridge();
 }
 
 jclass JniEnvExt::FindClassExtOrAbort(const char* name) {
@@ -98,13 +102,11 @@ jclass JniEnvExt::FindClassExtOrAbort(const char* name) {
   ::std::replace(dot_name.begin(), dot_name.end(), '/', '.');
   jstring jname = NewStringUTF(dot_name.c_str());
   AbortOnException();
-  jobject clazz_obj =
-      CallObjectMethodOrAbort(g_application_class_loader, "loadClass",
-                              "(Ljava/lang/String;)Ljava/lang/Class;", jname);
+  jobject clazz_obj = CallObjectMethodOrAbort(
+      JNIState::GetApplicationClassLoader(), "loadClass",
+      "(Ljava/lang/String;)Ljava/lang/Class;", jname);
   DeleteLocalRef(jname);
   return static_cast<jclass>(clazz_obj);
 }
 
-}  // namespace shared
-}  // namespace android
-}  // namespace starboard
+}  // namespace starboard::android::shared

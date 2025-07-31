@@ -3,8 +3,16 @@
 # found in the LICENSE file.
 
 # To create CIPD package run the following command.
+<<<<<<< HEAD
 # cipd create --pkg-def cipd.yaml -tag version:2@18.5.0.cr1
 package: chromium/third_party/android_deps/libs/com_google_android_gms_play_services_basement
 description: "play-services-basement"
 data:
 - file: play-services-basement-18.5.0.aar
+=======
+# cipd create --pkg-def cipd.yaml -tag version:2@18.4.0.cr1
+package: chromium/third_party/android_deps/libs/com_google_android_gms_play_services_basement
+description: "play-services-basement"
+data:
+- file: play-services-basement-18.4.0.aar
+>>>>>>> 513c3cbbc2d (Reduce minSdkVersion to 24 and Downgrade Google Ads Identifier Version (#6077))

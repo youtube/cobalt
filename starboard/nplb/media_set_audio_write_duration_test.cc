@@ -15,8 +15,9 @@
 #include "starboard/media.h"
 
 #include <unistd.h>
+#include <atomic>
+#include <optional>
 
-#include "starboard/common/optional.h"
 #include "starboard/common/spin_lock.h"
 #include "starboard/common/time.h"
 #include "starboard/configuration_constants.h"
@@ -45,10 +46,23 @@ class SbMediaSetAudioWriteDurationTest
  public:
   SbMediaSetAudioWriteDurationTest() : dmp_reader_(GetParam()) {}
 
+  void SetUp() override {
+    SbMediaAudioCodec audio_codec = dmp_reader_.audio_codec();
+    PlayerCreationParam creation_param = CreatePlayerCreationParam(
+        audio_codec, kSbMediaVideoCodecNone, kSbPlayerOutputModeInvalid);
+    SbPlayerCreationParam param = {};
+    creation_param.ConvertTo(&param);
+    creation_param.output_mode = SbPlayerGetPreferredOutputMode(&param);
+
+    SbPlayerTestConfig test_config(GetParam(), "", creation_param.output_mode,
+                                   "");
+    SkipTestIfNotSupported(test_config);
+  }
+
   void TryToWritePendingSample() {
     {
       starboard::ScopedSpinLock lock(&pending_decoder_status_lock_);
-      if (!pending_decoder_status_.has_engaged()) {
+      if (!pending_decoder_status_.has_value()) {
         return;
       }
     }
@@ -67,11 +81,9 @@ class SbMediaSetAudioWriteDurationTest
     }
 
     SbPlayer player = pending_decoder_status_->player;
-    SbMediaType type = pending_decoder_status_->type;
-    int ticket = pending_decoder_status_->ticket;
     {
       starboard::ScopedSpinLock lock(&pending_decoder_status_lock_);
-      pending_decoder_status_ = nullopt;
+      pending_decoder_status_ = std::nullopt;
     }
 
     CallSbPlayerWriteSamples(player, kSbMediaTypeAudio, &dmp_reader_, index_,
@@ -89,7 +101,7 @@ class SbMediaSetAudioWriteDurationTest
                                  SbMediaType type,
                                  int ticket) {
     starboard::ScopedSpinLock lock(&pending_decoder_status_lock_);
-    SB_DCHECK(!pending_decoder_status_.has_engaged());
+    SB_DCHECK(!pending_decoder_status_.has_value());
     PendingDecoderStatus pending_decoder_status = {};
     pending_decoder_status.player = player;
     pending_decoder_status.type = type;
@@ -151,9 +163,9 @@ class SbMediaSetAudioWriteDurationTest
   int index_ = 0;
   int64_t total_duration_ = kDuration;
   // Guard access to |pending_decoder_status_|.
-  mutable SbAtomic32 pending_decoder_status_lock_ =
-      starboard::kSpinLockStateReleased;
-  optional<PendingDecoderStatus> pending_decoder_status_;
+  mutable std::atomic_int pending_decoder_status_lock_{
+      starboard::kSpinLockStateReleased};
+  std::optional<PendingDecoderStatus> pending_decoder_status_;
 
  private:
   static void DecoderStatusFunc(SbPlayer player,
@@ -179,7 +191,7 @@ class SbMediaSetAudioWriteDurationTest
 
 TEST_P(SbMediaSetAudioWriteDurationTest, WriteLimitedInput) {
   ASSERT_NE(dmp_reader_.audio_codec(), kSbMediaAudioCodecNone);
-  ASSERT_GT(dmp_reader_.number_of_audio_buffers(), 0);
+  ASSERT_GT(dmp_reader_.number_of_audio_buffers(), 0u);
 
   SbPlayer player = CreatePlayer();
   WaitForPlayerState(kSbPlayerStateInitialized);
@@ -206,7 +218,7 @@ TEST_P(SbMediaSetAudioWriteDurationTest, WriteLimitedInput) {
 
 TEST_P(SbMediaSetAudioWriteDurationTest, WriteContinuedLimitedInput) {
   ASSERT_NE(dmp_reader_.audio_codec(), kSbMediaAudioCodecNone);
-  ASSERT_GT(dmp_reader_.number_of_audio_buffers(), 0);
+  ASSERT_GT(dmp_reader_.number_of_audio_buffers(), 0u);
 
   // This directly impacts the runtime of the test.
   total_duration_ = 15'000'000LL;  // 15 seconds
@@ -235,32 +247,9 @@ TEST_P(SbMediaSetAudioWriteDurationTest, WriteContinuedLimitedInput) {
   SbPlayerDestroy(player);
 }
 
-std::vector<const char*> GetSupportedTests() {
-  const char* kFilenames[] = {"beneath_the_canopy_aac_stereo.dmp",
-                              "beneath_the_canopy_opus_stereo.dmp"};
-
-  static std::vector<const char*> test_params;
-
-  if (!test_params.empty()) {
-    return test_params;
-  }
-
-  for (auto filename : kFilenames) {
-    VideoDmpReader dmp_reader(filename, VideoDmpReader::kEnableReadOnDemand);
-    SB_DCHECK(dmp_reader.number_of_audio_buffers() > 0);
-    if (SbMediaCanPlayMimeAndKeySystem(dmp_reader.audio_mime_type().c_str(),
-                                       "")) {
-      test_params.push_back(filename);
-    }
-  }
-
-  SB_DCHECK(!test_params.empty());
-  return test_params;
-}
-
-INSTANTIATE_TEST_CASE_P(SbMediaSetAudioWriteDurationTests,
-                        SbMediaSetAudioWriteDurationTest,
-                        ValuesIn(GetSupportedTests()));
+INSTANTIATE_TEST_SUITE_P(SbMediaSetAudioWriteDurationTests,
+                         SbMediaSetAudioWriteDurationTest,
+                         ValuesIn(GetStereoAudioTestFiles()));
 }  // namespace
 }  // namespace nplb
 }  // namespace starboard

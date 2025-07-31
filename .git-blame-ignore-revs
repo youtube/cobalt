@@ -1,3 +1,4 @@
+<<<<<<< HEAD
 # git hyper-blame master ignore list.
 #
 # This file contains a list of git hashes of revisions to be ignored by git
@@ -918,3 +919,8 @@ cbf3d6770d4f83fea7f21d0c2f55ea49e85dd69e
 982cfb705f41d5af228552a479ecdbfc465ee6c7
 f526edd21b6d46ac591d58f766a5a4b54e9c8029
 025a94257380eadfad2d705129e5863fca0bf89e
+=======
+# Chromium's blame.ignoreRevsFile is normally irrelevant to Cobalt
+# and makes git-blame slower and less reliable.
+# See crbug.com/574290 and crrev.com/c/5888125.
+>>>>>>> 86619afe7ac (Remove list of revisions to ignore in git-blame)

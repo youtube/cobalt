@@ -20,10 +20,10 @@
 #include <functional>
 #include <map>
 #include <memory>
+#include <mutex>
 #include <set>
 
 #include "starboard/common/condition_variable.h"
-#include "starboard/common/mutex.h"
 #include "starboard/common/string.h"
 #include "starboard/configuration_constants.h"
 #include "starboard/drm.h"
@@ -42,12 +42,7 @@
 // as SbPlayer.
 struct SbPlayerPrivate {};
 
-namespace starboard {
-namespace shared {
-namespace starboard {
-namespace player {
-namespace filter {
-namespace testing {
+namespace starboard::shared::starboard::player::filter::testing {
 
 class VideoDecoderTestFixture {
  public:
@@ -140,7 +135,7 @@ class VideoDecoderTestFixture {
  protected:
   JobQueue* job_queue_;
 
-  Mutex mutex_;
+  std::mutex mutex_;
   std::deque<Event> event_queue_;
 
   // Test parameter filename for the VideoDmpReader to load and test with.
@@ -171,11 +166,6 @@ class VideoDecoderTestFixture {
   std::map<size_t, uint8_t> invalid_inputs_;
 };
 
-}  // namespace testing
-}  // namespace filter
-}  // namespace player
-}  // namespace starboard
-}  // namespace shared
-}  // namespace starboard
+}  // namespace starboard::shared::starboard::player::filter::testing
 
 #endif  // STARBOARD_SHARED_STARBOARD_PLAYER_FILTER_TESTING_VIDEO_DECODER_TEST_FIXTURE_H_

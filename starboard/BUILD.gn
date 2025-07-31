@@ -15,106 +15,103 @@
 import("//starboard/build/config/os_definitions.gni")
 import("//starboard/build/config/starboard_target_type.gni")
 import("//starboard/contrib/cast/cast.gni")
+import("//testing/test.gni")
 
-group("gn_all") {
-  testonly = true
+# TODO: b/389791129 - Evaluate and cleanup targets in if(!is_cobalt) code block.
+if (!is_cobalt) {
+  group("gn_all") {
+    testonly = true
 
-  deps = [
-    ":default",
-    "//starboard/client_porting/eztime:eztime_test",
-    "//starboard/client_porting/icu_init",
-    "//starboard/examples/glclear:starboard_glclear_example",
-    "//starboard/examples/hello_world:starboard_hello_world_example",
-    "//starboard/examples/window:starboard_window_example",
-    "//starboard/extension:extension_test",
-    "//starboard/nplb",
-  ]
-  if (sb_is_evergreen_compatible && current_toolchain == starboard_toolchain) {
-    deps += [ "//starboard/nplb/nplb_evergreen_compat_tests" ]
-  }
-
-  if (has_platform_targets) {
-    deps += [ "//$starboard_path/platform_targets" ]
-  }
-
-  if (platform_tests_path == "") {
-    deps += [
-      ":starboard_platform_tests($starboard_toolchain)",
-      ":starboard_platform_tests_install($starboard_toolchain)",
+    deps = [
+      ":default",
+      "//starboard/client_porting/icu_init",
     ]
-  } else {
-    deps += [ platform_tests_path ]
-  }
-
-  if (sb_filter_based_player) {
-    deps += [
-      "//starboard/shared/starboard/player/filter/testing:player_filter_tests($starboard_toolchain)",
-      "//starboard/shared/starboard/player/filter/testing:player_filter_tests_install($starboard_toolchain)",
-      "//starboard/shared/starboard/player/filter/tools:audio_dmp_player($starboard_toolchain)",
-    ]
-  }
-
-  if (sb_enable_benchmark) {
-    deps += [ "//starboard/benchmark" ]
-  }
-
-  if (build_with_separate_cobalt_toolchain && use_contrib_cast) {
-    deps += [ "//starboard/contrib/cast/cast_starboard_api/samples:cast" ]
-  }
-
-  if (!sb_is_evergreen) {
-    if (sb_is_evergreen_compatible) {
+    if (enable_test_targets) {
       deps += [
-        "//starboard/elf_loader:elf_loader_test_install($starboard_toolchain)",
-        "//starboard/loader_app:installation_manager_test_install($starboard_toolchain)",
-        "//starboard/loader_app:reset_evergreen_update_test_install($starboard_toolchain)",
+        ":starboard_unittest",
+        "//starboard/examples/glclear:starboard_glclear_example",
+        "//starboard/examples/hello_world:starboard_hello_world_example",
+        "//starboard/examples/window:starboard_window_example",
+        "//starboard/nplb",
       ]
-
-      if (current_toolchain == starboard_toolchain) {
-        deps += [
-          "//third_party/crashpad/crashpad/client",
-          "//third_party/lz4_lib:lz4",
-        ]
-        data_deps = [
-          "//starboard/loader_app($starboard_toolchain)",
-          "//third_party/crashpad/crashpad/handler:crashpad_handler(//$starboard_path/toolchain:native_target)",
-          "//third_party/crashpad/crashpad/tools:crashpad_database_util(//$starboard_path/toolchain:native_target)",
-        ]
-      }
     }
-  } else {  # !sb_is_evergreen
-    deps += [
-      "//starboard/loader_app:app_key_files_test",
-      "//starboard/loader_app:app_key_test",
-      "//starboard/loader_app:drain_file_test",
-      "//starboard/loader_app:slot_management_test",
-    ]
-  }
-}
 
-group("default") {
-  deps = [
-    ":starboard_group",
-    "//starboard/tools:build_app_launcher_zip",
-  ]
-}
+    if (has_platform_targets) {
+      deps += [ "//$starboard_path/platform_targets" ]
+    }
 
-group("starboard_group") {
-  deps = []
-  public_deps = [
-    ":starboard_headers_only",
-    "//starboard/client_porting/eztime",
-  ]
+    if (platform_tests_path == "") {
+      deps += [
+        ":starboard_platform_tests($starboard_toolchain)",
+        ":starboard_platform_tests_install($starboard_toolchain)",
+      ]
+    } else {
+      deps += [ platform_tests_path ]
+    }
 
-  if (sb_is_modular && current_toolchain == cobalt_toolchain) {
-    public_deps += [
-      "//third_party/llvm-project/compiler-rt:compiler_rt",
-      "//third_party/llvm-project/libcxx:cxx",
-      "//third_party/llvm-project/libcxxabi:cxxabi",
-      "//third_party/musl:c",
-    ]
+    if (sb_filter_based_player) {
+      deps += [
+        "//starboard/shared/starboard/player/filter/testing:player_filter_tests($starboard_toolchain)",
+        "//starboard/shared/starboard/player/filter/testing:player_filter_tests_install($starboard_toolchain)",
+        "//starboard/shared/starboard/player/filter/tools:audio_dmp_player($starboard_toolchain)",
+      ]
+    }
+
+    if (sb_enable_benchmark) {
+      deps += [ "//starboard/benchmark" ]
+    }
+
+    if (build_with_separate_cobalt_toolchain && use_contrib_cast) {
+      deps += [ "//starboard/contrib/cast/cast_starboard_api/samples:cast" ]
+    }
 
     if (!sb_is_evergreen) {
+      if (sb_is_evergreen_compatible) {
+        deps += [
+          "//starboard/elf_loader:elf_loader_test_install($starboard_toolchain)",
+          "//starboard/loader_app:installation_manager_test_install($starboard_toolchain)",
+          "//starboard/loader_app:reset_evergreen_update_test_install($starboard_toolchain)",
+        ]
+        if (current_toolchain == starboard_toolchain) {
+          deps += [ "//third_party/lz4_lib:lz4" ]
+          deps += [ "//third_party/crashpad/crashpad/client" ]
+
+          data_deps = [ "//third_party/crashpad/crashpad/tools:crashpad_database_util(//$starboard_path/toolchain:native_target)" ]
+        }
+      }
+    } else {  # !sb_is_evergreen
+      deps += [
+        "//starboard/loader_app:app_key_files_test",
+        "//starboard/loader_app:app_key_test",
+        "//starboard/loader_app:drain_file_test",
+        "//starboard/loader_app:slot_management_test",
+      ]
+    }
+  }
+
+  group("default") {
+    deps = [
+      ":starboard_group",
+      "//starboard/tools:build_app_launcher_zip",
+    ]
+    if (sb_is_evergreen_compatible) {
+      deps += [
+        "//starboard/loader_app($starboard_toolchain)",
+        "//third_party/crashpad/crashpad/handler:crashpad_handler(//$starboard_path/toolchain:native_target)",
+      ]
+    }
+  }
+}
+
+if (is_cobalt_hermetic_build) {
+  group("starboard_group") {
+    deps = []
+    public_deps = [
+      ":starboard_headers_only",
+      "//starboard/client_porting/eztime",
+    ]
+
+    if (!sb_is_evergreen && current_toolchain == cobalt_toolchain) {
       # For modular builds, we need to wrap any POSIX APIs that may not be ABI
       # equivalent across the Cobalt toolchain and the platform toolchain. For
       # non-Evergreen builds, this is done via the below wrapper implementations
@@ -131,35 +128,21 @@ group("starboard_group") {
     if (sb_is_evergreen) {
       public_deps += [ "//starboard/elf_loader:sabi_string" ]
     } else {
-      data_deps = [ ":starboard($starboard_toolchain)" ]
+      deps += [ ":starboard($starboard_toolchain)" ]
     }
 
     # TODO: b/295702296 Fix libunwind for modular builds.
     if (sb_is_evergreen) {
       public_deps += [ "//third_party/llvm-project/libunwind:unwind" ]
     }
-  } else {
-    public_deps += [
-      ":starboard_static($starboard_toolchain)",
-      "//starboard/common",
+  }
+} else {
+  group("starboard_group") {
+    deps = [ "//starboard($starboard_toolchain)" ]
+    public_deps = [
+      ":starboard_headers_only",
+      "//starboard/client_porting/eztime",
     ]
-
-    if (!sb_is_modular || sb_is_evergreen) {
-      if (sb_is_evergreen_compatible &&
-          current_toolchain == starboard_toolchain) {
-        public_deps += [ "//starboard/crashpad_wrapper" ]
-      } else {
-        public_deps +=
-            [ "//starboard/crashpad_wrapper:wrapper_stub" ]
-      }
-    }
-
-    if (final_executable_type == "shared_library" &&
-        current_toolchain != default_toolchain) {
-      set_defaults("executable") {
-        sources = [ "//starboard/shared/starboard/shared_main_adapter.cc" ]
-      }
-    }
   }
 }
 
@@ -169,7 +152,6 @@ source_set("starboard_headers_only") {
   check_includes = false
 
   sources = [
-    "atomic.h",
     "audio_sink.h",
     "configuration.h",
     "configuration_constants.h",
@@ -191,7 +173,6 @@ source_set("starboard_headers_only") {
     "player.h",
     "queue.h",
     "socket.h",
-    "socket_waiter.h",
     "storage.h",
     "system.h",
     "thread.h",
@@ -203,15 +184,17 @@ source_set("starboard_headers_only") {
   if (is_internal_build) {
     public_deps = [ "//internal/starboard/private:private_starboard_headers" ]
   }
+
+  all_dependent_configs = [
+    "//starboard/build/config:starboard",
+    "//starboard/build/config/sabi",
+    "//base/third_party/symbolize:symbolize_config",
+  ]
 }
 
 if (current_toolchain == starboard_toolchain) {
   # This is the default 'starboard_platform_target'; use default properties
   starboard_platform_target("starboard") {
-  }
-
-  starboard_platform_target("starboard_static") {
-    target_type = "group"
   }
 
   if (platform_tests_path == "") {
@@ -236,4 +219,69 @@ if (current_toolchain == starboard_toolchain) {
       public_deps += [ "//$starboard_path:starboard_platform_with_main" ]
     }
   }
+
+  if (is_cobalt_hermetic_build) {
+    _starboard_unittests_target_type = "executable"
+  } else {
+    _starboard_unittests_target_type = "source_set"
+  }
+  target(_starboard_unittests_target_type, "starboard_unittests") {
+    testonly = true
+    sources = [ "//starboard/common/test_main.cc" ]
+    defines = [ "STARBOARD_IMPLEMENTATION_TEST" ]
+
+    write_runtime_deps =
+        "$root_build_dir/starboard_unittests_wrapper.runtime_deps"
+
+    deps = [
+      "//starboard:starboard_headers_only",
+      "//starboard/common:common_test",
+      "//testing/gtest",
+    ]
+    if (!is_android) {
+      deps += [
+        "//starboard/elf_loader:elf_loader_test",
+        "//starboard/linux/shared:starboard_platform_tests",
+        "//starboard/loader_app:installation_manager_test",
+        "//starboard/loader_app:memory_tracker_thread",
+        "//starboard/shared/starboard/player/filter/testing:player_filter_tests",
+      ]
+    }
+    if (sb_is_evergreen_compatible) {
+      deps += [
+        "//starboard/client_porting/eztime:eztime_test",
+        "//starboard/extension:extension_test",
+        "//starboard/loader_app:app_key_files_test",
+        "//starboard/loader_app:app_key_test",
+        "//starboard/loader_app:drain_file_test",
+      ]
+    }
+
+    # Based on y4vor@s comment:
+    # > `sb_is_evergreen`: Applies only above Starboard and means it is an
+    # > Evergreen/Hermetic build.
+    # > `sb_is_evergreen_compatible`: Applies only at the Starboard
+    # > implementation and means the build would be used for Evergreen.
+    # I think this below, which was copied from //starboard/loader_app/BUILD.gn,
+    # should be `sb_is_evergreen_compatible`.
+    if (sb_is_evergreen) {
+      deps += [ "//starboard/loader_app:slot_management_test" ]
+    }
+    if (is_android) {
+      deps += [ "//starboard/android/shared:starboard_platform_tests" ]
+    }
+    if (build_with_separate_cobalt_toolchain && use_contrib_cast) {
+      deps += [ "//starboard/contrib/cast/cast_starboard_api/samples:cast_starboard_api_test" ]
+    }
+  }
+}
+
+if (is_cobalt_hermetic_build) {
+  _wrapper_target_type = "group"
+} else {
+  _wrapper_target_type = "test"
+}
+target(_wrapper_target_type, "starboard_unittests_wrapper") {
+  testonly = true
+  deps = [ ":starboard_unittests($starboard_toolchain)" ]
 }

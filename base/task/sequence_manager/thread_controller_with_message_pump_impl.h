@@ -73,7 +73,12 @@ class BASE_EXPORT ThreadControllerWithMessagePumpImpl
   void SetTaskExecutionAllowedInNativeNestedLoop(bool allowed) override;
   bool IsTaskExecutionAllowed() const override;
   MessagePump* GetBoundMessagePump() const override;
+<<<<<<< HEAD
 #if BUILDFLAG(IS_IOS) || BUILDFLAG(IS_ANDROID)
+=======
+  void PrioritizeYieldingToNative(base::TimeTicks prioritize_until) override;
+#if BUILDFLAG(IS_IOS) || BUILDFLAG(IS_ANDROID) || BUILDFLAG(IS_STARBOARD)
+>>>>>>> 8f694c58f23 (Use the Starboard message pump. (#4772))
   void AttachToMessagePump() override;
 #endif
 #if BUILDFLAG(IS_IOS)
