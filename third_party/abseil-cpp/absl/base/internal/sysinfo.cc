@@ -372,7 +372,7 @@ pid_t GetTID() {
   return pid_t{GetCurrentThreadId()};
 }
 
-#elif defined(__linux__) && !defined(STARBOARD)
+#elif defined(__linux__)
 
 #ifndef SYS_gettid
 #define SYS_gettid __NR_gettid
