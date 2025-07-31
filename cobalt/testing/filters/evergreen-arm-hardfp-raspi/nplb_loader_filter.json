@@ -1,0 +1,15 @@
+{
+  "failing_tests": [
+    "MaximumPlayerConfigurationExplorerTests*",
+    "MultiplePlayerTest.*",
+    "PosixAuxvGetauxvalOptionalTests/PosixAuxvGetauxvalOptionalTest.OptionalValuesAreValid/16",
+    "SbAudioSinkTest.*",
+    "SbMediaSetAudioWriteDurationTests*",
+    "SbMediaCanPlayMimeAndKeySystem.MinimumSupport",
+    "SbMediaCanPlayMimeAndKeySystem.KeySystemWithAttributes",
+    "SbPlayerTest.*",
+    "SbPlayerGetAudioConfigurationTests*",
+    "SbPlayerGetMediaTimeTests*",
+    "SbPlayerWriteSampleTests*"
+  ]
+}

@@ -16,7 +16,6 @@
 
 import argparse
 import os
-import shutil
 import subprocess
 import tempfile
 from typing import List, Tuple
@@ -34,9 +33,11 @@ _EXCLUDE_DIRS = [
 def _make_tar(archive_path: str, file_lists: List[Tuple[str, str]]):
   """Creates the tar file. Uses tar command instead of tarfile for performance.
   """
-  tar_cmd = ['tar', '-I gzip -1', '-cvf', archive_path]
+  tar_cmd = ['tar', '-I', 'gzip -1', '-cvf', archive_path]
   tmp_files = []
   for file_list, base_dir in file_lists:
+    if not file_list:
+      continue
     # Create temporary file to hold file list to not blow out the commandline.
     # It will get cleaned up via implicit close.
     # pylint: disable=consider-using-with
@@ -50,6 +51,9 @@ def _make_tar(archive_path: str, file_lists: List[Tuple[str, str]]):
   print(f'Running `{" ".join(tar_cmd)}`')  # pylint: disable=inconsistent-quotes
   subprocess.check_call(tar_cmd)
 
+  archive_size = f'{os.path.getsize(archive_path) / 1024 / 1024:.2f} MB'
+  print(f'Created {os.path.basename(archive_path)} ({archive_size})')
+
 
 def create_archive(
     *,
@@ -57,25 +61,17 @@ def create_archive(
     source_dir: str,
     out_dir: str,
     destination_dir: str,
-    platform: str,
+    archive_per_target: bool,
+    use_android_deps_path: bool,
+    flatten_deps: bool,
 ):
   """Main logic. Collects runtime dependencies for each target."""
-  # TODO(oxv): Move logic behind parameters instead of using platform.
-  is_linux = platform.startswith('linux') or platform.startswith('evergreen')
-  is_android = platform.startswith('android')
-
-  tar_root = '.' if is_android else out_dir
   combined_deps = set()
-  # Add test_targets.json to archive so that test runners know what to run.
-  test_targets_json = os.path.join(tar_root, 'test_targets.json')
-  if os.path.exists(test_targets_json):
-    combined_deps.add(os.path.relpath(test_targets_json))
-
   for target in targets:
     target_path, target_name = target.split(':')
     # Paths are configured in test.gni:
     # https://github.com/youtube/cobalt/blob/main/testing/test.gni
-    if is_android:
+    if use_android_deps_path:
       deps_file = os.path.join(
           out_dir, 'gen.runtime', target_path,
           f'{target_name}__test_runner_script.runtime_deps')
@@ -91,49 +87,45 @@ def create_archive(
     print('Collecting runtime dependencies for', target)
     with open(deps_file, 'r', encoding='utf-8') as runtime_deps_file:
       # The paths in the runtime_deps files are relative to the out folder.
-      # Android tests expects files to be relative to the out folder in the
-      # archive whereas Linux tests expect it relative to the source root.
-      # Files that are to be picked up from the source root should be
-      # include in the archive without the prefix.
+      # Android tests expects files both in the out and source root folders
+      # to be working directory archive whereas Linux tests expect it relative
+      # to the binary.
+      tar_root = '.' if flatten_deps else out_dir
       target_deps = set()
       target_src_root_deps = set()
+
+      # Add test_targets.json to archive so that test runners know what to run.
+      test_targets_json = os.path.join(out_dir, 'test_targets.json')
+      if os.path.exists(test_targets_json):
+        target_deps.add(os.path.join(tar_root, 'test_targets.json'))
+
       for line in runtime_deps_file:
         if any(line.startswith(path) for path in _EXCLUDE_DIRS):
           continue
 
-        if is_android and line.startswith('../../'):
+        if flatten_deps and line.startswith('../../'):
           target_src_root_deps.add(line[6:])
         else:
+          # Rebase all files to be relative to their respective root (source or
+          # out dir) to be able to flatten them below. Chromium test runners
+          # have access to the source directory in '../..' which ours (ODTs
+          # especially) do not.
           rel_path = os.path.relpath(os.path.join(tar_root, line.strip()))
           target_deps.add(rel_path)
       combined_deps |= target_deps
 
-      # Android tests and deps are bundled into one tar file per target.
-      if is_android:
+      if archive_per_target:
         output_path = os.path.join(destination_dir,
                                    f'{target_name}_deps.tar.gz')
-        _make_tar(output_path, [(combined_deps, out_dir),
-                                (target_src_root_deps, source_dir)])
-        archive_size = f'{os.path.getsize(output_path) / 1024 / 1024:.2f} MB'
-        print(f'Created {os.path.basename(output_path)} ({archive_size})')
-
-        combined_deps = set(
-            [os.path.relpath(os.path.join(tar_root, 'test_targets.json'))])
-
+        if flatten_deps:
+          _make_tar(output_path, [(target_deps, out_dir),
+                                  (target_src_root_deps, source_dir)])
+        else:
+          raise ValueError('Unsupported configuration.')
   # Linux tests and deps are all bundled into a single tar file.
-  if is_linux:
+  if not archive_per_target:
     output_path = os.path.join(destination_dir, 'test_artifacts.tar.gz')
     _make_tar(output_path, [(combined_deps, source_dir)])
-
-
-def copy_apks(targets: List[str], out_dir: str, destination_dir: str):
-  """Copies the target APKs from the out directory to the destination."""
-  for target in targets:
-    _, target_name = target.split(':')
-    # The path to the APK in the out directory is defined in
-    # build/config/android/rules.gni.
-    apk_path = f'{out_dir}/{target_name}_apk/{target_name}-debug.apk'
-    shutil.copy2(apk_path, destination_dir)
 
 
 def main():
@@ -153,25 +145,38 @@ def main():
       'with all test artifacts, else a `<target_name>_deps.tar.gz` is '
       'created for each target passed.')
   parser.add_argument(
-      '-p', '--platform', required=True, help='The platform getting packaged.')
-  parser.add_argument(
       '-t',
       '--targets',
       required=True,
       type=lambda arg: arg.split(','),
       help='The targets to package, comma-separated. Must be fully qualified, '
       'e.g. path/to:target_name,other/path/to:target_name.')
+  parser.add_argument(
+      '--archive-per-target',
+      action='store_true',
+      help='Create a separate .tar.gz archive for each build target.')
+  parser.add_argument(
+      '--use-android-deps-path',
+      action='store_true',
+      help='Look for .runtime_deps files in the Android-specific path.')
+  parser.add_argument(
+      '--flatten-deps',
+      action='store_true',
+      help='Pass this argument to archive files from the source and out '
+      'directories both at the root of the deps archive.')
   args = parser.parse_args()
+
+  if args.flatten_deps != args.archive_per_target:
+    raise ValueError('Unsupported configuration.')
 
   create_archive(
       targets=args.targets,
       source_dir=args.source_dir,
       out_dir=args.out_dir,
       destination_dir=args.destination_dir,
-      platform=args.platform)
-
-  if args.platform.startswith('android'):
-    copy_apks(args.targets, args.out_dir, args.destination_dir)
+      archive_per_target=args.archive_per_target,
+      use_android_deps_path=args.use_android_deps_path,
+      flatten_deps=args.flatten_deps)
 
 
 if __name__ == '__main__':

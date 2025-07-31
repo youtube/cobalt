@@ -26,6 +26,8 @@
 namespace starboard::android::shared {
 namespace {
 
+using base::android::ScopedJavaLocalRef;
+
 // Soft limit to ensure that the user of AudioRendererPassthrough won't keep
 // pushing data when there are enough decoded audio buffers.
 constexpr int kMaxDecodedAudios = 64;

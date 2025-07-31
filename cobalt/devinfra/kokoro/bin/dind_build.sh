@@ -66,6 +66,14 @@ pipeline () {
     --script-executable=/usr/bin/python3
   autoninja -C "out/${TARGET_PLATFORM}_${CONFIG}" ${TARGET}  # TARGET may expand to multiple args
 
+  if [[ "${TARGET_PLATFORM}" =~ "linux-x64x11" ]]; then
+    # Build the linux-x64x11-no-starboard configuration for chromedriver.
+    LINUX_NO_SB_PLATFORM="linux-x64x11-no-starboard"
+    cobalt/build/gn.py -p "${LINUX_NO_SB_PLATFORM}" -C "${CONFIG}" \
+      --script-executable=/usr/bin/python3
+    autoninja -C "out/${LINUX_NO_SB_PLATFORM}_${CONFIG}" "chromedriver"
+  fi
+
   # Build bootloader config if set.
   if [ -n "${BOOTLOADER:-}" ]; then
     echo "Evergreen Loader (or Bootloader) is configured."

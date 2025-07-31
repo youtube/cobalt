@@ -100,8 +100,6 @@ template("evergreen_final_target") {
     args = [
       "--output",
       rebase_path(outputs[0]),
-      "--outdir",
-      rebase_path(root_out_dir, "//"),
       "--library",
       lib_name,
     ]
@@ -110,14 +108,14 @@ template("evergreen_final_target") {
   copy("copy_${original_target_name}_content") {
     forward_variables_from(invoker, TESTONLY_AND_VISIBILITY)
     sources = [
-      "$root_out_dir/content_shell.pak",
+      "$root_out_dir/cobalt_shell.pak",
       "$root_out_dir/icudtl.dat",
     ]
     outputs = [
       "$root_out_dir/app/${original_target_name}/content/{{source_file_part}}",
     ]
     deps = [
-      "//content/shell:pak",
+      "//cobalt/shell:pak",
       "//third_party/icu:icudata",
     ]
   }

@@ -17,6 +17,7 @@
 #include "base/check.h"
 #include "base/task/sequenced_task_runner.h"
 #include "base/time/time.h"
+#include "media/base/media_switches.h"
 #include "media/base/starboard/starboard_renderer_config.h"
 #include "media/mojo/clients/mojo_media_log_service.h"
 #include "media/mojo/clients/mojo_renderer.h"
@@ -41,8 +42,14 @@ StarboardRendererClientFactory::StarboardRendererClientFactory(
     : media_log_(media_log),
       mojo_renderer_factory_(std::move(mojo_renderer_factory)),
       get_gpu_factories_cb_(get_gpu_factories_cb),
-      audio_write_duration_local_(traits->audio_write_duration_local),
-      audio_write_duration_remote_(traits->audio_write_duration_remote),
+      audio_write_duration_local_(
+          base::FeatureList::IsEnabled(kCobaltAudioWriteDurationLocal)
+              ? base::Microseconds(kAudioWriteDurationLocal.Get())
+              : traits->audio_write_duration_local),
+      audio_write_duration_remote_(
+          base::FeatureList::IsEnabled(kCobaltAudioWriteDurationRemote)
+              ? base::Microseconds(kAudioWriteDurationRemote.Get())
+              : traits->audio_write_duration_remote),
       max_video_capabilities_(traits->max_video_capabilities),
       bind_host_receiver_callback_(traits->bind_host_receiver_callback) {}
 
@@ -53,9 +60,8 @@ std::unique_ptr<Renderer> StarboardRendererClientFactory::CreateRenderer(
     const scoped_refptr<base::TaskRunner>& /*worker_task_runner*/,
     AudioRendererSink* /*audio_renderer_sink*/,
     VideoRendererSink* video_renderer_sink,
-    RequestOverlayInfoCB request_overlay_info_cb,
+    RequestOverlayInfoCB /*request_overlay_info_cb*/,
     const gfx::ColorSpace& /*target_color_space*/) {
-  DCHECK(request_overlay_info_cb);
   DCHECK(video_renderer_sink);
   DCHECK(media_log_);
   DCHECK(mojo_renderer_factory_);
@@ -109,7 +115,7 @@ std::unique_ptr<Renderer> StarboardRendererClientFactory::CreateRenderer(
       std::move(overlay_factory), video_renderer_sink,
       std::move(renderer_extension_remote),
       std::move(client_extension_receiver), bind_host_receiver_callback_,
-      gpu_factories, std::move(request_overlay_info_cb));
+      gpu_factories);
 }
 
 }  // namespace media

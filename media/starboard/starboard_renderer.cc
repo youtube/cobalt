@@ -390,9 +390,8 @@ void StarboardRenderer::SetVolume(float volume) {
   }
 }
 
-// Note: Renderer::GetMediaTime() could be called on both main and media
-// threads.
 TimeDelta StarboardRenderer::GetMediaTime() {
+  DCHECK(task_runner_->RunsTasksInCurrentSequence());
   base::AutoLock auto_lock(lock_);
 
   if (!player_bridge_) {
@@ -443,21 +442,15 @@ TimeDelta StarboardRenderer::GetMediaTime() {
 
 void StarboardRenderer::SetStarboardRendererCallbacks(
     PaintVideoHoleFrameCallback paint_video_hole_frame_cb,
-    UpdateStarboardRenderingModeCallback update_starboard_rendering_mode_cb,
-    RequestOverlayInfoCallBack request_overlay_info_cb) {
+    UpdateStarboardRenderingModeCallback update_starboard_rendering_mode_cb) {
   paint_video_hole_frame_cb_ = std::move(paint_video_hole_frame_cb);
   update_starboard_rendering_mode_cb_ =
       std::move(update_starboard_rendering_mode_cb);
-  request_overlay_info_cb_ = std::move(request_overlay_info_cb);
 }
 
 void StarboardRenderer::OnVideoGeometryChange(const gfx::Rect& output_rect) {
   set_bounds_helper_->SetBounds(output_rect.x(), output_rect.y(),
                                 output_rect.width(), output_rect.height());
-}
-
-void StarboardRenderer::OnOverlayInfoChanged(const OverlayInfo& overlay_info) {
-  // TODO: b/429435008 - Request AndroidOverlay() for SbPlayer.
 }
 
 SbPlayerInterface* StarboardRenderer::GetSbPlayerInterface() {
