@@ -6,7 +6,6 @@
 #define V8_BASE_BUILD_CONFIG_H_
 
 #include "include/v8config.h"
-#include "build/build_config.h"
 
 #if defined(__ARM_ARCH_7A__) || defined(__ARM_ARCH_7R__) || \
     defined(__ARM_ARCH_7__)
@@ -36,7 +35,7 @@
 #define V8_HAS_PTHREAD_JIT_WRITE_PROTECT 0
 #endif
 
-#if defined(V8_OS_LINUX) && defined(V8_HOST_ARCH_X64) && !BUILDFLAG(IS_STARBOARD)
+#if defined(V8_OS_LINUX) && defined(V8_HOST_ARCH_X64)
 #define V8_HAS_PKU_JIT_WRITE_PROTECT 1
 #else
 #define V8_HAS_PKU_JIT_WRITE_PROTECT 0

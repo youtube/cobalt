@@ -9,7 +9,11 @@ __nl_langinfo_l
 access
 chmod
 closelog
-fallocate
+dladdr
+dlclose
+dlerror
+dlopen
+dlsym
 fchmod
 fchown
 fclose
@@ -44,7 +48,6 @@ localtime_r
 mktime
 newlocale
 openlog
-posix_fadvise
 prctl
 printf
 puts
