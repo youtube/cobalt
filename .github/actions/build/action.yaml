@@ -128,3 +128,26 @@ runs:
           upload_on_host_test_artifacts: ${{ inputs.upload_on_host_test_artifacts }}
           upload_on_device_test_artifacts: ${{ inputs.upload_on_device_test_artifacts }}
           test_targets_json_file: ${{ inputs.test_targets_json_file }}
+      - name: Run Package Script Test
+        if: ${{ (matrix.config == 'qa' || matrix.config == 'gold') && !contains(matrix.platform, 'chromium') && !contains(matrix.platform, 'evergreen') && !contains(matrix.platform, 'modular') }}
+        run: |
+          # Use the real variable from your environment
+          MATRIX_PLATFORM="${{ matrix.platform }}"
+          MATRIX_CONFIG="${{ matrix.config }}"
+          # Determine the correct build platform directory name
+          if [[ "$MATRIX_PLATFORM" == *"android"* ]]; then
+            BUILD_PLATFORM="android"
+          else
+            BUILD_PLATFORM="linux"
+            cd src/
+            cobalt/build/gn.py -p linux-x64x11-no-starboard -c $MATRIX_CONFIG
+            autoninja -C out/linux-x64x11-no-starboard_$MATRIX_CONFIG chrome/test/chromedriver
+            cp out/linux-x64x11-no-starboard_$MATRIX_CONFIG/chromedriver out/${{ matrix.platform }}_${{ matrix.config }}
+            cd ..
+          fi
+          src/cobalt/build/packager.py \
+            --name=${{ matrix.platform }}_${{ matrix.config }} \
+            --json_path=src/cobalt/build/$BUILD_PLATFORM/package.json \
+            --out_dir=src/out/${{ matrix.platform }}_${{ matrix.config }} \
+            --package_dir=src/out/test-package
+        shell: bash
