@@ -103,7 +103,6 @@ class MEDIA_EXPORT StarboardRenderer : public Renderer,
       base::RepeatingCallback<void(const gfx::Size&)>;
   using UpdateStarboardRenderingModeCallback =
       base::RepeatingCallback<void(const StarboardRenderingMode mode)>;
-
 #if BUILDFLAG(IS_ANDROID)
   using RequestOverlayInfoCallBack =
       base::RepeatingCallback<void(bool restart_for_transitions)>;
