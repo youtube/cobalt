@@ -25,7 +25,7 @@ step.
 
 To generate commits.json...
 
-python3 main.py commits --repo-path=/usr/local/google/home/brianting/chromium/src --source-branch=experimental/linear_main --start-commit-ref=38a06fe8674ad2140ff85c87b5b3a817304e369a --end-commit-ref=48f6c4861a2455800aa40b9ba2e9858505dc5981
+python3 main.py commits --repo-path=/usr/local/google/home/brianting/chromium/src --source-branch=origin/experimental/linear_main --start-commit-ref=38a06fe8674ad2140ff85c87b5b3a817304e369a --end-commit-ref=48f6c4861a2455800aa40b9ba2e9858505dc5981
 
 `commits.json` is currently provided up to
 48f6c4861a2455800aa40b9ba2e9858505dc5981 which is the linearized equivalent of
