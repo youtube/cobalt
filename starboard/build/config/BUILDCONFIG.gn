@@ -496,6 +496,9 @@ template("executable") {
       installable_target_dep = ":$executable_target_name"
       not_needed([ "installable_target_dep" ])
       type = "executable"
+      if (defined(invoker.output_name) && invoker.output_name != "") {
+        installable_target_name = invoker.output_name
+      }
 
       deps = []
       if (defined(invoker.deps)) {

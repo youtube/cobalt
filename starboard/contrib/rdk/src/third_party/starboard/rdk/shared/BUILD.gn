@@ -502,6 +502,7 @@ static_library("starboard_platform") {
 
 if (final_executable_type == "shared_library" && sb_is_evergreen_compatible) {
   target("executable", "loader_app_bin") {
+    output_name = "loader_app"
     sources = [
       "//starboard/shared/starboard/shared_main_adapter.cc"
     ]
@@ -514,6 +515,7 @@ if (final_executable_type == "shared_library" && sb_is_evergreen_compatible) {
 
 if (final_executable_type == "shared_library" && sb_is_evergreen_compatible) {
   target("executable", "elf_loader_sandbox_bin") {
+    output_name = "elf_loader_sandbox"
     sources = [
       "//starboard/shared/starboard/shared_main_adapter.cc"
     ]

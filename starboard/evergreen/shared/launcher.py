@@ -67,7 +67,7 @@ class Launcher(abstract_launcher.AbstractLauncher):
     if not self.loader_config:
       raise ValueError('|loader_config| cannot be |None|.')
 
-    # RDK uses a fixed loader (elf_loader_sandbox_bin), so we pass down the target
+    # RDK uses a fixed loader (elf_loader_sandbox), so we pass down the target
     # name to the RDK launcher as the loader_target, so it knows what target to
     # run and can prepare the env accordingly
     # TODO(b/415848657): refactor the launcher when porting this code to the main branch
@@ -288,8 +288,7 @@ class Launcher(abstract_launcher.AbstractLauncher):
 
   def _StageTargetsAndContentsRdk(self):
     """Stage targets and their contents for GN builds for RDK platforms."""
-    # RDK will append a _bin suffix to the loader, let's handle it
-    rdk_loader_target = _DEFAULT_LOADER_TARGET + "_bin"
+    rdk_loader_target = _DEFAULT_LOADER_TARGET
 
     # Copy target content and binary.
     target_install_path = os.path.join(self.out_directory, 'install')
