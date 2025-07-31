@@ -21,7 +21,6 @@
 
 #include "base/functional/callback.h"
 #include "base/memory/ref_counted.h"
-#include "base/synchronization/lock.h"
 #include "base/task/sequenced_task_runner.h"
 #include "base/task/single_thread_task_runner.h"
 #include "base/thread_annotations.h"
@@ -204,8 +203,7 @@ class SbPlayerBridge {
     void ResetPlayer();
 
    private:
-    base::Lock lock_;
-    SbPlayerBridge* player_bridge_ GUARDED_BY(lock_);
+    SbPlayerBridge* player_bridge_;
   };
 
   static const int64_t kClearDecoderCacheIntervalInMilliseconds = 1000;
@@ -249,8 +247,7 @@ class SbPlayerBridge {
       const SbMediaAudioStreamInfo* audio_stream_info,
       const SbMediaVideoStreamInfo* video_stream_info);
 
-  void GetInfo_Locked(PlayerInfo* out_info) EXCLUSIVE_LOCKS_REQUIRED(lock_);
-  void UpdateBounds_Locked() EXCLUSIVE_LOCKS_REQUIRED(lock_);
+  void UpdateBounds();
 
   void ClearDecoderBufferCache();
 
@@ -329,20 +326,17 @@ class SbPlayerBridge {
 
   // The following variables can be accessed from GetInfo(), which can be called
   // from any threads.  So some of their usages have to be guarded by |lock_|.
-  base::Lock lock_;
-
-  // Stores the |z_index| and |rect| parameters of the latest SetBounds() call.
-  std::optional<int> set_bounds_z_index_ GUARDED_BY(lock_);
-  std::optional<gfx::Rect> set_bounds_rect_ GUARDED_BY(lock_);
-  // TODO: b/407063029 - Guard state_ by lock and annotate with GUARDED_BY.
   State state_ = kPlaying;
-  // TODO: b/407063029 - Guard player_ by lock and annotate with GUARDED_BY
   SbPlayer player_;
-  uint32_t cached_video_frames_decoded_ GUARDED_BY(lock_);
-  uint32_t cached_video_frames_dropped_ GUARDED_BY(lock_);
+  uint32_t cached_video_frames_decoded_;
+  uint32_t cached_video_frames_dropped_;
   base::TimeDelta preroll_timestamp_;
   uint64_t cached_audio_bytes_decoded_ = 0;
   uint64_t cached_video_bytes_decoded_ = 0;
+
+  // Stores the |z_index| and |rect| parameters of the latest SetBounds() call.
+  std::optional<int> set_bounds_z_index_;
+  std::optional<gfx::Rect> set_bounds_rect_;
 
   // Keep track of the output mode we are supposed to output to.
   SbPlayerOutputMode output_mode_;
