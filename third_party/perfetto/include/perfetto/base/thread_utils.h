@@ -29,17 +29,13 @@ __declspec(dllimport) unsigned long __stdcall GetCurrentThreadId();
 }
 #elif PERFETTO_BUILDFLAG(PERFETTO_OS_FUCHSIA)
 #include <zircon/types.h>
-#elif PERFETTO_BUILDFLAG(PERFETTO_OS_LINUX) && !defined(STARBOARD) || \
+#elif PERFETTO_BUILDFLAG(PERFETTO_OS_LINUX) || \
     PERFETTO_BUILDFLAG(PERFETTO_OS_ANDROID)
 #include <sys/syscall.h>
 #include <sys/types.h>
 #include <unistd.h>
 #else
 #include <pthread.h>
-#endif
-
-#if defined(STARBOARD)
-#include "starboard/thread.h"
 #endif
 
 namespace perfetto {
@@ -49,11 +45,6 @@ namespace base {
 using PlatformThreadId = pid_t;
 inline PlatformThreadId GetThreadId() {
   return gettid();
-}
-#elif defined(STARBOARD)
-using PlatformThreadId = pid_t;
-inline PlatformThreadId GetThreadId() {
-  return SbThreadGetId();
 }
 #elif PERFETTO_BUILDFLAG(PERFETTO_OS_LINUX)
 using PlatformThreadId = pid_t;
