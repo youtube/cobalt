@@ -18,6 +18,7 @@
 #include "base/android/jni_string.h"
 #include "starboard/android/shared/media_capabilities_cache.h"
 #include "starboard/common/string.h"
+#include "starboard/shared/starboard/features.h"
 
 #pragma GCC diagnostic push
 #pragma GCC diagnostic ignored "-Wunused-function"
@@ -313,6 +314,12 @@ jint MediaCodecBridge::QueueInputBuffer(jint index,
                                         jlong presentation_time_microseconds,
                                         jint flags) {
   JNIEnv* env = AttachCurrentThread();
+  if (starboard::features::FeatureList::IsEnabled(
+          starboard::features::kStarboardBufferFlagDecodeOnlyExperiment)) {
+    SB_LOG(INFO) << "Feature has been enabled";
+  } else {
+    SB_LOG(INFO) << "Feature is not enabled";
+  }
   return Java_MediaCodecBridge_queueInputBuffer(
       env, j_media_codec_bridge_, index, offset, size,
       presentation_time_microseconds, flags);
