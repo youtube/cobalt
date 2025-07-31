@@ -2,22 +2,15 @@
 #define COBALT_COMMON_LIBC_TIME_TIMEZONE_H_
 
 #include <time.h>
-
-#include "third_party/icu/source/common/unicode/utypes.h"
-#include "unicode/timezone.h"
+#include "third_party/icu/source/common/unicode/unistr.h"
+#include "third_party/icu/source/i18n/unicode/timezone.h"
 
 namespace cobalt {
 namespace common {
 namespace libc {
 namespace time {
 
-// Gets the thread-local POSIX timezone, if one has been set by tzset().
-// Returns nullptr if no POSIX timezone is active.
-icu::TimeZone* GetPosixTimeZone();
-
-// Sets the tm_gmtoff and tm_zone members of a struct tm based on the
-// provided ICU timezone and date. This uses the same logic as tzset()
-// to determine timezone abbreviations and offsets.
+// Sets the timezone fields on a `struct tm` object.
 void SetTmTimezoneFields(struct tm* tm, const UChar* zone_id, UDate date);
 
 }  // namespace time

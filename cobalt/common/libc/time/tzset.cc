@@ -68,12 +68,6 @@ namespace {
 // called from within itself.
 thread_local bool g_in_tzset = false;
 
-// A thread-local pointer to a custom POSIX timezone, if one has been set by
-// tzset(). This allows localtime_r to access the correct zone information
-// without relying on the global ICU default, which may not be able to
-// represent POSIX-specific rules.
-thread_local std::unique_ptr<icu::TimeZone> g_posix_timezone;
-
 // A thread-local struct to hold the names from a parsed POSIX TZ string.
 // This is necessary because we cannot subclass ICU's TimeZone classes
 // without running into RTTI issues.
@@ -176,34 +170,7 @@ class Timezone {
   static void CacheTimeZoneName(const char* timezone_name);
 };
 
-// A custom icu::TimeZone class to hold POSIX-specific timezone names.
-class PosixTimeZone : public icu::SimpleTimeZone {
- public:
-  static char kTypeId;
 
-  PosixTimeZone(int32_t raw_offset,
-                const icu::UnicodeString& id,
-                const std::string& std_name,
-                const std::string& dst_name)
-      : icu::SimpleTimeZone(raw_offset, id),
-        std_name_(std_name),
-        dst_name_(dst_name.empty() ? std_name : dst_name) {}
-
-  // Copy constructor
-  PosixTimeZone(const PosixTimeZone& other) = default;
-
-  PosixTimeZone* clone() const override { return new PosixTimeZone(*this); }
-
-  const std::string& getStdName() const { return std_name_; }
-  const std::string& getDstName() const { return dst_name_; }
-
-  UClassID getDynamicClassID() const override { return &kTypeId; }
-
- private:
-  std::string std_name_;
-  std::string dst_name_;
-};
-char PosixTimeZone::kTypeId = 0;
 
 std::array<char, Timezone::kMaxTimezoneNameSize>
     Timezone::cached_timezone_name_{};
@@ -213,8 +180,10 @@ std::unique_ptr<icu::TimeZone> Timezone::CalculateTimezoneData(
   // 1. Per POSIX, an empty TZ string specifies UTC. This is the highest
   // priority rule.
   if (timezone_name && timezone_name[0] == '\0') {
-    return std::make_unique<PosixTimeZone>(
-        0, icu::UnicodeString::fromUTF8("UTC"), "UTC", "");
+    g_posix_tz_names.std_name = "UTC";
+    g_posix_tz_names.dst_name = "UTC";
+    return std::make_unique<icu::SimpleTimeZone>(
+        0, icu::UnicodeString::fromUTF8("UTC"));
   }
 
   // If TZ is not set, use the system default.
@@ -352,10 +321,26 @@ std::unique_ptr<icu::TimeZone> Timezone::CreateIcuTimezoneFromParsedData(
   // ICU offset is in milliseconds, positive EAST of GMT.
   const int32_t raw_offset_ms = -timezone_data.std_offset * 1000;
 
-  // If there are no DST rules, create a simple, fixed-offset timezone.
+  g_posix_tz_names.std_name = timezone_data.std;
+  g_posix_tz_names.dst_name = timezone_data.dst.value_or("");
+
+  auto custom_tz = std::make_unique<icu::SimpleTimeZone>(
+      raw_offset_ms, icu::UnicodeString::fromUTF8(timezone_data.std));
+
+  // If there are no DST rules, we are done.
   if (!timezone_data.start) {
-    return std::make_unique<icu::SimpleTimeZone>(
-        raw_offset_ms, icu::UnicodeString::fromUTF8(timezone_data.std));
+    // If a DST zone is specified without rules, apply default US rules.
+    if (timezone_data.dst) {
+      UErrorCode status = U_ZERO_ERROR;
+      custom_tz->setStartRule(UCAL_MARCH, 2, UCAL_SUNDAY, 2 * 3600 * 1000,
+                              status);
+      custom_tz->setEndRule(UCAL_NOVEMBER, 1, UCAL_SUNDAY, 2 * 3600 * 1000,
+                            status);
+      if (U_FAILURE(status)) {
+        return nullptr;
+      }
+    }
+    return custom_tz;
   }
 
   // A start rule exists, so an end rule must also exist for valid DST.
@@ -364,9 +349,6 @@ std::unique_ptr<icu::TimeZone> Timezone::CreateIcuTimezoneFromParsedData(
   }
 
   UErrorCode status = U_ZERO_ERROR;
-  auto custom_tz = std::make_unique<icu::SimpleTimeZone>(
-      raw_offset_ms, icu::UnicodeString::fromUTF8(timezone_data.std));
-
   // The DST savings is the difference between the standard and DST offsets.
   // POSIX default is one hour if not explicitly specified.
   const int32_t dst_savings_ms =
@@ -406,7 +388,8 @@ void Timezone::MaybeApplyCorrection(const icu::UnicodeString& time_zone_id,
   static const NoDestructor<std::map<std::string_view, Correction>>
       kCorrections({{
           // "America/Asuncion" was {_}
-          {"America/Asuncion", {.timezone = 10800}},
+          {"America/Asuncion",
+           {.std = "PYT", .dst = "PYT", .daylight = 0, .timezone = 10800}},
           // "America/Dawson" was {"YST"}
           {"America/Dawson", {.std = "MST"}},
           // "America/Montreal" was {"", ""}
@@ -605,11 +588,7 @@ void Timezone::CacheTimeZoneName(const char* timezone_name) {
 
 void Timezone::Tzset() {
   TzsetGuard guard;
-  // If the TZ variable is not set, use the system provided timezone.
   const char* timezone_name = getenv("TZ");
-  if (!timezone_name) {
-    timezone_name = SbTimeZoneGetName();
-  }
 
   if (!TimezoneIsChanged(timezone_name)) {
     return;
@@ -621,31 +600,19 @@ void Timezone::Tzset() {
   g_posix_tz_names.std_name.clear();
   g_posix_tz_names.dst_name.clear();
 
-  std::unique_ptr<icu::TimeZone> tz;
-  if (timezone_name[0] == '\0') {
-    tz.reset(icu::TimeZone::createTimeZone("UTC"));
-    g_posix_tz_names.std_name = "UTC";
-  } else {
-    auto parsed_data = tz::ParsePosixTz(timezone_name);
-    if (parsed_data) {
-      g_posix_tz_names.std_name = parsed_data->std;
-      if (parsed_data->dst) {
-        g_posix_tz_names.dst_name = *parsed_data->dst;
-      }
-      tz = CreateIcuTimezoneFromParsedData(*parsed_data);
-    } else {
-      // Fallback to IANA.
-      icu::UnicodeString time_zone_id =
-          icu::UnicodeString::fromUTF8(timezone_name);
-      tz.reset(icu::TimeZone::createTimeZone(time_zone_id));
-    }
-  }
+  std::unique_ptr<icu::TimeZone> tz = CalculateTimezoneData(timezone_name);
 
-  // If parsing fails, fall back to the system default.
-  if (!tz || *tz == icu::TimeZone::getUnknown()) {
-    icu::UnicodeString default_id =
-        icu::UnicodeString::fromUTF8(SbTimeZoneGetName());
-    tz.reset(icu::TimeZone::createTimeZone(default_id));
+  // If parsing fails, fall back to UTC as a sensible default.
+  if (!tz) {
+    tz.reset(icu::TimeZone::createTimeZone("UTC"));
+  } else {
+    icu::UnicodeString id;
+    tz->getID(id);
+    icu::UnicodeString unknown_id;
+    icu::TimeZone::getUnknown().getID(unknown_id);
+    if (id == unknown_id) {
+      tz.reset(icu::TimeZone::createTimeZone("UTC"));
+    }
   }
 
   icu::TimeZone::setDefault(*tz);
@@ -771,10 +738,6 @@ void Timezone::SetTmTimezoneFields(struct tm* tm,
   }
 }
 }  // namespace
-
-icu::TimeZone* GetPosixTimeZone() {
-  return g_posix_timezone.get();
-}
 
 void SetTmTimezoneFields(struct tm* tm, const UChar* zone_id, UDate date) {
   Timezone::SetTmTimezoneFields(tm, zone_id, date);

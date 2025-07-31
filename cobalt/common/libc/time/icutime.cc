@@ -179,12 +179,7 @@ struct tm* localtime_r(const time_t* in_time, struct tm* out_exploded) {
     return nullptr;
   }
 
-  std::unique_ptr<icu::TimeZone> zone;
-  if (auto* posix_tz = cobalt::common::libc::time::GetPosixTimeZone()) {
-    zone.reset(posix_tz->clone());
-  } else {
-    zone.reset(icu::TimeZone::createDefault());
-  }
+  std::unique_ptr<icu::TimeZone> zone(icu::TimeZone::createDefault());
 
   struct timeval value = TimeToTimeval(*in_time);
   if (timevalExplode(&value, zone.get(), out_exploded, nullptr)) {
@@ -223,12 +218,7 @@ struct tm* localtime(const time_t* in_time) {
 
 time_t mktime(struct tm* exploded) {
   tzset();
-  std::unique_ptr<icu::TimeZone> zone;
-  if (auto* posix_tz = cobalt::common::libc::time::GetPosixTimeZone()) {
-    zone.reset(posix_tz->clone());
-  } else {
-    zone.reset(icu::TimeZone::createDefault());
-  }
+  std::unique_ptr<icu::TimeZone> zone(icu::TimeZone::createDefault());
   struct timeval value = timevalImplode(exploded, 0, zone.get());
   return value.tv_sec;
 }
