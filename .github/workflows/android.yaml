@@ -21,8 +21,6 @@ jobs:
       pull-requests: write
     with:
       platform: chromium_android-arm64
-    secrets:
-      datadog_api_key: ${{ secrets.DD_API_KEY }}
   chromium_android-arm:
     uses: ./.github/workflows/main.yaml
     permissions:
@@ -30,8 +28,6 @@ jobs:
       pull-requests: write
     with:
       platform: chromium_android-arm
-    secrets:
-      datadog_api_key: ${{ secrets.DD_API_KEY }}
   chromium_android-x86:
     uses: ./.github/workflows/main.yaml
     permissions:
@@ -39,5 +35,3 @@ jobs:
       pull-requests: write
     with:
       platform: chromium_android-x86
-    secrets:
-      datadog_api_key: ${{ secrets.DD_API_KEY }}
