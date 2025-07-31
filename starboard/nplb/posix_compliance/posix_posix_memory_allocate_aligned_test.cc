@@ -107,12 +107,10 @@ TEST(PosixMemalignTest, FailsWithInvalidAlignmentNotPowerOfTwo) {
 
 TEST(PosixMemalignTest, FailsWithInvalidAlignmentNotMultipleOfVoidPointer) {
   void* memptr = NULL;
-  // Alignment must be a multiple of sizeof(void*). 1 may not be.
-  if (sizeof(void*) > 1) {
-    int result = posix_memalign(&memptr, 1, 1024);
-    EXPECT_EQ(result, EINVAL);
-    EXPECT_EQ(memptr, nullptr);
-  }
+  // Alignment must be a multiple of sizeof(void*), 1 is not.
+  int result = posix_memalign(&memptr, 1, 1024);
+  EXPECT_EQ(result, EINVAL);
+  EXPECT_EQ(memptr, nullptr);
 }
 
 TEST(PosixMemalignTest, AlignsForVariousDataTypes) {
