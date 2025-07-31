@@ -12,6 +12,15 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+/*
+  Untestable Scenarios for opendir:
+
+  - [ENFILE]: Cannot reliably trigger the system-wide file descriptor limit.
+  - [EMFILE]: Triggering the per-process file descriptor limit can lead to
+    flaky tests.
+  - [ENAMETOOLONG]: Max path size varies from system to system.
+*/
+
 #include <dirent.h>
 #include <sys/stat.h>
 #include <string>
@@ -24,6 +33,8 @@
 namespace starboard {
 namespace nplb {
 namespace {
+
+constexpr mode_t user_rwx = S_IRUSR | S_IWUSR | S_IXUSR;
 
 void ExpectFileExists(const char* path) {
   struct stat info;
@@ -115,6 +126,55 @@ TEST(PosixDirectoryOpenTest, FailsRegularFile) {
   if (directory != NULL) {
     closedir(directory);
   }
+}
+
+TEST(PosixDirectoryOpenTest, FailsNoAccess) {
+  // This test will not work correctly if run as root, as root bypasses
+  // file permission checks.
+  if (geteuid() == 0) {
+    GTEST_SKIP() << "Test cannot run as root; permission checks are bypassed.";
+  }
+
+  std::string dir_path = GetTempDir() + kSbFileSepString + "no_access_dir";
+  ASSERT_EQ(mkdir(dir_path.c_str(), user_rwx), 0);
+
+  // Remove read and search permissions.
+  ASSERT_EQ(chmod(dir_path.c_str(), S_IWUSR), 0);
+
+  errno = 0;
+  DIR* directory = opendir(dir_path.c_str());
+  EXPECT_EQ(directory, nullptr);
+  EXPECT_EQ(errno, EACCES);
+
+  // Cleanup: Restore permissions to allow removal.
+  chmod(dir_path.c_str(), user_rwx);
+  rmdir(dir_path.c_str());
+}
+
+TEST(PosixDirectoryOpenTest, FailsSymlinkLoop) {
+  std::string temp_dir = GetTempDir();
+  std::string path_a = temp_dir + kSbFileSepString + "loop_a";
+  std::string path_b = temp_dir + kSbFileSepString + "loop_b";
+
+  // Clean up any old links that might exist from a previous failed run.
+  unlink(path_a.c_str());
+  unlink(path_b.c_str());
+
+  // Create a circular dependency: a -> b and b -> a. This is a guaranteed
+  // symbolic link loop that the system must detect.
+  ASSERT_EQ(symlink(path_b.c_str(), path_a.c_str()), 0)
+      << "Failed to create symlink a->b: " << strerror(errno);
+  ASSERT_EQ(symlink(path_a.c_str(), path_b.c_str()), 0)
+      << "Failed to create symlink b->a: " << strerror(errno);
+
+  errno = 0;
+  DIR* directory = opendir(path_a.c_str());
+  EXPECT_EQ(directory, nullptr);
+  EXPECT_EQ(errno, ELOOP);
+
+  // Cleanup
+  unlink(path_a.c_str());
+  unlink(path_b.c_str());
 }
 
 }  // namespace
