@@ -17,13 +17,43 @@
 
 extern "C" {
 
-int __abi_wrap_fcntl(int fd, int cmd, va_list args);
+int __abi_wrap_fcntl(int fildes, int cmd);
+int __abi_wrap_fcntl2(int fildes, int cmd, int arg);
+int __abi_wrap_fcntl3(int fildes, int cmd, void* arg);
 
-int fcntl(int fd, int cmd, ...) {
-  va_list args;
-  va_start(args, cmd);
-  int result = __abi_wrap_fcntl(fd, cmd, args);
-  va_end(args);
+int fcntl(int fildes, int cmd, ...) {
+  int result;
+  int arg_int;
+  void* arg_ptr;
+  va_list ap;
+  va_start(ap, cmd);
+  switch (cmd) {
+    // The following commands have an int third argument.
+    case F_DUPFD:
+    case F_DUPFD_CLOEXEC:
+    case F_SETOWN:
+      arg_int = va_arg(ap, int);
+      result = __abi_wrap_fcntl2(fildes, cmd, arg_int);
+      break;
+    // The following commands have an int flag third argument.
+    case F_SETFD:
+    case F_SETFL:
+      arg_int = va_arg(ap, int);
+      result = __abi_wrap_fcntl2(fildes, cmd, arg_int);
+      break;
+    // The following commands have a pointer third argument.
+    case F_GETLK:
+    case F_SETLK:
+    case F_SETLKW:
+      arg_ptr = va_arg(ap, void*);
+      result = __abi_wrap_fcntl3(fildes, cmd, arg_ptr);
+      break;
+    // Any remaining commands have no third argument.
+    default:
+      result = __abi_wrap_fcntl(fildes, cmd);
+      break;
+  }
+  va_end(ap);
   return result;
 }
 
