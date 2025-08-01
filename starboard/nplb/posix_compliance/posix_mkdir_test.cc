@@ -38,8 +38,6 @@
 namespace starboard::nplb {
 namespace {
 
-constexpr mode_t user_rwx = S_IRUSR | S_IWUSR | S_IXUSR;
-
 class PosixMkdirTest : public ::testing::Test {
  protected:
   void SetUp() override {
@@ -60,13 +58,13 @@ class PosixMkdirTest : public ::testing::Test {
 
 TEST_F(PosixMkdirTest, FailsWithEmptyPath) {
   // An empty path should result in a "No such file or directory" error.
-  EXPECT_EQ(mkdir("", user_rwx), -1);
+  EXPECT_EQ(mkdir("", kUserRwx), -1);
   EXPECT_EQ(errno, ENOENT);
 }
 
 TEST_F(PosixMkdirTest, SuccessfulCreation) {
   std::string dir_path = test_dir_ + "/new_dir";
-  const mode_t mode = user_rwx;
+  const mode_t mode = kUserRwx;
 
   ASSERT_EQ(mkdir(dir_path.c_str(), mode), 0);
 
@@ -97,7 +95,7 @@ TEST_F(PosixMkdirTest, SuccessfulCreation) {
 
 TEST_F(PosixMkdirTest, FailsOnEmptyPath) {
   errno = 0;
-  EXPECT_EQ(mkdir("", user_rwx), -1);
+  EXPECT_EQ(mkdir("", kUserRwx), -1);
   EXPECT_EQ(errno, ENOENT);
 }
 
@@ -106,7 +104,7 @@ TEST_F(PosixMkdirTest, HandlesTrailingSeparators) {
   std::string path_with_separators = dir_base + "//";
 
   errno = 0;
-  ASSERT_EQ(mkdir(path_with_separators.c_str(), user_rwx), 0)
+  ASSERT_EQ(mkdir(path_with_separators.c_str(), kUserRwx), 0)
       << "mkdir with trailing separators failed: " << strerror(errno);
 
   // Verify the directory was created correctly, without the separators.
@@ -121,32 +119,32 @@ TEST_F(PosixMkdirTest, FailsIfPathExistsAsFile) {
   ASSERT_NE(fd, -1);
   close(fd);
 
-  EXPECT_EQ(mkdir(file_path.c_str(), user_rwx), -1);
+  EXPECT_EQ(mkdir(file_path.c_str(), kUserRwx), -1);
   EXPECT_EQ(errno, EEXIST);
 }
 
 TEST_F(PosixMkdirTest, FailsIfPathExistsAsDirectory) {
   std::string dir_path = test_dir_ + "/existing_dir";
-  ASSERT_EQ(mkdir(dir_path.c_str(), user_rwx), 0);
+  ASSERT_EQ(mkdir(dir_path.c_str(), kUserRwx), 0);
 
-  EXPECT_EQ(mkdir(dir_path.c_str(), user_rwx), -1);
+  EXPECT_EQ(mkdir(dir_path.c_str(), kUserRwx), -1);
   EXPECT_EQ(errno, EEXIST);
 }
 
 TEST_F(PosixMkdirTest, FailsIfPathIsSymbolicLink) {
   std::string target_path = test_dir_ + "/target";
   std::string link_path = test_dir_ + "/the_link";
-  ASSERT_EQ(mkdir(target_path.c_str(), user_rwx), 0);
+  ASSERT_EQ(mkdir(target_path.c_str(), kUserRwx), 0);
   ASSERT_EQ(symlink(target_path.c_str(), link_path.c_str()), 0);
 
   // mkdir() on a path that is a symlink should fail with EEXIST.
-  EXPECT_EQ(mkdir(link_path.c_str(), user_rwx), -1);
+  EXPECT_EQ(mkdir(link_path.c_str(), kUserRwx), -1);
   EXPECT_EQ(errno, EEXIST);
 }
 
 TEST_F(PosixMkdirTest, FailsIfParentDoesNotExist) {
   std::string path = test_dir_ + "/non_existent_parent/new_dir";
-  EXPECT_EQ(mkdir(path.c_str(), user_rwx), -1);
+  EXPECT_EQ(mkdir(path.c_str(), kUserRwx), -1);
   EXPECT_EQ(errno, ENOENT);
 }
 
@@ -158,7 +156,7 @@ TEST_F(PosixMkdirTest, FailsIfPathComponentIsNotDirectory) {
 
   std::string bad_path = file_path + "/new_dir";
   errno = 0;
-  EXPECT_EQ(mkdir(bad_path.c_str(), user_rwx), -1);
+  EXPECT_EQ(mkdir(bad_path.c_str(), kUserRwx), -1);
   EXPECT_EQ(errno, ENOTDIR);
 }
 
@@ -171,7 +169,7 @@ TEST_F(PosixMkdirTest, FailsWithSymbolicLinkLoop) {
 
   std::string path_in_loop = test_dir_ + "/link_a/new_dir";
   errno = 0;
-  EXPECT_EQ(mkdir(path_in_loop.c_str(), user_rwx), -1);
+  EXPECT_EQ(mkdir(path_in_loop.c_str(), kUserRwx), -1);
   EXPECT_EQ(errno, ELOOP);
 }
 
@@ -179,7 +177,7 @@ TEST_F(PosixMkdirTest, FailsOnPathTooLong) {
   std::string long_name(kSbFileMaxPath + 1, 'b');
   std::string long_path = test_dir_ + "/" + long_name;
   errno = 0;
-  EXPECT_EQ(mkdir(long_path.c_str(), user_rwx), -1);
+  EXPECT_EQ(mkdir(long_path.c_str(), kUserRwx), -1);
   EXPECT_EQ(errno, ENAMETOOLONG);
 }
 
