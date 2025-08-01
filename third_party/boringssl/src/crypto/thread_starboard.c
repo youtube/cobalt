@@ -22,8 +22,8 @@
 
 #include <openssl/mem.h>
 
-#include "starboard/system.h"
-#include "starboard/thread.h"
+#include "starboard/system.h" // nogncheck
+#include "starboard/thread.h" // nogncheck
 
 
 // Each enum of thread_local_data_t corresponds to a ThreadLocalEntry.
