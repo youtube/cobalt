@@ -6,7 +6,6 @@ OPENSSL_memory_alloc
 OPENSSL_memory_free
 OPENSSL_memory_get_size
 __nl_langinfo_l
-chmod
 closelog
 dladdr
 dlclose
