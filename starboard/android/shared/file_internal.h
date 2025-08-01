@@ -44,10 +44,11 @@ extern const char* g_app_files_dir;
 extern const char* g_app_cache_dir;
 extern const char* g_app_lib_dir;
 
-void SbFileAndroidInitialize(ScopedJavaGlobalRef<jobject> asset_manager,
-                             const std::string& files_dir,
-                             const std::string& cache_dir,
-                             const std::string& native_library_dir);
+void SbFileAndroidInitialize(
+    base::android::ScopedJavaGlobalRef<jobject> asset_manager,
+    const std::string& files_dir,
+    const std::string& cache_dir,
+    const std::string& native_library_dir);
 void SbFileAndroidTeardown();
 
 bool IsAndroidAssetPath(const char* path);

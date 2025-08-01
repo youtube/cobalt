@@ -20,8 +20,6 @@
 
 #include "base/memory/raw_ptr.h"
 #include "base/memory/scoped_refptr.h"
-#include "base/memory/weak_ptr.h"
-#include "base/synchronization/lock.h"
 #include "base/task/sequenced_task_runner.h"
 #include "base/time/time.h"
 #include "media/base/cdm_context.h"
@@ -36,6 +34,10 @@
 #include "media/starboard/sbplayer_bridge.h"
 #include "media/starboard/sbplayer_set_bounds_helper.h"
 #include "third_party/abseil-cpp/absl/types/optional.h"
+
+#if BUILDFLAG(IS_ANDROID)
+#include "media/base/android_overlay_mojo_factory.h"
+#endif  // BUILDFLAG(IS_ANDROID)
 
 namespace media {
 using base::Time;
@@ -53,7 +55,12 @@ class MEDIA_EXPORT StarboardRenderer : public Renderer,
                     const base::UnguessableToken& overlay_plane_id,
                     TimeDelta audio_write_duration_local,
                     TimeDelta audio_write_duration_remote,
-                    const std::string& max_video_capabilities);
+                    const std::string& max_video_capabilities
+#if BUILDFLAG(IS_ANDROID)
+                    ,
+                    const AndroidOverlayMojoFactoryCB android_overlay_factory_cb
+#endif  // BUILDFLAG(IS_ANDROID)
+  );
 
   // Disallow copy and assign.
   StarboardRenderer(const StarboardRenderer&) = delete;
@@ -103,10 +110,23 @@ class MEDIA_EXPORT StarboardRenderer : public Renderer,
       base::RepeatingCallback<void(const gfx::Size&)>;
   using UpdateStarboardRenderingModeCallback =
       base::RepeatingCallback<void(const StarboardRenderingMode mode)>;
+#if BUILDFLAG(IS_ANDROID)
+  using RequestOverlayInfoCallBack =
+      base::RepeatingCallback<void(bool restart_for_transitions)>;
+#endif  // BUILDFLAG(IS_ANDROID)
   void SetStarboardRendererCallbacks(
       PaintVideoHoleFrameCallback paint_video_hole_frame_cb,
-      UpdateStarboardRenderingModeCallback update_starboard_rendering_mode_cb);
+      UpdateStarboardRenderingModeCallback update_starboard_rendering_mode_cb
+#if BUILDFLAG(IS_ANDROID)
+      ,
+      RequestOverlayInfoCallBack request_overlay_info_cb
+#endif  // BUILDFLAG(IS_ANDROID)
+  );
+
   void OnVideoGeometryChange(const gfx::Rect& output_rect);
+#if BUILDFLAG(IS_ANDROID)
+  void OnOverlayInfoChanged(const OverlayInfo& overlay_info);
+#endif  // BUILDFLAG(IS_ANDROID)
 
   SbPlayerInterface* GetSbPlayerInterface();
 
@@ -165,6 +185,9 @@ class MEDIA_EXPORT StarboardRenderer : public Renderer,
   const TimeDelta audio_write_duration_local_;
   const TimeDelta audio_write_duration_remote_;
   const std::string max_video_capabilities_;
+#if BUILDFLAG(IS_ANDROID)
+  const AndroidOverlayMojoFactoryCB android_overlay_factory_cb_;
+#endif  // BUILDFLAG(IS_ANDROID)
 
   raw_ptr<DemuxerStream> audio_stream_ = nullptr;
   raw_ptr<DemuxerStream> video_stream_ = nullptr;
@@ -174,6 +197,9 @@ class MEDIA_EXPORT StarboardRenderer : public Renderer,
   raw_ptr<RendererClient> client_ = nullptr;
   PaintVideoHoleFrameCallback paint_video_hole_frame_cb_;
   UpdateStarboardRenderingModeCallback update_starboard_rendering_mode_cb_;
+#if BUILDFLAG(IS_ANDROID)
+  RequestOverlayInfoCallBack request_overlay_info_cb_;
+#endif  // BUILDFLAG(IS_ANDROID)
 
   // Temporary callback used for Initialize().
   PipelineStatusCallback init_cb_;
@@ -208,8 +234,6 @@ class MEDIA_EXPORT StarboardRenderer : public Renderer,
 
   SbDrmSystem drm_system_{kSbDrmSystemInvalid};
 
-  mutable base::Lock lock_;
-  // TODO: b/407063029 - Guard player_bridge_ and annotate with GUARDED_BY.
   std::unique_ptr<SbPlayerBridge> player_bridge_;
 
   bool player_bridge_initialized_ = false;

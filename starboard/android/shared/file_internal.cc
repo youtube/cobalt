@@ -41,6 +41,8 @@ const char* g_app_cache_dir = NULL;
 const char* g_app_lib_dir = NULL;
 
 namespace {
+using ::base::android::ScopedJavaGlobalRef;
+
 // A ScopedJavaGlobalRef<jobject> representing the Android AssetManager
 // instance. This global reference ensures the AssetManager Java object
 // remains valid and accessible throughout the native application's lifetime,
