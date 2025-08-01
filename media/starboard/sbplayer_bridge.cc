@@ -93,54 +93,66 @@ SbPlayerBridge::CallbackHelper::CallbackHelper(SbPlayerBridge* player_bridge)
     : player_bridge_(player_bridge) {}
 
 void SbPlayerBridge::CallbackHelper::ClearDecoderBufferCache() {
-  base::AutoLock auto_lock(lock_);
-  if (player_bridge_) {
-    player_bridge_->ClearDecoderBufferCache();
+  if (!player_bridge_) {
+    return;
   }
+  CHECK(player_bridge_->task_runner_->RunsTasksInCurrentSequence());
+
+  player_bridge_->ClearDecoderBufferCache();
 }
 
 void SbPlayerBridge::CallbackHelper::OnDecoderStatus(void* player,
                                                      SbMediaType type,
                                                      SbPlayerDecoderState state,
                                                      int ticket) {
-  base::AutoLock auto_lock(lock_);
-  if (player_bridge_) {
-    player_bridge_->OnDecoderStatus(static_cast<SbPlayer>(player), type, state,
-                                    ticket);
+  if (!player_bridge_) {
+    return;
   }
+  CHECK(player_bridge_->task_runner_->RunsTasksInCurrentSequence());
+
+  player_bridge_->OnDecoderStatus(static_cast<SbPlayer>(player), type, state,
+                                  ticket);
 }
 
 void SbPlayerBridge::CallbackHelper::OnPlayerStatus(void* player,
                                                     SbPlayerState state,
                                                     int ticket) {
-  base::AutoLock auto_lock(lock_);
-  if (player_bridge_) {
-    player_bridge_->OnPlayerStatus(static_cast<SbPlayer>(player), state,
-                                   ticket);
+  if (!player_bridge_) {
+    return;
   }
+  CHECK(player_bridge_->task_runner_->RunsTasksInCurrentSequence());
+
+  player_bridge_->OnPlayerStatus(static_cast<SbPlayer>(player), state, ticket);
 }
 
 void SbPlayerBridge::CallbackHelper::OnPlayerError(void* player,
                                                    SbPlayerError error,
                                                    const std::string& message) {
-  base::AutoLock auto_lock(lock_);
-  if (player_bridge_) {
-    player_bridge_->OnPlayerError(static_cast<SbPlayer>(player), error,
-                                  message);
+  if (!player_bridge_) {
+    return;
   }
+  CHECK(player_bridge_->task_runner_->RunsTasksInCurrentSequence());
+
+  player_bridge_->OnPlayerError(static_cast<SbPlayer>(player), error, message);
 }
 
 void SbPlayerBridge::CallbackHelper::OnDeallocateSample(
     const void* sample_buffer) {
-  base::AutoLock auto_lock(lock_);
-  if (player_bridge_) {
-    player_bridge_->OnDeallocateSample(sample_buffer);
+  if (!player_bridge_) {
+    return;
   }
+  CHECK(player_bridge_->task_runner_->RunsTasksInCurrentSequence());
+
+  player_bridge_->OnDeallocateSample(sample_buffer);
 }
 
 void SbPlayerBridge::CallbackHelper::ResetPlayer() {
-  base::AutoLock auto_lock(lock_);
-  player_bridge_ = NULL;
+  if (!player_bridge_) {
+    return;
+  }
+  CHECK(player_bridge_->task_runner_->RunsTasksInCurrentSequence());
+
+  player_bridge_ = nullptr;
 }
 
 #if SB_HAS(PLAYER_WITH_URL)

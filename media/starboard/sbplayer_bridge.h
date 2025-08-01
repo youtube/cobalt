@@ -203,8 +203,7 @@ class SbPlayerBridge {
     void ResetPlayer();
 
    private:
-    base::Lock lock_;
-    SbPlayerBridge* player_bridge_ GUARDED_BY(lock_);
+    SbPlayerBridge* player_bridge_;
   };
 
   static const int64_t kClearDecoderCacheIntervalInMilliseconds = 1000;
