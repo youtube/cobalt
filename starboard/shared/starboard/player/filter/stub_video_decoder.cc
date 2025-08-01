@@ -132,14 +132,15 @@ scoped_refptr<VideoFrame> StubVideoDecoder::CreateOutputFrame(
     // Assume 8 bits when |bits_per_channel| is unknown (0).
     bits_per_channel = 8;
   }
-  int uv_stride = bits_per_channel > 8 ? video_stream_info_.frame_width
-                                       : video_stream_info_.frame_width / 2;
+  int uv_stride = bits_per_channel > 8
+                      ? video_stream_info_.frame_size.width
+                      : video_stream_info_.frame_size.width / 2;
   int y_stride = uv_stride * 2;
-  std::string data(y_stride * video_stream_info_.frame_height, 0);
+  std::string data(y_stride * video_stream_info_.frame_size.height, 0);
 
   return CpuVideoFrame::CreateYV12Frame(
-      bits_per_channel, video_stream_info_.frame_width,
-      video_stream_info_.frame_height, y_stride, uv_stride, timestamp,
+      bits_per_channel, video_stream_info_.frame_size.width,
+      video_stream_info_.frame_size.height, y_stride, uv_stride, timestamp,
       reinterpret_cast<const uint8_t*>(data.data()),
       reinterpret_cast<const uint8_t*>(data.data()),
       reinterpret_cast<const uint8_t*>(data.data()));

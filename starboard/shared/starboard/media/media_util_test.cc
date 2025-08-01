@@ -139,8 +139,8 @@ TEST(VideoStreamInfoTest, SbMediaVideoStreamInfo) {
   EXPECT_EQ(original.mime, video_stream_info.mime);
   EXPECT_EQ(original.max_video_capabilities,
             video_stream_info.max_video_capabilities);
-  EXPECT_EQ(original.frame_width, video_stream_info.frame_width);
-  EXPECT_EQ(original.frame_height, video_stream_info.frame_height);
+  EXPECT_EQ(original.frame_width, video_stream_info.frame_size.width);
+  EXPECT_EQ(original.frame_height, video_stream_info.frame_size.height);
   EXPECT_EQ(original.color_metadata, video_stream_info.color_metadata);
 }
 
@@ -159,8 +159,8 @@ TEST(VideoStreamInfoTest, CobaltExtensionEnhancedAudioMediaVideoStreamInfo) {
   EXPECT_EQ(original.mime, video_stream_info.mime);
   EXPECT_EQ(original.max_video_capabilities,
             video_stream_info.max_video_capabilities);
-  EXPECT_EQ(original.frame_width, video_stream_info.frame_width);
-  EXPECT_EQ(original.frame_height, video_stream_info.frame_height);
+  EXPECT_EQ(original.frame_width, video_stream_info.frame_size.width);
+  EXPECT_EQ(original.frame_height, video_stream_info.frame_size.height);
   EXPECT_EQ(original.color_metadata, video_stream_info.color_metadata);
 }
 
@@ -257,9 +257,10 @@ TEST(VideoSampleInfoTest, SbMediaVideoSampleInfo) {
   EXPECT_EQ(stream_info.mime, video_sample_info.stream_info.mime);
   EXPECT_EQ(stream_info.max_video_capabilities,
             video_sample_info.stream_info.max_video_capabilities);
-  EXPECT_EQ(stream_info.frame_width, video_sample_info.stream_info.frame_width);
+  EXPECT_EQ(stream_info.frame_width,
+            video_sample_info.stream_info.frame_size.width);
   EXPECT_EQ(stream_info.frame_height,
-            video_sample_info.stream_info.frame_height);
+            video_sample_info.stream_info.frame_size.height);
   EXPECT_EQ(stream_info.color_metadata,
             video_sample_info.stream_info.color_metadata);
 }
@@ -283,9 +284,10 @@ TEST(VideoSampleInfoTest, CobaltExtensionEnhancedAudioMediaVideoSampleInfo) {
   EXPECT_EQ(stream_info.mime, video_sample_info.stream_info.mime);
   EXPECT_EQ(stream_info.max_video_capabilities,
             video_sample_info.stream_info.max_video_capabilities);
-  EXPECT_EQ(stream_info.frame_width, video_sample_info.stream_info.frame_width);
+  EXPECT_EQ(stream_info.frame_width,
+            video_sample_info.stream_info.frame_size.width);
   EXPECT_EQ(stream_info.frame_height,
-            video_sample_info.stream_info.frame_height);
+            video_sample_info.stream_info.frame_size.height);
   EXPECT_EQ(stream_info.color_metadata,
             video_sample_info.stream_info.color_metadata);
 }

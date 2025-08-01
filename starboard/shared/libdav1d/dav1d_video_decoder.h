@@ -24,6 +24,7 @@
 #include <string>
 
 #include "starboard/common/ref_counted.h"
+#include "starboard/common/size.h"
 #include "starboard/decode_target.h"
 #include "starboard/shared/internal_only.h"
 #include "starboard/shared/starboard/player/filter/cpu_video_frame.h"
@@ -90,8 +91,7 @@ class VideoDecoder : public starboard::player::filter::VideoDecoder,
   DecoderStatusCB decoder_status_cb_;
   ErrorCB error_cb_;
 
-  int current_frame_width_ = 0;
-  int current_frame_height_ = 0;
+  Size current_frame_size_;
   int frames_being_decoded_ = 0;
   Dav1dContext* dav1d_context_ = NULL;
 

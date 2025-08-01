@@ -123,8 +123,7 @@ void SbPlayerPrivateImpl::WriteSamples(const SbPlayerSampleInfo* sample_infos,
   const auto& last_input_buffer = input_buffers.back();
   if (last_input_buffer->sample_type() == kSbMediaTypeVideo) {
     total_video_frames_ += number_of_sample_infos;
-    frame_width_ = last_input_buffer->video_stream_info().frame_width;
-    frame_height_ = last_input_buffer->video_stream_info().frame_height;
+    frame_size_ = last_input_buffer->video_stream_info().frame_size;
   }
 
   worker_->WriteSamples(std::move(input_buffers));
@@ -156,8 +155,8 @@ void SbPlayerPrivateImpl::GetInfo(SbPlayerInfo* out_player_info) {
         CalculateMediaTime(media_time_, media_time_updated_at_, playback_rate_);
   }
 
-  out_player_info->frame_width = frame_width_;
-  out_player_info->frame_height = frame_height_;
+  out_player_info->frame_width = frame_size_.width;
+  out_player_info->frame_height = frame_size_.height;
   out_player_info->is_paused = is_paused_;
   out_player_info->volume = volume_;
   out_player_info->total_video_frames = total_video_frames_;

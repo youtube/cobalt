@@ -18,6 +18,7 @@
 #include <optional>
 #include <vector>
 
+#include "starboard/common/size.h"
 #include "starboard/media.h"
 #include "starboard/shared/internal_only.h"
 #include "starboard/shared/starboard/media/avc_util.h"
@@ -32,14 +33,13 @@ class VideoConfig {
  public:
   // |data| must point to the encoded data of a key frame.
   VideoConfig(SbMediaVideoCodec video_codec,
-              int width,
-              int height,
+              const Size& size,
               const uint8_t* data,
-              size_t size);
+              size_t data_size);
 
   VideoConfig(const VideoStreamInfo& video_stream_info,
               const uint8_t* data,
-              size_t size);
+              size_t data_size);
 
   bool is_valid() const { return video_codec_ != kSbMediaVideoCodecNone; }
 
@@ -55,8 +55,7 @@ class VideoConfig {
 
  private:
   SbMediaVideoCodec video_codec_ = kSbMediaVideoCodecNone;
-  int width_ = -1;
-  int height_ = -1;
+  Size size_;
   // Only valid when |video_codec_| is |kSbMediaVideoCodecH264|.
   std::optional<AvcParameterSets> avc_parameter_sets_;
 };

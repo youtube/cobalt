@@ -24,6 +24,13 @@ struct Size {
   constexpr Size() : width(0), height(0) {}
   constexpr Size(int width, int height) : width(width), height(height) {}
 
+  constexpr bool operator==(const Size& other) const {
+    return width == other.width && height == other.height;
+  }
+  constexpr bool operator!=(const Size& other) const {
+    return !(*this == other);
+  }
+
   int width;
   int height;
 };
