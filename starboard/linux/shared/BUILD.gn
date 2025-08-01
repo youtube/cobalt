@@ -161,7 +161,6 @@ static_library("starboard_platform_sources") {
     "//starboard/shared/pthread/thread_context_get_pointer.cc",
     "//starboard/shared/pthread/thread_context_internal.cc",
     "//starboard/shared/pthread/thread_context_internal.h",
-    "//starboard/shared/pthread/thread_create_priority.h",
     "//starboard/shared/pthread/thread_priority.cc",
     "//starboard/shared/pthread/thread_sampler_create.cc",
     "//starboard/shared/pthread/thread_sampler_destroy.cc",
@@ -247,7 +246,6 @@ static_library("starboard_platform_sources") {
     "//starboard/shared/stub/system_hide_splash_screen.cc",
     "//starboard/shared/stub/system_raise_platform_error.cc",
     "//starboard/shared/stub/system_sign_with_certification_secret_key.cc",
-    "//starboard/shared/stub/thread_create_priority.cc",
     "//starboard/shared/stub/window_get_diagonal_size_in_inches.cc",
   ]
 
