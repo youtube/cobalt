@@ -41,7 +41,7 @@ static_library("ffmpeg_dynamic_load") {
 }
 
 # TODO(b/208910380): ffmpeg_linked doesn't compile for linux locally.
-_target_platform_name_parts = string_split(target_platform, "-")
+_target_platform_name_parts = string_split(starboard_target_platform, "-")
 _building_linux_platform = _target_platform_name_parts[0] == "linux"
 if (!_building_linux_platform) {
   static_library("ffmpeg_linked") {
