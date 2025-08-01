@@ -3027,6 +3027,7 @@ TEST_F(WebViewTest, TouchCancelOnStartDragging) {
   EXPECT_EQ("touchcancel", web_view->MainFrameImpl()->GetDocument().Title());
 }
 
+#if !BUILDFLAG(IS_COBALT)
 // Tests that a touch drag context menu is enabled, a dragend shows a context
 // menu when there is no drag.
 TEST_F(WebViewTest, TouchDragContextMenuWithoutDrag) {
@@ -3110,6 +3111,7 @@ TEST_F(WebViewTest, TouchDragContextMenuAtDragEnd) {
       web_view->GetPage()->GetContextMenuController().ContextMenuNodeForFrame(
           web_view->MainFrameImpl()->GetFrame()));
 }
+#endif // #if !BUILDFLAG(IS_COBALT)
 
 TEST_F(WebViewTest, ContextMenuOnLinkAndImageLongPress) {
   ScopedTouchDragAndContextMenuForTest touch_drag_and_context_menu(false);
