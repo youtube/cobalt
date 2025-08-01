@@ -92,7 +92,7 @@ namespace content {
 
 namespace {
 
-#if BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_CHROMEOS)
+#if BUILDFLAG(IS_LINUX) && !BUILDFLAG(IS_COBALT_HERMETIC_BUILD) || BUILDFLAG(IS_CHROMEOS)
 std::vector<std::string> GetNetworkContextsParentDirectories() {
   base::MemoryMappedFile::Region region;
   base::ScopedFD read_pipe_fd = base::FileDescriptorStore::GetInstance().TakeFD(
@@ -135,7 +135,7 @@ bool ShouldUseAmdGpuPolicy(sandbox::mojom::Sandbox sandbox_type) {
 
   return false;
 }
-#endif  // BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_CHROMEOS)
+#endif  // BUILDFLAG(IS_LINUX) && !BUILDFLAG(IS_COBALT_HERMETIC_BUILD) || BUILDFLAG(IS_CHROMEOS)
 
 void SetUtilityThreadName(const std::string utility_sub_type) {
   // Typical utility sub-types are audio.mojom.AudioService or
@@ -202,7 +202,7 @@ int UtilityMain(MainFunctionParams parameters) {
     }
   }
 
-#if BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_CHROMEOS)
+#if BUILDFLAG(IS_LINUX) && !BUILDFLAG(IS_COBALT_HERMETIC_BUILD) || BUILDFLAG(IS_CHROMEOS)
   // Initializes the sandbox before any threads are created.
   // TODO(jorgelo): move this after GTK initialization when we enable a strict
   // Seccomp-BPF policy.
@@ -233,12 +233,8 @@ int UtilityMain(MainFunctionParams parameters) {
 #endif
 #if BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_CHROMEOS_ASH)
     case sandbox::mojom::Sandbox::kHardwareVideoDecoding:
-#if BUILDFLAG(ENABLE_COBALT_HERMETIC_HACKS)
-      COBALT_LINKER_STUB();
-#else  // BUILDFLAG(ENABLE_COBALT_HERMETIC_HACKS)
       pre_sandbox_hook =
           base::BindOnce(&media::HardwareVideoDecodingPreSandboxHook);
-#endif  // BUILDFLAG(ENABLE_COBALT_HERMETIC_HACKS)
       break;
 #endif  // BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_CHROMEOS_ASH)
     case sandbox::mojom::Sandbox::kHardwareVideoEncoding:

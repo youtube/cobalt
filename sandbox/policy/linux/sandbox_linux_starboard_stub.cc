@@ -13,7 +13,7 @@
 // limitations under the License.
 
 #include "sandbox/policy/linux/sandbox_linux.h"
-#include "sandbox/linux/suid/client/setuid_sandbox_client.h"
+#include "sandbox/linux/suid/client/setuid_sandbox_client.h"  // nogncheck
 
 #include "base/notreached.h"
 
