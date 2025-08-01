@@ -368,6 +368,7 @@ std::ostream& operator<<(std::ostream& os, const MimeType& mime_type) {
     const char* sep = "";
     for (const auto& param : mime_type.params_) {
       os << sep << param.name << "=";
+      sep = ",";
       switch (param.type) {
         case MimeType::kParamTypeInteger:
           os << "(int)" << param.int_value;
@@ -382,7 +383,6 @@ std::ostream& operator<<(std::ostream& os, const MimeType& mime_type) {
           os << "(bool)" << (param.bool_value ? "true" : "false");
           break;
       }
-      sep = ",";
     }
     os << " }";
   }
