@@ -494,17 +494,15 @@ void StarboardRenderer::OnOverlayInfoChanged(const OverlayInfo& overlay_info) {
       &StarboardRenderer::OnPowerEfficientState, weak_factory_.GetWeakPtr());
 
   if (overlay_changed) {
-    LOG(INFO) << __func__ << "Overlay info before request: "
-              << overlay_info.routing_token.value().ToString();
-    LOG(INFO) << __func__
-              << "Callback is: " << android_overlay_factory_cb_.is_null();
+    LOG(INFO) << __func__ << " AndroidOverlayMojoFactoryCB is Null: "
+              << android_overlay_factory_cb_.is_null();
     overlay_ = android_overlay_factory_cb_.Run(*overlay_info.routing_token,
                                                std::move(config));
-    LOG(INFO) << "Overlay info changed, requested AndroidOverlay. Token: "
+    LOG(INFO) << " Overlay info changed, requested AndroidOverlay. Token: "
               << overlay_info.routing_token.value().ToString();
   } else {
     LOG(INFO)
-        << "Overlay info not changed, did not request AndroidOverlay. Token: "
+        << " Overlay info not changed, did not request AndroidOverlay. Token: "
         << overlay_info.routing_token.value().ToString();
   }
 }
