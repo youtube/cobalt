@@ -186,6 +186,7 @@ void DevToolsHost::ShowContextMenu(LocalFrame* target_frame,
                                    float x,
                                    float y,
                                    WebVector<MenuItemInfo> items) {
+#if !BUILDFLAG(IS_COBALT)
   DCHECK(frontend_frame_);
   auto* menu_provider =
       MakeGarbageCollected<FrontendMenuProvider>(this, std::move(items));
@@ -197,6 +198,7 @@ void DevToolsHost::ShowContextMenu(LocalFrame* target_frame,
     target_frame->GetPage()->GetContextMenuController().ShowContextMenuAtPoint(
         target_frame, x * zoom, y * zoom, menu_provider);
   }
+#endif
 }
 
 bool DevToolsHost::isHostedMode() {

@@ -188,8 +188,10 @@ Page::Page(base::PassKey<Page>,
       drag_caret_(MakeGarbageCollected<DragCaret>()),
       drag_controller_(MakeGarbageCollected<DragController>(this)),
       focus_controller_(MakeGarbageCollected<FocusController>(this)),
+#if !BUILDFLAG(IS_COBALT)
       context_menu_controller_(
           MakeGarbageCollected<ContextMenuController>(this)),
+#endif
       page_scale_constraints_set_(
           MakeGarbageCollected<PageScaleConstraintsSet>(this)),
       pointer_lock_controller_(
@@ -344,7 +346,9 @@ LocalFrame* Page::DeprecatedLocalMainFrame() const {
 
 void Page::DocumentDetached(Document* document) {
   pointer_lock_controller_->DocumentDetached(document);
+#if !BUILDFLAG(IS_COBALT)
   context_menu_controller_->DocumentDetached(document);
+#endif
   if (validation_message_client_)
     validation_message_client_->DocumentDetached(*document);
 
@@ -935,7 +939,9 @@ void Page::Trace(Visitor* visitor) const {
   visitor->Trace(drag_caret_);
   visitor->Trace(drag_controller_);
   visitor->Trace(focus_controller_);
+#if !BUILDFLAG(IS_COBALT)
   visitor->Trace(context_menu_controller_);
+#endif
   visitor->Trace(page_scale_constraints_set_);
   visitor->Trace(page_visibility_observer_set_);
   visitor->Trace(pointer_lock_controller_);

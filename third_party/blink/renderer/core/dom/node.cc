@@ -2979,8 +2979,10 @@ void Node::DefaultEventHandler(Event& event) {
   } else if (event_type == event_type_names::kContextmenu &&
              IsA<MouseEvent>(event)) {
     if (Page* page = GetDocument().GetPage()) {
+#if !BUILDFLAG(IS_COBALT)
       page->GetContextMenuController().HandleContextMenuEvent(
           To<MouseEvent>(&event));
+#endif
     }
   } else if (event_type == event_type_names::kTextInput) {
     if (event.HasInterface(event_interface_names::kTextEvent)) {

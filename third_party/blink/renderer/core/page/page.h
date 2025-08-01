@@ -207,9 +207,11 @@ class CORE_EXPORT Page final : public GarbageCollected<Page>,
   DragController& GetDragController() const { return *drag_controller_; }
   FocusController& GetFocusController() const { return *focus_controller_; }
   SpatialNavigationController& GetSpatialNavigationController();
+  #if !BUILDFLAG(IS_COBALT)
   ContextMenuController& GetContextMenuController() const {
     return *context_menu_controller_;
   }
+#endif
   PointerLockController& GetPointerLockController() const {
     return *pointer_lock_controller_;
   }
@@ -470,7 +472,9 @@ class CORE_EXPORT Page final : public GarbageCollected<Page>,
   const Member<DragCaret> drag_caret_;
   const Member<DragController> drag_controller_;
   const Member<FocusController> focus_controller_;
+#if !BUILDFLAG(IS_COBALT)
   const Member<ContextMenuController> context_menu_controller_;
+#endif
   const Member<PageScaleConstraintsSet> page_scale_constraints_set_;
   HeapLinkedHashSet<WeakMember<PageVisibilityObserver>>
       page_visibility_observer_set_;

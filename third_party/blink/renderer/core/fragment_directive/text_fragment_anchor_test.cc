@@ -2372,6 +2372,7 @@ TEST_F(TextFragmentAnchorTest, OpenedFromHighlightDoesNotSelectAdditionalText) {
   EXPECT_FALSE(selection.SelectedText().empty());
 }
 
+#if !BUILDFLAG(IS_COBALT)
 // Test that on Android, a user can display a context menu by tapping on
 // a text fragment, when the TextFragmentTapOpensContextMenu
 // RuntimeEnabledFeature is enabled.
@@ -2438,6 +2439,7 @@ TEST_F(TextFragmentAnchorTest, ShouldOpenContextMenuOnTap) {
                    ->GetContextMenuController()
                    .ContextMenuNodeForFrame(GetDocument().GetFrame()));
 }
+#endif 
 
 #if BUILDFLAG(ENABLE_UNHANDLED_TAP)
 // Mock implementation of the UnhandledTapNotifier Mojo receiver, for testing
@@ -2469,7 +2471,7 @@ class MockUnhandledTapNotifierImpl : public mojom::blink::UnhandledTapNotifier {
 };
 #endif  // BUILDFLAG(ENABLE_UNHANDLED_TAP)
 
-#if BUILDFLAG(ENABLE_UNHANDLED_TAP)
+#if BUILDFLAG(ENABLE_UNHANDLED_TAP) && !BUILDFLAG(IS_COBALT)
 // Test that on Android, when a user taps on a text, ShouldNotRequestUnhandled
 // does not get triggered. When a user taps on a highlight, no text should be
 // selected. RuntimeEnabledFeature is enabled.
@@ -2532,8 +2534,9 @@ TEST_F(TextFragmentAnchorTest,
   EXPECT_TRUE(mock_notifier.WasUnhandledTap());
   EXPECT_TRUE(mock_notifier.ReceiverIsBound());
 }
-#endif  // BUILDFLAG(ENABLE_UNHANDLED_TAP)
+#endif  // BUILDFLAG(ENABLE_UNHANDLED_TAP) && !BUILDFLAG(IS_COBALT)
 
+#if !BUILDFLAG(IS_COBALT)
 TEST_F(TextFragmentAnchorTest, TapOpeningContextMenuWithDirtyLifecycleNoCrash) {
   ScopedTextFragmentTapOpensContextMenuForTest tap_opens_context_menu(true);
 
@@ -2600,6 +2603,7 @@ TEST_F(TextFragmentAnchorTest, TapOpeningContextMenuWithDirtyLifecycleNoCrash) {
                    ->GetContextMenuController()
                    .ContextMenuNodeForFrame(GetDocument().GetFrame()));
 }
+#endif
 
 }  // namespace
 
