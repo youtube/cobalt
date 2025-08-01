@@ -26,7 +26,6 @@
 #include <utility>
 #include <vector>
 
-#include "starboard/common/condition_variable.h"
 #include "starboard/common/media.h"
 #include "starboard/common/ref_counted.h"
 #include "starboard/common/time.h"
