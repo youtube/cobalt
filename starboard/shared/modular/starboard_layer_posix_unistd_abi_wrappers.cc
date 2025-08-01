@@ -111,6 +111,23 @@ int musl_conf_to_platform_conf(int name) {
       return -1;
   }
 }
+
+int access_helper(int musl_amode) {
+  int platform_amode = 0;
+  if (musl_amode == MUSL_F_OK) {
+    return F_OK;
+  }
+  if (musl_amode & MUSL_R_OK) {
+    platform_amode |= R_OK;
+  }
+  if (musl_amode & MUSL_W_OK) {
+    platform_amode |= W_OK;
+  }
+  if (musl_amode & MUSL_X_OK) {
+    platform_amode |= X_OK;
+  }
+  return platform_amode;
+}
 }  // namespace
 
 int __abi_wrap_ftruncate(int fildes, musl_off_t length) {
@@ -658,4 +675,8 @@ musl_uid_t __abi_wrap_geteuid() {
 
 musl_pid_t __abi_wrap_getpid() {
   return static_cast<musl_pid_t>(getpid());
+}
+
+int __abi_wrap_access(const char* path, int amode) {
+  return access(path, access_helper(amode));
 }
