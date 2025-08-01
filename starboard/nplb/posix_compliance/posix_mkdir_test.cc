@@ -31,6 +31,7 @@
 #include <sys/stat.h>
 #include <unistd.h>
 
+#include "starboard/configuration_constants.h"
 #include "starboard/nplb/file_helpers.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
@@ -175,7 +176,7 @@ TEST_F(PosixMkdirTest, FailsWithSymbolicLinkLoop) {
 }
 
 TEST_F(PosixMkdirTest, FailsOnPathTooLong) {
-  std::string long_name(NAME_MAX + 1, 'b');
+  std::string long_name(kSbFileMaxPath + 1, 'b');
   std::string long_path = test_dir_ + "/" + long_name;
   errno = 0;
   EXPECT_EQ(mkdir(long_path.c_str(), user_rwx), -1);
