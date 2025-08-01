@@ -15,6 +15,7 @@
 #ifndef STARBOARD_NPLB_FILE_HELPERS_H_
 #define STARBOARD_NPLB_FILE_HELPERS_H_
 
+#include <fcntl.h>
 #include <unistd.h>
 
 #include <string>
@@ -22,6 +23,9 @@
 
 namespace starboard {
 namespace nplb {
+
+constexpr mode_t kUserRwx = S_IRUSR | S_IWUSR | S_IXUSR;
+constexpr mode_t kUserRw = S_IRUSR | S_IWUSR;
 
 // Gets the temporary directory in which ScopedRandomFile places its files.
 std::string GetTempDir();
