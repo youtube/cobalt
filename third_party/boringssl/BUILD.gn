@@ -11,8 +11,6 @@ import("//testing/libfuzzer/fuzzer_test.gni")
 import("BUILD.generated.gni")
 import("BUILD.generated_tests.gni")
 
-import("//cobalt/build/configs/hacks.gni")
-
 if (enable_rust) {
   import("//build/rust/cargo_crate.gni")
   import("//build/rust/rust_bindgen.gni")
@@ -209,7 +207,7 @@ component("boringssl") {
       "//starboard/common",
     ]
   }
-  if (enable_cobalt_hermetic_hacks) {
+  if (is_starboard) {
     sources += [ "src/crypto/thread_starboard.c" ]
   }
 }
