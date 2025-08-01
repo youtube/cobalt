@@ -232,6 +232,7 @@ _ALLOWED_SB_GE_16_POSIX_SYMBOLS = [
     'sem_timedwait',
     'sem_wait',
     'send',
+    'sendmsg',
     'sendto',
     'setsockopt',
     'shutdown',
