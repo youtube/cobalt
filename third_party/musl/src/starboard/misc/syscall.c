@@ -14,6 +14,7 @@
 
 #include "syscall.h"
 
+#include "starboard/common/log.h"
 #include "starboard/thread.h"
 
 #undef syscall
