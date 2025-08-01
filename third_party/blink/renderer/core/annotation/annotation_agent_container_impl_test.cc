@@ -468,7 +468,7 @@ TEST_F(AnnotationAgentContainerImplTest,
       SetSelectionOptions());
 
 #if BUILDFLAG(IS_COBALT)
-  container->PreemptivelyGenerateSelector(range);
+  container->OpenedContextMenuOverSelection();
 #else
   // Right click on the selected text
   const auto& selection_rect = CreateRange(range)->BoundingBox();
@@ -543,7 +543,7 @@ TEST_F(AnnotationAgentContainerImplTest, CreateAgentFromSelection) {
       SetSelectionOptions());
 
 #if BUILDFLAG(IS_COBALT)
-  container->PreemptivelyGenerateSelector(range);
+  container->OpenedContextMenuOverSelection();
 #else
   const auto& selection_rect = CreateRange(range)->BoundingBox();
   SendRightClick(selection_rect.origin());
@@ -622,8 +622,9 @@ TEST_F(AnnotationAgentContainerImplTest, ShutdownDocumentWhileGenerating) {
   frame_selection.SetSelection(
       SelectionInDOMTree::Builder().SetBaseAndExtent(range).Build(),
       SetSelectionOptions());
+
 #if BUILDFLAG(IS_COBALT)
-  container->PreemptivelyGenerateSelector(range);
+  container->OpenedContextMenuOverSelection();
 #else
   // Right click on the selected text
   const auto& selection_rect = CreateRange(range)->BoundingBox();
