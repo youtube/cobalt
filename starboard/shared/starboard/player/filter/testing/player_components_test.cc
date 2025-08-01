@@ -214,15 +214,21 @@ class PlayerComponentsTest
   int64_t GetMediaTime() {
     bool is_playing, is_eos_played, is_underflow;
     double playback_rate;
+    bool has_renderer, is_eos_received;
+    int total_frames_sent_to_sink;
     return GetMediaTimeProvider()->GetCurrentMediaTime(
-        &is_playing, &is_eos_played, &is_underflow, &playback_rate);
+        &is_playing, &is_eos_played, &is_underflow, &playback_rate,
+        &has_renderer, &total_frames_sent_to_sink, &is_eos_received);
   }
 
   bool IsPlaying() {
     bool is_playing, is_eos_played, is_underflow;
     double playback_rate;
-    GetMediaTimeProvider()->GetCurrentMediaTime(&is_playing, &is_eos_played,
-                                                &is_underflow, &playback_rate);
+    bool has_renderer, is_eos_received;
+    int total_frames_sent_to_sink;
+    GetMediaTimeProvider()->GetCurrentMediaTime(
+        &is_playing, &is_eos_played, &is_underflow, &playback_rate,
+        &has_renderer, &total_frames_sent_to_sink, &is_eos_received);
     return is_playing;
   }
 

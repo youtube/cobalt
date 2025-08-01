@@ -147,6 +147,12 @@ class MEDIA_EXPORT StarboardRenderer : public Renderer,
                   int max_number_of_buffers_to_write) override;
   void OnPlayerStatus(SbPlayerState state) override;
   void OnPlayerError(SbPlayerError error, const std::string& message) override;
+  void OnRenderStatus(bool has_video_renderer,
+                      int number_of_frames,
+                      bool is_video_eos_received,
+                      bool has_audio_renderer,
+                      int total_frames_sent_to_sink,
+                      bool is_audio_eos_received) override;
 
   // Used to make a delayed call to OnNeedData() if |audio_read_delayed_| is
   // true. If |audio_read_delayed_| is false, that means the delayed call has
@@ -166,6 +172,9 @@ class MEDIA_EXPORT StarboardRenderer : public Renderer,
                              bool is_preroll);
 
   void OnBufferingStateChange(BufferingState state);
+  bool WaitingForEnoughData() const;
+  void UpdateUnderflow(DemuxerStream::Type type,
+                       BufferingState new_buffering_state);
 
   State state_;
   const scoped_refptr<base::SequencedTaskRunner> task_runner_;
@@ -173,6 +182,8 @@ class MEDIA_EXPORT StarboardRenderer : public Renderer,
   const scoped_refptr<SbPlayerSetBoundsHelper> set_bounds_helper_;
   raw_ptr<CdmContext> cdm_context_;
   BufferingState buffering_state_;
+  BufferingState audio_buffering_state_;
+  BufferingState video_buffering_state_;
   const TimeDelta audio_write_duration_local_;
   const TimeDelta audio_write_duration_remote_;
   const std::string max_video_capabilities_;
@@ -237,6 +248,13 @@ class MEDIA_EXPORT StarboardRenderer : public Renderer,
 
   uint32_t last_video_frames_decoded_ = 0;
   uint32_t last_video_frames_dropped_ = 0;
+
+  bool has_video_renderer_ = false;
+  int number_of_frames_ = 0;
+  bool has_audio_renderer_ = false;
+  int frames_sent_to_sink_ = 0;
+  int last_total_frames_sent_to_sink_ = 0;
+  double playback_rate_before_underflow_ = 0.;
 
   raw_ptr<SbPlayerInterface> test_sbplayer_interface_;
 

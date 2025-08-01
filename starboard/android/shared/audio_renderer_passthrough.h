@@ -77,7 +77,10 @@ class AudioRendererPassthrough
   int64_t GetCurrentMediaTime(bool* is_playing,
                               bool* is_eos_played,
                               bool* is_underflow,
-                              double* playback_rate) override;
+                              double* playback_rate,
+                              bool* has_renderer,
+                              int* total_frames_sent_to_sink,
+                              bool* is_eos_received) override;
 
  private:
   typedef ::starboard::shared::starboard::player::DecodedAudio DecodedAudio;

@@ -293,20 +293,30 @@ void AudioRendererPassthrough::Seek(int64_t seek_to_time) {
 }
 
 // This function can be called from *any* threads.
-int64_t AudioRendererPassthrough::GetCurrentMediaTime(bool* is_playing,
-                                                      bool* is_eos_played,
-                                                      bool* is_underflow,
-                                                      double* playback_rate) {
+int64_t AudioRendererPassthrough::GetCurrentMediaTime(
+    bool* is_playing,
+    bool* is_eos_played,
+    bool* is_underflow,
+    double* playback_rate,
+    bool* has_renderer,
+    int* total_frames_sent_to_sink,
+    bool* is_eos_received) {
   SB_DCHECK(is_playing);
   SB_DCHECK(is_eos_played);
   SB_DCHECK(is_underflow);
   SB_DCHECK(playback_rate);
+  SB_DCHECK(has_renderer);
+  SB_DCHECK(total_frames_sent_to_sink);
+  SB_DCHECK(is_eos_received);
 
   std::lock_guard scoped_lock(mutex_);
   *is_playing = !paused_;
   *is_eos_played = end_of_stream_played_.load();
   *is_underflow = false;  // TODO: Support underflow
   *playback_rate = playback_rate_;
+  *has_renderer = false;
+  *total_frames_sent_to_sink = 0;
+  *is_eos_received = false;
 
   if (!audio_track_bridge_) {
     return seek_to_time_;

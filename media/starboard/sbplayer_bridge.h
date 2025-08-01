@@ -61,6 +61,12 @@ class SbPlayerBridge {
     virtual void OnPlayerStatus(SbPlayerState state) = 0;
     virtual void OnPlayerError(SbPlayerError error,
                                const std::string& message) = 0;
+    virtual void OnRenderStatus(bool has_video_renderer,
+                                int number_of_frames,
+                                bool is_video_eos_received,
+                                bool has_audio_renderer,
+                                int total_frames_sent_to_sink,
+                                bool is_audio_eos_received) = 0;
 
    protected:
     ~Host() {}
@@ -200,6 +206,13 @@ class SbPlayerBridge {
                        SbPlayerError error,
                        const std::string& message);
     void OnDeallocateSample(const void* sample_buffer);
+    void OnRenderStatus(void* player,
+                        bool has_video_renderer,
+                        int number_of_frames,
+                        bool is_video_eos_received,
+                        bool has_audio_renderer,
+                        int total_frames_sent_to_sink,
+                        bool is_audio_eos_received);
 
     void ResetPlayer();
 
@@ -263,6 +276,13 @@ class SbPlayerBridge {
                      SbPlayerError error,
                      const std::string& message);
   void OnDeallocateSample(const void* sample_buffer);
+  void OnRenderStatus(SbPlayer player,
+                      bool has_video_renderer,
+                      int number_of_frames,
+                      bool is_video_eos_received,
+                      bool has_audio_renderer,
+                      int total_frames_sent_to_sink,
+                      bool is_audio_eos_received);
 
   static void DecoderStatusCB(SbPlayer player,
                               void* context,
@@ -280,6 +300,14 @@ class SbPlayerBridge {
   static void DeallocateSampleCB(SbPlayer player,
                                  void* context,
                                  const void* sample_buffer);
+  static void RenderStatusCB(SbPlayer player,
+                             void* context,
+                             bool has_video_renderer,
+                             int number_of_frames,
+                             bool is_video_eos_received,
+                             bool has_audio_renderer,
+                             int total_frames_sent_to_sink,
+                             bool is_audio_eos_received);
 
 #if SB_HAS(PLAYER_WITH_URL)
   SbPlayerOutputMode ComputeSbUrlPlayerOutputMode(

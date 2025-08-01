@@ -49,8 +49,12 @@ void VideoRenderAlgorithmImpl::Render(
   bool is_audio_eos_played;
   bool is_underflow;
   double playback_rate;
+  bool has_audio_renderer;
+  int total_frames_sent_to_sink;
+  bool is_audio_eos_received;
   int64_t media_time = media_time_provider->GetCurrentMediaTime(
-      &is_audio_playing, &is_audio_eos_played, &is_underflow, &playback_rate);
+      &is_audio_playing, &is_audio_eos_played, &is_underflow, &playback_rate,
+      &has_audio_renderer, &total_frames_sent_to_sink, &is_audio_eos_received);
 
   // Video frames are synced to the audio timestamp. However, the audio
   // timestamp is not queried at a consistent interval. For example, if the
@@ -164,8 +168,12 @@ void VideoRenderAlgorithmImpl::RenderWithCadence(
   bool is_audio_eos_played;
   bool is_underflow;
   double playback_rate;
+  bool has_audio_renderer;
+  int total_frames_sent_to_sink;
+  bool is_audio_eos_received;
   int64_t media_time = media_time_provider->GetCurrentMediaTime(
-      &is_audio_playing, &is_audio_eos_played, &is_underflow, &playback_rate);
+      &is_audio_playing, &is_audio_eos_played, &is_underflow, &playback_rate,
+      &has_audio_renderer, &total_frames_sent_to_sink, &is_audio_eos_received);
 
   while (frames->size() > 1 && !frames->front()->is_end_of_stream() &&
          frames->front()->timestamp() < media_time) {

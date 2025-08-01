@@ -488,16 +488,28 @@ void FilterBasedPlayerWorkerHandler::Update() {
 
   if (get_player_state_cb_() == kSbPlayerStatePresenting) {
     int dropped_frames = 0;
+    int number_of_frames = 0;
+    bool is_video_eos_received = false;
     if (video_renderer_) {
       dropped_frames = video_renderer_->GetDroppedFrames();
+      number_of_frames = video_renderer_->GetNumberOfFrames();
+      is_video_eos_received = video_renderer_->IsEndOfStreamWritten();
     }
     bool is_playing;
     bool is_eos_played;
     bool is_underflow;
     double playback_rate;
+    bool has_audio_renderer;
+    int total_frames_sent_to_sink;
+    bool is_audio_eos_received;
     auto media_time = media_time_provider_->GetCurrentMediaTime(
-        &is_playing, &is_eos_played, &is_underflow, &playback_rate);
-    update_media_info_cb_(media_time, dropped_frames, !is_underflow);
+        &is_playing, &is_eos_played, &is_underflow, &playback_rate,
+        &has_audio_renderer, &total_frames_sent_to_sink,
+        &is_audio_eos_received);
+    update_media_info_cb_(media_time, dropped_frames, !is_underflow,
+                          !!video_renderer_, number_of_frames,
+                          is_video_eos_received, has_audio_renderer,
+                          total_frames_sent_to_sink, is_audio_eos_received);
   }
 
   RemoveJobByToken(update_job_token_);

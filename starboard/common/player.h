@@ -17,6 +17,15 @@
 
 #include "starboard/player.h"
 
+typedef void (*SbPlayerRenderStatusFunc)(SbPlayer player,
+                                         void* context,
+                                         bool has_video_renderer,
+                                         int number_of_frames,
+                                         bool is_video_eos_received,
+                                         bool has_audio_renderer,
+                                         int total_frames_sent_to_sink,
+                                         bool is_audio_eos_received);
+
 namespace starboard {
 
 const char* GetPlayerOutputModeName(SbPlayerOutputMode output_mode);
