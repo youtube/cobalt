@@ -22,6 +22,13 @@ TtsPlatform* TtsPlatform::GetInstance() {
     return result;
 #endif
 
+// This hack exists to ensure that Starboard does not make use of dl* symbols
+// for hermetic builds.
+// TODO: (b/420913744) Add/Decide how to properly support the tts platform.
+#if BUILDFLAG(ENABLE_COBALT_HERMETIC_HACKS)
+  return nullptr;
+#else
+
 #if BUILDFLAG(IS_CHROMEOS)
   // On Chrome OS, the platform TTS definition is provided by the content
   // client.
@@ -34,6 +41,7 @@ TtsPlatform* TtsPlatform::GetInstance() {
   return nullptr;
 #else
   return TtsPlatformImpl::GetInstance();
+#endif
 #endif
 }
 
