@@ -19,6 +19,7 @@
 #include <string>
 #include <vector>
 
+#include "starboard/common/size.h"
 #include "starboard/extension/enhanced_audio.h"
 #include "starboard/media.h"
 #include "starboard/player.h"
@@ -108,8 +109,7 @@ struct VideoStreamInfo {
   SbMediaVideoCodec codec = kSbMediaVideoCodecNone;
   std::string mime;
   std::string max_video_capabilities;
-  int frame_width = 0;
-  int frame_height = 0;
+  ::starboard::Size frame_size;
   SbMediaColorMetadata color_metadata = {};
 };
 

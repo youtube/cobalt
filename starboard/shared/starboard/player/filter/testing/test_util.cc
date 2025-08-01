@@ -195,8 +195,9 @@ std::vector<VideoTestParam> GetSupportedVideoTests() {
                 video_codec, video_mime.size() > 0 ? &video_mime_type : nullptr,
                 -1, -1, 8, kSbMediaPrimaryIdUnspecified,
                 kSbMediaTransferIdUnspecified, kSbMediaMatrixIdUnspecified,
-                video_stream_info.frame_width, video_stream_info.frame_height,
-                dmp_reader.video_bitrate(), dmp_reader.video_fps(), false)) {
+                video_stream_info.frame_size.width,
+                video_stream_info.frame_size.height, dmp_reader.video_bitrate(),
+                dmp_reader.video_fps(), false)) {
           test_params.push_back(std::make_tuple(filename, output_mode));
           break;
         } else if (need_to_check_with_wait && !decoder_has_been_checked_once) {
@@ -270,8 +271,8 @@ media::VideoStreamInfo CreateVideoStreamInfo(SbMediaVideoCodec codec) {
   video_stream_info.color_metadata.matrix = kSbMediaMatrixIdBt709;
   video_stream_info.color_metadata.range = kSbMediaRangeIdLimited;
 
-  video_stream_info.frame_width = 1920;
-  video_stream_info.frame_height = 1080;
+  video_stream_info.frame_size.width = 1920;
+  video_stream_info.frame_size.height = 1080;
 
   return video_stream_info;
 }

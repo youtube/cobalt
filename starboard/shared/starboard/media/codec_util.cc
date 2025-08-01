@@ -50,8 +50,8 @@ VideoConfig::VideoConfig(const VideoStreamInfo& video_stream_info,
                          const uint8_t* data,
                          size_t size)
     : VideoConfig(video_stream_info.codec,
-                  video_stream_info.frame_width,
-                  video_stream_info.frame_height,
+                  video_stream_info.frame_size.width,
+                  video_stream_info.frame_size.height,
                   data,
                   size) {}
 
