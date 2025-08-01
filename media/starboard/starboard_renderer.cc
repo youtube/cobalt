@@ -134,9 +134,6 @@ StarboardRenderer::StarboardRenderer(
       android_overlay_factory_cb_(std::move(android_overlay_factory_cb))
 #endif  // BUILDFLAG(IS_ANDROID)
 {
-#if BUILDFLAG(IS_ANDROID)
-  DCHECK(android_overlay_factory_cb_);
-#endif  // BUILDFLAG(IS_ANDROID)
   DCHECK(task_runner_);
   DCHECK(media_log_);
   DCHECK(set_bounds_helper_);
