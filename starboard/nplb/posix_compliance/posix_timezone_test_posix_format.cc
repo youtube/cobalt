@@ -12,8 +12,6 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include "starboard/nplb/posix_compliance/posix_timezone_test_helper.h"
-
 #include <gtest/gtest.h>
 #include <string.h>
 #include <time.h>
@@ -24,6 +22,9 @@
 #include <set>
 #include <string>
 #include <vector>
+
+#include "starboard/nplb/posix_compliance/posix_timezone_test_helper.h"
+#include "starboard/nplb/posix_compliance/scoped_tz_set.h"
 
 namespace starboard {
 namespace nplb {
@@ -112,9 +113,9 @@ const std::array<PosixTestData, 12> PosixFormat::kAllTests = {{
      .dst = "CDT"},
 }};
 
-TEST_P(PosixFormat, Handles) {
+TEST_P(PosixFormat, TzSetHandles) {
   const auto& param = GetParam();
-  ScopedTZ tz_manager(param.tz);
+  ScopedTzSet tz_manager(param.tz);
 
   EXPECT_EQ(timezone, param.offset);
 
@@ -127,6 +128,85 @@ TEST_P(PosixFormat, Handles) {
   if (param.dst.has_value()) {
     ASSERT_NE(tzname[1], nullptr);
     EXPECT_STREQ(tzname[1], param.dst.value());
+  }
+}
+
+TEST_P(PosixFormat, Localtime) {
+  const auto& param = GetParam();
+  ScopedTzSet tz_manager(param.tz);
+
+  TimeSamples samples = GetTimeSamples(2023);
+
+  // Every timezone must have a standard time.
+  ASSERT_TRUE(samples.standard.has_value());
+  struct tm* tm_standard = localtime(&samples.standard.value());
+  ASSERT_NE(tm_standard, nullptr);
+  AssertTM(*tm_standard, param.offset, param.std, false, param.dst, param.tz);
+
+  if (param.dst.has_value()) {
+    // If the test data expects DST, we must have found a DST sample.
+    ASSERT_TRUE(samples.daylight.has_value())
+        << "Test data has DST, but no DST time was found for " << param.tz;
+    struct tm* tm_daylight = localtime(&samples.daylight.value());
+    ASSERT_NE(tm_daylight, nullptr);
+    AssertTM(*tm_daylight, param.offset, param.std, true, param.dst, param.tz);
+  } else {
+    // If the test data does not expect DST, we must not have found one.
+    ASSERT_FALSE(samples.daylight.has_value())
+        << "Test data has no DST, but a DST time was found for " << param.tz;
+  }
+}
+
+TEST_P(PosixFormat, Localtime_r) {
+  const auto& param = GetParam();
+  ScopedTzSet tz_manager(param.tz);
+
+  TimeSamples samples = GetTimeSamples(2023);
+
+  // Every timezone must have a standard time.
+  ASSERT_TRUE(samples.standard.has_value());
+  struct tm tm_standard_r;
+  struct tm* tm_standard_r_res =
+      localtime_r(&samples.standard.value(), &tm_standard_r);
+  ASSERT_EQ(tm_standard_r_res, &tm_standard_r);
+  AssertTM(tm_standard_r, param.offset, param.std, false, param.dst, param.tz,
+           " with localtime_r");
+
+  if (param.dst.has_value()) {
+    // If the test data expects DST, we must have found a DST sample.
+    ASSERT_TRUE(samples.daylight.has_value())
+        << "Test data has DST, but no DST time was found for " << param.tz;
+    struct tm tm_daylight_r;
+    struct tm* tm_daylight_r_res =
+        localtime_r(&samples.daylight.value(), &tm_daylight_r);
+    ASSERT_EQ(tm_daylight_r_res, &tm_daylight_r);
+    AssertTM(tm_daylight_r, param.offset, param.std, true, param.dst, param.tz,
+             " with localtime_r");
+  } else {
+    // If the test data does not expect DST, we must not have found one.
+    ASSERT_FALSE(samples.daylight.has_value())
+        << "Test data has no DST, but a DST time was found for " << param.tz;
+  }
+}
+
+TEST_P(PosixFormat, Mktime) {
+  const auto& param = GetParam();
+  ScopedTzSet tz_manager(param.tz);
+
+  TimeSamples samples = GetTimeSamples(2023);
+
+  // Every timezone must have a standard time.
+  ASSERT_TRUE(samples.standard.has_value());
+  struct tm* tm_standard = localtime(&samples.standard.value());
+  ASSERT_NE(tm_standard, nullptr);
+  time_t standard_time_rt = mktime(tm_standard);
+  EXPECT_EQ(standard_time_rt, samples.standard.value());
+
+  if (samples.daylight.has_value()) {
+    struct tm* tm_daylight = localtime(&samples.daylight.value());
+    ASSERT_NE(tm_daylight, nullptr);
+    time_t daylight_time_rt = mktime(tm_daylight);
+    EXPECT_EQ(daylight_time_rt, samples.daylight.value());
   }
 }
 

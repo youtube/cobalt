@@ -45,43 +45,71 @@ constexpr int kSecondsInHour = 3600;
 // Number of seconds in a minute.
 constexpr int kSecondsInMinute = 60;
 
-// Helper class to manage the TZ environment variable for test isolation.
-// Sets TZ in constructor, restores original TZ in destructor.
-// Calls tzset() after each change to TZ.
-class ScopedTZ {
- public:
-  ScopedTZ(const char* new_tz_value) {
-    const char* current_tz_env = getenv("TZ");
-    if (current_tz_env != nullptr) {
-      original_tz_value_ = current_tz_env;  // Store the original TZ string
-    }
+// Helper to create a time_t for a specific UTC date.
+__attribute__((unused)) static time_t CreateTime(int year, int month, int day) {
+  struct tm tminfo = {0};
+  tminfo.tm_year = year - 1900;
+  tminfo.tm_mon = month - 1;
+  tminfo.tm_mday = day;
+  return timegm(&tminfo);
+}
 
-    if (new_tz_value != nullptr) {
-      EXPECT_EQ(0, setenv("TZ", new_tz_value, 1))
-          << "ScopedTZ: Failed to set TZ environment variable to \""
-          << new_tz_value << "\"";
-    } else {
-      EXPECT_EQ(0, unsetenv("TZ"))
-          << "ScopedTZ: Failed to unset TZ environment variable.";
-    }
-    tzset();
-  }
-
-  ~ScopedTZ() {
-    if (original_tz_value_) {
-      setenv("TZ", original_tz_value_->c_str(), 1);
-    } else {
-      unsetenv("TZ");
-    }
-    tzset();
-  }
-
-  ScopedTZ(const ScopedTZ&) = delete;
-  ScopedTZ& operator=(const ScopedTZ&) = delete;
-
- private:
-  std::optional<std::string> original_tz_value_;
+struct TimeSamples {
+  std::optional<time_t> standard;
+  std::optional<time_t> daylight;
 };
+
+// Helper to deterministically find a sample of standard and daylight time
+// for a given year.
+__attribute__((unused)) static TimeSamples GetTimeSamples(int year) {
+  TimeSamples samples;
+  for (int month = 1; month <= 12; ++month) {
+    time_t current_time = CreateTime(year, month, 1);
+    struct tm* tm_current = localtime(&current_time);
+    if (!tm_current) {
+      continue;
+    }
+
+    if (tm_current->tm_isdst > 0) {
+      if (!samples.daylight) {
+        samples.daylight = current_time;
+      }
+    } else {
+      if (!samples.standard) {
+        samples.standard = current_time;
+      }
+    }
+  }
+  return samples;
+}
+
+// Helper to assert the values of a tm struct.
+__attribute__((unused)) static void AssertTM(
+    const tm& tminfo,
+    long offset,
+    const char* zone,
+    bool is_dst,
+    const std::optional<const char*>& dst_zone,
+    const char* tz,
+    const char* message_suffix = "") {
+  if (is_dst) {
+    EXPECT_EQ(tminfo.tm_gmtoff, -offset + 3600)
+        << "Daylight time gmtoff mismatch for " << tz << message_suffix;
+    ASSERT_NE(tminfo.tm_zone, nullptr);
+    EXPECT_STREQ(tminfo.tm_zone, dst_zone.value())
+        << "Daylight time tm_zone mismatch for " << tz << message_suffix;
+    EXPECT_GT(tminfo.tm_isdst, 0)
+        << "Daylight time tm_isdst should be > 0 for " << tz << message_suffix;
+  } else {
+    EXPECT_EQ(tminfo.tm_gmtoff, -offset)
+        << "Standard time gmtoff mismatch for " << tz << message_suffix;
+    ASSERT_NE(tminfo.tm_zone, nullptr);
+    EXPECT_STREQ(tminfo.tm_zone, zone)
+        << "Standard time tm_zone mismatch for " << tz << message_suffix;
+    EXPECT_EQ(tminfo.tm_isdst, 0)
+        << "Standard time tm_isdst should be 0 for " << tz << message_suffix;
+  }
+}
 
 }  // namespace nplb
 }  // namespace starboard
