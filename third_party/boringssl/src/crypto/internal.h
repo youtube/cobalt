@@ -112,18 +112,12 @@
 #include "build/build_config.h" 
 #include <openssl/crypto.h>
 #include <openssl/ex_data.h>
-#if BUILDFLAG(IS_STARBOARD)
-#include <openssl/mem.h>
-#endif
 #include <openssl/stack.h>
 #include <openssl/thread.h>
 
 #include <assert.h>
 #include <string.h>
 
-#if BUILDFLAG(IS_STARBOARD)
-#include "starboard/thread.h" // nogncheck
-#endif
 
 #if defined(BORINGSSL_CONSTANT_TIME_VALIDATION)
 #include <valgrind/memcheck.h>
@@ -160,6 +154,7 @@
 #include <pthread.h>
 #define OPENSSL_PTHREADS
 #endif
+#endif
 
 #if defined(OPENSSL_THREADS) && !defined(OPENSSL_PTHREADS) && \
     defined(OPENSSL_WINDOWS)
@@ -167,7 +162,6 @@
 OPENSSL_MSVC_PRAGMA(warning(push, 3))
 #include <windows.h>
 OPENSSL_MSVC_PRAGMA(warning(pop))
-#endif
 #endif
 
 #if defined(__cplusplus)
@@ -562,9 +556,7 @@ OPENSSL_EXPORT void CRYPTO_once(CRYPTO_once_t *once, void (*init)(void));
 #if !defined(OPENSSL_C11_ATOMIC) && defined(OPENSSL_THREADS) &&   \
     !defined(__STDC_NO_ATOMICS__) && defined(__STDC_VERSION__) && \
     __STDC_VERSION__ >= 201112L
-#if !BUILDFLAG(IS_STARBOARD)
 #define OPENSSL_C11_ATOMIC
-#endif
 #endif
 
 // CRYPTO_REFCOUNT_MAX is the value at which the reference count saturates.
