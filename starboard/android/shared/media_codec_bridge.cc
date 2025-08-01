@@ -28,6 +28,7 @@
 #pragma GCC diagnostic pop
 
 namespace starboard::android::shared {
+namespace {
 
 // TODO: (cobalt b/372559388) Update namespace to jni_zero.
 using base::android::AttachCurrentThread;
@@ -36,8 +37,6 @@ using base::android::JavaParamRef;
 using base::android::ScopedJavaLocalRef;
 using base::android::ToJavaByteArray;
 using base::android::ToJavaIntArray;
-
-namespace {
 
 // See
 // https://developer.android.com/reference/android/media/MediaFormat.html#COLOR_RANGE_FULL.
@@ -102,26 +101,26 @@ FrameSize::FrameSize(Size texture_size,
                      int crop_top,
                      int crop_right,
                      int crop_bottom)
-    : texture_size(texture_size),
-      crop_left(crop_left),
-      crop_top(crop_top),
-      crop_right(crop_right),
-      crop_bottom(crop_bottom),
-      display_size(has_crop_values()
-                       ? Size{this->crop_right - this->crop_left + 1,
-                              this->crop_bottom - this->crop_top + 1}
-                       : texture_size) {
-  SB_CHECK_GE(texture_size.width, 0);
-  SB_CHECK_GE(texture_size.height, 0);
+    : texture_size_(texture_size),
+      crop_left_(crop_left),
+      crop_top_(crop_top),
+      crop_right_(crop_right),
+      crop_bottom_(crop_bottom),
+      display_size_(has_crop_values() ? Size{crop_right - crop_left + 1,
+                                             crop_bottom - crop_top + 1}
+                                      : texture_size) {
+  SB_CHECK_GE(texture_size_.width, 0);
+  SB_CHECK_GE(texture_size_.height, 0);
 
-  if (crop_left >= 0 || crop_top >= 0 || crop_right >= 0 || crop_bottom >= 0) {
+  if (crop_left_ >= 0 || crop_top_ >= 0 || crop_right_ >= 0 ||
+      crop_bottom_ >= 0) {
     // If there is at least one crop value set, all of them should be set.
-    SB_CHECK_GE(crop_left, 0);
-    SB_CHECK_GE(crop_top, 0);
-    SB_CHECK_GE(crop_right, 0);
-    SB_CHECK_GE(crop_bottom, 0);
-    SB_CHECK_GE(display_size.width, 0);
-    SB_CHECK_GE(display_size.height, 0);
+    SB_CHECK_GE(crop_left_, 0);
+    SB_CHECK_GE(crop_top_, 0);
+    SB_CHECK_GE(crop_right_, 0);
+    SB_CHECK_GE(crop_bottom_, 0);
+    SB_CHECK_GE(display_size_.width, 0);
+    SB_CHECK_GE(display_size_.height, 0);
   }
 }
 
@@ -133,10 +132,11 @@ FrameSize::FrameSize()
                 /*crop_bottom=*/-1) {}
 
 std::ostream& operator<<(std::ostream& os, const FrameSize& size) {
-  return os << "{texture_size=" << size.texture_size
-            << ", crop={left=" << size.crop_left << ", top=" << size.crop_top
-            << ", right=" << size.crop_right << ", bottom=" << size.crop_bottom
-            << "}, display_size: " << size.display_size << "}";
+  return os << "{texture_size=" << size.texture_size_
+            << ", crop={left=" << size.crop_left_ << ", top=" << size.crop_top_
+            << ", right=" << size.crop_right_
+            << ", bottom=" << size.crop_bottom_
+            << "}, display_size=" << size.display_size_ << "}";
 }
 
 // static

@@ -66,7 +66,8 @@ struct DequeueOutputResult {
   jint num_bytes;
 };
 
-struct FrameSize {
+class FrameSize {
+ public:
   // crop value of -1 means that platform does not provide it.
   FrameSize(Size texture_size,
             int crop_left,
@@ -76,16 +77,22 @@ struct FrameSize {
   FrameSize();
 
   bool has_crop_values() const {
-    return crop_left >= 0 && crop_top >= 0 && crop_right >= 0 &&
-           crop_bottom >= 0;
+    return crop_left_ >= 0 && crop_top_ >= 0 && crop_right_ >= 0 &&
+           crop_bottom_ >= 0;
   }
 
-  const Size texture_size;
-  const int crop_left;
-  const int crop_top;
-  const int crop_right;
-  const int crop_bottom;
-  const Size display_size;
+  const Size& texture_size() const { return texture_size_; }
+  const Size& display_size() const { return display_size_; }
+
+  friend std::ostream& operator<<(std::ostream& os, const FrameSize& size);
+
+ private:
+  const Size texture_size_;
+  const int crop_left_;
+  const int crop_top_;
+  const int crop_right_;
+  const int crop_bottom_;
+  const Size display_size_;
 };
 
 std::ostream& operator<<(std::ostream& os, const FrameSize& size);
