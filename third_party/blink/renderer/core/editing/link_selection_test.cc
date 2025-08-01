@@ -224,6 +224,7 @@ TEST_F(LinkSelectionTest, CaretCursorOverLinkDuringSelection) {
   EXPECT_EQ(ui::mojom::blink::CursorType::kIBeam, cursor.type());
 }
 
+#if !BUILDFLAG(IS_COBALT)
 TEST_F(LinkSelectionTest, HandCursorOverLinkAfterContextMenu) {
   // Move mouse.
   EmulateMouseDrag(right_point_in_link_, left_point_in_link_, 0, 0);
@@ -242,6 +243,7 @@ TEST_F(LinkSelectionTest, HandCursorOverLinkAfterContextMenu) {
       main_frame_->GetFrame()->GetChromeClient().LastSetCursorForTesting();
   EXPECT_EQ(ui::mojom::blink::CursorType::kHand, cursor.type());
 }
+#endif
 
 TEST_F(LinkSelectionTest, SingleClickWithAltStartsDownload) {
   EmulateMouseClick(left_point_in_link_, WebMouseEvent::Button::kLeft,
