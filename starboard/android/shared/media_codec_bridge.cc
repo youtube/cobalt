@@ -96,6 +96,48 @@ jint SbMediaRangeIdToColorRange(SbMediaRangeId range_id) {
 
 }  // namespace
 
+FrameSize::FrameSize(Size texture_size,
+                     int crop_left,
+                     int crop_top,
+                     int crop_right,
+                     int crop_bottom)
+    : texture_size(texture_size),
+      crop_left(crop_left),
+      crop_top(crop_top),
+      crop_right(crop_right),
+      crop_bottom(crop_bottom),
+      display_size(has_crop_values()
+                       ? Size{this->crop_right - this->crop_left + 1,
+                              this->crop_bottom - this->crop_top + 1}
+                       : texture_size) {
+  SB_CHECK(texture_size.width >= 0);
+  SB_CHECK(texture_size.height >= 0);
+
+  if (crop_left >= 0 || crop_top >= 0 || crop_right >= 0 || crop_bottom >= 0) {
+    // If there is at least one crop value set, all of them should be set.
+    SB_CHECK(crop_left >= 0);
+    SB_CHECK(crop_top >= 0);
+    SB_CHECK(crop_right >= 0);
+    SB_CHECK(crop_bottom >= 0);
+    SB_CHECK(display_size.width >= 0);
+    SB_CHECK(display_size.height >= 0);
+  }
+}
+
+FrameSize::FrameSize()
+    : FrameSize(/*texture_size=*/{},
+                /*crop_left=*/-1,
+                /*crop_top=*/-1,
+                /*crop_right=*/-1,
+                /*crop_bottom=*/-1) {}
+
+std::ostream& operator<<(std::ostream& os, const FrameSize& size) {
+  return os << "{texture_size=" << size.texture_size
+            << ", crop={left=" << size.crop_left << ", top=" << size.crop_top
+            << ", right=" << size.crop_right << ", bottom=" << size.crop_bottom
+            << "}, display_size: " << size.display_size << "}";
+}
+
 // static
 std::unique_ptr<MediaCodecBridge> MediaCodecBridge::CreateAudioMediaCodecBridge(
     const AudioStreamInfo& audio_stream_info,
@@ -421,11 +463,8 @@ FrameSize MediaCodecBridge::GetOutputSize() {
   jint cropBottom = Java_GetOutputFormatResult_cropBottom(
       env, j_reused_get_output_format_result_);
 
-  FrameSize size = {
-      {textureWidth, textureHeight}, cropLeft, cropTop, cropRight, cropBottom};
-
-  size.DCheckValid();
-  return size;
+  return FrameSize({textureWidth, textureHeight}, cropLeft, cropTop, cropRight,
+                   cropBottom);
 }
 
 AudioOutputFormatResult MediaCodecBridge::GetAudioOutputFormat() {

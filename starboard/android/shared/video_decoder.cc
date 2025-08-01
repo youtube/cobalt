@@ -951,7 +951,7 @@ void VideoDecoder::RefreshOutputFormat(MediaCodecBridge* media_codec_bridge) {
     return;
   }
   output_format_ =
-      VideoOutputFormat(video_codec_, frame_sizes_.back().display_size(),
+      VideoOutputFormat(video_codec_, frame_sizes_.back().display_size,
                         color_metadata_.has_value());
   first_output_format_changed_ = true;
   auto max_output_buffers =
@@ -1106,7 +1106,7 @@ void VideoDecoder::UpdateDecodeTargetSizeAndContentRegion_Locked() {
           std::abs(content_region.bottom - content_region.top) + 1;
       // Using 2 as epsilon, as the texture may get clipped by one pixel from
       // each side.
-      const auto display_size = frame_size.display_size();
+      const auto display_size = frame_size.display_size;
       bool are_crop_values_matching =
           std::abs(content_region_width - display_size.width) <= 2 &&
           std::abs(content_region_height - display_size.height) <= 2;
@@ -1120,11 +1120,9 @@ void VideoDecoder::UpdateDecodeTargetSizeAndContentRegion_Locked() {
       // Crash in non-gold mode, and fallback to the old logic in gold mode to
       // avoid terminating the app in production.
       SB_LOG_IF(WARNING, frame_sizes_.size() <= 1)
-          << frame_size.texture_size << " - (" << content_region.left << ", "
+          << frame_size << " - (" << content_region.left << ", "
           << content_region.top << ", " << content_region.right << ", "
-          << content_region.bottom << "), (" << frame_size.crop_left << "), ("
-          << frame_size.crop_top << "), (" << frame_size.crop_right << "), ("
-          << frame_size.crop_bottom << ")";
+          << content_region.bottom << ")";
 #endif  // !defined(COBALT_BUILD_TYPE_GOLD)
     } else {
       SB_LOG(WARNING) << "Crop values not set.";
@@ -1136,14 +1134,14 @@ void VideoDecoder::UpdateDecodeTargetSizeAndContentRegion_Locked() {
       break;
     }
 
-    frame_sizes_.erase(frame_sizes_.begin());
+    frame_sizes_.pop_front();
   }
 
   SB_DCHECK(!frame_sizes_.empty());
   if (frame_sizes_.empty()) {
-    // This should never happen.  Appending a default value so it aligns to the
-    // legacy behavior, where a single value (instead of an std::vector<>) is
-    // used.
+    SB_LOG(WARNING)
+        << "frame_size should not be empty. To align with the legacy behavior, "
+           "add one frame size with default value.";
     frame_sizes_.resize(1);
   }
 
@@ -1151,13 +1149,13 @@ void VideoDecoder::UpdateDecodeTargetSizeAndContentRegion_Locked() {
   // the video texture, which is true for most of the playbacks.
   // Leaving the legacy logic in place in case the new logic above doesn't work
   // on some devices, so at least the majority of playbacks still work.
-  decode_target_->set_dimension(frame_sizes_.back().display_size());
+  decode_target_->set_dimension(frame_sizes_.back().display_size);
 
   float matrix4x4[16];
   getTransformMatrix(decode_target_->surface_texture(), matrix4x4);
 
   decode_target_->set_content_region(GetDecodeTargetContentRegionFromMatrix(
-      frame_sizes_.back().display_size(), matrix4x4));
+      frame_sizes_.back().display_size, matrix4x4));
 }
 
 void VideoDecoder::SetPlaybackRate(double playback_rate) {
