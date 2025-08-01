@@ -26,18 +26,17 @@
 namespace starboard::shared::starboard::media {
 
 VideoConfig::VideoConfig(SbMediaVideoCodec video_codec,
-                         int width,
-                         int height,
+                         const Size& size,
                          const uint8_t* data,
-                         size_t size)
-    : width_(width), height_(height) {
+                         size_t data_size)
+    : size_(size) {
   if (video_codec == kSbMediaVideoCodecVp9) {
     video_codec_ = video_codec;
   } else if (video_codec == kSbMediaVideoCodecAv1) {
     video_codec_ = video_codec;
   } else if (video_codec == kSbMediaVideoCodecH264) {
     avc_parameter_sets_ =
-        AvcParameterSets(AvcParameterSets::kAnnexB, data, size);
+        AvcParameterSets(AvcParameterSets::kAnnexB, data, data_size);
     if (avc_parameter_sets_->is_valid()) {
       video_codec_ = video_codec;
     }
@@ -48,12 +47,11 @@ VideoConfig::VideoConfig(SbMediaVideoCodec video_codec,
 
 VideoConfig::VideoConfig(const VideoStreamInfo& video_stream_info,
                          const uint8_t* data,
-                         size_t size)
+                         size_t data_size)
     : VideoConfig(video_stream_info.codec,
-                  video_stream_info.frame_size.width,
-                  video_stream_info.frame_size.height,
+                  video_stream_info.frame_size,
                   data,
-                  size) {}
+                  data_size) {}
 
 bool VideoConfig::operator==(const VideoConfig& that) const {
   if (video_codec_ == kSbMediaVideoCodecNone &&
@@ -61,8 +59,7 @@ bool VideoConfig::operator==(const VideoConfig& that) const {
     return true;
   }
   return video_codec_ == that.video_codec_ &&
-         avc_parameter_sets_ == that.avc_parameter_sets_ &&
-         width_ == that.width_ && height_ == that.height_;
+         avc_parameter_sets_ == that.avc_parameter_sets_ && size_ == that.size_;
 }
 
 bool VideoConfig::operator!=(const VideoConfig& that) const {

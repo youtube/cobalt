@@ -36,10 +36,10 @@ TEST(SizeTest, Constructor) {
 }
 
 TEST(SizeTest, EqualityOperator) {
-  constexpr Size size1(1920, 1080);
-  constexpr Size size2(1920, 1080);
-  constexpr Size size3(1080, 1920);
-  constexpr Size size4(1920, 1081);
+  constexpr Size size1 = {1920, 1080};
+  constexpr Size size2 = {1920, 1080};
+  constexpr Size size3 = {1080, 1920};
+  constexpr Size size4 = {1920, 1081};
 
   EXPECT_TRUE(size1 == size2);
   EXPECT_FALSE(size1 == size3);
@@ -47,10 +47,10 @@ TEST(SizeTest, EqualityOperator) {
 }
 
 TEST(SizeTest, InequalityOperator) {
-  constexpr Size size1(1920, 1080);
-  constexpr Size size2(1920, 1080);
-  constexpr Size size3(1080, 1920);
-  constexpr Size size4(1920, 1081);
+  constexpr Size size1 = {1920, 1080};
+  constexpr Size size2 = {1920, 1080};
+  constexpr Size size3 = {1080, 1920};
+  constexpr Size size4 = {1920, 1081};
 
   EXPECT_FALSE(size1 != size2);
   EXPECT_TRUE(size1 != size3);
@@ -58,12 +58,12 @@ TEST(SizeTest, InequalityOperator) {
 }
 
 TEST(SizeTest, StreamInsertion) {
-  constexpr Size size(1280, 720);
+  constexpr Size size = {1280, 720};
   std::stringstream ss;
 
   ss << size;
 
-  EXPECT_EQ("1280 x 720", ss.str());
+  EXPECT_EQ("1280x720", ss.str());
 }
 
 }  // namespace
