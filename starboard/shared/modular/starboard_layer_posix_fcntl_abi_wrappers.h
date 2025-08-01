@@ -26,34 +26,51 @@ extern "C" {
 
 // From //third_party/musl/include/fcntl.h
 #define MUSL_F_DUPFD 0
-#define MUSL_F_GETFD 1
-#define MUSL_F_SETFD 2
-#define MUSL_F_GETFL 3
-#define MUSL_F_SETFL 4
-#define MUSL_F_GETOWN 5
-#define MUSL_F_SETOWN 6
-#define MUSL_F_GETLK 7
-#define MUSL_F_SETLK 8
-#define MUSL_F_SETLKW 9
-#define MUSL_FD_CLOEXEC 10
-#define MUSL_F_RDLCK 11
-#define MUSL_F_UNLCK 12
-#define MUSL_F_WRLCK 13
+#define MUSL_FD_CLOEXEC 1
+#define MUSL_FD_CLOFORK 2
+#define MUSL_F_GETFD 3
+#define MUSL_F_SETFD 4
+#define MUSL_F_GETFL 5
+#define MUSL_F_SETFL 6
+#define MUSL_F_GETOWN 7
+#define MUSL_F_SETOWN 8
+#define MUSL_FD_GETOWN_EX 9
+#define MUSL_FD_SETOWN_EX 10
+#define MUSL_F_GETLK 11
+#define MUSL_F_SETLK 12
+#define MUSL_F_SETLKW 13
+#define MUSL_OFD_GETLK 14
+#define MUSL_OFD_SETLK 15
+#define MUSL_OFD_SETLKW 16
+
+#define MUSL_F_RDLCK 1
+#define MUSL_F_UNLCK 2
+#define MUSL_F_WRLCK 3
 
 #define MUSL_O_APPEND 02000
 #define MUSL_O_DSYNC 010000
 #define MUSL_O_NONBLOCK 04000
 #define MUSL_O_RSYNC 04010000
 #define MUSL_O_SYNC 04010000
-#define MUSL_O_PATH 010000000
 #define MUSL_O_ACCMODE (03 | 010000000)
-#define MUSL_O_RDONLY 00
-#define MUSL_O_WRONLY 01
+#define MUSL_O_EXEC 00
+#define MUSL_O_RDONLY 01
 #define MUSL_O_RDWR 02
+#define MUSL_O_SEARCH MUSL_O_EXEC
+#define MUSL_O_WRONLY 03
 
-SB_EXPORT int __abi_wrap_fcntl(int fildes, int cmd);
-SB_EXPORT int __abi_wrap_fcntl2(int fildes, int cmd, int arg);
-SB_EXPORT int __abi_wrap_fcntl3(int fildes, int cmd, void* arg);
+struct musl_flock {
+  short l_type;
+  short l_whence;
+  off_t l_start;
+  off_t l_len;
+  pid_t l_pid;
+};
+
+SB_EXPORT int __abi_wrap_fcntl(int fildes, int cmd, ...);
+SB_EXPORT int __abi_wrap_fcntl2(int fildes, int cmd);
+SB_EXPORT int __abi_wrap_fcntl3(int fildes, int cmd, int arg);
+SB_EXPORT int __abi_wrap_fcntl4(int fildes, int cmd, void* arg);
 
 #ifdef __cplusplus
 }  // extern "C"

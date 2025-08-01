@@ -23,6 +23,8 @@
 
 #include "starboard/common/log.h"
 
+#include <bitset>
+
 namespace starboard {
 namespace nplb {
 namespace {
@@ -39,21 +41,17 @@ TEST_F(PosixFcntlTest, DuplicateFileDescriptor) {
   ScopedRandomFile random_file;
   const std::string& filename = random_file.filename();
 
-  SB_LOG(INFO) << "Opening fd";
   int fd = open(filename.c_str(), O_RDWR);
   ASSERT_NE(-1, fd) << "Failed to open test file: " << strerror(errno);
 
-  SB_LOG(INFO) << "Duplicating fd";
   // Duplicate the file descriptor.
   int new_fd = fcntl(fd, F_DUPFD, 0);
   ASSERT_NE(new_fd, -1) << "fcntl failed: " << strerror(errno);
   ASSERT_NE(new_fd, fd);
 
   // Verify that the new file descriptor has the same file status flags.
-  SB_LOG(INFO) << "Getting original flags";
   int original_flags = fcntl(fd, F_GETFL);
   ASSERT_NE(original_flags, -1) << "fcntl failed: " << strerror(errno);
-  SB_LOG(INFO) << "Getting new flags";
   int new_flags = fcntl(new_fd, F_GETFL);
   ASSERT_NE(new_flags, -1) << "fcntl failed: " << strerror(errno);
   ASSERT_EQ(original_flags, new_flags);
@@ -86,6 +84,9 @@ TEST_F(PosixFcntlTest, SetFileDescriptorFlags) {
   int fd = open(filename.c_str(), O_RDWR);
   ASSERT_NE(fd, -1) << "Failed to open test file: " << strerror(errno);
 
+  int original_flags = fcntl(fd, F_GETFD);
+  SB_LOG(INFO) << "Original flags " << std::bitset<32>(original_flags);
+
   // Set the FD_CLOEXEC flag.
   int result = fcntl(fd, F_SETFD, FD_CLOEXEC);
   ASSERT_NE(result, -1) << "fcntl failed: " << strerror(errno);
@@ -93,7 +94,9 @@ TEST_F(PosixFcntlTest, SetFileDescriptorFlags) {
   // Verify that the FD_CLOEXEC flag is set.
   int updated_flags = fcntl(fd, F_GETFD);
   ASSERT_NE(updated_flags, -1) << "fcntl failed: " << strerror(errno);
-  ASSERT_TRUE((updated_flags & FD_CLOEXEC) == FD_CLOEXEC);
+  ASSERT_TRUE((updated_flags & FD_CLOEXEC) == FD_CLOEXEC)
+      << "Updated flags " << std::bitset<32>(updated_flags) << " FC_CLOEXEC "
+      << std::bitset<32>(FD_CLOEXEC);
 
   close(fd);
 }
@@ -135,6 +138,7 @@ TEST_F(PosixFcntlTest, GetLock) {
 
   // Check the lock.
   struct flock lock_status;
+  memset(&lock_status, 0, sizeof(lock_status));
   lock_status.l_type = F_WRLCK;
   lock_status.l_whence = SEEK_SET;
   lock_status.l_start = 0;
@@ -190,7 +194,7 @@ TEST_F(PosixFcntlTest, InvalidCommand) {
 
 // Tests that fcntl() with an invalid fd fails and sets EBADF.
 TEST_F(PosixFcntlTest, InvalidFileDescriptor) {
-  int result = fcntl(-1, F_GETFL);
+  int result = fcntl(INT_MIN, F_GETFL);
   EXPECT_EQ(result, -1);
   EXPECT_EQ(EBADF, errno) << "Expected EBADF, got " << strerror(errno);
 }
