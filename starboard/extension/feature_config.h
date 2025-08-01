@@ -97,6 +97,11 @@ FEATURE_LIST_START
 //                     false)
 //   STARBOARD_FEATURE(kCobaltVideoDebug, "CobaltVideoDebug", false)
 // #endif // BUILDFLAG(IS_ANDROID) && (SB_API_VERSION >= 17)
+#if BUILDFLAG(IS_ANDROID) && (SB_API_VERSION >= 17)
+STARBOARD_FEATURE(kStarboardBufferFlagDecodeOnlyExperiment,
+                  "StarboardBufferFlagDecodeOnlyExperiment",
+                  false)
+#endif
 FEATURE_LIST_END
 
 // To add a parameter to Starboard, use the macro:

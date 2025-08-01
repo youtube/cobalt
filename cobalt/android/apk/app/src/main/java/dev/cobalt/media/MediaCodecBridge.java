@@ -68,8 +68,13 @@ class MediaCodecBridge {
   private boolean mFlushed;
   private long mLastPresentationTimeUs;
   private double mPlaybackRate = 1.0;
+  private long mSeekToTime = 0;
   private int mFps = 30;
   private final boolean mIsTunnelingPlayback;
+
+  // TODO: (b/423927047) Once the Starboard Extension for Chromium Features
+  // lands, replace this macro with a starboard features.
+  private boolean mBufferFlagDecodeOnlyExperiment = false;
 
   private MediaCodec.OnFrameRenderedListener mFrameRendererListener;
   private MediaCodec.OnFirstTunnelFrameReadyListener mFirstTunnelFrameReadyListener;
@@ -397,6 +402,12 @@ class MediaCodecBridge {
     return Build.VERSION.SDK_INT >= 34;
   }
 
+  private boolean isDecodeOnly(long presentationTimeUs) {
+    // Starting with Android 14, we can use BUFFER_FLAG_DECODE_ONLY to explicitly skip video frames
+    // before the seek time so that they won't be rendered.
+    return Build.VERSION.SDK_INT >= 34 && (mBufferFlagDecodeOnlyExperiment) && (presentationTimeUs < mSeekToTime);
+  }
+
   @CalledByNative
   public static void createVideoMediaCodecBridge(
       long nativeMediaCodecBridge,
@@ -652,6 +663,11 @@ class MediaCodecBridge {
     }
   }
 
+  @CalledByNative
+  private void seek(long seekToTime) {
+    mSeekToTime = seekToTime;
+  }
+
   private void updateOperatingRate() {
     // We needn't set operation rate if playback rate is 0 or less.
     if (Double.compare(mPlaybackRate, 0.0) <= 0) {
@@ -739,6 +755,9 @@ class MediaCodecBridge {
       int index, int offset, int size, long presentationTimeUs, int flags) {
     resetLastPresentationTimeIfNeeded(presentationTimeUs);
     try {
+      if (isDecodeOnly(presentationTimeUs)) {
+        flags |= MediaCodec.BUFFER_FLAG_DECODE_ONLY;
+      }
       mMediaCodec.get().queueInputBuffer(index, offset, size, presentationTimeUs, flags);
     } catch (Exception e) {
       Log.e(TAG, "Failed to queue input buffer", e);
@@ -773,7 +792,11 @@ class MediaCodecBridge {
         return MediaCodecStatus.ERROR;
       }
 
-      mMediaCodec.get().queueSecureInputBuffer(index, offset, cryptoInfo, presentationTimeUs, 0);
+      int flags = 0;
+      if (isDecodeOnly(presentationTimeUs)) {
+        flags |= MediaCodec.BUFFER_FLAG_DECODE_ONLY;
+      }
+      mMediaCodec.get().queueSecureInputBuffer(index, offset, cryptoInfo, presentationTimeUs, flags);
     } catch (MediaCodec.CryptoException e) {
       int errorCode = e.getErrorCode();
       if (errorCode == MediaCodec.CryptoException.ERROR_NO_KEY) {
