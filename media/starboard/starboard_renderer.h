@@ -172,7 +172,6 @@ class MEDIA_EXPORT StarboardRenderer : public Renderer,
   void OnOverlayReady(AndroidOverlay*);
   void OnOverlayFailed(AndroidOverlay*);
   void OnOverlayDeleted(AndroidOverlay*);
-  void OnPowerEfficientState(AndroidOverlay* overlay, bool is_power_efficient);
 #endif  // BUILDFLAG(IS_ANDROID)
 
   int GetDefaultMaxBuffers(AudioCodec codec,
@@ -199,7 +198,9 @@ class MEDIA_EXPORT StarboardRenderer : public Renderer,
   const AndroidOverlayMojoFactoryCB android_overlay_factory_cb_;
 #endif  // BUILDFLAG(IS_ANDROID)
 
+#if BUILDFLAG(IS_ANDROID)
   std::unique_ptr<AndroidOverlay> overlay_;
+#endif  // BUILDFLAG(IS_ANDROID)
 
   raw_ptr<DemuxerStream> audio_stream_ = nullptr;
   raw_ptr<DemuxerStream> video_stream_ = nullptr;

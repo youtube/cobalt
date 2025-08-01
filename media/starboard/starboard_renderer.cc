@@ -17,13 +17,16 @@
 #include "base/feature_list.h"
 #include "base/logging.h"
 #include "base/trace_event/trace_event.h"
-#include "media/base/android/android_overlay.h"
-#include "media/base/android_overlay_config.h"
 #include "media/base/audio_codecs.h"
 #include "media/base/media_switches.h"
 #include "media/base/video_codecs.h"
 #include "starboard/common/media.h"
 #include "starboard/common/player.h"
+
+#if BUILDFLAG(IS_ANDROID)
+#include "media/base/android/android_overlay.h"
+#include "media/base/android_overlay_config.h"
+#endif  // BUILDFLAG(IS_ANDROID)
 
 namespace media {
 
@@ -234,8 +237,14 @@ void StarboardRenderer::Initialize(MediaResource* media_resource,
   if (base::FeatureList::IsEnabled(media::kCobaltUsingAndroidOverlay)) {
     // RequestOverlayInfoCB and create AndroidOverlay if the BASE feature is
     // enabled.
-    request_overlay_info_cb_.Run(false);
-    return;
+    if (request_overlay_info_cb_ && android_overlay_factory_cb_) {
+      // Set |restart_for_transitions| to false due to devices are
+      // isSetOutputSurfaceSupported() in
+      // media/base/android/java/src/org/chromium/media/MediaCodecUtil.java.
+      request_overlay_info_cb_.Run(false);
+      return;
+    }
+    NOTREACHED();
   }
 #endif  // BUILDFLAG(IS_ANDROID)
 
@@ -478,33 +487,29 @@ void StarboardRenderer::OnOverlayInfoChanged(const OverlayInfo& overlay_info) {
   // Check if the the overlay_info has stayed the same --> do not request
   // AndroidOverlay.
   bool overlay_changed = !overlay_info_.RefersToSameOverlayAs(overlay_info);
+  if (!overlay_changed) {
+    LOG(INFO)
+        << " Overlay info not changed, did not request AndroidOverlay. Token: "
+        << overlay_info.routing_token.value().ToString();
+    return;
+  }
   overlay_info_ = overlay_info;
 
   AndroidOverlayConfig config;
-
   config.ready_cb = base::BindOnce(&StarboardRenderer::OnOverlayReady,
                                    weak_factory_.GetWeakPtr());
   config.failed_cb = base::BindOnce(&StarboardRenderer::OnOverlayFailed,
                                     weak_factory_.GetWeakPtr());
   config.rect = gfx::Rect(0, 0, 0, 0);
   config.secure = false;
-
   config.power_efficient = false;
-  config.power_cb = base::BindRepeating(
-      &StarboardRenderer::OnPowerEfficientState, weak_factory_.GetWeakPtr());
 
-  if (overlay_changed) {
-    LOG(INFO) << __func__ << " AndroidOverlayMojoFactoryCB is Null: "
-              << android_overlay_factory_cb_.is_null();
-    overlay_ = android_overlay_factory_cb_.Run(*overlay_info.routing_token,
-                                               std::move(config));
-    LOG(INFO) << " Overlay info changed, requested AndroidOverlay. Token: "
-              << overlay_info.routing_token.value().ToString();
-  } else {
-    LOG(INFO)
-        << " Overlay info not changed, did not request AndroidOverlay. Token: "
-        << overlay_info.routing_token.value().ToString();
-  }
+  LOG(INFO) << __func__ << " AndroidOverlayMojoFactoryCB is Null: "
+            << android_overlay_factory_cb_.is_null();
+  overlay_ = android_overlay_factory_cb_.Run(*overlay_info.routing_token,
+                                             std::move(config));
+  LOG(INFO) << " Overlay info changed, requested AndroidOverlay. Token: "
+            << overlay_info.routing_token.value().ToString();
 }
 #endif  // BUILDFLAG(IS_ANDROID)
 
@@ -989,19 +994,16 @@ void StarboardRenderer::OnOverlayFailed(AndroidOverlay* overlay) {
   DCHECK_EQ(overlay, overlay_.get());
   overlay_ = nullptr;
   state_ = STATE_ERROR;
-  std::move(init_cb_).Run(
-      PipelineStatus(DECODER_ERROR_NOT_SUPPORTED,
-                     "StarboardRenderer::OnOverlayFailed() failed to create a "
-                     "valid AndroidOverlay"));
+  if (init_cb_) {
+    std::move(init_cb_).Run(PipelineStatus(
+        DECODER_ERROR_NOT_SUPPORTED,
+        "StarboardRenderer::OnOverlayFailed() failed to create a "
+        "valid AndroidOverlay"));
+  }
 }
 
 void StarboardRenderer::OnOverlayDeleted(AndroidOverlay* overlay) {
-  // Needed?
-}
-
-void StarboardRenderer::OnPowerEfficientState(AndroidOverlay* overlay,
-                                              bool is_power_efficient) {
-  // Needed?
+  LOG(INFO) << __func__ << " AndroidOverlay is deleted.";
 }
 #endif  // BUILDFLAG(IS_ANDROID)
 
