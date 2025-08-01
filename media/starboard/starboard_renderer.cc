@@ -114,7 +114,12 @@ StarboardRenderer::StarboardRenderer(
     const base::UnguessableToken& overlay_plane_id,
     TimeDelta audio_write_duration_local,
     TimeDelta audio_write_duration_remote,
-    const std::string& max_video_capabilities)
+    const std::string& max_video_capabilities
+#if BUILDFLAG(IS_ANDROID)
+    ,
+    const AndroidOverlayMojoFactoryCB android_overlay_factory_cb
+#endif  // BUILDFLAG(IS_ANDROID)
+    )
     : state_(STATE_UNINITIALIZED),
       task_runner_(task_runner),
       media_log_(std::move(media_log)),
@@ -123,7 +128,12 @@ StarboardRenderer::StarboardRenderer(
       buffering_state_(BUFFERING_HAVE_NOTHING),
       audio_write_duration_local_(audio_write_duration_local),
       audio_write_duration_remote_(audio_write_duration_remote),
-      max_video_capabilities_(max_video_capabilities) {
+      max_video_capabilities_(max_video_capabilities)
+#if BUILDFLAG(IS_ANDROID)
+      ,
+      android_overlay_factory_cb_(std::move(android_overlay_factory_cb))
+#endif  // BUILDFLAG(IS_ANDROID)
+{
   DCHECK(task_runner_);
   DCHECK(media_log_);
   DCHECK(set_bounds_helper_);
@@ -215,6 +225,8 @@ void StarboardRenderer::Initialize(MediaResource* media_resource,
 
   // |init_cb| will be called inside |CreatePlayerBridge()|.
   state_ = STATE_INITIALIZING;
+
+  // TODO: b/429435008 - Allow StarboardRenderer to request AndroidOverlay.
   CreatePlayerBridge();
 }
 
@@ -429,16 +441,30 @@ TimeDelta StarboardRenderer::GetMediaTime() {
 
 void StarboardRenderer::SetStarboardRendererCallbacks(
     PaintVideoHoleFrameCallback paint_video_hole_frame_cb,
-    UpdateStarboardRenderingModeCallback update_starboard_rendering_mode_cb) {
+    UpdateStarboardRenderingModeCallback update_starboard_rendering_mode_cb
+#if BUILDFLAG(IS_ANDROID)
+    ,
+    RequestOverlayInfoCallBack request_overlay_info_cb
+#endif  // BUILDFLAG(IS_ANDROID)
+) {
   paint_video_hole_frame_cb_ = std::move(paint_video_hole_frame_cb);
   update_starboard_rendering_mode_cb_ =
       std::move(update_starboard_rendering_mode_cb);
+#if BUILDFLAG(IS_ANDROID)
+  request_overlay_info_cb_ = std::move(request_overlay_info_cb);
+#endif  // BUILDFLAG(IS_ANDROID)
 }
 
 void StarboardRenderer::OnVideoGeometryChange(const gfx::Rect& output_rect) {
   set_bounds_helper_->SetBounds(output_rect.x(), output_rect.y(),
                                 output_rect.width(), output_rect.height());
 }
+
+#if BUILDFLAG(IS_ANDROID)
+void StarboardRenderer::OnOverlayInfoChanged(const OverlayInfo& overlay_info) {
+  // TODO: b/429435008 - Request AndroidOverlay() for SbPlayer.
+}
+#endif  // BUILDFLAG(IS_ANDROID)
 
 SbPlayerInterface* StarboardRenderer::GetSbPlayerInterface() {
   if (test_sbplayer_interface_) {
