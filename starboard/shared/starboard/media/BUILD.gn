@@ -32,8 +32,6 @@ static_library("media_util") {
     "//starboard/shared/starboard/media/mime_util.h",
     "//starboard/shared/starboard/media/parsed_mime_info.cc",
     "//starboard/shared/starboard/media/parsed_mime_info.h",
-    "//starboard/shared/starboard/media/video_capabilities.cc",
-    "//starboard/shared/starboard/media/video_capabilities.h",
     "//starboard/shared/starboard/media/vp9_util.cc",
     "//starboard/shared/starboard/media/vp9_util.h",
   ]
