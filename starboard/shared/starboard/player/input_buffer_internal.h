@@ -67,8 +67,9 @@ class InputBuffer : public RefCountedThreadSafe<InputBuffer> {
   }
   void SetDecryptedContent(std::vector<uint8_t> decrypted_content);
 
- private:
   friend std::ostream& operator<<(std::ostream& os, const InputBuffer& buffer);
+
+ private:
   void TryToAssignDrmSampleInfo(const SbDrmSampleInfo* sample_drm_info);
   void DeallocateSampleBuffer(const void* buffer);
 
@@ -93,8 +94,6 @@ class InputBuffer : public RefCountedThreadSafe<InputBuffer> {
   InputBuffer(const InputBuffer&) = delete;
   void operator=(const InputBuffer&) = delete;
 };
-
-std::ostream& operator<<(std::ostream& os, const InputBuffer& buffer);
 
 typedef std::vector<scoped_refptr<InputBuffer>> InputBuffers;
 

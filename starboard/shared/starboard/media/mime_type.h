@@ -15,6 +15,7 @@
 #ifndef STARBOARD_SHARED_STARBOARD_MEDIA_MIME_TYPE_H_
 #define STARBOARD_SHARED_STARBOARD_MEDIA_MIME_TYPE_H_
 
+#include <iosfwd>
 #include <string>
 #include <vector>
 
