@@ -636,7 +636,8 @@ void Timezone::Tzset() {
     } else {
       dst_name_str = std_name_str;
     }
-    // Also apply corrections for IANA zones
+    // Apply corrections for IANA zones. This is necessary because the bundled
+    // ICU data can be out of date.
     icu::UnicodeString time_zone_id;
     tz->getID(time_zone_id);
     MaybeApplyCorrection(time_zone_id, &timezone, &daylight, &std_name_str,
@@ -676,13 +677,6 @@ void Timezone::SetTmTimezoneFields(struct tm* tm,
     return;
   }
 
-  tm->tm_gmtoff = (raw_offset + dst_offset) / 1000;
-  if (!g_posix_tz_names.std_name.empty()) {
-    tm->tm_gmtoff = -timezone;
-    if (dst_offset != 0) {
-      tm->tm_gmtoff += 3600;
-    }
-  }
   bool is_daylight = (dst_offset != 0);
 
   // This static buffer is thread-local, so it's safe for concurrent use.
@@ -694,19 +688,27 @@ void Timezone::SetTmTimezoneFields(struct tm* tm,
     tz_name_str =
         is_daylight ? g_posix_tz_names.dst_name : g_posix_tz_names.std_name;
   } else {
-    // Fallback to IANA logic
+    // Fallback to IANA logic.
     icu::UnicodeString time_zone_id;
     zone.getID(time_zone_id);
 
     long corrected_timezone = -(raw_offset / 1000);
+    int corrected_daylight = is_daylight;
     std::string std_name, dst_name;
-    MaybeApplyCorrection(time_zone_id, &corrected_timezone, nullptr, &std_name,
-                         &dst_name);
+    MaybeApplyCorrection(time_zone_id, &corrected_timezone, &corrected_daylight,
+                         &std_name, &dst_name);
+
+    // When ICU data is stale, the DST information may be incorrect.
+    // If a correction is available, override the DST offset and `tm_isdst`.
+    if (is_daylight != corrected_daylight) {
+      dst_offset = corrected_daylight > 0 ? 3600 * 1000 : 0;
+      tm->tm_isdst = corrected_daylight;
+      is_daylight = corrected_daylight;
+    }
 
     // Apply timezone offset correction.
     if (corrected_timezone != -(raw_offset / 1000)) {
       raw_offset = -corrected_timezone * 1000;
-      tm->tm_gmtoff = (raw_offset + dst_offset) / 1000;
     }
 
     // Apply timezone name correction.
@@ -723,6 +725,14 @@ void Timezone::SetTmTimezoneFields(struct tm* tm,
       // For timezone name extraction, always use a current date to get the
       // modern abbreviation, which is what POSIX tests expect.
       tz_name_str = ExtractZoneName(zone, is_daylight, date);
+    }
+  }
+
+  tm->tm_gmtoff = (raw_offset + dst_offset) / 1000;
+  if (!g_posix_tz_names.std_name.empty()) {
+    tm->tm_gmtoff = -timezone;
+    if (dst_offset != 0) {
+      tm->tm_gmtoff += 3600;
     }
   }
 
