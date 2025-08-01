@@ -17,6 +17,7 @@
 #include "base/android/jni_array.h"
 #include "base/android/jni_string.h"
 #include "starboard/android/shared/media_capabilities_cache.h"
+#include "starboard/common/check_op.h"
 #include "starboard/common/string.h"
 
 #pragma GCC diagnostic push
@@ -110,17 +111,17 @@ FrameSize::FrameSize(Size texture_size,
                        ? Size{this->crop_right - this->crop_left + 1,
                               this->crop_bottom - this->crop_top + 1}
                        : texture_size) {
-  SB_CHECK(texture_size.width >= 0);
-  SB_CHECK(texture_size.height >= 0);
+  SB_CHECK_GE(texture_size.width, 0);
+  SB_CHECK_GE(texture_size.height, 0);
 
   if (crop_left >= 0 || crop_top >= 0 || crop_right >= 0 || crop_bottom >= 0) {
     // If there is at least one crop value set, all of them should be set.
-    SB_CHECK(crop_left >= 0);
-    SB_CHECK(crop_top >= 0);
-    SB_CHECK(crop_right >= 0);
-    SB_CHECK(crop_bottom >= 0);
-    SB_CHECK(display_size.width >= 0);
-    SB_CHECK(display_size.height >= 0);
+    SB_CHECK_GE(crop_left, 0);
+    SB_CHECK_GE(crop_top, 0);
+    SB_CHECK_GE(crop_right, 0);
+    SB_CHECK_GE(crop_bottom, 0);
+    SB_CHECK_GE(display_size.width, 0);
+    SB_CHECK_GE(display_size.height, 0);
   }
 }
 
