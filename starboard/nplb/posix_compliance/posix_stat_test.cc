@@ -26,6 +26,7 @@
 #include <string>
 
 #include "starboard/common/file.h"
+#include "starboard/configuration_constants.h"
 #include "starboard/nplb/file_helpers.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
@@ -205,7 +206,7 @@ TEST_F(PosixStatTest, PermissionDeniedFails) {
 
 TEST_F(PosixStatTest, PathTooLongFails) {
   struct stat statbuf;
-  std::string long_name(PATH_MAX + 1, 'c');
+  std::string long_name(kSbFileMaxPath + 1, 'c');
   std::string long_path = test_dir_ + "/" + long_name;
 
   errno = 0;
