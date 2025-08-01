@@ -619,10 +619,6 @@ struct CRYPTO_STATIC_MUTEX {
   pthread_rwlock_t lock;
 };
 
-#if BUILDFLAG(IS_STARBOARD) && !defined(PTHREAD_RWLOCK_INITIALIZER)
-#define PTHREAD_RWLOCK_INITIALIZER {{{1, 0}}}
-#endif
-
 #define CRYPTO_STATIC_MUTEX_INIT { PTHREAD_RWLOCK_INITIALIZER }
 #else
 #error "Unknown threading library"
