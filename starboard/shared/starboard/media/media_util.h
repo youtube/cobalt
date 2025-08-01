@@ -109,7 +109,7 @@ struct VideoStreamInfo {
   SbMediaVideoCodec codec = kSbMediaVideoCodecNone;
   std::string mime;
   std::string max_video_capabilities;
-  ::starboard::Size frame_size;
+  Size frame_size;
   SbMediaColorMetadata color_metadata = {};
 };
 
