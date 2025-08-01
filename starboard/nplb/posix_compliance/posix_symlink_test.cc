@@ -18,9 +18,6 @@
   - EACCES: Triggering a permission-denied error for writing to the directory
     containing the new path is difficult to set up in a portable way.
 
-  - ENAMETOOLONG: Testing for pathnames that exceed the maximum length is not
-    easily portable, as the `PATH_MAX` limit can vary significantly.
-
   - EIO: Triggering a low-level I/O error is not something that can be
     reliably simulated in a unit test.
 
@@ -39,6 +36,7 @@
 #include <cerrno>
 #include <string>
 
+#include "starboard/configuration_constants.h"
 #include "starboard/nplb/file_helpers.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
@@ -105,6 +103,16 @@ TEST(PosixSymlinkTest, FailsWithEmptyNewPath) {
   // The path for the new symlink cannot be an empty string.
   EXPECT_EQ(symlink(target_path, ""), -1);
   EXPECT_EQ(errno, ENOENT);
+}
+
+TEST(PosixSymlinkTest, FailsIfPathIsTooLong) {
+  const char* target_path = "some_target";
+  // Create a string longer than the maximum allowed path length.
+  std::string long_path(kSbFileMaxPath + 1, 'a');
+
+  // Attempt to create a symlink with the overly long path.
+  EXPECT_EQ(symlink(target_path, long_path.c_str()), -1);
+  EXPECT_EQ(errno, ENAMETOOLONG);
 }
 
 TEST(PosixSymlinkTest, FailsWithNullOldPath) {
