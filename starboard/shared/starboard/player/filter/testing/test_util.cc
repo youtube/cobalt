@@ -271,8 +271,7 @@ media::VideoStreamInfo CreateVideoStreamInfo(SbMediaVideoCodec codec) {
   video_stream_info.color_metadata.matrix = kSbMediaMatrixIdBt709;
   video_stream_info.color_metadata.range = kSbMediaRangeIdLimited;
 
-  video_stream_info.frame_size.width = 1920;
-  video_stream_info.frame_size.height = 1080;
+  video_stream_info.frame_size = {1920, 1080};
 
   return video_stream_info;
 }
