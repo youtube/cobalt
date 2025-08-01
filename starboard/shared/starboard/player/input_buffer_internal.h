@@ -15,7 +15,7 @@
 #ifndef STARBOARD_SHARED_STARBOARD_PLAYER_INPUT_BUFFER_INTERNAL_H_
 #define STARBOARD_SHARED_STARBOARD_PLAYER_INPUT_BUFFER_INTERNAL_H_
 
-#include <ostream>
+#include <iosfwd>
 #include <string>
 #include <vector>
 
