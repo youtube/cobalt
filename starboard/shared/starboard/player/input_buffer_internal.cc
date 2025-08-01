@@ -43,45 +43,48 @@ void InputBuffer::SetDecryptedContent(std::vector<uint8_t> decrypted_content) {
   has_drm_info_ = false;
 }
 
-std::string InputBuffer::ToString() const {
-  std::stringstream ss;
-  ss << "========== " << (has_drm_info_ ? "encrypted " : "clear ")
-     << (sample_type() == kSbMediaTypeAudio ? "audio" : "video")
-     << " sample @ timestamp: " << timestamp() << " in " << size()
+std::ostream& operator<<(std::ostream& os, const InputBuffer& buffer) {
+  os << "========== " << (buffer.has_drm_info_ ? "encrypted " : "clear ")
+     << (buffer.sample_type() == kSbMediaTypeAudio ? "audio" : "video")
+     << " sample @ timestamp: " << buffer.timestamp() << " in " << buffer.size()
      << " bytes ==========\n";
-  if (sample_type() == kSbMediaTypeAudio) {
-    ss << "codec: " << audio_stream_info().codec << ", mime: '"
-       << audio_stream_info().mime << "'\n";
-    ss << audio_stream_info().samples_per_second << '\n';
+  if (buffer.sample_type() == kSbMediaTypeAudio) {
+    os << "codec: " << buffer.audio_stream_info().codec << ", mime: '"
+       << buffer.audio_stream_info().mime << "'\n";
+    os << buffer.audio_stream_info().samples_per_second << '\n';
   } else {
-    SB_DCHECK(sample_type() == kSbMediaTypeVideo);
+    SB_DCHECK(buffer.sample_type() == kSbMediaTypeVideo);
 
-    ss << "codec: " << video_stream_info().codec << ", mime: '"
-       << video_stream_info().mime << "'"
+    os << "codec: " << buffer.video_stream_info().codec << ", mime: '"
+       << buffer.video_stream_info().mime << "'"
        << ", max_video_capabilities: '"
-       << video_stream_info().max_video_capabilities << "'\n";
-    ss << video_stream_info().frame_width << " x "
-       << video_stream_info().frame_height << '\n';
+       << buffer.video_stream_info().max_video_capabilities << "'\n";
+    os << buffer.video_stream_info().frame_width << " x "
+       << buffer.video_stream_info().frame_height << '\n';
   }
-  if (has_drm_info_) {
-    ss << "iv: "
-       << HexEncode(drm_info_.initialization_vector,
-                    drm_info_.initialization_vector_size)
+  if (buffer.has_drm_info_) {
+    os << "iv: "
+       << HexEncode(buffer.drm_info_.initialization_vector,
+                    buffer.drm_info_.initialization_vector_size)
        << "\nkey_id: "
-       << HexEncode(drm_info_.identifier, drm_info_.identifier_size) << '\n';
-    ss << "subsamples\n";
-    for (int i = 0; i < drm_info_.subsample_count; ++i) {
-      ss << "\t" << drm_info_.subsample_mapping[i].clear_byte_count << ", "
-         << drm_info_.subsample_mapping[i].encrypted_byte_count << "\n";
+       << HexEncode(buffer.drm_info_.identifier,
+                    buffer.drm_info_.identifier_size)
+       << '\n';
+    os << "subsamples\n";
+    for (int i = 0; i < buffer.drm_info_.subsample_count; ++i) {
+      os << "\t" << buffer.drm_info_.subsample_mapping[i].clear_byte_count
+         << ", " << buffer.drm_info_.subsample_mapping[i].encrypted_byte_count
+         << "\n";
     }
   }
-  if (!side_data_.empty()) {
-    ss << "side data: "
-       << HexEncode(side_data_.data(), static_cast<int>(side_data_.size()))
+  if (!buffer.side_data_.empty()) {
+    os << "side data: "
+       << HexEncode(buffer.side_data_.data(),
+                    static_cast<int>(buffer.side_data_.size()))
        << '\n';
   }
-  ss << media::GetMixedRepresentation(data(), size(), 16) << '\n';
-  return ss.str();
+  os << media::GetMixedRepresentation(buffer.data(), buffer.size(), 16) << '\n';
+  return os;
 }
 
 void InputBuffer::TryToAssignDrmSampleInfo(
