@@ -15,8 +15,6 @@
 if (current_toolchain == default_toolchain &&
     build_with_separate_cobalt_toolchain) {
   import("//starboard/build/config/modular/arm/hardfp/configuration.gni")
-
-  platform_tests_path = "//starboard/raspi/shared:starboard_platform_tests_install($starboard_toolchain)"
 } else {
   import("//starboard/build/config/base_configuration.gni")
 
@@ -29,8 +27,6 @@ if (current_toolchain == default_toolchain &&
   pedantic_warnings_config_path =
       "//starboard/raspi/shared/platform_configuration:pedantic_warnings"
   sabi_path = "//starboard/sabi/arm/hardfp/sabi-v$sb_api_version.json"
-
-  platform_tests_path = "//starboard/raspi/shared:starboard_platform_tests_install($starboard_toolchain)"
 
   speed_config_path = "//starboard/raspi/shared/platform_configuration:speed"
   size_config_path = "//starboard/raspi/shared/platform_configuration:size"
