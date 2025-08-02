@@ -22,6 +22,7 @@
 #include "base/android/scoped_java_ref.h"
 #include "starboard/android/shared/media_common.h"
 #include "starboard/common/check_op.h"
+#include "starboard/common/size.h"
 #include "starboard/shared/starboard/media/media_util.h"
 
 namespace starboard::android::shared {
@@ -66,8 +67,7 @@ struct DequeueOutputResult {
 };
 
 struct FrameSize {
-  jint texture_width;
-  jint texture_height;
+  Size texture_size;
 
   // Crop values can be set to -1 when they are not provided by the platform
   jint crop_left = -1;
@@ -80,25 +80,17 @@ struct FrameSize {
            crop_bottom >= 0;
   }
 
-  jint display_width() const {
+  Size display_size() const {
     if (has_crop_values()) {
-      return crop_right - crop_left + 1;
+      return {crop_right - crop_left + 1, crop_bottom - crop_top + 1};
     }
 
-    return texture_width;
-  }
-
-  jint display_height() const {
-    if (has_crop_values()) {
-      return crop_bottom - crop_top + 1;
-    }
-
-    return texture_height;
+    return texture_size;
   }
 
   void DCheckValid() const {
-    SB_DCHECK_GE(texture_width, 0);
-    SB_DCHECK_GE(texture_height, 0);
+    SB_DCHECK_GE(texture_size.width, 0);
+    SB_DCHECK_GE(texture_size.height, 0);
 
     if (crop_left >= 0 || crop_top >= 0 || crop_right >= 0 ||
         crop_bottom >= 0) {
@@ -108,8 +100,9 @@ struct FrameSize {
       SB_DCHECK_GE(crop_right, 0);
       SB_DCHECK_GE(crop_bottom, 0);
       SB_DCHECK(has_crop_values());
-      SB_DCHECK_GE(display_width(), 0);
-      SB_DCHECK_GE(display_height(), 0);
+      const auto size = display_size();
+      SB_DCHECK_GE(size.width, 0);
+      SB_DCHECK_GE(size.height, 0);
     }
   }
 };

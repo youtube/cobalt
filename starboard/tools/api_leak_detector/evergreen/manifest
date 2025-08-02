@@ -6,7 +6,6 @@ OPENSSL_memory_alloc
 OPENSSL_memory_free
 OPENSSL_memory_get_size
 __nl_langinfo_l
-access
 chmod
 closelog
 dladdr
@@ -17,7 +16,6 @@ dlsym
 fchmod
 fchown
 fclose
-fdatasync
 fdopen
 feof
 fflush

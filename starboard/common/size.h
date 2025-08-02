@@ -1,4 +1,4 @@
-// Copyright 2024 The Cobalt Authors. All Rights Reserved.
+// Copyright 2025 The Cobalt Authors. All Rights Reserved.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -12,26 +12,24 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include <stdlib.h>
+#ifndef STARBOARD_COMMON_SIZE_H_
+#define STARBOARD_COMMON_SIZE_H_
 
-#include "testing/gtest/include/gtest/gtest.h"
+#include <iosfwd>
+#include <string>
 
 namespace starboard {
-namespace nplb {
-namespace {
 
-const size_t kSize = 1024 * 128;
+struct Size {
+  constexpr Size() : width(0), height(0) {}
+  constexpr Size(int width, int height) : width(width), height(height) {}
 
-TEST(PosixMemoryDeallocateTest, FreesNormally) {
-  void* memory = malloc(kSize);
-  EXPECT_NE(static_cast<void*>(NULL), memory);
-  free(memory);
-}
+  int width;
+  int height;
+};
 
-TEST(PosixMemoryDeallocateTest, FreesNull) {
-  free(NULL);
-}
+std::ostream& operator<<(std::ostream& os, const Size& size);
 
-}  // namespace
-}  // namespace nplb
 }  // namespace starboard
+
+#endif  // STARBOARD_COMMON_SIZE_H_
