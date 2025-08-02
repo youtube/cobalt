@@ -3295,8 +3295,14 @@ TEST_F(WebViewTest, FinishComposingTextDoesNotDismissHandles) {
 
   EXPECT_TRUE(SimulateGestureAtElementById(
       WebInputEvent::Type::kGestureLongPress, target));
+#if BUILDFLAG(IS_COBALT)
+  // With context menu disabled, long press does not trigger selection.
+  EXPECT_EQ("", frame->SelectionAsText().Utf8());
+  EXPECT_FALSE(frame->GetFrame()->Selection().IsHandleVisible());
+#else
   EXPECT_EQ("testword12345", frame->SelectionAsText().Utf8());
   EXPECT_TRUE(frame->GetFrame()->Selection().IsHandleVisible());
+#endif
   EXPECT_TRUE(frame->GetFrame()->GetInputMethodController().HasComposition());
 
   // Check that finishComposingText(KeepSelection) does not dismiss handles.

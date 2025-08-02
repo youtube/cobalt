@@ -845,8 +845,13 @@ TEST_F(WebPluginContainerTest, GestureLongPressReachesPlugin) {
       WebCoalescedInputEvent(event, ui::LatencyInfo()));
   RunPendingTasks();
 
+#if BUILDFLAG(IS_COBALT)
+  EXPECT_EQ(WebInputEvent::Type::kUndefined,
+            test_plugin->GetLastInputEventType());
+#else
   EXPECT_EQ(WebInputEvent::Type::kGestureLongPress,
             test_plugin->GetLastInputEventType());
+#endif
 }
 
 TEST_F(WebPluginContainerTest, MouseEventButtons) {
