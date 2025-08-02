@@ -15,7 +15,6 @@
 #include "starboard/common/log.h"
 
 #include <pthread.h>
-#include <sys/prctl.h>
 #include <sys/time.h>
 #include <time.h>
 
@@ -28,6 +27,10 @@
 #include "starboard/common/string.h"
 #include "starboard/system.h"
 #include "starboard/thread.h"
+
+#if defined(ANDROID)
+#include <sys/prctl.h>
+#endif
 
 namespace starboard {
 namespace logging {
@@ -180,7 +183,7 @@ void LogMessage::Init(const char* file, int line) {
     filename.erase(0, last_slash_pos + 1);
   }
   char name[128] = {0};
-#if __ANDROID_API__ < 26
+#if defined(__ANDROID_API__) && __ANDROID_API__ < 26
   prctl(PR_GET_NAME, name, 0L, 0L, 0L);
 #else
   pthread_getname_np(pthread_self(), name, SB_ARRAY_SIZE_INT(name));
