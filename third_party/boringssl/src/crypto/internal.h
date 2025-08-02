@@ -112,18 +112,12 @@
 #include "build/build_config.h" 
 #include <openssl/crypto.h>
 #include <openssl/ex_data.h>
-#if BUILDFLAG(ENABLE_COBALT_HERMETIC_HACKS)
-#include <openssl/mem.h>
-#endif
 #include <openssl/stack.h>
 #include <openssl/thread.h>
 
 #include <assert.h>
 #include <string.h>
 
-#if BUILDFLAG(ENABLE_COBALT_HERMETIC_HACKS)
-#include "starboard/thread.h" // nogncheck
-#endif
 
 #if defined(BORINGSSL_CONSTANT_TIME_VALIDATION)
 #include <valgrind/memcheck.h>
@@ -154,11 +148,12 @@
 #endif
 #endif
 
-#if !BUILDFLAG(ENABLE_COBALT_HERMETIC_HACKS)
+#if !BUILDFLAG(IS_STARBOARD)
 #if defined(OPENSSL_THREADS) && \
     (!defined(OPENSSL_WINDOWS) || defined(__MINGW32__))
 #include <pthread.h>
 #define OPENSSL_PTHREADS
+#endif
 #endif
 
 #if defined(OPENSSL_THREADS) && !defined(OPENSSL_PTHREADS) && \
@@ -167,7 +162,6 @@
 OPENSSL_MSVC_PRAGMA(warning(push, 3))
 #include <windows.h>
 OPENSSL_MSVC_PRAGMA(warning(pop))
-#endif
 #endif
 
 #if defined(__cplusplus)
@@ -526,7 +520,7 @@ static inline int constant_time_declassify_int(int v) {
 
 // Thread-safe initialisation.
 
-#if BUILDFLAG(ENABLE_COBALT_HERMETIC_HACKS)
+#if BUILDFLAG(IS_STARBOARD)
 typedef pthread_once_t CRYPTO_once_t;
 #define CRYPTO_ONCE_INIT PTHREAD_ONCE_INIT
 #elif !defined(OPENSSL_THREADS)
@@ -549,7 +543,7 @@ typedef pthread_once_t CRYPTO_once_t;
 //
 // The |once| argument must be a |CRYPTO_once_t| that has been initialised with
 // the value |CRYPTO_ONCE_INIT|.
-#if BUILDFLAG(ENABLE_COBALT_HERMETIC_HACKS)
+#if BUILDFLAG(IS_STARBOARD)
 #define CRYPTO_once pthread_once 
 #else
 OPENSSL_EXPORT void CRYPTO_once(CRYPTO_once_t *once, void (*init)(void));
@@ -562,9 +556,7 @@ OPENSSL_EXPORT void CRYPTO_once(CRYPTO_once_t *once, void (*init)(void));
 #if !defined(OPENSSL_C11_ATOMIC) && defined(OPENSSL_THREADS) &&   \
     !defined(__STDC_NO_ATOMICS__) && defined(__STDC_VERSION__) && \
     __STDC_VERSION__ >= 201112L
-#if !BUILDFLAG(ENABLE_COBALT_HERMETIC_HACKS)
 #define OPENSSL_C11_ATOMIC
-#endif
 #endif
 
 // CRYPTO_REFCOUNT_MAX is the value at which the reference count saturates.
@@ -598,7 +590,7 @@ OPENSSL_EXPORT int CRYPTO_refcount_dec_and_test_zero(CRYPTO_refcount_t *count);
 // thread.h as a structure large enough to fit the real type. The global lock is
 // a different type so it may be initialized with platform initializer macros.
 
-#if BUILDFLAG(ENABLE_COBALT_HERMETIC_HACKS)
+#if BUILDFLAG(IS_STARBOARD)
 struct CRYPTO_STATIC_MUTEX {
   uint32_t initialized;
   CRYPTO_MUTEX mutex;
@@ -618,10 +610,6 @@ struct CRYPTO_STATIC_MUTEX {
 struct CRYPTO_STATIC_MUTEX {
   pthread_rwlock_t lock;
 };
-
-#if BUILDFLAG(ENABLE_COBALT_HERMETIC_HACKS) && !defined(PTHREAD_RWLOCK_INITIALIZER)
-#define PTHREAD_RWLOCK_INITIALIZER {{{1, 0}}}
-#endif
 
 #define CRYPTO_STATIC_MUTEX_INIT { PTHREAD_RWLOCK_INITIALIZER }
 #else
