@@ -17,11 +17,11 @@
 
 #include <memory>
 #include <optional>
+#include <ostream>
 #include <string>
 
 #include "base/android/scoped_java_ref.h"
 #include "starboard/android/shared/media_common.h"
-#include "starboard/common/check_op.h"
 #include "starboard/common/size.h"
 #include "starboard/shared/starboard/media/media_util.h"
 
@@ -66,46 +66,36 @@ struct DequeueOutputResult {
   jint num_bytes;
 };
 
-struct FrameSize {
-  Size texture_size;
-
-  // Crop values can be set to -1 when they are not provided by the platform
-  jint crop_left = -1;
-  jint crop_top = -1;
-  jint crop_right = -1;
-  jint crop_bottom = -1;
+class FrameSize {
+ public:
+  // crop value of -1 means that platform does not provide it.
+  FrameSize(Size texture_size,
+            int crop_left,
+            int crop_top,
+            int crop_right,
+            int crop_bottom);
+  FrameSize();
 
   bool has_crop_values() const {
-    return crop_left >= 0 && crop_top >= 0 && crop_right >= 0 &&
-           crop_bottom >= 0;
+    return crop_left_ >= 0 && crop_top_ >= 0 && crop_right_ >= 0 &&
+           crop_bottom_ >= 0;
   }
 
-  Size display_size() const {
-    if (has_crop_values()) {
-      return {crop_right - crop_left + 1, crop_bottom - crop_top + 1};
-    }
+  const Size& texture_size() const { return texture_size_; }
+  const Size& display_size() const { return display_size_; }
 
-    return texture_size;
-  }
+  friend std::ostream& operator<<(std::ostream& os, const FrameSize& size);
 
-  void DCheckValid() const {
-    SB_DCHECK_GE(texture_size.width, 0);
-    SB_DCHECK_GE(texture_size.height, 0);
-
-    if (crop_left >= 0 || crop_top >= 0 || crop_right >= 0 ||
-        crop_bottom >= 0) {
-      // If there is at least one crop value set, all of them should be set.
-      SB_DCHECK_GE(crop_left, 0);
-      SB_DCHECK_GE(crop_top, 0);
-      SB_DCHECK_GE(crop_right, 0);
-      SB_DCHECK_GE(crop_bottom, 0);
-      SB_DCHECK(has_crop_values());
-      const auto size = display_size();
-      SB_DCHECK_GE(size.width, 0);
-      SB_DCHECK_GE(size.height, 0);
-    }
-  }
+ private:
+  const Size texture_size_;
+  const int crop_left_;
+  const int crop_top_;
+  const int crop_right_;
+  const int crop_bottom_;
+  const Size display_size_;
 };
+
+std::ostream& operator<<(std::ostream& os, const FrameSize& size);
 
 struct AudioOutputFormatResult {
   jint status;

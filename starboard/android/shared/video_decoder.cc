@@ -1087,13 +1087,13 @@ void VideoDecoder::UpdateDecodeTargetSizeAndContentRegion_Locked() {
   while (!frame_sizes_.empty()) {
     const auto& frame_size = frame_sizes_.front();
     if (frame_size.has_crop_values()) {
-      decode_target_->set_dimension(frame_size.texture_size);
+      decode_target_->set_dimension(frame_size.texture_size());
 
       float matrix4x4[16];
       getTransformMatrix(decode_target_->surface_texture(), matrix4x4);
 
       auto content_region = GetDecodeTargetContentRegionFromMatrix(
-          frame_size.texture_size, matrix4x4);
+          frame_size.texture_size(), matrix4x4);
       decode_target_->set_content_region(content_region);
 
       // Now we have two crop rectangles, one from the MediaFormat, one from the
@@ -1120,11 +1120,9 @@ void VideoDecoder::UpdateDecodeTargetSizeAndContentRegion_Locked() {
       // Crash in non-gold mode, and fallback to the old logic in gold mode to
       // avoid terminating the app in production.
       SB_LOG_IF(WARNING, frame_sizes_.size() <= 1)
-          << frame_size.texture_size << " - (" << content_region.left << ", "
+          << frame_size << " - (" << content_region.left << ", "
           << content_region.top << ", " << content_region.right << ", "
-          << content_region.bottom << "), (" << frame_size.crop_left << "), ("
-          << frame_size.crop_top << "), (" << frame_size.crop_right << "), ("
-          << frame_size.crop_bottom << ")";
+          << content_region.bottom << ")";
 #endif  // !defined(COBALT_BUILD_TYPE_GOLD)
     } else {
       SB_LOG(WARNING) << "Crop values not set.";
@@ -1136,14 +1134,14 @@ void VideoDecoder::UpdateDecodeTargetSizeAndContentRegion_Locked() {
       break;
     }
 
-    frame_sizes_.erase(frame_sizes_.begin());
+    frame_sizes_.pop_front();
   }
 
   SB_DCHECK(!frame_sizes_.empty());
   if (frame_sizes_.empty()) {
-    // This should never happen.  Appending a default value so it aligns to the
-    // legacy behavior, where a single value (instead of an std::vector<>) is
-    // used.
+    SB_LOG(WARNING)
+        << "frame_size should not be empty. To align with the legacy behavior, "
+           "add one frame size with default value.";
     frame_sizes_.resize(1);
   }
 

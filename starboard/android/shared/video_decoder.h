@@ -16,6 +16,7 @@
 #define STARBOARD_ANDROID_SHARED_VIDEO_DECODER_H_
 
 #include <atomic>
+#include <deque>
 #include <memory>
 #include <optional>
 #include <string>
@@ -192,7 +193,7 @@ class VideoDecoder
   // They are the same at most of the time, but they can be different when there
   // is a format change. For example, when the newly decoded frames are at
   // 1080p, and the frames being played are still at 480p.
-  std::vector<FrameSize> frame_sizes_;
+  std::deque<FrameSize> frame_sizes_;
 
   double playback_rate_ = 1.0;
 
