@@ -23,6 +23,11 @@
 #include "starboard/common/media.h"
 #include "starboard/common/player.h"
 
+#if BUILDFLAG(IS_ANDROID)
+#include "media/base/android/android_overlay.h"
+#include "media/base/android_overlay_config.h"
+#endif  // BUILDFLAG(IS_ANDROID)
+
 namespace media {
 
 namespace {
@@ -228,7 +233,21 @@ void StarboardRenderer::Initialize(MediaResource* media_resource,
   // |init_cb| will be called inside |CreatePlayerBridge()|.
   state_ = STATE_INITIALIZING;
 
-  // TODO: b/429435008 - Allow StarboardRenderer to request AndroidOverlay.
+#if BUILDFLAG(IS_ANDROID)
+  if (base::FeatureList::IsEnabled(media::kCobaltUsingAndroidOverlay)) {
+    // RequestOverlayInfoCB and create AndroidOverlay if the BASE feature is
+    // enabled.
+    if (request_overlay_info_cb_ && android_overlay_factory_cb_) {
+      // Set |restart_for_transitions| to false due to devices are
+      // isSetOutputSurfaceSupported() in
+      // media/base/android/java/src/org/chromium/media/MediaCodecUtil.java.
+      request_overlay_info_cb_.Run(false);
+      return;
+    }
+    NOTREACHED();
+  }
+#endif  // BUILDFLAG(IS_ANDROID)
+
   CreatePlayerBridge();
 }
 
@@ -465,6 +484,32 @@ void StarboardRenderer::OnVideoGeometryChange(const gfx::Rect& output_rect) {
 #if BUILDFLAG(IS_ANDROID)
 void StarboardRenderer::OnOverlayInfoChanged(const OverlayInfo& overlay_info) {
   // TODO: b/429435008 - Request AndroidOverlay() for SbPlayer.
+  // Check if the the overlay_info has stayed the same --> do not request
+  // AndroidOverlay.
+  bool overlay_changed = !overlay_info_.RefersToSameOverlayAs(overlay_info);
+  if (!overlay_changed) {
+    LOG(INFO)
+        << " Overlay info not changed, did not request AndroidOverlay. Token: "
+        << overlay_info.routing_token.value().ToString();
+    return;
+  }
+  overlay_info_ = overlay_info;
+
+  AndroidOverlayConfig config;
+  config.ready_cb = base::BindOnce(&StarboardRenderer::OnOverlayReady,
+                                   weak_factory_.GetWeakPtr());
+  config.failed_cb = base::BindOnce(&StarboardRenderer::OnOverlayFailed,
+                                    weak_factory_.GetWeakPtr());
+  config.rect = gfx::Rect(0, 0, 0, 0);
+  config.secure = false;
+  config.power_efficient = false;
+
+  LOG(INFO) << __func__ << " AndroidOverlayMojoFactoryCB is Null: "
+            << android_overlay_factory_cb_.is_null();
+  overlay_ = android_overlay_factory_cb_.Run(*overlay_info.routing_token,
+                                             std::move(config));
+  LOG(INFO) << " Overlay info changed, requested AndroidOverlay. Token: "
+            << overlay_info.routing_token.value().ToString();
 }
 #endif  // BUILDFLAG(IS_ANDROID)
 
@@ -927,6 +972,40 @@ void StarboardRenderer::StoreMediaTime(TimeDelta media_time) {
   last_media_time_ = media_time;
   last_time_media_time_retrieved_ = Time::Now();
 }
+
+#if BUILDFLAG(IS_ANDROID)
+void StarboardRenderer::OnOverlayReady(AndroidOverlay* overlay) {
+  // Check that the passed overlay and overlay_ point to the same object.
+  DCHECK_EQ(overlay, overlay_.get());
+
+  // Notify the overlay that we'd like to know if it's destroyed, so that we can
+  // update our internal state if the client drops it without being told.
+  overlay_->AddOverlayDeletedCallback(base::BindOnce(
+      &StarboardRenderer::OnOverlayDeleted, weak_factory_.GetWeakPtr()));
+
+  LOG(INFO) << __func__ << overlay_->GetJavaSurface().obj();
+
+  // TODO: b/431850939 - Pass JavaSurface to Starboard via StarboardExtension.
+
+  CreatePlayerBridge();
+}
+
+void StarboardRenderer::OnOverlayFailed(AndroidOverlay* overlay) {
+  DCHECK_EQ(overlay, overlay_.get());
+  overlay_ = nullptr;
+  state_ = STATE_ERROR;
+  if (init_cb_) {
+    std::move(init_cb_).Run(PipelineStatus(
+        DECODER_ERROR_NOT_SUPPORTED,
+        "StarboardRenderer::OnOverlayFailed() failed to create a "
+        "valid AndroidOverlay"));
+  }
+}
+
+void StarboardRenderer::OnOverlayDeleted(AndroidOverlay* overlay) {
+  LOG(INFO) << __func__ << " AndroidOverlay is deleted.";
+}
+#endif  // BUILDFLAG(IS_ANDROID)
 
 int StarboardRenderer::GetDefaultMaxBuffers(AudioCodec codec,
                                             TimeDelta duration_to_write,
