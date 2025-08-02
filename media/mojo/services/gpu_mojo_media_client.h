@@ -88,7 +88,7 @@ struct VideoDecoderTraits {
 // Creates a platform-specific media::VideoDecoder.
 std::unique_ptr<VideoDecoder> CreatePlatformVideoDecoder(VideoDecoderTraits&);
 
-#if BUILDFLAG(USE_VAAPI) || BUILDFLAG(USE_V4L2_CODEC)
+#if BUILDFLAG(USE_LINUX_VIDEO_ACCELERATION)
 // Ensures that the platform video decoder supported configurations are known.
 // When they are, |cb| is called with a PendingRemote that corresponds to the
 // same connection as |oop_video_decoder| (which may be |oop_video_decoder|
@@ -106,7 +106,7 @@ void NotifyPlatformDecoderSupport(
     mojo::PendingRemote<stable::mojom::StableVideoDecoder> oop_video_decoder,
     base::OnceCallback<
         void(mojo::PendingRemote<stable::mojom::StableVideoDecoder>)> cb);
-#endif  // BUILDFLAG(USE_VAAPI) || BUILDFLAG(USE_V4L2_CODEC)
+#endif
 
 // Queries the platform-specific VideoDecoder implementation for its
 // supported profiles. Many platforms fall back to use the VDAVideoDecoder
