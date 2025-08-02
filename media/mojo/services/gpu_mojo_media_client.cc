@@ -118,6 +118,7 @@ StarboardRendererTraits::StarboardRendererTraits(
     const std::string& max_video_capabilities,
     const bool enable_flush_during_seek,
     const bool enable_reset_audio_decoder,
+    const gfx::Size& viewport_size,
     mojo::PendingReceiver<mojom::StarboardRendererExtension>
         renderer_extension_receiver,
     mojo::PendingRemote<mojom::StarboardRendererClientExtension>
@@ -134,6 +135,7 @@ StarboardRendererTraits::StarboardRendererTraits(
       max_video_capabilities(max_video_capabilities),
       enable_flush_during_seek(enable_flush_during_seek),
       enable_reset_audio_decoder(enable_reset_audio_decoder),
+      viewport_size(viewport_size),
       renderer_extension_receiver(std::move(renderer_extension_receiver)),
       client_extension_remote(std::move(client_extension_remote)),
       get_starboard_command_buffer_stub_cb(
@@ -302,7 +304,7 @@ std::unique_ptr<Renderer> GpuMojoMediaClient::CreateStarboardRenderer(
       config.overlay_plane_id, config.audio_write_duration_local,
       config.audio_write_duration_remote, config.max_video_capabilities,
       config.enable_flush_during_seek, config.enable_reset_audio_decoder,
-      std::move(renderer_extension_receiver),
+      config.viewport_size, std::move(renderer_extension_receiver),
       std::move(client_extension_remote), base::BindRepeating(
         &GetCommandBufferStub, gpu_task_runner_, media_gpu_channel_manager_),
       android_overlay_factory_cb_);

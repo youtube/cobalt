@@ -137,7 +137,8 @@ StarboardRenderer::StarboardRenderer(
     TimeDelta audio_write_duration_remote,
     const std::string& max_video_capabilities,
     bool enable_flush_during_seek,
-    bool enable_reset_audio_decoder
+    bool enable_reset_audio_decoder,
+    const gfx::Size& viewport_size
 #if BUILDFLAG(IS_ANDROID)
     ,
     const AndroidOverlayMojoFactoryCB android_overlay_factory_cb
@@ -154,6 +155,7 @@ StarboardRenderer::StarboardRenderer(
       max_video_capabilities_(max_video_capabilities),
       enable_flush_during_seek_(enable_flush_during_seek),
       enable_reset_audio_decoder_(enable_reset_audio_decoder),
+      viewport_size_(viewport_size),
       notify_memory_pressure_before_playback_(
           base::FeatureList::IsEnabled(
               media::kCobaltNotifyMemoryPressureBeforePlayback) ||

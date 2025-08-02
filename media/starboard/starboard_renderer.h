@@ -59,7 +59,8 @@ class MEDIA_EXPORT StarboardRenderer : public Renderer,
                     TimeDelta audio_write_duration_remote,
                     const std::string& max_video_capabilities,
                     bool enable_flush_during_seek,
-                    bool enable_reset_audio_decoder
+                    bool enable_reset_audio_decoder,
+                    const gfx::Size& viewport_size
 #if BUILDFLAG(IS_ANDROID)
                     ,
                     const AndroidOverlayMojoFactoryCB android_overlay_factory_cb
@@ -191,6 +192,7 @@ class MEDIA_EXPORT StarboardRenderer : public Renderer,
   const std::string max_video_capabilities_;
   const bool enable_flush_during_seek_;
   const bool enable_reset_audio_decoder_;
+  const gfx::Size viewport_size_;
   const bool notify_memory_pressure_before_playback_;
 #if BUILDFLAG(IS_ANDROID)
   const AndroidOverlayMojoFactoryCB android_overlay_factory_cb_;
