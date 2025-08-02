@@ -15,7 +15,6 @@ on:
   pull_request:
     types:
       - labeled
-      - synchronize
 jobs:
   initialize:
     runs-on: ubuntu-latest
@@ -55,7 +54,7 @@ jobs:
           set -eux
           if [[ -n "${{ inputs.downstream_branch }}" ]]; then
             # Get the trimmed downstream branch directly from inputs
-            DOWNSTREAM_BRANCH=${{ trim(inputs.downstream_branch, ' ') }}
+            DOWNSTREAM_BRANCH=${{ inputs.downstream_branch }}
           else
             # Get the downstream branch from the labelled PR
             DOWNSTREAM_BRANCH="${{ github.ref }}"
