@@ -55,7 +55,8 @@ class MEDIA_EXPORT StarboardRenderer : public Renderer,
                     const base::UnguessableToken& overlay_plane_id,
                     TimeDelta audio_write_duration_local,
                     TimeDelta audio_write_duration_remote,
-                    const std::string& max_video_capabilities
+                    const std::string& max_video_capabilities,
+                    const gfx::Size& viewport_size
 #if BUILDFLAG(IS_ANDROID)
                     ,
                     const AndroidOverlayMojoFactoryCB android_overlay_factory_cb
@@ -185,6 +186,7 @@ class MEDIA_EXPORT StarboardRenderer : public Renderer,
   const TimeDelta audio_write_duration_local_;
   const TimeDelta audio_write_duration_remote_;
   const std::string max_video_capabilities_;
+  const gfx::Size viewport_size_;
 #if BUILDFLAG(IS_ANDROID)
   const AndroidOverlayMojoFactoryCB android_overlay_factory_cb_;
 #endif  // BUILDFLAG(IS_ANDROID)
