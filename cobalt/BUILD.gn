@@ -17,6 +17,13 @@ import("//cobalt/build/modular_executable.gni")
 import("//testing/test.gni")
 import("//ui/base/ui_features.gni")
 
+# This arg temporarily enables or disables the updater_sandbox target.
+# It's disabled on CI by default due to missing libcurl pkg. To enable it
+# locally, set it to true before building the target.
+declare_args() {
+  build_updater_sandbox = false
+}
+
 group("gn_all") {
   testonly = true
 
@@ -38,6 +45,9 @@ group("gn_all") {
       "//starboard/elf_loader:elf_loader_sys_sandbox($starboard_toolchain)",
       "//starboard/loader_app:loader_app($starboard_toolchain)",
     ]
+  }
+  if (is_starboard && build_updater_sandbox) {
+    deps += [ "//chrome/updater/cobalt:updater_sandbox" ]
   }
 }
 
