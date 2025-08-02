@@ -1051,6 +1051,7 @@ MATCHER_P2(ContextMenuAtLocation,
   return arg.mouse_position.x() == x && arg.mouse_position.y() == y;
 }
 
+#if !BUILDFLAG(IS_COBALT)
 // Test that the context menu's location is correct in the presence of visual
 // viewport offset.
 TEST_P(VisualViewportTest, TestContextMenuShownInCorrectLocation) {
@@ -1115,6 +1116,7 @@ TEST_P(VisualViewportTest, TestContextMenuShownInCorrectLocation) {
   // Reset the old client so destruction can occur naturally.
   WebView()->MainFrameImpl()->SetClient(old_client);
 }
+#endif
 
 // Test that the client is notified if page scroll events.
 TEST_P(VisualViewportTest, TestClientNotifiedOfScrollEvents) {

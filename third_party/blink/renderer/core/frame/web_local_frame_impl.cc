@@ -3107,19 +3107,27 @@ WebFrameWidgetImpl* WebLocalFrameImpl::LocalRootFrameWidget() {
 Node* WebLocalFrameImpl::ContextMenuNodeInner() const {
   if (!ViewImpl() || !ViewImpl()->GetPage())
     return nullptr;
+#if BUILDFLAG(IS_COBALT)
+  return nullptr;
+#else
   return ViewImpl()
       ->GetPage()
       ->GetContextMenuController()
       .ContextMenuNodeForFrame(GetFrame());
+#endif
 }
 
 Node* WebLocalFrameImpl::ContextMenuImageNodeInner() const {
   if (!ViewImpl() || !ViewImpl()->GetPage())
     return nullptr;
+#if BUILDFLAG(IS_COBALT)
+  return nullptr;
+#else
   return ViewImpl()
       ->GetPage()
       ->GetContextMenuController()
       .ContextMenuImageNodeForFrame(GetFrame());
+#endif
 }
 
 void WebLocalFrameImpl::WaitForDebuggerWhenShown() {
