@@ -293,6 +293,7 @@ void CreateAndHandleKeyboardEvent(WebElement* plugin_container_one_element,
       ->HandleEvent(*key_event);
 }
 
+#if !BUILDFLAG(IS_COBALT)
 void ExecuteContextMenuCommand(WebViewImpl* web_view,
                                const WebString& command_name) {
   auto event = frame_test_helpers::CreateMouseEvent(
@@ -305,6 +306,7 @@ void ExecuteContextMenuCommand(WebViewImpl* web_view,
   EXPECT_TRUE(
       web_view->MainFrame()->ToWebLocalFrame()->ExecuteCommand(command_name));
 }
+#endif
 
 }  // namespace
 
@@ -425,6 +427,7 @@ TEST_F(WebPluginContainerTest, CopyWithoutPermission) {
   ClearClipboardBuffer(*local_frame);
 }
 
+#if !BUILDFLAG(IS_COBALT)
 TEST_F(WebPluginContainerTest, CopyFromContextMenu) {
   RegisterMockedURL("plugin_container.html");
   // Must outlive `web_view_helper`.
@@ -494,6 +497,7 @@ TEST_F(WebPluginContainerTest, CopyFromContextMenuWithoutCopyPermission) {
   EXPECT_EQ(String(""), ReadClipboard(*local_frame));
   ClearClipboardBuffer(*local_frame);
 }
+#endif // !BUILDFLAG(IS_COBALT)
 
 // Verifies `Ctrl-C` and `Ctrl-Insert` keyboard events, results in copying to
 // the clipboard.
@@ -671,6 +675,7 @@ TEST_F(WebPluginContainerTest, PasteAndMatchStyleKeyboardEventsTest) {
   EXPECT_TRUE(test_plugin->IsPasteCalled());
 }
 
+#if !BUILDFLAG(IS_COBALT)
 TEST_F(WebPluginContainerTest, CutFromContextMenu) {
   RegisterMockedURL("plugin_container.html");
   // Must outlive |web_view_helper|.
@@ -739,6 +744,7 @@ TEST_F(WebPluginContainerTest, PasteAndMatchStyleFromContextMenu) {
       TestPluginWithEditableText::FromContainer(&plugin_container_one_element);
   EXPECT_TRUE(test_plugin->IsPasteCalled());
 }
+#endif // !BUILDFLAG(IS_COBALT)
 
 // A class to facilitate testing that events are correctly received by plugins.
 class EventTestPlugin : public FakeWebPlugin {

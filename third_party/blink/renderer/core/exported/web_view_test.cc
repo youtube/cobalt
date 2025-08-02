@@ -2983,7 +2983,6 @@ TEST_F(WebViewTest, LongPressLink) {
             web_view->MainFrameWidget()->HandleInputEvent(
                 WebCoalescedInputEvent(event, ui::LatencyInfo())));
 }
-#endif  // !BUILDFLAG(IS_COBALT)
 
 // Tests that we send touchcancel when drag start by long press.
 TEST_F(WebViewTest, TouchCancelOnStartDragging) {
@@ -3026,8 +3025,6 @@ TEST_F(WebViewTest, TouchCancelOnStartDragging) {
   web_view->MainFrameWidget()->DispatchBufferedTouchEvents();
   EXPECT_EQ("touchcancel", web_view->MainFrameImpl()->GetDocument().Title());
 }
-
-#if !BUILDFLAG(IS_COBALT)
 // Tests that a touch drag context menu is enabled, a dragend shows a context
 // menu when there is no drag.
 TEST_F(WebViewTest, TouchDragContextMenuWithoutDrag) {
@@ -3111,7 +3108,6 @@ TEST_F(WebViewTest, TouchDragContextMenuAtDragEnd) {
       web_view->GetPage()->GetContextMenuController().ContextMenuNodeForFrame(
           web_view->MainFrameImpl()->GetFrame()));
 }
-#endif // #if !BUILDFLAG(IS_COBALT)
 
 TEST_F(WebViewTest, ContextMenuOnLinkAndImageLongPress) {
   ScopedTouchDragAndContextMenuForTest touch_drag_and_context_menu(false);
@@ -3197,6 +3193,7 @@ TEST_F(WebViewTest, ContextMenuAndDragOnLinkLongPress) {
   EXPECT_EQ("dragstart@a,contextmenu@a,",
             web_view->MainFrameImpl()->GetDocument().Title().Ascii());
 }
+#endif // #if !BUILDFLAG(IS_COBALT)
 
 #if !BUILDFLAG(IS_COBALT)
 TEST_F(WebViewTest, LongPressEmptyEditableSelection) {
@@ -3261,7 +3258,13 @@ TEST_F(WebViewTest, LongPressSelection) {
   EXPECT_EQ("", frame->SelectionAsText().Utf8());
   EXPECT_TRUE(SimulateGestureAtElementById(
       WebInputEvent::Type::kGestureLongPress, target));
+#if BUILDFLAG(IS_COBALT)
+  // With the context menu disabled, a long press on text shouldn't
+  // create a selection.
+  EXPECT_EQ("", frame->SelectionAsText().Utf8());
+#else
   EXPECT_EQ("testword", frame->SelectionAsText().Utf8());
+#endif
 }
 
 TEST_F(WebViewTest, FinishComposingTextDoesNotDismissHandles) {
@@ -3299,7 +3302,12 @@ TEST_F(WebViewTest, FinishComposingTextDoesNotDismissHandles) {
   // Check that finishComposingText(KeepSelection) does not dismiss handles.
   active_input_method_controller->FinishComposingText(
       WebInputMethodController::kKeepSelection);
+#if BUILDFLAG(IS_COBALT)
+  // Selection handles should be dismissed when context menu is disabled.
+  EXPECT_FALSE(frame->GetFrame()->Selection().IsHandleVisible());
+#else
   EXPECT_TRUE(frame->GetFrame()->Selection().IsHandleVisible());
+#endif
 }
 
 #if !BUILDFLAG(IS_MAC)
@@ -3365,9 +3373,15 @@ TEST_F(WebViewTest, LongPressImageTextarea) {
   WebRange range = web_view->MainFrameImpl()
                        ->GetInputMethodController()
                        ->GetSelectionOffsets();
+#if BUILDFLAG(IS_COBALT)
+  // With the context menu disabled, a long press on an image shouldn't
+  // create a selection.
+  EXPECT_TRUE(range.IsNull());
+#else
   EXPECT_FALSE(range.IsNull());
   EXPECT_EQ(0, range.StartOffset());
   EXPECT_EQ(1, range.length());
+#endif
 }
 
 TEST_F(WebViewTest, BlinkCaretAfterLongPress) {

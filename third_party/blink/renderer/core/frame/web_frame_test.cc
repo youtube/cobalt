@@ -13337,6 +13337,7 @@ TEST_F(WebFrameTest, ShowVirtualKeyboardOnElementFocus) {
   web_view_helper.Reset();
 }
 
+#if !BUILDFLAG(IS_COBALT)
 class ContextMenuWebFrameClient
     : public frame_test_helpers::TestWebFrameClient {
  public:
@@ -13492,6 +13493,7 @@ TEST_F(WebFrameTest, ContextMenuDataNonLocatedMenu) {
   EXPECT_EQ(frame.GetMenuData().source_type, kMenuSourceTouch);
   EXPECT_FALSE(frame.GetMenuData().selected_text.empty());
 }
+#endif // !BUILDFLAG(IS_COBALT)
 
 TEST_F(WebFrameTest, LocalFrameWithRemoteParentIsTransparent) {
   frame_test_helpers::WebViewHelper helper;
