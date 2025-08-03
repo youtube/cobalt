@@ -16,9 +16,12 @@
 
 #include <algorithm>
 #include <deque>
+#include <fstream>
 #include <memory>
 #include <numeric>
 #include <ostream>
+#include <sstream>
+#include <string>
 
 #include "starboard/common/check_op.h"
 #include "starboard/common/log.h"
@@ -30,6 +33,53 @@ namespace {
 
 constexpr int kMaxDecodingHistory = 30;
 constexpr int64_t kDecodingTimeWarningThresholdUs = 1'000'000;
+
+struct MemoryInfo {
+  long total_kb;
+  long free_kb;
+  long available_kb;
+};
+
+// Returns the value associated with a key in /proc/meminfo, in kilobytes.
+// Returns -1 if the key is not found.
+MemoryInfo GetMemoryInfo() {
+  MemoryInfo mem_info = {-1, -1, -1};
+  std::ifstream meminfo("/proc/meminfo");
+  if (!meminfo.is_open()) {
+    return mem_info;
+  }
+
+  std::string line;
+  while (std::getline(meminfo, line)) {
+    std::stringstream ss(line);
+    std::string currentKey;
+    long value;
+    std::string unit;
+
+    ss >> currentKey >> value >> unit;
+    if (currentKey == "MemTotal:") {
+      mem_info.total_kb = value;
+    } else if (currentKey == "MemFree:") {
+      mem_info.free_kb = value;
+    } else if (currentKey == "MemAvailable:") {
+      mem_info.available_kb = value;
+    }
+  }
+  return mem_info;
+}
+
+int GetMaxAllocatableMemoryMb() {
+  for (int max_allocatable_memory_mb = 200; max_allocatable_memory_mb >= 25;
+       max_allocatable_memory_mb /= 2) {
+    void* ptr = malloc(max_allocatable_memory_mb * 1024 * 1024);
+    bool success = ptr != nullptr;
+    free(ptr);
+    if (success) {
+      return max_allocatable_memory_mb;
+    }
+  }
+  return 0;
+}
 
 class ThrottlingDecoderFlowControl : public DecoderFlowControl {
  public:
@@ -97,10 +147,22 @@ bool ThrottlingDecoderFlowControl::AddFrame(int64_t presentation_time_us) {
 
   UpdateState_Locked();
   entering_frame_id_++;
+
+  MemoryInfo mem_info = GetMemoryInfo();
+
+  int64_t start_us = CurrentMonotonicTime();
+  int max_allocatable_mb = GetMaxAllocatableMemoryMb();
+  int64_t elapsed_us = CurrentMonotonicTime() - start_us;
+
   SB_LOG(INFO) << "AddFrame: id=" << entering_frame_id_
-               << ", pts(msec)=" << presentation_time_us / 1000
+               << ", pts(msec)=" << presentation_time_us / 1'000
                << ", decoding=" << state_.decoding_frames
-               << ", decoded=" << state_.decoded_frames;
+               << ", decoded=" << state_.decoded_frames
+               << ", mem(MB)={total=" << mem_info.total_kb / 1'024
+               << ", free=" << mem_info.free_kb / 1'024
+               << ", available=" << mem_info.available_kb / 1'024
+               << "}, max_allocatable_mem(MB)=" << max_allocatable_mb
+               << ", elapsed_to_get_max_alloc(ms)=" << elapsed_us / 1'000;
   return true;
 }
 
