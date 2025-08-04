@@ -189,6 +189,17 @@ source_set("starboard_headers_only") {
   ]
 }
 
+source_set("starboard_test_main") {
+  testonly = true
+  sources = [ "//starboard/common/test_main.cc" ]
+  public_deps = [ "//testing/gtest" ]
+  deps = [ ":starboard_headers_only" ]
+
+  if (is_ios) {
+    deps += [ "//starboard/tvos/shared:test_support" ]
+  }
+}
+
 if (current_toolchain == starboard_toolchain) {
   # This is the default 'starboard_platform_target'; use default properties
   starboard_platform_target("starboard") {
@@ -200,7 +211,7 @@ if (current_toolchain == starboard_toolchain) {
     target(starboard_level_gtest_target_type, "starboard_platform_tests") {
       testonly = true
 
-      sources = [ "//starboard/common/test_main.cc" ]
+      deps = [ ":starboard_test_main" ]
 
       public_deps = [
         ":starboard_with_main",
@@ -224,13 +235,13 @@ if (current_toolchain == starboard_toolchain) {
   }
   target(_starboard_unittests_target_type, "starboard_unittests") {
     testonly = true
-    sources = [ "//starboard/common/test_main.cc" ]
+    deps = [ ":starboard_test_main" ]
     defines = [ "STARBOARD_IMPLEMENTATION_TEST" ]
 
     write_runtime_deps =
         "$root_build_dir/starboard_unittests_wrapper.runtime_deps"
 
-    deps = [
+    deps += [
       "//starboard:starboard_headers_only",
       "//starboard/common:common_test",
       "//testing/gtest",
