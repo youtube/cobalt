@@ -50,10 +50,10 @@
 
    // This set tracks whether onPopulateNodeForVirtualView has been
    // called for each virtual view id.
-   private final BitSet nodePopulatedSet = new BitSet(9);
-   private final Handler handler = new Handler(Looper.getMainLooper());
-   private boolean unhandledInput;
-   private boolean hasInitialFocusBeenSet;
+   private final BitSet mNodePopulatedSet = new BitSet(9);
+   private final Handler mHandler = new Handler(Looper.getMainLooper());
+   private boolean mUnhandledInput;
+   private boolean mHasInitialFocusBeenSet;
 
    // Add WeakReference to CobaltActivity to avoid creating dependency cycles.
    private WeakReference<CobaltActivity> mCobaltActivityRef;
@@ -87,7 +87,7 @@
      // Setting Accessibility focus to CENTER_VIEW_ID will make TalkBack focus
      // on CENTER_VIEW_ID immediately, but the actual mouse focus is either
      // unchanged or return INVALID_ID.
-     handler.post(
+     mHandler.post(
          new Runnable() {
            @Override
            public void run() {
@@ -102,7 +102,7 @@
      // page if no user input happens. To avoid this bug we have to
      // delay the focus long enough for all the TalkBack movements to settle
      // down. More details here: https://stackoverflow.com/questions/28472985.
-     handler.postDelayed(
+     mHandler.postDelayed(
          new Runnable() {
            @Override
            public void run() {
@@ -113,7 +113,7 @@
    }
 
    private void maybeInjectEvent(int currentFocusedViewId) {
-     if (!unhandledInput) {
+     if (!mUnhandledInput) {
        return;
      }
      CobaltActivity cobaltActivity = mCobaltActivityRef.get();
@@ -143,7 +143,7 @@
          break;
      }
 
-     unhandledInput = false;
+     mUnhandledInput = false;
      focusOnCenter();
    }
 
@@ -188,7 +188,7 @@
      if (focusedViewId != CENTER_VIEW_ID) {
        maybeInjectEvent(focusedViewId);
      } else {
-       unhandledInput = true;
+       mUnhandledInput = true;
      }
 
      int x = (virtualViewId - 1) % 3;
@@ -205,13 +205,13 @@
      node.setText("");
 
      if (virtualViewId >= 1 || virtualViewId <= 9) {
-       nodePopulatedSet.set(virtualViewId - 1);
+       mNodePopulatedSet.set(virtualViewId - 1);
      }
-     if (!hasInitialFocusBeenSet && nodePopulatedSet.cardinality() == 9) {
+     if (!mHasInitialFocusBeenSet && mNodePopulatedSet.cardinality() == 9) {
        // Once the ExploreByTouchHelper knows about all of our virtual views,
        // but not before, ask that the accessibility focus be moved from
        // it's initial position on HOST_ID to the one we want to start with.
-       hasInitialFocusBeenSet = true;
+       mHasInitialFocusBeenSet = true;
        focusOnCenter();
      }
    }
