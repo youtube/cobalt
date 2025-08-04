@@ -56,7 +56,20 @@ pipeline () {
   if [[ "${TARGET_PLATFORM}" =~ "android" ]]; then
     echo "target_os=['android']" >> .gclient
   fi
-  gclient sync -v --shallow --no-history -r "${KOKORO_GIT_COMMIT_src}"
+  # Just in case, clean the repo
+  git clean -ffdx
+  # Reset the state
+  git reset --hard
+  # -D, --delete_unversioned_trees
+  # -f, --force force update even for unchanged modules
+  # -R, --reset resets any local changes before updating (git only)
+  gclient sync -v \
+    --shallow \
+    --no-history \
+    -D \
+    -f \
+    -R \
+    -r "${KOKORO_GIT_COMMIT_src}"
   build_telemetry opt-out
 
   # Run GN and Ninja.
