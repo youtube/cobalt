@@ -403,6 +403,7 @@ source_set("starboard_platform_tests") {
   sources = media_tests_sources + player_tests_sources + [
               "//starboard/shared/starboard/drm/drm_test_helpers.cc",
               "//starboard/shared/starboard/drm/drm_test_helpers.h",
+              "features_extension_test.cc",
               "jni_env_ext_test.cc",
               "model_year_test.cc",
               "player_get_preferred_output_mode_test.cc",
