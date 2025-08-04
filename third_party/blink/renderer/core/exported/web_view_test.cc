@@ -1170,6 +1170,7 @@ TEST_F(WebViewTest, FinishComposingTextDoesNotAssert) {
       WebInputMethodController::kKeepSelection);
 }
 
+#if !BUILDFLAG(IS_COBALT)
 // Regression test for https://crbug.com/873999
 TEST_F(WebViewTest, LongPressOutsideInputShouldNotSelectPlaceholderText) {
   RegisterMockedHttpURLLoad("input_placeholder.html");
@@ -1197,6 +1198,7 @@ TEST_F(WebViewTest, LongPressOutsideInputShouldNotSelectPlaceholderText) {
                 WebCoalescedInputEvent(event, ui::LatencyInfo())));
   EXPECT_TRUE(web_view->MainFrameImpl()->SelectionAsText().IsEmpty());
 }
+#endif
 
 TEST_F(WebViewTest, FinishComposingTextCursorPositionChange) {
   RegisterMockedHttpURLLoad("input_field_populated.html");
@@ -2844,6 +2846,7 @@ TEST_F(WebViewTest, LongPressEmptyDiv) {
                 WebCoalescedInputEvent(event, ui::LatencyInfo())));
 }
 
+#if !BUILDFLAG(IS_COBALT)
 TEST_F(WebViewTest, LongPressEmptyDivAlwaysShow) {
   RegisterMockedHttpURLLoad("long_press_empty_div.html");
 
@@ -2980,6 +2983,7 @@ TEST_F(WebViewTest, LongPressLink) {
             web_view->MainFrameWidget()->HandleInputEvent(
                 WebCoalescedInputEvent(event, ui::LatencyInfo())));
 }
+#endif  // !BUILDFLAG(IS_COBALT)
 
 // Tests that we send touchcancel when drag start by long press.
 TEST_F(WebViewTest, TouchCancelOnStartDragging) {
@@ -3192,6 +3196,7 @@ TEST_F(WebViewTest, ContextMenuAndDragOnLinkLongPress) {
             web_view->MainFrameImpl()->GetDocument().Title().Ascii());
 }
 
+#if !BUILDFLAG(IS_COBALT)
 TEST_F(WebViewTest, LongPressEmptyEditableSelection) {
   RegisterMockedHttpURLLoad("long_press_empty_editable_selection.html");
 
@@ -3234,6 +3239,7 @@ TEST_F(WebViewTest, LongPressEmptyNonEditableSelection) {
                 WebCoalescedInputEvent(event, ui::LatencyInfo())));
   EXPECT_TRUE(frame->SelectionAsText().IsEmpty());
 }
+#endif //!BUILDFLAG(IS_COBALT)
 
 TEST_F(WebViewTest, LongPressSelection) {
   RegisterMockedHttpURLLoad("longpress_selection.html");
@@ -6129,6 +6135,7 @@ TEST_F(WebViewTest, ForceDarkModeInvalidatesPaint) {
   EXPECT_TRUE(document->GetLayoutView()->ShouldDoFullPaintInvalidation());
 }
 
+#if !BUILDFLAG(IS_COBALT)
 // Regression test for https://crbug.com/1012068
 TEST_F(WebViewTest, LongPressImageAndThenLongTapImage) {
   RegisterMockedHttpURLLoad("long_press_image.html");
@@ -6166,6 +6173,7 @@ TEST_F(WebViewTest, LongPressImageAndThenLongTapImage) {
       web_view->GetPage()->GetContextMenuController().ContextMenuNodeForFrame(
           web_view->MainFrameImpl()->GetFrame()));
 }
+#endif
 
 // Regression test for http://crbug.com/41562
 TEST_F(WebViewTest, UpdateTargetURLWithInvalidURL) {
@@ -6176,6 +6184,7 @@ TEST_F(WebViewTest, UpdateTargetURLWithInvalidURL) {
   EXPECT_EQ(invalid_kurl, web_view->target_url_);
 }
 
+#if !BUILDFLAG(IS_COBALT)
 // Regression test for https://crbug.com/1112987
 TEST_F(WebViewTest, LongPressThenLongTapLinkInIframeStartsContextMenu) {
   RegisterMockedHttpURLLoad("long_press_link_in_iframe.html");
@@ -6229,6 +6238,7 @@ TEST_F(WebViewTest, LongPressThenLongTapLinkInIframeStartsContextMenu) {
   EXPECT_EQ("anchor contextmenu",
             web_view->MainFrameImpl()->GetDocument().Title());
 }
+#endif
 
 TEST_F(WebViewTest, SetHistoryLengthAndOffset) {
   WebViewImpl* web_view_impl = web_view_helper_.Initialize();
