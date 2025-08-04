@@ -148,7 +148,7 @@
 #endif
 #endif
 
-#if !BUILDFLAG(IS_STARBOARD)
+#if !BUILDFLAG(IS_COBALT_HERMETIC_BUILD)
 #if defined(OPENSSL_THREADS) && \
     (!defined(OPENSSL_WINDOWS) || defined(__MINGW32__))
 #include <pthread.h>
@@ -520,7 +520,7 @@ static inline int constant_time_declassify_int(int v) {
 
 // Thread-safe initialisation.
 
-#if BUILDFLAG(IS_STARBOARD)
+#if BUILDFLAG(IS_COBALT_HERMETIC_BUILD)
 typedef pthread_once_t CRYPTO_once_t;
 #define CRYPTO_ONCE_INIT PTHREAD_ONCE_INIT
 #elif !defined(OPENSSL_THREADS)
@@ -543,7 +543,7 @@ typedef pthread_once_t CRYPTO_once_t;
 //
 // The |once| argument must be a |CRYPTO_once_t| that has been initialised with
 // the value |CRYPTO_ONCE_INIT|.
-#if BUILDFLAG(IS_STARBOARD)
+#if BUILDFLAG(IS_COBALT_HERMETIC_BUILD)
 #define CRYPTO_once pthread_once 
 #else
 OPENSSL_EXPORT void CRYPTO_once(CRYPTO_once_t *once, void (*init)(void));
@@ -590,7 +590,7 @@ OPENSSL_EXPORT int CRYPTO_refcount_dec_and_test_zero(CRYPTO_refcount_t *count);
 // thread.h as a structure large enough to fit the real type. The global lock is
 // a different type so it may be initialized with platform initializer macros.
 
-#if BUILDFLAG(IS_STARBOARD)
+#if BUILDFLAG(IS_COBALT_HERMETIC_BUILD)
 struct CRYPTO_STATIC_MUTEX {
   uint32_t initialized;
   CRYPTO_MUTEX mutex;
