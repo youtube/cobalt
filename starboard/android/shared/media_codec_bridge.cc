@@ -28,8 +28,6 @@
 
 namespace starboard::android::shared {
 
-namespace {
-
 // TODO: (cobalt b/372559388) Update namespace to jni_zero.
 using base::android::AttachCurrentThread;
 using base::android::ConvertJavaStringToUTF8;
@@ -37,6 +35,8 @@ using base::android::JavaParamRef;
 using base::android::ScopedJavaLocalRef;
 using base::android::ToJavaByteArray;
 using base::android::ToJavaIntArray;
+
+namespace {
 
 // See
 // https://developer.android.com/reference/android/media/MediaFormat.html#COLOR_RANGE_FULL.
@@ -97,10 +97,16 @@ jint SbMediaRangeIdToColorRange(SbMediaRangeId range_id) {
 }  // namespace
 
 std::ostream& operator<<(std::ostream& os, const FrameSize& size) {
-  return os << "{texture_size=" << size.texture_size
-            << ", crop={left=" << size.crop_left << ", top=" << size.crop_top
-            << ", right=" << size.crop_right << ", bottom=" << size.crop_bottom
-            << "}";
+  os << "{texture_size=" << size.texture_size;
+  if (size.has_crop_values()) {
+    os << ", crop={left=" << size.crop_left << ", top=" << size.crop_top
+       << ", right=" << size.crop_right << ", bottom=" << size.crop_bottom
+       << "}";
+  } else {
+    os << ", crop=(not set)";
+  }
+  os << "}";
+  return os;
 }
 
 // static

@@ -100,8 +100,9 @@ struct FrameSize {
       SB_DCHECK_GE(crop_right, 0);
       SB_DCHECK_GE(crop_bottom, 0);
       SB_DCHECK(has_crop_values());
-      SB_DCHECK_GE(display_size().width, 0);
-      SB_DCHECK_GE(display_size().height, 0);
+      [[maybe_unused]] const Size display_size = this->display_size();
+      SB_DCHECK_GE(display_size.width, 0);
+      SB_DCHECK_GE(display_size.height, 0);
     }
   }
 };
