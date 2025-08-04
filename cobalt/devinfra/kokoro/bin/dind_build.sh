@@ -57,7 +57,7 @@ pipeline () {
     echo "target_os=['android']" >> .gclient
   fi
   pushd "${gclient_root}/src"
-  git status
+  git status -v -u
   popd
   gclient sync -v --shallow --no-history -r "${KOKORO_GIT_COMMIT_src}"
   build_telemetry opt-out
