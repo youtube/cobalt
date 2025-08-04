@@ -290,6 +290,7 @@ public class ContentViewRenderView extends FrameLayout {
             mSurfaceView = renderView.createSurfaceView(renderView.getContext());
             mSurfaceView.setZOrderMediaOverlay(true);
 
+            renderView.setSurfaceViewBackgroundColor(Color.WHITE);
             renderView.addView(
                     mSurfaceView,
                     new FrameLayout.LayoutParams(
