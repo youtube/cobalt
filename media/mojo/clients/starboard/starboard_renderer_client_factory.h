@@ -70,6 +70,7 @@ class MEDIA_EXPORT StarboardRendererClientFactory final
   const base::TimeDelta audio_write_duration_local_;
   const base::TimeDelta audio_write_duration_remote_;
   const std::string max_video_capabilities_;
+  const gfx::Size viewport_size_;
   const BindHostReceiverCallback bind_host_receiver_callback_;
 };
 

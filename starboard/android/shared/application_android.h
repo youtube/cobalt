@@ -37,7 +37,7 @@ class ApplicationAndroid
     : public ::starboard::shared::starboard::QueueApplication {
  public:
   ApplicationAndroid(std::unique_ptr<CommandLine> command_line,
-                     ScopedJavaGlobalRef<jobject> asset_manager,
+                     base::android::ScopedJavaGlobalRef<jobject> asset_manager,
                      const std::string& files_dir,
                      const std::string& cache_dir,
                      const std::string& native_library_dir);

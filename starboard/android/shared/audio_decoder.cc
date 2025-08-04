@@ -15,6 +15,7 @@
 #include "starboard/android/shared/audio_decoder.h"
 
 #include "base/android/jni_android.h"
+#include "base/android/scoped_java_ref.h"
 #include "starboard/android/shared/jni_env_ext.h"
 #include "starboard/android/shared/jni_utils.h"
 #include "starboard/android/shared/media_common.h"
@@ -49,12 +50,11 @@
 #endif
 
 namespace starboard::android::shared {
+namespace {
 
 // TODO: (cobalt b/372559388) Update namespace to jni_zero.
 using base::android::AttachCurrentThread;
-
-namespace {
-
+using base::android::ScopedJavaLocalRef;
 using std::placeholders::_1;
 using std::placeholders::_2;
 

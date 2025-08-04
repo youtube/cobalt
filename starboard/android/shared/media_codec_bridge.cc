@@ -421,8 +421,8 @@ FrameSize MediaCodecBridge::GetOutputSize() {
   jint cropBottom = Java_GetOutputFormatResult_cropBottom(
       env, j_reused_get_output_format_result_);
 
-  FrameSize size = {textureWidth, textureHeight, cropLeft,
-                    cropTop,      cropRight,     cropBottom};
+  FrameSize size = {
+      {textureWidth, textureHeight}, cropLeft, cropTop, cropRight, cropBottom};
 
   size.DCheckValid();
   return size;

@@ -6,7 +6,6 @@ OPENSSL_memory_alloc
 OPENSSL_memory_free
 OPENSSL_memory_get_size
 __nl_langinfo_l
-access
 chmod
 closelog
 dladdr
@@ -14,11 +13,9 @@ dlclose
 dlerror
 dlopen
 dlsym
-fallocate
 fchmod
 fchown
 fclose
-fdatasync
 fdopen
 feof
 fflush
@@ -40,7 +37,6 @@ fwrite
 getc
 getcwd
 getrlimit
-gmtime
 initstate
 ioctl
 link
@@ -50,7 +46,6 @@ localtime_r
 mktime
 newlocale
 openlog
-posix_fadvise
 prctl
 printf
 puts
@@ -71,11 +66,7 @@ stdout
 syscall
 syslog
 timegm
-timerfd_create
-timerfd_settime
 tmpfile
-tzname
-tzset
 ungetc
 uselocale
 utimes
