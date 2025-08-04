@@ -129,7 +129,7 @@ const gpu::GpuPreferences GetGpuPreferencesFromCommandLine() {
       command_line->HasSwitch(switches::kEnableNativeGpuMemoryBuffers);
 
 #if BUILDFLAG(IS_CHROMEOS)
-#if BUILDFLAG(USE_CHROMEOS_MEDIA_ACCELERATION)
+#if BUILDFLAG(USE_LINUX_VIDEO_ACCELERATION)
   // The direct VideoDecoder is disallowed on some particular SoC/platforms.
   const bool should_use_direct_video_decoder =
       !command_line->HasSwitch(
@@ -146,9 +146,9 @@ const gpu::GpuPreferences GetGpuPreferencesFromCommandLine() {
     gpu_preferences.enable_chromeos_direct_video_decoder =
         should_use_direct_video_decoder;
   }
-#else   // !BUILDFLAG(USE_CHROMEOS_MEDIA_ACCELERATION)
+#else   // !BUILDFLAG(USE_LINUX_VIDEO_ACCELERATION)
   gpu_preferences.enable_chromeos_direct_video_decoder = false;
-#endif  // BUILDFLAG(USE_CHROMEOS_MEDIA_ACCELERATION)
+#endif  // BUILDFLAG(USE_LINUX_VIDEO_ACCELERATION)
 #endif  // BUILDFLAG(IS_CHROMEOS)
 
 #if BUILDFLAG(IS_ANDROID)

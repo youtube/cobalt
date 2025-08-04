@@ -14,7 +14,7 @@
 #include "mojo/public/cpp/bindings/pending_receiver.h"
 #include "mojo/public/cpp/bindings/self_owned_receiver.h"
 
-#if BUILDFLAG(IS_CHROMEOS_ASH) && BUILDFLAG(USE_CHROMEOS_MEDIA_ACCELERATION)
+#if BUILDFLAG(IS_CHROMEOS_ASH) && BUILDFLAG(USE_LINUX_VIDEO_ACCELERATION)
 #include "ash/components/arc/mojom/protected_buffer_manager.mojom.h"
 #include "ash/components/arc/mojom/video_decode_accelerator.mojom.h"
 #include "ash/components/arc/mojom/video_decoder.mojom.h"
@@ -27,11 +27,11 @@
 #include "ash/components/arc/video_accelerator/protected_buffer_manager.h"
 #include "ash/components/arc/video_accelerator/protected_buffer_manager_proxy.h"
 #endif  // BUILDFLAG(IS_CHROMEOS_ASH) &&
-        // BUILDFLAG(USE_CHROMEOS_MEDIA_ACCELERATION)
+        // BUILDFLAG(USE_LINUX_VIDEO_ACCELERATION)
 
 namespace {
 
-#if BUILDFLAG(IS_CHROMEOS_ASH) && BUILDFLAG(USE_CHROMEOS_MEDIA_ACCELERATION)
+#if BUILDFLAG(IS_CHROMEOS_ASH) && BUILDFLAG(USE_LINUX_VIDEO_ACCELERATION)
 void CreateArcVideoDecodeAccelerator(
     ChromeContentGpuClient* client,
     const gpu::GpuPreferences& gpu_preferences,
@@ -84,7 +84,7 @@ void CreateProtectedBufferManager(
       std::move(receiver));
 }
 #endif  // BUILDFLAG(IS_CHROMEOS_ASH) &&
-        // BUILDFLAG(USE_CHROMEOS_MEDIA_ACCELERATION)
+        // BUILDFLAG(USE_LINUX_VIDEO_ACCELERATION)
 
 }  // namespace
 
@@ -93,7 +93,7 @@ void ExposeChromeGpuInterfacesToBrowser(
     const gpu::GpuPreferences& gpu_preferences,
     const gpu::GpuDriverBugWorkarounds& gpu_workarounds,
     mojo::BinderMap* binders) {
-#if BUILDFLAG(IS_CHROMEOS_ASH) && BUILDFLAG(USE_CHROMEOS_MEDIA_ACCELERATION)
+#if BUILDFLAG(IS_CHROMEOS_ASH) && BUILDFLAG(USE_LINUX_VIDEO_ACCELERATION)
   binders->Add<::arc::mojom::VideoDecodeAccelerator>(
       base::BindRepeating(&CreateArcVideoDecodeAccelerator, client,
                           gpu_preferences, gpu_workarounds),
@@ -112,5 +112,5 @@ void ExposeChromeGpuInterfacesToBrowser(
       base::BindRepeating(&CreateProtectedBufferManager, client),
       base::SingleThreadTaskRunner::GetCurrentDefault());
 #endif  // BUILDFLAG(IS_CHROMEOS_ASH) &&
-        // BUILDFLAG(USE_CHROMEOS_MEDIA_ACCELERATION)
+        // BUILDFLAG(USE_LINUX_VIDEO_ACCELERATION)
 }

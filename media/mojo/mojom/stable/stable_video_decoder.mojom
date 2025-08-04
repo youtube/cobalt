@@ -151,10 +151,10 @@ interface StableVideoDecoder {
 
 // Only Chrome-for-Linux and ash-chrome should host the implementation of a
 // StableVideoDecoderFactory.
-[EnableIf=is_linux_or_chromeos_ash]
+[EnableIf=enable_oop_video_accelerators]
 const sandbox.mojom.Sandbox kStableVideoDecoderFactoryServiceSandbox
  = sandbox.mojom.Sandbox.kHardwareVideoDecoding;
-[EnableIfNot=is_linux_or_chromeos_ash]
+[EnableIfNot=enable_oop_video_accelerators]
 const sandbox.mojom.Sandbox kStableVideoDecoderFactoryServiceSandbox
  = sandbox.mojom.Sandbox.kNoSandbox;
 
@@ -180,8 +180,7 @@ interface StableVideoDecoderFactory {
 //    pending_receiver<StableVideoDecoderFactoryProcess>. It then uses this
 //    connection to call InitializeStableVideoDecoderFactory() with the
 //    pending_receiver<StableVideoDecoderFactory> from (1).
-[ServiceSandbox=kStableVideoDecoderFactoryServiceSandbox,
-EnableIf=is_linux_or_chromeos_ash]
+[ServiceSandbox=kStableVideoDecoderFactoryServiceSandbox]
 interface StableVideoDecoderFactoryProcess {
   // Initializes a StableVideoDecoderFactory using |gpu_feature_info| to
   // restrict the supported video decode configurations. If

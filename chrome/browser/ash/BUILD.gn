@@ -4021,6 +4021,7 @@ source_set("ash") {
     "//media/capture:capture_switches",
     "//media/capture/video/chromeos/mojom:cros_camera",
     "//media/capture/video/chromeos/public",
+    "//media/gpu:buildflags",
     "//media/mojo/mojom",
     "//mojo/core/embedder",
     "//mojo/public/c/system:headers",

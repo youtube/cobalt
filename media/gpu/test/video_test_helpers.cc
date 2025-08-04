@@ -24,9 +24,9 @@
 #include "testing/gtest/include/gtest/gtest.h"
 #include "third_party/libyuv/include/libyuv/planar_functions.h"
 
-#if BUILDFLAG(USE_CHROMEOS_MEDIA_ACCELERATION)
+#if BUILDFLAG(USE_LINUX_VIDEO_ACCELERATION)
 #include "media/gpu/chromeos/platform_video_frame_utils.h"
-#endif  // BUILDFLAG(USE_CHROMEOS_MEDIA_ACCELERATION)
+#endif  // BUILDFLAG(USE_LINUX_VIDEO_ACCELERATION)
 
 namespace media {
 namespace test {
@@ -564,7 +564,7 @@ void AlignedDataHelper::InitializeGpuMemoryBufferFrames(
     const VideoPixelFormat pixel_format,
     const gfx::Size& src_coded_size,
     const gfx::Size& dst_coded_size) {
-#if BUILDFLAG(USE_CHROMEOS_MEDIA_ACCELERATION)
+#if BUILDFLAG(USE_LINUX_VIDEO_ACCELERATION)
   layout_ = GetPlatformVideoFrameLayout(
       pixel_format, dst_coded_size,
       gfx::BufferUsage::VEA_READ_CAMERA_AND_CPU_READ_WRITE);
@@ -601,7 +601,7 @@ void AlignedDataHelper::InitializeGpuMemoryBufferFrames(
         << "Failed creating GpuMemoryBufferHandle";
     video_frame_data_.push_back(VideoFrameData(std::move(gmb_handle)));
   }
-#endif  // BUILDFLAG(USE_CHROMEOS_MEDIA_ACCELERATION)
+#endif  // BUILDFLAG(USE_LINUX_VIDEO_ACCELERATION)
 }
 
 // static

@@ -258,7 +258,7 @@ const char kUserGestureRequiredPolicy[] = "user-gesture-required";
 
 }  // namespace autoplay
 
-#if BUILDFLAG(USE_CHROMEOS_MEDIA_ACCELERATION)
+#if BUILDFLAG(USE_LINUX_VIDEO_ACCELERATION)
 // Some (Qualcomm only at the moment) V4L2 video decoders require setting the
 // framerate so that the hardware decoder can scale the clocks efficiently.
 // This provides a mechanism during testing to lock the decoder framerate
@@ -1092,7 +1092,7 @@ BASE_FEATURE(kBuiltInHlsPlayer,
              base::FEATURE_DISABLED_BY_DEFAULT);
 #endif  // BUILDFLAG(ENABLE_HLS_DEMUXER)
 
-#if BUILDFLAG(USE_CHROMEOS_MEDIA_ACCELERATION)
+#if BUILDFLAG(USE_LINUX_VIDEO_ACCELERATION)
 // Enable hardware AV1 decoder on ChromeOS.
 BASE_FEATURE(kChromeOSHWAV1Decoder,
              "ChromeOSHWAV1Decoder",
@@ -1100,6 +1100,7 @@ BASE_FEATURE(kChromeOSHWAV1Decoder,
 
 // Enable Variable Bitrate encoding with hardware accelerated encoders on
 // ChromeOS.
+// TODO(crbug.com/414430336): Consider restricting to IS_CHROMEOS.
 BASE_FEATURE(kChromeOSHWVBREncoding,
              "ChromeOSHWVBREncoding",
              base::FEATURE_DISABLED_BY_DEFAULT);
@@ -1141,7 +1142,7 @@ BASE_FEATURE(kUseAlternateVideoDecoderImplementation,
              "UseAlternateVideoDecoderImplementation",
              base::FEATURE_DISABLED_BY_DEFAULT);
 #endif  // BUILDFLAG(IS_CHROMEOS)
-#endif  // BUILDFLAG(USE_CHROMEOS_MEDIA_ACCELERATION)
+#endif  // BUILDFLAG(USE_LINUX_VIDEO_ACCELERATION)
 
 #if BUILDFLAG(IS_WIN)
 // Enables DirectShow GetPhotoState implementation

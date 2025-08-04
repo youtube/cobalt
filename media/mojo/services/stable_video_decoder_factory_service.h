@@ -7,6 +7,7 @@
 
 #include "base/functional/callback.h"
 #include "base/sequence_checker.h"
+#include "gpu/config/gpu_feature_info.h"
 #include "media/mojo/mojom/stable/stable_video_decoder.mojom.h"
 #include "media/mojo/services/media_mojo_export.h"
 #include "media/mojo/services/mojo_cdm_service_context.h"
