@@ -23,10 +23,10 @@ import dev.cobalt.util.UsedByNative;
 /** Abstract class that provides an interface for Cobalt to interact with a platform service. */
 public abstract class CobaltService {
   // Indicate is the service opened, and be able to send data to client
-  protected boolean opened = true;
-  private final Object lock = new Object();
-  private StarboardBridge bridge;
-  protected CobaltActivity cobaltActivity;
+  protected boolean mOpened = true;
+  private final Object mLock = new Object();
+  private StarboardBridge mBridge;
+  protected CobaltActivity mCobaltActivity;
 
   /** Interface that returns an object that extends CobaltService. */
   public interface Factory {
@@ -41,7 +41,7 @@ public abstract class CobaltService {
   public void receiveStarboardBridge(StarboardBridge bridge) {}
 
   public void setCobaltActivity(CobaltActivity cobaltActivity) {
-    this.cobaltActivity = cobaltActivity;
+    this.mCobaltActivity = cobaltActivity;
   }
 
   // Lifecycle
@@ -84,8 +84,8 @@ public abstract class CobaltService {
   @SuppressWarnings("unused")
   @UsedByNative
   public void onClose() {
-    synchronized (lock) {
-      opened = false;
+    synchronized (mLock) {
+      mOpened = false;
       close();
     }
   }
@@ -96,7 +96,7 @@ public abstract class CobaltService {
    * Send data from the service to the client.
    */
   protected void sendToClient(long nativeService, byte[] data) {
-    if (this.cobaltActivity == null) {
+    if (this.mCobaltActivity == null) {
       Log.e(TAG, "CobaltActivity is null, can not run evaluateJavaScript()");
       return;
     }
