@@ -49,7 +49,8 @@ class GenerateSabiIdTest(unittest.TestCase):
   @unittest.skipIf(os.name == 'nt',
                    'Broken on Windows due to temp path handling')
   def testRainyDayBadFile(self):
-    bad_sabi_json = tempfile.NamedTemporaryFile(mode='w')  # pylint: disable=consider-using-with
+    # pylint: disable-next=consider-using-with
+    bad_sabi_json = tempfile.NamedTemporaryFile(mode='w')
     bad_sabi_json.write('{}')
     with self.assertRaises(json.decoder.JSONDecodeError):
       generate_sabi_id.DoMain(['-f', bad_sabi_json.name])

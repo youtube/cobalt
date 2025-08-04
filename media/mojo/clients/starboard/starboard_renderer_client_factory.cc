@@ -51,6 +51,7 @@ StarboardRendererClientFactory::StarboardRendererClientFactory(
               ? base::Microseconds(kAudioWriteDurationRemote.Get())
               : traits->audio_write_duration_remote),
       max_video_capabilities_(traits->max_video_capabilities),
+      viewport_size_(traits->viewport_size),
       bind_host_receiver_callback_(traits->bind_host_receiver_callback) {}
 
 StarboardRendererClientFactory::~StarboardRendererClientFactory() = default;
@@ -60,8 +61,11 @@ std::unique_ptr<Renderer> StarboardRendererClientFactory::CreateRenderer(
     const scoped_refptr<base::TaskRunner>& /*worker_task_runner*/,
     AudioRendererSink* /*audio_renderer_sink*/,
     VideoRendererSink* video_renderer_sink,
-    RequestOverlayInfoCB /*request_overlay_info_cb*/,
+    RequestOverlayInfoCB request_overlay_info_cb,
     const gfx::ColorSpace& /*target_color_space*/) {
+#if BUILDFLAG(IS_ANDROID)
+  DCHECK(request_overlay_info_cb);
+#endif  // BUILDFLAG(IS_ANDROID)
   DCHECK(video_renderer_sink);
   DCHECK(media_log_);
   DCHECK(mojo_renderer_factory_);
@@ -102,7 +106,7 @@ std::unique_ptr<Renderer> StarboardRendererClientFactory::CreateRenderer(
   // Initialize StarboardRendererWrapper via StarboardRendererConfig.
   StarboardRendererConfig config(
       overlay_factory->overlay_plane_id(), audio_write_duration_local_,
-      audio_write_duration_remote_, max_video_capabilities_);
+      audio_write_duration_remote_, max_video_capabilities_, viewport_size_);
   std::unique_ptr<media::MojoRenderer> mojo_renderer =
       mojo_renderer_factory_->CreateStarboardRenderer(
           std::move(media_log_pending_remote), config,
@@ -115,7 +119,12 @@ std::unique_ptr<Renderer> StarboardRendererClientFactory::CreateRenderer(
       std::move(overlay_factory), video_renderer_sink,
       std::move(renderer_extension_remote),
       std::move(client_extension_receiver), bind_host_receiver_callback_,
-      gpu_factories);
+      gpu_factories
+#if BUILDFLAG(IS_ANDROID)
+      ,
+      std::move(request_overlay_info_cb)
+#endif  // BUILDFLAG(IS_ANDROID)
+  );
 }
 
 }  // namespace media

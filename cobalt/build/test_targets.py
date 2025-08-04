@@ -69,9 +69,6 @@ _EXCLUDE_TESTS_PREFIX = {
     '//mojo/core:mojo_perftests',
     '//net:net_perftests',
     '//pdf',
-    # Does not build on android.
-    '//starboard/android/shared:starboard_platform_tests',
-    '//starboard/shared/starboard/player/filter/testing:player_filter_tests',
     '//testing/libfuzzer/tests:libfuzzer_tests',
     '//third_party/angle',
     '//third_party/dawn',

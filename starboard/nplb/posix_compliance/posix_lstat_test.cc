@@ -22,10 +22,6 @@
   - ELOOP: Creating a scenario with too many symbolic links in a path resolution
     is complex and highly dependent on the filesystem and system configuration.
 
-  - ENAMETOOLONG: Testing for pathnames that exceed the maximum length is not
-    easily portable, as the `PATH_MAX` limit can vary significantly across
-    different systems.
-
   - ENOMEM: Reliably simulating an out-of-memory condition is not feasible
     in a standard unit test environment.
 
@@ -38,6 +34,7 @@
 #include <sys/stat.h>
 #include <unistd.h>
 
+#include "starboard/configuration_constants.h"
 #include "starboard/file.h"
 #include "starboard/nplb/file_helpers.h"
 #include "testing/gtest/include/gtest/gtest.h"
@@ -45,10 +42,6 @@
 namespace starboard {
 namespace nplb {
 namespace {
-
-constexpr unsigned long ONE = 1;
-constexpr unsigned long TWO = 2;
-constexpr unsigned long THREE = 3;
 
 TEST(PosixLstatTest, LstatOnExistingFile) {
   const int kFileSize = 12;
@@ -58,7 +51,7 @@ TEST(PosixLstatTest, LstatOnExistingFile) {
   EXPECT_EQ(lstat(random_file.filename().c_str(), &sb), 0);
   EXPECT_TRUE(S_ISREG(sb.st_mode));
   EXPECT_EQ(sb.st_size, kFileSize);
-  EXPECT_EQ(sb.st_nlink, ONE);
+  EXPECT_EQ(sb.st_nlink, 1u);
 }
 
 TEST(PosixLstatTest, LstatOnExistingDirectory) {
@@ -70,7 +63,7 @@ TEST(PosixLstatTest, LstatOnExistingDirectory) {
   EXPECT_TRUE(S_ISDIR(sb.st_mode));
   // A directory should have at least 2 links: one for its own entry
   // and one for the "." entry within it.
-  EXPECT_GE(sb.st_nlink, TWO);
+  EXPECT_GE(sb.st_nlink, 2u);
   rmdir(dir_path);
 }
 
@@ -88,7 +81,7 @@ TEST(PosixLstatTest, DirectoryWithSubdirectory) {
   // 1. Its own entry in the parent directory.
   // 2. The "." entry within itself.
   // 3. The ".." entry within the subdirectory pointing back to it.
-  EXPECT_EQ(sb.st_nlink, THREE);
+  EXPECT_EQ(sb.st_nlink, 3u);
   rmdir(child_dir_path_str.c_str());
   rmdir(parent_dir_path);
 }
@@ -108,7 +101,7 @@ TEST(PosixLstatTest, LstatOnSymbolicLinkToFile) {
   // The size of a symlink is the length of the path it contains.
   EXPECT_GE(sb.st_size, 0);
   EXPECT_EQ(static_cast<unsigned long>(sb.st_size), target_filename.length());
-  EXPECT_EQ(sb.st_nlink, ONE);
+  EXPECT_EQ(sb.st_nlink, 1u);
   unlink(link_path);
 }
 
@@ -124,7 +117,7 @@ TEST(PosixLstatTest, LstatOnSymbolicLinkToDirectory) {
   EXPECT_TRUE(S_ISLNK(sb.st_mode));
   EXPECT_GE(sb.st_size, 0);
   EXPECT_EQ(static_cast<unsigned long>(sb.st_size), strlen(dir_path));
-  EXPECT_EQ(sb.st_nlink, ONE);
+  EXPECT_EQ(sb.st_nlink, 1u);
   unlink(link_path);
   rmdir(dir_path);
 }
@@ -141,7 +134,7 @@ TEST(PosixLstatTest, LstatOnDanglingSymbolicLink) {
   EXPECT_TRUE(S_ISLNK(sb.st_mode));
   EXPECT_GE(sb.st_size, 0);
   EXPECT_EQ(static_cast<unsigned long>(sb.st_size), strlen(target_path));
-  EXPECT_EQ(sb.st_nlink, ONE);
+  EXPECT_EQ(sb.st_nlink, 1u);
   unlink(link_path);
 }
 
@@ -165,6 +158,16 @@ TEST(PosixLstatTest, LstatOnEmptyPath) {
   struct stat sb;
   EXPECT_EQ(lstat("", &sb), -1);
   EXPECT_EQ(errno, ENOENT);
+}
+
+TEST(PosixLstatTest, LstatFailsIfPathIsTooLong) {
+  // Create a string longer than the maximum allowed path length.
+  std::string long_path(kSbFileMaxPath + 1, 'a');
+  struct stat sb;
+
+  // Attempt to lstat the overly long path.
+  EXPECT_EQ(lstat(long_path.c_str(), &sb), -1);
+  EXPECT_EQ(errno, ENAMETOOLONG);
 }
 
 TEST(PosixLstatTest, LstatOnNullPath) {
