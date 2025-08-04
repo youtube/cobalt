@@ -365,12 +365,12 @@ public class MediaCodecUtil {
 
   /** A wrapper class of codec capability infos. */
   public static class CodecCapabilityInfo {
-    public MediaCodecInfo codecInfo;
-    public String mimeType;
-    public String decoderName;
-    public MediaCodecInfo.CodecCapabilities codecCapabilities;
-    public MediaCodecInfo.AudioCapabilities audioCapabilities;
-    public MediaCodecInfo.VideoCapabilities videoCapabilities;
+    private final MediaCodecInfo codecInfo;
+    private final String mimeType;
+    private final String decoderName;
+    private final MediaCodecInfo.CodecCapabilities codecCapabilities;
+    private final MediaCodecInfo.AudioCapabilities audioCapabilities;
+    private final MediaCodecInfo.VideoCapabilities videoCapabilities;
 
     CodecCapabilityInfo(MediaCodecInfo codecInfo, String mimeType) {
       this.codecInfo = codecInfo;

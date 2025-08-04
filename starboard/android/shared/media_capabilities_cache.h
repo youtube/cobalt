@@ -43,7 +43,8 @@ struct Range {
 
 class CodecCapability {
  public:
-  CodecCapability(JNIEnv* env, base::android::ScopedJavaLocalRef<jobject>& j_codec_info);
+  CodecCapability(JNIEnv* env,
+                  base::android::ScopedJavaLocalRef<jobject>& j_codec_info);
   virtual ~CodecCapability() {}
 
   const std::string& name() const { return name_; }
@@ -65,9 +66,10 @@ class CodecCapability {
 
 class AudioCodecCapability : public CodecCapability {
  public:
-  AudioCodecCapability(JNIEnv* env,
-                       base::android::ScopedJavaLocalRef<jobject>& j_codec_info,
-                       base::android::ScopedJavaLocalRef<jobject>& j_audio_capabilities);
+  AudioCodecCapability(
+      JNIEnv* env,
+      base::android::ScopedJavaLocalRef<jobject>& j_codec_info,
+      base::android::ScopedJavaLocalRef<jobject>& j_audio_capabilities);
   ~AudioCodecCapability() override {}
 
   bool IsBitrateSupported(int bitrate) const;
@@ -81,9 +83,10 @@ class AudioCodecCapability : public CodecCapability {
 
 class VideoCodecCapability : public CodecCapability {
  public:
-  VideoCodecCapability(JNIEnv* env,
-                       base::android::ScopedJavaLocalRef<jobject>& j_codec_info,
-                       base::android::ScopedJavaLocalRef<jobject>& j_video_capabilities);
+  VideoCodecCapability(
+      JNIEnv* env,
+      base::android::ScopedJavaLocalRef<jobject>& j_codec_info,
+      base::android::ScopedJavaLocalRef<jobject>& j_video_capabilities);
   ~VideoCodecCapability() override;
 
   bool is_software_decoder() const { return is_software_decoder_; }

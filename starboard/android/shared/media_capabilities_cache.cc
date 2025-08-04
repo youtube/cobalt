@@ -61,23 +61,22 @@ bool EndsWith(const std::string& str, const std::string& suffix) {
 }
 
 Range ConvertJavaRangeToRange(JNIEnv* env, jobject j_range) {
-  static jclass rangeClass = env->FindClass("android/util/Range");
+  jclass rangeClass = env->FindClass("android/util/Range");
   SB_CHECK(rangeClass);
 
-  static jmethodID getUpperMethod =
+  jmethodID getUpperMethod =
       env->GetMethodID(rangeClass, "getUpper", "()Ljava/lang/Comparable;");
   SB_CHECK(getUpperMethod);
   jobject j_upper_comparable = env->CallObjectMethod(j_range, getUpperMethod);
 
-  static jclass integerClass = env->FindClass("java/lang/Integer");
+  jclass integerClass = env->FindClass("java/lang/Integer");
   SB_CHECK(integerClass);
 
-  static jmethodID intValueMethod =
-      env->GetMethodID(integerClass, "intValue", "()I");
+  jmethodID intValueMethod = env->GetMethodID(integerClass, "intValue", "()I");
   SB_CHECK(intValueMethod);
   jint j_upper_int = env->CallIntMethod(j_upper_comparable, intValueMethod);
 
-  static jmethodID getLowerMethod =
+  jmethodID getLowerMethod =
       env->GetMethodID(rangeClass, "getLower", "()Ljava/lang/Comparable;");
   SB_CHECK(getLowerMethod);
 
@@ -178,11 +177,11 @@ AudioCodecCapability::AudioCodecCapability(
   SB_CHECK(j_codec_info);
   SB_CHECK(j_audio_capabilities);
 
-  static jclass audioCapabilitiesClass =
+  jclass audioCapabilitiesClass =
       env->FindClass("android/media/MediaCodecInfo$AudioCapabilities");
   SB_CHECK(audioCapabilitiesClass);
 
-  static jmethodID getBitrateRangeMethod = env->GetMethodID(
+  jmethodID getBitrateRangeMethod = env->GetMethodID(
       audioCapabilitiesClass, "getBitrateRange", "()Landroid/util/Range;");
   SB_CHECK(getBitrateRangeMethod);
 
@@ -214,11 +213,11 @@ VideoCodecCapability::VideoCodecCapability(
 
   j_video_capabilities_.Reset(env, j_video_capabilities.obj());
 
-  static jclass videoCapabilitiesClass =
+  jclass videoCapabilitiesClass =
       env->FindClass("android/media/MediaCodecInfo$VideoCapabilities");
   SB_CHECK(videoCapabilitiesClass);
 
-  static jmethodID getSupportedWidthsMethod = env->GetMethodID(
+  jmethodID getSupportedWidthsMethod = env->GetMethodID(
       videoCapabilitiesClass, "getSupportedWidths", "()Landroid/util/Range;");
   SB_CHECK(getSupportedWidthsMethod);
 
@@ -227,7 +226,7 @@ VideoCodecCapability::VideoCodecCapability(
                                  getSupportedWidthsMethod));
   supported_widths_ = ConvertJavaRangeToRange(env, j_width_range.obj());
 
-  static jmethodID getSupportedHeightsMethod = env->GetMethodID(
+  jmethodID getSupportedHeightsMethod = env->GetMethodID(
       videoCapabilitiesClass, "getSupportedHeights", "()Landroid/util/Range;");
   SB_CHECK(getSupportedHeightsMethod);
 
@@ -236,7 +235,7 @@ VideoCodecCapability::VideoCodecCapability(
                                  getSupportedHeightsMethod));
   supported_heights_ = ConvertJavaRangeToRange(env, j_height_range.obj());
 
-  static jmethodID getBitrateRangeMethod = env->GetMethodID(
+  jmethodID getBitrateRangeMethod = env->GetMethodID(
       videoCapabilitiesClass, "getBitrateRange", "()Landroid/util/Range;");
   SB_CHECK(getBitrateRangeMethod);
 
@@ -245,7 +244,7 @@ VideoCodecCapability::VideoCodecCapability(
                                  getBitrateRangeMethod));
   supported_bitrates_ = ConvertJavaRangeToRange(env, j_bitrate_range.obj());
 
-  static jmethodID getSupportedFrameRatesMethod =
+  jmethodID getSupportedFrameRatesMethod =
       env->GetMethodID(videoCapabilitiesClass, "getSupportedFrameRates",
                        "()Landroid/util/Range;");
   SB_CHECK(getSupportedFrameRatesMethod);
@@ -267,19 +266,19 @@ bool VideoCodecCapability::AreResolutionAndRateSupported(int frame_width,
                                                          int frame_height,
                                                          int fps) {
   JNIEnv* env = AttachCurrentThread();
-  static jclass videoCapabilitiesClass =
+  jclass videoCapabilitiesClass =
       env->FindClass("android/media/MediaCodecInfo$VideoCapabilities");
   SB_CHECK(videoCapabilitiesClass);
 
   if (frame_width != 0 && frame_height != 0 && fps != 0) {
-    static jmethodID areSizeAndRateSupportedMethod = env->GetMethodID(
+    jmethodID areSizeAndRateSupportedMethod = env->GetMethodID(
         videoCapabilitiesClass, "areSizeAndRateSupported", "(IID)Z");
     SB_CHECK(areSizeAndRateSupportedMethod);
     return env->CallBooleanMethod(j_video_capabilities_.obj(),
                                   areSizeAndRateSupportedMethod, frame_width,
                                   frame_height, static_cast<jdouble>(fps));
   } else if (frame_width != 0 && frame_height != 0) {
-    static jmethodID isSizeSupportedMethod =
+    jmethodID isSizeSupportedMethod =
         env->GetMethodID(videoCapabilitiesClass, "isSizeSupported", "(II)Z");
     SB_CHECK(isSizeSupportedMethod);
     return env->CallBooleanMethod(j_video_capabilities_.obj(),
