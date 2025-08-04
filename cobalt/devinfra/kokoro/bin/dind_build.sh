@@ -56,6 +56,7 @@ pipeline () {
   if [[ "${TARGET_PLATFORM}" =~ "android" ]]; then
     echo "target_os=['android']" >> .gclient
   fi
+  git status
   gclient sync -v --shallow --no-history -r "${KOKORO_GIT_COMMIT_src}"
   build_telemetry opt-out
 
