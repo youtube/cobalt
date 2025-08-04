@@ -56,10 +56,6 @@ pipeline () {
   if [[ "${TARGET_PLATFORM}" =~ "android" ]]; then
     echo "target_os=['android']" >> .gclient
   fi
-  # Just in case, clean the repo
-  git clean -ffdx
-  # Reset the state
-  git reset --hard
   # -D, --delete_unversioned_trees
   # -f, --force force update even for unchanged modules
   # -R, --reset resets any local changes before updating (git only)
