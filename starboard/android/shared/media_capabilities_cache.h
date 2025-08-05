@@ -106,9 +106,9 @@ class VideoCodecCapability : public CodecCapability {
   VideoCodecCapability(const VideoCodecCapability&) = delete;
   VideoCodecCapability& operator=(const VideoCodecCapability&) = delete;
 
-  bool is_software_decoder_;
-  bool is_hdr_capable_;
-  base::android::ScopedJavaGlobalRef<jobject> j_video_capabilities_;
+  const bool is_software_decoder_;
+  const bool is_hdr_capable_;
+  const base::android::ScopedJavaGlobalRef<jobject> j_video_capabilities_;
   Range supported_widths_;
   Range supported_heights_;
   Range supported_bitrates_;

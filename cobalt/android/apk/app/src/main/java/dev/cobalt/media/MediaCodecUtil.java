@@ -381,10 +381,6 @@ public class MediaCodecUtil {
       this.videoCapabilities = this.codecCapabilities.getVideoCapabilities();
     }
 
-    public MediaCodecInfo getCodecInfo() {
-      return codecInfo;
-    }
-
     @CalledByNative("CodecCapabilityInfo")
     public String getMimeType() {
       return mimeType;
