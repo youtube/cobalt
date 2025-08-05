@@ -36,8 +36,8 @@ jobs:
       GITHUB_PR_REPO_URL: ${{ github.event.pull_request.base.repo.url }}
       GITHUB_EVENT_NUMBER: ${{ github.event.number }}
     if: |
-      github.event.action != 'labeled' || github.event.pull_request.merged == false &&
-      (github.event.label.name == 'runtest' || github.event.label.name == 'on_device')
+      github.event.action != 'labeled' ||
+      (github.event.pull_request.merged == false && github.event.label.name == 'runtest')
     timeout-minutes: 10
     steps:
       - name: Checkout
@@ -302,8 +302,7 @@ jobs:
     # Also, run ODT on push and schedule if not explicitly disabled via repo vars.
     if: needs.initialize.outputs.test_on_device == 'true' &&
         (
-          (inputs.platform == 'android-arm' && github.event.pull_request.draft == false) ||
-          (github.event_name == 'pull_request' && contains(github.event.pull_request.labels.*.name, 'on_device')) ||
+          github.event.pull_request.draft == false ||
           ((inputs.nightly == 'true' || github.event_name == 'schedule') && vars.RUN_ODT_TESTS_ON_NIGHTLY != 'False') ||
           (github.event_name == 'push' && vars.RUN_ODT_TESTS_ON_POSTSUBMIT != 'False')
         )
@@ -345,7 +344,7 @@ jobs:
     # Also, run E2E tests on push and schedule if not explicitly disabled via repo vars.
     if: needs.initialize.outputs.test_e2e == 'true' &&
         (
-          (github.event_name == 'pull_request' && contains(github.event.pull_request.labels.*.name, 'on_device')) ||
+          github.event.pull_request.draft == false ||
           ((inputs.nightly == 'true' || github.event_name == 'schedule') && vars.RUN_ODT_TESTS_ON_NIGHTLY != 'False') ||
           (github.event_name == 'push' && vars.RUN_ODT_TESTS_ON_POSTSUBMIT != 'False')
         )
