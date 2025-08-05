@@ -19,7 +19,6 @@
 #include <string_view>
 #include <vector>
 
-#include "cobalt/shell/common/shell_origin_trial_policy.h"
 #include "content/public/common/content_client.h"
 
 namespace content {
@@ -38,9 +37,6 @@ class ShellContentClient : public ContentClient {
   gfx::Image& GetNativeImageNamed(int resource_id) override;
   blink::OriginTrialPolicy* GetOriginTrialPolicy() override;
   void AddAdditionalSchemes(Schemes* schemes) override;
-
- private:
-  ShellOriginTrialPolicy origin_trial_policy_;
 };
 
 }  // namespace content
