@@ -285,6 +285,7 @@ int UtilityMain(MainFunctionParams parameters) {
 #else
       NOTREACHED();
 #endif  // BUILDFLAG(ENABLE_OOP_PRINTING)
+#if !BUILDFLAG(IS_STARBOARD)
     case sandbox::mojom::Sandbox::kAudio:
       pre_sandbox_hook = base::BindOnce(&audio::AudioPreSandboxHook);
       break;
@@ -321,14 +322,11 @@ int UtilityMain(MainFunctionParams parameters) {
 #endif
       break;
 #endif  // BUILDFLAG(IS_LINUX)
+#endif  // !BUILDFLAG(IS_STARBOARD)
 #if BUILDFLAG(USE_LINUX_VIDEO_ACCELERATION)
     case sandbox::mojom::Sandbox::kHardwareVideoDecoding:
-#if BUILDFLAG(ENABLE_COBALT_HERMETIC_HACKS)
-      COBALT_LINKER_STUB();
-#else  // BUILDFLAG(ENABLE_COBALT_HERMETIC_HACKS)
       pre_sandbox_hook =
           base::BindOnce(&media::HardwareVideoDecodingPreSandboxHook);
-#endif  // BUILDFLAG(ENABLE_COBALT_HERMETIC_HACKS)
       break;
     case sandbox::mojom::Sandbox::kHardwareVideoEncoding:
       pre_sandbox_hook =
