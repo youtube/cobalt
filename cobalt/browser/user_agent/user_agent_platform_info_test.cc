@@ -16,6 +16,7 @@
 
 #include <map>
 
+#include "build/build_config.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
 namespace cobalt {
@@ -51,25 +52,47 @@ UserAgentPlatformInfo CreateOnlyOSNameAndVersionPlatformInfo() {
   return platform_info;
 }
 
-TEST(UserAgentStringTest, StartsWithMozilla) {
+#if BUILDFLAG(IS_ANDROID)
+#define MAYBE_StartsWithMozilla DISABLED_StartsWithMozilla
+#else
+#define MAYBE_StartsWithMozilla StartsWithMozilla
+#endif
+TEST(UserAgentStringTest, MAYBE_StartsWithMozilla) {
   std::string user_agent_string =
       CreateOnlyOSNameAndVersionPlatformInfo().ToString();
   EXPECT_EQ(0UL, user_agent_string.find("Mozilla/5.0"));
 }
 
-TEST(UserAgentStringTest, ContainsCobalt) {
+#if BUILDFLAG(IS_ANDROID)
+#define MAYBE_ContainsCobalt DISABLED_ContainsCobalt
+#else
+#define MAYBE_ContainsCobalt ContainsCobalt
+#endif
+TEST(UserAgentStringTest, MAYBE_ContainsCobalt) {
   std::string user_agent_string =
       CreateOnlyOSNameAndVersionPlatformInfo().ToString();
   EXPECT_NE(std::string::npos, user_agent_string.find("Cobalt"));
 }
 
-TEST(UserAgentStringTest, WithOSNameAndVersion) {
+#if BUILDFLAG(IS_ANDROID)
+#define MAYBE_WithOSNameAndVersion DISABLED_WithOSNameAndVersion
+#else
+#define MAYBE_WithOSNameAndVersion WithOSNameAndVersion
+#endif
+TEST(UserAgentStringTest, MAYBE_WithOSNameAndVersion) {
   std::string user_agent_string =
       CreateOnlyOSNameAndVersionPlatformInfo().ToString();
   EXPECT_NE(std::string::npos, user_agent_string.find("(GLaDOS 3.11)"));
 }
 
-TEST(UserAgentStringTest, WithCobaltVersionAndConfiguration) {
+#if BUILDFLAG(IS_ANDROID)
+#define MAYBE_WithCobaltVersionAndConfiguration \
+  DISABLED_WithCobaltVersionAndConfiguration
+#else
+#define MAYBE_WithCobaltVersionAndConfiguration \
+  WithCobaltVersionAndConfiguration
+#endif
+TEST(UserAgentStringTest, MAYBE_WithCobaltVersionAndConfiguration) {
   UserAgentPlatformInfo platform_info =
       CreateOnlyOSNameAndVersionPlatformInfo();
   platform_info.set_cobalt_version("16");
@@ -94,12 +117,12 @@ TEST(UserAgentStringTest, WithCobaltVersionAndConfiguration) {
 #define DIGIT "0123456789"
 #define DIGITREVERSED "9876543210"
 #define ALPHADIGIT ALPHA DIGIT
-#define TCHAR ALPHADIGIT "!#$%&\'*+-.^_`|~"
+#define TCHAR ALPHADIGIT "!#$%&'*+-.^_`|~"
 #define TCHARORSLASH TCHAR "/"
-#define VCHAR_EXCEPTALPHADIGIT "!\"#$%&\'()*+,-./:;<=>?@[\\]^_`{|}~"
-#define VCHAR_EXCEPTPARENTHESES "!\"#$%&\'*+,-./:;<=>?@[\\]^_`{|}~" ALPHADIGIT
+#define VCHAR_EXCEPTALPHADIGIT "!\"#$%&'()*+,-./:;<=>?@[\\]^_`{|}~"
+#define VCHAR_EXCEPTPARENTHESES "!\"#$%&'()*+,-./:;<=>?@[\\]^_`{|}~" ALPHADIGIT
 #define VCHAR_EXCEPTPARENTHESESANDCOMMA \
-  "!\"#$%&\'*+-./:;<=>?@[\\]^_`{|}~" ALPHADIGIT
+  "!\"#$%&'()*+-./:;<=>?@[\\]^_`{|}~" ALPHADIGIT
 #define VCHAR VCHAR_EXCEPTALPHADIGIT ALPHADIGIT
 #define VCHARORSPACE " " VCHAR
 #define VCHARORSPACE_EXCEPTPARENTHESES " " VCHAR_EXCEPTPARENTHESES
@@ -123,11 +146,16 @@ TEST(UserAgentStringTest, WithCobaltVersionAndConfiguration) {
 #define NOT_DIGIT CONTROL VCHAR_EXCEPTALPHADIGIT ALPHA DEL HIGH_ASCII
 #define NOT_ALPHADIGIT CONTROL VCHAR_EXCEPTALPHADIGIT DEL HIGH_ASCII
 #define NOT_TCHAR CONTROL "\"(),/:;<=>?@[\\]{}" DEL HIGH_ASCII
-#define NOT_TCHARORSLASH CONTROL "\"(),:;<=>?@[\\]{}" DEL HIGH_ASCII
+#define NOT_TCHARORSLASH CONTROL "\"(),/:;<=>?@[\\]{}" DEL HIGH_ASCII
 
 #define NOT_VCHARORSPACE CONTROL DEL HIGH_ASCII
 
-TEST(UserAgentStringTest, SanitizedStarboardVersion) {
+#if BUILDFLAG(IS_ANDROID)
+#define MAYBE_SanitizedStarboardVersion DISABLED_SanitizedStarboardVersion
+#else
+#define MAYBE_SanitizedStarboardVersion SanitizedStarboardVersion
+#endif
+TEST(UserAgentStringTest, MAYBE_SanitizedStarboardVersion) {
   UserAgentPlatformInfo platform_info =
       CreateOnlyOSNameAndVersionPlatformInfo();
   platform_info.set_starboard_version("Foo" NOT_TCHARORSLASH "Bar" TCHARORSLASH
@@ -137,7 +165,12 @@ TEST(UserAgentStringTest, SanitizedStarboardVersion) {
             user_agent_string.find("FooBar" TCHARORSLASH "BazQux"));
 }
 
-TEST(UserAgentStringTest, SanitizedOsNameAndVersion) {
+#if BUILDFLAG(IS_ANDROID)
+#define MAYBE_SanitizedOsNameAndVersion DISABLED_SanitizedOsNameAndVersion
+#else
+#define MAYBE_SanitizedOsNameAndVersion SanitizedOsNameAndVersion
+#endif
+TEST(UserAgentStringTest, MAYBE_SanitizedOsNameAndVersion) {
   UserAgentPlatformInfo platform_info =
       CreateOnlyOSNameAndVersionPlatformInfo();
   platform_info.set_os_name_and_version("Foo()" NOT_VCHARORSPACE
@@ -149,7 +182,14 @@ TEST(UserAgentStringTest, SanitizedOsNameAndVersion) {
       user_agent_string.find("FooBar" VCHARORSPACE_EXCEPTPARENTHESES "BazQux"));
 }
 
-TEST(UserAgentStringTest, SanitizedOriginalDesignManufacturer) {
+#if BUILDFLAG(IS_ANDROID)
+#define MAYBE_SanitizedOriginalDesignManufacturer \
+  DISABLED_SanitizedOriginalDesignManufacturer
+#else
+#define MAYBE_SanitizedOriginalDesignManufacturer \
+  SanitizedOriginalDesignManufacturer
+#endif
+TEST(UserAgentStringTest, MAYBE_SanitizedOriginalDesignManufacturer) {
   UserAgentPlatformInfo platform_info =
       CreateOnlyOSNameAndVersionPlatformInfo();
   platform_info.set_original_design_manufacturer(
@@ -159,7 +199,12 @@ TEST(UserAgentStringTest, SanitizedOriginalDesignManufacturer) {
             user_agent_string.find("FooBar" ALPHADIGIT "BazQux"));
 }
 
-TEST(UserAgentStringTest, SanitizedChipsetModelNumber) {
+#if BUILDFLAG(IS_ANDROID)
+#define MAYBE_SanitizedChipsetModelNumber DISABLED_SanitizedChipsetModelNumber
+#else
+#define MAYBE_SanitizedChipsetModelNumber SanitizedChipsetModelNumber
+#endif
+TEST(UserAgentStringTest, MAYBE_SanitizedChipsetModelNumber) {
   UserAgentPlatformInfo platform_info =
       CreateOnlyOSNameAndVersionPlatformInfo();
   platform_info.set_chipset_model_number("Foo" NOT_ALPHADIGIT "Bar" ALPHADIGIT
@@ -169,7 +214,12 @@ TEST(UserAgentStringTest, SanitizedChipsetModelNumber) {
             user_agent_string.find("FooBar" ALPHADIGIT "BazQux"));
 }
 
-TEST(UserAgentStringTest, SanitizedModelYear) {
+#if BUILDFLAG(IS_ANDROID)
+#define MAYBE_SanitizedModelYear DISABLED_SanitizedModelYear
+#else
+#define MAYBE_SanitizedModelYear SanitizedModelYear
+#endif
+TEST(UserAgentStringTest, MAYBE_SanitizedModelYear) {
   UserAgentPlatformInfo platform_info =
       CreateOnlyOSNameAndVersionPlatformInfo();
   platform_info.set_chipset_model_number("FooBar");
@@ -180,7 +230,12 @@ TEST(UserAgentStringTest, SanitizedModelYear) {
             user_agent_string.find("FooBar_" DIGIT DIGITREVERSED "/BazQux"));
 }
 
-TEST(UserAgentStringTest, SanitizedFirmwareVersion) {
+#if BUILDFLAG(IS_ANDROID)
+#define MAYBE_SanitizedFirmwareVersion DISABLED_SanitizedFirmwareVersion
+#else
+#define MAYBE_SanitizedFirmwareVersion SanitizedFirmwareVersion
+#endif
+TEST(UserAgentStringTest, MAYBE_SanitizedFirmwareVersion) {
   UserAgentPlatformInfo platform_info =
       CreateOnlyOSNameAndVersionPlatformInfo();
   platform_info.set_firmware_version("Foo" NOT_TCHAR "Bar" TCHAR "Baz" NOT_TCHAR
@@ -189,7 +244,12 @@ TEST(UserAgentStringTest, SanitizedFirmwareVersion) {
   EXPECT_NE(std::string::npos, user_agent_string.find("FooBar" TCHAR "BazQux"));
 }
 
-TEST(UserAgentStringTest, SanitizedBrand) {
+#if BUILDFLAG(IS_ANDROID)
+#define MAYBE_SanitizedBrand DISABLED_SanitizedBrand
+#else
+#define MAYBE_SanitizedBrand SanitizedBrand
+#endif
+TEST(UserAgentStringTest, MAYBE_SanitizedBrand) {
   UserAgentPlatformInfo platform_info =
       CreateOnlyOSNameAndVersionPlatformInfo();
   platform_info.set_brand("Foo()," NOT_VCHARORSPACE
@@ -201,7 +261,12 @@ TEST(UserAgentStringTest, SanitizedBrand) {
                 "FooBar" VCHARORSPACE_EXCEPTPARENTHESESANDCOMMA "BazQux"));
 }
 
-TEST(UserAgentStringTest, SanitizedModel) {
+#if BUILDFLAG(IS_ANDROID)
+#define MAYBE_SanitizedModel DISABLED_SanitizedModel
+#else
+#define MAYBE_SanitizedModel SanitizedModel
+#endif
+TEST(UserAgentStringTest, MAYBE_SanitizedModel) {
   UserAgentPlatformInfo platform_info =
       CreateOnlyOSNameAndVersionPlatformInfo();
   platform_info.set_model("Foo()," NOT_VCHARORSPACE
@@ -213,7 +278,12 @@ TEST(UserAgentStringTest, SanitizedModel) {
                 "FooBar" VCHARORSPACE_EXCEPTPARENTHESESANDCOMMA "BazQux"));
 }
 
-TEST(UserAgentStringTest, SanitizedAuxField) {
+#if BUILDFLAG(IS_ANDROID)
+#define MAYBE_SanitizedAuxField DISABLED_SanitizedAuxField
+#else
+#define MAYBE_SanitizedAuxField SanitizedAuxField
+#endif
+TEST(UserAgentStringTest, MAYBE_SanitizedAuxField) {
   UserAgentPlatformInfo platform_info =
       CreateOnlyOSNameAndVersionPlatformInfo();
   platform_info.set_aux_field("Foo" NOT_TCHARORSLASH "Bar" TCHARORSLASH
@@ -223,7 +293,13 @@ TEST(UserAgentStringTest, SanitizedAuxField) {
             user_agent_string.find("FooBar" TCHARORSLASH "BazQux"));
 }
 
-TEST(UserAgentStringTest, SanitizedJavascriptEngineVersion) {
+#if BUILDFLAG(IS_ANDROID)
+#define MAYBE_SanitizedJavascriptEngineVersion \
+  DISABLED_SanitizedJavascriptEngineVersion
+#else
+#define MAYBE_SanitizedJavascriptEngineVersion SanitizedJavascriptEngineVersion
+#endif
+TEST(UserAgentStringTest, MAYBE_SanitizedJavascriptEngineVersion) {
   UserAgentPlatformInfo platform_info =
       CreateOnlyOSNameAndVersionPlatformInfo();
   platform_info.set_javascript_engine_version(
@@ -233,7 +309,12 @@ TEST(UserAgentStringTest, SanitizedJavascriptEngineVersion) {
             user_agent_string.find("FooBar" TCHARORSLASH "BazQux"));
 }
 
-TEST(UserAgentStringTest, SanitizedRasterizerType) {
+#if BUILDFLAG(IS_ANDROID)
+#define MAYBE_SanitizedRasterizerType DISABLED_SanitizedRasterizerType
+#else
+#define MAYBE_SanitizedRasterizerType SanitizedRasterizerType
+#endif
+TEST(UserAgentStringTest, MAYBE_SanitizedRasterizerType) {
   UserAgentPlatformInfo platform_info =
       CreateOnlyOSNameAndVersionPlatformInfo();
   platform_info.set_rasterizer_type("Foo" NOT_TCHARORSLASH "Bar" TCHARORSLASH
@@ -243,7 +324,12 @@ TEST(UserAgentStringTest, SanitizedRasterizerType) {
             user_agent_string.find("FooBar" TCHARORSLASH "BazQux"));
 }
 
-TEST(UserAgentStringTest, SanitizedEvergreenVersion) {
+#if BUILDFLAG(IS_ANDROID)
+#define MAYBE_SanitizedEvergreenVersion DISABLED_SanitizedEvergreenVersion
+#else
+#define MAYBE_SanitizedEvergreenVersion SanitizedEvergreenVersion
+#endif
+TEST(UserAgentStringTest, MAYBE_SanitizedEvergreenVersion) {
   UserAgentPlatformInfo platform_info =
       CreateOnlyOSNameAndVersionPlatformInfo();
   platform_info.set_evergreen_version("Foo" NOT_TCHAR "Bar" TCHAR
@@ -252,7 +338,12 @@ TEST(UserAgentStringTest, SanitizedEvergreenVersion) {
   EXPECT_NE(std::string::npos, user_agent_string.find("FooBar" TCHAR "BazQux"));
 }
 
-TEST(UserAgentStringTest, SanitizedEvergreenType) {
+#if BUILDFLAG(IS_ANDROID)
+#define MAYBE_SanitizedEvergreenType DISABLED_SanitizedEvergreenType
+#else
+#define MAYBE_SanitizedEvergreenType SanitizedEvergreenType
+#endif
+TEST(UserAgentStringTest, MAYBE_SanitizedEvergreenType) {
   UserAgentPlatformInfo platform_info =
       CreateOnlyOSNameAndVersionPlatformInfo();
   platform_info.set_evergreen_type("Foo" NOT_TCHARORSLASH "Bar" TCHARORSLASH
@@ -262,7 +353,12 @@ TEST(UserAgentStringTest, SanitizedEvergreenType) {
             user_agent_string.find("FooBar" TCHARORSLASH "BazQux"));
 }
 
-TEST(UserAgentStringTest, SanitizedEvergreenFileType) {
+#if BUILDFLAG(IS_ANDROID)
+#define MAYBE_SanitizedEvergreenFileType DISABLED_SanitizedEvergreenFileType
+#else
+#define MAYBE_SanitizedEvergreenFileType SanitizedEvergreenFileType
+#endif
+TEST(UserAgentStringTest, MAYBE_SanitizedEvergreenFileType) {
   UserAgentPlatformInfo platform_info =
       CreateOnlyOSNameAndVersionPlatformInfo();
   platform_info.set_evergreen_file_type(
@@ -272,7 +368,12 @@ TEST(UserAgentStringTest, SanitizedEvergreenFileType) {
             user_agent_string.find("FooBar" TCHARORSLASH "BazQux"));
 }
 
-TEST(UserAgentStringTest, SanitizedCobaltVersion) {
+#if BUILDFLAG(IS_ANDROID)
+#define MAYBE_SanitizedCobaltVersion DISABLED_SanitizedCobaltVersion
+#else
+#define MAYBE_SanitizedCobaltVersion SanitizedCobaltVersion
+#endif
+TEST(UserAgentStringTest, MAYBE_SanitizedCobaltVersion) {
   UserAgentPlatformInfo platform_info =
       CreateOnlyOSNameAndVersionPlatformInfo();
   platform_info.set_cobalt_version("Foo" NOT_TCHAR "Bar" TCHAR "Baz" NOT_TCHAR
@@ -281,7 +382,14 @@ TEST(UserAgentStringTest, SanitizedCobaltVersion) {
   EXPECT_NE(std::string::npos, user_agent_string.find("FooBar" TCHAR "BazQux"));
 }
 
-TEST(UserAgentStringTest, SanitizedCobaltBuildVersionNumber) {
+#if BUILDFLAG(IS_ANDROID)
+#define MAYBE_SanitizedCobaltBuildVersionNumber \
+  DISABLED_SanitizedCobaltBuildVersionNumber
+#else
+#define MAYBE_SanitizedCobaltBuildVersionNumber \
+  SanitizedCobaltBuildVersionNumber
+#endif
+TEST(UserAgentStringTest, MAYBE_SanitizedCobaltBuildVersionNumber) {
   UserAgentPlatformInfo platform_info =
       CreateOnlyOSNameAndVersionPlatformInfo();
   platform_info.set_cobalt_build_version_number("Foo" NOT_TCHAR "Bar" TCHAR
@@ -290,7 +398,14 @@ TEST(UserAgentStringTest, SanitizedCobaltBuildVersionNumber) {
   EXPECT_NE(std::string::npos, user_agent_string.find("FooBar" TCHAR "BazQux"));
 }
 
-TEST(UserAgentStringTest, SanitizedCobaltBuildConfiguration) {
+#if BUILDFLAG(IS_ANDROID)
+#define MAYBE_SanitizedCobaltBuildConfiguration \
+  DISABLED_SanitizedCobaltBuildConfiguration
+#else
+#define MAYBE_SanitizedCobaltBuildConfiguration \
+  SanitizedCobaltBuildConfiguration
+#endif
+TEST(UserAgentStringTest, MAYBE_SanitizedCobaltBuildConfiguration) {
   UserAgentPlatformInfo platform_info =
       CreateOnlyOSNameAndVersionPlatformInfo();
   platform_info.set_build_configuration("Foo" NOT_TCHAR "Bar" TCHAR
@@ -299,7 +414,12 @@ TEST(UserAgentStringTest, SanitizedCobaltBuildConfiguration) {
   EXPECT_NE(std::string::npos, user_agent_string.find("FooBar" TCHAR "BazQux"));
 }
 
-TEST(UserAgentStringTest, WithPlatformInfo) {
+#if BUILDFLAG(IS_ANDROID)
+#define MAYBE_WithPlatformInfo DISABLED_WithPlatformInfo
+#else
+#define MAYBE_WithPlatformInfo WithPlatformInfo
+#endif
+TEST(UserAgentStringTest, MAYBE_WithPlatformInfo) {
   // There are deliberately a variety of underscores, commas, slashes, and
   // parentheses in the strings below to ensure they get sanitized.
   UserAgentPlatformInfo platform_info =
@@ -319,7 +439,13 @@ TEST(UserAgentStringTest, WithPlatformInfo) {
   EXPECT_NE(std::string::npos, user_agent_string.find(tv_info_str));
 }
 
-TEST(UserAgentStringTest, WithOnlyBrandModelAndDeviceType) {
+#if BUILDFLAG(IS_ANDROID)
+#define MAYBE_WithOnlyBrandModelAndDeviceType \
+  DISABLED_WithOnlyBrandModelAndDeviceType
+#else
+#define MAYBE_WithOnlyBrandModelAndDeviceType WithOnlyBrandModelAndDeviceType
+#endif
+TEST(UserAgentStringTest, MAYBE_WithOnlyBrandModelAndDeviceType) {
   UserAgentPlatformInfo platform_info =
       CreateOnlyOSNameAndVersionPlatformInfo();
   platform_info.set_device_type("OTT");
@@ -332,7 +458,12 @@ TEST(UserAgentStringTest, WithOnlyBrandModelAndDeviceType) {
   EXPECT_NE(std::string::npos, user_agent_string.find(tv_info_str));
 }
 
-TEST(UserAgentStringTest, WithStarboardVersion) {
+#if BUILDFLAG(IS_ANDROID)
+#define MAYBE_WithStarboardVersion DISABLED_WithStarboardVersion
+#else
+#define MAYBE_WithStarboardVersion WithStarboardVersion
+#endif
+TEST(UserAgentStringTest, MAYBE_WithStarboardVersion) {
   UserAgentPlatformInfo platform_info = CreateEmptyPlatformInfo();
   platform_info.set_starboard_version("Starboard/6");
   platform_info.set_device_type("OTT");
@@ -343,7 +474,12 @@ TEST(UserAgentStringTest, WithStarboardVersion) {
   EXPECT_NE(std::string::npos, user_agent_string.find(tv_info_str));
 }
 
-TEST(UserAgentStringTest, WithJavaScriptVersion) {
+#if BUILDFLAG(IS_ANDROID)
+#define MAYBE_WithJavaScriptVersion DISABLED_WithJavaScriptVersion
+#else
+#define MAYBE_WithJavaScriptVersion WithJavaScriptVersion
+#endif
+TEST(UserAgentStringTest, MAYBE_WithJavaScriptVersion) {
   UserAgentPlatformInfo platform_info = CreateEmptyPlatformInfo();
   platform_info.set_javascript_engine_version("V8/6.5.254.28");
   const std::string user_agent_string = platform_info.ToString();
@@ -351,7 +487,12 @@ TEST(UserAgentStringTest, WithJavaScriptVersion) {
   EXPECT_NE(std::string::npos, user_agent_string.find(" V8/6.5.254.28"));
 }
 
-TEST(GetUserAgentInputMapTest, DelimitParamsBySemicolon) {
+#if BUILDFLAG(IS_ANDROID)
+#define MAYBE_DelimitParamsBySemicolon DISABLED_DelimitParamsBySemicolon
+#else
+#define MAYBE_DelimitParamsBySemicolon DelimitParamsBySemicolon
+#endif
+TEST(GetUserAgentInputMapTest, MAYBE_DelimitParamsBySemicolon) {
   std::map<std::string, std::string> user_agent_input_map;
   const std::string user_agent_input =
       "model_year=2049;starboard_version=Starboard/"
@@ -367,7 +508,12 @@ TEST(GetUserAgentInputMapTest, DelimitParamsBySemicolon) {
   EXPECT_TRUE(user_agent_input_map == expected_user_agent_input_map);
 }
 
-TEST(GetUserAgentInputMapTest, HandleSpecialChar) {
+#if BUILDFLAG(IS_ANDROID)
+#define MAYBE_HandleSpecialChar DISABLED_HandleSpecialChar
+#else
+#define MAYBE_HandleSpecialChar HandleSpecialChar
+#endif
+TEST(GetUserAgentInputMapTest, MAYBE_HandleSpecialChar) {
   std::map<std::string, std::string> user_agent_input_map;
   const std::string user_agent_input =
       "aux_field=foo.bar.baz.qux/"
@@ -381,7 +527,12 @@ TEST(GetUserAgentInputMapTest, HandleSpecialChar) {
   EXPECT_TRUE(user_agent_input_map == expected_user_agent_input_map);
 }
 
-TEST(GetUserAgentInputMapTest, EscapeSemicolonInValue) {
+#if BUILDFLAG(IS_ANDROID)
+#define MAYBE_EscapeSemicolonInValue DISABLED_EscapeSemicolonInValue
+#else
+#define MAYBE_EscapeSemicolonInValue EscapeSemicolonInValue
+#endif
+TEST(GetUserAgentInputMapTest, MAYBE_EscapeSemicolonInValue) {
   std::map<std::string, std::string> user_agent_input_map;
   const std::string user_agent_input =
       "os_name_and_version=Foo bar-v7a\\; Baz 7.1.2\\; Qux OS "
@@ -395,7 +546,12 @@ TEST(GetUserAgentInputMapTest, EscapeSemicolonInValue) {
   EXPECT_TRUE(user_agent_input_map == expected_user_agent_input_map);
 }
 
-TEST(GetUserAgentInputMapTest, OmitEscapeSemicolonInField) {
+#if BUILDFLAG(IS_ANDROID)
+#define MAYBE_OmitEscapeSemicolonInField DISABLED_OmitEscapeSemicolonInField
+#else
+#define MAYBE_OmitEscapeSemicolonInField OmitEscapeSemicolonInField
+#endif
+TEST(GetUserAgentInputMapTest, MAYBE_OmitEscapeSemicolonInField) {
   std::map<std::string, std::string> user_agent_input_map;
   const std::string user_agent_input = "foo//;bar=baz";
 
@@ -407,7 +563,12 @@ TEST(GetUserAgentInputMapTest, OmitEscapeSemicolonInField) {
   EXPECT_TRUE(user_agent_input_map == expected_user_agent_input_map);
 }
 
-TEST(GetUserAgentInputMapTest, HandleEmptyFieldValue) {
+#if BUILDFLAG(IS_ANDROID)
+#define MAYBE_HandleEmptyFieldValue DISABLED_HandleEmptyFieldValue
+#else
+#define MAYBE_HandleEmptyFieldValue HandleEmptyFieldValue
+#endif
+TEST(GetUserAgentInputMapTest, MAYBE_HandleEmptyFieldValue) {
   std::map<std::string, std::string> user_agent_input_map;
   const std::string user_agent_input =
       "evergreen_type=;device_type=GAME;evergreen_version=";
@@ -421,7 +582,12 @@ TEST(GetUserAgentInputMapTest, HandleEmptyFieldValue) {
   EXPECT_TRUE(user_agent_input_map == expected_user_agent_input_map);
 }
 
-TEST(GetUserAgentInputMapTest, FailSafeWithInvalidInput) {
+#if BUILDFLAG(IS_ANDROID)
+#define MAYBE_FailSafeWithInvalidInput DISABLED_FailSafeWithInvalidInput
+#else
+#define MAYBE_FailSafeWithInvalidInput FailSafeWithInvalidInput
+#endif
+TEST(GetUserAgentInputMapTest, MAYBE_FailSafeWithInvalidInput) {
   std::map<std::string, std::string> user_agent_input_map;
   const std::string user_agent_input =
       ";model;aux_field=;=dummy;device_type=GAME;invalid_field";
