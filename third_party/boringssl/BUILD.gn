@@ -202,7 +202,6 @@ component("boringssl") {
   }
 
   if (is_cobalt_hermetic_build) {
-    sources += [ "src/crypto/thread_starboard.c" ]
     deps += [
       "//starboard:starboard_headers_only",
       "//starboard/common",
