@@ -38,7 +38,7 @@ class PosixFcntlTest : public ::testing::Test {
 
 // Tests F_DUPFD.
 TEST_F(PosixFcntlTest, DuplicateFileDescriptor) {
-  ScopedRandomFile random_file;
+  ScopedRandomFile random_file(64);
   const std::string& filename = random_file.filename();
 
   int fd = open(filename.c_str(), O_RDWR);

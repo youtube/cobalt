@@ -78,7 +78,7 @@ int ConvertMuslFlagsToPlatformFlags(int flags) {
   if (flags & MUSL_O_RDWR) {
     platform_flags |= O_RDWR;
   }
-  if (flags & MUSL_FD_CLOEXEC) {
+  if (flags & MUSL_F_DUPFD_CLOEXEC) {
     platform_flags |= FD_CLOEXEC;
   }
   if (flags & MUSL_F_RDLCK) {
@@ -120,7 +120,7 @@ int ConvertPlatformFlagsToMuslFlags(int flags) {
     musl_flags |= MUSL_O_RDWR;
   }
   if (flags & FD_CLOEXEC) {
-    musl_flags |= MUSL_FD_CLOEXEC;
+    musl_flags |= MUSL_F_DUPFD_CLOEXEC;
   }
   if (flags & MUSL_F_RDLCK) {
     musl_flags |= MUSL_F_RDLCK;
@@ -136,68 +136,38 @@ int ConvertPlatformFlagsToMuslFlags(int flags) {
 }
 
 SB_EXPORT int __abi_wrap_fcntl(int fd, int cmd, ...) {
-  int platform_cmd = MuslCmdToPlatformCmd(cmd);
-  SB_LOG(INFO) << "musl cmd " << cmd << " platform cmd " << platform_cmd;
-  int arg_int;
-  void* arg_ptr;
   int result;
   va_list ap;
   va_start(ap, cmd);
-  switch (platform_cmd) {
+  switch (cmd) {
     // The following commands have an int third argument.
-    case F_DUPFD:
-    case F_SETFD:
-    case F_SETFL:
-    case F_SETOWN:
-      arg_int = ConvertMuslFlagsToPlatformFlags(va_arg(ap, int));
-      result = fcntl(fd, platform_cmd, arg_int);
-      break;
-    // The following commands have a pointer third argument.
-    case F_GETLK:
-    case F_SETLK:
-    case F_SETLKW: {
-      arg_ptr = va_arg(ap, void*);
-      SB_CHECK(arg_ptr);
-      struct musl_flock* musl_flock =
-          reinterpret_cast<struct musl_flock*>(arg_ptr);
-      struct flock platform_flock;
-      if (platform_cmd == F_GETLK) {
-        SB_LOG(INFO) << "GETLK";
-        platform_flock.l_type =
-            ConvertMuslFlagsToPlatformFlags(musl_flock->l_type);
-        SB_LOG(INFO) << "MUSL L_TYPE: " << musl_flock->l_type
-                     << " platform l_type: " << platform_flock.l_type;
-        platform_flock.l_whence = musl_flock->l_whence;
-        platform_flock.l_start = musl_flock->l_start;
-        platform_flock.l_len = musl_flock->l_len;
-        platform_flock.l_pid = musl_flock->l_pid;
-        result = fcntl(fd, platform_cmd, &platform_flock);
-        SB_LOG(INFO) << "result " << result;
-        musl_flock->l_type =
-            ConvertPlatformFlagsToMuslFlags(platform_flock.l_type);
-        musl_flock->l_whence = platform_flock.l_whence;
-        musl_flock->l_start = platform_flock.l_start;
-        musl_flock->l_len = platform_flock.l_len;
-        musl_flock->l_pid = platform_flock.l_pid;
-      } else {
-        platform_flock.l_type = musl_flock->l_type;
-        platform_flock.l_whence = musl_flock->l_whence;
-        platform_flock.l_start = musl_flock->l_start;
-        platform_flock.l_len = musl_flock->l_len;
-        platform_flock.l_pid = musl_flock->l_pid;
-        result = fcntl(fd, platform_cmd, &platform_flock);
-      }
+    case MUSL_F_DUPFD:
+    case MUSL_F_DUPFD_CLOEXEC:
+    case MUSL_F_SETFD:
+    case MUSL_F_SETFL:
+    case MUSL_F_SETOWN: {
+      int arg_int = va_arg(ap, int);
+      result = FcntlInt(fd, cmd, arg_int);
       break;
     }
+    // The following commands have a pointer third argument.
+    case MUSL_F_GETLK:
+    case MUSL_F_SETLK:
+    case MUSL_F_SETLKW: {
+      void* arg_ptr;
+      arg_ptr = va_arg(ap, void*);
+      SB_CHECK(arg_ptr);
+      result = FcntlPtr(fd, cmd, arg_ptr);
+    }
     default:
-      result = fcntl(fd, platform_cmd);
+      result = Fcntl(fd, cmd);
       break;
   }
   va_end(ap);
 
   // Commands F_GETFD and F_GETFL return flags, we need to convert them to their
   // musl counterparts.
-  if (platform_cmd == F_GETFD || platform_cmd == F_GETFL) {
+  if (cmd == MUSL_F_GETFD || cmd == MUSL_F_GETFL) {
     int musl_flags = ConvertPlatformFlagsToMuslFlags(result);
     return musl_flags;
   }
@@ -205,8 +175,8 @@ SB_EXPORT int __abi_wrap_fcntl(int fd, int cmd, ...) {
   return result;
 }
 
-int __abi_wrap_fcntl2(int fildes, int cmd) {
-  SB_LOG(INFO) << "In __abi_wrap_fcntl2";
+int Fcntl(int fildes, int cmd) {
+  SB_LOG(INFO) << "In Fcntl";
   int platform_cmd = MuslCmdToPlatformCmd(cmd);
   if (platform_cmd == -1) {
     errno = EINVAL;
@@ -224,8 +194,8 @@ int __abi_wrap_fcntl2(int fildes, int cmd) {
   return result;
 }
 
-int __abi_wrap_fcntl3(int fildes, int cmd, int arg) {
-  SB_LOG(INFO) << "In __abi_wrap_fcntl3";
+int FcntlInt(int fildes, int cmd, int arg) {
+  SB_LOG(INFO) << "In FcntlInt";
   int platform_cmd = MuslCmdToPlatformCmd(cmd);
   SB_LOG(INFO) << "Called fcntl2 with cmd " << cmd << "platform cmd "
                << platform_cmd << " fildes " << fildes << " and arg " << arg;
@@ -238,22 +208,21 @@ int __abi_wrap_fcntl3(int fildes, int cmd, int arg) {
   return fcntl(fildes, platform_cmd, arg);
 }
 
-int __abi_wrap_fcntl4(int fildes, int cmd, void* arg) {
-  SB_LOG(INFO) << "In __abi_wrap_fcntl4";
+int FcntlPtr(int fildes, int cmd, void* arg) {
+  SB_LOG(INFO) << "In FcntlPtr";
   SB_CHECK(arg);
+  SB_CHECK(cmd == MUSL_F_GETLK || cmd == MUSL_F_SETLK || cmd == MUSL_F_SETLKW);
+
   int platform_cmd = MuslCmdToPlatformCmd(cmd);
   if (platform_cmd == -1) {
     errno = EINVAL;
     return -1;
   }
 
-  struct musl_flock* musl_flock = reinterpret_cast<struct musl_flock*>(arg);
+  struct muslflock* musl_flock = reinterpret_cast<struct muslflock*>(arg);
   struct flock platform_flock;
-
-  SB_CHECK(platform_cmd == F_GETLK || platform_cmd == F_SETLK ||
-           platform_cmd == F_SETLKW);
   int retval;
-  if (platform_cmd == MUSL_F_GETLK) {
+  if (platform_cmd == F_GETLK) {
     retval = fcntl(fildes, platform_cmd, &platform_flock);
     musl_flock->l_type = platform_flock.l_type;
     musl_flock->l_whence = platform_flock.l_whence;

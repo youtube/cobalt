@@ -211,8 +211,8 @@ ssize_t tee(int, int, size_t, unsigned);
 
 #if defined(STARBOARD)
 #define F_DUPFD 0
-#define FD_CLOEXEC 1
-#define FD_CLOFORK 2
+#define F_DUPFD_CLOEXEC 1
+#define F_DUPFD_CLOFORK 2
 #define F_GETFD 3
 #define F_SETFD 4
 #define F_GETFL 5

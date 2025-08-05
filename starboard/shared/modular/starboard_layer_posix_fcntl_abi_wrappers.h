@@ -26,8 +26,7 @@ extern "C" {
 
 // From //third_party/musl/include/fcntl.h
 #define MUSL_F_DUPFD 0
-#define MUSL_FD_CLOEXEC 1
-#define MUSL_FD_CLOFORK 2
+#define MUSL_F_DUPFD_CLOEXEC 1
 #define MUSL_F_GETFD 3
 #define MUSL_F_SETFD 4
 #define MUSL_F_GETFL 5
@@ -59,7 +58,7 @@ extern "C" {
 #define MUSL_O_SEARCH MUSL_O_EXEC
 #define MUSL_O_WRONLY 03
 
-struct musl_flock {
+struct muslflock {
   short l_type;
   short l_whence;
   off_t l_start;
@@ -68,9 +67,9 @@ struct musl_flock {
 };
 
 SB_EXPORT int __abi_wrap_fcntl(int fildes, int cmd, ...);
-SB_EXPORT int __abi_wrap_fcntl2(int fildes, int cmd);
-SB_EXPORT int __abi_wrap_fcntl3(int fildes, int cmd, int arg);
-SB_EXPORT int __abi_wrap_fcntl4(int fildes, int cmd, void* arg);
+SB_EXPORT int Fcntl(int fildes, int cmd);
+SB_EXPORT int FcntlInt(int fildes, int cmd, int arg);
+SB_EXPORT int FcntlPtr(int fildes, int cmd, void* arg);
 
 #ifdef __cplusplus
 }  // extern "C"
