@@ -5,7 +5,6 @@
 package dev.cobalt.shell;
 
 import android.content.Context;
-import android.graphics.Color;
 import android.graphics.PixelFormat;
 import android.view.Surface;
 import android.view.SurfaceHolder;
@@ -236,7 +235,6 @@ public class ContentViewRenderView extends FrameLayout {
             mSurfaceView = renderView.createSurfaceView(renderView.getContext());
             mSurfaceView.setZOrderMediaOverlay(true);
 
-            renderView.setSurfaceViewBackgroundColor(Color.WHITE);
             renderView.addView(mSurfaceView,
                     new FrameLayout.LayoutParams(FrameLayout.LayoutParams.MATCH_PARENT,
                             FrameLayout.LayoutParams.MATCH_PARENT));
