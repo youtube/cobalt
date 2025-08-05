@@ -392,7 +392,14 @@ def record_conflict(repo, conflicts_dir):
                 ],
                                stdout=f)
     repo.git.add('.')
-    repo.git.cherry_pick('--continue')
+    try:
+        repo.git.cherry_pick('--continue')
+    except git.exc.GitCommandError as e:
+        if 'The previous cherry-pick is now empty' in e.stderr:
+            print('⏩ Cherry-pick is empty after conflict resolution, skipping.')
+            repo.git.cherry_pick('--skip')
+        else:
+            raise
 
 
 def main():
