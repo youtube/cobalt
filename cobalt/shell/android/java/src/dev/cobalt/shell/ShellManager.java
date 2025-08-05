@@ -15,12 +15,10 @@
 package dev.cobalt.shell;
 
 import android.content.Context;
-import android.graphics.Color;
 import org.chromium.base.ThreadUtils;
 import org.chromium.base.annotations.CalledByNative;
 import org.chromium.base.annotations.JNINamespace;
 import org.chromium.base.annotations.NativeMethods;
-import org.chromium.components.embedder_support.view.ContentViewRenderView;
 import org.chromium.content_public.browser.WebContents;
 import org.chromium.ui.base.WindowAndroid;
 
@@ -110,7 +108,6 @@ public class ShellManager {
     private Object createShell(long nativeShellPtr) {
         if (mContentViewRenderView == null) {
             mContentViewRenderView = new ContentViewRenderView(getContext());
-            mContentViewRenderView.setSurfaceViewBackgroundColor(Color.TRANSPARENT);
             mContentViewRenderView.onNativeLibraryLoaded(mWindow);
         }
 
