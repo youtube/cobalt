@@ -16,7 +16,7 @@
 
 #include <unistd.h>
 
-#include "starboard/shared/pthread/thread_create_priority.h"
+#include "starboard/thread.h"
 
 namespace starboard {
 namespace raspi {
@@ -135,7 +135,7 @@ bool VideoDecoder::TryToDeliverOneFrame() {
 // static
 void* VideoDecoder::ThreadEntryPoint(void* context) {
   pthread_setname_np(pthread_self(), "omx_video_decoder");
-  ::starboard::shared::pthread::ThreadSetPriority(kSbThreadPriorityHigh);
+  SbThreadSetPriority(kSbThreadPriorityHigh);
   VideoDecoder* decoder = reinterpret_cast<VideoDecoder*>(context);
   decoder->RunLoop();
   return NULL;

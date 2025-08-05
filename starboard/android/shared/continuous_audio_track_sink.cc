@@ -22,9 +22,9 @@
 #include "starboard/common/check_op.h"
 #include "starboard/common/string.h"
 #include "starboard/common/time.h"
-#include "starboard/shared/pthread/thread_create_priority.h"
 #include "starboard/shared/starboard/media/media_util.h"
 #include "starboard/shared/starboard/player/filter/common.h"
+#include "starboard/thread.h"
 
 namespace starboard::android::shared {
 namespace {
@@ -123,7 +123,7 @@ void ContinuousAudioTrackSink::SetPlaybackRate(double playback_rate) {
 void* ContinuousAudioTrackSink::ThreadEntryPoint(void* context) {
   pthread_setname_np(pthread_self(), "continous_audio_track_sink");
   SB_DCHECK(context);
-  ::starboard::shared::pthread::ThreadSetPriority(kSbThreadPriorityRealTime);
+  SbThreadSetPriority(kSbThreadPriorityRealTime);
 
   ContinuousAudioTrackSink* sink =
       reinterpret_cast<ContinuousAudioTrackSink*>(context);

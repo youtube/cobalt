@@ -23,7 +23,7 @@
 #include "starboard/common/time.h"
 #include "starboard/configuration.h"
 #include "starboard/configuration_constants.h"
-#include "starboard/shared/pthread/thread_create_priority.h"
+#include "starboard/thread.h"
 
 namespace starboard::shared::starboard::audio_sink {
 namespace {
@@ -87,7 +87,7 @@ StubAudioSink::~StubAudioSink() {
 // static
 void* StubAudioSink::ThreadEntryPoint(void* context) {
   pthread_setname_np(pthread_self(), "stub_audio_out");
-  shared::pthread::ThreadSetPriority(kSbThreadPriorityRealTime);
+  SbThreadSetPriority(kSbThreadPriorityRealTime);
 
   SB_DCHECK(context);
   StubAudioSink* sink = reinterpret_cast<StubAudioSink*>(context);
