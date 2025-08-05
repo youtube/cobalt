@@ -15,8 +15,6 @@
 #include <fcntl.h>
 #include <stdarg.h>
 
-#include "starboard/common/log.h"
-
 extern "C" {
 
 int Fcntl(int fildes, int cmd);
@@ -24,7 +22,6 @@ int FcntlInt(int fildes, int cmd, int arg);
 int FcntlPtr(int fildes, int cmd, void* arg);
 
 int fcntl(int fildes, int cmd, ...) {
-  SB_LOG(INFO) << "Called cobalt fcntl";
   int result;
   va_list ap;
   va_start(ap, cmd);
@@ -43,14 +40,11 @@ int fcntl(int fildes, int cmd, ...) {
     case F_GETLK:
     case F_SETLK:
     case F_SETLKW: {
-      SB_LOG(INFO) << "Calling fcntl3 for cmd " << cmd;
-      void* arg_ptr = va_arg(ap, void*);
+      void* arg_ptr;
+      arg_ptr = va_arg(ap, void*);
       result = FcntlPtr(fildes, cmd, arg_ptr);
-      break;
-    }
-    // Any remaining commands have no third argument.
+    } break;
     default:
-      SB_LOG(INFO) << "Calling fcntl1 for cmd " << cmd;
       result = Fcntl(fildes, cmd);
       break;
   }

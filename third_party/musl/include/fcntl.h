@@ -210,39 +210,44 @@ ssize_t tee(int, int, size_t, unsigned);
 #endif
 
 #if defined(STARBOARD)
-#define F_DUPFD 0
-#define F_DUPFD_CLOEXEC 1
-#define F_DUPFD_CLOFORK 2
-#define F_GETFD 3
-#define F_SETFD 4
-#define F_GETFL 5
-#define F_SETFL 6
-#define F_GETOWN 7
-#define F_SETOWN 8
-#define FD_GETOWN_EX 9
-#define FD_SETOWN_EX 10
-#define F_GETLK 11
-#define F_SETLK 12
-#define F_SETLKW 13
-#define F_OFD_GETLK 14
-#define F_OFD_SETLK 15
-#define F_OFD_SETLKW 16
+#define F_DUPFD 2000
+#define F_DUPFD_CLOFORK 2001
+#define F_GETFD 2002
+#define F_SETFD 2003
+#define F_GETFL 2004
+#define F_SETFL 2005
+#define F_GETOWN 2006
+#define F_SETOWN 2007
+#define FD_GETOWN_EX 2008
+#define FD_SETOWN_EX 2009
+#define F_GETLK 2010
+#define F_SETLK 2011
+#define F_SETLKW 2012
+#if defined(_LARGEFILE64_SOURCE)
+#define F_SETLK64 F_SETLK
+#define F_SETLKW64 F_SETLKW
+#endif
+#define F_OFD_GETLK 2013
+#define F_OFD_SETLK 2014
+#define F_OFD_SETLKW 2015
 
-#define F_RDLCK 1
-#define F_UNLCK 2
-#define F_WRLCK 3
-
+#define O_CREAT	0100
 #define O_APPEND 02000
 #define O_DSYNC 010000
 #define O_NONBLOCK 04000
 #define O_RSYNC 04010000
 #define O_SYNC 04010000
-#define O_ACCMODE (03|010000000)
-#define O_EXEC 00
-#define O_RDONLY 01
-#define O_RDWR 02
-#define O_SEARCH O_EXEC
-#define O_WRONLY 03
+#define O_PATH 010000000
+#define O_ACCMODE (03|O_PATH)
+#define O_EXEC O_PATH
+#define O_SEARCH O_PATH
+#if defined(_GNU_SOURCE) || defined(_BSD_SOURCE)
+#define FAPPEND O_APPEND
+#define FFSYNC O_SYNC
+#define FASYNC O_ASYNC
+#define FNONBLOCK O_NONBLOCK
+#define FNDELAY O_NDELAY
+#endif
 #endif  // defined(STARBOARD)
 
 #ifdef __cplusplus

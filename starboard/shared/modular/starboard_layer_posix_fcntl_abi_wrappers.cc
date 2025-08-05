@@ -20,7 +20,6 @@
 #include "starboard/common/log.h"
 
 int MuslCmdToPlatformCmd(int musl_cmd) {
-  SB_LOG(INFO) << "Converting musl cmd " << musl_cmd;
   switch (musl_cmd) {
     case MUSL_F_DUPFD:
       return F_DUPFD;
@@ -44,6 +43,7 @@ int MuslCmdToPlatformCmd(int musl_cmd) {
       return F_SETLKW;
     default:
       SB_LOG(WARNING) << "Unknown musl fcntl command: " << musl_cmd;
+      SB_NOTREACHED();
       return -1;
   }
 }
@@ -158,7 +158,7 @@ SB_EXPORT int __abi_wrap_fcntl(int fd, int cmd, ...) {
       arg_ptr = va_arg(ap, void*);
       SB_CHECK(arg_ptr);
       result = FcntlPtr(fd, cmd, arg_ptr);
-    }
+    } break;
     default:
       result = Fcntl(fd, cmd);
       break;
@@ -176,7 +176,6 @@ SB_EXPORT int __abi_wrap_fcntl(int fd, int cmd, ...) {
 }
 
 int Fcntl(int fildes, int cmd) {
-  SB_LOG(INFO) << "In Fcntl";
   int platform_cmd = MuslCmdToPlatformCmd(cmd);
   if (platform_cmd == -1) {
     errno = EINVAL;
@@ -185,7 +184,6 @@ int Fcntl(int fildes, int cmd) {
 
   int result = fcntl(fildes, platform_cmd);
   if (platform_cmd == F_GETFD || platform_cmd == F_GETFL) {
-    SB_LOG(INFO) << "Converting flags back to musl";
     int musl_flags = ConvertPlatformFlagsToMuslFlags(result);
 
     return musl_flags;
@@ -195,13 +193,9 @@ int Fcntl(int fildes, int cmd) {
 }
 
 int FcntlInt(int fildes, int cmd, int arg) {
-  SB_LOG(INFO) << "In FcntlInt";
   int platform_cmd = MuslCmdToPlatformCmd(cmd);
-  SB_LOG(INFO) << "Called fcntl2 with cmd " << cmd << "platform cmd "
-               << platform_cmd << " fildes " << fildes << " and arg " << arg;
   if (platform_cmd == -1) {
     errno = EINVAL;
-    SB_LOG(INFO) << "EINVAL";
     return -1;
   }
 
@@ -209,7 +203,6 @@ int FcntlInt(int fildes, int cmd, int arg) {
 }
 
 int FcntlPtr(int fildes, int cmd, void* arg) {
-  SB_LOG(INFO) << "In FcntlPtr";
   SB_CHECK(arg);
   SB_CHECK(cmd == MUSL_F_GETLK || cmd == MUSL_F_SETLK || cmd == MUSL_F_SETLKW);
 
@@ -223,7 +216,8 @@ int FcntlPtr(int fildes, int cmd, void* arg) {
   struct flock platform_flock;
   int retval;
   if (platform_cmd == F_GETLK) {
-    retval = fcntl(fildes, platform_cmd, &platform_flock);
+    retval =
+        fcntl(fildes, platform_cmd, reinterpret_cast<void*>(&platform_flock));
     musl_flock->l_type = platform_flock.l_type;
     musl_flock->l_whence = platform_flock.l_whence;
     musl_flock->l_start = platform_flock.l_start;

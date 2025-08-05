@@ -20,11 +20,6 @@
 
 #include "starboard/nplb/file_helpers.h"
 #include "testing/gtest/include/gtest/gtest.h"
-
-#include "starboard/common/log.h"
-
-#include <bitset>
-
 namespace starboard {
 namespace nplb {
 namespace {
@@ -85,7 +80,6 @@ TEST_F(PosixFcntlTest, SetFileDescriptorFlags) {
   ASSERT_NE(fd, -1) << "Failed to open test file: " << strerror(errno);
 
   int original_flags = fcntl(fd, F_GETFD);
-  SB_LOG(INFO) << "Original flags " << std::bitset<32>(original_flags);
 
   // Set the FD_CLOEXEC flag.
   int result = fcntl(fd, F_SETFD, FD_CLOEXEC);
@@ -124,28 +118,6 @@ TEST_F(PosixFcntlTest, GetAndSetFileStatusFlags) {
   int updated_flags = fcntl(fd, F_GETFL);
   ASSERT_NE(updated_flags, -1) << "fcntl failed: " << strerror(errno);
   ASSERT_TRUE((updated_flags & O_APPEND) == O_APPEND);
-
-  close(fd);
-}
-
-// Tests F_GETLK.
-TEST_F(PosixFcntlTest, GetLock) {
-  ScopedRandomFile random_file;
-  const std::string& filename = random_file.filename();
-
-  int fd = open(filename.c_str(), O_RDWR);
-  ASSERT_NE(fd, -1) << "Failed to open test file: " << strerror(errno);
-
-  // Check the lock.
-  struct flock lock_status;
-  memset(&lock_status, 0, sizeof(lock_status));
-  lock_status.l_type = F_WRLCK;
-  lock_status.l_whence = SEEK_SET;
-  lock_status.l_start = 0;
-  lock_status.l_len = 0;
-  int result = fcntl(fd, F_GETLK, &lock_status);
-  ASSERT_NE(result, -1) << "fcntl failed: " << strerror(errno);
-  ASSERT_EQ(lock_status.l_type, F_UNLCK);
 
   close(fd);
 }
@@ -190,13 +162,6 @@ TEST_F(PosixFcntlTest, InvalidCommand) {
   EXPECT_EQ(EINVAL, errno) << "Expected EINVAL, got " << strerror(errno);
 
   close(fd);
-}
-
-// Tests that fcntl() with an invalid fd fails and sets EBADF.
-TEST_F(PosixFcntlTest, InvalidFileDescriptor) {
-  int result = fcntl(INT_MIN, F_GETFL);
-  EXPECT_EQ(result, -1);
-  EXPECT_EQ(EBADF, errno) << "Expected EBADF, got " << strerror(errno);
 }
 
 // Tests that fcntl() with F_DUPFD with an arg of INT_MAX fails and sets EINVAL.

@@ -25,38 +25,45 @@ extern "C" {
 #endif
 
 // From //third_party/musl/include/fcntl.h
-#define MUSL_F_DUPFD 0
-#define MUSL_F_DUPFD_CLOEXEC 1
-#define MUSL_F_GETFD 3
-#define MUSL_F_SETFD 4
-#define MUSL_F_GETFL 5
-#define MUSL_F_SETFL 6
-#define MUSL_F_GETOWN 7
-#define MUSL_F_SETOWN 8
-#define MUSL_FD_GETOWN_EX 9
-#define MUSL_FD_SETOWN_EX 10
-#define MUSL_F_GETLK 11
-#define MUSL_F_SETLK 12
-#define MUSL_F_SETLKW 13
-#define MUSL_OFD_GETLK 14
-#define MUSL_OFD_SETLK 15
-#define MUSL_OFD_SETLKW 16
+#define MUSL_F_DUPFD 2000
+#define MUSL_F_DUPFD_CLOEXEC 1030
+#define MUSL_F_DUPFD_CLOFORK 2001
+#define MUSL_F_GETFD 2002
+#define MUSL_F_SETFD 2003
+#define MUSL_F_GETFL 2004
+#define MUSL_F_SETFL 2005
+#define MUSL_F_GETOWN 2006
+#define MUSL_F_SETOWN 2007
+#define FD_GETOWN_EX 2008
+#define FD_SETOWN_EX 2009
+#define MUSL_F_GETLK 2010
+#define MUSL_F_SETLK 2011
+#define MUSL_F_SETLKW 2012
+#if defined(_LARGEFILE64_SOURCE)
+#define MUSL_F_SETLK64 MUSL_F_SETLK
+#define MUSL_F_SETLKW64 MUSL_F_SETLKW
+#endif
+#define MUSL_F_OFD_GETLK 2013
+#define MUSL_F_OFD_SETLK 2014
+#define MUSL_F_OFD_SETLKW 2015
+#define MUSL_FD_CLOEXEC 1
 
-#define MUSL_F_RDLCK 1
-#define MUSL_F_UNLCK 2
-#define MUSL_F_WRLCK 3
+#define MUSL_F_RDLCK 0
+#define MUSL_F_UNLCK 1
+#define MUSL_F_WRLCK 2
 
 #define MUSL_O_APPEND 02000
 #define MUSL_O_DSYNC 010000
 #define MUSL_O_NONBLOCK 04000
 #define MUSL_O_RSYNC 04010000
 #define MUSL_O_SYNC 04010000
-#define MUSL_O_ACCMODE (03 | 010000000)
-#define MUSL_O_EXEC 00
-#define MUSL_O_RDONLY 01
+#define MUSL_O_PATH 010000000
+#define MUSL_O_ACCMODE (03 | MUSL_O_PATH)
+#define MUSL_O_EXEC MUSL_O_PATH
+#define MUSL_O_SEARCH MUSL_O_PATH
+#define MUSL_O_RDONLY 00
+#define MUSL_O_WRONLY 01
 #define MUSL_O_RDWR 02
-#define MUSL_O_SEARCH MUSL_O_EXEC
-#define MUSL_O_WRONLY 03
 
 struct muslflock {
   short l_type;
