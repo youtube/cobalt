@@ -76,7 +76,6 @@ static_library("starboard_platform") {
     "//starboard/shared/pthread/thread_context_get_pointer.cc",
     "//starboard/shared/pthread/thread_context_internal.cc",
     "//starboard/shared/pthread/thread_context_internal.h",
-    "//starboard/shared/pthread/thread_create_priority.h",
     "//starboard/shared/pthread/thread_sampler_create.cc",
     "//starboard/shared/pthread/thread_sampler_destroy.cc",
     "//starboard/shared/pthread/thread_sampler_freeze.cc",
