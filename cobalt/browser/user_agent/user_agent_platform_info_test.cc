@@ -53,50 +53,28 @@ UserAgentPlatformInfo CreateOnlyOSNameAndVersionPlatformInfo() {
 }
 
 // TODO(b/436368441): Investigate this test failure.
-#if BUILDFLAG(IS_ANDROID)
-#define MAYBE_StartsWithMozilla DISABLED_StartsWithMozilla
-#else
-#define MAYBE_StartsWithMozilla StartsWithMozilla
-#endif
-TEST(UserAgentStringTest, MAYBE_StartsWithMozilla) {
+TEST(UserAgentStringTest, DISABLED_StartsWithMozilla) {
   std::string user_agent_string =
       CreateOnlyOSNameAndVersionPlatformInfo().ToString();
   EXPECT_EQ(0UL, user_agent_string.find("Mozilla/5.0"));
 }
 
 // TODO(b/436368441): Investigate this test failure.
-#if BUILDFLAG(IS_ANDROID)
-#define MAYBE_ContainsCobalt DISABLED_ContainsCobalt
-#else
-#define MAYBE_ContainsCobalt ContainsCobalt
-#endif
-TEST(UserAgentStringTest, MAYBE_ContainsCobalt) {
+TEST(UserAgentStringTest, DISABLED_ContainsCobalt) {
   std::string user_agent_string =
       CreateOnlyOSNameAndVersionPlatformInfo().ToString();
   EXPECT_NE(std::string::npos, user_agent_string.find("Cobalt"));
 }
 
 // TODO(b/436368441): Investigate this test failure.
-#if BUILDFLAG(IS_ANDROID)
-#define MAYBE_WithOSNameAndVersion DISABLED_WithOSNameAndVersion
-#else
-#define MAYBE_WithOSNameAndVersion WithOSNameAndVersion
-#endif
-TEST(UserAgentStringTest, MAYBE_WithOSNameAndVersion) {
+TEST(UserAgentStringTest, DISABLED_WithOSNameAndVersion) {
   std::string user_agent_string =
       CreateOnlyOSNameAndVersionPlatformInfo().ToString();
   EXPECT_NE(std::string::npos, user_agent_string.find("(GLaDOS 3.11)"));
 }
 
 // TODO(b/436368441): Investigate this test failure.
-#if BUILDFLAG(IS_ANDROID)
-#define MAYBE_WithCobaltVersionAndConfiguration \
-  DISABLED_WithCobaltVersionAndConfiguration
-#else
-#define MAYBE_WithCobaltVersionAndConfiguration \
-  WithCobaltVersionAndConfiguration
-#endif
-TEST(UserAgentStringTest, MAYBE_WithCobaltVersionAndConfiguration) {
+TEST(UserAgentStringTest, DISABLED_WithCobaltVersionAndConfiguration) {
   UserAgentPlatformInfo platform_info =
       CreateOnlyOSNameAndVersionPlatformInfo();
   platform_info.set_cobalt_version("16");
@@ -155,12 +133,7 @@ TEST(UserAgentStringTest, MAYBE_WithCobaltVersionAndConfiguration) {
 #define NOT_VCHARORSPACE CONTROL DEL HIGH_ASCII
 
 // TODO(b/436368441): Investigate this test failure.
-#if BUILDFLAG(IS_ANDROID)
-#define MAYBE_SanitizedStarboardVersion DISABLED_SanitizedStarboardVersion
-#else
-#define MAYBE_SanitizedStarboardVersion SanitizedStarboardVersion
-#endif
-TEST(UserAgentStringTest, MAYBE_SanitizedStarboardVersion) {
+TEST(UserAgentStringTest, DISABLED_SanitizedStarboardVersion) {
   UserAgentPlatformInfo platform_info =
       CreateOnlyOSNameAndVersionPlatformInfo();
   platform_info.set_starboard_version("Foo" NOT_TCHARORSLASH "Bar" TCHARORSLASH
@@ -171,12 +144,7 @@ TEST(UserAgentStringTest, MAYBE_SanitizedStarboardVersion) {
 }
 
 // TODO(b/436368441): Investigate this test failure.
-#if BUILDFLAG(IS_ANDROID)
-#define MAYBE_SanitizedOsNameAndVersion DISABLED_SanitizedOsNameAndVersion
-#else
-#define MAYBE_SanitizedOsNameAndVersion SanitizedOsNameAndVersion
-#endif
-TEST(UserAgentStringTest, MAYBE_SanitizedOsNameAndVersion) {
+TEST(UserAgentStringTest, DISABLED_SanitizedOsNameAndVersion) {
   UserAgentPlatformInfo platform_info =
       CreateOnlyOSNameAndVersionPlatformInfo();
   platform_info.set_os_name_and_version("Foo()" NOT_VCHARORSPACE
@@ -189,14 +157,7 @@ TEST(UserAgentStringTest, MAYBE_SanitizedOsNameAndVersion) {
 }
 
 // TODO(b/436368441): Investigate this test failure.
-#if BUILDFLAG(IS_ANDROID)
-#define MAYBE_SanitizedOriginalDesignManufacturer \
-  DISABLED_SanitizedOriginalDesignManufacturer
-#else
-#define MAYBE_SanitizedOriginalDesignManufacturer \
-  SanitizedOriginalDesignManufacturer
-#endif
-TEST(UserAgentStringTest, MAYBE_SanitizedOriginalDesignManufacturer) {
+TEST(UserAgentStringTest, DISABLED_SanitizedOriginalDesignManufacturer) {
   UserAgentPlatformInfo platform_info =
       CreateOnlyOSNameAndVersionPlatformInfo();
   platform_info.set_original_design_manufacturer(
@@ -207,12 +168,7 @@ TEST(UserAgentStringTest, MAYBE_SanitizedOriginalDesignManufacturer) {
 }
 
 // TODO(b/436368441): Investigate this test failure.
-#if BUILDFLAG(IS_ANDROID)
-#define MAYBE_SanitizedChipsetModelNumber DISABLED_SanitizedChipsetModelNumber
-#else
-#define MAYBE_SanitizedChipsetModelNumber SanitizedChipsetModelNumber
-#endif
-TEST(UserAgentStringTest, MAYBE_SanitizedChipsetModelNumber) {
+TEST(UserAgentStringTest, DISABLED_SanitizedChipsetModelNumber) {
   UserAgentPlatformInfo platform_info =
       CreateOnlyOSNameAndVersionPlatformInfo();
   platform_info.set_chipset_model_number("Foo" NOT_ALPHADIGIT "Bar" ALPHADIGIT
@@ -223,12 +179,7 @@ TEST(UserAgentStringTest, MAYBE_SanitizedChipsetModelNumber) {
 }
 
 // TODO(b/436368441): Investigate this test failure.
-#if BUILDFLAG(IS_ANDROID)
-#define MAYBE_SanitizedModelYear DISABLED_SanitizedModelYear
-#else
-#define MAYBE_SanitizedModelYear SanitizedModelYear
-#endif
-TEST(UserAgentStringTest, MAYBE_SanitizedModelYear) {
+TEST(UserAgentStringTest, DISABLED_SanitizedModelYear) {
   UserAgentPlatformInfo platform_info =
       CreateOnlyOSNameAndVersionPlatformInfo();
   platform_info.set_chipset_model_number("FooBar");
@@ -240,12 +191,7 @@ TEST(UserAgentStringTest, MAYBE_SanitizedModelYear) {
 }
 
 // TODO(b/436368441): Investigate this test failure.
-#if BUILDFLAG(IS_ANDROID)
-#define MAYBE_SanitizedFirmwareVersion DISABLED_SanitizedFirmwareVersion
-#else
-#define MAYBE_SanitizedFirmwareVersion SanitizedFirmwareVersion
-#endif
-TEST(UserAgentStringTest, MAYBE_SanitizedFirmwareVersion) {
+TEST(UserAgentStringTest, DISABLED_SanitizedFirmwareVersion) {
   UserAgentPlatformInfo platform_info =
       CreateOnlyOSNameAndVersionPlatformInfo();
   platform_info.set_firmware_version("Foo" NOT_TCHAR "Bar" TCHAR "Baz" NOT_TCHAR
@@ -255,12 +201,7 @@ TEST(UserAgentStringTest, MAYBE_SanitizedFirmwareVersion) {
 }
 
 // TODO(b/436368441): Investigate this test failure.
-#if BUILDFLAG(IS_ANDROID)
-#define MAYBE_SanitizedBrand DISABLED_SanitizedBrand
-#else
-#define MAYBE_SanitizedBrand SanitizedBrand
-#endif
-TEST(UserAgentStringTest, MAYBE_SanitizedBrand) {
+TEST(UserAgentStringTest, DISABLED_SanitizedBrand) {
   UserAgentPlatformInfo platform_info =
       CreateOnlyOSNameAndVersionPlatformInfo();
   platform_info.set_brand("Foo()," NOT_VCHARORSPACE
@@ -273,12 +214,7 @@ TEST(UserAgentStringTest, MAYBE_SanitizedBrand) {
 }
 
 // TODO(b/436368441): Investigate this test failure.
-#if BUILDFLAG(IS_ANDROID)
-#define MAYBE_SanitizedModel DISABLED_SanitizedModel
-#else
-#define MAYBE_SanitizedModel SanitizedModel
-#endif
-TEST(UserAgentStringTest, MAYBE_SanitizedModel) {
+TEST(UserAgentStringTest, DISABLED_SanitizedModel) {
   UserAgentPlatformInfo platform_info =
       CreateOnlyOSNameAndVersionPlatformInfo();
   platform_info.set_model("Foo()," NOT_VCHARORSPACE
@@ -291,12 +227,7 @@ TEST(UserAgentStringTest, MAYBE_SanitizedModel) {
 }
 
 // TODO(b/436368441): Investigate this test failure.
-#if BUILDFLAG(IS_ANDROID)
-#define MAYBE_SanitizedAuxField DISABLED_SanitizedAuxField
-#else
-#define MAYBE_SanitizedAuxField SanitizedAuxField
-#endif
-TEST(UserAgentStringTest, MAYBE_SanitizedAuxField) {
+TEST(UserAgentStringTest, DISABLED_SanitizedAuxField) {
   UserAgentPlatformInfo platform_info =
       CreateOnlyOSNameAndVersionPlatformInfo();
   platform_info.set_aux_field("Foo" NOT_TCHARORSLASH "Bar" TCHARORSLASH
@@ -307,13 +238,7 @@ TEST(UserAgentStringTest, MAYBE_SanitizedAuxField) {
 }
 
 // TODO(b/436368441): Investigate this test failure.
-#if BUILDFLAG(IS_ANDROID)
-#define MAYBE_SanitizedJavascriptEngineVersion \
-  DISABLED_SanitizedJavascriptEngineVersion
-#else
-#define MAYBE_SanitizedJavascriptEngineVersion SanitizedJavascriptEngineVersion
-#endif
-TEST(UserAgentStringTest, MAYBE_SanitizedJavascriptEngineVersion) {
+TEST(UserAgentStringTest, DISABLED_SanitizedJavascriptEngineVersion) {
   UserAgentPlatformInfo platform_info =
       CreateOnlyOSNameAndVersionPlatformInfo();
   platform_info.set_javascript_engine_version(
@@ -324,12 +249,7 @@ TEST(UserAgentStringTest, MAYBE_SanitizedJavascriptEngineVersion) {
 }
 
 // TODO(b/436368441): Investigate this test failure.
-#if BUILDFLAG(IS_ANDROID)
-#define MAYBE_SanitizedRasterizerType DISABLED_SanitizedRasterizerType
-#else
-#define MAYBE_SanitizedRasterizerType SanitizedRasterizerType
-#endif
-TEST(UserAgentStringTest, MAYBE_SanitizedRasterizerType) {
+TEST(UserAgentStringTest, DISABLED_SanitizedRasterizerType) {
   UserAgentPlatformInfo platform_info =
       CreateOnlyOSNameAndVersionPlatformInfo();
   platform_info.set_rasterizer_type("Foo" NOT_TCHARORSLASH "Bar" TCHARORSLASH
@@ -340,12 +260,7 @@ TEST(UserAgentStringTest, MAYBE_SanitizedRasterizerType) {
 }
 
 // TODO(b/436368441): Investigate this test failure.
-#if BUILDFLAG(IS_ANDROID)
-#define MAYBE_SanitizedEvergreenVersion DISABLED_SanitizedEvergreenVersion
-#else
-#define MAYBE_SanitizedEvergreenVersion SanitizedEvergreenVersion
-#endif
-TEST(UserAgentStringTest, MAYBE_SanitizedEvergreenVersion) {
+TEST(UserAgentStringTest, DISABLED_SanitizedEvergreenVersion) {
   UserAgentPlatformInfo platform_info =
       CreateOnlyOSNameAndVersionPlatformInfo();
   platform_info.set_evergreen_version("Foo" NOT_TCHAR "Bar" TCHAR
@@ -355,12 +270,7 @@ TEST(UserAgentStringTest, MAYBE_SanitizedEvergreenVersion) {
 }
 
 // TODO(b/436368441): Investigate this test failure.
-#if BUILDFLAG(IS_ANDROID)
-#define MAYBE_SanitizedEvergreenType DISABLED_SanitizedEvergreenType
-#else
-#define MAYBE_SanitizedEvergreenType SanitizedEvergreenType
-#endif
-TEST(UserAgentStringTest, MAYBE_SanitizedEvergreenType) {
+TEST(UserAgentStringTest, DISABLED_SanitizedEvergreenType) {
   UserAgentPlatformInfo platform_info =
       CreateOnlyOSNameAndVersionPlatformInfo();
   platform_info.set_evergreen_type("Foo" NOT_TCHARORSLASH "Bar" TCHARORSLASH
@@ -371,12 +281,7 @@ TEST(UserAgentStringTest, MAYBE_SanitizedEvergreenType) {
 }
 
 // TODO(b/436368441): Investigate this test failure.
-#if BUILDFLAG(IS_ANDROID)
-#define MAYBE_SanitizedEvergreenFileType DISABLED_SanitizedEvergreenFileType
-#else
-#define MAYBE_SanitizedEvergreenFileType SanitizedEvergreenFileType
-#endif
-TEST(UserAgentStringTest, MAYBE_SanitizedEvergreenFileType) {
+TEST(UserAgentStringTest, DISABLED_SanitizedEvergreenFileType) {
   UserAgentPlatformInfo platform_info =
       CreateOnlyOSNameAndVersionPlatformInfo();
   platform_info.set_evergreen_file_type(
@@ -387,12 +292,7 @@ TEST(UserAgentStringTest, MAYBE_SanitizedEvergreenFileType) {
 }
 
 // TODO(b/436368441): Investigate this test failure.
-#if BUILDFLAG(IS_ANDROID)
-#define MAYBE_SanitizedCobaltVersion DISABLED_SanitizedCobaltVersion
-#else
-#define MAYBE_SanitizedCobaltVersion SanitizedCobaltVersion
-#endif
-TEST(UserAgentStringTest, MAYBE_SanitizedCobaltVersion) {
+TEST(UserAgentStringTest, DISABLED_SanitizedCobaltVersion) {
   UserAgentPlatformInfo platform_info =
       CreateOnlyOSNameAndVersionPlatformInfo();
   platform_info.set_cobalt_version("Foo" NOT_TCHAR "Bar" TCHAR "Baz" NOT_TCHAR
@@ -402,14 +302,7 @@ TEST(UserAgentStringTest, MAYBE_SanitizedCobaltVersion) {
 }
 
 // TODO(b/436368441): Investigate this test failure.
-#if BUILDFLAG(IS_ANDROID)
-#define MAYBE_SanitizedCobaltBuildVersionNumber \
-  DISABLED_SanitizedCobaltBuildVersionNumber
-#else
-#define MAYBE_SanitizedCobaltBuildVersionNumber \
-  SanitizedCobaltBuildVersionNumber
-#endif
-TEST(UserAgentStringTest, MAYBE_SanitizedCobaltBuildVersionNumber) {
+TEST(UserAgentStringTest, DISABLED_SanitizedCobaltBuildVersionNumber) {
   UserAgentPlatformInfo platform_info =
       CreateOnlyOSNameAndVersionPlatformInfo();
   platform_info.set_cobalt_build_version_number("Foo" NOT_TCHAR "Bar" TCHAR
@@ -419,14 +312,7 @@ TEST(UserAgentStringTest, MAYBE_SanitizedCobaltBuildVersionNumber) {
 }
 
 // TODO(b/436368441): Investigate this test failure.
-#if BUILDFLAG(IS_ANDROID)
-#define MAYBE_SanitizedCobaltBuildConfiguration \
-  DISABLED_SanitizedCobaltBuildConfiguration
-#else
-#define MAYBE_SanitizedCobaltBuildConfiguration \
-  SanitizedCobaltBuildConfiguration
-#endif
-TEST(UserAgentStringTest, MAYBE_SanitizedCobaltBuildConfiguration) {
+TEST(UserAgentStringTest, DISABLED_SanitizedCobaltBuildConfiguration) {
   UserAgentPlatformInfo platform_info =
       CreateOnlyOSNameAndVersionPlatformInfo();
   platform_info.set_build_configuration("Foo" NOT_TCHAR "Bar" TCHAR
@@ -436,12 +322,7 @@ TEST(UserAgentStringTest, MAYBE_SanitizedCobaltBuildConfiguration) {
 }
 
 // TODO(b/436368441): Investigate this test failure.
-#if BUILDFLAG(IS_ANDROID)
-#define MAYBE_WithPlatformInfo DISABLED_WithPlatformInfo
-#else
-#define MAYBE_WithPlatformInfo WithPlatformInfo
-#endif
-TEST(UserAgentStringTest, MAYBE_WithPlatformInfo) {
+TEST(UserAgentStringTest, DISABLED_WithPlatformInfo) {
   // There are deliberately a variety of underscores, commas, slashes, and
   // parentheses in the strings below to ensure they get sanitized.
   UserAgentPlatformInfo platform_info =
@@ -462,13 +343,7 @@ TEST(UserAgentStringTest, MAYBE_WithPlatformInfo) {
 }
 
 // TODO(b/436368441): Investigate this test failure.
-#if BUILDFLAG(IS_ANDROID)
-#define MAYBE_WithOnlyBrandModelAndDeviceType \
-  DISABLED_WithOnlyBrandModelAndDeviceType
-#else
-#define MAYBE_WithOnlyBrandModelAndDeviceType WithOnlyBrandModelAndDeviceType
-#endif
-TEST(UserAgentStringTest, MAYBE_WithOnlyBrandModelAndDeviceType) {
+TEST(UserAgentStringTest, DISABLED_WithOnlyBrandModelAndDeviceType) {
   UserAgentPlatformInfo platform_info =
       CreateOnlyOSNameAndVersionPlatformInfo();
   platform_info.set_device_type("OTT");
@@ -482,12 +357,7 @@ TEST(UserAgentStringTest, MAYBE_WithOnlyBrandModelAndDeviceType) {
 }
 
 // TODO(b/436368441): Investigate this test failure.
-#if BUILDFLAG(IS_ANDROID)
-#define MAYBE_WithStarboardVersion DISABLED_WithStarboardVersion
-#else
-#define MAYBE_WithStarboardVersion WithStarboardVersion
-#endif
-TEST(UserAgentStringTest, MAYBE_WithStarboardVersion) {
+TEST(UserAgentStringTest, DISABLED_WithStarboardVersion) {
   UserAgentPlatformInfo platform_info = CreateEmptyPlatformInfo();
   platform_info.set_starboard_version("Starboard/6");
   platform_info.set_device_type("OTT");
@@ -499,12 +369,7 @@ TEST(UserAgentStringTest, MAYBE_WithStarboardVersion) {
 }
 
 // TODO(b/436368441): Investigate this test failure.
-#if BUILDFLAG(IS_ANDROID)
-#define MAYBE_WithJavaScriptVersion DISABLED_WithJavaScriptVersion
-#else
-#define MAYBE_WithJavaScriptVersion WithJavaScriptVersion
-#endif
-TEST(UserAgentStringTest, MAYBE_WithJavaScriptVersion) {
+TEST(UserAgentStringTest, DISABLED_WithJavaScriptVersion) {
   UserAgentPlatformInfo platform_info = CreateEmptyPlatformInfo();
   platform_info.set_javascript_engine_version("V8/6.5.254.28");
   const std::string user_agent_string = platform_info.ToString();
@@ -513,12 +378,7 @@ TEST(UserAgentStringTest, MAYBE_WithJavaScriptVersion) {
 }
 
 // TODO(b/436368441): Investigate this test failure.
-#if BUILDFLAG(IS_ANDROID)
-#define MAYBE_DelimitParamsBySemicolon DISABLED_DelimitParamsBySemicolon
-#else
-#define MAYBE_DelimitParamsBySemicolon DelimitParamsBySemicolon
-#endif
-TEST(GetUserAgentInputMapTest, MAYBE_DelimitParamsBySemicolon) {
+TEST(GetUserAgentInputMapTest, DISABLED_DelimitParamsBySemicolon) {
   std::map<std::string, std::string> user_agent_input_map;
   const std::string user_agent_input =
       "model_year=2049;starboard_version=Starboard/"
@@ -535,12 +395,7 @@ TEST(GetUserAgentInputMapTest, MAYBE_DelimitParamsBySemicolon) {
 }
 
 // TODO(b/436368441): Investigate this test failure.
-#if BUILDFLAG(IS_ANDROID)
-#define MAYBE_HandleSpecialChar DISABLED_HandleSpecialChar
-#else
-#define MAYBE_HandleSpecialChar HandleSpecialChar
-#endif
-TEST(GetUserAgentInputMapTest, MAYBE_HandleSpecialChar) {
+TEST(GetUserAgentInputMapTest, DISABLED_HandleSpecialChar) {
   std::map<std::string, std::string> user_agent_input_map;
   const std::string user_agent_input =
       "aux_field=foo.bar.baz.qux/"
@@ -555,12 +410,7 @@ TEST(GetUserAgentInputMapTest, MAYBE_HandleSpecialChar) {
 }
 
 // TODO(b/436368441): Investigate this test failure.
-#if BUILDFLAG(IS_ANDROID)
-#define MAYBE_EscapeSemicolonInValue DISABLED_EscapeSemicolonInValue
-#else
-#define MAYBE_EscapeSemicolonInValue EscapeSemicolonInValue
-#endif
-TEST(GetUserAgentInputMapTest, MAYBE_EscapeSemicolonInValue) {
+TEST(GetUserAgentInputMapTest, DISABLED_EscapeSemicolonInValue) {
   std::map<std::string, std::string> user_agent_input_map;
   const std::string user_agent_input =
       "os_name_and_version=Foo bar-v7a\\; Baz 7.1.2\\; Qux OS "
@@ -575,12 +425,7 @@ TEST(GetUserAgentInputMapTest, MAYBE_EscapeSemicolonInValue) {
 }
 
 // TODO(b/436368441): Investigate this test failure.
-#if BUILDFLAG(IS_ANDROID)
-#define MAYBE_OmitEscapeSemicolonInField DISABLED_OmitEscapeSemicolonInField
-#else
-#define MAYBE_OmitEscapeSemicolonInField OmitEscapeSemicolonInField
-#endif
-TEST(GetUserAgentInputMapTest, MAYBE_OmitEscapeSemicolonInField) {
+TEST(GetUserAgentInputMapTest, DISABLED_OmitEscapeSemicolonInField) {
   std::map<std::string, std::string> user_agent_input_map;
   const std::string user_agent_input = "foo//;bar=baz";
 
@@ -593,12 +438,7 @@ TEST(GetUserAgentInputMapTest, MAYBE_OmitEscapeSemicolonInField) {
 }
 
 // TODO(b/436368441): Investigate this test failure.
-#if BUILDFLAG(IS_ANDROID)
-#define MAYBE_HandleEmptyFieldValue DISABLED_HandleEmptyFieldValue
-#else
-#define MAYBE_HandleEmptyFieldValue HandleEmptyFieldValue
-#endif
-TEST(GetUserAgentInputMapTest, MAYBE_HandleEmptyFieldValue) {
+TEST(GetUserAgentInputMapTest, DISABLED_HandleEmptyFieldValue) {
   std::map<std::string, std::string> user_agent_input_map;
   const std::string user_agent_input =
       "evergreen_type=;device_type=GAME;evergreen_version=";
@@ -613,12 +453,7 @@ TEST(GetUserAgentInputMapTest, MAYBE_HandleEmptyFieldValue) {
 }
 
 // TODO(b/436368441): Investigate this test failure.
-#if BUILDFLAG(IS_ANDROID)
-#define MAYBE_FailSafeWithInvalidInput DISABLED_FailSafeWithInvalidInput
-#else
-#define MAYBE_FailSafeWithInvalidInput FailSafeWithInvalidInput
-#endif
-TEST(GetUserAgentInputMapTest, MAYBE_FailSafeWithInvalidInput) {
+TEST(GetUserAgentInputMapTest, DISABLED_FailSafeWithInvalidInput) {
   std::map<std::string, std::string> user_agent_input_map;
   const std::string user_agent_input =
       ";model;aux_field=;=dummy;device_type=GAME;invalid_field";
