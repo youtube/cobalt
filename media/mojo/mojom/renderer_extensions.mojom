@@ -102,6 +102,7 @@ interface StarboardRendererClientExtension {
   // Notify the rendering mode from SbPlayer.
   UpdateStarboardRenderingMode(StarboardRenderingMode mode);
 
+  [EnableIf=is_android]
   // Request OverlayInfo from StarboardRendererClient.
   RequestOverlayInfo(bool restart_for_transitions);
 };
@@ -170,6 +171,7 @@ interface StarboardRendererExtension {
   [Sync]
   GetCurrentVideoFrame() => (VideoFrame? video_frame);
 
+  [EnableIf=is_android]
   // Notify StarboardRendererWrapper when the current OverlayInfo changes.
   OnOverlayInfoChanged(OverlayInfo overlay_info);
 };

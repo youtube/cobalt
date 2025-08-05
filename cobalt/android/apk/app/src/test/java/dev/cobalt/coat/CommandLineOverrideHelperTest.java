@@ -37,7 +37,6 @@ public class CommandLineOverrideHelperTest {
     public void testDefaultCommandLineOverridesList() {
         List<String> overrides = CommandLineOverrideHelper.getDefaultCommandLineOverridesList();
         assertThat(overrides.contains("--enable-low-end-device-mode")).isTrue();
-        assertThat(overrides.contains("--force-gpu-mem-available-mb=32")).isTrue();
     }
 
     @Test
@@ -77,6 +76,9 @@ public class CommandLineOverrideHelperTest {
             CommandLine.getInstance().hasSwitch("user-level-memory-pressure-signal-params"));
         Assert.assertTrue(CommandLine.getInstance().hasSwitch("enable-low-end-device-mode"));
         Assert.assertTrue(CommandLine.getInstance().hasSwitch("disable-rgba-4444-textures"));
+        Assert.assertTrue(CommandLine.getInstance().hasSwitch("disable-accelerated-video-decode"));
+        Assert.assertTrue(CommandLine.getInstance().hasSwitch("disable-accelerated-video-encode"));
+        Assert.assertTrue(CommandLine.getInstance().hasSwitch("enable-zero-copy"));
 
         String expected = "no-user-gesture-required";
         String actual = CommandLine.getInstance().getSwitchValue("autoplay-policy");
@@ -84,10 +86,6 @@ public class CommandLineOverrideHelperTest {
 
         expected = "1";
         actual = CommandLine.getInstance().getSwitchValue("force-device-scale-factor");
-        Assert.assertEquals(expected, actual);
-
-        expected = "32";
-        actual = CommandLine.getInstance().getSwitchValue("force-gpu-mem-available-mb");
         Assert.assertEquals(expected, actual);
 
         actual = CommandLine.getInstance().getSwitchValue("enable-features");
@@ -98,7 +96,7 @@ public class CommandLineOverrideHelperTest {
         expected = CommandLineOverrideHelper.getDefaultDisableFeatureOverridesList().toString();
         Assert.assertEquals(expected, actual);
 
-        actual = CommandLine.getInstance().getSwitchValue("blink-enable-features");
+        actual = CommandLine.getInstance().getSwitchValue("enable-blink-features");
         expected =
             CommandLineOverrideHelper.getDefaultBlinkEnableFeatureOverridesList().toString();
         Assert.assertEquals(expected, actual);

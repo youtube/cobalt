@@ -5,27 +5,8 @@ import("//third_party/icu/config.gni")
 
 cobalt_manifest = "$target_gen_dir/cobalt_manifest/AndroidManifest.xml"
 
-android_resources("cobalt_java_resources") {
-  sources = [
-    "apk/app/src/app/res/drawable-xhdpi/app_banner.png",
-    "apk/app/src/app/res/mipmap-hdpi/ic_app.png",
-    "apk/app/src/app/res/mipmap-mdpi/ic_app.png",
-    "apk/app/src/app/res/mipmap-xhdpi/ic_app.png",
-    "apk/app/src/app/res/mipmap-xxhdpi/ic_app.png",
-    "apk/app/src/app/res/values/strings.xml",
-    "apk/app/src/main/res/layout/coat_error_dialog.xml",
-    "apk/app/src/main/res/values/colors.xml",
-    "apk/app/src/main/res/values/ids.xml",
-    "apk/app/src/main/res/values/overlayable.xml",
-    "apk/app/src/main/res/values/rro_variables.xml",
-    "apk/app/src/main/res/values/strings.xml",
-    "apk/app/src/main/res/values/styles.xml",
-  ]
-  deps = [ "//third_party/androidx:androidx_leanback_leanback_java" ]
-}
-
 jinja_template("cobalt_manifest") {
-  input = "apk/app/src/app/AndroidManifest.xml.jinja2"
+  input = "//cobalt/shell/android/shell_apk/AndroidManifest.xml.jinja2"
   output = cobalt_manifest
   variables = [
     "manifest_package=dev.cobalt.coat",
@@ -43,8 +24,6 @@ generate_jni("jni_headers") {
     "apk/app/src/main/java/dev/cobalt/media/MediaCodecBridge.java",
     "apk/app/src/main/java/dev/cobalt/media/MediaCodecBridgeBuilder.java",
     "apk/app/src/main/java/dev/cobalt/media/MediaDrmBridge.java",
-    "apk/app/src/main/java/dev/cobalt/shell/Shell.java",
-    "apk/app/src/main/java/dev/cobalt/shell/ShellManager.java",
   ]
 
   if (!use_evergreen) {
@@ -54,48 +33,18 @@ generate_jni("jni_headers") {
   }
 }
 
-android_library("cobalt_shell_java") {
-  testonly = true
-  resources_package = "org.chromium.content_shell"
-  deps = [
-    ":cobalt_java_resources",
-    "//base:base_java",
-    "//base:jni_java",
-    "//build/android:build_java",
-    "//components/download/internal/common:internal_java",
-    "//components/embedder_support/android:view_java",
-    "//components/viz/service:service_java",
-    "//content/public/android:content_java",
-    "//media/base/android:media_java",
-    "//media/capture/video/android:capture_java",
-    "//mojo/public/java:system_java",
-    "//net/android:net_java",
-    "//ui/android:ui_java",
-    "//ui/base/cursor/mojom:cursor_type_java",
-    "//url:gurl_java",
-  ]
-  sources = [
-    "apk/app/src/main/java/dev/cobalt/shell/Shell.java",
-    "apk/app/src/main/java/dev/cobalt/shell/ShellManager.java",
-    "apk/app/src/main/java/dev/cobalt/shell/ShellViewAndroidDelegate.java",
-    "apk/app/src/main/java/dev/cobalt/shell/Util.java",
-  ]
-
-  annotation_processor_deps = [ "//base/android/jni_generator:jni_processor" ]
-}
-
 android_library("cobalt_main_java") {
   testonly = true
   resources_package = "dev.cobalt.coat"
   deps = [
-    ":cobalt_java_resources",
-    ":cobalt_shell_java",
     ":jni_headers",
     "//base:base_java",
     "//base:jni_java",
     "//base:process_launcher_java",
     "//build/android:build_java",
-    "//components/embedder_support/android:view_java",
+    "//cobalt/shell/android:cobalt_shell_java",
+    "//cobalt/shell/android:cobalt_shell_java_resources",
+    "//cobalt/shell/android:cobalt_shell_jni_headers",
     "//components/version_info/android:version_constants_java",
     "//content/public/android:content_java",
     "//media/capture/video/android:capture_java",
@@ -231,9 +180,9 @@ shared_library("libchrobalt") {
     # TODO: what can be removed in the dependencies?
     "//cobalt/shell:content_shell_app",
     "//cobalt/shell:content_shell_lib",
+    "//cobalt/shell:pak",
     "//components/crash/content/browser",
     "//components/memory_system",
-    "//content/shell:pak",
     "//media",
     "//skia",
     "//starboard/android/shared:starboard_jni_state",
@@ -268,10 +217,10 @@ android_apk("cobalt_apk") {
   deps = [
     ":coat_assets",
     ":cobalt_apk_java",
-    ":cobalt_shell_java",
+    "//cobalt/shell/android:cobalt_shell_assets",
+    "//cobalt/shell/android:cobalt_shell_java",
     "//components/metrics:metrics_java",
     "//content/public/android:content_java",
-    "//content/shell/android:content_shell_assets",
     "//media/capture/video/android:capture_java",
     "//net/android:net_java",
     "//services/shape_detection:shape_detection_java",
@@ -286,12 +235,16 @@ robolectric_binary("cobalt_coat_junit_tests") {
   sources = [
     "apk/app/src/test/java/dev/cobalt/coat/CobaltActivityTest.java",
     "apk/app/src/test/java/dev/cobalt/coat/CommandLineOverrideHelperTest.java",
+    "apk/app/src/test/java/dev/cobalt/coat/MockShellManagerNatives.java",
+    "apk/app/src/test/java/dev/cobalt/coat/ShellManagerTest.java",
   ]
   deps = [
     ":cobalt_apk_java",
     "//base:base_java",
     "//base:base_java_test_support",
     "//base:base_junit_test_support",
+    "//cobalt/shell/android:cobalt_shell_java",
+    "//components/embedder_support/android:view_java",
     "//content/public/android:content_java",
     "//third_party/androidx:androidx_test_runner_java",
     "//third_party/google-truth:google_truth_java",

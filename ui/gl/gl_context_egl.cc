@@ -9,6 +9,10 @@
 #include "base/command_line.h"
 #include "base/logging.h"
 #include "base/ranges/algorithm.h"
+#if BUILDFLAG(IS_COBALT_HERMETIC_BUILD)
+#include "base/strings/string_split.h"
+#include "base/strings/string_number_conversions.h"
+#endif
 #include "base/trace_event/trace_event.h"
 #include "build/build_config.h"
 #include "third_party/khronos/EGL/egl.h"
@@ -151,12 +155,39 @@ bool GLContextEGL::Initialize(GLSurface* compatible_surface,
     }
   }
 
-  std::vector<EGLint> context_attributes;
-  if (attribs.can_skip_validation &&
-      GetGLImplementation() == kGLImplementationEGLANGLE) {
-    context_attributes.push_back(EGL_CONTEXT_OPENGL_NO_ERROR_KHR);
-    context_attributes.push_back(EGL_TRUE);
+#if BUILDFLAG(IS_COBALT_HERMETIC_BUILD)
+  // Get EGL version
+  const char* version_str =
+      eglQueryString(gl_display_->GetDisplay(), EGL_VERSION);
+  int egl_major = 0;
+  int egl_minor = 0;
+  if (version_str) {
+    std::vector<std::string> parts = base::SplitString(
+        version_str, ".", base::TRIM_WHITESPACE, base::SPLIT_WANT_NONEMPTY);
+
+    if (parts.size() == 2) {
+      base::StringToInt(parts[0], &egl_major);
+      base::StringToInt(parts[1], &egl_minor);
+    } else {
+      DVLOG(1) << "EGL version string format unexpected: " << version_str;
+    }
   }
+#endif
+
+  std::vector<EGLint> context_attributes;
+#if BUILDFLAG(IS_COBALT_HERMETIC_BUILD)
+  if (egl_major > 1 || (egl_major == 1 && egl_minor > 4)) {
+#endif
+    if (attribs.can_skip_validation &&
+        GetGLImplementation() == kGLImplementationEGLANGLE) {
+      context_attributes.push_back(EGL_CONTEXT_OPENGL_NO_ERROR_KHR);
+      context_attributes.push_back(EGL_TRUE);
+    }
+#if BUILDFLAG(IS_COBALT_HERMETIC_BUILD)
+  } else {
+    DVLOG(1) << "EGL_CONTEXT_OPENGL_NO_ERROR_KHR NOT supported.";
+  }
+#endif
 
   // EGL_KHR_create_context allows requesting both a major and minor context
   // version

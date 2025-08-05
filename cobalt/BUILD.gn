@@ -17,6 +17,13 @@ import("//cobalt/build/modular_executable.gni")
 import("//testing/test.gni")
 import("//ui/base/ui_features.gni")
 
+# This arg temporarily enables or disables the updater_sandbox target.
+# It's disabled on CI by default due to missing libcurl pkg. To enable it
+# locally, set it to true before building the target.
+declare_args() {
+  build_updater_sandbox = false
+}
+
 group("gn_all") {
   testonly = true
 
@@ -38,6 +45,9 @@ group("gn_all") {
       "//starboard/elf_loader:elf_loader_sys_sandbox($starboard_toolchain)",
       "//starboard/loader_app:loader_app($starboard_toolchain)",
     ]
+  }
+  if (is_starboard && build_updater_sandbox) {
+    deps += [ "//chrome/updater/cobalt:updater_sandbox" ]
   }
 }
 
@@ -78,8 +88,8 @@ if (!is_android) {
     }
 
     data_deps = [
+      "//cobalt/shell:pak",
       "//components/crash/core/app:chrome_crashpad_handler",
-      "//content/shell:pak",
       "//tools/v8_context_snapshot:v8_context_snapshot",
     ]
   }
@@ -116,10 +126,10 @@ source_set("common") {
     "//cobalt/renderer",
     "//cobalt/shell:content_shell_app",
     "//cobalt/shell:content_shell_lib",
+    "//cobalt/shell:pak",
     "//cobalt/utility",
     "//components/memory_system:memory_system",
     "//content/public/app",
-    "//content/shell:pak",
     "//gpu/command_buffer/service",
     "//media",
     "//sandbox/policy",
@@ -189,6 +199,7 @@ test("cobalt_unittests") {
     "//cobalt/browser/migrate_storage_record:unittest",
     "//cobalt/browser/user_agent",
     "//cobalt/common/eztime:eztime_test",
+    "//cobalt/common/libc:libc_test",
     "//components/metrics",
     "//components/prefs",
     "//components/prefs:test_support",
@@ -213,7 +224,7 @@ test("cobalt_unittests") {
     "//sandbox/policy:policy",
   ]
 
-  if (!is_android) {
+  if (use_ozone) {
     deps += [ "//ui/ozone:ozone_switches" ]
   }
 }

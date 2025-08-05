@@ -38,7 +38,13 @@ StarboardRendererWrapper::StarboardRendererWrapper(
           traits.overlay_plane_id,
           traits.audio_write_duration_local,
           traits.audio_write_duration_remote,
-          traits.max_video_capabilities) {
+          traits.max_video_capabilities,
+          traits.viewport_size
+#if BUILDFLAG(IS_ANDROID)
+          ,
+          std::move(traits.android_overlay_factory_cb)
+#endif  // BUILDFLAG(IS_ANDROID)
+      ) {
   DETACH_FROM_THREAD(thread_checker_);
   base::SequenceBound<StarboardGpuFactoryImpl> gpu_factory_impl(
       traits.gpu_task_runner,
@@ -60,10 +66,14 @@ void StarboardRendererWrapper::Initialize(MediaResource* media_resource,
           weak_factory_.GetWeakPtr()),
       base::BindRepeating(
           &StarboardRendererWrapper::OnUpdateStarboardRenderingModeByStarboard,
-          weak_factory_.GetWeakPtr()),
+          weak_factory_.GetWeakPtr())
+#if BUILDFLAG(IS_ANDROID)
+          ,
       base::BindRepeating(
           &StarboardRendererWrapper::OnRequestOverlayInfoByStarboard,
-          weak_factory_.GetWeakPtr()));
+          weak_factory_.GetWeakPtr())
+#endif  // BUILDFLAG(IS_ANDROID)
+  );
 
   base::ScopedClosureRunner scoped_init_cb(
       base::BindOnce(&StarboardRendererWrapper::ContinueInitialization,
@@ -148,11 +158,13 @@ void StarboardRendererWrapper::GetCurrentVideoFrame(
   std::move(callback).Run(nullptr);
 }
 
+#if BUILDFLAG(IS_ANDROID)
 void StarboardRendererWrapper::OnOverlayInfoChanged(
     const OverlayInfo& overlay_info) {
   DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
   GetRenderer()->OnOverlayInfoChanged(overlay_info);
 }
+#endif  // BUILDFLAG(IS_ANDROID)
 
 StarboardRenderer* StarboardRendererWrapper::GetRenderer() {
   if (test_renderer_) {
@@ -192,10 +204,12 @@ void StarboardRendererWrapper::OnUpdateStarboardRenderingModeByStarboard(
   client_extension_remote_->UpdateStarboardRenderingMode(mode);
 }
 
+#if BUILDFLAG(IS_ANDROID)
 void StarboardRendererWrapper::OnRequestOverlayInfoByStarboard(
     bool restart_for_transitions) {
   DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
   client_extension_remote_->RequestOverlayInfo(restart_for_transitions);
 }
+#endif  // BUILDFLAG(IS_ANDROID)
 
 }  // namespace media

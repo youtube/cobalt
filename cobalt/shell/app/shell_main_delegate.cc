@@ -106,7 +106,11 @@ void InitLogging(const base::CommandLine& command_line) {
 #else
     base::PathService::Get(base::DIR_EXE, &log_filename);
 #endif
+#if BUILDFLAG(IS_ANDROID)
+    log_filename = log_filename.AppendASCII("cobalt_shell.log");
+#else
     log_filename = log_filename.AppendASCII("content_shell.log");
+#endif
   }
 
   logging::LoggingSettings settings;
@@ -278,14 +282,14 @@ void ShellMainDelegate::InitializeResourceBundle() {
     pak_region = global_descriptors->GetRegion(kShellPakDescriptor);
   } else {
     pak_fd =
-        base::android::OpenApkAsset("assets/content_shell.pak", &pak_region);
+        base::android::OpenApkAsset("assets/cobalt_shell.pak", &pak_region);
     // Loaded from disk for browsertests.
     if (pak_fd < 0) {
       base::FilePath pak_file;
       bool r = base::PathService::Get(base::DIR_ANDROID_APP_DATA, &pak_file);
       DCHECK(r);
       pak_file = pak_file.Append(FILE_PATH_LITERAL("paks"));
-      pak_file = pak_file.Append(FILE_PATH_LITERAL("content_shell.pak"));
+      pak_file = pak_file.Append(FILE_PATH_LITERAL("cobalt_shell.pak"));
       int flags = base::File::FLAG_OPEN | base::File::FLAG_READ;
       pak_fd = base::File(pak_file, flags).TakePlatformFile();
       pak_region = base::MemoryMappedFile::Region::kWholeFile;
@@ -307,7 +311,7 @@ void ShellMainDelegate::InitializeResourceBundle() {
   base::FilePath pak_file;
   bool r = base::PathService::Get(base::DIR_ASSETS, &pak_file);
   DCHECK(r);
-  pak_file = pak_file.Append(FILE_PATH_LITERAL("content_shell.pak"));
+  pak_file = pak_file.Append(FILE_PATH_LITERAL("cobalt_shell.pak"));
   ui::ResourceBundle::InitSharedInstanceWithPakPath(pak_file);
 #endif
 }

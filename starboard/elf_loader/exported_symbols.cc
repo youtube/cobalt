@@ -28,6 +28,7 @@
 #include <ifaddrs.h>
 #include <malloc.h>
 #include <netdb.h>
+#include <poll.h>
 #include <sched.h>
 #include <signal.h>
 #include <stdlib.h>
@@ -56,6 +57,7 @@
 #include "starboard/shared/modular/starboard_layer_posix_eventfd_abi_wrappers.h"
 #include "starboard/shared/modular/starboard_layer_posix_mmap_abi_wrappers.h"
 #include "starboard/shared/modular/starboard_layer_posix_pipe2_abi_wrappers.h"
+#include "starboard/shared/modular/starboard_layer_posix_poll_abi_wrappers.h"
 #include "starboard/shared/modular/starboard_layer_posix_pthread_abi_wrappers.h"
 #include "starboard/shared/modular/starboard_layer_posix_semaphore_abi_wrappers.h"
 #include "starboard/shared/modular/starboard_layer_posix_signal_abi_wrappers.h"
@@ -230,6 +232,7 @@ ExportedSymbols::ExportedSymbols() {
   REGISTER_SYMBOL(aligned_alloc);
   REGISTER_SYMBOL(calloc);
   REGISTER_SYMBOL(close);
+  REGISTER_SYMBOL(fdatasync);
   REGISTER_SYMBOL(dup);
   REGISTER_SYMBOL(dup2);
   REGISTER_SYMBOL(epoll_create);
@@ -246,6 +249,7 @@ ExportedSymbols::ExportedSymbols() {
   REGISTER_SYMBOL(isatty);
   REGISTER_SYMBOL(kill);
   REGISTER_SYMBOL(listen);
+  REGISTER_SYMBOL(lstat);
   REGISTER_SYMBOL(madvise);
   REGISTER_SYMBOL(malloc);
   REGISTER_SYMBOL(malloc_usable_size);
@@ -271,10 +275,12 @@ ExportedSymbols::ExportedSymbols() {
   REGISTER_SYMBOL(recv);
   REGISTER_SYMBOL(recvfrom);
   REGISTER_SYMBOL(recvmsg);
+  REGISTER_SYMBOL(rename);
   REGISTER_SYMBOL(rmdir);
   REGISTER_SYMBOL(sched_get_priority_max);
   REGISTER_SYMBOL(sched_get_priority_min);
   REGISTER_SYMBOL(sched_yield);
+  REGISTER_SYMBOL(select);
   REGISTER_SYMBOL(send);
   REGISTER_SYMBOL(sendto);
   REGISTER_SYMBOL(signal);
@@ -301,6 +307,7 @@ ExportedSymbols::ExportedSymbols() {
   // TODO: b/316603042 - Detect via NPLB and only add the wrapper if needed.
 
   REGISTER_WRAPPER(accept);
+  REGISTER_WRAPPER(access);
   REGISTER_WRAPPER(bind);
   REGISTER_WRAPPER(clock_gettime);
   REGISTER_WRAPPER(closedir);
@@ -334,6 +341,7 @@ ExportedSymbols::ExportedSymbols() {
   REGISTER_WRAPPER(opendir);
   REGISTER_WRAPPER(pathconf);
   REGISTER_WRAPPER(pipe2);
+  REGISTER_WRAPPER(poll);
   REGISTER_WRAPPER(pthread_attr_init);
   REGISTER_WRAPPER(pthread_attr_destroy);
   REGISTER_WRAPPER(pthread_attr_getdetachstate);

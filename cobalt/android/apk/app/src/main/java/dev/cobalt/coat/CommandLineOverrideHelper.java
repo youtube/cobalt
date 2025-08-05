@@ -69,9 +69,12 @@ public final class CommandLineOverrideHelper {
         // causes rendering artifacts when
         // low-end-device-mode is enabled.
         paramOverrides.add("--disable-rgba-4444-textures");
-        // Limit the total amount of memory that may be allocated for GPU
-        // resources.
-        paramOverrides.add("--force-gpu-mem-available-mb=32");
+        // Disable Chrome's accelerated video encoding and decoding (Cobalt uses
+        // Starboard's stack).
+        paramOverrides.add("--disable-accelerated-video-decode");
+        paramOverrides.add("--disable-accelerated-video-encode");
+        // Rasterize Tiles directly to GPU memory.
+        paramOverrides.add("--enable-zero-copy");
 
         return paramOverrides;
     }
@@ -158,7 +161,7 @@ public final class CommandLineOverrideHelper {
                                 enableFeatureOverrides.add(v);
                             } else if (key.equals("--disable-features")) {
                                 disableFeatureOverrides.add(v);
-                            } else if (key.equals("--blink-enable-features")) {
+                            } else if (key.equals("--enable-blink-features")) {
                                 blinkEnableFeatureOverrides.add(v);
                             } else {
                                 cliOverrides.add(param);
@@ -182,7 +185,7 @@ public final class CommandLineOverrideHelper {
             new String[]{"--disable-features="
             + disableFeatureOverrides.toString() });
         CommandLine.getInstance().appendSwitchesAndArguments(
-            new String[]{"--blink-enable-features="
+            new String[]{"--enable-blink-features="
             + blinkEnableFeatureOverrides.toString() });
     }
 }

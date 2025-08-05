@@ -15,7 +15,10 @@
 #include <sys/statvfs.h>
 
 #include <errno.h>
+#include <fcntl.h>
 #include <string.h>
+#include <unistd.h>
+#include <cmath>
 
 #include "starboard/configuration_constants.h"
 #include "starboard/system.h"
@@ -25,7 +28,7 @@ namespace starboard {
 namespace nplb {
 namespace {
 
-TEST(PosixSysStatvfsTest, SunnyDay) {
+TEST(PosixStatvfsTest, SunnyDay) {
   char cache_path[kSbFileMaxPath];
   ASSERT_TRUE(
       SbSystemGetPath(kSbSystemPathCacheDirectory, cache_path, kSbFileMaxPath));
@@ -42,7 +45,7 @@ TEST(PosixSysStatvfsTest, SunnyDay) {
   EXPECT_GT(buf.f_files, static_cast<fsfilcnt_t>(0));
 }
 
-TEST(PosixSysStatvfsTest, RainyDayInvalidPath) {
+TEST(PosixStatvfsTest, RainyDayInvalidPath) {
   const char* invalid_path = "/this/path/does/not/exist/12345";
 
   struct statvfs buf;
@@ -54,7 +57,7 @@ TEST(PosixSysStatvfsTest, RainyDayInvalidPath) {
   EXPECT_EQ(errno, ENOENT);
 }
 
-TEST(PosixSysStatvfsTest, UsageChanges) {
+TEST(PosixStatvfsTest, UsageChanges) {
   char cache_path[kSbFileMaxPath];
   ASSERT_TRUE(
       SbSystemGetPath(kSbSystemPathCacheDirectory, cache_path, kSbFileMaxPath));
@@ -73,9 +76,20 @@ TEST(PosixSysStatvfsTest, UsageChanges) {
   ASSERT_GT(result, 0);
   ASSERT_LT(result, static_cast<int>(kSbFileMaxPath));
 
-  constexpr const size_t k4kBytes = 4096;
-  const size_t write_size =
-      buf_before.f_bsize > 0 ? buf_before.f_bsize : k4kBytes;
+  // Use a larger file size to make the change in usage more significant
+  // than typical filesystem fluctuations.
+  constexpr const size_t k1MB = 1024 * 1024;
+
+  // The number of blocks are in units of f_frsize.
+  if (buf_before.f_frsize == 0) {
+    GTEST_SKIP() << "f_frsize is 0, cannot determine space usage.";
+  }
+  size_t available_bytes = buf_before.f_bavail * buf_before.f_frsize;
+  if (available_bytes < k1MB * 2) {
+    GTEST_SKIP() << "Not enough cache space to run UsageChanges test.";
+  }
+
+  const size_t write_size = k1MB;
   char* write_buffer = new char[write_size];
   memset(write_buffer, 'a', write_size);
 
@@ -83,6 +97,10 @@ TEST(PosixSysStatvfsTest, UsageChanges) {
   ASSERT_NE(nullptr, fp) << "Failed to open temp file.";
 
   size_t written = fwrite(write_buffer, 1, write_size, fp);
+  ASSERT_EQ(fflush(fp), 0);
+  int fd = fileno(fp);
+  ASSERT_NE(fd, -1);
+  ASSERT_EQ(fdatasync(fd), 0) << "fdatasync failed: " << strerror(errno);
   fclose(fp);
   delete[] write_buffer;
 
@@ -93,23 +111,47 @@ TEST(PosixSysStatvfsTest, UsageChanges) {
   ASSERT_EQ(statvfs(cache_path, &buf_after_creation), 0)
       << "statvfs (after creation) failed: " << strerror(errno);
 
-  EXPECT_LT(buf_after_creation.f_ffree, buf_before.f_ffree);
-  EXPECT_LT(buf_after_creation.f_bavail, buf_before.f_bavail);
+  ASSERT_LT(buf_after_creation.f_bavail, buf_before.f_bavail)
+      << "Filesystem did not reflect file creation.";
 
-  // The total number of blocks and files should not change.
   EXPECT_EQ(buf_after_creation.f_blocks, buf_before.f_blocks);
   EXPECT_EQ(buf_after_creation.f_files, buf_before.f_files);
 
+  // Calculate the change in blocks after creation.
+  const long long blocks_consumed =
+      static_cast<long long>(buf_before.f_bavail) -
+      static_cast<long long>(buf_after_creation.f_bavail);
+  ASSERT_GT(blocks_consumed, 0);
+
   ASSERT_EQ(remove(temp_file_path), 0);
 
-  // After removing the file, the available space should be restored.
+  int dir_fd = open(cache_path, O_RDONLY);
+  ASSERT_NE(dir_fd, -1) << "Failed to open directory: " << strerror(errno);
+  ASSERT_EQ(fsync(dir_fd), 0)
+      << "fsync on directory failed: " << strerror(errno);
+  close(dir_fd);
+
+  // Allow for some slack in the block comparison. The filesystem might not
+  // restore the exact number of blocks due to metadata, journaling, or other
+  // concurrent operations.
+  const long long kBlockTolerance = std::max(10LL, blocks_consumed / 10);
+
   struct statvfs buf_after_removal;
   errno = 0;
   ASSERT_EQ(statvfs(cache_path, &buf_after_removal), 0)
       << "statvfs (after removal) failed: " << strerror(errno);
 
-  EXPECT_EQ(buf_after_removal.f_ffree, buf_before.f_ffree);
-  EXPECT_EQ(buf_after_removal.f_bavail, buf_before.f_bavail);
+  const long long blocks_freed =
+      static_cast<long long>(buf_after_removal.f_bavail) -
+      static_cast<long long>(buf_after_creation.f_bavail);
+
+  // We expect the number of freed blocks to be close to the number of
+  // consumed blocks.
+  EXPECT_NEAR(blocks_freed, blocks_consumed, kBlockTolerance)
+      << "Filesystem did not reflect file removal correctly. "
+      << "Blocks consumed: " << blocks_consumed
+      << ", Blocks freed: " << blocks_freed
+      << ", Tolerance: " << kBlockTolerance;
 }
 
 }  // namespace

@@ -56,7 +56,16 @@ pipeline () {
   if [[ "${TARGET_PLATFORM}" =~ "android" ]]; then
     echo "target_os=['android']" >> .gclient
   fi
-  gclient sync -v --shallow --no-history -r "${KOKORO_GIT_COMMIT_src}"
+  # -D, --delete_unversioned_trees
+  # -f, --force force update even for unchanged modules
+  # -R, --reset resets any local changes before updating (git only)
+  gclient sync -v \
+    --shallow \
+    --no-history \
+    -D \
+    -f \
+    -R \
+    -r "${KOKORO_GIT_COMMIT_src}"
   build_telemetry opt-out
 
   # Run GN and Ninja.
@@ -65,6 +74,14 @@ pipeline () {
   cobalt/build/gn.py -p "${TARGET_PLATFORM}" -C "${CONFIG}" \
     --script-executable=/usr/bin/python3
   autoninja -C "out/${TARGET_PLATFORM}_${CONFIG}" ${TARGET}  # TARGET may expand to multiple args
+
+  if [[ "${TARGET_PLATFORM}" =~ "linux-x64x11" ]]; then
+    # Build the linux-x64x11-no-starboard configuration for chromedriver.
+    LINUX_NO_SB_PLATFORM="linux-x64x11-no-starboard"
+    cobalt/build/gn.py -p "${LINUX_NO_SB_PLATFORM}" -C "${CONFIG}" \
+      --script-executable=/usr/bin/python3
+    autoninja -C "out/${LINUX_NO_SB_PLATFORM}_${CONFIG}" "chromedriver"
+  fi
 
   # Build bootloader config if set.
   if [ -n "${BOOTLOADER:-}" ]; then

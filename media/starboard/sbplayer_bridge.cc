@@ -93,54 +93,66 @@ SbPlayerBridge::CallbackHelper::CallbackHelper(SbPlayerBridge* player_bridge)
     : player_bridge_(player_bridge) {}
 
 void SbPlayerBridge::CallbackHelper::ClearDecoderBufferCache() {
-  base::AutoLock auto_lock(lock_);
-  if (player_bridge_) {
-    player_bridge_->ClearDecoderBufferCache();
+  if (!player_bridge_) {
+    return;
   }
+  CHECK(player_bridge_->task_runner_->RunsTasksInCurrentSequence());
+
+  player_bridge_->ClearDecoderBufferCache();
 }
 
 void SbPlayerBridge::CallbackHelper::OnDecoderStatus(void* player,
                                                      SbMediaType type,
                                                      SbPlayerDecoderState state,
                                                      int ticket) {
-  base::AutoLock auto_lock(lock_);
-  if (player_bridge_) {
-    player_bridge_->OnDecoderStatus(static_cast<SbPlayer>(player), type, state,
-                                    ticket);
+  if (!player_bridge_) {
+    return;
   }
+  CHECK(player_bridge_->task_runner_->RunsTasksInCurrentSequence());
+
+  player_bridge_->OnDecoderStatus(static_cast<SbPlayer>(player), type, state,
+                                  ticket);
 }
 
 void SbPlayerBridge::CallbackHelper::OnPlayerStatus(void* player,
                                                     SbPlayerState state,
                                                     int ticket) {
-  base::AutoLock auto_lock(lock_);
-  if (player_bridge_) {
-    player_bridge_->OnPlayerStatus(static_cast<SbPlayer>(player), state,
-                                   ticket);
+  if (!player_bridge_) {
+    return;
   }
+  CHECK(player_bridge_->task_runner_->RunsTasksInCurrentSequence());
+
+  player_bridge_->OnPlayerStatus(static_cast<SbPlayer>(player), state, ticket);
 }
 
 void SbPlayerBridge::CallbackHelper::OnPlayerError(void* player,
                                                    SbPlayerError error,
                                                    const std::string& message) {
-  base::AutoLock auto_lock(lock_);
-  if (player_bridge_) {
-    player_bridge_->OnPlayerError(static_cast<SbPlayer>(player), error,
-                                  message);
+  if (!player_bridge_) {
+    return;
   }
+  CHECK(player_bridge_->task_runner_->RunsTasksInCurrentSequence());
+
+  player_bridge_->OnPlayerError(static_cast<SbPlayer>(player), error, message);
 }
 
 void SbPlayerBridge::CallbackHelper::OnDeallocateSample(
     const void* sample_buffer) {
-  base::AutoLock auto_lock(lock_);
-  if (player_bridge_) {
-    player_bridge_->OnDeallocateSample(sample_buffer);
+  if (!player_bridge_) {
+    return;
   }
+  CHECK(player_bridge_->task_runner_->RunsTasksInCurrentSequence());
+
+  player_bridge_->OnDeallocateSample(sample_buffer);
 }
 
 void SbPlayerBridge::CallbackHelper::ResetPlayer() {
-  base::AutoLock auto_lock(lock_);
-  player_bridge_ = NULL;
+  if (!player_bridge_) {
+    return;
+  }
+  CHECK(player_bridge_->task_runner_->RunsTasksInCurrentSequence());
+
+  player_bridge_ = nullptr;
 }
 
 #if SB_HAS(PLAYER_WITH_URL)
@@ -369,7 +381,7 @@ void SbPlayerBridge::WriteBuffers(
 }
 
 void SbPlayerBridge::SetBounds(int z_index, const gfx::Rect& rect) {
-  base::AutoLock auto_lock(lock_);
+  DCHECK(task_runner_->RunsTasksInCurrentSequence());
 
   set_bounds_z_index_ = z_index;
   set_bounds_rect_ = rect;
@@ -378,7 +390,7 @@ void SbPlayerBridge::SetBounds(int z_index, const gfx::Rect& rect) {
     return;
   }
 
-  UpdateBounds_Locked();
+  UpdateBounds();
 }
 
 void SbPlayerBridge::PrepareForSeek() {
@@ -453,19 +465,9 @@ void SbPlayerBridge::SetPlaybackRate(double playback_rate) {
   sbplayer_interface_->SetPlaybackRate(player_, playback_rate);
 }
 
-void SbPlayerBridge::GetInfo(PlayerInfo* out_info) {
-  DCHECK(out_info);
-  DCHECK(out_info->video_frames_decoded || out_info->video_frames_dropped ||
-         out_info->media_time);
-
-  base::AutoLock auto_lock(lock_);
-  GetInfo_Locked(out_info);
-}
-
 std::vector<SbMediaAudioConfiguration>
 SbPlayerBridge::GetAudioConfigurations() {
-  base::AutoLock auto_lock(lock_);
-
+  DCHECK(task_runner_->RunsTasksInCurrentSequence());
   if (!SbPlayerIsValid(player_)) {
     return std::vector<SbMediaAudioConfiguration>();
   }
@@ -596,10 +598,9 @@ void SbPlayerBridge::Suspend() {
 
   set_bounds_helper_->SetPlayerBridge(NULL);
 
-  base::AutoLock auto_lock(lock_);
   PlayerInfo info{&cached_video_frames_decoded_, &cached_video_frames_dropped_,
                   nullptr, nullptr, &preroll_timestamp_};
-  GetInfo_Locked(&info);
+  GetInfo(&info);
 
   state_ = kSuspended;
 
@@ -649,9 +650,8 @@ void SbPlayerBridge::Resume(SbWindow window) {
 #endif  // SB_HAS(PLAYER_WITH_URL)
 
   if (SbPlayerIsValid(player_)) {
-    base::AutoLock auto_lock(lock_);
     state_ = kResuming;
-    UpdateBounds_Locked();
+    UpdateBounds();
   }
 }
 
@@ -729,8 +729,7 @@ void SbPlayerBridge::CreateUrlPlayer(const std::string& url) {
 
   set_bounds_helper_->SetPlayerBridge(this);
 
-  base::AutoLock auto_lock(lock_);
-  UpdateBounds_Locked();
+  UpdateBounds();
 }
 #endif  // SB_HAS(PLAYER_WITH_URL)
 
@@ -830,8 +829,7 @@ void SbPlayerBridge::CreatePlayer() {
 #endif  // COBALT_MEDIA_ENABLE_DECODE_TARGET_PROVIDER
   set_bounds_helper_->SetPlayerBridge(this);
 
-  base::AutoLock auto_lock(lock_);
-  UpdateBounds_Locked();
+  UpdateBounds();
 }
 
 #if COBALT_MEDIA_ENABLE_SUSPEND_RESUME
@@ -1006,9 +1004,12 @@ SbPlayerOutputMode SbPlayerBridge::GetSbPlayerOutputMode() {
   return output_mode_;
 }
 
-void SbPlayerBridge::GetInfo_Locked(PlayerInfo* out_info) {
+void SbPlayerBridge::GetInfo(PlayerInfo* out_info) {
+  DCHECK(task_runner_->RunsTasksInCurrentSequence());
   DCHECK(out_info);
-  lock_.AssertAcquired();
+  DCHECK(out_info->video_frames_decoded || out_info->video_frames_dropped ||
+         out_info->media_time);
+
   if (state_ == kSuspended) {
     if (out_info->video_frames_decoded) {
       *out_info->video_frames_decoded = cached_video_frames_decoded_;
@@ -1044,8 +1045,8 @@ void SbPlayerBridge::GetInfo_Locked(PlayerInfo* out_info) {
   }
 }
 
-void SbPlayerBridge::UpdateBounds_Locked() {
-  lock_.AssertAcquired();
+void SbPlayerBridge::UpdateBounds() {
+  DCHECK(task_runner_->RunsTasksInCurrentSequence());
   DCHECK(SbPlayerIsValid(player_));
 
   if (!set_bounds_z_index_ || !set_bounds_rect_) {
@@ -1193,13 +1194,10 @@ void SbPlayerBridge::OnDeallocateSample(const void* sample_buffer) {
   }
 
   DecodingBuffer& decoding_buffer = iter->second;
-  {
-    base::AutoLock auto_lock(lock_);
-    if (decoding_buffer.type == kSbMediaTypeAudio) {
-      cached_audio_bytes_decoded_ += decoding_buffer.buffer->data_size();
-    } else {
-      cached_video_bytes_decoded_ += decoding_buffer.buffer->data_size();
-    }
+  if (decoding_buffer.type == kSbMediaTypeAudio) {
+    cached_audio_bytes_decoded_ += decoding_buffer.buffer->data_size();
+  } else {
+    cached_video_bytes_decoded_ += decoding_buffer.buffer->data_size();
   }
   --decoding_buffer.usage_count;
   DCHECK_GE(decoding_buffer.usage_count, 0);
