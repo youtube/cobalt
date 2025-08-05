@@ -155,7 +155,7 @@ public final class CommandLineOverrideHelper {
                                 enableFeatureOverrides.add(v);
                             } else if (key.equals("--disable-features")) {
                                 disableFeatureOverrides.add(v);
-                            } else if (key.equals("--blink-enable-features")) {
+                            } else if (key.equals("--enable-blink-features")) {
                                 blinkEnableFeatureOverrides.add(v);
                             } else {
                                 cliOverrides.add(param);
@@ -179,7 +179,7 @@ public final class CommandLineOverrideHelper {
             new String[]{"--disable-features="
             + disableFeatureOverrides.toString() });
         CommandLine.getInstance().appendSwitchesAndArguments(
-            new String[]{"--blink-enable-features="
+            new String[]{"--enable-blink-features="
             + blinkEnableFeatureOverrides.toString() });
     }
 }

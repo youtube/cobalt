@@ -93,7 +93,7 @@ public class CommandLineOverrideHelperTest {
         expected = CommandLineOverrideHelper.getDefaultDisableFeatureOverridesList().toString();
         Assert.assertEquals(expected, actual);
 
-        actual = CommandLine.getInstance().getSwitchValue("blink-enable-features");
+        actual = CommandLine.getInstance().getSwitchValue("enable-blink-features");
         expected =
             CommandLineOverrideHelper.getDefaultBlinkEnableFeatureOverridesList().toString();
         Assert.assertEquals(expected, actual);
