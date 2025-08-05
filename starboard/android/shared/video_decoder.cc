@@ -1120,11 +1120,9 @@ void VideoDecoder::UpdateDecodeTargetSizeAndContentRegion_Locked() {
       // Crash in non-gold mode, and fallback to the old logic in gold mode to
       // avoid terminating the app in production.
       SB_LOG_IF(WARNING, frame_sizes_.size() <= 1)
-          << frame_size.texture_size << " - (" << content_region.left << ", "
+          << frame_size << " - (" << content_region.left << ", "
           << content_region.top << ", " << content_region.right << ", "
-          << content_region.bottom << "), (" << frame_size.crop_left << "), ("
-          << frame_size.crop_top << "), (" << frame_size.crop_right << "), ("
-          << frame_size.crop_bottom << ")";
+          << content_region.bottom << ")";
 #endif  // !defined(COBALT_BUILD_TYPE_GOLD)
     } else {
       SB_LOG(WARNING) << "Crop values not set.";
