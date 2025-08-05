@@ -99,12 +99,12 @@ TEST(UserAgentStringTest, DISABLED_WithCobaltVersionAndConfiguration) {
 #define DIGIT "0123456789"
 #define DIGITREVERSED "9876543210"
 #define ALPHADIGIT ALPHA DIGIT
-#define TCHAR ALPHADIGIT "!#$%&'*+-.^_`|~"
+#define TCHAR ALPHADIGIT "!#$%&\'*+-.^_`|~"
 #define TCHARORSLASH TCHAR "/"
-#define VCHAR_EXCEPTALPHADIGIT "!\"#$%&'()*+,-./:;<=>?@[\\]^_`{|}~"
-#define VCHAR_EXCEPTPARENTHESES "!\"#$%&'()*+,-./:;<=>?@[\\]^_`{|}~" ALPHADIGIT
+#define VCHAR_EXCEPTALPHADIGIT "!\"#$%&\'()*+,-./:;<=>?@[\\]^_`{|}~"
+#define VCHAR_EXCEPTPARENTHESES "!\"#$%&\'*+,-./:;<=>?@[\\]^_`{|}~" ALPHADIGIT
 #define VCHAR_EXCEPTPARENTHESESANDCOMMA \
-  "!\"#$%&'()*+-./:;<=>?@[\\]^_`{|}~" ALPHADIGIT
+  "!\"#$%&\'*+-./:;<=>?@[\\]^_`{|}~" ALPHADIGIT
 #define VCHAR VCHAR_EXCEPTALPHADIGIT ALPHADIGIT
 #define VCHARORSPACE " " VCHAR
 #define VCHARORSPACE_EXCEPTPARENTHESES " " VCHAR_EXCEPTPARENTHESES
@@ -128,7 +128,7 @@ TEST(UserAgentStringTest, DISABLED_WithCobaltVersionAndConfiguration) {
 #define NOT_DIGIT CONTROL VCHAR_EXCEPTALPHADIGIT ALPHA DEL HIGH_ASCII
 #define NOT_ALPHADIGIT CONTROL VCHAR_EXCEPTALPHADIGIT DEL HIGH_ASCII
 #define NOT_TCHAR CONTROL "\"(),/:;<=>?@[\\]{}" DEL HIGH_ASCII
-#define NOT_TCHARORSLASH CONTROL "\"(),/:;<=>?@[\\]{}" DEL HIGH_ASCII
+#define NOT_TCHARORSLASH CONTROL "\"(),:;<=>?@[\\]{}" DEL HIGH_ASCII
 
 #define NOT_VCHARORSPACE CONTROL DEL HIGH_ASCII
 
