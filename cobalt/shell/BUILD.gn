@@ -27,7 +27,7 @@ shell_use_toolkit_views = toolkit_views && !is_castos
 support_web_tests = !is_android && !is_starboard
 
 # TODO(b/384748332): Changes below are for removing dependency on content shell
-config("content_shell_lib_warnings") {
+config("cobalt_shell_lib_warnings") {
   if (is_clang) {
     # TODO(thakis): Remove this once http://crbug.com/383820 is figured out
     cflags = [ "-Wno-nonnull" ]
@@ -44,7 +44,7 @@ source_set("android_shell_descriptors") {
 }
 
 # TODO(b/384748332): Remove dependency on content shell
-group("content_shell_lib_deps") {
+group("cobalt_shell_lib_deps") {
   visibility = [
     "//cobalt/shell:*",
     "//cobalt/testing:*",
@@ -53,7 +53,7 @@ group("content_shell_lib_deps") {
   public_deps = [
     ":android_shell_descriptors",
 
-    # content_shell_lib also exposes all public content APIs.
+    # cobalt_shell_lib also exposes all public content APIs.
     ":content_browsertests_mojom",
     ":resources",
     ":shell_controller_mojom",
@@ -187,9 +187,9 @@ group("content_shell_lib_deps") {
 }
 
 # TODO(b/422171398): Refactor source set to not depend on content shell
-static_library("content_shell_lib") {
+static_library("cobalt_shell_lib") {
   testonly = true
-  public_deps = [ ":content_shell_lib_deps" ]
+  public_deps = [ ":cobalt_shell_lib_deps" ]
   sources = [
     "browser/shell.cc",
     "browser/shell.h",
@@ -262,7 +262,7 @@ static_library("content_shell_lib") {
   }
 
   configs += [
-    ":content_shell_lib_warnings",
+    ":cobalt_shell_lib_warnings",
     "//build/config:precompiled_headers",
   ]
 
@@ -272,9 +272,9 @@ static_library("content_shell_lib") {
   ]
 
   if (shell_use_toolkit_views) {
-    # All content_shell code should use this define instead of TOOLKIT_VIEWS,
+    # All cobalt_shell code should use this define instead of TOOLKIT_VIEWS,
     # since any transitive dependency on //ui/views from another component will
-    # cause TOOLKIT_VIEWS to be defined, even when content_shell does not want
+    # cause TOOLKIT_VIEWS to be defined, even when cobalt_shell does not want
     # to use it internally. See https://crbug.com/1218907.
     defines += [ "SHELL_USE_TOOLKIT_VIEWS=1" ]
   }
@@ -316,9 +316,9 @@ static_library("content_shell_lib") {
 # application that wants to use ShellMainDelegate.
 #
 # TODO(danakj): This component will depend on {renderer,browser}/web_test. The
-# content_shell_lib component will not, to avoid circular deps, as web_test
-# inherits from things in content_shell_lib.
-static_library("content_shell_app") {
+# cobalt_shell_lib component will not, to avoid circular deps, as web_test
+# inherits from things in cobalt_shell_lib.
+static_library("cobalt_shell_app") {
   testonly = true
   sources = [
     "app/shell_crash_reporter_client.cc",
@@ -326,7 +326,7 @@ static_library("content_shell_app") {
     "app/shell_main_delegate.cc",
     "app/shell_main_delegate.h",
   ]
-  public_deps = [ ":content_shell_app_deps" ]
+  public_deps = [ ":cobalt_shell_app_deps" ]
   if (is_ios) {
     sources += [
       "app/ios/shell_application_ios.h",
@@ -339,14 +339,14 @@ static_library("content_shell_app") {
   ]
 }
 
-group("content_shell_app_deps") {
+group("cobalt_shell_app_deps") {
   visibility = [
     "//cobalt/shell:*",
     "//cobalt/testing:*",
   ]
   testonly = true
   public_deps = [
-    ":content_shell_lib",
+    ":cobalt_shell_lib",
     "//components/crash/core/app",
     "//components/crash/core/app:test_support",
     "//components/crash/core/common:crash_key",
@@ -432,7 +432,7 @@ repack("pak") {
   output = "$root_out_dir/cobalt_shell.pak"
 }
 
-grit("content_shell_resources_grit") {
+grit("cobalt_shell_resources_grit") {
   testonly = true
 
   # External code should depend on ":resources" instead.
@@ -450,7 +450,7 @@ copy("copy_shell_resources") {
   sources = [ "$target_gen_dir/cobalt_shell_resources.pak" ]
   outputs = [ "$root_out_dir/cobalt_shell_resources.pak" ]
 
-  public_deps = [ ":content_shell_resources_grit" ]
+  public_deps = [ ":cobalt_shell_resources_grit" ]
 }
 
 group("resources") {
