@@ -20,6 +20,7 @@
 #include "media/base/media_export.h"
 #include "media/base/timestamp_constants.h"
 #include "media/starboard/bind_host_receiver_callback.h"
+#include "ui/gfx/geometry/size.h"
 
 namespace media {
 
@@ -32,6 +33,7 @@ struct MEDIA_EXPORT RendererFactoryTraits {
   base::TimeDelta audio_write_duration_local = kNoTimestamp;
   base::TimeDelta audio_write_duration_remote = kNoTimestamp;
   std::string max_video_capabilities;
+  gfx::Size viewport_size;
   BindHostReceiverCallback bind_host_receiver_callback = base::NullCallback();
 };
 

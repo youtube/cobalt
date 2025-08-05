@@ -32,6 +32,7 @@
 #include "starboard/common/log.h"
 #include "starboard/common/media.h"
 #include "starboard/common/player.h"
+#include "starboard/common/size.h"
 #include "starboard/common/string.h"
 #include "starboard/configuration.h"
 #include "starboard/decode_target.h"
@@ -949,9 +950,9 @@ void VideoDecoder::RefreshOutputFormat(MediaCodecBridge* media_codec_bridge) {
     output_format_ = std::nullopt;
     return;
   }
-  output_format_ = VideoOutputFormat(
-      video_codec_, frame_sizes_.back().display_width(),
-      frame_sizes_.back().display_height(), (color_metadata_ ? true : false));
+  output_format_ =
+      VideoOutputFormat(video_codec_, frame_sizes_.back().display_size(),
+                        color_metadata_.has_value());
   first_output_format_changed_ = true;
   auto max_output_buffers =
       MaxMediaCodecOutputBuffersLookupTable::GetInstance()
@@ -1000,8 +1001,7 @@ void getTransformMatrix(jobject surface_texture, float* matrix4x4) {
 // the pixel data is valid.  Note that the width and height of this region may
 // be negative to indicate that that axis should be flipped.
 SbDecodeTargetInfoContentRegion GetDecodeTargetContentRegionFromMatrix(
-    int width,
-    int height,
+    const Size& size,
     const float* matrix4x4) {
   // Ensure that this matrix contains no rotations or shears.  In other words,
   // make sure that we can convert it to a decode target content region without
@@ -1043,13 +1043,13 @@ SbDecodeTargetInfoContentRegion GetDecodeTargetContentRegionFromMatrix(
 
   SbDecodeTargetInfoContentRegion content_region;
 
-  content_region.left = origin_x * width;
-  content_region.right = extent_x * width;
+  content_region.left = origin_x * size.width;
+  content_region.right = extent_x * size.width;
 
   // Note that in GL coordinates, the origin is the bottom and the extent
   // is the top.
-  content_region.top = extent_y * height;
-  content_region.bottom = origin_y * height;
+  content_region.top = extent_y * size.height;
+  content_region.bottom = origin_y * size.height;
 
   return content_region;
 }
@@ -1087,14 +1087,13 @@ void VideoDecoder::UpdateDecodeTargetSizeAndContentRegion_Locked() {
   while (!frame_sizes_.empty()) {
     const auto& frame_size = frame_sizes_.front();
     if (frame_size.has_crop_values()) {
-      decode_target_->set_dimension(frame_size.texture_width,
-                                    frame_size.texture_height);
+      decode_target_->set_dimension(frame_size.texture_size);
 
       float matrix4x4[16];
       getTransformMatrix(decode_target_->surface_texture(), matrix4x4);
 
       auto content_region = GetDecodeTargetContentRegionFromMatrix(
-          frame_size.texture_width, frame_size.texture_height, matrix4x4);
+          frame_size.texture_size, matrix4x4);
       decode_target_->set_content_region(content_region);
 
       // Now we have two crop rectangles, one from the MediaFormat, one from the
@@ -1107,9 +1106,10 @@ void VideoDecoder::UpdateDecodeTargetSizeAndContentRegion_Locked() {
           std::abs(content_region.bottom - content_region.top) + 1;
       // Using 2 as epsilon, as the texture may get clipped by one pixel from
       // each side.
+      const auto display_size = frame_size.display_size();
       bool are_crop_values_matching =
-          std::abs(content_region_width - frame_size.display_width()) <= 2 &&
-          std::abs(content_region_height - frame_size.display_height()) <= 2;
+          std::abs(content_region_width - display_size.width) <= 2 &&
+          std::abs(content_region_height - display_size.height) <= 2;
       if (are_crop_values_matching) {
         return;
       }
@@ -1120,11 +1120,9 @@ void VideoDecoder::UpdateDecodeTargetSizeAndContentRegion_Locked() {
       // Crash in non-gold mode, and fallback to the old logic in gold mode to
       // avoid terminating the app in production.
       SB_LOG_IF(WARNING, frame_sizes_.size() <= 1)
-          << frame_size.texture_width << "x" << frame_size.texture_height
-          << " - (" << content_region.left << ", " << content_region.top << ", "
-          << content_region.right << ", " << content_region.bottom << "), ("
-          << frame_size.crop_left << "), (" << frame_size.crop_top << "), ("
-          << frame_size.crop_right << "), (" << frame_size.crop_bottom << ")";
+          << frame_size << " - (" << content_region.left << ", "
+          << content_region.top << ", " << content_region.right << ", "
+          << content_region.bottom << ")";
 #endif  // !defined(COBALT_BUILD_TYPE_GOLD)
     } else {
       SB_LOG(WARNING) << "Crop values not set.";
@@ -1151,15 +1149,13 @@ void VideoDecoder::UpdateDecodeTargetSizeAndContentRegion_Locked() {
   // the video texture, which is true for most of the playbacks.
   // Leaving the legacy logic in place in case the new logic above doesn't work
   // on some devices, so at least the majority of playbacks still work.
-  decode_target_->set_dimension(frame_sizes_.back().display_width(),
-                                frame_sizes_.back().display_height());
+  decode_target_->set_dimension(frame_sizes_.back().display_size());
 
   float matrix4x4[16];
   getTransformMatrix(decode_target_->surface_texture(), matrix4x4);
 
   decode_target_->set_content_region(GetDecodeTargetContentRegionFromMatrix(
-      frame_sizes_.back().display_width(), frame_sizes_.back().display_height(),
-      matrix4x4));
+      frame_sizes_.back().display_size(), matrix4x4));
 }
 
 void VideoDecoder::SetPlaybackRate(double playback_rate) {

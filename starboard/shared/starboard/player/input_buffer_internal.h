@@ -15,6 +15,7 @@
 #ifndef STARBOARD_SHARED_STARBOARD_PLAYER_INPUT_BUFFER_INTERNAL_H_
 #define STARBOARD_SHARED_STARBOARD_PLAYER_INPUT_BUFFER_INTERNAL_H_
 
+#include <iosfwd>
 #include <string>
 #include <vector>
 
@@ -66,7 +67,7 @@ class InputBuffer : public RefCountedThreadSafe<InputBuffer> {
   }
   void SetDecryptedContent(std::vector<uint8_t> decrypted_content);
 
-  std::string ToString() const;
+  friend std::ostream& operator<<(std::ostream& os, const InputBuffer& buffer);
 
  private:
   void TryToAssignDrmSampleInfo(const SbDrmSampleInfo* sample_drm_info);

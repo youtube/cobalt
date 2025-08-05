@@ -50,7 +50,7 @@ adb shell am start --esa commandLineArgs 'disable-features=OldFeature;AnotherOld
 Here is a more complex example that combines multiple flags and values:
 
 ```bash
-adb shell am start --esa commandLineArgs 'enable-features=A;B;C,disable-features=D;E;F,js-flags=--flag1;--flag2,blink-enable-features=L;M;N' dev.cobalt.coat/dev.cobalt.app.MainActivity
+adb shell am start --esa commandLineArgs 'enable-features=A;B;C,disable-features=D;E;F,js-flags=--flag1;--flag2,enable-blink-features=L;M;N' dev.cobalt.coat/dev.cobalt.app.MainActivity
 ```
 
 **5. Enabling Features with Values**

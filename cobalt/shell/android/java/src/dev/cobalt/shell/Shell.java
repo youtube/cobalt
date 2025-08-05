@@ -23,11 +23,11 @@ import android.view.Menu;
 import android.view.MenuItem;
 import android.view.View;
 import android.view.ViewGroup;
+import android.widget.FrameLayout;
 import org.chromium.base.Callback;
 import org.chromium.base.annotations.CalledByNative;
 import org.chromium.base.annotations.JNINamespace;
 import org.chromium.base.annotations.NativeMethods;
-import org.chromium.components.embedder_support.view.ContentViewRenderView;
 import org.chromium.content_public.browser.ActionModeCallbackHelper;
 import org.chromium.content_public.browser.LoadUrlParams;
 import org.chromium.content_public.browser.NavigationController;
@@ -75,10 +75,24 @@ public class Shell {
         mRootView = activity.findViewById(android.R.id.content);
     }
 
+    public void setRootViewForTesting(ViewGroup view) {
+        mRootView = view;
+    }
+
     /**
      * Set the SurfaceView being rendered to as soon as it is available.
      */
     public void setContentViewRenderView(ContentViewRenderView contentViewRenderView) {
+        if (contentViewRenderView == null) {
+            if (mContentViewRenderView != null) {
+                mRootView.removeView(mContentViewRenderView);
+            }
+        } else {
+            mRootView.addView(contentViewRenderView,
+                    new FrameLayout.LayoutParams(
+                            FrameLayout.LayoutParams.MATCH_PARENT,
+                            FrameLayout.LayoutParams.MATCH_PARENT));
+        }
         mContentViewRenderView = contentViewRenderView;
     }
 
