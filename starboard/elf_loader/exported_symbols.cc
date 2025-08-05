@@ -232,6 +232,7 @@ ExportedSymbols::ExportedSymbols() {
   REGISTER_SYMBOL(aligned_alloc);
   REGISTER_SYMBOL(calloc);
   REGISTER_SYMBOL(close);
+  REGISTER_SYMBOL(fdatasync);
   REGISTER_SYMBOL(dup);
   REGISTER_SYMBOL(dup2);
   REGISTER_SYMBOL(epoll_create);
@@ -248,6 +249,7 @@ ExportedSymbols::ExportedSymbols() {
   REGISTER_SYMBOL(isatty);
   REGISTER_SYMBOL(kill);
   REGISTER_SYMBOL(listen);
+  REGISTER_SYMBOL(lstat);
   REGISTER_SYMBOL(madvise);
   REGISTER_SYMBOL(malloc);
   REGISTER_SYMBOL(malloc_usable_size);
@@ -273,6 +275,7 @@ ExportedSymbols::ExportedSymbols() {
   REGISTER_SYMBOL(recv);
   REGISTER_SYMBOL(recvfrom);
   REGISTER_SYMBOL(recvmsg);
+  REGISTER_SYMBOL(rename);
   REGISTER_SYMBOL(rmdir);
   REGISTER_SYMBOL(sched_get_priority_max);
   REGISTER_SYMBOL(sched_get_priority_min);
@@ -304,6 +307,7 @@ ExportedSymbols::ExportedSymbols() {
   // TODO: b/316603042 - Detect via NPLB and only add the wrapper if needed.
 
   REGISTER_WRAPPER(accept);
+  REGISTER_WRAPPER(access);
   REGISTER_WRAPPER(bind);
   REGISTER_WRAPPER(clock_gettime);
   REGISTER_WRAPPER(closedir);

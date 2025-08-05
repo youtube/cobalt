@@ -15,6 +15,7 @@
 #ifndef STARBOARD_NPLB_FILE_HELPERS_H_
 #define STARBOARD_NPLB_FILE_HELPERS_H_
 
+#include <fcntl.h>
 #include <unistd.h>
 
 #include <string>
@@ -22,6 +23,9 @@
 
 namespace starboard {
 namespace nplb {
+
+constexpr mode_t kUserRwx = S_IRUSR | S_IWUSR | S_IXUSR;
+constexpr mode_t kUserRw = S_IRUSR | S_IWUSR;
 
 // Gets the temporary directory in which ScopedRandomFile places its files.
 std::string GetTempDir();
@@ -37,6 +41,9 @@ std::vector<std::string> GetFileTestsDirectoryPaths();
 
 // Gets the expected content in a static data test file.
 std::string GetTestFileExpectedContent(const std::string& path);
+
+// Removes directory and all of its contents.
+void RemoveDirectoryRecursively(const std::string& path);
 
 // Creates a random file of the given length, and deletes it when the instance
 // falls out of scope.
