@@ -69,6 +69,8 @@ class CobaltBrowserMainParts : public content::ShellBrowserMainParts {
 
   // Starts metrics recording.
   void StartMetricsRecording();
+
+  std::unique_ptr<content::WebContents> splash_;
 };
 
 }  // namespace cobalt
