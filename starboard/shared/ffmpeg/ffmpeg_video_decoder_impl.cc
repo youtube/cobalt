@@ -23,7 +23,7 @@
 
 #include "starboard/common/string.h"
 #include "starboard/linux/shared/decode_target_internal.h"
-#include "starboard/shared/pthread/thread_create_priority.h"
+#include "starboard/thread.h"
 
 namespace starboard::shared::ffmpeg {
 
@@ -219,7 +219,7 @@ bool VideoDecoderImpl<FFMPEG>::is_valid() const {
 // static
 void* VideoDecoderImpl<FFMPEG>::ThreadEntryPoint(void* context) {
   pthread_setname_np(pthread_self(), "ff_video_dec");
-  shared::pthread::ThreadSetPriority(kSbThreadPriorityHigh);
+  SbThreadSetPriority(kSbThreadPriorityHigh);
   SB_DCHECK(context);
   VideoDecoderImpl<FFMPEG>* decoder =
       reinterpret_cast<VideoDecoderImpl<FFMPEG>*>(context);
