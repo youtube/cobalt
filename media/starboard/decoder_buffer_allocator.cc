@@ -61,10 +61,12 @@ std::string FormatNumber(size_t n) {
 
 }  // namespace
 
+constexpr int kEnoughSize = 250 * 1024 * 1024;
+
 DecoderBufferAllocator::DecoderBufferAllocator(Type type /*= Type::kGlobal*/)
     : DecoderBufferAllocator(type,
                              SbMediaIsBufferPoolAllocateOnDemand(),
-                             SbMediaGetInitialBufferCapacity(),
+                             250 * 1024 * 1024,
                              SbMediaGetBufferAllocationUnit()) {}
 
 DecoderBufferAllocator::DecoderBufferAllocator(
@@ -81,8 +83,9 @@ DecoderBufferAllocator::DecoderBufferAllocator(
 
   LOG(INFO) << "DecoderBufferAllocator: initial_capacity(KB)="
             << FormatNumber(initial_capacity_ / 1024)
-            << ", allocation_unit(KB)="
-            << FormatNumber(allocation_unit_ / 1024);
+            << ", allocation_unit(KB)=" << FormatNumber(allocation_unit_ / 1024)
+            << ", is_memory_pool_allocated_on_demand="
+            << (is_memory_pool_allocated_on_demand_ ? "true" : "false");
 
   if (is_memory_pool_allocated_on_demand_) {
     LOG(INFO) << "Allocated media buffer pool on demand.";
