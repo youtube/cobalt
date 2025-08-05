@@ -8,11 +8,6 @@ OPENSSL_memory_get_size
 __nl_langinfo_l
 chmod
 closelog
-dladdr
-dlclose
-dlerror
-dlopen
-dlsym
 fchmod
 fchown
 fclose
