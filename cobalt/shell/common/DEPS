@@ -1,5 +1,5 @@
 include_rules = [
   "+gin/public",
   "-content/shell/common",
-  "-components/origin_trial",
+  "-components/origin_trials",
 ]
