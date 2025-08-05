@@ -52,6 +52,7 @@ UserAgentPlatformInfo CreateOnlyOSNameAndVersionPlatformInfo() {
   return platform_info;
 }
 
+// TODO(b/436368441): Investigate this test failure.
 #if BUILDFLAG(IS_ANDROID)
 #define MAYBE_StartsWithMozilla DISABLED_StartsWithMozilla
 #else
@@ -63,6 +64,7 @@ TEST(UserAgentStringTest, MAYBE_StartsWithMozilla) {
   EXPECT_EQ(0UL, user_agent_string.find("Mozilla/5.0"));
 }
 
+// TODO(b/436368441): Investigate this test failure.
 #if BUILDFLAG(IS_ANDROID)
 #define MAYBE_ContainsCobalt DISABLED_ContainsCobalt
 #else
@@ -74,6 +76,7 @@ TEST(UserAgentStringTest, MAYBE_ContainsCobalt) {
   EXPECT_NE(std::string::npos, user_agent_string.find("Cobalt"));
 }
 
+// TODO(b/436368441): Investigate this test failure.
 #if BUILDFLAG(IS_ANDROID)
 #define MAYBE_WithOSNameAndVersion DISABLED_WithOSNameAndVersion
 #else
@@ -85,6 +88,7 @@ TEST(UserAgentStringTest, MAYBE_WithOSNameAndVersion) {
   EXPECT_NE(std::string::npos, user_agent_string.find("(GLaDOS 3.11)"));
 }
 
+// TODO(b/436368441): Investigate this test failure.
 #if BUILDFLAG(IS_ANDROID)
 #define MAYBE_WithCobaltVersionAndConfiguration \
   DISABLED_WithCobaltVersionAndConfiguration
@@ -150,6 +154,7 @@ TEST(UserAgentStringTest, MAYBE_WithCobaltVersionAndConfiguration) {
 
 #define NOT_VCHARORSPACE CONTROL DEL HIGH_ASCII
 
+// TODO(b/436368441): Investigate this test failure.
 #if BUILDFLAG(IS_ANDROID)
 #define MAYBE_SanitizedStarboardVersion DISABLED_SanitizedStarboardVersion
 #else
@@ -165,6 +170,7 @@ TEST(UserAgentStringTest, MAYBE_SanitizedStarboardVersion) {
             user_agent_string.find("FooBar" TCHARORSLASH "BazQux"));
 }
 
+// TODO(b/436368441): Investigate this test failure.
 #if BUILDFLAG(IS_ANDROID)
 #define MAYBE_SanitizedOsNameAndVersion DISABLED_SanitizedOsNameAndVersion
 #else
@@ -182,6 +188,7 @@ TEST(UserAgentStringTest, MAYBE_SanitizedOsNameAndVersion) {
       user_agent_string.find("FooBar" VCHARORSPACE_EXCEPTPARENTHESES "BazQux"));
 }
 
+// TODO(b/436368441): Investigate this test failure.
 #if BUILDFLAG(IS_ANDROID)
 #define MAYBE_SanitizedOriginalDesignManufacturer \
   DISABLED_SanitizedOriginalDesignManufacturer
@@ -199,6 +206,7 @@ TEST(UserAgentStringTest, MAYBE_SanitizedOriginalDesignManufacturer) {
             user_agent_string.find("FooBar" ALPHADIGIT "BazQux"));
 }
 
+// TODO(b/436368441): Investigate this test failure.
 #if BUILDFLAG(IS_ANDROID)
 #define MAYBE_SanitizedChipsetModelNumber DISABLED_SanitizedChipsetModelNumber
 #else
@@ -214,6 +222,7 @@ TEST(UserAgentStringTest, MAYBE_SanitizedChipsetModelNumber) {
             user_agent_string.find("FooBar" ALPHADIGIT "BazQux"));
 }
 
+// TODO(b/436368441): Investigate this test failure.
 #if BUILDFLAG(IS_ANDROID)
 #define MAYBE_SanitizedModelYear DISABLED_SanitizedModelYear
 #else
@@ -230,6 +239,7 @@ TEST(UserAgentStringTest, MAYBE_SanitizedModelYear) {
             user_agent_string.find("FooBar_" DIGIT DIGITREVERSED "/BazQux"));
 }
 
+// TODO(b/436368441): Investigate this test failure.
 #if BUILDFLAG(IS_ANDROID)
 #define MAYBE_SanitizedFirmwareVersion DISABLED_SanitizedFirmwareVersion
 #else
@@ -244,6 +254,7 @@ TEST(UserAgentStringTest, MAYBE_SanitizedFirmwareVersion) {
   EXPECT_NE(std::string::npos, user_agent_string.find("FooBar" TCHAR "BazQux"));
 }
 
+// TODO(b/436368441): Investigate this test failure.
 #if BUILDFLAG(IS_ANDROID)
 #define MAYBE_SanitizedBrand DISABLED_SanitizedBrand
 #else
@@ -261,6 +272,7 @@ TEST(UserAgentStringTest, MAYBE_SanitizedBrand) {
                 "FooBar" VCHARORSPACE_EXCEPTPARENTHESESANDCOMMA "BazQux"));
 }
 
+// TODO(b/436368441): Investigate this test failure.
 #if BUILDFLAG(IS_ANDROID)
 #define MAYBE_SanitizedModel DISABLED_SanitizedModel
 #else
@@ -278,6 +290,7 @@ TEST(UserAgentStringTest, MAYBE_SanitizedModel) {
                 "FooBar" VCHARORSPACE_EXCEPTPARENTHESESANDCOMMA "BazQux"));
 }
 
+// TODO(b/436368441): Investigate this test failure.
 #if BUILDFLAG(IS_ANDROID)
 #define MAYBE_SanitizedAuxField DISABLED_SanitizedAuxField
 #else
@@ -293,6 +306,7 @@ TEST(UserAgentStringTest, MAYBE_SanitizedAuxField) {
             user_agent_string.find("FooBar" TCHARORSLASH "BazQux"));
 }
 
+// TODO(b/436368441): Investigate this test failure.
 #if BUILDFLAG(IS_ANDROID)
 #define MAYBE_SanitizedJavascriptEngineVersion \
   DISABLED_SanitizedJavascriptEngineVersion
@@ -309,6 +323,7 @@ TEST(UserAgentStringTest, MAYBE_SanitizedJavascriptEngineVersion) {
             user_agent_string.find("FooBar" TCHARORSLASH "BazQux"));
 }
 
+// TODO(b/436368441): Investigate this test failure.
 #if BUILDFLAG(IS_ANDROID)
 #define MAYBE_SanitizedRasterizerType DISABLED_SanitizedRasterizerType
 #else
@@ -324,6 +339,7 @@ TEST(UserAgentStringTest, MAYBE_SanitizedRasterizerType) {
             user_agent_string.find("FooBar" TCHARORSLASH "BazQux"));
 }
 
+// TODO(b/436368441): Investigate this test failure.
 #if BUILDFLAG(IS_ANDROID)
 #define MAYBE_SanitizedEvergreenVersion DISABLED_SanitizedEvergreenVersion
 #else
@@ -338,6 +354,7 @@ TEST(UserAgentStringTest, MAYBE_SanitizedEvergreenVersion) {
   EXPECT_NE(std::string::npos, user_agent_string.find("FooBar" TCHAR "BazQux"));
 }
 
+// TODO(b/436368441): Investigate this test failure.
 #if BUILDFLAG(IS_ANDROID)
 #define MAYBE_SanitizedEvergreenType DISABLED_SanitizedEvergreenType
 #else
@@ -353,6 +370,7 @@ TEST(UserAgentStringTest, MAYBE_SanitizedEvergreenType) {
             user_agent_string.find("FooBar" TCHARORSLASH "BazQux"));
 }
 
+// TODO(b/436368441): Investigate this test failure.
 #if BUILDFLAG(IS_ANDROID)
 #define MAYBE_SanitizedEvergreenFileType DISABLED_SanitizedEvergreenFileType
 #else
@@ -368,6 +386,7 @@ TEST(UserAgentStringTest, MAYBE_SanitizedEvergreenFileType) {
             user_agent_string.find("FooBar" TCHARORSLASH "BazQux"));
 }
 
+// TODO(b/436368441): Investigate this test failure.
 #if BUILDFLAG(IS_ANDROID)
 #define MAYBE_SanitizedCobaltVersion DISABLED_SanitizedCobaltVersion
 #else
@@ -382,6 +401,7 @@ TEST(UserAgentStringTest, MAYBE_SanitizedCobaltVersion) {
   EXPECT_NE(std::string::npos, user_agent_string.find("FooBar" TCHAR "BazQux"));
 }
 
+// TODO(b/436368441): Investigate this test failure.
 #if BUILDFLAG(IS_ANDROID)
 #define MAYBE_SanitizedCobaltBuildVersionNumber \
   DISABLED_SanitizedCobaltBuildVersionNumber
@@ -398,6 +418,7 @@ TEST(UserAgentStringTest, MAYBE_SanitizedCobaltBuildVersionNumber) {
   EXPECT_NE(std::string::npos, user_agent_string.find("FooBar" TCHAR "BazQux"));
 }
 
+// TODO(b/436368441): Investigate this test failure.
 #if BUILDFLAG(IS_ANDROID)
 #define MAYBE_SanitizedCobaltBuildConfiguration \
   DISABLED_SanitizedCobaltBuildConfiguration
@@ -414,6 +435,7 @@ TEST(UserAgentStringTest, MAYBE_SanitizedCobaltBuildConfiguration) {
   EXPECT_NE(std::string::npos, user_agent_string.find("FooBar" TCHAR "BazQux"));
 }
 
+// TODO(b/436368441): Investigate this test failure.
 #if BUILDFLAG(IS_ANDROID)
 #define MAYBE_WithPlatformInfo DISABLED_WithPlatformInfo
 #else
@@ -439,6 +461,7 @@ TEST(UserAgentStringTest, MAYBE_WithPlatformInfo) {
   EXPECT_NE(std::string::npos, user_agent_string.find(tv_info_str));
 }
 
+// TODO(b/436368441): Investigate this test failure.
 #if BUILDFLAG(IS_ANDROID)
 #define MAYBE_WithOnlyBrandModelAndDeviceType \
   DISABLED_WithOnlyBrandModelAndDeviceType
@@ -458,6 +481,7 @@ TEST(UserAgentStringTest, MAYBE_WithOnlyBrandModelAndDeviceType) {
   EXPECT_NE(std::string::npos, user_agent_string.find(tv_info_str));
 }
 
+// TODO(b/436368441): Investigate this test failure.
 #if BUILDFLAG(IS_ANDROID)
 #define MAYBE_WithStarboardVersion DISABLED_WithStarboardVersion
 #else
@@ -474,6 +498,7 @@ TEST(UserAgentStringTest, MAYBE_WithStarboardVersion) {
   EXPECT_NE(std::string::npos, user_agent_string.find(tv_info_str));
 }
 
+// TODO(b/436368441): Investigate this test failure.
 #if BUILDFLAG(IS_ANDROID)
 #define MAYBE_WithJavaScriptVersion DISABLED_WithJavaScriptVersion
 #else
@@ -487,6 +512,7 @@ TEST(UserAgentStringTest, MAYBE_WithJavaScriptVersion) {
   EXPECT_NE(std::string::npos, user_agent_string.find(" V8/6.5.254.28"));
 }
 
+// TODO(b/436368441): Investigate this test failure.
 #if BUILDFLAG(IS_ANDROID)
 #define MAYBE_DelimitParamsBySemicolon DISABLED_DelimitParamsBySemicolon
 #else
@@ -508,6 +534,7 @@ TEST(GetUserAgentInputMapTest, MAYBE_DelimitParamsBySemicolon) {
   EXPECT_TRUE(user_agent_input_map == expected_user_agent_input_map);
 }
 
+// TODO(b/436368441): Investigate this test failure.
 #if BUILDFLAG(IS_ANDROID)
 #define MAYBE_HandleSpecialChar DISABLED_HandleSpecialChar
 #else
@@ -527,6 +554,7 @@ TEST(GetUserAgentInputMapTest, MAYBE_HandleSpecialChar) {
   EXPECT_TRUE(user_agent_input_map == expected_user_agent_input_map);
 }
 
+// TODO(b/436368441): Investigate this test failure.
 #if BUILDFLAG(IS_ANDROID)
 #define MAYBE_EscapeSemicolonInValue DISABLED_EscapeSemicolonInValue
 #else
@@ -546,6 +574,7 @@ TEST(GetUserAgentInputMapTest, MAYBE_EscapeSemicolonInValue) {
   EXPECT_TRUE(user_agent_input_map == expected_user_agent_input_map);
 }
 
+// TODO(b/436368441): Investigate this test failure.
 #if BUILDFLAG(IS_ANDROID)
 #define MAYBE_OmitEscapeSemicolonInField DISABLED_OmitEscapeSemicolonInField
 #else
@@ -563,6 +592,7 @@ TEST(GetUserAgentInputMapTest, MAYBE_OmitEscapeSemicolonInField) {
   EXPECT_TRUE(user_agent_input_map == expected_user_agent_input_map);
 }
 
+// TODO(b/436368441): Investigate this test failure.
 #if BUILDFLAG(IS_ANDROID)
 #define MAYBE_HandleEmptyFieldValue DISABLED_HandleEmptyFieldValue
 #else
@@ -582,6 +612,7 @@ TEST(GetUserAgentInputMapTest, MAYBE_HandleEmptyFieldValue) {
   EXPECT_TRUE(user_agent_input_map == expected_user_agent_input_map);
 }
 
+// TODO(b/436368441): Investigate this test failure.
 #if BUILDFLAG(IS_ANDROID)
 #define MAYBE_FailSafeWithInvalidInput DISABLED_FailSafeWithInvalidInput
 #else
