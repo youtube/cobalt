@@ -43,7 +43,6 @@ int MuslCmdToPlatformCmd(int musl_cmd) {
       return F_SETLKW;
     default:
       SB_LOG(WARNING) << "Unknown musl fcntl command: " << musl_cmd;
-      SB_NOTREACHED();
       return -1;
   }
 }

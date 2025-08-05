@@ -16,6 +16,7 @@
 #include <fcntl.h>
 #include <limits.h>
 
+#include <bitset>
 #include <string>
 
 #include "starboard/nplb/file_helpers.h"
@@ -50,6 +51,9 @@ TEST_F(PosixFcntlTest, DuplicateFileDescriptor) {
   int new_flags = fcntl(new_fd, F_GETFL);
   ASSERT_NE(new_flags, -1) << "fcntl failed: " << strerror(errno);
   ASSERT_EQ(original_flags, new_flags);
+
+  // Avoiding unused variable compilation error.
+  (void)original_flags;
 
   close(fd);
   close(new_fd);
@@ -91,6 +95,9 @@ TEST_F(PosixFcntlTest, SetFileDescriptorFlags) {
   ASSERT_TRUE((updated_flags & FD_CLOEXEC) == FD_CLOEXEC)
       << "Updated flags " << std::bitset<32>(updated_flags) << " FC_CLOEXEC "
       << std::bitset<32>(FD_CLOEXEC);
+
+  // Avoiding unused variable compilation error.
+  (void)original_flags;
 
   close(fd);
 }
