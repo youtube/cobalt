@@ -98,8 +98,8 @@ FEATURE_LIST_START
 //   STARBOARD_FEATURE(kCobaltVideoDebug, "CobaltVideoDebug", false)
 // #endif // BUILDFLAG(IS_ANDROID) && (SB_API_VERSION >= 17)
 #if BUILDFLAG(IS_ANDROID) && (SB_API_VERSION >= 17)
-STARBOARD_FEATURE(kStarboardBufferFlagDecodeOnlyExperiment,
-                  "StarboardBufferFlagDecodeOnlyExperiment",
+STARBOARD_FEATURE(kStarboardDecodeOnlyExperiment,
+                  "StarboardDecodeOnlyExperiment",
                   false)
 #endif
 FEATURE_LIST_END

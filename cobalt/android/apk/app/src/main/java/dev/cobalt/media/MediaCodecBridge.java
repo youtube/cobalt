@@ -72,10 +72,6 @@ class MediaCodecBridge {
   private int mFps = 30;
   private final boolean mIsTunnelingPlayback;
 
-  // TODO: (b/423927047) Once the Starboard Extension for Chromium Features
-  // lands, replace this macro with a starboard features.
-  private boolean mBufferFlagDecodeOnlyExperiment = false;
-
   private MediaCodec.OnFrameRenderedListener mFrameRendererListener;
   private MediaCodec.OnFirstTunnelFrameReadyListener mFirstTunnelFrameReadyListener;
 
@@ -402,10 +398,10 @@ class MediaCodecBridge {
     return Build.VERSION.SDK_INT >= 34;
   }
 
-  private boolean isDecodeOnly(long presentationTimeUs) {
+  private boolean isDecodeOnly(long presentationTimeUs, boolean decodeOnlyExperiment) {
     // Starting with Android 14, we can use BUFFER_FLAG_DECODE_ONLY to explicitly skip video frames
     // before the seek time so that they won't be rendered.
-    return Build.VERSION.SDK_INT >= 34 && (mBufferFlagDecodeOnlyExperiment) && (presentationTimeUs < mSeekToTime);
+    return Build.VERSION.SDK_INT >= 34 && decodeOnlyExperiment && (presentationTimeUs < mSeekToTime);
   }
 
   @CalledByNative
@@ -752,10 +748,10 @@ class MediaCodecBridge {
 
   @CalledByNative
   private int queueInputBuffer(
-      int index, int offset, int size, long presentationTimeUs, int flags) {
+      int index, int offset, int size, long presentationTimeUs, int flags, boolean decodeOnlyExperiment) {
     resetLastPresentationTimeIfNeeded(presentationTimeUs);
     try {
-      if (isDecodeOnly(presentationTimeUs)) {
+      if (isDecodeOnly(presentationTimeUs, decodeOnlyExperiment)) {
         flags |= MediaCodec.BUFFER_FLAG_DECODE_ONLY;
       }
       mMediaCodec.get().queueInputBuffer(index, offset, size, presentationTimeUs, flags);
@@ -778,7 +774,8 @@ class MediaCodecBridge {
       int cipherMode,
       int blocksToEncrypt,
       int blocksToSkip,
-      long presentationTimeUs) {
+      long presentationTimeUs,
+      boolean decodeOnlyExperiment) {
     resetLastPresentationTimeIfNeeded(presentationTimeUs);
     try {
       CryptoInfo cryptoInfo = new CryptoInfo();
@@ -792,10 +789,9 @@ class MediaCodecBridge {
         return MediaCodecStatus.ERROR;
       }
 
-      int flags = 0;
-      if (isDecodeOnly(presentationTimeUs)) {
-        flags |= MediaCodec.BUFFER_FLAG_DECODE_ONLY;
-      }
+      int flags = isDecodeOnly(presentationTimeUs, decodeOnlyExperiment)
+                ? MediaCodec.BUFFER_FLAG_DECODE_ONLY
+                : 0;
       mMediaCodec.get().queueSecureInputBuffer(index, offset, cryptoInfo, presentationTimeUs, flags);
     } catch (MediaCodec.CryptoException e) {
       int errorCode = e.getErrorCode();

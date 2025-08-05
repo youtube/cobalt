@@ -314,15 +314,13 @@ jint MediaCodecBridge::QueueInputBuffer(jint index,
                                         jlong presentation_time_microseconds,
                                         jint flags) {
   JNIEnv* env = AttachCurrentThread();
-  if (starboard::features::FeatureList::IsEnabled(
-          starboard::features::kStarboardBufferFlagDecodeOnlyExperiment)) {
-    SB_LOG(INFO) << "Feature has been enabled";
-  } else {
-    SB_LOG(INFO) << "Feature is not enabled";
-  }
+
+  jboolean enable_decode_only_experiment =
+      starboard::features::FeatureList::IsEnabled(
+          starboard::features::kStarboardDecodeOnlyExperiment);
   return Java_MediaCodecBridge_queueInputBuffer(
       env, j_media_codec_bridge_, index, offset, size,
-      presentation_time_microseconds, flags);
+      presentation_time_microseconds, flags, enable_decode_only_experiment);
 }
 
 jint MediaCodecBridge::QueueSecureInputBuffer(
@@ -362,10 +360,15 @@ jint MediaCodecBridge::QueueSecureInputBuffer(
     blocks_to_skip = drm_sample_info.encryption_pattern.skip_byte_block;
   }
 
+  jboolean enable_decode_only_experiment =
+      starboard::features::FeatureList::IsEnabled(
+          features::kStarboardDecodeOnlyExperiment);
+
   return Java_MediaCodecBridge_queueSecureInputBuffer(
       env, j_media_codec_bridge_, index, offset, j_iv, j_key_id, j_clear_bytes,
       j_encrypted_bytes, subsample_count, cipher_mode, blocks_to_encrypt,
-      blocks_to_skip, presentation_time_microseconds);
+      blocks_to_skip, presentation_time_microseconds,
+      enable_decode_only_experiment);
 }
 
 ScopedJavaLocalRef<jobject> MediaCodecBridge::GetOutputBuffer(jint index) {
