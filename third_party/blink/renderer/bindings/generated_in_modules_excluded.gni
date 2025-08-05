@@ -11,6 +11,87 @@ generated_interface_sources_in_modules_excluded = []
 generated_union_sources_in_modules_excluded = []
 generated_sync_iterator_sources_in_modules_excluded = []
 
+# Disable Bluetooth from build.
+if (disable_bluetooth) {
+  # Bluetooth
+  generated_dictionary_sources_in_modules_excluded += [
+  "$root_gen_dir/third_party/blink/renderer/bindings/modules/v8/v8_bluetooth_advertising_event_init.cc",
+  "$root_gen_dir/third_party/blink/renderer/bindings/modules/v8/v8_bluetooth_advertising_event_init.h",
+  "$root_gen_dir/third_party/blink/renderer/bindings/modules/v8/v8_bluetooth_data_filter_init.cc",
+  "$root_gen_dir/third_party/blink/renderer/bindings/modules/v8/v8_bluetooth_data_filter_init.h",
+  "$root_gen_dir/third_party/blink/renderer/bindings/modules/v8/v8_bluetooth_le_scan_filter_init.cc",
+  "$root_gen_dir/third_party/blink/renderer/bindings/modules/v8/v8_bluetooth_le_scan_filter_init.h",
+  "$root_gen_dir/third_party/blink/renderer/bindings/modules/v8/v8_bluetooth_le_scan_options.cc",
+  "$root_gen_dir/third_party/blink/renderer/bindings/modules/v8/v8_bluetooth_le_scan_options.h",
+  "$root_gen_dir/third_party/blink/renderer/bindings/modules/v8/v8_bluetooth_manufacturer_data_filter_init.cc",
+  "$root_gen_dir/third_party/blink/renderer/bindings/modules/v8/v8_bluetooth_manufacturer_data_filter_init.h",
+  "$root_gen_dir/third_party/blink/renderer/bindings/modules/v8/v8_request_device_options.cc",
+  "$root_gen_dir/third_party/blink/renderer/bindings/modules/v8/v8_request_device_options.h",
+  "$root_gen_dir/third_party/blink/renderer/bindings/modules/v8/v8_watch_advertisements_options.cc",
+  "$root_gen_dir/third_party/blink/renderer/bindings/modules/v8/v8_watch_advertisements_options.h",
+  ]
+  generated_interface_sources_in_modules_excluded += [
+    "$root_gen_dir/third_party/blink/renderer/bindings/modules/v8/v8_bluetooth.cc",
+    "$root_gen_dir/third_party/blink/renderer/bindings/modules/v8/v8_bluetooth.h",
+    "$root_gen_dir/third_party/blink/renderer/bindings/modules/v8/v8_bluetooth_advertising_event.cc",
+    "$root_gen_dir/third_party/blink/renderer/bindings/modules/v8/v8_bluetooth_advertising_event.h",
+    "$root_gen_dir/third_party/blink/renderer/bindings/modules/v8/v8_bluetooth_characteristic_properties.cc",
+    "$root_gen_dir/third_party/blink/renderer/bindings/modules/v8/v8_bluetooth_characteristic_properties.h",
+    "$root_gen_dir/third_party/blink/renderer/bindings/modules/v8/v8_bluetooth_device.cc",
+    "$root_gen_dir/third_party/blink/renderer/bindings/modules/v8/v8_bluetooth_device.h",
+    "$root_gen_dir/third_party/blink/renderer/bindings/modules/v8/v8_bluetooth_le_scan.cc",
+    "$root_gen_dir/third_party/blink/renderer/bindings/modules/v8/v8_bluetooth_le_scan.h",
+    "$root_gen_dir/third_party/blink/renderer/bindings/modules/v8/v8_bluetooth_manufacturer_data_map.cc",
+    "$root_gen_dir/third_party/blink/renderer/bindings/modules/v8/v8_bluetooth_manufacturer_data_map.h",
+    "$root_gen_dir/third_party/blink/renderer/bindings/modules/v8/v8_bluetooth_remote_gatt_characteristic.cc",
+    "$root_gen_dir/third_party/blink/renderer/bindings/modules/v8/v8_bluetooth_remote_gatt_characteristic.h",
+    "$root_gen_dir/third_party/blink/renderer/bindings/modules/v8/v8_bluetooth_remote_gatt_descriptor.cc",
+    "$root_gen_dir/third_party/blink/renderer/bindings/modules/v8/v8_bluetooth_remote_gatt_descriptor.h",
+    "$root_gen_dir/third_party/blink/renderer/bindings/modules/v8/v8_bluetooth_remote_gatt_server.cc",
+    "$root_gen_dir/third_party/blink/renderer/bindings/modules/v8/v8_bluetooth_remote_gatt_server.h",
+    "$root_gen_dir/third_party/blink/renderer/bindings/modules/v8/v8_bluetooth_remote_gatt_service.cc",
+    "$root_gen_dir/third_party/blink/renderer/bindings/modules/v8/v8_bluetooth_remote_gatt_service.h",
+    "$root_gen_dir/third_party/blink/renderer/bindings/modules/v8/v8_bluetooth_service_data_map.cc",
+    "$root_gen_dir/third_party/blink/renderer/bindings/modules/v8/v8_bluetooth_service_data_map.h",
+    "$root_gen_dir/third_party/blink/renderer/bindings/modules/v8/v8_bluetooth_uuid.cc",
+    "$root_gen_dir/third_party/blink/renderer/bindings/modules/v8/v8_bluetooth_uuid.h",
+  ]
+  generated_sync_iterator_sources_in_modules_excluded += [
+    "$root_gen_dir/third_party/blink/renderer/bindings/modules/v8/v8_sync_iterator_bluetooth_manufacturer_data_map.cc",
+    "$root_gen_dir/third_party/blink/renderer/bindings/modules/v8/v8_sync_iterator_bluetooth_manufacturer_data_map.h",
+    "$root_gen_dir/third_party/blink/renderer/bindings/modules/v8/v8_sync_iterator_bluetooth_service_data_map.cc",
+    "$root_gen_dir/third_party/blink/renderer/bindings/modules/v8/v8_sync_iterator_bluetooth_service_data_map.h",
+  ]
+
+  # Serial
+  generated_dictionary_sources_in_modules_excluded += [
+    "$root_gen_dir/third_party/blink/renderer/bindings/modules/v8/v8_serial_input_signals.cc",
+    "$root_gen_dir/third_party/blink/renderer/bindings/modules/v8/v8_serial_input_signals.h",
+    "$root_gen_dir/third_party/blink/renderer/bindings/modules/v8/v8_serial_options.cc",
+    "$root_gen_dir/third_party/blink/renderer/bindings/modules/v8/v8_serial_options.h",
+    "$root_gen_dir/third_party/blink/renderer/bindings/modules/v8/v8_serial_output_signals.cc",
+    "$root_gen_dir/third_party/blink/renderer/bindings/modules/v8/v8_serial_output_signals.h",
+    "$root_gen_dir/third_party/blink/renderer/bindings/modules/v8/v8_serial_port_filter.cc",
+    "$root_gen_dir/third_party/blink/renderer/bindings/modules/v8/v8_serial_port_filter.h",
+    "$root_gen_dir/third_party/blink/renderer/bindings/modules/v8/v8_serial_port_info.cc",
+    "$root_gen_dir/third_party/blink/renderer/bindings/modules/v8/v8_serial_port_info.h",
+    "$root_gen_dir/third_party/blink/renderer/bindings/modules/v8/v8_serial_port_request_options.cc",
+    "$root_gen_dir/third_party/blink/renderer/bindings/modules/v8/v8_serial_port_request_options.h",
+  ]
+  generated_enumeration_sources_in_modules_excluded += [
+    "$root_gen_dir/third_party/blink/renderer/bindings/modules/v8/v8_flow_control_type.cc",
+    "$root_gen_dir/third_party/blink/renderer/bindings/modules/v8/v8_flow_control_type.h",
+    "$root_gen_dir/third_party/blink/renderer/bindings/modules/v8/v8_parity_type.cc",
+    "$root_gen_dir/third_party/blink/renderer/bindings/modules/v8/v8_parity_type.h",
+  ]
+  generated_interface_sources_in_modules_excluded += [
+    "$root_gen_dir/third_party/blink/renderer/bindings/modules/v8/v8_serial.cc",
+    "$root_gen_dir/third_party/blink/renderer/bindings/modules/v8/v8_serial.h",
+    "$root_gen_dir/third_party/blink/renderer/bindings/modules/v8/v8_serial_port.cc",
+    "$root_gen_dir/third_party/blink/renderer/bindings/modules/v8/v8_serial_port.h",
+  ]
+}
+
 # Disable xr from build.
 if (disable_xr) {
   generated_callback_function_sources_in_modules_excluded += [
