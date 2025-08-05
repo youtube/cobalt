@@ -12,6 +12,6 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-target_platform = "evergreen-arm64"
+starboard_target_platform = "evergreen-arm64"
 target_cpu = "arm64"
 target_os = "linux"
