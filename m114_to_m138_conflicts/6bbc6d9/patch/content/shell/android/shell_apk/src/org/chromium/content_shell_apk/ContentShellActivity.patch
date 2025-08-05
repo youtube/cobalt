@@ -1,0 +1,16 @@
+--- content/shell/android/shell_apk/src/org/chromium/content_shell_apk/ContentShellActivity.java
++++ content/shell/android/shell_apk/src/org/chromium/content_shell_apk/ContentShellActivity.java
+@@ -78,13 +78,10 @@
+                 mShellManager.getContentViewRenderView().getSurfaceView());
+ 
+         mStartupUrl = getUrlFromIntent(getIntent());
+-<<<<<<< HEAD
+         // TODO(cobalt, b/376148547): set Chrobalt initial url and remove this function.
+         if (mStartupUrl.isEmpty()) {
+             mStartupUrl = getUrlFromIntent(getIntent());
+         }
+-=======
+->>>>>>> 6bbc6d9c11a (Copy ContentShellActivity instead of inheriting (#4336))
+         if (!TextUtils.isEmpty(mStartupUrl)) {
+             mShellManager.setStartupUrl(Shell.sanitizeUrl(mStartupUrl));
+         }

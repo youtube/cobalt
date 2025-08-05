@@ -557,6 +557,10 @@ def main():
                     f'✅ {i}/{len(commits)} cherry-picked successfully: {commit["hexsha"]}'
                 )
             except git.exc.GitCommandError as e:
+                if 'The previous cherry-pick is now empty' in e.stderr:
+                    print(f'⏩ Cherry-pick of {commit["hexsha"]} is empty, skipping.')
+                    repo.git.cherry_pick('--skip')
+                    continue
                 print(f'❌ Failed to cherry-pick: {commit["hexsha"]}')
                 record_conflict(repo, args.conflicts_dir)
                 print(

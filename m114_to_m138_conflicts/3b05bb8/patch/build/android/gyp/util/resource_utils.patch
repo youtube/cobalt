@@ -1,0 +1,16 @@
+--- build/android/gyp/util/resource_utils.py
++++ build/android/gyp/util/resource_utils.py
+@@ -45,13 +45,8 @@
+ ALL_RESOURCE_TYPES = {
+     'anim', 'animator', 'array', 'attr', 'bool', 'color', 'dimen', 'drawable',
+     'font', 'fraction', 'id', 'integer', 'interpolator', 'layout', 'macro',
+-<<<<<<< HEAD
+     'menu', 'mipmap', 'overlayable', 'plurals', 'raw', 'string', 'style',
+     'styleable', 'transition', 'xml'
+-=======
+-    'menu', 'mipmap', 'plurals', 'raw', 'string', 'style', 'styleable',
+-    'transition', 'xml', 'overlayable'
+->>>>>>> 3b05bb8cff4 (`cobalt_apk` to build dev.cobalt.coat (#4304))
+ }
+ 
+ AAPT_IGNORE_PATTERN = ':'.join([

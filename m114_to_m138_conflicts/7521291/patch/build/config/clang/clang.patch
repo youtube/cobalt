@@ -1,0 +1,24 @@
+--- build/config/clang/clang.gni
++++ build/config/clang/clang.gni
+@@ -20,19 +20,15 @@
+ 
+   enable_check_raw_ptr_fields =
+       build_with_chromium && !is_official_build &&
+-<<<<<<< HEAD
+       ((is_linux && !is_castos) || (is_android && !is_cast_android) || is_mac ||
+-       is_ios || is_win || is_chromeos_lacros || is_chromeos_ash)
++       is_ios || is_win || is_chromeos_lacros || is_chromeos_ash) && !chrobalt
+ 
+   # TODO(crbug.com/40268473): Merge with enable_check_raw_ptr_fields once both
+   # checks are activated on the same set of platforms.
+   enable_check_raw_ref_fields =
+       build_with_chromium && !is_official_build &&
+       ((is_linux && !is_castos) || (is_android && !is_cast_android) || is_win ||
+-       is_mac || is_ios || is_chromeos_lacros || is_chromeos_ash)
+-=======
+-      ((is_linux && !is_castos) || (is_android && !is_cast_android)) && !chrobalt
+->>>>>>> 7521291e258 (Add starboard build to android (#4259))
++       is_mac || is_ios || is_chromeos_lacros || is_chromeos_ash) && !chrobalt
+ 
+   clang_base_path = default_clang_base_path
+ 
