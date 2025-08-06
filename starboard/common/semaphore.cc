@@ -20,7 +20,7 @@
 
 namespace starboard {
 
-Semaphore::Semaphore() : permits_(0) {}
+Semaphore::Semaphore() : Semaphore(0) {}
 
 Semaphore::Semaphore(int initial_thread_permits)
     : permits_(initial_thread_permits) {}
