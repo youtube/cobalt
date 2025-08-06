@@ -33,6 +33,7 @@ namespace {
 
 constexpr int kMaxDecodingHistory = 30;
 constexpr int64_t kDecodingTimeWarningThresholdUs = 1'000'000;
+constexpr bool kTryAllocation = false;
 
 struct MemoryInfo {
   long total_kb;
@@ -68,17 +69,24 @@ MemoryInfo GetMemoryInfo() {
   return mem_info;
 }
 
-int GetMaxAllocatableMemoryMb() {
-  for (int max_allocatable_memory_mb = 200; max_allocatable_memory_mb >= 25;
-       max_allocatable_memory_mb /= 2) {
-    void* ptr = malloc(max_allocatable_memory_mb * 1024 * 1024);
-    bool success = ptr != nullptr;
-    free(ptr);
-    if (success) {
-      return max_allocatable_memory_mb;
+constexpr int kMaxFramesToTestAllocation = 8;
+constexpr int k8kDecodedFrameBytes = 49'766'400;
+
+int GetMaxAllocatable8kFrames() {
+  void* ptrs[kMaxFramesToTestAllocation];
+  int num_allocated_frames = 0;
+  for (int i = 0; i < kMaxFramesToTestAllocation; ++i) {
+    ptrs[i] = malloc(k8kDecodedFrameBytes);
+    if (ptrs[i] == nullptr) {
+      break;
     }
+    num_allocated_frames++;
   }
-  return 0;
+
+  for (int i = 0; i < num_allocated_frames; ++i) {
+    free(ptrs[i]);
+  }
+  return num_allocated_frames;
 }
 
 class ThrottlingDecoderFlowControl : public DecoderFlowControl {
@@ -131,7 +139,8 @@ ThrottlingDecoderFlowControl::ThrottlingDecoderFlowControl(
   }
   SB_LOG(INFO) << "ThrottlingDecoderFlowControl is created: max_frames="
                << max_frames_
-               << ", log_interval(msec)=" << (log_interval_us / 1'000);
+               << ", log_interval(msec)=" << (log_interval_us / 1'000)
+               << ", kTryAllocation=" << (kTryAllocation ? "true" : "false");
 }
 
 bool ThrottlingDecoderFlowControl::AddFrame(int64_t presentation_time_us) {
@@ -150,19 +159,21 @@ bool ThrottlingDecoderFlowControl::AddFrame(int64_t presentation_time_us) {
 
   MemoryInfo mem_info = GetMemoryInfo();
 
-  int64_t start_us = CurrentMonotonicTime();
-  int max_allocatable_mb = GetMaxAllocatableMemoryMb();
-  int64_t elapsed_us = CurrentMonotonicTime() - start_us;
-
   SB_LOG(INFO) << "AddFrame: id=" << entering_frame_id_
                << ", pts(msec)=" << presentation_time_us / 1'000
                << ", decoding=" << state_.decoding_frames
                << ", decoded=" << state_.decoded_frames
                << ", mem(MB)={total=" << mem_info.total_kb / 1'024
                << ", free=" << mem_info.free_kb / 1'024
-               << ", available=" << mem_info.available_kb / 1'024
-               << "}, max_allocatable_mem(MB)=" << max_allocatable_mb
-               << ", elapsed_to_get_max_alloc(ms)=" << elapsed_us / 1'000;
+               << ", available=" << mem_info.available_kb / 1'024 << "}";
+  if (kTryAllocation) {
+    int64_t start_us = CurrentMonotonicTime();
+    int max_allocatable_8k_frames = GetMaxAllocatable8kFrames();
+    int64_t elapsed_us = CurrentMonotonicTime() - start_us;
+
+    SB_LOG(INFO) << "max_allocatable_8k_frames=" << max_allocatable_8k_frames
+                 << ", elapsed_to_get_max_alloc(ms)=" << elapsed_us / 1'000;
+  }
   return true;
 }
 
