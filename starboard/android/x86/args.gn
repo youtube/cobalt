@@ -12,6 +12,6 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-target_platform = "android-x86"
+starboard_target_platform = "android-x86"
 target_os = "android"
 target_cpu = "x86"
