@@ -195,7 +195,7 @@ void* PlayerWorker::ThreadEntryPoint(void* context) {
   SB_DCHECK(param != NULL);
   PlayerWorker* player_worker = param->player_worker;
   {
-    std::lock_guard scoped_lock(param->mutex);
+    std::lock_guard lock(param->mutex);
     player_worker->job_queue_ = std::make_unique<JobQueue>();
     param->condition_variable.notify_one();
   }
