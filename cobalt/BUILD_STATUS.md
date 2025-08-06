@@ -9,8 +9,8 @@
 
 | Workflow  | main |
 | --------- | ---- |
-| Android   | [![android](https://github.com/youtube/cobalt/actions/workflows/android.yaml/badge.svg?branch=main&event=schedule)](https://github.com/youtube/cobalt/actions/workflows/android.yaml?query=event%3Aschedule+branch%3Amain) |
-| Linux | [![linux](https://github.com/youtube/cobalt/actions/workflows/linux.yaml/badge.svg?branch=main&event=schedule)](https://github.com/youtube/cobalt/actions/workflows/linux.yaml?query=event%3Aschedule+branch%3Amain) |
+| Android   | [![android](https://github.com/youtube/cobalt/actions/workflows/android.yaml/badge.svg?branch=main&event=workflow_dispatch)](https://github.com/youtube/cobalt/actions/workflows/android.yaml?query=event%3Aworkflow_dispatch+branch%3Amain) |
+| Linux | [![linux](https://github.com/youtube/cobalt/actions/workflows/linux.yaml/badge.svg?branch=main&event=workflow_dispatch)](https://github.com/youtube/cobalt/actions/workflows/linux.yaml?query=event%3Aworkflow_dispatch+branch%3Amain) |
 
 # Cobalt Build Status
 
