@@ -19,11 +19,11 @@
     difficult, as it often requires changing file permissions in a way that
     might affect the test runner or other system processes.
 
+  - EILSEQ: The filename is not a portable filename. This is difficult to test
+    as it depends on the underlying filesystem's character set support.
+
   - EMLINK: Triggering an error for too many links to a file is not practical
     as it would require creating thousands of links.
-
-  - ENAMETOOLONG: Testing for pathnames that exceed the maximum length is not
-    easily portable, as the `PATH_MAX` limit can vary significantly.
 
   - ENOSPC / EROFS / EXDEV: Reliably simulating filesystem-specific errors like
     "no space", "read-only", or "cross-device link" is not feasible in a
@@ -34,11 +34,11 @@
 #include <sys/stat.h>
 #include <unistd.h>
 
+#include "starboard/configuration_constants.h"
 #include "starboard/nplb/file_helpers.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
-namespace starboard {
-namespace nplb {
+namespace starboard::nplb {
 namespace {
 
 TEST(PosixLinkTest, SuccessfulCreation) {
@@ -78,7 +78,7 @@ TEST(PosixLinkTest, FailsIfNewPathExists) {
 TEST(PosixLinkTest, FailsOnDirectory) {
   const char* dir_path = "dir_to_link.tmp";
   const char* new_path = "new_dir_link.tmp";
-  ASSERT_EQ(mkdir(dir_path, 0755), 0);
+  ASSERT_EQ(mkdir(dir_path, kUserRwx), 0);
 
   EXPECT_EQ(link(dir_path, new_path), -1);
   EXPECT_EQ(errno, EPERM);
@@ -86,10 +86,10 @@ TEST(PosixLinkTest, FailsOnDirectory) {
   rmdir(dir_path);
 }
 
-TEST(PosixLinkTest, FailsWithSymbolicLinkLoop) {
+TEST(PosixLinkTest, FailsWithSymbolicLinkLoopInDestPath) {
   // Setup a temporary directory for this test.
   const char* dir_path = "eloop_test_dir";
-  ASSERT_EQ(mkdir(dir_path, 0755), 0);
+  ASSERT_EQ(mkdir(dir_path, kUserRwx), 0);
 
   ScopedRandomFile old_path;
   const std::string link_a_path = std::string(dir_path) + "/link_a";
@@ -111,7 +111,7 @@ TEST(PosixLinkTest, FailsWithSymbolicLinkLoop) {
   rmdir(dir_path);
 }
 
-TEST(PosixLinkTest, FailsIfPathComponentNotDirectory) {
+TEST(PosixLinkTest, FailsIfNewPathComponentNotDirectory) {
   ScopedRandomFile file;
   std::string new_path = file.filename() + "/new_link";
 
@@ -131,6 +131,52 @@ TEST(PosixLinkTest, FailsWithEmptyNewPath) {
   EXPECT_EQ(errno, ENOENT);
 }
 
+TEST(PosixLinkTest, FailsIfOldPathIsTooLong) {
+  std::string long_path(kSbFileMaxPath + 1, 'a');
+  const char* new_path = "new_link.tmp";
+
+  EXPECT_EQ(link(long_path.c_str(), new_path), -1);
+  EXPECT_EQ(errno, ENAMETOOLONG);
+}
+
+TEST(PosixLinkTest, FailsIfNewPathIsTooLong) {
+  ScopedRandomFile old_path;
+  std::string long_path(kSbFileMaxPath + 1, 'a');
+
+  EXPECT_EQ(link(old_path.filename().c_str(), long_path.c_str()), -1);
+  EXPECT_EQ(errno, ENAMETOOLONG);
+}
+
+TEST(PosixLinkTest, FailsWithSymbolicLinkLoopInSourcePath) {
+  const char* dir_path = "eloop_test_dir_old";
+  ASSERT_EQ(mkdir(dir_path, kUserRwx), 0);
+
+  const std::string link_a_path = std::string(dir_path) + "/link_a";
+  const std::string link_b_path = std::string(dir_path) + "/link_b";
+  const std::string new_path = std::string(dir_path) + "/new_link";
+
+  ASSERT_EQ(symlink("link_b", link_a_path.c_str()), 0);
+  ASSERT_EQ(symlink("link_a", link_b_path.c_str()), 0);
+
+  // Attempt to create a link FROM a path that contains a loop in a
+  // directory component. This forces path resolution to fail.
+  const std::string old_path_with_loop = link_a_path + "/some_file";
+  EXPECT_EQ(link(old_path_with_loop.c_str(), new_path.c_str()), -1);
+  EXPECT_EQ(errno, ELOOP);
+
+  unlink(link_a_path.c_str());
+  unlink(link_b_path.c_str());
+  rmdir(dir_path);
+}
+
+TEST(PosixLinkTest, FailsIfOldPathComponentNotDirectory) {
+  ScopedRandomFile file;
+  std::string old_path = file.filename() + "/source_file";
+  const char* new_path = "new_link.tmp";
+
+  EXPECT_EQ(link(old_path.c_str(), new_path), -1);
+  EXPECT_EQ(errno, ENOTDIR);
+}
+
 }  // namespace
-}  // namespace nplb
-}  // namespace starboard
+}  // namespace starboard::nplb
