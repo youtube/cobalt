@@ -21,8 +21,10 @@ COBALT_IMPORTED_MODULES = [
     'net/third_party/quiche/src',
     'third_party/angle',
     'third_party/boringssl/src',
+    'third_party/cpuinfo/src',
     'third_party/googletest/src',
     'third_party/icu',
+    'third_party/perfetto',
     'third_party/webrtc',
     'v8',
 ]
