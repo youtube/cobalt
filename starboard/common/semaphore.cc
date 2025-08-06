@@ -40,7 +40,7 @@ void Semaphore::Take() {
 }
 
 bool Semaphore::TakeTry() {
-  std::unique_lock lock(mutex_);
+  std::lock_guard lock(mutex_);
   if (permits_ <= 0) {
     return false;
   }
