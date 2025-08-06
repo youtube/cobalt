@@ -33,12 +33,16 @@ jobs:
       - name: 'Get PR Diff'
         id: diff
         run: |
-          # The target branch (e.g., main, develop) is needed to compare against.
-          target_branch=$(curl -s -H "Authorization: Bearer ${{ secrets.GITHUB_TOKEN }}" -H "Accept: application/vnd.github.v3+json" ${{ github.event.issue.pull_request.url }} | jq -r .base.ref)
+          # Get the base and head commit SHAs from the PR payload
+          pr_payload=$(curl -s -H "Authorization: Bearer ${{ secrets.GITHUB_TOKEN }}" -H "Accept: application/vnd.github.v3+json" ${{ github.event.issue.pull_request.url }})
+          base_sha=$(echo "$pr_payload" | jq -r .base.sha)
+          head_sha=$(echo "$pr_payload" | jq -r .head.sha)
 
-          # Generate the diff between the PR branch and the target branch.
-          # The '...' syntax is a git shortcut to find the best common ancestor.
-          diff_content=$(git diff "origin/$target_branch"...)
+          echo "Base SHA: $base_sha"
+          echo "Head SHA: $head_sha"
+
+          # Generate the diff between the base and head commits of the PR
+          diff_content=$(git diff "$base_sha" "$head_sha")
 
           # The following lines save the diff content into a GitHub Actions output variable,
           # which allows us to use it in later steps. This method is robust for multiline strings.
@@ -99,13 +103,17 @@ jobs:
           # Use jq to safely construct the JSON payload, reading the prompt from the environment variable.
           json_payload=$(jq -n --arg prompt "$PROMPT" '{ "contents": [ { "parts": [ { "text": $prompt } ] } ] }')
 
+          # Print the JSON payload to the logs.
+          echo "--- JSON PAYLOAD ---"
+          echo "$json_payload"
+          echo "--- END JSON PAYLOAD ---"
+
           # Make the API call to the Gemini model using curl.
           api_response=$(curl -s -X POST \
-            "https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-pro-latest:generateContent?key=${{ secrets.GEMINI_API_KEY }}" \
+            "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${{ secrets.GEMINI_API_KEY }}" \
             -H "Content-Type: application/json" \
             -d "$json_payload")
 
-          # --- DEBUGGING STEP ---
           # Print the raw API response to the logs to see what Gemini is actually returning.
           echo "--- RAW API RESPONSE ---"
           echo "$api_response"
