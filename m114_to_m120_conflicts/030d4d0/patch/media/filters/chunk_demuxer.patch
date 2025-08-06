@@ -1,0 +1,16 @@
+--- media/filters/chunk_demuxer.h
++++ media/filters/chunk_demuxer.h
+@@ -612,13 +612,10 @@
+ 
+   std::map<MediaTrack::Id, ChunkDemuxerStream*> track_id_to_demux_stream_map_;
+ 
+-<<<<<<< HEAD
+   bool supports_change_type_ = true;
+-=======
+ #if BUILDFLAG(USE_STARBOARD_MEDIA)
+   std::map<std::string, std::string> id_to_mime_map_;
+ #endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
+->>>>>>> 030d4d0af75 ([media] Pass full mime type to SbPlayer (#4378))
+ };
+ 
+ }  // namespace media
