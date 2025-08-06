@@ -10,8 +10,6 @@ import("//build/config/sanitizers/sanitizers.gni")
 import("//build_overrides/build.gni")
 import("src/gen/sources.gni")
 
-import("//cobalt/build/configs/hacks.gni")
-
 if (enable_rust) {
   import("//build/rust/cargo_crate.gni")
   import("//build/rust/rust_bindgen_generator.gni")
@@ -192,9 +190,6 @@ component("boringssl") {
       "//starboard:starboard_headers_only",
       "//starboard/common",
     ]
-  }
-  if (enable_cobalt_hermetic_hacks) {
-    sources += [ "src/crypto/thread_starboard.c" ]
   }
 }
 

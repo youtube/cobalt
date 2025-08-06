@@ -19,9 +19,6 @@
 
 #include <openssl/crypto.h>
 #include <openssl/ex_data.h>
-#if BUILDFLAG(ENABLE_COBALT_HERMETIC_HACKS)
-#include <openssl/mem.h>
-#endif
 #include <openssl/stack.h>
 #include <openssl/thread.h>
 
@@ -29,9 +26,6 @@
 #include <stdlib.h>
 #include <string.h>
 
-#if BUILDFLAG(ENABLE_COBALT_HERMETIC_HACKS)
-#include "starboard/thread.h" // nogncheck
-#endif
 
 #if defined(BORINGSSL_CONSTANT_TIME_VALIDATION)
 #include <valgrind/memcheck.h>
@@ -505,10 +499,7 @@ static inline int constant_time_declassify_int(int v) {
 
 // Thread-safe initialisation.
 
-#if BUILDFLAG(ENABLE_COBALT_HERMETIC_HACKS)
-typedef pthread_once_t CRYPTO_once_t;
-#define CRYPTO_ONCE_INIT PTHREAD_ONCE_INIT
-#elif !defined(OPENSSL_THREADS)
+#if !defined(OPENSSL_THREADS)
 typedef uint32_t CRYPTO_once_t;
 #define CRYPTO_ONCE_INIT 0
 #elif defined(OPENSSL_WINDOWS_THREADS)
@@ -528,11 +519,7 @@ typedef pthread_once_t CRYPTO_once_t;
 //
 // The |once| argument must be a |CRYPTO_once_t| that has been initialised with
 // the value |CRYPTO_ONCE_INIT|.
-#if BUILDFLAG(ENABLE_COBALT_HERMETIC_HACKS)
-#define CRYPTO_once pthread_once 
-#else
 OPENSSL_EXPORT void CRYPTO_once(CRYPTO_once_t *once, void (*init)(void));
-#endif
 
 
 // Atomics.
