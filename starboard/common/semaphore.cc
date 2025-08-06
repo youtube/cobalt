@@ -28,7 +28,7 @@ Semaphore::Semaphore(int initial_thread_permits)
 Semaphore::~Semaphore() {}
 
 void Semaphore::Put() {
-  std::unique_lock lock(mutex_);
+  std::lock_guard lock(mutex_);
   ++permits_;
   condition_.notify_one();
 }
