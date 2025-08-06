@@ -228,7 +228,7 @@ bool JobQueue::TryToRunOneJob(bool wait_for_next_job) {
       return false;
     }
     if (time_to_job_record_map_.empty() && wait_for_next_job) {
-      condition_.wait(scoped_lock);
+      condition_.wait(scoped_lock, [this] { return stopped_ || !time_to_job_record_map_.empty(); });
 #if ENABLE_JOB_QUEUE_PROFILING
       ++wait_times_;
 #endif  // ENABLE_JOB_QUEUE_PROFILING
