@@ -291,6 +291,10 @@ source_set("unit_tests") {
       "mojo_cdm_helper_unittest.cc",
     ]
 
+    if (is_starboard) {
+      sources -= [ "cdm_service_broker_unittest.cc" ]
+    }
+
     deps += [
       "//media/cdm:cdm_api",
       "//media/cdm:cdm_paths",

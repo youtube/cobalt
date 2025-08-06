@@ -17,7 +17,7 @@
 #include <string>
 
 #include "starboard/common/condition_variable.h"
-#include "starboard/shared/pthread/thread_create_priority.h"
+#include "starboard/thread.h"
 
 namespace starboard::shared::starboard::player {
 
@@ -79,7 +79,7 @@ void* JobThread::ThreadEntryPoint(void* context) {
   SB_DCHECK(param != nullptr);
 
   pthread_setname_np(pthread_self(), param->thread_name.c_str());
-  shared::pthread::ThreadSetPriority(param->thread_priority);
+  SbThreadSetPriority(param->thread_priority);
 
   JobThread* job_thread = param->job_thread;
   {
