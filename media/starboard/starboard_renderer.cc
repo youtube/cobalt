@@ -241,9 +241,11 @@ void StarboardRenderer::Initialize(MediaResource* media_resource,
       // Set |restart_for_transitions| to false due to devices are
       // isSetOutputSurfaceSupported() in
       // media/base/android/java/src/org/chromium/media/MediaCodecUtil.java.
-      request_overlay_info_cb_.Run(false);
+      request_overlay_info_cb_.Run(/*restart_for_transitions=*/false);
       return;
     }
+    // When CobaltUsingAndroidOverlay is enabled, both request_overlay_info_cb_
+    // and android_overlay_factory_cb_ should not be null.
     NOTREACHED();
   }
 #endif  // BUILDFLAG(IS_ANDROID)
@@ -500,7 +502,7 @@ void StarboardRenderer::OnOverlayInfoChanged(const OverlayInfo& overlay_info) {
                                    weak_factory_.GetWeakPtr());
   config.failed_cb = base::BindOnce(&StarboardRenderer::OnOverlayFailed,
                                     weak_factory_.GetWeakPtr());
-  config.rect = gfx::Rect(0, 0, 0, 0);
+  config.rect = gfx::Rect(viewport_size_);
   config.secure = false;
   config.power_efficient = false;
 
