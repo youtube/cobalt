@@ -228,7 +228,9 @@ bool JobQueue::TryToRunOneJob(bool wait_for_next_job) {
       return false;
     }
     if (time_to_job_record_map_.empty() && wait_for_next_job) {
-      condition_.wait(scoped_lock, [this] { return stopped_ || !time_to_job_record_map_.empty(); });
+      condition_.wait(scoped_lock, [this] {
+        return stopped_ || !time_to_job_record_map_.empty();
+      });
 #if ENABLE_JOB_QUEUE_PROFILING
       ++wait_times_;
 #endif  // ENABLE_JOB_QUEUE_PROFILING
@@ -241,8 +243,12 @@ bool JobQueue::TryToRunOneJob(bool wait_for_next_job) {
     int64_t delay_usec = first_delayed_job->first - CurrentMonotonicTime();
     if (delay_usec > 0) {
       if (wait_for_next_job) {
-        condition_.wait_for(scoped_lock, std::chrono::microseconds(delay_usec),
-                            [this, &first_delayed_job] { return stopped_ || time_to_job_record_map_.empty() || time_to_job_record_map_.begin() != first_delayed_job; });
+        condition_.wait_for(
+            scoped_lock, std::chrono::microseconds(delay_usec),
+            [this, key = first_delayed_job->first] {
+              return stopped_ || time_to_job_record_map_.empty() ||
+                     time_to_job_record_map_.begin()->first != key;
+            });
 #if ENABLE_JOB_QUEUE_PROFILING
         ++wait_times_;
 #endif  // ENABLE_JOB_QUEUE_PROFILING
