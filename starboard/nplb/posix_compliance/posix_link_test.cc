@@ -42,14 +42,17 @@ namespace starboard::nplb {
 namespace {
 
 TEST(PosixLinkTest, SuccessfulCreation) {
-  ScopedRandomFile old_path;
-  const std::string new_path = old_path.filename() + ".link";
+  ScopedRandomFile old_file;
+  const std::string new_path = old_file.filename() + ".link";
 
-  ASSERT_EQ(link(old_path.filename().c_str(), new_path.c_str()), 0);
+  ASSERT_EQ(link(old_file.filename().c_str(), new_path.c_str()), 0)
+      << "link failed with error: " << strerror(errno);
 
   struct stat old_sb, new_sb;
-  EXPECT_EQ(lstat(old_path.filename().c_str(), &old_sb), 0);
-  EXPECT_EQ(lstat(new_path.c_str(), &new_sb), 0);
+  EXPECT_EQ(lstat(old_file.filename().c_str(), &old_sb), 0)
+      << "lstat failed with error: " << strerror(errno);
+  EXPECT_EQ(lstat(new_path.c_str(), &new_sb), 0)
+      << "lstat failed with error: " << strerror(errno);
 
   // Hard links should share the same inode number.
   EXPECT_EQ(old_sb.st_ino, new_sb.st_ino);
@@ -68,17 +71,18 @@ TEST(PosixLinkTest, FailsIfOldPathDoesNotExist) {
 }
 
 TEST(PosixLinkTest, FailsIfNewPathExists) {
-  ScopedRandomFile old_path;
-  ScopedRandomFile new_path;  // This file already exists
+  ScopedRandomFile old_file;
+  ScopedRandomFile new_file;
 
-  EXPECT_EQ(link(old_path.filename().c_str(), new_path.filename().c_str()), -1);
+  EXPECT_EQ(link(old_file.filename().c_str(), new_file.filename().c_str()), -1);
   EXPECT_EQ(errno, EEXIST);
 }
 
 TEST(PosixLinkTest, FailsOnDirectory) {
   const char* dir_path = "dir_to_link.tmp";
   const char* new_path = "new_dir_link.tmp";
-  ASSERT_EQ(mkdir(dir_path, kUserRwx), 0);
+  ASSERT_EQ(mkdir(dir_path, kUserRwx), 0)
+      << "mkdir failed with error: " << strerror(errno);
 
   EXPECT_EQ(link(dir_path, new_path), -1);
   EXPECT_EQ(errno, EPERM);
@@ -89,20 +93,23 @@ TEST(PosixLinkTest, FailsOnDirectory) {
 TEST(PosixLinkTest, FailsWithSymbolicLinkLoopInDestPath) {
   // Setup a temporary directory for this test.
   const char* dir_path = "eloop_test_dir";
-  ASSERT_EQ(mkdir(dir_path, kUserRwx), 0);
+  ASSERT_EQ(mkdir(dir_path, kUserRwx), 0)
+      << "mkdir failed with error: " << strerror(errno);
 
-  ScopedRandomFile old_path;
+  ScopedRandomFile old_file;
   const std::string link_a_path = std::string(dir_path) + "/link_a";
   const std::string link_b_path = std::string(dir_path) + "/link_b";
 
   // Create a symlink loop using relative paths: link_a -> link_b, and link_b ->
   // link_a
-  ASSERT_EQ(symlink("link_b", link_a_path.c_str()), 0);
-  ASSERT_EQ(symlink("link_a", link_b_path.c_str()), 0);
+  ASSERT_EQ(symlink("link_b", link_a_path.c_str()), 0)
+      << "symlink failed with error: " << strerror(errno);
+  ASSERT_EQ(symlink("link_a", link_b_path.c_str()), 0)
+      << "symlink failed with error: " << strerror(errno);
 
   // Attempt to create a link where the new path contains the loop.
   const std::string new_path_with_loop = link_a_path + "/new_link";
-  EXPECT_EQ(link(old_path.filename().c_str(), new_path_with_loop.c_str()), -1);
+  EXPECT_EQ(link(old_file.filename().c_str(), new_path_with_loop.c_str()), -1);
   EXPECT_EQ(errno, ELOOP);
 
   // Cleanup
@@ -149,14 +156,17 @@ TEST(PosixLinkTest, FailsIfNewPathIsTooLong) {
 
 TEST(PosixLinkTest, FailsWithSymbolicLinkLoopInSourcePath) {
   const char* dir_path = "eloop_test_dir_old";
-  ASSERT_EQ(mkdir(dir_path, kUserRwx), 0);
+  ASSERT_EQ(mkdir(dir_path, kUserRwx), 0)
+      << "mkdir failed with error: " << strerror(errno);
 
   const std::string link_a_path = std::string(dir_path) + "/link_a";
   const std::string link_b_path = std::string(dir_path) + "/link_b";
   const std::string new_path = std::string(dir_path) + "/new_link";
 
-  ASSERT_EQ(symlink("link_b", link_a_path.c_str()), 0);
-  ASSERT_EQ(symlink("link_a", link_b_path.c_str()), 0);
+  ASSERT_EQ(symlink("link_b", link_a_path.c_str()), 0)
+      << "symlink failed with error: " << strerror(errno);
+  ASSERT_EQ(symlink("link_a", link_b_path.c_str()), 0)
+      << "symlink failed with error: " << strerror(errno);
 
   // Attempt to create a link FROM a path that contains a loop in a
   // directory component. This forces path resolution to fail.
