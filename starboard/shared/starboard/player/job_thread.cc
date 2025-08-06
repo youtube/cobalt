@@ -54,9 +54,9 @@ JobThread::JobThread(const char* thread_name,
   pthread_attr_destroy(&attributes);
 
   SB_DCHECK(thread_ != 0);
-  std::unique_lock scoped_lock(thread_param.mutex);
-  thread_param.condition_variable.wait(scoped_lock,
-                                       [&] { return job_queue_.get(); });
+  std::unique_lock lock(thread_param.mutex);
+  thread_param.condition_variable.wait(lock,
+                                       [this] { return job_queue_.get(); });
   SB_DCHECK(job_queue_);
 }
 

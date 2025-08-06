@@ -103,7 +103,8 @@ void JobQueue::ScheduleAndWait(Job&& job) {
   });
 
   std::unique_lock lock(mutex_);
-  condition_.wait(lock, [&]() { return job_finished || stopped_; });
+  condition_.wait(lock,
+                  [this, &job_finished]() { return job_finished || stopped_; });
 }
 
 void JobQueue::RemoveJobByToken(JobToken job_token) {
@@ -124,7 +125,7 @@ void JobQueue::RemoveJobByToken(JobToken job_token) {
 }
 
 void JobQueue::StopSoon() {
-  std::lock_guard scoped_lock(mutex_);
+  std::lock_guard lock(mutex_);
   stopped_ = true;
   time_to_job_record_map_.clear();
   condition_.notify_all();
@@ -135,7 +136,7 @@ void JobQueue::RunUntilStopped() {
 
   for (;;) {
     {
-      std::lock_guard scoped_lock(mutex_);
+      std::lock_guard lock(mutex_);
       if (stopped_) {
         return;
       }
@@ -175,7 +176,7 @@ JobQueue::JobToken JobQueue::Schedule(Job&& job,
   SB_DCHECK(job);
   SB_DCHECK(delay_usec >= 0) << delay_usec;
 
-  std::lock_guard scoped_lock(mutex_);
+  std::lock_guard lock(mutex_);
   if (stopped_) {
     return JobToken();
   }
@@ -206,7 +207,7 @@ void JobQueue::RemoveJobsByOwner(JobOwner* owner) {
   SB_DCHECK(BelongsToCurrentThread());
   SB_DCHECK(owner);
 
-  std::lock_guard scoped_lock(mutex_);
+  std::lock_guard lock(mutex_);
   for (TimeToJobRecordMap::iterator iter = time_to_job_record_map_.begin();
        iter != time_to_job_record_map_.end();) {
     if (iter->second.owner == owner) {
@@ -223,12 +224,12 @@ bool JobQueue::TryToRunOneJob(bool wait_for_next_job) {
   JobRecord job_record;
 
   {
-    std::unique_lock scoped_lock(mutex_);
+    std::unique_lock lock(mutex_);
     if (stopped_) {
       return false;
     }
     if (time_to_job_record_map_.empty() && wait_for_next_job) {
-      condition_.wait(scoped_lock, [this] {
+      condition_.wait(lock, [this] {
         return stopped_ || !time_to_job_record_map_.empty();
       });
 #if ENABLE_JOB_QUEUE_PROFILING
@@ -244,7 +245,7 @@ bool JobQueue::TryToRunOneJob(bool wait_for_next_job) {
     if (delay_usec > 0) {
       if (wait_for_next_job) {
         condition_.wait_for(
-            scoped_lock, std::chrono::microseconds(delay_usec),
+            lock, std::chrono::microseconds(delay_usec),
             [this, key = first_delayed_job->first] {
               return stopped_ || time_to_job_record_map_.empty() ||
                      time_to_job_record_map_.begin()->first != key;
