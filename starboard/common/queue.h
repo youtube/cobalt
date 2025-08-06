@@ -59,14 +59,15 @@ class Queue {
     std::unique_lock lock(mutex_);
     condition_.wait(lock, [this] { return !queue_.empty() || wake_; });
 
-    if (wake_) {
-      wake_ = false;
-      return T();
+    if (!queue_.empty()) {
+      T entry = std::move(queue_.front());
+      queue_.pop_front();
+      return entry;
     }
 
-    T entry = std::move(queue_.front());
-    queue_.pop_front();
-    return entry;
+    // The queue is empty, so this must be a wake-up.
+    wake_ = false;
+    return T();
   }
 
   // Gets the item at the front of the queue, blocking until there is such an
@@ -80,14 +81,15 @@ class Queue {
       return T();
     }
 
-    if (wake_) {
-      wake_ = false;
-      return T();
+    if (!queue_.empty()) {
+      T entry = std::move(queue_.front());
+      queue_.pop_front();
+      return entry;
     }
 
-    T entry = std::move(queue_.front());
-    queue_.pop_front();
-    return entry;
+    // The queue is empty, so this must be a wake-up.
+    wake_ = false;
+    return T();
   }
 
   // Pushes |value| onto the back of the queue, waking up a single waiter, if
