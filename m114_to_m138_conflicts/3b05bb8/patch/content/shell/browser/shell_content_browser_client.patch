@@ -1,0 +1,22 @@
+--- content/shell/browser/shell_content_browser_client.cc
++++ content/shell/browser/shell_content_browser_client.cc
+@@ -325,11 +325,8 @@
+   return pref_service_factory.Create(pref_registry);
+ }
+ 
+-<<<<<<< HEAD
+ bool AreIsolatedWebAppsEnabled() {
+   return base::FeatureList::IsEnabled(features::kIsolatedWebApps);
+-=======
+-}  // namespace
+ 
+ std::string GetShellUserAgent() {
+   // TODO(cobalt b/376147838): Revert the changes here and instead rely on coablt_content_browser_client.cc for UA.
+@@ -344,7 +341,6 @@
+ 
+   return GetShellFullUserAgent();
+ #endif
+->>>>>>> 3b05bb8cff4 (`cobalt_apk` to build dev.cobalt.coat (#4304))
+ }
+ 
+ }  // namespace

@@ -1,0 +1,46 @@
+--- media/base/decoder_buffer.cc
++++ media/base/decoder_buffer.cc
+@@ -51,18 +51,7 @@
+   memcpy(data_, data, size_);
+ #else // BUILDFLAG(USE_STARBOARD_MEDIA)
+   memcpy(data_.get(), data, size_);
+-<<<<<<< HEAD
+-=======
+ #endif // BUILDFLAG(USE_STARBOARD_MEDIA)
+-
+-  if (!side_data) {
+-    CHECK_EQ(side_data_size, 0u);
+-    return;
+-  }
+-
+-  DCHECK_GT(side_data_size_, 0u);
+-  memcpy(side_data_.get(), side_data, side_data_size_);
+->>>>>>> 358472d994e ([media] Support DecoderBufferAllocator (#4348))
+ }
+ 
+ DecoderBuffer::DecoderBuffer(std::unique_ptr<uint8_t[]> data, size_t size)
+@@ -92,11 +81,7 @@
+   s_allocator->Free(data_, allocated_size_);
+ #else // BUILDFLAG(USE_STARBOARD_MEDIA)
+   data_.reset();
+-<<<<<<< HEAD
+-=======
+ #endif // BUILDFLAG(USE_STARBOARD_MEDIA)
+-  side_data_.reset();
+->>>>>>> 358472d994e ([media] Support DecoderBufferAllocator (#4348))
+ }
+ 
+ void DecoderBuffer::Initialize() {
+@@ -112,12 +97,7 @@
+   memset(data_ + size_, 0, padding);
+ #else // BUILDFLAG(USE_STARBOARD_MEDIA)
+   data_.reset(new uint8_t[size_]);
+-<<<<<<< HEAD
+-=======
+ #endif // BUILDFLAG(USE_STARBOARD_MEDIA)
+-  if (side_data_size_ > 0)
+-    side_data_.reset(new uint8_t[side_data_size_]);
+->>>>>>> 358472d994e ([media] Support DecoderBufferAllocator (#4348))
+ }
+ 
+ // static

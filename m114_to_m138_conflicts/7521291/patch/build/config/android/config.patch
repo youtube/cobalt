@@ -1,0 +1,30 @@
+--- build/config/android/config.gni
++++ build/config/android/config.gni
+@@ -72,12 +72,9 @@
+     # The default to use for android:minSdkVersion for targets that do
+     # not explicitly set it.
+     default_min_sdk_version = 26
+-<<<<<<< HEAD
+     if (is_asan) {
+       default_min_sdk_version = 27
+     }
+-=======
+->>>>>>> 7521291e258 (Add starboard build to android (#4259))
+ 
+     # Static analysis can be either "on" or "off" or "build_server". This
+     # controls how android lint, error-prone, bytecode checks are run. This
+@@ -129,14 +126,8 @@
+   }
+ 
+   if (!defined(default_android_ndk_root)) {
+-<<<<<<< HEAD
+     default_android_ndk_root = "//third_party/android_toolchain/ndk"
+     default_android_ndk_version = "r27"
+-=======
+-    default_android_ndk_root = "//third_party/android_ndk"
+-    default_android_ndk_version = "r26"
+-    default_android_ndk_major_version = 26
+->>>>>>> 7521291e258 (Add starboard build to android (#4259))
+   } else {
+     assert(defined(default_android_ndk_version))
+   }

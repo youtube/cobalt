@@ -1,0 +1,19 @@
+--- BUILD.gn
++++ BUILD.gn
+@@ -870,7 +870,6 @@
+       deps += [ "//components/cronet:cronet_tests" ]
+     }
+   }
+-<<<<<<< HEAD
+ 
+   if (is_chrome_for_testing) {
+     deps += [ "//chrome/browser/chrome_for_testing:chrome_for_testing" ]
+@@ -880,8 +879,6 @@
+     deps += [ "//internal:all" ]
+   }
+ 
+-=======
+->>>>>>> 3be9afd9648 (Revert "Revert "Build starboard shared library for linux-x64x11 (#4215)"" (#4247))
+   if (chrobalt) {
+     deps += [ "//chrobalt:gn_all" ]
+   }

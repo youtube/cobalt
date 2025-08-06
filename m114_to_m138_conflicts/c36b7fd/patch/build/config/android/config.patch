@@ -1,0 +1,19 @@
+--- build/config/android/config.gni
++++ build/config/android/config.gni
+@@ -71,16 +71,9 @@
+ 
+     # The default to use for android:minSdkVersion for targets that do
+     # not explicitly set it.
+-<<<<<<< HEAD
+     default_min_sdk_version = 26
+     if (is_asan) {
+       default_min_sdk_version = 27
+-=======
+-    if (is_cobalt) {
+-      default_min_sdk_version = 26
+-    } else {
+-      default_min_sdk_version = 24
+->>>>>>> c36b7fdbf97 (Fix chromium android builds (#4303))
+     }
+ 
+     # Static analysis can be either "on" or "off" or "build_server". This

@@ -1,0 +1,20 @@
+--- content/shell/android/shell_apk/src/org/chromium/content_shell_apk/ContentShellActivity.java
++++ content/shell/android/shell_apk/src/org/chromium/content_shell_apk/ContentShellActivity.java
+@@ -77,9 +77,7 @@
+         mWindowAndroid.setAnimationPlaceholderView(
+                 mShellManager.getContentViewRenderView().getSurfaceView());
+ 
+-<<<<<<< HEAD
+         mStartupUrl = getUrlFromIntent(getIntent());
+-=======
+         // TODO(cobalt, b/376148547): set Chrobalt initial url and remove this function.
+         if (mStartupUrl.isEmpty()) {
+             mStartupUrl = getUrlFromIntent(getIntent());
+@@ -87,7 +85,6 @@
+         if (!TextUtils.isEmpty(mStartupUrl)) {
+             mShellManager.setStartupUrl(Shell.sanitizeUrl(mStartupUrl));
+         }
+->>>>>>> 3b05bb8cff4 (`cobalt_apk` to build dev.cobalt.coat (#4304))
+ 
+         if (CommandLine.getInstance().hasSwitch(RUN_WEB_TESTS_SWITCH)) {
+             BrowserStartupController.getInstance()

@@ -1,0 +1,27 @@
+--- build/config/android/config.gni
++++ build/config/android/config.gni
+@@ -117,7 +117,6 @@
+   }
+ 
+   if (!defined(default_android_ndk_root)) {
+-<<<<<<< HEAD
+     default_android_ndk_root = "//third_party/android_toolchain/ndk"
+     if (current_cpu == "riscv64") {
+       # Today (2023-08-30) only the canary Android NDK supports RISC-V64.
+@@ -125,16 +124,6 @@
+     }
+     default_android_ndk_version = "r26"
+     default_android_ndk_major_version = 26
+-=======
+-    default_android_ndk_root = "//third_party/android_ndk"
+-    if (is_cobalt) {
+-      default_android_ndk_version = "r26"
+-      default_android_ndk_major_version = 26
+-    } else {
+-      default_android_ndk_version = "r23"
+-      default_android_ndk_major_version = 23
+-    }
+->>>>>>> c36b7fdbf97 (Fix chromium android builds (#4303))
+   } else {
+     assert(defined(default_android_ndk_version))
+     assert(defined(default_android_ndk_major_version))
