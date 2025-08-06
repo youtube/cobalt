@@ -16,10 +16,13 @@
 
 #include <pthread.h>
 
+#include <chrono>
 #include <limits>
+#include <mutex>
 #include <utility>
 
 #include "starboard/common/log.h"
+#include "starboard/common/time.h"
 #include "starboard/system.h"
 #include "starboard/thread.h"
 
@@ -61,7 +64,7 @@ void ResetCurrentThreadJobQueue() {
 
 }  // namespace
 
-JobQueue::JobQueue() : thread_id_(SbThreadGetId()), condition_(mutex_) {
+JobQueue::JobQueue() : thread_id_(SbThreadGetId()) {
   SB_DCHECK(SbThreadIsValidId(thread_id_));
   SetCurrentThreadJobQueue(this);
 }
@@ -94,15 +97,13 @@ void JobQueue::ScheduleAndWait(Job&& job) {
   bool job_finished = false;
 
   Schedule([&]() {
-    ScopedLock lock(mutex_);
+    std::lock_guard lock(mutex_);
     job_finished = true;
-    condition_.Broadcast();
+    condition_.notify_all();
   });
 
-  ScopedLock lock(mutex_);
-  while (!job_finished && !stopped_) {
-    condition_.Wait();
-  }
+  std::unique_lock lock(mutex_);
+  condition_.wait(lock, [&]() { return job_finished || stopped_; });
 }
 
 void JobQueue::RemoveJobByToken(JobToken job_token) {
@@ -112,7 +113,7 @@ void JobQueue::RemoveJobByToken(JobToken job_token) {
     return;
   }
 
-  ScopedLock scoped_lock(mutex_);
+  std::lock_guard scoped_lock(mutex_);
   for (TimeToJobRecordMap::iterator iter = time_to_job_record_map_.begin();
        iter != time_to_job_record_map_.end(); ++iter) {
     if (iter->second.job_token == job_token) {
@@ -123,10 +124,10 @@ void JobQueue::RemoveJobByToken(JobToken job_token) {
 }
 
 void JobQueue::StopSoon() {
-  ScopedLock scoped_lock(mutex_);
+  std::lock_guard scoped_lock(mutex_);
   stopped_ = true;
   time_to_job_record_map_.clear();
-  condition_.Broadcast();
+  condition_.notify_all();
 }
 
 void JobQueue::RunUntilStopped() {
@@ -134,7 +135,7 @@ void JobQueue::RunUntilStopped() {
 
   for (;;) {
     {
-      ScopedLock scoped_lock(mutex_);
+      std::lock_guard scoped_lock(mutex_);
       if (stopped_) {
         return;
       }
@@ -174,7 +175,7 @@ JobQueue::JobToken JobQueue::Schedule(Job&& job,
   SB_DCHECK(job);
   SB_DCHECK(delay_usec >= 0) << delay_usec;
 
-  ScopedLock scoped_lock(mutex_);
+  std::lock_guard scoped_lock(mutex_);
   if (stopped_) {
     return JobToken();
   }
@@ -196,7 +197,7 @@ JobQueue::JobToken JobQueue::Schedule(Job&& job,
 
   time_to_job_record_map_.insert({time_to_run_job, std::move(job_record)});
   if (is_first_job) {
-    condition_.Broadcast();
+    condition_.notify_all();
   }
   return job_token;
 }
@@ -205,7 +206,7 @@ void JobQueue::RemoveJobsByOwner(JobOwner* owner) {
   SB_DCHECK(BelongsToCurrentThread());
   SB_DCHECK(owner);
 
-  ScopedLock scoped_lock(mutex_);
+  std::lock_guard scoped_lock(mutex_);
   for (TimeToJobRecordMap::iterator iter = time_to_job_record_map_.begin();
        iter != time_to_job_record_map_.end();) {
     if (iter->second.owner == owner) {
@@ -222,12 +223,14 @@ bool JobQueue::TryToRunOneJob(bool wait_for_next_job) {
   JobRecord job_record;
 
   {
-    ScopedLock scoped_lock(mutex_);
+    std::unique_lock scoped_lock(mutex_);
     if (stopped_) {
       return false;
     }
     if (time_to_job_record_map_.empty() && wait_for_next_job) {
-      condition_.WaitTimed(std::numeric_limits<int64_t>::max());
+      condition_.wait_for(
+          scoped_lock,
+          std::chrono::microseconds(std::numeric_limits<int64_t>::max()));
 #if ENABLE_JOB_QUEUE_PROFILING
       ++wait_times_;
 #endif  // ENABLE_JOB_QUEUE_PROFILING
@@ -240,7 +243,7 @@ bool JobQueue::TryToRunOneJob(bool wait_for_next_job) {
     int64_t delay_usec = first_delayed_job->first - CurrentMonotonicTime();
     if (delay_usec > 0) {
       if (wait_for_next_job) {
-        condition_.WaitTimed(delay_usec);
+        condition_.wait_for(scoped_lock, std::chrono::microseconds(delay_usec));
 #if ENABLE_JOB_QUEUE_PROFILING
         ++wait_times_;
 #endif  // ENABLE_JOB_QUEUE_PROFILING

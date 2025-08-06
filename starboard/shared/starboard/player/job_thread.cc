@@ -14,9 +14,10 @@
 
 #include "starboard/shared/starboard/player/job_thread.h"
 
+#include <condition_variable>
+#include <mutex>
 #include <string>
 
-#include "starboard/common/condition_variable.h"
 #include "starboard/thread.h"
 
 namespace starboard::shared::starboard::player {
@@ -27,12 +28,9 @@ struct ThreadParam {
   explicit ThreadParam(JobThread* job_thread,
                        const char* name,
                        SbThreadPriority priority)
-      : condition_variable(mutex),
-        job_thread(job_thread),
-        thread_name(name),
-        thread_priority(priority) {}
-  Mutex mutex;
-  ConditionVariable condition_variable;
+      : job_thread(job_thread), thread_name(name), thread_priority(priority) {}
+  std::mutex mutex;
+  std::condition_variable condition_variable;
   JobThread* job_thread;
   std::string thread_name;
   SbThreadPriority thread_priority;
@@ -56,10 +54,9 @@ JobThread::JobThread(const char* thread_name,
   pthread_attr_destroy(&attributes);
 
   SB_DCHECK(thread_ != 0);
-  ScopedLock scoped_lock(thread_param.mutex);
-  while (!job_queue_) {
-    thread_param.condition_variable.Wait();
-  }
+  std::unique_lock scoped_lock(thread_param.mutex);
+  thread_param.condition_variable.wait(scoped_lock,
+                                       [&] { return job_queue_.get(); });
   SB_DCHECK(job_queue_);
 }
 
@@ -83,9 +80,9 @@ void* JobThread::ThreadEntryPoint(void* context) {
 
   JobThread* job_thread = param->job_thread;
   {
-    ScopedLock scoped_lock(param->mutex);
-    job_thread->job_queue_.reset(new JobQueue);
-    param->condition_variable.Signal();
+    std::unique_lock scoped_lock(param->mutex);
+    job_thread->job_queue_ = std::make_unique<JobQueue>();
+    param->condition_variable.notify_one();
   }
   job_thread->RunLoop();
   return nullptr;

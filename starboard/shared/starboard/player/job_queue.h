@@ -15,14 +15,13 @@
 #ifndef STARBOARD_SHARED_STARBOARD_PLAYER_JOB_QUEUE_H_
 #define STARBOARD_SHARED_STARBOARD_PLAYER_JOB_QUEUE_H_
 
+#include <condition_variable>
 #include <functional>
 #include <map>
+#include <mutex>
 #include <utility>
 
-#include "starboard/common/condition_variable.h"
 #include "starboard/common/log.h"
-#include "starboard/common/mutex.h"
-#include "starboard/common/time.h"
 #include "starboard/shared/internal_only.h"
 #include "starboard/thread.h"
 
@@ -169,8 +168,8 @@ class JobQueue {
   bool TryToRunOneJob(bool wait_for_next_job);
 
   const SbThreadId thread_id_;
-  Mutex mutex_;
-  ConditionVariable condition_;
+  std::mutex mutex_;
+  std::condition_variable condition_;
   int64_t current_job_token_ = JobToken::kInvalidToken + 1;
   TimeToJobRecordMap time_to_job_record_map_;
   bool stopped_ = false;
