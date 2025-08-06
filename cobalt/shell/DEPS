@@ -37,7 +37,7 @@ include_rules = [
   "+components/url_formatter",
   "+components/viz/common/resources",
   "+components/viz/common/switches.h",
-  "+services/test/echo",
+  "-services/test/echo",
 
   # Separating cobalt shell and web test code. Only narrow parts of content
   # shell may access and inject web test code at runtime.
