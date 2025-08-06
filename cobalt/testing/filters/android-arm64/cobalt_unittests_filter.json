@@ -1,6 +1,3 @@
 {
-  "failing_tests": [
-    "UserAgentStringTest.*",
-    "Tzset/Timezone.*"
-  ]
+  "failing_tests": []
 }

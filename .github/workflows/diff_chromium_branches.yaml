@@ -15,6 +15,10 @@ on:
   pull_request:
     types:
       - labeled
+    branches:
+      - main
+      - experimental/*
+      - feature/*
 jobs:
   initialize:
     runs-on: ubuntu-latest
@@ -34,15 +38,15 @@ jobs:
           # If upstream branches are provided as input, we are manually triggered
           if [[ -n "${UPSTREAM_BRANCHES}" ]]; then
             # If manually triggered, get branches from comma-separated branches from inputs
-            export DIFF_LABELS=$(echo "$UPSTREAM_BRANCHES" | jq -R 'split(",") | map(trim)')
+            export DIFF_LABELS=$(echo "$UPSTREAM_BRANCHES" | jq -r -R '[split(",") | map(trim)] | map("\"" + . + "\"") | join(",")')
           else
             # If label or synchronize Get the upstream branches from labels prefixed with $DIFF_PREFIX
             DIFF_PREFIX=$(cat ${GITHUB_WORKSPACE}/.github/config/chromium_diffing.json | jq -r '.diff_label_prefix')
-            export DIFF_LABELS=$(echo "$PR_LABELS" | jq -c --arg prefix "$DIFF_PREFIX" '.[] | select(.name | startswith($prefix)) | .name | sub($prefix; "")')
+            export DIFF_LABELS=$(echo "$PR_LABELS" | jq -c -r --arg prefix "$DIFF_PREFIX" '[.[] | select(.name | startswith($prefix)) | .name | sub($prefix; "")] | map("\"" + . + "\"") | join(",")')
           fi
           # Selected all branches objects in the chromium_diffing.json that match the diff labels
-          JQ_QUERY="[.stable_branches[] as $branch | select($diff_labels | IN($branch))]"
-          UPSTREAM_BRANCHES=$(cat ${GITHUB_WORKSPACE}/.github/config/chromium_diffing.json | jq -c -argjson diff_labels "$DIFF_LABELS" "${JQ_QUERY}")
+          JQ_QUERY="[.stable_branches[] | select(.milestone | IN($DIFF_LABELS))]"
+          export UPSTREAM_BRANCHES=$(cat ${GITHUB_WORKSPACE}/.github/config/chromium_diffing.json | jq -c "${JQ_QUERY}")
           echo "upstream_branches=${UPSTREAM_BRANCHES}" >> $GITHUB_OUTPUT
       - name: Set downstream branch
         id: set-downstream-branch
@@ -68,16 +72,16 @@ jobs:
           CODE_OWNERSHIP=$(cat ${GITHUB_WORKSPACE}/.github/config/chromium_diffing.json | jq -c .code_ownership)
           echo "code_ownership=${CODE_OWNERSHIP}" >> $GITHUB_OUTPUT
     outputs:
-      upstream_branches: ${{ fromJson(steps.set-upstream-branches.outputs.upstream_branches) }}
+      upstream_branches: ${{ steps.set-upstream-branches.outputs.upstream_branches }}
       downstream_branch: ${{ steps.set-downstream-branch.outputs.downstream_branch }}
       code_ownership: ${{ steps.set-code-ownership.outputs.code_ownership }}
   calculate_diffs:
-    needs: [initialize]
+    needs: initialize
     runs-on: ubuntu-latest
     strategy:
       fail-fast: false
       matrix:
-        upstream_branch: ${{ needs.initialize.outputs.upstream_branches }}
+        upstream_branch: ${{ fromJson(needs.initialize.outputs.upstream_branches) }}
     steps:
       - uses: actions/checkout@v4
         with:
@@ -120,17 +124,15 @@ jobs:
           git diff --diff-filter=D HEAD..FETCH_HEAD -- ${PATHS_TO_CHECK_ARRAY[@]} > downstream_removal.diff
       - name: Report Diffs
         run: |
-          apt-get update
-          apt-get install -y diffstat
           echo "This is will be replaced with proper logging later"
           echo "--------------------------------------------------"
           echo "SUMMARY OF MAIN DIFFS"
           echo "--------------------------------------------------"
           echo ""
-          diffstat main_diff.diff
+          git diff --stat main_diff.diff
           echo ""
           echo "--------------------------------------------------"
           echo "SUMMARY OF ADDED DIFFS"
           echo "--------------------------------------------------"
           echo ""
-          diffstat downstream_removal.diff
+          git diff --stat downstream_removal.diff
