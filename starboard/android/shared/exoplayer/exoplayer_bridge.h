@@ -22,6 +22,7 @@
 
 #include "base/android/jni_android.h"
 #include "base/android/jni_array.h"
+#include "base/android/jni_string.h"
 #include "starboard/android/shared/video_window.h"
 #include "starboard/common/condition_variable.h"
 #include "starboard/common/mutex.h"
@@ -90,12 +91,11 @@ class ExoPlayerBridge final : private VideoSurfaceHolder {
   // Native callbacks.
   void OnPlaybackStateChanged(JNIEnv* env, jint playbackState);
   void OnInitialized(JNIEnv* env);
-  void OnError(JNIEnv* env);
+  void OnError(JNIEnv* env, jstring error_message);
   void SetPlayingStatus(JNIEnv* env, jboolean isPlaying);
 
   void OnPlayerInitialized();
   void OnPlayerPrerolled();
-  void OnPlayerError();
   void OnPlaybackEnded();
   void SetPlayingStatusInternal(bool is_playing);
 
@@ -119,6 +119,7 @@ class ExoPlayerBridge final : private VideoSurfaceHolder {
   void TearDownExoPlayer();
   void UpdatePlayingStatus(bool is_playing);
 
+  ScopedJavaGlobalRef<jobject> j_exoplayer_manager_ = nullptr;
   ScopedJavaGlobalRef<jobject> j_exoplayer_bridge_ = nullptr;
   ScopedJavaGlobalRef<jbyteArray> j_sample_data_ = nullptr;
   ScopedJavaGlobalRef<jobject> j_output_surface_ = nullptr;

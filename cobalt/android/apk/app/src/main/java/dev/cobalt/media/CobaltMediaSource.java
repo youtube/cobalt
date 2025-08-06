@@ -165,8 +165,8 @@ public final class CobaltMediaSource extends BaseMediaSource {
 
         @Override
         public long seekToUs(long positionUs) {
-            Log.i(TAG, String.format("ExoPlayer seeking to timestamp", positionUs));
-            stream.clearStream();
+            Log.i(TAG, String.format("ExoPlayer seeking to timestamp %d", positionUs));
+            stream.seek(positionUs);
             reachedEos = false;
             pendingDiscontinuity = true;
             discontinuityPositionUs = positionUs;

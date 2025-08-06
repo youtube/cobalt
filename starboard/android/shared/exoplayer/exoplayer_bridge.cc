@@ -30,11 +30,13 @@
 
 // Must come after all headers that specialize FromJniType() / ToJniType().
 #include "cobalt/android/jni_headers/ExoPlayerBridge_jni.h"
+#include "cobalt/android/jni_headers/ExoPlayerManager_jni.h"
 
 namespace starboard::android::shared::exoplayer {
 namespace {
 
 using base::android::AttachCurrentThread;
+using base::android::ConvertJavaStringToUTF8;
 using base::android::ConvertUTF8ToJavaString;
 using base::android::ScopedJavaLocalRef;
 using base::android::ToJavaByteArray;
@@ -43,7 +45,7 @@ using base::android::ToJavaByteArray;
 #if defined(COBALT_BUILD_TYPE_GOLD) || defined(COBALT_BUILD_TYPE_QA)
 constexpr int kWaitForInitializedTimeout = 7'000'000;  // 700 ms
 #else
-constexpr int kWaitForInitializedTimeout = 100'000'000;  // 1000 ms
+constexpr int kWaitForInitializedTimeout = 10'000'000;  // 1000 ms
 #endif
 
 DECLARE_INSTANCE_COUNTER(ExoPlayerBridge)
@@ -114,6 +116,7 @@ void ExoPlayerBridge::Seek(int64_t seek_to_timestamp) {
   audio_eos_written_ = false;
   video_eos_written_ = false;
   seeking_ = true;
+  cv_ = ConditionVariable(mutex_);
 }
 
 void ExoPlayerBridge::WriteSamples(const InputBuffers& input_buffers) {
@@ -259,8 +262,9 @@ void ExoPlayerBridge::OnInitialized(JNIEnv* env) {
   cv_.Signal();
 }
 
-void ExoPlayerBridge::OnError(JNIEnv* env) {
-  OnPlayerError();
+void ExoPlayerBridge::OnError(JNIEnv* env, jstring error_message) {
+  SB_DCHECK(error_cb_);
+  error_cb_(kSbPlayerErrorDecode, ConvertJavaStringToUTF8(env, error_message));
 }
 
 void ExoPlayerBridge::SetPlayingStatus(JNIEnv* env, jboolean is_playing) {
@@ -274,11 +278,6 @@ void ExoPlayerBridge::OnPlayerInitialized() {
 
 void ExoPlayerBridge::OnPlayerPrerolled() {
   prerolled_cb_();
-}
-
-void ExoPlayerBridge::OnPlayerError() {
-  std::string error_message;
-  error_cb_(kSbPlayerErrorDecode, error_message);
 }
 
 void ExoPlayerBridge::OnPlaybackEnded() {
@@ -308,18 +307,25 @@ bool ExoPlayerBridge::EnsurePlayerIsInitialized() {
 void ExoPlayerBridge::InitExoplayer() {
   JNIEnv* env = AttachCurrentThread();
 
+  ScopedJavaLocalRef<jobject> j_exoplayer_manager(
+      StarboardBridge::GetInstance()->GetExoPlayerManager(env));
+  if (j_exoplayer_manager.is_null()) {
+    SB_LOG(WARNING) << "Failed to fetch ExoPlayerManager.";
+    error_occurred_ = true;
+    return;
+  }
+  j_exoplayer_manager_.Reset(j_exoplayer_manager);
+
   ScopedJavaLocalRef<jobject> j_exoplayer_bridge(
-      StarboardBridge::GetInstance()->GetExoPlayerBridge(env));
+      Java_ExoPlayerManager_createExoPlayerBridge(
+          env, j_exoplayer_manager_, reinterpret_cast<jlong>(this),
+          /*prefer tunnel mode*/ false));
   if (j_exoplayer_bridge.is_null()) {
-    SB_LOG(WARNING) << "Failed to create |j_exoplayer_bridge|.";
+    SB_LOG(WARNING) << "Failed to create ExoPlayerBridge.";
     error_occurred_ = true;
     return;
   }
   j_exoplayer_bridge_.Reset(j_exoplayer_bridge);
-
-  Java_ExoPlayerBridge_createExoPlayer(env, j_exoplayer_bridge_,
-                                       reinterpret_cast<jlong>(this),
-                                       /*prefer tunnel mode*/ false);
 
   if (audio_stream_info_.codec != kSbMediaAudioCodecNone) {
     int audio_samplerate = audio_stream_info_.samples_per_second;
@@ -402,7 +408,8 @@ void ExoPlayerBridge::TearDownExoPlayer() {
   Stop();
 
   JNIEnv* env = AttachCurrentThread();
-  Java_ExoPlayerBridge_destroyExoPlayer(env, j_exoplayer_bridge_);
+  Java_ExoPlayerManager_destroyExoPlayerBridge(env, j_exoplayer_manager_,
+                                               j_exoplayer_bridge_);
   ended_ = true;
   ClearVideoWindow(true);
   ReleaseVideoSurface();

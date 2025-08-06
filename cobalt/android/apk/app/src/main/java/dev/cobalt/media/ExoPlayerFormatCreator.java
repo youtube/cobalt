@@ -21,18 +21,18 @@ public class ExoPlayerFormatCreator {
         if (mime.equals("audio/opus")) {
             Log.i(TAG, "Creating opus audio format");
             if (audioConfigurationData != null) {
-                Log.i(TAG, "Setting Opus config info in ExoPlayer");
                 byte[][] csds = {};
                 csds = MediaFormatBuilder.starboardParseOpusConfigurationData(
                         sampleRate, audioConfigurationData);
                 if (csds == null) {
                     Log.e(TAG, "Error parsing Opus config info");
-                    assert (false);
+                    return audioFormat;
                 } else {
                     csdsList = Arrays.asList(csds);
                 }
             }
         }
+
         audioFormat = new Format.Builder()
                               .setSampleMimeType(mime)
                               .setSampleRate(sampleRate)
@@ -47,7 +47,6 @@ public class ExoPlayerFormatCreator {
             String mime, int width, int height, float fps, int bitrate) {
         Format videoFormat = null;
         Format.Builder builder = new Format.Builder();
-        Log.i(TAG, String.format("Creating video format for mime %s", mime));
         builder.setSampleMimeType(mime).setWidth(width).setHeight(height);
         if (bitrate > 0) {
             builder.setAverageBitrate(bitrate);

@@ -83,9 +83,6 @@ class ExoPlayerWorkerHandler : public Handler, private JobQueue::JobOwner {
   JobQueue::JobToken update_job_token_;
   std::function<void()> update_job_;
 
-  SbPlayerOutputMode output_mode_;
-  int max_video_input_size_;
-
   const starboard::shared::starboard::media::AudioStreamInfo audio_stream_info_;
   const starboard::shared::starboard::media::VideoStreamInfo video_stream_info_;
 };

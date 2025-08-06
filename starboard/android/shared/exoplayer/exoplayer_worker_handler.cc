@@ -107,9 +107,8 @@ HandlerResult ExoPlayerWorkerHandler::WriteSamples(
       SB_LOG(WARNING) << "Tried to write video sample after EOS is reached";
     }
   }
-  for (const auto& input_buffer : input_buffers) {
-    ++*samples_written;
-  }
+
+  *samples_written += input_buffers.size();
   bridge_->WriteSamples(input_buffers);
   return HandlerResult{true};
 }
@@ -177,10 +176,7 @@ void ExoPlayerWorkerHandler::Update() {
     if (video_stream_info_.codec != kSbMediaVideoCodecNone) {
       dropped_frames = bridge_->GetDroppedFrames();
     }
-    bool is_playing;
-    bool is_eos_played;
-    bool is_underflow;
-    double playback_rate;
+
     ExoPlayerBridge::MediaInfo info;
     auto media_time = bridge_->GetCurrentMediaTime(info);
     update_media_info_cb_(media_time, dropped_frames, !info.is_underflow);

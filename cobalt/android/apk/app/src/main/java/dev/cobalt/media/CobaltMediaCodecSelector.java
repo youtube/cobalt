@@ -41,10 +41,10 @@ public class CobaltMediaCodecSelector implements MediaCodecSelector {
             return defaultDecoderInfos;
             }
             // Skip video decoder filtering for emulators.
-//                if (IsEmulator.isEmulator()) {
-//                    Log.i(TAG, "Allowing all available decoders for emulator");
-//                    return defaultDecoderInfos;
-//                }
+               if (IsEmulator.isEmulator()) {
+                   Log.i(TAG, "Allowing all available decoders for emulator");
+                   return defaultDecoderInfos;
+               }
 
             List<MediaCodecInfo> filteredDecoderInfos = new ArrayList<>();
 
@@ -72,18 +72,10 @@ public class CobaltMediaCodecSelector implements MediaCodecSelector {
             return true;
         }
 
-        // Codec2 names sw decoders this way.
-        // See hardware/google/av/codec2/vndk/C2Store.cpp.
         if (name.startsWith("c2.google.") || name.startsWith("c2.android.")) {
             return true;
         }
 
         return false;
     }
-
-//    @Override
-//    public MediaCodecInfo getPassthroughDecoderInfo() {
-//        // You might want to keep the default behavior for passthrough decoders
-//        return MediaCodecUtil.getPassthroughDecoderInfo();
-//    }
 }

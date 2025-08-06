@@ -41,11 +41,24 @@ public class CobaltSampleStream implements SampleStream {
     private boolean endOfStream = false;
     private Allocator allocator;
     private long samplesQueued = 0;
+    private long playbackStartTimeUs = 0;
+    private long prerollFrames = 0;
+    private int totalSamplesWritten = 0;
 
     CobaltSampleStream(Allocator allocator, Format format) {
         this.allocator = allocator;
         sampleQueue = SampleQueue.createWithoutDrm(allocator);
         sampleQueue.format(format);
+        if (format.sampleRate != Format.NO_VALUE) {
+            // int prerollLengthMs = 200;
+            // prerollFrames = prerollLengthMs * (format.sampleRate / 1000);
+            // Log.i(TAG, String.format("Audio preroll frames is %d for sample rate %d",
+            // prerollFrames, format.sampleRate));
+            prerollFrames = 20;
+        } else {
+            prerollFrames = 8;
+            Log.i(TAG, String.format("Video preroll frames is %d", prerollFrames));
+        }
     }
 
     void discardBuffer(long positionUs, boolean toKeyframe) {
@@ -54,12 +67,13 @@ public class CobaltSampleStream implements SampleStream {
 
     void writeSample(byte[] data, int sizeInBytes, long timestampUs, boolean isKeyFrame,
             boolean isEndOfStream) {
+        Log.i(TAG, String.format("In writeSample, start time is %d", playbackStartTimeUs));
         int sampleFlags = isKeyFrame ? C.BUFFER_FLAG_KEY_FRAME : 0;
         if (firstData) {
             sampleFlags = sampleFlags | C.BUFFER_FLAG_FIRST_SAMPLE;
             firstData = false;
-            Log.i(TAG, String.format("Setting sampleQueue start time to %d", timestampUs));
-            sampleQueue.setStartTimeUs(timestampUs);
+            // Log.i(TAG, String.format("Setting sampleQueue start time to %d", timestampUs));
+            // sampleQueue.setStartTimeUs(timestampUs);
         }
         if (isEndOfStream) {
             sampleFlags = sampleFlags | C.BUFFER_FLAG_END_OF_STREAM;
@@ -85,19 +99,22 @@ public class CobaltSampleStream implements SampleStream {
                     String.format(
                             "Caught exception from sampleQueue.sampleMetadata() %s", e.toString()));
         }
+        boolean isAudio = sampleQueue.getUpstreamFormat().sampleRate != Format.NO_VALUE;
+        Log.i(TAG,
+                String.format("Wrote %s Sample timestamp is %d", isAudio ? "audio" : "video",
+                        timestampUs));
         samplesQueued = samplesQueued + 1;
+        totalSamplesWritten = totalSamplesWritten + 1;
         if (!prerolled) {
             if (sampleQueue.getUpstreamFormat().sampleRate != Format.NO_VALUE) {
                 // Audio stream
-                prerolled = (prerolled || sampleQueue.getLargestQueuedTimestampUs() > 500000)
-                        || endOfStream;
+                prerolled = (prerolled || totalSamplesWritten >= prerollFrames) || endOfStream;
                 if (prerolled) {
                     Log.i(TAG, "Prerolled audio stream");
                 }
             } else {
                 // Video stream
-                prerolled = (prerolled || sampleQueue.getLargestQueuedTimestampUs() > 500000)
-                        || endOfStream;
+                prerolled = (prerolled || totalSamplesWritten >= prerollFrames) || endOfStream;
                 if (prerolled) {
                     Log.i(TAG, "Prerolled video stream");
                 }
@@ -119,7 +136,6 @@ public class CobaltSampleStream implements SampleStream {
             return C.RESULT_NOTHING_READ;
         }
         if (endOfStream && samplesQueued == 0) {
-            Log.i(TAG, "REPORTING END OF STREAM FROM SAMPLEQUEUE");
             buffer.setFlags(C.BUFFER_FLAG_END_OF_STREAM);
             return C.RESULT_BUFFER_READ;
         }
@@ -131,6 +147,7 @@ public class CobaltSampleStream implements SampleStream {
             Log.i(TAG, String.format("Caught exception from read() %s", e.toString()));
         }
         if (read == C.RESULT_BUFFER_READ) {
+            boolean isAudio = sampleQueue.getUpstreamFormat().sampleRate != Format.NO_VALUE;
             samplesQueued = samplesQueued - 1;
         }
         return read;
@@ -138,10 +155,8 @@ public class CobaltSampleStream implements SampleStream {
 
     @Override
     public int skipData(long positionUs) {
-        Log.i(TAG, String.format("Called skipData() to %d", positionUs));
         int skipCount = sampleQueue.getSkipCount(positionUs, endOfStream);
         sampleQueue.skip(skipCount);
-        Log.i(TAG, String.format("Skipped %d samples", skipCount));
         return skipCount;
     }
 
@@ -149,11 +164,14 @@ public class CobaltSampleStream implements SampleStream {
         return sampleQueue.getLargestQueuedTimestampUs();
     }
 
-    public void clearStream() {
-        Log.i(TAG, "Called clearStream()");
+    public void seek(long timestampUs) {
         sampleQueue.reset();
         firstData = true;
         prerolled = false;
         endOfStream = false;
+        samplesQueued = 0;
+        totalSamplesWritten = 0;
+        playbackStartTimeUs = timestampUs;
+        sampleQueue.setStartTimeUs(timestampUs);
     }
 }
