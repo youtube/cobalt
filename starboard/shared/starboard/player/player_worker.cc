@@ -138,7 +138,7 @@ PlayerWorker::PlayerWorker(SbMediaAudioCodec audio_codec,
     SB_DLOG(ERROR) << "Failed to create thread in PlayerWorker constructor.";
     return;
   }
-  std::unique_lock scoped_lock(thread_param.mutex);
+  std::unique_lock lock(thread_param.mutex);
   thread_param.condition_variable.wait(scoped_lock,
                                        [&] { return job_queue_.get(); });
   SB_DCHECK(job_queue_);
