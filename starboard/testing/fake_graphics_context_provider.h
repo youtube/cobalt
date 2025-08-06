@@ -38,7 +38,7 @@ class FakeGraphicsContextProvider {
   FakeGraphicsContextProvider();
   ~FakeGraphicsContextProvider();
 
-  SbWindow window() { return window_; }
+  SbWindow window() { return kSbWindowInvalid; }
   SbDecodeTargetGraphicsContextProvider* decoder_target_provider() {
     return &decoder_target_provider_;
   }
@@ -51,8 +51,6 @@ class FakeGraphicsContextProvider {
  private:
   static void* ThreadEntryPoint(void* context);
   void RunLoop();
-
-  void InitializeWindow();
 
   void InitializeEGL();
 
@@ -74,8 +72,6 @@ class FakeGraphicsContextProvider {
   SbEglContext context_;
   Queue<std::function<void()>> functor_queue_;
   pthread_t decode_target_context_thread_;
-
-  SbWindow window_;
 
   SbDecodeTargetGraphicsContextProvider decoder_target_provider_;
 };
