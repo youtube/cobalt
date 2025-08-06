@@ -64,8 +64,6 @@ if (!is_android) {
     cobalt_target_type = "executable"
   }
   target(cobalt_target_type, "cobalt") {
-    testonly = true
-
     sources = [ "app/cobalt.cc" ]
 
     configs += [ "//build/config/gcc:rpath_for_built_shared_libraries" ]
@@ -98,14 +96,11 @@ if (!is_android) {
     strip_binary("strip_cobalt_binary") {
       binary_input = "$root_out_dir/cobalt"
       deps = [ ":cobalt" ]
-      testonly = true
     }
   }
 }
 
 source_set("common") {
-  testonly = true
-
   sources = [
     "app/cobalt_main_delegate.cc",
     "app/cobalt_main_delegate.h",

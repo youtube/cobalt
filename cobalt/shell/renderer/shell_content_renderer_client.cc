@@ -266,7 +266,8 @@ void ShellContentRendererClient::DidInitializeWorkerContextOnWorkerThread(
     v8::Local<v8::Context> context) {
   if (base::CommandLine::ForCurrentProcess()->HasSwitch(
           switches::kExposeInternalsForTesting)) {
-    blink::WebTestingSupport::InjectInternalsObject(context);
+    // TODO:(b/428999732) This requires a test-only build dependency and cannot
+    // be called from a production target.
   }
 }
 

@@ -45,15 +45,12 @@
 #include "cobalt/shell/browser/shell_devtools_manager_delegate.h"
 #include "cobalt/shell/browser/shell_paths.h"
 #include "cobalt/shell/browser/shell_web_contents_view_delegate_creator.h"
-#include "cobalt/shell/common/shell_controller.test-mojom.h"
 #include "cobalt/shell/common/shell_switches.h"
 #include "components/custom_handlers/protocol_handler_registry.h"
 #include "components/custom_handlers/protocol_handler_throttle.h"
-#include "components/custom_handlers/simple_protocol_handler_registry_factory.h"
 #include "components/metrics/client_info.h"
 #include "components/metrics/metrics_service.h"
 #include "components/metrics/metrics_state_manager.h"
-#include "components/metrics/test/test_enabled_state_provider.h"
 #include "components/network_hints/browser/simple_network_hints_handler_impl.h"
 #include "components/performance_manager/embedder/performance_manager_registry.h"
 #include "components/prefs/json_pref_store.h"
@@ -85,7 +82,6 @@
 #include "mojo/public/cpp/bindings/remote.h"
 #include "mojo/public/cpp/bindings/self_owned_receiver.h"
 #include "net/ssl/client_cert_identity.h"
-#include "services/device/public/cpp/geolocation/location_system_permission_status.h"
 #include "services/network/public/cpp/features.h"
 #include "services/network/public/cpp/network_service_buildflags.h"
 #include "services/network/public/mojom/network_context.mojom.h"
@@ -148,33 +144,6 @@ int GetCrashSignalFD(const base::CommandLine& command_line) {
   return crash_reporter::GetHandlerSocket(&fd, &pid) ? fd : -1;
 }
 #endif
-
-class ShellControllerImpl : public mojom::ShellController {
- public:
-  ShellControllerImpl() = default;
-  ~ShellControllerImpl() override = default;
-
-  // mojom::ShellController:
-  void GetSwitchValue(const std::string& name,
-                      GetSwitchValueCallback callback) override {
-    const auto& command_line = *base::CommandLine::ForCurrentProcess();
-    if (command_line.HasSwitch(name)) {
-      std::move(callback).Run(command_line.GetSwitchValueASCII(name));
-    } else {
-      std::move(callback).Run(absl::nullopt);
-    }
-  }
-
-  void ExecuteJavaScript(const std::u16string& script,
-                         ExecuteJavaScriptCallback callback) override {
-    CHECK(!Shell::windows().empty());
-    WebContents* contents = Shell::windows()[0]->web_contents();
-    contents->GetPrimaryMainFrame()->ExecuteJavaScriptForTests(
-        script, std::move(callback));
-  }
-
-  void ShutDown() override { Shell::Shutdown(); }
-};
 
 // TODO(crbug/1219642): Consider not needing VariationsServiceClient just to use
 // VariationsFieldTrialCreator.
@@ -354,11 +323,6 @@ ShellContentBrowserClient::CreateBrowserMainParts(
 bool ShellContentBrowserClient::HasCustomSchemeHandler(
     content::BrowserContext* browser_context,
     const std::string& scheme) {
-  if (custom_handlers::ProtocolHandlerRegistry* protocol_handler_registry =
-          custom_handlers::SimpleProtocolHandlerRegistryFactory::
-              GetForBrowserContext(browser_context)) {
-    return protocol_handler_registry->IsHandledProtocol(scheme);
-  }
   return false;
 }
 
@@ -370,15 +334,6 @@ ShellContentBrowserClient::CreateURLLoaderThrottles(
     NavigationUIData* navigation_ui_data,
     int frame_tree_node_id) {
   std::vector<std::unique_ptr<blink::URLLoaderThrottle>> result;
-
-  auto* factory = custom_handlers::SimpleProtocolHandlerRegistryFactory::
-      GetForBrowserContext(browser_context);
-  // null in unit tests.
-  if (factory) {
-    result.push_back(
-        std::make_unique<custom_handlers::ProtocolHandlerThrottle>(*factory));
-  }
-
   return result;
 }
 
@@ -683,12 +638,8 @@ BluetoothDelegate* ShellContentBrowserClient::GetBluetoothDelegate() {
 
 void ShellContentBrowserClient::BindBrowserControlInterface(
     mojo::ScopedMessagePipeHandle pipe) {
-  if (!pipe.is_valid()) {
-    return;
-  }
-  mojo::MakeSelfOwnedReceiver(
-      std::make_unique<ShellControllerImpl>(),
-      mojo::PendingReceiver<mojom::ShellController>(std::move(pipe)));
+  // TODO:(b/428999732) This requires a test-only build dependency and cannot
+  // be called from a production target.
 }
 
 void ShellContentBrowserClient::set_browser_main_parts(
@@ -753,14 +704,12 @@ void ShellContentBrowserClient::CreateFeatureListAndFieldTrials() {
 }
 
 void ShellContentBrowserClient::SetUpFieldTrials() {
-  metrics::TestEnabledStateProvider enabled_state_provider(/*consent=*/false,
-                                                           /*enabled=*/false);
   base::FilePath path;
   base::PathService::Get(SHELL_DIR_USER_DATA, &path);
   std::unique_ptr<metrics::MetricsStateManager> metrics_state_manager =
       metrics::MetricsStateManager::Create(
-          GetSharedState().local_state.get(), &enabled_state_provider,
-          std::wstring(), path, metrics::StartupVisibility::kUnknown,
+          GetSharedState().local_state.get(), nullptr, std::wstring(), path,
+          metrics::StartupVisibility::kUnknown,
           {
               .force_benchmarking_mode =
                   base::CommandLine::ForCurrentProcess()->HasSwitch(

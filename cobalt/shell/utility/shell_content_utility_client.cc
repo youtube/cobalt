@@ -34,7 +34,6 @@
 #include "base/task/single_thread_task_runner.h"
 #include "build/build_config.h"
 #include "cobalt/shell/common/power_monitor_test_impl.h"
-#include "components/services/storage/test_api/test_api.h"
 #include "content/public/child/child_thread.h"
 #include "content/public/common/content_switches.h"
 #include "content/public/common/pseudonymization_util.h"
@@ -184,9 +183,6 @@ ShellContentUtilityClient::ShellContentUtilityClient(bool is_browsertest) {
   if (is_browsertest &&
       base::CommandLine::ForCurrentProcess()->GetSwitchValueASCII(
           switches::kProcessType) == switches::kUtilityProcess) {
-    network_service_test_helper_ = NetworkServiceTestHelper::Create();
-    audio_service_test_helper_ = std::make_unique<AudioServiceTestHelper>();
-    storage::InjectTestApiImplementation();
     register_sandbox_status_helper_ = true;
   }
 }

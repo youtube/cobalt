@@ -35,7 +35,6 @@ config("cobalt_shell_lib_warnings") {
 }
 
 source_set("android_shell_descriptors") {
-  testonly = true
   sources = []
   public_deps = [ "//content/public/common:content_descriptors" ]
   if (is_android) {
@@ -43,20 +42,17 @@ source_set("android_shell_descriptors") {
   }
 }
 
-# TODO(b/384748332): Remove dependency on content shell
 group("cobalt_shell_lib_deps") {
   visibility = [
     "//cobalt/shell:*",
     "//cobalt/testing:*",
   ]
-  testonly = true
   public_deps = [
     ":android_shell_descriptors",
 
     # cobalt_shell_lib also exposes all public content APIs.
     ":content_browsertests_mojom",
     ":resources",
-    ":shell_controller_mojom",
     "//base",
     "//base:base_static",
     "//base/third_party/dynamic_annotations",
@@ -65,17 +61,14 @@ group("cobalt_shell_lib_deps") {
     "//components/crash/content/browser",
     "//components/crash/core/app",
     "//components/custom_handlers",
-    "//components/custom_handlers:test_support",
     "//components/keyed_service/content",
     "//components/metrics",
     "//components/metrics:net",
-    "//components/metrics:test_support",
     "//components/network_hints/browser:browser",
     "//components/network_hints/renderer",
     "//components/network_session_configurator/common",
     "//components/performance_manager",
     "//components/prefs",
-    "//components/services/storage/test_api",
     "//components/url_formatter",
     "//components/variations",
     "//components/variations/service",
@@ -91,13 +84,11 @@ group("cobalt_shell_lib_deps") {
     "//content/public/renderer",
     "//content/public/utility",
     "//content/test:content_test_mojo_bindings",
-    "//content/test:test_support",
     "//media",
     "//media/mojo:buildflags",
     "//net",
     "//net:net_resources",
     "//ppapi/buildflags",
-    "//services/device/public/cpp:test_support",
     "//services/network:network_service",
     "//services/network/public/cpp",
     "//services/test/echo:lib",
@@ -188,7 +179,6 @@ group("cobalt_shell_lib_deps") {
 
 # TODO(b/422171398): Refactor source set to not depend on content shell
 static_library("cobalt_shell_lib") {
-  testonly = true
   public_deps = [ ":cobalt_shell_lib_deps" ]
   sources = [
     "browser/shell.cc",
@@ -319,7 +309,6 @@ static_library("cobalt_shell_lib") {
 # cobalt_shell_lib component will not, to avoid circular deps, as web_test
 # inherits from things in cobalt_shell_lib.
 static_library("cobalt_shell_app") {
-  testonly = true
   sources = [
     "app/shell_crash_reporter_client.cc",
     "app/shell_crash_reporter_client.h",
@@ -344,11 +333,9 @@ group("cobalt_shell_app_deps") {
     "//cobalt/shell:*",
     "//cobalt/testing:*",
   ]
-  testonly = true
   public_deps = [
     ":cobalt_shell_lib",
     "//components/crash/core/app",
-    "//components/crash/core/app:test_support",
     "//components/crash/core/common:crash_key",
     "//components/memory_system",
     "//content/public/app",
@@ -365,8 +352,6 @@ group("cobalt_shell_app_deps") {
 }
 
 repack("pak") {
-  testonly = true
-
   sources = [
     "$root_gen_dir/base/tracing/protos/tracing_proto_resources.pak",
     "$root_gen_dir/cobalt/shell/cobalt_shell_resources.pak",
@@ -433,8 +418,6 @@ repack("pak") {
 }
 
 grit("cobalt_shell_resources_grit") {
-  testonly = true
-
   # External code should depend on ":resources" instead.
   visibility = [ ":*" ]
   source = "shell_resources.grd"
@@ -445,8 +428,6 @@ grit("cobalt_shell_resources_grit") {
 }
 
 copy("copy_shell_resources") {
-  testonly = true
-
   sources = [ "$target_gen_dir/cobalt_shell_resources.pak" ]
   outputs = [ "$root_out_dir/cobalt_shell_resources.pak" ]
 
@@ -454,8 +435,6 @@ copy("copy_shell_resources") {
 }
 
 group("resources") {
-  testonly = true
-
   public_deps = [ ":copy_shell_resources" ]
 }
 
@@ -471,7 +450,7 @@ mojom("content_browsertests_mojom") {
   ]
 }
 
-mojom("shell_controller_mojom") {
+mojom("shell_controller_test_mojom") {
   testonly = true
   sources = [ "common/shell_controller.test-mojom" ]
   public_deps = [ "//mojo/public/mojom/base" ]
