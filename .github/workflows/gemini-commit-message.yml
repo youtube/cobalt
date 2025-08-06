@@ -20,37 +20,20 @@ jobs:
       pull-requests: write
 
     steps:
-      # Step 1: Check out the code from the pull request branch.
-      # This is necessary to be able to run git commands on the code.
-      - name: 'Checkout PR Branch'
-        uses: actions/checkout@v4
-        with:
-          # Fetch the entire history to be able to diff against the base branch.
-          fetch-depth: 0
-
-      # Step 2: Get the code changes (the "diff") from the pull request.
-      # This is the most important piece of information for generating a good commit message.
+      # Step 1: Get the code changes (the "diff") from the pull request.
       - name: 'Get PR Diff'
         id: diff
         run: |
-          # Get the base and head commit SHAs from the PR payload
-          pr_payload=$(curl -s -H "Authorization: Bearer ${{ secrets.GITHUB_TOKEN }}" -H "Accept: application/vnd.github.v3+json" ${{ github.event.issue.pull_request.url }})
-          base_sha=$(echo "$pr_payload" | jq -r .base.sha)
-          head_sha=$(echo "$pr_payload" | jq -r .head.sha)
+          set -eux
+          # Fetch the diff content directly from the PR's diff URL.
+          diff_content=$(curl -fsSL -H "Authorization: Bearer ${{ secrets.GITHUB_TOKEN }}" -H "Accept: application/vnd.github.v3.diff" ${{ github.event.issue.pull_request.url }})
 
-          echo "Base SHA: $base_sha"
-          echo "Head SHA: $head_sha"
-
-          # Generate the diff between the base and head commits of the PR
-          diff_content=$(git diff "$base_sha" "$head_sha")
-
-          # The following lines save the diff content into a GitHub Actions output variable,
-          # which allows us to use it in later steps. This method is robust for multiline strings.
+          # The following lines save the diff content into a GitHub Actions output variable.
           echo "diff_content<<EOF" >> $GITHUB_OUTPUT
           echo "$diff_content" >> $GITHUB_OUTPUT
           echo "EOF" >> $GITHUB_OUTPUT
 
-      # Step 3: Call the Gemini API directly with a detailed prompt.
+      # Step 2: Call the Gemini API directly with a detailed prompt.
       # This approach avoids third-party actions and gives us full control over the request.
       - name: 'Generate Commit Message with Gemini'
         id: gemini
@@ -100,24 +83,15 @@ jobs:
             **Code Diff to Analyze:**
             ${{ steps.diff.outputs.diff_content }}
         run: |
+          set -eux
           # Use jq to safely construct the JSON payload, reading the prompt from the environment variable.
           json_payload=$(jq -n --arg prompt "$PROMPT" '{ "contents": [ { "parts": [ { "text": $prompt } ] } ] }')
-
-          # Print the JSON payload to the logs.
-          echo "--- JSON PAYLOAD ---"
-          echo "$json_payload"
-          echo "--- END JSON PAYLOAD ---"
 
           # Make the API call to the Gemini model using curl.
           api_response=$(curl -s -X POST \
             "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${{ secrets.GEMINI_API_KEY }}" \
             -H "Content-Type: application/json" \
             -d "$json_payload")
-
-          # Print the raw API response to the logs to see what Gemini is actually returning.
-          echo "--- RAW API RESPONSE ---"
-          echo "$api_response"
-          echo "--- END RAW API RESPONSE ---"
 
           # Extract only the text content from the API's JSON response using jq.
           # The 'jq -r' command outputs the raw string without quotes.
@@ -129,7 +103,7 @@ jobs:
           echo "$gemini_text_response" >> $GITHUB_OUTPUT
           echo "EOF" >> $GITHUB_OUTPUT
 
-      # Step 4: Post Gemini's generated commit message back to the PR.
+      # Step 3: Post Gemini's generated commit message back to the PR.
       # This step now uses the direct response from the Gemini step.
       - name: 'Post Commit Message as Comment'
         uses: actions/github-script@v7
