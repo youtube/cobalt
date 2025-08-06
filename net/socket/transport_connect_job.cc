@@ -16,6 +16,7 @@
 #include "base/notreached.h"
 #include "base/task/single_thread_task_runner.h"
 #include "base/time/time.h"
+#include "build/build_config.h"
 #include "net/base/features.h"
 #include "net/base/host_port_pair.h"
 #include "net/base/ip_endpoint.h"
@@ -405,6 +406,21 @@ int TransportConnectJob::DoTransportConnect() {
 
 int TransportConnectJob::DoTransportConnectComplete(int result) {
   // Make sure nothing else calls back into this object.
+#if BUILDFLAG(IS_COBALT_HERMETIC_BUILD)
+  // The successful job's socket has already been passed to the owner.
+  // We can safely destroy the successful job object now. The unsuccessful
+  // job, however, might hang if destroyed immediately. Schedule it for
+  // deletion soon to avoid this.
+  if (ipv4_job_ && ipv4_job_.get() != successful_sub_job_) {
+    base::SingleThreadTaskRunner::GetCurrentDefault()->DeleteSoon(
+        FROM_HERE, ipv4_job_.release());
+  }
+  if (ipv6_job_ && ipv6_job_.get() != successful_sub_job_) {
+    base::SingleThreadTaskRunner::GetCurrentDefault()->DeleteSoon(
+        FROM_HERE, ipv6_job_.release());
+  }
+#endif
+
   ipv4_job_.reset();
   ipv6_job_.reset();
   fallback_timer_.Stop();
@@ -442,6 +458,9 @@ int TransportConnectJob::HandleSubJobComplete(int result,
                                               TransportConnectSubJob* job) {
   DCHECK_NE(result, ERR_IO_PENDING);
   if (result == OK) {
+#if BUILDFLAG(IS_COBALT_HERMETIC_BUILD)
+    successful_sub_job_ = job;
+#endif
     SetSocket(job->PassSocket(), dns_aliases_);
     return result;
   }

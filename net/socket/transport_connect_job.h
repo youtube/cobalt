@@ -232,6 +232,10 @@ class NET_EXPORT_PRIVATE TransportConnectJob : public ConnectJob {
 
   ResolveErrorInfo resolve_error_info_;
   ConnectionAttempts connection_attempts_;
+#if BUILDFLAG(IS_COBALT_HERMETIC_BUILD)
+  raw_ptr<TransportConnectSubJob> successful_sub_job_ = nullptr;
+#endif
+
 
   base::WeakPtrFactory<TransportConnectJob> weak_ptr_factory_{this};
 };
