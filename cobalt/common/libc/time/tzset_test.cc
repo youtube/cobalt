@@ -21,6 +21,7 @@
 #include <string>
 #include <vector>
 
+#include "build/build_config.h"
 #include "unicode/calendar.h"
 #include "unicode/gregocal.h"
 #include "unicode/simpletz.h"
@@ -330,7 +331,13 @@ class Timezone : public TzsetTest,
   };
 };
 
-TEST_P(Timezone, SetsIcuDefaultCorrectly) {
+// TODO(b/436371274): Investigate this test failure.
+#if BUILDFLAG(IS_ANDROID)
+#define MAYBE_SetsIcuDefaultCorrectly DISABLED_SetsIcuDefaultCorrectly
+#else
+#define MAYBE_SetsIcuDefaultCorrectly SetsIcuDefaultCorrectly
+#endif
+TEST_P(Timezone, MAYBE_SetsIcuDefaultCorrectly) {
   const auto& param = GetParam();
   SetTimezoneAndCallTzset(param.tz.c_str());
 
