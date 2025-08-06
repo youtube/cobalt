@@ -39,45 +39,6 @@
 namespace starboard::nplb {
 namespace {
 
-bool FileDeleteRecursive(const std::string& path) {
-  struct stat st;
-
-  if (lstat(path.c_str(), &st) != 0) {
-    return (errno == ENOENT);  // File doesn't exist, do nothing.
-  }
-
-  if (!S_ISDIR(st.st_mode)) {
-    return (unlink(path.c_str()) == 0);  // Remove file or symlink.
-  }
-
-  DIR* dir = opendir(path.c_str());
-  if (!dir) {
-    return false;
-  }
-
-  bool success = true;
-  struct dirent* entry;
-  while ((entry = readdir(dir)) != nullptr) {
-    if (strcmp(entry->d_name, ".") == 0 || strcmp(entry->d_name, "..") == 0) {
-      continue;
-    }
-
-    std::string entry_path = path + kSbFileSepString + entry->d_name;
-    if (!FileDeleteRecursive(entry_path)) {
-      success = false;
-      break;  // Stop on the first error.
-    }
-  }
-
-  closedir(dir);
-
-  if (success) {
-    return (rmdir(path.c_str()) == 0);
-  }
-
-  return false;
-}
-
 class PosixReadlinkTest : public ::testing::Test {
  protected:
   void SetUp() override {
@@ -96,7 +57,7 @@ class PosixReadlinkTest : public ::testing::Test {
 
   void TearDown() override {
     if (!test_dir_.empty()) {
-      ASSERT_TRUE(FileDeleteRecursive(test_dir_.c_str()));
+      ASSERT_TRUE(RemoveFileOrDirectoryRecursively(test_dir_.c_str()));
     }
   }
 
@@ -137,7 +98,7 @@ TEST_F(PosixReadlinkTest, DoesNotNullTerminate) {
 
 TEST_F(PosixReadlinkTest, PathIsNotSymlinkFails) {
   std::string regular_file = test_dir_ + "/regular.txt";
-  int fd = open(regular_file.c_str(), O_CREAT | O_WRONLY, 0644);
+  int fd = open(regular_file.c_str(), O_CREAT | O_WRONLY, kUserRw);
   ASSERT_NE(fd, -1) << "Failed to create test file: " << strerror(errno);
   ASSERT_EQ(write(fd, "hello", 5), 5);
   close(fd);
@@ -165,7 +126,7 @@ TEST_F(PosixReadlinkTest, EmptyPathFails) {
 
 TEST_F(PosixReadlinkTest, PathComponentNotDirectoryFails) {
   std::string file_as_dir = test_dir_ + "/file_as_dir";
-  int fd = open(file_as_dir.c_str(), O_CREAT | O_WRONLY, 0644);
+  int fd = open(file_as_dir.c_str(), O_CREAT | O_WRONLY, kUserRw);
   ASSERT_NE(fd, -1);
   close(fd);
 
