@@ -16,7 +16,7 @@ import("//starboard/build/buildflags.gni")
 
 source_set("browser") {
   # TODO(cobalt, b/375655377): remove testonly declaration, needed because of
-  # content_shell_lib.
+  # cobalt_shell_lib.
   testonly = true
 
   sources = [
@@ -67,7 +67,7 @@ source_set("browser") {
     "//cobalt/browser/user_agent",
     "//cobalt/media/service",
     "//cobalt/media/service/mojom",
-    "//cobalt/shell:content_shell_lib",
+    "//cobalt/shell:cobalt_shell_lib",
     "//components/js_injection/browser:browser",
     "//components/metrics",
     "//components/metrics:test_support",
@@ -157,7 +157,7 @@ source_set("metrics") {
   ]
   deps = [
     "//cobalt/browser/h5vcc_metrics/public/mojom",
-    "//cobalt/shell:content_shell_lib",
+    "//cobalt/shell:cobalt_shell_lib",
     "//components/metrics",
     "//components/metrics_services_manager",
     "//components/prefs",
