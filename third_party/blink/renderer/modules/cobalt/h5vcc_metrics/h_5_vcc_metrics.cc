@@ -95,7 +95,7 @@ ScriptPromise H5vccMetrics::setMetricEventInterval(
 void H5vccMetrics::OnMetrics(h5vcc_metrics::mojom::H5vccMetricType metric_type,
                              const WTF::String& metric_payload) {
   // Do not upload UMA payload if execution context is destroyed.
-  if (!GetExecutionContext() || GetExecutionContext()->IsContextDestroyed()) {
+  if (!HasValidExecutionContext()) {
     return;
   }
 
@@ -183,6 +183,13 @@ void H5vccMetrics::OnCloseConnection() {
   remote_h5vcc_metrics_.reset();
   receiver_.reset();
 
+  // If execution context is being destroyed, it is not safe to create a new
+  // JS error object and reject promises.
+  if (!HasValidExecutionContext()) {
+    h5vcc_metrics_promises_.clear();
+    return;
+  }
+
   HeapHashSet<Member<ScriptPromiseResolver>> h5vcc_metrics_promises;
   // Script may execute during a call to Resolve(). Swap these sets to prevent
   // concurrent modification.
@@ -205,6 +212,10 @@ void H5vccMetrics::Trace(Visitor* visitor) const {
 void H5vccMetrics::CleanupPromise(ScriptPromiseResolver* resolver) {
   DCHECK(h5vcc_metrics_promises_.Contains(resolver));
   h5vcc_metrics_promises_.erase(resolver);
+}
+
+bool H5vccMetrics::HasValidExecutionContext() {
+  return GetExecutionContext() && !GetExecutionContext()->IsContextDestroyed();
 }
 
 }  // namespace blink
