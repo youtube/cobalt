@@ -32,6 +32,8 @@
 #define PTHREAD_PROCESS_PRIVATE 0
 #define PTHREAD_PROCESS_SHARED 1
 
+#define PTHREAD_RWLOCK_INITIALIZER {{0}}
+
 #ifdef __cplusplus
 extern "C" {
 #endif
