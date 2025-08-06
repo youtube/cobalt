@@ -25,9 +25,9 @@
 #include "starboard/common/check_op.h"
 #include "starboard/common/string.h"
 #include "starboard/common/time.h"
-#include "starboard/shared/pthread/thread_create_priority.h"
 #include "starboard/shared/starboard/media/media_util.h"
 #include "starboard/shared/starboard/player/filter/common.h"
+#include "starboard/thread.h"
 
 namespace {
 starboard::android::shared::AudioTrackAudioSinkType*
@@ -194,7 +194,7 @@ void AudioTrackAudioSink::SetPlaybackRate(double playback_rate) {
 void* AudioTrackAudioSink::ThreadEntryPoint(void* context) {
   pthread_setname_np(pthread_self(), "audio_track_out");
   SB_DCHECK(context);
-  ::starboard::shared::pthread::ThreadSetPriority(kSbThreadPriorityRealTime);
+  SbThreadSetPriority(kSbThreadPriorityRealTime);
 
   AudioTrackAudioSink* sink = reinterpret_cast<AudioTrackAudioSink*>(context);
   sink->AudioThreadFunc();
