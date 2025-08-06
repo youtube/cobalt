@@ -16,6 +16,7 @@
 
 #include <jni.h>
 
+#include <mutex>
 #include <utility>
 
 #include "base/android/jni_android.h"
@@ -63,27 +64,45 @@ bool EndsWith(const std::string& str, const std::string& suffix) {
 }
 
 Range ConvertJavaRangeToRange(JNIEnv* env, jobject j_range) {
-  jclass rangeClass = env->FindClass("android/util/Range");
-  SB_CHECK(rangeClass);
+  struct RangeJniCache {
+    jmethodID get_upper_method = nullptr;
+    jmethodID get_lower_method = nullptr;
+    jmethodID int_value_method = nullptr;
+  };
 
-  jmethodID getUpperMethod =
-      env->GetMethodID(rangeClass, "getUpper", "()Ljava/lang/Comparable;");
-  SB_CHECK(getUpperMethod);
-  jobject j_upper_comparable = env->CallObjectMethod(j_range, getUpperMethod);
+  static std::once_flag once_flag;
+  static RangeJniCache cache;
 
-  jclass integerClass = env->FindClass("java/lang/Integer");
-  SB_CHECK(integerClass);
+  std::call_once(once_flag, [env]() {
+    jclass range_class = env->FindClass("android/util/Range");
+    SB_CHECK(range_class);
 
-  jmethodID intValueMethod = env->GetMethodID(integerClass, "intValue", "()I");
-  SB_CHECK(intValueMethod);
-  jint j_upper_int = env->CallIntMethod(j_upper_comparable, intValueMethod);
+    cache.get_upper_method =
+        env->GetMethodID(range_class, "getUpper", "()Ljava/lang/Comparable;");
+    SB_CHECK(cache.get_upper_method);
 
-  jmethodID getLowerMethod =
-      env->GetMethodID(rangeClass, "getLower", "()Ljava/lang/Comparable;");
-  SB_CHECK(getLowerMethod);
+    cache.get_lower_method =
+        env->GetMethodID(range_class, "getLower", "()Ljava/lang/Comparable;");
+    SB_CHECK(cache.get_lower_method);
+    env->DeleteLocalRef(range_class);
 
-  jobject j_lower_comparable = env->CallObjectMethod(j_range, getLowerMethod);
-  jint j_lower_int = env->CallIntMethod(j_lower_comparable, intValueMethod);
+    jclass integer_class = env->FindClass("java/lang/Integer");
+    SB_CHECK(integer_class);
+
+    cache.int_value_method = env->GetMethodID(integer_class, "intValue", "()I");
+    SB_CHECK(cache.int_value_method);
+    env->DeleteLocalRef(integer_class);
+  });
+
+  jobject j_upper_comparable =
+      env->CallObjectMethod(j_range, cache.get_upper_method);
+  jint j_upper_int =
+      env->CallIntMethod(j_upper_comparable, cache.int_value_method);
+
+  jobject j_lower_comparable =
+      env->CallObjectMethod(j_range, cache.get_lower_method);
+  jint j_lower_int =
+      env->CallIntMethod(j_lower_comparable, cache.int_value_method);
 
   return Range(j_lower_int, j_upper_int);
 }
@@ -179,17 +198,27 @@ AudioCodecCapability::AudioCodecCapability(
   SB_CHECK(j_codec_info);
   SB_CHECK(j_audio_capabilities);
 
-  jclass audioCapabilitiesClass =
-      env->FindClass("android/media/MediaCodecInfo$AudioCapabilities");
-  SB_CHECK(audioCapabilitiesClass);
+  struct AudioCapabilitiesJniCache {
+    jmethodID get_bitrate_range_method;
+  };
 
-  jmethodID getBitrateRangeMethod = env->GetMethodID(
-      audioCapabilitiesClass, "getBitrateRange", "()Landroid/util/Range;");
-  SB_CHECK(getBitrateRangeMethod);
+  static std::once_flag once_flag;
+  static AudioCapabilitiesJniCache cache;
+
+  std::call_once(once_flag, [env]() {
+    jclass audio_capabilities_class =
+        env->FindClass("android/media/MediaCodecInfo$AudioCapabilities");
+    SB_CHECK(audio_capabilities_class);
+
+    cache.get_bitrate_range_method = env->GetMethodID(
+        audio_capabilities_class, "getBitrateRange", "()Landroid/util/Range;");
+    SB_CHECK(cache.get_bitrate_range_method);
+    env->DeleteLocalRef(audio_capabilities_class);
+  });
 
   ScopedJavaLocalRef<jobject> j_bitrate_range(
-      env,
-      env->CallObjectMethod(j_audio_capabilities.obj(), getBitrateRangeMethod));
+      env, env->CallObjectMethod(j_audio_capabilities.obj(),
+                                 cache.get_bitrate_range_method));
   supported_bitrates_ = ConvertJavaRangeToRange(env, j_bitrate_range.obj());
 
   // Overwrite the lower bound to 0.
@@ -209,45 +238,60 @@ VideoCodecCapability::VideoCodecCapability(
           Java_CodecCapabilityInfo_isSoftware(env, j_codec_info)),
       is_hdr_capable_(Java_CodecCapabilityInfo_isHdrCapable(env, j_codec_info)),
       j_video_capabilities_(env, j_video_capabilities.obj()) {
-  jclass videoCapabilitiesClass =
-      env->FindClass("android/media/MediaCodecInfo$VideoCapabilities");
-  SB_CHECK(videoCapabilitiesClass);
+  struct VideoCapabilitiesJniCache {
+    jmethodID get_supported_widths_method;
+    jmethodID get_supported_heights_method;
+    jmethodID get_bitrate_range_method;
+    jmethodID get_supported_frame_rates_method;
+  };
 
-  jmethodID getSupportedWidthsMethod = env->GetMethodID(
-      videoCapabilitiesClass, "getSupportedWidths", "()Landroid/util/Range;");
-  SB_CHECK(getSupportedWidthsMethod);
+  static std::once_flag once_flag;
+  static VideoCapabilitiesJniCache cache;
+
+  std::call_once(once_flag, [env]() {
+    jclass video_capabilities_class =
+        env->FindClass("android/media/MediaCodecInfo$VideoCapabilities");
+    SB_CHECK(video_capabilities_class);
+
+    cache.get_supported_widths_method =
+        env->GetMethodID(video_capabilities_class, "getSupportedWidths",
+                         "()Landroid/util/Range;");
+    SB_CHECK(cache.get_supported_widths_method);
+
+    cache.get_supported_heights_method =
+        env->GetMethodID(video_capabilities_class, "getSupportedHeights",
+                         "()Landroid/util/Range;");
+    SB_CHECK(cache.get_supported_heights_method);
+
+    cache.get_bitrate_range_method = env->GetMethodID(
+        video_capabilities_class, "getBitrateRange", "()Landroid/util/Range;");
+    SB_CHECK(cache.get_bitrate_range_method);
+
+    cache.get_supported_frame_rates_method =
+        env->GetMethodID(video_capabilities_class, "getSupportedFrameRates",
+                         "()Landroid/util/Range;");
+    SB_CHECK(cache.get_supported_frame_rates_method);
+    env->DeleteLocalRef(video_capabilities_class);
+  });
 
   ScopedJavaLocalRef<jobject> j_width_range(
       env, env->CallObjectMethod(j_video_capabilities_.obj(),
-                                 getSupportedWidthsMethod));
+                                 cache.get_supported_widths_method));
   supported_widths_ = ConvertJavaRangeToRange(env, j_width_range.obj());
-
-  jmethodID getSupportedHeightsMethod = env->GetMethodID(
-      videoCapabilitiesClass, "getSupportedHeights", "()Landroid/util/Range;");
-  SB_CHECK(getSupportedHeightsMethod);
 
   ScopedJavaLocalRef<jobject> j_height_range(
       env, env->CallObjectMethod(j_video_capabilities_.obj(),
-                                 getSupportedHeightsMethod));
+                                 cache.get_supported_heights_method));
   supported_heights_ = ConvertJavaRangeToRange(env, j_height_range.obj());
-
-  jmethodID getBitrateRangeMethod = env->GetMethodID(
-      videoCapabilitiesClass, "getBitrateRange", "()Landroid/util/Range;");
-  SB_CHECK(getBitrateRangeMethod);
 
   ScopedJavaLocalRef<jobject> j_bitrate_range(
       env, env->CallObjectMethod(j_video_capabilities_.obj(),
-                                 getBitrateRangeMethod));
+                                 cache.get_bitrate_range_method));
   supported_bitrates_ = ConvertJavaRangeToRange(env, j_bitrate_range.obj());
-
-  jmethodID getSupportedFrameRatesMethod =
-      env->GetMethodID(videoCapabilitiesClass, "getSupportedFrameRates",
-                       "()Landroid/util/Range;");
-  SB_CHECK(getSupportedFrameRatesMethod);
 
   ScopedJavaLocalRef<jobject> j_frame_rate_range(
       env, env->CallObjectMethod(j_video_capabilities_.obj(),
-                                 getSupportedFrameRatesMethod));
+                                 cache.get_supported_frame_rates_method));
   supported_frame_rates_ =
       ConvertJavaRangeToRange(env, j_frame_rate_range.obj());
 }
@@ -262,23 +306,36 @@ bool VideoCodecCapability::AreResolutionAndRateSupported(int frame_width,
                                                          int frame_height,
                                                          int fps) {
   JNIEnv* env = AttachCurrentThread();
-  jclass videoCapabilitiesClass =
-      env->FindClass("android/media/MediaCodecInfo$VideoCapabilities");
-  SB_CHECK(videoCapabilitiesClass);
+  struct AreResolutionAndRateSupportedJniCache {
+    jmethodID are_size_and_rate_supported_method;
+    jmethodID is_size_supported_method;
+  };
+
+  static std::once_flag once_flag;
+  static AreResolutionAndRateSupportedJniCache cache;
+
+  std::call_once(once_flag, [env]() {
+    jclass video_capabilities_class =
+        env->FindClass("android/media/MediaCodecInfo$VideoCapabilities");
+    SB_CHECK(video_capabilities_class);
+
+    cache.are_size_and_rate_supported_method = env->GetMethodID(
+        video_capabilities_class, "areSizeAndRateSupported", "(IID)Z");
+    SB_CHECK(cache.are_size_and_rate_supported_method);
+
+    cache.is_size_supported_method =
+        env->GetMethodID(video_capabilities_class, "isSizeSupported", "(II)Z");
+    SB_CHECK(cache.is_size_supported_method);
+    env->DeleteLocalRef(video_capabilities_class);
+  });
 
   if (frame_width != 0 && frame_height != 0 && fps != 0) {
-    jmethodID areSizeAndRateSupportedMethod = env->GetMethodID(
-        videoCapabilitiesClass, "areSizeAndRateSupported", "(IID)Z");
-    SB_CHECK(areSizeAndRateSupportedMethod);
-    return env->CallBooleanMethod(j_video_capabilities_.obj(),
-                                  areSizeAndRateSupportedMethod, frame_width,
-                                  frame_height, static_cast<jdouble>(fps));
+    return env->CallBooleanMethod(
+        j_video_capabilities_.obj(), cache.are_size_and_rate_supported_method,
+        frame_width, frame_height, static_cast<jdouble>(fps));
   } else if (frame_width != 0 && frame_height != 0) {
-    jmethodID isSizeSupportedMethod =
-        env->GetMethodID(videoCapabilitiesClass, "isSizeSupported", "(II)Z");
-    SB_CHECK(isSizeSupportedMethod);
     return env->CallBooleanMethod(j_video_capabilities_.obj(),
-                                  isSizeSupportedMethod, frame_width,
+                                  cache.is_size_supported_method, frame_width,
                                   frame_height);
   }
   if (frame_width != 0 && !supported_widths_.Contains(frame_width)) {
