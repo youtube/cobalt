@@ -116,8 +116,7 @@ class SbPlayerPrivateImpl final : public SbPlayerPrivate {
   int ticket_ = SB_PLAYER_INITIAL_TICKET;
   int64_t media_time_ = 0;         // microseconds
   int64_t media_time_updated_at_;  // microseconds
-  int frame_width_ = 0;
-  int frame_height_ = 0;
+  Size frame_size_;
   bool is_paused_ = false;
   double playback_rate_ = 1.0;
   double volume_ = 1.0;

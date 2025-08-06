@@ -176,7 +176,7 @@ void VideoDecoder::InitializeCodec() {
   dav1d_settings.frame_size_limit =
       kMaxDecodedFrameHeight * kMaxDecodedFrameWidth;
 
-  if (current_frame_height_ > 1080 && may_reduce_quality_for_speed_) {
+  if (current_frame_size_.height > 1080 && may_reduce_quality_for_speed_) {
     dav1d_settings.apply_grain = false;
     dav1d_settings.inloop_filters = DAV1D_INLOOPFILTER_NONE;
   }
@@ -217,10 +217,8 @@ void VideoDecoder::DecodeOneBuffer(
   SB_DCHECK(input_buffer);
 
   const auto& stream_info = input_buffer->video_stream_info();
-  if (!dav1d_context_ || stream_info.frame_width != current_frame_width_ ||
-      stream_info.frame_height != current_frame_height_) {
-    current_frame_width_ = stream_info.frame_width;
-    current_frame_height_ = stream_info.frame_height;
+  if (!dav1d_context_ || stream_info.frame_size != current_frame_size_) {
+    current_frame_size_ = stream_info.frame_size;
     TeardownCodec();
     InitializeCodec();
   }
