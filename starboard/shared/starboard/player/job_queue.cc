@@ -228,9 +228,7 @@ bool JobQueue::TryToRunOneJob(bool wait_for_next_job) {
       return false;
     }
     if (time_to_job_record_map_.empty() && wait_for_next_job) {
-      condition_.wait_for(
-          scoped_lock,
-          std::chrono::microseconds(std::numeric_limits<int64_t>::max()));
+      condition_.wait(scoped_lock);
 #if ENABLE_JOB_QUEUE_PROFILING
       ++wait_times_;
 #endif  // ENABLE_JOB_QUEUE_PROFILING
