@@ -553,7 +553,6 @@ def main():
                 git_source, git_rev = modules_to_update[module]
                 import_subtree(repo, deps_file, module, git_source, git_rev)
 
-        exit(0)
         with open(args.commits_file, 'r', encoding='utf-8') as f:
             commits = json.load(f)
         last_successful_commit = None
