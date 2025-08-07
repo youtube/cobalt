@@ -219,6 +219,7 @@ AudioCodecCapability::AudioCodecCapability(
   ScopedJavaLocalRef<jobject> j_bitrate_range(
       env, env->CallObjectMethod(j_audio_capabilities.obj(),
                                  cache.get_bitrate_range_method));
+  SB_CHECK(j_bitrate_range);
   supported_bitrates_ = ConvertJavaRangeToRange(env, j_bitrate_range.obj());
 
   // Overwrite the lower bound to 0.
@@ -277,21 +278,25 @@ VideoCodecCapability::VideoCodecCapability(
   ScopedJavaLocalRef<jobject> j_width_range(
       env, env->CallObjectMethod(j_video_capabilities_.obj(),
                                  cache.get_supported_widths_method));
+  SB_CHECK(j_width_range);
   supported_widths_ = ConvertJavaRangeToRange(env, j_width_range.obj());
 
   ScopedJavaLocalRef<jobject> j_height_range(
       env, env->CallObjectMethod(j_video_capabilities_.obj(),
                                  cache.get_supported_heights_method));
+  SB_CHECK(j_height_range);
   supported_heights_ = ConvertJavaRangeToRange(env, j_height_range.obj());
 
   ScopedJavaLocalRef<jobject> j_bitrate_range(
       env, env->CallObjectMethod(j_video_capabilities_.obj(),
                                  cache.get_bitrate_range_method));
+  SB_CHECK(j_bitrate_range);
   supported_bitrates_ = ConvertJavaRangeToRange(env, j_bitrate_range.obj());
 
   ScopedJavaLocalRef<jobject> j_frame_rate_range(
       env, env->CallObjectMethod(j_video_capabilities_.obj(),
                                  cache.get_supported_frame_rates_method));
+  SB_CHECK(j_frame_rate_range);
   supported_frame_rates_ =
       ConvertJavaRangeToRange(env, j_frame_rate_range.obj());
 }
