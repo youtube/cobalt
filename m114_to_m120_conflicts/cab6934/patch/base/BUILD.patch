@@ -1,0 +1,55 @@
+--- base/BUILD.gn
++++ base/BUILD.gn
+@@ -92,20 +92,9 @@
+ assert(!is_win || is_clang,
+        "only clang-cl is supported on Windows, see https://crbug.com/988071")
+ 
+-<<<<<<< HEAD
+-=======
+-if (is_apple) {
+-  assert(!use_blink || enable_mach_absolute_time_ticks,
+-         "use_blink requires mach absolute time ticks")
+-
+-  assert(!is_mac || enable_mach_absolute_time_ticks,
+-         "mac requires mach absolute time ticks")
+-}
+-
+ # TODO: b/384652502 - Cobalt: Fix compiler errors building hermetically.
+ # ../../third_party/libevent/signal.c:43:10: fatal error: 'sys/queue.h' file not found
+ # #include <sys/queue.h>
+->>>>>>> cab69340e13 (Build nplb hermetically (#4587))
+ # Determines whether libevent should be dep.
+ if (is_cobalt && is_cobalt_hermetic_build) {
+   dep_libevent = false
+@@ -1133,31 +1122,6 @@
+   }
+ 
+   if (use_allocator_shim) {
+-<<<<<<< HEAD
+-=======
+-    sources += [
+-      "allocator/partition_allocator/shim/allocator_shim.cc",
+-      "allocator/partition_allocator/shim/allocator_shim.h",
+-      "allocator/partition_allocator/shim/allocator_shim_internals.h",
+-    ]
+-
+-    # TODO: b/384652502 - Cobalt: Fix compiler errors building hermetically.
+-    #     loc.cc -o obj/base/base/allocator_shim_default_dispatch_to_partition_alloc.o
+-    # ../../base/allocator/partition_allocator/shim/allocator_shim_default_dispatch_to_partition_alloc.cc:748:36: error: incomplete result type 'struct mallinfo' in function definition
+-    if (use_partition_alloc) {
+-      sources += [
+-        "allocator/partition_allocator/shim/allocator_shim_default_dispatch_to_partition_alloc.cc",
+-        "allocator/partition_allocator/shim/allocator_shim_default_dispatch_to_partition_alloc.h",
+-      ]
+-    }
+-    if (is_android) {
+-      sources += [
+-        "allocator/partition_allocator/shim/allocator_shim_override_cpp_symbols.h",
+-        "allocator/partition_allocator/shim/allocator_shim_override_linker_wrapped_symbols.h",
+-      ]
+-      all_dependent_configs += [ "//base/allocator:wrap_malloc_symbols" ]
+-    }
+->>>>>>> cab69340e13 (Build nplb hermetically (#4587))
+     if (is_apple) {
+       sources += [ "allocator/early_zone_registration_apple.h" ]
+     }

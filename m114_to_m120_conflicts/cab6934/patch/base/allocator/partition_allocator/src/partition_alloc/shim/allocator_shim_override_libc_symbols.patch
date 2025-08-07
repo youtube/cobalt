@@ -1,0 +1,11 @@
+--- base/allocator/partition_allocator/src/partition_alloc/shim/allocator_shim_override_libc_symbols.h
++++ base/allocator/partition_allocator/src/partition_alloc/shim/allocator_shim_override_libc_symbols.h
+@@ -89,8 +89,4 @@
+ 
+ }  // extern "C"
+ 
+-<<<<<<< HEAD:base/allocator/partition_allocator/src/partition_alloc/shim/allocator_shim_override_libc_symbols.h
+ #endif  // BASE_ALLOCATOR_PARTITION_ALLOCATOR_SRC_PARTITION_ALLOC_SHIM_ALLOCATOR_SHIM_OVERRIDE_LIBC_SYMBOLS_H_
+-=======
+-#endif  // BASE_ALLOCATOR_PARTITION_ALLOCATOR_SHIM_ALLOCATOR_SHIM_OVERRIDE_LIBC_SYMBOLS_H_
+->>>>>>> cab69340e13 (Build nplb hermetically (#4587)):base/allocator/partition_allocator/shim/allocator_shim_override_libc_symbols.h

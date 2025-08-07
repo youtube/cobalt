@@ -1,0 +1,33 @@
+--- third_party/boringssl/BUILD.gn
++++ third_party/boringssl/BUILD.gn
+@@ -136,7 +136,6 @@
+   source_set("boringssl_asm") {
+     visibility = [ ":*" ]  # Only targets in this file can depend on this.
+ 
+-<<<<<<< HEAD
+     public_configs = [ ":no_asm_config" ]
+   }
+ } else if (is_win && (current_cpu == "x86" || current_cpu == "x64")) {
+@@ -152,9 +151,8 @@
+   # is no need to add target conditions in the build.
+   source_set("boringssl_asm") {
+     visibility = [ ":*" ]  # Only targets in this file can depend on this.
+-=======
+-    sources = []
+-    asmflags = []
++
++    sources = crypto_sources_asm
+     if (is_cobalt && is_cobalt_hermetic_build) {
+       include_dirs = [
+         "//cobalt/third_party/boringssl/src/include",
+@@ -163,10 +161,6 @@
+     } else {
+       include_dirs = [ "src/include" ]
+     }
+->>>>>>> cab69340e13 (Build nplb hermetically (#4587))
+-
+-    sources = crypto_sources_asm
+-    include_dirs = [ "src/include" ]
+   }
+ }
+ 

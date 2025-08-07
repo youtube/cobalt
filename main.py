@@ -79,6 +79,14 @@ def import_subtree(repo, deps_file, module, git_source, git_rev):
         for i in range(start, end):
             lines[i] = '#' + lines[i]
         lines.insert(start, '# Cobalt: imported\n')
+        if module == 'third_party/angle':
+            lines.insert(end + 1,
+"""# Cobalt: Dependencies from angle's DEPS file.
+  'src/third_party/angle/third_party/rapidjson/src':
+    Var('chromium_git') + '/external/github.com/Tencent/rapidjson.git' + '@' + '781a4e667d84aeedbeb8184b7b62425ea66ec59f',
+  'src/third_party/angle/third_party/glmark2/src':
+    Var('chromium_git') + '/external/github.com/glmark2/glmark2.git' + '@' + 'ca8de51fedb70bace5351c6b002eb952c747e889',
+""")
         f.seek(0)
         f.writelines(lines)
     module_dir = os.path.join(repo.working_dir, module)
@@ -543,6 +551,7 @@ def main():
                 git_source, git_rev = modules_to_update[module]
                 import_subtree(repo, deps_file, module, git_source, git_rev)
 
+        exit(0)
         with open(args.commits_file, 'r', encoding='utf-8') as f:
             commits = json.load(f)
         last_successful_commit = None

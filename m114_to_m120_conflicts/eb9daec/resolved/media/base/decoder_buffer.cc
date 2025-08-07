@@ -260,6 +260,7 @@ void DecoderBuffer::set_timestamp(base::TimeDelta timestamp) {
   time_info_.timestamp = timestamp;
 }
 
+
 size_t DecoderBuffer::GetMemoryUsage() const {
   size_t memory_usage = sizeof(DecoderBuffer);
 
@@ -270,11 +271,8 @@ size_t DecoderBuffer::GetMemoryUsage() const {
   memory_usage += data_size();
 
   // Side data and decrypt config would not change after construction.
-  if (has_side_data()) {
-    memory_usage += sizeof(decltype(side_data_->spatial_layers)::value_type) *
-                    side_data_->spatial_layers.capacity();
-    memory_usage += sizeof(decltype(side_data_->alpha_data)::value_type) *
-                    side_data_->alpha_data.capacity();
+  if (side_data_size_ > 0) {
+    memory_usage += side_data_size_;
   }
   if (decrypt_config_) {
     memory_usage += sizeof(DecryptConfig);
