@@ -81,6 +81,7 @@ def import_subtree(repo, deps_file, module, git_source, git_rev):
         for i in range(start, end):
             lines[i] = '#' + lines[i]
         lines.insert(start, '# Cobalt: imported\n')
+        # glmark2 needs to be at 6edcf02205fd1e8979dc3f3964257a81959b80c8 for m138
         if module == 'third_party/angle':
             lines.insert(end + 1,
 """# Cobalt: Dependencies from angle's DEPS file.
