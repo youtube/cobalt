@@ -171,7 +171,6 @@ class MEDIA_EXPORT StarboardRenderer : public Renderer,
   // AndroidOverlay callbacks.
   void OnOverlayReady(AndroidOverlay*);
   void OnOverlayFailed(AndroidOverlay*);
-  void OnOverlayDeleted(AndroidOverlay*);
 #endif  // BUILDFLAG(IS_ANDROID)
 
   int GetDefaultMaxBuffers(AudioCodec codec,

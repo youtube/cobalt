@@ -495,6 +495,17 @@ void StarboardRenderer::OnOverlayInfoChanged(const OverlayInfo& overlay_info) {
         << overlay_info.routing_token.value().ToString();
     return;
   }
+
+  if (android_overlay_factory_cb_.is_null()) {
+    LOG(ERROR) << " AndroidOverlayMojoFactoryCB is NULL.";
+    state_ = STATE_ERROR;
+    if (init_cb_) {
+      std::move(init_cb_).Run(PipelineStatus(
+          DECODER_ERROR_NOT_SUPPORTED, "AndroidOverlayMojoFactoryCB is null"));
+    }
+    return;
+  }
+
   overlay_info_ = overlay_info;
 
   AndroidOverlayConfig config;
@@ -506,8 +517,6 @@ void StarboardRenderer::OnOverlayInfoChanged(const OverlayInfo& overlay_info) {
   config.secure = false;
   config.power_efficient = false;
 
-  LOG(INFO) << __func__ << " AndroidOverlayMojoFactoryCB is Null: "
-            << android_overlay_factory_cb_.is_null();
   overlay_ = android_overlay_factory_cb_.Run(*overlay_info.routing_token,
                                              std::move(config));
   LOG(INFO) << " Overlay info changed, requested AndroidOverlay. Token: "
@@ -980,13 +989,6 @@ void StarboardRenderer::OnOverlayReady(AndroidOverlay* overlay) {
   // Check that the passed overlay and overlay_ point to the same object.
   DCHECK_EQ(overlay, overlay_.get());
 
-  // Notify the overlay that we'd like to know if it's destroyed, so that we can
-  // update our internal state if the client drops it without being told.
-  overlay_->AddOverlayDeletedCallback(base::BindOnce(
-      &StarboardRenderer::OnOverlayDeleted, weak_factory_.GetWeakPtr()));
-
-  LOG(INFO) << __func__ << overlay_->GetJavaSurface().obj();
-
   // TODO: b/431850939 - Pass JavaSurface to Starboard via StarboardExtension.
 
   CreatePlayerBridge();
@@ -1002,10 +1004,6 @@ void StarboardRenderer::OnOverlayFailed(AndroidOverlay* overlay) {
         "StarboardRenderer::OnOverlayFailed() failed to create a "
         "valid AndroidOverlay"));
   }
-}
-
-void StarboardRenderer::OnOverlayDeleted(AndroidOverlay* overlay) {
-  LOG(INFO) << __func__ << " AndroidOverlay is deleted.";
 }
 #endif  // BUILDFLAG(IS_ANDROID)
 
