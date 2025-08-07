@@ -19,7 +19,7 @@
 
 #include "starboard/common/log.h"
 
-int MuslCmdToPlatformCmd(int musl_cmd) {
+int convert_musl_cmd_to_platform_cmd(int musl_cmd) {
   switch (musl_cmd) {
     case MUSL_F_DUPFD:
       return F_DUPFD;
@@ -47,7 +47,7 @@ int MuslCmdToPlatformCmd(int musl_cmd) {
   }
 }
 
-int ConvertMuslFlagsToPlatformFlags(int flags) {
+int convert_musl_flags_to_platofrm_flags(int flags) {
   int platform_flags = 0;
 
   if (flags & MUSL_O_APPEND) {
@@ -93,7 +93,7 @@ int ConvertMuslFlagsToPlatformFlags(int flags) {
   return platform_flags;
 }
 
-int ConvertPlatformFlagsToMuslFlags(int flags) {
+int convert_platform_flags_to_musl_flags(int flags) {
   int musl_flags = 0;
 
   if (flags & O_APPEND) {
@@ -134,48 +134,8 @@ int ConvertPlatformFlagsToMuslFlags(int flags) {
   return musl_flags;
 }
 
-SB_EXPORT int __abi_wrap_fcntl(int fd, int cmd, ...) {
-  int result;
-  va_list ap;
-  va_start(ap, cmd);
-  switch (cmd) {
-    // The following commands have an int third argument.
-    case MUSL_F_DUPFD:
-    case MUSL_F_DUPFD_CLOEXEC:
-    case MUSL_F_SETFD:
-    case MUSL_F_SETFL:
-    case MUSL_F_SETOWN: {
-      int arg_int = va_arg(ap, int);
-      result = FcntlInt(fd, cmd, arg_int);
-      break;
-    }
-    // The following commands have a pointer third argument.
-    case MUSL_F_GETLK:
-    case MUSL_F_SETLK:
-    case MUSL_F_SETLKW: {
-      void* arg_ptr;
-      arg_ptr = va_arg(ap, void*);
-      SB_CHECK(arg_ptr);
-      result = FcntlPtr(fd, cmd, arg_ptr);
-    } break;
-    default:
-      result = Fcntl(fd, cmd);
-      break;
-  }
-  va_end(ap);
-
-  // Commands F_GETFD and F_GETFL return flags, we need to convert them to their
-  // musl counterparts.
-  if (cmd == MUSL_F_GETFD || cmd == MUSL_F_GETFL) {
-    int musl_flags = ConvertPlatformFlagsToMuslFlags(result);
-    return musl_flags;
-  }
-
-  return result;
-}
-
-int Fcntl(int fildes, int cmd) {
-  int platform_cmd = MuslCmdToPlatformCmd(cmd);
+SB_EXPORT int fcntl_no_arg(int fildes, int cmd) {
+  int platform_cmd = convert_musl_cmd_to_platform_cmd(cmd);
   if (platform_cmd == -1) {
     errno = EINVAL;
     return -1;
@@ -183,7 +143,7 @@ int Fcntl(int fildes, int cmd) {
 
   int result = fcntl(fildes, platform_cmd);
   if (platform_cmd == F_GETFD || platform_cmd == F_GETFL) {
-    int musl_flags = ConvertPlatformFlagsToMuslFlags(result);
+    int musl_flags = convert_platform_flags_to_musl_flags(result);
 
     return musl_flags;
   }
@@ -191,8 +151,8 @@ int Fcntl(int fildes, int cmd) {
   return result;
 }
 
-int FcntlInt(int fildes, int cmd, int arg) {
-  int platform_cmd = MuslCmdToPlatformCmd(cmd);
+SB_EXPORT int fcntl_int_arg(int fildes, int cmd, int arg) {
+  int platform_cmd = convert_musl_cmd_to_platform_cmd(cmd);
   if (platform_cmd == -1) {
     errno = EINVAL;
     return -1;
@@ -201,17 +161,17 @@ int FcntlInt(int fildes, int cmd, int arg) {
   return fcntl(fildes, platform_cmd, arg);
 }
 
-int FcntlPtr(int fildes, int cmd, void* arg) {
+SB_EXPORT int fcntl_ptr_arg(int fildes, int cmd, void* arg) {
   SB_CHECK(arg);
   SB_CHECK(cmd == MUSL_F_GETLK || cmd == MUSL_F_SETLK || cmd == MUSL_F_SETLKW);
 
-  int platform_cmd = MuslCmdToPlatformCmd(cmd);
+  int platform_cmd = convert_musl_cmd_to_platform_cmd(cmd);
   if (platform_cmd == -1) {
     errno = EINVAL;
     return -1;
   }
 
-  struct muslflock* musl_flock = reinterpret_cast<struct muslflock*>(arg);
+  struct musl_flock* musl_flock = reinterpret_cast<struct musl_flock*>(arg);
   struct flock platform_flock;
   int retval;
   if (platform_cmd == F_GETLK) {
@@ -232,4 +192,44 @@ int FcntlPtr(int fildes, int cmd, void* arg) {
   }
 
   return retval;
+}
+
+SB_EXPORT int __abi_wrap_fcntl(int fd, int cmd, ...) {
+  int result;
+  va_list ap;
+  va_start(ap, cmd);
+  switch (cmd) {
+    // The following commands have an int third argument.
+    case MUSL_F_DUPFD:
+    case MUSL_F_DUPFD_CLOEXEC:
+    case MUSL_F_SETFD:
+    case MUSL_F_SETFL:
+    case MUSL_F_SETOWN: {
+      int arg_int = va_arg(ap, int);
+      result = fcntl_int_arg(fd, cmd, arg_int);
+      break;
+    }
+    // The following commands have a pointer third argument.
+    case MUSL_F_GETLK:
+    case MUSL_F_SETLK:
+    case MUSL_F_SETLKW: {
+      void* arg_ptr;
+      arg_ptr = va_arg(ap, void*);
+      SB_CHECK(arg_ptr);
+      result = fcntl_ptr_arg(fd, cmd, arg_ptr);
+    } break;
+    default:
+      result = fcntl_no_arg(fd, cmd);
+      break;
+  }
+  va_end(ap);
+
+  // Commands F_GETFD and F_GETFL return flags, we need to convert them to their
+  // musl counterparts.
+  if (cmd == MUSL_F_GETFD || cmd == MUSL_F_GETFL) {
+    int musl_flags = convert_platform_flags_to_musl_flags(result);
+    return musl_flags;
+  }
+
+  return result;
 }

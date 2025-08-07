@@ -210,26 +210,14 @@ ssize_t tee(int, int, size_t, unsigned);
 #endif
 
 #if defined(STARBOARD)
-#define F_DUPFD 2000
-#define F_DUPFD_CLOFORK 2001
-#define F_GETFD 2002
-#define F_SETFD 2003
-#define F_GETFL 2004
-#define F_SETFL 2005
-#define F_GETOWN 2006
-#define F_SETOWN 2007
-#define FD_GETOWN_EX 2008
-#define FD_SETOWN_EX 2009
-#define F_GETLK 2010
-#define F_SETLK 2011
-#define F_SETLKW 2012
+#define F_DUPFD_CLOFORK 1031
+#define F_GETLK 17
+#define F_SETLK 18
+#define F_SETLKW 19
 #if defined(_LARGEFILE64_SOURCE)
 #define F_SETLK64 F_SETLK
 #define F_SETLKW64 F_SETLKW
 #endif
-#define F_OFD_GETLK 2013
-#define F_OFD_SETLK 2014
-#define F_OFD_SETLKW 2015
 
 #define O_CREAT	0100
 #define O_APPEND 02000

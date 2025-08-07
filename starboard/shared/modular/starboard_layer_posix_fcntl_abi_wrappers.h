@@ -19,33 +19,36 @@
 #include <stdarg.h>
 
 #include "starboard/export.h"
+#include "starboard/shared/modular/starboard_layer_posix_signal_abi_wrappers.h"
+#include "starboard/shared/modular/starboard_layer_posix_unistd_abi_wrappers.h"
 
 #ifdef __cplusplus
 extern "C" {
 #endif
 
 // From //third_party/musl/include/fcntl.h
-#define MUSL_F_DUPFD 2000
+#define MUSL_F_DUPFD 0
 #define MUSL_F_DUPFD_CLOEXEC 1030
-#define MUSL_F_DUPFD_CLOFORK 2001
-#define MUSL_F_GETFD 2002
-#define MUSL_F_SETFD 2003
-#define MUSL_F_GETFL 2004
-#define MUSL_F_SETFL 2005
-#define MUSL_F_GETOWN 2006
-#define MUSL_F_SETOWN 2007
-#define FD_GETOWN_EX 2008
-#define FD_SETOWN_EX 2009
-#define MUSL_F_GETLK 2010
-#define MUSL_F_SETLK 2011
-#define MUSL_F_SETLKW 2012
+#define MUSL_F_DUPFD_CLOFORK 1031
+#define MUSL_F_GETFD 1
+#define MUSL_F_SETFD 2
+#define MUSL_F_GETFL 3
+#define MUSL_F_SETFL 4
+#define MUSL_F_SETOWN 8
+#define MUSL_F_GETOWN 9
+#define FD_SETOWN_EX 15
+#define FD_GETOWN_EX 16
+#define MUSL_F_GETLK 17
+#define MUSL_F_SETLK 18
+#define MUSL_F_SETLKW 19
 #if defined(_LARGEFILE64_SOURCE)
 #define MUSL_F_SETLK64 MUSL_F_SETLK
 #define MUSL_F_SETLKW64 MUSL_F_SETLKW
 #endif
-#define MUSL_F_OFD_GETLK 2013
-#define MUSL_F_OFD_SETLK 2014
-#define MUSL_F_OFD_SETLKW 2015
+#define MUSL_F_OFD_GETLK 36
+#define MUSL_F_OFD_SETLK 37
+#define MUSL_F_OFD_SETLKW 38
+
 #define MUSL_FD_CLOEXEC 1
 
 #define MUSL_F_RDLCK 0
@@ -65,18 +68,18 @@ extern "C" {
 #define MUSL_O_WRONLY 01
 #define MUSL_O_RDWR 02
 
-struct muslflock {
+struct musl_flock {
   short l_type;
   short l_whence;
-  off_t l_start;
-  off_t l_len;
-  pid_t l_pid;
+  musl_off_t l_start;
+  musl_off_t l_len;
+  musl_pid_t l_pid;
 };
 
+SB_EXPORT int fcntl_no_arg(int fildes, int cmd);
+SB_EXPORT int fcntl_int_arg(int fildes, int cmd, int arg);
+SB_EXPORT int fcntl_ptr_arg(int fildes, int cmd, void* arg);
 SB_EXPORT int __abi_wrap_fcntl(int fildes, int cmd, ...);
-SB_EXPORT int Fcntl(int fildes, int cmd);
-SB_EXPORT int FcntlInt(int fildes, int cmd, int arg);
-SB_EXPORT int FcntlPtr(int fildes, int cmd, void* arg);
 
 #ifdef __cplusplus
 }  // extern "C"
