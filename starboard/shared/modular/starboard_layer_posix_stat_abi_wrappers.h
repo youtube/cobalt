@@ -30,6 +30,18 @@
 #include "starboard/export.h"
 #include "starboard/shared/modular/starboard_layer_posix_time_abi_wrappers.h"
 
+typedef unsigned int musl_mode_t;
+
+// Musl S_IFMT mode constants
+#define MUSL_S_IFMT 0170000
+#define MUSL_S_IFDIR 0040000
+#define MUSL_S_IFCHR 0020000
+#define MUSL_S_IFBLK 0060000
+#define MUSL_S_IFREG 0100000
+#define MUSL_S_IFIFO 0010000
+#define MUSL_S_IFLNK 0120000
+#define MUSL_S_IFSOCK 0140000
+
 #ifdef __cplusplus
 extern "C" {
 #endif
@@ -98,6 +110,8 @@ SB_EXPORT int __abi_wrap_fstat(int fildes, struct musl_stat* info);
 SB_EXPORT int __abi_wrap_lstat(const char* path, struct musl_stat* info);
 
 SB_EXPORT int __abi_wrap_stat(const char* path, struct musl_stat* info);
+
+SB_EXPORT int __abi_wrap_chmod(const char* path, musl_mode_t mode);
 
 #ifdef __cplusplus
 }  // extern "C"

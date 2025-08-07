@@ -95,6 +95,7 @@ _ALLOWED_SB_GE_16_POSIX_SYMBOLS = [
     'aligned_alloc',
     'bind',
     'calloc',
+    'chmod',
     'clock_gettime',
     'clock_nanosleep',
     'close',
