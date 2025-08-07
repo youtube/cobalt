@@ -255,6 +255,7 @@ _ALLOWED_SB_GE_16_POSIX_SYMBOLS = [
     'uname',
     'unlink',
     'usleep',
+    'utimensat',
     'utimes',
     'vfwprintf',
     'vsnprintf',
