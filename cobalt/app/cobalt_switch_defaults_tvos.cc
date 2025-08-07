@@ -12,37 +12,19 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include "base/base_switches.h"
-#include "base/files/file_path.h"
 #include "cobalt/app/cobalt_switch_defaults.h"
-#include "cobalt/browser/switches.h"
 #include "cobalt/shell/common/shell_switches.h"
-#include "components/network_session_configurator/common/network_switches.h"
 #include "content/public/common/content_switches.h"
-#include "gpu/command_buffer/service/gpu_switches.h"
 #include "gpu/config/gpu_switches.h"
 #include "media/base/media_switches.h"
 #include "sandbox/policy/switches.h"
 #include "third_party/blink/public/common/switches.h"
 #include "ui/gl/gl_switches.h"
 
-#if BUILDFLAG(IS_OZONE)
-#include "ui/ozone/public/ozone_switches.h"
-#endif
-
 namespace cobalt {
 
 const std::vector<const char*>&
 CommandLinePreprocessor::GetCobaltToggleSwitches() {
-  // ==========
-  // IMPORTANT:
-  //
-  // These command line switches defaults do not affect non-POSIX platforms.
-  // They only affect platforms such as Linux and AOSP. If you are making
-  // changes to these values, please check that other platforms (such as
-  // AndroidTV) are getting corresponding updates.
-
-  // List of toggleable default switches.
   static const std::vector<const char*> kCobaltToggleSwitches{
       // Enable Blink to work in overlay video mode
       ::switches::kForceVideoOverlays,
@@ -50,22 +32,15 @@ CommandLinePreprocessor::GetCobaltToggleSwitches() {
       ::switches::kSingleProcess,
       // Hide content shell toolbar.
       ::switches::kContentShellHideToolbar,
-      // Accelerated GL is blanket disabled for Linux. Ignore the GPU
-      // blocklist to enable it.
+      // Accelerated GL is blanket disabled for Linux. Ignore the GPU blocklist
+      // to enable it.
       ::switches::kIgnoreGpuBlocklist,
       // Disable Zygote (a process fork utility); in turn needs sandbox
       // disabled.
       ::switches::kNoZygote,
       sandbox::policy::switches::kNoSandbox,
-      // Rasterize Tiles directly to GPU memory
-      // (ZeroCopyRasterBufferProvider).
+      // Rasterize Tiles directly to GPU memory (ZeroCopyRasterBufferProvider).
       blink::switches::kEnableZeroCopy,
-      // Enable low-end device mode. This comes with a load of memory and CPU
-      // saving goodies but can degrade the experience considerably. One of
-      // the known regressions is 4444 textures, which are then disabled
-      // explicitly.
-      ::switches::kEnableLowEndDeviceMode,
-      blink::switches::kDisableRGBA4444Textures,
       // For Starboard the signal handlers are already setup. Disable the
       // Chromium registrations to avoid overriding the Starboard ones.
       ::switches::kDisableInProcessStackTraces,
@@ -73,25 +48,13 @@ CommandLinePreprocessor::GetCobaltToggleSwitches() {
       ::switches::kDisableAcceleratedVideoDecode,
       ::switches::kDisableAcceleratedVideoEncode,
   };
+
   return kCobaltToggleSwitches;
 }
 
 const base::CommandLine::SwitchMap&
 CommandLinePreprocessor::GetCobaltParamSwitchDefaults() {
-  static const base::CommandLine::SwitchMap kCobaltSwitchDefaults{
-      // Disable Vulkan.
-      {::switches::kDisableFeatures, "Vulkan"},
-      // When DefaultEnableANGLEValidation is disabled (e.g gold/qa), EGL
-      // attribute EGL_CONTEXT_OPENGL_NO_ERROR_KHR is set during egl context
-      // creation, but egl extension required to support the attribute is
-      // missing and causes errors. So Enable it by default.
-      {::switches::kEnableFeatures,
-       "LimitImageDecodeCacheSize:mb/24, DefaultEnableANGLEValidation"},
-  // Force some ozone settings.
-#if BUILDFLAG(IS_OZONE)
-      {::switches::kUseGL, "angle"},
-      {::switches::kUseANGLE, "gles-egl"},
-#endif
+  static const base::CommandLine::SwitchMap kCobaltSwitchDefaults({
       // Use passthrough command decoder.
       {::switches::kUseCmdDecoder, "passthrough"},
       // Set the default size for the content shell/starboard window.
@@ -108,7 +71,7 @@ CommandLinePreprocessor::GetCobaltParamSwitchDefaults() {
       // Enable autoplay video/audio, as Cobalt may launch directly into media
       // playback before user interaction.
       {::switches::kAutoplayPolicy, "no-user-gesture-required"},
-  };
+  });
   return kCobaltSwitchDefaults;
 }
 
