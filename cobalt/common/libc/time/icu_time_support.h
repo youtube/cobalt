@@ -36,6 +36,18 @@ class IcuTimeSupport {
                                int& out_daylight,
                                char** out_tzname);
 
+  // Converts a time_t to a struct tm in the local timezone.
+  bool ExplodeLocalTime(const time_t* time, struct tm* out_exploded);
+
+  // Converts a time_t to a struct tm in the GMT timezone.
+  bool ExplodeGmtTime(const time_t* time, struct tm* out_exploded);
+
+  // Converts a struct tm (in local time) to a time_t.
+  time_t ImplodeLocalTime(struct tm* exploded);
+
+  // Converts a struct tm (in GMT) to a time_t.
+  time_t ImplodeGmtTime(struct tm* exploded);
+
  private:
   TimeZoneState state_;
 };
