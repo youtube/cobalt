@@ -97,7 +97,6 @@ group("cobalt_shell_lib_deps") {
     "//net",
     "//net:net_resources",
     "//ppapi/buildflags",
-    "//services/device/public/cpp:test_support",
     "//services/network:network_service",
     "//services/network/public/cpp",
     "//services/test/echo:lib",
