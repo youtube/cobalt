@@ -12,8 +12,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#ifndef STARBOARD_NPLB_POSIX_COMPLIANCE_POSIX_TIMEZONE_TEST_HELPER_H_
-#define STARBOARD_NPLB_POSIX_COMPLIANCE_POSIX_TIMEZONE_TEST_HELPER_H_
+#ifndef STARBOARD_NPLB_POSIX_COMPLIANCE_POSIX_TIMEZONE_TEST_HELPERS_H_
+#define STARBOARD_NPLB_POSIX_COMPLIANCE_POSIX_TIMEZONE_TEST_HELPERS_H_
 
 #include <gtest/gtest.h>
 #include <stdlib.h>
@@ -21,6 +21,8 @@
 #include <optional>
 #include <string>
 #include <type_traits>
+
+#include "starboard/common/source_location.h"
 
 namespace starboard {
 namespace nplb {
@@ -45,45 +47,27 @@ constexpr int kSecondsInHour = 3600;
 // Number of seconds in a minute.
 constexpr int kSecondsInMinute = 60;
 
-// Helper class to manage the TZ environment variable for test isolation.
-// Sets TZ in constructor, restores original TZ in destructor.
-// Calls tzset() after each change to TZ.
-class ScopedTZ {
- public:
-  ScopedTZ(const char* new_tz_value) {
-    const char* current_tz_env = getenv("TZ");
-    if (current_tz_env != nullptr) {
-      original_tz_value_ = current_tz_env;  // Store the original TZ string
-    }
+// Helper to create a time_t for a specific UTC date.
+time_t CreateTime(int year, int month, int day);
 
-    if (new_tz_value != nullptr) {
-      EXPECT_EQ(0, setenv("TZ", new_tz_value, 1))
-          << "ScopedTZ: Failed to set TZ environment variable to \""
-          << new_tz_value << "\"";
-    } else {
-      EXPECT_EQ(0, unsetenv("TZ"))
-          << "ScopedTZ: Failed to unset TZ environment variable.";
-    }
-    tzset();
-  }
-
-  ~ScopedTZ() {
-    if (original_tz_value_) {
-      setenv("TZ", original_tz_value_->c_str(), 1);
-    } else {
-      unsetenv("TZ");
-    }
-    tzset();
-  }
-
-  ScopedTZ(const ScopedTZ&) = delete;
-  ScopedTZ& operator=(const ScopedTZ&) = delete;
-
- private:
-  std::optional<std::string> original_tz_value_;
+struct TimeSamples {
+  std::optional<time_t> standard;
+  std::optional<time_t> daylight;
 };
+
+// Helper to deterministically find a sample of standard and daylight time
+// for a given year.
+TimeSamples GetTimeSamples(int year);
+
+// Helper to assert the values of a tm struct.
+void AssertTM(const tm& tminfo,
+              long offset,
+              const char* std_zone,
+              const std::optional<const char*>& dst_zone,
+              const char* tz,
+              SourceLocation location = SourceLocation::current());
 
 }  // namespace nplb
 }  // namespace starboard
 
-#endif  // STARBOARD_NPLB_POSIX_COMPLIANCE_POSIX_TIMEZONE_TEST_HELPER_H_
+#endif  // STARBOARD_NPLB_POSIX_COMPLIANCE_POSIX_TIMEZONE_TEST_HELPERS_H_
