@@ -65,6 +65,7 @@ source_set("browser") {
     "//cobalt/browser/performance",
     "//cobalt/browser/performance/public/mojom",
     "//cobalt/browser/user_agent",
+    "//cobalt/common/features",
     "//cobalt/media/service",
     "//cobalt/media/service/mojom",
     "//cobalt/shell:cobalt_shell_lib",
