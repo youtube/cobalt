@@ -1,6 +1,6 @@
 --- base/BUILD.gn
 +++ base/BUILD.gn
-@@ -2220,107 +2220,6 @@
+@@ -2220,106 +2220,6 @@
      }
    }
  
@@ -104,15 +104,14 @@
 -
 -    frameworks += [ "UIKit.framework" ]
 -  }
--
+ 
    if (is_cobalt) {
      sources += [
-       "system/sys_info_starboard.cc",
-@@ -2328,7 +2227,6 @@
+@@ -2328,7 +2228,6 @@
        ]
    }
  
-->>>>>>> 1c40ffd4dde (Chrobalt ATV UA String Implementation With No Dependencies on SB (#4388))
+->>>>>>> 1c40ffd4dde9 (Chrobalt ATV UA String Implementation With No Dependencies on SB (#4388))
    if (use_blink) {
      sources += [
        "files/file_path_watcher.cc",

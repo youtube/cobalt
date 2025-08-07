@@ -30,7 +30,7 @@ declare_args() {
        && !is_cobalt
 =======
       ((is_linux && !is_castos) || (is_android && !is_cast_android))
->>>>>>> b93382f1c61 (Set certain upstream GN flags correctly in args.gn (#4419))
+>>>>>>> b93382f1c611 (Set certain upstream GN flags correctly in args.gn (#4419))
 
   clang_base_path = default_clang_base_path
 

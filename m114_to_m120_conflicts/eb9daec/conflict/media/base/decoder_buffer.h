@@ -305,7 +305,7 @@ class MEDIA_EXPORT DecoderBuffer
   // function is added for more accurately memory management.
   virtual size_t GetMemoryUsage() const;
 
->>>>>>> eb9daec563f (Refine Demuxer GC for low resolution videos (#4483))
+>>>>>>> eb9daec563f9 (Refine Demuxer GC for low resolution videos (#4483))
  protected:
   friend class base::RefCountedThreadSafe<DecoderBuffer>;
 

@@ -28,7 +28,7 @@ declare_args() {
       ((is_linux && !is_castos) || (is_android && !is_cast_android) || is_win)
 =======
       ((is_linux && !is_castos) || (is_android && !is_cast_android)) && !chrobalt
->>>>>>> 7521291e258 (Add starboard build to android (#4259))
+>>>>>>> 7521291e258e (Add starboard build to android (#4259))
 
   clang_base_path = default_clang_base_path
 

@@ -309,7 +309,7 @@ std::string GetShellUserAgent() {
 <<<<<<< HEAD
 =======
 #if BUILDFLAG(IS_COBALT)
->>>>>>> 0528637c55f (Fix Cobalt condition for UA (#4347))
+>>>>>>> 0528637c55fc (Fix Cobalt condition for UA (#4347))
   return "Mozilla/5.0 (LINUX) Cobalt/26.lts.10.0000001-gold (unlike Gecko) v8/8.8.278.8-jit gles Evergreen/4.10.2 Evergreen-Full Evergreen-Uncompressed Starboard/15, odm_TV_chipset_2024/fw-01-23.45 (brand, model)";
 }
 #endif

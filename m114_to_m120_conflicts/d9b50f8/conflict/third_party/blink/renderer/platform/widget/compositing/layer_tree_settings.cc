@@ -192,7 +192,7 @@ cc::ManagedMemoryPolicy GetGpuMemoryPolicy(
   // Ignore what the system said and give all clients the same maximum
   // allocation on desktop platforms.
   actual.bytes_limit_when_visible = 512 * 1024 * 1024;
->>>>>>> d9b50f89921 ([cc] Use simple compositor memory limits on Android (#4637))
+>>>>>>> d9b50f89921e ([cc] Use simple compositor memory limits on Android (#4637))
 
     // For large monitors with high resolution, increase the tile memory to
     // avoid frequent out of memory problems. With Mac M1 on
@@ -245,7 +245,7 @@ cc::ManagedMemoryPolicy GetGpuMemoryPolicy(
 =======
   actual.priority_cutoff_when_visible =
       gpu::MemoryAllocation::CUTOFF_ALLOW_NICE_TO_HAVE;
->>>>>>> d9b50f89921 ([cc] Use simple compositor memory limits on Android (#4637))
+>>>>>>> d9b50f89921e ([cc] Use simple compositor memory limits on Android (#4637))
 
   return actual;
 }

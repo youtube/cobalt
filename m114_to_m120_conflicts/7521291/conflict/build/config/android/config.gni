@@ -125,7 +125,7 @@ if (is_android || is_chromeos) {
     default_android_ndk_root = "//third_party/android_ndk"
     default_android_ndk_version = "r26"
     default_android_ndk_major_version = 26
->>>>>>> 7521291e258 (Add starboard build to android (#4259))
+>>>>>>> 7521291e258e (Add starboard build to android (#4259))
   } else {
     assert(defined(default_android_ndk_version))
     assert(defined(default_android_ndk_major_version))

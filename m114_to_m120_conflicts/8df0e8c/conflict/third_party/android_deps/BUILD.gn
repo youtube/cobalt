@@ -883,7 +883,7 @@ if (!limit_android_deps) {
       jar_excluded_patterns +=
           [ "com/google/android/gms/common/internal/Preconditions.class" ]
       deps += [ "//third_party/android_deps/local_modifications/preconditions:gms_stub_preconditions_java" ]
->>>>>>> 8df0e8c684b (Add play-services-ads-identifier-18.2.0 to the dependency and re-enable AdvertisingId.java. (#4579))
+>>>>>>> 8df0e8c684b6 (Add play-services-ads-identifier-18.2.0 to the dependency and re-enable AdvertisingId.java. (#4579))
     }
   }
 
