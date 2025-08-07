@@ -31,9 +31,11 @@
 namespace starboard::shared::starboard::media {
 namespace {
 
-constexpr int kMaxDecodingHistory = 30;
+constexpr int kMaxDecodingHistory = 20;
 constexpr int64_t kDecodingTimeWarningThresholdUs = 1'000'000;
-constexpr bool kTryAllocation = false;
+constexpr bool kTryAllocation = true;
+constexpr int kMaxFramesToTestAllocation = 800;
+constexpr int k8kDecodedFrameBytes = 49'766'400;
 
 struct MemoryInfo {
   long total_kb;
@@ -68,9 +70,6 @@ MemoryInfo GetMemoryInfo() {
   }
   return mem_info;
 }
-
-constexpr int kMaxFramesToTestAllocation = 8;
-constexpr int k8kDecodedFrameBytes = 49'766'400;
 
 int GetMaxAllocatable8kFrames() {
   void* ptrs[kMaxFramesToTestAllocation];
