@@ -20,6 +20,10 @@ COPY base/clean-after-apt.sh /opt/clean-after-apt.sh
 
 ENV PYTHONUNBUFFERED 1
 
+# Fix the sources list to be able to pull updates from Buster (which is now archived).
+RUN sed -i 's|deb.debian.org/debian|archive.debian.org/debian|g' /etc/apt/sources.list
+RUN sed -i 's|security.debian.org/debian-security|archive.debian.org/debian-security|g' /etc/apt/sources.list
+
 # === Install common dependencies
 RUN apt update -qqy \
     && apt -qqy upgrade \
