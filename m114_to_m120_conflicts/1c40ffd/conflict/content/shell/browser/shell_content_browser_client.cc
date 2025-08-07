@@ -316,7 +316,7 @@ std::string GetShellUserAgent() {
     return GetShellReducedUserAgent();
 
   return GetShellFullUserAgent();
->>>>>>> 1c40ffd4dde (Chrobalt ATV UA String Implementation With No Dependencies on SB (#4388))
+>>>>>>> 1c40ffd4dde9 (Chrobalt ATV UA String Implementation With No Dependencies on SB (#4388))
 }
 #endif
 

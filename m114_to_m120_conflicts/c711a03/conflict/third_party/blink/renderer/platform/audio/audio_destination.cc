@@ -85,7 +85,7 @@ constexpr uint32_t kFIFOSize = 128 * 128;
 #else   // BUILDFLAG(IS_COBALT)
 constexpr uint32_t kFIFOSize = 96 * 128;
 #endif  // BUILDFLAG(IS_COBALT)
->>>>>>> c711a03c967 ([android] Increase kFIFOSize in AudioDestination (#4376))
+>>>>>>> c711a03c967b ([android] Increase kFIFOSize in AudioDestination (#4376))
 
 const char* DeviceStateToString(AudioDestination::DeviceState state) {
   switch (state) {

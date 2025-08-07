@@ -26,7 +26,7 @@
 -  actual.bytes_limit_when_visible = 512 * 1024 * 1024;
 -  actual.priority_cutoff_when_visible =
 -      gpu::MemoryAllocation::CUTOFF_ALLOW_NICE_TO_HAVE;
-->>>>>>> ebc747e2d3f ([cc] Simplify and adjust memory limits on Android (#4636))
+->>>>>>> ebc747e2d3f5 ([cc] Simplify and adjust memory limits on Android (#4636))
  
        actual.bytes_limit_when_visible =
            actual.bytes_limit_when_visible * 1024 * 1024;

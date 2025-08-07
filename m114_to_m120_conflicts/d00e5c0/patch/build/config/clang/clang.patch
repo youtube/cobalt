@@ -17,7 +17,7 @@
 -       && !chrobalt
 -=======
 -      ((is_linux && !is_castos) || (is_android && !is_cast_android)) && !is_cobalt
-->>>>>>> d00e5c03510 (Rename Chrobalt to Cobalt. (#4276))
+->>>>>>> d00e5c03510f (Rename Chrobalt to Cobalt. (#4276))
 +       && !is_cobalt
  
    clang_base_path = default_clang_base_path

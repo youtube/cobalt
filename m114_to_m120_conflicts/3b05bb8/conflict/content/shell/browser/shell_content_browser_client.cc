@@ -318,7 +318,7 @@ std::string GetShellUserAgent() {
 
   return GetShellFullUserAgent();
 #endif
->>>>>>> 3b05bb8cff4 (`cobalt_apk` to build dev.cobalt.coat (#4304))
+>>>>>>> 3b05bb8cff4e (`cobalt_apk` to build dev.cobalt.coat (#4304))
 }
 
 }  // namespace

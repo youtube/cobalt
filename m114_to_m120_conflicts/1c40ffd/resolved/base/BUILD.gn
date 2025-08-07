@@ -2220,6 +2220,7 @@ component("base") {
     }
   }
 
+
   if (is_cobalt) {
     sources += [
       "system/sys_info_starboard.cc",

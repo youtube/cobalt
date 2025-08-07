@@ -618,7 +618,7 @@ class MEDIA_EXPORT ChunkDemuxer : public Demuxer {
 #if BUILDFLAG(USE_STARBOARD_MEDIA)
   std::map<std::string, std::string> id_to_mime_map_;
 #endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
->>>>>>> 030d4d0af75 ([media] Pass full mime type to SbPlayer (#4378))
+>>>>>>> 030d4d0af757 ([media] Pass full mime type to SbPlayer (#4378))
 };
 
 }  // namespace media

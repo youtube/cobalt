@@ -27,7 +27,7 @@
      
      compile 'com.google.android.gms:play-services-ads-identifier:18.2.0'
      
-->>>>>>> 8df0e8c684b (Add play-services-ads-identifier-18.2.0 to the dependency and re-enable AdvertisingId.java. (#4579))
+->>>>>>> 8df0e8c684b6 (Add play-services-ads-identifier-18.2.0 to the dependency and re-enable AdvertisingId.java. (#4579))
      compile 'com.google.code.findbugs:jsr305:3.0.2'
      compile 'com.google.firebase:firebase-iid:21.0.1'
      compile 'com.google.firebase:firebase-messaging:21.0.1'

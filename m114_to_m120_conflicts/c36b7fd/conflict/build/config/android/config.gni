@@ -134,7 +134,7 @@ if (is_android || is_chromeos) {
       default_android_ndk_version = "r23"
       default_android_ndk_major_version = 23
     }
->>>>>>> c36b7fdbf97 (Fix chromium android builds (#4303))
+>>>>>>> c36b7fdbf972 (Fix chromium android builds (#4303))
   } else {
     assert(defined(default_android_ndk_version))
     assert(defined(default_android_ndk_major_version))
