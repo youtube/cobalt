@@ -48,6 +48,7 @@ int fcntl(int fildes, int cmd, ...) {
       result = fcntl_no_arg(fildes, cmd);
       break;
   }
+
   va_end(ap);
   return result;
 }

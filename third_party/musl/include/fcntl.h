@@ -209,35 +209,6 @@ ssize_t tee(int, int, size_t, unsigned);
 #define off64_t off_t
 #endif
 
-#if defined(STARBOARD)
-#define F_DUPFD_CLOFORK 1031
-#define F_GETLK 17
-#define F_SETLK 18
-#define F_SETLKW 19
-#if defined(_LARGEFILE64_SOURCE)
-#define F_SETLK64 F_SETLK
-#define F_SETLKW64 F_SETLKW
-#endif
-
-#define O_CREAT	0100
-#define O_APPEND 02000
-#define O_DSYNC 010000
-#define O_NONBLOCK 04000
-#define O_RSYNC 04010000
-#define O_SYNC 04010000
-#define O_PATH 010000000
-#define O_ACCMODE (03|O_PATH)
-#define O_EXEC O_PATH
-#define O_SEARCH O_PATH
-#if defined(_GNU_SOURCE) || defined(_BSD_SOURCE)
-#define FAPPEND O_APPEND
-#define FFSYNC O_SYNC
-#define FASYNC O_ASYNC
-#define FNONBLOCK O_NONBLOCK
-#define FNDELAY O_NDELAY
-#endif
-#endif  // defined(STARBOARD)
-
 #ifdef __cplusplus
 }
 #endif

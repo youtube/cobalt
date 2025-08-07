@@ -23,6 +23,8 @@ int convert_musl_cmd_to_platform_cmd(int musl_cmd) {
   switch (musl_cmd) {
     case MUSL_F_DUPFD:
       return F_DUPFD;
+    case MUSL_F_DUPFD_CLOEXEC:
+      return F_DUPFD_CLOEXEC;
     case MUSL_F_GETFD:
       return F_GETFD;
     case MUSL_F_SETFD:
@@ -31,23 +33,33 @@ int convert_musl_cmd_to_platform_cmd(int musl_cmd) {
       return F_GETFL;
     case MUSL_F_SETFL:
       return F_SETFL;
-    case MUSL_F_GETOWN:
-      return F_GETOWN;
-    case MUSL_F_SETOWN:
-      return F_SETOWN;
     case MUSL_F_GETLK:
       return F_GETLK;
     case MUSL_F_SETLK:
       return F_SETLK;
     case MUSL_F_SETLKW:
       return F_SETLKW;
+    case MUSL_F_GETOWN:
+      return F_GETOWN;
+    case MUSL_F_SETOWN:
+      return F_SETOWN;
+    case MUSL_F_GETOWN_EX:
+      return F_GETOWN_EX;
+    case MUSL_F_SETOWN_EX:
+      return F_SETOWN_EX;
+    case MUSL_F_OFD_GETLK:
+      return F_OFD_GETLK;
+    case MUSL_F_OFD_SETLK:
+      return F_OFD_SETLK;
+    case MUSL_F_OFD_SETLKW:
+      return F_OFD_SETLKW;
     default:
       SB_LOG(WARNING) << "Unknown musl fcntl command: " << musl_cmd;
       return -1;
   }
 }
 
-int convert_musl_flags_to_platofrm_flags(int flags) {
+int convert_musl_flags_to_platform_flags(int flags) {
   int platform_flags = 0;
 
   if (flags & MUSL_O_APPEND) {
@@ -65,8 +77,8 @@ int convert_musl_flags_to_platofrm_flags(int flags) {
   if (flags & MUSL_O_SYNC) {
     platform_flags |= O_SYNC;
   }
-  if (flags & MUSL_O_ACCMODE) {
-    platform_flags |= O_ACCMODE;
+  if (flags & MUSL_O_PATH) {
+    platform_flags |= O_PATH;
   }
   if (flags & MUSL_O_RDONLY) {
     platform_flags |= O_RDONLY;
@@ -110,6 +122,9 @@ int convert_platform_flags_to_musl_flags(int flags) {
   }
   if (flags & O_SYNC) {
     musl_flags |= MUSL_O_SYNC;
+  }
+  if (flags & O_PATH) {
+    musl_flags |= MUSL_O_PATH;
   }
   if (flags & O_RDONLY) {
     musl_flags |= MUSL_O_RDONLY;
@@ -156,6 +171,11 @@ SB_EXPORT int fcntl_int_arg(int fildes, int cmd, int arg) {
   if (platform_cmd == -1) {
     errno = EINVAL;
     return -1;
+  }
+
+  if (platform_cmd == F_SETFD || platform_cmd == F_SETFL) {
+    return fcntl(fildes, platform_cmd,
+                 convert_musl_flags_to_platform_flags(arg));
   }
 
   return fcntl(fildes, platform_cmd, arg);
@@ -222,14 +242,7 @@ SB_EXPORT int __abi_wrap_fcntl(int fd, int cmd, ...) {
       result = fcntl_no_arg(fd, cmd);
       break;
   }
+
   va_end(ap);
-
-  // Commands F_GETFD and F_GETFL return flags, we need to convert them to their
-  // musl counterparts.
-  if (cmd == MUSL_F_GETFD || cmd == MUSL_F_GETFL) {
-    int musl_flags = convert_platform_flags_to_musl_flags(result);
-    return musl_flags;
-  }
-
   return result;
 }

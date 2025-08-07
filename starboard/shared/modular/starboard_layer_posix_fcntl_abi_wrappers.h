@@ -22,6 +22,41 @@
 #include "starboard/shared/modular/starboard_layer_posix_signal_abi_wrappers.h"
 #include "starboard/shared/modular/starboard_layer_posix_unistd_abi_wrappers.h"
 
+static_assert(F_GETLK == 5,
+              "The Starboard layer wrapper expects this value from musl");
+static_assert(F_SETLK == 6,
+              "The Starboard layer wrapper expects this value from musl");
+static_assert(F_SETLKW == 7,
+              "The Starboard layer wrapper expects this value from musl");
+#if defined(_LARGEFILE64_SOURCE)
+static_assert(F_SETLK64 == F_SETLK,
+              "The Starboard layer wrapper expects this value from musl");
+static_assert(F_SETLKW64 == F_SETLKW,
+              "The Starboard layer wrapper expects this value from musl");
+#endif
+static_assert(O_CREAT == 0100,
+              "The Starboard layer wrapper expects this value from musl");
+static_assert(O_APPEND == 02000,
+              "The Starboard layer wrapper expects this value from musl");
+static_assert(O_DSYNC == 010000,
+              "The Starboard layer wrapper expects this value from musl");
+static_assert(O_NONBLOCK == 04000,
+              "The Starboard layer wrapper expects this value from musl");
+static_assert(O_RSYNC == 04010000,
+              "The Starboard layer wrapper expects this value from musl");
+static_assert(O_SYNC == 04010000,
+              "The Starboard layer wrapper expects this value from musl");
+static_assert(O_ASYNC == 020000,
+              "The Starboard layer wrapper expects this value from musl");
+#if defined(_GNU_SOURCE) || defined(_BSD_SOURCE)
+static_assert(FASYNC == O_ASYNC,
+              "The Starboard layer wrapper expects this value from musl");
+static_assert(FNONBLOCK == O_NONBLOCK,
+              "The Starboard layer wrapper expects this value from musl");
+static_assert(FNDELAY == O_NDELAY,
+              "The Starboard layer wrapper expects this value from musl");
+#endif
+
 #ifdef __cplusplus
 extern "C" {
 #endif
@@ -29,18 +64,17 @@ extern "C" {
 // From //third_party/musl/include/fcntl.h
 #define MUSL_F_DUPFD 0
 #define MUSL_F_DUPFD_CLOEXEC 1030
-#define MUSL_F_DUPFD_CLOFORK 1031
 #define MUSL_F_GETFD 1
 #define MUSL_F_SETFD 2
 #define MUSL_F_GETFL 3
 #define MUSL_F_SETFL 4
+#define MUSL_F_GETLK 5
+#define MUSL_F_SETLK 6
+#define MUSL_F_SETLKW 7
 #define MUSL_F_SETOWN 8
 #define MUSL_F_GETOWN 9
-#define FD_SETOWN_EX 15
-#define FD_GETOWN_EX 16
-#define MUSL_F_GETLK 17
-#define MUSL_F_SETLK 18
-#define MUSL_F_SETLKW 19
+#define MUSL_F_SETOWN_EX 15
+#define MUSL_F_GETOWN_EX 16
 #if defined(_LARGEFILE64_SOURCE)
 #define MUSL_F_SETLK64 MUSL_F_SETLK
 #define MUSL_F_SETLKW64 MUSL_F_SETLKW
@@ -62,8 +96,6 @@ extern "C" {
 #define MUSL_O_SYNC 04010000
 #define MUSL_O_PATH 010000000
 #define MUSL_O_ACCMODE (03 | MUSL_O_PATH)
-#define MUSL_O_EXEC MUSL_O_PATH
-#define MUSL_O_SEARCH MUSL_O_PATH
 #define MUSL_O_RDONLY 00
 #define MUSL_O_WRONLY 01
 #define MUSL_O_RDWR 02
@@ -76,9 +108,9 @@ struct musl_flock {
   musl_pid_t l_pid;
 };
 
-SB_EXPORT int fcntl_no_arg(int fildes, int cmd);
-SB_EXPORT int fcntl_int_arg(int fildes, int cmd, int arg);
-SB_EXPORT int fcntl_ptr_arg(int fildes, int cmd, void* arg);
+int fcntl_no_arg(int fildes, int cmd);
+int fcntl_int_arg(int fildes, int cmd, int arg);
+int fcntl_ptr_arg(int fildes, int cmd, void* arg);
 SB_EXPORT int __abi_wrap_fcntl(int fildes, int cmd, ...);
 
 #ifdef __cplusplus
