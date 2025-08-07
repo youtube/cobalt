@@ -26,9 +26,7 @@ VideoDecoder::VideoDecoder(SbMediaVideoCodec video_codec,
                            SbPlayerOutputMode output_mode,
                            SbDecodeTargetGraphicsContextProvider*
                                decode_target_graphics_context_provider)
-    : current_frame_width_(0),
-      current_frame_height_(0),
-      stream_ended_(false),
+    : stream_ended_(false),
       error_occurred_(false),
       output_mode_(output_mode),
       decode_target_graphics_context_provider_(
@@ -139,8 +137,8 @@ void VideoDecoder::InitializeCodec() {
 
   context_.reset(new vpx_codec_ctx);
   vpx_codec_dec_cfg_t vpx_config = {0};
-  vpx_config.w = current_frame_width_;
-  vpx_config.h = current_frame_height_;
+  vpx_config.w = current_frame_size_.width;
+  vpx_config.h = current_frame_size_.height;
   vpx_config.threads = 8;
 
   vpx_codec_err_t status =
@@ -182,10 +180,8 @@ void VideoDecoder::DecodeOneBuffer(
   SB_DCHECK(input_buffer);
 
   const auto& stream_info = input_buffer->video_stream_info();
-  if (!context_ || stream_info.frame_width != current_frame_width_ ||
-      stream_info.frame_height != current_frame_height_) {
-    current_frame_width_ = stream_info.frame_width;
-    current_frame_height_ = stream_info.frame_height;
+  if (!context_ || stream_info.frame_size != current_frame_size_) {
+    current_frame_size_ = stream_info.frame_size;
     TeardownCodec();
     InitializeCodec();
   }
@@ -251,10 +247,10 @@ void VideoDecoder::DecodeOneBuffer(
   // Each component of a pixel takes one byte and they are in their own planes.
   // UV planes have half resolution both vertically and horizontally.
   scoped_refptr<CpuVideoFrame> frame = CpuVideoFrame::CreateYV12Frame(
-      vpx_image->bit_depth, current_frame_width_, current_frame_height_,
-      vpx_image->stride[VPX_PLANE_Y], vpx_image->stride[VPX_PLANE_U], timestamp,
-      vpx_image->planes[VPX_PLANE_Y], vpx_image->planes[VPX_PLANE_U],
-      vpx_image->planes[VPX_PLANE_V]);
+      vpx_image->bit_depth, current_frame_size_.width,
+      current_frame_size_.height, vpx_image->stride[VPX_PLANE_Y],
+      vpx_image->stride[VPX_PLANE_U], timestamp, vpx_image->planes[VPX_PLANE_Y],
+      vpx_image->planes[VPX_PLANE_U], vpx_image->planes[VPX_PLANE_V]);
   if (output_mode_ == kSbPlayerOutputModeDecodeToTexture) {
     std::lock_guard lock(decode_target_mutex_);
     frames_.push(frame);

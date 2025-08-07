@@ -59,8 +59,7 @@ std::ostream& operator<<(std::ostream& os, const InputBuffer& buffer) {
        << buffer.video_stream_info().mime << "'"
        << ", max_video_capabilities: '"
        << buffer.video_stream_info().max_video_capabilities << "'\n";
-    os << buffer.video_stream_info().frame_width << " x "
-       << buffer.video_stream_info().frame_height << '\n';
+    os << buffer.video_stream_info().frame_size << '\n';
   }
   if (buffer.has_drm_info_) {
     os << "iv: "

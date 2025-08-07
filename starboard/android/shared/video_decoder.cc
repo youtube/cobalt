@@ -113,12 +113,11 @@ bool IsSoftwareDecodeRequired(const std::string& max_video_capabilities) {
 }
 
 void ParseMaxResolution(const std::string& max_video_capabilities,
-                        int frame_width,
-                        int frame_height,
+                        const Size& frame_size,
                         std::optional<int>* max_width,
                         std::optional<int>* max_height) {
-  SB_DCHECK_GT(frame_width, 0);
-  SB_DCHECK_GT(frame_height, 0);
+  SB_DCHECK_GT(frame_size.width, 0);
+  SB_DCHECK_GT(frame_size.height, 0);
   SB_DCHECK(max_width);
   SB_DCHECK(max_height);
 
@@ -159,31 +158,29 @@ void ParseMaxResolution(const std::string& max_video_capabilities,
     return;
   }
 
-  if (frame_width <= 0 || frame_height <= 0) {
+  if (frame_size.width <= 0 || frame_size.height <= 0) {
     // We DCHECK() above, but just be safe.
     SB_LOG(WARNING)
         << "Failed to parse max resolutions due to invalid frame resolutions ("
-        << frame_width << ", " << frame_height << ").";
+        << frame_size << ").";
     return;
   }
 
   if (width > 0) {
     *max_width = width;
-    *max_height = max_width->value() * frame_height / frame_width;
+    *max_height = max_width->value() * frame_size.height / frame_size.width;
     SB_LOG(INFO) << "Inferred max height (" << *max_height
                  << ") from max_width (" << *max_width
-                 << ") and frame resolution @ (" << frame_width << ", "
-                 << frame_height << ").";
+                 << ") and frame resolution @ (" << frame_size << ").";
     return;
   }
 
   if (height > 0) {
     *max_height = height;
-    *max_width = max_height->value() * frame_width / frame_height;
+    *max_width = max_height->value() * frame_size.width / frame_size.height;
     SB_LOG(INFO) << "Inferred max width (" << *max_width
                  << ") from max_height (" << *max_height
-                 << ") and frame resolution @ (" << frame_width << ", "
-                 << frame_height << ").";
+                 << ") and frame resolution @ (" << frame_size << ").";
   }
 }
 
@@ -741,12 +738,12 @@ bool VideoDecoder::InitializeCodec(const VideoStreamInfo& video_stream_info,
   std::optional<int> max_width, max_height;
   // TODO(b/281431214): Evaluate if we should also parse the fps from
   //                    `max_video_capabilities_` and pass to MediaDecoder ctor.
-  ParseMaxResolution(max_video_capabilities_, video_stream_info.frame_width,
-                     video_stream_info.frame_height, &max_width, &max_height);
+  ParseMaxResolution(max_video_capabilities_, video_stream_info.frame_size,
+                     &max_width, &max_height);
 
   media_decoder_.reset(new MediaDecoder(
-      this, video_stream_info.codec, video_stream_info.frame_width,
-      video_stream_info.frame_height, max_width, max_height, video_fps_,
+      this, video_stream_info.codec, video_stream_info.frame_size.width,
+      video_stream_info.frame_size.height, max_width, max_height, video_fps_,
       j_output_surface, drm_system_,
       color_metadata_ ? &*color_metadata_ : nullptr, require_software_codec_,
       std::bind(&VideoDecoder::OnFrameRendered, this, _1),
@@ -1120,11 +1117,9 @@ void VideoDecoder::UpdateDecodeTargetSizeAndContentRegion_Locked() {
       // Crash in non-gold mode, and fallback to the old logic in gold mode to
       // avoid terminating the app in production.
       SB_LOG_IF(WARNING, frame_sizes_.size() <= 1)
-          << frame_size.texture_size << " - (" << content_region.left << ", "
+          << frame_size << " - (" << content_region.left << ", "
           << content_region.top << ", " << content_region.right << ", "
-          << content_region.bottom << "), (" << frame_size.crop_left << "), ("
-          << frame_size.crop_top << "), (" << frame_size.crop_right << "), ("
-          << frame_size.crop_bottom << ")";
+          << content_region.bottom << ")";
 #endif  // !defined(COBALT_BUILD_TYPE_GOLD)
     } else {
       SB_LOG(WARNING) << "Crop values not set.";

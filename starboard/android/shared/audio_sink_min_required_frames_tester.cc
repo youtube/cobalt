@@ -19,7 +19,7 @@
 
 #include "starboard/android/shared/audio_track_audio_sink_type.h"
 #include "starboard/common/check_op.h"
-#include "starboard/shared/pthread/thread_create_priority.h"
+#include "starboard/thread.h"
 
 namespace starboard::android::shared {
 
@@ -91,7 +91,7 @@ void MinRequiredFramesTester::Start() {
 
 // static
 void* MinRequiredFramesTester::TesterThreadEntryPoint(void* context) {
-  ::starboard::shared::pthread::ThreadSetPriority(kSbThreadPriorityLowest);
+  SbThreadSetPriority(kSbThreadPriorityLowest);
 
   pthread_setname_np(pthread_self(), "audio_track_tester");
 
