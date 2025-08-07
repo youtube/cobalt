@@ -40,7 +40,54 @@ class IcuTimeSupportTest : public ::testing::Test {
   const char* original_tz_ = nullptr;
 };
 
-TEST_F(IcuTimeSupportTest, GetPosixTimezoneGlobals) {
+TEST_F(IcuTimeSupportTest, GmTimeConversion) {
+  IcuTimeSupport* time_support = IcuTimeSupport::GetInstance();
+  // The timestamp being tested is:
+  // $ date -u --date='@1678886400'
+  // Wed Mar 15 01:20:00 PM UTC 2023
+  time_t t = 1678886400;
+
+  struct tm exploded;
+  ASSERT_TRUE(time_support->ExplodeGmtTime(&t, &exploded));
+
+  EXPECT_EQ(exploded.tm_year, 123);
+  EXPECT_EQ(exploded.tm_mon, 2);
+  EXPECT_EQ(exploded.tm_mday, 15);
+  EXPECT_EQ(exploded.tm_hour, 13);
+  EXPECT_EQ(exploded.tm_min, 20);
+  EXPECT_EQ(exploded.tm_sec, 0);
+  EXPECT_EQ(exploded.tm_wday, 3);
+
+  time_t imploded = time_support->ImplodeGmtTime(&exploded);
+  EXPECT_EQ(t, imploded);
+}
+
+TEST_F(IcuTimeSupportTest, LocalTimeConversion) {
+  setenv("TZ", "America/New_York", 1);
+  IcuTimeSupport* time_support = IcuTimeSupport::GetInstance();
+
+  // The timestamp being tested is:
+  // $ TZ="America/New_York" date --date='@1678886400'
+  // Wed Mar 15 09:20:00 AM EDT 2023
+  time_t t = 1678886400;
+
+  struct tm exploded;
+  ASSERT_TRUE(time_support->ExplodeLocalTime(&t, &exploded));
+
+  EXPECT_EQ(exploded.tm_year, 123);
+  EXPECT_EQ(exploded.tm_mon, 2);
+  EXPECT_EQ(exploded.tm_mday, 15);
+  EXPECT_EQ(exploded.tm_hour, 9);
+  EXPECT_EQ(exploded.tm_min, 20);
+  EXPECT_EQ(exploded.tm_sec, 0);
+  EXPECT_EQ(exploded.tm_wday, 3);
+  EXPECT_EQ(exploded.tm_isdst, 1);
+
+  time_t imploded = time_support->ImplodeLocalTime(&exploded);
+  EXPECT_EQ(t, imploded);
+}
+
+TEST_F(IcuTimeSupportTest, UpdateFromEnvironment) {
   setenv("TZ", "America/New_York", 1);
   IcuTimeSupport* time_support = IcuTimeSupport::GetInstance();
 
