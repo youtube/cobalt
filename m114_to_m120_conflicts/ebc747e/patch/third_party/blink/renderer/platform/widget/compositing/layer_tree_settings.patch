@@ -1,0 +1,32 @@
+--- third_party/blink/renderer/platform/widget/compositing/layer_tree_settings.cc
++++ third_party/blink/renderer/platform/widget/compositing/layer_tree_settings.cc
+@@ -241,29 +241,6 @@
+         // use 4444 textures so we can use a lower limit.)
+         actual.bytes_limit_when_visible = 8;
+       }
+-<<<<<<< HEAD
+-=======
+-
+-      actual.bytes_limit_when_visible =
+-          actual.bytes_limit_when_visible * 1024 * 1024;
+-      // Clamp the observed value to a specific range on Android.
+-      actual.bytes_limit_when_visible =
+-          std::max(actual.bytes_limit_when_visible,
+-                   static_cast<size_t>(8 * 1024 * 1024));
+-      actual.bytes_limit_when_visible =
+-          std::min(actual.bytes_limit_when_visible,
+-                   static_cast<size_t>(256 * 1024 * 1024));
+-    }
+-    actual.priority_cutoff_when_visible =
+-        gpu::MemoryAllocation::CUTOFF_ALLOW_EVERYTHING;
+-  }
+-#else
+-  // Ignore what the system said and give all clients the same maximum
+-  // allocation on desktop platforms.
+-  actual.bytes_limit_when_visible = 512 * 1024 * 1024;
+-  actual.priority_cutoff_when_visible =
+-      gpu::MemoryAllocation::CUTOFF_ALLOW_NICE_TO_HAVE;
+->>>>>>> ebc747e2d3f ([cc] Simplify and adjust memory limits on Android (#4636))
+ 
+       actual.bytes_limit_when_visible =
+           actual.bytes_limit_when_visible * 1024 * 1024;

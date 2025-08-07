@@ -1,0 +1,99 @@
+--- third_party/android_deps/BUILD.gn
++++ third_party/android_deps/BUILD.gn
+@@ -787,7 +787,6 @@
+   }
+ 
+   # This is generated, do not edit. Update BuildConfigGenerator.groovy instead.
+-<<<<<<< HEAD
+   if (google_play_services_package == "//third_party/android_deps") {
+     android_aar_prebuilt("google_play_services_auth_java") {
+       aar_path = "libs/com_google_android_gms_play_services_auth/play-services-auth-20.1.0.aar"
+@@ -802,88 +801,6 @@
+         "//third_party/androidx:androidx_fragment_fragment_java",
+         "//third_party/androidx:androidx_loader_loader_java",
+       ]
+-=======
+-  android_aar_prebuilt("google_play_services_auth_java") {
+-    aar_path = "libs/com_google_android_gms_play_services_auth/play-services-auth-20.1.0.aar"
+-    info_path = "libs/com_google_android_gms_play_services_auth/com_google_android_gms_play_services_auth.info"
+-    deps = [
+-      ":google_play_services_auth_api_phone_java",
+-      ":google_play_services_auth_base_java",
+-      ":google_play_services_base_java",
+-      ":google_play_services_basement_java",
+-      ":google_play_services_tasks_java",
+-      "//third_party/androidx:androidx_fragment_fragment_java",
+-      "//third_party/androidx:androidx_loader_loader_java",
+-    ]
+-  }
+-
+-  # This is generated, do not edit. Update BuildConfigGenerator.groovy instead.
+-  android_aar_prebuilt("google_play_services_ads_identifier_java") {
+-    aar_path = "cipd/libs/com_google_android_gms_play_services_ads_identifier/play-services-ads-identifier-18.2.0.aar"
+-    info_path = "libs/com_google_android_gms_play_services_ads_identifier/com_google_android_gms_play_services_ads_identifier.info"
+-    enable_bytecode_checks = false
+-    deps = [
+-      "$google_play_services_package:google_play_services_base_java",
+-      "$google_play_services_package:google_play_services_basement_java",
+-      "$google_play_services_package:google_play_services_tasks_java",
+-    ]
+-  }
+-
+-  # This is generated, do not edit. Update BuildConfigGenerator.groovy instead.
+-  android_aar_prebuilt("google_play_services_auth_api_phone_java") {
+-    aar_path = "libs/com_google_android_gms_play_services_auth_api_phone/play-services-auth-api-phone-18.0.1.aar"
+-    info_path = "libs/com_google_android_gms_play_services_auth_api_phone/com_google_android_gms_play_services_auth_api_phone.info"
+-    deps = [
+-      ":google_play_services_base_java",
+-      ":google_play_services_basement_java",
+-      ":google_play_services_tasks_java",
+-    ]
+-  }
+-
+-  # This is generated, do not edit. Update BuildConfigGenerator.groovy instead.
+-  android_aar_prebuilt("google_play_services_auth_base_java") {
+-    aar_path = "libs/com_google_android_gms_play_services_auth_base/play-services-auth-base-18.0.2.aar"
+-    info_path = "libs/com_google_android_gms_play_services_auth_base/com_google_android_gms_play_services_auth_base.info"
+-    deps = [
+-      ":google_play_services_base_java",
+-      ":google_play_services_basement_java",
+-      ":google_play_services_tasks_java",
+-      "//third_party/androidx:androidx_collection_collection_java",
+-    ]
+-  }
+-
+-  # This is generated, do not edit. Update BuildConfigGenerator.groovy instead.
+-  android_aar_prebuilt("google_play_services_base_java") {
+-    aar_path = "libs/com_google_android_gms_play_services_base/play-services-base-18.0.1.aar"
+-    info_path = "libs/com_google_android_gms_play_services_base/com_google_android_gms_play_services_base.info"
+-    deps = [
+-      ":google_play_services_basement_java",
+-      ":google_play_services_tasks_java",
+-      "//third_party/androidx:androidx_collection_collection_java",
+-      "//third_party/androidx:androidx_core_core_java",
+-      "//third_party/androidx:androidx_fragment_fragment_java",
+-    ]
+-    bytecode_rewriter_target =
+-        "//build/android/bytecode:fragment_activity_replacer"
+-  }
+-
+-  # This is generated, do not edit. Update BuildConfigGenerator.groovy instead.
+-  android_aar_prebuilt("google_play_services_basement_java") {
+-    aar_path = "libs/com_google_android_gms_play_services_basement/play-services-basement-18.1.0.aar"
+-    info_path = "libs/com_google_android_gms_play_services_basement/com_google_android_gms_play_services_basement.info"
+-    deps = [
+-      "//third_party/androidx:androidx_collection_collection_java",
+-      "//third_party/androidx:androidx_core_core_java",
+-      "//third_party/androidx:androidx_fragment_fragment_java",
+-    ]
+-
+-    jar_excluded_patterns = []
+-    if (!enable_java_asserts) {
+-      # Omit the file since we use our own copy.
+-      jar_excluded_patterns +=
+-          [ "com/google/android/gms/common/internal/Preconditions.class" ]
+-      deps += [ "//third_party/android_deps/local_modifications/preconditions:gms_stub_preconditions_java" ]
+->>>>>>> 8df0e8c684b (Add play-services-ads-identifier-18.2.0 to the dependency and re-enable AdvertisingId.java. (#4579))
+     }
+   }
+ 

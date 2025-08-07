@@ -1,0 +1,19 @@
+--- media/base/decoder_buffer.h
++++ media/base/decoder_buffer.h
+@@ -25,15 +25,12 @@
+ #include "media/base/decrypt_config.h"
+ #include "media/base/media_export.h"
+ #include "media/base/timestamp_constants.h"
+-<<<<<<< HEAD
+ #include "third_party/abseil-cpp/absl/types/optional.h"
+ 
+ #if BUILDFLAG(USE_STARBOARD_MEDIA)
+ #include "starboard/media.h"
+-#endif // BUILDFLAG(USE_STARBOARD_MEDIA)
+-=======
+ #include "media/base/video_codecs.h"
+->>>>>>> 5d0c46b9879 ([media] Refine DecoderBufferAllocator memory budget (#4674))
++#endif // BUILDFLAG(USE_STARBOARD_MEDIA)
+ 
+ namespace media {
+ 

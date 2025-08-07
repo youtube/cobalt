@@ -1,0 +1,35 @@
+--- media/filters/source_buffer_state.cc
++++ media/filters/source_buffer_state.cc
+@@ -289,13 +289,7 @@
+   for (const auto& it : audio_streams_)
+     total_buffered_size += it.second->GetMemoryUsage();
+   for (const auto& it : video_streams_)
+-<<<<<<< HEAD
+-    total_buffered_size += it.second->GetBufferedSize();
+-=======
+     total_buffered_size += it.second->GetMemoryUsage();
+-  for (const auto& it : text_streams_)
+-    total_buffered_size += it.second->GetMemoryUsage();
+->>>>>>> eb9daec563f (Refine Demuxer GC for low resolution videos (#4483))
+ 
+   DVLOG(3) << __func__ << " media_time=" << media_time.InSecondsF()
+            << " newDataSize=" << newDataSize
+@@ -323,18 +317,6 @@
+     success &= it.second->EvictCodedFrames(
+         media_time, static_cast<size_t>(estimated_new_size));
+   }
+-<<<<<<< HEAD
+-=======
+-  for (const auto& it : text_streams_) {
+-    uint64_t curr_size = it.second->GetMemoryUsage();
+-    if (curr_size == 0)
+-      continue;
+-    uint64_t estimated_new_size = newDataSize * curr_size / total_buffered_size;
+-    DCHECK_LE(estimated_new_size, SIZE_MAX);
+-    success &= it.second->EvictCodedFrames(
+-        media_time, static_cast<size_t>(estimated_new_size));
+-  }
+->>>>>>> eb9daec563f (Refine Demuxer GC for low resolution videos (#4483))
+ 
+   DVLOG(3) << __func__ << " success=" << success;
+   return success;

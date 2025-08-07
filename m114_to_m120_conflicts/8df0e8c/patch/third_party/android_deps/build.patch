@@ -1,0 +1,33 @@
+--- third_party/android_deps/build.gradle
++++ third_party/android_deps/build.gradle
+@@ -83,30 +83,9 @@
+     compile "com.android.support:support-annotations:${supportLibVersion}"
+     compile "com.android.support:support-compat:${supportLibVersion}"
+     compile "com.android.support:support-core-ui:${supportLibVersion}"
+-<<<<<<< HEAD
+-
+-=======
+-    compile "com.android.support:support-core-utils:${supportLibVersion}"
+-    compile "com.android.support:support-fragment:${supportLibVersion}"
+-
+-    compile "com.android.support:support-annotations:${supportLibVersion}"
+-    compile "com.android.support:design:${supportLibVersion}"
+-
+-    compile "com.android.support:asynclayoutinflater:${supportLibVersion}"
+-    compile "com.android.support:collections:${supportLibVersion}"
+-    compile "com.android.support:coordinatorlayout:${supportLibVersion}"
+-    compile "com.android.support:customview:${supportLibVersion}"
+-    compile "com.android.support:drawerlayout:${supportLibVersion}"
+-    compile "com.android.support:interpolator:${supportLibVersion}"
+-    compile 'com.android.support:localbroadcastmanager:1.1.0-SNAPSHOT'
+-    compile "com.android.support:swiperefreshlayout:${supportLibVersion}"
+-    compile "com.android.support:viewpager:${supportLibVersion}"
+-
+-    compile 'com.android.support:multidex:1.0.0'
+     
+     compile 'com.google.android.gms:play-services-ads-identifier:18.2.0'
+     
+->>>>>>> 8df0e8c684b (Add play-services-ads-identifier-18.2.0 to the dependency and re-enable AdvertisingId.java. (#4579))
+     compile 'com.google.code.findbugs:jsr305:3.0.2'
+     compile 'com.google.firebase:firebase-iid:21.0.1'
+     compile 'com.google.firebase:firebase-messaging:21.0.1'

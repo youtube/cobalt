@@ -1,0 +1,16 @@
+--- buildtools/third_party/libc++abi/BUILD.gn
++++ buildtools/third_party/libc++abi/BUILD.gn
+@@ -4,13 +4,10 @@
+ 
+ import("//build/config/android/config.gni")
+ import("//build/config/c++/c++.gni")
+-<<<<<<< HEAD
+ import("//build/config/unwind.gni")
+-=======
+ if (is_cobalt) {
+   import("//cobalt/build/configs/modular_variables.gni")
+ }
+->>>>>>> cab69340e13 (Build nplb hermetically (#4587))
+ 
+ source_set("libc++abi") {
+   if (export_libcxxabi_from_executables) {
