@@ -553,6 +553,7 @@ def main():
                 git_source, git_rev = modules_to_update[module]
                 import_subtree(repo, deps_file, module, git_source, git_rev)
 
+
             print('▶️  Running gclient sync...')
             try:
                 # Get the current commit SHA to pass to the -r argument
