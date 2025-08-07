@@ -18,6 +18,7 @@
 #include "base/android/jni_string.h"
 #include "starboard/android/shared/media_capabilities_cache.h"
 #include "starboard/common/string.h"
+#include "starboard/shared/starboard/features.h"
 
 #pragma GCC diagnostic push
 #pragma GCC diagnostic ignored "-Wunused-function"
@@ -326,9 +327,13 @@ jint MediaCodecBridge::QueueInputBuffer(jint index,
                                         jlong presentation_time_microseconds,
                                         jint flags) {
   JNIEnv* env = AttachCurrentThread();
+
+  jboolean enable_decode_only_experiment =
+      starboard::features::FeatureList::IsEnabled(
+          starboard::features::kStarboardDecodeOnlyExperiment);
   return Java_MediaCodecBridge_queueInputBuffer(
       env, j_media_codec_bridge_, index, offset, size,
-      presentation_time_microseconds, flags);
+      presentation_time_microseconds, flags, enable_decode_only_experiment);
 }
 
 jint MediaCodecBridge::QueueSecureInputBuffer(
@@ -368,10 +373,15 @@ jint MediaCodecBridge::QueueSecureInputBuffer(
     blocks_to_skip = drm_sample_info.encryption_pattern.skip_byte_block;
   }
 
+  jboolean enable_decode_only_experiment =
+      starboard::features::FeatureList::IsEnabled(
+          features::kStarboardDecodeOnlyExperiment);
+
   return Java_MediaCodecBridge_queueSecureInputBuffer(
       env, j_media_codec_bridge_, index, offset, j_iv, j_key_id, j_clear_bytes,
       j_encrypted_bytes, subsample_count, cipher_mode, blocks_to_encrypt,
-      blocks_to_skip, presentation_time_microseconds);
+      blocks_to_skip, presentation_time_microseconds,
+      enable_decode_only_experiment);
 }
 
 ScopedJavaLocalRef<jobject> MediaCodecBridge::GetOutputBuffer(jint index) {
@@ -399,6 +409,11 @@ void MediaCodecBridge::SetPlaybackRate(double playback_rate) {
   JNIEnv* env = AttachCurrentThread();
   Java_MediaCodecBridge_setPlaybackRate(env, j_media_codec_bridge_,
                                         playback_rate);
+}
+
+void MediaCodecBridge::Seek(int64_t seek_to_time) {
+  JNIEnv* env = AttachCurrentThread();
+  Java_MediaCodecBridge_seek(env, j_media_codec_bridge_, seek_to_time);
 }
 
 bool MediaCodecBridge::Restart() {
