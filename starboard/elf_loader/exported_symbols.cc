@@ -309,6 +309,7 @@ ExportedSymbols::ExportedSymbols() {
   REGISTER_WRAPPER(accept);
   REGISTER_WRAPPER(access);
   REGISTER_WRAPPER(bind);
+  REGISTER_WRAPPER(chmod);
   REGISTER_WRAPPER(clock_gettime);
   REGISTER_WRAPPER(closedir);
   REGISTER_WRAPPER(clock_nanosleep);

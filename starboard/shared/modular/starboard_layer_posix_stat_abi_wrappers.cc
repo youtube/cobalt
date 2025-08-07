@@ -14,6 +14,40 @@
 
 #include "starboard/shared/modular/starboard_layer_posix_stat_abi_wrappers.h"
 
+#include <sys/stat.h>
+
+static_assert(S_ISUID == 04000,
+              "The Starboard layer wrapper expects this value from musl");
+static_assert(S_ISGID == 02000,
+              "The Starboard layer wrapper expects this value from musl");
+static_assert(S_ISVTX == 01000,
+              "The Starboard layer wrapper expects this value from musl");
+static_assert(S_IRWXU == 0700,
+              "The Starboard layer wrapper expects this value from musl");
+static_assert(S_IRUSR == 0400,
+              "The Starboard layer wrapper expects this value from musl");
+static_assert(S_IWUSR == 0200,
+              "The Starboard layer wrapper expects this value from musl");
+static_assert(S_IXUSR == 0100,
+              "The Starboard layer wrapper expects this value from musl");
+static_assert(S_IRWXG == 070,
+              "The Starboard layer wrapper expects this value from musl");
+static_assert(S_IRGRP == 040,
+              "The Starboard layer wrapper expects this value from musl");
+static_assert(S_IWGRP == 020,
+              "The Starboard layer wrapper expects this value from musl");
+static_assert(S_IXGRP == 010,
+              "The Starboard layer wrapper expects this value from musl");
+static_assert(S_IRWXO == 07,
+              "The Starboard layer wrapper expects this value from musl");
+static_assert(S_IROTH == 04,
+              "The Starboard layer wrapper expects this value from musl");
+static_assert(S_IWOTH == 02,
+              "The Starboard layer wrapper expects this value from musl");
+static_assert(S_IXOTH == 01,
+              "The Starboard layer wrapper expects this value from musl");
+
+namespace {
 int stat_helper(int retval,
                 struct stat* stat_info,
                 struct musl_stat* musl_info) {
@@ -43,6 +77,39 @@ int stat_helper(int retval,
   return retval;
 }
 
+mode_t musl_mode_to_platform_mode(musl_mode_t musl_mode) {
+  mode_t platform_mode = 0;
+
+  // File type
+  if ((musl_mode & MUSL_S_IFMT) == MUSL_S_IFDIR) {
+    platform_mode |= S_IFDIR;
+  }
+  if ((musl_mode & MUSL_S_IFMT) == MUSL_S_IFCHR) {
+    platform_mode |= S_IFCHR;
+  }
+  if ((musl_mode & MUSL_S_IFMT) == MUSL_S_IFBLK) {
+    platform_mode |= S_IFBLK;
+  }
+  if ((musl_mode & MUSL_S_IFMT) == MUSL_S_IFREG) {
+    platform_mode |= S_IFREG;
+  }
+  if ((musl_mode & MUSL_S_IFMT) == MUSL_S_IFIFO) {
+    platform_mode |= S_IFIFO;
+  }
+  if ((musl_mode & MUSL_S_IFMT) == MUSL_S_IFLNK) {
+    platform_mode |= S_IFLNK;
+  }
+  if ((musl_mode & MUSL_S_IFMT) == MUSL_S_IFSOCK) {
+    platform_mode |= S_IFSOCK;
+  }
+
+  // Permissions
+  platform_mode |= (musl_mode & 07777);
+
+  return platform_mode;
+}
+}  // namespace
+
 int __abi_wrap_fstat(int fildes, struct musl_stat* musl_info) {
   struct stat stat_info;  // The type from platform toolchain.
   int retval = fstat(fildes, &stat_info);
@@ -59,4 +126,8 @@ int __abi_wrap_stat(const char* path, struct musl_stat* musl_info) {
   struct stat stat_info;  // The type from platform toolchain.
   int retval = stat(path, &stat_info);
   return stat_helper(retval, &stat_info, musl_info);
+}
+
+int __abi_wrap_chmod(const char* path, musl_mode_t mode) {
+  return chmod(path, musl_mode_to_platform_mode(mode));
 }
