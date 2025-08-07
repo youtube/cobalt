@@ -17,7 +17,7 @@ static_library("libc") {
     "no_destructor.h",
     "syslog/syslog.cc",
   ]
-  if (!is_android) {
+  if (is_cobalt_hermetic_build) {
     sources += [
       "stdlib/environment.cc",
       "time/tzset.cc",
@@ -38,7 +38,9 @@ static_library("libc") {
 source_set("libc_test") {
   testonly = true
 
-  sources = [ "time/tzset_test.cc" ]
+  if (is_cobalt_hermetic_build) {
+    sources = [ "time/tzset_test.cc" ]
+  }
 
   deps = [
     ":libc",
