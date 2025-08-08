@@ -75,7 +75,6 @@ group("cobalt_shell_lib_deps") {
     "//components/network_session_configurator/common",
     "//components/performance_manager",
     "//components/prefs",
-    "//components/services/storage/test_api",
     "//components/url_formatter",
     "//components/variations",
     "//components/variations/service",
