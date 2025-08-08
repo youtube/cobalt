@@ -18,10 +18,9 @@
 #include <algorithm>
 #include <string>
 
-#include "starboard/common/log.h"
-#include "starboard/common/string.h"
 #include "starboard/configuration_constants.h"
 #include "starboard/nplb/file_helpers.h"
+#include "starboard/system.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
 namespace starboard {
