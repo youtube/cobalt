@@ -20,6 +20,9 @@
 #include "content/public/test/network_service_test_helper.h"
 #include "content/public/utility/content_utility_client.h"
 
+#if defined(RUN_BROWSER_TESTS)
+#error "running RUN_BROWSER_TESTS"
+#endif
 namespace content {
 
 class ShellContentUtilityClient : public ContentUtilityClient {
