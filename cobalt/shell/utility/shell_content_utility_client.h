@@ -16,9 +16,12 @@
 #ifndef COBALT_SHELL_UTILITY_SHELL_CONTENT_UTILITY_CLIENT_H_
 #define COBALT_SHELL_UTILITY_SHELL_CONTENT_UTILITY_CLIENT_H_
 
+#include "content/public/utility/content_utility_client.h"
+
+#if defined(SUPPORT_BROWSER_TESTS)
 #include "content/public/test/audio_service_test_helper.h"
 #include "content/public/test/network_service_test_helper.h"
-#include "content/public/utility/content_utility_client.h"
+#endif  // defined(SUPPORT_BROWSER_TESTS)
 
 namespace content {
 
@@ -37,8 +40,10 @@ class ShellContentUtilityClient : public ContentUtilityClient {
   void RegisterIOThreadServices(mojo::ServiceFactory& services) override;
 
  private:
+#if defined(SUPPORT_BROWSER_TESTS)
   std::unique_ptr<NetworkServiceTestHelper> network_service_test_helper_;
   std::unique_ptr<AudioServiceTestHelper> audio_service_test_helper_;
+#endif  // defined(SUPPORT_BROWSER_TESTS)
   bool register_sandbox_status_helper_ = false;
 };
 

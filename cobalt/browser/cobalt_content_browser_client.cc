@@ -38,7 +38,6 @@
 #include "cobalt/shell/browser/shell_paths.h"
 #include "cobalt/shell/common/shell_switches.h"
 #include "components/metrics/metrics_state_manager.h"
-#include "components/metrics/test/test_enabled_state_provider.h"
 #include "components/metrics_services_manager/metrics_services_manager.h"
 #include "components/prefs/pref_registry_simple.h"
 #include "components/prefs/pref_service.h"
@@ -58,6 +57,10 @@
 #if BUILDFLAG(IS_ANDROID)
 #include "base/android/locale_utils.h"
 #endif  // BUILDFLAG(IS_ANDROID)
+
+#if defined(SUPPORT_BROWSER_TESTS)
+#include "components/metrics/test/test_enabled_state_provider.h"
+#endif  // defined(SUPPORT_BROWSER_TESTS)
 
 namespace cobalt {
 
@@ -411,8 +414,11 @@ void CobaltContentBrowserClient::SetUpCobaltFeaturesAndParams(
 }
 
 void CobaltContentBrowserClient::CreateFeatureListAndFieldTrials() {
+#if defined(SUPPORT_BROWSER_TESTS)
   metrics::TestEnabledStateProvider enabled_state_provider(/*consent=*/false,
                                                            /*enabled=*/false);
+#endif  // defined(SUPPORT_BROWSER_TESTS)
+
   GlobalFeatures::GetInstance()
       ->metrics_services_manager()
       ->InstantiateFieldTrialList();
