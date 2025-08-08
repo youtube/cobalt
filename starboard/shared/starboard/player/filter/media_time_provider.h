@@ -31,7 +31,9 @@ class MediaTimeProvider {
   virtual int64_t GetCurrentMediaTime(bool* is_playing,
                                       bool* is_eos_played,
                                       bool* is_underflow,
-                                      double* playback_rate) = 0;
+                                      double* playback_rate,
+                                      bool* has_renderer,
+                                      bool* is_audio_playing) = 0;
 
  protected:
   virtual ~MediaTimeProvider() {}
