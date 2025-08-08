@@ -66,7 +66,7 @@ constexpr int kEnoughSize = 250 * 1024 * 1024;
 DecoderBufferAllocator::DecoderBufferAllocator(Type type /*= Type::kGlobal*/)
     : DecoderBufferAllocator(type,
                              SbMediaIsBufferPoolAllocateOnDemand(),
-                             250 * 1024 * 1024,
+                             kEnoughSize,
                              SbMediaGetBufferAllocationUnit()) {}
 
 DecoderBufferAllocator::DecoderBufferAllocator(
