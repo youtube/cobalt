@@ -1,0 +1,10 @@
+#############################################################################
+# UBSan ignorelist.
+
+#############################################################################
+# Ignore system libraries.
+src:*/usr/*
+# Ignore alignment errors from third parties
+[alignment]
+src:*third_party/zlib*
+
