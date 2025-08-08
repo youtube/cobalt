@@ -5,11 +5,12 @@
 #include "base/containers/flat_map.h"
 
 #include <string>
+#include <string_view>
+#include <type_traits>
 #include <utility>
 #include <vector>
 
 #include "base/ranges/algorithm.h"
-#include "base/strings/string_piece.h"
 #include "base/test/move_only_int.h"
 #include "testing/gmock/include/gmock/gmock.h"
 #include "testing/gtest/include/gtest/gtest.h"
@@ -242,8 +243,8 @@ TEST(FlatMap, AtFunction) {
 
   // Heterogeneous look-up works.
   base::flat_map<std::string, int> m2 = {{"a", 1}, {"b", 2}};
-  EXPECT_EQ(1, m2.at(base::StringPiece("a")));
-  EXPECT_EQ(2, std::as_const(m2).at(base::StringPiece("b")));
+  EXPECT_EQ(1, m2.at(std::string_view("a")));
+  EXPECT_EQ(2, std::as_const(m2).at(std::string_view("b")));
 }
 
 // insert_or_assign(K&&, M&&)
@@ -459,6 +460,20 @@ TEST(FlatMap, UsingInitializerList) {
   m.upper_bound({11});
   m1.upper_bound({12});
   m.erase({13});
+}
+
+TEST(FlatMap, DeductionGuides) {
+  {
+    std::vector<std::pair<int, float>> v = {{1, 4.0}, {2, 3.0}};
+    flat_map map{v};
+    static_assert(std::is_same_v<decltype(map), flat_map<int, float>>);
+  }
+
+  {
+    std::vector<std::pair<int, float>> v = {{1, 4.0}, {2, 3.0}};
+    flat_map map(std::move(v));
+    static_assert(std::is_same_v<decltype(map), flat_map<int, float>>);
+  }
 }
 
 }  // namespace base

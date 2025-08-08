@@ -8,11 +8,8 @@
 
 #include "base/no_destructor.h"
 #include "build/build_config.h"
+#include "media/base/media_switches.h"
 #include "testing/gtest/include/gtest/gtest.h"
-
-#if BUILDFLAG(IS_CHROMEOS)
-#include "base/cpu.h"  // nogncheck
-#endif
 
 namespace media::cast::encoding_support {
 namespace {
@@ -33,38 +30,24 @@ GetValidProfiles() {
 
 }  // namespace
 
-TEST(EncodingSupportTest, EnablesVp8HardwareEncoderProperly) {
-  constexpr bool is_enabled =
-#if BUILDFLAG(IS_CHROMEOS)
-      false;
-#else
-      true;
-#endif
-
-  EXPECT_EQ(is_enabled,
-            IsHardwareEnabled(Codec::kVideoVp8, GetValidProfiles()));
+TEST(EncodingSupportTest, EnablesVp8HardwareEncoderAlways) {
+  EXPECT_TRUE(IsHardwareEnabled(VideoCodec::kVP8, GetValidProfiles()));
 }
 
 TEST(EncodingSupportTest, EnablesH264HardwareEncoderProperly) {
-#if BUILDFLAG(IS_CHROMEOS)
-  static const base::NoDestructor<base::CPU> cpuid;
-  static const bool is_amd = cpuid->vendor_name() == "AuthenticAMD";
-#endif
-
   static const bool is_enabled =
-// On ChromeOS only, disable hardware encoder on AMD chipsets due to
-// failure on Chromecast chipsets to decode.
-#if BUILDFLAG(IS_CHROMEOS)
-      !is_amd;
-// The hardware encoder also has major issues on Mac OSX and on Windows.
-#elif BUILDFLAG(IS_APPLE) || BUILDFLAG(IS_WIN)
+#if BUILDFLAG(IS_MAC)
+      base::FeatureList::IsEnabled(kCastStreamingMacHardwareH264);
+
+// The hardware encoder is broken on Windows.
+#elif BUILDFLAG(IS_WIN)
       false;
 #else
       true;
 #endif
 
   EXPECT_EQ(is_enabled,
-            IsHardwareEnabled(Codec::kVideoH264, GetValidProfiles()));
+            IsHardwareEnabled(VideoCodec::kH264, GetValidProfiles()));
 }
 
 }  // namespace media::cast::encoding_support

@@ -16,13 +16,13 @@
 #include "net/base/net_errors.h"
 #include "net/cert/cert_verify_result.h"
 #include "net/cert/crl_set.h"
-#include "net/cert/pem.h"
 #include "net/cert/x509_certificate_net_log_param.h"
 #include "net/log/net_log_event_type.h"
 #include "net/log/net_log_source.h"
 #include "net/log/net_log_source_type.h"
 #include "net/log/net_log_values.h"
 #include "net/log/net_log_with_source.h"
+#include "third_party/boringssl/src/pki/pem.h"
 
 namespace net {
 
@@ -77,10 +77,10 @@ base::Value::Dict CertVerifierParams(
            NetLogX509CertificateList(params.certificate().get()));
   if (!params.ocsp_response().empty()) {
     dict.Set("ocsp_response",
-             PEMEncode(params.ocsp_response(), "NETLOG OCSP RESPONSE"));
+             bssl::PEMEncode(params.ocsp_response(), "NETLOG OCSP RESPONSE"));
   }
   if (!params.sct_list().empty()) {
-    dict.Set("sct_list", PEMEncode(params.sct_list(), "NETLOG SCT LIST"));
+    dict.Set("sct_list", bssl::PEMEncode(params.sct_list(), "NETLOG SCT LIST"));
   }
   dict.Set("host", NetLogStringValue(params.hostname()));
   dict.Set("verifier_flags", params.flags());
@@ -173,9 +173,9 @@ class CoalescingCertVerifier::Request
   void OnJobAbort();
 
  private:
-  raw_ptr<CoalescingCertVerifier::Job, DanglingUntriaged> job_;
+  raw_ptr<CoalescingCertVerifier::Job> job_;
 
-  raw_ptr<CertVerifyResult, DanglingUntriaged> verify_result_;
+  raw_ptr<CertVerifyResult> verify_result_;
   CompletionOnceCallback callback_;
   const NetLogWithSource net_log_;
 };
@@ -342,10 +342,14 @@ CoalescingCertVerifier::Request::~Request() {
     net_log_.AddEvent(NetLogEventType::CANCELLED);
     net_log_.EndEvent(NetLogEventType::CERT_VERIFIER_REQUEST);
 
+    // Need to null out `job_` before aborting the request to avoid a dangling
+    // pointer warning, as aborting the request may delete `job_`.
+    auto* job = job_.get();
+    job_ = nullptr;
+
     // If the Request is deleted before the Job, then detach from the Job.
     // Note: This may cause |job_| to be deleted.
-    job_->AbortRequest(this);
-    job_ = nullptr;
+    job->AbortRequest(this);
   }
 }
 
@@ -358,6 +362,11 @@ void CoalescingCertVerifier::Request::Complete(int result) {
   // similarly, break the association here so that when the Request is
   // deleted, it does not try to abort the (now-completed) Job.
   job_ = nullptr;
+
+  // Also need to break the association with `verify_result_`, so that
+  // dangling pointer checks the result and the Request be destroyed
+  // in any order.
+  verify_result_ = nullptr;
 
   net_log_.EndEvent(NetLogEventType::CERT_VERIFIER_REQUEST);
 

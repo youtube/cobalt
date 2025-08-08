@@ -4,6 +4,8 @@
 
 #include "base/files/important_file_writer.h"
 
+#include <optional>
+
 #include "base/compiler_specific.h"
 #include "base/files/file_path.h"
 #include "base/files/file_util.h"
@@ -22,7 +24,6 @@
 #include "base/time/time.h"
 #include "base/timer/mock_timer.h"
 #include "testing/gtest/include/gtest/gtest.h"
-#include "third_party/abseil-cpp/absl/types/optional.h"
 
 namespace base {
 
@@ -31,7 +32,7 @@ namespace {
 std::string GetFileContent(const FilePath& path) {
   std::string content;
   if (!ReadFileToString(path, &content)) {
-    NOTREACHED();
+    NOTREACHED_IN_MIGRATION();
   }
   return content;
 }
@@ -41,7 +42,7 @@ class DataSerializer : public ImportantFileWriter::DataSerializer {
   explicit DataSerializer(const std::string& data) : data_(data) {
   }
 
-  absl::optional<std::string> SerializeData() override {
+  std::optional<std::string> SerializeData() override {
     EXPECT_TRUE(sequence_checker_.CalledOnValidSequence());
     return data_;
   }
@@ -53,7 +54,7 @@ class DataSerializer : public ImportantFileWriter::DataSerializer {
 
 class FailingDataSerializer : public ImportantFileWriter::DataSerializer {
  public:
-  absl::optional<std::string> SerializeData() override { return absl::nullopt; }
+  std::optional<std::string> SerializeData() override { return std::nullopt; }
 };
 
 class BackgroundDataSerializer
@@ -208,9 +209,6 @@ TEST_F(ImportantFileWriterTest, WriteWithObserver) {
   EXPECT_EQ("baz", GetFileContent(writer.path()));
 }
 
-// Disable the test as win32 SbFileOpen doesn't fail on relative path
-// like bad/../path.tmp
-#if !defined(COMPILER_MSVC)
 TEST_F(ImportantFileWriterTest, FailedWriteWithObserver) {
   // Use an invalid file path (relative paths are invalid) to get a
   // FILE_ERROR_ACCESS_DENIED error when trying to write the file.
@@ -228,7 +226,6 @@ TEST_F(ImportantFileWriterTest, FailedWriteWithObserver) {
             write_callback_observer_.GetAndResetObservationState());
   EXPECT_FALSE(PathExists(writer.path()));
 }
-#endif
 
 TEST_F(ImportantFileWriterTest, CallbackRunsOnWriterThread) {
   base::Thread file_writer_thread("ImportantFileWriter test thread");
@@ -371,7 +368,6 @@ TEST_F(ImportantFileWriterTest, DoScheduledWrite_FailToSerialize) {
   histogram_tester.ExpectTotalCount("ImportantFile.WriteDuration", 0);
 }
 
-#if !defined(STARBOARD)
 TEST_F(ImportantFileWriterTest, ScheduleWriteWithBackgroundDataSerializer) {
   base::HistogramTester histogram_tester;
   base::Thread file_writer_thread("ImportantFileWriter test thread");
@@ -385,7 +381,7 @@ TEST_F(ImportantFileWriterTest, ScheduleWriteWithBackgroundDataSerializer) {
   EXPECT_FALSE(writer.HasPendingWrite());
   ASSERT_FALSE(file_writer_thread.task_runner()->RunsTasksInCurrentSequence());
   BackgroundDataSerializer serializer(
-      base::BindLambdaForTesting([&]() -> absl::optional<std::string> {
+      base::BindLambdaForTesting([&]() -> std::optional<std::string> {
         EXPECT_TRUE(
             file_writer_thread.task_runner()->RunsTasksInCurrentSequence());
         return "foo";
@@ -406,7 +402,6 @@ TEST_F(ImportantFileWriterTest, ScheduleWriteWithBackgroundDataSerializer) {
   histogram_tester.ExpectTotalCount("ImportantFile.SerializationDuration", 1);
   histogram_tester.ExpectTotalCount("ImportantFile.WriteDuration", 1);
 }
-#endif  // !defined(STARBOARD)
 
 TEST_F(ImportantFileWriterTest,
        ScheduleWriteWithBackgroundDataSerializer_FailToSerialize) {
@@ -422,10 +417,10 @@ TEST_F(ImportantFileWriterTest,
   EXPECT_FALSE(writer.HasPendingWrite());
   ASSERT_FALSE(file_writer_thread.task_runner()->RunsTasksInCurrentSequence());
   BackgroundDataSerializer serializer(
-      base::BindLambdaForTesting([&]() -> absl::optional<std::string> {
+      base::BindLambdaForTesting([&]() -> std::optional<std::string> {
         EXPECT_TRUE(
             file_writer_thread.task_runner()->RunsTasksInCurrentSequence());
-        return absl::nullopt;
+        return std::nullopt;
       }));
   writer.ScheduleWriteWithBackgroundDataSerializer(&serializer);
   EXPECT_TRUE(writer.HasPendingWrite());
@@ -455,7 +450,6 @@ TEST_F(ImportantFileWriterTest, WriteLargeFile) {
   EXPECT_EQ(large_data, actual);
 }
 
-#if !defined(STARBOARD)
 // Verify that a UMA metric for the serialization duration is recorded.
 TEST_F(ImportantFileWriterTest, SerializationDuration) {
   base::HistogramTester histogram_tester;
@@ -483,6 +477,5 @@ TEST_F(ImportantFileWriterTest, SerializationDurationWithCustomSuffix) {
                                     1);
   histogram_tester.ExpectTotalCount("ImportantFile.WriteDuration.Foo", 1);
 }
-#endif  // !defined(STARBOARD)
 
 }  // namespace base

@@ -7,6 +7,7 @@
 
 #include <limits>
 #include <memory>
+#include <optional>
 
 #include "base/files/file.h"
 #include "base/functional/callback.h"
@@ -14,7 +15,6 @@
 #include "base/values.h"
 #include "net/base/net_export.h"
 #include "net/log/net_log.h"
-#include "third_party/abseil-cpp/absl/types/optional.h"
 
 namespace base {
 class FilePath;
@@ -54,7 +54,7 @@ class NET_EXPORT FileNetLogObserver : public NetLog::ThreadSafeObserver {
   // |constants| is an optional legend for decoding constant values used in the
   // log. It should generally be a modified version of GetNetConstants(). If not
   // present, the output of GetNetConstants() will be used.
-  // TODO(https://crbug.com/1418110): This should be updated to pass a
+  // TODO(crbug.com/40257546): This should be updated to pass a
   // base::Value::Dict instead of a std::unique_ptr.
   static std::unique_ptr<FileNetLogObserver> CreateBounded(
       const base::FilePath& log_path,
@@ -130,7 +130,7 @@ class NET_EXPORT FileNetLogObserver : public NetLog::ThreadSafeObserver {
   static std::unique_ptr<FileNetLogObserver> CreateInternal(
       const base::FilePath& log_path,
       const base::FilePath& inprogress_dir_path,
-      absl::optional<base::File> pre_existing_out_file,
+      std::optional<base::File> pre_existing_out_file,
       uint64_t max_total_size,
       size_t total_num_event_files,
       NetLogCaptureMode capture_mode,

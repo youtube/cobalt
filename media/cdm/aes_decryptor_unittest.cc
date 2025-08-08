@@ -11,6 +11,7 @@
 #include <string>
 #include <vector>
 
+#include "base/containers/to_vector.h"
 #include "base/debug/leak_annotations.h"
 #include "base/functional/bind.h"
 #include "base/json/json_reader.h"
@@ -61,7 +62,7 @@ MATCHER(NotEmpty, "") {
 }
 MATCHER(IsJSONDictionary, "") {
   std::string result(arg.begin(), arg.end());
-  absl::optional<base::Value> root = base::JSONReader::Read(result);
+  std::optional<base::Value> root = base::JSONReader::Read(result);
   return (root && root->type() == base::Value::Type::DICT);
 }
 MATCHER(IsNullTime, "") {
@@ -469,9 +470,8 @@ class AesDecryptorTest : public testing::TestWithParam<TestType> {
     }
 
     std::vector<uint8_t> decrypted_text;
-    if (decrypted.get() && decrypted->data_size()) {
-      decrypted_text.assign(decrypted->data(),
-                            decrypted->data() + decrypted->data_size());
+    if (decrypted.get() && decrypted->size()) {
+      decrypted_text = base::ToVector(base::span(*decrypted));
     }
 
     switch (result) {
@@ -497,7 +497,7 @@ class AesDecryptorTest : public testing::TestWithParam<TestType> {
 
   StrictMock<MockCdmClient> cdm_client_;
   scoped_refptr<ContentDecryptionModule> cdm_;
-  raw_ptr<Decryptor> decryptor_;
+  raw_ptr<Decryptor, DanglingUntriaged> decryptor_;
   std::string session_id_;
 
 #if BUILDFLAG(ENABLE_LIBRARY_CDMS)

@@ -1,4 +1,4 @@
-// Copyright 2015 The Chromium Authors. All rights reserved.
+// Copyright 2015 The Chromium Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -6,9 +6,9 @@
 #define COMPONENTS_CRASH_CORE_COMMON_CRASH_KEYS_H_
 
 #include <string>
+#include <vector>
 
-#include "base/strings/string_piece.h"
-#include "base/macros.h"
+#include "components/crash/core/common/crash_export.h"
 
 namespace base {
 class CommandLine;
@@ -29,21 +29,26 @@ using SwitchFilterFunction = bool (*)(const std::string& flag);
 // Sets the "num-switches" key and a set of keys named using kSwitchFormat based
 // on the given |command_line|. If |skip_filter| is not null, ignore any switch
 // for which it returns true.
-void SetSwitchesFromCommandLine(const base::CommandLine& command_line,
-                                SwitchFilterFunction skip_filter);
+void CRASH_KEY_EXPORT
+SetSwitchesFromCommandLine(const base::CommandLine& command_line,
+                           SwitchFilterFunction skip_filter);
 
 // Clears all the CommandLine-related crash keys.
 void ResetCommandLineForTesting();
 
-// Sets the printer info. Data should be separated by ';' up to 4 substrings.
-// Each substring will be truncated if necessary.
+// Sets the printer info. `data` should contain no more than 4 strings.
+// Each string might get truncated if necessary.
+// If `data` is empty then the `printer_name` will be used.  This provides some
+// minimal information when there are issues getting the printer's info.
 class ScopedPrinterInfo {
  public:
-  explicit ScopedPrinterInfo(base::StringPiece data);
-  ~ScopedPrinterInfo();
+  ScopedPrinterInfo(const std::string& printer_name,
+                    std::vector<std::string> data);
 
- private:
-  DISALLOW_COPY_AND_ASSIGN(ScopedPrinterInfo);
+  ScopedPrinterInfo(const ScopedPrinterInfo&) = delete;
+  ScopedPrinterInfo& operator=(const ScopedPrinterInfo&) = delete;
+
+  ~ScopedPrinterInfo();
 };
 
 }  // namespace crash_keys

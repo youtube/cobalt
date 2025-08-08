@@ -13,6 +13,7 @@
 #include "base/functional/bind.h"
 #include "base/functional/callback_helpers.h"
 #include "base/location.h"
+#include "base/memory/raw_ptr.h"
 #include "base/notreached.h"
 #include "base/task/bind_post_task.h"
 #include "base/task/single_thread_task_runner.h"
@@ -94,9 +95,7 @@ void FakeDemuxerStream::Read(uint32_t /*count*/, ReadCB read_cb) {
 }
 
 AudioDecoderConfig FakeDemuxerStream::audio_decoder_config() {
-  DCHECK(task_runner_->BelongsToCurrentThread());
-  NOTREACHED();
-  return AudioDecoderConfig();
+  NOTREACHED_NORETURN();
 }
 
 VideoDecoderConfig FakeDemuxerStream::video_decoder_config() {

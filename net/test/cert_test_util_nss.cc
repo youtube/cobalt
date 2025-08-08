@@ -11,6 +11,7 @@
 #include <string.h>
 
 #include <memory>
+#include <string_view>
 
 #include "base/files/file_path.h"
 #include "base/files/file_util.h"
@@ -19,12 +20,50 @@
 #include "crypto/nss_util_internal.h"
 #include "crypto/scoped_nss_types.h"
 #include "net/cert/cert_type.h"
-#include "net/cert/known_roots_nss.h"
 #include "net/cert/x509_util_nss.h"
 
 namespace net {
 
 namespace {
+
+// IsKnownRoot returns true if the given certificate is one that we believe
+// is a standard (as opposed to user-installed) root.
+bool IsKnownRoot(CERTCertificate* root) {
+  if (!root || !root->slot) {
+    return false;
+  }
+
+  // Historically, the set of root certs was determined based on whether or
+  // not it was part of nssckbi.[so,dll], the read-only PKCS#11 module that
+  // exported the certs with trust settings. However, some distributions,
+  // notably those in the Red Hat family, replace nssckbi with a redirect to
+  // their own store, such as from p11-kit, which can support more robust
+  // trust settings, like per-system trust, admin-defined, and user-defined
+  // trust.
+  //
+  // As a given certificate may exist in multiple modules and slots, scan
+  // through all of the available modules, all of the (connected) slots on
+  // those modules, and check to see if it has the CKA_NSS_MOZILLA_CA_POLICY
+  // attribute set. This attribute indicates it's from the upstream Mozilla
+  // trust store, and these distributions preserve the attribute as a flag.
+  crypto::AutoSECMODListReadLock lock_id;
+  for (const SECMODModuleList* item = SECMOD_GetDefaultModuleList();
+       item != nullptr; item = item->next) {
+    for (int i = 0; i < item->module->slotCount; ++i) {
+      PK11SlotInfo* slot = item->module->slots[i];
+      if (PK11_IsPresent(slot) && PK11_HasRootCerts(slot)) {
+        CK_OBJECT_HANDLE handle = PK11_FindCertInSlot(slot, root, nullptr);
+        if (handle != CK_INVALID_HANDLE &&
+            PK11_HasAttributeSet(slot, handle, CKA_NSS_MOZILLA_CA_POLICY,
+                                 PR_FALSE) == CK_TRUE) {
+          return true;
+        }
+      }
+    }
+  }
+
+  return false;
+}
 
 // Returns true if the provided slot looks like it contains built-in root.
 bool IsNssBuiltInRootSlot(PK11SlotInfo* slot) {
@@ -65,7 +104,7 @@ crypto::ScopedPK11Slot GetNssBuiltInRootCertsSlot() {
 }  // namespace
 
 bool ImportSensitiveKeyFromFile(const base::FilePath& dir,
-                                base::StringPiece key_filename,
+                                std::string_view key_filename,
                                 PK11SlotInfo* slot) {
   base::FilePath key_path = dir.AppendASCII(key_filename);
   std::string key_pkcs8;
@@ -76,9 +115,9 @@ bool ImportSensitiveKeyFromFile(const base::FilePath& dir,
   }
 
   crypto::ScopedSECKEYPrivateKey private_key(
-      crypto::ImportNSSKeyFromPrivateKeyInfo(
-          slot, base::as_bytes(base::make_span(key_pkcs8)),
-          /*permanent=*/true));
+      crypto::ImportNSSKeyFromPrivateKeyInfo(slot,
+                                             base::as_byte_span(key_pkcs8),
+                                             /*permanent=*/true));
   LOG_IF(ERROR, !private_key)
       << "Could not create key from file " << key_path.value();
   return !!private_key;
@@ -112,8 +151,8 @@ ScopedCERTCertificate ImportClientCertToSlot(
 
 scoped_refptr<X509Certificate> ImportClientCertAndKeyFromFile(
     const base::FilePath& dir,
-    base::StringPiece cert_filename,
-    base::StringPiece key_filename,
+    std::string_view cert_filename,
+    std::string_view key_filename,
     PK11SlotInfo* slot,
     ScopedCERTCertificate* nss_cert) {
   if (!ImportSensitiveKeyFromFile(dir, key_filename, slot)) {
@@ -140,8 +179,8 @@ scoped_refptr<X509Certificate> ImportClientCertAndKeyFromFile(
 
 scoped_refptr<X509Certificate> ImportClientCertAndKeyFromFile(
     const base::FilePath& dir,
-    base::StringPiece cert_filename,
-    base::StringPiece key_filename,
+    std::string_view cert_filename,
+    std::string_view key_filename,
     PK11SlotInfo* slot) {
   ScopedCERTCertificate nss_cert;
   return ImportClientCertAndKeyFromFile(dir, cert_filename, key_filename, slot,
@@ -150,7 +189,7 @@ scoped_refptr<X509Certificate> ImportClientCertAndKeyFromFile(
 
 ScopedCERTCertificate ImportCERTCertificateFromFile(
     const base::FilePath& certs_dir,
-    base::StringPiece cert_file) {
+    std::string_view cert_file) {
   scoped_refptr<X509Certificate> cert =
       ImportCertFromFile(certs_dir, cert_file);
   if (!cert)
@@ -160,7 +199,7 @@ ScopedCERTCertificate ImportCERTCertificateFromFile(
 
 ScopedCERTCertificateList CreateCERTCertificateListFromFile(
     const base::FilePath& certs_dir,
-    base::StringPiece cert_file,
+    std::string_view cert_file,
     int format) {
   CertificateList certs =
       CreateCertificateListFromFile(certs_dir, cert_file, format);

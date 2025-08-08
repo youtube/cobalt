@@ -4,13 +4,13 @@
 
 #include "base/android/task_scheduler/post_task_android.h"
 
-#include "base/base_jni_headers/PostTask_jni.h"
+#include "base/base_jni/PostTask_jni.h"
 
 namespace base {
 
 // static
 void PostTaskAndroid::SignalNativeSchedulerReady() {
-  Java_PostTask_onNativeSchedulerReady(base::android::AttachCurrentThread());
+  Java_PostTask_onNativeSchedulerReady(jni_zero::AttachCurrentThread());
 }
 
 }  // namespace base

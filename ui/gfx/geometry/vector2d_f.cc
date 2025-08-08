@@ -7,9 +7,7 @@
 #include <cmath>
 
 #include "base/strings/stringprintf.h"
-#if !defined(STARBOARD)
 #include "base/trace_event/typed_macros.h"
-#endif  // !defined(STARBOARD)
 #include "build/build_config.h"
 
 namespace gfx {
@@ -18,13 +16,11 @@ std::string Vector2dF::ToString() const {
   return base::StringPrintf("[%g %g]", x_, y_);
 }
 
-#if !defined(STARBOARD)
 void Vector2dF::WriteIntoTrace(perfetto::TracedValue ctx) const {
   perfetto::TracedDictionary dict = std::move(ctx).WriteDictionary();
   dict.Add("x", x_);
   dict.Add("y", y_);
 }
-#endif  // !defined(STARBOARD)
 
 bool Vector2dF::IsZero() const {
   return x_ == 0 && y_ == 0;
@@ -75,7 +71,7 @@ Vector2dF ScaleVector2d(const Vector2dF& v, float x_scale, float y_scale) {
 }
 
 float Vector2dF::SlopeAngleRadians() const {
-#if BUILDFLAG(IS_MAC)
+#if BUILDFLAG(IS_APPLE)
   // atan2f(...) returns less accurate results on Mac.
   // 3.1415925 vs. 3.14159274 for atan2f(0, -50) as an example.
   return static_cast<float>(

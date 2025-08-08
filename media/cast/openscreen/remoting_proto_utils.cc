@@ -6,10 +6,12 @@
 
 #include <algorithm>
 
-#include "base/big_endian.h"
 #include "base/containers/span.h"
+#include "base/containers/span_reader.h"
+#include "base/containers/span_writer.h"
 #include "base/logging.h"
 #include "base/time/time.h"
+#include "base/types/optional_util.h"
 #include "base/values.h"
 #include "media/base/encryption_scheme.h"
 #include "media/base/timestamp_constants.h"
@@ -62,9 +64,10 @@ scoped_refptr<media::DecoderBuffer> ConvertProtoToDecoderBuffer(
   }
 
   if (buffer_message.has_side_data()) {
-    buffer->CopySideDataFrom(
-        reinterpret_cast<const uint8_t*>(buffer_message.side_data().data()),
-        buffer_message.side_data().size());
+    const uint8_t* side_ptr =
+        reinterpret_cast<const uint8_t*>(buffer_message.side_data().data());
+    buffer->WritableSideData().alpha_data.assign(
+        side_ptr, side_ptr + buffer_message.side_data().size());
   }
 
   return buffer;
@@ -90,35 +93,37 @@ void ConvertDecoderBufferToProto(
   buffer_message->set_back_discard_usec(
       decoder_buffer.discard_padding().second.InMicroseconds());
 
-  if (decoder_buffer.side_data_size()) {
-    buffer_message->set_side_data(decoder_buffer.side_data(),
-                                  decoder_buffer.side_data_size());
+  if (decoder_buffer.has_side_data() &&
+      !decoder_buffer.side_data()->alpha_data.empty()) {
+    buffer_message->set_side_data(
+        decoder_buffer.side_data()->alpha_data.data(),
+        decoder_buffer.side_data()->alpha_data.size());
   }
 }
 
 }  // namespace
 
 scoped_refptr<media::DecoderBuffer> ByteArrayToDecoderBuffer(
-    const uint8_t* data,
-    uint32_t size) {
-  base::BigEndianReader reader(data, size);
-  uint8_t payload_version = 0;
-  uint16_t proto_size = 0;
+    base::span<const uint8_t> data) {
+  auto reader = base::SpanReader(data);
+  uint8_t payload_version = 0u;
+  uint16_t proto_size = 0u;
   openscreen::cast::DecoderBuffer segment;
-  uint32_t buffer_size = 0;
-  if (reader.ReadU8(&payload_version) && payload_version == 0 &&
-      reader.ReadU16(&proto_size) && proto_size < reader.remaining() &&
-      segment.ParseFromArray(reader.ptr(), proto_size) &&
-      reader.Skip(proto_size) && reader.ReadU32(&buffer_size) &&
-      buffer_size <= reader.remaining()) {
+  base::span<const uint8_t> segment_span;
+  uint32_t buffer_size = 0u;
+  base::span<const uint8_t> buffer_span;
+  if (reader.ReadU8BigEndian(payload_version) && payload_version == 0 &&
+      reader.ReadU16BigEndian(proto_size) &&
+      base::OptionalUnwrapTo(reader.Skip(proto_size), segment_span) &&
+      segment.ParseFromArray(segment_span.data(), segment_span.size()) &&
+      reader.ReadU32BigEndian(buffer_size) &&
+      base::OptionalUnwrapTo(reader.Skip(buffer_size), buffer_span)) {
     // Deserialize proto buffer. It passes the pre allocated DecoderBuffer into
     // the function because the proto buffer may overwrite DecoderBuffer since
     // it may be EOS buffer.
     scoped_refptr<media::DecoderBuffer> decoder_buffer =
         ConvertProtoToDecoderBuffer(
-            segment,
-            media::DecoderBuffer::CopyFrom(
-                reinterpret_cast<const uint8_t*>(reader.ptr()), buffer_size));
+            segment, media::DecoderBuffer::CopyFrom(buffer_span));
     return decoder_buffer;
   }
 
@@ -131,24 +136,27 @@ std::vector<uint8_t> DecoderBufferToByteArray(
   ConvertDecoderBufferToProto(decoder_buffer, &decoder_buffer_message);
 
   size_t decoder_buffer_size =
-      decoder_buffer.end_of_stream() ? 0 : decoder_buffer.data_size();
+      decoder_buffer.end_of_stream() ? 0 : decoder_buffer.size();
   size_t size = kPayloadVersionFieldSize + kProtoBufferHeaderSize +
                 decoder_buffer_message.ByteSize() + kDataBufferHeaderSize +
                 decoder_buffer_size;
+  auto message_cached_size =
+      // GetCachedSize() is only valid after ByteSize() is called above.
+      base::checked_cast<uint16_t>(decoder_buffer_message.GetCachedSize());
   std::vector<uint8_t> buffer(size);
-  base::BigEndianWriter writer(reinterpret_cast<char*>(buffer.data()),
-                               buffer.size());
-  if (writer.WriteU8(0) &&
-      writer.WriteU16(
-          static_cast<uint16_t>(decoder_buffer_message.GetCachedSize())) &&
-      decoder_buffer_message.SerializeToArray(
-          writer.ptr(), decoder_buffer_message.GetCachedSize()) &&
-      writer.Skip(decoder_buffer_message.GetCachedSize()) &&
-      writer.WriteU32(decoder_buffer_size)) {
+  auto writer = base::SpanWriter(base::span(buffer));
+  if (writer.WriteU8BigEndian(0) &&
+      writer.WriteU16BigEndian(message_cached_size) &&
+      [&] {
+        std::optional<base::span<uint8_t>> span =
+            writer.Skip(message_cached_size);
+        return span.has_value() && decoder_buffer_message.SerializeToArray(
+                                       span->data(), span->size());
+      }() &&
+      writer.WriteU32BigEndian(decoder_buffer_size)) {
     if (decoder_buffer_size) {
       // DecoderBuffer frame data.
-      writer.WriteBytes(reinterpret_cast<const void*>(decoder_buffer.data()),
-                        decoder_buffer.data_size());
+      writer.Write(base::span(decoder_buffer));
     }
     return buffer;
   }
@@ -182,7 +190,7 @@ void ConvertAudioDecoderConfigToProto(
   // protobuf, because it is due to an internal Chrome bug. Instead, use the
   // "extra_data" field as receivers should expect.
   //
-  // TODO(crbug.com/1250841): Remove all references to "aac_extra_data" when it
+  // TODO(crbug.com/40198159): Remove all references to "aac_extra_data" when it
   // is removed as part of a media/ cleanup.
 #if DCHECK_IS_ON()
   if (!audio_config.extra_data().empty() &&
@@ -221,7 +229,7 @@ bool ConvertProtoToAudioDecoderConfig(
       base::Microseconds(audio_message.seek_preroll_usec()),
       audio_message.codec_delay());
 
-  // TODO(crbug.com/1250841): Remove all references to "aac_extra_data" when it
+  // TODO(crbug.com/40198159): Remove all references to "aac_extra_data" when it
   // is removed as part of a media/ cleanup.
   if (isAac) {
     audio_config->set_aac_extra_data(

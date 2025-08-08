@@ -7,8 +7,9 @@
 
 #include <CoreText/CoreText.h>
 
-#include "base/mac/scoped_nsobject.h"
-#include "third_party/abseil-cpp/absl/types/optional.h"
+#include <optional>
+
+#include "base/apple/scoped_cftyperef.h"
 #include "ui/gfx/font_render_params.h"
 #include "ui/gfx/platform_font.h"
 
@@ -43,7 +44,7 @@ class GFX_EXPORT PlatformFontMac : public PlatformFont {
   // font; use the |SystemFontType| constructor for that.
   PlatformFontMac(sk_sp<SkTypeface> typeface,
                   int font_size_pixels,
-                  const absl::optional<FontRenderParams>& params);
+                  const std::optional<FontRenderParams>& params);
 
   PlatformFontMac(const PlatformFontMac&) = delete;
   PlatformFontMac& operator=(const PlatformFontMac&) = delete;
@@ -65,6 +66,10 @@ class GFX_EXPORT PlatformFontMac : public PlatformFont {
   CTFontRef GetCTFont() const override;
   sk_sp<SkTypeface> GetNativeSkTypeface() const override;
 
+  std::optional<SystemFontType> GetSystemFontType() const {
+    return system_font_type_;
+  }
+
   // A utility function to get the weight of a CTFontRef. Used by the unit test.
   static Font::Weight GetFontWeightFromCTFontForTesting(CTFontRef font);
 
@@ -77,10 +82,10 @@ class GFX_EXPORT PlatformFontMac : public PlatformFont {
   };
 
   PlatformFontMac(CTFontRef font,
-                  absl::optional<SystemFontType> system_font_type);
+                  std::optional<SystemFontType> system_font_type);
 
   PlatformFontMac(CTFontRef font,
-                  absl::optional<SystemFontType> system_font_type,
+                  std::optional<SystemFontType> system_font_type,
                   FontSpec spec);
 
   ~PlatformFontMac() override;
@@ -88,17 +93,18 @@ class GFX_EXPORT PlatformFontMac : public PlatformFont {
   // Calculates and caches the font metrics and initializes |render_params_|.
   void CalculateMetricsAndInitRenderParams();
 
-  // Returns an autoreleased NSFont created with the passed-in specifications.
-  NSFont* NSFontWithSpec(FontSpec font_spec) const;
+  // Returns a CTFontRef created with the passed-in specifications.
+  base::apple::ScopedCFTypeRef<CTFontRef> CTFontWithSpec(
+      FontSpec font_spec) const;
 
-  // The NSFont instance for this object. If this object was constructed from an
-  // NSFont instance, this holds that NSFont instance. Otherwise this NSFont
-  // instance is constructed from the name, size, and style. If there is no
-  // active font that matched those criteria a default font is used.
-  base::scoped_nsobject<NSFont> ns_font_;
+  // The CTFontRef instance for this object. If this object was constructed from
+  // a CTFontRef instance, this holds that instance. Otherwise this instance is
+  // constructed from the name, size, and style. If there is no active font that
+  // matched those criteria a default font is used.
+  base::apple::ScopedCFTypeRef<CTFontRef> ct_font_;
 
   // If the font is a system font, and if so, what kind.
-  const absl::optional<SystemFontType> system_font_type_;
+  const std::optional<SystemFontType> system_font_type_;
 
   // The name/size/style/weight quartet that specify the font. Initialized in
   // the constructors.

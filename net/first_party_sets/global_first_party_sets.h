@@ -5,7 +5,7 @@
 #ifndef NET_FIRST_PARTY_SETS_GLOBAL_FIRST_PARTY_SETS_H_
 #define NET_FIRST_PARTY_SETS_GLOBAL_FIRST_PARTY_SETS_H_
 
-#include <set>
+#include <optional>
 
 #include "base/containers/flat_map.h"
 #include "base/containers/flat_set.h"
@@ -16,7 +16,8 @@
 #include "net/first_party_sets/first_party_set_entry.h"
 #include "net/first_party_sets/first_party_set_entry_override.h"
 #include "net/first_party_sets/first_party_sets_context_config.h"
-#include "third_party/abseil-cpp/absl/types/optional.h"
+#include "net/first_party_sets/local_set_declaration.h"
+#include "net/first_party_sets/sets_mutation.h"
 
 namespace mojo {
 template <typename DataViewType, typename T>
@@ -55,21 +56,14 @@ class NET_EXPORT GlobalFirstPartySets {
   GlobalFirstPartySets Clone() const;
 
   // Returns a FirstPartySetsContextConfig that respects the overrides given by
-  // `replacement_sets` and `addition_sets`, relative to this instance's state.
-  //
-  // Preconditions: sets defined by `replacement_sets` and
-  // `addition_sets` must be disjoint.
-  FirstPartySetsContextConfig ComputeConfig(
-      const std::vector<base::flat_map<SchemefulSite, FirstPartySetEntry>>&
-          replacement_sets,
-      const std::vector<base::flat_map<SchemefulSite, FirstPartySetEntry>>&
-          addition_sets) const;
+  // `mutation`, relative to this instance's state.
+  FirstPartySetsContextConfig ComputeConfig(const SetsMutation& mutation) const;
 
   // Returns the entry corresponding to the given `site`, if one exists.
   // Respects any customization/overlay specified by `config`. This is
   // semi-agnostic to scheme: it just cares whether the scheme is secure or
   // insecure.
-  absl::optional<FirstPartySetEntry> FindEntry(
+  std::optional<FirstPartySetEntry> FindEntry(
       const SchemefulSite& site,
       const FirstPartySetsContextConfig& config) const;
 
@@ -83,14 +77,12 @@ class NET_EXPORT GlobalFirstPartySets {
   FirstPartySetMetadata ComputeMetadata(
       const SchemefulSite& site,
       const SchemefulSite* top_frame_site,
-      const std::set<SchemefulSite>& party_context,
       const FirstPartySetsContextConfig& fps_context_config) const;
 
   // Modifies this instance such that it will respect the given
-  // manually-specified set. `manual_entries` should contain entries for aliases
-  // as well as "canonical" sites.
+  // manually-specified set.
   void ApplyManuallySpecifiedSet(
-      const base::flat_map<SchemefulSite, FirstPartySetEntry>& manual_entries);
+      const LocalSetDeclaration& local_set_declaration);
 
   // Directly sets this instance's manual config. This is unsafe, because it
   // assumes that the config was computed by this instance (or one with
@@ -150,11 +142,12 @@ class NET_EXPORT GlobalFirstPartySets {
       base::Version public_sets_version,
       base::flat_map<SchemefulSite, FirstPartySetEntry> entries,
       base::flat_map<SchemefulSite, SchemefulSite> aliases,
-      FirstPartySetsContextConfig manual_config);
+      FirstPartySetsContextConfig manual_config,
+      base::flat_map<SchemefulSite, SchemefulSite> manual_aliases);
 
   // Same as the public version of FindEntry, but is allowed to omit the
   // `config` argument (i.e. pass nullptr instead of a reference).
-  absl::optional<FirstPartySetEntry> FindEntry(
+  std::optional<FirstPartySetEntry> FindEntry(
       const SchemefulSite& site,
       const FirstPartySetsContextConfig* config) const;
 
@@ -167,24 +160,22 @@ class NET_EXPORT GlobalFirstPartySets {
       const std::vector<base::flat_map<SchemefulSite, FirstPartySetEntry>>&
           addition_sets) const;
 
-  // Returns whether `site` is same-party with `party_context`, and
-  // `top_frame_site` (if it is not nullptr). That is, is `site`'s primary the
-  // same as the primaries of every member of `party_context` and of
-  // `top_frame_site`? Note: if `site` is not a member of a First-Party Set,
-  // then this returns false. If `top_frame_site` is nullptr, then it is
-  // ignored.
-  bool IsContextSamePartyWithSite(
-      const SchemefulSite& site,
-      const SchemefulSite* top_frame_site,
-      const std::set<SchemefulSite>& party_context,
-      const FirstPartySetsContextConfig& fps_context_config) const;
-
   // Same as the public version of ForEachEffectiveSetEntry, but is allowed to
   // omit the `config` argument (i.e. pass nullptr instead of a reference).
   bool ForEachEffectiveSetEntry(
       const FirstPartySetsContextConfig* config,
       base::FunctionRef<bool(const SchemefulSite&, const FirstPartySetEntry&)>
           f) const;
+
+  // Iterates over the mappings in `manual_aliases_` and `aliases_` (skipping
+  // entries of `aliases_` that are shadowed), invoking `f` for each `alias,
+  // canonical` pair.
+  void ForEachAlias(base::FunctionRef<void(const SchemefulSite&,
+                                           const SchemefulSite&)> f) const;
+
+  // Returns true iff this instance contains a singleton set (a set with only
+  // one site).
+  bool ContainsSingleton() const;
 
   // The version associated with the component_updater-provided public sets.
   // This may be invalid if the "First-Party Sets" component has not been
@@ -203,6 +194,10 @@ class NET_EXPORT GlobalFirstPartySets {
   // Stores the customizations induced by the manually-specified set. May be
   // empty if no switch was provided.
   FirstPartySetsContextConfig manual_config_;
+
+  // Stores the aliases contained in the manually-specified set. (Note that the
+  // aliases are *also* stored in `manual_config_`.)
+  base::flat_map<SchemefulSite, SchemefulSite> manual_aliases_;
 };
 
 NET_EXPORT std::ostream& operator<<(std::ostream& os,

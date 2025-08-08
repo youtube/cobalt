@@ -1,5 +1,0 @@
-int sampler1DShadow;
-
-/*%%*
-'sampler1DShadow' is a reserved word
-*%%*/

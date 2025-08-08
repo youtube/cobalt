@@ -9,18 +9,22 @@
 #include <stdint.h>
 
 #include <string>
+#include <string_view>
 #include <unordered_set>
 #include <vector>
 
+#include "base/check.h"
 #include "base/functional/callback.h"
 #include "base/memory/ref_counted.h"
-#include "base/strings/string_piece.h"
 #include "base/time/time.h"
 #include "base/trace_event/base_tracing_forward.h"
+#include "base/types/pass_key.h"
 #include "base/values.h"
 #include "net/base/net_export.h"
+#include "net/http/http_util.h"
 #include "net/http/http_version.h"
 #include "net/log/net_log_capture_mode.h"
+#include "third_party/abseil-cpp/absl/container/inlined_vector.h"
 
 namespace base {
 class Pickle;
@@ -43,6 +47,54 @@ enum ValidationType {
 class NET_EXPORT HttpResponseHeaders
     : public base::RefCountedThreadSafe<HttpResponseHeaders> {
  public:
+  // This class provides the most efficient way to build an HttpResponseHeaders
+  // object if the headers are all available in memory at once.
+  // Example usage:
+  // scoped_refptr<HttpResponseHeaders> headers =
+  //   HttpResponseHeaders::Builder(HttpVersion(1, 1), 307)
+  //     .AddHeader("Location", url.spec())
+  //     .Build();
+  class NET_EXPORT Builder {
+   public:
+    // Constructs a builder with a particular `version` and `status`. `version`
+    // must be (1,0), (1,1) or (2,0). `status` is the response code optionally
+    // followed by a space and the status text, eg. "200 OK". The caller is
+    // required to guarantee that `status` does not contain embedded nul
+    // characters, and that it will remain valid until Build() is called.
+    Builder(HttpVersion version, std::string_view status);
+
+    Builder(const Builder&) = delete;
+    Builder& operator=(const Builder&) = delete;
+
+    ~Builder();
+
+    // Adds a header. Returns a reference to the object so that calls can be
+    // chained. Duplicates will be preserved. Order will be preserved. For
+    // performance reasons, strings are not copied until Build() is called. It
+    // is the caller's responsibility to ensure the values remain valid until
+    // then. The caller is required to guarantee that `name` and `value` are
+    // valid HTTP headers and in particular that they do not contain embedded
+    // nul characters.
+    Builder& AddHeader(std::string_view name, std::string_view value) {
+      DCHECK(HttpUtil::IsValidHeaderName(name));
+      DCHECK(HttpUtil::IsValidHeaderValue(value));
+      headers_.push_back({name, value});
+      return *this;
+    }
+
+    scoped_refptr<HttpResponseHeaders> Build();
+
+   private:
+    using KeyValuePair = std::pair<std::string_view, std::string_view>;
+
+    const HttpVersion version_;
+    const std::string_view status_;
+    // 40 is enough for 94% of responses on Windows and 98% on Android.
+    absl::InlinedVector<KeyValuePair, 40> headers_;
+  };
+
+  using BuilderPassKey = base::PassKey<Builder>;
+
   // Persist options.
   typedef int PersistOptions;
   static const PersistOptions PERSIST_RAW = -1;  // Raw, unparsed headers.
@@ -83,12 +135,20 @@ class NET_EXPORT HttpResponseHeaders
   // be passed to the pickle's various Read* methods.
   explicit HttpResponseHeaders(base::PickleIterator* pickle_iter);
 
+  // Use Builder::Build() rather than calling this directly. The BuilderPassKey
+  // prevents accidental use from other code.
+  HttpResponseHeaders(
+      BuilderPassKey,
+      HttpVersion version,
+      std::string_view status,
+      base::span<const std::pair<std::string_view, std::string_view>> headers);
+
   // Takes headers as an ASCII string and tries to parse them as HTTP response
   // headers. returns nullptr on failure. Unlike the HttpResponseHeaders
   // constructor that takes a std::string, HttpUtil::AssembleRawHeaders should
   // not be called on |headers| before calling this method.
   static scoped_refptr<HttpResponseHeaders> TryToCreate(
-      base::StringPiece headers);
+      std::string_view headers);
 
   HttpResponseHeaders(const HttpResponseHeaders&) = delete;
   HttpResponseHeaders& operator=(const HttpResponseHeaders&) = delete;
@@ -101,7 +161,7 @@ class NET_EXPORT HttpResponseHeaders
   void Update(const HttpResponseHeaders& new_headers);
 
   // Removes all instances of a particular header.
-  void RemoveHeader(base::StringPiece name);
+  void RemoveHeader(std::string_view name);
 
   // Removes all instances of particular headers.
   void RemoveHeaders(const std::unordered_set<std::string>& header_names);
@@ -113,13 +173,13 @@ class NET_EXPORT HttpResponseHeaders
   // Adds the specified response header. If a header with the same name is
   // already stored, the two headers are not merged together by this method; the
   // one provided is simply put at the end of the list.
-  void AddHeader(base::StringPiece name, base::StringPiece value);
+  void AddHeader(std::string_view name, std::string_view value);
 
   // Sets the specified response header, removing any matching old one if
   // present. The new header is added to the end of the header list, rather than
   // replacing the old one. This is the same as calling RemoveHeader() followed
   // be SetHeader().
-  void SetHeader(base::StringPiece name, base::StringPiece value);
+  void SetHeader(std::string_view name, std::string_view value);
 
   // Adds a cookie header. |cookie_string| should be the header value without
   // the header name (Set-Cookie).
@@ -155,7 +215,7 @@ class NET_EXPORT HttpResponseHeaders
   // NOTE: Do not make any assumptions about the encoding of this output
   // string.  It may be non-ASCII, and the encoding used by the server is not
   // necessarily known to us.  Do not assume that this output is UTF-8!
-  bool GetNormalizedHeader(base::StringPiece name, std::string* value) const;
+  bool GetNormalizedHeader(std::string_view name, std::string* value) const;
 
   // Returns the normalized status line.
   std::string GetStatusLine() const;
@@ -216,16 +276,16 @@ class NET_EXPORT HttpResponseHeaders
   // To handle cases such as this, use GetNormalizedHeader to return the full
   // concatenated header, and then parse manually.
   bool EnumerateHeader(size_t* iter,
-                       base::StringPiece name,
+                       std::string_view name,
                        std::string* value) const;
 
   // Returns true if the response contains the specified header-value pair.
   // Both name and value are compared case insensitively.
-  bool HasHeaderValue(base::StringPiece name, base::StringPiece value) const;
+  bool HasHeaderValue(std::string_view name, std::string_view value) const;
 
   // Returns true if the response contains the specified header.
   // The name is compared case insensitively.
-  bool HasHeader(base::StringPiece name) const;
+  bool HasHeader(std::string_view name) const;
 
   // Get the mime type and charset values in lower case form from the headers.
   // Empty strings are returned if the values are not present.
@@ -336,10 +396,15 @@ class NET_EXPORT HttpResponseHeaders
 
   // Returns true if |name| is a cookie related header name. This is consistent
   // with |PERSIST_SANS_COOKIES|.
-  static bool IsCookieResponseHeader(base::StringPiece name);
+  static bool IsCookieResponseHeader(std::string_view name);
 
   // Write a representation of this object into tracing proto.
   void WriteIntoTrace(perfetto::TracedValue context) const;
+
+  // Returns true if this instance precises matches another. This is stronger
+  // than semantic equality as it is intended for verification that the new
+  // Builder implementation works correctly.
+  bool StrictlyEquals(const HttpResponseHeaders& other) const;
 
  private:
   friend class base::RefCountedThreadSafe<HttpResponseHeaders>;
@@ -349,6 +414,14 @@ class NET_EXPORT HttpResponseHeaders
   // The members of this structure point into raw_headers_.
   struct ParsedHeader;
   typedef std::vector<ParsedHeader> HeaderList;
+
+  // Whether or not a header value passed to the private AddHeader() method
+  // contains commas.
+  enum class ContainsCommas {
+    kNo,     // Definitely no commas. No need to parse it.
+    kYes,    // Contains commas. Needs to be parsed.
+    kMaybe,  // Unknown whether commas are present. Needs to be parsed.
+  };
 
   ~HttpResponseHeaders();
 
@@ -375,20 +448,23 @@ class NET_EXPORT HttpResponseHeaders
 
   // Find the header in our list (case-insensitive) starting with |parsed_| at
   // index |from|.  Returns string::npos if not found.
-  size_t FindHeader(size_t from, base::StringPiece name) const;
+  size_t FindHeader(size_t from, std::string_view name) const;
 
   // Search the Cache-Control header for a directive matching |directive|. If
   // present, treat its value as a time offset in seconds, write it to |result|,
   // and return true.
-  bool GetCacheControlDirective(base::StringPiece directive,
+  bool GetCacheControlDirective(std::string_view directive,
                                 base::TimeDelta* result) const;
 
-  // Add a header->value pair to our list.  If we already have header in our
-  // list, append the value to it.
+  // Add header->value pair(s) to our list. The value will be split into
+  // multiple values if it contains unquoted commas. If `contains_commas` is
+  // ContainsCommas::kNo then the value will not be parsed as a performance
+  // optimization.
   void AddHeader(std::string::const_iterator name_begin,
                  std::string::const_iterator name_end,
                  std::string::const_iterator value_begin,
-                 std::string::const_iterator value_end);
+                 std::string::const_iterator value_end,
+                 ContainsCommas contains_commas);
 
   // Add to parsed_ given the fields of a ParsedHeader object.
   void AddToParsed(std::string::const_iterator name_begin,

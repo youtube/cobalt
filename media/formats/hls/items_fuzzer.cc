@@ -2,23 +2,24 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#include "media/formats/hls/items.h"
+
 #include <cstddef>
 #include <cstdint>
+#include <optional>
 
 #include "base/check.h"
 #include "base/strings/string_piece.h"
-#include "media/formats/hls/items.h"
-#include "third_party/abseil-cpp/absl/types/optional.h"
 #include "third_party/abseil-cpp/absl/types/variant.h"
 
 namespace {
 
-bool IsSubstring(base::StringPiece sub, base::StringPiece base) {
+bool IsSubstring(std::string_view sub, std::string_view base) {
   return base.data() <= sub.data() &&
          base.data() + base.size() >= sub.data() + sub.size();
 }
 
-absl::optional<media::hls::SourceString> GetItemContent(
+std::optional<media::hls::SourceString> GetItemContent(
     media::hls::TagItem tag) {
   // Ensure the tag kind returned was valid
   if (tag.GetName()) {
@@ -30,7 +31,7 @@ absl::optional<media::hls::SourceString> GetItemContent(
   return tag.GetContent();
 }
 
-absl::optional<media::hls::SourceString> GetItemContent(
+std::optional<media::hls::SourceString> GetItemContent(
     media::hls::UriItem uri) {
   return uri.content;
 }
@@ -47,7 +48,7 @@ size_t GetItemLineNumber(media::hls::UriItem uri) {
 
 extern "C" int LLVMFuzzerTestOneInput(const uint8_t* data, size_t size) {
   // Create a StringPiece from the given input
-  const base::StringPiece source(reinterpret_cast<const char*>(data), size);
+  const std::string_view source(reinterpret_cast<const char*>(data), size);
   media::hls::SourceLineIterator iterator{source};
 
   while (true) {

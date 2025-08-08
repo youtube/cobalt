@@ -80,7 +80,7 @@ endif()
 #     absl::fantastic_lib
 # )
 #
-# TODO: Implement "ALWAYSLINK"
+# TODO(b/320467376): Implement "ALWAYSLINK".
 function(absl_cc_library)
   cmake_parse_arguments(ABSL_CC_LIB
     "DISABLE_INSTALL;PUBLIC;TESTONLY"
@@ -186,8 +186,16 @@ function(absl_cc_library)
         endif()
       endif()
     endforeach()
+    set(skip_next_cflag OFF)
     foreach(cflag ${ABSL_CC_LIB_COPTS})
-      if(${cflag} MATCHES "^(-Wno|/wd)")
+      if(skip_next_cflag)
+        set(skip_next_cflag OFF)
+      elseif(${cflag} MATCHES "^-Xarch_")
+        # An -Xarch_ flag implies that its successor only applies to the
+        # specified platform. Filter both of them out before the successor
+        # reaches the "^-m" filter.
+        set(skip_next_cflag ON)
+      elseif(${cflag} MATCHES "^(-Wno|/wd)")
         # These flags are needed to suppress warnings that might fire in our headers.
         set(PC_CFLAGS "${PC_CFLAGS} ${cflag}")
       elseif(${cflag} MATCHES "^(-W|/w[1234eo])")
@@ -211,7 +219,7 @@ Description: Abseil ${_NAME} library\n\
 URL: https://abseil.io/\n\
 Version: ${PC_VERSION}\n\
 Requires:${PC_DEPS}\n\
-Libs: -L\${libdir} ${PC_LINKOPTS} $<$<NOT:$<BOOL:${ABSL_CC_LIB_IS_INTERFACE}>>:${LNK_LIB}>\n\
+Libs: -L\${libdir} $<$<NOT:$<BOOL:${ABSL_CC_LIB_IS_INTERFACE}>>:${LNK_LIB}> ${PC_LINKOPTS}\n\
 Cflags: -I\${includedir}${PC_CFLAGS}\n")
     INSTALL(FILES "${CMAKE_BINARY_DIR}/lib/pkgconfig/absl_${_NAME}.pc"
             DESTINATION "${CMAKE_INSTALL_LIBDIR}/pkgconfig")
@@ -287,8 +295,8 @@ Cflags: -I\${includedir}${PC_CFLAGS}\n")
 
     if(ABSL_PROPAGATE_CXX_STD)
       # Abseil libraries require C++14 as the current minimum standard. When
-      # compiled with C++17 (either because it is the compiler's default or
-      # explicitly requested), then Abseil requires C++17.
+      # compiled with a higher standard (either because it is the compiler's
+      # default or explicitly requested), then Abseil requires that standard.
       target_compile_features(${_NAME} PUBLIC ${ABSL_INTERNAL_CXX_STD_FEATURE})
     endif()
 
@@ -412,6 +420,10 @@ function(absl_cc_test)
     absl_internal_dll_targets(
       DEPS ${ABSL_CC_TEST_DEPS}
       OUTPUT ABSL_CC_TEST_DEPS
+    )
+    absl_internal_dll_targets(
+      DEPS ${ABSL_CC_TEST_LINKOPTS}
+      OUTPUT ABSL_CC_TEST_LINKOPTS
     )
   else()
     target_compile_definitions(${_NAME}

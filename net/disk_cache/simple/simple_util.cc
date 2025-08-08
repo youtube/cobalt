@@ -4,7 +4,10 @@
 
 #include "net/disk_cache/simple/simple_util.h"
 
+#include <string.h>
+
 #include <limits>
+#include <string_view>
 
 #include "base/check_op.h"
 #include "base/files/file_util.h"
@@ -40,7 +43,7 @@ std::string GetEntryHashKeyAsHexString(const std::string& key) {
   return hash_key_str;
 }
 
-bool GetEntryHashKeyFromHexString(base::StringPiece hash_key,
+bool GetEntryHashKeyFromHexString(std::string_view hash_key,
                                   uint64_t* hash_key_out) {
   if (hash_key.size() != kEntryHashKeyAsHexStringSize) {
     return false;
@@ -49,13 +52,13 @@ bool GetEntryHashKeyFromHexString(base::StringPiece hash_key,
 }
 
 uint64_t GetEntryHashKey(const std::string& key) {
-  union {
-    unsigned char sha_hash[base::kSHA1Length];
-    uint64_t key_hash;
-  } u;
+  unsigned char sha_hash[base::kSHA1Length];
+
   base::SHA1HashBytes(reinterpret_cast<const unsigned char*>(key.data()),
-                      key.size(), u.sha_hash);
-  return u.key_hash;
+                      key.size(), sha_hash);
+  uint64_t as_uint64;
+  memcpy(&as_uint64, sha_hash, sizeof(as_uint64));
+  return as_uint64;
 }
 
 std::string GetFilenameFromEntryFileKeyAndFileIndex(
@@ -100,6 +103,11 @@ int64_t GetFileSizeFromDataSize(size_t key_length, int32_t data_size) {
 
 int GetFileIndexFromStreamIndex(int stream_index) {
   return (stream_index == 2) ? 1 : 0;
+}
+
+uint32_t Crc32(base::span<const uint8_t> data) {
+  auto chars = base::as_chars(data);
+  return Crc32(chars.data(), base::checked_cast<int>(data.size()));
 }
 
 uint32_t Crc32(const char* data, int length) {

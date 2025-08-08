@@ -1,0 +1,6 @@
+PasswordManager:
+  caption: Password manager
+  policies:
+  - PasswordManagerEnabled
+  - PasswordManagerAllowShowPasswords
+  - PasswordSharingEnabled

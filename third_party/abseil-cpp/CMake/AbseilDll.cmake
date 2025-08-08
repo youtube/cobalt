@@ -25,8 +25,8 @@ set(ABSL_INTERNAL_DLL_FILES
   "base/internal/low_level_alloc.cc"
   "base/internal/low_level_alloc.h"
   "base/internal/low_level_scheduling.h"
+  "base/internal/nullability_impl.h"
   "base/internal/per_thread_tls.h"
-  "base/internal/prefetch.h"
   "base/prefetch.h"
   "base/internal/pretty_function.h"
   "base/internal/raw_logging.cc"
@@ -54,6 +54,8 @@ set(ABSL_INTERNAL_DLL_FILES
   "base/log_severity.cc"
   "base/log_severity.h"
   "base/macros.h"
+  "base/no_destructor.h"
+  "base/nullability.h"
   "base/optimization.h"
   "base/options.h"
   "base/policy_checks.h"
@@ -63,6 +65,7 @@ set(ABSL_INTERNAL_DLL_FILES
   "cleanup/internal/cleanup.h"
   "container/btree_map.h"
   "container/btree_set.h"
+  "container/hash_container_defaults.h"
   "container/fixed_array.h"
   "container/flat_hash_map.h"
   "container/flat_hash_set.h"
@@ -73,7 +76,6 @@ set(ABSL_INTERNAL_DLL_FILES
   "container/internal/common_policy_traits.h"
   "container/internal/compressed_tuple.h"
   "container/internal/container_memory.h"
-  "container/internal/counting_allocator.h"
   "container/internal/hash_function_defaults.h"
   "container/internal/hash_policy_traits.h"
   "container/internal/hashtable_debug.h"
@@ -105,7 +107,7 @@ set(ABSL_INTERNAL_DLL_FILES
   "crc/internal/crc_x86_arm_combined.cc"
   "crc/internal/crc_memcpy_fallback.cc"
   "crc/internal/crc_memcpy.h"
-  "crc/internal/crc_memcpy_x86_64.cc"
+  "crc/internal/crc_memcpy_x86_arm_combined.cc"
   "crc/internal/crc_non_temporal_memcpy.cc"
   "crc/internal/crc_x86_arm_combined.cc"
   "crc/internal/non_temporal_arm_intrinsics.h"
@@ -121,6 +123,8 @@ set(ABSL_INTERNAL_DLL_FILES
   "debugging/internal/address_is_readable.h"
   "debugging/internal/demangle.cc"
   "debugging/internal/demangle.h"
+  "debugging/internal/demangle_rust.cc"
+  "debugging/internal/demangle_rust.h"
   "debugging/internal/elf_mem_image.cc"
   "debugging/internal/elf_mem_image.h"
   "debugging/internal/examine_stack.cc"
@@ -137,6 +141,7 @@ set(ABSL_INTERNAL_DLL_FILES
   "functional/function_ref.h"
   "functional/internal/any_invocable.h"
   "functional/internal/function_ref.h"
+  "functional/overload.h"
   "hash/hash.h"
   "hash/internal/city.h"
   "hash/internal/city.cc"
@@ -147,6 +152,7 @@ set(ABSL_INTERNAL_DLL_FILES
   "hash/internal/low_level_hash.cc"
   "log/absl_check.h"
   "log/absl_log.h"
+  "log/absl_vlog_is_on.h"
   "log/check.h"
   "log/die_if_null.cc"
   "log/die_if_null.h"
@@ -159,6 +165,8 @@ set(ABSL_INTERNAL_DLL_FILES
   "log/internal/conditions.cc"
   "log/internal/conditions.h"
   "log/internal/config.h"
+  "log/internal/fnmatch.h"
+  "log/internal/fnmatch.cc"
   "log/internal/globals.cc"
   "log/internal/globals.h"
   "log/internal/log_format.cc"
@@ -175,6 +183,8 @@ set(ABSL_INTERNAL_DLL_FILES
   "log/internal/proto.cc"
   "log/internal/strip.h"
   "log/internal/structured.h"
+  "log/internal/vlog_config.cc"
+  "log/internal/vlog_config.h"
   "log/internal/voidify.h"
   "log/initialize.cc"
   "log/initialize.h"
@@ -186,6 +196,7 @@ set(ABSL_INTERNAL_DLL_FILES
   "log/log_sink_registry.h"
   "log/log_streamer.h"
   "log/structured.h"
+  "log/vlog_is_on.h"
   "memory/memory.h"
   "meta/type_traits.h"
   "numeric/bits.h"
@@ -246,6 +257,7 @@ set(ABSL_INTERNAL_DLL_FILES
   "random/uniform_real_distribution.h"
   "random/zipf_distribution.h"
   "status/internal/status_internal.h"
+  "status/internal/status_internal.cc"
   "status/internal/statusor_internal.h"
   "status/status.h"
   "status/status.cc"
@@ -257,6 +269,7 @@ set(ABSL_INTERNAL_DLL_FILES
   "strings/ascii.h"
   "strings/charconv.cc"
   "strings/charconv.h"
+  "strings/charset.h"
   "strings/cord.cc"
   "strings/cord.h"
   "strings/cord_analysis.cc"
@@ -283,9 +296,6 @@ set(ABSL_INTERNAL_DLL_FILES
   "strings/internal/cord_rep_consume.h"
   "strings/internal/cord_rep_consume.cc"
   "strings/internal/cord_rep_flat.h"
-  "strings/internal/cord_rep_ring.cc"
-  "strings/internal/cord_rep_ring.h"
-  "strings/internal/cord_rep_ring_reader.h"
   "strings/internal/cordz_functions.cc"
   "strings/internal/cordz_functions.h"
   "strings/internal/cordz_handle.cc"
@@ -304,6 +314,8 @@ set(ABSL_INTERNAL_DLL_FILES
   "strings/internal/stringify_sink.h"
   "strings/internal/stringify_sink.cc"
   "strings/internal/has_absl_stringify.h"
+  "strings/has_absl_stringify.h"
+  "strings/has_ostream_operator.h"
   "strings/match.cc"
   "strings/match.h"
   "strings/numbers.cc"
@@ -321,7 +333,6 @@ set(ABSL_INTERNAL_DLL_FILES
   "strings/strip.h"
   "strings/substitute.cc"
   "strings/substitute.h"
-  "strings/internal/char_map.h"
   "strings/internal/escaping.h"
   "strings/internal/escaping.cc"
   "strings/internal/memutil.cc"
@@ -417,17 +428,13 @@ set(ABSL_INTERNAL_DLL_FILES
   "types/bad_variant_access.cc"
   "types/bad_variant_access.h"
   "types/compare.h"
-  "types/internal/conformance_aliases.h"
-  "types/internal/conformance_archetype.h"
-  "types/internal/conformance_profile.h"
-  "types/internal/parentheses.h"
-  "types/internal/transform_args.h"
   "types/internal/variant.h"
   "types/optional.h"
   "types/internal/optional.h"
   "types/span.h"
   "types/internal/span.h"
   "types/variant.h"
+  "utility/internal/if_constexpr.h"
   "utility/utility.h"
   "debugging/leak_check.cc"
 )
@@ -459,8 +466,14 @@ set(ABSL_INTERNAL_DLL_TARGETS
   "container_common"
   "container_memory"
   "cord"
+  "cord_internal"
+  "cordz_functions"
+  "cordz_handle"
+  "cordz_info"
+  "cordz_sample_token"
   "core_headers"
   "counting_allocator"
+  "crc_cord_state"
   "crc_cpu_detect"
   "crc_internal"
   "crc32c"
@@ -515,6 +528,7 @@ set(ABSL_INTERNAL_DLL_TARGETS
   "log_internal_structured"
   "log_severity"
   "log_structured"
+  "low_level_hash"
   "malloc_internal"
   "memory"
   "meta"
@@ -566,8 +580,10 @@ set(ABSL_INTERNAL_DLL_TARGETS
   "stack_consumption"
   "stacktrace"
   "status"
+  "statusor"
   "str_format"
   "str_format_internal"
+  "strerror"
   "strings"
   "strings_internal"
   "symbolize"
@@ -586,10 +602,17 @@ set(ABSL_INTERNAL_TEST_DLL_FILES
   "hash/hash_testing.h"
   "log/scoped_mock_log.cc"
   "log/scoped_mock_log.h"
+  "random/internal/chi_square.cc"
+  "random/internal/chi_square.h"
+  "random/internal/distribution_test_util.cc"
+  "random/internal/distribution_test_util.h"
   "random/internal/mock_helpers.h"
   "random/internal/mock_overload_set.h"
   "random/mocking_bit_gen.h"
   "random/mock_distributions.h"
+  "status/status_matchers.h"
+  "status/internal/status_matchers.cc"
+  "status/internal/status_matchers.h"
   "strings/cordz_test_helpers.h"
   "strings/cord_test_helpers.h"
 )
@@ -599,8 +622,10 @@ set(ABSL_INTERNAL_TEST_DLL_TARGETS
   "cordz_test_helpers"
   "hash_testing"
   "random_mocking_bit_gen"
+  "random_internal_distribution_test_util"
   "random_internal_mock_overload_set"
   "scoped_mock_log"
+  "status_matchers"
 )
 
 include(CheckCXXSourceCompiles)
@@ -608,17 +633,32 @@ include(CheckCXXSourceCompiles)
 check_cxx_source_compiles(
   [==[
 #ifdef _MSC_VER
-#  if _MSVC_LANG < 201700L
+#  if _MSVC_LANG < 201703L
 #    error "The compiler defaults or is configured for C++ < 17"
 #  endif
-#elif __cplusplus < 201700L
+#elif __cplusplus < 201703L
 #  error "The compiler defaults or is configured for C++ < 17"
 #endif
 int main() { return 0; }
 ]==]
   ABSL_INTERNAL_AT_LEAST_CXX17)
 
-if(ABSL_INTERNAL_AT_LEAST_CXX17)
+check_cxx_source_compiles(
+  [==[
+#ifdef _MSC_VER
+#  if _MSVC_LANG < 202002L
+#    error "The compiler defaults or is configured for C++ < 20"
+#  endif
+#elif __cplusplus < 202002L
+#  error "The compiler defaults or is configured for C++ < 20"
+#endif
+int main() { return 0; }
+]==]
+  ABSL_INTERNAL_AT_LEAST_CXX20)
+
+if(ABSL_INTERNAL_AT_LEAST_CXX20)
+  set(ABSL_INTERNAL_CXX_STD_FEATURE cxx_std_20)
+elseif(ABSL_INTERNAL_AT_LEAST_CXX17)
   set(ABSL_INTERNAL_CXX_STD_FEATURE cxx_std_17)
 else()
   set(ABSL_INTERNAL_CXX_STD_FEATURE cxx_std_14)
@@ -769,7 +809,7 @@ Name: ${_dll}\n\
 Description: Abseil DLL library\n\
 URL: https://abseil.io/\n\
 Version: ${absl_VERSION}\n\
-Libs: -L\${libdir} ${PC_LINKOPTS} $<$<NOT:$<BOOL:${ABSL_CC_LIB_IS_INTERFACE}>>:-l${_dll}>\n\
+Libs: -L\${libdir} $<$<NOT:$<BOOL:${ABSL_CC_LIB_IS_INTERFACE}>>:-l${_dll}> ${PC_LINKOPTS}\n\
 Cflags: -I\${includedir}${PC_CFLAGS}\n")
   INSTALL(FILES "${CMAKE_BINARY_DIR}/lib/pkgconfig/${_dll}.pc"
     DESTINATION "${CMAKE_INSTALL_LIBDIR}/pkgconfig")
@@ -788,8 +828,8 @@ Cflags: -I\${includedir}${PC_CFLAGS}\n")
 
   if(ABSL_PROPAGATE_CXX_STD)
     # Abseil libraries require C++14 as the current minimum standard. When
-    # compiled with C++17 (either because it is the compiler's default or
-    # explicitly requested), then Abseil requires C++17.
+    # compiled with a higher minimum (either because it is the compiler's
+    # default or explicitly requested), then Abseil requires that standard.
     target_compile_features(${_dll} PUBLIC ${ABSL_INTERNAL_CXX_STD_FEATURE})
   endif()
 
@@ -798,4 +838,6 @@ Cflags: -I\${includedir}${PC_CFLAGS}\n")
         LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR}
         ARCHIVE DESTINATION ${CMAKE_INSTALL_LIBDIR}
   )
+
+  add_library(absl::${_dll} ALIAS ${_dll})
 endfunction()

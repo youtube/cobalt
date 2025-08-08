@@ -105,6 +105,7 @@
 #include <cstddef>
 #include <iosfwd>
 #include <string>
+#include <string_view>
 #include <vector>
 
 #include "base/base_export.h"
@@ -116,7 +117,7 @@
 // enabled and disabled independently, to aid testing.  These #defines are
 // here so that the same setting can be used in both the implementation and
 // in the unit test.
-#if BUILDFLAG(IS_WIN) || defined(COMPILER_MSVC)
+#if BUILDFLAG(IS_WIN)
 #define FILE_PATH_USES_DRIVE_LETTERS
 #define FILE_PATH_USES_WIN_SEPARATORS
 #endif  // BUILDFLAG(IS_WIN)
@@ -126,7 +127,7 @@
 // base::StringPrintf("Path is %" PRFilePath ".\n", path.value().c_str());
 #if BUILDFLAG(IS_WIN)
 #define PRFilePath "ls"
-#elif BUILDFLAG(IS_POSIX) || BUILDFLAG(IS_FUCHSIA) || defined(STARBOARD)
+#elif BUILDFLAG(IS_POSIX) || BUILDFLAG(IS_FUCHSIA)
 #define PRFilePath "s"
 #endif  // BUILDFLAG(IS_WIN)
 
@@ -140,7 +141,7 @@
 #define FILE_PATH_LITERAL_INTERNAL(x) L##x
 #define FILE_PATH_LITERAL(x) FILE_PATH_LITERAL_INTERNAL(x)
 
-#elif BUILDFLAG(IS_POSIX) || BUILDFLAG(IS_FUCHSIA) || defined(STARBOARD)
+#elif BUILDFLAG(IS_POSIX) || BUILDFLAG(IS_FUCHSIA)
 #define FILE_PATH_LITERAL(x) x
 #endif  // BUILDFLAG(IS_WIN)
 
@@ -158,7 +159,7 @@ class BASE_EXPORT FilePath {
   // On Windows, for Unicode-aware applications, native pathnames are wchar_t
   // arrays encoded in UTF-16.
   typedef std::wstring StringType;
-#elif BUILDFLAG(IS_POSIX) || BUILDFLAG(IS_FUCHSIA) || defined(STARBOARD)
+#elif BUILDFLAG(IS_POSIX) || BUILDFLAG(IS_FUCHSIA)
   // On most platforms, native pathnames are char arrays, and the encoding
   // may or may not be specified.  On Mac OS X, native pathnames are encoded
   // in UTF-8.
@@ -166,7 +167,7 @@ class BASE_EXPORT FilePath {
 #endif  // BUILDFLAG(IS_WIN)
 
   typedef StringType::value_type CharType;
-  typedef BasicStringPiece<CharType> StringPieceType;
+  typedef std::basic_string_view<CharType> StringPieceType;
 
   // Null-terminated array of separators used to separate components in paths.
   // Each character in this array is a valid separator, but kSeparators[0] is

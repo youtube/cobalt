@@ -14,8 +14,9 @@
 #include "build/build_config.h"
 
 #if DCHECK_IS_ON()
+#include <optional>
+
 #include "base/debug/stack_trace.h"
-#include "third_party/abseil-cpp/absl/types/optional.h"
 #endif
 
 // -----------------------------------------------------------------------------
@@ -130,27 +131,34 @@ class BrowserThemePack;
 class ChromeNSSCryptoModuleDelegate;
 class DesktopNotificationBalloon;
 class FirefoxProfileLock;
+class GaiaConfig;
 class KeyStorageLinux;
 class NativeBackendKWallet;
 class NativeDesktopMediaList;
+class PartnerBookmarksReader;
 class Profile;
 class ProfileImpl;
-class StartupTabProviderImpl;
-class GaiaConfig;
-class WebEngineBrowserMainParts;
 class ScopedAllowBlockingForProfile;
+class StartupTabProviderImpl;
+class WebEngineBrowserMainParts;
 
 namespace base {
+class Environment;
 class File;
 class FilePath;
+namespace sequence_manager::internal {
+class WorkTracker;
+}  // namespace sequence_manager::internal
 }  // namespace base
 
-Profile* GetLastProfileMac();
 bool EnsureBrowserStateDirectoriesCreated(const base::FilePath&,
                                           const base::FilePath&,
                                           const base::FilePath&);
+Profile* GetLastProfileMac();
+bool HasWaylandDisplay(base::Environment* env);
 
 namespace android_webview {
+class AwBrowserContext;
 class AwFormDatabaseService;
 class CookieManager;
 class JsSandboxIsolate;
@@ -158,28 +166,30 @@ class ScopedAllowInitGLBindings;
 class VizCompositorThreadRunnerWebView;
 }  // namespace android_webview
 namespace ash {
-class MojoUtils;
 class BrowserDataBackMigrator;
 class LoginEventRecorder;
 class StartupCustomizationDocument;
 class StartupUtils;
 bool CameraAppUIShouldEnableLocalOverride(const std::string&);
+namespace converters::diagnostics {
+class MojoUtils;
+}
 namespace system {
 class StatisticsProviderImpl;
+class ProcStatFile;
 }  // namespace system
 }  // namespace ash
 namespace audio {
 class OutputDevice;
 }
 namespace blink {
+class AudioDestination;
 class DiskDataAllocator;
-class IdentifiabilityActiveSampler;
 class RTCVideoDecoderAdapter;
 class RTCVideoEncoder;
 class SourceStream;
 class VideoFrameResourceProvider;
 class WebRtcVideoFrameAdapter;
-class LegacyWebRtcVideoFrameAdapter;
 class VideoTrackRecorderImplContextProvider;
 class WorkerThread;
 namespace scheduler {
@@ -207,10 +217,6 @@ bool IsCoreSchedulingAvailable();
 int NumberOfPhysicalCores();
 }  // namespace system
 }  // namespace chromeos
-namespace chrome_cleaner {
-class ResetShortcutsComponent;
-class SystemReportComponent;
-}  // namespace chrome_cleaner
 namespace content {
 class BrowserGpuChannelHostFactory;
 class BrowserMainLoop;
@@ -231,7 +237,6 @@ class RenderProcessHostImpl;
 class RenderProcessHost;
 class RenderWidgetHostViewMac;
 class RendererBlinkPlatformImpl;
-class RTCVideoDecoder;
 class SandboxHostLinux;
 class ScopedAllowWaitForDebugURL;
 class ServiceWorkerContextClient;
@@ -282,9 +287,6 @@ class UnpackedInstaller;
 namespace font_service::internal {
 class MappedFontFile;
 }
-namespace functions {
-class ExecScriptScopedAllowBaseSyncPrimitives;
-}
 namespace gl {
 struct GLImplementationParts;
 namespace init {
@@ -304,6 +306,8 @@ namespace leveldb::port {
 class CondVar;
 }  // namespace leveldb::port
 namespace nearby::chrome {
+class BleV2GattClient;
+class BleV2Medium;
 class ScheduledExecutor;
 class SubmittableExecutor;
 }  // namespace nearby::chrome
@@ -311,9 +315,18 @@ namespace media {
 class AudioInputDevice;
 class AudioOutputDevice;
 class BlockingUrlProtocol;
+template <class WorkerInterface,
+          class WorkerImpl,
+          class Worker,
+          class WorkerStatus,
+          WorkerStatus StatusNotOk,
+          WorkerStatus StatusOk,
+          WorkerStatus StatusWork>
+class CodecWorkerImpl;
 class FileVideoCaptureDeviceFactory;
 class MojoVideoEncodeAccelerator;
 class PaintCanvasVideoRenderer;
+class V4L2DevicePoller;  // TODO(crbug.com/41486289): remove this.
 }  // namespace media
 namespace memory_instrumentation {
 class OSMetrics;
@@ -341,16 +354,54 @@ class MojoTrap;
 }
 }  // namespace core
 }  // namespace mojo
+namespace net {
+class GSSAPISharedLibrary;
+class MultiThreadedCertVerifierScopedAllowBaseSyncPrimitives;
+class MultiThreadedProxyResolverScopedAllowJoinOnIO;
+class NetworkChangeNotifierApple;
+class NetworkConfigWatcherAppleThread;
+class ProxyConfigServiceWin;
+class ScopedAllowBlockingForSettingGetter;
+namespace internal {
+class AddressTrackerLinux;
+class PemFileCertStore;
+}
+}  // namespace net
 namespace printing {
 class LocalPrinterHandlerDefault;
 #if BUILDFLAG(IS_MAC)
 class PrintBackendServiceImpl;
 #endif
 class PrintBackendServiceManager;
+class PrintPreviewUIUntrusted;
 class PrinterQuery;
 }  // namespace printing
+namespace proxy_resolver {
+class ScopedAllowThreadJoinForProxyResolverV8Tracing;
+}
+namespace remote_cocoa {
+class DroppedScreenShotCopierMac;
+class SelectFileDialogBridge;
+}  // namespace remote_cocoa
+namespace remoting {
+class AutoThread;
+class ScopedAllowBlockingForCrashReporting;
+class ScopedBypassIOThreadRestrictions;
+namespace protocol {
+class ScopedAllowSyncPrimitivesForWebRtcDataStreamAdapter;
+class ScopedAllowSyncPrimitivesForWebRtcTransport;
+class ScopedAllowSyncPrimitivesForWebRtcVideoStream;
+class ScopedAllowThreadJoinForWebRtcTransport;
+}  // namespace protocol
+}  // namespace remoting
 namespace rlz_lib {
 class FinancialPing;
+}
+namespace service_manager {
+class ServiceProcessLauncher;
+}
+namespace shell_integration_linux {
+class LaunchXdgUtilityScopedAllowBaseSyncPrimitives;
 }
 namespace storage {
 class ObfuscatedFileUtil;
@@ -359,103 +410,53 @@ namespace syncer {
 class GetLocalChangesRequest;
 class HttpBridge;
 }  // namespace syncer
+namespace tracing {
+class FuchsiaPerfettoProducerConnector;
+}
 namespace ui {
 class DrmThreadProxy;
 class DrmDisplayHostManager;
-class SelectFileDialogLinux;
 class ScopedAllowBlockingForGbmSurface;
+class SelectFileDialogLinux;
+class WindowResizeHelperMac;
 }  // namespace ui
+namespace updater {
+class SystemctlLauncherScopedAllowBaseSyncPrimitives;
+}
+namespace viz {
+class HostGpuMemoryBufferManager;
+class ClientGpuMemoryBufferManager;
+}  // namespace viz
+namespace vr {
+class VrShell;
+}
+namespace web {
+class WebMainLoop;
+}  // namespace web
 namespace weblayer {
 class BrowserContextImpl;
 class ContentBrowserClientImpl;
 class ProfileImpl;
 class WebLayerPathProvider;
 }  // namespace weblayer
-namespace net {
-class GSSAPISharedLibrary;
-class MultiThreadedCertVerifierScopedAllowBaseSyncPrimitives;
-class MultiThreadedProxyResolverScopedAllowJoinOnIO;
-class NetworkChangeNotifierMac;
-class NetworkConfigWatcherMacThread;
-class ProxyConfigServiceWin;
-class ScopedAllowBlockingForSettingGetter;
-namespace internal {
-class AddressTrackerLinux;
-}
-}  // namespace net
-
-namespace proxy_resolver {
-class ScopedAllowThreadJoinForProxyResolverV8Tracing;
-}
-
-namespace remote_cocoa {
-class DroppedScreenShotCopierMac;
-class SelectFileDialogBridge;
-}  // namespace remote_cocoa
-
-namespace remoting {
-class AutoThread;
-class ScopedBypassIOThreadRestrictions;
-namespace protocol {
-class ScopedAllowSyncPrimitivesForWebRtcDataStreamAdapter;
-class ScopedAllowSyncPrimitivesForWebRtcTransport;
-class ScopedAllowThreadJoinForWebRtcTransport;
-}  // namespace protocol
-}  // namespace remoting
-
-namespace service_manager {
-class ServiceProcessLauncher;
-}
-
-namespace shell_integration_linux {
-class LaunchXdgUtilityScopedAllowBaseSyncPrimitives;
-}
-
-namespace tracing {
-class FuchsiaPerfettoProducerConnector;
-}
-
-namespace ui {
-class WindowResizeHelperMac;
-}
-
-namespace updater {
-class SystemctlLauncherScopedAllowBaseSyncPrimitives;
-}
-
-namespace viz {
-class HostGpuMemoryBufferManager;
-class ClientGpuMemoryBufferManager;
-}  // namespace viz
-
-namespace vr {
-class VrShell;
-}
-
-namespace web {
-class WebMainLoop;
-}  // namespace web
-
-namespace webrtc {
-class DesktopConfigurationMonitor;
-}
+// NOTE: Please do not append entries here. Put them in the list above and keep
+// the list sorted.
 
 namespace base {
-class Environment;
-}
-
-bool HasWaylandDisplay(base::Environment* env);
-
-namespace base {
-
-namespace sequence_manager::internal {
-class TaskQueueImpl;
-}  // namespace sequence_manager::internal
 
 namespace android {
 class JavaHandlerThread;
+class PmfUtils;
 class ScopedAllowBlockingForImportantFileWriter;
 }  // namespace android
+
+namespace apple::internal {
+base::FilePath GetExecutablePath();
+}
+
+namespace debug {
+class StackTrace;
+}
 
 namespace internal {
 class GetAppOutputScopedAllowBaseSyncPrimitives;
@@ -464,16 +465,17 @@ class TaskTracker;
 bool ReadProcFile(const FilePath& file, std::string* buffer);
 }  // namespace internal
 
+namespace sequence_manager::internal {
+class TaskQueueImpl;
+}  // namespace sequence_manager::internal
+
 namespace subtle {
 class PlatformSharedMemoryRegion;
 }
 
-namespace debug {
-class StackTrace;
-}
-
 namespace win {
 class OSInfo;
+class ObjectWatcher;
 class ScopedAllowBlockingForUserAccountControl;
 }  // namespace win
 
@@ -489,8 +491,6 @@ class SimpleThread;
 class StackSamplingProfiler;
 class TestCustomDisallow;
 class Thread;
-
-void GetNSExecutablePath(base::FilePath* path);
 
 #if DCHECK_IS_ON()
 // NOT_TAIL_CALLED if dcheck-is-on so it's always evident who irrevocably
@@ -515,7 +515,7 @@ class BooleanWithStack {
 
  private:
   bool value_ = false;
-  absl::optional<debug::StackTrace> stack_;
+  std::optional<debug::StackTrace> stack_;
 };
 
 #else
@@ -575,6 +575,7 @@ class BASE_EXPORT [[maybe_unused, nodiscard]] ScopedAllowBlocking {
   // This can only be instantiated by friends. Use ScopedAllowBlockingForTesting
   // in unit tests to avoid the friend requirement.
   // Sorted by class name (with namespace), #if blocks at the bottom.
+  friend class ::BrowserProcessImpl;
   friend class ::BrowserThemePack;  // http://crbug.com/80206
   friend class ::DesktopNotificationBalloon;
   friend class ::FirefoxProfileLock;
@@ -583,12 +584,14 @@ class BASE_EXPORT [[maybe_unused, nodiscard]] ScopedAllowBlocking {
   friend class ::ScopedAllowBlockingForProfile;
   friend class ::StartupTabProviderImpl;
   friend class ::WebEngineBrowserMainParts;
+  friend class android_webview::AwBrowserContext;
   friend class android_webview::ScopedAllowInitGLBindings;
   friend class ash::BrowserDataBackMigrator;
   friend class ash::LoginEventRecorder;
-  friend class ash::MojoUtils;                     // http://crbug.com/1055467
   friend class ash::StartupCustomizationDocument;  // http://crosbug.com/11103
   friend class ash::StartupUtils;
+  friend class ash::converters::diagnostics::MojoUtils;  // http://b/322741627
+  friend class ash::system::ProcStatFile;
   friend class base::AdjustOOMScoreHelper;
   friend class base::ChromeOSVersionInfo;
   friend class base::Process;
@@ -596,6 +599,7 @@ class BASE_EXPORT [[maybe_unused, nodiscard]] ScopedAllowBlocking {
   friend class base::ScopedAllowBlockingForProcessMetrics;
   friend class base::StackSamplingProfiler;
   friend class base::android::ScopedAllowBlockingForImportantFileWriter;
+  friend class base::android::PmfUtils;
   friend class base::debug::StackTrace;
   friend class base::subtle::PlatformSharedMemoryRegion;
   friend class base::win::ScopedAllowBlockingForUserAccountControl;
@@ -632,14 +636,17 @@ class BASE_EXPORT [[maybe_unused, nodiscard]] ScopedAllowBlocking {
   friend class net::ProxyConfigServiceWin;  // http://crbug.com/61453
   friend class net::
       ScopedAllowBlockingForSettingGetter;  // http://crbug.com/69057
+  friend class net::internal::PemFileCertStore;
   friend class printing::LocalPrinterHandlerDefault;
   friend class printing::PrintBackendServiceManager;
+  friend class printing::PrintPreviewUIUntrusted;
   friend class printing::PrinterQuery;
   friend class remote_cocoa::
       DroppedScreenShotCopierMac;  // https://crbug.com/1148078
   friend class remote_cocoa::SelectFileDialogBridge;
   friend class remoting::
       ScopedBypassIOThreadRestrictions;  // http://crbug.com/1144161
+  friend class remoting::ScopedAllowBlockingForCrashReporting;
   friend class ui::DrmDisplayHostManager;
   friend class ui::ScopedAllowBlockingForGbmSurface;
   friend class ui::SelectFileDialogLinux;
@@ -663,7 +670,7 @@ class BASE_EXPORT [[maybe_unused, nodiscard]] ScopedAllowBlocking {
   friend bool ::HasWaylandDisplay(
       base::Environment* env);  // http://crbug.com/1246928
   friend bool ash::CameraAppUIShouldEnableLocalOverride(const std::string&);
-  friend void base::GetNSExecutablePath(base::FilePath*);
+  friend base::FilePath base::apple::internal::GetExecutablePath();
   friend bool base::internal::ReadProcFile(const FilePath& file,
                                            std::string* buffer);
   friend bool chrome::PathProvider(int,
@@ -741,19 +748,17 @@ class BASE_EXPORT [[maybe_unused, nodiscard]] ScopedAllowBaseSyncPrimitives {
   // Allowed usage:
   // Sorted by class name (with namespace).
   friend class ::ChromeNSSCryptoModuleDelegate;
+  friend class ::PartnerBookmarksReader;
   friend class ::tracing::FuchsiaPerfettoProducerConnector;
   friend class android_webview::JsSandboxIsolate;
   friend class base::SimpleThread;
   friend class base::internal::GetAppOutputScopedAllowBaseSyncPrimitives;
-  friend class blink::IdentifiabilityActiveSampler;
   friend class blink::SourceStream;
   friend class blink::VideoTrackRecorderImplContextProvider;
   friend class blink::WorkerThread;
   friend class blink::scheduler::NonMainThreadImpl;
   friend class cc::CategorizedWorkerPoolImpl;
   friend class cc::CategorizedWorkerPoolJob;
-  friend class chrome_cleaner::ResetShortcutsComponent;
-  friend class chrome_cleaner::SystemReportComponent;
   friend class content::BrowserMainLoop;
   friend class content::BrowserProcessIOThread;
   friend class content::DWriteFontCollectionProxy;
@@ -761,14 +766,23 @@ class BASE_EXPORT [[maybe_unused, nodiscard]] ScopedAllowBaseSyncPrimitives {
   friend class content::ServiceWorkerContextClient;
   friend class device::UsbContext;
   friend class enterprise_connectors::LinuxKeyRotationCommand;
-  friend class functions::ExecScriptScopedAllowBaseSyncPrimitives;
   friend class history_report::HistoryReportJniBridge;
   friend class internal::TaskTracker;
   friend class leveldb::port::CondVar;
   friend class nearby::chrome::ScheduledExecutor;
   friend class nearby::chrome::SubmittableExecutor;
+  friend class nearby::chrome::BleV2GattClient;
+  friend class nearby::chrome::BleV2Medium;
   friend class media::AudioOutputDevice;
   friend class media::BlockingUrlProtocol;
+  template <class WorkerInterface,
+            class WorkerImpl,
+            class Worker,
+            class WorkerStatus,
+            WorkerStatus StatusNotOk,
+            WorkerStatus StatusOk,
+            WorkerStatus StatusWork>
+  friend class media::CodecWorkerImpl;
   friend class media::MojoVideoEncodeAccelerator;
   friend class mojo::core::ScopedIPCSupport;
   friend class net::MultiThreadedCertVerifierScopedAllowBaseSyncPrimitives;
@@ -779,14 +793,10 @@ class BASE_EXPORT [[maybe_unused, nodiscard]] ScopedAllowBaseSyncPrimitives {
   friend class syncer::HttpBridge;
   friend class syncer::GetLocalChangesRequest;
   friend class updater::SystemctlLauncherScopedAllowBaseSyncPrimitives;
-  friend class viz::ClientGpuMemoryBufferManager;
-  friend class webrtc::DesktopConfigurationMonitor;
 
   // Usage that should be fixed:
   // Sorted by class name (with namespace).
   friend class ::NativeBackendKWallet;  // http://crbug.com/125331
-  friend class ::ash::system::
-      StatisticsProviderImpl;                      // http://crbug.com/125385
   friend class blink::VideoFrameResourceProvider;  // http://crbug.com/878070
 
   ScopedAllowBaseSyncPrimitives() DEFAULT_IF_DCHECK_IS_OFF;
@@ -832,7 +842,9 @@ class BASE_EXPORT
   friend class base::StackSamplingProfiler;
   friend class base::internal::JobTaskSource;
   friend class base::sequence_manager::internal::TaskQueueImpl;
-  friend class blink::LegacyWebRtcVideoFrameAdapter;
+  friend class base::sequence_manager::internal::WorkTracker;
+  friend class base::win::ObjectWatcher;
+  friend class blink::AudioDestination;
   friend class blink::RTCVideoDecoderAdapter;
   friend class blink::RTCVideoEncoder;
   friend class blink::WebRtcVideoFrameAdapter;
@@ -844,7 +856,6 @@ class BASE_EXPORT
   friend class content::EmergencyTraceFinalisationCoordinator;
   friend class content::InProcessUtilityThread;
   friend class content::RenderProcessHost;
-  friend class content::RTCVideoDecoder;
   friend class content::SandboxHostLinux;
   friend class content::ScopedAllowWaitForDebugURL;
   friend class content::SynchronousCompositor;
@@ -853,14 +864,18 @@ class BASE_EXPORT
   friend class media::AudioInputDevice;
   friend class media::AudioOutputDevice;
   friend class media::PaintCanvasVideoRenderer;
+  friend class media::V4L2DevicePoller;  // TODO(crbug.com/41486289): remove
+                                         // this.
   friend class mojo::SyncCallRestrictions;
   friend class mojo::core::ipcz_driver::MojoTrap;
-  friend class net::NetworkConfigWatcherMacThread;
+  friend class net::NetworkConfigWatcherAppleThread;
   friend class ui::DrmThreadProxy;
+  friend class viz::ClientGpuMemoryBufferManager;
   friend class viz::HostGpuMemoryBufferManager;
   friend class vr::VrShell;
 
   // Usage that should be fixed:
+  friend class ::ash::system::StatisticsProviderImpl;  // http://b/261818124
   friend class ::chromeos::BlockingMethodCaller;  // http://crbug.com/125360
   friend class base::Thread;                      // http://crbug.com/918039
   friend class cc::CompletionEvent;               // http://crbug.com/902653
@@ -875,7 +890,7 @@ class BASE_EXPORT
   friend class midi::TaskService;                   // https://crbug.com/796830
   friend class net::
       MultiThreadedProxyResolverScopedAllowJoinOnIO;  // http://crbug.com/69710
-  friend class net::NetworkChangeNotifierMac;         // http://crbug.com/125097
+  friend class net::NetworkChangeNotifierApple;       // http://crbug.com/125097
   friend class net::internal::AddressTrackerLinux;    // http://crbug.com/125097
   friend class proxy_resolver::
       ScopedAllowThreadJoinForProxyResolverV8Tracing;  // http://crbug.com/69710
@@ -884,6 +899,8 @@ class BASE_EXPORT
       ScopedAllowSyncPrimitivesForWebRtcDataStreamAdapter;  // http://b/233844893
   friend class remoting::protocol::
       ScopedAllowSyncPrimitivesForWebRtcTransport;  // http://crbug.com/1198501
+  friend class remoting::protocol::
+      ScopedAllowSyncPrimitivesForWebRtcVideoStream;  // http://b/304681143
   friend class remoting::protocol::
       ScopedAllowThreadJoinForWebRtcTransport;  // http://crbug.com/660081
   // Not used in production yet, https://crbug.com/844078.
@@ -965,14 +982,6 @@ INLINE_OR_NOT_TAIL_CALLED void AssertSingletonAllowed()
 
 // Disallow using singleton on the current thread.
 INLINE_OR_NOT_TAIL_CALLED void DisallowSingleton() EMPTY_BODY_IF_DCHECK_IS_OFF;
-
-#if defined(STARBOARD)
-#if DCHECK_IS_ON()
-INLINE_OR_NOT_TAIL_CALLED bool GetSingletonAllowed() EMPTY_BODY_IF_DCHECK_IS_OFF;
-#else
-INLINE_OR_NOT_TAIL_CALLED bool GetSingletonAllowed() { return true; }
-#endif
-#endif
 
 // Disallows singletons within its scope.
 class BASE_EXPORT [[maybe_unused, nodiscard]] ScopedDisallowSingleton {

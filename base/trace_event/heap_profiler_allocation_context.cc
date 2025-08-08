@@ -2,11 +2,17 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#ifdef UNSAFE_BUFFERS_BUILD
+// TODO(crbug.com/40284755): Remove this and spanify to fix the errors.
+#pragma allow_unsafe_buffers
+#endif
+
 #include "base/trace_event/heap_profiler_allocation_context.h"
 
 #include <algorithm>
 #include <cstring>
 
+#include "base/containers/span.h"
 #include "base/hash/hash.h"
 
 namespace base {
@@ -67,7 +73,8 @@ size_t hash<Backtrace>::operator()(const Backtrace& backtrace) const {
   for (size_t i = 0; i != backtrace.frame_count; ++i) {
     values[i] = backtrace.frames[i].value;
   }
-  return base::PersistentHash(values, backtrace.frame_count * sizeof(*values));
+  auto values_span = base::make_span(values).first(backtrace.frame_count);
+  return base::PersistentHash(base::as_bytes(values_span));
 }
 
 size_t hash<AllocationContext>::operator()(const AllocationContext& ctx) const {

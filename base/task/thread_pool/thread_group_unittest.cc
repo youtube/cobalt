@@ -122,7 +122,9 @@ class ThreadGroupTestBase : public testing::Test, public ThreadGroup::Delegate {
         static_cast<ThreadGroupImpl*>(thread_group_.get());
     thread_group_impl->Start(kMaxTasks, kMaxBestEffortTasks, TimeDelta::Max(),
                              service_thread_.task_runner(), nullptr,
-                             worker_environment);
+                             worker_environment,
+                             /*synchronous_thread_start_for_testing=*/false,
+                             /*may_block_threshold=*/{});
   }
 
   void DestroyThreadGroup() {
@@ -388,9 +390,9 @@ TEST_F(ThreadGroupTest, UpdatePriorityBestEffortToUserBlocking) {
 
   CheckedLock num_tasks_running_lock;
 
-  std::unique_ptr<ConditionVariable> num_tasks_running_cv =
+  ConditionVariable num_tasks_running_cv =
       num_tasks_running_lock.CreateConditionVariable();
-  num_tasks_running_cv->declare_only_used_while_idle();
+  num_tasks_running_cv.declare_only_used_while_idle();
 
   size_t num_tasks_running = 0;
 
@@ -408,12 +410,12 @@ TEST_F(ThreadGroupTest, UpdatePriorityBestEffortToUserBlocking) {
             CheckedAutoLock auto_lock(num_tasks_running_lock);
             ++num_tasks_running;
           }
-          num_tasks_running_cv->Broadcast();
+          num_tasks_running_cv.Broadcast();
 
           // Wait until all posted tasks are running.
           CheckedAutoLock auto_lock(num_tasks_running_lock);
           while (num_tasks_running < kMaxTasks)
-            num_tasks_running_cv->Wait();
+            num_tasks_running_cv.Wait();
         }));
   }
 
@@ -421,7 +423,7 @@ TEST_F(ThreadGroupTest, UpdatePriorityBestEffortToUserBlocking) {
   {
     CheckedAutoLock auto_lock(num_tasks_running_lock);
     while (num_tasks_running < kMaxBestEffortTasks)
-      num_tasks_running_cv->Wait();
+      num_tasks_running_cv.Wait();
   }
 
   // Update the priority of all TaskRunners to USER_BLOCKING.
@@ -435,7 +437,7 @@ TEST_F(ThreadGroupTest, UpdatePriorityBestEffortToUserBlocking) {
   {
     CheckedAutoLock auto_lock(num_tasks_running_lock);
     while (num_tasks_running < kMaxTasks)
-      num_tasks_running_cv->Wait();
+      num_tasks_running_cv.Wait();
   }
 
   task_tracker_.FlushForTesting();
@@ -542,7 +544,7 @@ TEST_F(ThreadGroupTest, ScheduleJobTaskSource) {
       task_tracker_.RegisterTaskSource(std::move(task_source));
   EXPECT_TRUE(registered_task_source);
   thread_group_->PushTaskSourceAndWakeUpWorkers(
-      TransactionWithRegisteredTaskSource::FromTaskSource(
+      RegisteredTaskSourceAndTransaction::FromTaskSource(
           std::move(registered_task_source)));
 
   threads_running.Wait();
@@ -570,13 +572,13 @@ TEST_F(ThreadGroupTest, ScheduleJobTaskSourceMultipleTime) {
       FROM_HERE, {}, &mock_pooled_task_runner_delegate_);
 
   thread_group_->PushTaskSourceAndWakeUpWorkers(
-      TransactionWithRegisteredTaskSource::FromTaskSource(
+      RegisteredTaskSourceAndTransaction::FromTaskSource(
           task_tracker_.RegisterTaskSource(task_source)));
 
   // Enqueuing the task source again shouldn't affect the number of time it's
   // run.
   thread_group_->PushTaskSourceAndWakeUpWorkers(
-      TransactionWithRegisteredTaskSource::FromTaskSource(
+      RegisteredTaskSourceAndTransaction::FromTaskSource(
           task_tracker_.RegisterTaskSource(task_source)));
 
   thread_running.Wait();
@@ -584,7 +586,7 @@ TEST_F(ThreadGroupTest, ScheduleJobTaskSourceMultipleTime) {
 
   // Once the worker task ran, enqueuing the task source has no effect.
   thread_group_->PushTaskSourceAndWakeUpWorkers(
-      TransactionWithRegisteredTaskSource::FromTaskSource(
+      RegisteredTaskSourceAndTransaction::FromTaskSource(
           task_tracker_.RegisterTaskSource(task_source)));
 
   // Flush the task tracker to be sure that no local variables are accessed by
@@ -598,7 +600,7 @@ TEST_F(ThreadGroupTest, CancelJobTaskSource) {
   StartThreadGroup();
 
   CheckedLock tasks_running_lock;
-  std::unique_ptr<ConditionVariable> tasks_running_cv =
+  ConditionVariable tasks_running_cv =
       tasks_running_lock.CreateConditionVariable();
   bool tasks_running = false;
 
@@ -609,7 +611,7 @@ TEST_F(ThreadGroupTest, CancelJobTaskSource) {
           CheckedAutoLock auto_lock(tasks_running_lock);
           tasks_running = true;
         }
-        tasks_running_cv->Signal();
+        tasks_running_cv.Signal();
 
         while (!delegate->ShouldYield()) {
         }
@@ -625,7 +627,7 @@ TEST_F(ThreadGroupTest, CancelJobTaskSource) {
   {
     CheckedAutoLock auto_lock(tasks_running_lock);
     while (!tasks_running)
-      tasks_running_cv->Wait();
+      tasks_running_cv.Wait();
   }
 
   // Cancels pending tasks and unblocks running ones.
@@ -661,7 +663,7 @@ TEST_F(ThreadGroupTest, JobTaskSourceConcurrencyIncrease) {
   auto registered_task_source = task_tracker_.RegisterTaskSource(task_source);
   EXPECT_TRUE(registered_task_source);
   thread_group_->PushTaskSourceAndWakeUpWorkers(
-      TransactionWithRegisteredTaskSource::FromTaskSource(
+      RegisteredTaskSourceAndTransaction::FromTaskSource(
           std::move(registered_task_source)));
 
   threads_running_a.Wait();
@@ -701,7 +703,7 @@ TEST_F(ThreadGroupTest, ScheduleEmptyJobTaskSource) {
       task_tracker_.RegisterTaskSource(std::move(task_source));
   EXPECT_TRUE(registered_task_source);
   thread_group_->PushTaskSourceAndWakeUpWorkers(
-      TransactionWithRegisteredTaskSource::FromTaskSource(
+      RegisteredTaskSourceAndTransaction::FromTaskSource(
           std::move(registered_task_source)));
 
   // The worker task will never run.
@@ -800,9 +802,9 @@ TEST_F(ThreadGroupTest, JobTaskSourceUpdatePriority) {
 
   CheckedLock num_tasks_running_lock;
 
-  std::unique_ptr<ConditionVariable> num_tasks_running_cv =
+  ConditionVariable num_tasks_running_cv =
       num_tasks_running_lock.CreateConditionVariable();
-  num_tasks_running_cv->declare_only_used_while_idle();
+  num_tasks_running_cv.declare_only_used_while_idle();
 
   size_t num_tasks_running = 0;
 
@@ -813,12 +815,12 @@ TEST_F(ThreadGroupTest, JobTaskSourceUpdatePriority) {
           CheckedAutoLock auto_lock(num_tasks_running_lock);
           ++num_tasks_running;
         }
-        num_tasks_running_cv->Broadcast();
+        num_tasks_running_cv.Broadcast();
 
         // Wait until all posted tasks are running.
         CheckedAutoLock auto_lock(num_tasks_running_lock);
         while (num_tasks_running < kMaxTasks)
-          num_tasks_running_cv->Wait();
+          num_tasks_running_cv.Wait();
       }),
       /* num_tasks_to_run */ kMaxTasks);
   scoped_refptr<JobTaskSource> task_source =
@@ -828,14 +830,14 @@ TEST_F(ThreadGroupTest, JobTaskSourceUpdatePriority) {
   auto registered_task_source = task_tracker_.RegisterTaskSource(task_source);
   EXPECT_TRUE(registered_task_source);
   thread_group_->PushTaskSourceAndWakeUpWorkers(
-      TransactionWithRegisteredTaskSource::FromTaskSource(
+      RegisteredTaskSourceAndTransaction::FromTaskSource(
           std::move(registered_task_source)));
 
   // Wait until |kMaxBestEffort| tasks start running.
   {
     CheckedAutoLock auto_lock(num_tasks_running_lock);
     while (num_tasks_running < kMaxBestEffortTasks)
-      num_tasks_running_cv->Wait();
+      num_tasks_running_cv.Wait();
   }
 
   // Update the priority to USER_BLOCKING.
@@ -850,7 +852,7 @@ TEST_F(ThreadGroupTest, JobTaskSourceUpdatePriority) {
   {
     CheckedAutoLock auto_lock(num_tasks_running_lock);
     while (num_tasks_running < kMaxTasks)
-      num_tasks_running_cv->Wait();
+      num_tasks_running_cv.Wait();
   }
 
   // Flush the task tracker to be sure that no local variables are accessed by

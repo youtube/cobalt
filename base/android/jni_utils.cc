@@ -9,8 +9,13 @@
 #include "base/containers/flat_map.h"
 #include "base/no_destructor.h"
 #include "base/synchronization/lock.h"
+#include "build/robolectric_buildflags.h"
 
-#include "base/base_jni_headers/JNIUtils_jni.h"
+#if BUILDFLAG(IS_ROBOLECTRIC)
+#include "base/base_robolectric_jni/JNIUtils_jni.h"  // nogncheck
+#else
+#include "base/base_jni/JNIUtils_jni.h"
+#endif
 
 namespace base {
 namespace android {

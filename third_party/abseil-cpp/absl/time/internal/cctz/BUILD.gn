@@ -52,10 +52,4 @@ absl_source_set("time_zone") {
       "//third_party/fuchsia-sdk/sdk/pkg/zx",
     ]
   }
-  if (is_starboard) {
-    deps += [
-      "//starboard/common",
-      "//starboard:starboard_group"
-    ]
-  }
 }

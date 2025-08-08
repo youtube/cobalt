@@ -1,7 +1,0 @@
-struct Bad { sampler x; };
-uniform Bad b;
-void main() {}
-
-/*%%*
-opaque type 'sampler' is not permitted in a struct
-*%%*/

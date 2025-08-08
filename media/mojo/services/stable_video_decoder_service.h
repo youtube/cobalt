@@ -53,6 +53,8 @@ class MEDIA_MOJO_EXPORT StableVideoDecoderService
       public mojom::MediaLog {
  public:
   StableVideoDecoderService(
+      mojo::PendingRemote<stable::mojom::StableVideoDecoderTracker>
+          tracker_remote,
       std::unique_ptr<mojom::VideoDecoder> dst_video_decoder,
       MojoCdmServiceContext* cdm_service_context);
   StableVideoDecoderService(const StableVideoDecoderService&) = delete;
@@ -86,7 +88,7 @@ class MEDIA_MOJO_EXPORT StableVideoDecoderService
   void OnVideoFrameDecoded(
       const scoped_refptr<VideoFrame>& frame,
       bool can_read_without_stalling,
-      const absl::optional<base::UnguessableToken>& release_token) final;
+      const std::optional<base::UnguessableToken>& release_token) final;
   void OnWaiting(WaitingReason reason) final;
   void RequestOverlayInfo(bool restart_for_transitions) final;
 
@@ -94,6 +96,16 @@ class MEDIA_MOJO_EXPORT StableVideoDecoderService
   void AddLogRecord(const MediaLogRecord& event) final;
 
  private:
+  void OnInitializeDone(InitializeCallback init_cb,
+                        bool needs_transcryption,
+                        const DecoderStatus& status,
+                        bool needs_bitstream_conversion,
+                        int32_t max_decode_requests,
+                        VideoDecoderType decoder_type);
+
+  mojo::Remote<stable::mojom::StableVideoDecoderTracker> tracker_remote_
+      GUARDED_BY_CONTEXT(sequence_checker_);
+
   // Incoming calls from the |dst_video_decoder_| to
   // |video_decoder_client_receiver_| are forwarded to
   // |stable_video_decoder_client_remote_|.
@@ -142,7 +154,7 @@ class MEDIA_MOJO_EXPORT StableVideoDecoderService
       GUARDED_BY_CONTEXT(sequence_checker_);
 #endif  // BUILDFLAG(IS_CHROMEOS_ASH)
 
-  absl::optional<base::UnguessableToken> cdm_id_
+  std::optional<base::UnguessableToken> cdm_id_
       GUARDED_BY_CONTEXT(sequence_checker_);
 
   SEQUENCE_CHECKER(sequence_checker_);

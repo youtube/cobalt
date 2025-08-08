@@ -7,6 +7,7 @@
 #include <math.h>
 
 #include <algorithm>
+#include <optional>
 #include <set>
 
 #include "base/functional/bind.h"
@@ -21,14 +22,13 @@
 #include "base/trace_event/trace_config.h"
 #include "base/trace_event/trace_log.h"
 #include "base/values.h"
-#include "third_party/abseil-cpp/absl/types/optional.h"
 
 namespace {
 void OnTraceDataCollected(base::OnceClosure quit_closure,
                           base::trace_event::TraceResultBuffer* buffer,
                           const scoped_refptr<base::RefCountedString>& json,
                           bool has_more_events) {
-  buffer->AddFragment(json->data());
+  buffer->AddFragment(json->as_string());
   if (!has_more_events)
     std::move(quit_closure).Run();
 }
@@ -70,24 +70,26 @@ bool TraceEvent::SetFromJSON(const base::Value* event_value) {
                      phase == TRACE_EVENT_PHASE_CREATE_OBJECT ||
                      phase == TRACE_EVENT_PHASE_DELETE_OBJECT ||
                      phase == TRACE_EVENT_PHASE_SNAPSHOT_OBJECT ||
-                     phase == TRACE_EVENT_PHASE_ASYNC_END);
+                     phase == TRACE_EVENT_PHASE_ASYNC_END ||
+                     phase == TRACE_EVENT_PHASE_NESTABLE_ASYNC_BEGIN ||
+                     phase == TRACE_EVENT_PHASE_NESTABLE_ASYNC_END);
 
   if (require_origin) {
-    absl::optional<int> maybe_process_id = event_dict.FindInt("pid");
+    std::optional<int> maybe_process_id = event_dict.FindInt("pid");
     if (!maybe_process_id) {
       LOG(ERROR) << "pid is missing from TraceEvent JSON";
       return false;
     }
     thread.process_id = *maybe_process_id;
 
-    absl::optional<int> maybe_thread_id = event_dict.FindInt("tid");
+    std::optional<int> maybe_thread_id = event_dict.FindInt("tid");
     if (!maybe_thread_id) {
       LOG(ERROR) << "tid is missing from TraceEvent JSON";
       return false;
     }
     thread.thread_id = *maybe_thread_id;
 
-    absl::optional<double> maybe_timestamp = event_dict.FindDouble("ts");
+    std::optional<double> maybe_timestamp = event_dict.FindDouble("ts");
     if (!maybe_timestamp) {
       LOG(ERROR) << "ts is missing from TraceEvent JSON";
       return false;
@@ -95,7 +97,7 @@ bool TraceEvent::SetFromJSON(const base::Value* event_value) {
     timestamp = *maybe_timestamp;
   }
   if (may_have_duration) {
-    absl::optional<double> maybe_duration = event_dict.FindDouble("dur");
+    std::optional<double> maybe_duration = event_dict.FindDouble("dur");
     if (maybe_duration)
       duration = *maybe_duration;
   }
@@ -134,11 +136,11 @@ bool TraceEvent::SetFromJSON(const base::Value* event_value) {
       id = *maybe_id;
   }
 
-  absl::optional<double> maybe_thread_duration = event_dict.FindDouble("tdur");
+  std::optional<double> maybe_thread_duration = event_dict.FindDouble("tdur");
   if (maybe_thread_duration) {
     thread_duration = *maybe_thread_duration;
   }
-  absl::optional<double> maybe_thread_timestamp = event_dict.FindDouble("tts");
+  std::optional<double> maybe_thread_timestamp = event_dict.FindDouble("tts");
   if (maybe_thread_timestamp) {
     thread_timestamp = *maybe_thread_timestamp;
   }
@@ -150,11 +152,11 @@ bool TraceEvent::SetFromJSON(const base::Value* event_value) {
   if (maybe_bind_id) {
     bind_id = *maybe_bind_id;
   }
-  absl::optional<bool> maybe_flow_out = event_dict.FindBool("flow_out");
+  std::optional<bool> maybe_flow_out = event_dict.FindBool("flow_out");
   if (maybe_flow_out) {
     flow_out = *maybe_flow_out;
   }
-  absl::optional<bool> maybe_flow_in = event_dict.FindBool("flow_in");
+  std::optional<bool> maybe_flow_in = event_dict.FindBool("flow_in");
   if (maybe_flow_in) {
     flow_in = *maybe_flow_in;
   }
@@ -171,7 +173,7 @@ bool TraceEvent::SetFromJSON(const base::Value* event_value) {
   }
 
   // For each argument, copy the type and create a trace_analyzer::TraceValue.
-  // TODO(crbug.com/1303874): Add BINARY and LIST arg types if needed.
+  // TODO(crbug.com/40826205): Add BINARY and LIST arg types if needed.
   if (maybe_args) {
     for (auto pair : *maybe_args) {
       switch (pair.second.type()) {
@@ -386,7 +388,7 @@ bool Query::Evaluate(const TraceEvent& event) const {
     case OP_NOT:
       return !left().Evaluate(event);
     default:
-      NOTREACHED();
+      NOTREACHED_IN_MIGRATION();
       return false;
   }
 }
@@ -415,7 +417,7 @@ bool Query::CompareAsDouble(const TraceEvent& event, bool* result) const {
       *result = (lhs >= rhs);
       return true;
     default:
-      NOTREACHED();
+      NOTREACHED_IN_MIGRATION();
       return false;
   }
 }
@@ -454,7 +456,7 @@ bool Query::CompareAsString(const TraceEvent& event, bool* result) const {
       *result = (lhs >= rhs);
       return true;
     default:
-      NOTREACHED();
+      NOTREACHED_IN_MIGRATION();
       return false;
   }
 }
@@ -492,7 +494,7 @@ bool Query::EvaluateArithmeticOperator(const TraceEvent& event,
       *num = -lhs;
       return true;
     default:
-      NOTREACHED();
+      NOTREACHED_IN_MIGRATION();
       return false;
   }
 }
@@ -772,7 +774,7 @@ size_t FindMatchingEvents(const std::vector<TraceEvent>& events,
 
 bool ParseEventsFromJson(const std::string& json,
                          std::vector<TraceEvent>* output) {
-  absl::optional<base::Value> root = base::JSONReader::Read(json);
+  std::optional<base::Value> root = base::JSONReader::Read(json);
 
   if (!root)
     return false;
@@ -839,13 +841,14 @@ void TraceAnalyzer::AssociateBeginEndEvents() {
 void TraceAnalyzer::AssociateAsyncBeginEndEvents(bool match_pid) {
   using trace_analyzer::Query;
 
-  Query begin(
-      Query::EventPhaseIs(TRACE_EVENT_PHASE_ASYNC_BEGIN) ||
-      Query::EventPhaseIs(TRACE_EVENT_PHASE_ASYNC_STEP_INTO) ||
-      Query::EventPhaseIs(TRACE_EVENT_PHASE_ASYNC_STEP_PAST));
+  Query begin(Query::EventPhaseIs(TRACE_EVENT_PHASE_ASYNC_BEGIN) ||
+              Query::EventPhaseIs(TRACE_EVENT_PHASE_ASYNC_STEP_INTO) ||
+              Query::EventPhaseIs(TRACE_EVENT_PHASE_ASYNC_STEP_PAST) ||
+              Query::EventPhaseIs(TRACE_EVENT_PHASE_NESTABLE_ASYNC_BEGIN));
   Query end(Query::EventPhaseIs(TRACE_EVENT_PHASE_ASYNC_END) ||
             Query::EventPhaseIs(TRACE_EVENT_PHASE_ASYNC_STEP_INTO) ||
-            Query::EventPhaseIs(TRACE_EVENT_PHASE_ASYNC_STEP_PAST));
+            Query::EventPhaseIs(TRACE_EVENT_PHASE_ASYNC_STEP_PAST) ||
+            Query::EventPhaseIs(TRACE_EVENT_PHASE_NESTABLE_ASYNC_END));
   Query match(Query::EventCategory() == Query::OtherCategory() &&
               Query::EventId() == Query::OtherId());
 

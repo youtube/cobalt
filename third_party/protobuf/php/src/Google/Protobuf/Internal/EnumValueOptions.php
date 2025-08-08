@@ -23,15 +23,13 @@ class EnumValueOptions extends \Google\Protobuf\Internal\Message
      *
      * Generated from protobuf field <code>optional bool deprecated = 1 [default = false];</code>
      */
-    private $deprecated = false;
-    private $has_deprecated = false;
+    protected $deprecated = null;
     /**
      * The parser stores options it doesn't recognize here. See above.
      *
      * Generated from protobuf field <code>repeated .google.protobuf.UninterpretedOption uninterpreted_option = 999;</code>
      */
     private $uninterpreted_option;
-    private $has_uninterpreted_option = false;
 
     /**
      * Constructor.
@@ -44,7 +42,7 @@ class EnumValueOptions extends \Google\Protobuf\Internal\Message
      *           Depending on the target platform, this can emit Deprecated annotations
      *           for the enum value, or it will be completely ignored; in the very least,
      *           this is a formalization for deprecating enum values.
-     *     @type \Google\Protobuf\Internal\UninterpretedOption[]|\Google\Protobuf\Internal\RepeatedField $uninterpreted_option
+     *     @type array<\Google\Protobuf\Internal\UninterpretedOption>|\Google\Protobuf\Internal\RepeatedField $uninterpreted_option
      *           The parser stores options it doesn't recognize here. See above.
      * }
      */
@@ -64,7 +62,17 @@ class EnumValueOptions extends \Google\Protobuf\Internal\Message
      */
     public function getDeprecated()
     {
-        return $this->deprecated;
+        return isset($this->deprecated) ? $this->deprecated : false;
+    }
+
+    public function hasDeprecated()
+    {
+        return isset($this->deprecated);
+    }
+
+    public function clearDeprecated()
+    {
+        unset($this->deprecated);
     }
 
     /**
@@ -81,14 +89,8 @@ class EnumValueOptions extends \Google\Protobuf\Internal\Message
     {
         GPBUtil::checkBool($var);
         $this->deprecated = $var;
-        $this->has_deprecated = true;
 
         return $this;
-    }
-
-    public function hasDeprecated()
-    {
-        return $this->has_deprecated;
     }
 
     /**
@@ -106,21 +108,15 @@ class EnumValueOptions extends \Google\Protobuf\Internal\Message
      * The parser stores options it doesn't recognize here. See above.
      *
      * Generated from protobuf field <code>repeated .google.protobuf.UninterpretedOption uninterpreted_option = 999;</code>
-     * @param \Google\Protobuf\Internal\UninterpretedOption[]|\Google\Protobuf\Internal\RepeatedField $var
+     * @param array<\Google\Protobuf\Internal\UninterpretedOption>|\Google\Protobuf\Internal\RepeatedField $var
      * @return $this
      */
     public function setUninterpretedOption($var)
     {
         $arr = GPBUtil::checkRepeatedField($var, \Google\Protobuf\Internal\GPBType::MESSAGE, \Google\Protobuf\Internal\UninterpretedOption::class);
         $this->uninterpreted_option = $arr;
-        $this->has_uninterpreted_option = true;
 
         return $this;
-    }
-
-    public function hasUninterpretedOption()
-    {
-        return $this->has_uninterpreted_option;
     }
 
 }

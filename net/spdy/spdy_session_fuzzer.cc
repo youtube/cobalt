@@ -4,12 +4,14 @@
 
 #include <fuzzer/FuzzedDataProvider.h>
 
-#include "base/cxx17_backports.h"
+#include <algorithm>
+
 #include "base/logging.h"
 #include "base/run_loop.h"
 #include "net/base/host_port_pair.h"
 #include "net/base/net_errors.h"
 #include "net/base/request_priority.h"
+#include "net/base/session_usage.h"
 #include "net/cert/x509_certificate.h"
 #include "net/dns/public/secure_dns_policy.h"
 #include "net/log/net_log.h"
@@ -40,8 +42,7 @@ class FuzzerDelegate : public net::SpdyStream::Delegate {
   void OnHeadersSent() override {}
   void OnEarlyHintsReceived(const spdy::Http2HeaderBlock& headers) override {}
   void OnHeadersReceived(
-      const spdy::Http2HeaderBlock& response_headers,
-      const spdy::Http2HeaderBlock* pushed_request_headers) override {}
+      const spdy::Http2HeaderBlock& response_headers) override {}
   void OnDataReceived(std::unique_ptr<net::SpdyBuffer> buffer) override {}
   void OnDataSent() override {}
   void OnTrailers(const spdy::Http2HeaderBlock& trailers) override {}
@@ -126,12 +127,12 @@ extern "C" int LLVMFuzzerTestOneInput(const uint8_t* data, size_t size) {
       net::SpdySessionDependencies::SpdyCreateSessionWithSocketFactory(
           &deps, &socket_factory));
 
-  net::ProxyServer direct_connect(net::ProxyServer::Direct());
   net::SpdySessionKey session_key(
-      net::HostPortPair("127.0.0.1", 80), direct_connect,
-      net::PRIVACY_MODE_DISABLED, net::SpdySessionKey::IsProxySession::kFalse,
+      net::HostPortPair("127.0.0.1", 80), net::PRIVACY_MODE_DISABLED,
+      net::ProxyChain::Direct(), net::SessionUsage::kDestination,
       net::SocketTag(), net::NetworkAnonymizationKey(),
-      net::SecureDnsPolicy::kAllow);
+      net::SecureDnsPolicy::kAllow,
+      /*disable_cert_verification_network_fetches=*/false);
   base::WeakPtr<net::SpdySession> spdy_session(net::CreateSpdySession(
       http_session.get(), session_key, net_log_with_source));
 
@@ -141,7 +142,7 @@ extern "C" int LLVMFuzzerTestOneInput(const uint8_t* data, size_t size) {
   net::TestCompletionCallback wait_for_start;
   int rv = stream_request.StartRequest(
       net::SPDY_REQUEST_RESPONSE_STREAM, spdy_session,
-      GURL("http://www.example.invalid/"), false /* no early data */,
+      GURL("http://www.example.invalid/"), /*can_send_early=*/false,
       net::DEFAULT_PRIORITY, net::SocketTag(), net_log_with_source,
       wait_for_start.callback(), TRAFFIC_ANNOTATION_FOR_TESTS);
 

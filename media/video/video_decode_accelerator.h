@@ -8,6 +8,7 @@
 #include <stdint.h>
 
 #include <memory>
+#include <optional>
 #include <vector>
 
 #include "base/memory/scoped_refptr.h"
@@ -21,7 +22,6 @@
 #include "media/base/overlay_info.h"
 #include "media/base/video_decoder_config.h"
 #include "media/video/picture.h"
-#include "third_party/abseil-cpp/absl/types/optional.h"
 #include "ui/gfx/color_space.h"
 #include "ui/gfx/geometry/size.h"
 #include "ui/gfx/gpu_memory_buffer.h"
@@ -124,14 +124,14 @@ class MEDIA_EXPORT VideoDecodeAccelerator {
   // Config structure contains parameters required for the VDA initialization.
   struct MEDIA_EXPORT Config {
     // Specifies the allocation and handling mode for output PictureBuffers.
-    // When set to ALLOCATE, the VDA is expected to allocate backing memory
+    // When set to kAllocate, the VDA is expected to allocate backing memory
     // for PictureBuffers at the time of AssignPictureBuffers() call.
-    // When set to IMPORT, the VDA will not allocate, but after receiving
+    // When set to kImport, the VDA will not allocate, but after receiving
     // AssignPictureBuffers() call, it will expect a call to
     // ImportBufferForPicture() for each PictureBuffer before use.
     enum class OutputMode {
-      ALLOCATE,
-      IMPORT,
+      kAllocate,
+      kImport,
     };
 
     Config();
@@ -154,7 +154,7 @@ class MEDIA_EXPORT VideoDecodeAccelerator {
 
     // The CDM that the VDA should use to decode encrypted streams. Must be
     // set to a valid ID if |is_encrypted|.
-    absl::optional<base::UnguessableToken> cdm_id;
+    std::optional<base::UnguessableToken> cdm_id;
 
     // Whether the client supports deferred initialization.
     bool is_deferred_initialization_allowed = false;
@@ -166,11 +166,7 @@ class MEDIA_EXPORT VideoDecodeAccelerator {
     // Coded size of the video frame hint, subject to change.
     gfx::Size initial_expected_coded_size = gfx::Size(320, 240);
 
-    OutputMode output_mode = OutputMode::ALLOCATE;
-
-    // The list of picture buffer formats that the client knows how to use. An
-    // empty list means any format is supported.
-    std::vector<VideoPixelFormat> supported_output_formats;
+    OutputMode output_mode = OutputMode::kAllocate;
 
     // The H264 SPS and PPS configuration data. Not all clients populate these
     // fields, so they should be parsed from the bitstream instead, if required.
@@ -187,7 +183,7 @@ class MEDIA_EXPORT VideoDecodeAccelerator {
     gfx::ColorSpace target_color_space;
 
     // HDR metadata specified by the container.
-    absl::optional<gfx::HDRMetadata> hdr_metadata;
+    std::optional<gfx::HDRMetadata> hdr_metadata;
   };
 
   // Interface for collaborating with picture interface to provide memory for
@@ -215,22 +211,15 @@ class MEDIA_EXPORT VideoDecodeAccelerator {
     // this transparently.
     virtual void ProvidePictureBuffers(uint32_t requested_num_of_buffers,
                                        VideoPixelFormat format,
-                                       uint32_t textures_per_buffer,
-                                       const gfx::Size& dimensions,
-                                       uint32_t texture_target) = 0;
+                                       const gfx::Size& dimensions) = 0;
 
     // This is the same as ProvidePictureBuffers() except that |visible_rect| is
-    // also included. The default implementation calls ProvidePictureBuffers()
-    // setting |dimensions| = GetRectSizeFromOrigin(|visible_rect|) when
-    // |texture_target| is GL_TEXTURE_EXTERNAL_OES; otherwise, it passes along
-    // all parameters to ProvidePictureBuffers() as they are.
+    // also included.
     virtual void ProvidePictureBuffersWithVisibleRect(
         uint32_t requested_num_of_buffers,
         VideoPixelFormat format,
-        uint32_t textures_per_buffer,
         const gfx::Size& dimensions,
-        const gfx::Rect& visible_rect,
-        uint32_t texture_target);
+        const gfx::Rect& visible_rect) = 0;
 
     // Callback to dismiss picture buffer that was assigned earlier.
     virtual void DismissPictureBuffer(int32_t picture_buffer_id) = 0;
@@ -310,7 +299,7 @@ class MEDIA_EXPORT VideoDecodeAccelerator {
   virtual void Decode(scoped_refptr<DecoderBuffer> buffer,
                       int32_t bitstream_id);
 
-  // Assigns a set of texture-backed picture buffers to the video decoder.
+  // Assigns a set of picture buffers to the video decoder.
   //
   // Ownership of each picture buffer remains with the client, but the client
   // is not allowed to deallocate the buffer before the DismissPictureBuffer
@@ -421,15 +410,6 @@ class MEDIA_EXPORT VideoDecodeAccelerator {
   // Returns true if the decoder supports SharedImage backed picture buffers.
   // May be called on any thread at any time.
   virtual bool SupportsSharedImagePictureBuffers() const;
-
-  enum class TextureAllocationMode {
-    kDoNotAllocateGLTextures,
-    kAllocateGLTextures
-  };
-
-  // Returns an enum used to allocate GL textures for shared images.
-  // May be called on any thread at any time.
-  virtual TextureAllocationMode GetSharedImageTextureAllocationMode() const;
 
  protected:
   // Do not delete directly; use Destroy() or own it with a scoped_ptr, which

@@ -1,4 +1,4 @@
-// Copyright 2013 The Chromium Authors. All rights reserved.
+// Copyright 2013 The Chromium Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -8,13 +8,10 @@
 #include <utility>
 #include <vector>
 
-#include "base/macros.h"
 #include "base/memory/singleton.h"
-#include "base/metrics/field_trial.h"
 #include "base/metrics/field_trial_param_associator.h"
 #include "base/metrics/field_trial_params.h"
 #include "base/strings/string_split.h"
-#include "components/variations/variations_http_header_provider.h"
 
 namespace variations {
 
@@ -28,7 +25,41 @@ class GroupMapAccessor {
 
   // Retrieve the singleton.
   static GroupMapAccessor* GetInstance() {
-    return base::Singleton<GroupMapAccessor>::get();
+    return base::Singleton<GroupMapAccessor,
+                           base::LeakySingletonTraits<GroupMapAccessor>>::get();
+  }
+
+  GroupMapAccessor(const GroupMapAccessor&) = delete;
+  GroupMapAccessor& operator=(const GroupMapAccessor&) = delete;
+
+  // Ensures that |group_identifier| is associated with only one non-trigger,
+  // trigger, or signed-in key.
+  void ValidateID(IDCollectionKey key,
+                  const ActiveGroupId& group_identifier,
+                  const VariationID id) {
+    static_assert(ID_COLLECTION_COUNT == 6,
+                  "If you add a new collection key, add handling code here!");
+#if DCHECK_IS_ON()
+    for (int i = 0; i < ID_COLLECTION_COUNT; ++i) {
+      IDCollectionKey other_key = static_cast<IDCollectionKey>(i);
+      if (key == other_key)
+        continue;
+
+      VariationID other_id = GetID(other_key, group_identifier);
+
+      // For a GOOGLE_APP key, validate that all other collections with this
+      // |group_identifier| have the same associated ID.
+      if (key == GOOGLE_APP) {
+        DCHECK(other_id == EMPTY_ID || other_id == id);
+        continue;
+      }
+
+      // The ID should not be registered under a different non-GOOGLE_APP
+      // IDCollectionKey.
+      if (other_key != GOOGLE_APP)
+        DCHECK_EQ(EMPTY_ID, other_id);
+    }
+#endif  // DCHECK_IS_ON()
   }
 
   // Note that this normally only sets the ID for a group the first time, unless
@@ -37,34 +68,7 @@ class GroupMapAccessor {
                    const ActiveGroupId& group_identifier,
                    const VariationID id,
                    const bool force) {
-#if !defined(NDEBUG)
-    DCHECK_EQ(4, ID_COLLECTION_COUNT);
-    // Ensure that at most one of the trigger/non-trigger/signed-in web property
-    // IDs are set.
-    if (key == GOOGLE_WEB_PROPERTIES || key == GOOGLE_WEB_PROPERTIES_TRIGGER ||
-        key == GOOGLE_WEB_PROPERTIES_SIGNED_IN) {
-      if (key != GOOGLE_WEB_PROPERTIES)
-        DCHECK_EQ(EMPTY_ID, GetID(GOOGLE_WEB_PROPERTIES, group_identifier));
-      if (key != GOOGLE_WEB_PROPERTIES_TRIGGER) {
-        DCHECK_EQ(EMPTY_ID,
-                  GetID(GOOGLE_WEB_PROPERTIES_TRIGGER, group_identifier));
-      }
-      if (key != GOOGLE_WEB_PROPERTIES_SIGNED_IN) {
-        DCHECK_EQ(EMPTY_ID,
-                  GetID(GOOGLE_WEB_PROPERTIES_SIGNED_IN, group_identifier));
-      }
-    }
-
-    // Validate that all collections with this |group_identifier| have the same
-    // associated ID.
-    for (int i = 0; i < ID_COLLECTION_COUNT; ++i) {
-      IDCollectionKey other_key = static_cast<IDCollectionKey>(i);
-      if (other_key == key)
-        continue;
-      VariationID other_id = GetID(other_key, group_identifier);
-      DCHECK(other_id == EMPTY_ID || other_id == id);
-    }
-#endif
+    ValidateID(key, group_identifier, id);
 
     base::AutoLock scoped_lock(lock_);
 
@@ -109,8 +113,6 @@ class GroupMapAccessor {
 
   base::Lock lock_;
   std::vector<GroupToIDMap> group_to_id_maps_;
-
-  DISALLOW_COPY_AND_ASSIGN(GroupMapAccessor);
 };
 }  // namespace
 
@@ -147,54 +149,6 @@ VariationID GetGoogleVariationIDFromHashes(
     IDCollectionKey key,
     const ActiveGroupId& active_group) {
   return GroupMapAccessor::GetInstance()->GetID(key, active_group);
-}
-
-bool AssociateVariationParams(
-    const std::string& trial_name,
-    const std::string& group_name,
-    const std::map<std::string, std::string>& params) {
-  return base::AssociateFieldTrialParams(trial_name, group_name, params);
-}
-
-bool GetVariationParams(const std::string& trial_name,
-                        std::map<std::string, std::string>* params) {
-  return base::GetFieldTrialParams(trial_name, params);
-}
-
-bool GetVariationParamsByFeature(const base::Feature& feature,
-                                 std::map<std::string, std::string>* params) {
-  return base::GetFieldTrialParamsByFeature(feature, params);
-}
-
-std::string GetVariationParamValue(const std::string& trial_name,
-                                   const std::string& param_name) {
-  return base::GetFieldTrialParamValue(trial_name, param_name);
-}
-
-std::string GetVariationParamValueByFeature(const base::Feature& feature,
-                                            const std::string& param_name) {
-  return base::GetFieldTrialParamValueByFeature(feature, param_name);
-}
-
-int GetVariationParamByFeatureAsInt(const base::Feature& feature,
-                                    const std::string& param_name,
-                                    int default_value) {
-  return base::GetFieldTrialParamByFeatureAsInt(feature, param_name,
-                                                default_value);
-}
-
-double GetVariationParamByFeatureAsDouble(const base::Feature& feature,
-                                          const std::string& param_name,
-                                          double default_value) {
-  return base::GetFieldTrialParamByFeatureAsDouble(feature, param_name,
-                                                   default_value);
-}
-
-bool GetVariationParamByFeatureAsBool(const base::Feature& feature,
-                                      const std::string& param_name,
-                                      bool default_value) {
-  return base::GetFieldTrialParamByFeatureAsBool(feature, param_name,
-                                                 default_value);
 }
 
 // Functions below are exposed for testing explicitly behind this namespace.

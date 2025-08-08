@@ -1,0 +1,12 @@
+{
+    "project": "chromium-m126",
+    "project_title": "Chromium M126",
+    "ref": "refs/branch-heads/6478",
+    "chrome_project": "chrome-m126",
+    "is_main": false,
+    "platforms": {
+        "cros-lts": {
+            "description": "LTS"
+        }
+    }
+}

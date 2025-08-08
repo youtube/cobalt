@@ -4,8 +4,6 @@
 
 #include "net/http/test_upload_data_stream_not_allow_http1.h"
 
-#include <string.h>
-
 #include "net/base/io_buffer.h"
 #include "net/base/net_errors.h"
 

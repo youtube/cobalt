@@ -4,12 +4,22 @@
 
 #include "media/cast/common/openscreen_conversion_helpers.h"
 
+#include "base/logging.h"
+#include "base/strings/string_number_conversions.h"
 #include "media/base/audio_codecs.h"
 #include "media/base/video_codecs.h"
 #include "media/cast/cast_config.h"
 #include "third_party/openscreen/src/platform/base/span.h"
 
 namespace media::cast {
+
+openscreen::Clock::time_point ToOpenscreenTimePoint(
+    std::optional<base::TimeTicks> ticks) {
+  if (!ticks) {
+    return openscreen::Clock::time_point::min();
+  }
+  return ToOpenscreenTimePoint(*ticks);
+}
 
 openscreen::Clock::time_point ToOpenscreenTimePoint(base::TimeTicks ticks) {
   static_assert(sizeof(openscreen::Clock::time_point::rep) >=
@@ -61,73 +71,41 @@ const openscreen::cast::EncodedFrame ToOpenscreenEncodedFrame(
       encoded_frame.referenced_frame_id, encoded_frame.rtp_timestamp,
       ToOpenscreenTimePoint(encoded_frame.reference_time),
       std::chrono::milliseconds(encoded_frame.new_playout_delay_ms),
+      ToOpenscreenTimePoint(encoded_frame.capture_begin_time),
+      ToOpenscreenTimePoint(encoded_frame.capture_end_time),
       openscreen::ByteView(
           reinterpret_cast<const uint8_t*>(encoded_frame.data.data()),
           encoded_frame.data.size()));
 }
 
-openscreen::cast::AudioCodec ToOpenscreenAudioCodec(media::cast::Codec codec) {
+openscreen::cast::AudioCodec ToOpenscreenAudioCodec(media::AudioCodec codec) {
   switch (codec) {
-    case Codec::kAudioRemote:
+    case media::AudioCodec::kUnknown:
       return openscreen::cast::AudioCodec::kNotSpecified;
-    case Codec::kAudioOpus:
+    case media::AudioCodec::kOpus:
       return openscreen::cast::AudioCodec::kOpus;
-    case Codec::kAudioAac:
+    case media::AudioCodec::kAAC:
       return openscreen::cast::AudioCodec::kAac;
     default:
-      NOTREACHED();
-      return openscreen::cast::AudioCodec::kNotSpecified;
+      NOTREACHED_NORETURN();
   }
 }
 
-openscreen::cast::VideoCodec ToOpenscreenVideoCodec(media::cast::Codec codec) {
+openscreen::cast::VideoCodec ToOpenscreenVideoCodec(media::VideoCodec codec) {
   switch (codec) {
-    case Codec::kVideoRemote:
+    case media::VideoCodec::kUnknown:
       return openscreen::cast::VideoCodec::kNotSpecified;
-    case Codec::kVideoVp8:
+    case media::VideoCodec::kVP8:
       return openscreen::cast::VideoCodec::kVp8;
-    case Codec::kVideoH264:
+    case media::VideoCodec::kH264:
       return openscreen::cast::VideoCodec::kH264;
-    case Codec::kVideoVp9:
+    case media::VideoCodec::kVP9:
       return openscreen::cast::VideoCodec::kVp9;
-    case Codec::kVideoAv1:
+    case media::VideoCodec::kAV1:
       return openscreen::cast::VideoCodec::kAv1;
     default:
-      NOTREACHED();
-      return openscreen::cast::VideoCodec::kNotSpecified;
+      NOTREACHED_NORETURN();
   }
-}
-
-Codec ToCodec(openscreen::cast::AudioCodec codec) {
-  switch (codec) {
-    case openscreen::cast::AudioCodec::kNotSpecified:
-      return Codec::kAudioRemote;
-    case openscreen::cast::AudioCodec::kOpus:
-      return Codec::kAudioOpus;
-    case openscreen::cast::AudioCodec::kAac:
-      return Codec::kAudioAac;
-  }
-  NOTREACHED();
-  return Codec::kUnknown;
-}
-
-Codec ToCodec(openscreen::cast::VideoCodec codec) {
-  switch (codec) {
-    case openscreen::cast::VideoCodec::kNotSpecified:
-      return Codec::kVideoRemote;
-    case openscreen::cast::VideoCodec::kVp8:
-      return Codec::kVideoVp8;
-    case openscreen::cast::VideoCodec::kH264:
-      return Codec::kVideoH264;
-    case openscreen::cast::VideoCodec::kVp9:
-      return Codec::kVideoVp9;
-    case openscreen::cast::VideoCodec::kAv1:
-      return Codec::kVideoAv1;
-    case openscreen::cast::VideoCodec::kHevc:
-      return Codec::kUnknown;
-  }
-  NOTREACHED();
-  return Codec::kUnknown;
 }
 
 AudioCodec ToAudioCodec(openscreen::cast::AudioCodec codec) {
@@ -140,8 +118,7 @@ AudioCodec ToAudioCodec(openscreen::cast::AudioCodec codec) {
     case openscreen::cast::AudioCodec::kAac:
       return AudioCodec::kAAC;
   }
-  NOTREACHED();
-  return AudioCodec::kUnknown;
+  NOTREACHED_NORETURN();
 }
 
 VideoCodec ToVideoCodec(openscreen::cast::VideoCodec codec) {
@@ -160,8 +137,7 @@ VideoCodec ToVideoCodec(openscreen::cast::VideoCodec codec) {
     case openscreen::cast::VideoCodec::kHevc:
       return VideoCodec::kHEVC;
   }
-  NOTREACHED();
-  return VideoCodec::kUnknown;
+  NOTREACHED_NORETURN();
 }
 
 openscreen::IPAddress ToOpenscreenIPAddress(const net::IPAddress& address) {
@@ -170,10 +146,37 @@ openscreen::IPAddress ToOpenscreenIPAddress(const net::IPAddress& address) {
   return openscreen::IPAddress(version, address.bytes().data());
 }
 
+std::array<uint8_t, kAesKeyLength> AesKeyToArray(std::string aes_key) {
+  std::vector<uint8_t> vec;
+  if (!base::HexStringToBytes(aes_key, &vec)) {
+    return {};
+  }
+  if (vec.size() != static_cast<unsigned long>(kAesKeyLength)) {
+    return {};
+  }
+  std::array<uint8_t, kAesKeyLength> out;
+  for (size_t i = 0; i < vec.size(); ++i) {
+    out[i] = vec[i];
+  }
+  return out;
+}
+
+openscreen::cast::SessionConfig ToOpenscreenSessionConfig(
+    const FrameSenderConfig& config,
+    bool is_pli_enabled) {
+  return openscreen::cast::SessionConfig(
+      config.sender_ssrc, config.receiver_ssrc, config.rtp_timebase,
+      config.channels,
+      std::chrono::milliseconds(config.max_playout_delay.InMilliseconds()),
+
+      AesKeyToArray(config.aes_key), AesKeyToArray(config.aes_iv_mask),
+      is_pli_enabled);
+}
+
 openscreen::cast::AudioCaptureConfig ToOpenscreenAudioConfig(
     const FrameSenderConfig& config) {
   return openscreen::cast::AudioCaptureConfig{
-      .codec = media::cast::ToOpenscreenAudioCodec(config.codec),
+      .codec = ToOpenscreenAudioCodec(config.audio_codec()),
       .channels = config.channels,
       .bit_rate = config.max_bitrate,
       .sample_rate = config.rtp_timebase,
@@ -190,7 +193,7 @@ openscreen::cast::VideoCaptureConfig ToOpenscreenVideoConfig(
   // NOTE: currently we only support a frame rate of 30FPS, so casting
   // directly to an integer is fine.
   return openscreen::cast::VideoCaptureConfig{
-      .codec = media::cast::ToOpenscreenVideoCodec(config.codec),
+      .codec = ToOpenscreenVideoCodec(config.video_codec()),
       .max_frame_rate =
           openscreen::SimpleFraction{static_cast<int>(config.max_frame_rate),
                                      1},

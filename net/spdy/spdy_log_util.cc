@@ -4,11 +4,11 @@
 
 #include "net/spdy/spdy_log_util.h"
 
+#include <string_view>
 #include <utility>
 
 #include "base/strings/strcat.h"
 #include "base/strings/string_number_conversions.h"
-#include "base/strings/string_piece.h"
 #include "base/values.h"
 #include "net/http/http_log_util.h"
 #include "net/log/net_log_values.h"
@@ -16,7 +16,7 @@
 namespace net {
 
 base::Value ElideGoAwayDebugDataForNetLog(NetLogCaptureMode capture_mode,
-                                          base::StringPiece debug_data) {
+                                          std::string_view debug_data) {
   if (NetLogCaptureIncludesSensitive(capture_mode))
     return NetLogStringValue(debug_data);
 
@@ -40,9 +40,8 @@ base::Value::List ElideHttp2HeaderBlockForNetLog(
 base::Value::Dict Http2HeaderBlockNetLogParams(
     const spdy::Http2HeaderBlock* headers,
     NetLogCaptureMode capture_mode) {
-  base::Value::Dict dict;
-  dict.Set("headers", ElideHttp2HeaderBlockForNetLog(*headers, capture_mode));
-  return dict;
+  return base::Value::Dict().Set(
+      "headers", ElideHttp2HeaderBlockForNetLog(*headers, capture_mode));
 }
 
 }  // namespace net

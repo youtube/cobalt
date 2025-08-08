@@ -11,6 +11,7 @@ namespace switches {
 
 // All switches in alphabetical order. The switches should be documented
 // alongside the definition of their values in the .cc file.
+extern const char kEnforceExactPositiveFilter[];
 extern const char kHelpFlag[];
 extern const char kIsolatedScriptTestLauncherRetryLimit[];
 extern const char kRebaselinePixelTests[];
@@ -40,6 +41,7 @@ extern const char kTestLauncherTrace[];
 extern const char kTestTinyTimeout[];
 extern const char kUiTestActionMaxTimeout[];
 extern const char kUiTestActionTimeout[];
+extern const char kWithDeathTestStackTraces[];
 
 #if BUILDFLAG(IS_IOS)
 extern const char kEnableRunIOSUnittestsWithXCTest[];

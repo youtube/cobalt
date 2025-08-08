@@ -6,6 +6,7 @@
 #define BASE_WIN_POST_ASYNC_RESULTS_H_
 
 #include <unknwn.h>
+
 #include <windows.foundation.h>
 #include <wrl/async.h>
 #include <wrl/client.h>
@@ -38,7 +39,7 @@ constexpr const char* ToCString(AsyncStatus async_status) {
       return "AsyncStatus::Error";
   }
 
-  NOTREACHED();
+  NOTREACHED_IN_MIGRATION();
   return "";
 }
 
@@ -59,7 +60,7 @@ using AsyncAbiT = typename ABI::Windows::Foundation::Internal::GetAbiType<
 // information.
 template <typename T>
 using AsyncResultsT = std::conditional_t<
-    std::is_convertible<AsyncAbiT<T>, IUnknown*>::value,
+    std::is_convertible_v<AsyncAbiT<T>, IUnknown*>,
     Microsoft::WRL::ComPtr<std::remove_pointer_t<AsyncAbiT<T>>>,
     AsyncAbiT<T>>;
 

@@ -11,6 +11,7 @@
 #include <memory>
 
 #include "base/memory/aligned_memory.h"
+#include "base/memory/raw_ptr.h"
 #include "base/strings/stringprintf.h"
 #include "base/test/bind.h"
 #include "base/time/time.h"
@@ -415,7 +416,7 @@ TEST_F(AudioBusTest, FromInterleavedPartial) {
   }
 }
 
-// Verify ToInterleaved() interleaves audio in suported formats correctly.
+// Verify ToInterleaved() interleaves audio in supported formats correctly.
 TEST_F(AudioBusTest, ToInterleaved) {
   std::unique_ptr<AudioBus> bus =
       AudioBus::Create(kTestVectorChannelCount, kTestVectorFrameCount);

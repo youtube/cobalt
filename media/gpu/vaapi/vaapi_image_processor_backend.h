@@ -36,13 +36,12 @@ class VaapiImageProcessorBackend : public ImageProcessorBackend {
       const PortConfig& input_config,
       const PortConfig& output_config,
       OutputMode output_mode,
-      VideoRotation relative_rotation,
       ErrorCB error_cb);
 
   // ImageProcessor implementation.
-  void Process(scoped_refptr<VideoFrame> input_frame,
-               scoped_refptr<VideoFrame> output_frame,
-               FrameReadyCB cb) override;
+  void ProcessFrame(scoped_refptr<FrameResource> input_frame,
+                    scoped_refptr<FrameResource> output_frame,
+                    FrameResourceReadyCB cb) override;
   void Reset() override;
 
   std::string type() const override;
@@ -51,23 +50,27 @@ class VaapiImageProcessorBackend : public ImageProcessorBackend {
   VaapiImageProcessorBackend(const PortConfig& input_config,
                              const PortConfig& output_config,
                              OutputMode output_mode,
-                             VideoRotation relative_rotation,
                              ErrorCB error_cb);
   ~VaapiImageProcessorBackend() override;
 
-  const VASurface* GetSurfaceForVideoFrame(scoped_refptr<VideoFrame> frame,
-                                           bool use_protected);
+  // GetSurfaceForFrame() caches generated VASurface's, so the same VASurface
+  // is returned for subsequent calls with the same frame. Ownership is
+  // of the VASurface is retained by the caching structure.
+  const VASurface* GetSurfaceForFrame(const FrameResource& frame,
+                                      bool use_protected);
 
-  scoped_refptr<VaapiWrapper> vaapi_wrapper_;
-  bool needs_context_ = false;
+  scoped_refptr<VaapiWrapper> vaapi_wrapper_
+      GUARDED_BY_CONTEXT(backend_sequence_checker_);
+  bool needs_context_ GUARDED_BY_CONTEXT(backend_sequence_checker_) = false;
 
   // VASurfaces are created via importing dma-bufs into libva using
   // |vaapi_wrapper_|->CreateVASurfaceForPixmap(). The following map keeps those
   // VASurfaces for reuse according to the expectations of libva
   // vaDestroySurfaces(): "Surfaces can only be destroyed after all contexts
   // using these surfaces have been destroyed."
-  base::small_map<std::map<gfx::GpuMemoryBufferId, scoped_refptr<VASurface>>>
-      allocated_va_surfaces_;
+  base::small_map<
+      std::map<gfx::GenericSharedMemoryId, scoped_refptr<VASurface>>>
+      allocated_va_surfaces_ GUARDED_BY_CONTEXT(backend_sequence_checker_);
 };
 
 }  // namespace media

@@ -5,6 +5,7 @@
 #include "net/base/network_interfaces_linux.h"
 
 #include <memory>
+#include <optional>
 
 #include "build/build_config.h"
 
@@ -33,12 +34,12 @@
 #include "net/base/ip_endpoint.h"
 #include "net/base/net_errors.h"
 #include "net/base/network_interfaces_posix.h"
-#include "third_party/abseil-cpp/absl/types/optional.h"
 #include "url/gurl.h"
 
 #if BUILDFLAG(IS_ANDROID)
+#include <string_view>
+
 #include "base/android/build_info.h"
-#include "base/strings/string_piece.h"
 #include "net/android/network_library.h"
 #include "net/base/network_interfaces_getifaddrs.h"
 #endif
@@ -85,7 +86,6 @@ namespace internal {
 // or ethtool extensions.
 NetworkChangeNotifier::ConnectionType GetInterfaceConnectionType(
     const std::string& ifname) {
-/* Cobalt
   base::ScopedFD s = GetSocketForIoctl();
   if (!s.is_valid())
     return NetworkChangeNotifier::CONNECTION_UNKNOWN;
@@ -106,13 +106,11 @@ NetworkChangeNotifier::ConnectionType GetInterfaceConnectionType(
   if (ioctl(s.get(), SIOCETHTOOL, &ifr) != -1)
     return NetworkChangeNotifier::CONNECTION_ETHERNET;
 #endif  // !BUILDFLAG(IS_ANDROID)
-Cobalt */
 
   return NetworkChangeNotifier::CONNECTION_UNKNOWN;
 }
 
 std::string GetInterfaceSSID(const std::string& ifname) {
-/* Cobalt
   base::ScopedFD ioctl_socket = GetSocketForIoctl();
   if (!ioctl_socket.is_valid())
     return std::string();
@@ -124,7 +122,6 @@ std::string GetInterfaceSSID(const std::string& ifname) {
   wreq.u.essid.length = IW_ESSID_MAX_SIZE;
   if (ioctl(ioctl_socket.get(), SIOCGIWESSID, &wreq) != -1)
     return ssid;
-Cobalt */
   return std::string();
 }
 
@@ -134,7 +131,6 @@ bool GetNetworkListImpl(
     const std::unordered_set<int>& online_links,
     const internal::AddressTrackerLinux::AddressMap& address_map,
     GetInterfaceNameFunction get_interface_name) {
-/* Cobalt
   std::map<int, std::string> ifnames;
 
   for (const auto& it : address_map) {
@@ -192,7 +188,6 @@ bool GetNetworkListImpl(
         NetworkInterface(ifname, ifname, it.second.ifa_index, type, it.first,
                          it.second.ifa_prefixlen, ip_attributes));
   }
-Cobalt */
 
   return true;
 }
@@ -215,13 +210,10 @@ std::string GetWifiSSIDFromInterfaceListInternal(
 }
 
 base::ScopedFD GetSocketForIoctl() {
-/* Cobalt
   base::ScopedFD ioctl_socket(socket(AF_INET6, SOCK_DGRAM, 0));
   if (ioctl_socket.is_valid())
     return ioctl_socket;
   return base::ScopedFD(socket(AF_INET, SOCK_DGRAM, 0));
-Cobalt */
-  return base::ScopedFD();
 }
 
 }  // namespace internal
@@ -242,8 +234,8 @@ bool GetNetworkList(NetworkInterfaceList* networks, int policy) {
     // so use a Chromium's own implementation to workaround.
     // See https://crbug.com/1240237 for more context.
     bool use_alternative_getifaddrs =
-        base::StringPiece(build_info->brand()) == "samsung" &&
-        base::StartsWith(build_info->hardware(), "mt");
+        std::string_view(build_info->brand()) == "samsung" &&
+        std::string_view(build_info->hardware()).starts_with("mt");
     bool ret = internal::GetNetworkListUsingGetifaddrs(
         networks, policy, use_alternative_getifaddrs);
     // Use GetInterfaceConnectionType() to sharpen up interface types.
@@ -254,9 +246,7 @@ bool GetNetworkList(NetworkInterfaceList* networks, int policy) {
 #endif  // BUILDFLAG(IS_ANDROID)
 
   const AddressMapOwnerLinux* map_owner = nullptr;
-/* Cobalt
-  absl::optional<internal::AddressTrackerLinux> temp_tracker;
-Cobalt */
+  std::optional<internal::AddressTrackerLinux> temp_tracker;
 #if BUILDFLAG(IS_LINUX)
   // If NetworkChangeNotifier already maintains a map owner in this process, use
   // it.
@@ -265,13 +255,11 @@ Cobalt */
   }
 #endif  // BUILDFLAG(IS_LINUX)
   if (!map_owner) {
-/* Cobalt
-    // If there is no existing map_owner, create an AdressTrackerLinux and
+    // If there is no existing map_owner, create an AddressTrackerLinux and
     // initialize it.
     temp_tracker.emplace();
     temp_tracker->Init();
     map_owner = &temp_tracker.value();
-Cobalt */
   }
 
   return internal::GetNetworkListImpl(

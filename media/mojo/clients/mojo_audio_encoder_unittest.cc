@@ -2,8 +2,11 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#include "media/mojo/clients/mojo_audio_encoder.h"
+
 #include <memory>
 
+#include "base/containers/heap_array.h"
 #include "base/functional/bind.h"
 #include "base/functional/callback_helpers.h"
 #include "base/memory/raw_ptr.h"
@@ -20,7 +23,6 @@
 #include "media/base/mock_filters.h"
 #include "media/base/test_helpers.h"
 #include "media/base/waiting.h"
-#include "media/mojo/clients/mojo_audio_encoder.h"
 #include "media/mojo/mojom/audio_encoder.mojom.h"
 #include "media/mojo/services/mojo_audio_encoder_service.h"
 #include "mojo/public/cpp/bindings/pending_receiver.h"
@@ -142,7 +144,8 @@ class MojoAudioEncoderTest : public ::testing::Test {
   // Mojo server-side
   std::unique_ptr<mojo::Receiver<mojom::AudioEncoder>> receiver_;
   std::unique_ptr<MojoAudioEncoderService> audio_encoder_service_;
-  raw_ptr<StrictMock<MockAudioEncoder>> mock_audio_encoder_ = nullptr;
+  raw_ptr<StrictMock<MockAudioEncoder>, AcrossTasksDanglingUntriaged>
+      mock_audio_encoder_ = nullptr;
 };
 
 TEST_F(MojoAudioEncoderTest, Initialize_Success) {
@@ -158,7 +161,7 @@ TEST_F(MojoAudioEncoderTest, Initialize_Success) {
 
   AudioEncoder::OutputCB output_cb = base::BindLambdaForTesting(
       [&](EncodedAudioBuffer output,
-          absl::optional<AudioEncoder::CodecDescription>) { FAIL(); });
+          std::optional<AudioEncoder::CodecDescription>) { FAIL(); });
 
   auto done_cb = base::BindLambdaForTesting([&, this](EncoderStatus s) {
     EXPECT_TRUE(callback_runner_->RunsTasksInCurrentSequence());
@@ -184,7 +187,7 @@ TEST_F(MojoAudioEncoderTest, Initialize_Fail) {
 
   AudioEncoder::OutputCB output_cb = base::BindLambdaForTesting(
       [&](EncodedAudioBuffer output,
-          absl::optional<AudioEncoder::CodecDescription>) { FAIL(); });
+          std::optional<AudioEncoder::CodecDescription>) { FAIL(); });
 
   auto done_cb = base::BindLambdaForTesting([&, this](EncoderStatus s) {
     EXPECT_TRUE(callback_runner_->RunsTasksInCurrentSequence());
@@ -257,14 +260,14 @@ TEST_F(MojoAudioEncoderTest, Encode) {
                                options.sample_rate, audio_bus->frames());
 
         size_t size = audio_bus->frames();
-        std::unique_ptr<uint8_t[]> data(new uint8_t[size]);
+        auto data = base::HeapArray<uint8_t>::Uninit(size);
 
         for (size_t i = 0; i < size; i++)
           data[i] = static_cast<int>(audio_bus->channel(0)[i]);
 
         EncodedAudioBuffer output(params, std::move(data), size, capture_time);
 
-        absl::optional<AudioEncoder::CodecDescription> desc;
+        std::optional<AudioEncoder::CodecDescription> desc;
         if (input_number > 0)
           desc.emplace(AudioEncoder::CodecDescription{
               static_cast<uint8_t>(input_number)});
@@ -273,7 +276,7 @@ TEST_F(MojoAudioEncoderTest, Encode) {
 
   AudioEncoder::OutputCB output_cb = base::BindLambdaForTesting(
       [&](EncodedAudioBuffer output,
-          absl::optional<AudioEncoder::CodecDescription> desc) {
+          std::optional<AudioEncoder::CodecDescription> desc) {
         int64_t output_number = ToMilliseconds(output.timestamp);
         EXPECT_EQ(output_number, output_count);
         EXPECT_EQ(output.params.channels(), options.channels);
@@ -330,14 +333,15 @@ TEST_F(MojoAudioEncoderTest, EncodeWithEmptyResult) {
         AudioParameters params(AudioParameters::AUDIO_PCM_LOW_LATENCY,
                                {CHANNEL_LAYOUT_DISCRETE, 1}, 8000, 1);
 
-        EncodedAudioBuffer output(params, nullptr, 0, capture_time);
+        EncodedAudioBuffer output(params, base::HeapArray<uint8_t>(), 0,
+                                  capture_time);
 
         service_output_cb.Run(std::move(output), {});
       }));
 
   AudioEncoder::OutputCB output_cb = base::BindLambdaForTesting(
       [&](EncodedAudioBuffer output,
-          absl::optional<AudioEncoder::CodecDescription> desc) {
+          std::optional<AudioEncoder::CodecDescription> desc) {
         EXPECT_EQ(output.encoded_data_size, 0u);
         run_loop.QuitWhenIdle();
       });
@@ -376,7 +380,8 @@ TEST_F(MojoAudioEncoderTest, Flush) {
         AudioParameters params(AudioParameters::AUDIO_PCM_LOW_LATENCY,
                                {CHANNEL_LAYOUT_DISCRETE, audio_bus->channels()},
                                options.sample_rate, audio_bus->frames());
-        EncodedAudioBuffer output(params, nullptr, 0, capture_time);
+        EncodedAudioBuffer output(params, base::HeapArray<uint8_t>(), 0,
+                                  capture_time);
         service_output_cb.Run(std::move(output), {});
       }));
 
@@ -388,7 +393,7 @@ TEST_F(MojoAudioEncoderTest, Flush) {
 
   AudioEncoder::OutputCB output_cb = base::BindLambdaForTesting(
       [&](EncodedAudioBuffer output,
-          absl::optional<AudioEncoder::CodecDescription>) { output_count++; });
+          std::optional<AudioEncoder::CodecDescription>) { output_count++; });
 
   mojo_audio_encoder_->Initialize(options, std::move(output_cb),
                                   ValidatingStatusCB());

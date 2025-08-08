@@ -5,10 +5,10 @@
 #ifndef BASE_LOCATION_H_
 #define BASE_LOCATION_H_
 
+#include <compare>
 #include <string>
 
 #include "base/base_export.h"
-#include "base/debug/debugging_buildflags.h"
 #include "base/memory/raw_ptr_exclusion.h"
 #include "base/trace_event/base_tracing_forward.h"
 #include "build/build_config.h"
@@ -33,14 +33,17 @@ class BASE_EXPORT Location {
 
   // Comparator for testing. The program counter should uniquely
   // identify a location.
-  bool operator==(const Location& other) const {
-    return program_counter_ == other.program_counter_;
+  friend bool operator==(const Location& lhs, const Location& rhs) {
+    return lhs.program_counter_ == rhs.program_counter_;
   }
 
-  // Comparator is necessary to use location object within an ordered container
-  // type (eg. std::map).
-  bool operator<(const Location& other) const {
-    return program_counter_ < other.program_counter_;
+  // The program counter should uniquely identify a location. There is no
+  // guarantee that a program counter corresponds to unique function/file/line
+  // values, based on how it's constructed, and therefore equivalent locations
+  // could be distinguishable.
+  friend std::weak_ordering operator<=>(const Location& lhs,
+                                        const Location& rhs) {
+    return lhs.program_counter_ <=> rhs.program_counter_;
   }
 
   // Returns true if there is source code location info. If this is false,

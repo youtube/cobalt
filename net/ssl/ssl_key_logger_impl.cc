@@ -50,11 +50,7 @@ class SSLKeyLoggerImpl::Core
   Core& operator=(const Core&) = delete;
 
   void SetFile(base::File file) {
-#if defined(COBALT_PENDING_CLEAN_UP)
-    NOTREACHED();
-#else
     file_.reset(base::FileToFILE(std::move(file), "a"));
-#endif
     if (!file_)
       DVLOG(1) << "Could not adopt file";
   }
@@ -87,11 +83,7 @@ class SSLKeyLoggerImpl::Core
   void OpenFileImpl(const base::FilePath& path) {
     DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
     DCHECK(!file_);
-#if defined(COBALT_PENDING_CLEAN_UP)
-    NOTREACHED();
-#else
     file_.reset(base::OpenFile(path, "a"));
-#endif
     if (!file_)
       DVLOG(1) << "Could not open " << path.value();
   }
@@ -108,12 +100,6 @@ class SSLKeyLoggerImpl::Core
     }
 
     if (file_) {
-      
-#if defined(STARBOARD)
-      for (const auto& line : buffer) {
-        file_->WriteAll(line.c_str(), line.length());
-      }
-#else
       for (const auto& line : buffer) {
         fprintf(file_.get(), "%s\n", line.c_str());
       }
@@ -121,7 +107,6 @@ class SSLKeyLoggerImpl::Core
         fprintf(file_.get(), "# Some lines were dropped due to slow writes.\n");
       }
       fflush(file_.get());
-#endif
     }
   }
 

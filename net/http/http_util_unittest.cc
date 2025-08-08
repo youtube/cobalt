@@ -6,6 +6,7 @@
 
 #include <algorithm>
 #include <limits>
+#include <string_view>
 
 #include "base/strings/string_util.h"
 #include "base/time/time.h"
@@ -1185,6 +1186,19 @@ TEST(HttpUtilTest, ParseRetryAfterHeader) {
   }
 }
 
+TEST(HttpUtilTest, TimeFormatHTTP) {
+  constexpr base::Time::Exploded kTime = {.year = 2011,
+                                          .month = 4,
+                                          .day_of_week = 6,
+                                          .day_of_month = 30,
+                                          .hour = 22,
+                                          .minute = 42,
+                                          .second = 7};
+  base::Time time;
+  EXPECT_TRUE(base::Time::FromUTCExploded(kTime, &time));
+  EXPECT_EQ("Sat, 30 Apr 2011 22:42:07 GMT", HttpUtil::TimeFormatHTTP(time));
+}
+
 namespace {
 void CheckCurrentNameValuePair(HttpUtil::NameValuePairsIterator* parser,
                                bool expect_valid,
@@ -1591,10 +1605,10 @@ TEST(HttpUtilTest, IsToken) {
   EXPECT_TRUE(HttpUtil::IsToken("~"));
 
   EXPECT_FALSE(HttpUtil::IsToken(""));
-  EXPECT_FALSE(HttpUtil::IsToken(base::StringPiece()));
+  EXPECT_FALSE(HttpUtil::IsToken(std::string_view()));
   EXPECT_FALSE(HttpUtil::IsToken("hello, world"));
   EXPECT_FALSE(HttpUtil::IsToken(" "));
-  EXPECT_FALSE(HttpUtil::IsToken(base::StringPiece("\0", 1)));
+  EXPECT_FALSE(HttpUtil::IsToken(std::string_view("\0", 1)));
   EXPECT_FALSE(HttpUtil::IsToken("\x01"));
   EXPECT_FALSE(HttpUtil::IsToken("\x7F"));
   EXPECT_FALSE(HttpUtil::IsToken("\x80"));

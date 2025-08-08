@@ -47,11 +47,9 @@ namespace media {
 namespace {
 
 constexpr uint8_t kData[] = "foo";
-constexpr size_t kDataSize = std::size(kData);
 
 scoped_refptr<DecoderBuffer> CreateDecoderBuffer(base::TimeDelta timestamp) {
-  scoped_refptr<DecoderBuffer> buffer =
-      DecoderBuffer::CopyFrom(kData, kDataSize);
+  scoped_refptr<DecoderBuffer> buffer = DecoderBuffer::CopyFrom(kData);
   buffer->set_timestamp(timestamp);
   return buffer;
 }
@@ -108,7 +106,7 @@ class VdaVideoDecoderTest : public testing::TestWithParam<bool> {
         base::BindRepeating(&VdaVideoDecoderTest::CreateAndInitializeVda,
                             base::Unretained(this)),
         GetCapabilities(),
-        VideoDecodeAccelerator::Config::OutputMode::ALLOCATE);
+        VideoDecodeAccelerator::Config::OutputMode::kAllocate);
     vdavd_ = std::make_unique<AsyncDestroyVideoDecoder<VdaVideoDecoder>>(
         base::WrapUnique(vdavd));
     client_ = vdavd;
@@ -163,8 +161,8 @@ class VdaVideoDecoderTest : public testing::TestWithParam<bool> {
     gpu_thread_.task_runner()->PostTask(
         FROM_HERE,
         base::BindOnce(&VideoDecodeAccelerator::Client::ProvidePictureBuffers,
-                       base::Unretained(client_), 1, PIXEL_FORMAT_XRGB, 1,
-                       gfx::Size(1920, 1088), GL_TEXTURE_2D));
+                       base::Unretained(client_), 1, PIXEL_FORMAT_XRGB,
+                       gfx::Size(1920, 1088)));
     RunUntilIdle();
     DCHECK_EQ(picture_buffers.size(), 1U);
     return picture_buffers[0].id();
@@ -200,6 +198,10 @@ class VdaVideoDecoderTest : public testing::TestWithParam<bool> {
                                                                       1080)) {
     Picture picture(picture_buffer_id, bitstream_buffer_id, visible_rect,
                     gfx::ColorSpace::CreateSRGB(), true);
+    picture.set_scoped_shared_image(
+        base::MakeRefCounted<Picture::ScopedSharedImage>(
+            gpu::Mailbox::GenerateForSharedImage(), GL_TEXTURE_2D,
+            base::DoNothing()));
     EXPECT_CALL(output_cb_, Run(_)).WillOnce(SaveArg<0>(out_frame));
     if (GetParam()) {
       // TODO(sandersd): The first time a picture is output, VDAs will do so on
@@ -308,12 +310,14 @@ class VdaVideoDecoderTest : public testing::TestWithParam<bool> {
   testing::StrictMock<base::MockCallback<base::OnceClosure>> reset_cb_;
 
   scoped_refptr<FakeCommandBufferHelper> cbh_;
-  raw_ptr<testing::StrictMock<MockVideoDecodeAccelerator>> vda_;
+  raw_ptr<testing::StrictMock<MockVideoDecodeAccelerator>,
+          AcrossTasksDanglingUntriaged>
+      vda_;
   std::unique_ptr<VideoDecodeAccelerator> owned_vda_;
   scoped_refptr<PictureBufferManager> pbm_;
   std::unique_ptr<AsyncDestroyVideoDecoder<VdaVideoDecoder>> vdavd_;
 
-  raw_ptr<VideoDecodeAccelerator::Client> client_;
+  raw_ptr<VideoDecodeAccelerator::Client, AcrossTasksDanglingUntriaged> client_;
   uint64_t next_release_count_ = 1;
 };
 
@@ -387,6 +391,9 @@ TEST_P(VdaVideoDecoderTest, Decode_NotifyError) {
   NotifyError(VideoDecodeAccelerator::PLATFORM_FAILURE);
 }
 
+// The below tests rely on creation of video frames from GL textures, which is
+// not supported on Apple platforms.
+#if !BUILDFLAG(IS_APPLE)
 TEST_P(VdaVideoDecoderTest, Decode_OutputAndReuse) {
   Initialize();
   int32_t bitstream_id = Decode(base::TimeDelta());
@@ -453,6 +460,7 @@ TEST_P(VdaVideoDecoderTest, Decode_Output_MaintainsAspect) {
   EXPECT_EQ(frame->coded_size(), gfx::Size(1920, 1088));
   EXPECT_EQ(frame->visible_rect(), gfx::Rect(320, 240));
 }
+#endif  // !BUILDFLAG(IS_APPLE)
 
 TEST_P(VdaVideoDecoderTest, Flush) {
   Initialize();

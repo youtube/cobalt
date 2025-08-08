@@ -2,6 +2,11 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#ifdef UNSAFE_BUFFERS_BUILD
+// TODO(crbug.com/40284755): Remove this and spanify to fix the errors.
+#pragma allow_unsafe_buffers
+#endif
+
 // All data that is passed through a WebSocket with type "Text" needs to be
 // validated as UTF8. Since this is done on the IO thread, it needs to be
 // reasonably fast.
@@ -15,6 +20,7 @@
 #include <stddef.h>
 
 #include <string>
+#include <string_view>
 
 #include "base/functional/bind.h"
 #include "base/functional/callback.h"
@@ -136,7 +142,7 @@ struct TestFunctionDescription {
 };
 
 bool IsStringUTF8(const std::string& str) {
-  return base::IsStringUTF8(base::StringPiece(str));
+  return base::IsStringUTF8(std::string_view(str));
 }
 
 // IsString7Bit is intentionally placed last so it can be excluded easily.
@@ -158,12 +164,10 @@ void RunSomeTests(
     const int real_length = static_cast<int>(test_string.length());
     const int times = (1 << 24) / real_length;
     for (size_t test_index = 0; test_index < test_count; ++test_index) {
-      EXPECT_TRUE(RunTest(StringPrintf(format,
-                                       test_functions[test_index].function_name,
-                                       real_length,
-                                       times),
-                          test_functions[test_index].function,
-                          test_string,
+      EXPECT_TRUE(RunTest(StringPrintfNonConstexpr(
+                              format, test_functions[test_index].function_name,
+                              real_length, times),
+                          test_functions[test_index].function, test_string,
                           times));
     }
   }

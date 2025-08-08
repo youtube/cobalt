@@ -1,0 +1,5 @@
+include_rules = [
+  "+chromecast/media",
+  "+google_apis",
+  "+media/base",
+]

@@ -5,6 +5,7 @@
 #ifndef NET_HTTP_HTTP_REQUEST_INFO_H__
 #define NET_HTTP_HTTP_REQUEST_INFO_H__
 
+#include <optional>
 #include <string>
 
 #include "base/memory/raw_ptr.h"
@@ -18,7 +19,6 @@
 #include "net/http/http_request_headers.h"
 #include "net/socket/socket_tag.h"
 #include "net/traffic_annotation/network_traffic_annotation.h"
-#include "third_party/abseil-cpp/absl/types/optional.h"
 #include "url/gurl.h"
 #include "url/origin.h"
 
@@ -28,7 +28,12 @@ class UploadDataStream;
 
 struct NET_EXPORT HttpRequestInfo {
   HttpRequestInfo();
+
   HttpRequestInfo(const HttpRequestInfo& other);
+  HttpRequestInfo& operator=(const HttpRequestInfo& other);
+  HttpRequestInfo(HttpRequestInfo&& other);
+  HttpRequestInfo& operator=(HttpRequestInfo&& other);
+
   ~HttpRequestInfo();
 
   bool IsConsistent() const;
@@ -54,7 +59,7 @@ struct NET_EXPORT HttpRequestInfo {
   HttpRequestHeaders extra_headers;
 
   // Any upload data.
-  raw_ptr<UploadDataStream, DanglingUntriaged> upload_data_stream = nullptr;
+  raw_ptr<UploadDataStream> upload_data_stream = nullptr;
 
   // Any load flags (see load_flags.h).
   int load_flags = 0;
@@ -88,10 +93,14 @@ struct NET_EXPORT HttpRequestInfo {
   // This may the top frame origin associated with a request, or it may be the
   // top frame site.  Or it may be nullptr.  Only used for histograms.
   //
-  // TODO(https://crbug.com/1136054): Investigate migrating the one consumer of
+  // TODO(crbug.com/40724003): Investigate migrating the one consumer of
   // this to NetworkIsolationKey::TopFrameSite().  That gives more consistent
   /// behavior, and may still provide useful metrics.
-  absl::optional<url::Origin> possibly_top_frame_origin;
+  std::optional<url::Origin> possibly_top_frame_origin;
+
+  // The frame origin associated with a request. This is used to isolate shared
+  // dictionaries between different frame origins.
+  std::optional<url::Origin> frame_origin;
 
   // Idempotency of the request, which determines that if it is safe to enable
   // 0-RTT for the request. By default, 0-RTT is only enabled for safe
@@ -102,22 +111,14 @@ struct NET_EXPORT HttpRequestInfo {
   // that the request is idempotent.
   net::Idempotency idempotency = net::DEFAULT_IDEMPOTENCY;
 
-  // Index of the requested URL in Cache Transparency's pervasive payload list.
-  // Only used for logging purposes.
-  int pervasive_payloads_index_for_logging = -1;
-
-  // Checksum of the request body and selected headers, in upper-case
-  // hexadecimal. Only non-empty if the USE_SINGLE_KEYED_CACHE load flag is set.
-  std::string checksum;
-
   // If not null, the value is used to evaluate whether the cache entry should
   // be bypassed; if is null, that means the request site does not match the
   // filter.
-  absl::optional<int64_t> fps_cache_filter;
+  std::optional<int64_t> fps_cache_filter;
 
   // Use as ID to mark the cache entry when persisting. Should be a positive
   // number once set.
-  absl::optional<int64_t> browser_run_id;
+  std::optional<int64_t> browser_run_id;
 };
 
 }  // namespace net

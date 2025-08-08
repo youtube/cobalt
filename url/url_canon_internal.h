@@ -13,8 +13,11 @@
 #include <stddef.h>
 #include <stdlib.h>
 
+#include <string>
+
 #include "base/component_export.h"
 #include "base/notreached.h"
+#include "base/strings/string_number_conversions.h"
 #include "base/third_party/icu/icu_utf.h"
 #include "url/url_canon.h"
 
@@ -86,10 +89,6 @@ void AppendStringOfType(const char16_t* source,
                         SharedCharTypes type,
                         CanonOutput* output);
 
-// Maps the hex numerical values 0x0 to 0xf to the corresponding ASCII digit
-// that will be used to represent it.
-COMPONENT_EXPORT(URL) extern const char kHexCharLookup[0x10];
-
 // This lookup table allows fast conversion between ASCII hex letters and their
 // corresponding numerical value. The 8-bit range is divided up into 8
 // regions of 0x20 characters each. Each of the three character types (numbers,
@@ -135,8 +134,10 @@ char CanonicalSchemeChar(char16_t ch);
 template <typename UINCHAR, typename OUTCHAR>
 inline void AppendEscapedChar(UINCHAR ch, CanonOutputT<OUTCHAR>* output) {
   output->push_back('%');
-  output->push_back(static_cast<OUTCHAR>(kHexCharLookup[(ch >> 4) & 0xf]));
-  output->push_back(static_cast<OUTCHAR>(kHexCharLookup[ch & 0xf]));
+  std::string hex;
+  base::AppendHexEncodedByte(static_cast<uint8_t>(ch), hex);
+  output->push_back(static_cast<OUTCHAR>(hex[0]));
+  output->push_back(static_cast<OUTCHAR>(hex[1]));
 }
 
 // The character we'll substitute for undecodable or invalid characters.
@@ -144,19 +145,19 @@ extern const base_icu::UChar32 kUnicodeReplacementCharacter;
 
 // UTF-8 functions ------------------------------------------------------------
 
-// Reads one character in UTF-8 starting at |*begin| in |str| and places
-// the decoded value into |*code_point|. If the character is valid, we will
-// return true. If invalid, we'll return false and put the
-// kUnicodeReplacementCharacter into |*code_point|.
+// Reads one character in UTF-8 starting at |*begin| in |str|, places
+// the decoded value into |*code_point|, and returns true on success.
+// Otherwise, we'll return false and put the kUnicodeReplacementCharacter
+// into |*code_point|.
 //
 // |*begin| will be updated to point to the last character consumed so it
 // can be incremented in a loop and will be ready for the next character.
 // (for a single-byte ASCII character, it will not be changed).
 COMPONENT_EXPORT(URL)
-bool ReadUTFChar(const char* str,
-                 size_t* begin,
-                 size_t length,
-                 base_icu::UChar32* code_point_out);
+bool ReadUTFCharLossy(const char* str,
+                      size_t* begin,
+                      size_t length,
+                      base_icu::UChar32* code_point_out);
 
 // Generic To-UTF-8 converter. This will call the given append method for each
 // character that should be appended, with the given output method. Wrappers
@@ -216,19 +217,19 @@ inline void AppendUTF8EscapedValue(base_icu::UChar32 char_value,
 
 // UTF-16 functions -----------------------------------------------------------
 
-// Reads one character in UTF-16 starting at |*begin| in |str| and places
-// the decoded value into |*code_point|. If the character is valid, we will
-// return true. If invalid, we'll return false and put the
-// kUnicodeReplacementCharacter into |*code_point|.
+// Reads one character in UTF-16 starting at |*begin| in |str|, places
+// the decoded value into |*code_point|, and returns true on success.
+// Otherwise, we'll return false and put the kUnicodeReplacementCharacter
+// into |*code_point|.
 //
 // |*begin| will be updated to point to the last character consumed so it
 // can be incremented in a loop and will be ready for the next character.
 // (for a single-16-bit-word character, it will not be changed).
 COMPONENT_EXPORT(URL)
-bool ReadUTFChar(const char16_t* str,
-                 size_t* begin,
-                 size_t length,
-                 base_icu::UChar32* code_point_out);
+bool ReadUTFCharLossy(const char16_t* str,
+                      size_t* begin,
+                      size_t length,
+                      base_icu::UChar32* code_point_out);
 
 // Equivalent to U16_APPEND_UNSAFE in ICU but uses our output method.
 inline void AppendUTF16Value(base_icu::UChar32 code_point,
@@ -266,11 +267,11 @@ inline bool AppendUTF8EscapedChar(const char16_t* str,
                                   size_t* begin,
                                   size_t length,
                                   CanonOutput* output) {
-  // UTF-16 input. ReadUTFChar will handle invalid characters for us and give
-  // us the kUnicodeReplacementCharacter, so we don't have to do special
+  // UTF-16 input. ReadUTFCharLossy will handle invalid characters for us and
+  // give us the kUnicodeReplacementCharacter, so we don't have to do special
   // checking after failure, just pass through the failure to the caller.
   base_icu::UChar32 char_value;
-  bool success = ReadUTFChar(str, begin, length, &char_value);
+  bool success = ReadUTFCharLossy(str, begin, length, &char_value);
   AppendUTF8EscapedValue(char_value, output);
   return success;
 }
@@ -280,13 +281,19 @@ inline bool AppendUTF8EscapedChar(const char* str,
                                   size_t* begin,
                                   size_t length,
                                   CanonOutput* output) {
-  // ReadUTF8Char will handle invalid characters for us and give us the
+  // ReadUTFCharLossy will handle invalid characters for us and give us the
   // kUnicodeReplacementCharacter, so we don't have to do special checking
   // after failure, just pass through the failure to the caller.
   base_icu::UChar32 ch;
-  bool success = ReadUTFChar(str, begin, length, &ch);
+  bool success = ReadUTFCharLossy(str, begin, length, &ch);
   AppendUTF8EscapedValue(ch, output);
   return success;
+}
+
+// URL Standard: https://url.spec.whatwg.org/#c0-control-percent-encode-set
+template <typename CHAR>
+bool IsInC0ControlPercentEncodeSet(CHAR ch) {
+  return ch < 0x20 || ch > 0x7E;
 }
 
 // Given a '%' character at |*begin| in the string |spec|, this will decode
@@ -414,10 +421,12 @@ bool SetupUTF16OverrideComponents(const char* base,
 bool CanonicalizePartialPathInternal(const char* spec,
                                      const Component& path,
                                      size_t path_begin_in_output,
+                                     CanonMode canon_mode,
                                      CanonOutput* output);
 bool CanonicalizePartialPathInternal(const char16_t* spec,
                                      const Component& path,
                                      size_t path_begin_in_output,
+                                     CanonMode canon_mode,
                                      CanonOutput* output);
 
 // Find the position of a bona fide Windows drive letter in the given path. If

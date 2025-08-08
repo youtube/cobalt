@@ -8,7 +8,7 @@
 
 #include "base/base_export.h"
 #include "base/feature_list.h"
-#include "base/threading/platform_thread.h"
+#include "build/build_config.h"
 
 namespace base {
 
@@ -30,18 +30,9 @@ BASE_FEATURE(kNoWorkerThreadReclaim,
              "NoWorkerThreadReclaim",
              base::FEATURE_ENABLED_BY_DEFAULT);
 
-// static
-BASE_FEATURE(kNoWakeUpsForCanceledTasks,
-             "NoWakeUpsForCanceledTasks",
-             FEATURE_ENABLED_BY_DEFAULT);
-
-BASE_FEATURE(kRemoveCanceledTasksInTaskQueue,
-             "RemoveCanceledTasksInTaskQueue2",
-             base::FEATURE_ENABLED_BY_DEFAULT);
-
 BASE_FEATURE(kDelayFirstWorkerWake,
              "DelayFirstWorkerWake",
-             base::FEATURE_DISABLED_BY_DEFAULT);
+             base::FEATURE_ENABLED_BY_DEFAULT);
 
 BASE_FEATURE(kAddTaskLeewayFeature,
              "AddTaskLeeway",
@@ -49,37 +40,37 @@ BASE_FEATURE(kAddTaskLeewayFeature,
 
 const base::FeatureParam<TimeDelta> kTaskLeewayParam{&kAddTaskLeewayFeature,
                                                      "leeway", kDefaultLeeway};
+const base::FeatureParam<TimeDelta> kMaxPreciseDelay{
+    &kAddTaskLeewayFeature, "max_precise_delay", kDefaultMaxPreciseDelay};
 
-BASE_FEATURE(kAlignWakeUps, "AlignWakeUps", base::FEATURE_ENABLED_BY_DEFAULT);
+BASE_FEATURE(kAlignWakeUps, "AlignWakeUps", base::FEATURE_DISABLED_BY_DEFAULT);
+
+BASE_FEATURE(kTimerSlackMac,
+             "TimerSlackMac",
+             base::FEATURE_DISABLED_BY_DEFAULT);
 
 BASE_FEATURE(kExplicitHighResolutionTimerWin,
              "ExplicitHighResolutionTimerWin",
+             base::FEATURE_ENABLED_BY_DEFAULT);
+
+BASE_FEATURE(kUIPumpImprovementsWin,
+             "UIPumpImprovementsWin",
              base::FEATURE_DISABLED_BY_DEFAULT);
 
 BASE_FEATURE(kRunTasksByBatches,
              "RunTasksByBatches",
+#if BUILDFLAG(IS_MAC) || BUILDFLAG(IS_CHROMEOS)
+             base::FEATURE_ENABLED_BY_DEFAULT);
+#else
+             base::FEATURE_DISABLED_BY_DEFAULT);
+#endif
+
+BASE_FEATURE(kThreadPoolCap2,
+             "ThreadPoolCap2",
              base::FEATURE_DISABLED_BY_DEFAULT);
 
-// Leeway value applied to delayed tasks. An atomic is used here because the
-// value is queried from multiple threads.
-std::atomic<TimeDelta> g_task_leeway{kDefaultLeeway};
-
-BASE_EXPORT void InitializeTaskLeeway() {
-  g_task_leeway.store(kTaskLeewayParam.Get(), std::memory_order_relaxed);
-}
-
-BASE_EXPORT TimeDelta GetTaskLeewayForCurrentThread() {
-  // For some threads, there might be a override of the leeway, so check it
-  // first.
-  auto leeway_override = PlatformThread::GetThreadLeewayOverride();
-  if (leeway_override.has_value())
-    return leeway_override.value();
-  return g_task_leeway.load(std::memory_order_relaxed);
-}
-
-BASE_EXPORT TimeDelta GetDefaultTaskLeeway() {
-  return g_task_leeway.load(std::memory_order_relaxed);
-}
+const base::FeatureParam<int> kThreadPoolCapRestrictedCount{
+    &kThreadPoolCap2, "restricted_count", 3};
 
 BASE_FEATURE(kMaxDelayedStarvationTasks,
              "MaxDelayedStarvationTasks",
@@ -87,5 +78,11 @@ BASE_FEATURE(kMaxDelayedStarvationTasks,
 
 const base::FeatureParam<int> kMaxDelayedStarvationTasksParam{
     &kMaxDelayedStarvationTasks, "count", 3};
+
+BASE_FEATURE(kThreadGroupSemaphore,
+             "ThreadGroupSemaphore",
+             base::FEATURE_DISABLED_BY_DEFAULT);
+const base::FeatureParam<int> kMaxNumWorkersCreated{
+    &kThreadGroupSemaphore, "max_num_workers_created", 2};
 
 }  // namespace base

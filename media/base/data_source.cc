@@ -7,6 +7,8 @@
 
 namespace media {
 
+DataSourceInfo::~DataSourceInfo() = default;
+
 DataSource::DataSource() = default;
 
 DataSource::~DataSource() = default;
@@ -32,7 +34,7 @@ void DataSource::OnMediaPlaybackRateChanged(double playback_rate) {}
 
 void DataSource::OnMediaIsPlaying() {}
 
-const CrossOriginDataSource* DataSource::GetAsCrossOriginDataSource() const {
+CrossOriginDataSource* DataSource::GetAsCrossOriginDataSource() {
   return nullptr;
 }
 

@@ -2,10 +2,16 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#ifdef UNSAFE_BUFFERS_BUILD
+// TODO(crbug.com/40284755): Remove this and spanify to fix the errors.
+#pragma allow_unsafe_buffers
+#endif
+
 #include "base/trace_event/traced_value.h"
 
 #include <cmath>
 #include <cstddef>
+#include <string_view>
 #include <utility>
 
 #include "base/strings/string_util.h"
@@ -126,8 +132,7 @@ TEST(TraceEventArgumentTest, StringAndPointerConstructors) {
           {"std_string_var", std::string("std::string value")},
           {"string_from_function", SayHello()},
           {"string_from_lambda", []() { return std::string("hello"); }()},
-          {"base_string_piece_var",
-           base::StringPiece("base::StringPiece value")},
+          {"base_string_piece_var", std::string_view("std::string_view value")},
           {"const_char_ptr_var", const_char_ptr_var},
           {"void_nullptr", static_cast<void*>(nullptr)},
           {"int_nullptr", static_cast<int*>(nullptr)},
@@ -139,7 +144,7 @@ TEST(TraceEventArgumentTest, StringAndPointerConstructors) {
       "\"std_string_var\":\"std::string value\","
       "\"string_from_function\":\"hello world\","
       "\"string_from_lambda\":\"hello\","
-      "\"base_string_piece_var\":\"base::StringPiece value\","
+      "\"base_string_piece_var\":\"std::string_view value\","
       "\"const_char_ptr_var\":\"const char* value\","
       "\"void_nullptr\":\"0x0\","
       "\"int_nullptr\":\"0x0\","

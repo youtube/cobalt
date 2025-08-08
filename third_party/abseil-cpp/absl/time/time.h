@@ -98,7 +98,6 @@ class Time;      // Defined below
 class TimeZone;  // Defined below
 
 namespace time_internal {
-int64_t IDivDuration(bool satq, Duration num, Duration den, Duration* rem);
 ABSL_ATTRIBUTE_CONST_FUNCTION constexpr Time FromUnixDuration(Duration d);
 ABSL_ATTRIBUTE_CONST_FUNCTION constexpr Duration ToUnixDuration(Time t);
 ABSL_ATTRIBUTE_CONST_FUNCTION constexpr int64_t GetRepHi(Duration d);
@@ -338,30 +337,6 @@ ABSL_ATTRIBUTE_CONST_FUNCTION inline Duration operator-(Duration lhs,
   return lhs -= rhs;
 }
 
-// Multiplicative Operators
-// Integer operands must be representable as int64_t.
-template <typename T>
-ABSL_ATTRIBUTE_CONST_FUNCTION Duration operator*(Duration lhs, T rhs) {
-  return lhs *= rhs;
-}
-template <typename T>
-ABSL_ATTRIBUTE_CONST_FUNCTION Duration operator*(T lhs, Duration rhs) {
-  return rhs *= lhs;
-}
-template <typename T>
-ABSL_ATTRIBUTE_CONST_FUNCTION Duration operator/(Duration lhs, T rhs) {
-  return lhs /= rhs;
-}
-ABSL_ATTRIBUTE_CONST_FUNCTION inline int64_t operator/(Duration lhs,
-                                                       Duration rhs) {
-  return time_internal::IDivDuration(true, lhs, rhs,
-                                     &lhs);  // trunc towards zero
-}
-ABSL_ATTRIBUTE_CONST_FUNCTION inline Duration operator%(Duration lhs,
-                                                        Duration rhs) {
-  return lhs %= rhs;
-}
-
 // IDivDuration()
 //
 // Divides a numerator `Duration` by a denominator `Duration`, returning the
@@ -390,10 +365,7 @@ ABSL_ATTRIBUTE_CONST_FUNCTION inline Duration operator%(Duration lhs,
 //   // Here, q would overflow int64_t, so rem accounts for the difference.
 //   int64_t q = absl::IDivDuration(a, b, &rem);
 //   // q == std::numeric_limits<int64_t>::max(), rem == a - b * q
-inline int64_t IDivDuration(Duration num, Duration den, Duration* rem) {
-  return time_internal::IDivDuration(true, num, den,
-                                     rem);  // trunc towards zero
-}
+int64_t IDivDuration(Duration num, Duration den, Duration* rem);
 
 // FDivDuration()
 //
@@ -408,6 +380,30 @@ inline int64_t IDivDuration(Duration num, Duration den, Duration* rem) {
 //   double d = absl::FDivDuration(absl::Milliseconds(1500), absl::Seconds(1));
 //   // d == 1.5
 ABSL_ATTRIBUTE_CONST_FUNCTION double FDivDuration(Duration num, Duration den);
+
+// Multiplicative Operators
+// Integer operands must be representable as int64_t.
+template <typename T>
+ABSL_ATTRIBUTE_CONST_FUNCTION Duration operator*(Duration lhs, T rhs) {
+  return lhs *= rhs;
+}
+template <typename T>
+ABSL_ATTRIBUTE_CONST_FUNCTION Duration operator*(T lhs, Duration rhs) {
+  return rhs *= lhs;
+}
+template <typename T>
+ABSL_ATTRIBUTE_CONST_FUNCTION Duration operator/(Duration lhs, T rhs) {
+  return lhs /= rhs;
+}
+ABSL_ATTRIBUTE_CONST_FUNCTION inline int64_t operator/(Duration lhs,
+                                                       Duration rhs) {
+  return IDivDuration(lhs, rhs,
+                      &lhs);  // trunc towards zero
+}
+ABSL_ATTRIBUTE_CONST_FUNCTION inline Duration operator%(Duration lhs,
+                                                        Duration rhs) {
+  return lhs %= rhs;
+}
 
 // ZeroDuration()
 //
@@ -802,8 +798,7 @@ class Time {
   // `absl::TimeZone`.
   //
   // Deprecated. Use `absl::TimeZone::CivilInfo`.
-  struct
-      Breakdown {
+  struct ABSL_DEPRECATED("Use `absl::TimeZone::CivilInfo`.") Breakdown {
     int64_t year;        // year (e.g., 2013)
     int month;           // month of year [1:12]
     int day;             // day of month [1:31]
@@ -829,7 +824,10 @@ class Time {
   // Returns the breakdown of this instant in the given TimeZone.
   //
   // Deprecated. Use `absl::TimeZone::At(Time)`.
+  ABSL_INTERNAL_DISABLE_DEPRECATED_DECLARATION_WARNING
+  ABSL_DEPRECATED("Use `absl::TimeZone::At(Time)`.")
   Breakdown In(TimeZone tz) const;
+  ABSL_INTERNAL_RESTORE_DEPRECATED_DECLARATION_WARNING
 
   template <typename H>
   friend H AbslHashValue(H h, Time t) {
@@ -1323,8 +1321,7 @@ ABSL_ATTRIBUTE_PURE_FUNCTION inline Time FromCivil(CivilSecond ct,
 // `absl::ConvertDateTime()`. Legacy version of `absl::TimeZone::TimeInfo`.
 //
 // Deprecated. Use `absl::TimeZone::TimeInfo`.
-struct
-    TimeConversion {
+struct ABSL_DEPRECATED("Use `absl::TimeZone::TimeInfo`.") TimeConversion {
   Time pre;    // time calculated using the pre-transition offset
   Time trans;  // when the civil-time discontinuity occurred
   Time post;   // time calculated using the post-transition offset
@@ -1358,8 +1355,11 @@ struct
 //   // absl::ToCivilDay(tc.pre, tz).day() == 1
 //
 // Deprecated. Use `absl::TimeZone::At(CivilSecond)`.
+ABSL_INTERNAL_DISABLE_DEPRECATED_DECLARATION_WARNING
+ABSL_DEPRECATED("Use `absl::TimeZone::At(CivilSecond)`.")
 TimeConversion ConvertDateTime(int64_t year, int mon, int day, int hour,
                                int min, int sec, TimeZone tz);
+ABSL_INTERNAL_RESTORE_DEPRECATED_DECLARATION_WARNING
 
 // FromDateTime()
 //
@@ -1376,9 +1376,12 @@ TimeConversion ConvertDateTime(int64_t year, int mon, int day, int hour,
 // Deprecated. Use `absl::FromCivil(CivilSecond, TimeZone)`. Note that the
 // behavior of `FromCivil()` differs from `FromDateTime()` for skipped civil
 // times. If you care about that see `absl::TimeZone::At(absl::CivilSecond)`.
-inline Time FromDateTime(int64_t year, int mon, int day, int hour,
-                         int min, int sec, TimeZone tz) {
+ABSL_DEPRECATED("Use `absl::FromCivil(CivilSecond, TimeZone)`.")
+inline Time FromDateTime(int64_t year, int mon, int day, int hour, int min,
+                         int sec, TimeZone tz) {
+  ABSL_INTERNAL_DISABLE_DEPRECATED_DECLARATION_WARNING
   return ConvertDateTime(year, mon, day, hour, min, sec, tz).pre;
+  ABSL_INTERNAL_RESTORE_DEPRECATED_DECLARATION_WARNING
 }
 
 // FromTM()

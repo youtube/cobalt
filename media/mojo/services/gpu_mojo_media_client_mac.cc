@@ -2,63 +2,88 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#include <memory>
+
 #include "base/task/sequenced_task_runner.h"
 #include "base/task/single_thread_task_runner.h"
 #include "base/task/thread_pool.h"
 #include "media/base/audio_decoder.h"
+#include "media/base/media_switches.h"
 #include "media/base/offloading_audio_encoder.h"
 #include "media/filters/mac/audio_toolbox_audio_decoder.h"
 #include "media/filters/mac/audio_toolbox_audio_encoder.h"
 #include "media/gpu/ipc/service/vda_video_decoder.h"
+#include "media/gpu/mac/video_toolbox_video_decoder.h"
 #include "media/mojo/services/gpu_mojo_media_client.h"
 
 namespace media {
 
-std::unique_ptr<VideoDecoder> CreatePlatformVideoDecoder(
-    VideoDecoderTraits& traits) {
-  return VdaVideoDecoder::Create(
-      traits.task_runner, traits.gpu_task_runner, traits.media_log->Clone(),
-      *traits.target_color_space, traits.gpu_preferences,
-      *traits.gpu_workarounds, traits.get_command_buffer_stub_cb,
-      VideoDecodeAccelerator::Config::OutputMode::ALLOCATE);
+namespace {
+
+bool UseVTVD() {
+  return base::FeatureList::IsEnabled(kVideoToolboxVideoDecoder) &&
+         IsMultiPlaneFormatForHardwareVideoEnabled();
 }
 
-absl::optional<SupportedVideoDecoderConfigs>
-GetPlatformSupportedVideoDecoderConfigs(
-    gpu::GpuDriverBugWorkarounds gpu_workarounds,
-    gpu::GpuPreferences gpu_preferences,
-    const gpu::GPUInfo& gpu_info,
-    base::OnceCallback<SupportedVideoDecoderConfigs()> get_vda_configs) {
-  return std::move(get_vda_configs).Run();
-}
+}  // namespace
 
-std::unique_ptr<AudioDecoder> CreatePlatformAudioDecoder(
-    scoped_refptr<base::SequencedTaskRunner> task_runner,
-    std::unique_ptr<MediaLog> media_log) {
-  return std::make_unique<AudioToolboxAudioDecoder>(std::move(media_log));
-}
+class GpuMojoMediaClientMac final : public GpuMojoMediaClient {
+ public:
+  GpuMojoMediaClientMac(GpuMojoMediaClientTraits& traits)
+      : GpuMojoMediaClient(traits) {}
+  ~GpuMojoMediaClientMac() final = default;
 
-std::unique_ptr<AudioEncoder> CreatePlatformAudioEncoder(
-    scoped_refptr<base::SequencedTaskRunner> task_runner) {
-  auto encoding_runner = base::ThreadPool::CreateSequencedTaskRunner({});
-  auto encoder = std::make_unique<AudioToolboxAudioEncoder>();
-  return std::make_unique<OffloadingAudioEncoder>(
-      std::move(encoder), std::move(encoding_runner), std::move(task_runner));
-}
+ protected:
+  std::unique_ptr<VideoDecoder> CreatePlatformVideoDecoder(
+      VideoDecoderTraits& traits) final {
+    if (UseVTVD()) {
+      return std::make_unique<VideoToolboxVideoDecoder>(
+          traits.task_runner, traits.media_log->Clone(), gpu_workarounds_,
+          gpu_task_runner_, traits.get_command_buffer_stub_cb);
+    }
 
-// This class doesn't exist on mac, so we need a stub for unique_ptr.
-class CdmFactory {};
+    return VdaVideoDecoder::Create(
+        traits.task_runner, gpu_task_runner_, traits.media_log->Clone(),
+        *traits.target_color_space, gpu_preferences_, gpu_workarounds_,
+        traits.get_command_buffer_stub_cb,
+        VideoDecodeAccelerator::Config::OutputMode::kAllocate);
+  }
 
-std::unique_ptr<CdmFactory> CreatePlatformCdmFactory(
-    mojom::FrameInterfaceFactory* frame_interfaces) {
-  return nullptr;
-}
+  std::optional<SupportedVideoDecoderConfigs>
+  GetPlatformSupportedVideoDecoderConfigs(
+      GetVdaConfigsCB get_vda_configs) final {
+    if (UseVTVD()) {
+      return VideoToolboxVideoDecoder::GetSupportedVideoDecoderConfigs(
+          gpu_workarounds_);
+    }
+    return std::move(get_vda_configs).Run();
+  }
 
-VideoDecoderType GetPlatformDecoderImplementationType(
-    gpu::GpuDriverBugWorkarounds gpu_workarounds,
-    gpu::GpuPreferences gpu_preferences,
-    const gpu::GPUInfo& gpu_info) {
-  return VideoDecoderType::kVda;
+  std::unique_ptr<AudioDecoder> CreatePlatformAudioDecoder(
+      scoped_refptr<base::SequencedTaskRunner> task_runner,
+      std::unique_ptr<MediaLog> media_log) final {
+    return std::make_unique<AudioToolboxAudioDecoder>(std::move(media_log));
+  }
+
+  std::unique_ptr<AudioEncoder> CreatePlatformAudioEncoder(
+      scoped_refptr<base::SequencedTaskRunner> task_runner) final {
+    auto encoding_runner = base::ThreadPool::CreateSequencedTaskRunner({});
+    auto encoder = std::make_unique<AudioToolboxAudioEncoder>();
+    return std::make_unique<OffloadingAudioEncoder>(
+        std::move(encoder), std::move(encoding_runner), std::move(task_runner));
+  }
+
+  VideoDecoderType GetPlatformDecoderImplementationType() final {
+    if (UseVTVD()) {
+      return VideoDecoderType::kVideoToolbox;
+    }
+    return VideoDecoderType::kVda;
+  }
+};
+
+std::unique_ptr<GpuMojoMediaClient> CreateGpuMediaService(
+    GpuMojoMediaClientTraits& traits) {
+  return std::make_unique<GpuMojoMediaClientMac>(traits);
 }
 
 }  // namespace media

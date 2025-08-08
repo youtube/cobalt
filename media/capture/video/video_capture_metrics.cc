@@ -4,6 +4,7 @@
 
 #include "media/capture/video/video_capture_metrics.h"
 
+#include "base/containers/contains.h"
 #include "base/containers/fixed_flat_map.h"
 #include "base/containers/flat_set.h"
 #include "base/containers/span.h"
@@ -140,10 +141,18 @@ VideoResolutionDesignation ResolutionNameFromSize(gfx::Size frame_size) {
     frame_size.set_width(frame_size.height());
     frame_size.set_width(tmp);
   }
-  auto* it = kResolutions.find(frame_size);
+  auto it = kResolutions.find(frame_size);
   return it != kResolutions.end() ? it->second
                                   : VideoResolutionDesignation::kUnknown;
 }
+
+// These values are persisted to logs. Entries should not be renumbered and
+// numeric values should never be reused.
+enum class VideoEffectStatus {
+  kUnsupported = 0,
+  kSupported = 1,
+  kMaxValue = kSupported
+};
 
 }  // namespace
 
@@ -175,6 +184,84 @@ void LogCaptureDeviceMetrics(
       }
     }
   }
+  base::UmaHistogramCustomCounts("Media.VideoCapture.Device.TotalAvailable",
+                                 devices_info.size(), 0, 5, 5);
+}
+
+void LogCaptureDeviceHashedModelId(
+    const media::VideoCaptureDeviceDescriptor& descriptor) {
+  // descriptor.model_id has the form "XXXX:XXXX" when a USB device is detected,
+  // and empty otherwise.
+  constexpr int kModelIdStrLength = 9;
+  constexpr int kColonPosIndex = 4;
+  uint32_t mapping = 0;
+  if (descriptor.model_id.length() == kModelIdStrLength) {
+    const std::string vid = descriptor.model_id.substr(0, kColonPosIndex);
+    const std::string pid =
+        descriptor.model_id.substr(kColonPosIndex + 1, kModelIdStrLength);
+    const std::string usb_id = vid + pid;
+    // Check if resulting usb_id is a valid Hex Number, otherwise reporting 0
+    if (std::all_of(usb_id.begin(), usb_id.end(), ::isxdigit)) {
+      std::stringstream ss;
+      ss << std::hex << usb_id;
+      ss >> mapping;
+    }
+  }
+  UMA_HISTOGRAM_SPARSE("Media.VideoCapture.Device.Opened.ByModelId", mapping);
+}
+
+void LogCaptureDeviceEffects(mojom::PhotoStatePtr photo_state) {
+  const bool has_background_blur =
+      photo_state->supported_background_blur_modes &&
+      base::Contains(photo_state->supported_background_blur_modes.value(),
+                     mojom::BackgroundBlurMode::BLUR);
+  UMA_HISTOGRAM_ENUMERATION("Media.VideoCapture.Device.Effect.BackgroundBlur",
+                            has_background_blur
+                                ? VideoEffectStatus::kSupported
+                                : VideoEffectStatus::kUnsupported);
+
+  const bool has_face_framing =
+      photo_state->supported_face_framing_modes &&
+      photo_state->supported_face_framing_modes.value().size() > 0;
+  UMA_HISTOGRAM_ENUMERATION("Media.VideoCapture.Device.Effect.FaceFraming",
+                            has_face_framing ? VideoEffectStatus::kSupported
+                                             : VideoEffectStatus::kUnsupported);
+
+  const bool has_eye_gaze_correction =
+      photo_state->supported_eye_gaze_correction_modes &&
+      (base::Contains(photo_state->supported_eye_gaze_correction_modes.value(),
+                      mojom::EyeGazeCorrectionMode::ON) ||
+       base::Contains(photo_state->supported_eye_gaze_correction_modes.value(),
+                      mojom::EyeGazeCorrectionMode::STARE));
+  UMA_HISTOGRAM_ENUMERATION(
+      "Media.VideoCapture.Device.Effect.EyeGazeCorrection",
+      has_eye_gaze_correction ? VideoEffectStatus::kSupported
+                              : VideoEffectStatus::kUnsupported);
+}
+
+void LogCaptureCurrentDeviceResolution(int width, int height) {
+  // This method combines width and height into a single uint32_t value.
+  constexpr int kMinValue = 0;
+  constexpr int kMaxValue = 65535;
+  uint32_t result = 0;
+
+  // Check if width and height are valid, otherwise metric will be 0.
+  if (width > kMinValue && width <= kMaxValue && height > kMinValue &&
+      height <= kMaxValue) {
+    // Store the width in the first 16 bits
+    result |= static_cast<uint16_t>(width) << 16;
+    // Store the height in the last 16 bits
+    result |= static_cast<uint16_t>(height);
+  }
+  base::UmaHistogramSparse("Media.VideoCapture.Device.Opened.Resolution",
+                           result);
+}
+
+void LogCaptureCurrentDevicePixelFormat(
+    const media::VideoPixelFormat pixel_format) {
+  base::UmaHistogramEnumeration("Media.VideoCapture.Device.Opened.PixelFormat",
+                                pixel_format,
+                                media::VideoPixelFormat::PIXEL_FORMAT_MAX);
 }
 
 }  // namespace media

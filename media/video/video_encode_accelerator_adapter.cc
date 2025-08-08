@@ -21,6 +21,7 @@
 #include "gpu/ipc/common/gpu_memory_buffer_support.h"
 #include "media/base/bitstream_buffer.h"
 #include "media/base/media_log.h"
+#include "media/base/media_switches.h"
 #include "media/base/svc_scalability_mode.h"
 #include "media/base/video_frame.h"
 #include "media/base/video_util.h"
@@ -53,7 +54,7 @@ uint32_t ComputeCheckedDefaultBitrate(const gfx::Size& frame_size) {
 }
 
 uint32_t ComputeCheckedPeakBitrate(uint32_t target_bitrate) {
-  // TODO(crbug.com/1342850): Reconsider whether this is good peak bps.
+  // TODO(crbug.com/40851972): Reconsider whether this is good peak bps.
   base::CheckedNumeric<uint32_t> checked_bitrate_product =
       base::CheckMul<uint32_t>(target_bitrate, 10u);
   return checked_bitrate_product.ValueOrDefault(
@@ -61,7 +62,7 @@ uint32_t ComputeCheckedPeakBitrate(uint32_t target_bitrate) {
 }
 
 Bitrate CreateBitrate(
-    const absl::optional<Bitrate>& requested_bitrate,
+    const std::optional<Bitrate>& requested_bitrate,
     const gfx::Size& frame_size,
     VideoEncodeAccelerator::SupportedRateControlMode supported_rc_modes) {
   uint32_t default_bitrate = ComputeCheckedDefaultBitrate(frame_size);
@@ -89,15 +90,32 @@ VideoEncodeAccelerator::Config SetUpVeaConfig(
     VideoFrame::StorageType storage_type,
     VideoEncodeAccelerator::SupportedRateControlMode supported_rc_modes,
     VideoEncodeAccelerator::Config::EncoderType required_encoder_type) {
-  absl::optional<uint32_t> initial_framerate;
-  if (opts.framerate.has_value())
-    initial_framerate = static_cast<uint32_t>(opts.framerate.value());
-
   Bitrate bitrate =
       CreateBitrate(opts.bitrate, opts.frame_size, supported_rc_modes);
-  auto config =
-      VideoEncodeAccelerator::Config(format, opts.frame_size, profile, bitrate,
-                                     initial_framerate, opts.keyframe_interval);
+  auto config = VideoEncodeAccelerator::Config(
+      format, opts.frame_size, profile, bitrate,
+      opts.framerate.value_or(VideoEncodeAccelerator::kDefaultFramerate),
+      VideoEncodeAccelerator::Config::StorageType::kShmem,
+      VideoEncodeAccelerator::Config::ContentType::kCamera);
+  config.gop_length = opts.keyframe_interval;
+
+  if (opts.content_hint) {
+    switch (*opts.content_hint) {
+      case media::VideoEncoder::ContentHint::Camera:
+        config.content_type =
+            VideoEncodeAccelerator::Config::ContentType::kCamera;
+        break;
+      case media::VideoEncoder::ContentHint::Screen:
+        config.content_type =
+            VideoEncodeAccelerator::Config::ContentType::kDisplay;
+        break;
+    }
+  }
+
+  if (opts.latency_mode == VideoEncoder::LatencyMode::Realtime) {
+    config.drop_frame_thresh_percentage =
+        GetDefaultVideoEncoderDropFrameThreshold();
+  }
 
   size_t num_temporal_layers = 1;
   if (opts.scalability_mode) {
@@ -121,8 +139,7 @@ VideoEncodeAccelerator::Config SetUpVeaConfig(
     layer.width = opts.frame_size.width();
     layer.height = opts.frame_size.height();
     layer.bitrate_bps = config.bitrate.target_bps();
-    if (initial_framerate.has_value())
-      layer.framerate = initial_framerate.value();
+    layer.framerate = config.framerate;
     layer.num_of_temporal_layers = num_temporal_layers;
     config.spatial_layers.push_back(layer);
   }
@@ -381,14 +398,6 @@ void VideoEncodeAcceleratorAdapter::InitializeOnAcceleratorThread(
     return;
   }
 
-  if (options.bitrate.has_value() &&
-      options.bitrate->mode() == Bitrate::Mode::kExternal) {
-    std::move(done_cb).Run(
-        EncoderStatus(EncoderStatus::Codes::kEncoderUnsupportedConfig,
-                      "Unsupported bitrate mode"));
-    return;
-  }
-
   if (!options.frame_size.GetCheckedArea().IsValid()) {
     std::move(done_cb).Run(
         EncoderStatus(EncoderStatus::Codes::kEncoderUnsupportedConfig,
@@ -511,7 +520,7 @@ void VideoEncodeAcceleratorAdapter::Encode(scoped_refptr<VideoFrame> frame,
 
 void VideoEncodeAcceleratorAdapter::EncodeOnAcceleratorThread(
     scoped_refptr<VideoFrame> frame,
-    const EncodeOptions& encode_options,
+    EncodeOptions encode_options,
     EncoderStatusCB done_cb) {
   TRACE_EVENT1("media",
                "VideoEncodeAcceleratorAdapter::EncodeOnAcceleratorThread",
@@ -571,10 +580,9 @@ void VideoEncodeAcceleratorAdapter::EncodeOnAcceleratorThread(
 
   frame = std::move(result).value();
 
-  bool key_frame = encode_options.key_frame;
   if (last_frame_color_space_ != frame->ColorSpace()) {
     last_frame_color_space_ = frame->ColorSpace();
-    key_frame = true;
+    encode_options.key_frame = true;
   }
 
   auto active_encode = std::make_unique<PendingOp>();
@@ -582,7 +590,7 @@ void VideoEncodeAcceleratorAdapter::EncodeOnAcceleratorThread(
   active_encode->timestamp = frame->timestamp();
   active_encode->color_space = frame->ColorSpace();
   active_encodes_.push_back(std::move(active_encode));
-  accelerator_->Encode(frame, key_frame);
+  accelerator_->Encode(frame, encode_options);
 }
 
 void VideoEncodeAcceleratorAdapter::ChangeOptions(const Options& options,
@@ -604,15 +612,9 @@ void VideoEncodeAcceleratorAdapter::ChangeOptionsOnAcceleratorThread(
   DCHECK_CALLED_ON_VALID_SEQUENCE(accelerator_sequence_checker_);
   DCHECK(active_encodes_.empty());
   DCHECK(pending_encodes_.empty());
-  DCHECK_EQ(state_, State::kReadyToEncode);
+  CHECK(state_ == State::kReadyToEncode ||
+        state_ == State::kWaitingForFirstFrame);
 
-  if (options.frame_size != options_.frame_size) {
-    auto status =
-        EncoderStatus(EncoderStatus::Codes::kEncoderInitializationError,
-                      "Resolution change is not supported.");
-    std::move(done_cb).Run(status);
-    return;
-  }
   if (options.bitrate && options_.bitrate &&
       options.bitrate->mode() != options_.bitrate->mode()) {
     std::move(done_cb).Run(
@@ -621,12 +623,35 @@ void VideoEncodeAcceleratorAdapter::ChangeOptionsOnAcceleratorThread(
     return;
   }
 
+  std::optional<gfx::Size> new_frame_size;
+  if (options.frame_size != options_.frame_size) {
+    if (supports_frame_size_change_) {
+      input_pool_.reset();
+      gmb_frame_pool_.reset();
+      new_frame_size = options.frame_size;
+    } else {
+      auto status =
+          EncoderStatus(EncoderStatus::Codes::kEncoderInitializationError,
+                        "Resolution change is not supported.");
+      std::move(done_cb).Run(status);
+      return;
+    }
+  }
+
   Bitrate bitrate =
       CreateBitrate(options.bitrate, options.frame_size, supported_rc_modes_);
   uint32_t framerate = base::ClampRound<uint32_t>(
       options.framerate.value_or(VideoEncodeAccelerator::kDefaultFramerate));
 
-  accelerator_->RequestEncodingParametersChange(bitrate, framerate);
+  // When frame size is changed, run |done_cb| in |RequireBitstreamBuffers|
+  // after bitstream buffer is re-initialized. At that time, reconfigure is done
+  // and VEA is ready to accept new frames.
+  if (new_frame_size.has_value()) {
+    reconfigure_cb_ = std::move(done_cb);
+  }
+  state_ = State::kReconfiguring;
+  accelerator_->RequestEncodingParametersChange(bitrate, framerate,
+                                                new_frame_size);
 
 #if BUILDFLAG(USE_PROPRIETARY_CODECS)
   if (profile_ >= H264PROFILE_MIN && profile_ <= H264PROFILE_MAX) {
@@ -652,7 +677,10 @@ void VideoEncodeAcceleratorAdapter::ChangeOptionsOnAcceleratorThread(
   options_ = options;
   if (!output_cb.is_null())
     output_cb_ = std::move(output_cb);
-  std::move(done_cb).Run(EncoderStatus::Codes::kOk);
+  if (!done_cb.is_null()) {
+    state_ = State::kReadyToEncode;
+    std::move(done_cb).Run(EncoderStatus::Codes::kOk);
+  }
 }
 
 void VideoEncodeAcceleratorAdapter::Flush(EncoderStatusCB done_cb) {
@@ -707,6 +735,7 @@ void VideoEncodeAcceleratorAdapter::RequireBitstreamBuffers(
     const gfx::Size& input_coded_size,
     size_t output_buffer_size) {
   DCHECK_CALLED_ON_VALID_SEQUENCE(accelerator_sequence_checker_);
+  CHECK(state_ == State::kInitializing || state_ == State::kReconfiguring);
 
   input_coded_size_ = input_coded_size;
 
@@ -715,7 +744,14 @@ void VideoEncodeAcceleratorAdapter::RequireBitstreamBuffers(
   for (int id = 0; id < kOutputBufferNumber; id++) {
     auto handle = output_pool_->MaybeAllocateBuffer(output_buffer_size);
     if (!handle) {
-      InitCompleted(EncoderStatus::Codes::kEncoderInitializationError);
+      if (state_ == State::kInitializing) {
+        InitCompleted(EncoderStatus::Codes::kEncoderInitializationError);
+      } else if (reconfigure_cb_) {
+        std::move(reconfigure_cb_)
+            .Run({EncoderStatus::Codes::kInvalidOutputBuffer,
+                  "Failed to allocate buffer"});
+        state_ = State::kNotInitialized;
+      }
       return;
     }
 
@@ -725,13 +761,20 @@ void VideoEncodeAcceleratorAdapter::RequireBitstreamBuffers(
     output_buffer_handles_.push_back(std::move(handle));
   }
 
-  InitCompleted(EncoderStatus::Codes::kOk);
+  if (state_ == State::kInitializing) {
+    InitCompleted(EncoderStatus::Codes::kOk);
+  } else if (state_ == State::kReconfiguring) {
+    state_ = State::kReadyToEncode;
+    if (reconfigure_cb_) {
+      std::move(reconfigure_cb_).Run(EncoderStatus::Codes::kOk);
+    }
+  }
 }
 
 void VideoEncodeAcceleratorAdapter::BitstreamBufferReady(
     int32_t buffer_id,
     const BitstreamBufferMetadata& metadata) {
-  absl::optional<CodecDescription> desc;
+  std::optional<CodecDescription> desc;
   VideoEncoderOutput result;
   result.key_frame = metadata.key_frame;
   result.timestamp = metadata.timestamp;
@@ -771,13 +814,12 @@ void VideoEncodeAcceleratorAdapter::BitstreamBufferReady(
     uint8_t* src = static_cast<uint8_t*>(mapping.memory());
     size_t dst_size = result.size;
     size_t actual_output_size = 0;
-    auto dst = std::make_unique<uint8_t[]>(dst_size);
+    auto dst = base::HeapArray<uint8_t>::Uninit(dst_size);
     bool config_changed = false;
     media::MP4Status status;
     if (h264_converter_) {
       status = h264_converter_->ConvertChunk(
-          base::span<uint8_t>(src, result.size),
-          base::span<uint8_t>(dst.get(), dst_size), &config_changed,
+          base::span<uint8_t>(src, result.size), dst, &config_changed,
           &actual_output_size);
       if (status.code() == MP4Status::Codes::kBufferTooSmall) {
         // Between AnnexB and AVCC bitstream formats, the start code length and
@@ -785,10 +827,9 @@ void VideoEncodeAcceleratorAdapter::BitstreamBufferReady(
         // http://www.itu.int/rec/T-REC-H.264. Retry the conversion if the
         // output buffer size is too small.
         dst_size = actual_output_size;
-        dst = std::make_unique<uint8_t[]>(dst_size);
+        dst = base::HeapArray<uint8_t>::Uninit(dst_size);
         status = h264_converter_->ConvertChunk(
-            base::span<uint8_t>(src, result.size),
-            base::span<uint8_t>(dst.get(), dst_size), &config_changed,
+            base::span<uint8_t>(src, result.size), dst, &config_changed,
             &actual_output_size);
       }
 
@@ -815,15 +856,13 @@ void VideoEncodeAcceleratorAdapter::BitstreamBufferReady(
     BUILDFLAG(ENABLE_HEVC_PARSER_AND_HW_DECODER)
       if (h265_converter_) {
         status = h265_converter_->ConvertChunk(
-            base::span<uint8_t>(src, result.size),
-            base::span<uint8_t>(dst.get(), dst_size), &config_changed,
+            base::span<uint8_t>(src, result.size), dst, &config_changed,
             &actual_output_size);
         if (status.code() == MP4Status::Codes::kBufferTooSmall) {
           dst_size = actual_output_size;
-          dst = std::make_unique<uint8_t[]>(dst_size);
+          dst = base::HeapArray<uint8_t>::Uninit(dst_size);
           status = h265_converter_->ConvertChunk(
-              base::span<uint8_t>(src, result.size),
-              base::span<uint8_t>(dst.get(), dst_size), &config_changed,
+              base::span<uint8_t>(src, result.size), dst, &config_changed,
               &actual_output_size);
         }
 
@@ -852,8 +891,8 @@ void VideoEncodeAcceleratorAdapter::BitstreamBufferReady(
     }
 #endif  // BUILDFLAG(USE_PROPRIETARY_CODECS)
     if (!stream_converted) {
-      result.data = std::make_unique<uint8_t[]>(result.size);
-      memcpy(result.data.get(), mapping.memory(), result.size);
+      result.data = base::HeapArray<uint8_t>::Uninit(result.size);
+      memcpy(result.data.data(), mapping.memory(), result.size);
     }
   }
 
@@ -875,11 +914,8 @@ void VideoEncodeAcceleratorAdapter::BitstreamBufferReady(
     }
   }
   DCHECK(erased_active_encode);
-  if (result.size > 0) {
-    // Size = 0 means that frame was dropped by the platform encoder, we don't
-    // need to call the output callback in such cases.
-    output_cb_.Run(std::move(result), std::move(desc));
-  }
+  output_cb_.Run(std::move(result), std::move(desc));
+
   if (active_encodes_.empty() && !flush_support_.value()) {
     // Manually call FlushCompleted(), since |accelerator_| won't do it for us.
     FlushCompleted(true);
@@ -889,15 +925,27 @@ void VideoEncodeAcceleratorAdapter::BitstreamBufferReady(
 void VideoEncodeAcceleratorAdapter::NotifyErrorStatus(
     const EncoderStatus& status) {
   CHECK(!status.is_ok());
-  LOG(ERROR) << "NotifyErrorStatus() is called, code="
-             << static_cast<int32_t>(status.code())
-             << ", message=" << status.message();
+  MEDIA_LOG(ERROR, media_log_)
+      << "VEA adapter error. Code: " << static_cast<int32_t>(status.code())
+      << ". Message: " << status.message();
   if (state_ == State::kInitializing) {
     InitCompleted(
         EncoderStatus(EncoderStatus::Codes::kEncoderInitializationError,
                       "VideoEncodeAccelerator encountered an error")
             .WithData("VideoEncodeAccelerator status code",
                       static_cast<int32_t>(status.code())));
+    return;
+  }
+
+  if (state_ == State::kReconfiguring) {
+    if (reconfigure_cb_) {
+      std::move(reconfigure_cb_)
+          .Run(EncoderStatus(EncoderStatus::Codes::kEncoderInitializationError,
+                             "VideoEncodeAccelerator encountered an error")
+                   .WithData("VideoEncodeAccelerator status code",
+                             static_cast<int32_t>(status.code())));
+    }
+    state_ = State::kNotInitialized;
     return;
   }
 
@@ -919,7 +967,10 @@ void VideoEncodeAcceleratorAdapter::NotifyErrorStatus(
 void VideoEncodeAcceleratorAdapter::NotifyEncoderInfoChange(
     const VideoEncoderInfo& info) {
   DCHECK_CALLED_ON_VALID_SEQUENCE(accelerator_sequence_checker_);
-  info_cb_.Run(info);
+  supports_frame_size_change_ = info.supports_frame_size_change;
+  if (info_cb_) {
+    info_cb_.Run(info);
+  }
 }
 
 void VideoEncodeAcceleratorAdapter::InitCompleted(EncoderStatus status) {
@@ -1028,10 +1079,11 @@ VideoEncodeAcceleratorAdapter::PrepareCpuFrame(
     return EncoderStatus(EncoderStatus::Codes::kEncoderFailedEncode);
 
   auto status =
-      ConvertAndScaleFrame(*mapped_src_frame, *shared_frame, resize_buf_);
-  if (!status.is_ok())
+      frame_converter_.ConvertAndScale(*mapped_src_frame, *shared_frame);
+  if (!status.is_ok()) {
     return EncoderStatus(EncoderStatus::Codes::kEncoderFailedEncode)
         .AddCause(std::move(status));
+  }
 
   shared_frame->BackWithSharedMemory(handle->region());
   shared_frame->AddDestructionObserver(
@@ -1073,7 +1125,7 @@ VideoEncodeAcceleratorAdapter::PrepareGpuFrame(
 
   // Don't be scared. ConvertToMemoryMappedFrame() doesn't copy pixel data
   // it just maps GPU buffer owned by |gpu_frame| and presents it as mapped
-  // view in CPU memory. It allows us to use ConvertAndScaleFrame() without
+  // view in CPU memory. It allows us to use ConvertAndScale() without
   // having to tinker with libyuv and GpuMemoryBuffer memory views.
   // |mapped_gpu_frame| doesn't own anything, but unmaps the buffer when freed.
   // This is true because |gpu_frame| is created with
@@ -1086,15 +1138,18 @@ VideoEncodeAcceleratorAdapter::PrepareGpuFrame(
     return EncoderStatus(EncoderStatus::Codes::kEncoderFailedEncode);
 
   auto status =
-      ConvertAndScaleFrame(*mapped_src_frame, *mapped_gpu_frame, resize_buf_);
-  if (!status.is_ok())
+      frame_converter_.ConvertAndScale(*mapped_src_frame, *mapped_gpu_frame);
+  if (!status.is_ok()) {
     return EncoderStatus(EncoderStatus::Codes::kEncoderFailedEncode)
         .AddCause(std::move(status));
+  }
 
   // |mapped_gpu_frame| has the color space respecting the color conversion in
-  // ConvertAndScaleFrame().
+  // ConvertAndScale().
+#if BUILDFLAG(IS_MAC)
   gpu_frame->GetGpuMemoryBuffer()->SetColorSpace(
       mapped_gpu_frame->ColorSpace());
+#endif
   gpu_frame->set_color_space(mapped_gpu_frame->ColorSpace());
 
   return gpu_frame;

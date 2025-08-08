@@ -6,12 +6,13 @@
 #define MEDIA_VIDEO_VIDEO_ENCODER_INFO_H_
 
 #include <stdint.h>
+
 #include <array>
+#include <optional>
 #include <string>
 #include <vector>
 
 #include "media/base/media_export.h"
-#include "third_party/abseil-cpp/absl/types/optional.h"
 #include "ui/gfx/geometry/size.h"
 
 namespace media {
@@ -28,14 +29,14 @@ struct MEDIA_EXPORT ResolutionBitrateLimit {
                          int max_bitrate_bps);
   ~ResolutionBitrateLimit();
 
-  friend bool operator==(const ResolutionBitrateLimit&,
-                         const ResolutionBitrateLimit&) = default;
-
   gfx::Size frame_size;
   int min_start_bitrate_bps = 0;
   int min_bitrate_bps = 0;
   int max_bitrate_bps = 0;
 };
+
+MEDIA_EXPORT bool operator==(const ResolutionBitrateLimit& lhs,
+                             const ResolutionBitrateLimit& rhs);
 
 struct MEDIA_EXPORT VideoEncoderInfo {
   static constexpr size_t kMaxSpatialLayers = 5;
@@ -44,9 +45,6 @@ struct MEDIA_EXPORT VideoEncoderInfo {
   VideoEncoderInfo(const VideoEncoderInfo&);
   ~VideoEncoderInfo();
 
-  friend bool operator==(const VideoEncoderInfo&,
-                         const VideoEncoderInfo&) = default;
-
   std::string implementation_name;
 
   // The number of additional input frames that must be enqueued before the
@@ -54,13 +52,13 @@ struct MEDIA_EXPORT VideoEncoderInfo {
   // compression window. Equal to 0 if the encoder can produce a chunk of
   // output just from the frame submitted last.
   // If absent, the encoder client will assume some default value.
-  absl::optional<int> frame_delay;
+  std::optional<int> frame_delay;
 
   // The number of input frames the encoder can queue internally. Once this
   // number is reached, further encode requests can block until some output has
   // been produced.
   // If absent, the encoder client will assume some default value.
-  absl::optional<int> input_capacity;
+  std::optional<int> input_capacity;
 
   bool supports_native_handle = true;
   bool has_trusted_rate_controller = false;
@@ -72,10 +70,15 @@ struct MEDIA_EXPORT VideoEncoderInfo {
   bool reports_average_qp = true;
   uint32_t requested_resolution_alignment = 1;
   bool apply_alignment_to_all_simulcast_layers = false;
+  // True if encoder supports frame size change without re-initialization.
+  bool supports_frame_size_change = false;
 
   std::array<std::vector<uint8_t>, kMaxSpatialLayers> fps_allocation;
   std::vector<ResolutionBitrateLimit> resolution_bitrate_limits;
 };
+
+MEDIA_EXPORT bool operator==(const VideoEncoderInfo& lhs,
+                             const VideoEncoderInfo& rhs);
 
 }  // namespace media
 

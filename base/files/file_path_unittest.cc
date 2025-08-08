@@ -2,6 +2,11 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#ifdef UNSAFE_BUFFERS_BUILD
+// TODO(crbug.com/40284755): Remove this and spanify to fix the errors.
+#pragma allow_unsafe_buffers
+#endif
+
 #include "base/files/file_path.h"
 
 #include <stddef.h>
@@ -9,6 +14,7 @@
 #include <sstream>
 
 #include "base/files/safe_base_name.h"
+#include "base/strings/utf_ostream_operators.h"
 #include "base/strings/utf_string_conversions.h"
 #include "build/build_config.h"
 #include "build/buildflag.h"
@@ -335,7 +341,7 @@ TEST_F(FilePathTest, Append) {
     // handle the case when AppendASCII is passed UTF8
 #if BUILDFLAG(IS_WIN)
     std::string ascii = WideToUTF8(leaf);
-#elif BUILDFLAG(IS_POSIX) || BUILDFLAG(IS_FUCHSIA) || defined(STARBOARD)
+#elif BUILDFLAG(IS_POSIX) || BUILDFLAG(IS_FUCHSIA)
     std::string ascii = leaf;
 #endif
     observed_str = root.AppendASCII(ascii);

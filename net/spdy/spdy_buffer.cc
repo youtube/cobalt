@@ -31,8 +31,8 @@ std::unique_ptr<spdy::SpdySerializedFrame> MakeSpdySerializedFrame(
 
   auto frame_data = std::make_unique<char[]>(size);
   std::memcpy(frame_data.get(), data, size);
-  return std::make_unique<spdy::SpdySerializedFrame>(frame_data.release(), size,
-                                                     true /* owns_buffer */);
+  return std::make_unique<spdy::SpdySerializedFrame>(std::move(frame_data),
+                                                     size);
 }
 
 }  // namespace
@@ -44,7 +44,7 @@ class SpdyBuffer::SharedFrameIOBuffer : public IOBuffer {
  public:
   SharedFrameIOBuffer(const scoped_refptr<SharedFrame>& shared_frame,
                       size_t offset)
-      : IOBuffer(shared_frame->data->data() + offset),
+      : IOBuffer(base::make_span(*shared_frame->data).subspan(offset)),
         shared_frame_(shared_frame) {}
 
   SharedFrameIOBuffer(const SharedFrameIOBuffer&) = delete;
@@ -52,7 +52,8 @@ class SpdyBuffer::SharedFrameIOBuffer : public IOBuffer {
 
  private:
   ~SharedFrameIOBuffer() override {
-    // Prevent ~IOBuffer() from trying to delete |data_|.
+    // Prevent `data_` from dangling should this destructor remove the
+    // last reference to `shared_frame`.
     data_ = nullptr;
   }
 

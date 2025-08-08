@@ -53,13 +53,13 @@ void UnloadNativeLibrary(NativeLibrary library) {
   int ret = dlclose(library);
   if (ret < 0) {
     DLOG(ERROR) << "dlclose failed: " << dlerror();
-    NOTREACHED();
+    NOTREACHED_IN_MIGRATION();
   }
 }
 
 void* GetFunctionPointerFromNativeLibrary(NativeLibrary library,
-                                          StringPiece name) {
-  return dlsym(library, name.data());
+                                          const char* name) {
+  return dlsym(library, name);
 }
 
 std::string GetNativeLibraryName(StringPiece name) {

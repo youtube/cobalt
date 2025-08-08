@@ -2,7 +2,10 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#include "net/cookies/cookie_util.h"
+
 #include <memory>
+#include <optional>
 #include <string>
 #include <tuple>
 #include <utility>
@@ -18,11 +21,8 @@
 #include "net/base/features.h"
 #include "net/cookies/cookie_constants.h"
 #include "net/cookies/cookie_options.h"
-#include "net/cookies/cookie_util.h"
-#include "net/first_party_sets/same_party_context.h"
 #include "testing/gmock/include/gmock/gmock.h"
 #include "testing/gtest/include/gtest/gtest.h"
-#include "third_party/abseil-cpp/absl/types/optional.h"
 #include "url/origin.h"
 
 namespace net {
@@ -394,7 +394,7 @@ TEST(CookieUtilTest, TestCookieDateParsing) {
       continue;
     }
     EXPECT_TRUE(!parsed_time.is_null()) << test.str;
-    EXPECT_EQ(test.epoch, parsed_time.ToDoubleT()) << test.str;
+    EXPECT_EQ(test.epoch, parsed_time.InSecondsFSinceUnixEpoch()) << test.str;
   }
 }
 
@@ -586,18 +586,12 @@ TEST(CookieUtilTest, SimulatedCookieSource) {
   for (const auto& test : kTests) {
     std::vector<std::unique_ptr<CanonicalCookie>> cookies;
     // It shouldn't depend on the cookie's secureness or actual source scheme.
-    cookies.push_back(
-        CanonicalCookie::Create(insecure_url, test.cookie, base::Time::Now(),
-                                absl::nullopt /* server_time */,
-                                absl::nullopt /* cookie_partition_key */));
-    cookies.push_back(
-        CanonicalCookie::Create(secure_url, test.cookie, base::Time::Now(),
-                                absl::nullopt /* server_time */,
-                                absl::nullopt /* cookie_partition_key */));
-    cookies.push_back(CanonicalCookie::Create(
-        secure_url, test.cookie + "; Secure", base::Time::Now(),
-        absl::nullopt /* server_time */,
-        absl::nullopt /* cookie_partition_key */));
+    cookies.push_back(CanonicalCookie::CreateForTesting(
+        insecure_url, test.cookie, base::Time::Now()));
+    cookies.push_back(CanonicalCookie::CreateForTesting(secure_url, test.cookie,
+                                                        base::Time::Now()));
+    cookies.push_back(CanonicalCookie::CreateForTesting(
+        secure_url, test.cookie + "; Secure", base::Time::Now()));
     for (const auto& cookie : cookies) {
       GURL simulated_source =
           cookie_util::SimulatedCookieSource(*cookie, test.source_scheme);
@@ -824,7 +818,7 @@ class CookieUtilComputeSameSiteContextTest
     return cross_site_sfc;
   }
 
-  std::vector<absl::optional<url::Origin>> GetAllInitiators() const {
+  std::vector<std::optional<url::Origin>> GetAllInitiators() const {
     return {kBrowserInitiated,   kOpaqueInitiator,
             kSiteInitiator,      kSecureSiteInitiator,
             kCrossSiteInitiator, kSecureCrossSiteInitiator,
@@ -832,8 +826,8 @@ class CookieUtilComputeSameSiteContextTest
             kUnrelatedInitiator};
   }
 
-  std::vector<absl::optional<url::Origin>> GetSameSiteInitiators() const {
-    std::vector<absl::optional<url::Origin>> same_site_initiators{
+  std::vector<std::optional<url::Origin>> GetSameSiteInitiators() const {
+    std::vector<std::optional<url::Origin>> same_site_initiators{
         kBrowserInitiated, kSiteInitiator, kSubdomainInitiator};
     // If schemeless, the cross-scheme origins are also same-site.
     if (!IsSchemeful()) {
@@ -843,11 +837,11 @@ class CookieUtilComputeSameSiteContextTest
     return same_site_initiators;
   }
 
-  std::vector<absl::optional<url::Origin>> GetCrossSiteInitiators() const {
-    std::vector<absl::optional<url::Origin>> cross_site_initiators;
-    std::vector<absl::optional<url::Origin>> same_site_initiators =
+  std::vector<std::optional<url::Origin>> GetCrossSiteInitiators() const {
+    std::vector<std::optional<url::Origin>> cross_site_initiators;
+    std::vector<std::optional<url::Origin>> same_site_initiators =
         GetSameSiteInitiators();
-    for (const absl::optional<url::Origin>& initiator : GetAllInitiators()) {
+    for (const std::optional<url::Origin>& initiator : GetAllInitiators()) {
       if (!base::Contains(same_site_initiators, initiator))
         cross_site_initiators.push_back(initiator);
     }
@@ -921,23 +915,23 @@ class CookieUtilComputeSameSiteContextTest
   const SiteForCookies kSecureCrossSiteForCookies =
       SiteForCookies::FromUrl(kSecureCrossSiteUrl);
   // Initiator origin.
-  const absl::optional<url::Origin> kBrowserInitiated = absl::nullopt;
-  const absl::optional<url::Origin> kOpaqueInitiator =
-      absl::make_optional(url::Origin());
-  const absl::optional<url::Origin> kSiteInitiator =
-      absl::make_optional(url::Origin::Create(kSiteUrl));
-  const absl::optional<url::Origin> kSecureSiteInitiator =
-      absl::make_optional(url::Origin::Create(kSecureSiteUrl));
-  const absl::optional<url::Origin> kCrossSiteInitiator =
-      absl::make_optional(url::Origin::Create(kCrossSiteUrl));
-  const absl::optional<url::Origin> kSecureCrossSiteInitiator =
-      absl::make_optional(url::Origin::Create(kSecureCrossSiteUrl));
-  const absl::optional<url::Origin> kSubdomainInitiator =
-      absl::make_optional(url::Origin::Create(kSubdomainUrl));
-  const absl::optional<url::Origin> kSecureSubdomainInitiator =
-      absl::make_optional(url::Origin::Create(kSecureSubdomainUrl));
-  const absl::optional<url::Origin> kUnrelatedInitiator =
-      absl::make_optional(url::Origin::Create(GURL("https://unrelated.test/")));
+  const std::optional<url::Origin> kBrowserInitiated = std::nullopt;
+  const std::optional<url::Origin> kOpaqueInitiator =
+      std::make_optional(url::Origin());
+  const std::optional<url::Origin> kSiteInitiator =
+      std::make_optional(url::Origin::Create(kSiteUrl));
+  const std::optional<url::Origin> kSecureSiteInitiator =
+      std::make_optional(url::Origin::Create(kSecureSiteUrl));
+  const std::optional<url::Origin> kCrossSiteInitiator =
+      std::make_optional(url::Origin::Create(kCrossSiteUrl));
+  const std::optional<url::Origin> kSecureCrossSiteInitiator =
+      std::make_optional(url::Origin::Create(kSecureCrossSiteUrl));
+  const std::optional<url::Origin> kSubdomainInitiator =
+      std::make_optional(url::Origin::Create(kSubdomainUrl));
+  const std::optional<url::Origin> kSecureSubdomainInitiator =
+      std::make_optional(url::Origin::Create(kSecureSubdomainUrl));
+  const std::optional<url::Origin> kUnrelatedInitiator =
+      std::make_optional(url::Origin::Create(GURL("https://unrelated.test/")));
 
  protected:
   base::test::ScopedFeatureList feature_list_;
@@ -949,7 +943,7 @@ TEST_P(CookieUtilComputeSameSiteContextTest, UrlAndSiteForCookiesCrossSite) {
   for (const GURL& url : GetSameSiteUrls()) {
     for (const SiteForCookies& site_for_cookies :
          GetCrossSiteSitesForCookies()) {
-      for (const absl::optional<url::Origin>& initiator : GetAllInitiators()) {
+      for (const std::optional<url::Origin>& initiator : GetAllInitiators()) {
         for (const std::string& method : {"GET", "POST", "PUT", "HEAD"}) {
           EXPECT_THAT(cookie_util::ComputeSameSiteContextForScriptGet(
                           url, site_for_cookies, initiator,
@@ -1010,7 +1004,7 @@ TEST_P(CookieUtilComputeSameSiteContextTest, SiteForCookiesNotSchemefullySame) {
 
   for (const GURL& url : GetSameSiteUrls()) {
     for (const SiteForCookies& site_for_cookies : sites_for_cookies) {
-      for (const absl::optional<url::Origin>& initiator : GetAllInitiators()) {
+      for (const std::optional<url::Origin>& initiator : GetAllInitiators()) {
         for (const std::string& method : {"GET", "POST", "PUT", "HEAD"}) {
           EXPECT_THAT(cookie_util::ComputeSameSiteContextForScriptGet(
                           url, site_for_cookies, initiator,
@@ -1051,7 +1045,7 @@ TEST_P(CookieUtilComputeSameSiteContextTest, ForScriptGet) {
     for (const SiteForCookies& site_for_cookies :
          GetSameSiteSitesForCookies()) {
       // Cross-site initiator -> it's same-site lax.
-      for (const absl::optional<url::Origin>& initiator :
+      for (const std::optional<url::Origin>& initiator :
            GetCrossSiteInitiators()) {
         EXPECT_THAT(cookie_util::ComputeSameSiteContextForScriptGet(
                         url, site_for_cookies, initiator,
@@ -1060,7 +1054,7 @@ TEST_P(CookieUtilComputeSameSiteContextTest, ForScriptGet) {
       }
 
       // Same-site initiator -> it's same-site strict.
-      for (const absl::optional<url::Origin>& initiator :
+      for (const std::optional<url::Origin>& initiator :
            GetSameSiteInitiators()) {
         EXPECT_THAT(cookie_util::ComputeSameSiteContextForScriptGet(
                         url, site_for_cookies, initiator,
@@ -1125,7 +1119,7 @@ TEST_P(CookieUtilComputeSameSiteContextTest, ForRequest) {
     for (const SiteForCookies& site_for_cookies :
          GetSameSiteSitesForCookies()) {
       // Same-Site initiator -> it's same-site strict.
-      for (const absl::optional<url::Origin>& initiator :
+      for (const std::optional<url::Origin>& initiator :
            GetSameSiteInitiators()) {
         for (const std::string& method : {"GET", "POST", "PUT", "HEAD"}) {
           for (bool is_main_frame_navigation :
@@ -1140,7 +1134,7 @@ TEST_P(CookieUtilComputeSameSiteContextTest, ForRequest) {
       }
 
       // Cross-Site initiator -> it's same-site lax iff the method is safe.
-      for (const absl::optional<url::Origin>& initiator :
+      for (const std::optional<url::Origin>& initiator :
            GetCrossSiteInitiators()) {
         // For main frame navigations, the context is Lax (or Lax-unsafe).
         for (const std::string& method : {"GET", "HEAD"}) {
@@ -1388,7 +1382,7 @@ TEST_P(CookieUtilComputeSameSiteContextTest, ForRequest_Redirect) {
     std::vector<SiteForCookies> sites_for_cookies =
         test_case.site_for_cookies_is_same_site ? GetSameSiteSitesForCookies()
                                                 : GetCrossSiteSitesForCookies();
-    std::vector<absl::optional<url::Origin>> initiators =
+    std::vector<std::optional<url::Origin>> initiators =
         test_case.initiator_is_same_site ? GetSameSiteInitiators()
                                          : GetCrossSiteInitiators();
     ContextType expected_context_type =
@@ -1402,7 +1396,7 @@ TEST_P(CookieUtilComputeSameSiteContextTest, ForRequest_Redirect) {
                   .expected_context_type_for_main_frame_navigation_without_chain;
     for (const std::vector<GURL>& url_chain : url_chains) {
       for (const SiteForCookies& site_for_cookies : sites_for_cookies) {
-        for (const absl::optional<url::Origin>& initiator : initiators) {
+        for (const std::optional<url::Origin>& initiator : initiators) {
           EXPECT_THAT(
               cookie_util::ComputeSameSiteContextForRequest(
                   test_case.method, url_chain, site_for_cookies, initiator,
@@ -1492,7 +1486,7 @@ TEST_P(CookieUtilComputeSameSiteContextTest, ForResponse) {
          GetSameSiteSitesForCookies()) {
       // For main frame navigations, setting all SameSite cookies is allowed
       // regardless of initiator.
-      for (const absl::optional<url::Origin>& initiator : GetAllInitiators()) {
+      for (const std::optional<url::Origin>& initiator : GetAllInitiators()) {
         if (!CanBeMainFrameNavigation(url, site_for_cookies))
           break;
         EXPECT_THAT(cookie_util::ComputeSameSiteContextForResponse(
@@ -1504,7 +1498,7 @@ TEST_P(CookieUtilComputeSameSiteContextTest, ForResponse) {
 
       // For non-main-frame-navigation requests, the context should be lax iff
       // the initiator is same-site, and cross-site otherwise.
-      for (const absl::optional<url::Origin>& initiator :
+      for (const std::optional<url::Origin>& initiator :
            GetSameSiteInitiators()) {
         EXPECT_THAT(cookie_util::ComputeSameSiteContextForResponse(
                         {url}, site_for_cookies, initiator,
@@ -1512,7 +1506,7 @@ TEST_P(CookieUtilComputeSameSiteContextTest, ForResponse) {
                         false /* force_ignore_site_for_cookies */),
                     ContextTypeIs(ContextType::SAME_SITE_LAX));
       }
-      for (const absl::optional<url::Origin>& initiator :
+      for (const std::optional<url::Origin>& initiator :
            GetCrossSiteInitiators()) {
         EXPECT_THAT(cookie_util::ComputeSameSiteContextForResponse(
                         {url}, site_for_cookies, initiator,
@@ -1582,7 +1576,7 @@ TEST_P(CookieUtilComputeSameSiteContextTest, ForResponse_WebSocketSchemes) {
   // (ws/wss requests cannot be main frame navigations.)
 
   // Same-site initiators.
-  for (const absl::optional<url::Origin>& initiator : GetSameSiteInitiators()) {
+  for (const std::optional<url::Origin>& initiator : GetSameSiteInitiators()) {
     EXPECT_THAT(cookie_util::ComputeSameSiteContextForResponse(
                     {kWsUrl}, kSiteForCookies, initiator,
                     false /* is_main_frame_navigation */,
@@ -1590,8 +1584,7 @@ TEST_P(CookieUtilComputeSameSiteContextTest, ForResponse_WebSocketSchemes) {
                 ContextTypeIs(ContextType::SAME_SITE_LAX));
   }
   // Cross-site initiators.
-  for (const absl::optional<url::Origin>& initiator :
-       GetCrossSiteInitiators()) {
+  for (const std::optional<url::Origin>& initiator : GetCrossSiteInitiators()) {
     EXPECT_THAT(cookie_util::ComputeSameSiteContextForResponse(
                     {kWsUrl}, kSiteForCookies, initiator,
                     false /* is_main_frame_navigation */,
@@ -1654,7 +1647,7 @@ TEST_P(CookieUtilComputeSameSiteContextTest, ForResponse_Redirect) {
     std::vector<SiteForCookies> sites_for_cookies =
         test_case.site_for_cookies_is_same_site ? GetSameSiteSitesForCookies()
                                                 : GetCrossSiteSitesForCookies();
-    std::vector<absl::optional<url::Origin>> initiators =
+    std::vector<std::optional<url::Origin>> initiators =
         test_case.initiator_is_same_site ? GetSameSiteInitiators()
                                          : GetCrossSiteInitiators();
     ContextType expected_context_type =
@@ -1668,7 +1661,7 @@ TEST_P(CookieUtilComputeSameSiteContextTest, ForResponse_Redirect) {
                   .expected_context_type_for_main_frame_navigation_without_chain;
     for (const std::vector<GURL>& url_chain : url_chains) {
       for (const SiteForCookies& site_for_cookies : sites_for_cookies) {
-        for (const absl::optional<url::Origin>& initiator : initiators) {
+        for (const std::optional<url::Origin>& initiator : initiators) {
           EXPECT_THAT(cookie_util::ComputeSameSiteContextForResponse(
                           url_chain, site_for_cookies, initiator,
                           false /* is_main_frame_navigation */,
@@ -1757,7 +1750,7 @@ TEST_P(CookieUtilComputeSameSiteContextTest, ForceIgnoreSiteForCookies) {
   // (STRICT for get or LAX for set).
   for (const GURL& url : GetAllUrls()) {
     for (const SiteForCookies& site_for_cookies : GetAllSitesForCookies()) {
-      for (const absl::optional<url::Origin>& initiator : GetAllInitiators()) {
+      for (const std::optional<url::Origin>& initiator : GetAllInitiators()) {
         for (const std::string& method : {"GET", "POST", "PUT", "HEAD"}) {
           EXPECT_THAT(cookie_util::ComputeSameSiteContextForScriptGet(
                           url, site_for_cookies, initiator,
@@ -1812,180 +1805,6 @@ TEST(CookieUtilTest, IsCookieAccessResultInclude) {
       CookieInclusionStatus(CookieInclusionStatus::EXCLUDE_UNKNOWN_ERROR))));
 
   EXPECT_TRUE(cookie_util::IsCookieAccessResultInclude(CookieAccessResult()));
-}
-
-TEST(CookieUtilTest, GetSamePartyStatus_NotInSet) {
-  const bool same_party_attribute_enabled = true;
-  CookieOptions options;
-  options.set_is_in_nontrivial_first_party_set(false);
-
-  for (bool same_party : {false, true}) {
-    for (bool secure : {false, true}) {
-      for (bool httponly : {false, true}) {
-        for (CookieSameSite same_site : {
-                 CookieSameSite::NO_RESTRICTION,
-                 CookieSameSite::LAX_MODE,
-                 CookieSameSite::STRICT_MODE,
-                 CookieSameSite::UNSPECIFIED,
-             }) {
-          for (SamePartyContext::Type party_context_type : {
-                   SamePartyContext::Type::kCrossParty,
-                   SamePartyContext::Type::kSameParty,
-               }) {
-            base::Time now = base::Time::Now();
-            std::unique_ptr<CanonicalCookie> cookie =
-                CanonicalCookie::CreateUnsafeCookieForTesting(
-                    "cookie", "tasty", "example.test", "/", now, now, now, now,
-                    secure, httponly, same_site,
-                    CookiePriority::COOKIE_PRIORITY_DEFAULT, same_party);
-
-            options.set_same_party_context(
-                SamePartyContext(party_context_type));
-            EXPECT_EQ(CookieSamePartyStatus::kNoSamePartyEnforcement,
-                      cookie_util::GetSamePartyStatus(
-                          *cookie, options, same_party_attribute_enabled));
-          }
-        }
-      }
-    }
-  }
-}
-
-TEST(CookieUtilTest, GetSamePartyStatus_FeatureDisabled) {
-  const bool same_party_attribute_enabled = false;
-  CookieOptions options;
-  options.set_is_in_nontrivial_first_party_set(true);
-
-  for (bool same_party : {false, true}) {
-    for (bool secure : {false, true}) {
-      for (bool httponly : {false, true}) {
-        for (CookieSameSite same_site : {
-                 CookieSameSite::NO_RESTRICTION,
-                 CookieSameSite::LAX_MODE,
-                 CookieSameSite::STRICT_MODE,
-                 CookieSameSite::UNSPECIFIED,
-             }) {
-          for (SamePartyContext::Type party_context_type : {
-                   SamePartyContext::Type::kCrossParty,
-                   SamePartyContext::Type::kSameParty,
-               }) {
-            base::Time now = base::Time::Now();
-            std::unique_ptr<CanonicalCookie> cookie =
-                CanonicalCookie::CreateUnsafeCookieForTesting(
-                    "cookie", "tasty", "example.test", "/", now, now, now, now,
-                    secure, httponly, same_site,
-                    CookiePriority::COOKIE_PRIORITY_DEFAULT, same_party);
-
-            options.set_same_party_context(
-                SamePartyContext(party_context_type));
-            EXPECT_EQ(CookieSamePartyStatus::kNoSamePartyEnforcement,
-                      cookie_util::GetSamePartyStatus(
-                          *cookie, options, same_party_attribute_enabled));
-          }
-        }
-      }
-    }
-  }
-}
-
-TEST(CookieUtilTest, GetSamePartyStatus_NotSameParty) {
-  CookieOptions options;
-  options.set_is_in_nontrivial_first_party_set(true);
-
-  for (bool secure : {false, true}) {
-    for (bool httponly : {false, true}) {
-      for (CookieSameSite same_site : {
-               CookieSameSite::NO_RESTRICTION,
-               CookieSameSite::LAX_MODE,
-               CookieSameSite::STRICT_MODE,
-               CookieSameSite::UNSPECIFIED,
-           }) {
-        for (SamePartyContext::Type party_context_type : {
-                 SamePartyContext::Type::kCrossParty,
-                 SamePartyContext::Type::kSameParty,
-             }) {
-          base::Time now = base::Time::Now();
-          std::unique_ptr<CanonicalCookie> cookie =
-              CanonicalCookie::CreateUnsafeCookieForTesting(
-                  "cookie", "tasty", "example.test", "/", now, now, now, now,
-                  secure, httponly, same_site,
-                  CookiePriority::COOKIE_PRIORITY_DEFAULT,
-                  false /* same_party */);
-
-          options.set_same_party_context(SamePartyContext(party_context_type));
-          EXPECT_EQ(CookieSamePartyStatus::kNoSamePartyEnforcement,
-                    cookie_util::GetSamePartyStatus(
-                        *cookie, options,
-                        /*same_party_attribute_enabled=*/true));
-        }
-      }
-    }
-  }
-}
-
-TEST(CookieUtilTest, GetSamePartyStatus_SamePartySemantics) {
-  CookieOptions options;
-  options.set_is_in_nontrivial_first_party_set(true);
-
-  // Note: some SameParty cookie configurations (e.g. non-Secure cookies) are
-  // skipped, because they are invalid.
-  for (bool httponly : {false, true}) {
-    for (CookieSameSite same_site : {
-             CookieSameSite::NO_RESTRICTION,
-             CookieSameSite::LAX_MODE,
-             CookieSameSite::UNSPECIFIED,
-         }) {
-      for (CookieOptions::SameSiteCookieContext::ContextType same_site_context :
-           {
-               CookieOptions::SameSiteCookieContext::ContextType::CROSS_SITE,
-               CookieOptions::SameSiteCookieContext::ContextType::SAME_SITE_LAX,
-               CookieOptions::SameSiteCookieContext::ContextType::
-                   SAME_SITE_LAX_METHOD_UNSAFE,
-               CookieOptions::SameSiteCookieContext::ContextType::
-                   SAME_SITE_STRICT,
-           }) {
-        for (CookieOptions::SameSiteCookieContext::ContextType
-                 schemeful_same_site_context :
-             {
-                 CookieOptions::SameSiteCookieContext::ContextType::CROSS_SITE,
-                 CookieOptions::SameSiteCookieContext::ContextType::
-                     SAME_SITE_LAX,
-                 CookieOptions::SameSiteCookieContext::ContextType::
-                     SAME_SITE_LAX_METHOD_UNSAFE,
-                 CookieOptions::SameSiteCookieContext::ContextType::
-                     SAME_SITE_STRICT,
-             }) {
-          if (same_site_context < schemeful_same_site_context)
-            continue;
-          options.set_same_site_cookie_context(
-              CookieOptions::SameSiteCookieContext(
-                  same_site_context, schemeful_same_site_context));
-
-          base::Time now = base::Time::Now();
-          std::unique_ptr<CanonicalCookie> cookie =
-              CanonicalCookie::CreateUnsafeCookieForTesting(
-                  "cookie", "tasty", "example.test", "/", now, now, now, now,
-                  true /* secure */, httponly, same_site,
-                  CookiePriority::COOKIE_PRIORITY_DEFAULT,
-                  true /* same_party */);
-
-          options.set_same_party_context(
-              SamePartyContext(SamePartyContext::Type::kCrossParty));
-          EXPECT_EQ(CookieSamePartyStatus::kEnforceSamePartyExclude,
-                    cookie_util::GetSamePartyStatus(
-                        *cookie, options,
-                        /*same_party_attribute_enabled=*/true));
-
-          options.set_same_party_context(
-              SamePartyContext(SamePartyContext::Type::kSameParty));
-          EXPECT_EQ(CookieSamePartyStatus::kEnforceSamePartyInclude,
-                    cookie_util::GetSamePartyStatus(
-                        *cookie, options,
-                        /*same_party_attribute_enabled=*/true));
-        }
-      }
-    }
-  }
 }
 
 }  // namespace

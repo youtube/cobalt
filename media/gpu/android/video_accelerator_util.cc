@@ -6,7 +6,6 @@
 
 #include "base/android/build_info.h"
 #include "base/android/jni_string.h"
-#include "base/metrics/histogram_functions.h"
 #include "base/no_destructor.h"
 #include "media/base/android/media_jni_headers/VideoAcceleratorUtil_jni.h"
 
@@ -16,16 +15,14 @@ const std::vector<MediaCodecEncoderInfo>& GetEncoderInfoCache() {
   static const base::NoDestructor<std::vector<MediaCodecEncoderInfo>> infos([] {
     // Sadly the NDK doesn't provide a mechanism for accessing the equivalent of
     // the SDK's MediaCodecList, so we must call into Java to enumerate support.
-    JNIEnv* env = base::android::AttachCurrentThread();
+    JNIEnv* env = jni_zero::AttachCurrentThread();
     CHECK(env);
     auto java_profiles =
         Java_VideoAcceleratorUtil_getSupportedEncoderProfiles(env);
 
-    constexpr char kHasMediaCodecEncoderInfo[] =
-        "Media.Android.MediaCodecInfo.HasEncoderInfo";
     std::vector<MediaCodecEncoderInfo> cpp_infos;
     if (!java_profiles) {
-      base::UmaHistogramBoolean(kHasMediaCodecEncoderInfo, false);
+      // Per histograms this happens ~0% of the time, so no need for fallback.
       return cpp_infos;
     }
 
@@ -56,16 +53,29 @@ const std::vector<MediaCodecEncoderInfo>& GetEncoderInfoCache() {
       info.profile.is_software_codec =
           Java_SupportedProfileAdapter_isSoftwareCodec(env, java_profile);
 
+      int num_temporal_layers =
+          Java_SupportedProfileAdapter_getMaxNumberOfTemporalLayers(
+              env, java_profile);
+
+      info.profile.scalability_modes.push_back(SVCScalabilityMode::kL1T1);
+      if (num_temporal_layers >= 2) {
+        info.profile.scalability_modes.push_back(SVCScalabilityMode::kL1T2);
+      }
+      if (num_temporal_layers >= 3) {
+        info.profile.scalability_modes.push_back(SVCScalabilityMode::kL1T3);
+      }
       info.name = base::android::ConvertJavaStringToUTF8(
           Java_SupportedProfileAdapter_getName(env, java_profile));
       cpp_infos.push_back(info);
     }
-    std::sort(
+
+    // Use a stable sort since codec information is returned in a rank order
+    // specified by the OEM.
+    std::stable_sort(
         cpp_infos.begin(), cpp_infos.end(),
         [](const MediaCodecEncoderInfo& a, const MediaCodecEncoderInfo& b) {
           return a.profile.profile < b.profile.profile;
         });
-    base::UmaHistogramBoolean(kHasMediaCodecEncoderInfo, !cpp_infos.empty());
     return cpp_infos;
   }());
   return *infos;
@@ -73,44 +83,17 @@ const std::vector<MediaCodecEncoderInfo>& GetEncoderInfoCache() {
 
 const std::vector<MediaCodecDecoderInfo>& GetDecoderInfoCache() {
   static const base::NoDestructor<std::vector<MediaCodecDecoderInfo>> infos([] {
-    JNIEnv* env = base::android::AttachCurrentThread();
+    JNIEnv* env = jni_zero::AttachCurrentThread();
     CHECK(env);
     auto java_profiles =
         Java_VideoAcceleratorUtil_getSupportedDecoderProfiles(env);
-    constexpr char kHasMediaCodecDecoderInfo[] =
-        "Media.Android.MediaCodecInfo.HasDecoderInfo";
-    if (!java_profiles) {
-      // TODO(crbug.com/1413887): Can we remove default profiles?
-      base::UmaHistogramBoolean(kHasMediaCodecDecoderInfo, false);
-
-      LOG(ERROR)
-          << "Unable to retreive MediaCodecInfo, assuming default support.";
-
-      // Since we don't bundle a software decoder for H.264, H.265, to avoid
-      // breaking all video unnecessarily, inject what is likely supported.
-      constexpr auto kDefaultSize = gfx::Size(4096, 4096);
-      constexpr auto kSoftwareCodec = true;
-      constexpr auto kHardwareCodec = false;
-      constexpr char kUnknownDecoderName[] = "";
-      return std::vector<MediaCodecDecoderInfo>({
-          {H264PROFILE_BASELINE, kNoVideoCodecLevel, gfx::Size(), kDefaultSize,
-           kHardwareCodec, SecureCodecCapability::kClear, kUnknownDecoderName},
-          {H264PROFILE_MAIN, kNoVideoCodecLevel, gfx::Size(), kDefaultSize,
-           kHardwareCodec, SecureCodecCapability::kClear, kUnknownDecoderName},
-          {H264PROFILE_HIGH, kNoVideoCodecLevel, gfx::Size(), kDefaultSize,
-           kHardwareCodec, SecureCodecCapability::kClear, kUnknownDecoderName},
-          {HEVCPROFILE_MAIN, kNoVideoCodecLevel, gfx::Size(), kDefaultSize,
-           kHardwareCodec, SecureCodecCapability::kClear, kUnknownDecoderName},
-
-          // Report codecs as software where we have a bundled decoder.
-          {VP8PROFILE_ANY, kNoVideoCodecLevel, gfx::Size(), kDefaultSize,
-           kSoftwareCodec, SecureCodecCapability::kClear, kUnknownDecoderName},
-          {VP9PROFILE_PROFILE0, kNoVideoCodecLevel, gfx::Size(), kDefaultSize,
-           kSoftwareCodec, SecureCodecCapability::kClear, kUnknownDecoderName},
-      });
-    }
 
     std::vector<MediaCodecDecoderInfo> cpp_infos;
+    if (!java_profiles) {
+      // Per histograms this happens ~0% of the time, so no need for fallback.
+      return cpp_infos;
+    }
+
     for (auto java_profile : java_profiles.ReadElements<jobject>()) {
       MediaCodecDecoderInfo info;
       info.profile = static_cast<VideoCodecProfile>(
@@ -142,13 +125,14 @@ const std::vector<MediaCodecDecoderInfo>& GetDecoderInfoCache() {
           Java_SupportedProfileAdapter_getName(env, java_profile));
       cpp_infos.push_back(info);
     }
-    std::sort(
+
+    // Use a stable sort since codec information is returned in a rank order
+    // specified by the OEM.
+    std::stable_sort(
         cpp_infos.begin(), cpp_infos.end(),
         [](const MediaCodecDecoderInfo& a, const MediaCodecDecoderInfo& b) {
           return a.profile < b.profile;
         });
-
-    base::UmaHistogramBoolean(kHasMediaCodecDecoderInfo, !cpp_infos.empty());
     return cpp_infos;
   }());
   return *infos;

@@ -2,9 +2,16 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#ifdef UNSAFE_BUFFERS_BUILD
+// TODO(crbug.com/40284755): Remove this and spanify to fix the errors.
+#pragma allow_unsafe_buffers
+#endif
+
 #include "base/win/sid.h"
 
-#include <windows.h>
+// clang-format off
+#include <windows.h>  // Must be in front of other Windows header files.
+// clang-format on
 
 #include <sddl.h>
 #include <stdint.h>
@@ -207,25 +214,25 @@ Sid Sid::FromKnownSid(WellKnownSid type) {
   }
 }
 
-absl::optional<Sid> Sid::FromSddlString(const std::wstring& sddl_sid) {
+std::optional<Sid> Sid::FromSddlString(const std::wstring& sddl_sid) {
   PSID psid = nullptr;
   if (!::ConvertStringSidToSid(sddl_sid.c_str(), &psid)) {
-    return absl::nullopt;
+    return std::nullopt;
   }
   auto psid_alloc = TakeLocalAlloc(psid);
   return FromPSID(psid_alloc.get());
 }
 
-absl::optional<Sid> Sid::FromPSID(PSID sid) {
+std::optional<Sid> Sid::FromPSID(PSID sid) {
   DCHECK(sid);
   if (!sid || !::IsValidSid(sid))
-    return absl::nullopt;
+    return std::nullopt;
   return Sid(sid, ::GetLengthSid(sid));
 }
 
 Sid Sid::GenerateRandomSid() {
   DWORD sub_authorities[4] = {};
-  RandBytes(&sub_authorities, sizeof(sub_authorities));
+  RandBytes(as_writable_byte_span(sub_authorities));
   return FromSubAuthorities(SECURITY_NULL_SID_AUTHORITY,
                             std::size(sub_authorities), sub_authorities);
 }
@@ -235,14 +242,14 @@ Sid Sid::FromIntegrityLevel(DWORD integrity_level) {
                             &integrity_level);
 }
 
-absl::optional<std::vector<Sid>> Sid::FromSddlStringVector(
+std::optional<std::vector<Sid>> Sid::FromSddlStringVector(
     const std::vector<std::wstring>& sddl_sids) {
   std::vector<Sid> converted_sids;
   converted_sids.reserve(sddl_sids.size());
   for (const std::wstring& sddl_sid : sddl_sids) {
-    absl::optional<Sid> sid = FromSddlString(sddl_sid);
+    std::optional<Sid> sid = FromSddlString(sddl_sid);
     if (!sid)
-      return absl::nullopt;
+      return std::nullopt;
     converted_sids.push_back(std::move(*sid));
   }
   return converted_sids;
@@ -283,10 +290,10 @@ PSID Sid::GetPSID() const {
   return const_cast<char*>(sid_.data());
 }
 
-absl::optional<std::wstring> Sid::ToSddlString() const {
+std::optional<std::wstring> Sid::ToSddlString() const {
   LPWSTR sid = nullptr;
   if (!::ConvertSidToStringSid(GetPSID(), &sid))
-    return absl::nullopt;
+    return std::nullopt;
   auto sid_ptr = TakeLocalAlloc(sid);
   return sid_ptr.get();
 }

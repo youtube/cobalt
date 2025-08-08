@@ -2,13 +2,17 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include "net/websockets/websocket_frame.h"
+#include <stddef.h>
 
+#include <iterator>
+#include <string>
+#include <string_view>
 #include <vector>
 
 #include "base/ranges/algorithm.h"
-#include "base/strings/string_piece.h"
+#include "base/time/time.h"
 #include "base/timer/elapsed_timer.h"
+#include "net/websockets/websocket_frame.h"
 #include "testing/gtest/include/gtest/gtest.h"
 #include "testing/perf/perf_result_reporter.h"
 
@@ -18,7 +22,7 @@ namespace {
 
 constexpr int kIterations = 100000;
 constexpr int kLongPayloadSize = 1 << 16;
-constexpr base::StringPiece kMaskingKey = "\xFE\xED\xBE\xEF";
+constexpr std::string_view kMaskingKey = "\xFE\xED\xBE\xEF";
 
 static constexpr char kMetricPrefixWebSocketFrame[] = "WebSocketFrameMask.";
 static constexpr char kMetricMaskTimeMs[] = "mask_time";
@@ -52,7 +56,7 @@ class WebSocketFrameTestMaskBenchmark : public ::testing::Test {
 };
 
 TEST_F(WebSocketFrameTestMaskBenchmark, BenchmarkMaskShortPayload) {
-  static const char kShortPayload[] = "Short Payload";
+  static constexpr char kShortPayload[] = "Short Payload";
   Benchmark("short_payload", kShortPayload, std::size(kShortPayload));
 }
 

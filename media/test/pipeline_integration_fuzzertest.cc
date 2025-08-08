@@ -189,8 +189,11 @@ class MediaSourcePipelineIntegrationFuzzerTest
     if (size == 0)
       return;
 
-    scoped_refptr<media::DecoderBuffer> buffer(
-        DecoderBuffer::CopyFrom(data, size));
+    auto external_memory =
+        std::make_unique<media::DecoderBuffer::ExternalMemory>(
+            base::make_span(data, size));
+    scoped_refptr<media::DecoderBuffer> buffer =
+        media::DecoderBuffer::FromExternalMemory(std::move(external_memory));
 
     TestMediaSource source(buffer, mimetype, kAppendWholeFile);
 
@@ -233,9 +236,9 @@ struct Environment {
 
     media::InitializeMediaLibrary();
 
-    // Note, instead of LOG_FATAL, use a value at or below logging::LOG_VERBOSE
-    // here to assist local debugging.
-    logging::SetMinLogLevel(logging::LOG_FATAL);
+    // Note, instead of LOGGING_FATAL, use a value at or below
+    // logging::LOGGING_VERBOSE here to assist local debugging.
+    logging::SetMinLogLevel(logging::LOGGING_FATAL);
   }
 };
 
@@ -251,7 +254,7 @@ extern "C" int LLVMFuzzerTestOneInput(const uint8_t* data, size_t size) {
   // These tests use GoogleTest assertions without using the GoogleTest
   // framework. While this is the case, tell GoogleTest's stack trace getter
   // that GoogleTest is being left now so that there is a basis for traces
-  // collected upon assertion failure. TODO(https://crbug.com/1039559): use
+  // collected upon assertion failure. TODO(crbug.com/40113640): use
   // RUN_ALL_TESTS() and remove this code.
   ::testing::internal::GetUnitTestImpl()
       ->os_stack_trace_getter()

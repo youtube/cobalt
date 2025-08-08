@@ -1,18 +1,21 @@
-// Copyright (c) 2012 The Chromium Authors. All rights reserved.
+// Copyright 2012 The Chromium Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
 #include "components/prefs/default_pref_store.h"
 
+#include <string>
+#include <string_view>
 #include <utility>
 
-#include "base/logging.h"
+#include "base/check.h"
+#include "base/observer_list.h"
 
 using base::Value;
 
 DefaultPrefStore::DefaultPrefStore() {}
 
-bool DefaultPrefStore::GetValue(const std::string& key,
+bool DefaultPrefStore::GetValue(std::string_view key,
                                 const Value** result) const {
   return prefs_.GetValue(key, result);
 }

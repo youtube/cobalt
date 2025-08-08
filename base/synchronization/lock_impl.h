@@ -8,13 +8,12 @@
 #include "base/base_export.h"
 #include "base/check.h"
 #include "base/dcheck_is_on.h"
+#include "base/memory/raw_ptr_exclusion.h"
+#include "base/memory/stack_allocated.h"
 #include "base/thread_annotations.h"
 #include "build/build_config.h"
 
-#if defined(STARBOARD)
-#include <pthread.h>
-#include "base/check_op.h"
-#elif BUILDFLAG(IS_WIN)
+#if BUILDFLAG(IS_WIN)
 #include "base/win/windows_types.h"
 #elif BUILDFLAG(IS_POSIX) || BUILDFLAG(IS_FUCHSIA)
 #include <errno.h>
@@ -48,9 +47,7 @@ class BASE_EXPORT LockImpl {
   friend class base::win::internal::AutoNativeLock;
   friend class base::win::internal::ScopedHandleVerifier;
 
-#if defined(STARBOARD)
-  using NativeHandle = pthread_mutex_t;
-#elif BUILDFLAG(IS_WIN)
+#if BUILDFLAG(IS_WIN)
   using NativeHandle = CHROME_SRWLOCK;
 #elif BUILDFLAG(IS_POSIX) || BUILDFLAG(IS_FUCHSIA)
   using NativeHandle = pthread_mutex_t;
@@ -98,17 +95,7 @@ void LockImpl::Lock() {
   LockInternal();
 }
 
-#if defined(STARBOARD)
-bool LockImpl::Try() {
-  int result = pthread_mutex_trylock(&native_handle_);
-  return result  == 0;
-}
-
-void LockImpl::Unlock() {
-  int result = pthread_mutex_unlock(&native_handle_);
-  DCHECK(result == 0);
-}
-#elif BUILDFLAG(IS_WIN)
+#if BUILDFLAG(IS_WIN)
 bool LockImpl::Try() {
   return !!::TryAcquireSRWLockExclusive(
       reinterpret_cast<PSRWLOCK>(&native_handle_));
@@ -167,12 +154,15 @@ class SCOPED_LOCKABLE BasicAutoLock {
   }
 
  private:
-  LockType& lock_;
+  // RAW_PTR_EXCLUSION: crbug.com/1521343 crbug.com/1520734 crbug.com/1519816
+  RAW_PTR_EXCLUSION LockType& lock_;
 };
 
 // This is an implementation used for AutoTryLock templated on the lock type.
 template <class LockType>
 class SCOPED_LOCKABLE BasicAutoTryLock {
+  STACK_ALLOCATED();
+
  public:
   explicit BasicAutoTryLock(LockType& lock) EXCLUSIVE_LOCK_FUNCTION(lock)
       : lock_(lock), is_acquired_(lock_.Try()) {}
@@ -197,6 +187,8 @@ class SCOPED_LOCKABLE BasicAutoTryLock {
 // This is an implementation used for AutoUnlock templated on the lock type.
 template <class LockType>
 class BasicAutoUnlock {
+  STACK_ALLOCATED();
+
  public:
   explicit BasicAutoUnlock(LockType& lock) : lock_(lock) {
     // We require our caller to have the lock.
@@ -216,6 +208,8 @@ class BasicAutoUnlock {
 // This is an implementation used for AutoLockMaybe templated on the lock type.
 template <class LockType>
 class SCOPED_LOCKABLE BasicAutoLockMaybe {
+  STACK_ALLOCATED();
+
  public:
   explicit BasicAutoLockMaybe(LockType* lock) EXCLUSIVE_LOCK_FUNCTION(lock)
       : lock_(lock) {
@@ -241,6 +235,8 @@ class SCOPED_LOCKABLE BasicAutoLockMaybe {
 // type.
 template <class LockType>
 class SCOPED_LOCKABLE BasicReleasableAutoLock {
+  STACK_ALLOCATED();
+
  public:
   explicit BasicReleasableAutoLock(LockType* lock) EXCLUSIVE_LOCK_FUNCTION(lock)
       : lock_(lock) {

@@ -37,12 +37,12 @@
 #endif
 
 #if BUILDFLAG(IS_APPLE)
-#include "base/mac/scoped_nsautorelease_pool.h"
+#include "base/apple/scoped_nsautorelease_pool.h"
 #endif
 
 namespace {
 
-// TODO(crbug.com/1052397): Revisit the macro expression once build flag switch
+// TODO(crbug.com/40118868): Revisit the macro expression once build flag switch
 // of lacros-chrome is complete.
 #if BUILDFLAG(IS_LINUX)
 // Flag to specifies which network interfaces to ignore. Interfaces should
@@ -147,7 +147,7 @@ class NetWatcher :
 
 int main(int argc, char* argv[]) {
 #if BUILDFLAG(IS_APPLE)
-  base::mac::ScopedNSAutoreleasePool pool;
+  base::apple::ScopedNSAutoreleasePool pool;
 #endif
   base::AtExitManager exit_manager;
   base::CommandLine::Init(argc, argv);

@@ -223,8 +223,8 @@ TEST_F(StatusTest, DifferentModesOfConstruction) {
   ASSERT_EQ(*unpacked->FindString("DataC"), "apple pie");
 
   NormalStatus root = NormalStatus::Codes::kFoo;
-  PackingStatus derrived = {PackingStatus::Codes::kFail, std::move(root)};
-  serialized = MediaSerialize(derrived).TakeDict();
+  PackingStatus derived = {PackingStatus::Codes::kFail, std::move(root)};
+  serialized = MediaSerialize(derived).TakeDict();
   unpacked = serialized.FindDict("cause");
   ASSERT_NE(unpacked, nullptr);
   ASSERT_EQ(unpacked->size(), 5ul);
@@ -232,8 +232,8 @@ TEST_F(StatusTest, DifferentModesOfConstruction) {
             static_cast<int>(NormalStatus::Codes::kFoo));
 
   root = NormalStatus::Codes::kFoo;
-  derrived = {PackingStatus::Codes::kFail, "blah", std::move(root)};
-  serialized = MediaSerialize(derrived).TakeDict();
+  derived = {PackingStatus::Codes::kFail, "blah", std::move(root)};
+  serialized = MediaSerialize(derived).TakeDict();
   unpacked = serialized.FindDict("cause");
   ASSERT_EQ(*serialized.FindString("message"), "blah");
   ASSERT_NE(unpacked, nullptr);
@@ -459,8 +459,8 @@ TEST_F(StatusTest, TypedStatusWithNoDefaultAndNoOk) {
   EXPECT_TRUE(ok.has_value());
   // One cannot call ok.code() without an okay type.
 
-  base::Value actual = MediaSerialize(bar);
-  EXPECT_EQ(*actual.FindIntPath("code"), static_cast<int>(bar.code()));
+  base::Value::Dict actual = MediaSerialize(bar).TakeDict();
+  EXPECT_EQ(*actual.FindInt("code"), static_cast<int>(bar.code()));
 }
 
 TEST_F(StatusTest, TypedStatusWithNoDefaultHasOk) {
@@ -487,8 +487,8 @@ TEST_F(StatusTest, TypedStatusWithNoDefaultHasOk) {
   EXPECT_TRUE(ok.has_value());
   EXPECT_EQ(ok.code(), NDStatus::Codes::kOk);
 
-  base::Value actual = MediaSerialize(bar);
-  EXPECT_EQ(*actual.FindIntPath("code"), static_cast<int>(bar.code()));
+  base::Value::Dict actual = MediaSerialize(bar).TakeDict();
+  EXPECT_EQ(*actual.FindInt("code"), static_cast<int>(bar.code()));
 }
 
 TEST_F(StatusTest, Okayness) {

@@ -31,6 +31,7 @@
 #include "testing/gtest/include/gtest/gtest.h"
 
 using ::base::test::RunOnceCallback;
+using ::base::test::RunOnceCallbackRepeatedly;
 using ::testing::_;
 using ::testing::DoAll;
 using ::testing::InSequence;
@@ -146,8 +147,9 @@ class MojoAudioDecoderTest : public ::testing::Test {
     DCHECK(service_task_runner_->BelongsToCurrentThread());
 
     EXPECT_CALL(*mock_audio_decoder_, Initialize_(_, _, _, _, _))
-        .WillRepeatedly(DoAll(SaveArg<3>(&output_cb_), SaveArg<4>(&waiting_cb_),
-                              RunOnceCallback<2>(DecoderStatus::Codes::kOk)));
+        .WillRepeatedly(
+            DoAll(SaveArg<3>(&output_cb_), SaveArg<4>(&waiting_cb_),
+                  RunOnceCallbackRepeatedly<2>(DecoderStatus::Codes::kOk)));
     EXPECT_CALL(*mock_audio_decoder_, Decode(_, _))
         .WillRepeatedly([&](scoped_refptr<DecoderBuffer> buffer,
                             AudioDecoder::DecodeCB decode_cb) {
@@ -155,11 +157,12 @@ class MojoAudioDecoderTest : public ::testing::Test {
           std::move(decode_cb).Run(DecoderStatus::Codes::kOk);
         });
     EXPECT_CALL(*mock_audio_decoder_, Reset_(_))
-        .WillRepeatedly(RunOnceCallback<0>());
+        .WillRepeatedly(RunOnceCallbackRepeatedly<0>());
 
     mojo::MakeSelfOwnedReceiver(
         std::make_unique<MojoAudioDecoderService>(&mojo_media_client_,
-                                                  &mojo_cdm_service_context_),
+                                                  &mojo_cdm_service_context_,
+                                                  service_task_runner_),
         std::move(receiver));
   }
 
@@ -283,7 +286,7 @@ class MojoAudioDecoderTest : public ::testing::Test {
   // Service side mock.
   std::unique_ptr<MockAudioDecoder> owned_mock_audio_decoder_{
       std::make_unique<StrictMock<MockAudioDecoder>>()};
-  raw_ptr<MockAudioDecoder> mock_audio_decoder_{
+  raw_ptr<MockAudioDecoder, AcrossTasksDanglingUntriaged> mock_audio_decoder_{
       owned_mock_audio_decoder_.get()};
 
   int num_of_decodes_ = 0;

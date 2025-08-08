@@ -65,8 +65,7 @@ PhotoCapabilities::AndroidMeteringMode ToAndroidMeteringMode(
     case mojom::MeteringMode::NONE:
       return PhotoCapabilities::AndroidMeteringMode::NONE;
   }
-  NOTREACHED();
-  return PhotoCapabilities::AndroidMeteringMode::NOT_SET;
+  NOTREACHED_NORETURN();
 }
 
 mojom::FillLightMode ToMojomFillLightMode(
@@ -82,8 +81,7 @@ mojom::FillLightMode ToMojomFillLightMode(
     case PhotoCapabilities::AndroidFillLightMode::NUM_ENTRIES:
       NOTREACHED();
   }
-  NOTREACHED();
-  return mojom::FillLightMode::OFF;
+  NOTREACHED_NORETURN();
 }
 
 PhotoCapabilities::AndroidFillLightMode ToAndroidFillLightMode(
@@ -96,8 +94,7 @@ PhotoCapabilities::AndroidFillLightMode ToAndroidFillLightMode(
     case mojom::FillLightMode::OFF:
       return PhotoCapabilities::AndroidFillLightMode::OFF;
   }
-  NOTREACHED();
-  return PhotoCapabilities::AndroidFillLightMode::NOT_SET;
+  NOTREACHED_NORETURN();
 }
 
 }  // anonymous namespace
@@ -626,7 +623,7 @@ void VideoCaptureDeviceAndroid::SendIncomingDataToClient(
     return;
   client_->OnIncomingCapturedData(
       data, length, capture_format_, capture_color_space_, rotation,
-      false /* flip_y */, reference_time, timestamp);
+      false /* flip_y */, reference_time, timestamp, std::nullopt);
 }
 
 VideoPixelFormat VideoCaptureDeviceAndroid::GetColorspace() {

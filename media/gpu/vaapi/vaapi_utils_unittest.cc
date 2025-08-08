@@ -45,7 +45,8 @@ class VaapiUtilsTest : public testing::Test {
                              EncryptionScheme::kUnencrypted,
                              base::BindRepeating([](VaapiFunctions function) {
                                LOG(FATAL) << "Oh noes! Decoder failed";
-                             }));
+                             }))
+            .value_or(nullptr);
     ASSERT_TRUE(vaapi_wrapper_);
   }
 
@@ -92,13 +93,13 @@ TEST_F(VaapiUtilsTest, ScopedVAImage) {
     // image format seems to default to I420. https://crbug.com/828119
     VAImageFormat va_image_format = kImageFormatI420;
     base::AutoLockMaybe auto_lock(vaapi_wrapper_->va_lock_.get());
-    scoped_image = std::make_unique<ScopedVAImage>(
+    scoped_image = ScopedVAImage::Create(
         vaapi_wrapper_->va_lock_, vaapi_wrapper_->va_display_, va_surfaces[0],
-        &va_image_format, coded_size);
+        va_image_format, coded_size);
 
+    ASSERT_TRUE(scoped_image);
     EXPECT_TRUE(scoped_image->image());
-    ASSERT_TRUE(scoped_image->IsValid());
-    EXPECT_TRUE(scoped_image->va_buffer()->IsValid());
+    ASSERT_TRUE(scoped_image->va_buffer());
     EXPECT_TRUE(scoped_image->va_buffer()->data());
   }
   vaapi_wrapper_->DestroyContextAndSurfaces(va_surfaces);
@@ -107,7 +108,7 @@ TEST_F(VaapiUtilsTest, ScopedVAImage) {
 // This test exercises creation of a ScopedVAImage with a bad VASurfaceID.
 TEST_F(VaapiUtilsTest, BadScopedVAImage) {
 #if DCHECK_IS_ON()
-  ::testing::FLAGS_gtest_death_test_style = "threadsafe";
+  GTEST_FLAG_SET(death_test_style, "threadsafe");
 #endif
 
   const std::vector<VASurfaceID> va_surfaces = {VA_INVALID_ID};
@@ -117,34 +118,33 @@ TEST_F(VaapiUtilsTest, BadScopedVAImage) {
   {
     VAImageFormat va_image_format = kImageFormatI420;
     base::AutoLockMaybe auto_lock(vaapi_wrapper_->va_lock_.get());
-    scoped_image = std::make_unique<ScopedVAImage>(
+    EXPECT_DCHECK_DEATH(ScopedVAImage::Create(
         vaapi_wrapper_->va_lock_, vaapi_wrapper_->va_display_, va_surfaces[0],
-        &va_image_format, coded_size);
+        va_image_format, coded_size));
 
-    EXPECT_TRUE(scoped_image->image());
-    EXPECT_FALSE(scoped_image->IsValid());
-#if DCHECK_IS_ON()
-    EXPECT_DCHECK_DEATH(scoped_image->va_buffer());
-#else
-    EXPECT_FALSE(scoped_image->va_buffer());
-#endif
+    // This should not hit any DCHECK() but will create an invalid
+    // ScopedVAImage.
+    scoped_image = ScopedVAImage::Create(
+        vaapi_wrapper_->va_lock_, vaapi_wrapper_->va_display_,
+        va_surfaces[0] - 1, va_image_format, coded_size);
+    EXPECT_FALSE(scoped_image);
   }
 }
 
 // This test exercises creation of a ScopedVABufferMapping with bad VABufferIDs.
 TEST_F(VaapiUtilsTest, BadScopedVABufferMapping) {
-  ::testing::FLAGS_gtest_death_test_style = "threadsafe";
+  GTEST_FLAG_SET(death_test_style, "threadsafe");
   base::AutoLockMaybe auto_lock(vaapi_wrapper_->va_lock_.get());
 
   // A ScopedVABufferMapping with a VA_INVALID_ID VABufferID is DCHECK()ed.
-  EXPECT_DCHECK_DEATH(std::make_unique<ScopedVABufferMapping>(
+  EXPECT_DCHECK_DEATH(ScopedVABufferMapping::Create(
       vaapi_wrapper_->va_lock_, vaapi_wrapper_->va_display_, VA_INVALID_ID));
 
   // This should not hit any DCHECK() but will create an invalid
   // ScopedVABufferMapping.
-  auto scoped_buffer = std::make_unique<ScopedVABufferMapping>(
+  auto scoped_buffer = ScopedVABufferMapping::Create(
       vaapi_wrapper_->va_lock_, vaapi_wrapper_->va_display_, VA_INVALID_ID - 1);
-  EXPECT_FALSE(scoped_buffer->IsValid());
+  EXPECT_FALSE(scoped_buffer);
 }
 
 // This test exercises the creation of a valid ScopedVASurface.
@@ -153,7 +153,7 @@ TEST_F(VaapiUtilsTest, ScopedVASurface) {
   auto scoped_va_surfaces = vaapi_wrapper_->CreateContextAndScopedVASurfaces(
       VA_RT_FORMAT_YUV420, coded_size,
       {VaapiWrapper::SurfaceUsageHint::kGeneric}, 1u,
-      /*visible_size=*/absl::nullopt);
+      /*visible_size=*/std::nullopt);
   ASSERT_FALSE(scoped_va_surfaces.empty());
 
   auto scoped_va_surface = std::move(scoped_va_surfaces[0]);
@@ -188,7 +188,7 @@ TEST_F(VaapiUtilsTest, ScopedVASurfaceInvalidSizeRequest) {
                   ->CreateContextAndScopedVASurfaces(
                       VA_RT_FORMAT_YUV420, invalid_size,
                       {VaapiWrapper::SurfaceUsageHint::kGeneric}, 1u,
-                      /*visible_size=*/absl::nullopt)
+                      /*visible_size=*/std::nullopt)
                   .empty());
 }
 
@@ -200,7 +200,7 @@ TEST_F(VaapiUtilsTest, ScopedVASurfaceInvalidRTFormatRequest) {
                   ->CreateContextAndScopedVASurfaces(
                       kInvalidVaRtFormat, coded_size,
                       {VaapiWrapper::SurfaceUsageHint::kGeneric}, 1u,
-                      /*visible_size=*/absl::nullopt)
+                      /*visible_size=*/std::nullopt)
                   .empty());
 }
 

@@ -11,7 +11,6 @@
 #include <map>
 
 #include "base/base_export.h"
-#include "base/containers/stack_container.h"
 #include "base/files/scoped_file.h"
 #include "base/memory/raw_ptr.h"
 #include "base/memory/raw_ptr_exclusion.h"
@@ -22,6 +21,7 @@
 #include "base/message_loop/watchable_io_message_pump_posix.h"
 #include "base/threading/thread_checker.h"
 #include "base/time/time.h"
+#include "third_party/abseil-cpp/absl/container/inlined_vector.h"
 
 namespace base {
 
@@ -95,21 +95,26 @@ class BASE_EXPORT MessagePumpEpoll : public MessagePump,
     // all real scenarios, since there's little practical value in having more
     // than two controllers (e.g. one reader and one writer) watch the same
     // descriptor on the same thread.
-    StackVector<scoped_refptr<Interest>, 2> interests;
+    absl::InlinedVector<scoped_refptr<Interest>, 2> interests;
 
     // Temporary pointer to an active epoll_event structure which refers to
     // this entry. This is set immediately upon returning from epoll_wait() and
     // cleared again immediately before dispatching to any registered interests,
     // so long as this entry isn't destroyed in the interim.
     raw_ptr<epoll_event> active_event = nullptr;
+
+    // If the file descriptor is disconnected and no active `interests`, remove
+    // it from the epoll interest list to avoid unconditionally epoll_wait
+    // return, and prevent any future update on this `EpollEventEntry`.
+    bool stopped = false;
   };
 
   // State which lives on the stack within Run(), to support nested run loops.
   struct RunState {
     explicit RunState(Delegate* delegate) : delegate(delegate) {}
 
-    // `delegate` is not a raw_ptr<...> for performance reasons (based on
-    // analysis of sampling profiler data and tab_search:top100:2020).
+    // RAW_PTR_EXCLUSION: Performance reasons (based on analysis of sampling
+    // profiler data and tab_search:top100:2020).
     RAW_PTR_EXCLUSION Delegate* const delegate;
 
     // Used to flag that the current Run() invocation should return ASAP.
@@ -118,6 +123,7 @@ class BASE_EXPORT MessagePumpEpoll : public MessagePump,
 
   void AddEpollEvent(EpollEventEntry& entry);
   void UpdateEpollEvent(EpollEventEntry& entry);
+  void StopEpollEvent(EpollEventEntry& entry);
   void UnregisterInterest(const scoped_refptr<Interest>& interest);
   bool WaitForEpollEvents(TimeDelta timeout);
   void OnEpollEvent(EpollEventEntry& entry, uint32_t events);
@@ -127,11 +133,18 @@ class BASE_EXPORT MessagePumpEpoll : public MessagePump,
                    FdWatchController* controller);
   void HandleWakeUp();
 
+  void BeginNativeWorkBatch();
+
   // Null if Run() is not currently executing. Otherwise it's a pointer into the
   // stack of the innermost nested Run() invocation.
-  // This field is not a raw_ptr<> because it was filtered by the rewriter for:
-  // #addr-of
-  RAW_PTR_EXCLUSION RunState* run_state_ = nullptr;
+  raw_ptr<RunState> run_state_ = nullptr;
+
+  // This flag is set if epoll has processed I/O events.
+  bool processed_io_events_ = false;
+
+  // This flag is set when starting to process native work; reset after every
+  // `DoWork()` call. See crbug.com/1500295.
+  bool native_work_started_ = false;
 
   // Mapping of all file descriptors currently watched by this message pump.
   // std::map was chosen because (1) the number of elements can vary widely,

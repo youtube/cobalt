@@ -4,7 +4,9 @@
 
 #include "base/metrics/field_trial_params.h"
 
+#include <optional>
 #include <set>
+#include <string_view>
 #include <utility>
 #include <vector>
 
@@ -13,13 +15,14 @@
 #include "base/feature_list.h"
 #include "base/metrics/field_trial.h"
 #include "base/metrics/field_trial_param_associator.h"
+#include "base/metrics/histogram_functions.h"
+#include "base/metrics/metrics_hashes.h"
 #include "base/notreached.h"
 #include "base/strings/escape.h"
 #include "base/strings/string_number_conversions.h"
 #include "base/strings/string_split.h"
 #include "base/strings/stringprintf.h"
 #include "base/time/time_delta_from_string.h"
-#include "third_party/abseil-cpp/absl/types/optional.h"
 
 namespace base {
 
@@ -28,8 +31,11 @@ void LogInvalidValue(const Feature& feature,
                      const std::string& param_name,
                      const std::string& value_as_string,
                      const std::string& default_value_as_string) {
+  UmaHistogramSparse("Variations.FieldTriamParamsLogInvalidValue",
+                     static_cast<int>(base::HashFieldTrialName(
+                         FeatureList::GetFieldTrial(feature)->trial_name())));
   // To anyone noticing these crash dumps in the wild, these parameters come
-  // from server-side experiment confiuration. If you're seeing an increase it
+  // from server-side experiment configuration. If you're seeing an increase it
   // is likely due to a bad experiment rollout rather than changes in the client
   // code.
   SCOPED_CRASH_KEY_STRING32("FieldTrialParams", "feature_name", feature.name);
@@ -63,9 +69,9 @@ bool AssociateFieldTrialParamsFromString(
     FieldTrialParamsDecodeStringFunc decode_data_func) {
   // Format: Trial1.Group1:k1/v1/k2/v2,Trial2.Group2:k1/v1/k2/v2
   std::set<std::pair<std::string, std::string>> trial_groups;
-  for (StringPiece experiment_group :
+  for (std::string_view experiment_group :
        SplitStringPiece(params_string, ",", TRIM_WHITESPACE, SPLIT_WANT_ALL)) {
-    std::vector<StringPiece> experiment = SplitStringPiece(
+    std::vector<std::string_view> experiment = SplitStringPiece(
         experiment_group, ":", TRIM_WHITESPACE, SPLIT_WANT_ALL);
     if (experiment.size() != 2) {
       DLOG(ERROR) << "Experiment and params should be separated by ':'";
@@ -209,7 +215,7 @@ base::TimeDelta GetFieldTrialParamByFeatureAsTimeDelta(
   if (value_as_string.empty())
     return default_value;
 
-  absl::optional<base::TimeDelta> ret = TimeDeltaFromString(value_as_string);
+  std::optional<base::TimeDelta> ret = TimeDeltaFromString(value_as_string);
   if (!ret.has_value()) {
     LogInvalidValue(feature, "a base::TimeDelta", param_name, value_as_string,
                     base::NumberToString(default_value.InSecondsF()) + " s");
@@ -220,8 +226,16 @@ base::TimeDelta GetFieldTrialParamByFeatureAsTimeDelta(
 }
 
 std::string FeatureParam<std::string>::Get() const {
-  const std::string value = GetFieldTrialParamValueByFeature(*feature, name);
-  return value.empty() ? default_value : value;
+  // We don't use `GetFieldTrialParamValueByFeature()` to handle empty values in
+  // the map.
+  FieldTrialParams params;
+  if (GetFieldTrialParamsByFeature(*feature, &params)) {
+    auto it = params.find(name);
+    if (it != params.end()) {
+      return it->second;
+    }
+  }
+  return default_value;
 }
 
 double FeatureParam<double>::Get() const {

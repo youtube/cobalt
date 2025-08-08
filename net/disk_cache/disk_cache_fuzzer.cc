@@ -105,12 +105,12 @@ struct InitGlobals {
 
     // Disable noisy logging as per "libFuzzer in Chrome" documentation:
     // testing/libfuzzer/getting_started.md#Disable-noisy-error-message-logging.
-    logging::SetMinLogLevel(logging::LOG_FATAL);
+    logging::SetMinLogLevel(logging::LOGGING_FATAL);
 
     // Re-using this buffer for write operations may technically be against
     // IOBuffer rules but it shouldn't cause any actual problems.
-    buffer_ =
-        base::MakeRefCounted<net::IOBuffer>(static_cast<size_t>(kMaxEntrySize));
+    buffer_ = base::MakeRefCounted<net::IOBufferWithSize>(
+        static_cast<size_t>(kMaxEntrySize));
     CacheTestFillBuffer(buffer_->data(), kMaxEntrySize, false);
 
 #define CREATE_IO_CALLBACK(IO_TYPE) \
@@ -272,16 +272,13 @@ net::CacheType GetCacheTypeAndPrint(
     case disk_cache_fuzzer::FuzzCommands::APP_CACHE:
       MAYBE_PRINT << "Cache type = APP_CACHE." << std::endl;
       return net::CacheType::APP_CACHE;
-      break;
     case disk_cache_fuzzer::FuzzCommands::REMOVED_MEDIA_CACHE:
       // Media cache no longer in use; handle as HTTP_CACHE
       MAYBE_PRINT << "Cache type = REMOVED_MEDIA_CACHE." << std::endl;
       return net::CacheType::DISK_CACHE;
-      break;
     case disk_cache_fuzzer::FuzzCommands::SHADER_CACHE:
       MAYBE_PRINT << "Cache type = SHADER_CACHE." << std::endl;
       return net::CacheType::SHADER_CACHE;
-      break;
     case disk_cache_fuzzer::FuzzCommands::PNACL_CACHE:
       // Simple cache won't handle PNACL_CACHE.
       if (backend == disk_cache_fuzzer::FuzzCommands::SIMPLE) {
@@ -290,19 +287,15 @@ net::CacheType GetCacheTypeAndPrint(
       }
       MAYBE_PRINT << "Cache type = PNACL_CACHE." << std::endl;
       return net::CacheType::PNACL_CACHE;
-      break;
     case disk_cache_fuzzer::FuzzCommands::GENERATED_BYTE_CODE_CACHE:
       MAYBE_PRINT << "Cache type = GENERATED_BYTE_CODE_CACHE." << std::endl;
       return net::CacheType::GENERATED_BYTE_CODE_CACHE;
-      break;
     case disk_cache_fuzzer::FuzzCommands::GENERATED_NATIVE_CODE_CACHE:
       MAYBE_PRINT << "Cache type = GENERATED_NATIVE_CODE_CACHE." << std::endl;
       return net::CacheType::GENERATED_NATIVE_CODE_CACHE;
-      break;
     case disk_cache_fuzzer::FuzzCommands::DISK_CACHE:
       MAYBE_PRINT << "Cache type = DISK_CACHE." << std::endl;
       return net::CacheType::DISK_CACHE;
-      break;
   }
 }
 
@@ -705,8 +698,7 @@ void DiskCacheLPMFuzzer::RunCommands(
         uint32_t offset = wd.offset() % kMaxEntrySize;
         size_t size = wd.size() % kMaxEntrySize;
         bool async = wd.async();
-        scoped_refptr<net::IOBuffer> buffer =
-            base::MakeRefCounted<net::IOBuffer>(size);
+        auto buffer = base::MakeRefCounted<net::IOBufferWithSize>(size);
 
         net::TestCompletionCallback tcb;
         net::CompletionOnceCallback cb =
@@ -769,8 +761,7 @@ void DiskCacheLPMFuzzer::RunCommands(
           offset %= kMaxEntrySize;
         size_t size = rsd.size() % kMaxEntrySize;
         bool async = rsd.async();
-        scoped_refptr<net::IOBuffer> buffer =
-            base::MakeRefCounted<net::IOBuffer>(size);
+        auto buffer = base::MakeRefCounted<net::IOBufferWithSize>(size);
 
         net::TestCompletionCallback tcb;
         net::CompletionOnceCallback cb =
@@ -1123,7 +1114,6 @@ void DiskCacheLPMFuzzer::RunCommands(
       }
       case disk_cache_fuzzer::FuzzCommand::FUZZ_COMMAND_ONEOF_NOT_SET: {
         continue;
-        break;
       }
     }
   }

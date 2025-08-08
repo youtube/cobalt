@@ -10,6 +10,7 @@
 #include <string>
 
 #include "base/check.h"
+#include "ui/gfx/geometry/clamp_float_geometry.h"
 #include "ui/gfx/geometry/point3_f.h"
 #include "ui/gfx/geometry/rect.h"
 #include "ui/gfx/geometry/rect_f.h"
@@ -125,25 +126,25 @@ static inline bool NearlyZero(double value) {
 
 static inline float ScaleOnAxis(double a, double b, double c) {
   if (NearlyZero(b) && NearlyZero(c))
-    return std::abs(a);
+    return ClampFloatGeometry(std::abs(a));
   if (NearlyZero(a) && NearlyZero(c))
-    return std::abs(b);
+    return ClampFloatGeometry(std::abs(b));
   if (NearlyZero(a) && NearlyZero(b))
-    return std::abs(c);
+    return ClampFloatGeometry(std::abs(c));
 
   // Do the sqrt as a double to not lose precision.
-  return static_cast<float>(std::sqrt(a * a + b * b + c * c));
+  return ClampFloatGeometry(std::sqrt(a * a + b * b + c * c));
 }
 
-absl::optional<Vector2dF> TryComputeTransform2dScaleComponents(
+std::optional<Vector2dF> TryComputeTransform2dScaleComponents(
     const Transform& transform) {
   if (transform.rc(3, 0) != 0.0f || transform.rc(3, 1) != 0.0f) {
-    return absl::nullopt;
+    return std::nullopt;
   }
 
   float w = transform.rc(3, 3);
   if (!std::isnormal(w)) {
-    return absl::nullopt;
+    return std::nullopt;
   }
   float w_scale = 1.0f / w;
 
@@ -162,12 +163,13 @@ absl::optional<Vector2dF> TryComputeTransform2dScaleComponents(
       ScaleOnAxis(transform.rc(0, 0), transform.rc(1, 0), transform.rc(2, 0));
   float y_scale =
       ScaleOnAxis(transform.rc(0, 1), transform.rc(1, 1), transform.rc(2, 1));
-  return Vector2dF(x_scale * w_scale, y_scale * w_scale);
+  return Vector2dF(ClampFloatGeometry(x_scale * w_scale),
+                   ClampFloatGeometry(y_scale * w_scale));
 }
 
 Vector2dF ComputeTransform2dScaleComponents(const Transform& transform,
                                             float fallback_value) {
-  absl::optional<Vector2dF> scale =
+  std::optional<Vector2dF> scale =
       TryComputeTransform2dScaleComponents(transform);
   if (scale) {
     return *scale;

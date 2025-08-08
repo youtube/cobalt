@@ -14,7 +14,7 @@ Example usages
   ./build/lacros/test_runner.py test out/lacros/url_unittests
   ./build/lacros/test_runner.py test out/lacros/browser_tests
 
-  The commands above run url_unittests and browser_tests respecitively, and more
+  The commands above run url_unittests and browser_tests respectively, and more
   specifically, url_unitests is executed directly while browser_tests is
   executed with the latest version of prebuilt ash-chrome, and the behavior is
   controlled by |_TARGETS_REQUIRE_ASH_CHROME|, and it's worth noting that the
@@ -28,12 +28,17 @@ Example usages
   the underlying test binary can be specified in the command.
 
   ./build/lacros/test_runner.py test out/lacros/browser_tests \\
-    --ash-chrome-version=793554
+    --ash-chrome-version=120.0.6099.0
 
   The above command runs tests with a given version of ash-chrome, which is
-  useful to reproduce test failures, the version corresponds to the commit
-  position of commits on the master branch, and a list of prebuilt versions can
-  be found at: gs://ash-chromium-on-linux-prebuilts/x86_64.
+  useful to reproduce test failures. A list of prebuilt versions can
+  be found at:
+  https://chrome-infra-packages.appspot.com/p/chromium/testing/linux-ash-chromium/x86_64/ash.zip
+  Click on any instance, you should see the version number for that instance.
+  Also, there are refs, which points to the instance for that channel. It should
+  be close the prod version but no guarantee.
+  For legacy refs, like legacy119, it point to the latest version for that
+  milestone.
 
   ./testing/xvfb.py ./build/lacros/test_runner.py test out/lacros/browser_tests
 
@@ -85,7 +90,7 @@ _ASAN_SYMBOLIZER_PATH = os.path.join(_SRC_ROOT, 'tools', 'valgrind', 'asan',
 
 # Number of seconds to wait for ash-chrome to start.
 ASH_CHROME_TIMEOUT_SECONDS = (
-    300 if os.environ.get('ASH_WRAPPER', None) else 10)
+    300 if os.environ.get('ASH_WRAPPER', None) else 25)
 
 # List of targets that require ash-chrome as a Wayland server in order to run.
 _TARGETS_REQUIRE_ASH_CHROME = [
@@ -117,7 +122,6 @@ _TARGETS_REQUIRE_MOJO_CROSAPI = [
     # serially.
     'interactive_ui_tests',
     'lacros_chrome_browsertests',
-    'lacros_chrome_browsertests_run_in_series'
 ]
 
 # Default test filter file for each target. These filter files will be
@@ -277,7 +281,7 @@ def _WaitForAshChromeToStart(tmp_xdg_dir, lacros_mojo_socket_file,
   Determine whether ash-chrome is up and running by checking whether two files
   (lock file + socket) have been created in the |XDG_RUNTIME_DIR| and the lacros
   mojo socket file has been created if enabling the mojo "crosapi" interface.
-  TODO(crbug.com/1107966): Figure out a more reliable hook to determine the
+  TODO(crbug.com/40707216): Figure out a more reliable hook to determine the
   status of ash-chrome, likely through mojo connection.
 
   Args:
@@ -433,7 +437,7 @@ def _ClearDir(dirpath):
   """
   for e in os.scandir(dirpath):
     if e.is_dir():
-      shutil.rmtree(e.path)
+      shutil.rmtree(e.path, ignore_errors=True)
     elif e.is_file():
       os.remove(e.path)
 
@@ -450,6 +454,13 @@ def _LaunchDebugger(args, forward_args, test_env):
       test_env (dict): Computed environment variables for the test.
   """
   logging.info('Starting debugger.')
+
+  # Redirect fatal signals to "ignore." When running an interactive debugger,
+  # these signals should go only to the debugger so the user can break back out
+  # of the debugged test process into the debugger UI without killing this
+  # parent script.
+  for sig in (signal.SIGTERM, signal.SIGINT):
+    signal.signal(sig, signal.SIG_IGN)
 
   # Force the tests into single-process-test mode for debugging unless manually
   # specified. Otherwise the tests will run in a child process that the debugger
@@ -543,6 +554,7 @@ lacros_version_skew_tests_v92.0.4515.130/test_ash_chrome
     # Starts Ash-Chrome.
     tmp_xdg_dir_name = tempfile.mkdtemp()
     tmp_ash_data_dir_name = tempfile.mkdtemp()
+    tmp_unique_ash_dir_name = tempfile.mkdtemp()
 
     # Please refer to below file for how mojo connection is set up in testing.
     # //chrome/browser/ash/crosapi/test_mojo_connection_manager.h
@@ -566,6 +578,7 @@ lacros_version_skew_tests_v92.0.4515.130/test_ash_chrome
         '--disable-lacros-keep-alive',
         '--disable-login-lacros-opening',
         '--enable-field-trial-config',
+        '--enable-logging=stderr',
         '--enable-features=LacrosSupport,LacrosPrimary,LacrosOnly',
         '--ash-ready-file-path=%s' % ash_ready_file,
         '--wayland-server-socket=%s' % ash_wayland_socket_name,
@@ -585,6 +598,7 @@ lacros_version_skew_tests_v92.0.4515.130/test_ash_chrome
       logging.info('Running ash with "ASH_WRAPPER": %s', ash_wrapper)
       ash_cmd = list(ash_wrapper.split()) + ash_cmd
 
+    ash_process = None
     ash_process_has_started = False
     total_tries = 3
     num_tries = 0
@@ -633,9 +647,16 @@ lacros_version_skew_tests_v92.0.4515.130/test_ash_chrome
     while not ash_process_has_started and num_tries < total_tries:
       num_tries += 1
       ash_start_time = time.monotonic()
-      logging.info('Starting ash-chrome.')
+      logging.info('Starting ash-chrome: ' + ' '.join(ash_cmd))
+
+      # Using preexec_fn=os.setpgrp here will detach the forked process from
+      # this process group before exec-ing Ash. This prevents interactive
+      # Control-C from being seen by Ash. Otherwise Control-C in a debugger
+      # can kill Ash out from under the debugger. In non-debugger cases, this
+      # script attempts to clean up the spawned processes nicely.
       ash_process = subprocess.Popen(ash_cmd,
                                      env=ash_env,
+                                     preexec_fn=os.setpgrp,
                                      stdout=ash_stdout,
                                      stderr=subprocess.STDOUT)
 
@@ -643,6 +664,7 @@ lacros_version_skew_tests_v92.0.4515.130/test_ash_chrome
         logging.info('Symbolizing ash logs with asan symbolizer.')
         ash_symbolize_process = subprocess.Popen([_ASAN_SYMBOLIZER_PATH],
                                                  stdin=ash_process.stdout,
+                                                 preexec_fn=os.setpgrp,
                                                  stdout=ash_symbolize_stdout,
                                                  stderr=subprocess.STDOUT)
         # Allow ash_process to receive a SIGPIPE if symbolize process exits.
@@ -678,6 +700,8 @@ lacros_version_skew_tests_v92.0.4515.130/test_ash_chrome
       forward_args.append(lacros_mojo_socket_arg)
 
     forward_args.append('--ash-chrome-path=' + ash_chrome_file)
+    forward_args.append('--unique-ash-dir=' + tmp_unique_ash_dir_name)
+
     test_env = os.environ.copy()
     test_env['WAYLAND_DISPLAY'] = ash_wayland_socket_name
     test_env['EGL_PLATFORM'] = 'surfaceless'
@@ -707,6 +731,7 @@ lacros_version_skew_tests_v92.0.4515.130/test_ash_chrome
 
     shutil.rmtree(tmp_xdg_dir_name, ignore_errors=True)
     shutil.rmtree(tmp_ash_data_dir_name, ignore_errors=True)
+    shutil.rmtree(tmp_unique_ash_dir_name, ignore_errors=True)
 
 
 def _RunTestDirectly(args, forward_args):
@@ -803,9 +828,9 @@ def Main():
       '--ash-chrome-version',
       type=str,
       help='Version of an prebuilt ash-chrome to use for testing, for example: '
-      '"793554", and the version corresponds to the commit position of commits '
-      'on the main branch. If not specified, will use the latest version '
-      'available')
+      '"120.0.6099.0", and the version corresponds to the commit position of '
+      'commits on the main branch. If not specified, will use the latest '
+      'version available')
   version_group.add_argument(
       '--ash-chrome-path',
       type=str,

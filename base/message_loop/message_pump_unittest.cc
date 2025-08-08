@@ -15,11 +15,17 @@
 #include "base/run_loop.h"
 #include "base/task/single_thread_task_executor.h"
 #include "base/test/bind.h"
+#include "base/test/scoped_feature_list.h"
 #include "base/test/test_timeouts.h"
 #include "base/threading/thread.h"
 #include "build/build_config.h"
 #include "testing/gmock/include/gmock/gmock.h"
 #include "testing/gtest/include/gtest/gtest.h"
+
+#if BUILDFLAG(IS_ANDROID)
+#include "base/android/input_hint_checker.h"
+#include "base/test/test_support_android.h"
+#endif
 
 #if BUILDFLAG(IS_WIN)
 #include <windows.h>
@@ -73,6 +79,7 @@ class MockMessagePumpDelegate : public MessagePump::Delegate {
   MockMessagePumpDelegate& operator=(const MockMessagePumpDelegate&) = delete;
 
   void BeforeWait() override {}
+  void BeginNativeWorkBeforeDoWork() override {}
   MOCK_METHOD0(DoWork, MessagePump::Delegate::NextWorkInfo());
   MOCK_METHOD0(DoIdleWork, bool());
 
@@ -226,6 +233,64 @@ TEST_P(MessagePumpTest, QuitStopsWork) {
   message_pump_->Run(&delegate);
 }
 
+#if BUILDFLAG(IS_ANDROID)
+class MockInputHintChecker : public android::InputHintChecker {
+ public:
+  MOCK_METHOD(bool, HasInputImplWithThrottling, (), (override));
+};
+
+TEST_P(MessagePumpTest, DetectingHasInputYieldsOnUi) {
+  testing::InSequence sequence;
+  MessagePumpType pump_type = GetParam();
+  testing::StrictMock<MockMessagePumpDelegate> delegate(pump_type);
+  testing::StrictMock<MockInputHintChecker> hint_checker_mock;
+  android::InputHintChecker::ScopedOverrideInstance scoped_override_hint(
+      &hint_checker_mock);
+  base::test::ScopedFeatureList scoped_feature_list;
+  scoped_feature_list.InitAndEnableFeature(android::kYieldWithInputHint);
+  android::InputHintChecker::InitializeFeatures();
+  uint32_t initial_work_enters = GetAndroidNonDelayedWorkEnterCount();
+
+  // Override the first DoWork() to return an immediate next.
+  EXPECT_CALL(delegate, DoWork).WillOnce(Invoke([] {
+    auto work_info =
+        MessagePump::Delegate::NextWorkInfo{.delayed_run_time = TimeTicks()};
+    CHECK(work_info.is_immediate());
+    return work_info;
+  }));
+
+  if (pump_type == MessagePumpType::UI) {
+    // Override the following InputHintChecker::HasInput() to return true.
+    EXPECT_CALL(hint_checker_mock, HasInputImplWithThrottling())
+        .WillOnce(Invoke([] { return true; }));
+  }
+
+  // Override the second DoWork() to quit the loop.
+  EXPECT_CALL(delegate, DoWork).WillOnce(Invoke([this] {
+    message_pump_->Quit();
+    return MessagePump::Delegate::NextWorkInfo{.delayed_run_time =
+                                                   TimeTicks::Max()};
+  }));
+
+  if (pump_type == MessagePumpType::UI) {
+    EXPECT_CALL(hint_checker_mock, HasInputImplWithThrottling())
+        .WillOnce(Return(false));
+  }
+  EXPECT_CALL(delegate, DoIdleWork()).Times(0);
+
+  message_pump_->Run(&delegate);
+
+  // Expect two calls to DoNonDelayedLooperWork(). The first one occurs as a
+  // result of MessagePump::Run(). The second one is the result of yielding
+  // after HasInput() returns true. For non-UI MessagePumpType the
+  // MessagePump::Create() does not intercept entering DoNonDelayedLooperWork(),
+  // so it remains 0 instead of 1.
+  uint32_t work_loop_entered = (pump_type == MessagePumpType::UI) ? 2 : 0;
+  EXPECT_EQ(initial_work_enters + work_loop_entered,
+            GetAndroidNonDelayedWorkEnterCount());
+}
+#endif
+
 TEST_P(MessagePumpTest, QuitStopsWorkWithNestedRunLoop) {
   testing::InSequence sequence;
   testing::StrictMock<MockMessagePumpDelegate> delegate(GetParam());
@@ -272,9 +337,9 @@ TEST_P(MessagePumpTest, QuitStopsWorkWithNestedRunLoop) {
 
 TEST_P(MessagePumpTest, YieldToNativeRequestedSmokeTest) {
   // The handling of the "yield_to_native" boolean in the NextWorkInfo is only
-  // implemented on the MessagePumpForUI on android. However since we inject a
-  // fake one for testing this is hard to test. This test ensures that setting
-  // this boolean doesn't cause any MessagePump to explode.
+  // implemented on the MessagePumpAndroid. However since we inject a fake one
+  // for testing this is hard to test. This test ensures that setting this
+  // boolean doesn't cause any MessagePump to explode.
   testing::StrictMock<MockMessagePumpDelegate> delegate(GetParam());
 
   testing::InSequence sequence;
@@ -282,7 +347,8 @@ TEST_P(MessagePumpTest, YieldToNativeRequestedSmokeTest) {
   // Return an immediate task with |yield_to_native| set.
   AddPreDoWorkExpectations(delegate);
   EXPECT_CALL(delegate, DoWork).WillOnce(Invoke([] {
-    return MessagePump::Delegate::NextWorkInfo{TimeTicks(), TimeTicks(),
+    return MessagePump::Delegate::NextWorkInfo{TimeTicks(), TimeDelta(),
+                                               TimeTicks(),
                                                /* yield_to_native = */ true};
   }));
   AddPostDoWorkExpectations(delegate);
@@ -292,8 +358,8 @@ TEST_P(MessagePumpTest, YieldToNativeRequestedSmokeTest) {
   EXPECT_CALL(delegate, DoWork).WillOnce(Invoke([this] {
     message_pump_->Quit();
     auto now = TimeTicks::Now();
-    return MessagePump::Delegate::NextWorkInfo{now + Milliseconds(1), now,
-                                               true};
+    return MessagePump::Delegate::NextWorkInfo{now + Milliseconds(1),
+                                               TimeDelta(), now, true};
   }));
   EXPECT_CALL(delegate, DoIdleWork()).Times(AnyNumber());
 
@@ -301,91 +367,26 @@ TEST_P(MessagePumpTest, YieldToNativeRequestedSmokeTest) {
   message_pump_->Run(&delegate);
 }
 
-namespace {
+TEST_P(MessagePumpTest, LeewaySmokeTest) {
+  // The handling of the "leeway" in the NextWorkInfo is only implemented on
+  // mac. However since we inject a fake one for testing this is hard to test.
+  // This test ensures that setting this boolean doesn't cause any MessagePump
+  // to explode.
+  testing::StrictMock<MockMessagePumpDelegate> delegate(GetParam());
 
-class TimerSlackTestDelegate : public MessagePump::Delegate {
- public:
-  TimerSlackTestDelegate(MessagePump* message_pump)
-      : message_pump_(message_pump) {
-    // We first schedule a delayed task far in the future with maximum timer
-    // slack.
-    message_pump_->SetTimerSlack(TIMER_SLACK_MAXIMUM);
-    const TimeTicks now = TimeTicks::Now();
-    message_pump_->ScheduleDelayedWork({now + Hours(1), now});
+  testing::InSequence sequence;
 
-    // Since we have no other work pending, the pump will initially be idle.
-    action_.store(NONE);
-  }
+  AddPreDoWorkExpectations(delegate);
+  // Return a delayed task with |yield_to_native| set, and exit.
+  EXPECT_CALL(delegate, DoWork).WillOnce(Invoke([this] {
+    message_pump_->Quit();
+    auto now = TimeTicks::Now();
+    return MessagePump::Delegate::NextWorkInfo{now + Milliseconds(1),
+                                               Milliseconds(8), now};
+  }));
+  EXPECT_CALL(delegate, DoIdleWork()).Times(AnyNumber());
 
-  void OnBeginWorkItem() override {}
-  void OnEndWorkItem(int run_level_depth) override {}
-  int RunDepth() override { return 0; }
-  void BeforeWait() override {}
-
-  MessagePump::Delegate::NextWorkInfo DoWork() override {
-    switch (action_.load()) {
-      case NONE:
-        break;
-      case SCHEDULE_DELAYED_WORK: {
-        // After being woken up by the other thread, we let the pump know that
-        // the next delayed task is in fact much sooner than the 1 hour delay it
-        // was aware of. If the pump refreshes its timer correctly, it will wake
-        // up shortly, finishing the test.
-        action_.store(QUIT);
-        TimeTicks now = TimeTicks::Now();
-        return {now + Milliseconds(50), now};
-      }
-      case QUIT:
-        message_pump_->Quit();
-        break;
-    }
-    return MessagePump::Delegate::NextWorkInfo{TimeTicks::Max()};
-  }
-
-  bool DoIdleWork() override { return false; }
-
-  void WakeUpFromOtherThread() {
-    action_.store(SCHEDULE_DELAYED_WORK);
-    message_pump_->ScheduleWork();
-  }
-
- private:
-  enum Action {
-    NONE,
-    SCHEDULE_DELAYED_WORK,
-    QUIT,
-  };
-
-  const raw_ptr<MessagePump> message_pump_;
-  std::atomic<Action> action_;
-};
-
-}  // namespace
-
-TEST_P(MessagePumpTest, TimerSlackWithLongDelays) {
-  // This is a regression test for an issue where the iOS message pump fails to
-  // run delayed work when timer slack is enabled. The steps needed to trigger
-  // this are:
-  //
-  //  1. The message pump timer slack is set to maximum.
-  //  2. A delayed task is posted for far in the future (e.g., 1h).
-  //  3. The system goes idle at least for a few seconds.
-  //  4. Another delayed task is posted with a much smaller delay.
-  //
-  // The following message pump test delegate automatically runs through this
-  // sequence.
-  TimerSlackTestDelegate delegate(message_pump_.get());
-
-  // We use another thread to wake up the pump after 2 seconds to allow the
-  // system to enter an idle state. This delay was determined experimentally on
-  // the iPhone 6S simulator.
-  Thread thread("Waking thread");
-  thread.StartAndWaitForTesting();
-  thread.task_runner()->PostDelayedTask(
-      FROM_HERE,
-      BindLambdaForTesting([&delegate] { delegate.WakeUpFromOtherThread(); }),
-      Seconds(2));
-
+  message_pump_->ScheduleWork();
   message_pump_->Run(&delegate);
 }
 

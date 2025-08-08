@@ -19,6 +19,7 @@
 #include "base/memory/ptr_util.h"
 #include "base/memory/raw_ptr.h"
 #include "base/metrics/metrics_hashes.h"
+#include "base/notimplemented.h"
 #include "base/profiler/profiler_buildflags.h"
 #include "base/profiler/sample_metadata.h"
 #include "base/profiler/stack_sampler.h"
@@ -38,9 +39,10 @@
 #include "testing/gtest/include/gtest/gtest.h"
 
 #if BUILDFLAG(IS_WIN)
+#include <windows.h>
+
 #include <intrin.h>
 #include <malloc.h>
-#include <windows.h>
 #else
 #include <alloca.h>
 #endif
@@ -54,7 +56,8 @@
     (BUILDFLAG(IS_MAC) && defined(ARCH_CPU_X86_64)) ||            \
     (BUILDFLAG(IS_IOS) && defined(ARCH_CPU_64_BITS)) ||           \
     (BUILDFLAG(IS_ANDROID) && BUILDFLAG(ENABLE_ARM_CFI_TABLE)) || \
-    (BUILDFLAG(IS_CHROMEOS) && defined(ARCH_CPU_X86_64) &&        \
+    (BUILDFLAG(IS_CHROMEOS) &&                                    \
+     (defined(ARCH_CPU_X86_64) || defined(ARCH_CPU_ARM64)) &&     \
      !defined(MEMORY_SANITIZER))
 #define STACK_SAMPLING_PROFILER_SUPPORTED 1
 #endif
@@ -189,7 +192,6 @@ void TestProfileBuilder::OnProfileCompleted(TimeDelta profile_duration,
                                    profile_duration, sampling_period});
 }
 
-#if !defined(STARBOARD)
 // Unloads |library| and returns when it has completed unloading. Unloading a
 // library is asynchronous on Windows, so simply calling UnloadNativeLibrary()
 // is insufficient to ensure it's been unloaded.
@@ -214,7 +216,6 @@ void SynchronousUnloadNativeLibrary(NativeLibrary library) {
   NOTIMPLEMENTED();
 #endif
 }
-#endif
 
 void WithTargetThread(ProfileCallback profile_callback) {
   UnwindScenario scenario(BindRepeating(&CallWithPlainFunction));
@@ -289,7 +290,6 @@ TimeDelta AVeryLongTimeDelta() {
   return Days(1);
 }
 
-#if !defined(STARBOARD)
 // Tests the scenario where the library is unloaded after copying the stack, but
 // before walking it. If |wait_until_unloaded| is true, ensures that the
 // asynchronous library loading has completed before walking the stack. If
@@ -324,8 +324,9 @@ void TestLibraryUnload(bool wait_until_unloaded, ModuleCache* module_cache) {
 
   NativeLibrary other_library = LoadOtherLibrary();
 
-  UnwindScenario scenario(
-      BindRepeating(&CallThroughOtherLibrary, Unretained(other_library)));
+  // TODO(crbug.com/40061562): Remove `UnsafeDanglingUntriaged`
+  UnwindScenario scenario(BindRepeating(
+      &CallThroughOtherLibrary, UnsafeDanglingUntriaged(other_library)));
 
   UnwindScenario::SampleEvents events;
   TargetThread target_thread(
@@ -419,7 +420,6 @@ void TestLibraryUnload(bool wait_until_unloaded, ModuleCache* module_cache) {
                                  scenario.GetOuterFunctionAddressRange()});
   }
 }
-#endif
 
 // Provide a suitable (and clean) environment for the tests below. All tests
 // must use this class to ensure that proper clean-up is done and thus be
@@ -452,7 +452,7 @@ class StackSamplingProfilerTest : public testing::Test {
 //
 // macOS ASAN is not yet supported - crbug.com/718628.
 //
-// TODO(https://crbug.com/1100175): Enable this test again for Android with
+// TODO(crbug.com/40702833): Enable this test again for Android with
 // ASAN. This is now disabled because the android-asan bot fails.
 //
 // If we're running the ChromeOS unit tests on Linux, this test will never pass
@@ -534,14 +534,13 @@ PROFILER_TEST_F(StackSamplingProfilerTest, MAYBE_Alloca) {
                                scenario.GetOuterFunctionAddressRange()});
 }
 
-#if !defined(STARBOARD)
 // Checks that a stack that runs through another library produces a stack with
 // the expected functions.
 // macOS ASAN is not yet supported - crbug.com/718628.
 // iOS chrome doesn't support loading native libraries.
 // Android is not supported when EXCLUDE_UNWIND_TABLES |other_library| doesn't
 // have unwind tables.
-// TODO(https://crbug.com/1100175): Enable this test again for Android with
+// TODO(crbug.com/40702833): Enable this test again for Android with
 // ASAN. This is now disabled because the android-asan bot fails.
 // If we're running the ChromeOS unit tests on Linux, this test will never pass
 // because Ubuntu's libc isn't compiled with frame pointers. Skip if not a real
@@ -572,7 +571,7 @@ PROFILER_TEST_F(StackSamplingProfilerTest, MAYBE_OtherLibrary) {
 // Unloading is synchronous on the Mac, so this test is inapplicable.
 // Android is not supported when EXCLUDE_UNWIND_TABLES |other_library| doesn't
 // have unwind tables.
-// TODO(https://crbug.com/1100175): Enable this test again for Android with
+// TODO(crbug.com/40702833): Enable this test again for Android with
 // ASAN. This is now disabled because the android-asan bot fails.
 // If we're running the ChromeOS unit tests on Linux, this test will never pass
 // because Ubuntu's libc isn't compiled with frame pointers. Skip if not a real
@@ -606,7 +605,6 @@ PROFILER_TEST_F(StackSamplingProfilerTest, MAYBE_UnloadingLibrary) {
 PROFILER_TEST_F(StackSamplingProfilerTest, MAYBE_UnloadedLibrary) {
   TestLibraryUnload(true, module_cache());
 }
-#endif
 
 // Checks that a profiler can stop/destruct without ever having started.
 PROFILER_TEST_F(StackSamplingProfilerTest, StopWithoutStarting) {

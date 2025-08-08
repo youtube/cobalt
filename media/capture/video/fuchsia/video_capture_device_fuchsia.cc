@@ -32,8 +32,7 @@ libyuv::FourCC GetFourccForPixelFormat(
     case fuchsia::sysmem::PixelFormatType::NV12:
       return libyuv::FourCC::FOURCC_NV12;
     default:
-      NOTREACHED();
-      return libyuv::FourCC::FOURCC_I420;
+      NOTREACHED_NORETURN();
   }
 }
 
@@ -143,7 +142,7 @@ void VideoCaptureDeviceFuchsia::AllocateAndStart(
   start_time_ = base::TimeTicks::Now();
   frames_received_ = 0;
 
-  // TODO(crbug.com/1075839) Select stream_id based on requested resolution.
+  // TODO(crbug.com/40128395) Select stream_id based on requested resolution.
   device_->ConnectToStream(/*stream_id=*/0, stream_.NewRequest());
   stream_.set_error_handler(
       fit::bind_member(this, &VideoCaptureDeviceFuchsia::OnStreamError));
@@ -263,7 +262,7 @@ void VideoCaptureDeviceFuchsia::InitializeBufferCollection(
   // need to be specified explicitly.
   fuchsia::sysmem::BufferCollectionConstraints constraints =
       VmoBuffer::GetRecommendedConstraints(kMaxUsedOutputFrames,
-                                           /*min_buffer_size=*/absl::nullopt,
+                                           /*min_buffer_size=*/std::nullopt,
                                            /*writable=*/false);
   buffer_collection_ = sysmem_allocator_.BindSharedCollection(std::move(token));
   buffer_collection_->Initialize(std::move(constraints), "CrVideoCaptureDevice",
@@ -378,7 +377,8 @@ void VideoCaptureDeviceFuchsia::ProcessNewFrame(
   Client::Buffer buffer;
   Client::ReserveResult result = client_->ReserveOutputBuffer(
       capture_format.frame_size, capture_format.pixel_format,
-      /*frame_feedback_id=*/0, &buffer);
+      /*frame_feedback_id=*/0, &buffer, /*require_new_buffer_id=*/nullptr,
+      /*retire_old_buffer_id=*/nullptr);
   if (result != Client::ReserveResult::kSucceeded) {
     DLOG(WARNING) << "Failed to allocate output buffer for a video frame";
     return;
@@ -433,7 +433,7 @@ void VideoCaptureDeviceFuchsia::ProcessNewFrame(
 
   client_->OnIncomingCapturedBufferExt(
       std::move(buffer), capture_format, gfx::ColorSpace(), reference_time,
-      timestamp, gfx::Rect(visible_size), VideoFrameMetadata());
+      timestamp, std::nullopt, gfx::Rect(visible_size), VideoFrameMetadata());
 
   // Frame buffer is returned to the device by dropping the |frame_info|.
 }

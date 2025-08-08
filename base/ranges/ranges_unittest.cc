@@ -2,6 +2,11 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#ifdef UNSAFE_BUFFERS_BUILD
+// TODO(crbug.com/40284755): Remove this and spanify to fix the errors.
+#pragma allow_unsafe_buffers
+#endif
+
 #include "base/ranges/ranges.h"
 
 #include <array>
@@ -49,7 +54,7 @@ template <size_t N>
 constexpr std::array<int, N> GenerateArray() {
   std::array<int, N> arr{};
   int i = 0;
-  for (auto* it = ranges::begin(arr); it != ranges::end(arr); ++it) {
+  for (auto it = ranges::begin(arr); it != ranges::end(arr); ++it) {
     *it = i++;
   }
 
@@ -71,7 +76,7 @@ TEST(RangesTest, BeginConstexprContainers) {
   static_assert(il.begin() == ranges::begin(il), "");
 
   static constexpr std::array<int, 3> array = {1, 2, 3};
-  static_assert(&array[0] == ranges::begin(array), "");
+  static_assert(array.begin() == ranges::begin(array), "");
 }
 
 TEST(RangesTest, BeginRegularContainers) {
@@ -95,7 +100,7 @@ TEST(RangesTest, EndConstexprContainers) {
   static_assert(il.end() == ranges::end(il), "");
 
   static constexpr std::array<int, 3> array = {1, 2, 3};
-  static_assert(&array[0] + 3 == ranges::end(array), "");
+  static_assert(array.begin() + 3 == ranges::end(array), "");
 }
 
 TEST(RangesTest, EndRegularContainers) {

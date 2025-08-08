@@ -1,5 +1,0 @@
-int asm;
-
-/*%%*
-'asm' is a reserved word
-*%%*/

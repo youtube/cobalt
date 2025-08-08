@@ -60,8 +60,8 @@ static bool CheckReadOnlySharedMemoryFdPosix(int fd) {
     return false;
   }
   if (errno != kExpectedErrno) {
-    LOG(ERROR) << "Expected mmap() to return " << kExpectedErrno
-               << " but returned " << errno << ": " << strerror(errno) << "\n";
+    PLOG(ERROR) << "Expected mmap() to return " << kExpectedErrno
+                << " but returned";  // PLOG will append the actual errno value.
     return false;
   }
   return true;
@@ -132,7 +132,7 @@ bool CheckReadOnlyPlatformSharedMemoryRegionForTesting(
   return CheckReadOnlySharedMemoryFuchsiaHandle(region.GetPlatformHandle());
 #elif BUILDFLAG(IS_WIN)
   return CheckReadOnlySharedMemoryWindowsHandle(region.GetPlatformHandle());
-#elif BUILDFLAG(IS_ANDROID) || defined(STARBOARD)
+#elif BUILDFLAG(IS_ANDROID)
   return CheckReadOnlySharedMemoryFdPosix(region.GetPlatformHandle());
 #else
   return CheckReadOnlySharedMemoryFdPosix(region.GetPlatformHandle().fd);

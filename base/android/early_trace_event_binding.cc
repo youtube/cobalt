@@ -8,7 +8,7 @@
 
 #include "base/android/jni_string.h"
 #include "base/android/trace_event_binding.h"
-#include "base/base_jni_headers/EarlyTraceEvent_jni.h"
+#include "base/base_jni/EarlyTraceEvent_jni.h"
 #include "base/time/time.h"
 #include "base/trace_event/base_tracing.h"
 #include "base/tracing_buildflags.h"
@@ -120,13 +120,13 @@ static void JNI_EarlyTraceEvent_RecordEarlyAsyncEndEvent(JNIEnv* env,
 }
 
 bool GetBackgroundStartupTracingFlag() {
-  JNIEnv* env = base::android::AttachCurrentThread();
+  JNIEnv* env = jni_zero::AttachCurrentThread();
   return base::android::Java_EarlyTraceEvent_getBackgroundStartupTracingFlag(
       env);
 }
 
 void SetBackgroundStartupTracingFlag(bool enabled) {
-  JNIEnv* env = base::android::AttachCurrentThread();
+  JNIEnv* env = jni_zero::AttachCurrentThread();
   base::android::Java_EarlyTraceEvent_setBackgroundStartupTracingFlag(env,
                                                                       enabled);
 }

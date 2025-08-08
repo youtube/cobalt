@@ -2,6 +2,11 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#ifdef UNSAFE_BUFFERS_BUILD
+// TODO(crbug.com/40284755): Remove this and spanify to fix the errors.
+#pragma allow_unsafe_buffers
+#endif
+
 #include "base/files/file_descriptor_watcher_posix.h"
 
 #include <unistd.h>
@@ -136,7 +141,7 @@ class FileDescriptorWatcherTest
     EXPECT_TRUE(thread_checker_.CalledOnValidThread());
 
     char buffer;
-    ASSERT_TRUE(ReadFromFD(read_file_descriptor(), &buffer, sizeof(buffer)));
+    ASSERT_TRUE(ReadFromFD(read_file_descriptor(), make_span(&buffer, 1u)));
   }
 
   // Mock on wich callbacks are invoked.

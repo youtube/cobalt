@@ -4,22 +4,34 @@
 
 #include "net/websockets/websocket_http3_handshake_stream.h"
 
+#include <string_view>
 #include <utility>
 
+#include "base/check.h"
+#include "base/check_op.h"
+#include "base/functional/bind.h"
+#include "base/functional/callback.h"
+#include "base/memory/scoped_refptr.h"
+#include "base/strings/strcat.h"
 #include "base/strings/stringprintf.h"
 #include "base/time/time.h"
 #include "net/base/ip_endpoint.h"
 #include "net/http/http_request_headers.h"
 #include "net/http/http_request_info.h"
 #include "net/http/http_response_headers.h"
+#include "net/http/http_response_info.h"
 #include "net/http/http_status_code.h"
 #include "net/spdy/spdy_http_utils.h"
+#include "net/third_party/quiche/src/quiche/spdy/core/http2_header_block.h"
 #include "net/traffic_annotation/network_traffic_annotation.h"
+#include "net/websockets/websocket_basic_stream.h"
 #include "net/websockets/websocket_deflate_predictor_impl.h"
 #include "net/websockets/websocket_deflate_stream.h"
 #include "net/websockets/websocket_handshake_constants.h"
+#include "net/websockets/websocket_handshake_request_info.h"
 
 namespace net {
+struct AlternativeService;
 
 namespace {
 
@@ -82,7 +94,7 @@ int WebSocketHttp3HandshakeStream::SendRequest(
 
   if (!session_) {
     constexpr int rv = ERR_CONNECTION_CLOSED;
-    OnFailure("Connection closed before sending request.", rv, absl::nullopt);
+    OnFailure("Connection closed before sending request.", rv, std::nullopt);
     return rv;
   }
 
@@ -91,14 +103,14 @@ int WebSocketHttp3HandshakeStream::SendRequest(
   IPEndPoint address;
   int result = session_->GetPeerAddress(&address);
   if (result != OK) {
-    OnFailure("Error getting IP address.", result, absl::nullopt);
+    OnFailure("Error getting IP address.", result, std::nullopt);
     return result;
   }
   http_response_info_->remote_endpoint = address;
 
   auto request = std::make_unique<WebSocketHandshakeRequestInfo>(
       request_info_->url, base::Time::Now());
-  request->headers.CopyFrom(request_headers);
+  request->headers = request_headers;
 
   AddVectorHeaderIfNonEmpty(websockets::kSecWebSocketExtensions,
                             requested_extensions_, &request->headers);
@@ -200,10 +212,6 @@ bool WebSocketHttp3HandshakeStream::GetLoadTimingInfo(
 void WebSocketHttp3HandshakeStream::GetSSLInfo(SSLInfo* ssl_info) {}
 
 // TODO(momoka): Implement this.
-void WebSocketHttp3HandshakeStream::GetSSLCertRequestInfo(
-    SSLCertRequestInfo* cert_request_info) {}
-
-// TODO(momoka): Implement this.
 int WebSocketHttp3HandshakeStream::GetRemoteEndpoint(IPEndPoint* endpoint) {
   return 0;
 }
@@ -231,7 +239,7 @@ const std::set<std::string>& WebSocketHttp3HandshakeStream::GetDnsAliases()
 }
 
 // TODO(momoka): Implement this.
-base::StringPiece WebSocketHttp3HandshakeStream::GetAcceptChViaAlps() const {
+std::string_view WebSocketHttp3HandshakeStream::GetAcceptChViaAlps() const {
   return {};
 }
 
@@ -285,11 +293,9 @@ void WebSocketHttp3HandshakeStream::OnHeadersReceived(
   http_response_info_->was_alpn_negotiated = true;
   http_response_info_->response_time = base::Time::Now();
   http_response_info_->request_time = request_time_;
-  http_response_info_->connection_info =
-      HttpResponseInfo::CONNECTION_INFO_HTTP2;
+  http_response_info_->connection_info = HttpConnectionInfo::kHTTP2;
   http_response_info_->alpn_negotiated_protocol =
-      HttpResponseInfo::ConnectionInfoToString(
-          http_response_info_->connection_info);
+      HttpConnectionInfoToString(http_response_info_->connection_info);
 
   if (callback_) {
     std::move(callback_).Run(ValidateResponse());
@@ -311,8 +317,8 @@ void WebSocketHttp3HandshakeStream::OnClose(int status) {
     result_ = HandshakeResult::HTTP3_FAILED;
   }
 
-  OnFailure(std::string("Stream closed with error: ") + ErrorToString(status),
-            status, absl::nullopt);
+  OnFailure(base::StrCat({"Stream closed with error: ", ErrorToString(status)}),
+            status, std::nullopt);
 
   if (callback_) {
     std::move(callback_).Run(status);
@@ -371,7 +377,7 @@ int WebSocketHttp3HandshakeStream::ValidateUpgradeResponse(
 
   const int rv = ERR_INVALID_RESPONSE;
   OnFailure("Error during WebSocket handshake: " + failure_message, rv,
-            absl::nullopt);
+            std::nullopt);
   return rv;
 }
 
@@ -379,7 +385,7 @@ int WebSocketHttp3HandshakeStream::ValidateUpgradeResponse(
 void WebSocketHttp3HandshakeStream::OnFailure(
     const std::string& message,
     int net_error,
-    absl::optional<int> response_code) {
+    std::optional<int> response_code) {
   stream_request_->OnFailure(message, net_error, response_code);
 }
 

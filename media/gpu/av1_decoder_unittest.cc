@@ -9,6 +9,8 @@
 #include <string>
 #include <vector>
 
+#include "base/compiler_specific.h"
+#include "base/containers/span.h"
 #include "base/files/file_util.h"
 #include "base/logging.h"
 #include "base/memory/raw_ptr.h"
@@ -17,6 +19,7 @@
 #include "media/base/decoder_buffer.h"
 #include "media/base/test_data_util.h"
 #include "media/ffmpeg/ffmpeg_common.h"
+#include "media/ffmpeg/scoped_av_packet.h"
 #include "media/filters/ffmpeg_demuxer.h"
 #include "media/filters/in_memory_url_protocol.h"
 #include "media/filters/ivf_parser.h"
@@ -107,7 +110,7 @@ MATCHER(NonEmptyTileBuffers, "") {
 
 MATCHER_P(MatchesFrameData, decoder_buffer, "") {
   return arg.data() == decoder_buffer->data() &&
-         arg.size() == decoder_buffer->data_size();
+         arg.size() == decoder_buffer->size();
 }
 
 class MockAV1Accelerator : public AV1Decoder::AV1Accelerator {
@@ -152,7 +155,7 @@ class AV1DecoderTest : public ::testing::Test {
   }
 
   // Owned by |decoder_|.
-  raw_ptr<MockAV1Accelerator> mock_accelerator_;
+  raw_ptr<MockAV1Accelerator, DanglingUntriaged> mock_accelerator_;
 
   std::unique_ptr<AV1Decoder> decoder_;
   int32_t bitstream_id_ = 0;
@@ -222,8 +225,7 @@ scoped_refptr<DecoderBuffer> AV1DecoderTest::ReadDecoderBuffer(
   std::string bitstream;
 
   EXPECT_TRUE(base::ReadFileToString(input_file, &bitstream));
-  auto buffer = DecoderBuffer::CopyFrom(
-      reinterpret_cast<const uint8_t*>(bitstream.data()), bitstream.size());
+  auto buffer = DecoderBuffer::CopyFrom(base::as_byte_span(bitstream));
   EXPECT_TRUE(!!buffer);
   return buffer;
 }
@@ -246,7 +248,8 @@ std::vector<scoped_refptr<DecoderBuffer>> AV1DecoderTest::ReadIVF(
   const uint8_t* data;
   while (ivf_parser.ParseNextFrame(&ivf_frame_header, &data)) {
     buffers.push_back(DecoderBuffer::CopyFrom(
-        reinterpret_cast<const uint8_t*>(data), ivf_frame_header.frame_size));
+        // TODO(crbug.com/40284755): `ParseNextFrame` should return a span.
+        UNSAFE_BUFFERS(base::span(data, ivf_frame_header.frame_size))));
   }
   return buffers;
 }
@@ -276,20 +279,20 @@ std::vector<scoped_refptr<DecoderBuffer>> AV1DecoderTest::ReadWebm(
   EXPECT_NE(stream_index, -1) << "No AV1 data found in " << input_file;
 
   std::vector<scoped_refptr<DecoderBuffer>> buffers;
-  AVPacket packet{};
-  while (av_read_frame(glue.format_context(), &packet) >= 0) {
-    if (packet.stream_index == stream_index)
-      buffers.push_back(DecoderBuffer::CopyFrom(packet.data, packet.size));
-    av_packet_unref(&packet);
+  auto packet = ScopedAVPacket::Allocate();
+  while (av_read_frame(glue.format_context(), packet.get()) >= 0) {
+    if (packet->stream_index == stream_index) {
+      buffers.push_back(DecoderBuffer::CopyFrom(AVPacketData(*packet)));
+    }
+    av_packet_unref(packet.get());
   }
   return buffers;
 }
 
 TEST_F(AV1DecoderTest, DecodeInvalidOBU) {
   std::string kInvalidData = "ThisIsInvalidData";
-  auto kInvalidBuffer = DecoderBuffer::CopyFrom(
-      reinterpret_cast<const uint8_t*>(kInvalidData.data()),
-      kInvalidData.size());
+  auto kInvalidBuffer =
+      DecoderBuffer::CopyFrom(base::as_byte_span(kInvalidData));
   std::vector<DecodeResult> results = Decode(kInvalidBuffer);
   std::vector<DecodeResult> expected = {DecodeResult::kDecodeError};
   EXPECT_EQ(results, expected);
@@ -426,6 +429,42 @@ TEST_F(AV1DecoderTest, Decode10bitStream) {
                                /*show_existing_frame=*/false,
                                /*show_frame=*/true),
             MatchesYUV420SequenceHeader(kProfile, /*bitdepth=*/10, kFrameSize,
+                                        /*film_grain_params_present=*/false),
+            _, NonEmptyTileBuffers(), MatchesFrameData(buffer)))
+        .WillOnce(Return(AV1Decoder::AV1Accelerator::Status::kOk));
+    EXPECT_CALL(*mock_accelerator_,
+                OutputPicture(SameAV1PictureInstance(av1_picture)))
+        .WillOnce(Return(true));
+    for (DecodeResult r : Decode(buffer)) {
+      results.push_back(r);
+    }
+    expected.push_back(DecodeResult::kRanOutOfStreamData);
+    testing::Mock::VerifyAndClearExpectations(mock_accelerator_);
+  }
+  EXPECT_EQ(results, expected);
+}
+
+TEST_F(AV1DecoderTest, DecodeTemporalLayerStream) {
+  constexpr gfx::Size kFrameSize(640, 360);
+  constexpr gfx::Size kRenderSize(640, 360);
+  constexpr auto kProfile = libgav1::BitstreamProfile::kProfile0;
+  const std::string kTLStream("av1-svc-L1T2.ivf");
+  std::vector<scoped_refptr<DecoderBuffer>> buffers = ReadIVF(kTLStream);
+  ASSERT_FALSE(buffers.empty());
+  std::vector<DecodeResult> expected = {DecodeResult::kConfigChange};
+  std::vector<DecodeResult> results;
+  for (auto buffer : buffers) {
+    ::testing::InSequence sequence;
+    auto av1_picture = base::MakeRefCounted<AV1Picture>();
+    EXPECT_CALL(*mock_accelerator_, CreateAV1Picture(/*apply_grain=*/false))
+        .WillOnce(Return(av1_picture));
+    EXPECT_CALL(
+        *mock_accelerator_,
+        SubmitDecode(
+            MatchesFrameHeader(kFrameSize, kRenderSize,
+                               /*show_existing_frame=*/false,
+                               /*show_frame=*/true),
+            MatchesYUV420SequenceHeader(kProfile, /*bitdepth=*/8, kFrameSize,
                                         /*film_grain_params_present=*/false),
             _, NonEmptyTileBuffers(), MatchesFrameData(buffer)))
         .WillOnce(Return(AV1Decoder::AV1Accelerator::Status::kOk));

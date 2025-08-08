@@ -73,7 +73,8 @@ MediaPlayerBridge::MediaPlayerBridge(
     bool hide_url_log,
     Client* client,
     bool allow_credentials,
-    bool is_hls)
+    bool is_hls,
+    const base::flat_map<std::string, std::string> headers)
     : prepared_(false),
       playback_completed_(false),
       pending_play_(false),
@@ -100,6 +101,7 @@ MediaPlayerBridge::MediaPlayerBridge(
                                        base::Unretained(this)),
                    base::BindRepeating(&MediaPlayerBridge::GetCurrentTime,
                                        base::Unretained(this))),
+      headers_(std::move(headers)),
       client_(client) {
   listener_ = std::make_unique<MediaPlayerListener>(
       base::SingleThreadTaskRunner::GetCurrentDefault(),
@@ -123,10 +125,8 @@ MediaPlayerBridge::~MediaPlayerBridge() {
 
 void MediaPlayerBridge::Initialize() {
   cookies_.clear();
-  if (url_.SchemeIsBlob() || url_.SchemeIsFileSystem()) {
-    NOTREACHED();
-    return;
-  }
+  CHECK(!url_.SchemeIsBlob());
+  CHECK(!url_.SchemeIsFileSystem());
 
   if (allow_credentials_ && !url_.SchemeIsFile()) {
     media::MediaResourceGetter* resource_getter =
@@ -188,11 +188,8 @@ void MediaPlayerBridge::SetPlaybackRate(double playback_rate) {
 
 void MediaPlayerBridge::Prepare() {
   DCHECK(j_media_player_bridge_.is_null());
-
-  if (url_.SchemeIsBlob() || url_.SchemeIsFileSystem()) {
-    NOTREACHED();
-    return;
-  }
+  CHECK(!url_.SchemeIsBlob());
+  CHECK(!url_.SchemeIsFileSystem());
 
   CreateJavaMediaPlayerBridge();
 
@@ -256,9 +253,24 @@ void MediaPlayerBridge::SetDataSourceInternal() {
   ScopedJavaLocalRef<jstring> j_url_string =
       ConvertUTF8ToJavaString(env, url_.spec());
 
-  if (!Java_MediaPlayerBridge_setDataSource(env, j_media_player_bridge_,
-                                            j_url_string, j_cookies,
-                                            j_user_agent, hide_url_log_)) {
+  jclass hashMapClass = env->FindClass("java/util/HashMap");
+  jmethodID hashMapConstructor =
+      env->GetMethodID(hashMapClass, "<init>", "()V");
+  jobject javaHashMap = env->NewObject(hashMapClass, hashMapConstructor);
+  for (const auto& entry : headers_) {
+    jstring key = env->NewStringUTF(entry.first.c_str());
+    jstring value = env->NewStringUTF(entry.second.c_str());
+    jmethodID putMethod = env->GetMethodID(
+        hashMapClass, "put",
+        "(Ljava/lang/Object;Ljava/lang/Object;)Ljava/lang/Object;");
+    env->CallObjectMethod(javaHashMap, putMethod, key, value);
+    env->DeleteLocalRef(key);
+    env->DeleteLocalRef(value);
+  }
+  base::android::ScopedJavaLocalRef<jobject> scoped_hash_map(env, javaHashMap);
+  if (!Java_MediaPlayerBridge_setDataSource(
+          env, j_media_player_bridge_, j_url_string, j_cookies, j_user_agent,
+          hide_url_log_, scoped_hash_map)) {
     OnMediaError(MEDIA_ERROR_FORMAT);
     return;
   }

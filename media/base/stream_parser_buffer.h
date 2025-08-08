@@ -138,20 +138,11 @@ class MEDIA_EXPORT StreamParserBuffer : public DecoderBuffer {
                                                     bool is_key_frame,
                                                     Type type,
                                                     TrackId track_id);
-  static scoped_refptr<StreamParserBuffer> CopyFrom(const uint8_t* data,
-                                                    int data_size,
-                                                    const uint8_t* side_data,
-                                                    int side_data_size,
-                                                    bool is_key_frame,
-                                                    Type type,
-                                                    TrackId track_id);
-#if !defined(STARBOARD)
   static scoped_refptr<StreamParserBuffer> FromExternalMemory(
       std::unique_ptr<ExternalMemory> external_memory,
       bool is_key_frame,
       Type type,
       TrackId track_id);
-#endif  // !defined(STARBOARD)
 
   StreamParserBuffer(const StreamParserBuffer&) = delete;
   StreamParserBuffer& operator=(const StreamParserBuffer&) = delete;
@@ -184,6 +175,9 @@ class MEDIA_EXPORT StreamParserBuffer : public DecoderBuffer {
   //
   // All future timestamp, decode timestamp, config id, or track id changes to
   // this buffer will be applied to the preroll buffer as well.
+  //
+  // TODO(b/331652782): integrate the setter function into the constructor to
+  // make |preroll_buffer_| immutable.
   void SetPrerollBuffer(scoped_refptr<StreamParserBuffer> preroll);
   scoped_refptr<StreamParserBuffer> preroll_buffer() { return preroll_buffer_; }
 
@@ -195,20 +189,19 @@ class MEDIA_EXPORT StreamParserBuffer : public DecoderBuffer {
     is_duration_estimated_ = is_estimated;
   }
 
+  size_t GetMemoryUsage() const override;
+
  private:
-#if !defined(STARBOARD)
   StreamParserBuffer(std::unique_ptr<ExternalMemory> external_memory,
                      bool is_key_frame,
                      Type type,
                      TrackId track_id);
-#endif  // !defined(STARBOARD)
   StreamParserBuffer(const uint8_t* data,
                      int data_size,
-                     const uint8_t* side_data,
-                     int side_data_size,
                      bool is_key_frame,
                      Type type,
                      TrackId track_id);
+  explicit StreamParserBuffer(DecoderBufferType decoder_buffer_type);
   ~StreamParserBuffer() override;
 
   DecodeTimestamp decode_timestamp_ = kNoDecodeTimestamp;

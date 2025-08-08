@@ -1,0 +1,34 @@
+// Copyright 2023 The Chromium Authors
+// Use of this source code is governed by a BSD-style license that can be
+// found in the LICENSE file.
+
+#ifndef SERVICES_WEBNN_WEBNN_UTILS_H_
+#define SERVICES_WEBNN_WEBNN_UTILS_H_
+
+#include <string>
+
+#include "base/component_export.h"
+#include "services/webnn/public/mojom/webnn_graph.mojom.h"
+
+namespace webnn {
+
+std::string COMPONENT_EXPORT(WEBNN_UTILS)
+    OpTagToString(mojom::Operation::Tag tag);
+std::string COMPONENT_EXPORT(WEBNN_UTILS)
+    OpKindToString(mojom::ArgMinMax::Kind kind);
+std::string COMPONENT_EXPORT(WEBNN_UTILS)
+    OpKindToString(mojom::ElementWiseBinary::Kind kind);
+std::string COMPONENT_EXPORT(WEBNN_UTILS)
+    OpKindToString(mojom::ElementWiseUnary::Kind kind);
+std::string COMPONENT_EXPORT(WEBNN_UTILS)
+    OpKindToString(mojom::Reduce::Kind kind);
+std::string COMPONENT_EXPORT(WEBNN_UTILS)
+    DataTypeToString(mojom::Operand::DataType type);
+std::string COMPONENT_EXPORT(WEBNN_UTILS)
+    NotSupportedOperatorError(const mojom::Operation& op);
+std::string COMPONENT_EXPORT(WEBNN_UTILS)
+    NotSupportedOperatorError(const mojom::ElementWiseUnary& op);
+
+}  // namespace webnn
+
+#endif  // SERVICES_WEBNN_WEBNN_UTILS_H_

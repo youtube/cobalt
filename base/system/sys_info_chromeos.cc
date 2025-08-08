@@ -2,6 +2,11 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#ifdef UNSAFE_BUFFERS_BUILD
+// TODO(crbug.com/40284755): Remove this and spanify to fix the errors.
+#pragma allow_unsafe_buffers
+#endif
+
 #include "base/system/sys_info.h"
 
 #include <stddef.h>
@@ -58,7 +63,7 @@ class ChromeOSVersionInfo {
     if (parsed_from_env) {
       double us = 0;
       if (StringToDouble(lsb_release_time_str, &us))
-        lsb_release_time_ = Time::FromDoubleT(us);
+        lsb_release_time_ = Time::FromSecondsSinceUnixEpoch(us);
     } else {
       // If the LSB_RELEASE and LSB_RELEASE_TIME environment variables are not
       // set, fall back to a blocking read of the lsb_release file. This should
@@ -172,6 +177,9 @@ ChromeOSVersionInfo& GetChromeOSVersionInfo() {
 // static
 std::string SysInfo::HardwareModelName() {
   std::string board = GetLsbReleaseBoard();
+  if (board == "unknown") {
+    return "";
+  }
   // GetLsbReleaseBoard() may be suffixed with a "-signed-" and other extra
   // info. Strip it.
   const size_t index = board.find("-signed-");
@@ -200,7 +208,7 @@ std::string SysInfo::OperatingSystemVersion() {
 std::string SysInfo::KernelVersion() {
   struct utsname info;
   if (uname(&info) < 0) {
-    NOTREACHED();
+    NOTREACHED_IN_MIGRATION();
     return std::string();
   }
   return std::string(info.release);

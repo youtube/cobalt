@@ -20,7 +20,6 @@
 #include "net/base/network_delegate.h"
 #include "net/base/proxy_delegate.h"
 #include "net/cert/cert_verifier.h"
-#include "net/cert/ct_policy_enforcer.h"
 #include "net/cert/sct_auditing_delegate.h"
 #include "net/cookies/cookie_store.h"
 #include "net/dns/host_resolver.h"
@@ -41,7 +40,6 @@
 #include "net/ssl/ssl_config_service.h"
 #include "net/url_request/url_request.h"
 #include "net/url_request/url_request_job_factory.h"
-#include "net/url_request/url_request_throttler_manager.h"
 
 #if BUILDFLAG(ENABLE_REPORTING)
 #include "net/network_error_logging/network_error_logging_service.h"
@@ -49,11 +47,16 @@
 #include "net/reporting/reporting_service.h"
 #endif  // BUILDFLAG(ENABLE_REPORTING)
 
+#if BUILDFLAG(ENABLE_DEVICE_BOUND_SESSIONS)
+#include "net/device_bound_sessions/device_bound_session_service.h"
+#endif  // BUILDFLAG(ENABLE_DEVICE_BOUND_SESSIONS)
+
 namespace net {
 
 URLRequestContext::URLRequestContext(
     base::PassKey<URLRequestContextBuilder> pass_key)
-    : url_requests_(std::make_unique<std::set<const URLRequest*>>()),
+    : url_requests_(std::make_unique<
+                    std::set<raw_ptr<const URLRequest, SetExperimental>>>()),
       bound_network_(handles::kInvalidNetworkHandle) {}
 
 URLRequestContext::~URLRequestContext() {
@@ -77,6 +80,15 @@ URLRequestContext::~URLRequestContext() {
   // subclass this, as some parts of the URLRequestContext may then be torn
   // down before this cancels the ProxyResolutionService's URLRequests.
   proxy_resolution_service()->OnShutdown();
+
+  // If a ProxyDelegate is set then the builder gave it a pointer to the
+  // ProxyResolutionService, so clear that here to avoid having a dangling
+  // pointer. There's no need to clear the ProxyResolutionService's pointer to
+  // ProxyDelegate because the member destruction order ensures that
+  // ProxyResolutionService is destroyed first.
+  if (proxy_delegate()) {
+    proxy_delegate()->SetProxyResolutionService(nullptr);
+  }
 
   DCHECK(host_resolver());
   host_resolver()->OnShutdown();
@@ -106,7 +118,7 @@ const HttpNetworkSessionContext* URLRequestContext::GetNetworkSessionContext()
   return &network_session->context();
 }
 
-// TODO(crbug.com/1052397): Revisit once build flag switch of lacros-chrome is
+// TODO(crbug.com/40118868): Revisit once build flag switch of lacros-chrome is
 // complete.
 #if !BUILDFLAG(IS_WIN) && \
     !(BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_CHROMEOS_LACROS))
@@ -125,7 +137,7 @@ std::unique_ptr<URLRequest> URLRequestContext::CreateRequest(
     URLRequest::Delegate* delegate,
     NetworkTrafficAnnotationTag traffic_annotation,
     bool is_for_websockets,
-    const absl::optional<net::NetLogSource> net_log_source) const {
+    const std::optional<net::NetLogSource> net_log_source) const {
   return std::make_unique<URLRequest>(
       base::PassKey<URLRequestContext>(), url, priority, delegate, this,
       traffic_annotation, is_for_websockets, net_log_source);
@@ -198,10 +210,6 @@ void URLRequestContext::set_transport_security_state(
     std::unique_ptr<TransportSecurityState> state) {
   transport_security_state_ = std::move(state);
 }
-void URLRequestContext::set_ct_policy_enforcer(
-    std::unique_ptr<CTPolicyEnforcer> enforcer) {
-  ct_policy_enforcer_ = std::move(enforcer);
-}
 void URLRequestContext::set_sct_auditing_delegate(
     std::unique_ptr<SCTAuditingDelegate> delegate) {
   sct_auditing_delegate_ = std::move(delegate);
@@ -210,10 +218,6 @@ void URLRequestContext::set_job_factory(
     std::unique_ptr<const URLRequestJobFactory> job_factory) {
   job_factory_storage_ = std::move(job_factory);
   job_factory_ = job_factory_storage_.get();
-}
-void URLRequestContext::set_throttler_manager(
-    std::unique_ptr<URLRequestThrottlerManager> throttler_manager) {
-  throttler_manager_ = std::move(throttler_manager);
 }
 void URLRequestContext::set_quic_context(
     std::unique_ptr<QuicContext> quic_context) {
@@ -252,5 +256,12 @@ void URLRequestContext::set_transport_security_persister(
     std::unique_ptr<TransportSecurityPersister> transport_security_persister) {
   transport_security_persister_ = std::move(transport_security_persister);
 }
+
+#if BUILDFLAG(ENABLE_DEVICE_BOUND_SESSIONS)
+void URLRequestContext::set_device_bound_session_service(
+    std::unique_ptr<DeviceBoundSessionService> device_bound_session_service) {
+  device_bound_session_service_ = std::move(device_bound_session_service);
+}
+#endif  // BUILDFLAG(ENABLE_DEVICE_BOUND_SESSIONS)
 
 }  // namespace net

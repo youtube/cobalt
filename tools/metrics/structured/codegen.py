@@ -33,7 +33,7 @@ class Util:
     return struct.unpack('>Q', md5.digest()[:8])[0]
 
   @staticmethod
-  def event_name_hash(project_name, event_name):
+  def event_name_hash(project_name, event_name, platform):
     """Make the name hash for an event.
 
     This gets uploaded in the StructuredEventProto.event_name_hash field. It is
@@ -51,9 +51,10 @@ class Util:
     """
     event_name = Util.sanitize_name(event_name)
     project_name = Util.sanitize_name(project_name)
-    # TODO(crbug.com/1148168): Once the minimum python version is 3.6+, rewrite
+    # TODO(crbug.com/40156926): Once the minimum python version is 3.6+, rewrite
     # this .format and others using f-strings.
-    return Util.hash_name('chrome::{}::{}'.format(project_name, event_name))
+    return Util.hash_name('{}::{}::{}'.format(platform, project_name,
+                                              event_name))
 
 
 class FileInfo:
@@ -82,6 +83,8 @@ class ProjectInfo:
     self.validator = '{}ProjectValidator'.format(self.name)
     self.validator_snake_name = Util.camel_to_snake(self.validator)
     self.events = project.events
+    self.enums = project.enums
+    self.platform = project.platform
 
     # Set ID type.
     if project.id == 'uma':
@@ -121,25 +124,24 @@ class ProjectInfo:
 
     self.key_rotation_period = project.key_rotation_period
 
-  def build_event_map(self) -> str:
-    event_infos = (EventInfo(event, self) for event in self.events)
+  def build_validator_code(self) -> str:
+    event_infos = list(EventInfo(event, self) for event in self.events)
 
     # Generate map entries.
-    validator_map_str = ',\n  '.join(
-        '{{"{}", &{}}}'.format(event_info.name, event_info.validator_snake_name)
+    validator_map_str = ';\n  '.join(
+        'event_validators_.emplace("{}", std::make_unique<{}>())'.format(
+            event_info.name, event_info.validator_name)
         for event_info in event_infos)
-    return validator_tmpl.IMPL_PROJECT_EVENT_MAP_TEMPLATE.format(
-        project=self, event_validator_map=validator_map_str)
 
-  def build_event_validators(self) -> str:
-    event_infos = (EventInfo(event, self) for event in self.events)
-    return '\n'.join(event.build_validator_init() for event in event_infos)
+    event_name_map_str = ';\n  '.join(
+        'event_name_map_.emplace(UINT64_C({}), "{}")'.format(
+            event_info.name_hash, event_info.name)
+        for event_info in event_infos)
 
-  def build_project_init(self) -> str:
-    return 'static {} {};'.format(self.validator, self.validator_snake_name)
-
-  def build_validator_code(self) -> str:
-    return validator_tmpl.IMPL_PROJECT_VALIDATOR_TEMPLATE.format(project=self)
+    return validator_tmpl.IMPL_PROJECT_VALIDATOR_TEMPLATE.format(
+        project=self,
+        event_validator_map=validator_map_str,
+        event_name_map=event_name_map_str)
 
 
 class EventInfo:
@@ -147,32 +149,37 @@ class EventInfo:
 
   def __init__(self, event, project_info):
     self.name = Util.sanitize_name(event.name)
-    self.name_hash = Util.event_name_hash(project_info.name, self.name)
-    self.validator_name = '{}EventValidator'.format(self.name)
-    self.validator_snake_name = Util.camel_to_snake(self.validator_name)
     self.project_name = project_info.name
+    self.platform = project_info.platform
+    self.name_hash = Util.event_name_hash(project_info.name, self.name,
+                                          project_info.platform)
+    self.validator_name = '{}_{}EventValidator'.format(self.project_name,
+                                                       self.name)
+    self.validator_snake_name = Util.camel_to_snake(self.validator_name)
     self.is_event_sequence = project_info.is_event_sequence
+    self.force_record = str(event.force_record).lower()
     self.metrics = event.metrics
 
   def build_metric_hash_map(self) -> str:
+    if self.platform == 'cros':
+      return ''
     metric_infos = (MetricInfo(metric) for metric in self.metrics)
     return ',\n  '.join(
         '{{\"{}\", {{ Event::MetricType::{}, UINT64_C({})}}}}'.format(
             metric_info.name, metric_info.type_enum, metric_info.hash)
         for metric_info in metric_infos)
 
-  def build_validator_init(self) -> str:
-    return ('static {} {};').format(self.validator_name,
-                                    self.validator_snake_name)
+  def build_metric_name_map(self) -> str:
+    metric_infos = (MetricInfo(metric) for metric in self.metrics)
+    return ',\n  '.join(
+        '{{ UINT64_C({}), "{}" }}'.format(metric_info.hash, metric_info.name)
+        for metric_info in metric_infos)
 
   def build_validator_code(self) -> str:
-    if len(self.metrics) > 0:
-      metadata_impl = validator_tmpl.IMPL_GET_METRICS_METADATA.format(
-          metric_hash_map=self.build_metric_hash_map())
-    else:
-      metadata_impl = "  return absl::nullopt;"
     return validator_tmpl.IMPL_EVENT_VALIDATOR_TEMPLATE.format(
-        event=self, get_metrics_metadata_impl=metadata_impl)
+        event=self,
+        metric_hash_map=self.build_metric_hash_map(),
+        metrics_name_map=self.build_metric_name_map())
 
 
 class MetricInfo:
@@ -181,6 +188,7 @@ class MetricInfo:
   def __init__(self, metric):
     self.name = Util.sanitize_name(metric.name)
     self.hash = Util.hash_name(metric.name)
+    self.is_enum = metric.is_enum
 
     if metric.type == 'hmac-string':
       self.type = 'std::string&'
@@ -202,15 +210,24 @@ class MetricInfo:
       self.setter = 'AddDoubleMetric'
       self.type_enum = 'kDouble'
       self.base_value = 'base::Value(value)'
+    elif metric.type == 'int-array':
+      # todo(andrewbregger): support int array in chromium.
+      self.type_enum = ''
     else:
-      raise ValueError('Invalid metric type.')
+      if self.is_enum:
+        self.type = metric.type
+        self.setter = f'AddEnumMetric<{self.type}>'
+        self.type_enum = 'kInt'
+        self.base_value = 'base::Value((int) value)'
+      else:
+        raise ValueError('Invalid metric type.')
 
 
 class Template:
   """Template for producing code from structured.xml."""
 
   def __init__(self, model, dirname, basename, file_template, project_template,
-               event_template, metric_template):
+               event_template, metric_template, header):
     self.model = model
     self.dirname = dirname
     self.basename = basename
@@ -218,6 +235,7 @@ class Template:
     self.project_template = project_template
     self.event_template = event_template
     self.metric_template = metric_template
+    self.header = header
 
   def write_file(self):
     file_info = FileInfo(self.dirname, self.basename)
@@ -235,19 +253,38 @@ class Template:
     event_code = ''.join(
         self._stamp_event(file_info, project_info, event)
         for event in project.events)
+    if self.header:
+      enum_code = '\n\n'.join(
+          [self._stamp_enum(enum) for enum in project.enums])
+      return self.project_template.format(file=file_info,
+                                          project=project_info,
+                                          enum_code=enum_code,
+                                          event_code=event_code)
     return self.project_template.format(file=file_info,
                                         project=project_info,
                                         event_code=event_code)
 
   def _stamp_event(self, file_info, project_info, event):
     event_info = EventInfo(event, project_info)
-    metric_code = ''.join(
-        self._stamp_metric(file_info, event_info, metric)
-        for metric in event.metrics)
+    metric_code = ''
+    if project_info.platform != 'cros':
+      metric_code = ''.join(
+          self._stamp_metric(file_info, event_info, metric)
+          for metric in event.metrics)
     return self.event_template.format(file=file_info,
                                       project=project_info,
                                       event=event_info,
                                       metric_code=metric_code)
+
+  def _stamp_enum(self, enum):
+    ENUM_TEMPLATE = """
+enum class {enum.name} {{
+{variants}
+}};
+    """
+    variants = ',\n'.join(
+        ['{v.name} = {v.value}'.format(v=v) for v in enum.variants])
+    return ENUM_TEMPLATE.format(enum=enum, variants=variants)
 
   def _stamp_metric(self, file_info, event_info, metric):
     return self.metric_template.format(file=file_info,
@@ -281,12 +318,10 @@ class ValidatorImplTemplate:
   should not be exposed. The generated code will be in the following order:
 
     1) EventValidator class implementation.
-    2) EventValidator static initialization.
-    3) Project map initialization mapping event name to corresponding
+    2) Project map initialization mapping event name to corresponding
     EventValidator.
-    4) Project class implementation.
-    5) Project validator static initialization.
-    6) Map initialization mapping project name to ProjectValidator.
+    3) Project class implementation.
+    4) Map initialization mapping project name to ProjectValidator.
   """
 
   def __init__(self, structured_model, dirname, basename):
@@ -302,10 +337,8 @@ class ValidatorImplTemplate:
 
   def _stamp_file(self, file_info) -> str:
     event_code = []
-    event_validators = []
     project_event_maps = []
     project_code = []
-    project_validators = []
 
     for project in self.projects:
       project_info = ProjectInfo(project)
@@ -314,31 +347,28 @@ class ValidatorImplTemplate:
                                      for event_info in event_infos)
 
       event_code.append(project_event_code)
-      event_validators.append(project_info.build_event_validators())
-      project_event_maps.append(project_info.build_event_map())
       project_code.append(project_info.build_validator_code())
-      project_validators.append(project_info.build_project_init())
 
     # Turn all lists into strings.
     events_code_str = ''.join(event_code)
-    event_validators_str = '\n'.join(event_validators)
     project_event_maps_str = '\n'.join(project_event_maps)
     project_code_str = ''.join(project_code)
-    project_validators_str = '\n'.join(project_validators)
 
     return validator_tmpl.IMPL_FILE_TEMPLATE.format(
         file=file_info,
         projects_code=project_code_str,
         event_code=events_code_str,
-        event_validators=event_validators_str,
         project_event_maps=project_event_maps_str,
-        project_validators=project_validators_str,
-        project_map=self._build_project_map())
+        project_map=self._build_project_map(),
+        name_map=self._build_name_map())
 
   def _build_project_map(self) -> str:
     project_infos = (ProjectInfo(project) for project in self.projects)
-    project_map = ',\n  '.join(
-        '{{"{}", &{}}}'.format(project.name, project.validator_snake_name)
-        for project in project_infos)
-    return validator_tmpl.IMPL_PROJECT_MAP_TEMPLATE.format(
-        project_map=project_map)
+    return ';\n  '.join(
+        'validators_.emplace("{}", std::make_unique<{}>())'.format(
+            project.name, project.validator) for project in project_infos)
+
+  def _build_name_map(self):
+    project_infos = (ProjectInfo(project) for project in self.projects)
+    return ';\n  '.join('project_name_map_.emplace(UINT64_C({}), "{}")'.format(
+        project.name_hash, project.name) for project in project_infos)

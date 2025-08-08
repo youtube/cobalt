@@ -233,6 +233,26 @@ TEST_F(VideoFrameStructTraitsTest, MailboxVideoFrame) {
   ASSERT_EQ(frame->mailbox_holder(0).mailbox, mailbox);
 }
 
+TEST_F(VideoFrameStructTraitsTest, SharedImageVideoFrame) {
+  scoped_refptr<gpu::ClientSharedImage> shared_images[VideoFrame::kMaxPlanes] =
+      {gpu::ClientSharedImage::CreateForTesting()};
+  scoped_refptr<VideoFrame> frame = VideoFrame::WrapSharedImages(
+      PIXEL_FORMAT_ARGB, shared_images, gpu::SyncToken(), 0,
+      VideoFrame::ReleaseMailboxCB(), gfx::Size(100, 100),
+      gfx::Rect(10, 10, 80, 80), gfx::Size(200, 100), base::Seconds(100));
+
+  ASSERT_TRUE(RoundTrip(&frame));
+  ASSERT_TRUE(frame);
+  EXPECT_FALSE(frame->metadata().end_of_stream);
+  EXPECT_EQ(frame->format(), PIXEL_FORMAT_ARGB);
+  EXPECT_EQ(frame->coded_size(), gfx::Size(100, 100));
+  EXPECT_EQ(frame->visible_rect(), gfx::Rect(10, 10, 80, 80));
+  EXPECT_EQ(frame->natural_size(), gfx::Size(200, 100));
+  EXPECT_EQ(frame->timestamp(), base::Seconds(100));
+  ASSERT_TRUE(frame->HasTextures());
+  ASSERT_EQ(frame->shared_image(0)->mailbox(), shared_images[0]->mailbox());
+}
+
 // BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_CHROMEOS) because
 // media::FakeGpuMemoryBuffer supports NativePixmapHandle backed
 // GpuMemoryBufferHandle only. !BUILDFLAG(IS_OZONE) so as to force
@@ -269,6 +289,39 @@ TEST_F(VideoFrameStructTraitsTest, GpuMemoryBufferVideoFrame) {
   ASSERT_TRUE(frame->HasTextures());
   EXPECT_EQ(frame->mailbox_holder(0).mailbox, mailbox_holders[0].mailbox);
   EXPECT_EQ(frame->mailbox_holder(1).mailbox, mailbox_holders[1].mailbox);
+  EXPECT_EQ(frame->GetGpuMemoryBuffer()->GetFormat(), expected_gmb_format);
+  EXPECT_EQ(frame->GetGpuMemoryBuffer()->GetSize(), expected_gmb_size);
+}
+
+TEST_F(VideoFrameStructTraitsTest, GpuMemoryBufferSharedImageVideoFrame) {
+  gfx::Size coded_size = gfx::Size(256, 256);
+  gfx::Rect visible_rect(coded_size);
+  auto timestamp = base::Milliseconds(1);
+  std::unique_ptr<gfx::GpuMemoryBuffer> gmb =
+      std::make_unique<FakeGpuMemoryBuffer>(
+          coded_size, gfx::BufferFormat::YUV_420_BIPLANAR);
+  gfx::BufferFormat expected_gmb_format = gmb->GetFormat();
+  gfx::Size expected_gmb_size = gmb->GetSize();
+  scoped_refptr<gpu::ClientSharedImage>
+      shared_images[media::VideoFrame::kMaxPlanes] = {
+          gpu::ClientSharedImage::CreateForTesting(),
+          gpu::ClientSharedImage::CreateForTesting()};
+  auto frame = VideoFrame::WrapExternalGpuMemoryBuffer(
+      visible_rect, visible_rect.size(), std::move(gmb), shared_images,
+      gpu::SyncToken(), 5, base::NullCallback(), timestamp);
+  ASSERT_TRUE(RoundTrip(&frame));
+  ASSERT_TRUE(frame);
+  ASSERT_EQ(frame->storage_type(), VideoFrame::STORAGE_GPU_MEMORY_BUFFER);
+  EXPECT_TRUE(frame->HasGpuMemoryBuffer());
+  EXPECT_FALSE(frame->metadata().end_of_stream);
+  EXPECT_EQ(frame->format(), PIXEL_FORMAT_NV12);
+  EXPECT_EQ(frame->coded_size(), coded_size);
+  EXPECT_EQ(frame->visible_rect(), visible_rect);
+  EXPECT_EQ(frame->natural_size(), visible_rect.size());
+  EXPECT_EQ(frame->timestamp(), timestamp);
+  ASSERT_TRUE(frame->HasTextures());
+  EXPECT_EQ(frame->mailbox_holder(0).mailbox, shared_images[0]->mailbox());
+  EXPECT_EQ(frame->mailbox_holder(1).mailbox, shared_images[1]->mailbox());
   EXPECT_EQ(frame->GetGpuMemoryBuffer()->GetFormat(), expected_gmb_format);
   EXPECT_EQ(frame->GetGpuMemoryBuffer()->GetSize(), expected_gmb_size);
 }

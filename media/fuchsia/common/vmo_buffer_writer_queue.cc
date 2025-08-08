@@ -29,7 +29,7 @@ const uint8_t* VmoBufferWriterQueue::PendingBuffer::data() const {
 }
 
 size_t VmoBufferWriterQueue::PendingBuffer::bytes_left() const {
-  return buffer->data_size() - buffer_pos;
+  return buffer->size() - buffer_pos;
 }
 
 void VmoBufferWriterQueue::PendingBuffer::AdvanceCurrentPos(size_t bytes) {
@@ -155,7 +155,7 @@ void VmoBufferWriterQueue::ResetPositionAndPause() {
     // All packets that were pending will need to be resent. Reset
     // |tail_sysmem_buffer_index| to ensure that these packets are not removed
     // from the queue in ReleaseBuffer().
-    buffer.tail_sysmem_buffer_index = absl::nullopt;
+    buffer.tail_sysmem_buffer_index = std::nullopt;
   }
   input_queue_position_ = 0;
   is_paused_ = true;

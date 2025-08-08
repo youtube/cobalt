@@ -50,7 +50,7 @@ class OffloadingVideoEncoderTest : public testing::Test {
   base::test::TaskEnvironment task_environment_;
   scoped_refptr<base::SequencedTaskRunner> work_runner_;
   scoped_refptr<base::SequencedTaskRunner> callback_runner_;
-  raw_ptr<MockVideoEncoder> mock_video_encoder_;
+  raw_ptr<MockVideoEncoder, DanglingUntriaged> mock_video_encoder_;
   std::unique_ptr<OffloadingVideoEncoder> offloading_encoder_;
 };
 
@@ -66,7 +66,7 @@ TEST_F(OffloadingVideoEncoderTest, Initialize) {
         called_info = true;
       });
   VideoEncoder::OutputCB output_cb = base::BindLambdaForTesting(
-      [&](VideoEncoderOutput, absl::optional<VideoEncoder::CodecDescription>) {
+      [&](VideoEncoderOutput, std::optional<VideoEncoder::CodecDescription>) {
         EXPECT_TRUE(callback_runner_->RunsTasksInCurrentSequence());
         called_output = true;
       });
@@ -127,8 +127,7 @@ TEST_F(OffloadingVideoEncoderTest, ChangeOptions) {
       });
 
   VideoEncoder::OutputCB output_cb = base::BindRepeating(
-      [](VideoEncoderOutput, absl::optional<VideoEncoder::CodecDescription>) {
-      });
+      [](VideoEncoderOutput, std::optional<VideoEncoder::CodecDescription>) {});
 
   EXPECT_CALL(*mock_video_encoder_, ChangeOptions(_, _, _))
       .WillOnce(Invoke([this](const VideoEncoder::Options& options,

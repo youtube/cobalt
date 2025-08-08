@@ -4,7 +4,11 @@
 # found in the LICENSE file.
 """Updates the Fuchsia images to the given revision. Should be used in a
 'hooks_os' entry so that it only runs when .gclient's target_os includes
-'fuchsia'."""
+'fuchsia'. Note, for a smooth transition, this file automatically adds
+'-release' at the end of the image gcs file name to eliminate the difference
+between product bundle v2 and gce files."""
+
+# TODO(crbug.com/40938340): Remove this file.
 
 import argparse
 import itertools
@@ -28,7 +32,7 @@ from update_sdk import GetSDKOverrideGCSPath
 IMAGE_SIGNATURE_FILE = '.hash'
 
 
-# TODO(crbug.com/1138433): Investigate whether we can deprecate
+# TODO(crbug.com/40725453): Investigate whether we can deprecate
 # use of sdk_bucket.txt.
 def GetOverrideCloudStorageBucket():
   """Read bucket entry from sdk_bucket.txt"""
@@ -214,8 +218,7 @@ def main():
       help='Specify the root directory of the downloaded images. Optional')
   parser.add_argument(
       '--allow-override',
-      default=True,
-      type=bool,
+      action='store_true',
       help='Whether sdk_override.txt can be used for fetching the image, if '
       'it exists.')
   args = parser.parse_args()
@@ -226,9 +229,15 @@ def main():
   if not args.boot_images:
     return 0
 
+  for index, item in enumerate(args.boot_images):
+    # The gclient configuration is in the src-internal and cannot be changed
+    # atomically with the test script in src. So the update_images.py needs to
+    # support both scenarios before being fully deprecated for older milestones.
+    if not item.endswith('-release'):
+      args.boot_images[index] = item + '-release'
+
   # Check whether there's Fuchsia support for this platform.
   get_host_os()
-
   image_info = GetImageLocationInfo(args.default_bucket, args.allow_override)
 
   bucket = image_info['bucket']

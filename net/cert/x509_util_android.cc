@@ -5,12 +5,16 @@
 #include "net/cert/cert_database.h"
 #include "net/net_jni_headers/X509Util_jni.h"
 
-using base::android::JavaParamRef;
+using jni_zero::JavaParamRef;
 
 namespace net {
 
-void JNI_X509Util_NotifyKeyChainChanged(JNIEnv* env) {
-  CertDatabase::GetInstance()->NotifyObserversCertDBChanged();
+void JNI_X509Util_NotifyTrustStoreChanged(JNIEnv* env) {
+  CertDatabase::GetInstance()->NotifyObserversTrustStoreChanged();
+}
+
+void JNI_X509Util_NotifyClientCertStoreChanged(JNIEnv* env) {
+  CertDatabase::GetInstance()->NotifyObserversClientCertStoreChanged();
 }
 
 }  // namespace net

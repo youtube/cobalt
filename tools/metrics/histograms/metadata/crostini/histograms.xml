@@ -23,6 +23,7 @@ chromium-metrics-reviews@google.com.
 <histograms>
 
 <variants name="CrostiniState">
+  <variant name="ConfigureContainer" summary="configuring the container"/>
   <variant name="CreateContainer" summary="creating container"/>
   <variant name="CreateDiskImage" summary="creating disk image"/>
   <variant name="InstallImageLoader" summary="installing component or DLC"/>
@@ -34,38 +35,39 @@ chromium-metrics-reviews@google.com.
 </variants>
 
 <histogram name="Crostini.AppLaunch" enum="CrostiniAppLaunchAppType"
-    expires_after="2024-01-06">
+    expires_after="2025-01-06">
   <owner>davidmunro@google.com</owner>
   <owner>clumptini@google.com</owner>
   <summary>
     Recorded each time a Crostini app is launched, recording whether the app is
-    the built in terminal, a registered app, or an unknown app.
+    the built in (old) terminal, a registered app, or an unknown app. The
+    SWA-based terminal (default as of late 2021) is NOT included.
   </summary>
 </histogram>
 
 <histogram name="Crostini.AppLaunchResult" enum="CrostiniResult"
-    expires_after="2023-09-17">
+    expires_after="2024-09-29">
   <owner>davidmunro@google.com</owner>
   <owner>clumptini@google.com</owner>
   <summary>
-    The result of attempting to launch a Crostini app (including Terminal).
+    The result of attempting to launch a Crostini app (excluding Terminal).
   </summary>
 </histogram>
 
 <histogram name="Crostini.AppLaunchResult.{Variant}" enum="CrostiniResult"
-    expires_after="2024-01-06">
+    expires_after="2024-09-22">
   <owner>davidmunro@google.com</owner>
   <owner>clumptini@google.com</owner>
   <summary>The result of attempting to launch {Variant}.</summary>
   <token key="Variant">
     <variant name="Registered" summary="a registered GUI app"/>
-    <variant name="Terminal" summary="the Crostini Terminal"/>
+    <variant name="Terminal" summary="the non-SWA Crostini Terminal"/>
     <variant name="Unknown" summary="an unknown/unregistered app"/>
   </token>
 </histogram>
 
 <histogram name="Crostini.AvailableDiskCancel" units="MiB"
-    expires_after="2024-01-06">
+    expires_after="2024-09-01">
   <owner>davidmunro@google.com</owner>
   <owner>clumptini@google.com</owner>
   <summary>
@@ -77,7 +79,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Crostini.AvailableDiskError" units="MiB"
-    expires_after="2023-08-13">
+    expires_after="2025-05-12">
   <owner>davidmunro@google.com</owner>
   <owner>clumptini@google.com</owner>
   <summary>
@@ -89,7 +91,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Crostini.AvailableDiskSuccess" units="MiB"
-    expires_after="2024-01-06">
+    expires_after="2025-01-06">
   <owner>davidmunro@google.com</owner>
   <owner>clumptini@google.com</owner>
   <summary>
@@ -101,14 +103,14 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Crostini.Backup" enum="CrostiniExportContainerResult"
-    expires_after="2023-10-01">
+    expires_after="2024-11-03">
   <owner>davidmunro@google.com</owner>
   <owner>clumptini@google.com</owner>
   <summary>Result of crostini backup.</summary>
 </histogram>
 
 <histogram name="Crostini.BackupCompressedSizeLog2" units="units"
-    expires_after="2024-01-06">
+    expires_after="2025-01-06">
   <owner>davidmunro@google.com</owner>
   <owner>clumptini@google.com</owner>
   <summary>
@@ -119,7 +121,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Crostini.BackupContainerSizeLog2" units="units"
-    expires_after="2024-01-06">
+    expires_after="2025-01-06">
   <owner>davidmunro@google.com</owner>
   <owner>clumptini@google.com</owner>
   <summary>
@@ -130,7 +132,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Crostini.BackupSizeRatio" units="units"
-    expires_after="2024-01-06">
+    expires_after="2025-01-06">
   <owner>davidmunro@google.com</owner>
   <owner>clumptini@google.com</owner>
   <summary>
@@ -140,35 +142,21 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Crostini.BackupTimeFailed" units="ms"
-    expires_after="2024-01-06">
+    expires_after="2025-01-06">
   <owner>davidmunro@google.com</owner>
   <owner>clumptini@google.com</owner>
   <summary>Time taken for failed backup.</summary>
 </histogram>
 
 <histogram name="Crostini.BackupTimeSuccess" units="ms"
-    expires_after="2024-01-06">
+    expires_after="2025-01-06">
   <owner>davidmunro@google.com</owner>
   <owner>clumptini@google.com</owner>
   <summary>Time taken for successful backup.</summary>
 </histogram>
 
-<histogram name="Crostini.CleanSession.RestarterResult" enum="CrostiniResult"
-    expires_after="2022-05-01">
-  <obsolete>
-    Removed in M102 - no longer needed
-  </obsolete>
-  <owner>davidmunro@google.com</owner>
-  <owner>clumptini@google.com</owner>
-  <summary>
-    The result of a single run of CrostiniRestarter. This is the same as
-    Crostini.RestarterResult except only emitted in sessions that happen after a
-    clean start (e.g. after fresh login). Removed in Milestone 102.
-  </summary>
-</histogram>
-
 <histogram name="Crostini.ContainerOsVersion" enum="CrostiniContainerOsVersion"
-    expires_after="2023-10-15">
+    expires_after="2024-11-03">
   <owner>davidmunro@google.com</owner>
   <owner>clumptini@google.com</owner>
   <summary>
@@ -178,35 +166,35 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Crostini.Disk.StatefulReadsDaily" units="KiB"
-    expires_after="2023-12-30">
+    expires_after="2024-09-15">
   <owner>drmasquatch@google.com</owner>
   <owner>clumptini@google.com</owner>
   <summary>Crostini stateful KiB read per day. Reported daily.</summary>
 </histogram>
 
 <histogram name="Crostini.Disk.StatefulWritesDaily" units="KiB"
-    expires_after="2023-12-30">
+    expires_after="2024-09-15">
   <owner>drmasquatch@google.com</owner>
   <owner>clumptini@google.com</owner>
   <summary>Crostini stateful KiB written per day. Reported daily.</summary>
 </histogram>
 
 <histogram name="Crostini.Disk.SwapReadsDaily" units="KiB"
-    expires_after="2023-12-30">
+    expires_after="2024-09-15">
   <owner>drmasquatch@google.com</owner>
   <owner>clumptini@google.com</owner>
   <summary>Crostini swap file KiB read per day. Reported daily.</summary>
 </histogram>
 
 <histogram name="Crostini.Disk.SwapWritesDaily" units="KiB"
-    expires_after="2023-12-30">
+    expires_after="2024-09-15">
   <owner>drmasquatch@google.com</owner>
   <owner>clumptini@google.com</owner>
   <summary>Crostini swap file KiB written per day. Reported daily.</summary>
 </histogram>
 
 <histogram name="Crostini.DiskResize.Result" enum="CrostiniDiskImageStatus"
-    expires_after="2023-10-01">
+    expires_after="2024-11-03">
   <owner>davidmunro@google.com</owner>
   <owner>clumptini@google.com</owner>
   <summary>
@@ -216,7 +204,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Crostini.DiskResize.Started" enum="BooleanAttempted"
-    expires_after="2024-01-06">
+    expires_after="2025-01-06">
   <owner>davidmunro@google.com</owner>
   <owner>clumptini@google.com</owner>
   <summary>
@@ -228,7 +216,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Crostini.DiskType" enum="CrostiniDiskImageType"
-    expires_after="2023-08-27">
+    expires_after="2025-01-14">
   <owner>davidmunro@google.com</owner>
   <owner>clumptini@google.com</owner>
   <summary>
@@ -241,7 +229,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Crostini.EngagementTime.{Variant}" units="ms"
-    expires_after="2024-01-06">
+    expires_after="2024-09-22">
   <owner>davidmunro@google.com</owner>
   <owner>clumptini@google.com</owner>
   <summary>
@@ -273,7 +261,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Crostini.FilesystemCorruption" enum="CorruptionStates"
-    expires_after="2023-10-01">
+    expires_after="2024-11-03">
   <owner>sidereal@google.com</owner>
   <owner>davidmunro@google.com</owner>
   <owner>clumptini@google.com</owner>
@@ -284,7 +272,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Crostini.InputMethodOnBlur" enum="InputMethodID2"
-    expires_after="2024-01-06">
+    expires_after="2024-09-22">
   <owner>timloh@chromium.org</owner>
   <owner>clumptini@google.com</owner>
   <summary>
@@ -295,22 +283,8 @@ chromium-metrics-reviews@google.com.
   </summary>
 </histogram>
 
-<histogram name="Crostini.InstallSource" enum="CrostiniInstallSource"
-    expires_after="2023-04-10">
-  <obsolete>
-    Removed in M105 - no longer needed
-  </obsolete>
-  <owner>sidereal@google.com</owner>
-  <owner>clumptini@google.com</owner>
-  <summary>
-    The source (component vs DLC) that was used to install termina. This is
-    recorded every time a CrostiniRestart succeeds at the termina install step
-    to measure the progress of the component-&gt;DLC migration.
-  </summary>
-</histogram>
-
 <histogram name="Crostini.InvalidStateTransition" enum="CrostiniInstallerState"
-    expires_after="2024-01-06">
+    expires_after="2025-01-06">
   <owner>davidmunro@google.com</owner>
   <owner>clumptini@google.com</owner>
   <summary>
@@ -323,7 +297,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Crostini.RecoverySource" enum="CrostiniUISurface"
-    expires_after="2024-01-06">
+    expires_after="2025-01-06">
   <owner>davidmunro@google.com</owner>
   <owner>clumptini@google.com</owner>
   <summary>
@@ -333,7 +307,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Crostini.Restarter.Started" enum="BooleanAttempted"
-    expires_after="2023-09-03">
+    expires_after="2024-09-22">
   <owner>davidmunro@google.com</owner>
   <owner>clumptini@google.com</owner>
   <summary>
@@ -343,7 +317,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Crostini.RestarterResult" enum="CrostiniResult"
-    expires_after="2023-09-03">
+    expires_after="2024-09-15">
   <owner>davidmunro@google.com</owner>
   <owner>clumptini@google.com</owner>
   <summary>
@@ -354,7 +328,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Crostini.RestarterResult.Installer" enum="CrostiniResult"
-    expires_after="2023-09-03">
+    expires_after="2024-09-22">
   <owner>timloh@google.com</owner>
   <owner>clumptini@google.com</owner>
   <summary>
@@ -364,7 +338,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Crostini.RestarterResult.MultiContainerCreation"
-    enum="CrostiniResult" expires_after="2024-05-01">
+    enum="CrostiniResult" expires_after="2025-05-01">
   <owner>timloh@google.com</owner>
   <owner>clumptini@google.com</owner>
   <summary>
@@ -374,7 +348,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Crostini.RestarterTimeInState2.{state}" units="ms"
-    expires_after="2024-01-06">
+    expires_after="2024-09-22">
   <owner>davidmunro@google.com</owner>
   <owner>clumptini@google.com</owner>
   <summary>
@@ -389,28 +363,28 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Crostini.Restore" enum="CrostiniImportContainerResult"
-    expires_after="2023-10-01">
+    expires_after="2024-09-22">
   <owner>davidmunro@google.com</owner>
   <owner>clumptini@google.com</owner>
   <summary>Result of crostini restore.</summary>
 </histogram>
 
 <histogram name="Crostini.RestoreTimeFailed" units="ms"
-    expires_after="2024-01-06">
+    expires_after="2025-01-06">
   <owner>davidmunro@google.com</owner>
   <owner>clumptini@google.com</owner>
   <summary>Time taken for failed restore.</summary>
 </histogram>
 
 <histogram name="Crostini.RestoreTimeSuccess" units="ms"
-    expires_after="2024-01-06">
+    expires_after="2025-01-06">
   <owner>davidmunro@google.com</owner>
   <owner>clumptini@google.com</owner>
   <summary>Time taken for successful restore.</summary>
 </histogram>
 
 <histogram name="Crostini.SettingsEvent" enum="CrostiniSettingsEvent"
-    expires_after="2024-04-24">
+    expires_after="2025-04-24">
   <owner>davidmunro@google.com</owner>
   <owner>clumptini@google.com</owner>
   <owner>victorhsieh@chromium.org</owner>
@@ -418,7 +392,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Crostini.Setup.Started" enum="BooleanAttempted"
-    expires_after="2023-09-10">
+    expires_after="2024-07-07">
   <owner>davidmunro@google.com</owner>
   <owner>clumptini@google.com</owner>
   <summary>
@@ -428,7 +402,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Crostini.SetUpLxdContainerUser.UnknownResult"
-    enum="BooleanYesNo" expires_after="2024-05-01">
+    enum="BooleanYesNo" expires_after="2025-05-01">
   <owner>davidmunro@google.com</owner>
   <owner>clumptini@google.com</owner>
   <summary>
@@ -440,7 +414,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Crostini.SetupResult" enum="CrostiniSetupResult"
-    expires_after="2023-10-01">
+    expires_after="2024-11-03">
   <owner>davidmunro@google.com</owner>
   <owner>clumptini@google.com</owner>
   <summary>
@@ -451,7 +425,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Crostini.SetupSource" enum="CrostiniUISurface"
-    expires_after="2024-01-06">
+    expires_after="2025-01-06">
   <owner>davidmunro@google.com</owner>
   <owner>clumptini@google.com</owner>
   <summary>
@@ -461,7 +435,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Crostini.Sshfs.Mount.Result.{Visibility}"
-    enum="CrostiniSshfsResult" expires_after="2023-08-14">
+    enum="CrostiniSshfsResult" expires_after="2024-08-14">
   <owner>davidmunro@google.com</owner>
   <owner>clumptini@google.com</owner>
   <summary>
@@ -480,7 +454,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Crostini.Sshfs.Mount.TimeTaken" units="ms"
-    expires_after="2023-10-15">
+    expires_after="2024-09-29">
   <owner>davidmunro@google.com</owner>
   <owner>clumptini@google.com</owner>
   <summary>
@@ -490,7 +464,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Crostini.Sshfs.Unmount.Result" enum="BooleanSuccess"
-    expires_after="2023-08-14">
+    expires_after="2024-08-14">
   <owner>davidmunro@google.com</owner>
   <owner>clumptini@google.com</owner>
   <summary>
@@ -500,7 +474,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Crostini.Sshfs.Unmount.TimeTaken" units="ms"
-    expires_after="2023-08-14">
+    expires_after="2024-08-14">
   <owner>davidmunro@google.com</owner>
   <owner>clumptini@google.com</owner>
   <summary>
@@ -510,7 +484,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Crostini.Stability" enum="GuestOsFailureClasses"
-    expires_after="2023-10-01">
+    expires_after="2024-11-03">
   <owner>davidmunro@google.com</owner>
   <owner>clumptini@google.com</owner>
   <summary>
@@ -521,9 +495,9 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Crostini.TerminalSettingsChanged"
-    enum="CrostiniTerminalSetting" expires_after="2023-10-22">
+    enum="CrostiniTerminalSetting" expires_after="2025-04-28">
   <owner>joelhockey@chromium.org</owner>
-  <owner>lxj@google.com</owner>
+  <owner>clumptini@google.com</owner>
   <summary>
     Record which settings in terminal are changed by users. This is captured
     each time terminal is launched and fetches the current settings, and not
@@ -533,7 +507,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Crostini.TimeFromDeviceSetupToInstall" units="ms"
-    expires_after="2023-07-16">
+    expires_after="2025-03-17">
   <owner>davidmunro@google.com</owner>
   <owner>clumptini@google.com</owner>
   <summary>
@@ -542,7 +516,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Crostini.TimeToInstallCancel" units="ms"
-    expires_after="2023-08-08">
+    expires_after="2024-07-30">
   <owner>davidmunro@google.com</owner>
   <owner>clumptini@google.com</owner>
   <summary>
@@ -553,7 +527,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Crostini.TimeToInstallError" units="ms"
-    expires_after="2023-07-30">
+    expires_after="2024-07-30">
   <owner>davidmunro@google.com</owner>
   <owner>clumptini@google.com</owner>
   <summary>
@@ -565,7 +539,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Crostini.TimeToInstallSuccess" units="ms"
-    expires_after="2024-01-22">
+    expires_after="2024-07-30">
   <owner>davidmunro@google.com</owner>
   <owner>clumptini@google.com</owner>
   <summary>
@@ -575,22 +549,8 @@ chromium-metrics-reviews@google.com.
   </summary>
 </histogram>
 
-<histogram name="Crostini.UncleanSession.RestarterResult" enum="CrostiniResult"
-    expires_after="2023-01-06">
-  <obsolete>
-    Removed in M102 - no longer needed
-  </obsolete>
-  <owner>davidmunro@google.com</owner>
-  <owner>clumptini@google.com</owner>
-  <summary>
-    The result of a single run of CrostiniRestarter. This is the same as
-    Crostini.RestarterResult except only emitted in sessions that happen after
-    an unclean restart (e.g. after a Chrome crash). Removed in milestone 102.
-  </summary>
-</histogram>
-
 <histogram name="Crostini.UninstallResult" enum="CrostiniUninstallResult"
-    expires_after="2023-10-01">
+    expires_after="2024-11-03">
   <owner>davidmunro@google.com</owner>
   <owner>clumptini@google.com</owner>
   <summary>
@@ -601,7 +561,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Crostini.UninstallResult.Reason" enum="CrostiniResult"
-    expires_after="2024-05-01">
+    expires_after="2024-06-30">
   <owner>timloh@google.com</owner>
   <owner>clumptini@google.com</owner>
   <summary>
@@ -613,7 +573,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram base="true" name="Crostini.UnsupportedNotification.Reason"
-    enum="CrostiniUnsupportedNotificationReason" expires_after="2023-08-27">
+    enum="CrostiniUnsupportedNotificationReason" expires_after="2024-09-22">
   <owner>davidmunro@google.com</owner>
   <owner>clumptini@google.com</owner>
   <summary>
@@ -625,7 +585,7 @@ chromium-metrics-reviews@google.com.
 
 <histogram name="Crostini.UpgradeAvailable"
     enum="CrostiniUpgradeAvailableNotificationClosed"
-    expires_after="2024-01-06">
+    expires_after="2025-01-06">
   <owner>davidmunro@google.com</owner>
   <owner>clumptini@google.com</owner>
   <summary>
@@ -635,7 +595,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Crostini.UpgradeDialogEvent" enum="CrostiniUpgradeDialogEvent"
-    expires_after="2024-01-06">
+    expires_after="2025-05-12">
   <owner>davidmunro@google.com</owner>
   <owner>clumptini@google.com</owner>
   <summary>
@@ -645,7 +605,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Crostini.UpgradeSource" enum="CrostiniUISurface"
-    expires_after="2024-01-06">
+    expires_after="2025-01-06">
   <owner>davidmunro@google.com</owner>
   <owner>clumptini@google.com</owner>
   <summary>

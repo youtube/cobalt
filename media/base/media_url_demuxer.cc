@@ -6,6 +6,7 @@
 
 #include "base/functional/bind.h"
 #include "base/logging.h"
+#include "base/memory/raw_ptr.h"
 #include "base/task/sequenced_task_runner.h"
 #include "base/task/single_thread_task_runner.h"
 #include "media/base/demuxer.h"
@@ -28,8 +29,7 @@ MediaUrlDemuxer::~MediaUrlDemuxer() = default;
 
 // Should never be called since MediaResource::Type is URL.
 std::vector<DemuxerStream*> MediaUrlDemuxer::GetAllStreams() {
-  NOTREACHED();
-  return std::vector<DemuxerStream*>();
+  NOTREACHED_NORETURN();
 }
 
 const MediaUrlParams& MediaUrlDemuxer::GetMediaUrlParams() const {
@@ -37,7 +37,7 @@ const MediaUrlParams& MediaUrlDemuxer::GetMediaUrlParams() const {
 }
 
 MediaResource::Type MediaUrlDemuxer::GetType() const {
-  return MediaResource::Type::URL;
+  return MediaResource::Type::KUrl;
 }
 
 std::string MediaUrlDemuxer::GetDisplayName() const {
@@ -53,6 +53,11 @@ void MediaUrlDemuxer::ForwardDurationChangeToDemuxerHost(
   DCHECK(host_);
   DCHECK(task_runner_->RunsTasksInCurrentSequence());
   host_->SetDuration(duration);
+}
+
+void MediaUrlDemuxer::SetHeaders(
+    const base::flat_map<std::string, std::string>& headers) {
+  params_.headers = std::move(headers);
 }
 
 void MediaUrlDemuxer::Initialize(DemuxerHost* host,
@@ -95,9 +100,9 @@ int64_t MediaUrlDemuxer::GetMemoryUsage() const {
   return 0;
 }
 
-absl::optional<container_names::MediaContainerName>
+std::optional<container_names::MediaContainerName>
 MediaUrlDemuxer::GetContainerForMetrics() const {
-  return absl::nullopt;
+  return std::nullopt;
 }
 
 void MediaUrlDemuxer::OnEnabledAudioTracksChanged(

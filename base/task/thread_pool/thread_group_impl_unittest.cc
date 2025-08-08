@@ -9,6 +9,7 @@
 #include <algorithm>
 #include <atomic>
 #include <memory>
+#include <optional>
 #include <unordered_set>
 #include <utility>
 #include <vector>
@@ -51,11 +52,6 @@
 #include "base/timer/timer.h"
 #include "build/build_config.h"
 #include "testing/gtest/include/gtest/gtest.h"
-#include "third_party/abseil-cpp/absl/types/optional.h"
-
-#if defined(STARBOARD)
-#include "starboard/configuration_constants.h"
-#endif
 
 namespace base {
 namespace internal {
@@ -106,9 +102,9 @@ class ThreadGroupImplImplTestBase : public ThreadGroup::Delegate {
   void StartThreadGroup(
       TimeDelta suggested_reclaim_time,
       size_t max_tasks,
-      absl::optional<int> max_best_effort_tasks = absl::nullopt,
+      std::optional<int> max_best_effort_tasks = std::nullopt,
       WorkerThreadObserver* worker_observer = nullptr,
-      absl::optional<TimeDelta> may_block_threshold = absl::nullopt) {
+      std::optional<TimeDelta> may_block_threshold = std::nullopt) {
     ASSERT_TRUE(thread_group_);
     thread_group_->Start(
         max_tasks,
@@ -121,9 +117,9 @@ class ThreadGroupImplImplTestBase : public ThreadGroup::Delegate {
   void CreateAndStartThreadGroup(
       TimeDelta suggested_reclaim_time = TimeDelta::Max(),
       size_t max_tasks = kMaxTasks,
-      absl::optional<int> max_best_effort_tasks = absl::nullopt,
+      std::optional<int> max_best_effort_tasks = std::nullopt,
       WorkerThreadObserver* worker_observer = nullptr,
-      absl::optional<TimeDelta> may_block_threshold = absl::nullopt) {
+      std::optional<TimeDelta> may_block_threshold = std::nullopt) {
     CreateThreadGroup();
     StartThreadGroup(suggested_reclaim_time, max_tasks, max_best_effort_tasks,
                      worker_observer, may_block_threshold);
@@ -328,7 +324,7 @@ TEST_F(ThreadGroupImplImplTest, ShouldYieldFloodedUserVisible) {
   ASSERT_TRUE(registered_task_source);
   static_cast<ThreadGroup*>(thread_group_.get())
       ->PushTaskSourceAndWakeUpWorkers(
-          TransactionWithRegisteredTaskSource::FromTaskSource(
+          RegisteredTaskSourceAndTransaction::FromTaskSource(
               std::move(registered_task_source)));
 
   threads_running.Wait();
@@ -534,9 +530,9 @@ class BackgroundThreadGroupImplTest : public ThreadGroupImplImplTest {
   void CreateAndStartThreadGroup(
       TimeDelta suggested_reclaim_time = TimeDelta::Max(),
       size_t max_tasks = kMaxTasks,
-      absl::optional<int> max_best_effort_tasks = absl::nullopt,
+      std::optional<int> max_best_effort_tasks = std::nullopt,
       WorkerThreadObserver* worker_observer = nullptr,
-      absl::optional<TimeDelta> may_block_threshold = absl::nullopt) {
+      std::optional<TimeDelta> may_block_threshold = std::nullopt) {
     if (!CanUseBackgroundThreadTypeForWorkerThread())
       return;
     CreateThreadGroup(ThreadType::kBackground);
@@ -1080,7 +1076,7 @@ TEST_F(ThreadGroupImplBlockingTest, ThreadBlockUnblockPremature) {
   // MAY_BLOCK ScopedBlockingCall never increases the max tasks.
   CreateAndStartThreadGroup(TimeDelta::Max(),   // |suggested_reclaim_time|
                             kMaxTasks,          // |max_tasks|
-                            absl::nullopt,      // |max_best_effort_tasks|
+                            std::nullopt,       // |max_best_effort_tasks|
                             nullptr,            // |worker_observer|
                             TimeDelta::Max());  // |may_block_threshold|
 
@@ -1344,11 +1340,7 @@ INSTANTIATE_TEST_SUITE_P(ReclaimType,
 TEST_F(ThreadGroupImplBlockingTest, MaximumWorkersTest) {
   CreateAndStartThreadGroup();
 
-#ifdef STARBOARD
-  const size_t kMaxNumberOfWorkers = kSbMaxThreads;
-#else
   constexpr size_t kMaxNumberOfWorkers = 256;
-#endif
   constexpr size_t kNumExtraTasks = 10;
 
   TestWaitableEvent early_blocking_threads_running;
@@ -1542,7 +1534,7 @@ TEST_F(ThreadGroupImplImplStartInBodyTest,
   constexpr size_t kNumWorkers = 2U;
   StartThreadGroup(TimeDelta::Max(),  // |suggested_reclaim_time|
                    kNumWorkers,       // |max_tasks|
-                   absl::nullopt);    // |max_best_effort_tasks|
+                   std::nullopt);     // |max_best_effort_tasks|
   const scoped_refptr<TaskRunner> runner = test::CreatePooledTaskRunner(
       {MayBlock()}, &mock_pooled_task_runner_delegate_);
 
@@ -1585,7 +1577,9 @@ class ThreadGroupImplBlockingCallAndMaxBestEffortTasksTest
     CreateThreadGroup();
     thread_group_->Start(kMaxTasks, kMaxBestEffortTasks, base::TimeDelta::Max(),
                          service_thread_.task_runner(), nullptr,
-                         ThreadGroup::WorkerEnvironment::NONE);
+                         ThreadGroup::WorkerEnvironment::NONE,
+                         /*synchronous_thread_start_for_testing=*/false,
+                         /*may_block_threshold=*/{});
   }
 
   void TearDown() override { ThreadGroupImplImplTestBase::CommonTearDown(); }
@@ -1655,17 +1649,15 @@ INSTANTIATE_TEST_SUITE_P(WillBlock,
 // Verify that worker detachment doesn't race with worker cleanup, regression
 // test for https://crbug.com/810464.
 TEST_F(ThreadGroupImplImplStartInBodyTest, RacyCleanup) {
-#ifdef STARBOARD
-  const size_t kLocalMaxTasks = kSbMaxThreads;
-#else
   constexpr size_t kLocalMaxTasks = 256;
-#endif  // STARBOARD
   constexpr TimeDelta kReclaimTimeForRacyCleanupTest = Milliseconds(10);
 
   thread_group_->Start(kLocalMaxTasks, kLocalMaxTasks,
                        kReclaimTimeForRacyCleanupTest,
                        service_thread_.task_runner(), nullptr,
-                       ThreadGroup::WorkerEnvironment::NONE);
+                       ThreadGroup::WorkerEnvironment::NONE,
+                       /*synchronous_thread_start_for_testing=*/false,
+                       /*may_block_threshold=*/{});
 
   scoped_refptr<TaskRunner> task_runner = test::CreatePooledTaskRunner(
       {WithBaseSyncPrimitives()}, &mock_pooled_task_runner_delegate_);

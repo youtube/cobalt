@@ -152,7 +152,7 @@ AudioParameters::AudioParameters(Format format,
                                  ChannelLayoutConfig channel_layout_config,
                                  int sample_rate,
                                  int frames_per_buffer)
-    : latency_tag_(AudioLatency::LATENCY_COUNT) {
+    : latency_tag_(AudioLatency::Type::kUnknown) {
   Reset(format, channel_layout_config, sample_rate, frames_per_buffer);
 }
 
@@ -162,7 +162,7 @@ AudioParameters::AudioParameters(
     int sample_rate,
     int frames_per_buffer,
     const HardwareCapabilities& hardware_capabilities)
-    : latency_tag_(AudioLatency::LATENCY_COUNT),
+    : latency_tag_(AudioLatency::Type::kUnknown),
       hardware_capabilities_(hardware_capabilities) {
   Reset(format, channel_layout_config, sample_rate, frames_per_buffer);
 }
@@ -220,7 +220,9 @@ std::string AudioParameters::AsHumanReadableString() const {
       << hardware_capabilities_->max_frames_per_buffer
       << ", bitstream_formats:" << hardware_capabilities_->bitstream_formats
       << ", require_encapsulation:"
-      << hardware_capabilities_->require_encapsulation;
+      << hardware_capabilities_->require_encapsulation
+      << ", require_audio_offload:"
+      << hardware_capabilities_->require_audio_offload;
   }
   return s.str();
 }
@@ -278,6 +280,11 @@ void AudioParameters::SetChannelLayoutConfig(ChannelLayout layout,
 bool AudioParameters::RequireEncapsulation() const {
   return hardware_capabilities_.has_value() &&
          hardware_capabilities_->require_encapsulation;
+}
+
+bool AudioParameters::RequireOffload() const {
+  return hardware_capabilities_.has_value() &&
+         hardware_capabilities_->require_audio_offload;
 }
 
 // static

@@ -4,6 +4,7 @@
 
 #include "media/gpu/windows/mf_audio_encoder.h"
 
+#include <codecapi.h>
 #include <mfapi.h>
 #include <mferror.h>
 #include <mfidl.h>
@@ -17,6 +18,7 @@
 #include <utility>
 
 #include "base/containers/contains.h"
+#include "base/containers/heap_array.h"
 #include "base/functional/bind.h"
 #include "base/logging.h"
 #include "base/memory/weak_ptr.h"
@@ -401,6 +403,25 @@ void MFAudioEncoder::Initialize(const Options& options,
     return;
   }
 
+  if (options_.bitrate_mode.has_value() &&
+      options_.bitrate_mode.value() == AudioEncoder::BitrateMode::kVariable &&
+      options.codec == AudioCodec::kAAC) {
+    Microsoft::WRL::ComPtr<ICodecAPI> codec_api;
+    hr = mf_encoder_.As(&codec_api);
+
+    if (SUCCEEDED(hr) &&
+        codec_api->IsSupported(&CODECAPI_AVEncAACEnableVBR) == S_OK) {
+      VARIANT var;
+      var.vt = VT_UI4;
+      var.ulVal = TRUE;
+      hr = codec_api->SetValue(&CODECAPI_AVEncAACEnableVBR, &var);
+      if (FAILED(hr)) {
+        DVLOG(2) << "Configuring AAC encoder to VBR mode rejected. Fallback to "
+                    "CBR mode.";
+      }
+    }
+  }
+
   // We skip getting the stream counts and IDs because encoders only have one
   // input and output stream, and the ID of each is always 0.
   // https://docs.microsoft.com/en-us/windows/win32/api/mftransform/nf-mftransform-imftransform-getstreamids#remarks
@@ -749,7 +770,7 @@ void MFAudioEncoder::TryProcessOutput(FlushCB flush_cb) {
       return;
     }
 
-    absl::optional<CodecDescription> desc;
+    std::optional<CodecDescription> desc;
     if (!codec_desc_.empty()) {
       desc = codec_desc_;
       codec_desc_.clear();
@@ -879,10 +900,10 @@ HRESULT MFAudioEncoder::ProcessOutput(EncodedAudioBuffer& encoded_audio) {
   // Copy the data from `output_buffer` into `encoded_data`.
   size_t encoded_data_size = static_cast<size_t>(total_length);
   BYTE* output_buffer_ptr = nullptr;
-  std::unique_ptr<uint8_t[]> encoded_data(new uint8_t[encoded_data_size]);
+  auto encoded_data = base::HeapArray<uint8_t>::Uninit(encoded_data_size);
   RETURN_IF_FAILED(output_buffer->Lock(&output_buffer_ptr, 0, 0));
 
-  memcpy(encoded_data.get(), output_buffer_ptr, encoded_data_size);
+  memcpy(encoded_data.data(), output_buffer_ptr, encoded_data_size);
   RETURN_IF_FAILED(output_buffer->Unlock());
 
   LONGLONG sample_duration = 0;
@@ -961,6 +982,23 @@ void MFAudioEncoder::OnError() {
         .Run(EncoderStatus::Codes::kEncoderFailedEncode);
     pending_inputs_.pop_front();
   }
+}
+
+// static.
+uint32_t MFAudioEncoder::ClampAccCodecBitrate(uint32_t bitrate) {
+  // 0 audio bitrate could mean multiple things such as no audio, use
+  // default, etc. So, the client should handle the case by itself.
+  CHECK_GT(bitrate, 0u);
+
+  auto it = std::lower_bound(std::begin(kSupportedBitrates),
+                             std::end(kSupportedBitrates), bitrate);
+  if (it != std::end(kSupportedBitrates)) {
+    return *it;
+  }
+
+  return kSupportedBitrates[sizeof(kSupportedBitrates) /
+                                sizeof(kSupportedBitrates[0]) -
+                            1];
 }
 
 }  // namespace media

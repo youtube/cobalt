@@ -11,9 +11,11 @@
 #include <limits>
 #include <memory>
 #include <string>
+#include <string_view>
 
 #include "base/atomicops.h"
 #include "base/base_export.h"
+#include "base/gtest_prod_util.h"
 #include "base/memory/raw_ptr.h"
 #include "base/metrics/histogram_base.h"
 
@@ -165,12 +167,28 @@ class BASE_EXPORT HistogramSamples {
   // enforced by a DCHECK in the destructor).
   virtual std::unique_ptr<SampleCountIterator> ExtractingIterator() = 0;
 
+  // Returns true if |this| is empty (has no samples, has a |sum| of zero, and
+  // has a |redundant_count| of zero), which is indicative that the caller does
+  // not need to process |this|.
+  // - Note 1: This should only be called when |this| is only manipulated on one
+  // thread at a time (e.g., the underlying data does not change on another
+  // thread). If this is not the case, then the returned value cannot be trusted
+  // at all.
+  // - Note 2: For performance reasons, this is not guaranteed to return the
+  // correct value. If false is returned, |this| may or may not be empty.
+  // However, if true is returned, then |this| is guaranteed to be empty (no
+  // false positives). Of course, this assumes that "Note 1" is respected.
+  //  - Note 3: The base implementation of this method checks for |sum| and
+  // |redundant_count|, but the child implementations should also check for
+  // samples.
+  virtual bool IsDefinitelyEmpty() const;
+
   void Serialize(Pickle* pickle) const;
 
   // Returns ASCII representation of histograms data for histogram samples.
   // The dictionary returned will be of the form
   // {"name":<string>, "header":<string>, "body": <string>}
-  base::Value::Dict ToGraphDict(StringPiece histogram_name,
+  base::Value::Dict ToGraphDict(std::string_view histogram_name,
                                 int32_t flags) const;
 
   // Accessor functions.
@@ -227,9 +245,9 @@ class BASE_EXPORT HistogramSamples {
   }
 
   // Produces an actual graph (set of blank vs non blank char's) for a bucket.
-  void WriteAsciiBucketGraph(double x_count,
-                             int line_length,
-                             std::string* output) const;
+  static void WriteAsciiBucketGraph(double x_count,
+                                    int line_length,
+                                    std::string* output);
 
   // Writes textual description of the bucket contents (relative to histogram).
   // Output is the count in the buckets, as well as the percentage.
@@ -241,7 +259,7 @@ class BASE_EXPORT HistogramSamples {
   virtual std::string GetAsciiBody() const;
 
   // Gets a header message describing this histogram samples.
-  virtual std::string GetAsciiHeader(StringPiece histogram_name,
+  virtual std::string GetAsciiHeader(std::string_view histogram_name,
                                      int32_t flags) const;
 
   // Returns a string description of what goes in a given bucket.
@@ -251,6 +269,8 @@ class BASE_EXPORT HistogramSamples {
   Metadata* meta() { return meta_; }
 
  private:
+  FRIEND_TEST_ALL_PREFIXES(HistogramSamplesTest, WriteAsciiBucketGraph);
+
   // Depending on derived class `meta_` can come from:
   // - Local storage: Then `meta_owned_` is set and meta_ points to it.
   // - External storage: Then `meta_owned_` is null, and `meta_` point toward an

@@ -1,14 +1,16 @@
-// Copyright 2016 The Chromium Authors. All rights reserved.
+// Copyright 2016 The Chromium Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
 #include "components/client_update_protocol/ecdsa.h"
 
+#include <stdint.h>
+
+#include "base/base64url.h"
 #include "base/logging.h"
 #include "base/memory/ptr_util.h"
-#include "base/stl_util.h"
+#include "base/ranges/algorithm.h"
 #include "base/strings/string_number_conversions.h"
-#include "base/strings/string_piece.h"
 #include "base/strings/string_util.h"
 #include "base/strings/stringprintf.h"
 #include "crypto/random.h"
@@ -19,7 +21,7 @@ namespace client_update_protocol {
 
 namespace {
 
-std::vector<uint8_t> SHA256HashStr(const base::StringPiece& str) {
+std::vector<uint8_t> SHA256HashStr(const std::string_view& str) {
   std::vector<uint8_t> result(crypto::kSHA256Length);
   crypto::SHA256HashString(str, &result.front(), result.size());
   return result;
@@ -27,13 +29,13 @@ std::vector<uint8_t> SHA256HashStr(const base::StringPiece& str) {
 
 std::vector<uint8_t> SHA256HashVec(const std::vector<uint8_t>& vec) {
   if (vec.empty())
-    return SHA256HashStr(base::StringPiece());
+    return SHA256HashStr(std::string_view());
 
-  return SHA256HashStr(base::StringPiece(
+  return SHA256HashStr(std::string_view(
       reinterpret_cast<const char*>(&vec.front()), vec.size()));
 }
 
-bool ParseETagHeader(const base::StringPiece& etag_header_value_in,
+bool ParseETagHeader(const std::string_view& etag_header_value_in,
                      std::vector<uint8_t>* ecdsa_signature_out,
                      std::vector<uint8_t>* request_hash_out) {
   DCHECK(ecdsa_signature_out);
@@ -44,25 +46,27 @@ bool ParseETagHeader(const base::StringPiece& etag_header_value_in,
   // * H is the SHA-256 hash of the observed request body, standard hex format.
   // A Weak ETag is formatted as W/"S:H". This function treats it the same as a
   // strong ETag.
-  base::StringPiece etag_header_value(etag_header_value_in);
+  std::string_view etag_header_value(etag_header_value_in);
 
   // Remove the weak prefix, then remove the begin and the end quotes.
   const char kWeakETagPrefix[] = "W/";
-  if (etag_header_value.starts_with(kWeakETagPrefix))
+  if (base::StartsWith(etag_header_value, kWeakETagPrefix))
     etag_header_value.remove_prefix(std::size(kWeakETagPrefix) - 1);
-  if (etag_header_value.size() >= 2 && etag_header_value.starts_with("\"") &&
-      etag_header_value.ends_with("\"")) {
+  if (etag_header_value.size() >= 2 &&
+      base::StartsWith(etag_header_value, "\"") &&
+      base::EndsWith(etag_header_value, "\"")) {
     etag_header_value.remove_prefix(1);
     etag_header_value.remove_suffix(1);
   }
 
-  const base::StringPiece::size_type delim_pos = etag_header_value.find(':');
-  if (delim_pos == base::StringPiece::npos || delim_pos == 0 ||
-      delim_pos == etag_header_value.size() - 1)
+  const std::string_view::size_type delim_pos = etag_header_value.find(':');
+  if (delim_pos == std::string_view::npos || delim_pos == 0 ||
+      delim_pos == etag_header_value.size() - 1) {
     return false;
+  }
 
-  const base::StringPiece sig_hex = etag_header_value.substr(0, delim_pos);
-  const base::StringPiece hash_hex = etag_header_value.substr(delim_pos + 1);
+  const std::string_view sig_hex = etag_header_value.substr(0, delim_pos);
+  const std::string_view hash_hex = etag_header_value.substr(delim_pos + 1);
 
   // Decode the ECDSA signature. Don't bother validating the contents of it;
   // the SignatureValidator class will handle the actual DER decoding and
@@ -84,14 +88,14 @@ bool ParseETagHeader(const base::StringPiece& etag_header_value_in,
 
 }  // namespace
 
-Ecdsa::Ecdsa(int key_version, const base::StringPiece& public_key)
+Ecdsa::Ecdsa(int key_version, const std::string_view& public_key)
     : pub_key_version_(key_version),
       public_key_(public_key.begin(), public_key.end()) {}
 
-Ecdsa::~Ecdsa() {}
+Ecdsa::~Ecdsa() = default;
 
 std::unique_ptr<Ecdsa> Ecdsa::Create(int key_version,
-                                     const base::StringPiece& public_key) {
+                                     const std::string_view& public_key) {
   DCHECK_GT(key_version, 0);
   DCHECK(!public_key.empty());
 
@@ -103,30 +107,48 @@ void Ecdsa::OverrideNonceForTesting(int key_version, uint32_t nonce) {
   request_query_cup2key_ = base::StringPrintf("%d:%u", pub_key_version_, nonce);
 }
 
-void Ecdsa::SignRequest(const base::StringPiece& request_body,
+void Ecdsa::SignRequest(const std::string_view& request_body,
                         std::string* query_params) {
   DCHECK(query_params);
 
+  Ecdsa::RequestParameters request_parameters = SignRequest(request_body);
+
+  *query_params = base::StringPrintf("cup2key=%s&cup2hreq=%s",
+                                     request_parameters.query_cup2key.c_str(),
+                                     request_parameters.hash_hex.c_str());
+}
+
+Ecdsa::RequestParameters Ecdsa::SignRequest(
+    const std::string_view& request_body) {
   // Generate a random nonce to use for freshness, build the cup2key query
   // string, and compute the SHA-256 hash of the request body. Set these
   // two pieces of data aside to use during ValidateResponse().
-  uint32_t nonce = 0;
-  crypto::RandBytes(&nonce, sizeof(nonce));
-  request_query_cup2key_ = base::StringPrintf("%d:%u", pub_key_version_, nonce);
+  uint8_t nonce[32] = {0};
+  crypto::RandBytes(nonce);
+
+  // The nonce is an opaque string to the server, so the exact encoding does not
+  // matter. Use base64url as it is slightly more compact than hex.
+  std::string nonce_b64;
+  base::Base64UrlEncode(
+      std::string_view(reinterpret_cast<const char*>(nonce), sizeof(nonce)),
+      base::Base64UrlEncodePolicy::OMIT_PADDING, &nonce_b64);
+
+  request_query_cup2key_ =
+      base::StringPrintf("%d:%s", pub_key_version_, nonce_b64.c_str());
   request_hash_ = SHA256HashStr(request_body);
 
   // Return the query string for the user to send with the request.
-  std::string request_hash_hex =
-      base::HexEncode(&request_hash_.front(), request_hash_.size());
+  std::string request_hash_hex = base::HexEncode(request_hash_);
   request_hash_hex = base::ToLowerASCII(request_hash_hex);
 
-  *query_params = base::StringPrintf("cup2key=%s&cup2hreq=%s",
-                                     request_query_cup2key_.c_str(),
-                                     request_hash_hex.c_str());
+  RequestParameters request_parameters;
+  request_parameters.query_cup2key = request_query_cup2key_;
+  request_parameters.hash_hex = request_hash_hex;
+  return request_parameters;
 }
 
-bool Ecdsa::ValidateResponse(const base::StringPiece& response_body,
-                             const base::StringPiece& server_etag) {
+bool Ecdsa::ValidateResponse(const std::string_view& response_body,
+                             const std::string_view& server_etag) {
   DCHECK(!request_hash_.empty());
   DCHECK(!request_query_cup2key_.empty());
 
@@ -144,10 +166,7 @@ bool Ecdsa::ValidateResponse(const base::StringPiece& response_body,
   // request hash. (This is a quick rejection test; the signature test is
   // authoritative, but slower.)
   DCHECK_EQ(request_hash_.size(), crypto::kSHA256Length);
-  if (observed_request_hash.size() != crypto::kSHA256Length)
-    return false;
-  if (!std::equal(observed_request_hash.begin(), observed_request_hash.end(),
-                  request_hash_.begin()))
+  if (!base::ranges::equal(observed_request_hash, request_hash_))
     return false;
 
   // Next, build the buffer that the server will have signed on its end:

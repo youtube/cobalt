@@ -1,55 +1,50 @@
-// Copyright 2016 The Chromium Authors. All rights reserved.
+// Copyright 2016 The Chromium Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
 #include "components/update_client/utils.h"
 
-#include <iterator>
+#include <string>
+#include <utility>
+#include <vector>
 
 #include "base/files/file_path.h"
-#include "base/path_service.h"
-#include "components/update_client/updater_state.h"
+#include "base/files/file_util.h"
+#include "base/files/scoped_temp_dir.h"
+#include "components/update_client/test_utils.h"
 #include "testing/gtest/include/gtest/gtest.h"
 #include "url/gurl.h"
 
-using std::string;
-
-namespace {
-
-base::FilePath MakeTestFilePath(const char* file) {
-  base::FilePath path;
-  base::PathService::Get(base::DIR_SOURCE_ROOT, &path);
-  return path.AppendASCII("components/test/data/update_client")
-      .AppendASCII(file);
-}
-
-}  // namespace
+#if BUILDFLAG(IS_WIN)
+#include <shlobj.h>
+#endif  // BUILDFLAG(IS_WIN)
 
 namespace update_client {
 
-#if !defined(IN_MEMORY_UPDATES)
 TEST(UpdateClientUtils, VerifyFileHash256) {
   EXPECT_TRUE(VerifyFileHash256(
-      MakeTestFilePath("jebgalgnebhfojomionfpkfelancnnkf.crx"),
+      GetTestFilePath("jebgalgnebhfojomionfpkfelancnnkf.crx"),
       std::string(
           "7ab32f071cd9b5ef8e0d7913be161f532d98b3e9fa284a7cd8059c3409ce0498")));
 
-  EXPECT_FALSE(VerifyFileHash256(
-      MakeTestFilePath("jebgalgnebhfojomionfpkfelancnnkf.crx"),
-      std::string("")));
+  EXPECT_TRUE(VerifyFileHash256(
+      GetTestFilePath("empty_file"),
+      std::string(
+          "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855")));
+
+  EXPECT_FALSE(
+      VerifyFileHash256(GetTestFilePath("jebgalgnebhfojomionfpkfelancnnkf.crx"),
+                        std::string("")));
+
+  EXPECT_FALSE(
+      VerifyFileHash256(GetTestFilePath("jebgalgnebhfojomionfpkfelancnnkf.crx"),
+                        std::string("abcd")));
 
   EXPECT_FALSE(VerifyFileHash256(
-      MakeTestFilePath("jebgalgnebhfojomionfpkfelancnnkf.crx"),
-      std::string("abcd")));
-
-  EXPECT_FALSE(VerifyFileHash256(
-      MakeTestFilePath("jebgalgnebhfojomionfpkfelancnnkf.crx"),
+      GetTestFilePath("jebgalgnebhfojomionfpkfelancnnkf.crx"),
       std::string(
           "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa")));
 }
-// TODO(b/290410288): write a test targeting the string-based API,
-// VerifyHash256().
-#endif
 
 // Tests that the brand matches ^[a-zA-Z]{4}?$
 TEST(UpdateClientUtils, IsValidBrand) {
@@ -110,20 +105,22 @@ TEST(UpdateClientUtils, IsValidInstallerAttributeName) {
 
   const char* const valid_names[] = {"A", "Z", "a", "a-b", "A_B",
                                      "z", "0", "9", "-_"};
-  for (const char* name : valid_names)
+  for (const char* name : valid_names) {
     EXPECT_TRUE(IsValidInstallerAttribute(
         make_pair(std::string(name), std::string("value"))));
+  }
 
   const char* const invalid_names[] = {
       "",   "a=1", " name", "name ", "na me", "<name", "name>",
       "\"", "\\",  "\xaa",  ".",     ",",     ";",     "+"};
-  for (const char* name : invalid_names)
+  for (const char* name : invalid_names) {
     EXPECT_FALSE(IsValidInstallerAttribute(
         make_pair(std::string(name), std::string("value"))));
+  }
 }
 
 // Tests that the value of an InstallerAttribute matches
-// ^[-.,;+_=a-zA-Z0-9]{0,256}$
+// ^[-.,;+_=$a-zA-Z0-9]{0,256}$
 TEST(UpdateClientUtils, IsValidInstallerAttributeValue) {
   // Test the length boundaries.
   EXPECT_TRUE(IsValidInstallerAttribute(
@@ -133,17 +130,19 @@ TEST(UpdateClientUtils, IsValidInstallerAttributeValue) {
   EXPECT_FALSE(IsValidInstallerAttribute(
       make_pair(std::string("name"), std::string(257, 'a'))));
 
-  const char* const valid_values[] = {"",  "a=1", "A", "Z",      "a",
-                                      "z", "0",   "9", "-.,;+_="};
-  for (const char* value : valid_values)
+  const char* const valid_values[] = {"",  "a=1", "A", "Z",       "a",
+                                      "z", "0",   "9", "-.,;+_=$"};
+  for (const char* value : valid_values) {
     EXPECT_TRUE(IsValidInstallerAttribute(
         make_pair(std::string("name"), std::string(value))));
+  }
 
   const char* const invalid_values[] = {" ap", "ap ", "a p", "<ap",
                                         "ap>", "\"",  "\\",  "\xaa"};
-  for (const char* value : invalid_values)
+  for (const char* value : invalid_values) {
     EXPECT_FALSE(IsValidInstallerAttribute(
         make_pair(std::string("name"), std::string(value))));
+  }
 }
 
 TEST(UpdateClientUtils, RemoveUnsecureUrls) {
@@ -203,6 +202,15 @@ TEST(UpdateClientUtils, ToInstallerResult) {
   const auto result4 = ToInstallerResult(EnumB::ENTRY1, 20000);
   EXPECT_EQ(101, result4.error);
   EXPECT_EQ(20000, result4.extended_error);
+}
+
+TEST(UpdateClientUtils, GetArchitecture) {
+  const std::string arch = GetArchitecture();
+
+#if BUILDFLAG(IS_WIN)
+  EXPECT_TRUE(arch == kArchIntel || arch == kArchAmd64 || arch == kArchArm64)
+      << arch;
+#endif  // BUILDFLAG(IS_WIN)
 }
 
 }  // namespace update_client

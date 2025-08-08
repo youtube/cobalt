@@ -4,7 +4,10 @@
 
 #include "media/capture/mojom/video_capture_types_mojom_traits.h"
 
-#include "third_party/abseil-cpp/absl/types/optional.h"
+#include <optional>
+
+#include "media/capture/mojom/video_capture_types.mojom-shared.h"
+#include "media/capture/video_capture_types.h"
 #include "ui/gfx/geometry/mojom/geometry.mojom.h"
 #include "ui/gfx/geometry/mojom/geometry_mojom_traits.h"
 
@@ -23,8 +26,7 @@ EnumTraits<media::mojom::ResolutionChangePolicy,
     case media::ResolutionChangePolicy::ANY_WITHIN_LIMIT:
       return media::mojom::ResolutionChangePolicy::ANY_WITHIN_LIMIT;
   }
-  NOTREACHED();
-  return media::mojom::ResolutionChangePolicy::FIXED_RESOLUTION;
+  NOTREACHED_NORETURN();
 }
 
 // static
@@ -43,8 +45,7 @@ bool EnumTraits<media::mojom::ResolutionChangePolicy,
       *output = media::ResolutionChangePolicy::ANY_WITHIN_LIMIT;
       return true;
   }
-  NOTREACHED();
-  return false;
+  NOTREACHED_NORETURN();
 }
 
 // static
@@ -59,8 +60,7 @@ media::mojom::PowerLineFrequency EnumTraits<
     case media::PowerLineFrequency::k60Hz:
       return media::mojom::PowerLineFrequency::HZ_60;
   }
-  NOTREACHED();
-  return media::mojom::PowerLineFrequency::DEFAULT;
+  NOTREACHED_NORETURN();
 }
 
 // static
@@ -78,8 +78,7 @@ bool EnumTraits<media::mojom::PowerLineFrequency, media::PowerLineFrequency>::
       *output = media::PowerLineFrequency::k60Hz;
       return true;
   }
-  NOTREACHED();
-  return false;
+  NOTREACHED_NORETURN();
 }
 
 // static
@@ -162,8 +161,7 @@ EnumTraits<media::mojom::VideoCapturePixelFormat,
     case media::VideoPixelFormat::PIXEL_FORMAT_NV12A:
       return media::mojom::VideoCapturePixelFormat::NV12A;
   }
-  NOTREACHED();
-  return media::mojom::VideoCapturePixelFormat::I420;
+  NOTREACHED_NORETURN();
 }
 
 // static
@@ -284,8 +282,7 @@ bool EnumTraits<media::mojom::VideoCapturePixelFormat,
       *output = media::PIXEL_FORMAT_NV12A;
       return true;
   }
-  NOTREACHED();
-  return false;
+  NOTREACHED_NORETURN();
 }
 
 // static
@@ -301,8 +298,7 @@ EnumTraits<media::mojom::VideoCaptureBufferType,
     case media::VideoCaptureBufferType::kGpuMemoryBuffer:
       return media::mojom::VideoCaptureBufferType::kGpuMemoryBuffer;
   }
-  NOTREACHED();
-  return media::mojom::VideoCaptureBufferType::kSharedMemory;
+  NOTREACHED_NORETURN();
 }
 
 // static
@@ -316,8 +312,7 @@ bool EnumTraits<media::mojom::VideoCaptureBufferType,
       return true;
     case media::mojom::VideoCaptureBufferType::
         kSharedMemoryViaRawFileDescriptor_DEPRECATED:
-      NOTREACHED();
-      return false;
+      NOTREACHED_NORETURN();
     case media::mojom::VideoCaptureBufferType::kMailboxHolder:
       *output = media::VideoCaptureBufferType::kMailboxHolder;
       return true;
@@ -325,8 +320,7 @@ bool EnumTraits<media::mojom::VideoCaptureBufferType,
       *output = media::VideoCaptureBufferType::kGpuMemoryBuffer;
       return true;
   }
-  NOTREACHED();
-  return false;
+  NOTREACHED_NORETURN();
 }
 
 // static
@@ -807,9 +801,15 @@ EnumTraits<media::mojom::VideoCaptureError, media::VideoCaptureError>::ToMojom(
     case media::VideoCaptureError::kWinDirectShowDeviceInitializationFailed:
       return media::mojom::VideoCaptureError::
           kWinDirectShowDeviceInitializationFailed;
+    case media::VideoCaptureError::kVideoCaptureDeviceFactorySecondCreateDenied:
+      return media::mojom::VideoCaptureError::
+          kVideoCaptureDeviceFactorySecondCreateDenied;
+    case media::VideoCaptureError::kScreenCaptureKitResetStreamError:
+      return media::mojom::VideoCaptureError::kScreenCaptureKitResetStreamError;
+    case media::VideoCaptureError::kWinMediaFoundationCameraBusy:
+      return media::mojom::VideoCaptureError::kWinMediaFoundationCameraBusy;
   }
-  NOTREACHED();
-  return media::mojom::VideoCaptureError::kNone;
+  NOTREACHED_NORETURN();
 }
 
 // static
@@ -1455,9 +1455,19 @@ bool EnumTraits<media::mojom::VideoCaptureError, media::VideoCaptureError>::
       *output =
           media::VideoCaptureError::kWinDirectShowDeviceInitializationFailed;
       return true;
+    case media::mojom::VideoCaptureError::
+        kVideoCaptureDeviceFactorySecondCreateDenied:
+      *output = media::VideoCaptureError::
+          kVideoCaptureDeviceFactorySecondCreateDenied;
+      return true;
+    case media::mojom::VideoCaptureError::kScreenCaptureKitResetStreamError:
+      *output = media::VideoCaptureError::kScreenCaptureKitResetStreamError;
+      return true;
+    case media::mojom::VideoCaptureError::kWinMediaFoundationCameraBusy:
+      *output = media::VideoCaptureError::kWinMediaFoundationCameraBusy;
+      return true;
   }
-  NOTREACHED();
-  return false;
+  NOTREACHED_NORETURN();
 }
 
 // static
@@ -1537,10 +1547,6 @@ EnumTraits<media::mojom::VideoCaptureFrameDropReason,
       return media::mojom::VideoCaptureFrameDropReason::
           kResolutionAdapterWrappingFrameForCroppingFailed;
     case media::VideoCaptureFrameDropReason::
-        kResolutionAdapterTimestampTooCloseToPrevious:
-      return media::mojom::VideoCaptureFrameDropReason::
-          kResolutionAdapterTimestampTooCloseToPrevious;
-    case media::VideoCaptureFrameDropReason::
         kResolutionAdapterFrameRateIsHigherThanRequested:
       return media::mojom::VideoCaptureFrameDropReason::
           kResolutionAdapterFrameRateIsHigherThanRequested;
@@ -1555,14 +1561,19 @@ EnumTraits<media::mojom::VideoCaptureFrameDropReason,
         kRendererSinkFrameDelivererIsNotStarted:
       return media::mojom::VideoCaptureFrameDropReason::
           kRendererSinkFrameDelivererIsNotStarted;
-    case media::VideoCaptureFrameDropReason::kCropVersionNotCurrent:
-      return media::mojom::VideoCaptureFrameDropReason::kCropVersionNotCurrent;
+    case media::VideoCaptureFrameDropReason::kCropVersionNotCurrent_DEPRECATED:
+      return media::mojom::VideoCaptureFrameDropReason::
+          kCropVersionNotCurrent_DEPRECATED;
     case media::VideoCaptureFrameDropReason::kGpuMemoryBufferMapFailed:
       return media::mojom::VideoCaptureFrameDropReason::
           kGpuMemoryBufferMapFailed;
+    case media::VideoCaptureFrameDropReason::kSubCaptureTargetVersionNotCurrent:
+      return media::mojom::VideoCaptureFrameDropReason::
+          kSubCaptureTargetVersionNotCurrent;
+    case media::VideoCaptureFrameDropReason::kPostProcessingFailed:
+      return media::mojom::VideoCaptureFrameDropReason::kPostProcessingFailed;
   }
-  NOTREACHED();
-  return media::mojom::VideoCaptureFrameDropReason::kNone;
+  NOTREACHED_NORETURN();
 }
 
 // static
@@ -1671,10 +1682,9 @@ bool EnumTraits<media::mojom::VideoCaptureFrameDropReason,
           kResolutionAdapterWrappingFrameForCroppingFailed;
       return true;
     case media::mojom::VideoCaptureFrameDropReason::
-        kResolutionAdapterTimestampTooCloseToPrevious:
-      *output = media::VideoCaptureFrameDropReason::
-          kResolutionAdapterTimestampTooCloseToPrevious;
-      return true;
+        kResolutionAdapterTimestampTooCloseToPrevious_DEPRECATED:
+      NOTREACHED();
+      return false;
     case media::mojom::VideoCaptureFrameDropReason::
         kResolutionAdapterFrameRateIsHigherThanRequested:
       *output = media::VideoCaptureFrameDropReason::
@@ -1695,15 +1705,24 @@ bool EnumTraits<media::mojom::VideoCaptureFrameDropReason,
       *output = media::VideoCaptureFrameDropReason::
           kRendererSinkFrameDelivererIsNotStarted;
       return true;
-    case media::mojom::VideoCaptureFrameDropReason::kCropVersionNotCurrent:
-      *output = media::VideoCaptureFrameDropReason::kCropVersionNotCurrent;
+    case media::mojom::VideoCaptureFrameDropReason::
+        kCropVersionNotCurrent_DEPRECATED:
+      *output =
+          media::VideoCaptureFrameDropReason::kCropVersionNotCurrent_DEPRECATED;
       return true;
     case media::mojom::VideoCaptureFrameDropReason::kGpuMemoryBufferMapFailed:
       *output = media::VideoCaptureFrameDropReason::kGpuMemoryBufferMapFailed;
       return true;
+    case media::mojom::VideoCaptureFrameDropReason::
+        kSubCaptureTargetVersionNotCurrent:
+      *output = media::VideoCaptureFrameDropReason::
+          kSubCaptureTargetVersionNotCurrent;
+      return true;
+    case media::mojom::VideoCaptureFrameDropReason::kPostProcessingFailed:
+      *output = media::VideoCaptureFrameDropReason::kPostProcessingFailed;
+      return true;
   }
-  NOTREACHED();
-  return false;
+  NOTREACHED_NORETURN();
 }
 
 // static
@@ -1718,11 +1737,9 @@ EnumTraits<media::mojom::VideoFacingMode, media::VideoFacingMode>::ToMojom(
     case media::VideoFacingMode::MEDIA_VIDEO_FACING_ENVIRONMENT:
       return media::mojom::VideoFacingMode::ENVIRONMENT;
     case media::VideoFacingMode::NUM_MEDIA_VIDEO_FACING_MODES:
-      NOTREACHED();
-      return media::mojom::VideoFacingMode::NONE;
+      NOTREACHED_NORETURN();
   }
-  NOTREACHED();
-  return media::mojom::VideoFacingMode::NONE;
+  NOTREACHED_NORETURN();
 }
 
 // static
@@ -1740,8 +1757,7 @@ bool EnumTraits<media::mojom::VideoFacingMode, media::VideoFacingMode>::
       *output = media::VideoFacingMode::MEDIA_VIDEO_FACING_ENVIRONMENT;
       return true;
   }
-  NOTREACHED();
-  return false;
+  NOTREACHED_NORETURN();
 }
 
 // static
@@ -1776,8 +1792,22 @@ EnumTraits<media::mojom::VideoCaptureApi, media::VideoCaptureApi>::ToMojom(
     case media::VideoCaptureApi::UNKNOWN:
       return media::mojom::VideoCaptureApi::UNKNOWN;
   }
-  NOTREACHED();
-  return media::mojom::VideoCaptureApi::UNKNOWN;
+  NOTREACHED_NORETURN();
+}
+
+// static
+media::mojom::CameraAvailability EnumTraits<
+    media::mojom::CameraAvailability,
+    media::CameraAvailability>::ToMojom(media::CameraAvailability input) {
+  switch (input) {
+    case media::CameraAvailability::kAvailable:
+      return media::mojom::CameraAvailability::kAvailable;
+    case media::CameraAvailability::
+        kUnavailableExclusivelyUsedByOtherApplication:
+      return media::mojom::CameraAvailability::
+          kUnavailableExclusivelyUsedByOtherApplication;
+  }
+  NOTREACHED_NORETURN();
 }
 
 // static
@@ -1825,8 +1855,24 @@ bool EnumTraits<media::mojom::VideoCaptureApi, media::VideoCaptureApi>::
       *output = media::VideoCaptureApi::UNKNOWN;
       return true;
   }
-  NOTREACHED();
-  return false;
+  NOTREACHED_NORETURN();
+}
+
+// static
+bool EnumTraits<media::mojom::CameraAvailability, media::CameraAvailability>::
+    FromMojom(media::mojom::CameraAvailability input,
+              media::CameraAvailability* output) {
+  switch (input) {
+    case media::mojom::CameraAvailability::kAvailable:
+      *output = media::CameraAvailability::kAvailable;
+      return true;
+    case media::mojom::CameraAvailability::
+        kUnavailableExclusivelyUsedByOtherApplication:
+      *output = media::CameraAvailability::
+          kUnavailableExclusivelyUsedByOtherApplication;
+      return true;
+  }
+  NOTREACHED_NORETURN();
 }
 
 // static
@@ -1835,13 +1881,12 @@ media::mojom::VideoCaptureTransportType EnumTraits<
     media::VideoCaptureTransportType>::ToMojom(media::VideoCaptureTransportType
                                                    input) {
   switch (input) {
-    case media::VideoCaptureTransportType::MACOSX_USB_OR_BUILT_IN:
-      return media::mojom::VideoCaptureTransportType::MACOSX_USB_OR_BUILT_IN;
+    case media::VideoCaptureTransportType::APPLE_USB_OR_BUILT_IN:
+      return media::mojom::VideoCaptureTransportType::APPLE_USB_OR_BUILT_IN;
     case media::VideoCaptureTransportType::OTHER_TRANSPORT:
       return media::mojom::VideoCaptureTransportType::OTHER_TRANSPORT;
   }
-  NOTREACHED();
-  return media::mojom::VideoCaptureTransportType::OTHER_TRANSPORT;
+  NOTREACHED_NORETURN();
 }
 
 // static
@@ -1850,15 +1895,14 @@ bool EnumTraits<media::mojom::VideoCaptureTransportType,
     FromMojom(media::mojom::VideoCaptureTransportType input,
               media::VideoCaptureTransportType* output) {
   switch (input) {
-    case media::mojom::VideoCaptureTransportType::MACOSX_USB_OR_BUILT_IN:
-      *output = media::VideoCaptureTransportType::MACOSX_USB_OR_BUILT_IN;
+    case media::mojom::VideoCaptureTransportType::APPLE_USB_OR_BUILT_IN:
+      *output = media::VideoCaptureTransportType::APPLE_USB_OR_BUILT_IN;
       return true;
     case media::mojom::VideoCaptureTransportType::OTHER_TRANSPORT:
       *output = media::VideoCaptureTransportType::OTHER_TRANSPORT;
       return true;
   }
-  NOTREACHED();
-  return false;
+  NOTREACHED_NORETURN();
 }
 
 // static
@@ -1918,6 +1962,9 @@ bool StructTraits<media::mojom::VideoCaptureDeviceDescriptorDataView,
     return false;
   if (!data.ReadFacingMode(&(output->facing)))
     return false;
+  if (!data.ReadAvailability(&(output->availability))) {
+    return false;
+  }
   if (!data.ReadCaptureApi(&(output->capture_api)))
     return false;
   media::VideoCaptureControlSupport control_support;
@@ -1950,8 +1997,6 @@ bool StructTraits<media::mojom::VideoCaptureFeedbackDataView,
   output->max_pixels = data.max_pixels();
   output->resource_utilization = data.resource_utilization();
   output->require_mapped_frame = data.require_mapped_frame();
-  if (!data.ReadMappedSizes(&(output->mapped_sizes)))
-    return false;
 
   // Only need to set the frame_id if it's valid; otherwise it is default
   // initialized to nullopt.

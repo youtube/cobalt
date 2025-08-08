@@ -8,8 +8,10 @@
 #include <stdint.h>
 
 #include <memory>
+#include <optional>
 
 #include "base/memory/raw_ptr.h"
+#include "base/memory/scoped_refptr.h"
 #include "base/memory/weak_ptr.h"
 #include "media/base/audio_decoder.h"
 #include "media/base/cdm_context.h"
@@ -18,7 +20,10 @@
 #include "media/mojo/services/media_mojo_export.h"
 #include "mojo/public/cpp/bindings/associated_remote.h"
 #include "mojo/public/cpp/bindings/pending_associated_remote.h"
-#include "third_party/abseil-cpp/absl/types/optional.h"
+
+namespace base {
+class SingleThreadTaskRunner;
+}  // namespace base
 
 namespace media {
 
@@ -29,8 +34,10 @@ class MojoMediaClient;
 class MEDIA_MOJO_EXPORT MojoAudioDecoderService final
     : public mojom::AudioDecoder {
  public:
-  MojoAudioDecoderService(MojoMediaClient* mojo_media_client,
-                          MojoCdmServiceContext* mojo_cdm_service_context);
+  MojoAudioDecoderService(
+      MojoMediaClient* mojo_media_client,
+      MojoCdmServiceContext* mojo_cdm_service_context,
+      scoped_refptr<base::SingleThreadTaskRunner> task_runner);
 
   MojoAudioDecoderService(const MojoAudioDecoderService&) = delete;
   MojoAudioDecoderService& operator=(const MojoAudioDecoderService&) = delete;
@@ -42,7 +49,7 @@ class MEDIA_MOJO_EXPORT MojoAudioDecoderService final
       mojo::PendingAssociatedRemote<mojom::AudioDecoderClient> client,
       mojo::PendingRemote<mojom::MediaLog> media_log) final;
   void Initialize(const AudioDecoderConfig& config,
-                  const absl::optional<base::UnguessableToken>& cdm_id,
+                  const std::optional<base::UnguessableToken>& cdm_id,
                   InitializeCallback callback) final;
 
   void SetDataSource(mojo::ScopedDataPipeConsumerHandle receive_pipe) final;
@@ -86,7 +93,7 @@ class MEDIA_MOJO_EXPORT MojoAudioDecoderService final
 
   // The CDM ID and the corresponding CdmContextRef, which must be held to keep
   // the CdmContext alive for the lifetime of the |decoder_|.
-  absl::optional<base::UnguessableToken> cdm_id_;
+  std::optional<base::UnguessableToken> cdm_id_;
   std::unique_ptr<CdmContextRef> cdm_context_ref_;
 
   // The AudioDecoder that does actual decoding work.
@@ -94,6 +101,8 @@ class MEDIA_MOJO_EXPORT MojoAudioDecoderService final
   // The |decoder_| may need to access the CDM to do some clean up work in its
   // own destructor.
   std::unique_ptr<media::AudioDecoder> decoder_;
+
+  scoped_refptr<base::SingleThreadTaskRunner> task_runner_;
 
   base::WeakPtr<MojoAudioDecoderService> weak_this_;
   base::WeakPtrFactory<MojoAudioDecoderService> weak_factory_{this};

@@ -13,7 +13,6 @@
 #include "base/check_op.h"
 #include "base/memory/raw_ptr_exclusion.h"
 #include "base/message_loop/message_pump_type.h"
-#include "base/message_loop/timer_slack.h"
 #include "base/sequence_checker.h"
 #include "base/time/time.h"
 #include "build/build_config.h"
@@ -31,6 +30,15 @@ class BASE_EXPORT MessagePump {
 
   // Returns true if the MessagePumpForUI has been overidden.
   static bool IsMessagePumpForUIFactoryOveridden();
+
+  static void InitializeFeatures();
+
+  // Manage the state of |kAlignWakeUps| and the leeway of the process.
+  static void OverrideAlignWakeUpsState(bool enabled, TimeDelta leeway);
+  static void ResetAlignWakeUpsState();
+  static bool GetAlignWakeUpsEnabled();
+  static TimeDelta GetLeewayIgnoringThreadOverride();
+  static TimeDelta GetLeewayForCurrentThread();
 
   // Creates the default MessagePump based on |type|. Caller owns return value.
   static std::unique_ptr<MessagePump> Create(MessagePumpType type);
@@ -57,6 +65,12 @@ class BASE_EXPORT MessagePump {
       // work to run immediately. is_max() if there are no more immediate nor
       // delayed tasks.
       TimeTicks delayed_run_time;
+
+      // |leeway| determines the preferred time range for scheduling
+      // work. A larger leeway provides more freedom to schedule work at
+      // an optimal time for power consumption. This field is ignored
+      // for immediate work.
+      TimeDelta leeway;
 
       // A recent view of TimeTicks::Now(). Only valid if |delayed_run_time|
       // isn't null nor max. MessagePump impls should use remaining_delay()
@@ -135,9 +149,9 @@ class BASE_EXPORT MessagePump {
     // Called before a unit of work is executed. This allows reports
     // about individual units of work to be produced. The unit of work ends when
     // the returned ScopedDoWorkItem goes out of scope.
-    // TODO(crbug.com/851163): Place calls for all platforms. Without this, some
-    // state like the top-level "ThreadController active" trace event will not
-    // be correct when work is performed.
+    // TODO(crbug.com/40580088): Place calls for all platforms. Without this,
+    // some state like the top-level "ThreadController active" trace event will
+    // not be correct when work is performed.
     [[nodiscard]] ScopedDoWorkItem BeginWorkItem() {
       return ScopedDoWorkItem(this);
     }
@@ -146,6 +160,11 @@ class BASE_EXPORT MessagePump {
     // that the message pump is idle (out of application work and ideally out of
     // native work -- if it can tell).
     virtual void BeforeWait() = 0;
+
+    // May be called when starting to process native work and it is guaranteed
+    // that DoWork() will be called again before sleeping. Allows the delegate
+    // to skip unnecessary ScheduleWork() calls.
+    virtual void BeginNativeWorkBeforeDoWork() = 0;
 
     // Returns the nesting level at which the Delegate is currently running.
     virtual int RunDepth() = 0;
@@ -247,14 +266,24 @@ class BASE_EXPORT MessagePump {
   //
   // It isn't necessary to call this during normal execution, as the pump wakes
   // up as requested by the return value of DoWork().
-  // TODO(crbug.com/885371): Determine if this must be called to ensure that
+  // TODO(crbug.com/40594269): Determine if this must be called to ensure that
   // delayed tasks run when a message pump outside the control of Run is
   // entered.
   virtual void ScheduleDelayedWork(
       const Delegate::NextWorkInfo& next_work_info) = 0;
 
-  // Sets the timer slack to the specified value.
-  virtual void SetTimerSlack(TimerSlack timer_slack);
+  // Returns an adjusted |run_time| based on alignment policies of the pump.
+  virtual TimeTicks AdjustDelayedRunTime(TimeTicks earliest_time,
+                                         TimeTicks run_time,
+                                         TimeTicks latest_time);
+
+  // Requests the pump to handle either the likely imminent creation (`true`) or
+  // destruction (`false`) of a native nested loop in which application tasks
+  // are desired to be run. The pump should override and return `true` if it
+  // supports this call and has scheduled work in response. The default
+  // implementation returns `false` and does nothing.
+  virtual bool HandleNestedNativeLoopWithApplicationTasks(
+      bool application_tasks_desired);
 };
 
 }  // namespace base

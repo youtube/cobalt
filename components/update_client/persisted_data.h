@@ -1,21 +1,29 @@
-// Copyright 2016 The Chromium Authors. All rights reserved.
+// Copyright 2016 The Chromium Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
 #ifndef COMPONENTS_UPDATE_CLIENT_PERSISTED_DATA_H_
 #define COMPONENTS_UPDATE_CLIENT_PERSISTED_DATA_H_
 
+#include <memory>
+#include <set>
 #include <string>
 #include <vector>
 
-#include "base/macros.h"
-#include "base/sequence_checker.h"
+#include "base/functional/callback_forward.h"
 #include "base/values.h"
 
-class PrefRegistrySimple;
+namespace base {
+class Time;
+class Version;
+}  // namespace base
+
 class PrefService;
+class PrefRegistrySimple;
 
 namespace update_client {
+
+extern const char kPersistedDataPreference[];
 
 class ActivityDataService;
 
@@ -23,99 +31,80 @@ class ActivityDataService;
 // update data that outlives the browser process and isn't exposed outside of
 // update_client.
 //
-// The public methods of this class should be called only on the thread that
-// initializes it - which also has to match the thread the PrefService has been
-// initialized on.
+// The public methods of this class should be called only on the sequence that
+// initializes it - which also has to match the sequence the PrefService has
+// been initialized on.
 class PersistedData {
  public:
-  // Constructs a provider using the specified |pref_service| and
-  // |activity_data_service|.
-  // The associated preferences are assumed to already be registered.
-  // The |pref_service| and |activity_data_service| must outlive the entire
-  // update_client.
-  PersistedData(PrefService* pref_service,
-                ActivityDataService* activity_data_service);
-
-  ~PersistedData();
+  virtual ~PersistedData() = default;
 
   // Returns the DateLastRollCall (the server-localized calendar date number the
   // |id| was last checked by this client on) for the specified |id|.
   // -2 indicates that there is no recorded date number for the |id|.
-  int GetDateLastRollCall(const std::string& id) const;
+  virtual int GetDateLastRollCall(const std::string& id) const = 0;
 
   // Returns the DateLastActive (the server-localized calendar date number the
   // |id| was last active by this client on) for the specified |id|.
   // -1 indicates that there is no recorded date for the |id| (i.e. this is the
   // first time the |id| is active).
   // -2 indicates that the |id| has an unknown value of last active date.
-  int GetDateLastActive(const std::string& id) const;
-
-#if defined(STARBOARD)
-  // Returns the version of the update that was last successfully installed for
-  // the specified |id|. "" indicates that there is no recorded version value
-  // for the |id|.
-  std::string GetLastInstalledVersion(const std::string& id) const;
-
-  // Returns the updater channel that is set for the specified |id|. ""
-  // indicates that there is no recorded updater channel value for the |id|.
-  std::string GetUpdaterChannel(const std::string& id) const;
-
-  // Returns the updater channel for the previous app startup.
-  std::string GetLatestChannel() const;
-#endif
+  virtual int GetDateLastActive(const std::string& id) const = 0;
 
   // Returns the PingFreshness (a random token that is written into the profile
   // data whenever the DateLastRollCall it is modified) for the specified |id|.
   // "" indicates that there is no recorded freshness value for the |id|.
-  std::string GetPingFreshness(const std::string& id) const;
+  virtual std::string GetPingFreshness(const std::string& id) const = 0;
 
-  // Records the DateLastRollCall for the specified |ids|. |datenum| must be a
-  // non-negative integer: calls with a negative |datenum| are simply ignored.
-  // Calls to SetDateLastRollCall that occur prior to the persisted data store
-  // has been fully initialized are ignored. Also sets the PingFreshness.
-  void SetDateLastRollCall(const std::vector<std::string>& ids, int datenum);
+  // Records the DateLastRollcall for the specified `ids`. Also records
+  // DateLastActive, if the ids have active bits currently set, and then clears
+  // those bits. Rotates PingFreshness. Then, calls `callback` on the calling
+  // sequence. Calls with a negative `datenum` or that occur prior to the
+  // initialization of the persisted data store will simply post the callback
+  // immediately.
+  virtual void SetDateLastData(const std::vector<std::string>& ids,
+                               int datenum,
+                               base::OnceClosure callback) = 0;
 
-  // Records the DateLastActive for the specified |ids|. |datenum| must be a
-  // non-negative integer: calls with a negative |datenum| are simply ignored.
-  // Calls to SetDateLastActive that occur prior to the persisted data store
-  // has been fully initialized or the active bit of the |ids| are not set
-  // are ignored.
-  // This function also clears the active bits of the specified |ids| if they
-  // are set.
-  void SetDateLastActive(const std::vector<std::string>& ids, int datenum);
+  // Sets DateLastActive. Prefer to use SetDateLastData. This method should
+  // only be used for importing data from other data stores.
+  virtual void SetDateLastActive(const std::string& id, int dla) = 0;
 
-#if defined(STARBOARD)
-  // Records the version of the update that is successfully installed for
-  // the specified |id|.
-  void SetLastInstalledVersion(const std::string& id,
-                              const std::string& version);
+  // Sets DateLastRollCall. Prefer to use SetDateLastData. This method should
+  // only be used for importing data from other data stores.
+  virtual void SetDateLastRollCall(const std::string& id, int dlrc) = 0;
 
-  // Records the updater channel that is set for the specified |id|.
-  void SetUpdaterChannel(const std::string& id, const std::string& channel);
+  // Returns the install date for the specified |id|.
+  // "InstallDate" refers to the initial date that the given |id| was first
+  // installed on the machine. Date information is returned by the server. If
+  // "InstallDate" is not known, -2 is returned.
+  virtual int GetInstallDate(const std::string& id) const = 0;
 
-  // Records the latest channel the app is on.
-  void SetLatestChannel(const std::string& channel);
-#endif
-
-  // This is called only via update_client's RegisterUpdateClientPreferences.
-  static void RegisterPrefs(PrefRegistrySimple* registry);
+  // Sets InstallDate. This method should only be used for importing data from
+  // other data stores.
+  virtual void SetInstallDate(const std::string& id, int install_date) = 0;
 
   // These functions return cohort data for the specified |id|. "Cohort"
   // indicates the membership of the client in any release channels components
   // have set up in a machine-readable format, while "CohortName" does so in a
   // human-readable form. "CohortHint" indicates the client's channel selection
   // preference.
-  std::string GetCohort(const std::string& id) const;
-  std::string GetCohortHint(const std::string& id) const;
-  std::string GetCohortName(const std::string& id) const;
+  virtual std::string GetCohort(const std::string& id) const = 0;
+  virtual std::string GetCohortHint(const std::string& id) const = 0;
+  virtual std::string GetCohortName(const std::string& id) const = 0;
 
   // These functions set cohort data for the specified |id|.
-  void SetCohort(const std::string& id, const std::string& cohort);
-  void SetCohortHint(const std::string& id, const std::string& cohort_hint);
-  void SetCohortName(const std::string& id, const std::string& cohort_name);
+  virtual void SetCohort(const std::string& id, const std::string& cohort) = 0;
+  virtual void SetCohortHint(const std::string& id,
+                             const std::string& cohort_hint) = 0;
+  virtual void SetCohortName(const std::string& id,
+                             const std::string& cohort_name) = 0;
 
-  // Returns true if the active bit of the specified |id| is set.
-  bool GetActiveBit(const std::string& id) const;
+  // Calls `callback` with the subset of `ids` that are active. The callback
+  // is called on the calling sequence.
+  virtual void GetActiveBits(
+      const std::vector<std::string>& ids,
+      base::OnceCallback<void(const std::set<std::string>&)> callback)
+      const = 0;
 
   // The following two functions returns the number of days since the last
   // time the client checked for update/was active.
@@ -123,22 +112,43 @@ class PersistedData {
   // an update check/active for the specified |id|.
   // -2 indicates that the client has no information about the
   // update check/last active of the specified |id|.
-  int GetDaysSinceLastRollCall(const std::string& id) const;
-  int GetDaysSinceLastActive(const std::string& id) const;
+  virtual int GetDaysSinceLastRollCall(const std::string& id) const = 0;
+  virtual int GetDaysSinceLastActive(const std::string& id) const = 0;
 
- private:
-  int GetInt(const std::string& id, const std::string& key, int fallback) const;
-  std::string GetString(const std::string& id, const std::string& key) const;
-  void SetString(const std::string& id,
-                 const std::string& key,
-                 const std::string& value);
+  // These functions access |pv| data for the specified |id|. Returns an empty
+  // version, if the version is not found.
+  virtual base::Version GetProductVersion(const std::string& id) const = 0;
+  virtual void SetProductVersion(const std::string& id,
+                                 const base::Version& pv) = 0;
 
-  SEQUENCE_CHECKER(sequence_checker_);
-  PrefService* pref_service_;
-  ActivityDataService* activity_data_service_;
+  // These functions access the maximum previous product version for the
+  // specified |id|. Returns an empty version if the version is not found.
+  // It will only be set if |max_version| exceeds the the existing value.
+  virtual base::Version GetMaxPreviousProductVersion(
+      const std::string& id) const = 0;
+  virtual void SetMaxPreviousProductVersion(
+      const std::string& id,
+      const base::Version& max_version) = 0;
 
-  DISALLOW_COPY_AND_ASSIGN(PersistedData);
+  // These functions access the fingerprint for the specified |id|.
+  virtual std::string GetFingerprint(const std::string& id) const = 0;
+  virtual void SetFingerprint(const std::string& id,
+                              const std::string& fingerprint) = 0;
+
+  // These functions get and set the time after which update checks are allowed.
+  // To clear the throttle, pass base::Time().
+  virtual base::Time GetThrottleUpdatesUntil() const = 0;
+  virtual void SetThrottleUpdatesUntil(const base::Time& time) = 0;
 };
+
+// Creates a PersistedData instance. Passing null for either or both parameters
+// is safe and will disable functionality that relies on them.
+std::unique_ptr<PersistedData> CreatePersistedData(
+    PrefService* pref_service,
+    std::unique_ptr<ActivityDataService> activity_data_service);
+
+// Register prefs for a PersistedData returned by CreatePersistedData.
+void RegisterPersistedDataPrefs(PrefRegistrySimple* registry);
 
 }  // namespace update_client
 

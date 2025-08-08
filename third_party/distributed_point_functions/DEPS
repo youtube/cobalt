@@ -1,0 +1,11 @@
+include_rules = [
+  "+absl",
+  "+benchmark",
+  "+dpf",
+  "+gmock",
+  "+google/protobuf",
+  "+gtest",
+  "+testing",
+  "+hwy",
+  "+openssl",
+]

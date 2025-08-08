@@ -2,6 +2,11 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#ifdef UNSAFE_BUFFERS_BUILD
+// TODO(crbug.com/40284755): Remove this and spanify to fix the errors.
+#pragma allow_unsafe_buffers
+#endif
+
 #include "base/files/file_util.h"
 
 #include <stddef.h>
@@ -9,7 +14,6 @@
 #include <stdio.h>
 
 #include <algorithm>
-#include <fcntl.h> 
 #include <fstream>
 #include <initializer_list>
 #include <memory>
@@ -28,8 +32,6 @@
 #include "base/files/scoped_file.h"
 #include "base/files/scoped_temp_dir.h"
 #include "base/functional/bind.h"
-#include "base/functional/callback_helpers.h"
-#include "base/guid.h"
 #include "base/logging.h"
 #include "base/path_service.h"
 #include "base/rand_util.h"
@@ -46,23 +48,25 @@
 #include "base/threading/platform_thread.h"
 #include "base/threading/thread.h"
 #include "base/time/time.h"
+#include "base/uuid.h"
+#include "build/branding_buildflags.h"
 #include "build/build_config.h"
-#include "starboard/common/file.h"
 #include "testing/gtest/include/gtest/gtest.h"
 #include "testing/multiprocess_func_list.h"
 #include "testing/platform_test.h"
+#include "third_party/abseil-cpp/absl/cleanup/cleanup.h"
 
 #if BUILDFLAG(IS_WIN)
-#include <shellapi.h>
-#include <shlobj.h>
 #include <tchar.h>
 #include <windows.h>
-#include <winioctl.h>
-#include "base/features.h"
+
+#include <shellapi.h>
+#include <shlobj.h>
+
 #include "base/scoped_native_library.h"
 #include "base/strings/string_number_conversions.h"
+#include "base/test/file_path_reparse_point_win.h"
 #include "base/test/gtest_util.h"
-#include "base/test/scoped_feature_list.h"
 #include "base/win/scoped_handle.h"
 #include "base/win/win_util.h"
 #endif
@@ -100,80 +104,7 @@ namespace {
 
 const size_t kLargeFileSize = (1 << 16) + 3;
 
-// To test that NormalizeFilePath() deals with NTFS reparse points correctly,
-// we need functions to create and delete reparse points.
 #if BUILDFLAG(IS_WIN)
-typedef struct _REPARSE_DATA_BUFFER {
-  ULONG  ReparseTag;
-  USHORT  ReparseDataLength;
-  USHORT  Reserved;
-  union {
-    struct {
-      USHORT SubstituteNameOffset;
-      USHORT SubstituteNameLength;
-      USHORT PrintNameOffset;
-      USHORT PrintNameLength;
-      ULONG Flags;
-      WCHAR PathBuffer[1];
-    } SymbolicLinkReparseBuffer;
-    struct {
-      USHORT SubstituteNameOffset;
-      USHORT SubstituteNameLength;
-      USHORT PrintNameOffset;
-      USHORT PrintNameLength;
-      WCHAR PathBuffer[1];
-    } MountPointReparseBuffer;
-    struct {
-      UCHAR DataBuffer[1];
-    } GenericReparseBuffer;
-  };
-} REPARSE_DATA_BUFFER, *PREPARSE_DATA_BUFFER;
-
-// Sets a reparse point. |source| will now point to |target|. Returns true if
-// the call succeeds, false otherwise.
-bool SetReparsePoint(HANDLE source, const FilePath& target_path) {
-  std::wstring kPathPrefix = FILE_PATH_LITERAL("\\??\\");
-  std::wstring target_str;
-  // The juction will not work if the target path does not start with \??\ .
-  if (kPathPrefix != target_path.value().substr(0, kPathPrefix.size()))
-    target_str += kPathPrefix;
-  target_str += target_path.value();
-  const wchar_t* target = target_str.c_str();
-  USHORT size_target = static_cast<USHORT>(wcslen(target)) * sizeof(target[0]);
-  char buffer[2000] = {0};
-  DWORD returned;
-
-  REPARSE_DATA_BUFFER* data = reinterpret_cast<REPARSE_DATA_BUFFER*>(buffer);
-
-  data->ReparseTag = 0xa0000003;
-  memcpy(data->MountPointReparseBuffer.PathBuffer, target, size_target + 2);
-
-  data->MountPointReparseBuffer.SubstituteNameLength = size_target;
-  data->MountPointReparseBuffer.PrintNameOffset = size_target + 2;
-  data->ReparseDataLength = size_target + 4 + 8;
-
-  int data_size = data->ReparseDataLength + 8;
-
-  if (!DeviceIoControl(source, FSCTL_SET_REPARSE_POINT, &buffer, data_size,
-                       NULL, 0, &returned, NULL)) {
-    return false;
-  }
-  return true;
-}
-
-// Delete the reparse point referenced by |source|. Returns true if the call
-// succeeds, false otherwise.
-bool DeleteReparsePoint(HANDLE source) {
-  DWORD returned;
-  REPARSE_DATA_BUFFER data = {0};
-  data.ReparseTag = 0xa0000003;
-  if (!DeviceIoControl(source, FSCTL_DELETE_REPARSE_POINT, &data, 8, NULL, 0,
-                       &returned, NULL)) {
-    return false;
-  }
-  return true;
-}
-
 // Method that wraps the win32 GetShortPathName API. Returns an empty path on
 // error.
 FilePath MakeShortFilePath(const FilePath& input) {
@@ -190,38 +121,9 @@ FilePath MakeShortFilePath(const FilePath& input) {
 
   return FilePath(path_short_str);
 }
+#endif  // BUILDFLAG(IS_WIN)
 
-// Manages a reparse point for a test.
-class ReparsePoint {
- public:
-  // Creates a reparse point from |source| (an empty directory) to |target|.
-  ReparsePoint(const FilePath& source, const FilePath& target) {
-    dir_.Set(
-        ::CreateFile(source.value().c_str(), GENERIC_READ | GENERIC_WRITE,
-                     FILE_SHARE_READ | FILE_SHARE_WRITE | FILE_SHARE_DELETE,
-                     NULL, OPEN_EXISTING,
-                     FILE_FLAG_BACKUP_SEMANTICS,  // Needed to open a directory.
-                     NULL));
-    created_ = dir_.is_valid() && SetReparsePoint(dir_.get(), target);
-  }
-  ReparsePoint(const ReparsePoint&) = delete;
-  ReparsePoint& operator=(const ReparsePoint&) = delete;
-
-  ~ReparsePoint() {
-    if (created_)
-      DeleteReparsePoint(dir_.get());
-  }
-
-  bool IsValid() { return created_; }
-
- private:
-  win::ScopedHandle dir_;
-  bool created_;
-};
-
-#endif
-
-#if BUILDFLAG(IS_MAC) && !defined(STARBOARD)
+#if BUILDFLAG(IS_MAC)
 // Provide a simple way to change the permissions bits on |path| in tests.
 // ASSERT failures will return, but not stop the test.  Caller should wrap
 // calls to this function in ASSERT_NO_FATAL_FAILURE().
@@ -237,10 +139,10 @@ void ChangePosixFilePermissions(const FilePath& path,
   mode &= ~mode_bits_to_clear;
   ASSERT_TRUE(SetPosixFilePermissions(path, mode));
 }
-#endif  // BUILDFLAG(IS_MAC) && !defined(STARBOARD)
+#endif  // BUILDFLAG(IS_MAC)
 
 // Fuchsia doesn't support file permissions.
-#if !BUILDFLAG(IS_FUCHSIA) && !defined(STARBOARD)
+#if !BUILDFLAG(IS_FUCHSIA)
 // Sets the source file to read-only.
 void SetReadOnly(const FilePath& path, bool read_only) {
 #if BUILDFLAG(IS_WIN)
@@ -284,7 +186,7 @@ bool IsReadOnly(const FilePath& path) {
 #endif  // BUILDFLAG(IS_WIN)
 }
 
-#endif  // BUILDFLAG(IS_FUCHSIA) && !defined(STARBOARD)
+#endif  // BUILDFLAG(IS_FUCHSIA)
 
 const wchar_t bogus_content[] = L"I'm cannon fodder.";
 
@@ -336,16 +238,6 @@ class FindResultCollector {
 // Simple function to dump some text into a new file.
 void CreateTextFile(const FilePath& filename,
                     const std::wstring& contents) {
-#if defined(STARBOARD)
-  const std::string contents_ascii = UTF16ToASCII(WideToUTF16(contents));
-  int file =
-      open(filename.value().c_str(), O_CREAT | O_TRUNC | O_WRONLY, S_IRUSR | S_IWUSR);
-  SB_CHECK(file >= 0);
-  int ret = starboard::WriteAll(file, contents_ascii.data(),contents_ascii.size());
-  SB_CHECK(ret ==
-           contents_ascii.size());
-  SB_CHECK(!::close(file));
-#else   // !defined(STARBOARD)
   std::wofstream file;
 #if BUILDFLAG(IS_WIN)
   file.open(filename.value().c_str());
@@ -355,20 +247,10 @@ void CreateTextFile(const FilePath& filename,
   ASSERT_TRUE(file.is_open());
   file << contents;
   file.close();
-#endif  // defined(STARBOARD)
 }
 
 // Simple function to take out some text from a file.
 std::wstring ReadTextFile(const FilePath& filename) {
-#if defined(STARBOARD)
-  const int size_in_bytes = 64 * sizeof(wchar_t);
-  char contents[size_in_bytes]{0};
-  int file = open(filename.value().c_str(), 0, S_IRUSR | S_IWUSR);
-  SB_CHECK(file >= 0);
-  SB_CHECK(starboard::ReadAll(file, contents, size_in_bytes) != -1);
-  SB_CHECK(!::close(file));
-  return UTF16ToWide(ASCIIToUTF16(contents));
-#else   // !defined(STARBOARD)
   wchar_t contents[64];
   std::wifstream file;
 #if BUILDFLAG(IS_WIN)
@@ -380,10 +262,8 @@ std::wstring ReadTextFile(const FilePath& filename) {
   file.getline(contents, std::size(contents));
   file.close();
   return std::wstring(contents);
-#endif  // defined(STARBOARD)
 }
 
-#if !defined(STARBOARD)
 // Sets |is_inheritable| to indicate whether or not |stream| is set up to be
 // inerhited into child processes (i.e., HANDLE_FLAG_INHERIT is set on the
 // underlying handle on Windows, or FD_CLOEXEC is not set on the underlying file
@@ -407,9 +287,8 @@ void GetIsInheritable(FILE* stream, bool* is_inheritable) {
 #error Not implemented
 #endif
 }
-#endif  // !defined(STARBOARD)
 
-#if BUILDFLAG(IS_POSIX) && !defined(STARBOARD)
+#if BUILDFLAG(IS_POSIX)
 class ScopedWorkingDirectory {
  public:
   explicit ScopedWorkingDirectory(const FilePath& new_working_dir) {
@@ -428,8 +307,8 @@ class ScopedWorkingDirectory {
 TEST_F(FileUtilTest, MakeAbsoluteFilePathNoResolveSymbolicLinks) {
   FilePath cwd;
   ASSERT_TRUE(GetCurrentDirectory(&cwd));
-  const std::pair<FilePath, absl::optional<FilePath>> kExpectedResults[]{
-      {FilePath(), absl::nullopt},
+  const std::pair<FilePath, std::optional<FilePath>> kExpectedResults[]{
+      {FilePath(), std::nullopt},
       {FilePath("."), cwd},
       {FilePath(".."), cwd.DirName()},
       {FilePath("a/.."), cwd},
@@ -459,7 +338,7 @@ TEST_F(FileUtilTest, MakeAbsoluteFilePathNoResolveSymbolicLinks) {
       MakeAbsoluteFilePathNoResolveSymbolicLinks(FilePath("relative_file_path"))
           .has_value());
 }
-#endif  // BUILDFLAG(IS_POSIX) && !defined(STARBOARD)
+#endif  // BUILDFLAG(IS_POSIX)
 
 TEST_F(FileUtilTest, FileAndDirectorySize) {
   // Create three files of 20, 30 and 3 chars (utf8). ComputeDirectorySize
@@ -489,8 +368,6 @@ TEST_F(FileUtilTest, FileAndDirectorySize) {
   EXPECT_EQ(size_f1 + size_f2 + 3, computed_size);
 }
 
-// Starboard only supports absolute file paths.
-#if !defined(STARBOARD)
 TEST_F(FileUtilTest, NormalizeFilePathBasic) {
   // Create a directory under the test dir.  Because we create it,
   // we know it is not a link.
@@ -518,7 +395,6 @@ TEST_F(FileUtilTest, NormalizeFilePathBasic) {
   ASSERT_TRUE(normalized_file_a_path.DirName()
       .IsParent(normalized_file_b_path.DirName()));
 }
-#endif  // !defined(STARBOARD)
 
 #if BUILDFLAG(IS_WIN)
 
@@ -625,18 +501,20 @@ TEST_F(FileUtilTest, NormalizeFilePathReparsePoints) {
   ASSERT_TRUE(CreateDirectory(to_sub_a));
   FilePath normalized_path;
   {
-    ReparsePoint reparse_to_sub_a(to_sub_a, sub_a);
-    ASSERT_TRUE(reparse_to_sub_a.IsValid());
+    auto reparse_to_sub_a = test::FilePathReparsePoint::Create(to_sub_a, sub_a);
+    ASSERT_TRUE(reparse_to_sub_a.has_value());
 
     FilePath to_base_b = base_b.Append(FPL("to_base_b"));
     ASSERT_TRUE(CreateDirectory(to_base_b));
-    ReparsePoint reparse_to_base_b(to_base_b, base_b);
-    ASSERT_TRUE(reparse_to_base_b.IsValid());
+    auto reparse_to_base_b =
+        test::FilePathReparsePoint::Create(to_base_b, base_b);
+    ASSERT_TRUE(reparse_to_base_b.has_value());
 
     FilePath to_sub_long = base_b.Append(FPL("to_sub_long"));
     ASSERT_TRUE(CreateDirectory(to_sub_long));
-    ReparsePoint reparse_to_sub_long(to_sub_long, sub_long);
-    ASSERT_TRUE(reparse_to_sub_long.IsValid());
+    auto reparse_to_sub_long =
+        test::FilePathReparsePoint::Create(to_sub_long, sub_long);
+    ASSERT_TRUE(reparse_to_sub_long.has_value());
 
     // Normalize a junction free path: base_a\sub_a\file.txt .
     ASSERT_TRUE(NormalizeFilePath(file_txt, &normalized_path));
@@ -687,7 +565,7 @@ TEST_F(FileUtilTest, DevicePathToDriveLetter) {
   // Get a drive letter.
   std::wstring real_drive_letter = AsWString(
       ToUpperASCII(AsStringPiece16(temp_dir_.GetPath().value().substr(0, 2))));
-  if (!isalpha(real_drive_letter[0]) || ':' != real_drive_letter[1]) {
+  if (!IsAsciiAlpha(real_drive_letter[0]) || ':' != real_drive_letter[1]) {
     LOG(ERROR) << "Can't get a drive letter to test with.";
     return;
   }
@@ -1046,7 +924,7 @@ INSTANTIATE_TEST_SUITE_P(EnforcementDisabled,
 
 #endif  // BUILDFLAG(IS_WIN)
 
-#if BUILDFLAG(IS_POSIX) && !defined(STARBOARD)
+#if BUILDFLAG(IS_POSIX)
 
 TEST_F(FileUtilTest, CreateAndReadSymlinks) {
   FilePath link_from = temp_dir_.GetPath().Append(FPL("from_file"));
@@ -1102,7 +980,7 @@ TEST_F(FileUtilTest, CreateAndReadRelativeSymlinks) {
   ASSERT_TRUE(ReadSymbolicLink(link_from, &result));
   EXPECT_EQ(filename_link_to.value(), result.value());
 
-  absl::optional<FilePath> absolute_link = ReadSymbolicLinkAbsolute(link_from);
+  std::optional<FilePath> absolute_link = ReadSymbolicLinkAbsolute(link_from);
   ASSERT_TRUE(absolute_link);
   EXPECT_EQ(link_to.value(), absolute_link->value());
 
@@ -1269,7 +1147,7 @@ TEST_F(FileUtilTest, ChangeFilePermissionsAndRead) {
   EXPECT_FALSE(mode & FILE_PERMISSION_READ_BY_USER);
   EXPECT_FALSE(PathIsReadable(file_name));
   // Make sure the file can't be read.
-  EXPECT_EQ(-1, ReadFile(file_name, buffer, kDataSize));
+  EXPECT_EQ(ReadFile(file_name, buffer), std::nullopt);
 
   // Give the read permission.
   EXPECT_TRUE(SetPosixFilePermissions(file_name, FILE_PERMISSION_READ_BY_USER));
@@ -1277,7 +1155,7 @@ TEST_F(FileUtilTest, ChangeFilePermissionsAndRead) {
   EXPECT_TRUE(mode & FILE_PERMISSION_READ_BY_USER);
   EXPECT_TRUE(PathIsReadable(file_name));
   // Make sure the file can be read.
-  EXPECT_EQ(kDataSize, ReadFile(file_name, buffer, kDataSize));
+  EXPECT_EQ(ReadFile(file_name, buffer), kDataSize);
 
   // Delete the file.
   EXPECT_TRUE(DeleteFile(file_name));
@@ -1679,9 +1557,9 @@ TEST_F(FileUtilTest, CopyFileExecutablePermission) {
   EXPECT_EQ(0777, mode);
 }
 
-#endif  // BUILDFLAG(IS_POSIX) && !defined(STARBOARD)
+#endif  // BUILDFLAG(IS_POSIX)
 
-#if !BUILDFLAG(IS_FUCHSIA) && !defined(STARBOARD)
+#if !BUILDFLAG(IS_FUCHSIA)
 
 TEST_F(FileUtilTest, CopyFileACL) {
   // While FileUtilTest.CopyFile asserts the content is correctly copied over,
@@ -1735,7 +1613,7 @@ TEST_F(FileUtilTest, CopyDirectoryACL) {
   ASSERT_FALSE(IsReadOnly(src_subdir));
 }
 
-#endif  // !BUILDFLAG(IS_FUCHSIA) && !defined(STARBOARD)
+#endif  // !BUILDFLAG(IS_FUCHSIA)
 
 TEST_F(FileUtilTest, DeleteNonExistent) {
   FilePath non_existent =
@@ -1940,7 +1818,6 @@ TEST_F(FileUtilTest, DeleteDirRecursiveWithOpenFile) {
              File::FLAG_CREATE | File::FLAG_READ | File::FLAG_WRITE);
   ASSERT_TRUE(PathExists(file_name3));
 
-#if !defined(STARBOARD)
 #if BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_CHROMEOS)
   // On Windows, holding the file open in sufficient to make it un-deletable.
   // The POSIX code is verifiable on Linux by creating an "immutable" file but
@@ -1955,15 +1832,13 @@ TEST_F(FileUtilTest, DeleteDirRecursiveWithOpenFile) {
     ioctl(file1.GetPlatformFile(), FS_IOC_SETFLAGS, &flags);
     ioctl(file3.GetPlatformFile(), FS_IOC_SETFLAGS, &flags);
   }
-#endif  // BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_CHROMEOS)
-#endif  // !defined(STARBOARD)
+#endif
 
   // Delete recursively and check that at least the second file got deleted.
   // This ensures that un-deletable files don't impact those that can be.
   DeletePathRecursively(test_subdir);
   EXPECT_FALSE(PathExists(file_name2));
 
-#if !defined(STARBOARD)
 #if BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_CHROMEOS)
   // Make sure that the test can clean up after itself.
   if (file_attrs_supported) {
@@ -1971,11 +1846,9 @@ TEST_F(FileUtilTest, DeleteDirRecursiveWithOpenFile) {
     ioctl(file1.GetPlatformFile(), FS_IOC_SETFLAGS, &flags);
     ioctl(file3.GetPlatformFile(), FS_IOC_SETFLAGS, &flags);
   }
-#endif  // BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_CHROMEOS)
-#endif  // !defined(STARBOARD)
+#endif
 }
 
-#if !defined(STARBOARD)
 #if BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_CHROMEOS)
 // This test will validate that files which would block when read result in a
 // failure on a call to ReadFileToStringNonBlocking. To accomplish this we will
@@ -2010,10 +1883,7 @@ TEST_F(FileUtilTest, TestNonBlockingFileReadLinux) {
   EXPECT_EQ(result[0], 'a');
 }
 #endif  // BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_CHROMEOS)
-#endif  // !defined(STARBOARD)
 
-// Starboard does not support moving.
-#if !defined(STARBOARD)
 TEST_F(FileUtilTest, MoveFileNew) {
   // Create a file
   FilePath file_name_from =
@@ -2146,10 +2016,7 @@ TEST_F(FileUtilTest, MoveExist) {
   EXPECT_TRUE(PathExists(dir_name_to));
   EXPECT_TRUE(PathExists(file_name_to));
 }
-#endif  // !defined(STARBOARD)
 
-// Starboard does not support |CopyDirectory()|.
-#if !defined(STARBOARD)
 TEST_F(FileUtilTest, CopyDirectoryRecursivelyNew) {
   // Create a directory.
   FilePath dir_name_from =
@@ -2678,7 +2545,6 @@ TEST_F(FileUtilTest, CopyDirectoryExclFileOverFifo) {
   // Check that copying fails.
   EXPECT_FALSE(CopyDirectoryExcl(dir_name_from, dir_name_to, false));
 }
-#endif  // !defined(STARBOARD)
 #endif  // BUILDFLAG(IS_POSIX)
 
 TEST_F(FileUtilTest, CopyFile) {
@@ -2739,8 +2605,6 @@ TEST_F(FileUtilTest, CopyFile) {
   EXPECT_TRUE(IsDirectoryEmpty(dest_dir));
 }
 
-// Starboard does not support DIR_TEST_DATA pointing to //base/test/data.
-#if !defined(STARBOARD)
 // file_util winds up using autoreleased objects on the Mac, so this needs
 // to be a PlatformTest.
 typedef PlatformTest ReadOnlyFileUtilTest;
@@ -2835,7 +2699,6 @@ TEST_F(ReadOnlyFileUtilTest, TextContentsEqual) {
   EXPECT_FALSE(TextContentsEqual(original_file, empty1_file));
   EXPECT_TRUE(TextContentsEqual(blank_line_file, blank_line_crlf_file));
 }
-#endif  // !defined(STARBOARD)
 
 // We don't need equivalent functionality outside of Windows.
 #if BUILDFLAG(IS_WIN)
@@ -2899,8 +2762,6 @@ TEST_F(FileUtilTest, GetTempDirTest) {
 }
 #endif  // BUILDFLAG(IS_WIN)
 
-// Starboard does not support |OpenFile()|.
-#if !defined(STARBOARD)
 // Test that files opened by OpenFile are not set up for inheritance into child
 // procs.
 TEST_F(FileUtilTest, OpenFileNoInheritance) {
@@ -2919,7 +2780,7 @@ TEST_F(FileUtilTest, OpenFileNoInheritance) {
     FILE* file = OpenFile(file_path, mode);
     ASSERT_NE(nullptr, file);
     {
-      ScopedClosureRunner file_closer(BindOnce(IgnoreResult(&CloseFile), file));
+      absl::Cleanup file_closer = [file] { CloseFile(file); };
       bool is_inheritable = true;
       ASSERT_NO_FATAL_FAILURE(GetIsInheritable(file, &is_inheritable));
       EXPECT_FALSE(is_inheritable);
@@ -2927,7 +2788,6 @@ TEST_F(FileUtilTest, OpenFileNoInheritance) {
     ASSERT_TRUE(DeleteFile(file_path));
   }
 }
-#endif  // !defined(STARBOARD)
 
 TEST_F(FileUtilTest, CreateAndOpenTemporaryFileInDir) {
   // Create a temporary file.
@@ -2961,8 +2821,6 @@ TEST_F(FileUtilTest, CreateTemporaryFileTest) {
     EXPECT_TRUE(DeleteFile(i));
 }
 
-// Starboard does not support |CreateAndOpenTemporaryStream()|.
-#if !defined(STARBOARD)
 TEST_F(FileUtilTest, CreateAndOpenTemporaryStreamTest) {
   FilePath names[3];
   ScopedFILE fps[3];
@@ -2986,15 +2844,10 @@ TEST_F(FileUtilTest, CreateAndOpenTemporaryStreamTest) {
     EXPECT_TRUE(DeleteFile(names[i]));
   }
 }
-#endif  // !defined(STARBOARD)
 
-TEST_F(FileUtilTest, GetUniquePathTest) {
-  // Create a unique temp directory and use it to generate a unique file path.
-  base::ScopedTempDir temp_dir;
-  EXPECT_TRUE(temp_dir.CreateUniqueTempDir());
-  EXPECT_TRUE(temp_dir.IsValid());
-  FilePath base_name(FILE_PATH_LITERAL("Unique_Base_Name.txt"));
-  FilePath base_path = temp_dir.GetPath().Append(base_name);
+TEST_F(FileUtilTest, GetUniquePath) {
+  FilePath base_name(FPL("Unique_Base_Name.txt"));
+  FilePath base_path = temp_dir_.GetPath().Append(base_name);
   EXPECT_FALSE(PathExists(base_path));
 
   // GetUniquePath() should return unchanged path if file does not exist.
@@ -3008,14 +2861,14 @@ TEST_F(FileUtilTest, GetUniquePathTest) {
   }
 
   static const FilePath::CharType* const kExpectedNames[] = {
-      FILE_PATH_LITERAL("Unique_Base_Name (1).txt"),
-      FILE_PATH_LITERAL("Unique_Base_Name (2).txt"),
-      FILE_PATH_LITERAL("Unique_Base_Name (3).txt"),
+      FPL("Unique_Base_Name (1).txt"),
+      FPL("Unique_Base_Name (2).txt"),
+      FPL("Unique_Base_Name (3).txt"),
   };
 
   // Call GetUniquePath() three times against this existing file name.
   for (const FilePath::CharType* expected_name : kExpectedNames) {
-    FilePath expected_path = temp_dir.GetPath().Append(expected_name);
+    FilePath expected_path = temp_dir_.GetPath().Append(expected_name);
     FilePath path = GetUniquePath(base_path);
     EXPECT_EQ(expected_path, path);
 
@@ -3030,7 +2883,68 @@ TEST_F(FileUtilTest, GetUniquePathTest) {
   }
 }
 
-#if !defined(STARBOARD)
+TEST_F(FileUtilTest, GetUniquePathTooManyFiles) {
+  // Create a file with the desired path.
+  const FilePath some_file = temp_dir_.GetPath().Append(FPL("SomeFile.txt"));
+  ASSERT_TRUE(File(some_file, File::FLAG_CREATE | File::FLAG_WRITE).IsValid());
+
+  // Now create 100 collisions.
+  for (int i = 1; i <= kMaxUniqueFiles; ++i) {
+    FilePath path =
+        temp_dir_.GetPath().AppendASCII(StringPrintf("SomeFile (%d).txt", i));
+    ASSERT_EQ(GetUniquePath(some_file), path);
+    ASSERT_TRUE(File(path, File::FLAG_CREATE | File::FLAG_WRITE).IsValid());
+  }
+
+  // Verify that the limit has been reached.
+  EXPECT_EQ(GetUniquePath(some_file), base::FilePath());
+}
+
+TEST_F(FileUtilTest, GetUniquePathWithSuffixFormat) {
+  const char kSuffix[] = "_%d";
+  FilePath base_name(FPL("Unique_Base_Name.txt"));
+  FilePath base_path = temp_dir_.GetPath().Append(base_name);
+  EXPECT_FALSE(PathExists(base_path));
+
+  // GetUniquePathWithSuffixFormat() should return unchanged path if file does
+  // not exist.
+  EXPECT_EQ(base_path, GetUniquePathWithSuffixFormat(base_path, kSuffix));
+
+  // Create the file.
+  {
+    File file(base_path,
+              File::FLAG_CREATE | File::FLAG_READ | File::FLAG_WRITE);
+    EXPECT_TRUE(PathExists(base_path));
+  }
+
+  static const FilePath::CharType* const kExpectedNames[] = {
+      FPL("Unique_Base_Name_1.txt"),
+      FPL("Unique_Base_Name_2.txt"),
+      FPL("Unique_Base_Name_3.txt"),
+  };
+
+  // Call GetUniquePathWithSuffixFormat() three times against this existing file
+  // name.
+  for (const FilePath::CharType* expected_name : kExpectedNames) {
+    FilePath expected_path = temp_dir_.GetPath().Append(expected_name);
+    FilePath path = GetUniquePathWithSuffixFormat(base_path, kSuffix);
+    EXPECT_EQ(expected_path, path);
+
+    // Verify that a file with this path indeed does not exist on the file
+    // system.
+    EXPECT_FALSE(PathExists(path));
+
+    // Create the file so it exists for the next call to
+    // GetUniquePathWithSuffixFormat() in the loop.
+    File file(path, File::FLAG_CREATE | File::FLAG_READ | File::FLAG_WRITE);
+    EXPECT_TRUE(PathExists(path));
+  }
+
+  // Verify that a different suffix still ends up with number 1.
+  EXPECT_EQ(temp_dir_.GetPath().Append(FPL("Unique_Base_Name (1).txt")),
+            GetUniquePathWithSuffixFormat(base_path, " (%d)"));
+}
+
 TEST_F(FileUtilTest, FileToFILE) {
   File file;
   FILE* stream = FileToFILE(std::move(file), "w");
@@ -3058,14 +2972,13 @@ TEST_F(FileUtilTest, FILEToFile) {
   ASSERT_EQ(fflush(stream.get()), 0);
   EXPECT_EQ(file.GetLength(), 5L);
 }
-#endif  // !defined(STARBOARD)
 
 #if BUILDFLAG(IS_WIN)
 TEST_F(FileUtilTest, GetSecureSystemTemp) {
   FilePath secure_system_temp;
   ASSERT_EQ(GetSecureSystemTemp(&secure_system_temp), !!::IsUserAnAdmin());
   if (!::IsUserAnAdmin()) {
-    return;
+    GTEST_SKIP() << "This test must be run by an admin user";
   }
 
   FilePath dir_windows;
@@ -3082,17 +2995,26 @@ TEST_F(FileUtilTest, CreateNewTempDirectoryTest) {
   FilePath temp_dir;
   ASSERT_TRUE(CreateNewTempDirectory(FilePath::StringType(), &temp_dir));
   EXPECT_TRUE(PathExists(temp_dir));
+  EXPECT_TRUE(DeleteFile(temp_dir));
+}
 
 #if BUILDFLAG(IS_WIN)
+TEST_F(FileUtilTest, TempDirectoryParentTest) {
+  if (!::IsUserAnAdmin()) {
+    GTEST_SKIP() << "This test must be run by an admin user";
+  }
+  FilePath temp_dir;
+  ASSERT_TRUE(CreateNewTempDirectory(FilePath::StringType(), &temp_dir));
+  EXPECT_TRUE(PathExists(temp_dir));
+
   FilePath expected_parent_dir;
   if (!GetSecureSystemTemp(&expected_parent_dir)) {
     EXPECT_TRUE(PathService::Get(DIR_TEMP, &expected_parent_dir));
   }
   EXPECT_TRUE(expected_parent_dir.IsParent(temp_dir));
-#endif  // BUILDFLAG(IS_WIN)
-
   EXPECT_TRUE(DeleteFile(temp_dir));
 }
+#endif  // BUILDFLAG(IS_WIN)
 
 TEST_F(FileUtilTest, CreateNewTemporaryDirInDirTest) {
   FilePath new_dir;
@@ -3105,7 +3027,6 @@ TEST_F(FileUtilTest, CreateNewTemporaryDirInDirTest) {
 }
 
 #if BUILDFLAG(IS_POSIX) || BUILDFLAG(IS_FUCHSIA)
-#if !defined(STARBOARD)
 TEST_F(FileUtilTest, GetShmemTempDirTest) {
   FilePath dir;
   EXPECT_TRUE(GetShmemTempDir(false, &dir));
@@ -3180,7 +3101,6 @@ TEST_F(FileUtilTest, AllocateFileRegionTest_DontTruncate) {
   ASSERT_TRUE(AllocateFileRegion(&file, 0, kTruncatedFileLength));
   EXPECT_EQ(file.GetLength(), kTestFileLength);
 }
-#endif  // !defined(STARBOARD)
 #endif
 
 TEST_F(FileUtilTest, GetHomeDirTest) {
@@ -3200,7 +3120,7 @@ TEST_F(FileUtilTest, CreateDirectoryTest) {
 #if BUILDFLAG(IS_WIN)
   FilePath test_path =
       test_root.Append(FILE_PATH_LITERAL("dir\\tree\\likely\\doesnt\\exist\\"));
-#elif BUILDFLAG(IS_POSIX) || BUILDFLAG(IS_FUCHSIA) || defined(STARBOARD)
+#elif BUILDFLAG(IS_POSIX) || BUILDFLAG(IS_FUCHSIA)
   FilePath test_path =
       test_root.Append(FILE_PATH_LITERAL("dir/tree/likely/doesnt/exist/"));
 #endif
@@ -3358,8 +3278,6 @@ TEST_F(FileUtilTest, FileEnumeratorTest) {
   EXPECT_TRUE(c4.HasFile(file2_abs));
   EXPECT_EQ(4, c4.size());
 
-// Starboard does not support patterns.
-#if !defined(STARBOARD)
   // Enumerate with a pattern.
   FileEnumerator f5(temp_dir_.GetPath(), true, FILES_AND_DIRECTORIES,
                     FPL("dir*"));
@@ -3370,13 +3288,12 @@ TEST_F(FileUtilTest, FileEnumeratorTest) {
   EXPECT_TRUE(c5.HasFile(dir2inner));
   EXPECT_TRUE(c5.HasFile(dir2innerfile));
   EXPECT_EQ(5, c5.size());
-#endif  // !defined(STARBOARD)
 
 #if BUILDFLAG(IS_WIN)
   {
     // Make dir1 point to dir2.
-    ReparsePoint reparse_point(dir1, dir2);
-    EXPECT_TRUE(reparse_point.IsValid());
+    auto reparse_point = test::FilePathReparsePoint::Create(dir1, dir2);
+    EXPECT_TRUE(reparse_point.has_value());
 
     // There can be a delay for the enumeration code to see the change on
     // the file system so skip this test for XP.
@@ -3459,33 +3376,24 @@ TEST_F(FileUtilTest, ReadFile) {
   std::vector<char> large_buffer(kTestData.size() * 2);
 
   // Read the file with smaller buffer.
-  int bytes_read_small = ReadFile(
-      file_path, &small_buffer[0], static_cast<int>(small_buffer.size()));
-  EXPECT_EQ(static_cast<int>(small_buffer.size()), bytes_read_small);
+  EXPECT_EQ(ReadFile(file_path, small_buffer), small_buffer.size());
   EXPECT_EQ(
       std::string(kTestData.begin(), kTestData.begin() + small_buffer.size()),
       std::string(small_buffer.begin(), small_buffer.end()));
 
   // Read the file with buffer which have exactly same size.
-  int bytes_read_exact = ReadFile(
-      file_path, &exact_buffer[0], static_cast<int>(exact_buffer.size()));
-  EXPECT_EQ(static_cast<int>(kTestData.size()), bytes_read_exact);
+  EXPECT_EQ(ReadFile(file_path, exact_buffer), kTestData.size());
   EXPECT_EQ(kTestData, std::string(exact_buffer.begin(), exact_buffer.end()));
 
   // Read the file with larger buffer.
-  int bytes_read_large = ReadFile(
-      file_path, &large_buffer[0], static_cast<int>(large_buffer.size()));
-  EXPECT_EQ(static_cast<int>(kTestData.size()), bytes_read_large);
+  EXPECT_EQ(ReadFile(file_path, large_buffer), kTestData.size());
   EXPECT_EQ(kTestData, std::string(large_buffer.begin(),
                                    large_buffer.begin() + kTestData.size()));
 
-  // Make sure the return value is -1 if the file doesn't exist.
+  // Make sure the read fails if the file doesn't exist.
   FilePath file_path_not_exist =
       temp_dir_.GetPath().Append(FILE_PATH_LITERAL("ReadFileNotExistTest"));
-  EXPECT_EQ(-1,
-            ReadFile(file_path_not_exist,
-                     &exact_buffer[0],
-                     static_cast<int>(exact_buffer.size())));
+  EXPECT_EQ(ReadFile(file_path_not_exist, exact_buffer), std::nullopt);
 }
 
 TEST_F(FileUtilTest, ReadFileToBytes) {
@@ -3502,7 +3410,7 @@ TEST_F(FileUtilTest, ReadFileToBytes) {
   // Create test file.
   ASSERT_TRUE(WriteFile(file_path, kTestData));
 
-  absl::optional<std::vector<uint8_t>> bytes = ReadFileToBytes(file_path);
+  std::optional<std::vector<uint8_t>> bytes = ReadFileToBytes(file_path);
   ASSERT_TRUE(bytes.has_value());
   EXPECT_EQ(kTestData, bytes);
 
@@ -3573,7 +3481,7 @@ TEST_F(FileUtilTest, ReadFileToString) {
   EXPECT_EQ(0u, data.length());
 }
 
-#if !BUILDFLAG(IS_WIN) && !defined(COMPILER_MSVC)
+#if !BUILDFLAG(IS_WIN)
 TEST_F(FileUtilTest, ReadFileToStringWithUnknownFileSize) {
 #if BUILDFLAG(IS_FUCHSIA)
   test::TaskEnvironment task_environment;
@@ -3603,7 +3511,7 @@ TEST_F(FileUtilTest, ReadFileToStringWithUnknownFileSize) {
 #endif  // !BUILDFLAG(IS_WIN)
 
 #if !BUILDFLAG(IS_WIN) && !BUILDFLAG(IS_NACL) && !BUILDFLAG(IS_FUCHSIA) && \
-    !BUILDFLAG(IS_IOS) && !defined(STARBOARD)
+    !BUILDFLAG(IS_IOS)
 #define ChildMain WriteToPipeChildMain
 #define ChildMainString "WriteToPipeChildMain"
 
@@ -3750,7 +3658,7 @@ TEST_F(FileUtilTest, ReadFileToStringWithNamedPipe) {
   ASSERT_EQ(0, unlink(pipe_path.value().c_str()));
 }
 #endif  // !BUILDFLAG(IS_WIN) && !BUILDFLAG(IS_NACL) && !BUILDFLAG(IS_FUCHSIA)
-        // && !BUILDFLAG(IS_IOS) && !defined(STARBOARD)
+        // && !BUILDFLAG(IS_IOS)
 
 #if BUILDFLAG(IS_WIN)
 #define ChildMain WriteToPipeChildMain
@@ -3971,7 +3879,6 @@ TEST_F(FileUtilTest, ReadFileToStringWithLargeFile) {
   EXPECT_EQ(std::string(kLargeFileSize - 1, 'c'), actual_data);
 }
 
-#if !defined(STARBOARD)
 TEST_F(FileUtilTest, ReadStreamToString) {
   ScopedFILE stream(
       OpenFile(temp_dir_.GetPath().Append(FPL("hello.txt")), "wb+"));
@@ -4036,10 +3943,7 @@ TEST_F(FileUtilTest, ReadStreamToStringNullStream) {
   std::string contents;
   EXPECT_FALSE(ReadStreamToString(nullptr, &contents));
 }
-#endif  // !defined(STARBOARD)
 
-// Starboard does not support |base::File::SetTimes()|.
-#if !defined(STARBOARD)
 TEST_F(FileUtilTest, TouchFile) {
   FilePath data_dir =
       temp_dir_.GetPath().Append(FILE_PATH_LITERAL("FilePathTest"));
@@ -4077,7 +3981,6 @@ TEST_F(FileUtilTest, TouchFile) {
   EXPECT_EQ(modification_time.ToInternalValue(),
             file_info.last_modified.ToInternalValue());
 }
-#endif  // !defined(STARBOARD)
 
 TEST_F(FileUtilTest, WriteFileSpanVariant) {
   FilePath empty_file =
@@ -4141,7 +4044,6 @@ TEST_F(FileUtilTest, IsDirectoryEmpty) {
   EXPECT_FALSE(IsDirectoryEmpty(empty_dir));
 }
 
-#if !defined(STARBOARD)
 #if BUILDFLAG(IS_POSIX) || BUILDFLAG(IS_FUCHSIA)
 
 TEST_F(FileUtilTest, SetNonBlocking) {
@@ -4168,8 +4070,7 @@ TEST_F(FileUtilTest, SetCloseOnExec) {
   EXPECT_TRUE(SetCloseOnExec(fd.get()));
 }
 
-#endif  // BUILDFLAG(IS_POSIX) || BUILDFLAG(IS_FUCHSIA)
-#endif  // !defined(STARBOARD)
+#endif
 
 #if BUILDFLAG(IS_MAC)
 
@@ -4202,7 +4103,7 @@ class VerifyPathControlledByUserTest : public FileUtilTest {
 
     // Get the user and group files are created with from |base_dir_|.
     stat_wrapper_t stat_buf;
-    ASSERT_EQ(0, File::Stat(base_dir_.value().c_str(), &stat_buf));
+    ASSERT_EQ(0, File::Stat(base_dir_, &stat_buf));
     uid_ = stat_buf.st_uid;
     ok_gids_.insert(stat_buf.st_gid);
     bad_gids_.insert(stat_buf.st_gid + 1);
@@ -4502,114 +4403,106 @@ TEST_F(FileUtilTest, NonExistentContentUriTest) {
 }
 #endif
 
-TEST_F(FileUtilTest, GetUniquePathNumberNoFile) {
-  // This file does not exist.
-  const FilePath some_file = temp_dir_.GetPath().Append(FPL("SomeFile.txt"));
+#if BUILDFLAG(IS_WIN) && BUILDFLAG(GOOGLE_CHROME_BRANDING) && \
+    defined(ARCH_CPU_32_BITS)
+// TODO(crbug.com/327582285): Re-enable these tests. They may be failing due to
+// prefetching failing under memory pressure.
+#define FLAKY_327582285 1
+#endif
 
-  // The path is unique as-is.
-  EXPECT_EQ(GetUniquePathNumber(some_file), 0);
-}
-
-TEST_F(FileUtilTest, GetUniquePathNumberFileExists) {
-  // Create a file with the desired path.
-  const FilePath some_file = temp_dir_.GetPath().Append(FPL("SomeFile.txt"));
-  ASSERT_TRUE(File(some_file, File::FLAG_CREATE | File::FLAG_WRITE).IsValid());
-
-  // The file exists, so the number 1 is needed to make it unique.
-  EXPECT_EQ(GetUniquePathNumber(some_file), 1);
-}
-
-TEST_F(FileUtilTest, GetUniquePathNumberFilesExist) {
-  // Create a file with the desired path and with it suffixed with " (1)"
-  const FilePath some_file = temp_dir_.GetPath().Append(FPL("SomeFile.txt"));
-  ASSERT_TRUE(File(some_file, File::FLAG_CREATE | File::FLAG_WRITE).IsValid());
-  const FilePath some_file_one =
-      temp_dir_.GetPath().Append(FPL("SomeFile (1).txt"));
-  ASSERT_TRUE(
-      File(some_file_one, File::FLAG_CREATE | File::FLAG_WRITE).IsValid());
-
-  // This time the number 2 is needed to make it unique.
-  EXPECT_EQ(GetUniquePathNumber(some_file), 2);
-}
-
-TEST_F(FileUtilTest, GetUniquePathNumberTooManyFiles) {
-  // Create a file with the desired path.
-  const FilePath some_file = temp_dir_.GetPath().Append(FPL("SomeFile.txt"));
-  ASSERT_TRUE(File(some_file, File::FLAG_CREATE | File::FLAG_WRITE).IsValid());
-
-  // Now create 100 collisions.
-  for (int i = 1; i <= kMaxUniqueFiles; ++i) {
-    ASSERT_EQ(GetUniquePathNumber(some_file), i);
-    ASSERT_TRUE(File(temp_dir_.GetPath().AppendASCII(
-                         StringPrintf("SomeFile (%d).txt", i)),
-                     File::FLAG_CREATE | File::FLAG_WRITE)
-                    .IsValid());
-  }
-
-  // Verify that the limit has been reached.
-  EXPECT_EQ(GetUniquePathNumber(some_file), -1);
-}
-
-#if !defined(STARBOARD)
-TEST_F(FileUtilTest, PreReadFile_ExistingFile_NoSize) {
+#if defined(FLAKY_327582285)
+#define MAYBE_PreReadFileExistingFileNoSize \
+  DISABLED_PreReadFileExistingFileNoSize
+#else
+#define MAYBE_PreReadFileExistingFileNoSize PreReadFileExistingFileNoSize
+#endif
+TEST_F(FileUtilTest, MAYBE_PreReadFileExistingFileNoSize) {
   FilePath text_file = temp_dir_.GetPath().Append(FPL("text_file"));
   CreateTextFile(text_file, bogus_content);
 
-  EXPECT_TRUE(PreReadFile(text_file, /*is_executable=*/false));
+  EXPECT_TRUE(
+      PreReadFile(text_file, /*is_executable=*/false, /*sequential=*/false));
 }
 
-TEST_F(FileUtilTest, PreReadFile_ExistingFile_ExactSize) {
+#if defined(FLAKY_327582285)
+#define MAYBE_PreReadFileExistingFileExactSize \
+  DISABLED_PreReadFileExistingFileExactSize
+#else
+#define MAYBE_PreReadFileExistingFileExactSize PreReadFileExistingFileExactSize
+#endif
+TEST_F(FileUtilTest, MAYBE_PreReadFileExistingFileExactSize) {
   FilePath text_file = temp_dir_.GetPath().Append(FPL("text_file"));
   CreateTextFile(text_file, bogus_content);
 
   EXPECT_TRUE(PreReadFile(text_file, /*is_executable=*/false,
-                          std::size(bogus_content)));
+                          /*sequential=*/false, std::size(bogus_content)));
 }
 
-TEST_F(FileUtilTest, PreReadFile_ExistingFile_OverSized) {
+#if defined(FLAKY_327582285)
+#define MAYBE_PreReadFileExistingFileOverSized \
+  DISABLED_PreReadFileExistingFileOverSized
+#else
+#define MAYBE_PreReadFileExistingFileOverSized PreReadFileExistingFileOverSized
+#endif
+TEST_F(FileUtilTest, MAYBE_PreReadFileExistingFileOverSized) {
   FilePath text_file = temp_dir_.GetPath().Append(FPL("text_file"));
   CreateTextFile(text_file, bogus_content);
 
   EXPECT_TRUE(PreReadFile(text_file, /*is_executable=*/false,
-                          std::size(bogus_content) * 2));
+                          /*sequential=*/false, std::size(bogus_content) * 2));
 }
 
-TEST_F(FileUtilTest, PreReadFile_ExistingFile_UnderSized) {
+#if defined(FLAKY_327582285)
+#define MAYBE_PreReadFileExistingFileUnderSized \
+  DISABLED_PreReadFileExistingFileUnderSized
+#else
+#define MAYBE_PreReadFileExistingFileUnderSized \
+  PreReadFileExistingFileUnderSized
+#endif
+TEST_F(FileUtilTest, MAYBE_PreReadFileExistingFileUnderSized) {
   FilePath text_file = temp_dir_.GetPath().Append(FPL("text_file"));
   CreateTextFile(text_file, bogus_content);
 
   EXPECT_TRUE(PreReadFile(text_file, /*is_executable=*/false,
-                          std::size(bogus_content) / 2));
+                          /*sequential=*/false, std::size(bogus_content) / 2));
 }
 
-TEST_F(FileUtilTest, PreReadFile_ExistingFile_ZeroSize) {
+TEST_F(FileUtilTest, PreReadFileExistingFileZeroSize) {
   FilePath text_file = temp_dir_.GetPath().Append(FPL("text_file"));
   CreateTextFile(text_file, bogus_content);
 
-  EXPECT_TRUE(PreReadFile(text_file, /*is_executable=*/false, /*max_bytes=*/0));
+  EXPECT_TRUE(PreReadFile(text_file, /*is_executable=*/false,
+                          /*sequential=*/false, /*max_bytes=*/0));
 }
 
-TEST_F(FileUtilTest, PreReadFile_ExistingEmptyFile_NoSize) {
+TEST_F(FileUtilTest, PreReadFileExistingEmptyFileNoSize) {
   FilePath text_file = temp_dir_.GetPath().Append(FPL("text_file"));
   CreateTextFile(text_file, L"");
   // The test just asserts that this doesn't crash. The Windows implementation
   // fails in this case, due to the base::MemoryMappedFile implementation and
   // the limitations of ::MapViewOfFile().
-  PreReadFile(text_file, /*is_executable=*/false);
+  PreReadFile(text_file, /*is_executable=*/false, /*sequential=*/false);
 }
 
-TEST_F(FileUtilTest, PreReadFile_ExistingEmptyFile_ZeroSize) {
+TEST_F(FileUtilTest, PreReadFileExistingEmptyFileZeroSize) {
   FilePath text_file = temp_dir_.GetPath().Append(FPL("text_file"));
   CreateTextFile(text_file, L"");
-  EXPECT_TRUE(PreReadFile(text_file, /*is_executable=*/false, /*max_bytes=*/0));
+  EXPECT_TRUE(PreReadFile(text_file, /*is_executable=*/false,
+                          /*sequential=*/false, /*max_bytes=*/0));
 }
 
-TEST_F(FileUtilTest, PreReadFile_InexistentFile) {
+TEST_F(FileUtilTest, PreReadFileInexistentFile) {
   FilePath inexistent_file = temp_dir_.GetPath().Append(FPL("inexistent_file"));
-  EXPECT_FALSE(PreReadFile(inexistent_file, /*is_executable=*/false));
+  EXPECT_FALSE(PreReadFile(inexistent_file, /*is_executable=*/false,
+                           /*sequential=*/false));
 }
 
-TEST_F(FileUtilTest, PreReadFile_Executable) {
+#if defined(FLAKY_327582285)
+#define MAYBE_PreReadFileExecutable DISABLED_PreReadFileExecutable
+#else
+#define MAYBE_PreReadFileExecutable PreReadFileExecutable
+#endif
+TEST_F(FileUtilTest, MAYBE_PreReadFileExecutable) {
   FilePath exe_data_dir;
   ASSERT_TRUE(PathService::Get(DIR_TEST_DATA, &exe_data_dir));
   exe_data_dir = exe_data_dir.Append(FPL("pe_image_reader"));
@@ -4619,18 +4512,32 @@ TEST_F(FileUtilTest, PreReadFile_Executable) {
   // `test_exe` is a Windows binary, which is fine in this case because only the
   // Windows implementation treats binaries differently from other files.
   const FilePath test_exe = exe_data_dir.Append(FPL("signed.exe"));
-  EXPECT_TRUE(PreReadFile(test_exe, /*is_executable=*/true));
+  EXPECT_TRUE(
+      PreReadFile(test_exe, /*is_executable=*/true, /*sequential=*/false));
 }
-#endif  // !defined(STARBOARD)
 
-// Starboard does not support |OpenFile()|.
-#if !defined(STARBOARD)
+#if defined(FLAKY_327582285)
+#define MAYBE_PreReadFileWithSequentialAccess \
+  DISABLED_PreReadFileWithSequentialAccess
+#else
+#define MAYBE_PreReadFileWithSequentialAccess PreReadFileWithSequentialAccess
+#endif
+TEST_F(FileUtilTest, MAYBE_PreReadFileWithSequentialAccess) {
+  FilePath text_file = temp_dir_.GetPath().Append(FPL("text_file"));
+  CreateTextFile(text_file, bogus_content);
+
+  EXPECT_TRUE(
+      PreReadFile(text_file, /*is_executable=*/false, /*sequential=*/true));
+}
+
+#undef FLAKY_327582285
+
 // Test that temp files obtained racily are all unique (no interference between
 // threads). Mimics file operations in DoLaunchChildTestProcess() to rule out
 // thread-safety issues @ https://crbug.com/826408#c17.
 TEST(FileUtilMultiThreadedTest, MultiThreadedTempFiles) {
 #if BUILDFLAG(IS_FUCHSIA)
-  // TODO(crbug.com/844416): Too slow to run on infra due to QEMU overhead.
+  // TODO(crbug.com/40577019): Too slow to run on infra due to QEMU overhead.
   constexpr int kNumThreads = 8;
 #else
   constexpr int kNumThreads = 64;
@@ -4652,7 +4559,7 @@ TEST(FileUtilMultiThreadedTest, MultiThreadedTempFiles) {
     ScopedFILE output_file(CreateAndOpenTemporaryStream(&output_filename));
     EXPECT_TRUE(output_file);
 
-    const std::string content = GenerateGUID();
+    const std::string content = Uuid::GenerateRandomV4().AsLowercaseString();
 #if BUILDFLAG(IS_WIN)
     HANDLE handle =
         reinterpret_cast<HANDLE>(_get_osfhandle(_fileno(output_file.get())));
@@ -4687,9 +4594,7 @@ TEST(FileUtilMultiThreadedTest, MultiThreadedTempFiles) {
   for (auto& thread : threads)
     thread->Stop();
 }
-#endif  // !defined(STARBOARD)
 
-#if !defined(STARBOARD)
 #if BUILDFLAG(IS_POSIX) || BUILDFLAG(IS_FUCHSIA)
 
 TEST(ScopedFD, ScopedFDDoesClose) {
@@ -4730,9 +4635,7 @@ TEST(ScopedFD, ScopedFDCrashesOnCloseFailure) {
 }
 
 #endif  // BUILDFLAG(IS_POSIX) || BUILDFLAG(IS_FUCHSIA)
-#endif  // !defined(STARBOARD)
 
-#if !defined(STARBOARD)
 #if BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_CHROMEOS) || BUILDFLAG(IS_ANDROID)
 TEST_F(FileUtilTest, CopyFileContentsWithSendfile) {
   // This test validates that sendfile(2) can be used to copy a file contents
@@ -4896,7 +4799,6 @@ TEST_F(FileUtilTest, CopyFileContentsWithSendfileSeqFile) {
 
 #endif  // BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_CHROMEOS) ||
         // BUILDFLAG(IS_ANDROID)
-#endif  // !defined(STARBOARD)
 
 }  // namespace
 

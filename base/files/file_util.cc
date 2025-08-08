@@ -2,6 +2,11 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#ifdef UNSAFE_BUFFERS_BUILD
+// TODO(crbug.com/40284755): Remove this and spanify to fix the errors.
+#pragma allow_unsafe_buffers
+#endif
+
 #include "base/files/file_util.h"
 
 #include "base/task/sequenced_task_runner.h"
@@ -20,12 +25,14 @@
 
 #include "base/bit_cast.h"
 #include "base/check_op.h"
+#include "base/containers/contains.h"
 #include "base/containers/span.h"
 #include "base/files/file_enumerator.h"
 #include "base/files/file_path.h"
 #include "base/functional/function_ref.h"
 #include "base/notreached.h"
 #include "base/posix/eintr_wrapper.h"
+#include "base/ranges/algorithm.h"
 #include "base/strings/string_piece.h"
 #include "base/strings/string_util.h"
 #include "base/strings/stringprintf.h"
@@ -52,7 +59,6 @@ void RunAndReply(OnceCallback<bool()> action_callback,
 
 #endif  // !BUILDFLAG(IS_WIN)
 
-#if !defined(STARBOARD)
 bool ReadStreamToSpanWithMaxSize(
     FILE* stream,
     size_t max_size,
@@ -132,7 +138,6 @@ bool ReadStreamToSpanWithMaxSize(
 
   return read_status;
 }
-#endif
 
 }  // namespace
 
@@ -174,8 +179,7 @@ bool Move(const FilePath& from_path, const FilePath& to_path) {
 }
 
 bool CopyFileContents(File& infile, File& outfile) {
-#if defined(COBALT_PENDING_CLEAN_UP)
-#elif BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_CHROMEOS) || BUILDFLAG(IS_ANDROID)
+#if BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_CHROMEOS) || BUILDFLAG(IS_ANDROID)
   bool retry_slow = false;
   bool res =
       internal::CopyFileContentsWithSendfile(infile, outfile, retry_slow);
@@ -212,7 +216,7 @@ bool CopyFileContents(File& infile, File& outfile) {
     } while (bytes_written_per_read < bytes_read);
   }
 
-  NOTREACHED();
+  NOTREACHED_IN_MIGRATION();
   return false;
 }
 
@@ -220,24 +224,6 @@ bool ContentsEqual(const FilePath& filename1, const FilePath& filename2) {
   // We open the file in binary format even if they are text files because
   // we are just comparing that bytes are exactly same in both files and not
   // doing anything smart with text formatting.
-#ifdef COBALT_PENDING_CLEAN_UP
-  // std::ifstream doesn't work on all our platforms.
-  base::File file1(filename1, base::File::FLAG_OPEN | base::File::FLAG_READ);
-  base::File file2(filename2, base::File::FLAG_OPEN | base::File::FLAG_READ);
-  auto file1_length = file1.GetLength();
-  if (file1_length != file2.GetLength()) {
-    return false;
-  }
-  std::unique_ptr<char[]> file1_content(new char[file1_length]());
-  std::unique_ptr<char[]> file2_content(new char[file1_length]());
-  if (file1.ReadAtCurrentPos(file1_content.get(), file1_length) != file1_length ||
-      file2.ReadAtCurrentPos(file2_content.get(), file1_length) != file1_length) {
-    return false;
-  }
-
-  return memcmp(file1_content.get(), file2_content.get(),
-                file1_length) == 0;
-#else
 #if BUILDFLAG(IS_WIN)
   std::ifstream file1(filename1.value().c_str(),
                       std::ios::in | std::ios::binary);
@@ -271,10 +257,8 @@ bool ContentsEqual(const FilePath& filename1, const FilePath& filename2) {
   file1.close();
   file2.close();
   return true;
-#endif
 }
 
-#if !defined(COBALT_PENDING_CLEAN_UP)
 bool TextContentsEqual(const FilePath& filename1, const FilePath& filename2) {
 #if BUILDFLAG(IS_WIN)
   std::ifstream file1(filename1.value().c_str(), std::ios::in);
@@ -319,9 +303,7 @@ bool TextContentsEqual(const FilePath& filename1, const FilePath& filename2) {
 
   return true;
 }
-#endif  // !defined(COBALT_PENDING_CLEAN_UP)
 
-#if !defined(STARBOARD)
 bool ReadStreamToString(FILE* stream, std::string* contents) {
   return ReadStreamToStringWithMaxSize(
       stream, std::numeric_limits<size_t>::max(), contents);
@@ -346,18 +328,15 @@ bool ReadStreamToStringWithMaxSize(FILE* stream,
   }
   return read_successs;
 }
-#endif
 
-absl::optional<std::vector<uint8_t>> ReadFileToBytes(const FilePath& path) {
+std::optional<std::vector<uint8_t>> ReadFileToBytes(const FilePath& path) {
   if (path.ReferencesParent()) {
-    return absl::nullopt;
+    return std::nullopt;
   }
 
-#ifndef COBALT_PENDING_CLEAN_UP
-  // TODO(b/298237462): Implement ScopedFILE for Starboard.
   ScopedFILE file_stream(OpenFile(path, "rb"));
   if (!file_stream) {
-    return absl::nullopt;
+    return std::nullopt;
   }
 
   std::vector<uint8_t> bytes;
@@ -367,15 +346,8 @@ absl::optional<std::vector<uint8_t>> ReadFileToBytes(const FilePath& path) {
                                      bytes.resize(size);
                                      return make_span(bytes);
                                    })) {
-    return absl::nullopt;
+    return std::nullopt;
   }
-#else
-  std::string contents;
-  if (!ReadFileToString(path, &contents)) {
-    return absl::nullopt;
-  }
-  std::vector<uint8_t> bytes(contents.begin(), contents.end());
-#endif
   return bytes;
 }
 
@@ -391,48 +363,10 @@ bool ReadFileToStringWithMaxSize(const FilePath& path,
     contents->clear();
   if (path.ReferencesParent())
     return false;
-#if defined(COBALT_PENDING_CLEAN_UP)
-  base::File file(path, base::File::FLAG_OPEN | base::File::FLAG_READ);
-  if (!file.IsValid()) {
-    return false;
-  }
-
-  // Use a smaller buffer than in Chromium so we don't run out of stack space.
-  const size_t kBufferSize = 1 << 12;
-  char buf[kBufferSize];
-  size_t len;
-  size_t size = 0;
-  bool read_status = true;
-
-  while ((len = file.ReadAtCurrentPos(buf, sizeof(buf))) > 0) {
-    if (contents) {
-      size_t bytes_to_add = std::min(len, max_size - size);
-      if (size + bytes_to_add > contents->max_size()) {
-        read_status = false;
-        break;
-      }
-      contents->append(buf, std::min(len, max_size - size));
-    }
-
-    if ((max_size - size) < len) {
-      read_status = false;
-      break;
-    }
-
-    size += len;
-  }
-
-  if (contents) {
-    contents->resize(contents->size());
-  }
-  read_status = read_status && file.IsValid();
-  return read_status;
-#else
   ScopedFILE file_stream(OpenFile(path, "rb"));
   if (!file_stream)
     return false;
   return ReadStreamToStringWithMaxSize(file_stream.get(), max_size, contents);
-#endif  // defined(COBALT_PENDING_CLEAN_UP)
 }
 
 bool IsDirectoryEmpty(const FilePath& dir_path) {
@@ -479,7 +413,7 @@ bool TouchFile(const FilePath& path,
     flags |= File::FLAG_WIN_BACKUP_SEMANTICS;
 #elif BUILDFLAG(IS_FUCHSIA)
   // On Fuchsia, we need O_RDONLY for directories, or O_WRONLY for files.
-  // TODO(https://crbug.com/947802): Find a cleaner workaround for this.
+  // TODO(crbug.com/40620916): Find a cleaner workaround for this.
   flags |= (DirectoryExists(path) ? File::FLAG_READ : File::FLAG_WRITE);
 #endif
 
@@ -490,7 +424,6 @@ bool TouchFile(const FilePath& path,
   return file.SetTimes(last_accessed, last_modified);
 }
 
-#if !defined(COBALT_PENDING_CLEAN_UP)
 bool CloseFile(FILE* file) {
   if (file == nullptr)
     return true;
@@ -514,7 +447,23 @@ bool TruncateFile(FILE* file) {
 #endif
   return true;
 }
-#endif  // !defined(COBALT_PENDING_CLEAN_UP)
+
+std::optional<uint64_t> ReadFile(const FilePath& filename,
+                                 span<uint8_t> buffer) {
+  return ReadFile(filename, base::as_writable_chars(buffer));
+}
+
+int ReadFile(const FilePath& filename, char* data, int max_size) {
+  if (max_size < 0) {
+    return -1;
+  }
+  std::optional<uint64_t> result =
+      ReadFile(filename, make_span(data, static_cast<uint32_t>(max_size)));
+  if (!result) {
+    return -1;
+  }
+  return checked_cast<int>(result.value());
+}
 
 bool WriteFile(const FilePath& filename, span<const uint8_t> data) {
   int size = checked_cast<int>(data.size());
@@ -527,66 +476,29 @@ bool WriteFile(const FilePath& filename, StringPiece data) {
   return WriteFile(filename, data.data(), size) == size;
 }
 
-int GetUniquePathNumber(const FilePath& path) {
-  DCHECK(!path.empty());
-  if (!PathExists(path))
-    return 0;
+FilePath GetUniquePath(const FilePath& path) {
+  return GetUniquePathWithSuffixFormat(path, " (%d)");
+}
 
+FilePath GetUniquePathWithSuffixFormat(const FilePath& path,
+                                       cstring_view suffix_format) {
+  DCHECK(!path.empty());
+  DCHECK_EQ(base::ranges::count(suffix_format, '%'), 1);
+  DCHECK(base::Contains(suffix_format, "%d"));
+
+  if (!PathExists(path)) {
+    return path;
+  }
   std::string number;
   for (int count = 1; count <= kMaxUniqueFiles; ++count) {
-    StringAppendF(&number, " (%d)", count);
-    if (!PathExists(path.InsertBeforeExtensionASCII(number)))
-      return count;
+    StringAppendF(&number, suffix_format.c_str(), count);
+    FilePath candidate_path = path.InsertBeforeExtensionASCII(number);
+    if (!PathExists(candidate_path)) {
+      return candidate_path;
+    }
     number.clear();
   }
-
-  return -1;
+  return FilePath();
 }
-
-FilePath GetUniquePath(const FilePath& path) {
-  DCHECK(!path.empty());
-  const int uniquifier = GetUniquePathNumber(path);
-  if (uniquifier > 0)
-    return path.InsertBeforeExtensionASCII(StringPrintf(" (%d)", uniquifier));
-  return uniquifier == 0 ? path : FilePath();
-}
-
-namespace internal {
-
-bool PreReadFileSlow(const FilePath& file_path, int64_t max_bytes) {
-  DCHECK_GE(max_bytes, 0);
-
-  File file(file_path, File::FLAG_OPEN | File::FLAG_READ |
-                           File::FLAG_WIN_SEQUENTIAL_SCAN |
-                           File::FLAG_WIN_SHARE_DELETE);
-  if (!file.IsValid())
-    return false;
-
-  constexpr int kBufferSize = 1024 * 1024;
-  // Ensures the buffer is deallocated at function exit.
-  std::unique_ptr<char[]> buffer_deleter(new char[kBufferSize]);
-  char* const buffer = buffer_deleter.get();
-
-  while (max_bytes > 0) {
-    // The static_cast<int> is safe because kBufferSize is int, and both values
-    // are non-negative. So, the minimum is guaranteed to fit in int.
-    const int read_size =
-        static_cast<int>(std::min<int64_t>(max_bytes, kBufferSize));
-    DCHECK_GE(read_size, 0);
-    DCHECK_LE(read_size, kBufferSize);
-
-    const int read_bytes = file.ReadAtCurrentPos(buffer, read_size);
-    if (read_bytes < 0)
-      return false;
-    if (read_bytes == 0)
-      break;
-
-    max_bytes -= read_bytes;
-  }
-
-  return true;
-}
-
-}  // namespace internal
 
 }  // namespace base

@@ -1,0 +1,3 @@
+This tests that images are allowed in map elements even in strict mode.
+
+TEST PASSED

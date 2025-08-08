@@ -2,20 +2,18 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include "base/sampling_heap_profiler/sampling_heap_profiler.h"
-
-#if defined(COBALT_PENDING_CLEAN_UP)
-#include <string.h>
+#ifdef UNSAFE_BUFFERS_BUILD
+// TODO(crbug.com/40284755): Remove this and spanify to fix the errors.
+#pragma allow_unsafe_buffers
 #endif
+
+#include "base/sampling_heap_profiler/sampling_heap_profiler.h"
 
 #include <algorithm>
 #include <cmath>
 #include <utility>
 
-#if !defined(COBALT_PENDING_CLEAN_UP)
-#include "base/allocator/partition_allocator/partition_alloc.h"
-#include "base/allocator/partition_allocator/shim/allocator_shim.h"
-#endif
+#include "base/allocator/dispatcher/tls.h"
 #include "base/compiler_specific.h"
 #include "base/debug/stack_trace.h"
 #include "base/feature_list.h"
@@ -29,6 +27,8 @@
 #include "base/threading/thread_local_storage.h"
 #include "base/trace_event/heap_profiler_allocation_context_tracker.h"  // no-presubmit-check
 #include "build/build_config.h"
+#include "partition_alloc/partition_alloc.h"
+#include "partition_alloc/shim/allocator_shim.h"
 
 #if BUILDFLAG(IS_APPLE)
 #include <pthread.h>
@@ -38,18 +38,27 @@
 #include <sys/prctl.h>
 #endif
 
-#if defined(STARBOARD)
-#include <pthread.h>
-
-#include "base/check_op.h"
-#include "starboard/thread.h"
-#endif
-
 namespace base {
 
 constexpr uint32_t kMaxStackEntries = 256;
 
 namespace {
+
+struct ThreadLocalData {
+  const char* thread_name = nullptr;
+};
+
+ThreadLocalData* GetThreadLocalData() {
+#if USE_LOCAL_TLS_EMULATION()
+  static base::NoDestructor<
+      base::allocator::dispatcher::ThreadLocalStorage<ThreadLocalData>>
+      thread_local_data("sampling_heap_profiler");
+  return thread_local_data->GetThreadLocalData();
+#else
+  static thread_local ThreadLocalData thread_local_data;
+  return &thread_local_data;
+#endif
+}
 
 #if BUILDFLAG(CAN_UNWIND_WITH_FRAME_POINTERS)
 BASE_FEATURE(kAvoidFramePointers,
@@ -71,7 +80,7 @@ const char* GetAndLeakThreadName() {
     return thread_name;
 
   // prctl requires 16 bytes, snprintf requires 19, pthread_getname_np requires
-  // 64 on macOS, see PlatformThread::SetName in platform_thread_mac.mm.
+  // 64 on macOS, see PlatformThread::SetName in platform_thread_apple.mm.
   constexpr size_t kBufferLen = 64;
   char name[kBufferLen];
 #if BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_CHROMEOS) || BUILDFLAG(IS_ANDROID)
@@ -95,40 +104,19 @@ const char* GetAndLeakThreadName() {
 }
 
 const char* UpdateAndGetThreadName(const char* name) {
-#if defined(STARBOARD)
-  static pthread_once_t s_once_flag = PTHREAD_ONCE_INIT;
-  static pthread_key_t s_thread_local_key = 0;
-  
-  auto InitThreadLocalKey = [](){
-    int res = pthread_key_create(&s_thread_local_key , NULL);
-    DCHECK(res == 0);
-  };
-
-  pthread_once(&s_once_flag, InitThreadLocalKey);
-
-  const char* thread_name =
-      static_cast<const char*>(pthread_getspecific(s_thread_local_key));
+  ThreadLocalData* const thread_local_data = GetThreadLocalData();
   if (name)
-    pthread_setspecific(s_thread_local_key, const_cast<char*>(name));
-  else if (!thread_name)
-    pthread_setspecific(s_thread_local_key,
-                        const_cast<char*>(GetAndLeakThreadName()));
-  return static_cast<const char*>(pthread_getspecific(s_thread_local_key));
-#else
-  static thread_local const char* thread_name;
-  if (name)
-    thread_name = name;
-  if (!thread_name)
-    thread_name = GetAndLeakThreadName();
-  return thread_name;
-#endif
+    thread_local_data->thread_name = name;
+  if (!thread_local_data->thread_name) {
+    thread_local_data->thread_name = GetAndLeakThreadName();
+  }
+  return thread_local_data->thread_name;
 }
 
 // Checks whether unwinding from this function works.
 [[maybe_unused]] StackUnwinder CheckForDefaultUnwindTables() {
-  void* stack[kMaxStackEntries];
-  size_t frame_count = base::debug::CollectStackTrace(const_cast<void**>(stack),
-                                                      kMaxStackEntries);
+  const void* stack[kMaxStackEntries];
+  size_t frame_count = base::debug::CollectStackTrace(stack, kMaxStackEntries);
   // First frame is the current function and can be found without unwind tables.
   return frame_count > 1 ? StackUnwinder::kDefault
                          : StackUnwinder::kUnavailable;
@@ -220,9 +208,9 @@ const char* SamplingHeapProfiler::CachedThreadName() {
   return UpdateAndGetThreadName(nullptr);
 }
 
-void** SamplingHeapProfiler::CaptureStackTrace(void** frames,
-                                               size_t max_entries,
-                                               size_t* count) {
+const void** SamplingHeapProfiler::CaptureStackTrace(const void** frames,
+                                                     size_t max_entries,
+                                                     size_t* count) {
   // Skip top frames as they correspond to the profiler itself.
   size_t skip_frames = 3;
   size_t frame_count = 0;
@@ -242,7 +230,7 @@ void** SamplingHeapProfiler::CaptureStackTrace(void** frames,
     default:
       // Profiler should not be started if ChooseStackUnwinder() returns
       // anything else.
-      NOTREACHED();
+      NOTREACHED_IN_MIGRATION();
       break;
   }
 
@@ -284,10 +272,10 @@ void SamplingHeapProfiler::SampleAdded(void* address,
 
 void SamplingHeapProfiler::CaptureNativeStack(const char* context,
                                               Sample* sample) {
-  void* stack[kMaxStackEntries];
+  const void* stack[kMaxStackEntries];
   size_t frame_count;
   // One frame is reserved for the thread name.
-  void** first_frame =
+  const void** first_frame =
       CaptureStackTrace(stack, kMaxStackEntries - 1, &frame_count);
   DCHECK_LT(frame_count, kMaxStackEntries);
   sample->stack.assign(first_frame, first_frame + frame_count);
@@ -339,6 +327,7 @@ std::vector<const char*> SamplingHeapProfiler::GetStrings() {
 
 // static
 void SamplingHeapProfiler::Init() {
+  GetThreadLocalData();
   PoissonAllocationSampler::Init();
 }
 

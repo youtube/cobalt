@@ -1,0 +1,3 @@
+Document
+++ComboBox ExpandCollapse.ExpandCollapseState='Collapsed' Value.Value='Onscreen 1'
+++ComboBox ExpandCollapse.ExpandCollapseState='Collapsed' Value.Value='Offscreen 1'

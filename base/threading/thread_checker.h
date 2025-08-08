@@ -5,9 +5,11 @@
 #ifndef BASE_THREADING_THREAD_CHECKER_H_
 #define BASE_THREADING_THREAD_CHECKER_H_
 
+#include <string_view>
+
 #include "base/base_export.h"
 #include "base/dcheck_is_on.h"
-#include "base/strings/string_piece.h"
+#include "base/macros/uniquify.h"
 #include "base/thread_annotations.h"
 #include "base/threading/thread_checker_impl.h"
 
@@ -76,16 +78,10 @@
 //     THREAD_CHECKER(thread_checker_);
 //   }
 
-#define THREAD_CHECKER_INTERNAL_CONCAT2(a, b) a##b
-#define THREAD_CHECKER_INTERNAL_CONCAT(a, b) \
-  THREAD_CHECKER_INTERNAL_CONCAT2(a, b)
-#define THREAD_CHECKER_INTERNAL_UID(prefix) \
-  THREAD_CHECKER_INTERNAL_CONCAT(prefix, __LINE__)
-
 #if DCHECK_IS_ON()
 #define THREAD_CHECKER(name) base::ThreadChecker name
-#define DCHECK_CALLED_ON_VALID_THREAD(name, ...)                 \
-  base::ScopedValidateThreadChecker THREAD_CHECKER_INTERNAL_UID( \
+#define DCHECK_CALLED_ON_VALID_THREAD(name, ...)   \
+  base::ScopedValidateThreadChecker BASE_UNIQUIFY( \
       scoped_validate_thread_checker_)(name, ##__VA_ARGS__);
 #define DETACH_FROM_THREAD(name) (name).DetachFromThread()
 #else  // DCHECK_IS_ON()
@@ -141,7 +137,7 @@ class BASE_EXPORT SCOPED_LOCKABLE ScopedValidateThreadChecker {
   explicit ScopedValidateThreadChecker(const ThreadChecker& checker)
       EXCLUSIVE_LOCK_FUNCTION(checker);
   ScopedValidateThreadChecker(const ThreadChecker& checker,
-                              const StringPiece& msg)
+                              std::string_view msg)
       EXCLUSIVE_LOCK_FUNCTION(checker);
 
   ScopedValidateThreadChecker(const ScopedValidateThreadChecker&) = delete;

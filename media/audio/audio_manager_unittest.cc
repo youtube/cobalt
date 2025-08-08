@@ -122,6 +122,10 @@ void CheckDescriptionLabels(const AudioDeviceDescriptions& descriptions,
       EXPECT_TRUE(base::EndsWith(description.device_name,
                                  real_communications_label,
                                  base::CompareCase::SENSITIVE));
+    } else if (description.unique_id == real_default_id) {
+      EXPECT_TRUE(description.is_system_default);
+    } else if (description.unique_id == real_communications_id) {
+      EXPECT_TRUE(description.is_communications_device);
     }
   }
 }
@@ -216,7 +220,7 @@ class AudioManagerTest : public ::testing::Test {
 
   bool InputDevicesAvailable() {
 #if BUILDFLAG(IS_MAC) && defined(ARCH_CPU_ARM64)
-    // TODO(crbug.com/1128458): macOS on ARM64 says it has devices, but won't
+    // TODO(crbug.com/40719640): macOS on ARM64 says it has devices, but won't
     // let any of them be opened or listed.
     return false;
 #else

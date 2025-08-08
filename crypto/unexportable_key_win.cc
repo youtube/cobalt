@@ -2,9 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include <windows.h>
-
-#include <ncrypt.h>
+#include "crypto/unexportable_key_win.h"
 
 #include <string>
 #include <tuple>
@@ -14,14 +12,12 @@
 #include "base/metrics/histogram_functions.h"
 #include "base/numerics/checked_math.h"
 #include "base/strings/string_number_conversions.h"
-#include "base/strings/string_piece.h"
 #include "base/strings/string_util.h"
 #include "base/strings/sys_string_conversions.h"
 #include "base/strings/utf_string_conversions.h"
 #include "base/threading/scoped_blocking_call.h"
 #include "base/threading/scoped_thread_priority.h"
 #include "crypto/random.h"
-#include "crypto/scoped_cng_types.h"
 #include "crypto/sha2.h"
 #include "crypto/unexportable_key.h"
 #include "third_party/boringssl/src/include/openssl/bn.h"
@@ -50,7 +46,7 @@ std::vector<uint8_t> CBBToVector(const CBB* cbb) {
 
 // BCryptAlgorithmFor returns the BCrypt algorithm ID for the given Chromium
 // signing algorithm.
-absl::optional<LPCWSTR> BCryptAlgorithmFor(
+std::optional<LPCWSTR> BCryptAlgorithmFor(
     SignatureVerifier::SignatureAlgorithm algo) {
   switch (algo) {
     case SignatureVerifier::SignatureAlgorithm::RSA_PKCS1_SHA256:
@@ -60,18 +56,18 @@ absl::optional<LPCWSTR> BCryptAlgorithmFor(
       return BCRYPT_ECDSA_P256_ALGORITHM;
 
     default:
-      return absl::nullopt;
+      return std::nullopt;
   }
 }
 
 // GetBestSupported returns the first element of |acceptable_algorithms| that
 // |provider| supports, or |nullopt| if there isn't any.
-absl::optional<SignatureVerifier::SignatureAlgorithm> GetBestSupported(
+std::optional<SignatureVerifier::SignatureAlgorithm> GetBestSupported(
     NCRYPT_PROV_HANDLE provider,
     base::span<const SignatureVerifier::SignatureAlgorithm>
         acceptable_algorithms) {
   for (auto algo : acceptable_algorithms) {
-    absl::optional<LPCWSTR> bcrypto_algo_name = BCryptAlgorithmFor(algo);
+    std::optional<LPCWSTR> bcrypto_algo_name = BCryptAlgorithmFor(algo);
     if (!bcrypto_algo_name) {
       continue;
     }
@@ -83,22 +79,22 @@ absl::optional<SignatureVerifier::SignatureAlgorithm> GetBestSupported(
     }
   }
 
-  return absl::nullopt;
+  return std::nullopt;
 }
 
 // GetKeyProperty returns the given NCrypt key property of |key|.
-absl::optional<std::vector<uint8_t>> GetKeyProperty(NCRYPT_KEY_HANDLE key,
-                                                    LPCWSTR property) {
+std::optional<std::vector<uint8_t>> GetKeyProperty(NCRYPT_KEY_HANDLE key,
+                                                   LPCWSTR property) {
   SCOPED_MAY_LOAD_LIBRARY_AT_BACKGROUND_PRIORITY();
   DWORD size;
   if (FAILED(NCryptGetProperty(key, property, nullptr, 0, &size, 0))) {
-    return absl::nullopt;
+    return std::nullopt;
   }
 
   std::vector<uint8_t> ret(size);
   if (FAILED(
           NCryptGetProperty(key, property, ret.data(), ret.size(), &size, 0))) {
-    return absl::nullopt;
+    return std::nullopt;
   }
   CHECK_EQ(ret.size(), size);
 
@@ -106,30 +102,30 @@ absl::optional<std::vector<uint8_t>> GetKeyProperty(NCRYPT_KEY_HANDLE key,
 }
 
 // ExportKey returns |key| exported in the given format or nullopt on error.
-absl::optional<std::vector<uint8_t>> ExportKey(NCRYPT_KEY_HANDLE key,
-                                               LPCWSTR format) {
+std::optional<std::vector<uint8_t>> ExportKey(NCRYPT_KEY_HANDLE key,
+                                              LPCWSTR format) {
   SCOPED_MAY_LOAD_LIBRARY_AT_BACKGROUND_PRIORITY();
   DWORD output_size;
   if (FAILED(NCryptExportKey(key, 0, format, nullptr, nullptr, 0, &output_size,
                              0))) {
-    return absl::nullopt;
+    return std::nullopt;
   }
 
   std::vector<uint8_t> output(output_size);
   if (FAILED(NCryptExportKey(key, 0, format, nullptr, output.data(),
                              output.size(), &output_size, 0))) {
-    return absl::nullopt;
+    return std::nullopt;
   }
   CHECK_EQ(output.size(), output_size);
 
   return output;
 }
 
-absl::optional<std::vector<uint8_t>> GetP256ECDSASPKI(NCRYPT_KEY_HANDLE key) {
-  const absl::optional<std::vector<uint8_t>> pub_key =
+std::optional<std::vector<uint8_t>> GetP256ECDSASPKI(NCRYPT_KEY_HANDLE key) {
+  const std::optional<std::vector<uint8_t>> pub_key =
       ExportKey(key, BCRYPT_ECCPUBLIC_BLOB);
   if (!pub_key) {
-    return absl::nullopt;
+    return std::nullopt;
   }
 
   // The exported key is a |BCRYPT_ECCKEY_BLOB| followed by the bytes of the
@@ -137,7 +133,7 @@ absl::optional<std::vector<uint8_t>> GetP256ECDSASPKI(NCRYPT_KEY_HANDLE key) {
   // https://docs.microsoft.com/en-us/windows/win32/api/bcrypt/ns-bcrypt-bcrypt_ecckey_blob
   BCRYPT_ECCKEY_BLOB header;
   if (pub_key->size() < sizeof(header)) {
-    return absl::nullopt;
+    return std::nullopt;
   }
   memcpy(&header, pub_key->data(), sizeof(header));
   // |cbKey| is documented[1] as "the length, in bytes, of the key". It is
@@ -146,23 +142,23 @@ absl::optional<std::vector<uint8_t>> GetP256ECDSASPKI(NCRYPT_KEY_HANDLE key) {
        header.dwMagic != BCRYPT_ECDSA_PUBLIC_GENERIC_MAGIC) ||
       header.cbKey != 256 / 8 ||
       pub_key->size() - sizeof(BCRYPT_ECCKEY_BLOB) != 64) {
-    return absl::nullopt;
+    return std::nullopt;
   }
 
   // Sometimes NCrypt will return a generic dwMagic even when asked for a P-256
   // key. In that case, do extra validation to make sure that `key` is in fact
   // a P-256 key.
   if (header.dwMagic == BCRYPT_ECDSA_PUBLIC_GENERIC_MAGIC) {
-    const absl::optional<std::vector<uint8_t>> curve_name =
+    const std::optional<std::vector<uint8_t>> curve_name =
         GetKeyProperty(key, NCRYPT_ECC_CURVE_NAME_PROPERTY);
     if (!curve_name) {
-      return absl::nullopt;
+      return std::nullopt;
     }
 
     if (curve_name->size() != sizeof(BCRYPT_ECC_CURVE_NISTP256) ||
         memcmp(curve_name->data(), BCRYPT_ECC_CURVE_NISTP256,
                sizeof(BCRYPT_ECC_CURVE_NISTP256)) != 0) {
-      return absl::nullopt;
+      return std::nullopt;
     }
   }
 
@@ -175,7 +171,7 @@ absl::optional<std::vector<uint8_t>> GetP256ECDSASPKI(NCRYPT_KEY_HANDLE key) {
   bssl::UniquePtr<EC_POINT> point(EC_POINT_new(p256.get()));
   if (!EC_POINT_oct2point(p256.get(), point.get(), x962, sizeof(x962),
                           /*ctx=*/nullptr)) {
-    return absl::nullopt;
+    return std::nullopt;
   }
   bssl::UniquePtr<EC_KEY> ec_key(
       EC_KEY_new_by_curve_name(NID_X9_62_prime256v1));
@@ -189,11 +185,11 @@ absl::optional<std::vector<uint8_t>> GetP256ECDSASPKI(NCRYPT_KEY_HANDLE key) {
   return CBBToVector(cbb.get());
 }
 
-absl::optional<std::vector<uint8_t>> GetRSASPKI(NCRYPT_KEY_HANDLE key) {
-  const absl::optional<std::vector<uint8_t>> pub_key =
+std::optional<std::vector<uint8_t>> GetRSASPKI(NCRYPT_KEY_HANDLE key) {
+  const std::optional<std::vector<uint8_t>> pub_key =
       ExportKey(key, BCRYPT_RSAPUBLIC_BLOB);
   if (!pub_key) {
-    return absl::nullopt;
+    return std::nullopt;
   }
 
   // The exported key is a |BCRYPT_RSAKEY_BLOB| followed by the bytes of the
@@ -201,11 +197,11 @@ absl::optional<std::vector<uint8_t>> GetRSASPKI(NCRYPT_KEY_HANDLE key) {
   // https://docs.microsoft.com/en-us/windows/win32/api/bcrypt/ns-bcrypt-bcrypt_rsakey_blob
   BCRYPT_RSAKEY_BLOB header;
   if (pub_key->size() < sizeof(header)) {
-    return absl::nullopt;
+    return std::nullopt;
   }
   memcpy(&header, pub_key->data(), sizeof(header));
   if (header.Magic != static_cast<ULONG>(BCRYPT_RSAPUBLIC_MAGIC)) {
-    return absl::nullopt;
+    return std::nullopt;
   }
 
   size_t bytes_needed;
@@ -213,7 +209,7 @@ absl::optional<std::vector<uint8_t>> GetRSASPKI(NCRYPT_KEY_HANDLE key) {
                       base::CheckAdd(header.cbPublicExp, header.cbModulus))
            .AssignIfValid(&bytes_needed) ||
       pub_key->size() < bytes_needed) {
-    return absl::nullopt;
+    return std::nullopt;
   }
 
   bssl::UniquePtr<BIGNUM> e(
@@ -234,8 +230,8 @@ absl::optional<std::vector<uint8_t>> GetRSASPKI(NCRYPT_KEY_HANDLE key) {
   return CBBToVector(cbb.get());
 }
 
-absl::optional<std::vector<uint8_t>> SignECDSA(NCRYPT_KEY_HANDLE key,
-                                               base::span<const uint8_t> data) {
+std::optional<std::vector<uint8_t>> SignECDSA(NCRYPT_KEY_HANDLE key,
+                                              base::span<const uint8_t> data) {
   base::ScopedBlockingCall scoped_blocking_call(FROM_HERE,
                                                 base::BlockingType::WILL_BLOCK);
 
@@ -249,7 +245,7 @@ absl::optional<std::vector<uint8_t>> SignECDSA(NCRYPT_KEY_HANDLE key,
     if (FAILED(NCryptSignHash(key, nullptr, digest.data(), digest.size(),
                               sig.data(), sig.size(), &sig_size,
                               NCRYPT_SILENT_FLAG))) {
-      return absl::nullopt;
+      return std::nullopt;
     }
   }
   CHECK_EQ(sig.size(), sig_size);
@@ -266,8 +262,8 @@ absl::optional<std::vector<uint8_t>> SignECDSA(NCRYPT_KEY_HANDLE key,
   return CBBToVector(cbb.get());
 }
 
-absl::optional<std::vector<uint8_t>> SignRSA(NCRYPT_KEY_HANDLE key,
-                                             base::span<const uint8_t> data) {
+std::optional<std::vector<uint8_t>> SignRSA(NCRYPT_KEY_HANDLE key,
+                                            base::span<const uint8_t> data) {
   base::ScopedBlockingCall scoped_blocking_call(FROM_HERE,
                                                 base::BlockingType::WILL_BLOCK);
 
@@ -280,14 +276,14 @@ absl::optional<std::vector<uint8_t>> SignRSA(NCRYPT_KEY_HANDLE key,
   if (FAILED(NCryptSignHash(key, &padding_info, digest.data(), digest.size(),
                             nullptr, 0, &sig_size,
                             NCRYPT_SILENT_FLAG | BCRYPT_PAD_PKCS1))) {
-    return absl::nullopt;
+    return std::nullopt;
   }
 
   std::vector<uint8_t> sig(sig_size);
   if (FAILED(NCryptSignHash(key, &padding_info, digest.data(), digest.size(),
                             sig.data(), sig.size(), &sig_size,
                             NCRYPT_SILENT_FLAG | BCRYPT_PAD_PKCS1))) {
-    return absl::nullopt;
+    return std::nullopt;
   }
   CHECK_EQ(sig.size(), sig_size);
 
@@ -314,7 +310,7 @@ class ECDSAKey : public UnexportableSigningKey {
 
   std::vector<uint8_t> GetWrappedKey() const override { return wrapped_; }
 
-  absl::optional<std::vector<uint8_t>> SignSlowly(
+  std::optional<std::vector<uint8_t>> SignSlowly(
       base::span<const uint8_t> data) override {
     return SignECDSA(key_.get(), data);
   }
@@ -345,7 +341,7 @@ class RSAKey : public UnexportableSigningKey {
 
   std::vector<uint8_t> GetWrappedKey() const override { return wrapped_; }
 
-  absl::optional<std::vector<uint8_t>> SignSlowly(
+  std::optional<std::vector<uint8_t>> SignSlowly(
       base::span<const uint8_t> data) override {
     return SignRSA(key_.get(), data);
   }
@@ -362,7 +358,7 @@ class UnexportableKeyProviderWin : public UnexportableKeyProvider {
  public:
   ~UnexportableKeyProviderWin() override = default;
 
-  absl::optional<SignatureVerifier::SignatureAlgorithm> SelectAlgorithm(
+  std::optional<SignatureVerifier::SignatureAlgorithm> SelectAlgorithm(
       base::span<const SignatureVerifier::SignatureAlgorithm>
           acceptable_algorithms) override {
     ScopedNCryptProvider provider;
@@ -371,7 +367,7 @@ class UnexportableKeyProviderWin : public UnexportableKeyProvider {
       if (FAILED(NCryptOpenStorageProvider(
               ScopedNCryptProvider::Receiver(provider).get(),
               MS_PLATFORM_CRYPTO_PROVIDER, /*flags=*/0))) {
-        return absl::nullopt;
+        return std::nullopt;
       }
     }
 
@@ -394,7 +390,7 @@ class UnexportableKeyProviderWin : public UnexportableKeyProvider {
       }
     }
 
-    absl::optional<SignatureVerifier::SignatureAlgorithm> algo =
+    std::optional<SignatureVerifier::SignatureAlgorithm> algo =
         GetBestSupported(provider.get(), acceptable_algorithms);
     if (!algo) {
       return nullptr;
@@ -416,13 +412,13 @@ class UnexportableKeyProviderWin : public UnexportableKeyProvider {
       }
     }
 
-    const absl::optional<std::vector<uint8_t>> wrapped_key =
+    const std::optional<std::vector<uint8_t>> wrapped_key =
         ExportKey(key.get(), BCRYPT_OPAQUE_KEY_BLOB);
     if (!wrapped_key) {
       return nullptr;
     }
 
-    absl::optional<std::vector<uint8_t>> spki;
+    std::optional<std::vector<uint8_t>> spki;
     switch (*algo) {
       case SignatureVerifier::SignatureAlgorithm::ECDSA_SHA256:
         spki = GetP256ECDSASPKI(key.get());
@@ -450,24 +446,11 @@ class UnexportableKeyProviderWin : public UnexportableKeyProvider {
 
     ScopedNCryptProvider provider;
     ScopedNCryptKey key;
-    {
-      SCOPED_MAY_LOAD_LIBRARY_AT_BACKGROUND_PRIORITY();
-      if (FAILED(NCryptOpenStorageProvider(
-              ScopedNCryptProvider::Receiver(provider).get(),
-              MS_PLATFORM_CRYPTO_PROVIDER, /*flags=*/0))) {
-        return nullptr;
-      }
-
-      if (FAILED(NCryptImportKey(
-              provider.get(), /*hImportKey=*/NULL, BCRYPT_OPAQUE_KEY_BLOB,
-              /*pParameterList=*/nullptr, ScopedNCryptKey::Receiver(key).get(),
-              const_cast<PBYTE>(wrapped.data()), wrapped.size(),
-              /*dwFlags=*/NCRYPT_SILENT_FLAG))) {
-        return nullptr;
-      }
+    if (!LoadWrappedTPMKey(wrapped, provider, key)) {
+      return nullptr;
     }
 
-    const absl::optional<std::vector<uint8_t>> algo_bytes =
+    const std::optional<std::vector<uint8_t>> algo_bytes =
         GetKeyProperty(key.get(), NCRYPT_ALGORITHM_PROPERTY);
     if (!algo_bytes) {
       return nullptr;
@@ -479,7 +462,7 @@ class UnexportableKeyProviderWin : public UnexportableKeyProvider {
     static const wchar_t kECDSA[] = L"ECDSA";
     static const wchar_t kRSA[] = BCRYPT_RSA_ALGORITHM;
 
-    absl::optional<std::vector<uint8_t>> spki;
+    std::optional<std::vector<uint8_t>> spki;
     if (algo_bytes->size() == sizeof(kECDSA) &&
         memcmp(algo_bytes->data(), kECDSA, sizeof(kECDSA)) == 0) {
       spki = GetP256ECDSASPKI(key.get());
@@ -502,6 +485,11 @@ class UnexportableKeyProviderWin : public UnexportableKeyProvider {
 
     return nullptr;
   }
+
+  bool DeleteSigningKeySlowly(base::span<const uint8_t> wrapped) override {
+    // Unexportable keys are stateless on Windows.
+    return true;
+  }
 };
 
 // ECDSASoftwareKey wraps a Credential Guard stored P-256 ECDSA key.
@@ -522,30 +510,34 @@ class ECDSASoftwareKey : public VirtualUnexportableSigningKey {
 
   std::string GetKeyName() const override { return name_; }
 
-  absl::optional<std::vector<uint8_t>> Sign(
+  std::optional<std::vector<uint8_t>> Sign(
       base::span<const uint8_t> data) override {
-    if (!valid_) {
-      return absl::nullopt;
+    if (!key_.is_valid()) {
+      return std::nullopt;
     }
 
     return SignECDSA(key_.get(), data);
   }
 
-  bool DeleteKey() override {
-    if (!valid_) {
-      return false;
+  void DeleteKey() override {
+    if (!key_.is_valid()) {
+      return;
     }
 
-    auto status = NCryptDeleteKey(key_.get(), NCRYPT_SILENT_FLAG);
-    valid_ = false;
-    return !FAILED(status);
+    // If key deletion succeeds, NCryptDeleteKey frees the key. To avoid double
+    // free, we need to release the key from the ScopedNCryptKey RAII object.
+    // Key deletion can fail in circumstances which are not under the
+    // application's control. For these cases, ScopedNCrypt key should free the
+    // key.
+    if (NCryptDeleteKey(key_.get(), NCRYPT_SILENT_FLAG) == ERROR_SUCCESS) {
+      static_cast<void>(key_.release());
+    }
   }
 
  private:
   ScopedNCryptKey key_;
   const std::string name_;
   const std::vector<uint8_t> spki_;
-  bool valid_ = true;
 };
 
 // RSASoftwareKey wraps a Credential Guard stored RSA key.
@@ -566,30 +558,34 @@ class RSASoftwareKey : public VirtualUnexportableSigningKey {
 
   std::string GetKeyName() const override { return name_; }
 
-  absl::optional<std::vector<uint8_t>> Sign(
+  std::optional<std::vector<uint8_t>> Sign(
       base::span<const uint8_t> data) override {
-    if (!valid_) {
-      return absl::nullopt;
+    if (!key_.is_valid()) {
+      return std::nullopt;
     }
 
     return SignRSA(key_.get(), data);
   }
 
-  bool DeleteKey() override {
-    if (!valid_) {
-      return false;
+  void DeleteKey() override {
+    if (!key_.is_valid()) {
+      return;
     }
 
-    auto status = NCryptDeleteKey(key_.get(), NCRYPT_SILENT_FLAG);
-    valid_ = false;
-    return !FAILED(status);
+    // If key deletion succeeds, NCryptDeleteKey frees the key. To avoid double
+    // free, we need to release the key from the ScopedNCryptKey RAII object.
+    // Key deletion can fail in circumstances which are not under the
+    // application's control. For these cases, ScopedNCrypt key should free the
+    // key.
+    if (NCryptDeleteKey(key_.get(), NCRYPT_SILENT_FLAG) == ERROR_SUCCESS) {
+      static_cast<void>(key_.release());
+    }
   }
 
  private:
   ScopedNCryptKey key_;
   std::string name_;
   const std::vector<uint8_t> spki_;
-  bool valid_ = true;
 };
 
 // UnexportableKeyProviderWin uses NCrypt and the Platform Crypto
@@ -599,7 +595,7 @@ class VirtualUnexportableKeyProviderWin
  public:
   ~VirtualUnexportableKeyProviderWin() override = default;
 
-  absl::optional<SignatureVerifier::SignatureAlgorithm> SelectAlgorithm(
+  std::optional<SignatureVerifier::SignatureAlgorithm> SelectAlgorithm(
       base::span<const SignatureVerifier::SignatureAlgorithm>
           acceptable_algorithms) override {
     ScopedNCryptProvider provider;
@@ -610,7 +606,7 @@ class VirtualUnexportableKeyProviderWin
           MS_KEY_STORAGE_PROVIDER, /*dwFlags=*/0);
       if (FAILED(status)) {
         base::UmaHistogramSparse(kMetricVirtualOpenStorageError, status);
-        return absl::nullopt;
+        return std::nullopt;
       }
     }
 
@@ -636,7 +632,7 @@ class VirtualUnexportableKeyProviderWin
       }
     }
 
-    absl::optional<SignatureVerifier::SignatureAlgorithm> algo =
+    std::optional<SignatureVerifier::SignatureAlgorithm> algo =
         GetBestSupported(provider.get(), acceptable_algorithms);
     if (!algo) {
       return nullptr;
@@ -664,7 +660,7 @@ class VirtualUnexportableKeyProviderWin
       }
     }
 
-    absl::optional<std::vector<uint8_t>> spki;
+    std::optional<std::vector<uint8_t>> spki;
     switch (*algo) {
       case SignatureVerifier::SignatureAlgorithm::ECDSA_SHA256:
         spki = GetP256ECDSASPKI(key.get());
@@ -712,7 +708,7 @@ class VirtualUnexportableKeyProviderWin
       }
     }
 
-    const absl::optional<std::vector<uint8_t>> algo_bytes =
+    const std::optional<std::vector<uint8_t>> algo_bytes =
         GetKeyProperty(key.get(), NCRYPT_ALGORITHM_PROPERTY);
 
     // This is the expected behavior, but note it is different from
@@ -720,7 +716,7 @@ class VirtualUnexportableKeyProviderWin
     static const wchar_t kECDSA[] = BCRYPT_ECDSA_P256_ALGORITHM;
     static const wchar_t kRSA[] = BCRYPT_RSA_ALGORITHM;
 
-    absl::optional<std::vector<uint8_t>> spki;
+    std::optional<std::vector<uint8_t>> spki;
     if (algo_bytes->size() == sizeof(kECDSA) &&
         memcmp(algo_bytes->data(), kECDSA, sizeof(kECDSA)) == 0) {
       spki = GetP256ECDSASPKI(key.get());
@@ -744,6 +740,27 @@ class VirtualUnexportableKeyProviderWin
 };
 
 }  // namespace
+
+bool LoadWrappedTPMKey(base::span<const uint8_t> wrapped,
+                       ScopedNCryptProvider& provider,
+                       ScopedNCryptKey& key) {
+  SCOPED_MAY_LOAD_LIBRARY_AT_BACKGROUND_PRIORITY();
+  if (FAILED(NCryptOpenStorageProvider(
+          ScopedNCryptProvider::Receiver(provider).get(),
+          MS_PLATFORM_CRYPTO_PROVIDER,
+          /*flags=*/0))) {
+    return false;
+  }
+
+  if (FAILED(NCryptImportKey(
+          provider.get(), /*hImportKey=*/NULL, BCRYPT_OPAQUE_KEY_BLOB,
+          /*pParameterList=*/nullptr, ScopedNCryptKey::Receiver(key).get(),
+          const_cast<PBYTE>(wrapped.data()), wrapped.size(),
+          /*dwFlags=*/NCRYPT_SILENT_FLAG))) {
+    return false;
+  }
+  return true;
+}
 
 std::unique_ptr<UnexportableKeyProvider> GetUnexportableKeyProviderWin() {
   return std::make_unique<UnexportableKeyProviderWin>();

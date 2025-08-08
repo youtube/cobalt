@@ -2,6 +2,11 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#ifdef UNSAFE_BUFFERS_BUILD
+// TODO(crbug.com/40284755): Remove this and spanify to fix the errors.
+#pragma allow_unsafe_buffers
+#endif
+
 #ifndef BASE_STRINGS_STRING_NUMBER_CONVERSIONS_H_
 #define BASE_STRINGS_STRING_NUMBER_CONVERSIONS_H_
 
@@ -79,11 +84,6 @@ BASE_EXPORT bool StringToUint(StringPiece16 input, unsigned* output);
 BASE_EXPORT bool StringToInt64(StringPiece input, int64_t* output);
 BASE_EXPORT bool StringToInt64(StringPiece16 input, int64_t* output);
 
-#if defined(STARBOARD)
-BASE_EXPORT bool StringToInt32(StringPiece input, int32_t* output);
-BASE_EXPORT bool StringToUint32(StringPiece input, uint32_t* output);
-#endif
-
 BASE_EXPORT bool StringToUint64(StringPiece input, uint64_t* output);
 BASE_EXPORT bool StringToUint64(StringPiece16 input, uint64_t* output);
 
@@ -111,6 +111,23 @@ BASE_EXPORT bool StringToDouble(StringPiece16 input, double* output);
 //   std::numeric_limits<size_t>::max() / 2
 BASE_EXPORT std::string HexEncode(const void* bytes, size_t size);
 BASE_EXPORT std::string HexEncode(base::span<const uint8_t> bytes);
+BASE_EXPORT std::string HexEncode(StringPiece chars);
+
+// Appends a hex representation of `byte`, as two uppercase (by default)
+// characters, to `output`. This is a useful primitive in larger conversion
+// routines.
+inline void AppendHexEncodedByte(uint8_t byte,
+                                 std::string& output,
+                                 bool uppercase = true) {
+  static constexpr char kHexCharsUpper[] = {'0', '1', '2', '3', '4', '5',
+                                            '6', '7', '8', '9', 'A', 'B',
+                                            'C', 'D', 'E', 'F'};
+  static constexpr char kHexCharsLower[] = {'0', '1', '2', '3', '4', '5',
+                                            '6', '7', '8', '9', 'a', 'b',
+                                            'c', 'd', 'e', 'f'};
+  const char* const hex_chars = uppercase ? kHexCharsUpper : kHexCharsLower;
+  output.append({hex_chars[byte >> 4], hex_chars[byte & 0xf]});
+}
 
 // Best effort conversion, see StringToInt above for restrictions.
 // Will only successful parse hex values that will fit into |output|, i.e.

@@ -2,11 +2,16 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#ifdef UNSAFE_BUFFERS_BUILD
+// TODO(crbug.com/40284755): Remove this and spanify to fix the errors.
+#pragma allow_unsafe_buffers
+#endif
+
 #include "base/process/environment_internal.h"
 
-#if !defined(STARBOARD)
-
 #include <stddef.h>
+
+#include <vector>
 
 #include "build/build_config.h"
 
@@ -14,7 +19,9 @@
 #include <string.h>
 #endif
 
-#include <vector>
+#if BUILDFLAG(IS_WIN)
+#include "base/check_op.h"
+#endif
 
 namespace base {
 namespace internal {
@@ -134,5 +141,3 @@ NativeEnvironmentString AlterEnvironment(const wchar_t* env,
 
 }  // namespace internal
 }  // namespace base
-
-#endif  // !defined(STARBOARD)

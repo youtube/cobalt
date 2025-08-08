@@ -2,6 +2,11 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#ifdef UNSAFE_BUFFERS_BUILD
+// TODO(crbug.com/40284755): Remove this and spanify to fix the errors.
+#pragma allow_unsafe_buffers
+#endif
+
 #include "base/trace_event/trace_event_memory_overhead.h"
 
 #include <algorithm>
@@ -50,9 +55,9 @@ const char* ObjectTypeToString(TraceEventMemoryOverhead::ObjectType type) {
     case TraceEventMemoryOverhead::kFrameMetrics:
       return "FrameMetrics";
     case TraceEventMemoryOverhead::kLast:
-      NOTREACHED();
+      NOTREACHED_IN_MIGRATION();
   }
-  NOTREACHED();
+  NOTREACHED_IN_MIGRATION();
   return "BUG";
 }
 
@@ -91,7 +96,7 @@ void TraceEventMemoryOverhead::AddString(const std::string& str) {
 void TraceEventMemoryOverhead::AddRefCountedString(
     const RefCountedString& str) {
   Add(kOther, sizeof(RefCountedString));
-  AddString(str.data());
+  AddString(str.as_string());
 }
 
 void TraceEventMemoryOverhead::AddValue(const Value& value) {

@@ -20,6 +20,8 @@ namespace gfx {
 struct GFX_EXPORT FontRenderParams {
   bool operator==(const FontRenderParams& other) const {
     return antialiasing == other.antialiasing &&
+           text_contrast == other.text_contrast &&
+           text_gamma == other.text_gamma &&
            subpixel_positioning == other.subpixel_positioning &&
            autohinter == other.autohinter && use_bitmaps == other.use_bitmaps &&
            hinting == other.hinting &&
@@ -71,6 +73,10 @@ struct GFX_EXPORT FontRenderParams {
   // subpixel order.
   SubpixelRendering subpixel_rendering = SUBPIXEL_RENDERING_NONE;
 
+  // Text contrast and gamma settings, defaulted to Skia's fixed values.
+  float text_contrast = SK_GAMMA_CONTRAST;
+  float text_gamma = SK_GAMMA_EXPONENT;
+
   static SkPixelGeometry SubpixelRenderingToSkiaPixelGeometry(
       SubpixelRendering subpixel_rendering);
 };
@@ -109,7 +115,7 @@ GFX_EXPORT FontRenderParams GetFontRenderParams(
     const FontRenderParamsQuery& query,
     std::string* family_out);
 
-#if BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_CHROMEOS)
+#if BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_CHROMEOS) || BUILDFLAG(IS_WIN)
 // Clears GetFontRenderParams()'s cache. Intended to be called by tests that are
 // changing Fontconfig's configuration.
 GFX_EXPORT void ClearFontRenderParamsCacheForTest();

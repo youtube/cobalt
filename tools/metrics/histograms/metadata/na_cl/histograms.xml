@@ -22,22 +22,8 @@ chromium-metrics-reviews@google.com.
 
 <histograms>
 
-<histogram name="NaCl.AppType" enum="NaClAppTypeEnum"
-    expires_after="2023-04-16">
-  <obsolete>
-    Deprecated in M110 in favor of NaCl.EmbedderType, which has more
-    fine-grained categories such as extensions and their manifest version.
-  </obsolete>
-  <owner>dschuff@chromium.org</owner>
-  <owner>fabiansommer@chromium.org</owner>
-  <summary>
-    Type of NaCl/PNaCl application/extension. Recorded at plugin creation time
-    after the permission check.
-  </summary>
-</histogram>
-
 <histogram name="NaCl.Client.Helper.InitState" enum="NaClHelperStatus"
-    expires_after="2023-07-31">
+    expires_after="2024-07-31">
   <owner>dschuff@chromium.org</owner>
   <owner>fabiansommer@chromium.org</owner>
   <summary>
@@ -46,7 +32,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="NaCl.Client.Helper.StateOnFork" enum="NaClHelperStatus"
-    expires_after="2023-07-31">
+    expires_after="2024-07-31">
   <owner>dschuff@chromium.org</owner>
   <owner>fabiansommer@chromium.org</owner>
   <summary>
@@ -56,14 +42,14 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="NaCl.Client.OSArch" enum="NaClOSArchEnum"
-    expires_after="2023-07-31">
+    expires_after="2024-09-29">
   <owner>dschuff@chromium.org</owner>
   <owner>fabiansommer@chromium.org</owner>
   <summary>The OS/Architecture of a nexe that was loaded.</summary>
 </histogram>
 
 <histogram name="NaCl.EmbedderType" enum="NaClEmbedderTypeEnum"
-    expires_after="2023-10-01">
+    expires_after="2024-09-29">
   <owner>dschuff@chromium.org</owner>
   <owner>fabiansommer@chromium.org</owner>
   <summary>
@@ -73,7 +59,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="NaCl.HttpStatusCodeClass.Manifest.InstalledApp"
-    enum="NaClHttpStatusCodeClass" expires_after="2023-07-31">
+    enum="NaClHttpStatusCodeClass" expires_after="2024-07-31">
   <owner>dschuff@chromium.org</owner>
   <owner>fabiansommer@chromium.org</owner>
   <summary>
@@ -83,7 +69,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="NaCl.HttpStatusCodeClass.Manifest.NotInstalledApp"
-    enum="NaClHttpStatusCodeClass" expires_after="2023-07-31">
+    enum="NaClHttpStatusCodeClass" expires_after="2024-07-31">
   <owner>dschuff@chromium.org</owner>
   <owner>fabiansommer@chromium.org</owner>
   <summary>
@@ -93,7 +79,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="NaCl.HttpStatusCodeClass.Nexe.InstalledApp"
-    enum="NaClHttpStatusCodeClass" expires_after="2023-07-31">
+    enum="NaClHttpStatusCodeClass" expires_after="2024-07-31">
   <owner>dschuff@chromium.org</owner>
   <owner>fabiansommer@chromium.org</owner>
   <summary>
@@ -103,7 +89,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="NaCl.HttpStatusCodeClass.Nexe.NotInstalledApp"
-    enum="NaClHttpStatusCodeClass" expires_after="2023-07-31">
+    enum="NaClHttpStatusCodeClass" expires_after="2024-07-31">
   <owner>dschuff@chromium.org</owner>
   <owner>fabiansommer@chromium.org</owner>
   <summary>
@@ -113,14 +99,14 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="NaCl.LoadStatus.Plugin" enum="NaClPluginErrorCode"
-    expires_after="2023-07-31">
+    expires_after="2024-09-29">
   <owner>dschuff@chromium.org</owner>
   <owner>fabiansommer@chromium.org</owner>
   <summary>The error code returned by NaCl's Chrome plugin.</summary>
 </histogram>
 
 <histogram name="NaCl.LoadStatus.Plugin.InstalledApp"
-    enum="NaClPluginErrorCode" expires_after="2023-07-31">
+    enum="NaClPluginErrorCode" expires_after="2024-07-31">
   <owner>dschuff@chromium.org</owner>
   <owner>fabiansommer@chromium.org</owner>
   <summary>
@@ -130,7 +116,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="NaCl.LoadStatus.Plugin.NotInstalledApp"
-    enum="NaClPluginErrorCode" expires_after="2023-07-31">
+    enum="NaClPluginErrorCode" expires_after="2024-07-31">
   <owner>dschuff@chromium.org</owner>
   <owner>fabiansommer@chromium.org</owner>
   <summary>
@@ -140,14 +126,14 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="NaCl.LoadStatus.SelLdr" enum="NaClSelLdrErrorCode"
-    expires_after="2023-07-31">
+    expires_after="2024-07-31">
   <owner>dschuff@chromium.org</owner>
   <owner>fabiansommer@chromium.org</owner>
   <summary>The error code returned by NaCl's sel_ldr.</summary>
 </histogram>
 
 <histogram name="NaCl.LoadStatus.SelLdr.InstalledApp"
-    enum="NaClSelLdrErrorCode" expires_after="2023-07-31">
+    enum="NaClSelLdrErrorCode" expires_after="2024-07-31">
   <owner>dschuff@chromium.org</owner>
   <owner>fabiansommer@chromium.org</owner>
   <summary>
@@ -156,7 +142,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="NaCl.LoadStatus.SelLdr.NotInstalledApp"
-    enum="NaClSelLdrErrorCode" expires_after="2023-07-31">
+    enum="NaClSelLdrErrorCode" expires_after="2024-07-31">
   <owner>dschuff@chromium.org</owner>
   <owner>fabiansommer@chromium.org</owner>
   <summary>
@@ -165,7 +151,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="NaCl.Manifest.IsDataURI" enum="NaClManifestType"
-    expires_after="2023-07-31">
+    expires_after="2024-07-31">
   <owner>dschuff@chromium.org</owner>
   <owner>fabiansommer@chromium.org</owner>
   <summary>
@@ -173,21 +159,21 @@ chromium-metrics-reviews@google.com.
   </summary>
 </histogram>
 
-<histogram name="NaCl.ModuleUptime.Crash" units="ms" expires_after="2023-07-31">
+<histogram name="NaCl.ModuleUptime.Crash" units="ms" expires_after="2024-07-31">
   <owner>dschuff@chromium.org</owner>
   <owner>fabiansommer@chromium.org</owner>
   <summary>The time a NaCl module ran before it crashed.</summary>
 </histogram>
 
 <histogram name="NaCl.ModuleUptime.Normal" units="ms"
-    expires_after="2023-07-31">
+    expires_after="2024-07-31">
   <owner>dschuff@chromium.org</owner>
   <owner>fabiansommer@chromium.org</owner>
   <summary>The time a NaCl module ran without crashing, at shutdown.</summary>
 </histogram>
 
 <histogram name="NaCl.Options.PNaCl.OptLevel" enum="PNaClOptionsOptLevelEnum"
-    expires_after="2023-07-31">
+    expires_after="2024-07-31">
   <owner>dschuff@chromium.org</owner>
   <owner>fabiansommer@chromium.org</owner>
   <summary>
@@ -197,7 +183,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="NaCl.Perf.PNaClCache.IsHit" enum="PNaClTranslationCacheEnum"
-    expires_after="2023-07-31">
+    expires_after="2024-07-31">
   <owner>dschuff@chromium.org</owner>
   <owner>fabiansommer@chromium.org</owner>
   <summary>
@@ -207,7 +193,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="NaCl.Perf.PNaClLoadTime.CompileKBPerSec" units="KB/s"
-    expires_after="2023-07-31">
+    expires_after="2024-07-31">
   <owner>dschuff@chromium.org</owner>
   <owner>fabiansommer@chromium.org</owner>
   <summary>
@@ -217,7 +203,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="NaCl.Perf.PNaClLoadTime.CompileTime" units="ms"
-    expires_after="2023-07-31">
+    expires_after="2024-07-31">
   <owner>dschuff@chromium.org</owner>
   <owner>fabiansommer@chromium.org</owner>
   <summary>
@@ -227,7 +213,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="NaCl.Perf.PNaClLoadTime.LinkTime" units="ms"
-    expires_after="2023-07-31">
+    expires_after="2024-07-31">
   <owner>dschuff@chromium.org</owner>
   <owner>fabiansommer@chromium.org</owner>
   <summary>
@@ -237,7 +223,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="NaCl.Perf.PNaClLoadTime.LoadCompiler" units="ms"
-    expires_after="2023-07-31">
+    expires_after="2024-07-31">
   <owner>dschuff@chromium.org</owner>
   <owner>fabiansommer@chromium.org</owner>
   <summary>
@@ -246,7 +232,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="NaCl.Perf.PNaClLoadTime.LoadLinker" units="ms"
-    expires_after="2023-07-31">
+    expires_after="2024-07-31">
   <owner>dschuff@chromium.org</owner>
   <owner>fabiansommer@chromium.org</owner>
   <summary>
@@ -255,7 +241,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="NaCl.Perf.PNaClLoadTime.PctCompiledWhenFullyDownloaded"
-    units="%" expires_after="2023-07-31">
+    units="%" expires_after="2024-07-31">
   <owner>dschuff@chromium.org</owner>
   <owner>fabiansommer@chromium.org</owner>
   <summary>
@@ -266,7 +252,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="NaCl.Perf.PNaClLoadTime.TotalUncachedKBPerSec" units="KB/s"
-    expires_after="2023-07-31">
+    expires_after="2024-07-31">
   <owner>dschuff@chromium.org</owner>
   <owner>fabiansommer@chromium.org</owner>
   <summary>
@@ -277,7 +263,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="NaCl.Perf.PNaClLoadTime.TotalUncachedTime" units="ms"
-    expires_after="2023-07-31">
+    expires_after="2024-07-31">
   <owner>dschuff@chromium.org</owner>
   <owner>fabiansommer@chromium.org</owner>
   <summary>
@@ -287,19 +273,19 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="NaCl.Perf.ShutdownTime.Total" units="ms"
-    expires_after="2023-07-31">
+    expires_after="2024-07-31">
   <owner>dschuff@chromium.org</owner>
   <owner>fabiansommer@chromium.org</owner>
   <summary>The time it took the NaCl module to shut down.</summary>
 </histogram>
 
-<histogram name="NaCl.Perf.Size.Manifest" units="KB" expires_after="2023-07-31">
+<histogram name="NaCl.Perf.Size.Manifest" units="KB" expires_after="2024-07-31">
   <owner>dschuff@chromium.org</owner>
   <owner>fabiansommer@chromium.org</owner>
   <summary>The size of the manifest file.</summary>
 </histogram>
 
-<histogram name="NaCl.Perf.Size.Nexe" units="KB" expires_after="2023-07-31">
+<histogram name="NaCl.Perf.Size.Nexe" units="KB" expires_after="2024-07-31">
   <owner>dschuff@chromium.org</owner>
   <owner>fabiansommer@chromium.org</owner>
   <summary>
@@ -307,7 +293,7 @@ chromium-metrics-reviews@google.com.
   </summary>
 </histogram>
 
-<histogram name="NaCl.Perf.Size.Pexe" units="KB" expires_after="2023-07-31">
+<histogram name="NaCl.Perf.Size.Pexe" units="KB" expires_after="2024-07-31">
   <owner>dschuff@chromium.org</owner>
   <owner>fabiansommer@chromium.org</owner>
   <summary>
@@ -317,7 +303,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="NaCl.Perf.Size.PexeNexeSizePct" units="%"
-    expires_after="2023-07-31">
+    expires_after="2024-07-31">
   <owner>dschuff@chromium.org</owner>
   <owner>fabiansommer@chromium.org</owner>
   <summary>
@@ -327,7 +313,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="NaCl.Perf.Size.PNaClTranslatedNexe" units="KB"
-    expires_after="2023-07-31">
+    expires_after="2024-07-31">
   <owner>dschuff@chromium.org</owner>
   <owner>fabiansommer@chromium.org</owner>
   <summary>
@@ -338,14 +324,14 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="NaCl.Perf.StartupTime.LoadModule" units="ms"
-    expires_after="2023-07-31">
+    expires_after="2024-07-31">
   <owner>dschuff@chromium.org</owner>
   <owner>fabiansommer@chromium.org</owner>
   <summary>The time it took to load the NaCl module into sel_ldr.</summary>
 </histogram>
 
 <histogram name="NaCl.Perf.StartupTime.LoadModulePerMB" units="milliseconds/MB"
-    expires_after="2023-07-31">
+    expires_after="2024-07-31">
   <owner>dschuff@chromium.org</owner>
   <owner>fabiansommer@chromium.org</owner>
   <summary>
@@ -355,7 +341,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="NaCl.Perf.StartupTime.ManifestDownload" units="ms"
-    expires_after="2023-07-31">
+    expires_after="2024-07-31">
   <owner>dschuff@chromium.org</owner>
   <owner>fabiansommer@chromium.org</owner>
   <summary>
@@ -364,7 +350,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="NaCl.Perf.StartupTime.NaClOverhead" units="ms"
-    expires_after="2023-07-31">
+    expires_after="2024-07-31">
   <owner>dschuff@chromium.org</owner>
   <owner>fabiansommer@chromium.org</owner>
   <summary>
@@ -375,7 +361,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="NaCl.Perf.StartupTime.NaClOverheadPerMB"
-    units="milliseconds/MB" expires_after="2023-07-31">
+    units="milliseconds/MB" expires_after="2024-07-31">
   <owner>dschuff@chromium.org</owner>
   <owner>fabiansommer@chromium.org</owner>
   <summary>
@@ -387,7 +373,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="NaCl.Perf.StartupTime.NexeDownload" units="ms"
-    expires_after="2023-07-31">
+    expires_after="2024-07-31">
   <owner>dschuff@chromium.org</owner>
   <owner>fabiansommer@chromium.org</owner>
   <summary>
@@ -396,7 +382,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="NaCl.Perf.StartupTime.NexeDownloadPerMB"
-    units="milliseconds/MB" expires_after="2023-07-31">
+    units="milliseconds/MB" expires_after="2024-07-31">
   <owner>dschuff@chromium.org</owner>
   <owner>fabiansommer@chromium.org</owner>
   <summary>
@@ -406,7 +392,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="NaCl.Perf.StartupTime.Total" units="ms"
-    expires_after="2023-07-31">
+    expires_after="2024-07-31">
   <owner>dschuff@chromium.org</owner>
   <owner>fabiansommer@chromium.org</owner>
   <summary>
@@ -416,7 +402,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="NaCl.Perf.StartupTime.TotalPerMB" units="milliseconds/MB"
-    expires_after="2023-07-31">
+    expires_after="2024-07-31">
   <owner>dschuff@chromium.org</owner>
   <owner>fabiansommer@chromium.org</owner>
   <summary>
@@ -426,20 +412,8 @@ chromium-metrics-reviews@google.com.
   </summary>
 </histogram>
 
-<histogram name="NaCl.ResourceCreationImpl.CreateVideoDecoderDev_Invoked"
-    enum="Boolean" expires_after="2023-09-01">
-  <owner>blundell@chromium.org</owner>
-  <owner>dschuff@chromium.org</owner>
-  <summary>
-    True is emitted when ResourceCreationImpl::CreateVideoDecoderDev() is
-    invoked. Targeted metric to get clarity on whether there are any attempted
-    creations of this API against production Chrome as we work toward
-    eliminating support for the API.
-  </summary>
-</histogram>
-
 <histogram name="NaCl.ValidationCache.Query" enum="NaClValidationCacheEnum"
-    expires_after="2023-07-31">
+    expires_after="2024-07-31">
   <owner>dschuff@chromium.org</owner>
   <owner>fabiansommer@chromium.org</owner>
   <summary>
@@ -448,7 +422,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="NaCl.ValidationCache.Set" enum="NaClValidationCacheEnum"
-    expires_after="2023-07-31">
+    expires_after="2024-07-31">
   <owner>dschuff@chromium.org</owner>
   <owner>fabiansommer@chromium.org</owner>
   <summary>

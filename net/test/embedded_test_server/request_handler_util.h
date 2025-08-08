@@ -15,9 +15,7 @@
 #include "net/test/embedded_test_server/embedded_test_server.h"
 #include "net/test/embedded_test_server/http_response.h"
 
-namespace url {
 class GURL;
-}
 
 namespace net::test_server {
 struct HttpRequest;
@@ -28,9 +26,7 @@ struct HttpRequest;
 //   foo.html.mock-http-headers
 // When the test server serves foo.html, if it finds foo.html.mock-http-headers
 // it will use the contents of that file for the headers.
-#if !defined(STARBOARD)
 extern const base::FilePath::CharType kMockHttpHeadersExtension[];
-#endif
 
 // Returns the Content-Type header value for a path based on its extension.
 std::string GetContentType(const base::FilePath& path);

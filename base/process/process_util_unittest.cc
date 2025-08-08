@@ -8,6 +8,7 @@
 #include <stdint.h>
 
 #include <limits>
+#include <string_view>
 #include <tuple>
 
 #include "base/command_line.h"
@@ -27,7 +28,6 @@
 #include "base/process/process.h"
 #include "base/process/process_metrics.h"
 #include "base/strings/string_number_conversions.h"
-#include "base/strings/string_piece.h"
 #include "base/strings/utf_string_conversions.h"
 #include "base/synchronization/waitable_event.h"
 #include "base/test/multiprocess_test.h"
@@ -155,7 +155,7 @@ const int kSuccess = 0;
 class ProcessUtilTest : public MultiProcessTest {
  public:
   void SetUp() override {
-    ASSERT_TRUE(PathService::Get(DIR_GEN_TEST_DATA_ROOT, &test_helper_path_));
+    ASSERT_TRUE(PathService::Get(DIR_OUT_TEST_DATA_ROOT, &test_helper_path_));
     test_helper_path_ = test_helper_path_.AppendASCII(kTestHelper);
   }
 
@@ -339,7 +339,7 @@ TEST_F(ProcessUtilTest, TransferHandleToPath) {
 // besides |expected_path| are in the namespace.
 // Since GetSignalFilePath() uses "/tmp", tests for paths other than this must
 // include two paths. "/tmp" must always be last.
-int CheckOnlyOnePathExists(StringPiece expected_path) {
+int CheckOnlyOnePathExists(std::string_view expected_path) {
   bool is_expected_path_tmp = expected_path == "/tmp";
   std::vector<FilePath> paths;
 
@@ -582,6 +582,9 @@ MULTIPROCESS_TEST_MAIN(CheckCwdProcess) {
   return kSuccess;
 }
 
+// A relative binary loader path is set in MSAN builds, so binaries must be
+// run from the build directory.
+#if !defined(MEMORY_SANITIZER)
 TEST_F(ProcessUtilTest, CurrentDirectory) {
   // TODO(rickyz): Add support for passing arguments to multiprocess children,
   // then create a special directory for this test.
@@ -598,6 +601,7 @@ TEST_F(ProcessUtilTest, CurrentDirectory) {
   EXPECT_TRUE(process.WaitForExit(&exit_code));
   EXPECT_EQ(kSuccess, exit_code);
 }
+#endif  // !defined(MEMORY_SANITIZER)
 #endif  // !BUILDFLAG(IS_ANDROID)
 
 #if BUILDFLAG(IS_WIN)
@@ -736,7 +740,7 @@ TEST_F(ProcessUtilTest, GetTerminationStatusSigKill) {
 }
 
 #if BUILDFLAG(IS_POSIX)
-// TODO(crbug.com/753490): Access to the process termination reason is not
+// TODO(crbug.com/42050610): Access to the process termination reason is not
 // implemented in Fuchsia. Unix signals are not implemented in Fuchsia so this
 // test might not be relevant anyway.
 TEST_F(ProcessUtilTest, GetTerminationStatusSigTerm) {
@@ -1055,7 +1059,7 @@ MULTIPROCESS_TEST_MAIN(ProcessUtilsLeakFDChildProcess) {
 int ProcessUtilTest::CountOpenFDsInChild() {
   int fds[2];
   if (pipe(fds) < 0)
-    NOTREACHED();
+    NOTREACHED_IN_MIGRATION();
 
   LaunchOptions options;
   options.fds_to_remap.emplace_back(fds[1], kChildPipe);
@@ -1294,6 +1298,17 @@ TEST_F(ProcessUtilTest, PreExecHook) {
 #endif  // !BUILDFLAG(IS_ANDROID) && !BUILDFLAG(IS_FUCHSIA)
 
 #endif  // BUILDFLAG(IS_POSIX) || BUILDFLAG(IS_FUCHSIA)
+
+// There's no such thing as a parent process id on Fuchsia.
+#if !BUILDFLAG(IS_FUCHSIA)
+TEST_F(ProcessUtilTest, GetParentProcessId2) {
+  ProcessId id1 = GetCurrentProcId();
+  Process process = SpawnChild("SimpleChildProcess");
+  ASSERT_TRUE(process.IsValid());
+  ProcessId ppid = GetParentProcessId(process.Handle());
+  EXPECT_EQ(ppid, id1);
+}
+#endif  // !BUILDFLAG(IS_FUCHSIA)
 
 namespace {
 

@@ -5,6 +5,7 @@
 #include "media/audio/win/audio_low_latency_input_win.h"
 
 #include <objbase.h>
+
 #include <propkey.h>
 #include <windows.devices.enumeration.h>
 #include <windows.media.devices.h>
@@ -35,7 +36,6 @@
 #include "media/base/audio_timestamp_helper.h"
 #include "media/base/channel_layout.h"
 #include "media/base/limits.h"
-#include "media/base/media_switches.h"
 #include "media/base/timestamp_constants.h"
 
 using ABI::Windows::Foundation::Collections::IVectorView;
@@ -55,6 +55,11 @@ namespace {
 constexpr char kUwpDeviceIdPrefix[] = "\\\\?\\SWD#MMDEVAPI#";
 
 constexpr uint32_t KSAUDIO_SPEAKER_UNSUPPORTED = 0;
+
+// Max allowed absolute difference between a QPC-based timestamp and a default
+// base::TimeTicks::Now() timestamp before switching to fake audio timestamps.
+constexpr base::TimeDelta kMaxAbsTimeDiffBeforeSwithingToFakeTimestamps =
+    base::Milliseconds(500);
 
 // Converts a COM error into a human-readable string.
 std::string ErrorToString(HRESULT hresult) {
@@ -237,6 +242,18 @@ bool InitializeUWPSupport() {
   return initialization_result;
 }
 
+void LogFakeAudioCaptureTimestamps(bool use_fake_audio_capture_timestamps,
+                                   base::TimeDelta abs_delta_time) {
+  TRACE_EVENT_INSTANT2(
+      "audio", "AudioCaptureWinTimestamps", TRACE_EVENT_SCOPE_THREAD,
+      "use_fake_audio_capture_timestamps", use_fake_audio_capture_timestamps,
+      "abs_timestamp_diff_ms", abs_delta_time.InMilliseconds());
+  base::UmaHistogramBoolean("Media.Audio.Capture.Win.FakeTimestamps",
+                            use_fake_audio_capture_timestamps);
+  base::UmaHistogramLongTimes("Media.Audio.Capture.Win.AbsTimestampDiffMs",
+                              abs_delta_time);
+}
+
 }  // namespace
 
 // Counts how often an OS capture callback reports a data discontinuity and logs
@@ -266,7 +283,7 @@ class WASAPIAudioInputStream::DataDiscontinuityReporter {
     if (callback_count_ % kCallbacksPerLogPeriod)
       return;
 
-    // TODO(https://crbug.com/825744): It can be possible to replace
+    // TODO(crbug.com/41378888): It can be possible to replace
     // "Media.Audio.Capture.Glitches2" with this new (simplified) metric
     // instead.
     base::UmaHistogramCounts1000("Media.Audio.Capture.Win.Glitches2",
@@ -414,13 +431,6 @@ AudioInputStream::OpenOutcome WASAPIAudioInputStream::Open() {
     }
   }
 
-  use_fake_audio_capture_timestamps_ =
-      base::FeatureList::IsEnabled(media::kUseFakeAudioCaptureTimestamps);
-  if (use_fake_audio_capture_timestamps_) {
-    SendLogMessage("%s => (WARNING: capture timestamps will be fake)",
-                   __func__);
-  }
-
   // Obtain an IAudioClient interface which enables us to create and initialize
   // an audio stream between an audio application and the audio engine.
   hr = endpoint_device_->Activate(__uuidof(IAudioClient), CLSCTX_ALL, nullptr,
@@ -444,8 +454,7 @@ AudioInputStream::OpenOutcome WASAPIAudioInputStream::Open() {
   // Attempt to enable communications category and raw capture mode on the audio
   // stream. Ignoring return value since the method logs its own error messages
   // and it should be OK to continue opening the stream even after a failure.
-  if (base::FeatureList::IsEnabled(media::kWasapiRawAudioCapture) &&
-      raw_processing_supported_ &&
+  if (raw_processing_supported_ &&
       !AudioDeviceDescription::IsLoopbackDevice(device_id_) && SUCCEEDED(hr)) {
     SetCommunicationsCategoryAndMaybeRawCaptureMode(audio_engine_channels);
   }
@@ -491,16 +500,6 @@ void WASAPIAudioInputStream::Start(AudioInputCallback* callback) {
 
   if (started_)
     return;
-
-  // Check if the master volume level of the opened audio session is set to
-  // zero and store the information for a UMA histogram generated in Stop().
-  // Valid volume levels are in the range 0.0 to 1.0.
-  // See http://crbug.com/1014443 for details why this is needed.
-  if (GetVolume() == 0.0) {
-    SendLogMessage("%s => (WARNING: Input audio session starts at zero volume)",
-                   __func__);
-    audio_session_starts_at_zero_volume_ = true;
-  }
 
   if (device_id_ == AudioDeviceDescription::kLoopbackWithMuteDeviceId &&
       system_audio_volume_) {
@@ -554,10 +553,6 @@ void WASAPIAudioInputStream::Stop() {
   if (!started_)
     return;
 
-  // Only upload UMA histogram for the case when AGC is enabled, i.e., for
-  // WebRTC based audio input streams.
-  const bool add_uma_histogram = GetAutomaticGainControl();
-
   // We have muted system audio for capturing, so we need to unmute it when
   // capturing stops.
   if (device_id_ == AudioDeviceDescription::kLoopbackWithMuteDeviceId &&
@@ -589,14 +584,6 @@ void WASAPIAudioInputStream::Stop() {
     SetEvent(stop_capture_event_.Get());
     capture_thread_->Join();
     capture_thread_.reset();
-  }
-
-  // Upload UMA histogram to track down possible issue that can lead to a
-  // "no audio" state. See http://crbug.com/1014443.
-  if (add_uma_histogram) {
-    base::UmaHistogramBoolean("Media.Audio.InputVolumeStartsAtZeroWin",
-                              audio_session_starts_at_zero_volume_);
-    audio_session_starts_at_zero_volume_ = false;
   }
 
   SendLogMessage(
@@ -804,8 +791,9 @@ void WASAPIAudioInputStream::Run() {
   if (recording && error) {
     // TODO(henrika): perhaps it worth improving the cleanup here by e.g.
     // stopping the audio client, joining the thread etc.?
+    auto saved_last_error = GetLastError();
     NOTREACHED() << "WASAPI capturing failed with error code "
-                 << GetLastError();
+                 << saved_last_error;
   }
 
   // Disable MMCSS.
@@ -866,6 +854,29 @@ void WASAPIAudioInputStream::PullCaptureDataAndPushToSink() {
       return;
     }
 
+    // Check if QPC-based timestamps provided by IAudioCaptureClient::GetBuffer
+    // can be used for audio timestamps or not. If not, base::TimeTicks::Now()
+    // will be used instead to generate the timestamps (called "fake" here). In
+    // the majority of cases, fake timestamps will not be utilized and the
+    // difference in `delta_time` below will be about the same size as the
+    // native buffer size (e.g. 10 msec).
+    // http://crbug.com/1439283 for details why this check is needed.
+    if (!use_fake_audio_capture_timestamps_.has_value()) {
+      base::TimeDelta delta_time =
+          base::TimeTicks::Now() -
+          base::TimeTicks::FromQPCValue(capture_time_100ns);
+      if (delta_time.magnitude() >
+          kMaxAbsTimeDiffBeforeSwithingToFakeTimestamps) {
+        use_fake_audio_capture_timestamps_ = true;
+        LOG(WARNING) << "WAIS::" << __func__
+                     << " => (WARNING: capture timestamps will be fake)";
+      } else {
+        use_fake_audio_capture_timestamps_ = false;
+      }
+      LogFakeAudioCaptureTimestamps(use_fake_audio_capture_timestamps_.value(),
+                                    delta_time.magnitude());
+    }
+
     // The data in the packet is not correlated with the previous packet's
     // device position; this is possibly due to a stream state transition or
     // timing glitch. Note that, usage of this flag was added after the existing
@@ -873,7 +884,7 @@ void WASAPIAudioInputStream::PullCaptureDataAndPushToSink() {
     // The behavior of the AUDCLNT_BUFFERFLAGS_DATA_DISCONTINUITY flag is
     // undefined on the application's first call to GetBuffer after Start and
     // Windows 7 or later is required for support.
-    // TODO(https://crbug.com/1427096): take this into account when reporting
+    // TODO(crbug.com/40261628): take this into account when reporting
     // glitch info.
     const bool observed_data_discontinuity =
         (device_position > 0 && flags & AUDCLNT_BUFFERFLAGS_DATA_DISCONTINUITY);
@@ -888,7 +899,7 @@ void WASAPIAudioInputStream::PullCaptureDataAndPushToSink() {
     // current data packet.
     bool timestamp_error_was_detected = false;
     if (flags & AUDCLNT_BUFFERFLAGS_TIMESTAMP_ERROR) {
-      // TODO(https://crbug.com/825744): it might be possible to improve error
+      // TODO(crbug.com/41378888): it might be possible to improve error
       // handling here and avoid using the counter in |capture_time_100ns|.
       LOG(WARNING) << "WAIS::" << __func__
                    << " => (WARNING: AUDCLNT_BUFFERFLAGS_TIMESTAMP_ERROR)";
@@ -916,7 +927,8 @@ void WASAPIAudioInputStream::PullCaptureDataAndPushToSink() {
         }
         glitch_reporter_.UpdateStats(glitch_duration);
         if (glitch_duration.is_positive()) {
-          glitch_accumulator_.Add({.duration = glitch_duration, .count = 1});
+          glitch_accumulator_.Add(AudioGlitchInfo::SingleBoundedSystemGlitch(
+              glitch_duration, AudioGlitchInfo::Direction::kCapture));
         }
       }
 
@@ -927,7 +939,8 @@ void WASAPIAudioInputStream::PullCaptureDataAndPushToSink() {
     }
 
     base::TimeTicks capture_time;
-    if (use_fake_audio_capture_timestamps_) {
+    if (use_fake_audio_capture_timestamps_.has_value() &&
+        *use_fake_audio_capture_timestamps_) {
       capture_time = base::TimeTicks::Now();
     } else if (!timestamp_error_was_detected) {
       // Use the latest |capture_time_100ns| since it is marked as valid.
@@ -978,6 +991,11 @@ void WASAPIAudioInputStream::PullCaptureDataAndPushToSink() {
                  << ErrorToString(hr).c_str() << "])";
       return;
     }
+
+    TRACE_EVENT2(TRACE_DISABLED_BY_DEFAULT("audio"),
+                 "AudioInputCallback::OnData", "capture_time",
+                 capture_time - base::TimeTicks(), "time_ticks_now",
+                 base::TimeTicks::Now() - base::TimeTicks());
 
     // Get a cached AGC volume level which is updated once every second on the
     // audio manager thread. Note that, |volume| is also updated each time

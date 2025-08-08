@@ -669,7 +669,7 @@ TEST_F(VideoDecodeStatsDBImplTest, EnableUnweightedEntries) {
   // Append 200 frames with 10% dropped, 1% efficient.
   AppendStats(kStatsKeyVp9, DecodeStatsEntry(200, 0.10 * 200, 0.01 * 200));
   // Use real doubles to keep track of these things to make sure the precision
-  // math for repeating decimals works out with whats done internally.
+  // math for repeating decimals works out with what's done internally.
   int num_appends = 1;
   double unweighted_smoothness_avg = 0.10;
   double unweighted_efficiency_avg = 0.01;
@@ -752,7 +752,7 @@ TEST_F(VideoDecodeStatsDBImplTest, DiscardCorruptedDBData) {
   protoA.set_frames_decoded(100);
   protoA.set_frames_dropped(15);
   protoA.set_frames_power_efficient(50);
-  protoA.set_last_write_date(clock.Now().ToJsTime());
+  protoA.set_last_write_date(clock.Now().InMillisecondsFSinceUnixEpoch());
   protoA.set_unweighted_average_frames_dropped(15.0 / 100);
   protoA.set_unweighted_average_frames_efficient(50.0 / 100);
   protoA.set_num_unweighted_playbacks(1);
@@ -795,7 +795,8 @@ TEST_F(VideoDecodeStatsDBImplTest, DiscardCorruptedDBData) {
 
   // Make an invalid  proto with a last write date in the future.
   DecodeStatsProto protoG(protoA);
-  protoG.set_last_write_date((clock.Now() + base::Days(1)).ToJsTime());
+  protoG.set_last_write_date(
+      (clock.Now() + base::Days(1)).InMillisecondsFSinceUnixEpoch());
   AppendToProtoDB(keyG, &protoG);
   VerifyEmptyStats(keyG);
 }

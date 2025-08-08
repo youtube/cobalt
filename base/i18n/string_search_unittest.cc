@@ -2,6 +2,11 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#ifdef UNSAFE_BUFFERS_BUILD
+// TODO(crbug.com/40284755): Remove this and spanify to fix the errors.
+#pragma allow_unsafe_buffers
+#endif
+
 #include "base/i18n/string_search.h"
 
 #include <stddef.h>
@@ -16,8 +21,6 @@
 
 namespace base {
 namespace i18n {
-
-#if !defined(UCONFIG_NO_COLLATION)
 
 #define EXPECT_MATCH_IGNORE_CASE(find_this, in_this, ex_start, ex_len)         \
   {                                                                            \
@@ -393,8 +396,6 @@ TEST(StringSearchTest, RepeatingStringSearch) {
   if (locale_is_posix)
     SetICUDefaultLocale(default_locale.data());
 }
-
-#endif
 
 }  // namespace i18n
 }  // namespace base

@@ -4,6 +4,8 @@
 
 #include "crypto/unexportable_key_metrics.h"
 
+#include <memory>
+
 #include "base/feature_list.h"
 #include "base/metrics/histogram_functions.h"
 #include "base/task/task_traits.h"
@@ -177,7 +179,7 @@ internal::TPMSupport MeasureVirtualTpmOperations() {
 
   const uint8_t msg[] = {1, 2, 3, 4};
   base::ElapsedTimer message_signing_timer;
-  absl::optional<std::vector<uint8_t>> signed_bytes = current_key->Sign(msg);
+  std::optional<std::vector<uint8_t>> signed_bytes = current_key->Sign(msg);
   ReportUmaTpmOperation(TPMOperation::kMessageSigning, supported_virtual_algo,
                         message_signing_timer.Elapsed(),
                         signed_bytes.has_value(), KeyType::kVirtualizedKey);
@@ -204,10 +206,10 @@ internal::TPMSupport MeasureVirtualTpmOperations() {
   return supported_virtual_algo;
 }
 
-void MeasureTpmOperationsInternal() {
+void MeasureTpmOperationsInternal(UnexportableKeyProvider::Config config) {
   internal::TPMSupport supported_algo = internal::TPMSupport::kNone;
   std::unique_ptr<UnexportableKeyProvider> provider =
-      GetUnexportableKeyProvider();
+      GetUnexportableKeyProvider(std::move(config));
   if (!provider) {
     return;
   }
@@ -239,9 +241,13 @@ void MeasureTpmOperationsInternal() {
     return;
   }
 
+  auto delete_key = [&provider](UnexportableSigningKey* key) {
+    provider->DeleteSigningKeySlowly(key->GetWrappedKey());
+    delete key;
+  };
   base::ElapsedTimer key_creation_timer;
-  std::unique_ptr<UnexportableSigningKey> current_key =
-      provider->GenerateSigningKeySlowly(kAllAlgorithms);
+  std::unique_ptr<UnexportableSigningKey, decltype(delete_key)> current_key(
+      provider->GenerateSigningKeySlowly(kAllAlgorithms).release(), delete_key);
   ReportUmaTpmOperation(TPMOperation::kNewKeyCreation, supported_algo,
                         key_creation_timer.Elapsed(), current_key != nullptr);
   if (!current_key) {
@@ -249,15 +255,17 @@ void MeasureTpmOperationsInternal() {
   }
 
   base::ElapsedTimer wrapped_key_creation_timer;
-  std::unique_ptr<UnexportableSigningKey> wrapped_key =
-      provider->FromWrappedSigningKeySlowly(current_key->GetWrappedKey());
+  std::unique_ptr<UnexportableSigningKey, decltype(delete_key)> wrapped_key(
+      provider->FromWrappedSigningKeySlowly(current_key->GetWrappedKey())
+          .release(),
+      delete_key);
   ReportUmaTpmOperation(TPMOperation::kWrappedKeyCreation, supported_algo,
                         wrapped_key_creation_timer.Elapsed(),
                         wrapped_key != nullptr);
 
   const uint8_t msg[] = {1, 2, 3, 4};
   base::ElapsedTimer message_signing_timer;
-  absl::optional<std::vector<uint8_t>> signed_bytes =
+  std::optional<std::vector<uint8_t>> signed_bytes =
       current_key->SignSlowly(msg);
   ReportUmaTpmOperation(TPMOperation::kMessageSigning, supported_algo,
                         message_signing_timer.Elapsed(),
@@ -286,18 +294,20 @@ void MeasureTpmOperationsInternal() {
 namespace internal {
 
 void MeasureTpmOperationsInternalForTesting() {
-  MeasureTpmOperationsInternal();
+  MeasureTpmOperationsInternal(/*config=*/{});
 }
 
 }  // namespace internal
 
-void MaybeMeasureTpmOperations() {
+void MaybeMeasureTpmOperations(UnexportableKeyProvider::Config config) {
   static BASE_FEATURE(kTpmLatencyMetrics, "TpmLatencyMetrics",
                       base::FEATURE_ENABLED_BY_DEFAULT);
   if (base::FeatureList::IsEnabled(kTpmLatencyMetrics)) {
     base::ThreadPool::PostTask(
-        FROM_HERE, {base::MayBlock(), base::TaskPriority::BEST_EFFORT},
-        base::BindOnce(&MeasureTpmOperationsInternal));
+        FROM_HERE,
+        {base::MayBlock(), base::TaskPriority::BEST_EFFORT,
+         base::TaskShutdownBehavior::CONTINUE_ON_SHUTDOWN},
+        base::BindOnce(&MeasureTpmOperationsInternal, std::move(config)));
   }
 }
 

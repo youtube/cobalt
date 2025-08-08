@@ -25,6 +25,24 @@ struct MEDIA_EXPORT AudioGlitchInfo {
   AudioGlitchInfo& operator+=(const AudioGlitchInfo& other);
 
   class MEDIA_EXPORT Accumulator;
+
+  enum class Direction { kRender, kCapture };
+
+ private:
+  friend class AUHALStream;
+  friend class AUAudioInputStream;
+  friend class CrasInputStream;
+  friend class CrasUnifiedStream;
+  friend class WASAPIAudioInputStream;
+  friend class WASAPIAudioOutputStream;
+  friend class AudioGlitchInfoTester;
+
+  // Creates a glitch with duration clamped to between 0 and 1 seconds. Also
+  // logs the glitch duration to a UMA-histogram. This should only be used in OS
+  // audio stream implementations.
+  static AudioGlitchInfo SingleBoundedSystemGlitch(
+      const base::TimeDelta duration,
+      const Direction direction);
 };
 
 MEDIA_EXPORT bool operator==(const AudioGlitchInfo& lhs,

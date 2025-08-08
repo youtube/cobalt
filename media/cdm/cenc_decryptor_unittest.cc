@@ -95,7 +95,7 @@ class CencDecryptorTest : public testing::Test {
     EXPECT_FALSE(iv.empty());
 
     scoped_refptr<DecoderBuffer> encrypted_buffer =
-        DecoderBuffer::CopyFrom(data.data(), data.size());
+        DecoderBuffer::CopyFrom(data);
 
     // Key_ID is never used.
     encrypted_buffer->set_decrypt_config(
@@ -111,9 +111,9 @@ class CencDecryptorTest : public testing::Test {
 
     std::vector<uint8_t> decrypted_data;
     if (decrypted.get()) {
-      EXPECT_TRUE(decrypted->data_size());
+      EXPECT_TRUE(decrypted->size());
       decrypted_data.assign(decrypted->data(),
-                            decrypted->data() + decrypted->data_size());
+                            decrypted->data() + decrypted->size());
     }
 
     return decrypted_data;
@@ -150,8 +150,8 @@ TEST_F(CencDecryptorTest, ExtraData) {
   encrypted_buffer->set_timestamp(base::Days(2));
   encrypted_buffer->set_duration(base::Minutes(5));
   encrypted_buffer->set_is_key_frame(true);
-  encrypted_buffer->CopySideDataFrom(encrypted_block.data(),
-                                     encrypted_block.size());
+  encrypted_buffer->WritableSideData().alpha_data.assign(
+      encrypted_block.begin(), encrypted_block.end());
 
   auto decrypted_buffer = DecryptCencBuffer(*encrypted_buffer, *key_);
   EXPECT_EQ(encrypted_buffer->timestamp(), decrypted_buffer->timestamp());
@@ -159,13 +159,9 @@ TEST_F(CencDecryptorTest, ExtraData) {
   EXPECT_EQ(encrypted_buffer->end_of_stream(),
             decrypted_buffer->end_of_stream());
   EXPECT_EQ(encrypted_buffer->is_key_frame(), decrypted_buffer->is_key_frame());
-  EXPECT_EQ(encrypted_buffer->side_data_size(),
-            decrypted_buffer->side_data_size());
-  EXPECT_TRUE(std::equal(
-      encrypted_buffer->side_data(),
-      encrypted_buffer->side_data() + encrypted_buffer->side_data_size(),
-      decrypted_buffer->side_data(),
-      decrypted_buffer->side_data() + encrypted_buffer->side_data_size()));
+  EXPECT_TRUE(decrypted_buffer->has_side_data());
+  EXPECT_TRUE(encrypted_buffer->side_data()->Matches(
+      decrypted_buffer->side_data().value()));
 }
 
 TEST_F(CencDecryptorTest, NoSubsamples) {

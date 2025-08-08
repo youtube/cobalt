@@ -6,6 +6,7 @@
 #define MEDIA_GPU_V4L2_V4L2_VIDEO_DECODER_BACKEND_STATEFUL_H_
 
 #include <memory>
+#include <optional>
 #include <string>
 #include <vector>
 
@@ -16,7 +17,6 @@
 #include "media/gpu/v4l2/v4l2_device.h"
 #include "media/gpu/v4l2/v4l2_framerate_control.h"
 #include "media/gpu/v4l2/v4l2_video_decoder_backend.h"
-#include "third_party/abseil-cpp/absl/types/optional.h"
 
 namespace media {
 
@@ -43,8 +43,7 @@ class V4L2StatefulVideoDecoderBackend : public V4L2VideoDecoderBackend {
   // V4L2VideoDecoderBackend implementation
   bool Initialize() override;
   void EnqueueDecodeTask(scoped_refptr<DecoderBuffer> buffer,
-                         VideoDecoder::DecodeCB decode_cb,
-                         int32_t bitstream_id) override;
+                         VideoDecoder::DecodeCB decode_cb) override;
   void OnOutputBufferDequeued(V4L2ReadableBufferRef buffer) override;
   void OnServiceDeviceTask(bool event) override;
   void OnStreamStopped(bool stop_input_queue) override;
@@ -53,7 +52,7 @@ class V4L2StatefulVideoDecoderBackend : public V4L2VideoDecoderBackend {
   void OnChangeResolutionDone(CroStatus status) override;
   void ClearPendingRequests(DecoderStatus status) override;
   bool StopInputQueueOnResChange() const override;
-  size_t GetNumOUTPUTQueueBuffers() const override;
+  size_t GetNumOUTPUTQueueBuffers(bool secure_mode) const override;
 
  private:
   // TODO(b:149663704): merge with stateless?
@@ -66,12 +65,8 @@ class V4L2StatefulVideoDecoderBackend : public V4L2VideoDecoderBackend {
     size_t bytes_used = 0;
     // The callback function passed to EnqueueDecodeTask().
     VideoDecoder::DecodeCB decode_cb;
-    // Identifier for the decoder buffer.
-    int32_t bitstream_id;
 
-    DecodeRequest(scoped_refptr<DecoderBuffer> buf,
-                  VideoDecoder::DecodeCB cb,
-                  int32_t id);
+    DecodeRequest(scoped_refptr<DecoderBuffer> buf, VideoDecoder::DecodeCB cb);
 
     DecodeRequest(const DecodeRequest&) = delete;
     DecodeRequest& operator=(const DecodeRequest&) = delete;
@@ -91,7 +86,7 @@ class V4L2StatefulVideoDecoderBackend : public V4L2VideoDecoderBackend {
 
   static void ReuseOutputBufferThunk(
       scoped_refptr<base::SequencedTaskRunner> task_runner,
-      absl::optional<base::WeakPtr<V4L2StatefulVideoDecoderBackend>> weak_this,
+      std::optional<base::WeakPtr<V4L2StatefulVideoDecoderBackend>> weak_this,
       V4L2ReadableBufferRef buffer);
   void ReuseOutputBuffer(V4L2ReadableBufferRef buffer);
 
@@ -110,7 +105,7 @@ class V4L2StatefulVideoDecoderBackend : public V4L2VideoDecoderBackend {
   // When a video frame pool is in use, obtain a frame from the pool or, if
   // none is available, schedule |EnqueueOutputBuffers()| to be called when one
   // becomes available.
-  scoped_refptr<VideoFrame> GetPoolVideoFrame();
+  scoped_refptr<FrameResource> GetPoolVideoFrame();
 
   bool SendStopCommand();
   bool InitiateFlush(VideoDecoder::DecodeCB flush_cb);
@@ -140,14 +135,14 @@ class V4L2StatefulVideoDecoderBackend : public V4L2VideoDecoderBackend {
   base::queue<DecodeRequest> decode_request_queue_;
 
   // The decode request which is currently processed.
-  absl::optional<DecodeRequest> current_decode_request_;
+  std::optional<DecodeRequest> current_decode_request_;
   // V4L2 input buffer currently being prepared.
-  absl::optional<V4L2WritableBufferRef> current_input_buffer_;
+  std::optional<V4L2WritableBufferRef> current_input_buffer_;
 
   std::unique_ptr<v4l2_vda_helpers::InputBufferFragmentSplitter>
       frame_splitter_;
 
-  absl::optional<gfx::Rect> visible_rect_;
+  std::optional<gfx::Rect> visible_rect_;
 
   // Map of enqueuing timecodes to system timestamp, for histogramming purposes.
   std::map<int64_t, base::TimeTicks> encoding_timestamps_;

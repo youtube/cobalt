@@ -2,6 +2,11 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#ifdef UNSAFE_BUFFERS_BUILD
+// TODO(crbug.com/40284755): Remove this and spanify to fix the errors.
+#pragma allow_unsafe_buffers
+#endif
+
 #include "base/strings/escape.h"
 
 #include <ostream>
@@ -9,6 +14,7 @@
 #include "base/check_op.h"
 #include "base/feature_list.h"
 #include "base/features.h"
+#include "base/strings/string_number_conversions.h"
 #include "base/strings/string_piece.h"
 #include "base/strings/string_util.h"
 #include "base/strings/utf_string_conversion_utils.h"
@@ -18,13 +24,6 @@
 namespace base {
 
 namespace {
-
-const char kHexString[] = "0123456789ABCDEF";
-inline char IntToHex(int i) {
-  DCHECK_GE(i, 0) << i << " not a hex value";
-  DCHECK_LE(i, 15) << i << " not a hex value";
-  return kHexString[i];
-}
 
 // A fast bit-vector map for ascii characters.
 //
@@ -58,8 +57,7 @@ std::string Escape(StringPiece text,
       escaped.push_back('%');
     } else if (charmap.Contains(c)) {
       escaped.push_back('%');
-      escaped.push_back(IntToHex(c >> 4));
-      escaped.push_back(IntToHex(c & 0xf));
+      AppendHexEncodedByte(c, escaped);
     } else {
       escaped.push_back(static_cast<char>(c));
     }
@@ -273,7 +271,7 @@ bool ShouldUnescapeCodePoint(UnescapeRule::Type rules,
   //
   // Can't use icu to make this cleaner, because Cronet cannot depend on
   // icu, and currently uses this file.
-  // TODO(https://crbug.com/829873): Try to make this use icu, both to
+  // TODO(crbug.com/41381359): Try to make this use icu, both to
   // protect against regressions as the Unicode standard is updated and to
   // reduce the number of long lists of characters.
   return !(
@@ -415,7 +413,7 @@ std::string UnescapeURLWithAdjustmentsImpl(
       // character. In that case, just unescaped and write the non-sense
       // character.
       //
-      // TODO(https://crbug.com/829868): Do not unescape illegal UTF-8
+      // TODO(crbug.com/40570496): Do not unescape illegal UTF-8
       // sequences.
       unsigned char non_utf8_byte;
       if (UnescapeUnsignedByteAtIndex(escaped_text, i, &non_utf8_byte)) {
@@ -443,8 +441,7 @@ std::string UnescapeURLWithAdjustmentsImpl(
     if (!ShouldUnescapeCodePoint(rules, code_point)) {
       // If it's a valid UTF-8 character, but not safe to unescape, copy all
       // bytes directly.
-      result.append(escaped_text.begin() + i,
-                    escaped_text.begin() + i + 3 * unescaped.length());
+      result.append(escaped_text.substr(i, 3 * unescaped.length()));
       i += unescaped.length() * 3;
       continue;
     }
@@ -547,7 +544,7 @@ std::string UnescapeBinaryURLComponent(StringPiece escaped_text,
   // before FeatureList initialization. In that case, fallback to the feature's
   // default state.
   //
-  // TODO(crbug.com/1321924): Cleanup this feature.
+  // TODO(crbug.com/40224104): Cleanup this feature.
   const bool optimize_data_urls_feature_is_enabled =
       base::FeatureList::GetInstance()
           ? base::FeatureList::IsEnabled(features::kOptimizeDataUrls)

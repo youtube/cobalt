@@ -13,7 +13,6 @@ import os
 import sys
 from xml.etree import ElementTree as ET
 
-import extract_histograms
 import histogram_paths
 import merge_xml
 
@@ -44,8 +43,6 @@ def PrintOwners(root):
         continue
       if node.tag != 'owner':
         continue
-      if node.text == extract_histograms.OWNER_PLACEHOLDER:
-        continue
       owners.append(node.text)
 
     if not obsolete:
@@ -70,7 +67,8 @@ def main():
   """
   if len(sys.argv) == 1:
     merged_xml_string = merge_xml.MergeFiles(
-        histogram_paths.ALL_XMLS, should_expand_owners=True).toxml()
+        histogram_paths.ALL_XMLS,
+        expand_owners_and_extract_components=True).toxml()
     root = ET.fromstring(merged_xml_string)
   else:
     rel_path = path_util.GetInputFile(

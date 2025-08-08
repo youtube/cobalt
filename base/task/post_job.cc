@@ -61,7 +61,7 @@ bool JobDelegate::ShouldYield() {
 }
 
 void JobDelegate::YieldIfNeeded() {
-  // TODO(crbug.com/839091): Implement this.
+  // TODO(crbug.com/40574605): Implement this.
 }
 
 void JobDelegate::NotifyConcurrencyIncrease() {
@@ -170,8 +170,9 @@ JobHandle PostJob(const Location& from_here,
   const bool queued =
       static_cast<internal::ThreadPoolImpl*>(ThreadPoolInstance::Get())
           ->EnqueueJobTaskSource(task_source);
-  if (queued)
+  if (queued) {
     return internal::JobTaskSource::CreateJobHandle(std::move(task_source));
+  }
   return JobHandle();
 }
 

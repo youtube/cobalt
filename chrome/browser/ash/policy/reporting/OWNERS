@@ -1,0 +1,3 @@
+file://chromeos/ash/components/policy/OWNERS
+
+per-file *event_reporter*=file://components/reporting/OWNERS

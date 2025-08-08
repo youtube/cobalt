@@ -18,17 +18,16 @@ const char kAnimationDurationScale[] = "animation-duration-scale";
 const char kDisableFontSubpixelPositioning[] =
     "disable-font-subpixel-positioning";
 
-// Disables new code to run SharedImages for NaCL swapchain. This overrides
-// value of kPPAPISharedImagesSwapChain feature flag.
-const char kDisablePPAPISharedImagesSwapChain[] =
-    "disable-ppapi-shared-images-swapchain";
-
 // Enable native CPU-mappable GPU memory buffer support on Linux.
 const char kEnableNativeGpuMemoryBuffers[] = "enable-native-gpu-memory-buffers";
 
 // Forces whether the user desires reduced motion, regardless of system
 // settings.
 const char kForcePrefersReducedMotion[] = "force-prefers-reduced-motion";
+
+// Forces whether the user desires no reduced motion, regardless of system
+// settings.
+const char kForcePrefersNoReducedMotion[] = "force-prefers-no-reduced-motion";
 
 // Run in headless mode, i.e., without a UI or display server dependencies.
 const char kHeadless[] = "headless";
@@ -39,7 +38,7 @@ const char kHeadless[] = "headless";
 const char kX11Display[] = "display";
 // Disables MIT-SHM extension. In use only with Ozone/X11.
 const char kNoXshm[] = "no-xshm";
-#endif
+#endif  // BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_CHROMEOS)
 
 }  // namespace switches
 
@@ -62,18 +61,19 @@ BASE_FEATURE(kOddWidthMultiPlanarBuffers,
 #endif
 );
 
-BASE_FEATURE(kPPAPISharedImagesSwapChain,
-             "PPAPISharedImagesSwapChain",
-             base::FEATURE_ENABLED_BY_DEFAULT);
+BASE_FEATURE(kUseSmartRefForGPUFenceHandle,
+             "UseSmartRefForGPUFenceHandle",
+#if BUILDFLAG(IS_CHROMEOS_LACROS)
+             base::FEATURE_ENABLED_BY_DEFAULT
+#else
+             base::FEATURE_DISABLED_BY_DEFAULT
+#endif
+);
 
 #if BUILDFLAG(IS_CHROMEOS)
-BASE_FEATURE(kVariableGoogleSansFont,
-             "VariableGoogleSansFont",
+BASE_FEATURE(kEnableIntelMediaCompression,
+             "EnableIntelMediaCompression",
              base::FEATURE_DISABLED_BY_DEFAULT);
-
-GFX_SWITCHES_EXPORT bool UseVariableGoogleSansFont() {
-  return base::FeatureList::IsEnabled(kVariableGoogleSansFont);
-}
 #endif
 
 }  // namespace features

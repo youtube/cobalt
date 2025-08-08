@@ -2,6 +2,11 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#ifdef UNSAFE_BUFFERS_BUILD
+// TODO(crbug.com/40284755): Remove this and spanify to fix the errors.
+#pragma allow_unsafe_buffers
+#endif
+
 #ifndef BASE_RANGES_RANGES_H_
 #define BASE_RANGES_RANGES_H_
 
@@ -22,21 +27,6 @@ constexpr T* begin(T (&array)[N], priority_tag<2>) {
   return array;
 }
 
-// Overload for mutable std::array. Required since std::array::begin is not
-// constexpr prior to C++17. Needs to dispatch to the const overload since only
-// const operator[] is constexpr in C++14.
-template <typename T, size_t N>
-constexpr T* begin(std::array<T, N>& array, priority_tag<2> tag) {
-  return const_cast<T*>(begin(const_cast<const std::array<T, N>&>(array), tag));
-}
-
-// Overload for const std::array. Required since std::array::begin is not
-// constexpr prior to C++17.
-template <typename T, size_t N>
-constexpr const T* begin(const std::array<T, N>& array, priority_tag<2>) {
-  return N != 0 ? &array[0] : nullptr;
-}
-
 // Generic container overload.
 template <typename Range>
 constexpr auto begin(Range&& range, priority_tag<1>)
@@ -55,21 +45,6 @@ constexpr auto begin(Range&& range, priority_tag<0>)
 template <typename T, size_t N>
 constexpr T* end(T (&array)[N], priority_tag<2>) {
   return array + N;
-}
-
-// Overload for mutable std::array. Required since std::array::end is not
-// constexpr prior to C++17. Needs to dispatch to the const overload since only
-// const operator[] is constexpr in C++14.
-template <typename T, size_t N>
-constexpr T* end(std::array<T, N>& array, priority_tag<2> tag) {
-  return const_cast<T*>(end(const_cast<const std::array<T, N>&>(array), tag));
-}
-
-// Overload for const std::array. Required since std::array::end is not
-// constexpr prior to C++17.
-template <typename T, size_t N>
-constexpr const T* end(const std::array<T, N>& array, priority_tag<2>) {
-  return N != 0 ? (&array[0]) + N : nullptr;
 }
 
 // Generic container overload.
@@ -131,7 +106,7 @@ using iterator_t = decltype(ranges::begin(std::declval<Range&>()));
 //
 // Reference: https://wg21.link/ranges.syn#:~:text=range_value_t
 template <typename Range>
-using range_value_t = iter_value_t<iterator_t<Range>>;
+using range_value_t = std::iter_value_t<iterator_t<Range>>;
 
 }  // namespace ranges
 

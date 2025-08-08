@@ -13,14 +13,6 @@
 
 namespace gl {
 class GLContext;
-class GLImage;
-}
-
-namespace gpu {
-namespace gles2 {
-class AbstractTexture;
-class ContextGroup;
-}
 }
 
 namespace media {
@@ -41,31 +33,6 @@ using GetGLContextCallback = base::RepeatingCallback<gl::GLContext*(void)>;
 // executing any GL calls. Return true on success, false otherwise.
 using MakeGLContextCurrentCallback = base::RepeatingCallback<bool(void)>;
 
-// Bind |image| to |client_texture_id| given |texture_target|. On Win/Mac,
-// marks the texture as needing binding by the decoder; on other platforms,
-// marks the texture as *not* needing binding by the decoder.
-// Return true on success, false otherwise.
-using BindGLImageCallback =
-    base::RepeatingCallback<bool(uint32_t client_texture_id,
-                                 uint32_t texture_target,
-                                 const scoped_refptr<gl::GLImage>& image)>;
-
-// Return a ContextGroup*, if one is available.
-using GetContextGroupCallback =
-    base::RepeatingCallback<gpu::gles2::ContextGroup*(void)>;
-
-// Create and return an AbstractTexture, if possible.
-using CreateAbstractTextureCallback =
-    base::RepeatingCallback<std::unique_ptr<gpu::gles2::AbstractTexture>(
-        unsigned /* GLenum */ target,
-        unsigned /* GLenum */ internal_format,
-        int /* GLsizei */ width,
-        int /* GLsizei */ height,
-        int /* GLsizei */ depth,
-        int /* GLint */ border,
-        unsigned /* GLenum */ format,
-        unsigned /* GLenum */ type)>;
-
 // OpenGL callbacks made by VideoDecodeAccelerator sub-classes.
 struct MEDIA_GPU_EXPORT GpuVideoDecodeGLClient {
   GpuVideoDecodeGLClient();
@@ -80,36 +47,11 @@ struct MEDIA_GPU_EXPORT GpuVideoDecodeGLClient {
   // executing any GL calls. Return true on success, false otherwise.
   using MakeGLContextCurrentCallback = base::RepeatingCallback<bool(void)>;
 
-  // Bind |image| to |client_texture_id| given |texture_target|. On Win/Mac,
-  // marks the texture as needing binding by the decoder; on other platforms,
-  // marks the texture as *not* needing binding by the decoder.
-  // Return true on success, false otherwise.
-  using BindGLImageCallback =
-      base::RepeatingCallback<bool(uint32_t client_texture_id,
-                                   uint32_t texture_target,
-                                   const scoped_refptr<gl::GLImage>& image)>;
-
-  // Return a ContextGroup*, if one is available.
-  using GetContextGroupCallback =
-      base::RepeatingCallback<gpu::gles2::ContextGroup*(void)>;
-
   // Callback to return current GLContext, if available.
   GetGLContextCallback get_context;
 
   // Callback for making the relevant context current for GL calls.
   MakeGLContextCurrentCallback make_context_current;
-
-  // Callback to bind a GLImage to a given texture id and target.
-  BindGLImageCallback bind_image;
-
-  // Callback to return a ContextGroup*.
-  GetContextGroupCallback get_context_group;
-
-  // Callback to return a DecoderContext*.
-  CreateAbstractTextureCallback create_abstract_texture;
-
-  // Whether or not the command buffer is passthrough.
-  bool is_passthrough = false;
 
   // Whether or not ARB_texture_rectangle is present.
   bool supports_arb_texture_rectangle = false;

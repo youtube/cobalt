@@ -43,7 +43,6 @@ StreamParserTestBase::StreamParserTestBase(
                           base::Unretained(this)),
       base::BindRepeating(&StreamParserTestBase::OnNewBuffers,
                           base::Unretained(this)),
-      true,
       base::BindRepeating(&StreamParserTestBase::OnKeyNeeded,
                           base::Unretained(this)),
       base::BindRepeating(&StreamParserTestBase::OnNewSegment,
@@ -63,7 +62,7 @@ std::string StreamParserTestBase::ParseFile(const std::string& filename,
   scoped_refptr<DecoderBuffer> buffer = ReadTestDataFile(filename);
 
   const uint8_t* start = buffer->data();
-  const uint8_t* end = start + buffer->data_size();
+  const uint8_t* end = start + buffer->size();
   do {
     size_t chunk_size = std::min(static_cast<size_t>(append_bytes),
                                  static_cast<size_t>(end - start));
@@ -123,13 +122,11 @@ void StreamParserTestBase::OnInitDone(
   DVLOG(1) << __func__ << "(" << params.duration.InMilliseconds() << ")";
 }
 
-bool StreamParserTestBase::OnNewConfig(
-    std::unique_ptr<MediaTracks> tracks,
-    const StreamParser::TextTrackConfigMap& text_config) {
+bool StreamParserTestBase::OnNewConfig(std::unique_ptr<MediaTracks> tracks) {
   DVLOG(1) << __func__ << ": got " << tracks->tracks().size() << " tracks";
   EXPECT_EQ(tracks->tracks().size(), 1u);
   const auto& track = tracks->tracks()[0];
-  EXPECT_EQ(track->type(), MediaTrack::Audio);
+  EXPECT_EQ(track->type(), MediaTrack::Type::kAudio);
   audio_track_id_ = track->bytestream_track_id();
   last_audio_config_ = tracks->getAudioConfig(track->bytestream_track_id());
   EXPECT_TRUE(last_audio_config_.IsValidConfig());

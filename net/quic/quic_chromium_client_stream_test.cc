@@ -5,6 +5,7 @@
 #include "net/quic/quic_chromium_client_stream.h"
 
 #include <string>
+#include <string_view>
 
 #include "base/functional/bind.h"
 #include "base/functional/callback_helpers.h"
@@ -12,6 +13,7 @@
 #include "base/memory/raw_ptr.h"
 #include "base/run_loop.h"
 #include "base/strings/string_number_conversions.h"
+#include "base/test/metrics/histogram_tester.h"
 #include "net/base/io_buffer.h"
 #include "net/base/net_errors.h"
 #include "net/base/test_completion_callback.h"
@@ -37,10 +39,16 @@ using testing::Return;
 namespace net::test {
 namespace {
 
+class EstablishedCryptoStream : public quic::test::MockQuicCryptoStream {
+ public:
+  using quic::test::MockQuicCryptoStream::MockQuicCryptoStream;
+
+  bool encryption_established() const override { return true; }
+};
+
 class MockQuicClientSessionBase : public quic::QuicSpdyClientSessionBase {
  public:
-  explicit MockQuicClientSessionBase(quic::QuicConnection* connection,
-                                     quic::QuicClientPushPromiseIndex* index);
+  explicit MockQuicClientSessionBase(quic::QuicConnection* connection);
 
   MockQuicClientSessionBase(const MockQuicClientSessionBase&) = delete;
   MockQuicClientSessionBase& operator=(const MockQuicClientSessionBase&) =
@@ -54,6 +62,10 @@ class MockQuicClientSessionBase : public quic::QuicSpdyClientSessionBase {
 
   quic::QuicCryptoStream* GetMutableCryptoStream() override {
     return crypto_stream_.get();
+  }
+
+  void SetCryptoStream(quic::QuicCryptoStream* crypto_stream) {
+    crypto_stream_.reset(crypto_stream);
   }
 
   // From quic::QuicSession.
@@ -83,19 +95,12 @@ class MockQuicClientSessionBase : public quic::QuicSpdyClientSessionBase {
 
   MOCK_METHOD2(OnStreamHeaders,
                void(quic::QuicStreamId stream_id,
-                    absl::string_view headers_data));
+                    std::string_view headers_data));
   MOCK_METHOD2(OnStreamHeadersPriority,
                void(quic::QuicStreamId stream_id,
                     const spdy::SpdyStreamPrecedence& precedence));
   MOCK_METHOD3(OnStreamHeadersComplete,
                void(quic::QuicStreamId stream_id, bool fin, size_t frame_len));
-  MOCK_METHOD2(OnPromiseHeaders,
-               void(quic::QuicStreamId stream_id,
-                    absl::string_view headers_data));
-  MOCK_METHOD3(OnPromiseHeadersComplete,
-               void(quic::QuicStreamId stream_id,
-                    quic::QuicStreamId promised_stream_id,
-                    size_t frame_len));
   MOCK_CONST_METHOD0(OneRttKeysAvailable, bool());
   // Methods taking non-copyable types like spdy::Http2HeaderBlock by value
   // cannot be mocked directly.
@@ -133,7 +138,6 @@ class MockQuicClientSessionBase : public quic::QuicSpdyClientSessionBase {
       const quic::QuicCryptoClientConfig::CachedState& cached) override {}
   void OnProofVerifyDetailsAvailable(
       const quic::ProofVerifyDetails& verify_details) override {}
-  bool IsAuthorized(const std::string& hostname) override { return true; }
 
  protected:
   MOCK_METHOD1(ShouldCreateIncomingStream, bool(quic::QuicStreamId id));
@@ -145,11 +149,9 @@ class MockQuicClientSessionBase : public quic::QuicSpdyClientSessionBase {
 };
 
 MockQuicClientSessionBase::MockQuicClientSessionBase(
-    quic::QuicConnection* connection,
-    quic::QuicClientPushPromiseIndex* push_promise_index)
+    quic::QuicConnection* connection)
     : quic::QuicSpdyClientSessionBase(connection,
                                       /*visitor=*/nullptr,
-                                      push_promise_index,
                                       quic::test::DefaultQuicConfig(),
                                       connection->supported_versions()) {
   crypto_stream_ = std::make_unique<quic::test::MockQuicCryptoStream>(this);
@@ -169,11 +171,10 @@ class QuicChromiumClientStreamTest
         crypto_config_(
             quic::test::crypto_test_utils::ProofVerifierForTesting()),
         session_(new quic::test::MockQuicConnection(
-                     &helper_,
-                     &alarm_factory_,
-                     quic::Perspective::IS_CLIENT,
-                     quic::test::SupportedVersions(version_)),
-                 &push_promise_index_) {
+            &helper_,
+            &alarm_factory_,
+            quic::Perspective::IS_CLIENT,
+            quic::test::SupportedVersions(version_))) {
     quic::test::QuicConfigPeer::SetReceivedInitialSessionFlowControlWindow(
         session_.config(), quic::kMinimumFlowControlSendWindow);
     quic::test::QuicConfigPeer::
@@ -190,6 +191,7 @@ class QuicChromiumClientStreamTest
     session_.ActivateStream(base::WrapUnique(stream_.get()));
     handle_ = stream_->CreateHandle();
     helper_.AdvanceTime(quic::QuicTime::Delta::FromSeconds(1));
+    session_.SetCryptoStream(new EstablishedCryptoStream(&session_));
     session_.connection()->SetEncrypter(
         quic::ENCRYPTION_FORWARD_SECURE,
         std::make_unique<quic::test::TaggingEncrypter>(
@@ -233,13 +235,13 @@ class QuicChromiumClientStreamTest
     return headers;
   }
 
-  void ReadData(absl::string_view expected_data) {
-    scoped_refptr<IOBuffer> buffer =
-        base::MakeRefCounted<IOBuffer>(expected_data.length() + 1);
+  void ReadData(std::string_view expected_data) {
+    auto buffer =
+        base::MakeRefCounted<IOBufferWithSize>(expected_data.length() + 1);
     EXPECT_EQ(static_cast<int>(expected_data.length()),
               stream_->Read(buffer.get(), expected_data.length() + 1));
     EXPECT_EQ(expected_data,
-              absl::string_view(buffer->data(), expected_data.length()));
+              std::string_view(buffer->data(), expected_data.length()));
   }
 
   quic::QuicHeaderList ProcessHeaders(const spdy::Http2HeaderBlock& headers) {
@@ -295,7 +297,7 @@ class QuicChromiumClientStreamTest
   raw_ptr<QuicChromiumClientStream> stream_;
   spdy::Http2HeaderBlock headers_;
   spdy::Http2HeaderBlock trailers_;
-  quic::QuicClientPushPromiseIndex push_promise_index_;
+  base::HistogramTester histogram_tester_;
 };
 
 INSTANTIATE_TEST_SUITE_P(Version,
@@ -325,7 +327,7 @@ TEST_P(QuicChromiumClientStreamTest, Handle) {
   quic::QuicStreamFrame frame2(
       quic::test::GetNthClientInitiatedBidirectionalStreamId(
           version_.transport_version, 0),
-      true, offset, absl::string_view());
+      true, offset, std::string_view());
   stream_->OnStreamFrame(frame2);
   EXPECT_TRUE(handle_->fin_received());
   handle_->OnFinRead();
@@ -342,7 +344,7 @@ TEST_P(QuicChromiumClientStreamTest, Handle) {
               WritevData(stream_->id(), _, _, _, quic::NOT_RETRANSMISSION, _))
       .WillOnce(Return(quic::QuicConsumedData(kDataLen, true)));
   TestCompletionCallback callback;
-  EXPECT_EQ(OK, handle_->WriteStreamData(base::StringPiece(kData1, kDataLen),
+  EXPECT_EQ(OK, handle_->WriteStreamData(std::string_view(kData1, kDataLen),
                                          true, callback.callback()));
 
   EXPECT_FALSE(handle_->IsOpen());
@@ -360,11 +362,11 @@ TEST_P(QuicChromiumClientStreamTest, Handle) {
   EXPECT_EQ(0u, handle_->NumBytesConsumed());
 
   EXPECT_EQ(ERR_CONNECTION_CLOSED,
-            handle_->WriteStreamData(base::StringPiece(kData1, kDataLen), true,
+            handle_->WriteStreamData(std::string_view(kData1, kDataLen), true,
                                      callback.callback()));
 
   std::vector<scoped_refptr<IOBuffer>> buffers = {
-      base::MakeRefCounted<IOBuffer>(10)};
+      base::MakeRefCounted<IOBufferWithSize>(10)};
   std::vector<int> lengths = {10};
   EXPECT_EQ(
       ERR_CONNECTION_CLOSED,
@@ -413,7 +415,7 @@ TEST_P(QuicChromiumClientStreamTest, OnFinRead) {
   quic::QuicStreamFrame frame2(
       quic::test::GetNthClientInitiatedBidirectionalStreamId(
           version_.transport_version, 0),
-      true, offset, absl::string_view());
+      true, offset, std::string_view());
   stream_->OnStreamFrame(frame2);
 }
 
@@ -439,11 +441,10 @@ TEST_P(QuicChromiumClientStreamTest, OnDataAvailable) {
 
   // Read the body and verify that it arrives correctly.
   TestCompletionCallback callback;
-  scoped_refptr<IOBuffer> buffer = base::MakeRefCounted<IOBuffer>(2 * data_len);
+  auto buffer = base::MakeRefCounted<IOBufferWithSize>(2 * data_len);
   EXPECT_EQ(data_len,
             handle_->ReadBody(buffer.get(), 2 * data_len, callback.callback()));
-  EXPECT_EQ(absl::string_view(data),
-            absl::string_view(buffer->data(), data_len));
+  EXPECT_EQ(std::string_view(data), std::string_view(buffer->data(), data_len));
 }
 
 TEST_P(QuicChromiumClientStreamTest, OnDataAvailableAfterReadBody) {
@@ -455,7 +456,7 @@ TEST_P(QuicChromiumClientStreamTest, OnDataAvailableAfterReadBody) {
 
   // Start to read the body.
   TestCompletionCallback callback;
-  scoped_refptr<IOBuffer> buffer = base::MakeRefCounted<IOBuffer>(2 * data_len);
+  auto buffer = base::MakeRefCounted<IOBufferWithSize>(2 * data_len);
   EXPECT_EQ(ERR_IO_PENDING,
             handle_->ReadBody(buffer.get(), 2 * data_len, callback.callback()));
 
@@ -475,8 +476,7 @@ TEST_P(QuicChromiumClientStreamTest, OnDataAvailableAfterReadBody) {
       /*offset=*/offset, data));
 
   EXPECT_EQ(data_len, callback.WaitForResult());
-  EXPECT_EQ(absl::string_view(data),
-            absl::string_view(buffer->data(), data_len));
+  EXPECT_EQ(std::string_view(data), std::string_view(buffer->data(), data_len));
   base::RunLoop().RunUntilIdle();
 }
 
@@ -507,7 +507,7 @@ TEST_P(QuicChromiumClientStreamTest, OnDataAvailableWithError) {
 
   // Start to read the body.
   TestCompletionCallback callback;
-  scoped_refptr<IOBuffer> buffer = base::MakeRefCounted<IOBuffer>(2 * data_len);
+  auto buffer = base::MakeRefCounted<IOBufferWithSize>(2 * data_len);
   EXPECT_EQ(
       ERR_IO_PENDING,
       handle_->ReadBody(
@@ -568,11 +568,10 @@ TEST_P(QuicChromiumClientStreamTest, OnTrailers) {
 
   // Read the body and verify that it arrives correctly.
   TestCompletionCallback callback;
-  scoped_refptr<IOBuffer> buffer = base::MakeRefCounted<IOBuffer>(2 * data_len);
+  auto buffer = base::MakeRefCounted<IOBufferWithSize>(2 * data_len);
   EXPECT_EQ(data_len,
             handle_->ReadBody(buffer.get(), 2 * data_len, callback.callback()));
-  EXPECT_EQ(absl::string_view(data),
-            absl::string_view(buffer->data(), data_len));
+  EXPECT_EQ(std::string_view(data), std::string_view(buffer->data(), data_len));
 
   spdy::Http2HeaderBlock trailers;
   trailers["bar"] = "foo";
@@ -616,11 +615,10 @@ TEST_P(QuicChromiumClientStreamTest, MarkTrailersConsumedWhenNotifyDelegate) {
 
   // Read the body and verify that it arrives correctly.
   TestCompletionCallback callback;
-  scoped_refptr<IOBuffer> buffer = base::MakeRefCounted<IOBuffer>(2 * data_len);
+  auto buffer = base::MakeRefCounted<IOBufferWithSize>(2 * data_len);
   EXPECT_EQ(data_len,
             handle_->ReadBody(buffer.get(), 2 * data_len, callback.callback()));
-  EXPECT_EQ(absl::string_view(data),
-            absl::string_view(buffer->data(), data_len));
+  EXPECT_EQ(std::string_view(data), std::string_view(buffer->data(), data_len));
 
   // Read again, and it will be pending.
   EXPECT_THAT(
@@ -671,11 +669,10 @@ TEST_P(QuicChromiumClientStreamTest, ReadAfterTrailersReceivedButNotDelivered) {
 
   // Read the body and verify that it arrives correctly.
   TestCompletionCallback callback;
-  scoped_refptr<IOBuffer> buffer = base::MakeRefCounted<IOBuffer>(2 * data_len);
+  auto buffer = base::MakeRefCounted<IOBufferWithSize>(2 * data_len);
   EXPECT_EQ(data_len,
             handle_->ReadBody(buffer.get(), 2 * data_len, callback.callback()));
-  EXPECT_EQ(absl::string_view(data),
-            absl::string_view(buffer->data(), data_len));
+  EXPECT_EQ(std::string_view(data), std::string_view(buffer->data(), data_len));
 
   // Deliver trailers. Delegate notification is posted asynchronously.
   spdy::Http2HeaderBlock trailers;
@@ -723,7 +720,7 @@ TEST_P(QuicChromiumClientStreamTest, WriteStreamData) {
               WritevData(stream_->id(), _, _, _, quic::NOT_RETRANSMISSION, _))
       .WillOnce(Return(quic::QuicConsumedData(kDataLen, true)));
   TestCompletionCallback callback;
-  EXPECT_EQ(OK, handle_->WriteStreamData(base::StringPiece(kData1, kDataLen),
+  EXPECT_EQ(OK, handle_->WriteStreamData(std::string_view(kData1, kDataLen),
                                          true, callback.callback()));
 }
 
@@ -738,7 +735,7 @@ TEST_P(QuicChromiumClientStreamTest, WriteStreamDataAsync) {
       .WillOnce(Return(quic::QuicConsumedData(0, false)));
   TestCompletionCallback callback;
   EXPECT_EQ(ERR_IO_PENDING,
-            handle_->WriteStreamData(base::StringPiece(kData1, kDataLen), true,
+            handle_->WriteStreamData(std::string_view(kData1, kDataLen), true,
                                      callback.callback()));
   ASSERT_FALSE(callback.have_result());
 
@@ -826,6 +823,30 @@ TEST_P(QuicChromiumClientStreamTest, WritevStreamDataAsync) {
   EXPECT_THAT(callback.WaitForResult(), IsOk());
 }
 
+TEST_P(QuicChromiumClientStreamTest, WriteConnectUdpPayload) {
+  testing::InSequence seq;
+  std::string packet = {1, 2, 3, 4, 5, 6};
+
+  quic::test::QuicSpdySessionPeer::SetHttpDatagramSupport(
+      &session_, quic::HttpDatagramSupport::kRfc);
+  EXPECT_CALL(
+      *static_cast<quic::test::MockQuicConnection*>(session_.connection()),
+      SendMessage(1, _, false))
+      .WillOnce(Return(quic::MESSAGE_STATUS_SUCCESS));
+  EXPECT_EQ(OK, handle_->WriteConnectUdpPayload(packet));
+  histogram_tester_.ExpectBucketCount(
+      QuicChromiumClientStream::kHttp3DatagramDroppedHistogram, false, 1);
+
+  // Packet is dropped if session does not have HTTP3 Datagram support.
+  quic::test::QuicSpdySessionPeer::SetHttpDatagramSupport(
+      &session_, quic::HttpDatagramSupport::kNone);
+  EXPECT_EQ(OK, handle_->WriteConnectUdpPayload(packet));
+  histogram_tester_.ExpectBucketCount(
+      QuicChromiumClientStream::kHttp3DatagramDroppedHistogram, true, 1);
+  histogram_tester_.ExpectTotalCount(
+      QuicChromiumClientStream::kHttp3DatagramDroppedHistogram, 2);
+}
+
 TEST_P(QuicChromiumClientStreamTest, HeadersBeforeHandle) {
   // We don't use stream_ because we want an incoming server push
   // stream.
@@ -887,10 +908,9 @@ TEST_P(QuicChromiumClientStreamTest, HeadersAndDataBeforeHandle) {
 
   // Now explicitly read the data.
   int data_len = std::size(data) - 1;
-  scoped_refptr<IOBuffer> buffer = base::MakeRefCounted<IOBuffer>(data_len + 1);
+  auto buffer = base::MakeRefCounted<IOBufferWithSize>(data_len + 1);
   ASSERT_EQ(data_len, stream2->Read(buffer.get(), data_len + 1));
-  EXPECT_EQ(absl::string_view(data),
-            absl::string_view(buffer->data(), data_len));
+  EXPECT_EQ(std::string_view(data), std::string_view(buffer->data(), data_len));
 }
 
 // Regression test for https://crbug.com/1043531.

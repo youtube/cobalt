@@ -13,6 +13,7 @@
 #include "base/memory/ref_counted.h"
 #include "base/run_loop.h"
 #include "base/task/single_thread_task_runner.h"
+#include "base/threading/sequence_bound.h"
 #include "base/time/time.h"
 #include "build/build_config.h"
 #include "media/base/media_log.h"
@@ -44,6 +45,12 @@
 #include "media/filters/vpx_video_decoder.h"
 #endif
 
+#if BUILDFLAG(ENABLE_HLS_DEMUXER)
+#include "media/filters/hls_data_source_provider_impl.h"
+#include "media/filters/hls_manifest_demuxer_engine.h"
+#include "media/filters/manifest_demuxer.h"
+#endif  // BUILDFLAG(ENABLE_HLS_DEMUXER)
+
 using ::testing::_;
 using ::testing::AnyNumber;
 using ::testing::AtLeast;
@@ -55,6 +62,25 @@ using ::testing::Return;
 using ::testing::SaveArg;
 
 namespace media {
+
+#if BUILDFLAG(ENABLE_HLS_DEMUXER)
+namespace {
+
+class TestDataSourceFactory
+    : public HlsDataSourceProviderImpl::DataSourceFactory {
+ public:
+  ~TestDataSourceFactory() override = default;
+  void CreateDataSource(GURL uri, DataSourceCb callback) override {
+    auto file_data_source = std::make_unique<FileDataSource>();
+    base::FilePath file_path(uri.GetContent());
+    CHECK(file_data_source->Initialize(file_path))
+        << "Is " << file_path.value() << " missing?";
+    std::move(callback).Run(std::move(file_data_source));
+  }
+};
+
+}  // namespace
+#endif  // BUILDFLAG(ENABLE_HLS_DEMUXER)
 
 static std::vector<std::unique_ptr<VideoDecoder>> CreateVideoDecodersForTest(
     MediaLog* media_log,
@@ -72,7 +98,7 @@ static std::vector<std::unique_ptr<VideoDecoder>> CreateVideoDecodersForTest(
 
 #if BUILDFLAG(ENABLE_DAV1D_DECODER)
   video_decoders.push_back(
-      std::make_unique<OffloadingDav1dVideoDecoder>(media_log));
+      std::make_unique<OffloadingDav1dVideoDecoder>(media_log->Clone()));
 #endif
 
 #if BUILDFLAG(ENABLE_FFMPEG_VIDEO_DECODERS)
@@ -103,14 +129,7 @@ const char kNullVideoHash[] = "d41d8cd98f00b204e9800998ecf8427e";
 const char kNullAudioHash[] = "0.00,0.00,0.00,0.00,0.00,0.00,";
 
 PipelineIntegrationTestBase::PipelineIntegrationTestBase()
-    :
-// Use a UI type message loop on macOS, because it doesn't seem to schedule
-// callbacks with enough precision to drive our fake audio output. See
-// https://crbug.com/1014646 for more details.
-#if BUILDFLAG(IS_MAC)
-      task_environment_(base::test::TaskEnvironment::MainThreadType::UI),
-#endif
-      hashing_enabled_(false),
+    : hashing_enabled_(false),
       clockless_playback_(false),
       webaudio_attached_(false),
       mono_output_(false),
@@ -158,6 +177,11 @@ void PipelineIntegrationTestBase::OnSeeked(base::TimeDelta seek_time,
     EXPECT_EQ(seek_time, pipeline_->GetMediaTime());
 
   pipeline_status_ = status;
+
+  // If the seek failed, then stop immediately.
+  if (!pipeline_status_.is_ok() && on_error_closure_) {
+    std::move(on_error_closure_).Run();
+  }
 }
 
 void PipelineIntegrationTestBase::OnStatusCallback(
@@ -234,6 +258,42 @@ void PipelineIntegrationTestBase::SetCreateRendererCB(
     CreateRendererCB create_renderer_cb) {
   create_renderer_cb_ = std::move(create_renderer_cb);
 }
+
+#if BUILDFLAG(ENABLE_HLS_DEMUXER)
+PipelineStatus PipelineIntegrationTestBase::StartPipelineWithHlsManifest(
+    const std::string& filename) {
+  hashing_enabled_ = true;
+
+  auto full_path = GetTestDataFilePath(filename);
+  std::string file_url = "file://" + full_path.MaybeAsASCII();
+  GURL manifest_root{file_url};
+
+  auto multibuffer_factory = std::make_unique<TestDataSourceFactory>();
+  // HlsManifestDemuxerEngine requires a SequenceBound data source provider,
+  // regardless of which sequence it's actually bound to.
+  auto hls_dsp = base::SequenceBound<HlsDataSourceProviderImpl>(
+      task_environment_.GetMainThreadTaskRunner(),
+      std::move(multibuffer_factory));
+
+  auto engine = std::make_unique<HlsManifestDemuxerEngine>(
+      std::move(hls_dsp), task_environment_.GetMainThreadTaskRunner(),
+      /*name=*/false, manifest_root, &media_log_);
+  demuxer_ = std::make_unique<ManifestDemuxer>(
+      task_environment_.GetMainThreadTaskRunner(), base::DoNothing(),
+      std::move(engine), &media_log_);
+  EXPECT_CALL(*this, OnMetadata(_))
+      .Times(AtMost(1))
+      .WillRepeatedly(SaveArg<0>(&metadata_));
+
+  base::RunLoop run_loop;
+  pipeline_->Start(
+      Pipeline::StartType::kNormal, demuxer_.get(), this,
+      base::BindOnce(&PipelineIntegrationTestBase::OnStatusCallback,
+                     base::Unretained(this), run_loop.QuitClosure()));
+  RunUntilQuitOrEndedOrError(&run_loop);
+  return pipeline_status_;
+}
+#endif  // BUILDFLAG(ENABLE_HLS_DEMUXER)
 
 PipelineStatus PipelineIntegrationTestBase::StartInternal(
     std::unique_ptr<DataSource> data_source,
@@ -347,6 +407,23 @@ void PipelineIntegrationTestBase::Pause() {
   pipeline_->SetPlaybackRate(0);
 }
 
+void PipelineIntegrationTestBase::OnBufferingStateChangeForSeek(
+    BufferingState state,
+    BufferingStateChangeReason reason) {
+  // Record the first buffering state we get.
+  if (!buffering_state_) {
+    buffering_state_ = state;
+
+    // The first call must be HAVE_ENOUGH.
+    EXPECT_EQ(state, BUFFERING_HAVE_ENOUGH);
+  }
+
+  // Once we have HAVE_ENOUGH, we've had enough.
+  if (on_ended_closure_) {
+    std::move(on_ended_closure_).Run();
+  }
+}
+
 bool PipelineIntegrationTestBase::Seek(base::TimeDelta seek_time) {
   // Enforce that BUFFERING_HAVE_ENOUGH is the first call below.
   ::testing::InSequence dummy;
@@ -354,18 +431,37 @@ bool PipelineIntegrationTestBase::Seek(base::TimeDelta seek_time) {
   ended_ = false;
   base::RunLoop run_loop;
 
-  // Should always transition to HAVE_ENOUGH once the seek completes.
-  EXPECT_CALL(*this, OnBufferingStateChange(BUFFERING_HAVE_ENOUGH, _))
-      .WillOnce(InvokeWithoutArgs(&run_loop, &base::RunLoop::Quit));
+  pipeline_status_ = PIPELINE_OK;
+  buffering_state_.reset();
 
+  // Should always transition to HAVE_ENOUGH once the seek completes
+  // successfully.  On error, it shouldn't be called at all.
   // After initial HAVE_ENOUGH, any buffering state change is allowed as
   // playback may cause any number of underflow/preroll events.
-  EXPECT_CALL(*this, OnBufferingStateChange(_, _)).Times(AnyNumber());
+  EXPECT_CALL(*this, OnBufferingStateChange(_, _))
+      .Times(AnyNumber())
+      .WillRepeatedly(Invoke(
+          this, &PipelineIntegrationTestBase::OnBufferingStateChangeForSeek));
 
+  bool did_call_on_seeked = false;
   pipeline_->Seek(seek_time,
-                  base::BindOnce(&PipelineIntegrationTestBase::OnSeeked,
-                                 base::Unretained(this), seek_time));
-  RunUntilQuitOrError(&run_loop);
+                  base::BindOnce(
+                      [](PipelineIntegrationTestBase* thiz, bool* flag,
+                         base::TimeDelta seek_time, PipelineStatus status) {
+                        *flag = true;
+                        thiz->OnSeeked(seek_time, status);
+                      },
+                      base::Unretained(this), &did_call_on_seeked, seek_time));
+  RunUntilQuitOrEndedOrError(&run_loop);
+
+  // We must get at least one `OnSeeked()` status call.
+  EXPECT_TRUE(did_call_on_seeked);
+  // If the seek succeeded, then we must get to HAVE_ENOUGH
+  if (pipeline_status_ == PIPELINE_OK) {
+    EXPECT_TRUE(buffering_state_);
+    EXPECT_EQ(*buffering_state_, BUFFERING_HAVE_ENOUGH);
+  }  // else we don't care about buffering state.
+
   return (pipeline_status_ == PIPELINE_OK);
 }
 
@@ -455,7 +551,7 @@ void PipelineIntegrationTestBase::CreateDemuxer(
 }
 
 std::unique_ptr<Renderer> PipelineIntegrationTestBase::CreateRenderer(
-    absl::optional<RendererType> renderer_type) {
+    std::optional<RendererType> renderer_type) {
   if (create_renderer_cb_)
     return create_renderer_cb_.Run(renderer_type);
 
@@ -463,7 +559,7 @@ std::unique_ptr<Renderer> PipelineIntegrationTestBase::CreateRenderer(
 }
 
 std::unique_ptr<Renderer> PipelineIntegrationTestBase::CreateRendererImpl(
-    absl::optional<RendererType> renderer_type) {
+    std::optional<RendererType> renderer_type) {
   if (renderer_type && *renderer_type != RendererType::kRendererImpl) {
     DVLOG(1) << __func__ << ": renderer_type not supported";
     return nullptr;
@@ -690,7 +786,7 @@ PipelineStatus PipelineIntegrationTestBase::StartPipelineWithMediaSource(
 
   RunUntilQuitOrEndedOrError(&run_loop);
 
-  for (auto* stream : demuxer_->GetAllStreams()) {
+  for (media::DemuxerStream* stream : demuxer_->GetAllStreams()) {
     EXPECT_TRUE(stream->SupportsConfigChanges());
   }
 

@@ -16,7 +16,6 @@
 #include "base/gtest_prod_util.h"
 #include "base/location.h"
 #include "base/memory/raw_ptr.h"
-#include "base/memory/raw_ptr_exclusion.h"
 #include "base/memory/weak_ptr.h"
 #include "base/observer_list.h"
 #include "base/sequence_checker.h"
@@ -32,7 +31,7 @@ class ScopedDisableRunLoopTimeout;
 }  // namespace test
 
 #if BUILDFLAG(IS_ANDROID)
-class MessagePumpForUI;
+class MessagePumpAndroid;
 #endif
 
 #if BUILDFLAG(IS_IOS)
@@ -85,13 +84,6 @@ class BASE_EXPORT RunLoop {
   // Run the current RunLoop::Delegate. This blocks until Quit is called
   // (directly or by running the RunLoop::QuitClosure).
   void Run(const Location& location = Location::Current());
-
-#if defined(STARBOARD)
-  // Starboard has its own for loop so it does not call RunLoop::Run and
-  // therefore requires these two functions public.
-  bool BeforeRun();
-  void AfterRun();
-#endif
 
   // Run the current RunLoop::Delegate until it doesn't find any tasks or
   // messages in its queue (it goes idle).
@@ -236,7 +228,9 @@ class BASE_EXPORT RunLoop {
     // A vector-based stack is more memory efficient than the default
     // deque-based stack as the active RunLoop stack isn't expected to ever
     // have more than a few entries.
-    using RunLoopStack = stack<RunLoop*, std::vector<RunLoop*>>;
+    using RunLoopStack =
+        stack<raw_ptr<RunLoop, VectorExperimental>,
+              std::vector<raw_ptr<RunLoop, VectorExperimental>>>;
 
     RunLoopStack active_run_loops_;
     ObserverList<RunLoop::NestingObserver>::Unchecked nesting_observers_;
@@ -258,16 +252,6 @@ class BASE_EXPORT RunLoop {
   // on forever bound to that thread (including its destruction).
   static void RegisterDelegateForCurrentThread(Delegate* new_delegate);
 
-  // Quits the active RunLoop (when idle) -- there must be one. These were
-  // introduced as prefered temporary replacements to the long deprecated
-  // MessageLoop::Quit(WhenIdle)(Closure) methods. Callers should properly plumb
-  // a reference to the appropriate RunLoop instance (or its QuitClosure)
-  // instead of using these in order to link Run()/Quit() to a single RunLoop
-  // instance and increase readability.
-  static void QuitCurrentDeprecated();
-  static void QuitCurrentWhenIdleDeprecated();
-  [[nodiscard]] static RepeatingClosure QuitCurrentWhenIdleClosureDeprecated();
-
   // Support for //base/test/scoped_run_loop_timeout.h.
   // This must be public for access by the implementation code in run_loop.cc.
   struct BASE_EXPORT RunLoopTimeout {
@@ -284,7 +268,7 @@ class BASE_EXPORT RunLoop {
 #if BUILDFLAG(IS_ANDROID)
   // Android doesn't support the blocking RunLoop::Run, so it calls
   // BeforeRun and AfterRun directly.
-  friend class MessagePumpForUI;
+  friend class MessagePumpAndroid;
 #endif
 
 #if BUILDFLAG(IS_IOS)
@@ -300,20 +284,14 @@ class BASE_EXPORT RunLoop {
   static void SetTimeoutForCurrentThread(const RunLoopTimeout* timeout);
   static const RunLoopTimeout* GetTimeoutForCurrentThread();
 
-#if !defined(STARBOARD)
-  // Starboard has its own for loop so it does not call RunLoop::Run and
-  // therefore requires these two functions public.
   // Return false to abort the Run.
   bool BeforeRun();
   void AfterRun();
-#endif
 
   // A cached reference of RunLoop::Delegate for the thread driven by this
   // RunLoop for quick access without using TLS (also allows access to state
   // from another sequence during Run(), ref. |sequence_checker_| below).
-  // This field is not a raw_ptr<> because it was filtered by the rewriter for:
-  // #union, #global-scope
-  RAW_PTR_EXCLUSION Delegate* const delegate_;
+  const raw_ptr<Delegate, DanglingUntriaged> delegate_;
 
   const Type type_;
 
@@ -330,11 +308,6 @@ class BASE_EXPORT RunLoop {
   // responsible for probing this state via ShouldQuitWhenIdle()). This state is
   // stored here rather than pushed to Delegate to support nested RunLoops.
   bool quit_when_idle_ = false;
-
-  // True if use of QuitCurrent*Deprecated() is allowed. Taking a Quit*Closure()
-  // from a RunLoop implicitly sets this to false, so QuitCurrent*Deprecated()
-  // cannot be used while that RunLoop is being Run().
-  bool allow_quit_current_deprecated_ = true;
 
   // RunLoop is not thread-safe. Its state/methods, unless marked as such, may
   // not be accessed from any other sequence than the thread it was constructed

@@ -19,6 +19,7 @@
 #include "base/bits.h"
 #include "base/numerics/safe_conversions.h"
 #include "base/strings/utf_string_conversion_utils.h"
+#include "url/url_features.h"
 
 namespace url {
 
@@ -81,10 +82,11 @@ void DoAppendStringOfType(const CHAR* source,
   }
   for (; i < length; i++) {
     if (static_cast<UCHAR>(source[i]) >= 0x80) {
-      // ReadChar will fill the code point with kUnicodeReplacementCharacter
-      // when the input is invalid, which is what we want.
+      // ReadUTFCharLossy will fill the code point with
+      // kUnicodeReplacementCharacter when the input is invalid, which is what
+      // we want.
       base_icu::UChar32 code_point;
-      ReadUTFChar(source, &i, length, &code_point);
+      ReadUTFCharLossy(source, &i, length, &code_point);
       AppendUTF8EscapedValue(code_point, output);
     } else {
       // Just append the 7-bit character, possibly escaping it.
@@ -280,11 +282,6 @@ const unsigned char kSharedCharTypeTable[0x100] = {
 };
 // clang-format on
 
-const char kHexCharLookup[0x10] = {
-    '0', '1', '2', '3', '4', '5', '6', '7',
-    '8', '9', 'A', 'B', 'C', 'D', 'E', 'F',
-};
-
 const char kCharToHexLookup[8] = {
     0,         // 0x00 - 0x1f
     '0',       // 0x20 - 0x3f: digits 0 - 9 are 0x30 - 0x39
@@ -312,24 +309,22 @@ void AppendStringOfType(const char16_t* source,
   DoAppendStringOfType<char16_t, char16_t>(source, length, type, output);
 }
 
-bool ReadUTFChar(const char* str,
-                 size_t* begin,
-                 size_t length,
-                 base_icu::UChar32* code_point_out) {
-  if (!base::ReadUnicodeCharacter(str, length, begin, code_point_out) ||
-      !base::IsValidCharacter(*code_point_out)) {
+bool ReadUTFCharLossy(const char* str,
+                      size_t* begin,
+                      size_t length,
+                      base_icu::UChar32* code_point_out) {
+  if (!base::ReadUnicodeCharacter(str, length, begin, code_point_out)) {
     *code_point_out = kUnicodeReplacementCharacter;
     return false;
   }
   return true;
 }
 
-bool ReadUTFChar(const char16_t* str,
-                 size_t* begin,
-                 size_t length,
-                 base_icu::UChar32* code_point_out) {
-  if (!base::ReadUnicodeCharacter(str, length, begin, code_point_out) ||
-      !base::IsValidCharacter(*code_point_out)) {
+bool ReadUTFCharLossy(const char16_t* str,
+                      size_t* begin,
+                      size_t length,
+                      base_icu::UChar32* code_point_out) {
+  if (!base::ReadUnicodeCharacter(str, length, begin, code_point_out)) {
     *code_point_out = kUnicodeReplacementCharacter;
     return false;
   }
@@ -356,7 +351,7 @@ bool ConvertUTF16ToUTF8(const char16_t* input,
   bool success = true;
   for (size_t i = 0; i < input_len; i++) {
     base_icu::UChar32 code_point;
-    success &= ReadUTFChar(input, &i, input_len, &code_point);
+    success &= ReadUTFCharLossy(input, &i, input_len, &code_point);
     AppendUTF8Value(code_point, output);
   }
   return success;
@@ -368,7 +363,7 @@ bool ConvertUTF8ToUTF16(const char* input,
   bool success = true;
   for (size_t i = 0; i < input_len; i++) {
     base_icu::UChar32 code_point;
-    success &= ReadUTFChar(input, &i, input_len, &code_point);
+    success &= ReadUTFCharLossy(input, &i, input_len, &code_point);
     AppendUTF16Value(code_point, output);
   }
   return success;
@@ -389,11 +384,15 @@ void SetupOverrideComponents(const char* base,
   DoOverrideComponent(repl_source.password, repl_parsed.password,
                       &source->password, &parsed->password);
 
-  // Our host should be empty if not present, so override the default setup.
   DoOverrideComponent(repl_source.host, repl_parsed.host, &source->host,
                       &parsed->host);
-  if (parsed->host.len == -1)
-    parsed->host.len = 0;
+  if (!url::IsUsingStandardCompliantNonSpecialSchemeURLParsing()) {
+    // For backward compatibility, the following is probably required while the
+    // flag is disabled by default.
+    if (parsed->host.len == -1) {
+      parsed->host.len = 0;
+    }
+  }
 
   DoOverrideComponent(repl_source.port, repl_parsed.port, &source->port,
                       &parsed->port);

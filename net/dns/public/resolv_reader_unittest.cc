@@ -8,6 +8,7 @@
 #include <resolv.h>
 
 #include <memory>
+#include <optional>
 #include <utility>
 #include <vector>
 
@@ -23,7 +24,6 @@
 #include "net/base/ip_address.h"
 #include "net/dns/public/dns_protocol.h"
 #include "testing/gtest/include/gtest/gtest.h"
-#include "third_party/abseil-cpp/absl/types/optional.h"
 
 namespace net {
 
@@ -94,7 +94,7 @@ TEST(ResolvReaderTest, GetNameservers) {
   auto res = std::make_unique<struct __res_state>();
   InitializeResState(res.get());
 
-  absl::optional<std::vector<IPEndPoint>> nameservers =
+  std::optional<std::vector<IPEndPoint>> nameservers =
       GetNameservers(*res.get());
   EXPECT_TRUE(nameservers.has_value());
 

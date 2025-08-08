@@ -15,9 +15,8 @@
 #include "base/timer/elapsed_timer.h"
 #include "base/trace_event/base_tracing.h"
 #include "build/build_config.h"
-#if defined(STARBOARD)
-#include "starboard/types.h"
-#elif BUILDFLAG(IS_POSIX) || BUILDFLAG(IS_FUCHSIA)
+
+#if BUILDFLAG(IS_POSIX) || BUILDFLAG(IS_FUCHSIA)
 #include <errno.h>
 #endif
 
@@ -42,8 +41,7 @@ File::File(PlatformFile platform_file) : File(platform_file, false) {}
 
 File::File(ScopedPlatformFile platform_file, bool async)
     : file_(std::move(platform_file)), error_details_(FILE_OK), async_(async) {
-#if defined(STARBOARD)
-#elif BUILDFLAG(IS_POSIX) || BUILDFLAG(IS_FUCHSIA)
+#if BUILDFLAG(IS_POSIX) || BUILDFLAG(IS_FUCHSIA)
   DCHECK_GE(file_.get(), -1);
 #endif
 }
@@ -52,8 +50,7 @@ File::File(PlatformFile platform_file, bool async)
     : file_(platform_file),
       error_details_(FILE_OK),
       async_(async) {
-#if defined(STARBOARD)
-#elif BUILDFLAG(IS_POSIX) || BUILDFLAG(IS_FUCHSIA)
+#if BUILDFLAG(IS_POSIX) || BUILDFLAG(IS_FUCHSIA)
   DCHECK_GE(platform_file, -1);
 #endif
 }
@@ -62,19 +59,10 @@ File::File(Error error_details) : error_details_(error_details) {}
 
 File::File(File&& other)
     : file_(other.TakePlatformFile()),
-#if defined(STARBOARD)
-      file_name_(other.file_name_),
-#endif
       tracing_path_(other.tracing_path_),
       error_details_(other.error_details()),
       created_(other.created()),
-      async_(other.async_)
-#if defined(STARBOARD)
-      ,
-      append_(other.append_)
-#endif
-{
-}
+      async_(other.async_) {}
 
 File::~File() {
   // Go through the AssertIOAllowed logic.
@@ -88,18 +76,13 @@ File& File::operator=(File&& other) {
   error_details_ = other.error_details();
   created_ = other.created();
   async_ = other.async_;
-#if defined(STARBOARD)
-  file_name_ = other.file_name_;
-  append_ = other.append_;
-#endif
   return *this;
 }
 
 #if !BUILDFLAG(IS_NACL)
 void File::Initialize(const FilePath& path, uint32_t flags) {
   if (path.ReferencesParent()) {
-#if defined(STARBOARD)
-#elif BUILDFLAG(IS_WIN)
+#if BUILDFLAG(IS_WIN)
     ::SetLastError(ERROR_ACCESS_DENIED);
 #elif BUILDFLAG(IS_POSIX) || BUILDFLAG(IS_FUCHSIA)
     errno = EACCES;
@@ -112,33 +95,68 @@ void File::Initialize(const FilePath& path, uint32_t flags) {
   if (FileTracing::IsCategoryEnabled())
     tracing_path_ = path;
   SCOPED_FILE_TRACE("Initialize");
-#if defined(STARBOARD)
-  file_name_= path.AsUTF8Unsafe();
-#endif
   DoInitialize(path, flags);
 }
 #endif
 
+std::optional<size_t> File::Read(int64_t offset, span<uint8_t> data) {
+  span<char> chars = base::as_writable_chars(data);
+  int size = checked_cast<int>(chars.size());
+  int result = Read(offset, chars.data(), size);
+  if (result < 0) {
+    return std::nullopt;
+  }
+  return checked_cast<size_t>(result);
+}
+
 bool File::ReadAndCheck(int64_t offset, span<uint8_t> data) {
-  int size = checked_cast<int>(data.size());
-  return Read(offset, reinterpret_cast<char*>(data.data()), size) == size;
+  // Size checked in span form of Read() above.
+  return Read(offset, data) == static_cast<int>(data.size());
+}
+
+std::optional<size_t> File::ReadAtCurrentPos(span<uint8_t> data) {
+  span<char> chars = base::as_writable_chars(data);
+  int size = checked_cast<int>(chars.size());
+  int result = ReadAtCurrentPos(chars.data(), size);
+  if (result < 0) {
+    return std::nullopt;
+  }
+  return checked_cast<size_t>(result);
 }
 
 bool File::ReadAtCurrentPosAndCheck(span<uint8_t> data) {
-  int size = checked_cast<int>(data.size());
-  return ReadAtCurrentPos(reinterpret_cast<char*>(data.data()), size) == size;
+  // Size checked in span form of ReadAtCurrentPos() above.
+  return ReadAtCurrentPos(data) == static_cast<int>(data.size());
+}
+
+std::optional<size_t> File::Write(int64_t offset, span<const uint8_t> data) {
+  span<const char> chars = base::as_chars(data);
+  int size = checked_cast<int>(chars.size());
+  int result = Write(offset, chars.data(), size);
+  if (result < 0) {
+    return std::nullopt;
+  }
+  return checked_cast<size_t>(result);
 }
 
 bool File::WriteAndCheck(int64_t offset, span<const uint8_t> data) {
-  int size = checked_cast<int>(data.size());
-  return Write(offset, reinterpret_cast<const char*>(data.data()), size) ==
-         size;
+  // Size checked in span form of Write() above.
+  return Write(offset, data) == static_cast<int>(data.size());
+}
+
+std::optional<size_t> File::WriteAtCurrentPos(span<const uint8_t> data) {
+  span<const char> chars = base::as_chars(data);
+  int size = checked_cast<int>(chars.size());
+  int result = WriteAtCurrentPos(chars.data(), size);
+  if (result < 0) {
+    return std::nullopt;
+  }
+  return checked_cast<size_t>(result);
 }
 
 bool File::WriteAtCurrentPosAndCheck(span<const uint8_t> data) {
-  int size = checked_cast<int>(data.size());
-  return WriteAtCurrentPos(reinterpret_cast<const char*>(data.data()), size) ==
-         size;
+  // Size checked in span form of WriteAtCurrentPos() above.
+  return WriteAtCurrentPos(data) == static_cast<int>(data.size());
 }
 
 // static
@@ -182,7 +200,7 @@ std::string File::ErrorToString(Error error) {
       break;
   }
 
-  NOTREACHED();
+  NOTREACHED_IN_MIGRATION();
   return "";
 }
 

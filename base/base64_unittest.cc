@@ -2,7 +2,14 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#ifdef UNSAFE_BUFFERS_BUILD
+// TODO(crbug.com/40284755): Remove this and spanify to fix the errors.
+#pragma allow_unsafe_buffers
+#endif
+
 #include "base/base64.h"
+
+#include <string_view>
 
 #include "base/numerics/checked_math.h"
 #include "base/strings/escape.h"
@@ -17,11 +24,10 @@ TEST(Base64Test, Basic) {
   const std::string kText = "hello world";
   const std::string kBase64Text = "aGVsbG8gd29ybGQ=";
 
-  std::string encoded;
   std::string decoded;
   bool ok;
 
-  Base64Encode(kText, &encoded);
+  std::string encoded = Base64Encode(kText);
   EXPECT_EQ(kBase64Text, encoded);
 
   ok = Base64Decode(encoded, &decoded);
@@ -100,11 +106,10 @@ TEST(Base64Test, Binary) {
 
   std::string binary_encoded = Base64Encode(kData);
 
-  // Check that encoding the same data through the StringPiece interface gives
-  // the same results.
-  std::string string_piece_encoded;
-  Base64Encode(StringPiece(reinterpret_cast<const char*>(kData), sizeof(kData)),
-               &string_piece_encoded);
+  // Check that encoding the same data through the std::string_view interface
+  // gives the same results.
+  std::string string_piece_encoded = Base64Encode(
+      std::string_view(reinterpret_cast<const char*>(kData), sizeof(kData)));
 
   EXPECT_EQ(binary_encoded, string_piece_encoded);
 
@@ -120,9 +125,8 @@ TEST(Base64Test, Binary) {
 TEST(Base64Test, InPlace) {
   const std::string kText = "hello world";
   const std::string kBase64Text = "aGVsbG8gd29ybGQ=";
-  std::string text(kText);
 
-  Base64Encode(text, &text);
+  std::string text = Base64Encode(kText);
   EXPECT_EQ(kBase64Text, text);
 
   bool ok = Base64Decode(text, &text);

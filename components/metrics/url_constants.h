@@ -1,4 +1,4 @@
-// Copyright 2015 The Chromium Authors. All rights reserved.
+// Copyright 2015 The Chromium Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -18,6 +18,12 @@ extern const char kOldMetricsServerUrl[];
 
 // The default MIME type for the uploaded metrics data.
 extern const char kDefaultMetricsMimeType[];
+
+// The UKM server's URL.
+extern const char kDefaultUkmServerUrl[];
+
+// The UKM server's MIME type.
+extern const char kUkmMimeType[];
 
 } // namespace metrics
 

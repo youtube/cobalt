@@ -24,6 +24,7 @@ namespace base {
 namespace internal {
 
 // Adapter for putting raw pointers into an ObserverList<Foo>::Unchecked.
+template <base::RawPtrTraits ptr_traits = RawPtrTraits::kEmpty>
 class BASE_EXPORT UncheckedObserverAdapter {
  public:
   explicit UncheckedObserverAdapter(const void* observer)
@@ -42,17 +43,19 @@ class BASE_EXPORT UncheckedObserverAdapter {
   template <class ObserverType>
   static ObserverType* Get(const UncheckedObserverAdapter& adapter) {
     static_assert(
-        !std::is_base_of<CheckedObserver, ObserverType>::value,
+        !std::is_base_of_v<CheckedObserver, ObserverType>,
         "CheckedObserver classes must not use ObserverList<T>::Unchecked.");
     return static_cast<ObserverType*>(adapter.ptr_);
   }
 
 #if DCHECK_IS_ON()
-  std::string GetCreationStackString() const { return stack_.ToString(); }
+  std::string GetCreationStackString() const {
+    return "Observer created at:\n" + stack_.ToString();
+  }
 #endif  // DCHECK_IS_ON()
 
  private:
-  raw_ptr<void, DanglingUntriaged> ptr_;
+  raw_ptr<void, ptr_traits> ptr_;
 #if DCHECK_IS_ON()
   base::debug::StackTrace stack_;
 #endif  // DCHECK_IS_ON()
@@ -100,7 +103,7 @@ class BASE_EXPORT CheckedObserverAdapter {
   template <class ObserverType>
   static ObserverType* Get(const CheckedObserverAdapter& adapter) {
     static_assert(
-        std::is_base_of<CheckedObserver, ObserverType>::value,
+        std::is_base_of_v<CheckedObserver, ObserverType>,
         "Observers should inherit from base::CheckedObserver. "
         "Use ObserverList<T>::Unchecked to observe with raw pointers.");
     DCHECK(adapter.weak_ptr_);
@@ -153,8 +156,10 @@ class WeakLinkNode : public base::LinkNode<WeakLinkNode<ObserverList>> {
   }
 
   ObserverList* get() const {
+#if EXPENSIVE_DCHECKS_ARE_ON()
     if (list_)
       DCHECK_CALLED_ON_VALID_SEQUENCE(list_->iteration_sequence_checker_);
+#endif  // EXPENSIVE_DCHECKS_ARE_ON()
     return list_;
   }
   ObserverList* operator->() const { return get(); }

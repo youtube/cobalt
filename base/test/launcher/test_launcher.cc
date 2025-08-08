@@ -2,6 +2,11 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#ifdef UNSAFE_BUFFERS_BUILD
+// TODO(crbug.com/40284755): Remove this and spanify to fix the errors.
+#pragma allow_unsafe_buffers
+#endif
+
 #include "base/test/launcher/test_launcher.h"
 
 #include <stdio.h>
@@ -9,6 +14,7 @@
 #include <algorithm>
 #include <map>
 #include <random>
+#include <string_view>
 #include <unordered_map>
 #include <unordered_set>
 #include <utility>
@@ -41,7 +47,7 @@
 #include "base/strings/pattern.h"
 #include "base/strings/strcat.h"
 #include "base/strings/string_number_conversions.h"
-#include "base/strings/string_piece.h"
+
 #include "base/strings/string_split.h"
 #include "base/strings/string_util.h"
 #include "base/strings/stringize_macros.h"
@@ -66,7 +72,6 @@
 #include "build/build_config.h"
 #include "build/chromeos_buildflags.h"
 #include "testing/gtest/include/gtest/gtest.h"
-#include "third_party/libxml/chromium/libxml_utils.h"
 
 #if BUILDFLAG(IS_POSIX)
 #include <fcntl.h>
@@ -75,13 +80,13 @@
 #endif
 
 #if BUILDFLAG(IS_APPLE)
-#include "base/mac/scoped_nsautorelease_pool.h"
+#include "base/apple/scoped_nsautorelease_pool.h"
 #endif
 
 #if BUILDFLAG(IS_WIN)
-#include "base/strings/string_util_win.h"
-
 #include <windows.h>
+
+#include "base/strings/string_util_win.h"
 
 // To avoid conflicts with the macro from the Windows SDK...
 #undef GetCommandLine
@@ -95,6 +100,10 @@
 #include "base/fuchsia/default_job.h"
 #include "base/fuchsia/file_utils.h"
 #include "base/fuchsia/fuchsia_logging.h"
+#endif
+
+#if BUILDFLAG(IS_IOS)
+#include "base/path_service.h"
 #endif
 
 namespace base {
@@ -685,6 +694,11 @@ ChildProcessResults DoLaunchChildTestProcess(
 
   LaunchOptions options;
 
+#if BUILDFLAG(IS_IOS)
+  // We need to allow XPC to start extension processes so magically we set this
+  // flag to 1.
+  options.environment.emplace("XPC_FLAGS", "1");
+#endif
   // Tell the child process to use its designated temporary directory.
   if (!process_temp_dir.empty())
     SetTemporaryDirectory(process_temp_dir, &options.environment);
@@ -829,10 +843,6 @@ class TestRunner {
   // |done|.
   void CleanupTask(base::ScopedTempDir task_temp_dir, bool done);
 
-  // No-op error function that replaces libxml's default, which writes to
-  // stderr.
-  static void NullXmlErrorFunc(void* context, const char* message, ...) {}
-
   ThreadChecker thread_checker_;
 
   const raw_ptr<TestLauncher> launcher_;
@@ -845,9 +855,6 @@ class TestRunner {
   // Protects member used concurrently by worker tasks.
   base::Lock lock_;
   std::vector<std::string> tests_to_run_ GUARDED_BY(lock_);
-  // Set the global libxml error context and function pointer for the lifetime
-  // of this test runner.
-  ScopedXmlErrorFunc xml_error_func_{nullptr, &NullXmlErrorFunc};
 
   base::WeakPtrFactory<TestRunner> weak_ptr_factory_{this};
 };
@@ -955,8 +962,7 @@ int CountItemsInDirectory(const FilePath& dir) {
 
 // Truncates a snippet in the middle to the given byte limit. byte_limit should
 // be at least 30.
-std::string TruncateSnippet(const base::StringPiece snippet,
-                            size_t byte_limit) {
+std::string TruncateSnippet(const std::string_view snippet, size_t byte_limit) {
   if (snippet.length() <= byte_limit) {
     return std::string(snippet);
   }
@@ -1191,6 +1197,10 @@ void TestLauncher::LaunchChildGTestProcess(
   LaunchOptions options;
   options.flags = launcher_delegate_->GetLaunchOptions();
 
+  if (BotModeEnabled(CommandLine::ForCurrentProcess())) {
+    LOG(INFO) << "Starting [" << base::JoinString(test_names, ", ") << "]";
+  }
+
   ChildProcessResults process_results = DoLaunchChildTestProcess(
       new_command_line, child_temp_dir, result_file,
       launcher_delegate_->GetTimeout(), test_names.size(), options,
@@ -1354,7 +1364,7 @@ void TestLauncher::OnTestFinished(const TestResult& original_result) {
     print_snippet = false;
   }
   if (print_snippet) {
-    std::vector<base::StringPiece> snippet_lines =
+    std::vector<std::string_view> snippet_lines =
         SplitStringPiece(result.output_snippet, "\n", base::KEEP_WHITESPACE,
                          base::SPLIT_WANT_ALL);
     if (snippet_lines.size() > kOutputSnippetLinesLimit) {
@@ -1482,6 +1492,25 @@ bool LoadFilterFile(const FilePath& file_path,
       positive_filter->push_back(trimmed_line);
   }
 
+  return true;
+}
+
+bool TestLauncher::IsOnlyExactPositiveFilterFromFile(
+    const CommandLine* command_line) const {
+  if (command_line->HasSwitch(kGTestFilterFlag)) {
+    LOG(ERROR) << "Found " << switches::kTestLauncherFilterFile;
+    return false;
+  }
+  if (!negative_test_filter_.empty()) {
+    LOG(ERROR) << "Found negative filters in the filter file.";
+    return false;
+  }
+  for (const auto& filter : positive_test_filter_) {
+    if (Contains(filter, '*')) {
+      LOG(ERROR) << "Found wildcard positive filters in the filter file.";
+      return false;
+    }
+  }
   return true;
 }
 
@@ -1615,8 +1644,16 @@ bool TestLauncher::Init(CommandLine* command_line) {
     for (auto filter_file :
          SplitStringPiece(filter, FILE_PATH_LITERAL(";"), base::TRIM_WHITESPACE,
                           base::SPLIT_WANT_ALL)) {
+#if BUILDFLAG(IS_IOS)
+      // On iOS, the filter files are bundled with the test application.
+      base::FilePath data_dir;
+      PathService::Get(DIR_SRC_TEST_DATA_ROOT, &data_dir);
+      base::FilePath filter_file_path = data_dir.Append(FilePath(filter_file));
+#else
       base::FilePath filter_file_path =
           base::MakeAbsoluteFilePath(FilePath(filter_file));
+#endif  // BUILDFLAG(IS_IOS)
+
       if (!LoadFilterFile(filter_file_path, &positive_file_filter,
                           &negative_test_filter_))
         return false;
@@ -1627,6 +1664,18 @@ bool TestLauncher::Init(CommandLine* command_line) {
   // tests in testing/buildbot/filters.
   if (command_line->HasSwitch(kGTestRunDisabledTestsFlag)) {
     negative_test_filter_.clear();
+  }
+
+  // If `kEnforceExactPositiveFilter` is set, only accept exact positive
+  // filters from the filter file.
+  enforce_exact_postive_filter_ =
+      command_line->HasSwitch(switches::kEnforceExactPositiveFilter);
+  if (enforce_exact_postive_filter_ &&
+      !IsOnlyExactPositiveFilterFromFile(command_line)) {
+    LOG(ERROR) << "With " << switches::kEnforceExactPositiveFilter
+               << ", only accept exact positive filters via "
+               << switches::kTestLauncherFilterFile;
+    return false;
   }
 
   // Split --gtest_filter at '-', if there is one, to separate into
@@ -1788,6 +1837,23 @@ bool TestLauncher::InitTests() {
     LOG(ERROR) << "Failed to get list of tests.";
     return false;
   }
+
+  // Check for duplicate test names. These can cause difficult-to-diagnose
+  // crashes in the test runner as well as confusion about exactly what test is
+  // failing. See https://crbug.com/1463355 for details.
+  std::unordered_set<std::string> full_test_names;
+  bool dups_found = false;
+  for (auto& test : tests) {
+    const std::string full_test_name =
+        test.test_case_name + "." + test.test_name;
+    auto [it, inserted] = full_test_names.insert(full_test_name);
+    if (!inserted) {
+      LOG(WARNING) << "Duplicate test name found: " << full_test_name;
+      dups_found = true;
+    }
+  }
+  CHECK(!dups_found);
+
   std::vector<std::string> uninstantiated_tests;
   for (const TestIdentifier& test_id : tests) {
     TestInfo test_info(test_id);
@@ -1940,14 +2006,23 @@ void TestLauncher::CombinePositiveTestFilters(
   }
 }
 
+bool TestLauncher::ShouldRunInCurrentShard(
+    std::string_view prefix_stripped_name) const {
+  CHECK(!StartsWith(prefix_stripped_name, kPreTestPrefix));
+  CHECK(!StartsWith(prefix_stripped_name, kDisabledTestPrefix));
+  return PersistentHash(prefix_stripped_name) % total_shards_ ==
+         static_cast<uint32_t>(shard_index_);
+}
+
 std::vector<std::string> TestLauncher::CollectTests() {
   std::vector<std::string> test_names;
   // To support RTS(regression test selection), which may have 100,000 or
   // more exact gtest filter, we first split filter into exact filter
   // and wildcards filter, then exact filter can match faster.
-  std::vector<StringPiece> positive_wildcards_filter;
-  std::unordered_set<StringPiece, StringPieceHash> positive_exact_filter;
+  std::vector<std::string_view> positive_wildcards_filter;
+  std::unordered_set<std::string_view> positive_exact_filter;
   positive_exact_filter.reserve(positive_test_filter_.size());
+  std::unordered_set<std::string> enforced_positive_tests;
   for (const std::string& filter : positive_test_filter_) {
     if (filter.find('*') != std::string::npos) {
       positive_wildcards_filter.push_back(filter);
@@ -1956,8 +2031,8 @@ std::vector<std::string> TestLauncher::CollectTests() {
     }
   }
 
-  std::vector<StringPiece> negative_wildcards_filter;
-  std::unordered_set<StringPiece, StringPieceHash> negative_exact_filter;
+  std::vector<std::string_view> negative_wildcards_filter;
+  std::unordered_set<std::string_view> negative_exact_filter;
   negative_exact_filter.reserve(negative_test_filter_.size());
   for (const std::string& filter : negative_test_filter_) {
     if (filter.find('*') != std::string::npos) {
@@ -1978,8 +2053,11 @@ std::vector<std::string> TestLauncher::CollectTests() {
                        positive_exact_filter.end() ||
                    positive_exact_filter.find(prefix_stripped_name) !=
                        positive_exact_filter.end();
+      if (found && enforce_exact_postive_filter_) {
+        enforced_positive_tests.insert(prefix_stripped_name);
+      }
       if (!found) {
-        for (const StringPiece& filter : positive_wildcards_filter) {
+        for (std::string_view filter : positive_wildcards_filter) {
           if (MatchPattern(test_name, filter) ||
               MatchPattern(prefix_stripped_name, filter)) {
             found = true;
@@ -1999,7 +2077,7 @@ std::vector<std::string> TestLauncher::CollectTests() {
     }
 
     bool excluded = false;
-    for (const StringPiece& filter : negative_wildcards_filter) {
+    for (std::string_view filter : negative_wildcards_filter) {
       if (MatchPattern(test_name, filter) ||
           MatchPattern(prefix_stripped_name, filter)) {
         excluded = true;
@@ -2011,8 +2089,7 @@ std::vector<std::string> TestLauncher::CollectTests() {
 
     // Tests with the name XYZ will cause tests with the name PRE_XYZ to run. We
     // should bucket all of these tests together.
-    if (PersistentHash(prefix_stripped_name) % total_shards_ !=
-        static_cast<uint32_t>(shard_index_)) {
+    if (!ShouldRunInCurrentShard(prefix_stripped_name)) {
       continue;
     }
 
@@ -2030,6 +2107,26 @@ std::vector<std::string> TestLauncher::CollectTests() {
     }
 
     test_names.push_back(test_name);
+  }
+
+  // If `kEnforceExactPositiveFilter` is set, all test cases listed in the
+  // exact positive filter for the current shard should exist in the
+  // `enforced_positive_tests`. Otherwise, print the missing cases and fail
+  // loudly.
+  if (enforce_exact_postive_filter_) {
+    bool found_exact_positive_filter_not_enforced = false;
+    for (const auto& filter : positive_exact_filter) {
+      if (!ShouldRunInCurrentShard(filter) ||
+          Contains(enforced_positive_tests, std::string(filter))) {
+        continue;
+      }
+      if (!found_exact_positive_filter_not_enforced) {
+        LOG(ERROR) << "Found exact positive filter not enforced:";
+        found_exact_positive_filter_not_enforced = true;
+      }
+      LOG(ERROR) << filter;
+    }
+    CHECK(!found_exact_positive_filter_not_enforced);
   }
 
   return test_names;
@@ -2227,7 +2324,13 @@ size_t NumParallelJobs(unsigned int cores_per_job) {
       ::GetActiveProcessorCount(ALL_PROCESSOR_GROUPS));
 #else
   size_t cores = base::checked_cast<size_t>(SysInfo::NumberOfProcessors());
-#endif
+#if BUILDFLAG(IS_MAC)
+  // This is necessary to allow tests to call SetCpuSecurityMitigationsEnabled()
+  // despite NumberOfProcessors() having already been called in the process.
+  SysInfo::ResetCpuSecurityMitigationsEnabledForTesting();
+#endif  // BUILDFLAG(IS_MAC)
+#endif  // BUILDFLAG(IS_WIN)
+
 #if BUILDFLAG(IS_IOS) && TARGET_OS_SIMULATOR
   // If we are targeting the simulator increase the number of jobs we use by 2x
   // the number of cores. This is necessary because the startup of each
@@ -2282,7 +2385,7 @@ std::string GetTestOutputSnippet(const TestResult& result,
   return snippet;
 }
 
-std::string TruncateSnippetFocused(const base::StringPiece snippet,
+std::string TruncateSnippetFocused(const std::string_view snippet,
                                    size_t byte_limit) {
   // Find the start of anything that looks like a fatal log message.
   // We want to preferentially preserve these from truncation as we

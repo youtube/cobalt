@@ -163,7 +163,7 @@ class BASE_EXPORT DelayTimerBase : public TimerBase {
   virtual void Reset();
 
   // DEPRECATED. Call Stop() instead.
-  // TODO(1262205): Remove this method and all callers.
+  // TODO(crbug.com/40202541): Remove this method and all callers.
   void AbandonAndStop();
 
   TimeTicks desired_run_time() const {
@@ -250,7 +250,7 @@ class BASE_EXPORT OneShotTimer : public internal::DelayTimerBase {
 
   // Run the scheduled task immediately, and stop the timer. The timer needs to
   // be running.
-  void FireNow();
+  virtual void FireNow();
 
  private:
   void OnStop() final;

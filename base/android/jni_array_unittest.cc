@@ -2,6 +2,11 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#ifdef UNSAFE_BUFFERS_BUILD
+// TODO(crbug.com/40284755): Remove this and spanify to fix the errors.
+#pragma allow_unsafe_buffers
+#endif
+
 #include "base/android/jni_array.h"
 
 #include <stddef.h>
@@ -546,7 +551,7 @@ TEST(JniArray, ToJavaArrayOfObjectsOfClass) {
   };
 
   ScopedJavaLocalRef<jobjectArray> j_array =
-      ToJavaArrayOfObjects(env, GetClass(env, "java/lang/String"), objects);
+      ToJavaArrayOfObjects(env, jni_zero::g_string_class, objects);
   ASSERT_TRUE(j_array);
 
   EXPECT_EQ("one",

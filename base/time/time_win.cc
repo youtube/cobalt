@@ -33,11 +33,11 @@
 
 #include "base/time/time.h"
 
-#include <windows.foundation.h>
 #include <windows.h>
 
 #include <mmsystem.h>
 #include <stdint.h>
+#include <windows.foundation.h>
 
 #include <atomic>
 #include <ostream>
@@ -641,6 +641,18 @@ TimeTicks::Clock TimeTicks::GetClock() {
   return IsHighResolution() ? Clock::WIN_QPC
                             : Clock::WIN_ROLLOVER_PROTECTED_TIME_GET_TIME;
 }
+
+// LiveTicks ------------------------------------------------------------------
+
+namespace subtle {
+LiveTicks LiveTicksNowIgnoringOverride() {
+  ULONGLONG unbiased_interrupt_time;
+  QueryUnbiasedInterruptTimePrecise(&unbiased_interrupt_time);
+  // QueryUnbiasedInterruptTimePrecise gets the interrupt time in system time
+  // units of 100 nanoseconds.
+  return LiveTicks() + Nanoseconds(unbiased_interrupt_time * 100);
+}
+}  // namespace subtle
 
 // ThreadTicks ----------------------------------------------------------------
 

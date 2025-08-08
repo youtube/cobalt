@@ -211,7 +211,7 @@ class LoggingObserver : public NetLog::ThreadSafeObserver {
   }
 
   void OnAddEntry(const NetLogEntry& entry) override {
-    // TODO(https://crbug.com/1418110): This should be updated to be a
+    // TODO(crbug.com/40257546): This should be updated to be a
     // base::Value::Dict instead of a std::unique_ptr.
     std::unique_ptr<base::Value::Dict> dict =
         std::make_unique<base::Value::Dict>(entry.ToDict());
@@ -416,7 +416,7 @@ TEST(NetLogTest, NetLogTwoObservers) {
 
   // Add event and make sure both observers receive it at their respective log
   // levels.
-  absl::optional<int> param;
+  std::optional<int> param;
   AddEvent(NetLog::Get());
   ASSERT_EQ(1U, observer[0].GetNumValues());
   param = observer[0].GetDict(0)->FindDict("params")->FindInt("capture_mode");

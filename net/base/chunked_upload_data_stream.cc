@@ -4,8 +4,6 @@
 
 #include "net/base/chunked_upload_data_stream.h"
 
-#include <cstring>
-
 #include "base/check_op.h"
 #include "base/memory/ptr_util.h"
 #include "net/base/io_buffer.h"

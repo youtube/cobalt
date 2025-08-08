@@ -65,7 +65,7 @@ struct SwapResponse {
   uint64_t swap_id;
 
   // Indicates whether the swap succeeded or not.
-  // TODO(https://crbug.com/894929): It may be more reasonable to add
+  // TODO(crbug.com/40597949): It may be more reasonable to add
   // a full SwapCompletionResult as a member.
   SwapResult result;
 
@@ -73,7 +73,7 @@ struct SwapResponse {
   SwapTimings timings;
 };
 
-// Sent by GLImages to their GLImage::SwapCompletionCallbacks.
+// Sent as part of finishing a swap.
 struct GFX_EXPORT SwapCompletionResult {
   explicit SwapCompletionResult(gfx::SwapResult swap_result);
   SwapCompletionResult(gfx::SwapResult swap_result,

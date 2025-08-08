@@ -74,9 +74,7 @@ class LOCKABLE BASE_EXPORT Lock {
   // Whether Lock mitigates priority inversion when used from different thread
   // priorities.
   static bool HandlesMultipleThreadPriorities() {
-#if defined(STARBOARD)
-    return false;
-#elif BUILDFLAG(IS_WIN)
+#if BUILDFLAG(IS_WIN)
     // Windows mitigates priority inversion by randomly boosting the priority of
     // ready threads.
     // https://msdn.microsoft.com/library/windows/desktop/ms684831.aspx
@@ -126,13 +124,13 @@ using AutoTryLock = internal::BasicAutoTryLock<Lock>;
 using AutoUnlock = internal::BasicAutoUnlock<Lock>;
 
 // Like AutoLock but is a no-op when the provided Lock* is null. Inspired from
-// absl::MutexLockMaybe. Use this instead of absl::optional<base::AutoLock> to
+// absl::MutexLockMaybe. Use this instead of std::optional<base::AutoLock> to
 // get around -Wthread-safety-analysis warnings for conditional locking.
 using AutoLockMaybe = internal::BasicAutoLockMaybe<Lock>;
 
 // Like AutoLock but permits Release() of its mutex before destruction.
 // Release() may be called at most once. Inspired from
-// absl::ReleasableMutexLock. Use this instead of absl::optional<base::AutoLock>
+// absl::ReleasableMutexLock. Use this instead of std::optional<base::AutoLock>
 // to get around -Wthread-safety-analysis warnings for AutoLocks that are
 // explicitly released early (prefer proper scoping to this).
 using ReleasableAutoLock = internal::BasicReleasableAutoLock<Lock>;

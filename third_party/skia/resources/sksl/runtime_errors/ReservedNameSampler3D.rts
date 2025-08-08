@@ -1,5 +1,0 @@
-int sampler3D;
-
-/*%%*
-expected an identifier, but found type 'sampler3D'
-*%%*/

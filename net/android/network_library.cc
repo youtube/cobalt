@@ -7,6 +7,7 @@
 #include <dlfcn.h>
 
 #include <string>
+#include <string_view>
 #include <vector>
 
 #include "base/android/build_info.h"
@@ -18,6 +19,7 @@
 #include "base/native_library.h"
 #include "base/strings/string_split.h"
 #include "base/strings/utf_string_conversions.h"
+#include "base/threading/scoped_blocking_call.h"
 #include "net/base/net_errors.h"
 #include "net/dns/public/dns_protocol.h"
 #include "net/net_jni_headers/AndroidNetworkLibrary_jni.h"
@@ -44,8 +46,8 @@ std::vector<std::string> GetUserAddedRoots() {
 }
 
 void VerifyX509CertChain(const std::vector<std::string>& cert_chain,
-                         base::StringPiece auth_type,
-                         base::StringPiece host,
+                         std::string_view auth_type,
+                         std::string_view host,
                          CertVerifyStatusAndroid* status,
                          bool* is_issued_by_known_root,
                          std::vector<std::string>* verified_chain) {
@@ -83,19 +85,20 @@ void ClearTestRootCertificates() {
   Java_AndroidNetworkLibrary_clearTestRootCertificates(env);
 }
 
-bool IsCleartextPermitted(const std::string& host) {
+bool IsCleartextPermitted(std::string_view host) {
   JNIEnv* env = AttachCurrentThread();
   ScopedJavaLocalRef<jstring> host_string = ConvertUTF8ToJavaString(env, host);
   return Java_AndroidNetworkLibrary_isCleartextPermitted(env, host_string);
 }
 
 bool HaveOnlyLoopbackAddresses() {
+  base::ScopedBlockingCall scoped_blocking_call(FROM_HERE,
+                                                base::BlockingType::MAY_BLOCK);
   JNIEnv* env = AttachCurrentThread();
   return Java_AndroidNetworkLibrary_haveOnlyLoopbackAddresses(env);
 }
 
-bool GetMimeTypeFromExtension(const std::string& extension,
-                              std::string* result) {
+bool GetMimeTypeFromExtension(std::string_view extension, std::string* result) {
   JNIEnv* env = AttachCurrentThread();
 
   ScopedJavaLocalRef<jstring> extension_string =
@@ -133,16 +136,16 @@ std::string GetWifiSSID() {
 }
 
 void SetWifiEnabledForTesting(bool enabled) {
-  Java_AndroidNetworkLibrary_setWifiEnabled(
+  Java_AndroidNetworkLibrary_setWifiEnabledForTesting(
       base::android::AttachCurrentThread(), enabled);
 }
 
-absl::optional<int32_t> GetWifiSignalLevel() {
+std::optional<int32_t> GetWifiSignalLevel() {
   const int count_buckets = 5;
   int signal_strength = Java_AndroidNetworkLibrary_getWifiSignalLevel(
       base::android::AttachCurrentThread(), count_buckets);
   if (signal_strength < 0)
-    return absl::nullopt;
+    return std::nullopt;
   DCHECK_LE(0, signal_strength);
   DCHECK_GE(count_buckets - 1, signal_strength);
 
@@ -162,7 +165,7 @@ bool GetDnsServersInternal(JNIEnv* env,
   base::android::JavaArrayOfByteArrayToBytesVector(
       env, Java_DnsStatus_getDnsServers(env, dns_status), &dns_servers_data);
   for (const std::vector<uint8_t>& dns_address_data : dns_servers_data) {
-    IPAddress dns_address(dns_address_data.data(), dns_address_data.size());
+    IPAddress dns_address(dns_address_data);
     IPEndPoint dns_server(dns_address, dns_protocol::kDefaultPort);
     dns_servers->push_back(dns_server);
   }

@@ -9,6 +9,7 @@
 #include "media/base/media.h"
 #include "media/base/test_data_util.h"
 #include "media/ffmpeg/ffmpeg_common.h"
+#include "media/ffmpeg/scoped_av_packet.h"
 #include "media/filters/ffmpeg_glue.h"
 #include "media/filters/in_memory_url_protocol.h"
 #include "media/filters/vp9_parser.h"
@@ -33,21 +34,21 @@ class VP9SuperFrameBitstreamFilterTest : public testing::Test {
     ASSERT_TRUE(buffer_);
 
     // Initialize ffmpeg with the file data.
-    protocol_ = std::make_unique<InMemoryUrlProtocol>(
-        buffer_->data(), buffer_->data_size(), false);
+    protocol_ = std::make_unique<InMemoryUrlProtocol>(buffer_->data(),
+                                                      buffer_->size(), false);
     glue_ = std::make_unique<FFmpegGlue>(protocol_.get());
     ASSERT_TRUE(glue_->OpenContext());
   }
 
   scoped_refptr<DecoderBuffer> ReadPacket(int stream_index = 0) {
-    AVPacket packet = {0};
-    while (av_read_frame(glue_->format_context(), &packet) >= 0) {
-      if (packet.stream_index == stream_index) {
-        auto buffer = DecoderBuffer::CopyFrom(packet.data, packet.size);
-        av_packet_unref(&packet);
+    auto packet = ScopedAVPacket::Allocate();
+    while (av_read_frame(glue_->format_context(), packet.get()) >= 0) {
+      if (packet->stream_index == stream_index) {
+        auto buffer = DecoderBuffer::CopyFrom(AVPacketData(*packet));
+        av_packet_unref(packet.get());
         return buffer;
       }
-      av_packet_unref(&packet);
+      av_packet_unref(packet.get());
     }
     return nullptr;
   }
@@ -86,14 +87,14 @@ TEST_F(VP9SuperFrameBitstreamFilterTest, Passthrough) {
     auto cm_block = bsf.take_buffer();
     ASSERT_TRUE(cm_block);
 
-    ASSERT_EQ(buffer->data_size(), CMBlockBufferGetDataLength(cm_block));
+    ASSERT_EQ(buffer->size(), CMBlockBufferGetDataLength(cm_block.get()));
 
-    std::unique_ptr<uint8_t> block_data(new uint8_t[buffer->data_size()]);
+    std::unique_ptr<uint8_t> block_data(new uint8_t[buffer->size()]);
     ASSERT_EQ(noErr, CMBlockBufferCopyDataBytes(
-                         cm_block, 0, buffer->data_size(), block_data.get()));
+                         cm_block.get(), 0, buffer->size(), block_data.get()));
 
     // Verify that the block is valid.
-    parser_.SetStream(block_data.get(), buffer->data_size(), nullptr);
+    parser_.SetStream(block_data.get(), buffer->size(), nullptr);
     EXPECT_EQ(Vp9Parser::kOk, ParseNextFrame());
     EXPECT_EQ(Vp9Parser::kEOStream, ParseNextFrame());
 
@@ -111,18 +112,18 @@ TEST_F(VP9SuperFrameBitstreamFilterTest, Superframe) {
   // The first packet in this file is not part of a super frame. We still need
   // to send it to the VP9 parser so that the superframe can reference it.
   auto buffer = ReadPacket();
-  parser_.SetStream(buffer->data(), buffer->data_size(), nullptr);
+  parser_.SetStream(buffer->data(), buffer->size(), nullptr);
   EXPECT_EQ(Vp9Parser::kOk, ParseNextFrame());
   bsf.EnqueueBuffer(std::move(buffer));
   ASSERT_TRUE(bsf.take_buffer());
 
   // The second and third belong to a super frame.
   buffer = ReadPacket();
-  size_t total_size = buffer->data_size();
+  size_t total_size = buffer->size();
   bsf.EnqueueBuffer(std::move(buffer));
   ASSERT_FALSE(bsf.take_buffer());
   buffer = ReadPacket();
-  total_size += buffer->data_size();
+  total_size += buffer->size();
   bsf.EnqueueBuffer(std::move(buffer));
 
   auto cm_block = bsf.take_buffer();
@@ -130,11 +131,12 @@ TEST_F(VP9SuperFrameBitstreamFilterTest, Superframe) {
 
   // Two marker bytes and 2x 16-bit sizes.
   const size_t kExpectedTotalSize = 1 + 2 + 2 + 1 + total_size;
-  EXPECT_EQ(kExpectedTotalSize, CMBlockBufferGetDataLength(cm_block));
+  EXPECT_EQ(kExpectedTotalSize, CMBlockBufferGetDataLength(cm_block.get()));
 
   std::unique_ptr<uint8_t> block_data(new uint8_t[kExpectedTotalSize]);
-  ASSERT_EQ(noErr, CMBlockBufferCopyDataBytes(cm_block, 0, kExpectedTotalSize,
-                                              block_data.get()));
+  ASSERT_EQ(noErr,
+            CMBlockBufferCopyDataBytes(cm_block.get(), 0, kExpectedTotalSize,
+                                       block_data.get()));
 
   parser_.SetStream(block_data.get(), kExpectedTotalSize, nullptr);
   EXPECT_EQ(Vp9Parser::kOk, ParseNextFrame());

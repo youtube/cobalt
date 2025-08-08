@@ -1,4 +1,4 @@
-// Copyright 2019 The Chromium Authors. All rights reserved.
+// Copyright 2019 The Chromium Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -11,12 +11,25 @@ namespace updater {
 
 // Command line switches.
 
-// The switch to activate the sleeping action for specified delay in minutes
+// The switch to activate the sleeping action for specified delay in seconds
 // before killing the process.
-extern const char kTestSleepMinutesSwitch[];
+extern const char kTestSleepSecondsSwitch[];
 
 // The switch to signal the event with the name given as a switch value.
 extern const char kTestEventToSignal[];
+
+// Checks if running at medium integrity, and if so, signals the event given as
+// the switch value.
+extern const char kTestEventToSignalIfMediumIntegrity[];
+
+// The switch to wait on the event with the name given as a switch value.
+extern const char kTestEventToWaitOn[];
+
+// Specifies an exit code that the test process exits with.
+extern const char kTestExitCode[];
+
+// Specifies the test name invoking the executable.
+extern const char kTestName[];
 
 }  // namespace updater
 

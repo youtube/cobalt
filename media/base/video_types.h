@@ -25,11 +25,7 @@ enum VideoPixelFormat {
   PIXEL_FORMAT_UNKNOWN = 0,  // Unknown or unspecified format value.
   PIXEL_FORMAT_I420 =
       1,  // 12bpp YUV planar 1x1 Y, 2x2 UV samples, a.k.a. YU12.
-
-  // Note: Chrome does not actually support YVU compositing, so you probably
-  // don't actually want to use this. See http://crbug.com/784627.
   PIXEL_FORMAT_YV12 = 2,  // 12bpp YVU planar 1x1 Y, 2x2 VU samples.
-
   PIXEL_FORMAT_I422 = 3,   // 16bpp YUV planar 1x1 Y, 2x1 UV samples.
   PIXEL_FORMAT_I420A = 4,  // 20bpp YUVA planar 1x1 Y, 2x2 UV, 1x1 A samples.
   PIXEL_FORMAT_I444 = 5,   // 24bpp YUV planar, no subsampling.
@@ -126,6 +122,11 @@ MEDIA_SHMEM_EXPORT std::ostream& operator<<(std::ostream& os,
 // "0x<32-bit integer in hex>", e.g. FourccToString(0x66616b00) returns
 // "0x66616b00".
 MEDIA_SHMEM_EXPORT std::string FourccToString(uint32_t fourcc);
+
+// Returns the VideoChromaSampling corresponding to the VideoPixelFormat passed
+// in.
+MEDIA_SHMEM_EXPORT VideoChromaSampling
+VideoPixelFormatToChromaSampling(VideoPixelFormat format);
 
 // Returns true if |format| is a YUV format with multiple planes.
 MEDIA_SHMEM_EXPORT bool IsYuvPlanar(VideoPixelFormat format);

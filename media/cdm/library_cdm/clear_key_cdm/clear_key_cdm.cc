@@ -10,6 +10,8 @@
 #include <sstream>
 #include <utility>
 
+#include "base/compiler_specific.h"
+#include "base/containers/span.h"
 #include "base/files/file.h"
 #include "base/functional/bind.h"
 #include "base/logging.h"
@@ -49,8 +51,7 @@ const char kClearKeyCdmVersion[] = "0.1.0.1";
 
 // Variants of External Clear Key key system to test different scenarios.
 
-const int64_t kMsPerSecond = 1000;
-const int64_t kMaxTimerDelayMs = 5 * kMsPerSecond;
+const int64_t kMaxTimerDelayMs = base::Seconds(5).InMilliseconds();
 
 // CDM unit test result header. Must be in sync with UNIT_TEST_RESULT_HEADER in
 // media/test/data/eme_player_js/globals.js.
@@ -71,7 +72,11 @@ static scoped_refptr<media::DecoderBuffer> CopyDecoderBufferFrom(
 
   // TODO(xhwang): Get rid of this copy.
   scoped_refptr<media::DecoderBuffer> output_buffer =
-      media::DecoderBuffer::CopyFrom(input_buffer.data, input_buffer.data_size);
+      media::DecoderBuffer::CopyFrom(
+          // SAFETY: `data` and `data_size` from `input_buffer` must be
+          // consistent.
+          UNSAFE_BUFFERS(
+              base::span(input_buffer.data, input_buffer.data_size)));
   output_buffer->set_timestamp(base::Microseconds(input_buffer.timestamp));
 
   if (input_buffer.encryption_scheme == cdm::EncryptionScheme::kUnencrypted)
@@ -205,7 +210,7 @@ static bool g_verify_host_files_result = false;
 // Makes sure files and corresponding signature files are readable but not
 // writable.
 bool VerifyCdmHost_0(const cdm::HostFile* host_files, uint32_t num_files) {
-  DVLOG(1) << __func__ << ": " << num_files;
+  LOG(WARNING) << __func__ << ": " << num_files;
 
   // We should always have the CDM and at least one common file.
   // The common CDM host file (e.g. chrome) might not exist since we are running
@@ -555,10 +560,10 @@ cdm::Status ClearKeyCdm::Decrypt(const cdm::InputBuffer_2& encrypted_buffer,
 
   DCHECK(buffer->data());
   decrypted_block->SetDecryptedBuffer(
-      cdm_host_proxy_->Allocate(buffer->data_size()));
+      cdm_host_proxy_->Allocate(buffer->size()));
   memcpy(reinterpret_cast<void*>(decrypted_block->DecryptedBuffer()->Data()),
-         buffer->data(), buffer->data_size());
-  decrypted_block->DecryptedBuffer()->SetSize(buffer->data_size());
+         buffer->data(), buffer->size());
+  decrypted_block->DecryptedBuffer()->SetSize(buffer->size());
   decrypted_block->SetTimestamp(buffer->timestamp().InMicroseconds());
 
   return cdm::kSuccess;
@@ -688,7 +693,7 @@ cdm::Status ClearKeyCdm::DecryptAndDecodeSamples(
   int64_t timestamp = 0;
   if (!buffer->end_of_stream()) {
     data = buffer->data();
-    size = buffer->data_size();
+    size = buffer->size();
     timestamp = encrypted_buffer.timestamp;
   }
 
@@ -708,7 +713,8 @@ void ClearKeyCdm::ScheduleNextTimer() {
   // needed for the renewal test, and is ignored for other uses of the timer.
   std::ostringstream msg_stream;
   msg_stream << "Renewal from ClearKey CDM set at time "
-             << base::Time::FromDoubleT(cdm_host_proxy_->GetCurrentWallTime())
+             << base::Time::FromSecondsSinceUnixEpoch(
+                    cdm_host_proxy_->GetCurrentWallTime())
              << ".";
   next_renewal_message_ = msg_stream.str();
 
@@ -877,8 +883,9 @@ void ClearKeyCdm::OnSessionClosed(const std::string& session_id,
 void ClearKeyCdm::OnSessionExpirationUpdate(const std::string& session_id,
                                             base::Time new_expiry_time) {
   DVLOG(1) << __func__ << ": expiry_time = " << new_expiry_time;
-  cdm_host_proxy_->OnExpirationChange(session_id.data(), session_id.length(),
-                                      new_expiry_time.ToDoubleT());
+  cdm_host_proxy_->OnExpirationChange(
+      session_id.data(), session_id.length(),
+      new_expiry_time.InSecondsFSinceUnixEpoch());
 }
 
 void ClearKeyCdm::OnSessionCreated(uint32_t promise_id,

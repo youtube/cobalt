@@ -6,6 +6,7 @@
 #define MEDIA_MOJO_COMMON_MEDIA_TYPE_CONVERTERS_H_
 
 #include <memory>
+#include <optional>
 
 #include "base/memory/scoped_refptr.h"
 #include "media/mojo/mojom/content_decryption_module.mojom.h"
@@ -32,6 +33,19 @@ struct TypeConverter<std::unique_ptr<media::DecryptConfig>,
                      media::mojom::DecryptConfigPtr> {
   static std::unique_ptr<media::DecryptConfig> Convert(
       const media::mojom::DecryptConfigPtr& input);
+};
+
+template <>
+struct TypeConverter<media::mojom::DecoderBufferSideDataPtr,
+                     std::optional<media::DecoderBufferSideData>> {
+  static media::mojom::DecoderBufferSideDataPtr Convert(
+      const std::optional<media::DecoderBufferSideData>& input);
+};
+template <>
+struct TypeConverter<std::optional<media::DecoderBufferSideData>,
+                     media::mojom::DecoderBufferSideDataPtr> {
+  static std::optional<media::DecoderBufferSideData> Convert(
+      const media::mojom::DecoderBufferSideDataPtr& input);
 };
 
 template <>

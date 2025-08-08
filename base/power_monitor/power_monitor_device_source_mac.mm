@@ -7,8 +7,8 @@
 
 #include "base/power_monitor/power_monitor_device_source.h"
 
-#include "base/mac/foundation_util.h"
-#include "base/mac/scoped_cftyperef.h"
+#include "base/apple/foundation_util.h"
+#include "base/apple/scoped_cftyperef.h"
 #include "base/power_monitor/power_monitor.h"
 #include "base/power_monitor/power_monitor_source.h"
 
@@ -38,7 +38,7 @@ void PowerMonitorDeviceSource::GetBatteryState() {
 }
 
 void PowerMonitorDeviceSource::OnBatteryStateReceived(
-    const absl::optional<BatteryLevelProvider::BatteryState>& battery_state) {
+    const std::optional<BatteryLevelProvider::BatteryState>& battery_state) {
   is_on_battery_ =
       battery_state.has_value() && !battery_state->is_external_power_connected;
   PowerMonitorSource::ProcessPowerEvent(PowerMonitorSource::POWER_STATE_EVENT);

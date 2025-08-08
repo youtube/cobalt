@@ -9,7 +9,7 @@
 #include "base/logging.h"
 #include "base/memory/aligned_memory.h"
 #include "base/memory/raw_ptr.h"
-#include "base/sys_byteorder.h"
+#include "base/numerics/byte_conversions.h"
 #include "base/test/task_environment.h"
 #include "build/build_config.h"
 #include "cc/paint/paint_flags.h"
@@ -241,12 +241,12 @@ static scoped_refptr<VideoFrame> CreateCroppedFrame() {
   };
 
   libyuv::I420Copy(cropped_y_plane, 16, cropped_u_plane, 8, cropped_v_plane, 8,
-                   cropped_frame->writable_data(VideoFrame::kYPlane),
-                   cropped_frame->stride(VideoFrame::kYPlane),
-                   cropped_frame->writable_data(VideoFrame::kUPlane),
-                   cropped_frame->stride(VideoFrame::kUPlane),
-                   cropped_frame->writable_data(VideoFrame::kVPlane),
-                   cropped_frame->stride(VideoFrame::kVPlane), 16, 16);
+                   cropped_frame->writable_data(VideoFrame::Plane::kY),
+                   cropped_frame->stride(VideoFrame::Plane::kY),
+                   cropped_frame->writable_data(VideoFrame::Plane::kU),
+                   cropped_frame->stride(VideoFrame::Plane::kU),
+                   cropped_frame->writable_data(VideoFrame::Plane::kV),
+                   cropped_frame->stride(VideoFrame::Plane::kV), 16, 16);
 
   return cropped_frame;
 }
@@ -411,7 +411,8 @@ uint32_t MaybeConvertABGRToARGB(uint32_t abgr) {
     SK_A32_SHIFT == 24
   return abgr;
 #else
-  return (base::ByteSwap(abgr & 0x00FFFFFF) >> 8) | (abgr & 0xFF000000);
+  return (base::numerics::ByteSwap(abgr & 0x00FFFFFF) >> 8) |
+         (abgr & 0xFF000000);
 #endif
 }
 
@@ -619,7 +620,7 @@ TEST_F(PaintCanvasVideoRendererTest, HighBitDepth) {
         param.format, cropped_frame()->coded_size(),
         cropped_frame()->visible_rect(), cropped_frame()->natural_size(),
         cropped_frame()->timestamp()));
-    for (int plane = VideoFrame::kYPlane; plane <= VideoFrame::kVPlane;
+    for (int plane = VideoFrame::Plane::kY; plane <= VideoFrame::Plane::kV;
          ++plane) {
       int width = cropped_frame()->row_bytes(plane);
       uint16_t* dst = reinterpret_cast<uint16_t*>(frame->writable_data(plane));
@@ -911,11 +912,11 @@ TEST_F(PaintCanvasVideoRendererTest, ContextLost) {
   cc::SkiaPaintCanvas canvas(AllocBitmap(kWidth, kHeight));
 
   gfx::Size size(kWidth, kHeight);
-  gpu::MailboxHolder holders[VideoFrame::kMaxPlanes] = {
-      gpu::MailboxHolder(gpu::Mailbox::GenerateForSharedImage(),
-                         gpu::SyncToken(), GL_TEXTURE_RECTANGLE_ARB)};
-  auto video_frame = VideoFrame::WrapNativeTextures(
-      PIXEL_FORMAT_NV12, holders, base::BindOnce(MailboxHoldersReleased), size,
+  scoped_refptr<gpu::ClientSharedImage> shared_images[VideoFrame::kMaxPlanes] =
+      {gpu::ClientSharedImage::CreateForTesting()};
+  auto video_frame = VideoFrame::WrapSharedImages(
+      PIXEL_FORMAT_NV12, shared_images, gpu::SyncToken(),
+      GL_TEXTURE_RECTANGLE_ARB, base::BindOnce(MailboxHoldersReleased), size,
       gfx::Rect(size), size, kNoTimestamp);
 
   cc::PaintFlags flags;
@@ -1093,8 +1094,9 @@ class PaintCanvasVideoRendererWithGLTest : public testing::Test {
     destination_gl->BindTexture(target, texture);
 
     renderer_.CopyVideoFrameTexturesToGLTexture(
-        media_context_.get(), destination_gl, frame, target, texture, GL_RGBA,
-        GL_RGBA, GL_UNSIGNED_BYTE, 0, false /* premultiply_alpha */,
+        media_context_.get(), destination_gl,
+        destination_context_->ContextCapabilities(), frame, target, texture,
+        GL_RGBA, GL_RGBA, GL_UNSIGNED_BYTE, 0, false /* premultiply_alpha */,
         false /* flip_y */);
 
     gfx::Size expected_size = frame->visible_rect().size();
@@ -1232,7 +1234,7 @@ class PaintCanvasVideoRendererWithGLTest : public testing::Test {
   scoped_refptr<VideoFrame> cropped_frame() { return cropped_frame_; }
 
  protected:
-  absl::optional<gl::DisableNullDrawGLBindings> enable_pixels_;
+  std::optional<gl::DisableNullDrawGLBindings> enable_pixels_;
   scoped_refptr<viz::TestInProcessContextProvider> media_context_;
   scoped_refptr<viz::TestInProcessContextProvider> gles2_context_;
   scoped_refptr<viz::TestInProcessContextProvider> destination_context_;
@@ -1252,9 +1254,10 @@ TEST_F(PaintCanvasVideoRendererWithGLTest, CopyVideoFrameYUVDataToGLTexture) {
   destination_gl->BindTexture(target, texture);
 
   renderer_.CopyVideoFrameYUVDataToGLTexture(
-      media_context_.get(), destination_gl, cropped_frame(), target, texture,
-      GL_RGBA, GL_RGBA, GL_UNSIGNED_BYTE, 0, false /* premultiply_alpha */,
-      false /* flip_y */);
+      media_context_.get(), destination_gl,
+      destination_context_->ContextCapabilities(), cropped_frame(), target,
+      texture, GL_RGBA, GL_RGBA, GL_UNSIGNED_BYTE, 0,
+      false /* premultiply_alpha */, false /* flip_y */);
 
   gfx::Size expected_size = cropped_frame()->visible_rect().size();
 
@@ -1284,9 +1287,10 @@ TEST_F(PaintCanvasVideoRendererWithGLTest,
   destination_gl->BindTexture(target, texture);
 
   renderer_.CopyVideoFrameYUVDataToGLTexture(
-      media_context_.get(), destination_gl, cropped_frame(), target, texture,
-      GL_RGBA, GL_RGBA, GL_UNSIGNED_BYTE, 0, false /* premultiply_alpha */,
-      true /* flip_y */);
+      media_context_.get(), destination_gl,
+      destination_context_->ContextCapabilities(), cropped_frame(), target,
+      texture, GL_RGBA, GL_RGBA, GL_UNSIGNED_BYTE, 0,
+      false /* premultiply_alpha */, true /* flip_y */);
 
   gfx::Size expected_size = cropped_frame()->visible_rect().size();
 

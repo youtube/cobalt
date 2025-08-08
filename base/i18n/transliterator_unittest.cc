@@ -11,7 +11,6 @@
 namespace base {
 namespace i18n {
 
-#if !UCONFIG_NO_TRANSLITERATION
 TEST(TransliteratorTest, LowerCorrect) {
   UParseError parseErr;
   UErrorCode err = U_ZERO_ERROR;
@@ -47,7 +46,6 @@ TEST(TransliteratorTest, LowerLatinASCIICorrect) {
   transliterator->transliterate(text);
   EXPECT_EQ(base::i18n::UnicodeStringToString16(text), u"internationalization");
 }
-#endif /* #if !UCONFIG_NO_TRANSLITERATION */
 
 }  // namespace i18n
 }  // namespace base

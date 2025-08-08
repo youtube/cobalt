@@ -2,6 +2,11 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#ifdef UNSAFE_BUFFERS_BUILD
+// TODO(crbug.com/40284755): Remove this and spanify to fix the errors.
+#pragma allow_unsafe_buffers
+#endif
+
 #include "base/strings/sys_string_conversions.h"
 
 #include <stddef.h>
@@ -27,7 +32,7 @@ std::wstring SysUTF8ToWide(StringPiece utf8) {
   return out;
 }
 
-#if defined(SYSTEM_NATIVE_UTF8) || BUILDFLAG(IS_ANDROID) || defined(STARBOARD)
+#if defined(SYSTEM_NATIVE_UTF8) || BUILDFLAG(IS_ANDROID)
 // TODO(port): Consider reverting the OS_ANDROID when we have wcrtomb()
 // support and a better understanding of what calls these routines.
 
@@ -154,7 +159,6 @@ std::wstring SysNativeMBToWide(StringPiece native_mb) {
   return out;
 }
 
-#endif  // defined(SYSTEM_NATIVE_UTF8) || BUILDFLAG(IS_ANDROID) ||
-        // defined(STARBOARD)
+#endif  // defined(SYSTEM_NATIVE_UTF8) || BUILDFLAG(IS_ANDROID)
 
 }  // namespace base

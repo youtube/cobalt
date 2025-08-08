@@ -278,8 +278,8 @@ class NET_EXPORT NetLog {
   }
 
   void AddGlobalEntryWithStringParams(NetLogEventType type,
-                                      base::StringPiece name,
-                                      base::StringPiece value);
+                                      std::string_view name,
+                                      std::string_view value);
 
   // Returns a unique ID which can be used as a source ID.  All returned IDs
   // will be unique and not equal to 0.
@@ -414,9 +414,10 @@ class NET_EXPORT NetLog {
   //
   // In practice |observers_| will be very small (<5) so O(n)
   // operations on it are fine.
-  std::vector<ThreadSafeObserver*> observers_;
+  std::vector<raw_ptr<ThreadSafeObserver, VectorExperimental>> observers_;
 
-  std::vector<ThreadSafeCaptureModeObserver*> capture_mode_observers_;
+  std::vector<raw_ptr<ThreadSafeCaptureModeObserver, VectorExperimental>>
+      capture_mode_observers_;
 };
 
 }  // namespace net

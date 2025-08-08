@@ -4,6 +4,7 @@
 
 #include "media/mojo/clients/mojo_video_decoder.h"
 
+#include "base/check.h"
 #include "base/command_line.h"
 #include "base/feature_list.h"
 #include "base/functional/bind.h"
@@ -22,6 +23,7 @@
 #include "media/base/demuxer_stream.h"
 #include "media/base/media_switches.h"
 #include "media/base/overlay_info.h"
+#include "media/base/supported_types.h"
 #include "media/base/video_frame.h"
 #include "media/media_buildflags.h"
 #include "media/mojo/clients/mojo_media_log_service.h"
@@ -154,15 +156,18 @@ void MojoVideoDecoder::Initialize(const VideoDecoderConfig& config,
   if (gpu_factories_)
     decoder_type_ = gpu_factories_->GetDecoderType();
 
-  // Fail immediately if we know that the remote side cannot support |config|.
-  if (gpu_factories_ && gpu_factories_->IsDecoderConfigSupported(config) ==
-                            GpuVideoAcceleratorFactories::Supported::kFalse) {
+  // If the codec has software fallback, fail immediately if we know that the
+  // remote side cannot support |config|.
+  if (gpu_factories_ &&
+      gpu_factories_->IsDecoderConfigSupported(config) ==
+          GpuVideoAcceleratorFactories::Supported::kFalse &&
+      IsBuiltInVideoCodec(config.codec())) {
     FailInit(std::move(init_cb), DecoderStatus::Codes::kUnsupportedConfig);
     return;
   }
 
-  absl::optional<base::UnguessableToken> cdm_id =
-      cdm_context ? cdm_context->GetCdmId() : absl::nullopt;
+  std::optional<base::UnguessableToken> cdm_id =
+      cdm_context ? cdm_context->GetCdmId() : std::nullopt;
 
   // Fail immediately if the stream is encrypted but |cdm_id| is invalid.
   // This check is needed to avoid unnecessary IPC to the remote process.
@@ -194,7 +199,7 @@ void MojoVideoDecoder::Initialize(const VideoDecoderConfig& config,
 void MojoVideoDecoder::InitializeRemoteDecoder(
     const VideoDecoderConfig& config,
     bool low_delay,
-    absl::optional<base::UnguessableToken> cdm_id) {
+    std::optional<base::UnguessableToken> cdm_id) {
   if (has_connection_error_) {
     DCHECK(init_cb_);
     FailInit(std::move(init_cb_), DecoderStatus::Codes::kDisconnected);
@@ -260,7 +265,7 @@ void MojoVideoDecoder::Decode(scoped_refptr<DecoderBuffer> buffer,
 void MojoVideoDecoder::OnVideoFrameDecoded(
     const scoped_refptr<VideoFrame>& frame,
     bool can_read_without_stalling,
-    const absl::optional<base::UnguessableToken>& release_token) {
+    const std::optional<base::UnguessableToken>& release_token) {
   DVLOG(3) << __func__;
   DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
   TRACE_EVENT2("media", "MojoVideoDecoder::OnVideoFrameDecoded", "frame",
@@ -320,6 +325,10 @@ void MojoVideoDecoder::Reset(base::OnceClosure reset_cb) {
     return;
   }
 
+  // TODO(crbug.com/335001233): rollback the change or replace it with a CHECK
+  // before closing the bug.
+  DUMP_WILL_BE_CHECK(reset_cb);
+
   reset_cb_ = std::move(reset_cb);
   remote_decoder_->Reset(
       base::BindOnce(&MojoVideoDecoder::OnResetDone, base::Unretained(this)));
@@ -328,6 +337,7 @@ void MojoVideoDecoder::Reset(base::OnceClosure reset_cb) {
 void MojoVideoDecoder::OnResetDone() {
   DVLOG(2) << __func__;
   DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
+  DCHECK(pending_decodes_.empty());
   can_read_without_stalling_ = true;
   std::move(reset_cb_).Run();
 }

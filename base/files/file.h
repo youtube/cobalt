@@ -7,6 +7,7 @@
 
 #include <stdint.h>
 
+#include <optional>
 #include <string>
 
 #include "base/base_export.h"
@@ -22,11 +23,7 @@ struct stat;
 
 namespace base {
 
-#if defined(STARBOARD)
-using stat_wrapper_t = struct ::stat;
-#else
 using stat_wrapper_t = struct stat;
-#endif
 
 // Thin wrapper around an OS-level file.
 // Note that this class does not provide any support for asynchronous IO, other
@@ -38,6 +35,9 @@ using stat_wrapper_t = struct stat;
 // obvious non-modifying way are marked as const. Any method that forward calls
 // to the OS is not considered const, even if there is no apparent change to
 // member variables.
+//
+// On POSIX, if the given file is a symbolic link, most of the methods apply to
+// the file that the symbolic link resolves to.
 class BASE_EXPORT File {
  public:
   // FLAG_(OPEN|CREATE).* are mutually exclusive. You should specify exactly one
@@ -122,7 +122,7 @@ class BASE_EXPORT File {
   struct BASE_EXPORT Info {
     Info();
     ~Info();
-#if BUILDFLAG(IS_POSIX) || BUILDFLAG(IS_FUCHSIA) || defined(STARBOARD)
+#if BUILDFLAG(IS_POSIX) || BUILDFLAG(IS_FUCHSIA)
     // Fills this struct with values from |stat_info|.
     void FromStat(const stat_wrapper_t& stat_info);
 #endif
@@ -221,9 +221,11 @@ class BASE_EXPORT File {
   // normal expectation is that actually |size| bytes are read unless there is
   // an error.
   int Read(int64_t offset, char* data, int size);
+  std::optional<size_t> Read(int64_t offset, base::span<uint8_t> data);
 
   // Same as above but without seek.
   int ReadAtCurrentPos(char* data, int size);
+  std::optional<size_t> ReadAtCurrentPos(base::span<uint8_t> data);
 
   // Reads the given number of bytes (or until EOF is reached) starting with the
   // given offset, but does not make any effort to read all data on all
@@ -240,16 +242,18 @@ class BASE_EXPORT File {
   // Ignores the offset and writes to the end of the file if the file was opened
   // with FLAG_APPEND.
   int Write(int64_t offset, const char* data, int size);
+  std::optional<size_t> Write(int64_t offset, base::span<const uint8_t> data);
 
   // Save as above but without seek.
   int WriteAtCurrentPos(const char* data, int size);
+  std::optional<size_t> WriteAtCurrentPos(base::span<const uint8_t> data);
 
   // Save as above but does not make any effort to write all data on all
   // platforms. Returns the number of bytes written, or -1 on error.
   int WriteAtCurrentPosNoBestEffort(const char* data, int size);
 
   // Returns the current size of this file, or a negative number on failure.
-  int64_t GetLength();
+  int64_t GetLength() const;
 
   // Truncates the file to the given length. If |length| is greater than the
   // current size of the file, the file is extended with zeros. If the file
@@ -322,6 +326,12 @@ class BASE_EXPORT File {
   // Serialise this object into a trace.
   void WriteIntoTrace(perfetto::TracedValue context) const;
 
+#if BUILDFLAG(IS_APPLE)
+  // Initializes experiments. Must be invoked early in process startup, but
+  // after `FeatureList` initialization.
+  static void InitializeFeatures();
+#endif  // BUILDFLAG(IS_APPLE)
+
 #if BUILDFLAG(IS_WIN)
   // Sets or clears the DeleteFile disposition on the file. Returns true if
   // the disposition was set or cleared, as indicated by |delete_on_close|.
@@ -355,33 +365,30 @@ class BASE_EXPORT File {
   //   deleted in the event of untimely process termination, and then clearing
   //   this state once the file is suitable for persistence.
   bool DeleteOnClose(bool delete_on_close);
-#endif
 
-#if defined(STARBOARD)
-  static Error OSErrorToFileError(SbSystemError sb_system_error);
-#elif BUILDFLAG(IS_WIN)
+  // Precondition: last_error is not 0, also known as ERROR_SUCCESS.
   static Error OSErrorToFileError(DWORD last_error);
 #elif BUILDFLAG(IS_POSIX) || BUILDFLAG(IS_FUCHSIA)
+  // Precondition: saved_errno is not 0.
   static Error OSErrorToFileError(int saved_errno);
 #endif
 
   // Gets the last global error (errno or GetLastError()) and converts it to the
-  // closest base::File::Error equivalent via OSErrorToFileError(). The returned
-  // value is only trustworthy immediately after another base::File method
-  // fails. base::File never resets the global error to zero.
+  // closest base::File::Error equivalent via OSErrorToFileError(). It should
+  // therefore only be called immediately after another base::File method fails.
+  // base::File never resets the global error to zero.
   static Error GetLastFileError();
 
   // Converts an error value to a human-readable form. Used for logging.
   static std::string ErrorToString(Error error);
 
-#if BUILDFLAG(IS_POSIX) || BUILDFLAG(IS_FUCHSIA) || defined(STARBOARD)
-  // Wrapper for stat() or stat64().
-  static int Stat(const char* path, stat_wrapper_t* sb);
+#if BUILDFLAG(IS_POSIX) || BUILDFLAG(IS_FUCHSIA)
+  // Wrapper for stat().
+  static int Stat(const FilePath& path, stat_wrapper_t* sb);
+  // Wrapper for fstat().
   static int Fstat(int fd, stat_wrapper_t* sb);
-# if !defined(STARBOARD)
-  // Starboard does not support lstat yet.
-  static int Lstat(const char* path, stat_wrapper_t* sb);
-#endif
+  // Wrapper for lstat().
+  static int Lstat(const FilePath& path, stat_wrapper_t* sb);
 #endif
 
   // This function can be used to augment `flags` with the correct flags
@@ -397,12 +404,6 @@ class BASE_EXPORT File {
     }
     return flags;
   }
-
-#if defined(STARBOARD)
-  std::string GetFileName() {
-    return file_name_;
-  }
-#endif
 
  private:
   friend class FileTracing::ScopedTrace;
@@ -425,12 +426,6 @@ class BASE_EXPORT File {
   Error error_details_ = FILE_ERROR_FAILED;
   bool created_ = false;
   bool async_ = false;
-
-#if defined(STARBOARD)
-  bool delete_on_close_;
-  std::string file_name_;
-  bool append_ = false;
-#endif
 };
 
 }  // namespace base

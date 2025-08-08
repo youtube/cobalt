@@ -2,10 +2,16 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#ifdef UNSAFE_BUFFERS_BUILD
+// TODO(crbug.com/40284755): Remove this and spanify to fix the errors.
+#pragma allow_unsafe_buffers
+#endif
+
 #include "base/metrics/crc32.h"
 
 #include <stdint.h>
 
+#include "base/containers/span.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
 namespace base {
@@ -28,7 +34,8 @@ TEST(Crc32Test, TableTest) {
 
 // A CRC of nothing should always be zero.
 TEST(Crc32Test, ZeroTest) {
-  EXPECT_EQ(0U, Crc32(0, nullptr, 0));
+  span<const uint8_t> empty_data;
+  EXPECT_EQ(0U, Crc32(0, empty_data));
 }
 
 }  // namespace base

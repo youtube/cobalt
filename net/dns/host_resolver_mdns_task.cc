@@ -52,7 +52,7 @@ class HostResolverMdnsTask::Transaction {
     DCHECK_EQ(ERR_IO_PENDING, results_.error());
     DCHECK(!async_transaction_);
 
-    // TODO(crbug.com/926300): Use |allow_cached_response| to set the
+    // TODO(crbug.com/40611558): Use |allow_cached_response| to set the
     // QUERY_CACHE flag or not.
     int flags = MDnsTransaction::SINGLE_RESULT | MDnsTransaction::QUERY_CACHE |
                 MDnsTransaction::QUERY_NETWORK;
@@ -134,13 +134,15 @@ HostResolverMdnsTask::HostResolverMdnsTask(MDnsClient* mdns_client,
                                            std::string hostname,
                                            DnsQueryTypeSet query_types)
     : mdns_client_(mdns_client), hostname_(std::move(hostname)) {
-  DCHECK(!query_types.Empty());
+  CHECK(!query_types.empty());
   DCHECK(!query_types.Has(DnsQueryType::UNSPECIFIED));
 
-  static constexpr DnsQueryTypeSet kUnwantedQueries(DnsQueryType::HTTPS);
+  static constexpr DnsQueryTypeSet kUnwantedQueries = {DnsQueryType::HTTPS};
 
-  for (DnsQueryType query_type : Difference(query_types, kUnwantedQueries))
+  for (DnsQueryType query_type : Difference(query_types, kUnwantedQueries)) {
     transactions_.emplace_back(query_type, this);
+  }
+  CHECK(!transactions_.empty()) << "Only unwanted query types supplied.";
 }
 
 HostResolverMdnsTask::~HostResolverMdnsTask() {

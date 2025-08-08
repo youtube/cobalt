@@ -49,12 +49,6 @@ void FakeCommandBufferHelper::CurrentContextLost() {
   is_context_current_ = false;
 }
 
-bool FakeCommandBufferHelper::HasTexture(GLuint service_id) {
-  DVLOG(4) << __func__ << "(" << service_id << ")";
-  DCHECK(task_runner_->BelongsToCurrentThread());
-  return service_ids_.count(service_id);
-}
-
 void FakeCommandBufferHelper::ReleaseSyncToken(gpu::SyncToken sync_token) {
   DVLOG(3) << __func__;
   DCHECK(task_runner_->BelongsToCurrentThread());
@@ -118,76 +112,8 @@ FakeCommandBufferHelper::Register(
   return nullptr;
 }
 
-gpu::TextureBase* FakeCommandBufferHelper::GetTexture(GLuint service_id) const {
-  DVLOG(2) << __func__ << "(" << service_id << ")";
-  DCHECK(task_runner_->BelongsToCurrentThread());
-  DCHECK(service_ids_.count(service_id));
-  return nullptr;
-}
-
-GLuint FakeCommandBufferHelper::CreateTexture(GLenum target,
-                                              GLenum internal_format,
-                                              GLsizei width,
-                                              GLsizei height,
-                                              GLenum format,
-                                              GLenum type) {
-  DVLOG(2) << __func__;
-  DCHECK(task_runner_->BelongsToCurrentThread());
-  DCHECK(is_context_current_);
-  GLuint service_id = next_service_id_++;
-  service_ids_.insert(service_id);
-  return service_id;
-}
-
-void FakeCommandBufferHelper::DestroyTexture(GLuint service_id) {
-  DVLOG(2) << __func__ << "(" << service_id << ")";
-  DCHECK(task_runner_->BelongsToCurrentThread());
-  DCHECK(is_context_current_);
-  DCHECK(service_ids_.count(service_id));
-  service_ids_.erase(service_id);
-}
-
-void FakeCommandBufferHelper::SetCleared(GLuint service_id) {
-  DVLOG(2) << __func__;
-  DCHECK(task_runner_->BelongsToCurrentThread());
-  DCHECK(service_ids_.count(service_id));
-}
-
-#if BUILDFLAG(IS_WIN) || BUILDFLAG(IS_APPLE)
-bool FakeCommandBufferHelper::BindDecoderManagedImage(GLuint service_id,
-                                                      gl::GLImage* image) {
-  return BindImageInternal(service_id, image);
-}
-#else
-bool FakeCommandBufferHelper::BindClientManagedImage(GLuint service_id,
-                                                     gl::GLImage* image) {
-  return BindImageInternal(service_id, image);
-}
-#endif
-
-bool FakeCommandBufferHelper::BindImageInternal(GLuint service_id,
-                                                gl::GLImage* image) {
-  DVLOG(2) << __func__ << "(" << service_id << ")";
-  DCHECK(task_runner_->BelongsToCurrentThread());
-  DCHECK(service_ids_.count(service_id));
-  return has_stub_;
-}
-
-gpu::Mailbox FakeCommandBufferHelper::CreateLegacyMailbox(GLuint service_id) {
-  DVLOG(2) << __func__ << "(" << service_id << ")";
-  DCHECK(task_runner_->BelongsToCurrentThread());
-  DCHECK(service_ids_.count(service_id));
-  if (!has_stub_)
-    return gpu::Mailbox();
-  return gpu::Mailbox::GenerateLegacyMailboxForTesting();
-}
-
 void FakeCommandBufferHelper::AddWillDestroyStubCB(WillDestroyStubCB callback) {
   will_destroy_stub_callbacks_.push_back(std::move(callback));
-}
-
-bool FakeCommandBufferHelper::IsPassthrough() const {
-  return false;
 }
 
 bool FakeCommandBufferHelper::SupportsTextureRectangle() const {

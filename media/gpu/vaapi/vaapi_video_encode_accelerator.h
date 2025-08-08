@@ -53,11 +53,14 @@ class MEDIA_GPU_EXPORT VaapiVideoEncodeAccelerator
                   std::unique_ptr<MediaLog> media_log) override;
   void Encode(scoped_refptr<VideoFrame> frame, bool force_keyframe) override;
   void UseOutputBitstreamBuffer(BitstreamBuffer buffer) override;
-  void RequestEncodingParametersChange(const Bitrate& bitrate,
-                                       uint32_t framerate) override;
+  void RequestEncodingParametersChange(
+      const Bitrate& bitrate,
+      uint32_t framerate,
+      const std::optional<gfx::Size>& size) override;
   void RequestEncodingParametersChange(
       const VideoBitrateAllocation& bitrate_allocation,
-      uint32_t framerate) override;
+      uint32_t framerate,
+      const std::optional<gfx::Size>& size) override;
   void Destroy() override;
   void Flush(FlushCallback flush_callback) override;
   bool IsFlushSupported() override;
@@ -123,7 +126,8 @@ class MEDIA_GPU_EXPORT VaapiVideoEncodeAccelerator
 
   void RequestEncodingParametersChangeTask(
       VideoBitrateAllocation bitrate_allocation,
-      uint32_t framerate);
+      uint32_t framerate,
+      const std::optional<gfx::Size>& size);
 
   void DestroyTask();
   void FlushTask(FlushCallback flush_callback);
@@ -182,6 +186,8 @@ class MEDIA_GPU_EXPORT VaapiVideoEncodeAccelerator
   std::unique_ptr<EncodeJob> CreateEncodeJob(
       bool force_keyframe,
       base::TimeDelta frame_timestamp,
+      uint8_t spatial_index,
+      bool end_of_picture,
       const VASurface& input_surface,
       scoped_refptr<VASurface> reconstructed_surface);
 
@@ -223,11 +229,14 @@ class MEDIA_GPU_EXPORT VaapiVideoEncodeAccelerator
   // |num_instances_| tracks that number.
   static constexpr int kMaxNumOfInstances = 10;
   static base::AtomicRefCount num_instances_;
-  const bool can_use_encoder_;
+  const bool can_use_encoder_ GUARDED_BY_CONTEXT(child_sequence_checker_);
+
+  // All of the members below must be accessed on the encoder_task_runner_,
+  // while it is running.
 
   // The unchanged values are filled upon the construction. The varied values
   // are filled properly during encoding.
-  VideoEncoderInfo encoder_info_;
+  VideoEncoderInfo encoder_info_ GUARDED_BY_CONTEXT(encoder_sequence_checker_);
 
   // VaapiWrapper is the owner of all HW resources (surfaces and buffers)
   // and will free them on destruction.
@@ -236,61 +245,70 @@ class MEDIA_GPU_EXPORT VaapiVideoEncodeAccelerator
 
   // The expected coded size of incoming video frames when |native_input_mode_|
   // is false.
-  gfx::Size expected_input_coded_size_;
+  gfx::Size expected_input_coded_size_
+      GUARDED_BY_CONTEXT(encoder_sequence_checker_);
 
   // The codec of the stream to be produced. Set during initialization.
-  VideoCodec output_codec_ = VideoCodec::kUnknown;
+  VideoCodec output_codec_ GUARDED_BY_CONTEXT(encoder_sequence_checker_) =
+      VideoCodec::kUnknown;
 
   // The visible rect to be encoded.
-  gfx::Rect visible_rect_;
+  gfx::Rect visible_rect_ GUARDED_BY_CONTEXT(encoder_sequence_checker_);
 
   // Size in bytes required for output bitstream buffers.
-  size_t output_buffer_byte_size_ = 0;
+  size_t output_buffer_byte_size_
+      GUARDED_BY_CONTEXT(encoder_sequence_checker_) = 0;
   // Size of the max size of |pending_encode_results_|.
-  size_t max_pending_results_size_ = 0;
+  size_t max_pending_results_size_
+      GUARDED_BY_CONTEXT(encoder_sequence_checker_) = 0;
 
   // This flag signals when the client is sending NV12 + DmaBuf-backed
   // VideoFrames to encode, which allows for skipping a copy-adaptation on
   // input.
-  bool native_input_mode_ = false;
+  bool native_input_mode_ GUARDED_BY_CONTEXT(encoder_sequence_checker_) = false;
 
   // The number of frames that needs to be held on encoding.
-  size_t num_frames_in_flight_ = 0;
-
-  // All of the members below must be accessed on the encoder_task_runner_,
-  // while it is running.
+  size_t num_frames_in_flight_ GUARDED_BY_CONTEXT(encoder_sequence_checker_) =
+      0;
 
   // Encoder state. Encode tasks will only run in kEncoding state.
-  State state_ = State::kUninitialized;
+  State state_ GUARDED_BY_CONTEXT(encoder_sequence_checker_) =
+      State::kUninitialized;
 
   // Encoder instance managing video codec state and preparing encode jobs.
   // Should only be used on |encoder_task_runner_|.
-  std::unique_ptr<VaapiVideoEncoderDelegate> encoder_;
+  std::unique_ptr<VaapiVideoEncoderDelegate> encoder_
+      GUARDED_BY_CONTEXT(encoder_sequence_checker_);
 
   // Map of input surfaces. In non |native_input_mode_|, this is always created
   // and memory-based encode input VideoFrame is written into this.
   // In |native_input_mode_|, this is created only if scaling or cropping is
   // required and used as a VPP destination.
-  InputSurfaceMap input_surfaces_;
+  InputSurfaceMap input_surfaces_ GUARDED_BY_CONTEXT(encoder_sequence_checker_);
 
   // Map of available reconstructed surfaces for encoding index by a layer
   // resolution. These are stored as reference frames in
   // VaapiVideoEncoderDelegate if necessary.
-  EncodeSurfacesMap available_encode_surfaces_;
+  EncodeSurfacesMap available_encode_surfaces_
+      GUARDED_BY_CONTEXT(encoder_sequence_checker_);
 
   // Map of the number of allocated reconstructed surfaces for encoding
   // indexed by a layer resolution.
-  EncodeSurfacesCountMap encode_surfaces_count_;
+  EncodeSurfacesCountMap encode_surfaces_count_
+      GUARDED_BY_CONTEXT(encoder_sequence_checker_);
 
   // Queue of input frames to be encoded.
-  base::queue<InputFrameRef> input_queue_;
+  base::queue<InputFrameRef> input_queue_
+      GUARDED_BY_CONTEXT(encoder_sequence_checker_);
 
   // BitstreamBuffers mapped, ready to be filled with encoded stream data.
-  base::queue<BitstreamBuffer> available_bitstream_buffers_;
+  base::queue<BitstreamBuffer> available_bitstream_buffers_
+      GUARDED_BY_CONTEXT(encoder_sequence_checker_);
 
   // VASurfaces already encoded and waiting for the bitstream buffer to
   // be downloaded.
-  base::queue<absl::optional<EncodeResult>> pending_encode_results_;
+  base::queue<std::optional<EncodeResult>> pending_encode_results_
+      GUARDED_BY_CONTEXT(encoder_sequence_checker_);
 
   // Task runner for interacting with the client, and its checker.
   const scoped_refptr<base::SequencedTaskRunner> child_task_runner_;
@@ -312,7 +330,7 @@ class MEDIA_GPU_EXPORT VaapiVideoEncodeAccelerator
       GUARDED_BY_CONTEXT(encoder_sequence_checker_);
 
   // The completion callback of the Flush() function.
-  FlushCallback flush_callback_;
+  FlushCallback flush_callback_ GUARDED_BY_CONTEXT(encoder_sequence_checker_);
 
   // Supported profiles that are filled if and only if in a unit test.
   SupportedProfiles supported_profiles_for_testing_;

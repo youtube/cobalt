@@ -10,6 +10,7 @@
 
 #include <map>
 #include <memory>
+#include <optional>
 #include <set>
 #include <string>
 #include <tuple>
@@ -34,7 +35,6 @@
 #include "net/third_party/quiche/src/quiche/quic/core/quic_versions.h"
 #include "net/third_party/quiche/src/quiche/spdy/core/spdy_framer.h"  // TODO(willchan): Reconsider this.
 #include "net/third_party/quiche/src/quiche/spdy/core/spdy_protocol.h"
-#include "third_party/abseil-cpp/absl/types/optional.h"
 #include "url/scheme_host_port.h"
 
 namespace base {
@@ -150,14 +150,14 @@ class NET_EXPORT HttpServerProperties
     // indicates unknown. The difference between false and not set only matters
     // when loading from disk, when an initialized false value will take
     // priority over a not set value.
-    absl::optional<bool> supports_spdy;
+    std::optional<bool> supports_spdy;
 
     // True if the server has previously indicated it required HTTP/1.1. Unlike
     // other fields, not persisted to disk.
-    absl::optional<bool> requires_http11;
+    std::optional<bool> requires_http11;
 
-    absl::optional<AlternativeServiceInfoVector> alternative_services;
-    absl::optional<ServerNetworkStats> server_network_stats;
+    std::optional<AlternativeServiceInfoVector> alternative_services;
+    std::optional<ServerNetworkStats> server_network_stats;
   };
 
   struct NET_EXPORT ServerInfoMapKey {
@@ -276,17 +276,23 @@ class NET_EXPORT HttpServerProperties
 
   // Returns true if |server| has required HTTP/1.1 via HTTP/2 error code, in
   // the context of |network_anonymization_key|.
+  //
+  // Any relevant HostMappingRules must already have been applied to `server`.
   bool RequiresHTTP11(
       const url::SchemeHostPort& server,
       const net::NetworkAnonymizationKey& network_anonymization_key);
 
   // Require HTTP/1.1 on subsequent connections, in the context of
   // |network_anonymization_key|.  Not persisted.
+  //
+  // Any relevant HostMappingRules must already have been applied to `server`.
   void SetHTTP11Required(
       const url::SchemeHostPort& server,
       const net::NetworkAnonymizationKey& network_anonymization_key);
 
   // Modify SSLConfig to force HTTP/1.1 if necessary.
+  //
+  // Any relevant HostMappingRules must already have been applied to `server`.
   void MaybeForceHTTP11(
       const url::SchemeHostPort& server,
       const net::NetworkAnonymizationKey& network_anonymization_key,
@@ -427,8 +433,8 @@ class NET_EXPORT HttpServerProperties
   // exponential_backoff_on_initial_delay which are used to calculate delay of
   // broken alternative services.
   void SetBrokenAlternativeServicesDelayParams(
-      absl::optional<base::TimeDelta> initial_delay,
-      absl::optional<bool> exponential_backoff_on_initial_delay);
+      std::optional<base::TimeDelta> initial_delay,
+      std::optional<bool> exponential_backoff_on_initial_delay);
 
   // Returns whether HttpServerProperties is initialized.
   bool IsInitialized() const;
@@ -473,6 +479,10 @@ class NET_EXPORT HttpServerProperties
   const ServerInfoMap& server_info_map_for_testing() const {
     return server_info_map_;
   }
+
+  // This will invalidate the start-up properties if called before
+  // initialization.
+  void FlushWritePropertiesForTesting(base::OnceClosure callback);
 
   const BrokenAlternativeServices& broken_alternative_services_for_testing()
       const {
@@ -640,7 +650,7 @@ class NET_EXPORT HttpServerProperties
 
   IPAddress last_local_address_when_quic_worked_;
   // Contains a map of servers which could share the same alternate protocol.
-  // Map from a Canonical scheme/host/port/NIK (host is some postfix of host
+  // Map from a Canonical scheme/host/port/NAK (host is some postfix of host
   // names) to an actual origin, which has a plausible alternate protocol
   // mapping.
   CanonicalMap canonical_alt_svc_map_;

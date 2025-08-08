@@ -8,6 +8,7 @@
 #include <stdint.h>
 
 #include <memory>
+#include <optional>
 #include <string>
 #include <vector>
 
@@ -30,7 +31,6 @@
 #include "net/url_request/redirect_info.h"
 #include "net/url_request/referrer_policy.h"
 #include "net/url_request/url_request.h"
-#include "third_party/abseil-cpp/absl/types/optional.h"
 #include "url/gurl.h"
 
 namespace net {
@@ -42,7 +42,7 @@ class HttpRequestHeaders;
 class HttpResponseInfo;
 class IOBuffer;
 struct LoadTimingInfo;
-class ProxyServer;
+class ProxyChain;
 class SSLCertRequestInfo;
 class SSLInfo;
 class SSLPrivateKey;
@@ -196,8 +196,8 @@ class NET_EXPORT URLRequestJob {
   virtual void ContinueDespiteLastError();
 
   void FollowDeferredRedirect(
-      const absl::optional<std::vector<std::string>>& removed_headers,
-      const absl::optional<net::HttpRequestHeaders>& modified_headers);
+      const std::optional<std::vector<std::string>>& removed_headers,
+      const std::optional<net::HttpRequestHeaders>& modified_headers);
 
   // Returns true if the Job is done producing response data and has called
   // NotifyDone on the request.
@@ -252,6 +252,11 @@ class NET_EXPORT URLRequestJob {
   virtual void SetEarlyResponseHeadersCallback(
       ResponseHeadersCallback callback) {}
 
+  // Set a callback that will be invoked when a matching shared dictionary is
+  // available to determine whether it is allowed to use the dictionary.
+  virtual void SetIsSharedDictionaryReadAllowedCallback(
+      base::RepeatingCallback<bool()> callback) {}
+
   // Causes the current transaction always close its active socket on
   // destruction. Does not close H2/H3 sessions.
   virtual void CloseConnectionOnDestruction();
@@ -285,7 +290,9 @@ class NET_EXPORT URLRequestJob {
 
   // Delegates to URLRequest.
   bool CanSetCookie(const net::CanonicalCookie& cookie,
-                    CookieOptions* options) const;
+                    CookieOptions* options,
+                    const net::FirstPartySetMetadata& first_party_set_metadata,
+                    CookieInclusionStatus* inclusion_status) const;
 
   // Notifies the job that headers have been received.
   void NotifyHeadersComplete();
@@ -334,8 +341,8 @@ class NET_EXPORT URLRequestJob {
   // or nullptr on error.
   virtual std::unique_ptr<SourceStream> SetUpSourceStream();
 
-  // Set the proxy server that was used, if any.
-  void SetProxyServer(const ProxyServer& proxy_server);
+  // Set the proxy chain that was used, if any.
+  void SetProxyChain(const ProxyChain& proxy_chain);
 
   // The number of bytes read after passing through the filter. This value
   // reflects bytes read even when there is no filter.
@@ -353,7 +360,7 @@ class NET_EXPORT URLRequestJob {
   // On return, |this| may be deleted.
   void ReadRawDataComplete(int bytes_read);
 
-  const absl::optional<net::SchemefulSite>& request_initiator_site() const {
+  const std::optional<net::SchemefulSite>& request_initiator_site() const {
     return request_initiator_site_;
   }
 
@@ -383,8 +390,8 @@ class NET_EXPORT URLRequestJob {
   // given redirect destination.
   void FollowRedirect(
       const RedirectInfo& redirect_info,
-      const absl::optional<std::vector<std::string>>& removed_headers,
-      const absl::optional<net::HttpRequestHeaders>& modified_headers);
+      const std::optional<std::vector<std::string>>& removed_headers,
+      const std::optional<net::HttpRequestHeaders>& modified_headers);
 
   // Called after every raw read. If |bytes_read| is > 0, this indicates
   // a successful read of |bytes_read| unfiltered bytes. If |bytes_read|
@@ -441,12 +448,12 @@ class NET_EXPORT URLRequestJob {
 
   // Set when a redirect is deferred. Redirects are deferred after validity
   // checks are performed, so this field must not be modified.
-  absl::optional<RedirectInfo> deferred_redirect_info_;
+  std::optional<RedirectInfo> deferred_redirect_info_;
 
   // The request's initiator never changes, so we store it in format of
   // SchemefulSite so that we don't recompute (including looking up the
   // registrable domain) it during every redirect.
-  absl::optional<net::SchemefulSite> request_initiator_site_;
+  std::optional<net::SchemefulSite> request_initiator_site_;
 
   // Non-null if ReadRawData() returned ERR_IO_PENDING, and the read has not
   // completed.

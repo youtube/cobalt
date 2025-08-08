@@ -6,22 +6,20 @@
 #define BASE_TRACE_EVENT_MALLOC_DUMP_PROVIDER_H_
 
 #include "base/allocator/buildflags.h"
-#include "base/allocator/partition_allocator/partition_alloc_buildflags.h"
 #include "base/base_export.h"
+#include "base/functional/callback.h"
 #include "base/memory/raw_ptr.h"
 #include "base/memory/singleton.h"
 #include "base/synchronization/lock.h"
 #include "base/time/time.h"
 #include "base/trace_event/memory_dump_provider.h"
 #include "build/build_config.h"
+#include "partition_alloc/partition_alloc_buildflags.h"
+#include "partition_alloc/partition_stats.h"
 
 #if BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_CHROMEOS) || BUILDFLAG(IS_ANDROID) || \
     BUILDFLAG(IS_WIN) || BUILDFLAG(IS_MAC)
 #define MALLOC_MEMORY_TRACING_SUPPORTED
-#endif
-
-#if BUILDFLAG(USE_PARTITION_ALLOC)
-#include "base/allocator/partition_allocator/partition_stats.h"
 #endif
 
 namespace base {
@@ -37,6 +35,20 @@ class BASE_EXPORT MallocDumpProvider : public MemoryDumpProvider {
   static const char kAllocatedObjects[];
 
   static MallocDumpProvider* GetInstance();
+
+  // The Extreme LUD is implemented in //components/gwp_asan, which //base
+  // cannot depend on. The following API allows an injection of stats-report
+  // function of the Extreme LUD.
+  struct ExtremeLUDStats {
+    // This default-constructs to be zero'ed.
+    partition_alloc::LightweightQuarantineStats lq_stats{0};
+    size_t capacity_in_bytes = 0;
+  };
+#if PA_BUILDFLAG(USE_PARTITION_ALLOC_AS_MALLOC)
+  using ExtremeLUDGetStatsCallback = RepeatingCallback<ExtremeLUDStats()>;
+  static void SetExtremeLUDGetStatsCallback(
+      ExtremeLUDGetStatsCallback callback);
+#endif  // PA_BUILDFLAG(USE_PARTITION_ALLOC_AS_MALLOC)
 
   MallocDumpProvider(const MallocDumpProvider&) = delete;
   MallocDumpProvider& operator=(const MallocDumpProvider&) = delete;
@@ -54,14 +66,19 @@ class BASE_EXPORT MallocDumpProvider : public MemoryDumpProvider {
   void ReportPerMinuteStats(uint64_t syscall_count,
                             size_t cumulative_brp_quarantined_bytes,
                             size_t cumulative_brp_quarantined_count,
+                            const ExtremeLUDStats& elud_stats,
                             MemoryAllocatorDump* malloc_dump,
-                            MemoryAllocatorDump* partition_alloc_dump);
+                            MemoryAllocatorDump* partition_alloc_dump,
+                            MemoryAllocatorDump* elud_dump);
 
   bool emit_metrics_on_memory_dump_
       GUARDED_BY(emit_metrics_on_memory_dump_lock_) = true;
   base::Lock emit_metrics_on_memory_dump_lock_;
 
-#if BUILDFLAG(USE_PARTITION_ALLOC_AS_MALLOC)
+#if PA_BUILDFLAG(USE_PARTITION_ALLOC_AS_MALLOC)
+  // Returns a reference to the injected stats-report function of the Extreme
+  // LUD. The returned callback is_null() if the Extreme LUD is not enabled.
+  static ExtremeLUDGetStatsCallback& GetExtremeLUDGetStatsCallback();
   // To be accurate, this requires the dump provider to be created very early,
   // which is the case. The alternative would be to drop the first data point,
   // which is not desirable as early process activity is highly relevant.
@@ -69,10 +86,13 @@ class BASE_EXPORT MallocDumpProvider : public MemoryDumpProvider {
   uint64_t last_syscall_count_ = 0;
   size_t last_cumulative_brp_quarantined_bytes_ = 0;
   size_t last_cumulative_brp_quarantined_count_ = 0;
-#endif
+  size_t last_cumulative_elud_quarantined_bytes_ = 0;
+  size_t last_cumulative_elud_quarantined_count_ = 0;
+  size_t last_cumulative_elud_miss_count_ = 0;
+#endif  // PA_BUILDFLAG(USE_PARTITION_ALLOC_AS_MALLOC)
 };
 
-#if BUILDFLAG(USE_PARTITION_ALLOC)
+#if PA_BUILDFLAG(USE_PARTITION_ALLOC)
 // This class is used to invert the dependency of PartitionAlloc on the
 // PartitionAllocMemoryDumpProvider. This implements an interface that will
 // be called with memory statistics for each bucket in the allocator.
@@ -83,7 +103,7 @@ class BASE_EXPORT MemoryDumpPartitionStatsDumper final
                                  ProcessMemoryDump* memory_dump,
                                  MemoryDumpLevelOfDetail level_of_detail);
 
-  static const char* kPartitionsDumpName;
+  static constexpr char kPartitionsDumpName[] = "partitions";
 
   // PartitionStatsDumper implementation.
   void PartitionDumpTotals(
@@ -119,7 +139,7 @@ class BASE_EXPORT MemoryDumpPartitionStatsDumper final
   bool detailed_;
 };
 
-#endif  // BUILDFLAG(USE_PARTITION_ALLOC)
+#endif  // PA_BUILDFLAG(USE_PARTITION_ALLOC)
 
 }  // namespace trace_event
 }  // namespace base

@@ -7,6 +7,7 @@
 #import <Foundation/Foundation.h>
 #include <IOKit/pwr_mgt/IOPMLib.h>
 #include <notify.h>
+
 #include <memory>
 #include <queue>
 
@@ -29,7 +30,7 @@ void IgnoreSpeedLimitChange(int speed_limit) {}
 
 // Verifies that a NSProcessInfoThermalStateDidChangeNotification produces the
 // adequate OnStateChange() call.
-TEST(ThermalStateObserverMacTest, StateChange) NS_AVAILABLE_MAC(10_10_3) {
+TEST(ThermalStateObserverMacTest, StateChange) {
   MockFunction<void(DeviceThermalState)> function;
   // ThermalStateObserverMac sends the current thermal state on construction.
   EXPECT_CALL(function, Call);

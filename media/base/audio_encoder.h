@@ -6,8 +6,10 @@
 #define MEDIA_BASE_AUDIO_ENCODER_H_
 
 #include <memory>
+#include <optional>
 #include <vector>
 
+#include "base/containers/heap_array.h"
 #include "base/functional/callback.h"
 #include "base/sequence_checker.h"
 #include "base/time/time.h"
@@ -17,7 +19,6 @@
 #include "media/base/encoder_status.h"
 #include "media/base/media_export.h"
 #include "media/base/timestamp_constants.h"
-#include "third_party/abseil-cpp/absl/types/optional.h"
 
 namespace media {
 
@@ -25,7 +26,7 @@ namespace media {
 struct MEDIA_EXPORT EncodedAudioBuffer {
   EncodedAudioBuffer();
   EncodedAudioBuffer(const AudioParameters& params,
-                     std::unique_ptr<uint8_t[]> data,
+                     base::HeapArray<uint8_t> data,
                      size_t size,
                      base::TimeTicks timestamp,
                      base::TimeDelta duration = media::kNoTimestamp);
@@ -39,7 +40,7 @@ struct MEDIA_EXPORT EncodedAudioBuffer {
   AudioParameters params;
 
   // The buffer containing the encoded data.
-  std::unique_ptr<uint8_t[]> encoded_data;
+  base::HeapArray<uint8_t> encoded_data;
 
   // The size of the encoded data in the above buffer. Note that this is not
   // necessarily equal to the capacity of the buffer. Some encoders allocate a
@@ -61,8 +62,12 @@ struct MEDIA_EXPORT EncodedAudioBuffer {
 // Defines an interface for audio encoders.
 class MEDIA_EXPORT AudioEncoder {
  public:
+  enum class OpusSignal { kAuto, kMusic, kVoice };
+  enum class OpusApplication { kVoip, kAudio, kLowDelay };
   struct MEDIA_EXPORT OpusOptions {
     base::TimeDelta frame_duration;
+    OpusSignal signal;
+    OpusApplication application;
     unsigned int complexity;
     unsigned int packet_loss_perc;
     bool use_in_band_fec;
@@ -74,6 +79,8 @@ class MEDIA_EXPORT AudioEncoder {
     AacOutputFormat format;
   };
 
+  enum class BitrateMode { kVariable, kConstant };
+
   struct MEDIA_EXPORT Options {
     Options();
     Options(const Options&);
@@ -81,14 +88,16 @@ class MEDIA_EXPORT AudioEncoder {
 
     AudioCodec codec;
 
-    absl::optional<int> bitrate;
+    std::optional<int> bitrate;
 
     int channels;
 
     int sample_rate;
 
-    absl::optional<OpusOptions> opus;
-    absl::optional<AacOptions> aac;
+    std::optional<BitrateMode> bitrate_mode;
+
+    std::optional<OpusOptions> opus;
+    std::optional<AacOptions> aac;
   };
 
   // A sequence of codec specific bytes, commonly known as extradata.
@@ -98,7 +107,7 @@ class MEDIA_EXPORT AudioEncoder {
   // invoked on the same sequence on which EncodeAudio() is called.
   using OutputCB =
       base::RepeatingCallback<void(EncodedAudioBuffer output,
-                                   absl::optional<CodecDescription>)>;
+                                   std::optional<CodecDescription>)>;
 
   // Signature of the callback to report errors.
   using EncoderStatusCB = base::OnceCallback<void(EncoderStatus error)>;

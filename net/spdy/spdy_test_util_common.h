@@ -11,13 +11,14 @@
 #include <map>
 #include <memory>
 #include <string>
+#include <string_view>
 #include <vector>
 
 #include "base/containers/span.h"
 #include "base/memory/raw_ptr.h"
-#include "base/strings/string_piece.h"
 #include "crypto/ec_private_key.h"
 #include "net/base/completion_once_callback.h"
+#include "net/base/host_mapping_rules.h"
 #include "net/base/proxy_server.h"
 #include "net/base/request_priority.h"
 #include "net/base/test_completion_callback.h"
@@ -29,6 +30,7 @@
 #include "net/http/http_server_properties.h"
 #include "net/http/transport_security_state.h"
 #include "net/proxy_resolution/proxy_resolution_service.h"
+#include "net/quic/quic_crypto_client_stream_factory.h"
 #include "net/socket/socket_test_util.h"
 #include "net/spdy/spdy_session.h"
 #include "net/spdy/spdy_session_pool.h"
@@ -45,7 +47,6 @@ class GURL;
 
 namespace net {
 
-class CTPolicyEnforcer;
 class ClientSocketFactory;
 class HashValue;
 class HostPortPair;
@@ -58,6 +59,7 @@ class SpdyStream;
 class SpdyStreamRequest;
 class TransportSecurityState;
 class URLRequestContextBuilder;
+class ProxyDelegate;
 
 // Default upload data used by both, mock objects and framer when creating
 // data frames.
@@ -182,7 +184,8 @@ struct SpdySessionDependencies {
   std::unique_ptr<HostResolver> alternate_host_resolver;
   std::unique_ptr<MockCertVerifier> cert_verifier;
   std::unique_ptr<TransportSecurityState> transport_security_state;
-  std::unique_ptr<CTPolicyEnforcer> ct_policy_enforcer;
+  // NOTE: `proxy_delegate` must be ordered before `proxy_resolution_service`.
+  std::unique_ptr<ProxyDelegate> proxy_delegate;
   std::unique_ptr<ProxyResolutionService> proxy_resolution_service;
   std::unique_ptr<HttpUserAgentSettings> http_user_agent_settings;
   std::unique_ptr<SSLConfigService> ssl_config_service;
@@ -190,10 +193,13 @@ struct SpdySessionDependencies {
   std::unique_ptr<HttpAuthHandlerFactory> http_auth_handler_factory;
   std::unique_ptr<HttpServerProperties> http_server_properties;
   std::unique_ptr<QuicContext> quic_context;
+  std::unique_ptr<QuicCryptoClientStreamFactory>
+      quic_crypto_client_stream_factory;
 #if BUILDFLAG(ENABLE_REPORTING)
   std::unique_ptr<ReportingService> reporting_service;
   std::unique_ptr<NetworkErrorLoggingService> network_error_logging_service;
 #endif
+  HostMappingRules host_mapping_rules;
   bool enable_ip_pooling = true;
   bool enable_ping = false;
   bool enable_user_alternate_protocol_ports = false;
@@ -205,7 +211,7 @@ struct SpdySessionDependencies {
   SpdySession::TimeFunc time_func;
   bool enable_http2_alternative_service = false;
   bool enable_http2_settings_grease = false;
-  absl::optional<SpdySessionPool::GreasedHttp2Frame> greased_http2_frame;
+  std::optional<SpdySessionPool::GreasedHttp2Frame> greased_http2_frame;
   bool http2_end_stream_with_data_frame = false;
   raw_ptr<NetLog> net_log = nullptr;
   bool disable_idle_sockets_close_on_memory_pressure = false;
@@ -264,23 +270,28 @@ class SpdySessionPoolPeer {
 
 class SpdyTestUtil {
  public:
-  SpdyTestUtil();
+  explicit SpdyTestUtil(bool use_priority_header = false);
   ~SpdyTestUtil();
 
   // Add the appropriate headers to put |url| into |block|.
-  void AddUrlToHeaderBlock(base::StringPiece url,
+  void AddUrlToHeaderBlock(std::string_view url,
                            spdy::Http2HeaderBlock* headers) const;
 
-  static spdy::Http2HeaderBlock ConstructGetHeaderBlock(base::StringPiece url);
+  // Add the appropriate priority header if PriorityHeaders is enabled.
+  void AddPriorityToHeaderBlock(RequestPriority request_priority,
+                                bool priority_incremental,
+                                spdy::Http2HeaderBlock* headers) const;
+
+  static spdy::Http2HeaderBlock ConstructGetHeaderBlock(std::string_view url);
   static spdy::Http2HeaderBlock ConstructGetHeaderBlockForProxy(
-      base::StringPiece url);
+      std::string_view url);
   static spdy::Http2HeaderBlock ConstructHeadHeaderBlock(
-      base::StringPiece url,
+      std::string_view url,
       int64_t content_length);
   static spdy::Http2HeaderBlock ConstructPostHeaderBlock(
-      base::StringPiece url,
+      std::string_view url,
       int64_t content_length);
-  static spdy::Http2HeaderBlock ConstructPutHeaderBlock(base::StringPiece url,
+  static spdy::Http2HeaderBlock ConstructPutHeaderBlock(std::string_view url,
                                                         int64_t content_length);
 
   // Construct an expected SPDY reply string from the given headers.
@@ -333,18 +344,24 @@ class SpdyTestUtil {
   // compression.
   // |extra_headers| are the extra header-value pairs, which typically
   // will vary the most between calls.
-  spdy::SpdySerializedFrame ConstructSpdyGet(const char* const url,
-                                             spdy::SpdyStreamId stream_id,
-                                             RequestPriority request_priority);
+  spdy::SpdySerializedFrame ConstructSpdyGet(
+      const char* const url,
+      spdy::SpdyStreamId stream_id,
+      RequestPriority request_priority,
+      bool priority_incremental = kDefaultPriorityIncremental,
+      std::optional<RequestPriority> header_request_priority = std::nullopt);
 
   // Constructs a standard SPDY GET HEADERS frame with header compression.
   // |extra_headers| are the extra header-value pairs, which typically
   // will vary the most between calls.  If |direct| is false, the
   // the full url will be used instead of simply the path.
-  spdy::SpdySerializedFrame ConstructSpdyGet(const char* const extra_headers[],
-                                             int extra_header_count,
-                                             int stream_id,
-                                             RequestPriority request_priority);
+  spdy::SpdySerializedFrame ConstructSpdyGet(
+      const char* const extra_headers[],
+      int extra_header_count,
+      int stream_id,
+      RequestPriority request_priority,
+      bool priority_incremental = kDefaultPriorityIncremental,
+      std::optional<RequestPriority> header_request_priority = std::nullopt);
 
   // Constructs a SPDY HEADERS frame for a CONNECT request.
   spdy::SpdySerializedFrame ConstructSpdyConnect(
@@ -354,34 +371,11 @@ class SpdyTestUtil {
       RequestPriority priority,
       const HostPortPair& host_port_pair);
 
-  // Constructs a PUSH_PROMISE frame and a HEADERS frame on the pushed stream.
-  // |extra_headers| are the extra header-value pairs, which typically
-  // will vary the most between calls.
-  // Returns a spdy::SpdySerializedFrame object with the two frames
-  // concatenated.
-  spdy::SpdySerializedFrame ConstructSpdyPush(const char* const extra_headers[],
-                                              int extra_header_count,
-                                              int stream_id,
-                                              int associated_stream_id,
-                                              const char* url);
-  spdy::SpdySerializedFrame ConstructSpdyPush(const char* const extra_headers[],
-                                              int extra_header_count,
-                                              int stream_id,
-                                              int associated_stream_id,
-                                              const char* url,
-                                              const char* status,
-                                              const char* location);
-
   // Constructs a PUSH_PROMISE frame.
   spdy::SpdySerializedFrame ConstructSpdyPushPromise(
       spdy::SpdyStreamId associated_stream_id,
       spdy::SpdyStreamId stream_id,
       spdy::Http2HeaderBlock headers);
-
-  spdy::SpdySerializedFrame ConstructSpdyPushHeaders(
-      int stream_id,
-      const char* const extra_headers[],
-      int extra_header_count);
 
   // Constructs a HEADERS frame with the request header compression context with
   // END_STREAM flag set to |fin|.
@@ -391,10 +385,13 @@ class SpdyTestUtil {
       bool fin);
 
   // Construct a HEADERS frame carrying exactly the given headers and priority.
-  spdy::SpdySerializedFrame ConstructSpdyHeaders(int stream_id,
-                                                 spdy::Http2HeaderBlock headers,
-                                                 RequestPriority priority,
-                                                 bool fin);
+  spdy::SpdySerializedFrame ConstructSpdyHeaders(
+      int stream_id,
+      spdy::Http2HeaderBlock headers,
+      RequestPriority priority,
+      bool fin,
+      bool priority_incremental = kDefaultPriorityIncremental,
+      std::optional<RequestPriority> header_request_priority = std::nullopt);
 
   // Construct a reply HEADERS frame carrying exactly the given headers and the
   // default priority.
@@ -423,19 +420,23 @@ class SpdyTestUtil {
   // Constructs a standard SPDY POST HEADERS frame.
   // |extra_headers| are the extra header-value pairs, which typically
   // will vary the most between calls.
-  spdy::SpdySerializedFrame ConstructSpdyPost(const char* url,
-                                              spdy::SpdyStreamId stream_id,
-                                              int64_t content_length,
-                                              RequestPriority priority,
-                                              const char* const extra_headers[],
-                                              int extra_header_count);
+  spdy::SpdySerializedFrame ConstructSpdyPost(
+      const char* url,
+      spdy::SpdyStreamId stream_id,
+      int64_t content_length,
+      RequestPriority request_priority,
+      const char* const extra_headers[],
+      int extra_header_count,
+      bool priority_incremental = kDefaultPriorityIncremental);
 
   // Constructs a chunked transfer SPDY POST HEADERS frame.
   // |extra_headers| are the extra header-value pairs, which typically
   // will vary the most between calls.
   spdy::SpdySerializedFrame ConstructChunkedSpdyPost(
       const char* const extra_headers[],
-      int extra_header_count);
+      int extra_header_count,
+      RequestPriority request_priority = RequestPriority::DEFAULT_PRIORITY,
+      bool priority_incremental = kDefaultPriorityIncremental);
 
   // Constructs a standard SPDY HEADERS frame to match the SPDY POST.
   // |extra_headers| are the extra header-value pairs, which typically
@@ -449,12 +450,12 @@ class SpdyTestUtil {
 
   // Constructs a single SPDY data frame with the given content.
   spdy::SpdySerializedFrame ConstructSpdyDataFrame(int stream_id,
-                                                   base::StringPiece data,
+                                                   std::string_view data,
                                                    bool fin);
 
   // Constructs a single SPDY data frame with the given content and padding.
   spdy::SpdySerializedFrame ConstructSpdyDataFrame(int stream_id,
-                                                   base::StringPiece data,
+                                                   std::string_view data,
                                                    bool fin,
                                                    int padding_length);
 
@@ -476,8 +477,8 @@ class SpdyTestUtil {
  private:
   // |content_length| may be NULL, in which case the content-length
   // header will be omitted.
-  static spdy::Http2HeaderBlock ConstructHeaderBlock(base::StringPiece method,
-                                                     base::StringPiece url,
+  static spdy::Http2HeaderBlock ConstructHeaderBlock(std::string_view method,
+                                                     std::string_view url,
                                                      int64_t* content_length);
 
   // Multiple SpdyFramers are required to keep track of header compression
@@ -491,6 +492,9 @@ class SpdyTestUtil {
 
   GURL default_url_;
 
+  // Enable support for addint the "priority" header to requests.
+  bool use_priority_header_;
+
   // Track a FIFO list of the stream_id of all created requests by priority.
   std::map<int, std::vector<int>> priority_to_stream_id_list_;
 };
@@ -499,22 +503,6 @@ namespace test {
 
 // Returns a SHA1 HashValue in which each byte has the value |label|.
 HashValue GetTestHashValue(uint8_t label);
-
-// A test implementation of ServerPushDelegate that caches all the pushed
-// request and provides a interface to cancel the push given url.
-class TestServerPushDelegate : public ServerPushDelegate {
- public:
-  TestServerPushDelegate();
-  ~TestServerPushDelegate() override;
-
-  void OnPush(std::unique_ptr<ServerPushHelper> push_helper,
-              const NetLogWithSource& session_net_log) override;
-
-  bool CancelPush(GURL url);
-
- private:
-  std::map<GURL, std::unique_ptr<ServerPushHelper>> push_helpers;
-};
 
 }  // namespace test
 }  // namespace net

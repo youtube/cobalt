@@ -30,6 +30,7 @@ class GEOMETRY_EXPORT RectF {
   constexpr RectF(float x, float y, float width, float height)
       : origin_(x, y), size_(width, height) {}
   constexpr explicit RectF(const SizeF& size) : size_(size) {}
+  constexpr explicit RectF(const Size& size) : size_(size) {}
   constexpr RectF(const PointF& origin, const SizeF& size)
       : origin_(origin), size_(size) {}
 
@@ -188,8 +189,11 @@ class GEOMETRY_EXPORT RectF {
   // Transpose x and y axis.
   void Transpose();
 
-  // Splits |this| in two halves, |left_half| and |right_half|.
-  void SplitVertically(RectF* left_half, RectF* right_half) const;
+  // Splits `this` in two halves, `left_half` and `right_half`.
+  void SplitVertically(RectF& left_half, RectF& right_half) const;
+
+  // Splits `this` in two halves, `top_half` and `bottom_half`.
+  void SplitHorizontally(RectF& top_half, RectF& bottom_half) const;
 
   // Returns true if this rectangle shares an entire edge (i.e., same width or
   // same height) with the given rectangle, and the rectangles do not overlap.

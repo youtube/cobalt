@@ -32,7 +32,7 @@
 #include "starboard/shared/starboard/command_line.h"
 #include "starboard/thread.h"
 #if SB_IS(EVERGREEN_COMPATIBLE)
-#include "third_party/crashpad/crashpad/wrapper/wrapper.h"  // nogncheck
+#include "starboard/crashpad_wrapper/wrapper.h"  // nogncheck
 #endif
 
 namespace starboard {

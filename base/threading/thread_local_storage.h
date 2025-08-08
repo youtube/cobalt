@@ -10,9 +10,7 @@
 #include "base/base_export.h"
 #include "build/build_config.h"
 
-#if defined(STARBOARD)
-#include <pthread.h>
-#elif BUILDFLAG(IS_WIN)
+#if BUILDFLAG(IS_WIN)
 #include "base/win/windows_types.h"
 #elif BUILDFLAG(IS_POSIX) || BUILDFLAG(IS_FUCHSIA)
 #include <pthread.h>
@@ -41,10 +39,10 @@ class ThreadLocalStorageTestInternal;
 // * ThreadLocalStorage::StaticSlot/Slot for more direct control of the slot.
 class BASE_EXPORT PlatformThreadLocalStorage {
  public:
-#if BUILDFLAG(IS_WIN) && !defined(STARBOARD)
+#if BUILDFLAG(IS_WIN)
   typedef unsigned long TLSKey;
   enum : unsigned { TLS_KEY_OUT_OF_INDEXES = TLS_OUT_OF_INDEXES };
-#elif BUILDFLAG(IS_POSIX) || BUILDFLAG(IS_FUCHSIA) || defined(STARBOARD)
+#elif BUILDFLAG(IS_POSIX) || BUILDFLAG(IS_FUCHSIA)
   typedef pthread_key_t TLSKey;
   // The following is a "reserved key" which is used in our generic Chromium
   // ThreadLocalStorage implementation.  We expect that an OS will not return
@@ -67,10 +65,9 @@ class BASE_EXPORT PlatformThreadLocalStorage {
   static void FreeTLS(TLSKey key);
   static void SetTLSValue(TLSKey key, void* value);
   static void* GetTLSValue(TLSKey key) {
-    return pthread_getspecific(key);
-#if BUILDFLAG(IS_WIN) && !defined(STARBOARD)
+#if BUILDFLAG(IS_WIN)
     return TlsGetValue(key);
-#elif BUILDFLAG(IS_POSIX) || BUILDFLAG(IS_FUCHSIA) || defined(STARBOARD)
+#elif BUILDFLAG(IS_POSIX) || BUILDFLAG(IS_FUCHSIA)
     return pthread_getspecific(key);
 #endif
   }
@@ -83,9 +80,7 @@ class BASE_EXPORT PlatformThreadLocalStorage {
   // Destructors may end up being called multiple times on a terminating
   // thread, as other destructors may re-set slots that were previously
   // destroyed.
-#if defined(STARBOARD)
-  static void OnThreadExit(void* value);
-#elif BUILDFLAG(IS_WIN)
+#if BUILDFLAG(IS_WIN)
   // Since Windows which doesn't support TLS destructor, the implementation
   // should use GetTLSValue() to retrieve the value of TLS slot.
   static void OnThreadExit();

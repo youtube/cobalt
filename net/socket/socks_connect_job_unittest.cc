@@ -53,18 +53,23 @@ class SOCKSConnectJobTest : public testing::Test, public WithTaskEnvironment {
         common_connect_job_params_(
             &client_socket_factory_,
             &host_resolver_,
-            nullptr /* http_auth_cache */,
-            nullptr /* http_auth_handler_factory */,
-            nullptr /* spdy_session_pool */,
-            nullptr /* quic_supported_versions */,
-            nullptr /* quic_stream_factory */,
-            nullptr /* proxy_delegate */,
-            nullptr /* http_user_agent_settings */,
-            nullptr /* ssl_client_context */,
-            nullptr /* socket_performance_watcher_factory */,
-            nullptr /* network_quality_estimator */,
+            /*http_auth_cache=*/nullptr,
+            /*http_auth_handler_factory=*/nullptr,
+            /*spdy_session_pool=*/nullptr,
+            /*quic_supported_versions=*/nullptr,
+            /*quic_session_pool=*/nullptr,
+            /*proxy_delegate=*/nullptr,
+            /*http_user_agent_settings=*/nullptr,
+            /*ssl_client_context=*/nullptr,
+            /*socket_performance_watcher_factory=*/nullptr,
+            /*network_quality_estimator=*/nullptr,
             NetLog::Get(),
-            nullptr /* websocket_endpoint_lock_manager */) {}
+            /*websocket_endpoint_lock_manager=*/nullptr,
+            /*http_server_properties=*/nullptr,
+            /*alpn_protos=*/nullptr,
+            /*application_settings=*/nullptr,
+            /*ignore_certificate_errors=*/nullptr,
+            /*early_data_enabled=*/nullptr) {}
 
   ~SOCKSConnectJobTest() override = default;
 
@@ -72,10 +77,10 @@ class SOCKSConnectJobTest : public testing::Test, public WithTaskEnvironment {
       SOCKSVersion socks_version,
       SecureDnsPolicy secure_dns_policy = SecureDnsPolicy::kAllow) {
     return base::MakeRefCounted<SOCKSSocketParams>(
-        base::MakeRefCounted<TransportSocketParams>(
+        ConnectJobParams(base::MakeRefCounted<TransportSocketParams>(
             HostPortPair(kProxyHostName, kProxyPort), NetworkAnonymizationKey(),
             secure_dns_policy, OnHostResolutionCallback(),
-            /*supported_alpns=*/base::flat_set<std::string>()),
+            /*supported_alpns=*/base::flat_set<std::string>())),
         socks_version == SOCKSVersion::V5,
         socks_version == SOCKSVersion::V4
             ? HostPortPair(kSOCKS4TestHost, kSOCKS4TestPort)
@@ -121,11 +126,11 @@ TEST_F(SOCKSConnectJobTest, HostResolutionFailureSOCKS4Endpoint) {
 
     scoped_refptr<SOCKSSocketParams> socket_params =
         base::MakeRefCounted<SOCKSSocketParams>(
-            base::MakeRefCounted<TransportSocketParams>(
+            ConnectJobParams(base::MakeRefCounted<TransportSocketParams>(
                 HostPortPair(kProxyHostName, kProxyPort),
                 NetworkAnonymizationKey(), SecureDnsPolicy::kAllow,
                 OnHostResolutionCallback(),
-                /*supported_alpns=*/base::flat_set<std::string>()),
+                /*supported_alpns=*/base::flat_set<std::string>())),
             false /* socks_v5 */, HostPortPair(hostname, kSOCKS4TestPort),
             NetworkAnonymizationKey(), TRAFFIC_ANNOTATION_FOR_TESTS);
 
@@ -368,8 +373,9 @@ TEST_F(SOCKSConnectJobTest, Priority) {
     for (int new_priority = MINIMUM_PRIORITY; new_priority <= MAXIMUM_PRIORITY;
          ++new_priority) {
       // Don't try changing priority to itself, as APIs may not allow that.
-      if (new_priority == initial_priority)
+      if (new_priority == initial_priority) {
         continue;
+      }
       TestConnectJobDelegate test_delegate;
       SOCKSConnectJob socks_connect_job(
           static_cast<RequestPriority>(initial_priority), SocketTag(),

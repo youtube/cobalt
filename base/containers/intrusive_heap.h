@@ -2,6 +2,11 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#ifdef UNSAFE_BUFFERS_BUILD
+// TODO(crbug.com/40284755): Remove this and spanify to fix the errors.
+#pragma allow_unsafe_buffers
+#endif
+
 #ifndef BASE_CONTAINERS_INTRUSIVE_HEAP_H_
 #define BASE_CONTAINERS_INTRUSIVE_HEAP_H_
 
@@ -130,6 +135,7 @@
 // Most users should be using approach 2 or 3.
 
 #include <algorithm>
+#include <compare>
 #include <functional>
 #include <limits>
 #include <memory>
@@ -140,9 +146,9 @@
 #include "base/base_export.h"
 #include "base/check.h"
 #include "base/check_op.h"
-#include "base/containers/stack_container.h"
 #include "base/memory/ptr_util.h"
 #include "base/ranges/algorithm.h"
+#include "third_party/abseil-cpp/absl/container/inlined_vector.h"
 
 namespace base {
 
@@ -177,24 +183,10 @@ class BASE_EXPORT HeapHandle {
   bool IsValid() const { return index_ != kInvalidIndex; }
 
   // Comparison operators.
-  friend bool operator==(const HeapHandle& lhs, const HeapHandle& rhs) {
-    return lhs.index_ == rhs.index_;
-  }
-  friend bool operator!=(const HeapHandle& lhs, const HeapHandle& rhs) {
-    return lhs.index_ != rhs.index_;
-  }
-  friend bool operator<(const HeapHandle& lhs, const HeapHandle& rhs) {
-    return lhs.index_ < rhs.index_;
-  }
-  friend bool operator>(const HeapHandle& lhs, const HeapHandle& rhs) {
-    return lhs.index_ > rhs.index_;
-  }
-  friend bool operator<=(const HeapHandle& lhs, const HeapHandle& rhs) {
-    return lhs.index_ <= rhs.index_;
-  }
-  friend bool operator>=(const HeapHandle& lhs, const HeapHandle& rhs) {
-    return lhs.index_ >= rhs.index_;
-  }
+  friend bool operator==(const HeapHandle& lhs,
+                         const HeapHandle& rhs) = default;
+  friend std::strong_ordering operator<=>(const HeapHandle& lhs,
+                                          const HeapHandle& rhs) = default;
 
  private:
   template <typename T, typename Compare, typename HeapHandleAccessor>
@@ -431,15 +423,16 @@ class IntrusiveHeap {
     // elements to be erased into a temporary container before deleting them.
     // This is to avoid changing the underlying container during the erase()
     // call.
-    StackVector<value_type, 8> elements_to_delete;
+    absl::InlinedVector<value_type, 8> elements_to_delete;
     std::move(erase_start, impl_.heap_.end(),
-              std::back_inserter(elements_to_delete.container()));
+              std::back_inserter(elements_to_delete));
 
     impl_.heap_.erase(erase_start, impl_.heap_.end());
 
     // If no elements were removed, then the heap is still intact.
-    if (elements_to_delete->empty())
+    if (elements_to_delete.empty()) {
       return;
+    }
 
     // Repair the heap and ensure handles are pointing to the right index.
     ranges::make_heap(impl_.heap_, value_comp());
@@ -447,7 +440,7 @@ class IntrusiveHeap {
       SetHeapHandle(i);
 
     // Explicitly delete elements last.
-    elements_to_delete->clear();
+    elements_to_delete.clear();
   }
 
   //////////////////////////////////////////////////////////////////////////////
@@ -522,9 +515,6 @@ class IntrusiveHeap {
   friend bool operator==(const IntrusiveHeap& lhs, const IntrusiveHeap& rhs) {
     return lhs.impl_.heap_ == rhs.impl_.heap_;
   }
-  friend bool operator!=(const IntrusiveHeap& lhs, const IntrusiveHeap& rhs) {
-    return lhs.impl_.heap_ != rhs.impl_.heap_;
-  }
 
   //////////////////////////////////////////////////////////////////////////////
   // Utility functions.
@@ -538,7 +528,7 @@ class IntrusiveHeap {
  private:
   // Templated version of ToIndex that lets insert/erase/Replace work with all
   // integral types.
-  template <typename I, typename = std::enable_if_t<std::is_integral<I>::value>>
+  template <typename I, typename = std::enable_if_t<std::is_integral_v<I>>>
   size_type ToIndex(I pos) {
     return static_cast<size_type>(pos);
   }
@@ -706,20 +696,9 @@ class WithHeapHandle : public InternalHeapHandleStorage {
   friend bool operator==(const WithHeapHandle& lhs, const WithHeapHandle& rhs) {
     return lhs.value_ == rhs.value_;
   }
-  friend bool operator!=(const WithHeapHandle& lhs, const WithHeapHandle& rhs) {
-    return lhs.value_ != rhs.value_;
-  }
-  friend bool operator<=(const WithHeapHandle& lhs, const WithHeapHandle& rhs) {
-    return lhs.value_ <= rhs.value_;
-  }
-  friend bool operator<(const WithHeapHandle& lhs, const WithHeapHandle& rhs) {
-    return lhs.value_ < rhs.value_;
-  }
-  friend bool operator>=(const WithHeapHandle& lhs, const WithHeapHandle& rhs) {
-    return lhs.value_ >= rhs.value_;
-  }
-  friend bool operator>(const WithHeapHandle& lhs, const WithHeapHandle& rhs) {
-    return lhs.value_ > rhs.value_;
+  friend auto operator<=>(const WithHeapHandle& lhs,
+                          const WithHeapHandle& rhs) {
+    return lhs.value_ <=> rhs.value_;
   }
 
  private:

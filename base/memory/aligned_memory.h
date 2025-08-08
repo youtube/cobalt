@@ -8,11 +8,10 @@
 #include <stddef.h>
 #include <stdint.h>
 
+#include <bit>
 #include <ostream>
 
 #include "base/base_export.h"
-#include "base/basictypes.h"
-#include "base/bits.h"
 #include "base/check.h"
 #include "build/build_config.h"
 
@@ -25,6 +24,8 @@
 // A runtime sized aligned allocation can be created:
 //
 //   float* my_array = static_cast<float*>(AlignedAlloc(size, alignment));
+//   CHECK(reinterpret_cast<uintptr_t>(my_array) % alignment == 0);
+//   memset(my_array, 0, size);  // fills entire object.
 //
 //   // ... later, to release the memory:
 //   AlignedFree(my_array);
@@ -36,88 +37,16 @@
 
 namespace base {
 
-#if defined(STARBOARD)
-// AlignedMemory is a POD type that gives you a portable way to specify static
-// or local stack data of a given alignment and size. For example, if you need
-// static storage for a class, but you want manual control over when the object
-// is constructed and destructed (you don't want static initialization and
-// destruction), use AlignedMemory:
+// Allocate memory of size `size` aligned to `alignment`.
 //
-//   static AlignedMemory<sizeof(MyClass), ALIGNOF(MyClass)> my_class;
-//
-//   // ... at runtime:
-//   new(my_class.void_data()) MyClass();
-//
-//   // ... use it:
-//   MyClass* mc = my_class.data_as<MyClass>();
-//
-//   // ... later, to destruct my_class:
-//   my_class.data_as<MyClass>()->MyClass::~MyClass();
-//
-// Alternatively, a runtime sized aligned allocation can be created:
-//
-//   float* my_array = static_cast<float*>(AlignedAlloc(size, alignment));
-//
-//   // ... later, to release the memory:
-//   AlignedFree(my_array);
-//
-// Or using scoped_ptr_malloc:
-//
-//   scoped_ptr_malloc<float, ScopedPtrAlignedFree> my_array(
-//       static_cast<float*>(AlignedAlloc(size, alignment)));
-
-// AlignedMemory is specialized for all supported alignments.
-// Make sure we get a compiler error if someone uses an unsupported alignment.
-template <size_t Size, size_t ByteAlignment>
-struct AlignedMemory {};
-
-#define BASE_DECL_ALIGNED_MEMORY(byte_alignment)                              \
-  template <size_t Size>                                                      \
-  class AlignedMemory<Size, byte_alignment> {                                 \
-   public:                                                                    \
-    ALIGNAS(byte_alignment) uint8 data_[Size];                                \
-    void* void_data() { return static_cast<void*>(data_); }                   \
-    const void* void_data() const { return static_cast<const void*>(data_); } \
-    template <typename Type>                                                  \
-    Type* data_as() {                                                         \
-      return static_cast<Type*>(void_data());                                 \
-    }                                                                         \
-    template <typename Type>                                                  \
-    const Type* data_as() const {                                             \
-      return static_cast<const Type*>(void_data());                           \
-    }                                                                         \
-                                                                              \
-   private:                                                                   \
-    void* operator new(size_t);                                               \
-    void operator delete(void*);                                              \
-  }
-
-// Specialization for all alignments is required because MSVC (as of VS 2008)
-// does not understand ALIGNAS(ALIGNOF(Type)) or ALIGNAS(template_param).
-// Greater than 4096 alignment is not supported by some compilers, so 4096 is
-// the maximum specified here.
-BASE_DECL_ALIGNED_MEMORY(1);
-BASE_DECL_ALIGNED_MEMORY(2);
-BASE_DECL_ALIGNED_MEMORY(4);
-BASE_DECL_ALIGNED_MEMORY(8);
-BASE_DECL_ALIGNED_MEMORY(16);
-BASE_DECL_ALIGNED_MEMORY(32);
-BASE_DECL_ALIGNED_MEMORY(64);
-BASE_DECL_ALIGNED_MEMORY(128);
-BASE_DECL_ALIGNED_MEMORY(256);
-BASE_DECL_ALIGNED_MEMORY(512);
-BASE_DECL_ALIGNED_MEMORY(1024);
-BASE_DECL_ALIGNED_MEMORY(2048);
-BASE_DECL_ALIGNED_MEMORY(4096);
-
-#undef BASE_DECL_ALIGNED_MEMORY
-#endif  // defined(STARBOARD)
-
-// This can be replaced with std::aligned_alloc when we have C++17.
-// Caveat: std::aligned_alloc requires the size parameter be an integral
-// multiple of alignment.
+// TODO(https://crbug.com/40255447): Convert usage to / convert to use
+// `std::aligned_alloc` to the extent that it can be done (since
+// `std::aligned_alloc` can't be used on Windows). When that happens, note that
+// `std::aligned_alloc` requires the `size` parameter be an integral multiple of
+// `alignment` while this implementation does not.
 BASE_EXPORT void* AlignedAlloc(size_t size, size_t alignment);
 
+// Deallocate memory allocated by `AlignedAlloc`.
 inline void AlignedFree(void* ptr) {
 #if defined(COMPILER_MSVC)
   _aligned_free(ptr);
@@ -145,7 +74,7 @@ inline bool IsAligned(uintptr_t val, size_t alignment) {
 #if SUPPORTS_BUILTIN_IS_ALIGNED
   return __builtin_is_aligned(val, alignment);
 #else
-  DCHECK(bits::IsPowerOfTwo(alignment)) << alignment << " is not a power of 2";
+  DCHECK(std::has_single_bit(alignment)) << alignment << " is not a power of 2";
   return (val & (alignment - 1)) == 0;
 #endif
 }

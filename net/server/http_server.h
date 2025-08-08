@@ -11,10 +11,10 @@
 #include <map>
 #include <memory>
 #include <string>
+#include <string_view>
 
 #include "base/memory/raw_ptr.h"
 #include "base/memory/weak_ptr.h"
-#include "base/strings/string_piece.h"
 #include "net/http/http_status_code.h"
 #include "net/traffic_annotation/network_traffic_annotation.h"
 
@@ -60,7 +60,7 @@ class HttpServer {
                        const HttpServerRequestInfo& request,
                        NetworkTrafficAnnotationTag traffic_annotation);
   void SendOverWebSocket(int connection_id,
-                         base::StringPiece data,
+                         std::string_view data,
                          NetworkTrafficAnnotationTag traffic_annotation);
   // Sends the provided data directly to the given connection. No validation is
   // performed that data constitutes a valid HTTP response. A valid HTTP
@@ -95,18 +95,6 @@ class HttpServer {
   // Copies the local address to |address|. Returns a network error code.
   int GetLocalAddress(IPEndPoint* address);
 
-#if defined(STARBOARD)
-  // Like GetLocalAddress(), but if listening to IPADDR_ANY returns the local
-  // address of an arbitrary interface (choosing IPv4 address over IPv6).
-  int GetLocalInterfaceAddress(IPEndPoint* address);
-
-  bool static ParseHeaders(const std::string& request,
-                           HttpServerRequestInfo* info) {
-    size_t pos = 0;
-    return ParseHeaders(request.c_str(), request.length(), info, &pos);
-  }
-#endif
-
  private:
   friend class HttpServerTest;
 
@@ -130,12 +118,7 @@ class HttpServer {
   // recv data. If all data has been consumed successfully, but the headers are
   // not fully parsed, *pos will be set to zero. Returns false if an error is
   // encountered while parsing, true otherwise.
-#if defined(STARBOARD)
-  // Cobalt at least needs it to be static in dial_udp_server.cc.
-  static bool ParseHeaders(const char* data,
-#else
   bool ParseHeaders(const char* data,
-#endif
                     size_t data_len,
                     HttpServerRequestInfo* info,
                     size_t* pos);

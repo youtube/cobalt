@@ -4,23 +4,26 @@
 
 package org.chromium.base;
 
-import static junit.framework.Assert.assertEquals;
+import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertNull;
 
+import org.junit.AfterClass;
 import org.junit.Assert;
+import org.junit.Before;
+import org.junit.BeforeClass;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.robolectric.annotation.Config;
 
 import org.chromium.base.test.BaseRobolectricTestRunner;
 
-/**
- * Unit tests for {@link ResettersForTesting}.
- */
+/** Unit tests for {@link ResettersForTesting}. */
 @RunWith(BaseRobolectricTestRunner.class)
 @Config(manifest = Config.NONE)
 public class ResettersForTestingTest {
     private static class ResetsToNull {
         public static String str;
+
         public static void setStrForTesting(String newStr) {
             str = newStr;
             ResettersForTesting.register(() -> str = null);
@@ -37,26 +40,14 @@ public class ResettersForTestingTest {
         }
     }
 
-    private static class ResetsToNullAndIncrements {
-        public static String str;
-        public static int resetCount;
-
-        public static void setStrForTesting(String newStr) {
-            str = newStr;
-            ResettersForTesting.register(() -> {
-                str = null;
-                resetCount++;
-            });
-        }
-    }
-
     private static class ResetsToNullAndIncrementsWithOneShotResetter {
         public static String str;
         public static int resetCount;
-        private static Runnable sResetter = () -> {
-            str = null;
-            resetCount++;
-        };
+        private static Runnable sResetter =
+                () -> {
+                    str = null;
+                    resetCount++;
+                };
 
         public static void setStrForTesting(String newStr) {
             str = newStr;
@@ -64,31 +55,55 @@ public class ResettersForTestingTest {
         }
     }
 
+    @BeforeClass
+    public static void setUpClass() {
+        assertNull(ResetsToOldValue.str);
+        ResetsToOldValue.setStrForTesting("setUpClass");
+    }
+
+    @AfterClass
+    public static void tearDownClass() {
+        assertEquals("setUpClass", ResetsToOldValue.str);
+        ResettersForTesting.afterClassHooksDidExecute();
+        assertNull(ResetsToOldValue.str);
+        // Do not fail when test runner calls onAfterClass().
+        ResettersForTesting.beforeClassHooksWillExecute();
+    }
+
+    @Before
+    public void setUp() {
+        assertEquals("setUpClass", ResetsToOldValue.str);
+        ResetsToOldValue.setStrForTesting("setUp");
+    }
     @Test
     public void testTypicalUsage() {
         ResetsToNull.setStrForTesting("foo");
         assertEquals("foo", ResetsToNull.str);
-        ResettersForTesting.executeResetters();
-        Assert.assertNull(ResetsToNull.str);
+        ResettersForTesting.afterHooksDidExecute();
+        var result = ResetsToNull.str;
+        // Do not fail when test runner calls onAfterMethod().
+        ResettersForTesting.beforeHooksWillExecute();
+        Assert.assertNull(result);
     }
 
     @Test
     public void testResetsToPreviousValue() {
-        // Inject a previous value to verify that we can get back to it.
-        ResetsToOldValue.str = "bar";
+        assertEquals("setUp", ResetsToOldValue.str);
 
         ResetsToOldValue.setStrForTesting("foo");
         assertEquals("foo", ResetsToOldValue.str);
 
-        // After resetting the value, it should be back to the first value.
-        ResettersForTesting.executeResetters();
-        assertEquals("bar", ResetsToOldValue.str);
+        // After resetting the value, it should be back to the value set before setUp().
+        ResettersForTesting.afterHooksDidExecute();
+        var result = ResetsToOldValue.str;
+        // Do not fail when test runner calls onAfterMethod().
+        ResettersForTesting.beforeHooksWillExecute();
+        assertEquals("setUpClass", result);
     }
 
     @Test
     public void testMultipleResets() {
-        // Inject an outer value to verify we can get back to this.
-        ResetsToOldValue.str = "qux";
+        assertEquals("setUp", ResetsToOldValue.str);
 
         // Then set the next value.
         ResetsToOldValue.setStrForTesting("foo");
@@ -98,28 +113,12 @@ public class ResettersForTestingTest {
         ResetsToOldValue.setStrForTesting("bar");
         assertEquals("bar", ResetsToOldValue.str);
 
-        // Since we are invoking the resetters in the reverse order, we should now be back to start.
-        ResettersForTesting.executeResetters();
-        assertEquals("qux", ResetsToOldValue.str);
-    }
-
-    @Test
-    public void testResettersExecutedOnlyOnce() {
-        // Force set this to 0 for this particular test.
-        ResetsToNullAndIncrements.resetCount = 0;
-        ResetsToNullAndIncrements.str = null;
-
-        // Set the initial value and register the resetter.
-        ResetsToNullAndIncrements.setStrForTesting("some value");
-        assertEquals("some value", ResetsToNullAndIncrements.str);
-
-        // Now, execute all resetters and ensure it's only executed once.
-        ResettersForTesting.executeResetters();
-        assertEquals(1, ResetsToNullAndIncrements.resetCount);
-
-        // Execute the resetters again, and verify it does not invoke the same resetter again.
-        ResettersForTesting.executeResetters();
-        assertEquals(1, ResetsToNullAndIncrements.resetCount);
+        // After resetting the value, it should be back to the value set before setUp().
+        ResettersForTesting.afterHooksDidExecute();
+        var result = ResetsToOldValue.str;
+        // Do not fail when test runner calls onAfterMethod().
+        ResettersForTesting.beforeHooksWillExecute();
+        assertEquals("setUpClass", result);
     }
 
     @Test
@@ -135,11 +134,10 @@ public class ResettersForTestingTest {
 
         // Now, execute all resetters and ensure it's only executed once, since it is a single
         // instance of the same resetter.
-        ResettersForTesting.executeResetters();
-        assertEquals(1, ResetsToNullAndIncrementsWithOneShotResetter.resetCount);
-
-        // Execute the resetters again, and verify it does not invoke the same resetter again.
-        ResettersForTesting.executeResetters();
-        assertEquals(1, ResetsToNullAndIncrementsWithOneShotResetter.resetCount);
+        ResettersForTesting.afterHooksDidExecute();
+        var result = ResetsToNullAndIncrementsWithOneShotResetter.resetCount;
+        // Do not fail when test runner calls onAfterMethod().
+        ResettersForTesting.beforeHooksWillExecute();
+        assertEquals(1, result);
     }
 }

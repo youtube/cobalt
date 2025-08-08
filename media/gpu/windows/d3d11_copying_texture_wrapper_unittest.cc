@@ -78,10 +78,10 @@ class MockVideoProcessorProxy : public VideoProcessorProxy {
   MOCK_METHOD0(MockVideoProcessorBlt, HRESULT());
 
   // Most recent arguments to SetStream/OutputColorSpace()/etc.
-  absl::optional<gfx::ColorSpace> last_stream_color_space_;
-  absl::optional<gfx::ColorSpace> last_output_color_space_;
-  absl::optional<DXGI_HDR_METADATA_HDR10> last_stream_metadata_;
-  absl::optional<DXGI_HDR_METADATA_HDR10> last_display_metadata_;
+  std::optional<gfx::ColorSpace> last_stream_color_space_;
+  std::optional<gfx::ColorSpace> last_output_color_space_;
+  std::optional<DXGI_HDR_METADATA_HDR10> last_stream_metadata_;
+  std::optional<DXGI_HDR_METADATA_HDR10> last_display_metadata_;
 
  private:
   ~MockVideoProcessorProxy() override = default;
@@ -225,7 +225,7 @@ TEST_P(D3D11CopyingTexture2DWrapperTest,
   MockVideoProcessorProxy* processor_raw = processor.get();
   // Provide an unlikely color space, to see if it gets to the video processor,
   // if we're not just doing a pass-through of the input.
-  absl::optional<gfx::ColorSpace> copy_color_space;
+  std::optional<gfx::ColorSpace> copy_color_space;
   if (!GetPassthroughColorSpace())
     copy_color_space = gfx::ColorSpace::CreateDisplayP3D65();
   auto texture_wrapper = ExpectTextureWrapper();
@@ -274,12 +274,11 @@ TEST_P(D3D11CopyingTexture2DWrapperTest,
 
 TEST_P(D3D11CopyingTexture2DWrapperTest, HDRMetadataIsSentToVideoProcessor) {
   gfx::HDRMetadata metadata;
-  metadata.color_volume_metadata.primaries = {0.1f, 0.2f, 0.3f, 0.4f,
-                                              0.5f, 0.6f, 0.7f, 0.8f};
-  metadata.color_volume_metadata.luminance_max = 0.9;
-  metadata.color_volume_metadata.luminance_min = 0.05;
-  metadata.max_content_light_level = 1000;
-  metadata.max_frame_average_light_level = 10000;
+  metadata.smpte_st_2086 = gfx::HdrMetadataSmpteSt2086(
+      {0.1f, 0.2f, 0.3f, 0.4f, 0.5f, 0.6f, 0.7f, 0.8f},
+      /*luminance_max=*/0.9,
+      /*luminance_min=*/0.05);
+  metadata.cta_861_3 = gfx::HdrMetadataCta861_3(1000, 10000);
 
   auto processor = ExpectProcessorProxy();
   MockVideoProcessorProxy* processor_raw = processor.get();

@@ -8,7 +8,9 @@
 #include <stdint.h>
 
 #include <memory>
+#include <optional>
 #include <string>
+#include <vector>
 
 #include "base/gtest_prod_util.h"
 #include "base/memory/raw_ptr.h"
@@ -32,9 +34,8 @@
 #include "net/net_buildflags.h"
 #include "net/proxy_resolution/proxy_resolution_service.h"
 #include "net/socket/connection_attempts.h"
-#include "net/ssl/ssl_config_service.h"
+#include "net/ssl/ssl_config.h"
 #include "net/websockets/websocket_handshake_stream_base.h"
-#include "third_party/abseil-cpp/absl/types/optional.h"
 
 namespace net {
 
@@ -51,8 +52,7 @@ class NET_EXPORT_PRIVATE HttpNetworkTransaction
     : public HttpTransaction,
       public HttpStreamRequest::Delegate {
  public:
-  HttpNetworkTransaction(RequestPriority priority,
-                         HttpNetworkSession* session);
+  HttpNetworkTransaction(RequestPriority priority, HttpNetworkSession* session);
 
   HttpNetworkTransaction(const HttpNetworkTransaction&) = delete;
   HttpNetworkTransaction& operator=(const HttpNetworkTransaction&) = delete;
@@ -94,35 +94,34 @@ class NET_EXPORT_PRIVATE HttpNetworkTransaction
   void SetEarlyResponseHeadersCallback(
       ResponseHeadersCallback callback) override;
   void SetResponseHeadersCallback(ResponseHeadersCallback callback) override;
+  void SetModifyRequestHeadersCallback(
+      base::RepeatingCallback<void(net::HttpRequestHeaders*)> callback)
+      override;
+  void SetIsSharedDictionaryReadAllowedCallback(
+      base::RepeatingCallback<bool()> callback) override;
   int ResumeNetworkStart() override;
   void CloseConnectionOnDestruction() override;
+  bool IsMdlMatchForMetrics() const override;
 
   // HttpStreamRequest::Delegate methods:
-  void OnStreamReady(const SSLConfig& used_ssl_config,
-                     const ProxyInfo& used_proxy_info,
+  void OnStreamReady(const ProxyInfo& used_proxy_info,
                      std::unique_ptr<HttpStream> stream) override;
   void OnBidirectionalStreamImplReady(
-      const SSLConfig& used_ssl_config,
       const ProxyInfo& used_proxy_info,
       std::unique_ptr<BidirectionalStreamImpl> stream) override;
   void OnWebSocketHandshakeStreamReady(
-      const SSLConfig& used_ssl_config,
       const ProxyInfo& used_proxy_info,
       std::unique_ptr<WebSocketHandshakeStreamBase> stream) override;
   void OnStreamFailed(int status,
                       const NetErrorDetails& net_error_details,
-                      const SSLConfig& used_ssl_config,
                       const ProxyInfo& used_proxy_info,
                       ResolveErrorInfo resolve_error_info) override;
   void OnCertificateError(int status,
-                          const SSLConfig& used_ssl_config,
                           const SSLInfo& ssl_info) override;
   void OnNeedsProxyAuth(const HttpResponseInfo& response_info,
-                        const SSLConfig& used_ssl_config,
                         const ProxyInfo& used_proxy_info,
                         HttpAuthController* auth_controller) override;
-  void OnNeedsClientAuth(const SSLConfig& used_ssl_config,
-                         SSLCertRequestInfo* cert_info) override;
+  void OnNeedsClientAuth(SSLCertRequestInfo* cert_info) override;
 
   void OnQuicBroken() override;
   ConnectionAttempts GetConnectionAttempts() const override;
@@ -131,6 +130,16 @@ class NET_EXPORT_PRIVATE HttpNetworkTransaction
   FRIEND_TEST_ALL_PREFIXES(HttpNetworkTransactionTest, ResetStateForRestart);
   FRIEND_TEST_ALL_PREFIXES(HttpNetworkTransactionTest,
                            CreateWebSocketHandshakeStream);
+  FRIEND_TEST_ALL_PREFIXES(HttpNetworkTransactionTest,
+                           SetProxyInfoInResponse_Direct);
+  FRIEND_TEST_ALL_PREFIXES(HttpNetworkTransactionTest,
+                           SetProxyInfoInResponse_Proxied);
+  FRIEND_TEST_ALL_PREFIXES(HttpNetworkTransactionTest,
+                           SetProxyInfoInResponse_Empty);
+  FRIEND_TEST_ALL_PREFIXES(HttpNetworkTransactionTest,
+                           SetProxyInfoInResponse_IpProtectionProxied);
+  FRIEND_TEST_ALL_PREFIXES(HttpNetworkTransactionTest,
+                           SetProxyInfoInResponse_IpProtectionDirect);
   FRIEND_TEST_ALL_PREFIXES(SpdyNetworkTransactionTest, WindowUpdateReceived);
   FRIEND_TEST_ALL_PREFIXES(SpdyNetworkTransactionTest, WindowUpdateSent);
   FRIEND_TEST_ALL_PREFIXES(SpdyNetworkTransactionTest, WindowUpdateOverflow);
@@ -278,15 +287,13 @@ class NET_EXPORT_PRIVATE HttpNetworkTransaction
     kWrongVersionOnEarlyData = 10,
     kHttp2PingFailed = 11,
     kHttp2ServerRefusedStream = 12,
-    kHttp2PushedStreamNotAvailable = 13,
-    kHttp2ClaimedPushedStreamResetByServer = 14,
-    kHttp2PushedResponseDoesNotMatch = 15,
+    // Entries 13, 14, 15 are removed.
     kQuicHandshakeFailed = 16,
     kQuicGoawayRequestCanBeRetried = 17,
     kQuicProtocolError = 18,
     kMaxValue = kQuicProtocolError,
   };
-  static absl::optional<RetryReason> GetRetryReasonForIOError(int error);
+  static std::optional<RetryReason> GetRetryReasonForIOError(int error);
 
   // Resets the connection and the request headers for resend.  Called when
   // ShouldResendRequest() is true.
@@ -350,11 +357,8 @@ class NET_EXPORT_PRIVATE HttpNetworkTransaction
     kMaxValue = kRetryAltServiceNotBroken,
   };
 
-  void RecordQuicProtocolErrorMetrics(
-      QuicProtocolErrorRetryStatus retry_status);
-
-  void RecordMetricsIfError(int rv);
-  void RecordMetrics(int rv);
+  static void SetProxyInfoInResponse(const ProxyInfo& proxy_info,
+                                     HttpResponseInfo* response_info);
 
   scoped_refptr<HttpAuthController>
       auth_controllers_[HttpAuth::AUTH_NUM_TARGETS];
@@ -399,15 +403,10 @@ class NET_EXPORT_PRIVATE HttpNetworkTransaction
   // configured in this transaction.
   bool configured_client_cert_for_server_ = false;
 
-  // SSL configuration used for the server and proxy, respectively. Note
-  // |server_ssl_config_| may be updated from the HttpStreamFactory, which will
-  // be applied on retry.
-  //
-  // TODO(davidben): Mutating it is weird and relies on HttpStreamFactory
-  // modifications being idempotent. Address this as part of other work to make
-  // sense of SSLConfig (related to https://crbug.com/488043).
-  SSLConfig server_ssl_config_;
-  SSLConfig proxy_ssl_config_;
+  // Previously observed bad certs when establishing a connection. If the caller
+  // chooses to retry despite the error, future connection attempts will be
+  // configured to ignore these errors.
+  std::vector<SSLConfig::CertAndStatus> observed_bad_certs_;
 
   HttpRequestHeaders request_headers_;
 #if BUILDFLAG(ENABLE_REPORTING)
@@ -420,8 +419,8 @@ class NET_EXPORT_PRIVATE HttpNetworkTransaction
   std::string request_referrer_;
   std::string request_user_agent_;
   int request_reporting_upload_depth_ = 0;
-#endif
   base::TimeTicks start_timeticks_;
+#endif
 
   // The size in bytes of the buffer we use to drain the response body that
   // we want to throw away.  The response body is typically a small error
@@ -475,6 +474,11 @@ class NET_EXPORT_PRIVATE HttpNetworkTransaction
   ResponseHeadersCallback early_response_headers_callback_;
   ResponseHeadersCallback response_headers_callback_;
 
+  // The callback to modify the request header. They will be called just before
+  // sending the request to the network.
+  base::RepeatingCallback<void(net::HttpRequestHeaders*)>
+      modify_headers_callbacks_;
+
   ConnectionAttempts connection_attempts_;
   IPEndPoint remote_endpoint_;
   // Network error details for this transaction.
@@ -494,7 +498,8 @@ class NET_EXPORT_PRIVATE HttpNetworkTransaction
 
   bool close_connection_on_destruction_ = false;
 
-  absl::optional<base::TimeDelta> quic_protocol_error_retry_delay_;
+  // Set to true when the server required HTTP/1.1 fallback.
+  bool http_1_1_was_required_ = false;
 };
 
 }  // namespace net

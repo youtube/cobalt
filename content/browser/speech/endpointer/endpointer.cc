@@ -1,16 +1,16 @@
-// Copyright (c) 2012 The Chromium Authors. All rights reserved.
+// Copyright 2012 The Chromium Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
 #include "content/browser/speech/endpointer/endpointer.h"
 
 #include "base/time/time.h"
-#include "content/browser/speech/audio_buffer.h"
+#include "components/speech/audio_buffer.h"
 
 namespace {
 const int64_t kMicrosecondsPerSecond = base::Time::kMicrosecondsPerSecond;
 const int kFrameRate = 50;  // 1 frame = 20ms of audio.
-}  // namespace
+}
 
 namespace content {
 
@@ -61,7 +61,7 @@ void Endpointer::Reset() {
   waiting_for_speech_complete_timeout_ = false;
   speech_previously_detected_ = false;
   speech_input_complete_ = false;
-  audio_frame_time_us_ = 0;  // Reset time for packets sent to endpointer.
+  audio_frame_time_us_ = 0; // Reset time for packets sent to endpointer.
   speech_end_time_us_ = -1;
   speech_start_time_us_ = -1;
 }
@@ -88,32 +88,9 @@ EpStatus Endpointer::Status(int64_t* time) {
   return energy_endpointer_.Status(time);
 }
 
-#if defined(STARBOARD)
-EpStatus Endpointer::ProcessAudio(const AudioBus& audio_bus, float* rms_out) {
-  // TODO[Cobalt]: replace ShellAudioData with AudioChunk and deprecate
-  // ShellAudioData.
-  DCHECK_EQ(audio_bus.channels(), 1);
-
-  const size_t num_samples = audio_bus.frames();
-  const int16_t* audio_data = NULL;
-
-  AudioBus int16_audio_bus(1, num_samples, AudioBus::kInt16,
-                           AudioBus::kInterleaved);
-
-  if (audio_bus.sample_type() == AudioBus::kFloat32) {
-    int16_audio_bus.Assign(audio_bus);
-    DCHECK_EQ(int16_audio_bus.sample_type(), AudioBus::kInt16);
-    audio_data =
-        reinterpret_cast<const int16_t*>(int16_audio_bus.interleaved_data());
-  } else {
-    DCHECK_EQ(audio_bus.sample_type(), AudioBus::kInt16);
-    audio_data = reinterpret_cast<const int16_t*>(audio_bus.interleaved_data());
-  }
-#else
 EpStatus Endpointer::ProcessAudio(const AudioChunk& raw_audio, float* rms_out) {
   const int16_t* audio_data = raw_audio.SamplesData16();
   const int num_samples = raw_audio.NumSamples();
-#endif
   EpStatus ep_status = EP_PRE_SPEECH;
 
   // Process the input data in blocks of frame_size_, dropping any incomplete
@@ -122,8 +99,10 @@ EpStatus Endpointer::ProcessAudio(const AudioChunk& raw_audio, float* rms_out) {
   int sample_index = 0;
   while (sample_index + frame_size_ <= num_samples) {
     // Have the endpointer process the frame.
-    energy_endpointer_.ProcessAudioFrame(
-        audio_frame_time_us_, audio_data + sample_index, frame_size_, rms_out);
+    energy_endpointer_.ProcessAudioFrame(audio_frame_time_us_,
+                                         audio_data + sample_index,
+                                         frame_size_,
+                                         rms_out);
     sample_index += frame_size_;
     audio_frame_time_us_ +=
         (frame_size_ * kMicrosecondsPerSecond) / sample_rate_;
@@ -154,7 +133,7 @@ EpStatus Endpointer::ProcessAudio(const AudioChunk& raw_audio, float* rms_out) {
       // Speech possibly complete timeout.
       if ((waiting_for_speech_possibly_complete_timeout_) &&
           (ep_time - speech_end_time_us_ >
-           speech_input_possibly_complete_silence_length_us_)) {
+              speech_input_possibly_complete_silence_length_us_)) {
         waiting_for_speech_possibly_complete_timeout_ = false;
       }
       if (waiting_for_speech_complete_timeout_) {
@@ -170,7 +149,8 @@ EpStatus Endpointer::ProcessAudio(const AudioChunk& raw_audio, float* rms_out) {
           requested_silence_length =
               long_speech_input_complete_silence_length_us_;
         } else {
-          requested_silence_length = speech_input_complete_silence_length_us_;
+          requested_silence_length =
+              speech_input_complete_silence_length_us_;
         }
 
         // Speech complete timeout.

@@ -1,0 +1,3 @@
+Document
+++Group LocalizedControlType='figure'
+++++Image Name='Sunspots'

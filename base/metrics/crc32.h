@@ -8,16 +8,19 @@
 #include <stddef.h>
 #include <stdint.h>
 
+#include <array>
+
 #include "base/base_export.h"
+#include "base/containers/span.h"
 
 namespace base {
 
-BASE_EXPORT extern const uint32_t kCrcTable[256];
+BASE_EXPORT extern const std::array<uint32_t, 256> kCrcTable;
 
 // This provides a simple, fast CRC-32 calculation that can be used for checking
 // the integrity of data.  It is not a "secure" calculation!  |sum| can start
 // with any seed or be used to continue an operation began with previous data.
-BASE_EXPORT uint32_t Crc32(uint32_t sum, const void* data, size_t size);
+BASE_EXPORT uint32_t Crc32(uint32_t sum, span<const uint8_t> data);
 
 }  // namespace base
 

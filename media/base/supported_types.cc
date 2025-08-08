@@ -15,9 +15,7 @@
 #include "media/base/media_client.h"
 #include "media/base/media_switches.h"
 #include "media/media_buildflags.h"
-#if !defined(STARBOARD)
 #include "ui/display/display_switches.h"
-#endif  // !defined(STARBOARD)
 #include "ui/gfx/hdr_metadata.h"
 
 #if BUILDFLAG(ENABLE_LIBVPX)
@@ -44,39 +42,46 @@ namespace media {
 
 namespace {
 
+template <typename T>
 class SupplementalProfileCache {
  public:
-  void UpdateCache(const base::flat_set<media::VideoCodecProfile>& profiles) {
+  void UpdateCache(const base::flat_set<T>& profiles) {
     base::AutoLock lock(profiles_lock_);
     profiles_ = profiles;
   }
-  bool IsProfileSupported(media::VideoCodecProfile profile) {
+  bool IsProfileSupported(T profile) {
     base::AutoLock lock(profiles_lock_);
     return profiles_.find(profile) != profiles_.end();
   }
 
  private:
   base::Lock profiles_lock_;
-  base::flat_set<media::VideoCodecProfile> profiles_ GUARDED_BY(profiles_lock_);
+  base::flat_set<T> profiles_ GUARDED_BY(profiles_lock_);
 };
 
-SupplementalProfileCache* GetSupplementalProfileCache() {
-  static base::NoDestructor<SupplementalProfileCache> cache;
+SupplementalProfileCache<VideoCodecProfile>* GetSupplementalProfileCache() {
+  static base::NoDestructor<SupplementalProfileCache<VideoCodecProfile>> cache;
   return cache.get();
 }
 
-bool IsSupportedHdrMetadata(const gfx::HdrMetadataType& hdr_metadata_type) {
-  switch (hdr_metadata_type) {
+SupplementalProfileCache<AudioType>* GetSupplementalAudioTypeCache() {
+  static base::NoDestructor<SupplementalProfileCache<AudioType>> cache;
+  return cache.get();
+}
+
+bool IsSupportedHdrMetadata(const VideoType& type) {
+  switch (type.hdr_metadata_type) {
     case gfx::HdrMetadataType::kNone:
       return true;
 
     case gfx::HdrMetadataType::kSmpteSt2086:
-#if defined(STARBOARD)
-      return false;
-#else  // defined(STARBOARD)
-      return base::FeatureList::IsEnabled(kSupportSmpteSt2086HdrMetadata);
-#endif  // defined(STARBOARD)
+      // HDR metadata is currently only used with the PQ transfer function.
+      // See gfx::ColorTransform for more details.
+      return type.color_space.transfer ==
+             VideoColorSpace::TransferID::SMPTEST2084;
 
+    // 2094-10 SEI metadata is not the same as Dolby Vision RPU metadata, Dolby
+    // Vision decoders on each platform only support Dolby Vision RPU metadata.
     case gfx::HdrMetadataType::kSmpteSt2094_10:
     case gfx::HdrMetadataType::kSmpteSt2094_40:
       return false;
@@ -197,9 +202,11 @@ bool IsAudioCodecProprietary(AudioCodec codec) {
     case AudioCodec::kDTS:
     case AudioCodec::kDTSXP2:
     case AudioCodec::kDTSE:
+    case AudioCodec::kAC4:
       return true;
 
     case AudioCodec::kFLAC:
+    case AudioCodec::kIAMF:
     case AudioCodec::kMP3:
     case AudioCodec::kOpus:
     case AudioCodec::kVorbis:
@@ -245,12 +252,6 @@ bool IsHevcProfileSupported(const VideoType& type) {
 }
 
 bool IsVp9ProfileSupported(const VideoType& type) {
-#if defined(STARBOARD)
-  // Assume all profiles are supported, and let the Starboard implementation
-  // filter it out.
-  return type.profile == VP9PROFILE_PROFILE0 || type.profile == VP9PROFILE_PROFILE1 ||
-         type.profile == VP9PROFILE_PROFILE2 || type.profile == VP9PROFILE_PROFILE3;
-#else  // defined(STARBOARD)
 #if BUILDFLAG(ENABLE_LIBVPX)
   // High bit depth capabilities may be toggled via LibVPX config flags.
   static const bool vpx_supports_hbd = (vpx_codec_get_caps(vpx_codec_vp9_dx()) &
@@ -282,7 +283,6 @@ bool IsVp9ProfileSupported(const VideoType& type) {
   }
 #endif  // BUILDFLAG(ENABLE_LIBVPX)
   return false;
-#endif  // defined(STARBOARD)
 }
 
 bool IsAV1Supported(const VideoType& type) {
@@ -299,8 +299,8 @@ bool IsAV1Supported(const VideoType& type) {
 }
 
 bool IsMPEG4Supported() {
-#if BUILDFLAG(IS_CHROMEOS_ASH)
-  return true;
+#if BUILDFLAG(IS_CHROMEOS) && BUILDFLAG(USE_PROPRIETARY_CODECS)
+  return base::FeatureList::IsEnabled(kCrOSLegacyMediaFormats);
 #else
   return false;
 #endif
@@ -313,11 +313,20 @@ bool IsAACSupported(const AudioType& type) {
   return base::android::BuildInfo::GetInstance()->sdk_int() >=
          base::android::SDK_VERSION_P;
 #elif BUILDFLAG(IS_MAC)
-  if (__builtin_available(macOS 10.15, *))
-    return true;
-  return false;
+  return true;
 #elif BUILDFLAG(IS_WIN)
-  return base::win::GetVersion() >= base::win::Version::WIN11_22H2;
+  return base::win::GetVersion() >= base::win::Version::WIN11_22H2 &&
+         !base::win::OSInfo::GetInstance()->IsWindowsNSku();
+#else
+  return false;
+#endif
+}
+
+bool IsDolbyVisionProfileSupported(const VideoType& type) {
+#if BUILDFLAG(ENABLE_PLATFORM_HEVC) &&               \
+    BUILDFLAG(PLATFORM_HAS_OPTIONAL_HEVC_SUPPORT) && \
+    BUILDFLAG(ENABLE_PLATFORM_DOLBY_VISION)
+  return GetSupplementalProfileCache()->IsProfileSupported(type.profile);
 #else
   return false;
 #endif
@@ -340,8 +349,9 @@ bool IsSupportedVideoType(const VideoType& type) {
 // TODO(chcunningham): Add platform specific logic for Android (move from
 // MimeUtilInternal).
 bool IsDefaultSupportedVideoType(const VideoType& type) {
-  if (!IsSupportedHdrMetadata(type.hdr_metadata_type))
+  if (!IsSupportedHdrMetadata(type)) {
     return false;
+  }
 
 #if !BUILDFLAG(USE_PROPRIETARY_CODECS)
   if (IsVideoCodecProprietary(type.codec))
@@ -349,10 +359,15 @@ bool IsDefaultSupportedVideoType(const VideoType& type) {
 #endif
 
   switch (type.codec) {
-    case VideoCodec::kH264:
-    case VideoCodec::kVP8:
     case VideoCodec::kTheora:
+      return IsBuiltInVideoCodec(type.codec);
+    case VideoCodec::kH264:
       return true;
+    case VideoCodec::kVP8:
+      return IsBuiltInVideoCodec(type.codec)
+                 ? true
+                 : GetSupplementalProfileCache()->IsProfileSupported(
+                       type.profile);
     case VideoCodec::kAV1:
       return IsAV1Supported(type);
     case VideoCodec::kVP9:
@@ -361,10 +376,11 @@ bool IsDefaultSupportedVideoType(const VideoType& type) {
       return IsHevcProfileSupported(type);
     case VideoCodec::kMPEG4:
       return IsMPEG4Supported();
+    case VideoCodec::kDolbyVision:
+      return IsDolbyVisionProfileSupported(type);
     case VideoCodec::kUnknown:
     case VideoCodec::kVC1:
     case VideoCodec::kMPEG2:
-    case VideoCodec::kDolbyVision:
       return false;
   }
 }
@@ -402,35 +418,26 @@ bool IsDefaultSupportedAudioType(const AudioType& type) {
     case AudioCodec::kDTS:
     case AudioCodec::kDTSXP2:
     case AudioCodec::kDTSE:
-#if BUILDFLAG(ENABLE_PLATFORM_DTS_AUDIO)
-      return true;
-#else
-      return false;
-#endif
+      return BUILDFLAG(ENABLE_PLATFORM_DTS_AUDIO);
     case AudioCodec::kAC3:
     case AudioCodec::kEAC3:
-#if BUILDFLAG(ENABLE_PLATFORM_AC3_EAC3_AUDIO)
-      return true;
-#else
-      return false;
-#endif
+      return BUILDFLAG(ENABLE_PLATFORM_AC3_EAC3_AUDIO);
+    case AudioCodec::kAC4:
+      return BUILDFLAG(ENABLE_PLATFORM_AC4_AUDIO);
   }
 }
 
 bool IsBuiltInVideoCodec(VideoCodec codec) {
-#if BUILDFLAG(ENABLE_FFMPEG_VIDEO_DECODERS)
-  if (codec == VideoCodec::kTheora)
+#if BUILDFLAG(ENABLE_FFMPEG_VIDEO_DECODERS) && BUILDFLAG(USE_PROPRIETARY_CODECS)
+  if (codec == VideoCodec::kH264) {
     return true;
-  if (codec == VideoCodec::kVP8)
-    return true;
-#if BUILDFLAG(USE_PROPRIETARY_CODECS)
-  if (codec == VideoCodec::kH264)
-    return true;
-#endif  // BUILDFLAG(USE_PROPRIETARY_CODECS)
-#endif  // BUILDFLAG(ENABLE_FFMPEG_VIDEO_DECODERS)
+  }
+#endif  // BUILDFLAG(ENABLE_FFMPEG_VIDEO_DECODERS) &&
+        // BUILDFLAG(USE_PROPRIETARY_CODECS)
 #if BUILDFLAG(ENABLE_LIBVPX)
-  if (codec == VideoCodec::kVP8 || codec == VideoCodec::kVP9)
+  if (codec == VideoCodec::kVP8 || codec == VideoCodec::kVP9) {
     return true;
+  }
 #endif  // BUILDFLAG(ENABLE_LIBVPX)
 #if BUILDFLAG(ENABLE_AV1_DECODER)
   if (codec == VideoCodec::kAV1)
@@ -442,6 +449,10 @@ bool IsBuiltInVideoCodec(VideoCodec codec) {
 void UpdateDefaultSupportedVideoProfiles(
     const base::flat_set<media::VideoCodecProfile>& profiles) {
   GetSupplementalProfileCache()->UpdateCache(profiles);
+}
+
+void UpdateDefaultSupportedAudioTypes(const base::flat_set<AudioType>& types) {
+  GetSupplementalAudioTypeCache()->UpdateCache(types);
 }
 
 }  // namespace media

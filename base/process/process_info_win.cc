@@ -6,15 +6,16 @@
 
 #include <windows.h>
 
+#include <optional>
+
 #include "base/logging.h"
 #include "base/notreached.h"
 #include "base/win/access_token.h"
-#include "third_party/abseil-cpp/absl/types/optional.h"
 
 namespace base {
 
 IntegrityLevel GetCurrentProcessIntegrityLevel() {
-  absl::optional<base::win::AccessToken> token =
+  std::optional<base::win::AccessToken> token =
       base::win::AccessToken::FromCurrentProcess();
   if (!token) {
     PLOG(ERROR) << "AccessToken::FromCurrentProcess() failed";
@@ -34,12 +35,12 @@ IntegrityLevel GetCurrentProcessIntegrityLevel() {
   if (integrity_level >= SECURITY_MANDATORY_HIGH_RID)
     return HIGH_INTEGRITY;
 
-  NOTREACHED();
+  NOTREACHED_IN_MIGRATION();
   return INTEGRITY_UNKNOWN;
 }
 
 bool IsCurrentProcessElevated() {
-  absl::optional<base::win::AccessToken> token =
+  std::optional<base::win::AccessToken> token =
       base::win::AccessToken::FromCurrentProcess();
   if (!token) {
     PLOG(ERROR) << "AccessToken::FromCurrentProcess() failed";
@@ -49,7 +50,7 @@ bool IsCurrentProcessElevated() {
 }
 
 bool IsCurrentProcessInAppContainer() {
-  absl::optional<base::win::AccessToken> token =
+  std::optional<base::win::AccessToken> token =
       base::win::AccessToken::FromCurrentProcess();
   if (!token) {
     PLOG(ERROR) << "AccessToken::FromCurrentProcess() failed";

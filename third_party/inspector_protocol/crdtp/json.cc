@@ -1,4 +1,4 @@
-// Copyright 2019 The Chromium Authors. All rights reserved.
+// Copyright 2019 The Chromium Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -149,23 +149,31 @@ class JSONEncoder : public ParserHandler {
     Emit('"');
     for (const uint16_t ch : chars) {
       if (ch == '"') {
-        Emit("\\\"");
+        Emit('\\');
+        Emit('"');
       } else if (ch == '\\') {
-        Emit("\\\\");
-      } else if (ch == '\b') {
-        Emit("\\b");
-      } else if (ch == '\f') {
-        Emit("\\f");
-      } else if (ch == '\n') {
-        Emit("\\n");
-      } else if (ch == '\r') {
-        Emit("\\r");
-      } else if (ch == '\t') {
-        Emit("\\t");
-      } else if (ch >= 32 && ch <= 126) {
+        Emit('\\');
+        Emit('\\');
+      } else if (ch >= 32 && ch <= 127) {
         Emit(ch);
+      } else if (ch == '\n') {
+        Emit('\\');
+        Emit('n');
+      } else if (ch == '\r') {
+        Emit('\\');
+        Emit('r');
+      } else if (ch == '\t') {
+        Emit('\\');
+        Emit('t');
+      } else if (ch == '\b') {
+        Emit('\\');
+        Emit('b');
+      } else if (ch == '\f') {
+        Emit('\\');
+        Emit('f');
       } else {
-        Emit("\\u");
+        Emit('\\');
+        Emit('u');
         PrintHex(ch, out_);
       }
     }
@@ -180,23 +188,31 @@ class JSONEncoder : public ParserHandler {
     for (size_t ii = 0; ii < chars.size(); ++ii) {
       uint8_t c = chars[ii];
       if (c == '"') {
-        Emit("\\\"");
+        Emit('\\');
+        Emit('"');
       } else if (c == '\\') {
-        Emit("\\\\");
-      } else if (c == '\b') {
-        Emit("\\b");
-      } else if (c == '\f') {
-        Emit("\\f");
-      } else if (c == '\n') {
-        Emit("\\n");
-      } else if (c == '\r') {
-        Emit("\\r");
-      } else if (c == '\t') {
-        Emit("\\t");
-      } else if (c >= 32 && c <= 126) {
+        Emit('\\');
+        Emit('\\');
+      } else if (c >= 32 && c <= 127) {
         Emit(c);
+      } else if (c == '\n') {
+        Emit('\\');
+        Emit('n');
+      } else if (c == '\r') {
+        Emit('\\');
+        Emit('r');
+      } else if (c == '\t') {
+        Emit('\\');
+        Emit('t');
+      } else if (c == '\b') {
+        Emit('\\');
+        Emit('b');
+      } else if (c == '\f') {
+        Emit('\\');
+        Emit('f');
       } else if (c < 32) {
-        Emit("\\u");
+        Emit('\\');
+        Emit('u');
         PrintHex(static_cast<uint16_t>(c), out_);
       } else {
         // Inspect the leading byte to figure out how long the utf8
@@ -225,14 +241,17 @@ class JSONEncoder : public ParserHandler {
         // belonging to this Unicode character into |codepoint|.
         if (ii + num_bytes_left >= chars.size())
           continue;
+        bool invalid_byte_seen = false;
         while (num_bytes_left > 0) {
           c = chars[++ii];
           --num_bytes_left;
           // Check the next byte is a continuation byte, that is 10xx xxxx.
           if ((c & 0xc0) != 0x80)
-            continue;
+            invalid_byte_seen = true;
           codepoint = (codepoint << 6) | (c & 0x3f);
         }
+        if (invalid_byte_seen)
+          continue;
 
         // Disallow overlong encodings for ascii characters, as these
         // would include " and other characters significant to JSON
@@ -246,7 +265,7 @@ class JSONEncoder : public ParserHandler {
         // So, now we transcode to UTF16,
         // using the math described at https://en.wikipedia.org/wiki/UTF-16,
         // for either one or two 16 bit characters.
-        if (codepoint < 0xffff) {
+        if (codepoint <= 0xffff) {
           Emit("\\u");
           PrintHex(static_cast<uint16_t>(codepoint), out_);
           continue;
@@ -282,21 +301,38 @@ class JSONEncoder : public ParserHandler {
       Emit("null");
       return;
     }
+    // If |value| is a scalar, emit it as an int. Taken from json_writer.cc in
+    // Chromium.
+    if (value < static_cast<double>(std::numeric_limits<int64_t>::max()) &&
+        value >= std::numeric_limits<int64_t>::min() &&
+        std::floor(value) == value) {
+      Emit(std::to_string(static_cast<int64_t>(value)));
+      return;
+    }
     std::string str_value = json::platform::DToStr(value);
+    // The following is somewhat paranoid, but also taken from json_writer.cc
+    // in Chromium:
+    // Ensure that the number has a .0 if there's no decimal or 'e'.  This
+    // makes sure that when we read the JSON back, it's interpreted as a
+    // real rather than an int.
+    if (str_value.find_first_of(".eE") == std::string::npos)
+      str_value.append(".0");
 
     // DToStr may fail to emit a 0 before the decimal dot. E.g. this is
     // the case in base::NumberToString in Chromium (which is based on
     // dmg_fp). So, much like
     // https://cs.chromium.org/chromium/src/base/json/json_writer.cc
     // we probe for this and emit the leading 0 anyway if necessary.
-    const char* chars = str_value.c_str();
-    if (chars[0] == '.') {
+    if (str_value[0] == '.') {
       Emit('0');
-    } else if (chars[0] == '-' && chars[1] == '.') {
+      Emit(str_value);
+    } else if (str_value[0] == '-' && str_value[1] == '.') {
       Emit("-0");
-      ++chars;
+      // Skip the '-' from the original string and emit the rest.
+      out_->insert(out_->end(), str_value.begin() + 1, str_value.end());
+    } else {
+      Emit(str_value);
     }
-    Emit(chars);
   }
 
   void HandleInt32(int32_t value) override {
@@ -310,7 +346,11 @@ class JSONEncoder : public ParserHandler {
     if (!status_->ok())
       return;
     state_.top().StartElement(out_);
-    Emit(value ? "true" : "false");
+    if (value) {
+      Emit("true");
+    } else {
+      Emit("false");
+    }
   }
 
   void HandleNull() override {
@@ -327,11 +367,12 @@ class JSONEncoder : public ParserHandler {
   }
 
  private:
-  void Emit(char c) { out_->push_back(c); }
-  void Emit(const char* str) {
-    out_->insert(out_->end(), str, str + strlen(str));
+  inline void Emit(char c) { out_->push_back(c); }
+  template <size_t N>
+  inline void Emit(const char (&str)[N]) {
+    out_->insert(out_->end(), str, str + N - 1);
   }
-  void Emit(const std::string& str) {
+  inline void Emit(const std::string& str) {
     out_->insert(out_->end(), str.begin(), str.end());
   }
 
@@ -752,7 +793,7 @@ class JsonParser {
         // So, now we transcode to UTF16,
         // using the math described at https://en.wikipedia.org/wiki/UTF-16,
         // for either one or two 16 bit characters.
-        if (codepoint < 0xffff) {
+        if (codepoint <= 0xffff) {
           output->push_back(codepoint);
           continue;
         }
@@ -994,20 +1035,12 @@ Status ConvertCBORToJSON(span<uint8_t> cbor, std::string* json) {
   return ConvertCBORToJSONTmpl(cbor, json);
 }
 
-template <typename T, typename C>
-Status ConvertJSONToCBORTmpl(span<T> json, C* cbor) {
+template <typename T>
+Status ConvertJSONToCBORTmpl(span<T> json, std::vector<uint8_t>* cbor) {
   Status status;
   std::unique_ptr<ParserHandler> encoder = cbor::NewCBOREncoder(cbor, &status);
   ParseJSON(json, encoder.get());
   return status;
-}
-
-Status ConvertJSONToCBOR(span<uint8_t> json, std::string* cbor) {
-  return ConvertJSONToCBORTmpl(json, cbor);
-}
-
-Status ConvertJSONToCBOR(span<uint16_t> json, std::string* cbor) {
-  return ConvertJSONToCBORTmpl(json, cbor);
 }
 
 Status ConvertJSONToCBOR(span<uint8_t> json, std::vector<uint8_t>* cbor) {

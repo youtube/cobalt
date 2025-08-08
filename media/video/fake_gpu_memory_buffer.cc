@@ -15,6 +15,11 @@
 #include <sys/types.h>
 #endif
 
+#if BUILDFLAG(IS_FUCHSIA)
+#include <lib/zx/eventpair.h>
+#include <lib/zx/object.h>
+#endif
+
 namespace media {
 
 namespace {
@@ -63,7 +68,7 @@ FakeGpuMemoryBuffer::FakeGpuMemoryBuffer(const gfx::Size& size,
                                          gfx::BufferFormat format,
                                          uint64_t modifier)
     : size_(size), format_(format) {
-  absl::optional<VideoPixelFormat> video_pixel_format =
+  std::optional<VideoPixelFormat> video_pixel_format =
       GfxBufferFormatToVideoPixelFormat(format);
   CHECK(video_pixel_format);
   video_pixel_format_ = *video_pixel_format;
@@ -87,6 +92,13 @@ FakeGpuMemoryBuffer::FakeGpuMemoryBuffer(const gfx::Size& size,
   }
   handle_.native_pixmap_handle.modifier = modifier;
 #endif  // BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_CHROMEOS)
+
+#if BUILDFLAG(IS_FUCHSIA)
+  zx::eventpair client_handle, service_handle;
+  zx::eventpair::create(0, &client_handle, &service_handle);
+  handle_.native_pixmap_handle.buffer_collection_handle =
+      std::move(client_handle);
+#endif
 }
 
 FakeGpuMemoryBuffer::~FakeGpuMemoryBuffer() = default;
@@ -120,8 +132,6 @@ int FakeGpuMemoryBuffer::stride(size_t plane) const {
   return VideoFrame::PlaneSize(video_pixel_format_, plane, size_).width();
 }
 
-void FakeGpuMemoryBuffer::SetColorSpace(const gfx::ColorSpace& color_space) {}
-
 gfx::GpuMemoryBufferId FakeGpuMemoryBuffer::GetId() const {
   return handle_.id;
 }
@@ -134,7 +144,7 @@ gfx::GpuMemoryBufferHandle FakeGpuMemoryBuffer::CloneHandle() const {
   gfx::GpuMemoryBufferHandle handle;
   handle.type = gfx::NATIVE_PIXMAP;
   handle.id = handle_.id;
-#if BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_CHROMEOS)
+#if BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_CHROMEOS) || BUILDFLAG(IS_FUCHSIA)
   handle.native_pixmap_handle =
       gfx::CloneHandleForIPC(handle_.native_pixmap_handle);
 #endif

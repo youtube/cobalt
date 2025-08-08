@@ -2,6 +2,11 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#ifdef UNSAFE_BUFFERS_BUILD
+// TODO(crbug.com/40284755): Remove this and spanify to fix the errors.
+#pragma allow_unsafe_buffers
+#endif
+
 #include "base/process/launch.h"
 
 #include <dirent.h>
@@ -34,8 +39,6 @@
 #include "base/files/scoped_file.h"
 #include "base/logging.h"
 #include "base/memory/raw_ptr_exclusion.h"
-#include "base/metrics/histogram_macros.h"
-#include "base/posix/eintr_wrapper.h"
 #include "base/process/environment_internal.h"
 #include "base/process/process.h"
 #include "base/process/process_metrics.h"
@@ -43,7 +46,6 @@
 #include "base/threading/platform_thread.h"
 #include "base/threading/platform_thread_internal_posix.h"
 #include "base/threading/scoped_blocking_call.h"
-#include "base/time/time.h"
 #include "base/trace_event/base_tracing.h"
 #include "build/build_config.h"
 
@@ -312,7 +314,6 @@ Process LaunchProcess(const std::vector<std::string>& argv,
   }
 
   pid_t pid;
-  base::TimeTicks before_fork = TimeTicks::Now();
 #if BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_CHROMEOS) || BUILDFLAG(IS_AIX)
   if (options.clone_flags) {
     // Signal handling in this function assumes the creation of a new
@@ -339,11 +340,7 @@ Process LaunchProcess(const std::vector<std::string>& argv,
 
   // Always restore the original signal mask in the parent.
   if (pid != 0) {
-    base::TimeTicks after_fork = TimeTicks::Now();
     SetSignalMask(orig_sigmask);
-
-    base::TimeDelta fork_time = after_fork - before_fork;
-    UMA_HISTOGRAM_TIMES("MPArch.ForkTime", fork_time);
   }
 
   if (pid < 0) {
@@ -366,6 +363,19 @@ Process LaunchProcess(const std::vector<std::string>& argv,
     // See comments on the ResetFDOwnership() declaration in
     // base/files/scoped_file.h regarding why this is called early here.
     subtle::ResetFDOwnership();
+
+    // The parent process might set FD_CLOEXEC flag on certain file
+    // descriptors to prevent them leaking into child processes of the
+    // embedder application. Remove the flag from the file descriptors
+    // which meant to be inherited by the child process.
+    //
+    // Cannot use STL iterators here, since debug iterators use locks.
+    // NOLINTNEXTLINE(modernize-loop-convert)
+    for (size_t i = 0; i < options.fds_to_remove_cloexec.size(); ++i) {
+      if (!RemoveCloseOnExec(options.fds_to_remove_cloexec[i])) {
+        RAW_LOG(WARNING, "Failed to remove FD_CLOEXEC flag");
+      }
+    }
 #endif
 
     {
@@ -713,9 +723,9 @@ NOINLINE pid_t CloneAndLongjmpInChild(int flags,
   // specifying a new stack, so we use setjmp/longjmp to emulate
   // fork-like behavior.
   alignas(16) char stack_buf[PTHREAD_STACK_MIN];
-#if defined(ARCH_CPU_X86_FAMILY) || defined(ARCH_CPU_ARM_FAMILY) ||   \
-    defined(ARCH_CPU_MIPS_FAMILY) || defined(ARCH_CPU_S390_FAMILY) || \
-    defined(ARCH_CPU_PPC64_FAMILY) || defined(ARCH_CPU_LOONG_FAMILY) || \
+#if defined(ARCH_CPU_X86_FAMILY) || defined(ARCH_CPU_ARM_FAMILY) ||         \
+    defined(ARCH_CPU_MIPS_FAMILY) || defined(ARCH_CPU_S390_FAMILY) ||       \
+    defined(ARCH_CPU_PPC64_FAMILY) || defined(ARCH_CPU_LOONGARCH_FAMILY) || \
     defined(ARCH_CPU_RISCV_FAMILY)
   // The stack grows downward.
   void* stack = stack_buf + sizeof(stack_buf);

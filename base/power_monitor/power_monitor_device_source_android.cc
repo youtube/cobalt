@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include "base/base_jni_headers/PowerMonitor_jni.h"
+#include "base/base_jni/PowerMonitor_jni.h"
 #include "base/power_monitor/power_monitor.h"
 #include "base/power_monitor/power_monitor_device_source.h"
 #include "base/power_monitor/power_monitor_source.h"
@@ -81,18 +81,18 @@ void JNI_PowerMonitor_OnThermalStatusChanged(JNIEnv* env, int thermal_status) {
 }  // namespace android
 
 bool PowerMonitorDeviceSource::IsOnBatteryPower() {
-  JNIEnv* env = base::android::AttachCurrentThread();
+  JNIEnv* env = jni_zero::AttachCurrentThread();
   return base::android::Java_PowerMonitor_isBatteryPower(env);
 }
 
 int PowerMonitorDeviceSource::GetRemainingBatteryCapacity() {
-  JNIEnv* env = base::android::AttachCurrentThread();
+  JNIEnv* env = jni_zero::AttachCurrentThread();
   return base::android::Java_PowerMonitor_getRemainingBatteryCapacity(env);
 }
 
 PowerThermalObserver::DeviceThermalState
 PowerMonitorDeviceSource::GetCurrentThermalState() {
-  JNIEnv* env = base::android::AttachCurrentThread();
+  JNIEnv* env = jni_zero::AttachCurrentThread();
   return android::MapToDeviceThermalState(
       android::Java_PowerMonitor_getCurrentThermalStatus(env));
 }

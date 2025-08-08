@@ -6,14 +6,14 @@
 #define MEDIA_GPU_WINDOWS_D3D11_TEXTURE_WRAPPER_H_
 
 #include <d3d11.h>
-#include <wrl/client.h>
+
 #include <memory>
+#include <optional>
 #include <vector>
 
 #include "base/memory/weak_ptr.h"
 #include "base/task/single_thread_task_runner.h"
 #include "base/threading/sequence_bound.h"
-#include "gpu/command_buffer/service/mailbox_manager.h"
 #include "gpu/command_buffer/service/shared_image/shared_image_representation.h"
 #include "gpu/command_buffer/service/texture_manager.h"
 #include "media/base/video_frame.h"
@@ -21,7 +21,6 @@
 #include "media/gpu/media_gpu_export.h"
 #include "media/gpu/windows/d3d11_com_defs.h"
 #include "media/gpu/windows/d3d11_status.h"
-#include "third_party/abseil-cpp/absl/types/optional.h"
 #include "ui/gfx/color_space.h"
 #include "ui/gfx/hdr_metadata.h"
 #include "ui/gl/gl_bindings.h"
@@ -99,6 +98,7 @@ class MEDIA_GPU_EXPORT DefaultTexture2DWrapper : public Texture2DWrapper {
   // While the specific texture instance can change on every call to
   // ProcessTexture, the dxgi format must be the same for all of them.
   DefaultTexture2DWrapper(const gfx::Size& size,
+                          const gfx::ColorSpace& color_space,
                           DXGI_FORMAT dxgi_format,
                           ComD3D11Device device);
   ~DefaultTexture2DWrapper() override;
@@ -137,6 +137,7 @@ class MEDIA_GPU_EXPORT DefaultTexture2DWrapper : public Texture2DWrapper {
                  GetCommandBufferHelperCB get_helper_cb,
                  const std::vector<gpu::Mailbox>& mailboxes,
                  const gfx::Size& size,
+                 const gfx::ColorSpace& color_space,
                  DXGI_FORMAT dxgi_format,
                  ComD3D11Device video_device,
                  ComD3D11Texture2D texture,
@@ -158,9 +159,10 @@ class MEDIA_GPU_EXPORT DefaultTexture2DWrapper : public Texture2DWrapper {
   void OnError(D3D11Status status);
 
   // The first error status that we've received from |gpu_resources_|, if any.
-  absl::optional<D3D11Status> received_error_;
+  std::optional<D3D11Status> received_error_;
 
   gfx::Size size_;
+  gfx::ColorSpace color_space_;
   base::SequenceBound<GpuResources> gpu_resources_;
   MailboxHolderArray mailbox_holders_;
   DXGI_FORMAT dxgi_format_;
