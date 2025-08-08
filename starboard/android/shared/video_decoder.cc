@@ -13,13 +13,13 @@
 // limitations under the License.
 
 #include "starboard/android/shared/video_decoder.h"
-#include "starboard/common/check_op.h"
 
 #include <android/api-level.h>
 #include <jni.h>
 #include <unistd.h>
 
 #include <algorithm>
+#include <chrono>
 #include <cmath>
 #include <functional>
 #include <limits>
@@ -29,6 +29,7 @@
 #include "starboard/android/shared/jni_utils.h"
 #include "starboard/android/shared/media_common.h"
 #include "starboard/android/shared/video_render_algorithm.h"
+#include "starboard/common/check_op.h"
 #include "starboard/common/log.h"
 #include "starboard/common/media.h"
 #include "starboard/common/player.h"
@@ -389,7 +390,6 @@ VideoDecoder::VideoDecoder(const VideoStreamInfo& video_stream_info,
       is_video_frame_tracker_enabled_(IsFrameRenderedCallbackEnabled() ||
                                       tunnel_mode_audio_session_id != -1),
       has_new_texture_available_(false),
-      surface_condition_variable_(surface_destroy_mutex_),
       number_of_preroll_frames_(kInitialPrerollFrameCount) {
   SB_DCHECK(error_message);
 
@@ -717,7 +717,7 @@ bool VideoDecoder::InitializeCodec(const VideoStreamInfo& video_stream_info,
       env->CallVoidMethodOrAbort(decode_target->surface_texture(),
                                  "setOnFrameAvailableListener", "(J)V", this);
 
-      ScopedLock lock(decode_target_mutex_);
+      std::lock_guard lock(decode_target_mutex_);
       decode_target_ = decode_target;
     } break;
     case kSbPlayerOutputModeInvalid: {
@@ -784,7 +784,7 @@ void VideoDecoder::TeardownCodec() {
 
   SbDecodeTarget decode_target_to_release = kSbDecodeTargetInvalid;
   {
-    ScopedLock lock(decode_target_mutex_);
+    std::lock_guard lock(decode_target_mutex_);
     if (decode_target_ != nullptr) {
       // Remove OnFrameAvailableListener to make sure the callback
       // would not be called.
@@ -932,7 +932,7 @@ void VideoDecoder::RefreshOutputFormat(MediaCodecBridge* media_codec_bridge) {
   SB_DCHECK(media_codec_bridge);
   SB_DLOG(INFO) << "Output format changed, trying to dequeue again.";
 
-  ScopedLock lock(decode_target_mutex_);
+  std::lock_guard lock(decode_target_mutex_);
   // Record the latest dimensions of the decoded input.
   frame_sizes_.push_back(media_codec_bridge->GetOutputSize());
 
@@ -1058,7 +1058,7 @@ SbDecodeTarget VideoDecoder::GetCurrentDecodeTarget() {
   SB_DCHECK_EQ(output_mode_, kSbPlayerOutputModeDecodeToTexture);
   // We must take a lock here since this function can be called from a separate
   // thread.
-  ScopedLock lock(decode_target_mutex_);
+  std::lock_guard lock(decode_target_mutex_);
   if (decode_target_ != nullptr) {
     bool has_new_texture = has_new_texture_available_.exchange(false);
     if (has_new_texture) {
@@ -1237,16 +1237,22 @@ void VideoDecoder::OnVideoFrameRelease() {
 void VideoDecoder::OnSurfaceDestroyed() {
   if (!BelongsToCurrentThread()) {
     // Wait until codec is stopped.
-    ScopedLock lock(surface_destroy_mutex_);
+    std::unique_lock lock(surface_destroy_mutex_);
+    surface_destroyed_ = false;
     Schedule(std::bind(&VideoDecoder::OnSurfaceDestroyed, this));
-    surface_condition_variable_.WaitTimed(1'000'000);
+    surface_condition_variable_.wait_for(lock,
+                                         std::chrono::microseconds(1'000'000),
+                                         [this] { return surface_destroyed_; });
     return;
   }
   // When this function is called, the decoder no longer owns the surface.
   owns_video_surface_ = false;
   TeardownCodec();
-  ScopedLock lock(surface_destroy_mutex_);
-  surface_condition_variable_.Signal();
+  {
+    std::lock_guard lock(surface_destroy_mutex_);
+    surface_destroyed_ = true;
+  }
+  surface_condition_variable_.notify_one();
 }
 
 void VideoDecoder::ReportError(SbPlayerError error,
