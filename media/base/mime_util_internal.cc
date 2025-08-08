@@ -34,7 +34,7 @@
 #include "build/build_config.h"
 #if BUILDFLAG(USE_STARBOARD_MEDIA)
 #include "starboard/media.h"  // nogncheck
-#endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
+#endif                        // BUILDFLAG(USE_STARBOARD_MEDIA)
 
 namespace media::internal {
 
@@ -126,8 +126,9 @@ static bool ParseVp9CodecID(base::StringPiece mime_type_lower_case,
 
   // Legacy style (e.g. "vp9") is ambiguous about codec profile, and is only
   // valid with video/webm for legacy reasons.
-  if (mime_type_lower_case == "video/webm")
+  if (mime_type_lower_case == "video/webm") {
     return ParseLegacyVp9CodecID(codec_id, out_profile, out_level);
+  }
 
   return false;
 }
@@ -202,6 +203,8 @@ AudioCodec MimeUtilToAudioCodec(MimeUtil::Codec codec) {
       return AudioCodec::kDTSXP2;
     case MimeUtil::DTSE:
       return AudioCodec::kDTSE;
+    case MimeUtil::IAMF:
+      return AudioCodec::kIAMF;
     default:
       break;
   }
@@ -249,16 +252,20 @@ SupportsType MimeUtil::AreSupportedCodecs(
     if (parsed_codec.is_ambiguous) {
       switch (parsed_codec.codec) {
         case MimeUtil::H264:
-          if (video_profile == VIDEO_CODEC_PROFILE_UNKNOWN)
+          if (video_profile == VIDEO_CODEC_PROFILE_UNKNOWN) {
             video_profile = H264PROFILE_BASELINE;
-          if (!IsValidH264Level(video_level))
+          }
+          if (!IsValidH264Level(video_level)) {
             video_level = 10;
+          }
           break;
         case MimeUtil::VP9:
-          if (video_profile == VIDEO_CODEC_PROFILE_UNKNOWN)
+          if (video_profile == VIDEO_CODEC_PROFILE_UNKNOWN) {
             video_profile = VP9PROFILE_PROFILE0;
-          if (video_level == 0)
+          }
+          if (video_level == 0) {
             video_level = 10;
+          }
           break;
         case MimeUtil::MPEG4_AAC:
           // Nothing to do for AAC; no notion of profile / level to guess.
@@ -366,6 +373,10 @@ void MimeUtil::AddSupportedMediaFormats() {
   mp4_audio_codecs.emplace(DTSE);
 #endif  // BUILDFLAG(ENABLE_PLATFORM_DTS_AUDIO)
 
+#if BUILDFLAG(ENABLE_PLATFORM_IAMF_AUDIO)
+  mp4_audio_codecs.emplace(IAMF);
+#endif  // BUILDFLAG(ENABLE_PLATFORM_IAMF_AUDIO)
+
   CodecSet mp4_codecs(mp4_audio_codecs);
   mp4_codecs.insert(mp4_video_codecs.begin(), mp4_video_codecs.end());
 
@@ -378,8 +389,9 @@ void MimeUtil::AddSupportedMediaFormats() {
   AddContainerWithCodecs("audio/ogg", ogg_audio_codecs);
   // video/ogg is only supported if an appropriate video codec is supported.
   // Note: This assumes such codecs cannot be later excluded.
-  if (!ogg_video_codecs.empty())
+  if (!ogg_video_codecs.empty()) {
     AddContainerWithCodecs("video/ogg", ogg_codecs);
+  }
   // TODO(ddorwin): Should the application type support Opus?
   AddContainerWithCodecs("application/ogg", ogg_codecs);
   AddContainerWithCodecs("audio/flac", implicit_codec);
@@ -451,16 +463,18 @@ void MimeUtil::SplitCodecs(base::StringPiece codecs,
                         base::TRIM_WHITESPACE, base::SPLIT_WANT_ALL);
 
   // Convert empty or all-whitespace input to 0 results.
-  if (codecs_out->size() == 1 && (*codecs_out)[0].empty())
+  if (codecs_out->size() == 1 && (*codecs_out)[0].empty()) {
     codecs_out->clear();
+  }
 }
 
 void MimeUtil::StripCodecs(std::vector<std::string>* codecs) const {
   // Strip everything past the first '.'
   for (auto& codec : *codecs) {
     size_t found = codec.find_first_of('.');
-    if (found != std::string::npos)
+    if (found != std::string::npos) {
       codec.resize(found);
+    }
   }
 }
 
@@ -480,8 +494,9 @@ bool MimeUtil::ParseVideoCodecString(base::StringPiece mime_type,
   // Internal parsing API expects a vector of codecs.
   std::vector<ParsedCodecResult> parsed_results;
   std::vector<std::string> codec_strings;
-  if (!codec_id.empty())
+  if (!codec_id.empty()) {
     codec_strings.emplace_back(codec_id);
+  }
 
   if (!ParseCodecStrings(base::ToLowerASCII(mime_type), codec_strings,
                          &parsed_results)) {
@@ -517,8 +532,9 @@ bool MimeUtil::ParseAudioCodecString(base::StringPiece mime_type,
   // Internal parsing API expects a vector of codecs.
   std::vector<ParsedCodecResult> parsed_results;
   std::vector<std::string> codec_strings;
-  if (!codec_id.empty())
+  if (!codec_id.empty()) {
     codec_strings.emplace_back(codec_id);
+  }
 
   if (!ParseCodecStrings(base::ToLowerASCII(mime_type), codec_strings,
                          &parsed_results)) {
@@ -641,8 +657,9 @@ bool MimeUtil::IsCodecSupportedOnAndroid(Codec codec,
 
     case OPUS:
       // If clear, the unified pipeline can always decode Opus in software.
-      if (!is_encrypted)
+      if (!is_encrypted) {
         return true;
+      }
 
       // Otherwise, platform support is required.
       if (!platform_info.has_platform_opus_decoder) {
@@ -681,8 +698,9 @@ bool MimeUtil::IsCodecSupportedOnAndroid(Codec codec,
         return true;
       }
 
-      if (!platform_info.has_platform_vp9_decoder)
+      if (!platform_info.has_platform_vp9_decoder) {
         return false;
+      }
 
       return true;
     }
@@ -710,6 +728,9 @@ bool MimeUtil::IsCodecSupportedOnAndroid(Codec codec,
 #else
       return false;
 #endif
+
+    case IAMF:
+      return false;
   }
 
   return false;
@@ -722,8 +743,9 @@ bool MimeUtil::ParseCodecStrings(
   DCHECK(out_results);
 
   // Nothing to parse.
-  if (mime_type_lower_case.empty() && codecs.empty())
+  if (mime_type_lower_case.empty() && codecs.empty()) {
     return false;
+  }
 
   // When mime type is provided, it may imply a codec or only be valid with
   // certain codecs.
@@ -776,8 +798,9 @@ bool MimeUtil::ParseCodecStrings(
     ParsedCodecResult result;
 
 #if BUILDFLAG(ENABLE_MSE_MPEG2TS_STREAM_PARSER)
-    if (mime_type_lower_case == "video/mp2t")
+    if (mime_type_lower_case == "video/mp2t") {
       codec_string = TranslateLegacyAvc1CodecIds(codec_string);
+    }
 #endif
 
     if (!ParseCodecHelper(mime_type_lower_case, codec_string, &result)) {
@@ -903,6 +926,13 @@ bool MimeUtil::ParseCodecHelper(base::StringPiece mime_type_lower_case,
   }
 #endif
 
+#if BUILDFLAG(ENABLE_PLATFORM_IAMF_AUDIO)
+  if (ParseIamfCodecId(codec_id.data(), nullptr, nullptr)) {
+    out_result->codec = MimeUtil::IAMF;
+    return true;
+  }
+#endif
+
   DVLOG(2) << __func__ << ": Unrecognized codec id \"" << codec_id << "\"";
   return false;
 }
@@ -957,11 +987,13 @@ SupportsType MimeUtil::IsCodecSupported(base::StringPiece mime_type_lower_case,
   AudioCodec audio_codec = MimeUtilToAudioCodec(codec);
   if (audio_codec != AudioCodec::kUnknown) {
     AudioCodecProfile audio_profile = AudioCodecProfile::kUnknown;
-    if (codec == MPEG4_XHE_AAC)
+    if (codec == MPEG4_XHE_AAC) {
       audio_profile = AudioCodecProfile::kXHE_AAC;
+    }
 
-    if (!IsSupportedAudioType({audio_codec, audio_profile, false}))
+    if (!IsSupportedAudioType({audio_codec, audio_profile, false})) {
       return SupportsType::kNotSupported;
+    }
   }
 
   if (video_codec != VideoCodec::kUnknown) {

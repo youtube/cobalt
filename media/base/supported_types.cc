@@ -15,7 +15,6 @@
 #include "media/base/media_client.h"
 #include "media/base/media_switches.h"
 #include "media/media_buildflags.h"
-#include "ui/display/display_switches.h"
 #include "ui/gfx/hdr_metadata.h"
 
 #if BUILDFLAG(ENABLE_LIBVPX)
@@ -194,6 +193,7 @@ bool IsAudioCodecProprietary(AudioCodec codec) {
       return true;
 
     case AudioCodec::kFLAC:
+    case AudioCodec::kIAMF:
     case AudioCodec::kMP3:
     case AudioCodec::kOpus:
     case AudioCodec::kVorbis:
@@ -383,6 +383,7 @@ bool IsDefaultSupportedAudioType(const AudioType& type) {
     case AudioCodec::kGSM_MS:
     case AudioCodec::kALAC:
     case AudioCodec::kMpegHAudio:
+    case AudioCodec::kIAMF:
     case AudioCodec::kUnknown:
       return false;
     case AudioCodec::kDTS:
