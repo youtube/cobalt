@@ -37,7 +37,6 @@
 #include "cobalt/shell/common/shell_switches.h"
 #include "components/custom_handlers/protocol_handler.h"
 #include "components/custom_handlers/protocol_handler_registry.h"
-#include "components/custom_handlers/simple_protocol_handler_registry_factory.h"
 #include "content/public/browser/browser_context.h"
 #include "content/public/browser/devtools_agent_host.h"
 #include "content/public/browser/file_select_listener.h"
@@ -510,50 +509,8 @@ void Shell::RegisterProtocolHandler(RenderFrameHost* requesting_frame,
                                     const std::string& protocol,
                                     const GURL& url,
                                     bool user_gesture) {
-  BrowserContext* context = requesting_frame->GetBrowserContext();
-  if (context->IsOffTheRecord()) {
-    return;
-  }
-
-  custom_handlers::ProtocolHandler handler =
-      custom_handlers::ProtocolHandler::CreateProtocolHandler(
-          protocol, url, GetProtocolHandlerSecurityLevel(requesting_frame));
-
-  // The parameters's normalization process defined in the spec has been already
-  // applied in the WebContentImpl class, so at this point it shouldn't be
-  // possible to create an invalid handler.
-  // https://html.spec.whatwg.org/multipage/system-state.html#normalize-protocol-handler-parameters
-  DCHECK(handler.IsValid());
-
-  custom_handlers::ProtocolHandlerRegistry* registry = custom_handlers::
-      SimpleProtocolHandlerRegistryFactory::GetForBrowserContext(context, true);
-  DCHECK(registry);
-  if (registry->SilentlyHandleRegisterHandlerRequest(handler)) {
-    return;
-  }
-
-  if (!user_gesture && !windows_.empty()) {
-    // TODO(jfernandez): This is not strictly needed, but we need a way to
-    // inform the observers in browser tests that the request has been
-    // cancelled, to avoid timeouts. Chrome just holds the handler as pending in
-    // the PageContentSettingsDelegate, but we don't have such thing in the
-    // Content Shell.
-    registry->OnDenyRegisterProtocolHandler(handler);
-    return;
-  }
-
-  // FencedFrames can not register to handle any protocols.
-  if (requesting_frame->IsNestedWithinFencedFrame()) {
-    registry->OnIgnoreRegisterProtocolHandler(handler);
-    return;
-  }
-
-  // TODO(jfernandez): Are we interested at all on using the
-  // PermissionRequestManager in the ContentShell ?
-  if (registry->registration_mode() ==
-      custom_handlers::RphRegistrationMode::kAutoAccept) {
-    registry->OnAcceptRegisterProtocolHandler(handler);
-  }
+  // TODO:(/428999732) This requires a test-only build dependency and cannot
+  // be called from a production target.
 }
 #endif
 

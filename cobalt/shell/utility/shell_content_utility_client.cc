@@ -179,8 +179,10 @@ ShellContentUtilityClient::ShellContentUtilityClient(bool is_browsertest) {
   if (is_browsertest &&
       base::CommandLine::ForCurrentProcess()->GetSwitchValueASCII(
           switches::kProcessType) == switches::kUtilityProcess) {
+#if defined(SUPPORT_BROWSER_TESTS)
     network_service_test_helper_ = NetworkServiceTestHelper::Create();
     audio_service_test_helper_ = std::make_unique<AudioServiceTestHelper>();
+#endif  // defined(SUPPORT_BROWSER_TESTS)
     storage::InjectTestApiImplementation();
     register_sandbox_status_helper_ = true;
   }
