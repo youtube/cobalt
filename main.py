@@ -98,9 +98,12 @@ def import_subtree(repo, deps_file, module, git_source, git_rev):
     repo.index.commit('Roll up for module %s to rev %s.' %
                         (module, git_rev))
     repo.git.reset('--hard')
+    repo.git.clean('-fdx')
     print('Attempting to add the subtree %s.' % module)
     repo.git.subtree('add', '--squash', '--prefix', module,
                         git_source, git_rev)
+    repo.git.reset('--hard')
+    repo.git.clean('-fdx')
 
 
 def linearize_history(repo, args):
