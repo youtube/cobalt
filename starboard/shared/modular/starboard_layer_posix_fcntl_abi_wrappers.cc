@@ -149,7 +149,7 @@ int convert_platform_flags_to_musl_flags(int flags) {
   return musl_flags;
 }
 
-SB_EXPORT int fcntl_no_arg(int fildes, int cmd) {
+int fcntl_no_arg(int fildes, int cmd) {
   int platform_cmd = convert_musl_cmd_to_platform_cmd(cmd);
   if (platform_cmd == -1) {
     errno = EINVAL;
@@ -166,7 +166,7 @@ SB_EXPORT int fcntl_no_arg(int fildes, int cmd) {
   return result;
 }
 
-SB_EXPORT int fcntl_int_arg(int fildes, int cmd, int arg) {
+int fcntl_int_arg(int fildes, int cmd, int arg) {
   int platform_cmd = convert_musl_cmd_to_platform_cmd(cmd);
   if (platform_cmd == -1) {
     errno = EINVAL;
@@ -181,7 +181,7 @@ SB_EXPORT int fcntl_int_arg(int fildes, int cmd, int arg) {
   return fcntl(fildes, platform_cmd, arg);
 }
 
-SB_EXPORT int fcntl_ptr_arg(int fildes, int cmd, void* arg) {
+int fcntl_ptr_arg(int fildes, int cmd, void* arg) {
   SB_CHECK(arg);
   SB_CHECK(cmd == MUSL_F_GETLK || cmd == MUSL_F_SETLK || cmd == MUSL_F_SETLKW);
 
