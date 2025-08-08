@@ -14,7 +14,6 @@
 
 #include "starboard/nplb/player_creation_param_helpers.h"
 
-#include "starboard/common/log.h"
 #include "starboard/shared/starboard/player/video_dmp_reader.h"
 
 namespace starboard {

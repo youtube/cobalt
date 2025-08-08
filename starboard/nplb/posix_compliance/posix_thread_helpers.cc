@@ -16,8 +16,6 @@
 
 #include <unistd.h>
 
-#include "starboard/common/condition_variable.h"
-#include "starboard/common/mutex.h"
 #include "starboard/thread.h"
 #include "starboard/types.h"
 #include "testing/gtest/include/gtest/gtest.h"

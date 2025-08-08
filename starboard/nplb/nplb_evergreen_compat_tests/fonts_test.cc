@@ -17,7 +17,6 @@
 #include <string>
 #include <vector>
 
-#include "starboard/common/log.h"
 #include "starboard/configuration.h"
 #include "starboard/configuration_constants.h"
 #include "starboard/system.h"

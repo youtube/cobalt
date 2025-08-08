@@ -16,7 +16,6 @@
 
 #include <pthread.h>
 
-#include "starboard/common/condition_variable.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
 namespace starboard {
