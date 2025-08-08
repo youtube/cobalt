@@ -190,6 +190,8 @@ test("cobalt_browsertests") {
     "content_main_runner_impl_browsertest.cc",
     "navigation_browsertest.cc",
     "session_history_browsertest.cc",
+    "site_per_process_browsertest.cc",
+    "site_per_process_browsertest.h",
   ]
 
   if (is_android) {
