@@ -1096,8 +1096,9 @@ deps = {
       'condition': 'checkout_nacl',
   },
 
-  'src/net/third_party/quiche/src':
-    Var('quiche_git') + '/quiche.git' + '@' +  Var('quiche_revision'),
+# Cobalt: imported
+#  'src/net/third_party/quiche/src':
+#    Var('quiche_git') + '/quiche.git' + '@' +  Var('quiche_revision'),
 
   'src/testing/libfuzzer/fuzzers/wasm_corpus':
     Var('chromium_git') + '/v8/fuzzer_wasm_corpus.git' + '@' +  'f650ff816f2ef227f61ea2e9f222aa69708ab367',
