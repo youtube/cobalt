@@ -25,7 +25,7 @@
 
 #include <mutex>
 
-#include "starboard/android/shared/jni_env_ext.h"
+#include "base/android/jni_android.h"
 #include "starboard/media.h"
 #include "starboard/shared/internal_only.h"
 
@@ -43,7 +43,8 @@ struct Range {
 
 class CodecCapability {
  public:
-  CodecCapability(JniEnvExt* env, jobject j_codec_info);
+  CodecCapability(JNIEnv* env,
+                  base::android::ScopedJavaLocalRef<jobject>& j_codec_info);
   virtual ~CodecCapability() {}
 
   const std::string& name() const { return name_; }
@@ -56,18 +57,19 @@ class CodecCapability {
   CodecCapability(const CodecCapability&) = delete;
   CodecCapability& operator=(const CodecCapability&) = delete;
 
-  std::string name_;
-  bool is_secure_required_;
-  bool is_secure_supported_;
-  bool is_tunnel_mode_required_;
-  bool is_tunnel_mode_supported_;
+  const std::string name_;
+  const bool is_secure_required_;
+  const bool is_secure_supported_;
+  const bool is_tunnel_mode_required_;
+  const bool is_tunnel_mode_supported_;
 };
 
 class AudioCodecCapability : public CodecCapability {
  public:
-  AudioCodecCapability(JniEnvExt* env,
-                       jobject j_codec_info,
-                       jobject j_audio_capabilities);
+  AudioCodecCapability(
+      JNIEnv* env,
+      base::android::ScopedJavaLocalRef<jobject>& j_codec_info,
+      base::android::ScopedJavaLocalRef<jobject>& j_audio_capabilities);
   ~AudioCodecCapability() override {}
 
   bool IsBitrateSupported(int bitrate) const;
@@ -81,9 +83,10 @@ class AudioCodecCapability : public CodecCapability {
 
 class VideoCodecCapability : public CodecCapability {
  public:
-  VideoCodecCapability(JniEnvExt* env,
-                       jobject j_codec_info,
-                       jobject j_video_capabilities);
+  VideoCodecCapability(
+      JNIEnv* env,
+      base::android::ScopedJavaLocalRef<jobject>& j_codec_info,
+      base::android::ScopedJavaLocalRef<jobject>& j_video_capabilities);
   ~VideoCodecCapability() override;
 
   bool is_software_decoder() const { return is_software_decoder_; }
@@ -103,9 +106,9 @@ class VideoCodecCapability : public CodecCapability {
   VideoCodecCapability(const VideoCodecCapability&) = delete;
   VideoCodecCapability& operator=(const VideoCodecCapability&) = delete;
 
-  bool is_software_decoder_;
-  bool is_hdr_capable_;
-  jobject j_video_capabilities_;
+  const bool is_software_decoder_;
+  const bool is_hdr_capable_;
+  const base::android::ScopedJavaGlobalRef<jobject> j_video_capabilities_;
   Range supported_widths_;
   Range supported_heights_;
   Range supported_bitrates_;
