@@ -417,7 +417,7 @@ class MediaCodecBridge {
       ColorInfo colorInfo,
       int tunnelModeAudioSessionId,
       int maxVideoInputSize,
-      boolean maxVideoInputSizeExperiment,
+      boolean experimentalVideoSizeCalculation,
       CreateMediaCodecBridgeResult outCreateMediaCodecBridgeResult) {
     MediaCodec mediaCodec = null;
     outCreateMediaCodecBridgeResult.mMediaCodecBridge = null;
@@ -590,7 +590,7 @@ class MediaCodecBridge {
       }
     }
     if (!bridge.configureVideo(
-        mediaFormat, surface, crypto, 0, maxWidth, maxHeight, maxVideoInputSizeExperiment, outCreateMediaCodecBridgeResult)) {
+        mediaFormat, surface, crypto, 0, maxWidth, maxHeight, experimentalVideoSizeCalculation, outCreateMediaCodecBridgeResult)) {
       Log.e(TAG, "Failed to configure video codec.");
       bridge.release();
       // outCreateMediaCodecBridgeResult.mErrorMessage is set inside configureVideo() on error.
@@ -832,7 +832,7 @@ class MediaCodecBridge {
       int flags,
       int maxSupportedWidth,
       int maxSupportedHeight,
-      boolean maxVideoInputSizeExperiment,
+      boolean experimentalVideoSizeCalculation,
       CreateMediaCodecBridgeResult outCreateMediaCodecBridgeResult) {
     try {
       // Since we haven't passed the properties of the stream we're playing down to this level, from
@@ -850,7 +850,7 @@ class MediaCodecBridge {
         format.setInteger(MediaFormat.KEY_MAX_HEIGHT, Math.min(2160, maxSupportedHeight));
       }
 
-      maybeSetMaxVideoInputSize(format, crypto, maxVideoInputSizeExperiment);
+      maybeSetMaxVideoInputSize(format, crypto, experimentalVideoSizeCalculation);
       mMediaCodec.get().configure(format, surface, crypto, flags);
       mFrameRateEstimator = new FrameRateEstimator();
       return true;
@@ -898,7 +898,7 @@ class MediaCodecBridge {
   // Use some heuristics to set KEY_MAX_INPUT_SIZE (the size of the input buffers).
   // Taken from ExoPlayer:
   // https://github.com/google/ExoPlayer/blob/8595c65678a181296cdf673eacb93d8135479340/library/src/main/java/com/google/android/exoplayer/MediaCodecVideoTrackRenderer.java
-  private void maybeSetMaxVideoInputSize(MediaFormat format, MediaCrypto crypto, boolean maxVideoInputSizeExperiment) {
+  private void maybeSetMaxVideoInputSize(MediaFormat format, MediaCrypto crypto, boolean experimentalVideoSizeCalculation) {
     if (format.containsKey(android.media.MediaFormat.KEY_MAX_INPUT_SIZE)) {
       try {
         Log.i(
@@ -922,70 +922,51 @@ class MediaCodecBridge {
     }
     int pixelCount;
     int minCompressionRatio;
-    // If |maxVideoInputSizeExperiment| is true, we'll calculate the input size
+    // If |experimentalVideoSizeCalculation| is true, we'll calculate the input size
     // according to the latest exoplayer code from cl/467641494.
-    // If set to false, we'll use our original calculation method.
-    if (maxVideoInputSizeExperiment) {
-      switch (mimeType) {
-        case MimeTypes.VIDEO_H264:
+    // If set to false, we'll use our original calculation values.
+    switch (format.getString(MediaFormat.KEY_MIME)) {
+      case MimeTypes.VIDEO_H264:
+        if (experimentalVideoSizeCalculation) {
           if ("BRAVIA 4K 2015".equals(Build.MODEL) // Sony Bravia 4K
-              || ("Amazon".equals(Build.MANUFACTURER)
-                  && ("KFSOWI".equals(Build.MODEL) // Kindle Soho
-                      || ("AFTS".equals(Build.MODEL) && crypto != null)))) { // Fire TV Gen 2
-            // Use the default value for cases where platform limitations may prevent buffers of the
-            // calculated maximum input size from being allocated.
-            return;
-          }
-          // Round up width/height to an integer number of macroblocks.
-          pixelCount = alignDimension(maxWidth, 16) * alignDimension(maxHeight, 16);
-          minCompressionRatio = 2;
-          break;
-        case MimeTypes.VIDEO_AV1:
-        // Assume a min compression of 2 similar to the platform's C2SoftAomDec.cpp.
-        case MimeTypes.VIDEO_VP8:
-        // Assume a min compression of 2 similar to the platform's SoftVPX.cpp.
-        case MimeTypes.VIDEO_H265:
-          // Assume a min compression of 2 similar to the platform's C2SoftHevcDec.cpp, but restrict
-          // the minimum size.
-          pixelCount = maxWidth * maxHeight;
-          minCompressionRatio = 2;
-          break;
-        case MimeTypes.VIDEO_VP9:
-          pixelCount = maxWidth * maxHeight;
-          minCompressionRatio = 4;
-          break;
-        default:
-          // Leave the default max input size.
-          return;
-      }
-    }
-    else {
-      switch (mimeType) {
-        case MimeTypes.VIDEO_H264:
+                || ("Amazon".equals(Build.MANUFACTURER)
+                    && ("KFSOWI".equals(Build.MODEL) // Kindle Soho
+                        || ("AFTS".equals(Build.MODEL) && crypto != null)))) { // Fire TV Gen 2
+              // Use the default value for cases where platform limitations may prevent buffers of the
+              // calculated maximum input size from being allocated.
+              return;
+            }
+        }
+        else {
           if ("BRAVIA 4K 2015".equals(Build.MODEL)) {
             // The Sony BRAVIA 4k TV has input buffers that are too small for the calculated
             // 4k video maximum input size, so use the default value.
             return;
           }
-          // Round up width/height to an integer number of macroblocks.
-          pixelCount = alignDimension(maxWidth, 16) * alignDimension(maxHeight, 16);
-          minCompressionRatio = 2;
-          break;
-        case MimeTypes.VIDEO_VP8:
-          // VPX does not specify a ratio so use the values from the platform's SoftVPX.cpp.
-          pixelCount = maxWidth * maxHeight;
-          minCompressionRatio = 2;
-          break;
-        case MimeTypes.VIDEO_H265:
-        case MimeTypes.VIDEO_VP9:
-        case MimeTypes.VIDEO_AV1:
-          pixelCount = maxWidth * maxHeight;
-          minCompressionRatio = 4;
-          break;
-        default:
-          // Leave the default max input size.
-          return;
-      }
+        }
+        pixelCount = alignDimension(maxWidth, 16) * alignDimension(maxHeight, 16);
+        minCompressionRatio = 2;
+        break;
+      case MimeTypes.VIDEO_VP8:
+        // VPX does not specify a ratio, so use the values from the platform's SoftVPX.cpp.
+        pixelCount = maxWidth * maxHeight;
+        minCompressionRatio = 2;
+        break;
+      case MimeTypes.VIDEO_VP9:
+        pixelCount = maxWidth * maxHeight;
+        minCompressionRatio = 4;
+        break;
+      case MimeTypes.VIDEO_AV1:
+      // For the experiment, assume a min compression of 2 similar to the platform's C2SoftAomDec.cpp.
+      case MimeTypes.VIDEO_H265:
+      // For the experiment, assume a min compression of 2 similar to the platform's C2SoftHevcDec.cpp, but restrict
+      // the minimum size.
+        pixelCount = maxWidth * maxHeight;
+        minCompressionRatio = experimentalVideoSizeCalculation ? 2 : 4;
+        break;
+      default:
+        // Leave the default max input size.
+        return;
     }
     // Estimate the maximum input size assuming three channel 4:2:0 subsampled input frames.
     int maxVideoInputSize = getMaxSampleSize(pixelCount, minCompressionRatio);
