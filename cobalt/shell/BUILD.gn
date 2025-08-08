@@ -26,6 +26,8 @@ shell_use_toolkit_views = toolkit_views && !is_castos
 # Web test support only built for the linux-x64x11-no-starboard target.
 support_web_tests = !is_android && !is_starboard
 
+support_browser_tests = is_android && !is_gold
+
 # TODO(b/384748332): Changes below are for removing dependency on content shell
 config("cobalt_shell_lib_warnings") {
   if (is_clang) {
@@ -274,6 +276,10 @@ static_library("cobalt_shell_lib") {
     # cause TOOLKIT_VIEWS to be defined, even when cobalt_shell does not want
     # to use it internally. See https://crbug.com/1218907.
     defines += [ "SHELL_USE_TOOLKIT_VIEWS=1" ]
+  }
+
+  if (support_browser_tests) {
+    defines += [ "SUPPORT_BROWSER_TESTS=1" ]
   }
 
   # This is to support our dependency on //content/browser.
