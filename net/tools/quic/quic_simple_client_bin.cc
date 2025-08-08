@@ -33,8 +33,9 @@
 // Try to connect to a host which does not speak QUIC:
 //   quic_client http://www.example.com
 
+#include <algorithm>
+
 #include "base/logging.h"
-#include "base/ranges/algorithm.h"
 #include "net/base/address_family.h"
 #include "net/base/net_errors.h"
 #include "net/quic/address_utils.h"
@@ -46,7 +47,6 @@
 #include "net/third_party/quiche/src/quiche/quic/core/quic_versions.h"
 #include "net/third_party/quiche/src/quiche/quic/platform/api/quic_socket_address.h"
 #include "net/third_party/quiche/src/quiche/quic/tools/quic_toy_client.h"
-#include "net/third_party/quiche/src/quiche/spdy/core/http2_header_block.h"
 #include "net/tools/quic/quic_simple_client.h"
 #include "net/tools/quic/synchronous_host_resolver.h"
 #include "url/scheme_host_port.h"
@@ -68,10 +68,10 @@ class QuicSimpleClientFactory : public quic::QuicToyClient::ClientFactory {
       std::unique_ptr<quic::ProofVerifier> verifier,
       std::unique_ptr<quic::SessionCache> /*session_cache*/) override {
     // Determine IP address to connect to from supplied hostname.
-    quic::QuicIpAddress ip_addr;
+    quiche::QuicheIpAddress ip_addr;
     if (!ip_addr.FromString(host_for_lookup)) {
       net::AddressList addresses;
-      // TODO(https://crbug.com/1300660) Let the caller pass in the scheme
+      // TODO(crbug.com/40216365) Let the caller pass in the scheme
       // rather than guessing "https"
       int rv = net::SynchronousHostResolver::Resolve(
           url::SchemeHostPort(url::kHttpsScheme, host_for_lookup, port),
@@ -81,7 +81,7 @@ class QuicSimpleClientFactory : public quic::QuicToyClient::ClientFactory {
                    << "' : " << net::ErrorToShortString(rv);
         return nullptr;
       }
-      const auto endpoint = base::ranges::find_if(
+      const auto endpoint = std::ranges::find_if(
           addresses,
           [address_family_for_lookup](net::AddressFamily family) {
             if (address_family_for_lookup == AF_INET)
@@ -98,11 +98,11 @@ class QuicSimpleClientFactory : public quic::QuicToyClient::ClientFactory {
       }
       // Arbitrarily select the first result with a matching address family,
       // ignoring any subsequent matches.
-      ip_addr = net::ToQuicIpAddress(endpoint->address());
+      ip_addr = net::ToQuicheIpAddress(endpoint->address());
       port = endpoint->port();
     }
 
-    quic::QuicServerId server_id(host_for_handshake, port, false);
+    quic::QuicServerId server_id(host_for_handshake, port);
     return std::make_unique<net::QuicSimpleClient>(
         quic::QuicSocketAddress(ip_addr, port), server_id, versions, config,
         std::move(verifier));

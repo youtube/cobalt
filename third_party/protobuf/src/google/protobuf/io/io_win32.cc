@@ -1,32 +1,9 @@
 // Protocol Buffers - Google's data interchange format
 // Copyright 2008 Google Inc.  All rights reserved.
-// https://developers.google.com/protocol-buffers/
 //
-// Redistribution and use in source and binary forms, with or without
-// modification, are permitted provided that the following conditions are
-// met:
-//
-//     * Redistributions of source code must retain the above copyright
-// notice, this list of conditions and the following disclaimer.
-//     * Redistributions in binary form must reproduce the above
-// copyright notice, this list of conditions and the following disclaimer
-// in the documentation and/or other materials provided with the
-// distribution.
-//     * Neither the name of Google Inc. nor the names of its
-// contributors may be used to endorse or promote products derived from
-// this software without specific prior written permission.
-//
-// THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
-// "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
-// LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR
-// A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT
-// OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
-// SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT
-// LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
-// DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
-// THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
-// (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
-// OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+// Use of this source code is governed by a BSD-style
+// license that can be found in the LICENSE file or at
+// https://developers.google.com/open-source/licenses/bsd
 
 // Author: laszlocsomor@google.com (Laszlo Csomor)
 //  Based on original Protocol Buffers design by
@@ -49,18 +26,22 @@
 // debug failing tests if that's caused by the long path support.
 #define SUPPORT_LONGPATHS
 
-#include <ctype.h>
+#include "google/protobuf/io/io_win32.h"
+
 #include <direct.h>
 #include <errno.h>
 #include <fcntl.h>
 #include <io.h>
-#include <memory>
 #include <sys/stat.h>
 #include <sys/types.h>
-#include <wctype.h>
-#include <windows.h>
 
-#include <google/protobuf/io/io_win32.h>
+#include "absl/strings/ascii.h"
+
+#ifndef WIN32_LEAN_AND_MEAN
+#define WIN32_LEAN_AND_MEAN 1
+#endif
+
+#include <windows.h>
 
 #include <memory>
 #include <sstream>
@@ -83,12 +64,14 @@ struct CharTraits {
 
 template <>
 struct CharTraits<char> {
-  static bool is_alpha(char ch) { return isalpha(ch); }
+  static bool is_alpha(char ch) { return absl::ascii_isalpha(ch); }
 };
 
 template <>
 struct CharTraits<wchar_t> {
-  static bool is_alpha(wchar_t ch) { return iswalpha(ch); }
+  static bool is_alpha(wchar_t ch) {
+    return (ch >= 'a' && ch <= 'z') || (ch >= 'A' && ch <= 'Z');
+  }
 };
 
 template <typename char_type>
@@ -262,7 +245,7 @@ int open(const char* path, int flags, int mode) {
 #endif
 }
 
-int mkdir(const char* path, int _mode) {
+int mkdir(const char* path, int /*_mode*/) {
 #ifdef SUPPORT_LONGPATHS
   wstring wpath;
   if (!as_windows_path(path, &wpath)) {
@@ -355,6 +338,57 @@ int write(int fd, const void* buffer, size_t size) {
 wstring testonly_utf8_to_winpath(const char* path) {
   wstring wpath;
   return as_windows_path(path, &wpath) ? wpath : wstring();
+}
+
+ExpandWildcardsResult ExpandWildcards(
+    const string& path, std::function<void(const string&)> consume) {
+  if (path.find_first_of("*?") == string::npos) {
+    // There are no wildcards in the path, we don't need to expand it.
+    consume(path);
+    return ExpandWildcardsResult::kSuccess;
+  }
+
+  wstring wpath;
+  if (!as_windows_path(path.c_str(), &wpath)) {
+    return ExpandWildcardsResult::kErrorInputPathConversion;
+  }
+
+  static const wstring kDot = L".";
+  static const wstring kDotDot = L"..";
+  WIN32_FIND_DATAW metadata;
+  HANDLE handle = ::FindFirstFileW(wpath.c_str(), &metadata);
+  if (handle == INVALID_HANDLE_VALUE) {
+    // The pattern does not match any files (or directories).
+    return ExpandWildcardsResult::kErrorNoMatchingFile;
+  }
+
+  string::size_type pos = path.find_last_of("\\/");
+  string dirname;
+  if (pos != string::npos) {
+    dirname = path.substr(0, pos + 1);
+  }
+
+  ExpandWildcardsResult matched = ExpandWildcardsResult::kErrorNoMatchingFile;
+  do {
+    // Ignore ".", "..", and directories.
+    if ((metadata.dwFileAttributes & FILE_ATTRIBUTE_DIRECTORY) == 0 &&
+        kDot != metadata.cFileName && kDotDot != metadata.cFileName) {
+      matched = ExpandWildcardsResult::kSuccess;
+      string filename;
+      if (!strings::wcs_to_utf8(metadata.cFileName, &filename)) {
+        matched = ExpandWildcardsResult::kErrorOutputPathConversion;
+        break;
+      }
+
+      if (dirname.empty()) {
+        consume(filename);
+      } else {
+        consume(dirname + filename);
+      }
+    }
+  } while (::FindNextFileW(handle, &metadata));
+  FindClose(handle);
+  return matched;
 }
 
 namespace strings {

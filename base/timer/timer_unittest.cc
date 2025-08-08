@@ -41,13 +41,13 @@ const test::TaskEnvironment::MainThreadType testing_main_threads[] = {
 
 class Receiver {
  public:
-  Receiver() : count_(0) {}
+  Receiver() = default;
   void OnCalled() { count_++; }
   bool WasCalled() { return count_ > 0; }
   int TimesCalled() { return count_; }
 
  private:
-  int count_;
+  int count_ = 0;
 };
 
 // Basic test with same setup as RunTest_OneShotTimers_Cancel below to confirm
@@ -219,7 +219,6 @@ void RunTest_DelayTimer_Deleted(
 // Each test is run against each type of main thread.  That way we are sure
 // that timers work properly in all configurations.
 
-#if !defined(STARBOARD)
 class TimerTestWithThreadType
     : public testing::TestWithParam<test::TaskEnvironment::MainThreadType> {};
 
@@ -236,7 +235,6 @@ TEST_P(TimerTestWithThreadType, OneShotTimers_Cancel) {
 TEST_P(TimerTestWithThreadType, OneShotSelfDeletingTimer) {
   RunTest_OneShotSelfDeletingTimer(GetParam());
 }
-#endif
 
 TEST(TimerTest, OneShotTimer_CustomTaskRunner) {
   auto task_runner = base::MakeRefCounted<TestSimpleTaskRunner>();
@@ -248,7 +246,7 @@ TEST(TimerTest, OneShotTimer_CustomTaskRunner) {
   // The timer will use the TestSimpleTaskRunner to schedule its delays.
   timer.SetTaskRunner(task_runner);
   timer.Start(FROM_HERE, Days(1),
-              BindLambdaForTesting([&]() { task_ran = true; }));
+              BindLambdaForTesting([&] { task_ran = true; }));
 
   EXPECT_FALSE(task_ran);
   EXPECT_TRUE(task_runner->HasPendingTask());
@@ -270,7 +268,6 @@ TEST(TimerTest, OneShotTimerWithTickClock) {
   EXPECT_FALSE(timer.IsRunning());
 }
 
-#if !defined(STARBOARD)
 TEST_P(TimerTestWithThreadType, RepeatingTimer) {
   RunTest_RepeatingTimer(GetParam(), kTestDelay);
 }
@@ -286,7 +283,6 @@ TEST_P(TimerTestWithThreadType, RepeatingTimerZeroDelay) {
 TEST_P(TimerTestWithThreadType, RepeatingTimerZeroDelay_Cancel) {
   RunTest_RepeatingTimer_Cancel(GetParam(), Seconds(0));
 }
-#endif
 
 TEST(TimerTest, RepeatingTimerWithTickClock) {
   test::TaskEnvironment task_environment(
@@ -301,7 +297,6 @@ TEST(TimerTest, RepeatingTimerWithTickClock) {
   EXPECT_EQ(expected_times_called, receiver.TimesCalled());
 }
 
-#if !defined(STARBOARD)
 TEST_P(TimerTestWithThreadType, DelayTimer_NoCall) {
   RunTest_DelayTimer_NoCall(GetParam());
 }
@@ -317,7 +312,6 @@ TEST_P(TimerTestWithThreadType, DelayTimer_Reset) {
 TEST_P(TimerTestWithThreadType, DelayTimer_Deleted) {
   RunTest_DelayTimer_Deleted(GetParam());
 }
-#endif
 
 TEST(TimerTest, DelayTimerWithTickClock) {
   test::TaskEnvironment task_environment(
@@ -494,8 +488,8 @@ TEST(TimerTest, AbandonedTaskIsCancelled) {
   timer.Start(FROM_HERE, kTestDelay, base::DoNothing());
   EXPECT_EQ(1u, task_environment.GetPendingMainThreadTaskCount());
 
-  // After AbandonAndStop(), the task is correctly treated as cancelled.
-  timer.AbandonAndStop();
+  // After Stop(), the task is correctly treated as cancelled.
+  timer.Stop();
   EXPECT_EQ(0u, task_environment.GetPendingMainThreadTaskCount());
   EXPECT_FALSE(timer.IsRunning());
 }
@@ -659,10 +653,8 @@ TEST(TimerTest, MetronomeTimerCancel) {
   EXPECT_EQ(start + Seconds(5), TimeTicks::Now());
 }
 
-#if !defined(STARBOARD)
 INSTANTIATE_TEST_SUITE_P(All,
                          TimerTestWithThreadType,
                          testing::ValuesIn(testing_main_threads));
-#endif
 
 }  // namespace base

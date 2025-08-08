@@ -1,4 +1,4 @@
-// Copyright 2015 The Crashpad Authors. All rights reserved.
+// Copyright 2015 The Crashpad Authors
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -15,20 +15,21 @@
 #include "util/mach/exception_types.h"
 
 #include <Availability.h>
-#include <AvailabilityMacros.h>
 #include <dlfcn.h>
 #include <errno.h>
-#include <libproc.h>
 #include <kern/exc_resource.h>
+#include <libproc.h>
 #include <strings.h>
 
+#include "base/apple/mach_logging.h"
+#include "base/check_op.h"
 #include "base/logging.h"
-#include "base/mac/mach_logging.h"
 #include "util/mac/mac_util.h"
 #include "util/mach/mach_extensions.h"
+#include "util/misc/no_cfi_icall.h"
 #include "util/numeric/in_range_cast.h"
 
-#if MAC_OS_X_VERSION_MAX_ALLOWED >= MAC_OS_X_VERSION_10_9
+#if __MAC_OS_X_VERSION_MAX_ALLOWED >= __MAC_10_9
 
 extern "C" {
 
@@ -82,13 +83,13 @@ namespace {
 // present on OS X 10.9 and later. If it’s not available, sets errno to ENOSYS
 // and returns -1.
 int ProcGetWakemonParams(pid_t pid, int* rate_hz, int* flags) {
-#if MAC_OS_X_VERSION_MAX_ALLOWED < MAC_OS_X_VERSION_10_9
+#if __MAC_OS_X_VERSION_MAX_ALLOWED < __MAC_10_9
   // proc_get_wakemon_params() isn’t in the SDK. Look it up dynamically.
-  static ProcGetWakemonParamsType proc_get_wakemon_params =
-      GetProcGetWakemonParams();
+  static crashpad::NoCfiIcall<ProcGetWakemonParamsType> proc_get_wakemon_params(
+      GetProcGetWakemonParams());
 #endif
 
-#if MAC_OS_X_VERSION_MIN_REQUIRED < MAC_OS_X_VERSION_10_9
+#if __MAC_OS_X_VERSION_MIN_REQUIRED < __MAC_10_9
   // proc_get_wakemon_params() is definitely available if the deployment target
   // is 10.9 or newer.
   if (!proc_get_wakemon_params) {
@@ -134,14 +135,15 @@ exception_type_t ExcCrashRecoverOriginalException(
 bool ExcCrashCouldContainException(exception_type_t exception) {
   // EXC_CRASH should never be wrapped in another EXC_CRASH.
   //
-  // EXC_RESOURCE and EXC_GUARD are software exceptions that are never wrapped
-  // in EXC_CRASH. The only time EXC_CRASH is generated is for processes exiting
-  // due to an unhandled core-generating signal or being killed by SIGKILL for
-  // code-signing reasons. Neither of these apply to EXC_RESOURCE or EXC_GUARD.
-  // See 10.10 xnu-2782.1.97/bsd/kern/kern_exit.c proc_prepareexit(). Receiving
-  // these exception types wrapped in EXC_CRASH would lose information because
-  // their code[0] uses all 64 bits (see ExceptionSnapshotMac::Initialize()) and
-  // the code[0] recovered from EXC_CRASH only contains 20 significant bits.
+  // EXC_RESOURCE is a software exceptions that is never wrapped in EXC_CRASH.
+  // The same applies to EXC_GUARD below macOS 13. The only time EXC_CRASH is
+  // generated is for processes exiting due to an unhandled core-generating
+  // signal or being killed by SIGKILL for code-signing reasons. Neither of
+  // these apply to EXC_RESOURCE or EXC_GUARD. See 10.10
+  // xnu-2782.1.97/bsd/kern/kern_exit.c proc_prepareexit(). Receiving these
+  // exception types wrapped in EXC_CRASH would lose information because their
+  // code[0] uses all 64 bits (see ExceptionSnapshotMac::Initialize()) and the
+  // code[0] recovered from EXC_CRASH only contains 20 significant bits.
   //
   // EXC_CORPSE_NOTIFY may be generated from EXC_CRASH, but the opposite should
   // never occur.
@@ -149,11 +151,11 @@ bool ExcCrashCouldContainException(exception_type_t exception) {
   // kMachExceptionSimulated is a non-fatal Crashpad-specific pseudo-exception
   // that never exists as an exception within the kernel and should thus never
   // be wrapped in EXC_CRASH.
-  return exception != EXC_CRASH &&
-         exception != EXC_RESOURCE &&
-         exception != EXC_GUARD &&
-         exception != EXC_CORPSE_NOTIFY &&
-         exception != kMachExceptionSimulated;
+  if (MacOSVersionNumber() < 13'00'00 && exception == EXC_GUARD) {
+    return false;
+  }
+  return exception != EXC_CRASH && exception != EXC_RESOURCE &&
+         exception != EXC_CORPSE_NOTIFY && exception != kMachExceptionSimulated;
 }
 
 int32_t ExceptionCodeForMetrics(exception_type_t exception,
@@ -259,7 +261,8 @@ bool IsExceptionNonfatalResource(exception_type_t exception,
     // creation but can be made fatal by calling proc_rlimit_control() with
     // RLIMIT_CPU_USAGE_MONITOR as the second argument and CPUMON_MAKE_FATAL set
     // in the flags.
-    if (MacOSXMinorVersion() >= 10) {
+    if (__MAC_OS_X_VERSION_MIN_REQUIRED >= __MAC_10_10 ||
+        MacOSVersionNumber() >= 10'10'00) {
       // In OS X 10.10, the exception code indicates whether the exception is
       // fatal. See 10.10 xnu-2782.1.97/osfmk/kern/thread.c
       // THIS_THREAD_IS_CONSUMING_TOO_MUCH_CPU__SENDING_EXC_RESOURCE().

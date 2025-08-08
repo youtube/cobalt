@@ -8,13 +8,11 @@
     xmlns:tools="http://schemas.android.com/tools"
     package="org.chromium.net.test.support">
 
-    <uses-sdk android:minSdkVersion="24" android:targetSdkVersion="34" />
     <uses-permission android:name="android.permission.WRITE_EXTERNAL_STORAGE"/>
     <uses-permission android:name="android.permission.INTERNET"/>
 
-    <application android:label="ChromiumNetTestSupport">
-
-        <uses-library android:name="android.test.runner" />
+    <application android:label="ChromiumNetTestSupport"
+             android:name="androidx.multidex.MultiDexApplication">
 
         <!-- The android:requestLegacyExternalStorage setting is necessary to
              work on Q+. If the target SDK version of this APK is ever updated

@@ -26,10 +26,6 @@
 #if defined(ABSL_STACKTRACE_INL_HEADER)
 #error ABSL_STACKTRACE_INL_HEADER cannot be directly set
 
-#elif defined(STARBOARD)
-#define ABSL_STACKTRACE_INL_HEADER \
-    "absl/debugging/internal/stacktrace_starboard-inl.inc"
-
 #elif defined(_WIN32)
 #define ABSL_STACKTRACE_INL_HEADER \
     "absl/debugging/internal/stacktrace_win32-inl.inc"
@@ -45,6 +41,13 @@
 #elif defined(__EMSCRIPTEN__) && !defined(STANDALONE_WASM)
 #define ABSL_STACKTRACE_INL_HEADER \
   "absl/debugging/internal/stacktrace_emscripten-inl.inc"
+
+#elif defined(__ANDROID__) && __ANDROID_API__ >= 33
+
+// Use the generic implementation for Android 33+ (Android T+). This is the
+// first version of Android for which <execinfo.h> implements backtrace().
+#define ABSL_STACKTRACE_INL_HEADER \
+  "absl/debugging/internal/stacktrace_generic-inl.inc"
 
 #elif defined(__linux__) && !defined(__ANDROID__)
 

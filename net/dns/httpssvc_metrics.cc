@@ -4,6 +4,8 @@
 
 #include "net/dns/httpssvc_metrics.h"
 
+#include <string_view>
+
 #include "base/containers/contains.h"
 #include "base/feature_list.h"
 #include "base/metrics/histogram.h"
@@ -36,7 +38,6 @@ enum HttpssvcDnsRcode TranslateDnsRcodeForHttpssvcExperiment(uint8_t rcode) {
     default:
       return HttpssvcDnsRcode::kUnrecognizedRcode;
   }
-  NOTREACHED();
 }
 
 HttpssvcMetrics::HttpssvcMetrics(bool secure) : secure_(secure) {}
@@ -51,10 +52,6 @@ void HttpssvcMetrics::SaveForAddressQuery(base::TimeDelta resolve_time,
 
   if (rcode != HttpssvcDnsRcode::kNoError)
     disqualified_ = true;
-}
-
-void HttpssvcMetrics::SaveAddressQueryFailure() {
-  disqualified_ = true;
 }
 
 void HttpssvcMetrics::SaveForHttps(enum HttpssvcDnsRcode rcode,
@@ -77,16 +74,15 @@ void HttpssvcMetrics::SaveForHttps(enum HttpssvcDnsRcode rcode,
   https_resolve_time_ = https_resolve_time;
 }
 
-std::string HttpssvcMetrics::BuildMetricName(
-    base::StringPiece leaf_name) const {
-  base::StringPiece type_str = "RecordHttps";
-  base::StringPiece secure = secure_ ? "Secure" : "Insecure";
+std::string HttpssvcMetrics::BuildMetricName(std::string_view leaf_name) const {
+  std::string_view type_str = "RecordHttps";
+  std::string_view secure = secure_ ? "Secure" : "Insecure";
   // This part is just a legacy from old experiments but now meaningless.
-  base::StringPiece expectation = "ExpectNoerror";
+  std::string_view expectation = "ExpectNoerror";
 
   // Example metric name:
   // Net.DNS.HTTPSSVC.RecordHttps.Secure.ExpectNoerror.DnsRcode
-  // TODO(crbug.com/1366422): Simplify the metric names.
+  // TODO(crbug.com/40239736): Simplify the metric names.
   return base::JoinString(
       {"Net.DNS.HTTPSSVC", type_str, secure, expectation, leaf_name}, ".");
 }
@@ -121,7 +117,7 @@ void HttpssvcMetrics::RecordMetrics() {
   std::vector<base::TimeDelta>::iterator slowest_address_resolve =
       std::max_element(address_resolve_times_.begin(),
                        address_resolve_times_.end());
-  DCHECK(slowest_address_resolve != address_resolve_times_.end());
+  CHECK(slowest_address_resolve != address_resolve_times_.end());
 
   // It's possible to get here with a zero resolve time in tests.  Avoid
   // divide-by-zero below by returning early; this data point is invalid anyway.

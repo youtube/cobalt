@@ -2,22 +2,27 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#ifdef UNSAFE_BUFFERS_BUILD
+// TODO(crbug.com/40284755): Remove this and spanify to fix the errors.
+#pragma allow_unsafe_buffers
+#endif
+
+#include "base/win/pe_image_reader.h"
+
+#include <windows.h>
+
 #include <stddef.h>
 #include <stdint.h>
-#include <windows.h>
-#include <wintrust.h>
 
 #include "base/files/file_path.h"
 #include "base/files/memory_mapped_file.h"
 #include "base/memory/raw_ptr.h"
 #include "base/path_service.h"
-#include "base/win/pe_image_reader.h"
+#include "base/win/wintrust_shim.h"
 #include "testing/gmock/include/gmock/gmock.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
 using ::testing::_;
-using ::testing::Gt;
-using ::testing::NotNull;
 using ::testing::Return;
 using ::testing::StrictMock;
 
@@ -47,8 +52,7 @@ class PeImageReaderTest : public testing::TestWithParam<const TestData*> {
 
     ASSERT_TRUE(data_file_.Initialize(data_file_path_));
 
-    ASSERT_TRUE(
-        image_reader_.Initialize(data_file_.data(), data_file_.length()));
+    ASSERT_TRUE(image_reader_.Initialize(data_file_.bytes()));
   }
 
   raw_ptr<const TestData> expected_data_;
@@ -76,11 +80,9 @@ TEST_P(PeImageReaderTest, GetCoffFileHeader) {
 }
 
 TEST_P(PeImageReaderTest, GetOptionalHeaderData) {
-  size_t optional_header_size = 0;
-  const uint8_t* optional_header_data =
-      image_reader_.GetOptionalHeaderData(&optional_header_size);
-  ASSERT_NE(nullptr, optional_header_data);
-  EXPECT_EQ(expected_data_->optional_header_size, optional_header_size);
+  span<const uint8_t> optional_header_data =
+      image_reader_.GetOptionalHeaderData();
+  ASSERT_THAT(optional_header_data, testing::Not(testing::IsEmpty()));
 }
 
 TEST_P(PeImageReaderTest, GetNumberOfSections) {
@@ -108,19 +110,17 @@ TEST_P(PeImageReaderTest, InitializeFailTruncatedFile) {
   PeImageReader short_reader;
 
   // Initialize should succeed when all headers are present.
-  EXPECT_TRUE(short_reader.Initialize(data_file_.data(), header_size));
+  EXPECT_TRUE(short_reader.Initialize(data_file_.bytes().first(header_size)));
 
   // But fail if anything is missing.
   for (size_t i = 0; i < header_size; ++i) {
-    EXPECT_FALSE(short_reader.Initialize(data_file_.data(), i));
+    EXPECT_FALSE(short_reader.Initialize(data_file_.bytes().first(i)));
   }
 }
 
 TEST_P(PeImageReaderTest, GetExportSection) {
-  size_t section_size = 0;
-  const uint8_t* export_section = image_reader_.GetExportSection(&section_size);
-  ASSERT_NE(nullptr, export_section);
-  EXPECT_NE(0U, section_size);
+  span<const uint8_t> export_section = image_reader_.GetExportSection();
+  EXPECT_THAT(export_section, testing::Not(testing::IsEmpty()));
 }
 
 TEST_P(PeImageReaderTest, GetNumberOfDebugEntries) {
@@ -131,13 +131,11 @@ TEST_P(PeImageReaderTest, GetNumberOfDebugEntries) {
 TEST_P(PeImageReaderTest, GetDebugEntry) {
   size_t number_of_debug_entries = image_reader_.GetNumberOfDebugEntries();
   for (size_t i = 0; i < number_of_debug_entries; ++i) {
-    const uint8_t* raw_data = nullptr;
-    size_t raw_data_size = 0;
+    span<const uint8_t> raw_data;
     const IMAGE_DEBUG_DIRECTORY* entry =
-        image_reader_.GetDebugEntry(i, &raw_data, &raw_data_size);
-    EXPECT_NE(nullptr, entry);
-    EXPECT_NE(nullptr, raw_data);
-    EXPECT_NE(0U, raw_data_size);
+        image_reader_.GetDebugEntry(i, raw_data);
+    EXPECT_THAT(entry, testing::NotNull());
+    EXPECT_THAT(raw_data, testing::Not(testing::IsEmpty()));
   }
 }
 
@@ -178,11 +176,10 @@ class CertificateReceiver {
   void* AsContext() { return this; }
   static bool OnCertificateCallback(uint16_t revision,
                                     uint16_t certificate_type,
-                                    const uint8_t* certificate_data,
-                                    size_t certificate_data_size,
+                                    base::span<const uint8_t> certificate_data,
                                     void* context) {
     return reinterpret_cast<CertificateReceiver*>(context)->OnCertificate(
-        revision, certificate_type, certificate_data, certificate_data_size);
+        revision, certificate_type, certificate_data);
   }
 
  protected:
@@ -190,8 +187,7 @@ class CertificateReceiver {
   virtual ~CertificateReceiver() = default;
   virtual bool OnCertificate(uint16_t revision,
                              uint16_t certificate_type,
-                             const uint8_t* certificate_data,
-                             size_t certificate_data_size) = 0;
+                             base::span<const uint8_t> certificate_data) = 0;
 };
 
 class MockCertificateReceiver : public CertificateReceiver {
@@ -201,7 +197,8 @@ class MockCertificateReceiver : public CertificateReceiver {
   MockCertificateReceiver(const MockCertificateReceiver&) = delete;
   MockCertificateReceiver& operator=(const MockCertificateReceiver&) = delete;
 
-  MOCK_METHOD4(OnCertificate, bool(uint16_t, uint16_t, const uint8_t*, size_t));
+  MOCK_METHOD3(OnCertificate,
+               bool(uint16_t, uint16_t, base::span<const uint8_t>));
 };
 
 struct CertificateTestData {
@@ -222,8 +219,7 @@ class PeImageReaderCertificateTest
     data_file_path_ = data_file_path_.AppendASCII("pe_image_reader");
     data_file_path_ = data_file_path_.AppendASCII(expected_data_->filename);
     ASSERT_TRUE(data_file_.Initialize(data_file_path_));
-    ASSERT_TRUE(
-        image_reader_.Initialize(data_file_.data(), data_file_.length()));
+    ASSERT_TRUE(image_reader_.Initialize(data_file_.bytes()));
   }
 
   raw_ptr<const CertificateTestData> expected_data_;
@@ -237,7 +233,7 @@ TEST_P(PeImageReaderCertificateTest, EnumCertificates) {
   if (expected_data_->num_signers) {
     EXPECT_CALL(receiver, OnCertificate(WIN_CERT_REVISION_2_0,
                                         WIN_CERT_TYPE_PKCS_SIGNED_DATA,
-                                        NotNull(), Gt(0U)))
+                                        testing::Not(testing::IsEmpty())))
         .Times(expected_data_->num_signers)
         .WillRepeatedly(Return(true));
   }
@@ -249,7 +245,7 @@ TEST_P(PeImageReaderCertificateTest, AbortEnum) {
   StrictMock<MockCertificateReceiver> receiver;
   if (expected_data_->num_signers) {
     // Return false for the first cert, thereby stopping the enumeration.
-    EXPECT_CALL(receiver, OnCertificate(_, _, _, _)).WillOnce(Return(false));
+    EXPECT_CALL(receiver, OnCertificate(_, _, _)).WillOnce(Return(false));
     EXPECT_FALSE(image_reader_.EnumCertificates(
         &CertificateReceiver::OnCertificateCallback, receiver.AsContext()));
   } else {

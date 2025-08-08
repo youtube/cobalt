@@ -6,22 +6,19 @@
 #define MEDIA_GPU_V4L2_V4L2_VDA_HELPERS_H_
 
 #include <memory>
+#include <optional>
 
 #include "base/memory/scoped_refptr.h"
 #include "base/task/sequenced_task_runner.h"
 #include "media/base/video_codecs.h"
 #include "media/gpu/chromeos/fourcc.h"
 #include "media/gpu/chromeos/image_processor.h"
-#include "third_party/abseil-cpp/absl/types/optional.h"
 #include "ui/gfx/geometry/size.h"
 
 namespace media {
 
 class V4L2Device;
 class H264Parser;
-#if BUILDFLAG(ENABLE_HEVC_PARSER_AND_HW_DECODER)
-class H265Parser;
-#endif  // BUILDFLAG(ENABLE_HEVC_PARSER_AND_HW_DECODER)
 
 // Helper static methods to be shared between V4L2VideoDecodeAccelerator and
 // V4L2SliceVideoDecodeAccelerator. This avoids some code duplication between
@@ -30,9 +27,9 @@ class H265Parser;
 namespace v4l2_vda_helpers {
 
 // Returns a usable input format of image processor, or nullopt if not found.
-absl::optional<Fourcc> FindImageProcessorInputFormat(V4L2Device* vda_device);
+std::optional<Fourcc> FindImageProcessorInputFormat(V4L2Device* vda_device);
 // Return a usable output format of image processor, or nullopt if not found.
-absl::optional<Fourcc> FindImageProcessorOutputFormat(V4L2Device* ip_device);
+std::optional<Fourcc> FindImageProcessorOutputFormat(V4L2Device* ip_device);
 
 // Create and return an image processor for the given parameters, or nullptr
 // if it cannot be created.
@@ -118,31 +115,6 @@ class H264InputBufferFragmentSplitter : public InputBufferFragmentSplitter {
   // Set if we have a pending incomplete frame in the input buffer.
   bool partial_frame_pending_ = false;
 };
-
-#if BUILDFLAG(ENABLE_HEVC_PARSER_AND_HW_DECODER)
-// Splitter for HEVC, making sure to properly report when a partial frame
-// may be pending.
-class HEVCInputBufferFragmentSplitter : public InputBufferFragmentSplitter {
- public:
-  explicit HEVCInputBufferFragmentSplitter();
-  ~HEVCInputBufferFragmentSplitter() override;
-
-  bool AdvanceFrameFragment(const uint8_t* data,
-                            size_t size,
-                            size_t* endpos) override;
-  void Reset() override;
-  bool IsPartialFramePending() const override;
-
- private:
-  // For HEVC decode, hardware requires that we send it frame-sized chunks.
-  // We'll need to parse the stream.
-  std::unique_ptr<H265Parser> h265_parser_;
-  // Set if we have a pending incomplete frame in the input buffer.
-  bool partial_frame_pending_ = false;
-  // Set if we have pending slice data in the input buffer.
-  bool slice_data_pending_ = false;
-};
-#endif  // BUILDFLAG(ENABLE_HEVC_PARSER_AND_HW_DECODER)
 
 }  // namespace v4l2_vda_helpers
 }  // namespace media

@@ -1,21 +1,26 @@
-// Copyright 2017 The Chromium Authors. All rights reserved.
+// Copyright 2017 The Chromium Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
 // NOTE: This file is only compiled when Crashpad is not used as the crash
 // reproter.
 
-#include "components/crash/core/common/crash_key.h"
+#ifdef UNSAFE_BUFFERS_BUILD
+// TODO(crbug.com/40285824): Remove this and convert code to safer constructs.
+#pragma allow_unsafe_buffers
+#endif
+
+#include <string_view>
 
 #include "base/debug/crash_logging.h"
 #include "base/format_macros.h"
-#include "base/strings/string_piece.h"
 #include "base/strings/stringprintf.h"
 #include "build/build_config.h"
+#include "components/crash/core/common/crash_key.h"
 #include "components/crash/core/common/crash_key_base_support.h"
 #include "components/crash/core/common/crash_key_internal.h"
 
-#if defined(OS_MACOSX) || defined(OS_IOS) || defined(OS_WIN)
+#if BUILDFLAG(IS_APPLE) || BUILDFLAG(IS_WIN)
 #error "This file should not be used when Crashpad is available, nor on iOS."
 #endif
 
@@ -49,7 +54,11 @@ void ResetCrashKeyStorageForTesting() {
   delete storage;
 }
 
-void CrashKeyStringImpl::Set(base::StringPiece value) {
+void CrashKeyStringImpl::Set(std::string_view value) {
+  // This check cannot be in the constructor because it is constexpr. Use _LT
+  // rather than _LE to account for the terminating \0.
+  DCHECK_LT(strlen(name_), kCrashKeyStorageKeySize);
+
   const size_t kValueMaxLength = index_array_count_ * kCrashKeyStorageValueSize;
 
   TransitionalCrashKeyStorage* storage = GetCrashKeyStorage();
@@ -58,7 +67,7 @@ void CrashKeyStringImpl::Set(base::StringPiece value) {
 
   // If there is only one slot for the value, then handle it directly.
   if (index_array_count_ == 1) {
-    std::string value_string = value.as_string();
+    std::string value_string(value);
     if (is_set()) {
       storage->SetValueAtIndex(index_array_[0], value_string.c_str());
     } else {
@@ -98,8 +107,8 @@ void CrashKeyStringImpl::Set(base::StringPiece value) {
   for (size_t i = 0; i < index_array_count_; ++i) {
     if (offset < value.length()) {
       // The storage NUL-terminates the value, so ensure that a byte is
-      // not lost when setting individaul chunks.
-      base::StringPiece chunk =
+      // not lost when setting individual chunks.
+      std::string_view chunk =
           value.substr(offset, kCrashKeyStorageValueSize - 1);
       offset += chunk.length();
 
@@ -142,6 +151,10 @@ std::string GetCrashKeyValue(const std::string& key_name) {
   if (value)
     return value;
   return std::string();
+}
+
+void InitializeCrashKeysForTesting() {
+  InitializeCrashKeys();
 }
 
 void ResetCrashKeysForTesting() {

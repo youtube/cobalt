@@ -8,6 +8,7 @@ import android.app.Activity;
 import android.content.res.Resources.NotFoundException;
 import android.os.Looper;
 import android.os.MessageQueue;
+import android.os.SystemClock;
 import android.util.Log;
 import android.util.Printer;
 import android.view.View;
@@ -15,12 +16,14 @@ import android.view.ViewGroup;
 
 import androidx.annotation.VisibleForTesting;
 
-import org.chromium.base.annotations.CalledByNative;
-import org.chromium.base.annotations.JNINamespace;
-import org.chromium.base.annotations.NativeMethods;
+import org.jni_zero.CalledByNative;
+import org.jni_zero.JNINamespace;
+import org.jni_zero.NativeMethods;
+
 import org.chromium.base.task.PostTask;
 import org.chromium.base.task.TaskTraits;
-import org.chromium.build.annotations.MainDex;
+import org.chromium.build.annotations.NullMarked;
+import org.chromium.build.annotations.Nullable;
 
 import java.util.ArrayList;
 
@@ -40,8 +43,8 @@ import java.util.ArrayList;
  * It is OK to use tracing before the native library has loaded, in a slightly restricted fashion.
  * @see EarlyTraceEvent for details.
  */
+@NullMarked
 @JNINamespace("base::android")
-@MainDex
 public class TraceEvent implements AutoCloseable {
     private static volatile boolean sEnabled; // True when tracing into Chrome's tracing service.
     private static volatile boolean sUiThreadReady;
@@ -51,10 +54,12 @@ public class TraceEvent implements AutoCloseable {
     static class BasicLooperMonitor implements Printer {
         @VisibleForTesting(otherwise = VisibleForTesting.PRIVATE)
         static final String LOOPER_TASK_PREFIX = "Looper.dispatch: ";
+
         @VisibleForTesting(otherwise = VisibleForTesting.PRIVATE)
         static final String FILTERED_EVENT_NAME = LOOPER_TASK_PREFIX + "EVENT_NAME_FILTERED";
+
         private static final int SHORTEST_LOG_PREFIX_LENGTH = "<<<<< Finished to ".length();
-        private String mCurrentTarget;
+        private @Nullable String mCurrentTarget;
 
         @Override
         public void println(final String line) {
@@ -77,7 +82,7 @@ public class TraceEvent implements AutoCloseable {
                 if (sEnabled) {
                     TraceEventJni.get().beginToplevel(mCurrentTarget);
                 } else {
-                    EarlyTraceEvent.begin(mCurrentTarget, true /*isToplevel*/);
+                    EarlyTraceEvent.begin(mCurrentTarget, /* isToplevel= */ true);
                 }
             }
         }
@@ -86,9 +91,9 @@ public class TraceEvent implements AutoCloseable {
             boolean earlyTracingActive = EarlyTraceEvent.enabled();
             if ((sEnabled || earlyTracingActive) && mCurrentTarget != null) {
                 if (sEnabled) {
-                    TraceEventJni.get().endToplevel(mCurrentTarget);
+                    TraceEventJni.get().endToplevel();
                 } else {
-                    EarlyTraceEvent.end(mCurrentTarget, true /*isToplevel*/);
+                    EarlyTraceEvent.end(mCurrentTarget, /* isToplevel= */ true);
                 }
             }
             mCurrentTarget = null;
@@ -161,8 +166,7 @@ public class TraceEvent implements AutoCloseable {
         // Calculation constants
         private static final long FRAME_DURATION_MILLIS = 1000L / 60L; // 60 FPS
         // A reasonable threshold for defining a Looper event as "long running"
-        private static final long MIN_INTERESTING_DURATION_MILLIS =
-                FRAME_DURATION_MILLIS;
+        private static final long MIN_INTERESTING_DURATION_MILLIS = FRAME_DURATION_MILLIS;
         // A reasonable threshold for a "burst" of tasks on the Looper
         private static final long MIN_INTERESTING_BURST_DURATION_MILLIS =
                 MIN_INTERESTING_DURATION_MILLIS * 3;
@@ -209,8 +213,7 @@ public class TraceEvent implements AutoCloseable {
         final void endHandling(final String line) {
             final long elapsed = TimeUtils.elapsedRealtimeMillis() - mLastWorkStartedAt;
             if (elapsed > MIN_INTERESTING_DURATION_MILLIS) {
-                traceAndLog(Log.WARN, "observed a task that took "
-                        + elapsed + "ms: " + line);
+                traceAndLog(Log.WARN, "observed a task that took " + elapsed + "ms: " + line);
             }
             super.endHandling(line);
             syncIdleMonitoring();
@@ -232,10 +235,15 @@ public class TraceEvent implements AutoCloseable {
             TraceEvent.begin(IDLE_EVENT_NAME, mNumTasksSinceLastIdle + " tasks since last idle.");
             if (elapsed > MIN_INTERESTING_BURST_DURATION_MILLIS) {
                 // Dump stats
-                String statsString = mNumTasksSeen + " tasks and "
-                        + mNumIdlesSeen + " idles processed so far, "
-                        + mNumTasksSinceLastIdle + " tasks bursted and "
-                        + elapsed + "ms elapsed since last idle";
+                String statsString =
+                        mNumTasksSeen
+                                + " tasks and "
+                                + mNumIdlesSeen
+                                + " idles processed so far, "
+                                + mNumTasksSinceLastIdle
+                                + " tasks bursted and "
+                                + elapsed
+                                + "ms elapsed since last idle";
                 traceAndLog(Log.DEBUG, statsString);
             }
             mLastIdleStartedAt = now;
@@ -248,15 +256,20 @@ public class TraceEvent implements AutoCloseable {
     private static final class LooperMonitorHolder {
         private static final BasicLooperMonitor sInstance =
                 CommandLine.getInstance().hasSwitch(BaseSwitches.ENABLE_IDLE_TRACING)
-                ? new IdleTracingLooperMonitor() : new BasicLooperMonitor();
+                        ? new IdleTracingLooperMonitor()
+                        : new BasicLooperMonitor();
     }
 
     private final String mName;
 
-    /**
-     * Constructor used to support the "try with resource" construct.
-     */
-    private TraceEvent(String name, String arg) {
+    /** Constructor used to support the "try with resource" construct. */
+    private TraceEvent(String name, @Nullable String arg) {
+        mName = name;
+        begin(name, arg);
+    }
+
+    /** Constructor used to support the "try with resource" construct. */
+    private TraceEvent(String name, int arg) {
         mName = name;
         begin(name, arg);
     }
@@ -275,21 +288,31 @@ public class TraceEvent implements AutoCloseable {
      * @param arg The arguments of the event.
      * @return a TraceEvent, or null if tracing is not enabled.
      */
-    public static TraceEvent scoped(String name, String arg) {
+    public static @Nullable TraceEvent scoped(String name, @Nullable String arg) {
         if (!(EarlyTraceEvent.enabled() || enabled())) return null;
         return new TraceEvent(name, arg);
     }
 
     /**
-     * Similar to {@link #scoped(String, String arg)}, but uses null for |arg|.
+     * Factory used to support the "try with resource" construct.
+     *
+     * Note that if tracing is not enabled, this will not result in allocating an object.
+     *
+     * @param name Trace event name.
+     * @param arg An integer argument of the event.
+     * @return a TraceEvent, or null if tracing is not enabled.
      */
-    public static TraceEvent scoped(String name) {
+    public static @Nullable TraceEvent scoped(String name, int arg) {
+        if (!(EarlyTraceEvent.enabled() || enabled())) return null;
+        return new TraceEvent(name, arg);
+    }
+
+    /** Similar to {@link #scoped(String, String arg)}, but uses null for |arg|. */
+    public static @Nullable TraceEvent scoped(String name) {
         return scoped(name, null);
     }
 
-    /**
-     * Notification from native that tracing is enabled/disabled.
-     */
+    /** Notification from native that tracing is enabled/disabled. */
     @CalledByNative
     public static void setEnabled(boolean enabled) {
         if (enabled) EarlyTraceEvent.disable();
@@ -297,9 +320,14 @@ public class TraceEvent implements AutoCloseable {
         // by other applications
         if (sEnabled != enabled) {
             sEnabled = enabled;
-            ThreadUtils.getUiThreadLooper().setMessageLogging(
-                    enabled ? LooperMonitorHolder.sInstance : null);
+            ThreadUtils.getUiThreadLooper()
+                    .setMessageLogging(enabled ? LooperMonitorHolder.sInstance : null);
         }
+
+        if (sEnabled) {
+            EarlyTraceEvent.dumpActivityStartupEvents();
+        }
+
         if (sUiThreadReady) {
             ViewHierarchyDumper.updateEnabledState();
         }
@@ -392,6 +420,98 @@ public class TraceEvent implements AutoCloseable {
     }
 
     /**
+     * Records a 'WebView.Startup.CreationTime.TotalFactoryInitTime' event with the
+     * 'android_webview.timeline' category starting at `startTimeMs` with the duration of
+     * `durationMs`.
+     */
+    public static void webViewStartupTotalFactoryInit(long startTimeMs, long durationMs) {
+        if (sEnabled) {
+            TraceEventJni.get().webViewStartupTotalFactoryInit(startTimeMs, durationMs);
+        }
+    }
+
+    /**
+     * Records a 'WebView.Startup.CreationTime.Stage1.FactoryInit' event with the
+     * 'android_webview.timeline' category starting at `startTimeMs` with the duration of
+     * `durationMs`.
+     */
+    public static void webViewStartupStage1(long startTimeMs, long durationMs) {
+        if (sEnabled) {
+            TraceEventJni.get().webViewStartupStage1(startTimeMs, durationMs);
+        }
+    }
+
+    /**
+     * Records 'WebView.Startup.CreationTime.FirstInstanceWithGlobalStartup' or
+     * 'WebView.Startup.CreationTime.FirstInstanceWithoutGlobalStartup' events depending on the
+     * value of `includedGlobalStartup` with the 'android_webview.timeline' category starting at
+     * `startTimeMs` with the duration of `durationMs`.
+     */
+    public static void webViewStartupFirstInstance(
+            long startTimeMs, long durationMs, boolean includedGlobalStartup) {
+        if (sEnabled) {
+            TraceEventJni.get()
+                    .webViewStartupFirstInstance(startTimeMs, durationMs, includedGlobalStartup);
+        }
+    }
+
+    /**
+     * Records a 'WebView.Startup.CreationTime.NotFirstInstance' event with the
+     * 'android_webview.timeline' category starting at `startTimeMs` with the duration of
+     * `durationMs`.
+     */
+    public static void webViewStartupNotFirstInstance(long startTimeMs, long durationMs) {
+        if (sEnabled) {
+            TraceEventJni.get().webViewStartupNotFirstInstance(startTimeMs, durationMs);
+        }
+    }
+
+    /**
+     * Records a 'WebView.Startup.CreationTime.StartChromiumLocked' event with the
+     * 'android_webview.timeline' category starting at `startTimeMs` with the duration of
+     * `durationMs`. `startCallSite`, `finishCallSite` and `startupMode are set as the arguments for
+     * the event.
+     */
+    public static void webViewStartupStartChromiumLocked(
+            long startTimeMs,
+            long durationMs,
+            int startCallSite,
+            int finishCallSite,
+            int startupMode) {
+        if (sEnabled) {
+            TraceEventJni.get()
+                    .webViewStartupStartChromiumLocked(
+                            startTimeMs, durationMs, startCallSite, finishCallSite, startupMode);
+        }
+    }
+
+    /** Records 'Startup.ActivityStart' event with the 'interactions' category. */
+    public static void startupActivityStart(long activityId, long startTimeMs) {
+        if (sEnabled) {
+            TraceEventJni.get().startupActivityStart(activityId, startTimeMs);
+        } else {
+            EarlyTraceEvent.startupActivityStart(activityId, startTimeMs);
+        }
+    }
+
+    /** Records 'Startup.LaunchCause' event with the 'interactions' category. */
+    public static void startupLaunchCause(long activityId, int launchCause) {
+        if (sEnabled) {
+            TraceEventJni.get()
+                    .startupLaunchCause(activityId, SystemClock.uptimeMillis(), launchCause);
+        } else {
+            EarlyTraceEvent.startupLaunchCause(activityId, launchCause);
+        }
+    }
+
+    /** Records 'Startup.TimeToFirstVisibleContent2' event with the 'interactions' category. */
+    public static void startupTimeToFirstVisibleContent2(
+            long activityId, long startTimeMs, long durationMs) {
+        if (!sEnabled) return;
+        TraceEventJni.get().startupTimeToFirstVisibleContent2(activityId, startTimeMs, durationMs);
+    }
+
+    /**
      * Snapshots the view hierarchy state on the main thread and then finishes emitting a trace
      * event on the threadpool.
      */
@@ -413,10 +533,12 @@ public class TraceEvent implements AutoCloseable {
             // quite slow.
             long flow = views.hashCode();
 
-            PostTask.postTask(TaskTraits.BEST_EFFORT, () -> {
-                // Actually output the dump as a trace event on a thread pool.
-                TraceEventJni.get().initViewHierarchyDump(flow, views);
-            });
+            PostTask.postTask(
+                    TaskTraits.BEST_EFFORT,
+                    () -> {
+                        // Actually output the dump as a trace event on a thread pool.
+                        TraceEventJni.get().initViewHierarchyDump(flow, views);
+                    });
             TraceEvent.end("instantAndroidViewHierarchy", null, flow);
         }
     }
@@ -441,7 +563,7 @@ public class TraceEvent implements AutoCloseable {
     public static void finishAsync(String name, long id) {
         EarlyTraceEvent.finishAsync(name, id);
         if (sEnabled) {
-            TraceEventJni.get().finishAsync(name, id);
+            TraceEventJni.get().finishAsync(id);
         }
     }
 
@@ -458,10 +580,22 @@ public class TraceEvent implements AutoCloseable {
      * @param name The name of the event.
      * @param arg  The arguments of the event.
      */
-    public static void begin(String name, String arg) {
-        EarlyTraceEvent.begin(name, false /*isToplevel*/);
+    public static void begin(String name, @Nullable String arg) {
+        EarlyTraceEvent.begin(name, /* isToplevel= */ false);
         if (sEnabled) {
             TraceEventJni.get().begin(name, arg);
+        }
+    }
+
+    /**
+     * Triggers the 'begin' native trace event.
+     * @param name The name of the event.
+     * @param arg An integer argument of the event.
+     */
+    public static void begin(String name, int arg) {
+        EarlyTraceEvent.begin(name, /* isToplevel= */ false);
+        if (sEnabled) {
+            TraceEventJni.get().beginWithIntArg(name, arg);
         }
     }
 
@@ -478,7 +612,7 @@ public class TraceEvent implements AutoCloseable {
      * @param name The name of the event.
      * @param arg  The arguments of the event.
      */
-    public static void end(String name, String arg) {
+    public static void end(String name, @Nullable String arg) {
         end(name, arg, 0);
     }
 
@@ -488,10 +622,10 @@ public class TraceEvent implements AutoCloseable {
      * @param arg  The arguments of the event.
      * @param flow The flow ID to associate with this event (0 is treated as invalid).
      */
-    public static void end(String name, String arg, long flow) {
-        EarlyTraceEvent.end(name, false /*isToplevel*/);
+    public static void end(String name, @Nullable String arg, long flow) {
+        EarlyTraceEvent.end(name, /* isToplevel= */ false);
         if (sEnabled) {
-            TraceEventJni.get().end(name, arg, flow);
+            TraceEventJni.get().end(arg, flow);
         }
     }
 
@@ -504,8 +638,10 @@ public class TraceEvent implements AutoCloseable {
         ArrayList<ActivityInfo> views = new ArrayList<>(2);
         for (Activity a : ApplicationStatus.getRunningActivities()) {
             views.add(new ActivityInfo(a.getClass().getName()));
-            ViewHierarchyDumper.dumpView(views.get(views.size() - 1),
-                    /*parentId=*/0, a.getWindow().getDecorView().getRootView());
+            ViewHierarchyDumper.dumpView(
+                    views.get(views.size() - 1),
+                    /* parentId= */ 0,
+                    a.getWindow().getDecorView().getRootView());
         }
         return views;
     }
@@ -513,20 +649,63 @@ public class TraceEvent implements AutoCloseable {
     @NativeMethods
     interface Natives {
         void registerEnabledObserver();
-        void instant(String name, String arg);
-        void begin(String name, String arg);
-        void end(String name, String arg, long flow);
+
+        void instant(String name, @Nullable String arg);
+
+        void begin(String name, @Nullable String arg);
+
+        void beginWithIntArg(String name, int arg);
+
+        void end(@Nullable String arg, long flow);
+
         void beginToplevel(String target);
-        void endToplevel(String target);
+
+        void endToplevel();
+
         void startAsync(String name, long id);
-        void finishAsync(String name, long id);
+
+        void finishAsync(long id);
+
         boolean viewHierarchyDumpEnabled();
+
         void initViewHierarchyDump(long id, Object list);
+
         long startActivityDump(String name, long dumpProtoPtr);
-        void addViewDump(int id, int parentId, boolean isShown, boolean isDirty, String className,
-                String resourceName, long activityProtoPtr);
+
+        void addViewDump(
+                int id,
+                int parentId,
+                boolean isShown,
+                boolean isDirty,
+                String className,
+                String resourceName,
+                long activityProtoPtr);
+
         void instantAndroidIPC(String name, long durMs);
+
         void instantAndroidToolbar(int blockReason, int allowReason, int snapshotDiff);
+
+        void webViewStartupTotalFactoryInit(long startTimeMs, long durationMs);
+
+        void webViewStartupStage1(long startTimeMs, long durationMs);
+
+        void webViewStartupFirstInstance(
+                long startTimeMs, long durationMs, boolean includedGlobalStartup);
+
+        void webViewStartupNotFirstInstance(long startTimeMs, long durationMs);
+
+        void webViewStartupStartChromiumLocked(
+                long startTimeMs,
+                long durationMs,
+                int startCallSite,
+                int finishCallSite,
+                int startupMode);
+
+        void startupActivityStart(long activityId, long startTimeMs);
+
+        void startupLaunchCause(long activityId, long startTimeMs, int launchCause);
+
+        void startupTimeToFirstVisibleContent2(long activityId, long startTimeMs, long durationMs);
     }
 
     /**
@@ -551,15 +730,24 @@ public class TraceEvent implements AutoCloseable {
                 // java exceptions aren't he fastest thing ever.
                 String resource;
                 try {
-                    resource = view.mRes != null ? (view.mId == 0 || view.mId == -1
-                                               ? "__no_id__"
-                                               : view.mRes.getResourceName(view.mId))
-                                                 : "__no_resources__";
+                    resource =
+                            view.mRes != null
+                                    ? (view.mId == 0 || view.mId == -1
+                                            ? "__no_id__"
+                                            : view.mRes.getResourceName(view.mId))
+                                    : "__no_resources__";
                 } catch (NotFoundException e) {
                     resource = "__name_not_found__";
                 }
-                TraceEventJni.get().addViewDump(view.mId, view.mParentId, view.mIsShown,
-                        view.mIsDirty, view.mClassName, resource, activityProtoPtr);
+                TraceEventJni.get()
+                        .addViewDump(
+                                view.mId,
+                                view.mParentId,
+                                view.mIsShown,
+                                view.mIsDirty,
+                                view.mClassName,
+                                resource,
+                                activityProtoPtr);
             }
         }
     }
@@ -570,7 +758,12 @@ public class TraceEvent implements AutoCloseable {
      * event off the main thread.
      */
     public static class ViewInfo {
-        public ViewInfo(int id, int parentId, boolean isShown, boolean isDirty, String className,
+        public ViewInfo(
+                int id,
+                int parentId,
+                boolean isShown,
+                boolean isDirty,
+                String className,
                 android.content.res.Resources res) {
             mId = id;
             mParentId = parentId;
@@ -580,13 +773,13 @@ public class TraceEvent implements AutoCloseable {
             mRes = res;
         }
 
-        private int mId;
-        private int mParentId;
-        private boolean mIsShown;
-        private boolean mIsDirty;
-        private String mClassName;
+        private final int mId;
+        private final int mParentId;
+        private final boolean mIsShown;
+        private final boolean mIsDirty;
+        private final String mClassName;
         // One can use mRes to resolve mId to a resource name.
-        private android.content.res.Resources mRes;
+        private final android.content.res.Resources mRes;
     }
 
     /**
@@ -610,6 +803,7 @@ public class TraceEvent implements AutoCloseable {
      * the trace. Enabled/disabled via the disabled-by-default-android_view_hierarchy trace
      * category.
      *
+     * <pre>
      * The class registers itself as an idle handler, so that it can run when there are no other
      * tasks in the queue (but not more often than once a second). When the queue is idle,
      * it calls the initViewHierarchyDump() native function which in turn calls the
@@ -622,12 +816,11 @@ public class TraceEvent implements AutoCloseable {
      *            -> JNI#startActivityDump()
      *            -> ViewHierarchyDumper.dumpView()
      *                -> JNI#addViewDump()
+     * </pre>
      */
     private static final class ViewHierarchyDumper implements MessageQueue.IdleHandler {
-        private static final String EVENT_NAME = "TraceEvent.ViewHierarchyDumper";
         private static final long MIN_VIEW_DUMP_INTERVAL_MILLIS = 1000L;
-        private static boolean sEnabled;
-        private static ViewHierarchyDumper sInstance;
+        private static @Nullable ViewHierarchyDumper sInstance;
         private long mLastDumpTs;
 
         @Override
@@ -643,25 +836,22 @@ public class TraceEvent implements AutoCloseable {
         }
 
         public static void updateEnabledState() {
-            PostTask.runOrPostTask(TaskTraits.UI_DEFAULT, () -> {
-                if (TraceEventJni.get().viewHierarchyDumpEnabled()) {
-                    if (sInstance == null) {
-                        sInstance = new ViewHierarchyDumper();
-                    }
-                    enable();
-                } else {
-                    if (sInstance != null) {
-                        disable();
-                    }
-                }
-            });
+            PostTask.runOrPostTask(
+                    TaskTraits.UI_DEFAULT,
+                    () -> setEnabled(TraceEventJni.get().viewHierarchyDumpEnabled()));
         }
 
         private static void dumpView(ActivityInfo collection, int parentId, View v) {
             ThreadUtils.assertOnUiThread();
             int id = v.getId();
-            collection.mViews.add(new ViewInfo(id, parentId, v.isShown(), v.isDirty(),
-                    v.getClass().getSimpleName(), v.getResources()));
+            collection.mViews.add(
+                    new ViewInfo(
+                            id,
+                            parentId,
+                            v.isShown(),
+                            v.isDirty(),
+                            v.getClass().getSimpleName(),
+                            v.getResources()));
 
             if (v instanceof ViewGroup) {
                 ViewGroup vg = (ViewGroup) v;
@@ -671,19 +861,14 @@ public class TraceEvent implements AutoCloseable {
             }
         }
 
-        private static void enable() {
+        private static void setEnabled(boolean value) {
             ThreadUtils.assertOnUiThread();
-            if (!sEnabled) {
+            if (sInstance == null && value) {
+                sInstance = new ViewHierarchyDumper();
                 Looper.myQueue().addIdleHandler(sInstance);
-                sEnabled = true;
-            }
-        }
-
-        private static void disable() {
-            ThreadUtils.assertOnUiThread();
-            if (sEnabled) {
+            } else if (sInstance != null && !value) {
                 Looper.myQueue().removeIdleHandler(sInstance);
-                sEnabled = false;
+                sInstance = null;
             }
         }
     }

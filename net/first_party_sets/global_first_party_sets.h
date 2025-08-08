@@ -5,18 +5,20 @@
 #ifndef NET_FIRST_PARTY_SETS_GLOBAL_FIRST_PARTY_SETS_H_
 #define NET_FIRST_PARTY_SETS_GLOBAL_FIRST_PARTY_SETS_H_
 
-#include <set>
+#include <optional>
 
 #include "base/containers/flat_map.h"
 #include "base/containers/flat_set.h"
 #include "base/functional/function_ref.h"
+#include "base/types/optional_ref.h"
 #include "base/version.h"
 #include "net/base/net_export.h"
 #include "net/base/schemeful_site.h"
 #include "net/first_party_sets/first_party_set_entry.h"
 #include "net/first_party_sets/first_party_set_entry_override.h"
 #include "net/first_party_sets/first_party_sets_context_config.h"
-#include "third_party/abseil-cpp/absl/types/optional.h"
+#include "net/first_party_sets/local_set_declaration.h"
+#include "net/first_party_sets/sets_mutation.h"
 
 namespace mojo {
 template <typename DataViewType, typename T>
@@ -55,21 +57,14 @@ class NET_EXPORT GlobalFirstPartySets {
   GlobalFirstPartySets Clone() const;
 
   // Returns a FirstPartySetsContextConfig that respects the overrides given by
-  // `replacement_sets` and `addition_sets`, relative to this instance's state.
-  //
-  // Preconditions: sets defined by `replacement_sets` and
-  // `addition_sets` must be disjoint.
-  FirstPartySetsContextConfig ComputeConfig(
-      const std::vector<base::flat_map<SchemefulSite, FirstPartySetEntry>>&
-          replacement_sets,
-      const std::vector<base::flat_map<SchemefulSite, FirstPartySetEntry>>&
-          addition_sets) const;
+  // `mutation`, relative to this instance's state.
+  FirstPartySetsContextConfig ComputeConfig(SetsMutation mutation) const;
 
   // Returns the entry corresponding to the given `site`, if one exists.
   // Respects any customization/overlay specified by `config`. This is
   // semi-agnostic to scheme: it just cares whether the scheme is secure or
   // insecure.
-  absl::optional<FirstPartySetEntry> FindEntry(
+  std::optional<FirstPartySetEntry> FindEntry(
       const SchemefulSite& site,
       const FirstPartySetsContextConfig& config) const;
 
@@ -82,15 +77,13 @@ class NET_EXPORT GlobalFirstPartySets {
   // Computes the First-Party Set metadata related to the given request context.
   FirstPartySetMetadata ComputeMetadata(
       const SchemefulSite& site,
-      const SchemefulSite* top_frame_site,
-      const std::set<SchemefulSite>& party_context,
+      base::optional_ref<const SchemefulSite> top_frame_site,
       const FirstPartySetsContextConfig& fps_context_config) const;
 
   // Modifies this instance such that it will respect the given
-  // manually-specified set. `manual_entries` should contain entries for aliases
-  // as well as "canonical" sites.
+  // manually-specified set.
   void ApplyManuallySpecifiedSet(
-      const base::flat_map<SchemefulSite, FirstPartySetEntry>& manual_entries);
+      const LocalSetDeclaration& local_set_declaration);
 
   // Directly sets this instance's manual config. This is unsafe, because it
   // assumes that the config was computed by this instance (or one with
@@ -154,9 +147,30 @@ class NET_EXPORT GlobalFirstPartySets {
 
   // Same as the public version of FindEntry, but is allowed to omit the
   // `config` argument (i.e. pass nullptr instead of a reference).
-  absl::optional<FirstPartySetEntry> FindEntry(
+  std::optional<FirstPartySetEntry> FindEntry(
       const SchemefulSite& site,
       const FirstPartySetsContextConfig* config) const;
+
+  using FlattenedSets = base::flat_map<SchemefulSite, FirstPartySetEntry>;
+
+  // Finds the existing primary sites whose sets are affected by a set of custom
+  // additions.
+  base::flat_map<SchemefulSite, FirstPartySetEntry>
+  FindPrimariesAffectedByAdditions(const FlattenedSets& additions) const;
+
+  // Finds the existing primary sites whose sets are affected by a set of custom
+  // replacements.
+  //
+  // Returns the set of existing primaries that may become a singleton (along
+  // with the sites in their set that have left due to the replacements); and
+  // the set of existing primaries that themselves were in a replacement set.
+  std::pair<base::flat_map<SchemefulSite, base::flat_set<SchemefulSite>>,
+            base::flat_set<SchemefulSite>>
+  FindPrimariesAffectedByReplacements(
+      const FlattenedSets& replacements,
+      const FlattenedSets& additions,
+      const base::flat_map<SchemefulSite, FirstPartySetEntry>&
+          addition_intersected_primaries) const;
 
   // Preprocesses a collection of "addition" sets, such that any sets that
   // transitively overlap (when taking the current `entries_` of this map, plus
@@ -167,24 +181,23 @@ class NET_EXPORT GlobalFirstPartySets {
       const std::vector<base::flat_map<SchemefulSite, FirstPartySetEntry>>&
           addition_sets) const;
 
-  // Returns whether `site` is same-party with `party_context`, and
-  // `top_frame_site` (if it is not nullptr). That is, is `site`'s primary the
-  // same as the primaries of every member of `party_context` and of
-  // `top_frame_site`? Note: if `site` is not a member of a First-Party Set,
-  // then this returns false. If `top_frame_site` is nullptr, then it is
-  // ignored.
-  bool IsContextSamePartyWithSite(
-      const SchemefulSite& site,
-      const SchemefulSite* top_frame_site,
-      const std::set<SchemefulSite>& party_context,
-      const FirstPartySetsContextConfig& fps_context_config) const;
-
   // Same as the public version of ForEachEffectiveSetEntry, but is allowed to
   // omit the `config` argument (i.e. pass nullptr instead of a reference).
   bool ForEachEffectiveSetEntry(
-      const FirstPartySetsContextConfig* config,
+      base::optional_ref<const FirstPartySetsContextConfig> config,
       base::FunctionRef<bool(const SchemefulSite&, const FirstPartySetEntry&)>
           f) const;
+
+  // Iterates over the alias mappings in `manual_config_` and `aliases_`
+  // (skipping entries of `aliases_` that are shadowed), invoking `f` for each
+  // `alias, canonical` pair.
+  void ForEachAlias(base::FunctionRef<void(const SchemefulSite&,
+                                           const SchemefulSite&)> f) const;
+
+  // Synchronously iterate over all the effective entries. Returns true iff all
+  // the entries are valid.
+  bool IsValid(base::optional_ref<const FirstPartySetsContextConfig> config =
+                   std::nullopt) const;
 
   // The version associated with the component_updater-provided public sets.
   // This may be invalid if the "First-Party Sets" component has not been

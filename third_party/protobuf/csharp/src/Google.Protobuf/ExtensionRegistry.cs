@@ -1,33 +1,10 @@
-﻿#region Copyright notice and license
+#region Copyright notice and license
 // Protocol Buffers - Google's data interchange format
 // Copyright 2008 Google Inc.  All rights reserved.
-// https://developers.google.com/protocol-buffers/
 //
-// Redistribution and use in source and binary forms, with or without
-// modification, are permitted provided that the following conditions are
-// met:
-//
-//     * Redistributions of source code must retain the above copyright
-// notice, this list of conditions and the following disclaimer.
-//     * Redistributions in binary form must reproduce the above
-// copyright notice, this list of conditions and the following disclaimer
-// in the documentation and/or other materials provided with the
-// distribution.
-//     * Neither the name of Google Inc. nor the names of its
-// contributors may be used to endorse or promote products derived from
-// this software without specific prior written permission.
-//
-// THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
-// "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
-// LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR
-// A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT
-// OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
-// SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT
-// LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
-// DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
-// THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
-// (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
-// OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+// Use of this source code is governed by a BSD-style
+// license that can be found in the LICENSE file or at
+// https://developers.google.com/open-source/licenses/bsd
 #endregion
 
 using System;
@@ -38,11 +15,24 @@ using System.Linq;
 namespace Google.Protobuf
 {
     /// <summary>
-    /// Provides extensions to messages while parsing
+    /// Provides extensions to messages while parsing.
     /// </summary>
     public sealed class ExtensionRegistry : ICollection<Extension>, IDeepCloneable<ExtensionRegistry>
     {
-        private IDictionary<ObjectIntPair<Type>, Extension> extensions;
+        internal sealed class ExtensionComparer : IEqualityComparer<Extension>
+        {
+            public bool Equals(Extension a, Extension b)
+            {
+                return new ObjectIntPair<Type>(a.TargetType, a.FieldNumber).Equals(new ObjectIntPair<Type>(b.TargetType, b.FieldNumber));
+            }
+            public int GetHashCode(Extension a)
+            {
+                return new ObjectIntPair<Type>(a.TargetType, a.FieldNumber).GetHashCode();
+            }
+
+            internal static ExtensionComparer Instance = new ExtensionComparer();
+        }
+        private readonly IDictionary<ObjectIntPair<Type>, Extension> extensions;
 
         /// <summary>
         /// Creates a new empty extension registry
@@ -67,9 +57,9 @@ namespace Google.Protobuf
         /// </summary>
         bool ICollection<Extension>.IsReadOnly => false;
 
-        internal bool ContainsInputField(CodedInputStream stream, Type target, out Extension extension)
+        internal bool ContainsInputField(uint lastTag, Type target, out Extension extension)
         {
-            return extensions.TryGetValue(new ObjectIntPair<Type>(target, WireFormat.GetTagFieldNumber(stream.LastTag)), out extension);
+            return extensions.TryGetValue(new ObjectIntPair<Type>(target, WireFormat.GetTagFieldNumber(lastTag)), out extension);
         }
 
         /// <summary>
@@ -85,22 +75,14 @@ namespace Google.Protobuf
         /// <summary>
         /// Adds the specified extensions to the registry
         /// </summary>
-        public void Add(params Extension[] newExtensions)
+        public void AddRange(IEnumerable<Extension> extensions)
         {
-            ProtoPreconditions.CheckNotNull(newExtensions, nameof(newExtensions));
+            ProtoPreconditions.CheckNotNull(extensions, nameof(extensions));
 
-            Add((IEnumerable<Extension>)newExtensions);
-        }
-
-        /// <summary>
-        /// Adds the specified extensions to the reigstry
-        /// </summary>
-        public void Add(IEnumerable<Extension> newExtensions)
-        {
-            ProtoPreconditions.CheckNotNull(newExtensions, nameof(newExtensions));
-
-            foreach (var extension in newExtensions)
+            foreach (var extension in extensions)
+            {
                 Add(extension);
+            }
         }
 
         /// <summary>
@@ -130,9 +112,13 @@ namespace Google.Protobuf
         {
             ProtoPreconditions.CheckNotNull(array, nameof(array));
             if (arrayIndex < 0 || arrayIndex >= array.Length)
+            {
                 throw new ArgumentOutOfRangeException(nameof(arrayIndex));
+            }
             if (array.Length - arrayIndex < Count)
+            {
                 throw new ArgumentException("The provided array is shorter than the number of elements in the registry");
+            }
 
             for (int i = 0; i < array.Length; i++)
             {

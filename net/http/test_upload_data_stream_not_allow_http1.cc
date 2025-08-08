@@ -2,9 +2,12 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include "net/http/test_upload_data_stream_not_allow_http1.h"
+#ifdef UNSAFE_BUFFERS_BUILD
+// TODO(crbug.com/390223051): Remove C-library calls to fix the errors.
+#pragma allow_unsafe_libc_calls
+#endif
 
-#include <string.h>
+#include "net/http/test_upload_data_stream_not_allow_http1.h"
 
 #include "net/base/io_buffer.h"
 #include "net/base/net_errors.h"
@@ -16,7 +19,7 @@ bool UploadDataStreamNotAllowHTTP1::AllowHTTP1() const {
 }
 
 int UploadDataStreamNotAllowHTTP1::InitInternal(const NetLogWithSource&) {
-  return net::OK;
+  return OK;
 }
 
 int UploadDataStreamNotAllowHTTP1::ReadInternal(IOBuffer* buf, int buf_len) {

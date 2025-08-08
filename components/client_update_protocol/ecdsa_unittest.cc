@@ -1,6 +1,11 @@
-// Copyright 2016 The Chromium Authors. All rights reserved.
+// Copyright 2016 The Chromium Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
+
+#ifdef UNSAFE_BUFFERS_BUILD
+// TODO(crbug.com/390223051): Remove C-library calls to fix the errors.
+#pragma allow_unsafe_libc_calls
+#endif
 
 #include "components/client_update_protocol/ecdsa.h"
 
@@ -8,10 +13,10 @@
 
 #include <limits>
 #include <memory>
-#include <vector>
 
 #include "base/base64.h"
-#include "base/strings/string_piece.h"
+#include "base/base64url.h"
+#include "base/strings/string_util.h"
 #include "base/strings/stringprintf.h"
 #include "crypto/random.h"
 #include "crypto/secure_util.h"
@@ -21,60 +26,83 @@ namespace client_update_protocol {
 
 namespace {
 
-std::string GetPublicKeyForTesting() {
-  // How to generate this key:
-  //   openssl ecparam -genkey -name prime256v1 -out ecpriv.pem
-  //   openssl ec -in ecpriv.pem -pubout -out ecpub.pem
-
-  static const char kCupEcdsaTestKey_Base64[] =
-      "MFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAEJNOjKyN6UHyUGkGow+xCmQthQXUo"
-      "9sd7RIXSpVIM768UlbGb/5JrnISjSYejCc/pxQooI6mJTzWL3pZb5TA1DA==";
-
-  std::string result;
-  if (!base::Base64Decode(std::string(kCupEcdsaTestKey_Base64), &result))
-    return std::string();
-
-  return result;
-}
+// How to generate this key:
+//   openssl ecparam -genkey -name prime256v1 -out ecpriv.pem
+//   openssl ec -in ecpriv.pem -pubout -out ecpub.pem
+// and use xxd -i to convert it to comma-separated hex.
+//
+// If you change this key, you will also need to change all the test data.
+constexpr auto kCupEcdsaTestKey = std::to_array<uint8_t>({
+    0x30, 0x59, 0x30, 0x13, 0x06, 0x07, 0x2a, 0x86, 0x48, 0xce, 0x3d, 0x02,
+    0x01, 0x06, 0x08, 0x2a, 0x86, 0x48, 0xce, 0x3d, 0x03, 0x01, 0x07, 0x03,
+    0x42, 0x00, 0x04, 0x24, 0xd3, 0xa3, 0x2b, 0x23, 0x7a, 0x50, 0x7c, 0x94,
+    0x1a, 0x41, 0xa8, 0xc3, 0xec, 0x42, 0x99, 0x0b, 0x61, 0x41, 0x75, 0x28,
+    0xf6, 0xc7, 0x7b, 0x44, 0x85, 0xd2, 0xa5, 0x52, 0x0c, 0xef, 0xaf, 0x14,
+    0x95, 0xb1, 0x9b, 0xff, 0x92, 0x6b, 0x9c, 0x84, 0xa3, 0x49, 0x87, 0xa3,
+    0x09, 0xcf, 0xe9, 0xc5, 0x0a, 0x28, 0x23, 0xa9, 0x89, 0x4f, 0x35, 0x8b,
+    0xde, 0x96, 0x5b, 0xe5, 0x30, 0x35, 0x0c,
+});
 
 }  // end namespace
 
 class CupEcdsaTest : public testing::Test {
  protected:
-  void SetUp() override {
-    cup_ = Ecdsa::Create(8, GetPublicKeyForTesting());
-    ASSERT_TRUE(cup_.get());
-  }
-
-  Ecdsa& CUP() { return *cup_; }
+  Ecdsa& CUP() { return cup_; }
 
  private:
-  std::unique_ptr<Ecdsa> cup_;
+  Ecdsa cup_{8, kCupEcdsaTestKey};
 };
 
 TEST_F(CupEcdsaTest, SignRequest) {
   static const char kRequest[] = "TestSequenceForCupEcdsaUnitTest";
   static const char kRequestHash[] =
+      "cde1f7dc1311ed96813057ca321c2f5a17ea2c9c776ee0eb31965f7985a3074a";
+  static const char kRequestHashWithName[] =
       "&cup2hreq="
       "cde1f7dc1311ed96813057ca321c2f5a17ea2c9c776ee0eb31965f7985a3074a";
-  static const char kKeyId[] = "cup2key=8:";
+  static const char kKeyId[] = "8:";
+  static const char kKeyIdWithName[] = "cup2key=8:";
 
   std::string query;
   CUP().SignRequest(kRequest, &query);
   std::string query2;
   CUP().SignRequest(kRequest, &query2);
+  Ecdsa::RequestParameters request_parameters = CUP().SignRequest(kRequest);
 
-  EXPECT_FALSE(query.empty());
-  EXPECT_FALSE(query2.empty());
-  EXPECT_EQ(0UL, query.find(kKeyId));
-  EXPECT_EQ(0UL, query2.find(kKeyId));
-  EXPECT_NE(std::string::npos, query.find(kRequestHash));
-  EXPECT_NE(std::string::npos, query2.find(kRequestHash));
+  EXPECT_TRUE(base::StartsWith(query, kKeyIdWithName));
+  EXPECT_TRUE(base::StartsWith(query2, kKeyIdWithName));
+  EXPECT_TRUE(base::StartsWith(request_parameters.query_cup2key, kKeyId));
+  EXPECT_TRUE(base::EndsWith(query, kRequestHashWithName));
+  EXPECT_TRUE(base::EndsWith(query2, kRequestHashWithName));
+  EXPECT_EQ(request_parameters.hash_hex, kRequestHash);
 
-  // In theory, this is a flaky test, as there's nothing preventing the RNG
-  // from returning the same nonce twice in a row. In practice, this should
-  // be fine.
+  // The nonce should be a base64url-encoded, 32-byte (256-bit) string.
+  std::string_view nonce_b64 = query;
+  nonce_b64.remove_prefix(strlen(kKeyIdWithName));
+  nonce_b64.remove_suffix(strlen(kRequestHashWithName));
+  std::string nonce;
+  EXPECT_TRUE(base::Base64UrlDecode(
+      nonce_b64, base::Base64UrlDecodePolicy::DISALLOW_PADDING, &nonce));
+  EXPECT_EQ(32u, nonce.size());
+
+  nonce_b64 = request_parameters.query_cup2key;
+  nonce_b64.remove_prefix(strlen(kKeyId));
+  EXPECT_TRUE(base::Base64UrlDecode(
+      nonce_b64, base::Base64UrlDecodePolicy::DISALLOW_PADDING, &nonce));
+  EXPECT_EQ(32u, nonce.size());
+
+  nonce_b64 = query2;
+  nonce_b64.remove_prefix(strlen(kKeyIdWithName));
+  nonce_b64.remove_suffix(strlen(kRequestHashWithName));
+  EXPECT_TRUE(base::Base64UrlDecode(
+      nonce_b64, base::Base64UrlDecodePolicy::DISALLOW_PADDING, &nonce));
+  EXPECT_EQ(32u, nonce.size());
+
+  // With a 256-bit nonce, the probability of collision is negligible.
   EXPECT_NE(query, query2);
+  EXPECT_NE(query, base::StringPrintf("cup2key=%s&cup2hreq=%s",
+                                      request_parameters.query_cup2key.c_str(),
+                                      request_parameters.hash_hex.c_str()));
 }
 
 TEST_F(CupEcdsaTest, ValidateResponse_TestETagParsing) {

@@ -1,4 +1,4 @@
-// Copyright 2017 The Crashpad Authors. All rights reserved.
+// Copyright 2017 The Crashpad Authors
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -19,7 +19,6 @@
 
 #include <set>
 
-#include "base/macros.h"
 
 namespace crashpad {
 
@@ -56,6 +55,9 @@ class Signals {
     // when an object of this class is given static storage duration.
     OldActions() = default;
 
+    OldActions(const OldActions&) = delete;
+    OldActions& operator=(const OldActions&) = delete;
+
     //! \brief Returns a `struct sigaction` structure corresponding to the
     //!     given signal.
     //!
@@ -66,9 +68,11 @@ class Signals {
     // As a small storage optimization, don’t waste any space on a slot for
     // signal 0, because there is no signal 0.
     struct sigaction actions_[NSIG - 1];
-
-    DISALLOW_COPY_AND_ASSIGN(OldActions);
   };
+
+  Signals() = delete;
+  Signals(const Signals&) = delete;
+  Signals& operator=(const Signals&) = delete;
 
   //! \brief Installs a new signal handler.
   //!
@@ -192,6 +196,24 @@ class Signals {
   //! \note This function is safe to call from a signal handler.
   static bool WillSignalReraiseAutonomously(const siginfo_t* siginfo);
 
+  //! \brief Restores a previous signal action or reinstalls the default signal
+  //!     handler for a given signal.
+  //!
+  //! Attempts to reinstate the action given by \a old_action and, in case of
+  //! failure or if \a old_actiono is `nullptr`, resets the handler for \a sig
+  //! to the default action.
+  //!
+  //! \param[in] sig The signal to manage.
+  //! \param[in] old_action The previous action for the signal, which will be
+  //!     re-established as the signal’s action. May be `nullptr`, which directs
+  //!     the default action for the signal to be used.
+  //!
+  //! \return `true` on success, `false` if `sigaction()` fails.
+  //!
+  //! \note This function is safe to call from a signal handler.
+  static bool RestoreOrResetHandler(int sig,
+                                    const struct sigaction* old_action);
+
   //! \brief Restores a previous signal action and arranges to re-raise a signal
   //!     on return from a signal handler.
   //!
@@ -235,9 +257,6 @@ class Signals {
   //!
   //! \note This function is safe to call from a signal handler.
   static bool IsTerminateSignal(int sig);
-
- private:
-  DISALLOW_IMPLICIT_CONSTRUCTORS(Signals);
 };
 
 }  // namespace crashpad

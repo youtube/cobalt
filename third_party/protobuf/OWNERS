@@ -1,6 +1,8 @@
-ajwong@chromium.org
-lgrey@chromium.org
-nyquist@chromium.org
-pkasting@chromium.org
+holte@chromium.org
+sophiechang@chromium.org
+wittman@chromium.org
 
-# COMPONENT: Internals
+per-file BUILD.gn=agrieve@chromium.org # For GN templates.
+per-file *.gni=agrieve@chromium.org # For GN templates.
+
+evanstade@microsoft.com #{LAST_RESORT_SUGGESTION}

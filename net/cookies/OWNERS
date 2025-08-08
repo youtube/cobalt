@@ -1,4 +1,7 @@
-bingler@chromium.org
+# Please prefer sending reviews to chromium-cookie-reviews@google.com instead of
+# specific reviewers.
+chromium-cookie-reviews@google.com
+
 cfredric@chromium.org
 dylancutler@google.com
 mkwst@chromium.org

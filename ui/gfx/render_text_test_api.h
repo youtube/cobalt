@@ -5,6 +5,8 @@
 #ifndef UI_GFX_RENDER_TEXT_TEST_API_H_
 #define UI_GFX_RENDER_TEXT_TEST_API_H_
 
+#include <string_view>
+
 #include "base/memory/raw_ptr.h"
 #include "ui/gfx/break_list.h"
 #include "ui/gfx/geometry/vector2d.h"
@@ -45,9 +47,11 @@ class RenderTextTestApi {
     render_text_->Draw(canvas, select_all);
   }
 
-  const std::u16string& GetLayoutText() {
-    return render_text_->GetLayoutText();
+  HorizontalAlignment GetCurrentHorizontalAlignment() {
+    return render_text_->GetCurrentHorizontalAlignment();
   }
+
+  std::u16string_view GetLayoutText() { return render_text_->GetLayoutText(); }
 
   const BreakList<SkColor>& colors() const { return render_text_->colors(); }
 
@@ -61,6 +65,14 @@ class RenderTextTestApi {
 
   const BreakList<Font::Weight>& weights() const {
     return render_text_->weights();
+  }
+
+  const BreakList<cc::PaintFlags::Style>& fill_styles() const {
+    return render_text_->fill_styles();
+  }
+
+  const BreakList<SkScalar>& stroke_widths() const {
+    return render_text_->stroke_widths();
   }
 
   const internal::StyleArray& styles() const { return render_text_->styles(); }

@@ -4,12 +4,13 @@
 
 #include "base/containers/flat_map.h"
 
+#include <algorithm>
 #include <string>
+#include <string_view>
+#include <type_traits>
 #include <utility>
 #include <vector>
 
-#include "base/ranges/algorithm.h"
-#include "base/strings/string_piece.h"
 #include "base/test/move_only_int.h"
 #include "testing/gmock/include/gmock/gmock.h"
 #include "testing/gtest/include/gtest/gtest.h"
@@ -242,8 +243,8 @@ TEST(FlatMap, AtFunction) {
 
   // Heterogeneous look-up works.
   base::flat_map<std::string, int> m2 = {{"a", 1}, {"b", 2}};
-  EXPECT_EQ(1, m2.at(base::StringPiece("a")));
-  EXPECT_EQ(2, std::as_const(m2).at(base::StringPiece("b")));
+  EXPECT_EQ(1, m2.at(std::string_view("a")));
+  EXPECT_EQ(2, std::as_const(m2).at(std::string_view("b")));
 }
 
 // insert_or_assign(K&&, M&&)
@@ -260,8 +261,8 @@ TEST(FlatMap, InsertOrAssignMoveOnlyKey) {
   EXPECT_EQ(22, result.first->second.data());
   EXPECT_TRUE(result.second);
   EXPECT_EQ(1u, m.size());
-  EXPECT_EQ(0, key.data());  // moved from
-  EXPECT_EQ(0, val.data());  // moved from
+  EXPECT_EQ(0, key.data());  // NOLINT(bugprone-use-after-move)
+  EXPECT_EQ(0, val.data());  // NOLINT(bugprone-use-after-move)
 
   // Second call with same key should result in an assignment, overwriting the
   // old value. Assignment should be indicated by setting the second pair member
@@ -274,14 +275,14 @@ TEST(FlatMap, InsertOrAssignMoveOnlyKey) {
   EXPECT_EQ(44, result.first->second.data());
   EXPECT_FALSE(result.second);
   EXPECT_EQ(1u, m.size());
-  EXPECT_EQ(1, key.data());  // not moved from
-  EXPECT_EQ(0, val.data());  // moved from
+  EXPECT_EQ(1, key.data());  // NOLINT(bugprone-use-after-move)
+  EXPECT_EQ(0, val.data());  // NOLINT(bugprone-use-after-move)
 
   // Check that random insertion results in sorted range.
   base::flat_map<MoveOnlyInt, int> map;
   for (int i : {3, 1, 5, 6, 8, 7, 0, 9, 4, 2}) {
     map.insert_or_assign(MoveOnlyInt(i), i);
-    EXPECT_TRUE(ranges::is_sorted(map));
+    EXPECT_TRUE(std::ranges::is_sorted(map));
   }
 }
 
@@ -297,8 +298,8 @@ TEST(FlatMap, InsertOrAssignMoveOnlyKeyWithHint) {
   EXPECT_EQ(1, result->first.data());
   EXPECT_EQ(22, result->second.data());
   EXPECT_EQ(1u, m.size());
-  EXPECT_EQ(0, key.data());  // moved from
-  EXPECT_EQ(0, val.data());  // moved from
+  EXPECT_EQ(0, key.data());  // NOLINT(bugprone-use-after-move)
+  EXPECT_EQ(0, val.data());  // NOLINT(bugprone-use-after-move)
 
   // Second call with same key should result in an assignment, overwriting the
   // old value. Only the inserted value should be moved from, the key should be
@@ -309,14 +310,14 @@ TEST(FlatMap, InsertOrAssignMoveOnlyKeyWithHint) {
   EXPECT_EQ(1, result->first.data());
   EXPECT_EQ(44, result->second.data());
   EXPECT_EQ(1u, m.size());
-  EXPECT_EQ(1, key.data());  // not moved from
-  EXPECT_EQ(0, val.data());  // moved from
+  EXPECT_EQ(1, key.data());  // NOLINT(bugprone-use-after-move)
+  EXPECT_EQ(0, val.data());  // NOLINT(bugprone-use-after-move)
 
   // Check that random insertion results in sorted range.
   base::flat_map<MoveOnlyInt, int> map;
   for (int i : {3, 1, 5, 6, 8, 7, 0, 9, 4, 2}) {
     map.insert_or_assign(map.end(), MoveOnlyInt(i), i);
-    EXPECT_TRUE(ranges::is_sorted(map));
+    EXPECT_TRUE(std::ranges::is_sorted(map));
   }
 }
 
@@ -337,9 +338,9 @@ TEST(FlatMap, TryEmplaceMoveOnlyKey) {
   EXPECT_EQ(44, result.first->second.second.data());
   EXPECT_TRUE(result.second);
   EXPECT_EQ(1u, m.size());
-  EXPECT_EQ(0, key.data());   // moved from
-  EXPECT_EQ(0, val1.data());  // moved from
-  EXPECT_EQ(0, val2.data());  // moved from
+  EXPECT_EQ(0, key.data());   // NOLINT(bugprone-use-after-move)
+  EXPECT_EQ(0, val1.data());  // NOLINT(bugprone-use-after-move)
+  EXPECT_EQ(0, val2.data());  // NOLINT(bugprone-use-after-move)
 
   // Second call with same key should result in a no-op, returning an iterator
   // to the existing element and returning false as the second pair member.
@@ -361,7 +362,7 @@ TEST(FlatMap, TryEmplaceMoveOnlyKey) {
   base::flat_map<MoveOnlyInt, int> map;
   for (int i : {3, 1, 5, 6, 8, 7, 0, 9, 4, 2}) {
     map.try_emplace(MoveOnlyInt(i), i);
-    EXPECT_TRUE(ranges::is_sorted(map));
+    EXPECT_TRUE(std::ranges::is_sorted(map));
   }
 }
 
@@ -382,9 +383,9 @@ TEST(FlatMap, TryEmplaceMoveOnlyKeyWithHint) {
   EXPECT_EQ(22, result->second.first.data());
   EXPECT_EQ(44, result->second.second.data());
   EXPECT_EQ(1u, m.size());
-  EXPECT_EQ(0, key.data());   // moved from
-  EXPECT_EQ(0, val1.data());  // moved from
-  EXPECT_EQ(0, val2.data());  // moved from
+  EXPECT_EQ(0, key.data());   // NOLINT(bugprone-use-after-move)
+  EXPECT_EQ(0, val1.data());  // NOLINT(bugprone-use-after-move)
+  EXPECT_EQ(0, val2.data());  // NOLINT(bugprone-use-after-move)
 
   // Second call with same key should result in a no-op, returning an iterator
   // to the existing element. Key and values that were attempted to be inserted
@@ -407,7 +408,7 @@ TEST(FlatMap, TryEmplaceMoveOnlyKeyWithHint) {
   base::flat_map<MoveOnlyInt, int> map;
   for (int i : {3, 1, 5, 6, 8, 7, 0, 9, 4, 2}) {
     map.try_emplace(map.end(), MoveOnlyInt(i), i);
-    EXPECT_TRUE(ranges::is_sorted(map));
+    EXPECT_TRUE(std::ranges::is_sorted(map));
   }
 }
 
@@ -459,6 +460,20 @@ TEST(FlatMap, UsingInitializerList) {
   m.upper_bound({11});
   m1.upper_bound({12});
   m.erase({13});
+}
+
+TEST(FlatMap, DeductionGuides) {
+  {
+    std::vector<std::pair<int, float>> v = {{1, 4.0}, {2, 3.0}};
+    flat_map map{v};
+    static_assert(std::is_same_v<decltype(map), flat_map<int, float>>);
+  }
+
+  {
+    std::vector<std::pair<int, float>> v = {{1, 4.0}, {2, 3.0}};
+    flat_map map(std::move(v));
+    static_assert(std::is_same_v<decltype(map), flat_map<int, float>>);
+  }
 }
 
 }  // namespace base

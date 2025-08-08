@@ -1,4 +1,4 @@
-// Copyright (c) 2012 The Chromium Authors. All rights reserved.
+// Copyright 2012 The Chromium Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -8,6 +8,7 @@
 #include "base/debug/dump_without_crashing.h"
 #include "base/logging.h"
 #include "base/memory/ptr_util.h"
+#include "base/observer_list.h"
 #include "base/strings/strcat.h"
 #include "components/prefs/pref_service.h"
 
@@ -18,11 +19,11 @@ PrefNotifierImpl::PrefNotifierImpl(PrefService* service)
 }
 
 PrefNotifierImpl::~PrefNotifierImpl() {
-  DCHECK(thread_checker_.CalledOnValidThread());
+  DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
 
   // Verify that there are no pref observers when we shut down.
   for (const auto& observer_list : pref_observers_) {
-    if (observer_list.second->begin() != observer_list.second->end()) {
+    if (observer_list.second.begin() != observer_list.second.end()) {
       // Generally, there should not be any subscribers left when the profile
       // is destroyed because a) those may indicate that the subscriber class
       // maintains an active pointer to the profile that might be used for
@@ -45,12 +46,10 @@ PrefNotifierImpl::~PrefNotifierImpl() {
       // preferences which are known to have subscriptions outliving the
       // profile.
       if (
-          // For GlobalMenuBarX11, crbug.com/946668
+          // For DbusAppmenu, crbug.com/946668
           pref_name == "bookmark_bar.show_on_all_tabs" ||
           // For BrowserWindowPropertyManager, crbug.com/942491
-          pref_name == "profile.icon_version" ||
-          // For BrowserWindowDefaultTouchBar, crbug.com/945772
-          pref_name == "default_search_provider_data.template_url_data") {
+          pref_name == "profile.icon_version") {
         base::debug::DumpWithoutCrashing();
       }
     }
@@ -64,43 +63,35 @@ PrefNotifierImpl::~PrefNotifierImpl() {
   init_observers_.clear();
 }
 
-void PrefNotifierImpl::AddPrefObserver(const std::string& path,
+void PrefNotifierImpl::AddPrefObserver(std::string_view path,
                                        PrefObserver* obs) {
-  // Get the pref observer list associated with the path.
-  PrefObserverList* observer_list = nullptr;
-  auto observer_iterator = pref_observers_.find(path);
-  if (observer_iterator == pref_observers_.end()) {
-    observer_list = new PrefObserverList;
-    pref_observers_[path] = base::WrapUnique(observer_list);
-  } else {
-    observer_list = observer_iterator->second.get();
-  }
+  DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
 
-  // Add the pref observer. ObserverList will DCHECK if it already is
+  // Add the pref observer. ObserverList hits a DCHECK if it already is
   // in the list.
-  observer_list->AddObserver(obs);
+  pref_observers_[std::string(path)].AddObserver(obs);
 }
 
-void PrefNotifierImpl::RemovePrefObserver(const std::string& path,
+void PrefNotifierImpl::RemovePrefObserver(std::string_view path,
                                           PrefObserver* obs) {
-  DCHECK(thread_checker_.CalledOnValidThread());
+  DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
 
   auto observer_iterator = pref_observers_.find(path);
   if (observer_iterator == pref_observers_.end()) {
     return;
   }
 
-  PrefObserverList* observer_list = observer_iterator->second.get();
-  observer_list->RemoveObserver(obs);
+  PrefObserverList& observer_list = observer_iterator->second;
+  observer_list.RemoveObserver(obs);
 }
 
 void PrefNotifierImpl::AddPrefObserverAllPrefs(PrefObserver* observer) {
-  DCHECK(thread_checker_.CalledOnValidThread());
+  DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
   all_prefs_pref_observers_.AddObserver(observer);
 }
 
 void PrefNotifierImpl::RemovePrefObserverAllPrefs(PrefObserver* observer) {
-  DCHECK(thread_checker_.CalledOnValidThread());
+  DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
   all_prefs_pref_observers_.RemoveObserver(observer);
 }
 
@@ -108,12 +99,12 @@ void PrefNotifierImpl::AddInitObserver(base::OnceCallback<void(bool)> obs) {
   init_observers_.push_back(std::move(obs));
 }
 
-void PrefNotifierImpl::OnPreferenceChanged(const std::string& path) {
+void PrefNotifierImpl::OnPreferenceChanged(std::string_view path) {
   FireObservers(path);
 }
 
 void PrefNotifierImpl::OnInitializationCompleted(bool succeeded) {
-  DCHECK(thread_checker_.CalledOnValidThread());
+  DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
 
   // We must move init_observers_ to a local variable before we run
   // observers, or we can end up in this method re-entrantly before
@@ -125,23 +116,25 @@ void PrefNotifierImpl::OnInitializationCompleted(bool succeeded) {
     std::move(observer).Run(succeeded);
 }
 
-void PrefNotifierImpl::FireObservers(const std::string& path) {
-  DCHECK(thread_checker_.CalledOnValidThread());
+void PrefNotifierImpl::FireObservers(std::string_view path) {
+  DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
 
   // Only send notifications for registered preferences.
   if (!pref_service_->FindPreference(path))
     return;
 
   // Fire observers for any preference change.
-  for (auto& observer : all_prefs_pref_observers_)
+  for (PrefObserver& observer : all_prefs_pref_observers_) {
     observer.OnPreferenceChanged(pref_service_, path);
+  }
 
   auto observer_iterator = pref_observers_.find(path);
   if (observer_iterator == pref_observers_.end())
     return;
 
-  for (PrefObserver& observer : *(observer_iterator->second))
+  for (PrefObserver& observer : observer_iterator->second) {
     observer.OnPreferenceChanged(pref_service_, path);
+  }
 }
 
 void PrefNotifierImpl::SetPrefService(PrefService* pref_service) {

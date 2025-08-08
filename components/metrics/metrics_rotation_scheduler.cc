@@ -1,4 +1,4 @@
-// Copyright 2017 The Chromium Authors. All rights reserved.
+// Copyright 2017 The Chromium Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -10,14 +10,16 @@
 namespace metrics {
 
 MetricsRotationScheduler::MetricsRotationScheduler(
-    const base::Closure& upload_callback,
-    const base::Callback<base::TimeDelta(void)>& upload_interval_callback)
-    : MetricsScheduler(upload_callback),
+    const base::RepeatingClosure& upload_callback,
+    const base::RepeatingCallback<base::TimeDelta(void)>&
+        upload_interval_callback,
+    bool fast_startup)
+    : MetricsScheduler(upload_callback, fast_startup),
       init_task_complete_(false),
       waiting_for_init_task_complete_(false),
       upload_interval_callback_(upload_interval_callback) {}
 
-MetricsRotationScheduler::~MetricsRotationScheduler() {}
+MetricsRotationScheduler::~MetricsRotationScheduler() = default;
 
 void MetricsRotationScheduler::InitTaskComplete() {
   DCHECK(!init_task_complete_);

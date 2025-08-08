@@ -2,6 +2,11 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#ifdef UNSAFE_BUFFERS_BUILD
+// TODO(crbug.com/390223051): Remove C-library calls to fix the errors.
+#pragma allow_unsafe_libc_calls
+#endif
+
 #include "testing/gtest/include/gtest/gtest.h"
 #include "third_party/skia/include/core/SkPixmap.h"
 #include "third_party/skia/include/core/SkStream.h"
@@ -41,7 +46,7 @@ TEST(Skottie, Basic) {
   EXPECT_EQ(anim->size().height(), 200.0f);
   EXPECT_EQ(anim->duration(), 5.0f);
 
-  auto surface = SkSurface::MakeRasterN32Premul(400, 200);
+  auto surface = SkSurfaces::Raster(SkImageInfo::MakeN32Premul(400, 200));
   anim->seek(0);
   anim->render(surface->getCanvas());
 

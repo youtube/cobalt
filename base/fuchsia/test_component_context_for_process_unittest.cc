@@ -9,6 +9,8 @@
 #include <lib/async/default.h>
 #include <lib/sys/cpp/component_context.h>
 
+#include <string_view>
+
 #include "base/fuchsia/fuchsia_component_connect.h"
 #include "base/fuchsia/fuchsia_logging.h"
 #include "base/fuchsia/process_context.h"
@@ -97,7 +99,7 @@ TEST_F(TestComponentContextForProcessTest, ProvideSystemService) {
   // TestComponentContextForProcess. This service was chosen because it is one
   // of the ambient services in Fuchsia's hermetic environment for Chromium
   // tests.
-  const base::StringPiece kServiceNames[] = {
+  const std::string_view kServiceNames[] = {
       ::fuchsia::buildinfo::Provider::Name_};
   test_context_.AddServices(kServiceNames);
 
@@ -126,7 +128,7 @@ TEST_F(TestComponentContextForProcessTest, ProvideSystemServiceNatural) {
   // TestComponentContextForProcess. This service was chosen because it is one
   // of the ambient services in Fuchsia's hermetic environment for Chromium
   // tests.
-  const base::StringPiece kServiceNames[] = {
+  const std::string_view kServiceNames[] = {
       fidl::DiscoverableProtocolName<fuchsia_buildinfo::Provider>};
   test_context_.AddServices(kServiceNames);
 
@@ -140,12 +142,11 @@ TEST_F(TestComponentContextForProcessTest, ProvideSystemServiceNatural) {
 
   // If the BuildInfo service is actually connected then GetBuildInfo() will
   // return a result, otherwise the bindings will report an error.
-  provider->GetBuildInfo().ThenExactlyOnce(
-      [quit_loop = wait_loop.QuitClosure()](auto build_info) {
-        EXPECT_FALSE(build_info.is_error())
-            << build_info.error_value().status();
-        quit_loop.Run();
-      });
+  provider->GetBuildInfo().Then([quit_loop =
+                                     wait_loop.QuitClosure()](auto build_info) {
+    EXPECT_FALSE(build_info.is_error()) << build_info.error_value().status();
+    quit_loop.Run();
+  });
   wait_loop.Run();
 }
 

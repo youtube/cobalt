@@ -4,11 +4,14 @@
 
 package org.chromium.base.metrics;
 
+import org.jni_zero.JNINamespace;
+import org.jni_zero.JniType;
+import org.jni_zero.NativeMethods;
+
 import org.chromium.base.Callback;
 import org.chromium.base.TimeUtils;
-import org.chromium.base.annotations.JNINamespace;
-import org.chromium.base.annotations.NativeMethods;
-import org.chromium.build.annotations.MainDex;
+import org.chromium.build.annotations.NullMarked;
+import org.chromium.build.annotations.Nullable;
 
 import java.util.ArrayList;
 import java.util.Collections;
@@ -22,8 +25,8 @@ import java.util.Map;
  * Note: the JNI calls are relatively costly - avoid calling these methods in performance-critical
  * code.
  */
+@NullMarked
 @JNINamespace("base::android")
-@MainDex
 /* package */ final class NativeUmaRecorder implements UmaRecorder {
     /**
      * Internally, histograms objects are cached on the Java side by their pointer
@@ -33,7 +36,8 @@ import java.util.Map;
      */
     private final Map<String, Long> mNativeHints =
             Collections.synchronizedMap(new HashMap<String, Long>());
-    private Map<Callback<String>, Long> mUserActionTestingCallbackNativePtrs;
+
+    private @Nullable Map<Callback<String>, Long> mUserActionTestingCallbackNativePtrs;
 
     @Override
     public void recordBooleanHistogram(String name, boolean sample) {
@@ -46,16 +50,18 @@ import java.util.Map;
     public void recordExponentialHistogram(
             String name, int sample, int min, int max, int numBuckets) {
         long oldHint = getNativeHint(name);
-        long newHint = NativeUmaRecorderJni.get().recordExponentialHistogram(
-                name, oldHint, sample, min, max, numBuckets);
+        long newHint =
+                NativeUmaRecorderJni.get()
+                        .recordExponentialHistogram(name, oldHint, sample, min, max, numBuckets);
         maybeUpdateNativeHint(name, oldHint, newHint);
     }
 
     @Override
     public void recordLinearHistogram(String name, int sample, int min, int max, int numBuckets) {
         long oldHint = getNativeHint(name);
-        long newHint = NativeUmaRecorderJni.get().recordLinearHistogram(
-                name, oldHint, sample, min, max, numBuckets);
+        long newHint =
+                NativeUmaRecorderJni.get()
+                        .recordLinearHistogram(name, oldHint, sample, min, max, numBuckets);
         maybeUpdateNativeHint(name, oldHint, newHint);
     }
 
@@ -109,13 +115,15 @@ import java.util.Map;
     public void removeUserActionCallbackForTesting(Callback<String> callback) {
         if (mUserActionTestingCallbackNativePtrs == null) {
             assert false
-                : "Attempting to remove a user action callback without previously registering any.";
+                    : "Attempting to remove a user action callback without previously registering"
+                            + " any.";
             return;
         }
         Long ptr = mUserActionTestingCallbackNativePtrs.remove(callback);
         if (ptr == null) {
-            assert false : "Attempting to remove a user action callback that was never previously"
-                           + " registered.";
+            assert false
+                    : "Attempting to remove a user action callback that was never previously"
+                            + " registered.";
             return;
         }
         NativeUmaRecorderJni.get().removeActionCallbackForTesting(ptr);
@@ -139,32 +147,52 @@ import java.util.Map;
     /** Natives API to record metrics. */
     @NativeMethods
     public interface Natives {
-        long recordBooleanHistogram(String name, long nativeHint, boolean sample);
+        long recordBooleanHistogram(
+                @JniType("std::string") String name, long nativeHint, boolean sample);
+
         long recordExponentialHistogram(
-                String name, long nativeHint, int sample, int min, int max, int numBuckets);
+                @JniType("std::string") String name,
+                long nativeHint,
+                int sample,
+                int min,
+                int max,
+                int numBuckets);
+
         long recordLinearHistogram(
-                String name, long nativeHint, int sample, int min, int max, int numBuckets);
-        long recordSparseHistogram(String name, long nativeHint, int sample);
+                @JniType("std::string") String name,
+                long nativeHint,
+                int sample,
+                int min,
+                int max,
+                int numBuckets);
+
+        long recordSparseHistogram(
+                @JniType("std::string") String name, long nativeHint, int sample);
 
         /**
          * Records that the user performed an action. See {@code base::RecordComputedActionAt}.
-         * <p>
-         * Uses relative time, because Java and native code can use different clocks.
+         *
+         * <p>Uses relative time, because Java and native code can use different clocks.
          *
          * @param name Name of the user-generated event.
          * @param millisSinceEvent difference between now and the time when the event was observed.
-         *         Should be positive.
+         *     Should be positive.
          */
-        void recordUserAction(String name, long millisSinceEvent);
+        void recordUserAction(@JniType("std::string") String name, long millisSinceEvent);
 
-        int getHistogramValueCountForTesting(String name, int sample, long snapshotPtr);
-        int getHistogramTotalCountForTesting(String name, long snapshotPtr);
-        long[] getHistogramSamplesForTesting(String name);
+        int getHistogramValueCountForTesting(
+                @JniType("std::string") String name, int sample, long snapshotPtr);
+
+        int getHistogramTotalCountForTesting(@JniType("std::string") String name, long snapshotPtr);
+
+        long[] getHistogramSamplesForTesting(@JniType("std::string") String name);
 
         long createHistogramSnapshotForTesting();
+
         void destroyHistogramSnapshotForTesting(long snapshotPtr);
 
         long addActionCallbackForTesting(Callback<String> callback);
+
         void removeActionCallbackForTesting(long callbackId);
     }
 }

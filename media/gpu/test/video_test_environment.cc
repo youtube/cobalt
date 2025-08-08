@@ -4,7 +4,7 @@
 
 #include "media/gpu/test/video_test_environment.h"
 
-#include "base/command_line.h"
+#include "base/strings/stringprintf.h"
 #include "base/strings/utf_string_conversions.h"
 #include "base/test/task_environment.h"
 #include "base/test/test_timeouts.h"
@@ -12,12 +12,12 @@
 #include "media/gpu/buildflags.h"
 #include "mojo/core/embedder/embedder.h"
 
-#if BUILDFLAG(USE_VAAPI)
-#include "media/gpu/vaapi/vaapi_wrapper.h"
+#if BUILDFLAG(USE_V4L2_CODEC)
+#include "media/gpu/v4l2/v4l2_utils.h"
 #endif
 
-#if BUILDFLAG(IS_OZONE)
-#include "ui/ozone/public/ozone_platform.h"
+#if BUILDFLAG(USE_VAAPI)
+#include "media/gpu/vaapi/vaapi_wrapper.h"
 #endif
 
 namespace media {
@@ -27,7 +27,8 @@ VideoTestEnvironment::VideoTestEnvironment() : VideoTestEnvironment({}, {}) {}
 
 VideoTestEnvironment::VideoTestEnvironment(
     const std::vector<base::test::FeatureRef>& enabled_features,
-    const std::vector<base::test::FeatureRef>& disabled_features) {
+    const std::vector<base::test::FeatureRef>& disabled_features,
+    const bool need_task_environment) {
   // Using shared memory requires mojo to be initialized (crbug.com/849207).
   mojo::core::Init();
 
@@ -39,33 +40,33 @@ VideoTestEnvironment::VideoTestEnvironment(
     ADD_FAILURE();
 
   // Setting up a task environment will create a task runner for the current
-  // thread and allow posting tasks to other threads. This is required for video
-  // tests to function correctly.
-  TestTimeouts::Initialize();
-  task_environment_ = std::make_unique<base::test::TaskEnvironment>(
-      base::test::TaskEnvironment::MainThreadType::UI);
+  // thread and allow posting tasks to other threads. This is required for
+  // video tests to function correctly.
+  //
+  // If |need_task_environment| is not set, the caller is responsible
+  // for creating a TaskEnvironment.
+  if (need_task_environment) {
+    TestTimeouts::Initialize();
+    task_environment_ = std::make_unique<base::test::TaskEnvironment>(
+// Not sure why on CrOS this needs to be UI thread type? On Windows we use
+// the default type.
+#if BUILDFLAG(IS_CHROMEOS) || BUILDFLAG(IS_LINUX)
+        base::test::TaskEnvironment::MainThreadType::UI
+#else
+        base::test::TaskEnvironment::MainThreadType::DEFAULT
+#endif  // BUILDFLAG(IS_CHROMEOS) || BUILDFLAG(IS_LINUX)
+    );
+
+    at_exit_manager_ = std::make_unique<base::AtExitManager>();
+  }
 
   // Initialize features. Since some of them can be for VA-API, it is necessary
   // to initialize them before calling VaapiWrapper::PreSandboxInitialization().
   scoped_feature_list_.InitWithFeatures(enabled_features, disabled_features);
 
-  // Perform all static initialization that is required when running video
-  // codecs in a test environment.
-#if BUILDFLAG(IS_OZONE)
-  // Initialize Ozone. This is necessary to gain access to the GPU for hardware
-  // video acceleration.
-  // TODO(b/230370976): we may no longer need to initialize Ozone since we don't
-  // use it for buffer allocation.
-  LOG(WARNING) << "Initializing Ozone Platform...\n"
-                  "If this hangs indefinitely please call 'stop ui' first!";
-  ui::OzonePlatform::InitParams params;
-  params.single_process = true;
-  ui::OzonePlatform::InitializeForUI(params);
-  ui::OzonePlatform::InitializeForGPU(params);
-#endif
-
 #if BUILDFLAG(USE_VAAPI)
-  media::VaapiWrapper::PreSandboxInitialization();
+  media::VaapiWrapper::PreSandboxInitialization(
+      /*allow_disabling_global_lock=*/true);
 #endif
 }
 
@@ -85,15 +86,25 @@ base::FilePath VideoTestEnvironment::GetTestOutputFilePath() const {
   base::FilePath::StringType test_name;
   base::FilePath::StringType test_suite_name;
 #if BUILDFLAG(IS_WIN)
-  // On Windows the default file path string type is UTF16. Since the test name
-  // is always returned in UTF8 we need to do a conversion here.
-  test_name = base::UTF8ToUTF16(test_info->name());
-  test_suite_name = base::UTF8ToUTF16(test_info->test_suite_name());
+  test_name =
+      base::FilePath::FromASCII(base::StringPrintf("%s", test_info->name()))
+          .value();
+  test_suite_name = base::FilePath::FromASCII(
+                        base::StringPrintf("%s", test_info->test_suite_name()))
+                        .value();
 #else
   test_name = test_info->name();
   test_suite_name = test_info->test_suite_name();
-#endif
+#endif  // BUILDFLAG(IS_WIN)
   return base::FilePath(test_suite_name).Append(test_name);
+}
+
+bool VideoTestEnvironment::IsV4L2VirtualDriver() const {
+#if BUILDFLAG(USE_V4L2_CODEC)
+  return IsVislDriver();
+#else
+  return false;
+#endif
 }
 
 }  // namespace test

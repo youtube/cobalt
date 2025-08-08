@@ -1,5 +1,5 @@
 /* zconf.h -- configuration of the zlib compression library
- * Copyright (C) 1995-2016 Jean-loup Gailly, Mark Adler
+ * Copyright (C) 1995-2024 Jean-loup Gailly, Mark Adler
  * For conditions of distribution and use, see copyright notice in zlib.h
  */
 
@@ -50,6 +50,9 @@
 #  define crc32                 z_crc32
 #  define crc32_combine         z_crc32_combine
 #  define crc32_combine64       z_crc32_combine64
+#  define crc32_combine_gen     z_crc32_combine_gen
+#  define crc32_combine_gen64   z_crc32_combine_gen64
+#  define crc32_combine_op      z_crc32_combine_op
 #  define crc32_z               z_crc32_z
 #  define deflate               z_deflate
 #  define deflateBound          z_deflateBound
@@ -177,7 +180,6 @@
 
 #endif
 
-#if !defined(STARBOARD)
 #if defined(__MSDOS__) && !defined(MSDOS)
 #  define MSDOS
 #endif
@@ -188,7 +190,7 @@
 #  define WINDOWS
 #endif
 #if defined(_WIN32) || defined(_WIN32_WCE) || defined(__WIN32__)
-#  if !defined(WIN32) && !defined(__LB_XB1__) && !defined(__LB_XB360__)
+#  ifndef WIN32
 #    define WIN32
 #  endif
 #endif
@@ -199,7 +201,6 @@
 #    endif
 #  endif
 #endif
-#endif  // !defined(STARBOARD)
 
 /*
  * Compile with -DMAXSEG_64K if the alloc function cannot allocate more
@@ -228,7 +229,7 @@
 #if !defined(STDC) && (defined(__GNUC__) || defined(__BORLANDC__))
 #  define STDC
 #endif
-#if !defined(STDC) && (defined(MSDOS) || defined(WINDOWS) || defined(WIN32) || defined(__LB_XB1__) || defined(__LB_XB360__))
+#if !defined(STDC) && (defined(MSDOS) || defined(WINDOWS) || defined(WIN32))
 #  define STDC
 #endif
 #if !defined(STDC) && (defined(OS2) || defined(__HOS_AIX__))
@@ -252,7 +253,11 @@
 #endif
 
 #ifdef Z_SOLO
-   typedef unsigned long z_size_t;
+#  ifdef _WIN64
+     typedef unsigned long long z_size_t;
+#  else
+     typedef unsigned long z_size_t;
+#  endif
 #else
 #  define z_longlong long long
 #  if defined(NO_SIZE_T)
@@ -307,14 +312,6 @@
 #  endif
 #endif
 
-#ifndef Z_ARG /* function prototypes for stdarg */
-#  if defined(STDC) || defined(Z_HAVE_STDARG_H)
-#    define Z_ARG(args)  args
-#  else
-#    define Z_ARG(args)  ()
-#  endif
-#endif
-
 /* The following definitions for FAR are needed only for MSDOS mixed
  * model programming (small or medium model with some far allocations).
  * This was tested only with MSC; for other MSDOS compilers you may have
@@ -342,19 +339,6 @@
 #  endif
 #endif
 
-#if defined(STARBOARD)
-#  ifdef ZLIB_DLL
-#    include "starboard/export.h"
-#    ifdef ZLIB_INTERNAL
-#      define ZEXPORT SB_EXPORT_PLATFORM
-#      define ZEXPORTVA SB_EXPORT_PLATFORM
-#    else  // ZLIB_INTERNAL
-#      define ZEXPORT SB_IMPORT_PLATFORM
-#      define ZEXPORTVA SB_IMPORT_PLATFORM
-#    endif  // ZLIB_INTERNAL
-#  endif  // ZLIB_DLL
-#  define ZEXTERN
-#else
 #if defined(WINDOWS) || defined(WIN32)
    /* If building or using zlib as a DLL, define ZLIB_DLL.
     * This is not mandatory, but it offers a little performance increase.
@@ -375,6 +359,9 @@
 #  ifdef ZLIB_WINAPI
 #    ifdef FAR
 #      undef FAR
+#    endif
+#    ifndef WIN32_LEAN_AND_MEAN
+#      define WIN32_LEAN_AND_MEAN
 #    endif
 #    include <windows.h>
      /* No need for _export, use ZLIB.DEF instead. */
@@ -399,7 +386,6 @@
 #    endif
 #  endif
 #endif
-#endif  // !defined(STARBOARD)
 
 #ifndef ZEXTERN
 #  define ZEXTERN extern
@@ -446,9 +432,7 @@ typedef uLong FAR uLongf;
 #endif
 
 #if !defined(Z_U4) && !defined(Z_SOLO) && defined(STDC)
-#  if !defined(STARBOARD)
 #  include <limits.h>
-#  endif
 #  if (UINT_MAX == 0xffffffffUL)
 #    define Z_U4 unsigned
 #  elif (ULONG_MAX == 0xffffffffUL)
@@ -464,19 +448,15 @@ typedef uLong FAR uLongf;
    typedef unsigned long z_crc_t;
 #endif
 
-#if !defined(STARBOARD)
 #if !defined(_WIN32)
 #  define Z_HAVE_UNISTD_H
-#endif
 #endif
 
 #ifdef HAVE_STDARG_H    /* may be set to #if 1 by ./configure */
 #  define Z_HAVE_STDARG_H
 #endif
 
-#if defined(STARBOARD)
-#  include "starboard/types.h"
-#elif defined(STDC)
+#ifdef STDC
 #  ifndef Z_SOLO
 #    include <sys/types.h>      /* for off_t */
 #  endif
@@ -504,13 +484,18 @@ typedef uLong FAR uLongf;
 #  undef _LARGEFILE64_SOURCE
 #endif
 
-#if !defined(STARBOARD)
-#if defined(__WATCOMC__) && !defined(Z_HAVE_UNISTD_H)
-#  define Z_HAVE_UNISTD_H
+#ifndef Z_HAVE_UNISTD_H
+#  ifdef __WATCOMC__
+#    define Z_HAVE_UNISTD_H
+#  endif
 #endif
+#ifndef Z_HAVE_UNISTD_H
+#  if defined(_LARGEFILE64_SOURCE) && !defined(_WIN32)
+#    define Z_HAVE_UNISTD_H
+#  endif
 #endif
 #ifndef Z_SOLO
-#  if defined(Z_HAVE_UNISTD_H) || defined(_LARGEFILE64_SOURCE)
+#  if defined(Z_HAVE_UNISTD_H)
 #    include <unistd.h>         /* for SEEK_*, off_t, and _LFS64_LARGEFILE */
 #    ifdef VMS
 #      include <unixio.h>       /* for off_t */
@@ -546,18 +531,11 @@ typedef uLong FAR uLongf;
 #if !defined(_WIN32) && defined(Z_LARGE64)
 #  define z_off64_t off64_t
 #else
-#  if defined(_WIN32) && !defined(__GNUC__) && !defined(Z_SOLO)
+#  if defined(_WIN32) && !defined(__GNUC__)
 #    define z_off64_t __int64
 #  else
 #    define z_off64_t z_off_t
 #  endif
-#endif
-
-#if defined(STARBOARD)
-#  define NO_ERRNO_H
-/* zlib pulls in a lot more dependencies in DEBUG mode. So, for now, zlib
- * debugging is disabled in STARBOARD. */
-#  undef ZLIB_DEBUG
 #endif
 
 /* MVS linker does not support external names larger than 8 bytes */

@@ -1,37 +1,15 @@
 // Protocol Buffers - Google's data interchange format
 // Copyright 2008 Google Inc.  All rights reserved.
-// https://developers.google.com/protocol-buffers/
 //
-// Redistribution and use in source and binary forms, with or without
-// modification, are permitted provided that the following conditions are
-// met:
-//
-//     * Redistributions of source code must retain the above copyright
-// notice, this list of conditions and the following disclaimer.
-//     * Redistributions in binary form must reproduce the above
-// copyright notice, this list of conditions and the following disclaimer
-// in the documentation and/or other materials provided with the
-// distribution.
-//     * Neither the name of Google Inc. nor the names of its
-// contributors may be used to endorse or promote products derived from
-// this software without specific prior written permission.
-//
-// THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
-// "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
-// LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR
-// A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT
-// OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
-// SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT
-// LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
-// DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
-// THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
-// (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
-// OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+// Use of this source code is governed by a BSD-style
+// license that can be found in the LICENSE file or at
+// https://developers.google.com/open-source/licenses/bsd
 
 package com.google.protobuf;
 
 import static com.google.protobuf.MessageSchema.getMutableUnknownFields;
 
+import com.google.protobuf.GeneratedMessageLite.ExtensionDescriptor;
 import com.google.protobuf.Internal.ProtobufList;
 import java.io.IOException;
 
@@ -39,25 +17,31 @@ import java.io.IOException;
  * Helper functions to decode protobuf wire format from a byte array.
  *
  * <p>Note that these functions don't do boundary check on the byte array but instead rely on Java
- * VM to check it. That means parsing rountines utilizing these functions must catch
+ * VM to check it. That means parsing routines utilizing these functions must catch
  * IndexOutOfBoundsException and convert it to protobuf's InvalidProtocolBufferException when
  * crossing protobuf public API boundaries.
  */
+@CheckReturnValue
 final class ArrayDecoders {
+  static final int DEFAULT_RECURSION_LIMIT = 100;
+
+  @SuppressWarnings("NonFinalStaticField")
+  private static volatile int recursionLimit = DEFAULT_RECURSION_LIMIT;
+
+  private ArrayDecoders() {}
+
   /**
    * A helper used to return multiple values in a Java function. Java doesn't natively support
    * returning multiple values in a function. Creating a new Object to hold the return values will
    * be too expensive. Instead, we pass a Registers instance to functions that want to return
    * multiple values and let the function set the return value in this Registers instance instead.
-   *
-   * <p>TODO(xiaofeng): This could be merged into CodedInputStream or CodedInputStreamReader which
-   * is already being passed through all the parsing rountines.
    */
   static final class Registers {
     public int int1;
     public long long1;
     public Object object1;
     public final ExtensionRegistryLite extensionRegistry;
+    public int recursionDepth;
 
     Registers() {
       this.extensionRegistry = ExtensionRegistryLite.getEmptyRegistry();
@@ -231,9 +215,31 @@ final class ArrayDecoders {
   }
 
   /** Decodes a message value. */
-  @SuppressWarnings({"unchecked", "rawtypes"})
-  static int decodeMessageField(
-      Schema schema, byte[] data, int position, int limit, Registers registers) throws IOException {
+  static <T> int decodeMessageField(
+      Schema<T> schema, byte[] data, int position, int limit, Registers registers)
+      throws IOException {
+    T msg = schema.newInstance();
+    int offset = mergeMessageField(msg, schema, data, position, limit, registers);
+    schema.makeImmutable(msg);
+    registers.object1 = msg;
+    return offset;
+  }
+
+  /** Decodes a group value. */
+  static <T> int decodeGroupField(
+      Schema<T> schema, byte[] data, int position, int limit, int endGroup, Registers registers)
+      throws IOException {
+    T msg = schema.newInstance();
+    int offset = mergeGroupField(msg, schema, data, position, limit, endGroup, registers);
+    schema.makeImmutable(msg);
+    registers.object1 = msg;
+    return offset;
+  }
+
+  @SuppressWarnings("unchecked")
+  static <T> int mergeMessageField(
+      Object msg, Schema<T> schema, byte[] data, int position, int limit, Registers registers)
+      throws IOException {
     int length = data[position++];
     if (length < 0) {
       position = decodeVarint32(length, data, position, registers);
@@ -242,27 +248,33 @@ final class ArrayDecoders {
     if (length < 0 || length > limit - position) {
       throw InvalidProtocolBufferException.truncatedMessage();
     }
-    Object result = schema.newInstance();
-    schema.mergeFrom(result, data, position, position + length, registers);
-    schema.makeImmutable(result);
-    registers.object1 = result;
+    registers.recursionDepth++;
+    checkRecursionLimit(registers.recursionDepth);
+    schema.mergeFrom((T) msg, data, position, position + length, registers);
+    registers.recursionDepth--;
+    registers.object1 = msg;
     return position + length;
   }
 
-  /** Decodes a group value. */
-  @SuppressWarnings({"unchecked", "rawtypes"})
-  static int decodeGroupField(
-      Schema schema, byte[] data, int position, int limit, int endGroup, Registers registers)
+  @SuppressWarnings("unchecked")
+  static <T> int mergeGroupField(
+      Object msg,
+      Schema<T> schema,
+      byte[] data,
+      int position,
+      int limit,
+      int endGroup,
+      Registers registers)
       throws IOException {
     // A group field must has a MessageSchema (the only other subclass of Schema is MessageSetSchema
     // and it can't be used in group fields).
-    final MessageSchema messageSchema = (MessageSchema) schema;
-    Object result = messageSchema.newInstance();
-    // It's OK to directly use parseProto2Message since proto3 doesn't have group.
+    final MessageSchema<T> messageSchema = (MessageSchema<T>) schema;
+    registers.recursionDepth++;
+    checkRecursionLimit(registers.recursionDepth);
     final int endPosition =
-        messageSchema.parseProto2Message(result, data, position, limit, endGroup, registers);
-    messageSchema.makeImmutable(result);
-    registers.object1 = result;
+        messageSchema.parseMessage((T) msg, data, position, limit, endGroup, registers);
+    registers.recursionDepth--;
+    registers.object1 = msg;
     return endPosition;
   }
 
@@ -453,10 +465,16 @@ final class ArrayDecoders {
 
   /** Decodes a packed fixed32 field. Returns the position after all read values. */
   static int decodePackedFixed32List(
-      byte[] data, int position, ProtobufList<?> list, Registers registers) throws IOException {
+      byte[] data, int position, ProtobufList<?> list, Registers registers)
+      throws InvalidProtocolBufferException {
     final IntArrayList output = (IntArrayList) list;
     position = decodeVarint32(data, position, registers);
-    final int fieldLimit = position + registers.int1;
+    final int packedDataByteSize = registers.int1;
+    final int fieldLimit = position + packedDataByteSize;
+    if (fieldLimit > data.length) {
+      throw InvalidProtocolBufferException.truncatedMessage();
+    }
+    output.ensureCapacity(output.size() + packedDataByteSize / 4);
     while (position < fieldLimit) {
       output.addInt(decodeFixed32(data, position));
       position += 4;
@@ -469,10 +487,16 @@ final class ArrayDecoders {
 
   /** Decodes a packed fixed64 field. Returns the position after all read values. */
   static int decodePackedFixed64List(
-      byte[] data, int position, ProtobufList<?> list, Registers registers) throws IOException {
+      byte[] data, int position, ProtobufList<?> list, Registers registers)
+      throws InvalidProtocolBufferException {
     final LongArrayList output = (LongArrayList) list;
     position = decodeVarint32(data, position, registers);
-    final int fieldLimit = position + registers.int1;
+    final int packedDataByteSize = registers.int1;
+    final int fieldLimit = position + packedDataByteSize;
+    if (fieldLimit > data.length) {
+      throw InvalidProtocolBufferException.truncatedMessage();
+    }
+    output.ensureCapacity(output.size() + packedDataByteSize / 8);
     while (position < fieldLimit) {
       output.addLong(decodeFixed64(data, position));
       position += 8;
@@ -485,10 +509,16 @@ final class ArrayDecoders {
 
   /** Decodes a packed float field. Returns the position after all read values. */
   static int decodePackedFloatList(
-      byte[] data, int position, ProtobufList<?> list, Registers registers) throws IOException {
+      byte[] data, int position, ProtobufList<?> list, Registers registers)
+      throws InvalidProtocolBufferException {
     final FloatArrayList output = (FloatArrayList) list;
     position = decodeVarint32(data, position, registers);
-    final int fieldLimit = position + registers.int1;
+    final int packedDataByteSize = registers.int1;
+    final int fieldLimit = position + packedDataByteSize;
+    if (fieldLimit > data.length) {
+      throw InvalidProtocolBufferException.truncatedMessage();
+    }
+    output.ensureCapacity(output.size() + packedDataByteSize / 4);
     while (position < fieldLimit) {
       output.addFloat(decodeFloat(data, position));
       position += 4;
@@ -501,10 +531,16 @@ final class ArrayDecoders {
 
   /** Decodes a packed double field. Returns the position after all read values. */
   static int decodePackedDoubleList(
-      byte[] data, int position, ProtobufList<?> list, Registers registers) throws IOException {
+      byte[] data, int position, ProtobufList<?> list, Registers registers)
+      throws InvalidProtocolBufferException {
     final DoubleArrayList output = (DoubleArrayList) list;
     position = decodeVarint32(data, position, registers);
-    final int fieldLimit = position + registers.int1;
+    final int packedDataByteSize = registers.int1;
+    final int fieldLimit = position + packedDataByteSize;
+    if (fieldLimit > data.length) {
+      throw InvalidProtocolBufferException.truncatedMessage();
+    }
+    output.ensureCapacity(output.size() + packedDataByteSize / 8);
     while (position < fieldLimit) {
       output.addDouble(decodeDouble(data, position));
       position += 8;
@@ -517,7 +553,8 @@ final class ArrayDecoders {
 
   /** Decodes a packed boolean field. Returns the position after all read values. */
   static int decodePackedBoolList(
-      byte[] data, int position, ProtobufList<?> list, Registers registers) throws IOException {
+      byte[] data, int position, ProtobufList<?> list, Registers registers)
+      throws InvalidProtocolBufferException {
     final BooleanArrayList output = (BooleanArrayList) list;
     position = decodeVarint32(data, position, registers);
     final int fieldLimit = position + registers.int1;
@@ -533,7 +570,8 @@ final class ArrayDecoders {
 
   /** Decodes a packed sint32 field. Returns the position after all read values. */
   static int decodePackedSInt32List(
-      byte[] data, int position, ProtobufList<?> list, Registers registers) throws IOException {
+      byte[] data, int position, ProtobufList<?> list, Registers registers)
+      throws InvalidProtocolBufferException {
     final IntArrayList output = (IntArrayList) list;
     position = decodeVarint32(data, position, registers);
     final int fieldLimit = position + registers.int1;
@@ -548,9 +586,9 @@ final class ArrayDecoders {
   }
 
   /** Decodes a packed sint64 field. Returns the position after all read values. */
-  @SuppressWarnings("unchecked")
   static int decodePackedSInt64List(
-      byte[] data, int position, ProtobufList<?> list, Registers registers) throws IOException {
+      byte[] data, int position, ProtobufList<?> list, Registers registers)
+      throws InvalidProtocolBufferException {
     final LongArrayList output = (LongArrayList) list;
     position = decodeVarint32(data, position, registers);
     final int fieldLimit = position + registers.int1;
@@ -719,17 +757,15 @@ final class ArrayDecoders {
    *
    * @return The position of after read all groups
    */
-  @SuppressWarnings({"unchecked", "rawtypes"})
   static int decodeGroupList(
-      Schema schema,
+      Schema<?> schema,
       int tag,
       byte[] data,
       int position,
       int limit,
-      ProtobufList<?> list,
+      ProtobufList<Object> output,
       Registers registers)
       throws IOException {
-    final ProtobufList<Object> output = (ProtobufList<Object>) list;
     final int endgroup = (tag & ~0x7) | WireFormat.WIRETYPE_END_GROUP;
     position = decodeGroupField(schema, data, position, limit, endgroup, registers);
     output.add(registers.object1);
@@ -752,13 +788,15 @@ final class ArrayDecoders {
       Registers registers)
       throws IOException {
     final int number = tag >>> 3;
-    GeneratedMessageLite.GeneratedExtension extension =
+    GeneratedMessageLite.GeneratedExtension<?, ?> extension =
         registers.extensionRegistry.findLiteExtensionByNumber(defaultInstance, number);
     if (extension == null) {
       return decodeUnknownField(
           tag, data, position, limit, getMutableUnknownFields(message), registers);
     } else  {
-      ((GeneratedMessageLite.ExtendableMessage<?, ?>) message).ensureExtensionsAreMutable();
+      // TODO: remove the unused variable
+      FieldSet<ExtensionDescriptor> unused =
+          ((GeneratedMessageLite.ExtendableMessage<?, ?>) message).ensureExtensionsAreMutable();
       return decodeExtension(
           tag, data, position, limit, (GeneratedMessageLite.ExtendableMessage) message,
           extension, unknownFieldSchema, registers);
@@ -847,44 +885,32 @@ final class ArrayDecoders {
           break;
         }
         case ENUM:
-        {
-          IntArrayList list = new IntArrayList();
-          position = decodePackedVarint32List(data, position, list, registers);
-          UnknownFieldSetLite unknownFields = message.unknownFields;
-          if (unknownFields == UnknownFieldSetLite.getDefaultInstance()) {
-            unknownFields = null;
+          {
+            IntArrayList list = new IntArrayList();
+            position = decodePackedVarint32List(data, position, list, registers);
+            SchemaUtil.filterUnknownEnumList(
+                message,
+                fieldNumber,
+                list,
+                extension.descriptor.getEnumType(),
+                null,
+                unknownFieldSchema);
+            extensions.setField(extension.descriptor, list);
+            break;
           }
-          unknownFields =
-              SchemaUtil.filterUnknownEnumList(
-                  fieldNumber,
-                  list,
-                  extension.descriptor.getEnumType(),
-                  unknownFields,
-                  unknownFieldSchema);
-          if (unknownFields != null) {
-            message.unknownFields = unknownFields;
-          }
-          extensions.setField(extension.descriptor, list);
-          break;
-        }
         default:
           throw new IllegalStateException(
               "Type cannot be packed: " + extension.descriptor.getLiteType());
       }
     } else {
       Object value = null;
-      // Enum is a special case becasue unknown enum values will be put into UnknownFieldSetLite.
+      // Enum is a special case because unknown enum values will be put into UnknownFieldSetLite.
       if (extension.getLiteType() == WireFormat.FieldType.ENUM) {
         position = decodeVarint32(data, position, registers);
         Object enumValue = extension.descriptor.getEnumType().findValueByNumber(registers.int1);
         if (enumValue == null) {
-          UnknownFieldSetLite unknownFields = ((GeneratedMessageLite) message).unknownFields;
-          if (unknownFields == UnknownFieldSetLite.getDefaultInstance()) {
-            unknownFields = UnknownFieldSetLite.newInstance();
-            ((GeneratedMessageLite) message).unknownFields = unknownFields;
-          }
           SchemaUtil.storeUnknownEnum(
-              fieldNumber, registers.int1, unknownFields, unknownFieldSchema);
+              message, fieldNumber, registers.int1, null, unknownFieldSchema);
           return position;
         }
         // Note, we store the integer value instead of the actual enum object in FieldSet.
@@ -941,20 +967,45 @@ final class ArrayDecoders {
             value = registers.object1;
             break;
           case GROUP:
-            final int endTag = (fieldNumber << 3) | WireFormat.WIRETYPE_END_GROUP;
-            position = decodeGroupField(
-                Protobuf.getInstance().schemaFor(extension.getMessageDefaultInstance().getClass()),
-                data, position, limit, endTag, registers);
-            value = registers.object1;
-            break;
-
+            {
+              final int endTag = (fieldNumber << 3) | WireFormat.WIRETYPE_END_GROUP;
+              final Schema<?> fieldSchema =
+                  Protobuf.getInstance()
+                      .schemaFor(extension.getMessageDefaultInstance().getClass());
+              if (extension.isRepeated()) {
+                position = decodeGroupField(fieldSchema, data, position, limit, endTag, registers);
+                extensions.addRepeatedField(extension.descriptor, registers.object1);
+              } else {
+                Object oldValue = extensions.getField(extension.descriptor);
+                if (oldValue == null) {
+                  oldValue = fieldSchema.newInstance();
+                  extensions.setField(extension.descriptor, oldValue);
+                }
+                position =
+                    mergeGroupField(
+                        oldValue, fieldSchema, data, position, limit, endTag, registers);
+              }
+              return position;
+            }
           case MESSAGE:
-            position = decodeMessageField(
-                Protobuf.getInstance().schemaFor(extension.getMessageDefaultInstance().getClass()),
-                data, position, limit, registers);
-            value = registers.object1;
-            break;
-
+            {
+              final Schema<?> fieldSchema =
+                  Protobuf.getInstance()
+                      .schemaFor(extension.getMessageDefaultInstance().getClass());
+              if (extension.isRepeated()) {
+                position = decodeMessageField(fieldSchema, data, position, limit, registers);
+                extensions.addRepeatedField(extension.descriptor, registers.object1);
+              } else {
+                Object oldValue = extensions.getField(extension.descriptor);
+                if (oldValue == null) {
+                  oldValue = fieldSchema.newInstance();
+                  extensions.setField(extension.descriptor, oldValue);
+                }
+                position =
+                    mergeMessageField(oldValue, fieldSchema, data, position, limit, registers);
+              }
+              return position;
+            }
           case ENUM:
             throw new IllegalStateException("Shouldn't reach here.");
         }
@@ -962,17 +1013,6 @@ final class ArrayDecoders {
       if (extension.isRepeated()) {
         extensions.addRepeatedField(extension.descriptor, value);
       } else {
-        switch (extension.getLiteType()) {
-          case MESSAGE:
-          case GROUP:
-            Object oldValue = extensions.getField(extension.descriptor);
-            if (oldValue != null) {
-              value = Internal.mergeMessage(oldValue, value);
-            }
-            break;
-          default:
-            break;
-        }
         extensions.setField(extension.descriptor, value);
       }
     }
@@ -1019,6 +1059,8 @@ final class ArrayDecoders {
         final UnknownFieldSetLite child = UnknownFieldSetLite.newInstance();
         final int endGroup = (tag & ~0x7) | WireFormat.WIRETYPE_END_GROUP;
         int lastTag = 0;
+        registers.recursionDepth++;
+        checkRecursionLimit(registers.recursionDepth);
         while (position < limit) {
           position = decodeVarint32(data, position, registers);
           lastTag = registers.int1;
@@ -1027,6 +1069,7 @@ final class ArrayDecoders {
           }
           position = decodeUnknownField(lastTag, data, position, limit, child, registers);
         }
+        registers.recursionDepth--;
         if (position > limit || lastTag != endGroup) {
           throw InvalidProtocolBufferException.parseFailure();
         }
@@ -1071,6 +1114,20 @@ final class ArrayDecoders {
         return position;
       default:
         throw InvalidProtocolBufferException.invalidTag();
+    }
+  }
+
+  /**
+   * Set the maximum recursion limit that ArrayDecoders will allow. An exception will be thrown if
+   * the depth of the message exceeds this limit.
+   */
+  public static void setRecursionLimit(int limit) {
+    recursionLimit = limit;
+  }
+
+  private static void checkRecursionLimit(int depth) throws InvalidProtocolBufferException {
+    if (depth >= recursionLimit) {
+      throw InvalidProtocolBufferException.recursionLimitExceeded();
     }
   }
 }

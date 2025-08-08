@@ -1,5 +1,0 @@
-void n() { for(;;exp); }
-
-/*%%*
-expected '(' to begin function call
-*%%*/

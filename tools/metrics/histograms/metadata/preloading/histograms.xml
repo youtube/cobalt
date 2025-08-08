@@ -20,24 +20,48 @@ chromium-metrics-reviews@google.com.
 
 <histograms>
 
+<variants name="ExperimentalPreloadingPrediction">
+  <variant name="OnPointerHoverWithMotionEstimator"
+      summary="Predictor based on pointer hover, except if the pointer
+               velocity and acceleration suggest it will leave soon. The
+               output of this predictor is mouse velocity instead of a
+               logit/probability."/>
+  <variant name="OnPreloadingHeuristicsMLModel"
+      summary="The estimated probability that a user will click on a link
+               that is calculated by preloading heuristic ML model."/>
+</variants>
+
+<variants name="GroundTruth">
+  <variant name="Negative" summary=""/>
+  <variant name="Positive" summary=""/>
+</variants>
+
+<variants name="PrefetchDataPipeTeeStateLoadingOrSizeExceeded">
+  <variant name="Loading" summary=""/>
+  <variant name="SizeExceeded" summary=""/>
+</variants>
+
 <variants name="PreloadingPredictor">
   <variant name="BackButtonHover"
       summary="When the user hovers their mouse over the back button."/>
   <variant name="BackGestureNavigation"
       summary="When overscroll that could trigger a back navigation starts."/>
+  <variant name="ChromeCustomTabs"
+      summary="When preloading is triggered by CCT prefetch API."/>
   <variant name="DefaultSearchEngine"
       summary="When preloading is triggered from the default search engine
                suggest service."/>
-  <variant name="kLinkRel"
+  <variant name="LinkRel"
       summary="When preloading is triggered by the 'rel' keyword embedded in
                the link element."/>
-  <variant name="kUnspecified" summary=""/>
-  <variant name="kUrlPointerDownOnAnchor"
-      summary="When preloading is triggered by OnPointerDown."/>
-  <variant name="kUrlPointerHoverOnAnchor"
-      summary="When preloading is triggered by OnPointerHover."/>
   <variant name="MouseBackButton"
       summary="When a mouse down of a mouse back button is seen."/>
+  <variant name="MouseHoverOnNewTabPage"
+      summary="When preloading is triggered by mouse hover NewTabPage on
+               Desktop."/>
+  <variant name="MouseHoverOrMouseDownOnBookmarkBar"
+      summary="When preloading is triggered by mouse hover bookmarkbar or
+               mouse down bookmark bar."/>
   <variant name="OmniboxDirectURLInput"
       summary="When preloading is triggered from the Omnibox DUI."/>
   <variant name="OmniboxMousePredictor"
@@ -48,8 +72,23 @@ chromium-metrics-reviews@google.com.
                due to change in Omnibox selection."/>
   <variant name="PointerDownOnAnchor"
       summary="When a pointerdown event happens on a HTTP/HTTPS anchor."/>
+  <variant name="PointerDownOnNewTabPage"
+      summary="When preloading is triggered by mouse down NewTabPage on
+               Desktop."/>
+  <variant name="PreloadingHeuristicsMLModel"
+      summary="When preloading is triggered by an ML model prediction."/>
   <variant name="SpeculationRules"
       summary="When preloading is triggered by the speculation rules."/>
+  <variant name="TouchOnNewTabPage"
+      summary="When preloading is triggered by Touch events on Android."/>
+  <variant name="Unspecified" summary=""/>
+  <variant name="UrlPointerDownOnAnchor"
+      summary="When preloading is triggered by OnPointerDown."/>
+  <variant name="UrlPointerHoverOnAnchor"
+      summary="When preloading is triggered by OnPointerHover."/>
+  <variant name="ViewportHeuristic"
+      summary="When preloading is triggered by a deterministic viewport-based
+               heuristic."/>
 </variants>
 
 <variants name="PreloadingType">
@@ -60,23 +99,46 @@ chromium-metrics-reviews@google.com.
   <variant name="Unspecified" summary=""/>
 </variants>
 
-<histogram name="Preloading.AnchorElementPreloader.PreloadingTriggered"
-    enum="AnchorElementPreloaderType" expires_after="2023-10-08">
-  <owner>spelchat@chromium.org</owner>
-  <owner>curranmax@chromium.org</owner>
-  <owner>chrome-brapp-loading@google.com</owner>
+<histogram name="Preloading.Experimental.UpdateSpeculationCandidatesReason"
+    enum="PreloadingUpdateSpeculationCandidatesReason"
+    expires_after="2024-09-29">
+  <owner>taiyo@chromium.org</owner>
+  <owner>chrome-prerendering@google.com</owner>
   <summary>
-    Logged once for each preconnection request sent by renderer to the browser
-    when intercepting pointerdown events. Note that the browser may ignore some
-    of those requests (like duplicate requests or requests made by users that
-    disabled preloading via the UI) and will not always forward the preconnect
-    request to the network service. Associated with the Source ID of the page
-    triggering the preconnection.
+    This metric counts the number of the update of speculation rules preloading,
+    classified by the reason for updates. Currently, this is introduced to
+    measure the overall impact of BFCache retrigger(crbug.com/1449163). This
+    metric is recorded when UpdateSpeculationCandidates is called on
+    DocumentSpeculationRules.
   </summary>
 </histogram>
 
+<histogram
+    name="Preloading.Experimental.{ExperimentalPreloadingPrediction}.{GroundTruth}"
+    units="param" expires_after="2025-04-13">
+  <owner>isaboori@google.com</owner>
+  <owner>spelchat@chromium.org</owner>
+  <owner>jbroman@chromium.org</owner>
+  <owner>portals-team@google.com</owner>
+  <summary>
+    The output of many predictors is a logit score. To use this score for binary
+    classification, we compare it to a threshold. If the score is above the
+    threshold, we classify the instance as positive; otherwise, we classify it
+    as negative. Threshold choice affects classifier precision and recall. There
+    is a trade-off between precision and recall. If we set the threshold too
+    low, we will have high precision but low recall. If we set the threshold too
+    high, we will have high recall but low precision. To choose the best
+    threshold, we can use ROC curves, precision-recall curves, or
+    logit-precision and logit-recall curves. `ExperimentalPreloadingPrediction`
+    helps us collect the UMA data required to achieve this.
+  </summary>
+  <token key="ExperimentalPreloadingPrediction"
+      variants="ExperimentalPreloadingPrediction"/>
+  <token key="GroundTruth" variants="GroundTruth"/>
+</histogram>
+
 <histogram name="Preloading.Predictor.{PreloadingPredictor}.Precision"
-    enum="PredictorConfusionMatrix" expires_after="2024-06-01">
+    enum="PredictorConfusionMatrix" expires_after="2025-10-26">
   <owner>isaboori@google.com</owner>
   <owner>spelchat@chromium.org</owner>
   <owner>sreejakshetty@chromium.org</owner>
@@ -93,7 +155,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Preloading.Predictor.{PreloadingPredictor}.Recall"
-    enum="PredictorConfusionMatrix" expires_after="2024-06-01">
+    enum="PredictorConfusionMatrix" expires_after="2025-10-26">
   <owner>isaboori@google.com</owner>
   <owner>spelchat@chromium.org</owner>
   <owner>sreejakshetty@chromium.org</owner>
@@ -110,8 +172,75 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram
+    name="Preloading.Prefetch.PrefetchDataPipeTeeCloneFailed.{PrefetchDataPipeTeeStateLoadingOrSizeExceeded}"
+    units="count" expires_after="2025-10-26">
+  <owner>kenoss@chromium.org</owner>
+  <owner>chrome-prerendering@google.com</owner>
+  <summary>
+    Records how many times `PrefetchDataPipeTee::Clone()` is called when the
+    method failed.
+
+    {PrefetchDataPipeTeeStateLoadingOrSizeExceeded} indicates
+    `PrefetchDataPipeTee::State` at the failure.
+
+    It is used for investigation crbug.com/374039756.
+  </summary>
+  <token key="PrefetchDataPipeTeeStateLoadingOrSizeExceeded"
+      variants="PrefetchDataPipeTeeStateLoadingOrSizeExceeded"/>
+</histogram>
+
+<histogram name="Preloading.Prefetch.PrefetchDataPipeTeeDtorState"
+    enum="PrefetchDataPipeTeeState" expires_after="2025-10-26">
+  <owner>kenoss@chromium.org</owner>
+  <owner>chrome-prerendering@google.com</owner>
+  <summary>
+    Records the `PrefetchDataPipeTee::State` at `PrefetchDataPipeTee`'s
+    destructor.
+
+    It is used for investigation crbug.com/374039756.
+  </summary>
+</histogram>
+
+<histogram
+    name="Preloading.Prefetch.PrefetchResponseReaderCreateRequestHandlerInvalidBody"
+    units="bool" expires_after="2025-04-17">
+  <owner>kenoss@chromium.org</owner>
+  <owner>chrome-prerendering@google.com</owner>
+  <summary>
+    Records `true` when `PrefetchResponseReader::CreateRequestHandler` couldn't
+    get valid `body`. `false` is never recorded.
+
+    It is used for investigation crbug.com/374039756.
+  </summary>
+</histogram>
+
+<histogram name="Preloading.Prefetch.PrefetchStatus"
+    enum="PrefetchProxyPrefetchStatus" expires_after="2025-10-08">
+  <owner>adithyas@chromium.org</owner>
+  <owner>portals-team@google.com</owner>
+  <summary>
+    Records the final PrefetchStatus value for a PrefetchContainer. The value is
+    recorded when a prefetch fails (in the failure case), or when the
+    PrefetchContainer is destroyed (in all other cases).
+  </summary>
+</histogram>
+
+<histogram name="Preloading.PrefetchBCGSwap.RelatedActiveContents"
+    units="contents" expires_after="2024-06-30">
+  <owner>jbroman@chromium.org</owner>
+  <owner>portals-team@google.com</owner>
+  <summary>
+    Records the number of active contents in the same BrowsingInstance as a
+    frame which is, or would be, swapped to a new one due to use of a cross-site
+    prefetch, when this determination is being made on navigation. The
+    proportion of these which is greater than 1 is a rough upper bound for the
+    cases where this might be observable due to an opener relationship.
+  </summary>
+</histogram>
+
+<histogram
     name="Preloading.PrerenderBackNavigationEligibility.{PreloadingPredictor}"
-    enum="PrerenderBackNavigationEligibility" expires_after="2023-09-09">
+    enum="PrerenderBackNavigationEligibility" expires_after="2025-10-06">
   <owner>mcnee@chromium.org</owner>
   <owner>chrome-brapp-loading@chromium.org</owner>
   <summary>
@@ -123,7 +252,7 @@ chromium-metrics-reviews@google.com.
 
 <histogram
     name="Preloading.{PreloadingType}.Attempt.{PreloadingPredictor}.Precision"
-    enum="PredictorConfusionMatrix" expires_after="2024-06-01">
+    enum="PredictorConfusionMatrix" expires_after="2025-10-26">
   <owner>isaboori@google.com</owner>
   <owner>spelchat@chromium.org</owner>
   <owner>sreejakshetty@chromium.org</owner>
@@ -143,7 +272,7 @@ chromium-metrics-reviews@google.com.
 
 <histogram
     name="Preloading.{PreloadingType}.Attempt.{PreloadingPredictor}.Recall"
-    enum="PredictorConfusionMatrix" expires_after="2024-06-01">
+    enum="PredictorConfusionMatrix" expires_after="2025-10-19">
   <owner>isaboori@google.com</owner>
   <owner>spelchat@chromium.org</owner>
   <owner>sreejakshetty@chromium.org</owner>
@@ -164,7 +293,7 @@ chromium-metrics-reviews@google.com.
 
 <histogram
     name="Preloading.{PreloadingType}.Attempt.{PreloadingPredictor}.TriggeringOutcome"
-    enum="PreloadingTriggeringOutcome" expires_after="2024-06-01">
+    enum="PreloadingTriggeringOutcome" expires_after="2025-10-19">
   <owner>spelchat@chromium.org</owner>
   <owner>sreejakshetty@chromium.org</owner>
   <owner>jbroman@chromium.org</owner>

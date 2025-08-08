@@ -1,0 +1,3 @@
+a
+
+PASS if no crash

@@ -8,16 +8,16 @@ per-file histograms.xml=file://tools/metrics/histograms/metadata/METRIC_REVIEWER
 # Primary reviewers
 jimmyxgong@chromium.org
 # Secondary reviewers
-zentaro@chromium.org
-# For Conversions.* histograms:
-johnidel@chromium.org
+gavinwill@chromium.org
 # For Compositor*, Gpu.*, Graphics* and Viz.* histograms:
 jonross@chromium.org
 # For Privacy* and WebsiteSettings.* histograms:
 dullweber@chromium.org
 # For PerformanceMonitor.* histograms:
 olivierli@chromium.org
-# For BootTime.*, Uptime.*, UserManager.*, TimeZone.* histograms:
-alemate@chromium.org
 # For AccessCodeCast.* histograms:
 bzielinski@google.com
+# For Ads.InterestGroup.* histograms:
+orrb@google.com
+# For BootTime.Login* histograms:
+junis@google.com

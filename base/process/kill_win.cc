@@ -4,12 +4,12 @@
 
 #include "base/process/kill.h"
 
-#include <algorithm>
-
 #include <windows.h>
 
 #include <io.h>
 #include <stdint.h>
+
+#include <algorithm>
 
 #include "base/logging.h"
 #include "base/notreached.h"
@@ -50,11 +50,11 @@ TerminationStatus GetTerminationStatus(ProcessHandle handle, int* exit_code) {
 
     if (wait_result == WAIT_FAILED) {
       DPLOG(ERROR) << "WaitForSingleObject() failed";
+      *exit_code = static_cast<int>(wait_result);
     } else {
       DCHECK_EQ(WAIT_OBJECT_0, wait_result);
-
-      // Strange, the process used 0x103 (STILL_ACTIVE) as exit code.
-      NOTREACHED();
+      DLOG(ERROR) << "The process used 0x103 (STILL_ACTIVE) as exit code.";
+      *exit_code = static_cast<int>(tmp_exit_code);
     }
 
     return TERMINATION_STATUS_ABNORMAL_TERMINATION;
@@ -99,9 +99,7 @@ bool WaitForProcessesToExit(const FilePath::StringType& executable_name,
     DWORD remaining_wait = static_cast<DWORD>(
         std::max(static_cast<int64_t>(0),
                  wait.InMilliseconds() - (GetTickCount() - start_time)));
-    HANDLE process = OpenProcess(SYNCHRONIZE,
-                                 FALSE,
-                                 entry->th32ProcessID);
+    HANDLE process = OpenProcess(SYNCHRONIZE, FALSE, entry->th32ProcessID);
     DWORD wait_result = WaitForSingleObject(process, remaining_wait);
     CloseHandle(process);
     result &= (wait_result == WAIT_OBJECT_0);
@@ -114,8 +112,9 @@ bool CleanupProcesses(const FilePath::StringType& executable_name,
                       TimeDelta wait,
                       int exit_code,
                       const ProcessFilter* filter) {
-  if (WaitForProcessesToExit(executable_name, wait, filter))
+  if (WaitForProcessesToExit(executable_name, wait, filter)) {
     return true;
+  }
   KillProcesses(executable_name, exit_code, filter);
   return false;
 }

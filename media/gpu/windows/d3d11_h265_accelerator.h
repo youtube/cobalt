@@ -8,9 +8,8 @@
 #include <d3d11_1.h>
 #include <d3d9.h>
 #include <dxva.h>
-#include <wrl/client.h>
 
-#include <vector>
+#include <variant>
 
 #include "base/memory/raw_ptr.h"
 #include "gpu/command_buffer/service/texture_manager.h"
@@ -18,11 +17,7 @@
 #include "media/base/win/mf_helpers.h"
 #include "media/gpu/h265_decoder.h"
 #include "media/gpu/h265_dpb.h"
-#include "media/gpu/windows/d3d11_com_defs.h"
-#include "media/gpu/windows/d3d11_status.h"
-#include "media/gpu/windows/d3d11_video_context_wrapper.h"
 #include "media/gpu/windows/d3d11_video_decoder_client.h"
-#include "media/video/picture.h"
 #include "third_party/angle/include/EGL/egl.h"
 #include "third_party/angle/include/EGL/eglext.h"
 
@@ -31,18 +26,15 @@ namespace media {
 // Maximum of valid DXVA_PicEntry_HEVC entries in RefPicList
 constexpr unsigned kMaxRefPicListSize = 15;
 
-class D3D11H265Accelerator;
 class MediaLog;
 
-// Picture Parameters DXVA buffer struct for Rext/Scc is not specified in DXVA
-// spec. The below structures come from Intel platform DDI definition, so they
-// are currently Intel specific.
+// The below structures come from Intel platform DDI definition, and they
+// are Intel specific on legacy platforms.
 // For NVidia and AMD platforms supporting HEVC Rext & Scc, it is expected
-// the picture param information included in below structures is sufficient
-// for underlying drivers supporting range extension/Scc.
+// the standard DXVA devices are used for range extension/Scc decoding.
 #pragma pack(push, 1)
 typedef struct {
-  DXVA_PicParams_HEVC main;
+  DXVA_PicParams_HEVC params;
 
   // HEVC Range Extension. Fields are named the same as in HEVC spec.
   union {
@@ -76,10 +68,10 @@ typedef struct {
   UCHAR log2_max_transform_skip_block_size_minus2;
   CHAR cb_qp_offset_list[6];  // [-12..12]
   CHAR cr_qp_offset_list[6];  // [-12..12]
-} DXVA_PicParams_HEVC_Rext;
+} DXVA_PicParams_HEVC_Rext_Intel;
 
 typedef struct {
-  DXVA_PicParams_HEVC_Rext main_rext;
+  DXVA_PicParams_HEVC_Rext_Intel main_rext;
 
   // HEVC Screen Content Coding. Fields are named the same as in HEVC spec.
   union {
@@ -102,15 +94,20 @@ typedef struct {
   CHAR pps_act_y_qp_offset_plus5;   // [-7..17]
   CHAR pps_act_cb_qp_offset_plus5;  // [-7..17]
   CHAR pps_act_cr_qp_offset_plus3;  // [-9..15]
-} DXVA_PicParams_HEVC_SCC;
+} DXVA_PicParams_HEVC_SCC_Intel;
 #pragma pack(pop)
+
+using DXVA_PicParams_HEVC_Rext =
+    std::variant<DXVA_PicParams_HEVC_Rext_Intel, DXVA_PicParams_HEVC_RangeExt>;
 
 class D3D11H265Accelerator : public H265Decoder::H265Accelerator {
  public:
+  // When `use_dxva_device_for_hevc_rext` is true, the accelerator will follow
+  // DXVA spec to submit picture buffers to driver for range extension profile;
+  // otherwise it will use Intel specific structures to submit picture buffers.
   D3D11H265Accelerator(D3D11VideoDecoderClient* client,
                        MediaLog* media_log,
-                       ComD3D11VideoDevice video_device,
-                       std::unique_ptr<VideoContextWrapper> video_context);
+                       bool use_dxva_device_for_hevc_rext);
 
   D3D11H265Accelerator(const D3D11H265Accelerator&) = delete;
   D3D11H265Accelerator& operator=(const D3D11H265Accelerator&) = delete;
@@ -143,12 +140,11 @@ class D3D11H265Accelerator : public H265Decoder::H265Accelerator {
   Status SubmitDecode(scoped_refptr<H265Picture> pic) override;
   void Reset() override;
   bool OutputPicture(scoped_refptr<H265Picture> pic) override;
+  Status SetStream(base::span<const uint8_t> stream,
+                   const DecryptConfig* decrypt_config) override;
   bool IsChromaSamplingSupported(VideoChromaSampling chroma_sampling) override;
 
  private:
-  bool SubmitSliceData();
-  bool RetrieveBitstreamBuffer();
-
   // Gets a pic params struct with the constant fields set.
   void FillPicParamsWithConstants(DXVA_PicParams_HEVC_Rext* pic_param);
 
@@ -177,20 +173,8 @@ class D3D11H265Accelerator : public H265Decoder::H265Accelerator {
       const H265Picture::Vector& ref_pic_set_st_curr_after,
       const H265Picture::Vector& ref_pic_set_st_curr_before);
 
-  void SetVideoDecoder(ComD3D11VideoDecoder video_decoder);
-
-  // Record a failure to DVLOG and |media_log_|.
-  void RecordFailure(const std::string& reason,
-                     D3D11Status::Codes code,
-                     HRESULT hr = S_OK) const;
-  void RecordFailure(D3D11Status error) const;
-
+  std::unique_ptr<MediaLog> media_log_;
   raw_ptr<D3D11VideoDecoderClient> client_;
-  raw_ptr<MediaLog> media_log_ = nullptr;
-
-  ComD3D11VideoDecoder video_decoder_;
-  ComD3D11VideoDevice video_device_;
-  std::unique_ptr<VideoContextWrapper> video_context_;
 
   // This information set at the beginning of a frame and saved for processing
   // all the slices.
@@ -201,21 +185,14 @@ class D3D11H265Accelerator : public H265Decoder::H265Accelerator {
   // If current stream is encoded with range extension profile.
   bool is_rext_ = false;
 
-  // Information that's accumulated during slices and submitted at the end
-  std::vector<DXVA_Slice_HEVC_Short> slice_info_;
-  size_t current_offset_ = 0;
-  size_t bitstream_buffer_size_ = 0;
-  raw_ptr<uint8_t, AllowPtrArithmetic> bitstream_buffer_bytes_ = nullptr;
+  // If range extension is decoded through standard DXVA device.
+  const bool use_dxva_device_for_hevc_rext_;
 
   // For HEVC this number needs to be larger than 1 and different
   // in each call to Execute().
   int current_status_report_feedback_num_ = 1;
 
-  // This contains the subsamples (clear and encrypted) of the slice data
-  // in D3D11_VIDEO_DECODER_BUFFER_BITSTREAM buffer.
-  std::vector<D3D11_VIDEO_DECODER_SUB_SAMPLE_MAPPING_BLOCK> subsamples_;
-  // IV for the current frame.
-  std::vector<uint8_t> frame_iv_;
+  uint32_t current_frame_size_ = 0;
 };
 
 }  // namespace media

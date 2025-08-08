@@ -6,6 +6,8 @@
 
 #include <sys/mman.h>
 
+#include <array>
+
 #include "base/functional/bind.h"
 #include "base/memory/ptr_util.h"
 #include "media/gpu/macros.h"
@@ -22,9 +24,9 @@ GpuMemoryBufferVideoFrameMapper::GpuMemoryBufferVideoFrameMapper(
     VideoPixelFormat format)
     : VideoFrameMapper(format) {}
 
-scoped_refptr<VideoFrame> GpuMemoryBufferVideoFrameMapper::Map(
-    scoped_refptr<const VideoFrame> video_frame,
-    int permissions) const {
+scoped_refptr<VideoFrame> GpuMemoryBufferVideoFrameMapper::MapFrame(
+    scoped_refptr<const FrameResource> video_frame,
+    int permissions) {
   if (!video_frame) {
     LOG(ERROR) << "Video frame is nullptr";
     return nullptr;
@@ -48,19 +50,16 @@ scoped_refptr<VideoFrame> GpuMemoryBufferVideoFrameMapper::Map(
     return nullptr;
   }
 
-  gfx::GpuMemoryBuffer* gmb = video_frame->GetGpuMemoryBuffer();
-  if (!gmb)
-    return nullptr;
-
-  if (!gmb->Map()) {
-    VLOGF(1) << "Failed to map GpuMemoryBuffer";
+  auto scoped_mapping = video_frame->MapGMBOrSharedImage();
+  if (!scoped_mapping) {
+    VLOGF(1) << "Failed to get the mapped memory.";
     return nullptr;
   }
 
   const size_t num_planes = VideoFrame::NumPlanes(format_);
-  uint8_t* plane_addrs[VideoFrame::kMaxPlanes] = {};
+  std::array<uint8_t*, VideoFrame::kMaxPlanes> plane_addrs = {};
   for (size_t i = 0; i < num_planes; i++)
-    plane_addrs[i] = static_cast<uint8_t*>(gmb->memory(i));
+    plane_addrs[i] = scoped_mapping->Memory(i);
 
   scoped_refptr<VideoFrame> mapped_frame;
   if (IsYuvPlanar(format_)) {
@@ -70,7 +69,8 @@ scoped_refptr<VideoFrame> GpuMemoryBufferVideoFrameMapper::Map(
         plane_addrs[2], video_frame->timestamp());
   } else if (num_planes == 1) {
     size_t buffer_size = VideoFrame::AllocationSize(
-        format_, gfx::Size(gmb->stride(0), gmb->GetSize().height()));
+        format_,
+        gfx::Size(scoped_mapping->Stride(0), scoped_mapping->Size().height()));
     mapped_frame = VideoFrame::WrapExternalDataWithLayout(
         video_frame->layout(), video_frame->visible_rect(),
         video_frame->natural_size(), plane_addrs[0], buffer_size,
@@ -78,7 +78,6 @@ scoped_refptr<VideoFrame> GpuMemoryBufferVideoFrameMapper::Map(
   }
 
   if (!mapped_frame) {
-    gmb->Unmap();
     return nullptr;
   }
 
@@ -88,11 +87,14 @@ scoped_refptr<VideoFrame> GpuMemoryBufferVideoFrameMapper::Map(
   // Pass |video_frame| so that it outlives |mapped_frame| and the mapped buffer
   // is unmapped on destruction.
   mapped_frame->AddDestructionObserver(base::BindOnce(
-      [](scoped_refptr<const VideoFrame> frame) {
-        DCHECK(frame->HasGpuMemoryBuffer());
-        frame->GetGpuMemoryBuffer()->Unmap();
+      [](scoped_refptr<const FrameResource> frame,
+         std::unique_ptr<VideoFrame::ScopedMapping> scoped_mapping) {
+        CHECK(scoped_mapping);
+        // The VideoFrame::ScopedMapping must be destroyed before the
+        // FrameResource that produced it in order to avoid dangling pointers.
+        scoped_mapping.reset();
       },
-      std::move(video_frame)));
+      std::move(video_frame), std::move(scoped_mapping)));
   return mapped_frame;
 }
 }  // namespace media

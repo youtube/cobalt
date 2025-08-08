@@ -1,0 +1,9 @@
+include_rules = [
+  "+chromeos",
+  "+components/crash/core/common/crash_key.h",
+  "+components/device_event_log",
+  "+dbus",
+  "+services/device/usb/jni_headers",
+  "+third_party/libusb",
+  "+third_party/re2",
+]

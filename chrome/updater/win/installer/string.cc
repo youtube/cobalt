@@ -1,19 +1,30 @@
-// Copyright 2019 The Chromium Authors. All rights reserved.
+// Copyright 2019 The Chromium Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
+
+#ifdef UNSAFE_BUFFERS_BUILD
+// TODO(crbug.com/40285824): Remove this and convert code to safer constructs.
+#pragma allow_unsafe_buffers
+#endif
 
 #include "chrome/updater/win/installer/string.h"
 
 #include <windows.h>
 
+#include <algorithm>
+
+#include "base/strings/string_number_conversions.h"
+
 namespace {
 
 // Returns true if the given two ASCII characters are same (ignoring case).
 bool EqualASCIICharI(wchar_t a, wchar_t b) {
-  if (a >= L'A' && a <= L'Z')
+  if (a >= L'A' && a <= L'Z') {
     a += (L'a' - L'A');
-  if (b >= L'A' && b <= L'Z')
+  }
+  if (b >= L'A' && b <= L'Z') {
     b += (L'a' - L'A');
+  }
   return (a == b);
 }
 
@@ -24,39 +35,36 @@ namespace updater {
 // Formats a sequence of |bytes| as hex.  The |str| buffer must have room for
 // at least 2*|size| + 1.
 bool HexEncode(const void* bytes, size_t size, wchar_t* str, size_t str_size) {
-  if (str_size <= (size * 2))
+  if (str_size <= (size * 2)) {
     return false;
-
-  static const wchar_t kHexChars[] = L"0123456789ABCDEF";
-
-  str[size * 2] = L'\0';
-
-  for (size_t i = 0; i < size; ++i) {
-    char b = reinterpret_cast<const char*>(bytes)[i];
-    str[(i * 2)] = kHexChars[(b >> 4) & 0xf];
-    str[(i * 2) + 1] = kHexChars[b & 0xf];
   }
 
+  std::ranges::copy(base::HexEncode(bytes, size), str);
+  str[size * 2] = L'\0';
   return true;
 }
 
 size_t SafeStrLen(const wchar_t* str, size_t alloc_size) {
-  if (!str || !alloc_size)
+  if (!str || !alloc_size) {
     return 0;
+  }
   size_t len = 0;
-  while (--alloc_size && str[len] != L'\0')
+  while (--alloc_size && str[len] != L'\0') {
     ++len;
+  }
   return len;
 }
 
 bool SafeStrCopy(wchar_t* dest, size_t dest_size, const wchar_t* src) {
-  if (!dest || !dest_size)
+  if (!dest || !dest_size) {
     return false;
+  }
 
   wchar_t* write = dest;
   for (size_t remaining = dest_size; remaining != 0; --remaining) {
-    if ((*write++ = *src++) == L'\0')
+    if ((*write++ = *src++) == L'\0') {
       return true;
+    }
   }
 
   // If we fail, we do not want to leave the string with partially copied
@@ -67,7 +75,7 @@ bool SafeStrCopy(wchar_t* dest, size_t dest_size, const wchar_t* src) {
   // want to mutate the string in case the caller handles the error of a
   // failed concatenation.  For example:
   //
-  // wchar_t buf[5] = {0};
+  // wchar_t buf[5] = {};
   // if (!SafeStrCat(buf, _countof(buf), kLongName))
   //   SafeStrCat(buf, _countof(buf), kShortName);
   //
@@ -86,24 +94,28 @@ bool SafeStrCat(wchar_t* dest, size_t dest_size, const wchar_t* src) {
 }
 
 bool StrStartsWith(const wchar_t* str, const wchar_t* start_str) {
-  if (str == nullptr || start_str == nullptr)
+  if (str == nullptr || start_str == nullptr) {
     return false;
+  }
 
   for (int i = 0; start_str[i] != L'\0'; ++i) {
-    if (!EqualASCIICharI(str[i], start_str[i]))
+    if (!EqualASCIICharI(str[i], start_str[i])) {
       return false;
+    }
   }
 
   return true;
 }
 
 const wchar_t* GetNameFromPathExt(const wchar_t* path, size_t size) {
-  if (!size)
+  if (!size) {
     return path;
+  }
 
   const wchar_t* current = &path[size - 1];
-  while (current != path && L'\\' != *current)
+  while (current != path && L'\\' != *current) {
     --current;
+  }
 
   // If no path separator found, just return |path|.
   // Otherwise, return a pointer right after the separator.

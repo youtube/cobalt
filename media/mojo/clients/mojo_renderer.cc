@@ -9,6 +9,7 @@
 #include "base/functional/bind.h"
 #include "base/functional/callback_helpers.h"
 #include "base/location.h"
+#include "base/memory/raw_ptr.h"
 #include "base/task/sequenced_task_runner.h"
 #include "base/task/single_thread_task_runner.h"
 #include "media/base/cdm_context.h"
@@ -59,27 +60,12 @@ void MojoRenderer::Initialize(MediaResource* media_resource,
   media_resource_ = media_resource;
   init_cb_ = std::move(init_cb);
 
-  switch (media_resource_->GetType()) {
-    case MediaResource::Type::STREAM:
-      InitializeRendererFromStreams(client);
-      break;
-    case MediaResource::Type::URL:
-      InitializeRendererFromUrl(client);
-      break;
-  }
-}
-
-void MojoRenderer::InitializeRendererFromStreams(
-    media::RendererClient* client) {
-  DVLOG(1) << __func__;
-  DCHECK(task_runner_->RunsTasksInCurrentSequence());
-
   // Create mojom::DemuxerStream for each demuxer stream and bind its lifetime
   // to the pipe.
   std::vector<DemuxerStream*> streams = media_resource_->GetAllStreams();
   std::vector<mojo::PendingRemote<mojom::DemuxerStream>> stream_proxies;
 
-  for (auto* stream : streams) {
+  for (media::DemuxerStream* stream : streams) {
     mojo::PendingRemote<mojom::DemuxerStream> stream_proxy;
     auto mojo_stream = std::make_unique<MojoDemuxerStreamImpl>(
         stream, stream_proxy.InitWithNewPipeAndPassReceiver());
@@ -100,28 +86,7 @@ void MojoRenderer::InitializeRendererFromStreams(
   // |remote_renderer_|, and the callback won't be dispatched if
   // |remote_renderer_| is destroyed.
   remote_renderer_->Initialize(client_receiver_.BindNewEndpointAndPassRemote(),
-                               std::move(stream_proxies), nullptr,
-                               base::BindOnce(&MojoRenderer::OnInitialized,
-                                              base::Unretained(this), client));
-}
-
-void MojoRenderer::InitializeRendererFromUrl(media::RendererClient* client) {
-  DVLOG(2) << __func__;
-  DCHECK(task_runner_->RunsTasksInCurrentSequence());
-
-  BindRemoteRendererIfNeeded();
-
-  const MediaUrlParams& url_params = media_resource_->GetMediaUrlParams();
-
-  // Using base::Unretained(this) is safe because |this| owns
-  // |remote_renderer_|, and the callback won't be dispatched if
-  // |remote_renderer_| is destroyed.
-  mojom::MediaUrlParamsPtr media_url_params = mojom::MediaUrlParams::New(
-      url_params.media_url, url_params.site_for_cookies,
-      url_params.top_frame_origin, url_params.has_storage_access,
-      url_params.allow_credentials, url_params.is_hls);
-  remote_renderer_->Initialize(client_receiver_.BindNewEndpointAndPassRemote(),
-                               absl::nullopt, std::move(media_url_params),
+                               std::move(stream_proxies),
                                base::BindOnce(&MojoRenderer::OnInitialized,
                                               base::Unretained(this), client));
 }
@@ -140,7 +105,7 @@ void MojoRenderer::SetCdm(CdmContext* cdm_context,
     return;
   }
 
-  absl::optional<base::UnguessableToken> cdm_id = cdm_context->GetCdmId();
+  std::optional<base::UnguessableToken> cdm_id = cdm_context->GetCdmId();
   if (!cdm_id) {
     DVLOG(2) << "MojoRenderer only works with remote CDMs but the CDM ID "
                 "is invalid.";
@@ -156,9 +121,13 @@ void MojoRenderer::SetCdm(CdmContext* cdm_context,
                                                   base::Unretained(this)));
 }
 
-void MojoRenderer::SetLatencyHint(
-    absl::optional<base::TimeDelta> latency_hint) {
-  // TODO(chcunningham): Proxy to remote renderer if needed.
+void MojoRenderer::SetLatencyHint(std::optional<base::TimeDelta> latency_hint) {
+  DVLOG(2) << __func__;
+  DCHECK(task_runner_->RunsTasksInCurrentSequence());
+
+  BindRemoteRendererIfNeeded();
+
+  remote_renderer_->SetLatencyHint(latency_hint);
 }
 
 void MojoRenderer::Flush(base::OnceClosure flush_cb) {

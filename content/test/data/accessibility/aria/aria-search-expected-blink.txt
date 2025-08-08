@@ -1,0 +1,6 @@
+rootWebArea
+++genericContainer ignored
+++++genericContainer ignored
+++++++search
+++++++++staticText name='ARIA role search.'
+++++++++++inlineTextBox name='ARIA role search.'

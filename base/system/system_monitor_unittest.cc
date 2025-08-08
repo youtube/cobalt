@@ -2,9 +2,10 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include <memory>
-
 #include "base/system/system_monitor.h"
+
+#include <array>
+#include <memory>
 
 #include "base/run_loop.h"
 #include "base/test/mock_devices_changed_observer.h"
@@ -31,8 +32,8 @@ class SystemMonitorTest : public testing::Test {
 TEST_F(SystemMonitorTest, DeviceChangeNotifications) {
   const int kObservers = 5;
 
-  testing::Sequence mock_sequencer[kObservers];
-  MockDevicesChangedObserver observers[kObservers];
+  std::array<testing::Sequence, kObservers> mock_sequencer;
+  std::array<MockDevicesChangedObserver, kObservers> observers;
   for (int index = 0; index < kObservers; ++index) {
     system_monitor_->AddDevicesChangedObserver(&observers[index]);
 

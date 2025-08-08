@@ -1,4 +1,4 @@
-# Copyright 2023 The Chromium Authors
+# Copyright 2025 The Chromium Authors
 # Use of this source code is governed by a BSD-style license that can be
 # found in the LICENSE file.
 
@@ -49,6 +49,7 @@ x86_asm_sources = [
   "libdav1d/src/x86/mc_avx512.asm",
   "libdav1d/src/x86/mc_sse.asm",
   "libdav1d/src/x86/msac.asm",
+  "libdav1d/src/x86/pal.asm",
   "libdav1d/src/x86/refmvs.asm",
 ]
 
@@ -89,6 +90,8 @@ arm64_asm_sources = [
   "libdav1d/src/arm/64/looprestoration_common.S",
   "libdav1d/src/arm/64/mc.S",
   "libdav1d/src/arm/64/mc16.S",
+  "libdav1d/src/arm/64/mc16_sve.S",
+  "libdav1d/src/arm/64/mc_dotprod.S",
   "libdav1d/src/arm/64/msac.S",
   "libdav1d/src/arm/64/refmvs.S",
 ]
@@ -140,6 +143,7 @@ c_headers = [
   "libdav1d/src/mem.h",
   "libdav1d/src/msac.h",
   "libdav1d/src/obu.h",
+  "libdav1d/src/pal.h",
   "libdav1d/src/picture.h",
   "libdav1d/src/qm.h",
   "libdav1d/src/recon.h",
@@ -157,6 +161,7 @@ c_headers = [
 c_sources = [
   "libdav1d/src/cdf.c",
   "libdav1d/src/cpu.c",
+  "libdav1d/src/ctx.c",
   "libdav1d/src/data.c",
   "libdav1d/src/decode.c",
   "libdav1d/src/dequant_tables.c",
@@ -169,6 +174,7 @@ c_sources = [
   "libdav1d/src/mem.c",
   "libdav1d/src/msac.c",
   "libdav1d/src/obu.c",
+  "libdav1d/src/pal.c",
   "libdav1d/src/picture.c",
   "libdav1d/src/qm.c",
   "libdav1d/src/ref.c",

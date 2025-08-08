@@ -1,32 +1,9 @@
 // Protocol Buffers - Google's data interchange format
 // Copyright 2008 Google Inc.  All rights reserved.
-// https://developers.google.com/protocol-buffers/
 //
-// Redistribution and use in source and binary forms, with or without
-// modification, are permitted provided that the following conditions are
-// met:
-//
-//     * Redistributions of source code must retain the above copyright
-// notice, this list of conditions and the following disclaimer.
-//     * Redistributions in binary form must reproduce the above
-// copyright notice, this list of conditions and the following disclaimer
-// in the documentation and/or other materials provided with the
-// distribution.
-//     * Neither the name of Google Inc. nor the names of its
-// contributors may be used to endorse or promote products derived from
-// this software without specific prior written permission.
-//
-// THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
-// "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
-// LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR
-// A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT
-// OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
-// SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT
-// LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
-// DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
-// THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
-// (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
-// OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+// Use of this source code is governed by a BSD-style
+// license that can be found in the LICENSE file or at
+// https://developers.google.com/open-source/licenses/bsd
 
 // Author: kenton@google.com (Kenton Varda)
 //  Based on original Protocol Buffers design by
@@ -88,14 +65,18 @@
 // I'd love to hear about other alternatives, though, as this code isn't
 // exactly pretty.
 
-#include <google/protobuf/io/tokenizer.h>
-#include <google/protobuf/stubs/common.h>
-#include <google/protobuf/stubs/logging.h>
-#include <google/protobuf/stubs/stringprintf.h>
-#include <google/protobuf/io/strtod.h>
-#include <google/protobuf/io/zero_copy_stream.h>
-#include <google/protobuf/stubs/strutil.h>
-#include <google/protobuf/stubs/stl_util.h>
+#include "google/protobuf/io/tokenizer.h"
+
+#include "google/protobuf/stubs/common.h"
+#include "absl/log/absl_check.h"
+#include "absl/log/absl_log.h"
+#include "absl/strings/escaping.h"
+#include "absl/strings/str_format.h"
+#include "google/protobuf/io/strtod.h"
+#include "google/protobuf/io/zero_copy_stream.h"
+
+// Must be included last.
+#include "google/protobuf/port_def.inc"
 
 namespace google {
 namespace protobuf {
@@ -146,12 +127,32 @@ CHARACTER_CLASS(Escape, c == 'a' || c == 'b' || c == 'f' || c == 'n' ||
 
 // Given a char, interpret it as a numeric digit and return its value.
 // This supports any number base up to 36.
-inline int DigitValue(char digit) {
-  if ('0' <= digit && digit <= '9') return digit - '0';
-  if ('a' <= digit && digit <= 'z') return digit - 'a' + 10;
-  if ('A' <= digit && digit <= 'Z') return digit - 'A' + 10;
-  return -1;
-}
+// Represents integer values of digits.
+// Uses 36 to indicate an invalid character since we support
+// bases up to 36.
+static const int8_t kAsciiToInt[256] = {
+    36, 36, 36, 36, 36, 36, 36, 36, 36, 36, 36, 36, 36, 36, 36, 36,  // 00-0F
+    36, 36, 36, 36, 36, 36, 36, 36, 36, 36, 36, 36, 36, 36, 36, 36,  // 10-1F
+    36, 36, 36, 36, 36, 36, 36, 36, 36, 36, 36, 36, 36, 36, 36, 36,  // ' '-'/'
+    0,  1,  2,  3,  4,  5,  6,  7,  8,  9,                           // '0'-'9'
+    36, 36, 36, 36, 36, 36, 36,                                      // ':'-'@'
+    10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25,  // 'A'-'P'
+    26, 27, 28, 29, 30, 31, 32, 33, 34, 35,                          // 'Q'-'Z'
+    36, 36, 36, 36, 36, 36,                                          // '['-'`'
+    10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25,  // 'a'-'p'
+    26, 27, 28, 29, 30, 31, 32, 33, 34, 35,                          // 'q'-'z'
+    36, 36, 36, 36, 36,                                              // '{'-DEL
+    36, 36, 36, 36, 36, 36, 36, 36, 36, 36, 36, 36, 36, 36, 36, 36,  // 80-8F
+    36, 36, 36, 36, 36, 36, 36, 36, 36, 36, 36, 36, 36, 36, 36, 36,  // 90-9F
+    36, 36, 36, 36, 36, 36, 36, 36, 36, 36, 36, 36, 36, 36, 36, 36,  // A0-AF
+    36, 36, 36, 36, 36, 36, 36, 36, 36, 36, 36, 36, 36, 36, 36, 36,  // B0-BF
+    36, 36, 36, 36, 36, 36, 36, 36, 36, 36, 36, 36, 36, 36, 36, 36,  // C0-CF
+    36, 36, 36, 36, 36, 36, 36, 36, 36, 36, 36, 36, 36, 36, 36, 36,  // D0-DF
+    36, 36, 36, 36, 36, 36, 36, 36, 36, 36, 36, 36, 36, 36, 36, 36,  // E0-EF
+    36, 36, 36, 36, 36, 36, 36, 36, 36, 36, 36, 36, 36, 36, 36, 36,  // F0-FF
+};
+
+inline int DigitValue(char digit) { return kAsciiToInt[digit & 0xFF]; }
 
 // Inline because it's only used in one place.
 inline char TranslateEscape(char c) {
@@ -195,13 +196,13 @@ Tokenizer::Tokenizer(ZeroCopyInputStream* input,
                      ErrorCollector* error_collector)
     : input_(input),
       error_collector_(error_collector),
-      buffer_(NULL),
+      buffer_(nullptr),
       buffer_size_(0),
       buffer_pos_(0),
       read_error_(false),
       line_(0),
       column_(0),
-      record_target_(NULL),
+      record_target_(nullptr),
       record_start_(-1),
       allow_f_after_float_(false),
       comment_style_(CPP_COMMENT_STYLE),
@@ -211,6 +212,7 @@ Tokenizer::Tokenizer(ZeroCopyInputStream* input,
   current_.column = 0;
   current_.end_column = 0;
   current_.type = TYPE_START;
+  previous_ = current_;
 
   Refresh();
 }
@@ -221,6 +223,21 @@ Tokenizer::~Tokenizer() {
   if (buffer_size_ > buffer_pos_) {
     input_->BackUp(buffer_size_ - buffer_pos_);
   }
+}
+
+bool Tokenizer::report_whitespace() const { return report_whitespace_; }
+// Note: `set_report_whitespace(false)` implies `set_report_newlines(false)`.
+void Tokenizer::set_report_whitespace(bool report) {
+  report_whitespace_ = report;
+  report_newlines_ &= report;
+}
+
+// If true, newline tokens are reported by Next().
+bool Tokenizer::report_newlines() const { return report_newlines_; }
+// Note: `set_report_newlines(true)` implies `set_report_whitespace(true)`.
+void Tokenizer::set_report_newlines(bool report) {
+  report_newlines_ = report;
+  report_whitespace_ |= report;  // enable report_whitespace if necessary
 }
 
 // -------------------------------------------------------------------
@@ -254,14 +271,14 @@ void Tokenizer::Refresh() {
   }
 
   // If we're in a token, append the rest of the buffer to it.
-  if (record_target_ != NULL && record_start_ < buffer_size_) {
+  if (record_target_ != nullptr && record_start_ < buffer_size_) {
     record_target_->append(buffer_ + record_start_,
                            buffer_size_ - record_start_);
     record_start_ = 0;
   }
 
-  const void* data = NULL;
-  buffer_ = NULL;
+  const void* data = nullptr;
+  buffer_ = nullptr;
   buffer_pos_ = 0;
   do {
     if (!input_->Next(&data, &buffer_size_)) {
@@ -285,14 +302,14 @@ inline void Tokenizer::RecordTo(std::string* target) {
 
 inline void Tokenizer::StopRecording() {
   // Note:  The if() is necessary because some STL implementations crash when
-  //   you call string::append(NULL, 0), presumably because they are trying to
-  //   be helpful by detecting the NULL pointer, even though there's nothing
-  //   wrong with reading zero bytes from NULL.
+  //   you call string::append(nullptr, 0), presumably because they are trying
+  //   to be helpful by detecting the nullptr pointer, even though there's
+  //   nothing wrong with reading zero bytes from nullptr.
   if (buffer_pos_ != record_start_) {
     record_target_->append(buffer_ + record_start_,
                            buffer_pos_ - record_start_);
   }
-  record_target_ = NULL;
+  record_target_ = nullptr;
   record_start_ = -1;
 }
 
@@ -367,7 +384,7 @@ void Tokenizer::ConsumeString(char delimiter) {
 
       case '\n': {
         if (!allow_multiline_strings_) {
-          AddError("String literals cannot cross line boundaries.");
+          AddError("Multiline strings are not allowed. Did you miss a \"?.");
           return;
         }
         NextChar();
@@ -383,7 +400,7 @@ void Tokenizer::ConsumeString(char delimiter) {
           // Possibly followed by two more octal digits, but these will
           // just be consumed by the main loop anyway so we don't need
           // to do so explicitly here.
-        } else if (TryConsume('x')) {
+        } else if (TryConsume('x') || TryConsume('X')) {
           if (!TryConsumeOne<HexDigit>()) {
             AddError("Expected hex digits for escape sequence.");
           }
@@ -479,21 +496,21 @@ Tokenizer::TokenType Tokenizer::ConsumeNumber(bool started_with_zero,
 }
 
 void Tokenizer::ConsumeLineComment(std::string* content) {
-  if (content != NULL) RecordTo(content);
+  if (content != nullptr) RecordTo(content);
 
   while (current_char_ != '\0' && current_char_ != '\n') {
     NextChar();
   }
   TryConsume('\n');
 
-  if (content != NULL) StopRecording();
+  if (content != nullptr) StopRecording();
 }
 
 void Tokenizer::ConsumeBlockComment(std::string* content) {
   int start_line = line_;
   int start_column = column_ - 2;
 
-  if (content != NULL) RecordTo(content);
+  if (content != nullptr) RecordTo(content);
 
   while (true) {
     while (current_char_ != '\0' && current_char_ != '*' &&
@@ -502,7 +519,7 @@ void Tokenizer::ConsumeBlockComment(std::string* content) {
     }
 
     if (TryConsume('\n')) {
-      if (content != NULL) StopRecording();
+      if (content != nullptr) StopRecording();
 
       // Consume leading whitespace and asterisk;
       ConsumeZeroOrMore<WhitespaceNoNewline>();
@@ -513,10 +530,10 @@ void Tokenizer::ConsumeBlockComment(std::string* content) {
         }
       }
 
-      if (content != NULL) RecordTo(content);
+      if (content != nullptr) RecordTo(content);
     } else if (TryConsume('*') && TryConsume('/')) {
       // End of comment.
-      if (content != NULL) {
+      if (content != nullptr) {
         StopRecording();
         // Strip trailing "*/".
         content->erase(content->size() - 2);
@@ -529,9 +546,9 @@ void Tokenizer::ConsumeBlockComment(std::string* content) {
           "\"/*\" inside block comment.  Block comments cannot be nested.");
     } else if (current_char_ == '\0') {
       AddError("End-of-file inside block comment.");
-      error_collector_->AddError(start_line, start_column,
-                                 "  Comment started here.");
-      if (content != NULL) StopRecording();
+      error_collector_->RecordError(start_line, start_column,
+                                    "  Comment started here.");
+      if (content != nullptr) StopRecording();
       break;
     }
   }
@@ -559,20 +576,53 @@ Tokenizer::NextCommentStatus Tokenizer::TryConsumeCommentStart() {
   }
 }
 
+bool Tokenizer::TryConsumeWhitespace() {
+  if (report_newlines_) {
+    if (TryConsumeOne<WhitespaceNoNewline>()) {
+      ConsumeZeroOrMore<WhitespaceNoNewline>();
+      current_.type = TYPE_WHITESPACE;
+      return true;
+    }
+    return false;
+  }
+  if (TryConsumeOne<Whitespace>()) {
+    ConsumeZeroOrMore<Whitespace>();
+    current_.type = TYPE_WHITESPACE;
+    return report_whitespace_;
+  }
+  return false;
+}
+
+bool Tokenizer::TryConsumeNewline() {
+  if (!report_whitespace_ || !report_newlines_) {
+    return false;
+  }
+  if (TryConsume('\n')) {
+    current_.type = TYPE_NEWLINE;
+    return true;
+  }
+  return false;
+}
+
 // -------------------------------------------------------------------
 
 bool Tokenizer::Next() {
   previous_ = current_;
 
   while (!read_error_) {
-    ConsumeZeroOrMore<Whitespace>();
+    StartToken();
+    bool report_token = TryConsumeWhitespace() || TryConsumeNewline();
+    EndToken();
+    if (report_token) {
+      return true;
+    }
 
     switch (TryConsumeCommentStart()) {
       case LINE_COMMENT:
-        ConsumeLineComment(NULL);
+        ConsumeLineComment(nullptr);
         continue;
       case BLOCK_COMMENT:
-        ConsumeBlockComment(NULL);
+        ConsumeBlockComment(nullptr);
         continue;
       case SLASH_NOT_COMMENT:
         return true;
@@ -615,7 +665,7 @@ bool Tokenizer::Next() {
               current_.line == previous_.line &&
               current_.column == previous_.end_column) {
             // We don't accept syntax like "blah.123".
-            error_collector_->AddError(
+            error_collector_->RecordError(
                 line_, column_ - 2,
                 "Need space between identifier and decimal point.");
           }
@@ -634,10 +684,10 @@ bool Tokenizer::Next() {
       } else {
         // Check if the high order bit is set.
         if (current_char_ & 0x80) {
-          error_collector_->AddError(
+          error_collector_->RecordError(
               line_, column_,
-              StringPrintf("Interpreting non ascii codepoint %d.",
-                           static_cast<unsigned char>(current_char_)));
+              absl::StrFormat("Interpreting non ascii codepoint %d.",
+                              static_cast<unsigned char>(current_char_)));
         }
         NextChar();
         current_.type = TYPE_SYMBOL;
@@ -674,17 +724,19 @@ class CommentCollector {
       : prev_trailing_comments_(prev_trailing_comments),
         detached_comments_(detached_comments),
         next_leading_comments_(next_leading_comments),
+        num_comments_(0),
+        has_trailing_comment_(false),
         has_comment_(false),
         is_line_comment_(false),
         can_attach_to_prev_(true) {
-    if (prev_trailing_comments != NULL) prev_trailing_comments->clear();
-    if (detached_comments != NULL) detached_comments->clear();
-    if (next_leading_comments != NULL) next_leading_comments->clear();
+    if (prev_trailing_comments != nullptr) prev_trailing_comments->clear();
+    if (detached_comments != nullptr) detached_comments->clear();
+    if (next_leading_comments != nullptr) next_leading_comments->clear();
   }
 
   ~CommentCollector() {
     // Whatever is in the buffer is a leading comment.
-    if (next_leading_comments_ != NULL && has_comment_) {
+    if (next_leading_comments_ != nullptr && has_comment_) {
       comment_buffer_.swap(*next_leading_comments_);
     }
   }
@@ -722,20 +774,41 @@ class CommentCollector {
   void Flush() {
     if (has_comment_) {
       if (can_attach_to_prev_) {
-        if (prev_trailing_comments_ != NULL) {
+        if (prev_trailing_comments_ != nullptr) {
           prev_trailing_comments_->append(comment_buffer_);
         }
+        has_trailing_comment_ = true;
         can_attach_to_prev_ = false;
       } else {
-        if (detached_comments_ != NULL) {
+        if (detached_comments_ != nullptr) {
           detached_comments_->push_back(comment_buffer_);
         }
       }
       ClearBuffer();
+      num_comments_++;
     }
   }
 
   void DetachFromPrev() { can_attach_to_prev_ = false; }
+
+  void MaybeDetachComment() {
+    int count = num_comments_;
+    if (has_comment_) count++;
+
+    // If there's one comment, make sure it is detached.
+    if (count == 1) {
+      if (has_trailing_comment_ && prev_trailing_comments_ != nullptr) {
+        std::string trail = *prev_trailing_comments_;
+        if (detached_comments_ != nullptr) {
+          // push trailing comment to front of detached
+          detached_comments_->insert(detached_comments_->begin(), 1, trail);
+        }
+        prev_trailing_comments_->clear();
+      }
+      // flush pending comment so it's detached instead of leading
+      Flush();
+    }
+  }
 
  private:
   std::string* prev_trailing_comments_;
@@ -743,6 +816,8 @@ class CommentCollector {
   std::string* next_leading_comments_;
 
   std::string comment_buffer_;
+  int num_comments_;
+  bool has_trailing_comment_;
 
   // True if any comments were read into comment_buffer_.  This can be true even
   // if comment_buffer_ is empty, namely if the comment was "/**/".
@@ -764,11 +839,15 @@ bool Tokenizer::NextWithComments(std::string* prev_trailing_comments,
   CommentCollector collector(prev_trailing_comments, detached_comments,
                              next_leading_comments);
 
+  int prev_line = line_;
+  int trailing_comment_end_line = -1;
+
   if (current_.type == TYPE_START) {
     // Ignore unicode byte order mark(BOM) if it appears at the file
     // beginning. Only UTF-8 BOM (0xEF 0xBB 0xBF) is accepted.
-    if (TryConsume((char)0xEF)) {
-      if (!TryConsume((char)0xBB) || !TryConsume((char)0xBF)) {
+    if (TryConsume(static_cast<char>(0xEF))) {
+      if (!TryConsume(static_cast<char>(0xBB)) ||
+          !TryConsume(static_cast<char>(0xBF))) {
         AddError(
             "Proto file starts with 0xEF but not UTF-8 BOM. "
             "Only UTF-8 is accepted for proto file.");
@@ -776,12 +855,14 @@ bool Tokenizer::NextWithComments(std::string* prev_trailing_comments,
       }
     }
     collector.DetachFromPrev();
+    prev_line = -1;
   } else {
     // A comment appearing on the same line must be attached to the previous
     // declaration.
     ConsumeZeroOrMore<WhitespaceNoNewline>();
     switch (TryConsumeCommentStart()) {
       case LINE_COMMENT:
+        trailing_comment_end_line = line_;
         ConsumeLineComment(collector.GetBufferForLineComment());
 
         // Don't allow comments on subsequent lines to be attached to a trailing
@@ -790,14 +871,8 @@ bool Tokenizer::NextWithComments(std::string* prev_trailing_comments,
         break;
       case BLOCK_COMMENT:
         ConsumeBlockComment(collector.GetBufferForBlockComment());
-
+        trailing_comment_end_line = line_;
         ConsumeZeroOrMore<WhitespaceNoNewline>();
-        if (!TryConsume('\n')) {
-          // Oops, the next token is on the same line.  If we recorded a comment
-          // we really have no idea which token it should be attached to.
-          collector.ClearBuffer();
-          return Next();
-        }
 
         // Don't allow comments on subsequent lines to be attached to a trailing
         // comment.
@@ -845,6 +920,14 @@ bool Tokenizer::NextWithComments(std::string* prev_trailing_comments,
             // makes no sense to attach a comment to the following token.
             collector.Flush();
           }
+          if (result &&
+              (prev_line == line_ || trailing_comment_end_line == line_)) {
+            // When previous token and this one are on the same line, or
+            // even if a multi-line trailing comment ends on the same line
+            // as this token, it's unclear to what token the comment
+            // should be attached. So we detach it.
+            collector.MaybeDetachComment();
+          }
           return result;
         }
         break;
@@ -859,27 +942,51 @@ bool Tokenizer::NextWithComments(std::string* prev_trailing_comments,
 // are given is text that the tokenizer actually parsed as a token
 // of the given type.
 
-bool Tokenizer::ParseInteger(const std::string& text, uint64 max_value,
-                             uint64* output) {
-  // Sadly, we can't just use strtoul() since it is only 32-bit and strtoull()
-  // is non-standard.  I hate the C standard library.  :(
+bool Tokenizer::ParseInteger(const std::string& text, uint64_t max_value,
+                             uint64_t* output) {
+  // We can't just use strtoull() because (a) it accepts negative numbers,
+  // (b) We want additional range checks, (c) it reports overflows via errno.
 
-  //  return strtoull(text.c_str(), NULL, 0);
+#if 0
+  const char *str_begin = text.c_str();
+  if (*str_begin == '-') return false;
+  char *str_end = nullptr;
+  errno = 0;
+  *output = std::strtoull(str_begin, &str_end, 0);
+  return (errno == 0 && str_end && *str_end == '\0' && *output <= max_value);
+#endif
 
   const char* ptr = text.c_str();
   int base = 10;
+  uint64_t overflow_if_mul_base = (kuint64max / 10) + 1;
   if (ptr[0] == '0') {
     if (ptr[1] == 'x' || ptr[1] == 'X') {
       // This is hex.
       base = 16;
+      overflow_if_mul_base = (kuint64max / 16) + 1;
       ptr += 2;
     } else {
       // This is octal.
       base = 8;
+      overflow_if_mul_base = (kuint64max / 8) + 1;
     }
   }
 
-  uint64 result = 0;
+  uint64_t result = 0;
+  // For all the leading '0's, and also the first non-zero character, we
+  // don't need to multiply.
+  while (*ptr != '\0') {
+    int digit = DigitValue(*ptr++);
+    if (digit >= base) {
+      // The token provided by Tokenizer is invalid. i.e., 099 is an invalid
+      // token, but Tokenizer still think it's integer.
+      return false;
+    }
+    if (digit != 0) {
+      result = digit;
+      break;
+    }
+  }
   for (; *ptr != '\0'; ptr++) {
     int digit = DigitValue(*ptr);
     if (digit < 0 || digit >= base) {
@@ -887,21 +994,38 @@ bool Tokenizer::ParseInteger(const std::string& text, uint64 max_value,
       // token, but Tokenizer still think it's integer.
       return false;
     }
-    if (digit > max_value || result > (max_value - digit) / base) {
-      // Overflow.
+    if (result >= overflow_if_mul_base) {
+      // We know the multiply we're about to do will overflow, so exit now.
       return false;
     }
+    // We know that result * base won't overflow, but adding digit might...
     result = result * base + digit;
+    // C++ guarantees defined "wrap" semantics when unsigned integer
+    // operations overflow, making this a fast way to check if adding
+    // digit made result overflow, and thus, wrap around.
+    if (result < static_cast<uint64_t>(base)) return false;
   }
+  if (result > max_value) return false;
 
   *output = result;
   return true;
 }
 
 double Tokenizer::ParseFloat(const std::string& text) {
+  double result = 0;
+  if (!TryParseFloat(text, &result)) {
+    ABSL_DLOG(FATAL)
+        << " Tokenizer::ParseFloat() passed text that could not have been"
+           " tokenized as a float: "
+        << absl::CEscape(text);
+  }
+  return result;
+}
+
+bool Tokenizer::TryParseFloat(const std::string& text, double* result) {
   const char* start = text.c_str();
   char* end;
-  double result = NoLocaleStrtod(start, &end);
+  *result = NoLocaleStrtod(start, &end);
 
   // "1e" is not a valid float, but if the tokenizer reads it, it will
   // report an error but still return it as a valid token.  We need to
@@ -917,17 +1041,13 @@ double Tokenizer::ParseFloat(const std::string& text) {
     ++end;
   }
 
-  GOOGLE_LOG_IF(DFATAL, end - start != text.size() || *start == '-')
-      << " Tokenizer::ParseFloat() passed text that could not have been"
-         " tokenized as a float: "
-      << CEscape(text);
-  return result;
+  return static_cast<size_t>(end - start) == text.size() && *start != '-';
 }
 
 // Helper to append a Unicode code point to a string as UTF8, without bringing
 // in any external dependencies.
-static void AppendUTF8(uint32 code_point, std::string* output) {
-  uint32 tmp = 0;
+static void AppendUTF8(uint32_t code_point, std::string* output) {
+  uint32_t tmp = 0;
   int len = 0;
   if (code_point <= 0x7f) {
     tmp = code_point;
@@ -939,15 +1059,16 @@ static void AppendUTF8(uint32 code_point, std::string* output) {
     tmp = 0x00e08080 | ((code_point & 0xf000) << 4) |
           ((code_point & 0x0fc0) << 2) | (code_point & 0x003f);
     len = 3;
-  } else if (code_point <= 0x1fffff) {
+  } else if (code_point <= 0x10ffff) {
     tmp = 0xf0808080 | ((code_point & 0x1c0000) << 6) |
           ((code_point & 0x03f000) << 4) | ((code_point & 0x000fc0) << 2) |
           (code_point & 0x003f);
     len = 4;
   } else {
-    // UTF-16 is only defined for code points up to 0x10FFFF, and UTF-8 is
-    // normally only defined up to there as well.
-    StringAppendF(output, "\\U%08x", code_point);
+    // Unicode code points end at 0x10FFFF, so this is out-of-range.
+    // ConsumeString permits hex values up to 0x1FFFFF, and FetchUnicodePoint
+    // doesn't perform a range check.
+    absl::StrAppendFormat(output, "\\U%08x", code_point);
     return;
   }
   tmp = ghtonl(tmp);
@@ -956,7 +1077,7 @@ static void AppendUTF8(uint32 code_point, std::string* output) {
 
 // Try to read <len> hex digits from ptr, and stuff the numeric result into
 // *result. Returns true if that many digits were successfully consumed.
-static bool ReadHexDigits(const char* ptr, int len, uint32* result) {
+static bool ReadHexDigits(const char* ptr, int len, uint32_t* result) {
   *result = 0;
   if (len == 0) return false;
   for (const char* end = ptr + len; ptr < end; ++ptr) {
@@ -971,24 +1092,25 @@ static bool ReadHexDigits(const char* ptr, int len, uint32* result) {
 // surrogate. These numbers are in a reserved range of Unicode code points, so
 // if we encounter such a pair we know how to parse it and convert it into a
 // single code point.
-static const uint32 kMinHeadSurrogate = 0xd800;
-static const uint32 kMaxHeadSurrogate = 0xdc00;
-static const uint32 kMinTrailSurrogate = 0xdc00;
-static const uint32 kMaxTrailSurrogate = 0xe000;
+static const uint32_t kMinHeadSurrogate = 0xd800;
+static const uint32_t kMaxHeadSurrogate = 0xdc00;
+static const uint32_t kMinTrailSurrogate = 0xdc00;
+static const uint32_t kMaxTrailSurrogate = 0xe000;
 
-static inline bool IsHeadSurrogate(uint32 code_point) {
+static inline bool IsHeadSurrogate(uint32_t code_point) {
   return (code_point >= kMinHeadSurrogate) && (code_point < kMaxHeadSurrogate);
 }
 
-static inline bool IsTrailSurrogate(uint32 code_point) {
+static inline bool IsTrailSurrogate(uint32_t code_point) {
   return (code_point >= kMinTrailSurrogate) &&
          (code_point < kMaxTrailSurrogate);
 }
 
 // Combine a head and trail surrogate into a single Unicode code point.
-static uint32 AssembleUTF16(uint32 head_surrogate, uint32 trail_surrogate) {
-  GOOGLE_DCHECK(IsHeadSurrogate(head_surrogate));
-  GOOGLE_DCHECK(IsTrailSurrogate(trail_surrogate));
+static uint32_t AssembleUTF16(uint32_t head_surrogate,
+                              uint32_t trail_surrogate) {
+  ABSL_DCHECK(IsHeadSurrogate(head_surrogate));
+  ABSL_DCHECK(IsTrailSurrogate(trail_surrogate));
   return 0x10000 + (((head_surrogate - kMinHeadSurrogate) << 10) |
                     (trail_surrogate - kMinTrailSurrogate));
 }
@@ -1004,7 +1126,7 @@ static inline int UnicodeLength(char key) {
 // to parse that sequence. On success, returns a pointer to the first char
 // beyond that sequence, and fills in *code_point. On failure, returns ptr
 // itself.
-static const char* FetchUnicodePoint(const char* ptr, uint32* code_point) {
+static const char* FetchUnicodePoint(const char* ptr, uint32_t* code_point) {
   const char* p = ptr;
   // Fetch the code point.
   const int len = UnicodeLength(*p++);
@@ -1016,7 +1138,7 @@ static const char* FetchUnicodePoint(const char* ptr, uint32* code_point) {
   // "trail surrogate," and together they form a UTF-16 pair which decodes into
   // a single Unicode point. Trail surrogates may only use \u, not \U.
   if (IsHeadSurrogate(*code_point) && *p == '\\' && *(p + 1) == 'u') {
-    uint32 trail_surrogate;
+    uint32_t trail_surrogate;
     if (ReadHexDigits(p + 2, 4, &trail_surrogate) &&
         IsTrailSurrogate(trail_surrogate)) {
       *code_point = AssembleUTF16(*code_point, trail_surrogate);
@@ -1037,9 +1159,10 @@ void Tokenizer::ParseStringAppend(const std::string& text,
   // empty, it's invalid, so we'll just return).
   const size_t text_size = text.size();
   if (text_size == 0) {
-    GOOGLE_LOG(DFATAL) << " Tokenizer::ParseStringAppend() passed text that could not"
-                   " have been tokenized as a string: "
-                << CEscape(text);
+    ABSL_DLOG(FATAL)
+        << " Tokenizer::ParseStringAppend() passed text that could not"
+           " have been tokenized as a string: "
+        << absl::CEscape(text);
     return;
   }
 
@@ -1073,7 +1196,7 @@ void Tokenizer::ParseStringAppend(const std::string& text,
         }
         output->push_back(static_cast<char>(code));
 
-      } else if (*ptr == 'x') {
+      } else if (*ptr == 'x' || *ptr == 'X') {
         // A hex escape.  May zero, one, or two digits.  (The zero case
         // will have been caught as an error earlier.)
         int code = 0;
@@ -1088,7 +1211,7 @@ void Tokenizer::ParseStringAppend(const std::string& text,
         output->push_back(static_cast<char>(code));
 
       } else if (*ptr == 'u' || *ptr == 'U') {
-        uint32 unicode;
+        uint32_t unicode;
         const char* end = FetchUnicodePoint(ptr, &unicode);
         if (end == ptr) {
           // Failure: Just dump out what we saw, don't try to parse it.
@@ -1112,15 +1235,15 @@ void Tokenizer::ParseStringAppend(const std::string& text,
 
 template <typename CharacterClass>
 static bool AllInClass(const std::string& s) {
-  for (int i = 0; i < s.size(); ++i) {
-    if (!CharacterClass::InClass(s[i])) return false;
+  for (const char character : s) {
+    if (!CharacterClass::InClass(character)) return false;
   }
   return true;
 }
 
 bool Tokenizer::IsIdentifier(const std::string& text) {
   // Mirrors IDENTIFIER definition in Tokenizer::Next() above.
-  if (text.size() == 0) return false;
+  if (text.empty()) return false;
   if (!Letter::InClass(text.at(0))) return false;
   if (!AllInClass<Alphanumeric>(text.substr(1))) return false;
   return true;
@@ -1129,3 +1252,5 @@ bool Tokenizer::IsIdentifier(const std::string& text) {
 }  // namespace io
 }  // namespace protobuf
 }  // namespace google
+
+#include "google/protobuf/port_undef.inc"

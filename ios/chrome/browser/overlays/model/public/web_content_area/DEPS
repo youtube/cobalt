@@ -1,0 +1,14 @@
+include_rules = [
+  "+components/javascript_dialogs/core",
+]
+
+specific_include_rules = {
+  # TODO(crbug.com/40820398): Remove these dependencies.
+  "^java_script_dialog_overlay.mm": [
+    "+ios/chrome/browser/dialogs/ui_bundled/java_script_dialog_blocking_state.h",
+  ],
+  "^java_script_dialog_overlay_utils.mm": [
+    "+ios/chrome/browser/dialogs/ui_bundled/java_script_dialog_blocking_state.h",
+  ],
+}
+

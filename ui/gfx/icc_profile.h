@@ -11,11 +11,7 @@
 
 #include "base/gtest_prod_util.h"
 #include "base/memory/ref_counted.h"
-#if defined(STARBOARD)
-#include "third_party/skia/include/third_party/skcms/skcms.h"
-#else  // defined(STARBOARD)
 #include "third_party/skia/modules/skcms/skcms.h"
-#endif  // defined(STARBOARD)
 #include "ui/gfx/color_space.h"
 
 extern "C" int LLVMFuzzerTestOneInput(const uint8_t* data, size_t size);
@@ -40,7 +36,6 @@ class COLOR_SPACE_EXPORT ICCProfile {
   ICCProfile& operator=(const ICCProfile& other);
   ~ICCProfile();
   bool operator==(const ICCProfile& other) const;
-  bool operator!=(const ICCProfile& other) const;
 
   // Returns true if this profile was successfully parsed by SkICC and will
   // return a valid ColorSpace.

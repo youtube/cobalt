@@ -20,13 +20,11 @@
 namespace {
 
 base::FilePath* g_test_data_dir = nullptr;
+uint32_t g_non_delayed_enter_count;
 
 struct RunState {
   RunState(base::MessagePump::Delegate* delegate, int run_depth)
-      : delegate(delegate),
-        run_depth(run_depth),
-        should_quit(false) {
-  }
+      : delegate(delegate), run_depth(run_depth), should_quit(false) {}
 
   raw_ptr<base::MessagePump::Delegate> delegate;
 
@@ -40,8 +38,8 @@ struct RunState {
 RunState* g_state = nullptr;
 
 // A singleton WaitableEvent wrapper so we avoid a busy loop in
-// MessagePumpForUIStub. Other platforms use the native event loop which blocks
-// when there are no pending messages.
+// MessagePumpAndroidStub. Other platforms use the native event loop which
+// blocks when there are no pending messages.
 class Waitable {
  public:
   static Waitable* GetInstance() {
@@ -73,11 +71,11 @@ class Waitable {
   base::WaitableEvent waitable_event_;
 };
 
-// The MessagePumpForUI implementation for test purpose.
-class MessagePumpForUIStub : public base::MessagePumpForUI {
+// The MessagePumpAndroid implementation for test purpose.
+class MessagePumpAndroidStub : public base::MessagePumpAndroid {
  public:
-  MessagePumpForUIStub() : base::MessagePumpForUI() { Waitable::GetInstance(); }
-  ~MessagePumpForUIStub() override {}
+  MessagePumpAndroidStub() { Waitable::GetInstance(); }
+  ~MessagePumpAndroidStub() override = default;
 
   // In tests, there isn't a native thread, as such RunLoop::Run() should be
   // used to run the loop instead of attaching and delegating to the native
@@ -109,12 +107,18 @@ class MessagePumpForUIStub : public base::MessagePumpForUI {
         // OnNonDelayedLooperCallback, respectively. This uses Android's Looper
         // implementation, which is based off of epoll.
         ALooper_pollOnce(-1, nullptr, nullptr, nullptr);
-        if (ShouldQuit())
+        if (ShouldQuit()) {
           break;
+        }
       }
     }
 
     g_state = previous_state;
+  }
+
+  void OnNonDelayedLooperCallback() override {
+    g_non_delayed_enter_count++;
+    base::MessagePumpAndroid::OnNonDelayedLooperCallback();
   }
 
   void RunNested(base::MessagePump::Delegate* delegate) {
@@ -123,21 +127,25 @@ class MessagePumpForUIStub : public base::MessagePumpForUI {
     for (;;) {
       if (!more_work_is_plausible) {
         Waitable::GetInstance()->Block();
-        if (g_state->should_quit)
+        if (g_state->should_quit) {
           break;
+        }
       }
 
       Delegate::NextWorkInfo next_work_info = g_state->delegate->DoWork();
       more_work_is_plausible = next_work_info.is_immediate();
-      if (g_state->should_quit)
+      if (g_state->should_quit) {
         break;
+      }
 
-      if (more_work_is_plausible)
+      if (more_work_is_plausible) {
         continue;
+      }
 
-      more_work_is_plausible = g_state->delegate->DoIdleWork();
-      if (g_state->should_quit)
+      g_state->delegate->DoIdleWork();
+      if (g_state->should_quit) {
         break;
+      }
 
       more_work_is_plausible |= !next_work_info.delayed_run_time.is_max();
     }
@@ -148,7 +156,7 @@ class MessagePumpForUIStub : public base::MessagePumpForUI {
     if (g_state->run_depth > 1) {
       Waitable::GetInstance()->Quit();
     } else {
-      MessagePumpForUI::Quit();
+      MessagePumpAndroid::Quit();
     }
   }
 
@@ -156,7 +164,7 @@ class MessagePumpForUIStub : public base::MessagePumpForUI {
     if (g_state && g_state->run_depth > 1) {
       Waitable::GetInstance()->Signal();
     } else {
-      MessagePumpForUI::ScheduleWork();
+      MessagePumpAndroid::ScheduleWork();
     }
   }
 
@@ -165,13 +173,15 @@ class MessagePumpForUIStub : public base::MessagePumpForUI {
     if (g_state && g_state->run_depth > 1) {
       Waitable::GetInstance()->Signal();
     } else {
-      MessagePumpForUI::ScheduleDelayedWork(next_work_info);
+      MessagePumpAndroid::ScheduleDelayedWork(next_work_info);
     }
   }
 };
 
-std::unique_ptr<base::MessagePump> CreateMessagePumpForUIStub() {
-  return std::unique_ptr<base::MessagePump>(new MessagePumpForUIStub());
+std::unique_ptr<base::MessagePump> CreateMessagePumpAndroidStub() {
+  auto message_pump_stub = std::make_unique<MessagePumpAndroidStub>();
+  message_pump_stub->set_is_type_ui(true);
+  return message_pump_stub;
 }
 
 // Provides the test path for paths overridden during tests.
@@ -186,7 +196,7 @@ bool GetTestProviderPath(int key, base::FilePath* result) {
     case base::DIR_ANDROID_APP_DATA:
     case base::DIR_ASSETS:
     case base::DIR_SRC_TEST_DATA_ROOT:
-    case base::DIR_GEN_TEST_DATA_ROOT:
+    case base::DIR_OUT_TEST_DATA_ROOT:
       CHECK(g_test_data_dir != nullptr);
       *result = *g_test_data_dir;
       return true;
@@ -217,14 +227,19 @@ void InitAndroidTestPaths(const FilePath& test_data_dir) {
   InitPathProvider(DIR_ANDROID_APP_DATA);
   InitPathProvider(DIR_ASSETS);
   InitPathProvider(DIR_SRC_TEST_DATA_ROOT);
-  InitPathProvider(DIR_GEN_TEST_DATA_ROOT);
+  InitPathProvider(DIR_OUT_TEST_DATA_ROOT);
 }
 
 void InitAndroidTestMessageLoop() {
   // NOTE something else such as a JNI call may have already overridden the UI
   // factory.
-  if (!MessagePump::IsMessagePumpForUIFactoryOveridden())
-    MessagePump::OverrideMessagePumpForUIFactory(&CreateMessagePumpForUIStub);
+  if (!MessagePump::IsMessagePumpForUIFactoryOveridden()) {
+    MessagePump::OverrideMessagePumpForUIFactory(&CreateMessagePumpAndroidStub);
+  }
+}
+
+uint32_t GetAndroidNonDelayedWorkEnterCount() {
+  return g_non_delayed_enter_count;
 }
 
 }  // namespace base

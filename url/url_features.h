@@ -10,23 +10,27 @@
 
 namespace url {
 
-COMPONENT_EXPORT(URL) BASE_DECLARE_FEATURE(kUseIDNA2008NonTransitional);
+// If you add or remove a feature related to URLs, you may need to
+// correspondingly update the EarlyAccess allow list in app shims
+// (chrome/app_shim/app_shim_controller.mm). See https://crbug.com/1520386 for
+// more details.
 
-// Returns true if Chrome is using IDNA 2008 in Non-Transitional mode.
-COMPONENT_EXPORT(URL) bool IsUsingIDNA2008NonTransitional();
+// Returns true if kStandardCompliantNonSpecialSchemeURLParsing feature is
+// enabled. See url::kStandardCompliantNonSpecialSchemeURLParsing for details.
+COMPONENT_EXPORT(URL) bool IsUsingStandardCompliantNonSpecialSchemeURLParsing();
 
-// Returns true if Chrome is recording IDNA 2008 related metrics.
-COMPONENT_EXPORT(URL) bool IsRecordingIDNA2008Metrics();
+// Returns true if space characters should be treated as invalid in URL host
+// parsing.
+COMPONENT_EXPORT(URL) bool IsDisallowingSpaceCharacterInURLHostParsing();
 
-// Returns true if Chrome is enforcing the 4 part check for IPv4 embedded IPv6
-// addresses.
+// When enabled, Chrome uses standard-compliant URL parsing for non-special
+// scheme URLs. See https://crbug.com/1416006 for details.
 COMPONENT_EXPORT(URL)
-BASE_DECLARE_FEATURE(kStrictIPv4EmbeddedIPv6AddressParsing);
+BASE_DECLARE_FEATURE(kStandardCompliantNonSpecialSchemeURLParsing);
 
-// When enabled, allows resolving of a bare fragment containing a colon against
-// a non-hierarchical URL. (For example '#foo:bar' against 'about:blank'.)
+// When enabled, treat space characters as invalid in URL host parsing.
 COMPONENT_EXPORT(URL)
-BASE_DECLARE_FEATURE(kResolveBareFragmentWithColonOnNonHierarchical);
+BASE_DECLARE_FEATURE(kDisallowSpaceCharacterInURLHostParsing);
 
 }  // namespace url
 

@@ -7,20 +7,20 @@
 namespace base {
 
 // static
-absl::optional<SafeBaseName> SafeBaseName::Create(const FilePath& path) {
+std::optional<SafeBaseName> SafeBaseName::Create(const FilePath& path) {
   auto basename = path.BaseName();
 
   if (!basename.IsAbsolute() && !basename.ReferencesParent() &&
       !basename.EndsWithSeparator()) {
-    return absl::make_optional(SafeBaseName(basename));
+    return std::make_optional(SafeBaseName(basename));
   }
 
-  return absl::nullopt;
+  return std::nullopt;
 }
 
 // static
-absl::optional<SafeBaseName> SafeBaseName::Create(
-    FilePath::StringPieceType path) {
+std::optional<SafeBaseName> SafeBaseName::Create(
+    FilePath::StringViewType path) {
   return Create(FilePath(path));
 }
 

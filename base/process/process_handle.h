@@ -8,6 +8,7 @@
 #include <stdint.h>
 #include <sys/types.h>
 
+#include <compare>
 #include <iosfwd>
 
 #include "base/base_export.h"
@@ -28,13 +29,7 @@ class FilePath;
 // ProcessHandle is a platform specific type which represents the underlying OS
 // handle to a process.
 // ProcessId is a number which identifies the process in the OS.
-#if defined(STARBOARD)
-typedef uint32_t ProcessHandle;
-typedef uint32_t ProcessId;
-const ProcessHandle kNullProcessHandle = 0;
-const ProcessId kNullProcessId = 0;
-#define CrPRIdPid "d"
-#elif BUILDFLAG(IS_WIN)
+#if BUILDFLAG(IS_WIN)
 typedef HANDLE ProcessHandle;
 typedef DWORD ProcessId;
 typedef HANDLE UserTokenHandle;
@@ -72,29 +67,8 @@ class UniqueProcId {
   // valid within the current process sandbox.
   ProcessId GetUnsafeValue() const { return value_; }
 
-  bool operator==(const UniqueProcId& other) const {
-    return value_ == other.value_;
-  }
-
-  bool operator!=(const UniqueProcId& other) const {
-    return value_ != other.value_;
-  }
-
-  bool operator<(const UniqueProcId& other) const {
-    return value_ < other.value_;
-  }
-
-  bool operator<=(const UniqueProcId& other) const {
-    return value_ <= other.value_;
-  }
-
-  bool operator>(const UniqueProcId& other) const {
-    return value_ > other.value_;
-  }
-
-  bool operator>=(const UniqueProcId& other) const {
-    return value_ >= other.value_;
-  }
+  friend bool operator==(const UniqueProcId&, const UniqueProcId&) = default;
+  friend auto operator<=>(const UniqueProcId&, const UniqueProcId&) = default;
 
  private:
   ProcessId value_;

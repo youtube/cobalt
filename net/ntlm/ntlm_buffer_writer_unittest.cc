@@ -2,6 +2,11 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#ifdef UNSAFE_BUFFERS_BUILD
+// TODO(crbug.com/40284755): Remove this and spanify to fix the errors.
+#pragma allow_unsafe_buffers
+#endif
+
 #include "net/ntlm/ntlm_buffer_writer.h"
 
 #include "base/strings/utf_string_conversions.h"
@@ -141,7 +146,7 @@ TEST(NtlmBufferWriterTest, WriteBytes) {
   ASSERT_TRUE(writer.WriteBytes(expected));
   ASSERT_EQ(0, memcmp(GetBufferPtr(writer), expected, std::size(expected)));
   ASSERT_TRUE(writer.IsEndOfBuffer());
-  ASSERT_FALSE(writer.WriteBytes(base::make_span(expected, 1u)));
+  ASSERT_FALSE(writer.WriteBytes(base::span(expected, 1u)));
 
   ASSERT_EQ(0, memcmp(expected, GetBufferPtr(writer), std::size(expected)));
 }

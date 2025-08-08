@@ -2,6 +2,11 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#ifdef UNSAFE_BUFFERS_BUILD
+// TODO(crbug.com/40285824): Remove this and convert code to safer constructs.
+#pragma allow_unsafe_buffers
+#endif
+
 #include <stdint.h>
 
 #include <limits>
@@ -9,16 +14,11 @@
 #include <utility>
 
 #include "base/files/file_util.h"
-#include "base/functional/bind.h"
-#include "base/memory/ptr_util.h"
 #include "base/memory/raw_ptr.h"
-#include "base/synchronization/waitable_event.h"
-#include "base/sys_byteorder.h"
 #include "base/test/task_environment.h"
-#include "base/threading/thread.h"
-#include "media/audio/audio_bus_pool.h"
 #include "media/audio/audio_debug_file_writer.h"
 #include "media/base/audio_bus.h"
+#include "media/base/audio_bus_pool.h"
 #include "media/base/audio_parameters.h"
 #include "media/base/audio_sample_types.h"
 #include "media/base/test_helpers.h"
@@ -187,10 +187,7 @@ class AudioDebugFileWriterTest
     // Allow mismatch by 1 due to rounding error in int->float->int
     // calculations.
     for (int i = 0; i < source_samples; ++i)
-      EXPECT_LE(std::abs(static_cast<int16_t>(
-                             base::ByteSwapToLE16(source_interleaved[i])) -
-                         result_interleaved[i]),
-                1)
+      EXPECT_LE(std::abs(source_interleaved[i] - result_interleaved[i]), 1)
           << "i = " << i << " source " << source_interleaved[i] << " result "
           << result_interleaved[i];
   }

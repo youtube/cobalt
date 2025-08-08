@@ -1,0 +1,41 @@
+diff --git a/src/google/protobuf/compiler/cpp/enum.cc b/src/google/protobuf/compiler/cpp/enum.cc
+index 2d5f7c33180eb..0c33b07ebc911 100644
+--- a/src/google/protobuf/compiler/cpp/enum.cc
++++ b/src/google/protobuf/compiler/cpp/enum.cc
+@@ -145,7 +145,7 @@ void EnumGenerator::GenerateDefinition(io::Printer* p) {
+                            .AnnotatedAs(value),
+                        {"kNumber", Int32ToString(value->number())},
+                        {"DEPRECATED",
+-                        value->options().deprecated() ? "[[deprecated]]" : ""},
++                        /*value->options().deprecated() ? "[[deprecated]]" : */""},
+                    },
+                    R"cc(
+                      $Msg_Enum_VALUE$$ DEPRECATED$ = $kNumber$,
+@@ -308,7 +308,7 @@ void EnumGenerator::GenerateSymbolImports(io::Printer* p) const {
+         {
+             Sub("VALUE", EnumValueName(enum_->value(j))).AnnotatedAs(value),
+             {"DEPRECATED",
+-             value->options().deprecated() ? "[[deprecated]]" : ""},
++             /*value->options().deprecated() ? "[[deprecated]]" : */""},
+         },
+         R"cc(
+           $DEPRECATED $static constexpr $Enum_$ $VALUE$ = $Msg_Enum$_$VALUE$;
+diff --git a/src/google/protobuf/compiler/cpp/helpers.h b/src/google/protobuf/compiler/cpp/helpers.h
+index f7b40fb8b332f..c223279c0f898 100644
+--- a/src/google/protobuf/compiler/cpp/helpers.h
++++ b/src/google/protobuf/compiler/cpp/helpers.h
+@@ -54,12 +54,12 @@ inline absl::string_view ProtobufNamespace(const Options& opts) {
+ 
+ inline std::string DeprecatedAttribute(const Options&,
+                                        const FieldDescriptor* d) {
+-  return d->options().deprecated() ? "[[deprecated]] " : "";
++  return /*d->options().deprecated() ? "[[deprecated]] " : */"";
+ }
+ 
+ inline std::string DeprecatedAttribute(const Options&,
+                                        const EnumValueDescriptor* d) {
+-  return d->options().deprecated() ? "[[deprecated]] " : "";
++  return /*d->options().deprecated() ? "[[deprecated]] " : */"";
+ }
+ 
+ // Commonly-used separator comments.  Thick is a line of '=', thin is a line

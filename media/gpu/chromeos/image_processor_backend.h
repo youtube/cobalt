@@ -15,6 +15,7 @@
 #include "media/base/color_plane_layout.h"
 #include "media/base/video_frame.h"
 #include "media/gpu/chromeos/fourcc.h"
+#include "media/gpu/chromeos/frame_resource.h"
 #include "media/gpu/media_gpu_export.h"
 #include "ui/gfx/geometry/rect.h"
 #include "ui/gfx/geometry/size.h"
@@ -25,12 +26,15 @@ class MEDIA_GPU_EXPORT ImageProcessorBackend {
  public:
   // Callback for returning a processed image to the client.
   using FrameReadyCB = base::OnceCallback<void(scoped_refptr<VideoFrame>)>;
+  // FrameResource version of FrameReadyCB.
+  using FrameResourceReadyCB =
+      base::OnceCallback<void(scoped_refptr<FrameResource>)>;
   // Callback for returning a processed image to the client.
   // Used when calling the "legacy" Process() method with buffers that are
   // managed by the processor. The first argument is the index of the returned
   // buffer.
-  using LegacyFrameReadyCB =
-      base::OnceCallback<void(size_t, scoped_refptr<VideoFrame>)>;
+  using LegacyFrameResourceReadyCB =
+      base::OnceCallback<void(size_t, scoped_refptr<FrameResource>)>;
 
   // Callback for notifying client when error occurs.
   using ErrorCB = base::RepeatingClosure;
@@ -45,27 +49,19 @@ class MEDIA_GPU_EXPORT ImageProcessorBackend {
   struct MEDIA_GPU_EXPORT PortConfig {
     PortConfig() = delete;
     PortConfig(const PortConfig&);
-    PortConfig(
-        Fourcc fourcc,
-        const gfx::Size& size,
-        const std::vector<ColorPlaneLayout>& planes,
-        const gfx::Rect& visible_rect,
-        const std::vector<VideoFrame::StorageType>& preferred_storage_types);
+    PortConfig(Fourcc fourcc,
+               const gfx::Size& size,
+               const std::vector<ColorPlaneLayout>& planes,
+               const gfx::Rect& visible_rect,
+               const VideoFrame::StorageType storage_type);
     ~PortConfig();
 
     bool operator==(const PortConfig& other) const {
       return fourcc == other.fourcc && size == other.size &&
              planes == other.planes && visible_rect == other.visible_rect &&
-             preferred_storage_types == other.preferred_storage_types;
+             storage_type == other.storage_type;
     }
     bool operator!=(const PortConfig& other) const { return !(*this == other); }
-
-    // Get the first |preferred_storage_types|.
-    // If |preferred_storage_types| is empty, return STORAGE_UNKNOWN.
-    VideoFrame::StorageType storage_type() const {
-      return preferred_storage_types.empty() ? VideoFrame::STORAGE_UNKNOWN
-                                             : preferred_storage_types.front();
-    }
 
     // Output human readable string of PortConfig.
     // Example:
@@ -85,15 +81,26 @@ class MEDIA_GPU_EXPORT ImageProcessorBackend {
     // Layout property (stride, offset, size of bytes) for each color plane.
     const std::vector<ColorPlaneLayout> planes;
     const gfx::Rect visible_rect;
-    // List of preferred storage types.
-    const std::vector<VideoFrame::StorageType> preferred_storage_types;
+
+    // Video frame storage type.
+    const VideoFrame::StorageType storage_type;
   };
 
   // Process |input_frame| and store in |output_frame|. Only used when output
   // mode is IMPORT. After processing, call |cb| with |output_frame|.
-  virtual void Process(scoped_refptr<VideoFrame> input_frame,
-                       scoped_refptr<VideoFrame> output_frame,
-                       FrameReadyCB cb) = 0;
+  // All ImageProcessorBackend implementations natively use FrameResource
+  // instead of VideoFrame. Process() provides an interface for users of
+  // VideoFrame to call, but ProcessFrame() will be called, in turn, to do the
+  // actual work.
+  void Process(scoped_refptr<VideoFrame> input_frame,
+               scoped_refptr<VideoFrame> output_frame,
+               FrameReadyCB cb);
+
+  // Process |input_frame| and store in |output_frame|. Only used when output
+  // mode is IMPORT. After processing, call |cb| with |output_frame|.
+  virtual void ProcessFrame(scoped_refptr<FrameResource> input_frame,
+                            scoped_refptr<FrameResource> output_frame,
+                            FrameResourceReadyCB cb) = 0;
 
   // Process |frame| and store in in a ImageProcessor-owned output buffer. Only
   // used when output mode is ALLOCATE. After processing, call |cb| with the
@@ -101,8 +108,8 @@ class MEDIA_GPU_EXPORT ImageProcessorBackend {
   // If ALLOCATE mode is not supported, the implementation is optional. In this
   // case, this method should not be called and the default implementation will
   // panic.
-  virtual void ProcessLegacy(scoped_refptr<VideoFrame> frame,
-                             LegacyFrameReadyCB cb);
+  virtual void ProcessLegacyFrame(scoped_refptr<FrameResource> frame,
+                                  LegacyFrameResourceReadyCB cb);
 
   // Drop all pending process requests. The default implementation is no-op.
   virtual void Reset();
@@ -129,7 +136,6 @@ class MEDIA_GPU_EXPORT ImageProcessorBackend {
       const PortConfig& input_config,
       const PortConfig& output_config,
       OutputMode output_mode,
-      VideoRotation relative_rotation,
       ErrorCB error_cb,
       scoped_refptr<base::SequencedTaskRunner> backend_task_runner);
   virtual ~ImageProcessorBackend();
@@ -141,10 +147,6 @@ class MEDIA_GPU_EXPORT ImageProcessorBackend {
   // TODO(crbug.com/907767): Remove |output_mode_| once ImageProcessor always
   // works as IMPORT mode for output.
   const OutputMode output_mode_;
-
-  // ImageProcessor performs a rotation if the |relative_rotation_| is not equal
-  // to VIDEO_ROTATION_0.
-  const VideoRotation relative_rotation_;
 
   // Call this callback when any error occurs.
   const ErrorCB error_cb_;
@@ -160,15 +162,13 @@ class MEDIA_GPU_EXPORT ImageProcessorBackend {
 
 namespace std {
 
-// Specialize std::default_delete to call Destroy().
+// Specialize std::default_delete to call Destroy() on the right sequence.
 template <>
 struct MEDIA_GPU_EXPORT default_delete<media::ImageProcessorBackend> {
   constexpr default_delete() = default;
 
-  template <
-      typename U,
-      typename = typename std::enable_if<
-          std::is_convertible<U*, media::ImageProcessorBackend*>::value>::type>
+  template <typename U>
+    requires(std::is_convertible_v<U*, media::ImageProcessorBackend*>)
   default_delete(const default_delete<U>& d) {}
 
   void operator()(media::ImageProcessorBackend* ptr) const;

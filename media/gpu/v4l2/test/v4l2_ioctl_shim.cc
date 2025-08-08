@@ -2,19 +2,31 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#ifdef UNSAFE_BUFFERS_BUILD
+// TODO(crbug.com/40285824): Remove this and spanify to fix the errors.
+#pragma allow_unsafe_buffers
+#endif
+
 #include "media/gpu/v4l2/test/v4l2_ioctl_shim.h"
 
 #include <fcntl.h>
 #include <linux/media.h>
+#include <poll.h>
 #include <sys/ioctl.h>
 #include <sys/mman.h>
 
+#include <string_view>
 #include <unordered_map>
 
 #include "base/containers/contains.h"
+#include "base/files/file.h"
+#include "base/files/file_path.h"
+#include "base/files/file_util.h"
 #include "base/files/memory_mapped_file.h"
 #include "base/logging.h"
 #include "base/notreached.h"
+#include "base/posix/eintr_wrapper.h"
+#include "base/strings/pattern.h"
 #include "base/strings/string_number_conversions.h"
 #include "media/base/video_types.h"
 #include "media/gpu/macros.h"
@@ -24,17 +36,14 @@ namespace media {
 namespace v4l2_test {
 
 constexpr int kIoctlOk = 0;
-// |kMaxRetryCount = 2^24| takes around 20 seconds to exhaust all retries on
-// Trogdor when a decode stalls.
-constexpr int kMaxRetryCount = 1 << 24;
 
 #define V4L2_REQUEST_CODE_AND_STRING(x) \
   { x, #x }
 
-constexpr uint32_t kMaximumDeviceNumber = 20;
+constexpr uint32_t kMaximumDeviceNumber = 150;
 
-constexpr base::StringPiece kDecoderDevicePrefix = "/dev/video";
-constexpr base::StringPiece kMediaDevicePrefix = "/dev/media";
+constexpr char kDecoderDevicePrefix[] = "/dev/video";
+constexpr char kMediaDevicePrefix[] = "/dev/media";
 
 // This map maintains a table with pairs of V4L2 request code
 // and corresponding name. New pair has to be added here
@@ -131,7 +140,7 @@ MmappedBuffer::MmappedBuffer(const base::PlatformFile ioctl_fd,
     : num_planes_(v4l2_buffer.length), buffer_id_(0) {
   for (uint32_t i = 0; i < num_planes_; ++i) {
     void* start_addr =
-        mmap(NULL, v4l2_buffer.m.planes[i].length, PROT_READ | PROT_WRITE,
+        mmap(nullptr, v4l2_buffer.m.planes[i].length, PROT_READ | PROT_WRITE,
              MAP_SHARED, ioctl_fd, v4l2_buffer.m.planes[i].m.mem_offset);
 
     LOG_IF(FATAL, start_addr == MAP_FAILED)
@@ -151,10 +160,9 @@ MmappedBuffer::~MmappedBuffer() {
 
 V4L2Queue::V4L2Queue(enum v4l2_buf_type type,
                      const gfx::Size& resolution,
-                     enum v4l2_memory memory,
-                     uint32_t num_buffers)
+                     enum v4l2_memory memory)
     : type_(type),
-      num_buffers_(num_buffers),
+      num_buffers_(0),
       resolution_(resolution),
       num_planes_(1),
       memory_(memory) {}
@@ -167,40 +175,10 @@ scoped_refptr<MmappedBuffer> V4L2Queue::GetBuffer(const size_t index) const {
   return buffers_[index];
 }
 
-V4L2IoctlShim::V4L2IoctlShim(const uint32_t coded_fourcc) {
-  uint32_t i;
-
-  for (i = 0; i < kMaximumDeviceNumber; ++i) {
-    std::string path =
-        std::string(kDecoderDevicePrefix) + base::NumberToString(i);
-    decode_fd_ = base::File(base::FilePath(path), base::File::FLAG_OPEN |
-                                                      base::File::FLAG_READ |
-                                                      base::File::FLAG_WRITE);
-
-    // Check if the device supports the requested coded format
-    if (QueryFormat(V4L2_BUF_TYPE_VIDEO_OUTPUT_MPLANE, coded_fourcc))
-      break;
-
-    // Close file descriptor on failure
-    decode_fd_.Close();
-  }
-
-  PCHECK(decode_fd_.IsValid()) << "Failed to find available decode device.";
-
-  if (!FindMediaDevice()) {
-    LOG(FATAL) << "Failed to find available media device.";
-  }
-
-  PCHECK(media_fd_.IsValid()) << "Media device fd is not valid.";
-}
-
-V4L2IoctlShim::~V4L2IoctlShim() = default;
-
 template <typename T>
 bool V4L2IoctlShim::Ioctl(int request_code, T arg) const {
   NOTREACHED() << "Please add a specialized function for the given V4L2 ioctl "
                   "request code.";
-  return !kIoctlOk;
 }
 
 template <>
@@ -346,6 +324,66 @@ bool V4L2IoctlShim::Ioctl(int request_code,
   return ret == kIoctlOk;
 }
 
+V4L2IoctlShim::V4L2IoctlShim(const uint32_t coded_fourcc) {
+  // TODO(b/278748005): Remove |cur_val_is_supported_| when all drivers
+  // fully support |V4L2_CTRL_WHICH_CUR_VAL|
+
+  // On kernel version 5.4 the MTK driver for MT8192 does not correctly support
+  // |V4L2_CTRL_WHICH_CUR_VAL|. This parameter is used when calling
+  // VIDIOC_S_EXT_CTRLS to indicate that the call should be executed
+  // immediately instead of putting it in a queue. Making sure the first
+  // buffer is processed immediately is only necessary for codecs that
+  // support 10 bit profiles. When processing a 10 bit profile the parameters
+  // need to be processed before the format can be determined. There are no
+  // chipsets that are on kernels older 5.10 and produce 10 bit output.
+  constexpr char kKernelVersion5dot4[] = "Linux version 5.4*";
+  std::string kernel_version;
+  ReadFileToString(base::FilePath("/proc/version"), &kernel_version);
+
+  cur_val_is_supported_ =
+      !base::MatchPattern(kernel_version, kKernelVersion5dot4);
+
+  for (uint32_t i = 0; i < kMaximumDeviceNumber; ++i) {
+    std::string path =
+        std::string(kDecoderDevicePrefix) + base::NumberToString(i);
+    decode_fd_ = base::File(base::FilePath(path), base::File::FLAG_OPEN |
+                                                      base::File::FLAG_READ |
+                                                      base::File::FLAG_WRITE);
+
+    // Check if the device supports the requested coded format
+    if (QueryFormat(V4L2_BUF_TYPE_VIDEO_OUTPUT_MPLANE, coded_fourcc)) {
+      break;
+    }
+
+    // Close file descriptor on failure
+    decode_fd_.Close();
+  }
+
+  PCHECK(decode_fd_.IsValid()) << "Failed to find available decode device.";
+
+  struct v4l2_capability cap;
+  memset(&cap, 0, sizeof(cap));
+
+  const bool ret = Ioctl(VIDIOC_QUERYCAP, &cap);
+  DCHECK(ret);
+
+  LOG(INFO) << "Driver=\"" << cap.driver << "\" bus_info=\"" << cap.bus_info
+            << "\" card=\"" << cap.card;
+
+  if (!(cap.capabilities & V4L2_CAP_VIDEO_M2M_MPLANE)) {
+    LOG(FATAL)
+        << "Multi planar format required, but not supported by the driver.";
+  }
+
+  if (!FindMediaDevice(&cap)) {
+    LOG(FATAL) << "Failed to find available media device.";
+  }
+
+  PCHECK(media_fd_.IsValid()) << "Media device fd is not valid.";
+}
+
+V4L2IoctlShim::~V4L2IoctlShim() = default;
+
 bool V4L2IoctlShim::QueryCtrl(const uint32_t ctrl_id) const {
   struct v4l2_queryctrl query_ctrl;
 
@@ -409,25 +447,8 @@ void V4L2IoctlShim::TryFmt(struct v4l2_format* fmt) const {
   LOG_ASSERT(ret) << "VIDIOC_TRY_FMT for " << type << " queue failed.";
 }
 
-void V4L2IoctlShim::ReqBufs(std::unique_ptr<V4L2Queue>& queue) const {
-  struct v4l2_requestbuffers reqbuf;
-
-  memset(&reqbuf, 0, sizeof(reqbuf));
-  reqbuf.count = queue->num_buffers();
-  reqbuf.type = queue->type();
-  reqbuf.memory = queue->memory();
-
-  const bool ret = Ioctl(VIDIOC_REQBUFS, &reqbuf);
-
-  queue->set_num_buffers(reqbuf.count);
-
-  LOGF(INFO) << queue->num_buffers() << " buffers requested, " << reqbuf.count
-             << " buffers returned for " << queue->type() << ".";
-  LOG_ASSERT(ret) << "VIDIOC_REQBUFS for " << queue->type() << " queue failed.";
-}
-
-void V4L2IoctlShim::ReqBufsWithCount(std::unique_ptr<V4L2Queue>& queue,
-                                     uint32_t count) const {
+void V4L2IoctlShim::ReqBufs(std::unique_ptr<V4L2Queue>& queue,
+                            uint32_t count) const {
   struct v4l2_requestbuffers reqbuf;
 
   memset(&reqbuf, 0, sizeof(reqbuf));
@@ -500,55 +521,25 @@ void V4L2IoctlShim::DQBuf(const std::unique_ptr<V4L2Queue>& queue,
   v4l2_buffer.m.planes = planes.data();
   v4l2_buffer.length = queue->num_planes();
 
+  const bool ret = Ioctl(VIDIOC_DQBUF, &v4l2_buffer);
+  LOG_ASSERT(ret) << "VIDIOC_DQBUF failed for " << queue->type() << " queue.";
+
+  // V4L2 explains |index| to be id number of the buffer. We are using
+  // |buffer_id| (or |id|) instead of |index| consistently in the platform
+  // decoding code to avoid confusion.
+  const uint32_t id = v4l2_buffer.index;
+
   if (queue->type() == V4L2_BUF_TYPE_VIDEO_CAPTURE_MPLANE) {
-    // If no buffers have been dequeued for more than |kMaxRetryCount| retries,
-    // we should exit the program. Something is wrong in the decoder or with
-    // how we are controlling it.
-    int num_tries = kMaxRetryCount;
-
-    while ((num_tries != 0) && !Ioctl(VIDIOC_DQBUF, &v4l2_buffer)) {
-      if (errno != EAGAIN) {
-        LOGF(FATAL) << "VIDIOC_DQBUF failed with errno: " << errno << ".";
-        return;
-      }
-
-      num_tries--;
-    }
-
-    if (num_tries == 0) {
-      LOGF(FATAL)
-          << "Decoder appeared to stall. VIDIOC_DQBUF ioctl call timed out.";
-      return;
-    } else {
-      // Successfully dequeued a buffer. Reset the |num_tries| counter.
-      num_tries = kMaxRetryCount;
-    }
-
-    // V4L2 explains |index| to be id number of the buffer. We are using
-    // |buffer_id| (or |id|) instead of |index| consistently in the platform
-    // decoding code to avoid confusion.
-    const uint32_t id = v4l2_buffer.index;
-
     // We set |v4l2_buffer.timestamp.tv_usec| in the encoded chunk enqueued in
     // the OUTPUT queue, and the driver propagates it to the corresponding
     // decoded video frame (or at least is expected to). This gives us
-    // information about which encoded frame corresponds to the current decoded
-    // video frame.
+    // information about which encoded frame corresponds to the current
+    // decoded video frame.
     queue->GetBuffer(id)->set_buffer_id(id);
     queue->GetBuffer(id)->set_frame_number(v4l2_buffer.timestamp.tv_usec);
-
-    *buffer_id = id;
-
-    return;
   }
 
-  DCHECK_EQ(queue->type(), V4L2_BUF_TYPE_VIDEO_OUTPUT_MPLANE);
-
-  // Currently, only 1 OUTPUT buffer is used.
-  *buffer_id = 0;
-
-  const bool ret = Ioctl(VIDIOC_DQBUF, &v4l2_buffer);
-  LOG_ASSERT(ret) << "VIDIOC_DQBUF failed for " << queue->type() << " queue.";
+  *buffer_id = id;
 }
 
 void V4L2IoctlShim::StreamOn(const enum v4l2_buf_type type) const {
@@ -580,7 +571,8 @@ void V4L2IoctlShim::SetExtCtrls(const std::unique_ptr<V4L2Queue>& queue,
   // Unmentioned in that documentation is that |V4L2_CTRL_WHICH_CUR_VAL| will
   // force the request to be processed immediately instead of being queue.
   if (immediate) {
-    ext_ctrls->which = V4L2_CTRL_WHICH_CUR_VAL;
+    ext_ctrls->which = cur_val_is_supported_ ? V4L2_CTRL_WHICH_CUR_VAL
+                                             : V4L2_CTRL_WHICH_REQUEST_VAL;
   } else {
     ext_ctrls->which = V4L2_CTRL_WHICH_REQUEST_VAL;
   }
@@ -618,25 +610,29 @@ void V4L2IoctlShim::MediaRequestIocQueue(
 void V4L2IoctlShim::MediaRequestIocReinit(
     const std::unique_ptr<V4L2Queue>& queue) const {
   int req_fd = queue->media_request_fd();
-  constexpr uint32_t kMaxRetries = 16;
-  uint32_t retries = 0;
 
-  do {
-    if (Ioctl(MEDIA_REQUEST_IOC_REINIT, req_fd)) {
-      return;
-    }
+  const bool ret = Ioctl(MEDIA_REQUEST_IOC_REINIT, req_fd);
 
-    usleep(1 << retries);
-  } while (++retries < kMaxRetries);
-
-  LOGF(FATAL) << "MEDIA_REQUEST_IOC_REINIT call timed out.";
+  LOG_ASSERT(ret) << "MEDIA_REQUEST_IOC_REINIT failed.";
 }
 
-bool V4L2IoctlShim::FindMediaDevice() {
-  struct v4l2_capability caps;
-  bool ret = Ioctl(VIDIOC_QUERYCAP, &caps);
-  DCHECK(ret);
+void V4L2IoctlShim::WaitForRequestCompletion(
+    const std::unique_ptr<V4L2Queue>& queue) const {
+  struct pollfd pollfds[] = {
+      {.fd = queue->media_request_fd(), .events = POLLPRI}};
 
+  // There are some test vectors that are not expected to play back at real
+  // time. 250ms corresponds to 4fps.
+  constexpr int kPollTimeoutMS = 250;
+  const int poll_result =
+      HANDLE_EINTR(poll(pollfds, std::size(pollfds), kPollTimeoutMS));
+  LOG_ASSERT(poll_result >= 0) << "Polling on request fd failed.";
+  LOG_ASSERT(poll_result > 0) << "Polling on request fd timed out.";
+  LOG_ASSERT(pollfds[0].revents & POLLPRI)
+      << "Polling on request fd exited with incorrect revents.";
+}
+
+bool V4L2IoctlShim::FindMediaDevice(struct v4l2_capability* cap) {
   for (uint32_t i = 0; i < kMaximumDeviceNumber; ++i) {
     media_fd_ = base::File(
         base::FilePath(std::string(kMediaDevicePrefix) +
@@ -648,16 +644,16 @@ bool V4L2IoctlShim::FindMediaDevice() {
     }
 
     struct media_device_info media_info;
-    ret = Ioctl(MEDIA_IOC_DEVICE_INFO, &media_info);
+    const bool ret = Ioctl(MEDIA_IOC_DEVICE_INFO, &media_info);
     DCHECK(ret);
 
     // Match the video device and the media controller by the |bus_info|
     // field. This works better than |driver| field if there are multiple
     // instances of the same decoder driver in the system. However, old MediaTek
     // drivers didn't fill in the bus_info field for the media device.
-    if (strlen(reinterpret_cast<const char*>(caps.bus_info)) > 0 &&
+    if (strlen(reinterpret_cast<const char*>(cap->bus_info)) > 0 &&
         strlen(reinterpret_cast<const char*>(media_info.bus_info)) > 0 &&
-        !strcmp(reinterpret_cast<const char*>(caps.bus_info),
+        !strcmp(reinterpret_cast<const char*>(cap->bus_info),
                 reinterpret_cast<const char*>(media_info.bus_info))) {
       LOG(INFO) << "Using \"" << media_info.bus_info
                 << "\" driver with /dev/media" << base::NumberToString(i)
@@ -669,7 +665,7 @@ bool V4L2IoctlShim::FindMediaDevice() {
     // Fall back to matching the video device and the media controller by the
     // |driver| field. This is needed because the mtk-vcodec driver does not
     // always fill the |card| and |bus_info| fields properly.
-    if (!strcmp(reinterpret_cast<const char*>(caps.driver),
+    if (!strcmp(reinterpret_cast<const char*>(cap->driver),
                 reinterpret_cast<const char*>(media_info.driver))) {
       LOG(INFO) << "Using \"" << media_info.driver
                 << "\" driver with /dev/media" << base::NumberToString(i)
@@ -698,26 +694,6 @@ bool V4L2IoctlShim::QueryFormat(enum v4l2_buf_type type,
   }
 
   return false;
-}
-
-bool V4L2IoctlShim::VerifyCapabilities(uint32_t compressed_format) const {
-  struct v4l2_capability cap;
-  memset(&cap, 0, sizeof(cap));
-
-  const bool ret = Ioctl(VIDIOC_QUERYCAP, &cap);
-  DCHECK(ret);
-
-  LOG(INFO) << "Driver=\"" << cap.driver << "\" bus_info=\"" << cap.bus_info
-            << "\" card=\"" << cap.card;
-
-  const bool is_compressed_format_supported =
-      QueryFormat(V4L2_BUF_TYPE_VIDEO_OUTPUT_MPLANE, compressed_format);
-
-  LOG_IF(ERROR, !is_compressed_format_supported)
-      << media::FourccToString(compressed_format)
-      << " is not a supported compressed OUTPUT format.";
-
-  return is_compressed_format_supported;
 }
 
 void V4L2IoctlShim::QueryAndMmapQueueBuffers(

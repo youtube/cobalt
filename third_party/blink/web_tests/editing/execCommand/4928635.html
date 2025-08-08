@@ -1,0 +1,27 @@
+<!doctype html>
+<script src="../../resources/testharness.js"></script>
+<script src="../../resources/testharnessreport.js"></script>
+<script src="../assert_selection.js"></script>
+<p>This tests for a crash when outdenting an indented paragraph.  You should see 'foo' in a single level list item.</p>
+<script>
+
+selection_test(
+    [
+      '<div contenteditable="true">',
+        '<ul>',
+          '<ul>',
+            '<li id="li">|foo<br></li>',
+          '</ul>',
+        '</ul>',
+      '</div>',
+    ],
+    'Outdent',
+    [
+      '<div contenteditable="true">',
+        '<ul>',
+          '<li>|foo</li>',
+        '</ul>',
+      '</div>',
+    ],
+    'Outdent nested item');
+</script>

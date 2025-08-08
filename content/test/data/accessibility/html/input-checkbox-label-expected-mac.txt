@@ -1,0 +1,3 @@
+AXWebArea
+++AXGroup
+++++AXCheckBox AXTitle='Checkbox Title' AXValue=0

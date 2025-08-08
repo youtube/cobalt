@@ -7,6 +7,7 @@
 #include <algorithm>
 #include <cstdint>
 #include <memory>
+#include <optional>
 #include <utility>
 #include <vector>
 
@@ -19,18 +20,47 @@
 #include "base/json/json_reader.h"
 #include "base/json/json_writer.h"
 #include "base/location.h"
+#include "base/metrics/field_trial_params.h"
 #include "base/task/sequenced_task_runner.h"
 #include "base/task/single_thread_task_runner.h"
+#include "base/time/time.h"
 #include "base/values.h"
 #include "net/base/features.h"
 #include "net/base/network_anonymization_key.h"
 #include "net/cert/x509_certificate.h"
 #include "net/http/transport_security_state.h"
-#include "third_party/abseil-cpp/absl/types/optional.h"
 
 namespace net {
 
+BASE_FEATURE(kTransportSecurityFileWriterSchedule,
+             "TransportSecurityFileWriterSchedule",
+             base::FEATURE_ENABLED_BY_DEFAULT);
+
 namespace {
+
+// From kDefaultCommitInterval in base/files/important_file_writer.cc.
+// kTransportSecurityFileWriterScheduleCommitInterval won't set the commit
+// interval to less than this, for performance.
+constexpr base::TimeDelta kMinCommitInterval = base::Seconds(10);
+
+// Max safe commit interval for the ImportantFileWriter.
+constexpr base::TimeDelta kMaxCommitInterval = base::Minutes(10);
+
+// Overrides the default commit interval for the ImportantFileWriter.
+//
+// go/transport-security-file-writer-schedule-impact explains why the value
+// varies by platform.
+const base::FeatureParam<base::TimeDelta> kCommitIntervalParam(
+    &kTransportSecurityFileWriterSchedule,
+    "commit_interval",
+#if BUILDFLAG(IS_ANDROID)
+    kMinCommitInterval
+#else
+    kMaxCommitInterval
+#endif
+);
+
+constexpr const char* kHistogramSuffix = "TransportSecurityPersister";
 
 // This function converts the binary hashes to a base64 string which we can
 // include in a JSON file.
@@ -41,12 +71,12 @@ std::string HashedDomainToExternalString(
 
 // This inverts |HashedDomainToExternalString|, above. It turns an external
 // string (from a JSON file) into an internal (binary) array.
-absl::optional<TransportSecurityState::HashedHost> ExternalStringToHashedDomain(
+std::optional<TransportSecurityState::HashedHost> ExternalStringToHashedDomain(
     const std::string& external) {
   TransportSecurityState::HashedHost out;
-  absl::optional<std::vector<uint8_t>> hashed = base::Base64Decode(external);
+  std::optional<std::vector<uint8_t>> hashed = base::Base64Decode(external);
   if (!hashed.has_value() || hashed.value().size() != out.size()) {
-    return absl::nullopt;
+    return std::nullopt;
   }
 
   std::copy_n(hashed.value().begin(), out.size(), out.begin());
@@ -103,8 +133,9 @@ base::Value::List SerializeSTSData(const TransportSecurityState* state) {
     serialized.Set(kHostname,
                    HashedDomainToExternalString(sts_iterator.hostname()));
     serialized.Set(kStsIncludeSubdomains, sts_state.include_subdomains);
-    serialized.Set(kStsObserved, sts_state.last_observed.ToDoubleT());
-    serialized.Set(kExpiry, sts_state.expiry.ToDoubleT());
+    serialized.Set(kStsObserved,
+                   sts_state.last_observed.InSecondsFSinceUnixEpoch());
+    serialized.Set(kExpiry, sts_state.expiry.InSecondsFSinceUnixEpoch());
 
     switch (sts_state.upgrade_mode) {
       case TransportSecurityState::STSState::MODE_FORCE_HTTPS:
@@ -134,10 +165,10 @@ void DeserializeSTSData(const base::Value& sts_list,
       continue;
 
     const std::string* hostname = sts_dict->FindString(kHostname);
-    absl::optional<bool> sts_include_subdomains =
+    std::optional<bool> sts_include_subdomains =
         sts_dict->FindBool(kStsIncludeSubdomains);
-    absl::optional<double> sts_observed = sts_dict->FindDouble(kStsObserved);
-    absl::optional<double> expiry = sts_dict->FindDouble(kExpiry);
+    std::optional<double> sts_observed = sts_dict->FindDouble(kStsObserved);
+    std::optional<double> expiry = sts_dict->FindDouble(kExpiry);
     const std::string* mode = sts_dict->FindString(kMode);
 
     if (!hostname || !sts_include_subdomains.has_value() ||
@@ -147,8 +178,9 @@ void DeserializeSTSData(const base::Value& sts_list,
 
     TransportSecurityState::STSState sts_state;
     sts_state.include_subdomains = *sts_include_subdomains;
-    sts_state.last_observed = base::Time::FromDoubleT(*sts_observed);
-    sts_state.expiry = base::Time::FromDoubleT(*expiry);
+    sts_state.last_observed =
+        base::Time::FromSecondsSinceUnixEpoch(*sts_observed);
+    sts_state.expiry = base::Time::FromSecondsSinceUnixEpoch(*expiry);
 
     if (*mode == kForceHTTPS) {
       sts_state.upgrade_mode =
@@ -162,7 +194,7 @@ void DeserializeSTSData(const base::Value& sts_list,
     if (sts_state.expiry < current_time || !sts_state.ShouldUpgradeToSSL())
       continue;
 
-    absl::optional<TransportSecurityState::HashedHost> hashed =
+    std::optional<TransportSecurityState::HashedHost> hashed =
         ExternalStringToHashedDomain(*hostname);
     if (!hashed.has_value())
       continue;
@@ -184,7 +216,10 @@ TransportSecurityPersister::TransportSecurityPersister(
     const scoped_refptr<base::SequencedTaskRunner>& background_runner,
     const base::FilePath& data_path)
     : transport_security_state_(state),
-      writer_(data_path, background_runner),
+      writer_(data_path,
+              background_runner,
+              GetCommitInterval(),
+              kHistogramSuffix),
       foreground_runner_(base::SingleThreadTaskRunner::GetCurrentDefault()),
       background_runner_(background_runner) {
   transport_security_state_->SetDelegate(this);
@@ -222,7 +257,7 @@ void TransportSecurityPersister::WriteNow(TransportSecurityState* state,
           &OnWriteFinishedTask, foreground_runner_,
           base::BindOnce(&TransportSecurityPersister::OnWriteFinished,
                          weak_ptr_factory_.GetWeakPtr(), std::move(callback))));
-  absl::optional<std::string> data = SerializeData();
+  std::optional<std::string> data = SerializeData();
   if (data) {
     writer_.WriteNow(std::move(data).value());
   } else {
@@ -235,7 +270,7 @@ void TransportSecurityPersister::OnWriteFinished(base::OnceClosure callback) {
   std::move(callback).Run();
 }
 
-absl::optional<std::string> TransportSecurityPersister::SerializeData() {
+std::optional<std::string> TransportSecurityPersister::SerializeData() {
   CHECK(foreground_runner_->RunsTasksInCurrentSequence());
 
   base::Value::Dict toplevel;
@@ -244,7 +279,7 @@ absl::optional<std::string> TransportSecurityPersister::SerializeData() {
 
   std::string output;
   if (!base::JSONWriter::Write(toplevel, &output)) {
-    return absl::nullopt;
+    return std::nullopt;
   }
   return output;
 }
@@ -261,29 +296,36 @@ void TransportSecurityPersister::LoadEntries(const std::string& serialized) {
   }
 }
 
+// static
+base::TimeDelta TransportSecurityPersister::GetCommitInterval() {
+  return std::clamp(kCommitIntervalParam.Get(), kMinCommitInterval,
+                    kMaxCommitInterval);
+}
+
 void TransportSecurityPersister::Deserialize(
     const std::string& serialized,
     TransportSecurityState* state,
     bool& contains_legacy_expect_ct_data) {
-  absl::optional<base::Value> value = base::JSONReader::Read(serialized);
-  if (!value || !value->is_dict())
+  std::optional<base::Value::Dict> value =
+      base::JSONReader::ReadDict(serialized);
+  if (!value) {
     return;
+  }
 
-  base::Value::Dict& dict = value->GetDict();
-  absl::optional<int> version = dict.FindInt(kVersionKey);
+  std::optional<int> version = value->FindInt(kVersionKey);
 
   // Stop if the data is out of date (or in the previous format that didn't have
   // a version number).
   if (!version || *version != kCurrentVersionValue)
     return;
 
-  base::Value* sts_value = dict.Find(kSTSKey);
+  base::Value* sts_value = value->Find(kSTSKey);
   if (sts_value)
     DeserializeSTSData(*sts_value, state);
 
   // If an Expect-CT key is found on deserialization, record this so that a
   // write can be scheduled to clear it from disk.
-  contains_legacy_expect_ct_data = !!dict.Find(kExpectCTKey);
+  contains_legacy_expect_ct_data = !!value->Find(kExpectCTKey);
 }
 
 void TransportSecurityPersister::CompleteLoad(const std::string& state) {

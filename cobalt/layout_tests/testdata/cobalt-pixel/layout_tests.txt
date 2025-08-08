@@ -1,7 +1,0 @@
-# These tests are disabled as some platforms may intentionally perform
-# anti-aliasing to improve the visual quality. However, keep these tests
-# available in case a platform does not perform anti-aliasing and wants
-# to verify the output is pixel-perfect.
-#aliasing-solid-borders
-#aliasing-solid-color
-#aliasing-texture

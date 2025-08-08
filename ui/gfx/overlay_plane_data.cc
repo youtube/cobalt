@@ -4,13 +4,15 @@
 
 #include "ui/gfx/overlay_plane_data.h"
 
+#include <variant>
+
 namespace gfx {
 
 OverlayPlaneData::OverlayPlaneData() = default;
 
 OverlayPlaneData::OverlayPlaneData(
     int z_order,
-    OverlayTransform plane_transform,
+    std::variant<gfx::OverlayTransform, gfx::Transform> plane_transform,
     const RectF& display_bounds,
     const RectF& crop_rect,
     bool enable_blend,
@@ -19,10 +21,12 @@ OverlayPlaneData::OverlayPlaneData(
     OverlayPriorityHint priority_hint,
     const gfx::RRectF& rounded_corners,
     const gfx::ColorSpace& color_space,
-    const absl::optional<HDRMetadata>& hdr_metadata,
-    absl::optional<SkColor4f> color,
+    const std::optional<HDRMetadata>& hdr_metadata,
+    std::optional<SkColor4f> color,
     bool is_solid_color,
-    absl::optional<Rect> clip_rect)
+    bool is_root_overlay,
+    std::optional<Rect> clip_rect,
+    gfx::OverlayType overlay_type)
     : z_order(z_order),
       plane_transform(plane_transform),
       display_bounds(display_bounds),
@@ -36,7 +40,9 @@ OverlayPlaneData::OverlayPlaneData(
       hdr_metadata(hdr_metadata),
       color(color),
       is_solid_color(is_solid_color),
-      clip_rect(clip_rect) {}
+      is_root_overlay(is_root_overlay),
+      clip_rect(clip_rect),
+      overlay_type(overlay_type) {}
 
 OverlayPlaneData::~OverlayPlaneData() = default;
 

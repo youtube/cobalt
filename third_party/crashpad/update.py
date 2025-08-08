@@ -1,7 +1,7 @@
-#!/usr/bin/env python
+#!/usr/bin/env python3
 # coding: utf-8
 
-# Copyright 2015 The Chromium Authors. All rights reserved.
+# Copyright 2015 The Chromium Authors
 # Use of this source code is governed by a BSD-style license that can be
 # found in the LICENSE file.
 
@@ -9,8 +9,8 @@ from __future__ import print_function
 
 import argparse
 import os
-import pipes
 import re
+import shlex
 import subprocess
 import sys
 import tempfile
@@ -76,7 +76,7 @@ def main(args):
         dest='readme_path')
     parser.add_argument(
         '--exclude',
-        default=['codereview.settings'],
+        default=['codereview.settings', 'infra'],
         action='append',
         help='Files to exclude from the imported copy',
         metavar='PATH')
@@ -85,6 +85,7 @@ def main(args):
     original_head = (
         subprocess.check_output(['git', 'rev-parse', 'HEAD'],
                                 shell=IS_WINDOWS).rstrip())
+    original_head = original_head.decode('utf-8')
 
     # Read the README, because that’s what it’s for. Extract some things from
     # it, and save it to be able to update it later.
@@ -94,13 +95,13 @@ def main(args):
     readme_content_old = open(readme_path, 'rb').read().decode('utf-8')
 
     project_name_match = re.search(
-        r'^Name:\s+(.*)$', readme_content_old, re.MULTILINE)
+        r'^Name:\s+(.*)$', readme_content_old, flags=re.MULTILINE)
     project_name = project_name_match.group(1)
 
     # Extract the original commit hash from the README.
     revision_match = re.search(r'^Revision:\s+([0-9a-fA-F]{40})($|\s)',
                                readme_content_old,
-                               re.MULTILINE)
+                               flags=re.MULTILINE)
     revision_old = revision_match.group(1)
 
     subprocess.check_call(['git', 'fetch', parsed.repository, parsed.fetch_ref],
@@ -137,8 +138,8 @@ def main(args):
          'filter-branch',
          '--force',
          '--index-filter',
-         'git rm --cached --ignore-unmatch ' +
-             ' '.join(pipes.quote(path) for path in parsed.exclude),
+         'git rm -r --cached --ignore-unmatch ' +
+             ' '.join(shlex.quote(path) for path in parsed.exclude),
          revision_old + '..UPDATE_TO'],
         cwd=toplevel,
         shell=IS_WINDOWS)
@@ -231,8 +232,8 @@ Press ^C to abort.
         r'^(Revision:\s+)([0-9a-fA-F]{40})($|\s.*?$)',
         r'\g<1>' + revision_new,
         readme_content_old,
-        1,
-        re.MULTILINE)
+        count=1,
+        flags=re.MULTILINE)
 
     # If the in-tree copy has no changes relative to the upstream, clear the
     # “Local Modifications” section of the README.
@@ -257,8 +258,8 @@ Press ^C to abort.
         readme_content_new = re.sub(r'\nLocal Modifications:\n.*$',
                                     '\nLocal Modifications:\n' + modifications,
                                     readme_content_new,
-                                    1,
-                                    re.DOTALL)
+                                    count=1,
+                                    flags=re.DOTALL)
 
     # The UPDATE_TO ref is no longer useful.
     subprocess.check_call(['git', 'update-ref', '-d', 'UPDATE_TO'],

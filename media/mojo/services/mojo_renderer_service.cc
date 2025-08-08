@@ -5,23 +5,22 @@
 #include "media/mojo/services/mojo_renderer_service.h"
 
 #include <memory>
+#include <optional>
 #include <utility>
 
 #include "base/functional/bind.h"
 #include "base/memory/ptr_util.h"
 #include "base/time/time.h"
 #include "media/base/cdm_context.h"
-#include "media/base/media_url_demuxer.h"
 #include "media/base/renderer.h"
 #include "media/mojo/common/media_type_converters.h"
 #include "media/mojo/services/media_resource_shim.h"
 #include "media/mojo/services/mojo_cdm_service_context.h"
-#include "third_party/abseil-cpp/absl/types/optional.h"
 
 namespace media {
 
 // Time interval to update media time.
-constexpr auto kTimeUpdateInterval = base::Milliseconds(50);
+constexpr auto kTimeUpdateInterval = base::Milliseconds(125);
 
 // static
 mojo::SelfOwnedReceiverRef<mojom::Renderer> MojoRendererService::Create(
@@ -55,9 +54,8 @@ MojoRendererService::~MojoRendererService() = default;
 
 void MojoRendererService::Initialize(
     mojo::PendingAssociatedRemote<mojom::RendererClient> client,
-    absl::optional<std::vector<mojo::PendingRemote<mojom::DemuxerStream>>>
+    std::optional<std::vector<mojo::PendingRemote<mojom::DemuxerStream>>>
         streams,
-    mojom::MediaUrlParamsPtr media_url_params,
     InitializeCallback callback) {
   DVLOG(1) << __func__;
   DCHECK_EQ(state_, STATE_UNINITIALIZED);
@@ -65,23 +63,10 @@ void MojoRendererService::Initialize(
   client_.Bind(std::move(client));
   state_ = STATE_INITIALIZING;
 
-  if (!media_url_params) {
-    DCHECK(streams.has_value());
-    media_resource_ = std::make_unique<MediaResourceShim>(
-        std::move(*streams),
-        base::BindOnce(&MojoRendererService::OnAllStreamsReady, weak_this_,
-                       std::move(callback)));
-    return;
-  }
-
-  DCHECK(!media_url_params->media_url.is_empty());
-  media_resource_ = std::make_unique<MediaUrlDemuxer>(
-      nullptr, media_url_params->media_url, media_url_params->site_for_cookies,
-      media_url_params->top_frame_origin, media_url_params->has_storage_access,
-      media_url_params->allow_credentials, media_url_params->is_hls);
-  renderer_->Initialize(
-      media_resource_.get(), this,
-      base::BindOnce(&MojoRendererService::OnRendererInitializeDone, weak_this_,
+  DCHECK(streams.has_value());
+  media_resource_ = std::make_unique<MediaResourceShim>(
+      std::move(*streams),
+      base::BindOnce(&MojoRendererService::OnAllStreamsReady, weak_this_,
                      std::move(callback)));
 }
 
@@ -118,7 +103,7 @@ void MojoRendererService::SetVolume(float volume) {
 }
 
 void MojoRendererService::SetCdm(
-    const absl::optional<base::UnguessableToken>& cdm_id,
+    const std::optional<base::UnguessableToken>& cdm_id,
     SetCdmCallback callback) {
   if (cdm_context_ref_) {
     DVLOG(1) << "Switching CDM not supported";
@@ -155,6 +140,15 @@ void MojoRendererService::SetCdm(
   renderer_->SetCdm(cdm_context,
                     base::BindOnce(&MojoRendererService::OnCdmAttached,
                                    weak_this_, std::move(callback)));
+}
+
+void MojoRendererService::SetLatencyHint(
+    std::optional<base::TimeDelta> latency_hint) {
+  if (latency_hint.has_value() && latency_hint->is_negative()) {
+    mojo::ReportBadMessage("Latency hint should be non-negative");
+    return;
+  }
+  renderer_->SetLatencyHint(latency_hint);
 }
 
 void MojoRendererService::OnError(PipelineStatus error) {
@@ -213,7 +207,7 @@ void MojoRendererService::OnVideoOpacityChange(bool opaque) {
   client_->OnVideoOpacityChange(opaque);
 }
 
-void MojoRendererService::OnVideoFrameRateChange(absl::optional<int> fps) {
+void MojoRendererService::OnVideoFrameRateChange(std::optional<int> fps) {
   DVLOG(2) << __func__ << "(" << (fps ? *fps : -1) << ")";
   // TODO(liberato): plumb to |client_|.
 }

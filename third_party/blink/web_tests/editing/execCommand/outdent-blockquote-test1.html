@@ -1,0 +1,29 @@
+<!DOCTYPE html>
+<script src="../../resources/testharness.js"></script>
+<script src="../../resources/testharnessreport.js"></script>
+<script src="../assert_selection.js"></script>
+<script>
+
+// Note: The behavior here is different from Firefox which removes the
+// outermost blockquotes, preserving "third".
+selection_test(
+    [
+        '<div contenteditable="true" id="contentDiv">',
+            '^<blockquote class="webkit-indent-blockquote" id="top">',
+                '<span id="aSpan">A</span>',
+            '</blockquote>',
+            '<blockquote class="webkit-indent-blockquote" id="bottom">',
+                '<blockquote class="webkit-indent-blockquote" id="third">B</blockquote>',
+                '<span>C</span>',
+            '</blockquote>|',
+        '</div>',
+    ],
+    'outdent',
+    [
+        '<div contenteditable="true" id="contentDiv">',
+            '<span id="aSpan">^A</span>',
+            '<blockquote class="webkit-indent-blockquote" id="bottom">B</blockquote>',
+            '<span>C|</span>',
+        '</div>',
+    ]);
+</script>

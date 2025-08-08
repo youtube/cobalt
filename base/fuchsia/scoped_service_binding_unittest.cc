@@ -12,7 +12,6 @@
 #include "base/fuchsia/test_component_context_for_process.h"
 #include "base/fuchsia/test_interface_impl.h"
 #include "base/run_loop.h"
-#include "base/strings/string_piece.h"
 #include "base/test/bind.h"
 #include "base/test/task_environment.h"
 #include "testing/gtest/include/gtest/gtest.h"
@@ -72,9 +71,9 @@ TEST_F(ScopedServiceBindingTest, ConnectDebugService) {
 
   // Connect a ServiceDirectory to the "debug" subdirectory.
   fidl::InterfaceHandle<fuchsia::io::Directory> debug_handle;
-  debug_dir->Serve(fuchsia::io::OpenFlags::RIGHT_READABLE |
-                       fuchsia::io::OpenFlags::RIGHT_WRITABLE,
-                   debug_handle.NewRequest().TakeChannel());
+  debug_dir->Serve(fuchsia_io::wire::kPermReadable,
+                   fidl::ServerEnd<fuchsia_io::Directory>(
+                       debug_handle.NewRequest().TakeChannel()));
   sys::ServiceDirectory debug_directory(std::move(debug_handle));
 
   // Attempt to connect via the "debug" directory.
@@ -84,7 +83,7 @@ TEST_F(ScopedServiceBindingTest, ConnectDebugService) {
   // Verify that the service does not appear in the outgoing service directory.
   auto release_stub =
       test_context_.published_services()->Connect<testfidl::TestInterface>();
-  EXPECT_EQ(VerifyTestInterface(release_stub), ZX_ERR_PEER_CLOSED);
+  EXPECT_EQ(VerifyTestInterface(release_stub), ZX_ERR_NOT_FOUND);
 }
 
 // Verifies that ScopedSingleClientServiceBinding allows a different name.
@@ -172,9 +171,9 @@ TEST_F(ScopedServiceBindingTest, SingleClientPublishToPseudoDir) {
 
   // Connect a ServiceDirectory to the "debug" subdirectory.
   fidl::InterfaceHandle<fuchsia::io::Directory> debug_handle;
-  debug_dir->Serve(fuchsia::io::OpenFlags::RIGHT_READABLE |
-                       fuchsia::io::OpenFlags::RIGHT_WRITABLE,
-                   debug_handle.NewRequest().TakeChannel());
+  debug_dir->Serve(fuchsia_io::wire::kPermReadable,
+                   fidl::ServerEnd<fuchsia_io::Directory>(
+                       debug_handle.NewRequest().TakeChannel()));
   sys::ServiceDirectory debug_directory(std::move(debug_handle));
 
   // Attempt to connect via the "debug" directory.
@@ -184,7 +183,7 @@ TEST_F(ScopedServiceBindingTest, SingleClientPublishToPseudoDir) {
   // Verify that the service does not appear in the outgoing service directory.
   auto release_stub =
       test_context_.published_services()->Connect<testfidl::TestInterface>();
-  EXPECT_EQ(VerifyTestInterface(release_stub), ZX_ERR_PEER_CLOSED);
+  EXPECT_EQ(VerifyTestInterface(release_stub), ZX_ERR_NOT_FOUND);
 }
 
 TEST_F(ScopedServiceBindingTest, SingleBindingSetOnLastClientCallback) {
@@ -241,7 +240,7 @@ TEST_F(ScopedServiceBindingTest, MultipleLastClientCallback) {
       ComponentContextForProcess()->outgoing().get(), &test_service_);
   int disconnect_count = 0;
   binding.SetOnLastClientCallback(
-      BindLambdaForTesting([&disconnect_count]() { ++disconnect_count; }));
+      BindLambdaForTesting([&disconnect_count] { ++disconnect_count; }));
 
   // Connect a client, verify it is functional.
   auto stub =

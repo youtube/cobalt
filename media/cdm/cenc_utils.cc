@@ -6,6 +6,7 @@
 
 #include <memory>
 
+#include "base/not_fatal_until.h"
 #include "media/base/media_util.h"
 #include "media/formats/mp4/box_definitions.h"
 #include "media/formats/mp4/box_reader.h"
@@ -19,18 +20,18 @@ namespace media {
 
 // CENC SystemID for the Common System.
 // https://w3c.github.io/encrypted-media/cenc-format.html#common-system
-const uint8_t kCencCommonSystemId[] = {0x10, 0x77, 0xef, 0xec, 0xc0, 0xb2,
-                                       0x4d, 0x02, 0xac, 0xe3, 0x3c, 0x1e,
-                                       0x52, 0xe2, 0xfb, 0x4b};
+constexpr auto kCencCommonSystemId =
+    std::to_array<uint8_t>({0x10, 0x77, 0xef, 0xec, 0xc0, 0xb2, 0x4d, 0x02,
+                            0xac, 0xe3, 0x3c, 0x1e, 0x52, 0xe2, 0xfb, 0x4b});
 
 // Returns true if |input| contains only 1 or more valid 'pssh' boxes, false
 // otherwise. |pssh_boxes| is updated as the set of parsed 'pssh' boxes.
 // Note: All boxes in |input| must be 'pssh' boxes. However, if they can't be
 //       properly parsed (e.g. unsupported version), then they will be skipped.
 static bool ReadAllPsshBoxes(
-    const std::vector<uint8_t>& input,
+    base::span<const uint8_t> input,
     std::vector<mp4::FullProtectionSystemSpecificHeader>* pssh_boxes) {
-  DCHECK(!input.empty());
+  CHECK(!input.empty(), base::NotFatalUntil::M140);
 
   // TODO(wolenetz): Questionable MediaLog usage, http://crbug.com/712310
   NullMediaLog media_log;
@@ -51,7 +52,7 @@ static bool ReadAllPsshBoxes(
 
   // Now that we have |input| parsed into |raw_pssh_boxes|, reparse each one
   // into a mp4::FullProtectionSystemSpecificHeader, which extracts all the
-  // relevant fields from the box. Since there may be unparseable 'pssh' boxes
+  // relevant fields from the box. Since there may be unparsable 'pssh' boxes
   // (due to unsupported version, for example), this is done one by one,
   // ignoring any boxes that can't be parsed.
   for (const auto& raw_pssh_box : raw_pssh_boxes) {
@@ -70,7 +71,7 @@ static bool ReadAllPsshBoxes(
   return pssh_boxes->size() > 0;
 }
 
-bool ValidatePsshInput(const std::vector<uint8_t>& input) {
+bool ValidatePsshInput(base::span<const uint8_t> input) {
   // No 'pssh' boxes is considered valid.
   if (input.empty())
     return true;
@@ -79,7 +80,7 @@ bool ValidatePsshInput(const std::vector<uint8_t>& input) {
   return ReadAllPsshBoxes(input, &children);
 }
 
-bool GetKeyIdsForCommonSystemId(const std::vector<uint8_t>& pssh_boxes,
+bool GetKeyIdsForCommonSystemId(base::span<const uint8_t> pssh_boxes,
                                 KeyIdList* key_ids) {
   // If there are no 'pssh' boxes then no key IDs found.
   if (pssh_boxes.empty())
@@ -92,11 +93,8 @@ bool GetKeyIdsForCommonSystemId(const std::vector<uint8_t>& pssh_boxes,
   // Check all children for an appropriate 'pssh' box, returning the
   // key IDs found.
   KeyIdList result;
-  std::vector<uint8_t> common_system_id(
-      kCencCommonSystemId,
-      kCencCommonSystemId + std::size(kCencCommonSystemId));
   for (const auto& child : children) {
-    if (child.system_id == common_system_id) {
+    if (base::as_byte_span(child.system_id) == kCencCommonSystemId) {
       key_ids->assign(child.key_ids.begin(), child.key_ids.end());
       return key_ids->size() > 0;
     }
@@ -106,8 +104,8 @@ bool GetKeyIdsForCommonSystemId(const std::vector<uint8_t>& pssh_boxes,
   return false;
 }
 
-bool GetPsshData(const std::vector<uint8_t>& input,
-                 const std::vector<uint8_t>& system_id,
+bool GetPsshData(base::span<const uint8_t> input,
+                 base::span<const uint8_t> system_id,
                  std::vector<uint8_t>* pssh_data) {
   if (input.empty())
     return false;

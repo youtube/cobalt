@@ -1,32 +1,9 @@
 // Protocol Buffers - Google's data interchange format
 // Copyright 2008 Google Inc.  All rights reserved.
-// https://developers.google.com/protocol-buffers/
 //
-// Redistribution and use in source and binary forms, with or without
-// modification, are permitted provided that the following conditions are
-// met:
-//
-//     * Redistributions of source code must retain the above copyright
-// notice, this list of conditions and the following disclaimer.
-//     * Redistributions in binary form must reproduce the above
-// copyright notice, this list of conditions and the following disclaimer
-// in the documentation and/or other materials provided with the
-// distribution.
-//     * Neither the name of Google Inc. nor the names of its
-// contributors may be used to endorse or promote products derived from
-// this software without specific prior written permission.
-//
-// THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
-// "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
-// LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR
-// A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT
-// OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
-// SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT
-// LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
-// DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
-// THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
-// (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
-// OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+// Use of this source code is governed by a BSD-style
+// license that can be found in the LICENSE file or at
+// https://developers.google.com/open-source/licenses/bsd
 
 // Author: jschorr@google.com (Joseph Schorr)
 //  Based on original Protocol Buffers design by
@@ -37,24 +14,30 @@
 //
 // Aug. 2008: Added Unknown Fields Comparison for messages.
 // Aug. 2009: Added different options to compare repeated fields.
-// Apr. 2010: Moved field comparison to FieldComparator.
+// Apr. 2010: Moved field comparison to FieldComparator
+// Sep. 2020: Added option to output map keys in path
 
 #ifndef GOOGLE_PROTOBUF_UTIL_MESSAGE_DIFFERENCER_H__
 #define GOOGLE_PROTOBUF_UTIL_MESSAGE_DIFFERENCER_H__
 
 #include <functional>
-#include <map>
-#include <set>
+#include <memory>
 #include <string>
 #include <vector>
 
-#include <google/protobuf/descriptor.h>  // FieldDescriptor
-#include <google/protobuf/message.h>     // Message
-#include <google/protobuf/unknown_field_set.h>
-#include <google/protobuf/util/field_comparator.h>
+#include "absl/base/macros.h"
+#include "absl/container/fixed_array.h"
+#include "absl/container/flat_hash_map.h"
+#include "absl/container/flat_hash_set.h"
+#include "absl/log/absl_check.h"
+#include "google/protobuf/descriptor.h"  // FieldDescriptor
+#include "google/protobuf/message.h"     // Message
+#include "google/protobuf/text_format.h"
+#include "google/protobuf/unknown_field_set.h"
+#include "google/protobuf/util/field_comparator.h"
 
 // Always include as last one, otherwise it can break compilation
-#include <google/protobuf/port_def.inc>
+#include "google/protobuf/port_def.inc"
 
 namespace google {
 namespace protobuf {
@@ -71,12 +54,6 @@ namespace util {
 
 class DefaultFieldComparator;
 class FieldContext;  // declared below MessageDifferencer
-
-// Defines a collection of field descriptors.
-// In case of internal google codebase we are using absl::FixedArray instead
-// of vector. It significantly speeds up proto comparison (by ~30%) by
-// reducing the number of malloc/free operations
-typedef std::vector<const FieldDescriptor*> FieldDescriptorArray;
 
 // A basic differencer that can be used to determine
 // the differences between two specified Protocol Messages. If any differences
@@ -112,11 +89,11 @@ typedef std::vector<const FieldDescriptor*> FieldDescriptorArray;
 // unpacks Any::value into a Message and compares its individual fields.
 // Messages encoded in a repeated Any cannot be compared using TreatAsMap.
 //
-//
 // Note on thread-safety: MessageDifferencer is *not* thread-safe. You need to
 // guard it with a lock to use the same MessageDifferencer instance from
 // multiple threads. Note that it's fine to call static comparison methods
-// (like MessageDifferencer::Equals) concurrently.
+// (like MessageDifferencer::Equals) concurrently, but it's not recommended for
+// performance critical code as it leads to extra allocations.
 class PROTOBUF_EXPORT MessageDifferencer {
  public:
   // Determines whether the supplied messages are equal. Equality is defined as
@@ -174,46 +151,60 @@ class PROTOBUF_EXPORT MessageDifferencer {
   // Identifies an individual field in a message instance.  Used for field_path,
   // below.
   struct SpecificField {
+    // The messages that contain this field. They are always set. They are valid
+    // only during a call to Reporter::Report* methods.
+    //
+    // If the original messages are of type google.protobuf.Any, these fields
+    // will store the unpacked payloads, and unpacked_any will become > 0.  More
+    // precisely, unpacked_any defines the nesting level of Any.  For example,
+    // if the original message packs another Any, then unpacked_any=2, assuming
+    // the differencer unpacked both of them.
+    //
+    // When an Any object packs a non-Any proto object whose field includes
+    // Any, then unpacked_any=1. Thus, in most practical applications,
+    // unpacked_any will be 0 or 1.
+    const Message* message1 = nullptr;
+    const Message* message2 = nullptr;
+    int unpacked_any = 0;
+
     // For known fields, "field" is filled in and "unknown_field_number" is -1.
     // For unknown fields, "field" is NULL, "unknown_field_number" is the field
     // number, and "unknown_field_type" is its type.
-    const FieldDescriptor* field;
-    int unknown_field_number;
-    UnknownField::Type unknown_field_type;
+    const FieldDescriptor* field = nullptr;
+    int unknown_field_number = -1;
+    UnknownField::Type unknown_field_type = UnknownField::Type::TYPE_VARINT;
 
     // If this a repeated field, "index" is the index within it.  For unknown
     // fields, this is the index of the field among all unknown fields of the
     // same field number and type.
-    int index;
+    int index = -1;
 
     // If "field" is a repeated field which is being treated as a map or
     // a set (see TreatAsMap() and TreatAsSet(), below), new_index indicates
     // the index the position to which the element has moved.  If the element
     // has not moved, "new_index" will have the same value as "index".
-    int new_index;
+    int new_index = -1;
+
+    // If "field" is a map field, point to the map entry.
+    const Message* map_entry1 = nullptr;
+    const Message* map_entry2 = nullptr;
 
     // For unknown fields, these are the pointers to the UnknownFieldSet
     // containing the unknown fields. In certain cases (e.g. proto1's
     // MessageSet, or nested groups of unknown fields), these may differ from
     // the messages' internal UnknownFieldSets.
-    const UnknownFieldSet* unknown_field_set1;
-    const UnknownFieldSet* unknown_field_set2;
+    const UnknownFieldSet* unknown_field_set1 = nullptr;
+    const UnknownFieldSet* unknown_field_set2 = nullptr;
 
     // For unknown fields, these are the index of the field within the
     // UnknownFieldSets. One or the other will be -1 when
     // reporting an addition or deletion.
-    int unknown_field_index1;
-    int unknown_field_index2;
+    int unknown_field_index1 = -1;
+    int unknown_field_index2 = -1;
 
-    SpecificField()
-        : field(NULL),
-          unknown_field_number(-1),
-          index(-1),
-          new_index(-1),
-          unknown_field_set1(NULL),
-          unknown_field_set2(NULL),
-          unknown_field_index1(-1),
-          unknown_field_index2(-1) {}
+    // Was this field added to the diffing because set_force_compare_no_presence
+    // was called on the MessageDifferencer object.
+    bool forced_compare_no_presence_ = false;
   };
 
   // Abstract base class from which all MessageDifferencer
@@ -225,24 +216,38 @@ class PROTOBUF_EXPORT MessageDifferencer {
   // FieldDescriptors. The first will be the field of the embedded message
   // itself and the second will be the actual field in the embedded message
   // that was added/deleted/modified.
+  // Fields will be reported in PostTraversalOrder.
+  // For example, given following proto, if both baz and mooo are changed.
+  // foo {
+  //   bar {
+  //     baz: 1
+  //     mooo: 2
+  //   }
+  // }
+  // ReportModified will be invoked with following order:
+  // 1. foo.bar.baz or foo.bar.mooo
+  // 2. foo.bar.mooo or foo.bar.baz
+  // 2. foo.bar
+  // 3. foo
   class PROTOBUF_EXPORT Reporter {
    public:
     Reporter();
+    Reporter(const Reporter&) = delete;
+    Reporter& operator=(const Reporter&) = delete;
     virtual ~Reporter();
 
     // Reports that a field has been added into Message2.
     virtual void ReportAdded(const Message& message1, const Message& message2,
-                             const std::vector<SpecificField>& field_path) = 0;
+                             const std::vector<SpecificField>& field_path) {}
 
     // Reports that a field has been deleted from Message1.
-    virtual void ReportDeleted(
-        const Message& message1, const Message& message2,
-        const std::vector<SpecificField>& field_path) = 0;
+    virtual void ReportDeleted(const Message& message1, const Message& message2,
+                               const std::vector<SpecificField>& field_path) {}
 
     // Reports that the value of a field has been modified.
-    virtual void ReportModified(
-        const Message& message1, const Message& message2,
-        const std::vector<SpecificField>& field_path) = 0;
+    virtual void ReportModified(const Message& message1,
+                                const Message& message2,
+                                const std::vector<SpecificField>& field_path) {}
 
     // Reports that a repeated field has been moved to another location.  This
     // only applies when using TreatAsSet or TreatAsMap()  -- see below. Also
@@ -290,9 +295,6 @@ class PROTOBUF_EXPORT MessageDifferencer {
     virtual void ReportUnknownFieldIgnored(
         const Message& /* message1 */, const Message& /* message2 */,
         const std::vector<SpecificField>& /* field_path */) {}
-
-   private:
-    GOOGLE_DISALLOW_EVIL_CONSTRUCTORS(Reporter);
   };
 
   // MapKeyComparator is used to determine if two elements have the same key
@@ -300,22 +302,30 @@ class PROTOBUF_EXPORT MessageDifferencer {
   class PROTOBUF_EXPORT MapKeyComparator {
    public:
     MapKeyComparator();
+    MapKeyComparator(const MapKeyComparator&) = delete;
+    MapKeyComparator& operator=(const MapKeyComparator&) = delete;
     virtual ~MapKeyComparator();
 
-    virtual bool IsMatch(
-        const Message& /* message1 */, const Message& /* message2 */,
-        const std::vector<SpecificField>& /* parent_fields */) const {
-      GOOGLE_CHECK(false) << "IsMatch() is not implemented.";
+    // This method should be overridden by every implementation.  The arg
+    // unmapped_any is nonzero the original messages provided by the user are of
+    // type google.protobuf.Any.
+    //
+    // More precisely, unpacked_any defines the nesting level of Any.  For
+    // example, if Any packs another Any then unpacked_any=2, assuming the
+    // patcher unpacked both.  Note that when an Any object packs a non-Any
+    // proto object whose field includes Any, then unpacked_any=1. Thus, in most
+    // practical applications, unpacked_any will be 0 or 1.
+    virtual bool IsMatch(const Message& message1, const Message& message2,
+                         int /* unmapped_any */,
+                         const std::vector<SpecificField>& fields) const {
+      ABSL_CHECK(false) << "IsMatch() is not implemented.";
       return false;
     }
-
-   private:
-    GOOGLE_DISALLOW_EVIL_CONSTRUCTORS(MapKeyComparator);
   };
 
   // Abstract base class from which all IgnoreCriteria derive.
   // By adding IgnoreCriteria more complex ignore logic can be implemented.
-  // IgnoreCriteria are registed with AddIgnoreCriteria. For each compared
+  // IgnoreCriteria are registered with AddIgnoreCriteria. For each compared
   // field IsIgnored is called on each added IgnoreCriteria until one returns
   // true or all return false.
   // IsIgnored is called for fields where at least one side has a value.
@@ -344,6 +354,8 @@ class PROTOBUF_EXPORT MessageDifferencer {
   // To add a Reporter, construct default here, then use ReportDifferencesTo or
   // ReportDifferencesToString.
   explicit MessageDifferencer();
+  MessageDifferencer(const MessageDifferencer&) = delete;
+  MessageDifferencer& operator=(const MessageDifferencer&) = delete;
 
   ~MessageDifferencer();
 
@@ -412,7 +424,7 @@ class PROTOBUF_EXPORT MessageDifferencer {
   // + n^3) in which n^3 is the time complexity of the maximum matching
   // algorithm.
   //
-  // REQUIRES:  field->is_repeated() and field not registered with TreatAsList
+  // REQUIRES: field->is_repeated() and field not registered with TreatAsMap*
   void TreatAsSet(const FieldDescriptor* field);
   void TreatAsSmartSet(const FieldDescriptor* field);
 
@@ -420,7 +432,7 @@ class PROTOBUF_EXPORT MessageDifferencer {
   // diffing purposes, so different orderings of the same elements will NOT be
   // considered equal.
   //
-  // REQUIRED: field->is_repeated() and field not registered with TreatAsSet
+  // REQUIRES: field->is_repeated() and field not registered with TreatAsMap*
   void TreatAsList(const FieldDescriptor* field);
   // Note that the complexity is similar to treating as SET.
   void TreatAsSmartList(const FieldDescriptor* field);
@@ -492,8 +504,14 @@ class PROTOBUF_EXPORT MessageDifferencer {
 
   // Add a custom ignore criteria that is evaluated in addition to the
   // ignored fields added with IgnoreField.
-  // Takes ownership of ignore_criteria.
-  void AddIgnoreCriteria(IgnoreCriteria* ignore_criteria);
+#ifndef PROTOBUF_FUTURE_REMOVE_ADD_IGNORE_CRITERIA
+  ABSL_DEPRECATE_AND_INLINE()
+  void AddIgnoreCriteria(IgnoreCriteria* ignore_criteria) {
+    AddIgnoreCriteria(absl::WrapUnique(ignore_criteria));
+  }
+#endif  // !PROTOBUF_FUTURE_REMOVE_ADD_IGNORE_CRITERIA
+
+  void AddIgnoreCriteria(std::unique_ptr<IgnoreCriteria> ignore_criteria);
 
   // Indicates that any field with the given descriptor should be
   // ignored for the purposes of comparing two messages. This applies
@@ -514,6 +532,7 @@ class PROTOBUF_EXPORT MessageDifferencer {
   // Note that this method must be called before Compare for the comparator to
   // be used.
   void set_field_comparator(FieldComparator* comparator);
+  void set_field_comparator(DefaultFieldComparator* comparator);
 
   // DEPRECATED. Pass a DefaultFieldComparator instance instead.
   // Sets the fraction and margin for the float comparison of a given field.
@@ -531,6 +550,9 @@ class PROTOBUF_EXPORT MessageDifferencer {
   // enumeration above) that is used by this differencer when determining how
   // to compare fields in messages.
   void set_message_field_comparison(MessageFieldComparison comparison);
+
+  // Returns the current message field comparison used in this differencer.
+  MessageFieldComparison message_field_comparison() const;
 
   // Tells the differencer whether or not to report matches. This method must
   // be called before Compare. The default for a new differencer is false.
@@ -555,7 +577,20 @@ class PROTOBUF_EXPORT MessageDifferencer {
   void set_scope(Scope scope);
 
   // Returns the current scope used by this differencer.
-  Scope scope();
+  Scope scope() const;
+
+  // Only affects PARTIAL diffing. When set, all non-repeated no-presence fields
+  // which are set to their default value (which is the same as being unset) in
+  // message1 but are set to a non-default value in message2 will also be used
+  // in the comparison.
+  void set_force_compare_no_presence(bool value);
+
+  // If set, the fields in message1 that equal the fields passed here will be
+  // treated as required for comparison, even if they are absent.
+  void set_require_no_presence_fields(
+      const google::protobuf::TextFormat::Parser::UnsetFieldsMetadata& fields) {
+    require_no_presence_fields_ = fields;
+  }
 
   // DEPRECATED. Pass a DefaultFieldComparator instance instead.
   // Sets the type of comparison (as defined in the FloatComparison enumeration
@@ -569,6 +604,9 @@ class PROTOBUF_EXPORT MessageDifferencer {
   // RepeatedFieldComparison enumeration above) that is used by this
   // differencer when compare repeated fields in messages.
   void set_repeated_field_comparison(RepeatedFieldComparison comparison);
+
+  // Returns the current repeated field comparison used by this differencer.
+  RepeatedFieldComparison repeated_field_comparison() const;
 
   // Compares the two specified messages, returning true if they are the same,
   // false otherwise. If this method returns false, any changes between the
@@ -599,6 +637,29 @@ class PROTOBUF_EXPORT MessageDifferencer {
   // differences to any previously set reporters or output strings.
   void ReportDifferencesTo(Reporter* reporter);
 
+  // Returns the list of fields which was automatically added to the list of
+  // compared fields by calling set_force_compare_no_presence and caused the
+  // last call to Compare to fail.
+  const absl::flat_hash_set<std::string>& NoPresenceFieldsCausingFailure() {
+    return force_compare_failure_triggering_fields_;
+  }
+
+ private:
+  // Class for processing Any deserialization.  This logic is used by both the
+  // MessageDifferencer and StreamReporter classes.
+  class UnpackAnyField {
+   private:
+    std::unique_ptr<DynamicMessageFactory> dynamic_message_factory_;
+
+   public:
+    UnpackAnyField() = default;
+    ~UnpackAnyField() = default;
+    // If "any" is of type google.protobuf.Any, extract its payload using
+    // DynamicMessageFactory and store in "data".
+    bool UnpackAny(const Message& any, std::unique_ptr<Message>* data);
+  };
+
+ public:
   // An implementation of the MessageDifferencer Reporter that outputs
   // any differences found in human-readable form to the supplied
   // ZeroCopyOutputStream or Printer. If a printer is used, the delimiter
@@ -613,6 +674,8 @@ class PROTOBUF_EXPORT MessageDifferencer {
    public:
     explicit StreamReporter(io::ZeroCopyOutputStream* output);
     explicit StreamReporter(io::Printer* printer);  // delimiter '$'
+    StreamReporter(const StreamReporter&) = delete;
+    StreamReporter& operator=(const StreamReporter&) = delete;
     ~StreamReporter() override;
 
     // When set to true, the stream reporter will also output aggregates nodes
@@ -646,12 +709,11 @@ class PROTOBUF_EXPORT MessageDifferencer {
         const Message& message1, const Message& message2,
         const std::vector<SpecificField>& field_path) override;
 
-   protected:
-    // Prints the specified path of fields to the buffer.  message is used to
-    // print map keys.
-    virtual void PrintPath(const std::vector<SpecificField>& field_path,
-                           bool left_side, const Message& message);
+    // Messages that are being compared must be provided to StreamReporter prior
+    // to processing
+    void SetMessages(const Message& message1, const Message& message2);
 
+   protected:
     // Prints the specified path of fields to the buffer.
     virtual void PrintPath(const std::vector<SpecificField>& field_path,
                            bool left_side);
@@ -672,15 +734,18 @@ class PROTOBUF_EXPORT MessageDifferencer {
     void Print(const std::string& str);
 
    private:
+    // helper function for PrintPath that contains logic for printing maps
+    void PrintMapKey(bool left_side, const SpecificField& specific_field);
+
     io::Printer* printer_;
     bool delete_printer_;
     bool report_modified_aggregates_;
-
-    GOOGLE_DISALLOW_EVIL_CONSTRUCTORS(StreamReporter);
+    const Message* message1_;
+    const Message* message2_;
   };
 
  private:
-  friend class DefaultFieldComparator;
+  friend class SimpleFieldComparator;
 
   // A MapKeyComparator to be used in TreatAsMapUsingKeyComparator.
   // Implementation of this class needs to do field value comparison which
@@ -693,7 +758,7 @@ class PROTOBUF_EXPORT MessageDifferencer {
    public:
     explicit MapEntryKeyComparator(MessageDifferencer* message_differencer);
     bool IsMatch(
-        const Message& message1, const Message& message2,
+        const Message& message1, const Message& message2, int unpacked_any,
         const std::vector<SpecificField>& parent_fields) const override;
 
    private:
@@ -705,17 +770,17 @@ class PROTOBUF_EXPORT MessageDifferencer {
                           const FieldDescriptor* field2);
 
   // Retrieve all the set fields, including extensions.
-  FieldDescriptorArray RetrieveFields(const Message& message,
-                                      bool base_message);
+  std::vector<const FieldDescriptor*> RetrieveFields(const Message& message,
+                                                     bool base_message);
 
   // Combine the two lists of fields into the combined_fields output vector.
   // All fields present in both lists will always be included in the combined
   // list.  Fields only present in one of the lists will only appear in the
   // combined list if the corresponding fields_scope option is set to FULL.
-  FieldDescriptorArray CombineFields(const FieldDescriptorArray& fields1,
-                                     Scope fields1_scope,
-                                     const FieldDescriptorArray& fields2,
-                                     Scope fields2_scope);
+  std::vector<const FieldDescriptor*> CombineFields(
+      const Message& message1,
+      const std::vector<const FieldDescriptor*>& fields1, Scope fields1_scope,
+      const std::vector<const FieldDescriptor*>& fields2, Scope fields2_scope);
 
   // Internal version of the Compare method which performs the actual
   // comparison. The parent_fields vector is a vector containing field
@@ -723,7 +788,7 @@ class PROTOBUF_EXPORT MessageDifferencer {
   // (i.e. if the current message is an embedded message, the parent_fields
   // vector will contain the field that has this embedded message).
   bool Compare(const Message& message1, const Message& message2,
-               std::vector<SpecificField>* parent_fields);
+               int unpacked_any, std::vector<SpecificField>* parent_fields);
 
   // Compares all the unknown fields in two messages.
   bool CompareUnknownFields(const Message& message1, const Message& message2,
@@ -734,26 +799,47 @@ class PROTOBUF_EXPORT MessageDifferencer {
   // lists are modified depending on comparison settings, and then passed to
   // CompareWithFieldsInternal.
   bool CompareRequestedFieldsUsingSettings(
-      const Message& message1, const Message& message2,
-      const FieldDescriptorArray& message1_fields,
-      const FieldDescriptorArray& message2_fields,
+      const Message& message1, const Message& message2, int unpacked_any,
+      const std::vector<const FieldDescriptor*>& message1_fields,
+      const std::vector<const FieldDescriptor*>& message2_fields,
       std::vector<SpecificField>* parent_fields);
 
   // Compares the specified messages with the specified field lists.
-  bool CompareWithFieldsInternal(const Message& message1,
-                                 const Message& message2,
-                                 const FieldDescriptorArray& message1_fields,
-                                 const FieldDescriptorArray& message2_fields,
-                                 std::vector<SpecificField>* parent_fields);
+  bool CompareWithFieldsInternal(
+      const Message& message1, const Message& message2, int unpacked_any,
+      const std::vector<const FieldDescriptor*>& message1_fields,
+      const std::vector<const FieldDescriptor*>& message2_fields,
+      std::vector<SpecificField>* parent_fields);
 
   // Compares the repeated fields, and report the error.
   bool CompareRepeatedField(const Message& message1, const Message& message2,
-                            const FieldDescriptor* field,
+                            int unpacked_any, const FieldDescriptor* field,
                             std::vector<SpecificField>* parent_fields);
+
+  // Compares map fields, and report the error.
+  bool CompareMapField(const Message& message1, const Message& message2,
+                       int unpacked_any, const FieldDescriptor* field,
+                       std::vector<SpecificField>* parent_fields);
+
+  // Helper for CompareRepeatedField and CompareMapField: compares and reports
+  // differences element-wise. This is the implementation for non-map fields,
+  // and can also compare map fields by using the underlying representation.
+  bool CompareRepeatedRep(const Message& message1, const Message& message2,
+                          int unpacked_any, const FieldDescriptor* field,
+                          std::vector<SpecificField>* parent_fields);
+
+  // Helper for CompareMapField: compare the map fields using map reflection
+  // instead of sync to repeated.
+  bool CompareMapFieldByMapReflection(const Message& message1,
+                                      const Message& message2, int unpacked_any,
+                                      const FieldDescriptor* field,
+                                      std::vector<SpecificField>* parent_fields,
+                                      DefaultFieldComparator* comparator);
 
   // Shorthand for CompareFieldValueUsingParentFields with NULL parent_fields.
   bool CompareFieldValue(const Message& message1, const Message& message2,
-                         const FieldDescriptor* field, int index1, int index2);
+                         int unpacked_any, const FieldDescriptor* field,
+                         int index1, int index2);
 
   // Compares the specified field on the two messages, returning
   // true if they are the same, false otherwise. For repeated fields,
@@ -765,7 +851,7 @@ class PROTOBUF_EXPORT MessageDifferencer {
   // To avoid confusing users you should not set it to NULL unless you modified
   // Reporter to handle the change of parent_fields correctly.
   bool CompareFieldValueUsingParentFields(
-      const Message& message1, const Message& message2,
+      const Message& message1, const Message& message2, int unpacked_any,
       const FieldDescriptor* field, int index1, int index2,
       std::vector<SpecificField>* parent_fields);
 
@@ -781,7 +867,7 @@ class PROTOBUF_EXPORT MessageDifferencer {
   // elements are equal.
   bool IsMatch(const FieldDescriptor* repeated_field,
                const MapKeyComparator* key_comparator, const Message* message1,
-               const Message* message2,
+               const Message* message2, int unpacked_any,
                const std::vector<SpecificField>& parent_fields,
                Reporter* reporter, int index1, int index2);
 
@@ -829,43 +915,41 @@ class PROTOBUF_EXPORT MessageDifferencer {
   // that the comparison succeeds when this method returns true (you need to
   // double-check in this case).
   bool MatchRepeatedFieldIndices(
-      const Message& message1, const Message& message2,
+      const Message& message1, const Message& message2, int unpacked_any,
       const FieldDescriptor* repeated_field,
       const MapKeyComparator* key_comparator,
       const std::vector<SpecificField>& parent_fields,
       std::vector<int>* match_list1, std::vector<int>* match_list2);
 
-  // If "any" is of type google.protobuf.Any, extract its payload using
-  // DynamicMessageFactory and store in "data".
-  bool UnpackAny(const Message& any, std::unique_ptr<Message>* data);
-
   // Checks if index is equal to new_index in all the specific fields.
   static bool CheckPathChanged(const std::vector<SpecificField>& parent_fields);
 
-  // CHECKs that the given repeated field can be compared according to
+  // ABSL_CHECKs that the given repeated field can be compared according to
   // new_comparison.
   void CheckRepeatedFieldComparisons(
       const FieldDescriptor* field,
       const RepeatedFieldComparison& new_comparison);
 
-  // Defines a map between field descriptors and their MapKeyComparators.
-  // Used for repeated fields when they are configured as TreatAsMap.
-  typedef std::map<const FieldDescriptor*, const MapKeyComparator*>
-      FieldKeyComparatorMap;
+  // Whether we should still compare the field despite its absence in message1.
+  bool ShouldCompareNoPresence(const Message& message1,
+                               const Reflection& reflection1,
+                               const FieldDescriptor* field2) const;
 
-  // Defines a set to store field descriptors.  Used for repeated fields when
-  // they are configured as TreatAsSet.
-  typedef std::set<const FieldDescriptor*> FieldSet;
-  typedef std::map<const FieldDescriptor*, RepeatedFieldComparison> FieldMap;
+  // We move this code out of line to reduce stack cost of the caller.
+  // The map lookups and string copies are costly in stack space.
+  PROTOBUF_NOINLINE void ForceCompareField(const FieldDescriptor* field);
 
   Reporter* reporter_;
   DefaultFieldComparator default_field_comparator_;
-  FieldComparator* field_comparator_;
   MessageFieldComparison message_field_comparison_;
   Scope scope_;
+  absl::flat_hash_set<const FieldDescriptor*> force_compare_no_presence_fields_;
+  google::protobuf::TextFormat::Parser::UnsetFieldsMetadata require_no_presence_fields_;
+  absl::flat_hash_set<std::string> force_compare_failure_triggering_fields_;
   RepeatedFieldComparison repeated_field_comparison_;
 
-  FieldMap repeated_field_comparisons_;
+  absl::flat_hash_map<const FieldDescriptor*, RepeatedFieldComparison>
+      repeated_field_comparisons_;
   // Keeps track of MapKeyComparators that are created within
   // MessageDifferencer. These MapKeyComparators should be deleted
   // before MessageDifferencer is destroyed.
@@ -873,17 +957,25 @@ class PROTOBUF_EXPORT MessageDifferencer {
   // store the supplied FieldDescriptors directly. Instead, a new
   // MapKeyComparator is created for comparison purpose.
   std::vector<MapKeyComparator*> owned_key_comparators_;
-  FieldKeyComparatorMap map_field_key_comparator_;
+  absl::flat_hash_map<const FieldDescriptor*, const MapKeyComparator*>
+      map_field_key_comparator_;
   MapEntryKeyComparator map_entry_key_comparator_;
-  std::vector<IgnoreCriteria*> ignore_criteria_;
+  std::vector<std::unique_ptr<IgnoreCriteria>> ignore_criteria_;
   // Reused multiple times in RetrieveFields to avoid extra allocations
   std::vector<const FieldDescriptor*> tmp_message_fields_;
 
-  FieldSet ignored_fields_;
+  absl::flat_hash_set<const FieldDescriptor*> ignored_fields_;
+
+  union {
+    DefaultFieldComparator* default_impl;
+    FieldComparator* base;
+  } field_comparator_ = {&default_field_comparator_};
+  enum { kFCDefault, kFCBase } field_comparator_kind_ = kFCDefault;
 
   bool report_matches_;
   bool report_moves_;
   bool report_ignores_;
+  bool force_compare_no_presence_ = false;
 
   std::string* output_string_;
 
@@ -891,8 +983,7 @@ class PROTOBUF_EXPORT MessageDifferencer {
   std::function<void(std::vector<int>*, std::vector<int>*)>
       match_indices_for_smart_list_callback_;
 
-  std::unique_ptr<DynamicMessageFactory> dynamic_message_factory_;
-  GOOGLE_DISALLOW_EVIL_CONSTRUCTORS(MessageDifferencer);
+  MessageDifferencer::UnpackAnyField unpack_any_field_;
 };
 
 // This class provides extra information to the FieldComparator::Compare
@@ -915,6 +1006,6 @@ class PROTOBUF_EXPORT FieldContext {
 }  // namespace protobuf
 }  // namespace google
 
-#include <google/protobuf/port_undef.inc>
+#include "google/protobuf/port_undef.inc"
 
 #endif  // GOOGLE_PROTOBUF_UTIL_MESSAGE_DIFFERENCER_H__

@@ -9,6 +9,10 @@
 #include <array>
 
 #include "base/process/process.h"
+#include "base/test/scoped_feature_list.h"
+#include "base/threading/platform_thread_win.h"
+#include "base/threading/simple_thread.h"
+#include "base/threading/threading_features.h"
 #include "base/win/windows_version.h"
 #include "testing/gmock/include/gmock/gmock.h"
 #include "testing/gtest/include/gtest/gtest.h"
@@ -33,13 +37,13 @@ TEST(PlatformThreadWinTest, SetBackgroundThreadModeFailsInIdlePriorityProcess) {
   internal::AssertMemoryPriority(thread_handle, MEMORY_PRIORITY_NORMAL);
 
   // Set the process priority to IDLE.
-  // Note: Do not use Process::SetProcessBackgrounded() because it uses
+  // Note: Do not use Process::SetPriority() because it uses
   // PROCESS_MODE_BACKGROUND_BEGIN instead of IDLE_PRIORITY_CLASS when
   // the target is the current process.
   EXPECT_EQ(::GetPriorityClass(Process::Current().Handle()),
             static_cast<DWORD>(NORMAL_PRIORITY_CLASS));
   ::SetPriorityClass(Process::Current().Handle(), IDLE_PRIORITY_CLASS);
-  EXPECT_EQ(Process::Current().GetPriority(),
+  EXPECT_EQ(Process::Current().GetOSPriority(),
             static_cast<int>(IDLE_PRIORITY_CLASS));
 
   // GetThreadPriority() stays NORMAL. Memory priority stays NORMAL.
@@ -87,5 +91,22 @@ TEST(PlatformThreadWinTest, SetBackgroundThreadModeFailsInIdlePriorityProcess) {
   EXPECT_EQ(::GetThreadPriority(thread_handle), THREAD_PRIORITY_NORMAL);
   internal::AssertMemoryPriority(thread_handle, MEMORY_PRIORITY_NORMAL);
 }
+
+namespace {
+class MemoryPriorityAssertingThreadDelegate
+    : public base::PlatformThread::Delegate {
+ public:
+  explicit MemoryPriorityAssertingThreadDelegate(LONG memory_priority)
+      : memory_priority_(memory_priority) {}
+
+  void ThreadMain() override {
+    PlatformThreadHandle::Handle thread_handle =
+        PlatformThread::CurrentHandle().platform_handle();
+    internal::AssertMemoryPriority(thread_handle, memory_priority_);
+  }
+
+  LONG memory_priority_;
+};
+}  // namespace
 
 }  // namespace base

@@ -12,58 +12,50 @@
 
 namespace base {
 
+// Fixed amount of threads that will be used as a cap for thread pools.
+BASE_EXPORT BASE_DECLARE_FEATURE(kThreadPoolCap2);
+
+BASE_EXPORT BASE_DECLARE_FEATURE_PARAM(int, kThreadPoolCapRestrictedCount);
+
 // Under this feature, a utility_thread_group will be created for
 // running USER_VISIBLE tasks.
 BASE_EXPORT BASE_DECLARE_FEATURE(kUseUtilityThreadGroup);
 
-// Under this feature, worker threads are not reclaimed after a timeout. Rather,
-// only excess workers are cleaned up immediately after finishing a task.
-BASE_EXPORT BASE_DECLARE_FEATURE(kNoWorkerThreadReclaim);
-
-// This feature controls whether wake ups are possible for canceled tasks.
-BASE_EXPORT BASE_DECLARE_FEATURE(kNoWakeUpsForCanceledTasks);
-
-// Controls whether or not canceled delayed tasks are removed from task queues.
-BASE_EXPORT BASE_DECLARE_FEATURE(kRemoveCanceledTasksInTaskQueue);
-
-// This feature controls whether or not the scheduled task is always abandoned
-// when a timer is stopped or reset. The re-use of the scheduled task is an
-// optimization that ensures a timer can not leave multiple canceled tasks in
-// the task queue. Meant to be used in conjunction with
-// kRemoveCanceledTasksInTaskQueue.
-BASE_EXPORT BASE_DECLARE_FEATURE(kAlwaysAbandonScheduledTask);
-
-// This feature controls whether ThreadPool WorkerThreads should hold off waking
-// up to purge partition alloc within the first minute of their lifetime. See
-// base::internal::GetSleepTimeBeforePurge.
-BASE_EXPORT BASE_DECLARE_FEATURE(kDelayFirstWorkerWake);
-
 // Under this feature, a non-zero leeway is added to delayed tasks. Along with
 // DelayPolicy, this affects the time at which a delayed task runs.
 BASE_EXPORT BASE_DECLARE_FEATURE(kAddTaskLeewayFeature);
+#if BUILDFLAG(IS_WIN)
+constexpr TimeDelta kDefaultLeeway = Milliseconds(16);
+#else
 constexpr TimeDelta kDefaultLeeway = Milliseconds(8);
-extern const BASE_EXPORT base::FeatureParam<TimeDelta> kTaskLeewayParam;
+#endif  // #if !BUILDFLAG(IS_WIN)
+BASE_EXPORT BASE_DECLARE_FEATURE_PARAM(TimeDelta, kTaskLeewayParam);
+
+// We consider that delayed tasks above |kMaxPreciseDelay| never need
+// DelayPolicy::kPrecise. The default value is slightly above 30Hz timer.
+constexpr TimeDelta kDefaultMaxPreciseDelay = Milliseconds(36);
+BASE_EXPORT BASE_DECLARE_FEATURE_PARAM(TimeDelta, kMaxPreciseDelay);
 
 // Under this feature, wake ups are aligned at a 8ms boundary when allowed per
 // DelayPolicy.
 BASE_EXPORT BASE_DECLARE_FEATURE(kAlignWakeUps);
 
-// Under this feature, tasks that need high resolution timer are determined
-// based on explicit DelayPolicy rather than based on a threshold.
-BASE_EXPORT BASE_DECLARE_FEATURE(kExplicitHighResolutionTimerWin);
+// Under this feature, slack is added on mac message pumps that support it when
+// allowed per DelayPolicy.
+BASE_EXPORT BASE_DECLARE_FEATURE(kTimerSlackMac);
+
+// Under this feature, the Windows UI pump uses a WaitableEvent to wake itself
+// up when not in a native nested loop. It also uses different control flow,
+// calling Win32 MessagePump functions less often.
+BASE_EXPORT BASE_DECLARE_FEATURE(kUIPumpImprovementsWin);
+
+// Under this feature, the Android pump will call ALooper_PollOnce() rather than
+// unconditionally yielding to native to determine whether there exists native
+// work to be done before sleep.
+BASE_EXPORT BASE_DECLARE_FEATURE(kPumpFastToSleepAndroid);
 
 // Feature to run tasks by batches before pumping out messages.
 BASE_EXPORT BASE_DECLARE_FEATURE(kRunTasksByBatches);
-
-BASE_EXPORT void InitializeTaskLeeway();
-BASE_EXPORT TimeDelta GetTaskLeewayForCurrentThread();
-BASE_EXPORT TimeDelta GetDefaultTaskLeeway();
-
-// Controls the max number of delayed tasks that can run before selecting an
-// immediate task in sequence manager.
-BASE_EXPORT BASE_DECLARE_FEATURE(kMaxDelayedStarvationTasks);
-extern const BASE_EXPORT base::FeatureParam<int>
-    kMaxDelayedStarvationTasksParam;
 
 }  // namespace base
 

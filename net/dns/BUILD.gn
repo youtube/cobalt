@@ -2,13 +2,11 @@
 # Use of this source code is governed by a BSD-style license that can be
 # found in the LICENSE file.
 
-import("//build/config/sanitizers/sanitizers.gni")
-import("//testing/test.gni")
 import("//net/features.gni")
 import("//testing/libfuzzer/fuzzer_test.gni")
 import("//third_party/protobuf/proto_library.gni")
 
-enable_built_in_dns = use_blink || use_cobalt_customizations
+enable_built_in_dns = use_blink
 
 source_set("dns") {
   # Due to circular dependencies, should only be depended on through //net.
@@ -58,6 +56,8 @@ source_set("dns") {
     "dns_server_iterator.h",
     "dns_session.cc",
     "dns_session.h",
+    "dns_task_results_manager.cc",
+    "dns_task_results_manager.h",
     "dns_transaction.cc",
     "dns_udp_tracker.cc",
     "dns_udp_tracker.h",
@@ -65,9 +65,19 @@ source_set("dns") {
     "dns_util.h",
     "host_cache.cc",
     "host_resolver.cc",
+    "host_resolver_cache.cc",
+    "host_resolver_cache.h",
+    "host_resolver_dns_task.cc",
+    "host_resolver_dns_task.h",
     "host_resolver_internal_result.cc",
     "host_resolver_internal_result.h",
     "host_resolver_manager.cc",
+    "host_resolver_manager_job.cc",
+    "host_resolver_manager_job.h",
+    "host_resolver_manager_request_impl.cc",
+    "host_resolver_manager_request_impl.h",
+    "host_resolver_manager_service_endpoint_request_impl.cc",
+    "host_resolver_manager_service_endpoint_request_impl.h",
     "host_resolver_mdns_listener_impl.cc",
     "host_resolver_mdns_listener_impl.h",
     "host_resolver_mdns_task.cc",
@@ -81,6 +91,8 @@ source_set("dns") {
     "https_record_rdata.cc",
     "httpssvc_metrics.cc",
     "httpssvc_metrics.h",
+    "loopback_only.cc",
+    "loopback_only.h",
     "mapped_host_resolver.cc",
     "nsswitch_reader.cc",
     "nsswitch_reader.h",
@@ -91,13 +103,15 @@ source_set("dns") {
     "resolve_context.h",
     "serial_worker.cc",
     "serial_worker.h",
+    "stale_host_resolver.cc",
+    "stale_host_resolver.h",
     "system_dns_config_change_notifier.cc",
     "system_dns_config_change_notifier.h",
     "test_dns_config_service.cc",
     "test_dns_config_service.h",
   ]
 
-  if (is_win && !is_starboard) {
+  if (is_win) {
     sources += [
       "address_sorter_win.cc",
       "dns_config_service_win.cc",
@@ -105,7 +119,7 @@ source_set("dns") {
     ]
   }
 
-  if (is_mac && !is_starboard) {
+  if (is_mac) {
     sources += [
       "dns_config_watcher_mac.cc",
       "dns_config_watcher_mac.h",
@@ -121,9 +135,7 @@ source_set("dns") {
     ]
   }
 
-  if (is_starboard) {
-    sources += [ "dns_config_service_starboard.cc" ]
-  } else if (is_android) {
+  if (is_android) {
     sources += [
       "dns_config_service_android.cc",
       "dns_config_service_android.h",
@@ -143,7 +155,7 @@ source_set("dns") {
   if (enable_built_in_dns) {
     sources += [ "dns_client.cc" ]
 
-    if (is_posix || is_fuchsia || is_starboard) {
+    if (is_posix || is_fuchsia) {
       sources += [
         "address_sorter_posix.cc",
         "address_sorter_posix.h",
@@ -227,11 +239,6 @@ source_set("host_resolver") {
     "//services/network/*",
   ]
 
-  if (use_cobalt_customizations) {
-    visibility += [ "//cobalt/network" ]
-    friend += [ "//cobalt/network" ]
-  }
-
   sources = [
     "dns_config.h",
     "host_cache.h",
@@ -309,13 +316,13 @@ source_set("dns_client") {
   friend = [
     # chrome/browser/local_discovery/service_discovery_client_impl.cc
     # Result parsing utilities for parsing results read through MdnsClient.
-    # TODO(crbug.com/874662): Remove once migrated to network service.
+    # TODO(crbug.com/41408297): Remove once migrated to network service.
     "//chrome/browser",
 
     # chrome/browser/ash/smb_client/discovery/mdns_host_locator.cc
     # Result parsing for results read through MdnsClient.
-    # TODO(crbug.com/902531): Remove once migrated to network service.
-    "//chrome/browser/ash",
+    # TODO(crbug.com/41424787): Remove once migrated to network service.
+    "//chrome/browser/ash/smb_client/discovery",
 
     # Tests and test support
     "//chrome/browser:test_support",
@@ -364,19 +371,19 @@ source_set("mdns_client") {
     # chrome/browser/local_discovery/service_discovery_client_mdns.h
     # chrome/browser/local_discovery/service_discovery_client_impl.h
     # Makes MDNS queries using MDnsClient.
-    # TODO(crbug.com/874662): Remove once migrated to network service.
+    # TODO(crbug.com/41408297): Remove once migrated to network service.
     "//chrome/browser",
 
     # chrome/tools/service_discovery_sniffer/service_discovery_sniffer.cc
     # Creates MDnsClient instance and passes to ServiceDiscoveryClientImpl.
-    # TODO(crbug.com/874662): Remove once discovery client migrated.
+    # TODO(crbug.com/41408297): Remove once discovery client migrated.
     "//chrome/tools/service_discovery_sniffer",
 
     # chrome/browser/ash/smb_client/discovery/mdns_host_locator.h
     # chrome/browser/ash/smb_client/discovery/mdns_host_locator.cc
     # Makes MDNS queries using MDnsClient.
-    # TODO(crbug.com/902531): Remove once migrated to network service.
-    "//chrome/browser/ash",
+    # TODO(crbug.com/41424787): Remove once migrated to network service.
+    "//chrome/browser/ash/smb_client/discovery",
 
     # Tests and test support
     "//chrome/browser:test_support",
@@ -413,14 +420,19 @@ source_set("tests") {
     "dns_query_unittest.cc",
     "dns_response_result_extractor_unittest.cc",
     "dns_response_unittest.cc",
+    "dns_task_results_manager_unittest.cc",
     "dns_transaction_unittest.cc",
     "dns_udp_tracker_unittest.cc",
     "dns_util_unittest.cc",
     "host_cache_unittest.cc",
+    "host_resolver_cache_unittest.cc",
     "host_resolver_internal_result_unittest.cc",
+    "host_resolver_manager_ipv6_reachability_override_unittest.cc",
     "host_resolver_manager_unittest.cc",
+    "host_resolver_service_endpoint_request_unittest.cc",
     "https_record_rdata_unittest.cc",
     "httpssvc_metrics_unittest.cc",
+    "loopback_only_unittest.cc",
     "mapped_host_resolver_unittest.cc",
     "nsswitch_reader_unittest.cc",
     "opt_record_rdata_unittest.cc",
@@ -428,21 +440,20 @@ source_set("tests") {
     "record_rdata_unittest.cc",
     "resolve_context_unittest.cc",
     "serial_worker_unittest.cc",
+    "stale_host_resolver_unittest.cc",
     "system_dns_config_change_notifier_unittest.cc",
   ]
 
-  if (is_win && !is_starboard) {
+  if (is_win) {
     sources += [ "dns_config_service_win_unittest.cc" ]
   }
 
-  if (!is_starboard) {
   if (is_android) {
     sources += [ "dns_config_service_android_unittest.cc" ]
   } else if (is_linux) {
     sources += [ "dns_config_service_linux_unittest.cc" ]
   } else if (is_posix) {
     sources += [ "dns_config_service_posix_unittest.cc" ]
-  }
   }
 
   if (enable_built_in_dns) {
@@ -483,6 +494,7 @@ source_set("test_support") {
   public = [
     "dns_test_util.h",
     "host_resolver_internal_result_test_util.h",
+    "host_resolver_manager_unittest.h",
     "host_resolver_results_test_util.h",
     "mock_host_resolver.h",
   ]
@@ -500,6 +512,7 @@ source_set("test_support") {
 
   deps = [
     "//base",
+    "//base/test:test_support",
     "//net",
     "//testing/gmock",
     "//testing/gtest",
@@ -523,7 +536,6 @@ if (use_fuzzing_engine) {
   }
 }
 
-if (!use_cobalt_customizations) {
 proto_library("host_cache_fuzzer_proto") {
   proto_in_dir = "//"
   sources = [ "host_cache_fuzzer.proto" ]
@@ -543,7 +555,6 @@ fuzzer_test("net_dns_host_cache_fuzzer") {
   ]
   dict = "//testing/libfuzzer/fuzzers/dicts/json.dict"
 }
-}
 
 fuzzer_test("net_dns_hosts_parse_fuzzer") {
   sources = [ "dns_hosts_parse_fuzzer.cc" ]
@@ -553,6 +564,18 @@ fuzzer_test("net_dns_hosts_parse_fuzzer") {
     "//net:net_fuzzer_test_support",
   ]
   dict = "//net/data/fuzzer_dictionaries/net_dns_hosts_parse_fuzzer.dict"
+}
+
+fuzzer_test("net_dns_host_resolver_cache_fuzzer") {
+  sources = [ "host_resolver_cache_fuzzer.cc" ]
+  deps = [
+    "//base",
+    "//net",
+    "//net:net_fuzzer_test_support",
+    "//testing/libfuzzer/proto:json_proto",
+    "//testing/libfuzzer/proto:json_proto_converter",
+    "//third_party/libprotobuf-mutator",
+  ]
 }
 
 fuzzer_test("net_dns_https_record_rdata_fuzzer") {
@@ -614,6 +637,7 @@ fuzzer_test("net_host_resolver_manager_fuzzer") {
     "//net:test_support",
   ]
   dict = "//net/data/fuzzer_dictionaries/net_host_resolver_manager_fuzzer.dict"
+  libfuzzer_options = [ "max_len=4096" ]
 }
 
 if (is_win) {

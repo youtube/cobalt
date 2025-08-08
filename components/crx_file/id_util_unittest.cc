@@ -1,4 +1,4 @@
-// Copyright 2014 The Chromium Authors. All rights reserved.
+// Copyright 2014 The Chromium Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -6,14 +6,14 @@
 
 #include <stdint.h>
 
-#include "base/stl_util.h"
+#include <array>
+
 #include "testing/gtest/include/gtest/gtest.h"
 
-namespace crx_file {
-namespace id_util {
+namespace crx_file::id_util {
 
 TEST(IDUtilTest, GenerateID) {
-  const uint8_t public_key_info[] = {
+  const auto public_key_info = std::to_array<uint8_t>({
       0x30, 0x81, 0x9f, 0x30, 0x0d, 0x06, 0x09, 0x2a, 0x86, 0x48, 0x86, 0xf7,
       0x0d, 0x01, 0x01, 0x01, 0x05, 0x00, 0x03, 0x81, 0x8d, 0x00, 0x30, 0x81,
       0x89, 0x02, 0x81, 0x81, 0x00, 0xb8, 0x7f, 0x2b, 0x20, 0xdc, 0x7c, 0x9b,
@@ -27,14 +27,15 @@ TEST(IDUtilTest, GenerateID) {
       0x84, 0x32, 0x33, 0xf3, 0x17, 0x49, 0xbf, 0xe9, 0x96, 0xd0, 0xd6, 0x14,
       0x6f, 0x13, 0x8d, 0xc5, 0xfc, 0x2c, 0x72, 0xba, 0xac, 0xea, 0x7e, 0x18,
       0x53, 0x56, 0xa6, 0x83, 0xa2, 0xce, 0x93, 0x93, 0xe7, 0x1f, 0x0f, 0xe6,
-      0x0f, 0x02, 0x03, 0x01, 0x00, 0x01};
+      0x0f, 0x02, 0x03, 0x01, 0x00, 0x01,
+  });
   std::string extension_id =
       GenerateId(std::string(reinterpret_cast<const char*>(&public_key_info[0]),
-                             base::size(public_key_info)));
+                             std::size(public_key_info)));
   EXPECT_EQ("melddjfinppjdikinhbgehiennejpfhp", extension_id);
 
   EXPECT_EQ("daibjpdaanagajckigeiigphanababab",
-            GenerateIdFromHash(public_key_info, sizeof(public_key_info)));
+            GenerateIdFromHash(public_key_info));
 
   EXPECT_EQ("jpignaibiiemhngfjkcpokkamffknabf", GenerateId("test"));
 
@@ -52,5 +53,4 @@ TEST(IDUtilTest, GenerateID) {
       GenerateId("this_string_is_longer_than_a_single_sha256_hash_digest"));
 }
 
-}  // namespace id_util
-}  // namespace crx_file
+}  // namespace crx_file::id_util

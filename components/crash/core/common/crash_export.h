@@ -1,4 +1,4 @@
-// Copyright 2016 The Chromium Authors. All rights reserved.
+// Copyright 2016 The Chromium Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -15,11 +15,7 @@
 #endif  // defined(CRASH_CORE_COMMON_IMPLEMENTATION)
 
 #else  // defined(WIN32)
-#if defined(CRASH_CORE_COMMON_IMPLEMENTATION)
 #define CRASH_EXPORT __attribute__((visibility("default")))
-#else
-#define CRASH_EXPORT
-#endif  // defined(CRASH_CORE_COMMON_IMPLEMENTATION)
 #endif
 
 #else  // defined(COMPONENT_BUILD)

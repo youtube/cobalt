@@ -1,4 +1,4 @@
-// Copyright 2014 The Crashpad Authors. All rights reserved.
+// Copyright 2014 The Crashpad Authors
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -14,16 +14,19 @@
 
 #include "client/crashpad_client.h"
 
+#include <Availability.h>
 #include <errno.h>
 #include <mach/mach.h>
 #include <pthread.h>
 #include <stdint.h>
 
 #include <memory>
+#include <tuple>
 #include <utility>
 
+#include "base/apple/mach_logging.h"
+#include "base/check_op.h"
 #include "base/logging.h"
-#include "base/mac/mach_logging.h"
 #include "base/strings/stringprintf.h"
 #include "util/mac/mac_util.h"
 #include "util/mach/bootstrap.h"
@@ -34,7 +37,7 @@
 #include "util/mach/notify_server.h"
 #include "util/misc/clock.h"
 #include "util/misc/implicit_cast.h"
-#include "util/posix/double_fork_and_exec.h"
+#include "util/posix/spawn_subprocess.h"
 
 namespace crashpad {
 
@@ -61,13 +64,13 @@ std::string FormatArgumentInt(const std::string& name, int value) {
 // reasons, an EXC_CRASH exception will be sent. See 10.9.5
 // xnu-2422.115.4/bsd/kern/kern_exit.c proc_prepareexit().
 //
-// EXC_RESOURCE and EXC_GUARD do not become signals or EXC_CRASH exceptions. The
-// host-level exception handler in the kernel does not receive these exception
-// types, and even if it did, it would not map them to signals. Instead, the
-// first Mach service loaded by the root (process ID 1) launchd with a boolean
-// “ExceptionServer” property in its job dictionary (regardless of its value) or
-// with any subdictionary property will become the host-level exception handler
-// for EXC_CRASH, EXC_RESOURCE, and EXC_GUARD. See 10.9.5
+// EXC_RESOURCE and EXC_GUARD (pre-macOS 13) do not become signals or EXC_CRASH
+// exceptions. The host-level exception handler in the kernel does not receive
+// these exception types, and even if it did, it would not map them to signals.
+// Instead, the first Mach service loaded by the root (process ID 1) launchd
+// with a boolean “ExceptionServer” property in its job dictionary (regardless
+// of its value) or with any subdictionary property will become the host-level
+// exception handler for EXC_CRASH, EXC_RESOURCE, and EXC_GUARD. See 10.9.5
 // launchd-842.92.1/src/core.c job_setup_exception_port(). Normally, this job is
 // com.apple.ReportCrash.Root, the systemwide Apple Crash Reporter. Since it is
 // impossible to receive EXC_RESOURCE and EXC_GUARD exceptions through the
@@ -80,8 +83,15 @@ std::string FormatArgumentInt(const std::string& name, int value) {
 // so AND them with ExcMaskValid(). EXC_MASK_CRASH is always supported.
 bool SetCrashExceptionPorts(exception_handler_t exception_handler) {
   ExceptionPorts exception_ports(ExceptionPorts::kTargetTypeTask, TASK_NULL);
+
+  exception_mask_t mask = EXC_MASK_CRASH | EXC_MASK_RESOURCE;
+  if (MacOSVersionNumber() < 13'00'00) {
+    // EXC_GUARD is delivered as an EXC_CRASH macOS 13 and later.
+    mask |= EXC_MASK_GUARD;
+  }
+
   return exception_ports.SetExceptionPort(
-      (EXC_MASK_CRASH | EXC_MASK_RESOURCE | EXC_MASK_GUARD) & ExcMaskValid(),
+      mask & ExcMaskValid(),
       exception_handler,
       EXCEPTION_STATE_IDENTITY | MACH_EXCEPTION_CODES,
       MACHINE_THREAD_STATE);
@@ -93,6 +103,9 @@ class ScopedPthreadAttrDestroy {
       : pthread_attr_(pthread_attr) {
   }
 
+  ScopedPthreadAttrDestroy(const ScopedPthreadAttrDestroy&) = delete;
+  ScopedPthreadAttrDestroy& operator=(const ScopedPthreadAttrDestroy&) = delete;
+
   ~ScopedPthreadAttrDestroy() {
     errno = pthread_attr_destroy(pthread_attr_);
     PLOG_IF(WARNING, errno != 0) << "pthread_attr_destroy";
@@ -100,13 +113,14 @@ class ScopedPthreadAttrDestroy {
 
  private:
   pthread_attr_t* pthread_attr_;
-
-  DISALLOW_COPY_AND_ASSIGN(ScopedPthreadAttrDestroy);
 };
 
 //! \brief Starts a Crashpad handler, possibly restarting it if it dies.
 class HandlerStarter final : public NotifyServer::DefaultInterface {
  public:
+  HandlerStarter(const HandlerStarter&) = delete;
+  HandlerStarter& operator=(const HandlerStarter&) = delete;
+
   ~HandlerStarter() {}
 
   //! \brief Starts a Crashpad handler initially, as opposed to starting it for
@@ -116,7 +130,7 @@ class HandlerStarter final : public NotifyServer::DefaultInterface {
   //!
   //! \return On success, a send right to the Crashpad handler that has been
   //!     started. On failure, `MACH_PORT_NULL` with a message logged.
-  static base::mac::ScopedMachSendRight InitialStart(
+  static base::apple::ScopedMachSendRight InitialStart(
       const base::FilePath& handler,
       const base::FilePath& database,
       const base::FilePath& metrics_dir,
@@ -124,10 +138,10 @@ class HandlerStarter final : public NotifyServer::DefaultInterface {
       const std::map<std::string, std::string>& annotations,
       const std::vector<std::string>& arguments,
       bool restartable) {
-    base::mac::ScopedMachReceiveRight receive_right(
+    base::apple::ScopedMachReceiveRight receive_right(
         NewMachPort(MACH_PORT_RIGHT_RECEIVE));
     if (!receive_right.is_valid()) {
-      return base::mac::ScopedMachSendRight();
+      return base::apple::ScopedMachSendRight();
     }
 
     mach_port_t port;
@@ -139,9 +153,9 @@ class HandlerStarter final : public NotifyServer::DefaultInterface {
                                                &right_type);
     if (kr != KERN_SUCCESS) {
       MACH_LOG(ERROR, kr) << "mach_port_extract_right";
-      return base::mac::ScopedMachSendRight();
+      return base::apple::ScopedMachSendRight();
     }
-    base::mac::ScopedMachSendRight send_right(port);
+    base::apple::ScopedMachSendRight send_right(port);
     DCHECK_EQ(port, receive_right.get());
     DCHECK_EQ(right_type,
               implicit_cast<mach_msg_type_name_t>(MACH_MSG_TYPE_PORT_SEND));
@@ -165,14 +179,14 @@ class HandlerStarter final : public NotifyServer::DefaultInterface {
                      std::move(receive_right),
                      handler_restarter.get(),
                      false)) {
-      return base::mac::ScopedMachSendRight();
+      return base::apple::ScopedMachSendRight();
     }
 
     if (handler_restarter &&
         handler_restarter->StartRestartThread(
             handler, database, metrics_dir, url, annotations, arguments)) {
       // The thread owns the object now.
-      ignore_result(handler_restarter.release());
+      std::ignore = handler_restarter.release();
     }
 
     // If StartRestartThread() failed, proceed without the ability to restart.
@@ -205,7 +219,7 @@ class HandlerStarter final : public NotifyServer::DefaultInterface {
                 url_,
                 annotations_,
                 arguments_,
-                base::mac::ScopedMachReceiveRight(rights),
+                base::apple::ScopedMachReceiveRight(rights),
                 this,
                 true);
 
@@ -250,7 +264,7 @@ class HandlerStarter final : public NotifyServer::DefaultInterface {
                           const std::string& url,
                           const std::map<std::string, std::string>& annotations,
                           const std::vector<std::string>& arguments,
-                          base::mac::ScopedMachReceiveRight receive_right,
+                          base::apple::ScopedMachReceiveRight receive_right,
                           HandlerStarter* handler_restarter,
                           bool restart) {
     DCHECK(!restart || handler_restarter);
@@ -276,7 +290,7 @@ class HandlerStarter final : public NotifyServer::DefaultInterface {
         // port-destroyed notifications can be delivered.
         handler_restarter->notify_port_.reset();
       } else {
-        base::mac::ScopedMachSendRight previous_owner(previous);
+        base::apple::ScopedMachSendRight previous_owner(previous);
         DCHECK(restart || !previous_owner.is_valid());
       }
 
@@ -337,7 +351,7 @@ class HandlerStarter final : public NotifyServer::DefaultInterface {
     // this parent process, which was probably using the exception server now
     // being restarted. The handler can’t monitor itself for its own crashes via
     // this interface.
-    if (!DoubleForkAndExec(
+    if (!SpawnSubprocess(
             argv,
             nullptr,
             server_write_fd.get(),
@@ -356,7 +370,7 @@ class HandlerStarter final : public NotifyServer::DefaultInterface {
       return false;
     }
 
-    ignore_result(receive_right.release());
+    std::ignore = receive_right.release();
     return true;
   }
 
@@ -424,10 +438,8 @@ class HandlerStarter final : public NotifyServer::DefaultInterface {
   std::string url_;
   std::map<std::string, std::string> annotations_;
   std::vector<std::string> arguments_;
-  base::mac::ScopedMachReceiveRight notify_port_;
+  base::apple::ScopedMachReceiveRight notify_port_;
   uint64_t last_start_time_;
-
-  DISALLOW_COPY_AND_ASSIGN(HandlerStarter);
 };
 
 }  // namespace
@@ -446,18 +458,23 @@ bool CrashpadClient::StartHandler(
     const std::map<std::string, std::string>& annotations,
     const std::vector<std::string>& arguments,
     bool restartable,
-    bool asynchronous_start) {
+    bool asynchronous_start,
+    const std::vector<base::FilePath>& attachments) {
+  // Attachments are not implemented on MacOS yet.
+  DCHECK(attachments.empty());
+
   // The “restartable” behavior can only be selected on OS X 10.10 and later. In
   // previous OS versions, if the initial client were to crash while attempting
   // to restart the handler, it would become an unkillable process.
-  base::mac::ScopedMachSendRight exception_port(
-      HandlerStarter::InitialStart(handler,
-                                   database,
-                                   metrics_dir,
-                                   url,
-                                   annotations,
-                                   arguments,
-                                   restartable && MacOSXMinorVersion() >= 10));
+  base::apple::ScopedMachSendRight exception_port(HandlerStarter::InitialStart(
+      handler,
+      database,
+      metrics_dir,
+      url,
+      annotations,
+      arguments,
+      restartable && (__MAC_OS_X_VERSION_MIN_REQUIRED >= __MAC_10_10 ||
+                      MacOSVersionNumber() >= 10'10'00)));
   if (!exception_port.is_valid()) {
     return false;
   }
@@ -467,7 +484,8 @@ bool CrashpadClient::StartHandler(
 }
 
 bool CrashpadClient::SetHandlerMachService(const std::string& service_name) {
-  base::mac::ScopedMachSendRight exception_port(BootstrapLookUp(service_name));
+  base::apple::ScopedMachSendRight exception_port(
+      BootstrapLookUp(service_name));
   if (!exception_port.is_valid()) {
     return false;
   }
@@ -477,7 +495,7 @@ bool CrashpadClient::SetHandlerMachService(const std::string& service_name) {
 }
 
 bool CrashpadClient::SetHandlerMachPort(
-    base::mac::ScopedMachSendRight exception_port) {
+    base::apple::ScopedMachSendRight exception_port) {
   DCHECK(!exception_port_.is_valid());
   DCHECK(exception_port.is_valid());
 
@@ -485,11 +503,11 @@ bool CrashpadClient::SetHandlerMachPort(
     return false;
   }
 
-  exception_port_.swap(exception_port);
+  exception_port_ = std::move(exception_port);
   return true;
 }
 
-base::mac::ScopedMachSendRight CrashpadClient::GetHandlerMachPort() const {
+base::apple::ScopedMachSendRight CrashpadClient::GetHandlerMachPort() const {
   DCHECK(exception_port_.is_valid());
 
   // For the purposes of this method, only return a port set by
@@ -510,16 +528,16 @@ base::mac::ScopedMachSendRight CrashpadClient::GetHandlerMachPort() const {
       mach_task_self(), exception_port_.get(), MACH_PORT_RIGHT_SEND, 1);
   if (kr != KERN_SUCCESS) {
     MACH_LOG(ERROR, kr) << "mach_port_mod_refs";
-    return base::mac::ScopedMachSendRight(MACH_PORT_NULL);
+    return base::apple::ScopedMachSendRight(MACH_PORT_NULL);
   }
 
-  return base::mac::ScopedMachSendRight(exception_port_.get());
+  return base::apple::ScopedMachSendRight(exception_port_.get());
 }
 
 // static
 void CrashpadClient::UseSystemDefaultHandler() {
-  base::mac::ScopedMachSendRight
-      system_crash_reporter_handler(SystemCrashReporterHandler());
+  base::apple::ScopedMachSendRight system_crash_reporter_handler(
+      SystemCrashReporterHandler());
 
   // Proceed even if SystemCrashReporterHandler() failed, setting MACH_PORT_NULL
   // to clear the current exception ports.

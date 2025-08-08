@@ -1,29 +1,39 @@
-// Copyright 2014 The Chromium Authors. All rights reserved.
+// Copyright 2014 The Chromium Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
 #include "components/update_client/test_configurator.h"
 
+#include <memory>
+#include <optional>
+#include <string>
+#include <tuple>
 #include <utility>
 
-#include "base/threading/thread_task_runner_handle.h"
+#include "base/containers/flat_map.h"
+#include "base/files/file_util.h"
+#include "base/files/scoped_temp_dir.h"
+#include "base/functional/bind.h"
+#include "base/memory/scoped_refptr.h"
+#include "base/path_service.h"
+#include "base/test/bind.h"
+#include "base/time/time.h"
 #include "base/version.h"
 #include "components/prefs/pref_service.h"
-#if !defined(STARBOARD)
 #include "components/services/patch/in_process_file_patcher.h"
 #include "components/services/unzip/in_process_unzipper.h"
+#include "components/update_client/activity_data_service.h"
+#include "components/update_client/crx_cache.h"
+#include "components/update_client/crx_downloader_factory.h"
 #include "components/update_client/net/network_chromium.h"
 #include "components/update_client/patch/patch_impl.h"
-#include "components/update_client/unzip/unzip_impl.h"
-#include "services/network/public/cpp/weak_wrapper_shared_url_loader_factory.h"
-#else
-#include "components/update_client/patch/patch_impl_cobalt.h"
-#include "components/update_client/unzip/unzip_impl_cobalt.h"
-#endif
-#include "components/update_client/activity_data_service.h"
 #include "components/update_client/patcher.h"
+#include "components/update_client/persisted_data.h"
 #include "components/update_client/protocol_handler.h"
+#include "components/update_client/test_activity_data_service.h"
+#include "components/update_client/unzip/unzip_impl.h"
 #include "components/update_client/unzipper.h"
+#include "services/network/public/cpp/weak_wrapper_shared_url_loader_factory.h"
 #include "url/gurl.h"
 
 namespace update_client {
@@ -39,13 +49,9 @@ std::vector<GURL> MakeDefaultUrls() {
 
 }  // namespace
 
-#if !defined(STARBOARD)
-TestConfigurator::TestConfigurator()
-    : brand_("TEST"),
-      initial_time_(0),
-      ondemand_time_(0),
-      enabled_cup_signing_(false),
-      enabled_component_updates_(true),
+TestConfigurator::TestConfigurator(PrefService* pref_service)
+    : enabled_cup_signing_(false),
+      pref_service_(pref_service),
       unzip_factory_(base::MakeRefCounted<update_client::UnzipChromiumFactory>(
           base::BindRepeating(&unzip::LaunchInProcessUnzipper))),
       patch_factory_(base::MakeRefCounted<update_client::PatchChromiumFactory>(
@@ -55,188 +61,234 @@ TestConfigurator::TestConfigurator()
               &test_url_loader_factory_)),
       network_fetcher_factory_(
           base::MakeRefCounted<NetworkFetcherChromiumFactory>(
-              test_shared_loader_factory_)) {}
-#else
-TestConfigurator::TestConfigurator()
-    : brand_("TEST"),
-      initial_time_(0),
-      ondemand_time_(0),
-      enabled_cup_signing_(false),
-      enabled_component_updates_(true),
-      unzip_factory_(base::MakeRefCounted<update_client::UnzipCobaltFactory>()),
-      patch_factory_(
-          base::MakeRefCounted<update_client::PatchCobaltFactory>()) {
-  cobalt::network::NetworkModule::Options network_options;
-  network_module_.reset(new cobalt::network::NetworkModule(network_options));
-  network_fetcher_factory_ =
-      base::MakeRefCounted<NetworkFetcherCobaltFactory>(network_module_.get());
-}
-#endif
-
-TestConfigurator::~TestConfigurator() {
-#if defined(STARBOARD)
-  network_module_.reset();
-#endif
+              test_shared_loader_factory_,
+              base::BindRepeating([](const GURL& url) { return false; }))),
+      updater_state_provider_(base::BindRepeating(
+          [](bool /*is_machine*/) { return UpdaterStateAttributes(); })),
+      is_network_connection_metered_(false) {
+  std::ignore = crx_cache_root_temp_dir_.CreateUniqueTempDir();
+  crx_cache_ =
+      base::MakeRefCounted<CrxCache>(crx_cache_root_temp_dir_.GetPath().Append(
+          FILE_PATH_LITERAL("crx_cache")));
+  auto activity = std::make_unique<TestActivityDataService>();
+  activity_data_service_ = activity.get();
+  persisted_data_ = CreatePersistedData(
+      base::BindRepeating([](PrefService* pref) { return pref; }, pref_service),
+      std::move(activity));
 }
 
-int TestConfigurator::InitialDelay() const {
+TestConfigurator::~TestConfigurator() = default;
+
+base::TimeDelta TestConfigurator::InitialDelay() const {
+  DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
   return initial_time_;
 }
 
-int TestConfigurator::NextCheckDelay() const {
-  return 1;
+base::TimeDelta TestConfigurator::NextCheckDelay() const {
+  DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
+  return base::Seconds(1);
 }
 
-int TestConfigurator::OnDemandDelay() const {
+base::TimeDelta TestConfigurator::OnDemandDelay() const {
+  DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
   return ondemand_time_;
 }
 
-int TestConfigurator::UpdateDelay() const {
-  return 1;
+base::TimeDelta TestConfigurator::UpdateDelay() const {
+  DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
+  return base::Seconds(1);
 }
 
 std::vector<GURL> TestConfigurator::UpdateUrl() const {
-  if (!update_check_url_.is_empty())
-    return std::vector<GURL>(1, update_check_url_);
+  DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
+  if (!update_check_urls_.empty()) {
+    return update_check_urls_;
+  }
 
   return MakeDefaultUrls();
 }
 
 std::vector<GURL> TestConfigurator::PingUrl() const {
-  if (!ping_url_.is_empty())
+  DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
+  if (!ping_url_.is_empty()) {
     return std::vector<GURL>(1, ping_url_);
-
+  }
   return UpdateUrl();
 }
 
 std::string TestConfigurator::GetProdId() const {
+  DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
   return "fake_prodid";
 }
 
 base::Version TestConfigurator::GetBrowserVersion() const {
+  DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
   // Needs to be larger than the required version in tested component manifests.
   return base::Version("30.0");
 }
 
 std::string TestConfigurator::GetChannel() const {
+  DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
   return "fake_channel_string";
 }
 
-std::string TestConfigurator::GetBrand() const {
-  return brand_;
-}
-
 std::string TestConfigurator::GetLang() const {
+  DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
   return "fake_lang";
 }
 
 std::string TestConfigurator::GetOSLongName() const {
+  DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
   return "Fake Operating System";
 }
 
 base::flat_map<std::string, std::string> TestConfigurator::ExtraRequestParams()
     const {
+  DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
   return {{"extra", "foo"}};
 }
 
 std::string TestConfigurator::GetDownloadPreference() const {
+  DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
   return download_preference_;
 }
 
 scoped_refptr<NetworkFetcherFactory>
 TestConfigurator::GetNetworkFetcherFactory() {
+  DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
   return network_fetcher_factory_;
 }
 
+scoped_refptr<CrxDownloaderFactory>
+TestConfigurator::GetCrxDownloaderFactory() {
+  DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
+  return crx_downloader_factory_;
+}
+
 scoped_refptr<UnzipperFactory> TestConfigurator::GetUnzipperFactory() {
+  DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
   return unzip_factory_;
 }
 
 scoped_refptr<PatcherFactory> TestConfigurator::GetPatcherFactory() {
+  DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
   return patch_factory_;
 }
 
-bool TestConfigurator::EnabledDeltas() const {
-  return true;
-}
-
-bool TestConfigurator::EnabledComponentUpdates() const {
-  return enabled_component_updates_;
-}
-
 bool TestConfigurator::EnabledBackgroundDownloader() const {
+  DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
   return false;
 }
 
 bool TestConfigurator::EnabledCupSigning() const {
+  DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
   return enabled_cup_signing_;
 }
 
-void TestConfigurator::SetBrand(const std::string& brand) {
-  brand_ = brand;
-}
-
-void TestConfigurator::SetOnDemandTime(int seconds) {
-  ondemand_time_ = seconds;
-}
-
-void TestConfigurator::SetInitialDelay(int seconds) {
-  initial_time_ = seconds;
-}
-
-void TestConfigurator::SetEnabledCupSigning(bool enabled_cup_signing) {
-  enabled_cup_signing_ = enabled_cup_signing;
-}
-
-void TestConfigurator::SetEnabledComponentUpdates(
-    bool enabled_component_updates) {
-  enabled_component_updates_ = enabled_component_updates;
-}
-
-void TestConfigurator::SetDownloadPreference(
-    const std::string& download_preference) {
-  download_preference_ = download_preference;
-}
-
-void TestConfigurator::SetUpdateCheckUrl(const GURL& url) {
-  update_check_url_ = url;
-}
-
-void TestConfigurator::SetPingUrl(const GURL& url) {
-  ping_url_ = url;
-}
-
-void TestConfigurator::SetAppGuid(const std::string& app_guid) {
-  app_guid_ = app_guid;
-}
-
 PrefService* TestConfigurator::GetPrefService() const {
-  return nullptr;
+  DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
+  return pref_service_;
 }
 
-ActivityDataService* TestConfigurator::GetActivityDataService() const {
-  return nullptr;
+TestActivityDataService* TestConfigurator::GetActivityDataService() const {
+  DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
+  return activity_data_service_;
+}
+
+PersistedData* TestConfigurator::GetPersistedData() const {
+  DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
+  return persisted_data_.get();
 }
 
 bool TestConfigurator::IsPerUserInstall() const {
+  DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
   return true;
-}
-
-std::vector<uint8_t> TestConfigurator::GetRunActionKeyHash() const {
-  return std::vector<uint8_t>(std::begin(gjpm_hash), std::end(gjpm_hash));
-}
-
-std::string TestConfigurator::GetAppGuid() const {
-  return app_guid_;
 }
 
 std::unique_ptr<ProtocolHandlerFactory>
 TestConfigurator::GetProtocolHandlerFactory() const {
+  DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
   return std::make_unique<ProtocolHandlerFactoryJSON>();
 }
 
-RecoveryCRXElevator TestConfigurator::GetRecoveryCRXElevator() const {
-  return {};
+std::optional<bool> TestConfigurator::IsMachineExternallyManaged() const {
+  DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
+  return is_machine_externally_managed_;
+}
+
+UpdaterStateProvider TestConfigurator::GetUpdaterStateProvider() const {
+  DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
+  return updater_state_provider_;
+}
+
+scoped_refptr<CrxCache> TestConfigurator::GetCrxCache() const {
+  DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
+  return crx_cache_;
+}
+
+bool TestConfigurator::IsConnectionMetered() const {
+  DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
+  return is_network_connection_metered_;
+}
+
+void TestConfigurator::SetOnDemandTime(base::TimeDelta time) {
+  DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
+  ondemand_time_ = time;
+}
+
+void TestConfigurator::SetInitialDelay(base::TimeDelta delay) {
+  DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
+  initial_time_ = delay;
+}
+
+void TestConfigurator::SetEnabledCupSigning(bool enabled_cup_signing) {
+  DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
+  enabled_cup_signing_ = enabled_cup_signing;
+}
+
+void TestConfigurator::SetDownloadPreference(
+    const std::string& download_preference) {
+  DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
+  download_preference_ = download_preference;
+}
+
+void TestConfigurator::SetUpdateCheckUrl(const GURL& url) {
+  DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
+  update_check_urls_ = {url};
+}
+
+void TestConfigurator::SetUpdateCheckUrls(const std::vector<GURL>& urls) {
+  DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
+  update_check_urls_ = urls;
+}
+
+void TestConfigurator::SetPingUrl(const GURL& url) {
+  DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
+  ping_url_ = url;
+}
+
+void TestConfigurator::SetCrxDownloaderFactory(
+    scoped_refptr<CrxDownloaderFactory> crx_downloader_factory) {
+  DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
+  crx_downloader_factory_ = crx_downloader_factory;
+}
+
+void TestConfigurator::SetIsMachineExternallyManaged(
+    std::optional<bool> is_machine_externally_managed) {
+  DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
+  is_machine_externally_managed_ = is_machine_externally_managed;
+}
+
+void TestConfigurator::SetIsNetworkConnectionMetered(
+    bool is_network_connection_metered) {
+  DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
+  is_network_connection_metered_ = is_network_connection_metered;
+}
+
+void TestConfigurator::SetUpdaterStateProvider(
+    UpdaterStateProvider update_state_provider) {
+  DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
+  updater_state_provider_ = update_state_provider;
 }
 
 }  // namespace update_client

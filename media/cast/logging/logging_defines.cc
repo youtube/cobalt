@@ -29,7 +29,6 @@ const char* CastLoggingToString(CastLoggingEvent event) {
     ENUM_TO_STRING(PACKET_RECEIVED);
   }
   NOTREACHED();
-  return "";
 }
 
 FrameEvent::FrameEvent()

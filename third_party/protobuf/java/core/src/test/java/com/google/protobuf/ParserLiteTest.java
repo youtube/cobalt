@@ -1,44 +1,32 @@
 // Protocol Buffers - Google's data interchange format
 // Copyright 2008 Google Inc.  All rights reserved.
-// https://developers.google.com/protocol-buffers/
 //
-// Redistribution and use in source and binary forms, with or without
-// modification, are permitted provided that the following conditions are
-// met:
-//
-//     * Redistributions of source code must retain the above copyright
-// notice, this list of conditions and the following disclaimer.
-//     * Redistributions in binary form must reproduce the above
-// copyright notice, this list of conditions and the following disclaimer
-// in the documentation and/or other materials provided with the
-// distribution.
-//     * Neither the name of Google Inc. nor the names of its
-// contributors may be used to endorse or promote products derived from
-// this software without specific prior written permission.
-//
-// THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
-// "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
-// LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR
-// A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT
-// OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
-// SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT
-// LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
-// DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
-// THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
-// (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
-// OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+// Use of this source code is governed by a BSD-style
+// license that can be found in the LICENSE file or at
+// https://developers.google.com/open-source/licenses/bsd
 
 package com.google.protobuf;
 
+import static com.google.common.truth.Truth.assertThat;
+import static com.google.common.truth.Truth.assertWithMessage;
+
+import com.google.protobuf.UnittestLite.TestAllExtensionsLite;
 import com.google.protobuf.UnittestLite.TestAllTypesLite;
+import com.google.protobuf.UnittestLite.TestMergeExceptionLite;
 import com.google.protobuf.UnittestLite.TestPackedExtensionsLite;
 import com.google.protobuf.UnittestLite.TestParsingMergeLite;
+import proto2_unittest.MapLiteUnittest;
+import proto2_unittest.MapLiteUnittest.TestRequiredLite;
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
 import java.io.InputStream;
-import junit.framework.TestCase;
+import org.junit.Test;
+import org.junit.runner.RunWith;
+import org.junit.runners.JUnit4;
 
-public class ParserLiteTest extends TestCase {
+@RunWith(JUnit4.class)
+public class ParserLiteTest {
+
   private void assertRoundTripEquals(MessageLite message, ExtensionRegistryLite registry)
       throws Exception {
     final byte[] data = message.toByteArray();
@@ -46,15 +34,16 @@ public class ParserLiteTest extends TestCase {
     final int length = data.length;
     final int padding = 30;
     Parser<? extends MessageLite> parser = message.getParserForType();
-    assertEquals(message, parser.parseFrom(data, registry));
-    assertEquals(
-        message,
-        parser.parseFrom(generatePaddingArray(data, offset, padding), offset, length, registry));
-    assertEquals(message, parser.parseFrom(message.toByteString(), registry));
-    assertEquals(message, parser.parseFrom(new ByteArrayInputStream(data), registry));
-    assertEquals(message, parser.parseFrom(CodedInputStream.newInstance(data), registry));
-    assertEquals(
-        message, parser.parseFrom(message.toByteString().asReadOnlyByteBuffer(), registry));
+    assertThat(message).isEqualTo(parser.parseFrom(data, registry));
+    assertThat(message)
+        .isEqualTo(
+            parser.parseFrom(
+                generatePaddingArray(data, offset, padding), offset, length, registry));
+    assertThat(message).isEqualTo(parser.parseFrom(message.toByteString(), registry));
+    assertThat(message).isEqualTo(parser.parseFrom(new ByteArrayInputStream(data), registry));
+    assertThat(message).isEqualTo(parser.parseFrom(CodedInputStream.newInstance(data), registry));
+    assertThat(message)
+        .isEqualTo(parser.parseFrom(message.toByteString().asReadOnlyByteBuffer(), registry));
   }
 
   @SuppressWarnings("unchecked")
@@ -65,13 +54,13 @@ public class ParserLiteTest extends TestCase {
     final int padding = 30;
 
     Parser<MessageLite> parser = (Parser<MessageLite>) message.getParserForType();
-    assertEquals(message, parser.parseFrom(data));
-    assertEquals(
-        message, parser.parseFrom(generatePaddingArray(data, offset, padding), offset, length));
-    assertEquals(message, parser.parseFrom(message.toByteString()));
-    assertEquals(message, parser.parseFrom(new ByteArrayInputStream(data)));
-    assertEquals(message, parser.parseFrom(CodedInputStream.newInstance(data)));
-    assertEquals(message, parser.parseFrom(message.toByteString().asReadOnlyByteBuffer()));
+    assertThat(message).isEqualTo(parser.parseFrom(data));
+    assertThat(message)
+        .isEqualTo(parser.parseFrom(generatePaddingArray(data, offset, padding), offset, length));
+    assertThat(message).isEqualTo(parser.parseFrom(message.toByteString()));
+    assertThat(message).isEqualTo(parser.parseFrom(new ByteArrayInputStream(data)));
+    assertThat(message).isEqualTo(parser.parseFrom(CodedInputStream.newInstance(data)));
+    assertThat(message).isEqualTo(parser.parseFrom(message.toByteString().asReadOnlyByteBuffer()));
   }
 
   private byte[] generatePaddingArray(byte[] data, int offset, int padding) {
@@ -80,21 +69,37 @@ public class ParserLiteTest extends TestCase {
     return result;
   }
 
+  @Test
   public void testParseExtensionsLite() throws Exception {
     assertRoundTripEquals(
         TestUtilLite.getAllLiteExtensionsSet(), TestUtilLite.getExtensionRegistryLite());
   }
 
+  @Test
+  public void testParseExtensionsLite_extensionIsImmutable() throws Exception {
+    TestAllExtensionsLite message =
+        TestAllExtensionsLite.parseFrom(
+            TestUtilLite.getAllLiteExtensionsSet().toByteArray(),
+            TestUtilLite.getExtensionRegistryLite());
+    Object nested = message.getExtension(UnittestLite.optionalNestedMessageExtensionLite);
+    if (nested instanceof GeneratedMessageLite) {
+      assertThat(((GeneratedMessageLite) nested).isMutable()).isFalse();
+    }
+  }
+
+  @Test
   public void testParsePacked() throws Exception {
     assertRoundTripEquals(TestUtil.getPackedSet());
     assertRoundTripEquals(TestUtil.getPackedExtensionsSet(), TestUtil.getExtensionRegistry());
   }
 
+  @Test
   public void testParsePackedLite() throws Exception {
     assertRoundTripEquals(
         TestUtilLite.getLitePackedExtensionsSet(), TestUtilLite.getExtensionRegistryLite());
   }
 
+  @Test
   public void testParseDelimitedToLite() throws Exception {
     // Write MessageLite with packed extension fields.
     TestPackedExtensionsLite packedMessage = TestUtilLite.getLitePackedExtensionsSet();
@@ -103,25 +108,26 @@ public class ParserLiteTest extends TestCase {
     packedMessage.writeDelimitedTo(output);
 
     InputStream input = new ByteArrayInputStream(output.toByteArray());
-    assertEquals(
-        packedMessage,
-        packedMessage
-            .getParserForType()
-            .parseDelimitedFrom(input, TestUtilLite.getExtensionRegistryLite()));
-    assertEquals(
-        packedMessage,
-        packedMessage
-            .getParserForType()
-            .parseDelimitedFrom(input, TestUtilLite.getExtensionRegistryLite()));
+    assertThat(packedMessage)
+        .isEqualTo(
+            packedMessage
+                .getParserForType()
+                .parseDelimitedFrom(input, TestUtilLite.getExtensionRegistryLite()));
+    assertThat(packedMessage)
+        .isEqualTo(
+            packedMessage
+                .getParserForType()
+                .parseDelimitedFrom(input, TestUtilLite.getExtensionRegistryLite()));
   }
 
   /** Helper method for {@link #testParsingMergeLite()}. */
   private void assertMessageMerged(TestAllTypesLite allTypes) throws Exception {
-    assertEquals(3, allTypes.getOptionalInt32());
-    assertEquals(2, allTypes.getOptionalInt64());
-    assertEquals("hello", allTypes.getOptionalString());
+    assertThat(allTypes.getOptionalInt32()).isEqualTo(3);
+    assertThat(allTypes.getOptionalInt64()).isEqualTo(2);
+    assertThat(allTypes.getOptionalString()).isEqualTo("hello");
   }
 
+  @Test
   public void testParsingMergeLite() throws Exception {
     // Build messages.
     TestAllTypesLite.Builder builder = TestAllTypesLite.newBuilder();
@@ -175,7 +181,7 @@ public class ParserLiteTest extends TestCase {
     // Parse TestParsingMergeLite.
     ExtensionRegistryLite registry = ExtensionRegistryLite.newInstance();
     UnittestLite.registerAllExtensions(registry);
-    TestParsingMergeLite parsingMerge = TestParsingMergeLite.parser().parseFrom(data, registry);
+    TestParsingMergeLite parsingMerge = TestParsingMergeLite.parseFrom(data, registry);
 
     // Required and optional fields should be merged.
     assertMessageMerged(parsingMerge.getRequiredAllTypes());
@@ -184,8 +190,74 @@ public class ParserLiteTest extends TestCase {
     assertMessageMerged(parsingMerge.getExtension(TestParsingMergeLite.optionalExt));
 
     // Repeated fields should not be merged.
-    assertEquals(3, parsingMerge.getRepeatedAllTypesCount());
-    assertEquals(3, parsingMerge.getRepeatedGroupCount());
-    assertEquals(3, parsingMerge.getExtensionCount(TestParsingMergeLite.repeatedExt));
+    assertThat(parsingMerge.getRepeatedAllTypesCount()).isEqualTo(3);
+    assertThat(parsingMerge.getRepeatedGroupCount()).isEqualTo(3);
+    assertThat(parsingMerge.getExtensionCount(TestParsingMergeLite.repeatedExt)).isEqualTo(3);
+  }
+
+  @Test
+  public void testExceptionWhenMergingExtendedMessagesMissingRequiredFieldsLite() {
+    // create a TestMergeExceptionLite message (missing required fields) that looks like
+    //   all_extensions {
+    //     [TestRequiredLite.single] {
+    //     }
+    //   }
+    TestMergeExceptionLite.Builder message = TestMergeExceptionLite.newBuilder();
+    message.setAllExtensions(
+        TestAllExtensionsLite.newBuilder()
+            .setExtension(TestRequiredLite.single, TestRequiredLite.newBuilder().buildPartial())
+            .buildPartial());
+    ByteString byteString = message.buildPartial().toByteString();
+
+    // duplicate the bytestring to make the `all_extensions` field repeat twice, so that it will
+    // need merging when parsing back
+    ByteString duplicatedByteString = byteString.concat(byteString);
+
+    byte[] bytes = duplicatedByteString.toByteArray();
+    ExtensionRegistryLite registry = ExtensionRegistryLite.newInstance();
+    MapLiteUnittest.registerAllExtensions(registry);
+
+    // `parseFrom` should throw InvalidProtocolBufferException, not UninitializedMessageException,
+    // for each of the 5 possible input types:
+
+    // parseFrom(ByteString)
+    try {
+      TestMergeExceptionLite.parseFrom(duplicatedByteString, registry);
+      assertWithMessage("Expected InvalidProtocolBufferException").fail();
+    } catch (Exception e) {
+      assertThat(e.getClass()).isEqualTo(InvalidProtocolBufferException.class);
+    }
+
+    // parseFrom(ByteArray)
+    try {
+      TestMergeExceptionLite.parseFrom(bytes, registry);
+      assertWithMessage("Expected InvalidProtocolBufferException").fail();
+    } catch (Exception e) {
+      assertThat(e.getClass()).isEqualTo(InvalidProtocolBufferException.class);
+    }
+
+    // parseFrom(InputStream)
+    try {
+      TestMergeExceptionLite.parseFrom(new ByteArrayInputStream(bytes), registry);
+      assertWithMessage("Expected InvalidProtocolBufferException").fail();
+    } catch (Exception e) {
+      assertThat(e.getClass()).isEqualTo(InvalidProtocolBufferException.class);
+    }
+
+    // parseFrom(CodedInputStream)
+    try {
+      TestMergeExceptionLite.parseFrom(CodedInputStream.newInstance(bytes), registry);
+      assertWithMessage("Expected InvalidProtocolBufferException").fail();
+    } catch (Exception e) {
+      assertThat(e.getClass()).isEqualTo(InvalidProtocolBufferException.class);
+    }
+
+    // parseFrom(ByteBuffer)
+    try {
+      TestMergeExceptionLite.parseFrom(duplicatedByteString.asReadOnlyByteBuffer(), registry);
+      assertWithMessage("Expected InvalidProtocolBufferException").fail();
+    } catch (Exception e) {
+      assertThat(e.getClass()).isEqualTo(InvalidProtocolBufferException.class);
+    }
   }
 }

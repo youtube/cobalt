@@ -1,32 +1,9 @@
 // Protocol Buffers - Google's data interchange format
 // Copyright 2008 Google Inc.  All rights reserved.
-// https://developers.google.com/protocol-buffers/
 //
-// Redistribution and use in source and binary forms, with or without
-// modification, are permitted provided that the following conditions are
-// met:
-//
-//     * Redistributions of source code must retain the above copyright
-// notice, this list of conditions and the following disclaimer.
-//     * Redistributions in binary form must reproduce the above
-// copyright notice, this list of conditions and the following disclaimer
-// in the documentation and/or other materials provided with the
-// distribution.
-//     * Neither the name of Google Inc. nor the names of its
-// contributors may be used to endorse or promote products derived from
-// this software without specific prior written permission.
-//
-// THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
-// "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
-// LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR
-// A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT
-// OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
-// SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT
-// LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
-// DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
-// THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
-// (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
-// OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+// Use of this source code is governed by a BSD-style
+// license that can be found in the LICENSE file or at
+// https://developers.google.com/open-source/licenses/bsd
 
 package com.google.protobuf;
 
@@ -46,7 +23,7 @@ import java.util.Arrays;
 public final class UnknownFieldSetLite {
 
   // Arbitrarily chosen.
-  // TODO(dweis): Tune this number?
+  // TODO: Tune this number?
   private static final int MIN_CAPACITY = 8;
 
   private static final UnknownFieldSetLite DEFAULT_INSTANCE =
@@ -113,7 +90,9 @@ public final class UnknownFieldSetLite {
    * <p>Future calls to methods that attempt to modify this object will throw.
    */
   public void makeImmutable() {
-    this.isMutable = false;
+    if (this.isMutable) {
+      this.isMutable = false;
+    }
   }
 
   /** Throws an {@link UnsupportedOperationException} if immutable. */
@@ -230,7 +209,7 @@ public final class UnknownFieldSetLite {
         }
         break;
       default:
-        // TODO(liujisi): Change writeTo to throw IOException?
+        // TODO: Change writeTo to throw IOException?
         throw new RuntimeException(InvalidProtocolBufferException.invalidWireType());
     }
   }
@@ -301,7 +280,7 @@ public final class UnknownFieldSetLite {
     return size;
   }
 
-  private static boolean equals(int[] tags1, int[] tags2, int count) {
+  private static boolean tagsEquals(int[] tags1, int[] tags2, int count) {
     for (int i = 0; i < count; ++i) {
       if (tags1[i] != tags2[i]) {
         return false;
@@ -310,7 +289,7 @@ public final class UnknownFieldSetLite {
     return true;
   }
 
-  private static boolean equals(Object[] objects1, Object[] objects2, int count) {
+  private static boolean objectsEquals(Object[] objects1, Object[] objects2, int count) {
     for (int i = 0; i < count; ++i) {
       if (!objects1[i].equals(objects2[i])) {
         return false;
@@ -320,7 +299,8 @@ public final class UnknownFieldSetLite {
   }
 
   @Override
-  public boolean equals(Object obj) {
+  public boolean equals(
+          Object obj) {
     if (this == obj) {
       return true;
     }
@@ -335,8 +315,8 @@ public final class UnknownFieldSetLite {
 
     UnknownFieldSetLite other = (UnknownFieldSetLite) obj;
     if (count != other.count
-        || !equals(tags, other.tags, count)
-        || !equals(objects, other.objects, count)) {
+        || !tagsEquals(tags, other.tags, count)
+        || !objectsEquals(objects, other.objects, count)) {
       return false;
     }
 
@@ -388,7 +368,7 @@ public final class UnknownFieldSetLite {
   // Package private for unsafe experimental runtime.
   void storeField(int tag, Object value) {
     checkMutable();
-    ensureCapacity();
+    ensureCapacity(count + 1);
 
     tags[count] = tag;
     objects[count] = value;
@@ -396,13 +376,23 @@ public final class UnknownFieldSetLite {
   }
 
   /** Ensures that our arrays are long enough to store more metadata. */
-  private void ensureCapacity() {
-    if (count == tags.length) {
-      int increment = count < (MIN_CAPACITY / 2) ? MIN_CAPACITY : count >> 1;
-      int newLength = count + increment;
+  private void ensureCapacity(int minCapacity) {
+    if (minCapacity > this.tags.length) {
+      // Increase by at least 50%
+      int newCapacity = count + count / 2;
 
-      tags = Arrays.copyOf(tags, newLength);
-      objects = Arrays.copyOf(objects, newLength);
+      // Or new capacity if higher
+      if (newCapacity < minCapacity) {
+        newCapacity = minCapacity;
+      }
+
+      // And never less than MIN_CAPACITY
+      if (newCapacity < MIN_CAPACITY) {
+        newCapacity = MIN_CAPACITY;
+      }
+
+      this.tags = Arrays.copyOf(this.tags, newCapacity);
+      this.objects = Arrays.copyOf(this.objects, newCapacity);
     }
   }
 
@@ -437,6 +427,7 @@ public final class UnknownFieldSetLite {
         storeField(tag, subFieldSet);
         return true;
       case WireFormat.WIRETYPE_END_GROUP:
+        input.checkValidEndTag();
         return false;
       default:
         throw InvalidProtocolBufferException.invalidWireType();
@@ -485,6 +476,21 @@ public final class UnknownFieldSetLite {
         break;
       }
     }
+    return this;
+  }
+
+  @CanIgnoreReturnValue
+  UnknownFieldSetLite mergeFrom(UnknownFieldSetLite other) {
+    if (other.equals(getDefaultInstance())) {
+      return this;
+    }
+
+    checkMutable();
+    int newCount = this.count + other.count;
+    ensureCapacity(newCount);
+    System.arraycopy(other.tags, 0, tags, this.count, other.count);
+    System.arraycopy(other.objects, 0, objects, this.count, other.count);
+    this.count = newCount;
     return this;
   }
 }

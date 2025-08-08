@@ -1,12 +1,11 @@
-// Copyright 2013 The Chromium Authors. All rights reserved.
+// Copyright 2013 The Chromium Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
 #ifndef COMPONENTS_PREFS_PREF_FILTER_H_
 #define COMPONENTS_PREFS_PREF_FILTER_H_
 
-#include <memory>
-#include <string>
+#include <string_view>
 #include <utility>
 
 #include "base/functional/callback_forward.h"
@@ -19,7 +18,7 @@ class COMPONENTS_PREFS_EXPORT PrefFilter {
  public:
   // A pair of pre-write and post-write callbacks.
   using OnWriteCallbackPair =
-      std::pair<base::Closure, base::Callback<void(bool success)>>;
+      std::pair<base::OnceClosure, base::OnceCallback<void(bool success)>>;
 
   // A callback to be invoked when |prefs| have been read (and possibly
   // pre-modified) and are now ready to be handed back to this callback's
@@ -28,7 +27,7 @@ class COMPONENTS_PREFS_EXPORT PrefFilter {
   using PostFilterOnLoadCallback =
       base::OnceCallback<void(base::Value::Dict prefs, bool schedule_write)>;
 
-  virtual ~PrefFilter() {}
+  virtual ~PrefFilter() = default;
 
   // This method is given ownership of the |pref_store_contents| read from disk
   // before the underlying PersistentPrefStore gets to use them. It must hand
@@ -38,12 +37,12 @@ class COMPONENTS_PREFS_EXPORT PrefFilter {
   // PersistentPrefStores should handle this to make the reads look synchronous
   // to external users (see SegregatedPrefStore::ReadPrefs() for an example).
   virtual void FilterOnLoad(
-      const PostFilterOnLoadCallback& post_filter_on_load_callback,
+      PostFilterOnLoadCallback post_filter_on_load_callback,
       base::Value::Dict pref_store_contents) = 0;
 
   // Receives notification when a pref store value is changed, before Observers
   // are notified.
-  virtual void FilterUpdate(const std::string& path) = 0;
+  virtual void FilterUpdate(std::string_view path) = 0;
 
   // Receives notification when the pref store is about to serialize data
   // contained in |pref_store_contents| to a string. Modifications to

@@ -8,42 +8,14 @@
 #include <utility>
 
 #include "base/check_op.h"
-#include "third_party/abseil-cpp/absl/base/attributes.h"
+#include "base/sequence_token.h"
 
-#if defined(STARBOARD)
-#include <pthread.h>
-
-#include "base/check_op.h"
-#include "starboard/thread.h"
-#endif
-
-namespace base {
-namespace internal {
+namespace base::internal {
 
 namespace {
 
-#if defined(STARBOARD)
-ABSL_CONST_INIT pthread_once_t s_once_flag = PTHREAD_ONCE_INIT;
-ABSL_CONST_INIT pthread_key_t s_thread_local_key = 0;
-
-void InitThreadLocalKey() {
-  int res = pthread_key_create(&s_thread_local_key , NULL);
-  DCHECK(res == 0);
-}
-
-void EnsureThreadLocalKeyInited() {
-  pthread_once(&s_once_flag, InitThreadLocalKey);
-}
-
-SequenceLocalStorageMap* GetCurrentSequenceLocalStorage() {
-  EnsureThreadLocalKeyInited();
-  return static_cast<SequenceLocalStorageMap*>(
-      pthread_getspecific(s_thread_local_key));
-}
-#else
-ABSL_CONST_INIT thread_local SequenceLocalStorageMap*
-    current_sequence_local_storage = nullptr;
-#endif
+constinit thread_local SequenceLocalStorageMap* current_sequence_local_storage =
+    nullptr;
 
 }  // namespace
 
@@ -53,106 +25,108 @@ SequenceLocalStorageMap::~SequenceLocalStorageMap() = default;
 
 // static
 SequenceLocalStorageMap& SequenceLocalStorageMap::GetForCurrentThread() {
+  CHECK(!CurrentTaskIsRunningSynchronously());
   DCHECK(IsSetForCurrentThread())
       << "SequenceLocalStorageSlot cannot be used because no "
          "SequenceLocalStorageMap was stored in TLS. Use "
          "ScopedSetSequenceLocalStorageMapForCurrentThread to store a "
          "SequenceLocalStorageMap object in TLS.";
 
-#if defined(STARBOARD)
-  return *GetCurrentSequenceLocalStorage();
-#else
   return *current_sequence_local_storage;
-#endif
 }
 
 // static
 bool SequenceLocalStorageMap::IsSetForCurrentThread() {
-#if defined(STARBOARD)
-  return GetCurrentSequenceLocalStorage() != nullptr;
-#else
   return current_sequence_local_storage != nullptr;
-#endif
 }
 
-void* SequenceLocalStorageMap::Get(int slot_id) {
-  const auto it = sls_map_.find(slot_id);
-  if (it == sls_map_.end())
-    return nullptr;
-  return it->second.value();
+bool SequenceLocalStorageMap::Has(int slot_id) const {
+  return const_cast<SequenceLocalStorageMap*>(this)->Get(slot_id) != nullptr;
 }
 
-void SequenceLocalStorageMap::Set(
+void SequenceLocalStorageMap::Reset(int slot_id) {
+  sls_map_.erase(slot_id);
+}
+
+SequenceLocalStorageMap::Value* SequenceLocalStorageMap::Get(int slot_id) {
+  auto it = sls_map_.find(slot_id);
+  if (it != sls_map_.end()) {
+    return it->second.get();
+  }
+  return nullptr;
+}
+
+SequenceLocalStorageMap::Value* SequenceLocalStorageMap::Set(
     int slot_id,
     SequenceLocalStorageMap::ValueDestructorPair value_destructor_pair) {
   auto it = sls_map_.find(slot_id);
 
-  if (it == sls_map_.end())
-    sls_map_.emplace(slot_id, std::move(value_destructor_pair));
-  else
+  if (it == sls_map_.end()) {
+    it = sls_map_.emplace(slot_id, std::move(value_destructor_pair)).first;
+  } else {
     it->second = std::move(value_destructor_pair);
+  }
 
   // The maximum number of entries in the map is 256. This can be adjusted, but
   // will require reviewing the choice of data structure for the map.
   DCHECK_LE(sls_map_.size(), 256U);
+  return it->second.get();
 }
 
+SequenceLocalStorageMap::ValueDestructorPair::ValueDestructorPair()
+    : destructor_(nullptr) {}
+
 SequenceLocalStorageMap::ValueDestructorPair::ValueDestructorPair(
-    void* value,
+    ExternalValue value,
     DestructorFunc* destructor)
-    : value_(value), destructor_(destructor) {}
+    : value_{.external_value = std::move(value)}, destructor_(destructor) {}
+
+SequenceLocalStorageMap::ValueDestructorPair::ValueDestructorPair(
+    InlineValue value,
+    DestructorFunc* destructor)
+    : value_{.inline_value = std::move(value)}, destructor_(destructor) {}
 
 SequenceLocalStorageMap::ValueDestructorPair::~ValueDestructorPair() {
-  if (value_)
-    destructor_(value_);
+  if (destructor_) {
+    destructor_(&value_);
+  }
 }
 
 SequenceLocalStorageMap::ValueDestructorPair::ValueDestructorPair(
     ValueDestructorPair&& value_destructor_pair)
     : value_(value_destructor_pair.value_),
       destructor_(value_destructor_pair.destructor_) {
-  value_destructor_pair.value_ = nullptr;
+  value_destructor_pair.destructor_ = nullptr;
 }
 
 SequenceLocalStorageMap::ValueDestructorPair&
 SequenceLocalStorageMap::ValueDestructorPair::operator=(
     ValueDestructorPair&& value_destructor_pair) {
+  if (this == &value_destructor_pair) {
+    return *this;
+  }
   // Destroy |value_| before overwriting it with a new value.
-  if (value_)
-    destructor_(value_);
-
+  if (destructor_) {
+    destructor_(&value_);
+  }
   value_ = value_destructor_pair.value_;
-  destructor_ = value_destructor_pair.destructor_;
-
-  value_destructor_pair.value_ = nullptr;
+  destructor_ = std::exchange(value_destructor_pair.destructor_, nullptr);
 
   return *this;
+}
+
+SequenceLocalStorageMap::ValueDestructorPair::operator bool() const {
+  return destructor_ != nullptr;
 }
 
 ScopedSetSequenceLocalStorageMapForCurrentThread::
     ScopedSetSequenceLocalStorageMapForCurrentThread(
         SequenceLocalStorageMap* sequence_local_storage)
-#if defined(STARBOARD)
-{
-  EnsureThreadLocalKeyInited();
-  pthread_setspecific(s_thread_local_key, sequence_local_storage);
-}
-#else
     : resetter_(&current_sequence_local_storage,
                 sequence_local_storage,
                 nullptr) {}
-#endif
 
-#if defined(STARBOARD)
-ScopedSetSequenceLocalStorageMapForCurrentThread::
-    ~ScopedSetSequenceLocalStorageMapForCurrentThread() {
-  EnsureThreadLocalKeyInited();
-  pthread_setspecific(s_thread_local_key, nullptr);
-}
-#else
 ScopedSetSequenceLocalStorageMapForCurrentThread::
     ~ScopedSetSequenceLocalStorageMapForCurrentThread() = default;
-#endif
 
-}  // namespace internal
-}  // namespace base
+}  // namespace base::internal

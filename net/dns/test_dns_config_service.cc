@@ -5,18 +5,18 @@
 #include "net/dns/test_dns_config_service.h"
 
 #include <memory>
+#include <optional>
 #include <utility>
 
 #include "base/check.h"
 #include "base/files/file_path.h"
 #include "net/dns/dns_hosts.h"
-#include "third_party/abseil-cpp/absl/types/optional.h"
 
 namespace net {
 
 TestDnsConfigService::TestDnsConfigService()
-    : DnsConfigService(base::FilePath::StringPieceType() /* hosts_file_path */,
-                       absl::nullopt /* config_change_delay */) {}
+    : DnsConfigService(base::FilePath::StringViewType() /* hosts_file_path */,
+                       std::nullopt /* config_change_delay */) {}
 
 TestDnsConfigService::~TestDnsConfigService() = default;
 
@@ -30,7 +30,7 @@ void TestDnsConfigService::RefreshConfig() {
   InvalidateHosts();
   OnConfigRead(config_for_refresh_.value());
   OnHostsRead(config_for_refresh_.value().hosts);
-  config_for_refresh_ = absl::nullopt;
+  config_for_refresh_ = std::nullopt;
 }
 
 HostsReadingTestDnsConfigService::HostsReadingTestDnsConfigService(
@@ -54,7 +54,7 @@ HostsReadingTestDnsConfigService::HostsReader::HostsReader(
     TestDnsConfigService& service,
     HostsParserFactory hosts_parser_factory)
     : DnsConfigService::HostsReader(
-          /*hosts_file_path=*/base::FilePath::StringPieceType(),
+          /*hosts_file_path=*/base::FilePath::StringViewType(),
           service),
       hosts_parser_factory_(std::move(hosts_parser_factory)) {}
 

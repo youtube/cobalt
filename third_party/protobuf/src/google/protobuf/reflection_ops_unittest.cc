@@ -1,48 +1,23 @@
 // Protocol Buffers - Google's data interchange format
 // Copyright 2008 Google Inc.  All rights reserved.
-// https://developers.google.com/protocol-buffers/
 //
-// Redistribution and use in source and binary forms, with or without
-// modification, are permitted provided that the following conditions are
-// met:
-//
-//     * Redistributions of source code must retain the above copyright
-// notice, this list of conditions and the following disclaimer.
-//     * Redistributions in binary form must reproduce the above
-// copyright notice, this list of conditions and the following disclaimer
-// in the documentation and/or other materials provided with the
-// distribution.
-//     * Neither the name of Google Inc. nor the names of its
-// contributors may be used to endorse or promote products derived from
-// this software without specific prior written permission.
-//
-// THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
-// "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
-// LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR
-// A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT
-// OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
-// SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT
-// LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
-// DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
-// THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
-// (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
-// OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+// Use of this source code is governed by a BSD-style
+// license that can be found in the LICENSE file or at
+// https://developers.google.com/open-source/licenses/bsd
 
 // Author: kenton@google.com (Kenton Varda)
 //  Based on original Protocol Buffers design by
 //  Sanjay Ghemawat, Jeff Dean, and others.
 
-#include <google/protobuf/reflection_ops.h>
-#include <google/protobuf/test_util.h>
-#include <google/protobuf/unittest.pb.h>
-#include <google/protobuf/descriptor.h>
+#include "google/protobuf/reflection_ops.h"
 
-#include <google/protobuf/stubs/logging.h>
-#include <google/protobuf/stubs/common.h>
-#include <google/protobuf/testing/googletest.h>
 #include <gtest/gtest.h>
+#include "absl/strings/str_join.h"
+#include "google/protobuf/descriptor.h"
+#include "google/protobuf/test_util.h"
+#include "google/protobuf/unittest.pb.h"
+#include "google/protobuf/unittest_import.pb.h"
 
-#include <google/protobuf/stubs/strutil.h>
 
 namespace google {
 namespace protobuf {
@@ -110,7 +85,7 @@ TEST(ReflectionOpsTest, Merge) {
 
   // This tests concatenating.
   message2.add_repeated_int32(message.repeated_int32(1));
-  int32 i = message.repeated_int32(0);
+  int32_t i = message.repeated_int32(0);
   message.clear_repeated_int32();
   message.add_repeated_int32(i);
 
@@ -143,7 +118,7 @@ TEST(ReflectionOpsTest, MergeExtensions) {
   message2.AddExtension(
       unittest::repeated_int32_extension,
       message.GetExtension(unittest::repeated_int32_extension, 1));
-  int32 i = message.GetExtension(unittest::repeated_int32_extension, 0);
+  int32_t i = message.GetExtension(unittest::repeated_int32_extension, 0);
   message.ClearExtension(unittest::repeated_int32_extension);
   message.AddExtension(unittest::repeated_int32_extension, i);
 
@@ -187,7 +162,7 @@ TEST(ReflectionOpsTest, MergeOneof) {
   TestUtil::ExpectOneofSet2(message2);
 }
 
-#ifdef PROTOBUF_HAS_DEATH_TEST
+#if GTEST_HAS_DEATH_TEST
 
 TEST(ReflectionOpsTest, MergeFromSelf) {
   // Note:  Copy is implemented in terms of Merge() so technically the Copy
@@ -198,7 +173,7 @@ TEST(ReflectionOpsTest, MergeFromSelf) {
   EXPECT_DEATH(ReflectionOps::Merge(message, &message), "&from");
 }
 
-#endif  // PROTOBUF_HAS_DEATH_TEST
+#endif  // GTEST_HAS_DEATH_TEST
 
 TEST(ReflectionOpsTest, Clear) {
   unittest::TestAllTypes message;
@@ -300,6 +275,15 @@ TEST(ReflectionOpsTest, DiscardUnknownFields) {
             message.repeated_nested_message(0).unknown_fields().field_count());
 }
 
+TEST(ReflectionOpsTest, DiscardUnknownFieldsIsANoopIfNotPresent) {
+  unittest::TestAllTypes message;
+  EXPECT_EQ(&message.unknown_fields(),
+            &google::protobuf::UnknownFieldSet::default_instance());
+  ReflectionOps::DiscardUnknownFields(&message);
+  EXPECT_EQ(&message.unknown_fields(),
+            &google::protobuf::UnknownFieldSet::default_instance());
+}
+
 TEST(ReflectionOpsTest, DiscardUnknownExtensions) {
   unittest::TestAllExtensions message;
   TestUtil::SetAllExtensions(&message);
@@ -340,12 +324,20 @@ TEST(ReflectionOpsTest, IsInitialized) {
   unittest::TestRequired message;
 
   EXPECT_FALSE(ReflectionOps::IsInitialized(message));
+  EXPECT_FALSE(ReflectionOps::IsInitialized(message, true, false));
+  EXPECT_TRUE(ReflectionOps::IsInitialized(message, false, true));
   message.set_a(1);
   EXPECT_FALSE(ReflectionOps::IsInitialized(message));
+  EXPECT_FALSE(ReflectionOps::IsInitialized(message, true, true));
+  EXPECT_TRUE(ReflectionOps::IsInitialized(message, false, true));
   message.set_b(2);
   EXPECT_FALSE(ReflectionOps::IsInitialized(message));
+  EXPECT_FALSE(ReflectionOps::IsInitialized(message, true, true));
+  EXPECT_TRUE(ReflectionOps::IsInitialized(message, false, true));
   message.set_c(3);
   EXPECT_TRUE(ReflectionOps::IsInitialized(message));
+  EXPECT_TRUE(ReflectionOps::IsInitialized(message, true, false));
+  EXPECT_TRUE(ReflectionOps::IsInitialized(message, false, true));
 }
 
 TEST(ReflectionOpsTest, ForeignIsInitialized) {
@@ -354,26 +346,35 @@ TEST(ReflectionOpsTest, ForeignIsInitialized) {
   // Starts out initialized because the foreign message is itself an optional
   // field.
   EXPECT_TRUE(ReflectionOps::IsInitialized(message));
+  EXPECT_TRUE(ReflectionOps::IsInitialized(message, false, true));
 
   // Once we create that field, the message is no longer initialized.
   message.mutable_optional_message();
   EXPECT_FALSE(ReflectionOps::IsInitialized(message));
+  EXPECT_TRUE(ReflectionOps::IsInitialized(message, true, false));
+  EXPECT_FALSE(ReflectionOps::IsInitialized(message, false, true));
 
   // Initialize it.  Now we're initialized.
   message.mutable_optional_message()->set_a(1);
   message.mutable_optional_message()->set_b(2);
   message.mutable_optional_message()->set_c(3);
   EXPECT_TRUE(ReflectionOps::IsInitialized(message));
+  EXPECT_TRUE(ReflectionOps::IsInitialized(message, true, false));
+  EXPECT_TRUE(ReflectionOps::IsInitialized(message, false, true));
 
   // Add a repeated version of the message.  No longer initialized.
   unittest::TestRequired* sub_message = message.add_repeated_message();
   EXPECT_FALSE(ReflectionOps::IsInitialized(message));
+  EXPECT_TRUE(ReflectionOps::IsInitialized(message, true, false));
+  EXPECT_FALSE(ReflectionOps::IsInitialized(message, false, true));
 
   // Initialize that repeated version.
   sub_message->set_a(1);
   sub_message->set_b(2);
   sub_message->set_c(3);
   EXPECT_TRUE(ReflectionOps::IsInitialized(message));
+  EXPECT_TRUE(ReflectionOps::IsInitialized(message, true, false));
+  EXPECT_TRUE(ReflectionOps::IsInitialized(message, false, true));
 }
 
 TEST(ReflectionOpsTest, ExtensionIsInitialized) {
@@ -382,48 +383,68 @@ TEST(ReflectionOpsTest, ExtensionIsInitialized) {
   // Starts out initialized because the foreign message is itself an optional
   // field.
   EXPECT_TRUE(ReflectionOps::IsInitialized(message));
+  EXPECT_TRUE(ReflectionOps::IsInitialized(message, true, false));
+  EXPECT_TRUE(ReflectionOps::IsInitialized(message, false, true));
 
   // Once we create that field, the message is no longer initialized.
   message.MutableExtension(unittest::TestRequired::single);
   EXPECT_FALSE(ReflectionOps::IsInitialized(message));
+  EXPECT_TRUE(ReflectionOps::IsInitialized(message, true, false));
+  EXPECT_FALSE(ReflectionOps::IsInitialized(message, false, true));
 
   // Initialize it.  Now we're initialized.
   message.MutableExtension(unittest::TestRequired::single)->set_a(1);
   message.MutableExtension(unittest::TestRequired::single)->set_b(2);
   message.MutableExtension(unittest::TestRequired::single)->set_c(3);
   EXPECT_TRUE(ReflectionOps::IsInitialized(message));
+  EXPECT_TRUE(ReflectionOps::IsInitialized(message, true, false));
+  EXPECT_TRUE(ReflectionOps::IsInitialized(message, false, true));
 
   // Add a repeated version of the message.  No longer initialized.
   message.AddExtension(unittest::TestRequired::multi);
   EXPECT_FALSE(ReflectionOps::IsInitialized(message));
+  EXPECT_TRUE(ReflectionOps::IsInitialized(message, true, false));
+  EXPECT_FALSE(ReflectionOps::IsInitialized(message, false, true));
 
   // Initialize that repeated version.
   message.MutableExtension(unittest::TestRequired::multi, 0)->set_a(1);
   message.MutableExtension(unittest::TestRequired::multi, 0)->set_b(2);
   message.MutableExtension(unittest::TestRequired::multi, 0)->set_c(3);
   EXPECT_TRUE(ReflectionOps::IsInitialized(message));
+  EXPECT_TRUE(ReflectionOps::IsInitialized(message, true, false));
+  EXPECT_TRUE(ReflectionOps::IsInitialized(message, false, true));
 }
 
 TEST(ReflectionOpsTest, OneofIsInitialized) {
   unittest::TestRequiredOneof message;
   EXPECT_TRUE(ReflectionOps::IsInitialized(message));
+  EXPECT_TRUE(ReflectionOps::IsInitialized(message, true, false));
+  EXPECT_TRUE(ReflectionOps::IsInitialized(message, false, true));
 
   message.mutable_foo_message();
   EXPECT_FALSE(ReflectionOps::IsInitialized(message));
+  EXPECT_TRUE(ReflectionOps::IsInitialized(message, true, false));
+  EXPECT_FALSE(ReflectionOps::IsInitialized(message, false, true));
 
   message.set_foo_int(1);
   EXPECT_TRUE(ReflectionOps::IsInitialized(message));
+  EXPECT_TRUE(ReflectionOps::IsInitialized(message, true, false));
+  EXPECT_TRUE(ReflectionOps::IsInitialized(message, false, true));
 
   message.mutable_foo_message();
   EXPECT_FALSE(ReflectionOps::IsInitialized(message));
+  EXPECT_TRUE(ReflectionOps::IsInitialized(message, true, false));
+  EXPECT_FALSE(ReflectionOps::IsInitialized(message, false, true));
   message.mutable_foo_message()->set_required_double(0.1);
   EXPECT_TRUE(ReflectionOps::IsInitialized(message));
+  EXPECT_TRUE(ReflectionOps::IsInitialized(message, true, false));
+  EXPECT_TRUE(ReflectionOps::IsInitialized(message, false, true));
 }
 
 static std::string FindInitializationErrors(const Message& message) {
   std::vector<std::string> errors;
   ReflectionOps::FindInitializationErrors(message, "", &errors);
-  return Join(errors, ",");
+  return absl::StrJoin(errors, ",");
 }
 
 TEST(ReflectionOpsTest, FindInitializationErrors) {
@@ -455,15 +476,15 @@ TEST(ReflectionOpsTest, FindExtensionInitializationErrors) {
   message.AddExtension(unittest::TestRequired::multi);
   message.AddExtension(unittest::TestRequired::multi);
   EXPECT_EQ(
-      "(protobuf_unittest.TestRequired.single).a,"
-      "(protobuf_unittest.TestRequired.single).b,"
-      "(protobuf_unittest.TestRequired.single).c,"
-      "(protobuf_unittest.TestRequired.multi)[0].a,"
-      "(protobuf_unittest.TestRequired.multi)[0].b,"
-      "(protobuf_unittest.TestRequired.multi)[0].c,"
-      "(protobuf_unittest.TestRequired.multi)[1].a,"
-      "(protobuf_unittest.TestRequired.multi)[1].b,"
-      "(protobuf_unittest.TestRequired.multi)[1].c",
+      "(proto2_unittest.TestRequired.single).a,"
+      "(proto2_unittest.TestRequired.single).b,"
+      "(proto2_unittest.TestRequired.single).c,"
+      "(proto2_unittest.TestRequired.multi)[0].a,"
+      "(proto2_unittest.TestRequired.multi)[0].b,"
+      "(proto2_unittest.TestRequired.multi)[0].c,"
+      "(proto2_unittest.TestRequired.multi)[1].a,"
+      "(proto2_unittest.TestRequired.multi)[1].b,"
+      "(proto2_unittest.TestRequired.multi)[1].c",
       FindInitializationErrors(message));
 }
 
@@ -471,6 +492,36 @@ TEST(ReflectionOpsTest, FindOneofInitializationErrors) {
   unittest::TestRequiredOneof message;
   message.mutable_foo_message();
   EXPECT_EQ("foo_message.required_double", FindInitializationErrors(message));
+}
+
+TEST(ReflectionOpsTest, GenericSwap) {
+  Arena arena;
+  {
+    unittest::TestAllTypes message;
+    auto* arena_message = Arena::Create<unittest::TestAllTypes>(&arena);
+    TestUtil::SetAllFields(arena_message);
+    const uint64_t initial_arena_size = arena.SpaceUsed();
+
+    GenericSwap(&message, arena_message);
+
+    TestUtil::ExpectAllFieldsSet(message);
+    TestUtil::ExpectClear(*arena_message);
+    // The temp should be allocated on the arena in this case.
+    EXPECT_GT(arena.SpaceUsed(), initial_arena_size);
+  }
+  {
+    unittest::TestAllTypes message;
+    auto* arena_message = Arena::Create<unittest::TestAllTypes>(&arena);
+    TestUtil::SetAllFields(arena_message);
+    const uint64_t initial_arena_size = arena.SpaceUsed();
+
+    GenericSwap(arena_message, &message);
+
+    TestUtil::ExpectAllFieldsSet(message);
+    TestUtil::ExpectClear(*arena_message);
+    // The temp should be allocated on the arena in this case.
+    EXPECT_GT(arena.SpaceUsed(), initial_arena_size);
+  }
 }
 
 }  // namespace

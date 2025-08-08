@@ -39,7 +39,7 @@
 #define COMPONENT_IMPORT_ANNOTATION __declspec(dllimport)
 #else  // defined(WIN32)
 #define COMPONENT_EXPORT_ANNOTATION __attribute__((visibility("default")))
-#define COMPONENT_IMPORT_ANNOTATION
+#define COMPONENT_IMPORT_ANNOTATION __attribute__((visibility("default")))
 #endif  // defined(WIN32)
 #else   // defined(COMPONENT_BUILD)
 #define COMPONENT_EXPORT_ANNOTATION
@@ -61,7 +61,7 @@
 // or absense of an extra comma can be used to conditionally shift subsequent
 // argument positions and thus influence which argument is selected.
 #define COMPONENT_MACRO_CONDITIONAL_COMMA_(...) \
-  COMPONENT_MACRO_CONDITIONAL_COMMA_IMPL_(__VA_ARGS__,)
+  COMPONENT_MACRO_CONDITIONAL_COMMA_IMPL_(__VA_ARGS__, )
 #define COMPONENT_MACRO_CONDITIONAL_COMMA_IMPL_(x, ...) \
   COMPONENT_MACRO_CONDITIONAL_COMMA_##x##_
 #define COMPONENT_MACRO_CONDITIONAL_COMMA_1_ ,
@@ -69,9 +69,8 @@
 // Helper which simply selects its third argument. Used in conjunction with
 // |COMPONENT_MACRO_CONDITIONAL_COMMA_()| above to implement conditional macro
 // expansion.
-#define CR_EXPAND_ARG(arg) arg
 #define COMPONENT_MACRO_SELECT_THIRD_ARGUMENT_(...) \
-  CR_EXPAND_ARG(COMPONENT_MACRO_SELECT_THIRD_ARGUMENT_IMPL_(__VA_ARGS__))
+  COMPONENT_MACRO_SELECT_THIRD_ARGUMENT_IMPL_(__VA_ARGS__)
 #define COMPONENT_MACRO_SELECT_THIRD_ARGUMENT_IMPL_(a, b, c, ...) c
 
 #endif  // BASE_COMPONENT_EXPORT_H_

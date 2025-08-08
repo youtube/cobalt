@@ -1,6 +1,11 @@
-// Copyright 2014 The Chromium Authors. All rights reserved.
+// Copyright 2014 The Chromium Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
+
+#ifdef UNSAFE_BUFFERS_BUILD
+// TODO(crbug.com/390223051): Remove C-library calls to fix the errors.
+#pragma allow_unsafe_libc_calls
+#endif
 
 #include "components/update_client/utils.h"
 
@@ -9,19 +14,30 @@
 #include <algorithm>
 #include <cmath>
 #include <cstring>
+#include <memory>
+#include <optional>
+#include <utility>
+#include <vector>
 
-#include "base/callback.h"
+#include "base/check.h"
+#include "base/containers/contains.h"
+#include "base/containers/heap_array.h"
+#include "base/containers/span.h"
+#include "base/files/file.h"
 #include "base/files/file_path.h"
 #include "base/files/file_util.h"
 #include "base/files/memory_mapped_file.h"
+#include "base/functional/callback.h"
 #include "base/json/json_file_value_serializer.h"
-#include "base/stl_util.h"
+#include "base/path_service.h"
 #include "base/strings/string_number_conversions.h"
-#include "base/strings/string_piece.h"
 #include "base/strings/string_util.h"
+#include "base/system/sys_info.h"
+#include "base/threading/platform_thread.h"
+#include "base/threading/scoped_blocking_call.h"
+#include "base/time/time.h"
 #include "base/values.h"
 #include "components/crx_file/id_util.h"
-#include "components/update_client/component.h"
 #include "components/update_client/configurator.h"
 #include "components/update_client/network.h"
 #include "components/update_client/update_client.h"
@@ -30,25 +46,36 @@
 #include "crypto/sha2.h"
 #include "url/gurl.h"
 
+#if BUILDFLAG(IS_WIN)
+#include <shlobj.h>
+
+#include "base/win/windows_version.h"
+#endif  // BUILDFLAG(IS_WIN)
+
 namespace update_client {
 
-bool HasDiffUpdate(const Component& component) {
-  return !component.crx_diffurls().empty();
-}
+const char kArchAmd64[] = "x86_64";
+const char kArchIntel[] = "x86";
+const char kArchArm64[] = "arm64";
 
 bool IsHttpServerError(int status_code) {
   return 500 <= status_code && status_code < 600;
 }
 
 bool DeleteFileAndEmptyParentDirectory(const base::FilePath& filepath) {
-  if (!base::DeleteFile(filepath))
+  if (!base::DeleteFile(filepath)) {
     return false;
+  }
 
-  const base::FilePath dirname(filepath.DirName());
-  if (!base::IsDirectoryEmpty(dirname))
+  return DeleteEmptyDirectory(filepath.DirName());
+}
+
+bool DeleteEmptyDirectory(const base::FilePath& dir_path) {
+  if (!base::IsDirectoryEmpty(dir_path)) {
     return true;
+  }
 
-  return base::DeleteFile(dirname);
+  return base::DeleteFile(dir_path);
 }
 
 std::string GetCrxComponentID(const CrxComponent& component) {
@@ -56,33 +83,12 @@ std::string GetCrxComponentID(const CrxComponent& component) {
                                   : component.app_id;
 }
 
-std::string GetCrxIdFromPublicKeyHash(const std::vector<uint8_t>& pk_hash) {
-  const std::string result =
-      crx_file::id_util::GenerateIdFromHash(&pk_hash[0], pk_hash.size());
-  DCHECK(crx_file::id_util::IdIsValid(result));
+std::string GetCrxIdFromPublicKeyHash(base::span<const uint8_t> pk_hash) {
+  const std::string result = crx_file::id_util::GenerateIdFromHash(pk_hash);
+  CHECK(crx_file::id_util::IdIsValid(result));
   return result;
 }
 
-#if defined(STARBOARD)
-#if defined(IN_MEMORY_UPDATES)
-bool VerifyHash256(const std::string* content,
-                   const std::string& expected_hash_str) {
-  std::vector<uint8_t> expected_hash;
-  if (!base::HexStringToBytes(expected_hash_str, &expected_hash) ||
-      expected_hash.size() != crypto::kSHA256Length) {
-    return false;
-  }
-
-  uint8_t actual_hash[crypto::kSHA256Length] = {0};
-  std::unique_ptr<crypto::SecureHash> hasher(
-      crypto::SecureHash::Create(crypto::SecureHash::SHA256));
-
-  hasher->Update(content->c_str(), content->size());
-  hasher->Finish(actual_hash, sizeof(actual_hash));
-
-  return memcmp(actual_hash, &expected_hash[0], sizeof(actual_hash)) == 0;
-}
-#else  // defined(IN_MEMORY_UPDATES)
 bool VerifyFileHash256(const base::FilePath& filepath,
                        const std::string& expected_hash_str) {
   std::vector<uint8_t> expected_hash;
@@ -91,71 +97,35 @@ bool VerifyFileHash256(const base::FilePath& filepath,
     return false;
   }
 
-  base::File source_file(filepath,
-                         base::File::FLAG_OPEN | base::File::FLAG_READ);
-  if (!source_file.IsValid()) {
-    DPLOG(ERROR) << "VerifyFileHash256(): Unable to open source file: "
-                 << filepath.value();
-    return false;
-  }
-
-  const size_t kBufferSize = 32768;
-  std::vector<char> buffer(kBufferSize);
-  uint8_t actual_hash[crypto::kSHA256Length] = {0};
   std::unique_ptr<crypto::SecureHash> hasher(
       crypto::SecureHash::Create(crypto::SecureHash::SHA256));
 
-  while (true) {
-    int bytes_read = source_file.ReadAtCurrentPos(&buffer[0], buffer.size());
-    if (bytes_read < 0) {
-      DPLOG(ERROR) << "VerifyFileHash256(): error reading from source file: "
-                   << filepath.value();
-
-      return false;
-    }
-
-    if (bytes_read == 0) {
-      break;
-    }
-
-    hasher->Update(&buffer[0], bytes_read);
-  }
-
-  hasher->Finish(actual_hash, sizeof(actual_hash));
-
-  return memcmp(actual_hash, &expected_hash[0], sizeof(actual_hash)) == 0;
-}
-#endif  // defined(IN_MEMORY_UPDATES)
-#else  // defined(STARBOARD)
-bool VerifyFileHash256(const base::FilePath& filepath,
-                       const std::string& expected_hash_str) {
-  std::vector<uint8_t> expected_hash;
-  if (!base::HexStringToBytes(expected_hash_str, &expected_hash) ||
-      expected_hash.size() != crypto::kSHA256Length) {
+  base::File file(filepath, base::File::FLAG_OPEN |
+                                base::File::FLAG_WIN_SEQUENTIAL_SCAN |
+                                base::File::FLAG_READ);
+  if (!file.IsValid()) {
     return false;
   }
-  base::MemoryMappedFile mmfile;
-  if (!mmfile.Initialize(filepath))
+  auto buffer = base::HeapArray<uint8_t>::Uninit(4096);
+  std::optional<size_t> bytes_read = file.ReadAtCurrentPos(buffer);
+  while (bytes_read.value_or(0) > 0) {
+    hasher->Update(buffer.first(*bytes_read));
+    bytes_read = file.ReadAtCurrentPos(buffer);
+  }
+  if (!bytes_read) {
     return false;
+  }
+  std::array<uint8_t, crypto::kSHA256Length> sha256_hash;
+  hasher->Finish(sha256_hash);
 
-  uint8_t actual_hash[crypto::kSHA256Length] = {0};
-  std::unique_ptr<crypto::SecureHash> hasher(
-      crypto::SecureHash::Create(crypto::SecureHash::SHA256));
-  hasher->Update(mmfile.data(), mmfile.length());
-  hasher->Finish(actual_hash, sizeof(actual_hash));
-
-  return memcmp(actual_hash, &expected_hash[0], sizeof(actual_hash)) == 0;
+  return base::span(sha256_hash) == base::span(expected_hash);
 }
-#endif
 
 bool IsValidBrand(const std::string& brand) {
   const size_t kMaxBrandSize = 4;
-  if (!brand.empty() && brand.size() != kMaxBrandSize)
-    return false;
-
-  return std::find_if_not(brand.begin(), brand.end(), [](char ch) {
-           return base::IsAsciiAlpha(ch);
-         }) == brand.end();
+  return brand.empty() ||
+         (brand.size() == kMaxBrandSize &&
+          std::ranges::all_of(brand, &base::IsAsciiAlpha<char>));
 }
 
 // Helper function.
@@ -165,20 +135,11 @@ bool IsValidInstallerAttributePart(const std::string& part,
                                    const std::string& special_chars,
                                    size_t min_length,
                                    size_t max_length) {
-  if (part.size() < min_length || part.size() > max_length)
-    return false;
-
-  return std::find_if_not(part.begin(), part.end(), [&special_chars](char ch) {
-           if (base::IsAsciiAlpha(ch) || base::IsAsciiDigit(ch))
-             return true;
-
-           for (auto c : special_chars) {
-             if (c == ch)
-               return true;
-           }
-
-           return false;
-         }) == part.end();
+  return part.size() >= min_length && part.size() <= max_length &&
+         std::ranges::all_of(part, [&special_chars](char ch) {
+           return base::IsAsciiAlpha(ch) || base::IsAsciiDigit(ch) ||
+                  base::Contains(special_chars, ch);
+         });
 }
 
 // Returns true if the |name| parameter matches ^[-_a-zA-Z0-9]{1,256}$ .
@@ -186,9 +147,9 @@ bool IsValidInstallerAttributeName(const std::string& name) {
   return IsValidInstallerAttributePart(name, "-_", 1, 256);
 }
 
-// Returns true if the |value| parameter matches ^[-.,;+_=a-zA-Z0-9]{0,256}$ .
+// Returns true if the |value| parameter matches ^[-.,;+_=$a-zA-Z0-9]{0,256}$ .
 bool IsValidInstallerAttributeValue(const std::string& value) {
-  return IsValidInstallerAttributePart(value, "-.,;+_=", 0, 256);
+  return IsValidInstallerAttributePart(value, "-.,;+_=$", 0, 256);
 }
 
 bool IsValidInstallerAttribute(const InstallerAttribute& attr) {
@@ -197,8 +158,8 @@ bool IsValidInstallerAttribute(const InstallerAttribute& attr) {
 }
 
 void RemoveUnsecureUrls(std::vector<GURL>* urls) {
-  DCHECK(urls);
-  base::EraseIf(*urls,
+  CHECK(urls);
+  std::erase_if(*urls,
                 [](const GURL& url) { return !url.SchemeIsCryptographic(); });
 }
 
@@ -209,23 +170,54 @@ CrxInstaller::Result InstallFunctionWrapper(
                                   : InstallError::GENERIC_ERROR);
 }
 
-// TODO(cpu): add a specific attribute check to a component json that the
-// extension unpacker will reject, so that a component cannot be installed
-// as an extension.
-base::Value::Dict ReadManifest(
+std::optional<base::Value::Dict> ReadManifest(
     const base::FilePath& unpack_path) {
   base::FilePath manifest =
       unpack_path.Append(FILE_PATH_LITERAL("manifest.json"));
-  if (!base::PathExists(manifest))
-    return base::Value::Dict();
+  if (!base::PathExists(manifest)) {
+    return std::nullopt;
+  }
   JSONFileValueDeserializer deserializer(manifest);
   std::string error;
   std::unique_ptr<base::Value> root = deserializer.Deserialize(nullptr, &error);
-  if (!root)
-    return base::Value::Dict();
-  if (!root->is_dict())
-    return base::Value::Dict();
+  if (!root || !root->is_dict()) {
+    return std::nullopt;
+  }
   return std::move(root->GetDict());
+}
+
+std::string GetArchitecture() {
+#if BUILDFLAG(IS_WIN)
+  const base::win::OSInfo* os_info = base::win::OSInfo::GetInstance();
+  return (os_info->IsWowX86OnARM64() || os_info->IsWowAMD64OnARM64())
+             ? kArchArm64
+             : base::SysInfo().OperatingSystemArchitecture();
+#else   // BUILDFLAG(IS_WIN)
+  return base::SysInfo().OperatingSystemArchitecture();
+#endif  // BUILDFLAG(IS_WIN)
+}
+
+bool RetryDeletePathRecursively(const base::FilePath& path) {
+  return RetryDeletePathRecursivelyCustom(
+      path, /*tries=*/5,
+      /*seconds_between_tries=*/base::Seconds(1));
+}
+
+bool RetryDeletePathRecursivelyCustom(const base::FilePath& path,
+                                      size_t tries,
+                                      base::TimeDelta seconds_between_tries) {
+  base::ScopedBlockingCall scoped_blocking_call(FROM_HERE,
+                                                base::BlockingType::WILL_BLOCK);
+  for (size_t i = 0;;) {
+    if (base::DeletePathRecursively(path)) {
+      return true;
+    }
+    if (++i >= tries) {
+      break;
+    }
+    base::PlatformThread::Sleep(seconds_between_tries);
+  }
+  return false;
 }
 
 }  // namespace update_client

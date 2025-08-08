@@ -12,6 +12,7 @@
 #include "base/task/single_thread_task_runner.h"
 #include "base/test/gmock_callback_support.h"
 #include "base/test/mock_callback.h"
+#include "base/test/scoped_feature_list.h"
 #include "base/test/task_environment.h"
 #include "gpu/command_buffer/service/mock_texture_owner.h"
 #include "gpu/command_buffer/service/ref_counted_lock_for_test.h"
@@ -22,6 +23,7 @@
 #include "media/base/android/mock_media_crypto_context.h"
 #include "media/base/async_destroy_video_decoder.h"
 #include "media/base/decoder_buffer.h"
+#include "media/base/media_switches.h"
 #include "media/base/media_util.h"
 #include "media/base/supported_video_decoder_config.h"
 #include "media/base/test_helpers.h"
@@ -90,6 +92,7 @@ class MockVideoFrameFactory : public VideoFrameFactory {
   MOCK_METHOD1(MockRunAfterPendingVideoFrames,
                void(base::OnceClosure* closure));
   MOCK_METHOD0(CancelPendingCallbacks, void());
+  MOCK_CONST_METHOD0(IsStalled, bool());
 
   void SetSurfaceBundle(
       scoped_refptr<CodecSurfaceBundle> surface_bundle) override {
@@ -132,7 +135,7 @@ class MediaCodecVideoDecoderTest : public testing::TestWithParam<VideoCodec> {
 
   void SetUp() override {
     uint8_t data = 0;
-    fake_decoder_buffer_ = DecoderBuffer::CopyFrom(&data, 1);
+    fake_decoder_buffer_ = DecoderBuffer::CopyFrom(base::span_from_ref(data));
     codec_allocator_ = std::make_unique<FakeCodecAllocator>(
         base::SingleThreadTaskRunner::GetCurrentDefault());
     device_info_ = std::make_unique<NiceMock<MockDeviceInfo>>();
@@ -274,13 +277,14 @@ class MediaCodecVideoDecoderTest : public testing::TestWithParam<VideoCodec> {
     if (!InitializeWithTextureOwner_OneDecodePending(config)) {
       return nullptr;
     }
+    codec_allocator_->most_recent_config->on_buffers_available_cb.Run();
     return codec_allocator_->ProvideMockCodecAsync();
   }
 
   // Provide access to MCVD's private PumpCodec() to drive the state transitions
   // that depend on queueing and dequeueing buffers. It uses |mcvd_raw_| so that
   // it can be called after |mcvd_| is reset.
-  void PumpCodec() { mcvd_raw_->PumpCodec(false); }
+  void PumpCodec() { mcvd_raw_->PumpCodec(); }
 
   // Start and finish a reset.
   void DoReset() {
@@ -348,18 +352,24 @@ TEST_P(MediaCodecVideoDecoderH264Test, H264IsSupported) {
   ASSERT_TRUE(Initialize(TestVideoConfig::NormalH264()));
 }
 
-TEST_P(MediaCodecVideoDecoderVp8Test, SmallVp8IsRejected) {
+// Ensures that we always report support for low resolution encrypted content
+// since Android guarantees support for these codecs.
+TEST_P(MediaCodecVideoDecoderTest, SoftwareDecodersSupportEncrypted) {
   auto configs = MediaCodecVideoDecoder::GetSupportedConfigs();
-  auto small_vp8_config = TestVideoConfig::Normal();
-  for (const auto& c : configs)
-    ASSERT_FALSE(c.Matches(small_vp8_config));
+  for (const auto& c : configs) {
+    if (c.Matches(TestVideoConfig::NormalEncrypted(GetParam()))) {
+      return;
+    }
+  }
+  FAIL() << "No encrypted config found for " << GetCodecName(GetParam());
 }
 
 TEST_P(MediaCodecVideoDecoderAV1Test, Av1IsSupported) {
   if (!HasAv1Decoder()) {
     return;
   }
-  EXPECT_CALL(*device_info_, IsAv1DecoderAvailable()).WillOnce(Return(true));
+  EXPECT_CALL(*device_info_, IsAv1DecoderAvailable())
+      .WillRepeatedly(Return(true));
   ASSERT_TRUE(Initialize(TestVideoConfig::Normal(VideoCodec::kAV1)));
 }
 
@@ -450,7 +460,7 @@ TEST_P(MediaCodecVideoDecoderTest, CodecFailuresAreAnError) {
       InitializeFully_OneDecodePending(TestVideoConfig::Large(codec_));
   ASSERT_TRUE(codec);
   EXPECT_CALL(*codec, DequeueInputBuffer(_, _))
-      .WillOnce(Return(MEDIA_CODEC_ERROR));
+      .WillOnce(Return(MediaCodecResult::Codes::kError));
   EXPECT_CALL(decode_cb_, Run(IsDecodeErrorStatus()));
   PumpCodec();
 }
@@ -471,7 +481,7 @@ TEST_P(MediaCodecVideoDecoderTest, AfterInitCompletesTheCodecIsPolled) {
   EXPECT_CALL(*codec, DequeueInputBuffer(_, _))
       .WillOnce(InvokeWithoutArgs([&loop]() {
         loop.Quit();
-        return MEDIA_CODEC_TRY_AGAIN_LATER;
+        return MediaCodecResult::Codes::kTryAgainLater;
       }));
   loop.Run();
 }
@@ -697,7 +707,7 @@ TEST_P(MediaCodecVideoDecoderTest, ResetDoesNotFlushAnAlreadyFlushedCodec) {
   testing::Mock::VerifyAndClearExpectations(&decode_cb_);
 }
 
-TEST_P(MediaCodecVideoDecoderVp8Test, ResetDrainsVP8CodecsBeforeFlushing) {
+TEST_P(MediaCodecVideoDecoderTest, ResetDoesNotDrainCodecs) {
   auto* codec =
       InitializeFully_OneDecodePending(TestVideoConfig::Large(codec_));
   ASSERT_TRUE(codec);
@@ -705,85 +715,74 @@ TEST_P(MediaCodecVideoDecoderVp8Test, ResetDrainsVP8CodecsBeforeFlushing) {
   codec->AcceptOneInput();
   PumpCodec();
 
-  // The reset should not complete immediately because the codec needs to be
-  // drained.
+  // The reset should complete immediately because the no codec needs draining
+  // anymore. We don't expect a call to Flush on the codec since it will be
+  // deferred until the first decode after the reset.
+  base::MockCallback<base::OnceClosure> reset_cb;
+  EXPECT_CALL(reset_cb, Run());
+  mcvd_->Reset(reset_cb.Get());
+  // The reset should complete before destroying the codec.
+  testing::Mock::VerifyAndClearExpectations(&reset_cb);
+}
+
+TEST_P(MediaCodecVideoDecoderTest, ElidedEOSForConfigChange) {
+  base::test::ScopedFeatureList enabled(kMediaCodecElideEOS);
+  auto* codec =
+      InitializeFully_OneDecodePending(TestVideoConfig::Large(codec_));
+  ASSERT_TRUE(codec);
+  mcvd_->Decode(DecoderBuffer::CreateEOSBuffer(TestVideoConfig::Normal(codec_)),
+                decode_cb_.Get());
+
+  // Produce one output that VFF will hold onto.
+  codec->AcceptOneInput();
+  codec->ProduceOneOutput();
+  PumpCodec();
+
+  // Skip draining the codec.
   EXPECT_CALL(*codec, Flush()).Times(0);
-  base::MockCallback<base::OnceClosure> reset_cb;
-  EXPECT_CALL(reset_cb, Run()).Times(0);
-  mcvd_->Reset(reset_cb.Get());
+  PumpCodec();
 
-  // The next input should be an EOS.
+  // Create a pending decode. The codec should still not be flushed because
+  // there is an unrendered output buffer.
+  mcvd_->Decode(fake_decoder_buffer_, decode_cb_.Get());
+  PumpCodec();
+
+  // Unlike the normal EOS path, releasing the output shouldn't cause a flush.
+  video_frame_factory_->last_output_buffer_.reset();
+  EXPECT_CALL(*codec, Flush()).Times(0);
+  PumpCodec();
+}
+
+TEST_P(MediaCodecVideoDecoderTest, ElidedEOSSkippedForCodecChange) {
+  base::test::ScopedFeatureList enabled(kMediaCodecElideEOS);
+  auto* codec =
+      InitializeFully_OneDecodePending(TestVideoConfig::Large(codec_));
+  ASSERT_TRUE(codec);
+  auto different_codec =
+      codec_ == VideoCodec::kAV1 ? VideoCodec::kVP9 : VideoCodec::kAV1;
+  mcvd_->Decode(
+      DecoderBuffer::CreateEOSBuffer(TestVideoConfig::Normal(different_codec)),
+      decode_cb_.Get());
+
+  // Produce one output that VFF will hold onto.
+  codec->AcceptOneInput();
+  codec->ProduceOneOutput();
+  PumpCodec();
+
+  // Drain the codec.
+  EXPECT_CALL(*codec, Flush()).Times(0);
   codec->AcceptOneInput(MockMediaCodecBridge::kEos);
-  PumpCodec();
-  testing::Mock::VerifyAndClearExpectations(codec);
-
-  // After the EOS is dequeued, the reset should complete.
-  EXPECT_CALL(reset_cb, Run());
   codec->ProduceOneOutput(MockMediaCodecBridge::kEos);
   PumpCodec();
-  testing::Mock::VerifyAndClearExpectations(&reset_cb);
-}
 
-TEST_P(MediaCodecVideoDecoderVp8Test, ResetDoesNotDrainVp8WithAsyncApi) {
-  EXPECT_CALL(*device_info_, IsAsyncApiSupported())
-      .WillRepeatedly(Return(true));
-
-  auto* codec =
-      InitializeFully_OneDecodePending(TestVideoConfig::Large(codec_));
-  ASSERT_TRUE(codec);
-  // Accept the first decode to transition out of the flushed state.
-  codec->AcceptOneInput();
+  // Create a pending decode. The codec should still not be flushed because
+  // there is an unrendered output buffer.
+  mcvd_->Decode(fake_decoder_buffer_, decode_cb_.Get());
   PumpCodec();
 
-  // The reset should complete immediately because the codec is not VP8 so
-  // it doesn't need draining.  We don't expect a call to Flush on the codec
-  // since it will be deferred until the first decode after the reset.
-  base::MockCallback<base::OnceClosure> reset_cb;
-  EXPECT_CALL(reset_cb, Run());
-  mcvd_->Reset(reset_cb.Get());
-  // The reset should complete before destroying the codec, since TearDown will
-  // complete the drain for VP8.  It still might not call reset since a drain
-  // for destroy probably doesn't, but either way we expect it before the drain.
-  testing::Mock::VerifyAndClearExpectations(&reset_cb);
-}
-
-TEST_P(MediaCodecVideoDecoderH264Test, ResetDoesNotDrainNonVp8Codecs) {
-  auto* codec =
-      InitializeFully_OneDecodePending(TestVideoConfig::Large(codec_));
-  ASSERT_TRUE(codec);
-  // Accept the first decode to transition out of the flushed state.
-  codec->AcceptOneInput();
-  PumpCodec();
-
-  // The reset should complete immediately because the codec is not VP8 so
-  // it doesn't need draining.  We don't expect a call to Flush on the codec
-  // since it will be deferred until the first decode after the reset.
-  base::MockCallback<base::OnceClosure> reset_cb;
-  EXPECT_CALL(reset_cb, Run());
-  mcvd_->Reset(reset_cb.Get());
-  // The reset should complete before destroying the codec, since TearDown will
-  // complete the drain for VP8.  It still might not call reset since a drain
-  // for destroy probably doesn't, but either way we expect it before the drain.
-  testing::Mock::VerifyAndClearExpectations(&reset_cb);
-}
-
-TEST_P(MediaCodecVideoDecoderVp8Test, TeardownCompletesPendingReset) {
-  auto* codec =
-      InitializeFully_OneDecodePending(TestVideoConfig::Large(codec_));
-  ASSERT_TRUE(codec);
-
-  // Accept the first decode to transition out of the flushed state.
-  codec->AcceptOneInput();
-  PumpCodec();
-
-  base::MockCallback<base::OnceClosure> reset_cb;
-  EXPECT_CALL(reset_cb, Run()).Times(0);
-  mcvd_->Reset(reset_cb.Get());
-  EXPECT_CALL(reset_cb, Run());
-  mcvd_.reset();
-
-  // VP8 codecs requiring draining for teardown to complete (tested below).
-  codec->ProduceOneOutput(MockMediaCodecBridge::kEos);
+  // Releasing the output buffer should now trigger a flush.
+  video_frame_factory_->last_output_buffer_.reset();
+  EXPECT_CALL(*codec, Flush());
   PumpCodec();
 }
 
@@ -861,15 +860,10 @@ TEST_P(MediaCodecVideoDecoderTest, TeardownDoesNotDrainFlushedCodecs) {
   ASSERT_TRUE(InitializeFully_OneDecodePending(TestVideoConfig::Large(codec_)));
   // Since we assert that MCVD is destructed by default, this test verifies that
   // MCVD is destructed without requiring the codec to output an EOS buffer.
-
-  // We assert this since, otherwise, we'll complete the drain for VP8 codecs in
-  // TearDown.  This guarantees that we won't, so any drain started by MCVD
-  // won't complete.  Otherwise, this tests nothing.  Note that 'Drained' here
-  // is a bit of a misnomer; the mock codec doesn't track flushed.
   ASSERT_TRUE(codec_allocator_->most_recent_codec->IsDrained());
 }
 
-TEST_P(MediaCodecVideoDecoderH264Test, TeardownDoesNotDrainNonVp8Codecs) {
+TEST_P(MediaCodecVideoDecoderTest, TeardownDoesNotDrainCodecs) {
   auto* codec =
       InitializeFully_OneDecodePending(TestVideoConfig::Large(codec_));
   ASSERT_TRUE(codec);
@@ -878,28 +872,6 @@ TEST_P(MediaCodecVideoDecoderH264Test, TeardownDoesNotDrainNonVp8Codecs) {
   PumpCodec();
   // Since we assert that MCVD is destructed by default, this test verifies that
   // MCVD is destructed without requiring the codec to output an EOS buffer.
-  // Remember that we do not complete the drain for non-VP8 codecs in TearDown.
-}
-
-TEST_P(MediaCodecVideoDecoderVp8Test,
-       TeardownDrainsVp8CodecsBeforeDestruction) {
-  auto* codec =
-      InitializeFully_OneDecodePending(TestVideoConfig::Large(codec_));
-  ASSERT_TRUE(codec);
-  // Accept the first decode to transition out of the flushed state.
-  codec->AcceptOneInput();
-  PumpCodec();
-
-  // MCVD should not be destructed immediately.
-  mcvd_.reset();
-  base::RunLoop().RunUntilIdle();
-
-  // It should be destructed after draining completes.
-  codec->AcceptOneInput(MockMediaCodecBridge::kEos);
-  codec->ProduceOneOutput(MockMediaCodecBridge::kEos);
-  EXPECT_CALL(*codec, Flush()).Times(0);
-  PumpCodec();
-  base::RunLoop().RunUntilIdle();
 }
 
 TEST_P(MediaCodecVideoDecoderTest, CdmInitializationWorksForL3) {
@@ -995,6 +967,15 @@ TEST_P(MediaCodecVideoDecoderTest, VideoFramesArePowerEfficient) {
   EXPECT_TRUE(most_recent_frame_->metadata().power_efficient);
 }
 
+TEST_P(MediaCodecVideoDecoderTest, CanReadWithoutStalling) {
+  InitializeFully_OneDecodePending(TestVideoConfig::Large(codec_));
+  ASSERT_TRUE(mcvd_);
+  EXPECT_CALL(*video_frame_factory_, IsStalled()).WillOnce(Return(true));
+  EXPECT_FALSE(mcvd_->CanReadWithoutStalling());
+  EXPECT_CALL(*video_frame_factory_, IsStalled()).WillOnce(Return(false));
+  EXPECT_TRUE(mcvd_->CanReadWithoutStalling());
+}
+
 TEST_P(MediaCodecVideoDecoderH264Test, CsdIsIncludedInCodecConfig) {
   // Make sure that any CSD is included in the CodecConfig that MCVD uses to
   // allocate the codec.
@@ -1039,13 +1020,10 @@ TEST_P(MediaCodecVideoDecoderVp9Test, ColorSpaceIsIncludedInCodecConfig) {
 TEST_P(MediaCodecVideoDecoderVp9Test, HdrMetadataIsIncludedInCodecConfig) {
   VideoDecoderConfig config = TestVideoConfig::Normal(VideoCodec::kVP9);
   gfx::HDRMetadata hdr_metadata;
-  hdr_metadata.max_frame_average_light_level = 123;
-  hdr_metadata.max_content_light_level = 456;
-  hdr_metadata.color_volume_metadata.primaries = {
-      0.1f, 0.2f, 0.3f, 0.4f, 0.5f, 0.6f, 0.7f, 0.8f,
-  };
-  hdr_metadata.color_volume_metadata.luminance_max = 1000;
-  hdr_metadata.color_volume_metadata.luminance_min = 0;
+  hdr_metadata.cta_861_3 = gfx::HdrMetadataCta861_3(123, 456);
+  hdr_metadata.smpte_st_2086 = gfx::HdrMetadataSmpteSt2086(
+      {0.1f, 0.2f, 0.3f, 0.4f, 0.5f, 0.6f, 0.7f, 0.8f},
+      /*luminance_max=*/1000, /*luminance_min=*/0);
 
   config.set_hdr_metadata(hdr_metadata);
 
@@ -1077,13 +1055,7 @@ static std::vector<VideoCodec> GetH264() {
 }
 #endif
 
-static std::vector<VideoCodec> GetVp8IfAvailable() {
-  return MediaCodecUtil::IsVp8DecoderAvailable()
-             ? std::vector<VideoCodec>(1, VideoCodec::kVP8)
-             : std::vector<VideoCodec>();
-}
-
-// TODO(https://crbug.com/1179801): Uncomment once MediaCodecVideoDecoderVp9Test
+// TODO(crbug.com/40169704): Uncomment once MediaCodecVideoDecoderVp9Test
 // is fixed.
 // static std::vector<VideoCodec> GetVp9IfAvailable() {
 //   return MediaCodecUtil::IsVp9DecoderAvailable()
@@ -1106,11 +1078,7 @@ INSTANTIATE_TEST_SUITE_P(MediaCodecVideoDecoderH264Test,
                          testing::ValuesIn(GetH264()));
 #endif
 
-INSTANTIATE_TEST_SUITE_P(MediaCodecVideoDecoderVp8Test,
-                         MediaCodecVideoDecoderVp8Test,
-                         testing::ValuesIn(GetVp8IfAvailable()));
-
-// TODO(https://crbug.com/1179801): Uncomment once MediaCodecVideoDecoderVp9Test
+// TODO(crbug.com/40169704): Uncomment once MediaCodecVideoDecoderVp9Test
 // is fixed.
 // INSTANTIATE_TEST_SUITE_P(MediaCodecVideoDecoderVp9Test,
 //                          MediaCodecVideoDecoderVp9Test,
@@ -1120,7 +1088,7 @@ INSTANTIATE_TEST_SUITE_P(MediaCodecVideoDecoderAV1Test,
                          MediaCodecVideoDecoderAV1Test,
                          testing::ValuesIn(GetAv1IfAvailable()));
 
-// TODO(https://crbug.com/1179801): Remove this annotation once
+// TODO(crbug.com/40169704): Remove this annotation once
 // MediaCodecVideoDecoderVp9Test is fixed.
 GTEST_ALLOW_UNINSTANTIATED_PARAMETERIZED_TEST(MediaCodecVideoDecoderVp9Test);
 // This test suite is empty on some OSes.

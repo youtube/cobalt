@@ -12,17 +12,16 @@ PerfTimeLogger::PerfTimeLogger(const char* test_name)
     : logged_(false), test_name_(test_name) {}
 
 PerfTimeLogger::~PerfTimeLogger() {
-  if (!logged_)
+  if (!logged_) {
     Done();
+  }
 }
 
 void PerfTimeLogger::Done() {
   // we use a floating-point millisecond value because it is more
   // intuitive than microseconds and we want more precision than
   // integer milliseconds
-#if !defined(STARBOARD)
   LogPerfResult(test_name_.c_str(), timer_.Elapsed().InMillisecondsF(), "ms");
-#endif
   logged_ = true;
 }
 

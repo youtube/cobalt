@@ -2,10 +2,11 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#include "base/win/com_init_balancer.h"
+
 #include <objbase.h>
 
 #include "base/check_op.h"
-#include "base/win/com_init_balancer.h"
 
 namespace base {
 namespace win {
@@ -14,8 +15,9 @@ namespace internal {
 ComInitBalancer::ComInitBalancer(DWORD co_init) : co_init_(co_init) {
   ULARGE_INTEGER spy_cookie = {};
   HRESULT hr = ::CoRegisterInitializeSpy(this, &spy_cookie);
-  if (SUCCEEDED(hr))
+  if (SUCCEEDED(hr)) {
     spy_cookie_ = spy_cookie;
+  }
 }
 
 ComInitBalancer::~ComInitBalancer() {

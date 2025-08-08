@@ -1,4 +1,4 @@
-// Copyright 2017 The Crashpad Authors. All rights reserved.
+// Copyright 2017 The Crashpad Authors
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -18,12 +18,7 @@
 #include <sys/socket.h>
 #include <sys/types.h>
 
-#include "base/macros.h"
 #include "util/linux/exception_handler_protocol.h"
-
-#if defined(STARBOARD) || defined(NATIVE_TARGET_BUILD)
-#include "starboard/elf_loader/evergreen_info.h"
-#endif
 
 namespace crashpad {
 
@@ -37,6 +32,9 @@ class ExceptionHandlerClient {
   //!     clients.
   ExceptionHandlerClient(int sock, bool multiple_clients);
 
+  ExceptionHandlerClient(const ExceptionHandlerClient&) = delete;
+  ExceptionHandlerClient& operator=(const ExceptionHandlerClient&) = delete;
+
   ~ExceptionHandlerClient();
 
   //! \brief Communicates with the handler to determine its credentials.
@@ -49,21 +47,6 @@ class ExceptionHandlerClient {
   //!     returns `true`.
   //! \return `true` on success. Otherwise, `false` with a message logged.
   bool GetHandlerCredentials(ucred* creds);
-
-#if defined(STARBOARD) || defined(NATIVE_TARGET_BUILD)
-  //! \brief Sends EvergreenInfo to the ExceptionHandlerServer.
-  //!
-  //! \param[in] info Information to about this client.
-  //! \return `true` on success or `false` on failure.
-  bool SendEvergreenInfo(
-      const ExceptionHandlerProtocol::ClientInformation& info);
-
-  //! \brief Sends CrashpadAnnotations to the ExceptionHandlerServer.
-  //!
-  //! \param[in] info Information to about this client.
-  //! \return `true` on success or `false` on failure.
-  bool SendAnnotations(const ExceptionHandlerProtocol::ClientInformation& info);
-#endif
 
   //! \brief Request a crash dump from the ExceptionHandlerServer.
   //!
@@ -86,13 +69,6 @@ class ExceptionHandlerClient {
   void SetCanSetPtracer(bool can_set_ptracer);
 
  private:
-#if defined(STARBOARD) || defined(NATIVE_TARGET_BUILD)
-  bool SendEvergreenInfoRequest(
-      const ExceptionHandlerProtocol::ClientInformation& info);
-
-  bool SendAddAnnotationsRequest(
-      const ExceptionHandlerProtocol::ClientInformation& info);
-#endif
   int SendCrashDumpRequest(
       const ExceptionHandlerProtocol::ClientInformation& info,
       VMAddress stack_pointer);
@@ -104,8 +80,6 @@ class ExceptionHandlerClient {
   pid_t ptracer_;
   bool can_set_ptracer_;
   bool multiple_clients_;
-
-  DISALLOW_COPY_AND_ASSIGN(ExceptionHandlerClient);
 };
 
 }  // namespace crashpad

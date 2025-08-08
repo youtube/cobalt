@@ -16,7 +16,6 @@
 #include "base/memory/scoped_refptr.h"
 #include "base/message_loop/message_pump_for_io.h"
 #include "base/threading/thread_checker.h"
-#include "base/timer/timer.h"
 #include "net/base/address_family.h"
 #include "net/base/completion_once_callback.h"
 #include "net/base/io_buffer.h"
@@ -40,37 +39,12 @@ class SocketTag;
 
 class NET_EXPORT UDPSocketPosix {
  public:
-  // Performance helper for net::activity_monitor, it batches
-  // throughput samples, subject to a byte limit threshold (64 KB) or
-  // timer (100 ms), whichever comes first.  The batching is subject
-  // to a minimum number of samples (2) required by NQE to update its
-  // throughput estimate.
-  class ReceivedActivityMonitor {
-   public:
-    ReceivedActivityMonitor() = default;
-
-    ReceivedActivityMonitor(const ReceivedActivityMonitor&) = delete;
-    ReceivedActivityMonitor& operator=(const ReceivedActivityMonitor&) = delete;
-
-    ~ReceivedActivityMonitor() = default;
-    // Provided by sent/received subclass.
-    // Update throughput, but batch to limit overhead of net::activity_monitor.
-    void Increment(uint32_t bytes);
-    // For flushing cached values.
-    void OnClose();
-
-   private:
-    void Update();
-    void OnTimerFired();
-
-    uint32_t bytes_ = 0;
-    uint32_t increments_ = 0;
-    base::RepeatingTimer timer_;
-  };
-
   UDPSocketPosix(DatagramSocket::BindType bind_type,
                  net::NetLog* net_log,
                  const net::NetLogSource& source);
+
+  UDPSocketPosix(DatagramSocket::BindType bind_type,
+                 NetLogWithSource source_net_log);
 
   UDPSocketPosix(const UDPSocketPosix&) = delete;
   UDPSocketPosix& operator=(const UDPSocketPosix&) = delete;
@@ -170,6 +144,10 @@ class NET_EXPORT UDPSocketPosix {
   // return ERR_IO_PENDING.
   int SetDoNotFragment();
 
+  // Requests that packets received by this socket have the ECN bit set. Returns
+  // a network error code if there was a problem.
+  int SetRecvTos();
+
   // If |confirm| is true, then the MSG_CONFIRM flag will be passed to
   // subsequent writes if it's supported by the platform.
   void SetMsgConfirm(bool confirm);
@@ -251,6 +229,14 @@ class NET_EXPORT UDPSocketPosix {
   // Returns a net error code.
   int SetDiffServCodePoint(DiffServCodePoint dscp);
 
+  // Requests that packets sent by this socket have the DSCP and/or ECN
+  // bits set. Returns a network error code if there was a problem. If
+  // DSCP_NO_CHANGE or ECN_NO_CHANGE are set, will preserve those parts of
+  // the original setting.
+  // ECN values other than ECN_DEFAULT must not be used outside of tests,
+  // without appropriate congestion control.
+  int SetTos(DiffServCodePoint dscp, EcnCodePoint ecn);
+
   // Sets IPV6_V6ONLY on the socket. If this flag is true, the socket will be
   // restricted to only IPv6; false allows both IPv4 and IPv6 traffic.
   int SetIPv6Only(bool ipv6_only);
@@ -275,17 +261,37 @@ class NET_EXPORT UDPSocketPosix {
   // Sets iOS Network Service Type for option SO_NET_SERVICE_TYPE.
   int SetIOSNetworkServiceType(int ios_network_service_type);
 
+  // Register a socket and a QUIC UDP payload that can close a QUIC connection
+  // to the Android system server.
+  // When the app loses network access, the system server destroys the
+  // registered socket and sends the registered UDP payload to the server.
+  void RegisterQuicConnectionClosePayload(base::span<uint8_t> payload);
+
+  // Unregister the socket and its associated UDP payload that were
+  // previously registered by RegisterQuicConnectionClosePayload
+  void UnregisterQuicConnectionClosePayload();
+
   // Takes ownership of `socket`, which should be a socket descriptor opened
   // with the specified address family. The socket should only be created but
   // not bound or connected to an address.
   int AdoptOpenedSocket(AddressFamily address_family, int socket);
+
+  uint32_t get_multicast_interface_for_testing() {
+    return multicast_interface_;
+  }
+  bool get_msg_confirm_for_testing() { return sendto_flags_; }
+  bool get_experimental_recv_optimization_enabled_for_testing() {
+    return experimental_recv_optimization_enabled_;
+  }
+
+  DscpAndEcn GetLastTos() const { return TosToDscpAndEcn(last_tos_); }
 
  private:
   enum SocketOptions {
     SOCKET_OPTION_MULTICAST_LOOP = 1 << 0
   };
 
-  class ReadWatcher : public base::MessagePumpForIO::Watcher {
+  class ReadWatcher : public base::MessagePumpForIO::FdWatcher {
    public:
     explicit ReadWatcher(UDPSocketPosix* socket) : socket_(socket) {}
 
@@ -302,7 +308,7 @@ class NET_EXPORT UDPSocketPosix {
     const raw_ptr<UDPSocketPosix> socket_;
   };
 
-  class WriteWatcher : public base::MessagePumpForIO::Watcher {
+  class WriteWatcher : public base::MessagePumpForIO::FdWatcher {
    public:
     explicit WriteWatcher(UDPSocketPosix* socket) : socket_(socket) {}
 
@@ -380,7 +386,7 @@ class NET_EXPORT UDPSocketPosix {
 
   // Hash of |socket_| to verify that it is not corrupted when calling close().
   // Used to debug https://crbug.com/906005.
-  // TODO(crbug.com/906005): Remove this once the bug is fixed.
+  // TODO(crbug.com/41426706): Remove this once the bug is fixed.
   int socket_hash_ = 0;
 
   int addr_family_ = 0;
@@ -410,8 +416,8 @@ class NET_EXPORT UDPSocketPosix {
   mutable std::unique_ptr<IPEndPoint> remote_address_;
 
   // The socket's posix wrappers
-  base::MessagePumpForIO::SocketWatcher read_socket_watcher_;
-  base::MessagePumpForIO::SocketWatcher write_socket_watcher_;
+  base::MessagePumpForIO::FdWatchController read_socket_watcher_;
+  base::MessagePumpForIO::FdWatchController write_socket_watcher_;
 
   // The corresponding watchers for reads and writes.
   ReadWatcher read_watcher_;
@@ -438,16 +444,6 @@ class NET_EXPORT UDPSocketPosix {
   // Network that this socket is bound to via BindToNetwork().
   handles::NetworkHandle bound_network_;
 
-  // Whether net::activity_monitor should be updated every time bytes are
-  // received, without batching through |received_activity_monitor_|. This is
-  // initialized with the state of the "UdpSocketPosixAlwaysUpdateBytesReceived"
-  // feature. It is cached to avoid accessing the FeatureList every time bytes
-  // are received.
-  const bool always_update_bytes_received_;
-
-  // Used to lower the overhead updating activity monitor.
-  ReceivedActivityMonitor received_activity_monitor_;
-
   // Current socket tag if |socket_| is valid, otherwise the tag to apply when
   // |socket_| is opened.
   SocketTag tag_;
@@ -461,6 +457,9 @@ class NET_EXPORT UDPSocketPosix {
   // Manages decrementing the global open UDP socket counter when this
   // UDPSocket is destroyed.
   OwnedUDPSocketCount owned_socket_count_;
+
+  // The last TOS byte received on the socket.
+  uint8_t last_tos_ = 0;
 
   THREAD_CHECKER(thread_checker_);
 };

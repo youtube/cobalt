@@ -1,34 +1,11 @@
-#! /usr/bin/python
+#! /usr/bin/env python3
 #
 # Protocol Buffers - Google's data interchange format
 # Copyright 2015 Google Inc.  All rights reserved.
-# https://developers.google.com/protocol-buffers/
 #
-# Redistribution and use in source and binary forms, with or without
-# modification, are permitted provided that the following conditions are
-# met:
-#
-#     * Redistributions of source code must retain the above copyright
-# notice, this list of conditions and the following disclaimer.
-#     * Redistributions in binary form must reproduce the above
-# copyright notice, this list of conditions and the following disclaimer
-# in the documentation and/or other materials provided with the
-# distribution.
-#     * Neither the name of Google Inc. nor the names of its
-# contributors may be used to endorse or promote products derived from
-# this software without specific prior written permission.
-#
-# THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
-# "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
-# LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR
-# A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT
-# OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
-# SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT
-# LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
-# DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
-# THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
-# (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
-# OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+# Use of this source code is governed by a BSD-style
+# license that can be found in the LICENSE file or at
+# https://developers.google.com/open-source/licenses/bsd
 
 """PDDM - Poor Developers' Debug-able Macros
 
@@ -134,7 +111,10 @@ def _MacroArgRefRe(macro_arg_names):
 
 class PDDMError(Exception):
   """Error thrown by pddm."""
-  pass
+
+  def __init__(self, message="Error"):
+    self.message = message
+    super().__init__(self.message)
 
 
 class MacroCollection(object):
@@ -288,7 +268,7 @@ class MacroCollection(object):
     name = macro_ref_match.group('name')
     for prev_name, prev_macro_ref in macro_stack:
       if name == prev_name:
-        raise PDDMError('Found macro recusion, invoking "%s":%s' %
+        raise PDDMError('Found macro recursion, invoking "%s":%s' %
                         (macro_ref_str, self._FormatStack(macro_stack)))
     macro = self._macros[name]
     args_str = macro_ref_match.group('args').strip()
@@ -318,7 +298,7 @@ class MacroCollection(object):
       # Nothing to do
       return macro.body
     assert len(arg_values) == len(macro.args)
-    args = dict(zip(macro.args, arg_values))
+    args = dict(list(zip(macro.args, arg_values)))
 
     def _lookupArg(match):
       val = args[match.group('name')]
@@ -351,7 +331,7 @@ class MacroCollection(object):
     return macro_arg_ref_re.sub(_lookupArg, macro.body)
 
   def _EvalMacrosRefs(self, text, macro_stack):
-    macro_ref_re = _MacroRefRe(self._macros.keys())
+    macro_ref_re = _MacroRefRe(list(self._macros.keys()))
 
     def _resolveMacro(match):
       return self._Expand(match, macro_stack)
@@ -395,7 +375,7 @@ class SourceFile(object):
         wasn't append.  If SUCCESS is True, then CAN_ADD_MORE is True/False to
         indicate if more lines can be added after this one.
       """
-      assert False, "sublcass should have overridden"
+      assert False, "subclass should have overridden"
       return (False, False)
 
     def HitEOF(self):
@@ -503,7 +483,6 @@ class SourceFile(object):
       else:
         result.append('//%%PDDM-EXPAND-END (%s expansions)' %
                       len(captured_lines))
-
       return result
 
   class DefinitionSection(SectionBase):
@@ -546,8 +525,8 @@ class SourceFile(object):
       self.Append(line)
       return (True, False)
 
-    def BindMacroCollection(self, macro_colletion):
-      if not macro_colletion:
+    def BindMacroCollection(self, macro_collection):
+      if not macro_collection:
         return
       if self._import_resolver is None:
         raise PDDMError('Got an IMPORT-DEFINES without a resolver (line %d):'
@@ -562,7 +541,7 @@ class SourceFile(object):
         imported_src_file = SourceFile(imported_file, self._import_resolver)
         imported_src_file._ParseFile()
         for section in imported_src_file._sections:
-          section.BindMacroCollection(macro_colletion)
+          section.BindMacroCollection(macro_collection)
       except PDDMError as e:
         raise PDDMError('%s\n...while importing defines:\n'
                         '  Line %d: %s' %
@@ -645,7 +624,7 @@ def main(args):
   opts, extra_args = parser.parse_args(args)
 
   if not extra_args:
-    parser.error('Need atleast one file to process')
+    parser.error('Need at least one file to process')
 
   result = 0
   for a_path in extra_args:

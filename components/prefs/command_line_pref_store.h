@@ -1,14 +1,17 @@
-// Copyright (c) 2016 The Chromium Authors. All rights reserved.
+// Copyright 2016 The Chromium Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
 #ifndef COMPONENTS_PREFS_COMMAND_LINE_PREF_STORE_H_
 #define COMPONENTS_PREFS_COMMAND_LINE_PREF_STORE_H_
 
-#include "base/command_line.h"
-#include "base/macros.h"
-#include "base/values.h"
+#include "base/containers/span.h"
+#include "base/memory/raw_ptr.h"
 #include "components/prefs/value_map_pref_store.h"
+
+namespace base {
+class CommandLine;
+}
 
 // Base class for a PrefStore that maps command line switches to preferences.
 // The Apply...Switches() methods can be called by subclasses with their own
@@ -28,27 +31,28 @@ class COMPONENTS_PREFS_EXPORT CommandLinePrefStore : public ValueMapPrefStore {
     bool set_value;
   };
 
+  CommandLinePrefStore(const CommandLinePrefStore&) = delete;
+  CommandLinePrefStore& operator=(const CommandLinePrefStore&) = delete;
+
   // Apply command-line switches to the corresponding preferences of the switch
   // map, where the value associated with the switch is a string.
   void ApplyStringSwitches(
-      const SwitchToPreferenceMapEntry string_switch_map[], size_t size);
+      base::span<const SwitchToPreferenceMapEntry> string_switch_map);
 
   // Apply command-line switches to the corresponding preferences of the switch
   // map, where the value associated with the switch is a path.
-  void ApplyPathSwitches(const SwitchToPreferenceMapEntry path_switch_map[],
-                         size_t size);
+  void ApplyPathSwitches(
+      base::span<const SwitchToPreferenceMapEntry> path_switch_map);
 
   // Apply command-line switches to the corresponding preferences of the switch
   // map, where the value associated with the switch is an integer.
   void ApplyIntegerSwitches(
-      const SwitchToPreferenceMapEntry integer_switch_map[], size_t size);
+      base::span<const SwitchToPreferenceMapEntry> integer_switch_map);
 
   // Apply command-line switches to the corresponding preferences of the
   // boolean switch map.
   void ApplyBooleanSwitches(
-      const BooleanSwitchToPreferenceMapEntry boolean_switch_map[],
-      size_t size);
-
+      base::span<const BooleanSwitchToPreferenceMapEntry> boolean_switch_map);
 
  protected:
   explicit CommandLinePrefStore(const base::CommandLine* command_line);
@@ -58,9 +62,7 @@ class COMPONENTS_PREFS_EXPORT CommandLinePrefStore : public ValueMapPrefStore {
 
  private:
   // Weak reference.
-  const base::CommandLine* command_line_;
-
-  DISALLOW_COPY_AND_ASSIGN(CommandLinePrefStore);
+  raw_ptr<const base::CommandLine> command_line_;
 };
 
 #endif  // COMPONENTS_PREFS_COMMAND_LINE_PREF_STORE_H_

@@ -6,22 +6,23 @@
 
 #include "base/android/jni_android.h"
 #include "base/android/jni_string.h"
-#include "base/android/scoped_java_ref.h"
-#include "base/base_jni_headers/JavaExceptionReporter_jni.h"
 #include "base/debug/dump_without_crashing.h"
 #include "base/functional/bind.h"
 #include "base/functional/callback.h"
 #include "base/lazy_instance.h"
+#include "base/logging.h"
 
-using base::android::JavaParamRef;
-using base::android::JavaRef;
+// Must come after all headers that specialize FromJniType() / ToJniType().
+#include "base/base_minimal_jni/JavaExceptionReporter_jni.h"
+
+using jni_zero::JavaRef;
 
 namespace base {
 namespace android {
 
 namespace {
 
-void (*g_java_exception_callback)(const char*);
+JavaExceptionCallback g_java_exception_callback;
 
 using JavaExceptionFilter =
     base::RepeatingCallback<bool(const JavaRef<jthrowable>&)>;
@@ -32,7 +33,7 @@ LazyInstance<JavaExceptionFilter>::Leaky g_java_exception_filter =
 }  // namespace
 
 void InitJavaExceptionReporter() {
-  JNIEnv* env = base::android::AttachCurrentThread();
+  JNIEnv* env = jni_zero::AttachCurrentThread();
   // Since JavaExceptionReporter#installHandler will chain through to the
   // default handler, the default handler should cause a crash as if it's a
   // normal java exception. Prefer to crash the browser process in java rather
@@ -45,7 +46,7 @@ void InitJavaExceptionReporter() {
 }
 
 void InitJavaExceptionReporterForChildProcess() {
-  JNIEnv* env = base::android::AttachCurrentThread();
+  JNIEnv* env = jni_zero::AttachCurrentThread();
   constexpr bool crash_after_report = true;
   SetJavaExceptionFilter(
       base::BindRepeating([](const JavaRef<jthrowable>&) { return true; }));
@@ -56,9 +57,13 @@ void SetJavaExceptionFilter(JavaExceptionFilter java_exception_filter) {
   g_java_exception_filter.Get() = std::move(java_exception_filter);
 }
 
-void SetJavaExceptionCallback(void (*callback)(const char*)) {
-  DCHECK(!g_java_exception_callback);
+void SetJavaExceptionCallback(JavaExceptionCallback callback) {
+  DCHECK(!g_java_exception_callback || !callback);
   g_java_exception_callback = callback;
+}
+
+JavaExceptionCallback GetJavaExceptionCallback() {
+  return g_java_exception_callback;
 }
 
 void SetJavaException(const char* exception) {
@@ -72,7 +77,7 @@ void SetJavaException(const char* exception) {
 void JNI_JavaExceptionReporter_ReportJavaException(
     JNIEnv* env,
     jboolean crash_after_report,
-    const JavaParamRef<jthrowable>& e) {
+    const JavaRef<jthrowable>& e) {
   std::string exception_info = base::android::GetJavaExceptionInfo(env, e);
   bool should_report_exception = g_java_exception_filter.Get().Run(e);
   if (should_report_exception) {
@@ -88,13 +93,14 @@ void JNI_JavaExceptionReporter_ReportJavaException(
   }
 }
 
-void JNI_JavaExceptionReporter_ReportJavaStackTrace(
-    JNIEnv* env,
-    const JavaParamRef<jstring>& stack_trace) {
-  SetJavaException(ConvertJavaStringToUTF8(stack_trace).c_str());
+void JNI_JavaExceptionReporter_ReportJavaStackTrace(JNIEnv* env,
+                                                    std::string& stack_trace) {
+  SetJavaException(stack_trace.c_str());
   base::debug::DumpWithoutCrashing();
   SetJavaException(nullptr);
 }
 
 }  // namespace android
 }  // namespace base
+
+DEFINE_JNI_FOR_JavaExceptionReporter()

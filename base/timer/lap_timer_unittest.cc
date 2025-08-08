@@ -13,9 +13,7 @@
 // This file is supposed to match closely with the example code, documented in
 // lap_timer.h. Please update that documentation if you need to change things.
 
-namespace base {
-
-namespace test {
+namespace base::test {
 
 namespace {
 
@@ -49,7 +47,7 @@ TEST(LapTimer, UsageExample) {
   EXPECT_TRUE(timer.IsWarmedUp());
 }
 
-#if !BUILDFLAG(IS_IOS) && !defined(COBALT_PENDING_CLEAN_UP)
+#if !BUILDFLAG(IS_IOS)
 // iOS simulator does not support using ThreadTicks.
 TEST(LapTimer, ThreadTicksUsageExample) {
   TaskEnvironment task_environment(TaskEnvironment::TimeSource::MOCK_TIME);
@@ -75,5 +73,4 @@ TEST(LapTimer, ThreadTicksUsageExample) {
 }
 #endif
 
-}  // namespace test
-}  // namespace base
+}  // namespace base::test

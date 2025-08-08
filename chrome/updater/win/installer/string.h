@@ -1,6 +1,11 @@
-// Copyright 2019 The Chromium Authors. All rights reserved.
+// Copyright 2019 The Chromium Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
+
+#ifdef UNSAFE_BUFFERS_BUILD
+// TODO(crbug.com/40285824): Remove this and convert code to safer constructs.
+#pragma allow_unsafe_buffers
+#endif
 
 #ifndef CHROME_UPDATER_WIN_INSTALLER_STRING_H_
 #define CHROME_UPDATER_WIN_INSTALLER_STRING_H_
@@ -60,6 +65,9 @@ class StackString {
     clear();
   }
 
+  StackString(const StackString&) = delete;
+  StackString& operator=(const StackString&) = delete;
+
   // We do not expose a constructor that accepts a string pointer on purpose.
   // We expect the caller to call assign() and handle failures.
 
@@ -96,8 +104,9 @@ class StackString {
   // Note: this method has no effect if this object's length is less than
   // |location|.
   bool truncate_at(size_t location) {
-    if (location >= kCapacity)
+    if (location >= kCapacity) {
       return false;
+    }
     buffer_[location] = L'\0';
     return true;
   }
@@ -106,10 +115,6 @@ class StackString {
   // We reserve 1 more than what is asked for as a safeguard against
   // off-by-one errors.
   wchar_t buffer_[kCapacity + 1];
-
- private:
-  StackString(const StackString&);
-  StackString& operator=(const StackString&);
 };
 
 }  // namespace updater

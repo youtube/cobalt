@@ -17,14 +17,13 @@
 #include "base/strings/string_split.h"
 #include "base/strings/string_util.h"
 #include "base/time/time.h"
+#include "base/trace_event/base_tracing.h"  // IWYU pragma: export
 #include "base/values.h"
 #include "net/base/address_family.h"
 #include "net/base/load_states.h"
 #include "net/base/net_errors.h"
 #include "net/base/net_info_source_list.h"
 #include "net/cert/cert_verifier.h"
-#include "net/cert/pki/simple_path_builder_delegate.h"
-#include "net/cert/pki/trust_store.h"
 #include "net/disk_cache/disk_cache.h"
 #include "net/dns/host_cache.h"
 #include "net/dns/host_resolver.h"
@@ -34,6 +33,7 @@
 #include "net/http/http_cache.h"
 #include "net/http/http_network_session.h"
 #include "net/http/http_server_properties.h"
+#include "net/http/http_stream_pool.h"
 #include "net/http/http_transaction_factory.h"
 #include "net/log/net_log_capture_mode.h"
 #include "net/log/net_log_entry.h"
@@ -48,6 +48,8 @@
 #include "net/third_party/quiche/src/quiche/quic/core/quic_packets.h"
 #include "net/url_request/url_request.h"
 #include "net/url_request/url_request_context.h"
+#include "third_party/boringssl/src/pki/simple_path_builder_delegate.h"
+#include "third_party/boringssl/src/pki/trust_store.h"
 
 #if BUILDFLAG(ENABLE_REPORTING)
 #include "net/network_error_logging/network_error_logging_service.h"
@@ -133,7 +135,7 @@ base::Value GetActiveFieldTrialList() {
 
 }  // namespace
 
-base::Value::Dict GetNetConstants() {
+base::Value::Dict GetNetConstants(NetConstantsRequestMode request_mode) {
   base::Value::Dict constants_dict;
 
   // Version of the file format.
@@ -156,29 +158,56 @@ base::Value::Dict GetNetConstants() {
 
   // Add a dictionary with information about the relationship between
   // CertVerifier::VerifyFlags and their symbolic names.
+  // LINT.IfChange(CertVerifier.VerifyFlags)
   {
-    static_assert(CertVerifier::VERIFY_FLAGS_LAST == (1 << 0),
+    static_assert(CertVerifier::VERIFY_FLAGS_LAST == (1 << 1),
+                  "Update with new flags");
+    constants_dict.Set("certVerifierFlags",
+                       base::Value::Dict()
+                           .Set("VERIFY_DISABLE_NETWORK_FETCHES",
+                                CertVerifier::VERIFY_DISABLE_NETWORK_FETCHES)
+                           .Set("VERIFY_SXG_CT_REQUIREMENTS",
+                                CertVerifier::VERIFY_SXG_CT_REQUIREMENTS)
+
+    );
+  }
+  // LINT.ThenChange(/net/cert/cert_verifier.h:CertVerifier.VerifyFlags)
+
+  // LINT.IfChange(CertVerifyProc.VerifyFlags)
+  {
+    static_assert(CertVerifyProc::VERIFY_FLAGS_LAST == (1 << 4),
                   "Update with new flags");
     constants_dict.Set(
-        "certVerifierFlags",
-        base::Value::Dict().Set("VERIFY_DISABLE_NETWORK_FETCHES",
-                                CertVerifier::VERIFY_DISABLE_NETWORK_FETCHES));
+        "certVerifyFlags",
+        base::Value::Dict()
+            .Set("VERIFY_REV_CHECKING_ENABLED",
+                 CertVerifyProc::VERIFY_REV_CHECKING_ENABLED)
+            .Set("VERIFY_REV_CHECKING_REQUIRED_LOCAL_ANCHORS",
+                 CertVerifyProc::VERIFY_REV_CHECKING_REQUIRED_LOCAL_ANCHORS)
+            .Set("VERIFY_ENABLE_SHA1_LOCAL_ANCHORS",
+                 CertVerifyProc::VERIFY_ENABLE_SHA1_LOCAL_ANCHORS)
+            .Set("VERIFY_DISABLE_NETWORK_FETCHES",
+                 CertVerifyProc::VERIFY_DISABLE_NETWORK_FETCHES)
+            .Set("VERIFY_SXG_CT_REQUIREMENTS",
+                 CertVerifyProc::VERIFY_SXG_CT_REQUIREMENTS));
   }
+  // LINT.ThenChange(/net/cert/cert_verify_proc.h:CertVerifyProc.VerifyFlags)
 
   {
-    static_assert(SimplePathBuilderDelegate::DigestPolicy::kMaxValue ==
-                      SimplePathBuilderDelegate::DigestPolicy::kWeakAllowSha1,
-                  "Update with new flags");
+    static_assert(
+        bssl::SimplePathBuilderDelegate::DigestPolicy::kMaxValue ==
+            bssl::SimplePathBuilderDelegate::DigestPolicy::kWeakAllowSha1,
+        "Update with new flags");
 
     constants_dict.Set(
         "certPathBuilderDigestPolicy",
         base::Value::Dict()
             .Set("kStrong",
                  static_cast<int>(
-                     SimplePathBuilderDelegate::DigestPolicy::kStrong))
+                     bssl::SimplePathBuilderDelegate::DigestPolicy::kStrong))
             .Set("kWeakAllowSha1",
-                 static_cast<int>(
-                     SimplePathBuilderDelegate::DigestPolicy::kWeakAllowSha1)));
+                 static_cast<int>(bssl::SimplePathBuilderDelegate::
+                                      DigestPolicy::kWeakAllowSha1)));
   }
 
   // Add a dictionary with information about the relationship between load flag
@@ -208,8 +237,11 @@ base::Value::Dict GetNetConstants() {
   {
     base::Value::Dict dict;
 
-    for (const auto& error : kNetErrors)
+    // Zero represents OK.
+    dict.Set("net::OK", 0);
+    for (const auto& error : kNetErrors) {
       dict.Set(ErrorToShortString(error), error);
+    }
 
     constants_dict.Set("netError", std::move(dict));
   }
@@ -314,6 +346,10 @@ base::Value::Dict GetNetConstants() {
   // value for compatibility.
   constants_dict.Set("clientInfo", base::Value::Dict());
 
+  if (request_mode == NetConstantsRequestMode::kTracing) {
+    return constants_dict;
+  }
+
   // Add a list of field experiments active at the start of the capture.
   // Additional trials may be enabled later in the browser session.
   constants_dict.Set(kNetInfoFieldTrials, GetActiveFieldTrialList());
@@ -352,7 +388,7 @@ NET_EXPORT base::Value::Dict GetNetInfo(URLRequestContext* context) {
     // Construct a list containing the names of the disabled DoH providers.
     base::Value::List disabled_doh_providers_list;
     for (const DohProviderEntry* provider : DohProviderEntry::GetList()) {
-      if (!base::FeatureList::IsEnabled(provider->feature)) {
+      if (!base::FeatureList::IsEnabled(provider->feature.get())) {
         disabled_doh_providers_list.Append(
             NetLogStringValue(provider->provider));
       }
@@ -368,6 +404,13 @@ NET_EXPORT base::Value::Dict GetNetInfo(URLRequestContext* context) {
   {
     net_info_dict.Set(kNetInfoSocketPool,
                       http_network_session->SocketPoolInfoToValue());
+  }
+
+  // Log HttpStreamPool info.
+  if (http_network_session->http_stream_pool()) {
+    net_info_dict.Set(
+        kNetInfoHttpStreamPool,
+        http_network_session->http_stream_pool()->GetInfoAsValue());
   }
 
   // Log SPDY Sessions.
@@ -400,9 +443,8 @@ NET_EXPORT base::Value::Dict GetNetInfo(URLRequestContext* context) {
     if (!application_settings.empty()) {
       base::Value::Dict application_settings_dict;
       for (const auto& setting : application_settings) {
-        application_settings_dict.Set(
-            NextProtoToString(setting.first),
-            base::HexEncode(setting.second.data(), setting.second.size()));
+        application_settings_dict.Set(NextProtoToString(setting.first),
+                                      base::HexEncode(setting.second));
       }
       status_dict.Set("application_settings",
                       std::move(application_settings_dict));
@@ -485,7 +527,7 @@ NET_EXPORT void CreateNetLogEntriesForActiveObjects(
     context->AssertCalledOnValidThread();
     // Contexts should all be using the same NetLog.
     DCHECK_EQ((*contexts.begin())->net_log(), context->net_log());
-    for (auto* request : *context->url_requests()) {
+    for (const URLRequest* request : *context->url_requests()) {
       requests.push_back(request);
     }
   }
@@ -500,6 +542,13 @@ NET_EXPORT void CreateNetLogEntriesForActiveObjects(
                       request->creation_time(), request->GetStateAsValue());
     observer->OnAddEntry(entry);
   }
+}
+
+perfetto::Flow NetLogWithSourceToFlow(const NetLogWithSource& net_log) {
+  const uint64_t flow_id =
+      (reinterpret_cast<uint64_t>(net_log.net_log()) << 32) |
+      net_log.source().id;
+  return perfetto::Flow::ProcessScoped(flow_id);
 }
 
 }  // namespace net

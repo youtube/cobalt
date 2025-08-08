@@ -6,34 +6,33 @@ package org.chromium.base;
 
 import android.os.Handler;
 import android.os.HandlerThread;
+import android.os.IBinder;
 import android.os.Looper;
 import android.os.ParcelFileDescriptor;
 import android.os.RemoteException;
 import android.util.SparseArray;
 
-import org.chromium.base.annotations.CalledByNative;
-import org.chromium.base.annotations.JNINamespace;
+import org.jni_zero.CalledByNative;
+import org.jni_zero.JNINamespace;
+
 import org.chromium.base.process_launcher.ChildConnectionAllocator;
 import org.chromium.base.process_launcher.ChildProcessConnection;
 import org.chromium.base.process_launcher.ChildProcessLauncher;
-import org.chromium.base.process_launcher.FileDescriptorInfo;
 import org.chromium.base.process_launcher.IChildProcessService;
+import org.chromium.base.process_launcher.IFileDescriptorInfo;
 
 import java.io.IOException;
 import java.util.Arrays;
 import java.util.concurrent.Callable;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.FutureTask;
-import java.util.concurrent.Semaphore;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.locks.Condition;
 import java.util.concurrent.locks.ReentrantLock;
 
 import javax.annotation.concurrent.GuardedBy;
 
-/**
- * Helper class for launching test client processes for multiprocess unit tests.
- */
+/** Helper class for launching test client processes for multiprocess unit tests. */
 @JNINamespace("base::android")
 public final class MultiprocessTestClientLauncher {
     private static final String TAG = "MProcTCLauncher";
@@ -52,44 +51,45 @@ public final class MultiprocessTestClientLauncher {
 
     private static ChildConnectionAllocator sConnectionAllocator;
 
-    private final ITestCallback.Stub mCallback = new ITestCallback.Stub() {
-        @Override
-        public void childConnected(ITestController controller) {
-            mTestController = controller;
-            // This method can be called before onServiceConnected below has set the PID.
-            // Wait for mPid to be set before notifying.
-            try {
-                mPidReceived.await();
-            } catch (InterruptedException ie) {
-                Log.e(TAG, "Interrupted while waiting for connection PID.");
-                return;
-            }
-            // Now we are fully initialized, notify clients.
-            mConnectedLock.lock();
-            try {
-                mConnected = true;
-                mConnectedCondition.signal();
-            } finally {
-                mConnectedLock.unlock();
-            }
-        }
+    private final ITestCallback.Stub mCallback =
+            new ITestCallback.Stub() {
+                @Override
+                public void childConnected(ITestController controller) {
+                    mTestController = controller;
+                    // This method can be called before onServiceConnected below has set the PID.
+                    // Wait for mPid to be set before notifying.
+                    try {
+                        mPidReceived.await();
+                    } catch (InterruptedException ie) {
+                        Log.e(TAG, "Interrupted while waiting for connection PID.");
+                        return;
+                    }
+                    // Now we are fully initialized, notify clients.
+                    mConnectedLock.lock();
+                    try {
+                        mConnected = true;
+                        mConnectedCondition.signal();
+                    } finally {
+                        mConnectedLock.unlock();
+                    }
+                }
 
-        @Override
-        public void mainReturned(int returnCode) {
-            mMainReturnCodeLock.lock();
-            try {
-                mMainReturnCode = returnCode;
-                mMainReturnCodeCondition.signal();
-            } finally {
-                mMainReturnCodeLock.unlock();
-            }
+                @Override
+                public void mainReturned(int returnCode) {
+                    mMainReturnCodeLock.lock();
+                    try {
+                        mMainReturnCode = returnCode;
+                        mMainReturnCodeCondition.signal();
+                    } finally {
+                        mMainReturnCodeLock.unlock();
+                    }
 
-            // Also store the return code in a map as the connection might get disconnected
-            // before waitForMainToReturn is called and then we would not have a way to retrieve
-            // the connection.
-            sPidToMainResult.put(mPid, returnCode);
-        }
-    };
+                    // Also store the return code in a map as the connection might get disconnected
+                    // before waitForMainToReturn is called and then we would not have a way to
+                    // retrieve the connection.
+                    sPidToMainResult.put(mPid, returnCode);
+                }
+            };
 
     private final ChildProcessLauncher.Delegate mLauncherDelegate =
             new ChildProcessLauncher.Delegate() {
@@ -118,6 +118,7 @@ public final class MultiprocessTestClientLauncher {
 
     private final ReentrantLock mConnectedLock = new ReentrantLock();
     private final Condition mConnectedCondition = mConnectedLock.newCondition();
+
     @GuardedBy("mConnectedLock")
     private boolean mConnected;
 
@@ -127,23 +128,41 @@ public final class MultiprocessTestClientLauncher {
 
     private final ReentrantLock mMainReturnCodeLock = new ReentrantLock();
     private final Condition mMainReturnCodeCondition = mMainReturnCodeLock.newCondition();
+
     // The return code returned by the service's main method.
     // null if the service has not sent it yet.
     @GuardedBy("mMainReturnCodeLock")
     private Integer mMainReturnCode;
 
-    private MultiprocessTestClientLauncher(String[] commandLine, FileDescriptorInfo[] filesToMap) {
+    private MultiprocessTestClientLauncher(
+            String[] commandLine, IFileDescriptorInfo[] filesToMap, IBinder binderBox) {
         assert isRunningOnLauncherThread();
 
         if (sConnectionAllocator == null) {
-            sConnectionAllocator = ChildConnectionAllocator.create(
-                    ContextUtils.getApplicationContext(), sLauncherHandler, null,
-                    "org.chromium.native_test", "org.chromium.base.MultiprocessTestClientService",
-                    "org.chromium.native_test.NUM_TEST_CLIENT_SERVICES", false /* bindToCaller */,
-                    false /* bindAsExternalService */, false /* useStrongBinding */);
+            sConnectionAllocator =
+                    ChildConnectionAllocator.create(
+                            ContextUtils.getApplicationContext(),
+                            sLauncherHandler,
+                            null,
+                            "org.chromium.native_test",
+                            "org.chromium.base.MultiprocessTestClientService",
+                            "org.chromium.native_test.NUM_TEST_CLIENT_SERVICES",
+                            /* bindToCaller= */ false,
+                            /* bindAsExternalService= */ false,
+                            /* useStrongBinding= */ false,
+                            /* fallbackToNextSlot= */ false,
+                            /* isSandboxedForHistograms= */ false);
         }
-        mLauncher = new ChildProcessLauncher(sLauncherHandler, mLauncherDelegate, commandLine,
-                filesToMap, sConnectionAllocator, Arrays.asList(mCallback));
+
+        mLauncher =
+                new ChildProcessLauncher(
+                        sLauncherHandler,
+                        mLauncherDelegate,
+                        commandLine,
+                        filesToMap,
+                        sConnectionAllocator,
+                        Arrays.asList(mCallback),
+                        binderBox);
     }
 
     private boolean waitForConnection(long timeoutMs) {
@@ -191,26 +210,25 @@ public final class MultiprocessTestClientLauncher {
     }
 
     /**
-     * Spawns and connects to a child process.
-     * May not be called from the main thread.
+     * Spawns and connects to a child process. May not be called from the main thread.
      *
      * @param commandLine the child process command line argv.
      * @return the PID of the started process or 0 if the process could not be started.
      */
     @CalledByNative
     private static int launchClient(
-            final String[] commandLine, final FileDescriptorInfo[] filesToMap) {
+            final String[] commandLine,
+            final IFileDescriptorInfo[] filesToMap,
+            final IBinder binderBox) {
         assert Looper.myLooper() != Looper.getMainLooper();
 
         initLauncherThread();
 
         final MultiprocessTestClientLauncher launcher =
-                runOnLauncherAndGetResult(new Callable<MultiprocessTestClientLauncher>() {
-                    @Override
-                    public MultiprocessTestClientLauncher call() {
-                        return createAndStartLauncherOnLauncherThread(commandLine, filesToMap);
-                    }
-                });
+                runOnLauncherAndGetResult(
+                        () ->
+                                createAndStartLauncherOnLauncherThread(
+                                        commandLine, filesToMap, binderBox));
         if (launcher == null) {
             return 0;
         }
@@ -219,25 +237,23 @@ public final class MultiprocessTestClientLauncher {
             return 0; // Timed-out.
         }
 
-        return runOnLauncherAndGetResult(new Callable<Integer>() {
-            @Override
-            public Integer call() {
-                int pid = launcher.mLauncher.getPid();
-                assert pid > 0;
-                sPidToLauncher.put(pid, launcher);
-                return pid;
-            }
-        });
+        return runOnLauncherAndGetResult(
+                () -> {
+                    int pid = launcher.mLauncher.getPid();
+                    assert pid > 0;
+                    sPidToLauncher.put(pid, launcher);
+                    return pid;
+                });
     }
 
     private static MultiprocessTestClientLauncher createAndStartLauncherOnLauncherThread(
-            String[] commandLine, FileDescriptorInfo[] filesToMap) {
+            String[] commandLine, IFileDescriptorInfo[] filesToMap, final IBinder binderBox) {
         assert isRunningOnLauncherThread();
 
         MultiprocessTestClientLauncher launcher =
-                new MultiprocessTestClientLauncher(commandLine, filesToMap);
+                new MultiprocessTestClientLauncher(commandLine, filesToMap, binderBox);
         if (!launcher.mLauncher.start(
-                    true /* setupConnection */, true /* queueIfNoFreeConnection */)) {
+                /* setupConnection= */ true, /* queueIfNoFreeConnection= */ true)) {
             return null;
         }
 
@@ -255,12 +271,7 @@ public final class MultiprocessTestClientLauncher {
      */
     @CalledByNative
     private static MainReturnCodeResult waitForMainToReturn(final int pid, final int timeoutMs) {
-        return runOnLauncherAndGetResult(new Callable<MainReturnCodeResult>() {
-            @Override
-            public MainReturnCodeResult call() {
-                return waitForMainToReturnOnLauncherThread(pid, timeoutMs);
-            }
-        });
+        return runOnLauncherAndGetResult(() -> waitForMainToReturnOnLauncherThread(pid, timeoutMs));
     }
 
     private static MainReturnCodeResult waitForMainToReturnOnLauncherThread(
@@ -273,8 +284,9 @@ public final class MultiprocessTestClientLauncher {
         if (launcher != null) {
             Integer mainResult = launcher.getMainReturnCode(timeoutMs);
             launcher.mLauncher.stop();
-            return mainResult == null ? MainReturnCodeResult.createTimeoutMainResult()
-                                      : MainReturnCodeResult.createMainResult(mainResult);
+            return mainResult == null
+                    ? MainReturnCodeResult.createTimeoutMainResult()
+                    : MainReturnCodeResult.createMainResult(mainResult);
         }
 
         Integer mainResult = sPidToMainResult.get(pid);
@@ -288,12 +300,7 @@ public final class MultiprocessTestClientLauncher {
 
     @CalledByNative
     private static boolean terminate(final int pid, final int exitCode, final boolean wait) {
-        return runOnLauncherAndGetResult(new Callable<Boolean>() {
-            @Override
-            public Boolean call() {
-                return terminateOnLauncherThread(pid, exitCode, wait);
-            }
-        });
+        return runOnLauncherAndGetResult(() -> terminateOnLauncherThread(pid, exitCode, wait));
     }
 
     private static boolean terminateOnLauncherThread(int pid, int exitCode, boolean wait) {
@@ -329,12 +336,7 @@ public final class MultiprocessTestClientLauncher {
 
     @CalledByNative
     private static boolean hasCleanExit(final int pid) {
-        return runOnLauncherAndGetResult(new Callable<Boolean>() {
-            @Override
-            public Boolean call() {
-                return hasCleanExitOnLauncherThread(pid);
-            }
-        });
+        return runOnLauncherAndGetResult(() -> hasCleanExitOnLauncherThread(pid));
     }
 
     private static boolean hasCleanExitOnLauncherThread(int pid) {
@@ -349,10 +351,10 @@ public final class MultiprocessTestClientLauncher {
 
     /** Does not take ownership of of fds. */
     @CalledByNative
-    private static FileDescriptorInfo[] makeFdInfoArray(int[] keys, int[] fds) {
-        FileDescriptorInfo[] fdInfos = new FileDescriptorInfo[keys.length];
+    private static IFileDescriptorInfo[] makeFdInfoArray(int[] keys, int[] fds) {
+        IFileDescriptorInfo[] fdInfos = new IFileDescriptorInfo[keys.length];
         for (int i = 0; i < keys.length; i++) {
-            FileDescriptorInfo fdInfo = makeFdInfo(keys[i], fds[i]);
+            IFileDescriptorInfo fdInfo = makeFdInfo(keys[i], fds[i]);
             if (fdInfo == null) {
                 Log.e(TAG, "Failed to make file descriptor (" + keys[i] + ", " + fds[i] + ").");
                 return null;
@@ -362,7 +364,7 @@ public final class MultiprocessTestClientLauncher {
         return fdInfos;
     }
 
-    private static FileDescriptorInfo makeFdInfo(int id, int fd) {
+    private static IFileDescriptorInfo makeFdInfo(int id, int fd) {
         ParcelFileDescriptor parcelableFd = null;
         try {
             parcelableFd = ParcelFileDescriptor.fromFd(fd);
@@ -370,24 +372,14 @@ public final class MultiprocessTestClientLauncher {
             Log.e(TAG, "Invalid FD provided for process connection, aborting connection.", e);
             return null;
         }
-        return new FileDescriptorInfo(id, parcelableFd, 0 /* offset */, 0 /* size */);
+        IFileDescriptorInfo fdInfo = new IFileDescriptorInfo();
+        fdInfo.id = id;
+        fdInfo.fd = parcelableFd;
+        return fdInfo;
     }
 
     private static boolean isRunningOnLauncherThread() {
         return sLauncherHandler.getLooper() == Looper.myLooper();
-    }
-
-    private static void runOnLauncherThreadBlocking(final Runnable runnable) {
-        assert !isRunningOnLauncherThread();
-        final Semaphore done = new Semaphore(0);
-        sLauncherHandler.post(new Runnable() {
-            @Override
-            public void run() {
-                runnable.run();
-                done.release();
-            }
-        });
-        done.acquireUninterruptibly();
     }
 
     private static <RT> RT runOnLauncherAndGetResult(Callable<RT> callable) {

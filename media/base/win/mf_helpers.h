@@ -6,21 +6,35 @@
 #define MEDIA_BASE_WIN_MF_HELPERS_H_
 
 #include <mfapi.h>
+#include <mfidl.h>
 #include <stdint.h>
 #include <wrl/client.h>
 
+#include "base/functional/callback.h"
 #include "base/logging.h"
-#include "base/memory/raw_ptr_exclusion.h"
+#include "base/time/time.h"
+#include "media/base/audio_decoder_config.h"
 #include "media/base/channel_layout.h"
+#include "media/base/decoder_buffer.h"
 #include "media/base/media_export.h"
+#include "media/base/subsample_entry.h"
+#include "media/base/video_codecs.h"
+#include "media/base/video_color_space.h"
+#include "media/base/video_frame.h"
+#include "media/base/video_types.h"
+#include "media/base/win/dxgi_device_manager.h"
+#include "media/media_buildflags.h"
 
 struct ID3D11DeviceChild;
 struct ID3D11Device;
+class IMFMediaType;
 
 namespace media {
 
 // Helper function to print HRESULT to std::string.
-const auto PrintHr = logging::SystemErrorCodeToString;
+inline std::string PrintHr(logging::SystemErrorCode error_code) {
+  return logging::SystemErrorCodeToString(error_code);
+}
 
 // Helper macro for DVLOG with function name and this pointer.
 #define DVLOG_FUNC(level) DVLOG(level) << __func__ << ": (" << this << ") "
@@ -35,7 +49,7 @@ const auto PrintHr = logging::SystemErrorCodeToString;
   do {                                                                  \
     HRESULT hresult = (expr);                                           \
     if (FAILED(hresult)) {                                              \
-      DLOG(ERROR) << __func__ << ": failed with \"" << PrintHr(hresult) \
+      LOG(ERROR) << __func__ << ": failed with \"" << PrintHr(hresult) \
                   << "\"";                                              \
       return hresult;                                                   \
     }                                                                   \
@@ -44,7 +58,7 @@ const auto PrintHr = logging::SystemErrorCodeToString;
 #define RETURN_ON_FAILURE(success, log, ret) \
   do {                                       \
     if (!(success)) {                        \
-      DLOG(ERROR) << log;                    \
+      LOG(ERROR) << log;                    \
       return ret;                            \
     }                                        \
   } while (0)
@@ -69,17 +83,11 @@ class MEDIA_EXPORT MediaBufferScopedPointer {
 
   ~MediaBufferScopedPointer();
 
-  uint8_t* get() { return buffer_; }
-  DWORD current_length() const { return current_length_; }
-  DWORD max_length() const { return max_length_; }
+  base::span<uint8_t> as_span() { return data_; }
 
  private:
   Microsoft::WRL::ComPtr<IMFMediaBuffer> media_buffer_;
-  // This field is not a raw_ptr<> because it was filtered by the rewriter for:
-  // #addr-of
-  RAW_PTR_EXCLUSION uint8_t* buffer_;
-  DWORD max_length_;
-  DWORD current_length_;
+  base::raw_span<uint8_t> data_;
 };
 
 // Copies |in_string| to |out_string| that is allocated with CoTaskMemAlloc().
@@ -101,15 +109,120 @@ using ChannelConfig = uint32_t;
 // Converts Microsoft's channel configuration to ChannelLayout.
 // This mapping is not perfect but the best we can do given the current
 // ChannelLayout enumerator and the Windows-specific speaker configurations
-// defined in ksmedia.h. Don't assume that the channel ordering in
-// ChannelLayout is exactly the same as the Windows specific configuration.
-// As an example: KSAUDIO_SPEAKER_7POINT1_SURROUND is mapped to
-// CHANNEL_LAYOUT_7_1 but the positions of Back L, Back R and Side L, Side R
-// speakers are different in these two definitions.
+// defined in ksmedia.h.
 MEDIA_EXPORT ChannelLayout ChannelConfigToChannelLayout(ChannelConfig config);
 
 // Converts a GUID (little endian) to a bytes array (big endian).
 MEDIA_EXPORT std::vector<uint8_t> ByteArrayFromGUID(REFGUID guid);
+
+// Returns a GUID from a binary serialization of a GUID string in network byte
+// order format.
+MEDIA_EXPORT GUID GetGUIDFromString(const std::string& guid_string);
+
+// Returns a binary serialization of a GUID string in network byte order format.
+MEDIA_EXPORT std::string GetStringFromGUID(REFGUID guid);
+
+// Given an AudioDecoderConfig, get its corresponding IMFMediaType format.
+// Note:
+// IMFMediaType is derived from IMFAttributes and hence all the of information
+// in a media type is store as attributes.
+// https://docs.microsoft.com/en-us/windows/win32/medfound/media-type-attributes
+// has a list of media type attributes.
+MEDIA_EXPORT HRESULT
+GetDefaultAudioType(const AudioDecoderConfig decoder_config,
+                    IMFMediaType** media_type_out);
+
+#if BUILDFLAG(USE_PROPRIETARY_CODECS)
+// Given an AudioDecoderConfig which represents AAC audio, get its
+// corresponding IMFMediaType format (by calling GetDefaultAudioType)
+// and copy the extra_data from the decoder_config into the
+// returned IMFMediaType.
+MEDIA_EXPORT HRESULT GetAacAudioType(const AudioDecoderConfig& decoder_config,
+                                     IMFMediaType** media_type_out);
+#endif  // BUILDFLAG(USE_PROPRIETARY_CODECS)
+
+#if BUILDFLAG(ENABLE_PLATFORM_AC4_AUDIO)
+// Given an AudioDecoderConfig which represents AC4 audio, get its
+// corresponding IMFMediaType format (by calling GetDefaultAudioType)
+// and populate the AC4 extra_data in the decoder_config into the
+// returned IMFMediaType.
+MEDIA_EXPORT HRESULT GetAC4AudioType(const AudioDecoderConfig& decoder_config,
+                                     IMFMediaType** media_type_out);
+#endif  // BUILDFLAG(ENABLE_PLATFORM_AC4_AUDIO)
+
+// A wrapper of SubsampleEntry for MediaFoundation. The data blob associated
+// with MFSampleExtension_Encryption_SubSample_Mapping attribute should contain
+// an array of byte ranges as DWORDs where every two DWORDs make a set.
+// SubsampleEntry has a set of uint32_t that needs to be converted to DWORDs.
+struct MediaFoundationSubsampleEntry {
+  explicit MediaFoundationSubsampleEntry(SubsampleEntry entry)
+      : clear_bytes(entry.clear_bytes), cipher_bytes(entry.cypher_bytes) {}
+  MediaFoundationSubsampleEntry() = default;
+  DWORD clear_bytes = 0;
+  DWORD cipher_bytes = 0;
+};
+
+// Converts between MFTIME and TimeDelta. MFTIME defines units of 100
+// nanoseconds. See
+// https://learn.microsoft.com/en-us/windows/win32/medfound/mftime
+MEDIA_EXPORT MFTIME TimeDeltaToMfTime(base::TimeDelta time);
+MEDIA_EXPORT base::TimeDelta MfTimeToTimeDelta(MFTIME mf_time);
+
+// Converts `codec` into a MediaFoundation subtype. `profile` must be provided
+// when converting VideoCodec::kDolbyVision.
+MEDIA_EXPORT GUID
+VideoCodecToMFSubtype(VideoCodec codec,
+                      VideoCodecProfile profile = VIDEO_CODEC_PROFILE_UNKNOWN);
+
+// Converts `video_pixel_format` into a MediaFoundation subtype.
+MEDIA_EXPORT GUID
+VideoPixelFormatToMFSubtype(VideoPixelFormat video_pixel_format);
+
+// Converts `primaries` into an MFVideoPrimaries value
+MEDIA_EXPORT MFVideoPrimaries
+VideoPrimariesToMFVideoPrimaries(gfx::ColorSpace::PrimaryID primaries);
+
+// Callback to transform a Media Foundation sample when converting from the
+// DecoderBuffer if needed.
+using TransformSampleCB =
+    base::OnceCallback<HRESULT(Microsoft::WRL::ComPtr<IMFSample>& sample)>;
+
+// Converts the DecoderBuffer back to a Media Foundation sample.
+// `TransformSampleCB` is to allow derived classes to transform the Media
+// Foundation sample if needed.
+MEDIA_EXPORT HRESULT
+GenerateSampleFromDecoderBuffer(const scoped_refptr<DecoderBuffer>& buffer,
+                                IMFSample** sample_out,
+                                GUID* last_key_id,
+                                TransformSampleCB transform_sample_cb);
+
+// Creates a DecryptConfig from a Media Foundation sample.
+MEDIA_EXPORT HRESULT
+CreateDecryptConfigFromSample(IMFSample* mf_sample,
+                              const GUID& key_id,
+                              std::unique_ptr<DecryptConfig>* decrypt_config);
+
+// Converts `frame` into an IMFSample, using an underlying D3D texture,
+// reading back from the GPU, or copying the frame contents as necessary.
+MEDIA_EXPORT HRESULT GenerateSampleFromVideoFrame(
+    const media::VideoFrame* frame,
+    DXGIDeviceManager* dxgi_device_manager,
+    bool use_dxgi_buffer,
+    Microsoft::WRL::ComPtr<ID3D11Texture2D>* staging_texture,
+    DWORD buffer_alignment,
+    IMFSample** sample_out);
+
+class CommandBufferHelper;
+typedef base::OnceCallback<void(scoped_refptr<VideoFrame> frame,
+                                Microsoft::WRL::ComPtr<IMFSample>,
+                                HRESULT)>
+    SampleAvailableCB;
+
+MEDIA_EXPORT void GenerateSampleFromSharedImageVideoFrame(
+    scoped_refptr<VideoFrame> frame,
+    Microsoft::WRL::ComPtr<ID3D11Device> d3d_device,
+    scoped_refptr<CommandBufferHelper> command_buffer_helper,
+    SampleAvailableCB sample_available_cb);
 
 }  // namespace media
 

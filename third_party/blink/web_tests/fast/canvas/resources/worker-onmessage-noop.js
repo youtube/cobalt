@@ -1,0 +1,2 @@
+self.onmessage = function(e) {
+};

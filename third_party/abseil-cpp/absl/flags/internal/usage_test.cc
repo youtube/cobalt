@@ -22,6 +22,7 @@
 
 #include "gmock/gmock.h"
 #include "gtest/gtest.h"
+#include "absl/flags/config.h"
 #include "absl/flags/flag.h"
 #include "absl/flags/internal/parse.h"
 #include "absl/flags/internal/program_name.h"
@@ -39,6 +40,8 @@ ABSL_FLAG(double, usage_reporting_test_flag_03, 1.03,
           "usage_reporting_test_flag_03 help message");
 ABSL_FLAG(int64_t, usage_reporting_test_flag_04, 1000000000000004L,
           "usage_reporting_test_flag_04 help message");
+ABSL_FLAG(std::string, usage_reporting_test_flag_07, "\r\n\f\v\a\b\t ",
+          "usage_reporting_test_flag_07 help \r\n\f\v\a\b\t ");
 
 static const char kTestUsageMessage[] = "Custom usage message";
 
@@ -94,6 +97,11 @@ class UsageReportingTest : public testing::Test {
     flags::SetFlagsHelpMode(flags::HelpMode::kNone);
     flags::SetFlagsHelpMatchSubstr("");
     flags::SetFlagsHelpFormat(flags::HelpFormat::kHumanReadable);
+  }
+  void SetUp() override {
+#if ABSL_FLAGS_STRIP_NAMES
+    GTEST_SKIP() << "This test requires flag names to be present";
+#endif
   }
 
  private:
@@ -203,8 +211,12 @@ TEST_F(UsageReportingTest, TestFlagsHelpHRF) {
 
       Some more help.
       Even more long long long long long long long long long long long long help
-      message.); default: "";
+      message.); default: "";)"
 
+      "\n    --usage_reporting_test_flag_07 (usage_reporting_test_flag_07 "
+      "help\n\n      \f\v\a\b ); default: \"\r\n\f\v\a\b\t \";\n"
+
+      R"(
 Try --helpfull to get a list of all flags or --help=substring shows help for
 flags which include specified substring in either in the name, or description or
 path.
@@ -267,8 +279,9 @@ TEST_F(UsageReportingTest, TestUsageFlag_helpshort) {
   std::stringstream test_buf;
   EXPECT_EQ(flags::HandleUsageFlags(test_buf, kTestUsageMessage),
             flags::HelpMode::kShort);
-  EXPECT_EQ(test_buf.str(),
-            R"(usage_test: Custom usage message
+  EXPECT_EQ(
+      test_buf.str(),
+      R"(usage_test: Custom usage message
 
   Flags from absl/flags/internal/usage_test.cc:
     --usage_reporting_test_flag_01 (usage_reporting_test_flag_01 help message);
@@ -285,8 +298,12 @@ TEST_F(UsageReportingTest, TestUsageFlag_helpshort) {
 
       Some more help.
       Even more long long long long long long long long long long long long help
-      message.); default: "";
+      message.); default: "";)"
 
+      "\n    --usage_reporting_test_flag_07 (usage_reporting_test_flag_07 "
+      "help\n\n      \f\v\a\b ); default: \"\r\n\f\v\a\b\t \";\n"
+
+      R"(
 Try --helpfull to get a list of all flags or --help=substring shows help for
 flags which include specified substring in either in the name, or description or
 path.
@@ -301,8 +318,9 @@ TEST_F(UsageReportingTest, TestUsageFlag_help_simple) {
   std::stringstream test_buf;
   EXPECT_EQ(flags::HandleUsageFlags(test_buf, kTestUsageMessage),
             flags::HelpMode::kImportant);
-  EXPECT_EQ(test_buf.str(),
-            R"(usage_test: Custom usage message
+  EXPECT_EQ(
+      test_buf.str(),
+      R"(usage_test: Custom usage message
 
   Flags from absl/flags/internal/usage_test.cc:
     --usage_reporting_test_flag_01 (usage_reporting_test_flag_01 help message);
@@ -319,8 +337,12 @@ TEST_F(UsageReportingTest, TestUsageFlag_help_simple) {
 
       Some more help.
       Even more long long long long long long long long long long long long help
-      message.); default: "";
+      message.); default: "";)"
 
+      "\n    --usage_reporting_test_flag_07 (usage_reporting_test_flag_07 "
+      "help\n\n      \f\v\a\b ); default: \"\r\n\f\v\a\b\t \";\n"
+
+      R"(
 Try --helpfull to get a list of all flags or --help=substring shows help for
 flags which include specified substring in either in the name, or description or
 path.
@@ -361,8 +383,9 @@ TEST_F(UsageReportingTest, TestUsageFlag_help_multiple_flag) {
   std::stringstream test_buf;
   EXPECT_EQ(flags::HandleUsageFlags(test_buf, kTestUsageMessage),
             flags::HelpMode::kMatch);
-  EXPECT_EQ(test_buf.str(),
-            R"(usage_test: Custom usage message
+  EXPECT_EQ(
+      test_buf.str(),
+      R"(usage_test: Custom usage message
 
   Flags from absl/flags/internal/usage_test.cc:
     --usage_reporting_test_flag_01 (usage_reporting_test_flag_01 help message);
@@ -379,8 +402,12 @@ TEST_F(UsageReportingTest, TestUsageFlag_help_multiple_flag) {
 
       Some more help.
       Even more long long long long long long long long long long long long help
-      message.); default: "";
+      message.); default: "";)"
 
+      "\n    --usage_reporting_test_flag_07 (usage_reporting_test_flag_07 "
+      "help\n\n      \f\v\a\b ); default: \"\r\n\f\v\a\b\t \";\n"
+
+      R"(
 Try --helpfull to get a list of all flags or --help=substring shows help for
 flags which include specified substring in either in the name, or description or
 path.
@@ -395,8 +422,9 @@ TEST_F(UsageReportingTest, TestUsageFlag_helppackage) {
   std::stringstream test_buf;
   EXPECT_EQ(flags::HandleUsageFlags(test_buf, kTestUsageMessage),
             flags::HelpMode::kPackage);
-  EXPECT_EQ(test_buf.str(),
-            R"(usage_test: Custom usage message
+  EXPECT_EQ(
+      test_buf.str(),
+      R"(usage_test: Custom usage message
 
   Flags from absl/flags/internal/usage_test.cc:
     --usage_reporting_test_flag_01 (usage_reporting_test_flag_01 help message);
@@ -413,8 +441,12 @@ TEST_F(UsageReportingTest, TestUsageFlag_helppackage) {
 
       Some more help.
       Even more long long long long long long long long long long long long help
-      message.); default: "";
+      message.); default: "";)"
 
+      "\n    --usage_reporting_test_flag_07 (usage_reporting_test_flag_07 "
+      "help\n\n      \f\v\a\b ); default: \"\r\n\f\v\a\b\t \";\n"
+
+      R"(
 Try --helpfull to get a list of all flags or --help=substring shows help for
 flags which include specified substring in either in the name, or description or
 path.
@@ -471,8 +503,9 @@ path.
   std::stringstream test_buf_02;
   EXPECT_EQ(flags::HandleUsageFlags(test_buf_02, kTestUsageMessage),
             flags::HelpMode::kMatch);
-  EXPECT_EQ(test_buf_02.str(),
-            R"(usage_test: Custom usage message
+  EXPECT_EQ(
+      test_buf_02.str(),
+      R"(usage_test: Custom usage message
 
   Flags from absl/flags/internal/usage_test.cc:
     --usage_reporting_test_flag_01 (usage_reporting_test_flag_01 help message);
@@ -489,8 +522,12 @@ path.
 
       Some more help.
       Even more long long long long long long long long long long long long help
-      message.); default: "";
+      message.); default: "";)"
 
+      "\n    --usage_reporting_test_flag_07 (usage_reporting_test_flag_07 "
+      "help\n\n      \f\v\a\b ); default: \"\r\n\f\v\a\b\t \";\n"
+
+      R"(
 Try --helpfull to get a list of all flags or --help=substring shows help for
 flags which include specified substring in either in the name, or description or
 path.

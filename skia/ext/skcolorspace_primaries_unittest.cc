@@ -2,6 +2,11 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#ifdef UNSAFE_BUFFERS_BUILD
+// TODO(crbug.com/351564777): Remove this and convert code to safer constructs.
+#pragma allow_unsafe_buffers
+#endif
+
 #include "skia/ext/skcolorspace_primaries.h"
 
 #include "testing/gtest/include/gtest/gtest.h"
@@ -33,7 +38,7 @@ TEST(SkiaUtils, PrimariesD65) {
 
 TEST(SkiaUtils, PrimariesD50) {
   // ProPhoto (which has a D50 white point)
-  const auto pro_photo = SkNamedPrimariesExt::kProPhotoRGB;
+  const auto pro_photo = SkNamedPrimaries::kProPhotoRGB;
 
   // Convert primaries to a matrix.
   skcms_Matrix3x3 pro_photo_matrix;

@@ -1,45 +1,26 @@
 // Protocol Buffers - Google's data interchange format
 // Copyright 2008 Google Inc.  All rights reserved.
-// https://developers.google.com/protocol-buffers/
 //
-// Redistribution and use in source and binary forms, with or without
-// modification, are permitted provided that the following conditions are
-// met:
-//
-//     * Redistributions of source code must retain the above copyright
-// notice, this list of conditions and the following disclaimer.
-//     * Redistributions in binary form must reproduce the above
-// copyright notice, this list of conditions and the following disclaimer
-// in the documentation and/or other materials provided with the
-// distribution.
-//     * Neither the name of Google Inc. nor the names of its
-// contributors may be used to endorse or promote products derived from
-// this software without specific prior written permission.
-//
-// THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
-// "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
-// LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR
-// A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT
-// OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
-// SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT
-// LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
-// DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
-// THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
-// (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
-// OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+// Use of this source code is governed by a BSD-style
+// license that can be found in the LICENSE file or at
+// https://developers.google.com/open-source/licenses/bsd
 
 // Defines classes for field comparison.
 
 #ifndef GOOGLE_PROTOBUF_UTIL_FIELD_COMPARATOR_H__
 #define GOOGLE_PROTOBUF_UTIL_FIELD_COMPARATOR_H__
 
-#include <map>
+#include <cstdint>
 #include <string>
 #include <vector>
 
-#include <google/protobuf/stubs/common.h>
+#include "google/protobuf/stubs/common.h"
+#include "absl/container/flat_hash_map.h"
+#include "absl/strings/string_view.h"
+#include "google/protobuf/port.h"
 
-#include <google/protobuf/port_def.inc>
+// Must be included last.
+#include "google/protobuf/port_def.inc"
 
 namespace google {
 namespace protobuf {
@@ -60,6 +41,8 @@ class MessageDifferencer;
 class PROTOBUF_EXPORT FieldComparator {
  public:
   FieldComparator();
+  FieldComparator(const FieldComparator&) = delete;
+  FieldComparator& operator=(const FieldComparator&) = delete;
   virtual ~FieldComparator();
 
   enum ComparisonResult {
@@ -89,34 +72,28 @@ class PROTOBUF_EXPORT FieldComparator {
                                    const FieldDescriptor* field, int index_1,
                                    int index_2,
                                    const util::FieldContext* field_context) = 0;
-
- private:
-  GOOGLE_DISALLOW_EVIL_CONSTRUCTORS(FieldComparator);
 };
 
 // Basic implementation of FieldComparator.  Supports three modes of floating
 // point value comparison: exact, approximate using MathUtil::AlmostEqual
 // method, and arbitrarily precise using MathUtil::WithinFractionOrMargin.
-class PROTOBUF_EXPORT DefaultFieldComparator : public FieldComparator {
+class PROTOBUF_EXPORT SimpleFieldComparator : public FieldComparator {
  public:
   enum FloatComparison {
     EXACT,        // Floats and doubles are compared exactly.
     APPROXIMATE,  // Floats and doubles are compared using the
                   // MathUtil::AlmostEqual method or
                   // MathUtil::WithinFractionOrMargin method.
-    // TODO(ksroka): Introduce third value to differentiate uses of AlmostEqual
+    // TODO: Introduce third value to differentiate uses of AlmostEqual
     //               and WithinFractionOrMargin.
   };
 
   // Creates new comparator with float comparison set to EXACT.
-  DefaultFieldComparator();
+  SimpleFieldComparator();
+  SimpleFieldComparator(const SimpleFieldComparator&) = delete;
+  SimpleFieldComparator& operator=(const SimpleFieldComparator&) = delete;
 
-  ~DefaultFieldComparator() override;
-
-  ComparisonResult Compare(const Message& message_1, const Message& message_2,
-                           const FieldDescriptor* field, int index_1,
-                           int index_2,
-                           const util::FieldContext* field_context) override;
+  ~SimpleFieldComparator() override;
 
   void set_float_comparison(FloatComparison float_comparison) {
     float_comparison_ = float_comparison;
@@ -151,12 +128,27 @@ class PROTOBUF_EXPORT DefaultFieldComparator : public FieldComparator {
   void SetDefaultFractionAndMargin(double fraction, double margin);
 
  protected:
+  // Returns the comparison result for the given field in two messages.
+  //
+  // This function is called directly by DefaultFieldComparator::Compare.
+  // Subclasses can call this function to compare fields they do not need to
+  // handle specially.
+  ComparisonResult SimpleCompare(const Message& message_1,
+                                 const Message& message_2,
+                                 const FieldDescriptor* field, int index_1,
+                                 int index_2,
+                                 const util::FieldContext* field_context);
+
   // Compare using the provided message_differencer. For example, a subclass can
   // use this method to compare some field in a certain way using the same
   // message_differencer instance and the field context.
-  bool Compare(MessageDifferencer* differencer, const Message& message1,
-               const Message& message2,
-               const util::FieldContext* field_context);
+  bool CompareWithDifferencer(MessageDifferencer* differencer,
+                              const Message& message1, const Message& message2,
+                              const util::FieldContext* field_context);
+
+  // Returns FieldComparator::SAME if boolean_result is true and
+  // FieldComparator::DIFFERENT otherwise.
+  ComparisonResult ResultFromBoolean(bool boolean_result) const;
 
  private:
   // Defines the tolerance for floating point comparison (fraction and margin).
@@ -167,9 +159,7 @@ class PROTOBUF_EXPORT DefaultFieldComparator : public FieldComparator {
     Tolerance(double f, double m) : fraction(f), margin(m) {}
   };
 
-  // Defines the map to store the tolerances for floating point comparison.
-  typedef std::map<const FieldDescriptor*, Tolerance> ToleranceMap;
-
+  friend class MessageDifferencer;
   // The following methods get executed when CompareFields is called for the
   // basic types (instead of submessages). They return true on success. One
   // can use ResultFromBoolean() to convert that boolean to a ComparisonResult
@@ -192,28 +182,28 @@ class PROTOBUF_EXPORT DefaultFieldComparator : public FieldComparator {
   // CompareFloat.
   bool CompareFloat(const FieldDescriptor& field, float value_1, float value_2);
 
-  bool CompareInt32(const FieldDescriptor& /* unused */, int32 value_1,
-                    int32 value_2) {
+  bool CompareInt32(const FieldDescriptor& /* unused */, int32_t value_1,
+                    int32_t value_2) {
     return value_1 == value_2;
   }
 
-  bool CompareInt64(const FieldDescriptor& /* unused */, int64 value_1,
-                    int64 value_2) {
+  bool CompareInt64(const FieldDescriptor& /* unused */, int64_t value_1,
+                    int64_t value_2) {
     return value_1 == value_2;
   }
 
   bool CompareString(const FieldDescriptor& /* unused */,
-                     const std::string& value_1, const std::string& value_2) {
+                     absl::string_view value_1, absl::string_view value_2) {
     return value_1 == value_2;
   }
 
-  bool CompareUInt32(const FieldDescriptor& /* unused */, uint32 value_1,
-                     uint32 value_2) {
+  bool CompareUInt32(const FieldDescriptor& /* unused */, uint32_t value_1,
+                     uint32_t value_2) {
     return value_1 == value_2;
   }
 
-  bool CompareUInt64(const FieldDescriptor& /* unused */, uint64 value_1,
-                     uint64 value_2) {
+  bool CompareUInt64(const FieldDescriptor& /* unused */, uint64_t value_1,
+                     uint64_t value_2) {
     return value_1 == value_2;
   }
 
@@ -222,10 +212,6 @@ class PROTOBUF_EXPORT DefaultFieldComparator : public FieldComparator {
   // but it's likely to fail if passed non-numeric arguments.
   template <typename T>
   bool CompareDoubleOrFloat(const FieldDescriptor& field, T value_1, T value_2);
-
-  // Returns FieldComparator::SAME if boolean_result is true and
-  // FieldComparator::DIFFERENT otherwise.
-  ComparisonResult ResultFromBoolean(bool boolean_result) const;
 
   FloatComparison float_comparison_;
 
@@ -246,15 +232,26 @@ class PROTOBUF_EXPORT DefaultFieldComparator : public FieldComparator {
 
   // Field-specific float/double tolerances, which override any default for
   // those particular fields.
-  ToleranceMap map_tolerance_;
+  absl::flat_hash_map<const FieldDescriptor*, Tolerance> map_tolerance_;
+};
 
-  GOOGLE_DISALLOW_EVIL_CONSTRUCTORS(DefaultFieldComparator);
+// Default field comparison: use the basic implementation of FieldComparator.
+class PROTOBUF_EXPORT DefaultFieldComparator final
+    : public SimpleFieldComparator {
+ public:
+  ComparisonResult Compare(const Message& message_1, const Message& message_2,
+                           const FieldDescriptor* field, int index_1,
+                           int index_2,
+                           const util::FieldContext* field_context) override {
+    return SimpleCompare(message_1, message_2, field, index_1, index_2,
+                         field_context);
+  }
 };
 
 }  // namespace util
 }  // namespace protobuf
 }  // namespace google
 
-#include <google/protobuf/port_undef.inc>
+#include "google/protobuf/port_undef.inc"
 
 #endif  // GOOGLE_PROTOBUF_UTIL_FIELD_COMPARATOR_H__

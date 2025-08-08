@@ -1,4 +1,4 @@
-// Copyright 2019 The Chromium Authors. All rights reserved.
+// Copyright 2019 The Chromium Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -6,6 +6,8 @@
 
 #include <libxml/xmlreader.h>
 
+#include <string>
+#include <string_view>
 #include <vector>
 
 #include "third_party/libxml/chromium/libxml_utils.h"
@@ -65,7 +67,7 @@ XmlReader::~XmlReader() {
     xmlFreeTextReader(reader_);
 }
 
-bool XmlReader::Load(const std::string& input) {
+bool XmlReader::Load(std::string_view input) {
   const int kParseOptions = XML_PARSE_NONET;  // forbid network access
   // TODO(evanm): Verify it's OK to pass nullptr for the URL and encoding.
   // The libxml code allows for these, but it's unclear what effect is has.
@@ -149,19 +151,15 @@ bool XmlReader::GetAllDeclaredNamespaces(
 }
 
 bool XmlReader::GetTextIfTextElement(std::string* content) {
-  if (NodeType() != XML_READER_TYPE_TEXT)
-    return false;
-
-  *content = XmlStringToStdString(xmlTextReaderConstValue(reader_));
-  return true;
+  return GetTextFromNodeIfType(XML_READER_TYPE_TEXT, content);
 }
 
 bool XmlReader::GetTextIfCDataElement(std::string* content) {
-  if (NodeType() != XML_READER_TYPE_CDATA)
-    return false;
+  return GetTextFromNodeIfType(XML_READER_TYPE_CDATA, content);
+}
 
-  *content = XmlStringToStdString(xmlTextReaderConstValue(reader_));
-  return true;
+bool XmlReader::GetTextIfSignificantWhitespaceElement(std::string* content) {
+  return GetTextFromNodeIfType(XML_READER_TYPE_SIGNIFICANT_WHITESPACE, content);
 }
 
 bool XmlReader::IsElement() {
@@ -225,4 +223,12 @@ bool XmlReader::SkipToElement() {
 
 int XmlReader::NodeType() {
   return xmlTextReaderNodeType(reader_);
+}
+
+bool XmlReader::GetTextFromNodeIfType(int node_type, std::string* content) {
+  if (NodeType() != node_type)
+    return false;
+
+  *content = XmlStringToStdString(xmlTextReaderConstValue(reader_));
+  return true;
 }

@@ -1,28 +1,41 @@
-// Copyright 2015 The Chromium Authors. All rights reserved.
+// Copyright 2015 The Chromium Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
 #include "components/metrics/drive_metrics_provider.h"
 
 #include "base/base_paths.h"
-#include "base/bind.h"
-#include "base/callback.h"
+#include "base/check_op.h"
+#include "base/files/drive_info.h"
 #include "base/files/file_path.h"
+#include "base/files/file_util.h"
+#include "base/functional/bind.h"
+#include "base/functional/callback.h"
 #include "base/location.h"
-#include "base/logging.h"
-#include "base/metrics/histogram_macros.h"
+#include "base/metrics/histogram_functions.h"
 #include "base/path_service.h"
-#include "base/task/post_task.h"
 #include "base/task/task_traits.h"
+#include "base/task/thread_pool.h"
 #include "base/threading/scoped_blocking_call.h"
-#include "base/time/time.h"
 
 namespace metrics {
 
-DriveMetricsProvider::DriveMetricsProvider(int local_state_path_key)
-    : local_state_path_key_(local_state_path_key), weak_ptr_factory_(this) {}
+namespace {
+#if BUILDFLAG(IS_WIN) || BUILDFLAG(IS_MAC) || BUILDFLAG(IS_LINUX)
+void RecordTriStateMetric(const char* name, std::optional<bool> sample) {
+  base::UmaHistogramEnumeration(
+      name, !sample.has_value()
+                ? DriveMetricsProvider::OptionalBoolRecord::kUnknown
+                : (*sample ? DriveMetricsProvider::OptionalBoolRecord::kTrue
+                           : DriveMetricsProvider::OptionalBoolRecord::kFalse));
+}
+#endif
+}  // namespace
 
-DriveMetricsProvider::~DriveMetricsProvider() {}
+DriveMetricsProvider::DriveMetricsProvider(int local_state_path_key)
+    : local_state_path_key_(local_state_path_key) {}
+
+DriveMetricsProvider::~DriveMetricsProvider() = default;
 
 void DriveMetricsProvider::ProvideSystemProfileMetrics(
     metrics::SystemProfileProto* system_profile_proto) {
@@ -32,25 +45,25 @@ void DriveMetricsProvider::ProvideSystemProfileMetrics(
                    hardware->mutable_user_data_drive());
 }
 
-void DriveMetricsProvider::AsyncInit(const base::Closure& done_callback) {
-  base::PostTaskWithTraitsAndReplyWithResult(
+void DriveMetricsProvider::AsyncInit(base::OnceClosure done_callback) {
+  base::ThreadPool::PostTaskAndReplyWithResult(
       FROM_HERE,
       {base::MayBlock(), base::TaskPriority::BEST_EFFORT,
        base::TaskShutdownBehavior::SKIP_ON_SHUTDOWN},
-      base::Bind(&DriveMetricsProvider::GetDriveMetricsOnBackgroundThread,
-                 local_state_path_key_),
-      base::Bind(&DriveMetricsProvider::GotDriveMetrics,
-                 weak_ptr_factory_.GetWeakPtr(), done_callback));
+      base::BindOnce(&DriveMetricsProvider::GetDriveMetricsOnBackgroundThread,
+                     local_state_path_key_),
+      base::BindOnce(&DriveMetricsProvider::GotDriveMetrics,
+                     weak_ptr_factory_.GetWeakPtr(), std::move(done_callback)));
 }
 
-DriveMetricsProvider::SeekPenaltyResponse::SeekPenaltyResponse()
-    : success(false) {}
+DriveMetricsProvider::SeekPenaltyResponse::SeekPenaltyResponse() = default;
 
 // static
 DriveMetricsProvider::DriveMetrics
 DriveMetricsProvider::GetDriveMetricsOnBackgroundThread(
     int local_state_path_key) {
-  base::ScopedBlockingCall scoped_blocking_call(base::BlockingType::WILL_BLOCK);
+  base::ScopedBlockingCall scoped_blocking_call(FROM_HERE,
+                                                base::BlockingType::WILL_BLOCK);
 
   DriveMetricsProvider::DriveMetrics metrics;
   QuerySeekPenalty(base::FILE_EXE, &metrics.app_drive);
@@ -68,33 +81,37 @@ void DriveMetricsProvider::QuerySeekPenalty(
   if (!base::PathService::Get(path_service_key, &path))
     return;
 
-  base::TimeTicks start = base::TimeTicks::Now();
-
-  response->success = HasSeekPenalty(path, &response->has_seek_penalty);
-
-  UMA_HISTOGRAM_TIMES("Hardware.Drive.HasSeekPenalty_Time",
-                      base::TimeTicks::Now() - start);
-  UMA_HISTOGRAM_BOOLEAN("Hardware.Drive.HasSeekPenalty_Success",
-                        response->success);
-  if (response->success) {
-    UMA_HISTOGRAM_BOOLEAN("Hardware.Drive.HasSeekPenalty",
-                          response->has_seek_penalty);
+  std::optional<base::DriveInfo> drive_info = base::GetFileDriveInfo(path);
+  if (drive_info.has_value()) {
+    response->has_seek_penalty = drive_info->has_seek_penalty;
+#if BUILDFLAG(IS_WIN) || BUILDFLAG(IS_MAC)
+    response->is_removable = drive_info->is_removable;
+    response->is_usb = drive_info->is_usb;
+#endif
   }
 }
 
 void DriveMetricsProvider::GotDriveMetrics(
-    const base::Closure& done_callback,
+    base::OnceClosure done_callback,
     const DriveMetricsProvider::DriveMetrics& metrics) {
   DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
   metrics_ = metrics;
-  done_callback.Run();
+  std::move(done_callback).Run();
 }
 
 void DriveMetricsProvider::FillDriveMetrics(
     const DriveMetricsProvider::SeekPenaltyResponse& response,
     metrics::SystemProfileProto::Hardware::Drive* drive) {
-  if (response.success)
-    drive->set_has_seek_penalty(response.has_seek_penalty);
+  if (response.has_seek_penalty.has_value()) {
+    drive->set_has_seek_penalty(*response.has_seek_penalty);
+  }
+
+#if BUILDFLAG(IS_WIN) || BUILDFLAG(IS_MAC) || BUILDFLAG(IS_LINUX)
+  RecordTriStateMetric("UMA.DriveIsRemovableResult", response.is_removable);
+#endif
+#if BUILDFLAG(IS_WIN) || BUILDFLAG(IS_MAC)
+  RecordTriStateMetric("UMA.DriveIsUSBResult", response.is_usb);
+#endif
 }
 
 }  // namespace metrics

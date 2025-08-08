@@ -5,7 +5,7 @@
 import fnmatch
 import hashlib
 import logging
-import posixpath
+import os
 import signal
 try:
   import _thread as thread
@@ -19,126 +19,132 @@ from devil.android import device_errors
 from devil.android.sdk import version_codes
 from devil.android.tools import device_recovery
 from devil.utils import signal_handler
-from pylib import valgrind_tools
 from pylib.base import base_test_result
-from pylib.base import test_run
 from pylib.base import test_collection
+from pylib.base import test_exception
+from pylib.base import test_run
+from pylib.utils import device_dependencies
 from pylib.local.device import local_device_environment
+
+from lib.proto import exception_recorder
 
 
 _SIGTERM_TEST_LOG = (
   '  Suite execution terminated, probably due to swarming timeout.\n'
   '  Your test may not have run.')
 
-
-def SubstituteDeviceRoot(device_path, device_root):
-  if not device_path:
-    return device_root
-  if isinstance(device_path, list):
-    return posixpath.join(*(p if p else device_root for p in device_path))
-  return device_path
-
+# If the percentage of failed test exceeds this max value, the script
+# will try to recover devices before next try.
+FAILED_TEST_PCT_MAX = 90
 
 class TestsTerminated(Exception):
   pass
-
-
-class InvalidShardingSettings(Exception):
-  def __init__(self, shard_index, total_shards):
-    super().__init__(
-        'Invalid sharding settings. shard_index: %d total_shards: %d' %
-        (shard_index, total_shards))
 
 
 class LocalDeviceTestRun(test_run.TestRun):
 
   def __init__(self, env, test_instance):
     super().__init__(env, test_instance)
-    self._tools = {}
     # This is intended to be filled by a child class.
     self._installed_packages = []
     env.SetPreferredAbis(test_instance.GetPreferredAbis())
 
+  @local_device_environment.handle_shard_failures
+  def _RunTestsOnDevice(self, dev, tests, results, exit_now):
+    # This is performed here instead of during setup because restarting the
+    # device clears app compatibility flags, which will happen if a device
+    # needs to be recovered.
+    SetAppCompatibilityFlagsIfNecessary(self._installed_packages, dev)
+    consecutive_device_errors = 0
+    for test in tests:
+      if not test:
+        logging.warning('No tests in shard. Continuing.')
+        tests.test_completed()
+        continue
+      if exit_now.isSet():
+        thread.exit()
+
+      result = None
+      rerun = None
+      try:
+        result, rerun = crash_handler.RetryOnSystemCrash(
+            lambda d, t=test: self._RunTest(d, t),
+            device=dev)
+        consecutive_device_errors = 0
+        if isinstance(result, base_test_result.BaseTestResult):
+          results.AddResult(result)
+        elif isinstance(result, list):
+          results.AddResults(result)
+        else:
+          raise Exception(
+              'Unexpected result type: %s' % type(result).__name__)
+      except device_errors.CommandTimeoutError as e:
+        exception_recorder.register(e)
+        # Test timeouts don't count as device errors for the purpose
+        # of bad device detection.
+        consecutive_device_errors = 0
+
+        if isinstance(test, list):
+          result_log = ''
+          if len(test) > 1:
+            result_log = ('The test command timed out when running multiple '
+                          'tests including this test. It does not '
+                          'necessarily mean this specific test timed out.')
+            # Ensure instrumentation tests not batched at env level retries.
+            for t in test:
+              # |dict| type infers it's an instrumentation test.
+              if isinstance(t, dict) and t['annotations']:
+                t['annotations'].pop('Batch', None)
+
+          results.AddResults(
+              base_test_result.BaseTestResult(
+                  self._GetUniqueTestName(t),
+                  base_test_result.ResultType.TIMEOUT,
+                  log=result_log) for t in test)
+        else:
+          results.AddResult(
+              base_test_result.BaseTestResult(
+                  self._GetUniqueTestName(test),
+                  base_test_result.ResultType.TIMEOUT))
+      except device_errors.DeviceUnreachableError as e:
+        exception_recorder.register(e)
+        # If the device is no longer reachable then terminate this
+        # _RunTestsOnDevice call.
+        raise
+      except base_error.BaseError as e:
+        exception_recorder.register(e)
+        # If we get a device error but believe the device is still
+        # reachable, attempt to continue using it.
+        if isinstance(tests, test_collection.TestCollection):
+          rerun = test
+
+        consecutive_device_errors += 1
+        if consecutive_device_errors >= 3:
+          # We believe the device is still reachable and may still be usable,
+          # but if it fails repeatedly, we shouldn't attempt to keep using
+          # it.
+          logging.error('Repeated failures on device %s. Abandoning.',
+                        str(dev))
+          raise
+
+        logging.exception(
+            'Attempting to continue using device %s despite failure (%d/3).',
+            str(dev), consecutive_device_errors)
+
+      finally:
+        if isinstance(tests, test_collection.TestCollection):
+          if rerun:
+            tests.add(rerun)
+          tests.test_completed()
+
+    logging.info('Finished running tests on this device.')
+
   #override
   def RunTests(self, results, raw_logs_fh=None):
     tests = self._GetTests()
+    total_test_count = len(tests)
 
     exit_now = threading.Event()
-
-    @local_device_environment.handle_shard_failures
-    def run_tests_on_device(dev, tests, results):
-      # This is performed here instead of during setup because restarting the
-      # device clears app compatibility flags, which will happen if a device
-      # needs to be recovered.
-      SetAppCompatibilityFlagsIfNecessary(self._installed_packages, dev)
-      consecutive_device_errors = 0
-      for test in tests:
-        if not test:
-          logging.warning('No tests in shared. Continuing.')
-          tests.test_completed()
-          continue
-        if exit_now.isSet():
-          thread.exit()
-
-        result = None
-        rerun = None
-        try:
-          result, rerun = crash_handler.RetryOnSystemCrash(
-              lambda d, t=test: self._RunTest(d, t),
-              device=dev)
-          consecutive_device_errors = 0
-          if isinstance(result, base_test_result.BaseTestResult):
-            results.AddResult(result)
-          elif isinstance(result, list):
-            results.AddResults(result)
-          else:
-            raise Exception(
-                'Unexpected result type: %s' % type(result).__name__)
-        except device_errors.CommandTimeoutError:
-          # Test timeouts don't count as device errors for the purpose
-          # of bad device detection.
-          consecutive_device_errors = 0
-
-          if isinstance(test, list):
-            results.AddResults(
-                base_test_result.BaseTestResult(
-                    self._GetUniqueTestName(t),
-                    base_test_result.ResultType.TIMEOUT) for t in test)
-          else:
-            results.AddResult(
-                base_test_result.BaseTestResult(
-                    self._GetUniqueTestName(test),
-                    base_test_result.ResultType.TIMEOUT))
-        except device_errors.DeviceUnreachableError:
-          # If the device is no longer reachable then terminate this
-          # run_tests_on_device call.
-          raise
-        except base_error.BaseError:
-          # If we get a device error but believe the device is still
-          # reachable, attempt to continue using it.
-          if isinstance(tests, test_collection.TestCollection):
-            rerun = test
-
-          consecutive_device_errors += 1
-          if consecutive_device_errors >= 3:
-            # We believe the device is still reachable and may still be usable,
-            # but if it fails repeatedly, we shouldn't attempt to keep using
-            # it.
-            logging.error('Repeated failures on device %s. Abandoning.',
-                          str(dev))
-            raise
-
-          logging.exception(
-              'Attempting to continue using device %s despite failure (%d/3).',
-              str(dev), consecutive_device_errors)
-
-        finally:
-          if isinstance(tests, test_collection.TestCollection):
-            if rerun:
-              tests.add(rerun)
-            tests.test_completed()
-
-      logging.info('Finished running tests on this device.')
 
     def stop_tests(_signum, _frame):
       logging.critical('Received SIGTERM. Stopping test execution.')
@@ -150,24 +156,26 @@ class LocalDeviceTestRun(test_run.TestRun):
         self._env.ResetCurrentTry()
         while self._env.current_try < self._env.max_tries and tests:
           tries = self._env.current_try
-          grouped_tests = self._GroupTests(tests)
+          tests = self._SortTests(tests)
+          grouped_tests = self._GroupTestsAfterSharding(tests)
           logging.info('STARTING TRY #%d/%d', tries + 1, self._env.max_tries)
           if tries > 0 and self._env.recover_devices:
-            if any(d.build_version_sdk == version_codes.LOLLIPOP_MR1
-                   for d in self._env.devices):
+            # The variable "tests" is reused to store the failed tests.
+            failed_test_pct = 100 * len(tests) // total_test_count
+            if failed_test_pct > FAILED_TEST_PCT_MAX:
               logging.info(
-                  'Attempting to recover devices due to known issue on L MR1. '
-                  'See crbug.com/787056 for details.')
-              self._env.parallel_devices.pMap(
-                  device_recovery.RecoverDevice, None)
+                  'Attempting to recover devices as the percentage of failed '
+                  'tests (%d%%) exceeds the threshold %d%%.', failed_test_pct,
+                  FAILED_TEST_PCT_MAX)
+              self._RecoverDevices()
             elif tries + 1 == self._env.max_tries:
               logging.info(
                   'Attempting to recover devices prior to last test attempt.')
-              self._env.parallel_devices.pMap(
-                  device_recovery.RecoverDevice, None)
-          logging.info('Will run %d tests on %d devices: %s',
-                       len(tests), len(self._env.devices),
-                       ', '.join(str(d) for d in self._env.devices))
+              self._RecoverDevices()
+          logging.info(
+              'Will run %d tests, grouped into %d groups, on %d devices: %s',
+              len(tests), len(grouped_tests), len(self._env.devices),
+              ', '.join(str(d) for d in self._env.devices))
           for t in tests:
             logging.debug('  %s', t)
 
@@ -188,11 +196,13 @@ class LocalDeviceTestRun(test_run.TestRun):
               tc = test_collection.TestCollection(
                   self._CreateShardsForDevices(grouped_tests))
               self._env.parallel_devices.pMap(
-                  run_tests_on_device, tc, try_results).pGet(None)
+                  self._RunTestsOnDevice,
+                  tc, try_results, exit_now).pGet(None)
             else:
-              self._env.parallel_devices.pMap(run_tests_on_device,
+              self._env.parallel_devices.pMap(self._RunTestsOnDevice,
                                               grouped_tests,
-                                              try_results).pGet(None)
+                                              try_results,
+                                              exit_now).pGet(None)
           except TestsTerminated:
             for unknown_result in try_results.GetUnknown():
               try_results.AddResult(
@@ -212,6 +222,9 @@ class LocalDeviceTestRun(test_run.TestRun):
             logging.info('All tests completed.')
     except TestsTerminated:
       pass
+
+  def _RecoverDevices(self):
+    self._env.parallel_devices.pMap(device_recovery.RecoverDevice, None)
 
   def _GetTestsToRetry(self, tests, try_results):
 
@@ -241,19 +254,22 @@ class LocalDeviceTestRun(test_run.TestRun):
                                 for test, result in tests_and_results.values()
                                 if is_failure_result(result))
 
-    return [t for t, r in failed_tests_and_results if self._ShouldRetry(t, r)]
+    failed_tests = [
+        t for t, r in failed_tests_and_results if self._ShouldRetry(t, r)
+    ]
+    return self._AppendPreTestsForRetry(failed_tests, tests)
 
   def _ApplyExternalSharding(self, tests, shard_index, total_shards):
     logging.info('Using external sharding settings. This is shard %d/%d',
                  shard_index, total_shards)
 
     if total_shards < 0 or shard_index < 0 or total_shards <= shard_index:
-      raise InvalidShardingSettings(shard_index, total_shards)
+      raise test_exception.InvalidShardingSettings(shard_index, total_shards)
 
     sharded_tests = []
 
     # Sort tests by hash.
-    # TODO(crbug.com/1257820): Add sorting logic back to _PartitionTests.
+    # TODO(crbug.com/40200835): Add sorting logic back to _PartitionTests.
     tests = self._SortTests(tests)
 
     # Group tests by tests that should run in the same test invocation - either
@@ -311,6 +327,11 @@ class LocalDeviceTestRun(test_run.TestRun):
       # if the size of the test group is larger than the max partition size on
       # its own, just put the group in its own shard instead of splitting up the
       # group.
+      # TODO(crbug.com/40200835): Add logic to support PRE_ test recognition but
+      # it may hurt performance in most scenarios. Currently all PRE_ tests are
+      # partitioned into the last shard. Unless the number of PRE_ tests are
+      # larger than the partition size, the PRE_ test may get assigned into a
+      # different shard and cause test failure.
       if (last_partition_size + test_count > partition_size
           and last_partition_size > 0):
         num_desired_partitions -= 1
@@ -345,12 +366,6 @@ class LocalDeviceTestRun(test_run.TestRun):
     return ('Batch' not in annotations
             or annotations['Batch']['value'] != 'UnitTests')
 
-  def GetTool(self, device):
-    if str(device) not in self._tools:
-      self._tools[str(device)] = valgrind_tools.CreateTool(
-          self._env.tool, device)
-    return self._tools[str(device)]
-
   def _CreateShardsForDevices(self, tests):
     raise NotImplementedError
 
@@ -369,12 +384,30 @@ class LocalDeviceTestRun(test_run.TestRun):
     ret.sort()
     return ret
 
+  def GetDataDepsForListing(self):
+    device_root = '$CHROMIUM_TESTS_ROOT'
+    host_device_tuples = self._test_instance.GetDataDependencies()
+    host_device_tuples = device_dependencies.SubstituteDeviceRoot(
+        host_device_tuples, device_root)
+    host_device_tuples = device_dependencies.ExpandDataDependencies(
+        host_device_tuples)
+
+    return sorted(f'{d} <- {os.path.relpath(h)}' for h, d in host_device_tuples)
+
   def _GetTests(self):
     raise NotImplementedError
 
   def _GroupTests(self, tests):
     # pylint: disable=no-self-use
     return tests
+
+  def _GroupTestsAfterSharding(self, tests):
+    # pylint: disable=no-self-use
+    return tests
+
+  def _AppendPreTestsForRetry(self, failed_tests, tests):
+    # pylint: disable=no-self-use,unused-argument
+    return failed_tests
 
   def _RunTest(self, device, test):
     raise NotImplementedError

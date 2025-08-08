@@ -22,6 +22,10 @@
 #include "media/gpu/test/video_frame_helpers.h"
 #include "ui/gfx/geometry/rect.h"
 
+namespace gpu {
+class TestSharedImageInterface;
+}  // namespace gpu
+
 namespace media {
 
 class VideoFrame;
@@ -120,6 +124,8 @@ class VideoFrameValidator : public VideoFrameProcessor {
   // forwarded to. This can be used to e.g. write corrupted frames to disk.
   std::unique_ptr<VideoFrameProcessor> corrupt_frame_processor_;
 
+  scoped_refptr<gpu::TestSharedImageInterface> test_sii_;
+
   // If |crop_helper_| is runnable, then ShouldCrop() will return true and
   // CloneAndCropFrame() can be used.
   const CropHelper crop_helper_;
@@ -214,7 +220,7 @@ class RawVideoFrameValidator : public VideoFrameValidator {
 // |tolerance_|, the validation on the frame passes.
 class PSNRVideoFrameValidator : public VideoFrameValidator {
  public:
-  constexpr static double kDefaultTolerance = 20.0;
+  constexpr static double kDefaultTolerance = 25.0;
 
   static std::unique_ptr<PSNRVideoFrameValidator> Create(
       const GetModelFrameCB& get_model_frame_cb,

@@ -2,6 +2,11 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#ifdef UNSAFE_BUFFERS_BUILD
+// TODO(crbug.com/390223051): Remove C-library calls to fix the errors.
+#pragma allow_unsafe_libc_calls
+#endif
+
 // This command-line program converts an effective-TLD data file in UTF-8 from
 // the format provided by Mozilla to the format expected by Chrome.  This
 // program generates an intermediate file which is then used by gperf to
@@ -67,14 +72,14 @@ int main(int argc, const char* argv[]) {
   base::i18n::InitializeICU();
 
   base::FilePath input_file;
-  base::PathService::Get(base::DIR_SOURCE_ROOT, &input_file);
+  base::PathService::Get(base::DIR_SRC_TEST_DATA_ROOT, &input_file);
   input_file = input_file.Append(FILE_PATH_LITERAL("net"))
                          .Append(FILE_PATH_LITERAL("base"))
                          .Append(FILE_PATH_LITERAL(
                              "registry_controlled_domains"))
                          .Append(FILE_PATH_LITERAL("effective_tld_names.dat"));
   base::FilePath output_file;
-  base::PathService::Get(base::DIR_SOURCE_ROOT, &output_file);
+  base::PathService::Get(base::DIR_SRC_TEST_DATA_ROOT, &output_file);
   output_file = output_file.Append(FILE_PATH_LITERAL("net"))
                            .Append(FILE_PATH_LITERAL("base"))
                            .Append(FILE_PATH_LITERAL(

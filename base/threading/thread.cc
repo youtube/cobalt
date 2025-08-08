@@ -22,27 +22,20 @@
 #include "base/task/sequence_manager/sequence_manager_impl.h"
 #include "base/task/sequence_manager/task_queue.h"
 #include "base/task/single_thread_task_runner.h"
-#include "base/third_party/dynamic_annotations/dynamic_annotations.h"
 #include "base/threading/thread_id_name_manager.h"
 #include "base/threading/thread_restrictions.h"
 #include "base/types/pass_key.h"
 #include "build/build_config.h"
-#include "third_party/abseil-cpp/absl/base/attributes.h"
+#include "third_party/abseil-cpp/absl/base/dynamic_annotations.h"
 
-#if defined(STARBOARD)
-#include <pthread.h>
-
-#include "base/check_op.h"
-#include "starboard/thread.h"
-#else
 #if (BUILDFLAG(IS_POSIX) && !BUILDFLAG(IS_NACL)) || BUILDFLAG(IS_FUCHSIA)
+#include <optional>
+
 #include "base/files/file_descriptor_watcher_posix.h"
-#include "third_party/abseil-cpp/absl/types/optional.h"
 #endif
 
 #if BUILDFLAG(IS_WIN)
 #include "base/win/scoped_com_initializer.h"
-#endif
 #endif
 
 namespace base {
@@ -50,31 +43,11 @@ namespace base {
 #if DCHECK_IS_ON()
 namespace {
 
-#if defined(STARBOARD)
-ABSL_CONST_INIT pthread_once_t s_once_flag = PTHREAD_ONCE_INIT;
-ABSL_CONST_INIT pthread_key_t s_thread_local_key = 0;
-
-void InitThreadLocalKey() {
-  int res = pthread_key_create(&s_thread_local_key , NULL);
-  DCHECK(res == 0);
-}
-
-void EnsureThreadLocalKeyInited() {
-  pthread_once(&s_once_flag, InitThreadLocalKey);
-}
-
-bool GetWasQuitProperly() {
-  EnsureThreadLocalKeyInited();
-  void* was_quit_properly = pthread_getspecific(s_thread_local_key);
-  return !!was_quit_properly ? reinterpret_cast<intptr_t>(was_quit_properly) != 0 : false;
-}
-#else
 // We use this thread-local variable to record whether or not a thread exited
 // because its Stop method was called.  This allows us to catch cases where
 // MessageLoop::QuitWhenIdle() is called directly, which is unexpected when
 // using a Thread to setup and run a MessageLoop.
-ABSL_CONST_INIT thread_local bool was_quit_properly = false;
-#endif
+constinit thread_local bool was_quit_properly = false;
 
 }  // namespace
 #endif
@@ -120,16 +93,15 @@ class SequenceManagerThreadDelegate : public Thread::Delegate {
     return sequence_manager_->GetTaskRunner();
   }
 
-  void BindToCurrentThread(TimerSlack timer_slack) override {
+  void BindToCurrentThread() override {
     sequence_manager_->BindToMessagePump(
         std::move(message_pump_factory_).Run());
-    sequence_manager_->SetTimerSlack(timer_slack);
   }
 
  private:
   std::unique_ptr<sequence_manager::internal::SequenceManagerImpl>
       sequence_manager_;
-  scoped_refptr<sequence_manager::TaskQueue> default_task_queue_;
+  sequence_manager::TaskQueue::Handle default_task_queue_;
   OnceCallback<std::unique_ptr<MessagePump>()> message_pump_factory_;
 };
 
@@ -145,7 +117,6 @@ Thread::Options::Options(ThreadType thread_type) : thread_type(thread_type) {}
 Thread::Options::Options(Options&& other)
     : message_pump_type(std::move(other.message_pump_type)),
       delegate(std::move(other.delegate)),
-      timer_slack(std::move(other.timer_slack)),
       message_pump_factory(std::move(other.message_pump_factory)),
       stack_size(std::move(other.stack_size)),
       thread_type(std::move(other.thread_type)),
@@ -158,7 +129,6 @@ Thread::Options& Thread::Options::operator=(Thread::Options&& other) {
 
   message_pump_type = std::move(other.message_pump_type);
   delegate = std::move(other.delegate);
-  timer_slack = std::move(other.timer_slack);
   message_pump_factory = std::move(other.message_pump_factory);
   stack_size = std::move(other.stack_size);
   thread_type = std::move(other.thread_type);
@@ -192,8 +162,9 @@ bool Thread::Start() {
 
   Options options;
 #if BUILDFLAG(IS_WIN)
-  if (com_status_ == STA)
+  if (com_status_ == STA) {
     options.message_pump_type = MessagePumpType::UI;
+  }
 #endif
   return StartWithOptions(std::move(options));
 }
@@ -215,8 +186,6 @@ bool Thread::StartWithOptions(Options options) {
   id_ = kInvalidThreadId;
 
   SetThreadWasQuitProperly(false);
-
-  timer_slack_ = options.timer_slack;
 
   if (options.delegate) {
     DCHECK(!options.message_pump_factory);
@@ -259,16 +228,18 @@ bool Thread::StartWithOptions(Options options) {
 bool Thread::StartAndWaitForTesting() {
   DCHECK(owning_sequence_checker_.CalledOnValidSequence());
   bool result = Start();
-  if (!result)
+  if (!result) {
     return false;
+  }
   WaitUntilThreadStarted();
   return true;
 }
 
 bool Thread::WaitUntilThreadStarted() const {
   DCHECK(owning_sequence_checker_.CalledOnValidSequence());
-  if (!delegate_)
+  if (!delegate_) {
     return false;
+  }
   // https://crbug.com/918039
   base::ScopedAllowBaseSyncPrimitivesOutsideBlockingScope allow_wait;
   start_event_.Wait();
@@ -277,8 +248,9 @@ bool Thread::WaitUntilThreadStarted() const {
 
 void Thread::FlushForTesting() {
   DCHECK(owning_sequence_checker_.CalledOnValidSequence());
-  if (!delegate_)
+  if (!delegate_) {
     return;
+  }
 
   WaitableEvent done(WaitableEvent::ResetPolicy::AUTOMATIC,
                      WaitableEvent::InitialState::NOT_SIGNALED);
@@ -299,8 +271,9 @@ void Thread::Stop() {
   StopSoon();
 
   // Can't join if the |thread_| is either already gone or is non-joinable.
-  if (thread_.is_null())
+  if (thread_.is_null()) {
     return;
+  }
 
   // Wait for the thread to exit.
   //
@@ -321,8 +294,9 @@ void Thread::StopSoon() {
   // enable this check.
   // DCHECK(owning_sequence_checker_.CalledOnValidSequence());
 
-  if (stopping_ || !delegate_)
+  if (stopping_ || !delegate_) {
     return;
+  }
 
   stopping_ = true;
 
@@ -353,8 +327,9 @@ bool Thread::IsRunning() const {
   // not yet requested to stop (i.e. |stopping_| is false) we can just return
   // true. (Note that |stopping_| is touched only on the same sequence that
   // starts / started the new thread so we need no locking here.)
-  if (delegate_ && !stopping_)
+  if (delegate_ && !stopping_) {
     return true;
+  }
   // Otherwise check the |running_| flag, which is set to true by the new thread
   // only while it is inside Run().
   AutoLock lock(running_lock_);
@@ -372,31 +347,29 @@ void Thread::Run(RunLoop* run_loop) {
 // static
 void Thread::SetThreadWasQuitProperly(bool flag) {
 #if DCHECK_IS_ON()
-#if defined(STARBOARD)
-  EnsureThreadLocalKeyInited();
-  pthread_setspecific(s_thread_local_key, reinterpret_cast<void*>(static_cast<intptr_t>(flag)));
-#else
   was_quit_properly = flag;
-#endif
 #endif
 }
 
 // static
 bool Thread::GetThreadWasQuitProperly() {
 #if DCHECK_IS_ON()
-#if defined(STARBOARD)
-  return GetWasQuitProperly();
-#else
   return was_quit_properly;
-#endif
 #else
   return true;
 #endif
 }
 
 void Thread::ThreadMain() {
-  // First, make GetThreadId() available to avoid deadlocks. It could be called
-  // any place in the following thread initialization code.
+  // First, set the thread name. It is important to do this first because some
+  // of the code below may end up storing/caching the thread name. One example
+  // is Perfetto being triggered by a TRACE_EVENT call from id_event_.Signal().
+  // See https://crbug.com/333597498.
+  PlatformThread::SetName(name_.c_str());
+  ABSL_ANNOTATE_THREAD_NAME(name_.c_str());  // Tell the name to race detector.
+
+  // Make GetThreadId() available to avoid deadlocks. It could be called any
+  // place in the following thread initialization code.
   DCHECK(!id_event_.IsSignaled());
   // Note: this read of |id_| while |id_event_| isn't signaled is exceptionally
   // okay because ThreadMain has a happens-after relationship with the other
@@ -406,17 +379,12 @@ void Thread::ThreadMain() {
   DCHECK_NE(kInvalidThreadId, id_);
   id_event_.Signal();
 
-  // Complete the initialization of our Thread object.
-  PlatformThread::SetName(name_.c_str());
-  ANNOTATE_THREAD_NAME(name_.c_str());  // Tell the name to race detector.
-
   // Lazily initialize the |message_loop| so that it can run on this thread.
   DCHECK(delegate_);
   // This binds CurrentThread and SingleThreadTaskRunner::CurrentDefaultHandle.
-  delegate_->BindToCurrentThread(timer_slack_);
+  delegate_->BindToCurrentThread();
   DCHECK(CurrentThread::Get());
   DCHECK(SingleThreadTaskRunner::HasCurrentDefault());
-#if !defined(STARBOARD)
 #if (BUILDFLAG(IS_POSIX) && !BUILDFLAG(IS_NACL)) || BUILDFLAG(IS_FUCHSIA)
   // Allow threads running a MessageLoopForIO to use FileDescriptorWatcher API.
   std::unique_ptr<FileDescriptorWatcher> file_descriptor_watcher;
@@ -434,7 +402,6 @@ void Thread::ThreadMain() {
             ? new win::ScopedCOMInitializer()
             : new win::ScopedCOMInitializer(win::ScopedCOMInitializer::kMTA));
   }
-#endif
 #endif
 
   // Let the thread do extra initialization.

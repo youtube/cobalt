@@ -74,9 +74,6 @@ TEST(StderrLogSinkDeathTest, ErrorMessagesInStderr) {
       "ERROR message");
 }
 
-// TODO(b/320478127): EXPECT_DEATH_IF_SUPPORTED() doesn't work with AllOf()
-// (yet) for googletest in Cobalt.
-#if !defined(STARBOARD)
 TEST(StderrLogSinkDeathTest, FatalMessagesInStderr) {
   char message[] = "FATAL message";
   char stacktrace[] = "*** Check failure stack trace: ***";
@@ -90,7 +87,6 @@ TEST(StderrLogSinkDeathTest, FatalMessagesInStderr) {
       },
       AllOf(HasSubstrTimes(message, expected_count), HasSubstr(stacktrace)));
 }
-#endif
 
 TEST(StderrLogSinkDeathTest, SecondaryFatalMessagesInStderr) {
   auto MessageGen = []() -> std::string {

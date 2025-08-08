@@ -6,19 +6,10 @@ import("dav1d_generated.gni")
 
 import("//build/config/compiler/compiler.gni")
 import("//build/config/sanitizers/sanitizers.gni")
-if (is_starboard) {
-  import("//starboard/build/nasm_assemble.gni")
-} else {
 import("//third_party/nasm/nasm_assemble.gni")
-}
 
 # MemorySanitizer can't handle assembly, https://crbug.com/928357.
 enable_nasm = (current_cpu == "x86" || current_cpu == "x64") && !is_msan
-
-# Some older compilers can't handle AVX-512 instructions.
-if (using_old_compiler) {
-  enable_nasm = false
-}
 
 if (is_win) {
   platform_config_root = "config/win/$current_cpu"
@@ -30,13 +21,14 @@ if (is_win) {
            current_cpu == "mipsel" || current_cpu == "mips64el" ||
            current_cpu == "ppc64") {
   platform_config_root = "config/linux-noasm/generic"
-} else {
-  # Linux configuration files seem to work on Mac, so just reuse them.
-  if (enable_nasm) {
-  platform_config_root = "config/linux/$current_cpu"
+} else if (is_apple) {
+  if (current_cpu == "arm64e") {
+    platform_config_root = "config/apple/arm64"
   } else {
-    platform_config_root = "config/linux-noasm/$current_cpu"
+    platform_config_root = "config/apple/$current_cpu"
   }
+} else {
+  platform_config_root = "config/linux/$current_cpu"
 }
 
 # Clang LTO doesn't respect stack alignment and clang-cl doesn't support setting
@@ -51,7 +43,7 @@ if (enable_nasm) {
     # upstream's meson.build setup:
     # https://chromium.googlesource.com/external/github.com/videolan/dav1d/+/master/meson.build
     needs_stack_alignment = true
-    if (current_cpu == "x64" || (is_linux && !is_android) || is_apple) {
+    if (current_cpu == "x64" || is_linux || is_apple) {
       stack_alignment = 16
     } else {
       stack_alignment = 4
@@ -69,7 +61,7 @@ config("public_dav1d_config") {
     defines = [ "CONFIG_LOG=1" ]
   }
 
-  if (!is_android && !is_win) {
+  if (!is_android && !is_apple && !is_win) {
     defines += [
       "HAVE_PTHREAD_GETAFFINITY_NP=1",
       "HAVE_PTHREAD_SETAFFINITY_NP=1",
@@ -105,7 +97,7 @@ if (is_win) {
   }
 } else {
   dav1d_copts += [ "-std=c99" ]
-  if (is_mac || is_ios) {
+  if (is_apple) {
     dav1d_copts += [ "-D_DARWIN_C_SOURCE" ]
   }
   if (is_linux || is_chromeos || is_android || current_os == "aix") {
@@ -115,13 +107,27 @@ if (is_win) {
   }
 }
 
+if (is_clang && (current_cpu == "arm" || current_cpu == "arm64" ||
+                 current_cpu == "arm64e")) {
+  if (is_win) {
+    dav1d_copts += [ "/clang:-fno-align-functions" ]
+  } else {
+    dav1d_copts += [ "-fno-align-functions" ]
+  }
+}
+
 if (enable_nasm) {
   nasm_assemble("dav1d_asm") {
     sources = x86_asm_sources
 
     inputs = [
-      "libdav1d/src/ext/x86/x86inc.asm",
       "$platform_config_root/config.asm",
+      "libdav1d/src/ext/x86/x86inc.asm",
+
+      # This is added here in addition to sources as it is included from some
+      # other files. And in such case, we need to use inputs to teach GN that
+      # some actions depend on this file indirectly.
+      "libdav1d/src/x86/filmgrain_common.asm",
     ]
 
     include_dirs = [
@@ -140,7 +146,7 @@ if (enable_nasm) {
     }
 
     # Necessary to ensure macOS symbols end up with a _ prefix.
-    if (is_mac || is_ios) {
+    if (is_apple) {
       defines += [ "PREFIX" ]
     }
   }
@@ -168,7 +174,7 @@ static_library("dav1d_8bit") {
     sources += x86_template_sources
   } else if (current_cpu == "arm") {
     sources += arm_template_sources
-  } else if (current_cpu == "arm64") {
+  } else if (current_cpu == "arm64" || current_cpu == "arm64e") {
     sources += arm_template_sources
   }
 
@@ -198,7 +204,7 @@ static_library("dav1d_10bit") {
     sources += x86_template_sources
   } else if (current_cpu == "arm") {
     sources += arm_template_sources
-  } else if (current_cpu == "arm64") {
+  } else if (current_cpu == "arm64" || current_cpu == "arm64e") {
     sources += arm_template_sources
   }
 
@@ -225,7 +231,8 @@ if (current_cpu == "x86" || current_cpu == "x64") {
     deps = [ ":dav1d_headers" ]
     allow_circular_includes_from = [ ":dav1d_headers" ]
   }
-} else if (current_cpu == "arm" || current_cpu == "arm64") {
+} else if (current_cpu == "arm" || current_cpu == "arm64" ||
+           current_cpu == "arm64e") {
   static_library("dav1d_arm") {
     sources = [
       "libdav1d/src/arm/cpu.c",
@@ -235,7 +242,7 @@ if (current_cpu == "x86" || current_cpu == "x64") {
     # These are not template based so should only be built once.
     if (current_cpu == "arm") {
       sources += arm32_asm_sources
-    } else if (current_cpu == "arm64") {
+    } else if (current_cpu == "arm64" || current_cpu == "arm64e") {
       sources += arm64_asm_sources
     }
 
@@ -246,7 +253,7 @@ if (current_cpu == "x86" || current_cpu == "x64") {
     ]
 
     # Necessary to ensure macOS symbols end up with a _ prefix.
-    if (is_mac || is_ios) {
+    if (is_apple) {
       defines = [ "PREFIX" ]
     }
 
@@ -283,7 +290,8 @@ static_library("dav1d") {
     if (enable_nasm) {
       deps += [ ":dav1d_asm" ]
     }
-  } else if (current_cpu == "arm" || current_cpu == "arm64") {
+  } else if (current_cpu == "arm" || current_cpu == "arm64" ||
+             current_cpu == "arm64e") {
     deps += [ ":dav1d_arm" ]
   }
 }

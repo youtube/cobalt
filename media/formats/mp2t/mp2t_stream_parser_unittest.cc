@@ -2,8 +2,15 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#ifdef UNSAFE_BUFFERS_BUILD
+// TODO(crbug.com/40285824): Remove this and convert code to safer constructs.
+#pragma allow_unsafe_buffers
+#endif
+
 #include "media/formats/mp2t/mp2t_stream_parser.h"
 
+#include <openssl/aes.h>
+#include <openssl/evp.h>
 #include <stddef.h>
 #include <stdint.h>
 
@@ -11,15 +18,14 @@
 #include <memory>
 #include <string>
 
-#include <openssl/aes.h>
-#include <openssl/evp.h>
-
+#include "base/containers/heap_array.h"
 #include "base/functional/bind.h"
 #include "base/functional/callback_helpers.h"
 #include "base/logging.h"
 #include "base/memory/ref_counted.h"
 #include "base/strings/string_number_conversions.h"
 #include "base/time/time.h"
+#include "base/types/cxx23_to_underlying.h"
 #include "crypto/openssl_util.h"
 #include "media/base/audio_decoder_config.h"
 #include "media/base/decoder_buffer.h"
@@ -30,7 +36,6 @@
 #include "media/base/stream_parser.h"
 #include "media/base/stream_parser_buffer.h"
 #include "media/base/test_data_util.h"
-#include "media/base/text_track_config.h"
 #include "media/base/video_decoder_config.h"
 #include "media/media_buildflags.h"
 #include "testing/gtest/include/gtest/gtest.h"
@@ -79,20 +84,18 @@ std::string DecryptSampleAES(const std::string& key,
                              bool has_pattern) {
   DCHECK(input);
   EXPECT_EQ(input_size % 16, 0);
-  crypto::EnsureOpenSSLInit();
   std::string result;
   const EVP_CIPHER* cipher = EVP_aes_128_cbc();
   ScopedCipherCTX ctx;
-  EXPECT_EQ(EVP_CipherInit_ex(ctx.get(), cipher, NULL,
+  EXPECT_EQ(EVP_CipherInit_ex(ctx.get(), cipher, nullptr,
                               reinterpret_cast<const uint8_t*>(key.data()),
                               reinterpret_cast<const uint8_t*>(iv.data()), 0),
             1);
   EVP_CIPHER_CTX_set_padding(ctx.get(), 0);
-  const size_t output_size = input_size;
-  std::unique_ptr<char[]> output(new char[output_size]);
+  auto output = base::HeapArray<char>::Uninit(input_size);
   uint8_t* in_ptr = const_cast<uint8_t*>(input);
-  uint8_t* out_ptr = reinterpret_cast<uint8_t*>(output.get());
-  size_t bytes_remaining = output_size;
+  uint8_t* out_ptr = reinterpret_cast<uint8_t*>(output.data());
+  size_t bytes_remaining = output.size();
 
   while (bytes_remaining) {
     int unused;
@@ -115,7 +118,7 @@ std::string DecryptSampleAES(const std::string& key,
     }
   }
 
-  result.assign(output.get(), output_size);
+  result.assign(output.begin(), output.end());
   return result;
 }
 
@@ -139,7 +142,7 @@ std::string DecryptBuffer(const StreamParserBuffer& buffer,
   EXPECT_EQ(key.size(), 16UL);
   EXPECT_EQ(iv.size(), 16UL);
   std::string result;
-  uint8_t* in_ptr = const_cast<uint8_t*>(buffer.data());
+  uint8_t* in_ptr = const_cast<uint8_t*>(base::span(buffer).data());
   const DecryptConfig* decrypt_config = buffer.decrypt_config();
   for (const auto& subsample : decrypt_config->subsamples()) {
     std::string clear(reinterpret_cast<char*>(in_ptr), subsample.clear_bytes);
@@ -172,9 +175,7 @@ class Mp2tStreamParserTest : public testing::Test {
         current_audio_config_(),
         current_video_config_(),
         capture_buffers(false) {
-    bool has_sbr = false;
-    const std::string codecs[] = {"avc1.64001e", "mp3", "aac"};
-    parser_ = std::make_unique<Mp2tStreamParser>(codecs, has_sbr);
+    CreateStrictParser();
   }
 
  protected:
@@ -199,6 +200,17 @@ class Mp2tStreamParserTest : public testing::Test {
   std::vector<scoped_refptr<StreamParserBuffer>> video_buffer_capture_;
   bool capture_buffers;
 
+  void CreateNonStrictParser() {
+    bool has_sbr = false;
+    parser_ = std::make_unique<Mp2tStreamParser>(std::nullopt, has_sbr);
+  }
+
+  void CreateStrictParser() {
+    bool has_sbr = false;
+    const std::string codecs[] = {"avc1.64001e", "mp3", "aac"};
+    parser_ = std::make_unique<Mp2tStreamParser>(codecs, has_sbr);
+  }
+
   void ResetStats() {
     segment_count_ = 0;
     config_count_ = 0;
@@ -212,16 +224,15 @@ class Mp2tStreamParserTest : public testing::Test {
 
   // Note this is similar to a StreamParserTestBase method, so may benefit from
   // utility method or inheritance if they don't diverge.
-  bool AppendAllDataThenParseInPieces(const uint8_t* data,
-                                      size_t length,
+  bool AppendAllDataThenParseInPieces(base::span<const uint8_t> data,
                                       size_t piece_size) {
-    if (!parser_->AppendToParseBuffer(data, length)) {
+    if (!parser_->AppendToParseBuffer(data)) {
       return false;
     }
 
     // Also verify that the expected number of pieces is needed to fully parse
     // `data`.
-    size_t expected_remaining_data = length;
+    size_t expected_remaining_data = data.size();
     bool has_more_data = true;
 
     // A zero-length append still needs a single iteration of parse.
@@ -250,26 +261,26 @@ class Mp2tStreamParserTest : public testing::Test {
     DVLOG(1) << "OnInit: dur=" << params.duration.InMilliseconds();
   }
 
-  bool OnNewConfig(std::unique_ptr<MediaTracks> tracks,
-                   const StreamParser::TextTrackConfigMap& tc) {
+  bool OnNewConfig(std::unique_ptr<MediaTracks> tracks) {
     DVLOG(1) << "OnNewConfig: got " << tracks->tracks().size() << " tracks";
     size_t audio_track_count = 0;
     size_t video_track_count = 0;
     for (const auto& track : tracks->tracks()) {
-      const auto& track_id = track->bytestream_track_id();
-      if (track->type() == MediaTrack::Audio) {
+      const auto& track_id = track->stream_id();
+      if (track->type() == MediaTrack::Type::kAudio) {
         audio_track_id_ = track_id;
         audio_track_count++;
         EXPECT_TRUE(tracks->getAudioConfig(track_id).IsValidConfig());
         current_audio_config_ = tracks->getAudioConfig(track_id);
-      } else if (track->type() == MediaTrack::Video) {
+      } else if (track->type() == MediaTrack::Type::kVideo) {
         video_track_id_ = track_id;
         video_track_count++;
         EXPECT_TRUE(tracks->getVideoConfig(track_id).IsValidConfig());
         current_video_config_ = tracks->getVideoConfig(track_id);
       } else {
         // Unexpected track type.
-        LOG(ERROR) << "Unexpected track type " << track->type();
+        LOG(ERROR) << "Unexpected track type "
+                   << base::to_underlying(track->type());
         EXPECT_TRUE(false);
       }
     }
@@ -299,8 +310,7 @@ class Mp2tStreamParserTest : public testing::Test {
     for (const auto& [track_id, buffer] : buffer_queue_map) {
       DVLOG(3) << "Buffers for track_id=" << track_id;
       for (const auto& buf : buffer) {
-        DVLOG(3) << "  track_id=" << buf->track_id()
-                 << ", size=" << buf->data_size()
+        DVLOG(3) << "  track_id=" << buf->track_id() << ", size=" << buf->size()
                  << ", pts=" << buf->timestamp().InSecondsF()
                  << ", dts=" << buf->GetDecodeTimestamp().InSecondsF()
                  << ", dur=" << buf->duration().InSecondsF();
@@ -374,7 +384,6 @@ class Mp2tStreamParserTest : public testing::Test {
                             base::Unretained(this)),
         base::BindRepeating(&Mp2tStreamParserTest::OnNewBuffers,
                             base::Unretained(this)),
-        true,
         base::BindRepeating(&Mp2tStreamParserTest::OnKeyNeeded,
                             base::Unretained(this)),
         base::BindRepeating(&Mp2tStreamParserTest::OnNewSegment,
@@ -389,21 +398,36 @@ class Mp2tStreamParserTest : public testing::Test {
     CHECK_GE(append_bytes, 0);
     scoped_refptr<DecoderBuffer> buffer = ReadTestDataFile(filename);
 
-    const uint8_t* start = buffer->data();
-    const uint8_t* end = start + buffer->data_size();
+    size_t start = 0;
+    size_t end = buffer->size();
     do {
       size_t chunk_size = std::min(static_cast<size_t>(append_bytes),
                                    static_cast<size_t>(end - start));
       // Attempt to incrementally parse each appended chunk to test out the
       // parser's internal management of input queue and pending data bytes.
       EXPECT_TRUE(AppendAllDataThenParseInPieces(
-          start, chunk_size, (chunk_size > 7) ? (chunk_size - 7) : chunk_size));
+          (*buffer).subspan(start, chunk_size),
+          (chunk_size > 7) ? (chunk_size - 7) : chunk_size));
       start += chunk_size;
     } while (start < end);
 
     return true;
   }
 };
+
+TEST_F(Mp2tStreamParserTest, NonStrictCodecChecking) {
+  CreateNonStrictParser();
+  InitializeParser();
+  ParseMpeg2TsFile("bear-1280x720.ts", 17);
+  parser_->Flush();
+  EXPECT_EQ(audio_frame_count_, 119);
+  EXPECT_EQ(video_frame_count_, 82);
+
+  // This stream has no mid-stream configuration change.
+  EXPECT_EQ(config_count_, 1);
+  EXPECT_EQ(segment_count_, 1);
+  CreateStrictParser();
+}
 
 TEST_F(Mp2tStreamParserTest, UnalignedAppend17) {
   // Test small, non-segment-aligned appends.
@@ -548,16 +572,14 @@ TEST_F(Mp2tStreamParserTest, HLSSampleAES) {
   // Skip the last buffer, which may be truncated.
   for (size_t i = 0; i + 1 < video_buffer_capture_.size(); i++) {
     const auto& buffer = video_buffer_capture_[i];
-    std::string unencrypted_video_buffer(
-        reinterpret_cast<const char*>(buffer->data()), buffer->data_size());
+    std::string unencrypted_video_buffer((*buffer).begin(), (*buffer).end());
     EXPECT_EQ(decrypted_video_buffers[i], unencrypted_video_buffer);
   }
   audio_encryption_scheme = current_audio_config_.encryption_scheme();
   EXPECT_EQ(audio_encryption_scheme, EncryptionScheme::kUnencrypted);
   for (size_t i = 0; i + 1 < audio_buffer_capture_.size(); i++) {
     const auto& buffer = audio_buffer_capture_[i];
-    std::string unencrypted_audio_buffer(
-        reinterpret_cast<const char*>(buffer->data()), buffer->data_size());
+    std::string unencrypted_audio_buffer((*buffer).begin(), (*buffer).end());
     EXPECT_EQ(decrypted_audio_buffers[i], unencrypted_audio_buffer);
   }
 }

@@ -1,13 +1,18 @@
-// Copyright (c) 2012 The Chromium Authors. All rights reserved.
+// Copyright 2012 The Chromium Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
 #include "components/prefs/overlay_user_pref_store.h"
 
 #include <memory>
+#include <ostream>
+#include <string>
+#include <string_view>
 #include <utility>
 
 #include "base/memory/ptr_util.h"
+#include "base/memory/raw_ptr.h"
+#include "base/observer_list.h"
 #include "base/values.h"
 #include "components/prefs/in_memory_pref_store.h"
 
@@ -20,7 +25,7 @@ class OverlayUserPrefStore::ObserverAdapter : public PrefStore::Observer {
       : ephemeral_user_pref_store_(ephemeral), parent_(parent) {}
 
   // Methods of PrefStore::Observer.
-  void OnPrefValueChanged(const std::string& key) override {
+  void OnPrefValueChanged(std::string_view key) override {
     parent_->OnPrefValueChanged(ephemeral_user_pref_store_, key);
   }
   void OnInitializationCompleted(bool succeeded) override {
@@ -30,7 +35,7 @@ class OverlayUserPrefStore::ObserverAdapter : public PrefStore::Observer {
  private:
   // Is the update for the ephemeral?
   const bool ephemeral_user_pref_store_;
-  OverlayUserPrefStore* const parent_;
+  const raw_ptr<OverlayUserPrefStore> parent_;
 };
 
 OverlayUserPrefStore::OverlayUserPrefStore(PersistentPrefStore* persistent)
@@ -50,7 +55,7 @@ OverlayUserPrefStore::OverlayUserPrefStore(PersistentPrefStore* ephemeral,
       persistent_pref_store_observer_.get());
 }
 
-bool OverlayUserPrefStore::IsSetInOverlay(const std::string& key) const {
+bool OverlayUserPrefStore::IsSetInOverlay(std::string_view key) const {
   return ephemeral_user_pref_store_->GetValue(key, nullptr);
 }
 
@@ -71,7 +76,7 @@ bool OverlayUserPrefStore::IsInitializationComplete() const {
          ephemeral_user_pref_store_->IsInitializationComplete();
 }
 
-bool OverlayUserPrefStore::GetValue(const std::string& key,
+bool OverlayUserPrefStore::GetValue(std::string_view key,
                                     const base::Value** result) const {
   // If the |key| shall NOT be stored in the ephemeral store, there must not
   // be an entry.
@@ -92,20 +97,20 @@ base::Value::Dict OverlayUserPrefStore::GetValues() const {
   // overwritten by the content of |persistent_user_pref_store_| (the persistent
   // store).
   for (const auto& key : persistent_names_set_) {
-    absl::optional<base::Value> out_value = persistent_values.Extract(key);
-    if (out_value) {
-      values.Set(key, std::move(*out_value));
+    std::optional<base::Value> out_value =
+        persistent_values.ExtractByDottedPath(key);
+    if (out_value.has_value()) {
+      values.SetByDottedPath(key, std::move(*out_value));
     }
   }
   return values;
 }
 
-bool OverlayUserPrefStore::GetMutableValue(const std::string& key,
+bool OverlayUserPrefStore::GetMutableValue(std::string_view key,
                                            base::Value** result) {
   if (ShallBeStoredInPersistent(key))
     return persistent_user_pref_store_->GetMutableValue(key, result);
 
-  written_ephemeral_names_.insert(key);
   if (ephemeral_user_pref_store_->GetMutableValue(key, result))
     return true;
 
@@ -121,7 +126,7 @@ bool OverlayUserPrefStore::GetMutableValue(const std::string& key,
   return true;
 }
 
-void OverlayUserPrefStore::SetValue(const std::string& key,
+void OverlayUserPrefStore::SetValue(std::string_view key,
                                     base::Value value,
                                     uint32_t flags) {
   if (ShallBeStoredInPersistent(key)) {
@@ -129,14 +134,13 @@ void OverlayUserPrefStore::SetValue(const std::string& key,
     return;
   }
 
-  // TODO(https://crbug.com/861722): If we always store in in-memory storage
+  // TODO(crbug.com/40584094): If we always store in in-memory storage
   // and conditionally also stored in persistent one, we wouldn't have to do a
   // complex merge in GetValues().
-  written_ephemeral_names_.insert(key);
   ephemeral_user_pref_store_->SetValue(key, std::move(value), flags);
 }
 
-void OverlayUserPrefStore::SetValueSilently(const std::string& key,
+void OverlayUserPrefStore::SetValueSilently(std::string_view key,
                                             base::Value value,
                                             uint32_t flags) {
   if (ShallBeStoredInPersistent(key)) {
@@ -144,18 +148,21 @@ void OverlayUserPrefStore::SetValueSilently(const std::string& key,
     return;
   }
 
-  written_ephemeral_names_.insert(key);
   ephemeral_user_pref_store_->SetValueSilently(key, std::move(value), flags);
 }
 
-void OverlayUserPrefStore::RemoveValue(const std::string& key, uint32_t flags) {
+void OverlayUserPrefStore::RemoveValue(std::string_view key, uint32_t flags) {
   if (ShallBeStoredInPersistent(key)) {
     persistent_user_pref_store_->RemoveValue(key, flags);
     return;
   }
 
-  written_ephemeral_names_.insert(key);
   ephemeral_user_pref_store_->RemoveValue(key, flags);
+}
+
+void OverlayUserPrefStore::RemoveValuesByPrefixSilently(
+    std::string_view prefix) {
+  NOTIMPLEMENTED();
 }
 
 bool OverlayUserPrefStore::ReadOnly() const {
@@ -191,24 +198,17 @@ void OverlayUserPrefStore::SchedulePendingLossyWrites() {
   persistent_user_pref_store_->SchedulePendingLossyWrites();
 }
 
-void OverlayUserPrefStore::ReportValueChanged(const std::string& key,
+void OverlayUserPrefStore::ReportValueChanged(std::string_view key,
                                               uint32_t flags) {
   for (PrefStore::Observer& observer : observers_)
     observer.OnPrefValueChanged(key);
 }
 
-void OverlayUserPrefStore::RegisterPersistentPref(const std::string& key) {
+void OverlayUserPrefStore::RegisterPersistentPref(std::string_view key) {
   DCHECK(!key.empty()) << "Key is empty";
   DCHECK(persistent_names_set_.find(key) == persistent_names_set_.end())
       << "Key already registered: " << key;
-  persistent_names_set_.insert(key);
-}
-
-void OverlayUserPrefStore::ClearMutableValues() {
-  for (const auto& key : written_ephemeral_names_) {
-    ephemeral_user_pref_store_->RemoveValue(
-        key, WriteablePrefStore::DEFAULT_PREF_WRITE_FLAGS);
-  }
+  persistent_names_set_.insert(std::string(key));
 }
 
 void OverlayUserPrefStore::OnStoreDeletionFromDisk() {
@@ -223,7 +223,7 @@ OverlayUserPrefStore::~OverlayUserPrefStore() {
 }
 
 void OverlayUserPrefStore::OnPrefValueChanged(bool ephemeral,
-                                              const std::string& key) {
+                                              std::string_view key) {
   if (ephemeral) {
     ReportValueChanged(key, DEFAULT_PREF_WRITE_FLAGS);
   } else {
@@ -241,6 +241,10 @@ void OverlayUserPrefStore::OnInitializationCompleted(bool ephemeral,
 }
 
 bool OverlayUserPrefStore::ShallBeStoredInPersistent(
-    const std::string& key) const {
+    std::string_view key) const {
   return persistent_names_set_.find(key) != persistent_names_set_.end();
+}
+
+bool OverlayUserPrefStore::HasReadErrorDelegate() const {
+  return persistent_user_pref_store_->HasReadErrorDelegate();
 }

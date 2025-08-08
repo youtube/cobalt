@@ -19,13 +19,10 @@ declare_args() {
 
   # Controls default is_linux sysroot. If set to true, and sysroot
   # is empty, default sysroot is calculated.
-  use_sysroot = current_cpu == "x86" || current_cpu == "x64" ||
-                current_cpu == "arm" || current_cpu == "arm64" ||
-                current_cpu == "mipsel" || current_cpu == "mips64el"
-
-  if (use_cobalt_customizations) {
-    use_sysroot = false
-  }
+  use_sysroot =
+      current_cpu == "x86" || current_cpu == "x64" || current_cpu == "arm" ||
+      current_cpu == "arm64" || current_cpu == "mipsel" ||
+      current_cpu == "mips64el" || (current_cpu == "riscv64" && is_android)
 }
 
 if (sysroot == "") {
@@ -45,11 +42,11 @@ if (sysroot == "") {
     } else if (current_cpu == "x86") {
       sysroot = "$target_sysroot_dir/debian_bullseye_i386-sysroot"
     } else if (current_cpu == "mipsel") {
-      sysroot = "$target_sysroot_dir/debian_bullseye_mips-sysroot"
+      sysroot = "$target_sysroot_dir/debian_bullseye_mipsel-sysroot"
     } else if (current_cpu == "mips64el") {
       sysroot = "$target_sysroot_dir/debian_bullseye_mips64el-sysroot"
     } else if (current_cpu == "arm") {
-      sysroot = "$target_sysroot_dir/debian_bullseye_arm-sysroot"
+      sysroot = "$target_sysroot_dir/debian_bullseye_armhf-sysroot"
     } else if (current_cpu == "arm64") {
       sysroot = "$target_sysroot_dir/debian_bullseye_arm64-sysroot"
     } else {
@@ -64,9 +61,7 @@ if (sysroot == "") {
         _script_arch = "amd64"
       }
       assert(
-          exec_script("//build/dir_exists.py",
-                      [ rebase_path(sysroot) ],
-                      "string") == "True",
+          path_exists(sysroot),
           "Missing sysroot ($sysroot). To fix, run: build/linux/sysroot_scripts/install-sysroot.py --arch=$_script_arch")
     }
   } else if (is_mac) {
@@ -76,8 +71,7 @@ if (sysroot == "") {
     import("//build/config/ios/ios_sdk.gni")
     sysroot = ios_sdk_path
   } else if (is_fuchsia) {
-    if (current_cpu == "arm64" || current_cpu == "x64") {
-      sysroot = "//third_party/fuchsia-sdk/sdk/arch/$current_cpu/sysroot"
-    }
+    import("//build/config/fuchsia/gn_configs.gni")
+    sysroot = "${fuchsia_arch_root}/sysroot"
   }
 }

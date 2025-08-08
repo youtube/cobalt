@@ -4,22 +4,23 @@
 
 #include "base/trace_event/memory_infra_background_allowlist.h"
 
-#include <ctype.h>
 #include <string.h>
 
 #include <string>
+#include <string_view>
 
-#include "base/allocator/partition_allocator/partition_alloc_buildflags.h"
+#include "base/containers/contains.h"
 #include "base/containers/fixed_flat_set.h"
 #include "base/strings/string_util.h"
 #include "build/build_config.h"
+#include "partition_alloc/buildflags.h"
+#include "third_party/abseil-cpp/absl/strings/ascii.h"
 
 #if BUILDFLAG(IS_ANDROID)
 #include "base/android/meminfo_dump_provider.h"
 #endif
 
-namespace base {
-namespace trace_event {
+namespace base::trace_event {
 namespace {
 
 // The names of dump providers allowed to perform background tracing. Dump
@@ -28,13 +29,15 @@ namespace {
 // TODO(ssid): Some dump providers do not create ownership edges on background
 // dump. So, the effective size will not be correct.
 constexpr auto kDumpProviderAllowlist =
-    base::MakeFixedFlatSet<base::StringPiece>({
+    base::MakeFixedFlatSet<std::string_view>({
 // clang-format off
 #if BUILDFLAG(IS_ANDROID)
         base::android::MeminfoDumpProvider::kDumpProviderName,
         "android::ResourceManagerImpl",
 #endif
         "AutocompleteController",
+        "AXPlatformNode",
+        "AXPlatformNodeWin",
         "BlinkGC",
         "BlinkObjectCounters",
         "BlobStorageContext",
@@ -43,12 +46,16 @@ constexpr auto kDumpProviderAllowlist =
 #if BUILDFLAG(IS_MAC)
         "CommandBuffer",
 #endif
+        "ContextProviderCommandBuffer",
         "DOMStorage",
+        "DawnSharedContext",
         "DevTools",
         "DiscardableSharedMemoryManager",
         "DownloadService",
+        "DawnCache",
         "ExtensionFunctions",
         "FontCaches",
+        "FrameEvictionManager",
         "GrShaderCache",
         "HistoryReport",
         "cc::ResourcePool",
@@ -84,23 +91,30 @@ constexpr auto kDumpProviderAllowlist =
         "Skia",
         "Sql",
         "TabRestoreServiceHelper",
+        "TextureOwner"
         "URLRequestContext",
         "V8Isolate",
         "WebMediaPlayer_MainThread",
         "WebMediaPlayer_MediaThread",
-      // clang-format on
+        // clang-format on
     });
 
 // A list of string names that are allowed for the memory allocator dumps in
 // background mode.
-constexpr auto kAllocatorDumpNameAllowlist = base::MakeFixedFlatSet<
-    base::StringPiece>({
+// NOTE: There is no generic pattern matching support and only names containing
+// "0x?" match "0x" followed by hex digits.
+constexpr auto kAllocatorDumpNameAllowlist =
+    base::MakeFixedFlatSet<std::string_view>({
 // clang-format off
         // Some of the blink values vary based on compile time flags. The
         // compile time flags are not in base, so all are listed here.
 #if BUILDFLAG(IS_ANDROID)
         base::android::MeminfoDumpProvider::kDumpName,
 #endif
+        "accessibility/ax_platform_win_dormant_node",
+        "accessibility/ax_platform_win_ghost_node",
+        "accessibility/ax_platform_win_live_node",
+        "accessibility/ax_platform_node",
         "blink_gc/main/allocated_objects",
         "blink_gc/main/heap",
         "blink_gc/workers/heap/worker_0x?",
@@ -109,6 +123,7 @@ constexpr auto kAllocatorDumpNameAllowlist = base::MakeFixedFlatSet<
         "blink_objects/AdSubframe",
         "blink_objects/ArrayBufferContents",
         "blink_objects/AudioHandler",
+        "blink_objects/AudioWorkletProcessor",
         "blink_objects/ContextLifecycleStateObserver",
         "blink_objects/DetachedScriptState",
         "blink_objects/Document",
@@ -135,26 +150,39 @@ constexpr auto kAllocatorDumpNameAllowlist = base::MakeFixedFlatSet<
         "discardable/madv_free_allocated",
         "discardable/child_0x?",
         "extensions/functions",
-        "extensions/value_store/Extensions.Database.Open.Settings/0x?",
+        "extensions/value_store/Extensions.Database.Open.OriginManagedConfiguration/0x?",
         "extensions/value_store/Extensions.Database.Open.Rules/0x?",
-        "extensions/value_store/Extensions.Database.Open.State/0x?",
         "extensions/value_store/Extensions.Database.Open.Scripts/0x?",
+        "extensions/value_store/Extensions.Database.Open.Settings/0x?",
+        "extensions/value_store/Extensions.Database.Open.State/0x?",
         "extensions/value_store/Extensions.Database.Open.WebAppsLockScreen/0x?",
         "extensions/value_store/Extensions.Database.Open/0x?",
         "extensions/value_store/Extensions.Database.Restore/0x?",
         "extensions/value_store/Extensions.Database.Value.Restore/0x?",
         "font_caches/font_platform_data_cache",
         "font_caches/shape_caches",
+        "frame_evictor",
+        "gpu/command_buffer_memory/buffer_0x?",
+        "gpu/dawn",
+        "gpu/dawn/textures",
+        "gpu/dawn/textures/depth_stencil",
+        "gpu/dawn/textures/msaa",
+        "gpu/dawn/buffers",
+        "gpu/shader_cache/graphite_cache",
         "gpu/discardable_cache/cache_0x?",
         "gpu/discardable_cache/cache_0x?/avg_image_size",
         "gpu/gl/buffers/context_group_0x?",
         "gpu/gl/renderbuffers/context_group_0x?",
         "gpu/gl/textures/context_group_0x?",
         "gpu/gr_shader_cache/cache_0x?",
+        "gpu/mapped_memory/manager_0x?",
         "gpu/shared_images",
+        "gpu/media_texture_owner_0x?",
+        "gpu/transfer_buffer_memory/buffer_0x?",
         "gpu/transfer_cache/cache_0x?",
         "gpu/transfer_cache/cache_0x?/avg_image_size",
         "gpu/vulkan/vma_allocator_0x?",
+        "gpu/vulkan/graphite_allocator",
         "history/delta_file_service/leveldb_0x?",
         "history/usage_reports_buffer/leveldb_0x?",
 #if BUILDFLAG(IS_MAC)
@@ -173,19 +201,23 @@ constexpr auto kAllocatorDumpNameAllowlist = base::MakeFixedFlatSet<
         "leveldatabase/memenv_0x?",
         "malloc",
         "malloc/allocated_objects",
+#if PA_BUILDFLAG(USE_PARTITION_ALLOC_AS_MALLOC)
+        "malloc/extreme_lud",
+        "malloc/extreme_lud/small_objects",
+        "malloc/extreme_lud/large_objects",
+#endif  // PA_BUILDFLAG(USE_PARTITION_ALLOC_AS_MALLOC)
         "malloc/metadata_fragmentation_caches",
-#if BUILDFLAG(USE_PARTITION_ALLOC_AS_MALLOC)
+#if PA_BUILDFLAG(USE_PARTITION_ALLOC_AS_MALLOC)
         "malloc/partitions",
         "malloc/partitions/allocator",
+        "malloc/partitions/allocator/scheduler_loop_quarantine",
         "malloc/partitions/allocator/thread_cache",
         "malloc/partitions/allocator/thread_cache/main_thread",
         "malloc/partitions/aligned",
         "malloc/partitions/original",
-        "malloc/partitions/nonscannable",
-        "malloc/partitions/nonquarantinable",
         "malloc/sys_malloc",
         "malloc/win_heap",
-#endif
+#endif  // PA_BUILDFLAG(USE_PARTITION_ALLOC_AS_MALLOC)
         "media/webmediaplayer/audio/player_0x?",
         "media/webmediaplayer/data_source/player_0x?",
         "media/webmediaplayer/demuxer/player_0x?",
@@ -219,12 +251,17 @@ constexpr auto kAllocatorDumpNameAllowlist = base::MakeFixedFlatSet<
         "partition_alloc/partitions/array_buffer",
         "partition_alloc/partitions/buffer",
         "partition_alloc/partitions/fast_malloc",
-#if !BUILDFLAG(USE_PARTITION_ALLOC_AS_MALLOC)
+#if !PA_BUILDFLAG(USE_PARTITION_ALLOC_AS_MALLOC)
         "partition_alloc/partitions/fast_malloc/thread_cache",
         "partition_alloc/partitions/fast_malloc/thread_cache/main_thread",
 #endif
         "partition_alloc/partitions/layout",
         "skia/gpu_resources/context_0x?",
+        "skia/gpu_resources/graphite_shared_context_0x?",
+        "skia/gpu_resources/gpu_main_graphite_image_provider_0x?",
+        "skia/gpu_resources/gpu_main_graphite_recorder_0x?",
+        "skia/gpu_resources/viz_compositor_graphite_image_provider_0x?",
+        "skia/gpu_resources/viz_compositor_graphite_recorder_0x?",
         "skia/sk_glyph_cache",
         "skia/sk_resource_cache",
         "sqlite",
@@ -246,24 +283,32 @@ constexpr auto kAllocatorDumpNameAllowlist = base::MakeFixedFlatSet<
         "v8/main/heap/read_only_space",
         "v8/main/heap/shared_large_object_space",
         "v8/main/heap/shared_space",
+        "v8/main/heap/shared_trusted_large_object_space",
+        "v8/main/heap/shared_trusted_space",
+        "v8/main/heap/trusted_space",
+        "v8/main/heap/trusted_large_object_space",
         "v8/main/malloc",
         "v8/main/zapped_for_debug",
-        "v8/utility/code_stats",
-        "v8/utility/contexts/detached_context",
-        "v8/utility/contexts/native_context",
-        "v8/utility/global_handles",
-        "v8/utility/heap/code_space",
-        "v8/utility/heap/code_large_object_space",
-        "v8/utility/heap/large_object_space",
-        "v8/utility/heap/map_space",
-        "v8/utility/heap/new_large_object_space",
-        "v8/utility/heap/new_space",
-        "v8/utility/heap/old_space",
-        "v8/utility/heap/read_only_space",
-        "v8/utility/heap/shared_large_object_space",
-        "v8/utility/heap/shared_space",
-        "v8/utility/malloc",
-        "v8/utility/zapped_for_debug",
+        "v8/utility/code_stats/isolate_0x?",
+        "v8/utility/contexts/detached_context/isolate_0x?",
+        "v8/utility/contexts/native_context/isolate_0x?",
+        "v8/utility/global_handles/isolate_0x?",
+        "v8/utility/heap/code_space/isolate_0x?",
+        "v8/utility/heap/code_large_object_space/isolate_0x?",
+        "v8/utility/heap/large_object_space/isolate_0x?",
+        "v8/utility/heap/map_space/isolate_0x?",
+        "v8/utility/heap/new_large_object_space/isolate_0x?",
+        "v8/utility/heap/new_space/isolate_0x?",
+        "v8/utility/heap/old_space/isolate_0x?",
+        "v8/utility/heap/read_only_space/isolate_0x?",
+        "v8/utility/heap/shared_large_object_space/isolate_0x?",
+        "v8/utility/heap/shared_space/isolate_0x?",
+        "v8/utility/heap/shared_trusted_large_object_space/isolate_0x?",
+        "v8/utility/heap/shared_trusted_space/isolate_0x?",
+        "v8/utility/heap/trusted_space/isolate_0x?",
+        "v8/utility/heap/trusted_large_object_space/isolate_0x?",
+        "v8/utility/malloc/isolate_0x?",
+        "v8/utility/zapped_for_debug/isolate_0x?",
         "v8/workers/code_stats/isolate_0x?",
         "v8/workers/contexts/detached_context/isolate_0x?",
         "v8/workers/contexts/native_context/isolate_0x?",
@@ -278,6 +323,10 @@ constexpr auto kAllocatorDumpNameAllowlist = base::MakeFixedFlatSet<
         "v8/workers/heap/read_only_space/isolate_0x?",
         "v8/workers/heap/shared_large_object_space/isolate_0x?",
         "v8/workers/heap/shared_space/isolate_0x?",
+        "v8/workers/heap/shared_trusted_large_object_space/isolate_0x?",
+        "v8/workers/heap/shared_trusted_space/isolate_0x?",
+        "v8/workers/heap/trusted_space/isolate_0x?",
+        "v8/workers/heap/trusted_large_object_space/isolate_0x?",
         "v8/workers/malloc/isolate_0x?",
         "v8/workers/zapped_for_debug/isolate_0x?",
         "site_storage/index_db/db_0x?",
@@ -295,43 +344,39 @@ constexpr auto kAllocatorDumpNameAllowlist = base::MakeFixedFlatSet<
         "tracing/heap_profiler_blink_gc/AllocationRegister",
         "tracing/heap_profiler_malloc/AllocationRegister",
         "tracing/heap_profiler_partition_alloc/AllocationRegister",
-  // clang-format on
-});
+        // clang-format on
+    });
 
-const char* const* g_dump_provider_allowlist_for_testing = nullptr;
-const char* const* g_allocator_dump_name_allowlist_for_testing = nullptr;
-
-bool IsNameInList(const char* name, const char* const* list) {
-  for (size_t i = 0; list[i] != nullptr; ++i) {
-    if (strcmp(name, list[i]) == 0)
-      return true;
-  }
-  return false;
-}
+base::span<const std::string_view> g_dump_provider_allowlist_for_testing;
+base::span<const std::string_view> g_allocator_dump_name_allowlist_for_testing;
 
 }  // namespace
 
 bool IsMemoryDumpProviderInAllowlist(const char* mdp_name) {
-  if (!g_dump_provider_allowlist_for_testing) {
+  if (g_dump_provider_allowlist_for_testing.empty()) {
     return kDumpProviderAllowlist.contains(mdp_name);
   } else {
-    return IsNameInList(mdp_name, g_dump_provider_allowlist_for_testing);
+    return base::Contains(g_dump_provider_allowlist_for_testing, mdp_name);
   }
 }
 
 bool IsMemoryAllocatorDumpNameInAllowlist(const std::string& name) {
   // Global dumps that are of hex digits are all allowed for background use.
   if (base::StartsWith(name, "global/", CompareCase::SENSITIVE)) {
-    for (size_t i = strlen("global/"); i < name.size(); i++)
-      if (!base::IsHexDigit(name[i]))
+    for (size_t i = strlen("global/"); i < name.size(); i++) {
+      if (!base::IsHexDigit(name[i])) {
         return false;
+      }
+    }
     return true;
   }
 
   if (base::StartsWith(name, "shared_memory/", CompareCase::SENSITIVE)) {
-    for (size_t i = strlen("shared_memory/"); i < name.size(); i++)
-      if (!base::IsHexDigit(name[i]))
+    for (size_t i = strlen("shared_memory/"); i < name.size(); i++) {
+      if (!base::IsHexDigit(name[i])) {
         return false;
+      }
+    }
     return true;
   }
 
@@ -342,8 +387,10 @@ bool IsMemoryAllocatorDumpNameInAllowlist(const std::string& name) {
   stripped_str.reserve(length);
   bool parsing_hex = false;
   for (size_t i = 0; i < length; ++i) {
-    if (parsing_hex && isxdigit(name[i]))
+    if (parsing_hex &&
+        absl::ascii_isxdigit(static_cast<unsigned char>(name[i]))) {
       continue;
+    }
     parsing_hex = false;
     if (i + 1 < length && name[i] == '0' && name[i + 1] == 'x') {
       parsing_hex = true;
@@ -354,21 +401,22 @@ bool IsMemoryAllocatorDumpNameInAllowlist(const std::string& name) {
     }
   }
 
-  if (!g_allocator_dump_name_allowlist_for_testing) {
+  if (g_allocator_dump_name_allowlist_for_testing.empty()) {
     return kAllocatorDumpNameAllowlist.contains(stripped_str);
   } else {
-    return IsNameInList(stripped_str.c_str(),
-                        g_allocator_dump_name_allowlist_for_testing);
+    return base::Contains(g_allocator_dump_name_allowlist_for_testing,
+                          stripped_str);
   }
 }
 
-void SetDumpProviderAllowlistForTesting(const char* const* list) {
+void SetDumpProviderAllowlistForTesting(
+    base::span<const std::string_view> list) {
   g_dump_provider_allowlist_for_testing = list;
 }
 
-void SetAllocatorDumpNameAllowlistForTesting(const char* const* list) {
+void SetAllocatorDumpNameAllowlistForTesting(
+    base::span<const std::string_view> list) {
   g_allocator_dump_name_allowlist_for_testing = list;
 }
 
-}  // namespace trace_event
-}  // namespace base
+}  // namespace base::trace_event

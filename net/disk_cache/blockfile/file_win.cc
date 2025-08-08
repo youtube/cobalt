@@ -4,9 +4,13 @@
 
 #include "net/disk_cache/blockfile/file.h"
 
+#include <windows.h>
+
 #include <limits.h>
+
 #include <utility>
 
+#include "base/compiler_specific.h"
 #include "base/files/file_path.h"
 #include "base/memory/raw_ptr.h"
 #include "base/message_loop/message_pump_for_io.h"
@@ -27,10 +31,8 @@ class CompletionHandler;
 struct MyOverlapped {
   MyOverlapped(disk_cache::File* file, size_t offset,
                disk_cache::FileIOCallback* callback);
-  ~MyOverlapped() {}
-  OVERLAPPED* overlapped() {
-    return &context_.overlapped;
-  }
+  ~MyOverlapped() = default;
+  OVERLAPPED* overlapped() { return context_.GetOverlapped(); }
 
   base::MessagePumpForIO::IOContext context_;
   scoped_refptr<disk_cache::File> file_;
@@ -88,7 +90,7 @@ void CompletionHandler::OnIOCompleted(
 
 MyOverlapped::MyOverlapped(disk_cache::File* file, size_t offset,
                            disk_cache::FileIOCallback* callback) {
-  context_.overlapped.Offset = static_cast<DWORD>(offset);
+  context_.GetOverlapped()->Offset = static_cast<DWORD>(offset);
   file_ = file;
   callback_ = callback;
   completion_handler_ = CompletionHandler::Get();
@@ -115,8 +117,10 @@ bool File::Init(const base::FilePath& name) {
   if (!base_file_.IsValid())
     return false;
 
-  base::CurrentIOThread::Get()->RegisterIOHandler(base_file_.GetPlatformFile(),
-                                                  CompletionHandler::Get());
+  if (!base::CurrentIOThread::Get()->RegisterIOHandler(
+          base_file_.GetPlatformFile(), CompletionHandler::Get())) {
+    return false;
+  }
 
   init_ = true;
   sync_base_file_ = base::File(CreateFile(name.value().c_str(), access, sharing,
@@ -139,8 +143,8 @@ bool File::Read(void* buffer, size_t buffer_len, size_t offset) {
   if (buffer_len > ULONG_MAX || offset > LONG_MAX)
     return false;
 
-  int ret = sync_base_file_.Read(offset, static_cast<char*>(buffer),
-                                 buffer_len);
+  int ret = UNSAFE_TODO(
+      sync_base_file_.Read(offset, static_cast<char*>(buffer), buffer_len));
   return static_cast<int>(buffer_len) == ret;
 }
 
@@ -149,8 +153,8 @@ bool File::Write(const void* buffer, size_t buffer_len, size_t offset) {
   if (buffer_len > ULONG_MAX || offset > ULONG_MAX)
     return false;
 
-  int ret = sync_base_file_.Write(offset, static_cast<const char*>(buffer),
-                                 buffer_len);
+  int ret = UNSAFE_TODO(sync_base_file_.Write(
+      offset, static_cast<const char*>(buffer), buffer_len));
   return static_cast<int>(buffer_len) == ret;
 }
 

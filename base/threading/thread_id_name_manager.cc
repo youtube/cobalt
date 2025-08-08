@@ -9,18 +9,9 @@
 
 #include "base/check.h"
 #include "base/containers/contains.h"
-#include "base/containers/cxx20_erase.h"
 #include "base/memory/singleton.h"
 #include "base/strings/string_util.h"
 #include "base/trace_event/heap_profiler_allocation_context_tracker.h"  // no-presubmit-check
-#include "third_party/abseil-cpp/absl/base/attributes.h"
-
-#if defined(STARBOARD)
-#include <pthread.h>
-
-#include "base/check_op.h"
-#include "starboard/thread.h"
-#endif
 
 namespace base {
 namespace {
@@ -28,29 +19,8 @@ namespace {
 static const char kDefaultName[] = "";
 static std::string* g_default_name;
 
-#if defined(STARBOARD)
-ABSL_CONST_INIT pthread_once_t s_once_flag = PTHREAD_ONCE_INIT;
-ABSL_CONST_INIT pthread_key_t s_thread_local_key = 0;
-
-void InitThreadLocalKey() {
-  int res = pthread_key_create(&s_thread_local_key , NULL);
-  DCHECK(res == 0);
-}
-
-void EnsureThreadLocalKeyInited() {
-  pthread_once(&s_once_flag, InitThreadLocalKey);
-}
-
-const char* GetThreadName() {
-  EnsureThreadLocalKeyInited();
-  const char* thread_name = static_cast<const char*>(
-      pthread_getspecific(s_thread_local_key));
-  return !!thread_name ? thread_name : kDefaultName;
-}
-#else
-ABSL_CONST_INIT thread_local const char* thread_name = kDefaultName;
-#endif
-}
+constinit thread_local const char* thread_name = kDefaultName;
+}  // namespace
 
 ThreadIdNameManager::Observer::~Observer() = default;
 
@@ -66,7 +36,7 @@ ThreadIdNameManager::~ThreadIdNameManager() = default;
 
 ThreadIdNameManager* ThreadIdNameManager::GetInstance() {
   return Singleton<ThreadIdNameManager,
-      LeakySingletonTraits<ThreadIdNameManager> >::get();
+                   LeakySingletonTraits<ThreadIdNameManager>>::get();
 }
 
 const char* ThreadIdNameManager::GetDefaultInternedString() {
@@ -90,7 +60,7 @@ void ThreadIdNameManager::AddObserver(Observer* obs) {
 void ThreadIdNameManager::RemoveObserver(Observer* obs) {
   AutoLock locked(lock_);
   DCHECK(base::Contains(observers_, obs));
-  base::Erase(observers_, obs);
+  std::erase(observers_, obs);
 }
 
 void ThreadIdNameManager::SetName(const std::string& name) {
@@ -108,14 +78,10 @@ void ThreadIdNameManager::SetName(const std::string& name) {
 
     auto id_to_handle_iter = thread_id_to_handle_.find(id);
 
-#if defined(STARBOARD)
-    EnsureThreadLocalKeyInited();
-    pthread_setspecific(s_thread_local_key, const_cast<char*>(leaked_str->c_str()));
-#else
     thread_name = leaked_str->c_str();
-#endif
-    for (Observer* obs : observers_)
+    for (Observer* obs : observers_) {
       obs->OnThreadNameChanged(leaked_str->c_str());
+    }
 
     // The main thread of a process will not be created as a Thread object which
     // means there is no PlatformThreadHandler registered.
@@ -139,12 +105,14 @@ void ThreadIdNameManager::SetName(const std::string& name) {
 const char* ThreadIdNameManager::GetName(PlatformThreadId id) {
   AutoLock locked(lock_);
 
-  if (id == main_process_id_)
+  if (id == main_process_id_) {
     return main_process_name_->c_str();
+  }
 
   auto id_to_handle_iter = thread_id_to_handle_.find(id);
-  if (id_to_handle_iter == thread_id_to_handle_.end())
+  if (id_to_handle_iter == thread_id_to_handle_.end()) {
     return name_to_interned_name_[kDefaultName]->c_str();
+  }
 
   auto handle_to_name_iter =
       thread_handle_to_interned_name_.find(id_to_handle_iter->second);
@@ -152,11 +120,7 @@ const char* ThreadIdNameManager::GetName(PlatformThreadId id) {
 }
 
 const char* ThreadIdNameManager::GetNameForCurrentThread() {
-#if defined(STARBOARD)
-  return GetThreadName();
-#else
   return thread_name;
-#endif
 }
 
 void ThreadIdNameManager::RemoveName(PlatformThreadHandle::Handle handle,
@@ -164,15 +128,16 @@ void ThreadIdNameManager::RemoveName(PlatformThreadHandle::Handle handle,
   AutoLock locked(lock_);
   auto handle_to_name_iter = thread_handle_to_interned_name_.find(handle);
 
-  DCHECK(handle_to_name_iter != thread_handle_to_interned_name_.end());
+  CHECK(handle_to_name_iter != thread_handle_to_interned_name_.end());
   thread_handle_to_interned_name_.erase(handle_to_name_iter);
 
   auto id_to_handle_iter = thread_id_to_handle_.find(id);
-  DCHECK((id_to_handle_iter!= thread_id_to_handle_.end()));
+  CHECK(id_to_handle_iter != thread_id_to_handle_.end());
   // The given |id| may have been re-used by the system. Make sure the
   // mapping points to the provided |handle| before removal.
-  if (id_to_handle_iter->second != handle)
+  if (id_to_handle_iter->second != handle) {
     return;
+  }
 
   thread_id_to_handle_.erase(id_to_handle_iter);
 }
@@ -182,8 +147,9 @@ std::vector<PlatformThreadId> ThreadIdNameManager::GetIds() {
 
   std::vector<PlatformThreadId> ids;
   ids.reserve(thread_id_to_handle_.size());
-  for (const auto& iter : thread_id_to_handle_)
+  for (const auto& iter : thread_id_to_handle_) {
     ids.push_back(iter.first);
+  }
 
   return ids;
 }

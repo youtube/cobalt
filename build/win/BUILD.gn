@@ -6,10 +6,6 @@ import("//build/config/clang/clang.gni")
 import("//build/config/sanitizers/sanitizers.gni")
 import("//build/config/win/manifest.gni")
 
-if (is_starboard) {
-  # Never use a manifest in Starboard.
-  group("default_exe_manifest") {}
-} else {
 # Depending on this target will cause the manifests for Chrome's default
 # Windows and common control compatibility and elevation for executables.
 windows_manifest("default_exe_manifest") {
@@ -19,13 +15,11 @@ windows_manifest("default_exe_manifest") {
     default_compatibility_manifest,
   ]
 }
-}
 
 if (is_win) {
   assert(host_os != "mac" || target_cpu != "x86",
          "Windows cross-builds from Mac must be 64-bit.")
 
-  if (!is_starboard) {
   action("copy_cdb_to_output") {
     script = "//build/win/copy_cdb_to_output.py"
     inputs = [
@@ -47,7 +41,6 @@ if (is_win) {
       current_cpu,
     ]
   }
-  }
 
   group("runtime_libs") {
     # These are needed for any tests that need to decode stacks.
@@ -55,7 +48,7 @@ if (is_win) {
       "$root_out_dir/dbghelp.dll",
       "$root_out_dir/dbgcore.dll",
     ]
-    if (is_component_build) {
+    if (is_component_build || is_asan) {
       # Copy the VS runtime DLLs into the isolate so that they don't have to be
       # preinstalled on the target machine. The debug runtimes have a "d" at
       # the end.

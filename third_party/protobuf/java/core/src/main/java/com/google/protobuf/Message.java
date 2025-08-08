@@ -1,35 +1,9 @@
 // Protocol Buffers - Google's data interchange format
 // Copyright 2008 Google Inc.  All rights reserved.
-// https://developers.google.com/protocol-buffers/
 //
-// Redistribution and use in source and binary forms, with or without
-// modification, are permitted provided that the following conditions are
-// met:
-//
-//     * Redistributions of source code must retain the above copyright
-// notice, this list of conditions and the following disclaimer.
-//     * Redistributions in binary form must reproduce the above
-// copyright notice, this list of conditions and the following disclaimer
-// in the documentation and/or other materials provided with the
-// distribution.
-//     * Neither the name of Google Inc. nor the names of its
-// contributors may be used to endorse or promote products derived from
-// this software without specific prior written permission.
-//
-// THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
-// "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
-// LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR
-// A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT
-// OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
-// SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT
-// LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
-// DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
-// THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
-// (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
-// OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
-
-// TODO(kenton):  Use generics?  E.g. Builder<BuilderType extends Builder>, then
-//   mergeFrom*() could return BuilderType for better type-safety.
+// Use of this source code is governed by a BSD-style
+// license that can be found in the LICENSE file or at
+// https://developers.google.com/open-source/licenses/bsd
 
 package com.google.protobuf;
 
@@ -41,18 +15,18 @@ import java.util.Map;
  * Abstract interface implemented by Protocol Message objects.
  *
  * <p>See also {@link MessageLite}, which defines most of the methods that typical users care about.
- * {@link Message} adds to it methods that are not available in the "lite" runtime. The biggest
- * added features are introspection and reflection -- i.e., getting descriptors for the message type
- * and accessing the field values dynamically.
+ * {@link Message} adds methods that are not available in the "lite" runtime. The biggest added
+ * features are introspection and reflection; that is, getting descriptors for the message type and
+ * accessing the field values dynamically.
  *
  * @author kenton@google.com Kenton Varda
  */
+@CheckReturnValue
 public interface Message extends MessageLite, MessageOrBuilder {
 
   // (From MessageLite, re-declared here only for return type covariance.)
   @Override
   Parser<? extends Message> getParserForType();
-
 
   // -----------------------------------------------------------------
   // Comparison and hashing
@@ -67,7 +41,8 @@ public interface Message extends MessageLite, MessageOrBuilder {
    * @return {@code true} if the specified object is equal to this message
    */
   @Override
-  boolean equals(Object other);
+  boolean equals(
+          Object other);
 
   /**
    * Returns the hash code value for this message. The hash code of a message should mix the
@@ -105,6 +80,7 @@ public interface Message extends MessageLite, MessageOrBuilder {
     // (From MessageLite.Builder, re-declared here only for return type
     // covariance.)
     @Override
+    @CanIgnoreReturnValue
     Builder clear();
 
     /**
@@ -124,7 +100,58 @@ public interface Message extends MessageLite, MessageOrBuilder {
      *
      * <p>This is equivalent to the {@code Message::MergeFrom} method in C++.
      */
+    @CanIgnoreReturnValue
     Builder mergeFrom(Message other);
+
+    @Override
+    @CanIgnoreReturnValue
+    Builder mergeFrom(CodedInputStream input) throws IOException;
+
+    @Override
+    @CanIgnoreReturnValue
+    Builder mergeFrom(CodedInputStream input, ExtensionRegistryLite extensionRegistry)
+        throws IOException;
+
+    // ---------------------------------------------------------------
+    // Convenience methods.
+
+    // (From MessageLite.Builder, re-declared here only for return type
+    // covariance.)
+    @Override
+    @CanIgnoreReturnValue
+    Builder mergeFrom(ByteString data) throws InvalidProtocolBufferException;
+
+    @Override
+    @CanIgnoreReturnValue
+    Builder mergeFrom(ByteString data, ExtensionRegistryLite extensionRegistry)
+        throws InvalidProtocolBufferException;
+
+    @Override
+    @CanIgnoreReturnValue
+    Builder mergeFrom(byte[] data) throws InvalidProtocolBufferException;
+
+    @Override
+    @CanIgnoreReturnValue
+    Builder mergeFrom(byte[] data, int off, int len) throws InvalidProtocolBufferException;
+
+    @Override
+    @CanIgnoreReturnValue
+    Builder mergeFrom(byte[] data, ExtensionRegistryLite extensionRegistry)
+        throws InvalidProtocolBufferException;
+
+    @Override
+    @CanIgnoreReturnValue
+    Builder mergeFrom(byte[] data, int off, int len, ExtensionRegistryLite extensionRegistry)
+        throws InvalidProtocolBufferException;
+
+    @Override
+    @CanIgnoreReturnValue
+    Builder mergeFrom(InputStream input) throws IOException;
+
+    @Override
+    @CanIgnoreReturnValue
+    Builder mergeFrom(InputStream input, ExtensionRegistryLite extensionRegistry)
+        throws IOException;
 
     // (From MessageLite.Builder, re-declared here only for return type
     // covariance.)
@@ -137,27 +164,19 @@ public interface Message extends MessageLite, MessageOrBuilder {
     @Override
     Builder clone();
 
-    @Override
-    Builder mergeFrom(CodedInputStream input) throws IOException;
-
-    @Override
-    Builder mergeFrom(CodedInputStream input, ExtensionRegistryLite extensionRegistry)
-        throws IOException;
-
     /** Get the message's type's descriptor. See {@link Message#getDescriptorForType()}. */
     @Override
     Descriptors.Descriptor getDescriptorForType();
 
     /**
-     * Create a builder for messages of the appropriate type for the given field. The
-     * builder is NOT nested in the current builder. However, messages built with the
-     * builder can then be passed to the {@link #setField(Descriptors.FieldDescriptor, Object)},
-     * {@link #setRepeatedField(Descriptors.FieldDescriptor, int, Object)}, or
-     * {@link #addRepeatedField(Descriptors.FieldDescriptor, Object)}
-     * method of the current builder.
+     * Create a builder for messages of the appropriate type for the given field. The builder is NOT
+     * nested in the current builder. However, messages built with the builder can then be passed to
+     * the {@link #setField(Descriptors.FieldDescriptor, Object)}, {@link
+     * #setRepeatedField(Descriptors.FieldDescriptor, int, Object)}, or {@link
+     * #addRepeatedField(Descriptors.FieldDescriptor, Object)} method of the current builder.
      *
-     * <p>To obtain a builder nested in the current builder, use
-     * {@link #getFieldBuilder(Descriptors.FieldDescriptor)} instead.
+     * <p>To obtain a builder nested in the current builder, use {@link
+     * #getFieldBuilder(Descriptors.FieldDescriptor)} instead.
      */
     Builder newBuilderForField(Descriptors.FieldDescriptor field);
 
@@ -165,16 +184,12 @@ public interface Message extends MessageLite, MessageOrBuilder {
      * Get a nested builder instance for the given field.
      *
      * <p>Normally, we hold a reference to the immutable message object for the message type field.
-     * Some implementations(the generated message builders), however, can also hold a reference to
-     * the builder object (a nested builder) for the field.
+     * Some implementations (the generated message builders) can also hold a reference to the
+     * builder object (a nested builder) for the field.
      *
-     * <p>If the field is already backed up by a nested builder, the nested builder will be
-     * returned. Otherwise, a new field builder will be created and returned. The original message
-     * field (if exist) will be merged into the field builder, which will then be nested into its
-     * parent builder.
-     *
-     * <p>NOTE: implementations that do not support nested builders will throw <code>
-     * UnsupportedOperationException</code>.
+     * <p>If the field is already backed up by a nested builder, the nested builder is returned.
+     * Otherwise, a new field builder is created and returned. The original message field (if one
+     * exists) is merged into the field builder, which is then nested into its parent builder.
      */
     Builder getFieldBuilder(Descriptors.FieldDescriptor field);
 
@@ -182,59 +197,62 @@ public interface Message extends MessageLite, MessageOrBuilder {
      * Get a nested builder instance for the given repeated field instance.
      *
      * <p>Normally, we hold a reference to the immutable message object for the message type field.
-     * Some implementations(the generated message builders), however, can also hold a reference to
-     * the builder object (a nested builder) for the field.
+     * Some implementations (the generated message builders) can also hold a reference to the
+     * builder object (a nested builder) for the field.
      *
-     * <p>If the field is already backed up by a nested builder, the nested builder will be
-     * returned. Otherwise, a new field builder will be created and returned. The original message
-     * field (if exist) will be merged into the field builder, which will then be nested into its
-     * parent builder.
-     *
-     * <p>NOTE: implementations that do not support nested builders will throw <code>
-     * UnsupportedOperationException</code>.
+     * <p>If the field is already backed up by a nested builder, the nested builder is returned.
+     * Otherwise, a new field builder is created and returned. The original message field (if one
+     * exists) is merged into the field builder, which is then nested into its parent builder.
      */
     Builder getRepeatedFieldBuilder(Descriptors.FieldDescriptor field, int index);
 
     /**
-     * Sets a field to the given value. The value must be of the correct type for this field, i.e.
-     * the same type that {@link Message#getField(Descriptors.FieldDescriptor)} would return.
+     * Sets a field to the given value. The value must be of the correct type for this field, that
+     * is, the same type that {@link Message#getField(Descriptors.FieldDescriptor)} returns.
      */
+    @CanIgnoreReturnValue
     Builder setField(Descriptors.FieldDescriptor field, Object value);
 
     /**
      * Clears the field. This is exactly equivalent to calling the generated "clear" accessor method
      * corresponding to the field.
      */
+    @CanIgnoreReturnValue
     Builder clearField(Descriptors.FieldDescriptor field);
 
     /**
      * Clears the oneof. This is exactly equivalent to calling the generated "clear" accessor method
      * corresponding to the oneof.
      */
+    @CanIgnoreReturnValue
     Builder clearOneof(Descriptors.OneofDescriptor oneof);
 
     /**
      * Sets an element of a repeated field to the given value. The value must be of the correct type
-     * for this field, i.e. the same type that {@link
-     * Message#getRepeatedField(Descriptors.FieldDescriptor,int)} would return.
+     * for this field; that is, the same type that {@link
+     * Message#getRepeatedField(Descriptors.FieldDescriptor,int)} returns.
      *
-     * @throws IllegalArgumentException The field is not a repeated field, or {@code
+     * @throws IllegalArgumentException if the field is not a repeated field, or {@code
      *     field.getContainingType() != getDescriptorForType()}.
      */
+    @CanIgnoreReturnValue
     Builder setRepeatedField(Descriptors.FieldDescriptor field, int index, Object value);
 
     /**
      * Like {@code setRepeatedField}, but appends the value as a new element.
      *
-     * @throws IllegalArgumentException The field is not a repeated field, or {@code
-     *     field.getContainingType() != getDescriptorForType()}.
+     * @throws IllegalArgumentException if the field is not a repeated field, or {@code
+     *     field.getContainingType() != getDescriptorForType()}
      */
+    @CanIgnoreReturnValue
     Builder addRepeatedField(Descriptors.FieldDescriptor field, Object value);
 
     /** Set the {@link UnknownFieldSet} for this message. */
+    @CanIgnoreReturnValue
     Builder setUnknownFields(UnknownFieldSet unknownFields);
 
     /** Merge some unknown fields into the {@link UnknownFieldSet} for this message. */
+    @CanIgnoreReturnValue
     Builder mergeUnknownFields(UnknownFieldSet unknownFields);
 
     // ---------------------------------------------------------------
@@ -242,34 +260,6 @@ public interface Message extends MessageLite, MessageOrBuilder {
 
     // (From MessageLite.Builder, re-declared here only for return type
     // covariance.)
-    @Override
-    Builder mergeFrom(ByteString data) throws InvalidProtocolBufferException;
-
-    @Override
-    Builder mergeFrom(ByteString data, ExtensionRegistryLite extensionRegistry)
-        throws InvalidProtocolBufferException;
-
-    @Override
-    Builder mergeFrom(byte[] data) throws InvalidProtocolBufferException;
-
-    @Override
-    Builder mergeFrom(byte[] data, int off, int len) throws InvalidProtocolBufferException;
-
-    @Override
-    Builder mergeFrom(byte[] data, ExtensionRegistryLite extensionRegistry)
-        throws InvalidProtocolBufferException;
-
-    @Override
-    Builder mergeFrom(byte[] data, int off, int len, ExtensionRegistryLite extensionRegistry)
-        throws InvalidProtocolBufferException;
-
-    @Override
-    Builder mergeFrom(InputStream input) throws IOException;
-
-    @Override
-    Builder mergeFrom(InputStream input, ExtensionRegistryLite extensionRegistry)
-        throws IOException;
-
     @Override
     boolean mergeDelimitedFrom(InputStream input) throws IOException;
 
