@@ -14,7 +14,6 @@
 
 #include "starboard/drm.h"
 
-#include "starboard/common/string.h"
 #include "starboard/nplb/drm_helpers.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
