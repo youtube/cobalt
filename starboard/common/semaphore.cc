@@ -56,7 +56,7 @@ bool Semaphore::TakeWait(int64_t wait_us) {
   }
   std::unique_lock lock(mutex_);
   if (!condition_.wait_for(lock, std::chrono::microseconds(wait_us),
-                           [this]() { return this->permits_ > 0; })) {
+                           [this] { return this->permits_ > 0; })) {
     return false;  // Timed out.
   }
   --permits_;
