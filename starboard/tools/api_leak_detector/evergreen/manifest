@@ -49,7 +49,6 @@ realpath
 rewind
 sched_getaffinity
 sdallocx
-sendmsg
 setlocale
 setpriority
 setstate

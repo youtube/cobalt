@@ -13,6 +13,7 @@
 // limitations under the License.
 
 #include "starboard/shared/modular/starboard_layer_posix_socket_abi_wrappers.h"
+
 #include <stdlib.h>
 #include <string.h>
 
@@ -303,4 +304,57 @@ SB_EXPORT int __abi_wrap_setsockopt(int socket,
 
 SB_EXPORT int __abi_wrap_shutdown(int socket, int how) {
   return shutdown(socket, musl_shuts_to_platform_shuts(how));
+}
+
+ssize_t __abi_wrap_sendmsg(int sockfd,
+                           const struct musl_msghdr* msg,
+                           int flags) {
+  struct msghdr platform_msg = {0};
+  platform_msg.msg_name = msg->msg_name;
+  platform_msg.msg_namelen = msg->msg_namelen;
+
+  struct iovec platform_iov[msg->msg_iovlen];
+  for (int i = 0; i < msg->msg_iovlen; ++i) {
+    platform_iov[i].iov_base = msg->msg_iov[i].iov_base;
+    platform_iov[i].iov_len = msg->msg_iov[i].iov_len;
+  }
+  platform_msg.msg_iov = platform_iov;
+  platform_msg.msg_iovlen = msg->msg_iovlen;
+
+  if (msg->msg_control && msg->msg_controllen > 0) {
+    size_t total_cmsg_space = 0;
+    for (struct musl_cmsghdr* cmsg = __musl_CMSG_FIRSTHDR(msg); cmsg != nullptr;
+         cmsg = __musl_CMSG_NXTHDR(msg, cmsg)) {
+      size_t data_len = cmsg->cmsg_len - __musl_CMSG_HDR_LEN;
+      total_cmsg_space += CMSG_SPACE(data_len);
+    }
+    platform_msg.msg_controllen = total_cmsg_space;
+    platform_msg.msg_control = malloc(platform_msg.msg_controllen);
+    if (!platform_msg.msg_control) {
+      errno = ENOMEM;
+      return -1;
+    }
+    memset(platform_msg.msg_control, 0, platform_msg.msg_controllen);
+
+    struct cmsghdr* platform_cmsg = CMSG_FIRSTHDR(&platform_msg);
+    for (struct musl_cmsghdr* cmsg = __musl_CMSG_FIRSTHDR(msg); cmsg != nullptr;
+         cmsg = __musl_CMSG_NXTHDR(msg, cmsg)) {
+      size_t data_len = cmsg->cmsg_len - __musl_CMSG_HDR_LEN;
+      platform_cmsg->cmsg_len = CMSG_LEN(data_len);
+      platform_cmsg->cmsg_level = cmsg->cmsg_level;
+      platform_cmsg->cmsg_type = cmsg->cmsg_type;
+      memcpy(CMSG_DATA(platform_cmsg), __musl_CMSG_DATA(cmsg), data_len);
+      platform_cmsg = CMSG_NXTHDR(&platform_msg, platform_cmsg);
+    }
+  }
+
+  platform_msg.msg_flags = msg->msg_flags;
+
+  ssize_t result = sendmsg(sockfd, &platform_msg, flags);
+
+  if (platform_msg.msg_control) {
+    free(platform_msg.msg_control);
+  }
+
+  return result;
 }

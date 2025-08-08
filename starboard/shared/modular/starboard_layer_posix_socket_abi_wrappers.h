@@ -24,6 +24,7 @@
 
 #include "starboard/configuration.h"
 #include "starboard/export.h"
+#include "starboard/shared/modular/starboard_layer_posix_uio_abi_wrappers.h"
 
 #ifdef __cplusplus
 extern "C" {
@@ -86,6 +87,55 @@ typedef struct musl_addrinfo {
   struct musl_addrinfo* ai_next;
 } musl_addrinfo;
 
+// The padding assumes all platforms are little endian
+// in third_party/musl/include/sys/socket.h.
+struct musl_cmsghdr {
+  socklen_t cmsg_len;
+#if SB_IS(64_BIT)
+  int __pad1;
+#endif
+  int cmsg_level;
+  int cmsg_type;
+};
+
+struct musl_msghdr {
+  void* msg_name;
+  socklen_t msg_namelen;
+  struct musl_iovec* msg_iov;
+  int msg_iovlen;
+#if SB_IS(64_BIT)
+  int __pad1;
+#endif
+  void* msg_control;
+  socklen_t msg_controllen;
+#if SB_IS(64_BIT)
+  int __pad2;
+#endif
+  int msg_flags;
+};
+
+#define __musl_CMSG_ALIGN(len) \
+  (((len) + sizeof(size_t) - 1) & ~(sizeof(size_t) - 1))
+#define __musl_CMSG_HDR_LEN __musl_CMSG_ALIGN(sizeof(struct musl_cmsghdr))
+#define __musl_CMSG_DATA(cmsg) ((unsigned char*)(cmsg) + __musl_CMSG_HDR_LEN)
+#define __musl_CMSG_LEN(len) (__musl_CMSG_HDR_LEN + (len))
+#define __musl_CMSG_SPACE(len) (__musl_CMSG_HDR_LEN + __musl_CMSG_ALIGN(len))
+
+#define __musl_CMSG_FIRSTHDR(mhdr)                         \
+  (((mhdr)->msg_controllen >= sizeof(struct musl_cmsghdr)) \
+       ? (struct musl_cmsghdr*)(mhdr)->msg_control         \
+       : (struct musl_cmsghdr*)NULL)
+
+#define __musl_CMSG_NXTHDR(mhdr, cmsg)                                      \
+  (((cmsg) == NULL)                                                         \
+       ? __musl_CMSG_FIRSTHDR(mhdr)                                         \
+       : (((unsigned char*)(cmsg) + __musl_CMSG_ALIGN((cmsg)->cmsg_len)) >= \
+                  ((unsigned char*)((mhdr)->msg_control) +                  \
+                   (mhdr)->msg_controllen)                                  \
+              ? (struct musl_cmsghdr*)NULL                                  \
+              : (struct musl_cmsghdr*)((unsigned char*)(cmsg) +             \
+                                       __musl_CMSG_ALIGN((cmsg)->cmsg_len))))
+
 SB_EXPORT int __abi_wrap_accept(int sockfd,
                                 musl_sockaddr* addr,
                                 socklen_t* addrlen_ptr);
@@ -116,6 +166,10 @@ SB_EXPORT int __abi_wrap_setsockopt(int socket,
                                     socklen_t option_len);
 
 SB_EXPORT int __abi_wrap_shutdown(int socket, int how);
+
+SB_EXPORT ssize_t __abi_wrap_sendmsg(int sockfd,
+                                     const struct musl_msghdr* msg,
+                                     int flags);
 
 #ifdef __cplusplus
 }  // extern "C"
