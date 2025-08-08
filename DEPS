@@ -932,8 +932,9 @@ deps = {
       'condition': 'checkout_nacl',
   },
 
-  'src/net/third_party/quiche/src':
-    Var('quiche_git') + '/quiche.git' + '@' +  Var('quiche_revision'),
+# Cobalt: imported
+#  'src/net/third_party/quiche/src':
+#    Var('quiche_git') + '/quiche.git' + '@' +  Var('quiche_revision'),
 
   'src/tools/luci-go': {
       'packages': [

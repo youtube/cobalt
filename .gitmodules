@@ -109,9 +109,6 @@
 	path = native_client
 	url = https://chromium.googlesource.com/native_client/src/native_client.git
 	gclient-condition = checkout_nacl
-[submodule "net/third_party/quiche/src"]
-	path = net/third_party/quiche/src
-	url = https://quiche.googlesource.com/quiche.git
 [submodule "third_party/android_protobuf/src"]
 	path = third_party/android_protobuf/src
 	url = https://android.googlesource.com/platform/external/protobuf.git
