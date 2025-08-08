@@ -52,8 +52,9 @@ declare_args() {
 
 declare_args() {
   # PartitionAlloc-Everywhere (PA-E).
-  use_partition_alloc_as_malloc = false
-print("HACK: Forcing use_partition_alloc_as_malloc to false")
+  use_partition_alloc_as_malloc =
+      use_partition_alloc && use_partition_alloc_as_malloc_default
+  print("use_partition_alloc_as_malloc = $use_partition_alloc_as_malloc")
 }
 
 declare_args() {
@@ -88,7 +89,6 @@ declare_args() {
   # partition_alloc::PartitionOptions::BackupRefPtr::kEnabled.
   enable_backup_ref_ptr_support =
       use_partition_alloc && enable_backup_ref_ptr_support_default
-  print("enable_backup_ref_ptr_support = $enable_backup_ref_ptr_support")
 
   # RAW_PTR_EXCLUSION macro is disabled on official builds because it increased
   # binary size. This flag can be used to enable it for official builds too.
