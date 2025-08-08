@@ -964,7 +964,7 @@ void WebViewImpl::ZoomToFindInPageRect(const gfx::Rect& rect_in_root_frame) {
   StartPageScaleAnimation(scroll, false, scale, kFindInPageAnimationDuration);
 }
 
-#if !BUILDFLAG(IS_MAC)
+#if !BUILDFLAG(IS_MAC) && !BUILDFLAG(IS_COBALT)
 // Mac has no way to open a context menu based on a keyboard event.
 WebInputEventResult WebViewImpl::SendContextMenuEvent() {
   // The contextMenuController() holds onto the last context menu that was
@@ -994,7 +994,7 @@ WebInputEventResult WebViewImpl::SendContextMenuEvent() {
 WebInputEventResult WebViewImpl::SendContextMenuEvent() {
   return WebInputEventResult::kNotHandled;
 }
-#endif
+#endif // !BUILDFLAG(IS_MAC) && !BUILDFLAG(IS_COBALT)
 
 WebPagePopupImpl* WebViewImpl::OpenPagePopup(PagePopupClient* client) {
   DCHECK(client);
@@ -3233,9 +3233,13 @@ void WebViewImpl::DeactivateDevToolsTransform() {
 }
 
 void WebViewImpl::PerformCustomContextMenuAction(unsigned action) {
+#if BUILDFLAG(IS_COBALT)
+  return;
+#else
   if (page_) {
     page_->GetContextMenuController().CustomContextMenuItemSelected(action);
   }
+#endif
 }
 
 void WebViewImpl::DidCloseContextMenu() {
