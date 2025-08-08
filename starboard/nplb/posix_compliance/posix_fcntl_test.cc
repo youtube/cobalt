@@ -76,7 +76,8 @@ TEST_F(PosixFcntlTest, GetFileDescriptorFlagsDoesntReturnUnexpectedFlags) {
 }
 
 // Tests that F_SETFD sets the FD_CLOEXEC flag on a file descriptor.
-TEST_F(PosixFcntlTest, GetFileDescriptorFlagsReturnsFlagsSetBySetFileDescriptorFlags) {
+TEST_F(PosixFcntlTest,
+       GetFileDescriptorFlagsReturnsFlagsSetBySetFileDescriptorFlags) {
   ScopedRandomFile random_file;
   const std::string& filename = random_file.filename();
 

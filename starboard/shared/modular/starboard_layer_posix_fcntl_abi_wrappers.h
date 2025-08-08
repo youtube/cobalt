@@ -22,18 +22,6 @@
 #include "starboard/shared/modular/starboard_layer_posix_signal_abi_wrappers.h"
 #include "starboard/shared/modular/starboard_layer_posix_unistd_abi_wrappers.h"
 
-static_assert(F_GETLK == 5,
-              "The Starboard layer wrapper expects this value from musl");
-static_assert(F_SETLK == 6,
-              "The Starboard layer wrapper expects this value from musl");
-static_assert(F_SETLKW == 7,
-              "The Starboard layer wrapper expects this value from musl");
-#if defined(_LARGEFILE64_SOURCE)
-static_assert(F_SETLK64 == F_SETLK,
-              "The Starboard layer wrapper expects this value from musl");
-static_assert(F_SETLKW64 == F_SETLKW,
-              "The Starboard layer wrapper expects this value from musl");
-#endif
 static_assert(O_CREAT == 0100,
               "The Starboard layer wrapper expects this value from musl");
 static_assert(O_APPEND == 02000,
