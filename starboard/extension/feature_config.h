@@ -128,6 +128,10 @@ STARBOARD_FEATURE(kUseStubVideoDecoder, "UseStubVideoDecoder", false)
 STARBOARD_FEATURE(kVideoDecoderDelayUsecOverride,
                   "VideoDecoderDelayUsecOverride",
                   false)
+#if BUILDFLAG(IS_ANDROID) && (SB_API_VERSION >= 17)
+STARBOARD_FEATURE(kMaxVideoInputSizeExperiment,
+                  "MaxVideoInputSizeExperiment",
+                  false)
 #endif  // BUILDFLAG(IS_ANDROID) && (SB_API_VERSION >= 17)
 FEATURE_LIST_END
 

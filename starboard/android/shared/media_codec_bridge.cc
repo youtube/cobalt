@@ -18,6 +18,7 @@
 #include "base/android/jni_string.h"
 #include "starboard/android/shared/media_capabilities_cache.h"
 #include "starboard/common/string.h"
+#include "starboard/shared/starboard/features.h"
 
 #pragma GCC diagnostic push
 #pragma GCC diagnostic ignored "-Wunused-function"
@@ -285,6 +286,8 @@ std::unique_ptr<MediaCodecBridge> MediaCodecBridge::CreateVideoMediaCodecBridge(
       j_decoder_name, width_hint, height_hint, fps, max_width.value_or(-1),
       max_height.value_or(-1), j_surface_local, j_media_crypto_local,
       j_color_info, tunnel_mode_audio_session_id, max_video_input_size,
+      starboard::features::FeatureList::IsEnabled(
+          starboard::features::kMaxVideoInputSizeExperiment),
       j_create_media_codec_bridge_result);
 
   ScopedJavaLocalRef<jobject> j_media_codec_bridge(
