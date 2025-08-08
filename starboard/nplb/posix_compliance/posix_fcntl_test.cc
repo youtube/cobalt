@@ -59,7 +59,7 @@ TEST_F(PosixFcntlTest, DuplicateFileDescriptorCopiesStatusFlags) {
 
 // Tests that F_GETFD returns empty flags on a file decriptor that never had
 // flags set with F_SETFD.
-TEST_F(PosixFcntlTest, GetFdFlagsDoesntDetectNonExistentFlags) {
+TEST_F(PosixFcntlTest, GetFileDescriptorFlagsDoesntReturnUnexpectedFlags) {
   ScopedRandomFile random_file;
   const std::string& filename = random_file.filename();
 
@@ -76,7 +76,7 @@ TEST_F(PosixFcntlTest, GetFdFlagsDoesntDetectNonExistentFlags) {
 }
 
 // Tests that F_SETFD sets the FD_CLOEXEC flag on a file descriptor.
-TEST_F(PosixFcntlTest, SetFileDescriptorFlags) {
+TEST_F(PosixFcntlTest, GetFileDescriptorFlagsReturnsFlagsSetBySetFileDescriptorFlags) {
   ScopedRandomFile random_file;
   const std::string& filename = random_file.filename();
 
