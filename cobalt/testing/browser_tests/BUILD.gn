@@ -189,6 +189,7 @@ test("cobalt_browsertests") {
   sources = [
     "content_main_runner_impl_browsertest.cc",
     "navigation_browsertest.cc",
+    "session_history_browsertest.cc",
   ]
 
   if (is_android) {
