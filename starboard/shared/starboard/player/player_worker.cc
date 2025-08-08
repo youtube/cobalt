@@ -139,8 +139,8 @@ PlayerWorker::PlayerWorker(SbMediaAudioCodec audio_codec,
     return;
   }
   std::unique_lock lock(thread_param.mutex);
-  thread_param.condition_variable.wait(lock,
-                                       [this] { return job_queue_.get(); });
+  thread_param.condition_variable.wait(
+      lock, [this] { return job_queue_ != nullptr; });
   SB_DCHECK(job_queue_);
 }
 

@@ -28,14 +28,16 @@ Semaphore::Semaphore(int initial_thread_permits)
 Semaphore::~Semaphore() {}
 
 void Semaphore::Put() {
-  std::lock_guard lock(mutex_);
-  ++permits_;
+  {
+    std::lock_guard lock(mutex_);
+    ++permits_;
+  }
   condition_.notify_one();
 }
 
 void Semaphore::Take() {
   std::unique_lock lock(mutex_);
-  condition_.wait(lock, [this]() { return this->permits_ > 0; });
+  condition_.wait(lock, [this] { return this->permits_ > 0; });
   --permits_;
 }
 

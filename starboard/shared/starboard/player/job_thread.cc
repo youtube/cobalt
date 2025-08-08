@@ -82,8 +82,8 @@ void* JobThread::ThreadEntryPoint(void* context) {
   {
     std::lock_guard lock(param->mutex);
     job_thread->job_queue_ = std::make_unique<JobQueue>();
-    param->condition_variable.notify_one();
   }
+  param->condition_variable.notify_one();
   job_thread->RunLoop();
   return nullptr;
 }
