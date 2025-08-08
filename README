@@ -4,7 +4,7 @@ To run the rebase tools...
 
 sudo apt install python3-venv
 
-2. Activate virtual environment
+2. Activate virtual environment (in parent dir of this repo)
 
 python3 -m venv rebase_tools
 source rebase_tools/bin/activate
@@ -37,7 +37,7 @@ To rebase...
 Start with a rebase branch (in a separate repository clone / directory) such as
 `feature/rebase_m120`.
 
-python3 main.py rebase --repo-path=/usr/local/google/home/brianting/chromium/src --rebase-branch=feature/rebase_m120 --conflicts-dir=m114_to_m120_conflicts
+python3 main.py rebase --repo-path=/usr/local/google/home/brianting/chromium/src --rebase-branch=feature/rebase_m120 --deps-file=/usr/local/google/home/brianting/chromium/src/DEPS --conflicts-dir=m114_to_m120_conflicts
 
 Conflict records including patch files are stored in the `m114_to_m120_conflicts`
 directory. Rebasing can also be restarted non-inclusively using the
