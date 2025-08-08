@@ -1,0 +1,7 @@
+---
+BasedOnStyle: Chromium
+Language: JavaScript
+CommentPragmas: .*\@.*
+AllowShortBlocksOnASingleLine: false
+AllowShortFunctionsOnASingleLine: None
+ReflowComments: false

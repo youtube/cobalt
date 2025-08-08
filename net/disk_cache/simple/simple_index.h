@@ -28,6 +28,7 @@
 #include "net/base/completion_once_callback.h"
 #include "net/base/net_errors.h"
 #include "net/base/net_export.h"
+#include "net/disk_cache/disk_cache.h"
 
 #if BUILDFLAG(IS_ANDROID)
 #include "base/android/application_status_listener.h"
@@ -110,8 +111,7 @@ class NET_EXPORT_PRIVATE EntryMetadata {
 static_assert(sizeof(EntryMetadata) == 8, "incorrect metadata size");
 
 // This class is not Thread-safe.
-class NET_EXPORT_PRIVATE SimpleIndex
-    : public base::SupportsWeakPtr<SimpleIndex> {
+class NET_EXPORT_PRIVATE SimpleIndex final {
  public:
   // Used in histograms. Please only add entries at the end.
   enum IndexInitMethod {
@@ -222,9 +222,9 @@ class NET_EXPORT_PRIVATE SimpleIndex
   void SetLastUsedTimeForTest(uint64_t entry_hash, const base::Time last_used);
 
 #if BUILDFLAG(IS_ANDROID)
-  void set_app_status_listener(
-      base::android::ApplicationStatusListener* app_status_listener) {
-    app_status_listener_ = app_status_listener;
+  void set_app_status_listener_getter(
+      ApplicationStatusListenerGetter app_status_listener_getter) {
+    app_status_listener_getter_ = app_status_listener_getter;
   }
 #endif
 
@@ -260,8 +260,7 @@ class NET_EXPORT_PRIVATE SimpleIndex
 
   std::unique_ptr<base::android::ApplicationStatusListener>
       owned_app_status_listener_;
-  raw_ptr<base::android::ApplicationStatusListener> app_status_listener_ =
-      nullptr;
+  ApplicationStatusListenerGetter app_status_listener_getter_;
 #endif
 
   scoped_refptr<BackendCleanupTracker> cleanup_tracker_;
@@ -304,6 +303,8 @@ class NET_EXPORT_PRIVATE SimpleIndex
   // background we can write the index much more frequently, to insure fresh
   // index on next startup.
   bool app_on_background_ = false;
+
+  base::WeakPtrFactory<SimpleIndex> weak_ptr_factory_{this};
 };
 
 }  // namespace disk_cache

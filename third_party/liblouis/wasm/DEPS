@@ -1,0 +1,10 @@
+include_rules = [
+  '+base'
+]
+
+specific_include_rules = {
+  "liblouis_wrapper_browsertest\.cc": [
+    "+chrome/browser/extensions/extension_apitest.h",
+    "+content/public/test",
+  ],
+}

@@ -12,7 +12,7 @@
 //   See the License for the specific language governing permissions and
 //   limitations under the License.
 
-#if defined(_WIN32) || defined(_WIN64)
+#if !defined(_CRT_SECURE_NO_WARNINGS) && defined(_WIN32)
 #define _CRT_SECURE_NO_WARNINGS 1
 #endif
 
@@ -26,10 +26,6 @@
 #include "absl/base/config.h"
 #include "absl/time/internal/cctz/include/cctz/civil_time.h"
 #include "absl/time/internal/cctz/include/cctz/time_zone.h"
-
-#if defined(STARBOARD)
-#include "starboard/client_porting/eztime/eztime.h"
-#endif
 
 #if defined(_AIX)
 extern "C" {
@@ -66,10 +62,20 @@ auto tm_zone(const std::tm& tm) -> decltype(tzname[0]) {
 }
 #elif defined(__native_client__) || defined(__myriad2__) || \
     defined(__EMSCRIPTEN__)
-// Uses the globals: 'timezone' and 'tzname'.
+// Uses the globals: '_timezone' and 'tzname'.
 auto tm_gmtoff(const std::tm& tm) -> decltype(_timezone + 0) {
   const bool is_dst = tm.tm_isdst > 0;
   return _timezone + (is_dst ? 60 * 60 : 0);
+}
+auto tm_zone(const std::tm& tm) -> decltype(tzname[0]) {
+  const bool is_dst = tm.tm_isdst > 0;
+  return tzname[is_dst];
+}
+#elif defined(__VXWORKS__)
+// Uses the globals: 'timezone' and 'tzname'.
+auto tm_gmtoff(const std::tm& tm) -> decltype(timezone + 0) {
+  const bool is_dst = tm.tm_isdst > 0;
+  return timezone + (is_dst ? 60 * 60 : 0);
 }
 auto tm_zone(const std::tm& tm) -> decltype(tzname[0]) {
   const bool is_dst = tm.tm_isdst > 0;
@@ -112,6 +118,7 @@ auto tm_zone(const T& tm) -> decltype(tm.__tm_zone) {
 }
 #endif  // tm_zone
 #endif
+using tm_gmtoff_t = decltype(tm_gmtoff(std::tm{}));
 
 inline std::tm* gm_time(const std::time_t* timep, std::tm* result) {
 #if defined(_WIN32) || defined(_WIN64)
@@ -122,73 +129,43 @@ inline std::tm* gm_time(const std::time_t* timep, std::tm* result) {
 }
 
 inline std::tm* local_time(const std::time_t* timep, std::tm* result) {
-#if defined(STARBOARD)
-  if (timep == nullptr || result == nullptr) {
-    return nullptr;
-  }
-  const EzTimeT eztime_timep = static_cast<const EzTimeT>(*timep);
-  EzTimeExploded eztime_result;
-  if (!EzTimeTExplode(&eztime_timep, EzTimeZone::kEzTimeZoneLocal,
-                      &eztime_result)) {
-    return nullptr;
-  }
-
-  result->tm_sec = eztime_result.tm_sec;
-  result->tm_min = eztime_result.tm_min;
-  result->tm_hour = eztime_result.tm_hour;
-  result->tm_mday = eztime_result.tm_mday;
-  result->tm_mon = eztime_result.tm_mon;
-  result->tm_year = eztime_result.tm_year;
-  result->tm_wday = eztime_result.tm_wday;
-  result->tm_yday = eztime_result.tm_yday;
-  result->tm_isdst = eztime_result.tm_isdst;
-  return result;
-#elif defined(_WIN32) || defined(_WIN64)
+#if defined(_WIN32) || defined(_WIN64)
   return localtime_s(result, timep) ? nullptr : result;
 #else
   return localtime_r(timep, result);
 #endif
 }
 
-// Converts a civil second and "dst" flag into a time_t and UTC offset.
+// Converts a civil second and "dst" flag into a time_t and a struct tm.
 // Returns false if time_t cannot represent the requested civil second.
 // Caller must have already checked that cs.year() will fit into a tm_year.
-bool make_time(const civil_second& cs, int is_dst, std::time_t* t, int* off) {
-  std::tm tm;
-  tm.tm_year = static_cast<int>(cs.year() - year_t{1900});
-  tm.tm_mon = cs.month() - 1;
-  tm.tm_mday = cs.day();
-  tm.tm_hour = cs.hour();
-  tm.tm_min = cs.minute();
-  tm.tm_sec = cs.second();
-  tm.tm_isdst = is_dst;
-#if defined(STARBOARD)
-  EzTimeExploded exploded = {tm.tm_sec,  tm.tm_min,  tm.tm_hour,
-                             tm.tm_mday, tm.tm_mon,  tm.tm_year,
-                             tm.tm_wday, tm.tm_yday, tm.tm_isdst};
-  EzTimeT secs = EzTimeTImplode(&exploded, EzTimeZone::kEzTimeZoneLocal);
-  *t = static_cast<std::time_t>(secs);
-#else
-  *t = std::mktime(&tm);
-#endif
+bool make_time(const civil_second& cs, int is_dst, std::time_t* t,
+               std::tm* tm) {
+  tm->tm_year = static_cast<int>(cs.year() - year_t{1900});
+  tm->tm_mon = cs.month() - 1;
+  tm->tm_mday = cs.day();
+  tm->tm_hour = cs.hour();
+  tm->tm_min = cs.minute();
+  tm->tm_sec = cs.second();
+  tm->tm_isdst = is_dst;
+  *t = std::mktime(tm);
   if (*t == std::time_t{-1}) {
     std::tm tm2;
     const std::tm* tmp = local_time(t, &tm2);
-    if (tmp == nullptr || tmp->tm_year != tm.tm_year ||
-        tmp->tm_mon != tm.tm_mon || tmp->tm_mday != tm.tm_mday ||
-        tmp->tm_hour != tm.tm_hour || tmp->tm_min != tm.tm_min ||
-        tmp->tm_sec != tm.tm_sec) {
+    if (tmp == nullptr || tmp->tm_year != tm->tm_year ||
+        tmp->tm_mon != tm->tm_mon || tmp->tm_mday != tm->tm_mday ||
+        tmp->tm_hour != tm->tm_hour || tmp->tm_min != tm->tm_min ||
+        tmp->tm_sec != tm->tm_sec) {
       // A true error (not just one second before the epoch).
       return false;
     }
   }
-  *off = static_cast<int>(tm_gmtoff(tm));
   return true;
 }
 
 // Find the least time_t in [lo:hi] where local time matches offset, given:
 // (1) lo doesn't match, (2) hi does, and (3) there is only one transition.
-std::time_t find_trans(std::time_t lo, std::time_t hi, int offset) {
+std::time_t find_trans(std::time_t lo, std::time_t hi, tm_gmtoff_t offset) {
   std::tm tm;
   while (lo + 1 != hi) {
     const std::time_t mid = lo + (hi - lo) / 2;
@@ -216,8 +193,9 @@ std::time_t find_trans(std::time_t lo, std::time_t hi, int offset) {
 
 }  // namespace
 
-TimeZoneLibC::TimeZoneLibC(const std::string& name)
-    : local_(name == "localtime") {}
+std::unique_ptr<TimeZoneLibC> TimeZoneLibC::Make(const std::string& name) {
+  return std::unique_ptr<TimeZoneLibC>(new TimeZoneLibC(name));
+}
 
 time_zone::absolute_lookup TimeZoneLibC::BreakTime(
     const time_point<seconds>& tp) const {
@@ -287,33 +265,37 @@ time_zone::civil_lookup TimeZoneLibC::MakeTime(const civil_second& cs) const {
   // We probe with "is_dst" values of 0 and 1 to try to distinguish unique
   // civil seconds from skipped or repeated ones.  This is not always possible
   // however, as the "dst" flag does not change over some offset transitions.
-  // We are also subject to the vagaries of mktime() implementations.
+  // We are also subject to the vagaries of mktime() implementations. For
+  // example, some implementations treat "tm_isdst" as a demand (useless),
+  // and some as a disambiguator (useful).
   std::time_t t0, t1;
-  int offset0, offset1;
-  if (make_time(cs, 0, &t0, &offset0) && make_time(cs, 1, &t1, &offset1)) {
-    if (t0 == t1) {
+  std::tm tm0, tm1;
+  if (make_time(cs, 0, &t0, &tm0) && make_time(cs, 1, &t1, &tm1)) {
+    if (tm0.tm_isdst == tm1.tm_isdst) {
       // The civil time was singular (pre == trans == post).
-      const time_point<seconds> tp = FromUnixSeconds(t0);
+      const time_point<seconds> tp = FromUnixSeconds(tm0.tm_isdst ? t1 : t0);
       return {time_zone::civil_lookup::UNIQUE, tp, tp, tp};
     }
 
-    if (t0 > t1) {
+    tm_gmtoff_t offset = tm_gmtoff(tm0);
+    if (t0 < t1) {  // negative DST
       std::swap(t0, t1);
-      std::swap(offset0, offset1);
+      offset = tm_gmtoff(tm1);
     }
-    const std::time_t tt = find_trans(t0, t1, offset1);
+
+    const std::time_t tt = find_trans(t1, t0, offset);
     const time_point<seconds> trans = FromUnixSeconds(tt);
 
-    if (offset0 < offset1) {
+    if (tm0.tm_isdst) {
       // The civil time did not exist (pre >= trans > post).
-      const time_point<seconds> pre = FromUnixSeconds(t1);
-      const time_point<seconds> post = FromUnixSeconds(t0);
+      const time_point<seconds> pre = FromUnixSeconds(t0);
+      const time_point<seconds> post = FromUnixSeconds(t1);
       return {time_zone::civil_lookup::SKIPPED, pre, trans, post};
     }
 
     // The civil time was ambiguous (pre < trans <= post).
-    const time_point<seconds> pre = FromUnixSeconds(t0);
-    const time_point<seconds> post = FromUnixSeconds(t1);
+    const time_point<seconds> pre = FromUnixSeconds(t1);
+    const time_point<seconds> post = FromUnixSeconds(t0);
     return {time_zone::civil_lookup::REPEATED, pre, trans, post};
   }
 
@@ -341,6 +323,9 @@ std::string TimeZoneLibC::Version() const {
 std::string TimeZoneLibC::Description() const {
   return local_ ? "localtime" : "UTC";
 }
+
+TimeZoneLibC::TimeZoneLibC(const std::string& name)
+    : local_(name == "localtime") {}
 
 }  // namespace cctz
 }  // namespace time_internal

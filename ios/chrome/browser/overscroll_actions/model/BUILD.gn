@@ -1,0 +1,37 @@
+# Copyright 2019 The Chromium Authors
+# Use of this source code is governed by a BSD-style license that can be
+# found in the LICENSE file.
+
+source_set("model") {
+  sources = [
+    "overscroll_actions_tab_helper.h",
+    "overscroll_actions_tab_helper.mm",
+  ]
+  deps = [
+    "//base",
+    "//components/keyed_service/ios",
+    "//ios/chrome/browser/overscroll_actions/ui_bundled",
+    "//ios/chrome/browser/shared/model/profile",
+    "//ios/web/public",
+  ]
+}
+
+source_set("unit_tests") {
+  testonly = true
+  sources = [ "overscroll_actions_tab_helper_unittest.mm" ]
+  deps = [
+    ":model",
+    "//base",
+    "//base/test:test_support",
+    "//ios/chrome/browser/overscroll_actions/ui_bundled",
+    "//ios/chrome/browser/shared/model/profile/test",
+    "//ios/chrome/common/ui/colors",
+    "//ios/chrome/test/fakes",
+    "//ios/web/public",
+    "//ios/web/public/test",
+    "//ios/web/public/test/fakes",
+    "//testing/gmock",
+    "//testing/gtest",
+    "//third_party/ocmock",
+  ]
+}

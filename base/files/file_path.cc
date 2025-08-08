@@ -2,11 +2,17 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#ifdef UNSAFE_BUFFERS_BUILD
+// TODO(crbug.com/40284755): Remove this and spanify to fix the errors.
+#pragma allow_unsafe_buffers
+#endif
+
 #include "base/files/file_path.h"
 
 #include <string.h>
 
 #include <algorithm>
+#include <string_view>
 
 #include "base/check_op.h"
 #include "base/files/safe_base_name.h"
@@ -14,19 +20,20 @@
 #include "base/pickle.h"
 #include "base/ranges/algorithm.h"
 #include "base/strings/strcat.h"
-#include "base/strings/string_piece.h"
 #include "base/strings/string_util.h"
 #include "base/strings/sys_string_conversions.h"
+#include "base/strings/utf_ostream_operators.h"
 #include "base/strings/utf_string_conversions.h"
 #include "base/trace_event/base_tracing.h"
 
 #if BUILDFLAG(IS_APPLE)
-#include "base/mac/scoped_cftyperef.h"
+#include "base/apple/scoped_cftyperef.h"
 #include "base/third_party/icu/icu_utf.h"
 #endif
 
 #if BUILDFLAG(IS_WIN)
 #include <windows.h>
+
 #include "base/win/win_util.h"
 #elif BUILDFLAG(IS_APPLE)
 #include <CoreFoundation/CoreFoundation.h>
@@ -437,12 +444,11 @@ FilePath FilePath::InsertBeforeExtension(StringPieceType suffix) const {
       base::StrCat({RemoveExtension().value(), suffix, Extension()}));
 }
 
-FilePath FilePath::InsertBeforeExtensionASCII(StringPiece suffix)
-    const {
+FilePath FilePath::InsertBeforeExtensionASCII(std::string_view suffix) const {
   DCHECK(IsStringASCII(suffix));
 #if BUILDFLAG(IS_WIN)
   return InsertBeforeExtension(UTF8ToWide(suffix));
-#elif BUILDFLAG(IS_POSIX) || BUILDFLAG(IS_FUCHSIA) || defined(STARBOARD)
+#elif BUILDFLAG(IS_POSIX) || BUILDFLAG(IS_FUCHSIA)
   return InsertBeforeExtension(suffix);
 #endif
 }
@@ -461,15 +467,15 @@ FilePath FilePath::AddExtension(StringPieceType extension) const {
       *(str.end() - 1) != kExtensionSeparator) {
     str.append(1, kExtensionSeparator);
   }
-  str.append(extension.data(), extension.size());
+  str.append(extension);
   return FilePath(str);
 }
 
-FilePath FilePath::AddExtensionASCII(StringPiece extension) const {
+FilePath FilePath::AddExtensionASCII(std::string_view extension) const {
   DCHECK(IsStringASCII(extension));
 #if BUILDFLAG(IS_WIN)
   return AddExtension(UTF8ToWide(extension));
-#elif BUILDFLAG(IS_POSIX) || BUILDFLAG(IS_FUCHSIA) || defined(STARBOARD)
+#elif BUILDFLAG(IS_POSIX) || BUILDFLAG(IS_FUCHSIA)
   return AddExtension(extension);
 #endif
 }
@@ -487,7 +493,7 @@ FilePath FilePath::ReplaceExtension(StringPieceType extension) const {
   StringType str = no_ext.value();
   if (extension[0] != kExtensionSeparator)
     str.append(1, kExtensionSeparator);
-  str.append(extension.data(), extension.size());
+  str.append(extension);
   return FilePath(str);
 }
 
@@ -553,7 +559,7 @@ FilePath FilePath::Append(StringPieceType component) const {
     }
   }
 
-  new_path.path_.append(appended.data(), appended.size());
+  new_path.path_.append(appended);
   return new_path;
 }
 
@@ -565,11 +571,11 @@ FilePath FilePath::Append(const SafeBaseName& component) const {
   return Append(component.path().value());
 }
 
-FilePath FilePath::AppendASCII(StringPiece component) const {
+FilePath FilePath::AppendASCII(std::string_view component) const {
   DCHECK(base::IsStringASCII(component));
 #if BUILDFLAG(IS_WIN)
   return Append(UTF8ToWide(component));
-#elif BUILDFLAG(IS_POSIX) || BUILDFLAG(IS_FUCHSIA) || defined(STARBOARD)
+#elif BUILDFLAG(IS_POSIX) || BUILDFLAG(IS_FUCHSIA)
   return Append(component);
 #endif
 }
@@ -615,21 +621,20 @@ bool FilePath::ReferencesParent() const {
     return false;
   }
 
-  std::vector<StringType> components = GetComponents();
-  std::vector<StringType>::const_iterator it = components.begin();
-  for (; it != components.end(); ++it) {
-    const StringType& component = *it;
-    // Windows has odd, undocumented behavior with path components containing
-    // only whitespace and . characters. So, if all we see is . and
-    // whitespace, then we treat any .. sequence as referencing parent.
-    // For simplicity we enforce this on all platforms.
-    if (component.find_first_not_of(FILE_PATH_LITERAL(". \n\r\t")) ==
-            std::string::npos &&
-        component.find(kParentDirectory) != std::string::npos) {
-      return true;
-    }
-  }
-  return false;
+  const std::vector<StringType> components = GetComponents();
+  return std::any_of(
+      components.begin(), components.end(), [](const StringType& component) {
+#if BUILDFLAG(IS_WIN)
+        // Windows has odd, undocumented behavior with path components
+        // containing only whitespace and . characters. So, if all we see is .
+        // and whitespace, then we treat any .. sequence as referencing parent.
+        return component.find_first_not_of(FILE_PATH_LITERAL(". \n\r\t")) ==
+                   std::string::npos &&
+               component.find(kParentDirectory) != std::string::npos;
+#else
+        return component == kParentDirectory;
+#endif
+      });
 }
 
 #if BUILDFLAG(IS_WIN)
@@ -651,22 +656,22 @@ std::u16string FilePath::AsUTF16Unsafe() const {
 }
 
 // static
-FilePath FilePath::FromASCII(StringPiece ascii) {
+FilePath FilePath::FromASCII(std::string_view ascii) {
   DCHECK(base::IsStringASCII(ascii));
   return FilePath(ASCIIToWide(ascii));
 }
 
 // static
-FilePath FilePath::FromUTF8Unsafe(StringPiece utf8) {
+FilePath FilePath::FromUTF8Unsafe(std::string_view utf8) {
   return FilePath(UTF8ToWide(utf8));
 }
 
 // static
-FilePath FilePath::FromUTF16Unsafe(StringPiece16 utf16) {
-  return FilePath(AsWStringPiece(utf16));
+FilePath FilePath::FromUTF16Unsafe(std::u16string_view utf16) {
+  return FilePath(AsWStringView(utf16));
 }
 
-#elif BUILDFLAG(IS_POSIX) || BUILDFLAG(IS_FUCHSIA) || defined(STARBOARD)
+#elif BUILDFLAG(IS_POSIX) || BUILDFLAG(IS_FUCHSIA)
 
 // See file_path.h for a discussion of the encoding of paths on POSIX
 // platforms.  These encoding conversion functions are not quite correct.
@@ -698,13 +703,13 @@ std::u16string FilePath::AsUTF16Unsafe() const {
 }
 
 // static
-FilePath FilePath::FromASCII(StringPiece ascii) {
+FilePath FilePath::FromASCII(std::string_view ascii) {
   DCHECK(base::IsStringASCII(ascii));
   return FilePath(ascii);
 }
 
 // static
-FilePath FilePath::FromUTF8Unsafe(StringPiece utf8) {
+FilePath FilePath::FromUTF8Unsafe(std::string_view utf8) {
 #if defined(SYSTEM_NATIVE_UTF8)
   return FilePath(utf8);
 #else
@@ -713,7 +718,7 @@ FilePath FilePath::FromUTF8Unsafe(StringPiece utf8) {
 }
 
 // static
-FilePath FilePath::FromUTF16Unsafe(StringPiece16 utf16) {
+FilePath FilePath::FromUTF16Unsafe(std::u16string_view utf16) {
 #if defined(SYSTEM_NATIVE_UTF8)
   return FilePath(UTF16ToUTF8(utf16));
 #else
@@ -726,7 +731,7 @@ FilePath FilePath::FromUTF16Unsafe(StringPiece16 utf16) {
 void FilePath::WriteToPickle(Pickle* pickle) const {
 #if BUILDFLAG(IS_WIN)
   pickle->WriteString16(AsStringPiece16(path_));
-#elif BUILDFLAG(IS_POSIX) || BUILDFLAG(IS_FUCHSIA) || defined(STARBOARD)
+#elif BUILDFLAG(IS_POSIX) || BUILDFLAG(IS_FUCHSIA)
   pickle->WriteString(path_);
 #else
 #error Unsupported platform
@@ -739,7 +744,7 @@ bool FilePath::ReadFromPickle(PickleIterator* iter) {
   if (!iter->ReadString16(&path))
     return false;
   path_ = UTF16ToWide(path);
-#elif BUILDFLAG(IS_POSIX) || BUILDFLAG(IS_FUCHSIA) || defined(STARBOARD)
+#elif BUILDFLAG(IS_POSIX) || BUILDFLAG(IS_FUCHSIA)
   if (!iter->ReadString(&path_))
     return false;
 #else
@@ -1266,32 +1271,37 @@ int FilePath::HFSFastUnicodeCompare(StringPieceType string1,
 }
 
 StringType FilePath::GetHFSDecomposedForm(StringPieceType string) {
-  StringType result;
-  ScopedCFTypeRef<CFStringRef> cfstring(CFStringCreateWithBytesNoCopy(
-      NULL, reinterpret_cast<const UInt8*>(string.data()),
+  apple::ScopedCFTypeRef<CFStringRef> cfstring(CFStringCreateWithBytesNoCopy(
+      nullptr, reinterpret_cast<const UInt8*>(string.data()),
       checked_cast<CFIndex>(string.length()), kCFStringEncodingUTF8, false,
       kCFAllocatorNull));
-  if (cfstring) {
-    // Query the maximum length needed to store the result. In most cases this
-    // will overestimate the required space. The return value also already
-    // includes the space needed for a terminating 0.
-    CFIndex length = CFStringGetMaximumSizeOfFileSystemRepresentation(cfstring);
-    DCHECK_GT(length, 0);  // should be at least 1 for the 0-terminator.
-    // Reserve enough space for CFStringGetFileSystemRepresentation to write
-    // into. Also set the length to the maximum so that we can shrink it later.
-    // (Increasing rather than decreasing it would clobber the string contents!)
-    result.reserve(static_cast<size_t>(length));
-    result.resize(static_cast<size_t>(length) - 1);
-    Boolean success = CFStringGetFileSystemRepresentation(cfstring,
-                                                          &result[0],
-                                                          length);
-    if (success) {
-      // Reduce result.length() to actual string length.
-      result.resize(strlen(result.c_str()));
-    } else {
-      // An error occurred -> clear result.
-      result.clear();
-    }
+  return GetHFSDecomposedForm(cfstring.get());
+}
+
+StringType FilePath::GetHFSDecomposedForm(CFStringRef cfstring) {
+  if (!cfstring) {
+    return StringType();
+  }
+
+  StringType result;
+  // Query the maximum length needed to store the result. In most cases this
+  // will overestimate the required space. The return value also already
+  // includes the space needed for a terminating 0.
+  CFIndex length = CFStringGetMaximumSizeOfFileSystemRepresentation(cfstring);
+  DCHECK_GT(length, 0);  // should be at least 1 for the 0-terminator.
+  // Reserve enough space for CFStringGetFileSystemRepresentation to write
+  // into. Also set the length to the maximum so that we can shrink it later.
+  // (Increasing rather than decreasing it would clobber the string contents!)
+  result.reserve(static_cast<size_t>(length));
+  result.resize(static_cast<size_t>(length) - 1);
+  Boolean success =
+      CFStringGetFileSystemRepresentation(cfstring, &result[0], length);
+  if (success) {
+    // Reduce result.length() to actual string length.
+    result.resize(strlen(result.c_str()));
+  } else {
+    // An error occurred -> clear result.
+    result.clear();
   }
   return result;
 }
@@ -1310,11 +1320,11 @@ int FilePath::CompareIgnoreCase(StringPieceType string1,
 
   // GetHFSDecomposedForm() returns an empty string in an error case.
   if (hfs1.empty() || hfs2.empty()) {
-    ScopedCFTypeRef<CFStringRef> cfstring1(CFStringCreateWithBytesNoCopy(
+    apple::ScopedCFTypeRef<CFStringRef> cfstring1(CFStringCreateWithBytesNoCopy(
         NULL, reinterpret_cast<const UInt8*>(string1.data()),
         checked_cast<CFIndex>(string1.length()), kCFStringEncodingUTF8, false,
         kCFAllocatorNull));
-    ScopedCFTypeRef<CFStringRef> cfstring2(CFStringCreateWithBytesNoCopy(
+    apple::ScopedCFTypeRef<CFStringRef> cfstring2(CFStringCreateWithBytesNoCopy(
         NULL, reinterpret_cast<const UInt8*>(string2.data()),
         checked_cast<CFIndex>(string2.length()), kCFStringEncodingUTF8, false,
         kCFAllocatorNull));
@@ -1331,14 +1341,14 @@ int FilePath::CompareIgnoreCase(StringPieceType string1,
       return 0;
     }
 
-    return static_cast<int>(
-        CFStringCompare(cfstring1, cfstring2, kCFCompareCaseInsensitive));
+    return static_cast<int>(CFStringCompare(cfstring1.get(), cfstring2.get(),
+                                            kCFCompareCaseInsensitive));
   }
 
   return HFSFastUnicodeCompare(hfs1, hfs2);
 }
 
-#elif BUILDFLAG(IS_POSIX) || BUILDFLAG(IS_FUCHSIA) || defined(STARBOARD)
+#elif BUILDFLAG(IS_POSIX) || BUILDFLAG(IS_FUCHSIA)
 
 // Generic Posix system comparisons.
 int FilePath::CompareIgnoreCase(StringPieceType string1,

@@ -276,9 +276,17 @@ gboolean WorkSourceDispatch(GSource* source,
   return TRUE;
 }
 
+void WorkSourceFinalize(GSource* source) {
+  // Since the WorkSource object memory is managed by glib, WorkSource implicit
+  // destructor is never called, and thus WorkSource's raw_ptr never release
+  // its internal reference on the pump pointer. This leads to adding pressure
+  // to the BRP quarantine.
+  static_cast<WorkSource*>(source)->pump = nullptr;
+}
+
 // I wish these could be const, but g_source_new wants non-const.
 GSourceFuncs g_work_source_funcs = {WorkSourcePrepare, WorkSourceCheck,
-                                    WorkSourceDispatch, nullptr};
+                                    WorkSourceDispatch, WorkSourceFinalize};
 
 struct ObserverSource : public GSource {
   raw_ptr<MessagePumpGlib> pump;
@@ -297,8 +305,13 @@ gboolean ObserverCheck(GSource* gsource) {
   return source->pump->HandleObserverCheck();
 }
 
+void ObserverFinalize(GSource* source) {
+  // Read the comment in `WorkSourceFinalize`, the issue is exactly the same.
+  static_cast<ObserverSource*>(source)->pump = nullptr;
+}
+
 GSourceFuncs g_observer_funcs = {ObserverPrepare, ObserverCheck, nullptr,
-                                 nullptr};
+                                 ObserverFinalize};
 
 struct FdWatchSource : public GSource {
   raw_ptr<MessagePumpGlib> pump;
@@ -323,8 +336,16 @@ gboolean FdWatchSourceDispatch(GSource* gsource,
   return TRUE;
 }
 
+void FdWatchSourceFinalize(GSource* gsource) {
+  // Read the comment in `WorkSourceFinalize`, the issue is exactly the same.
+  auto* source = static_cast<FdWatchSource*>(gsource);
+  source->pump = nullptr;
+  source->controller = nullptr;
+}
+
 GSourceFuncs g_fd_watch_source_funcs = {
-    FdWatchSourcePrepare, FdWatchSourceCheck, FdWatchSourceDispatch, nullptr};
+    FdWatchSourcePrepare, FdWatchSourceCheck, FdWatchSourceDispatch,
+    FdWatchSourceFinalize};
 
 }  // namespace
 
@@ -347,7 +368,7 @@ struct MessagePumpGlib::RunState {
   // g_main_context_iteration() in Run(). nullopt if Run() is not calling
   // g_main_context_iteration(). Used to track whether the pump has forced a
   // nested state due to a native pump.
-  absl::optional<int> g_depth_on_iteration;
+  std::optional<int> g_depth_on_iteration;
 
   // Used to keep track of the native event work items processed by the message
   // pump.
@@ -413,6 +434,9 @@ MessagePumpGlib::FdWatchController::FdWatchController(const Location& location)
 
 MessagePumpGlib::FdWatchController::~FdWatchController() {
   if (IsInitialized()) {
+    auto* source = static_cast<FdWatchSource*>(source_);
+    source->controller = nullptr;
+
     CHECK(StopWatchingFileDescriptor());
   }
   if (was_destroyed_) {
@@ -677,7 +701,7 @@ void MessagePumpGlib::Run(Delegate* delegate) {
     if (more_work_is_plausible)
       continue;
 
-    more_work_is_plausible = state_->delegate->DoIdleWork();
+    state_->delegate->DoIdleWork();
     if (state_->should_quit)
       break;
   }

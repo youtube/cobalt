@@ -56,6 +56,7 @@ class DummyHistogramSamples : public HistogramSamples {
   std::unique_ptr<SampleCountIterator> ExtractingIterator() override {
     return std::make_unique<DummySampleCountIterator>();
   }
+  bool IsDefinitelyEmpty() const override { NOTREACHED(); }
   bool AddSubtractImpl(SampleCountIterator* iter, Operator op) override {
     return true;
   }
@@ -81,6 +82,10 @@ bool DummyHistogram::HasConstructionArguments(
     Sample expected_minimum,
     Sample expected_maximum,
     size_t expected_bucket_count) const {
+  return true;
+}
+
+bool DummyHistogram::AddSamples(const HistogramSamples& samples) {
   return true;
 }
 

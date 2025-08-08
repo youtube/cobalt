@@ -2,6 +2,11 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#ifdef UNSAFE_BUFFERS_BUILD
+// TODO(crbug.com/40285824): Remove this and convert code to safer constructs.
+#pragma allow_unsafe_buffers
+#endif
+
 #include "media/filters/audio_video_metadata_extractor.h"
 
 #include "base/functional/bind.h"
@@ -113,13 +118,16 @@ bool AudioVideoMetadataExtractor::Extract(DataSource* source,
     if (!stream)
       continue;
 
-    void* display_matrix =
-        av_stream_get_side_data(stream, AV_PKT_DATA_DISPLAYMATRIX, nullptr);
-    if (display_matrix) {
-      rotation_ = VideoTransformation::FromFFmpegDisplayMatrix(
-                      static_cast<int32_t*>(display_matrix))
-                      .rotation;
-      info.tags["rotate"] = base::NumberToString(rotation_);
+    for (int j = 0; j < stream->codecpar->nb_coded_side_data; j++) {
+      const AVPacketSideData& sd = stream->codecpar->coded_side_data[j];
+      if (sd.type == AV_PKT_DATA_DISPLAYMATRIX) {
+        CHECK_EQ(sd.size, sizeof(int32_t) * 3 * 3);
+        rotation_ = VideoTransformation::FromFFmpegDisplayMatrix(
+                        reinterpret_cast<int32_t*>(sd.data))
+                        .rotation;
+        info.tags["rotate"] = base::NumberToString(rotation_);
+        break;
+      }
     }
 
     // Extract dictionary from streams also. Needed for containers that attach

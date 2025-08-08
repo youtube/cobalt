@@ -7,10 +7,13 @@ import json
 import logging
 import os
 
-import six
-
 import requests  # pylint: disable=import-error
 from lib.results import result_types
+
+HTML_SUMMARY_MAX = 4096
+
+_HTML_SUMMARY_ARTIFACT = '<text-artifact artifact-id="HTML Summary" />'
+_TEST_LOG_ARTIFACT = '<text-artifact artifact-id="Test Log" />'
 
 # Maps result_types to the luci test-result.proto.
 # https://godoc.org/go.chromium.org/luci/resultdb/proto/v1#TestStatus
@@ -52,6 +55,7 @@ class ResultSinkClient(object):
     base_url = 'http://%s/prpc/luci.resultsink.v1.Sink' % context['address']
     self.test_results_url = base_url + '/ReportTestResults'
     self.report_artifacts_url = base_url + '/ReportInvocationLevelArtifacts'
+    self.update_invocation_url = base_url + '/UpdateInvocation'
 
     headers = {
         'Content-Type': 'application/json',
@@ -80,7 +84,8 @@ class ResultSinkClient(object):
            variant=None,
            artifacts=None,
            failure_reason=None,
-           html_artifact=None):
+           html_artifact=None,
+           tags=None):
     """Uploads the test result to the ResultSink server.
 
     This assumes that the rdb stream has been called already and that
@@ -101,6 +106,8 @@ class ResultSinkClient(object):
       html_artifact: An optional html-formatted string to prepend to the test's
           log. Useful to encode click-able URL links in the test log, since that
           won't be formatted in the test_log.
+      tags: An optional list of tuple of key name and value to prepend to the
+          test's tags.
 
     Returns:
       N/A
@@ -132,16 +139,33 @@ class ResultSinkClient(object):
         }
     }
 
+    if tags:
+      tr['tags'].extend({
+          'key': key_name,
+          'value': value
+      } for (key_name, value) in tags)
+
     if variant:
       tr['variant'] = {'def': variant}
 
     artifacts = artifacts or {}
     tr['summaryHtml'] = html_artifact if html_artifact else ''
+
+    # If over max supported length of html summary, replace with artifact
+    # upload.
+    if (test_log
+        and len(tr['summaryHtml']) + len(_TEST_LOG_ARTIFACT) > HTML_SUMMARY_MAX
+        or len(tr['summaryHtml']) > HTML_SUMMARY_MAX):
+      b64_summary = base64.b64encode(tr['summaryHtml'].encode()).decode()
+      artifacts.update({'HTML Summary': {'contents': b64_summary}})
+      tr['summaryHtml'] = _HTML_SUMMARY_ARTIFACT
+
     if test_log:
       # Upload the original log without any modifications.
-      b64_log = six.ensure_str(base64.b64encode(six.ensure_binary(test_log)))
+      b64_log = base64.b64encode(test_log.encode()).decode()
       artifacts.update({'Test Log': {'contents': b64_log}})
-      tr['summaryHtml'] += '<text-artifact artifact-id="Test Log" />'
+      tr['summaryHtml'] += _TEST_LOG_ARTIFACT
+
     if artifacts:
       tr['artifacts'] = artifacts
     if failure_reason:
@@ -177,6 +201,45 @@ class ResultSinkClient(object):
     req = {'artifacts': artifacts}
     res = self.session.post(url=self.report_artifacts_url, data=json.dumps(req))
     res.raise_for_status()
+
+  def UpdateInvocation(self, invocation, update_mask):
+    """Update the invocation to the ResultSink server.
+
+    Details can be found in the proto luci.resultsink.v1.UpdateInvocationRequest
+
+    Args:
+      invocation: a dict representation of luci.resultsink.v1.Invocation proto
+      update_mask: a dict representation of google.protobuf.FieldMask proto
+    """
+    req = {
+        'invocation': invocation,
+        'update_mask': update_mask,
+    }
+    res = self.session.post(url=self.update_invocation_url,
+                            data=json.dumps(req))
+    res.raise_for_status()
+
+  def UpdateInvocationExtendedProperties(self, extended_properties, keys=None):
+    """Update the extended_properties field of an invocation.
+
+    Details can be found in the "extended_properties" field of the proto
+    luci.resultdb.v1.Invocation.
+
+    Args:
+      extended_properties: a dict containing the content of extended_properties.
+        The value in the dict shall be a dict containing a "@type" key
+        representing the data schema, and corresponding data.
+      keys: (Optional) a list of keys in extended_properties to add, replace,
+        or remove. If a key exists in "keys", but not in "extended_properties",
+        this is considered as deleting the key from the resultdb record side
+        If None, the keys in "extended_properties" dict will be used.
+    """
+    if not keys:
+      keys = extended_properties.keys()
+    mask_paths = ['extended_properties.%s' % key for key in keys]
+    invocation = {'extended_properties': extended_properties}
+    update_mask = {'paths': mask_paths}
+    self.UpdateInvocation(invocation, update_mask)
 
 
 def _TruncateToUTF8Bytes(s, length):

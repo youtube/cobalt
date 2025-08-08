@@ -11,6 +11,7 @@ import org.chromium.base.Callback;
 import org.chromium.media.MediaDrmStorageBridge.PersistentInfo;
 
 import java.nio.ByteBuffer;
+import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.HashMap;
@@ -18,19 +19,19 @@ import java.util.List;
 import java.util.UUID;
 
 /**
- * The class manages relations among eme session ID, drm session ID and keyset
- * ID. It also records the associated session information.
+ * The class manages relations among eme session ID, drm session ID and keyset ID. It also records
+ * the associated session information.
  *
- * For temporary session, it simply maintains the in memory map from session ID
- * to related informations. When session is closed, the mapping is also removed.
+ * <p>For temporary session, it simply maintains the in memory map from session ID to related
+ * information. When session is closed, the mapping is also removed.
  *
- * For persistent session, it also talks to persistent storage when loading
- * information back to memory and updating changes to disk.
+ * <p>For persistent session, it also talks to persistent storage when loading information back to
+ * memory and updating changes to disk.
  */
 class MediaDrmSessionManager {
     /**
-     * The class groups drm session ID, eme session ID and key set ID. It hides
-     * the conversion among the three different IDs.
+     * The class groups drm session ID, eme session ID and key set ID. It hides the conversion among
+     * the three different IDs.
      */
     static class SessionId {
         private static final char[] HEX_CHAR_LOOKUP = "0123456789ABCDEF".toCharArray();
@@ -73,25 +74,24 @@ class MediaDrmSessionManager {
          * @return Session ID with random generated EME session ID.
          */
         static SessionId createPersistentSessionId(byte[] drmId) {
-            byte[] emeId = ApiCompatibilityUtils.getBytesUtf8(
-                    UUID.randomUUID().toString().replace('-', '0'));
-            return new SessionId(emeId, drmId, null /* keySetId */);
+            byte[] emeId =
+                    ApiCompatibilityUtils.getBytesUtf8(
+                            UUID.randomUUID().toString().replace('-', '0'));
+            return new SessionId(emeId, drmId, /* keySetId= */ null);
         }
 
         /**
-         * Create session ID for temporary license session. The DRM session ID is
-         * used as EME session ID.
+         * Create session ID for temporary license session. The DRM session ID is used as EME
+         * session ID.
          *
-         * @param drmIdAsEmeId Raw DRM session ID created by MediaDrm.
+         * @param drmId Raw DRM session ID created by MediaDrm.
          * @return Session ID with DRM session ID as EME session ID.
          */
         static SessionId createTemporarySessionId(byte[] drmId) {
-            return new SessionId(drmId, drmId, null /* keySetId */);
+            return new SessionId(drmId, drmId, /* keySetId= */ null);
         }
 
-        /**
-         * Create session ID used to report session doesn't exist.
-         */
+        /** Create session ID used to report session doesn't exist. */
         static SessionId createNoExistSessionId() {
             return createTemporarySessionId(new byte[0]);
         }
@@ -131,6 +131,12 @@ class MediaDrmSessionManager {
 
         String toHexString() {
             return toHexString(mEmeId);
+        }
+
+        /** Convert `mEmeId` to UTF-8 string. */
+        @Override
+        public String toString() {
+            return new String(mEmeId, StandardCharsets.UTF_8);
         }
     }
 
@@ -181,9 +187,12 @@ class MediaDrmSessionManager {
             assert persistentInfo.emeId() != null;
             assert persistentInfo.keySetId() != null;
 
-            SessionId sessionId = new SessionId(
-                    persistentInfo.emeId(), null /* drmId */, persistentInfo.keySetId());
-            return new SessionInfo(sessionId, persistentInfo.mimeType(),
+            SessionId sessionId =
+                    new SessionId(
+                            persistentInfo.emeId(), /* drmId= */ null, persistentInfo.keySetId());
+            return new SessionInfo(
+                    sessionId,
+                    persistentInfo.mimeType(),
                     getKeyTypeFromPersistentInfo(persistentInfo));
         }
 
@@ -233,9 +242,7 @@ class MediaDrmSessionManager {
         mDrmSessionInfoMap.put(ByteBuffer.wrap(drmId), info);
     }
 
-    /**
-     * Set key set ID. It should only be called for persistent license session.
-     */
+    /** Set key set ID. It should only be called for persistent license session. */
     void setKeySetId(SessionId sessionId, byte[] keySetId, Callback<Boolean> callback) {
         assert get(sessionId) != null;
         assert get(sessionId).keyType() == MediaDrm.KEY_TYPE_OFFLINE;
@@ -259,32 +266,30 @@ class MediaDrmSessionManager {
         mStorage.saveInfo(info.toPersistentInfo(), callback);
     }
 
-    /**
-     * Load |emeId|'s session data from persistent storage.
-     */
+    /** Load |emeId|'s session data from persistent storage. */
     void load(byte[] emeId, final Callback<SessionId> callback) {
-        mStorage.loadInfo(emeId, new Callback<PersistentInfo>() {
-            @Override
-            public void onResult(PersistentInfo persistentInfo) {
-                if (persistentInfo == null) {
-                    callback.onResult(null);
-                    return;
-                }
+        mStorage.loadInfo(
+                emeId,
+                new Callback<PersistentInfo>() {
+                    @Override
+                    public void onResult(PersistentInfo persistentInfo) {
+                        if (persistentInfo == null) {
+                            callback.onResult(null);
+                            return;
+                        }
 
-                // Loading same persistent license into different sessions isn't
-                // supported.
-                assert getSessionIdByEmeId(persistentInfo.emeId()) == null;
+                        // Loading same persistent license into different sessions isn't
+                        // supported.
+                        assert getSessionIdByEmeId(persistentInfo.emeId()) == null;
 
-                SessionInfo info = SessionInfo.fromPersistentInfo(persistentInfo);
-                mEmeSessionInfoMap.put(ByteBuffer.wrap(persistentInfo.emeId()), info);
-                callback.onResult(info.sessionId());
-            }
-        });
+                        SessionInfo info = SessionInfo.fromPersistentInfo(persistentInfo);
+                        mEmeSessionInfoMap.put(ByteBuffer.wrap(persistentInfo.emeId()), info);
+                        callback.onResult(info.sessionId());
+                    }
+                });
     }
 
-    /**
-     * Remove persistent license info from persistent storage.
-     */
+    /** Remove persistent license info from persistent storage. */
     void clearPersistentSessionInfo(SessionId sessionId, Callback<Boolean> callback) {
         sessionId.setKeySetId(null);
         mStorage.clearInfo(sessionId.emeId(), callback);

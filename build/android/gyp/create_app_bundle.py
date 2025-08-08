@@ -94,10 +94,6 @@ def _ParseArgs(args):
       '--rtxt-out-path', help='Path to combined R.txt file for bundle.')
   parser.add_argument('--uncompressed-assets', action='append',
                       help='GN-list of uncompressed assets.')
-  parser.add_argument(
-      '--compress-shared-libraries',
-      action='store_true',
-      help='Whether to store native libraries compressed.')
   parser.add_argument('--compress-dex',
                       action='store_true',
                       help='Compress .dex files')
@@ -195,15 +191,13 @@ def _MakeSplitDimension(value, enabled):
 
 
 def _GenerateBundleConfigJson(uncompressed_assets, compress_dex,
-                              compress_shared_libraries, split_dimensions,
-                              base_master_resource_ids):
+                              split_dimensions, base_master_resource_ids):
   """Generate a dictionary that can be written to a JSON BuildConfig.
 
   Args:
     uncompressed_assets: A list or set of file paths under assets/ that always
       be stored uncompressed.
     compressed_dex: Boolean, whether to compress .dex.
-    compress_shared_libraries: Boolean, whether to compress native libs.
     split_dimensions: list of split dimensions.
     base_master_resource_ids: Optional list of 32-bit resource IDs to keep
       inside the base module, even when split dimensions are enabled.
@@ -242,7 +236,8 @@ def _GenerateBundleConfigJson(uncompressed_assets, compress_dex,
               'splitDimension': split_dimensions,
           },
           'uncompressNativeLibraries': {
-              'enabled': not compress_shared_libraries,
+              'enabled': True,
+              'alignment': 'PAGE_ALIGNMENT_16K'
           },
           'uncompressDexFiles': {
               'enabled': True,  # Applies only for P+.
@@ -433,7 +428,10 @@ def _GetManifestForModule(bundle_path, module_name):
 
 def _GetComponentNames(manifest, tag_name):
   android_name = '{%s}name' % manifest_utils.ANDROID_NAMESPACE
-  return [s.attrib.get(android_name) for s in manifest.iter(tag_name)]
+  return [
+      s.attrib.get(android_name)
+      for s in manifest.iterfind(f'application/{tag_name}')
+  ]
 
 
 def _ClassesFromZip(module_zip):
@@ -542,7 +540,6 @@ def main(args):
     logging.info('Creating BundleConfig.pb.json')
     bundle_config = _GenerateBundleConfigJson(options.uncompressed_assets,
                                               options.compress_dex,
-                                              options.compress_shared_libraries,
                                               split_dimensions,
                                               base_master_resource_ids)
 
@@ -578,7 +575,7 @@ def main(args):
         fail_on_output=options.warnings_as_errors)
 
     if options.validate_services:
-      # TODO(crbug.com/1126301): This step takes 0.4s locally for bundles with
+      # TODO(crbug.com/40148088): This step takes 0.4s locally for bundles with
       # isolated splits disabled and 2s for bundles with isolated splits
       # enabled.  Consider making this run in parallel or move into a separate
       # step before enabling isolated splits by default.

@@ -14,20 +14,26 @@
 #include "base/threading/scoped_blocking_call.h"
 #include "build/build_config.h"
 
+#if BUILDFLAG(IS_ANDROID)
+#include "base/android/content_uri_utils.h"
+#endif
+
 namespace base {
 namespace {
 
-void GetStat(const FilePath& path, bool show_links, stat_wrapper_t* st) {
+bool GetStat(const FilePath& path, bool show_links, stat_wrapper_t* st) {
   DCHECK(st);
-  const int res = show_links ? File::Lstat(path.value().c_str(), st)
-                             : File::Stat(path.value().c_str(), st);
+  const int res = show_links ? File::Lstat(path, st) : File::Stat(path, st);
   if (res < 0) {
     // Print the stat() error message unless it was ENOENT and we're following
     // symlinks.
     DPLOG_IF(ERROR, errno != ENOENT || show_links)
         << "Cannot stat '" << path << "'";
     memset(st, 0, sizeof(*st));
+    return false;
   }
+
+  return true;
 }
 
 #if BUILDFLAG(IS_FUCHSIA)
@@ -57,6 +63,20 @@ bool ShouldTrackVisitedDirectories(int file_type) {
 FileEnumerator::FileInfo::FileInfo() {
   memset(&stat_, 0, sizeof(stat_));
 }
+
+#if BUILDFLAG(IS_ANDROID)
+FileEnumerator::FileInfo::FileInfo(base::FilePath content_uri,
+                                   base::FilePath filename,
+                                   bool is_directory,
+                                   off_t size,
+                                   Time time)
+    : content_uri_(std::move(content_uri)), filename_(std::move(filename)) {
+  memset(&stat_, 0, sizeof(stat_));
+  stat_.st_mode = is_directory ? S_IFDIR : S_IFREG;
+  stat_.st_size = size;
+  stat_.st_mtime = time.ToTimeT();
+}
+#endif
 
 bool FileEnumerator::FileInfo::IsDirectory() const {
   return S_ISDIR(stat_.st_mode);
@@ -123,6 +143,18 @@ FileEnumerator::FileEnumerator(const FilePath& root_path,
   // INCLUDE_DOT_DOT must not be specified if recursive.
   DCHECK(!(recursive && (INCLUDE_DOT_DOT & file_type_)));
 
+#if BUILDFLAG(IS_ANDROID)
+  // Content-URIs have limited support.
+  if (root_path.IsContentUri()) {
+    CHECK_EQ(file_type_, FileType::FILES | FileType::DIRECTORIES);
+    // Get display-name of root path.
+    FileInfo root_info;
+    internal::ContentUriGetFileInfo(root_path, &root_info);
+    pending_subdirs_.push(
+        std::vector<std::string>({root_info.GetName().value()}));
+  }
+#endif
+
   if (file_type_ & FileType::NAMES_ONLY) {
     DCHECK(!recursive_);
     DCHECK_EQ(file_type_ & ~(FileType::NAMES_ONLY | FileType::INCLUDE_DOT_DOT),
@@ -131,9 +163,9 @@ FileEnumerator::FileEnumerator(const FilePath& root_path,
   }
 
   if (recursive && ShouldTrackVisitedDirectories(file_type_)) {
-    stat_wrapper_t st;
-    GetStat(root_path, false, &st);
-    visited_directories_.insert(st.st_ino);
+    if (stat_wrapper_t st; GetStat(root_path, false, &st)) {
+      MarkVisited(st);
+    }
   }
 
   pending_paths_.push(root_path);
@@ -154,6 +186,29 @@ FilePath FileEnumerator::Next() {
     root_path_ = pending_paths_.top();
     root_path_ = root_path_.StripTrailingSeparators();
     pending_paths_.pop();
+
+#if BUILDFLAG(IS_ANDROID)
+    if (root_path_.IsContentUri()) {
+      subdirs_ = pending_subdirs_.top();
+      pending_subdirs_.pop();
+      directory_entries_ = internal::ListContentUriDirectory(root_path_);
+      current_directory_entry_ = 0;
+      if (directory_entries_.empty()) {
+        continue;
+      }
+      if (recursive_) {
+        for (auto& info : directory_entries_) {
+          info.subdirs_ = subdirs_;
+          if (info.IsDirectory()) {
+            pending_paths_.push(info.content_uri_);
+            pending_subdirs_.push(subdirs_);
+            pending_subdirs_.top().push_back(info.GetName().value());
+          }
+        }
+      }
+      break;
+    }
+#endif
 
     DIR* dir = opendir(root_path_.value().c_str());
     if (!dir) {
@@ -215,8 +270,10 @@ FilePath FileEnumerator::Next() {
         continue;
       }
 
-      const FilePath full_path = root_path_.Append(info.filename_);
-      GetStat(full_path, ShouldShowSymLinks(file_type_), &info.stat_);
+      FilePath full_path = root_path_.Append(info.filename_);
+      if (!GetStat(full_path, ShouldShowSymLinks(file_type_), &info.stat_)) {
+        continue;
+      }
 
       const bool is_dir = info.IsDirectory();
 
@@ -224,8 +281,8 @@ FilePath FileEnumerator::Next() {
       // SHOW_SYM_LINKS is on or we haven't visited the directory yet.
       if (recursive_ && is_dir &&
           (!ShouldTrackVisitedDirectories(file_type_) ||
-           visited_directories_.insert(info.stat_.st_ino).second)) {
-        pending_paths_.push(full_path);
+           MarkVisited(info.stat_))) {
+        pending_paths_.push(std::move(full_path));
       }
 
       if (is_pattern_matched && IsTypeMatched(is_dir))
@@ -243,6 +300,12 @@ FilePath FileEnumerator::Next() {
     if (folder_search_policy_ == FolderSearchPolicy::MATCH_ONLY)
       pattern_.clear();
   }
+
+#if BUILDFLAG(IS_ANDROID)
+  if (root_path_.IsContentUri()) {
+    return directory_entries_[current_directory_entry_].content_uri_;
+  }
+#endif
 
   return root_path_.Append(
       directory_entries_[current_directory_entry_].filename_);

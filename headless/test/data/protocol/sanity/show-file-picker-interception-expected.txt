@@ -1,0 +1,8 @@
+Tests that file picker interception works as expected
+{
+}
+{
+}
+{
+}
+Intercepted file chooser mode: selectSingle

@@ -6,6 +6,7 @@
 #define MEDIA_BASE_ENCRYPTION_PATTERN_H_
 
 #include <stdint.h>
+#include <ostream>
 
 #include "media/base/media_export.h"
 
@@ -20,7 +21,7 @@ namespace media {
 // encrypted, and the next nine are skipped. This pattern is applied
 // repeatedly until the end of the last 16-byte block in the subsample.
 // Any remaining bytes are left clear.
-// TODO(jrummell): Use absl::optional<EncryptionPattern> everywhere.
+// TODO(jrummell): Use std::optional<EncryptionPattern> everywhere.
 class MEDIA_EXPORT EncryptionPattern {
  public:
   EncryptionPattern();
@@ -44,6 +45,11 @@ class MEDIA_EXPORT EncryptionPattern {
   uint32_t crypt_byte_block_ = 0;  // Count of the encrypted blocks.
   uint32_t skip_byte_block_ = 0;   // Count of the unencrypted blocks.
 };
+
+// For logging use only.
+MEDIA_EXPORT std::ostream& operator<<(
+    std::ostream& os,
+    const EncryptionPattern& encryption_pattern);
 
 }  // namespace media
 

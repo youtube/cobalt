@@ -1,0 +1,32 @@
+The test verifies functionality of protocol method CSS.getMatchedStylesForNode for nested groups.
+Comments with declarations should cause ghost rules (#comments)
+Dumping inline style: 
+{
+}
+Dumping matched rules: 
+*#comments* {    regular
+    top: 10px; @[2:4-2:14]
+    top: 10px; @[undefined-undefined]
+}
+Dumping inherited rules: 
+Invalid declarations should cause ghost rules (#invalid)
+Dumping inline style: 
+{
+}
+Dumping matched rules: 
+*#invalid* {    regular
+    top: 10px; @[9:4-9:14]
+    top: 10px; @[undefined-undefined]
+}
+Dumping inherited rules: 
+Ghost rules can appear in nested group rules (#group-rules)
+Dumping inline style: 
+{
+}
+Dumping matched rules: 
+*#group-rules* {    regular
+    top: 10px; @[16:4-16:14]
+    top: 10px; @[undefined-undefined]
+}
+Dumping inherited rules: 
+

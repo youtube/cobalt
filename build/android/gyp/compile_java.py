@@ -4,17 +4,19 @@
 # Use of this source code is governed by a BSD-style license that can be
 # found in the LICENSE file.
 
+import collections
 import functools
+import itertools
 import logging
-import multiprocessing
 import optparse
 import os
+import pathlib
 import re
+import shlex
 import shutil
 import sys
 import time
 import zipfile
-import pathlib
 
 import javac_output_processor
 from util import build_utils
@@ -32,64 +34,54 @@ _JAVAC_EXTRACTOR = os.path.join(build_utils.DIR_SOURCE_ROOT, 'third_party',
 # Use this when trying to enable more checks.
 ERRORPRONE_CHECKS_TO_APPLY = []
 
+# Checks to disable in tests.
+TESTONLY_ERRORPRONE_WARNINGS_TO_DISABLE = [
+    # Too much effort to enable.
+    'UnusedVariable',
+]
+
 # Full list of checks: https://errorprone.info/bugpatterns
 ERRORPRONE_WARNINGS_TO_DISABLE = [
-    # Temporarily disabling to roll doubledown.
-    # TODO(wnwen): Re-enable this upstream.
     'InlineMeInliner',
-    # The following are super useful, but existing issues need to be fixed first
-    # before they can start failing the build on new errors.
+    'InlineMeSuggester',
+    # High priority to enable:
+    'HidingField',
+    'AlreadyChecked',
+    'DirectInvocationOnMock',
+    'MockNotUsedInProduction',
+    # High priority to enable in non-tests:
+    'JdkObsolete',
+    'UnusedMethod',
+    'ReturnValueIgnored',
+    'StaticAssignmentInConstructor',
+    # These are all for Javadoc, which we don't really care about.
+    # vvv
+    'InvalidBlockTag',
     'InvalidParam',
     'InvalidLink',
     'InvalidInlineTag',
-    'EmptyBlockTag',
-    'PublicConstructorForAbstractClass',
-    'InvalidBlockTag',
-    'StaticAssignmentInConstructor',
-    'MutablePublicArray',
+    'MalformedInlineTag',
+    'MissingSummary',
     'UnescapedEntity',
+    'UnrecognisedJavadocTag',
+    # ^^^
+    'MutablePublicArray',
     'NonCanonicalType',
-    'AlmostJavadoc',
-    'ReturnValueIgnored',
-    # The following are added for errorprone update: https://crbug.com/1216032
-    'InlineMeSuggester',
     'DoNotClaimAnnotations',
     'JavaUtilDate',
     'IdentityHashMapUsage',
-    'UnnecessaryMethodReference',
-    'LongFloatConversion',
-    'CharacterGetNumericValue',
-    'ErroneousThreadPoolConstructorChecker',
     'StaticMockMember',
-    'MissingSuperCall',
-    'ToStringReturnsNull',
-    # If possible, this should be automatically fixed if turned on:
-    'MalformedInlineTag',
-    # TODO(crbug.com/834807): Follow steps in bug
-    'DoubleBraceInitialization',
-    # TODO(crbug.com/834790): Follow steps in bug.
+    # Triggers in tests where this is useful to do.
+    'StaticAssignmentOfThrowable',
+    # TODO(crbug.com/41384349): Follow steps in bug.
     'CatchAndPrintStackTrace',
-    # TODO(crbug.com/801210): Follow steps in bug.
-    'SynchronizeOnNonFinalField',
-    # TODO(crbug.com/802073): Follow steps in bug.
+    # TODO(crbug.com/41364806): Follow steps in bug.
     'TypeParameterUnusedInFormals',
-    # TODO(crbug.com/803484): Follow steps in bug.
-    'CatchFail',
-    # TODO(crbug.com/803485): Follow steps in bug.
-    'JUnitAmbiguousTestClass',
     # Android platform default is always UTF-8.
     # https://developer.android.com/reference/java/nio/charset/Charset.html#defaultCharset()
     'DefaultCharset',
-    # Low priority since there are lots of tags that don't fit this check.
-    'UnrecognisedJavadocTag',
-    # Low priority since the alternatives still work.
-    'JdkObsolete',
-    # We don't use that many lambdas.
-    'FunctionalInterfaceClash',
     # There are lots of times when we just want to post a task.
     'FutureReturnValueIgnored',
-    # Nice to be explicit about operators, but not necessary.
-    'OperatorPrecedence',
     # Just false positives in our code.
     'ThreadJoinLoop',
     # Low priority corner cases with String.split.
@@ -98,43 +90,12 @@ ERRORPRONE_WARNINGS_TO_DISABLE = [
     'StringSplitter',
     # Preferred to use another method since it propagates exceptions better.
     'ClassNewInstance',
-    # Nice to have static inner classes but not necessary.
-    'ClassCanBeStatic',
-    # Explicit is better than implicit.
-    'FloatCast',
     # Results in false positives.
     'ThreadLocalUsage',
-    # Also just false positives.
-    'Finally',
-    # False positives for Chromium.
-    'FragmentNotInstantiable',
-    # Low priority to fix.
-    'HidingField',
-    # Low priority.
-    'IntLongMath',
-    # Low priority.
-    'BadComparable',
     # Low priority.
     'EqualsHashCode',
-    # Nice to fix but low priority.
-    'TypeParameterShadowing',
-    # Good to have immutable enums, also low priority.
-    'ImmutableEnumChecker',
-    # False positives for testing.
-    'InputStreamSlowMultibyteRead',
-    # Nice to have better primitives.
-    'BoxedPrimitiveConstructor',
     # Not necessary for tests.
     'OverrideThrowableToString',
-    # Nice to have better type safety.
-    'CollectionToArraySafeParameter',
-    # Makes logcat debugging more difficult, and does not provide obvious
-    # benefits in the Chromium codebase.
-    'ObjectToString',
-    # Triggers on private methods that are @CalledByNative.
-    'UnusedMethod',
-    # Triggers on generated R.java files.
-    'UnusedVariable',
     # Not that useful.
     'UnsafeReflectiveConstructionCast',
     # Not that useful.
@@ -143,55 +104,30 @@ ERRORPRONE_WARNINGS_TO_DISABLE = [
     'EqualsGetClass',
     # A lot of false-positives from CharSequence.equals().
     'UndefinedEquals',
-    # Nice to have.
-    'ExtendingJUnitAssert',
-    # Nice to have.
-    'SystemExitOutsideMain',
-    # Nice to have.
-    'TypeParameterNaming',
-    # Nice to have.
-    'UnusedException',
-    # Nice to have.
-    'UngroupedOverloads',
-    # Nice to have.
-    'FunctionalInterfaceClash',
-    # Nice to have.
-    'InconsistentOverloads',
     # Dagger generated code triggers this.
     'SameNameButDifferent',
-    # Nice to have.
+    # Does not apply to Android because it assumes no desugaring.
     'UnnecessaryLambda',
-    # Nice to have.
-    'UnnecessaryAnonymousClass',
-    # Nice to have.
-    'LiteProtoToString',
-    # Nice to have.
-    'MissingSummary',
-    # Nice to have.
-    'ReturnFromVoid',
     # Nice to have.
     'EmptyCatch',
     # Nice to have.
     'BadImport',
     # Nice to have.
     'UseCorrectAssertInTests',
-    # Nice to have.
-    'InlineFormatString',
-    # Nice to have.
-    'DefaultPackage',
     # Must be off since we are now passing in annotation processor generated
     # code as a source jar (deduplicating work with turbine).
     'RefersToDaggerCodegen',
-    # We already have presubmit checks for this. Not necessary to warn on
-    # every build.
+    # We already have presubmit checks for this. We don't want it to fail
+    # local compiles.
     'RemoveUnusedImports',
-    # We do not care about unnecessary parenthesis enough to check for them.
-    'UnnecessaryParentheses',
-    # The only time we trigger this is when it is better to be explicit in a
-    # list of unicode characters, e.g. FindAddress.java
+    # Only has false positives (would not want to enable this).
     'UnicodeEscape',
+    # A lot of existing violations. e.g. Should return List and not ArrayList
+    'NonApiType',
     # Nice to have.
-    'AlreadyChecked',
+    'StringCharset',
+    # Nice to have.
+    'StringCaseLocaleUsage',
 ]
 
 # Full list of checks: https://errorprone.info/bugpatterns
@@ -206,7 +142,6 @@ ERRORPRONE_WARNINGS_TO_ENABLE = [
     'MultiVariableDeclaration',
     'RedundantOverride',
     'StaticQualifiedUsingExpression',
-    'StringEquality',
     'TimeUnitMismatch',
     'UnnecessaryStaticImport',
     'UseBinds',
@@ -217,24 +152,14 @@ ERRORPRONE_WARNINGS_TO_ENABLE = [
 def ProcessJavacOutput(output, target_name):
   # These warnings cannot be suppressed even for third party code. Deprecation
   # warnings especially do not help since we must support older android version.
-  deprecated_re = re.compile(
-      r'(Note: .* uses? or overrides? a deprecated API.)$')
+  deprecated_re = re.compile(r'Note: .* uses? or overrides? a deprecated API')
   unchecked_re = re.compile(
       r'(Note: .* uses? unchecked or unsafe operations.)$')
   recompile_re = re.compile(r'(Note: Recompile with -Xlint:.* for details.)$')
 
-  activity_re = re.compile(r'^(?P<prefix>\s*location: )class Activity$')
-
   def ApplyFilters(line):
     return not (deprecated_re.match(line) or unchecked_re.match(line)
                 or recompile_re.match(line))
-
-  def Elaborate(line):
-    if activity_re.match(line):
-      prefix = ' ' * activity_re.match(line).end('prefix')
-      return '{}\n{}Expecting a FragmentActivity? See {}'.format(
-          line, prefix, 'docs/ui/android/bytecode_rewriting.md')
-    return line
 
   output = build_utils.FilterReflectiveAccessJavaWarnings(output)
 
@@ -250,7 +175,6 @@ def ProcessJavacOutput(output, target_name):
     output = re.sub(r'\d+ warnings\n', '', output)
 
   lines = (l for l in output.split('\n') if ApplyFilters(l))
-  lines = (Elaborate(l) for l in lines)
 
   output_processor = javac_output_processor.JavacOutputProcessor(target_name)
   lines = output_processor.Process(lines)
@@ -260,7 +184,7 @@ def ProcessJavacOutput(output, target_name):
 
 def CreateJarFile(jar_path,
                   classes_dir,
-                  service_provider_configuration_dir=None,
+                  services_map=None,
                   additional_jar_files=None,
                   extra_classes_jar=None):
   """Zips files from compilation into a single jar."""
@@ -268,13 +192,11 @@ def CreateJarFile(jar_path,
   with action_helpers.atomic_output(jar_path) as f:
     with zipfile.ZipFile(f.name, 'w') as z:
       zip_helpers.zip_directory(z, classes_dir)
-      if service_provider_configuration_dir:
-        config_files = build_utils.FindInDirectory(
-            service_provider_configuration_dir)
-        for config_file in config_files:
-          zip_path = os.path.relpath(config_file,
-                                     service_provider_configuration_dir)
-          zip_helpers.add_to_zip_hermetic(z, zip_path, src_path=config_file)
+      if services_map:
+        for service_class, impl_classes in sorted(services_map.items()):
+          zip_path = 'META-INF/services/' + service_class
+          data = ''.join(f'{x}\n' for x in sorted(impl_classes))
+          zip_helpers.add_to_zip_hermetic(z, zip_path, data=data)
 
       if additional_jar_files:
         for src_path, zip_path in additional_jar_files:
@@ -286,51 +208,78 @@ def CreateJarFile(jar_path,
   logging.info('Completed jar file: %s', jar_path)
 
 
-def _ParsePackageAndClassNames(source_file):
+# Java lines end in semicolon, whereas Kotlin lines do not.
+_PACKAGE_RE = re.compile(r'^package\s+(.*?)(;|\s*$)', flags=re.MULTILINE)
+
+_SERVICE_IMPL_RE = re.compile(
+    r'^([\t ]*)@ServiceImpl\(\s*(.+?)\.class\)(.*?)\sclass\s+(\w+)',
+    flags=re.MULTILINE | re.DOTALL)
+
+# Finds all top-level classes (by looking for those that are not indented).
+_TOP_LEVEL_CLASSES_RE = re.compile(
+    # Start of line, or after /* package */
+    r'^(?:/\*.*\*/\s*)?'
+    # Annotations
+    r'(?:@\w+(?:\(.*\))\s+)*'
+    r'(?:(?:public|protected|private)\s+)?'
+    r'(?:(?:static|abstract|final|sealed)\s+)*'
+    r'(?:class|@?interface|enum|record)\s+'
+    r'(\w+?)\b[^"]*?$',
+    flags=re.MULTILINE)
+
+
+def ParseJavaSource(data, services_map, path=None):
   """This should support both Java and Kotlin files."""
   package_name = ''
-  class_names = []
-  with open(source_file) as f:
-    for l in f:
-      # Strip unindented comments.
-      # Considers a leading * as a continuation of a multi-line comment (our
-      # linter doesn't enforce a space before it like there should be).
-      l = re.sub(r'^(?://.*|/?\*.*?(?:\*/\s*|$))', '', l)
-      # Stripping things between double quotes (strings), so if the word "class"
-      # shows up in a string this doesn't trigger. This isn't strictly correct
-      # (with escaped quotes) but covers a very large percentage of cases.
-      l = re.sub('(?:".*?")', '', l)
+  if m := _PACKAGE_RE.search(data):
+    package_name = m.group(1)
 
-      # Java lines end in semicolon, whereas Kotlin lines do not.
-      m = re.match(r'package\s+(.*?)(;|\s*$)', l)
-      if m and not package_name:
-        package_name = m.group(1)
+  class_names = _TOP_LEVEL_CLASSES_RE.findall(data)
 
-      # Not exactly a proper parser, but works for sources that Chrome uses.
-      # In order to not match nested classes, it just checks for lack of indent.
-      m = re.match(r'(?:\S.*?)?(?:class|@?interface|enum)\s+(.+?)\b', l)
-      if m:
-        class_names.append(m.group(1))
+  # Very rare, so worth an upfront check.
+  if '@ServiceImpl' in data:
+    for indent, service_class, modifiers, impl_class in (
+        _SERVICE_IMPL_RE.findall(data)):
+      if 'public' not in modifiers:
+        raise Exception(f'@ServiceImpl can be used only on public classes '
+                        f'(when parsing {path})')
+      # Assume indent means nested class that is one level deep.
+      if indent:
+        impl_class = f'{class_names[0]}${impl_class}'
+      else:
+        assert class_names[0] == impl_class
+
+      # Parse imports to resolve the class.
+      dot_idx = service_class.find('.')
+      # Handle @ServiceImpl(OuterClass.InnerClass.class)
+      outer_class = service_class if dot_idx == -1 else service_class[:dot_idx]
+
+      if m := re.search(r'^import\s+([\w\.]*\.' + outer_class + r')[;\s]',
+                        data,
+                        flags=re.MULTILINE):
+        service_class = m.group(1) + service_class[len(outer_class):]
+      else:
+        service_class = f'{package_name}.{service_class}'
+
+      # Convert OuterClass.InnerClass -> OuterClass$InnerClass.
+      for m in list(re.finditer(r'\.[A-Z]', service_class))[1:]:
+        idx = m.start()
+        service_class = service_class[:idx] + '$' + service_class[idx + 1:]
+
+      services_map[service_class].append(f'{package_name}.{impl_class}')
+
   return package_name, class_names
 
 
-def _ProcessSourceFileForInfo(source_file):
-  package_name, class_names = _ParsePackageAndClassNames(source_file)
-  return source_file, package_name, class_names
-
-
-class _InfoFileContext:
-  """Manages the creation of the class->source file .info file."""
+class _MetadataParser:
 
   def __init__(self, chromium_code, excluded_globs):
     self._chromium_code = chromium_code
     self._excluded_globs = excluded_globs
     # Map of .java path -> .srcjar/nested/path.java.
     self._srcjar_files = {}
-    # List of generators from pool.imap_unordered().
-    self._results = []
-    # Lazily created multiprocessing.Pool.
-    self._pool = None
+    # Map of @ServiceImpl class -> impl class
+    self.services_map = collections.defaultdict(list)
 
   def AddSrcJarSources(self, srcjar_path, extracted_paths, parent_dir):
     for path in extracted_paths:
@@ -338,19 +287,6 @@ class _InfoFileContext:
       # structure.
       self._srcjar_files[path] = '{}/{}'.format(
           srcjar_path, os.path.relpath(path, parent_dir))
-
-  def SubmitFiles(self, source_files):
-    if not source_files:
-      return
-    if self._pool is None:
-      # Restrict to just one process to not slow down compiling. Compiling
-      # is always slower.
-      self._pool = multiprocessing.Pool(1)
-    logging.info('Submitting %d files for info', len(source_files))
-    self._results.append(
-        self._pool.imap_unordered(_ProcessSourceFileForInfo,
-                                  source_files,
-                                  chunksize=1000))
 
   def _CheckPathMatchesClassName(self, source_file, package_name, class_name):
     if source_file.endswith('.java'):
@@ -370,7 +306,8 @@ class _InfoFileContext:
       if '_aidl.srcjar' in source:
         continue
       assert not self._chromium_code or len(class_names) == 1, (
-          'Chromium java files must only have one class: {}'.format(source))
+          'Chromium java files must only have one class: {} found: {}'.format(
+              source, class_names))
       if self._chromium_code:
         # This check is not necessary but nice to check this somewhere.
         self._CheckPathMatchesClassName(java_file, package_name, class_names[0])
@@ -379,36 +316,24 @@ class _InfoFileContext:
     name_as_class_glob = fully_qualified_name.replace('.', '/') + '.class'
     return not build_utils.MatchesGlob(name_as_class_glob, self._excluded_globs)
 
-  def _Collect(self):
-    if self._pool is None:
-      return {}
-    ret = {}
-    for result in self._results:
-      for java_file, package_name, class_names in result:
-        source = self._srcjar_files.get(java_file, java_file)
-        for fully_qualified_name in self._ProcessInfo(java_file, package_name,
-                                                      class_names, source):
-          if self._ShouldIncludeInJarInfo(fully_qualified_name):
-            ret[fully_qualified_name] = java_file
-    return ret
-
-  def Close(self):
-    # Work around for Python 2.x bug with multiprocessing and daemon threads:
-    # https://bugs.python.org/issue4106
-    if self._pool is not None:
-      logging.info('Joining multiprocessing.Pool')
-      self._pool.terminate()
-      self._pool.join()
-      logging.info('Done.')
-
-  def Commit(self, output_path):
+  def ParseAndWriteInfoFile(self, output_path, java_files, kt_files=None):
     """Writes a .jar.info file.
 
     Maps fully qualified names for classes to either the java file that they
     are defined in or the path of the srcjar that they came from.
     """
     logging.info('Collecting info file entries')
-    entries = self._Collect()
+    entries = {}
+    for path in itertools.chain(java_files, kt_files or []):
+      data = pathlib.Path(path).read_text()
+      package_name, class_names = ParseJavaSource(data,
+                                                  self.services_map,
+                                                  path=path)
+      source = self._srcjar_files.get(path, path)
+      for fully_qualified_name in self._ProcessInfo(path, package_name,
+                                                    class_names, source):
+        if self._ShouldIncludeInJarInfo(fully_qualified_name):
+          entries[fully_qualified_name] = path
 
     logging.info('Writing info file: %s', output_path)
     with action_helpers.atomic_output(output_path, mode='wb') as f:
@@ -418,6 +343,15 @@ class _InfoFileContext:
 
 def _OnStaleMd5(changes, options, javac_cmd, javac_args, java_files, kt_files):
   logging.info('Starting _OnStaleMd5')
+
+  # Use the build server for errorprone runs.
+  if (options.enable_errorprone and not options.skip_build_server
+      and server_utils.MaybeRunCommand(name=options.target_name,
+                                       argv=sys.argv,
+                                       stamp_file=options.jar_path,
+                                       force=options.use_build_server)):
+    return
+
   if options.enable_kythe_annotations:
     # Kythe requires those env variables to be set and compile_java.py does the
     # same
@@ -432,6 +366,8 @@ def _OnStaleMd5(changes, options, javac_cmd, javac_args, java_files, kt_files):
         '--add-exports=jdk.compiler/com.sun.tools.javac.file=ALL-UNNAMED',
         '--add-exports=jdk.compiler/com.sun.tools.javac.util=ALL-UNNAMED',
         '--add-exports=jdk.compiler/com.sun.tools.javac.main=ALL-UNNAMED',
+        '--add-exports=jdk.compiler/com.sun.tools.javac.tree=ALL-UNNAMED',
+        '--add-exports=jdk.internal.opt/jdk.internal.opt=ALL-UNNAMED',
         '-jar',
         _JAVAC_EXTRACTOR,
     ]
@@ -453,10 +389,12 @@ def _OnStaleMd5(changes, options, javac_cmd, javac_args, java_files, kt_files):
   jar_info_path = None
   if not options.enable_errorprone:
     # Delete any stale files in the generated directory. The purpose of
-    # options.generated_dir is for codesearch.
+    # options.generated_dir is for codesearch and Android Studio.
     shutil.rmtree(options.generated_dir, True)
     intermediates_out_dir = options.generated_dir
 
+    # Write .info file only for the main javac invocation (no need to do it
+    # when running Error Prone.
     jar_info_path = options.jar_path + '.info'
 
   # Compiles with Error Prone take twice as long to run as pure javac. Thus GN
@@ -513,22 +451,21 @@ def _RunCompiler(changes,
 
   java_files = java_files.copy()
   java_srcjars = options.java_srcjars
-  save_info_file = jar_info_path is not None
+  parse_java_files = jar_info_path is not None
 
-  # Use jar_path's directory to ensure paths are relative (needed for goma).
+  # Use jar_path's directory to ensure paths are relative (needed for rbe).
   temp_dir = jar_path + '.staging'
   build_utils.DeleteDirectory(temp_dir)
   os.makedirs(temp_dir)
-  info_file_context = None
+  metadata_parser = _MetadataParser(options.chromium_code,
+                                    options.jar_info_exclude_globs)
   try:
     classes_dir = os.path.join(temp_dir, 'classes')
-    service_provider_configuration = os.path.join(
-        temp_dir, 'service_provider_configuration')
 
     if java_files:
       os.makedirs(classes_dir)
 
-      if enable_partial_javac:
+      if enable_partial_javac and changes:
         all_changed_paths_are_java = all(
             p.endswith(".java") for p in changes.IterChangedPaths())
         if (all_changed_paths_are_java and not changes.HasStringChanges()
@@ -543,16 +480,19 @@ def _RunCompiler(changes,
           # As a build speed optimization (crbug.com/1170778), re-compile only
           # java files which have changed. Re-use old jar .info file.
           java_files = list(changes.IterChangedPaths())
+
+          # Disable srcjar extraction, since we know the srcjar didn't show as
+          # changed (only .java files).
           java_srcjars = None
 
-          # Reuse old .info file.
-          save_info_file = False
+          # @ServiceImpl has class retention, so will alter header jars when
+          # modified (and hence not reach this block).
+          # Likewise, nothing in .info files can change if header jar did not
+          # change.
+          parse_java_files = False
 
-          build_utils.ExtractAll(jar_path, classes_dir, pattern='*.class')
-
-    if save_info_file:
-      info_file_context = _InfoFileContext(options.chromium_code,
-                                           options.jar_info_exclude_globs)
+          # Extracts .class as well as META-INF/services.
+          build_utils.ExtractAll(jar_path, classes_dir)
 
     if intermediates_out_dir is None:
       intermediates_out_dir = temp_dir
@@ -566,24 +506,10 @@ def _RunCompiler(changes,
         extracted_files = build_utils.ExtractAll(
             srcjar, no_clobber=True, path=input_srcjars_dir, pattern='*.java')
         java_files.extend(extracted_files)
-        if save_info_file:
-          info_file_context.AddSrcJarSources(srcjar, extracted_files,
-                                             input_srcjars_dir)
+        if parse_java_files:
+          metadata_parser.AddSrcJarSources(srcjar, extracted_files,
+                                           input_srcjars_dir)
       logging.info('Done extracting srcjars')
-
-    if options.header_jar:
-      logging.info('Extracting service provider configs')
-      # Extract META-INF/services/* so that it can be copied into the output
-      # .jar
-      build_utils.ExtractAll(options.header_jar,
-                             no_clobber=True,
-                             path=service_provider_configuration,
-                             pattern='META-INF/services/*')
-      logging.info('Done extracting service provider configs')
-
-    if save_info_file and java_files:
-      info_file_context.SubmitFiles(java_files)
-      info_file_context.SubmitFiles(kt_files)
 
     if java_files:
       # Don't include the output directory in the initial set of args since it
@@ -606,25 +532,45 @@ def _RunCompiler(changes,
 
       logging.debug('Build command %s', cmd)
       start = time.time()
+      before_join_callback = None
+      if parse_java_files:
+        before_join_callback = lambda: metadata_parser.ParseAndWriteInfoFile(
+            jar_info_path, java_files, kt_files)
+
+      if options.print_javac_command_line:
+        print(shlex.join(cmd))
+        return
+
       build_utils.CheckOutput(cmd,
                               print_stdout=options.chromium_code,
                               stdout_filter=process_javac_output_partial,
                               stderr_filter=process_javac_output_partial,
-                              fail_on_output=options.warnings_as_errors)
+                              fail_on_output=options.warnings_as_errors,
+                              before_join_callback=before_join_callback)
       end = time.time() - start
       logging.info('Java compilation took %ss', end)
+    elif parse_java_files:
+      if options.print_javac_command_line:
+        raise Exception('need java files for --print-javac-command-line.')
+      metadata_parser.ParseAndWriteInfoFile(jar_info_path, java_files, kt_files)
 
-    CreateJarFile(jar_path, classes_dir, service_provider_configuration,
+    CreateJarFile(jar_path, classes_dir, metadata_parser.services_map,
                   options.additional_jar_files, options.kotlin_jar_path)
 
-    if save_info_file:
-      info_file_context.Commit(jar_info_path)
+    # Remove input srcjars that confuse Android Studio:
+    # https://crbug.com/353326240
+    for root, _, files in os.walk(intermediates_out_dir):
+      for subpath in files:
+        p = os.path.join(root, subpath)
+        # JNI Zero placeholders
+        if '_jni_java/' in p and not p.endswith('Jni.java'):
+          os.unlink(p)
 
     logging.info('Completed all steps in _RunCompiler')
   finally:
-    if info_file_context:
-      info_file_context.Close()
-    shutil.rmtree(temp_dir)
+    # preserve temp_dir for rsp fie when --print-javac-command-line
+    if not options.print_javac_command_line:
+      shutil.rmtree(temp_dir)
 
 
 def _ParseOptions(argv):
@@ -674,23 +620,26 @@ def _ParseOptions(argv):
       help='Whether code being compiled should be built with stricter '
       'warnings for chromium code.')
   parser.add_option(
-      '--gomacc-path', help='When set, prefix javac command with gomacc')
-  parser.add_option(
       '--errorprone-path', help='Use the Errorprone compiler at this path.')
   parser.add_option(
       '--enable-errorprone',
       action='store_true',
       help='Enable errorprone checks')
-  parser.add_option(
-      '--warnings-as-errors',
-      action='store_true',
-      help='Treat all warnings as errors.')
+  parser.add_option('--testonly',
+                    action='store_true',
+                    help='Disable some Error Prone checks')
+  parser.add_option('--warnings-as-errors',
+                    action='store_true',
+                    help='Treat all warnings as errors.')
   parser.add_option('--jar-path', help='Jar output path.')
   parser.add_option(
       '--javac-arg',
       action='append',
       default=[],
       help='Additional arguments to pass to javac.')
+  parser.add_option('--print-javac-command-line',
+                    action='store_true',
+                    help='Just show javac command line (for ide_query).')
   parser.add_option(
       '--enable-kythe-annotations',
       action='store_true',
@@ -744,25 +693,13 @@ def main(argv):
   argv = build_utils.ExpandFileArgs(argv)
   options, java_files, kt_files = _ParseOptions(argv)
 
-  # Only use the build server for errorprone runs.
-  if (options.enable_errorprone and not options.skip_build_server
-      and server_utils.MaybeRunCommand(name=options.target_name,
-                                       argv=sys.argv,
-                                       stamp_file=options.jar_path,
-                                       force=options.use_build_server)):
-    return
-
-  javac_cmd = []
-  if options.gomacc_path:
-    javac_cmd.append(options.gomacc_path)
-  javac_cmd.append(build_utils.JAVAC_PATH)
+  javac_cmd = [build_utils.JAVAC_PATH]
 
   javac_args = [
       '-g',
-      # We currently target JDK 11 everywhere, since Mockito is broken by JDK17.
-      # See crbug.com/1409661 for more details.
+      # Jacoco does not currently support a higher value.
       '--release',
-      '11',
+      '17',
       # Chromium only allows UTF8 source files.  Being explicit avoids
       # javac pulling a default encoding from the user's environment.
       '-encoding',
@@ -774,6 +711,11 @@ def main(argv):
       # protobuf-generated files fail this check (javadoc has @deprecated,
       # but method missing @Deprecated annotation).
       '-Xlint:-dep-ann',
+      # Do not warn about finalize() methods. Android still intends to support
+      # them.
+      '-Xlint:-removal',
+      # https://crbug.com/1441023
+      '-J-XX:+PerfDisableSharedMem',
   ]
 
   if options.enable_errorprone:
@@ -788,11 +730,19 @@ def main(argv):
                             for x in ERRORPRONE_WARNINGS_TO_DISABLE)
     errorprone_flags.extend('-Xep:{}:WARN'.format(x)
                             for x in ERRORPRONE_WARNINGS_TO_ENABLE)
+    if options.testonly:
+      errorprone_flags.extend('-Xep:{}:OFF'.format(x)
+                              for x in TESTONLY_ERRORPRONE_WARNINGS_TO_DISABLE)
 
     if ERRORPRONE_CHECKS_TO_APPLY:
+      to_apply = list(ERRORPRONE_CHECKS_TO_APPLY)
+      if options.testonly:
+        to_apply = [
+            x for x in to_apply
+            if x not in TESTONLY_ERRORPRONE_WARNINGS_TO_DISABLE
+        ]
       errorprone_flags += [
-          '-XepPatchLocation:IN_PLACE',
-          '-XepPatchChecks:,' + ','.join(ERRORPRONE_CHECKS_TO_APPLY)
+          '-XepPatchLocation:IN_PLACE', '-XepPatchChecks:,' + ','.join(to_apply)
       ]
 
     # These are required to use JDK 16, and are taken directly from
@@ -833,11 +783,19 @@ def main(argv):
 
   javac_args.extend(options.javac_arg)
 
+  if options.print_javac_command_line:
+    if options.java_srcjars:
+      raise Exception(
+          '--print-javac-command-line does not work with --java-srcjars')
+    _OnStaleMd5(None, options, javac_cmd, javac_args, java_files, kt_files)
+    return 0
+
   classpath_inputs = options.classpath + options.processorpath
 
   depfile_deps = classpath_inputs
   # Files that are already inputs in GN should go in input_paths.
-  input_paths = depfile_deps + options.java_srcjars + java_files + kt_files
+  input_paths = ([build_utils.JAVAC_PATH] + depfile_deps +
+                 options.java_srcjars + java_files + kt_files)
   if options.header_jar:
     input_paths.append(options.header_jar)
   input_paths += [x[0] for x in options.additional_jar_files]
@@ -859,6 +817,7 @@ def main(argv):
                                        input_strings=input_strings,
                                        output_paths=output_paths,
                                        pass_changes=True)
+  return 0
 
 
 if __name__ == '__main__':

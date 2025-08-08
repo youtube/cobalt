@@ -9,13 +9,12 @@
 // a loadable module.
 
 #include <string>
+#include <string_view>
 
 #include "base/base_export.h"
 #include "base/files/file_path.h"
-#include "base/strings/string_piece.h"
+#include "base/memory/raw_ptr_exclusion.h"
 #include "build/build_config.h"
-
-#if !defined(STARBOARD)
 
 #if BUILDFLAG(IS_WIN)
 #include <windows.h>
@@ -32,17 +31,13 @@ enum NativeLibraryType {
   BUNDLE,
   DYNAMIC_LIB
 };
-enum NativeLibraryObjCStatus {
-  OBJC_UNKNOWN,
-  OBJC_PRESENT,
-  OBJC_NOT_PRESENT,
-};
 struct NativeLibraryStruct {
   NativeLibraryType type;
-  NativeLibraryObjCStatus objc_status;
   union {
     CFBundleRef bundle;
-    void* dylib;
+    //// This field is not a raw_ptr<> because it was filtered by the rewriter
+    // for: #union
+    RAW_PTR_EXCLUSION void* dylib;
   };
 };
 using NativeLibrary = NativeLibraryStruct*;
@@ -112,7 +107,7 @@ BASE_EXPORT void UnloadNativeLibrary(NativeLibrary library);
 
 // Gets a function pointer from a native library.
 BASE_EXPORT void* GetFunctionPointerFromNativeLibrary(NativeLibrary library,
-                                                      StringPiece name);
+                                                      const char* name);
 
 // Returns the full platform-specific name for a native library. |name| must be
 // ASCII. This is also the default name for the output of a gn |shared_library|
@@ -121,15 +116,14 @@ BASE_EXPORT void* GetFunctionPointerFromNativeLibrary(NativeLibrary library,
 // - "mylib.dll" on Windows
 // - "libmylib.so" on Linux
 // - "libmylib.dylib" on Mac
-BASE_EXPORT std::string GetNativeLibraryName(StringPiece name);
+BASE_EXPORT std::string GetNativeLibraryName(std::string_view name);
 
 // Returns the full platform-specific name for a gn |loadable_module| target.
 // See tools/gn/docs/reference.md#loadable_module
 // The returned name is the same as GetNativeLibraryName() on all platforms
 // except for Mac where for "mylib" it returns "mylib.so".
-BASE_EXPORT std::string GetLoadableModuleName(StringPiece name);
+BASE_EXPORT std::string GetLoadableModuleName(std::string_view name);
 
 }  // namespace base
 
-#endif  // !defined(STARBOARD)
 #endif  // BASE_NATIVE_LIBRARY_H_

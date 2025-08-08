@@ -1,0 +1,102 @@
+<?xml version="1.0" ?>
+<!DOCTYPE translationbundle>
+<translationbundle lang="fi">
+<translation id="1012241361789814178">Viankorjaus keskeytetty toisella välilehdellä, siirry kyseiselle välilehdelle klikkaamalla.</translation>
+<translation id="1171774979989969504">Anna sähköpostiosoite.</translation>
+<translation id="1178581264944972037">Tauko</translation>
+<translation id="1306460908038601864">Pois päältä</translation>
+<translation id="1311894908970423688">Arvon on oltava <ph name="VALUE_DATE_OR_TIME" />.</translation>
+<translation id="1588438908519853928">Normaali</translation>
+<translation id="1591562245178063882">Tässä kuussa</translation>
+<translation id="1637811476055996098">Valitse tiedostot</translation>
+<translation id="1729654308190250600">Kirjoita ei-tyhjä sähköpostiosoite.</translation>
+<translation id="1758486001363313524">Muu...</translation>
+<translation id="1921819250265091946">pp</translation>
+<translation id="1938124657309484470">Arvon on oltava <ph name="MAXIMUM_DATE_OR_TIME" /> tai aiempi.</translation>
+<translation id="1993104285338243655">Peilaus käynnissä</translation>
+<translation id="2060505056492490888"><ph name="DOT" />-merkkiä on käytetty väärässä kohdassa osoitteessa <ph name="INVALIDDOMAIN" />.</translation>
+<translation id="2068711044993563745">Vähimmäisarvon (<ph name="MINIMUM" />) on oltava enimmäisarvoa (<ph name="MAXIMUM" />) pienempi.</translation>
+<translation id="2148716181193084225">Tänään</translation>
+<translation id="2226276347425096477">Lyhennä tämä teksti alle <ph name="MAX_CHARACTERS" /> merkkiin (tällä hetkellä käytössä <ph name="CURRENT_LENGTH" /> merkkiä).</translation>
+<translation id="2247351761944213033">Viikko <ph name="WEEKNUMBER" />, <ph name="YEAR" /></translation>
+<translation id="2277199496770840904">Kappale <ph name="NUMBER" /></translation>
+<translation id="2507943997699731163">Täytä tämä kenttä.</translation>
+<translation id="2613802280814924224">Syötä kelvollinen arvo. Lähin kelvollinen arvo on <ph name="VALID_VALUE" />.</translation>
+<translation id="2653659639078652383">Lähetä</translation>
+<translation id="2746543609216772311">Arvon on oltava <ph name="MINIMUM_DATE_OR_TIME" /> tai myöhempi.</translation>
+<translation id="2761667185364618470">Valitse tämä ruutu jatkaaksesi.</translation>
+<translation id="2908441821576996758">Anna pilkuilla erotettu sähköpostiosoitteiden luettelo.</translation>
+<translation id="3049748772180311791"><ph name="QUANTITY" /> Mt</translation>
+<translation id="3075154866155599887">Anna kelvollinen arvo. Kentän arvo on puutteellinen tai annettu päivä on virheellinen.</translation>
+<translation id="310520048233152454">Lisää URL-osoite.</translation>
+<translation id="3321030238473337787">Toistonopeus</translation>
+<translation id="3450233048674729344">Arvon tulee olla pienempi tai yhtä suuri kuin <ph name="MAXIMUM" />.</translation>
+<translation id="3732799496749320381">kk</translation>
+<translation id="3754210790023674521">Sulje kuva kuvassa ‑tila</translation>
+<translation id="3757388668994797779"><ph name="QUANTITY" /> Gt</translation>
+<translation id="3822383571486410024">Pidennä tämä teksti yli <ph name="MIN_CHARACTERS" /> merkkiin (tällä hetkellä käytössä <ph name="CURRENT_LENGTH" /> merkkiä).</translation>
+<translation id="383465348367842624"><ph name="ATSIGN" />-osaa ennen tulevassa osassa ei pitäisi olla merkkiä <ph name="INVALIDCHARACTER" />.</translation>
+<translation id="3846214748874656680">Sulje koko näytön tila.</translation>
+<translation id="4360991593054037559">Syötä kelvollinen arvo. Kaksi lähintä kelvollista arvoa ovat <ph name="VALID_VALUE_LOW" /> ja <ph name="VALID_VALUE_HIGHER" />.</translation>
+<translation id="4522570452068850558">Tiedot</translation>
+<translation id="4664250907885839816"><ph name="ATSIGN" />-osan jälkeen tulevassa osassa ei pitäisi olla merkkiä <ph name="INVALIDCHARACTER" />.</translation>
+<translation id="4718048029184481307">Toistetaan kuva kuvassa ‑tilassa</translation>
+<translation id="4812940957355064477">Anna numero.</translation>
+<translation id="4975562563186953947"><ph name="SELECTED_COUNT" /> valittu</translation>
+<translation id="4992066212339426712">Poista mykistys</translation>
+<translation id="49969490063480558">Kirjoita loppuun asti osoite, joka alkaa <ph name="ATSIGN" />. <ph name="INVALIDADDRESS" /> on vielä kesken.</translation>
+<translation id="5164977714490026579">Arvon tulee olla suurempi tai yhtä suuri kuin <ph name="MINIMUM" />.</translation>
+<translation id="5196716972587102051">2</translation>
+<translation id="520299402983819650"><ph name="QUANTITY" /> Pt</translation>
+<translation id="5307600278924710095">Lisää <ph name="ATSIGN" />-osaa ennen tuleva osa. <ph name="INVALIDADDRESS" /> on puutteellinen.</translation>
+<translation id="5334352251556557839">Mediaa ei voi toistaa.</translation>
+<translation id="537648784377940524">Vähimmäispäivämäärän (<ph name="MIN_DATE_OR_TIME" />) on oltava ennen enimmäispäivämäärää (<ph name="MAX_DATE_OR_TIME" />).</translation>
+<translation id="5466621249238537318">Valitse vähintään yksi tiedosto.</translation>
+<translation id="5514612371225420585">Tiedosto laitteellasi</translation>
+<translation id="5516235301412634559">0,75</translation>
+<translation id="5537725057119320332">Suoratoista</translation>
+<translation id="5630795885300617244">Ohita 10 sekuntia kaksoisnapauttamalla vasemmalle tai oikealle.</translation>
+<translation id="57838592816432529">Mykistä</translation>
+<translation id="588258955323874662">Koko näyttö</translation>
+<translation id="5888666972993069672">Katsotaan TV:stä <ph name="DEVICE_FRIENDLY_NAME" /></translation>
+<translation id="5939518447894949180">Tyhjennä</translation>
+<translation id="5966707198760109579">Viikko</translation>
+<translation id="5985507339671257014">0,5</translation>
+<translation id="6310801910862476708">Sulje kuva kuvassa ‑tila</translation>
+<translation id="6484738902856791350">Kaunista koodia</translation>
+<translation id="6550675742724504774">Asetukset</translation>
+<translation id="6643016212128521049">Tyhjennä</translation>
+<translation id="668171684555832681">Joku muu profiili...</translation>
+<translation id="6709093583001123835">Arvon on oltava <ph name="VALUE" />.</translation>
+<translation id="6709570249143506788">Heikko toiston laatu</translation>
+<translation id="6790428901817661496">Toista</translation>
+<translation id="6820355525329141109">Laajennuksen lataaminen epäonnistui.</translation>
+<translation id="6919891270253167948">1,5</translation>
+<translation id="6989848892321993519">Pidennä tämä teksti vähintään <ph name="MIN_CHARACTERS" /> merkkiin (tällä hetkellä käytössä 1 merkki).</translation>
+<translation id="709897737746224366">Käytä pyydettyä muotoilua.</translation>
+<translation id="7263440858009898357">Valitse kohde luettelosta.</translation>
+<translation id="7364796246159120393">Valitse tiedosto</translation>
+<translation id="739024184232394898">Muu...</translation>
+<translation id="7460907917090416791"><ph name="QUANTITY" /> Tt</translation>
+<translation id="7514365320538308">Lataa</translation>
+<translation id="7750228210027921155">Kuva kuvassa</translation>
+<translation id="7782515065589691344">1,25</translation>
+<translation id="7888071071722539607">Sähköpostiosoitteeseen kuuluu <ph name="ATSIGN" />-osa. Osoitteesta <ph name="INVALIDADDRESS" /> puuttuu <ph name="ATSIGN" />.</translation>
+<translation id="795667975304826397">Ei valittua tiedostoa</translation>
+<translation id="8117451130807776954">Tällä viikolla</translation>
+<translation id="8131955114056917397">0,25</translation>
+<translation id="8199524924445686405">vvvv</translation>
+<translation id="8284326494547611709">Tekstitykset</translation>
+<translation id="835897206747267392">Virheellinen arvo.</translation>
+<translation id="839593075537728968">Arvon on oltava <ph name="MINIMUM_TIME" />–<ph name="MAXIMUM_TIME" />.</translation>
+<translation id="8444882422881193423"><ph name="NUMBER_OF_FILES" /> tiedostoa</translation>
+<translation id="8451268428117625855">Valitse tiedosto.</translation>
+<translation id="8637593834423658414">1,75</translation>
+<translation id="8668988909814782445">Rivitys</translation>
+<translation id="8750798805984357768">Valitse yksi vaihtoehdoista.</translation>
+<translation id="8845239796550121995">Suoratoistetaan televisioosi</translation>
+<translation id="8875657656876809964">Videon toistovirhe</translation>
+<translation id="8901569739625249689"><ph name="QUANTITY" /> kt</translation>
+<translation id="9132465097189459683">Muu...</translation>
+<translation id="916607977885256133">Kuva kuvassa</translation>
+</translationbundle>

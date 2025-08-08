@@ -6,6 +6,7 @@
 #define NET_NQE_NETWORK_QUALITY_ESTIMATOR_PARAMS_H_
 
 #include <map>
+#include <optional>
 #include <string>
 
 #include "base/sequence_checker.h"
@@ -14,7 +15,6 @@
 #include "net/base/network_change_notifier.h"
 #include "net/nqe/effective_connection_type.h"
 #include "net/nqe/network_quality.h"
-#include "third_party/abseil-cpp/absl/types/optional.h"
 
 namespace net {
 
@@ -77,7 +77,7 @@ class NET_EXPORT NetworkQualityEstimatorParams {
   // the effective connection type that has been forced. Forced ECT can be
   // forced based on |connection_type| (e.g. Slow-2G on cellular, and default on
   // other connection type).
-  absl::optional<EffectiveConnectionType> GetForcedEffectiveConnectionType(
+  std::optional<EffectiveConnectionType> GetForcedEffectiveConnectionType(
       NetworkChangeNotifier::ConnectionType connection_type);
 
   void SetForcedEffectiveConnectionType(
@@ -221,11 +221,13 @@ class NET_EXPORT NetworkQualityEstimatorParams {
 
   // Number of observations received after which the effective connection type
   // should be recomputed.
-  size_t count_new_observations_received_compute_ect() const { return 50; }
+  size_t count_new_observations_received_compute_ect() const {
+    return count_new_observations_received_compute_ect_;
+  }
 
   // Maximum number of observations that can be held in a single
   // ObservationBuffer.
-  size_t observation_buffer_size() const { return 300; }
+  size_t observation_buffer_size() const { return observation_buffer_size_; }
 
   // Minimun interval between consecutive notifications from socket
   // watchers who live on the same thread as the network quality estimator.
@@ -268,7 +270,7 @@ class NET_EXPORT NetworkQualityEstimatorParams {
   const int throughput_min_transfer_size_kilobytes_;
   const double throughput_hanging_requests_cwnd_size_multiplier_;
   const double weight_multiplier_per_second_;
-  absl::optional<EffectiveConnectionType> forced_effective_connection_type_;
+  std::optional<EffectiveConnectionType> forced_effective_connection_type_;
   const bool forced_effective_connection_type_on_cellular_only_;
   bool persistent_cache_reading_enabled_;
   const base::TimeDelta min_socket_watcher_notification_interval_;
@@ -286,6 +288,8 @@ class NET_EXPORT NetworkQualityEstimatorParams {
   const base::TimeDelta hanging_request_min_duration_ =
       base::Milliseconds(3000);
   const bool add_default_platform_observations_;
+  const size_t count_new_observations_received_compute_ect_;
+  const size_t observation_buffer_size_;
   const base::TimeDelta socket_watchers_min_notification_interval_;
   const bool use_end_to_end_rtt_ = true;
   const double upper_bound_typical_kbps_multiplier_;

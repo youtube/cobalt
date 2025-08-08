@@ -14,11 +14,11 @@
 #include <limits>
 #include <memory>
 
-#include "base/allocator/partition_allocator/partition_alloc_buildflags.h"
 #include "base/files/file_util.h"
 #include "base/memory/free_deleter.h"
 #include "base/sanitizer_buildflags.h"
 #include "build/build_config.h"
+#include "partition_alloc/buildflags.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
 #if BUILDFLAG(IS_POSIX)
@@ -66,8 +66,7 @@ void OverflowTestsSoftExpectTrue(bool overflow_detected) {
 
 #if BUILDFLAG(IS_APPLE) || defined(ADDRESS_SANITIZER) ||      \
     defined(THREAD_SANITIZER) || defined(MEMORY_SANITIZER) || \
-    BUILDFLAG(IS_HWASAN) || BUILDFLAG(USE_PARTITION_ALLOC_AS_MALLOC) || \
-    SB_IS(EVERGREEN)
+    BUILDFLAG(IS_HWASAN) || PA_BUILDFLAG(USE_PARTITION_ALLOC_AS_MALLOC)
 #define MAYBE_NewOverflow DISABLED_NewOverflow
 #else
 #define MAYBE_NewOverflow NewOverflow
@@ -81,7 +80,7 @@ void OverflowTestsSoftExpectTrue(bool overflow_detected) {
 // - XSan aborts when operator new returns nullptr.
 // - PartitionAlloc crashes by design when size_t overflows.
 //
-// TODO(https://crbug.com/927179): Fix the test on Mac.
+// TODO(crbug.com/40611888): Fix the test on Mac.
 TEST(SecurityTest, MAYBE_NewOverflow) {
   const size_t kArraySize = 4096;
   // We want something "dynamic" here, so that the compiler doesn't
@@ -98,7 +97,7 @@ TEST(SecurityTest, MAYBE_NewOverflow) {
     char* volatile p = reinterpret_cast<char*>(array_pointer.get());
     OverflowTestsSoftExpectTrue(!p);
   }
-#if BUILDFLAG(IS_WIN) || defined(COMPILER_MSVC) && defined(ARCH_CPU_64_BITS)
+#if BUILDFLAG(IS_WIN) && defined(ARCH_CPU_64_BITS)
   // On Windows, the compiler prevents static array sizes of more than
   // 0x7fffffff (error C2148).
 #else

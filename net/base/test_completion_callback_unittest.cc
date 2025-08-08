@@ -102,8 +102,6 @@ bool ExampleEmployer::DoSomething(CompletionOnceCallback callback) {
   if (!base::SingleThreadTaskRunner::GetCurrentDefault()->PostTask(
           FROM_HERE, base::BindOnce(&ExampleWorker::DoWork, request_))) {
     NOTREACHED();
-    request_ = nullptr;
-    return false;
   }
 
   return true;

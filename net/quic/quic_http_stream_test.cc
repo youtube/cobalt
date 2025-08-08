@@ -2,13 +2,20 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#ifdef UNSAFE_BUFFERS_BUILD
+// TODO(crbug.com/40284755): Remove this and spanify to fix the errors.
+#pragma allow_unsafe_buffers
+#endif
+
 #include "net/quic/quic_http_stream.h"
 
 #include <stdint.h>
 
 #include <memory>
+#include <string_view>
 #include <utility>
 
+#include "base/containers/span.h"
 #include "base/functional/bind.h"
 #include "base/memory/ptr_util.h"
 #include "base/memory/raw_ptr.h"
@@ -21,12 +28,17 @@
 #include "base/time/default_tick_clock.h"
 #include "base/time/time.h"
 #include "net/base/chunked_upload_data_stream.h"
+#include "net/base/connection_endpoint_metadata.h"
 #include "net/base/elements_upload_data_stream.h"
 #include "net/base/features.h"
 #include "net/base/load_flags.h"
 #include "net/base/load_timing_info.h"
 #include "net/base/load_timing_info_test_util.h"
 #include "net/base/net_errors.h"
+#include "net/base/network_anonymization_key.h"
+#include "net/base/privacy_mode.h"
+#include "net/base/proxy_chain.h"
+#include "net/base/session_usage.h"
 #include "net/base/test_completion_callback.h"
 #include "net/base/upload_bytes_element_reader.h"
 #include "net/dns/public/host_resolver_results.h"
@@ -48,12 +60,15 @@
 #include "net/quic/quic_crypto_client_config_handle.h"
 #include "net/quic/quic_http_utils.h"
 #include "net/quic/quic_server_info.h"
-#include "net/quic/quic_stream_factory.h"
+#include "net/quic/quic_session_alias_key.h"
+#include "net/quic/quic_session_key.h"
+#include "net/quic/quic_session_pool.h"
 #include "net/quic/quic_test_packet_maker.h"
 #include "net/quic/quic_test_packet_printer.h"
 #include "net/quic/test_quic_crypto_client_config_handle.h"
 #include "net/quic/test_task_runner.h"
 #include "net/socket/socket_performance_watcher.h"
+#include "net/socket/socket_tag.h"
 #include "net/socket/socket_test_util.h"
 #include "net/spdy/spdy_http_utils.h"
 #include "net/ssl/ssl_config_service_defaults.h"
@@ -61,11 +76,14 @@
 #include "net/test/gtest_util.h"
 #include "net/test/test_data_directory.h"
 #include "net/test/test_with_task_environment.h"
+#include "net/third_party/quiche/src/quiche/common/http/http_header_block.h"
+#include "net/third_party/quiche/src/quiche/http2/core/spdy_frame_builder.h"
+#include "net/third_party/quiche/src/quiche/http2/core/spdy_framer.h"
+#include "net/third_party/quiche/src/quiche/http2/core/spdy_protocol.h"
 #include "net/third_party/quiche/src/quiche/quic/core/congestion_control/send_algorithm_interface.h"
 #include "net/third_party/quiche/src/quiche/quic/core/crypto/crypto_protocol.h"
 #include "net/third_party/quiche/src/quiche/quic/core/crypto/quic_decrypter.h"
 #include "net/third_party/quiche/src/quiche/quic/core/crypto/quic_encrypter.h"
-#include "net/third_party/quiche/src/quiche/quic/core/http/spdy_server_push_utils.h"
 #include "net/third_party/quiche/src/quiche/quic/core/quic_connection.h"
 #include "net/third_party/quiche/src/quiche/quic/core/quic_utils.h"
 #include "net/third_party/quiche/src/quiche/quic/core/quic_write_blocked_list.h"
@@ -79,9 +97,6 @@
 #include "net/third_party/quiche/src/quiche/quic/test_tools/quic_connection_peer.h"
 #include "net/third_party/quiche/src/quiche/quic/test_tools/quic_spdy_session_peer.h"
 #include "net/third_party/quiche/src/quiche/quic/test_tools/quic_test_utils.h"
-#include "net/third_party/quiche/src/quiche/spdy/core/spdy_frame_builder.h"
-#include "net/third_party/quiche/src/quiche/spdy/core/spdy_framer.h"
-#include "net/third_party/quiche/src/quiche/spdy/core/spdy_protocol.h"
 #include "net/traffic_annotation/network_traffic_annotation_test_helper.h"
 #include "testing/gmock/include/gmock/gmock.h"
 #include "testing/gtest/include/gtest/gtest.h"
@@ -102,14 +117,14 @@ const uint16_t kDefaultServerPort = 443;
 
 struct TestParams {
   quic::ParsedQuicVersion version;
-  bool enable_quic_priority_incremental_support;
+  bool priority_header_enabled;
 };
 
 // Used by ::testing::PrintToStringParamName().
 std::string PrintToString(const TestParams& p) {
   return base::StrCat({ParsedQuicVersionToString(p.version), "_",
-                       (p.enable_quic_priority_incremental_support ? "" : "No"),
-                       "Incremental"});
+                       p.priority_header_enabled ? "PriorityHeaderEnabled"
+                                                 : "PriorityHeaderDisabled"});
 }
 
 std::vector<TestParams> GetTestParams() {
@@ -117,8 +132,8 @@ std::vector<TestParams> GetTestParams() {
   quic::ParsedQuicVersionVector all_supported_versions =
       AllSupportedQuicVersions();
   for (const auto& version : all_supported_versions) {
-    params.push_back(TestParams{version, false});
     params.push_back(TestParams{version, true});
+    params.push_back(TestParams{version, false});
   }
   return params;
 }
@@ -128,8 +143,8 @@ std::vector<TestParams> GetTestParams() {
 // key-value pairs has exactly one entry with |key| and that entry has value
 // |expected_value|.
 bool CheckHeader(const base::Value::Dict& params,
-                 base::StringPiece key,
-                 base::StringPiece expected_value) {
+                 std::string_view key,
+                 std::string_view expected_value) {
   const base::Value::List* headers = params.FindList("headers");
   if (!headers) {
     return false;
@@ -144,7 +159,7 @@ bool CheckHeader(const base::Value::Dict& params,
     if (!header) {
       return false;
     }
-    if (base::StartsWith(*header, header_prefix)) {
+    if (header->starts_with(header_prefix)) {
       if (header_found) {
         return false;
       }
@@ -256,7 +271,6 @@ class QuicHttpStreamTest : public ::testing::TestWithParam<TestParams>,
 
  protected:
   static const bool kFin = true;
-  static const bool kIncludeVersion = true;
 
   // Holds a packet to be written to the wire, and the IO mode that should
   // be used by the mock socket when performing the write.
@@ -275,7 +289,6 @@ class QuicHttpStreamTest : public ::testing::TestWithParam<TestParams>,
         crypto_config_(
             quic::test::crypto_test_utils::ProofVerifierForTesting()),
         read_buffer_(base::MakeRefCounted<IOBufferWithSize>(4096)),
-        promise_id_(GetNthServerInitiatedUnidirectionalStreamId(0)),
         stream_id_(GetNthClientInitiatedBidirectionalStreamId(0)),
         connection_id_(quic::test::TestConnectionId(2)),
         client_maker_(version_,
@@ -283,17 +296,21 @@ class QuicHttpStreamTest : public ::testing::TestWithParam<TestParams>,
                       &clock_,
                       kDefaultServerHostName,
                       quic::Perspective::IS_CLIENT,
-                      true),
+                      /*client_priority_uses_incremental=*/true,
+                      /*use_priority_header=*/true),
         server_maker_(version_,
                       connection_id_,
                       &clock_,
                       kDefaultServerHostName,
                       quic::Perspective::IS_SERVER,
-                      false),
+                      /*client_priority_uses_incremental=*/false,
+                      /*use_priority_header=*/false),
         printer_(version_) {
-    scoped_feature_list_.InitWithFeatureState(
-        features::kPriorityIncremental,
-        GetParam().enable_quic_priority_incremental_support);
+    if (GetParam().priority_header_enabled) {
+      feature_list_.InitAndEnableFeature(net::features::kPriorityHeader);
+    } else {
+      feature_list_.InitAndDisableFeature(net::features::kPriorityHeader);
+    }
     FLAGS_quic_enable_http3_grease_randomness = false;
     quic::QuicEnableVersion(version_);
     IPAddress ip(192, 0, 2, 33);
@@ -401,10 +418,13 @@ class QuicHttpStreamTest : public ::testing::TestWithParam<TestParams>,
         /*stream_factory=*/nullptr, &crypto_client_stream_factory_, &clock_,
         &transport_security_state_, &ssl_config_service_,
         base::WrapUnique(static_cast<QuicServerInfo*>(nullptr)),
-        QuicSessionKey(kDefaultServerHostName, kDefaultServerPort,
-                       PRIVACY_MODE_DISABLED, SocketTag(),
-                       NetworkAnonymizationKey(), SecureDnsPolicy::kAllow,
-                       /*require_dns_https_alpn=*/false),
+        QuicSessionAliasKey(
+            url::SchemeHostPort(),
+            QuicSessionKey(kDefaultServerHostName, kDefaultServerPort,
+                           PRIVACY_MODE_DISABLED, ProxyChain::Direct(),
+                           SessionUsage::kDestination, SocketTag(),
+                           NetworkAnonymizationKey(), SecureDnsPolicy::kAllow,
+                           /*require_dns_https_alpn=*/false)),
         /*require_confirmation=*/false,
         /*migrate_session_early_v2=*/false,
         /*migrate_session_on_network_change_v2=*/false,
@@ -412,7 +432,8 @@ class QuicHttpStreamTest : public ::testing::TestWithParam<TestParams>,
         quic::QuicTime::Delta::FromMilliseconds(
             kDefaultRetransmittableOnWireTimeout.InMilliseconds()),
         /*migrate_idle_session=*/false, /*allow_port_migration=*/false,
-        kDefaultIdleSessionMigrationPeriod, kMaxTimeOnNonDefaultNetwork,
+        kDefaultIdleSessionMigrationPeriod, /*multi_port_probing_interval=*/0,
+        kMaxTimeOnNonDefaultNetwork,
         kMaxMigrationsToNonDefaultNetworkOnWriteError,
         kMaxMigrationsToNonDefaultNetworkOnPathDegrading,
         kQuicYieldAfterPacketsRead,
@@ -421,11 +442,13 @@ class QuicHttpStreamTest : public ::testing::TestWithParam<TestParams>,
         /*cert_verify_flags=*/0, quic::test::DefaultQuicConfig(),
         std::make_unique<TestQuicCryptoClientConfigHandle>(&crypto_config_),
         "CONNECTION_UNKNOWN", dns_start, dns_end,
-        std::make_unique<quic::QuicClientPushPromiseIndex>(), nullptr,
         base::DefaultTickClock::GetInstance(),
         base::SingleThreadTaskRunner::GetCurrentDefault().get(),
-        /*socket_performance_watcher=*/nullptr, HostResolverEndpointResult(),
-        NetLog::Get());
+        /*socket_performance_watcher=*/nullptr, ConnectionEndpointMetadata(),
+        /*report_ecn=*/true, /*enable_origin_frame=*/true,
+        /*allow_server_preferred_address=*/true,
+        MultiplexedSessionCreationInitiator::kUnknown,
+        NetLogWithSource::Make(NetLogSourceType::NONE));
     session_->Initialize();
 
     // Blackhole QPACK decoder stream instead of constructing mock writes.
@@ -438,22 +461,6 @@ class QuicHttpStreamTest : public ::testing::TestWithParam<TestParams>,
         session_->CreateHandle(
             url::SchemeHostPort(url::kHttpsScheme, "www.example.org", 443)),
         /*dns_aliases=*/std::set<std::string>());
-    promised_stream_ = std::make_unique<QuicHttpStream>(
-        session_->CreateHandle(
-            url::SchemeHostPort(url::kHttpsScheme, "www.example.org", 443)),
-        /*dns_aliases=*/std::set<std::string>());
-    push_promise_[":path"] = "/bar";
-    push_promise_[":authority"] = "www.example.org";
-    push_promise_[":version"] = "HTTP/1.1";
-    push_promise_[":method"] = "GET";
-    push_promise_[":scheme"] = "https";
-
-    promised_response_[":status"] = "200";
-    promised_response_[":version"] = "HTTP/1.1";
-    promised_response_["content-type"] = "text/plain";
-
-    promise_url_ =
-        quic::SpdyServerPushUtils::GetPromisedUrlFromHeaders(push_promise_);
   }
 
   void SetRequest(const string& method,
@@ -469,41 +476,39 @@ class QuicHttpStreamTest : public ::testing::TestWithParam<TestParams>,
 
   std::unique_ptr<quic::QuicReceivedPacket> ConstructClientDataPacket(
       uint64_t packet_number,
-      bool should_include_version,
       bool fin,
-      absl::string_view data) {
-    return client_maker_.MakeDataPacket(packet_number, stream_id_,
-                                        should_include_version, fin, data);
+      std::string_view data) {
+    return client_maker_.Packet(packet_number)
+        .AddStreamFrame(stream_id_, fin, data)
+        .Build();
   }
 
   std::unique_ptr<quic::QuicReceivedPacket> ConstructServerDataPacket(
       uint64_t packet_number,
-      bool should_include_version,
       bool fin,
-      absl::string_view data) {
-    return server_maker_.MakeDataPacket(packet_number, stream_id_,
-                                        should_include_version, fin, data);
+      std::string_view data) {
+    return server_maker_.Packet(packet_number)
+        .AddStreamFrame(stream_id_, fin, data)
+        .Build();
   }
 
   std::unique_ptr<quic::QuicReceivedPacket> InnerConstructRequestHeadersPacket(
       uint64_t packet_number,
       quic::QuicStreamId stream_id,
-      bool should_include_version,
       bool fin,
       RequestPriority request_priority,
       size_t* spdy_headers_frame_length) {
     spdy::SpdyPriority priority =
         ConvertRequestPriorityToQuicPriority(request_priority);
     return client_maker_.MakeRequestHeadersPacket(
-        packet_number, stream_id, should_include_version, fin, priority,
-        std::move(request_headers_), spdy_headers_frame_length);
+        packet_number, stream_id, fin, priority, std::move(request_headers_),
+        spdy_headers_frame_length);
   }
 
   std::unique_ptr<quic::QuicReceivedPacket>
   ConstructRequestHeadersAndDataFramesPacket(
       uint64_t packet_number,
       quic::QuicStreamId stream_id,
-      bool should_include_version,
       bool fin,
       RequestPriority request_priority,
       size_t* spdy_headers_frame_length,
@@ -511,14 +516,13 @@ class QuicHttpStreamTest : public ::testing::TestWithParam<TestParams>,
     spdy::SpdyPriority priority =
         ConvertRequestPriorityToQuicPriority(request_priority);
     return client_maker_.MakeRequestHeadersAndMultipleDataFramesPacket(
-        packet_number, stream_id, should_include_version, fin, priority,
-        std::move(request_headers_), spdy_headers_frame_length, data_writes);
+        packet_number, stream_id, fin, priority, std::move(request_headers_),
+        spdy_headers_frame_length, data_writes);
   }
 
   std::unique_ptr<quic::QuicReceivedPacket> ConstructRequestAndRstPacket(
       uint64_t packet_number,
       quic::QuicStreamId stream_id,
-      bool should_include_version,
       bool fin,
       RequestPriority request_priority,
       size_t* spdy_headers_frame_length,
@@ -526,8 +530,8 @@ class QuicHttpStreamTest : public ::testing::TestWithParam<TestParams>,
     spdy::SpdyPriority priority =
         ConvertRequestPriorityToQuicPriority(request_priority);
     return client_maker_.MakeRequestHeadersAndRstPacket(
-        packet_number, stream_id, should_include_version, fin, priority,
-        std::move(request_headers_), spdy_headers_frame_length, error_code);
+        packet_number, stream_id, fin, priority, std::move(request_headers_),
+        spdy_headers_frame_length, error_code);
   }
 
   std::unique_ptr<quic::QuicReceivedPacket> InnerConstructResponseHeadersPacket(
@@ -536,8 +540,8 @@ class QuicHttpStreamTest : public ::testing::TestWithParam<TestParams>,
       bool fin,
       size_t* spdy_headers_frame_length) {
     return server_maker_.MakeResponseHeadersPacket(
-        packet_number, stream_id, !kIncludeVersion, fin,
-        std::move(response_headers_), spdy_headers_frame_length);
+        packet_number, stream_id, fin, std::move(response_headers_),
+        spdy_headers_frame_length);
   }
 
   std::unique_ptr<quic::QuicReceivedPacket> ConstructResponseHeadersPacket(
@@ -551,34 +555,38 @@ class QuicHttpStreamTest : public ::testing::TestWithParam<TestParams>,
   std::unique_ptr<quic::QuicReceivedPacket> ConstructResponseTrailersPacket(
       uint64_t packet_number,
       bool fin,
-      spdy::Http2HeaderBlock trailers,
+      quiche::HttpHeaderBlock trailers,
       size_t* spdy_headers_frame_length) {
-    return server_maker_.MakeResponseHeadersPacket(
-        packet_number, stream_id_, !kIncludeVersion, fin, std::move(trailers),
-        spdy_headers_frame_length);
+    return server_maker_.MakeResponseHeadersPacket(packet_number, stream_id_,
+                                                   fin, std::move(trailers),
+                                                   spdy_headers_frame_length);
   }
 
   std::unique_ptr<quic::QuicReceivedPacket> ConstructClientRstStreamErrorPacket(
-      uint64_t packet_number,
-      bool include_version) {
-    return client_maker_.MakeRstPacket(packet_number, include_version,
-                                       stream_id_,
-                                       quic::QUIC_ERROR_PROCESSING_STREAM);
+      uint64_t packet_number) {
+    return client_maker_.Packet(packet_number)
+        .AddStopSendingFrame(stream_id_, quic::QUIC_ERROR_PROCESSING_STREAM)
+        .AddRstStreamFrame(stream_id_, quic::QUIC_ERROR_PROCESSING_STREAM)
+        .Build();
   }
 
   std::unique_ptr<quic::QuicReceivedPacket> ConstructAckAndRstStreamPacket(
       uint64_t packet_number) {
-    return client_maker_.MakeAckAndRstPacket(packet_number, !kIncludeVersion,
-                                             stream_id_,
-                                             quic::QUIC_STREAM_CANCELLED, 2, 1);
+    return client_maker_.Packet(packet_number)
+        .AddAckFrame(/*first_received=*/1, /*largest_received=*/2,
+                     /*smallest_received=*/1)
+        .AddStopSendingFrame(stream_id_, quic::QUIC_STREAM_CANCELLED)
+        .AddRstStreamFrame(stream_id_, quic::QUIC_STREAM_CANCELLED)
+        .Build();
   }
 
   std::unique_ptr<quic::QuicReceivedPacket> ConstructClientAckPacket(
       uint64_t packet_number,
       uint64_t largest_received,
       uint64_t smallest_received) {
-    return client_maker_.MakeAckPacket(packet_number, largest_received,
-                                       smallest_received);
+    return client_maker_.Packet(packet_number)
+        .AddAckFrame(1, largest_received, smallest_received)
+        .Build();
   }
 
   std::unique_ptr<quic::QuicReceivedPacket> ConstructServerAckPacket(
@@ -586,8 +594,9 @@ class QuicHttpStreamTest : public ::testing::TestWithParam<TestParams>,
       uint64_t largest_received,
       uint64_t smallest_received,
       uint64_t least_unacked) {
-    return server_maker_.MakeAckPacket(packet_number, largest_received,
-                                       smallest_received, least_unacked);
+    return server_maker_.Packet(packet_number)
+        .AddAckFrame(largest_received, smallest_received, least_unacked)
+        .Build();
   }
 
   std::unique_ptr<quic::QuicReceivedPacket> ConstructInitialSettingsPacket() {
@@ -603,14 +612,6 @@ class QuicHttpStreamTest : public ::testing::TestWithParam<TestParams>,
     quiche::QuicheBuffer buffer = quic::HttpEncoder::SerializeDataFrameHeader(
         body_len, quiche::SimpleBufferAllocator::Get());
     return std::string(buffer.data(), buffer.size());
-  }
-
-  void ReceivePromise(quic::QuicStreamId id) {
-    auto headers = quic::test::AsHeaderList(push_promise_);
-    QuicChromiumClientStream::Handle* stream =
-        QuicHttpStreamPeer::GetQuicChromiumClientStream(stream_.get());
-    stream->OnPromiseHeaderList(id, headers.uncompressed_header_bytes(),
-                                headers);
   }
 
   void ExpectLoadTimingValid(const LoadTimingInfo& load_timing_info,
@@ -639,7 +640,6 @@ class QuicHttpStreamTest : public ::testing::TestWithParam<TestParams>,
   quic::test::QuicFlagSaver saver_;
 
   const quic::ParsedQuicVersion version_;
-  base::test::ScopedFeatureList scoped_feature_list_;
 
   NetLogWithSource net_log_with_source_{
       NetLogWithSource::Make(NetLog::Get(), NetLogSourceType::NONE)};
@@ -666,17 +666,11 @@ class QuicHttpStreamTest : public ::testing::TestWithParam<TestParams>,
   HttpRequestHeaders headers_;
   HttpResponseInfo response_;
   scoped_refptr<IOBufferWithSize> read_buffer_;
-  spdy::Http2HeaderBlock request_headers_;
-  spdy::Http2HeaderBlock response_headers_;
+  quiche::HttpHeaderBlock request_headers_;
+  quiche::HttpHeaderBlock response_headers_;
   string request_data_;
   string response_data_;
 
-  // For server push testing
-  std::unique_ptr<QuicHttpStream> promised_stream_;
-  spdy::Http2HeaderBlock push_promise_;
-  spdy::Http2HeaderBlock promised_response_;
-  const quic::QuicStreamId promise_id_;
-  string promise_url_;
   const quic::QuicStreamId stream_id_;
 
   const quic::QuicConnectionId connection_id_;
@@ -692,6 +686,7 @@ class QuicHttpStreamTest : public ::testing::TestWithParam<TestParams>,
   std::vector<PacketToWrite> writes_;
   quic::test::MockConnectionIdGenerator connection_id_generator_;
   quic::test::NoopQpackStreamSenderDelegate noop_qpack_stream_sender_delegate_;
+  base::test::ScopedFeatureList feature_list_;
 };
 
 INSTANTIATE_TEST_SUITE_P(VersionIncludeStreamDependencySequence,
@@ -727,9 +722,8 @@ TEST_P(QuicHttpStreamTest, GetRequest) {
   int packet_number = 1;
   AddWrite(ConstructInitialSettingsPacket(packet_number++));
   AddWrite(InnerConstructRequestHeadersPacket(
-      packet_number++, GetNthClientInitiatedBidirectionalStreamId(0),
-      kIncludeVersion, kFin, DEFAULT_PRIORITY,
-      &spdy_request_header_frame_length));
+      packet_number++, GetNthClientInitiatedBidirectionalStreamId(0), kFin,
+      DEFAULT_PRIORITY, &spdy_request_header_frame_length));
 
   Initialize();
 
@@ -790,16 +784,14 @@ TEST_P(QuicHttpStreamTest, LoadTimingTwoRequests) {
   int packet_number = 1;
   AddWrite(ConstructInitialSettingsPacket(packet_number++));
   AddWrite(InnerConstructRequestHeadersPacket(
-      packet_number++, GetNthClientInitiatedBidirectionalStreamId(0),
-      kIncludeVersion, kFin, DEFAULT_PRIORITY,
-      &spdy_request_header_frame_length));
+      packet_number++, GetNthClientInitiatedBidirectionalStreamId(0), kFin,
+      DEFAULT_PRIORITY, &spdy_request_header_frame_length));
 
   // SetRequest() again for second request as |request_headers_| was moved.
   SetRequest("GET", "/", DEFAULT_PRIORITY);
   AddWrite(InnerConstructRequestHeadersPacket(
-      packet_number++, GetNthClientInitiatedBidirectionalStreamId(1),
-      kIncludeVersion, kFin, DEFAULT_PRIORITY,
-      &spdy_request_header_frame_length));
+      packet_number++, GetNthClientInitiatedBidirectionalStreamId(1), kFin,
+      DEFAULT_PRIORITY, &spdy_request_header_frame_length));
   AddWrite(
       ConstructClientAckPacket(packet_number++, 3, 1));  // Ack the responses.
 
@@ -882,9 +874,8 @@ TEST_P(QuicHttpStreamTest, GetRequestWithTrailers) {
   int packet_number = 1;
   AddWrite(ConstructInitialSettingsPacket(packet_number++));
   AddWrite(InnerConstructRequestHeadersPacket(
-      packet_number++, GetNthClientInitiatedBidirectionalStreamId(0),
-      kIncludeVersion, kFin, DEFAULT_PRIORITY,
-      &spdy_request_header_frame_length));
+      packet_number++, GetNthClientInitiatedBidirectionalStreamId(0), kFin,
+      DEFAULT_PRIORITY, &spdy_request_header_frame_length));
   AddWrite(
       ConstructClientAckPacket(packet_number++, 3, 1));  // Ack the data packet.
 
@@ -922,9 +913,8 @@ TEST_P(QuicHttpStreamTest, GetRequestWithTrailers) {
   // Send the response body.
   const char kResponseBody[] = "Hello world!";
   std::string header = ConstructDataHeader(strlen(kResponseBody));
-  ProcessPacket(
-      ConstructServerDataPacket(3, false, !kFin, header + kResponseBody));
-  spdy::Http2HeaderBlock trailers;
+  ProcessPacket(ConstructServerDataPacket(3, !kFin, header + kResponseBody));
+  quiche::HttpHeaderBlock trailers;
   size_t spdy_trailers_frame_length;
   trailers["foo"] = "bar";
   ProcessPacket(ConstructResponseTrailersPacket(4, kFin, std::move(trailers),
@@ -984,8 +974,8 @@ TEST_P(QuicHttpStreamTest, ElideHeadersInNetLog) {
   int outgoing_packet_number = 1;
   AddWrite(ConstructInitialSettingsPacket(outgoing_packet_number++));
   AddWrite(InnerConstructRequestHeadersPacket(
-      outgoing_packet_number++, stream_id_, kIncludeVersion, kFin,
-      DEFAULT_PRIORITY, &spdy_request_header_frame_length));
+      outgoing_packet_number++, stream_id_, kFin, DEFAULT_PRIORITY,
+      &spdy_request_header_frame_length));
 
   stream_->RegisterRequest(&request_);
   EXPECT_THAT(
@@ -1019,8 +1009,8 @@ TEST_P(QuicHttpStreamTest, ElideHeadersInNetLog) {
   request_.url = GURL("https://www.example.org/foo");
 
   AddWrite(InnerConstructRequestHeadersPacket(
-      outgoing_packet_number++, stream_id, kIncludeVersion, kFin,
-      DEFAULT_PRIORITY, &spdy_request_header_frame_length));
+      outgoing_packet_number++, stream_id, kFin, DEFAULT_PRIORITY,
+      &spdy_request_header_frame_length));
 
   auto stream = std::make_unique<QuicHttpStream>(
       session_->CreateHandle(
@@ -1076,9 +1066,8 @@ TEST_P(QuicHttpStreamTest, GetRequestLargeResponse) {
   int packet_number = 1;
   AddWrite(ConstructInitialSettingsPacket(packet_number++));
   AddWrite(InnerConstructRequestHeadersPacket(
-      packet_number++, GetNthClientInitiatedBidirectionalStreamId(0),
-      kIncludeVersion, kFin, DEFAULT_PRIORITY,
-      &spdy_request_headers_frame_length));
+      packet_number++, GetNthClientInitiatedBidirectionalStreamId(0), kFin,
+      DEFAULT_PRIORITY, &spdy_request_headers_frame_length));
   Initialize();
 
   request_.method = "GET";
@@ -1208,9 +1197,8 @@ TEST_P(QuicHttpStreamTest, LogGranularQuicConnectionError) {
   int packet_number = 1;
   AddWrite(ConstructInitialSettingsPacket(packet_number++));
   AddWrite(InnerConstructRequestHeadersPacket(
-      packet_number++, GetNthClientInitiatedBidirectionalStreamId(0),
-      kIncludeVersion, kFin, DEFAULT_PRIORITY,
-      &spdy_request_headers_frame_length));
+      packet_number++, GetNthClientInitiatedBidirectionalStreamId(0), kFin,
+      DEFAULT_PRIORITY, &spdy_request_headers_frame_length));
   AddWrite(ConstructAckAndRstStreamPacket(3));
   Initialize();
 
@@ -1252,9 +1240,8 @@ TEST_P(QuicHttpStreamTest, LogGranularQuicErrorIfHandshakeNotConfirmed) {
   int packet_number = 1;
   AddWrite(ConstructInitialSettingsPacket(packet_number++));
   AddWrite(InnerConstructRequestHeadersPacket(
-      packet_number++, GetNthClientInitiatedBidirectionalStreamId(0),
-      kIncludeVersion, kFin, DEFAULT_PRIORITY,
-      &spdy_request_headers_frame_length));
+      packet_number++, GetNthClientInitiatedBidirectionalStreamId(0), kFin,
+      DEFAULT_PRIORITY, &spdy_request_headers_frame_length));
   Initialize();
 
   request_.method = "GET";
@@ -1288,9 +1275,8 @@ TEST_P(QuicHttpStreamTest, SessionClosedBeforeReadResponseHeaders) {
   int packet_number = 1;
   AddWrite(ConstructInitialSettingsPacket(packet_number++));
   AddWrite(InnerConstructRequestHeadersPacket(
-      packet_number++, GetNthClientInitiatedBidirectionalStreamId(0),
-      kIncludeVersion, kFin, DEFAULT_PRIORITY,
-      &spdy_request_headers_frame_length));
+      packet_number++, GetNthClientInitiatedBidirectionalStreamId(0), kFin,
+      DEFAULT_PRIORITY, &spdy_request_headers_frame_length));
   Initialize();
 
   request_.method = "GET";
@@ -1324,9 +1310,9 @@ TEST_P(QuicHttpStreamTest, SendPostRequest) {
 
   std::string header = ConstructDataHeader(strlen(kUploadData));
   AddWrite(ConstructRequestHeadersAndDataFramesPacket(
-      packet_number++, GetNthClientInitiatedBidirectionalStreamId(0),
-      kIncludeVersion, kFin, DEFAULT_PRIORITY,
-      &spdy_request_headers_frame_length, {header, kUploadData}));
+      packet_number++, GetNthClientInitiatedBidirectionalStreamId(0), kFin,
+      DEFAULT_PRIORITY, &spdy_request_headers_frame_length,
+      {header, kUploadData}));
 
   AddWrite(ConstructClientAckPacket(packet_number++, 3, 1));
 
@@ -1334,7 +1320,7 @@ TEST_P(QuicHttpStreamTest, SendPostRequest) {
 
   std::vector<std::unique_ptr<UploadElementReader>> element_readers;
   element_readers.push_back(std::make_unique<UploadBytesElementReader>(
-      kUploadData, strlen(kUploadData)));
+      base::byte_span_from_cstring(kUploadData)));
   upload_data_stream_ =
       std::make_unique<ElementsUploadDataStream>(std::move(element_readers), 0);
   request_.method = "POST";
@@ -1369,8 +1355,7 @@ TEST_P(QuicHttpStreamTest, SendPostRequest) {
   // Send the response body.
   const char kResponseBody[] = "Hello world!";
   std::string header2 = ConstructDataHeader(strlen(kResponseBody));
-  ProcessPacket(
-      ConstructServerDataPacket(3, false, kFin, header2 + kResponseBody));
+  ProcessPacket(ConstructServerDataPacket(3, kFin, header2 + kResponseBody));
   // Since the body has already arrived, this should return immediately.
   EXPECT_EQ(static_cast<int>(strlen(kResponseBody)),
             stream_->ReadResponseBody(read_buffer_.get(), read_buffer_->size(),
@@ -1399,9 +1384,9 @@ TEST_P(QuicHttpStreamTest, SendPostRequestAndReceiveSoloFin) {
   AddWrite(ConstructInitialSettingsPacket(packet_number++));
   std::string header = ConstructDataHeader(strlen(kUploadData));
   AddWrite(ConstructRequestHeadersAndDataFramesPacket(
-      packet_number++, GetNthClientInitiatedBidirectionalStreamId(0),
-      kIncludeVersion, kFin, DEFAULT_PRIORITY,
-      &spdy_request_headers_frame_length, {header, kUploadData}));
+      packet_number++, GetNthClientInitiatedBidirectionalStreamId(0), kFin,
+      DEFAULT_PRIORITY, &spdy_request_headers_frame_length,
+      {header, kUploadData}));
 
   AddWrite(ConstructClientAckPacket(packet_number++, 3, 1));
 
@@ -1409,7 +1394,7 @@ TEST_P(QuicHttpStreamTest, SendPostRequestAndReceiveSoloFin) {
 
   std::vector<std::unique_ptr<UploadElementReader>> element_readers;
   element_readers.push_back(std::make_unique<UploadBytesElementReader>(
-      kUploadData, strlen(kUploadData)));
+      base::byte_span_from_cstring(kUploadData)));
   upload_data_stream_ =
       std::make_unique<ElementsUploadDataStream>(std::move(element_readers), 0);
   request_.method = "POST";
@@ -1444,13 +1429,12 @@ TEST_P(QuicHttpStreamTest, SendPostRequestAndReceiveSoloFin) {
   // Send the response body.
   const char kResponseBody[] = "Hello world!";
   std::string header2 = ConstructDataHeader(strlen(kResponseBody));
-  ProcessPacket(
-      ConstructServerDataPacket(3, false, !kFin, header2 + kResponseBody));
+  ProcessPacket(ConstructServerDataPacket(3, !kFin, header2 + kResponseBody));
   // Since the body has already arrived, this should return immediately.
   EXPECT_EQ(static_cast<int>(strlen(kResponseBody)),
             stream_->ReadResponseBody(read_buffer_.get(), read_buffer_->size(),
                                       callback_.callback()));
-  ProcessPacket(ConstructServerDataPacket(4, false, kFin, ""));
+  ProcessPacket(ConstructServerDataPacket(4, kFin, ""));
   EXPECT_EQ(0,
             stream_->ReadResponseBody(read_buffer_.get(), read_buffer_->size(),
                                       callback_.callback()));
@@ -1476,11 +1460,11 @@ TEST_P(QuicHttpStreamTest, SendChunkedPostRequest) {
   AddWrite(ConstructInitialSettingsPacket(packet_number++));
   std::string header = ConstructDataHeader(chunk_size);
   AddWrite(ConstructRequestHeadersAndDataFramesPacket(
-      packet_number++, GetNthClientInitiatedBidirectionalStreamId(0),
-      kIncludeVersion, !kFin, DEFAULT_PRIORITY,
-      &spdy_request_headers_frame_length, {header, kUploadData}));
-  AddWrite(ConstructClientDataPacket(packet_number++, kIncludeVersion, kFin,
-                                     {header + kUploadData}));
+      packet_number++, GetNthClientInitiatedBidirectionalStreamId(0), !kFin,
+      DEFAULT_PRIORITY, &spdy_request_headers_frame_length,
+      {header, kUploadData}));
+  AddWrite(
+      ConstructClientDataPacket(packet_number++, kFin, {header + kUploadData}));
 
   AddWrite(ConstructClientAckPacket(packet_number++, 3, 1));
   Initialize();
@@ -1488,7 +1472,8 @@ TEST_P(QuicHttpStreamTest, SendChunkedPostRequest) {
   upload_data_stream_ = std::make_unique<ChunkedUploadDataStream>(0);
   auto* chunked_upload_stream =
       static_cast<ChunkedUploadDataStream*>(upload_data_stream_.get());
-  chunked_upload_stream->AppendData(kUploadData, chunk_size, false);
+  chunked_upload_stream->AppendData(base::byte_span_from_cstring(kUploadData),
+                                    false);
 
   request_.method = "POST";
   request_.url = GURL("https://www.example.org/");
@@ -1503,7 +1488,8 @@ TEST_P(QuicHttpStreamTest, SendChunkedPostRequest) {
   ASSERT_EQ(ERR_IO_PENDING,
             stream_->SendRequest(headers_, &response_, callback_.callback()));
 
-  chunked_upload_stream->AppendData(kUploadData, chunk_size, true);
+  chunked_upload_stream->AppendData(base::byte_span_from_cstring(kUploadData),
+                                    true);
   EXPECT_THAT(callback_.WaitForResult(), IsOk());
 
   // Ack both packets in the request.
@@ -1524,8 +1510,7 @@ TEST_P(QuicHttpStreamTest, SendChunkedPostRequest) {
   // Send the response body.
   const char kResponseBody[] = "Hello world!";
   std::string header2 = ConstructDataHeader(strlen(kResponseBody));
-  ProcessPacket(
-      ConstructServerDataPacket(3, false, kFin, header2 + kResponseBody));
+  ProcessPacket(ConstructServerDataPacket(3, kFin, header2 + kResponseBody));
 
   // Since the body has already arrived, this should return immediately.
   ASSERT_EQ(static_cast<int>(strlen(kResponseBody)),
@@ -1554,18 +1539,18 @@ TEST_P(QuicHttpStreamTest, SendChunkedPostRequestWithFinalEmptyDataPacket) {
   std::string header = ConstructDataHeader(chunk_size);
 
   AddWrite(ConstructRequestHeadersAndDataFramesPacket(
-      packet_number++, GetNthClientInitiatedBidirectionalStreamId(0),
-      kIncludeVersion, !kFin, DEFAULT_PRIORITY,
-      &spdy_request_headers_frame_length, {header, kUploadData}));
-  AddWrite(
-      ConstructClientDataPacket(packet_number++, kIncludeVersion, kFin, ""));
+      packet_number++, GetNthClientInitiatedBidirectionalStreamId(0), !kFin,
+      DEFAULT_PRIORITY, &spdy_request_headers_frame_length,
+      {header, kUploadData}));
+  AddWrite(ConstructClientDataPacket(packet_number++, kFin, ""));
   AddWrite(ConstructClientAckPacket(packet_number++, 3, 1));
   Initialize();
 
   upload_data_stream_ = std::make_unique<ChunkedUploadDataStream>(0);
   auto* chunked_upload_stream =
       static_cast<ChunkedUploadDataStream*>(upload_data_stream_.get());
-  chunked_upload_stream->AppendData(kUploadData, chunk_size, false);
+  chunked_upload_stream->AppendData(base::byte_span_from_cstring(kUploadData),
+                                    false);
 
   request_.method = "POST";
   request_.url = GURL("https://www.example.org/");
@@ -1580,7 +1565,7 @@ TEST_P(QuicHttpStreamTest, SendChunkedPostRequestWithFinalEmptyDataPacket) {
   ASSERT_EQ(ERR_IO_PENDING,
             stream_->SendRequest(headers_, &response_, callback_.callback()));
 
-  chunked_upload_stream->AppendData(nullptr, 0, true);
+  chunked_upload_stream->AppendData(base::byte_span_from_cstring(""), true);
   EXPECT_THAT(callback_.WaitForResult(), IsOk());
 
   ProcessPacket(ConstructServerAckPacket(1, 1, 1, 1));
@@ -1600,8 +1585,7 @@ TEST_P(QuicHttpStreamTest, SendChunkedPostRequestWithFinalEmptyDataPacket) {
   // Send the response body.
   const char kResponseBody[] = "Hello world!";
   std::string header2 = ConstructDataHeader(strlen(kResponseBody));
-  ProcessPacket(
-      ConstructServerDataPacket(3, false, kFin, header2 + kResponseBody));
+  ProcessPacket(ConstructServerDataPacket(3, kFin, header2 + kResponseBody));
 
   // The body has arrived, but it is delivered asynchronously
   ASSERT_EQ(static_cast<int>(strlen(kResponseBody)),
@@ -1626,11 +1610,9 @@ TEST_P(QuicHttpStreamTest, SendChunkedPostRequestWithOneEmptyDataPacket) {
   int packet_number = 1;
   AddWrite(ConstructInitialSettingsPacket(packet_number++));
   AddWrite(InnerConstructRequestHeadersPacket(
-      packet_number++, GetNthClientInitiatedBidirectionalStreamId(0),
-      kIncludeVersion, !kFin, DEFAULT_PRIORITY,
-      &spdy_request_headers_frame_length));
-  AddWrite(
-      ConstructClientDataPacket(packet_number++, kIncludeVersion, kFin, ""));
+      packet_number++, GetNthClientInitiatedBidirectionalStreamId(0), !kFin,
+      DEFAULT_PRIORITY, &spdy_request_headers_frame_length));
+  AddWrite(ConstructClientDataPacket(packet_number++, kFin, ""));
   AddWrite(ConstructClientAckPacket(packet_number++, 3, 1));
   Initialize();
 
@@ -1651,7 +1633,7 @@ TEST_P(QuicHttpStreamTest, SendChunkedPostRequestWithOneEmptyDataPacket) {
   ASSERT_EQ(ERR_IO_PENDING,
             stream_->SendRequest(headers_, &response_, callback_.callback()));
 
-  chunked_upload_stream->AppendData(nullptr, 0, true);
+  chunked_upload_stream->AppendData(base::byte_span_from_cstring(""), true);
   EXPECT_THAT(callback_.WaitForResult(), IsOk());
 
   ProcessPacket(ConstructServerAckPacket(1, 1, 1, 1));
@@ -1671,8 +1653,7 @@ TEST_P(QuicHttpStreamTest, SendChunkedPostRequestWithOneEmptyDataPacket) {
   // Send the response body.
   const char kResponseBody[] = "Hello world!";
   std::string header = ConstructDataHeader(strlen(kResponseBody));
-  ProcessPacket(
-      ConstructServerDataPacket(3, false, kFin, header + kResponseBody));
+  ProcessPacket(ConstructServerDataPacket(3, kFin, header + kResponseBody));
 
   // The body has arrived, but it is delivered asynchronously
   ASSERT_EQ(static_cast<int>(strlen(kResponseBody)),
@@ -1701,20 +1682,23 @@ TEST_P(QuicHttpStreamTest, SendChunkedPostRequestAbortedByResetStream) {
 
   std::string header = ConstructDataHeader(chunk_size);
   AddWrite(ConstructRequestHeadersAndDataFramesPacket(
-      packet_number++, GetNthClientInitiatedBidirectionalStreamId(0),
-      kIncludeVersion, !kFin, DEFAULT_PRIORITY,
-      &spdy_request_headers_frame_length, {header, kUploadData}));
+      packet_number++, GetNthClientInitiatedBidirectionalStreamId(0), !kFin,
+      DEFAULT_PRIORITY, &spdy_request_headers_frame_length,
+      {header, kUploadData}));
   AddWrite(ConstructClientAckPacket(packet_number++, 3, 1));
-  AddWrite(client_maker_.MakeAckAndRstPacket(
-      packet_number++, true, stream_id_, quic::QUIC_STREAM_NO_ERROR, 4, 1,
-      /* include_stop_sending_if_v99 = */ false));
+  AddWrite(client_maker_.Packet(packet_number++)
+               .AddAckFrame(/*first_received=*/1, /*largest_received=*/4,
+                            /*smallest_received=*/1)
+               .AddRstStreamFrame(stream_id_, quic::QUIC_STREAM_NO_ERROR)
+               .Build());
 
   Initialize();
 
   upload_data_stream_ = std::make_unique<ChunkedUploadDataStream>(0);
   auto* chunked_upload_stream =
       static_cast<ChunkedUploadDataStream*>(upload_data_stream_.get());
-  chunked_upload_stream->AppendData(kUploadData, chunk_size, false);
+  chunked_upload_stream->AppendData(base::byte_span_from_cstring(kUploadData),
+                                    false);
 
   request_.method = "POST";
   request_.url = GURL("https://www.example.org/");
@@ -1742,17 +1726,17 @@ TEST_P(QuicHttpStreamTest, SendChunkedPostRequestAbortedByResetStream) {
   // Send the response body.
   const char kResponseBody[] = "Hello world!";
   std::string header2 = ConstructDataHeader(strlen(kResponseBody));
-  ProcessPacket(
-      ConstructServerDataPacket(3, false, kFin, header2 + kResponseBody));
+  ProcessPacket(ConstructServerDataPacket(3, kFin, header2 + kResponseBody));
 
   // The server uses a STOP_SENDING frame to notify the client that it does not
   // need any further data to fully process the request.
-  ProcessPacket(server_maker_.MakeStopSendingPacket(
-      4, /* include_version = */ false, stream_id_,
-      quic::QUIC_STREAM_NO_ERROR));
+  ProcessPacket(server_maker_.Packet(4)
+                    .AddStopSendingFrame(stream_id_, quic::QUIC_STREAM_NO_ERROR)
+                    .Build());
 
   // Finish feeding request body to QuicHttpStream.  Data will be discarded.
-  chunked_upload_stream->AppendData(kUploadData, chunk_size, true);
+  chunked_upload_stream->AppendData(base::byte_span_from_cstring(kUploadData),
+                                    true);
   EXPECT_THAT(callback_.WaitForResult(), IsOk());
 
   // Verify response.
@@ -1782,9 +1766,8 @@ TEST_P(QuicHttpStreamTest, DestroyedEarly) {
   int packet_number = 1;
   AddWrite(ConstructInitialSettingsPacket(packet_number++));
   AddWrite(InnerConstructRequestHeadersPacket(
-      packet_number++, GetNthClientInitiatedBidirectionalStreamId(0),
-      kIncludeVersion, kFin, DEFAULT_PRIORITY,
-      &spdy_request_headers_frame_length));
+      packet_number++, GetNthClientInitiatedBidirectionalStreamId(0), kFin,
+      DEFAULT_PRIORITY, &spdy_request_headers_frame_length));
   AddWrite(ConstructAckAndRstStreamPacket(packet_number++));
   Initialize();
 
@@ -1830,8 +1813,8 @@ TEST_P(QuicHttpStreamTest, Priority) {
   int packet_number = 1;
   AddWrite(ConstructInitialSettingsPacket(packet_number++));
   AddWrite(InnerConstructRequestHeadersPacket(
-      packet_number++, GetNthClientInitiatedBidirectionalStreamId(0),
-      kIncludeVersion, kFin, MEDIUM, &spdy_request_headers_frame_length));
+      packet_number++, GetNthClientInitiatedBidirectionalStreamId(0), kFin,
+      MEDIUM, &spdy_request_headers_frame_length));
   Initialize();
 
   request_.method = "GET";
@@ -1873,9 +1856,9 @@ TEST_P(QuicHttpStreamTest, SessionClosedDuringDoLoop) {
   AddWrite(ConstructInitialSettingsPacket(packet_number++));
   std::string header = ConstructDataHeader(strlen(kUploadData));
   AddWrite(ConstructRequestHeadersAndDataFramesPacket(
-      packet_number++, GetNthClientInitiatedBidirectionalStreamId(0),
-      kIncludeVersion, !kFin, DEFAULT_PRIORITY,
-      &spdy_request_headers_frame_length, {header, kUploadData}));
+      packet_number++, GetNthClientInitiatedBidirectionalStreamId(0), !kFin,
+      DEFAULT_PRIORITY, &spdy_request_headers_frame_length,
+      {header, kUploadData}));
 
   // Second data write will result in a synchronous failure which will close
   // the session.
@@ -1892,8 +1875,8 @@ TEST_P(QuicHttpStreamTest, SessionClosedDuringDoLoop) {
   ASSERT_EQ(OK, request_.upload_data_stream->Init(
                     TestCompletionCallback().callback(), NetLogWithSource()));
 
-  size_t chunk_size = strlen(kUploadData);
-  chunked_upload_stream->AppendData(kUploadData, chunk_size, false);
+  chunked_upload_stream->AppendData(base::byte_span_from_cstring(kUploadData),
+                                    false);
   stream_->RegisterRequest(&request_);
   ASSERT_EQ(OK, stream_->InitializeStream(false, DEFAULT_PRIORITY,
                                           net_log_with_source_,
@@ -1905,7 +1888,8 @@ TEST_P(QuicHttpStreamTest, SessionClosedDuringDoLoop) {
   // flusher that tries to bundle request body writes.
   ASSERT_EQ(ERR_IO_PENDING,
             stream->SendRequest(headers_, &response_, callback_.callback()));
-  chunked_upload_stream->AppendData(kUploadData, chunk_size, true);
+  chunked_upload_stream->AppendData(base::byte_span_from_cstring(kUploadData),
+                                    true);
   int rv = callback_.WaitForResult();
   EXPECT_EQ(OK, rv);
   // Error will be surfaced once an attempt to read the response occurs.
@@ -1937,8 +1921,8 @@ TEST_P(QuicHttpStreamTest, SessionClosedBeforeSendHeadersComplete) {
             stream_->SendRequest(headers_, &response_, callback_.callback()));
 
   // Error will be surfaced once |upload_data_stream| triggers the next write.
-  size_t chunk_size = strlen(kUploadData);
-  chunked_upload_stream->AppendData(kUploadData, chunk_size, true);
+  chunked_upload_stream->AppendData(base::byte_span_from_cstring(kUploadData),
+                                    true);
   ASSERT_EQ(ERR_QUIC_PROTOCOL_ERROR, callback_.WaitForResult());
 
   EXPECT_LE(0, stream_->GetTotalSentBytes());
@@ -1959,8 +1943,8 @@ TEST_P(QuicHttpStreamTest, SessionClosedBeforeSendHeadersCompleteReadResponse) {
   request_.url = GURL("https://www.example.org/");
   request_.upload_data_stream = upload_data_stream_.get();
 
-  size_t chunk_size = strlen(kUploadData);
-  chunked_upload_stream->AppendData(kUploadData, chunk_size, true);
+  chunked_upload_stream->AppendData(base::byte_span_from_cstring(kUploadData),
+                                    true);
 
   ASSERT_EQ(OK, request_.upload_data_stream->Init(
                     TestCompletionCallback().callback(), NetLogWithSource()));
@@ -1986,9 +1970,8 @@ TEST_P(QuicHttpStreamTest, SessionClosedBeforeSendBodyComplete) {
   int packet_number = 1;
   AddWrite(ConstructInitialSettingsPacket(packet_number++));
   AddWrite(InnerConstructRequestHeadersPacket(
-      packet_number++, GetNthClientInitiatedBidirectionalStreamId(0),
-      kIncludeVersion, !kFin, DEFAULT_PRIORITY,
-      &spdy_request_headers_frame_length));
+      packet_number++, GetNthClientInitiatedBidirectionalStreamId(0), !kFin,
+      DEFAULT_PRIORITY, &spdy_request_headers_frame_length));
   AddWrite(SYNCHRONOUS, ERR_FAILED);
   Initialize();
 
@@ -2009,8 +1992,8 @@ TEST_P(QuicHttpStreamTest, SessionClosedBeforeSendBodyComplete) {
   ASSERT_EQ(ERR_IO_PENDING,
             stream_->SendRequest(headers_, &response_, callback_.callback()));
 
-  size_t chunk_size = strlen(kUploadData);
-  chunked_upload_stream->AppendData(kUploadData, chunk_size, true);
+  chunked_upload_stream->AppendData(base::byte_span_from_cstring(kUploadData),
+                                    true);
   // Error does not surface yet since packet write is triggered by a packet
   // flusher that tries to bundle request body writes.
   ASSERT_EQ(OK, callback_.WaitForResult());
@@ -2029,9 +2012,9 @@ TEST_P(QuicHttpStreamTest, SessionClosedBeforeSendBundledBodyComplete) {
   AddWrite(ConstructInitialSettingsPacket(packet_number++));
   std::string header = ConstructDataHeader(strlen(kUploadData));
   AddWrite(ConstructRequestHeadersAndDataFramesPacket(
-      packet_number++, GetNthClientInitiatedBidirectionalStreamId(0),
-      kIncludeVersion, !kFin, DEFAULT_PRIORITY,
-      &spdy_request_headers_frame_length, {header, kUploadData}));
+      packet_number++, GetNthClientInitiatedBidirectionalStreamId(0), !kFin,
+      DEFAULT_PRIORITY, &spdy_request_headers_frame_length,
+      {header, kUploadData}));
 
   AddWrite(SYNCHRONOUS, ERR_FAILED);
   Initialize();
@@ -2044,8 +2027,8 @@ TEST_P(QuicHttpStreamTest, SessionClosedBeforeSendBundledBodyComplete) {
   request_.url = GURL("https://www.example.org/");
   request_.upload_data_stream = upload_data_stream_.get();
 
-  size_t chunk_size = strlen(kUploadData);
-  chunked_upload_stream->AppendData(kUploadData, chunk_size, false);
+  chunked_upload_stream->AppendData(base::byte_span_from_cstring(kUploadData),
+                                    false);
 
   ASSERT_EQ(OK, request_.upload_data_stream->Init(
                     TestCompletionCallback().callback(), NetLogWithSource()));
@@ -2057,7 +2040,8 @@ TEST_P(QuicHttpStreamTest, SessionClosedBeforeSendBundledBodyComplete) {
   ASSERT_EQ(ERR_IO_PENDING,
             stream_->SendRequest(headers_, &response_, callback_.callback()));
 
-  chunked_upload_stream->AppendData(kUploadData, chunk_size, true);
+  chunked_upload_stream->AppendData(base::byte_span_from_cstring(kUploadData),
+                                    true);
 
   // Error does not surface yet since packet write is triggered by a packet
   // flusher that tries to bundle request body writes.
@@ -2076,9 +2060,9 @@ TEST_P(QuicHttpStreamTest, DataReadErrorSynchronous) {
   int packet_number = 1;
   AddWrite(ConstructInitialSettingsPacket(packet_number++));
   AddWrite(ConstructRequestAndRstPacket(
-      packet_number++, GetNthClientInitiatedBidirectionalStreamId(0),
-      kIncludeVersion, !kFin, DEFAULT_PRIORITY,
-      &spdy_request_headers_frame_length, quic::QUIC_ERROR_PROCESSING_STREAM));
+      packet_number++, GetNthClientInitiatedBidirectionalStreamId(0), !kFin,
+      DEFAULT_PRIORITY, &spdy_request_headers_frame_length,
+      quic::QUIC_ERROR_PROCESSING_STREAM));
 
   Initialize();
 
@@ -2112,11 +2096,9 @@ TEST_P(QuicHttpStreamTest, DataReadErrorAsynchronous) {
   int packet_number = 1;
   AddWrite(ConstructInitialSettingsPacket(packet_number++));
   AddWrite(InnerConstructRequestHeadersPacket(
-      packet_number++, GetNthClientInitiatedBidirectionalStreamId(0),
-      kIncludeVersion, !kFin, DEFAULT_PRIORITY,
-      &spdy_request_headers_frame_length));
-  AddWrite(
-      ConstructClientRstStreamErrorPacket(packet_number++, !kIncludeVersion));
+      packet_number++, GetNthClientInitiatedBidirectionalStreamId(0), !kFin,
+      DEFAULT_PRIORITY, &spdy_request_headers_frame_length));
+  AddWrite(ConstructClientRstStreamErrorPacket(packet_number++));
 
   Initialize();
 

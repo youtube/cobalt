@@ -9,10 +9,6 @@
 #include "testing/gtest_mac.h"
 #include "testing/platform_test.h"
 
-#if !defined(__has_feature) || !__has_feature(objc_arc)
-#error "This file requires ARC support."
-#endif
-
 @protocol TestObserver
 
 @required
@@ -48,7 +44,7 @@ namespace {
 
 class CRBProtocolObserversTest : public PlatformTest {
  public:
-  CRBProtocolObserversTest() {}
+  CRBProtocolObserversTest() = default;
 
  protected:
   void SetUp() override {
@@ -288,7 +284,6 @@ TEST_F(CRBProtocolObserversTest, IgnoresDeallocedObservers) {
 
 - (instancetype)init {
   NOTREACHED();
-  return nil;
 }
 
 - (void)mutateByAddingObserver:(id<TestObserver>)observer {

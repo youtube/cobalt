@@ -1,0 +1,70 @@
+# Copyright 2016 The Chromium Authors
+# Use of this source code is governed by a BSD-style license that can be
+# found in the LICENSE file.
+
+import("//build/buildflag_header.gni")
+import("//ios/build/chrome_build.gni")
+import("//ios/chrome/features.gni")
+
+source_set("background_refresh") {
+  sources = [
+    "app_refresh_provider.h",
+    "app_refresh_provider.mm",
+    "background_refresh_app_agent.h",
+    "background_refresh_app_agent.mm",
+    "test_refresher.h",
+    "test_refresher.mm",
+  ]
+  deps = [
+    ":headers",
+    ":metrics",
+    "//base",
+    "//components/metrics",
+    "//ios/chrome/app:constants",
+    "//ios/chrome/app/application_delegate:app_state_header",
+    "//ios/chrome/app/application_delegate:observing_app_state_agent",
+    "//ios/chrome/browser/shared/model/application_context",
+    "//ios/chrome/browser/shared/public/features",
+    "//ios/chrome/common",
+    "//ios/web/public/thread",
+  ]
+  frameworks = [
+    "Foundation.framework",
+    "BackgroundTasks.framework",
+    "UserNotifications.framework",
+  ]
+}
+
+source_set("headers") {
+  sources = [ "background_refresh_app_agent_audience.h" ]
+}
+
+source_set("metrics") {
+  sources = [
+    "background_refresh_metrics.h",
+    "background_refresh_metrics.mm",
+  ]
+  deps = []
+}
+
+source_set("unit_tests") {
+  testonly = true
+  sources = [
+    "app_refresh_provider_unittest.mm",
+    "background_refresh_app_agent_unittest.mm",
+  ]
+  deps = [
+    ":background_refresh",
+    "//base/test:test_support",
+    "//ios/chrome/app:constants",
+    "//ios/chrome/app/application_delegate:app_state_header",
+    "//ios/chrome/browser/profile/model:ios_thread",
+    "//ios/chrome/browser/shared/model/application_context",
+    "//ios/chrome/browser/shared/public/features",
+    "//ios/chrome/test:test_support",
+    "//ios/web/public/test",
+    "//ios/web/public/thread",
+    "//testing/gtest",
+    "//third_party/ocmock",
+  ]
+}

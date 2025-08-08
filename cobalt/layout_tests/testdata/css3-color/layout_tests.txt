@@ -1,6 +1,0 @@
-3-2-nested-opacity-compounds
-3-2-non-positioned-element-with-opacity-forms-stacking-context
-3-2-non-positioned-element-with-opacity-impacts-positioned-descendants
-3-2-opacity-applies-to-children
-3-2-opacity-applies-to-text
-3-2-opacity-does-apply-to-background

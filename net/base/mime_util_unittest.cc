@@ -7,6 +7,7 @@
 #include <vector>
 
 #include "base/containers/contains.h"
+#include "base/files/file_path.h"
 #include "base/strings/string_split.h"
 #include "base/strings/utf_string_conversions.h"
 #include "build/build_config.h"
@@ -102,7 +103,6 @@ TEST(MimeUtilTest, ExtensionTest) {
          "application/x-mpegurl",  // Chrome's secondary mapping.
          "audio/x-mpegurl",  // https://crbug.com/1273061, system override for
                              // android-arm[64]-test and Linux. Possibly more.
-         "application/vnd.apple.mpegurl",  // System override for ChromeOS.
          "audio/mpegurl",                  // System override for mac.
      }},
     {FILE_PATH_LITERAL("csv"), {"text/csv"}},
@@ -420,7 +420,7 @@ INSTANTIATE_TEST_SUITE_P(
 
 TEST_P(ExtractMIMETypeTestInvalid, MustFail) {
   // Parsing is expected to fail.
-  EXPECT_EQ(absl::nullopt, net::ExtractMimeTypeFromMediaType(GetParam(), true));
+  EXPECT_EQ(std::nullopt, net::ExtractMimeTypeFromMediaType(GetParam(), true));
 }
 
 class ExtractMIMETypeTestValid : public testing::TestWithParam<std::string> {};
@@ -513,12 +513,8 @@ TEST(MimeUtilTest, TestGetExtensionsForMimeType) {
       ASSERT_EQ(0u, extensions.size());
 
     if (test.contained_result) {
-      // Convert ASCII to FilePath::StringType.
-      base::FilePath::StringType contained_result(
-          test.contained_result,
-          test.contained_result + strlen(test.contained_result));
-
-      bool found = base::Contains(extensions, contained_result);
+      bool found = base::Contains(
+          extensions, base::FilePath::FromASCII(test.contained_result).value());
 
       ASSERT_TRUE(found) << "Must find at least the contained result within "
                          << test.mime_type;

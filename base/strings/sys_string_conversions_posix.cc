@@ -2,13 +2,19 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#ifdef UNSAFE_BUFFERS_BUILD
+// TODO(crbug.com/40284755): Remove this and spanify to fix the errors.
+#pragma allow_unsafe_buffers
+#endif
+
 #include "base/strings/sys_string_conversions.h"
 
 #include <stddef.h>
 #include <string.h>
 #include <wchar.h>
 
-#include "base/strings/string_piece.h"
+#include <string_view>
+
 #include "base/strings/utf_string_conversions.h"
 #include "build/build_config.h"
 
@@ -19,7 +25,7 @@ std::string SysWideToUTF8(const std::wstring& wide) {
   // than our ICU, but this will do for now.
   return WideToUTF8(wide);
 }
-std::wstring SysUTF8ToWide(StringPiece utf8) {
+std::wstring SysUTF8ToWide(std::string_view utf8) {
   // In theory this should be using the system-provided conversion rather
   // than our ICU, but this will do for now.
   std::wstring out;
@@ -27,7 +33,7 @@ std::wstring SysUTF8ToWide(StringPiece utf8) {
   return out;
 }
 
-#if defined(SYSTEM_NATIVE_UTF8) || BUILDFLAG(IS_ANDROID) || defined(STARBOARD)
+#if defined(SYSTEM_NATIVE_UTF8) || BUILDFLAG(IS_ANDROID)
 // TODO(port): Consider reverting the OS_ANDROID when we have wcrtomb()
 // support and a better understanding of what calls these routines.
 
@@ -35,7 +41,7 @@ std::string SysWideToNativeMB(const std::wstring& wide) {
   return WideToUTF8(wide);
 }
 
-std::wstring SysNativeMBToWide(StringPiece native_mb) {
+std::wstring SysNativeMBToWide(std::string_view native_mb) {
   return SysUTF8ToWide(native_mb);
 }
 
@@ -98,7 +104,7 @@ std::string SysWideToNativeMB(const std::wstring& wide) {
   return out;
 }
 
-std::wstring SysNativeMBToWide(StringPiece native_mb) {
+std::wstring SysNativeMBToWide(std::string_view native_mb) {
   mbstate_t ps;
 
   // Calculate the number of wide characters.  We walk through the string
@@ -154,7 +160,6 @@ std::wstring SysNativeMBToWide(StringPiece native_mb) {
   return out;
 }
 
-#endif  // defined(SYSTEM_NATIVE_UTF8) || BUILDFLAG(IS_ANDROID) ||
-        // defined(STARBOARD)
+#endif  // defined(SYSTEM_NATIVE_UTF8) || BUILDFLAG(IS_ANDROID)
 
 }  // namespace base

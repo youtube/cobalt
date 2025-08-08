@@ -10,9 +10,11 @@
 
 #include <algorithm>
 #include <string>
+#include <vector>
 
 #include "base/base_export.h"
 #include "base/compiler_specific.h"
+#include "base/containers/span.h"
 #include "base/gtest_prod_util.h"
 #include "build/build_config.h"
 
@@ -26,13 +28,9 @@ class MemoryHolder;
 
 namespace base {
 
-namespace internal {
+class TimeDelta;
 
-#if BUILDFLAG(IS_ANDROID)
-// Sets the implementation of RandBytes according to the corresponding
-// base::Feature. Thread safe: allows to switch while RandBytes() is in use.
-void ConfigureRandBytesFieldTrial();
-#endif
+namespace internal {
 
 #if !BUILDFLAG(IS_NACL)
 void ConfigureBoringSSLBackedRandBytesFieldTrial();
@@ -48,6 +46,9 @@ BASE_EXPORT double RandDoubleAvoidAllocation();
 BASE_EXPORT uint64_t RandUint64();
 
 // Returns a random number between min and max (inclusive). Thread-safe.
+//
+// TODO(crbug.com/40283703): Change from fully-closed to half-closed (i.e.
+// exclude `max`) to parallel other APIs here.
 BASE_EXPORT int RandInt(int min, int max);
 
 // Returns a random number in range [0, range).  Thread-safe.
@@ -59,6 +60,16 @@ BASE_EXPORT double RandDouble();
 // Returns a random float in range [0, 1). Thread-safe.
 BASE_EXPORT float RandFloat();
 
+// Returns a random duration in [`start`, `limit`). Thread-safe.
+//
+// REQUIRES: `start` < `limit`
+BASE_EXPORT TimeDelta RandTimeDelta(TimeDelta start, TimeDelta limit);
+
+// Returns a random duration in [`TimeDelta()`, `limit`). Thread-safe.
+//
+// REQUIRES: `limit.is_positive()`
+BASE_EXPORT TimeDelta RandTimeDeltaUpTo(TimeDelta limit);
+
 // Given input |bits|, convert with maximum precision to a double in
 // the range [0, 1). Thread-safe.
 BASE_EXPORT double BitsToOpenEndedUnitInterval(uint64_t bits);
@@ -67,15 +78,24 @@ BASE_EXPORT double BitsToOpenEndedUnitInterval(uint64_t bits);
 // [0, 1). Thread-safe.
 BASE_EXPORT float BitsToOpenEndedUnitIntervalF(uint64_t bits);
 
-// Fills |output_length| bytes of |output| with random data. Thread-safe.
+// Fills `output` with cryptographically secure random data. Thread-safe.
 //
 // Although implementations are required to use a cryptographically secure
 // random number source, code outside of base/ that relies on this should use
 // crypto::RandBytes instead to ensure the requirement is easily discoverable.
-BASE_EXPORT void RandBytes(void* output, size_t output_length);
+BASE_EXPORT void RandBytes(span<uint8_t> output);
 
+// Creates a vector of `length` bytes, fills it with random data, and returns
+// it. Thread-safe.
+//
+// Although implementations are required to use a cryptographically secure
+// random number source, code outside of base/ that relies on this should use
+// crypto::RandBytes instead to ensure the requirement is easily discoverable.
+BASE_EXPORT std::vector<uint8_t> RandBytesAsVector(size_t length);
+
+// DEPRECATED. Prefer RandBytesAsVector() above.
 // Fills a string of length |length| with random data and returns it.
-// |length| should be nonzero. Thread-safe.
+// Thread-safe.
 //
 // Note that this is a variation of |RandBytes| with a different return type.
 // The returned string is likely not ASCII/UTF-8. Use with care.
@@ -190,6 +210,24 @@ class BASE_EXPORT MetricsSubSampler {
  public:
   MetricsSubSampler();
   bool ShouldSample(double probability);
+
+  // Make any call to ShouldSample for any instance of MetricsSubSampler
+  // return true for testing. Cannot be used in conjunction with
+  // ScopedNeverSampleForTesting.
+  class BASE_EXPORT ScopedAlwaysSampleForTesting {
+   public:
+    ScopedAlwaysSampleForTesting();
+    ~ScopedAlwaysSampleForTesting();
+  };
+
+  // Make any call to ShouldSample for any instance of MetricsSubSampler
+  // return false for testing. Cannot be used in conjunction with
+  // ScopedAlwaysSampleForTesting.
+  class BASE_EXPORT ScopedNeverSampleForTesting {
+   public:
+    ScopedNeverSampleForTesting();
+    ~ScopedNeverSampleForTesting();
+  };
 
  private:
   InsecureRandomGenerator generator_;

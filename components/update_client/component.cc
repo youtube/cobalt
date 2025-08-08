@@ -1,387 +1,106 @@
-// Copyright 2017 The Chromium Authors. All rights reserved.
+// Copyright 2017 The Chromium Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
 #include "components/update_client/component.h"
 
-#include <algorithm>
+#include <memory>
+#include <optional>
+#include <string>
+#include <tuple>
 #include <utility>
+#include <vector>
 
-#include "base/bind.h"
+#include "base/check_op.h"
+#include "base/debug/alias.h"
+#include "base/debug/dump_without_crashing.h"
 #include "base/files/file_util.h"
 #include "base/files/scoped_temp_dir.h"
+#include "base/functional/bind.h"
+#include "base/functional/callback.h"
+#include "base/functional/callback_helpers.h"
 #include "base/location.h"
 #include "base/logging.h"
+#include "base/memory/raw_ref.h"
+#include "base/memory/scoped_refptr.h"
+#include "base/notreached.h"
+#include "base/ranges/algorithm.h"
 #include "base/strings/string_number_conversions.h"
+#include "base/strings/string_util.h"
 #include "base/task/bind_post_task.h"
 #include "base/task/sequenced_task_runner.h"
 #include "base/task/thread_pool.h"
-#include "base/threading/thread_task_runner_handle.h"
+#include "base/time/time.h"
+#include "base/types/expected.h"
 #include "base/values.h"
 #include "components/update_client/action_runner.h"
-
-#if defined(STARBOARD)
-#include "components/update_client/cobalt_slot_management.h"
-#endif
-
-#include "components/update_client/component_unpacker.h"
 #include "components/update_client/configurator.h"
 #include "components/update_client/network.h"
+#include "components/update_client/op_download.h"
+#include "components/update_client/op_install.h"
+#include "components/update_client/op_puffin.h"
 #include "components/update_client/patcher.h"
+#include "components/update_client/persisted_data.h"
+#include "components/update_client/pipeline.h"
 #include "components/update_client/protocol_definition.h"
 #include "components/update_client/protocol_serializer.h"
 #include "components/update_client/task_traits.h"
+#include "components/update_client/unpacker.h"
 #include "components/update_client/unzipper.h"
-#include "components/update_client/update_checker.h"
 #include "components/update_client/update_client.h"
 #include "components/update_client/update_client_errors.h"
+#include "components/update_client/update_client_metrics.h"
 #include "components/update_client/update_engine.h"
 #include "components/update_client/utils.h"
 
-// The state machine representing how a CRX component changes during an update.
-//
-//     +------------------------- kNew
-//     |                            |
-//     |                            V
-//     |                        kChecking
-//     |                            |
-//     V                error       V     no           no
-//  kUpdateError <------------- [update?] -> [action?] -> kUpToDate  kUpdated
-//     ^                            |           |            ^        ^
-//     |                        yes |           | yes        |        |
-//     |                            V           |            |        |
-//     |                        kCanUpdate      +--------> kRun       |
-//     |                            |                                 |
-//     |                no          V                                 |
-//     |               +-<- [differential update?]                    |
-//     |               |               |                              |
-//     |               |           yes |                              |
-//     |               | error         V                              |
-//     |               +-<----- kDownloadingDiff            kRun---->-+
-//     |               |               |                     ^        |
-//     |               |               |                 yes |        |
-//     |               | error         V                     |        |
-//     |               +-<----- kUpdatingDiff ---------> [action?] ->-+
-//     |               |                                     ^     no
-//     |    error      V                                     |
-//     +-<-------- kDownloading                              |
-//     |               |                                     |
-//     |               |                                     |
-//     |    error      V                                     |
-//     +-<-------- kUpdating --------------------------------+
-
 namespace update_client {
-
-namespace {
-
-using InstallOnBlockingTaskRunnerCompleteCallback = base::OnceCallback<
-    void(ErrorCategory error_category, int error_code, int extra_code1)>;
-
-void InstallComplete(
-    scoped_refptr<base::SequencedTaskRunner> main_task_runner,
-    InstallOnBlockingTaskRunnerCompleteCallback callback,
-    const base::FilePath& unpack_path,
-    const CrxInstaller::Result& result) {
-#if defined(STARBOARD)
-    LOG(INFO) << "InstallComplete";
-#endif
-  base::ThreadPool::PostTask(
-      FROM_HERE, {base::TaskPriority::BEST_EFFORT, base::MayBlock()},
-      base::BindOnce(
-          [](scoped_refptr<base::SequencedTaskRunner> main_task_runner,
-             InstallOnBlockingTaskRunnerCompleteCallback callback,
-             const base::FilePath& unpack_path,
-             const CrxInstaller::Result& result) {
-#if defined(STARBOARD)
-            LOG(INFO) << "Closure kicked off from InstallComplete";
-#endif
-// For Cobalt, don't delete the unpack_path, which is not a temp directory.
-// Cobalt uses a dedicated installation slot obtained from the Installation
-// Manager.
-#if !defined(STARBOARD)
-            base::DeleteFile(unpack_path, true);
-#endif
-            const ErrorCategory error_category =
-                result.error ? ErrorCategory::kInstall : ErrorCategory::kNone;
-            main_task_runner->PostTask(
-                FROM_HERE, base::BindOnce(std::move(callback), error_category,
-                                          static_cast<int>(result.error),
-                                          result.extended_error));
-          },
-          main_task_runner, std::move(callback), unpack_path, result));
-}
-
-void InstallOnBlockingTaskRunner(
-    scoped_refptr<base::SequencedTaskRunner> main_task_runner,
-    const base::FilePath& unpack_path,
-    const std::string& public_key,
-#if defined(STARBOARD)
-    const int installation_index,
-    PersistedData* metadata,
-    const std::string& id,
-    const std::string& version,
-#endif
-    const std::string& fingerprint,
-    scoped_refptr<CrxInstaller> installer,
-    InstallOnBlockingTaskRunnerCompleteCallback callback) {
-  DCHECK(base::DirectoryExists(unpack_path));
-
-#if defined(STARBOARD)
-  LOG(INFO) << "InstallOnBlockingTaskRunner";
-#endif
-
-#if !defined(STARBOARD)
-  // Acquire the ownership of the |unpack_path|.
-  base::ScopedTempDir unpack_path_owner;
-  ignore_result(unpack_path_owner.Set(unpack_path));
-#endif
-
-  if (static_cast<int>(fingerprint.size()) !=
-      base::WriteFile(
-          unpack_path.Append(FILE_PATH_LITERAL("manifest.fingerprint")),
-          fingerprint.c_str(), base::checked_cast<int>(fingerprint.size()))) {
-    const CrxInstaller::Result result(InstallError::FINGERPRINT_WRITE_FAILED);
-    main_task_runner->PostTask(
-        FROM_HERE,
-        base::BindOnce(std::move(callback), ErrorCategory::kInstall,
-                       static_cast<int>(result.error), result.extended_error));
-    return;
-  }
-
-#if defined(STARBOARD)
-  InstallError install_error = InstallError::NONE;
-  const CobaltExtensionInstallationManagerApi* installation_api =
-      static_cast<const CobaltExtensionInstallationManagerApi*>(
-          SbSystemGetExtension(kCobaltExtensionInstallationManagerName));
-  if (!installation_api) {
-    LOG(ERROR) << "Failed to get installation manager api.";
-    // TODO: add correct error code.
-    install_error = InstallError::GENERIC_ERROR;
-  } else if (installation_index == IM_EXT_INVALID_INDEX) {
-    LOG(ERROR) << "Installation index is invalid.";
-    // TODO: add correct error code.
-    install_error = InstallError::GENERIC_ERROR;
-  } else {
-    char app_key[IM_EXT_MAX_APP_KEY_LENGTH];
-    if (installation_api->GetAppKey(app_key, IM_EXT_MAX_APP_KEY_LENGTH) ==
-        IM_EXT_ERROR) {
-      // TODO: add correct error code.
-      install_error = InstallError::GENERIC_ERROR;
-    } else {
-      if (CobaltFinishInstallation(installation_api, installation_index,
-                                    unpack_path.value(), app_key)) {
-        // Write the version of the unpacked update package to the persisted data.
-        if (metadata != nullptr) {
-          main_task_runner->PostTask(
-              FROM_HERE, base::BindOnce(&PersistedData::SetLastInstalledVersion,
-                                        base::Unretained(metadata), id, version));
-        }
-      } else {
-
-        // TODO: add correct error code.
-        install_error = InstallError::GENERIC_ERROR;
-      }
-    }
-  }
-
-  CrxInstaller::Result result(install_error);
-  InstallComplete(main_task_runner, std::move(callback), unpack_path, result);
-
-#else
-  installer->Install(
-      unpack_path, public_key,
-      base::BindOnce(&InstallComplete, main_task_runner, std::move(callback),
-                     unpack_path_owner.Take()));
-#endif
-}
-
-void UnpackCompleteOnBlockingTaskRunner(
-    scoped_refptr<base::SequencedTaskRunner> main_task_runner,
-#if defined(IN_MEMORY_UPDATES)
-    const base::FilePath& installation_dir,
-#else
-    const base::FilePath& crx_path,
-#endif
-#if defined(STARBOARD)
-    const int installation_index,
-    PersistedData* metadata,
-    const std::string& id,
-    const std::string& version,
-#endif
-    const std::string& fingerprint,
-    scoped_refptr<CrxInstaller> installer,
-    InstallOnBlockingTaskRunnerCompleteCallback callback,
-    const ComponentUnpacker::Result& result) {
-#if defined(STARBOARD)
-  LOG(INFO) << "UnpackCompleteOnBlockingTaskRunner";
-#if !defined(IN_MEMORY_UPDATES)
-  base::DeleteFile(crx_path, false);
-#endif  // !defined(IN_MEMORY_UPDATES)
-#else  // defined(STARBOARD)
-  update_client::DeleteFileAndEmptyParentDirectory(crx_path);
-#endif  // defined(STARBOARD)
-
-  if (result.error != UnpackerError::kNone) {
-#if defined(STARBOARD)
-    // When there is an error unpacking the downloaded CRX, such as a failure to
-    // verify the package, we should remember to clear out any drain files.
-#if defined(IN_MEMORY_UPDATES)
-    if (base::DirectoryExists(installation_dir)) {
-#else  // defined(IN_MEMORY_UPDATES)
-    if (base::DirectoryExists(crx_path.DirName())) {
-#endif  // defined(IN_MEMORY_UPDATES)
-      const auto installation_api =
-        static_cast<const CobaltExtensionInstallationManagerApi*>(
-          SbSystemGetExtension(kCobaltExtensionInstallationManagerName));
-      if (installation_api) {
-        CobaltSlotManagement cobalt_slot_management;
-        if (cobalt_slot_management.Init(installation_api)) {
-          cobalt_slot_management.CleanupAllDrainFiles();
-        }
-      }
-    }
-#endif  // #if defined(STARBOARD)
-    main_task_runner->PostTask(
-        FROM_HERE,
-        base::BindOnce(std::move(callback), ErrorCategory::kUnpack,
-                       static_cast<int>(result.error), result.extended_error));
-    return;
-  }
-
-  base::ThreadPool::PostTask(
-      FROM_HERE, kTaskTraits,
-                 base::BindOnce(&InstallOnBlockingTaskRunner, main_task_runner,
-                                result.unpack_path, result.public_key,
-#if defined(STARBOARD)
-                     installation_index,
-                     metadata,
-                     id,
-                     version,
-#endif
-                                fingerprint, installer, std::move(callback)));
-}
-
-void StartInstallOnBlockingTaskRunner(
-    scoped_refptr<base::SequencedTaskRunner> main_task_runner,
-    const std::vector<uint8_t>& pk_hash,
-#if defined(IN_MEMORY_UPDATES)
-    const base::FilePath& installation_dir,
-    const std::string* crx_str,
-#else
-    const base::FilePath& crx_path,
-#endif
-#if defined(STARBOARD)
-    const int installation_index,
-    PersistedData* metadata,
-    const std::string& id,
-    const std::string& version,
-#endif
-    const std::string& fingerprint,
-    scoped_refptr<CrxInstaller> installer,
-    std::unique_ptr<Unzipper> unzipper_,
-    scoped_refptr<Patcher> patcher_,
-    crx_file::VerifierFormat crx_format,
-    InstallOnBlockingTaskRunnerCompleteCallback callback) {
-#if defined(STARBOARD)
-  LOG(INFO) << "StartInstallOnBlockingTaskRunner";
-#endif
-  auto unpacker = base::MakeRefCounted<ComponentUnpacker>(
-      pk_hash,
-#if defined(IN_MEMORY_UPDATES)
-      crx_str,
-      installation_dir,
-#else
-      crx_path,
-#endif
-      installer, std::move(unzipper_), std::move(patcher_),
-      crx_format);
-
-  unpacker->Unpack(base::BindOnce(&UnpackCompleteOnBlockingTaskRunner,
-                                  main_task_runner,
-#if defined(IN_MEMORY_UPDATES)
-                                  installation_dir,
-#else
-                                  crx_path,
-#endif
-#if defined(STARBOARD)
-                                  installation_index, metadata, id, version,
-#endif
-                                  fingerprint, installer, std::move(callback)));
-}
-
-// Returns a string literal corresponding to the value of the downloader |d|.
-const char* DownloaderToString(CrxDownloader::DownloadMetrics::Downloader d) {
-  switch (d) {
-    case CrxDownloader::DownloadMetrics::kUrlFetcher:
-      return "direct";
-    case CrxDownloader::DownloadMetrics::kBits:
-      return "bits";
-    default:
-      return "unknown";
-  }
-}
-
-}  // namespace
 
 Component::Component(const UpdateContext& update_context, const std::string& id)
     : id_(id),
       state_(std::make_unique<StateNew>(this)),
       update_context_(update_context) {
-#if defined(STARBOARD)
-  LOG(INFO) << "Component::Component";
-#endif
+  // TODO(crbug.com/345250525) - remove when the bug is fixed. We are
+  // seeing dumps where the app id is empty in the state change
+  // callbacks. This code verifies the invariant that the component
+  // instance always has an id.
+  if (id_.empty()) {
+    DEBUG_ALIAS_FOR_CSTR(dbg_id, id_.c_str(), 64);
+    base::debug::DumpWithoutCrashing();
+  }
 }
 
-Component::~Component() {
-#if defined(STARBOARD)
-  LOG(INFO) << "Component::~Component";
-#endif
-}
+Component::~Component() = default;
 
 scoped_refptr<Configurator> Component::config() const {
-  return update_context_.config;
+  return update_context_->config;
 }
 
 std::string Component::session_id() const {
-  return update_context_.session_id;
+  return update_context_->session_id;
 }
 
 bool Component::is_foreground() const {
-  return update_context_.is_foreground;
+  return update_context_->is_foreground;
 }
 
 void Component::Handle(CallbackHandleComplete callback_handle_complete) {
   DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
-  DCHECK(state_);
-#if defined(STARBOARD)
-  LOG(INFO) << "Component::Handle";
-#endif
+  CHECK(state_);
+
   callback_handle_complete_ = std::move(callback_handle_complete);
 
   state_->Handle(
       base::BindOnce(&Component::ChangeState, base::Unretained(this)));
 }
 
-#if defined(STARBOARD)
-void Component::Cancel() {
-  DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
-  is_cancelled_ = true;
-  state_->Cancel();
-}
-#endif
-
 void Component::ChangeState(std::unique_ptr<State> next_state) {
   DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
-#if defined(STARBOARD)
-  LOG(INFO) << "Component::ChangeState next_state="
-    << ((next_state)? next_state->state_name(): "nullptr");
-#endif
 
-  previous_state_ = state();
-  if (next_state)
+  if (next_state) {
     state_ = std::move(next_state);
-  else
+  } else {
     is_handled_ = true;
+  }
 
   base::SequencedTaskRunner::GetCurrentDefault()->PostTask(
       FROM_HERE, std::move(callback_handle_complete_));
@@ -390,249 +109,235 @@ void Component::ChangeState(std::unique_ptr<State> next_state) {
 CrxUpdateItem Component::GetCrxUpdateItem() const {
   DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
 
+  // TODO(crbug.com/345250525) - remove when the bug is fixed. We are seeing
+  // dumps where the app id is empty in the state change callbacks. This code
+  // verifies the invariant that the id is always valid.
+  if (id_.empty()) {
+    DEBUG_ALIAS_FOR_CSTR(dbg_id, id_.c_str(), 64);
+    base::debug::DumpWithoutCrashing();
+  }
+
   CrxUpdateItem crx_update_item;
   crx_update_item.state = state_->state();
+  if (crx_update_item.state == ComponentState::kUpdating &&
+      state_hint_ != ComponentState::kNew) {
+    // TODO(crbug.com/353249967): Move state_hint_ into
+    // Component::StateUpdating. Component::StateUpdating aggregates three
+    // historical substates: kDownloading, kUpdating, and kRun. Callers may be
+    // sensitive to which substate the pipeline is in.
+    crx_update_item.state = state_hint_;
+  }
   crx_update_item.id = id_;
-  if (crx_component_)
+  if (crx_component_) {
     crx_update_item.component = *crx_component_;
+  }
   crx_update_item.last_check = last_check_;
   crx_update_item.next_version = next_version_;
   crx_update_item.next_fp = next_fp_;
+  crx_update_item.downloaded_bytes = downloaded_bytes_;
+  crx_update_item.install_progress = install_progress_;
+  crx_update_item.total_bytes = total_bytes_;
   crx_update_item.error_category = error_category_;
   crx_update_item.error_code = error_code_;
   crx_update_item.extra_code1 = extra_code1_;
+  crx_update_item.custom_updatecheck_data = custom_attrs_;
+  crx_update_item.installer_result = installer_result_;
 
   return crx_update_item;
 }
 
-void Component::SetParseResult(const ProtocolParser::Result& result) {
-  DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
-
-  DCHECK_EQ(0, update_check_error_);
-
-  status_ = result.status;
-  action_run_ = result.action_run;
-
-  if (result.manifest.packages.empty())
-    return;
-
-  next_version_ = base::Version(result.manifest.version);
-  const auto& package = result.manifest.packages.front();
-  next_fp_ = package.fingerprint;
-
-  // Resolve the urls by combining the base urls with the package names.
-  for (const auto& crx_url : result.crx_urls) {
-    const GURL url = crx_url.Resolve(package.name);
-    if (url.is_valid())
-      crx_urls_.push_back(url);
-  }
-  for (const auto& crx_diffurl : result.crx_diffurls) {
-    const GURL url = crx_diffurl.Resolve(package.namediff);
-    if (url.is_valid())
-      crx_diffurls_.push_back(url);
-  }
-
-  hash_sha256_ = package.hash_sha256;
-  hashdiff_sha256_ = package.hashdiff_sha256;
-}
-
-void Component::Uninstall(const base::Version& version, int reason) {
-  DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
-
-  DCHECK_EQ(ComponentState::kNew, state());
-
-  crx_component_ = CrxComponent();
-  crx_component_->version = version;
-
-  previous_version_ = version;
-  next_version_ = base::Version("0");
-  extra_code1_ = reason;
-
-  state_ = std::make_unique<StateUninstalled>(this);
-}
-
 void Component::SetUpdateCheckResult(
-    const base::Optional<ProtocolParser::Result>& result,
+    std::optional<ProtocolParser::Result> result,
     ErrorCategory error_category,
-    int error) {
+    int error,
+    base::OnceCallback<void(bool)> callback) {
   DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
-  DCHECK_EQ(ComponentState::kChecking, state());
+  CHECK_EQ(ComponentState::kChecking, state());
 
   error_category_ = error_category;
   error_code_ = error;
-  if (result)
-    SetParseResult(result.value());
 
-  base::SequencedTaskRunner::GetCurrentDefault()->PostTask(
-      FROM_HERE, std::move(update_check_complete_));
+  if (result) {
+    CHECK(crx_component_);
+    custom_attrs_ = result->custom_attributes;
+    if (!result->manifest.packages.empty()) {
+      next_version_ = base::Version(result->manifest.version);
+      next_fp_ = result->manifest.packages.front().fingerprint;
+    } else {
+      // When the updatecheck response doesn't contain any packages, use the
+      // current version and fingerprint as the "next" version and fingerprint
+      // for any events emitted (such as a RunAction event).
+      next_version_ = crx_component_->version;
+      next_fp_ = crx_component_->fingerprint;
+    }
+    MakePipeline(
+        update_context_->config, update_context_->get_available_space,
+        update_context_->is_foreground, update_context_->session_id,
+        update_context_->crx_cache_, crx_component_->crx_format_requirement,
+        crx_component_->app_id, crx_component_->pk_hash,
+        crx_component_->install_data_index, crx_component_->fingerprint,
+        crx_component_->installer,
+        base::BindRepeating(
+            [](base::raw_ref<Component> component, ComponentState state) {
+              component->state_hint_ = state;
+            },
+            base::raw_ref(*this)),
+        base::BindRepeating(&Component::AppendEvent, base::Unretained(this)),
+        base::BindRepeating(
+            [](base::raw_ref<Component> component, int64_t downloaded_bytes,
+               int64_t total_bytes) {
+              component->downloaded_bytes_ = downloaded_bytes;
+              component->total_bytes_ = total_bytes;
+              component->NotifyObservers();
+            },
+            base::raw_ref(*this)),
+        base::BindRepeating(
+            [](base::raw_ref<Component> component, int progress) {
+              if (progress >= 0 && progress <= 100) {
+                component->install_progress_ = progress;
+              }
+              component->NotifyObservers();
+            },
+            base::raw_ref(*this)),
+        base::BindRepeating(
+            [](base::raw_ref<Component> component,
+               const CrxInstaller::Result& result) {
+              component->installer_result_ = result;
+              component->error_category_ = result.result.category_;
+              component->error_code_ = result.result.code_;
+              component->extra_code1_ = result.result.extra_;
+            },
+            base::raw_ref(*this)),
+        crx_component_->action_handler,
+        base::BindRepeating(
+            [](base::raw_ref<Component> component,
+               const CategorizedError& result) {
+              component->diff_error_category_ = result.category_;
+              component->diff_error_code_ = result.code_;
+              component->diff_extra_code1_ = result.extra_;
+            },
+            base::raw_ref(*this)),
+        result.value(),
+        base::BindOnce(
+            base::BindOnce(
+                [](base::raw_ref<Component> component,
+                   base::expected<
+                       base::OnceCallback<base::OnceClosure(
+                           base::OnceCallback<void(const CategorizedError&)>)>,
+                       CategorizedError> pipeline) {
+                  component->pipeline_ = std::move(pipeline);
+                  return true;
+                },
+                base::raw_ref(*this)))
+            .Then(std::move(callback)));
+  } else {
+    pipeline_ = base::unexpected(
+        CategorizedError({.category_ = error_category, .code_ = error}));
+    base::SequencedTaskRunner::GetCurrentDefault()->PostTask(
+        FROM_HERE, base::BindOnce(std::move(callback), true));
+  }
 }
 
-bool Component::CanDoBackgroundDownload() const {
-  // Foreground component updates are always downloaded in foreground.
-  return !is_foreground() &&
-         (crx_component() && crx_component()->allows_background_download) &&
-         update_context_.config->EnabledBackgroundDownloader();
+bool Component::HasDiffUpdate() const {
+  return !crx_diffurls().empty();
 }
 
 void Component::AppendEvent(base::Value::Dict event) {
+  if (previous_version().IsValid()) {
+    event.Set("previousversion", previous_version().GetString());
+  }
+  if (next_version().IsValid()) {
+    event.Set("nextversion", next_version().GetString());
+  }
   events_.push_back(std::move(event));
 }
 
-void Component::NotifyObservers(UpdateClient::Observer::Events event) const {
+void Component::NotifyObservers() const {
   DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
-
-#if defined(STARBOARD)
-  if (!is_cancelled_) {
-    update_context_.notify_observers_callback.Run(event, id_);
-  } else {
-    LOG(WARNING) << "Component::NotifyObservers: skip callback";
-  }
-#else
-  update_context_.notify_observers_callback.Run(event, id_);
-#endif
+  update_context_->crx_state_change_callback.Run(GetCrxUpdateItem());
 }
 
 base::TimeDelta Component::GetUpdateDuration() const {
   DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
-
-  if (update_begin_.is_null())
+  if (update_begin_.is_null()) {
     return base::TimeDelta();
-
+  }
   const base::TimeDelta update_cost(base::TimeTicks::Now() - update_begin_);
-  DCHECK_GE(update_cost, base::TimeDelta());
-  const base::TimeDelta max_update_delay =
-      base::TimeDelta::FromSeconds(update_context_.config->UpdateDelay());
-  return std::min(update_cost, max_update_delay);
+  if (update_cost.is_negative()) {
+    return base::TimeDelta();
+  }
+  return std::min(update_cost, update_context_->config->UpdateDelay());
 }
 
 base::Value::Dict Component::MakeEventUpdateComplete() const {
   base::Value::Dict event;
-  event.Set("eventtype", base::Value(3));
-  event.Set(
-      "eventresult",
-      base::Value(static_cast<int>(state() == ComponentState::kUpdated)));
-  if (error_category() != ErrorCategory::kNone)
-    event.Set("errorcat", base::Value(static_cast<int>(error_category())));
-  if (error_code())
-    event.Set("errorcode", base::Value(error_code()));
-  if (extra_code1())
-    event.Set("extracode1", base::Value(extra_code1()));
-  if (HasDiffUpdate(*this)) {
+  event.Set("eventtype", update_context_->is_install
+                             ? protocol_request::kEventInstall
+                             : protocol_request::kEventUpdate);
+  event.Set("eventresult",
+            static_cast<int>(state() == ComponentState::kUpdated));
+  if (error_category() != ErrorCategory::kNone) {
+    event.Set("errorcat", static_cast<int>(error_category()));
+  }
+  if (error_code()) {
+    event.Set("errorcode", error_code());
+  }
+  if (extra_code1()) {
+    event.Set("extracode1", extra_code1());
+  }
+  if (HasDiffUpdate()) {
     const int diffresult = static_cast<int>(!diff_update_failed());
-    event.Set("diffresult", base::Value(diffresult));
+    event.Set("diffresult", diffresult);
   }
   if (diff_error_category() != ErrorCategory::kNone) {
     const int differrorcat = static_cast<int>(diff_error_category());
-    event.Set("differrorcat", base::Value(differrorcat));
+    event.Set("differrorcat", differrorcat);
   }
-  if (diff_error_code())
-    event.Set("differrorcode", base::Value(diff_error_code()));
-  if (diff_extra_code1())
-    event.Set("diffextracode1", base::Value(diff_extra_code1()));
-  if (!previous_fp().empty())
-    event.Set("previousfp", base::Value(previous_fp()));
-  if (!next_fp().empty())
-    event.Set("nextfp", base::Value(next_fp()));
-  DCHECK(previous_version().IsValid());
-  event.Set("previousversion", base::Value(previous_version().GetString()));
-  if (next_version().IsValid())
-    event.Set("nextversion", base::Value(next_version().GetString()));
-  return event;
-}
-
-base::Value::Dict Component::MakeEventDownloadMetrics(
-    const CrxDownloader::DownloadMetrics& dm) const {
-  base::Value::Dict event;
-  event.Set("eventtype", base::Value(14));
-  event.Set("eventresult", base::Value(static_cast<int>(dm.error == 0)));
-  event.Set("downloader", base::Value(DownloaderToString(dm.downloader)));
-  if (dm.error)
-    event.Set("errorcode", base::Value(dm.error));
-  event.Set("url", base::Value(dm.url.spec()));
-
-  // -1 means that the  byte counts are not known.
-  if (dm.total_bytes != -1 && dm.total_bytes < kProtocolMaxInt)
-    event.Set("total", base::Value(static_cast<double>(dm.total_bytes)));
-  if (dm.downloaded_bytes != -1 && dm.total_bytes < kProtocolMaxInt) {
-    event.Set("downloaded",
-                 base::Value(static_cast<double>(dm.downloaded_bytes)));
+  if (diff_error_code()) {
+    event.Set("differrorcode", diff_error_code());
   }
-  if (dm.download_time_ms && dm.total_bytes < kProtocolMaxInt) {
-    event.Set("download_time_ms",
-                 base::Value(static_cast<double>(dm.download_time_ms)));
+  if (diff_extra_code1()) {
+    event.Set("diffextracode1", diff_extra_code1());
   }
-  DCHECK(previous_version().IsValid());
-  event.Set("previousversion", base::Value(previous_version().GetString()));
-  if (next_version().IsValid())
-    event.Set("nextversion", base::Value(next_version().GetString()));
-  return event;
-}
-
-base::Value::Dict Component::MakeEventUninstalled() const {
-  DCHECK(state() == ComponentState::kUninstalled);
-  base::Value::Dict event;
-  event.Set("eventtype", base::Value(4));
-  event.Set("eventresult", base::Value(1));
-  if (extra_code1())
-    event.Set("extracode1", base::Value(extra_code1()));
-  DCHECK(previous_version().IsValid());
-  event.Set("previousversion", base::Value(previous_version().GetString()));
-  DCHECK(next_version().IsValid());
-  event.Set("nextversion", base::Value(next_version().GetString()));
-  return event;
-}
-
-base::Value::Dict Component::MakeEventActionRun(bool succeeded,
-                                          int error_code,
-                                          int extra_code1) const {
-  base::Value::Dict event;
-  event.Set("eventtype", base::Value(42));
-  event.Set("eventresult", base::Value(static_cast<int>(succeeded)));
-  if (error_code)
-    event.Set("errorcode", base::Value(error_code));
-  if (extra_code1)
-    event.Set("extracode1", base::Value(extra_code1));
+  if (!previous_fp().empty()) {
+    event.Set("previousfp", previous_fp());
+  }
+  if (!next_fp().empty()) {
+    event.Set("nextfp", next_fp());
+  }
   return event;
 }
 
 std::vector<base::Value::Dict> Component::GetEvents() const {
   std::vector<base::Value::Dict> events;
-  for (const auto& event : events_)
+  for (const auto& event : events_) {
     events.push_back(event.Clone());
+  }
   return events;
+}
+
+std::unique_ptr<CrxInstaller::InstallParams> Component::install_params() const {
+  return install_params_
+             ? std::make_unique<CrxInstaller::InstallParams>(*install_params_)
+             : nullptr;
 }
 
 Component::State::State(Component* component, ComponentState state)
     : state_(state), component_(*component) {}
 
-Component::State::~State() {}
+Component::State::~State() = default;
 
 void Component::State::Handle(CallbackNextState callback_next_state) {
   DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
-#if defined(STARBOARD)
-  LOG(INFO) << "Component::State::Handle";
-#endif
 
   callback_next_state_ = std::move(callback_next_state);
 
   DoHandle();
 }
 
-#if defined(STARBOARD)
-void Component::State::Cancel() {
-  DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
-  // Further work may be needed to ensure cancellation during any state results
-  // in a clear result and no memory leaks.
-}
-#endif
-
 void Component::State::TransitionState(std::unique_ptr<State> next_state) {
   DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
-  DCHECK(next_state);
-#if defined(STARBOARD)
-  LOG(INFO) << "Component::State::TransitionState next_state="
-    << ((next_state)? next_state->state_name(): "nullptr");
-#endif
+  CHECK(next_state);
 
   base::SequencedTaskRunner::GetCurrentDefault()->PostTask(
       FROM_HERE,
@@ -657,14 +362,21 @@ void Component::StateNew::DoHandle() {
   DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
 
   auto& component = State::component();
-
-#if defined(STARBOARD)
-  auto& config = component.update_context_.config;
-  config->SetPreviousUpdaterStatus(config->GetUpdaterStatus());
-#endif
-
   if (component.crx_component()) {
     TransitionState(std::make_unique<StateChecking>(&component));
+
+    // Notify that the component is being checked for updates after the
+    // transition to `StateChecking` occurs. This event indicates the start
+    // of the update check. The component receives the update check results when
+    // the update checks completes, and after that, `UpdateEngine` invokes the
+    // function `StateChecking::DoHandle` to transition the component out of
+    // the `StateChecking`. The current design allows for notifying observers
+    // on state transitions but it does not allow such notifications when a
+    // new state is entered. Hence, posting the task below is a workaround for
+    // this design oversight.
+    base::SequencedTaskRunner::GetCurrentDefault()->PostTask(
+        FROM_HERE, base::BindOnce(&Component::NotifyObservers,
+                                  base::Unretained(&component)));
   } else {
     component.error_code_ = static_cast<int>(Error::CRX_NOT_FOUND);
     component.error_category_ = ErrorCategory::kService;
@@ -673,68 +385,47 @@ void Component::StateNew::DoHandle() {
 }
 
 Component::StateChecking::StateChecking(Component* component)
-    : State(component, ComponentState::kChecking) {}
+    : State(component, ComponentState::kChecking) {
+  component->last_check_ = base::TimeTicks::Now();
+}
 
 Component::StateChecking::~StateChecking() {
   DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
 }
 
-// Unlike how other states are handled, this function does not change the
-// state right away. The state transition happens when the UpdateChecker
-// calls Component::UpdateCheckComplete and |update_check_complete_| is invoked.
-// This is an artifact of how multiple components must be checked for updates
-// together but the state machine defines the transitions for one component
-// at a time.
 void Component::StateChecking::DoHandle() {
   DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
 
   auto& component = State::component();
-  DCHECK(component.crx_component());
+  CHECK(component.crx_component());
 
-  component.last_check_ = base::TimeTicks::Now();
-  component.update_check_complete_ = base::BindOnce(
-      &Component::StateChecking::UpdateCheckComplete, base::Unretained(this));
-
-  component.NotifyObservers(Events::COMPONENT_CHECKING_FOR_UPDATES);
-}
-
-void Component::StateChecking::UpdateCheckComplete() {
-  DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
-  auto& component = State::component();
-
-#if defined(STARBOARD)
-  auto& config = component.update_context_.config;
-  auto metadata = component.update_context_.update_checker->GetPersistedData();
-  if (metadata != nullptr) {
-    base::SequencedTaskRunner::GetCurrentDefault()->PostTask(
-        FROM_HERE, base::BindOnce(&PersistedData::SetUpdaterChannel,
-                                  base::Unretained(metadata), component.id_,
-                                  config->GetChannel()));
-    base::SequencedTaskRunner::GetCurrentDefault()->PostTask(
-        FROM_HERE, base::BindOnce(&PersistedData::SetLatestChannel,
-                                  base::Unretained(metadata),
-                                  config->GetChannel()));
-  } else {
-    LOG(WARNING) << "Failed to get the persisted data store to write the "
-                       "updater channel.";
-  }
-#endif
-
-  if (!component.error_code_) {
-    if (component.status_ == "ok") {
-      TransitionState(std::make_unique<StateCanUpdate>(&component));
-      return;
-    }
-
-    if (component.status_ == "noupdate") {
-      if (component.action_run_.empty())
-        TransitionState(std::make_unique<StateUpToDate>(&component));
-      else
-        TransitionState(std::make_unique<StateRun>(&component));
-      return;
-    }
+  if (component.error_code_) {
+    metrics::RecordUpdateCheckResult(metrics::UpdateCheckResult::kError);
+    TransitionState(std::make_unique<StateUpdateError>(&component));
+    return;
   }
 
+  if (component.update_context_->is_cancelled) {
+    metrics::RecordUpdateCheckResult(metrics::UpdateCheckResult::kCanceled);
+    TransitionState(std::make_unique<StateUpdateError>(&component));
+    component.error_category_ = ErrorCategory::kService;
+    component.error_code_ = static_cast<int>(ServiceError::CANCELLED);
+    return;
+  }
+
+  if (component.pipeline_.has_value()) {
+    metrics::RecordUpdateCheckResult(metrics::UpdateCheckResult::kHasUpdate);
+    TransitionState(std::make_unique<StateCanUpdate>(&component));
+    return;
+  }
+
+  if (component.pipeline_.error().category_ == ErrorCategory::kNone) {
+    metrics::RecordUpdateCheckResult(metrics::UpdateCheckResult::kNoUpdate);
+    TransitionState(std::make_unique<StateUpToDate>(&component));
+    return;
+  }
+
+  metrics::RecordUpdateCheckResult(metrics::UpdateCheckResult::kError);
   TransitionState(std::make_unique<StateUpdateError>(&component));
 }
 
@@ -750,22 +441,16 @@ void Component::StateUpdateError::DoHandle() {
 
   auto& component = State::component();
 
-  DCHECK_NE(ErrorCategory::kNone, component.error_category_);
-  DCHECK_NE(0, component.error_code_);
+  CHECK_NE(ErrorCategory::kNone, component.error_category_);
+  CHECK_NE(0, component.error_code_);
 
-#if defined(STARBOARD)
-  // Create an event when the server response included an update, or when it's
-  // an update check error, like quick roll-forward or out of space
-  if (component.IsUpdateAvailable() ||
-      component.error_category_ == ErrorCategory::kUpdateCheck)
-#else
   // Create an event only when the server response included an update.
-  if (component.IsUpdateAvailable())
-#endif
+  if (component.IsUpdateAvailable()) {
     component.AppendEvent(component.MakeEventUpdateComplete());
+  }
 
   EndState();
-  component.NotifyObservers(Events::COMPONENT_UPDATE_ERROR);
+  component.NotifyObservers();
 }
 
 Component::StateCanUpdate::StateCanUpdate(Component* component)
@@ -779,36 +464,47 @@ void Component::StateCanUpdate::DoHandle() {
   DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
 
   auto& component = State::component();
-  DCHECK(component.crx_component());
+  CHECK(component.crx_component());
 
   component.is_update_available_ = true;
-  component.NotifyObservers(Events::COMPONENT_UPDATE_FOUND);
+  component.NotifyObservers();
 
-  if (component.crx_component()
-          ->supports_group_policy_enable_component_updates &&
-      !component.update_context_.enabled_component_updates) {
+  if (!component.crx_component()->updates_enabled ||
+      (!component.crx_component()->allow_updates_on_metered_connection &&
+       component.config()->IsConnectionMetered())) {
     component.error_category_ = ErrorCategory::kService;
     component.error_code_ = static_cast<int>(ServiceError::UPDATE_DISABLED);
     component.extra_code1_ = 0;
+    metrics::RecordCanUpdateResult(metrics::CanUpdateResult::kUpdatesDisabled);
     TransitionState(std::make_unique<StateUpdateError>(&component));
     return;
   }
 
+  if (component.update_context_->is_cancelled) {
+    TransitionState(std::make_unique<StateUpdateError>(&component));
+    component.error_category_ = ErrorCategory::kService;
+    component.error_code_ = static_cast<int>(ServiceError::CANCELLED);
+    metrics::RecordCanUpdateResult(metrics::CanUpdateResult::kCanceled);
+    return;
+  }
+
+  if (component.update_context_->is_update_check_only) {
+    component.error_category_ = ErrorCategory::kService;
+    component.error_code_ =
+        static_cast<int>(ServiceError::CHECK_FOR_UPDATE_ONLY);
+    component.extra_code1_ = 0;
+    component.AppendEvent(component.MakeEventUpdateComplete());
+    EndState();
+    metrics::RecordCanUpdateResult(
+        metrics::CanUpdateResult::kCheckForUpdateOnly);
+    return;
+  }
+
+  metrics::RecordCanUpdateResult(metrics::CanUpdateResult::kCanUpdate);
+
   // Start computing the cost of the this update from here on.
   component.update_begin_ = base::TimeTicks::Now();
-
-  if (CanTryDiffUpdate())
-    TransitionState(std::make_unique<StateDownloadingDiff>(&component));
-  else
-    TransitionState(std::make_unique<StateDownloading>(&component));
-}
-
-// Returns true if a differential update is available, it has not failed yet,
-// and the configuration allows this update.
-bool Component::StateCanUpdate::CanTryDiffUpdate() const {
-  const auto& component = Component::State::component();
-  return HasDiffUpdate(component) && !component.diff_error_code_ &&
-         component.update_context_.config->EnabledDeltas();
+  TransitionState(std::make_unique<StateUpdating>(&component));
 }
 
 Component::StateUpToDate::StateUpToDate(Component* component)
@@ -822,276 +518,10 @@ void Component::StateUpToDate::DoHandle() {
   DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
 
   auto& component = State::component();
-  DCHECK(component.crx_component());
+  CHECK(component.crx_component());
 
-  component.NotifyObservers(Events::COMPONENT_NOT_UPDATED);
+  component.NotifyObservers();
   EndState();
-}
-
-Component::StateDownloadingDiff::StateDownloadingDiff(Component* component)
-    : State(component, ComponentState::kDownloadingDiff) {}
-
-Component::StateDownloadingDiff::~StateDownloadingDiff() {
-  DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
-}
-
-#if defined(STARBOARD)
-void Component::StateDownloadingDiff::Cancel() {
-  DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
-  crx_downloader_->CancelDownload();
-}
-#endif
-
-void Component::StateDownloadingDiff::DoHandle() {
-  DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
-
-#if defined(IN_MEMORY_UPDATES)
-  auto& component = Component::State::component();
-#else
-  const auto& component = Component::State::component();
-#endif
-  const auto& update_context = component.update_context_;
-
-  DCHECK(component.crx_component());
-
-#if defined(STARBOARD)
-  crx_downloader_ = update_context.crx_downloader_factory(
-      component.CanDoBackgroundDownload(), update_context.config);
-#else
-  crx_downloader_ = update_context.crx_downloader_factory(
-      component.CanDoBackgroundDownload(),
-      update_context.config->GetNetworkFetcherFactory());
-#endif
-
-  const auto& id = component.id_;
-  crx_downloader_->set_progress_callback(
-      base::Bind(&Component::StateDownloadingDiff::DownloadProgress,
-                 base::Unretained(this), id));
-  crx_downloader_->StartDownload(
-      component.crx_diffurls_, component.hashdiff_sha256_,
-#if defined(IN_MEMORY_UPDATES)
-      &component.crx_str_,
-#endif
-      base::BindOnce(&Component::StateDownloadingDiff::DownloadComplete,
-                     base::Unretained(this), id));
-
-  component.NotifyObservers(Events::COMPONENT_UPDATE_DOWNLOADING);
-}
-
-// Called when progress is being made downloading a CRX. Can be called multiple
-// times due to how the CRX downloader switches between different downloaders
-// and fallback urls.
-void Component::StateDownloadingDiff::DownloadProgress(const std::string& id) {
-  DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
-
-  component().NotifyObservers(Events::COMPONENT_UPDATE_DOWNLOADING);
-}
-
-void Component::StateDownloadingDiff::DownloadComplete(
-    const std::string& id,
-    const CrxDownloader::Result& download_result) {
-  DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
-
-  auto& component = Component::State::component();
-  for (const auto& download_metrics : crx_downloader_->download_metrics())
-    component.AppendEvent(component.MakeEventDownloadMetrics(download_metrics));
-
-  crx_downloader_.reset();
-
-  if (download_result.error) {
-#if !defined(IN_MEMORY_UPDATES)
-    DCHECK(download_result.response.empty());
-#endif
-    component.diff_error_category_ = ErrorCategory::kDownload;
-    component.diff_error_code_ = download_result.error;
-
-    TransitionState(std::make_unique<StateDownloading>(&component));
-    return;
-  }
-
-#if defined(IN_MEMORY_UPDATES)
-  component.installation_dir_ = download_result.installation_dir;
-#else
-  component.crx_path_ = download_result.response;
-#endif
-
-#if defined(STARBOARD)
-  component.installation_index_ = download_result.installation_index;
-#endif
-
-  TransitionState(std::make_unique<StateUpdatingDiff>(&component));
-}
-
-Component::StateDownloading::StateDownloading(Component* component)
-    : State(component, ComponentState::kDownloading) {}
-
-Component::StateDownloading::~StateDownloading() {
-  DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
-}
-
-#if defined(STARBOARD)
-void Component::StateDownloading::Cancel() {
-  DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
-  crx_downloader_->CancelDownload();
-}
-#endif
-
-void Component::StateDownloading::DoHandle() {
-  DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
-
-#if defined(IN_MEMORY_UPDATES)
-  auto& component = Component::State::component();
-#else
-  const auto& component = Component::State::component();
-#endif
-  const auto& update_context = component.update_context_;
-
-  DCHECK(component.crx_component());
-
-#if defined(STARBOARD)
-  crx_downloader_ = update_context.crx_downloader_factory(
-      component.CanDoBackgroundDownload(), update_context.config);
-#else
-  crx_downloader_ = update_context.crx_downloader_factory(
-      component.CanDoBackgroundDownload(),
-      update_context.config->GetNetworkFetcherFactory());
-#endif
-
-  const auto& id = component.id_;
-  crx_downloader_->set_progress_callback(
-      base::Bind(&Component::StateDownloading::DownloadProgress,
-                 base::Unretained(this), id));
-  crx_downloader_->StartDownload(
-      component.crx_urls_, component.hash_sha256_,
-#if defined(IN_MEMORY_UPDATES)
-      &component.crx_str_,
-#endif
-      base::BindOnce(&Component::StateDownloading::DownloadComplete,
-                     base::Unretained(this), id));
-
-  component.NotifyObservers(Events::COMPONENT_UPDATE_DOWNLOADING);
-}
-
-// Called when progress is being made downloading a CRX. Can be called multiple
-// times due to how the CRX downloader switches between different downloaders
-// and fallback urls.
-void Component::StateDownloading::DownloadProgress(const std::string& id) {
-  DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
-
-  component().NotifyObservers(Events::COMPONENT_UPDATE_DOWNLOADING);
-}
-
-void Component::StateDownloading::DownloadComplete(
-    const std::string& id,
-    const CrxDownloader::Result& download_result) {
-  DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
-
-  auto& component = Component::State::component();
-
-  for (const auto& download_metrics : crx_downloader_->download_metrics())
-    component.AppendEvent(component.MakeEventDownloadMetrics(download_metrics));
-
-  crx_downloader_.reset();
-
-  if (download_result.error) {
-#if !defined(IN_MEMORY_UPDATES)
-    DCHECK(download_result.response.empty());
-#endif
-    component.error_category_ = ErrorCategory::kDownload;
-    component.error_code_ = download_result.error;
-
-    TransitionState(std::make_unique<StateUpdateError>(&component));
-    return;
-  }
-
-#if defined(IN_MEMORY_UPDATES)
-  component.installation_dir_ = download_result.installation_dir;
-#else
-  component.crx_path_ = download_result.response;
-#endif
-
-#if defined(STARBOARD)
-  component.installation_index_ = download_result.installation_index;
-#endif
-
-  TransitionState(std::make_unique<StateUpdating>(&component));
-}
-
-Component::StateUpdatingDiff::StateUpdatingDiff(Component* component)
-    : State(component, ComponentState::kUpdatingDiff) {}
-
-Component::StateUpdatingDiff::~StateUpdatingDiff() {
-  DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
-}
-
-void Component::StateUpdatingDiff::DoHandle() {
-  DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
-
-#if defined(IN_MEMORY_UPDATES)
-  auto& component = Component::State::component();
-#else
-  const auto& component = Component::State::component();
-#endif
-  const auto& update_context = component.update_context_;
-
-  DCHECK(component.crx_component());
-
-  component.NotifyObservers(Events::COMPONENT_UPDATE_READY);
-
-  base::ThreadPool::CreateSequencedTaskRunner(kTaskTraits)
-      ->PostTask(
-          FROM_HERE,
-          base::BindOnce(
-              &update_client::StartInstallOnBlockingTaskRunner,
-              base::SequencedTaskRunner::GetCurrentDefault(),
-              component.crx_component()->pk_hash,
-#if defined(IN_MEMORY_UPDATES)
-              component.installation_dir_,
-              &component.crx_str_,
-#else
-              component.crx_path_,
-#endif
-#if defined(STARBOARD)
-              component.installation_index_,
-              update_context.update_checker->GetPersistedData(), component.id_,
-              component.next_version_.GetString(),
-#endif
-              component.next_fp_, component.crx_component()->installer,
-              update_context.config->GetUnzipperFactory()->Create(),
-              update_context.config->GetPatcherFactory()->Create(),
-              component.crx_component()->crx_format_requirement,
-              base::BindOnce(&Component::StateUpdatingDiff::InstallComplete,
-                             base::Unretained(this))));
-}
-
-void Component::StateUpdatingDiff::InstallComplete(ErrorCategory error_category,
-                                                   int error_code,
-                                                   int extra_code1) {
-  DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
-
-  auto& component = Component::State::component();
-
-  component.diff_error_category_ = error_category;
-  component.diff_error_code_ = error_code;
-  component.diff_extra_code1_ = extra_code1;
-
-  if (component.diff_error_code_ != 0) {
-    TransitionState(std::make_unique<StateDownloading>(&component));
-    return;
-  }
-
-  DCHECK_EQ(ErrorCategory::kNone, component.diff_error_category_);
-  DCHECK_EQ(0, component.diff_error_code_);
-  DCHECK_EQ(0, component.diff_extra_code1_);
-
-  DCHECK_EQ(ErrorCategory::kNone, component.error_category_);
-  DCHECK_EQ(0, component.error_code_);
-  DCHECK_EQ(0, component.extra_code1_);
-
-  if (component.action_run_.empty())
-    TransitionState(std::make_unique<StateUpdated>(&component));
-  else
-    TransitionState(std::make_unique<StateRun>(&component));
 }
 
 Component::StateUpdating::StateUpdating(Component* component)
@@ -1102,71 +532,46 @@ Component::StateUpdating::~StateUpdating() {
 }
 
 void Component::StateUpdating::DoHandle() {
-#if defined(STARBOARD)
-  LOG(INFO) << "Component::StateUpdating::DoHandle()";
-#endif
   DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
-
-#if defined(IN_MEMORY_UPDATES)
   auto& component = Component::State::component();
-#else
-  const auto& component = Component::State::component();
-#endif
-  const auto& update_context = component.update_context_;
-
-  DCHECK(component.crx_component());
-
-  component.NotifyObservers(Events::COMPONENT_UPDATE_READY);
-
-  base::ThreadPool::CreateSequencedTaskRunner(kTaskTraits)
-      ->PostTask(FROM_HERE,
-                 base::BindOnce(
-                     &update_client::StartInstallOnBlockingTaskRunner,
-                     base::SequencedTaskRunner::GetCurrentDefault(),
-                     component.crx_component()->pk_hash,
-#if defined(IN_MEMORY_UPDATES)
-                     component.installation_dir_,
-                     &component.crx_str_,
-#else
-                     component.crx_path_,
-#endif
-#if defined(STARBOARD)
-                     component.installation_index_,
-                     update_context.update_checker->GetPersistedData(),
-                     component.id_, component.next_version_.GetString(),
-#endif
-                     component.next_fp_, component.crx_component()->installer,
-                     update_context.config->GetUnzipperFactory()->Create(),
-                     update_context.config->GetPatcherFactory()->Create(),
-                     component.crx_component()->crx_format_requirement,
-                     base::BindOnce(&Component::StateUpdating::InstallComplete,
-                                    base::Unretained(this))));
+  if (component.pipeline_.has_value()) {
+    cancel_callback_ =
+        std::move(component.pipeline_.value())
+            .Run(base::BindOnce(&Component::StateUpdating::PipelineComplete,
+                                base::Unretained(this)));
+    return;
+  }
+  component.error_category_ = component.pipeline_.error().category_;
+  component.error_code_ = component.pipeline_.error().code_;
+  component.extra_code1_ = component.pipeline_.error().extra_;
+  TransitionState(std::make_unique<StateUpdateError>(&component));
 }
 
-void Component::StateUpdating::InstallComplete(ErrorCategory error_category,
-                                               int error_code,
-                                               int extra_code1) {
+void Component::StateUpdating::PipelineComplete(
+    const CategorizedError& result) {
   DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
 
   auto& component = Component::State::component();
 
-  component.error_category_ = error_category;
-  component.error_code_ = error_code;
-  component.extra_code1_ = extra_code1;
+  if (result.category_ != ErrorCategory::kNone) {
+    component.error_category_ = result.category_;
+    component.error_code_ = result.code_;
+    component.extra_code1_ = result.extra_;
+  }
 
-  if (component.error_code_ != 0) {
+  CHECK(component.crx_component_);
+  if (!component.crx_component_->allow_cached_copies) {
+    component.update_context_->crx_cache_->RemoveAll(
+        component.crx_component()->app_id);
+  }
+
+  if (component.error_category_ != ErrorCategory::kNone) {
     TransitionState(std::make_unique<StateUpdateError>(&component));
     return;
   }
 
-  DCHECK_EQ(ErrorCategory::kNone, component.error_category_);
-  DCHECK_EQ(0, component.error_code_);
-  DCHECK_EQ(0, component.extra_code1_);
-
-  if (component.action_run_.empty())
-    TransitionState(std::make_unique<StateUpdated>(&component));
-  else
-    TransitionState(std::make_unique<StateRun>(&component));
+  CHECK_EQ(ErrorCategory::kNone, component.error_category_);
+  TransitionState(std::make_unique<StateUpdated>(&component));
 }
 
 Component::StateUpdated::StateUpdated(Component* component)
@@ -1182,76 +587,23 @@ void Component::StateUpdated::DoHandle() {
   DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
 
   auto& component = State::component();
-  DCHECK(component.crx_component());
+  CHECK(component.crx_component());
 
   component.crx_component_->version = component.next_version_;
   component.crx_component_->fingerprint = component.next_fp_;
 
+  component.update_context_->persisted_data->SetProductVersion(
+      component.id(), component.crx_component_->version);
+  component.update_context_->persisted_data->SetMaxPreviousProductVersion(
+      component.id(), component.previous_version_);
+  component.update_context_->persisted_data->SetFingerprint(
+      component.id(), component.crx_component_->fingerprint);
+
   component.AppendEvent(component.MakeEventUpdateComplete());
 
-  component.NotifyObservers(Events::COMPONENT_UPDATED);
+  component.NotifyObservers();
+  metrics::RecordComponentUpdated();
   EndState();
-}
-
-Component::StateUninstalled::StateUninstalled(Component* component)
-    : State(component, ComponentState::kUninstalled) {
-  DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
-}
-
-Component::StateUninstalled::~StateUninstalled() {
-  DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
-}
-
-void Component::StateUninstalled::DoHandle() {
-  DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
-
-  auto& component = State::component();
-  DCHECK(component.crx_component());
-
-  component.AppendEvent(component.MakeEventUninstalled());
-
-  EndState();
-}
-
-Component::StateRun::StateRun(Component* component)
-    : State(component, ComponentState::kRun) {}
-
-Component::StateRun::~StateRun() {
-  DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
-}
-
-void Component::StateRun::DoHandle() {
-  DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
-
-  const auto& component = State::component();
-  DCHECK(component.crx_component());
-
-  action_runner_ = std::make_unique<ActionRunner>(component);
-  action_runner_->Run(
-      base::BindOnce(&StateRun::ActionRunComplete, base::Unretained(this)));
-}
-
-void Component::StateRun::ActionRunComplete(bool succeeded,
-                                            int error_code,
-                                            int extra_code1) {
-  DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
-
-  auto& component = State::component();
-
-  component.AppendEvent(
-      component.MakeEventActionRun(succeeded, error_code, extra_code1));
-  switch (component.previous_state_) {
-    case ComponentState::kChecking:
-      TransitionState(std::make_unique<StateUpToDate>(&component));
-      return;
-    case ComponentState::kUpdating:
-    case ComponentState::kUpdatingDiff:
-      TransitionState(std::make_unique<StateUpdated>(&component));
-      return;
-    default:
-      break;
-  }
-  NOTREACHED();
 }
 
 }  // namespace update_client

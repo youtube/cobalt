@@ -2,12 +2,18 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#ifdef UNSAFE_BUFFERS_BUILD
+// TODO(crbug.com/40284755): Remove this and spanify to fix the errors.
+#pragma allow_unsafe_buffers
+#endif
+
 #include "net/dns/dns_config_service_linux.h"
 
 #include <arpa/inet.h>
 #include <resolv.h>
 
 #include <memory>
+#include <optional>
 #include <utility>
 #include <vector>
 
@@ -35,7 +41,6 @@
 #include "net/test/test_with_task_environment.h"
 #include "testing/gmock/include/gmock/gmock.h"
 #include "testing/gtest/include/gtest/gtest.h"
-#include "third_party/abseil-cpp/absl/types/optional.h"
 
 namespace net {
 
@@ -137,13 +142,13 @@ void InitializeExpectedConfig(DnsConfig* config) {
 
 class CallbackHelper {
  public:
-  absl::optional<DnsConfig> WaitForResult() {
+  std::optional<DnsConfig> WaitForResult() {
     run_loop_.Run();
     return GetResult();
   }
 
-  absl::optional<DnsConfig> GetResult() {
-    absl::optional<DnsConfig> result = std::move(config_);
+  std::optional<DnsConfig> GetResult() {
+    std::optional<DnsConfig> result = std::move(config_);
     return result;
   }
 
@@ -158,7 +163,7 @@ class CallbackHelper {
     run_loop_.Quit();
   }
 
-  absl::optional<DnsConfig> config_;
+  std::optional<DnsConfig> config_;
   base::RunLoop run_loop_;
 };
 
@@ -218,7 +223,7 @@ class BlockingHelper {
   }
 
   State state_ = State::kUnblocked;
-  absl::optional<base::RunLoop> run_loop_;
+  std::optional<base::RunLoop> run_loop_;
   base::TestWaitableEvent block_event_;
   base::TestWaitableEvent blocker_event_;
   scoped_refptr<base::SingleThreadTaskRunner> task_runner_ =
@@ -331,7 +336,7 @@ TEST_F(DnsConfigServiceLinuxTest, ConvertResStateToDnsConfig) {
 
   CallbackHelper callback_helper;
   service_.ReadConfig(callback_helper.GetCallback());
-  absl::optional<DnsConfig> config = callback_helper.WaitForResult();
+  std::optional<DnsConfig> config = callback_helper.WaitForResult();
 
   ASSERT_TRUE(config.has_value());
   EXPECT_TRUE(config->IsValid());
@@ -366,7 +371,7 @@ TEST_F(DnsConfigServiceLinuxTest, RejectEmptyNameserver) {
   CallbackHelper callback_helper;
   service_.ReadConfig(callback_helper.GetCallback());
   RunUntilIdle();
-  absl::optional<DnsConfig> config = callback_helper.GetResult();
+  std::optional<DnsConfig> config = callback_helper.GetResult();
 
   EXPECT_FALSE(config.has_value());
   EXPECT_TRUE(resolv_reader_->closed());
@@ -393,7 +398,7 @@ TEST_F(DnsConfigServiceLinuxTest, AcceptNonEmptyNameserver) {
 
   CallbackHelper callback_helper;
   service_.ReadConfig(callback_helper.GetCallback());
-  absl::optional<DnsConfig> config = callback_helper.WaitForResult();
+  std::optional<DnsConfig> config = callback_helper.WaitForResult();
 
   EXPECT_TRUE(config.has_value());
   EXPECT_TRUE(resolv_reader_->closed());
@@ -434,7 +439,7 @@ TEST_F(DnsConfigServiceLinuxTest, AcceptsBasicNsswitchConfig) {
 
   CallbackHelper callback_helper;
   service_.ReadConfig(callback_helper.GetCallback());
-  absl::optional<DnsConfig> config = callback_helper.WaitForResult();
+  std::optional<DnsConfig> config = callback_helper.WaitForResult();
   EXPECT_TRUE(resolv_reader_->closed());
 
   ASSERT_TRUE(config.has_value());
@@ -452,7 +457,7 @@ TEST_F(DnsConfigServiceLinuxTest,
 
   CallbackHelper callback_helper;
   service_.ReadConfig(callback_helper.GetCallback());
-  absl::optional<DnsConfig> config = callback_helper.WaitForResult();
+  std::optional<DnsConfig> config = callback_helper.WaitForResult();
   EXPECT_TRUE(resolv_reader_->closed());
 
   ASSERT_TRUE(config.has_value());
@@ -470,7 +475,7 @@ TEST_F(DnsConfigServiceLinuxTest, RejectsNsswitchWithoutFiles) {
 
   CallbackHelper callback_helper;
   service_.ReadConfig(callback_helper.GetCallback());
-  absl::optional<DnsConfig> config = callback_helper.WaitForResult();
+  std::optional<DnsConfig> config = callback_helper.WaitForResult();
   EXPECT_TRUE(resolv_reader_->closed());
 
   ASSERT_TRUE(config.has_value());
@@ -490,7 +495,7 @@ TEST_F(DnsConfigServiceLinuxTest, RejectsWithExtraFiles) {
 
   CallbackHelper callback_helper;
   service_.ReadConfig(callback_helper.GetCallback());
-  absl::optional<DnsConfig> config = callback_helper.WaitForResult();
+  std::optional<DnsConfig> config = callback_helper.WaitForResult();
   EXPECT_TRUE(resolv_reader_->closed());
 
   ASSERT_TRUE(config.has_value());
@@ -519,7 +524,7 @@ TEST_F(DnsConfigServiceLinuxTest, IgnoresRedundantActions) {
 
   CallbackHelper callback_helper;
   service_.ReadConfig(callback_helper.GetCallback());
-  absl::optional<DnsConfig> config = callback_helper.WaitForResult();
+  std::optional<DnsConfig> config = callback_helper.WaitForResult();
   EXPECT_TRUE(resolv_reader_->closed());
 
   ASSERT_TRUE(config.has_value());
@@ -543,7 +548,7 @@ TEST_F(DnsConfigServiceLinuxTest, RejectsInconsistentActions) {
 
   CallbackHelper callback_helper;
   service_.ReadConfig(callback_helper.GetCallback());
-  absl::optional<DnsConfig> config = callback_helper.WaitForResult();
+  std::optional<DnsConfig> config = callback_helper.WaitForResult();
   EXPECT_TRUE(resolv_reader_->closed());
 
   ASSERT_TRUE(config.has_value());
@@ -565,7 +570,7 @@ TEST_F(DnsConfigServiceLinuxTest, RejectsWithBadFilesSuccessAction) {
 
   CallbackHelper callback_helper;
   service_.ReadConfig(callback_helper.GetCallback());
-  absl::optional<DnsConfig> config = callback_helper.WaitForResult();
+  std::optional<DnsConfig> config = callback_helper.WaitForResult();
   EXPECT_TRUE(resolv_reader_->closed());
 
   ASSERT_TRUE(config.has_value());
@@ -587,7 +592,7 @@ TEST_F(DnsConfigServiceLinuxTest, RejectsWithBadFilesNotFoundAction) {
 
   CallbackHelper callback_helper;
   service_.ReadConfig(callback_helper.GetCallback());
-  absl::optional<DnsConfig> config = callback_helper.WaitForResult();
+  std::optional<DnsConfig> config = callback_helper.WaitForResult();
   EXPECT_TRUE(resolv_reader_->closed());
 
   ASSERT_TRUE(config.has_value());
@@ -605,7 +610,7 @@ TEST_F(DnsConfigServiceLinuxTest, RejectsNsswitchWithoutDns) {
 
   CallbackHelper callback_helper;
   service_.ReadConfig(callback_helper.GetCallback());
-  absl::optional<DnsConfig> config = callback_helper.WaitForResult();
+  std::optional<DnsConfig> config = callback_helper.WaitForResult();
   EXPECT_TRUE(resolv_reader_->closed());
 
   ASSERT_TRUE(config.has_value());
@@ -627,7 +632,7 @@ TEST_F(DnsConfigServiceLinuxTest, RejectsWithBadDnsSuccessAction) {
 
   CallbackHelper callback_helper;
   service_.ReadConfig(callback_helper.GetCallback());
-  absl::optional<DnsConfig> config = callback_helper.WaitForResult();
+  std::optional<DnsConfig> config = callback_helper.WaitForResult();
   EXPECT_TRUE(resolv_reader_->closed());
 
   ASSERT_TRUE(config.has_value());
@@ -646,7 +651,7 @@ TEST_F(DnsConfigServiceLinuxTest, RejectsNsswitchWithMisorderedServices) {
 
   CallbackHelper callback_helper;
   service_.ReadConfig(callback_helper.GetCallback());
-  absl::optional<DnsConfig> config = callback_helper.WaitForResult();
+  std::optional<DnsConfig> config = callback_helper.WaitForResult();
   EXPECT_TRUE(resolv_reader_->closed());
 
   ASSERT_TRUE(config.has_value());
@@ -666,7 +671,7 @@ TEST_F(DnsConfigServiceLinuxTest, AcceptsIncompatibleNsswitchServicesAfterDns) {
 
   CallbackHelper callback_helper;
   service_.ReadConfig(callback_helper.GetCallback());
-  absl::optional<DnsConfig> config = callback_helper.WaitForResult();
+  std::optional<DnsConfig> config = callback_helper.WaitForResult();
   EXPECT_TRUE(resolv_reader_->closed());
 
   ASSERT_TRUE(config.has_value());
@@ -686,7 +691,7 @@ TEST_F(DnsConfigServiceLinuxTest, RejectsNsswitchMdns) {
 
   CallbackHelper callback_helper;
   service_.ReadConfig(callback_helper.GetCallback());
-  absl::optional<DnsConfig> config = callback_helper.WaitForResult();
+  std::optional<DnsConfig> config = callback_helper.WaitForResult();
   EXPECT_TRUE(resolv_reader_->closed());
 
   ASSERT_TRUE(config.has_value());
@@ -706,7 +711,7 @@ TEST_F(DnsConfigServiceLinuxTest, RejectsNsswitchMdns4) {
 
   CallbackHelper callback_helper;
   service_.ReadConfig(callback_helper.GetCallback());
-  absl::optional<DnsConfig> config = callback_helper.WaitForResult();
+  std::optional<DnsConfig> config = callback_helper.WaitForResult();
   EXPECT_TRUE(resolv_reader_->closed());
 
   ASSERT_TRUE(config.has_value());
@@ -726,7 +731,7 @@ TEST_F(DnsConfigServiceLinuxTest, RejectsNsswitchMdns6) {
 
   CallbackHelper callback_helper;
   service_.ReadConfig(callback_helper.GetCallback());
-  absl::optional<DnsConfig> config = callback_helper.WaitForResult();
+  std::optional<DnsConfig> config = callback_helper.WaitForResult();
   EXPECT_TRUE(resolv_reader_->closed());
 
   ASSERT_TRUE(config.has_value());
@@ -751,7 +756,7 @@ TEST_F(DnsConfigServiceLinuxTest, AcceptsNsswitchMdnsMinimal) {
 
   CallbackHelper callback_helper;
   service_.ReadConfig(callback_helper.GetCallback());
-  absl::optional<DnsConfig> config = callback_helper.WaitForResult();
+  std::optional<DnsConfig> config = callback_helper.WaitForResult();
   EXPECT_TRUE(resolv_reader_->closed());
 
   ASSERT_TRUE(config.has_value());
@@ -784,7 +789,7 @@ TEST_F(DnsConfigServiceLinuxTest, AcceptsNsswitchMdnsMinimalWithCommonActions) {
 
   CallbackHelper callback_helper;
   service_.ReadConfig(callback_helper.GetCallback());
-  absl::optional<DnsConfig> config = callback_helper.WaitForResult();
+  std::optional<DnsConfig> config = callback_helper.WaitForResult();
   EXPECT_TRUE(resolv_reader_->closed());
 
   ASSERT_TRUE(config.has_value());
@@ -807,7 +812,7 @@ TEST_F(DnsConfigServiceLinuxTest, RejectsWithBadMdnsMinimalUnavailableAction) {
 
   CallbackHelper callback_helper;
   service_.ReadConfig(callback_helper.GetCallback());
-  absl::optional<DnsConfig> config = callback_helper.WaitForResult();
+  std::optional<DnsConfig> config = callback_helper.WaitForResult();
   EXPECT_TRUE(resolv_reader_->closed());
 
   ASSERT_TRUE(config.has_value());
@@ -828,7 +833,7 @@ TEST_F(DnsConfigServiceLinuxTest, AcceptsNsswitchMyHostname) {
 
   CallbackHelper callback_helper;
   service_.ReadConfig(callback_helper.GetCallback());
-  absl::optional<DnsConfig> config = callback_helper.WaitForResult();
+  std::optional<DnsConfig> config = callback_helper.WaitForResult();
   EXPECT_TRUE(resolv_reader_->closed());
 
   ASSERT_TRUE(config.has_value());
@@ -851,7 +856,7 @@ TEST_F(DnsConfigServiceLinuxTest, RejectsWithBadMyHostnameNotFoundAction) {
 
   CallbackHelper callback_helper;
   service_.ReadConfig(callback_helper.GetCallback());
-  absl::optional<DnsConfig> config = callback_helper.WaitForResult();
+  std::optional<DnsConfig> config = callback_helper.WaitForResult();
   EXPECT_TRUE(resolv_reader_->closed());
 
   ASSERT_TRUE(config.has_value());
@@ -871,7 +876,7 @@ TEST_F(DnsConfigServiceLinuxTest, RejectsNsswitchResolve) {
 
   CallbackHelper callback_helper;
   service_.ReadConfig(callback_helper.GetCallback());
-  absl::optional<DnsConfig> config = callback_helper.WaitForResult();
+  std::optional<DnsConfig> config = callback_helper.WaitForResult();
   EXPECT_TRUE(resolv_reader_->closed());
 
   ASSERT_TRUE(config.has_value());
@@ -891,7 +896,7 @@ TEST_F(DnsConfigServiceLinuxTest, RejectsNsswitchNis) {
 
   CallbackHelper callback_helper;
   service_.ReadConfig(callback_helper.GetCallback());
-  absl::optional<DnsConfig> config = callback_helper.WaitForResult();
+  std::optional<DnsConfig> config = callback_helper.WaitForResult();
   EXPECT_TRUE(resolv_reader_->closed());
 
   ASSERT_TRUE(config.has_value());
@@ -914,7 +919,7 @@ TEST_F(DnsConfigServiceLinuxTest, RejectsWithBadNisNotFoundAction) {
 
   CallbackHelper callback_helper;
   service_.ReadConfig(callback_helper.GetCallback());
-  absl::optional<DnsConfig> config = callback_helper.WaitForResult();
+  std::optional<DnsConfig> config = callback_helper.WaitForResult();
   EXPECT_TRUE(resolv_reader_->closed());
 
   ASSERT_TRUE(config.has_value());
@@ -934,7 +939,7 @@ TEST_F(DnsConfigServiceLinuxTest, RejectsNsswitchUnknown) {
 
   CallbackHelper callback_helper;
   service_.ReadConfig(callback_helper.GetCallback());
-  absl::optional<DnsConfig> config = callback_helper.WaitForResult();
+  std::optional<DnsConfig> config = callback_helper.WaitForResult();
   EXPECT_TRUE(resolv_reader_->closed());
 
   ASSERT_TRUE(config.has_value());
@@ -985,7 +990,7 @@ TEST_F(DnsConfigServiceLinuxTest, FreshReadsAfterAdditionalTriggers) {
 
   // Unblock second read (expect completion)
   blocking_helper.Unblock();
-  absl::optional<DnsConfig> config = callback_helper.WaitForResult();
+  std::optional<DnsConfig> config = callback_helper.WaitForResult();
 
   ASSERT_TRUE(config.has_value());
   EXPECT_TRUE(config->IsValid());

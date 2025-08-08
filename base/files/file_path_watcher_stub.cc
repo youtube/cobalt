@@ -10,7 +10,8 @@
 
 #include <memory>
 
-#include "base/notreached.h"
+#include "base/check.h"
+#include "base/notimplemented.h"
 #include "base/task/sequenced_task_runner.h"
 
 namespace base {
@@ -38,9 +39,7 @@ class FilePathWatcherImpl : public FilePathWatcher::PlatformDelegate {
 
 }  // namespace
 
-FilePathWatcher::FilePathWatcher() {
-  DETACH_FROM_SEQUENCE(sequence_checker_);
-  impl_ = std::make_unique<FilePathWatcherImpl>();
-}
+FilePathWatcher::FilePathWatcher()
+    : FilePathWatcher(std::make_unique<FilePathWatcherImpl>()) {}
 
 }  // namespace base

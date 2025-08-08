@@ -1,4 +1,4 @@
-// Copyright (c) 2012 The Chromium Authors. All rights reserved.
+// Copyright 2012 The Chromium Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -8,15 +8,14 @@
 #include <stdint.h>
 
 #include <memory>
-#include <string>
+#include <string_view>
 
-#include "base/macros.h"
 #include "base/time/time.h"
+#include "base/values.h"
 #include "components/prefs/pref_registry.h"
 #include "components/prefs/prefs_export.h"
 
 namespace base {
-class Value;
 class FilePath;
 }
 
@@ -25,63 +24,63 @@ class COMPONENTS_PREFS_EXPORT PrefRegistrySimple : public PrefRegistry {
  public:
   PrefRegistrySimple();
 
+  PrefRegistrySimple(const PrefRegistrySimple&) = delete;
+  PrefRegistrySimple& operator=(const PrefRegistrySimple&) = delete;
+
   // For each of these registration methods, |flags| is an optional bitmask of
   // PrefRegistrationFlags.
-  void RegisterBooleanPref(const std::string& path,
+  void RegisterBooleanPref(std::string_view path,
                            bool default_value,
                            uint32_t flags = NO_REGISTRATION_FLAGS);
 
-  void RegisterIntegerPref(const std::string& path,
+  void RegisterIntegerPref(std::string_view path,
                            int default_value,
                            uint32_t flags = NO_REGISTRATION_FLAGS);
 
-  void RegisterDoublePref(const std::string& path,
+  void RegisterDoublePref(std::string_view path,
                           double default_value,
                           uint32_t flags = NO_REGISTRATION_FLAGS);
 
-  void RegisterStringPref(const std::string& path,
-                          const std::string& default_value,
+  void RegisterStringPref(std::string_view path,
+                          std::string_view default_value,
                           uint32_t flags = NO_REGISTRATION_FLAGS);
 
-  void RegisterFilePathPref(const std::string& path,
+  void RegisterFilePathPref(std::string_view path,
                             const base::FilePath& default_value,
                             uint32_t flags = NO_REGISTRATION_FLAGS);
 
-  void RegisterListPref(const std::string& path,
+  void RegisterListPref(std::string_view path,
                         uint32_t flags = NO_REGISTRATION_FLAGS);
 
-  void RegisterListPref(const std::string& path,
-                        base::Value default_value,
+  void RegisterListPref(std::string_view path,
+                        base::Value::List default_value,
                         uint32_t flags = NO_REGISTRATION_FLAGS);
 
-  void RegisterDictionaryPref(const std::string& path,
+  void RegisterDictionaryPref(std::string_view path,
                               uint32_t flags = NO_REGISTRATION_FLAGS);
 
-  void RegisterDictionaryPref(const std::string& path,
-                              base::Value default_value,
+  void RegisterDictionaryPref(std::string_view path,
+                              base::Value::Dict default_value,
                               uint32_t flags = NO_REGISTRATION_FLAGS);
 
-  void RegisterInt64Pref(const std::string& path,
+  void RegisterInt64Pref(std::string_view path,
                          int64_t default_value,
                          uint32_t flags = NO_REGISTRATION_FLAGS);
 
-  void RegisterUint64Pref(const std::string& path,
+  void RegisterUint64Pref(std::string_view path,
                           uint64_t default_value,
                           uint32_t flags = NO_REGISTRATION_FLAGS);
 
-  void RegisterTimePref(const std::string& path,
+  void RegisterTimePref(std::string_view path,
                         base::Time default_value,
                         uint32_t flags = NO_REGISTRATION_FLAGS);
 
-  void RegisterTimeDeltaPref(const std::string& path,
+  void RegisterTimeDeltaPref(std::string_view path,
                              base::TimeDelta default_value,
                              uint32_t flags = NO_REGISTRATION_FLAGS);
 
  protected:
   ~PrefRegistrySimple() override;
-
- private:
-  DISALLOW_COPY_AND_ASSIGN(PrefRegistrySimple);
 };
 
 #endif  // COMPONENTS_PREFS_PREF_REGISTRY_SIMPLE_H_

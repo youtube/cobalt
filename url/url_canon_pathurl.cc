@@ -2,6 +2,11 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#ifdef UNSAFE_BUFFERS_BUILD
+// TODO(crbug.com/350788890): Remove this and spanify to fix the errors.
+#pragma allow_unsafe_buffers
+#endif
+
 // Functions for canonicalizing "path" URLs. Not to be confused with the path
 // of a URL, these are URLs that have no authority section, only a path. For
 // example, "javascript:" and "data:".
@@ -35,10 +40,11 @@ void DoCanonicalizePathComponent(const CHAR* source,
     size_t end = static_cast<size_t>(component.end());
     for (size_t i = static_cast<size_t>(component.begin); i < end; i++) {
       UCHAR uch = static_cast<UCHAR>(source[i]);
-      if (uch < 0x20 || uch > 0x7E)
+      if (IsInC0ControlPercentEncodeSet(uch)) {
         AppendUTF8EscapedChar(source, &i, end, output);
-      else
+      } else {
         output->push_back(static_cast<char>(uch));
+      }
     }
     new_component->len = output->length() - new_component->begin;
   } else {

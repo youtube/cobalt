@@ -2,6 +2,13 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#ifdef UNSAFE_BUFFERS_BUILD
+// TODO(crbug.com/40285824): Remove this and convert code to safer constructs.
+#pragma allow_unsafe_buffers
+#endif
+
+#include "media/renderers/paint_canvas_video_renderer.h"
+
 #include <GLES3/gl3.h>
 #include <stdint.h>
 
@@ -9,7 +16,7 @@
 #include "base/logging.h"
 #include "base/memory/aligned_memory.h"
 #include "base/memory/raw_ptr.h"
-#include "base/sys_byteorder.h"
+#include "base/numerics/byte_conversions.h"
 #include "base/test/task_environment.h"
 #include "build/build_config.h"
 #include "cc/paint/paint_flags.h"
@@ -26,7 +33,6 @@
 #include "media/base/timestamp_constants.h"
 #include "media/base/video_frame.h"
 #include "media/base/video_util.h"
-#include "media/renderers/paint_canvas_video_renderer.h"
 #include "media/renderers/shared_image_video_frame_test_utils.h"
 #include "testing/gtest/include/gtest/gtest.h"
 #include "third_party/libyuv/include/libyuv/convert.h"
@@ -35,7 +41,7 @@
 #include "third_party/skia/include/core/SkImage.h"
 #include "third_party/skia/include/core/SkRefCnt.h"
 #include "third_party/skia/include/core/SkSurface.h"
-#include "third_party/skia/include/gpu/GrDirectContext.h"
+#include "third_party/skia/include/gpu/ganesh/GrDirectContext.h"
 #include "ui/gfx/color_space.h"
 #include "ui/gfx/geometry/rect_f.h"
 #include "ui/gl/gl_implementation.h"
@@ -121,6 +127,9 @@ class PaintCanvasVideoRendererTest : public testing::Test {
 
   // Paints to |canvas| using |renderer_| without any frame data.
   void PaintWithoutFrame(cc::PaintCanvas* canvas);
+
+  // Set `video_frame` to `color`.
+  void FillFrameWithColor(scoped_refptr<VideoFrame> video_frame, Color color);
 
   // Paints the |video_frame| to the |canvas| using |renderer_|, setting the
   // color of |video_frame| to |color| first.
@@ -241,12 +250,12 @@ static scoped_refptr<VideoFrame> CreateCroppedFrame() {
   };
 
   libyuv::I420Copy(cropped_y_plane, 16, cropped_u_plane, 8, cropped_v_plane, 8,
-                   cropped_frame->writable_data(VideoFrame::kYPlane),
-                   cropped_frame->stride(VideoFrame::kYPlane),
-                   cropped_frame->writable_data(VideoFrame::kUPlane),
-                   cropped_frame->stride(VideoFrame::kUPlane),
-                   cropped_frame->writable_data(VideoFrame::kVPlane),
-                   cropped_frame->stride(VideoFrame::kVPlane), 16, 16);
+                   cropped_frame->writable_data(VideoFrame::Plane::kY),
+                   cropped_frame->stride(VideoFrame::Plane::kY),
+                   cropped_frame->writable_data(VideoFrame::Plane::kU),
+                   cropped_frame->stride(VideoFrame::Plane::kU),
+                   cropped_frame->writable_data(VideoFrame::Plane::kV),
+                   cropped_frame->stride(VideoFrame::Plane::kV), 16, 16);
 
   return cropped_frame;
 }
@@ -268,11 +277,30 @@ PaintCanvasVideoRendererTest::PaintCanvasVideoRendererTest()
 
 PaintCanvasVideoRendererTest::~PaintCanvasVideoRendererTest() = default;
 
+void PaintCanvasVideoRendererTest::FillFrameWithColor(
+    scoped_refptr<VideoFrame> video_frame,
+    Color color) {
+  switch (color) {
+    case kNone:
+      break;
+    case kRed:
+      media::FillYUV(video_frame.get(), 76, 84, 255);
+      break;
+    case kGreen:
+      media::FillYUV(video_frame.get(), 149, 43, 21);
+      break;
+    case kBlue:
+      media::FillYUV(video_frame.get(), 29, 255, 107);
+      break;
+  }
+}
+
 void PaintCanvasVideoRendererTest::PaintWithoutFrame(cc::PaintCanvas* canvas) {
   cc::PaintFlags flags;
   flags.setFilterQuality(cc::PaintFlags::FilterQuality::kLow);
-  renderer_.Paint(nullptr, canvas, kNaturalRect, flags, kNoTransformation,
-                  nullptr);
+  PaintCanvasVideoRenderer::PaintParams params;
+  params.dest_rect = kNaturalRect;
+  renderer_.Paint(nullptr, canvas, flags, params, nullptr);
 }
 
 void PaintCanvasVideoRendererTest::Paint(scoped_refptr<VideoFrame> video_frame,
@@ -289,24 +317,14 @@ void PaintCanvasVideoRendererTest::PaintRotated(
     Color color,
     SkBlendMode mode,
     VideoTransformation video_transformation) {
-  switch (color) {
-    case kNone:
-      break;
-    case kRed:
-      media::FillYUV(video_frame.get(), 76, 84, 255);
-      break;
-    case kGreen:
-      media::FillYUV(video_frame.get(), 149, 43, 21);
-      break;
-    case kBlue:
-      media::FillYUV(video_frame.get(), 29, 255, 107);
-      break;
-  }
+  FillFrameWithColor(video_frame, color);
   cc::PaintFlags flags;
   flags.setBlendMode(mode);
   flags.setFilterQuality(cc::PaintFlags::FilterQuality::kLow);
-  renderer_.Paint(std::move(video_frame), canvas, dest_rect, flags,
-                  video_transformation, nullptr);
+  PaintCanvasVideoRenderer::PaintParams params;
+  params.dest_rect = dest_rect;
+  params.transformation = video_transformation;
+  renderer_.Paint(std::move(video_frame), canvas, flags, params, nullptr);
 }
 
 void PaintCanvasVideoRendererTest::Copy(scoped_refptr<VideoFrame> video_frame,
@@ -357,6 +375,24 @@ TEST_F(PaintCanvasVideoRendererTest, CopyTransparentFrame) {
        target_canvas());
   EXPECT_EQ(static_cast<SkColor>(SK_ColorTRANSPARENT),
             bitmap()->getColor(0, 0));
+}
+
+TEST_F(PaintCanvasVideoRendererTest, ReinterpretAsSRGB) {
+  FillFrameWithColor(natural_frame(), kRed);
+  natural_frame()->set_color_space(gfx::ColorSpace::CreateHDR10());
+
+  cc::PaintFlags flags;
+  flags.setBlendMode(SkBlendMode::kSrcOver);
+  flags.setFilterQuality(cc::PaintFlags::FilterQuality::kLow);
+
+  PaintCanvasVideoRenderer::PaintParams params;
+  params.dest_rect = kNaturalRect;
+  renderer_.Paint(natural_frame(), target_canvas(), flags, params, nullptr);
+  EXPECT_NE(SK_ColorRED, bitmap()->getColor(0, 0));
+
+  params.reinterpret_as_srgb = true;
+  renderer_.Paint(natural_frame(), target_canvas(), flags, params, nullptr);
+  EXPECT_EQ(SK_ColorRED, bitmap()->getColor(0, 0));
 }
 
 TEST_F(PaintCanvasVideoRendererTest, Natural) {
@@ -619,7 +655,7 @@ TEST_F(PaintCanvasVideoRendererTest, HighBitDepth) {
         param.format, cropped_frame()->coded_size(),
         cropped_frame()->visible_rect(), cropped_frame()->natural_size(),
         cropped_frame()->timestamp()));
-    for (int plane = VideoFrame::kYPlane; plane <= VideoFrame::kVPlane;
+    for (int plane = VideoFrame::Plane::kY; plane <= VideoFrame::Plane::kV;
          ++plane) {
       int width = cropped_frame()->row_bytes(plane);
       uint16_t* dst = reinterpret_cast<uint16_t*>(frame->writable_data(plane));
@@ -673,9 +709,10 @@ TEST_F(PaintCanvasVideoRendererTest, Y16) {
   cc::SkiaPaintCanvas canvas(bitmap);
   cc::PaintFlags flags;
   flags.setFilterQuality(cc::PaintFlags::FilterQuality::kNone);
-  renderer_.Paint(std::move(video_frame), &canvas,
-                  gfx::RectF(bitmap.width(), bitmap.height()), flags,
-                  kNoTransformation, nullptr);
+  PaintCanvasVideoRenderer::PaintParams paint_params;
+  paint_params.dest_rect = gfx::RectF(bitmap.width(), bitmap.height());
+  renderer_.Paint(std::move(video_frame), &canvas, flags, paint_params,
+                  nullptr);
   for (int j = 0; j < bitmap.height(); j++) {
     for (int i = 0; i < bitmap.width(); i++) {
       const int value = i + j * bitmap.width();
@@ -898,31 +935,42 @@ class TestGLES2Interface : public gpu::gles2::GLES2InterfaceStub {
       texsubimage2d_callback_;
 };
 
+#if !BUILDFLAG(IS_ANDROID)
 void MailboxHoldersReleased(const gpu::SyncToken& sync_token) {}
+#endif
 }  // namespace
 
+// NOTE: The below test tests behavior when PaintCanvasVideoRenderer is used
+// without GPU raster. It is not relevant on Android, where GPU raster is
+// always used.
+#if !BUILDFLAG(IS_ANDROID)
 // Test that PaintCanvasVideoRenderer::Paint doesn't crash when GrContext is
 // unable to wrap a video frame texture (eg due to being abandoned).
 TEST_F(PaintCanvasVideoRendererTest, ContextLost) {
   auto context_provider = viz::TestContextProvider::Create();
+  CHECK(context_provider);
   context_provider->BindToCurrentSequence();
+  CHECK(context_provider->GrContext());
   context_provider->GrContext()->abandonContext();
 
   cc::SkiaPaintCanvas canvas(AllocBitmap(kWidth, kHeight));
 
   gfx::Size size(kWidth, kHeight);
-  gpu::MailboxHolder holders[VideoFrame::kMaxPlanes] = {
-      gpu::MailboxHolder(gpu::Mailbox::GenerateForSharedImage(),
-                         gpu::SyncToken(), GL_TEXTURE_RECTANGLE_ARB)};
-  auto video_frame = VideoFrame::WrapNativeTextures(
-      PIXEL_FORMAT_NV12, holders, base::BindOnce(MailboxHoldersReleased), size,
-      gfx::Rect(size), size, kNoTimestamp);
+  scoped_refptr<gpu::ClientSharedImage> shared_image =
+      gpu::ClientSharedImage::CreateForTesting();
+  auto video_frame = VideoFrame::WrapSharedImage(
+      PIXEL_FORMAT_NV12, shared_image, gpu::SyncToken(),
+      base::BindOnce(MailboxHoldersReleased), size, gfx::Rect(size), size,
+      kNoTimestamp);
 
   cc::PaintFlags flags;
   flags.setFilterQuality(cc::PaintFlags::FilterQuality::kLow);
-  renderer_.Paint(std::move(video_frame), &canvas, kNaturalRect, flags,
-                  kNoTransformation, context_provider.get());
+  PaintCanvasVideoRenderer::PaintParams params;
+  params.dest_rect = kNaturalRect;
+  renderer_.Paint(std::move(video_frame), &canvas, flags, params,
+                  context_provider.get());
 }
+#endif
 
 void EmptyCallback(const gpu::SyncToken& sync_token) {}
 
@@ -942,10 +990,10 @@ TEST_F(PaintCanvasVideoRendererTest, CorrectFrameSizeToVisibleRect) {
       media::PIXEL_FORMAT_Y16, coded_size, gfx::Rect(visible_size),
       visible_size, &memory[0], fWidth * fHeight * 2, base::Milliseconds(4));
 
-  gfx::RectF visible_rect(visible_size.width(), visible_size.height());
   cc::PaintFlags flags;
-  renderer_.Paint(std::move(video_frame), &canvas, visible_rect, flags,
-                  kNoTransformation, nullptr);
+  PaintCanvasVideoRenderer::PaintParams params;
+  params.dest_rect = gfx::RectF(visible_size.width(), visible_size.height());
+  renderer_.Paint(std::move(video_frame), &canvas, flags, params, nullptr);
 
   EXPECT_EQ(fWidth / 2, renderer_.LastImageDimensionsForTesting().width());
   EXPECT_EQ(fWidth / 2, renderer_.LastImageDimensionsForTesting().height());
@@ -1044,7 +1092,7 @@ TEST_F(PaintCanvasVideoRendererTest, TexSubImage2D_Y16_R32F) {
       2 /*xoffset*/, 1 /*yoffset*/, false /*flip_y*/, true);
 }
 
-// Fixture for tests that require a GL context.
+// Fixture for tests that require a GL context as destination.
 class PaintCanvasVideoRendererWithGLTest : public testing::Test {
  public:
   using GetColorCallback = base::RepeatingCallback<SkColor(int, int)>;
@@ -1057,9 +1105,9 @@ class PaintCanvasVideoRendererWithGLTest : public testing::Test {
     gpu::ContextResult result = media_context_->BindToCurrentSequence();
     ASSERT_EQ(result, gpu::ContextResult::kSuccess);
 
-    gles2_context_ = base::MakeRefCounted<viz::TestInProcessContextProvider>(
-        viz::TestContextType::kGLES2, /*support_locking=*/false);
-    result = gles2_context_->BindToCurrentSequence();
+    raster_context_ = base::MakeRefCounted<viz::TestInProcessContextProvider>(
+        viz::TestContextType::kGpuRaster, /*support_locking=*/false);
+    result = raster_context_->BindToCurrentSequence();
     ASSERT_EQ(result, gpu::ContextResult::kSuccess);
 
     destination_context_ =
@@ -1073,7 +1121,7 @@ class PaintCanvasVideoRendererWithGLTest : public testing::Test {
   void TearDown() override {
     renderer_.ResetCache();
     destination_context_.reset();
-    gles2_context_.reset();
+    raster_context_.reset();
     media_context_.reset();
     enable_pixels_.reset();
     viz::TestGpuServiceHolder::ResetInstance();
@@ -1133,7 +1181,7 @@ class PaintCanvasVideoRendererWithGLTest : public testing::Test {
   // Creates a cropped RGBA VideoFrame. |closure| is run once the shared images
   // backing the VideoFrame have been destroyed.
   scoped_refptr<VideoFrame> CreateTestRGBAFrame(base::OnceClosure closure) {
-    return CreateSharedImageRGBAFrame(gles2_context_, gfx::Size(16, 8),
+    return CreateSharedImageRGBAFrame(raster_context_, gfx::Size(16, 8),
                                       gfx::Rect(3, 3, 12, 4),
                                       std::move(closure));
   }
@@ -1165,7 +1213,7 @@ class PaintCanvasVideoRendererWithGLTest : public testing::Test {
   // Creates a cropped I420 VideoFrame. |closure| is run once the shared images
   // backing the VideoFrame have been destroyed.
   scoped_refptr<VideoFrame> CreateTestI420Frame(base::OnceClosure closure) {
-    return CreateSharedImageI420Frame(gles2_context_, gfx::Size(16, 8),
+    return CreateSharedImageI420Frame(raster_context_, gfx::Size(16, 8),
                                       gfx::Rect(2, 2, 12, 4),
                                       std::move(closure));
   }
@@ -1173,7 +1221,7 @@ class PaintCanvasVideoRendererWithGLTest : public testing::Test {
   // backing the VideoFrame have been destroyed.
   scoped_refptr<VideoFrame> CreateTestI420FrameNotSubset(
       base::OnceClosure closure) {
-    return CreateSharedImageI420Frame(gles2_context_, gfx::Size(16, 8),
+    return CreateSharedImageI420Frame(raster_context_, gfx::Size(16, 8),
                                       gfx::Rect(0, 0, 16, 8),
                                       std::move(closure));
   }
@@ -1216,7 +1264,7 @@ class PaintCanvasVideoRendererWithGLTest : public testing::Test {
   // not available. |closure| is run once the shared images backing the
   // VideoFrame have been destroyed.
   scoped_refptr<VideoFrame> CreateTestNV12Frame(base::OnceClosure closure) {
-    return CreateSharedImageNV12Frame(gles2_context_, gfx::Size(16, 8),
+    return CreateSharedImageNV12Frame(raster_context_, gfx::Size(16, 8),
                                       gfx::Rect(2, 2, 12, 4),
                                       std::move(closure));
   }
@@ -1232,9 +1280,9 @@ class PaintCanvasVideoRendererWithGLTest : public testing::Test {
   scoped_refptr<VideoFrame> cropped_frame() { return cropped_frame_; }
 
  protected:
-  absl::optional<gl::DisableNullDrawGLBindings> enable_pixels_;
+  std::optional<gl::DisableNullDrawGLBindings> enable_pixels_;
   scoped_refptr<viz::TestInProcessContextProvider> media_context_;
-  scoped_refptr<viz::TestInProcessContextProvider> gles2_context_;
+  scoped_refptr<viz::TestInProcessContextProvider> raster_context_;
   scoped_refptr<viz::TestInProcessContextProvider> destination_context_;
 
   PaintCanvasVideoRenderer renderer_;

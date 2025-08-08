@@ -4,10 +4,12 @@
 
 #include "net/tools/huffman_trie/trie/trie_bit_buffer.h"
 
+#include <bit>
+#include <cstdint>
 #include <ostream>
 
-#include "base/bits.h"
 #include "base/check.h"
+#include "base/not_fatal_until.h"
 #include "net/tools/huffman_trie/bit_writer.h"
 
 namespace net::huffman_trie {
@@ -48,7 +50,7 @@ void TrieBitBuffer::WritePosition(uint32_t position, int32_t* last_position) {
     int32_t delta = position - *last_position;
     DCHECK(delta > 0) << "delta position is not positive.";
 
-    uint8_t number_of_bits = base::bits::Log2Floor(delta) + 1;
+    uint8_t number_of_bits = std::bit_width<uint32_t>(delta);
     DCHECK(number_of_bits <= kMaxBitLength)
         << "positive position delta too large.";
 
@@ -82,7 +84,7 @@ void TrieBitBuffer::WriteChar(uint8_t byte,
                               HuffmanBuilder* huffman_builder) {
   HuffmanRepresentationTable::const_iterator item;
   item = table.find(byte);
-  DCHECK(item != table.end());
+  CHECK(item != table.end(), base::NotFatalUntil::M130);
   if (huffman_builder) {
     huffman_builder->RecordUsage(byte);
   }
@@ -140,7 +142,7 @@ uint32_t TrieBitBuffer::WriteToBitWriter(BitWriter* writer) {
       uint32_t target = element.position;
       DCHECK(target < current) << "Reference is not backwards";
       uint32_t delta = current - target;
-      uint8_t delta_number_of_bits = base::bits::Log2Floor(delta) + 1;
+      uint8_t delta_number_of_bits = std::bit_width(delta);
       DCHECK(delta_number_of_bits < 32) << "Delta too large";
       writer->WriteBits(delta_number_of_bits, 5);
       writer->WriteBits(delta, delta_number_of_bits);

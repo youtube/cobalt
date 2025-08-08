@@ -8,6 +8,7 @@
 #include <stdint.h>
 
 #include <memory>
+#include <optional>
 #include <vector>
 
 #include "base/time/time.h"
@@ -20,7 +21,6 @@
 #include "media/base/media_track.h"
 #include "media/base/pipeline_status.h"
 #include "media/base/ranges.h"
-#include "third_party/abseil-cpp/absl/types/optional.h"
 
 namespace media {
 
@@ -76,11 +76,9 @@ class MEDIA_EXPORT Demuxer : public MediaResource {
   using MediaTracksUpdatedCB =
       base::RepeatingCallback<void(std::unique_ptr<MediaTracks>)>;
 
-  // Called once the demuxer has finished enabling or disabling tracks. The type
-  // argument is required because the vector may be empty.
+  // Called once the demuxer has finished enabling or disabling tracks.
   using TrackChangeCB =
-      base::OnceCallback<void(DemuxerStream::Type type,
-                              const std::vector<DemuxerStream*>&)>;
+      base::OnceCallback<void(const std::vector<DemuxerStream*>&)>;
 
   enum DemuxerTypes {
     kChunkDemuxer,
@@ -170,7 +168,7 @@ class MEDIA_EXPORT Demuxer : public MediaResource {
   // Implementations where this is not meaningful will return an empty value.
   // Implementations that do provide values should always provide a value,
   // returning CONTAINER_UNKNOWN in cases where the container is not known.
-  virtual absl::optional<container_names::MediaContainerName>
+  virtual std::optional<container_names::MediaContainerName>
   GetContainerForMetrics() const = 0;
 
   // The |track_ids| vector has either 1 track, or is empty, indicating that
@@ -190,6 +188,9 @@ class MEDIA_EXPORT Demuxer : public MediaResource {
   // Allows a demuxer to change behavior based on the playback rate, including
   // but not limited to changing the amount of buffer space.
   virtual void SetPlaybackRate(double rate) = 0;
+
+  // Allow canChangeType to be disabled.
+  virtual void DisableCanChangeType();
 };
 
 }  // namespace media

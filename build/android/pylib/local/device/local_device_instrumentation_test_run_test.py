@@ -9,7 +9,6 @@
 
 
 import unittest
-import mock  # pylint: disable=import-error
 
 from pylib.base import base_test_result
 from pylib.base import mock_environment
@@ -27,7 +26,7 @@ class LocalDeviceInstrumentationTestRunTest(unittest.TestCase):
         local_device_instrumentation_test_run.LocalDeviceInstrumentationTestRun(
             self._env, self._ti))
 
-  # TODO(crbug.com/797002): Decide whether the _ShouldRetry hook is worth
+  # TODO(crbug.com/41361955): Decide whether the _ShouldRetry hook is worth
   # retaining and remove these tests if not.
 
   def testShouldRetry_failure(self):
@@ -35,7 +34,6 @@ class LocalDeviceInstrumentationTestRunTest(unittest.TestCase):
         'annotations': {},
         'class': 'SadTest',
         'method': 'testFailure',
-        'is_junit4': True,
     }
     result = base_test_result.BaseTestResult(
         'SadTest.testFailure', base_test_result.ResultType.FAIL)
@@ -46,7 +44,6 @@ class LocalDeviceInstrumentationTestRunTest(unittest.TestCase):
         'annotations': {'RetryOnFailure': None},
         'class': 'SadTest',
         'method': 'testRetryOnFailure',
-        'is_junit4': True,
     }
     result = base_test_result.BaseTestResult(
         'SadTest.testRetryOnFailure', base_test_result.ResultType.FAIL)
@@ -57,7 +54,6 @@ class LocalDeviceInstrumentationTestRunTest(unittest.TestCase):
         'annotations': {},
         'class': 'SadTest',
         'method': 'testNotRun',
-        'is_junit4': True,
     }
     result = base_test_result.BaseTestResult(
         'SadTest.testNotRun', base_test_result.ResultType.NOTRUN)
@@ -72,7 +68,6 @@ class LocalDeviceInstrumentationTestRunTest(unittest.TestCase):
         },
         'class': 'WPRDummyTest',
         'method': 'testRun',
-        'is_junit4': True,
     }
     self.assertTrue(
         local_device_instrumentation_test_run._IsWPRRecordReplayTest(test))
@@ -86,7 +81,6 @@ class LocalDeviceInstrumentationTestRunTest(unittest.TestCase):
         },
         'class': 'WPRDummyTest',
         'method': 'testRun',
-        'is_junit4': True,
     }
     self.assertFalse(
         local_device_instrumentation_test_run._IsWPRRecordReplayTest(test))
@@ -100,7 +94,6 @@ class LocalDeviceInstrumentationTestRunTest(unittest.TestCase):
         },
         'class': 'WPRDummyTest',
         'method': 'testRun',
-        'is_junit4': True,
     }
     self.assertEqual(
         local_device_instrumentation_test_run._GetWPRArchivePath(test), 'abc')
@@ -114,7 +107,6 @@ class LocalDeviceInstrumentationTestRunTest(unittest.TestCase):
         },
         'class': 'WPRDummyTest',
         'method': 'testRun',
-        'is_junit4': True,
     }
     self.assertFalse(
         local_device_instrumentation_test_run._GetWPRArchivePath(test))
@@ -128,7 +120,6 @@ class LocalDeviceInstrumentationTestRunTest(unittest.TestCase):
         },
         'class': 'DummyTest',
         'method': 'testRun',
-        'is_junit4': True,
     }
     self.assertTrue(local_device_instrumentation_test_run._IsRenderTest(test))
 
@@ -141,7 +132,6 @@ class LocalDeviceInstrumentationTestRunTest(unittest.TestCase):
         },
         'class': 'DummyTest',
         'method': 'testRun',
-        'is_junit4': True,
     }
     self.assertFalse(local_device_instrumentation_test_run._IsRenderTest(test))
 
@@ -164,33 +154,6 @@ class LocalDeviceInstrumentationTestRunTest(unittest.TestCase):
     original = ''
     with self.assertRaises(ValueError):
       local_device_instrumentation_test_run._ReplaceUncommonChars(original)
-
-  def testStoreDataInAppDir(self):
-    env = mock.MagicMock()
-    test_instance = mock.MagicMock()
-    test_instance.store_data_in_app_directory = True
-    device = mock.MagicMock()
-
-    device.GetApplicationDataDirectory.return_value = 'app_dir'
-    device.GetExternalStoragePath.return_value = 'external_dir'
-    test_run = (
-        local_device_instrumentation_test_run.LocalDeviceInstrumentationTestRun(
-            env, test_instance))
-    self.assertEqual(test_run._GetDataStorageRootDirectory(device), 'app_dir')
-
-  def testStoreDataInExternalDir(self):
-    env = mock.MagicMock()
-    test_instance = mock.MagicMock()
-    test_instance.store_data_in_app_directory = False
-    device = mock.MagicMock()
-
-    device.GetApplicationDataDirectory.return_value = 'app_dir'
-    device.GetExternalStoragePath.return_value = 'external_dir'
-    test_run = (
-        local_device_instrumentation_test_run.LocalDeviceInstrumentationTestRun(
-            env, test_instance))
-    self.assertEqual(test_run._GetDataStorageRootDirectory(device),
-                     'external_dir')
 
 
 if __name__ == '__main__':

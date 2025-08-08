@@ -42,7 +42,6 @@ bool IsAlternateProtocolValid(NextProto protocol) {
       return true;
   }
   NOTREACHED();
-  return false;
 }
 
 bool IsProtocolEnabled(NextProto protocol,
@@ -51,7 +50,6 @@ bool IsProtocolEnabled(NextProto protocol,
   switch (protocol) {
     case kProtoUnknown:
       NOTREACHED();
-      return false;
     case kProtoHTTP11:
       return true;
     case kProtoHTTP2:
@@ -60,7 +58,6 @@ bool IsProtocolEnabled(NextProto protocol,
       return is_quic_enabled;
   }
   NOTREACHED();
-  return false;
 }
 
 // static
@@ -77,19 +74,10 @@ AlternativeServiceInfo::CreateHttp2AlternativeServiceInfo(
 AlternativeServiceInfo AlternativeServiceInfo::CreateQuicAlternativeServiceInfo(
     const AlternativeService& alternative_service,
     base::Time expiration,
-#if defined(STARBOARD)
-    const quic::ParsedQuicVersionVector& advertised_versions,
-    bool protocol_filter_override) {
-#else
     const quic::ParsedQuicVersionVector& advertised_versions) {
-#endif  // defined(STARBOARD)
   DCHECK_EQ(alternative_service.protocol, kProtoQUIC);
   return AlternativeServiceInfo(alternative_service, expiration,
-#if defined(STARBOARD)
-                                advertised_versions, protocol_filter_override);
-#else
                                 advertised_versions);
-#endif  // defined(STARBOARD)
 }
 
 AlternativeServiceInfo::AlternativeServiceInfo() : alternative_service_() {}
@@ -99,19 +87,11 @@ AlternativeServiceInfo::~AlternativeServiceInfo() = default;
 AlternativeServiceInfo::AlternativeServiceInfo(
     const AlternativeService& alternative_service,
     base::Time expiration,
-#if defined(STARBOARD)
-    const quic::ParsedQuicVersionVector& advertised_versions,
-    bool protocol_filter_override)
-#else
     const quic::ParsedQuicVersionVector& advertised_versions)
-#endif  // defined(STARBOARD)
     : alternative_service_(alternative_service), expiration_(expiration) {
   if (alternative_service_.protocol == kProtoQUIC) {
     advertised_versions_ = advertised_versions;
   }
-#if defined(STARBOARD)
-  protocol_filter_override_ = protocol_filter_override;
-#endif  // defined(STARBOARD)
 }
 
 AlternativeServiceInfo::AlternativeServiceInfo(
@@ -126,6 +106,8 @@ std::string AlternativeService::ToString() const {
 }
 
 std::string AlternativeServiceInfo::ToString() const {
+  // NOTE: Cannot use `base::UnlocalizedTimeFormatWithPattern()` since
+  // `net/DEPS` disallows `base/i18n`.
   base::Time::Exploded exploded;
   expiration_.LocalExplode(&exploded);
   return base::StringPrintf(
@@ -154,7 +136,7 @@ AlternativeServiceInfoVector ProcessAlternativeServices(
     bool is_quic_enabled,
     const quic::ParsedQuicVersionVector& supported_quic_versions) {
   // Convert spdy::SpdyAltSvcWireFormat::AlternativeService entries
-  // to net::AlternativeServiceInfo.
+  // to AlternativeServiceInfo.
   AlternativeServiceInfoVector alternative_service_info_vector;
   for (const spdy::SpdyAltSvcWireFormat::AlternativeService&
            alternative_service_entry : alternative_service_vector) {

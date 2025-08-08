@@ -1,6 +1,8 @@
-# Copyright 2017 The Chromium Authors. All rights reserved.
+# Copyright 2017 The Chromium Authors
 # Use of this source code is governed by a BSD-style license that can be
 # found in the LICENSE file.
+
+import("//tools/metrics/histograms/histograms_xml_files.gni")
 
 # Runs the resources map generation script other the given header files to
 # produce an output file and a source_set to build it.
@@ -8,7 +10,8 @@
 # Parameters:
 #   inputs:
 #     List of file name to read. Each file should be a .xml file with
-#     histogram descriptions.
+#     histogram descriptions and should be a path starting with
+#     //tools/metrics/histograms/
 #
 #   namespace (optional):
 #     Namespace in which the generated code should be scoped. If left empty,
@@ -28,11 +31,10 @@ template("generate_expired_histograms_array") {
     header_filename = "$target_gen_dir/" + invoker.header_filename
 
     script = "//tools/metrics/histograms/generate_expired_histograms_array.py"
-    outputs = [
-      header_filename,
-    ]
+    outputs = [ header_filename ]
 
-    inputs = invoker.inputs
+    inputs = histograms_xml_files
+
     major_branch_date_filepath = invoker.major_branch_date_filepath
     milestone_filepath = invoker.milestone_filepath
 

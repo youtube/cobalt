@@ -13,7 +13,6 @@ import android.os.IBinder;
 
 import org.chromium.base.Log;
 import org.chromium.base.TraceEvent;
-import org.chromium.base.compat.ApiHelperForQ;
 
 import java.util.concurrent.Executor;
 
@@ -31,8 +30,13 @@ import java.util.concurrent.Executor;
     private final String mInstanceName;
     private boolean mBound;
 
-    /* package */ ChildServiceConnectionImpl(Context context, Intent bindIntent, int bindFlags,
-            Handler handler, Executor executor, ChildServiceConnectionDelegate delegate,
+    /* package */ ChildServiceConnectionImpl(
+            Context context,
+            Intent bindIntent,
+            int bindFlags,
+            Handler handler,
+            Executor executor,
+            ChildServiceConnectionDelegate delegate,
             String instanceName) {
         mContext = context;
         mBindIntent = bindIntent;
@@ -47,8 +51,15 @@ import java.util.concurrent.Executor;
     public boolean bindServiceConnection() {
         try {
             TraceEvent.begin("ChildServiceConnectionImpl.bindServiceConnection");
-            mBound = BindService.doBindService(
-                    mContext, mBindIntent, this, mBindFlags, mHandler, mExecutor, mInstanceName);
+            mBound =
+                    BindService.doBindService(
+                            mContext,
+                            mBindIntent,
+                            this,
+                            mBindFlags,
+                            mHandler,
+                            mExecutor,
+                            mInstanceName);
         } finally {
             TraceEvent.end("ChildServiceConnectionImpl.bindServiceConnection");
         }
@@ -81,7 +92,7 @@ import java.util.concurrent.Executor;
         }
         if (BindService.supportVariableConnections()) {
             try {
-                ApiHelperForQ.updateServiceGroup(mContext, this, group, importanceInGroup);
+                mContext.updateServiceGroup(this, group, importanceInGroup);
             } catch (IllegalArgumentException e) {
                 // There is an unavoidable race here binding might be removed for example due to a
                 // crash, which has not been processed on the launcher thread.

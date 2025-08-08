@@ -1,0 +1,26 @@
+// Copyright 2023 The Chromium Authors
+// Use of this source code is governed by a BSD-style license that can be
+// found in the LICENSE file.
+
+// TODO(crbug.com/373648906): Figure out where this definition should be.
+enum PermissionState {
+    "granted",
+    "denied",
+    "prompt"
+};
+
+[RuntimeEnabled=PermissionElement, Exposed=Window]
+interface HTMLPermissionElement : HTMLElement {
+  [HTMLConstructor] constructor();
+  [CEReactions, Reflect] attribute DOMString type;
+
+  readonly attribute boolean isValid;
+  readonly attribute DOMString invalidReason;
+
+  readonly attribute PermissionState initialPermissionStatus;
+  readonly attribute PermissionState permissionStatus;
+
+  attribute EventHandler onresolve;
+  attribute EventHandler ondismiss;
+  attribute EventHandler onvalidationstatuschange;
+};

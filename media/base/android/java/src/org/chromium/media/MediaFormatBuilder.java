@@ -4,6 +4,7 @@
 
 package org.chromium.media;
 
+import android.media.MediaCodecInfo;
 import android.media.MediaFormat;
 import android.os.Build;
 
@@ -13,8 +14,14 @@ import org.chromium.media.MediaCodecUtil.MimeTypes;
 import java.nio.ByteBuffer;
 
 class MediaFormatBuilder {
-    public static MediaFormat createVideoDecoderFormat(String mime, int width, int height,
-            byte[][] csds, HdrMetadata hdrMetadata, boolean allowAdaptivePlayback) {
+    public static MediaFormat createVideoDecoderFormat(
+            String mime,
+            int width,
+            int height,
+            byte[][] csds,
+            HdrMetadata hdrMetadata,
+            boolean allowAdaptivePlayback,
+            int profile) {
         MediaFormat format = MediaFormat.createVideoFormat(mime, width, height);
         if (format == null) return null;
         setCodecSpecificData(format, csds);
@@ -22,11 +29,19 @@ class MediaFormatBuilder {
             hdrMetadata.addMetadataToFormat(format);
         }
         addInputSizeInfoToFormat(format, allowAdaptivePlayback);
+        addProfileInfoToFormat(format, profile);
         return format;
     }
 
-    public static MediaFormat createVideoEncoderFormat(String mime, int width, int height,
-            int bitrateMode, int bitRate, int frameRate, int iFrameInterval, int colorFormat,
+    public static MediaFormat createVideoEncoderFormat(
+            String mime,
+            int width,
+            int height,
+            int bitrateMode,
+            int bitRate,
+            int frameRate,
+            int iFrameInterval,
+            int colorFormat,
             boolean allowAdaptivePlayback) {
         MediaFormat format = MediaFormat.createVideoFormat(mime, width, height);
         format.setInteger(MediaFormat.KEY_BIT_RATE, bitRate);
@@ -38,8 +53,12 @@ class MediaFormatBuilder {
         return format;
     }
 
-    public static MediaFormat createAudioFormat(String mime, int sampleRate, int channelCount,
-            byte[][] csds, boolean frameHasAdtsHeader) {
+    public static MediaFormat createAudioFormat(
+            String mime,
+            int sampleRate,
+            int channelCount,
+            byte[][] csds,
+            boolean frameHasAdtsHeader) {
         MediaFormat format = MediaFormat.createAudioFormat(mime, sampleRate, channelCount);
         setCodecSpecificData(format, csds);
         if (frameHasAdtsHeader) {
@@ -85,11 +104,13 @@ class MediaFormatBuilder {
             // Already set. The source of the format may know better, so do nothing.
             return;
         }
-        int maxHeight = format.getInteger(MediaFormat.KEY_HEIGHT);
+
+        // The size calculations break down at small sizes, so use at least 128x128.
+        int maxHeight = Math.max(128, format.getInteger(MediaFormat.KEY_HEIGHT));
         if (allowAdaptivePlayback && format.containsKey(MediaFormat.KEY_MAX_HEIGHT)) {
             maxHeight = Math.max(maxHeight, format.getInteger(MediaFormat.KEY_MAX_HEIGHT));
         }
-        int maxWidth = format.getInteger(MediaFormat.KEY_WIDTH);
+        int maxWidth = Math.max(128, format.getInteger(MediaFormat.KEY_WIDTH));
         if (allowAdaptivePlayback && format.containsKey(MediaFormat.KEY_MAX_WIDTH)) {
             maxWidth = Math.max(maxHeight, format.getInteger(MediaFormat.KEY_MAX_WIDTH));
         }
@@ -114,6 +135,7 @@ class MediaFormatBuilder {
             case MimeTypes.VIDEO_HEVC:
             case MimeTypes.VIDEO_VP9:
             case MimeTypes.VIDEO_AV1:
+            case MimeTypes.VIDEO_DV:
                 maxPixels = maxWidth * maxHeight;
                 minCompressionRatio = 4;
                 break;
@@ -124,5 +146,19 @@ class MediaFormatBuilder {
         // Estimate the maximum input size assuming three channel 4:2:0 subsampled input frames.
         int maxInputSize = (maxPixels * 3) / (2 * minCompressionRatio);
         format.setInteger(MediaFormat.KEY_MAX_INPUT_SIZE, maxInputSize);
+    }
+
+    private static void addProfileInfoToFormat(MediaFormat format, int profile) {
+        if (format.getString(MediaFormat.KEY_MIME).equals(MimeTypes.VIDEO_DV)) {
+            if (profile == VideoCodecProfile.DOLBYVISION_PROFILE5) {
+                format.setInteger(
+                        MediaFormat.KEY_PROFILE,
+                        MediaCodecInfo.CodecProfileLevel.DolbyVisionProfileDvheStn);
+            } else if (profile == VideoCodecProfile.DOLBYVISION_PROFILE8) {
+                format.setInteger(
+                        MediaFormat.KEY_PROFILE,
+                        MediaCodecInfo.CodecProfileLevel.DolbyVisionProfileDvheSt);
+            }
+        }
     }
 }

@@ -56,7 +56,8 @@ from pylib.utils import test_filter
 
 from py_utils import contextlib_ext
 
-from lib.results import result_sink  # pylint: disable=import-error
+from lib.proto import exception_recorder
+from lib.results import result_sink
 
 _DEVIL_STATIC_CONFIG_FILE = os.path.abspath(os.path.join(
     host_paths.DIR_SOURCE_ROOT, 'build', 'android', 'devil_config.json'))
@@ -120,6 +121,15 @@ def AddCommandLineOptions(parser):
       action='store_true',
       help='Wether to use the flags file for the apk under test. If set, '
            "the filename will be looked up in the APK's PackageInfo.")
+  parser.add_argument('--variations-test-seed-path',
+                      type=os.path.relpath,
+                      default=None,
+                      help='Path to variations seed file.')
+  parser.add_argument('--webview-variations-test-seed-path',
+                      type=os.path.relpath,
+                      default=None,
+                      help='Path to variations seed file for WebView.')
+
   parser.set_defaults(allow_unknown=True)
   parser.set_defaults(command_line_flags=None)
 
@@ -261,6 +271,9 @@ def AddCommonOptions(parser):
                       help='If present, store test results on this path.')
   parser.add_argument('--isolated-script-test-perf-output',
                       help='If present, store chartjson results on this path.')
+  parser.add_argument('--timeout-scale',
+                      type=float,
+                      help='Factor by which timeouts should be scaled.')
 
   AddTestLauncherOptions(parser)
 
@@ -290,6 +303,10 @@ def AddDeviceOptions(parser):
       type=os.path.realpath,
       help='Specify the absolute path of the adb binary that '
            'should be used.')
+  parser.add_argument(
+      '--use-local-devil-tools',
+      action='store_true',
+      help='Use locally built versions of tools used by devil_chromium.')
   parser.add_argument('--denylist-file',
                       type=os.path.realpath,
                       help='Device denylist file.')
@@ -306,22 +323,19 @@ def AddDeviceOptions(parser):
       '--enable-device-cache',
       action='store_true',
       help='Cache device state to disk between runs')
-  parser.add_argument(
-      '--skip-clear-data',
-      action='store_true',
-      help='Do not wipe app data between tests. Use this to '
-           'speed up local development and never on bots '
-                     '(increases flakiness)')
+  parser.add_argument('--list-data',
+                      action='store_true',
+                      help='List files pushed to device and exit.')
+  parser.add_argument('--skip-clear-data',
+                      action='store_true',
+                      help='Do not wipe app data between tests. Use this to '
+                      'speed up local development and never on bots '
+                      '(increases flakiness)')
   parser.add_argument(
       '--recover-devices',
       action='store_true',
       help='Attempt to recover devices prior to the final retry. Warning: '
-           'this will cause all devices to reboot.')
-  parser.add_argument(
-      '--tool',
-      dest='tool',
-      help='Run the test under a tool '
-           '(use --tool help to list them)')
+      'this will cause all devices to reboot.')
 
   parser.add_argument(
       '--upload-logcats-file',
@@ -338,6 +352,13 @@ def AddDeviceOptions(parser):
       '--logcat-output-file', type=os.path.realpath,
       help='If set, will merge logcats recorded during test run and dump them '
            'to the specified file.')
+
+  parser.add_argument(
+      '--force-main-user',
+      action='store_true',
+      help='Force the applicable adb commands to run with "--user" param set '
+      'to the id of the main user on device. Only use when the main user is a '
+      'secondary user, e.g. Android Automotive OS.')
 
 
 def AddEmulatorOptions(parser):
@@ -366,6 +387,10 @@ def AddEmulatorOptions(parser):
       'disable debug messages from specific parts of the emulator, e.g. '
       'init,snapshot. See "emulator -help-debug-tags" '
       'for a full list of tags.')
+  parser.add_argument(
+      '--emulator-enable-network',
+      action='store_true',
+      help='Enable the network (WiFi and mobile data) on the emulator.')
 
 
 def AddGTestOptions(parser):
@@ -373,6 +398,12 @@ def AddGTestOptions(parser):
 
   parser = parser.add_argument_group('gtest arguments')
 
+  parser.add_argument(
+      '--additional-apk',
+      action='append', dest='additional_apks', default=[],
+      type=_RealPath,
+      help='Additional apk that must be installed on '
+           'the device when the tests are run.')
   parser.add_argument(
       '--app-data-file',
       action='append', dest='app_data_files',
@@ -445,6 +476,12 @@ def AddGTestOptions(parser):
       help='Do not push new files to the device, instead using existing APK '
       'and test data. Only use when running the same test for multiple '
       'iterations.')
+  # This is currently only implemented for gtests tests.
+  parser.add_argument('--gtest_also_run_pre_tests',
+                      '--gtest-also-run-pre-tests',
+                      dest='run_pre_tests',
+                      action='store_true',
+                      help='Also run PRE_ tests if applicable.')
 
 
 def AddInstrumentationTestOptions(parser):
@@ -491,10 +528,9 @@ def AddInstrumentationTestOptions(parser):
       '--apk-under-test',
       help='Path or name of the apk under test.')
   parser.add_argument(
-      '--store-data-in-app-directory',
+      '--store-data-dependencies-in-temp',
       action='store_true',
-      help='Store test data in the application\'s data directory. By default '
-      'the test data is stored in the external storage folder.')
+      help='Store data dependencies in /data/local/tmp/chromium_tests_root')
   parser.add_argument(
       '--module',
       action='append',
@@ -563,6 +599,16 @@ def AddInstrumentationTestOptions(parser):
            "on Nougat the provider can't be determined and so "
            'the system will choose the default provider.')
   parser.add_argument(
+      '--webview-command-line-arg',
+      default=[],
+      action='append',
+      help="Specifies command line arguments to add to WebView's flag file")
+  parser.add_argument(
+      '--webview-process-mode',
+      choices=['single', 'multiple'],
+      help='Run WebView instrumentation tests only in the specified process '
+      'mode. If not set, both single and multiple process modes will execute.')
+  parser.add_argument(
       '--run-setup-command',
       default=[],
       action='append',
@@ -584,22 +630,6 @@ def AddInstrumentationTestOptions(parser):
       '--screenshot-directory',
       dest='screenshot_dir', type=os.path.realpath,
       help='Capture screenshots of test failures')
-  parser.add_argument(
-      '--shared-prefs-file',
-      dest='shared_prefs_file', type=_RealPath,
-      help='The relative path to a file containing JSON list of shared '
-           'preference files to edit and how to do so. Example list: '
-           '[{'
-           '  "package": "com.package.example",'
-           '  "filename": "ExampleSettings.xml",'
-           '  "set": {'
-           '    "boolean_key_in_xml": true,'
-           '    "string_key_in_xml": "string_value"'
-           '  },'
-           '  "remove": ['
-           '    "key_in_xml_to_remove"'
-           '  ]'
-           '}]')
   parser.add_argument(
       '--store-tombstones',
       action='store_true', dest='store_tombstones',
@@ -626,10 +656,6 @@ def AddInstrumentationTestOptions(parser):
       help=('Not actually used for instrumentation tests, but can be used as '
             'a proxy for determining if the current run is a retry without '
             'patch.'))
-  parser.add_argument(
-      '--timeout-scale',
-      type=float,
-      help='Factor by which timeouts should be scaled.')
   parser.add_argument(
       '--is-unit-test',
       action='store_true',
@@ -725,6 +751,61 @@ def AddSkiaGoldTestOptions(parser):
       'used in case a Gold outage occurs and cannot be fixed quickly.')
 
 
+def AddHostsideTestOptions(parser):
+  """Adds hostside test options to |parser|."""
+
+  parser = parser.add_argument_group('hostside arguments')
+
+  parser.add_argument(
+      '-s', '--test-suite', required=True,
+      help='Hostside test suite to run.')
+  parser.add_argument(
+      '--test-apk-as-instant',
+      action='store_true',
+      help='Install the test apk as an instant app. '
+      'Instant apps run in a more restrictive execution environment.')
+  parser.add_argument(
+      '--additional-apk',
+      action='append',
+      dest='additional_apks',
+      default=[],
+      type=_RealPath,
+      help='Additional apk that must be installed on '
+           'the device when the tests are run')
+  parser.add_argument(
+      '--use-webview-provider',
+      type=_RealPath, default=None,
+      help='Use this apk as the webview provider during test. '
+           'The original provider will be restored if possible, '
+           "on Nougat the provider can't be determined and so "
+           'the system will choose the default provider.')
+  parser.add_argument(
+      '--tradefed-executable',
+      type=_RealPath, default=None,
+      help='Location of the cts-tradefed script')
+  parser.add_argument(
+      '--tradefed-aapt-path',
+      type=_RealPath, default=None,
+      help='Location of the directory containing aapt binary')
+  parser.add_argument(
+      '--tradefed-adb-path',
+      type=_RealPath, default=None,
+      help='Location of the directory containing adb binary')
+  # The below arguments are not used, but allow us to pass the same arguments
+  # from run_cts.py regardless of type of run (instrumentation/hostside)
+  parser.add_argument(
+      '--apk-under-test',
+      help=argparse.SUPPRESS)
+  parser.add_argument(
+      '--use-apk-under-test-flags-file',
+      action='store_true',
+      help=argparse.SUPPRESS)
+  parser.add_argument(
+      '-E', '--exclude-annotation',
+      dest='exclude_annotation_str',
+      help=argparse.SUPPRESS)
+
+
 def AddJUnitTestOptions(parser):
   """Adds junit test options to |parser|."""
 
@@ -743,13 +824,16 @@ def AddJUnitTestOptions(parser):
   parser.add_argument(
       '--runner-filter',
       help='Filters tests by runner class. Must be fully qualified.')
+  parser.add_argument('--json-config',
+                      help='Runs only tests listed in this config.')
   parser.add_argument(
       '--shards',
-      default=-1,
       type=int,
       help='Number of shards to run junit tests in parallel on. Only 1 shard '
       'is supported when test-filter is specified. Values less than 1 will '
       'use auto select.')
+  parser.add_argument('--shard-filter',
+                      help='Comma separated list of shard indices to run.')
   parser.add_argument(
       '-s', '--test-suite', required=True,
       help='JUnit test suite to run.')
@@ -773,6 +857,8 @@ def AddJUnitTestOptions(parser):
       '--resource-apk',
       required=True,
       help='Path to .ap_ containing binary resources for Robolectric.')
+  parser.add_argument('--shadows-allowlist',
+                      help='Path to Allowlist file for Shadows.')
 
 
 def AddLinkerTestOptions(parser):
@@ -870,7 +956,7 @@ def _RunPythonTests(args):
 
 
 _DEFAULT_PLATFORM_MODE_TESTS = [
-    'gtest', 'instrumentation', 'junit', 'linker', 'monkey'
+    'gtest', 'hostside', 'instrumentation', 'junit', 'linker', 'monkey'
 ]
 
 
@@ -891,7 +977,7 @@ def RunTestsCommand(args, result_sink_client=None):
   command = args.command
 
   ProcessCommonOptions(args)
-  logging.info('command: %s', ' '.join(sys.argv))
+  logging.info('command: %s', shlex.join(sys.argv))
   if args.enable_platform_mode or command in _DEFAULT_PLATFORM_MODE_TESTS:
     return RunTestsInPlatformMode(args, result_sink_client)
 
@@ -930,7 +1016,7 @@ def _SinkTestResult(test_result, test_file_name, result_sink_client):
   result_sink_client.Post(test_result.GetNameForResultSink(),
                           test_result.GetType(),
                           test_result.GetDuration(),
-                          log_decoded.encode('utf-8'),
+                          log_decoded,
                           test_file_name,
                           variant=test_result.GetVariantForResultSink(),
                           failure_reason=test_result.GetFailureReason(),
@@ -940,11 +1026,44 @@ def _SinkTestResult(test_result, test_file_name, result_sink_client):
 _SUPPORTED_IN_PLATFORM_MODE = [
   # TODO(jbudorick): Add support for more test types.
   'gtest',
+  'hostside',
   'instrumentation',
   'junit',
   'linker',
   'monkey',
 ]
+
+
+def UploadExceptions(result_sink_client, exc_recorder):
+  if not result_sink_client or not exc_recorder.size():
+    return
+
+  try_count_max = 3
+  for try_count in range(1, try_count_max + 1):
+    logging.info('Uploading exception records to RDB. (TRY %d/%d)', try_count,
+                 try_count_max)
+    try:
+      record_dict = exc_recorder.to_dict()
+      result_sink_client.UpdateInvocationExtendedProperties(
+          {exc_recorder.EXCEPTION_OCCURRENCES_KEY: record_dict})
+      exc_recorder.clear()
+      break
+    except Exception as e:  # pylint: disable=W0703
+      logging.error("Got error %s when uploading exception records.", e)
+      # Upload can fail due to record size being too big.
+      # In this case, let's try to reduce the size.
+      if try_count == try_count_max - 2:
+        # Clear all the stackstrace to reduce size.
+        exc_recorder.clear_stacktrace()
+      elif try_count == try_count_max - 1:
+        # Clear all the records and just report the upload failure.
+        exc_recorder.clear()
+        exc_recorder.register(e)
+      elif try_count == try_count_max:
+        # Swallow the exception if the upload fails again and hit the max
+        # try so that it won't fail the test task (and it shouldn't).
+        exc_recorder.clear()
+        logging.error("Hit max retry. Skip uploading exception records.")
 
 
 def RunTestsInPlatformMode(args, result_sink_client=None):
@@ -1074,6 +1193,13 @@ def RunTestsInPlatformMode(args, result_sink_client=None):
   save_detailed_results = (args.local_output or not local_utils.IsOnSwarming()
                            ) and not args.isolated_script_test_output
 
+  @contextlib.contextmanager
+  def exceptions_uploader():
+    try:
+      yield
+    finally:
+      UploadExceptions(result_sink_client, exception_recorder)
+
   ### Set up test objects.
 
   out_manager = output_manager_factory.CreateOutputManager(args)
@@ -1098,12 +1224,22 @@ def RunTestsInPlatformMode(args, result_sink_client=None):
           args.command))
       return 1
 
+  if getattr(args, 'list_data', False):
+    with out_manager, env, test_instance, test_run:
+      data_deps = test_run.GetDataDepsForListing()
+
+    print('There are {} data files:'.format(len(data_deps)))
+    for d in data_deps:
+      print(d)
+    return 0
+
   ### Run.
   with out_manager, json_finalizer():
     # |raw_logs_fh| is only used by Robolectric tests.
     raw_logs_fh = io.StringIO() if save_detailed_results else None
 
-    with json_writer(), logcats_uploader, env, test_instance, test_run:
+    with json_writer(), exceptions_uploader(), logcats_uploader, \
+         env, test_instance, test_run:
 
       repetitions = (range(args.repeat +
                            1) if args.repeat >= 0 else itertools.count())
@@ -1294,6 +1430,14 @@ def main():
   AddCommandLineOptions(subp)
 
   subp = command_parsers.add_parser(
+      'hostside',
+      help='Webview CTS host-side tests')
+  AddCommonOptions(subp)
+  AddDeviceOptions(subp)
+  AddEmulatorOptions(subp)
+  AddHostsideTestOptions(subp)
+
+  subp = command_parsers.add_parser(
       'instrumentation',
       help='InstrumentationTestCase-based Java tests')
   AddCommonOptions(subp)
@@ -1333,40 +1477,34 @@ def main():
   AddPythonTestOptions(subp)
 
   args, unknown_args = parser.parse_known_args()
+
   if unknown_args:
-    if hasattr(args, 'allow_unknown') and args.allow_unknown:
+    if getattr(args, 'allow_unknown', None):
       args.command_line_flags = unknown_args
     else:
       parser.error('unrecognized arguments: %s' % ' '.join(unknown_args))
 
-  # --replace-system-package/--remove-system-package has the potential to cause
-  # issues if --enable-concurrent-adb is set, so disallow that combination.
-  concurrent_adb_enabled = (hasattr(args, 'enable_concurrent_adb')
-                            and args.enable_concurrent_adb)
-  replacing_system_packages = (hasattr(args, 'replace_system_package')
-                               and args.replace_system_package)
-  removing_system_packages = (hasattr(args, 'system_packages_to_remove')
-                              and args.system_packages_to_remove)
-  if (concurrent_adb_enabled
-      and (replacing_system_packages or removing_system_packages)):
-    parser.error('--enable-concurrent-adb cannot be used with either '
-                 '--replace-system-package or --remove-system-package')
-
-  # --use-webview-provider has the potential to cause issues if
-  # --enable-concurrent-adb is set, so disallow that combination
-  if (hasattr(args, 'use_webview_provider') and
-      hasattr(args, 'enable_concurrent_adb') and args.use_webview_provider and
-      args.enable_concurrent_adb):
-    parser.error('--use-webview-provider and --enable-concurrent-adb cannot '
-                 'be used together')
+  # --enable-concurrent-adb does not handle device reboots gracefully.
+  if getattr(args, 'enable_concurrent_adb', None):
+    if getattr(args, 'replace_system_package', None):
+      logging.warning(
+          'Ignoring --enable-concurrent-adb due to --replace-system-package')
+      args.enable_concurrent_adb = False
+    elif getattr(args, 'system_packages_to_remove', None):
+      logging.warning(
+          'Ignoring --enable-concurrent-adb due to --remove-system-package')
+      args.enable_concurrent_adb = False
+    elif getattr(args, 'use_webview_provider', None):
+      logging.warning(
+          'Ignoring --enable-concurrent-adb due to --use-webview-provider')
+      args.enable_concurrent_adb = False
 
   if (getattr(args, 'coverage_on_the_fly', False)
       and not getattr(args, 'coverage_dir', '')):
     parser.error('--coverage-on-the-fly requires --coverage-dir')
 
-  if (hasattr(args, 'debug_socket') or
-      (hasattr(args, 'wait_for_java_debugger') and
-      args.wait_for_java_debugger)):
+  if (getattr(args, 'debug_socket', None)
+      or getattr(args, 'wait_for_java_debugger', None)):
     args.num_retries = 0
 
   # Result-sink may not exist in the environment if rdb stream is not enabled.
@@ -1379,10 +1517,22 @@ def main():
     if e.is_infra_error:
       return constants.INFRA_EXIT_CODE
     return constants.ERROR_EXIT_CODE
-  except: # pylint: disable=W0702
+  except Exception:  # pylint: disable=W0703
     logging.exception('Unrecognized error occurred.')
     return constants.ERROR_EXIT_CODE
 
 
 if __name__ == '__main__':
-  sys.exit(main())
+  exit_code = main()
+  if exit_code == constants.INFRA_EXIT_CODE:
+    # This exit code is returned in case of missing, unreachable,
+    # or otherwise not fit for purpose test devices.
+    # When this happens, the graceful cleanup triggered by sys.exit()
+    # hangs indefinitely (on swarming - until it hits 20min timeout).
+    # Skip cleanup (other than flushing output streams) and exit forcefully
+    # to avoid the hang.
+    sys.stdout.flush()
+    sys.stderr.flush()
+    os._exit(exit_code)  # pylint: disable=protected-access
+  else:
+    sys.exit(exit_code)

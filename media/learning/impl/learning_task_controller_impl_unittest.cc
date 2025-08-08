@@ -2,6 +2,11 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#ifdef UNSAFE_BUFFERS_BUILD
+// TODO(crbug.com/40285824): Remove this and convert code to safer constructs.
+#pragma allow_unsafe_buffers
+#endif
+
 #include "media/learning/impl/learning_task_controller_impl.h"
 
 #include <utility>
@@ -24,7 +29,7 @@ class LearningTaskControllerImplTest : public testing::Test {
         : DistributionReporter(task) {}
 
     // protected => public
-    const absl::optional<std::set<int>>& feature_indices() const {
+    const std::optional<std::set<int>>& feature_indices() const {
       return DistributionReporter::feature_indices();
     }
 
@@ -134,21 +139,21 @@ class LearningTaskControllerImplTest : public testing::Test {
   }
 
   void AddExample(const LabelledExample& example,
-                  absl::optional<ukm::SourceId> source_id = absl::nullopt) {
+                  std::optional<ukm::SourceId> source_id = std::nullopt) {
     base::UnguessableToken id = base::UnguessableToken::Create();
-    controller_->BeginObservation(id, example.features, absl::nullopt,
+    controller_->BeginObservation(id, example.features, std::nullopt,
                                   source_id);
     controller_->CompleteObservation(
         id, ObservationCompletion(example.target_value, example.weight));
   }
 
   void VerifyPrediction(const FeatureVector& features,
-                        absl::optional<TargetHistogram> expectation) {
-    absl::optional<TargetHistogram> observed_prediction;
+                        std::optional<TargetHistogram> expectation) {
+    std::optional<TargetHistogram> observed_prediction;
     controller_->PredictDistribution(
         features, base::BindOnce(
-                      [](absl::optional<TargetHistogram>* test_storage,
-                         const absl::optional<TargetHistogram>& predicted) {
+                      [](std::optional<TargetHistogram>* test_storage,
+                         const std::optional<TargetHistogram>& predicted) {
                         *test_storage = predicted;
                       },
                       &observed_prediction));
@@ -165,8 +170,8 @@ class LearningTaskControllerImplTest : public testing::Test {
   const TargetValue predicted_target_;
   const TargetValue not_predicted_target_;
 
-  raw_ptr<FakeDistributionReporter> reporter_raw_ = nullptr;
-  raw_ptr<FakeTrainer> trainer_raw_ = nullptr;
+  raw_ptr<FakeDistributionReporter, DanglingUntriaged> reporter_raw_ = nullptr;
+  raw_ptr<FakeTrainer, DanglingUntriaged> trainer_raw_ = nullptr;
 
   LearningTask task_;
   std::unique_ptr<LearningTaskControllerImpl> controller_;
@@ -280,9 +285,9 @@ TEST_F(LearningTaskControllerImplTest, FeatureSubsetsWork) {
 TEST_F(LearningTaskControllerImplTest, PredictDistribution) {
   CreateController();
 
-  // Predictions should be absl::nullopt until we have a model.
+  // Predictions should be std::nullopt until we have a model.
   LabelledExample example;
-  VerifyPrediction(example.features, absl::nullopt);
+  VerifyPrediction(example.features, std::nullopt);
 
   AddExample(example);
   TargetHistogram expected_histogram;

@@ -33,10 +33,11 @@
 //  Sanjay Ghemawat, Jeff Dean, and others.
 
 #include <google/protobuf/test_util_lite.h>
+
 #include <google/protobuf/stubs/logging.h>
 #include <google/protobuf/stubs/common.h>
 #include <gtest/gtest.h>
-
+#include <google/protobuf/stubs/strutil.h>
 
 namespace google {
 namespace protobuf {
@@ -64,6 +65,7 @@ void TestUtilLite::SetAllFields(unittest::TestAllTypesLite* message) {
   message->mutable_optional_import_message()->set_d(120);
   message->mutable_optional_public_import_message()->set_e(126);
   message->mutable_optional_lazy_message()->set_bb(127);
+  message->mutable_optional_unverified_lazy_message()->set_bb(128);
 
   message->set_optional_nested_enum(unittest::TestAllTypesLite::BAZ);
   message->set_optional_foreign_enum(unittest::FOREIGN_LITE_BAZ);
@@ -213,6 +215,7 @@ void TestUtilLite::ExpectAllFieldsSet(
   EXPECT_TRUE(message.has_optional_import_message());
   EXPECT_TRUE(message.has_optional_public_import_message());
   EXPECT_TRUE(message.has_optional_lazy_message());
+  EXPECT_TRUE(message.has_optional_unverified_lazy_message());
 
   EXPECT_TRUE(message.optionalgroup().has_a());
   EXPECT_TRUE(message.optional_nested_message().has_bb());
@@ -220,6 +223,7 @@ void TestUtilLite::ExpectAllFieldsSet(
   EXPECT_TRUE(message.optional_import_message().has_d());
   EXPECT_TRUE(message.optional_public_import_message().has_e());
   EXPECT_TRUE(message.optional_lazy_message().has_bb());
+  EXPECT_TRUE(message.optional_unverified_lazy_message().has_bb());
 
   EXPECT_TRUE(message.has_optional_nested_enum());
   EXPECT_TRUE(message.has_optional_foreign_enum());
@@ -248,6 +252,7 @@ void TestUtilLite::ExpectAllFieldsSet(
   EXPECT_EQ(120, message.optional_import_message().d());
   EXPECT_EQ(126, message.optional_public_import_message().e());
   EXPECT_EQ(127, message.optional_lazy_message().bb());
+  EXPECT_EQ(128, message.optional_unverified_lazy_message().bb());
 
   EXPECT_EQ(unittest::TestAllTypesLite::BAZ, message.optional_nested_enum());
   EXPECT_EQ(unittest::FOREIGN_LITE_BAZ, message.optional_foreign_enum());
@@ -414,6 +419,7 @@ void TestUtilLite::ExpectClear(const unittest::TestAllTypesLite& message) {
   EXPECT_FALSE(message.has_optional_import_message());
   EXPECT_FALSE(message.has_optional_public_import_message());
   EXPECT_FALSE(message.has_optional_lazy_message());
+  EXPECT_FALSE(message.has_optional_unverified_lazy_message());
 
   EXPECT_FALSE(message.has_optional_nested_enum());
   EXPECT_FALSE(message.has_optional_foreign_enum());
@@ -444,6 +450,7 @@ void TestUtilLite::ExpectClear(const unittest::TestAllTypesLite& message) {
   EXPECT_FALSE(message.optional_import_message().has_d());
   EXPECT_FALSE(message.optional_public_import_message().has_e());
   EXPECT_FALSE(message.optional_lazy_message().has_bb());
+  EXPECT_FALSE(message.optional_unverified_lazy_message().has_bb());
 
   EXPECT_EQ(0, message.optionalgroup().a());
   EXPECT_EQ(0, message.optional_nested_message().bb());
@@ -835,6 +842,10 @@ void TestUtilLite::SetAllExtensions(unittest::TestAllExtensionsLite* message) {
       ->set_e(126);
   message->MutableExtension(unittest::optional_lazy_message_extension_lite)
       ->set_bb(127);
+  message
+      ->MutableExtension(
+          unittest::optional_unverified_lazy_message_extension_lite)
+      ->set_bb(128);
 
   message->SetExtension(unittest::optional_nested_enum_extension_lite,
                         unittest::TestAllTypesLite::BAZ);
@@ -1021,6 +1032,8 @@ void TestUtilLite::ExpectAllExtensionsSet(
       unittest::optional_public_import_message_extension_lite));
   EXPECT_TRUE(
       message.HasExtension(unittest::optional_lazy_message_extension_lite));
+  EXPECT_TRUE(message.HasExtension(
+      unittest::optional_unverified_lazy_message_extension_lite));
 
   EXPECT_TRUE(
       message.GetExtension(unittest::optionalgroup_extension_lite).has_a());
@@ -1040,6 +1053,10 @@ void TestUtilLite::ExpectAllExtensionsSet(
   EXPECT_TRUE(
       message.GetExtension(unittest::optional_lazy_message_extension_lite)
           .has_bb());
+  EXPECT_TRUE(message
+                  .GetExtension(
+                      unittest::optional_unverified_lazy_message_extension_lite)
+                  .has_bb());
 
   EXPECT_TRUE(
       message.HasExtension(unittest::optional_nested_enum_extension_lite));
@@ -1097,6 +1114,11 @@ void TestUtilLite::ExpectAllExtensionsSet(
           .e());
   EXPECT_EQ(127,
             message.GetExtension(unittest::optional_lazy_message_extension_lite)
+                .bb());
+  EXPECT_EQ(128,
+            message
+                .GetExtension(
+                    unittest::optional_unverified_lazy_message_extension_lite)
                 .bb());
 
   EXPECT_EQ(
@@ -1350,7 +1372,7 @@ void TestUtilLite::ExpectExtensionsClear(
   std::string serialized;
   ASSERT_TRUE(message.SerializeToString(&serialized));
   EXPECT_EQ("", serialized);
-  EXPECT_EQ(0, message.ByteSize());
+  EXPECT_EQ(0, message.ByteSizeLong());
 
   // has_blah() should initially be false for all optional fields.
   EXPECT_FALSE(message.HasExtension(unittest::optional_int32_extension_lite));

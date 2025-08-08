@@ -4,8 +4,9 @@
 
 #include "ui/gfx/win/hwnd_util.h"
 
-#include <dwmapi.h>  // DWMWA_CLOAKED
 #include <windows.h>
+
+#include <dwmapi.h>  // DWMWA_CLOAKED
 
 #include "base/debug/gdi_debug_util_win.h"
 #include "base/logging.h"
@@ -42,7 +43,6 @@ void AdjustWindowToFit(HWND hwnd, const RECT& bounds, bool fit_to_monitor) {
       // Else fall through.
     } else {
       NOTREACHED() << "Unable to find default monitor";
-      // Fall through.
     }
   }  // Else fall through.
 
@@ -122,13 +122,13 @@ bool IsWindowCloaked(HWND hwnd) {
          is_cloaked;
 }
 
-absl::optional<bool> IsWindowOnCurrentVirtualDesktop(
+std::optional<bool> IsWindowOnCurrentVirtualDesktop(
     HWND window,
     Microsoft::WRL::ComPtr<IVirtualDesktopManager> virtual_desktop_manager) {
   BOOL on_current_desktop;
   if (FAILED(virtual_desktop_manager->IsWindowOnCurrentVirtualDesktop(
           window, &on_current_desktop))) {
-    return absl::nullopt;
+    return std::nullopt;
   }
   if (on_current_desktop)
     return true;
@@ -140,7 +140,7 @@ absl::optional<bool> IsWindowOnCurrentVirtualDesktop(
   GUID workspace_guid;
   if (FAILED(virtual_desktop_manager->GetWindowDesktopId(window,
                                                          &workspace_guid))) {
-    return absl::nullopt;
+    return std::nullopt;
   }
   return workspace_guid == GUID_NULL;
 }

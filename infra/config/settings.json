@@ -1,0 +1,12 @@
+{
+    "project": "chromium-m132",
+    "project_title": "Chromium M132",
+    "ref": "refs/branch-heads/6834",
+    "chrome_project": "chrome-m132",
+    "is_main": false,
+    "platforms": {
+        "cros-lts": {
+            "description": "LTS"
+        }
+    }
+}

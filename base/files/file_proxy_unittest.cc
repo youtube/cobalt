@@ -2,13 +2,20 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#ifdef UNSAFE_BUFFERS_BUILD
+// TODO(crbug.com/40284755): Remove this and spanify to fix the errors.
+#pragma allow_unsafe_buffers
+#endif
+
 #include "base/files/file_proxy.h"
 
 #include <stddef.h>
 #include <stdint.h>
 
+#include <string_view>
 #include <utility>
 
+#include "base/containers/heap_array.h"
 #include "base/files/file.h"
 #include "base/files/file_util.h"
 #include "base/files/scoped_temp_dir.h"
@@ -65,11 +72,9 @@ class FileProxyTest : public testing::Test {
 
   void DidRead(base::RepeatingClosure continuation,
                File::Error error,
-               const char* data,
-               int bytes_read) {
+               base::span<const char> data) {
     error_ = error;
-    buffer_.resize(bytes_read);
-    memcpy(&buffer_[0], data, bytes_read);
+    buffer_ = base::HeapArray<char>::CopiedFrom(data);
     continuation.Run();
   }
 
@@ -105,7 +110,7 @@ class FileProxyTest : public testing::Test {
   File::Error error_;
   FilePath path_;
   File::Info file_info_;
-  std::vector<char> buffer_;
+  base::HeapArray<char> buffer_;
   int bytes_written_;
   WeakPtrFactory<FileProxyTest> weak_factory_{this};
 };
@@ -127,7 +132,7 @@ TEST_F(FileProxyTest, CreateOrOpen_Create) {
 
 TEST_F(FileProxyTest, CreateOrOpen_Open) {
   // Creates a file.
-  base::WriteFile(TestPath(), base::StringPiece());
+  base::WriteFile(TestPath(), std::string_view());
   ASSERT_TRUE(PathExists(TestPath()));
 
   // Opens the created file.
@@ -192,10 +197,8 @@ TEST_F(FileProxyTest, Close) {
   EXPECT_EQ(File::FILE_OK, error_);
   EXPECT_FALSE(proxy.IsValid());
 
-#if !defined(STARBOARD)
   // Now it should pass on all platforms.
   EXPECT_TRUE(base::Move(TestPath(), TestDirPath().AppendASCII("new")));
-#endif
 }
 
 TEST_F(FileProxyTest, CreateTemporary) {
@@ -217,7 +220,7 @@ TEST_F(FileProxyTest, CreateTemporary) {
     // The file should be writable.
     {
       RunLoop run_loop;
-      proxy.Write(0, "test", 4,
+      proxy.Write(0, base::as_byte_span(std::string_view("test")),
                   BindOnce(&FileProxyTest::DidWrite, weak_factory_.GetWeakPtr(),
                            run_loop.QuitWhenIdleClosure()));
       run_loop.Run();
@@ -258,7 +261,6 @@ TEST_F(FileProxyTest, SetAndTake) {
   EXPECT_TRUE(file.IsValid());
 }
 
-#if !defined(STARBOARD)
 TEST_F(FileProxyTest, DuplicateFile) {
   FileProxy proxy(file_task_runner());
   CreateProxy(File::FLAG_CREATE | File::FLAG_WRITE, &proxy);
@@ -275,7 +277,6 @@ TEST_F(FileProxyTest, DuplicateFile) {
   EXPECT_FALSE(invalid_proxy.IsValid());
   EXPECT_FALSE(invalid_duplicate.IsValid());
 }
-#endif
 
 TEST_F(FileProxyTest, GetInfo) {
   // Setup.
@@ -303,7 +304,7 @@ TEST_F(FileProxyTest, GetInfo) {
 
 TEST_F(FileProxyTest, Read) {
   // Setup.
-  constexpr base::StringPiece expected_data = "bleh";
+  constexpr std::string_view expected_data = "bleh";
   ASSERT_TRUE(base::WriteFile(TestPath(), expected_data));
 
   // Run.
@@ -318,24 +319,24 @@ TEST_F(FileProxyTest, Read) {
 
   // Verify.
   EXPECT_EQ(File::FILE_OK, error_);
-  EXPECT_EQ(expected_data, base::StringPiece(buffer_.data(), buffer_.size()));
+  EXPECT_EQ(expected_data, std::string_view(buffer_.data(), buffer_.size()));
 }
 
 TEST_F(FileProxyTest, WriteAndFlush) {
   FileProxy proxy(file_task_runner());
   CreateProxy(File::FLAG_CREATE | File::FLAG_WRITE, &proxy);
 
-  const char data[] = "foo!";
-  int data_bytes = std::size(data);
+  auto write_span = base::as_byte_span("foo!");
+  EXPECT_EQ(write_span.size(), 5u);  // Includes the NUL, too.
   {
     RunLoop run_loop;
-    proxy.Write(0, data, data_bytes,
+    proxy.Write(0, write_span,
                 BindOnce(&FileProxyTest::DidWrite, weak_factory_.GetWeakPtr(),
                          run_loop.QuitWhenIdleClosure()));
     run_loop.Run();
   }
   EXPECT_EQ(File::FILE_OK, error_);
-  EXPECT_EQ(data_bytes, bytes_written_);
+  EXPECT_EQ(write_span.size(), static_cast<size_t>(bytes_written_));
 
   // Flush the written data.  (So that the following read should always
   // succeed.  On some platforms it may work with or without this flush.)
@@ -348,14 +349,15 @@ TEST_F(FileProxyTest, WriteAndFlush) {
   EXPECT_EQ(File::FILE_OK, error_);
 
   // Verify the written data.
-  char buffer[10];
-  EXPECT_EQ(data_bytes, base::ReadFile(TestPath(), buffer, data_bytes));
-  for (int i = 0; i < data_bytes; ++i) {
-    EXPECT_EQ(data[i], buffer[i]);
+  char read_buffer[10];
+  EXPECT_GE(std::size(read_buffer), write_span.size());
+  EXPECT_EQ(write_span.size(), base::ReadFile(TestPath(), read_buffer));
+  for (size_t i = 0; i < write_span.size(); ++i) {
+    EXPECT_EQ(write_span[i], read_buffer[i]);
   }
 }
 
-#if BUILDFLAG(IS_ANDROID) || defined(STARBOARD)
+#if BUILDFLAG(IS_ANDROID)
 // Flaky on Android, see http://crbug.com/489602
 #define MAYBE_SetTimes DISABLED_SetTimes
 #else
@@ -382,13 +384,13 @@ TEST_F(FileProxyTest, MAYBE_SetTimes) {
 
   // The returned values may only have the seconds precision, so we cast
   // the double values to int here.
-  EXPECT_EQ(static_cast<int>(last_modified_time.ToDoubleT()),
-            static_cast<int>(info.last_modified.ToDoubleT()));
+  EXPECT_EQ(static_cast<int>(last_modified_time.InSecondsFSinceUnixEpoch()),
+            static_cast<int>(info.last_modified.InSecondsFSinceUnixEpoch()));
 
 #if !BUILDFLAG(IS_FUCHSIA)
   // On Fuchsia, /tmp is noatime
-  EXPECT_EQ(static_cast<int>(last_accessed_time.ToDoubleT()),
-            static_cast<int>(info.last_accessed.ToDoubleT()));
+  EXPECT_EQ(static_cast<int>(last_accessed_time.InSecondsFSinceUnixEpoch()),
+            static_cast<int>(info.last_accessed.InSecondsFSinceUnixEpoch()));
 #endif  // BUILDFLAG(IS_FUCHSIA)
 }
 
@@ -414,7 +416,7 @@ TEST_F(FileProxyTest, SetLength_Shrink) {
   ASSERT_EQ(7, info.size);
 
   char buffer[7];
-  EXPECT_EQ(7, base::ReadFile(TestPath(), buffer, 7));
+  EXPECT_EQ(7, base::ReadFile(TestPath(), buffer));
   int i = 0;
   for (; i < 7; ++i)
     EXPECT_EQ(kTestData[i], buffer[i]);
@@ -442,7 +444,7 @@ TEST_F(FileProxyTest, SetLength_Expand) {
   ASSERT_EQ(53, info.size);
 
   char buffer[53];
-  EXPECT_EQ(53, base::ReadFile(TestPath(), buffer, 53));
+  EXPECT_EQ(53, base::ReadFile(TestPath(), buffer));
   int i = 0;
   for (; i < 10; ++i)
     EXPECT_EQ(kTestData[i], buffer[i]);

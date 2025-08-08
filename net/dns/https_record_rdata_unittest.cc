@@ -6,10 +6,11 @@
 
 #include <map>
 #include <memory>
+#include <optional>
 #include <string>
+#include <string_view>
 #include <vector>
 
-#include "base/strings/string_piece.h"
 #include "net/base/ip_address.h"
 #include "testing/gmock/include/gmock/gmock.h"
 #include "testing/gtest/include/gtest/gtest.h"
@@ -25,7 +26,7 @@ TEST(HttpsRecordRdataTest, ParsesAlias) {
       "\010chromium\003org\000";
 
   std::unique_ptr<HttpsRecordRdata> rdata =
-      HttpsRecordRdata::Parse(base::StringPiece(kRdata, sizeof(kRdata) - 1));
+      HttpsRecordRdata::Parse(std::string_view(kRdata, sizeof(kRdata) - 1));
   ASSERT_TRUE(rdata);
 
   AliasFormHttpsRecordRdata expected("chromium.org");
@@ -45,7 +46,7 @@ TEST(HttpsRecordRdataTest, ParseAliasWithEmptyName) {
       "\000";
 
   std::unique_ptr<HttpsRecordRdata> rdata =
-      HttpsRecordRdata::Parse(base::StringPiece(kRdata, sizeof(kRdata) - 1));
+      HttpsRecordRdata::Parse(std::string_view(kRdata, sizeof(kRdata) - 1));
   ASSERT_TRUE(rdata);
 
   AliasFormHttpsRecordRdata expected("");
@@ -67,7 +68,7 @@ TEST(HttpsRecordRdataTest, IgnoreAliasParams) {
       "\000\002\000\000";
 
   std::unique_ptr<HttpsRecordRdata> rdata =
-      HttpsRecordRdata::Parse(base::StringPiece(kRdata, sizeof(kRdata) - 1));
+      HttpsRecordRdata::Parse(std::string_view(kRdata, sizeof(kRdata) - 1));
   ASSERT_TRUE(rdata);
 
   AliasFormHttpsRecordRdata expected("chromium.org");
@@ -104,7 +105,7 @@ TEST(HttpsRecordRdataTest, ParsesService) {
       "\000\007\000\003foo";
 
   std::unique_ptr<HttpsRecordRdata> rdata =
-      HttpsRecordRdata::Parse(base::StringPiece(kRdata, sizeof(kRdata) - 1));
+      HttpsRecordRdata::Parse(std::string_view(kRdata, sizeof(kRdata) - 1));
   ASSERT_TRUE(rdata);
 
   IPAddress expected_ipv6;
@@ -112,7 +113,7 @@ TEST(HttpsRecordRdataTest, ParsesService) {
   ServiceFormHttpsRecordRdata expected(
       1 /* priority */, "chromium.org", std::set<uint16_t>({1, 2, 3, 4, 5, 6}),
       std::vector<std::string>({"foo", "bar"}) /* alpn_ids */,
-      false /* default_alpn */, absl::optional<uint16_t>(46) /* port */,
+      false /* default_alpn */, std::optional<uint16_t>(46) /* port */,
       std::vector<IPAddress>({IPAddress(8, 8, 8, 8)}) /* ipv4_hint */,
       "hello" /* ech_config */,
       std::vector<IPAddress>({expected_ipv6}) /* ipv6_hint */,
@@ -148,7 +149,7 @@ TEST(HttpsRecordRdataTest, RejectCorruptRdata) {
       "\000\001\000\005hi";
 
   std::unique_ptr<HttpsRecordRdata> rdata =
-      HttpsRecordRdata::Parse(base::StringPiece(kRdata, sizeof(kRdata) - 1));
+      HttpsRecordRdata::Parse(std::string_view(kRdata, sizeof(kRdata) - 1));
   EXPECT_FALSE(rdata);
 }
 
@@ -156,7 +157,7 @@ TEST(HttpsRecordRdataTest, AliasIsEqualRejectsWrongType) {
   AliasFormHttpsRecordRdata alias("alias.name.test");
   ServiceFormHttpsRecordRdata service(
       1u /* priority */, "service.name.test", {} /* mandatory_keys */,
-      {} /* alpn_ids */, true /* default_alpn */, absl::nullopt /* port */,
+      {} /* alpn_ids */, true /* default_alpn */, std::nullopt /* port */,
       {} /* ipv4_hint */, "" /* ech_config */, {} /* ipv6_hint */,
       {} /* unparsed_params */);
 
@@ -168,7 +169,7 @@ TEST(HttpsRecordRdataTest, ServiceIsEqualRejectsWrongType) {
   AliasFormHttpsRecordRdata alias("alias.name.test");
   ServiceFormHttpsRecordRdata service(
       1u /* priority */, "service.name.test", {} /* mandatory_keys */,
-      {} /* alpn_ids */, true /* default_alpn */, absl::nullopt /* port */,
+      {} /* alpn_ids */, true /* default_alpn */, std::nullopt /* port */,
       {} /* ipv4_hint */, "" /* ech_config */, {} /* ipv6_hint */,
       {} /* unparsed_params */);
 

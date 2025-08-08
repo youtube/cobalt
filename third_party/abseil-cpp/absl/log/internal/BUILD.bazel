@@ -21,9 +21,16 @@ load(
     "ABSL_TEST_COPTS",
 )
 
-package(default_visibility = [
-    "//absl/log:__pkg__",
-])
+package(
+    default_visibility = [
+        "//absl/log:__pkg__",
+    ],
+    features = [
+        "header_modules",
+        "layering_check",
+        "parse_headers",
+    ],
+)
 
 licenses(["notice"])
 
@@ -56,6 +63,7 @@ cc_library(
         ":strip",
         "//absl/base:config",
         "//absl/base:core_headers",
+        "//absl/base:nullability",
         "//absl/strings",
     ],
 )
@@ -146,6 +154,7 @@ cc_library(
         ":conditions",
         ":log_message",
         ":strip",
+        "//absl/log:absl_vlog_is_on",
     ],
 )
 
@@ -213,6 +222,7 @@ cc_library(
         "//absl/base:config",
         "//absl/base:core_headers",
         "//absl/base:log_severity",
+        "//absl/base:no_destructor",
         "//absl/base:raw_logging_internal",
         "//absl/cleanup",
         "//absl/log:globals",
@@ -257,6 +267,7 @@ cc_library(
     deps = [
         ":log_message",
         ":nullstream",
+        "//absl/base:core_headers",
         "//absl/base:log_severity",
     ],
 )
@@ -357,10 +368,67 @@ cc_library(
     ],
 )
 
+cc_library(
+    name = "fnmatch",
+    srcs = ["fnmatch.cc"],
+    hdrs = ["fnmatch.h"],
+    copts = ABSL_DEFAULT_COPTS,
+    linkopts = ABSL_DEFAULT_LINKOPTS,
+    deps = [
+        "//absl/base:config",
+        "//absl/strings",
+    ],
+)
+
+cc_library(
+    name = "vlog_config",
+    srcs = ["vlog_config.cc"],
+    hdrs = ["vlog_config.h"],
+    copts = ABSL_DEFAULT_COPTS,
+    linkopts = ABSL_DEFAULT_LINKOPTS,
+    visibility = [
+        "//absl/log:__subpackages__",
+    ],
+    deps = [
+        "//absl/base",
+        "//absl/base:config",
+        "//absl/base:core_headers",
+        "//absl/base:no_destructor",
+        "//absl/log/internal:fnmatch",
+        "//absl/memory",
+        "//absl/strings",
+        "//absl/synchronization",
+        "//absl/types:optional",
+    ],
+)
+
+cc_binary(
+    name = "vlog_config_benchmark",
+    testonly = True,
+    srcs = ["vlog_config_benchmark.cc"],
+    copts = ABSL_TEST_COPTS,
+    linkopts = ABSL_DEFAULT_LINKOPTS,
+    tags = [
+        "benchmark",
+    ],
+    visibility = ["//visibility:private"],
+    deps = [
+        ":vlog_config",
+        "//absl/base:config",
+        "//absl/base:core_headers",
+        "//absl/container:layout",
+        "//absl/memory",
+        "//absl/random:distributions",
+        "//absl/strings",
+        "@com_github_google_benchmark//:benchmark_main",
+    ],
+)
+
 # Test targets
 cc_test(
     name = "stderr_log_sink_test",
     size = "small",
+    timeout = "moderate",
     srcs = ["stderr_log_sink_test.cc"],
     copts = ABSL_TEST_COPTS,
     linkopts = ABSL_DEFAULT_LINKOPTS,
@@ -368,7 +436,9 @@ cc_test(
         "no_test:os:android",
         "no_test:os:ios",
         "no_test_android",
+        "no_test_darwin_arm64",
         "no_test_darwin_x86_64",
+        "no_test_fuchsia_x64",
         "no_test_ios",
         "no_test_wasm",
     ],
@@ -378,6 +448,31 @@ cc_test(
         "//absl/base:log_severity",
         "//absl/log",
         "//absl/log:globals",
+        "@com_google_googletest//:gtest",
         "@com_google_googletest//:gtest_main",
+    ],
+)
+
+cc_test(
+    name = "fnmatch_test",
+    srcs = ["fnmatch_test.cc"],
+    copts = ABSL_TEST_COPTS,
+    linkopts = ABSL_DEFAULT_LINKOPTS,
+    deps = [
+        ":fnmatch",
+        "@com_google_googletest//:gtest",
+        "@com_google_googletest//:gtest_main",
+    ],
+)
+
+cc_test(
+    name = "fnmatch_benchmark",
+    srcs = ["fnmatch_benchmark.cc"],
+    copts = ABSL_TEST_COPTS,
+    linkopts = ABSL_DEFAULT_LINKOPTS,
+    tags = ["benchmark"],
+    deps = [
+        ":fnmatch",
+        "@com_github_google_benchmark//:benchmark_main",
     ],
 )

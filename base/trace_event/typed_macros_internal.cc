@@ -39,7 +39,6 @@ GetPhaseAndIdForTraceLog(bool explicit_track, uint64_t track_uuid, char phase) {
       break;
     default:
       NOTREACHED();
-      break;
   }
   return std::make_pair(phase, static_cast<unsigned long long>(track_uuid));
 }
@@ -140,17 +139,17 @@ base::trace_event::TrackEventHandle CreateTrackEvent(
   auto phase_and_id_for_trace_log =
       GetPhaseAndIdForTraceLog(explicit_track, track_uuid, phase);
 
-  if (!trace_log->ShouldAddAfterUpdatingState(
-          phase_and_id_for_trace_log.first, category_group_enabled, name.value,
-          phase_and_id_for_trace_log.second, thread_id, nullptr)) {
-    return base::trace_event::TrackEventHandle();
-  }
-
   unsigned int flags = TRACE_EVENT_FLAG_NONE;
   if (ts.is_null()) {
     ts = TRACE_TIME_TICKS_NOW();
   } else {
     flags |= TRACE_EVENT_FLAG_EXPLICIT_TIMESTAMP;
+  }
+
+  if (!trace_log->ShouldAddAfterUpdatingState(
+          phase_and_id_for_trace_log.first, category_group_enabled, name.value,
+          phase_and_id_for_trace_log.second, thread_id, ts, nullptr)) {
+    return base::trace_event::TrackEventHandle();
   }
 
   if (phase == TRACE_EVENT_PHASE_INSTANT && !explicit_track) {

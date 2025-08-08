@@ -4,27 +4,30 @@
 
 #include "media/audio/mac/core_audio_util_mac.h"
 
-#include "build/build_config.h"
+#include <IOKit/audio/IOAudioTypes.h>
 
 #include <utility>
 
-#include "base/mac/mac_logging.h"
+#include "base/apple/osstatus_logging.h"
+#include "base/containers/heap_array.h"
+#include "base/feature_list.h"
 #include "base/metrics/histogram_functions.h"
 #include "base/strings/string_util.h"
+#include "base/strings/stringprintf.h"
 #include "base/strings/sys_string_conversions.h"
 #include "base/task/single_thread_task_runner.h"
+#include "build/build_config.h"
+#include "media/audio/apple/scoped_audio_unit.h"
 #include "media/base/audio_timestamp_helper.h"
-
-#if BUILDFLAG(IS_MAC)
-#include <IOKit/audio/IOAudioTypes.h>
-#endif
 
 namespace media {
 namespace core_audio_mac {
-
-#if BUILDFLAG(IS_MAC)
-
 namespace {
+
+// Kill switch in case anything explodes. Remove after M132.
+BASE_FEATURE(kExcludeDeviceLatencyFromTotalLatency,
+             "ExcludeDeviceLatencyFromTotalLatency",
+             base::FEATURE_ENABLED_BY_DEFAULT);
 
 AudioObjectPropertyScope InputOutputScope(bool is_input) {
   return is_input ? kAudioObjectPropertyScopeInput
@@ -36,7 +39,7 @@ void RecordCompositionPropertyIsNull(bool is_null) {
       "Media.Audio.Mac.AggregateDeviceCompositionPropertyIsNull", is_null);
 }
 
-absl::optional<std::string> GetDeviceStringProperty(
+std::optional<std::string> GetDeviceStringProperty(
     AudioObjectID device_id,
     AudioObjectPropertySelector property_selector) {
   CFStringRef property_value = nullptr;
@@ -52,11 +55,11 @@ absl::optional<std::string> GetDeviceStringProperty(
     OSSTATUS_DLOG(WARNING, result)
         << "Failed to read string property " << property_selector
         << " for device " << device_id;
-    return absl::nullopt;
+    return std::nullopt;
   }
 
   if (!property_value)
-    return absl::nullopt;
+    return std::nullopt;
 
   std::string device_property = base::SysCFStringRefToUTF8(property_value);
   CFRelease(property_value);
@@ -64,7 +67,7 @@ absl::optional<std::string> GetDeviceStringProperty(
   return device_property;
 }
 
-absl::optional<uint32_t> GetDeviceUint32Property(
+std::optional<uint32_t> GetDeviceUint32Property(
     AudioObjectID device_id,
     AudioObjectPropertySelector property_selector,
     AudioObjectPropertyScope property_scope) {
@@ -76,7 +79,7 @@ absl::optional<uint32_t> GetDeviceUint32Property(
       device_id, &property_address, 0 /* inQualifierDataSize */,
       nullptr /* inQualifierData */, &size, &property_value);
   if (result != noErr)
-    return absl::nullopt;
+    return std::nullopt;
 
   return property_value;
 }
@@ -136,11 +139,11 @@ std::vector<AudioObjectID> GetAudioObjectIDs(
   return device_ids;
 }
 
-absl::optional<std::string> GetDeviceName(AudioObjectID device_id) {
+std::optional<std::string> GetDeviceName(AudioObjectID device_id) {
   return GetDeviceStringProperty(device_id, kAudioObjectPropertyName);
 }
 
-absl::optional<std::string> GetDeviceModel(AudioObjectID device_id) {
+std::optional<std::string> GetDeviceModel(AudioObjectID device_id) {
   return GetDeviceStringProperty(device_id, kAudioDevicePropertyModelUID);
 }
 
@@ -191,9 +194,9 @@ std::string TransportTypeToString(uint32_t transport_type) {
   }
 }
 
-absl::optional<std::string> TranslateDeviceSource(AudioObjectID device_id,
-                                                  UInt32 source_id,
-                                                  bool is_input) {
+std::optional<std::string> TranslateDeviceSource(AudioObjectID device_id,
+                                                 UInt32 source_id,
+                                                 bool is_input) {
   CFStringRef source_name = nullptr;
   AudioValueTranslation translation;
   translation.mInputData = &source_id;
@@ -210,7 +213,7 @@ absl::optional<std::string> TranslateDeviceSource(AudioObjectID device_id,
       device_id, &property_address, 0 /* inQualifierDataSize */,
       nullptr /* inQualifierData */, &translation_size, &translation);
   if (result)
-    return absl::nullopt;
+    return std::nullopt;
 
   std::string ret = base::SysCFStringRefToUTF8(source_name);
   CFRelease(source_name);
@@ -229,14 +232,14 @@ std::vector<AudioObjectID> GetRelatedDeviceIDs(AudioObjectID device_id) {
   return GetAudioObjectIDs(device_id, kAudioDevicePropertyRelatedDevices);
 }
 
-absl::optional<std::string> GetDeviceUniqueID(AudioObjectID device_id) {
+std::optional<std::string> GetDeviceUniqueID(AudioObjectID device_id) {
   return GetDeviceStringProperty(device_id, kAudioDevicePropertyDeviceUID);
 }
 
-absl::optional<std::string> GetDeviceLabel(AudioObjectID device_id,
-                                           bool is_input) {
-  absl::optional<std::string> device_label;
-  absl::optional<uint32_t> source = GetDeviceSource(device_id, is_input);
+std::optional<std::string> GetDeviceLabel(AudioObjectID device_id,
+                                          bool is_input) {
+  std::optional<std::string> device_label;
+  std::optional<uint32_t> source = GetDeviceSource(device_id, is_input);
   if (source) {
     device_label = TranslateDeviceSource(device_id, *source, is_input);
   }
@@ -244,14 +247,14 @@ absl::optional<std::string> GetDeviceLabel(AudioObjectID device_id,
   if (!device_label) {
     device_label = GetDeviceName(device_id);
     if (!device_label)
-      return absl::nullopt;
+      return std::nullopt;
   }
 
   std::string suffix;
-  absl::optional<uint32_t> transport_type = GetDeviceTransportType(device_id);
+  std::optional<uint32_t> transport_type = GetDeviceTransportType(device_id);
   if (transport_type) {
     if (*transport_type == kAudioDeviceTransportTypeUSB) {
-      absl::optional<std::string> model = GetDeviceModel(device_id);
+      std::optional<std::string> model = GetDeviceModel(device_id);
       if (model) {
         suffix = UsbVidPidFromModel(*model);
       }
@@ -272,13 +275,13 @@ uint32_t GetNumStreams(AudioObjectID device_id, bool is_input) {
                                InputOutputScope(is_input));
 }
 
-absl::optional<uint32_t> GetDeviceSource(AudioObjectID device_id,
-                                         bool is_input) {
+std::optional<uint32_t> GetDeviceSource(AudioObjectID device_id,
+                                        bool is_input) {
   return GetDeviceUint32Property(device_id, kAudioDevicePropertyDataSource,
                                  InputOutputScope(is_input));
 }
 
-absl::optional<uint32_t> GetDeviceTransportType(AudioObjectID device_id) {
+std::optional<uint32_t> GetDeviceTransportType(AudioObjectID device_id) {
   return GetDeviceUint32Property(device_id, kAudioDevicePropertyTransportType,
                                  kAudioObjectPropertyScopeGlobal);
 }
@@ -377,25 +380,30 @@ bool IsInputDevice(AudioObjectID device_id) {
 bool IsOutputDevice(AudioObjectID device_id) {
   return GetNumStreams(device_id, false) > 0;
 }
-#endif
 
 // static
 base::TimeDelta GetHardwareLatency(AudioUnit audio_unit,
                                    AudioDeviceID device_id,
                                    AudioObjectPropertyScope scope,
-                                   int sample_rate) {
-#if BUILDFLAG(IS_MAC)
+                                   int sample_rate,
+                                   bool is_input) {
   if (!audio_unit || device_id == kAudioObjectUnknown) {
     DLOG(WARNING) << "Audio unit object is NULL or device ID is unknown";
     return base::TimeDelta();
   }
 
+  // Total hardware latency is calculated as the sum of different values. See
+  // https://lists.apple.com/archives/coreaudio-api/2017/Jul/msg00035.html
+  //
+  // Some of that info is out of date though. As of July 2024, Apple indicates
+  // that device latency is already included in kAudioUnitProperty_Latency.
+
   // Get audio unit latency.
   Float64 audio_unit_latency_sec = 0.0;
   UInt32 size = sizeof(audio_unit_latency_sec);
-  OSStatus result = AudioUnitGetProperty(audio_unit, kAudioUnitProperty_Latency,
-                                         kAudioUnitScope_Global, 0,
-                                         &audio_unit_latency_sec, &size);
+  OSStatus result = AudioUnitGetProperty(
+      audio_unit, kAudioUnitProperty_Latency, kAudioUnitScope_Global,
+      AUElement::OUTPUT, &audio_unit_latency_sec, &size);
   OSSTATUS_DLOG_IF(WARNING, result != noErr, result)
       << "Could not get audio unit latency";
 
@@ -421,9 +429,9 @@ base::TimeDelta GetHardwareLatency(AudioUnit audio_unit,
   result = AudioObjectGetPropertyDataSize(device_id, &property_address, 0,
                                           nullptr, &size);
   if (result == noErr && size >= sizeof(AudioStreamID)) {
-    std::unique_ptr<uint8_t[]> stream_id_storage(new uint8_t[size]);
+    auto stream_id_storage = base::HeapArray<uint8_t>::Uninit(size);
     AudioStreamID* stream_ids =
-        reinterpret_cast<AudioStreamID*>(stream_id_storage.get());
+        reinterpret_cast<AudioStreamID*>(stream_id_storage.data());
     result = AudioObjectGetPropertyData(device_id, &property_address, 0,
                                         nullptr, &size, stream_ids);
     if (result == noErr) {
@@ -443,13 +451,37 @@ base::TimeDelta GetHardwareLatency(AudioUnit audio_unit,
         << "Could not get audio device stream ids size.";
   }
 
-  return base::Seconds(audio_unit_latency_sec) +
-         AudioTimestampHelper::FramesToTime(
-             device_latency_frames + stream_latency_frames, sample_rate);
-#else
-  // TODO(crbug.com/1413450): Implement me.
-  return base::TimeDelta();
+  const base::TimeDelta audio_unit_latency =
+      base::Seconds(audio_unit_latency_sec);
+  const base::TimeDelta device_latency =
+      AudioTimestampHelper::FramesToTime(device_latency_frames, sample_rate);
+  const base::TimeDelta stream_latency =
+      AudioTimestampHelper::FramesToTime(stream_latency_frames, sample_rate);
+  const base::TimeDelta total_latency =
+      audio_unit_latency +
+      ((base::FeatureList::IsEnabled(kExcludeDeviceLatencyFromTotalLatency) &&
+        is_input)
+           ? base::TimeDelta()
+           : device_latency) +
+      stream_latency;
+
+  // This function is not currently not called on iOS, but guard against an
+  // accidental future change drastically changing these metrics.
+#if BUILDFLAG(IS_MAC)
+  const std::string uma_name = base::StringPrintf(
+      "Media.Audio.Mac.HardwareLatency.%s", is_input ? "Input" : "Output");
+
+  base::UmaHistogramTimes(base::StringPrintf("%s.AudioUnit", uma_name.c_str()),
+                          audio_unit_latency);
+  base::UmaHistogramTimes(base::StringPrintf("%s.Device", uma_name.c_str()),
+                          device_latency);
+  base::UmaHistogramTimes(base::StringPrintf("%s.Stream", uma_name.c_str()),
+                          stream_latency);
+  base::UmaHistogramTimes(base::StringPrintf("%s.Total", uma_name.c_str()),
+                          total_latency);
 #endif
+
+  return total_latency;
 }
 
 }  // namespace core_audio_mac

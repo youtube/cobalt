@@ -155,7 +155,6 @@ int FuzzedSocket::SetSendBufferSize(int32_t size) {
 
 int FuzzedSocket::Bind(const net::IPEndPoint& local_addr) {
   NOTREACHED();
-  return ERR_NOT_IMPLEMENTED;
 }
 
 int FuzzedSocket::Connect(CompletionOnceCallback callback) {
@@ -230,10 +229,6 @@ const NetLogWithSource& FuzzedSocket::NetLog() const {
 
 bool FuzzedSocket::WasEverUsed() const {
   return total_bytes_written_ != 0 || total_bytes_read_ != 0;
-}
-
-bool FuzzedSocket::WasAlpnNegotiated() const {
-  return false;
 }
 
 NextProto FuzzedSocket::GetNegotiatedProtocol() const {

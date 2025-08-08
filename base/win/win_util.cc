@@ -2,18 +2,25 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#ifdef UNSAFE_BUFFERS_BUILD
+// TODO(crbug.com/40284755): Remove this and spanify to fix the errors.
+#pragma allow_unsafe_buffers
+#endif
+
 #include "base/win/win_util.h"
+
+#include <objbase.h>
+
+#include <initguid.h>
+#include <shobjidl.h>
+#include <tchar.h>
 
 #include <aclapi.h>
 #include <cfgmgr32.h>
-#include <initguid.h>
-#include <lm.h>
-#include <powrprof.h>
-#include <shobjidl.h>  // Must be before propkey.
-
 #include <inspectable.h>
+#include <lm.h>
 #include <mdmregistration.h>
-#include <objbase.h>
+#include <powrprof.h>
 #include <propkey.h>
 #include <psapi.h>
 #include <roapi.h>
@@ -24,9 +31,9 @@
 #include <stddef.h>
 #include <stdlib.h>
 #include <strsafe.h>
-#include <tchar.h>  // Must be before tpcshrd.h or for any use of _T macro
 #include <tpcshrd.h>
 #include <uiviewsettingsinterop.h>
+#include <wbemidl.h>
 #include <windows.ui.viewmanagement.h>
 #include <winstring.h>
 #include <wrl/client.h>
@@ -34,6 +41,8 @@
 
 #include <limits>
 #include <memory>
+#include <optional>
+#include <string_view>
 #include <utility>
 
 #include "base/base_switches.h"
@@ -46,26 +55,34 @@
 #include "base/strings/string_util.h"
 #include "base/strings/string_util_win.h"
 #include "base/strings/utf_string_conversions.h"
+#include "base/threading/scoped_blocking_call.h"
 #include "base/threading/scoped_thread_priority.h"
 #include "base/threading/thread_restrictions.h"
 #include "base/timer/elapsed_timer.h"
 #include "base/win/access_token.h"
+#include "base/win/com_init_util.h"
 #include "base/win/core_winrt_util.h"
 #include "base/win/propvarutil.h"
 #include "base/win/registry.h"
+#include "base/win/scoped_bstr.h"
 #include "base/win/scoped_co_mem.h"
 #include "base/win/scoped_handle.h"
 #include "base/win/scoped_hstring.h"
 #include "base/win/scoped_propvariant.h"
+#include "base/win/scoped_safearray.h"
+#include "base/win/scoped_variant.h"
 #include "base/win/shlwapi.h"
 #include "base/win/static_constants.h"
 #include "base/win/windows_version.h"
-#include "third_party/abseil-cpp/absl/types/optional.h"
+#include "base/win/wmi.h"
 
 namespace base {
 namespace win {
 
 namespace {
+
+using QueryKeyFunction =
+    ScopedDeviceConvertibilityStateForTesting::QueryFunction;
 
 // Sets the value of |property_key| to |property_value| in |property_store|.
 bool SetPropVariantValueForPropertyStore(
@@ -131,7 +148,7 @@ bool* GetDomainEnrollmentStateStorage() {
 }
 
 bool* GetRegisteredWithManagementStateStorage() {
-  static bool state = []() {
+  static bool state = [] {
     // Mitigate the issues caused by loading DLLs on a background thread
     // (http://crbug/973868).
     SCOPED_MAY_LOAD_LIBRARY_AT_BACKGROUND_PRIORITY();
@@ -161,7 +178,7 @@ bool* GetRegisteredWithManagementStateStorage() {
 
 // TODO (crbug/1300219): return a DSREG_JOIN_TYPE* instead of bool*.
 bool* GetAzureADJoinStateStorage() {
-  static bool state = []() {
+  static bool state = [] {
     base::ElapsedTimer timer;
 
     // Mitigate the issues caused by loading DLLs on a background thread
@@ -210,6 +227,155 @@ NativeLibrary PinUser32Internal(NativeLibraryLoadError* error) {
 
 }  // namespace
 
+// The device convertibility functions below return references to cached data
+// to allow for complete test scenarios. See:
+// ScopedDeviceConvertibilityStateForTesting.
+//
+// Returns a reference to a cached value computed on first-use that is true only
+// if the device is a tablet, convertible, or detachable according to
+// RtlGetDeviceFamilyInfoEnum. Looks for the following values: Tablet(2),
+// Convertible(5), or Detachable(6).
+// https://learn.microsoft.com/en-us/windows-hardware/customize/desktop/unattend/microsoft-windows-deployment-deviceform
+bool& IsDeviceFormConvertible() {
+  static bool is_convertible = [] {
+    DWORD deviceForm = DEVICEFAMILYDEVICEFORM_UNKNOWN;
+    using lpfnRtlGetDeviceFamilyInfo =
+        VOID(WINAPI*)(ULONGLONG*, DWORD*, DWORD*);
+    static const lpfnRtlGetDeviceFamilyInfo get_device_family_info_fn =
+        reinterpret_cast<lpfnRtlGetDeviceFamilyInfo>(GetProcAddress(
+            ::GetModuleHandle(L"ntdll.dll"), "RtlGetDeviceFamilyInfoEnum"));
+    PCHECK(get_device_family_info_fn);
+    get_device_family_info_fn(/*pullUAPInfo=*/nullptr,
+                              /*pulDeviceFamily=*/nullptr, &deviceForm);
+
+    // Is not reliable for all devices. Surface Book 3 for instance has Chassis
+    // Type 9 (Laptop) and DeviceForm 0 (Unknown).
+    return (deviceForm == DEVICEFAMILYDEVICEFORM_TABLET) ||
+           (deviceForm == DEVICEFAMILYDEVICEFORM_CONVERTIBLE) ||
+           (deviceForm == DEVICEFAMILYDEVICEFORM_DETACHABLE);
+  }();
+  return is_convertible;
+}
+
+// Returns a reference to a cached boolean that is true if the device hardware
+// is convertible. The value is determined via a WMI query for
+// Win32_SystemEnclosure. This should only be executed for a small amount of
+// devices that don't have ConvertibleChassis or ConvertibilityEnabled keys set.
+// https://learn.microsoft.com/en-us/windows/win32/cimwin32prov/win32-systemenclosure
+bool& IsChassisConvertible() {
+  static bool chassis_convertible = [] {
+    ScopedBlockingCall scoped_blocking_call(FROM_HERE, BlockingType::MAY_BLOCK);
+    AssertComApartmentType(ComApartmentType::STA);
+
+    constexpr std::wstring_view kQuery =
+        L"select ChassisTypes from Win32_SystemEnclosure";
+    Microsoft::WRL::ComPtr<IEnumWbemClassObject> enumerator;
+    if (RunWmiQuery(kCimV2ServerName, std::wstring(kQuery), &enumerator)
+            .has_value()) {
+      return false;
+    }
+
+    ULONG obj_count = 0;
+    Microsoft::WRL::ComPtr<IWbemClassObject> info;
+    HRESULT hr = E_FAIL;
+    hr = enumerator->Next(25, 1, &info, &obj_count);
+    if (FAILED(hr)) {
+      return false;
+    }
+
+    // The accepted values for a convertible device are Tablet (30), Convertible
+    // (31), and Detachable (32).
+    enum ChassisType : int32_t {
+      kUnknownChassisType = 2,
+      kTabletChassisType = 30,
+      kConvertibleChassisType = 31,
+      kDetachableChassisType = 32,
+    };
+    int32_t chassis_type_id = kUnknownChassisType;
+
+    if (obj_count >= 1) {
+      ScopedVariant chassisTypeVariant;
+      hr = info->Get(L"ChassisTypes", 0, chassisTypeVariant.Receive(), nullptr,
+                     nullptr);
+      if (FAILED(hr)) {
+        return false;
+      }
+
+      // Although chassisType is documented as uint16[], the type in reality is
+      // a 32bit integer array.
+      if (chassisTypeVariant.type() == (VT_ARRAY | VT_I4)) {
+        ScopedSafearray safearray(chassisTypeVariant.Release().parray);
+        auto lock_scope = safearray.CreateLockScope<VT_I4>();
+        if (!lock_scope) {
+          return false;
+        }
+        chassis_type_id = (*lock_scope)[0];
+      }
+    }
+
+    return (chassis_type_id == kTabletChassisType) ||
+           (chassis_type_id == kConvertibleChassisType) ||
+           (chassis_type_id == kDetachableChassisType);
+  }();
+  return chassis_convertible;
+}
+
+// Returns a reference to a cached boolean optional. If a value exists, it means
+// that the queried registry key, ConvertibilityEnabled, exists. Used by Surface
+// for devices that can't set deviceForm or ChassisType. The RegKey need not
+// exist, but if it does it will override other checks.
+std::optional<bool>& GetConvertibilityEnabledOverride() {
+  static std::optional<bool> convertibility_enabled =
+      []() -> std::optional<bool> {
+    DWORD data;
+    base::win::RegKey key(
+        HKEY_LOCAL_MACHINE,
+        L"System\\CurrentControlSet\\Control\\PriorityControl",
+        KEY_QUERY_VALUE);
+    return key.ReadValueDW(L"ConvertibilityEnabled", &data) == ERROR_SUCCESS
+               ? std::make_optional(data != 0)
+               : std::nullopt;
+  }();
+  return convertibility_enabled;
+}
+
+// Returns a reference to a cached boolean optional. If a value exists, it means
+// that the queried registry key, ConvertibleChassis, exists. Windows may cache
+// the results of convertible chassis queries, preventing the need for running
+// the expensive WMI query. This should always be checked prior to running
+// `IsChassisConvertible()`.
+std::optional<bool>& GetConvertibleChassisKeyValue() {
+  static std::optional<bool> convertible_chassis = []() -> std::optional<bool> {
+    DWORD data;
+    base::win::RegKey key(HKEY_CURRENT_USER,
+                          L"SOFTWARE\\Microsoft\\TabletTip\\ConvertibleChassis",
+                          KEY_QUERY_VALUE);
+    return key.ReadValueDW(L"ConvertibleChassis", &data) == ERROR_SUCCESS
+               ? std::make_optional(data != 0)
+               : std::nullopt;
+  }();
+  return convertible_chassis;
+}
+
+// Returns a function pointer that points to the lambda function that
+// tracks if the device's convertible slate mode state has ever changed, which
+// would indicate that proper GPIO drivers are available for a convertible
+// machine. A pointer is used so that the function at the address can be
+// replaced for testing purposes.
+QueryKeyFunction& HasCSMStateChanged() {
+  static QueryKeyFunction state = []() {
+    DWORD data;
+    base::win::RegKey key(
+        HKEY_CURRENT_USER,
+        L"SOFTWARE\\Microsoft\\TabletTip\\ConvertibleSlateModeChanged",
+        KEY_QUERY_VALUE);
+    bool value_exists =
+        key.ReadValueDW(L"ConvertibleSlateModeChanged", &data) == ERROR_SUCCESS;
+    return (value_exists && data != 0);
+  };
+  return state;
+}
+
 // Uses the Windows 10 WRL API's to query the current system state. The API's
 // we are using in the function below are supported in Win32 apps as per msdn.
 // It looks like the API implementation is buggy at least on Surface 4 causing
@@ -226,7 +392,8 @@ bool IsWindows10OrGreaterTabletMode(HWND hwnd) {
     constexpr int kKeyboardPresent = 1;
     base::win::RegKey registry_key(
         HKEY_LOCAL_MACHINE,
-        L"System\\CurrentControlSet\\Control\\PriorityControl", KEY_READ);
+        L"System\\CurrentControlSet\\Control\\PriorityControl",
+        KEY_QUERY_VALUE);
     DWORD slate_mode = 0;
     bool value_exists = registry_key.ReadValueDW(L"ConvertibleSlateMode",
                                                  &slate_mode) == ERROR_SUCCESS;
@@ -258,6 +425,26 @@ bool IsWindows10OrGreaterTabletMode(HWND hwnd) {
   return mode == ABI::Windows::UI::ViewManagement::UserInteractionMode_Touch;
 }
 
+bool QueryDeviceConvertibility() {
+  // Ensure this function runs on a thread that allows blocking in the event
+  // that the WMI query in the chassis convertibility check is executed.
+  AssertBlockingAllowed();
+
+  if (const auto& convertibility_enabled = GetConvertibilityEnabledOverride()) {
+    return *convertibility_enabled;
+  }
+
+  if (const auto& convertible_chassis_key = GetConvertibleChassisKeyValue()) {
+    return *convertible_chassis_key;
+  }
+
+  if (IsDeviceFormConvertible() || IsChassisConvertible()) {
+    return true;
+  }
+
+  return (HasCSMStateChanged())();
+}
+
 // Returns true if a physical keyboard is detected on Windows 8 and up.
 // Uses the Setup APIs to enumerate the attached keyboards and returns true
 // if the keyboard count is 1 or more.. While this will work in most cases
@@ -268,31 +455,34 @@ bool IsKeyboardPresentOnSlate(HWND hwnd, std::string* reason) {
 
   if (CommandLine::ForCurrentProcess()->HasSwitch(
           switches::kDisableUsbKeyboardDetect)) {
-    if (reason)
+    if (reason) {
       *reason = "Detection disabled";
+    }
     return false;
   }
 
   // This function should be only invoked for machines with touch screens.
   if ((GetSystemMetrics(SM_DIGITIZER) & NID_INTEGRATED_TOUCH) !=
       NID_INTEGRATED_TOUCH) {
-    if (reason) {
-      *reason += "NID_INTEGRATED_TOUCH\n";
-      result = true;
-    } else {
+    if (!reason) {
       return true;
     }
+
+    *reason += "NID_INTEGRATED_TOUCH\n";
+    result = true;
   }
 
   // If it is a tablet device we assume that there is no keyboard attached.
   if (IsTabletDevice(reason, hwnd)) {
-    if (reason)
+    if (reason) {
       *reason += "Tablet device.\n";
+    }
     return false;
   }
 
-  if (!reason)
+  if (!reason) {
     return true;
+  }
 
   *reason += "Not a tablet device";
   result = true;
@@ -323,8 +513,9 @@ bool IsKeyboardPresentOnSlate(HWND hwnd, std::string* reason) {
       // If there is no auto rotation sensor or rotation is not supported in
       // the current configuration, then we can assume that this is a desktop
       // or a traditional laptop.
-      if (!reason)
+      if (!reason) {
         return true;
+      }
 
       *reason += (auto_rotation_state & AR_NOSENSOR) ? "AR_NOSENSOR\n"
                                                      : "AR_NOT_SUPPORTED\n";
@@ -342,8 +533,9 @@ bool IsKeyboardPresentOnSlate(HWND hwnd, std::string* reason) {
   HDEVINFO device_info = SetupDiGetClassDevs(&KEYBOARD_CLASS_GUID, nullptr,
                                              nullptr, DIGCF_PRESENT);
   if (device_info == INVALID_HANDLE_VALUE) {
-    if (reason)
+    if (reason) {
       *reason += "No keyboard info\n";
+    }
     return result;
   }
 
@@ -384,10 +576,10 @@ bool IsKeyboardPresentOnSlate(HWND hwnd, std::string* reason) {
 static bool g_crash_on_process_detach = false;
 
 bool GetUserSidString(std::wstring* user_sid) {
-  absl::optional<AccessToken> token = AccessToken::FromCurrentProcess();
+  std::optional<AccessToken> token = AccessToken::FromCurrentProcess();
   if (!token)
     return false;
-  absl::optional<std::wstring> sid_string = token->User().ToSddlString();
+  std::optional<std::wstring> sid_string = token->User().ToSddlString();
   if (!sid_string)
     return false;
   *user_sid = *sid_string;
@@ -526,25 +718,26 @@ bool IsDeviceUsedAsATablet(std::string* reason) {
   // Once this is set, it shouldn't be overridden, and it should be the ultimate
   // return value, so that this method returns the same result whether or not
   // reason is NULL.
-  absl::optional<bool> ret;
+  std::optional<bool> ret;
 
   if (GetSystemMetrics(SM_MAXIMUMTOUCHES) == 0) {
-    if (reason) {
-      *reason += "Device does not support touch.\n";
-      ret = false;
-    } else {
+    if (!reason) {
       return false;
     }
+
+    *reason += "Device does not support touch.\n";
+    ret = false;
   }
 
   // If the device is docked, the user is treating the device as a PC.
   if (GetSystemMetrics(SM_SYSTEMDOCKED) != 0) {
-    if (reason) {
-      *reason += "SM_SYSTEMDOCKED\n";
-      if (!ret.has_value())
-        ret = false;
-    } else {
+    if (!reason) {
       return false;
+    }
+
+    *reason += "SM_SYSTEMDOCKED\n";
+    if (!ret.has_value()) {
+      ret = false;
     }
   }
 
@@ -559,8 +752,9 @@ bool IsDeviceUsedAsATablet(std::string* reason) {
   if (get_auto_rotation_state_func) {
     AR_STATE rotation_state = AR_ENABLED;
     if (get_auto_rotation_state_func(&rotation_state) &&
-        (rotation_state & (AR_NOT_SUPPORTED | AR_LAPTOP | AR_NOSENSOR)) != 0)
-      return ret.has_value() ? ret.value() : false;
+        (rotation_state & (AR_NOT_SUPPORTED | AR_LAPTOP | AR_NOSENSOR)) != 0) {
+      return ret.value_or(false);
+    }
   }
 
   // PlatformRoleSlate was added in Windows 8+.
@@ -569,12 +763,13 @@ bool IsDeviceUsedAsATablet(std::string* reason) {
   if (role == PlatformRoleMobile || role == PlatformRoleSlate) {
     is_tablet = !GetSystemMetrics(SM_CONVERTIBLESLATEMODE);
     if (!is_tablet) {
-      if (reason) {
-        *reason += "Not in slate mode.\n";
-        if (!ret.has_value())
-          ret = false;
-      } else {
+      if (!reason) {
         return false;
+      }
+
+      *reason += "Not in slate mode.\n";
+      if (!ret.has_value()) {
+        ret = false;
       }
     } else if (reason) {
       *reason += (role == PlatformRoleMobile) ? "PlatformRoleMobile\n"
@@ -583,7 +778,7 @@ bool IsDeviceUsedAsATablet(std::string* reason) {
   } else if (reason) {
     *reason += "Device role is not mobile or slate.\n";
   }
-  return ret.has_value() ? ret.value() : is_tablet;
+  return ret.value_or(is_tablet);
 }
 
 bool IsEnrolledToDomain() {
@@ -604,7 +799,7 @@ bool IsJoinedToAzureAD() {
 }
 
 bool IsUser32AndGdi32Available() {
-  static auto is_user32_and_gdi32_available = []() {
+  static const bool is_user32_and_gdi32_available = [] {
     // If win32k syscalls aren't disabled, then user32 and gdi32 are available.
     PROCESS_MITIGATION_SYSTEM_CALL_DISABLE_POLICY policy = {};
     if (::GetProcessMitigationPolicy(GetCurrentProcess(),
@@ -640,6 +835,7 @@ bool GetLoadedModulesSnapshot(HANDLE process, std::vector<HMODULE>* snapshot) {
       DPLOG(ERROR) << "::EnumProcessModules failed.";
       return false;
     }
+
     DCHECK_EQ(0u, bytes_required % sizeof(HMODULE));
     size_t num_modules = bytes_required / sizeof(HMODULE);
     if (num_modules <= snapshot->size()) {
@@ -647,15 +843,17 @@ bool GetLoadedModulesSnapshot(HANDLE process, std::vector<HMODULE>* snapshot) {
       snapshot->erase(snapshot->begin() + static_cast<ptrdiff_t>(num_modules),
                       snapshot->end());
       return true;
-    } else if (num_modules == 0) {
+    }
+
+    if (num_modules == 0) {
       DLOG(ERROR) << "Can't determine the module list size.";
       return false;
-    } else {
-      // Buffer size was too small. Try again with a larger buffer. A little
-      // more room is given to avoid multiple expensive calls to
-      // ::EnumProcessModules() just because one module has been added.
-      snapshot->resize(num_modules + 8, nullptr);
     }
+
+    // Buffer size was too small. Try again with a larger buffer. A little
+    // more room is given to avoid multiple expensive calls to
+    // ::EnumProcessModules() just because one module has been added.
+    snapshot->resize(num_modules + 8, nullptr);
   } while (--retries_remaining);
 
   DLOG(ERROR) << "Failed to enumerate modules.";
@@ -740,7 +938,29 @@ std::wstring GetWindowObjectName(HANDLE handle) {
   return object_name;
 }
 
-bool IsRunningUnderDesktopName(WStringPiece desktop_name) {
+bool GetPointerDevice(HANDLE device, POINTER_DEVICE_INFO& result) {
+  return ::GetPointerDevice(device, &result);
+}
+
+std::optional<std::vector<POINTER_DEVICE_INFO>> GetPointerDevices() {
+  uint32_t device_count;
+  if (!::GetPointerDevices(&device_count, nullptr)) {
+    return std::nullopt;
+  }
+
+  std::vector<POINTER_DEVICE_INFO> pointer_devices(device_count);
+  if (!::GetPointerDevices(&device_count, pointer_devices.data())) {
+    return std::nullopt;
+  }
+  return pointer_devices;
+}
+
+bool RegisterPointerDeviceNotifications(HWND hwnd,
+                                        bool notify_proximity_changes) {
+  return ::RegisterPointerDeviceNotifications(hwnd, notify_proximity_changes);
+}
+
+bool IsRunningUnderDesktopName(std::wstring_view desktop_name) {
   HDESK thread_desktop = ::GetThreadDesktop(::GetCurrentThreadId());
   if (!thread_desktop)
     return false;
@@ -771,36 +991,34 @@ bool IsCurrentSessionRemote() {
   static constexpr wchar_t kGlassSessionIdValueName[] = L"GlassSessionId";
   DWORD glass_session_id = 0;
   if (key.ReadValueDW(kGlassSessionIdValueName, &glass_session_id) !=
-      ERROR_SUCCESS)
+      ERROR_SUCCESS) {
     return false;
+  }
 
   return current_session_id != glass_session_id;
 }
 
-#if !defined(OFFICIAL_BUILD)
-bool IsAppVerifierEnabled(const std::wstring& process_name) {
-  RegKey key;
-
-  // Look for GlobalFlag in the IFEO\chrome.exe key. If it is present then
-  // Application Verifier or gflags.exe are configured. Most GlobalFlag
-  // settings are experimentally determined to be incompatible with renderer
-  // code integrity and a safe set is not known so any GlobalFlag entry is
-  // assumed to mean that Application Verifier (or pageheap) are enabled.
-  // The settings are propagated to both 64-bit WOW6432Node versions of the
-  // registry on 64-bit Windows, so only one check is needed.
-  return key.Open(
-             HKEY_LOCAL_MACHINE,
-             (L"SOFTWARE\\Microsoft\\Windows NT\\CurrentVersion\\Image File "
-              L"Execution Options\\" +
-              process_name)
-                 .c_str(),
-             KEY_READ | KEY_WOW64_64KEY) == ERROR_SUCCESS &&
-         key.HasValue(L"GlobalFlag");
-}
-#endif  // !defined(OFFICIAL_BUILD)
-
 bool IsAppVerifierLoaded() {
   return GetModuleHandleA(kApplicationVerifierDllName);
+}
+
+std::optional<std::wstring> ExpandEnvironmentVariables(wcstring_view str) {
+  std::wstring path_expanded;
+  DWORD path_len = MAX_PATH;
+  for (int iterations = 0; iterations < 5; iterations++) {
+    DWORD result = ::ExpandEnvironmentStringsW(
+        str.c_str(), base::WriteInto(&path_expanded, path_len), path_len);
+    if (!result) {
+      // Failed to expand variables.
+      break;
+    }
+    if (result <= path_len) {
+      return path_expanded.substr(0, result - 1);
+    }
+    path_len = result;
+  }
+
+  return std::nullopt;
 }
 
 ScopedDomainStateForTesting::ScopedDomainStateForTesting(bool state)
@@ -829,6 +1047,25 @@ ScopedAzureADJoinStateForTesting::ScopedAzureADJoinStateForTesting(bool state)
 ScopedAzureADJoinStateForTesting::~ScopedAzureADJoinStateForTesting() {
   *GetAzureADJoinStateStorage() = initial_state_;
 }
+
+ScopedDeviceConvertibilityStateForTesting::
+    ScopedDeviceConvertibilityStateForTesting(
+        bool form_convertible,
+        bool chassis_convertible,
+        QueryKeyFunction csm_changed,
+        std::optional<bool> convertible_chassis_key,
+        std::optional<bool> convertibility_enabled)
+    : initial_form_convertible_(&IsDeviceFormConvertible(), form_convertible),
+      initial_chassis_convertible_(&IsChassisConvertible(),
+                                   chassis_convertible),
+      initial_csm_changed_(&HasCSMStateChanged(), csm_changed),
+      initial_convertible_chassis_key_(&GetConvertibleChassisKeyValue(),
+                                       convertible_chassis_key),
+      initial_convertibility_enabled_(&GetConvertibilityEnabledOverride(),
+                                      convertibility_enabled) {}
+
+ScopedDeviceConvertibilityStateForTesting::
+    ~ScopedDeviceConvertibilityStateForTesting() = default;
 
 }  // namespace win
 }  // namespace base

@@ -1,10 +1,12 @@
 Name: linux-syscall-support
 Short Name: lss
 URL: https://chromium.googlesource.com/linux-syscall-support/
-Revision: See DEPS
+Version: N/A
+Revision: DEPS
 License: BSD 3-clause
-License File: lss/linux-syscall-support.h
+License File: lss/linux_syscall_support.h
 Security Critical: yes
+Shipped: yes
 
 Description:
 Every so often, projects need to directly embed Linux system calls instead of

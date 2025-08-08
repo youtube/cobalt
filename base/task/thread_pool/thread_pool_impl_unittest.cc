@@ -2,6 +2,11 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#ifdef UNSAFE_BUFFERS_BUILD
+// TODO(crbug.com/40284755): Remove this and spanify to fix the errors.
+#pragma allow_unsafe_buffers
+#endif
+
 #include "base/task/thread_pool/thread_pool_impl.h"
 
 #include <stddef.h>
@@ -116,9 +121,9 @@ void VerifyTaskEnvironment(const TaskTraits& traits,
             PlatformThread::GetCurrentThreadType());
 
   if (traits.may_block())
-    internal::AssertBlockingAllowed();
+    AssertBlockingAllowed();
   else
-    internal::AssertBlockingDisallowedForTesting();
+    AssertBlockingDisallowedForTesting();
 
   // Verify that the thread the task is running on is named as expected.
   EXPECT_THAT(thread_name, ::testing::HasSubstr("ThreadPool"));
@@ -329,11 +334,13 @@ class ThreadPoolImplTestBase : public testing::Test {
   void SetupFeatures() {
     std::vector<base::test::FeatureRef> features;
 
-    if (GetUseResourceEfficientThreadGroup())
+    if (GetUseResourceEfficientThreadGroup()) {
       features.push_back(kUseUtilityThreadGroup);
+    }
 
-    if (!features.empty())
+    if (!features.empty()) {
       feature_list_.InitWithFeatures(features, {});
+    }
   }
 
   base::test::ScopedFeatureList feature_list_;
@@ -608,7 +615,7 @@ TEST(ThreadPoolImplTest_Switch, DisableBestEffortTasksSwitch) {
   thread_pool.PostDelayedTask(
       FROM_HERE,
       {TaskPriority::BEST_EFFORT, TaskShutdownBehavior::BLOCK_SHUTDOWN},
-      BindLambdaForTesting([&]() {
+      BindLambdaForTesting([&] {
         EXPECT_TRUE(best_effort_can_run.IsSet());
         best_effort_did_run.Signal();
       }),
@@ -617,7 +624,7 @@ TEST(ThreadPoolImplTest_Switch, DisableBestEffortTasksSwitch) {
   TestWaitableEvent user_blocking_did_run;
   thread_pool.PostDelayedTask(
       FROM_HERE, {TaskPriority::USER_BLOCKING},
-      BindLambdaForTesting([&]() { user_blocking_did_run.Signal(); }),
+      BindLambdaForTesting([&] { user_blocking_did_run.Signal(); }),
       TimeDelta());
 
   // The USER_BLOCKING task should run.
@@ -648,7 +655,7 @@ TEST_P(ThreadPoolImplTest_CoverAllSchedulingOptions, Fence) {
 
   CreateTaskRunnerAndExecutionMode(thread_pool_.get(), GetTraits(),
                                    GetExecutionMode())
-      ->PostTask(FROM_HERE, BindLambdaForTesting([&]() {
+      ->PostTask(FROM_HERE, BindLambdaForTesting([&] {
                    EXPECT_TRUE(can_run.IsSet());
                    did_run.Signal();
                  }));
@@ -671,7 +678,7 @@ TEST_P(ThreadPoolImplTest_CoverAllSchedulingOptions, MultipleFences) {
 
   CreateTaskRunnerAndExecutionMode(thread_pool_.get(), GetTraits(),
                                    GetExecutionMode())
-      ->PostTask(FROM_HERE, BindLambdaForTesting([&]() {
+      ->PostTask(FROM_HERE, BindLambdaForTesting([&] {
                    EXPECT_TRUE(can_run.IsSet());
                    did_run.Signal();
                  }));
@@ -698,7 +705,7 @@ TEST_P(ThreadPoolImplTest_CoverAllSchedulingOptions, FenceBeforeStart) {
 
   CreateTaskRunnerAndExecutionMode(thread_pool_.get(), GetTraits(),
                                    GetExecutionMode())
-      ->PostTask(FROM_HERE, BindLambdaForTesting([&]() {
+      ->PostTask(FROM_HERE, BindLambdaForTesting([&] {
                    EXPECT_TRUE(can_run.IsSet());
                    did_run.Signal();
                  }));
@@ -720,7 +727,7 @@ TEST_P(ThreadPoolImplTest_CoverAllSchedulingOptions, BestEffortFence) {
 
   CreateTaskRunnerAndExecutionMode(thread_pool_.get(), GetTraits(),
                                    GetExecutionMode())
-      ->PostTask(FROM_HERE, BindLambdaForTesting([&]() {
+      ->PostTask(FROM_HERE, BindLambdaForTesting([&] {
                    if (GetTraits().priority() == TaskPriority::BEST_EFFORT)
                      EXPECT_TRUE(can_run.IsSet());
                    did_run.Signal();
@@ -744,7 +751,7 @@ TEST_P(ThreadPoolImplTest_CoverAllSchedulingOptions, MultipleBestEffortFences) {
 
   CreateTaskRunnerAndExecutionMode(thread_pool_.get(), GetTraits(),
                                    GetExecutionMode())
-      ->PostTask(FROM_HERE, BindLambdaForTesting([&]() {
+      ->PostTask(FROM_HERE, BindLambdaForTesting([&] {
                    if (GetTraits().priority() == TaskPriority::BEST_EFFORT)
                      EXPECT_TRUE(can_run.IsSet());
                    did_run.Signal();
@@ -773,7 +780,7 @@ TEST_P(ThreadPoolImplTest_CoverAllSchedulingOptions,
 
   CreateTaskRunnerAndExecutionMode(thread_pool_.get(), GetTraits(),
                                    GetExecutionMode())
-      ->PostTask(FROM_HERE, BindLambdaForTesting([&]() {
+      ->PostTask(FROM_HERE, BindLambdaForTesting([&] {
                    if (GetTraits().priority() == TaskPriority::BEST_EFFORT)
                      EXPECT_TRUE(can_run.IsSet());
                    did_run.Signal();
@@ -812,7 +819,7 @@ TEST_P(ThreadPoolImplTest,
 
   // GetMaxConcurrentNonBlockedTasksWithTraitsDeprecated() does not support
   // TaskPriority::BEST_EFFORT.
-  testing::GTEST_FLAG(death_test_style) = "threadsafe";
+  GTEST_FLAG_SET(death_test_style, "threadsafe");
   EXPECT_DCHECK_DEATH({
     thread_pool_->GetMaxConcurrentNonBlockedTasksWithTraitsDeprecated(
         {TaskPriority::BEST_EFFORT});
@@ -918,8 +925,7 @@ TEST_P(ThreadPoolImplTest, DelayedTasksNotRunAfterShutdown) {
   // and signalling the WaitableEvent after Shutdown() on a different thread
   // since Shutdown() will block. However, the cost of managing this extra
   // thread was deemed to be too great for the unlikely race.
-  thread_pool_->PostDelayedTask(FROM_HERE, {},
-                                BindOnce([]() { ADD_FAILURE(); }),
+  thread_pool_->PostDelayedTask(FROM_HERE, {}, BindOnce([] { ADD_FAILURE(); }),
                                 TestTimeouts::tiny_timeout());
   thread_pool_->Shutdown();
   PlatformThread::Sleep(TestTimeouts::tiny_timeout() * 2);
@@ -942,7 +948,7 @@ TEST_P(ThreadPoolImplTest, FileDescriptorWatcherNoOpsAfterShutdown) {
           [](int read_fd) {
             std::unique_ptr<FileDescriptorWatcher::Controller> controller =
                 FileDescriptorWatcher::WatchReadable(
-                    read_fd, BindRepeating([]() { NOTREACHED(); }));
+                    read_fd, BindRepeating([] { NOTREACHED(); }));
 
             // This test is for components that intentionally leak their
             // watchers at shutdown. We can't clean |controller| up because its
@@ -962,7 +968,7 @@ TEST_P(ThreadPoolImplTest, FileDescriptorWatcherNoOpsAfterShutdown) {
   thread_pool_->Shutdown();
 
   constexpr char kByte = '!';
-  ASSERT_TRUE(WriteFileDescriptor(pipes[1], as_bytes(make_span(&kByte, 1u))));
+  ASSERT_TRUE(WriteFileDescriptor(pipes[1], byte_span_from_ref(kByte)));
 
   // Give a chance for the file watcher to fire before closing the handles.
   PlatformThread::Sleep(TestTimeouts::tiny_timeout());
@@ -1056,12 +1062,6 @@ void VerifyHasStringsOnStack(const std::string& pool_str,
 
 }  // namespace
 
-// Starboard does not support switching thread priority and therefore background
-// scheduler worker that has TaskPriority::BEST_EFFORT can not be used.
-// See CanUseBackgroundPriorityForSchedulerWorker() for more details.
-// And Starboard can also reproduce the StackTrace().ToString() crash described
-// down below on Linux.
-#ifndef STARBOARD
 #if BUILDFLAG(IS_POSIX)
 // Many POSIX bots flakily crash on |debug::StackTrace().ToString()|,
 // https://crbug.com/840429.
@@ -1157,7 +1157,6 @@ TEST_P(ThreadPoolImplTest, MAYBE_IdentifiableStacks) {
 
   thread_pool_->FlushForTesting();
 }
-#endif  // STARBOARD
 
 TEST_P(ThreadPoolImplTest, WorkerThreadObserver) {
   auto owned_observer =
@@ -1472,9 +1471,12 @@ std::vector<std::unique_ptr<TaskRunnerAndEvents>> CreateTaskRunnersAndEvents(
   // If the task following the priority update is expected to run in the
   // foreground group, it should be after the task posted to the TaskRunner
   // whose priority is updated to USER_VISIBLE.
-  expected_previous_event = CanUseBackgroundThreadTypeForWorkerThread()
-                                ? nullptr
-                                : &task_runners_and_events.back()->task_ran;
+  expected_previous_event =
+      CanUseBackgroundThreadTypeForWorkerThread() ||
+              (test->GetUseResourceEfficientThreadGroup() &&
+               CanUseUtilityThreadTypeForWorkerThread())
+          ? nullptr
+          : &task_runners_and_events.back()->task_ran;
 
   task_runners_and_events.push_back(std::make_unique<TaskRunnerAndEvents>(
       thread_pool->CreateUpdateableSequencedTaskRunner(
@@ -1538,7 +1540,7 @@ void TestUpdatePrioritySequenceScheduled(ThreadPoolImplTest* test,
   // scheduled later in the test.
   for (auto& task_runner_and_events : task_runners_and_events) {
     task_runner_and_events->task_runner->PostTask(
-        FROM_HERE, BindLambdaForTesting([&]() {
+        FROM_HERE, BindLambdaForTesting([&] {
           task_runner_and_events->scheduled.Signal();
           task_runner_and_events->blocked.Wait();
         }));
@@ -1598,7 +1600,7 @@ TEST_P(ThreadPoolImplTest, UpdatePrioritySequenceScheduled_MustUseForeground) {
 // Verify that a ThreadPolicy has to be specified in TaskTraits to increase
 // TaskPriority from BEST_EFFORT.
 TEST_P(ThreadPoolImplTest, UpdatePriorityFromBestEffortNoThreadPolicy) {
-  testing::GTEST_FLAG(death_test_style) = "threadsafe";
+  GTEST_FLAG_SET(death_test_style, "threadsafe");
   StartThreadPool();
   {
     auto task_runner = thread_pool_->CreateUpdateableSequencedTaskRunner(

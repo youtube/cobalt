@@ -53,11 +53,7 @@ public class MimeTypeFilter implements FileFilter {
         mAcceptDirectory = acceptDirectory;
     }
 
-    /**
-     * Returns true if either the uri or the mimeType is accepted by the MimeTypeFilter
-     * @param uri
-     * @param mimeType
-     */
+    /** Returns true if either the uri or the mimeType is accepted by the MimeTypeFilter */
     public boolean accept(Uri uri, String mimeType) {
         if (uri != null) {
             String fileExtension =
@@ -71,7 +67,8 @@ public class MimeTypeFilter implements FileFilter {
         }
 
         if (mimeType != null) {
-            if (mAcceptAllMimeTypes || mMimeTypes.contains(mimeType)
+            if (mAcceptAllMimeTypes
+                    || mMimeTypes.contains(mimeType)
                     || mMimeSupertypes.contains(getMimeSupertype(mimeType))) {
                 return true;
             }

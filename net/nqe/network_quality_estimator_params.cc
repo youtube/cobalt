@@ -2,12 +2,18 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#ifdef UNSAFE_BUFFERS_BUILD
+// TODO(crbug.com/40284755): Remove this and spanify to fix the errors.
+#pragma allow_unsafe_buffers
+#endif
+
 #include "net/nqe/network_quality_estimator_params.h"
 
 #include <stdint.h>
 
 #include "base/strings/string_number_conversions.h"
 #include "base/time/time.h"
+#include "net/base/features.h"
 
 namespace net {
 
@@ -392,13 +398,13 @@ bool GetForcedEffectiveConnectionTypeOnCellularOnly(
          kEffectiveConnectionTypeSlow2GOnCellular;
 }
 
-absl::optional<EffectiveConnectionType> GetInitForcedEffectiveConnectionType(
+std::optional<EffectiveConnectionType> GetInitForcedEffectiveConnectionType(
     const std::map<std::string, std::string>& params) {
   if (GetForcedEffectiveConnectionTypeOnCellularOnly(params)) {
-    return absl::nullopt;
+    return std::nullopt;
   }
   std::string forced_value = GetForcedEffectiveConnectionTypeString(params);
-  absl::optional<EffectiveConnectionType> ect =
+  std::optional<EffectiveConnectionType> ect =
       GetEffectiveConnectionTypeForName(forced_value);
   DCHECK(forced_value.empty() || ect);
   return ect;
@@ -474,6 +480,9 @@ NetworkQualityEstimatorParams::NetworkQualityEstimatorParams(
               params_,
               "add_default_platform_observations",
               "true") == "true"),
+      count_new_observations_received_compute_ect_(
+          features::kCountNewObservationsReceivedComputeEct.Get()),
+      observation_buffer_size_(features::kObservationBufferSize.Get()),
       socket_watchers_min_notification_interval_(
           base::Milliseconds(GetValueForVariationParam(
               params_,
@@ -539,7 +548,7 @@ void NetworkQualityEstimatorParams::SetForcedEffectiveConnectionTypeForTesting(
   forced_effective_connection_type_ = type;
 }
 
-absl::optional<EffectiveConnectionType>
+std::optional<EffectiveConnectionType>
 NetworkQualityEstimatorParams::GetForcedEffectiveConnectionType(
     NetworkChangeNotifier::ConnectionType connection_type) {
   DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
@@ -551,7 +560,7 @@ NetworkQualityEstimatorParams::GetForcedEffectiveConnectionType(
       net::NetworkChangeNotifier::IsConnectionCellular(connection_type)) {
     return EFFECTIVE_CONNECTION_TYPE_SLOW_2G;
   }
-  return absl::nullopt;
+  return std::nullopt;
 }
 
 size_t NetworkQualityEstimatorParams::throughput_min_requests_in_flight()

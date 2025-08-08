@@ -2,6 +2,11 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#ifdef UNSAFE_BUFFERS_BUILD
+// TODO(crbug.com/40284755): Remove this and spanify to fix the errors.
+#pragma allow_unsafe_buffers
+#endif
+
 #ifndef BASE_TRACE_EVENT_CATEGORY_REGISTRY_H_
 #define BASE_TRACE_EVENT_CATEGORY_REGISTRY_H_
 
@@ -12,6 +17,7 @@
 
 #include "base/base_export.h"
 #include "base/check_op.h"
+#include "base/containers/span.h"
 #include "base/memory/raw_ptr.h"
 #include "base/trace_event/builtin_categories.h"
 #include "base/trace_event/common/trace_event_common.h"
@@ -32,22 +38,7 @@ class TraceLog;
 // without requiring static initializers.
 class BASE_EXPORT CategoryRegistry {
  public:
-  // Allows for-each iterations over a slice of the categories array.
-  class Range {
-   public:
-    Range(TraceCategory* begin, TraceCategory* end) : begin_(begin), end_(end) {
-      DCHECK_LE(begin, end);
-    }
-    TraceCategory* begin() const { return begin_; }
-    TraceCategory* end() const { return end_; }
-
-   private:
-    const raw_ptr<TraceCategory, DanglingUntriaged> begin_;
-    const raw_ptr<TraceCategory, DanglingUntriaged> end_;
-  };
-
   // Known categories.
-  static TraceCategory* const kCategoryExhausted;
   static TraceCategory* const kCategoryMetadata;
   static TraceCategory* const kCategoryAlreadyShutdown;
 
@@ -117,7 +108,7 @@ class BASE_EXPORT CategoryRegistry {
 
   // Allows to iterate over the valid categories in a for-each loop.
   // This includes builtin categories such as __metadata.
-  static Range GetAllCategories();
+  static base::span<TraceCategory> GetAllCategories();
 
   // Returns whether |category| correctly points at |categories_| array entry.
   static bool IsValidCategoryPtr(const TraceCategory* category);

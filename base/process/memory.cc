@@ -7,15 +7,14 @@
 #include <string.h>
 
 #include "base/allocator/buildflags.h"
-#include "base/allocator/partition_allocator/partition_alloc_buildflags.h"
-#include "base/cxx17_backports.h"
 #include "base/debug/alias.h"
 #include "base/immediate_crash.h"
 #include "base/logging.h"
 #include "build/build_config.h"
+#include "partition_alloc/buildflags.h"
 
-#if BUILDFLAG(USE_PARTITION_ALLOC)
-#include "base/allocator/partition_allocator/page_allocator.h"
+#if PA_BUILDFLAG(USE_PARTITION_ALLOC)
+#include "partition_alloc/page_allocator.h"
 #endif
 
 #if BUILDFLAG(IS_WIN)
@@ -29,7 +28,7 @@ namespace base {
 // Defined in memory_mac.mm for macOS + use_partition_alloc_as_malloc=false.
 // In case of use_partition_alloc_as_malloc=true, no need to route the call to
 // the system default calloc of macOS.
-#if !BUILDFLAG(IS_APPLE) || BUILDFLAG(USE_PARTITION_ALLOC_AS_MALLOC)
+#if !BUILDFLAG(IS_APPLE) || PA_BUILDFLAG(USE_PARTITION_ALLOC_AS_MALLOC)
 
 bool UncheckedCalloc(size_t num_items, size_t size, void** result) {
   const size_t alloc_size = num_items * size;
@@ -47,11 +46,11 @@ bool UncheckedCalloc(size_t num_items, size_t size, void** result) {
   return true;
 }
 
-#endif  // !BUILDFLAG(IS_APPLE) || BUILDFLAG(USE_PARTITION_ALLOC_AS_MALLOC)
+#endif  // !BUILDFLAG(IS_APPLE) || PA_BUILDFLAG(USE_PARTITION_ALLOC_AS_MALLOC)
 
 namespace internal {
 bool ReleaseAddressSpaceReservation() {
-#if BUILDFLAG(USE_PARTITION_ALLOC)
+#if PA_BUILDFLAG(USE_PARTITION_ALLOC)
   return partition_alloc::ReleaseReservation();
 #else
   return false;

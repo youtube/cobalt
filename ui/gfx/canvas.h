@@ -8,9 +8,11 @@
 #include <stdint.h>
 
 #include <memory>
+#include <optional>
 #include <string>
 #include <vector>
 
+#include "base/component_export.h"
 #include "base/memory/raw_ptr.h"
 #include "cc/paint/paint_canvas.h"
 #include "cc/paint/paint_flags.h"
@@ -18,7 +20,6 @@
 #include "cc/paint/skottie_color_map.h"
 #include "cc/paint/skottie_frame_data.h"
 #include "cc/paint/skottie_text_property_value.h"
-#include "third_party/abseil-cpp/absl/types/optional.h"
 #include "ui/gfx/image/image_skia.h"
 #include "ui/gfx/native_widget_types.h"
 #include "ui/gfx/text_constants.h"
@@ -51,7 +52,7 @@ class Vector2d;
 // source and destination colors are combined. Unless otherwise specified,
 // the variant that does not take a SkBlendMode uses a transfer mode
 // of kSrcOver_Mode.
-class GFX_EXPORT Canvas {
+class COMPONENT_EXPORT(GFX) Canvas {
  public:
   enum {
     // Specifies the alignment for text rendered with the DrawStringRect method.
@@ -466,8 +467,8 @@ class GFX_EXPORT Canvas {
   // in which case bitmap_ and owned_canvas_ will be set. Other times we are
   // just borrowing someone else's canvas, in which case canvas_ will point
   // there but bitmap_ and owned_canvas_ will not exist.
-  absl::optional<SkBitmap> bitmap_;
-  absl::optional<cc::SkiaPaintCanvas> owned_canvas_;
+  std::optional<SkBitmap> bitmap_;
+  std::optional<cc::SkiaPaintCanvas> owned_canvas_;
   raw_ptr<cc::PaintCanvas> canvas_;
 };
 

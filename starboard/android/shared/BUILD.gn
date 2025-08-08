@@ -373,7 +373,7 @@ static_library("starboard_platform") {
       "//starboard/loader_app:pending_restart",
     ]
 
-    deps += [ "//third_party/crashpad/crashpad/wrapper" ]
+    deps += [ "//starboard/crashpad_wrapper" ]
   }
 
   if (sb_evergreen_compatible_use_libunwind) {

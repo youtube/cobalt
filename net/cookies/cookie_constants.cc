@@ -40,7 +40,6 @@ std::string CookiePriorityToString(CookiePriority priority) {
     default:
       NOTREACHED();
   }
-  return std::string();
 }
 
 CookiePriority StringToCookiePriority(const std::string& priority) {

@@ -2,9 +2,12 @@
 # Use of this source code is governed by a BSD-style license that can be
 # found in the LICENSE file.
 
+import("//media/media_options.gni")
+
 # Implementations of media C++ interfaces using corresponding mojo services.
 source_set("clients") {
   visibility = [
+    ":test_support",
     "//chromecast/*",
 
     # Mirroring Service needs the video accelerated encoder mojom interfaces.
@@ -23,7 +26,9 @@ source_set("clients") {
     # TODO(liberato): can we avoid this?
     "//content/test/*",
     "//third_party/blink/renderer/modules/mediarecorder",
+    "//third_party/blink/renderer/modules/peerconnection:peerconnection",
     "//third_party/blink/renderer/modules/webcodecs",
+    "//third_party/blink/renderer/platform:platform",
   ]
 
   sources = [
@@ -53,7 +58,16 @@ source_set("clients") {
     "mojo_video_decoder.h",
     "mojo_video_encode_accelerator.cc",
     "mojo_video_encode_accelerator.h",
+    "mojo_video_encoder_metrics_provider.cc",
+    "mojo_video_encoder_metrics_provider.h",
   ]
+
+  if (allow_oop_video_decoder) {
+    sources += [
+      "mojo_stable_video_decoder.cc",
+      "mojo_stable_video_decoder.h",
+    ]
+  }
 
   if (is_android) {
     sources += [
@@ -104,6 +118,20 @@ source_set("clients") {
   }
 }
 
+static_library("test_support") {
+  testonly = true
+
+  sources = [
+    "mock_mojo_video_encoder_metrics_provider_factory.cc",
+    "mock_mojo_video_encoder_metrics_provider_factory.h",
+  ]
+
+  deps = [
+    ":clients",
+    "//testing/gmock",
+  ]
+}
+
 source_set("unit_tests") {
   testonly = true
 
@@ -114,7 +142,12 @@ source_set("unit_tests") {
     "mojo_decryptor_unittest.cc",
     "mojo_renderer_unittest.cc",
     "mojo_video_encode_accelerator_unittest.cc",
+    "mojo_video_encoder_metrics_provider_unittest.cc",
   ]
+
+  if (allow_oop_video_decoder) {
+    sources += [ "mojo_stable_video_decoder_unittest.cc" ]
+  }
 
   deps = [
     "//base",
@@ -132,6 +165,16 @@ source_set("unit_tests") {
       "//media/mojo/mojom:test_interfaces",
       "//ui/gfx:test_support",
       "//ui/gl",
+    ]
+  }
+
+  if (is_win) {
+    sources += [ "win/media_foundation_renderer_client_unittest.cc" ]
+
+    deps += [
+      "//content/public/renderer",
+      "//content/renderer:renderer",
+      "//media",
     ]
   }
 }

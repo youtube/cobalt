@@ -50,7 +50,7 @@ void DecryptingRenderer::Initialize(MediaResource* media_resource,
   DCHECK(client);
 
   // Using |this| with a MediaResource::Type::URL will result in a crash.
-  DCHECK_EQ(media_resource->GetType(), MediaResource::Type::STREAM);
+  DCHECK_EQ(media_resource->GetType(), MediaResource::Type::kStream);
 
   media_resource_ = media_resource;
   client_ = client;
@@ -108,7 +108,7 @@ void DecryptingRenderer::SetCdm(CdmContext* cdm_context,
 }
 
 void DecryptingRenderer::SetLatencyHint(
-    absl::optional<base::TimeDelta> latency_hint) {
+    std::optional<base::TimeDelta> latency_hint) {
   renderer_->SetLatencyHint(latency_hint);
 }
 
@@ -116,9 +116,10 @@ void DecryptingRenderer::SetPreservesPitch(bool preserves_pitch) {
   renderer_->SetPreservesPitch(preserves_pitch);
 }
 
-void DecryptingRenderer::SetWasPlayedWithUserActivation(
-    bool was_played_with_user_activation) {
-  renderer_->SetWasPlayedWithUserActivation(was_played_with_user_activation);
+void DecryptingRenderer::SetWasPlayedWithUserActivationAndHighMediaEngagement(
+    bool was_played_with_user_activation_and_high_media_engagement) {
+  renderer_->SetWasPlayedWithUserActivationAndHighMediaEngagement(
+      was_played_with_user_activation_and_high_media_engagement);
 }
 
 void DecryptingRenderer::Flush(base::OnceClosure flush_cb) {
@@ -193,7 +194,7 @@ void DecryptingRenderer::InitializeRenderer(bool success) {
 bool DecryptingRenderer::HasEncryptedStream() {
   DCHECK(media_task_runner_->RunsTasksInCurrentSequence());
 
-  for (auto* stream : media_resource_->GetAllStreams()) {
+  for (media::DemuxerStream* stream : media_resource_->GetAllStreams()) {
     if ((stream->type() == DemuxerStream::AUDIO &&
          stream->audio_decoder_config().is_encrypted()) ||
         (stream->type() == DemuxerStream::VIDEO &&

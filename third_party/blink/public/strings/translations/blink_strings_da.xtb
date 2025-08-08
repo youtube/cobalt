@@ -1,0 +1,102 @@
+<?xml version="1.0" ?>
+<!DOCTYPE translationbundle>
+<translationbundle lang="da">
+<translation id="1012241361789814178">Debuggeren er sat på pause på en anden fane. Klik for at skifte til den pågældende fane.</translation>
+<translation id="1171774979989969504">Angiv en mailadresse.</translation>
+<translation id="1178581264944972037">Pause</translation>
+<translation id="1306460908038601864">Fra</translation>
+<translation id="1311894908970423688">Værdien skal være <ph name="VALUE_DATE_OR_TIME" />.</translation>
+<translation id="1588438908519853928">Normal</translation>
+<translation id="1591562245178063882">Denne måned</translation>
+<translation id="1637811476055996098">Vælg filer</translation>
+<translation id="1729654308190250600">Angiv en mailadresse, der ikke er tom.</translation>
+<translation id="1758486001363313524">Andet...</translation>
+<translation id="1921819250265091946">dd</translation>
+<translation id="1938124657309484470">Værdien må ikke være senere end <ph name="MAXIMUM_DATE_OR_TIME" />.</translation>
+<translation id="1993104285338243655">Ændret til spejling</translation>
+<translation id="2060505056492490888">"<ph name="DOT" />" er placeret forkert i "<ph name="INVALIDDOMAIN" />".</translation>
+<translation id="2068711044993563745">Minimumværdien (<ph name="MINIMUM" />) skal være mindre end maksimumværdien (<ph name="MAXIMUM" />).</translation>
+<translation id="2148716181193084225">I dag</translation>
+<translation id="2226276347425096477">Forkort denne tekst til <ph name="MAX_CHARACTERS" /> tegn eller færre (du bruger i øjeblikket <ph name="CURRENT_LENGTH" /> tegn).</translation>
+<translation id="2247351761944213033">Uge <ph name="WEEKNUMBER" />, <ph name="YEAR" /></translation>
+<translation id="2277199496770840904">Spor <ph name="NUMBER" /></translation>
+<translation id="2507943997699731163">Udfyld dette felt.</translation>
+<translation id="2613802280814924224">Angiv en gyldig værdi. Den nærmeste gyldige værdi er <ph name="VALID_VALUE" />.</translation>
+<translation id="2653659639078652383">Send</translation>
+<translation id="2746543609216772311">Værdien må ikke være tidligere end <ph name="MINIMUM_DATE_OR_TIME" />.</translation>
+<translation id="2761667185364618470">Markér dette felt, hvis du vil fortsætte.</translation>
+<translation id="2908441821576996758">Angiv en kommasepareret liste over mailadresser.</translation>
+<translation id="3049748772180311791"><ph name="QUANTITY" /> MB</translation>
+<translation id="3075154866155599887">Angiv en gyldig værdi. Feltet er ufuldstændigt eller har en ugyldig dato.</translation>
+<translation id="310520048233152454">Angiv en webadresse.</translation>
+<translation id="3321030238473337787">Afspilningshastighed</translation>
+<translation id="3450233048674729344">Værdien skal være mindre end eller lig med <ph name="MAXIMUM" />.</translation>
+<translation id="3732799496749320381">mm</translation>
+<translation id="3754210790023674521">Afslut integreret billede</translation>
+<translation id="3757388668994797779"><ph name="QUANTITY" /> GB</translation>
+<translation id="3822383571486410024">Forlæng denne tekst til <ph name="MIN_CHARACTERS" /> eller flere tegn (du bruger i øjeblikket <ph name="CURRENT_LENGTH" /> tegn).</translation>
+<translation id="383465348367842624">Den del, der kommer før "<ph name="ATSIGN" />", må ikke indeholde "<ph name="INVALIDCHARACTER" />".</translation>
+<translation id="3846214748874656680">Afslut fuld skærm</translation>
+<translation id="4360991593054037559">Angiv en gyldig værdi. De to nærmeste gyldige værdier er <ph name="VALID_VALUE_LOW" /> og <ph name="VALID_VALUE_HIGHER" />.</translation>
+<translation id="4522570452068850558">Detaljer</translation>
+<translation id="4664250907885839816">Den del, der kommer efter "<ph name="ATSIGN" />", må ikke indeholde symbolet "<ph name="INVALIDCHARACTER" />".</translation>
+<translation id="4718048029184481307">Afspiller i integreret billede</translation>
+<translation id="4812940957355064477">Angiv et nummer.</translation>
+<translation id="4975562563186953947"><ph name="SELECTED_COUNT" /> er valgt</translation>
+<translation id="4992066212339426712">Slå lyden til</translation>
+<translation id="49969490063480558">Angiv den del, der kommer efter "<ph name="ATSIGN" />". "<ph name="INVALIDADDRESS" />" er ufuldstændig.</translation>
+<translation id="5164977714490026579">Værdien skal være større end eller lig med <ph name="MINIMUM" />.</translation>
+<translation id="5196716972587102051">2</translation>
+<translation id="520299402983819650"><ph name="QUANTITY" /> PB</translation>
+<translation id="5307600278924710095">Angiv den del, der kommer før "<ph name="ATSIGN" />". "<ph name="INVALIDADDRESS" />" er ufuldstændig.</translation>
+<translation id="5334352251556557839">Mediet kunne ikke afspilles.</translation>
+<translation id="537648784377940524">Minimumsdatoen (<ph name="MIN_DATE_OR_TIME" />) skal finde sted før maksimumsdatoen (<ph name="MAX_DATE_OR_TIME" />).</translation>
+<translation id="5466621249238537318">Vælg en eller flere filer.</translation>
+<translation id="5514612371225420585">Fil på din enhed</translation>
+<translation id="5516235301412634559">0,75</translation>
+<translation id="5537725057119320332">Cast</translation>
+<translation id="5630795885300617244">Tryk to gange til venstre eller højre for at springe ti sekunder over</translation>
+<translation id="57838592816432529">Slå lyden fra</translation>
+<translation id="588258955323874662">Fuld skærm</translation>
+<translation id="5888666972993069672">Caster nu til <ph name="DEVICE_FRIENDLY_NAME" /></translation>
+<translation id="5939518447894949180">Nulstil</translation>
+<translation id="5966707198760109579">Uge</translation>
+<translation id="5985507339671257014">0,5</translation>
+<translation id="6310801910862476708">Afslut integreret billede</translation>
+<translation id="6484738902856791350">Anvend pretty print</translation>
+<translation id="6550675742724504774">Valgmuligheder</translation>
+<translation id="6643016212128521049">Ryd</translation>
+<translation id="668171684555832681">Andre...</translation>
+<translation id="6709093583001123835">Værdien skal være <ph name="VALUE" />.</translation>
+<translation id="6709570249143506788">Dårlig afspilningskvalitet</translation>
+<translation id="6790428901817661496">Afspil</translation>
+<translation id="6820355525329141109">Pluginnet kunne ikke indlæses.</translation>
+<translation id="6919891270253167948">1,5</translation>
+<translation id="6989848892321993519">Forlæng denne tekst til <ph name="MIN_CHARACTERS" /> eller flere tegn (du bruger i øjeblikket ét tegn).</translation>
+<translation id="709897737746224366">Find et match til det anmodede format.</translation>
+<translation id="7263440858009898357">Vælg et punkt på listen.</translation>
+<translation id="7364796246159120393">Vælg fil</translation>
+<translation id="739024184232394898">Andet...</translation>
+<translation id="7460907917090416791"><ph name="QUANTITY" /> TB</translation>
+<translation id="7514365320538308">Download</translation>
+<translation id="7750228210027921155">Integreret billede</translation>
+<translation id="7782515065589691344">1.25</translation>
+<translation id="7888071071722539607">Mailadressen skal indeholde et "<ph name="ATSIGN" />". "<ph name="INVALIDADDRESS" />" mangler et "<ph name="ATSIGN" />".</translation>
+<translation id="795667975304826397">Der er ikke valgt nogen fil</translation>
+<translation id="8117451130807776954">Denne uge</translation>
+<translation id="8131955114056917397">0,25</translation>
+<translation id="8199524924445686405">åååå</translation>
+<translation id="8284326494547611709">Undertekster</translation>
+<translation id="835897206747267392">Ugyldig værdi.</translation>
+<translation id="839593075537728968">Værdien skal være mellem <ph name="MINIMUM_TIME" /> og <ph name="MAXIMUM_TIME" />.</translation>
+<translation id="8444882422881193423"><ph name="NUMBER_OF_FILES" /> filer</translation>
+<translation id="8451268428117625855">Vælg en fil.</translation>
+<translation id="8637593834423658414">1,75</translation>
+<translation id="8668988909814782445">Linjeombrydning</translation>
+<translation id="8750798805984357768">Vælg en af disse muligheder.</translation>
+<translation id="8845239796550121995">Caster nu til dit fjernsyn</translation>
+<translation id="8875657656876809964">Fejl under videoafspilning</translation>
+<translation id="8901569739625249689"><ph name="QUANTITY" /> kB</translation>
+<translation id="9132465097189459683">Andet...</translation>
+<translation id="916607977885256133">Integreret billede</translation>
+</translationbundle>

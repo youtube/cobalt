@@ -2,86 +2,97 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#ifdef UNSAFE_BUFFERS_BUILD
+// TODO(crbug.com/40284755): Remove this and spanify to fix the errors.
+#pragma allow_unsafe_buffers
+#endif
+
 #include "base/logging.h"
 
-#ifndef COBALT_PENDING_CLEAN_UP
 #ifdef BASE_CHECK_H_
 #error "logging.h should not include check.h"
-#endif
 #endif
 
 #include <limits.h>
 #include <stdint.h>
 
+#include <algorithm>
 #include <atomic>
+#include <cstring>
+#include <ctime>
+#include <iomanip>
 #include <memory>
+#include <ostream>
+#include <string>
+#include <string_view>
 #include <tuple>
+#include <utility>
 #include <vector>
 
 #include "base/base_export.h"
+#include "base/base_switches.h"
+#include "base/command_line.h"
+#include "base/containers/stack.h"
+#include "base/debug/alias.h"
 #include "base/debug/crash_logging.h"
+#include "base/debug/debugger.h"
+#include "base/debug/stack_trace.h"
+#include "base/debug/task_trace.h"
+#include "base/functional/callback.h"
 #include "base/immediate_crash.h"
+#include "base/no_destructor.h"
+#include "base/not_fatal_until.h"
+#include "base/path_service.h"
 #include "base/pending_task.h"
+#include "base/posix/eintr_wrapper.h"
 #include "base/process/process_handle.h"
-#include "base/strings/string_piece.h"
+#include "base/scoped_clear_last_error.h"
+#include "base/strings/string_split.h"
+#include "base/strings/string_util.h"
+#include "base/strings/stringprintf.h"
+#include "base/strings/sys_string_conversions.h"
+#include "base/strings/utf_string_conversions.h"
+#include "base/synchronization/lock.h"
 #include "base/task/common/task_annotator.h"
+#include "base/test/scoped_logging_settings.h"
+#include "base/threading/platform_thread.h"
 #include "base/trace_event/base_tracing.h"
+#include "base/vlog.h"
 #include "build/build_config.h"
+#include "build/chromeos_buildflags.h"
+#include "third_party/abseil-cpp/absl/base/internal/raw_logging.h"
+#include "third_party/abseil-cpp/absl/cleanup/cleanup.h"
 
 #if !BUILDFLAG(IS_NACL)
 #include "base/auto_reset.h"
 #include "base/debug/crash_logging.h"
 #endif  // !BUILDFLAG(IS_NACL)
 
-#if (defined(LEAK_SANITIZER) && !BUILDFLAG(IS_NACL)) || \
-    (defined(STARBOARD) && defined(ADDRESS_SANITIZER))
+#if defined(LEAK_SANITIZER) && !BUILDFLAG(IS_NACL)
 #include "base/debug/leak_annotations.h"
 #endif  // defined(LEAK_SANITIZER) && !BUILDFLAG(IS_NACL)
 
-#if defined(STARBOARD)
-#include <fcntl.h>
-
-#include "base/files/file_starboard.h"
-#include "starboard/client_porting/eztime/eztime.h"
-#include "starboard/common/log.h"
-#include "starboard/common/mutex.h"
-#include "starboard/common/time.h"
-#include "starboard/configuration.h"
-#include "starboard/configuration_constants.h"
-#include "starboard/system.h"
-typedef int* FileHandle;
-typedef pthread_mutex_t MutexHandle;
-#else
 #if BUILDFLAG(IS_WIN)
-#include <io.h>
 #include <windows.h>
+
+#include <io.h>
+
+#include "base/win/win_util.h"
+
 typedef HANDLE FileHandle;
 // Windows warns on using write().  It prefers _write().
 #define write(fd, buf, count) _write(fd, buf, static_cast<unsigned int>(count))
 // Windows doesn't define STDERR_FILENO.  Define it here.
 #define STDERR_FILENO 2
+#endif  // BUILDFLAG(IS_WIN)
 
-#elif BUILDFLAG(IS_APPLE)
+#if BUILDFLAG(IS_APPLE)
 #include <CoreFoundation/CoreFoundation.h>
 #include <mach-o/dyld.h>
 #include <mach/mach.h>
 #include <mach/mach_time.h>
 #include <os/log.h>
-
-#elif BUILDFLAG(IS_POSIX) || BUILDFLAG(IS_FUCHSIA)
-#if BUILDFLAG(IS_NACL)
-#include <sys/time.h>  // timespec doesn't seem to be in <time.h>
-#endif
-#include <time.h>
-#endif
-
-#if BUILDFLAG(IS_FUCHSIA)
-#include "base/fuchsia/scoped_fx_logger.h"
-#endif
-
-#if BUILDFLAG(IS_ANDROID)
-#include <android/log.h>
-#endif
+#endif  // BUILDFLAG(IS_APPLE)
 
 #if BUILDFLAG(IS_POSIX) || BUILDFLAG(IS_FUCHSIA)
 #include <errno.h>
@@ -90,51 +101,33 @@ typedef HANDLE FileHandle;
 #include <stdlib.h>
 #include <string.h>
 #include <sys/stat.h>
+#include <time.h>
+
+#include "base/posix/safe_strerror.h"
+
+#if BUILDFLAG(IS_NACL)
+#include <sys/time.h>  // timespec doesn't seem to be in <time.h>
+#endif
+
 #define MAX_PATH PATH_MAX
 typedef FILE* FileHandle;
-#endif
-#endif
+#endif  // BUILDFLAG(IS_POSIX) || BUILDFLAG(IS_FUCHSIA)
 
-#include <algorithm>
-#include <cstring>
-#include <ctime>
-#include <iomanip>
-#include <ostream>
-#include <string>
-#include <utility>
-
-#include "base/base_switches.h"
-#include "base/command_line.h"
-#include "base/containers/stack.h"
-#include "base/debug/alias.h"
-#include "base/debug/debugger.h"
-#include "base/debug/stack_trace.h"
-#include "base/debug/task_trace.h"
-#include "base/functional/callback.h"
-#include "base/no_destructor.h"
-#include "base/path_service.h"
-#include "base/posix/eintr_wrapper.h"
-#include "base/strings/string_split.h"
-#include "base/strings/string_util.h"
-#include "base/strings/stringprintf.h"
-#include "base/strings/sys_string_conversions.h"
-#include "base/strings/utf_string_conversions.h"
-#include "base/synchronization/lock.h"
-#include "base/test/scoped_logging_settings.h"
-#include "base/threading/platform_thread.h"
-#include "base/vlog.h"
-#include "build/chromeos_buildflags.h"
-
-#if BUILDFLAG(IS_WIN)
-#include "base/win/win_util.h"
-#endif
-
-#if BUILDFLAG(IS_POSIX) || BUILDFLAG(IS_FUCHSIA)
-#include "base/posix/safe_strerror.h"
+#if BUILDFLAG(IS_ANDROID)
+#include <android/log.h>
+#include "base/android/jni_android.h"
 #endif
 
 #if BUILDFLAG(IS_CHROMEOS_ASH)
 #include "base/files/scoped_file.h"
+#endif
+
+#if BUILDFLAG(IS_FUCHSIA)
+#include "base/fuchsia/scoped_fx_logger.h"
+#endif
+
+#if !BUILDFLAG(IS_NACL)
+#include "base/logging/rust_logger.rs.h"
 #endif
 
 namespace logging {
@@ -143,7 +136,6 @@ namespace {
 
 int g_min_log_level = 0;
 
-#if BUILDFLAG(USE_RUNTIME_VLOG)
 // NOTE: Once |g_vlog_info| has been initialized, it might be in use
 // by another thread. Never delete the old VLogInfo, just create a second
 // one and overwrite. We need to use leak-san annotations on this intentional
@@ -211,25 +203,6 @@ void MaybeInitializeVlogInfo() {
     }
   }
 }
-#endif  // BUILDFLAG(USE_RUNTIME_VLOG)
-
-#if !BUILDFLAG(USE_RUNTIME_VLOG) && DCHECK_IS_ON()
-
-// Warn developers that vlog command line settings are being ignored.
-void MaybeWarnVmodule() {
-  if (base::CommandLine::InitializedForCurrentProcess()) {
-    base::CommandLine* command_line = base::CommandLine::ForCurrentProcess();
-    if (command_line->HasSwitch(switches::kV) ||
-        command_line->HasSwitch(switches::kVModule)) {
-      LOG(WARNING)
-          << "--" << switches::kV << " and --" << switches::kVModule
-          << " are currently ignored. See comments in base/logging.h on "
-             "proper usage of USE_RUNTIME_VLOG.";
-    }
-  }
-}
-
-#endif  // !BUILDFLAG(USE_RUNTIME_VLOG) && DCHECK_IS_ON()
 
 const char* const log_severity_names[] = {"INFO", "WARNING", "ERROR", "FATAL"};
 static_assert(LOGGING_NUM_SEVERITIES == std::size(log_severity_names),
@@ -292,9 +265,7 @@ base::stack<LogAssertHandlerFunction>& GetLogAssertHandlerStack() {
 LogMessageHandlerFunction g_log_message_handler = nullptr;
 
 uint64_t TickCount() {
-#if defined(STARBOARD)
-  return starboard::CurrentMonotonicTime();
-#elif BUILDFLAG(IS_WIN)
+#if BUILDFLAG(IS_WIN)
   return GetTickCount();
 #elif BUILDFLAG(IS_FUCHSIA)
   return static_cast<uint64_t>(
@@ -318,9 +289,7 @@ uint64_t TickCount() {
 }
 
 void DeleteFilePath(const PathString& log_name) {
-#if defined(STARBOARD)
-  unlink(log_name.c_str());
-#elif BUILDFLAG(IS_WIN)
+#if BUILDFLAG(IS_WIN)
   DeleteFile(log_name.c_str());
 #elif BUILDFLAG(IS_NACL)
   // Do nothing; unlink() isn't supported on NaCl.
@@ -332,15 +301,7 @@ void DeleteFilePath(const PathString& log_name) {
 }
 
 PathString GetDefaultLogFile() {
-#if defined(STARBOARD)
-  // On Starboard, we politely ask for the log directory, like a civilized
-  // platform.
-  std::vector<char> path(kSbFileMaxPath + 1);
-  SbSystemGetPath(kSbSystemPathDebugOutputDirectory, path.data(), path.size());
-  PathString log_file = path.data();
-  log_file += std::string(kSbFileSepString) + "debug.log";
-  return log_file;
-#elif BUILDFLAG(IS_WIN)
+#if BUILDFLAG(IS_WIN)
   // On Windows we use the same path as the exe.
   wchar_t module_name[MAX_PATH];
   GetModuleFileName(nullptr, module_name, MAX_PATH);
@@ -392,26 +353,10 @@ bool InitializeLogFileHandle() {
     g_log_file_name = new PathString(GetDefaultLogFile());
   }
 
-#if defined(STARBOARD)
-  // This seems to get called a lot with an empty filename, at least in
-  // base_unittests.
-  if (g_log_file_name->empty()) {
-    return false;
-  }
-#endif
-
   if ((g_logging_destination & LOG_TO_FILE) == 0)
     return true;
 
-#if defined(STARBOARD)
-  int g_log_file_descriptor =
-    open(g_log_file_name->c_str(), O_CREAT | O_WRONLY, S_IRUSR | S_IWUSR);
-  g_log_file = &g_log_file_descriptor;
-  if (g_log_file_descriptor < 0)
-    return false;
-
-  lseek(g_log_file_descriptor, 0, SEEK_END);
-#elif BUILDFLAG(IS_WIN)
+#if BUILDFLAG(IS_WIN)
   // The FILE_APPEND_DATA access mask ensures that the file is atomically
   // appended to across accesses from multiple threads.
   // https://msdn.microsoft.com/en-us/library/windows/desktop/aa364399(v=vs.85).aspx
@@ -458,11 +403,7 @@ bool InitializeLogFileHandle() {
 }
 
 void CloseFile(FileHandle log) {
-#if defined(STARBOARD)
-  if (*log >= 0) {
-    close(*log);
-  }
-#elif BUILDFLAG(IS_WIN)
+#if BUILDFLAG(IS_WIN)
   CloseHandle(log);
 #elif BUILDFLAG(IS_POSIX) || BUILDFLAG(IS_FUCHSIA)
   fclose(log);
@@ -484,63 +425,7 @@ void CloseLogFileUnlocked() {
     g_logging_destination &= ~LOG_TO_FILE;
 }
 
-#if defined(STARBOARD)
-SbLogPriority LogLevelToStarboardLogPriority(int level) {
-  switch (level) {
-    case LOG_INFO:
-      return kSbLogPriorityInfo;
-    case LOG_WARNING:
-      return kSbLogPriorityWarning;
-    case LOG_ERROR:
-      return kSbLogPriorityError;
-    case LOG_FATAL:
-      return kSbLogPriorityFatal;
-    case LOG_VERBOSE:
-    default:
-      if (level <= LOG_VERBOSE) {
-        // Verbose level can be any negative integer, sanity check its range to
-        // filter out potential errors.
-        DCHECK_GE(level, -256);
-        return kSbLogPriorityInfo;
-      }
-      NOTREACHED() << "Unrecognized log level.";
-      return kSbLogPriorityInfo;
-  }
-}
-#endif  // defined(STARBOARD)
-
-#if BUILDFLAG(IS_FUCHSIA)
-inline FuchsiaLogSeverity LogSeverityToFuchsiaLogSeverity(
-    LogSeverity severity) {
-  switch (severity) {
-    case LOGGING_INFO:
-      return FUCHSIA_LOG_INFO;
-    case LOGGING_WARNING:
-      return FUCHSIA_LOG_WARNING;
-    case LOGGING_ERROR:
-      return FUCHSIA_LOG_ERROR;
-    case LOGGING_FATAL:
-      // Don't use FX_LOG_FATAL, otherwise fx_logger_log() will abort().
-      return FUCHSIA_LOG_ERROR;
-  }
-  if (severity > -3) {
-    // LOGGING_VERBOSE levels 1 and 2.
-    return FUCHSIA_LOG_DEBUG;
-  }
-  // LOGGING_VERBOSE levels 3 and higher, or incorrect levels.
-  return FUCHSIA_LOG_TRACE;
-}
-#endif  // BUILDFLAG(IS_FUCHSIA)
-
 void WriteToFd(int fd, const char* data, size_t length) {
-#if defined(STARBOARD)
-  if (length > 0) {
-    SbLogRaw(data);
-    if (data[length - 1] != '\n') {
-      SbLogRaw("\n");
-    }
-  }
-#else
   size_t bytes_written = 0;
   long rv;
   while (bytes_written < length) {
@@ -551,7 +436,6 @@ void WriteToFd(int fd, const char* data, size_t length) {
     }
     bytes_written += static_cast<size_t>(rv);
   }
-#endif  // defined(STARBOARD)
 }
 
 void SetLogFatalCrashKey(LogMessage* log_message) {
@@ -566,6 +450,8 @@ void SetLogFatalCrashKey(LogMessage* log_message) {
 
   base::AutoReset<bool> guard(&guarded, true);
 
+  // Note that we intentionally use LOG_FATAL here (old name for LOGGING_FATAL)
+  // as that's understood and used by the crash backend.
   static auto* const crash_key = base::debug::AllocateCrashKeyString(
       "LOG_FATAL", base::debug::CrashKeySize::Size1024);
   base::debug::SetCrashKeyString(crash_key, log_message->BuildCrashString());
@@ -594,7 +480,7 @@ std::string BuildCrashString(const char* file,
 }
 
 // Invokes macro to record trace event when a log message is emitted.
-void traceLogMessage(const char* file, int line, const std::string& message) {
+void TraceLogMessage(const char* file, int line, const std::string& message) {
   TRACE_EVENT_INSTANT("log", "LogMessage", [&](perfetto::EventContext ctx) {
     perfetto::protos::pbzero::LogMessage* log = ctx.event()->set_log_message();
     log->set_source_location_iid(base::trace_event::InternedSourceLocation::Get(
@@ -609,9 +495,9 @@ void traceLogMessage(const char* file, int line, const std::string& message) {
 
 #if BUILDFLAG(DCHECK_IS_CONFIGURABLE)
 // In DCHECK-enabled Chrome builds, allow the meaning of LOGGING_DCHECK to be
-// determined at run-time. We default it to INFO, to avoid it triggering
+// determined at run-time. We default it to ERROR, to avoid it triggering
 // crashes before the run-time has explicitly chosen the behaviour.
-BASE_EXPORT logging::LogSeverity LOGGING_DCHECK = LOGGING_INFO;
+BASE_EXPORT logging::LogSeverity LOGGING_DCHECK = LOGGING_ERROR;
 #endif  // BUILDFLAG(DCHECK_IS_CONFIGURABLE)
 
 // This is never instantiated, it's just used for EAT_STREAM_PARAMETERS to have
@@ -630,13 +516,7 @@ bool BaseInitLoggingImpl(const LoggingSettings& settings) {
   g_log_format = settings.log_format;
 #endif
 
-#if BUILDFLAG(USE_RUNTIME_VLOG)
   MaybeInitializeVlogInfo();
-#endif  // BUILDFLAG(USE_RUNTIME_VLOG)
-
-#if !BUILDFLAG(USE_RUNTIME_VLOG) && DCHECK_IS_ON()
-  MaybeWarnVmodule();
-#endif  // !BUILDFLAG(USE_RUNTIME_VLOG) && DCHECK_IS_ON()
 
   g_logging_destination = settings.logging_dest;
 
@@ -646,7 +526,12 @@ bool BaseInitLoggingImpl(const LoggingSettings& settings) {
   }
 #endif
 
-  // ignore file options unless logging to file is set.
+#if !BUILDFLAG(IS_NACL)
+  // Connects Rust logging with the //base logging functionality.
+  internal::init_rust_log_crate();
+#endif
+
+  // Ignore file options unless logging to file is set.
   if ((g_logging_destination & LOG_TO_FILE) == 0)
     return true;
 
@@ -658,15 +543,16 @@ bool BaseInitLoggingImpl(const LoggingSettings& settings) {
   // default log file will re-initialize to the new options.
   CloseLogFileUnlocked();
 
-#if BUILDFLAG(IS_CHROMEOS_ASH)
+#if BUILDFLAG(IS_CHROMEOS_ASH) || BUILDFLAG(IS_WIN)
   if (settings.log_file) {
-    DCHECK(!settings.log_file_path);
+    CHECK(settings.log_file_path.empty(), base::NotFatalUntil::M127);
     g_log_file = settings.log_file;
     return true;
   }
-#endif
+#endif  // BUILDFLAG(IS_CHROMEOS_ASH) || BUILDFLAG(IS_WIN)
 
-  DCHECK(settings.log_file_path) << "LOG_TO_FILE set but no log_file_path!";
+  CHECK(!settings.log_file_path.empty(), base::NotFatalUntil::M127)
+      << "LOG_TO_FILE set but no log_file_path!";
 
   if (!g_log_file_name)
     g_log_file_name = new PathString();
@@ -699,12 +585,6 @@ bool ShouldCreateLogMessage(int severity) {
 // set, or only LOG_TO_FILE is set, since that is useful for local development
 // and debugging.
 bool ShouldLogToStderr(int severity) {
-#if defined(STARBOARD)
-  if ((g_logging_destination & LOG_TO_SYSTEM_DEBUG_LOG) != 0) {
-    // Don't SbLog to stderr if already logging to system debug log.
-    return false;
-  }
-#endif
   if (g_logging_destination & LOG_TO_STDERR)
     return true;
 
@@ -720,22 +600,17 @@ bool ShouldLogToStderr(int severity) {
 }
 
 int GetVlogVerbosity() {
-  return std::max(-1, LOG_INFO - GetMinLogLevel());
+  return std::max(-1, LOGGING_INFO - GetMinLogLevel());
 }
 
 int GetVlogLevelHelper(const char* file, size_t N) {
   DCHECK_GT(N, 0U);
 
-#if BUILDFLAG(USE_RUNTIME_VLOG)
   // Note: |g_vlog_info| may change on a different thread during startup
   // (but will always be valid or nullptr).
   VlogInfo* vlog_info = GetVlogInfo();
-  return vlog_info ?
-      vlog_info->GetVlogLevel(base::StringPiece(file, N - 1)) :
-      GetVlogVerbosity();
-#else
-  return GetVlogVerbosity();
-#endif  // BUILDFLAG(USE_RUNTIME_VLOG)
+  return vlog_info ? vlog_info->GetVlogLevel(std::string_view(file, N - 1))
+                   : GetVlogVerbosity();
 }
 
 void SetLogItems(bool enable_process_id, bool enable_thread_id,
@@ -754,6 +629,30 @@ void SetLogPrefix(const char* prefix) {
 
 void SetShowErrorDialogs(bool enable_dialogs) {
   show_error_dialogs = enable_dialogs;
+}
+
+namespace {
+
+[[noreturn]] void AbslAbortHook(const char* file,
+                                int line,
+                                const char* buf_start,
+                                const char* prefix_end,
+                                const char* buf_end) {
+  // This simulates a CHECK(false) at file:line instead of here. This is used
+  // instead of base::ImmediateCrash() to give better error messages locally
+  // (printed stack for one).
+  LogMessageFatal(file, line, LOGGING_FATAL).stream()
+      << "Check failed: false. " << prefix_end;
+}
+
+}  // namespace
+
+void RegisterAbslAbortHook() {
+  // TODO(pbos): Update this to not rely on a _internal namespace once there's
+  // a public API in absl::.
+  // Note: If this fails to compile because of an absl roll, this is fair to
+  // remove if you file a crbug.com/new and assign it to pbos@.
+  ::absl::raw_log_internal::RegisterAbortHook(&AbslAbortHook);
 }
 
 ScopedLogAssertHandler::ScopedLogAssertHandler(
@@ -811,14 +710,28 @@ LogMessage::LogMessage(const char* file, int line, const char* condition)
 }
 
 LogMessage::~LogMessage() {
+  Flush();
+}
+
+void LogMessage::Flush() {
+  // Don't let actions from this method affect the system error after returning.
+  base::ScopedClearLastError scoped_clear_last_error;
+
   size_t stack_start = stream_.str().length();
 #if !defined(OFFICIAL_BUILD) && !BUILDFLAG(IS_NACL) && !defined(__UCLIBC__) && \
     !BUILDFLAG(IS_AIX)
+  // Include a stack trace on a fatal, unless a debugger is attached.
   if (severity_ == LOGGING_FATAL && !base::debug::BeingDebugged()) {
-    // Include a stack trace on a fatal, unless a debugger is attached.
     base::debug::StackTrace stack_trace;
     stream_ << std::endl;  // Newline to separate from log message.
     stack_trace.OutputToStream(&stream_);
+#if BUILDFLAG(IS_ANDROID)
+    std::string java_stack = base::android::GetJavaStackTraceIfPresent();
+    if (!java_stack.empty()) {
+      stream_ << "Java stack (may interleave with native stack):\n";
+      stream_ << java_stack << '\n';
+    }
+#endif
     base::debug::TaskTrace task_trace;
     if (!task_trace.empty())
       task_trace.OutputToStream(&stream_);
@@ -837,9 +750,15 @@ LogMessage::~LogMessage() {
 #endif
   stream_ << std::endl;
   std::string str_newline(stream_.str());
-  traceLogMessage(
-      file_, line_,
-      std::string(base::StringPiece(str_newline).substr(message_start_)));
+  TraceLogMessage(file_, line_, str_newline.substr(message_start_));
+
+  // FATAL messages should always run the assert handler and crash, even if a
+  // message handler marks them as otherwise handled.
+  absl::Cleanup handle_fatal_message = [&] {
+    if (severity_ == LOGGING_FATAL) {
+      HandleFatal(stack_start, str_newline);
+    }
+  };
 
   if (severity_ == LOGGING_FATAL)
     SetLogFatalCrashKey(this);
@@ -853,9 +772,7 @@ LogMessage::~LogMessage() {
   }
 
   if ((g_logging_destination & LOG_TO_SYSTEM_DEBUG_LOG) != 0) {
-#if defined(STARBOARD)
-    SbLog(LogLevelToStarboardLogPriority(severity_), str_newline.c_str());
-#elif BUILDFLAG(IS_WIN)
+#if BUILDFLAG(IS_WIN)
     OutputDebugStringA(str_newline.c_str());
 #elif BUILDFLAG(IS_APPLE)
     // In LOG_TO_SYSTEM_DEBUG_LOG mode, log messages are always written to
@@ -873,7 +790,7 @@ LogMessage::~LogMessage() {
     // CF-635.21/CFUtilities.c also_do_stderr(). This would result in logging to
     // both stderr and os_log even in tests, where it's undesirable to log to
     // the system log at all.
-    const bool log_to_system = []() {
+    const bool log_to_system = [] {
       struct stat stderr_stat;
       if (fstat(fileno(stderr), &stderr_stat) == -1) {
         return true;
@@ -974,10 +891,10 @@ LogMessage::~LogMessage() {
     // LogMessage() will silently drop the message if the logger is not valid.
     // Skip the final character of |str_newline|, since LogMessage() will add
     // a newline.
-    const auto message = base::StringPiece(str_newline).substr(message_start_);
+    const auto message = std::string_view(str_newline).substr(message_start_);
     GetScopedFxLogger().LogMessage(file_, static_cast<uint32_t>(line_),
                                    message.substr(0, message.size() - 1),
-                                   LogSeverityToFuchsiaLogSeverity(severity_));
+                                   severity_);
 #endif  // BUILDFLAG(IS_FUCHSIA)
   }
 
@@ -993,11 +910,7 @@ LogMessage::~LogMessage() {
     //   LOG(ERROR) << "Something went wrong";
     //   free_something();
     // }
-#if defined(STARBOARD)
-    SbLog(LogLevelToStarboardLogPriority(severity_), str_newline.c_str());
-#else
     WriteToFd(STDERR_FILENO, str_newline.data(), str_newline.size());
-#endif
   }
 
   if ((g_logging_destination & LOG_TO_FILE) != 0) {
@@ -1010,20 +923,7 @@ LogMessage::~LogMessage() {
     base::AutoLock guard(GetLoggingLock());
 #endif
     if (InitializeLogFileHandle()) {
-#if defined(STARBOARD)
-      lseek(*g_log_file, 0, SEEK_END);
-      int written = 0;
-      while (written < str_newline.length()) {
-        int result =
-            HANDLE_EINTR(write(*g_log_file, &(str_newline.c_str()[written]),
-                                 str_newline.length() - written));
-        base::RecordFileWriteStat(result);
-        if (result < 0) {
-          break;
-        }
-        written += result;
-      }
-#elif BUILDFLAG(IS_WIN)
+#if BUILDFLAG(IS_WIN)
       DWORD num_written;
       WriteFile(g_log_file,
                 static_cast<const void*>(str_newline.c_str()),
@@ -1039,41 +939,6 @@ LogMessage::~LogMessage() {
 #endif
     }
   }
-
-  if (severity_ == LOGGING_FATAL) {
-    char str_stack[1024];
-    base::strlcpy(str_stack, str_newline.data(), std::size(str_stack));
-    base::debug::Alias(&str_stack);
-
-    if (!GetLogAssertHandlerStack().empty()) {
-      LogAssertHandlerFunction log_assert_handler =
-          GetLogAssertHandlerStack().top();
-
-      if (log_assert_handler) {
-        log_assert_handler.Run(
-            file_, line_,
-            base::StringPiece(str_newline.c_str() + message_start_,
-                              stack_start - message_start_),
-            base::StringPiece(str_newline.c_str() + stack_start));
-      }
-    } else {
-      // Don't use the string with the newline, get a fresh version to send to
-      // the debug message process. We also don't display assertions to the
-      // user in release mode. The enduser can't do anything with this
-      // information, and displaying message boxes when the application is
-      // hosed can cause additional problems.
-#ifndef NDEBUG
-      if (!base::debug::BeingDebugged()) {
-        // Displaying a dialog is unnecessary when debugging and can complicate
-        // debugging.
-        DisplayDebugMessageInDialog(stream_.str());
-      }
-#endif
-
-      // Crash the process to generate a dump.
-      base::ImmediateCrash();
-    }
-  }
 }
 
 std::string LogMessage::BuildCrashString() const {
@@ -1083,10 +948,14 @@ std::string LogMessage::BuildCrashString() const {
 
 // writes the common header info to the stream
 void LogMessage::Init(const char* file, int line) {
-  base::StringPiece filename(file);
+  // Don't let actions from this method affect the system error after returning.
+  base::ScopedClearLastError scoped_clear_last_error;
+
+  std::string_view filename(file);
   size_t last_slash_pos = filename.find_last_of("\\/");
-  if (last_slash_pos != base::StringPiece::npos)
+  if (last_slash_pos != std::string_view::npos) {
     filename.remove_prefix(last_slash_pos + 1);
+  }
 
 #if BUILDFLAG(IS_CHROMEOS)
   if (g_log_format == LogFormat::LOG_FORMAT_SYSLOG) {
@@ -1103,30 +972,9 @@ void LogMessage::Init(const char* file, int line) {
     if (g_log_process_id)
       stream_ << base::GetUniqueIdForProcess() << ':';
     if (g_log_thread_id)
-#if defined(STARBOARD)
-      // Logging the thread name is added for Starboard logs.
-      stream_ << base::PlatformThread::GetName() << '/'
-              << base::PlatformThread::CurrentId() << ":";
-#else
       stream_ << base::PlatformThread::CurrentId() << ':';
-#endif
     if (g_log_timestamp) {
-#if defined(STARBOARD)
-    EzTimeValue time_value;
-    EzTimeValueGetNow(&time_value, NULL);
-    struct EzTimeExploded local_time = {0};
-    EzTimeTExplodeLocal(&(time_value.tv_sec), &local_time);
-    struct EzTimeExploded* tm_time = &local_time;
-    stream_ << std::setfill('0')
-            << std::setw(2) << 1 + tm_time->tm_mon
-            << std::setw(2) << tm_time->tm_mday
-            << '/'
-            << std::setw(2) << tm_time->tm_hour
-            << std::setw(2) << tm_time->tm_min
-            << std::setw(2) << tm_time->tm_sec
-            << '.' << std::setw(6) << time_value.tv_usec
-            << ':';
-#elif BUILDFLAG(IS_WIN)
+#if BUILDFLAG(IS_WIN)
       SYSTEMTIME local_time;
       GetLocalTime(&local_time);
       stream_ << std::setfill('0')
@@ -1172,6 +1020,51 @@ void LogMessage::Init(const char* file, int line) {
   message_start_ = stream_.str().length();
 }
 
+void LogMessage::HandleFatal(size_t stack_start,
+                             const std::string& str_newline) const {
+  char str_stack[1024];
+  base::strlcpy(str_stack, str_newline.data(), std::size(str_stack));
+  base::debug::Alias(&str_stack);
+
+  if (!GetLogAssertHandlerStack().empty()) {
+    LogAssertHandlerFunction log_assert_handler =
+        GetLogAssertHandlerStack().top();
+
+    if (log_assert_handler) {
+      auto newline_view = std::string_view(str_newline);
+      log_assert_handler.Run(
+          file_, line_,
+          newline_view.substr(message_start_, stack_start - message_start_),
+          newline_view.substr(stack_start));
+    }
+  } else {
+    // Don't use the string with the newline, get a fresh version to send to
+    // the debug message process. We also don't display assertions to the
+    // user in release mode. The enduser can't do anything with this
+    // information, and displaying message boxes when the application is
+    // hosed can cause additional problems.
+#ifndef NDEBUG
+    if (!base::debug::BeingDebugged()) {
+      // Displaying a dialog is unnecessary when debugging and can complicate
+      // debugging.
+      DisplayDebugMessageInDialog(stream_.str());
+    }
+#endif
+
+    // Crash the process to generate a dump.
+    // TODO(crbug.com/40254046): Move ImmediateCrash() to an absl::Cleanup to
+    // make sure it runs unconditionally. Currently LogAssertHandlers can abort
+    // a FATAL message and tests rely on this. HandleFatal() should be
+    // [[noreturn]].
+    base::ImmediateCrash();
+  }
+}
+
+LogMessageFatal::~LogMessageFatal() {
+  Flush();
+  base::ImmediateCrash();
+}
+
 #if BUILDFLAG(IS_WIN)
 // This has already been defined in the header, but defining it again as DWORD
 // ensures that the type used in the header is equivalent to DWORD. If not,
@@ -1180,9 +1073,7 @@ typedef DWORD SystemErrorCode;
 #endif
 
 SystemErrorCode GetLastSystemErrorCode() {
-#if defined(STARBOARD)
-  return SbSystemGetLastError();
-#elif BUILDFLAG(IS_WIN)
+#if BUILDFLAG(IS_WIN)
   return ::GetLastError();
 #elif BUILDFLAG(IS_POSIX) || BUILDFLAG(IS_FUCHSIA)
   return errno;
@@ -1190,27 +1081,18 @@ SystemErrorCode GetLastSystemErrorCode() {
 }
 
 BASE_EXPORT std::string SystemErrorCodeToString(SystemErrorCode error_code) {
-#if defined(STARBOARD)
-  const int kErrorMessageBufferSize = 256;
-  char msgbuf[kErrorMessageBufferSize];
-
-  if (SbSystemGetErrorString(error_code, msgbuf, kErrorMessageBufferSize) > 0) {
-    // Messages returned by system end with line breaks.
-    return base::CollapseWhitespaceASCII(msgbuf, true) +
-           base::StringPrintf(" (%d)", error_code);
-  } else {
-    return base::StringPrintf("Error (%d) while retrieving error. (%d)",
-                              GetLastSystemErrorCode(), error_code);
-  }
-#elif BUILDFLAG(IS_WIN)
-  const int kErrorMessageBufferSize = 256;
-  char msgbuf[kErrorMessageBufferSize];
-  DWORD flags = FORMAT_MESSAGE_FROM_SYSTEM | FORMAT_MESSAGE_IGNORE_INSERTS;
-  DWORD len = FormatMessageA(flags, nullptr, error_code, 0, msgbuf,
-                             std::size(msgbuf), nullptr);
+#if BUILDFLAG(IS_WIN)
+  LPWSTR msgbuf = nullptr;
+  DWORD len = ::FormatMessageW(
+      FORMAT_MESSAGE_ALLOCATE_BUFFER | FORMAT_MESSAGE_FROM_SYSTEM |
+          FORMAT_MESSAGE_IGNORE_INSERTS,
+      nullptr, error_code, 0, reinterpret_cast<LPWSTR>(&msgbuf), 0, nullptr);
   if (len) {
+    std::u16string message = base::WideToUTF16(msgbuf);
+    ::LocalFree(msgbuf);
+    msgbuf = nullptr;
     // Messages returned by system end with line breaks.
-    return base::CollapseWhitespaceASCII(msgbuf, true) +
+    return base::UTF16ToUTF8(base::CollapseWhitespace(message, true)) +
            base::StringPrintf(" (0x%lX)", error_code);
   }
   return base::StringPrintf("Error (0x%lX) while retrieving error. (0x%lX)",
@@ -1221,21 +1103,7 @@ BASE_EXPORT std::string SystemErrorCodeToString(SystemErrorCode error_code) {
 #endif  // BUILDFLAG(IS_WIN)
 }
 
-#if defined(STARBOARD)
-StarboardErrorLogMessage::StarboardErrorLogMessage(const char* file,
-                                                   int line,
-                                                   LogSeverity severity,
-                                                   SystemErrorCode err)
-    : LogMessage(file, line, severity), err_(err) {}
-
-StarboardErrorLogMessage::~StarboardErrorLogMessage() {
-  stream() << ": " << SystemErrorCodeToString(err_);
-  // We're about to crash (CHECK). Put |err_| on the stack (by placing it in a
-  // field) and use Alias in hopes that it makes it into crash dumps.
-  SystemErrorCode last_error = err_;
-  base::debug::Alias(&last_error);
-}
-#elif BUILDFLAG(IS_WIN)
+#if BUILDFLAG(IS_WIN)
 Win32ErrorLogMessage::Win32ErrorLogMessage(const char* file,
                                            int line,
                                            LogSeverity severity,
@@ -1243,12 +1111,26 @@ Win32ErrorLogMessage::Win32ErrorLogMessage(const char* file,
     : LogMessage(file, line, severity), err_(err) {}
 
 Win32ErrorLogMessage::~Win32ErrorLogMessage() {
+  AppendError();
+}
+
+void Win32ErrorLogMessage::AppendError() {
+  // Don't let actions from this method affect the system error after returning.
+  base::ScopedClearLastError scoped_clear_last_error;
+
   stream() << ": " << SystemErrorCodeToString(err_);
   // We're about to crash (CHECK). Put |err_| on the stack (by placing it in a
   // field) and use Alias in hopes that it makes it into crash dumps.
   DWORD last_error = err_;
   base::debug::Alias(&last_error);
 }
+
+Win32ErrorLogMessageFatal::~Win32ErrorLogMessageFatal() {
+  AppendError();
+  Flush();
+  base::ImmediateCrash();
+}
+
 #elif BUILDFLAG(IS_POSIX) || BUILDFLAG(IS_FUCHSIA)
 ErrnoLogMessage::ErrnoLogMessage(const char* file,
                                  int line,
@@ -1257,12 +1139,26 @@ ErrnoLogMessage::ErrnoLogMessage(const char* file,
     : LogMessage(file, line, severity), err_(err) {}
 
 ErrnoLogMessage::~ErrnoLogMessage() {
+  AppendError();
+}
+
+void ErrnoLogMessage::AppendError() {
+  // Don't let actions from this method affect the system error after returning.
+  base::ScopedClearLastError scoped_clear_last_error;
+
   stream() << ": " << SystemErrorCodeToString(err_);
   // We're about to crash (CHECK). Put |err_| on the stack (by placing it in a
   // field) and use Alias in hopes that it makes it into crash dumps.
   int last_error = err_;
   base::debug::Alias(&last_error);
 }
+
+ErrnoLogMessageFatal::~ErrnoLogMessageFatal() {
+  AppendError();
+  Flush();
+  base::ImmediateCrash();
+}
+
 #endif  // BUILDFLAG(IS_WIN)
 
 void CloseLogFile() {
@@ -1291,6 +1187,24 @@ FILE* DuplicateLogFILE() {
 }
 #endif
 
+#if BUILDFLAG(IS_WIN)
+HANDLE DuplicateLogFileHandle() {
+  // `g_log_file` should only be valid, or nullptr, but be very careful that we
+  // do not duplicate INVALID_HANDLE_VALUE as it aliases the process handle.
+  if (!(g_logging_destination & LOG_TO_FILE) || !g_log_file ||
+      g_log_file == INVALID_HANDLE_VALUE) {
+    return nullptr;
+  }
+  HANDLE duplicate = nullptr;
+  if (!::DuplicateHandle(::GetCurrentProcess(), g_log_file,
+                         ::GetCurrentProcess(), &duplicate, 0,
+                         /*bInheritHandle=*/TRUE, DUPLICATE_SAME_ACCESS)) {
+    return nullptr;
+  }
+  return duplicate;
+}
+#endif
+
 // Used for testing. Declared in test/scoped_logging_settings.h.
 ScopedLoggingSettings::ScopedLoggingSettings()
     : min_log_level_(g_min_log_level),
@@ -1304,8 +1218,10 @@ ScopedLoggingSettings::ScopedLoggingSettings()
       enable_tickcount_(g_log_tickcount),
       log_prefix_(g_log_prefix),
       message_handler_(g_log_message_handler) {
-  if (g_log_file_name)
-    log_file_name_ = std::make_unique<PathString>(*g_log_file_name);
+  if (g_log_file_name) {
+    log_file_name_ = *g_log_file_name;
+  }
+
   // Duplicating |g_log_file| is complex & unnecessary for this test helpers'
   // use-cases, and so long as |g_log_file_name| is set, it will be re-opened
   // automatically anyway, when required, so just close the existing one.
@@ -1318,20 +1234,12 @@ ScopedLoggingSettings::ScopedLoggingSettings()
 ScopedLoggingSettings::~ScopedLoggingSettings() {
   // Re-initialize logging via the normal path. This will clean up old file
   // name and handle state, including re-initializing the VLOG internal state.
-#if defined(STARBOARD)
-  CHECK(InitLogging({
-    logging_destination_,
-    log_file_name_ ? log_file_name_->data() : nullptr,
-  })) << "~ScopedLoggingSettings() failed to restore settings.";
-#else
-  CHECK(InitLogging({
-    .logging_dest = logging_destination_,
-    .log_file_path = log_file_name_ ? log_file_name_->data() : nullptr,
+  CHECK(InitLogging({.logging_dest = logging_destination_,
+                     .log_file_path = log_file_name_,
 #if BUILDFLAG(IS_CHROMEOS)
-    .log_format = log_format_
+                     .log_format = log_format_
 #endif
   })) << "~ScopedLoggingSettings() failed to restore settings.";
-#endif
 
   // Restore plain data settings.
   SetMinLogLevel(min_log_level_);
@@ -1349,13 +1257,6 @@ void ScopedLoggingSettings::SetLogFormat(LogFormat log_format) const {
 
 void RawLog(int level, const char* message) {
   if (level >= g_min_log_level && message) {
-#if defined(STARBOARD)
-    SbLogRaw(message);
-    const size_t message_len = strlen(message);
-    if (message_len > 0 && message[message_len - 1] != '\n') {
-      SbLogRaw("\n");
-    }
-#else
     const size_t message_len = strlen(message);
     WriteToFd(STDERR_FILENO, message, message_len);
 
@@ -1369,7 +1270,6 @@ void RawLog(int level, const char* message) {
         }
       } while (rv != 1);
     }
-#endif
   }
 
   if (level == LOGGING_FATAL)
@@ -1391,15 +1291,9 @@ std::wstring GetLogFileFullPath() {
 }
 #endif
 
-#if !BUILDFLAG(USE_RUNTIME_VLOG)
-int GetDisableAllVLogLevel() {
-  return -1;
-}
-#endif  // !BUILDFLAG(USE_RUNTIME_VLOG)
-
 // Used for testing. Declared in test/scoped_logging_settings.h.
 ScopedVmoduleSwitches::ScopedVmoduleSwitches() = default;
-#if BUILDFLAG(USE_RUNTIME_VLOG)
+
 VlogInfo* ScopedVmoduleSwitches::CreateVlogInfoWithSwitches(
     const std::string& vmodule_switch) {
   // Try get a VlogInfo on which to base this.
@@ -1422,8 +1316,7 @@ void ScopedVmoduleSwitches::InitWithSwitches(
   // Make sure we are only initialized once.
   CHECK(!scoped_vlog_info_);
   {
-#if (defined(LEAK_SANITIZER) && !BUILDFLAG(IS_NACL)) || \
-    (defined(STARBOARD) && defined(ADDRESS_SANITIZER))
+#if defined(LEAK_SANITIZER) && !BUILDFLAG(IS_NACL)
     // See comments on |g_vlog_info|.
     ScopedLeakSanitizerDisabler lsan_disabler;
 #endif  // defined(LEAK_SANITIZER)
@@ -1438,27 +1331,5 @@ ScopedVmoduleSwitches::~ScopedVmoduleSwitches() {
   // looking.
   CHECK_EQ(replaced_vlog_info, scoped_vlog_info_);
 }
-#else
-void ScopedVmoduleSwitches::InitWithSwitches(
-    const std::string& vmodule_switch) {}
-
-ScopedVmoduleSwitches::~ScopedVmoduleSwitches() = default;
-#endif  // BUILDFLAG(USE_RUNTIME_VLOG)
 
 }  // namespace logging
-
-std::ostream& std::operator<<(std::ostream& out, const wchar_t* wstr) {
-  return out << (wstr ? base::WStringPiece(wstr) : base::WStringPiece());
-}
-
-std::ostream& std::operator<<(std::ostream& out, const std::wstring& wstr) {
-  return out << base::WStringPiece(wstr);
-}
-
-std::ostream& std::operator<<(std::ostream& out, const char16_t* str16) {
-  return out << (str16 ? base::StringPiece16(str16) : base::StringPiece16());
-}
-
-std::ostream& std::operator<<(std::ostream& out, const std::u16string& str16) {
-  return out << base::StringPiece16(str16);
-}

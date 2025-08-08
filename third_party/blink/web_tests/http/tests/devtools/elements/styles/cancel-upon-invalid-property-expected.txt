@@ -1,0 +1,28 @@
+Verifies that entering poor property value restores original text.
+
+[expanded] 
+element.style { ()
+
+[expanded] 
+#inspected { (<style>)
+    color: blue;
+
+[expanded] 
+div { (user agent stylesheet)
+    display: block;
+    unicode-bidi: isolate;
+
+[expanded] 
+element.style { ()
+
+[expanded] 
+#inspected { (<style>)
+    color: blue;
+    : ;
+
+[expanded] 
+div { (user agent stylesheet)
+    display: block;
+    unicode-bidi: isolate;
+
+

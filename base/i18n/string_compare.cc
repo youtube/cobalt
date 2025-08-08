@@ -4,6 +4,8 @@
 
 #include "base/i18n/string_compare.h"
 
+#include <string_view>
+
 #include "base/check.h"
 #include "base/strings/utf_string_conversions.h"
 #include "third_party/icu/source/common/unicode/unistr.h"
@@ -11,13 +13,11 @@
 namespace base {
 namespace i18n {
 
-#if !defined(UCONFIG_NO_COLLATION)
-
 // Compares the character data stored in two different std::u16string strings by
 // specified Collator instance.
 UCollationResult CompareString16WithCollator(const icu::Collator& collator,
-                                             StringPiece16 lhs,
-                                             StringPiece16 rhs) {
+                                             std::u16string_view lhs,
+                                             std::u16string_view rhs) {
   UErrorCode error = U_ZERO_ERROR;
   UCollationResult result = collator.compare(
       icu::UnicodeString(false, lhs.data(), static_cast<int>(lhs.length())),
@@ -26,8 +26,6 @@ UCollationResult CompareString16WithCollator(const icu::Collator& collator,
   DCHECK(U_SUCCESS(error));
   return result;
 }
-
-#endif
 
 }  // namespace i18n
 }  // namespace base

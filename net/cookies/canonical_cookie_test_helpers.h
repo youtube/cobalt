@@ -36,6 +36,12 @@ MATCHER_P2(MatchesCookieNameValue, name, value, "") {
          testing::ExplainMatchResult(value, cookie.Value(), result_listener);
 }
 
+MATCHER_P2(MatchesCookieWithNameSourceType, name, source_type, "") {
+  return testing::ExplainMatchResult(name, arg.Name(), result_listener) &&
+         testing::ExplainMatchResult(source_type, arg.SourceType(),
+                                     result_listener);
+}
+
 MATCHER_P(MatchesCookieAccessWithName, name, "") {
   return testing::ExplainMatchResult(MatchesCookieWithName(name), arg.cookie,
                                      result_listener);
@@ -100,6 +106,13 @@ MATCHER_P(HasWarningReason, reason, "") {
 MATCHER_P(HasExclusionReason, reason, "") {
   CookieInclusionStatus status = arg;
   return testing::ExplainMatchResult(true, status.HasExclusionReason(reason),
+                                     result_listener);
+}
+
+// Helper for checking that status.exemption_reason() == reason.
+MATCHER_P(HasExactlyExemptionReason, reason, "") {
+  CookieInclusionStatus status = arg;
+  return testing::ExplainMatchResult(true, status.exemption_reason() == reason,
                                      result_listener);
 }
 

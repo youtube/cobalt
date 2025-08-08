@@ -2,6 +2,11 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#ifdef UNSAFE_BUFFERS_BUILD
+// TODO(crbug.com/40285824): Remove this and convert code to safer constructs.
+#pragma allow_unsafe_buffers
+#endif
+
 #include "media/cast/encoding/external_video_encoder.h"
 
 #include <stdint.h>
@@ -19,8 +24,8 @@ scoped_refptr<VideoFrame> CreateFrame(const uint8_t* y_plane_data,
   scoped_refptr<VideoFrame> result = VideoFrame::CreateFrame(
       PIXEL_FORMAT_I420, size, gfx::Rect(size), size, base::TimeDelta());
   for (int y = 0, y_end = size.height(); y < y_end; ++y) {
-    memcpy(result->GetWritableVisibleData(VideoFrame::kYPlane) +
-               y * result->stride(VideoFrame::kYPlane),
+    memcpy(result->GetWritableVisibleData(VideoFrame::Plane::kY) +
+               y * result->stride(VideoFrame::Plane::kY),
            y_plane_data + y * size.width(), size.width());
   }
   return result;
@@ -62,11 +67,11 @@ TEST(QuantizerEstimatorTest, EstimatesForTrivialFrames) {
   // Now, introduce a series of frames with "random snow" in them.  Expect this
   // results in high quantizer estimates.
   for (int i = 0; i < 3; ++i) {
-    int rand_seed = 0xdeadbeef + i;
+    uint32_t rand_seed = 0xdeadbeef + i;
     const auto random_frame_data =
         std::make_unique<uint8_t[]>(frame_size.GetArea());
     for (int j = 0, end = frame_size.GetArea(); j < end; ++j) {
-      rand_seed = (1103515245 * rand_seed + 12345) % (1 << 31);
+      rand_seed = (1103515245u * rand_seed + 12345u) % (1u << 31);
       random_frame_data.get()[j] = static_cast<uint8_t>(rand_seed & 0xff);
     }
     const scoped_refptr<VideoFrame> random_frame =

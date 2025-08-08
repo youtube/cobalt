@@ -8,9 +8,7 @@
 
 #include "base/check.h"
 #include "base/strings/stringprintf.h"
-#if !defined(STARBOARD)
 #include "base/trace_event/typed_macros.h"
-#endif  // !defined(STARBOARD)
 #include "build/build_config.h"
 
 #if BUILDFLAG(IS_IOS)
@@ -51,13 +49,11 @@ std::string PointF::ToString() const {
   return base::StringPrintf("%g,%g", x(), y());
 }
 
-#if !defined(STARBOARD)
 void PointF::WriteIntoTrace(perfetto::TracedValue ctx) const {
   perfetto::TracedDictionary dict = std::move(ctx).WriteDictionary();
   dict.Add("x", x());
   dict.Add("y", y());
 }
-#endif  // !defined(STARBOARD)
 
 PointF ScalePoint(const PointF& p, float x_scale, float y_scale) {
   PointF scaled_p(p);

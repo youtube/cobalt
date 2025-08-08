@@ -9,6 +9,7 @@
 
 #include "base/base_export.h"
 #include "base/compiler_specific.h"
+#include "base/memory/raw_ptr.h"
 #include "build/build_config.h"
 
 #if BUILDFLAG(IS_WIN)
@@ -19,10 +20,10 @@
 #include <list>
 #include <memory>
 
+#include "base/apple/scoped_mach_port.h"
 #include "base/functional/callback_forward.h"
-#include "base/mac/scoped_mach_port.h"
 #include "base/memory/ref_counted.h"
-#elif BUILDFLAG(IS_POSIX) || BUILDFLAG(IS_FUCHSIA) || defined(STARBOARD)
+#elif BUILDFLAG(IS_POSIX) || BUILDFLAG(IS_FUCHSIA)
 #include <list>
 #include <utility>
 
@@ -86,7 +87,7 @@ class BASE_EXPORT WaitableEvent {
 
   // Returns true if the event is in the signaled state, else false.  If this
   // is not a manual reset event, then this test will cause a reset.
-  bool IsSignaled();
+  bool IsSignaled() const;
 
   // Wait indefinitely for the event to be signaled. Wait's return "happens
   // after" |Signal| has completed. This means that it's safe for a
@@ -170,10 +171,11 @@ class BASE_EXPORT WaitableEvent {
  private:
   friend class WaitableEventWatcher;
 
-  // The platform specific portions of Signal and TimedWait (which do the actual
-  // signaling and waiting).
+  // The platform specific portions of Signal, TimedWait, and WaitMany (which do
+  // the actual signaling and waiting).
   void SignalImpl();
   bool TimedWaitImpl(TimeDelta wait_delta);
+  static size_t WaitManyImpl(WaitableEvent** waitables, size_t count);
 
 #if BUILDFLAG(IS_WIN)
   win::ScopedHandle handle_;
@@ -203,7 +205,7 @@ class BASE_EXPORT WaitableEvent {
     friend class RefCountedThreadSafe<ReceiveRight>;
     ~ReceiveRight();
 
-    mac::ScopedMachReceiveRight right_;
+    apple::ScopedMachReceiveRight right_;
   };
 
   const ResetPolicy policy_;
@@ -214,8 +216,8 @@ class BASE_EXPORT WaitableEvent {
   // The send right used to signal the event. This can be disposed of with
   // the event, unlike the receive right, since a deleted event cannot be
   // signaled.
-  mac::ScopedMachSendRight send_right_;
-#elif BUILDFLAG(IS_POSIX) || BUILDFLAG(IS_FUCHSIA) || defined(STARBOARD)
+  apple::ScopedMachSendRight send_right_;
+#elif BUILDFLAG(IS_POSIX) || BUILDFLAG(IS_FUCHSIA)
   // On Windows, you must not close a HANDLE which is currently being waited on.
   // The MSDN documentation says that the resulting behaviour is 'undefined'.
   // To solve that issue each WaitableEventWatcher duplicates the given event
@@ -237,7 +239,7 @@ class BASE_EXPORT WaitableEvent {
     base::Lock lock_;
     const bool manual_reset_;
     bool signaled_;
-    std::list<Waiter*> waiters_;
+    std::list<raw_ptr<Waiter, CtnExperimental>> waiters_;
 
    private:
     friend class RefCountedThreadSafe<WaitableEventKernel>;

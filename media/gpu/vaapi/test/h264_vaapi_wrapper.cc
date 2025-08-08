@@ -2,9 +2,18 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#ifdef UNSAFE_BUFFERS_BUILD
+// TODO(crbug.com/40285824): Remove this and convert code to safer constructs.
+#pragma allow_unsafe_buffers
+#endif
+
 #include "media/gpu/vaapi/test/h264_vaapi_wrapper.h"
 
-#include "base/cxx17_backports.h"
+#include <va/va.h>
+
+#include <algorithm>
+#include <memory>
+
 #include "base/trace_event/trace_event.h"
 #include "media/gpu/macros.h"
 #include "media/gpu/vaapi/test/h264_dpb.h"
@@ -13,10 +22,7 @@
 #include "media/gpu/vaapi/test/scoped_va_context.h"
 #include "media/gpu/vaapi/test/shared_va_surface.h"
 #include "media/gpu/vaapi/test/vaapi_device.h"
-#include "media/video/h264_parser.h"
-
-#include <va/va.h>
-#include <memory>
+#include "media/parsers/h264_parser.h"
 
 namespace media::vaapi_test {
 
@@ -49,8 +55,7 @@ VAProfile GetProfile(const H264SPS* sps) {
     case H264SPS::kProfileIDStereoHigh:
       return VAProfileH264StereoHigh;
     default:
-      LOG_ASSERT(false) << "Invalid IDC profile " << sps->profile_idc;
-      return VAProfileNone;
+      LOG(FATAL) << "Invalid IDC profile " << sps->profile_idc;
   }
 }
 

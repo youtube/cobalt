@@ -7,19 +7,17 @@
 
 #include <memory>
 #include <string>
+#include <string_view>
 #include <type_traits>
 #include <utility>
 #include <vector>
 
+#include "base/functional/bind.h"
 #include "base/location.h"
-#include "base/strings/string_piece.h"
 #include "base/values.h"
 #include "media/base/crc_16.h"
 #include "media/base/media_export.h"
 #include "media/base/media_serializers_base.h"
-#if defined(STARBOARD)
-#include "third_party/abseil-cpp/absl/types/optional.h"
-#endif  // defined(STARBOARD)
 
 // Mojo namespaces for serialization friend declarations.
 namespace mojo {
@@ -46,7 +44,7 @@ namespace media {
 using StatusCodeType = uint16_t;
 
 // This is the type that TypedStatusTraits::Group should be.
-using StatusGroupType = base::StringPiece;
+using StatusGroupType = std::string_view;
 
 // This is the type that a status will get serialized into for UKM purposes.
 using UKMPackedType = uint64_t;
@@ -61,7 +59,6 @@ struct SecondArgType<R(A1, A2)> {
   using Type = A2;
 };
 
-#if !defined(STARBOARD)
 union UKMPackHelper {
   struct bits {
     uint16_t group;
@@ -72,7 +69,6 @@ union UKMPackHelper {
 
   static_assert(sizeof(bits) == sizeof(packed));
 };
-#endif  // !defined(STARBOARD)
 
 struct MEDIA_EXPORT StatusData {
   StatusData();
@@ -98,7 +94,7 @@ struct MEDIA_EXPORT StatusData {
   std::string message;
 
   // Stack frames
-  std::vector<base::Value> frames;
+  base::Value::List frames;
 
   // Store a root cause. Helpful for debugging, as it can end up containing
   // the chain of causes.
@@ -139,6 +135,7 @@ struct MEDIA_EXPORT StatusData {
 NAME_DETECTOR(HasOkCode, kOk);
 NAME_DETECTOR(HasPackExtraData, PackExtraData);
 NAME_DETECTOR(HasSetDefaultOk, OkEnumValue);
+NAME_DETECTOR(HasEnumValueSerializer, ReadableCodeName);
 
 #undef NAME_DETECTOR
 
@@ -148,16 +145,17 @@ struct StatusTraitsHelper {
   static constexpr bool has_ok = HasOkCode<typename T::Codes>::as_enum_value;
   static constexpr bool has_default = HasSetDefaultOk<T>::as_method;
   static constexpr bool has_pack = HasPackExtraData<T>::as_method;
+  static constexpr bool has_code_repr = HasEnumValueSerializer<T>::as_method;
 
   // If T defines OkEnumValue(), then return it. Otherwise, return an
-  // T::Codes::kOk if that's defined, or absl::nullopt if its not.
-  static constexpr absl::optional<typename T::Codes> OkEnumValue() {
+  // T::Codes::kOk if that's defined, or std::nullopt if its not.
+  static constexpr std::optional<typename T::Codes> OkEnumValue() {
     if constexpr (has_default) {
       return T::OkEnumValue();
     } else if constexpr (has_ok) {
       return T::Codes::kOk;
     } else {
-      return absl::nullopt;
+      return std::nullopt;
     }
   }
 
@@ -170,6 +168,17 @@ struct StatusTraitsHelper {
     } else {
       return 0;
     }
+  }
+
+  static constexpr std::string GetMessage(std::string_view message,
+                                          T::Codes code) {
+    if (!message.empty()) {
+      return std::string(message);
+    }
+    if constexpr (has_code_repr) {
+      return T::ReadableCodeName(code);
+    }
+    return "";
   }
 };
 
@@ -226,6 +235,7 @@ class MEDIA_EXPORT TypedStatus {
   // Convenience aliases to allow, e.g., MyStatusType::Codes::kGreatDisturbance.
   using Traits = T;
   using Codes = typename T::Codes;
+  using Callback = base::OnceCallback<void(TypedStatus<T>)>;
 
   // See media/base/status.md for the ways that an instantiation of TypedStatus
   // can be constructed, since there are a few.
@@ -246,7 +256,7 @@ class MEDIA_EXPORT TypedStatus {
               const base::Location& location = base::Location::Current())
       : TypedStatus(code, "", location) {}
 
-  TypedStatus(std::tuple<Codes, base::StringPiece> pack,
+  TypedStatus(std::tuple<Codes, std::string_view> pack,
               const base::Location& location = base::Location::Current())
       : TypedStatus(std::get<0>(pack), std::get<1>(pack), location) {}
 
@@ -273,7 +283,7 @@ class MEDIA_EXPORT TypedStatus {
       typename = std::enable_if<std::is_pointer_v<decltype(&_T::OnCreateFrom)>>>
   TypedStatus(
       Codes code,
-      base::StringPiece message,
+      std::string_view message,
       const typename internal::SecondArgType<decltype(_T::OnCreateFrom)>::Type&
           data,
       const base::Location& location = base::Location::Current())
@@ -296,7 +306,7 @@ class MEDIA_EXPORT TypedStatus {
   // Used to allow returning {TypedStatus::Codes::kValue, "message", cause}
   template <typename CausalStatusType>
   TypedStatus(Codes code,
-              base::StringPiece message,
+              std::string_view message,
               TypedStatus<CausalStatusType>&& cause,
               const base::Location& location = base::Location::Current())
       : TypedStatus(code, message, location) {
@@ -312,7 +322,7 @@ class MEDIA_EXPORT TypedStatus {
   // Also used to allow returning {TypedStatus::Codes::kValue, "message"}
   // implicitly as a typed status.
   TypedStatus(Codes code,
-              base::StringPiece message,
+              std::string_view message,
               const base::Location& location = base::Location::Current()) {
     // Note that |message| would be dropped when code is the default value,
     // so DCHECK that it is not set.
@@ -322,7 +332,7 @@ class MEDIA_EXPORT TypedStatus {
     }
     data_ = std::make_unique<internal::StatusData>(
         Traits::Group(), static_cast<StatusCodeType>(code),
-        std::string(message), 0);
+        internal::StatusTraitsHelper<Traits>::GetMessage(message, code), 0);
     data_->AddLocation(location);
   }
 
@@ -413,14 +423,12 @@ class MEDIA_EXPORT TypedStatus {
     data_->cause = std::move(cause.data_);
   }
 
-#if !defined(STARBOARD)
   template <typename UKMBuilder>
   void ToUKM(UKMBuilder& builder) const {
     builder.SetStatus(PackForUkm());
     if (data_)
       builder.SetRootCause(data_->packed_root_cause);
   }
-#endif  // !defined(STARBOARD)
 
   inline bool operator==(Codes code) const { return code == this->code(); }
 
@@ -566,7 +574,7 @@ class MEDIA_EXPORT TypedStatus {
     ReturnType MapValue(
         FnType&& lambda,
         typename ConvertTo::Codes on_error,
-        base::StringPiece message = "",
+        std::string_view message = "",
         base::Location location = base::Location::Current()) && {
       CHECK(error_ || value_);
       if (!has_value()) {
@@ -582,13 +590,27 @@ class MEDIA_EXPORT TypedStatus {
     }
 
    private:
-    absl::optional<TypedStatus<T>> error_;
+    std::optional<TypedStatus<T>> error_;
 
     // We wrap |OtherType| in a container so that windows COM wrappers work.
     // They override operator& and similar, and won't compile in a
-    // absl::optional.
-    absl::optional<std::tuple<OtherType>> value_;
+    // std::optional.
+    std::optional<std::tuple<OtherType>> value_;
   };
+
+  static Callback BindOkContinuation(Callback err,
+                                     base::OnceCallback<void(Callback)> ok) {
+    return base::BindOnce(
+        [](Callback err, base::OnceCallback<void(Callback)> ok,
+           TypedStatus<T> status) {
+          if (status.is_ok()) {
+            std::move(ok).Run(std::move(err));
+          } else {
+            std::move(err).Run(std::move(status));
+          }
+        },
+        std::move(err), std::move(ok));
+  }
 
  private:
   std::unique_ptr<internal::StatusData> data_;
@@ -596,14 +618,16 @@ class MEDIA_EXPORT TypedStatus {
   template <typename StatusEnum, typename DataView>
   friend struct mojo::StructTraits;
 
-  // Allow media-serialization
-  friend struct internal::MediaSerializer<TypedStatus<T>>;
+  // Allow media log to access the internals to generate debug info for users.
+  friend class MediaLog;
+
+  // Allow dumping TypedStatus<T> to string for debugging in tests.
+  friend struct internal::MediaSerializerDebug<TypedStatus<T>>;
 
   // Allow AddCause.
   template <typename StatusEnum>
   friend class TypedStatus;
 
-#if !defined(STARBOARD)
   UKMPackedType PackForUkm() const {
     internal::UKMPackHelper result;
     // the group field is a crc16 hash of the constant name of the status,
@@ -615,7 +639,6 @@ class MEDIA_EXPORT TypedStatus {
     result.bits.extra_data = 0;
     return result.packed;
   }
-#endif  // !defined(STARBOARD)
 };
 
 template <typename T>

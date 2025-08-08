@@ -60,8 +60,7 @@ class EntryMetadataTest : public testing::Test {
   }
 };
 
-class MockSimpleIndexFile : public SimpleIndexFile,
-                            public base::SupportsWeakPtr<MockSimpleIndexFile> {
+class MockSimpleIndexFile final : public SimpleIndexFile {
  public:
   explicit MockSimpleIndexFile(net::CacheType cache_type)
       : SimpleIndexFile(nullptr,
@@ -99,12 +98,17 @@ class MockSimpleIndexFile : public SimpleIndexFile,
   int load_index_entries_calls() const { return load_index_entries_calls_; }
   int disk_writes() const { return disk_writes_; }
 
+  base::WeakPtr<MockSimpleIndexFile> AsWeakPtr() {
+    return weak_ptr_factory_.GetWeakPtr();
+  }
+
  private:
   base::OnceClosure load_callback_;
   raw_ptr<SimpleIndexLoadResult> load_result_ = nullptr;
   int load_index_entries_calls_ = 0;
   int disk_writes_ = 0;
   SimpleIndex::EntrySet disk_write_entry_set_;
+  base::WeakPtrFactory<MockSimpleIndexFile> weak_ptr_factory_{this};
 };
 
 class SimpleIndexTest : public net::TestWithTaskEnvironment,
@@ -156,9 +160,9 @@ class SimpleIndexTest : public net::TestWithTaskEnvironment,
   void InsertIntoIndexFileReturn(uint64_t hash_key,
                                  base::Time last_used_time,
                                  int entry_size) {
-    index_file_->load_result()->entries.insert(std::make_pair(
+    index_file_->load_result()->entries.emplace(
         hash_key, EntryMetadata(last_used_time,
-                                base::checked_cast<uint32_t>(entry_size))));
+                                base::checked_cast<uint32_t>(entry_size)));
   }
 
   void ReturnIndexFile() {
@@ -275,12 +279,12 @@ TEST_F(SimpleIndexTest, IndexSizeCorrectOnMerge) {
     auto result = std::make_unique<SimpleIndexLoadResult>();
     result->did_load = true;
     const uint64_t new_hash_key = hashes_.at<11>();
-    result->entries.insert(std::make_pair(
-        new_hash_key, EntryMetadata(base::Time::Now(), 11u * kSizeResolution)));
+    result->entries.emplace(
+        new_hash_key, EntryMetadata(base::Time::Now(), 11u * kSizeResolution));
     const uint64_t redundant_hash_key = hashes_.at<4>();
-    result->entries.insert(
-        std::make_pair(redundant_hash_key,
-                       EntryMetadata(base::Time::Now(), 4u * kSizeResolution)));
+    result->entries.emplace(
+        redundant_hash_key,
+        EntryMetadata(base::Time::Now(), 4u * kSizeResolution));
     index()->MergeInitializingSet(std::move(result));
   }
   EXPECT_EQ((2u + 3u + 4u + 11u) * kSizeResolution, index()->cache_size_);

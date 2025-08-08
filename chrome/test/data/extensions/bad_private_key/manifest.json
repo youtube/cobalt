@@ -1,0 +1,6 @@
+{
+  "manifest_version": 3,
+  "name": "Bad extension",
+  "description": "Bad bad!",
+  "version": "1.0"
+}

@@ -1,0 +1,102 @@
+<?xml version="1.0" ?>
+<!DOCTYPE translationbundle>
+<translationbundle lang="sk">
+<translation id="1012241361789814178">Ladiaci nástroj je pozastavený na inej karte, kliknutím prepnete na danú kartu.</translation>
+<translation id="1171774979989969504">Zadajte e-mailovú adresu.</translation>
+<translation id="1178581264944972037">Pozastaviť</translation>
+<translation id="1306460908038601864">vypnuté</translation>
+<translation id="1311894908970423688">Hodnota musí byť <ph name="VALUE_DATE_OR_TIME" />.</translation>
+<translation id="1588438908519853928">Normálny</translation>
+<translation id="1591562245178063882">Tento mesiac</translation>
+<translation id="1637811476055996098">Vybrať súbory</translation>
+<translation id="1729654308190250600">Zadajte e-mailovú adresu, ktorá nie je prázdna hodnota.</translation>
+<translation id="1758486001363313524">Iné...</translation>
+<translation id="1921819250265091946">dd</translation>
+<translation id="1938124657309484470">Hodnota musí byť <ph name="MAXIMUM_DATE_OR_TIME" /> alebo skôr.</translation>
+<translation id="1993104285338243655">Prepnuté na zrkadlenie</translation>
+<translation id="2060505056492490888">Znak <ph name="DOT" /> je v doméne <ph name="INVALIDDOMAIN" /> použitý na nesprávnej pozícii.</translation>
+<translation id="2068711044993563745">Minimálna hodnota (<ph name="MINIMUM" />) musí byť menšia ako maximálna hodnota (<ph name="MAXIMUM" />).</translation>
+<translation id="2148716181193084225">Dnes</translation>
+<translation id="2226276347425096477">Tento text musíte skrátiť na <ph name="MAX_CHARACTERS" /> znakov alebo menej (súčasný počet znakov: <ph name="CURRENT_LENGTH" />).</translation>
+<translation id="2247351761944213033"><ph name="WEEKNUMBER" />. týždeň, <ph name="YEAR" /></translation>
+<translation id="2277199496770840904">Skladba <ph name="NUMBER" /></translation>
+<translation id="2507943997699731163">Vyplňte toto pole.</translation>
+<translation id="2613802280814924224">Zadajte platnú hodnotu. Najbližšia platná hodnota je <ph name="VALID_VALUE" />.</translation>
+<translation id="2653659639078652383">Odoslať</translation>
+<translation id="2746543609216772311">Hodnota musí byť <ph name="MINIMUM_DATE_OR_TIME" /> alebo neskôr.</translation>
+<translation id="2761667185364618470">Ak chcete pokračovať, začiarknite toto políčko.</translation>
+<translation id="2908441821576996758">Zadajte zoznam e-mailových adries oddelených čiarkou.</translation>
+<translation id="3049748772180311791"><ph name="QUANTITY" /> MB</translation>
+<translation id="3075154866155599887">Zadajte platnú hodnotu. Pole obsahuje neúplnú hodnotu alebo neplatný dátum.</translation>
+<translation id="310520048233152454">Zadajte webovú adresu.</translation>
+<translation id="3321030238473337787">Rýchlosť prehrávania</translation>
+<translation id="3450233048674729344">Hodnota musí byť menšia alebo rovná hodnote <ph name="MAXIMUM" />.</translation>
+<translation id="3732799496749320381">mm</translation>
+<translation id="3754210790023674521">Ukončiť obraz v obraze</translation>
+<translation id="3757388668994797779"><ph name="QUANTITY" /> GB</translation>
+<translation id="3822383571486410024">Predĺžte tento text aspoň na <ph name="MIN_CHARACTERS" /> alebo viac znakov (momentálny počet znakov je <ph name="CURRENT_LENGTH" />).</translation>
+<translation id="383465348367842624">Časť pred znakom <ph name="ATSIGN" /> by nemala obsahovať symbol <ph name="INVALIDCHARACTER" />.</translation>
+<translation id="3846214748874656680">Ukončiť režim celej obrazovky</translation>
+<translation id="4360991593054037559">Zadajte platnú hodnotu. Najbližšie platné hodnoty sú <ph name="VALID_VALUE_LOW" /> a <ph name="VALID_VALUE_HIGHER" />.</translation>
+<translation id="4522570452068850558">Podrobnosti</translation>
+<translation id="4664250907885839816">Časť za znakom <ph name="ATSIGN" /> by nemala obsahovať symbol <ph name="INVALIDCHARACTER" />.</translation>
+<translation id="4718048029184481307">Prehráva sa v režime obrazu v obraze</translation>
+<translation id="4812940957355064477">Zadajte číslo.</translation>
+<translation id="4975562563186953947">Počet vybraných položiek: <ph name="SELECTED_COUNT" /></translation>
+<translation id="4992066212339426712">Zapnúť zvuk</translation>
+<translation id="49969490063480558">Zadajte časť za znakom <ph name="ATSIGN" />. Adresa <ph name="INVALIDADDRESS" /> je neúplná.</translation>
+<translation id="5164977714490026579">Hodnota musí byť väčšia alebo rovná hodnote <ph name="MINIMUM" />.</translation>
+<translation id="5196716972587102051">2</translation>
+<translation id="520299402983819650"><ph name="QUANTITY" /> PB</translation>
+<translation id="5307600278924710095">Zadajte časť pred znakom <ph name="ATSIGN" />. Adresa <ph name="INVALIDADDRESS" /> je neúplná.</translation>
+<translation id="5334352251556557839">Nepodarilo sa prehrať médiá.</translation>
+<translation id="537648784377940524">Minimálny dátum (<ph name="MIN_DATE_OR_TIME" />) musí byť pred maximálnym dátumom (<ph name="MAX_DATE_OR_TIME" />).</translation>
+<translation id="5466621249238537318">Vyberte jeden alebo viac súborov.</translation>
+<translation id="5514612371225420585">Súbor vo vašom zariadení</translation>
+<translation id="5516235301412634559">0,75</translation>
+<translation id="5537725057119320332">Prenášať</translation>
+<translation id="5630795885300617244">Dvojitým klepnutím doľava alebo doprava preskočíte o 10 s</translation>
+<translation id="57838592816432529">Vypnúť zvuk</translation>
+<translation id="588258955323874662">Celá obrazovka</translation>
+<translation id="5888666972993069672">Prenáša sa do zariadenia <ph name="DEVICE_FRIENDLY_NAME" /></translation>
+<translation id="5939518447894949180">Resetovať</translation>
+<translation id="5966707198760109579">Týždeň</translation>
+<translation id="5985507339671257014">0,5</translation>
+<translation id="6310801910862476708">Ukončiť obraz v obraze</translation>
+<translation id="6484738902856791350">Formátovať komplexný kód</translation>
+<translation id="6550675742724504774">Možnosti</translation>
+<translation id="6643016212128521049">Vymazať</translation>
+<translation id="668171684555832681">Iný...</translation>
+<translation id="6709093583001123835">Hodnota musí byť <ph name="VALUE" />.</translation>
+<translation id="6709570249143506788">Nízka kvalita prehrávania</translation>
+<translation id="6790428901817661496">Prehrať</translation>
+<translation id="6820355525329141109">Doplnok sa nepodarilo načítať.</translation>
+<translation id="6919891270253167948">1,5</translation>
+<translation id="6989848892321993519">Predĺžte tento text aspoň na <ph name="MIN_CHARACTERS" /> alebo viac znakov (momentálne používate jeden znak).</translation>
+<translation id="709897737746224366">Zadajte hodnotu zodpovedajúcu požadovanému formátu.</translation>
+<translation id="7263440858009898357">Vyberte položku zo zoznamu.</translation>
+<translation id="7364796246159120393">Vybrať súbor</translation>
+<translation id="739024184232394898">Iné...</translation>
+<translation id="7460907917090416791"><ph name="QUANTITY" /> TB</translation>
+<translation id="7514365320538308">Stiahnuť</translation>
+<translation id="7750228210027921155">Obraz v obraze</translation>
+<translation id="7782515065589691344">1.25</translation>
+<translation id="7888071071722539607">Uveďte v e-mailovej adrese znak <ph name="ATSIGN" />. V adrese <ph name="INVALIDADDRESS" /> znak <ph name="ATSIGN" /> chýba.</translation>
+<translation id="795667975304826397">Nie je vybratý žiadny súbor</translation>
+<translation id="8117451130807776954">Tento týždeň</translation>
+<translation id="8131955114056917397">0,25</translation>
+<translation id="8199524924445686405">rrrr</translation>
+<translation id="8284326494547611709">Titulky</translation>
+<translation id="835897206747267392">Neplatná hodnota.</translation>
+<translation id="839593075537728968">Hodnota musí byť v rozsahu od <ph name="MINIMUM_TIME" /> do <ph name="MAXIMUM_TIME" />.</translation>
+<translation id="8444882422881193423">Počet súborov: <ph name="NUMBER_OF_FILES" /></translation>
+<translation id="8451268428117625855">Vyberte súbor.</translation>
+<translation id="8637593834423658414">1,75</translation>
+<translation id="8668988909814782445">Zalomiť riadok</translation>
+<translation id="8750798805984357768">Vyberte jednu z týchto možností.</translation>
+<translation id="8845239796550121995">Prenáša sa do televízora</translation>
+<translation id="8875657656876809964">Chyba prehrávania videa</translation>
+<translation id="8901569739625249689"><ph name="QUANTITY" /> kB</translation>
+<translation id="9132465097189459683">Iné...</translation>
+<translation id="916607977885256133">Obraz v obraze</translation>
+</translationbundle>

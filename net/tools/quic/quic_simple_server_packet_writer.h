@@ -37,22 +37,25 @@ class QuicSimpleServerPacketWriter : public quic::QuicPacketWriter {
 
   ~QuicSimpleServerPacketWriter() override;
 
-  quic::WriteResult WritePacket(const char* buffer,
-                                size_t buf_len,
-                                const quic::QuicIpAddress& self_address,
-                                const quic::QuicSocketAddress& peer_address,
-                                quic::PerPacketOptions* options) override;
+  quic::WriteResult WritePacket(
+      const char* buffer,
+      size_t buf_len,
+      const quic::QuicIpAddress& self_address,
+      const quic::QuicSocketAddress& peer_address,
+      quic::PerPacketOptions* options,
+      const quic::QuicPacketWriterParams& params) override;
 
   void OnWriteComplete(int rv);
 
   // quic::QuicPacketWriter implementation:
   bool IsWriteBlocked() const override;
   void SetWritable() override;
-  absl::optional<int> MessageTooBigErrorCode() const override;
+  std::optional<int> MessageTooBigErrorCode() const override;
   quic::QuicByteCount GetMaxPacketSize(
       const quic::QuicSocketAddress& peer_address) const override;
   bool SupportsReleaseTime() const override;
   bool IsBatchMode() const override;
+  bool SupportsEcn() const override;
   quic::QuicPacketBuffer GetNextWriteLocation(
       const quic::QuicIpAddress& self_address,
       const quic::QuicSocketAddress& peer_address) override;

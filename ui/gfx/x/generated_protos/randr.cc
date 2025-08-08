@@ -7,36 +7,19 @@
 //    ../../third_party/xcbproto/src \
 //    gen/ui/gfx/x \
 //    bigreq \
-//    composite \
-//    damage \
-//    dpms \
-//    dri2 \
 //    dri3 \
-//    ge \
 //    glx \
-//    present \
 //    randr \
-//    record \
 //    render \
-//    res \
 //    screensaver \
 //    shape \
 //    shm \
 //    sync \
-//    xc_misc \
-//    xevie \
-//    xf86dri \
-//    xf86vidmode \
 //    xfixes \
-//    xinerama \
 //    xinput \
 //    xkb \
-//    xprint \
 //    xproto \
-//    xselinux \
-//    xtest \
-//    xv \
-//    xvmc
+//    xtest
 
 #include "randr.h"
 
@@ -46,6 +29,7 @@
 
 #include "base/logging.h"
 #include "base/posix/eintr_wrapper.h"
+#include "ui/gfx/x/connection.h"
 #include "ui/gfx/x/xproto_internal.h"
 
 namespace x11 {
@@ -94,8 +78,9 @@ void ReadError<RandR::BadOutputError>(RandR::BadOutputError* error_,
   // major_opcode
   Read(&major_opcode, &buf);
 
-  DCHECK_LE(buf.offset, 32ul);
+  CHECK_LE(buf.offset, 32ul);
 }
+
 std::string RandR::BadCrtcError::ToString() const {
   std::stringstream ss_;
   ss_ << "RandR::BadCrtcError{";
@@ -137,8 +122,9 @@ void ReadError<RandR::BadCrtcError>(RandR::BadCrtcError* error_,
   // major_opcode
   Read(&major_opcode, &buf);
 
-  DCHECK_LE(buf.offset, 32ul);
+  CHECK_LE(buf.offset, 32ul);
 }
+
 std::string RandR::BadModeError::ToString() const {
   std::stringstream ss_;
   ss_ << "RandR::BadModeError{";
@@ -180,8 +166,9 @@ void ReadError<RandR::BadModeError>(RandR::BadModeError* error_,
   // major_opcode
   Read(&major_opcode, &buf);
 
-  DCHECK_LE(buf.offset, 32ul);
+  CHECK_LE(buf.offset, 32ul);
 }
+
 std::string RandR::BadProviderError::ToString() const {
   std::stringstream ss_;
   ss_ << "RandR::BadProviderError{";
@@ -223,8 +210,9 @@ void ReadError<RandR::BadProviderError>(RandR::BadProviderError* error_,
   // major_opcode
   Read(&major_opcode, &buf);
 
-  DCHECK_LE(buf.offset, 32ul);
+  CHECK_LE(buf.offset, 32ul);
 }
+
 template <>
 COMPONENT_EXPORT(X11)
 void ReadEvent<RandR::ScreenChangeNotifyEvent>(
@@ -289,7 +277,7 @@ void ReadEvent<RandR::ScreenChangeNotifyEvent>(
   // mheight
   Read(&mheight, &buf);
 
-  DCHECK_LE(buf.offset, 32ul);
+  CHECK_LE(buf.offset, 32ul);
 }
 
 template <>
@@ -317,7 +305,7 @@ void ReadEvent<RandR::NotifyEvent>(RandR::NotifyEvent* event_,
   // data
   auto data_expr = subCode;
   if (CaseEq(data_expr, RandR::Notify::CrtcChange)) {
-    data.cc.emplace();
+    data.cc.emplace(decltype(data.cc)::value_type());
     auto& timestamp = (*data.cc).timestamp;
     auto& window = (*data.cc).window;
     auto& crtc = (*data.cc).crtc;
@@ -361,7 +349,7 @@ void ReadEvent<RandR::NotifyEvent>(RandR::NotifyEvent* event_,
     Read(&height, &buf);
   }
   if (CaseEq(data_expr, RandR::Notify::OutputChange)) {
-    data.oc.emplace();
+    data.oc.emplace(decltype(data.oc)::value_type());
     auto& timestamp = (*data.oc).timestamp;
     auto& config_timestamp = (*data.oc).config_timestamp;
     auto& window = (*data.oc).window;
@@ -406,7 +394,7 @@ void ReadEvent<RandR::NotifyEvent>(RandR::NotifyEvent* event_,
     subpixel_order = static_cast<Render::SubPixel>(tmp6);
   }
   if (CaseEq(data_expr, RandR::Notify::OutputProperty)) {
-    data.op.emplace();
+    data.op.emplace(decltype(data.op)::value_type());
     auto& window = (*data.op).window;
     auto& output = (*data.op).output;
     auto& atom = (*data.op).atom;
@@ -434,7 +422,7 @@ void ReadEvent<RandR::NotifyEvent>(RandR::NotifyEvent* event_,
     Pad(&buf, 11);
   }
   if (CaseEq(data_expr, RandR::Notify::ProviderChange)) {
-    data.pc.emplace();
+    data.pc.emplace(decltype(data.pc)::value_type());
     auto& timestamp = (*data.pc).timestamp;
     auto& window = (*data.pc).window;
     auto& provider = (*data.pc).provider;
@@ -452,7 +440,7 @@ void ReadEvent<RandR::NotifyEvent>(RandR::NotifyEvent* event_,
     Pad(&buf, 16);
   }
   if (CaseEq(data_expr, RandR::Notify::ProviderProperty)) {
-    data.pp.emplace();
+    data.pp.emplace(decltype(data.pp)::value_type());
     auto& window = (*data.pp).window;
     auto& provider = (*data.pp).provider;
     auto& atom = (*data.pp).atom;
@@ -478,7 +466,7 @@ void ReadEvent<RandR::NotifyEvent>(RandR::NotifyEvent* event_,
     Pad(&buf, 11);
   }
   if (CaseEq(data_expr, RandR::Notify::ResourceChange)) {
-    data.rc.emplace();
+    data.rc.emplace(decltype(data.rc)::value_type());
     auto& timestamp = (*data.rc).timestamp;
     auto& window = (*data.rc).window;
 
@@ -492,7 +480,7 @@ void ReadEvent<RandR::NotifyEvent>(RandR::NotifyEvent* event_,
     Pad(&buf, 20);
   }
   if (CaseEq(data_expr, RandR::Notify::Lease)) {
-    data.lc.emplace();
+    data.lc.emplace(decltype(data.lc)::value_type());
     auto& timestamp = (*data.lc).timestamp;
     auto& window = (*data.lc).window;
     auto& lease = (*data.lc).lease;
@@ -514,7 +502,7 @@ void ReadEvent<RandR::NotifyEvent>(RandR::NotifyEvent* event_,
     Pad(&buf, 15);
   }
 
-  DCHECK_LE(buf.offset, 32ul);
+  CHECK_LE(buf.offset, 32ul);
 }
 
 Future<RandR::QueryVersionReply> RandR::QueryVersion(
@@ -593,7 +581,7 @@ std::unique_ptr<RandR::QueryVersionReply> detail::ReadReply<
   Pad(&buf, 16);
 
   Align(&buf, 4);
-  DCHECK_EQ(buf.offset < 32 ? 0 : buf.offset - 32, 4 * length);
+  CHECK_EQ(buf.offset < 32 ? 0 : buf.offset - 32, 4 * length);
 
   return reply;
 }
@@ -712,7 +700,7 @@ std::unique_ptr<RandR::SetScreenConfigReply> detail::ReadReply<
   Pad(&buf, 10);
 
   Align(&buf, 4);
-  DCHECK_EQ(buf.offset < 32 ? 0 : buf.offset - 32, 4 * length);
+  CHECK_EQ(buf.offset < 32 ? 0 : buf.offset - 32, 4 * length);
 
   return reply;
 }
@@ -811,9 +799,7 @@ std::unique_ptr<RandR::GetScreenInfoReply> detail::ReadReply<
   auto& rate = (*reply).rate;
   auto& nInfo = (*reply).nInfo;
   auto& sizes = (*reply).sizes;
-  size_t sizes_len = sizes.size();
   auto& rates = (*reply).rates;
-  size_t rates_len = rates.size();
 
   // response_type
   uint8_t response_type;
@@ -891,7 +877,6 @@ std::unique_ptr<RandR::GetScreenInfoReply> detail::ReadReply<
     {
       uint16_t nRates{};
       auto& rates = rates_elem.rates;
-      size_t rates_len = rates.size();
 
       // nRates
       Read(&nRates, &buf);
@@ -906,7 +891,7 @@ std::unique_ptr<RandR::GetScreenInfoReply> detail::ReadReply<
   }
 
   Align(&buf, 4);
-  DCHECK_EQ(buf.offset < 32 ? 0 : buf.offset - 32, 4 * length);
+  CHECK_EQ(buf.offset < 32 ? 0 : buf.offset - 32, 4 * length);
 
   return reply;
 }
@@ -989,7 +974,7 @@ std::unique_ptr<RandR::GetScreenSizeRangeReply> detail::ReadReply<
   Pad(&buf, 16);
 
   Align(&buf, 4);
-  DCHECK_EQ(buf.offset < 32 ? 0 : buf.offset - 32, 4 * length);
+  CHECK_EQ(buf.offset < 32 ? 0 : buf.offset - 32, 4 * length);
 
   return reply;
 }
@@ -1097,11 +1082,8 @@ std::unique_ptr<RandR::GetScreenResourcesReply> detail::ReadReply<
   uint16_t num_modes{};
   uint16_t names_len{};
   auto& crtcs = (*reply).crtcs;
-  size_t crtcs_len = crtcs.size();
   auto& outputs = (*reply).outputs;
-  size_t outputs_len = outputs.size();
   auto& modes = (*reply).modes;
-  size_t modes_len = modes.size();
   auto& names = (*reply).names;
 
   // response_type
@@ -1223,7 +1205,7 @@ std::unique_ptr<RandR::GetScreenResourcesReply> detail::ReadReply<
   }
 
   Align(&buf, 4);
-  DCHECK_EQ(buf.offset < 32 ? 0 : buf.offset - 32, 4 * length);
+  CHECK_EQ(buf.offset < 32 ? 0 : buf.offset - 32, 4 * length);
 
   return reply;
 }
@@ -1290,11 +1272,8 @@ std::unique_ptr<RandR::GetOutputInfoReply> detail::ReadReply<
   uint16_t num_clones{};
   uint16_t name_len{};
   auto& crtcs = (*reply).crtcs;
-  size_t crtcs_len = crtcs.size();
   auto& modes = (*reply).modes;
-  size_t modes_len = modes.size();
   auto& clones = (*reply).clones;
-  size_t clones_len = clones.size();
   auto& name = (*reply).name;
 
   // response_type
@@ -1379,7 +1358,7 @@ std::unique_ptr<RandR::GetOutputInfoReply> detail::ReadReply<
   }
 
   Align(&buf, 4);
-  DCHECK_EQ(buf.offset < 32 ? 0 : buf.offset - 32, 4 * length);
+  CHECK_EQ(buf.offset < 32 ? 0 : buf.offset - 32, 4 * length);
 
   return reply;
 }
@@ -1430,7 +1409,6 @@ std::unique_ptr<RandR::ListOutputPropertiesReply> detail::ReadReply<
   auto& sequence = (*reply).sequence;
   uint16_t num_atoms{};
   auto& atoms = (*reply).atoms;
-  size_t atoms_len = atoms.size();
 
   // response_type
   uint8_t response_type;
@@ -1460,7 +1438,7 @@ std::unique_ptr<RandR::ListOutputPropertiesReply> detail::ReadReply<
   }
 
   Align(&buf, 4);
-  DCHECK_EQ(buf.offset < 32 ? 0 : buf.offset - 32, 4 * length);
+  CHECK_EQ(buf.offset < 32 ? 0 : buf.offset - 32, 4 * length);
 
   return reply;
 }
@@ -1518,7 +1496,6 @@ std::unique_ptr<RandR::QueryOutputPropertyReply> detail::ReadReply<
   auto& range = (*reply).range;
   auto& immutable = (*reply).immutable;
   auto& validValues = (*reply).validValues;
-  size_t validValues_len = validValues.size();
 
   // response_type
   uint8_t response_type;
@@ -1554,7 +1531,7 @@ std::unique_ptr<RandR::QueryOutputPropertyReply> detail::ReadReply<
   }
 
   Align(&buf, 4);
-  DCHECK_EQ(buf.offset < 32 ? 0 : buf.offset - 32, 4 * length);
+  CHECK_EQ(buf.offset < 32 ? 0 : buf.offset - 32, 4 * length);
 
   return reply;
 }
@@ -1601,7 +1578,7 @@ Future<void> RandR::ConfigureOutputProperty(
   Pad(&buf, 2);
 
   // values
-  DCHECK_EQ(static_cast<size_t>(values_len), values.size());
+  CHECK_EQ(static_cast<size_t>(values_len), values.size());
   for (auto& values_elem : values) {
     // values_elem
     buf.Write(&values_elem);
@@ -1675,7 +1652,7 @@ Future<void> RandR::ChangeOutputProperty(
   buf.Write(&num_units);
 
   // data
-  buf.AppendBuffer(data, ((num_units) * (format)) / (8));
+  buf.AppendSizedBuffer(data);
 
   Align(&buf, 4);
 
@@ -1817,7 +1794,6 @@ std::unique_ptr<RandR::GetOutputPropertyReply> detail::ReadReply<
   auto& bytes_after = (*reply).bytes_after;
   auto& num_items = (*reply).num_items;
   auto& data = (*reply).data;
-  size_t data_len = data.size();
 
   // response_type
   uint8_t response_type;
@@ -1853,7 +1829,7 @@ std::unique_ptr<RandR::GetOutputPropertyReply> detail::ReadReply<
   }
 
   Align(&buf, 4);
-  DCHECK_EQ(buf.offset < 32 ? 0 : buf.offset - 32, 4 * length);
+  CHECK_EQ(buf.offset < 32 ? 0 : buf.offset - 32, 4 * length);
 
   return reply;
 }
@@ -1944,7 +1920,7 @@ Future<RandR::CreateModeReply> RandR::CreateMode(
   }
 
   // name
-  DCHECK_EQ(static_cast<size_t>(name_len), name.size());
+  CHECK_EQ(static_cast<size_t>(name_len), name.size());
   for (auto& name_elem : name) {
     // name_elem
     buf.Write(&name_elem);
@@ -1993,7 +1969,7 @@ std::unique_ptr<RandR::CreateModeReply> detail::ReadReply<
   Pad(&buf, 20);
 
   Align(&buf, 4);
-  DCHECK_EQ(buf.offset < 32 ? 0 : buf.offset - 32, 4 * length);
+  CHECK_EQ(buf.offset < 32 ? 0 : buf.offset - 32, 4 * length);
 
   return reply;
 }
@@ -2163,9 +2139,7 @@ std::unique_ptr<RandR::GetCrtcInfoReply> detail::ReadReply<
   uint16_t num_outputs{};
   uint16_t num_possible_outputs{};
   auto& outputs = (*reply).outputs;
-  size_t outputs_len = outputs.size();
   auto& possible = (*reply).possible;
-  size_t possible_len = possible.size();
 
   // response_type
   uint8_t response_type;
@@ -2232,7 +2206,7 @@ std::unique_ptr<RandR::GetCrtcInfoReply> detail::ReadReply<
   }
 
   Align(&buf, 4);
-  DCHECK_EQ(buf.offset < 32 ? 0 : buf.offset - 32, 4 * length);
+  CHECK_EQ(buf.offset < 32 ? 0 : buf.offset - 32, 4 * length);
 
   return reply;
 }
@@ -2293,7 +2267,7 @@ Future<RandR::SetCrtcConfigReply> RandR::SetCrtcConfig(
   Pad(&buf, 2);
 
   // outputs
-  DCHECK_EQ(static_cast<size_t>(outputs_len), outputs.size());
+  CHECK_EQ(static_cast<size_t>(outputs_len), outputs.size());
   for (auto& outputs_elem : outputs) {
     // outputs_elem
     buf.Write(&outputs_elem);
@@ -2352,7 +2326,7 @@ std::unique_ptr<RandR::SetCrtcConfigReply> detail::ReadReply<
   Pad(&buf, 20);
 
   Align(&buf, 4);
-  DCHECK_EQ(buf.offset < 32 ? 0 : buf.offset - 32, 4 * length);
+  CHECK_EQ(buf.offset < 32 ? 0 : buf.offset - 32, 4 * length);
 
   return reply;
 }
@@ -2422,7 +2396,7 @@ std::unique_ptr<RandR::GetCrtcGammaSizeReply> detail::ReadReply<
   Pad(&buf, 22);
 
   Align(&buf, 4);
-  DCHECK_EQ(buf.offset < 32 ? 0 : buf.offset - 32, 4 * length);
+  CHECK_EQ(buf.offset < 32 ? 0 : buf.offset - 32, 4 * length);
 
   return reply;
 }
@@ -2471,11 +2445,8 @@ std::unique_ptr<RandR::GetCrtcGammaReply> detail::ReadReply<
   auto& sequence = (*reply).sequence;
   uint16_t size{};
   auto& red = (*reply).red;
-  size_t red_len = red.size();
   auto& green = (*reply).green;
-  size_t green_len = green.size();
   auto& blue = (*reply).blue;
-  size_t blue_len = blue.size();
 
   // response_type
   uint8_t response_type;
@@ -2519,7 +2490,7 @@ std::unique_ptr<RandR::GetCrtcGammaReply> detail::ReadReply<
   }
 
   Align(&buf, 4);
-  DCHECK_EQ(buf.offset < 32 ? 0 : buf.offset - 32, 4 * length);
+  CHECK_EQ(buf.offset < 32 ? 0 : buf.offset - 32, 4 * length);
 
   return reply;
 }
@@ -2562,21 +2533,21 @@ Future<void> RandR::SetCrtcGamma(const RandR::SetCrtcGammaRequest& request) {
   Pad(&buf, 2);
 
   // red
-  DCHECK_EQ(static_cast<size_t>(size), red.size());
+  CHECK_EQ(static_cast<size_t>(size), red.size());
   for (auto& red_elem : red) {
     // red_elem
     buf.Write(&red_elem);
   }
 
   // green
-  DCHECK_EQ(static_cast<size_t>(size), green.size());
+  CHECK_EQ(static_cast<size_t>(size), green.size());
   for (auto& green_elem : green) {
     // green_elem
     buf.Write(&green_elem);
   }
 
   // blue
-  DCHECK_EQ(static_cast<size_t>(size), blue.size());
+  CHECK_EQ(static_cast<size_t>(size), blue.size());
   for (auto& blue_elem : blue) {
     // blue_elem
     buf.Write(&blue_elem);
@@ -2646,11 +2617,8 @@ std::unique_ptr<RandR::GetScreenResourcesCurrentReply> detail::ReadReply<
   uint16_t num_modes{};
   uint16_t names_len{};
   auto& crtcs = (*reply).crtcs;
-  size_t crtcs_len = crtcs.size();
   auto& outputs = (*reply).outputs;
-  size_t outputs_len = outputs.size();
   auto& modes = (*reply).modes;
-  size_t modes_len = modes.size();
   auto& names = (*reply).names;
 
   // response_type
@@ -2772,7 +2740,7 @@ std::unique_ptr<RandR::GetScreenResourcesCurrentReply> detail::ReadReply<
   }
 
   Align(&buf, 4);
-  DCHECK_EQ(buf.offset < 32 ? 0 : buf.offset - 32, 4 * length);
+  CHECK_EQ(buf.offset < 32 ? 0 : buf.offset - 32, 4 * length);
 
   return reply;
 }
@@ -2855,7 +2823,7 @@ Future<void> RandR::SetCrtcTransform(
   Pad(&buf, 2);
 
   // filter_name
-  DCHECK_EQ(static_cast<size_t>(filter_len), filter_name.size());
+  CHECK_EQ(static_cast<size_t>(filter_len), filter_name.size());
   for (auto& filter_name_elem : filter_name) {
     // filter_name_elem
     buf.Write(&filter_name_elem);
@@ -2865,7 +2833,7 @@ Future<void> RandR::SetCrtcTransform(
   Align(&buf, 4);
 
   // filter_params
-  DCHECK_EQ(static_cast<size_t>(filter_params_len), filter_params.size());
+  CHECK_EQ(static_cast<size_t>(filter_params_len), filter_params.size());
   for (auto& filter_params_elem : filter_params) {
     // filter_params_elem
     buf.Write(&filter_params_elem);
@@ -2935,13 +2903,9 @@ std::unique_ptr<RandR::GetCrtcTransformReply> detail::ReadReply<
   uint16_t current_len{};
   uint16_t current_nparams{};
   auto& pending_filter_name = (*reply).pending_filter_name;
-  size_t pending_filter_name_len = pending_filter_name.size();
   auto& pending_params = (*reply).pending_params;
-  size_t pending_params_len = pending_params.size();
   auto& current_filter_name = (*reply).current_filter_name;
-  size_t current_filter_name_len = current_filter_name.size();
   auto& current_params = (*reply).current_params;
-  size_t current_params_len = current_params.size();
 
   // response_type
   uint8_t response_type;
@@ -3093,7 +3057,7 @@ std::unique_ptr<RandR::GetCrtcTransformReply> detail::ReadReply<
   }
 
   Align(&buf, 4);
-  DCHECK_EQ(buf.offset < 32 ? 0 : buf.offset - 32, 4 * length);
+  CHECK_EQ(buf.offset < 32 ? 0 : buf.offset - 32, 4 * length);
 
   return reply;
 }
@@ -3211,7 +3175,7 @@ std::unique_ptr<RandR::GetPanningReply> detail::ReadReply<
   Read(&border_bottom, &buf);
 
   Align(&buf, 4);
-  DCHECK_EQ(buf.offset < 32 ? 0 : buf.offset - 32, 4 * length);
+  CHECK_EQ(buf.offset < 32 ? 0 : buf.offset - 32, 4 * length);
 
   return reply;
 }
@@ -3349,7 +3313,7 @@ std::unique_ptr<RandR::SetPanningReply> detail::ReadReply<
   Read(&timestamp, &buf);
 
   Align(&buf, 4);
-  DCHECK_EQ(buf.offset < 32 ? 0 : buf.offset - 32, 4 * length);
+  CHECK_EQ(buf.offset < 32 ? 0 : buf.offset - 32, 4 * length);
 
   return reply;
 }
@@ -3456,7 +3420,7 @@ std::unique_ptr<RandR::GetOutputPrimaryReply> detail::ReadReply<
   Read(&output, &buf);
 
   Align(&buf, 4);
-  DCHECK_EQ(buf.offset < 32 ? 0 : buf.offset - 32, 4 * length);
+  CHECK_EQ(buf.offset < 32 ? 0 : buf.offset - 32, 4 * length);
 
   return reply;
 }
@@ -3506,7 +3470,6 @@ std::unique_ptr<RandR::GetProvidersReply> detail::ReadReply<
   auto& timestamp = (*reply).timestamp;
   uint16_t num_providers{};
   auto& providers = (*reply).providers;
-  size_t providers_len = providers.size();
 
   // response_type
   uint8_t response_type;
@@ -3539,7 +3502,7 @@ std::unique_ptr<RandR::GetProvidersReply> detail::ReadReply<
   }
 
   Align(&buf, 4);
-  DCHECK_EQ(buf.offset < 32 ? 0 : buf.offset - 32, 4 * length);
+  CHECK_EQ(buf.offset < 32 ? 0 : buf.offset - 32, 4 * length);
 
   return reply;
 }
@@ -3601,13 +3564,9 @@ std::unique_ptr<RandR::GetProviderInfoReply> detail::ReadReply<
   uint16_t num_associated_providers{};
   uint16_t name_len{};
   auto& crtcs = (*reply).crtcs;
-  size_t crtcs_len = crtcs.size();
   auto& outputs = (*reply).outputs;
-  size_t outputs_len = outputs.size();
   auto& associated_providers = (*reply).associated_providers;
-  size_t associated_providers_len = associated_providers.size();
   auto& associated_capability = (*reply).associated_capability;
-  size_t associated_capability_len = associated_capability.size();
   auto& name = (*reply).name;
 
   // response_type
@@ -3683,7 +3642,7 @@ std::unique_ptr<RandR::GetProviderInfoReply> detail::ReadReply<
   }
 
   Align(&buf, 4);
-  DCHECK_EQ(buf.offset < 32 ? 0 : buf.offset - 32, 4 * length);
+  CHECK_EQ(buf.offset < 32 ? 0 : buf.offset - 32, 4 * length);
 
   return reply;
 }
@@ -3824,7 +3783,6 @@ std::unique_ptr<RandR::ListProviderPropertiesReply> detail::ReadReply<
   auto& sequence = (*reply).sequence;
   uint16_t num_atoms{};
   auto& atoms = (*reply).atoms;
-  size_t atoms_len = atoms.size();
 
   // response_type
   uint8_t response_type;
@@ -3854,7 +3812,7 @@ std::unique_ptr<RandR::ListProviderPropertiesReply> detail::ReadReply<
   }
 
   Align(&buf, 4);
-  DCHECK_EQ(buf.offset < 32 ? 0 : buf.offset - 32, 4 * length);
+  CHECK_EQ(buf.offset < 32 ? 0 : buf.offset - 32, 4 * length);
 
   return reply;
 }
@@ -3912,7 +3870,6 @@ std::unique_ptr<RandR::QueryProviderPropertyReply> detail::ReadReply<
   auto& range = (*reply).range;
   auto& immutable = (*reply).immutable;
   auto& valid_values = (*reply).valid_values;
-  size_t valid_values_len = valid_values.size();
 
   // response_type
   uint8_t response_type;
@@ -3948,7 +3905,7 @@ std::unique_ptr<RandR::QueryProviderPropertyReply> detail::ReadReply<
   }
 
   Align(&buf, 4);
-  DCHECK_EQ(buf.offset < 32 ? 0 : buf.offset - 32, 4 * length);
+  CHECK_EQ(buf.offset < 32 ? 0 : buf.offset - 32, 4 * length);
 
   return reply;
 }
@@ -3995,7 +3952,7 @@ Future<void> RandR::ConfigureProviderProperty(
   Pad(&buf, 2);
 
   // values
-  DCHECK_EQ(static_cast<size_t>(values_len), values.size());
+  CHECK_EQ(static_cast<size_t>(values_len), values.size());
   for (auto& values_elem : values) {
     // values_elem
     buf.Write(&values_elem);
@@ -4068,7 +4025,7 @@ Future<void> RandR::ChangeProviderProperty(
   buf.Write(&num_items);
 
   // data
-  buf.AppendBuffer(data, (num_items) * ((format) / (8)));
+  buf.AppendSizedBuffer(data);
 
   Align(&buf, 4);
 
@@ -4210,7 +4167,6 @@ std::unique_ptr<RandR::GetProviderPropertyReply> detail::ReadReply<
   auto& bytes_after = (*reply).bytes_after;
   auto& num_items = (*reply).num_items;
   auto& data = (*reply).data;
-  size_t data_len = data ? data->size() : 0;
 
   // response_type
   uint8_t response_type;
@@ -4242,7 +4198,7 @@ std::unique_ptr<RandR::GetProviderPropertyReply> detail::ReadReply<
   data = buffer->ReadAndAdvance((num_items) * ((format) / (8)));
 
   Align(&buf, 4);
-  DCHECK_EQ(buf.offset < 32 ? 0 : buf.offset - 32, 4 * length);
+  CHECK_EQ(buf.offset < 32 ? 0 : buf.offset - 32, 4 * length);
 
   return reply;
 }
@@ -4298,7 +4254,6 @@ std::unique_ptr<RandR::GetMonitorsReply> detail::ReadReply<
   uint32_t nMonitors{};
   auto& nOutputs = (*reply).nOutputs;
   auto& monitors = (*reply).monitors;
-  size_t monitors_len = monitors.size();
 
   // response_type
   uint8_t response_type;
@@ -4342,7 +4297,6 @@ std::unique_ptr<RandR::GetMonitorsReply> detail::ReadReply<
       auto& width_in_millimeters = monitors_elem.width_in_millimeters;
       auto& height_in_millimeters = monitors_elem.height_in_millimeters;
       auto& outputs = monitors_elem.outputs;
-      size_t outputs_len = outputs.size();
 
       // name
       Read(&name, &buf);
@@ -4384,7 +4338,7 @@ std::unique_ptr<RandR::GetMonitorsReply> detail::ReadReply<
   }
 
   Align(&buf, 4);
-  DCHECK_EQ(buf.offset < 32 ? 0 : buf.offset - 32, 4 * length);
+  CHECK_EQ(buf.offset < 32 ? 0 : buf.offset - 32, 4 * length);
 
   return reply;
 }
@@ -4426,7 +4380,6 @@ Future<void> RandR::SetMonitor(const RandR::SetMonitorRequest& request) {
     auto& width_in_millimeters = monitorinfo.width_in_millimeters;
     auto& height_in_millimeters = monitorinfo.height_in_millimeters;
     auto& outputs = monitorinfo.outputs;
-    size_t outputs_len = outputs.size();
 
     // name
     buf.Write(&name);
@@ -4460,7 +4413,7 @@ Future<void> RandR::SetMonitor(const RandR::SetMonitorRequest& request) {
     buf.Write(&height_in_millimeters);
 
     // outputs
-    DCHECK_EQ(static_cast<size_t>(nOutput), outputs.size());
+    CHECK_EQ(static_cast<size_t>(nOutput), outputs.size());
     for (auto& outputs_elem : outputs) {
       // outputs_elem
       buf.Write(&outputs_elem);
@@ -4556,14 +4509,14 @@ Future<RandR::CreateLeaseReply> RandR::CreateLease(
   buf.Write(&num_outputs);
 
   // crtcs
-  DCHECK_EQ(static_cast<size_t>(num_crtcs), crtcs.size());
+  CHECK_EQ(static_cast<size_t>(num_crtcs), crtcs.size());
   for (auto& crtcs_elem : crtcs) {
     // crtcs_elem
     buf.Write(&crtcs_elem);
   }
 
   // outputs
-  DCHECK_EQ(static_cast<size_t>(num_outputs), outputs.size());
+  CHECK_EQ(static_cast<size_t>(num_outputs), outputs.size());
   for (auto& outputs_elem : outputs) {
     // outputs_elem
     buf.Write(&outputs_elem);
@@ -4616,7 +4569,7 @@ std::unique_ptr<RandR::CreateLeaseReply> detail::ReadReply<
   Pad(&buf, 24);
 
   Align(&buf, 4);
-  DCHECK_EQ(buf.offset < 32 ? 0 : buf.offset - 32, 4 * length);
+  CHECK_EQ(buf.offset < 32 ? 0 : buf.offset - 32, 4 * length);
 
   return reply;
 }

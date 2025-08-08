@@ -5,7 +5,6 @@
 #include "net/dns/https_record_rdata.h"
 
 #include <fuzzer/FuzzedDataProvider.h>
-
 #include <stdint.h>
 
 #include <memory>
@@ -14,7 +13,7 @@
 #include <vector>
 
 #include "base/check.h"
-#include "base/strings/string_piece.h"
+#include "base/containers/contains.h"
 #include "net/base/ip_address.h"
 #include "net/dns/public/dns_protocol.h"
 
@@ -61,8 +60,8 @@ void ParseAndExercise(FuzzedDataProvider& data_provider) {
     service->IsCompatible();
 
     std::set<uint16_t> mandatory_keys = service->mandatory_keys();
-    CHECK(mandatory_keys.find(dns_protocol::kHttpsServiceParamKeyMandatory) ==
-          mandatory_keys.end());
+    CHECK(!base::Contains(mandatory_keys,
+                          dns_protocol::kHttpsServiceParamKeyMandatory));
 
     std::vector<IPAddress> ipv4_hint = service->ipv4_hint();
     for (const IPAddress& address : ipv4_hint) {

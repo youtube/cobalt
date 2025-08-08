@@ -2,6 +2,11 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#ifdef UNSAFE_BUFFERS_BUILD
+// TODO(crbug.com/40285824): Remove this and convert code to safer constructs.
+#pragma allow_unsafe_buffers
+#endif
+
 #include "media/formats/mp4/track_run_iterator.h"
 
 #include <algorithm>
@@ -44,9 +49,10 @@ struct TrackRunInfo {
   int64_t sample_start_offset;
 
   bool is_audio;
-  raw_ptr<const AudioSampleEntry> audio_description;
-  raw_ptr<const VideoSampleEntry> video_description;
-  raw_ptr<const SampleGroupDescription> track_sample_encryption_group;
+  raw_ptr<const AudioSampleEntry, DanglingUntriaged> audio_description;
+  raw_ptr<const VideoSampleEntry, DanglingUntriaged> video_description;
+  raw_ptr<const SampleGroupDescription, DanglingUntriaged>
+      track_sample_encryption_group;
 
   // Stores sample encryption entries, which is populated from 'senc' box if it
   // is available, otherwise will try to load from cenc auxiliary information.

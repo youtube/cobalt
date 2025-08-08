@@ -2,9 +2,15 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#ifdef UNSAFE_BUFFERS_BUILD
+// TODO(crbug.com/40284755): Remove this and spanify to fix the errors.
+#pragma allow_unsafe_buffers
+#endif
+
 #include "base/debug/test_elf_image_builder.h"
 
 #include <cstring>
+#include <string_view>
 #include <type_traits>
 #include <utility>
 
@@ -61,7 +67,7 @@ TestElfImageBuilder& TestElfImageBuilder::AddLoadSegment(Word flags,
 
 TestElfImageBuilder& TestElfImageBuilder::AddNoteSegment(
     Word type,
-    StringPiece name,
+    std::string_view name,
     span<const uint8_t> desc) {
   const size_t name_with_null_size = name.size() + 1;
   std::vector<uint8_t> buffer(
@@ -69,11 +75,11 @@ TestElfImageBuilder& TestElfImageBuilder::AddNoteSegment(
           bits::AlignUp(desc.size(), size_t{4}),
       '\0');
   uint8_t* loc = &buffer.front();
-  Nhdr* nhdr = reinterpret_cast<Nhdr*>(loc);
-  nhdr->n_namesz = name_with_null_size;
-  nhdr->n_descsz = desc.size();
-  nhdr->n_type = type;
-  loc += sizeof(Nhdr);
+  Nhdr nhdr;
+  nhdr.n_namesz = name_with_null_size;
+  nhdr.n_descsz = desc.size();
+  nhdr.n_type = type;
+  loc = AppendHdr(nhdr, loc);
 
   memcpy(loc, name.data(), name.size());
   *(loc + name.size()) = '\0';
@@ -89,7 +95,7 @@ TestElfImageBuilder& TestElfImageBuilder::AddNoteSegment(
   return *this;
 }
 
-TestElfImageBuilder& TestElfImageBuilder::AddSoName(StringPiece soname) {
+TestElfImageBuilder& TestElfImageBuilder::AddSoName(std::string_view soname) {
   DCHECK(!soname_.has_value());
   soname_.emplace(soname);
   return *this;
@@ -248,26 +254,26 @@ TestElfImage TestElfImageBuilder::Build() {
   // Add the soname state.
   if (soname_) {
     // Add a DYNAMIC section for the soname.
-    Dyn* soname_dyn = reinterpret_cast<Dyn*>(loc);
-    soname_dyn->d_tag = DT_SONAME;
-    soname_dyn->d_un.d_val = 1;  // One char into the string table.
-    loc += sizeof(Dyn);
+    Dyn soname_dyn;
+    soname_dyn.d_tag = DT_SONAME;
+    soname_dyn.d_un.d_val = 1;  // One char into the string table.
+    loc = AppendHdr(soname_dyn, loc);
   }
 
-  Dyn* strtab_dyn = reinterpret_cast<Dyn*>(loc);
-  strtab_dyn->d_tag = DT_STRTAB;
+  Dyn strtab_dyn;
+  strtab_dyn.d_tag = DT_STRTAB;
 #if BUILDFLAG(IS_FUCHSIA) || BUILDFLAG(IS_ANDROID)
   // Fuchsia and Android do not alter the symtab pointer on ELF load -- it's
   // expected to remain a 'virutal address'.
-  strtab_dyn->d_un.d_ptr =
+  strtab_dyn.d_un.d_ptr =
       GetVirtualAddressForOffset(measures.strtab_start, elf_start);
 #else
   // Linux relocates this value on ELF load, so produce the pointer value after
   // relocation. That value will always be equal to the actual memory address.
-  strtab_dyn->d_un.d_ptr =
+  strtab_dyn.d_un.d_ptr =
       reinterpret_cast<uintptr_t>(elf_start + measures.strtab_start);
 #endif
-  loc += sizeof(Dyn);
+  loc = AppendHdr(strtab_dyn, loc);
 
   // Add a string table with one entry for the soname, if necessary.
   *loc++ = '\0';  // The first byte holds a null character.
@@ -287,8 +293,7 @@ TestElfImage TestElfImageBuilder::Build() {
 // static
 template <typename T>
 uint8_t* TestElfImageBuilder::AppendHdr(const T& hdr, uint8_t* loc) {
-  static_assert(std::is_trivially_copyable<T>::value,
-                "T should be a plain struct");
+  static_assert(std::is_trivially_copyable_v<T>, "T should be a plain struct");
   memcpy(loc, &hdr, sizeof(T));
   return loc + sizeof(T);
 }

@@ -6,6 +6,7 @@
 
 #include <cstring>
 
+#include "base/containers/span.h"
 #include "base/files/file.h"
 #include "base/files/file_enumerator.h"
 #include "base/files/file_path.h"
@@ -34,15 +35,8 @@ void LogMessageFailedUpgradeFromVersion(int version) {
 
 bool WriteFakeIndexFile(disk_cache::BackendFileOperations* file_operations,
                         const base::FilePath& file_name) {
-#if defined(STARBOARD)
-  // Overwrites existing fake index files in case they were not deleted in
-  // previous cache startup. We can consider upstream this change.
-  base::File file = file_operations->OpenFile(
-      file_name, base::File::FLAG_CREATE_ALWAYS | base::File::FLAG_WRITE);
-#else
   base::File file = file_operations->OpenFile(
       file_name, base::File::FLAG_CREATE | base::File::FLAG_WRITE);
-#endif
   if (!file.IsValid())
     return false;
 
@@ -53,9 +47,7 @@ bool WriteFakeIndexFile(disk_cache::BackendFileOperations* file_operations,
   file_contents.zero = 0;
   file_contents.zero2 = 0;
 
-  int bytes_written = file.Write(0, reinterpret_cast<char*>(&file_contents),
-                                 sizeof(file_contents));
-  if (bytes_written != sizeof(file_contents)) {
+  if (!file.WriteAndCheck(0, base::byte_span_from_ref(file_contents))) {
     LOG(ERROR) << "Failed to write fake index file: "
                << file_name.LossyDisplayName();
     return false;
@@ -165,10 +157,7 @@ SimpleCacheConsistencyResult UpgradeSimpleCacheOnDisk(
   }
 
   FakeIndexData file_header;
-  int bytes_read = fake_index_file.Read(0,
-                                        reinterpret_cast<char*>(&file_header),
-                                        sizeof(file_header));
-  if (bytes_read != sizeof(file_header)) {
+  if (!fake_index_file.ReadAndCheck(0, base::byte_span_from_ref(file_header))) {
     LOG(ERROR) << "Disk cache backend fake index file has wrong size.";
     return SimpleCacheConsistencyResult::kBadFakeIndexReadSize;
   }

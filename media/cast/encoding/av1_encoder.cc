@@ -2,15 +2,23 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#ifdef UNSAFE_BUFFERS_BUILD
+// TODO(crbug.com/40285824): Remove this and convert code to safer constructs.
+#pragma allow_unsafe_buffers
+#endif
+
 #include "media/cast/encoding/av1_encoder.h"
 
 #include "base/logging.h"
+#include "base/strings/strcat.h"
+#include "media/base/video_encoder_metrics_provider.h"
 #include "media/base/video_frame.h"
 #include "media/cast/common/openscreen_conversion_helpers.h"
 #include "media/cast/common/sender_encoded_frame.h"
 #include "media/cast/constants.h"
+#include "media/cast/encoding/encoding_util.h"
 #include "third_party/libaom/source/libaom/aom/aomcx.h"
-#include "third_party/openscreen/src/cast/streaming/encoded_frame.h"
+#include "third_party/openscreen/src/cast/streaming/public/encoded_frame.h"
 
 namespace media {
 namespace cast {
@@ -59,24 +67,26 @@ bool HasSufficientFeedback(
 
 }  // namespace
 
-Av1Encoder::Av1Encoder(const FrameSenderConfig& video_config)
+Av1Encoder::Av1Encoder(
+    const FrameSenderConfig& video_config,
+    std::unique_ptr<VideoEncoderMetricsProvider> metrics_provider)
     : cast_config_(video_config),
+      codec_params_(video_config.video_codec_params.value()),
       target_encoder_utilization_(
-          video_config.video_codec_params.number_of_encode_threads > 2
+          codec_params_->number_of_encode_threads > 2
               ? kHiTargetEncoderUtilization
-              : (video_config.video_codec_params.number_of_encode_threads > 1
+              : (codec_params_->number_of_encode_threads > 1
                      ? kMidTargetEncoderUtilization
                      : kLoTargetEncoderUtilization)),
+      metrics_provider_(std::move(metrics_provider)),
       key_frame_requested_(true),
       bitrate_kbit_(cast_config_.start_bitrate / 1000),
       next_frame_id_(FrameId::first()),
       encoding_speed_acc_(base::Microseconds(kEncodingSpeedAccHalfLife)),
       encoding_speed_(kHighestEncodingSpeed) {
   config_.g_timebase.den = 0;  // Not initialized.
-  DCHECK_LE(cast_config_.video_codec_params.min_qp,
-            cast_config_.video_codec_params.max_cpu_saver_qp);
-  DCHECK_LE(cast_config_.video_codec_params.max_cpu_saver_qp,
-            cast_config_.video_codec_params.max_qp);
+  DCHECK_LE(codec_params_->min_qp, codec_params_->max_cpu_saver_qp);
+  DCHECK_LE(codec_params_->max_cpu_saver_qp, codec_params_->max_qp);
 
   DETACH_FROM_THREAD(thread_checker_);
 }
@@ -107,7 +117,7 @@ void Av1Encoder::ConfigureForNewFrameSize(const gfx::Size& frame_size) {
                << frame_size.ToString();
       config_.g_w = frame_size.width();
       config_.g_h = frame_size.height();
-      config_.rc_min_quantizer = cast_config_.video_codec_params.min_qp;
+      config_.rc_min_quantizer = codec_params_->min_qp;
       if (aom_codec_enc_config_set(&encoder_, &config_) == AOM_CODEC_OK)
         return;
       DVLOG(1) << "libaom rejected the attempt to use a smaller frame size in "
@@ -128,7 +138,7 @@ void Av1Encoder::ConfigureForNewFrameSize(const gfx::Size& frame_size) {
                                         AOM_USAGE_REALTIME),
            AOM_CODEC_OK);
 
-  config_.g_threads = cast_config_.video_codec_params.number_of_encode_threads;
+  config_.g_threads = codec_params_->number_of_encode_threads;
   config_.g_w = frame_size.width();
   config_.g_h = frame_size.height();
   // Set the timebase to match that of base::TimeDelta.
@@ -141,12 +151,12 @@ void Av1Encoder::ConfigureForNewFrameSize(const gfx::Size& frame_size) {
   config_.g_lag_in_frames = 0;  // Immediate data output for each frame.
 
   // Rate control settings.
-  config_.rc_dropframe_thresh = 0;  // The encoder may not drop any frames.
+  config_.rc_dropframe_thresh = GetEncoderDropFrameThreshold();
   config_.rc_resize_mode = 0;
   config_.rc_end_usage = AOM_CBR;
   config_.rc_target_bitrate = bitrate_kbit_;
-  config_.rc_min_quantizer = cast_config_.video_codec_params.min_qp;
-  config_.rc_max_quantizer = cast_config_.video_codec_params.max_qp;
+  config_.rc_min_quantizer = codec_params_->min_qp;
+  config_.rc_max_quantizer = codec_params_->max_qp;
   config_.rc_undershoot_pct = 100;
   config_.rc_overshoot_pct = 15;
   config_.rc_buf_initial_sz = 500;
@@ -155,10 +165,25 @@ void Av1Encoder::ConfigureForNewFrameSize(const gfx::Size& frame_size) {
 
   config_.kf_mode = AOM_KF_DISABLED;
 
+  metrics_provider_->Initialize(media::AV1PROFILE_MIN, frame_size,
+                                /*is_hardware_encoder=*/false);
   aom_codec_flags_t flags = 0;
-  CHECK_EQ(aom_codec_enc_init(&encoder_, aom_codec_av1_cx(), &config_, flags),
-           AOM_CODEC_OK);
+  if (aom_codec_err_t ret =
+          aom_codec_enc_init(&encoder_, aom_codec_av1_cx(), &config_, flags);
+      ret != AOM_CODEC_OK) {
+    metrics_provider_->SetError(
+        {media::EncoderStatus::Codes::kEncoderInitializationError,
+         base::StrCat(
+             {"libvpx failed to initialize: ", aom_codec_err_to_string(ret)})});
+    LOG(FATAL) << "aom_codec_enc_init() failed: "
+               << aom_codec_err_to_string(ret);
+  }
 
+  CHECK_EQ(
+      aom_codec_control(&encoder_, AV1E_SET_TUNE_CONTENT, AOM_CONTENT_SCREEN),
+      AOM_CODEC_OK);
+  CHECK_EQ(aom_codec_control(&encoder_, AV1E_SET_ENABLE_PALETTE, 1),
+           AOM_CODEC_OK);
   // This cpu_used setting is a trade-off between cpu usage and encoded video
   // quality. The default is zero, with increasingly less CPU to be used as the
   // value is more positive. Starting with the highest encoding speed
@@ -192,18 +217,18 @@ void Av1Encoder::Encode(scoped_refptr<media::VideoFrame> video_frame,
   aom_image_t aom_image;
   aom_image_t* const result = aom_img_wrap(
       &aom_image, aom_format, frame_size.width(), frame_size.height(), 1,
-      video_frame->writable_data(VideoFrame::kYPlane));
+      const_cast<uint8_t*>(video_frame->visible_data(VideoFrame::Plane::kY)));
   DCHECK_EQ(result, &aom_image);
 
   aom_image.planes[AOM_PLANE_Y] =
-      video_frame->GetWritableVisibleData(VideoFrame::kYPlane);
+      const_cast<uint8_t*>(video_frame->visible_data(VideoFrame::Plane::kY));
   aom_image.planes[AOM_PLANE_U] =
-      video_frame->GetWritableVisibleData(VideoFrame::kUPlane);
+      const_cast<uint8_t*>(video_frame->visible_data(VideoFrame::Plane::kU));
   aom_image.planes[AOM_PLANE_V] =
-      video_frame->GetWritableVisibleData(VideoFrame::kVPlane);
-  aom_image.stride[AOM_PLANE_Y] = video_frame->stride(VideoFrame::kYPlane);
-  aom_image.stride[AOM_PLANE_U] = video_frame->stride(VideoFrame::kUPlane);
-  aom_image.stride[AOM_PLANE_V] = video_frame->stride(VideoFrame::kVPlane);
+      const_cast<uint8_t*>(video_frame->visible_data(VideoFrame::Plane::kV));
+  aom_image.stride[AOM_PLANE_Y] = video_frame->stride(VideoFrame::Plane::kY);
+  aom_image.stride[AOM_PLANE_U] = video_frame->stride(VideoFrame::Plane::kU);
+  aom_image.stride[AOM_PLANE_V] = video_frame->stride(VideoFrame::Plane::kV);
 
   // The frame duration given to the AV1 codec affects a number of important
   // behaviors, including: per-frame bandwidth, CPU time spent encoding,
@@ -231,14 +256,20 @@ void Av1Encoder::Encode(scoped_refptr<media::VideoFrame> video_frame,
   // zero to force the encoder to base its single-frame bandwidth calculations
   // entirely on |predicted_frame_duration| and the target bitrate setting being
   // micro-managed via calls to UpdateRates().
-  CHECK_EQ(aom_codec_encode(&encoder_, &aom_image, 0,
-                            predicted_frame_duration.InMicroseconds(),
-                            key_frame_requested_ ? AOM_EFLAG_FORCE_KF : 0),
-           AOM_CODEC_OK)
-      << "BUG: Invalid arguments passed to aom_codec_encode().";
+  if (aom_codec_err_t ret = aom_codec_encode(
+          &encoder_, &aom_image, 0, predicted_frame_duration.InMicroseconds(),
+          key_frame_requested_ ? AOM_EFLAG_FORCE_KF : 0);
+      ret != AOM_CODEC_OK) {
+    metrics_provider_->SetError(
+        {media::EncoderStatus::Codes::kEncoderFailedEncode,
+         base::StrCat(
+             {"libaom failed to encode: ", aom_codec_err_to_string(ret), " - ",
+              aom_codec_error_detail(&encoder_)})});
+    LOG(FATAL) << "BUG: Invalid arguments passed to aom_codec_encode().";
+  }
 
   // Pull data from the encoder, populating a new EncodedFrame.
-  encoded_frame->frame_id = next_frame_id_++;
+  encoded_frame->frame_id = next_frame_id_;
   const aom_codec_cx_pkt_t* pkt = nullptr;
   aom_codec_iter_t iter = nullptr;
   while ((pkt = aom_codec_get_cx_data(&encoder_, &iter)) != nullptr) {
@@ -260,13 +291,19 @@ void Av1Encoder::Encode(scoped_refptr<media::VideoFrame> video_frame,
     encoded_frame->rtp_timestamp =
         ToRtpTimeTicks(video_frame->timestamp(), kVideoFrequency);
     encoded_frame->reference_time = reference_time;
-    encoded_frame->data.assign(
-        static_cast<const uint8_t*>(pkt->data.frame.buf),
-        static_cast<const uint8_t*>(pkt->data.frame.buf) + pkt->data.frame.sz);
+    encoded_frame->data =
+        base::HeapArray<uint8_t>::CopiedFrom(base::span<const uint8_t>(
+            static_cast<const uint8_t*>(pkt->data.frame.buf),
+            pkt->data.frame.sz));
     break;  // Done, since all data is provided in one CX_FRAME_PKT packet.
   }
-  DCHECK(!encoded_frame->data.empty())
-      << "BUG: Encoder must provide data since lagged encoding is disabled.";
+  if (encoded_frame->data.empty()) {
+    // Drop frame.
+    return;
+  }
+  // Increment frame id only if the frame is encoded.
+  next_frame_id_++;
+  metrics_provider_->IncrementEncodedFrameCount();
 
   // Compute encoder utilization as the real-world time elapsed divided by the
   // frame duration.
@@ -308,9 +345,8 @@ void Av1Encoder::Encode(scoped_refptr<media::VideoFrame> video_frame,
     // Equivalent encoding speed considering both cpu_used setting and
     // quantizer.
     double actual_encoding_speed =
-        encoding_speed_ +
-        kEquivalentEncodingSpeedStepPerQpStep *
-            std::max(0, quantizer - cast_config_.video_codec_params.min_qp);
+        encoding_speed_ + kEquivalentEncodingSpeedStepPerQpStep *
+                              std::max(0, quantizer - codec_params_->min_qp);
     double adjusted_encoding_speed = actual_encoding_speed *
                                      encoded_frame->encoder_utilization /
                                      target_encoder_utilization_;
@@ -329,13 +365,12 @@ void Av1Encoder::Encode(scoped_refptr<media::VideoFrame> video_frame,
       next_encoding_speed = kHighestEncodingSpeed;
       next_min_qp =
           static_cast<int>(remainder / kEquivalentEncodingSpeedStepPerQpStep +
-                           cast_config_.video_codec_params.min_qp + 0.5);
-      next_min_qp = std::min(next_min_qp,
-                             cast_config_.video_codec_params.max_cpu_saver_qp);
+                           codec_params_->min_qp + 0.5);
+      next_min_qp = std::min(next_min_qp, codec_params_->max_cpu_saver_qp);
     } else {
       next_encoding_speed =
           std::max<double>(kLowestEncodingSpeed, next_encoding_speed) + 0.5;
-      next_min_qp = cast_config_.video_codec_params.min_qp;
+      next_min_qp = codec_params_->min_qp;
     }
     if (encoding_speed_ != static_cast<int>(next_encoding_speed)) {
       encoding_speed_ = static_cast<int>(next_encoding_speed);

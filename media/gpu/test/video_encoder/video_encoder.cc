@@ -2,6 +2,11 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#ifdef UNSAFE_BUFFERS_BUILD
+// TODO(crbug.com/40285824): Remove this and convert code to safer constructs.
+#pragma allow_unsafe_buffers
+#endif
+
 #include "media/gpu/test/video_encoder/video_encoder.h"
 
 #include "base/functional/bind.h"
@@ -9,7 +14,7 @@
 #include "media/base/video_bitrate_allocation.h"
 #include "media/gpu/macros.h"
 #include "media/gpu/test/bitstream_helpers.h"
-#include "media/gpu/test/video.h"
+#include "media/gpu/test/raw_video.h"
 #include "media/gpu/test/video_encoder/video_encoder_client.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
@@ -104,7 +109,7 @@ void VideoEncoder::SetEventWaitTimeout(base::TimeDelta timeout) {
   event_timeout_ = timeout;
 }
 
-bool VideoEncoder::Initialize(const Video* video) {
+bool VideoEncoder::Initialize(const RawVideo* video) {
   DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
   DCHECK(video_encoder_state_ == EncoderState::kUninitialized ||
          video_encoder_state_ == EncoderState::kIdle);

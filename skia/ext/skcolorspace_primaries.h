@@ -22,12 +22,10 @@ namespace skia {
 SK_API std::string SkColorSpacePrimariesToString(
     const SkColorSpacePrimaries& primaries);
 
-#if !defined(STARBOARD)
 // Given a matrix that transforms to XYZD50, compute the primaries with a D65
 // white point that would produce this matrix.
 SK_API SkColorSpacePrimaries
 GetD65PrimariesFromToXYZD50Matrix(const skcms_Matrix3x3& m);
-#endif  // !defined(STARBOARD)
 
 }  // namespace skia
 

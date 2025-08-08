@@ -1,0 +1,804 @@
+diff --git a/third_party/unrar/src/archive.cpp b/third_party/unrar/src/archive.cpp
+index c2293de7ccae6..8106c3ace34f5 100644
+--- a/third_party/unrar/src/archive.cpp
++++ b/third_party/unrar/src/archive.cpp
+@@ -355,3 +355,13 @@ uint64 Archive::GetWinSize(uint64 Size,uint &Flags)
+   Flags+=(uint)Fraction*FCI_DICT_FRACT0;
+   return Pow2+Fraction*(Pow2/32);
+ }
++
++#if defined(CHROMIUM_UNRAR)
++void Archive::SetTempFileHandle(FileHandle hF) {
++  hTempFile = hF;
++}
++
++FileHandle Archive::GetTempFileHandle() {
++  return hTempFile;
++}
++#endif
+diff --git a/third_party/unrar/src/archive.hpp b/third_party/unrar/src/archive.hpp
+index 58bdafaa10cc8..d6849e7564eb5 100644
+--- a/third_party/unrar/src/archive.hpp
++++ b/third_party/unrar/src/archive.hpp
+@@ -57,6 +57,13 @@ class Archive:public File
+     QuickOpen QOpen;
+     bool ProhibitQOpen;
+ #endif
++
++#if defined(CHROMIUM_UNRAR)
++    // A handle for a temporary file that should be used when extracting the
++    // archive. This is used to extract the contents while in a sandbox.
++    FileHandle hTempFile;
++#endif
++
+   public:
+     Archive(CommandData *InitCmd=NULL);
+     ~Archive();
+@@ -92,6 +99,10 @@ class Archive:public File
+     int64 Tell() override;
+     void QOpenUnload() {QOpen.Unload();}
+     void SetProhibitQOpen(bool Mode) {ProhibitQOpen=Mode;}
++#endif
++#if defined(CHROMIUM_UNRAR)
++    void SetTempFileHandle(FileHandle hF);
++    FileHandle GetTempFileHandle();
+ #endif
+     static uint64 GetWinSize(uint64 Size,uint &Flags);
+ 
+diff --git a/third_party/unrar/src/blake2s.cpp b/third_party/unrar/src/blake2s.cpp
+index ae9d4e02a0de2..d4cf6fab6ae24 100644
+--- a/third_party/unrar/src/blake2s.cpp
++++ b/third_party/unrar/src/blake2s.cpp
+@@ -176,4 +176,3 @@ void blake2s_final( blake2s_state *S, byte *digest )
+   for( int i = 0; i < 8; ++i ) /* Output full hash  */
+     RawPut4( S->h[i], digest + 4 * i );
+ }
+-
+diff --git a/third_party/unrar/src/blake2s.hpp b/third_party/unrar/src/blake2s.hpp
+index 06e396a77ba49..13969e1695a11 100644
+--- a/third_party/unrar/src/blake2s.hpp
++++ b/third_party/unrar/src/blake2s.hpp
+@@ -5,11 +5,8 @@
+ #define BLAKE2_DIGEST_SIZE 32
+ #define BLAKE2_THREADS_NUMBER 8
+ 
+-enum blake2s_constant
+-{
+-  BLAKE2S_BLOCKBYTES = 64,
+-  BLAKE2S_OUTBYTES   = 32
+-};
++constexpr size_t BLAKE2S_BLOCKBYTES = 64;
++constexpr size_t BLAKE2S_OUTBYTES = 32;
+ 
+ 
+ // Alignment to 64 improves performance of both SSE and non-SSE versions.
+diff --git a/third_party/unrar/src/crc.cpp b/third_party/unrar/src/crc.cpp
+index 61c616289ae47..6ec67f2b8a78f 100644
+--- a/third_party/unrar/src/crc.cpp
++++ b/third_party/unrar/src/crc.cpp
+@@ -21,6 +21,7 @@
+ #endif
+ 
+ static uint crc_tables[16][256]; // Tables for Slicing-by-16.
++static bool is_initialized = false;
+ 
+ #ifdef USE_NEON_CRC32
+ static bool CRC_Neon;
+@@ -74,10 +75,13 @@ static void InitTables()
+ }
+ 
+ 
+-struct CallInitCRC {CallInitCRC() {InitTables();}} static CallInit32;
+-
+ uint CRC32(uint StartCRC,const void *Addr,size_t Size)
+ {
++  if (!is_initialized) {
++    is_initialized = true;
++    InitTables();
++  }
++
+   byte *Data=(byte *)Addr;
+ 
+ #ifdef USE_NEON_CRC32
+diff --git a/third_party/unrar/src/errhnd.cpp b/third_party/unrar/src/errhnd.cpp
+index b07e2f6646de9..aff79ff100ecc 100644
+--- a/third_party/unrar/src/errhnd.cpp
++++ b/third_party/unrar/src/errhnd.cpp
+@@ -1,10 +1,12 @@
++// NOTE(vakh): The process.h file needs to be included first because "rar.hpp"
++// defines certain macros that cause symbol redefinition errors
++#if defined(UNRAR_NO_EXCEPTIONS)
++#include "base/check.h"
++#include "base/process/process.h"
++#endif  // defined(UNRAR_NO_EXCEPTIONS)
+ #include "rar.hpp"
+ 
+-ErrorHandler::ErrorHandler()
+-{
+-  Clean();
+-}
+-
++#include <ostream>
+ 
+ void ErrorHandler::Clean()
+ {
+@@ -342,7 +344,11 @@ void ErrorHandler::Throw(RAR_EXIT Code)
+       mprintf(L"\n%s\n",St(MProgAborted));
+ #endif
+   SetErrorCode(Code);
++#if defined(UNRAR_NO_EXCEPTIONS)
++  CHECK(false) << "Failed with RAR_EXIT code: " << Code;
++#else
+   throw Code;
++#endif  // defined(UNRAR_NO_EXCEPTIONS)
+ }
+ 
+ 
+diff --git a/third_party/unrar/src/errhnd.hpp b/third_party/unrar/src/errhnd.hpp
+index 3b558b102acaa..236ad7849186f 100644
+--- a/third_party/unrar/src/errhnd.hpp
++++ b/third_party/unrar/src/errhnd.hpp
+@@ -23,14 +23,13 @@ enum RAR_EXIT // RAR exit code.
+ class ErrorHandler
+ {
+   private:
+-    RAR_EXIT ExitCode;
+-    uint ErrCount;
+-    bool EnableBreak;
+-    bool Silent;
+-    bool DisableShutdown; // Shutdown is not suitable after last error.
+-    bool ReadErrIgnoreAll;
++    RAR_EXIT ExitCode = RARX_SUCCESS;
++    uint ErrCount = 0;
++    bool EnableBreak = true;
++    bool Silent = false;
++    bool DisableShutdown = false; // Shutdown is not suitable after last error.
++    bool ReadErrIgnoreAll = false;
+   public:
+-    ErrorHandler();
+     void Clean();
+     void MemoryError();
+     void OpenError(const std::wstring &FileName);
+@@ -67,8 +66,8 @@ class ErrorHandler
+     void SetDisableShutdown() {DisableShutdown=true;}
+     bool IsShutdownEnabled() {return !DisableShutdown;}
+ 
+-    bool UserBreak; // Ctrl+Break is pressed.
+-    bool MainExit; // main() is completed.
++    bool UserBreak = false; // Ctrl+Break is pressed.
++    bool MainExit = false; // main() is completed.
+ };
+ 
+ 
+diff --git a/third_party/unrar/src/extract.cpp b/third_party/unrar/src/extract.cpp
+index f799e6a3e0d31..358b229201cfc 100644
+--- a/third_party/unrar/src/extract.cpp
++++ b/third_party/unrar/src/extract.cpp
+@@ -650,6 +650,11 @@ bool CmdExtract::ExtractCurrentFile(Archive &Arc,size_t HeaderSize,bool &Repeat)
+       ExtrFile=LinksToDirs(DestFileName,Cmd->ExtrPath,LastCheckedSymlink);
+ 
+     File CurFile;
++#if defined(CHROMIUM_UNRAR)
++    // Since extraction is done in a sandbox, this must extract to the temp file
++    // handle instead of the default.
++    CurFile.SetFileHandle(Arc.GetTempFileHandle());
++#endif
+ 
+     bool LinkEntry=Arc.FileHead.RedirType!=FSREDIR_NONE;
+     if (LinkEntry && (Arc.FileHead.RedirType!=FSREDIR_FILECOPY))
+@@ -856,6 +861,9 @@ bool CmdExtract::ExtractCurrentFile(Archive &Arc,size_t HeaderSize,bool &Repeat)
+             UnstoreFile(DataIO,Arc.FileHead.UnpSize);
+           else
+           {
++#if defined (UNRAR_NO_EXCEPTIONS)
++            Unp->Init(Arc.FileHead.WinSize,Arc.FileHead.Solid);
++#else
+             try
+             {
+               Unp->Init(Arc.FileHead.WinSize,Arc.FileHead.Solid);
+@@ -866,6 +874,7 @@ bool CmdExtract::ExtractCurrentFile(Archive &Arc,size_t HeaderSize,bool &Repeat)
+                 uiMsg(UIERROR_EXTRDICTOUTMEM,Arc.FileName,uint(Arc.FileHead.WinSize/0x40000000+(Arc.FileHead.WinSize%0x40000000!=0 ? 1 : 0)));
+               throw;
+             }
++#endif  // UNRAR_NO_EXCEPTIONS
+ 
+             Unp->SetDestSize(Arc.FileHead.UnpSize);
+ #ifndef SFX_MODULE
+diff --git a/third_party/unrar/src/extract.hpp b/third_party/unrar/src/extract.hpp
+index 4400057aee4b4..48cff661ef624 100644
+--- a/third_party/unrar/src/extract.hpp
++++ b/third_party/unrar/src/extract.hpp
+@@ -57,8 +57,8 @@ class CmdExtract
+     unsigned long MatchedArgs;
+     bool FirstFile;
+     bool AllMatchesExact;
+-    bool ReconstructDone;
+-    bool UseExactVolName;
++    bool ReconstructDone=false;
++    bool UseExactVolName=false;
+ 
+     // If any non-zero solid file was successfully unpacked before current.
+     // If true and if current encrypted file is broken, obviously
+@@ -91,6 +91,11 @@ class CmdExtract
+     void ExtractArchiveInit(Archive &Arc);
+     bool ExtractCurrentFile(Archive &Arc,size_t HeaderSize,bool &Repeat);
+     static void UnstoreFile(ComprDataIO &DataIO,int64 DestUnpSize);
++
++#if defined(CHROMIUM_UNRAR)
++    int64 GetCurrentFileSize() { return DataIO.CurUnpWrite; }
++    bool IsMissingNextVolume() { return DataIO.NextVolumeMissing; }
++#endif
+ };
+ 
+ #endif
+diff --git a/third_party/unrar/src/file.cpp b/third_party/unrar/src/file.cpp
+index 2d0d785cb2c94..c8097f9775226 100644
+--- a/third_party/unrar/src/file.cpp
++++ b/third_party/unrar/src/file.cpp
+@@ -19,6 +19,10 @@ File::File()
+   ReadErrorMode=FREM_ASK;
+   TruncatedAfterReadError=false;
+   CurFilePos=0;
++
++#ifdef CHROMIUM_UNRAR
++  hOpenFile=FILE_BAD_HANDLE;
++#endif
+ }
+ 
+ 
+@@ -52,6 +56,11 @@ bool File::Open(const std::wstring &Name,uint Mode)
+   bool UpdateMode=(Mode & FMF_UPDATE)!=0;
+   bool WriteMode=(Mode & FMF_WRITE)!=0;
+ #ifdef _WIN_ALL
++#if defined(CHROMIUM_UNRAR)
++  // Do not open a file handle since the sandbox doesn't allow it. Use the
++  // handle provided by the caller.
++  hNewFile = hOpenFile;
++#else
+   uint Access=WriteMode ? GENERIC_WRITE:GENERIC_READ;
+   if (UpdateMode)
+     Access|=GENERIC_WRITE;
+@@ -97,7 +106,14 @@ bool File::Open(const std::wstring &Name,uint Mode)
+     FILETIME ft={0xffffffff,0xffffffff}; // This value prevents atime modification.
+     SetFileTime(hNewFile,NULL,&ft,NULL);
+   }
++#endif  // defined(CHROMIUM_UNRAR)
+ 
++#else
++
++#if defined(CHROMIUM_UNRAR)
++  // Do not open a file handle since the sandbox doesn't allow it. Use the
++  // handle provided by the caller.
++  int handle = hOpenFile;
+ #else
+   int flags=UpdateMode ? O_RDWR:(WriteMode ? O_WRONLY:O_RDONLY);
+ #ifdef O_BINARY
+@@ -115,6 +131,8 @@ bool File::Open(const std::wstring &Name,uint Mode)
+   WideToChar(Name,NameA);
+ 
+   int handle=open(NameA.c_str(),flags);
++#endif  // defined(CHROMIUM_UNRAR)
++
+ #ifdef LOCK_EX
+ 
+ #ifdef _OSF_SOURCE
+@@ -174,6 +192,11 @@ bool File::WOpen(const std::wstring &Name)
+ 
+ bool File::Create(const std::wstring &Name,uint Mode)
+ {
++#if defined(CHROMIUM_UNRAR)
++  // Since the Chromium sandbox does not allow the creation of files, use the
++  // provided file.
++  hFile = hOpenFile;
++#else
+   // OpenIndiana based NAS and CIFS shares fail to set the file time if file
+   // was created in read+write mode and some data was written and not flushed
+   // before SetFileTime call. So we should use the write only mode if we plan
+@@ -211,6 +234,7 @@ bool File::Create(const std::wstring &Name,uint Mode)
+   hFile=fopen(NameA.c_str(),WriteMode ? WRITEBINARY:CREATEBINARY);
+ #endif
+ #endif
++#endif  // defined(CHROMIUM_UNRAR)
+   NewFile=true;
+   HandleType=FILE_HANDLENORMAL;
+   SkipClose=false;
+@@ -245,6 +269,8 @@ bool File::Close()
+   {
+     if (!SkipClose)
+     {
++#if !defined(CHROMIUM_UNRAR)
++// unrar should not close the file handle since it wasn't opened by unrar.
+ #ifdef _WIN_ALL
+       // We use the standard system handle for stdout in Windows
+       // and it must not be closed here.
+@@ -257,6 +283,7 @@ bool File::Close()
+       Success=fclose(hFile)!=EOF;
+ #endif
+ #endif
++#endif  // defined(CHROMIUM_UNRAR)
+     }
+     hFile=FILE_BAD_HANDLE;
+   }
+@@ -836,3 +863,9 @@ int64 File::Copy(File &Dest,int64 Length)
+   return CopySize;
+ }
+ #endif
++
++#if defined(CHROMIUM_UNRAR)
++void File::SetFileHandle(FileHandle hF) {
++  hOpenFile = hF;
++}
++#endif  // defined(CHROMIUM_UNRAR)
+diff --git a/third_party/unrar/src/file.hpp b/third_party/unrar/src/file.hpp
+index a95cc398fab32..e7868bbafe4c9 100644
+--- a/third_party/unrar/src/file.hpp
++++ b/third_party/unrar/src/file.hpp
+@@ -86,6 +86,11 @@ class File
+     std::wstring FileName;
+ 
+     FILE_ERRORTYPE ErrorType;
++
++#if defined(CHROMIUM_UNRAR)
++    FileHandle hOpenFile;
++#endif  // defined(CHROMIUM_UNRAR)
++
+   public:
+     File();
+     virtual ~File();
+@@ -136,6 +141,14 @@ class File
+     void SetExceptions(bool Allow) {AllowExceptions=Allow;}
+     void SetPreserveAtime(bool Preserve) {PreserveAtime=Preserve;}
+     bool IsTruncatedAfterReadError() {return TruncatedAfterReadError;}
++
++#if defined(CHROMIUM_UNRAR)
++    // Since unrar runs in a sandbox, it doesn't have the permission to open
++    // files on the filesystem. Instead, the caller opens the file and passes
++    // the file handle to unrar. This handle is then used to read the file.
++    void SetFileHandle(FileHandle file);
++#endif  // defined(CHROMIUM_UNRAR)
++
+ #ifdef _UNIX
+     int GetFD()
+     {
+diff --git a/third_party/unrar/src/isnt.cpp b/third_party/unrar/src/isnt.cpp
+index b89b2ce54d825..9322a1d1b3d54 100644
+--- a/third_party/unrar/src/isnt.cpp
++++ b/third_party/unrar/src/isnt.cpp
+@@ -1,5 +1,11 @@
+ #include "rar.hpp"
+ 
++#pragma clang diagnostic push
++#pragma clang diagnostic ignored "-Wdeprecated-declarations"
++// GetVersionEx() is deprecated, and the suggested replacement are
++// the IsWindows*OrGreater() functions in VersionHelpers.h. We can't
++// use that because there is no IsWindows11OrGreater() function yet.
++
+ DWORD WinNT()
+ {
+   static int dwPlatformId=-1;
+@@ -25,7 +31,7 @@ DWORD WinNT()
+ 
+ // Replace it with documented Windows 11 check when available.
+ #include <comdef.h>
+-#include <Wbemidl.h>
++#include <WbemIdl.h>
+ #pragma comment(lib, "wbemuuid.lib")
+ 
+ static bool WMI_IsWindows10()
+@@ -106,3 +112,5 @@ bool IsWindows11OrGreater()
+   }
+   return IsWin11;
+ }
++
++#pragma clang diagnostic pop
+diff --git a/third_party/unrar/src/model.cpp b/third_party/unrar/src/model.cpp
+index 69d9267f7c428..e3ef5b7a8c90d 100644
+--- a/third_party/unrar/src/model.cpp
++++ b/third_party/unrar/src/model.cpp
+@@ -43,13 +43,27 @@ void ModelPPM::RestartModelRare()
+   InitRL=-(MaxOrder < 12 ? MaxOrder:12)-1;
+   MinContext = MaxContext = (RARPPM_CONTEXT*) SubAlloc.AllocContext();
+   if (MinContext == NULL)
++  {
++#if defined(UNRAR_NO_EXCEPTIONS)
++    base::TerminateBecauseOutOfMemory(0);
++#else
+     throw std::bad_alloc();
++#endif  // defined(UNRAR_NO_EXCEPTIONS)
++  }
++
+   MinContext->Suffix=NULL;
+   OrderFall=MaxOrder;
+   MinContext->U.SummFreq=(MinContext->NumStats=256)+1;
+   FoundState=MinContext->U.Stats=(RARPPM_STATE*)SubAlloc.AllocUnits(256/2);
+   if (FoundState == NULL)
++  {
++#if defined(UNRAR_NO_EXCEPTIONS)
++    base::TerminateBecauseOutOfMemory(0);
++#else
+     throw std::bad_alloc();
++#endif  // defined(UNRAR_NO_EXCEPTIONS)
++  }
++
+   for (RunLength=InitRL, PrevSuccess=i=0;i < 256;i++) 
+   {
+     MinContext->U.Stats[i].Symbol=i;      
+diff --git a/third_party/unrar/src/os.hpp b/third_party/unrar/src/os.hpp
+index b6718462e0b3f..278e3c923f327 100644
+--- a/third_party/unrar/src/os.hpp
++++ b/third_party/unrar/src/os.hpp
+@@ -29,6 +29,7 @@
+ #define STRICT 1
+ #endif
+ 
++#if !defined(CHROMIUM_UNRAR)
+ // 'ifndef' check here is needed for unrar.dll header to avoid macro
+ // re-definition warnings in third party projects.
+ #ifndef UNICODE
+@@ -38,12 +39,15 @@
+ 
+ #define WINVER _WIN32_WINNT_WINXP
+ #define _WIN32_WINNT _WIN32_WINNT_WINXP
++#endif  // !defined(CHROMIUM_UNRAR)
+ 
+-#if !defined(ZIPSFX)
++#if !defined(ZIPSFX) && !defined(CHROMIUM_UNRAR)
+ #define RAR_SMP
+ #endif
+ 
++#if !defined(CHROMIUM_UNRAR)
+ #define WIN32_LEAN_AND_MEAN
++#endif  // CHROMIUM_UNRAR
+ 
+ #include <windows.h>
+ #include <prsht.h>
+@@ -60,7 +64,7 @@
+ 
+ // For WMI requests.
+ #include <comdef.h>
+-#include <Wbemidl.h>
++#include <WbemIdl.h>
+ #pragma comment(lib, "wbemuuid.lib")
+ 
+ 
+@@ -70,11 +74,13 @@
+ #include <direct.h>
+ #include <intrin.h>
+ 
++#if !defined(CHROMIUM_UNRAR)
+ // Use SSE only for x86/x64, not ARM Windows.
+ #if defined(_M_IX86) || defined(_M_X64)
+   #define USE_SSE
+   #define SSE_ALIGNMENT 16
+ #endif
++#endif  // CHROMIUM_UNRAR
+ 
+ #include <stdio.h>
+ #include <stdlib.h>
+@@ -143,6 +149,7 @@
+ #include <utime.h>
+ #include <locale.h>
+ 
++#if !defined(CHROMIUM_UNRAR)
+ #ifdef __GNUC__
+   #if defined(__i386__) || defined(__x86_64__)
+     #include <x86intrin.h>
+@@ -151,6 +158,7 @@
+     #define SSE_ALIGNMENT 16
+   #endif
+ #endif
++#endif  // CHROMIUM_UNRAR
+ 
+ #if defined(__aarch64__) && (defined(__ARM_FEATURE_CRYPTO) || defined(__ARM_FEATURE_CRC32))
+ #include <arm_neon.h>
+@@ -259,9 +267,16 @@
+   #endif
+ #endif
+ 
++// Disable this optimization in Chromium. Although the underlying architecture
++// may allow unaligned access, C and C++ themselves do not allow this. Rather,
++// unaligned loads should be written with either memcpy, or by endian-agnostic
++// reassembling of values with shifts and ORs. Modern compilers recognize these
++// patterns and generate the unaligned load anyway.
++#if !defined(CHROMIUM_UNRAR)
+ #if !defined(BIG_ENDIAN) && defined(_WIN_ALL) || defined(__i386__) || defined(__x86_64__) || defined(__aarch64__)
+ // Allow unaligned integer access, increases speed in some operations.
+ #define ALLOW_MISALIGNED
+ #endif
++#endif
+ 
+ #endif // _RAR_OS_
+diff --git a/third_party/unrar/src/secpassword.cpp b/third_party/unrar/src/secpassword.cpp
+index 8d8f298609a76..a32ea40e3ac25 100644
+--- a/third_party/unrar/src/secpassword.cpp
++++ b/third_party/unrar/src/secpassword.cpp
+@@ -1,6 +1,6 @@
+ #include "rar.hpp"
+ 
+-#if defined(_WIN_ALL)
++#if defined(_WIN_ALL) && !defined(CHROMIUM_UNRAR)
+ typedef BOOL (WINAPI *CRYPTPROTECTMEMORY)(LPVOID pData,DWORD cbData,DWORD dwFlags);
+ typedef BOOL (WINAPI *CRYPTUNPROTECTMEMORY)(LPVOID pData,DWORD cbData,DWORD dwFlags);
+ 
+@@ -177,7 +177,7 @@ void SecHideData(void *Data,size_t DataSize,bool Encode,bool CrossProcess)
+ {
+   // CryptProtectMemory is not available in UWP and CryptProtectData
+   // increases data size not allowing in place conversion.
+-#if defined(_WIN_ALL)
++#if defined(_WIN_ALL) && !defined(CHROMIUM_UNRAR)
+   // Try to utilize the secure Crypt[Un]ProtectMemory if possible.
+   if (GlobalCryptLoader.pCryptProtectMemory==NULL)
+     GlobalCryptLoader.Load();
+diff --git a/third_party/unrar/src/strfn.cpp b/third_party/unrar/src/strfn.cpp
+index 3fdaca59b1504..61d3e200e6158 100644
+--- a/third_party/unrar/src/strfn.cpp
++++ b/third_party/unrar/src/strfn.cpp
+@@ -41,6 +41,27 @@ void ArcCharToWide(const char *Src,std::wstring &Dest,ACTW_ENCODING Encoding)
+     UtfToWide(Src,Dest);
+   else
+   {
++#if defined(CHROMIUM_UNRAR)
++    if (Encoding == ACTW_OEM) {
++      // OemToCharBuffA, called by IntToExt, is implemented by user32.dll which
++      // is not available in win32k lockdown sandbox. We can map from the OEM
++      // codepage using CP_OEMCP and MultiByteToWideChar from kernel32.dll
++      // instead, as we're also attempting to map to wide chars.
++      const size_t SrcLength = strlen(Src) + 1;
++      const int size =
++          MultiByteToWideChar(CP_OEMCP, MB_PRECOMPOSED | MB_USEGLYPHCHARS, Src,
++                              SrcLength, nullptr, 0);
++      if (size <= 0) {
++        Dest.clear();
++      } else {
++        Dest.resize(size);
++        (void)::MultiByteToWideChar(CP_OEMCP, MB_PRECOMPOSED | MB_USEGLYPHCHARS,
++                                    Src, SrcLength, &Dest[0], size);
++      }
++    } else {
++      CharToWide(Src, Dest);
++    }
++#else
+     std::string NameA;
+     if (Encoding==ACTW_OEM)
+     {
+@@ -48,6 +69,7 @@ void ArcCharToWide(const char *Src,std::wstring &Dest,ACTW_ENCODING Encoding)
+       Src=NameA.data();
+     }
+     CharToWide(Src,Dest);
++#endif  // defined(CHROMIUM_UNRAR)
+   }
+ #else // RAR for Unix.
+   if (Encoding==ACTW_UTF8)
+@@ -387,7 +409,7 @@ void fmtitoa(int64 n,wchar *Str,size_t MaxSize)
+   static wchar ThSep=0; // Thousands separator.
+ #ifdef _WIN_ALL
+   wchar Info[10];
+-  if (!ThSep!=0 && GetLocaleInfo(LOCALE_USER_DEFAULT,LOCALE_STHOUSAND,Info,ASIZE(Info))>0)
++  if ((!ThSep)!=0 && GetLocaleInfo(LOCALE_USER_DEFAULT,LOCALE_STHOUSAND,Info,ASIZE(Info))>0)
+     ThSep=*Info;
+ #elif defined(_UNIX)
+   ThSep=*localeconv()->thousands_sep;
+diff --git a/third_party/unrar/src/unicode.cpp b/third_party/unrar/src/unicode.cpp
+index 812e35ba88be2..2755be47c2608 100644
+--- a/third_party/unrar/src/unicode.cpp
++++ b/third_party/unrar/src/unicode.cpp
+@@ -728,9 +728,18 @@ std::wstring::size_type wcscasestr(const std::wstring &str, const std::wstring &
+ wchar* wcslower(wchar *s)
+ {
+ #ifdef _WIN_ALL
++#if defined(CHROMIUM_UNRAR)
++  // kernel32!LCMapStringEx instead of user32.dll!CharUpper due to win32k
++  // lockdown sandbox in chromium, user32.dll can't be loaded.
++  const size_t s_length = wcslen(s) + 1;
++  (void)LCMapStringEx(LOCALE_NAME_USER_DEFAULT, LCMAP_LOWERCASE, s, s_length, s,
++                      s_length, NULL, NULL, 0);
++  return s;
++#else
+   // _wcslwr requires setlocale and we do not want to depend on setlocale
+   // in Windows. Also CharLower involves less overhead.
+   CharLower(s);
++#endif  // defined(CHROMIUM_UNRAR)
+ #else
+   for (wchar *c=s;*c!=0;c++)
+     *c=towlower(*c);
+@@ -748,9 +757,18 @@ void wcslower(std::wstring &s)
+ wchar* wcsupper(wchar *s)
+ {
+ #ifdef _WIN_ALL
++#if defined(CHROMIUM_UNRAR)
++  // kernel32!LCMapStringEx instead of user32.dll!CharUpper due to win32k
++  // lockdown sandbox in chromium, user32.dll can't be loaded.
++  const size_t s_length = wcslen(s) + 1;
++  (void)LCMapStringEx(LOCALE_NAME_USER_DEFAULT, LCMAP_UPPERCASE, s, s_length, s,
++                      s_length, NULL, NULL, 0);
++  return s;
++#else
+   // _wcsupr requires setlocale and we do not want to depend on setlocale
+   // in Windows. Also CharUpper involves less overhead.
+   CharUpper(s);
++#endif  // defined(CHROMIUM_UNRAR)
+ #else
+   for (wchar *c=s;*c!=0;c++)
+     *c=towupper(*c);
+@@ -771,11 +789,20 @@ void wcsupper(std::wstring &s)
+ int toupperw(int ch)
+ {
+ #if defined(_WIN_ALL)
++#if defined(CHROMIUM_UNRAR)
++  wchar_t ch_as_wide_char = static_cast<wchar_t>(ch & 0xffff);
++  // kernel32!LCMapStringEx instead of user32.dll!CharUpper due to win32k
++  // lockdown sandbox in chromium, user32.dll can't be loaded.
++  (void)LCMapStringEx(LOCALE_NAME_USER_DEFAULT, LCMAP_UPPERCASE,
++                      &ch_as_wide_char, 1, &ch_as_wide_char, 1, NULL, NULL, 0);
++  return int(ch_as_wide_char);
++#else
+   // CharUpper is more reliable than towupper in Windows, which seems to be
+   // C locale dependent even in Unicode version. For example, towupper failed
+   // to convert lowercase Russian characters. Use 0xffff mask to prevent crash
+   // if value larger than 0xffff is passed to this function.
+   return (int)(INT_PTR)CharUpper((wchar *)(INT_PTR)(ch&0xffff));
++#endif  // defined(CHROMIUM_UNRAR)
+ #else
+   return towupper(ch);
+ #endif
+@@ -785,10 +812,19 @@ int toupperw(int ch)
+ int tolowerw(int ch)
+ {
+ #if defined(_WIN_ALL)
++#if defined(CHROMIUM_UNRAR)
++  wchar_t ch_as_wide_char = static_cast<wchar_t>(ch & 0xffff);
++  // kernel32!LCMapStringEx instead of user32.dll!CharLower due to win32k
++  // lockdown sandbox in chromium, user32.dll can't be loaded.
++  (void)LCMapStringEx(LOCALE_NAME_USER_DEFAULT, LCMAP_LOWERCASE,
++                      &ch_as_wide_char, 1, &ch_as_wide_char, 1, NULL, NULL, 0);
++  return int(ch_as_wide_char);
++#else
+   // CharLower is more reliable than towlower in Windows.
+   // See comment for towupper above. Use 0xffff mask to prevent crash
+   // if value larger than 0xffff is passed to this function.
+   return (int)(INT_PTR)CharLower((wchar *)(INT_PTR)(ch&0xffff));
++#endif  // defined(CHROMIUM_UNRAR)
+ #else
+   return towlower(ch);
+ #endif
+@@ -825,7 +861,6 @@ int64 atoilw(const std::wstring &s)
+ 
+ 
+ #ifdef DBCS_SUPPORTED
+-SupportDBCS gdbcs;
+ 
+ SupportDBCS::SupportDBCS()
+ {
+@@ -842,6 +877,11 @@ void SupportDBCS::Init()
+     IsLeadByte[I]=IsDBCSLeadByte(I)!=0;
+ }
+ 
++// static
++SupportDBCS& SupportDBCS::GetInstance() {
++  static SupportDBCS supportDBCS;
++  return supportDBCS;
++}
+ 
+ char* SupportDBCS::charnext(const char *s)
+ {
+diff --git a/third_party/unrar/src/unicode.hpp b/third_party/unrar/src/unicode.hpp
+index 2d867b3aefef0..81cf99e380896 100644
+--- a/third_party/unrar/src/unicode.hpp
++++ b/third_party/unrar/src/unicode.hpp
+@@ -46,14 +46,14 @@ class SupportDBCS
+     SupportDBCS();
+     void Init();
+     char* charnext(const char *s);
++  static SupportDBCS& GetInstance();
+ 
+     bool IsLeadByte[256];
+     bool DBCSMode;
+ };
+-extern SupportDBCS gdbcs;
+ 
+-inline char* charnext(const char *s) {return (char *)(gdbcs.DBCSMode ? gdbcs.charnext(s):s+1);}
+-inline bool IsDBCSMode() {return gdbcs.DBCSMode;}
++inline char* charnext(const char *s) {return (char *)(SupportDBCS::GetInstance().DBCSMode ? SupportDBCS::GetInstance().charnext(s):s+1);}
++inline bool IsDBCSMode() {return SupportDBCS::GetInstance().DBCSMode;}
+ 
+ #else
+ #define charnext(s) ((s)+1)
+diff --git a/third_party/unrar/src/unpack.cpp b/third_party/unrar/src/unpack.cpp
+index 99c6f15db5851..fdc8877e01eab 100644
+--- a/third_party/unrar/src/unpack.cpp
++++ b/third_party/unrar/src/unpack.cpp
+@@ -1,3 +1,9 @@
++// NOTE(vakh): The process.h file needs to be included first because "rar.hpp"
++// defines certain macros that cause symbol redefinition errors
++#if defined(UNRAR_NO_EXCEPTIONS)
++#include "base/process/memory.h"
++#endif  // defined(UNRAR_NO_EXCEPTIONS)
++
+ #include "rar.hpp"
+ 
+ #include "coder.cpp"
+@@ -15,6 +21,12 @@
+ #include "unpack50.cpp"
+ #include "unpack50frag.cpp"
+ 
++#if defined(UNRAR_NO_EXCEPTIONS)
++#define UNRAR_FATAL_BAD_ALLOC(size) base::TerminateBecauseOutOfMemory(size)
++#else
++#define UNRAR_FATAL_BAD_ALLOC(size) throw std::bad_alloc()
++#endif
++
+ Unpack::Unpack(ComprDataIO *DataIO)
+ :Inp(true),VMCodeInp(true)
+ {
+@@ -88,7 +100,7 @@ void Unpack::Init(uint64 WinSize,bool Solid)
+     WinSize=MinAllocSize;
+ 
+   if (WinSize>Min(0x10000000000ULL,UNPACK_MAX_DICT)) // Window size must not exceed 1 TB.
+-    throw std::bad_alloc();
++    UNRAR_FATAL_BAD_ALLOC(WinSize);
+ 
+   // 32-bit build can't unpack dictionaries exceeding 32-bit even in theory.
+   // Also we've not verified if WrapUp and WrapDown work properly in 32-bit
+@@ -96,7 +108,7 @@ void Unpack::Init(uint64 WinSize,bool Solid)
+   // distances. Since such version is unlikely to allocate >2GB anyway,
+   // we prohibit >2GB dictionaries for 32-bit build here.
+   if (WinSize>0x80000000 && sizeof(size_t)<=4)
+-    throw std::bad_alloc();
++    UNRAR_FATAL_BAD_ALLOC(WinSize);
+ 
+   // Solid block shall use the same window size for all files.
+   // But if Window isn't initialized when Solid is set, it means that
+@@ -121,15 +133,16 @@ void Unpack::Init(uint64 WinSize,bool Solid)
+   // or increasing the size of non-solid window. So we could safely reject
+   // current window data without copying them to a new window.
+   if (Solid && (Window!=NULL || Fragmented && WinSize>FragWindow.GetWinSize()))
+-    throw std::bad_alloc();
++    UNRAR_FATAL_BAD_ALLOC(WinSize);
+ 
+   free(Window);
+   
+   Window=Fragmented ? NULL : (byte *)malloc((size_t)WinSize);
+ 
+   if (Window==NULL)
++    // Exclude RAR4, small dictionaries and 64-bit.
+     if (WinSize<0x1000000 || sizeof(size_t)>4)
+-      throw std::bad_alloc(); // Exclude RAR4, small dictionaries and 64-bit.
++      UNRAR_FATAL_BAD_ALLOC(WinSize);
+     else
+     {
+       if (WinSize>FragWindow.GetWinSize())
+diff --git a/third_party/unrar/src/unpack50frag.cpp b/third_party/unrar/src/unpack50frag.cpp
+index 9208405e04eb6..b1776e6e8dd62 100644
+--- a/third_party/unrar/src/unpack50frag.cpp
++++ b/third_party/unrar/src/unpack50frag.cpp
+@@ -1,3 +1,11 @@
++#include "base/process/memory.h"
++
++#if defined(UNRAR_NO_EXCEPTIONS)
++#define UNRAR_FATAL_BAD_ALLOC(size) base::TerminateBecauseOutOfMemory(size)
++#else
++#define UNRAR_FATAL_BAD_ALLOC(size) throw std::bad_alloc()
++#endif
++
+ FragmentedWindow::FragmentedWindow()
+ {
+   memset(Mem,0,sizeof(Mem));
+@@ -49,7 +57,7 @@ void FragmentedWindow::Init(size_t WinSize)
+       Size-=Size/32;
+     }
+     if (NewMem==NULL)
+-      throw std::bad_alloc();
++      UNRAR_FATAL_BAD_ALLOC(Size);
+ 
+     // Clean the window to generate the same output when unpacking corrupt
+     // RAR files, which may access to unused areas of sliding dictionary.
+@@ -61,7 +69,8 @@ void FragmentedWindow::Init(size_t WinSize)
+     BlockNum++;
+   }
+   if (TotalSize<WinSize) // Not found enough free blocks.
+-    throw std::bad_alloc();
++    UNRAR_FATAL_BAD_ALLOC(WinSize);
++
+   LastAllocated=WinSize;
+ }
+ 

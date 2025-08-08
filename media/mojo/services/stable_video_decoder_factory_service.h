@@ -20,6 +20,7 @@ class VideoDecoder;
 }  // namespace mojom
 
 class MojoMediaClient;
+class FrameRegistry;
 
 // A StableVideoDecoderFactoryService allows a browser process to create
 // StableVideoDecoders. It's intended to live inside a video decoder process (a
@@ -33,8 +34,8 @@ class MojoMediaClient;
 class MEDIA_MOJO_EXPORT StableVideoDecoderFactoryService
     : public stable::mojom::StableVideoDecoderFactory {
  public:
-  StableVideoDecoderFactoryService(const gpu::GpuFeatureInfo& gpu_feature_info,
-                                   bool enable_direct_video_decoder);
+  explicit StableVideoDecoderFactoryService(
+      const gpu::GpuFeatureInfo& gpu_feature_info);
   StableVideoDecoderFactoryService(const StableVideoDecoderFactoryService&) =
       delete;
   StableVideoDecoderFactoryService& operator=(
@@ -58,7 +59,8 @@ class MEDIA_MOJO_EXPORT StableVideoDecoderFactoryService
 
   // stable::mojom::StableVideoDecoderFactory implementation.
   void CreateStableVideoDecoder(
-      mojo::PendingReceiver<stable::mojom::StableVideoDecoder> receiver)
+      mojo::PendingReceiver<stable::mojom::StableVideoDecoder> receiver,
+      mojo::PendingRemote<stable::mojom::StableVideoDecoderTracker> tracker)
       override;
 
  private:
@@ -66,6 +68,9 @@ class MEDIA_MOJO_EXPORT StableVideoDecoderFactoryService
       GUARDED_BY_CONTEXT(sequence_checker_);
 
   mojo::Receiver<stable::mojom::StableVideoDecoderFactory> receiver_;
+
+  // Shared between the MojoMediaClientImpl and the StableVideoDecoderService.
+  scoped_refptr<FrameRegistry> frame_registry_;
 
   // |mojo_media_client_| and |cdm_service_context_| must be declared before
   // |video_decoders_| because the interface implementation instances managed by

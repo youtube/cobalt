@@ -74,8 +74,6 @@ int ReadBufferingStreamSocket::DoLoop(int result) {
       case STATE_NONE:
       default:
         NOTREACHED() << "Unexpected state: " << current_state;
-        rv = ERR_UNEXPECTED;
-        break;
     }
   } while (rv != ERR_IO_PENDING && state_ != STATE_NONE);
   return rv;

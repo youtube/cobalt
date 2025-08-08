@@ -9,23 +9,13 @@
 #include "base/time/time.h"
 #include "build/build_config.h"
 
-
-#if defined(STARBOARD)
-#include "base/test/allow_check_is_test_for_testing.h"
-#include "starboard/client_porting/wrap_main/wrap_main.h"
-
-
-int TestSuiteRun(int argc, char** argv) {
-  base::AtExitManager exit_manager;
-  base::test::AllowCheckIsTestForTesting();
-  return base::TestSuite(argc, argv).Run();
-}
-
-STARBOARD_WRAP_SIMPLE_MAIN(TestSuiteRun);
-#else
 #if BUILDFLAG(IS_WIN)
 #include "base/win/com_init_util.h"
 #endif  // BUILDFLAG(IS_WIN)
+
+#if BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_CHROMEOS)
+#include "base/process/set_process_title_linux.h"
+#endif
 
 namespace base {
 
@@ -80,9 +70,13 @@ class BaseUnittestSuite : public TestSuite {
 }  // namespace base
 
 int main(int argc, char** argv) {
+#if BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_CHROMEOS)
+  // For setproctitle unit tests.
+  setproctitle_init(const_cast<const char**>(argv));
+#endif
+
   base::BaseUnittestSuite test_suite(argc, argv);
   return base::LaunchUnitTests(
       argc, argv,
       base::BindOnce(&base::TestSuite::Run, base::Unretained(&test_suite)));
 }
-#endif

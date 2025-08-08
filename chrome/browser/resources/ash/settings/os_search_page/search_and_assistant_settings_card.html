@@ -1,0 +1,131 @@
+<style include="settings-shared">
+  :host-context(body.revamp-wayfinding-enabled) settings-toggle-button {
+    --cr-icon-button-margin-end: 16px;
+    --iron-icon-fill-color: var(--cros-sys-primary);
+  }
+
+  .sub-item {
+    padding-inline-start: var(--cr-section-indent-width);
+  }
+
+  #magic-boost-banner {
+    margin-inline-end: 20px;
+    margin-inline-start: 12px;
+  }
+</style>
+
+<settings-card header-text="$i18n{osSearchPageTitle}">
+  <!-- Search -->
+  <template is="dom-if" if="[[!isQuickAnswersSupported_]]">
+    <settings-search-engine
+        deep-link-focus-id$="[[Setting.kPreferredSearchEngine]]">
+    </settings-search-engine>
+  </template>
+  <template is="dom-if" if="[[isQuickAnswersSupported_]]">
+    <cr-link-row
+        id="searchRow"
+        start-icon="[[rowIcons_.searchEngine]]"
+        label="$i18n{searchSubpageTitle}"
+        on-click="onSearchClick_"
+        role-description="$i18n{subpageArrowRoleDescription}">
+    </cr-link-row>
+  </template>
+
+  <!-- Google Assistant -->
+  <template is="dom-if" if="[[isAssistantAllowed_]]">
+    <cr-link-row
+        id="assistantRow"
+        start-icon="[[rowIcons_.assistant]]"
+        class="hr"
+        label="$i18n{searchGoogleAssistant}"
+        sub-label="[[getAssistantEnabledDisabledLabel_(
+            prefs.settings.voice_interaction.enabled.value)]]"
+        on-click="onGoogleAssistantClick_"
+        role-description="$i18n{subpageArrowRoleDescription}">
+    </cr-link-row>
+  </template>
+  <template is="dom-if" if="[[isRevampWayfindingEnabled_]]">
+    <settings-toggle-button id="contentRecommendationsToggle"
+        class="hr"
+        icon="[[rowIcons_.contentRecommendations]]"
+        pref="{{prefs.settings.suggested_content_enabled}}"
+        label="$i18n{enableSuggestedContent}"
+        sub-label="$i18n{enableSuggestedContentDesc}"
+        learn-more-url="$i18n{suggestedContentLearnMoreURL}">
+    </settings-toggle-button>
+  </template>
+
+  <!--TODO(b:337868408) learn more link for magicboost-->
+  <template is="dom-if" if="[[isMagicBoostFeatureEnabled_]]">
+    <settings-toggle-button id="magicBoostToggle"
+        class="hr"
+        icon="[[rowIcons_.magicBoost]]"
+        pref="{{prefs.settings.magic_boost_enabled}}"
+        label="$i18n{enableMagicBoost}"
+        sub-label="$i18n{enableMagicBoostDesc}"
+        deep-link-focus-id$="[[Setting.kMagicBoostOnOff]]"
+        >
+    </settings-toggle-button>
+    <template is="dom-if" if="[[isMagicBoostNoticeBannerVisible_]]">
+      <div class="sub-item" id="magic-boost-banner">
+        <magic-boost-review-terms-banner
+          description="$i18n{magicBoostReviewTermsBannerDescription}"
+          button-label="$i18n{magicBoostReviewTermsButtonLabel}">
+        </magic-boost-review-terms-banner>
+      </div>
+    </template>
+    <iron-collapse opened="[[prefs.settings.magic_boost_enabled.value]]"
+        id="magicBoostCollapse">
+      <div class="sub-item">
+        <settings-toggle-button id="helpMeReadToggle"
+            class="hr"
+            icon="[[rowIcons_.helpMeRead]]"
+            pref="{{prefs.settings.mahi_enabled}}"
+            label="$i18n{enableHelpMeRead}"
+            sub-label="$i18n{enableHelpMeReadDesc}"
+            deep-link-focus-id$="[[Setting.kMahiOnOff]]"
+            learn-more-url="$i18n{helpMeReadWriteLearnMoreUrl}">
+        </settings-toggle-button>
+      </div>
+      <div class="sub-item">
+        <settings-toggle-button id="helpMeWriteToggle"
+            class="hr"
+            icon="[[rowIcons_.helpMeWrite]]"
+            pref="{{prefs.assistive_input.orca_enabled}}"
+            label="$i18n{enableHelpMeWrite}"
+            sub-label="$i18n{enableHelpMeWriteDesc}"
+            deep-link-focus-id$="[[Setting.kShowOrca]]"
+            learn-more-url="$i18n{helpMeReadWriteLearnMoreUrl}">
+        </settings-toggle-button>
+      </div>
+<if expr="_google_chrome">
+      <div class="sub-item">
+        <!-- TODO(b:348516125): add the learn more link -->
+        <template is="dom-if" if="[[isLobsterSettingsToggleVisible_]]">
+          <settings-toggle-button id="lobsterToggle"
+              class="hr"
+              icon="[[rowIcons_.lobster]]"
+              pref="{{prefs.settings.lobster_enabled}}"
+              label="$i18n{enableLobster}"
+              sub-label="$i18n{enableLobsterDesc}"
+              deep-link-focus-id$="[[Setting.kLobsterOnOff]]">
+          </settings-toggle-button>
+        </template>
+      </div>
+</if>
+    </iron-collapse>
+  </template>
+
+  <template is="dom-if" if="[[isSunfishSettingsToggleVisible_]]">
+    <!-- TODO: b/368184169 - Localise the label and add an icon, sublabel and
+        learn more link. -->
+    <settings-toggle-button
+        id="sunfishToggle"
+        class="hr"
+        pref="{{prefs.ash.capture_mode.sunfish_enabled}}"
+        label="Enable Sunfish"
+        deep-link-focus-id$="[[Setting.kSunfishOnOff]]">
+    </settings-toggle-button>
+  </template>
+
+</settings-card>

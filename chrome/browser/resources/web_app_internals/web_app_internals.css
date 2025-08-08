@@ -1,0 +1,65 @@
+/*
+ * Copyright 2023 The Chromium Authors
+ * Use of this source code is governed by a BSD-style license that can be
+ * found in the LICENSE file.
+ */
+
+pre {
+  white-space: pre-wrap;
+}
+
+.iwa-dev-update-button {
+  margin-left: 4px;
+}
+
+.iwa-dev-switch-channel-button {
+  margin-left: 4px;
+}
+
+dialog#iwa-update-manifest-dialog {
+  border: 0;
+  border-radius: 8px 8px 8px 8px;
+}
+
+dialog[open]#iwa-update-manifest-dialog {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+div#iwa-update-manifest-version {
+  display: flex;
+  flex-direction: row;
+  gap: 8px;
+}
+
+div#iwa-update-manifest-dialog-buttons {
+  display: flex;
+  flex-direction: row;
+  justify-content: flex-end;
+  gap: 8px;
+}
+
+dialog#iwa-switch-channel-input-dialog {
+  border: 0;
+  border-radius: 8px 8px 8px 8px;
+}
+
+dialog[open]#iwa-switch-channel-input-dialog {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+div#iwa-switch-channel {
+  display: flex;
+  flex-direction: row;
+  gap: 8px;
+}
+
+div#iwa-switch-channel-dialog-buttons {
+  display: flex;
+  flex-direction: row;
+  justify-content: flex-end;
+  gap: 8px;
+}

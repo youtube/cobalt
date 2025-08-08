@@ -2,6 +2,11 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#ifdef UNSAFE_BUFFERS_BUILD
+// TODO(crbug.com/40285824): Remove this and convert code to safer constructs.
+#pragma allow_unsafe_buffers
+#endif
+
 #include "media/formats/webm/webm_crypto_helpers.h"
 
 #include "testing/gmock/include/gmock/gmock.h"
@@ -16,11 +21,6 @@ const uint8_t kKeyId[] = {0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07, 0x08};
 }  // namespace
 
 namespace media {
-
-inline bool operator==(const SubsampleEntry& lhs, const SubsampleEntry& rhs) {
-  return lhs.clear_bytes == rhs.clear_bytes &&
-         lhs.cypher_bytes == rhs.cypher_bytes;
-}
 
 TEST(WebMCryptoHelpersTest, EmptyData) {
   std::unique_ptr<DecryptConfig> decrypt_config;

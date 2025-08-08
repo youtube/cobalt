@@ -2,18 +2,19 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#include "base/profiler/module_cache.h"
+
 #include <iomanip>
 #include <map>
 #include <memory>
+#include <string_view>
 #include <utility>
 #include <vector>
 
 #include "base/containers/adapters.h"
 #include "base/functional/callback.h"
 #include "base/functional/callback_helpers.h"
-#include "base/profiler/module_cache.h"
 #include "base/ranges/algorithm.h"
-#include "base/strings/string_piece.h"
 #include "base/test/bind.h"
 #include "build/build_config.h"
 #include "testing/gtest/include/gtest/gtest.h"
@@ -25,7 +26,7 @@
 // Note: The special-case IS_CHROMEOS code inside GetDebugBasenameForModule to
 // handle the interaction between that function and
 // SetProcessTitleFromCommandLine() is tested in
-// content/common/set_process_title_linux_unittest.cc due to dependency issues.
+// base/process/set_process_title_linux_unittest.cc due to dependency issues.
 
 namespace base {
 namespace {
@@ -114,12 +115,7 @@ MAYBE_TEST(ModuleCacheTest, GetDebugBasename) {
   ASSERT_NE(nullptr, module);
 #if BUILDFLAG(IS_ANDROID)
   EXPECT_EQ("libbase_unittests__library",
-            // Different build configurations varyingly use .so vs. .cr.so for
-            // the module extension. Remove all the extensions in both cases.
-            module->GetDebugBasename()
-                .RemoveFinalExtension()
-                .RemoveFinalExtension()
-                .value());
+            module->GetDebugBasename().RemoveFinalExtension().value());
 #elif BUILDFLAG(IS_POSIX)
   EXPECT_EQ("base_unittests", module->GetDebugBasename().value());
 #elif BUILDFLAG(IS_WIN)
@@ -223,7 +219,7 @@ MAYBE_TEST(ModuleCacheTest, UpdateNonNativeModulesRemoveModuleIsNotDestroyed) {
     std::vector<std::unique_ptr<const ModuleCache::Module>> modules;
     modules.push_back(std::make_unique<FakeModule>(
         1, 1, false,
-        BindLambdaForTesting([&was_destroyed]() { was_destroyed = true; })));
+        BindLambdaForTesting([&was_destroyed] { was_destroyed = true; })));
     const ModuleCache::Module* module = modules.back().get();
     cache.UpdateNonNativeModules({}, std::move(modules));
     cache.UpdateNonNativeModules({module}, {});
@@ -238,7 +234,7 @@ MAYBE_TEST(ModuleCacheTest, UpdateNonNativeModulesRemoveModuleIsNotDestroyed) {
 // https://crbug.com/1127466 case 2.
 MAYBE_TEST(ModuleCacheTest, UpdateNonNativeModulesPartitioning) {
   int destroyed_count = 0;
-  const auto record_destroyed = [&destroyed_count]() { ++destroyed_count; };
+  const auto record_destroyed = [&destroyed_count] { ++destroyed_count; };
   {
     ModuleCache cache;
     std::vector<std::unique_ptr<const ModuleCache::Module>> modules;
@@ -274,7 +270,7 @@ MAYBE_TEST(ModuleCacheTest, UpdateNonNativeModulesReplace) {
 MAYBE_TEST(ModuleCacheTest,
            UpdateNonNativeModulesMultipleRemovedModulesAtSameAddress) {
   int destroyed_count = 0;
-  const auto record_destroyed = [&destroyed_count]() { ++destroyed_count; };
+  const auto record_destroyed = [&destroyed_count] { ++destroyed_count; };
   ModuleCache cache;
 
   // Checks that non-native modules can be repeatedly added and removed at the
@@ -352,7 +348,7 @@ TEST(ModuleCacheTest, CheckAgainstProcMaps) {
   // Map distinct paths to lists of regions for the path in increasing memory
   // order.
   using RegionVector = std::vector<const debug::MappedMemoryRegion*>;
-  using PathRegionsMap = std::map<StringPiece, RegionVector>;
+  using PathRegionsMap = std::map<std::string_view, RegionVector>;
   PathRegionsMap path_regions;
   for (const debug::MappedMemoryRegion& region : regions)
     path_regions[region.path].push_back(&region);

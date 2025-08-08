@@ -1,0 +1,102 @@
+<?xml version="1.0" ?>
+<!DOCTYPE translationbundle>
+<translationbundle lang="id">
+<translation id="1012241361789814178">Debugger dijeda di tab lain, klik untuk beralih ke tab tersebut.</translation>
+<translation id="1171774979989969504">Masukkan alamat email.</translation>
+<translation id="1178581264944972037">Jeda</translation>
+<translation id="1306460908038601864">Nonaktif</translation>
+<translation id="1311894908970423688">Nilai harus <ph name="VALUE_DATE_OR_TIME" />.</translation>
+<translation id="1588438908519853928">Normal</translation>
+<translation id="1591562245178063882">Bulan ini</translation>
+<translation id="1637811476055996098">Pilih File</translation>
+<translation id="1729654308190250600">Jangan mengosongkan bidang alamat email.</translation>
+<translation id="1758486001363313524">Lainnya...</translation>
+<translation id="1921819250265091946">hh</translation>
+<translation id="1938124657309484470">Tanggal harus <ph name="MAXIMUM_DATE_OR_TIME" /> atau lebih awal.</translation>
+<translation id="1993104285338243655">Dialihkan ke pencerminan</translation>
+<translation id="2060505056492490888">'<ph name="DOT" />' digunakan pada posisi yang salah di '<ph name="INVALIDDOMAIN" />'.</translation>
+<translation id="2068711044993563745">Nilai minimum (<ph name="MINIMUM" />) harus lebih kecil dari nilai maksimum (<ph name="MAXIMUM" />).</translation>
+<translation id="2148716181193084225">Hari ini</translation>
+<translation id="2226276347425096477">Pendekkan teks ini menjadi <ph name="MAX_CHARACTERS" /> karakter atau kurang (saat ini Anda menggunakan <ph name="CURRENT_LENGTH" /> karakter).</translation>
+<translation id="2247351761944213033">Minggu <ph name="WEEKNUMBER" />, <ph name="YEAR" /></translation>
+<translation id="2277199496770840904">Lagu <ph name="NUMBER" /></translation>
+<translation id="2507943997699731163">Harap isi bidang ini.</translation>
+<translation id="2613802280814924224">Masukkan nilai yang valid. Nilai valid terdekatnya adalah <ph name="VALID_VALUE" />.</translation>
+<translation id="2653659639078652383">Kirim</translation>
+<translation id="2746543609216772311">Tanggal harus <ph name="MINIMUM_DATE_OR_TIME" /> atau setelahnya.</translation>
+<translation id="2761667185364618470">Centang kotak ini jika Anda ingin melanjutkan.</translation>
+<translation id="2908441821576996758">Masukkan daftar alamat email yang dipisahkan dengan koma.</translation>
+<translation id="3049748772180311791"><ph name="QUANTITY" /> MB</translation>
+<translation id="3075154866155599887">Masukkan nilai yang valid. Bidang tersebut tidak lengkap atau memiliki tanggal yang tidak valid.</translation>
+<translation id="310520048233152454">Masukkan URL.</translation>
+<translation id="3321030238473337787">Kecepatan pemutaran</translation>
+<translation id="3450233048674729344">Nilai harus lebih kecil atau sama dengan <ph name="MAXIMUM" />.</translation>
+<translation id="3732799496749320381">bb</translation>
+<translation id="3754210790023674521">Keluar dari mode picture-in-picture</translation>
+<translation id="3757388668994797779"><ph name="QUANTITY" /> GB</translation>
+<translation id="3822383571486410024">Perpanjang teks ini hingga <ph name="MIN_CHARACTERS" /> karakter atau lebih (saat ini Anda menggunakan <ph name="CURRENT_LENGTH" /> karakter).</translation>
+<translation id="383465348367842624">Bagian sebelum '<ph name="ATSIGN" />' tidak boleh berisi simbol '<ph name="INVALIDCHARACTER" />'.</translation>
+<translation id="3846214748874656680">Keluar dari layar penuh</translation>
+<translation id="4360991593054037559">Masukkan nilai yang valid. Dua nilai valid terdekat adalah <ph name="VALID_VALUE_LOW" /> dan <ph name="VALID_VALUE_HIGHER" />.</translation>
+<translation id="4522570452068850558">Detail</translation>
+<translation id="4664250907885839816">Bagian setelah '<ph name="ATSIGN" />' tidak boleh berisi simbol '<ph name="INVALIDCHARACTER" />'.</translation>
+<translation id="4718048029184481307">Diputar dalam mode picture-in-picture</translation>
+<translation id="4812940957355064477">Masukkan nomor.</translation>
+<translation id="4975562563186953947"><ph name="SELECTED_COUNT" /> dipilih</translation>
+<translation id="4992066212339426712">Bunyikan</translation>
+<translation id="49969490063480558">Masukkan bagian setelah '<ph name="ATSIGN" />'. '<ph name="INVALIDADDRESS" />' tidak lengkap.</translation>
+<translation id="5164977714490026579">Nilai harus lebih besar daripada atau sama dengan <ph name="MINIMUM" />.</translation>
+<translation id="5196716972587102051">2</translation>
+<translation id="520299402983819650"><ph name="QUANTITY" /> PB</translation>
+<translation id="5307600278924710095">Masukkan bagian yang diikuti dengan '<ph name="ATSIGN" />'. '<ph name="INVALIDADDRESS" />' tidak lengkap.</translation>
+<translation id="5334352251556557839">Tidak dapat memutar media.</translation>
+<translation id="537648784377940524">Tanggal Minimal (<ph name="MIN_DATE_OR_TIME" />) harus sebelum tanggal Maksimal (<ph name="MAX_DATE_OR_TIME" />).</translation>
+<translation id="5466621249238537318">Pilih salah satu atau beberapa file.</translation>
+<translation id="5514612371225420585">File di perangkat Anda</translation>
+<translation id="5516235301412634559">0,75</translation>
+<translation id="5537725057119320332">Transmisikan</translation>
+<translation id="5630795885300617244">Ketuk dua kali ke kiri atau kanan untuk melewati 10 detik</translation>
+<translation id="57838592816432529">Bisukan</translation>
+<translation id="588258955323874662">Layar Penuh</translation>
+<translation id="5888666972993069672">Sedang melakukan cast ke <ph name="DEVICE_FRIENDLY_NAME" /></translation>
+<translation id="5939518447894949180">Reset</translation>
+<translation id="5966707198760109579">Minggu</translation>
+<translation id="5985507339671257014">0,5</translation>
+<translation id="6310801910862476708">Keluar dari Mode Picture-in-Picture</translation>
+<translation id="6484738902856791350">Pretty print</translation>
+<translation id="6550675742724504774">Opsi</translation>
+<translation id="6643016212128521049">Hapus</translation>
+<translation id="668171684555832681">Lainnya...</translation>
+<translation id="6709093583001123835">Nilai harus <ph name="VALUE" />.</translation>
+<translation id="6709570249143506788">Kualitas pemutaran buruk</translation>
+<translation id="6790428901817661496">Putar</translation>
+<translation id="6820355525329141109">Tidak dapat memuat plugin.</translation>
+<translation id="6919891270253167948">1,5</translation>
+<translation id="6989848892321993519">Perpanjang teks ini menjadi <ph name="MIN_CHARACTERS" /> karakter atau lebih (saat ini Anda menggunakan 1 karakter).</translation>
+<translation id="709897737746224366">Sesuaikan dengan format yang diminta.</translation>
+<translation id="7263440858009898357">Pilih item pada daftar.</translation>
+<translation id="7364796246159120393">Pilih File</translation>
+<translation id="739024184232394898">Lainnya...</translation>
+<translation id="7460907917090416791"><ph name="QUANTITY" /> TB</translation>
+<translation id="7514365320538308">Download</translation>
+<translation id="7750228210027921155">Picture-in-picture</translation>
+<translation id="7782515065589691344">1.25</translation>
+<translation id="7888071071722539607">Sertakan '<ph name="ATSIGN" />' pada alamat email. '<ph name="INVALIDADDRESS" />' tidak memiliki '<ph name="ATSIGN" />'.</translation>
+<translation id="795667975304826397">Tidak ada file yang dipilih</translation>
+<translation id="8117451130807776954">Minggu ini</translation>
+<translation id="8131955114056917397">0,25</translation>
+<translation id="8199524924445686405">tttt</translation>
+<translation id="8284326494547611709">Teks</translation>
+<translation id="835897206747267392">Nilai tidak valid.</translation>
+<translation id="839593075537728968">Nilai harus antara <ph name="MINIMUM_TIME" /> dan <ph name="MAXIMUM_TIME" />.</translation>
+<translation id="8444882422881193423"><ph name="NUMBER_OF_FILES" /> file</translation>
+<translation id="8451268428117625855">Pilih file.</translation>
+<translation id="8637593834423658414">1,75</translation>
+<translation id="8668988909814782445">Penggabungan baris</translation>
+<translation id="8750798805984357768">Pilih salah satu opsi berikut.</translation>
+<translation id="8845239796550121995">Sekarang sedang mentransmisi ke TV Anda</translation>
+<translation id="8875657656876809964">Error pemutaran video</translation>
+<translation id="8901569739625249689"><ph name="QUANTITY" /> KB</translation>
+<translation id="9132465097189459683">Lainnya...</translation>
+<translation id="916607977885256133">Picture-in-Picture</translation>
+</translationbundle>

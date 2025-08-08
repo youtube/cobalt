@@ -68,6 +68,7 @@
 // should be able to tell the difference.
 
 #include "base/base_export.h"
+#include "base/compiler_specific.h"
 #include "base/functional/bind.h"
 #include "base/functional/callback.h"
 #include "base/functional/callback_helpers.h"
@@ -162,10 +163,6 @@ class BASE_EXPORT DelayTimerBase : public TimerBase {
   // the timer is not running, this will start it by posting a task.
   virtual void Reset();
 
-  // DEPRECATED. Call Stop() instead.
-  // TODO(1262205): Remove this method and all callers.
-  void AbandonAndStop();
-
   TimeTicks desired_run_time() const {
     DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
     return desired_run_time_;
@@ -250,7 +247,7 @@ class BASE_EXPORT OneShotTimer : public internal::DelayTimerBase {
 
   // Run the scheduled task immediately, and stop the timer. The timer needs to
   // be running.
-  void FireNow();
+  virtual void FireNow();
 
  private:
   void OnStop() final;
@@ -297,7 +294,9 @@ class BASE_EXPORT RepeatingTimer : public internal::DelayTimerBase {
     Start(posted_from, delay, BindRepeating(method, Unretained(receiver)));
   }
 
-  const RepeatingClosure& user_task() const { return user_task_; }
+  const RepeatingClosure& user_task() const LIFETIME_BOUND {
+    return user_task_;
+  }
 
  private:
   // Mark this final, so that the destructor can call this safely.
@@ -346,7 +345,9 @@ class BASE_EXPORT RetainingOneShotTimer : public internal::DelayTimerBase {
     Start(posted_from, delay, BindRepeating(method, Unretained(receiver)));
   }
 
-  const RepeatingClosure& user_task() const { return user_task_; }
+  const RepeatingClosure& user_task() const LIFETIME_BOUND {
+    return user_task_;
+  }
 
  private:
   // Mark this final, so that the destructor can call this safely.

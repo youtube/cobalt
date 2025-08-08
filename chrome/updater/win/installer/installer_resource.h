@@ -1,11 +1,9 @@
-// Copyright (c) 2019 The Chromium Authors. All rights reserved.
+// Copyright 2019 The Chromium Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
 #ifndef CHROME_UPDATER_WIN_INSTALLER_INSTALLER_RESOURCE_H_
 #define CHROME_UPDATER_WIN_INSTALLER_INSTALLER_RESOURCE_H_
-
-#define IDC_STATIC -1
 
 // Next default values for new objects
 //
@@ -18,5 +16,10 @@
 #define _APS_NEXT_SYMED_VALUE 110
 #endif
 #endif
+
+#define IDI_MINI_INSTALLER 2001
+#define IDB_LOGO 2005
+#define IDD_SPLASH 2016
+#define IDC_LOGO 2021
 
 #endif  // CHROME_UPDATER_WIN_INSTALLER_INSTALLER_RESOURCE_H_

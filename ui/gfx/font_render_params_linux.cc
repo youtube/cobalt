@@ -19,7 +19,6 @@
 #include "base/synchronization/lock.h"
 #include "base/trace_event/trace_event.h"
 #include "build/build_config.h"
-#include "build/chromeos_buildflags.h"
 #include "ui/gfx/font.h"
 #include "ui/gfx/font_render_params_linux.h"
 #include "ui/gfx/linux/fontconfig_util.h"
@@ -213,8 +212,9 @@ FontRenderParams GetFontRenderParams(const FontRenderParamsQuery& query,
   // Start with the delegate's settings, but let Fontconfig have the final say.
   FontRenderParams params;
 #if BUILDFLAG(IS_LINUX)
-  if (const auto* linux_ui = ui::LinuxUi::instance())
+  if (auto* linux_ui = ui::LinuxUi::instance()) {
     params = linux_ui->GetDefaultFontRenderParams();
+  }
 #endif
   QueryFontconfig(actual_query, &params, family_out);
   if (!params.antialiasing) {

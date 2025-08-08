@@ -13,34 +13,34 @@
 #include "base/functional/bind.h"
 #include "base/functional/callback_helpers.h"
 #include "base/logging.h"
+#include "base/memory/raw_ref.h"
 #include "base/memory/ref_counted.h"
 #include "base/memory/weak_ptr.h"
+#include "base/strings/string_util.h"
 #include "base/task/single_thread_task_runner.h"
+#include "base/test/scoped_feature_list.h"
 #include "base/time/time.h"
 #include "build/build_config.h"
 #include "media/base/fake_single_thread_task_runner.h"
+#include "media/base/media_switches.h"
+#include "media/base/mock_filters.h"
+#include "media/base/video_codecs.h"
 #include "media/base/video_frame.h"
 #include "media/cast/cast_environment.h"
 #include "media/cast/common/openscreen_conversion_helpers.h"
 #include "media/cast/common/rtp_time.h"
 #include "media/cast/common/sender_encoded_frame.h"
-#include "media/cast/common/video_frame_factory.h"
 #include "media/cast/test/fake_video_encode_accelerator_factory.h"
 #include "media/cast/test/utility/default_config.h"
 #include "media/cast/test/utility/video_utility.h"
 #include "testing/gtest/include/gtest/gtest.h"
-#include "third_party/openscreen/src/cast/streaming/encoded_frame.h"
-
-#if BUILDFLAG(IS_MAC)
-#include "base/threading/platform_thread.h"
-#include "media/cast/encoding/h264_vt_encoder.h"
-#endif
+#include "third_party/openscreen/src/cast/streaming/public/encoded_frame.h"
 
 namespace media {
 namespace cast {
 
 class VideoEncoderTest
-    : public ::testing::TestWithParam<std::pair<Codec, bool>> {
+    : public ::testing::TestWithParam<std::pair<VideoCodec, bool>> {
  public:
   VideoEncoderTest(const VideoEncoderTest&) = delete;
   VideoEncoderTest& operator=(const VideoEncoderTest&) = delete;
@@ -54,20 +54,26 @@ class VideoEncoderTest
                                               task_runner_,
                                               task_runner_)),
         video_config_(GetDefaultVideoSenderConfig()),
-        operational_status_(STATUS_UNINITIALIZED) {
+        codec_params_(video_config_.video_codec_params.value()) {
     testing_clock_.Advance(base::TimeTicks::Now() - base::TimeTicks());
     first_frame_time_ = testing_clock_.NowTicks();
+
+    // Ensure that all of the software video encoders are enabled for testing.
+    feature_list_.InitWithFeatures(
+        std::vector<base::test::FeatureRef>{
+            kCastStreamingVp8, kCastStreamingVp9, kCastStreamingAv1},
+        std::vector<base::test::FeatureRef>{});
   }
 
   ~VideoEncoderTest() override = default;
 
   void SetUp() final {
-    Codec codec = GetParam().first;
-    if (codec == Codec::kVideoFake) {
-      video_config_.enable_fake_codec_for_tests = true;
+    VideoCodec codec = GetParam().first;
+    codec_params_->codec = codec;
+    if (codec == VideoCodec::kUnknown) {
+      codec_params_->enable_fake_codec_for_tests = true;
     }
 
-    video_config_.codec = codec;
     video_config_.use_hardware_encoder = GetParam().second;
 
     if (is_testing_external_video_encoder()) {
@@ -83,9 +89,10 @@ class VideoEncoderTest
 
   void CreateEncoder() {
     ASSERT_EQ(STATUS_UNINITIALIZED, operational_status_);
-    video_config_.video_codec_params.max_number_of_video_buffers_used = 1;
+    codec_params_->max_number_of_video_buffers_used = 1;
     video_encoder_ = VideoEncoder::Create(
         cast_environment_, video_config_,
+        std::make_unique<media::MockVideoEncoderMetricsProvider>(),
         base::BindRepeating(&VideoEncoderTest::OnOperationalStatusChange,
                             base::Unretained(this)),
         base::BindRepeating(
@@ -99,22 +106,12 @@ class VideoEncoderTest
   bool is_encoder_present() const { return !!video_encoder_; }
 
   bool is_testing_software_vp8_encoder() const {
-    return video_config_.codec == Codec::kVideoVp8 &&
+    return codec_params_->codec == VideoCodec::kVP8 &&
            !video_config_.use_hardware_encoder;
   }
 
-  bool is_testing_video_toolbox_encoder() const {
-    return
-#if BUILDFLAG(IS_MAC)
-        (video_config_.use_hardware_encoder &&
-         H264VideoToolboxEncoder::IsSupported(video_config_)) ||
-#endif
-        false;
-  }
-
   bool is_testing_external_video_encoder() const {
-    return video_config_.use_hardware_encoder &&
-           !is_testing_video_toolbox_encoder();
+    return video_config_.use_hardware_encoder;
   }
 
   VideoEncoder* video_encoder() const { return video_encoder_.get(); }
@@ -127,36 +124,18 @@ class VideoEncoderTest
     DCHECK_GT(video_config_.max_frame_rate, 0);
     const base::TimeDelta frame_duration =
         base::Microseconds(1000000.0 / video_config_.max_frame_rate);
-#if BUILDFLAG(IS_MAC)
-    if (is_testing_video_toolbox_encoder()) {
-      // The H264VideoToolboxEncoder (on MAC_OSX and IOS) is not a faked
-      // implementation in these tests, and performs its encoding asynchronously
-      // on an unknown set of threads.  Therefore, sleep the current thread for
-      // the real amount of time to avoid excessively spinning the CPU while
-      // waiting for something to happen.
-      base::PlatformThread::Sleep(frame_duration);
-    }
-#endif
     task_runner_->RunTasks();
     testing_clock_.Advance(frame_duration);
   }
 
   // Creates a new VideoFrame of the given |size|, filled with a test pattern.
-  // When available, it attempts to use the VideoFrameFactory provided by the
-  // encoder.
   scoped_refptr<media::VideoFrame> CreateTestVideoFrame(const gfx::Size& size) {
     const base::TimeDelta timestamp =
         testing_clock_.NowTicks() - first_frame_time_;
     scoped_refptr<media::VideoFrame> frame;
-    if (video_frame_factory_) {
-      DVLOG(1) << "MaybeCreateFrame";
-      frame = video_frame_factory_->MaybeCreateFrame(size, timestamp);
-    }
-    if (!frame) {
-      DVLOG(1) << "No VideoFrame, create using VideoFrame::CreateFrame";
-      frame = media::VideoFrame::CreateFrame(PIXEL_FORMAT_I420, size,
-                                             gfx::Rect(size), size, timestamp);
-    }
+    DVLOG(1) << "No VideoFrame, create using VideoFrame::CreateFrame";
+    frame = media::VideoFrame::CreateFrame(PIXEL_FORMAT_I420, size,
+                                           gfx::Rect(size), size, timestamp);
     PopulateVideoFrame(frame.get(), 123);
     return frame;
   }
@@ -183,11 +162,6 @@ class VideoEncoderTest
 
     EXPECT_TRUE(operational_status_ == STATUS_CODEC_REINIT_PENDING ||
                 operational_status_ == STATUS_INITIALIZED);
-
-    // Create the VideoFrameFactory the first time status changes to
-    // STATUS_INITIALIZED.
-    if (operational_status_ == STATUS_INITIALIZED && !video_frame_factory_)
-      video_frame_factory_ = video_encoder_->CreateVideoFrameFactory();
   }
 
   base::SimpleTestTickClock testing_clock_;
@@ -196,11 +170,13 @@ class VideoEncoderTest
       task_runner_current_handle_override_;
   const scoped_refptr<CastEnvironment> cast_environment_;
   FrameSenderConfig video_config_;
+  raw_ref<VideoCodecParams> codec_params_;
   std::unique_ptr<FakeVideoEncodeAcceleratorFactory> vea_factory_;
   base::TimeTicks first_frame_time_;
-  OperationalStatus operational_status_;
+  base::test::ScopedFeatureList feature_list_;
+  OperationalStatus operational_status_ =
+      OperationalStatus::STATUS_UNINITIALIZED;
   std::unique_ptr<VideoEncoder> video_encoder_;
-  std::unique_ptr<VideoFrameFactory> video_frame_factory_;
 };
 
 // Tests that the encoder outputs encoded frames, and also responds to frame
@@ -347,33 +323,36 @@ TEST_P(VideoEncoderTest, CanBeDestroyedBeforeVEAIsCreated) {
 }
 
 namespace {
-std::vector<std::pair<Codec, bool>> DetermineEncodersToTest() {
-  std::vector<std::pair<Codec, bool>> values;
+std::vector<std::pair<VideoCodec, bool>> DetermineEncodersToTest() {
+  std::vector<std::pair<VideoCodec, bool>> values;
   // Fake encoder.
-  values.emplace_back(Codec::kVideoFake, false);
+  values.emplace_back(VideoCodec::kUnknown, false);
 
-  // Software VP8 encoder.
-  values.emplace_back(Codec::kVideoVp8, false);
+  // Software encoders.
+  values.emplace_back(VideoCodec::kVP8, false);
+  values.emplace_back(VideoCodec::kVP9, false);
 
-  // Hardware-accelerated encoder (faked).
-  values.emplace_back(Codec::kVideoVp8, true);
-
-#if BUILDFLAG(IS_MAC)
-  // VideoToolbox encoder (when VideoToolbox is present).
-  FrameSenderConfig video_config = GetDefaultVideoSenderConfig();
-  video_config.use_hardware_encoder = true;
-  video_config.codec = Codec::kVideoH264;
-  if (H264VideoToolboxEncoder::IsSupported(video_config)) {
-    values.emplace_back(Codec::kVideoH264, true);
-  }
+#if BUILDFLAG(ENABLE_LIBAOM)
+  values.emplace_back(VideoCodec::kAV1, false);
 #endif
+
+  // Hardware-accelerated encoders (faked).
+  values.emplace_back(VideoCodec::kVP8, true);
+  values.emplace_back(VideoCodec::kH264, true);
+
   return values;
 }
+
 }  // namespace
 
-INSTANTIATE_TEST_SUITE_P(All,
-                         VideoEncoderTest,
-                         ::testing::ValuesIn(DetermineEncodersToTest()));
+INSTANTIATE_TEST_SUITE_P(
+    All,
+    VideoEncoderTest,
+    ::testing::ValuesIn(DetermineEncodersToTest()),
+    [](const testing::TestParamInfo<VideoEncoderTest::ParamType>& info) {
+      return base::ToUpperASCII(GetCodecName(info.param.first)) +
+             (info.param.second ? "_Hardware" : "_Software");
+    });
 
 }  // namespace cast
 }  // namespace media

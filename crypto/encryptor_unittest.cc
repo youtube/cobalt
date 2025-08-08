@@ -2,6 +2,11 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#ifdef UNSAFE_BUFFERS_BUILD
+// TODO(crbug.com/351564777): Remove this and convert code to safer constructs.
+#pragma allow_unsafe_buffers
+#endif
+
 #include "crypto/encryptor.h"
 
 #include <stddef.h>
@@ -9,6 +14,7 @@
 #include <memory>
 #include <string>
 
+#include "base/containers/heap_array.h"
 #include "base/containers/span.h"
 #include "base/strings/string_number_conversions.h"
 #include "crypto/symmetric_key.h"
@@ -202,10 +208,10 @@ void TestAESCTREncrypt(
   crypto::Encryptor encryptor;
   EXPECT_TRUE(encryptor.Init(sym_key.get(), crypto::Encryptor::CTR, ""));
 
-  base::StringPiece init_counter_str(
-      reinterpret_cast<const char*>(init_counter), init_counter_size);
-  base::StringPiece plaintext_str(
-      reinterpret_cast<const char*>(plaintext), plaintext_size);
+  std::string_view init_counter_str(reinterpret_cast<const char*>(init_counter),
+                                    init_counter_size);
+  std::string_view plaintext_str(reinterpret_cast<const char*>(plaintext),
+                                 plaintext_size);
 
   EXPECT_TRUE(encryptor.SetCounter(init_counter_str));
   std::string encrypted;
@@ -253,7 +259,7 @@ void TestAESCTRMultipleDecrypt(
   EXPECT_TRUE(encryptor.Init(sym_key.get(), crypto::Encryptor::CTR, ""));
 
   // Counter is set only once.
-  EXPECT_TRUE(encryptor.SetCounter(base::StringPiece(
+  EXPECT_TRUE(encryptor.SetCounter(std::string_view(
       reinterpret_cast<const char*>(init_counter), init_counter_size)));
 
   std::string ciphertext_str(reinterpret_cast<const char*>(ciphertext),
@@ -432,8 +438,7 @@ TEST(EncryptorTest, EncryptAES128CBCRegression) {
 
   std::string ciphertext;
   EXPECT_TRUE(encryptor.Encrypt(plaintext, &ciphertext));
-  EXPECT_EQ(expected_ciphertext_hex, base::HexEncode(ciphertext.data(),
-                                                     ciphertext.size()));
+  EXPECT_EQ(expected_ciphertext_hex, base::HexEncode(ciphertext));
 
   std::string decrypted;
   EXPECT_TRUE(encryptor.Decrypt(ciphertext, &decrypted));
@@ -484,8 +489,7 @@ TEST(EncryptorTest, EmptyEncryptCBC) {
 
   std::string ciphertext;
   EXPECT_TRUE(encryptor.Encrypt(plaintext, &ciphertext));
-  EXPECT_EQ(expected_ciphertext_hex, base::HexEncode(ciphertext.data(),
-                                                     ciphertext.size()));
+  EXPECT_EQ(expected_ciphertext_hex, base::HexEncode(ciphertext));
 
   std::string decrypted;
   EXPECT_TRUE(encryptor.Decrypt(ciphertext, &decrypted));
@@ -565,9 +569,9 @@ TEST(EncryptorTest, CipherTextNotMultipleOfBlockSize) {
   // Otherwise when using std::string as the other tests do, accesses several
   // bytes off the end of the buffer may fall inside the reservation of
   // the string and not be detected.
-  std::unique_ptr<char[]> ciphertext(new char[1]);
+  auto ciphertext = base::HeapArray<char>::Uninit(1);
 
   std::string plaintext;
   EXPECT_FALSE(
-      encryptor.Decrypt(base::StringPiece(ciphertext.get(), 1), &plaintext));
+      encryptor.Decrypt(base::as_string_view(ciphertext), &plaintext));
 }

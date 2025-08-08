@@ -8,9 +8,11 @@
 #include <stdint.h>
 
 #include <limits>
+#include <string_view>
 #include <tuple>
 
 #include "base/command_line.h"
+#include "base/compiler_specific.h"
 #include "base/debug/alias.h"
 #include "base/debug/stack_trace.h"
 #include "base/files/file_enumerator.h"
@@ -27,10 +29,10 @@
 #include "base/process/process.h"
 #include "base/process/process_metrics.h"
 #include "base/strings/string_number_conversions.h"
-#include "base/strings/string_piece.h"
 #include "base/strings/utf_string_conversions.h"
 #include "base/synchronization/waitable_event.h"
 #include "base/test/multiprocess_test.h"
+#include "base/test/scoped_feature_list.h"
 #include "base/test/task_environment.h"
 #include "base/test/test_timeouts.h"
 #include "base/threading/platform_thread.h"
@@ -85,6 +87,14 @@
 #include "base/fuchsia/fuchsia_logging.h"
 #include "base/fuchsia/process_context.h"
 #include "base/test/bind.h"
+#endif
+
+#if BUILDFLAG(IS_MAC)
+#include <mach/mach.h>
+
+#include "base/apple/mach_port_rendezvous.h"
+#include "base/apple/scoped_mach_port.h"
+#include "base/mac/process_requirement.h"
 #endif
 
 namespace base {
@@ -155,7 +165,7 @@ const int kSuccess = 0;
 class ProcessUtilTest : public MultiProcessTest {
  public:
   void SetUp() override {
-    ASSERT_TRUE(PathService::Get(DIR_GEN_TEST_DATA_ROOT, &test_helper_path_));
+    ASSERT_TRUE(PathService::Get(DIR_OUT_TEST_DATA_ROOT, &test_helper_path_));
     test_helper_path_ = test_helper_path_.AppendASCII(kTestHelper);
   }
 
@@ -339,7 +349,7 @@ TEST_F(ProcessUtilTest, TransferHandleToPath) {
 // besides |expected_path| are in the namespace.
 // Since GetSignalFilePath() uses "/tmp", tests for paths other than this must
 // include two paths. "/tmp" must always be last.
-int CheckOnlyOnePathExists(StringPiece expected_path) {
+int CheckOnlyOnePathExists(std::string_view expected_path) {
   bool is_expected_path_tmp = expected_path == "/tmp";
   std::vector<FilePath> paths;
 
@@ -582,6 +592,9 @@ MULTIPROCESS_TEST_MAIN(CheckCwdProcess) {
   return kSuccess;
 }
 
+// A relative binary loader path is set in MSAN builds, so binaries must be
+// run from the build directory.
+#if !defined(MEMORY_SANITIZER)
 TEST_F(ProcessUtilTest, CurrentDirectory) {
   // TODO(rickyz): Add support for passing arguments to multiprocess children,
   // then create a special directory for this test.
@@ -598,6 +611,7 @@ TEST_F(ProcessUtilTest, CurrentDirectory) {
   EXPECT_TRUE(process.WaitForExit(&exit_code));
   EXPECT_EQ(kSuccess, exit_code);
 }
+#endif  // !defined(MEMORY_SANITIZER)
 #endif  // !BUILDFLAG(IS_ANDROID)
 
 #if BUILDFLAG(IS_WIN)
@@ -736,7 +750,7 @@ TEST_F(ProcessUtilTest, GetTerminationStatusSigKill) {
 }
 
 #if BUILDFLAG(IS_POSIX)
-// TODO(crbug.com/753490): Access to the process termination reason is not
+// TODO(crbug.com/42050610): Access to the process termination reason is not
 // implemented in Fuchsia. Unix signals are not implemented in Fuchsia so this
 // test might not be relevant anyway.
 TEST_F(ProcessUtilTest, GetTerminationStatusSigTerm) {
@@ -1295,6 +1309,17 @@ TEST_F(ProcessUtilTest, PreExecHook) {
 
 #endif  // BUILDFLAG(IS_POSIX) || BUILDFLAG(IS_FUCHSIA)
 
+// There's no such thing as a parent process id on Fuchsia.
+#if !BUILDFLAG(IS_FUCHSIA)
+TEST_F(ProcessUtilTest, GetParentProcessId2) {
+  ProcessId id1 = GetCurrentProcId();
+  Process process = SpawnChild("SimpleChildProcess");
+  ASSERT_TRUE(process.IsValid());
+  ProcessId ppid = GetParentProcessId(process.Handle());
+  EXPECT_EQ(ppid, id1);
+}
+#endif  // !BUILDFLAG(IS_FUCHSIA)
+
 namespace {
 
 std::string TestLaunchProcess(const CommandLine& cmdline,
@@ -1333,7 +1358,7 @@ std::string TestLaunchProcess(const CommandLine& cmdline,
   write_pipe.Close();
 
   char buf[512];
-  int n = read_pipe.ReadAtCurrentPos(buf, sizeof(buf));
+  int n = UNSAFE_TODO(read_pipe.ReadAtCurrentPos(buf, sizeof(buf)));
 #if BUILDFLAG(IS_WIN)
   // Closed pipes fail with ERROR_BROKEN_PIPE on Windows, rather than
   // successfully reporting EOF.
@@ -1469,5 +1494,56 @@ TEST_F(ProcessUtilTest, InvalidCurrentDirectory) {
   EXPECT_NE(kSuccess, exit_code);
 }
 #endif  // BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_CHROMEOS)
+
+#if BUILDFLAG(IS_MAC)
+
+constexpr MachPortsForRendezvous::key_type kTestChildRendezvousKey = 'test';
+
+MULTIPROCESS_TEST_MAIN(
+    ProcessUtilTest_ProcessRequirement_ChildFailedValidation) {
+  auto* rendezvous_client = MachPortRendezvousClient::GetInstance();
+  CHECK(rendezvous_client);
+  // The parent process specifies a requirement that does not matchy any
+  // process. No ports will be available to this process.
+  CHECK_EQ(0u, rendezvous_client->GetPortCount());
+  return 0;
+}
+
+// Tests that a `ProcessRequirement` passed via `LaunchOptions` is applied
+// during Mach port rendezvous with a child process. Tests of the validation
+// behavior can be found in //base/apple/mach_port_rendezvous_unittest.cc.
+TEST_F(ProcessUtilTest, ProcessRequirement) {
+  // TODO(crbug.com/362302761): Remove once peer validation is enforced by
+  // default.
+  test::ScopedFeatureList scoped_feature_list(
+      kMachPortRendezvousEnforcePeerRequirements);
+
+  apple::ScopedMachReceiveRight port;
+  kern_return_t kr =
+      mach_port_allocate(mach_task_self(), MACH_PORT_RIGHT_RECEIVE,
+                         apple::ScopedMachReceiveRight::Receiver(port).get());
+  ASSERT_EQ(kr, KERN_SUCCESS);
+  MachRendezvousPort rendezvous_port(port.get(), MACH_MSG_TYPE_MAKE_SEND);
+
+  // One Mach port is registered, but the process requirement should prevent
+  // the child from retrieving it. Test assertions are in the child process,
+  // above.
+  LaunchOptions options;
+  options.mach_ports_for_rendezvous[kTestChildRendezvousKey] = rendezvous_port;
+  options.process_requirement =
+      mac::ProcessRequirement::NeverMatchesForTesting();
+
+  Process child = SpawnChildWithOptions(
+      "ProcessUtilTest_ProcessRequirement_ChildFailedValidation", options);
+
+  int exit_code;
+  ASSERT_TRUE(WaitForMultiprocessTestChildExit(
+      child, TestTimeouts::action_timeout(), &exit_code));
+
+  // The child exiting successfully indicates that its test assertions held.
+  EXPECT_EQ(0, exit_code);
+}
+
+#endif
 
 }  // namespace base

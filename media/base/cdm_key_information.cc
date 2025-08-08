@@ -2,6 +2,11 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#ifdef UNSAFE_BUFFERS_BUILD
+// TODO(crbug.com/377326291): Remove this and convert code to safer constructs.
+#pragma allow_unsafe_buffers
+#endif
+
 #include "media/base/cdm_key_information.h"
 
 #include <ostream>
@@ -59,7 +64,6 @@ std::string CdmKeyInformation::KeyStatusToString(KeyStatus key_status) {
   }
 
   NOTREACHED();
-  return "";
 }
 
 std::ostream& operator<<(std::ostream& os,
@@ -68,8 +72,7 @@ std::ostream& operator<<(std::ostream& os,
 }
 
 std::ostream& operator<<(std::ostream& os, const CdmKeyInformation& info) {
-  return os << "key_id = "
-            << base::HexEncode(info.key_id.data(), info.key_id.size())
+  return os << "key_id = " << base::HexEncode(info.key_id)
             << ", status = " << info.status
             << ", system_code = " << info.system_code;
 }

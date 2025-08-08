@@ -8,11 +8,11 @@
 #include <stdio.h>
 
 #include <algorithm>
+#include <array>
 #include <memory>
 #include <tuple>
 #include <utility>
 
-#include "base/allocator/partition_allocator/partition_alloc_buildflags.h"
 #include "base/base_switches.h"
 #include "base/command_line.h"
 #include "base/debug/alias.h"
@@ -22,7 +22,6 @@
 #include "base/strings/string_util.h"
 #include "base/task/sequenced_task_runner.h"
 #include "base/task/single_thread_task_runner.h"
-#include "base/third_party/dynamic_annotations/dynamic_annotations.h"
 #include "base/threading/thread.h"
 #include "base/trace_event/heap_profiler.h"
 #include "base/trace_event/heap_profiler_allocation_context_tracker.h"
@@ -34,6 +33,8 @@
 #include "base/trace_event/trace_event.h"
 #include "base/trace_event/traced_value.h"
 #include "build/build_config.h"
+#include "partition_alloc/buildflags.h"
+#include "third_party/abseil-cpp/absl/base/dynamic_annotations.h"
 
 #if BUILDFLAG(IS_ANDROID)
 #include "base/trace_event/java_heap_dump_provider_android.h"
@@ -44,7 +45,7 @@
 
 #endif  // BUILDFLAG(IS_ANDROID)
 
-#if BUILDFLAG(USE_PARTITION_ALLOC_AS_MALLOC)
+#if PA_BUILDFLAG(USE_PARTITION_ALLOC_AS_MALLOC)
 #include "base/trace_event/address_space_dump_provider.h"
 #endif
 
@@ -137,7 +138,7 @@ void MemoryDumpManager::Initialize(
   RegisterDumpProvider(MallocDumpProvider::GetInstance(), "Malloc", nullptr);
 #endif
 
-#if BUILDFLAG(USE_PARTITION_ALLOC_AS_MALLOC)
+#if PA_BUILDFLAG(USE_PARTITION_ALLOC_AS_MALLOC)
   RegisterDumpProvider(AddressSpaceDumpProvider::GetInstance(),
                        "PartitionAlloc.AddressSpace", nullptr);
 #endif
@@ -275,6 +276,12 @@ bool MemoryDumpManager::IsDumpProviderRegisteredForTesting(
   return false;
 }
 
+void MemoryDumpManager::ResetForTesting() {
+  AutoLock lock(lock_);
+  request_dump_function_.Reset();
+  dump_providers_.clear();
+}
+
 scoped_refptr<SequencedTaskRunner>
 MemoryDumpManager::GetDumpThreadTaskRunner() {
   base::AutoLock lock(lock_);
@@ -308,7 +315,7 @@ void MemoryDumpManager::CreateProcessDump(const MemoryDumpRequestArgs& args,
   if (TraceLog::GetInstance()
           ->GetCurrentTraceConfig()
           .IsArgumentFilterEnabled()) {
-    CHECK_EQ(MemoryDumpLevelOfDetail::BACKGROUND, args.level_of_detail);
+    CHECK_EQ(MemoryDumpLevelOfDetail::kBackground, args.level_of_detail);
   }
 
   std::unique_ptr<ProcessMemoryDumpAsyncState> pmd_async_state;
@@ -357,7 +364,7 @@ void MemoryDumpManager::ContinueAsyncProcessDump(
     // If we are in background mode, we should invoke only the allowed
     // providers. Ignore other providers and continue.
     if (pmd_async_state->req_args.level_of_detail ==
-            MemoryDumpLevelOfDetail::BACKGROUND &&
+            MemoryDumpLevelOfDetail::kBackground &&
         !mdpinfo->allowed_in_background_mode) {
       pmd_async_state->pending_dump_providers.pop_back();
       continue;
@@ -451,13 +458,9 @@ void MemoryDumpManager::InvokeOnMemoryDump(MemoryDumpProviderInfo* mdpinfo,
   // A stack allocated string with dump provider name is useful to debug
   // crashes while invoking dump after a |dump_provider| is not unregistered
   // in safe way.
-  char provider_name_for_debugging[16];
-  strncpy(provider_name_for_debugging, mdpinfo->name,
-          sizeof(provider_name_for_debugging) - 1);
-  provider_name_for_debugging[sizeof(provider_name_for_debugging) - 1] = '\0';
-  base::debug::Alias(provider_name_for_debugging);
+  DEBUG_ALIAS_FOR_CSTR(provider_name_for_debugging, mdpinfo->name, 16);
 
-  ANNOTATE_BENIGN_RACE(&mdpinfo->disabled, "best-effort race detection");
+  ABSL_ANNOTATE_BENIGN_RACE(&mdpinfo->disabled, "best-effort race detection");
   CHECK(!is_thread_bound ||
         !*(static_cast<volatile bool*>(&mdpinfo->disabled)));
   bool dump_successful =
@@ -501,11 +504,11 @@ void MemoryDumpManager::SetupForTracing(
 
   MemoryDumpScheduler::Config periodic_config;
   for (const auto& trigger : memory_dump_config.triggers) {
-    if (trigger.trigger_type == MemoryDumpType::PERIODIC_INTERVAL) {
+    if (trigger.trigger_type == MemoryDumpType::kPeriodicInterval) {
       if (periodic_config.triggers.empty()) {
         periodic_config.callback =
             BindRepeating(&DoGlobalDumpWithoutCallback, request_dump_function_,
-                          MemoryDumpType::PERIODIC_INTERVAL);
+                          MemoryDumpType::kPeriodicInterval);
       }
       periodic_config.triggers.push_back(
           {trigger.level_of_detail, trigger.min_time_between_dumps_ms});

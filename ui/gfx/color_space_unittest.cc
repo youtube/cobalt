@@ -2,6 +2,11 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#ifdef UNSAFE_BUFFERS_BUILD
+// TODO(crbug.com/354829279): Remove this and convert code to safer constructs.
+#pragma allow_unsafe_buffers
+#endif
+
 #include <algorithm>
 #include <cmath>
 #include <tuple>
@@ -349,6 +354,13 @@ TEST(ColorSpace, ExpectationsMatchSRGB) {
     // performed on a custom color space with sRGB primaries.
     EXPECT_EQ(color_space.Contains(srgb), color_space.Contains(custom_srgb));
   }
+}
+
+TEST(ColorSpaceUtil, SkcmsMatrixConvert) {
+  skcms_Matrix3x3 in_m33 = SkNamedGamut::kSRGB;
+  SkM44 m44 = SkM44FromSkcmsMatrix3x3(in_m33);
+  skcms_Matrix3x3 out_m33 = SkcmsMatrix3x3FromSkM44(m44);
+  EXPECT_EQ(memcmp(&in_m33, &out_m33, sizeof(in_m33)), 0);
 }
 
 }  // namespace

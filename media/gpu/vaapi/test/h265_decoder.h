@@ -20,7 +20,7 @@
 #include "media/gpu/vaapi/test/h265_dpb.h"
 #include "media/gpu/vaapi/test/h265_vaapi_wrapper.h"
 #include "media/gpu/vaapi/test/video_decoder.h"
-#include "media/video/h265_parser.h"
+#include "media/parsers/h265_parser.h"
 #include "ui/gfx/geometry/rect.h"
 #include "ui/gfx/geometry/size.h"
 
@@ -79,6 +79,7 @@ class H265Decoder : public VideoDecoder {
                           // properly (e.g. allocate buffers with the new
                           // resolution).
     kRanOutOfStreamData,  // Need more stream data to proceed.
+    kOk,                  // Decoded a frame successfully.
   };
 
   // Process H265 stream structures.
@@ -142,9 +143,9 @@ class H265Decoder : public VideoDecoder {
   bool PerformDpbOperations(const H265SPS* sps);
 
   // This is the main method used for running the decode loop. It will try to
-  // decode all frames in the stream until there is a configuration change,
-  // error or the end of the stream is reached.
-  DecodeResult Decode();
+  // decode a single frame in the stream, or up until it reaches either a
+  // configuration change, or the end of the stream.
+  DecodeResult DecodeNALUs();
 
   // Decoder state.
   State state_;

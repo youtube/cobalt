@@ -33,7 +33,6 @@ cdm::ColorRange ToCdmColorRange(gfx::ColorSpace::RangeID range) {
   }
 
   NOTREACHED() << "Unexpected color range";
-  return cdm::ColorRange::kInvalid;
 }
 
 gfx::ColorSpace::RangeID ToGfxColorRange(cdm::ColorRange range) {
@@ -49,7 +48,6 @@ gfx::ColorSpace::RangeID ToGfxColorRange(cdm::ColorRange range) {
   }
 
   NOTREACHED() << "Unexpected color range";
-  return gfx::ColorSpace::RangeID::INVALID;
 }
 
 }  // namespace
@@ -98,7 +96,6 @@ cdm::HdcpVersion ToCdmHdcpVersion(HdcpVersion hdcp_version) {
   }
 
   NOTREACHED() << "Unexpected HdcpVersion";
-  return cdm::kHdcpVersion2_3;
 }
 
 cdm::SessionType ToCdmSessionType(CdmSessionType session_type) {
@@ -110,7 +107,6 @@ cdm::SessionType ToCdmSessionType(CdmSessionType session_type) {
   }
 
   NOTREACHED() << "Unexpected session type " << static_cast<int>(session_type);
-  return cdm::kTemporary;
 }
 
 CdmSessionType ToMediaSessionType(cdm::SessionType session_type) {
@@ -119,14 +115,13 @@ CdmSessionType ToMediaSessionType(cdm::SessionType session_type) {
       return CdmSessionType::kTemporary;
     case cdm::kPersistentLicense:
       return CdmSessionType::kPersistentLicense;
-    // TODO(crbug.com/1181029): Remove after `kPersistentUsageRecord` is removed
-    // from the CDM interface.
+    // TODO(crbug.com/40170205): Remove after `kPersistentUsageRecord` is
+    // removed from the CDM interface.
     case cdm::kPersistentUsageRecord:
       break;
   }
 
   NOTREACHED() << "Unexpected cdm::SessionType " << session_type;
-  return CdmSessionType::kTemporary;
 }
 
 cdm::InitDataType ToCdmInitDataType(EmeInitDataType init_data_type) {
@@ -142,7 +137,6 @@ cdm::InitDataType ToCdmInitDataType(EmeInitDataType init_data_type) {
   }
 
   NOTREACHED() << "Unexpected EmeInitDataType";
-  return cdm::kKeyIds;
 }
 
 EmeInitDataType ToEmeInitDataType(cdm::InitDataType init_data_type) {
@@ -156,7 +150,6 @@ EmeInitDataType ToEmeInitDataType(cdm::InitDataType init_data_type) {
   }
 
   NOTREACHED() << "Unexpected cdm::InitDataType " << init_data_type;
-  return EmeInitDataType::UNKNOWN;
 }
 
 CdmKeyInformation::KeyStatus ToMediaKeyStatus(cdm::KeyStatus status) {
@@ -178,7 +171,6 @@ CdmKeyInformation::KeyStatus ToMediaKeyStatus(cdm::KeyStatus status) {
   }
 
   NOTREACHED() << "Unexpected cdm::KeyStatus " << status;
-  return CdmKeyInformation::INTERNAL_ERROR;
 }
 
 cdm::KeyStatus ToCdmKeyStatus(CdmKeyInformation::KeyStatus status) {
@@ -200,7 +192,6 @@ cdm::KeyStatus ToCdmKeyStatus(CdmKeyInformation::KeyStatus status) {
   }
 
   NOTREACHED() << "Unexpected CdmKeyInformation::KeyStatus " << status;
-  return cdm::kInternalError;
 }
 
 cdm::EncryptionScheme ToCdmEncryptionScheme(EncryptionScheme scheme) {
@@ -214,7 +205,6 @@ cdm::EncryptionScheme ToCdmEncryptionScheme(EncryptionScheme scheme) {
   }
 
   NOTREACHED() << "Unexpected EncryptionScheme";
-  return cdm::EncryptionScheme::kUnencrypted;
 }
 
 CdmPromise::Exception ToMediaCdmPromiseException(cdm::Exception exception) {
@@ -230,7 +220,6 @@ CdmPromise::Exception ToMediaCdmPromiseException(cdm::Exception exception) {
   }
 
   NOTREACHED() << "Unexpected cdm::Exception " << exception;
-  return CdmPromise::Exception::INVALID_STATE_ERROR;
 }
 
 cdm::Exception ToCdmException(CdmPromise::Exception exception) {
@@ -246,7 +235,6 @@ cdm::Exception ToCdmException(CdmPromise::Exception exception) {
   }
 
   NOTREACHED() << "Unexpected CdmPromise::Exception";
-  return cdm::kExceptionInvalidStateError;
 }
 
 CdmMessageType ToMediaMessageType(cdm::MessageType message_type) {
@@ -262,7 +250,6 @@ CdmMessageType ToMediaMessageType(cdm::MessageType message_type) {
   }
 
   NOTREACHED() << "Unexpected cdm::MessageType " << message_type;
-  return CdmMessageType::LICENSE_REQUEST;
 }
 
 cdm::MessageType ToCdmMessageType(CdmMessageType message_type) {
@@ -278,7 +265,6 @@ cdm::MessageType ToCdmMessageType(CdmMessageType message_type) {
   }
 
   NOTREACHED() << "Unexpected CdmMessageType";
-  return cdm::kLicenseRequest;
 }
 
 cdm::StreamType ToCdmStreamType(Decryptor::StreamType stream_type) {
@@ -290,7 +276,6 @@ cdm::StreamType ToCdmStreamType(Decryptor::StreamType stream_type) {
   }
 
   NOTREACHED() << "Unexpected Decryptor::StreamType " << stream_type;
-  return cdm::kStreamTypeVideo;
 }
 
 Decryptor::Status ToMediaDecryptorStatus(cdm::Status status) {
@@ -311,7 +296,6 @@ Decryptor::Status ToMediaDecryptorStatus(cdm::Status status) {
   }
 
   NOTREACHED() << "Unexpected cdm::Status " << status;
-  return Decryptor::kError;
 }
 
 // Audio Converters
@@ -347,7 +331,6 @@ SampleFormat ToMediaSampleFormat(cdm::AudioFormat format) {
   }
 
   NOTREACHED() << "Unexpected cdm::AudioFormat " << format;
-  return kUnknownSampleFormat;
 }
 
 // Video Converters
@@ -383,7 +366,6 @@ VideoCodec ToMediaVideoCodec(cdm::VideoCodec codec) {
   }
 
   NOTREACHED() << "Unexpected cdm::VideoCodec " << codec;
-  return VideoCodec::kUnknown;
 }
 
 cdm::VideoCodecProfile ToCdmVideoCodecProfile(VideoCodecProfile profile) {
@@ -464,7 +446,6 @@ VideoCodecProfile ToMediaVideoCodecProfile(cdm::VideoCodecProfile profile) {
   }
 
   NOTREACHED() << "Unexpected cdm::VideoCodecProfile " << profile;
-  return VIDEO_CODEC_PROFILE_UNKNOWN;
 }
 
 cdm::VideoFormat ToCdmVideoFormat(VideoPixelFormat format) {
@@ -538,7 +519,7 @@ cdm::AudioDecoderConfig_2 ToCdmAudioDecoderConfig(
   cdm_config.codec = ToCdmAudioCodec(config.codec());
   cdm_config.channel_count =
       ChannelLayoutToChannelCount(config.channel_layout());
-  cdm_config.bits_per_channel = config.bits_per_channel();
+  cdm_config.bits_per_channel = config.bytes_per_channel() * 8;
   cdm_config.samples_per_second = config.samples_per_second();
   cdm_config.extra_data = const_cast<uint8_t*>(config.extra_data().data());
   cdm_config.extra_data_size = config.extra_data().size();
@@ -583,7 +564,7 @@ void ToCdmInputBuffer(const DecoderBuffer& encrypted_buffer,
     return;
 
   input_buffer->data = encrypted_buffer.data();
-  input_buffer->data_size = encrypted_buffer.data_size();
+  input_buffer->data_size = encrypted_buffer.size();
   input_buffer->timestamp = encrypted_buffer.timestamp().InMicroseconds();
 
   const DecryptConfig* decrypt_config = encrypted_buffer.decrypt_config();

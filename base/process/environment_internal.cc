@@ -2,11 +2,16 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#ifdef UNSAFE_BUFFERS_BUILD
+// TODO(crbug.com/40284755): Remove this and spanify to fix the errors.
+#pragma allow_unsafe_buffers
+#endif
+
 #include "base/process/environment_internal.h"
 
-#if !defined(STARBOARD)
-
 #include <stddef.h>
+
+#include <vector>
 
 #include "build/build_config.h"
 
@@ -14,7 +19,9 @@
 #include <string.h>
 #endif
 
-#include <vector>
+#if BUILDFLAG(IS_WIN)
+#include "base/check_op.h"
+#endif
 
 namespace base {
 namespace internal {
@@ -44,8 +51,8 @@ size_t ParseEnvLine(const NativeEnvironmentString::value_type* input,
 
 #if BUILDFLAG(IS_POSIX) || BUILDFLAG(IS_FUCHSIA)
 
-std::unique_ptr<char* []> AlterEnvironment(const char* const* const env,
-                                           const EnvironmentMap& changes) {
+base::HeapArray<char*> AlterEnvironment(const char* const* const env,
+                                        const EnvironmentMap& changes) {
   std::string value_storage;  // Holds concatenated null-terminated strings.
   std::vector<size_t> result_indices;  // Line indices into value_storage.
 
@@ -77,17 +84,19 @@ std::unique_ptr<char* []> AlterEnvironment(const char* const* const env,
   size_t pointer_count_required =
       result_indices.size() + 1 +  // Null-terminated array of pointers.
       (value_storage.size() + sizeof(char*) - 1) / sizeof(char*);  // Buffer.
-  std::unique_ptr<char*[]> result(new char*[pointer_count_required]);
+  auto result = base::HeapArray<char*>::WithSize(pointer_count_required);
 
-  // The string storage goes after the array of pointers.
-  char* storage_data =
-      reinterpret_cast<char*>(&result.get()[result_indices.size() + 1]);
-  if (!value_storage.empty())
+  if (!value_storage.empty()) {
+    // The string storage goes after the array of pointers.
+    char* storage_data =
+        reinterpret_cast<char*>(&result[result_indices.size() + 1]);
     memcpy(storage_data, value_storage.data(), value_storage.size());
 
-  // Fill array of pointers at the beginning of the result.
-  for (size_t i = 0; i < result_indices.size(); i++)
-    result[i] = &storage_data[result_indices[i]];
+    // Fill array of pointers at the beginning of the result.
+    for (size_t i = 0; i < result_indices.size(); i++) {
+      result[i] = &storage_data[result_indices[i]];
+    }
+  }
   result[result_indices.size()] = 0;  // Null terminator.
 
   return result;
@@ -134,5 +143,3 @@ NativeEnvironmentString AlterEnvironment(const wchar_t* env,
 
 }  // namespace internal
 }  // namespace base
-
-#endif  // !defined(STARBOARD)

@@ -1,0 +1,24 @@
+include_rules = [
+  # //chrome/browser/ui/ash is conceptually part of "ash".
+  "+ash",
+
+  # ChromeOS should not depend on //chrome. See //docs/chromeos/code.md for
+  # details.
+  "-chrome",
+]
+
+specific_include_rules = {
+  # TODO(b:358250871): Remove once the files are moved.
+  "screen_orientation_delegate\.*": [
+    "+chrome/browser/ui/ash/screen_orientation_delegate_chromeos.h",
+  ],
+
+  ".*test.*": [
+    "+chrome/test/base",
+    "+chrome/browser/ui/views/tabs",
+    "+components/user_education/views",
+    "+components/viz/test",
+    "+media",
+    "+ui/message_center",
+  ],
+}

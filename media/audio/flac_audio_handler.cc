@@ -2,6 +2,11 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#ifdef UNSAFE_BUFFERS_BUILD
+// TODO(crbug.com/40285824): Remove this and convert code to safer constructs.
+#pragma allow_unsafe_buffers
+#endif
+
 #include "media/audio/flac_audio_handler.h"
 
 #include <algorithm>
@@ -20,7 +25,7 @@
 
 namespace media {
 
-FlacAudioHandler::FlacAudioHandler(base::StringPiece data)
+FlacAudioHandler::FlacAudioHandler(std::string_view data)
     : flac_data_(data), decoder_(FLAC__stream_decoder_new()) {}
 
 FlacAudioHandler::~FlacAudioHandler() = default;
@@ -70,7 +75,8 @@ bool FlacAudioHandler::AtEnd() const {
   auto state = FLAC__stream_decoder_get_state(decoder_.get());
   return state ==
              FLAC__StreamDecoderState::FLAC__STREAM_DECODER_END_OF_STREAM ||
-         state == FLAC__StreamDecoderState::FLAC__STREAM_DECODER_ABORTED;
+         state == FLAC__StreamDecoderState::FLAC__STREAM_DECODER_ABORTED ||
+         has_error_;
 }
 
 bool FlacAudioHandler::CopyTo(AudioBus* bus, size_t* frames_written) {
@@ -86,17 +92,26 @@ bool FlacAudioHandler::CopyTo(AudioBus* bus, size_t* frames_written) {
   DCHECK_EQ(bus->frames(), kDefaultFrameCount);
   DCHECK_EQ(bus->channels(), num_channels_);
 
-  while (!AtEnd() && fifo_->frames() < bus->frames()) {
-    if (!FLAC__stream_decoder_process_single(decoder_.get())) {
-      return false;
+  // Records the number of frames copied into `bus`.
+  int frames_copied = 0;
+
+  do {
+    if (fifo_->frames() == 0 && !AtEnd()) {
+      write_callback_called_ = false;
+      if (!FLAC__stream_decoder_process_single(decoder_.get())) {
+        return false;
+      }
     }
-  }
 
-  const int frames = std::min(bus->frames(), fifo_->frames());
-  fifo_->Consume(/*destination=*/bus, /*start_frame=*/0,
-                 /*frames_to_consume=*/frames);
+    if (fifo_->frames() > 0) {
+      const int frames =
+          std::min(bus->frames() - frames_copied, fifo_->frames());
+      fifo_->Consume(bus, frames_copied, frames);
+      frames_copied += frames;
+    }
+  } while (!AtEnd() && frames_copied < bus->frames());
 
-  *frames_written = frames;
+  *frames_written = frames_copied;
   return true;
 }
 
@@ -106,6 +121,7 @@ void FlacAudioHandler::Reset() {
     fifo_->Clear();
   }
   cursor_ = 0;
+  has_error_ = false;
 }
 
 FLAC__StreamDecoderReadStatus FlacAudioHandler::ReadCallback(
@@ -138,6 +154,7 @@ void FlacAudioHandler::ErrorCallback(const FLAC__StreamDecoder* decoder,
                                      void* client_data) {
   LOG(ERROR) << "Got an error callback: "
              << FLAC__StreamDecoderErrorStatusString[status];
+  reinterpret_cast<FlacAudioHandler*>(client_data)->ErrorCallbackInternal();
 }
 
 FLAC__StreamDecoderReadStatus FlacAudioHandler::ReadCallbackInternal(
@@ -168,6 +185,14 @@ FLAC__StreamDecoderReadStatus FlacAudioHandler::ReadCallbackInternal(
 FLAC__StreamDecoderWriteStatus FlacAudioHandler::WriteCallbackInternal(
     const FLAC__Frame* frame,
     const FLAC__int32* const buffer[]) {
+  // For some fuzzer cases (b/41495570), a single call of
+  // `FLAC__stream_decoder_process_single` will trigger the write callback for
+  // multiple times to add silence frames. We don't support the abnormal padding
+  // configurations.
+  if (has_error_ || write_callback_called_) {
+    return FLAC__STREAM_DECODER_WRITE_STATUS_ABORT;
+  }
+
   // Get the number of channels and the number of samples per channel.
   const int num_channels = frame->header.channels;
   const int num_samples = frame->header.blocksize;
@@ -180,7 +205,7 @@ FLAC__StreamDecoderWriteStatus FlacAudioHandler::WriteCallbackInternal(
   // Discard the packet if there are more than the number of `max_blocksize`
   // frames.
   if (num_samples > bus_->frames()) {
-    return FLAC__STREAM_DECODER_WRITE_STATUS_CONTINUE;
+    return FLAC__STREAM_DECODER_WRITE_STATUS_ABORT;
   }
 
   for (int ch = 0; ch < num_channels; ++ch) {
@@ -192,6 +217,7 @@ FLAC__StreamDecoderWriteStatus FlacAudioHandler::WriteCallbackInternal(
   }
 
   fifo_->Push(bus_.get(), num_samples);
+  write_callback_called_ = true;
 
   return FLAC__STREAM_DECODER_WRITE_STATUS_CONTINUE;
 }
@@ -246,6 +272,10 @@ void FlacAudioHandler::MetaCallbackInternal(
       num_channels_, std::max(kDefaultFrameCount * 2, max_blocksize * 2));
 
   bus_ = AudioBus::Create(num_channels_, max_blocksize);
+}
+
+void FlacAudioHandler::ErrorCallbackInternal() {
+  has_error_ = true;
 }
 
 bool FlacAudioHandler::AreParamsValid() const {

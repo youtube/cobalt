@@ -2,6 +2,11 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#ifdef UNSAFE_BUFFERS_BUILD
+// TODO(crbug.com/40284755): Remove this and spanify to fix the errors.
+#pragma allow_unsafe_buffers
+#endif
+
 #include "net/ntlm/ntlm_client.h"
 
 #include <string>
@@ -51,10 +56,8 @@ bool ReadStringPayload(NtlmBufferReader* reader, std::string* str) {
   if (!reader->ReadSecurityBuffer(&sec_buf))
     return false;
 
-  if (!reader->ReadBytesFrom(
-          sec_buf,
-          base::as_writable_bytes(base::make_span(
-              base::WriteInto(str, sec_buf.length + 1), sec_buf.length)))) {
+  str->resize(sec_buf.length);
+  if (!reader->ReadBytesFrom(sec_buf, base::as_writable_byte_span(*str))) {
     return false;
   }
 

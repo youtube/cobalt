@@ -1,18 +1,18 @@
-// Copyright 2017 The Chromium Authors. All rights reserved.
+// Copyright 2017 The Chromium Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
 #include "components/prefs/persistent_pref_store.h"
 
-#include "base/bind.h"
+#include "base/functional/bind.h"
 #include "base/run_loop.h"
 #include "base/sequence_checker_impl.h"
-#include "base/test/scoped_task_environment.h"
+#include "base/test/task_environment.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
 void TestCommitPendingWriteWithCallback(
     PersistentPrefStore* store,
-    base::test::ScopedTaskEnvironment* scoped_task_environment) {
+    base::test::TaskEnvironment* task_environment) {
   base::RunLoop run_loop;
   base::SequenceCheckerImpl sequence_checker;
   store->CommitPendingWrite(base::BindOnce(
@@ -21,6 +21,6 @@ void TestCommitPendingWriteWithCallback(
         run_loop->Quit();
       },
       base::Unretained(&sequence_checker), base::Unretained(&run_loop)));
-  scoped_task_environment->RunUntilIdle();
+  task_environment->RunUntilIdle();
   run_loop.Run();
 }

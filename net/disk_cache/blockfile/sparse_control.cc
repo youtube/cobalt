@@ -2,6 +2,11 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#ifdef UNSAFE_BUFFERS_BUILD
+// TODO(crbug.com/40284755): Remove this and spanify to fix the errors.
+#pragma allow_unsafe_buffers
+#endif
+
 #include "net/disk_cache/blockfile/sparse_control.h"
 
 #include <stdint.h>
@@ -166,7 +171,6 @@ net::NetLogEventType GetSparseEventType(
       return net::NetLogEventType::SPARSE_GET_RANGE;
     default:
       NOTREACHED();
-      return net::NetLogEventType::CANCELLED;
   }
 }
 
@@ -188,7 +192,6 @@ void LogChildOperationEnd(const net::NetLogWithSource& net_log,
         return;
       default:
         NOTREACHED();
-        return;
     }
     net_log.EndEventWithNetErrorCode(event_type, result);
   }
@@ -412,7 +415,7 @@ int SparseControl::CreateSparseEntry() {
 
   // Save the header. The bitmap is saved in the destructor.
   scoped_refptr<net::IOBuffer> buf = base::MakeRefCounted<net::WrappedIOBuffer>(
-      reinterpret_cast<char*>(&sparse_header_));
+      base::as_chars(base::span_from_ref(sparse_header_)));
 
   int rv = entry_->WriteData(kSparseIndex, 0, buf.get(), sizeof(sparse_header_),
                              CompletionOnceCallback(), false);
@@ -442,7 +445,7 @@ int SparseControl::OpenSparseEntry(int data_len) {
     return net::ERR_CACHE_OPERATION_NOT_SUPPORTED;
 
   scoped_refptr<net::IOBuffer> buf = base::MakeRefCounted<net::WrappedIOBuffer>(
-      reinterpret_cast<char*>(&sparse_header_));
+      base::as_chars(base::span_from_ref(sparse_header_)));
 
   // Read header.
   int rv = entry_->ReadData(kSparseIndex, 0, buf.get(), sizeof(sparse_header_),
@@ -458,7 +461,7 @@ int SparseControl::OpenSparseEntry(int data_len) {
     return net::ERR_CACHE_OPERATION_NOT_SUPPORTED;
 
   // Read the actual bitmap.
-  buf = base::MakeRefCounted<net::IOBuffer>(map_len);
+  buf = base::MakeRefCounted<net::IOBufferWithSize>(map_len);
   rv = entry_->ReadData(kSparseIndex, sizeof(sparse_header_), buf.get(),
                         map_len, CompletionOnceCallback());
   if (rv != map_len)
@@ -496,9 +499,8 @@ bool SparseControl::OpenChild() {
       child_->GetDataSize(kSparseIndex) < static_cast<int>(sizeof(child_data_)))
     return KillChildAndContinue(key, false);
 
-  scoped_refptr<net::WrappedIOBuffer> buf =
-      base::MakeRefCounted<net::WrappedIOBuffer>(
-          reinterpret_cast<char*>(&child_data_));
+  auto buf = base::MakeRefCounted<net::WrappedIOBuffer>(
+      base::as_chars(base::span_from_ref(child_data_)));
 
   // Read signature.
   int rv = child_->ReadData(kSparseIndex, 0, buf.get(), sizeof(child_data_),
@@ -521,9 +523,8 @@ bool SparseControl::OpenChild() {
 }
 
 void SparseControl::CloseChild() {
-  scoped_refptr<net::WrappedIOBuffer> buf =
-      base::MakeRefCounted<net::WrappedIOBuffer>(
-          reinterpret_cast<char*>(&child_data_));
+  auto buf = base::MakeRefCounted<net::WrappedIOBuffer>(
+      base::as_chars(base::span_from_ref(child_data_)));
 
   // Save the allocation bitmap before closing the child entry.
   int rv = child_->WriteData(kSparseIndex, 0, buf.get(), sizeof(child_data_),
@@ -590,13 +591,12 @@ void SparseControl::SetChildBit(bool value) {
 }
 
 void SparseControl::WriteSparseData() {
-  scoped_refptr<net::IOBuffer> buf = base::MakeRefCounted<net::WrappedIOBuffer>(
-      reinterpret_cast<const char*>(children_map_.GetMap()));
+  auto buf = base::MakeRefCounted<net::WrappedIOBuffer>(
+      base::as_chars(children_map_.GetSpan()));
 
-  int len = children_map_.ArraySize() * 4;
   int rv = entry_->WriteData(kSparseIndex, sizeof(sparse_header_), buf.get(),
-                             len, CompletionOnceCallback(), false);
-  if (rv != len) {
+                             buf->size(), CompletionOnceCallback(), false);
+  if (rv != buf->size()) {
     DLOG(ERROR) << "Unable to save sparse map";
   }
 }
@@ -688,9 +688,8 @@ void SparseControl::InitChildData() {
   memset(&child_data_, 0, sizeof(child_data_));
   child_data_.header = sparse_header_;
 
-  scoped_refptr<net::WrappedIOBuffer> buf =
-      base::MakeRefCounted<net::WrappedIOBuffer>(
-          reinterpret_cast<char*>(&child_data_));
+  auto buf = base::MakeRefCounted<net::WrappedIOBuffer>(
+      base::as_chars(base::span_from_ref(child_data_)));
 
   int rv = child_->WriteData(kSparseIndex, 0, buf.get(), sizeof(child_data_),
                              CompletionOnceCallback(), false);

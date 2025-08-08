@@ -4,8 +4,6 @@
 
 #include "net/http/test_upload_data_stream_not_allow_http1.h"
 
-#include <string.h>
-
 #include "net/base/io_buffer.h"
 #include "net/base/net_errors.h"
 
@@ -16,7 +14,7 @@ bool UploadDataStreamNotAllowHTTP1::AllowHTTP1() const {
 }
 
 int UploadDataStreamNotAllowHTTP1::InitInternal(const NetLogWithSource&) {
-  return net::OK;
+  return OK;
 }
 
 int UploadDataStreamNotAllowHTTP1::ReadInternal(IOBuffer* buf, int buf_len) {

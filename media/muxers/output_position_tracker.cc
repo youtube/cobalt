@@ -6,7 +6,6 @@
 
 #include "base/functional/callback.h"
 #include "base/numerics/checked_math.h"
-#include "base/strings/string_piece.h"
 
 namespace media {
 
@@ -18,7 +17,7 @@ OutputPositionTracker::OutputPositionTracker(
 
 OutputPositionTracker::~OutputPositionTracker() = default;
 
-void OutputPositionTracker::WriteString(base::StringPiece data) {
+void OutputPositionTracker::WriteSpan(base::span<const uint8_t> data) {
   DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
 
   write_data_callback_.Run(data);

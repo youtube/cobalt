@@ -1,206 +1,440 @@
-// Copyright 2016 The Chromium Authors. All rights reserved.
+// Copyright 2016 The Chromium Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
 #include "components/update_client/persisted_data.h"
 
+#include <memory>
+#include <set>
 #include <string>
+#include <utility>
 #include <vector>
 
-#include "base/guid.h"
-#include "base/macros.h"
+#include "base/check.h"
+#include "base/functional/bind.h"
+#include "base/functional/callback.h"
+#include "base/strings/string_util.h"
 #include "base/strings/stringprintf.h"
-#include "base/threading/thread_checker.h"
+#include "base/task/sequenced_task_runner.h"
+#include "base/time/time.h"
+#include "base/uuid.h"
 #include "base/values.h"
+#include "base/version.h"
 #include "components/prefs/pref_registry_simple.h"
 #include "components/prefs/pref_service.h"
 #include "components/prefs/scoped_user_pref_update.h"
 #include "components/update_client/activity_data_service.h"
-
-const char kPersistedDataPreference[] = "updateclientdata";
+#include "components/update_client/update_client_errors.h"
 
 namespace update_client {
 
-PersistedData::PersistedData(PrefService* pref_service,
-                             ActivityDataService* activity_data_service)
-    : pref_service_(pref_service),
-      activity_data_service_(activity_data_service) {}
+const char kPersistedDataPreference[] = "updateclientdata";
+const char kLastUpdateCheckErrorPreference[] =
+    "updateclientlastupdatecheckerror";
+const char kLastUpdateCheckErrorCategoryPreference[] =
+    "updateclientlastupdatecheckerrorcategory";
+const char kLastUpdateCheckErrorExtraCode1Preference[] =
+    "updateclientlastupdatecheckerrorextracode1";
 
-PersistedData::~PersistedData() {
+namespace {
+
+const char kThrottleUpdatesUntilPreference[] = "updateclientthrottleuntil";
+
+class PersistedDataImpl : public PersistedData {
+ public:
+  // Constructs a provider using the specified |pref_service| and
+  // |activity_data_service|.
+  // The associated preferences are assumed to already be registered.
+  // The |pref_service| and |activity_data_service| must outlive the entire
+  // update_client.
+  PersistedDataImpl(
+      base::RepeatingCallback<PrefService*()> pref_service_provider,
+      std::unique_ptr<ActivityDataService> activity_data_service);
+  PersistedDataImpl(const PersistedDataImpl&) = delete;
+  PersistedDataImpl& operator=(const PersistedDataImpl&) = delete;
+
+  ~PersistedDataImpl() override;
+
+  // This is called only via update_client's RegisterUpdateClientPreferences.
+  static void RegisterPrefs(PrefRegistrySimple* registry);
+
+  // PersistedData overrides:
+  int GetDateLastRollCall(const std::string& id) const override;
+  int GetDateLastActive(const std::string& id) const override;
+  std::string GetPingFreshness(const std::string& id) const override;
+  void SetDateLastData(const std::vector<std::string>& ids,
+                       int datenum,
+                       base::OnceClosure callback) override;
+  void SetDateLastActive(const std::string& id, int dla) override;
+  void SetDateLastRollCall(const std::string& id, int dlrc) override;
+  int GetInstallDate(const std::string& id) const override;
+  void SetInstallDate(const std::string& id, int install_date) override;
+  std::string GetCohort(const std::string& id) const override;
+  std::string GetCohortHint(const std::string& id) const override;
+  std::string GetCohortName(const std::string& id) const override;
+  void SetCohort(const std::string& id, const std::string& cohort) override;
+  void SetCohortHint(const std::string& id,
+                     const std::string& cohort_hint) override;
+  void SetCohortName(const std::string& id,
+                     const std::string& cohort_name) override;
+  void GetActiveBits(const std::vector<std::string>& ids,
+                     base::OnceCallback<void(const std::set<std::string>&)>
+                         callback) const override;
+  int GetDaysSinceLastRollCall(const std::string& id) const override;
+  int GetDaysSinceLastActive(const std::string& id) const override;
+  base::Version GetProductVersion(const std::string& id) const override;
+  void SetProductVersion(const std::string& id,
+                         const base::Version& pv) override;
+  base::Version GetMaxPreviousProductVersion(
+      const std::string& id) const override;
+  void SetMaxPreviousProductVersion(const std::string& id,
+                                    const base::Version& max_version) override;
+
+  std::string GetFingerprint(const std::string& id) const override;
+  void SetFingerprint(const std::string& id,
+                      const std::string& fingerprint) override;
+  base::Time GetThrottleUpdatesUntil() const override;
+  void SetThrottleUpdatesUntil(base::Time time) override;
+  void SetLastUpdateCheckError(const CategorizedError& error) override;
+
+ private:
+  // Returns nullptr if the app key does not exist.
+  const base::Value::Dict* GetAppKey(const std::string& id) const;
+
+  // Returns an existing or newly created app key under a root pref.
+  base::Value::Dict* GetOrCreateAppKey(const std::string& id,
+                                       base::Value::Dict& root);
+
+  // Returns fallback if the key does not exist.
+  int GetInt(const std::string& id, const std::string& key, int fallback) const;
+
+  // Returns the empty string if the key does not exist.
+  std::string GetString(const std::string& id, const std::string& key) const;
+
+  void SetString(const std::string& id,
+                 const std::string& key,
+                 const std::string& value);
+
+  void SetDateLastDataHelper(const std::vector<std::string>& ids,
+                             int datenum,
+                             base::OnceClosure callback,
+                             const std::set<std::string>& active_ids);
+
+  SEQUENCE_CHECKER(sequence_checker_);
+  base::RepeatingCallback<PrefService*()> pref_service_provider_;
+  std::unique_ptr<ActivityDataService> activity_data_service_;
+};
+
+PersistedDataImpl::PersistedDataImpl(
+    base::RepeatingCallback<PrefService*()> pref_service_provider,
+    std::unique_ptr<ActivityDataService> activity_data_service)
+    : pref_service_provider_(pref_service_provider),
+      activity_data_service_(std::move(activity_data_service)) {
+  PrefService* prefs = pref_service_provider_.Run();
+  CHECK(!prefs || prefs->FindPreference(kPersistedDataPreference));
+}
+
+PersistedDataImpl::~PersistedDataImpl() {
   DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
 }
 
-int PersistedData::GetInt(const std::string& id,
-                          const std::string& key,
-                          int fallback) const {
+const base::Value::Dict* PersistedDataImpl::GetAppKey(
+    const std::string& id) const {
   DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
-  // We assume ids do not contain '.' characters.
-  DCHECK_EQ(std::string::npos, id.find('.'));
-  if (!pref_service_)
+  PrefService* pref_service = pref_service_provider_.Run();
+  if (!pref_service) {
+    return nullptr;
+  }
+  const base::Value& dict = pref_service->GetValue(kPersistedDataPreference);
+  if (!dict.is_dict()) {
+    return nullptr;
+  }
+  const base::Value::Dict* apps = dict.GetDict().FindDict("apps");
+  if (!apps) {
+    return nullptr;
+  }
+  return apps->FindDict(base::ToLowerASCII(id));
+}
+
+int PersistedDataImpl::GetInt(const std::string& id,
+                              const std::string& key,
+                              int fallback) const {
+  DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
+  const base::Value::Dict* app_key = GetAppKey(id);
+  if (!app_key) {
     return fallback;
-  const base::Value::Dict* dict =
-      pref_service_->GetDictionary(kPersistedDataPreference);
-  if (!dict)
-    return fallback;
-  absl::optional<int> result = dict->FindInt(
-             base::StringPrintf("apps.%s.%s", id.c_str(), key.c_str()));
-  return result.value_or(fallback);
+  }
+  return app_key->FindInt(key).value_or(fallback);
 }
 
-std::string PersistedData::GetString(const std::string& id,
-                                     const std::string& key) const {
+std::string PersistedDataImpl::GetString(const std::string& id,
+                                         const std::string& key) const {
   DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
-  // We assume ids do not contain '.' characters.
-  DCHECK_EQ(std::string::npos, id.find('.'));
-  if (!pref_service_)
-    return std::string();
-  const base::Value::Dict* dict =
-      pref_service_->GetDictionary(kPersistedDataPreference);
-  if (!dict)
-    return std::string();
-  const std::string* result = dict->FindString(
-             base::StringPrintf("apps.%s.%s", id.c_str(), key.c_str()));
-  return result != nullptr ? *result : std::string();
+  const base::Value::Dict* app_key = GetAppKey(id);
+  if (!app_key) {
+    return {};
+  }
+  const std::string* value = app_key->FindString(key);
+  if (!value) {
+    return {};
+  }
+  return *value;
 }
 
-int PersistedData::GetDateLastRollCall(const std::string& id) const {
+int PersistedDataImpl::GetDateLastRollCall(const std::string& id) const {
   return GetInt(id, "dlrc", kDateUnknown);
 }
 
-int PersistedData::GetDateLastActive(const std::string& id) const {
+int PersistedDataImpl::GetDateLastActive(const std::string& id) const {
   return GetInt(id, "dla", kDateUnknown);
 }
 
-std::string PersistedData::GetPingFreshness(const std::string& id) const {
+std::string PersistedDataImpl::GetPingFreshness(const std::string& id) const {
   std::string result = GetString(id, "pf");
   return !result.empty() ? base::StringPrintf("{%s}", result.c_str()) : result;
 }
 
-#if defined(STARBOARD)
-std::string PersistedData::GetLastInstalledVersion(const std::string& id) const {
-  return GetString(id, "version");
+int PersistedDataImpl::GetInstallDate(const std::string& id) const {
+  return GetInt(id, "installdate", kDateUnknown);
 }
-std::string PersistedData::GetUpdaterChannel(const std::string& id) const {
-  return GetString(id, "updaterchannel");
-}
-std::string PersistedData::GetLatestChannel() const {
-  const base::Value::Dict* dict =
-      pref_service_->GetDictionary(kPersistedDataPreference);
-  if (!dict)
-    return std::string();
-  const std::string* result = dict->FindString("latestchannel");
-  return result != nullptr ? *result : std::string();
-}
-#endif
 
-std::string PersistedData::GetCohort(const std::string& id) const {
+std::string PersistedDataImpl::GetCohort(const std::string& id) const {
   return GetString(id, "cohort");
 }
 
-std::string PersistedData::GetCohortName(const std::string& id) const {
+std::string PersistedDataImpl::GetCohortName(const std::string& id) const {
   return GetString(id, "cohortname");
 }
 
-std::string PersistedData::GetCohortHint(const std::string& id) const {
+std::string PersistedDataImpl::GetCohortHint(const std::string& id) const {
   return GetString(id, "cohorthint");
 }
 
-void PersistedData::SetDateLastRollCall(const std::vector<std::string>& ids,
-                                        int datenum) {
+base::Value::Dict* PersistedDataImpl::GetOrCreateAppKey(
+    const std::string& id,
+    base::Value::Dict& root) {
   DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
-  if (!pref_service_ || datenum < 0)
-    return;
-  ScopedDictPrefUpdate update(pref_service_, kPersistedDataPreference);
-  for (const auto& id : ids) {
-    // We assume ids do not contain '.' characters.
-    DCHECK_EQ(std::string::npos, id.find('.'));
-    update->Set(base::StringPrintf("apps.%s.dlrc", id.c_str()), datenum);
-    update->Set(base::StringPrintf("apps.%s.pf", id.c_str()),
-                      base::GenerateGUID());
+  base::Value::Dict* apps = root.EnsureDict("apps");
+  base::Value::Dict* app = apps->FindDict(base::ToLowerASCII(id));
+  if (!app) {
+    app = &apps->Set(base::ToLowerASCII(id), base::Value::Dict())->GetDict();
+    app->Set("installdate", kDateFirstTime);
   }
+  return app;
 }
 
-void PersistedData::SetDateLastActive(const std::vector<std::string>& ids,
-                                      int datenum) {
+void PersistedDataImpl::SetDateLastDataHelper(
+    const std::vector<std::string>& ids,
+    int datenum,
+    base::OnceClosure callback,
+    const std::set<std::string>& active_ids) {
   DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
-  if (!pref_service_ || datenum < 0)
+  PrefService* pref_service = pref_service_provider_.Run();
+  if (!pref_service) {
+    std::move(callback).Run();
     return;
-  ScopedDictPrefUpdate update(pref_service_, kPersistedDataPreference);
+  }
+  ScopedDictPrefUpdate update(pref_service, kPersistedDataPreference);
   for (const auto& id : ids) {
-    if (GetActiveBit(id)) {
-      // We assume ids do not contain '.' characters.
-      DCHECK_EQ(std::string::npos, id.find('.'));
-      update->Set(base::StringPrintf("apps.%s.dla", id.c_str()),
-                         datenum);
-      activity_data_service_->ClearActiveBit(id);
+    base::Value::Dict* app_key = GetOrCreateAppKey(id, update.Get());
+    app_key->Set("dlrc", datenum);
+    app_key->Set("pf", base::Uuid::GenerateRandomV4().AsLowercaseString());
+    if (GetInstallDate(id) == kDateFirstTime) {
+      app_key->Set("installdate", datenum);
+    }
+    if (active_ids.find(id) != active_ids.end()) {
+      app_key->Set("dla", datenum);
     }
   }
+  std::move(callback).Run();
 }
 
-void PersistedData::SetString(const std::string& id,
-                              const std::string& key,
-                              const std::string& value) {
+void PersistedDataImpl::SetDateLastData(const std::vector<std::string>& ids,
+                                        int datenum,
+                                        base::OnceClosure callback) {
   DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
-  if (!pref_service_)
+  PrefService* pref_service = pref_service_provider_.Run();
+  if (!pref_service || datenum < 0) {
+    base::SequencedTaskRunner::GetCurrentDefault()->PostTask(
+        FROM_HERE, std::move(callback));
     return;
-  ScopedDictPrefUpdate update(pref_service_, kPersistedDataPreference);
-  update->Set(base::StringPrintf("apps.%s.%s", id.c_str(), key.c_str()),
-                    value);
+  }
+  if (!activity_data_service_) {
+    SetDateLastDataHelper(ids, datenum, std::move(callback), {});
+    return;
+  }
+  activity_data_service_->GetAndClearActiveBits(
+      ids, base::BindOnce(&PersistedDataImpl::SetDateLastDataHelper,
+                          base::Unretained(this), ids, datenum,
+                          std::move(callback)));
 }
 
-#if defined(STARBOARD)
-void PersistedData::SetLastInstalledVersion(const std::string& id,
-                                           const std::string& version) {
-  SetString(id, "version", version);
-}
-void PersistedData::SetUpdaterChannel(const std::string& id,
-                                      const std::string& channel) {
-  SetString(id, "updaterchannel", channel);
-}
-void PersistedData::SetLatestChannel(const std::string& channel) {
+void PersistedDataImpl::SetDateLastActive(const std::string& id, int dla) {
   DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
-  if (!pref_service_)
+  PrefService* pref_service = pref_service_provider_.Run();
+  if (!pref_service) {
     return;
-  ScopedDictPrefUpdate update(pref_service_, kPersistedDataPreference);
-  update->Set("latestchannel", channel);
+  }
+  ScopedDictPrefUpdate update(pref_service, kPersistedDataPreference);
+  base::Value::Dict* app_key = GetOrCreateAppKey(id, update.Get());
+  app_key->Set("dla", dla);
 }
-#endif
 
-void PersistedData::SetCohort(const std::string& id,
-                              const std::string& cohort) {
+void PersistedDataImpl::SetDateLastRollCall(const std::string& id, int dlrc) {
+  DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
+  PrefService* pref_service = pref_service_provider_.Run();
+  if (!pref_service) {
+    return;
+  }
+  ScopedDictPrefUpdate update(pref_service, kPersistedDataPreference);
+  base::Value::Dict* app_key = GetOrCreateAppKey(id, update.Get());
+  app_key->Set("dlrc", dlrc);
+}
+
+void PersistedDataImpl::SetInstallDate(const std::string& id,
+                                       int install_date) {
+  DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
+  PrefService* pref_service = pref_service_provider_.Run();
+  if (!pref_service) {
+    return;
+  }
+  ScopedDictPrefUpdate update(pref_service, kPersistedDataPreference);
+  base::Value::Dict* app_key = GetOrCreateAppKey(id, update.Get());
+  app_key->Set("installdate", install_date);
+}
+
+void PersistedDataImpl::SetString(const std::string& id,
+                                  const std::string& key,
+                                  const std::string& value) {
+  DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
+  PrefService* pref_service = pref_service_provider_.Run();
+  if (!pref_service) {
+    return;
+  }
+  ScopedDictPrefUpdate update(pref_service, kPersistedDataPreference);
+  GetOrCreateAppKey(id, update.Get())->Set(key, value);
+}
+
+void PersistedDataImpl::SetCohort(const std::string& id,
+                                  const std::string& cohort) {
   SetString(id, "cohort", cohort);
 }
 
-void PersistedData::SetCohortName(const std::string& id,
-                                  const std::string& cohort_name) {
+void PersistedDataImpl::SetCohortName(const std::string& id,
+                                      const std::string& cohort_name) {
   SetString(id, "cohortname", cohort_name);
 }
 
-void PersistedData::SetCohortHint(const std::string& id,
-                                  const std::string& cohort_hint) {
+void PersistedDataImpl::SetCohortHint(const std::string& id,
+                                      const std::string& cohort_hint) {
   SetString(id, "cohorthint", cohort_hint);
 }
 
-bool PersistedData::GetActiveBit(const std::string& id) const {
-  return activity_data_service_ && activity_data_service_->GetActiveBit(id);
+void PersistedDataImpl::GetActiveBits(
+    const std::vector<std::string>& ids,
+    base::OnceCallback<void(const std::set<std::string>&)> callback) const {
+  DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
+  if (!activity_data_service_) {
+    base::SequencedTaskRunner::GetCurrentDefault()->PostTask(
+        FROM_HERE,
+        base::BindOnce(std::move(callback), std::set<std::string>{}));
+    return;
+  }
+  activity_data_service_->GetActiveBits(ids, std::move(callback));
 }
 
-int PersistedData::GetDaysSinceLastRollCall(const std::string& id) const {
+int PersistedDataImpl::GetDaysSinceLastRollCall(const std::string& id) const {
   DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
   return activity_data_service_
              ? activity_data_service_->GetDaysSinceLastRollCall(id)
              : kDaysUnknown;
 }
 
-int PersistedData::GetDaysSinceLastActive(const std::string& id) const {
+int PersistedDataImpl::GetDaysSinceLastActive(const std::string& id) const {
   DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
   return activity_data_service_
              ? activity_data_service_->GetDaysSinceLastActive(id)
              : kDaysUnknown;
 }
 
-void PersistedData::RegisterPrefs(PrefRegistrySimple* registry) {
+base::Version PersistedDataImpl::GetProductVersion(
+    const std::string& id) const {
+  return base::Version(GetString(id, "pv"));
+}
+
+void PersistedDataImpl::SetProductVersion(const std::string& id,
+                                          const base::Version& pv) {
+  CHECK(pv.IsValid());
+  SetString(id, "pv", pv.GetString());
+}
+
+base::Version PersistedDataImpl::GetMaxPreviousProductVersion(
+    const std::string& id) const {
+  return base::Version(GetString(id, "max_pv"));
+}
+
+void PersistedDataImpl::SetMaxPreviousProductVersion(
+    const std::string& id,
+    const base::Version& max_version) {
+  CHECK(max_version.IsValid());
+  auto existing_max = GetMaxPreviousProductVersion(id);
+  if (!existing_max.IsValid() || max_version > existing_max) {
+    SetString(id, "max_pv", max_version.GetString());
+  }
+}
+
+std::string PersistedDataImpl::GetFingerprint(const std::string& id) const {
+  return GetString(id, "fp");
+}
+
+void PersistedDataImpl::SetFingerprint(const std::string& id,
+                                       const std::string& fingerprint) {
+  SetString(id, "fp", fingerprint);
+}
+
+base::Time PersistedDataImpl::GetThrottleUpdatesUntil() const {
+  PrefService* pref_service = pref_service_provider_.Run();
+  if (!pref_service) {
+    return base::Time();
+  }
+  return pref_service->GetTime(kThrottleUpdatesUntilPreference);
+}
+
+void PersistedDataImpl::SetThrottleUpdatesUntil(base::Time time) {
+  PrefService* pref_service = pref_service_provider_.Run();
+  if (!pref_service) {
+    return;
+  }
+  pref_service->SetTime(kThrottleUpdatesUntilPreference, time);
+}
+
+void PersistedDataImpl::SetLastUpdateCheckError(const CategorizedError& error) {
+  PrefService* pref_service = pref_service_provider_.Run();
+  if (!pref_service) {
+    return;
+  }
+  pref_service->SetInteger(kLastUpdateCheckErrorPreference, error.code_);
+  pref_service->SetInteger(kLastUpdateCheckErrorCategoryPreference,
+                           static_cast<int>(error.category_));
+  pref_service->SetInteger(kLastUpdateCheckErrorExtraCode1Preference,
+                           error.extra_);
+}
+
+}  // namespace
+
+std::unique_ptr<PersistedData> CreatePersistedData(
+    base::RepeatingCallback<PrefService*()> pref_service_provider,
+    std::unique_ptr<ActivityDataService> activity_data_service) {
+  return std::make_unique<PersistedDataImpl>(pref_service_provider,
+                                             std::move(activity_data_service));
+}
+
+void RegisterPersistedDataPrefs(PrefRegistrySimple* registry) {
   registry->RegisterDictionaryPref(kPersistedDataPreference);
+  registry->RegisterTimePref(kThrottleUpdatesUntilPreference, base::Time());
+  registry->RegisterIntegerPref(kLastUpdateCheckErrorPreference, 0);
+  registry->RegisterIntegerPref(kLastUpdateCheckErrorCategoryPreference, 0);
+  registry->RegisterIntegerPref(kLastUpdateCheckErrorExtraCode1Preference, 0);
 }
 
 }  // namespace update_client

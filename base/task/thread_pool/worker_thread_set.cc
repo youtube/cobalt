@@ -54,7 +54,7 @@ void WorkerThreadSet::Remove(const WorkerThread* worker) {
   DCHECK(!IsEmpty());
   DCHECK_NE(worker, *set_.begin());
   auto it = set_.find(const_cast<WorkerThread*>(worker));
-  DCHECK(it != set_.end());
+  CHECK(it != set_.end(), base::NotFatalUntil::M125);
   DCHECK_NE(TimeTicks(), (*it)->GetLastUsedTime());
   set_.erase(it);
 }

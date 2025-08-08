@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+Copyright 2023 The Chromium Authors
+Use of this source code is governed by a BSD-style license that can be
+found in the LICENSE file.
+-->
+<resources>
+    <dimen name="hub_button_radius">16dp</dimen>
+    <dimen name="hub_search_box_height">40dp</dimen>
+    <dimen name="hub_search_box_background_radius">50dp</dimen>
+
+    <dimen name="floating_action_button_elevation">3dp</dimen>
+    <dimen name="floating_action_button_margin">16dp</dimen>
+</resources>

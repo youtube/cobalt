@@ -1,2 +1,0 @@
-6-1-5-2-onload-event-fires-on-window
-6-1-5-2-onload-event-fires-on-window-when-set-via-attribute

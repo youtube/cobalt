@@ -1,0 +1,102 @@
+<?xml version="1.0" ?>
+<!DOCTYPE translationbundle>
+<translationbundle lang="sq">
+<translation id="1012241361789814178">Korrigjuesi është vendosur në pauzë në një skedë tjetër. Kliko për të kaluar tek ajo skedë.</translation>
+<translation id="1171774979989969504">Fut një adresë mail-i.</translation>
+<translation id="1178581264944972037">Pauzë</translation>
+<translation id="1306460908038601864">Joaktiv</translation>
+<translation id="1311894908970423688">Vlera duhet të jetë <ph name="VALUE_DATE_OR_TIME" />.</translation>
+<translation id="1588438908519853928">Normal</translation>
+<translation id="1591562245178063882">Këtë muaj</translation>
+<translation id="1637811476055996098">Zgjidh skedarët</translation>
+<translation id="1729654308190250600">Fut një adresë mail-i jo boshe.</translation>
+<translation id="1758486001363313524">Tjetër...</translation>
+<translation id="1921819250265091946">ditë</translation>
+<translation id="1938124657309484470">Vlera duhet të jetë <ph name="MAXIMUM_DATE_OR_TIME" /> ose më e hershme.</translation>
+<translation id="1993104285338243655">U kalua te pasqyrimi</translation>
+<translation id="2060505056492490888">"<ph name="DOT" />" përdoret në një pozicion të gabuar në "<ph name="INVALIDDOMAIN" />".</translation>
+<translation id="2068711044993563745">Vlera minimale (<ph name="MINIMUM" />) duhet të jetë më e vogël se vlera maksimale (<ph name="MAXIMUM" />).</translation>
+<translation id="2148716181193084225">Sot</translation>
+<translation id="2226276347425096477">Shkurtoje këtë tekst në <ph name="MAX_CHARACTERS" /> karaktere ose më pak (aktualisht po përdor <ph name="CURRENT_LENGTH" /> karaktere).</translation>
+<translation id="2247351761944213033">Java <ph name="WEEKNUMBER" />, <ph name="YEAR" /></translation>
+<translation id="2277199496770840904">Kënga <ph name="NUMBER" /></translation>
+<translation id="2507943997699731163">Plotësoje këtë fushë.</translation>
+<translation id="2613802280814924224">Fut një vlerë të vlefshme. Vlera më e afërt e vlefshme është <ph name="VALID_VALUE" />.</translation>
+<translation id="2653659639078652383">Dërgoje</translation>
+<translation id="2746543609216772311">Vlera duhet të jetë <ph name="MINIMUM_DATE_OR_TIME" /> ose më e vonshme.</translation>
+<translation id="2761667185364618470">Verifikoje këtë kuti, nëse do të vazhdosh.</translation>
+<translation id="2908441821576996758">Fut një listë të ndarë me presje me adresa mail-i.</translation>
+<translation id="3049748772180311791"><ph name="QUANTITY" /> MB</translation>
+<translation id="3075154866155599887">Fut një atribut të vlefshëm. Fusha nuk është e plotë ose ka datë të pavlefshme.</translation>
+<translation id="310520048233152454">Fut një URL.</translation>
+<translation id="3321030238473337787">Shpejtësia e luajtjes</translation>
+<translation id="3450233048674729344">Vlera duhet të jetë më e vogël ose e barabartë me <ph name="MAXIMUM" />.</translation>
+<translation id="3732799496749320381">mm</translation>
+<translation id="3754210790023674521">Dil nga "Figura brenda figurës"</translation>
+<translation id="3757388668994797779"><ph name="QUANTITY" /> GB</translation>
+<translation id="3822383571486410024">Shkurtoje këtë tekst në <ph name="MIN_CHARACTERS" /> karaktere ose më shumë (aktualisht po përdor <ph name="CURRENT_LENGTH" /> karaktere).</translation>
+<translation id="383465348367842624">Një pjesë e ndjekur nga "<ph name="ATSIGN" />" nuk duhet të përmbajë simbolin "<ph name="INVALIDCHARACTER" />".</translation>
+<translation id="3846214748874656680">Dil nga ekrani i plotë</translation>
+<translation id="4360991593054037559">Fut një vlerë të vlefshme. Dy vlerat më e afërta të vlefshme janë <ph name="VALID_VALUE_LOW" /> dhe <ph name="VALID_VALUE_HIGHER" />.</translation>
+<translation id="4522570452068850558">Detajet</translation>
+<translation id="4664250907885839816">Një pjesë që ndjek "<ph name="ATSIGN" />" nuk duhet të përmbajë simbolin "<ph name="INVALIDCHARACTER" />".</translation>
+<translation id="4718048029184481307">Po luhet në "Figura brenda figurës"</translation>
+<translation id="4812940957355064477">Fut një numër.</translation>
+<translation id="4975562563186953947"><ph name="SELECTED_COUNT" /> të përzgjedhur</translation>
+<translation id="4992066212339426712">Aktivizo zërin</translation>
+<translation id="49969490063480558">Fut një pjesë pas "<ph name="ATSIGN" />". "<ph name="INVALIDADDRESS" />" është e paplotë.</translation>
+<translation id="5164977714490026579">Vlera duhet të jetë më e madhe ose e barabartë me <ph name="MINIMUM" />.</translation>
+<translation id="5196716972587102051">2</translation>
+<translation id="520299402983819650"><ph name="QUANTITY" /> PB</translation>
+<translation id="5307600278924710095">Fut një pjesë të ndjekur nga "<ph name="ATSIGN" />". "<ph name="INVALIDADDRESS" />" është e paplotë.</translation>
+<translation id="5334352251556557839">Nuk mund të luajë media.</translation>
+<translation id="537648784377940524">Data minimale (<ph name="MIN_DATE_OR_TIME" />) duhet të jetë përpara datës maksimale (<ph name="MAX_DATE_OR_TIME" />).</translation>
+<translation id="5466621249238537318">Përzgjidh një ose më shumë skedarë.</translation>
+<translation id="5514612371225420585">Skedar në pajisjen tënde</translation>
+<translation id="5516235301412634559">0,75</translation>
+<translation id="5537725057119320332">Transmeto</translation>
+<translation id="5630795885300617244">Trokit dy herë majtas ose djathtas për të kapërcyer 10 sek.</translation>
+<translation id="57838592816432529">Hiqi zërin</translation>
+<translation id="588258955323874662">Ekrani i plotë</translation>
+<translation id="5888666972993069672">Po transmeton tani në <ph name="DEVICE_FRIENDLY_NAME" /></translation>
+<translation id="5939518447894949180">Rivendos</translation>
+<translation id="5966707198760109579">Javë</translation>
+<translation id="5985507339671257014">0,5</translation>
+<translation id="6310801910862476708">Dil nga "figurë brenda figurës"</translation>
+<translation id="6484738902856791350">Formatimi elegant</translation>
+<translation id="6550675742724504774">Opsionet</translation>
+<translation id="6643016212128521049">Pastro</translation>
+<translation id="668171684555832681">Tjetër...</translation>
+<translation id="6709093583001123835">Vlera duhet të jetë <ph name="VALUE" />.</translation>
+<translation id="6709570249143506788">Cilësi e dobët e luajtjes</translation>
+<translation id="6790428901817661496">Luaj</translation>
+<translation id="6820355525329141109">Nuk mund ta ngarkonte përbërësin shtesë.</translation>
+<translation id="6919891270253167948">1,5</translation>
+<translation id="6989848892321993519">Zgjate këtë tekst në <ph name="MIN_CHARACTERS" /> karaktere ose më shumë (aktualisht po përdor 1 karakter).</translation>
+<translation id="709897737746224366">Përputhe me formatin e kërkuar.</translation>
+<translation id="7263440858009898357">Përzgjidh një artikull në listë.</translation>
+<translation id="7364796246159120393">Zgjidh skedarin</translation>
+<translation id="739024184232394898">Tjetër...</translation>
+<translation id="7460907917090416791"><ph name="QUANTITY" /> TB</translation>
+<translation id="7514365320538308">Shkarko</translation>
+<translation id="7750228210027921155">Figurë brenda figurës</translation>
+<translation id="7782515065589691344">1,25</translation>
+<translation id="7888071071722539607">Përfshi një "<ph name="ATSIGN" />" në adresën e mail-it. Te "<ph name="INVALIDADDRESS" />" mungon një "<ph name="ATSIGN" />".</translation>
+<translation id="795667975304826397">Nuk u zgjodh asnjë skedar</translation>
+<translation id="8117451130807776954">Këtë javë</translation>
+<translation id="8131955114056917397">0,25</translation>
+<translation id="8199524924445686405">vvvv</translation>
+<translation id="8284326494547611709">Titrat</translation>
+<translation id="835897206747267392">Vlerë e pavlefshme.</translation>
+<translation id="839593075537728968">Vlera duhet të jetë nga <ph name="MINIMUM_TIME" /> deri në <ph name="MAXIMUM_TIME" />.</translation>
+<translation id="8444882422881193423"><ph name="NUMBER_OF_FILES" /> skedarë</translation>
+<translation id="8451268428117625855">Zgjidh një skedar.</translation>
+<translation id="8637593834423658414">1,75</translation>
+<translation id="8668988909814782445">Thyerja e rreshtit</translation>
+<translation id="8750798805984357768">Përzgjidh një nga këto opsione.</translation>
+<translation id="8845239796550121995">Po transmeton tani në televizor</translation>
+<translation id="8875657656876809964">Gabim gjatë luajtjes së videos</translation>
+<translation id="8901569739625249689"><ph name="QUANTITY" /> KB</translation>
+<translation id="9132465097189459683">Tjetër...</translation>
+<translation id="916607977885256133">Figura brenda figurës</translation>
+</translationbundle>

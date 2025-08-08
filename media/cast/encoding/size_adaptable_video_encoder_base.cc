@@ -9,6 +9,7 @@
 #include "base/functional/bind.h"
 #include "base/location.h"
 #include "base/logging.h"
+#include "media/base/video_encoder_metrics_provider.h"
 #include "media/base/video_frame.h"
 #include "media/cast/common/sender_encoded_frame.h"
 
@@ -18,9 +19,11 @@ namespace cast {
 SizeAdaptableVideoEncoderBase::SizeAdaptableVideoEncoderBase(
     const scoped_refptr<CastEnvironment>& cast_environment,
     const FrameSenderConfig& video_config,
+    std::unique_ptr<VideoEncoderMetricsProvider> metrics_provider,
     StatusChangeCallback status_change_cb)
     : cast_environment_(cast_environment),
       video_config_(video_config),
+      metrics_provider_(std::move(metrics_provider)),
       status_change_cb_(std::move(status_change_cb)),
       frames_in_encoder_(0),
       next_frame_id_(FrameId::first()) {
@@ -80,12 +83,6 @@ void SizeAdaptableVideoEncoderBase::GenerateKeyFrame() {
   if (encoder_) {
     encoder_->GenerateKeyFrame();
   }
-}
-
-std::unique_ptr<VideoFrameFactory>
-SizeAdaptableVideoEncoderBase::CreateVideoFrameFactory() {
-  DCHECK(cast_environment_->CurrentlyOn(CastEnvironment::MAIN));
-  return nullptr;
 }
 
 void SizeAdaptableVideoEncoderBase::EmitFrames() {
@@ -163,9 +160,11 @@ void SizeAdaptableVideoEncoderBase::OnEncodedVideoFrame(
   --frames_in_encoder_;
   DCHECK_GE(frames_in_encoder_, 0);
 
-  if (encoded_frame) {
+  if (encoded_frame && !encoded_frame->data.empty()) {
     next_frame_id_ = encoded_frame->frame_id + 1;
+    metrics_provider_->IncrementEncodedFrameCount();
   }
+
   std::move(frame_encoded_callback).Run(std::move(encoded_frame));
 }
 

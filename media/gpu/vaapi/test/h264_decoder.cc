@@ -2,7 +2,14 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#ifdef UNSAFE_BUFFERS_BUILD
+// TODO(crbug.com/40285824): Remove this and convert code to safer constructs.
+#pragma allow_unsafe_buffers
+#endif
+
 #include "media/gpu/vaapi/test/h264_decoder.h"
+
+#include <va/va.h>
 
 #include "base/notreached.h"
 #include "base/ranges/algorithm.h"
@@ -10,9 +17,7 @@
 #include "media/gpu/macros.h"
 #include "media/gpu/vaapi/test/h264_dpb.h"
 #include "media/gpu/vaapi/test/video_decoder.h"
-#include "media/video/h264_parser.h"
-
-#include <va/va.h>
+#include "media/parsers/h264_parser.h"
 
 namespace media::vaapi_test {
 
@@ -92,7 +97,6 @@ bool FillH264PictureFromSliceHeader(const H264SPS* sps,
 
     default:
       NOTREACHED();
-      return false;
   }
   return true;
 }
@@ -334,7 +338,7 @@ void H264Decoder::FinishPicture(scoped_refptr<H264Picture> pic) {
         // outputting all pictures before it, to avoid outputting corrupted
         // frames.
         (*output_candidate)->frame_num == *recovery_frame_num_) {
-      recovery_frame_num_ = absl::nullopt;
+      recovery_frame_num_ = std::nullopt;
       output_queue.push(*output_candidate);
       (*output_candidate)->outputted = true;
     }

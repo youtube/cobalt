@@ -2,6 +2,11 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#ifdef UNSAFE_BUFFERS_BUILD
+// TODO(crbug.com/354829279): Remove this and convert code to safer constructs.
+#pragma allow_unsafe_buffers
+#endif
+
 #include "ui/gfx/icon_util.h"
 
 #include <stddef.h>
@@ -19,6 +24,7 @@
 #include "ui/gfx/icon_util_unittests_resource.h"
 #include "ui/gfx/image/image.h"
 #include "ui/gfx/image/image_family.h"
+#include "ui/gfx/image/image_unittest_util.h"
 
 namespace {
 
@@ -33,7 +39,8 @@ class IconUtilTest : public testing::Test {
   using ScopedHICON = base::win::ScopedHICON;
 
   void SetUp() override {
-    ASSERT_TRUE(base::PathService::Get(base::DIR_SOURCE_ROOT, &test_data_dir_));
+    ASSERT_TRUE(
+        base::PathService::Get(base::DIR_SRC_TEST_DATA_ROOT, &test_data_dir_));
     test_data_dir_ = test_data_dir_.Append(FILE_PATH_LITERAL("ui"))
                          .Append(FILE_PATH_LITERAL("gfx"))
                          .Append(FILE_PATH_LITERAL("test"))
@@ -137,10 +144,9 @@ void IconUtilTest::CheckAllIconSizes(const base::FilePath& icon_filename,
     // Convert the PNG entry data back to a SkBitmap to ensure it's valid.
     ASSERT_GE(icon_data.length(),
               png_entry->dwImageOffset + png_entry->dwBytesInRes);
-    const unsigned char* png_bytes = reinterpret_cast<const unsigned char*>(
-        icon_data.data() + png_entry->dwImageOffset);
-    gfx::Image image = gfx::Image::CreateFrom1xPNGBytes(
-        png_bytes, png_entry->dwBytesInRes);
+    gfx::Image image =
+        gfx::Image::CreateFrom1xPNGBytes(base::as_byte_span(icon_data).subspan(
+            png_entry->dwImageOffset, png_entry->dwBytesInRes));
     SkBitmap bitmap = image.AsBitmap();
     EXPECT_EQ(256, bitmap.width());
     EXPECT_EQ(256, bitmap.height());
@@ -208,10 +214,8 @@ TEST_F(IconUtilTest, TestCreateIconFileInvalidParameters) {
       temp_directory_.GetPath().AppendASCII("<>?.ico");
 
   // Invalid file name.
-  SkBitmap bitmap;
   image_family.clear();
-  bitmap.allocN32Pixels(1, 1);
-  image_family.Add(gfx::Image::CreateFrom1xBitmap(bitmap));
+  image_family.Add(gfx::test::CreateImage(/*size=*/1));
   EXPECT_FALSE(IconUtil::CreateIconFileFromImageFamily(image_family,
                                                        invalid_icon_filename));
   EXPECT_FALSE(base::PathExists(invalid_icon_filename));

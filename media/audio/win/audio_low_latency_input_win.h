@@ -152,7 +152,7 @@ class MEDIA_EXPORT WASAPIAudioInputStream
  private:
   class DataDiscontinuityReporter;
 
-  void SendLogMessage(const char* format, ...) PRINTF_FORMAT(2, 3);
+  PRINTF_FORMAT(2, 3) void SendLogMessage(const char* format, ...);
 
   // DelegateSimpleThread::Delegate implementation.
   void Run() override;
@@ -345,10 +345,6 @@ class MEDIA_EXPORT WASAPIAudioInputStream
   base::TimeDelta max_timestamp_diff_;
   base::TimeDelta min_timestamp_diff_;
 
-  // Enabled if the volume level of the audio session is set to zero when the
-  // session starts. Utilized in UMA histogram.
-  bool audio_session_starts_at_zero_volume_ = false;
-
   // Set to true if the selected audio device supports raw audio capture.
   // Also added to a UMS histogram.
   bool raw_processing_supported_ = false;
@@ -361,12 +357,11 @@ class MEDIA_EXPORT WASAPIAudioInputStream
   // raw (minimal) audio processing mode. Will be empty in most cases.
   std::vector<ABI::Windows::Media::Effects::AudioEffectType> raw_effect_types_;
 
-  // Will be enabled if "--use-fake-audio-capture-timestamps" has been added to
-  // the command line. This mode can be used in situations where the default
-  // capture timestamps are known to be invalid (e.g. for virtual devices) and
-  // must be emulated with local timeticks to ensure a monotonic timestamp
-  // sequence. See crbug.com/1315231 for more details.
-  bool use_fake_audio_capture_timestamps_ = false;
+  // Set to true if the absolute difference between a QPC timestamp converted
+  // into a TimeTick value and a default base::TimeTicks::Now() is larger than
+  // 500 msec. A true return value should trigger usage of "fake" audio
+  // timestamps instead of default which are QPC based.
+  std::optional<bool> use_fake_audio_capture_timestamps_;
 
   SEQUENCE_CHECKER(sequence_checker_);
 };

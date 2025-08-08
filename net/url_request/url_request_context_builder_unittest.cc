@@ -101,8 +101,12 @@ class URLRequestContextBuilderTest : public PlatformTest,
   URLRequestContextBuilderTest() {
     test_server_.AddDefaultHandlers(
         base::FilePath(FILE_PATH_LITERAL("net/data/url_request_unittest")));
+    SetUpURLRequestContextBuilder(builder_);
+  }
+
+  void SetUpURLRequestContextBuilder(URLRequestContextBuilder& builder) {
 #if BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_CHROMEOS) || BUILDFLAG(IS_ANDROID)
-    builder_.set_proxy_config_service(std::make_unique<ProxyConfigServiceFixed>(
+    builder.set_proxy_config_service(std::make_unique<ProxyConfigServiceFixed>(
         ProxyConfigWithAnnotation::CreateDirect()));
 #endif  // BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_CHROMEOS) ||
         // BUILDFLAG(IS_ANDROID)
@@ -125,7 +129,7 @@ TEST_F(URLRequestContextBuilderTest, DefaultSettings) {
   request->set_method("GET");
   request->SetExtraRequestHeaderByName("Foo", "Bar", false);
   request->Start();
-  base::RunLoop().Run();
+  delegate.RunUntilComplete();
   EXPECT_EQ("Bar", delegate.data_received());
 }
 
@@ -140,7 +144,7 @@ TEST_F(URLRequestContextBuilderTest, UserAgent) {
       &delegate, TRAFFIC_ANNOTATION_FOR_TESTS));
   request->set_method("GET");
   request->Start();
-  base::RunLoop().Run();
+  delegate.RunUntilComplete();
   EXPECT_EQ("Bar", delegate.data_received());
 }
 
@@ -226,8 +230,7 @@ TEST_F(URLRequestContextBuilderTest, ShutDownNELAndReportingWithPendingUpload) {
   context.reset();
 }
 
-// # TODO: b/327008491 - Reenable unittests with unused functionality.
-#if !BUILDFLAG(CRONET_BUILD) && !defined(STARBOARD)
+#if !BUILDFLAG(CRONET_BUILD)
 // See crbug.com/935209. This test ensures that shutdown occurs correctly and
 // does not crash while destoying the NEL and Reporting services in the process
 // of destroying the URLRequestContext whilst Reporting has a pending upload.
@@ -279,6 +282,66 @@ TEST_F(URLRequestContextBuilderTest,
   context.reset();
 }
 #endif  // !BUILDFLAG(CRONET_BUILD)
+
+TEST_F(URLRequestContextBuilderTest,
+       BuilderSetEnterpriseReportingEndpointsWithFeatureEnabled) {
+  base::test::ScopedFeatureList feature_list;
+  feature_list.InitAndEnableFeature(
+      net::features::kReportingApiEnableEnterpriseCookieIssues);
+  base::flat_map<std::string, GURL> test_enterprise_endpoints{
+      {"endpoint-1", GURL("https://example.com/reports")},
+      {"endpoint-2", GURL("https://reporting.example/cookie-issues")},
+      {"endpoint-3", GURL("https://report-collector.example")},
+  };
+  builder_.set_reporting_policy(std::make_unique<ReportingPolicy>());
+  builder_.set_enterprise_reporting_endpoints(test_enterprise_endpoints);
+  std::unique_ptr<URLRequestContext> context(builder_.Build());
+  ASSERT_TRUE(context->reporting_service());
+  std::vector<net::ReportingEndpoint> expected_enterprise_endpoints = {
+      {net::ReportingEndpointGroupKey(net::NetworkAnonymizationKey(),
+                                      /*reporting_source=*/std::nullopt,
+                                      /*origin=*/std::nullopt, "endpoint-1",
+                                      net::ReportingTargetType::kEnterprise),
+       {.url = GURL("https://example.com/reports")}},
+      {net::ReportingEndpointGroupKey(net::NetworkAnonymizationKey(),
+                                      /*reporting_source=*/std::nullopt,
+                                      /*origin=*/std::nullopt, "endpoint-2",
+                                      net::ReportingTargetType::kEnterprise),
+       {.url = GURL("https://reporting.example/cookie-issues")}},
+      {net::ReportingEndpointGroupKey(net::NetworkAnonymizationKey(),
+                                      /*reporting_source=*/std::nullopt,
+                                      /*origin=*/std::nullopt, "endpoint-3",
+                                      net::ReportingTargetType::kEnterprise),
+       {.url = GURL("https://report-collector.example")}}};
+
+  EXPECT_EQ(expected_enterprise_endpoints,
+            context->reporting_service()
+                ->GetContextForTesting()
+                ->cache()
+                ->GetEnterpriseEndpointsForTesting());
+}
+
+TEST_F(URLRequestContextBuilderTest,
+       BuilderSetEnterpriseReportingEndpointsWithFeatureDisabled) {
+  base::test::ScopedFeatureList feature_list;
+  feature_list.InitAndDisableFeature(
+      net::features::kReportingApiEnableEnterpriseCookieIssues);
+  base::flat_map<std::string, GURL> test_enterprise_endpoints{
+      {"endpoint-1", GURL("https://example.com/reports")},
+      {"endpoint-2", GURL("https://reporting.example/cookie-issues")},
+      {"endpoint-3", GURL("https://report-collector.example")},
+  };
+  builder_.set_reporting_policy(std::make_unique<ReportingPolicy>());
+  builder_.set_enterprise_reporting_endpoints(test_enterprise_endpoints);
+  std::unique_ptr<URLRequestContext> context(builder_.Build());
+  ASSERT_TRUE(context->reporting_service());
+
+  EXPECT_EQ(0u, context->reporting_service()
+                    ->GetContextForTesting()
+                    ->cache()
+                    ->GetEnterpriseEndpointsForTesting()
+                    .size());
+}
 #endif  // BUILDFLAG(ENABLE_REPORTING)
 
 TEST_F(URLRequestContextBuilderTest, ShutdownHostResolverWithPendingRequest) {
@@ -290,9 +353,9 @@ TEST_F(URLRequestContextBuilderTest, ShutdownHostResolverWithPendingRequest) {
   std::unique_ptr<URLRequestContext> context(builder_.Build());
 
   std::unique_ptr<HostResolver::ResolveHostRequest> request =
-      context->host_resolver()->CreateRequest(
-          HostPortPair("example.com", 1234), NetworkAnonymizationKey(),
-          NetLogWithSource(), absl::nullopt);
+      context->host_resolver()->CreateRequest(HostPortPair("example.com", 1234),
+                                              NetworkAnonymizationKey(),
+                                              NetLogWithSource(), std::nullopt);
   TestCompletionCallback callback;
   int rv = request->Start(callback.callback());
   ASSERT_TRUE(state->has_pending_requests());
@@ -312,8 +375,12 @@ TEST_F(URLRequestContextBuilderTest, DefaultHostResolver) {
       HostResolver::ManagerOptions(), nullptr /* system_dns_config_notifier */,
       nullptr /* net_log */);
 
-  builder_.set_host_resolver_manager(manager.get());
-  std::unique_ptr<URLRequestContext> context = builder_.Build();
+  // Use a stack allocated builder instead of `builder_` to avoid dangling
+  // pointer of `manager`.
+  URLRequestContextBuilder builder;
+  SetUpURLRequestContextBuilder(builder);
+  builder.set_host_resolver_manager(manager.get());
+  std::unique_ptr<URLRequestContext> context = builder.Build();
 
   EXPECT_EQ(context.get(), context->host_resolver()->GetContextForTesting());
   EXPECT_EQ(manager.get(), context->host_resolver()->GetManagerForTesting());

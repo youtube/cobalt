@@ -2,13 +2,20 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#ifdef UNSAFE_BUFFERS_BUILD
+// TODO(crbug.com/40284755): Remove this and spanify to fix the errors.
+#pragma allow_unsafe_buffers
+#endif
+
 #include "base/files/file_path.h"
 
 #include <stddef.h>
 
 #include <sstream>
+#include <string_view>
 
 #include "base/files/safe_base_name.h"
+#include "base/strings/utf_ostream_operators.h"
 #include "base/strings/utf_string_conversions.h"
 #include "build/build_config.h"
 #include "build/buildflag.h"
@@ -61,7 +68,7 @@ struct BinaryIntTestData {
 
 struct UTF8TestData {
   FilePath::StringPieceType native;
-  StringPiece utf8;
+  std::string_view utf8;
 };
 
 // file_util winds up using autoreleased objects on the Mac, so this needs
@@ -335,7 +342,7 @@ TEST_F(FilePathTest, Append) {
     // handle the case when AppendASCII is passed UTF8
 #if BUILDFLAG(IS_WIN)
     std::string ascii = WideToUTF8(leaf);
-#elif BUILDFLAG(IS_POSIX) || BUILDFLAG(IS_FUCHSIA) || defined(STARBOARD)
+#elif BUILDFLAG(IS_POSIX) || BUILDFLAG(IS_FUCHSIA)
     std::string ascii = leaf;
 #endif
     observed_str = root.AppendASCII(ascii);
@@ -1223,12 +1230,19 @@ TEST_F(FilePathTest, CompareIgnoreCase) {
 }
 
 TEST_F(FilePathTest, ReferencesParent) {
+  // clang-format off
   const struct UnaryBooleanTestData cases[] = {
     { FPL("."),        false },
     { FPL(".."),       true },
+#if BUILDFLAG(IS_WIN)
     { FPL(".. "),      true },
     { FPL(" .."),      true },
     { FPL("..."),      true },
+#else
+    { FPL(".. "),      false },
+    { FPL(" .."),      false },
+    { FPL("..."),      false },
+#endif
     { FPL("a.."),      false },
     { FPL("..a"),      false },
     { FPL("../"),      true },
@@ -1247,6 +1261,7 @@ TEST_F(FilePathTest, ReferencesParent) {
     { FPL("a/../c"),   true },
     { FPL("a/b/c"),    false },
   };
+  // clang-format on
 
   for (size_t i = 0; i < std::size(cases); ++i) {
     FilePath input(cases[i].input);

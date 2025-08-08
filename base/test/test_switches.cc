@@ -38,6 +38,15 @@ const char switches::kTestLauncherDebugLauncher[] =
 // pattern per line).
 const char switches::kTestLauncherFilterFile[] = "test-launcher-filter-file";
 
+// Force running the test cases listed in the positive filter file with full
+// name (not wildcard). If set, only exact positive filter from the filter
+// file is allowed. Passing --gtest_filter, positive wildcard filters, or
+// negative filters will fail the test launcher.
+// If any test case is disabled or deleted in source files, the test suite
+// fails.
+const char switches::kEnforceExactPositiveFilter[] =
+    "enforce-exact-positive-filter";
+
 // Force running all requested tests and retries even if too many test errors
 // occur.
 const char switches::kTestLauncherForceRunBrokenTests[] =
@@ -124,6 +133,21 @@ const char switches::kTestLauncherTrace[] = "test-launcher-trace";
 const char switches::kTestTinyTimeout[] = "test-tiny-timeout";
 const char switches::kUiTestActionMaxTimeout[] = "ui-test-action-max-timeout";
 const char switches::kUiTestActionTimeout[] = "ui-test-action-timeout";
+
+// Do not suppress stack traces in death tests.
+const char switches::kWithDeathTestStackTraces[] =
+    "with-death-test-stack-traces";
+
+// The following three switches match those in fuzztest and are defined
+// the same way. We know about them in this test suite so that we can
+// act differently if we're in fuzzing mode.
+// These appear to be very stable fuzztest flags and it's unlikely that
+// we'd ever need to detect others in a similar way, but if this proves
+// to be unstable then we could add an upstream fuzztest API such as
+// fuzztest::AreWeFuzzing, and use that instead of detecting any flags.
+const char switches::kFuzz[] = "fuzz";
+const char switches::kFuzzFor[] = "fuzz_for";
+const char switches::kListFuzzTests[] = "list_fuzz_tests";
 
 #if BUILDFLAG(IS_IOS)
 // If enabled, runs unittests using the XCTest test runner.

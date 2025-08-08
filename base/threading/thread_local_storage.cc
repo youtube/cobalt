@@ -2,11 +2,15 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#ifdef UNSAFE_BUFFERS_BUILD
+// TODO(crbug.com/40284755): Remove this and spanify to fix the errors.
+#pragma allow_unsafe_buffers
+#endif
+
 #include "base/threading/thread_local_storage.h"
 
 #include <algorithm>
 #include <atomic>
-#include <cstring>
 
 #include "base/check_op.h"
 #include "base/compiler_specific.h"
@@ -235,7 +239,7 @@ TlsVectorState GetTlsVectorStateAndValue(PlatformThreadLocalStorage::TLSKey key,
   // typical Chromium builds where the code is in a dynamic library. For the
   // static executable case, this is likely equivalent.
   static_assert(
-      std::is_same<PlatformThreadLocalStorage::TLSKey, pthread_key_t>::value,
+      std::is_same_v<PlatformThreadLocalStorage::TLSKey, pthread_key_t>,
       "The special-case below assumes that the platform TLS implementation is "
       "pthread.");
 
@@ -386,7 +390,6 @@ void OnThreadExitInternal(TlsVectorEntry* tls_data) {
 
     if (--remaining_attempts == 0) {
       NOTREACHED();  // Destructors might not have been called.
-      break;
     }
   }
 
@@ -418,7 +421,7 @@ void PlatformThreadLocalStorage::OnThreadExit() {
     return;
   OnThreadExitInternal(tls_vector);
 }
-#elif BUILDFLAG(IS_POSIX) || BUILDFLAG(IS_FUCHSIA) || defined(STARBOARD)
+#elif BUILDFLAG(IS_POSIX) || BUILDFLAG(IS_FUCHSIA)
 void PlatformThreadLocalStorage::OnThreadExit(void* value) {
   // On posix this function may be called twice. The first pass calls dtors and
   // sets state to kDestroyed. The second pass sets kDestroyed to
@@ -513,7 +516,7 @@ void ThreadLocalStorage::Slot::Set(void* value) {
   const TlsVectorState state = GetTlsVectorStateAndValue(
       g_native_tls_key.load(std::memory_order_relaxed), &tls_data);
   DCHECK_NE(state, TlsVectorState::kDestroyed);
-  if (UNLIKELY(!tls_data)) {
+  if (!tls_data) [[unlikely]] {
     if (!value)
       return;
     tls_data = ConstructTlsVector();

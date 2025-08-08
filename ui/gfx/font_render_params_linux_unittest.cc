@@ -13,7 +13,6 @@
 #include "base/notreached.h"
 #include "base/strings/stringprintf.h"
 #include "build/build_config.h"
-#include "build/chromeos_buildflags.h"
 #include "testing/gtest/include/gtest/gtest.h"
 #include "third_party/test_fonts/fontconfig/fontconfig_util_linux.h"
 #include "ui/gfx/font.h"
@@ -49,16 +48,7 @@ class TestFontDelegate : public ui::FakeLinuxUi {
 
   void set_params(const FontRenderParams& params) { params_ = params; }
 
-  FontRenderParams GetDefaultFontRenderParams() const override {
-    return params_;
-  }
-  void GetDefaultFontDescription(std::string* family_out,
-                                 int* size_pixels_out,
-                                 int* style_out,
-                                 int* weight_out,
-                                 FontRenderParams* params_out) const override {
-    NOTIMPLEMENTED();
-  }
+  FontRenderParams GetDefaultFontRenderParams() override { return params_; }
 
  private:
   FontRenderParams params_;
@@ -360,12 +350,12 @@ TEST_F(FontRenderParamsTest, ForceSubpixelPositioning) {
     FontRenderParams params =
         GetFontRenderParams(FontRenderParamsQuery(), nullptr);
     EXPECT_TRUE(params.antialiasing);
-#if !BUILDFLAG(IS_CHROMEOS_ASH)
+#if !BUILDFLAG(IS_CHROMEOS)
     EXPECT_TRUE(params.subpixel_positioning);
 #else
     // Integral scale factor does not require subpixel positioning.
     EXPECT_FALSE(params.subpixel_positioning);
-#endif  // !BUILDFLAG(IS_CHROMEOS_ASH)
+#endif  // !BUILDFLAG(IS_CHROMEOS)
     SetFontRenderParamsDeviceScaleFactor(1.0f);
   }
 }

@@ -7,16 +7,22 @@
 
 #include <algorithm>
 #include <cmath>
+#include <limits>
 #include <memory>
 #include <utility>
 #include <vector>
 
 #include "base/check.h"
 #include "base/check_op.h"
+#include "base/compiler_specific.h"
+#include "base/containers/heap_array.h"
+#include "base/containers/span.h"
 #include "base/debug/alias.h"
 #include "base/gtest_prod_util.h"
+#include "base/memory/aligned_memory.h"
 #include "base/memory/raw_ptr.h"
 #include "base/memory/raw_ptr_exclusion.h"
+#include "base/memory/raw_span.h"
 #include "base/time/time.h"
 
 namespace base {
@@ -130,22 +136,22 @@ class LazilyDeallocatedDeque {
     max_size_ = std::max(max_size_, ++size_);
   }
 
-  T& front() {
+  T& front() LIFETIME_BOUND {
     DCHECK(head_);
     return head_->front();
   }
 
-  const T& front() const {
+  const T& front() const LIFETIME_BOUND {
     DCHECK(head_);
     return head_->front();
   }
 
-  T& back() {
+  T& back() LIFETIME_BOUND {
     DCHECK(tail_);
     return tail_->back();
   }
 
-  const T& back() const {
+  const T& back() const LIFETIME_BOUND {
     DCHECK(tail_);
     return tail_->back();
   }
@@ -232,13 +238,9 @@ class LazilyDeallocatedDeque {
   FRIEND_TEST_ALL_PREFIXES(LazilyDeallocatedDequeTest, RingPushPopPushPop);
 
   struct Ring {
-    explicit Ring(size_t capacity)
-        : capacity_(capacity),
-          front_index_(0),
-          back_index_(0),
-          data_(reinterpret_cast<T*>(new char[sizeof(T) * capacity])),
-          next_(nullptr) {
-      DCHECK_GE(capacity_, kMinimumRingSize);
+    explicit Ring(size_t capacity) {
+      DCHECK_GE(capacity, kMinimumRingSize);
+      std::tie(backing_store_, data_) = AlignedUninitCharArray<T>(capacity);
     }
     Ring(const Ring&) = delete;
     Ring& operator=(const Ring&) = delete;
@@ -246,81 +248,79 @@ class LazilyDeallocatedDeque {
       while (!empty()) {
         pop_front();
       }
-      // Stop referencing the memory with the raw_ptr first, before releasing
-      // memory. This avoids the raw_ptr to be temporarily dangling.
-      char* memory = reinterpret_cast<char*>(data_.get());
-      data_ = nullptr;
-      delete[] memory;
     }
 
-    bool empty() const { return back_index_ == front_index_; }
+    bool empty() const { return back_index_ == before_front_index_; }
 
-    size_t capacity() const { return capacity_; }
+    size_t capacity() const { return data_.size(); }
 
     bool CanPush() const {
-      return front_index_ != CircularIncrement(back_index_);
+      return before_front_index_ != CircularIncrement(back_index_);
     }
 
     void push_front(T&& t) {
       // Mustn't appear to become empty.
-      DCHECK_NE(CircularDecrement(front_index_), back_index_);
-      new (&data_[front_index_]) T(std::move(t));
-      front_index_ = CircularDecrement(front_index_);
+      CHECK_NE(CircularDecrement(before_front_index_), back_index_);
+      std::construct_at(data_.get_at(before_front_index_), std::move(t));
+      before_front_index_ = CircularDecrement(before_front_index_);
     }
 
     void push_back(T&& t) {
       back_index_ = CircularIncrement(back_index_);
-      DCHECK(!empty());  // Mustn't appear to become empty.
-      new (&data_[back_index_]) T(std::move(t));
+      CHECK(!empty());  // Mustn't appear to become empty.
+      std::construct_at(data_.get_at(back_index_), std::move(t));
     }
-
-    bool CanPop() const { return front_index_ != back_index_; }
 
     void pop_front() {
-      DCHECK(!empty());
-      front_index_ = CircularIncrement(front_index_);
-      data_[front_index_].~T();
+      CHECK(!empty());
+      before_front_index_ = CircularIncrement(before_front_index_);
+      data_[before_front_index_].~T();
     }
 
-    T& front() {
-      DCHECK(!empty());
-      return data_[CircularIncrement(front_index_)];
+    T& front() LIFETIME_BOUND {
+      CHECK(!empty());
+      return data_[CircularIncrement(before_front_index_)];
     }
 
-    const T& front() const {
-      DCHECK(!empty());
-      return data_[CircularIncrement(front_index_)];
+    const T& front() const LIFETIME_BOUND {
+      CHECK(!empty());
+      return data_[CircularIncrement(before_front_index_)];
     }
 
-    T& back() {
-      DCHECK(!empty());
+    T& back() LIFETIME_BOUND {
+      CHECK(!empty());
       return data_[back_index_];
     }
 
-    const T& back() const {
-      DCHECK(!empty());
+    const T& back() const LIFETIME_BOUND {
+      CHECK(!empty());
       return data_[back_index_];
     }
 
     size_t CircularDecrement(size_t index) const {
       if (index == 0)
-        return capacity_ - 1;
+        return capacity() - 1;
       return index - 1;
     }
 
     size_t CircularIncrement(size_t index) const {
-      DCHECK_LT(index, capacity_);
+      CHECK_LT(index, capacity());
       ++index;
-      if (index == capacity_)
+      if (index == capacity()) {
         return 0;
+      }
       return index;
     }
 
-    size_t capacity_;
-    size_t front_index_;
-    size_t back_index_;
-    raw_ptr<T> data_;
-    std::unique_ptr<Ring> next_;
+    AlignedHeapArray<char> backing_store_;
+    raw_span<T> data_;
+    // Indices into `data_` for one-before-the-first element and the last
+    // element. The back_index_ may be less than before_front_index_ if the
+    // elements wrap around the back of the array. If they are equal, then the
+    // Ring is empty.
+    size_t before_front_index_ = 0;
+    size_t back_index_ = 0;
+    std::unique_ptr<Ring> next_ = nullptr;
   };
 
  public:
@@ -336,7 +336,8 @@ class LazilyDeallocatedDeque {
     Iterator& operator++() {
       if (index_ == ring_->back_index_) {
         ring_ = ring_->next_.get();
-        index_ = ring_ ? ring_->CircularIncrement(ring_->front_index_) : 0;
+        index_ =
+            ring_ ? ring_->CircularIncrement(ring_->before_front_index_) : 0;
       } else {
         index_ = ring_->CircularIncrement(index_);
       }
@@ -354,7 +355,7 @@ class LazilyDeallocatedDeque {
       }
 
       ring_ = ring;
-      index_ = ring_->CircularIncrement(ring->front_index_);
+      index_ = ring_->CircularIncrement(ring->before_front_index_);
     }
 
     raw_ptr<const Ring> ring_;

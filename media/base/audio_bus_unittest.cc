@@ -2,6 +2,11 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#ifdef UNSAFE_BUFFERS_BUILD
+// TODO(crbug.com/40285824): Remove this and convert code to safer constructs.
+#pragma allow_unsafe_buffers
+#endif
+
 #include "media/base/audio_bus.h"
 
 #include <stddef.h>
@@ -11,6 +16,7 @@
 #include <memory>
 
 #include "base/memory/aligned_memory.h"
+#include "base/memory/raw_ptr.h"
 #include "base/strings/stringprintf.h"
 #include "base/test/bind.h"
 #include "base/time/time.h"
@@ -415,7 +421,7 @@ TEST_F(AudioBusTest, FromInterleavedPartial) {
   }
 }
 
-// Verify ToInterleaved() interleaves audio in suported formats correctly.
+// Verify ToInterleaved() interleaves audio in supported formats correctly.
 TEST_F(AudioBusTest, ToInterleaved) {
   std::unique_ptr<AudioBus> bus =
       AudioBus::Create(kTestVectorChannelCount, kTestVectorFrameCount);

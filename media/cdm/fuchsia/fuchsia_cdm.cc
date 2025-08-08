@@ -4,12 +4,16 @@
 
 #include "media/cdm/fuchsia/fuchsia_cdm.h"
 
+#include <optional>
+#include <string_view>
+
 #include "base/fuchsia/fuchsia_logging.h"
 #include "base/fuchsia/mem_buffer_util.h"
 #include "base/logging.h"
+#include "base/memory/raw_ptr.h"
 #include "media/base/callback_registry.h"
+#include "media/base/cdm_factory.h"
 #include "media/base/cdm_promise.h"
-#include "third_party/abseil-cpp/absl/types/optional.h"
 
 #define REJECT_PROMISE_AND_RETURN_IF_BAD_CDM(promise, cdm)         \
   if (!cdm) {                                                      \
@@ -48,8 +52,8 @@ fuchsia::media::drm::LicenseServerMessage CreateLicenseServerMessage(
     const std::vector<uint8_t>& response) {
   fuchsia::media::drm::LicenseServerMessage message;
   message.message = base::MemBufferFromString(
-      base::StringPiece(reinterpret_cast<const char*>(response.data()),
-                        response.size()),
+      std::string_view(reinterpret_cast<const char*>(response.data()),
+                       response.size()),
       "cr-drm-license-server-message");
   return message;
 }
@@ -109,7 +113,6 @@ CdmPromise::Exception ToCdmPromiseException(fuchsia::media::drm::Error error) {
     case fuchsia::media::drm::Error::NOT_PROVISIONED:
       // FuchsiaCdmManager is supposed to provision CDM.
       NOTREACHED();
-      return CdmPromise::Exception::INVALID_STATE_ERROR;
 
     case fuchsia::media::drm::Error::INTERNAL:
       DLOG(ERROR) << "CDM failed due to an internal error.";
@@ -122,7 +125,7 @@ CdmPromise::Exception ToCdmPromiseException(fuchsia::media::drm::Error error) {
 class FuchsiaCdm::CdmSession {
  public:
   using ResultCB =
-      base::OnceCallback<void(absl::optional<CdmPromise::Exception>)>;
+      base::OnceCallback<void(std::optional<CdmPromise::Exception>)>;
   using SessionReadyCB = base::OnceCallback<void(bool success)>;
 
   CdmSession(const FuchsiaCdm::SessionCallbacks* callbacks,
@@ -207,7 +210,7 @@ class FuchsiaCdm::CdmSession {
 
   void OnLicenseMessageGenerated(fuchsia::media::drm::LicenseMessage message) {
     DCHECK(!session_id_.empty());
-    absl::optional<std::string> session_msg =
+    std::optional<std::string> session_msg =
         base::StringFromMemBuffer(message.message);
 
     if (!session_msg) {
@@ -259,11 +262,11 @@ class FuchsiaCdm::CdmSession {
     DCHECK(result_cb_);
     std::move(result_cb_)
         .Run(result.is_err()
-                 ? absl::make_optional(ToCdmPromiseException(result.err()))
-                 : absl::nullopt);
+                 ? std::make_optional(ToCdmPromiseException(result.err()))
+                 : std::nullopt);
   }
 
-  const SessionCallbacks* const session_callbacks_;
+  const raw_ptr<const SessionCallbacks> session_callbacks_;
   base::RepeatingClosure on_new_key_;
 
   fuchsia::media::drm::LicenseSessionPtr session_;
@@ -306,8 +309,7 @@ FuchsiaCdm::FuchsiaCdm(fuchsia::media::drm::ContentDecryptionModulePtr cdm,
     // If the channel closed prior to invoking the ready_cb_, we should invoke
     // it here with failure.
     if (ready_cb_) {
-      std::move(ready_cb_).Run(
-          false, "ContentDecryptionModule closed prior to being ready");
+      std::move(ready_cb_).Run(false, CreateCdmStatus::kDisconnectionError);
     }
   });
 }
@@ -358,6 +360,16 @@ void FuchsiaCdm::SetServerCertificate(
       });
 }
 
+void FuchsiaCdm::GetStatusForPolicy(
+    media::HdcpVersion min_hdcp_version,
+    std::unique_ptr<KeyStatusCdmPromise> promise) {
+  REJECT_PROMISE_AND_RETURN_IF_BAD_CDM(promise, cdm_);
+
+  // Fuchsia devices do not support external display, so the internal display
+  // can support all HDCP levels.
+  promise->resolve(CdmKeyInformation::KeyStatus::USABLE);
+}
+
 void FuchsiaCdm::CreateSessionAndGenerateRequest(
     CdmSessionType session_type,
     EmeInitDataType init_data_type,
@@ -395,7 +407,7 @@ void FuchsiaCdm::CreateSessionAndGenerateRequest(
 
 void FuchsiaCdm::OnProvisioned() {
   if (ready_cb_) {
-    std::move(ready_cb_).Run(true, "");
+    std::move(ready_cb_).Run(true, CreateCdmStatus::kSuccess);
   }
 }
 
@@ -418,7 +430,7 @@ void FuchsiaCdm::OnCreateSession(std::unique_ptr<CdmSession> session,
 void FuchsiaCdm::OnGenerateLicenseRequestStatus(
     CdmSession* session,
     uint32_t promise_id,
-    absl::optional<CdmPromise::Exception> exception) {
+    std::optional<CdmPromise::Exception> exception) {
   DCHECK(session);
   std::string session_id = session->session_id();
 
@@ -506,7 +518,7 @@ void FuchsiaCdm::UpdateSession(const std::string& session_id,
 void FuchsiaCdm::OnProcessLicenseServerMessageStatus(
     const std::string& session_id,
     uint32_t promise_id,
-    absl::optional<CdmPromise::Exception> exception) {
+    std::optional<CdmPromise::Exception> exception) {
   if (exception.has_value()) {
     promises_.RejectPromise(promise_id, exception.value(), 0,
                             "fail to process license.");
@@ -567,7 +579,7 @@ void FuchsiaCdm::RemoveSession(const std::string& session_id,
 void FuchsiaCdm::OnGenerateLicenseReleaseStatus(
     const std::string& session_id,
     uint32_t promise_id,
-    absl::optional<CdmPromise::Exception> exception) {
+    std::optional<CdmPromise::Exception> exception) {
   if (exception.has_value()) {
     promises_.RejectPromise(promise_id, exception.value(), 0,
                             "Failed to release license.");

@@ -77,10 +77,6 @@
 #include <string.h>
 #include <time.h>
 
-#if defined(STARBOARD)
-#include "starboard/client_porting/eztime/eztime.h"
-#endif
-
 /*
  * The COUNT_LEAPS macro counts the number of leap years passed by
  * till the start of the given year Y.  At the start of the year 4
@@ -100,46 +96,11 @@
 #define COUNT_DAYS(Y) (((Y)-1) * 365 + COUNT_LEAPS(Y))
 #define DAYS_BETWEEN_YEARS(A, B) (COUNT_DAYS(B) - COUNT_DAYS(A))
 
-#if defined(STARBOARD)
-static void sb_localtime_r(const time_t* secs, struct tm* time) {
-  if (secs == nullptr || time == nullptr) {
-    return;
-  }
-  const EzTimeT eztime_secs = static_cast<const EzTimeT>(*secs);
-  EzTimeExploded eztime_result;
-  if (!EzTimeTExplode(&eztime_secs, EzTimeZone::kEzTimeZoneLocal,
-                      &eztime_result)) {
-    return;
-  }
-
-  time->tm_sec = eztime_result.tm_sec;
-  time->tm_min = eztime_result.tm_min;
-  time->tm_hour = eztime_result.tm_hour;
-  time->tm_mday = eztime_result.tm_mday;
-  time->tm_mon = eztime_result.tm_mon;
-  time->tm_year = eztime_result.tm_year;
-  time->tm_wday = eztime_result.tm_wday;
-  time->tm_yday = eztime_result.tm_yday;
-  time->tm_isdst = eztime_result.tm_isdst;
-}
-
-time_t sb_mktime(struct tm *tm) {
-  if (tm == nullptr) {
-    return -1;
-  }
-  EzTimeExploded exploded = {tm->tm_sec,  tm->tm_min,  tm->tm_hour,
-                             tm->tm_mday, tm->tm_mon,  tm->tm_year,
-                             tm->tm_wday, tm->tm_yday, tm->tm_isdst};
-  EzTimeT secs = EzTimeTImplode(&exploded, EzTimeZone::kEzTimeZoneLocal);
-  return static_cast<time_t>(secs);
-}
-#else
 /* Implements the Unix localtime_r() function for windows */
 #if BUILDFLAG(IS_WIN)
 static void localtime_r(const time_t* secs, struct tm* time) {
   (void) localtime_s(time, secs);
 }
-#endif
 #endif
 
 /*
@@ -1177,9 +1138,7 @@ PR_ParseTimeString(
                      and if you're wrong, it will "fix" it for you. */
                   localTime.tm_isdst = -1;
 
-#if defined(STARBOARD)
-                  secs = sb_mktime(&localTime);
-#elif _MSC_VER == 1400  /* 1400 = Visual C++ 2005 (8.0) */
+#if _MSC_VER == 1400  /* 1400 = Visual C++ 2005 (8.0) */
                   /*
                    * mktime will return (time_t) -1 if the input is a date
                    * after 23:59:59, December 31, 3000, US Pacific Time (not
@@ -1216,11 +1175,7 @@ PR_ParseTimeString(
                    zone_offset for the date we are parsing is the same as
                    the zone offset on 00:00:00 2 Jan 1970 GMT. */
                 secs = 86400;
-#if defined(STARBOARD)
-                sb_localtime_r(&secs, &localTime);
-#else
                 localtime_r(&secs, &localTime);
-#endif
                 zone_offset = localTime.tm_min
                               + 60 * localTime.tm_hour
                               + 1440 * (localTime.tm_mday - 2);

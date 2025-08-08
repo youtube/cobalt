@@ -1,24 +1,24 @@
-// Copyright 2015 The Chromium Authors. All rights reserved.
+// Copyright 2015 The Chromium Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
 #include "components/metrics/drive_metrics_provider.h"
 
 #include <windows.h>
+
 #include <winioctl.h>
+
 #include <vector>
 
 #include "base/files/file.h"
 #include "base/files/file_path.h"
-#include "base/strings/stringprintf.h"
 
 namespace metrics {
 
 // static
 bool DriveMetricsProvider::HasSeekPenalty(const base::FilePath& path,
                                           bool* has_seek_penalty) {
-  std::vector<base::FilePath::StringType> components;
-  path.GetComponents(&components);
+  std::vector<base::FilePath::StringType> components = path.GetComponents();
 
   base::File volume(base::FilePath(L"\\\\.\\" + components[0]),
                     base::File::FLAG_OPEN);

@@ -1,4 +1,3 @@
-#!/usr/bin/env vpython3
 # Copyright 2022 The Chromium Authors
 # Use of this source code is governed by a BSD-style license that can be
 # found in the LICENSE file.
@@ -6,11 +5,10 @@
 
 import argparse
 import contextlib
-import sys
 
 from typing import Iterator, Optional
 
-from common import REPO_ALIAS, register_device_args, run_ffx_command
+from common import REPO_ALIAS, run_ffx_command
 
 _REPO_NAME = 'chromium-test-package-server'
 
@@ -19,11 +17,12 @@ def _stop_serving(repo_name: str, target: Optional[str]) -> None:
     """Stop serving a repository."""
 
     # Attempt to clean up.
-    run_ffx_command(['target', 'repository', 'deregister', '-r', repo_name],
-                    target,
-                    check=False)
-    run_ffx_command(['repository', 'remove', repo_name], check=False)
-    run_ffx_command(['repository', 'server', 'stop'], check=False)
+    run_ffx_command(
+        cmd=['target', 'repository', 'deregister', '-r', repo_name],
+        target_id=target,
+        check=False)
+    run_ffx_command(cmd=['repository', 'remove', repo_name], check=False)
+    run_ffx_command(cmd=['repository', 'server', 'stop'], check=False)
 
 
 def _start_serving(repo_dir: str, repo_name: str,
@@ -36,14 +35,16 @@ def _start_serving(repo_dir: str, repo_name: str,
         target: Fuchsia device the repository is served to.
     """
 
-    run_ffx_command(('config', 'set', 'repository.server.mode', '\"ffx\"'))
+    run_ffx_command(cmd=('config', 'set', 'repository.server.mode', '\"ffx\"'))
 
-    run_ffx_command(['repository', 'server', 'start'])
-    run_ffx_command(['repository', 'add-from-pm', repo_dir, '-r', repo_name])
-    run_ffx_command([
+    run_ffx_command(cmd=['repository', 'server', 'start'])
+    run_ffx_command(
+        cmd=['repository', 'add-from-pm', repo_dir, '-r', repo_name])
+    run_ffx_command(cmd=[
         'target', 'repository', 'register', '-r', repo_name, '--alias',
         REPO_ALIAS
-    ], target)
+    ],
+                    target_id=target)
 
 
 def register_serve_args(arg_parser: argparse.ArgumentParser) -> None:
@@ -59,40 +60,11 @@ def register_serve_args(arg_parser: argparse.ArgumentParser) -> None:
                             help='Name of the repository.')
 
 
-def run_serve_cmd(cmd: str, args: argparse.Namespace) -> None:
-    """Helper for running serve commands."""
-
-    if cmd == 'start':
-        _start_serving(args.repo, args.repo_name, args.target_id)
-    else:
-        _stop_serving(args.repo_name, args.target_id)
-
-
 @contextlib.contextmanager
 def serve_repository(args: argparse.Namespace) -> Iterator[None]:
     """Context manager for serving a repository."""
-    run_serve_cmd('start', args)
+    _start_serving(args.repo, args.repo_name, args.target_id)
     try:
         yield None
     finally:
-        run_serve_cmd('stop', args)
-
-
-def main():
-    """Stand-alone function for serving a repository."""
-
-    parser = argparse.ArgumentParser()
-    parser.add_argument('cmd',
-                        choices=['start', 'stop'],
-                        help='Choose to start|stop repository serving.')
-    register_device_args(parser)
-    register_serve_args(parser)
-    args = parser.parse_args()
-    if args.cmd == 'start' and not args.repo:
-        raise ValueError('Directory the repository is serving from needs '
-                         'to be specified.')
-    run_serve_cmd(args.cmd, args)
-
-
-if __name__ == '__main__':
-    sys.exit(main())
+        _stop_serving(args.repo_name, args.target_id)

@@ -1,7 +1,7 @@
 // Copyright 2015 The Chromium Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
-//
+
 // Overview
 //
 // The main entry point is CertNetFetcherURLRequest. This is an implementation
@@ -63,10 +63,12 @@
 #include <utility>
 
 #include "base/check_op.h"
+#include "base/containers/extend.h"
 #include "base/functional/bind.h"
 #include "base/functional/callback_helpers.h"
 #include "base/memory/ptr_util.h"
 #include "base/memory/raw_ptr.h"
+#include "base/not_fatal_until.h"
 #include "base/numerics/safe_math.h"
 #include "base/ranges/algorithm.h"
 #include "base/synchronization/waitable_event.h"
@@ -462,7 +464,7 @@ void Job::DetachRequest(CertNetFetcherURLRequest::RequestCore* request) {
   std::unique_ptr<Job> delete_this;
 
   auto it = base::ranges::find(requests_, request);
-  DCHECK(it != requests_.end());
+  CHECK(it != requests_.end(), base::NotFatalUntil::M130);
   requests_.erase(it);
 
   // If there are no longer any requests attached to the job then
@@ -479,7 +481,7 @@ void Job::StartURLRequest(URLRequestContext* context) {
   }
 
   // Start the URLRequest.
-  read_buffer_ = base::MakeRefCounted<IOBuffer>(kReadBufferSizeInBytes);
+  read_buffer_ = base::MakeRefCounted<IOBufferWithSize>(kReadBufferSizeInBytes);
   NetworkTrafficAnnotationTag traffic_annotation =
       DefineNetworkTrafficAnnotation("certificate_verifier_url_request",
                                      R"(
@@ -523,7 +525,7 @@ void Job::StartURLRequest(URLRequestContext* context) {
   url_request_->SetSecureDnsPolicy(SecureDnsPolicy::kDisable);
 
   // Create IsolationInfo based on the origin of the requested URL.
-  // TODO(https://crbug.com/1016890): Cert validation needs to either be
+  // TODO(crbug.com/40104280): Cert validation needs to either be
   // double-keyed or based on a static database, to protect it from being used
   // as a cross-site user tracking vector. For now, just treat it as if it were
   // a subresource request of the origin used for the request. This allows the
@@ -533,6 +535,12 @@ void Job::StartURLRequest(URLRequestContext* context) {
   url_request_->set_isolation_info(IsolationInfo::Create(
       IsolationInfo::RequestType::kOther, origin /* top_frame_origin */,
       origin /* frame_origin */, SiteForCookies()));
+
+  // Ensure that we bypass HSTS for all requests sent through
+  // CertNetFetcherURLRequest, since AIA/CRL/OCSP requests must be in HTTP to
+  // avoid circular dependencies.
+  url_request_->SetLoadFlags(url_request_->load_flags() |
+                             net::LOAD_SHOULD_BYPASS_HSTS);
 
   url_request_->Start();
 
@@ -624,9 +632,8 @@ bool Job::ConsumeBytesRead(URLRequest* request, int num_bytes) {
   }
 
   // Append the data to |response_body_|.
-  response_body_.reserve(num_bytes);
-  response_body_.insert(response_body_.end(), read_buffer_->data(),
-                        read_buffer_->data() + num_bytes);
+  response_body_.reserve(response_body_.size() + num_bytes);
+  base::Extend(response_body_, read_buffer_->span().subspan(0, num_bytes));
   return true;
 }
 

@@ -8,6 +8,8 @@
 #include <stddef.h>
 #include <stdint.h>
 
+#include <optional>
+
 #include "base/memory/scoped_refptr.h"
 #include "base/sequence_checker.h"
 #include "base/threading/thread_checker.h"
@@ -22,7 +24,6 @@
 #include "media/base/video_frame.h"
 #include "media/base/video_transformation.h"
 #include "media/renderers/video_frame_yuv_converter.h"
-#include "third_party/abseil-cpp/absl/types/optional.h"
 
 namespace gfx {
 class RectF;
@@ -30,6 +31,7 @@ class RectF;
 
 namespace gpu {
 struct Capabilities;
+class ClientSharedImage;
 
 namespace gles2 {
 class GLES2Interface;
@@ -62,18 +64,28 @@ class MEDIA_EXPORT PaintCanvasVideoRenderer {
 
   ~PaintCanvasVideoRenderer();
 
-  // Paints |video_frame| translated and scaled to |dest_rect| on |canvas|.
+  // Paints `video_frame` on `canvas`. The below Paint and Copy functions call
+  // into this function.
   //
-  // If the format of |video_frame| is PIXEL_FORMAT_NATIVE_TEXTURE, |context_3d|
-  // and |context_support| must be provided.
+  // If the format of `video_frame` is PIXEL_FORMAT_NATIVE_TEXTURE, `context_3d`
+  // and `context_support` must be provided.
   //
-  // If |video_frame| is nullptr or an unsupported format, |dest_rect| will be
-  // painted black.
+  // If `video_frame` is nullptr or an unsupported format, then paint black.
+  struct PaintParams {
+    // Translate and scale the video frame to `dest_rect` on the specified
+    // canvas. If not specified, then this will be a rectangle at 0,0 with the
+    // size of `video_frame->visible_rect().size()`.
+    std::optional<gfx::RectF> dest_rect;
+    // If true, then reinterpret the video frame as being in sRGB color space
+    // (though preserving the original YUV to RGB matrix) when drawing.
+    bool reinterpret_as_srgb = false;
+    // The transformation to apply to the video before the copy.
+    VideoTransformation transformation = media::kNoTransformation;
+  };
   void Paint(scoped_refptr<VideoFrame> video_frame,
              cc::PaintCanvas* canvas,
-             const gfx::RectF& dest_rect,
              cc::PaintFlags& flags,
-             VideoTransformation video_transformation,
+             const PaintParams& params,
              viz::RasterContextProvider* raster_context_provider);
 
   // Paints |video_frame|, scaled to its |video_frame->visible_rect().size()|
@@ -128,14 +140,6 @@ class MEDIA_EXPORT PaintCanvasVideoRenderer {
       int level,
       bool premultiply_alpha,
       bool flip_y);
-
-  // TODO(776222): Remove this function from PaintCanvasVideoRenderer.
-  static bool PrepareVideoFrameForWebGL(
-      viz::RasterContextProvider* raster_context_provider,
-      gpu::gles2::GLES2Interface* gl,
-      scoped_refptr<VideoFrame> video_frame,
-      unsigned int target,
-      unsigned int texture);
 
   // Copy the CPU-side YUV contents of |video_frame| to texture |texture| in
   // context |destination_gl|.
@@ -197,6 +201,20 @@ class MEDIA_EXPORT PaintCanvasVideoRenderer {
                             bool flip_y,
                             bool premultiply_alpha);
 
+  // Copies VideoFrame contents to the `destination` shared image. if
+  // `use_visible_rect` is set to true, only `VideoFrame::visible_rect()`
+  // portion is copied, otherwise copies all underlying buffer.
+  [[nodiscard]] gpu::SyncToken CopyVideoFrameToSharedImage(
+      viz::RasterContextProvider* raster_context_provider,
+      scoped_refptr<VideoFrame> video_frame,
+      const gpu::MailboxHolder& destination,
+      bool use_visible_rect);
+
+  // Check whether video frame can be uploaded through
+  // CopyVideoFrameToSharedImage(). The limitation comes from
+  // VideoFrameYUVConverter.
+  bool CanUseCopyVideoFrameToSharedImage(const VideoFrame& video_frame);
+
   // In general, We hold the most recently painted frame to increase the
   // performance for the case that the same frame needs to be painted
   // repeatedly. Call this function if you are sure the most recent frame will
@@ -239,9 +257,6 @@ class MEDIA_EXPORT PaintCanvasVideoRenderer {
     // This is only set if the VideoFrame was texture-backed.
     gfx::Rect visible_rect;
 
-    // True if the underlying resource was created with a top left origin.
-    bool texture_origin_is_top_left = true;
-
     // Used to allow recycling of the previous shared image. This requires that
     // no external users have access to this resource via SkImage. Returns true
     // if the existing resource can be recycled.
@@ -251,27 +266,13 @@ class MEDIA_EXPORT PaintCanvasVideoRenderer {
   // Update the cache holding the most-recently-painted frame. Returns false
   // if the image couldn't be updated.
   bool UpdateLastImage(scoped_refptr<VideoFrame> video_frame,
-                       viz::RasterContextProvider* raster_context_provider,
-                       bool allow_wrap_texture);
+                       viz::RasterContextProvider* raster_context_provider);
 
   bool PrepareVideoFrame(scoped_refptr<VideoFrame> video_frame,
                          viz::RasterContextProvider* raster_context_provider,
                          const gpu::MailboxHolder& dest_holder);
 
-  bool UploadVideoFrameToGLTexture(
-      viz::RasterContextProvider* raster_context_provider,
-      gpu::gles2::GLES2Interface* destination_gl,
-      scoped_refptr<VideoFrame> video_frame,
-      unsigned int target,
-      unsigned int texture,
-      unsigned int internal_format,
-      unsigned int format,
-      unsigned int type,
-      bool flip_y);
-
-  bool CacheBackingWrapsTexture() const;
-
-  absl::optional<Cache> cache_;
+  std::optional<Cache> cache_;
 
   // If |cache_| is not used for a while, it's deleted to save memory.
   base::DelayTimer cache_deleting_timer_;
@@ -293,7 +294,7 @@ class MEDIA_EXPORT PaintCanvasVideoRenderer {
     gfx::Size size;
 
     // The shared image backing the texture.
-    gpu::Mailbox mailbox;
+    scoped_refptr<gpu::ClientSharedImage> shared_image;
 
     // Used to perform YUV->RGB conversion on video frames. Internally caches
     // shared images that are created to upload CPU video frame data to the GPU.

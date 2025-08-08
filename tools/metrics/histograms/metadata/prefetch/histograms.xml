@@ -33,12 +33,16 @@ chromium-metrics-reviews@google.com.
   <variant name="Moderate" summary="Moderate"/>
 </variants>
 
+<variants name="WasServed">
+  <variant name="NotServed" summary="not served"/>
+  <variant name="Served" summary="served"/>
+</variants>
+
 <histogram
     name="PrefetchProxy.AfterClick.BlockUntilHeadDuration.{WasServed}.{SpeculationEagerness}"
-    units="ms" expires_after="2023-09-10">
-  <owner>curranmax@chromium.org</owner>
-  <owner>ryansturm@chromium.org</owner>
-  <owner>spelchat@chromium.org</owner>
+    units="ms" expires_after="2025-03-09">
+  <owner>kouhei@chromium.org</owner>
+  <owner>chrome-loading@chromium.org</owner>
   <summary>
     If a prefetch request has started but the head of the prefetch response has
     not been received yet when a navigation to a URL that matches the prefetch,
@@ -49,42 +53,101 @@ chromium-metrics-reviews@google.com.
     until the head of the prefetch response was received. This histogram is only
     recorded for prefetches that are {WasServed} and with an Eagerness of
     {SpeculationEagerness}.
+
+    Only recorded if `kPrefetchNewWaitLoop` is disabled.
+    `PrefetchProxy.AfterClick.BlockUntilHeadDuration2.{WasServed}.{SpeculationEagerness}`
+    is the corresponding metric for the enabled case. This metric will be
+    removed once `kPrefetchNewWaitLoop` is launched.
   </summary>
-  <token key="WasServed">
-    <variant name="NotServed" summary="not served"/>
-    <variant name="Served" summary="served"/>
-  </token>
+  <token key="WasServed" variants="WasServed"/>
+  <token key="SpeculationEagerness" variants="SpeculationEagerness"/>
+</histogram>
+
+<histogram
+    name="PrefetchProxy.AfterClick.BlockUntilHeadDuration2.{WasServed}.{SpeculationEagerness}"
+    units="ms" expires_after="2025-03-23">
+  <owner>kouhei@chromium.org</owner>
+  <owner>kenoss@chromium.org</owner>
+  <owner>chrome-loading@chromium.org</owner>
+  <summary>
+    When a navigation started, `PrefetchMatchResolver2` collects potentially
+    matching prefetches for it. Judging a prefetch accutally matches or not
+    needs non-redirect header. If a prefetch has non-redirect header and
+    actually matched, then this process ends synchronously. If not, it waits
+    non-redirect headers until it finds a matched and servable one or there is
+    no more candidates.
+
+    This histogram is recorded iff the matching process didn't end synchronously
+    and when the judge for a prefetch is determined. The value is the blocked
+    duration (for each tuple (navigation, candidate prefetch)).
+
+    This histogram is only recorded for prefetches that are {WasServed} and with
+    an Eagerness of {SpeculationEagerness}.
+
+    Only recorded if `kPrefetchNewWaitLoop` is enabled.
+  </summary>
+  <token key="WasServed" variants="WasServed"/>
+  <token key="SpeculationEagerness" variants="SpeculationEagerness"/>
+</histogram>
+
+<histogram
+    name="PrefetchProxy.AfterClick.BlockUntilHeadDuration2NoBias.{WasServed}.{SpeculationEagerness}"
+    units="ms" expires_after="2025-03-23">
+  <owner>kenoss@chromium.org</owner>
+  <owner>chrome-loading@chromium.org</owner>
+  <summary>
+    When a navigation started, `PrefetchMatchResolver2` collects potentially
+    matching prefetches for it. Judging a prefetch accutally matches or not
+    needs non-redirect header. If a prefetch has non-redirect header and
+    actually matched, then this process ends synchronously. If not, it waits
+    non-redirect headers until it finds a matched and servable one or there is
+    no more candidates.
+
+    This histogram is recorded iff a judge for a prefetch is determined. The
+    value is the blocked duration (for each tuple (navigation, candidate
+    prefetch)).
+
+    This histogram is only recorded for prefetches that are {WasServed} and with
+    an Eagerness of {SpeculationEagerness}.
+
+    The difference from
+    PrefetchProxy.AfterClick.BlockUntilHeadDuration2.{WasServed}.{SpeculationEagerness}
+    is that this is also recorded for non-blocked case (i.e. the blocked
+    duration is zero).
+
+    Only recorded if `kPrefetchNewWaitLoop` is enabled.
+  </summary>
+  <token key="WasServed" variants="WasServed"/>
   <token key="SpeculationEagerness" variants="SpeculationEagerness"/>
 </histogram>
 
 <histogram
     name="PrefetchProxy.AfterClick.Mainframe.CookieCopyStartToInterceptorCheck"
-    units="ms" expires_after="2024-04-25">
-  <owner>curranmax@chromium.org</owner>
-  <owner>ryansturm@chromium.org</owner>
-  <owner>spelchat@chromium.org</owner>
+    units="ms" expires_after="2025-03-01">
+  <owner>kouhei@chromium.org</owner>
+  <owner>chrome-loading@chromium.org</owner>
   <summary>
-    Cross-Origin prefetches requested via the Speculation Rules API are made in
-    an isolated network context. When the prefetched link is navigated to, the
-    cookies are copied from this isolated network context to the user's default
-    network context.
+    Cross-Origin prefetches are made in an isolated network context. When the
+    prefetched link is navigated to, the cookies are copied from this isolated
+    network context to the user's default network context.
 
     This histogram records the time from the start of the cookie copy to when
     the URL interceptor trying to serve the prefetch checks the status of the
     cookie copy.
+
+    Warning: this histogram was expired from 2024-09-01 to 2024-10-11; data may
+    be missing.
   </summary>
 </histogram>
 
 <histogram name="PrefetchProxy.AfterClick.Mainframe.CookieCopyTime" units="ms"
-    expires_after="2023-09-10">
-  <owner>curranmax@chromium.org</owner>
-  <owner>ryansturm@chromium.org</owner>
-  <owner>spelchat@chromium.org</owner>
+    expires_after="2025-03-09">
+  <owner>kouhei@chromium.org</owner>
+  <owner>chrome-loading@chromium.org</owner>
   <summary>
-    Cross-Origin prefetches requested via the Speculation Rules API are made in
-    an isolated network context. When the prefetched link is navigated to, the
-    cookies are copied from this isolated network context to the user's default
-    network context.
+    Cross-Origin prefetches are made in an isolated network context. When the
+    prefetched link is navigated to, the cookies are copied from this isolated
+    network context to the user's default network context.
 
     This histogram records the time required to copy cookies from the isolated
     network context used for a prefetch to the user's default network context
@@ -93,15 +156,13 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="PrefetchProxy.AfterClick.Mainframe.CookieReadTime" units="ms"
-    expires_after="2023-09-10">
-  <owner>curranmax@chromium.org</owner>
-  <owner>ryansturm@chromium.org</owner>
-  <owner>spelchat@chromium.org</owner>
+    expires_after="2025-03-01">
+  <owner>kouhei@chromium.org</owner>
+  <owner>chrome-loading@chromium.org</owner>
   <summary>
-    Cross-Origin prefetches requested via the Speculation Rules API are made in
-    an isolated network context. When the prefetched link is na vigated to, the
-    cookies are copied from this isolated network context to the user's default
-    network context.
+    Cross-Origin prefetches are made in an isolated network context. When the
+    prefetched link is navigated to, the cookies are copied from this isolated
+    network context to the user's default network context.
 
     This histogram records the time required to read the cookies from the
     isolated network context used for a prefetch before being copied to the
@@ -112,10 +173,9 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="PrefetchProxy.AfterClick.Mainframe.CookieWaitTime" units="ms"
-    expires_after="2023-09-10">
-  <owner>curranmax@chromium.org</owner>
-  <owner>ryansturm@chromium.org</owner>
-  <owner>spelchat@chromium.org</owner>
+    expires_after="2025-03-01">
+  <owner>kouhei@chromium.org</owner>
+  <owner>chrome-loading@chromium.org</owner>
   <summary>
     Records the amount of time that the navigation to a previously prefetched
     page was delayed because cookies had to be copied from the isolated cookie
@@ -126,32 +186,60 @@ chromium-metrics-reviews@google.com.
     process is recorded to the
     &quot;PrefetchProxy.AfterClick.Mainframe.Cookie(Copy|Read|Write)Time&quot;
     histograms.
+
+    Warning: this histogram was expired from 2024-09-01 to 2024-10-11; data may
+    be missing.
   </summary>
 </histogram>
 
 <histogram name="PrefetchProxy.AfterClick.Mainframe.CookieWriteTime" units="ms"
-    expires_after="2023-09-10">
-  <owner>curranmax@chromium.org</owner>
-  <owner>ryansturm@chromium.org</owner>
-  <owner>spelchat@chromium.org</owner>
+    expires_after="2025-03-01">
+  <owner>kouhei@chromium.org</owner>
+  <owner>chrome-loading@chromium.org</owner>
   <summary>
-    Cross-Origin prefetches requested via the Speculation Rules API are made in
-    an isolated network context. When the prefetched link is na vigated to, the
-    cookies are copied from this isolated network context to the user's default
-    network context.
+    Cross-Origin prefetches are made in an isolated network context. When the
+    prefetched link is navigated to, the cookies are copied from this isolated
+    network context to the user's default network context.
 
     This histogram records the time required to write cookies from the isolated
     network context used for a prefetch to the user's default network context
     after a prefetched link is navigated to. Note this does not include the time
     it takes to read the cookies from the isolated network context.
+
+    Warning: this histogram was expired from 2024-09-01 to 2024-10-11; data may
+    be missing.
   </summary>
 </histogram>
 
+<histogram
+    name="PrefetchProxy.AfterClick.PrefetchMatchingBlockedNavigationWithPrefetch.{SpeculationEagerness}"
+    enum="Boolean" expires_after="2025-03-23">
+  <owner>kouhei@chromium.org</owner>
+  <owner>kenoss@chromium.org</owner>
+  <owner>chrome-loading@chromium.org</owner>
+  <summary>
+    When a navigation started, `PrefetchMatchResolver2` collects potentially
+    matching prefetches for it. Judging a prefetch accutally matches or not
+    needs non-redirect header. If a prefetch has non-redirect header and
+    actually matched, then this process ends synchronously. If not, it waits
+    non-redirect headers until it finds a matched and servable one or there is
+    no more candidates.
+
+    This histogram is recorded when this process ends, for each tuple
+    (navigation, candidate prefetch), true iff didn't end synchronously.
+
+    This histogram is only for prefetches with an eagerness of
+    {SpeculationEagerness}.
+
+    Only recorded if `kPrefetchNewWaitLoop` is enabled.
+  </summary>
+  <token key="SpeculationEagerness" variants="SpeculationEagerness"/>
+</histogram>
+
 <histogram name="PrefetchProxy.AfterClick.RedirectChainSize" units="count"
-    expires_after="2023-09-10">
-  <owner>curranmax@chromium.org</owner>
-  <owner>ryansturm@chromium.org</owner>
-  <owner>spelchat@chromium.org</owner>
+    expires_after="2024-09-01">
+  <owner>kouhei@chromium.org</owner>
+  <owner>chrome-loading@chromium.org</owner>
   <summary>
     The redirect chain size of a served prefetch. This histogram is recorded
     only for prefetches that are served for a navigation.
@@ -160,28 +248,32 @@ chromium-metrics-reviews@google.com.
 
 <histogram
     name="PrefetchProxy.AfterClick.WasBlockedUntilHeadWhenServing.{SpeculationEagerness}"
-    enum="Boolean" expires_after="2023-09-10">
-  <owner>curranmax@chromium.org</owner>
-  <owner>ryansturm@chromium.org</owner>
-  <owner>spelchat@chromium.org</owner>
+    enum="Boolean" expires_after="2025-03-09">
+  <owner>kouhei@chromium.org</owner>
+  <owner>chrome-loading@chromium.org</owner>
   <summary>
-    If a prefetch request has started but the head of the prefetch response has
-    not been received yet when a navigation to a URL that matches the prefetch,
-    then the prefetch service will block until the head of the prefetch response
-    is received and then decide to serve or not serve the prefetch.
+    If a prefetch request has started but the non-redirect header of the
+    prefetch response has not been received yet when a navigation to a URL that
+    is expected to matche the prefetch, then the prefetch service will block
+    until the non-redirect header of the prefetch response is received and then
+    decide to serve or not serve the prefetch.
 
     This histogram records whether or not prefetch service will block or not for
     a prefetch. This histogram is only for prefetches with an Eagerness of
     {SpeculationEagerness}.
+
+    Only recorded if `kPrefetchNewWaitLoop` is disabled.
+    `PrefetchProxy.AfterClick.PrefetchMatchingBlockedNavigationWithPrefetch.{SpeculationEagerness}`
+    is the corresponding metric for the enabled case. This metric will be
+    removed once `kPrefetchNewWaitLoop` is launched.
   </summary>
   <token key="SpeculationEagerness" variants="SpeculationEagerness"/>
 </histogram>
 
 <histogram name="PrefetchProxy.AfterClick.WasFullRedirectChainServed"
-    enum="Boolean" expires_after="2023-09-10">
-  <owner>curranmax@chromium.org</owner>
-  <owner>ryansturm@chromium.org</owner>
-  <owner>spelchat@chromium.org</owner>
+    enum="Boolean" expires_after="2025-01-05">
+  <owner>kouhei@chromium.org</owner>
+  <owner>chrome-loading@chromium.org</owner>
   <summary>
     Whether the full redirect chain of a prefetch is served (true), or just part
     of the redirect was served (false). This histogram is only recorded when: 1)
@@ -192,9 +284,9 @@ chromium-metrics-reviews@google.com.
 
 <histogram
     name="PrefetchProxy.CanaryChecker.CacheEntryAge.{PrefetchProxyCanaryCheckerClient}"
-    units="hours" expires_after="2024-04-25">
-  <owner>curranmax@chromium.org</owner>
-  <owner>chrome-brapp-loading@chromium.org</owner>
+    units="hours" expires_after="2025-04-27">
+  <owner>kouhei@chromium.org</owner>
+  <owner>chrome-loading@chromium.org</owner>
   <summary>
     How old a cached probe result was when it was used, in hours.
   </summary>
@@ -204,14 +296,17 @@ chromium-metrics-reviews@google.com.
 
 <histogram
     name="PrefetchProxy.CanaryChecker.CacheLookupResult.{PrefetchProxyCanaryCheckerClient}"
-    enum="CanaryCheckLookupResult" expires_after="2024-04-25">
-  <owner>curranmax@chromium.org</owner>
-  <owner>chrome-brapp-loading@google.com</owner>
+    enum="CanaryCheckLookupResult" expires_after="2025-05-04">
+  <owner>kouhei@chromium.org</owner>
+  <owner>chrome-loading@chromium.org</owner>
   <summary>
     Records the status of canary check cache lookups. A sample is recorded every
     time Chrome attempts to use a resource prefetched using the prefetch proxy.
     Cache misses or cached failures result in filter probing the origin before
     the prefetched response can be used.
+
+    Warning: this histogram was expired from 2024-09-01 to 2024-10-11; data may
+    be missing.
   </summary>
   <token key="PrefetchProxyCanaryCheckerClient"
       variants="PrefetchProxyCanaryCheckerClient"/>
@@ -219,27 +314,16 @@ chromium-metrics-reviews@google.com.
 
 <histogram
     name="PrefetchProxy.CanaryChecker.FinalState.{PrefetchProxyCanaryCheckerClient}"
-    enum="BooleanSuccess" expires_after="2024-04-25">
-  <owner>curranmax@chromium.org</owner>
-  <owner>chrome-brapp-loading@chromium.org</owner>
+    enum="BooleanSuccess" expires_after="2025-05-04">
+  <owner>kouhei@chromium.org</owner>
+  <owner>chrome-loading@chromium.org</owner>
   <summary>
     Records the end state of a probe just before it goes inactive. This happens
     when the prober succeeds, fails and has no more retries, or the delegate
     stops probing.
-  </summary>
-  <token key="PrefetchProxyCanaryCheckerClient"
-      variants="PrefetchProxyCanaryCheckerClient"/>
-</histogram>
 
-<histogram
-    name="PrefetchProxy.CanaryChecker.GenerateCacheKey.{PrefetchProxyCanaryCheckerClient}"
-    units="ms" expires_after="2024-04-25">
-  <owner>curranmax@chromium.org</owner>
-  <owner>chrome-brapp-loading@chromium.org</owner>
-  <summary>
-    Records the amount of time spent generating a cache key for the availability
-    prober. In particular, this tracks how much getNetworkOperator calls might
-    be slowing down this method. See crbug.com/1266018 for more details.
+    Warning: this histogram was expired from 2024-09-01 to 2024-10-11; data may
+    be missing.
   </summary>
   <token key="PrefetchProxyCanaryCheckerClient"
       variants="PrefetchProxyCanaryCheckerClient"/>
@@ -247,13 +331,16 @@ chromium-metrics-reviews@google.com.
 
 <histogram
     name="PrefetchProxy.CanaryChecker.NetError.{PrefetchProxyCanaryCheckerClient}"
-    enum="NetErrorCodes" expires_after="2024-04-25">
-  <owner>curranmax@chromium.org</owner>
-  <owner>chrome-brapp-loading@chromium.org</owner>
+    enum="NetErrorCodes" expires_after="2025-05-04">
+  <owner>kouhei@chromium.org</owner>
+  <owner>chrome-loading@chromium.org</owner>
   <summary>
     Records the net error of a completed or timed out probe. Note that if a HTTP
     response does not occur within the probe's TTL, when a sample will also be
     added to the ERR_TIMED_OUT bucket.
+
+    Warning: this histogram was expired from 2024-09-01 to 2024-10-11; data may
+    be missing.
   </summary>
   <token key="PrefetchProxyCanaryCheckerClient"
       variants="PrefetchProxyCanaryCheckerClient"/>
@@ -261,9 +348,9 @@ chromium-metrics-reviews@google.com.
 
 <histogram
     name="PrefetchProxy.CanaryChecker.NumAttemptsBeforeSuccess.{PrefetchProxyCanaryCheckerClient}"
-    units="count" expires_after="2024-04-25">
-  <owner>curranmax@chromium.org</owner>
-  <owner>chrome-brapp-loading@chromium.org</owner>
+    units="count" expires_after="2025-03-01">
+  <owner>kouhei@chromium.org</owner>
+  <owner>chrome-loading@chromium.org</owner>
   <summary>
     Records the number of attempts that are made to achieve a successful canary
     check. This is recorded every time we make a canary check and the result is
@@ -271,6 +358,9 @@ chromium-metrics-reviews@google.com.
     already cached or when the check attempt fails after exhausting its retries.
     This metric is 1-based so if a probe succeeds the first time, a sample of 1
     will be recorded.
+
+    Warning: this histogram was expired from 2024-09-01 to 2024-10-11; data may
+    be missing.
   </summary>
   <token key="PrefetchProxyCanaryCheckerClient"
       variants="PrefetchProxyCanaryCheckerClient"/>
@@ -278,12 +368,15 @@ chromium-metrics-reviews@google.com.
 
 <histogram
     name="PrefetchProxy.CanaryChecker.TimeUntilFailure.{PrefetchProxyCanaryCheckerClient}"
-    units="ms" expires_after="2024-04-25">
-  <owner>curranmax@chromium.org</owner>
-  <owner>chrome-brapp-loading@chromium.org</owner>
+    units="ms" expires_after="2025-05-04">
+  <owner>kouhei@chromium.org</owner>
+  <owner>chrome-loading@chromium.org</owner>
   <summary>
     Records the amount of time spent working on a single probe attempt to get to
     a failed state. Recorded every time a probe fails.
+
+    Warning: this histogram was expired from 2024-09-01 to 2024-10-11; data may
+    be missing.
   </summary>
   <token key="PrefetchProxyCanaryCheckerClient"
       variants="PrefetchProxyCanaryCheckerClient"/>
@@ -291,22 +384,25 @@ chromium-metrics-reviews@google.com.
 
 <histogram
     name="PrefetchProxy.CanaryChecker.TimeUntilSuccess.{PrefetchProxyCanaryCheckerClient}"
-    units="ms" expires_after="2024-04-25">
-  <owner>curranmax@chromium.org</owner>
-  <owner>chrome-brapp-loading@chromium.org</owner>
+    units="ms" expires_after="2025-05-04">
+  <owner>kouhei@chromium.org</owner>
+  <owner>chrome-loading@chromium.org</owner>
   <summary>
     Records the amount of time spent working on a single probe attempt to get to
     a successful state. Recorded every time a probe succeeds.
+
+    Warning: this histogram was expired from 2024-09-01 to 2024-10-11; data may
+    be missing.
   </summary>
   <token key="PrefetchProxyCanaryCheckerClient"
       variants="PrefetchProxyCanaryCheckerClient"/>
 </histogram>
 
 <histogram name="PrefetchProxy.Prefetch.ExistingPrefetchWithMatchingURL"
-    units="Boolean" expires_after="2023-08-27">
+    enum="Boolean" expires_after="2024-01-14">
+  <owner>liviutinta@chromium.org</owner>
+  <owner>jbroman@chromium.org</owner>
   <owner>curranmax@chromium.org</owner>
-  <owner>ryansturm@chromium.org</owner>
-  <owner>spelchat@chromium.org</owner>
   <summary>
     Records whether or not there was an existing prefetch with a matching URL
     from a different referring document when a new prefetch is requested. This
@@ -315,34 +411,34 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="PrefetchProxy.Prefetch.Mainframe.BodyLength" units="bytes"
-    expires_after="2023-08-27">
-  <owner>curranmax@chromium.org</owner>
-  <owner>ryansturm@chromium.org</owner>
-  <owner>spelchat@chromium.org</owner>
+    expires_after="2024-09-01">
+  <owner>kouhei@chromium.org</owner>
+  <owner>chrome-loading@chromium.org</owner>
   <summary>
     Records the response body length as cached in memory encountered when
-    isolated prefetching a mainframe HTML resource from the Google Search Result
-    Page. Recorded for non-network error prefetches only.
+    prefetching a mainframe HTML resource. Recorded for non-network error
+    prefetches only.
   </summary>
 </histogram>
 
 <histogram name="PrefetchProxy.Prefetch.Mainframe.ConnectTime" units="ms"
-    expires_after="2023-08-27">
+    expires_after="2025-05-04">
+  <owner>liviutinta@chromium.org</owner>
+  <owner>jbroman@chromium.org</owner>
   <owner>curranmax@chromium.org</owner>
-  <owner>ryansturm@chromium.org</owner>
-  <owner>spelchat@chromium.org</owner>
   <summary>
-    Records the time taken to establish a socket connection when isolated
-    prefetching a mainframe HTML resource from the Google Search Result Page.
-    Recorded for non-network error prefetches only.
+    Records the time taken to establish a socket connection when prefetching a
+    mainframe HTML resource. Recorded for non-network error prefetches only.
+
+    Warning: this histogram was expired from 2024-07-21 to 2024-10-11; data may
+    be missing.
   </summary>
 </histogram>
 
 <histogram name="PrefetchProxy.Prefetch.Mainframe.CookiesToCopy" units="count"
-    expires_after="2023-08-27">
-  <owner>curranmax@chromium.org</owner>
-  <owner>ryansturm@chromium.org</owner>
-  <owner>spelchat@chromium.org</owner>
+    expires_after="2024-09-01">
+  <owner>kouhei@chromium.org</owner>
+  <owner>chrome-loading@chromium.org</owner>
   <summary>
     Records the number of cookies that needed to be copied from the prefetch
     navigation to the user's profile after a prefetched link is navigated to.
@@ -350,70 +446,54 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="PrefetchProxy.Prefetch.Mainframe.NetError"
-    enum="NetErrorCodes" expires_after="2023-08-27">
-  <owner>curranmax@chromium.org</owner>
-  <owner>ryansturm@chromium.org</owner>
-  <owner>spelchat@chromium.org</owner>
+    enum="NetErrorCodes" expires_after="2025-05-04">
+  <owner>kouhei@chromium.org</owner>
+  <owner>chrome-loading@chromium.org</owner>
   <summary>
-    Records the Net Error encountered when isolated prefetching a mainframe HTML
-    resource from the Google Search Result Page. Recorded for every completed
-    prefetch.
+    Records the Net Error encountered when prefetching a mainframe HTML
+    resource. Recorded for every completed prefetch.
+
+    Warning: this histogram was expired from 2024-09-01 to 2024-10-11; data may
+    be missing.
   </summary>
 </histogram>
 
 <histogram name="PrefetchProxy.Prefetch.Mainframe.RespCode"
-    enum="HttpResponseCode" expires_after="2023-08-27">
-  <owner>curranmax@chromium.org</owner>
-  <owner>ryansturm@chromium.org</owner>
-  <owner>spelchat@chromium.org</owner>
+    enum="HttpResponseCode" expires_after="2025-03-30">
+  <owner>kouhei@chromium.org</owner>
+  <owner>chrome-loading@chromium.org</owner>
   <summary>
-    Records the HTTP response code encountered isolated prefetching a mainframe
-    HTML resource from the Google Search Result Page. Recorded for non-network
-    error prefetches only. Redirects are not included here.
+    Records the HTTP response code encountered when prefetching a mainframe HTML
+    resource. Recorded for non-network error prefetches only. Redirects are not
+    included here.
   </summary>
 </histogram>
 
 <histogram name="PrefetchProxy.Prefetch.Mainframe.RetryAfter" units="ms"
-    expires_after="2024-04-25">
-  <owner>curranmax@chromium.org</owner>
-  <owner>ryansturm@chromium.org</owner>
-  <owner>spelchat@chromium.org</owner>
+    expires_after="2024-09-01">
+  <owner>kouhei@chromium.org</owner>
+  <owner>chrome-loading@chromium.org</owner>
   <summary>
     Records the duration of a Retry-After header on a 503 response to a
     mainframe prefetch request.
   </summary>
 </histogram>
 
-<histogram name="PrefetchProxy.Prefetch.Mainframe.TotalRedirects" units="count"
-    expires_after="2023-06-25">
-  <owner>curranmax@chromium.org</owner>
-  <owner>ryansturm@chromium.org</owner>
-  <owner>spelchat@chromium.org</owner>
-  <summary>
-    Records the total number of redirects encountered while doing all the
-    prefetches on an eligible Google Search Result page. Only recorded when at
-    least one prefetch was attempted.
-  </summary>
-</histogram>
-
 <histogram name="PrefetchProxy.Prefetch.Mainframe.TotalTime" units="ms"
-    expires_after="2023-08-27">
-  <owner>curranmax@chromium.org</owner>
-  <owner>ryansturm@chromium.org</owner>
-  <owner>spelchat@chromium.org</owner>
+    expires_after="2025-03-09">
+  <owner>kouhei@chromium.org</owner>
+  <owner>chrome-loading@chromium.org</owner>
   <summary>
-    Records the total time taken when isolated prefetching a mainframe HTML
-    resource from the Google Search Result Page. Recorded for successful
-    non-network error prefetches only.
+    Records the total time taken when prefetching a mainframe HTML resource.
+    Recorded for successful non-network error prefetches only.
   </summary>
 </histogram>
 
 <histogram
     name="PrefetchProxy.Prefetch.NumExistingEligiblePrefetchWithMatchingURL"
-    units="count" expires_after="2023-09-24">
-  <owner>curranmax@chromium.org</owner>
-  <owner>ryansturm@chromium.org</owner>
-  <owner>spelchat@chromium.org</owner>
+    units="count" expires_after="2024-02-04">
+  <owner>kouhei@chromium.org</owner>
+  <owner>chrome-loading@chromium.org</owner>
   <summary>
     Records the number of existing eligible prefetches with a matching URL from
     a different referring document when a new prefetch is requested. This is
@@ -423,10 +503,9 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="PrefetchProxy.Prefetch.NumExistingPrefetchWithMatchingURL"
-    units="count" expires_after="2023-08-27">
-  <owner>curranmax@chromium.org</owner>
-  <owner>ryansturm@chromium.org</owner>
-  <owner>spelchat@chromium.org</owner>
+    units="count" expires_after="2024-01-14">
+  <owner>kouhei@chromium.org</owner>
+  <owner>chrome-loading@chromium.org</owner>
   <summary>
     Records the number of existing prefetches with a matching URL from a
     different referring document when a new prefetch is requested. This is
@@ -436,10 +515,9 @@ chromium-metrics-reviews@google.com.
 
 <histogram
     name="PrefetchProxy.Prefetch.NumExistingPrefetchWithMatchingURLAndReferrer"
-    units="count" expires_after="2023-09-24">
-  <owner>curranmax@chromium.org</owner>
-  <owner>ryansturm@chromium.org</owner>
-  <owner>spelchat@chromium.org</owner>
+    units="count" expires_after="2024-02-04">
+  <owner>kouhei@chromium.org</owner>
+  <owner>chrome-loading@chromium.org</owner>
   <summary>
     Records the number of existing prefetches with a matching referring URL and
     matching prefetch URL from a different referring document when a new
@@ -450,10 +528,9 @@ chromium-metrics-reviews@google.com.
 
 <histogram
     name="PrefetchProxy.Prefetch.NumExistingPrefetchWithMatchingURLAndRenderFrameHost"
-    units="count" expires_after="2023-09-24">
-  <owner>curranmax@chromium.org</owner>
-  <owner>ryansturm@chromium.org</owner>
-  <owner>spelchat@chromium.org</owner>
+    units="count" expires_after="2024-02-04">
+  <owner>kouhei@chromium.org</owner>
+  <owner>chrome-loading@chromium.org</owner>
   <summary>
     Records the number of existing prefetches with a matching referring render
     frame host and matching prefetch URL from a different referring document
@@ -467,10 +544,9 @@ chromium-metrics-reviews@google.com.
 
 <histogram
     name="PrefetchProxy.Prefetch.NumExistingServablePrefetchWithMatchingURL"
-    units="count" expires_after="2023-09-24">
-  <owner>curranmax@chromium.org</owner>
-  <owner>ryansturm@chromium.org</owner>
-  <owner>spelchat@chromium.org</owner>
+    units="count" expires_after="2024-02-04">
+  <owner>kouhei@chromium.org</owner>
+  <owner>chrome-loading@chromium.org</owner>
   <summary>
     Records the number of existing prefetches with a successfully completed
     prefetched responses and matching URL from a different referring document
@@ -480,10 +556,10 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="PrefetchProxy.Prefetch.RedirectChainSize" units="count"
-    expires_after="2023-09-10">
+    expires_after="2025-03-09">
+  <owner>liviutinta@chromium.org</owner>
+  <owner>jbroman@chromium.org</owner>
   <owner>curranmax@chromium.org</owner>
-  <owner>ryansturm@chromium.org</owner>
-  <owner>spelchat@chromium.org</owner>
   <summary>
     The redirect chain size of a prefetch. This histogram is recorded once for
     each prefetch.
@@ -491,38 +567,41 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="PrefetchProxy.Prefetch.StreamingURLLoaderFinalStatus"
-    enum="PrefetchStreamingURLLoaderStatus" expires_after="2023-09-24">
-  <owner>curranmax@chromium.org</owner>
-  <owner>ryansturm@chromium.org</owner>
-  <owner>spelchat@chromium.org</owner>
+    enum="PrefetchStreamingURLLoaderStatus" expires_after="2025-03-09">
+  <owner>kouhei@chromium.org</owner>
+  <owner>chrome-loading@chromium.org</owner>
   <summary>
     Records the final status of the PrefetchStreamingURLLoader used to request
     the prefetch.
 
     This is recorded once for each prefetch that is requested using a streaming
-    URL loader. It is recorded when the streaming URL loader is deleted which
-    can be when: 1) the URL loader is canceled, 2) the URL loader completed
-    serving the prefetch, or 3) the prefetch was deleted and not used.
+    URL loader. It is recorded when the corresponding PrefetchResponseReader is
+    deleted which can be when: 1) the URL loader is canceled, 2) the URL loader
+    completed serving the prefetch, or 3) the prefetch was deleted and not used.
   </summary>
 </histogram>
 
 <histogram name="PrefetchProxy.Proxy.Fallback.NetError" enum="NetErrorCodes"
-    expires_after="2024-04-25">
-  <owner>curranmax@chromium.org</owner>
-  <owner>ryansturm@chromium.org</owner>
-  <owner>spelchat@chromium.org</owner>
+    expires_after="2025-03-01">
+  <owner>kouhei@chromium.org</owner>
+  <owner>chrome-loading@chromium.org</owner>
   <summary>
     Records the Net Error encountered when Chrome did a fallback from the
     prefetch proxy. Recorded only on fallbacks.
+
+    Warning: this histogram was expired from 2024-04-25 to 2024-10-11; data may
+    be missing.
   </summary>
 </histogram>
 
 <histogram name="PrefetchProxy.Proxy.RespCode" enum="HttpResponseCode"
-    expires_after="2023-08-27">
-  <owner>curranmax@chromium.org</owner>
-  <owner>ryansturm@chromium.org</owner>
-  <owner>spelchat@chromium.org</owner>
+    expires_after="2025-04-27">
+  <owner>kouhei@chromium.org</owner>
+  <owner>chrome-loading@chromium.org</owner>
   <summary>
+    Warning: this histogram was expired from 2024-03-17 to 2024-08-20; data may
+    be missing.
+
     Records the HTTP response code encountered when connecting to the prefetch
     proxy CONNECT tunnel. Recorded every time Chrome gets CONNECT tunnel
     response headers.
@@ -530,10 +609,9 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="PrefetchProxy.Redirect.NetworkContextStateTransition"
-    enum="PrefetchRedirectNetworkContextTransition" expires_after="2023-09-10">
-  <owner>curranmax@chromium.org</owner>
-  <owner>ryansturm@chromium.org</owner>
-  <owner>spelchat@chromium.org</owner>
+    enum="PrefetchRedirectNetworkContextTransition" expires_after="2025-03-09">
+  <owner>kouhei@chromium.org</owner>
+  <owner>chrome-loading@chromium.org</owner>
   <summary>
     The network context transition required to handle a redirect while
     prefetching. Prefetches require an isolated network context if user data
@@ -543,39 +621,12 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="PrefetchProxy.Redirect.Result" enum="PrefetchRedirectResult"
-    expires_after="2023-09-10">
-  <owner>curranmax@chromium.org</owner>
-  <owner>ryansturm@chromium.org</owner>
-  <owner>spelchat@chromium.org</owner>
+    expires_after="2025-03-09">
+  <owner>kouhei@chromium.org</owner>
+  <owner>chrome-loading@chromium.org</owner>
   <summary>
     The result of receiving a redirect while prefetching. This histogram is
     recorded for every redirect.
-  </summary>
-</histogram>
-
-<histogram name="PrefetchProxy.SpareRenderer.CountStartedOnSRP" units="count"
-    expires_after="2024-04-25">
-  <owner>curranmax@chromium.org</owner>
-  <owner>ryansturm@chromium.org</owner>
-  <owner>spelchat@chromium.org</owner>
-  <summary>
-    Records the number of spare renderers that were attempted to be started on
-    the SRP, when the feature param is enabled.
-  </summary>
-</histogram>
-
-<histogram name="PrefetchProxy.WasPrefetchTypeStateChangeValid"
-    enum="BooleanSupported" expires_after="2023-04-25">
-  <owner>curranmax@chromium.org</owner>
-  <owner>chrome-brapp-loading@chromium.org</owner>
-  <summary>
-    Records whether a pretch type change was or was not supported by the
-    PrefetchProxy code. A page can change the speculation rule for a given
-    prefetch, but not all possible changes are currently supported. If the type
-    change is not supported then the prefetch retains its initial type.
-
-    This histogram is recorded each time the type of a prefetch is attempted to
-    be changed.
   </summary>
 </histogram>
 

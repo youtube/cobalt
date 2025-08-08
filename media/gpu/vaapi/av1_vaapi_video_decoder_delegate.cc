@@ -2,10 +2,16 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#ifdef UNSAFE_BUFFERS_BUILD
+// TODO(crbug.com/40285824): Remove this and convert code to safer constructs.
+#pragma allow_unsafe_buffers
+#endif
+
 #include "media/gpu/vaapi/av1_vaapi_video_decoder_delegate.h"
 
 #include <string.h>
 #include <va/va.h>
+
 #include <algorithm>
 #include <vector>
 
@@ -14,8 +20,8 @@
 #include "base/memory/scoped_refptr.h"
 #include "build/chromeos_buildflags.h"
 #include "media/gpu/av1_picture.h"
-#include "media/gpu/decode_surface_handler.h"
 #include "media/gpu/vaapi/vaapi_common.h"
+#include "media/gpu/vaapi/vaapi_decode_surface_handler.h"
 #include "media/gpu/vaapi/vaapi_wrapper.h"
 #include "third_party/libgav1/src/src/obu_parser.h"
 #include "third_party/libgav1/src/src/utils/types.h"
@@ -423,7 +429,6 @@ void FillLoopRestorationInfo(VADecPictureParameterBufferAV1& va_pic_param,
       default:
         NOTREACHED() << "Invalid restoration type"
                      << base::strict_cast<int>(lr_type);
-        return 0;
     }
   };
   static_assert(
@@ -551,23 +556,22 @@ bool FillAV1PictureParameter(const AV1Picture& pic,
 
   const libgav1::ObuFrameHeader& frame_header = pic.frame_header;
   const auto* vaapi_pic = static_cast<const VaapiAV1Picture*>(&pic);
-  DCHECK(!!vaapi_pic->display_va_surface() &&
-         !!vaapi_pic->reconstruct_va_surface());
+  DCHECK_NE(vaapi_pic->display_va_surface_id(), VA_INVALID_SURFACE);
+  DCHECK_NE(vaapi_pic->reconstruct_va_surface_id(), VA_INVALID_SURFACE);
   if (frame_header.film_grain_params.apply_grain) {
-    DCHECK_NE(vaapi_pic->display_va_surface()->id(),
-              vaapi_pic->reconstruct_va_surface()->id())
+    DCHECK_NE(vaapi_pic->display_va_surface_id(),
+              vaapi_pic->reconstruct_va_surface_id())
         << "When using film grain synthesis, the display and reconstruct "
            "surfaces"
         << " should be different.";
-    va_pic_param.current_frame = vaapi_pic->reconstruct_va_surface()->id();
-    va_pic_param.current_display_picture =
-        vaapi_pic->display_va_surface()->id();
+    va_pic_param.current_frame = vaapi_pic->reconstruct_va_surface_id();
+    va_pic_param.current_display_picture = vaapi_pic->display_va_surface_id();
   } else {
-    DCHECK_EQ(vaapi_pic->display_va_surface()->id(),
-              vaapi_pic->reconstruct_va_surface()->id())
+    DCHECK_EQ(vaapi_pic->display_va_surface_id(),
+              vaapi_pic->reconstruct_va_surface_id())
         << "When not using film grain synthesis, the display and reconstruct"
         << " surfaces should be the same.";
-    va_pic_param.current_frame = vaapi_pic->display_va_surface()->id();
+    va_pic_param.current_frame = vaapi_pic->display_va_surface_id();
     va_pic_param.current_display_picture = VA_INVALID_SURFACE;
   }
 
@@ -595,7 +599,7 @@ bool FillAV1PictureParameter(const AV1Picture& pic,
     const auto* ref_pic =
         static_cast<const VaapiAV1Picture*>(ref_frames[i].get());
     va_pic_param.ref_frame_map[i] =
-        ref_pic ? ref_pic->reconstruct_va_surface()->id() : VA_INVALID_SURFACE;
+        ref_pic ? ref_pic->reconstruct_va_surface_id() : VA_INVALID_SURFACE;
   }
 
   // |va_pic_param.ref_frame_idx| doesn't need to be filled in for intra frames
@@ -723,7 +727,7 @@ bool FillAV1SliceParameters(
 }  // namespace
 
 AV1VaapiVideoDecoderDelegate::AV1VaapiVideoDecoderDelegate(
-    DecodeSurfaceHandler<VASurface>* const vaapi_dec,
+    VaapiDecodeSurfaceHandler* const vaapi_dec,
     scoped_refptr<VaapiWrapper> vaapi_wrapper,
     ProtectedSessionUpdateCB on_protected_session_update_cb,
     CdmContext* cdm_context,
@@ -744,32 +748,35 @@ AV1VaapiVideoDecoderDelegate::~AV1VaapiVideoDecoderDelegate() {
 scoped_refptr<AV1Picture> AV1VaapiVideoDecoderDelegate::CreateAV1Picture(
     bool apply_grain) {
   DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
-  const auto display_va_surface = vaapi_dec_->CreateSurface();
-  if (!display_va_surface)
+  auto display_va_surface_handle = vaapi_dec_->CreateSurface();
+  if (!display_va_surface_handle) {
     return nullptr;
+  }
 
-  auto reconstruct_va_surface = display_va_surface;
+  // TODO(339518553): Allow not-film grain nullptr |reconstruct_va_surface|.
+  auto reconstruct_va_surface = std::make_unique<VASurfaceHandle>(
+      display_va_surface_handle->id(), base::DoNothing());
   if (apply_grain) {
     // TODO(hiroh): When no surface is available here, this returns nullptr and
     // |display_va_surface| is released. Since the surface is back to the pool,
     // VaapiVideoDecoder will detect that there are surfaces available and will
     // start another decode task which means that CreateSurface() might fail
     // again for |reconstruct_va_surface| since only one surface might have gone
-    // back to the pool (the one for |display_va_surface|). We should avoid this
-    // loop for the sake of efficiency.
+    // back to the pool (the one for |display_va_surface_handle|). We should
+    // avoid this loop for the sake of efficiency.
     reconstruct_va_surface = vaapi_dec_->CreateSurface();
     if (!reconstruct_va_surface)
       return nullptr;
   }
 
   return base::MakeRefCounted<VaapiAV1Picture>(
-      std::move(display_va_surface), std::move(reconstruct_va_surface));
+      std::move(display_va_surface_handle), std::move(reconstruct_va_surface));
 }
 
 bool AV1VaapiVideoDecoderDelegate::OutputPicture(const AV1Picture& pic) {
   DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
   const auto* vaapi_pic = static_cast<const VaapiAV1Picture*>(&pic);
-  vaapi_dec_->SurfaceReady(vaapi_pic->display_va_surface(),
+  vaapi_dec_->SurfaceReady(vaapi_pic->display_va_surface_id(),
                            vaapi_pic->bitstream_id(), vaapi_pic->visible_rect(),
                            vaapi_pic->get_colorspace());
   return true;
@@ -909,7 +916,7 @@ DecodeStatus AV1VaapiVideoDecoderDelegate::SubmitDecode(
 
   const auto* vaapi_pic = static_cast<const VaapiAV1Picture*>(&pic);
   const bool success = vaapi_wrapper_->MapAndCopyAndExecute(
-      vaapi_pic->reconstruct_va_surface()->id(), buffers);
+      vaapi_pic->reconstruct_va_surface_id(), buffers);
   if (!success && NeedsProtectedSessionRecovery())
     return DecodeStatus::kTryAgain;
 
@@ -920,6 +927,7 @@ DecodeStatus AV1VaapiVideoDecoderDelegate::SubmitDecode(
 }
 
 void AV1VaapiVideoDecoderDelegate::OnVAContextDestructionSoon() {
+  DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
   // Destroy the member ScopedVABuffers below since they refer to a VAContextID
   // that will be destroyed soon.
   picture_params_.reset();

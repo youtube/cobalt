@@ -2,6 +2,11 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#ifdef UNSAFE_BUFFERS_BUILD
+// TODO(crbug.com/40285824): Remove this and convert code to safer constructs.
+#pragma allow_unsafe_buffers
+#endif
+
 #include "media/gpu/vaapi/test/h265_vaapi_wrapper.h"
 
 #include "build/chromeos_buildflags.h"
@@ -257,33 +262,47 @@ bool H265VaapiWrapper::SubmitFrameMetadata(
                      std::size(iq_matrix_buf.ScalingListDC32x32)),
                 "Mismatched HEVC scaling list matrix sizes");
 
-  for (int i = 0; i < H265ScalingListData::kNumScalingListMatrices; ++i) {
-    for (int j = 0; j < H265ScalingListData::kScalingListSizeId0Count; ++j)
-      iq_matrix_buf.ScalingList4x4[i][j] = scaling_list.scaling_list_4x4[i][j];
+  for (size_t i = 0; i < H265ScalingListData::kNumScalingListMatrices; ++i) {
+    for (size_t j = 0; j < H265ScalingListData::kScalingListSizeId0Count; ++j) {
+      iq_matrix_buf.ScalingList4x4[i][j] =
+          scaling_list.GetScalingList4x4EntryInRasterOrder(/*matrix_id=*/i,
+                                                           /*raster_idx=*/j);
+    }
   }
 
-  for (int i = 0; i < H265ScalingListData::kNumScalingListMatrices; ++i) {
-    for (int j = 0; j < H265ScalingListData::kScalingListSizeId1To3Count; ++j)
-      iq_matrix_buf.ScalingList8x8[i][j] = scaling_list.scaling_list_8x8[i][j];
+  for (size_t i = 0; i < H265ScalingListData::kNumScalingListMatrices; ++i) {
+    for (size_t j = 0; j < H265ScalingListData::kScalingListSizeId1To3Count;
+         ++j) {
+      iq_matrix_buf.ScalingList8x8[i][j] =
+          scaling_list.GetScalingList8x8EntryInRasterOrder(/*matrix_id=*/i,
+                                                           /*raster_idx=*/j);
+    }
   }
 
-  for (int i = 0; i < H265ScalingListData::kNumScalingListMatrices; ++i) {
-    for (int j = 0; j < H265ScalingListData::kScalingListSizeId1To3Count; ++j)
+  for (size_t i = 0; i < H265ScalingListData::kNumScalingListMatrices; ++i) {
+    for (size_t j = 0; j < H265ScalingListData::kScalingListSizeId1To3Count;
+         ++j) {
       iq_matrix_buf.ScalingList16x16[i][j] =
-          scaling_list.scaling_list_16x16[i][j];
+          scaling_list.GetScalingList16x16EntryInRasterOrder(/*matrix_id=*/i,
+                                                             /*raster_idx=*/j);
+    }
   }
 
-  for (int i = 0; i < H265ScalingListData::kNumScalingListMatrices; i += 3) {
-    for (int j = 0; j < H265ScalingListData::kScalingListSizeId1To3Count; ++j)
+  for (size_t i = 0; i < H265ScalingListData::kNumScalingListMatrices; i += 3) {
+    for (size_t j = 0; j < H265ScalingListData::kScalingListSizeId1To3Count;
+         ++j) {
       iq_matrix_buf.ScalingList32x32[i / 3][j] =
-          scaling_list.scaling_list_32x32[i][j];
+          scaling_list.GetScalingList32x32EntryInRasterOrder(/*matrix_id=*/i,
+                                                             /*raster_idx=*/j);
+    }
   }
 
-  for (int i = 0; i < H265ScalingListData::kNumScalingListMatrices; ++i)
+  for (size_t i = 0; i < H265ScalingListData::kNumScalingListMatrices; ++i) {
     iq_matrix_buf.ScalingListDC16x16[i] =
         scaling_list.scaling_list_dc_coef_16x16[i];
+  }
 
-  for (int i = 0; i < H265ScalingListData::kNumScalingListMatrices; i += 3) {
+  for (size_t i = 0; i < H265ScalingListData::kNumScalingListMatrices; i += 3) {
     iq_matrix_buf.ScalingListDC32x32[i / 3] =
         scaling_list.scaling_list_dc_coef_32x32[i];
   }
@@ -525,7 +544,7 @@ bool H265VaapiWrapper::SubmitBuffer(VABufferType va_buffer_type,
     return false;
   }
 
-  LOG(INFO) << "Submitting Buffer:(size=" << size << ")";
+  DVLOG(3) << "Submitting Buffer:(size=" << size << ")";
   VABufferID buffer_id;
   {
     const VAStatus va_res =
@@ -555,8 +574,8 @@ void H265VaapiWrapper::DestroyPendingBuffers() {
 
 bool H265VaapiWrapper::ExecuteAndDestroyPendingBuffers(
     VASurfaceID va_surface_id) {
-  LOG(INFO) << "Pending VA bufs to commit: " << pending_buffers_.size();
-  LOG(INFO) << "Target VA surface " << va_surface_id;
+  DVLOG(3) << "Pending VA bufs to commit: " << pending_buffers_.size();
+  DVLOG(3) << "Target VA surface " << va_surface_id;
 
   // Get ready to execute for given surface.
   VAStatus va_res =
@@ -600,9 +619,8 @@ VAProfile H265VaapiWrapper::GetProfile(const H265SPS* sps) {
     case H265ProfileTierLevel::H265ProfileIdc::
         kProfileIdcHighThroughputScreenContentCoding:
     default:
-      LOG_ASSERT(false) << "Invalid IDC profile "
-                        << sps->profile_tier_level.general_profile_idc;
-      return VAProfileNone;
+      LOG(FATAL) << "Invalid IDC profile "
+                 << sps->profile_tier_level.general_profile_idc;
   }
 }
 

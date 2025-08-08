@@ -5,14 +5,16 @@
 #include "media/cdm/aes_cbc_crypto.h"
 
 #include <memory>
+#include <optional>
 
 #include "base/containers/span.h"
+#include "base/containers/to_vector.h"
+#include "base/memory/raw_span.h"
 #include "crypto/encryptor.h"
 #include "crypto/symmetric_key.h"
 #include "media/base/decoder_buffer.h"
 #include "media/base/decrypt_config.h"
 #include "testing/gtest/include/gtest/gtest.h"
-#include "third_party/abseil-cpp/absl/types/optional.h"
 #include "third_party/boringssl/src/include/openssl/aes.h"
 #include "third_party/boringssl/src/include/openssl/crypto.h"
 #include "third_party/boringssl/src/include/openssl/err.h"
@@ -65,8 +67,8 @@ class AesCbcCryptoTest : public testing::Test {
         key2_(crypto::SymmetricKey::Import(
             crypto::SymmetricKey::AES,
             std::string(std::begin(kKey2), std::end(kKey2)))),
-        iv_(std::begin(kIv), std::end(kIv)),
-        one_block_(std::begin(kOneBlock), std::end(kOneBlock)) {}
+        iv_(kIv),
+        one_block_(base::ToVector(kOneBlock)) {}
 
   // Encrypt |original| using AES-CBC encryption with |key| and |iv|.
   std::vector<uint8_t> Encrypt(const std::vector<uint8_t>& original,
@@ -84,7 +86,7 @@ class AesCbcCryptoTest : public testing::Test {
     std::string ciphertext;
     EXPECT_TRUE(encryptor.Encrypt(MakeString(original), &ciphertext));
 
-    // CBC encyption adds a block of padding at the end, so discard it.
+    // CBC encryption adds a block of padding at the end, so discard it.
     EXPECT_GT(ciphertext.size(), original.size());
     ciphertext.resize(original.size());
 
@@ -94,7 +96,7 @@ class AesCbcCryptoTest : public testing::Test {
   // Constants for testing.
   std::unique_ptr<crypto::SymmetricKey> key1_;
   std::unique_ptr<crypto::SymmetricKey> key2_;
-  base::span<const uint8_t> iv_;
+  base::raw_span<const uint8_t> iv_;
   const std::vector<uint8_t> one_block_;
 };
 

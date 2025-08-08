@@ -2,17 +2,22 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#ifdef UNSAFE_BUFFERS_BUILD
+// TODO(crbug.com/40285824): Remove this and convert code to safer constructs.
+#pragma allow_unsafe_buffers
+#endif
+
 #include "media/gpu/vaapi/vp9_vaapi_video_decoder_delegate.h"
 
 #include <type_traits>
 
 #include "base/numerics/checked_math.h"
+#include "base/numerics/safe_conversions.h"
 #include "base/trace_event/trace_event.h"
 #include "build/chromeos_buildflags.h"
-#include "media/gpu/decode_surface_handler.h"
 #include "media/gpu/macros.h"
-#include "media/gpu/vaapi/va_surface.h"
 #include "media/gpu/vaapi/vaapi_common.h"
+#include "media/gpu/vaapi/vaapi_decode_surface_handler.h"
 #include "media/gpu/vaapi/vaapi_wrapper.h"
 
 namespace media {
@@ -20,7 +25,7 @@ namespace media {
 using DecodeStatus = VP9Decoder::VP9Accelerator::Status;
 
 VP9VaapiVideoDecoderDelegate::VP9VaapiVideoDecoderDelegate(
-    DecodeSurfaceHandler<VASurface>* const vaapi_dec,
+    VaapiDecodeSurfaceHandler* const vaapi_dec,
     scoped_refptr<VaapiWrapper> vaapi_wrapper,
     ProtectedSessionUpdateCB on_protected_session_update_cb,
     CdmContext* cdm_context,
@@ -40,24 +45,21 @@ VP9VaapiVideoDecoderDelegate::~VP9VaapiVideoDecoderDelegate() {
 
 scoped_refptr<VP9Picture> VP9VaapiVideoDecoderDelegate::CreateVP9Picture() {
   DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
-  const auto va_surface = vaapi_dec_->CreateSurface();
-  if (!va_surface)
+  auto va_surface_handle = vaapi_dec_->CreateSurface();
+  if (!va_surface_handle) {
     return nullptr;
+  }
 
-  return new VaapiVP9Picture(std::move(va_surface));
+  return new VaapiVP9Picture(std::move(va_surface_handle));
 }
 
 DecodeStatus VP9VaapiVideoDecoderDelegate::SubmitDecode(
     scoped_refptr<VP9Picture> pic,
     const Vp9SegmentationParams& seg,
     const Vp9LoopFilterParams& lf,
-    const Vp9ReferenceFrameVector& ref_frames,
-    base::OnceClosure done_cb) {
+    const Vp9ReferenceFrameVector& ref_frames) {
   TRACE_EVENT0("media,gpu", "VP9VaapiVideoDecoderDelegate::SubmitDecode");
   DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
-  // |done_cb| should be null as we return false from
-  // NeedsCompressedHeaderParsed().
-  DCHECK(!done_cb);
 
   const Vp9FrameHeader* frame_hdr = pic->frame_hdr.get();
   DCHECK(frame_hdr);
@@ -88,7 +90,7 @@ DecodeStatus VP9VaapiVideoDecoderDelegate::SubmitDecode(
   VAEncryptionParameters crypto_param{};
   if (IsEncryptedSession()) {
     const ProtectedSessionState state = SetupDecryptDecode(
-        /*full_sample=*/false, frame_hdr->frame_size, &crypto_param,
+        /*full_sample=*/false, frame_hdr->data.size(), &crypto_param,
         &encryption_segment_info,
         decrypt_config ? decrypt_config->subsamples()
                        : std::vector<SubsampleEntry>());
@@ -118,7 +120,7 @@ DecodeStatus VP9VaapiVideoDecoderDelegate::SubmitDecode(
     auto ref_pic = ref_frames.GetFrame(i);
     if (ref_pic) {
       pic_param.reference_frames[i] =
-          ref_pic->AsVaapiVP9Picture()->GetVASurfaceID();
+          ref_pic->AsVaapiVP9Picture()->va_surface_id();
     } else {
       pic_param.reference_frames[i] = VA_INVALID_SURFACE;
     }
@@ -169,7 +171,8 @@ DecodeStatus VP9VaapiVideoDecoderDelegate::SubmitDecode(
   DCHECK((pic_param.profile == 0 && pic_param.bit_depth == 8) ||
          (pic_param.profile == 2 && pic_param.bit_depth == 10));
 
-  slice_param.slice_data_size = frame_hdr->frame_size;
+  slice_param.slice_data_size =
+      base::checked_cast<uint32_t>(frame_hdr->data.size());
   slice_param.slice_data_offset = 0;
   slice_param.slice_data_flag = VA_SLICE_DATA_FLAG_ALL;
 
@@ -249,24 +252,25 @@ DecodeStatus VP9VaapiVideoDecoderDelegate::SubmitDecode(
     protected_vp9_data =
         std::make_unique<uint8_t[]>(protected_data_size.ValueOrDie());
     // Copy the UCH.
-    memcpy(protected_vp9_data.get(), frame_hdr->data,
+    memcpy(protected_vp9_data.get(), frame_hdr->data.data(),
            frame_hdr->uncompressed_header_size);
     // Copy the transcrypted data.
     memcpy(protected_vp9_data.get() + frame_hdr->uncompressed_header_size,
-           frame_hdr->data + decrypt_config->subsamples()[0].clear_bytes,
-           base::strict_cast<size_t>(decrypt_config->subsamples()[0].cypher_bytes));
+           frame_hdr->data.data() + decrypt_config->subsamples()[0].clear_bytes,
+           base::strict_cast<size_t>(
+               decrypt_config->subsamples()[0].cypher_bytes));
     buffers.push_back({encoded_data->id(),
                        {encoded_data->type(), encoded_data->size(),
                         protected_vp9_data.get()}});
   } else {
 #endif  // BUILDFLAG(IS_CHROMEOS_ASH)
     encoded_data = vaapi_wrapper_->CreateVABuffer(VASliceDataBufferType,
-                                                  frame_hdr->frame_size);
+                                                  frame_hdr->data.size());
     if (!encoded_data)
       return DecodeStatus::kFail;
     buffers.push_back(
         {encoded_data->id(),
-         {encoded_data->type(), encoded_data->size(), frame_hdr->data}});
+         {encoded_data->type(), encoded_data->size(), frame_hdr->data.data()}});
 #if BUILDFLAG(IS_CHROMEOS_ASH)
   }
   if (uses_crypto) {
@@ -277,11 +281,8 @@ DecodeStatus VP9VaapiVideoDecoderDelegate::SubmitDecode(
 #endif  // BUILDFLAG(IS_CHROMEOS_ASH)
 
   const VaapiVP9Picture* vaapi_pic = pic->AsVaapiVP9Picture();
-  CHECK(
-      gfx::Rect(vaapi_pic->va_surface()->size()).Contains(pic->visible_rect()));
-
-  bool success = vaapi_wrapper_->MapAndCopyAndExecute(
-      vaapi_pic->GetVASurfaceID(), buffers);
+  const bool success =
+      vaapi_wrapper_->MapAndCopyAndExecute(vaapi_pic->va_surface_id(), buffers);
   if (!success && NeedsProtectedSessionRecovery())
     return DecodeStatus::kTryAgain;
 
@@ -296,21 +297,13 @@ bool VP9VaapiVideoDecoderDelegate::OutputPicture(
   DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
 
   const VaapiVP9Picture* vaapi_pic = pic->AsVaapiVP9Picture();
-  vaapi_dec_->SurfaceReady(vaapi_pic->va_surface(), vaapi_pic->bitstream_id(),
-                           vaapi_pic->visible_rect(),
+  vaapi_dec_->SurfaceReady(vaapi_pic->va_surface_id(),
+                           vaapi_pic->bitstream_id(), vaapi_pic->visible_rect(),
                            vaapi_pic->get_colorspace());
   return true;
 }
 
 bool VP9VaapiVideoDecoderDelegate::NeedsCompressedHeaderParsed() const {
-  return false;
-}
-
-bool VP9VaapiVideoDecoderDelegate::GetFrameContext(
-    scoped_refptr<VP9Picture> pic,
-    Vp9FrameContext* frame_ctx) {
-  DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
-  NOTIMPLEMENTED() << "Frame context update not supported";
   return false;
 }
 

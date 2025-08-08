@@ -6,22 +6,36 @@
 
 #include "net/base/data_url.h"
 
+#include <string>
+#include <string_view>
+
 #include "base/base64.h"
-#include "base/containers/cxx20_erase.h"
-#include "base/feature_list.h"
-#include "base/features.h"
+#include "base/command_line.h"
 #include "base/ranges/algorithm.h"
 #include "base/strings/escape.h"
-#include "base/strings/string_piece.h"
 #include "base/strings/string_split.h"
 #include "base/strings/string_util.h"
+#include "net/base/features.h"
 #include "net/base/mime_util.h"
 #include "net/http/http_response_headers.h"
 #include "net/http/http_util.h"
 #include "url/gurl.h"
 
 namespace net {
+
 namespace {
+
+// Determine if we are in the deprecated mode of whitespace removal
+// Enterprise policies can enable this command line flag to force
+// the old (non-standard compliant) behavior.
+bool HasRemoveWhitespaceCommandLineFlag() {
+  const base::CommandLine* command_line =
+      base::CommandLine::ForCurrentProcess();
+  if (!command_line) {
+    return false;
+  }
+  return command_line->HasSwitch(kRemoveWhitespaceForDataURLs);
+}
 
 // https://infra.spec.whatwg.org/#ascii-whitespace, which is referenced by
 // https://infra.spec.whatwg.org/#forgiving-base64, does not include \v in the
@@ -34,7 +48,7 @@ bool IsBase64Whitespace(char c) {
 //   - Doesn't need any extra padding.
 //   - Does not have any escaped characters.
 //   - Does not have any whitespace.
-bool IsDataURLReadyForDecode(base::StringPiece body) {
+bool IsDataURLReadyForDecode(std::string_view body) {
   return (body.length() % 4) == 0 && base::ranges::none_of(body, [](char c) {
            return c == '%' || IsBase64Whitespace(c);
          });
@@ -53,21 +67,14 @@ bool DataURL::Parse(const GURL& url,
   DCHECK(charset->empty());
   DCHECK(!data || data->empty());
 
-  base::StringPiece content;
-  std::string content_string;
-  if (base::FeatureList::IsEnabled(base::features::kOptimizeDataUrls)) {
-    // Avoid copying the URL content which can be expensive for large URLs.
-    content = url.GetContentPiece();
-  } else {
-    content_string = url.GetContent();
-    content = content_string;
-  }
+  // Avoid copying the URL content which can be expensive for large URLs.
+  std::string_view content = url.GetContentPiece();
 
-  base::StringPiece::const_iterator comma = base::ranges::find(content, ',');
+  std::string_view::const_iterator comma = base::ranges::find(content, ',');
   if (comma == content.end())
     return false;
 
-  std::vector<base::StringPiece> meta_data =
+  std::vector<std::string_view> meta_data =
       base::SplitStringPiece(base::MakeStringPiece(content.begin(), comma), ";",
                              base::TRIM_WHITESPACE, base::SPLIT_WANT_ALL);
 
@@ -80,8 +87,8 @@ bool DataURL::Parse(const GURL& url,
     ++iter;
   }
 
-  static constexpr base::StringPiece kBase64Tag("base64");
-  static constexpr base::StringPiece kCharsetTag("charset=");
+  static constexpr std::string_view kBase64Tag("base64");
+  static constexpr std::string_view kCharsetTag("charset=");
 
   bool base64_encoded = false;
   for (; iter != meta_data.cend(); ++iter) {
@@ -135,25 +142,49 @@ bool DataURL::Parse(const GURL& url,
     // of the data, and should be stripped. Otherwise, the escaped whitespace
     // could be part of the payload, so don't strip it.
     if (base64_encoded) {
-      // If the data URL is well formed, we can decode it immediately.
-      if (base::FeatureList::IsEnabled(base::features::kOptimizeDataUrls) &&
-          IsDataURLReadyForDecode(raw_body)) {
-        if (!base::Base64Decode(raw_body, data))
-          return false;
+      if (base::FeatureList::IsEnabled(features::kOptimizeParsingDataUrls)) {
+        // Since whitespace and invalid characters in input will always cause
+        // `Base64Decode` to fail, just handle unescaping the URL on failure.
+        // This is not much slower than scanning the URL for being well formed
+        // first, even for input with whitespace.
+        if (!base::Base64Decode(raw_body, data)) {
+          std::string unescaped_body =
+              base::UnescapeBinaryURLComponent(raw_body);
+          if (!base::Base64Decode(unescaped_body, data,
+                                  base::Base64DecodePolicy::kForgiving)) {
+            return false;
+          }
+        }
       } else {
-        std::string unescaped_body = base::UnescapeBinaryURLComponent(raw_body);
-        if (!base::Base64Decode(unescaped_body, data,
-                                base::Base64DecodePolicy::kForgiving))
-          return false;
+        // If the data URL is well formed, we can decode it immediately.
+        if (IsDataURLReadyForDecode(raw_body)) {
+          if (!base::Base64Decode(raw_body, data)) {
+            return false;
+          }
+        } else {
+          std::string unescaped_body =
+              base::UnescapeBinaryURLComponent(raw_body);
+          if (!base::Base64Decode(unescaped_body, data,
+                                  base::Base64DecodePolicy::kForgiving)) {
+            return false;
+          }
+        }
       }
     } else {
-      // Strip whitespace for non-text MIME types.
+      // `temp`'s storage needs to be outside feature check since `raw_body` is
+      // a string_view.
       std::string temp;
-      if (!(mime_type_value.compare(0, 5, "text/") == 0 ||
-            mime_type_value.find("xml") != std::string::npos)) {
-        temp = std::string(raw_body);
-        base::EraseIf(temp, base::IsAsciiWhitespace<char>);
-        raw_body = temp;
+      // Strip whitespace for non-text MIME types. This is controlled either by
+      // the feature (finch kill switch) or an enterprise policy which sets the
+      // command line flag.
+      if (!base::FeatureList::IsEnabled(features::kKeepWhitespaceForDataUrls) ||
+          HasRemoveWhitespaceCommandLineFlag()) {
+        if (!(mime_type_value.compare(0, 5, "text/") == 0 ||
+              mime_type_value.find("xml") != std::string::npos)) {
+          temp = std::string(raw_body);
+          std::erase_if(temp, base::IsAsciiWhitespace<char>);
+          raw_body = temp;
+        }
       }
 
       *data = base::UnescapeBinaryURLComponent(raw_body);
@@ -166,7 +197,7 @@ bool DataURL::Parse(const GURL& url,
 }
 
 Error DataURL::BuildResponse(const GURL& url,
-                             base::StringPiece method,
+                             std::string_view method,
                              std::string* mime_type,
                              std::string* charset,
                              std::string* data,
@@ -190,10 +221,14 @@ Error DataURL::BuildResponse(const GURL& url,
   if (!charset->empty())
     content_type.append(";charset=" + *charset);
   // The terminal double CRLF isn't needed by TryToCreate().
-  *headers = HttpResponseHeaders::TryToCreate(
-      "HTTP/1.1 200 OK\r\n"
-      "Content-Type:" +
-      content_type);
+  if (base::FeatureList::IsEnabled(features::kOptimizeParsingDataUrls)) {
+    *headers = HttpResponseHeaders::TryToCreateForDataURL(content_type);
+  } else {
+    *headers = HttpResponseHeaders::TryToCreate(
+        "HTTP/1.1 200 OK\r\n"
+        "Content-Type:" +
+        content_type);
+  }
   // Above line should always succeed - TryToCreate() only fails when there are
   // nulls in the string, and DataURL::Parse() can't return nulls in anything
   // but the |data| argument.

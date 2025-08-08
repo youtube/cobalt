@@ -11,12 +11,10 @@ import subprocess
 import sys
 import typing
 
-# Import the UKM codegen library for its hashing function, which is the same
-# hashing function as used for flag names.
-# TODO(crbug.com/1371214) Move `codegen.HashName()` somewhere common so we don't
-#  depend on 'ukm'.
-sys.path.append(os.path.join(os.path.dirname(__file__), os.pardir, 'ukm'))
-import codegen
+# Import the shared codegen library for its hashing function, which is the
+# same hashing function as used for flag names.
+sys.path.append(os.path.join(os.path.dirname(__file__), os.pardir, 'common'))
+import codegen_shared
 
 sys.path.append(
     os.path.join(os.path.dirname(os.path.abspath(__file__)), os.pardir,
@@ -44,7 +42,7 @@ def get_entries_from_feature_string(feature: str) -> typing.List[str]:
   entries = []
   for suffix in ['disabled', 'enabled']:
     label = f'{feature}:{suffix}'
-    value_64 = codegen.HashName(label)
+    value_64 = codegen_shared.HashName(label)
     value_32 = ctypes.c_int32(value_64).value
     entries.append(f'<int value="{value_32}" label="{label}"/>')
   return entries
@@ -112,8 +110,24 @@ def main():
     fd.seek(0)
     fd.write(enums_xml)
 
-  # Print any changes.
-  subprocess.run(['git', 'diff', xml_path])
+  try:
+    # Print any changes.
+    completed_process = subprocess.run(
+        ['git', 'diff', xml_path],
+        capture_output=True,
+        encoding='utf-8',
+        check=True,
+    )
+    print(completed_process.stdout)
+  except subprocess.CalledProcessError:
+    # This may indicate that this is not a git repository. Output a success
+    # message instead (as the enums.xml file was updated above).
+    print(
+        'Successfully updated '
+        + xml_path
+        + '. Did not display a diff because this does not appear to be a git'
+        + 'repository.'
+    )
 
 
 if __name__ == '__main__':

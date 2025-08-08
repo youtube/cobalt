@@ -1,0 +1,17 @@
+Name: SinonJS
+Short Name: SinonJS
+URL: https://github.com/cjohansen/Sinon.JS
+Version: 1.10.0
+Revision: d2554142e989dc21be2be15d359e68b5e5ef4405
+License: BSD
+License File: LICENSE
+Security Critical: no
+Shipped: no
+
+Description:
+Standalone and test framework agnostic JavaScript test spies, stubs and mocks.
+It is currently used by the chrome remote desktop team for JavaScript unit
+testing.
+
+Local Modifications:
+None

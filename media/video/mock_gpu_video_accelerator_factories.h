@@ -49,7 +49,9 @@ class MockGpuVideoAcceleratorFactories : public GpuVideoAcceleratorFactories {
                                                     RequestOverlayInfoCB));
 
   MOCK_METHOD0(GetVideoEncodeAcceleratorSupportedProfiles,
-               absl::optional<VideoEncodeAccelerator::SupportedProfiles>());
+               std::optional<VideoEncodeAccelerator::SupportedProfiles>());
+  MOCK_METHOD0(GetSupportedVideoDecoderConfigs,
+               std::optional<media::SupportedVideoDecoderConfigs>());
   MOCK_METHOD0(IsEncoderSupportKnown, bool());
   MOCK_METHOD1(NotifyEncoderSupportKnown, void(base::OnceClosure));
   // CreateVideoEncodeAccelerator returns scoped_ptr, which the mocking
@@ -69,7 +71,6 @@ class MockGpuVideoAcceleratorFactories : public GpuVideoAcceleratorFactories {
 
   bool ShouldUseGpuMemoryBuffersForVideoFrames(
       bool for_media_stream) const override;
-  unsigned ImageTextureTarget(gfx::BufferFormat format) override;
   OutputFormat VideoFrameOutputFormat(VideoPixelFormat pixel_format) override {
     return video_frame_output_format_;
   }
@@ -99,13 +100,14 @@ class MockGpuVideoAcceleratorFactories : public GpuVideoAcceleratorFactories {
   std::unique_ptr<VideoEncodeAccelerator> CreateVideoEncodeAccelerator()
       override;
 
-  const std::vector<gfx::GpuMemoryBuffer*>& created_memory_buffers() {
+  const std::vector<raw_ptr<gfx::GpuMemoryBuffer, VectorExperimental>>&
+  created_memory_buffers() {
     return created_memory_buffers_;
   }
 
  private:
   base::Lock lock_;
-  OutputFormat video_frame_output_format_ = OutputFormat::I420;
+  OutputFormat video_frame_output_format_ = OutputFormat::YV12;
 
   bool fail_to_allocate_gpu_memory_buffer_ = false;
 
@@ -113,7 +115,8 @@ class MockGpuVideoAcceleratorFactories : public GpuVideoAcceleratorFactories {
 
   raw_ptr<gpu::SharedImageInterface> sii_;
 
-  std::vector<gfx::GpuMemoryBuffer*> created_memory_buffers_;
+  std::vector<raw_ptr<gfx::GpuMemoryBuffer, VectorExperimental>>
+      created_memory_buffers_;
 };
 
 }  // namespace media

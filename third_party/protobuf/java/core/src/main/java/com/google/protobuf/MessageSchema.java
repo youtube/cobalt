@@ -42,7 +42,6 @@ import static com.google.protobuf.ArrayDecoders.decodeFixed64;
 import static com.google.protobuf.ArrayDecoders.decodeFixed64List;
 import static com.google.protobuf.ArrayDecoders.decodeFloat;
 import static com.google.protobuf.ArrayDecoders.decodeFloatList;
-import static com.google.protobuf.ArrayDecoders.decodeGroupField;
 import static com.google.protobuf.ArrayDecoders.decodeGroupList;
 import static com.google.protobuf.ArrayDecoders.decodeMessageField;
 import static com.google.protobuf.ArrayDecoders.decodeMessageList;
@@ -66,6 +65,8 @@ import static com.google.protobuf.ArrayDecoders.decodeVarint32;
 import static com.google.protobuf.ArrayDecoders.decodeVarint32List;
 import static com.google.protobuf.ArrayDecoders.decodeVarint64;
 import static com.google.protobuf.ArrayDecoders.decodeVarint64List;
+import static com.google.protobuf.ArrayDecoders.mergeGroupField;
+import static com.google.protobuf.ArrayDecoders.mergeMessageField;
 import static com.google.protobuf.ArrayDecoders.skipField;
 
 import com.google.protobuf.ArrayDecoders.Registers;
@@ -82,6 +83,7 @@ import java.util.List;
 import java.util.Map;
 
 /** Schema used for standard messages. */
+@CheckReturnValue
 final class MessageSchema<T> implements Schema<T> {
   private static final int INTS_PER_FIELD = 3;
   private static final int OFFSET_BITS = 20;
@@ -89,6 +91,7 @@ final class MessageSchema<T> implements Schema<T> {
   private static final int FIELD_TYPE_MASK = 0x0FF00000;
   private static final int REQUIRED_MASK = 0x10000000;
   private static final int ENFORCE_UTF8_MASK = 0x20000000;
+  private static final int NO_PRESENCE_SENTINEL = -1 & OFFSET_MASK;
   private static final int[] EMPTY_INT_ARRAY = new int[0];
 
   /** An offset applied to the field type ID for scalar fields that are a member of a oneof. */
@@ -118,6 +121,11 @@ final class MessageSchema<T> implements Schema<T> {
    * [70 -   75] field presence mask shift (unused for oneof/repeated fields)
    * [76 -   95] presence field offset / oneof case field offset / cached size field offset
    * </pre>
+   *
+   * Note that presence field offset can only use 20 bits - 1. All bits set to 1 is the sentinel
+   * value for non-presence. This is not validated at runtime, we simply assume message layouts
+   * will not exceed 1MB (assuming ~10 bytes per field, that implies 100k fields which should hit
+   * other javac limits first).
    */
   private final int[] buffer;
 
@@ -260,7 +268,7 @@ final class MessageSchema<T> implements Schema<T> {
       }
       next = result | (next << shift);
     }
-    final int flags = next;
+    final int unusedFlags = next;
 
     next = info.charAt(i++);
     if (next >= 0xD800) {
@@ -464,8 +472,7 @@ final class MessageSchema<T> implements Schema<T> {
             || oneofFieldType == 17 /* FieldType.GROUP */) {
           objects[bufferIndex / INTS_PER_FIELD * 2 + 1] = messageInfoObjects[objectsPosition++];
         } else if (oneofFieldType == 12 /* FieldType.ENUM */) {
-          // proto2
-          if ((flags & 0x1) == 0x1) {
+          if (!isProto3) {
             objects[bufferIndex / INTS_PER_FIELD * 2 + 1] = messageInfoObjects[objectsPosition++];
           }
         }
@@ -508,7 +515,7 @@ final class MessageSchema<T> implements Schema<T> {
         } else if (fieldType == 12 /* FieldType.ENUM */
             || fieldType == 30 /* FieldType.ENUM_LIST */
             || fieldType == 44 /* FieldType.ENUM_LIST_PACKED */) {
-          if ((flags & 0x1) == 0x1) {
+          if (!isProto3) {
             objects[bufferIndex / INTS_PER_FIELD * 2 + 1] = messageInfoObjects[objectsPosition++];
           }
         } else if (fieldType == 50 /* FieldType.MAP */) {
@@ -520,7 +527,8 @@ final class MessageSchema<T> implements Schema<T> {
         }
 
         fieldOffset = (int) unsafe.objectFieldOffset(field);
-        if ((flags & 0x1) == 0x1 && fieldType <= 17 /* FieldType.GROUP */) {
+        boolean hasHasBit = (fieldTypeWithExtraBits & 0x1000) == 0x1000;
+        if (hasHasBit && fieldType <= 17 /* FieldType.GROUP */) {
           next = info.charAt(i++);
           if (next >= 0xD800) {
             int result = next & 0x1FFF;
@@ -546,7 +554,7 @@ final class MessageSchema<T> implements Schema<T> {
           presenceFieldOffset = (int) unsafe.objectFieldOffset(hasBitsField);
           presenceMaskShift = hasBitsIndex % 32;
         } else {
-          presenceFieldOffset = 0;
+          presenceFieldOffset = NO_PRESENCE_SENTINEL;
           presenceMaskShift = 0;
         }
 
@@ -662,7 +670,7 @@ final class MessageSchema<T> implements Schema<T> {
 
       // We found the entry for the next field. Store the entry in the manifest for
       // this field and increment the field index.
-      storeFieldData(fi, buffer, bufferIndex, isProto3, objects);
+      storeFieldData(fi, buffer, bufferIndex, objects);
 
       // Convert field number to index
       if (checkInitializedIndex < checkInitialized.length
@@ -719,7 +727,7 @@ final class MessageSchema<T> implements Schema<T> {
   }
 
   private static void storeFieldData(
-      FieldInfo fi, int[] buffer, int bufferIndex, boolean proto3, Object[] objects) {
+      FieldInfo fi, int[] buffer, int bufferIndex, Object[] objects) {
     final int fieldOffset;
     final int typeId;
     final int presenceMaskShift;
@@ -735,8 +743,13 @@ final class MessageSchema<T> implements Schema<T> {
       FieldType type = fi.getType();
       fieldOffset = (int) UnsafeUtil.objectFieldOffset(fi.getField());
       typeId = type.id();
-      if (!proto3 && !type.isList() && !type.isMap()) {
-        presenceFieldOffset = (int) UnsafeUtil.objectFieldOffset(fi.getPresenceField());
+      if (!type.isList() && !type.isMap()) {
+        Field presenceField = fi.getPresenceField();
+        if (presenceField == null) {
+          presenceFieldOffset = NO_PRESENCE_SENTINEL;
+        } else {
+          presenceFieldOffset = (int) UnsafeUtil.objectFieldOffset(presenceField);
+        }
         presenceMaskShift = Integer.numberOfTrailingZeros(fi.getPresenceMask());
       } else {
         if (fi.getCachedSizeField() == null) {
@@ -1165,6 +1178,7 @@ final class MessageSchema<T> implements Schema<T> {
 
   @Override
   public void mergeFrom(T message, T other) {
+    checkMutable(message);
     if (other == null) {
       throw new NullPointerException();
     }
@@ -1173,12 +1187,10 @@ final class MessageSchema<T> implements Schema<T> {
       mergeSingleField(message, other, i);
     }
 
-    if (!proto3) {
-      SchemaUtil.mergeUnknownFields(unknownFieldSchema, message, other);
+    SchemaUtil.mergeUnknownFields(unknownFieldSchema, message, other);
 
-      if (hasExtensions) {
-        SchemaUtil.mergeExtensions(extensionSchema, message, other);
-      }
+    if (hasExtensions) {
+      SchemaUtil.mergeExtensions(extensionSchema, message, other);
     }
   }
 
@@ -1365,58 +1377,96 @@ final class MessageSchema<T> implements Schema<T> {
     }
   }
 
-  private void mergeMessage(T message, T other, int pos) {
+  private void mergeMessage(T targetParent, T sourceParent, int pos) {
+    if (!isFieldPresent(sourceParent, pos)) {
+      return;
+    }
+
     final int typeAndOffset = typeAndOffsetAt(pos);
     final long offset = offset(typeAndOffset);
 
-    if (!isFieldPresent(other, pos)) {
+    final Object source = UNSAFE.getObject(sourceParent, offset);
+    if (source == null) {
+      throw new IllegalStateException(
+          "Source subfield " + numberAt(pos) + " is present but null: " + sourceParent);
+    }
+
+    final Schema fieldSchema = getMessageFieldSchema(pos);
+    if (!isFieldPresent(targetParent, pos)) {
+      if (!isMutable(source)) {
+        // Can safely share source if it is immutable
+        UNSAFE.putObject(targetParent, offset, source);
+      } else {
+        // Make a safetey copy of source
+        final Object copyOfSource = fieldSchema.newInstance();
+        fieldSchema.mergeFrom(copyOfSource, source);
+        UNSAFE.putObject(targetParent, offset, copyOfSource);
+      }
+      setFieldPresent(targetParent, pos);
       return;
     }
 
-    Object mine = UnsafeUtil.getObject(message, offset);
-    Object theirs = UnsafeUtil.getObject(other, offset);
-    if (mine != null && theirs != null) {
-      Object merged = Internal.mergeMessage(mine, theirs);
-      UnsafeUtil.putObject(message, offset, merged);
-      setFieldPresent(message, pos);
-    } else if (theirs != null) {
-      UnsafeUtil.putObject(message, offset, theirs);
-      setFieldPresent(message, pos);
+    // Sub-message is present, merge from source
+    Object target = UNSAFE.getObject(targetParent, offset);
+    if (!isMutable(target)) {
+      Object newInstance = fieldSchema.newInstance();
+      fieldSchema.mergeFrom(newInstance, target);
+      UNSAFE.putObject(targetParent, offset, newInstance);
+      target = newInstance;
     }
+    fieldSchema.mergeFrom(target, source);
   }
 
-  private void mergeOneofMessage(T message, T other, int pos) {
-    int typeAndOffset = typeAndOffsetAt(pos);
+  private void mergeOneofMessage(T targetParent, T sourceParent, int pos) {
     int number = numberAt(pos);
-    long offset = offset(typeAndOffset);
-
-    if (!isOneofPresent(other, number, pos)) {
+    if (!isOneofPresent(sourceParent, number, pos)) {
       return;
     }
 
-    Object mine = UnsafeUtil.getObject(message, offset);
-    Object theirs = UnsafeUtil.getObject(other, offset);
-    if (mine != null && theirs != null) {
-      Object merged = Internal.mergeMessage(mine, theirs);
-      UnsafeUtil.putObject(message, offset, merged);
-      setOneofPresent(message, number, pos);
-    } else if (theirs != null) {
-      UnsafeUtil.putObject(message, offset, theirs);
-      setOneofPresent(message, number, pos);
+    long offset = offset(typeAndOffsetAt(pos));
+    final Object source = UNSAFE.getObject(sourceParent, offset);
+    if (source == null) {
+      throw new IllegalStateException(
+          "Source subfield " + numberAt(pos) + " is present but null: " + sourceParent);
     }
+
+    final Schema fieldSchema = getMessageFieldSchema(pos);
+    if (!isOneofPresent(targetParent, number, pos)) {
+      if (!isMutable(source)) {
+        // Can safely share source if it is immutable
+        UNSAFE.putObject(targetParent, offset, source);
+      } else {
+        // Make a safety copy of theirs
+        final Object copyOfSource = fieldSchema.newInstance();
+        fieldSchema.mergeFrom(copyOfSource, source);
+        UNSAFE.putObject(targetParent, offset, copyOfSource);
+      }
+      setOneofPresent(targetParent, number, pos);
+      return;
+    }
+
+    // Sub-message is present, merge from source
+    Object target = UNSAFE.getObject(targetParent, offset);
+    if (!isMutable(target)) {
+      Object newInstance = fieldSchema.newInstance();
+      fieldSchema.mergeFrom(newInstance, target);
+      UNSAFE.putObject(targetParent, offset, newInstance);
+      target = newInstance;
+    }
+    fieldSchema.mergeFrom(target, source);
   }
 
   @Override
   public int getSerializedSize(T message) {
     return proto3 ? getSerializedSizeProto3(message) : getSerializedSizeProto2(message);
   }
-  
+
   @SuppressWarnings("unchecked")
   private int getSerializedSizeProto2(T message) {
     int size = 0;
 
     final sun.misc.Unsafe unsafe = UNSAFE;
-    int currentPresenceFieldOffset = -1;
+    int currentPresenceFieldOffset = NO_PRESENCE_SENTINEL;
     int currentPresenceField = 0;
     for (int i = 0; i < buffer.length; i += INTS_PER_FIELD) {
       final int typeAndOffset = typeAndOffsetAt(i);
@@ -2522,7 +2572,6 @@ final class MessageSchema<T> implements Schema<T> {
     return (List<?>) UnsafeUtil.getObject(message, offset);
   }
 
-  @SuppressWarnings("unchecked")
   @Override
   // TODO(nathanmittler): Consider serializing oneof fields last so that only one entry per
   // oneof is actually serialized. This would mean that we would violate the serialization order
@@ -2550,7 +2599,7 @@ final class MessageSchema<T> implements Schema<T> {
         nextExtension = extensionIterator.next();
       }
     }
-    int currentPresenceFieldOffset = -1;
+    int currentPresenceFieldOffset = NO_PRESENCE_SENTINEL;
     int currentPresenceField = 0;
     final int bufferLength = buffer.length;
     final sun.misc.Unsafe unsafe = UNSAFE;
@@ -2561,7 +2610,7 @@ final class MessageSchema<T> implements Schema<T> {
 
       int presenceMaskAndOffset = 0;
       int presenceMask = 0;
-      if (!proto3 && fieldType <= 17) {
+      if (fieldType <= 17) {
         presenceMaskAndOffset = buffer[pos + 2];
         final int presenceFieldOffset = presenceMaskAndOffset & OFFSET_MASK;
         if (presenceFieldOffset != currentPresenceFieldOffset) {
@@ -2926,7 +2975,6 @@ final class MessageSchema<T> implements Schema<T> {
         nextExtension = extensionIterator.next();
       }
     }
-
     final int bufferLength = buffer.length;
     for (int pos = 0; pos < bufferLength; pos += INTS_PER_FIELD) {
       final int typeAndOffset = typeAndOffsetAt(pos);
@@ -3843,6 +3891,7 @@ final class MessageSchema<T> implements Schema<T> {
     if (extensionRegistry == null) {
       throw new NullPointerException();
     }
+    checkMutable(message);
     mergeFromHelper(unknownFieldSchema, extensionSchema, message, reader, extensionRegistry);
   }
 
@@ -3879,6 +3928,7 @@ final class MessageSchema<T> implements Schema<T> {
             }
             unknownFields =
                 extensionSchema.parseExtension(
+                    message,
                     reader,
                     extension,
                     extensionRegistry,
@@ -3945,21 +3995,10 @@ final class MessageSchema<T> implements Schema<T> {
               break;
             case 9:
               { // MESSAGE:
-                if (isFieldPresent(message, pos)) {
-                  Object mergedResult =
-                      Internal.mergeMessage(
-                          UnsafeUtil.getObject(message, offset(typeAndOffset)),
-                          reader.readMessageBySchemaWithCheck(
-                              (Schema<T>) getMessageFieldSchema(pos), extensionRegistry));
-                  UnsafeUtil.putObject(message, offset(typeAndOffset), mergedResult);
-                } else {
-                  UnsafeUtil.putObject(
-                      message,
-                      offset(typeAndOffset),
-                      reader.readMessageBySchemaWithCheck(
-                          (Schema<T>) getMessageFieldSchema(pos), extensionRegistry));
-                  setFieldPresent(message, pos);
-                }
+                final MessageLite current = (MessageLite) mutableMessageFieldForMerge(message, pos);
+                reader.mergeMessageField(
+                    current, (Schema<MessageLite>) getMessageFieldSchema(pos), extensionRegistry);
+                storeMessageField(message, pos, current);
                 break;
               }
             case 10: // BYTES:
@@ -3980,7 +4019,7 @@ final class MessageSchema<T> implements Schema<T> {
                 } else {
                   unknownFields =
                       SchemaUtil.storeUnknownEnum(
-                          number, enumValue, unknownFields, unknownFieldSchema);
+                          message, number, enumValue, unknownFields, unknownFieldSchema);
                 }
                 break;
               }
@@ -4002,21 +4041,10 @@ final class MessageSchema<T> implements Schema<T> {
               break;
             case 17:
               { // GROUP:
-                if (isFieldPresent(message, pos)) {
-                  Object mergedResult =
-                      Internal.mergeMessage(
-                          UnsafeUtil.getObject(message, offset(typeAndOffset)),
-                          reader.readGroupBySchemaWithCheck(
-                              (Schema<T>) getMessageFieldSchema(pos), extensionRegistry));
-                  UnsafeUtil.putObject(message, offset(typeAndOffset), mergedResult);
-                } else {
-                  UnsafeUtil.putObject(
-                      message,
-                      offset(typeAndOffset),
-                      reader.readGroupBySchemaWithCheck(
-                          (Schema<T>) getMessageFieldSchema(pos), extensionRegistry));
-                  setFieldPresent(message, pos);
-                }
+                final MessageLite current = (MessageLite) mutableMessageFieldForMerge(message, pos);
+                reader.mergeGroupField(
+                    current, (Schema<MessageLite>) getMessageFieldSchema(pos), extensionRegistry);
+                storeMessageField(message, pos, current);
                 break;
               }
             case 18: // DOUBLE_LIST:
@@ -4079,6 +4107,7 @@ final class MessageSchema<T> implements Schema<T> {
                 reader.readEnumList(enumList);
                 unknownFields =
                     SchemaUtil.filterUnknownEnumList(
+                        message,
                         number,
                         enumList,
                         getEnumFieldVerifier(pos),
@@ -4145,6 +4174,7 @@ final class MessageSchema<T> implements Schema<T> {
                 reader.readEnumList(enumList);
                 unknownFields =
                     SchemaUtil.filterUnknownEnumList(
+                        message,
                         number,
                         enumList,
                         getEnumFieldVerifier(pos),
@@ -4225,24 +4255,15 @@ final class MessageSchema<T> implements Schema<T> {
               readString(message, typeAndOffset, reader);
               setOneofPresent(message, number, pos);
               break;
-            case 60: // ONEOF_MESSAGE:
-              if (isOneofPresent(message, number, pos)) {
-                Object mergedResult =
-                    Internal.mergeMessage(
-                        UnsafeUtil.getObject(message, offset(typeAndOffset)),
-                        reader.readMessageBySchemaWithCheck(
-                            getMessageFieldSchema(pos), extensionRegistry));
-                UnsafeUtil.putObject(message, offset(typeAndOffset), mergedResult);
-              } else {
-                UnsafeUtil.putObject(
-                    message,
-                    offset(typeAndOffset),
-                    reader.readMessageBySchemaWithCheck(
-                        getMessageFieldSchema(pos), extensionRegistry));
-                setFieldPresent(message, pos);
+            case 60:
+              { // ONEOF_MESSAGE:
+                final MessageLite current =
+                    (MessageLite) mutableOneofMessageFieldForMerge(message, number, pos);
+                reader.mergeMessageField(
+                    current, (Schema<MessageLite>) getMessageFieldSchema(pos), extensionRegistry);
+                storeOneofMessageField(message, number, pos, current);
+                break;
               }
-              setOneofPresent(message, number, pos);
-              break;
             case 61: // ONEOF_BYTES:
               UnsafeUtil.putObject(message, offset(typeAndOffset), reader.readBytes());
               setOneofPresent(message, number, pos);
@@ -4262,7 +4283,7 @@ final class MessageSchema<T> implements Schema<T> {
                 } else {
                   unknownFields =
                       SchemaUtil.storeUnknownEnum(
-                          number, enumValue, unknownFields, unknownFieldSchema);
+                          message, number, enumValue, unknownFields, unknownFieldSchema);
                 }
                 break;
               }
@@ -4286,17 +4307,19 @@ final class MessageSchema<T> implements Schema<T> {
                   message, offset(typeAndOffset), Long.valueOf(reader.readSInt64()));
               setOneofPresent(message, number, pos);
               break;
-            case 68: // ONEOF_GROUP:
-              UnsafeUtil.putObject(
-                  message,
-                  offset(typeAndOffset),
-                  reader.readGroupBySchemaWithCheck(getMessageFieldSchema(pos), extensionRegistry));
-              setOneofPresent(message, number, pos);
-              break;
+            case 68:
+              { // ONEOF_GROUP:
+                final MessageLite current =
+                    (MessageLite) mutableOneofMessageFieldForMerge(message, number, pos);
+                reader.mergeGroupField(
+                    current, (Schema<MessageLite>) getMessageFieldSchema(pos), extensionRegistry);
+                storeOneofMessageField(message, number, pos, current);
+                break;
+              }
             default:
               // Assume we've landed on an empty entry. Treat it as an unknown field.
               if (unknownFields == null) {
-                unknownFields = unknownFieldSchema.newBuilder();
+                unknownFields = unknownFieldSchema.getBuilderFromMessage(message);
               }
               if (!unknownFieldSchema.mergeOneFieldFrom(unknownFields, reader)) {
                 return;
@@ -4323,7 +4346,8 @@ final class MessageSchema<T> implements Schema<T> {
     } finally {
       for (int i = checkInitializedCount; i < repeatedFieldOffsetStart; i++) {
         unknownFields =
-            filterMapUnknownEnumValues(message, intArray[i], unknownFields, unknownFieldSchema);
+            filterMapUnknownEnumValues(
+                message, intArray[i], unknownFields, unknownFieldSchema, message);
       }
       if (unknownFields != null) {
         unknownFieldSchema.setBuilderToMessage(message, unknownFields);
@@ -4333,6 +4357,8 @@ final class MessageSchema<T> implements Schema<T> {
 
   @SuppressWarnings("ReferenceEquality")
   static UnknownFieldSetLite getMutableUnknownFields(Object message) {
+    // TODO(b/248560713) decide if we're keeping support for Full in schema classes and handle this
+    // better.
     UnknownFieldSetLite unknownFields = ((GeneratedMessageLite) message).unknownFields;
     if (unknownFields == UnknownFieldSetLite.getDefaultInstance()) {
       unknownFields = UnknownFieldSetLite.newInstance();
@@ -4593,24 +4619,13 @@ final class MessageSchema<T> implements Schema<T> {
         } else {
           break;
         }
-        UnknownFieldSetLite unknownFields = ((GeneratedMessageLite) message).unknownFields;
-        if (unknownFields == UnknownFieldSetLite.getDefaultInstance()) {
-          // filterUnknownEnumList() expects the unknownFields parameter to be mutable or null.
-          // Since we don't know yet whether there exist unknown enum values, we'd better pass
-          // null to it instead of allocating a mutable instance. This is also needed to be
-          // consistent with the behavior of generated parser/builder.
-          unknownFields = null;
-        }
-        unknownFields =
-            SchemaUtil.filterUnknownEnumList(
-                number,
-                (ProtobufList<Integer>) list,
-                getEnumFieldVerifier(bufferPosition),
-                unknownFields,
-                (UnknownFieldSchema<UnknownFieldSetLite, UnknownFieldSetLite>) unknownFieldSchema);
-        if (unknownFields != null) {
-          ((GeneratedMessageLite) message).unknownFields = unknownFields;
-        }
+        SchemaUtil.filterUnknownEnumList(
+            message,
+            number,
+            (ProtobufList<Integer>) list,
+            getEnumFieldVerifier(bufferPosition),
+            null,
+            (UnknownFieldSchema<UnknownFieldSetLite, UnknownFieldSetLite>) unknownFieldSchema);
         break;
       case 33: // SINT32_LIST:
       case 47: // SINT32_LIST_PACKED:
@@ -4764,20 +4779,11 @@ final class MessageSchema<T> implements Schema<T> {
         break;
       case 60: // ONEOF_MESSAGE:
         if (wireType == WireFormat.WIRETYPE_LENGTH_DELIMITED) {
+          final Object current = mutableOneofMessageFieldForMerge(message, number, bufferPosition);
           position =
-              decodeMessageField(
-                  getMessageFieldSchema(bufferPosition), data, position, limit, registers);
-          final Object oldValue =
-              unsafe.getInt(message, oneofCaseOffset) == number
-                  ? unsafe.getObject(message, fieldOffset)
-                  : null;
-          if (oldValue == null) {
-            unsafe.putObject(message, fieldOffset, registers.object1);
-          } else {
-            unsafe.putObject(
-                message, fieldOffset, Internal.mergeMessage(oldValue, registers.object1));
-          }
-          unsafe.putInt(message, oneofCaseOffset, number);
+              mergeMessageField(
+                  current, getMessageFieldSchema(bufferPosition), data, position, limit, registers);
+          storeOneofMessageField(message, number, bufferPosition, current);
         }
         break;
       case 61: // ONEOF_BYTES:
@@ -4817,21 +4823,18 @@ final class MessageSchema<T> implements Schema<T> {
         break;
       case 68: // ONEOF_GROUP:
         if (wireType == WireFormat.WIRETYPE_START_GROUP) {
+          final Object current = mutableOneofMessageFieldForMerge(message, number, bufferPosition);
           final int endTag = (tag & ~0x7) | WireFormat.WIRETYPE_END_GROUP;
           position =
-              decodeGroupField(
-                  getMessageFieldSchema(bufferPosition), data, position, limit, endTag, registers);
-          final Object oldValue =
-              unsafe.getInt(message, oneofCaseOffset) == number
-                  ? unsafe.getObject(message, fieldOffset)
-                  : null;
-          if (oldValue == null) {
-            unsafe.putObject(message, fieldOffset, registers.object1);
-          } else {
-            unsafe.putObject(
-                message, fieldOffset, Internal.mergeMessage(oldValue, registers.object1));
-          }
-          unsafe.putInt(message, oneofCaseOffset, number);
+              mergeGroupField(
+                  current,
+                  getMessageFieldSchema(bufferPosition),
+                  data,
+                  position,
+                  limit,
+                  endTag,
+                  registers);
+          storeOneofMessageField(message, number, bufferPosition, current);
         }
         break;
       default:
@@ -4865,11 +4868,13 @@ final class MessageSchema<T> implements Schema<T> {
    * group (endGroup != 0), parsing ends when a tag == endGroup is encountered and the position
    * after that tag is returned.
    */
+  @CanIgnoreReturnValue
   int parseProto2Message(
       T message, byte[] data, int position, int limit, int endGroup, Registers registers)
       throws IOException {
+    checkMutable(message);
     final sun.misc.Unsafe unsafe = UNSAFE;
-    int currentPresenceFieldOffset = -1;
+    int currentPresenceFieldOffset = NO_PRESENCE_SENTINEL;
     int currentPresenceField = 0;
     int tag = 0;
     int oldNumber = -1;
@@ -4903,7 +4908,7 @@ final class MessageSchema<T> implements Schema<T> {
           // We cache the 32-bit has-bits integer value and only write it back when parsing a field
           // using a different has-bits integer.
           if (presenceFieldOffset != currentPresenceFieldOffset) {
-            if (currentPresenceFieldOffset != -1) {
+            if (currentPresenceFieldOffset != NO_PRESENCE_SENTINEL) {
               unsafe.putInt(message, (long) currentPresenceFieldOffset, currentPresenceField);
             }
             currentPresenceFieldOffset = presenceFieldOffset;
@@ -4984,18 +4989,11 @@ final class MessageSchema<T> implements Schema<T> {
               break;
             case 9: // MESSAGE
               if (wireType == WireFormat.WIRETYPE_LENGTH_DELIMITED) {
+                final Object current = mutableMessageFieldForMerge(message, pos);
                 position =
-                    decodeMessageField(
-                        getMessageFieldSchema(pos), data, position, limit, registers);
-                if ((currentPresenceField & presenceMask) == 0) {
-                  unsafe.putObject(message, fieldOffset, registers.object1);
-                } else {
-                  unsafe.putObject(
-                      message,
-                      fieldOffset,
-                      Internal.mergeMessage(
-                          unsafe.getObject(message, fieldOffset), registers.object1));
-                }
+                    mergeMessageField(
+                        current, getMessageFieldSchema(pos), data, position, limit, registers);
+                storeMessageField(message, pos, current);
                 currentPresenceField |= presenceMask;
                 continue;
               }
@@ -5044,20 +5042,18 @@ final class MessageSchema<T> implements Schema<T> {
               break;
             case 17: // GROUP
               if (wireType == WireFormat.WIRETYPE_START_GROUP) {
+                final Object current = mutableMessageFieldForMerge(message, pos);
                 final int endTag = (number << 3) | WireFormat.WIRETYPE_END_GROUP;
                 position =
-                    decodeGroupField(
-                        getMessageFieldSchema(pos), data, position, limit, endTag, registers);
-                if ((currentPresenceField & presenceMask) == 0) {
-                  unsafe.putObject(message, fieldOffset, registers.object1);
-                } else {
-                  unsafe.putObject(
-                      message,
-                      fieldOffset,
-                      Internal.mergeMessage(
-                          unsafe.getObject(message, fieldOffset), registers.object1));
-                }
-
+                    mergeGroupField(
+                        current,
+                        getMessageFieldSchema(pos),
+                        data,
+                        position,
+                        limit,
+                        endTag,
+                        registers);
+                storeMessageField(message, pos, current);
                 currentPresenceField |= presenceMask;
                 continue;
               }
@@ -5145,7 +5141,7 @@ final class MessageSchema<T> implements Schema<T> {
             tag, data, position, limit, getMutableUnknownFields(message), registers);
       }
     }
-    if (currentPresenceFieldOffset != -1) {
+    if (currentPresenceFieldOffset != NO_PRESENCE_SENTINEL) {
       unsafe.putInt(message, (long) currentPresenceFieldOffset, currentPresenceField);
     }
     UnknownFieldSetLite unknownFields = null;
@@ -5155,7 +5151,8 @@ final class MessageSchema<T> implements Schema<T> {
               message,
               intArray[i],
               unknownFields,
-              (UnknownFieldSchema<UnknownFieldSetLite, UnknownFieldSetLite>) unknownFieldSchema);
+              (UnknownFieldSchema<UnknownFieldSetLite, UnknownFieldSetLite>) unknownFieldSchema,
+              message);
     }
     if (unknownFields != null) {
       ((UnknownFieldSchema<UnknownFieldSetLite, UnknownFieldSetLite>) unknownFieldSchema)
@@ -5173,10 +5170,69 @@ final class MessageSchema<T> implements Schema<T> {
     return position;
   }
 
+  private Object mutableMessageFieldForMerge(T message, int pos) {
+    final Schema fieldSchema = getMessageFieldSchema(pos);
+    final long offset = offset(typeAndOffsetAt(pos));
+
+    // Field not present, create a new one
+    if (!isFieldPresent(message, pos)) {
+      return fieldSchema.newInstance();
+    }
+
+    // Field present, if mutable, ready to merge
+    final Object current = UNSAFE.getObject(message, offset);
+    if (isMutable(current)) {
+      return current;
+    }
+
+    // Field present but immutable, make a new mutable copy
+    final Object newMessage = fieldSchema.newInstance();
+    if (current != null) {
+      fieldSchema.mergeFrom(newMessage, current);
+    }
+    return newMessage;
+  }
+
+  private void storeMessageField(T message, int pos, Object field) {
+    UNSAFE.putObject(message, offset(typeAndOffsetAt(pos)), field);
+    setFieldPresent(message, pos);
+  }
+
+  private Object mutableOneofMessageFieldForMerge(T message, int fieldNumber, int pos) {
+    final Schema fieldSchema = getMessageFieldSchema(pos);
+
+    // Field not present, create it and mark it present
+    if (!isOneofPresent(message, fieldNumber, pos)) {
+      return fieldSchema.newInstance();
+    }
+
+    // Field present, if mutable, ready to merge
+    final Object current = UNSAFE.getObject(message, offset(typeAndOffsetAt(pos)));
+    if (isMutable(current)) {
+      return current;
+    }
+
+    // Field present but immutable, make a new mutable copy
+    final Object newMessage = fieldSchema.newInstance();
+    if (current != null) {
+      fieldSchema.mergeFrom(newMessage, current);
+    }
+    return newMessage;
+  }
+
+  private void storeOneofMessageField(T message, int fieldNumber, int pos, Object field) {
+    UNSAFE.putObject(message, offset(typeAndOffsetAt(pos)), field);
+    setOneofPresent(message, fieldNumber, pos);
+  }
+
   /** Parses a proto3 message and returns the limit if parsing is successful. */
+  @CanIgnoreReturnValue
   private int parseProto3Message(
       T message, byte[] data, int position, int limit, Registers registers) throws IOException {
+    checkMutable(message);
     final sun.misc.Unsafe unsafe = UNSAFE;
+    int currentPresenceFieldOffset = NO_PRESENCE_SENTINEL;
+    int currentPresenceField = 0;
     int tag = 0;
     int oldNumber = -1;
     int pos = 0;
@@ -5202,11 +5258,30 @@ final class MessageSchema<T> implements Schema<T> {
         final int fieldType = type(typeAndOffset);
         final long fieldOffset = offset(typeAndOffset);
         if (fieldType <= 17) {
+          // Proto3 optional fields have has-bits.
+          final int presenceMaskAndOffset = buffer[pos + 2];
+          final int presenceMask = 1 << (presenceMaskAndOffset >>> OFFSET_BITS);
+          final int presenceFieldOffset = presenceMaskAndOffset & OFFSET_MASK;
+          // We cache the 32-bit has-bits integer value and only write it back when parsing a field
+          // using a different has-bits integer.
+          //
+          // Note that for fields that do not have hasbits, we unconditionally write and discard
+          // the data.
+          if (presenceFieldOffset != currentPresenceFieldOffset) {
+            if (currentPresenceFieldOffset != NO_PRESENCE_SENTINEL) {
+              unsafe.putInt(message, (long) currentPresenceFieldOffset, currentPresenceField);
+            }
+            if (presenceFieldOffset != NO_PRESENCE_SENTINEL) {
+              currentPresenceField = unsafe.getInt(message, (long) presenceFieldOffset);
+            }
+            currentPresenceFieldOffset = presenceFieldOffset;
+          }
           switch (fieldType) {
             case 0: // DOUBLE:
               if (wireType == WireFormat.WIRETYPE_FIXED64) {
                 UnsafeUtil.putDouble(message, fieldOffset, decodeDouble(data, position));
                 position += 8;
+                currentPresenceField |= presenceMask;
                 continue;
               }
               break;
@@ -5214,6 +5289,7 @@ final class MessageSchema<T> implements Schema<T> {
               if (wireType == WireFormat.WIRETYPE_FIXED32) {
                 UnsafeUtil.putFloat(message, fieldOffset, decodeFloat(data, position));
                 position += 4;
+                currentPresenceField |= presenceMask;
                 continue;
               }
               break;
@@ -5222,6 +5298,7 @@ final class MessageSchema<T> implements Schema<T> {
               if (wireType == WireFormat.WIRETYPE_VARINT) {
                 position = decodeVarint64(data, position, registers);
                 unsafe.putLong(message, fieldOffset, registers.long1);
+                currentPresenceField |= presenceMask;
                 continue;
               }
               break;
@@ -5230,6 +5307,7 @@ final class MessageSchema<T> implements Schema<T> {
               if (wireType == WireFormat.WIRETYPE_VARINT) {
                 position = decodeVarint32(data, position, registers);
                 unsafe.putInt(message, fieldOffset, registers.int1);
+                currentPresenceField |= presenceMask;
                 continue;
               }
               break;
@@ -5238,6 +5316,7 @@ final class MessageSchema<T> implements Schema<T> {
               if (wireType == WireFormat.WIRETYPE_FIXED64) {
                 unsafe.putLong(message, fieldOffset, decodeFixed64(data, position));
                 position += 8;
+                currentPresenceField |= presenceMask;
                 continue;
               }
               break;
@@ -5246,6 +5325,7 @@ final class MessageSchema<T> implements Schema<T> {
               if (wireType == WireFormat.WIRETYPE_FIXED32) {
                 unsafe.putInt(message, fieldOffset, decodeFixed32(data, position));
                 position += 4;
+                currentPresenceField |= presenceMask;
                 continue;
               }
               break;
@@ -5253,6 +5333,7 @@ final class MessageSchema<T> implements Schema<T> {
               if (wireType == WireFormat.WIRETYPE_VARINT) {
                 position = decodeVarint64(data, position, registers);
                 UnsafeUtil.putBoolean(message, fieldOffset, registers.long1 != 0);
+                currentPresenceField |= presenceMask;
                 continue;
               }
               break;
@@ -5264,21 +5345,18 @@ final class MessageSchema<T> implements Schema<T> {
                   position = decodeStringRequireUtf8(data, position, registers);
                 }
                 unsafe.putObject(message, fieldOffset, registers.object1);
+                currentPresenceField |= presenceMask;
                 continue;
               }
               break;
             case 9: // MESSAGE:
               if (wireType == WireFormat.WIRETYPE_LENGTH_DELIMITED) {
+                final Object current = mutableMessageFieldForMerge(message, pos);
                 position =
-                    decodeMessageField(
-                        getMessageFieldSchema(pos), data, position, limit, registers);
-                final Object oldValue = unsafe.getObject(message, fieldOffset);
-                if (oldValue == null) {
-                  unsafe.putObject(message, fieldOffset, registers.object1);
-                } else {
-                  unsafe.putObject(
-                      message, fieldOffset, Internal.mergeMessage(oldValue, registers.object1));
-                }
+                    mergeMessageField(
+                        current, getMessageFieldSchema(pos), data, position, limit, registers);
+                storeMessageField(message, pos, current);
+                currentPresenceField |= presenceMask;
                 continue;
               }
               break;
@@ -5286,6 +5364,7 @@ final class MessageSchema<T> implements Schema<T> {
               if (wireType == WireFormat.WIRETYPE_LENGTH_DELIMITED) {
                 position = decodeBytes(data, position, registers);
                 unsafe.putObject(message, fieldOffset, registers.object1);
+                currentPresenceField |= presenceMask;
                 continue;
               }
               break;
@@ -5293,6 +5372,7 @@ final class MessageSchema<T> implements Schema<T> {
               if (wireType == WireFormat.WIRETYPE_VARINT) {
                 position = decodeVarint32(data, position, registers);
                 unsafe.putInt(message, fieldOffset, registers.int1);
+                currentPresenceField |= presenceMask;
                 continue;
               }
               break;
@@ -5301,6 +5381,7 @@ final class MessageSchema<T> implements Schema<T> {
                 position = decodeVarint32(data, position, registers);
                 unsafe.putInt(
                     message, fieldOffset, CodedInputStream.decodeZigZag32(registers.int1));
+                currentPresenceField |= presenceMask;
                 continue;
               }
               break;
@@ -5309,6 +5390,7 @@ final class MessageSchema<T> implements Schema<T> {
                 position = decodeVarint64(data, position, registers);
                 unsafe.putLong(
                     message, fieldOffset, CodedInputStream.decodeZigZag64(registers.long1));
+                currentPresenceField |= presenceMask;
                 continue;
               }
               break;
@@ -5383,6 +5465,9 @@ final class MessageSchema<T> implements Schema<T> {
       position = decodeUnknownField(
           tag, data, position, limit, getMutableUnknownFields(message), registers);
     }
+    if (currentPresenceFieldOffset != NO_PRESENCE_SENTINEL) {
+      unsafe.putInt(message, (long) currentPresenceFieldOffset, currentPresenceField);
+    }
     if (position != limit) {
       throw InvalidProtocolBufferException.parseFailure();
     }
@@ -5401,18 +5486,73 @@ final class MessageSchema<T> implements Schema<T> {
 
   @Override
   public void makeImmutable(T message) {
-    // Make all repeated/map fields immutable.
-    for (int i = checkInitializedCount; i < repeatedFieldOffsetStart; i++) {
-      long offset = offset(typeAndOffsetAt(intArray[i]));
-      Object mapField = UnsafeUtil.getObject(message, offset);
-      if (mapField == null) {
-        continue;
-      }
-      UnsafeUtil.putObject(message, offset, mapFieldSchema.toImmutable(mapField));
+    if (!isMutable(message)) {
+      return;
     }
-    final int length = intArray.length;
-    for (int i = repeatedFieldOffsetStart; i < length; i++) {
-      listFieldSchema.makeImmutableListAt(message, intArray[i]);
+
+    // TODO(b/248560713) decide if we're keeping support for Full in schema classes and handle this
+    // better.
+    if (message instanceof GeneratedMessageLite) {
+      GeneratedMessageLite<?, ?> generatedMessage = ((GeneratedMessageLite<?, ?>) message);
+      generatedMessage.clearMemoizedSerializedSize();
+      generatedMessage.clearMemoizedHashCode();
+      generatedMessage.markImmutable();
+    }
+
+    final int bufferLength = buffer.length;
+    for (int pos = 0; pos < bufferLength; pos += INTS_PER_FIELD) {
+      final int typeAndOffset = typeAndOffsetAt(pos);
+      final long offset = offset(typeAndOffset);
+      switch (type(typeAndOffset)) {
+        case 17: // GROUP
+        case 9: // MESSAGE
+          if (isFieldPresent(message, pos)) {
+            getMessageFieldSchema(pos).makeImmutable(UNSAFE.getObject(message, offset));
+          }
+          break;
+        case 18: // DOUBLE_LIST:
+        case 19: // FLOAT_LIST:
+        case 20: // INT64_LIST:
+        case 21: // UINT64_LIST:
+        case 22: // INT32_LIST:
+        case 23: // FIXED64_LIST:
+        case 24: // FIXED32_LIST:
+        case 25: // BOOL_LIST:
+        case 26: // STRING_LIST:
+        case 27: // MESSAGE_LIST:
+        case 28: // BYTES_LIST:
+        case 29: // UINT32_LIST:
+        case 30: // ENUM_LIST:
+        case 31: // SFIXED32_LIST:
+        case 32: // SFIXED64_LIST:
+        case 33: // SINT32_LIST:
+        case 34: // SINT64_LIST:
+        case 35: // DOUBLE_LIST_PACKED:
+        case 36: // FLOAT_LIST_PACKED:
+        case 37: // INT64_LIST_PACKED:
+        case 38: // UINT64_LIST_PACKED:
+        case 39: // INT32_LIST_PACKED:
+        case 40: // FIXED64_LIST_PACKED:
+        case 41: // FIXED32_LIST_PACKED:
+        case 42: // BOOL_LIST_PACKED:
+        case 43: // UINT32_LIST_PACKED:
+        case 44: // ENUM_LIST_PACKED:
+        case 45: // SFIXED32_LIST_PACKED:
+        case 46: // SFIXED64_LIST_PACKED:
+        case 47: // SINT32_LIST_PACKED:
+        case 48: // SINT64_LIST_PACKED:
+        case 49: // GROUP_LIST:
+          listFieldSchema.makeImmutableListAt(message, offset);
+          break;
+        case 50: // MAP:
+          {
+            Object mapField = UNSAFE.getObject(message, offset);
+            if (mapField != null) {
+              UNSAFE.putObject(message, offset, mapFieldSchema.toImmutable(mapField));
+            }
+          }
+          break;
+      }
     }
     unknownFieldSchema.makeImmutable(message);
     if (hasExtensions) {
@@ -5449,8 +5589,12 @@ final class MessageSchema<T> implements Schema<T> {
         extensionRegistry);
   }
 
-  private final <UT, UB> UB filterMapUnknownEnumValues(
-      Object message, int pos, UB unknownFields, UnknownFieldSchema<UT, UB> unknownFieldSchema) {
+  private <UT, UB> UB filterMapUnknownEnumValues(
+      Object message,
+      int pos,
+      UB unknownFields,
+      UnknownFieldSchema<UT, UB> unknownFieldSchema,
+      Object containerMessage) {
     int fieldNumber = numberAt(pos);
     long offset = offset(typeAndOffsetAt(pos));
     Object mapField = UnsafeUtil.getObject(message, offset);
@@ -5465,25 +5609,32 @@ final class MessageSchema<T> implements Schema<T> {
     // Filter unknown enum values.
     unknownFields =
         filterUnknownEnumMap(
-            pos, fieldNumber, mapData, enumVerifier, unknownFields, unknownFieldSchema);
+            pos,
+            fieldNumber,
+            mapData,
+            enumVerifier,
+            unknownFields,
+            unknownFieldSchema,
+            containerMessage);
     return unknownFields;
   }
 
   @SuppressWarnings("unchecked")
-  private final <K, V, UT, UB> UB filterUnknownEnumMap(
+  private <K, V, UT, UB> UB filterUnknownEnumMap(
       int pos,
       int number,
       Map<K, V> mapData,
       EnumVerifier enumVerifier,
       UB unknownFields,
-      UnknownFieldSchema<UT, UB> unknownFieldSchema) {
+      UnknownFieldSchema<UT, UB> unknownFieldSchema,
+      Object containerMessage) {
     Metadata<K, V> metadata =
         (Metadata<K, V>) mapFieldSchema.forMapMetadata(getMapFieldDefaultEntry(pos));
     for (Iterator<Map.Entry<K, V>> it = mapData.entrySet().iterator(); it.hasNext(); ) {
       Map.Entry<K, V> entry = it.next();
       if (!enumVerifier.isInRange((Integer) entry.getValue())) {
         if (unknownFields == null) {
-          unknownFields = unknownFieldSchema.newBuilder();
+          unknownFields = unknownFieldSchema.getBuilderFromMessage(containerMessage);
         }
         int entrySize =
             MapEntryLite.computeSerializedSize(metadata, entry.getKey(), entry.getValue());
@@ -5504,28 +5655,26 @@ final class MessageSchema<T> implements Schema<T> {
 
   @Override
   public final boolean isInitialized(T message) {
-    int currentPresenceFieldOffset = -1;
+    int currentPresenceFieldOffset = NO_PRESENCE_SENTINEL;
     int currentPresenceField = 0;
     for (int i = 0; i < checkInitializedCount; i++) {
       final int pos = intArray[i];
       final int number = numberAt(pos);
-
       final int typeAndOffset = typeAndOffsetAt(pos);
 
-      int presenceMaskAndOffset = 0;
-      int presenceMask = 0;
-      if (!proto3) {
-        presenceMaskAndOffset = buffer[pos + 2];
-        final int presenceFieldOffset = presenceMaskAndOffset & OFFSET_MASK;
-        presenceMask = 1 << (presenceMaskAndOffset >>> OFFSET_BITS);
-        if (presenceFieldOffset != currentPresenceFieldOffset) {
-          currentPresenceFieldOffset = presenceFieldOffset;
+      int presenceMaskAndOffset = buffer[pos + 2];
+      final int presenceFieldOffset = presenceMaskAndOffset & OFFSET_MASK;
+      int presenceMask = 1 << (presenceMaskAndOffset >>> OFFSET_BITS);
+      if (presenceFieldOffset != currentPresenceFieldOffset) {
+        currentPresenceFieldOffset = presenceFieldOffset;
+        if (currentPresenceFieldOffset != NO_PRESENCE_SENTINEL) {
           currentPresenceField = UNSAFE.getInt(message, (long) presenceFieldOffset);
         }
       }
 
       if (isRequired(typeAndOffset)) {
-        if (!isFieldPresent(message, pos, currentPresenceField, presenceMask)) {
+        if (!isFieldPresent(
+            message, pos, currentPresenceFieldOffset, currentPresenceField, presenceMask)) {
           return false;
         }
         // If a required message field is set but has no required fields of it's own, we still
@@ -5536,7 +5685,8 @@ final class MessageSchema<T> implements Schema<T> {
       switch (type(typeAndOffset)) {
         case 9: // MESSAGE
         case 17: // GROUP
-          if (isFieldPresent(message, pos, currentPresenceField, presenceMask)
+          if (isFieldPresent(
+                  message, pos, currentPresenceFieldOffset, currentPresenceField, presenceMask)
               && !isInitialized(message, typeAndOffset, getMessageFieldSchema(pos))) {
             return false;
           }
@@ -5701,6 +5851,28 @@ final class MessageSchema<T> implements Schema<T> {
     return value & OFFSET_MASK;
   }
 
+  private static boolean isMutable(Object message) {
+    if (message == null) {
+      return false;
+    }
+
+    // TODO(b/248560713) decide if we're keeping support for Full in schema classes and handle this
+    // better.
+    if (message instanceof GeneratedMessageLite<?, ?>) {
+      return ((GeneratedMessageLite<?, ?>) message).isMutable();
+    }
+
+    // For other types, we'll assume this is true because that's what was
+    // happening before we started checking.
+    return true;
+  }
+
+  private static void checkMutable(Object message) {
+    if (!isMutable(message)) {
+      throw new IllegalArgumentException("Mutating immutable message: " + message);
+    }
+  }
+
   private static <T> double doubleAt(T message, long offset) {
     return UnsafeUtil.getDouble(message, offset);
   }
@@ -5746,8 +5918,9 @@ final class MessageSchema<T> implements Schema<T> {
     return isFieldPresent(message, pos) == isFieldPresent(other, pos);
   }
 
-  private boolean isFieldPresent(T message, int pos, int presenceField, int presenceMask) {
-    if (proto3) {
+  private boolean isFieldPresent(
+      T message, int pos, int presenceFieldOffset, int presenceField, int presenceMask) {
+    if (presenceFieldOffset == NO_PRESENCE_SENTINEL) {
       return isFieldPresent(message, pos);
     } else {
       return (presenceField & presenceMask) != 0;
@@ -5755,14 +5928,16 @@ final class MessageSchema<T> implements Schema<T> {
   }
 
   private boolean isFieldPresent(T message, int pos) {
-    if (proto3) {
+    final int presenceMaskAndOffset = presenceMaskAndOffsetAt(pos);
+    final long presenceFieldOffset = presenceMaskAndOffset & OFFSET_MASK;
+    if (presenceFieldOffset == NO_PRESENCE_SENTINEL) {
       final int typeAndOffset = typeAndOffsetAt(pos);
       final long offset = offset(typeAndOffset);
       switch (type(typeAndOffset)) {
         case 0: // DOUBLE:
-          return UnsafeUtil.getDouble(message, offset) != 0D;
+            return Double.doubleToRawLongBits(UnsafeUtil.getDouble(message, offset)) != 0L;
         case 1: // FLOAT:
-          return UnsafeUtil.getFloat(message, offset) != 0F;
+            return Float.floatToRawIntBits(UnsafeUtil.getFloat(message, offset)) != 0;
         case 2: // INT64:
           return UnsafeUtil.getLong(message, offset) != 0L;
         case 3: // UINT64:
@@ -5806,20 +5981,18 @@ final class MessageSchema<T> implements Schema<T> {
           throw new IllegalArgumentException();
       }
     } else {
-      int presenceMaskAndOffset = presenceMaskAndOffsetAt(pos);
       final int presenceMask = 1 << (presenceMaskAndOffset >>> OFFSET_BITS);
       return (UnsafeUtil.getInt(message, presenceMaskAndOffset & OFFSET_MASK) & presenceMask) != 0;
     }
   }
 
   private void setFieldPresent(T message, int pos) {
-    if (proto3) {
-      // Proto3 doesn't have presence fields
+    int presenceMaskAndOffset = presenceMaskAndOffsetAt(pos);
+    final long presenceFieldOffset = presenceMaskAndOffset & OFFSET_MASK;
+    if (presenceFieldOffset == NO_PRESENCE_SENTINEL) {
       return;
     }
-    int presenceMaskAndOffset = presenceMaskAndOffsetAt(pos);
     final int presenceMask = 1 << (presenceMaskAndOffset >>> OFFSET_BITS);
-    final long presenceFieldOffset = presenceMaskAndOffset & OFFSET_MASK;
     UnsafeUtil.putInt(
         message,
         presenceFieldOffset,

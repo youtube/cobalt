@@ -1,17 +1,9 @@
-# Copyright 2014 The Chromium Authors. All rights reserved.
+# Copyright 2014 The Chromium Authors
 # Use of this source code is governed by a BSD-style license that can be
 # found in the LICENSE file.
 
-if (is_starboard) {
-  import("//components/crx_file/testdata/sha1_files.gni")
-}
 import("//third_party/protobuf/proto_library.gni")
 
-# The accompanying crx_creator target has been left behind during the migration
-# from GYP to GN because it introduces some -Wc++11-narrowing compiler errors
-# and isn't actually used in Cobalt. If it's at some point needed we can
-# likely pull in the narrowing fixes made by the Chromium team in
-# https://source.chromium.org/chromium/chromium/src/+/379c52be13901beae4f773fe9e8054ad42a186c4.
 static_library("crx_file") {
   sources = [
     "crx_file.h",
@@ -26,70 +18,71 @@ static_library("crx_file") {
     "//crypto",
   ]
 
-  public_deps = [
-    ":crx3_proto",
-  ]
+  public_deps = [ ":crx3_proto" ]
 }
 
-if (is_starboard) {
-  action("crx_file_download_test_data") {
-    install_content = true
+static_library("crx_creator") {
+  sources = [
+    "crx_creator.cc",
+    "crx_creator.h",
+  ]
 
-    script = "//starboard/tools/download_from_gcs.py"
+  deps = [
+    ":crx_file",
+    "//base",
+    "//crypto",
+  ]
 
-    sha_sources = []
-    foreach(sha1_file, sha1_files) {
-      sha_sources += [ string_join("/",
-                                   [
-                                     "testdata",
-                                     sha1_file,
-                                   ]) ]
-    }
+  public_deps = [ ":crx3_proto" ]
+}
 
-    sha_outputs = []
-    subdir = "components/crx_file"
-    outdir = "$sb_static_contents_output_data_dir/test/$subdir"
-    foreach(sha_source, sha_sources) {
-      sha_outputs += [ string_join("/",
-                                   [
-                                     outdir,
-                                     string_replace(sha_source, ".sha1", ""),
-                                   ]) ]
-    }
+bundle_data("unit_tests_bundle_data") {
+  visibility = [ ":unit_tests" ]
+  testonly = true
+  sources = [
+    "//components/test/data/crx_file/sample.zip",
+    "//components/test/data/crx_file/unsigned.crx3",
+    "//components/test/data/crx_file/valid.crx2",
+    "//components/test/data/crx_file/valid_no_publisher.crx3",
+    "//components/test/data/crx_file/valid_publisher.crx3",
+    "//components/test/data/crx_file/valid_test_publisher.crx3",
+  ]
+  outputs = [ "{{bundle_resources_dir}}/" +
+              "{{source_root_relative_dir}}/{{source_file_part}}" ]
+}
 
-    sources = sha_sources
-    outputs = sha_outputs
+source_set("unit_tests") {
+  testonly = true
+  sources = [
+    "crx_creator_unittest.cc",
+    "crx_verifier_unittest.cc",
+    "id_util_unittest.cc",
+  ]
 
-    sha1_dir = rebase_path("testdata", root_build_dir)
-
-    args = [
-      "--bucket",
-      "cobalt-static-storage",
-      "--sha1",
-      sha1_dir,
-      "--output",
-      rebase_path("$outdir/testdata", root_build_dir),
-    ]
-  }
-
-  target(gtest_target_type, "crx_file_test") {
-    testonly = true
-
-    sources = [ "crx_verifier_unittest.cc" ]
-
-    deps = [
-      ":crx_file",
-      "//cobalt/test:run_all_unittests",
-      "//starboard:starboard_headers_only",
-      "//testing/gtest",
-    ]
-
-    data_deps = [ ":crx_file_download_test_data" ]
-  }
+  deps = [
+    ":crx_creator",
+    ":crx_file",
+    ":unit_tests_bundle_data",
+    "//base",
+    "//crypto",
+    "//testing/gtest",
+  ]
 }
 
 proto_library("crx3_proto") {
-  sources = [
-    "crx3.proto",
-  ]
+  sources = [ "crx3.proto" ]
+}
+
+if (host_toolchain == current_toolchain) {
+  executable("crx3_build_action") {
+    testonly = true
+
+    sources = [ "crx_build_action_main.cc" ]
+
+    deps = [
+      ":crx_creator",
+      "//base",
+      "//crypto",
+    ]
+  }
 }
