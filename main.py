@@ -559,27 +559,6 @@ def main():
                 git_source, git_rev = modules_to_update[module]
                 import_subtree(repo, deps_file, module, git_source, git_rev)
 
-
-            print('▶️  Running gclient sync...')
-            try:
-                # Get the current commit SHA to pass to the -r argument
-                current_sha = repo.git.rev_parse('@')
-                command = [
-                    'gclient', 'sync', '-D', '--no-history', '-r', current_sha
-                ]
-                print(f'   Executing: {" ".join(command)}')
-                subprocess.run(command,
-                               check=True,
-                               cwd=repo.working_dir)
-                print('✅ gclient sync completed successfully.')
-            except FileNotFoundError:
-                print('❌ Error: "gclient" command not found.')
-                print('   Please ensure depot_tools is in your PATH.')
-                sys.exit(1)
-            except subprocess.CalledProcessError as e:
-                print(f'❌ Error running "gclient sync": {e}')
-                sys.exit(1)
-
         with open(args.commits_file, 'r', encoding='utf-8') as f:
             commits = json.load(f)
         last_successful_commit = None
@@ -602,7 +581,7 @@ def main():
                 )
             except git.exc.GitCommandError as e:
                 if 'The previous cherry-pick is now empty' in e.stderr:
-                    print(f'⏩ Cherry-pick of {commit["hexsha"]} is empty, skipping.')
+                    print(f'⏩ {i}/{len(commits)} cherry-pick is empty, skipping: {commit["hexsha"]}')
                     repo.git.cherry_pick('--skip')
                     continue
                 print(f'❌ Failed to cherry-pick: {commit["hexsha"]}')
