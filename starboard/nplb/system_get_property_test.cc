@@ -15,7 +15,6 @@
 #include <string.h>
 
 #include "starboard/common/device_type.h"
-#include "starboard/common/string.h"
 #include "starboard/common/system_property.h"
 #include "starboard/system.h"
 #include "testing/gtest/include/gtest/gtest.h"
