@@ -13,34 +13,20 @@
 // limitations under the License.
 
 #include <time.h>
-
 #include "cobalt/common/libc/time/icu_time_support.h"
-#include "starboard/common/log.h"
 
 extern "C" {
-// Global C variables.
-long timezone = 0;
-int daylight = 0;
-char* tzname[2] = {nullptr, nullptr};
-
-void tzset(void) {
-  // A thread-local flag to detect re-entrant calls to tzset().
-  static thread_local bool in_tzset = false;
-  if (in_tzset) {
-    SB_NOTREACHED() << "tzset() re-entrancy detected.";
-    return;
-  }
-
-  // Scoped guard to set the flag and reset it on exit.
-  struct TzsetGuard {
-    bool& in_tzset_flag;
-    TzsetGuard(bool& flag) : in_tzset_flag(flag) { in_tzset_flag = true; }
-    ~TzsetGuard() { in_tzset_flag = false; }
-  };
-  TzsetGuard guard(in_tzset);
-
+struct tm* gmtime_r(const time_t* time, struct tm* result) {
   auto* time_support =
       cobalt::common::libc::time::IcuTimeSupport::GetInstance();
-  time_support->GetPosixTimezoneGlobals(timezone, daylight, tzname);
+  if (time_support->ExplodeGmtTime(time, result)) {
+    return result;
+  }
+  return nullptr;
+}
+
+struct tm* gmtime(const time_t* time) {
+  static thread_local struct tm thread_local_tm;
+  return gmtime_r(time, &thread_local_tm);
 }
 }  // extern "C"
