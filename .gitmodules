@@ -426,9 +426,6 @@
 [submodule "third_party/pdfium"]
 	path = third_party/pdfium
 	url = https://pdfium.googlesource.com/pdfium.git
-[submodule "third_party/perfetto"]
-	path = third_party/perfetto
-	url = https://android.googlesource.com/platform/external/perfetto.git
 [submodule "third_party/perl"]
 	path = third_party/perl
 	url = https://chromium.googlesource.com/chromium/deps/perl.git
