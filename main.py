@@ -78,6 +78,8 @@ def import_subtree(repo, deps_file, module, git_source, git_rev):
     print('Commenting out the DEPS files for module %s' % module)
     with open(deps_file, 'r+', encoding='utf-8') as f:
         lines = f.readlines()
+        if module == 'third_party/libc++/src':
+            end = end + 2
         for i in range(start, end):
             lines[i] = '#' + lines[i]
         lines.insert(start, '# Cobalt: imported\n')
