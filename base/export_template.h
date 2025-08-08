@@ -85,9 +85,8 @@
 //     EXPORT_TEMPLATE_STYLE_MATCH_DECLSPEC_dllimport
 //     DEFAULT
 #define EXPORT_TEMPLATE_STYLE(foo_export) EXPORT_TEMPLATE_STYLE_2(foo_export)
-#define CR_EXPAND_ARG(arg) arg
 #define EXPORT_TEMPLATE_STYLE_2(foo_export) \
-  CR_EXPAND_ARG(EXPORT_TEMPLATE_STYLE_MATCH_foj3FJo5StF0OvIzl7oMxA##foo_export)
+  EXPORT_TEMPLATE_STYLE_MATCH_foj3FJo5StF0OvIzl7oMxA##foo_export
 
 // Internal helper macros for EXPORT_TEMPLATE_STYLE.
 //

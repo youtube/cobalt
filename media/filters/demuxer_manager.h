@@ -21,12 +21,12 @@
 #include "media/base/pipeline_status.h"
 #include "media/filters/chunk_demuxer.h"
 #include "third_party/abseil-cpp/absl/types/optional.h"
-#include "url/gurl.h"
 #include "url/origin.h"
 
 #if BUILDFLAG(ENABLE_HLS_DEMUXER)
 #include "base/threading/sequence_bound.h"
 #include "media/filters/hls_data_source_provider.h"
+#include "url/gurl.h"
 #endif  // BUILDFLAG(ENABLE_HLS_DEMUXER)
 
 namespace media {
@@ -103,6 +103,9 @@ class MEDIA_EXPORT DemuxerManager {
     // Allows us to set a loaded url on the client, which might happen when we
     // handle a redirect as part of a restart for switching to HLS.
     virtual void UpdateLoadedUrl(const GURL& url) = 0;
+
+    // Allows a seek triggered by a demuxer (mainly used for live content)
+    virtual void DemuxerRequestsSeek(base::TimeDelta seek_time) = 0;
   };
 
   // Demuxer, StartType, IsStreaming, IsStatic
@@ -125,6 +128,7 @@ class MEDIA_EXPORT DemuxerManager {
 
   void OnPipelineError(PipelineStatus error);
   void SetLoadedUrl(GURL url);
+  const GURL& LoadedUrl() const;
 #if BUILDFLAG(ENABLE_HLS_DEMUXER) || BUILDFLAG(IS_ANDROID)
   void PopulateHlsHistograms(bool cryptographic_url);
   PipelineStatus SelectHlsFallbackMechanism(bool cryptographic_url);
@@ -133,15 +137,16 @@ class MEDIA_EXPORT DemuxerManager {
 
   // Methods that help manage demuxers
   absl::optional<double> GetDemuxerDuration();
-  absl::optional<DemuxerType> GetDemuxerType();
+  absl::optional<DemuxerType> GetDemuxerType() const;
   absl::optional<container_names::MediaContainerName> GetContainerForMetrics();
   void RespondToDemuxerMemoryUsageReport(base::OnceCallback<void(int64_t)> cb);
+  void DisableDemuxerCanChangeType();
 
   // Returns a forwarded error/success from |on_demuxer_created|, or an error
   // if a demuxer couldn't be created.
   PipelineStatus CreateDemuxer(bool load_media_source,
                                DataSource::Preload preload,
-                               bool has_poster,
+                               bool needs_first_frame,
                                DemuxerCreatedCB on_demuxer_created);
 
 #if BUILDFLAG(IS_ANDROID)
@@ -166,6 +171,7 @@ class MEDIA_EXPORT DemuxerManager {
   bool DataSourceFullyBuffered() const;
   bool IsStreaming() const;
   bool PassedDataSourceTimingAllowOriginCheck() const;
+  bool IsLiveContent() const;
 
  private:
   // Demuxer creation and helper methods
@@ -201,6 +207,8 @@ class MEDIA_EXPORT DemuxerManager {
   void OnFFmpegMediaTracksUpdated(std::unique_ptr<MediaTracks> tracks);
 #endif  // BUILDFLAG(ENABLE_FFMPEG)
 
+  void DemuxerRequestsSeek(base::TimeDelta time);
+
   // This is usually just the WebMediaPlayerImpl.
   raw_ptr<Client, DanglingUntriaged> client_;
 
@@ -224,6 +232,7 @@ class MEDIA_EXPORT DemuxerManager {
   // Used for MediaUrlDemuxer when playing HLS content, as well as
   // FFmpegDemuxer in most cases. Also used for creating MemoryDataSource
   // objects.
+  // Note: this may be very large, take care when making copies.
   GURL loaded_url_;
 
   // The data source for creating a demuxer. This should be null when using

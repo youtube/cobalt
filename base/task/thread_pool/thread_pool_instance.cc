@@ -7,14 +7,12 @@
 #include <algorithm>
 
 #include "base/check.h"
-#include "base/cxx17_backports.h"
 #include "base/memory/ptr_util.h"
 #include "base/system/sys_info.h"
 #include "base/task/thread_pool/thread_pool_impl.h"
 #include "base/threading/platform_thread.h"
 #include "base/time/time.h"
 #include "build/build_config.h"
-#include "starboard/configuration_constants.h"
 
 namespace base {
 
@@ -98,14 +96,8 @@ void ThreadPoolInstance::StartWithDefaultParams() {
   // * The system is utilized maximally by foreground threads.
   // * The main thread is assumed to be busy, cap foreground workers at
   //   |num_cores - 1|.
-#if defined(STARBOARD)
-  const int kMaxNumberOfThreads = kSbMaxThreads;
-  const size_t max_num_foreground_threads = static_cast<size_t>(std::min(
-      (std::max(3, SysInfo::NumberOfProcessors() - 1)), kMaxNumberOfThreads));
-#else
   const size_t max_num_foreground_threads =
       static_cast<size_t>(std::max(3, SysInfo::NumberOfProcessors() - 1));
-#endif  // defined(STARBOARD)
   Start({max_num_foreground_threads});
 }
 #endif  // !BUILDFLAG(IS_NACL)

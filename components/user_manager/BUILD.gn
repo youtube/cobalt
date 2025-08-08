@@ -1,0 +1,96 @@
+# Copyright 2014 The Chromium Authors
+# Use of this source code is governed by a BSD-style license that can be
+# found in the LICENSE file.
+
+import("//build/config/chromeos/ui_mode.gni")
+
+component("user_manager") {
+  sources = [
+    "multi_user/multi_user_sign_in_policy.cc",
+    "multi_user/multi_user_sign_in_policy.h",
+    "user_info.cc",
+    "user_info.h",
+    "user_info_impl.cc",
+    "user_info_impl.h",
+    "user_manager_export.h",
+    "user_names.cc",
+    "user_names.h",
+    "user_type.h",
+  ]
+
+  public_deps = [
+    "//base",
+    "//components/account_id",
+    "//ui/gfx",
+  ]
+
+  deps = [
+    "//components/crash/core/common",
+    "//google_apis",
+  ]
+
+  defines = [ "USER_MANAGER_IMPLEMENTATION" ]
+
+  if (is_chromeos_ash) {
+    sources += [
+      "common_types.h",
+      "include_exclude_account_id_filter.cc",
+      "include_exclude_account_id_filter.h",
+      "known_user.cc",
+      "known_user.h",
+      "scoped_user_manager.cc",
+      "scoped_user_manager.h",
+      "user.cc",
+      "user.h",
+      "user_directory_integrity_manager.cc",
+      "user_directory_integrity_manager.h",
+      "user_image/user_image.cc",
+      "user_image/user_image.h",
+      "user_manager.cc",
+      "user_manager.h",
+      "user_manager_base.cc",
+      "user_manager_base.h",
+    ]
+
+    deps += [
+      "//ash/constants",
+      "//components/prefs",
+      "//skia",
+      "//url",
+    ]
+  }
+}
+
+if (is_chromeos_ash) {
+  source_set("test_support") {
+    testonly = true
+    sources = [
+      "fake_user_manager.cc",
+      "fake_user_manager.h",
+    ]
+
+    public_deps = [
+      ":user_manager",
+      "//base",
+      "//components/account_id",
+    ]
+  }
+
+  source_set("unit_tests") {
+    testonly = true
+    sources = [
+      "include_exclude_account_id_filter_unittest.cc",
+      "known_user_unittest.cc",
+      "user_unittest.cc",
+    ]
+    deps = [
+      ":test_support",
+      ":user_manager",
+      "//base/test:test_support",
+      "//components/account_id",
+      "//components/prefs:test_support",
+      "//testing/gmock",
+      "//testing/gtest",
+    ]
+  }
+}

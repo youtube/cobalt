@@ -1,4 +1,4 @@
-// Copyright 2014 The Crashpad Authors. All rights reserved.
+// Copyright 2014 The Crashpad Authors
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -20,7 +20,10 @@
 
 #include <string>
 
-#include "base/strings/string16.h"
+#include "minidump/minidump_extensions.h"
+#include "minidump/test/minidump_writable_test_util.h"
+
+#include "gtest/gtest.h"
 
 namespace crashpad {
 
@@ -46,6 +49,10 @@ namespace test {
 const MINIDUMP_STRING* MinidumpStringAtRVA(const std::string& file_contents,
                                            RVA rva);
 
+//! \brief 64-bit specialization of MinidumpStringAtRVA.
+const MINIDUMP_STRING* MinidumpStringAtRVA(const std::string& file_contents,
+                                           RVA64 rva);
+
 //! \brief Returns a MinidumpUTF8String located within a minidump file’s
 //!     contents.
 //!
@@ -66,10 +73,15 @@ const MinidumpUTF8String* MinidumpUTF8StringAtRVA(
     const std::string& file_contents,
     RVA rva);
 
-//! \brief Returns the contents of a MINIDUMP_STRING as a `string16`.
+//! \brief 64-bit specialization of MinidumpUTF8StringAtRVA.
+const MinidumpUTF8String* MinidumpUTF8StringAtRVA(
+    const std::string& file_contents,
+    RVA64 rva);
+
+//! \brief Returns the contents of a MINIDUMP_STRING as a `std::u16string`.
 //!
 //! This function uses MinidumpStringAtRVA() to obtain a MINIDUMP_STRING, and
-//! returns the string data as a `string16`.
+//! returns the string data as a `std::u16string`.
 //!
 //! \param[in] file_contents The contents of the minidump file.
 //! \param[in] rva The offset within the minidump file of the desired
@@ -79,8 +91,12 @@ const MinidumpUTF8String* MinidumpUTF8StringAtRVA(
 //!     failure, raises a Google Test assertion and returns an empty string.
 //!
 //! \sa MinidumpUTF8StringAtRVAAsString()
-base::string16 MinidumpStringAtRVAAsString(const std::string& file_contents,
+std::u16string MinidumpStringAtRVAAsString(const std::string& file_contents,
                                            RVA rva);
+
+//! \brief 64-bit specialization of MinidumpStringAtRVAAsString.
+std::u16string MinidumpStringAtRVAAsString(const std::string& file_contents,
+                                           RVA64 rva);
 
 //! \brief Returns the contents of a MinidumpUTF8String as a `std::string`.
 //!
@@ -97,6 +113,10 @@ base::string16 MinidumpStringAtRVAAsString(const std::string& file_contents,
 //! \sa MinidumpStringAtRVAAsString()
 std::string MinidumpUTF8StringAtRVAAsString(const std::string& file_contents,
                                             RVA rva);
+
+//! \brief 64-bit specialization of MinidumpUTF8StringAtRVAAsString.
+std::string MinidumpUTF8StringAtRVAAsString(const std::string& file_contents,
+                                            RVA64 rva);
 
 }  // namespace test
 }  // namespace crashpad

@@ -22,8 +22,14 @@ chromium-metrics-reviews@google.com.
 
 <histograms>
 
+<variants name="AuxiliarySearchDataType">
+  <variant name="" summary="All Requests"/>
+  <variant name=".Bookmarks" summary="Bookmarks"/>
+  <variant name=".Tabs" summary="Tabs"/>
+</variants>
+
 <histogram name="Search.Ambient.Query" enum="AmbientSearchEntryPoint"
-    expires_after="2023-10-08">
+    expires_after="2024-02-11">
   <owner>juanmojica@google.com</owner>
   <owner>schechter@google.com</owner>
   <owner>stanfield@google.com</owner>
@@ -32,6 +38,138 @@ chromium-metrics-reviews@google.com.
     Records ambient search queries enumerated by the entry point used to make
     the query. This is recorded every time the user makes a query regardless of
     whether the query succeeds.
+  </summary>
+</histogram>
+
+<histogram name="Search.AuxiliarySearch.DeleteTime{AuxiliarySearchDataType}"
+    units="ms" expires_after="M130">
+  <owner>gangwu@chromium.org</owner>
+  <owner>chrome-mobile-search@google.com</owner>
+  <summary>Time taken for deleting contents from the auxiliary search.</summary>
+  <token key="AuxiliarySearchDataType" variants="AuxiliarySearchDataType"/>
+</histogram>
+
+<histogram
+    name="Search.AuxiliarySearch.DeletionFailure{AuxiliarySearchDataType}"
+    units="count" expires_after="M130">
+  <owner>gangwu@chromium.org</owner>
+  <owner>chrome-mobile-search@google.com</owner>
+  <summary>
+    Records the count of failed deletions from the auxiliary search.
+  </summary>
+  <token key="AuxiliarySearchDataType" variants="AuxiliarySearchDataType"/>
+</histogram>
+
+<histogram
+    name="Search.AuxiliarySearch.DeletionRequestStatus{AuxiliarySearchDataType}"
+    enum="AuxiliarySearchRequestStatus" expires_after="M130">
+  <owner>gangwu@chromium.org</owner>
+  <owner>chrome-mobile-search@google.com</owner>
+  <summary>
+    Records the status of the request of the Auxiliary Search content deletion.
+    Recorded twice for every deletion request: once to capture the request sent,
+    and once to capture the consumer's response.
+  </summary>
+  <token key="AuxiliarySearchDataType" variants="AuxiliarySearchDataType"/>
+</histogram>
+
+<histogram name="Search.AuxiliarySearch.DonateTime" units="ms"
+    expires_after="M130">
+  <owner>gangwu@chromium.org</owner>
+  <owner>chrome-mobile-search@google.com</owner>
+  <summary>Time taken for donating contents to the auxiliary search.</summary>
+</histogram>
+
+<histogram
+    name="Search.AuxiliarySearch.DonationFailure{AuxiliarySearchDataType}"
+    units="count" expires_after="M130">
+  <owner>gangwu@chromium.org</owner>
+  <owner>chrome-mobile-search@google.com</owner>
+  <summary>
+    Records the count of failed donations from the auxiliary search.
+  </summary>
+  <token key="AuxiliarySearchDataType" variants="AuxiliarySearchDataType"/>
+</histogram>
+
+<histogram name="Search.AuxiliarySearch.DonationRequestStatus"
+    enum="AuxiliarySearchRequestStatus" expires_after="M130">
+  <owner>gangwu@chromium.org</owner>
+  <owner>chrome-mobile-search@google.com</owner>
+  <summary>
+    Records the status of the request of the Auxiliary Search content donation.
+    Recorded twice for every donation request: once to capture the request sent,
+    and once to capture the consumer's response.
+  </summary>
+</histogram>
+
+<histogram name="Search.AuxiliarySearch.DonationSent{AuxiliarySearchDataType}"
+    units="count" expires_after="M130">
+  <owner>gangwu@chromium.org</owner>
+  <owner>chrome-mobile-search@google.com</owner>
+  <summary>
+    Records the count of contents which are sent to the auxiliary search.
+  </summary>
+  <token key="AuxiliarySearchDataType" variants="AuxiliarySearchDataType"/>
+</histogram>
+
+<histogram name="Search.AuxiliarySearch.QueryTime{AuxiliarySearchDataType}"
+    units="ms" expires_after="M130">
+  <owner>gangwu@chromium.org</owner>
+  <owner>chrome-mobile-search@google.com</owner>
+  <summary>Time taken for query contents for the auxiliary search.</summary>
+  <token key="AuxiliarySearchDataType" variants="AuxiliarySearchDataType"/>
+</histogram>
+
+<histogram name="Search.ChoiceScreenDefaultSearchEngineType"
+    enum="OmniboxSearchEngineType" expires_after="2024-03-31">
+  <owner>dgn@chromium.org</owner>
+  <owner>jyammine@google.com</owner>
+  <owner>chrome-waffle-eng@google.com</owner>
+  <summary>
+    Records the type of the default search engine that was chosen by the user.
+    The choice is recorded when made in the search engine choice screen or in
+    the settings page. The enum is shared with
+    Search.DefaultSearchProviderType2.
+  </summary>
+</histogram>
+
+<histogram name="Search.ChoiceScreenEvents"
+    enum="SearchEngineChoiceScreenEvents" expires_after="2024-03-31">
+  <owner>samarchehade@chromium.org</owner>
+  <owner>chrome-waffle-eng@google.com</owner>
+  <summary>
+    Records that the search engine choice screen was displayed, and whether this
+    happened as part of the FRE. Also records when the user clicks/taps the 'Set
+    as Default' button and if this selection was in the FRE or not. On Desktop,
+    if the choice screen is shown simultaneously in multiple browsers that all
+    have the same profile, the display event is only recorded once.
+  </summary>
+</histogram>
+
+<histogram name="Search.ChoiceScreenNavigationConditions"
+    enum="SearchEngineChoiceScreenConditions" expires_after="2024-03-31">
+  <owner>dgn@chromium.org</owner>
+  <owner>muellerj@chromium.org</owner>
+  <owner>chrome-waffle-eng@google.com</owner>
+  <summary>
+    Records the conditon state at page navigation for whether to display the
+    search engine choice screen. This is recorded every time the eligibility
+    state is being checked, which might be as often as every page navigation.
+    The enum is shared with ChoiceScreenProfileInitConditions, and individual
+    enum members might appear in only one histogram.
+  </summary>
+</histogram>
+
+<histogram name="Search.ChoiceScreenProfileInitConditions"
+    enum="SearchEngineChoiceScreenConditions" expires_after="2024-03-31">
+  <owner>dgn@chromium.org</owner>
+  <owner>muellerj@chromium.org</owner>
+  <owner>chrome-waffle-eng@google.com</owner>
+  <summary>
+    Records the conditon state at profile initialization for displaying the
+    search engine choice screen that the profile is in. The enum is shared with
+    ChoiceScreenNavigationConditions, and individual enum members might appear
+    in only one histogram.
   </summary>
 </histogram>
 
@@ -57,7 +195,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Search.ContextualSearch.All.Searches"
-    enum="BooleanBottomSearchKind" expires_after="2023-10-22">
+    enum="BooleanBottomSearchKind" expires_after="2024-02-25">
 <!-- TODO(donnd): change expires_after to "never" once established and
        approved. -->
 
@@ -134,7 +272,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Search.ContextualSearch.NetError" enum="NetErrorCodes"
-    expires_after="M117">
+    expires_after="2024-03-17">
   <owner>donnd@chromium.org</owner>
   <owner>basiaz@google.com</owner>
   <summary>
@@ -303,13 +441,14 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Search.ContextualSearch.ResolveReceived" enum="Boolean"
-    expires_after="M94">
+    expires_after="2024-10-01">
   <owner>donnd@chromium.org</owner>
   <owner>twellington@chromium.org</owner>
   <summary>
     Records that a resolve response was received from the server, and whether
     that was due to a Tap gesture or not (vs longpress). Recorded when the user
     triggers the feature and the server responds. Implemented for Android.
+    (Expired in M94. Revived in M120.)
   </summary>
 </histogram>
 
@@ -325,7 +464,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Search.ContextualSearch.SelectionExpanded"
-    enum="ContextualSearchGestureIsTap" expires_after="2023-08-20">
+    enum="ContextualSearchGestureIsTap" expires_after="2024-03-17">
   <owner>donnd@chromium.org</owner>
   <owner>twellington@chromium.org</owner>
   <summary>
@@ -353,25 +492,25 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Search.ContextualSearch.Tap.ResultsSeen" enum="Boolean"
-    expires_after="M77">
+    expires_after="2024-10-01">
   <owner>donnd@chromium.org</owner>
   <owner>twellington@chromium.org</owner>
   <summary>
     Records whether the user opened the panel when it was shown in response to a
     tap gesture, for all users. Recorded when the UX is hidden. Implemented for
-    Android.
+    Android. (Expired in M77. Revived in M120.)
   </summary>
 </histogram>
 
 <histogram name="Search.ContextualSearch.Tap.SyncEnabled.ResultsSeen"
-    enum="Boolean" expires_after="M76">
+    enum="Boolean" expires_after="2024-10-01">
   <owner>donnd@chromium.org</owner>
   <owner>twellington@chromium.org</owner>
   <summary>
     Records whether the user opened the panel when it was shown for sync-enabled
     users only (this is an approximation for the population that logs to UKM).
     Recorded for all gestures for users with sync enabled when the UX is hidden.
-    Implemented for Android.
+    Implemented for Android. (Expired in M76. Revived in M120.)
   </summary>
 </histogram>
 
@@ -420,19 +559,20 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Search.ContextualSearch.UnifiedConsent.PreviouslyUndecided"
-    enum="Boolean" expires_after="2019-01-30">
+    enum="Boolean" expires_after="2024-10-01">
   <owner>donnd@chromium.org</owner>
   <owner>twellington@chromium.org</owner>
   <summary>
     Records the previous state of the user's enabled preference to indicate
     whether they were decided or undecided about fully enabling this feature.
     Recorded during the rollout of Unified Consent when the Contextual Search
-    preference is changed. Implemented for Android.
+    preference is changed. Implemented for Android. (Expired after 2019-01-30.
+    Revived in M120.)
   </summary>
 </histogram>
 
 <histogram name="Search.ContextualSearch.UnifiedConsent.ThrottledRequests"
-    enum="Boolean" expires_after="2019-01-30">
+    enum="Boolean" expires_after="2024-10-01">
   <owner>donnd@chromium.org</owner>
   <owner>twellington@chromium.org</owner>
   <summary>
@@ -440,12 +580,13 @@ chromium-metrics-reviews@google.com.
     Recorded when the user taps on text and the system would like the server to
     suggest what to search for using page context, regardless of feature-enabled
     state. Recorded multiple times for each request. Supports the rollout of
-    Unified Consent for Contextual Search. Implemented for Android.
+    Unified Consent for Contextual Search. Implemented for Android. (Expired
+    after 2019-01-30. Revived in M120.)
   </summary>
 </histogram>
 
 <histogram name="Search.ContextualSearch.UnifiedConsent.ThrottleEligible"
-    enum="Boolean" expires_after="2019-01-30">
+    enum="Boolean" expires_after="2024-10-01">
   <owner>donnd@chromium.org</owner>
   <owner>twellington@chromium.org</owner>
   <summary>
@@ -453,7 +594,8 @@ chromium-metrics-reviews@google.com.
     Recorded when the user taps on text and the system would like the server to
     suggest what to search for using page context, and throttling is in effect
     for this user. Supports the rollout of Unified Consent for Contextual
-    Search. Implemented for Android.
+    Search. Implemented for Android. (Expired after 2019-01-30. Revived in
+    M120.)
   </summary>
 </histogram>
 
@@ -912,24 +1054,25 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Search.ContextualSearchQuickActions.IntentResolution"
-    enum="ContextualSearchQuickActionIntentResolution" expires_after="M81">
+    enum="ContextualSearchQuickActionIntentResolution"
+    expires_after="2024-10-01">
   <owner>donnd@chromium.org</owner>
   <owner>twellington@chromium.org</owner>
   <summary>
     Whether a Contextual Search quick action intent resolved to zero, one, or
     many apps. Recorded when the quick action intent URI is resolved.
-    Implemented for Android.
+    Implemented for Android. (Expired in M81. Revived in M120.)
   </summary>
 </histogram>
 
 <histogram name="Search.ContextualSearchQuickActions.ResultsSeen"
-    enum="ContextualSearchResultsSeen" expires_after="M81">
+    enum="ContextualSearchResultsSeen" expires_after="2024-10-01">
   <owner>donnd@chromium.org</owner>
   <owner>twellington@chromium.org</owner>
   <summary>
     Whether search results were seen as part of a Contextual Search when a quick
     action was shown. Recorded when Contextual Search is dismissed. Implemented
-    for Android.
+    for Android. (Expired in M81. Revived in M120.)
   </summary>
 </histogram>
 
@@ -1257,6 +1400,17 @@ chromium-metrics-reviews@google.com.
   </summary>
 </histogram>
 
+<histogram name="Search.DefaultSearchEngineChoiceLocation"
+    enum="ChoiceMadeLocation" expires_after="2024-03-31">
+  <owner>dgn@chromium.org</owner>
+  <owner>chrome-waffle-eng@google.com</owner>
+  <summary>
+    Records the location from which the default search engine was set. Emitted
+    when the default search engine is changed in the settings page or in the
+    search engine choice screen.
+  </summary>
+</histogram>
+
 <histogram name="Search.DefaultSearchProviderType"
     enum="OmniboxSearchEngineType" expires_after="2023-02-12">
   <obsolete>
@@ -1275,10 +1429,10 @@ chromium-metrics-reviews@google.com.
   </summary>
 </histogram>
 
-<histogram name="Search.DefaultSearchProviderType2"
-    enum="OmniboxSearchEngineType" expires_after="2023-09-12">
+<histogram name="Search.DefaultSearchProviderType2{Population}"
+    enum="OmniboxSearchEngineType" expires_after="2024-07-18">
   <owner>mpearson@chromium.org</owner>
-  <owner>csharp@chromium.org</owner>
+  <owner>ftirelo@chromium.org</owner>
   <summary>
     The type of the default search engine that is loaded when a regular, guest,
     or ChromeOS sign-in screen profile is opened or after a profile reset. (A
@@ -1294,7 +1448,14 @@ chromium-metrics-reviews@google.com.
     people cannot search / browse the web using this profile. As such, the
     default search engine setting for this profile does not have any practical
     meaning.
+
+    {Population}
   </summary>
+  <token key="Population">
+    <variant name="" summary="Reported for all users."/>
+    <variant name=".SetByEnterprisePolicy"
+        summary="Reported for users with DSP set by Enterprise policy."/>
+  </token>
 </histogram>
 
 <histogram name="Search.GsaAccountChangeNotificationSource"
@@ -1339,7 +1500,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Search.Image.Camera.Open" enum="CameraOpenEntryPoint"
-    expires_after="2023-08-07">
+    expires_after="2024-02-04">
   <owner>juanmojica@google.com</owner>
   <owner>schechter@google.com</owner>
   <owner>stanfield@google.com</owner>
@@ -1351,7 +1512,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Search.Image.Camera.Result" enum="CameraResult"
-    expires_after="2023-08-07">
+    expires_after="2024-03-24">
   <owner>juanmojica@google.com</owner>
   <owner>schechter@google.com</owner>
   <owner>stanfield@google.com</owner>
@@ -1364,7 +1525,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Search.iOS.SelectDefaultSearchEngine"
-    enum="OmniboxSearchEngineType" expires_after="2023-09-24">
+    enum="OmniboxSearchEngineType" expires_after="2024-01-28">
   <owner>sczs@chromium.org</owner>
   <owner>gambard@chromium.org</owner>
   <summary>
@@ -1383,6 +1544,19 @@ chromium-metrics-reviews@google.com.
     enable-lens-ping and ping-lens-sequentially are both true. If the ping was
     never received, or was an unexpected type, such as a non 204 response code,
     this event will not be logged.
+  </summary>
+</histogram>
+
+<histogram name="Search.Lens.ViewportDimensionsSent.Success" units="Boolean"
+    expires_after="2024-03-31">
+  <owner>mercerd@google.com</owner>
+  <owner>lens-chrome-eng@google.com</owner>
+  <summary>
+    When the user performs a Lens search on Desktop, records if the viewport
+    dimensions of the side panel were included in the request. A false value
+    indicates either the viewport width or height were not included in the
+    request. A true value is recorded if and only if both the `vpw` and `vph`
+    url params were added to the request with non-zero values.
   </summary>
 </histogram>
 
@@ -1564,7 +1738,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Search.QueryTiles.TrendingTileEvent" enum="TrendingTileEvent"
-    expires_after="2023-08-31">
+    expires_after="2024-03-17">
   <owner>qinmin@chromium.org</owner>
   <owner>chrome-upboarding-eng@google.com</owner>
   <summary>
@@ -1574,7 +1748,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Search.RegionSearch.Lens.RegionAspectRatio"
-    enum="LensRegionSearchAspectRatio" expires_after="2023-10-08">
+    enum="LensRegionSearchAspectRatio" expires_after="2024-02-25">
   <owner>juanmojica@google.com</owner>
   <owner>benwgold@google.com</owner>
   <owner>stanfield@google.com</owner>
@@ -1586,7 +1760,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Search.RegionSearch.Lens.RegionViewportProportion" units="pct"
-    expires_after="2023-10-08">
+    expires_after="2024-02-25">
   <owner>juanmojica@google.com</owner>
   <owner>benwgold@google.com</owner>
   <owner>stanfield@google.com</owner>
@@ -1598,7 +1772,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Search.RegionSearch.Lens.Result"
-    enum="LensRegionSearchCaptureResult" expires_after="2023-10-08">
+    enum="LensRegionSearchCaptureResult" expires_after="2024-02-11">
   <owner>juanmojica@google.com</owner>
   <owner>benwgold@google.com</owner>
   <owner>stanfield@google.com</owner>
@@ -1624,7 +1798,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Search.RelatedSearches.CarouselLastVisibleItemPosition"
-    units="position" expires_after="2023-10-22">
+    units="position" expires_after="2024-03-03">
   <owner>donnd@chromium.org</owner>
   <owner>gangwu@chromium.org</owner>
   <owner>related-searches-vteam@google.com</owner>
@@ -1638,7 +1812,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Search.RelatedSearches.CarouselScrollAndClick"
-    enum="ScrollAndClickStatus" expires_after="2023-10-08">
+    enum="ScrollAndClickStatus" expires_after="2024-02-11">
   <owner>donnd@chromium.org</owner>
   <owner>gangwu@chromium.org</owner>
   <owner>related-searches-vteam@google.com</owner>
@@ -1650,7 +1824,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Search.RelatedSearches.CarouselScrolled" enum="Boolean"
-    expires_after="2023-10-15">
+    expires_after="2024-03-03">
   <owner>donnd@chromium.org</owner>
   <owner>gangwu@chromium.org</owner>
   <owner>related-searches-vteam@google.com</owner>
@@ -1677,7 +1851,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Search.RelatedSearches.NumberOfSuggestionsClicked2"
-    units="selected" expires_after="2023-10-22">
+    units="selected" expires_after="2024-02-25">
   <owner>donnd@chromium.org</owner>
   <owner>related-searches-vteam@google.com</owner>
   <summary>
@@ -1688,7 +1862,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Search.RelatedSearches.QualifiedUsers" enum="Boolean"
-    expires_after="2023-10-22">
+    expires_after="2024-03-03">
   <owner>donnd@chromium.org</owner>
   <owner>related-searches-vteam@google.com</owner>
   <summary>
@@ -1762,6 +1936,9 @@ chromium-metrics-reviews@google.com.
 
 <histogram name="Search.TemplateURL.Events" enum="SearchTemplateURLEvent"
     expires_after="2023-05-01">
+  <obsolete>
+    Expired and removed 05/2023.
+  </obsolete>
   <owner>tommycli@chromium.org</owner>
   <owner>chrome-omnibox-team@google.com</owner>
   <summary>

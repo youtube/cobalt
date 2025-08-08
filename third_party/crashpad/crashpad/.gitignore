@@ -1,4 +1,4 @@
-# Copyright 2014 The Crashpad Authors. All rights reserved.
+# Copyright 2014 The Crashpad Authors
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -19,6 +19,7 @@
 *.xcodeproj
 *~
 .*.sw?
+.cache
 .DS_Store
 .gdb_history
 .gdbinit
@@ -37,6 +38,9 @@
 /third_party/lss/lss
 /third_party/gyp/gyp
 /third_party/mini_chromium/mini_chromium
+/third_party/ninja/linux
+/third_party/ninja/mac*
+/third_party/ninja/ninja.exe
 /third_party/zlib/zlib
 /xcodebuild
 tags

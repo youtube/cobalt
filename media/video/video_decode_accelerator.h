@@ -124,14 +124,14 @@ class MEDIA_EXPORT VideoDecodeAccelerator {
   // Config structure contains parameters required for the VDA initialization.
   struct MEDIA_EXPORT Config {
     // Specifies the allocation and handling mode for output PictureBuffers.
-    // When set to ALLOCATE, the VDA is expected to allocate backing memory
+    // When set to kAllocate, the VDA is expected to allocate backing memory
     // for PictureBuffers at the time of AssignPictureBuffers() call.
-    // When set to IMPORT, the VDA will not allocate, but after receiving
+    // When set to kImport, the VDA will not allocate, but after receiving
     // AssignPictureBuffers() call, it will expect a call to
     // ImportBufferForPicture() for each PictureBuffer before use.
     enum class OutputMode {
-      ALLOCATE,
-      IMPORT,
+      kAllocate,
+      kImport,
     };
 
     Config();
@@ -166,11 +166,7 @@ class MEDIA_EXPORT VideoDecodeAccelerator {
     // Coded size of the video frame hint, subject to change.
     gfx::Size initial_expected_coded_size = gfx::Size(320, 240);
 
-    OutputMode output_mode = OutputMode::ALLOCATE;
-
-    // The list of picture buffer formats that the client knows how to use. An
-    // empty list means any format is supported.
-    std::vector<VideoPixelFormat> supported_output_formats;
+    OutputMode output_mode = OutputMode::kAllocate;
 
     // The H264 SPS and PPS configuration data. Not all clients populate these
     // fields, so they should be parsed from the bitstream instead, if required.
@@ -422,6 +418,7 @@ class MEDIA_EXPORT VideoDecodeAccelerator {
   // May be called on any thread at any time.
   virtual bool SupportsSharedImagePictureBuffers() const;
 
+  // NOTE: `kAllocateGLTextures` is not supported on Apple platforms.
   enum class TextureAllocationMode {
     kDoNotAllocateGLTextures,
     kAllocateGLTextures
@@ -429,7 +426,7 @@ class MEDIA_EXPORT VideoDecodeAccelerator {
 
   // Returns an enum used to allocate GL textures for shared images.
   // May be called on any thread at any time.
-  virtual TextureAllocationMode GetSharedImageTextureAllocationMode() const;
+  TextureAllocationMode GetSharedImageTextureAllocationMode() const;
 
  protected:
   // Do not delete directly; use Destroy() or own it with a scoped_ptr, which

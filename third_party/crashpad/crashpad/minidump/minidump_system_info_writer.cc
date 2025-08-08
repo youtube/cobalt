@@ -1,4 +1,4 @@
-// Copyright 2014 The Crashpad Authors. All rights reserved.
+// Copyright 2014 The Crashpad Authors
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -16,8 +16,10 @@
 
 #include <string.h>
 
-#include "base/logging.h"
-#include "base/stl_util.h"
+#include <iterator>
+
+#include "base/check_op.h"
+#include "base/notreached.h"
 #include "minidump/minidump_string_writer.h"
 #include "snapshot/system_snapshot.h"
 #include "util/file/file_writer.h"
@@ -130,6 +132,9 @@ void MinidumpSystemInfoWriter::InitializeFromSnapshot(
     case kCPUArchitectureARM64:
       cpu_architecture = kMinidumpCPUArchitectureARM64;
       break;
+    case kCPUArchitectureRISCV64:
+      cpu_architecture = kMinidumpCPUArchitectureRISCV64Breakpad;
+      break;
     default:
       NOTREACHED();
       cpu_architecture = kMinidumpCPUArchitectureUnknown;
@@ -234,7 +239,7 @@ void MinidumpSystemInfoWriter::SetCPUX86VendorString(
       sizeof(registers) == sizeof(system_info_.Cpu.X86CpuInfo.VendorId),
       "VendorId sizes must be equal");
 
-  for (size_t index = 0; index < base::size(registers); ++index) {
+  for (size_t index = 0; index < std::size(registers); ++index) {
     memcpy(&registers[index],
            &vendor[index * sizeof(*registers)],
            sizeof(*registers));

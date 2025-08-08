@@ -1,0 +1,12 @@
+include_rules = [
+  "+components/autofill",
+  "+content/public/android",
+  "+content/public/browser",
+  "+ui",
+]
+
+specific_include_rules = {
+  '.*_[a-z]*test\.cc': [
+    "+content/public/test",
+  ],
+}

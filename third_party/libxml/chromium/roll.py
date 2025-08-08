@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 
-# Copyright 2017 The Chromium Authors. All rights reserved.
+# Copyright 2017 The Chromium Authors
 # Use of this source code is governed by a BSD-style license that can be
 # found in the LICENSE file.
 
@@ -64,12 +64,16 @@ import tempfile
 #    c. Make and commit any final changes to README.chromium, BUILD.gn, etc.
 #    d. git cl upload
 #    e. Complete the review as usual
+#
+# The --linuxfast argument is an alternative to --linux which also deletes
+# files which are not intended to be checked in. This would normally happen at
+# the end of the --mac run, but if you want to run the roll script and get to
+# the final state without running the configure scripts on all three platforms,
+# this is helpful.
 
 PATCHES = [
-    'chromium-issue-599427.patch',
-    'chromium-issue-628581.patch',
     'libxml2-2.9.4-security-xpath-nodetab-uaf.patch',
-    'chromium-issue-708434.patch',
+    'undo-sax-deprecation.patch',
 ]
 
 
@@ -90,6 +94,7 @@ SHARED_XML_CONFIGURE_OPTIONS = [
     ('--with-python', 'python=yes'),
     ('--with-reader', 'reader=yes'),
     ('--with-sax1', 'sax1=yes'),
+    ('--with-threads', 'threads=yes'),
     ('--with-tree', 'tree=yes'),
     ('--with-writer', 'writer=yes'),
     ('--with-xpath', 'xpath=yes'),
@@ -97,7 +102,6 @@ SHARED_XML_CONFIGURE_OPTIONS = [
     ('--without-c14n', 'c14n=no'),
     ('--without-catalog', 'catalog=no'),
     ('--without-debug', 'xml_debug=no'),
-    ('--without-docbook', 'docb=no'),
     ('--without-ftp', 'ftp=no'),
     ('--without-http', 'http=no'),
     ('--without-iconv', 'iconv=no'),
@@ -108,13 +112,12 @@ SHARED_XML_CONFIGURE_OPTIONS = [
     ('--without-modules', 'modules=no'),
     ('--without-pattern', 'pattern=no'),
     ('--without-regexps', 'regexps=no'),
-    ('--without-run-debug', 'run_debug=no'),
     ('--without-schemas', 'schemas=no'),
     ('--without-schematron', 'schematron=no'),
-    ('--without-threads', 'threads=no'),
     ('--without-valid', 'valid=no'),
     ('--without-xinclude', 'xinclude=no'),
     ('--without-xptr', 'xptr=no'),
+    ('--without-xptr-locs', 'xptr_locs=no'),
     ('--without-zlib', 'zlib=no'),
 ]
 
@@ -157,10 +160,12 @@ FILES_TO_REMOVE = [
     # This is unneeded "legacy" SAX API, even though we enable SAX1.
     'src/SAX.c',
     'src/VxWorks',
+    'src/aclocal.m4',
     'src/autogen.sh',
     'src/autom4te.cache',
     'src/bakefile',
     'src/build_glob.py',
+    'src/CMakeLists.txt',
     'src/c14n.c',
     'src/catalog.c',
     'src/compile',
@@ -172,6 +177,7 @@ FILES_TO_REMOVE = [
     'src/depcomp',
     'src/doc',
     'src/example',
+    'src/fuzz',
     'src/genChRanges.py',
     'src/global.data',
     'src/include/libxml/Makefile.in',
@@ -182,6 +188,7 @@ FILES_TO_REMOVE = [
     'src/install-sh',
     'src/legacy.c',
     'src/libxml2.doap',
+    'src/libxml2.syms',
     'src/ltmain.sh',
     'src/m4',
     'src/macos/libxml2.mcp.xml.sit.hqx',
@@ -204,6 +211,7 @@ FILES_TO_REMOVE = [
     'src/triostr.h',
     'src/vms',
     'src/win32/VC10/config.h',
+    'src/win32/configure.js',
     'src/win32/wince',
     'src/xinclude.c',
     'src/xlink.c',
@@ -217,6 +225,13 @@ FILES_TO_REMOVE = [
     'src/xpointer.c',
     'src/xstc',
     'src/xzlib.c',
+    'linux/.deps',
+    'linux/doc',
+    'linux/example',
+    'linux/fuzz',
+    'linux/include/private',
+    'linux/python',
+    'linux/xstc',
 ]
 
 
@@ -270,7 +285,7 @@ def remove_tracked_files(files_to_remove):
     """
     files_to_remove = [f for f in files_to_remove if os.path.exists(f)]
     if files_to_remove:
-        git('rm', '-rf', *files_to_remove)
+        git('rm', '-rf', '--ignore-unmatch', *files_to_remove)
 
 
 def sed_in_place(input_filename, program):
@@ -342,12 +357,12 @@ def prepare_libxml_distribution(src_path, libxml2_repo_path, temp_dir):
         # Work out what it is called
         tar_file = subprocess.check_output(
             '''awk '/PACKAGE =/ {p=$3} /VERSION =/ {v=$3} '''
-            '''END {printf("%s-%s.tar.gz", p, v)}' Makefile''',
+            '''END {printf("%s-%s.tar.xz", p, v)}' Makefile''',
             shell=True).decode('ascii')
         return commit, os.path.abspath(tar_file)
 
 
-def roll_libxml_linux(src_path, libxml2_repo_path):
+def roll_libxml_linux(src_path, libxml2_repo_path, fast):
     with WorkingDir(src_path):
         # Export the upstream git repo.
         try:
@@ -364,7 +379,7 @@ def roll_libxml_linux(src_path, libxml2_repo_path):
             # Update the libxml repo and export it to the Chromium tree
             with WorkingDir(THIRD_PARTY_LIBXML_SRC):
                 subprocess.check_call(
-                    'tar xzf %s --strip-components=1' % tar_file,
+                    'tar xJf %s --strip-components=1' % tar_file,
                     shell=True)
         finally:
             shutil.rmtree(temp_dir)
@@ -383,8 +398,14 @@ def roll_libxml_linux(src_path, libxml2_repo_path):
             # Add *everything*
             with WorkingDir('../src'):
                 git('add', '*')
+                if fast:
+                    with WorkingDir('..'):
+                        remove_tracked_files(FILES_TO_REMOVE)
                 git('commit', '-am', '%s libxml, linux' % commit)
-    print('Now push to Windows and run steps there.')
+    if fast:
+        print('Now upload for review, etc.')
+    else:
+        print('Now push to Windows and run steps there.')
 
 
 def roll_libxml_win32(src_path):
@@ -452,6 +473,7 @@ def main():
     platform.add_argument('--linux', action='store_true')
     platform.add_argument('--win32', action='store_true')
     platform.add_argument('--mac', action='store_true')
+    platform.add_argument('--linuxfast', action='store_true')
     parser.add_argument(
         'libxml2_repo_path',
         type=str,
@@ -462,13 +484,13 @@ def main():
         help='The path to the homebrew installation of icu4c.')
     args = parser.parse_args()
 
-    if args.linux:
+    if args.linux or args.linuxfast:
         libxml2_repo_path = args.libxml2_repo_path
         if not libxml2_repo_path:
             print('Specify the path to the local libxml2 repo clone.')
             sys.exit(1)
         libxml2_repo_path = os.path.abspath(libxml2_repo_path)
-        roll_libxml_linux(src_dir, libxml2_repo_path)
+        roll_libxml_linux(src_dir, libxml2_repo_path, args.linuxfast)
     elif args.win32:
         roll_libxml_win32(src_dir)
     elif args.mac:

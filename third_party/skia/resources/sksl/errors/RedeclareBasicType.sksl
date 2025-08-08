@@ -1,5 +1,0 @@
-float int;
-
-/*%%*
-expected an identifier, but found type 'int'
-*%%*/

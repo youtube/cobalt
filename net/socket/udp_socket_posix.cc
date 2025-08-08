@@ -14,8 +14,10 @@
 
 #include <errno.h>
 #include <fcntl.h>
+#include <net/if.h>
 #include <netdb.h>
 #include <netinet/in.h>
+#include <sys/ioctl.h>
 #include <sys/socket.h>
 
 #include <memory>
@@ -135,6 +137,22 @@ UDPSocketPosix::UDPSocketPosix(DatagramSocket::BindType bind_type,
       always_update_bytes_received_(base::FeatureList::IsEnabled(
           features::kUdpSocketPosixAlwaysUpdateBytesReceived)) {
   net_log_.BeginEventReferencingSource(NetLogEventType::SOCKET_ALIVE, source);
+}
+
+UDPSocketPosix::UDPSocketPosix(DatagramSocket::BindType bind_type,
+                               NetLogWithSource source_net_log)
+    : socket_(kInvalidSocket),
+      bind_type_(bind_type),
+      read_socket_watcher_(FROM_HERE),
+      write_socket_watcher_(FROM_HERE),
+      read_watcher_(this),
+      write_watcher_(this),
+      net_log_(source_net_log),
+      bound_network_(handles::kInvalidNetworkHandle),
+      always_update_bytes_received_(base::FeatureList::IsEnabled(
+          features::kUdpSocketPosixAlwaysUpdateBytesReceived)) {
+  net_log_.BeginEventReferencingSource(NetLogEventType::SOCKET_ALIVE,
+                                       net_log_.source());
 }
 
 UDPSocketPosix::~UDPSocketPosix() {
@@ -534,7 +552,7 @@ int UDPSocketPosix::SetDoNotFragment() {
 
 // setsockopt(IP_DONTFRAG) is supported on macOS from Big Sur
 #elif BUILDFLAG(IS_MAC)
-  if (!base::mac::IsAtLeastOS11()) {
+  if (base::mac::MacOSMajorVersion() < 11) {
     return ERR_NOT_IMPLEMENTED;
   }
   int val = 1;
@@ -572,14 +590,40 @@ int UDPSocketPosix::SetDoNotFragment() {
 #endif
 }
 
+int UDPSocketPosix::SetRecvEcn() {
+  DCHECK_NE(socket_, kInvalidSocket);
+  DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
+
+  unsigned int ecn = 1;
+  if (addr_family_ == AF_INET6) {
+    if (setsockopt(socket_, IPPROTO_IPV6, IPV6_RECVTCLASS, &ecn, sizeof(ecn)) !=
+        0) {
+      return MapSystemError(errno);
+    }
+
+    int v6_only = false;
+    socklen_t v6_only_len = sizeof(v6_only);
+    if (getsockopt(socket_, IPPROTO_IPV6, IPV6_V6ONLY, &v6_only,
+                   &v6_only_len) != 0) {
+      return MapSystemError(errno);
+    }
+    if (v6_only) {
+      return OK;
+    }
+  }
+
+  int rv = setsockopt(socket_, IPPROTO_IP, IP_RECVTOS, &ecn, sizeof(ecn));
+  return rv == 0 ? OK : MapSystemError(errno);
+}
+
 void UDPSocketPosix::SetMsgConfirm(bool confirm) {
-#if !BUILDFLAG(IS_APPLE) && defined(MSG_CONFIRM)
+#if !BUILDFLAG(IS_APPLE)
   if (confirm) {
     sendto_flags_ |= MSG_CONFIRM;
   } else {
     sendto_flags_ &= ~MSG_CONFIRM;
   }
-#endif  // !BUILDFLAG(IS_APPLE) && defined(MSG_CONFIRM)
+#endif  // !BUILDFLAG(IS_APPLE)
 }
 
 int UDPSocketPosix::AllowAddressReuse() {
@@ -777,23 +821,31 @@ int UDPSocketPosix::InternalRecvFromNonConnectedSocket(IOBuffer* buf,
                                                        int buf_len,
                                                        IPEndPoint* address) {
   SockaddrStorage storage;
-  int result = -1;
-  int bytes_transferred = -1;
-  bytes_transferred = HANDLE_EINTR(recvfrom(socket_, buf->data(), static_cast<size_t>(buf_len),
-                            0, storage.addr, &storage.addr_len));
+  struct iovec iov = {
+      .iov_base = buf->data(),
+      .iov_len = static_cast<size_t>(buf_len),
+  };
+  struct msghdr msg = {
+      .msg_name = storage.addr,
+      .msg_namelen = storage.addr_len,
+      .msg_iov = &iov,
+      .msg_iovlen = 1,
+  };
+  int result;
+  int bytes_transferred = HANDLE_EINTR(recvmsg(socket_, &msg, 0));
   if (bytes_transferred < 0) {
     result = MapSystemError(errno);
     if (result == ERR_IO_PENDING) {
       return result;
     }
   } else {
-    if (bytes_transferred == buf_len) {
+    storage.addr_len = msg.msg_namelen;
+    if (msg.msg_flags & MSG_TRUNC) {
       // NB: recvfrom(..., MSG_TRUNC, ...) would be a simpler way to do this on
       // Linux, but isn't supported by POSIX.
-      // When received data size == buffer size, it means the buffer isn't big enough,
-      // i.e. truncated.
       result = ERR_MSG_TOO_BIG;
-    } else if (address && !address->FromSockAddr(storage.addr, storage.addr_len)) {
+    } else if (address &&
+               !address->FromSockAddr(storage.addr, storage.addr_len)) {
       result = ERR_ADDRESS_INVALID;
     } else {
       result = bytes_transferred;
@@ -844,11 +896,7 @@ int UDPSocketPosix::SetMulticastOptions() {
     if (rv < 0)
       return MapSystemError(errno);
   }
-#if defined(IP_DEFAULT_MULTICAST_TTL)
   if (multicast_time_to_live_ != IP_DEFAULT_MULTICAST_TTL) {
-#elif defined(IP_MULTICAST_TTL)
-  if (multicast_time_to_live_ != IP_MULTICAST_TTL) {
-#endif
     int rv;
     if (addr_family_ == AF_INET) {
       u_char ttl = multicast_time_to_live_;

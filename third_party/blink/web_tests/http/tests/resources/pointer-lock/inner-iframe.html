@@ -1,0 +1,18 @@
+<!DOCTYPE HTML>
+<html>
+<head>
+<script src="iframe-common.js"></script>
+<script>
+    document.addEventListener('click', () => {
+        document.body.requestPointerLock().catch(error => {
+            // Do nothing here. The errors returned in the promise are
+            // tested in Web Platform Tests. These test are testing that
+            // the proper events are fires.
+        });
+    })
+</script>
+</head>
+<body>
+    inner-iframe.html
+</body>
+</html>

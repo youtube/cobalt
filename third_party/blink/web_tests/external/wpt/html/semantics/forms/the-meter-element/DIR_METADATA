@@ -1,0 +1,7 @@
+monorail {
+  component: "Blink>HTML>Meter"
+}
+team_email: "dom-dev@chromium.org"
+wpt {
+  notify: YES
+}

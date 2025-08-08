@@ -29,11 +29,21 @@
 namespace base {
 namespace internal {
 
+namespace {
+
+void TrimKeyValuePairs(StringPairs* pairs) {
+  for (auto& pair : *pairs) {
+    TrimWhitespaceASCII(pair.first, TRIM_ALL, &pair.first);
+    TrimWhitespaceASCII(pair.second, TRIM_ALL, &pair.second);
+  }
+}
+
+}  // namespace
+
 const char kProcDir[] = "/proc";
 
 const char kStatFile[] = "stat";
 
-#if !defined(STARBOARD)
 FilePath GetProcPidDir(pid_t pid) {
   return FilePath(kProcDir).Append(NumberToString(pid));
 }
@@ -57,7 +67,6 @@ pid_t ProcDirSlotToPid(const char* d_name) {
   }
   return pid;
 }
-#endif  // !defined(STARBOARD)
 
 bool ReadProcFile(const FilePath& file, std::string* buffer) {
   DCHECK(FilePath(kProcDir).IsParent(file));
@@ -72,12 +81,79 @@ bool ReadProcFile(const FilePath& file, std::string* buffer) {
   return !buffer->empty();
 }
 
-#if !defined(STARBOARD)
+bool ReadProcFileToTrimmedStringPairs(pid_t pid,
+                                      StringPiece filename,
+                                      StringPairs* key_value_pairs) {
+  std::string status_data;
+  FilePath status_file = GetProcPidDir(pid).Append(filename);
+  if (!ReadProcFile(status_file, &status_data)) {
+    return false;
+  }
+  SplitStringIntoKeyValuePairs(status_data, ':', '\n', key_value_pairs);
+  TrimKeyValuePairs(key_value_pairs);
+  return true;
+}
+
+size_t ReadProcStatusAndGetKbFieldAsSizeT(pid_t pid, StringPiece field) {
+  StringPairs pairs;
+  if (!ReadProcFileToTrimmedStringPairs(pid, "status", &pairs)) {
+    return 0;
+  }
+
+  for (const auto& pair : pairs) {
+    const std::string& key = pair.first;
+    const std::string& value_str = pair.second;
+    if (key != field) {
+      continue;
+    }
+
+    std::vector<StringPiece> split_value_str =
+        SplitStringPiece(value_str, " ", TRIM_WHITESPACE, SPLIT_WANT_ALL);
+    if (split_value_str.size() != 2 || split_value_str[1] != "kB") {
+      NOTREACHED();
+      return 0;
+    }
+    size_t value;
+    if (!StringToSizeT(split_value_str[0], &value)) {
+      NOTREACHED();
+      return 0;
+    }
+    return value;
+  }
+  // This can be reached if the process dies when proc is read -- in that case,
+  // the kernel can return missing fields.
+  return 0;
+}
+
+bool ReadProcStatusAndGetFieldAsUint64(pid_t pid,
+                                       StringPiece field,
+                                       uint64_t* result) {
+  StringPairs pairs;
+  if (!ReadProcFileToTrimmedStringPairs(pid, "status", &pairs)) {
+    return false;
+  }
+
+  for (const auto& pair : pairs) {
+    const std::string& key = pair.first;
+    const std::string& value_str = pair.second;
+    if (key != field) {
+      continue;
+    }
+
+    uint64_t value;
+    if (!StringToUint64(value_str, &value)) {
+      return false;
+    }
+    *result = value;
+    return true;
+  }
+  return false;
+}
+
 bool ReadProcStats(pid_t pid, std::string* buffer) {
   FilePath stat_file = internal::GetProcPidDir(pid).Append(kStatFile);
   return ReadProcFile(stat_file, buffer);
 }
-#endif  // !defined(STARBOARD)
 
 bool ParseProcStats(const std::string& stats_data,
                     std::vector<std::string>* proc_stats) {
@@ -103,11 +179,7 @@ bool ParseProcStats(const std::string& stats_data,
 
   proc_stats->clear();
   // PID.
-#if defined(STARBOARD)
-  proc_stats->push_back(stats_data.substr(0, open_parens_idx - 1));
-#else
   proc_stats->push_back(stats_data.substr(0, open_parens_idx));
-#endif
   // Process name without parentheses.
   proc_stats->push_back(
       stats_data.substr(open_parens_idx + 1,
@@ -160,19 +232,16 @@ int64_t ReadStatFileAndGetFieldAsInt64(const FilePath& stat_file,
   return GetProcStatsFieldAsInt64(proc_stats, field_num);
 }
 
-#if !defined(STARBOARD)
 int64_t ReadProcStatsAndGetFieldAsInt64(pid_t pid, ProcStatsFields field_num) {
   FilePath stat_file = internal::GetProcPidDir(pid).Append(kStatFile);
   return ReadStatFileAndGetFieldAsInt64(stat_file, field_num);
 }
-#endif  // !defined(STARBOARD)
 
 int64_t ReadProcSelfStatsAndGetFieldAsInt64(ProcStatsFields field_num) {
   FilePath stat_file = FilePath(kProcDir).Append("self").Append(kStatFile);
   return ReadStatFileAndGetFieldAsInt64(stat_file, field_num);
 }
 
-#if !defined(STARBOARD)
 size_t ReadProcStatsAndGetFieldAsSizeT(pid_t pid,
                                        ProcStatsFields field_num) {
   std::string stats_data;
@@ -183,7 +252,6 @@ size_t ReadProcStatsAndGetFieldAsSizeT(pid_t pid,
     return 0;
   return GetProcStatsFieldAsSizeT(proc_stats, field_num);
 }
-#endif  // !defined(STARBOARD)
 
 Time GetBootTime() {
   FilePath path("/proc/stat");
@@ -201,7 +269,6 @@ Time GetBootTime() {
   return Time::FromTimeT(btime);
 }
 
-#if !defined(STARBOARD)
 TimeDelta GetUserCpuTimeSinceBoot() {
   FilePath path("/proc/stat");
   std::string contents;
@@ -241,7 +308,6 @@ TimeDelta ClockTicksToTimeDelta(int64_t clock_ticks) {
 
   return Microseconds(Time::kMicrosecondsPerSecond * clock_ticks / kHertz);
 }
-#endif  // !defined(STARBOARD)
 
 }  // namespace internal
 }  // namespace base

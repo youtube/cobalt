@@ -1,5 +1,0 @@
-int volatile;
-
-/*%%*
-'volatile' is a reserved word
-*%%*/

@@ -1,25 +1,26 @@
-// Copyright 2014 The Chromium Authors. All rights reserved.
+// Copyright 2014 The Chromium Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
 syntax = "proto2";
 
 option optimize_for = LITE_RUNTIME;
+option java_package = "org.chromium.components.metrics";
 
 option java_outer_classname = "SampledProfileProtos";
-option java_package = "org.chromium.components.metrics";
 
 package metrics;
 
+import "call_stack_profile.proto";
 import "execution_context.proto";
 import "perf_data.proto";
 import "perf_stat.proto";
-import "call_stack_profile.proto";
+import "system_profile.proto";
 
 // Protocol buffer for collected sample-based profiling data.
 // Contains the parameters and data from a single profile collection event.
 
-// Next tag: 13
+// Next tag: 21
 message SampledProfile {
   // Indicates the event that triggered this collection.
   enum TriggerEvent {
@@ -60,6 +61,35 @@ message SampledProfile {
   // The thread in which the profile was collected.
   optional Thread thread = 12;
 
+  // Map of Chrome PIDs running on the system when the profile was collected.
+  // Each Chrome PID is mapped to its process type.
+  // This field and the below thread_types field assume that the PID/TID
+  // information are collected in a short duration for a single session such
+  // that, the PID/TID reuse is highly unlikely.
+  // The information from these two fields is used to map chrome samples
+  // collected for a specific PID/TID to the corresponding process type and
+  // thread type.
+  map<uint32, Process> process_types = 13;
+
+  // A list of pids that belong to Lacros binaries, which are a subset of the
+  // keys of the process_types above.
+  repeated uint32 lacros_pids = 18 [packed = true];
+
+  // The version string of the Lacros Chrome browser running on a CrOS machine.
+  // It a 4-tuple of numbers separated by dots.
+  // Note: unlike the app_version in the system_profile.proto, this does not
+  // include any additional suffixes such as development build or bitness.
+  // This, and lacros_channel are only populated when lacros binaries are
+  // found in the running processes, i.e. when lacros_pids is not empty.
+  optional string lacros_version = 19;
+
+  // The channel of the Lacros Chrome browser running on a CrOS machine.
+  optional SystemProfileProto.Channel lacros_channel = 20;
+
+  // Map of Chrome TIDs running on the system when the profile was collected.
+  // Each Chrome TID is mapped to its thread type.
+  map<uint32, Thread> thread_types = 14;
+
   // Fields 2-3: Time durations are given in ticks, and represent system uptime
   // rather than wall time.
 
@@ -93,4 +123,21 @@ message SampledProfile {
 
   // Perf counter data collected using "perf stat".
   optional PerfStatProto perf_stat = 10;
+
+  // The maximum frequency in MHz reported for each logical CPU on the device.
+  // This is a repeated field, where entry 0 corresponds to core 0, entry 1 to
+  // core 1, and so on. The field is optional and populated only for metrics
+  // that can use the max frequency to compute a CPU utilization metric, e.g.
+  // when measuring CPU cycles.
+  repeated uint32 cpu_max_frequency_mhz = 15;
+
+  // The pressure-stall information that describes the state of CPU utilization
+  // of the system.
+  // The percent of the time that runnable processes are delayed because the CPU
+  // is unavailable, accumulated over 10 seconds.
+  optional float psi_cpu_last_10s_pct = 16;
+
+  // The percent of the time that runnable processes are delayed because the CPU
+  // is unavailable, accumulated over 60 seconds.
+  optional float psi_cpu_last_60s_pct = 17;
 }

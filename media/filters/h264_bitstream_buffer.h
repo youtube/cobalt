@@ -18,9 +18,7 @@
 #include "base/memory/ref_counted.h"
 #include "base/numerics/safe_conversions.h"
 #include "media/base/media_export.h"
-#if !defined(STARBOARD)
 #include "media/base/video_frame.h"
-#endif  // !defined(STARBOARD)
 #include "media/video/h264_parser.h"
 
 namespace media {
@@ -142,7 +140,7 @@ class MEDIA_EXPORT H264BitstreamBuffer
   size_t bits_in_buffer_;
 
   // Buffer for stream data.
-  raw_ptr<uint8_t, AllowPtrArithmetic> data_;
+  raw_ptr<uint8_t, DanglingUntriaged | AllowPtrArithmetic> data_;
 };
 
 }  // namespace media

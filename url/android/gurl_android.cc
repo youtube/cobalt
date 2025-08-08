@@ -15,9 +15,10 @@
 #include "base/functional/bind.h"
 #include "base/functional/callback.h"
 #include "base/memory/ptr_util.h"
+#include "base/strings/string_util.h"
 #include "url/android/parsed_android.h"
-#include "url/gurl_jni_headers/GURL_jni.h"
 #include "url/third_party/mozilla/url_parse.h"
+#include "url/url_jni_headers/GURL_jni.h"
 
 using base::android::AttachCurrentThread;
 using base::android::JavaParamRef;
@@ -49,6 +50,10 @@ static std::unique_ptr<GURL> FromJavaGURL(JNIEnv* env,
 static void InitFromGURL(JNIEnv* env,
                          const GURL& gurl,
                          const JavaRef<jobject>& target) {
+  // Ensure that the spec only contains US-ASCII (single-byte characters) or the
+  // parsed indices will be wrong as the indices are in bytes while Java Strings
+  // are always 16-bit.
+  DCHECK(base::IsStringASCII(gurl.possibly_invalid_spec()));
   Java_GURL_init(
       env, target,
       base::android::ConvertUTF8ToJavaString(env, gurl.possibly_invalid_spec()),
@@ -155,6 +160,41 @@ static jlong JNI_GURL_CreateNative(JNIEnv* env,
                                    jlong parsed_ptr) {
   return reinterpret_cast<intptr_t>(
       FromJavaGURL(env, j_spec, is_valid, parsed_ptr).release());
+}
+
+static void JNI_GURL_ReplaceComponents(
+    JNIEnv* env,
+    const JavaParamRef<jstring>& j_spec,
+    jboolean is_valid,
+    jlong parsed_ptr,
+    const JavaParamRef<jstring>& j_username_replacement,
+    jboolean clear_username,
+    const JavaParamRef<jstring>& j_password_replacement,
+    jboolean clear_password,
+    const JavaParamRef<jobject>& j_result) {
+  GURL::Replacements replacements;
+
+  // Replacement strings must remain in scope for ReplaceComponents().
+  std::string username;
+  std::string password;
+
+  if (clear_username) {
+    replacements.ClearUsername();
+  } else if (j_username_replacement) {
+    username = ConvertJavaStringToUTF8(env, j_username_replacement);
+    replacements.SetUsernameStr(username);
+  }
+
+  if (clear_password) {
+    replacements.ClearPassword();
+  } else if (j_password_replacement) {
+    password = ConvertJavaStringToUTF8(env, j_password_replacement);
+    replacements.SetPasswordStr(password);
+  }
+
+  std::unique_ptr<GURL> original =
+      FromJavaGURL(env, j_spec, is_valid, parsed_ptr);
+  InitFromGURL(env, original->ReplaceComponents(replacements), j_result);
 }
 
 }  // namespace url

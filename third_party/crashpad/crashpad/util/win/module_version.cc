@@ -1,4 +1,4 @@
-// Copyright 2015 The Crashpad Authors. All rights reserved.
+// Copyright 2015 The Crashpad Authors
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -29,14 +29,13 @@ bool GetModuleVersionAndType(const base::FilePath& path,
   DWORD size = GetFileVersionInfoSize(path.value().c_str(), nullptr);
   if (!size) {
     PLOG_IF(WARNING, GetLastError() != ERROR_RESOURCE_TYPE_NOT_FOUND)
-        << "GetFileVersionInfoSize: " << base::UTF16ToUTF8(path.value());
+        << "GetFileVersionInfoSize: " << base::WideToUTF8(path.value());
     return false;
   }
 
   std::unique_ptr<uint8_t[]> data(new uint8_t[size]);
   if (!GetFileVersionInfo(path.value().c_str(), 0, size, data.get())) {
-    PLOG(WARNING) << "GetFileVersionInfo: "
-                  << base::UTF16ToUTF8(path.value());
+    PLOG(WARNING) << "GetFileVersionInfo: " << base::WideToUTF8(path.value());
     return false;
   }
 

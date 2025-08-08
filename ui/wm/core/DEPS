@@ -1,0 +1,10 @@
+include_rules = [
+  "+third_party/skia",
+  "+ui/aura",
+  "+ui/color",
+  "+ui/compositor",
+  "+ui/compositor_extra",
+  "+ui/gfx",
+  "+ui/platform_window",
+  "+ui/resources/grit/ui_resources.h",
+]

@@ -1,4 +1,4 @@
-// Copyright 2017 The Crashpad Authors. All rights reserved.
+// Copyright 2017 The Crashpad Authors
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -17,20 +17,8 @@
 #include <utility>
 
 #include "base/logging.h"
+#include "build/build_config.h"
 #include "util/linux/exception_information.h"
-
-#if defined(STARBOARD) || defined(NATIVE_TARGET_BUILD)
-#include "third_party/crashpad/crashpad/util/linux/exception_handler_protocol.h"
-// TODO(b/201538792): resolve conflict between mini_chromium and base functions.
-#ifdef LogMessage
-#define LOG_MESSAGE_DEFINED
-#undef LogMessage
-#endif
-#include "third_party/crashpad/crashpad/wrapper/proto/crashpad_annotations.pb.h"
-#ifdef LOG_MESSAGE_DEFINED
-#define LogMessage MLogMessage
-#endif
-#endif
 
 namespace crashpad {
 
@@ -52,78 +40,17 @@ bool ProcessSnapshotLinux::Initialize(PtraceConnection* connection) {
     return false;
   }
 
+  client_id_.InitializeToZero();
   system_.Initialize(&process_reader_, &snapshot_time_);
 
-  InitializeThreads();
   InitializeModules();
-  InitializeAnnotations();
-
-  INITIALIZATION_STATE_SET_VALID(initialized_);
-  return true;
-}
-
-#if defined(STARBOARD) || defined(NATIVE_TARGET_BUILD)
-bool ProcessSnapshotLinux::Initialize(PtraceConnection* connection,
-                                      VMAddress evergreen_information_address,
-                                      VMAddress serialized_annotations_address,
-                                      int serialized_annotations_size,
-                                      ExceptionHandlerProtocol::HandlerStartType handler_start_type) {
-  INITIALIZATION_STATE_SET_INITIALIZING(initialized_);
-
-  if (gettimeofday(&snapshot_time_, nullptr) != 0) {
-    PLOG(ERROR) << "gettimeofday";
-    return false;
-  }
-
-  if (!process_reader_.Initialize(connection) ||
-      !memory_range_.Initialize(process_reader_.Memory(),
-                                process_reader_.Is64Bit())) {
-    return false;
-  }
-
-  if (handler_start_type == ExceptionHandlerProtocol::kStartAtCrash) {
-    LOG(INFO) << "Annotations do not need to be read from client process";
-  } else {
-    AddAnnotations(serialized_annotations_address, serialized_annotations_size);
-  }
-
-  system_.Initialize(&process_reader_, &snapshot_time_);
-
+  GetCrashpadOptionsInternal((&options_));
   InitializeThreads();
-  InitializeModules(evergreen_information_address);
   InitializeAnnotations();
 
   INITIALIZATION_STATE_SET_VALID(initialized_);
   return true;
 }
-
-void ProcessSnapshotLinux::AddAnnotations(
-    VMAddress serialized_annotations_address, int serialized_annotations_size) {
-  std::vector<char> buffer(serialized_annotations_size);
-  if (!memory_range_.Read(serialized_annotations_address,
-                          serialized_annotations_size,
-                          buffer.data())) {
-    LOG(ERROR) << "Could not read annotations";
-    return;
-  }
-
-  crashpad::wrapper::CrashpadAnnotations annotations;
-  if (!annotations.ParseFromArray(buffer.data(), serialized_annotations_size)) {
-      LOG(ERROR) << "Could not parse annotations";
-      return;
-  }
-
-  AddAnnotation("user_agent_string",
-                std::string(annotations.user_agent_string()));
-  AddAnnotation("prod", std::string(annotations.prod()));
-  AddAnnotation("ver", std::string(annotations.ver()));
-
-  for (auto& runtime_annotation : annotations.runtime_annotations()) {
-    AddAnnotation(runtime_annotation.first, runtime_annotation.second);
-  }
-  LOG(INFO) << "Annotations successfully added from client process";
-}
-#endif
 
 pid_t ProcessSnapshotLinux::FindThreadWithStackAddress(
     VMAddress stack_address) {
@@ -156,11 +83,17 @@ bool ProcessSnapshotLinux::InitializeException(
     info.thread_id = exception_thread_id;
   }
 
+  uint32_t* budget_remaining_pointer =
+      options_.gather_indirectly_referenced_memory == TriState::kEnabled
+          ? &options_.indirectly_referenced_memory_cap
+          : nullptr;
+
   exception_.reset(new internal::ExceptionSnapshotLinux());
   if (!exception_->Initialize(&process_reader_,
                               info.siginfo_address,
                               info.context_address,
-                              info.thread_id)) {
+                              info.thread_id,
+                              budget_remaining_pointer)) {
     exception_.reset();
     return false;
   }
@@ -176,7 +109,7 @@ bool ProcessSnapshotLinux::InitializeException(
 
       auto exc_thread_snapshot =
           std::make_unique<internal::ThreadSnapshotLinux>();
-      if (!exc_thread_snapshot->Initialize(&process_reader_, thread)) {
+      if (!exc_thread_snapshot->Initialize(&process_reader_, thread, nullptr)) {
         return false;
       }
 
@@ -200,7 +133,11 @@ bool ProcessSnapshotLinux::InitializeException(
 void ProcessSnapshotLinux::GetCrashpadOptions(
     CrashpadInfoClientOptions* options) {
   INITIALIZATION_STATE_DCHECK_VALID(initialized_);
+  *options = options_;
+}
 
+void ProcessSnapshotLinux::GetCrashpadOptionsInternal(
+    CrashpadInfoClientOptions* options) {
   CrashpadInfoClientOptions local_options;
 
   for (const auto& module : modules_) {
@@ -298,11 +235,6 @@ std::vector<const ModuleSnapshot*> ProcessSnapshotLinux::Modules() const {
   for (const auto& module : modules_) {
     modules.push_back(module.get());
   }
-#if defined(STARBOARD) || defined(NATIVE_TARGET_BUILD)
-  if (evergreen_module_) {
-    modules.push_back(evergreen_module_.get());
-  }
-#endif
   return modules;
 }
 
@@ -343,10 +275,17 @@ const ProcessMemory* ProcessSnapshotLinux::Memory() const {
 void ProcessSnapshotLinux::InitializeThreads() {
   const std::vector<ProcessReaderLinux::Thread>& process_reader_threads =
       process_reader_.Threads();
+  uint32_t* budget_remaining_pointer =
+      options_.gather_indirectly_referenced_memory == TriState::kEnabled
+          ? &options_.indirectly_referenced_memory_cap
+          : nullptr;
+
   for (const ProcessReaderLinux::Thread& process_reader_thread :
        process_reader_threads) {
     auto thread = std::make_unique<internal::ThreadSnapshotLinux>();
-    if (thread->Initialize(&process_reader_, process_reader_thread)) {
+    if (thread->Initialize(&process_reader_,
+                           process_reader_thread,
+                           budget_remaining_pointer)) {
       threads_.push_back(std::move(thread));
     }
   }
@@ -367,47 +306,8 @@ void ProcessSnapshotLinux::InitializeModules() {
   }
 }
 
-#if defined(STARBOARD) || defined(NATIVE_TARGET_BUILD)
-void ProcessSnapshotLinux::InitializeModules(
-    VMAddress evergreen_information_address) {
-  for (const ProcessReaderLinux::Module& reader_module :
-       process_reader_.Modules()) {
-    auto module =
-        std::make_unique<internal::ModuleSnapshotElf>(reader_module.name,
-                                                      reader_module.elf_reader,
-                                                      reader_module.type,
-                                                      &memory_range_,
-                                                      process_reader_.Memory());
-    if (module->Initialize()) {
-      modules_.push_back(std::move(module));
-    }
-  }
-
-  // Add evergreen module
-  EvergreenInfo evergreen_info;
-  if (!memory_range_.Read(evergreen_information_address,
-                          sizeof(evergreen_info),
-                          &evergreen_info)) {
-    LOG(ERROR) << "Could not read evergreen info";
-    return;
-  }
-
-  std::vector<uint8_t> build_id(evergreen_info.build_id_length);
-  for (unsigned int i = 0; i < build_id.size(); i++) {
-    build_id[i] = reinterpret_cast<uint8_t*>(evergreen_info.build_id)[i];
-  }
-
-  evergreen_module_ = std::make_unique<internal::ModuleSnapshotEvergreen>(
-      std::string(evergreen_info.file_path_buf),
-      ModuleSnapshot::ModuleType::kModuleTypeLoadableModule,
-      evergreen_info.base_address,
-      evergreen_info.load_size,
-      build_id);
-}
-#endif
-
 void ProcessSnapshotLinux::InitializeAnnotations() {
-#if defined(OS_ANDROID)
+#if BUILDFLAG(IS_ANDROID)
   const std::string& abort_message = process_reader_.AbortMessage();
   if (!abort_message.empty()) {
     annotations_simple_map_["abort_message"] = abort_message;

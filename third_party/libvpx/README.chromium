@@ -1,12 +1,12 @@
 Name: libvpx
 URL: https://chromium.googlesource.com/webm/libvpx
-Version: 0
-Date: Tuesday September 26 2023
-Revision: 7aaffe2df4c9426ab204a272ca5ca52286ca86d4
-CPEPrefix: cpe:/a:webmproject:libvpx:1.13.0
+Version: N/A
+Revision: 424723dc025ce451dab9568239a46b18d0919b4d
+CPEPrefix: cpe:/a:webmproject:libvpx:1.13.1
 License: BSD
 License File: source/libvpx/LICENSE
 Security Critical: yes
+Shipped: yes
 
 Description:
 Contains the sources used to compile libvpx binaries used by Google Chrome and
@@ -31,7 +31,7 @@ Please follow these steps to update libvpx source code:
      cd third_party/libvpx
      ./generate_gni.sh
 
-   Update 'Version' and 'CPEPrefix' in this file if necessary.
+   Update 'Revision' and 'CPEPrefix' in this file if necessary.
 
 3. Amend the commit created by the first step:
 

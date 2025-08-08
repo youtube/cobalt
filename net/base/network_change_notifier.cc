@@ -31,9 +31,7 @@
 #include "third_party/abseil-cpp/absl/types/optional.h"
 #include "url/gurl.h"
 
-#if defined(STARBOARD)
-#include "net/base/network_change_notifier_starboard.h"
-#elif BUILDFLAG(IS_WIN)
+#if BUILDFLAG(IS_WIN)
 #include "net/base/network_change_notifier_win.h"
 #elif BUILDFLAG(IS_LINUX)
 #include "net/base/network_change_notifier_linux.h"
@@ -309,9 +307,7 @@ std::unique_ptr<NetworkChangeNotifier> NetworkChangeNotifier::CreateIfNeeded(
         initial_type, initial_subtype);
   }
 
-#if defined(STARBOARD)
-  return std::make_unique<NetworkChangeNotifierStarboard>();
-#elif BUILDFLAG(IS_WIN)
+#if BUILDFLAG(IS_WIN)
   std::unique_ptr<NetworkChangeNotifierWin> network_change_notifier =
       std::make_unique<NetworkChangeNotifierWin>();
   network_change_notifier->WatchForAddressChange();

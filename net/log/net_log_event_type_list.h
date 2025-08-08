@@ -232,7 +232,6 @@ EVENT_TYPE(HOST_RESOLVER_MANAGER_DNS_TASK)
 //   {
 //     "extraction_error": <The DnsResponseResultExtractor::ExtractionError>
 //     "dns_query_type": <The DnsQueryType requested from the extractor>
-//     "results": <The HostCache::Entry returned by the extractor>
 //   }
 EVENT_TYPE(HOST_RESOLVER_MANAGER_DNS_TASK_EXTRACTION_FAILURE)
 
@@ -401,6 +400,26 @@ EVENT_TYPE(SUBMITTED_TO_RESOLVER_THREAD)
 //     "source_dependency": <Source identifier for the controlling entity>,
 //   }
 EVENT_TYPE(SOCKET_ALIVE)
+
+// Records Open calls to sockets.
+//   {
+//     "net_error": <On failure; net integer error code>
+//   }
+EVENT_TYPE(SOCKET_OPEN)
+
+// Records Connect calls to sockets.
+//   {
+//     "address": <Remote address being connected to>
+//     "net_error": <On failure; net integer error code>
+//   }
+EVENT_TYPE(SOCKET_CONNECT)
+
+// Records BindToNetwork calls to sockets.
+//   {
+//     "network": <Network this socket is being bound to>
+//     "net_error": <On failure; net integer error code>
+//   }
+EVENT_TYPE(SOCKET_BIND_TO_NETWORK)
 
 // ------------------------------------------------------------------------
 // Brokered Socket (Shared by stream and datagram sockets)
@@ -610,9 +629,9 @@ EVENT_TYPE(SSL_ALERT_SENT)
 EVENT_TYPE(SSL_CONFIRM_HANDSHAKE)
 
 // An SSL connection sent or received a handshake message.
-// `SSL_ENCYPTED_CLIENT_HELLO` means the handshake message was not sent over the
-// wire but encrypted with the Encrypted ClientHello (ECH) extension.
-// The following parameters are attached:
+// `SSL_ENCRYPTED_CLIENT_HELLO` means the handshake message was not sent over
+// the wire but encrypted with the Encrypted ClientHello (ECH) extension. The
+// following parameters are attached:
 //   {
 //     "type": <The type of the handshake message, as an integer>
 //     "bytes": <The exact bytes sent, Base64 encoded.
@@ -620,7 +639,7 @@ EVENT_TYPE(SSL_CONFIRM_HANDSHAKE)
 //   }
 EVENT_TYPE(SSL_HANDSHAKE_MESSAGE_RECEIVED)
 EVENT_TYPE(SSL_HANDSHAKE_MESSAGE_SENT)
-EVENT_TYPE(SSL_ENCYPTED_CLIENT_HELLO)
+EVENT_TYPE(SSL_ENCRYPTED_CLIENT_HELLO)
 
 // The specified number of bytes were sent on the socket.  Depending on the
 // source of the event, may be logged either once the data is sent, or when it
@@ -1639,15 +1658,6 @@ EVENT_TYPE(HTTP2_SESSION_SEND_DATA)
 //   }
 EVENT_TYPE(HTTP2_SESSION_RECV_DATA)
 
-// This event is sent for receiving an HTTP/2 PUSH_PROMISE frame.
-// The following parameters are attached:
-//   {
-//     "headers": <The list of header:value pairs>,
-//     "id": <The stream id>,
-//     "promised_stream_id": <The stream id>,
-//   }
-EVENT_TYPE(HTTP2_SESSION_RECV_PUSH_PROMISE)
-
 // A stream is stalled by the session send window being closed.
 EVENT_TYPE(HTTP2_SESSION_STREAM_STALLED_BY_SESSION_SEND_WINDOW)
 
@@ -1739,13 +1749,6 @@ EVENT_TYPE(HTTP2_SESSION_POOL_REMOVE_SESSION)
 // The begin and end of an HTTP/2 STREAM.
 EVENT_TYPE(HTTP2_STREAM)
 
-// A stream is attached to a pushed stream.
-//   {
-//     "stream_id":  <The stream id>,
-//     "url":        <The url of the pushed resource>,
-//   }
-EVENT_TYPE(HTTP2_STREAM_ADOPTED_PUSH_STREAM)
-
 // A stream is unstalled by flow control.
 EVENT_TYPE(HTTP2_STREAM_FLOW_CONTROL_UNSTALLED)
 
@@ -1791,6 +1794,23 @@ EVENT_TYPE(HTTP2_PROXY_CLIENT_SESSION)
 //   {
 //     "source_dependency":  <Source identifier for the underlying session>,
 //   }
+
+// ------------------------------------------------------------------------
+// QuicStreamFactory
+// ------------------------------------------------------------------------
+
+// This event is emitted whenever a platform notification is received that
+// could possibly trigger connection migration.
+//   {
+//     "signal": <Type of the platform notification>
+//   }
+EVENT_TYPE(QUIC_STREAM_FACTORY_PLATFORM_NOTIFICATION)
+
+// These events track QuicStreamFactory's handling of OnIPAddressChanged and
+// whether QuicSessions are closed or marked as going away.
+EVENT_TYPE(QUIC_STREAM_FACTORY_ON_IP_ADDRESS_CHANGED)
+EVENT_TYPE(QUIC_STREAM_FACTORY_CLOSE_ALL_SESSIONS)
+EVENT_TYPE(QUIC_STREAM_FACTORY_MARK_ALL_ACTIVE_SESSIONS_GOING_AWAY)
 
 // ------------------------------------------------------------------------
 // QuicStreamFactory::Job
@@ -2174,17 +2194,34 @@ EVENT_TYPE(QUIC_SESSION_WEBTRANSPORT_CLIENT_ALIVE)
 //   }
 EVENT_TYPE(QUIC_SESSION_WEBTRANSPORT_CLIENT_STATE_CHANGED)
 
+// A WebTransport session is ready.
+//   {
+//     "http_datagram_version": <Negotiated HTTP Datagram version>,
+//     "webtransport_http3_version": <Negotiated WebTransport over HTTP/3
+//      version>
+//   }
+EVENT_TYPE(QUIC_SESSION_WEBTRANSPORT_SESSION_READY)
+
 // QUIC with TLS gets 0-RTT rejected.
 EVENT_TYPE(QUIC_SESSION_ZERO_RTT_REJECTED)
 
-// A QUIC connection received a PUSH_PROMISE frame.  The following
-// parameters are attached:
+// Records that the QUIC session received a default network change signal.
 //   {
-//     "headers": <The list of header:value pairs>,
-//     "id": <The stream id>,
-//     "promised_stream_id": <The stream id>,
+//     "new_default_network": <The new default network>
 //   }
-EVENT_TYPE(QUIC_SESSION_PUSH_PROMISE_RECEIVED)
+EVENT_TYPE(QUIC_SESSION_NETWORK_MADE_DEFAULT)
+
+// Records that the QUIC session received a network disconnected signal.
+//   {
+//     "disconnected_network": <The network which was disconnected>
+//   }
+EVENT_TYPE(QUIC_SESSION_NETWORK_DISCONNECTED)
+
+// Records that the QUIC session received a network connected signal.
+//   {
+//     "connected_network": <The network which was connected>
+//   }
+EVENT_TYPE(QUIC_SESSION_NETWORK_CONNECTED)
 
 // Session was closed, either remotely or by the peer.
 //   {
@@ -2401,23 +2438,6 @@ EVENT_TYPE(QUIC_SESSION_KEY_UPDATE)
 // QuicHttpStream
 // ------------------------------------------------------------------------
 
-// A stream request's url matches a received push promise.  The
-// promised stream can be adopted for this request once vary header
-// validation is complete (as part of response header processing).
-//   {
-//     "stream_id":  <The stream id>,
-//     "url":        <The url of the pushed resource>,
-//   }
-EVENT_TYPE(QUIC_HTTP_STREAM_PUSH_PROMISE_RENDEZVOUS)
-
-// Vary validation has succeeded, a http stream is attached to
-// a pushed QUIC stream.
-//   {
-//     "stream_id":  <The stream id>,
-//     "url":        <The url of the pushed resource>,
-//   }
-EVENT_TYPE(QUIC_HTTP_STREAM_ADOPTED_PUSH_STREAM)
-
 // Identifies the NetLogSource() for the QuicSession that handled the stream.
 // The event parameters are:
 //   {
@@ -2476,13 +2496,6 @@ EVENT_TYPE(QUIC_CONNECTION_MIGRATION_TRIGGERED)
 //  }
 EVENT_TYPE(QUIC_CONNECTION_MIGRATION_FAILURE)
 
-// This event is emitted whenenver a platform notification is received that
-// could possibly trigger connection migration.
-//   {
-//     "signal": <Type of the platform notification>
-//   }
-EVENT_TYPE(QUIC_CONNECTION_MIGRATION_PLATFORM_NOTIFICATION)
-
 // Records a successful QUIC connection migration attempt of the session
 // identified by connection_id.
 //  {
@@ -2492,19 +2505,35 @@ EVENT_TYPE(QUIC_CONNECTION_MIGRATION_SUCCESS)
 
 // Records that a QUIC connection migration attempt due to new network
 // being connected.
+// {
+//     "connected_network": <The network we will try to migrate to>
+// }
 EVENT_TYPE(QUIC_CONNECTION_MIGRATION_ON_NETWORK_CONNECTED)
 
 // Records that a QUIC connection migration attempt due to new network
 // being marked as default network.
+// {
+//     "new_default_network": <The new default network>
+// }
 EVENT_TYPE(QUIC_CONNECTION_MIGRATION_ON_NETWORK_MADE_DEFAULT)
 
 // Records that a QUIC connection migration attempt due to old network
 // being disconnected.
+// {
+//     "disconnected_network": <The network which was disconnected>
+// }
 EVENT_TYPE(QUIC_CONNECTION_MIGRATION_ON_NETWORK_DISCONNECTED)
 
 // Records that a QUIC connection migration attempt due to encountering
 // packet write error on the current network.
+// {
+//     "network": <Current network where we encountered the write error>
+// }
 EVENT_TYPE(QUIC_CONNECTION_MIGRATION_ON_WRITE_ERROR)
+
+// Records that no alternate networks were available after either the default
+// network was or a we encountered a packet write error.
+EVENT_TYPE(QUIC_CONNECTION_MIGRATION_WAITING_FOR_NEW_NETWORK)
 
 // Records that a QUIC connection migration attempt due to path
 // degrading on the current network.
@@ -2512,13 +2541,29 @@ EVENT_TYPE(QUIC_CONNECTION_MIGRATION_ON_PATH_DEGRADING)
 
 // Records that a QUIC connection migration attempt due to efforts to
 // migrate back to the default network.
+// {
+//     "retry_count": <Number of attempts to migrate back so far>
+// }
 EVENT_TYPE(QUIC_CONNECTION_MIGRATION_ON_MIGRATE_BACK)
 
 // Records a QUIC connection migration failure after probing.
 EVENT_TYPE(QUIC_CONNECTION_MIGRATION_FAILURE_AFTER_PROBING)
 
 // Records a QUIC connection migration success after probing.
+// {
+//     "migrate_to_network": <The network the probe was successful for>
+// }
 EVENT_TYPE(QUIC_CONNECTION_MIGRATION_SUCCESS_AFTER_PROBING)
+
+// Records a QUIC connection migration timeout while waiting for a new network.
+EVENT_TYPE(QUIC_CONNECTION_MIGRATION_FAILURE_WAITING_FOR_NETWORK)
+
+// Records that a new network was found before QUIC connection migration timed
+// out.
+// {
+//     "network": <The network that was found and we will try to migrate to>
+// }
+EVENT_TYPE(QUIC_CONNECTION_MIGRATION_SUCCESS_WAITING_FOR_NETWORK)
 
 // ------------------------------------------------------------------------
 // QuicConnectivityProbingManager
@@ -3001,7 +3046,21 @@ EVENT_TYPE(SPECIFIC_NETWORK_MADE_DEFAULT)
 
 // This event is emitted whenever CertDatabase determines that the certificate
 // database has changed.
-EVENT_TYPE(CERTIFICATE_DATABASE_CHANGED)
+EVENT_TYPE(CERTIFICATE_DATABASE_TRUST_STORE_CHANGED)
+EVENT_TYPE(CERTIFICATE_DATABASE_CLIENT_CERT_STORE_CHANGED)
+
+// This event is logged when a request to conditionally clear the cached client
+// certificate for a specific host has been received. It contains the following
+// parameters:
+// {
+//    "host": <Serialized scheme/host/port of the request>,
+//    "certificates": <A list of PEM encoded certificates, the first one
+//                    being the new client certificate and the remaining
+//                    being intermediate certificates. May be an empty
+//                    list if no client certificate should be cached.>,
+//    "is_cleared": <boolean>,
+// }
+EVENT_TYPE(CLEAR_CACHED_CLIENT_CERT)
 
 // ------------------------------------------------------------------------
 // Exponential back-off throttling events
@@ -3314,25 +3373,6 @@ EVENT_TYPE(CERT_VERIFY_PROC_PATH_BUILD_ATTEMPT)
 //                 encountered while building or verifying the path.>
 //   }
 EVENT_TYPE(CERT_VERIFY_PROC_PATH_BUILT)
-
-// This event is created when a TrialComparisonCertVerifier starts a
-// verification using the trial verifier.
-//
-// The event parameters are:
-//   {
-//      "trial_success": <True if the trial verification had the same result>,
-//   }
-EVENT_TYPE(TRIAL_CERT_VERIFIER_JOB)
-
-// This event is created when a TrialComparisonCertVerifier begins a trial
-// comparison job for a regular CertVerifier job.
-//
-// The event parameters are:
-//   {
-//      "source_dependency": <Source identifier for the trial comparison job
-//                            that was started>,
-//   }
-EVENT_TYPE(TRIAL_CERT_VERIFIER_JOB_COMPARISON_STARTED)
 
 // -----------------------------------------------------------------------------
 // FTP events.
@@ -4195,11 +4235,11 @@ EVENT_TYPE(CORS_PREFLIGHT_URL_REQUEST)
 EVENT_TYPE(CORS_PREFLIGHT_CACHED_RESULT)
 
 // ------------------------------------------------------------------------
-// Local Network Access
+// Private Network Access
 // ------------------------------------------------------------------------
 
-// This event is logged when a new connection is checked against Local Network
-// Access rules.
+// This event is logged when a new connection is checked against Private
+// Network Access rules.
 //
 // It contains the following parameters:
 //  {
@@ -4208,11 +4248,11 @@ EVENT_TYPE(CORS_PREFLIGHT_CACHED_RESULT)
 //    "result": <the result of the check>,
 //  }
 //
-// If the result is "blocked-by-policy-preflight-block", then the request is
+// If the result is "unexpected-private-network", then the request is
 // interrupted and a preflight request is retried, this time with PNA headers
 // attached. If this second connection fails the check again, the request is
 // failed.
-EVENT_TYPE(LOCAL_NETWORK_ACCESS_CHECK)
+EVENT_TYPE(PRIVATE_NETWORK_ACCESS_CHECK)
 
 // ------------------------------------------------------------------------
 // Initiator
@@ -4330,3 +4370,12 @@ EVENT_TYPE(OBLIVIOUS_HTTP_RESPONSE_DATA)
 // OBLIVIOUS_HTTP_RESPONSE_HEADERS logs headers of the response, after
 // decryption.
 EVENT_TYPE(OBLIVIOUS_HTTP_RESPONSE_HEADERS)
+
+// This event is logged when First-Party Sets metadata is requested/received.
+// The following parameters are attached to the "end" event:
+//   {
+//     "cache_filter": <string>,
+//     "frame_entry": <string>,
+//     "top_frame_entry": <string>,
+//   }
+EVENT_TYPE(FIRST_PARTY_SETS_METADATA)

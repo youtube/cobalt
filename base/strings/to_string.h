@@ -9,14 +9,22 @@
 #include <memory>
 #include <sstream>
 #include <string>
+#include <tuple>
 #include <type_traits>
+#include <utility>
 
 #include "base/template_util.h"
 #include "base/types/supports_ostream_operator.h"
 
 namespace base {
 
+template <typename... Ts>
+std::string ToString(const Ts&... values);
+
 namespace internal {
+
+template <typename T>
+concept SupportsToString = requires(const T& t) { t.ToString(); };
 
 // I/O manipulators are function pointers, but should be sent directly to the
 // `ostream` instead of being cast to `const void*` like other function
@@ -48,19 +56,17 @@ struct ToStringHelper {
 
 // Most streamables.
 template <typename T>
-struct ToStringHelper<
-    T,
-    std::enable_if_t<SupportsOstreamOperator<const T&>::value &&
-                     !WillBeIncorrectlyStreamedAsBool<T>>> {
+struct ToStringHelper<T,
+                      std::enable_if_t<SupportsOstreamOperator<const T&> &&
+                                       !WillBeIncorrectlyStreamedAsBool<T>>> {
   static void Stringify(const T& v, std::ostringstream& ss) { ss << v; }
 };
 
 // Functions and function pointers.
 template <typename T>
-struct ToStringHelper<
-    T,
-    std::enable_if_t<SupportsOstreamOperator<const T&>::value &&
-                     WillBeIncorrectlyStreamedAsBool<T>>> {
+struct ToStringHelper<T,
+                      std::enable_if_t<SupportsOstreamOperator<const T&> &&
+                                       WillBeIncorrectlyStreamedAsBool<T>>> {
   static void Stringify(const T& v, std::ostringstream& ss) {
     ToStringHelper<const void*>::Stringify(reinterpret_cast<const void*>(v),
                                            ss);
@@ -69,10 +75,9 @@ struct ToStringHelper<
 
 // Non-streamables that have a `ToString` member.
 template <typename T>
-struct ToStringHelper<
-    T,
-    std::enable_if_t<!SupportsOstreamOperator<const T&>::value &&
-                     SupportsToString<const T&>::value>> {
+struct ToStringHelper<T,
+                      std::enable_if_t<!SupportsOstreamOperator<const T&> &&
+                                       SupportsToString<const T&>>> {
   static void Stringify(const T& v, std::ostringstream& ss) {
     // .ToString() may not return a std::string, e.g. blink::WTF::String.
     ToStringHelper<decltype(v.ToString())>::Stringify(v.ToString(), ss);
@@ -84,11 +89,27 @@ struct ToStringHelper<
 template <typename T>
 struct ToStringHelper<
     T,
-    std::enable_if_t<!SupportsOstreamOperator<const T&>::value &&
-                     std::is_enum_v<T>>> {
+    std::enable_if_t<!SupportsOstreamOperator<const T&> && std::is_enum_v<T>>> {
   static void Stringify(const T& v, std::ostringstream& ss) {
     using UT = typename std::underlying_type_t<T>;
     ToStringHelper<UT>::Stringify(static_cast<UT>(v), ss);
+  }
+};
+
+// Tuples. Will recursively apply `ToString()` to each value in the tuple.
+template <typename... T>
+struct ToStringHelper<std::tuple<T...>> {
+  template <size_t... I>
+  static void StringifyHelper(const std::tuple<T...>& values,
+                              std::index_sequence<I...>,
+                              std::ostringstream& ss) {
+    ss << "<";
+    (..., (ss << (I == 0 ? "" : ", "), ss << ToString(std::get<I>(values))));
+    ss << ">";
+  }
+
+  static void Stringify(const std::tuple<T...>& v, std::ostringstream& ss) {
+    StringifyHelper(v, std::make_index_sequence<sizeof...(T)>(), ss);
   }
 };
 
@@ -99,9 +120,8 @@ struct ToStringHelper<
 template <typename... Ts>
 std::string ToString(const Ts&... values) {
   std::ostringstream ss;
-  (internal::ToStringHelper<remove_cvref_t<decltype(values)>>::Stringify(values,
-                                                                         ss),
-   ...);
+  (..., internal::ToStringHelper<remove_cvref_t<decltype(values)>>::Stringify(
+            values, ss));
   return ss.str();
 }
 

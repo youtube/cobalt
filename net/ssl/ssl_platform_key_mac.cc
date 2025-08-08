@@ -14,12 +14,12 @@
 #include <utility>
 #include <vector>
 
+#include "base/apple/foundation_util.h"
+#include "base/apple/osstatus_logging.h"
+#include "base/apple/scoped_cftyperef.h"
 #include "base/containers/span.h"
 #include "base/logging.h"
-#include "base/mac/foundation_util.h"
-#include "base/mac/mac_logging.h"
 #include "base/mac/mac_util.h"
-#include "base/mac/scoped_cftyperef.h"
 #include "base/memory/scoped_policy.h"
 #include "base/numerics/safe_conversions.h"
 #include "crypto/openssl_util.h"
@@ -136,21 +136,21 @@ class SSLPlatformKeySecKey : public ThreadedSSLPrivateKey::Delegate {
       digest = *pss_storage;
     }
 
-    base::ScopedCFTypeRef<CFDataRef> digest_ref(
+    base::apple::ScopedCFTypeRef<CFDataRef> digest_ref(
         CFDataCreate(kCFAllocatorDefault, digest.data(),
                      base::checked_cast<CFIndex>(digest.size())));
 
-    base::ScopedCFTypeRef<CFErrorRef> error;
-    base::ScopedCFTypeRef<CFDataRef> signature_ref(SecKeyCreateSignature(
-        key_, sec_algorithm, digest_ref, error.InitializeInto()));
+    base::apple::ScopedCFTypeRef<CFErrorRef> error;
+    base::apple::ScopedCFTypeRef<CFDataRef> signature_ref(SecKeyCreateSignature(
+        key_.get(), sec_algorithm, digest_ref.get(), error.InitializeInto()));
     if (!signature_ref) {
-      LOG(ERROR) << error;
+      LOG(ERROR) << error.get();
       return ERR_SSL_CLIENT_AUTH_SIGNATURE_FAILED;
     }
 
-    signature->assign(
-        CFDataGetBytePtr(signature_ref),
-        CFDataGetBytePtr(signature_ref) + CFDataGetLength(signature_ref));
+    signature->assign(CFDataGetBytePtr(signature_ref.get()),
+                      CFDataGetBytePtr(signature_ref.get()) +
+                          CFDataGetLength(signature_ref.get()));
     return OK;
   }
 
@@ -180,7 +180,7 @@ class SSLPlatformKeySecKey : public ThreadedSSLPrivateKey::Delegate {
 
   std::vector<uint16_t> preferences_;
   bssl::UniquePtr<EVP_PKEY> pubkey_;
-  base::ScopedCFTypeRef<SecKeyRef> key_;
+  base::apple::ScopedCFTypeRef<SecKeyRef> key_;
 };
 
 }  // namespace

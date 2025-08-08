@@ -203,6 +203,8 @@ bool ParseHostAndPort(base::StringPiece input, std::string* host, int* port) {
   url::Component hostname_component;
   url::Component port_component;
 
+  // `input` is not NUL-terminated, so `input.data()` must be accompanied by a
+  // length. In these calls, `url::Component` provides an offset and length.
   url::ParseAuthority(input.data(), auth_component, &username_component,
                       &password_component, &hostname_component,
                       &port_component);
@@ -244,7 +246,8 @@ bool ParseHostAndPort(base::StringPiece input, std::string* host, int* port) {
   }
 
   // Pass results back to caller.
-  host->assign(input.data() + hostname_component.begin, hostname_component.len);
+  *host = std::string(
+      input.substr(hostname_component.begin, hostname_component.len));
   *port = parsed_port_number;
 
   return true;  // Success.
@@ -534,10 +537,9 @@ std::string UnescapePercentEncodedUrl(base::StringPiece input) {
   }
   // Run UTF-8 decoding without BOM on the percent-decoding.
   url::RawCanonOutputT<char16_t> canon_output;
-  url::DecodeURLEscapeSequences(result.data(), result.size(),
-                                url::DecodeURLMode::kUTF8, &canon_output);
-  return base::UTF16ToUTF8(
-      base::StringPiece16(canon_output.data(), canon_output.length()));
+  url::DecodeURLEscapeSequences(result, url::DecodeURLMode::kUTF8,
+                                &canon_output);
+  return base::UTF16ToUTF8(canon_output.view());
 }
 
 }  // namespace net

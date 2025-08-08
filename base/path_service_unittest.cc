@@ -21,6 +21,10 @@
 #include "base/win/windows_version.h"
 #endif
 
+#if BUILDFLAG(IS_APPLE)
+#include "base/apple/bundle_locations.h"
+#endif
+
 namespace base {
 
 namespace {
@@ -41,6 +45,7 @@ bool ReturnsValidPath(int key) {
   // Some paths might not exist on some platforms in which case confirming
   // |result| is true and !path.empty() is the best we can do.
   bool check_path_exists = true;
+
 #if BUILDFLAG(IS_POSIX)
   // If chromium has never been started on this account, the cache path may not
   // exist.
@@ -57,7 +62,7 @@ bool ReturnsValidPath(int key) {
   if (key == DIR_TASKBAR_PINS)
     check_path_exists = false;
 #endif
-#if BUILDFLAG(IS_APPLE)
+#if BUILDFLAG(IS_MAC)
   if (key != DIR_EXE && key != DIR_MODULE && key != FILE_EXE &&
       key != FILE_MODULE) {
     if (path.ReferencesParent()) {
@@ -70,7 +75,7 @@ bool ReturnsValidPath(int key) {
     LOG(INFO) << "Path (" << path << ") references parent.";
     return false;
   }
-#endif  // BUILDFLAG(IS_APPLE)
+#endif  // BUILDFLAG(IS_MAC)
   if (!result) {
     LOG(INFO) << "PathService::Get() returned false.";
     return false;
@@ -110,10 +115,7 @@ typedef PlatformTest PathServiceTest;
 // failure for the value(s) on that platform in this test.
 TEST_F(PathServiceTest, Get) {
   // Contains keys that are defined but not supported on the platform.
-#if defined(STARBOARD)
-  constexpr std::array kUnsupportedKeys = {DIR_CURRENT, DIR_USER_DESKTOP,
-                                           DIR_SOURCE_ROOT};
-#elif BUILDFLAG(IS_ANDROID)
+#if BUILDFLAG(IS_ANDROID)
   // The following keys are not intended to be implemented on Android (see
   // crbug.com/1257402). Current implementation is described before each key.
   // TODO(crbug.com/1257402): Remove the definition of these keys on Android
@@ -126,11 +128,6 @@ TEST_F(PathServiceTest, Get) {
       FILE_MODULE,
       // PathProviderPosix handles it but fails at some point.
       DIR_USER_DESKTOP};
-#elif BUILDFLAG(IS_IOS)
-  constexpr std::array kUnsupportedKeys = {
-      // DIR_USER_DESKTOP is not implemented on iOS. See crbug.com/1257402.
-      DIR_USER_DESKTOP};
-
 #elif BUILDFLAG(IS_FUCHSIA)
   constexpr std::array kUnsupportedKeys = {
       // TODO(crbug.com/1231928): Implement DIR_USER_DESKTOP.
@@ -139,28 +136,20 @@ TEST_F(PathServiceTest, Get) {
   constexpr std::array<BasePathKey, 0> kUnsupportedKeys = {};
 #endif  // BUILDFLAG(IS_ANDROID)
   for (int key = PATH_START + 1; key < PATH_END; ++key) {
-#if defined(STARBOARD)
-    if (key == DIR_CURRENT || key == DIR_USER_DESKTOP ||
-        key == DIR_SOURCE_ROOT) {
-      continue;
-    }
-#endif
     EXPECT_PRED1(Contains(kUnsupportedKeys, key) ? &ReturnsInvalidPath
                                                  : &ReturnsValidPath,
                  key);
   }
-#if defined(STARBOARD)
-  // In the three Starboard custom directories, DIR_CACHE should always be
-  // valid while DIR_SYSTEM_FONTS and DIR_SYSTEM_FONTS_CONFIGURATION
-  // can be invalid on some platforms.
-  EXPECT_PRED1(ReturnsValidPath, DIR_CACHE);
-#else  // STARBOARD
 #if BUILDFLAG(IS_WIN)
   for (int key = PATH_WIN_START + 1; key < PATH_WIN_END; ++key) {
     EXPECT_PRED1(ReturnsValidPath, key);
   }
-#elif BUILDFLAG(IS_APPLE)
+#elif BUILDFLAG(IS_MAC)
   for (int key = PATH_MAC_START + 1; key < PATH_MAC_END; ++key) {
+    EXPECT_PRED1(ReturnsValidPath, key);
+  }
+#elif BUILDFLAG(IS_IOS)
+  for (int key = PATH_IOS_START + 1; key < PATH_IOS_END; ++key) {
     EXPECT_PRED1(ReturnsValidPath, key);
   }
 #elif BUILDFLAG(IS_ANDROID)
@@ -174,16 +163,11 @@ TEST_F(PathServiceTest, Get) {
     EXPECT_PRED1(ReturnsValidPath, key);
   }
 #endif  // BUILDFLAG(IS_WIN)
-#endif  // defined(STARBOARD)
 }
 
 // Tests that CheckedGet returns the same path as Get.
 TEST_F(PathServiceTest, CheckedGet) {
-#if defined(STARBOARD)
-  constexpr int kKey = DIR_CACHE;
-#else
   constexpr int kKey = DIR_CURRENT;
-#endif // defined(STARBOARD)
   FilePath path;
   ASSERT_TRUE(PathService::Get(kKey, &path));
   EXPECT_EQ(path, PathService::CheckedGet(kKey));
@@ -231,7 +215,7 @@ TEST_F(PathServiceTest, Override) {
       MakeAbsoluteFilePath(temp_dir.GetPath()).AppendASCII("non_existent"));
   EXPECT_TRUE(non_existent.IsAbsolute());
   EXPECT_FALSE(PathExists(non_existent));
-#if !BUILDFLAG(IS_ANDROID) && !defined(STARBOARD)
+#if !BUILDFLAG(IS_ANDROID)
   // This fails because MakeAbsoluteFilePath fails for non-existent files.
   // Earlier versions of Bionic libc don't fail for non-existent files, so
   // skip this check on Android.
@@ -239,7 +223,7 @@ TEST_F(PathServiceTest, Override) {
                                                       non_existent,
                                                       false,
                                                       false));
-#endif  // !BUILDFLAG(IS_ANDROID) && !defined(STARBOARD)
+#endif  // !BUILDFLAG(IS_ANDROID)
   // This works because indicating that |non_existent| is absolute skips the
   // internal MakeAbsoluteFilePath call.
   EXPECT_TRUE(PathService::OverrideAndCreateIfNeeded(my_special_key,
@@ -350,8 +334,12 @@ TEST_F(PathServiceTest, GetProgramFiles) {
 }
 #endif  // BUILDFLAG(IS_WIN)
 
-// DIR_ASSETS is DIR_MODULE except on Fuchsia where it is the package root
-// and Android where it is overridden in tests by test_support_android.cc.
+// Tests that DIR_ASSETS is
+// - the package root on Fuchsia,
+// - overridden in tests by test_support_android.cc,
+// - equals to base::apple::FrameworkBundlePath() on iOS,
+// - a sub-directory of base::apple::FrameworkBundlePath() on iOS catalyst,
+// - equals to DIR_MODULE otherwise.
 TEST_F(PathServiceTest, DIR_ASSETS) {
   FilePath path;
   ASSERT_TRUE(PathService::Get(DIR_ASSETS, &path));
@@ -360,27 +348,43 @@ TEST_F(PathServiceTest, DIR_ASSETS) {
 #elif BUILDFLAG(IS_ANDROID)
   // This key is overridden in //base/test/test_support_android.cc.
   EXPECT_EQ(path.value(), kExpectedChromiumTestsRoot);
+#elif BUILDFLAG(IS_IOS_MACCATALYST)
+  EXPECT_TRUE(base::apple::FrameworkBundlePath().IsParent(path));
+#elif BUILDFLAG(IS_IOS)
+  EXPECT_EQ(path, base::apple::FrameworkBundlePath());
 #else
   EXPECT_EQ(path, PathService::CheckedGet(DIR_MODULE));
 #endif
 }
 
-// DIR_GEN_TEST_DATA_ROOT is DIR_MODULE except on Fuchsia where it is the
-// package root and Android where it is overridden in tests by
-// test_support_android.cc.
-TEST_F(PathServiceTest, DIR_GEN_TEST_DATA_ROOT) {
+// DIR_OUT_TEST_DATA_ROOT is DIR_MODULE except on Fuchsia where it is the
+// package root, on ios where it is the resources directory and on Android
+// where it is overridden in tests by test_support_android.cc.
+TEST_F(PathServiceTest, DIR_OUT_TEST_DATA_ROOT) {
   FilePath path;
-  ASSERT_TRUE(PathService::Get(DIR_GEN_TEST_DATA_ROOT, &path));
+  ASSERT_TRUE(PathService::Get(DIR_OUT_TEST_DATA_ROOT, &path));
 #if BUILDFLAG(IS_FUCHSIA)
   EXPECT_EQ(path.value(), "/pkg");
 #elif BUILDFLAG(IS_ANDROID)
   // This key is overridden in //base/test/test_support_android.cc.
   EXPECT_EQ(path.value(), kExpectedChromiumTestsRoot);
+#elif BUILDFLAG(IS_IOS)
+  // On iOS, build output files are moved to the resources directory.
+  EXPECT_EQ(path, base::apple::FrameworkBundlePath());
 #else
   // On other platforms all build output is in the same directory,
-  // so DIR_GEN_TEST_DATA_ROOT should match DIR_MODULE.
+  // so DIR_OUT_TEST_DATA_ROOT should match DIR_MODULE.
   EXPECT_EQ(path, PathService::CheckedGet(DIR_MODULE));
 #endif
+}
+
+// Test that DIR_GEN_TEST_DATA_ROOT contains dummy_generated.txt which is
+// generated for this test.
+TEST_F(PathServiceTest, DIR_GEN_TEST_DATA_ROOT) {
+  FilePath path;
+  ASSERT_TRUE(PathService::Get(DIR_GEN_TEST_DATA_ROOT, &path));
+  EXPECT_TRUE(base::PathExists(
+      path.Append(FILE_PATH_LITERAL("base/generated_file_for_test.txt"))));
 }
 
 #if BUILDFLAG(IS_FUCHSIA)
@@ -401,7 +405,7 @@ TEST_F(PathServiceTest, AndroidTestOverrides) {
             kExpectedChromiumTestsRoot);
   EXPECT_EQ(PathService::CheckedGet(DIR_SRC_TEST_DATA_ROOT).value(),
             kExpectedChromiumTestsRoot);
-  EXPECT_EQ(PathService::CheckedGet(DIR_GEN_TEST_DATA_ROOT).value(),
+  EXPECT_EQ(PathService::CheckedGet(DIR_OUT_TEST_DATA_ROOT).value(),
             kExpectedChromiumTestsRoot);
 }
 

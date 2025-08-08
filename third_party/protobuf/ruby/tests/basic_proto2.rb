@@ -18,7 +18,6 @@ module BasicTestProto2
       add_message "BadFieldNames" do
         optional :dup, :int32, 1
         optional :class, :int32, 2
-        optional :"a.b", :int32, 3
       end
     end
   end
@@ -74,10 +73,11 @@ module BasicTestProto2
       m = OneofMessage.new
       assert !m.has_my_oneof?
       m.a = "foo"
+      assert m.has_my_oneof?
+      assert_equal :a, m.my_oneof
       assert m.has_a?
       assert OneofMessage.descriptor.lookup('a').has?(m)
       assert_equal "foo", m.a
-      assert m.has_my_oneof?
       assert !m.has_b?
       assert !OneofMessage.descriptor.lookup('b').has?(m)
       assert !m.has_c?
@@ -142,7 +142,7 @@ module BasicTestProto2
       m = TestMessageDefaults.new
 
       m.optional_int32 = -42
-      assert_equal -42, m.optional_int32
+      assert_equal( -42, m.optional_int32 )
       assert m.has_optional_int32?
       m.clear_optional_int32
       assert_equal 1, m.optional_int32
@@ -198,6 +198,17 @@ module BasicTestProto2
       assert !m.has_my_oneof?
     end
 
+    def test_assign_nil
+      m = TestMessageDefaults.new
+      m.optional_msg = TestMessage2.new(:foo => 42)
+
+      assert_equal TestMessage2.new(:foo => 42), m.optional_msg
+      assert m.has_optional_msg?
+      m.optional_msg = nil
+      assert_equal nil, m.optional_msg
+      assert !m.has_optional_msg?
+    end
+
     def test_initialization_map_errors
       e = assert_raise ArgumentError do
         TestMessage.new(:hello => "world")
@@ -226,23 +237,6 @@ module BasicTestProto2
       assert_equal expected_result, m.to_h
     end
 
-    def test_map_keyword_disabled
-      pool = Google::Protobuf::DescriptorPool.new
-
-      e = assert_raise ArgumentError do
-        pool.build do
-          add_file 'test_file.proto', syntax: :proto2 do
-            add_message "MapMessage" do
-              map :map_string_int32, :string, :int32, 1
-              map :map_string_msg, :string, :message, 2, "TestMessage2"
-            end
-          end
-        end
-      end
-
-      assert_match(/Cannot add a native map/, e.message)
-    end
-
     def test_respond_to
       # This test fails with JRuby 1.7.23, likely because of an old JRuby bug.
       return if RUBY_PLATFORM == "java"
@@ -260,6 +254,21 @@ module BasicTestProto2
       assert nil != file_descriptor
       assert_equal "tests/basic_test_proto2.proto", file_descriptor.name
       assert_equal :proto2, file_descriptor.syntax
+    end
+
+    def test_oneof_fields_respond_to? # regression test for issue 9202
+      msg = proto_module::OneofMessage.new(a: "foo")
+      # `has_` prefix + "?" suffix actions should only work for oneofs fields.
+      assert msg.respond_to? :has_my_oneof?
+      assert msg.has_my_oneof?
+      assert msg.respond_to? :has_a?
+      assert msg.has_a?
+      assert msg.respond_to? :has_b?
+      assert !msg.has_b?
+      assert msg.respond_to? :has_c?
+      assert !msg.has_c?
+      assert msg.respond_to? :has_d?
+      assert !msg.has_d?
     end
   end
 end

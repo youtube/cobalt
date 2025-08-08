@@ -1,4 +1,4 @@
-// Copyright (c) 2012 The Chromium Authors. All rights reserved.
+// Copyright 2012 The Chromium Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -11,37 +11,37 @@
 #include <set>
 #include <string>
 
-#include "base/functional/callback_forward.h"
 #include "base/compiler_specific.h"
 #include "base/files/file_path.h"
 #include "base/files/important_file_writer.h"
+#include "base/functional/callback_forward.h"
 #include "base/gtest_prod_util.h"
-#include "base/macros.h"
 #include "base/memory/weak_ptr.h"
 #include "base/observer_list.h"
 #include "base/sequence_checker.h"
+#include "base/strings/string_piece.h"
 #include "base/task/thread_pool.h"
 #include "base/values.h"
 #include "components/prefs/persistent_pref_store.h"
 #include "components/prefs/pref_filter.h"
 #include "components/prefs/prefs_export.h"
+#include "third_party/abseil-cpp/absl/types/optional.h"
 
 class PrefFilter;
 
 namespace base {
-class DictionaryValue;
 class FilePath;
 class JsonPrefStoreCallbackTest;
 class JsonPrefStoreLossyWriteTest;
 class SequencedTaskRunner;
 class WriteCallbacksObserver;
-class Value;
-}
+}  // namespace base
 
 // A writable PrefStore implementation that is used for user preferences.
 class COMPONENTS_PREFS_EXPORT JsonPrefStore
     : public PersistentPrefStore,
       public base::ImportantFileWriter::DataSerializer,
+      public base::ImportantFileWriter::BackgroundDataSerializer,
       public base::SupportsWeakPtr<JsonPrefStore> {
  public:
   struct ReadResult;
@@ -49,7 +49,7 @@ class COMPONENTS_PREFS_EXPORT JsonPrefStore
   // A pair of callbacks to call before and after the preference file is written
   // to disk.
   using OnWriteCallbackPair =
-      std::pair<base::Closure, base::Callback<void(bool success)>>;
+      std::pair<base::OnceClosure, base::OnceCallback<void(bool success)>>;
 
   // |pref_filename| is the path to the file to read prefs from. It is incorrect
   // to create multiple JsonPrefStore with the same |pref_filename|.
@@ -70,10 +70,14 @@ class COMPONENTS_PREFS_EXPORT JsonPrefStore
                 scoped_refptr<base::SequencedTaskRunner> file_task_runner =
                     base::ThreadPool::CreateSequencedTaskRunner(
                         {base::MayBlock(), base::TaskPriority::USER_VISIBLE,
-                         base::TaskShutdownBehavior::BLOCK_SHUTDOWN}));
+                         base::TaskShutdownBehavior::BLOCK_SHUTDOWN}),
+                bool read_only = false);
+
+  JsonPrefStore(const JsonPrefStore&) = delete;
+  JsonPrefStore& operator=(const JsonPrefStore&) = delete;
 
   // PrefStore overrides:
-  bool GetValue(const std::string& key,
+  bool GetValue(base::StringPiece key,
                 const base::Value** result) const override;
   base::Value::Dict GetValues() const override;
   void AddObserver(PrefStore::Observer* observer) override;
@@ -108,16 +112,21 @@ class COMPONENTS_PREFS_EXPORT JsonPrefStore
   // cleanup that shouldn't otherwise alert observers.
   void RemoveValueSilently(const std::string& key, uint32_t flags);
 
+  // Just like RemoveValue(), but removes all the prefs that start with
+  // |prefix|. Used for pref-initialization cleanup.
+  void RemoveValuesByPrefixSilently(const std::string& prefix) override;
   // Registers |on_next_successful_write_reply| to be called once, on the next
   // successful write event of |writer_|.
   // |on_next_successful_write_reply| will be called on the thread from which
   // this method is called and does not need to be thread safe.
   void RegisterOnNextSuccessfulWriteReply(
-      const base::Closure& on_next_successful_write_reply);
-
-  void ClearMutableValues() override;
+      base::OnceClosure on_next_successful_write_reply);
 
   void OnStoreDeletionFromDisk() override;
+
+#if defined(UNIT_TEST)
+  base::ImportantFileWriter& get_writer() { return writer_; }
+#endif
 
  private:
   friend class base::JsonPrefStoreCallbackTest;
@@ -138,8 +147,8 @@ class COMPONENTS_PREFS_EXPORT JsonPrefStore
   // |on_next_write_callback| on the current thread and posts
   // |on_next_write_reply| on |reply_task_runner|.
   static void PostWriteCallback(
-      const base::Callback<void(bool success)>& on_next_write_callback,
-      const base::Callback<void(bool success)>& on_next_write_reply,
+      base::OnceCallback<void(bool success)> on_next_write_callback,
+      base::OnceCallback<void(bool success)> on_next_write_reply,
       scoped_refptr<base::SequencedTaskRunner> reply_task_runner,
       bool write_success);
 
@@ -158,6 +167,9 @@ class COMPONENTS_PREFS_EXPORT JsonPrefStore
 
   // ImportantFileWriter::DataSerializer overrides:
   absl::optional<std::string> SerializeData() override;
+  // ImportantFileWriter::BackgroundDataSerializer implementation.
+  base::ImportantFileWriter::BackgroundDataProducerCallback
+  GetSerializedDataProducerForBackgroundSequence() override;
 
   // This method is called after the JSON file has been read and the result has
   // potentially been intercepted and modified by |pref_filter_|.
@@ -197,11 +209,9 @@ class COMPONENTS_PREFS_EXPORT JsonPrefStore
   std::set<std::string> keys_need_empty_value_;
 
   bool has_pending_write_reply_ = true;
-  base::Closure on_next_successful_write_reply_;
+  base::OnceClosure on_next_successful_write_reply_;
 
   SEQUENCE_CHECKER(sequence_checker_);
-
-  DISALLOW_COPY_AND_ASSIGN(JsonPrefStore);
 };
 
 #endif  // COMPONENTS_PREFS_JSON_PREF_STORE_H_

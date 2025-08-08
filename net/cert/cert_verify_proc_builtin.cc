@@ -8,12 +8,14 @@
 #include <string>
 #include <vector>
 
+#include "base/feature_list.h"
 #include "base/logging.h"
 #include "base/memory/raw_ptr.h"
 #include "base/metrics/histogram_functions.h"
 #include "base/strings/string_piece.h"
 #include "base/values.h"
 #include "crypto/sha2.h"
+#include "net/base/features.h"
 #include "net/base/net_errors.h"
 #include "net/cert/cert_net_fetcher.h"
 #include "net/cert/cert_status_flags.h"
@@ -34,9 +36,9 @@
 #include "net/cert/pki/trust_store_collection.h"
 #include "net/cert/pki/trust_store_in_memory.h"
 #include "net/cert/test_root_certs.h"
+#include "net/cert/time_conversions.h"
 #include "net/cert/x509_certificate.h"
 #include "net/cert/x509_util.h"
-#include "net/der/encode_values.h"
 #include "net/log/net_log_values.h"
 #include "net/log/net_log_with_source.h"
 #include "third_party/abseil-cpp/absl/types/optional.h"
@@ -46,8 +48,10 @@ namespace net {
 namespace {
 
 // Very conservative iteration count limit.
-// TODO(https://crbug.com/634470): Make this smaller.
+// TODO(https://crbug.com/634470): Remove this in favor of
+// kPathBuilderIterationLimitNew.
 constexpr uint32_t kPathBuilderIterationLimit = 25000;
+constexpr uint32_t kPathBuilderIterationLimitNew = 20;
 
 constexpr base::TimeDelta kMaxVerificationTime = base::Seconds(60);
 
@@ -55,8 +59,6 @@ constexpr base::TimeDelta kPerAttemptMinVerificationTimeLimit =
     base::Seconds(5);
 
 DEFINE_CERT_ERROR_ID(kPathLacksEVPolicy, "Path does not have an EV policy");
-
-const void* const kResultDebugDataKey = &kResultDebugDataKey;
 
 base::Value::Dict NetLogCertParams(const CRYPTO_BUFFER* cert_handle,
                                    const CertErrors& errors) {
@@ -548,9 +550,8 @@ scoped_refptr<X509Certificate> CreateVerifiedCertChain(
     intermediates.push_back(bssl::UpRef(path.certs[i]->cert_buffer()));
   }
 
-  scoped_refptr<X509Certificate> result = X509Certificate::CreateFromBuffer(
-      bssl::UpRef(target_cert->cert_buffer()), std::move(intermediates));
-  // |target_cert| was already successfully parsed, so this should never fail.
+  scoped_refptr<X509Certificate> result =
+      target_cert->CloneWithDifferentIntermediates(std::move(intermediates));
   DCHECK(result);
 
   return result;
@@ -625,7 +626,12 @@ CertPathBuilder::Result TryBuildPath(
     }
   }
 
-  path_builder.SetIterationLimit(kPathBuilderIterationLimit);
+  if (base::FeatureList::IsEnabled(
+          features::kNewCertPathBuilderIterationLimit)) {
+    path_builder.SetIterationLimit(kPathBuilderIterationLimitNew);
+  } else {
+    path_builder.SetIterationLimit(kPathBuilderIterationLimit);
+  }
 
   return path_builder.Run();
 }
@@ -637,9 +643,6 @@ int AssignVerifyResult(X509Certificate* input_cert,
                        bool checked_revocation_for_some_path,
                        CertVerifyProcTrustStore* trust_store,
                        CertVerifyResult* verify_result) {
-  // Clone debug data from the CertPathBuilder::Result into CertVerifyResult.
-  verify_result->CloneDataFrom(result);
-
   const CertPathBuilderResultPath* best_path_possibly_invalid =
       result.GetBestPathPossiblyInvalid();
 
@@ -738,14 +741,12 @@ int CertVerifyProcBuiltin::VerifyInternal(
   base::Time verification_time = base::Time::Now();
   base::TimeTicks deadline = base::TimeTicks::Now() + kMaxVerificationTime;
   der::GeneralizedTime der_verification_time;
-  if (!der::EncodeTimeAsGeneralizedTime(verification_time,
-                                        &der_verification_time)) {
+  if (!EncodeTimeAsGeneralizedTime(verification_time, &der_verification_time)) {
     // This shouldn't be possible.
     // We don't really have a good error code for this type of error.
     verify_result->cert_status |= CERT_STATUS_AUTHORITY_INVALID;
     return ERR_CERT_AUTHORITY_INVALID;
   }
-  absl::optional<int64_t> chrome_root_store_version_opt = absl::nullopt;
 #if BUILDFLAG(CHROME_ROOT_STORE_SUPPORTED)
   int64_t chrome_root_store_version =
       system_trust_store_->chrome_root_store_version();
@@ -754,13 +755,8 @@ int CertVerifyProcBuiltin::VerifyInternal(
         NetLogEventType::CERT_VERIFY_PROC_CHROME_ROOT_STORE_VERSION, [&] {
           return NetLogChromeRootStoreVersion(chrome_root_store_version);
         });
-    chrome_root_store_version_opt = chrome_root_store_version;
   }
 #endif
-
-  CertVerifyProcBuiltinResultDebugData::Create(verify_result, verification_time,
-                                               der_verification_time,
-                                               chrome_root_store_version_opt);
 
   // Parse the target certificate.
   std::shared_ptr<const ParsedCertificate> target;
@@ -908,39 +904,6 @@ int CertVerifyProcBuiltin::VerifyInternal(
 }
 
 }  // namespace
-
-CertVerifyProcBuiltinResultDebugData::CertVerifyProcBuiltinResultDebugData(
-    base::Time verification_time,
-    const der::GeneralizedTime& der_verification_time,
-    absl::optional<int64_t> chrome_root_store_version)
-    : verification_time_(verification_time),
-      der_verification_time_(der_verification_time),
-      chrome_root_store_version_(chrome_root_store_version) {}
-
-// static
-const CertVerifyProcBuiltinResultDebugData*
-CertVerifyProcBuiltinResultDebugData::Get(
-    const base::SupportsUserData* debug_data) {
-  return static_cast<CertVerifyProcBuiltinResultDebugData*>(
-      debug_data->GetUserData(kResultDebugDataKey));
-}
-
-// static
-void CertVerifyProcBuiltinResultDebugData::Create(
-    base::SupportsUserData* debug_data,
-    base::Time verification_time,
-    const der::GeneralizedTime& der_verification_time,
-    absl::optional<int64_t> chrome_root_store_version) {
-  debug_data->SetUserData(
-      kResultDebugDataKey,
-      std::make_unique<CertVerifyProcBuiltinResultDebugData>(
-          verification_time, der_verification_time, chrome_root_store_version));
-}
-
-std::unique_ptr<base::SupportsUserData::Data>
-CertVerifyProcBuiltinResultDebugData::Clone() {
-  return std::make_unique<CertVerifyProcBuiltinResultDebugData>(*this);
-}
 
 scoped_refptr<CertVerifyProc> CreateCertVerifyProcBuiltin(
     scoped_refptr<CertNetFetcher> net_fetcher,

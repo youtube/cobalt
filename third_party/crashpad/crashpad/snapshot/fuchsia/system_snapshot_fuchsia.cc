@@ -1,4 +1,4 @@
-// Copyright 2018 The Crashpad Authors. All rights reserved.
+// Copyright 2018 The Crashpad Authors
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -16,8 +16,9 @@
 
 #include <zircon/syscalls.h>
 
+#include "base/check_op.h"
 #include "base/fuchsia/fuchsia_logging.h"
-#include "base/logging.h"
+#include "base/notreached.h"
 #include "base/numerics/safe_conversions.h"
 #include "base/strings/stringprintf.h"
 #include "snapshot/posix/timezone.h"
@@ -44,6 +45,8 @@ void SystemSnapshotFuchsia::Initialize(const timeval* snapshot_time) {
   static constexpr const char kArch[] = "x86_64";
 #elif defined(ARCH_CPU_ARM64)
   static constexpr const char kArch[] = "aarch64";
+#elif defined(ARCH_CPU_RISCV64)
+  static constexpr const char kArch[] = "riscv64";
 #else
   static constexpr const char kArch[] = "unknown";
 #endif
@@ -60,6 +63,8 @@ CPUArchitecture SystemSnapshotFuchsia::GetCPUArchitecture() const {
   return kCPUArchitectureX86_64;
 #elif defined(ARCH_CPU_ARM64)
   return kCPUArchitectureARM64;
+#elif defined(ARCH_CPU_RISCV64)
+  return kCPUArchitectureRISCV64;
 #else
 #error Port
 #endif
@@ -70,7 +75,7 @@ uint32_t SystemSnapshotFuchsia::CPURevision() const {
 #if defined(ARCH_CPU_X86_64)
   return cpuid_.Revision();
 #else
-  // TODO(fuchsia/DX-712): Read actual revision.
+  // TODO: https://fxbug.dev/5561 - Read actual revision.
   return 0;
 #endif
 }
@@ -85,7 +90,7 @@ std::string SystemSnapshotFuchsia::CPUVendor() const {
 #if defined(ARCH_CPU_X86_64)
   return cpuid_.Vendor();
 #else
-  // TODO(fuchsia/DX-712): Read actual vendor.
+  // TODO: https://fxbug.dev/5561 - Read actual vendor.
   return std::string();
 #endif
 }
@@ -188,7 +193,7 @@ bool SystemSnapshotFuchsia::NXEnabled() const {
 #if defined(ARCH_CPU_X86_64)
   return cpuid_.NXEnabled();
 #else
-  // TODO(fuchsia/DX-712): Read actual NX bit value.
+  // TODO: https://fxbug.dev/5561 - Read actual NX bit value.
   return false;
 #endif
 }

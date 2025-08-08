@@ -1,0 +1,8 @@
+Name: termcolor
+URL: https://crates.io/crates/termcolor
+Description: A simple cross platform library for writing colored text to a terminal.
+
+Version: 1.1.2
+Security Critical: no
+Shipped: yes
+License: MIT

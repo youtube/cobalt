@@ -1,0 +1,14 @@
+<!DOCTYPE html>
+<body style="will-change:transform">
+<a href='#'>anchor</a>
+<a id='dummy' href='dummy'>dummy</a>
+<div style='width:10px;height:2000px;background:white'></div>
+<script>
+window.onmousedown = function() {
+  location.href = '#';
+  requestAnimationFrame(function() {
+    document.getElementById('dummy').focus();
+  });
+}
+</script>
+</body>

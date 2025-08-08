@@ -18,7 +18,7 @@
 #include <stdint.h>
 
 #include "starboard/configuration.h"
-#include "third_party/crashpad/crashpad/wrapper/annotations.h"
+#include "starboard/crashpad_wrapper/annotations.h"
 
 #ifdef __cplusplus
 extern "C" {

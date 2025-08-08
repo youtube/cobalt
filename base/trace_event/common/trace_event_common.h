@@ -195,7 +195,7 @@
 // use_perfetto_client_library GN arg. If that flag is disabled, we fall back to
 // the legacy implementation in the latter half of this file (and
 // trace_event.h).
-// TODO(skyostil): Remove the legacy macro implementation.
+// TODO(skyostil, crbug.com/1006541): Remove the legacy macro implementation.
 
 // Normally we'd use BUILDFLAG(USE_PERFETTO_CLIENT_LIBRARY) for this, but
 // because v8 includes trace_event_common.h directly (in non-Perfetto mode), we
@@ -388,15 +388,6 @@ struct BASE_EXPORT TraceTimestampTraits<::base::TimeTicks> {
                            TRACE_EVENT_FLAG_COPY, arg1_name, arg1_val,     \
                            arg2_name, arg2_val)
 
-#if defined(COBALT_PENDING_CLEAN_UP)
-#define TRACE_EVENT_COPY_BEGIN0(category_group, name)                     \
-  INTERNAL_TRACE_EVENT_ADD(TRACE_EVENT_PHASE_BEGIN, category_group, name, \
-                           TRACE_EVENT_FLAG_COPY)
-#define TRACE_EVENT_COPY_BEGIN1(category_group, name, arg1_name, arg1_val) \
-  INTERNAL_TRACE_EVENT_ADD(TRACE_EVENT_PHASE_BEGIN, category_group, name,  \
-                           TRACE_EVENT_FLAG_COPY, arg1_name, arg1_val)
-#endif
-
 // Similar to TRACE_EVENT_BEGINx but with a custom |timestamp| provided.
 // - |id| is used to match the _BEGIN event with the _END event.
 //   Events are considered to match if their category_group, name and id values
@@ -459,15 +450,6 @@ struct BASE_EXPORT TraceTimestampTraits<::base::TimeTicks> {
   INTERNAL_TRACE_EVENT_ADD(TRACE_EVENT_PHASE_END, category_group, name,  \
                            TRACE_EVENT_FLAG_COPY, arg1_name, arg1_val,   \
                            arg2_name, arg2_val)
-
-#if defined(COBALT_PENDING_CLEAN_UP)
-#define TRACE_EVENT_COPY_END0(category_group, name)                     \
-  INTERNAL_TRACE_EVENT_ADD(TRACE_EVENT_PHASE_END, category_group, name, \
-                           TRACE_EVENT_FLAG_COPY)
-#define TRACE_EVENT_COPY_END1(category_group, name, arg1_name, arg1_val) \
-  INTERNAL_TRACE_EVENT_ADD(TRACE_EVENT_PHASE_END, category_group, name,  \
-                           TRACE_EVENT_FLAG_COPY, arg1_name, arg1_val)
-#endif
 
 // Adds a trace event with the given |name| and |timestamp|. |timestamp| must be
 // non-null or it crashes. Use DCHECK(timestamp) before calling this to detect

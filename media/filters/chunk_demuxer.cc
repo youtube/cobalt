@@ -12,9 +12,6 @@
 #include "base/functional/bind.h"
 #include "base/functional/callback_helpers.h"
 #include "base/strings/string_number_conversions.h"
-#if defined(STARBOARD)
-#include "base/strings/string_split.h"
-#endif  // defined(STARBOARD)
 #include "base/task/bind_post_task.h"
 #include "base/trace_event/trace_event.h"
 #include "media/base/audio_decoder_config.h"
@@ -59,53 +56,12 @@ std::string ExpectedCodecs(const std::string& content_type,
   return codecs;
 }
 
-#if defined(STARBOARD)
-// Parse type and codecs from mime type. It will return "video/mp4" and
-// "avc1.42E01E, mp4a.40.2" for "video/mp4; codecs="avc1.42E01E, mp4a.40.2".
-// Note that this function does minimum validation as the media stack will check
-// the type and codecs strictly.
-bool ParseMimeType(const std::string& mime_type, std::string* type,
-                   std::string* codecs) {
-  DCHECK(type);
-  DCHECK(codecs);
-  static const char kCodecs[] = "codecs=";
-
-  // SplitString will also trim the results.
-  std::vector<std::string> tokens = ::base::SplitString(
-      mime_type, ";", base::TRIM_WHITESPACE, base::SPLIT_WANT_ALL);
-  // The first one has to be mime type with delimiter '/' like 'video/mp4'.
-  if (tokens.empty() || tokens[0].find('/') == tokens[0].npos) {
-    return false;
-  }
-  *type = tokens[0];
-  codecs->clear();
-  for (size_t i = 1; i < tokens.size(); ++i) {
-    if (strncasecmp(tokens[i].c_str(), kCodecs, strlen(kCodecs))) {
-      continue;
-    }
-    *codecs = tokens[i].substr(strlen(kCodecs));
-    base::TrimString(*codecs, " \"", codecs);
-    break;
-  }
-  // It is possible to not having any codecs, and will leave the validation to
-  // underlying parsers.
-  return true;
-}
-#endif  // defined(STARBOARD)
-
 }  // namespace
 
 namespace media {
 
-#if defined(STARBOARD)
-ChunkDemuxerStream::ChunkDemuxerStream(const std::string& mime_type, Type type,
-                                       MediaTrack::Id media_track_id)
-    : mime_type_(mime_type),
-      type_(type),
-#else  // defined(STARBOARD)
 ChunkDemuxerStream::ChunkDemuxerStream(Type type, MediaTrack::Id media_track_id)
     : type_(type),
-#endif  // defined(STARBOARD)
       liveness_(StreamLiveness::kUnknown),
       media_track_id_(media_track_id),
       state_(UNINITIALIZED),
@@ -149,11 +105,6 @@ void ChunkDemuxerStream::Shutdown() {
 
 bool ChunkDemuxerStream::IsSeekWaitingForData() const {
   base::AutoLock auto_lock(lock_);
-
-  // This method should not be called for text tracks. See the note in
-  // SourceBufferState::IsSeekWaitingForData().
-  DCHECK_NE(type_, DemuxerStream::TEXT);
-
   return stream_->IsSeekPending();
 }
 
@@ -164,9 +115,6 @@ void ChunkDemuxerStream::Seek(base::TimeDelta time) {
   DCHECK(state_ == UNINITIALIZED || state_ == RETURNING_ABORT_FOR_READS)
       << state_;
 
-#if defined(STARBOARD)
-  write_head_ = time;
-#endif // defined(STARBOARD)
   stream_->Seek(time);
 }
 
@@ -212,25 +160,6 @@ bool ChunkDemuxerStream::EvictCodedFrames(base::TimeDelta media_time,
   return stream_->GarbageCollectIfNeeded(media_time, newDataSize);
 }
 
-#if defined(STARBOARD)
-base::TimeDelta ChunkDemuxerStream::GetWriteHead() const {
-  base::AutoLock auto_lock(lock_);
-  return write_head_;
-}
-
-size_t ChunkDemuxerStream::GetStreamMemoryLimit() {
-  base::AutoLock auto_lock(lock_);
-  DCHECK(stream_);
-  return stream_->memory_limit();
-}
-
-void ChunkDemuxerStream::SetStreamMemoryLimitOverride(size_t memory_limit) {
-  base::AutoLock auto_lock(lock_);
-  DCHECK(stream_);
-  stream_->set_memory_limit_override(memory_limit);
-}
-#endif  // defined(STARBOARD)
-
 void ChunkDemuxerStream::OnMemoryPressure(
     base::TimeDelta media_time,
     base::MemoryPressureListener::MemoryPressureLevel memory_pressure_level,
@@ -254,16 +183,6 @@ void ChunkDemuxerStream::OnSetDuration(base::TimeDelta duration) {
 Ranges<base::TimeDelta> ChunkDemuxerStream::GetBufferedRanges(
     base::TimeDelta duration) const {
   base::AutoLock auto_lock(lock_);
-
-  if (type_ == TEXT) {
-    // Since text tracks are discontinuous and the lack of cues should not block
-    // playback, report the buffered range for text tracks as [0, |duration|) so
-    // that intesections with audio & video tracks are computed correctly when
-    // no cues are present.
-    Ranges<base::TimeDelta> text_range;
-    text_range.Add(base::TimeDelta(), duration);
-    return text_range;
-  }
 
   Ranges<base::TimeDelta> range = stream_->GetBufferedTime();
 
@@ -319,11 +238,7 @@ bool ChunkDemuxerStream::UpdateAudioConfig(const AudioDecoderConfig& config,
   base::AutoLock auto_lock(lock_);
   if (!stream_) {
     DCHECK_EQ(state_, UNINITIALIZED);
-#if defined(STARBOARD)
-    stream_ = std::make_unique<SourceBufferStream>(mime_type_, config, media_log);
-#else  // defined(STARBOARD)
     stream_ = std::make_unique<SourceBufferStream>(config, media_log);
-#endif  // defined(STARBOARD)
     return true;
   }
 
@@ -339,24 +254,11 @@ bool ChunkDemuxerStream::UpdateVideoConfig(const VideoDecoderConfig& config,
 
   if (!stream_) {
     DCHECK_EQ(state_, UNINITIALIZED);
-#if defined(STARBOARD)
-    stream_ = std::make_unique<SourceBufferStream>(mime_type_, config, media_log);
-#else  // defined(STARBOARD)
     stream_ = std::make_unique<SourceBufferStream>(config, media_log);
-#endif  // defined(STARBOARD)
     return true;
   }
 
   return stream_->UpdateVideoConfig(config, allow_codec_change);
-}
-
-void ChunkDemuxerStream::UpdateTextConfig(const TextTrackConfig& config,
-                                          MediaLog* media_log) {
-  DCHECK_EQ(type_, TEXT);
-  base::AutoLock auto_lock(lock_);
-  DCHECK(!stream_);
-  DCHECK_EQ(state_, UNINITIALIZED);
-  stream_ = std::make_unique<SourceBufferStream>(config, media_log);
 }
 
 void ChunkDemuxerStream::MarkEndOfStream() {
@@ -434,12 +336,6 @@ void ChunkDemuxerStream::SetEnabled(bool enabled, base::TimeDelta timestamp) {
   }
 }
 
-TextTrackConfig ChunkDemuxerStream::text_track_config() {
-  CHECK_EQ(type_, TEXT);
-  base::AutoLock auto_lock(lock_);
-  return stream_->GetCurrentTextTrackConfig();
-}
-
 void ChunkDemuxerStream::SetStreamMemoryLimit(size_t memory_limit) {
   base::AutoLock auto_lock(lock_);
   stream_->set_memory_limit(memory_limit);
@@ -466,9 +362,7 @@ void ChunkDemuxerStream::CompletePendingReadIfPossible_Locked() {
 
   switch (state_) {
     case UNINITIALIZED:
-      requested_buffer_count_ = 0;
-      NOTREACHED();
-      return;
+      NOTREACHED_NORETURN();
     case RETURNING_ABORT_FOR_READS:
       // Null buffers should be returned in this state since we are waiting
       // for a seek. Any buffers in the SourceBuffer should NOT be returned
@@ -506,13 +400,6 @@ void ChunkDemuxerStream::CompletePendingReadIfPossible_Locked() {
   // Other cases are kOk and just return the buffers.
   DCHECK(!buffers.empty());
   requested_buffer_count_ = 0;
-#if defined(STARBOARD)
-  for (auto&& buffer : buffers) {
-    if (!buffer->end_of_stream()) {
-      write_head_ = std::max(write_head_, buffer->timestamp());
-    }
-  }
-#endif  // defined(STARBOARD)
   std::move(read_cb_).Run(kOk, std::move(buffers));
 }
 
@@ -848,20 +735,6 @@ ChunkDemuxer::Status ChunkDemuxer::AddId(const std::string& id,
                        ExpectedCodecs(content_type, codecs));
 }
 
-#if defined(STARBOARD)
-ChunkDemuxer::Status ChunkDemuxer::AddId(const std::string& id,
-                                         const std::string& mime_type) {
-  std::string type, codecs;
-  if (!ParseMimeType(mime_type, &type, &codecs)) {
-    return kNotSupported;
-  }
-
-  DCHECK(id_to_mime_map_.find(id) == id_to_mime_map_.end());
-  id_to_mime_map_[id] = mime_type;
-  return AddId(id, type, codecs);
-}
-#endif  // defined(STARBOARD)
-
 ChunkDemuxer::Status ChunkDemuxer::AddIdInternal(
     const std::string& id,
     std::unique_ptr<media::StreamParser> stream_parser,
@@ -894,8 +767,7 @@ ChunkDemuxer::Status ChunkDemuxer::AddIdInternal(
 
   source_state->Init(base::BindOnce(&ChunkDemuxer::OnSourceInitDone,
                                     base::Unretained(this), id),
-                     expected_codecs, encrypted_media_init_data_cb_,
-                     base::NullCallback());
+                     expected_codecs, encrypted_media_init_data_cb_);
 
   // TODO(wolenetz): Change to DCHECKs once less verification in release build
   // is needed. See https://crbug.com/786975.
@@ -1041,6 +913,10 @@ void ChunkDemuxer::OnSelectedVideoTrackChanged(
                             std::move(change_completed_cb));
 }
 
+void ChunkDemuxer::DisableCanChangeType() {
+  supports_change_type_ = false;
+}
+
 void ChunkDemuxer::OnMemoryPressure(
     base::TimeDelta currentMediaTime,
     base::MemoryPressureListener::MemoryPressureLevel memory_pressure_level,
@@ -1074,39 +950,6 @@ bool ChunkDemuxer::EvictCodedFrames(const std::string& id,
   }
   return itr->second->EvictCodedFrames(currentMediaTime, newDataSize);
 }
-
-#if defined(STARBOARD)
-base::TimeDelta ChunkDemuxer::GetWriteHead(const std::string& id) const {
-  base::AutoLock auto_lock(lock_);
-  DCHECK(IsValidId_Locked(id));
-
-  auto iter = id_to_streams_map_.find(id);
-  if (iter == id_to_streams_map_.end() ||
-      iter->second.empty()) {
-    // Handled just in case.
-    SB_NOTREACHED();
-    return base::TimeDelta();
-  }
-
-  return iter->second[0]->GetWriteHead();
-}
-
-void ChunkDemuxer::SetSourceBufferStreamMemoryLimit(const std::string& id,
-                                                    size_t limit) {
-  base::AutoLock auto_lock(lock_);
-  DCHECK(source_state_map_.find(id) != source_state_map_.end());
-  source_state_map_[id]->SetSourceBufferStreamMemoryLimit(limit);
-}
-
-size_t ChunkDemuxer::GetSourceBufferStreamMemoryLimit(const std::string& id) {
-
-  base::AutoLock auto_lock(lock_);
-  if (source_state_map_.find(id) == source_state_map_.end()) {
-    return 0;
-  }
-  return source_state_map_[id]->GetSourceBufferStreamMemoryLimit();
-}
-#endif  // defined(STARBOARD)
 
 bool ChunkDemuxer::AppendToParseBuffer(const std::string& id,
                                        const uint8_t* data,
@@ -1343,6 +1186,10 @@ bool ChunkDemuxer::CanChangeType(const std::string& id,
   base::AutoLock auto_lock(lock_);
 
   DCHECK(IsValidId_Locked(id));
+
+  if (!supports_change_type_) {
+    return false;
+  }
 
   // CanChangeType() doesn't care if there has or hasn't been received a first
   // initialization segment for the source buffer corresponding to |id|.
@@ -1696,25 +1543,12 @@ ChunkDemuxerStream* ChunkDemuxer::CreateDemuxerStream(
       owning_vector = &video_streams_;
       break;
 
-    case DemuxerStream::TEXT:
-      owning_vector = &text_streams_;
-      break;
-
     case DemuxerStream::UNKNOWN:
-      NOTREACHED();
-      return nullptr;
+      NOTREACHED_NORETURN();
   }
 
-#if defined(STARBOARD)
-  auto iter = id_to_mime_map_.find(source_id);
-  DCHECK(iter != id_to_mime_map_.end());
-  std::unique_ptr<ChunkDemuxerStream> stream =
-      std::make_unique<ChunkDemuxerStream>(iter->second, type, media_track_id);
-#else  // defined(STARBOARD)
   std::unique_ptr<ChunkDemuxerStream> stream =
       std::make_unique<ChunkDemuxerStream>(type, media_track_id);
-#endif  // defined(STARBOARD)
-
   DCHECK(track_id_to_demux_stream_map_.find(media_track_id) ==
          track_id_to_demux_stream_map_.end());
   track_id_to_demux_stream_map_[media_track_id] = stream.get();

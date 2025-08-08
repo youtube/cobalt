@@ -15,7 +15,6 @@
 #include "media/base/video_frame.h"
 #include "media/base/video_util.h"
 #include "ui/gfx/gpu_memory_buffer.h"
-#include "ui/gfx/mac/io_surface.h"
 
 namespace media {
 
@@ -99,9 +98,9 @@ void SetCvPixelBufferColorSpace(const gfx::ColorSpace& frame_cs,
 
 }  // namespace
 
-MEDIA_EXPORT base::ScopedCFTypeRef<CVPixelBufferRef>
+MEDIA_EXPORT base::apple::ScopedCFTypeRef<CVPixelBufferRef>
 WrapVideoFrameInCVPixelBuffer(scoped_refptr<VideoFrame> frame) {
-  base::ScopedCFTypeRef<CVPixelBufferRef> pixel_buffer;
+  base::apple::ScopedCFTypeRef<CVPixelBufferRef> pixel_buffer;
   if (!frame) {
     return pixel_buffer;
   }
@@ -114,11 +113,12 @@ WrapVideoFrameInCVPixelBuffer(scoped_refptr<VideoFrame> frame) {
     if (frame->CvPixelBuffer()) {
       pixel_buffer.reset(frame->CvPixelBuffer(), base::scoped_policy::RETAIN);
       if (!IsAcceptableCvPixelFormat(
-              frame->format(), CVPixelBufferGetPixelFormatType(pixel_buffer))) {
+              frame->format(),
+              CVPixelBufferGetPixelFormatType(pixel_buffer.get()))) {
         DLOG(ERROR) << "Dropping CVPixelBuffer w/ incorrect format.";
         pixel_buffer.reset();
       } else {
-        SetCvPixelBufferColorSpace(frame->ColorSpace(), pixel_buffer);
+        SetCvPixelBufferColorSpace(frame->ColorSpace(), pixel_buffer.get());
       }
       return pixel_buffer;
     }
@@ -130,7 +130,8 @@ WrapVideoFrameInCVPixelBuffer(scoped_refptr<VideoFrame> frame) {
         gfx::ScopedIOSurface io_surface = handle.io_surface;
         if (io_surface) {
           CVReturn cv_return = CVPixelBufferCreateWithIOSurface(
-              nullptr, io_surface, nullptr, pixel_buffer.InitializeInto());
+              nullptr, io_surface.get(), nullptr,
+              pixel_buffer.InitializeInto());
           if (cv_return != kCVReturnSuccess) {
             DLOG(ERROR) << "CVPixelBufferCreateWithIOSurface failed: "
                         << cv_return;
@@ -138,11 +139,11 @@ WrapVideoFrameInCVPixelBuffer(scoped_refptr<VideoFrame> frame) {
           }
           if (!IsAcceptableCvPixelFormat(
                   frame->format(),
-                  CVPixelBufferGetPixelFormatType(pixel_buffer))) {
+                  CVPixelBufferGetPixelFormatType(pixel_buffer.get()))) {
             DLOG(ERROR) << "Dropping CVPixelBuffer w/ incorrect format.";
             pixel_buffer.reset();
           } else {
-            SetCvPixelBufferColorSpace(frame->ColorSpace(), pixel_buffer);
+            SetCvPixelBufferColorSpace(frame->ColorSpace(), pixel_buffer.get());
           }
           return pixel_buffer;
         }
@@ -219,15 +220,32 @@ WrapVideoFrameInCVPixelBuffer(scoped_refptr<VideoFrame> frame) {
       frame.get(), nullptr, pixel_buffer.InitializeInto());
   if (result != kCVReturnSuccess) {
     DLOG(ERROR) << " CVPixelBufferCreateWithPlanarBytes failed: " << result;
-    return base::ScopedCFTypeRef<CVPixelBufferRef>(nullptr);
+    return base::apple::ScopedCFTypeRef<CVPixelBufferRef>(nullptr);
   }
 
   // The CVPixelBuffer now references the data of the frame, so increment its
   // reference count manually. The release callback set on the pixel buffer will
   // release the frame.
   frame->AddRef();
-  SetCvPixelBufferColorSpace(frame->ColorSpace(), pixel_buffer);
+  SetCvPixelBufferColorSpace(frame->ColorSpace(), pixel_buffer.get());
   return pixel_buffer;
+}
+
+MEDIA_EXPORT bool IOSurfaceIsWebGPUCompatible(IOSurfaceRef io_surface) {
+  switch (IOSurfaceGetPixelFormat(io_surface)) {
+    case kCVPixelFormatType_64RGBAHalf:
+    case kCVPixelFormatType_TwoComponent16Half:
+    case kCVPixelFormatType_OneComponent16Half:
+    case kCVPixelFormatType_ARGB2101010LEPacked:
+    case kCVPixelFormatType_32RGBA:
+    case kCVPixelFormatType_32BGRA:
+    case kCVPixelFormatType_TwoComponent8:
+    case kCVPixelFormatType_OneComponent8:
+    case kCVPixelFormatType_420YpCbCr8BiPlanarVideoRange:
+      return true;
+    default:
+      return false;
+  }
 }
 
 }  // namespace media

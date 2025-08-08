@@ -12,6 +12,7 @@
 
 #include "base/allocator/buildflags.h"
 #include "base/logging.h"
+#include "build/blink_buildflags.h"
 #include "build/build_config.h"
 
 #if !BUILDFLAG(IS_FUCHSIA)

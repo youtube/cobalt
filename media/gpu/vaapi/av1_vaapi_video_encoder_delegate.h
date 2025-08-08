@@ -5,16 +5,14 @@
 #ifndef MEDIA_GPU_VAAPI_AV1_VAAPI_VIDEO_ENCODER_DELEGATE_H_
 #define MEDIA_GPU_VAAPI_AV1_VAAPI_VIDEO_ENCODER_DELEGATE_H_
 
+#include <stdint.h>
 #include <vector>
 
 #include "media/base/video_bitrate_allocation.h"
 #include "media/gpu/av1_picture.h"
 #include "media/gpu/vaapi/vaapi_video_encoder_delegate.h"
-#include "media/gpu/video_rate_control.h"
 
 namespace aom {
-struct AV1RateControlRtcConfig;
-struct AV1FrameParamsRTC;
 class AV1RateControlRTC;
 }  // namespace aom
 
@@ -71,10 +69,6 @@ class AV1VaapiVideoEncoderDelegate : public VaapiVideoEncoderDelegate {
   std::vector<gfx::Size> GetSVCLayerResolutions() override;
 
  private:
-  using AV1RateControl = VideoRateControl<aom::AV1RateControlRtcConfig,
-                                          aom::AV1RateControlRTC,
-                                          aom::AV1FrameParamsRTC>;
-
   BitstreamBufferMetadata GetMetadata(const EncodeJob& encode_job,
                                       size_t payload_size) override;
   bool PrepareEncodeJob(EncodeJob& encode_job) override;
@@ -87,8 +81,9 @@ class AV1VaapiVideoEncoderDelegate : public VaapiVideoEncoderDelegate {
   std::vector<uint8_t> PackSequenceHeader() const;
   bool SubmitFrame(EncodeJob& job, PicParamOffsets& offsets);
   bool FillPictureParam(VAEncPictureParameterBufferAV1& pic_param,
+                        VAEncSegMapBufferAV1& segment_map_param,
                         const EncodeJob& job,
-                        const AV1Picture& pic) const;
+                        const AV1Picture& pic);
   bool SubmitFrameOBU(const VAEncPictureParameterBufferAV1& pic_param,
                       PicParamOffsets& offsets);
   std::vector<uint8_t> PackFrameHeader(
@@ -96,6 +91,7 @@ class AV1VaapiVideoEncoderDelegate : public VaapiVideoEncoderDelegate {
       PicParamOffsets& offsets) const;
   bool SubmitPictureParam(VAEncPictureParameterBufferAV1& pic_param,
                           const PicParamOffsets& offsets);
+  bool SubmitSegmentMap(const VAEncSegMapBufferAV1& segment_map_param);
   bool SubmitTileGroup();
   bool SubmitPackedData(const std::vector<uint8_t>& data);
 
@@ -108,7 +104,9 @@ class AV1VaapiVideoEncoderDelegate : public VaapiVideoEncoderDelegate {
   // reference frames, not just the most recent.
   scoped_refptr<AV1Picture> last_frame_ = nullptr;
   VAEncSequenceParameterBufferAV1 seq_param_;
-  std::unique_ptr<AV1RateControl> rate_ctrl_;
+  std::unique_ptr<aom::AV1RateControlRTC> rate_ctrl_;
+  std::vector<uint8_t> segmentation_map_{};
+  uint32_t seg_size_;
 };
 
 }  // namespace media

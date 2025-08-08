@@ -1,0 +1,17 @@
+Hello, 
+¶
+http://yahoo.com
+¶
+! nice meeting you
+¶
+Goodbye, 
+¶
+http://bing.com
+¶
+! nice meeting you
+¶
+Bye, 
+¶
+http://google.com
+¶
+

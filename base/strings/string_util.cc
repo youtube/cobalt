@@ -4,7 +4,6 @@
 
 #include "base/strings/string_util.h"
 
-#include <ctype.h>
 #include <errno.h>
 #include <math.h>
 #include <stdarg.h>
@@ -14,7 +13,6 @@
 #include <string.h>
 #include <time.h>
 #include <wchar.h>
-#include <wctype.h>
 
 #include <limits>
 #include <type_traits>
@@ -248,18 +246,6 @@ bool IsStringUTF8(StringPiece str) {
 bool IsStringUTF8AllowingNoncharacters(StringPiece str) {
   return internal::DoIsStringUTF8<IsValidCodepoint>(str);
 }
-
-#if defined(STARBOARD)
-bool EqualsCaseInsensitiveASCII(const char* a_begin,
-                          const char* a_end,
-                          const char* b) {
-  for (const char *it = a_begin; it != a_end; ++it, ++b) {
-    if (!*b || base::ToLowerASCII(*it) != *b)
-      return false;
-  }
-  return *b == 0;
-}
-#endif
 
 bool EqualsASCII(StringPiece16 str, StringPiece ascii) {
   return ranges::equal(ascii, str);

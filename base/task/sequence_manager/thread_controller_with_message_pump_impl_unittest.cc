@@ -89,7 +89,6 @@ class MockMessagePump : public MessagePump {
   MOCK_METHOD0(Quit, void());
   MOCK_METHOD0(ScheduleWork, void());
   MOCK_METHOD1(ScheduleDelayedWork_TimeTicks, void(const TimeTicks&));
-  MOCK_METHOD1(SetTimerSlack, void(TimerSlack));
 
   void ScheduleDelayedWork(
       const MessagePump::Delegate::NextWorkInfo& next_work_info) override {
@@ -1088,6 +1087,7 @@ TEST_F(ThreadControllerWithMessagePumpTest, DoWorkBatches) {
 
   scoped_feature_list.InitAndEnableFeature(kRunTasksByBatches);
   ThreadControllerWithMessagePumpImpl::InitializeFeatures();
+  MessagePump::InitializeFeatures();
 
   int task_counter = 0;
   for (int i = 0; i < 2; i++) {
@@ -1105,6 +1105,7 @@ TEST_F(ThreadControllerWithMessagePumpNoBatchesTest, DoWorkBatches) {
 
   scoped_feature_list.InitAndEnableFeature(kRunTasksByBatches);
   ThreadControllerWithMessagePumpImpl::InitializeFeatures();
+  MessagePump::InitializeFeatures();
 
   int task_counter = 0;
   for (int i = 0; i < 2; i++) {
@@ -1124,6 +1125,7 @@ TEST_F(ThreadControllerWithMessagePumpTest, DoWorkBatchesForSetTime) {
 
   scoped_feature_list.InitAndEnableFeature(kRunTasksByBatches);
   ThreadControllerWithMessagePumpImpl::InitializeFeatures();
+  MessagePump::InitializeFeatures();
 
   int task_counter = 0;
 

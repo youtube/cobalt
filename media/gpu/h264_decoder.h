@@ -171,7 +171,12 @@ class MEDIA_GPU_EXPORT H264Decoder : public AcceleratedVideoDecoder {
     // later. This method has a default implementation that returns
     // kNotSupported.
     virtual Status SetStream(base::span<const uint8_t> stream,
-                             const DecryptConfig* decrypt_config);
+                             const DecryptConfig* decrypt_config,
+                             uint64_t secure_handle);
+
+    // Notifies whether or not the current platform requires reference lists.
+    // In general, implementations don't need it.
+    virtual bool RequiresRefLists();
   };
 
   H264Decoder(std::unique_ptr<H264Accelerator> accelerator,
@@ -193,6 +198,7 @@ class MEDIA_GPU_EXPORT H264Decoder : public AcceleratedVideoDecoder {
   VideoCodecProfile GetProfile() const override;
   uint8_t GetBitDepth() const override;
   VideoChromaSampling GetChromaSampling() const override;
+  VideoColorSpace GetVideoColorSpace() const override;
   absl::optional<gfx::HDRMetadata> GetHDRMetadata() const override;
   size_t GetRequiredNumOfPictures() const override;
   size_t GetNumReferenceFrames() const override;
@@ -341,6 +347,10 @@ class MEDIA_GPU_EXPORT H264Decoder : public AcceleratedVideoDecoder {
   // Decrypting config for the most recent data passed to SetStream().
   std::unique_ptr<DecryptConfig> current_decrypt_config_;
 
+  // Secure handle to pass through to the accelerator when doing secure playback
+  // on ARM.
+  uint64_t secure_handle_ = 0;
+
   // Keep track of when SetStream() is called so that
   // H264Accelerator::SetStream() can be called.
   bool current_stream_has_been_changed_ = false;
@@ -415,6 +425,8 @@ class MEDIA_GPU_EXPORT H264Decoder : public AcceleratedVideoDecoder {
   uint8_t bit_depth_ = 0;
   // Chroma subsampling format of input bitstream.
   VideoChromaSampling chroma_sampling_ = VideoChromaSampling::kUnknown;
+  // Video picture color space of input bitstream.
+  VideoColorSpace picture_color_space_;
   // HDR metadata in the bitstream.
   absl::optional<gfx::HDRMetadata> hdr_metadata_;
 
@@ -422,6 +434,9 @@ class MEDIA_GPU_EXPORT H264Decoder : public AcceleratedVideoDecoder {
   int last_output_poc_;
 
   const std::unique_ptr<H264Accelerator> accelerator_;
+
+  // Whether the current decoder will utilize reference lists.
+  const bool requires_ref_lists_;
 };
 
 }  // namespace media

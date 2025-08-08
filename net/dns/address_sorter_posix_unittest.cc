@@ -68,6 +68,7 @@ class TestUDPClientSocket : public DatagramClientSocket {
   int SetReceiveBufferSize(int32_t) override { return OK; }
   int SetSendBufferSize(int32_t) override { return OK; }
   int SetDoNotFragment() override { return OK; }
+  int SetRecvEcn() override { return OK; }
 
   void Close() override {}
   int GetPeerAddress(IPEndPoint* address) const override {
@@ -386,11 +387,7 @@ TEST_P(AddressSorterPosixSyncOrAsyncTest, Rule6) {
   AddMapping("2001::1", "2001::10");              // Teredo
   const char* const addresses[] = {"2001::1", "::ffff:1234:1", "ff32::1", "::1",
                                    nullptr};
-#if defined(STARBOARD)
-  const int order[] = { 1, 3, 2, 0, -1 };
-#else
   const int order[] = { 3, 2, 1, 0, -1 };
-#endif
   Verify(addresses, order);
 }
 

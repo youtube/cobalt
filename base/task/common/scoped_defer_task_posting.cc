@@ -7,41 +7,14 @@
 #include "base/compiler_specific.h"
 #include "third_party/abseil-cpp/absl/base/attributes.h"
 
-#if defined(STARBOARD)
-#include <pthread.h>
-
-#include "base/check_op.h"
-#include "starboard/thread.h"
-#endif
-
 namespace base {
 
 namespace {
 
-#if defined(STARBOARD)
-ABSL_CONST_INIT pthread_once_t s_once_flag = PTHREAD_ONCE_INIT;
-ABSL_CONST_INIT pthread_key_t s_thread_local_key = 0;
-
-void InitThreadLocalKey() {
-  int res = pthread_key_create(&s_thread_local_key , NULL);
-  DCHECK(res == 0);
-}
-
-void EnsureThreadLocalKeyInited() {
-  pthread_once(&s_once_flag, InitThreadLocalKey);
-}
-
-ScopedDeferTaskPosting* GetScopedDeferTaskPosting() {
-  EnsureThreadLocalKeyInited();
-  return static_cast<ScopedDeferTaskPosting*>(
-      pthread_getspecific(s_thread_local_key));
-}
-#else
 // Holds a thread-local pointer to the current scope or null when no
 // scope is active.
 ABSL_CONST_INIT thread_local ScopedDeferTaskPosting* scoped_defer_task_posting =
     nullptr;
-#endif
 
 }  // namespace
 
@@ -63,16 +36,12 @@ void ScopedDeferTaskPosting::PostOrDefer(
 
 // static
 ScopedDeferTaskPosting* ScopedDeferTaskPosting::Get() {
-#if defined(STARBOARD)
-  return GetScopedDeferTaskPosting();
-#else
   // Workaround false-positive MSAN use-of-uninitialized-value on
   // thread_local storage for loaded libraries:
   // https://github.com/google/sanitizers/issues/1265
   MSAN_UNPOISON(&scoped_defer_task_posting, sizeof(ScopedDeferTaskPosting*));
 
   return scoped_defer_task_posting;
-#endif
 }
 
 // static
@@ -81,12 +50,7 @@ bool ScopedDeferTaskPosting::Set(ScopedDeferTaskPosting* scope) {
   // get nested scopes. In this case ignore all except the top one.
   if (Get() && scope)
     return false;
-#if defined(STARBOARD)
-  EnsureThreadLocalKeyInited();
-  pthread_setspecific(s_thread_local_key, scope);
-#else
   scoped_defer_task_posting = scope;
-#endif
   return true;
 }
 

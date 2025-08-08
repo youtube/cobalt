@@ -7,8 +7,8 @@
 #include <stdlib.h>
 #include <cinttypes>
 
-#include "base/allocator/buildflags.h"
-#include "base/allocator/partition_allocator/shim/allocator_shim.h"
+#include "base/allocator/dispatcher/dispatcher.h"
+#include "base/allocator/partition_allocator/src/partition_alloc/shim/allocator_shim.h"
 #include "base/debug/alias.h"
 #include "base/memory/raw_ptr.h"
 #include "base/rand_util.h"
@@ -18,9 +18,6 @@
 #include "build/build_config.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
-#if BUILDFLAG(USE_ALLOCATION_EVENT_DISPATCHER)
-#include "base/allocator/dispatcher/dispatcher.h"
-#endif
 
 namespace base {
 
@@ -41,16 +38,12 @@ class SamplingHeapProfilerTest : public ::testing::Test {
     ASSERT_FALSE(PoissonAllocationSampler::ScopedMuteThreadSamples::IsMuted());
     ASSERT_FALSE(ScopedSuppressRandomnessForTesting::IsSuppressed());
 
-#if BUILDFLAG(USE_ALLOCATION_EVENT_DISPATCHER)
     allocator::dispatcher::Dispatcher::GetInstance().InitializeForTesting(
         PoissonAllocationSampler::Get());
-#endif
   }
 
   void TearDown() override {
-#if BUILDFLAG(USE_ALLOCATION_EVENT_DISPATCHER)
     allocator::dispatcher::Dispatcher::GetInstance().ResetForTesting();
-#endif
   }
 
   size_t GetNextSample(size_t mean_interval) {
@@ -95,7 +88,7 @@ class SamplesCollector : public PoissonAllocationSampler::SamplesObserver {
 
  private:
   size_t watch_size_;
-  raw_ptr<void> sample_address_ = nullptr;
+  raw_ptr<void, DanglingUntriaged> sample_address_ = nullptr;
 };
 
 TEST_F(SamplingHeapProfilerTest, SampleObserver) {

@@ -49,11 +49,12 @@ QuicFlagChecker::QuicFlagChecker() {
 #define DEFINE_QUIC_PROTOCOL_FLAG_TWO_VALUES(type, flag, internal_value, \
                                              external_value, doc)        \
   QUIC_PROTOCOL_FLAG_CHECK(type, flag, external_value);
-#define CR_EXPAND_ARG(arg)
 #define GET_6TH_ARG(arg1, arg2, arg3, arg4, arg5, arg6, ...) arg6
+#define QUIC_PROTOCOL_FLAG_MACRO_CHOOSER(...)                    \
+  GET_6TH_ARG(__VA_ARGS__, DEFINE_QUIC_PROTOCOL_FLAG_TWO_VALUES, \
+              DEFINE_QUIC_PROTOCOL_FLAG_SINGLE_VALUE)
 #define QUIC_PROTOCOL_FLAG(...) \
-  CR_EXPAND_ARG(GET_6TH_ARG(__VA_ARGS__, DEFINE_QUIC_PROTOCOL_FLAG_TWO_VALUES, \
-              DEFINE_QUIC_PROTOCOL_FLAG_SINGLE_VALUE)(__VAR_ARGS__))
+  QUIC_PROTOCOL_FLAG_MACRO_CHOOSER(__VA_ARGS__)(__VA_ARGS__)
 #include "net/third_party/quiche/src/quiche/quic/core/quic_protocol_flags_list.h"
 #undef QUIC_PROTOCOL_FLAG
 #undef QUIC_PROTOCOL_FLAG_MACRO_CHOOSER

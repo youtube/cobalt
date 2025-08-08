@@ -8,6 +8,7 @@
 #include "base/auto_reset.h"
 #include "base/base_export.h"
 #include "base/dcheck_is_on.h"
+#include "base/gtest_prod_util.h"
 #include "base/memory/raw_ptr_exclusion.h"
 #include "base/task/sequenced_task_runner.h"
 #include "third_party/abseil-cpp/absl/types/optional.h"
@@ -78,9 +79,7 @@ class BASE_EXPORT SingleThreadTaskRunner : public SequencedTaskRunner {
     friend class SingleThreadTaskRunner;
     friend class CurrentHandleOverride;
 
-#if !defined(STARBOARD)
     const AutoReset<CurrentDefaultHandle*> resetter_;
-#endif
 
     scoped_refptr<SingleThreadTaskRunner> task_runner_;
 
@@ -116,8 +115,8 @@ class BASE_EXPORT SingleThreadTaskRunner : public SequencedTaskRunner {
     // We expect SingleThreadTaskRunner::CurrentHandleOverride to be only needed
     // under special circumstances. Require them to be enumerated as friends to
     // require //base/OWNERS review. Use
-    // SingleTaskRunner::CurrentHandleOverrideForTesting in unit tests to avoid
-    // the friend requirement.
+    // SingleThreadTaskRunner::CurrentHandleOverrideForTesting in unit tests to
+    // avoid the friend requirement.
 
     friend class blink::scheduler::MainThreadSchedulerImpl;
 

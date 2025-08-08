@@ -1,0 +1,8 @@
+include_rules = [
+  "+dbus",
+  "+ui/base",
+  "+ui/events",
+  "+ui/gfx/image",
+  "+ui/gfx/x",
+  "+ui/ozone/public",
+]

@@ -7,7 +7,6 @@
 #ifndef BASE_STRINGS_STRING_UTIL_H_
 #define BASE_STRINGS_STRING_UTIL_H_
 
-#include <ctype.h>
 #include <stdarg.h>   // va_list
 #include <stddef.h>
 #include <stdint.h>
@@ -116,7 +115,7 @@ constexpr WStringPiece MakeWStringPiece(Iter begin, Iter end) {
 // ASCII-specific tolower.  The standard library's tolower is locale sensitive,
 // so we don't want to use it here.
 template <typename CharT,
-          typename = std::enable_if_t<std::is_integral<CharT>::value>>
+          typename = std::enable_if_t<std::is_integral_v<CharT>>>
 constexpr CharT ToLowerASCII(CharT c) {
   return internal::ToLowerASCII(c);
 }
@@ -124,7 +123,7 @@ constexpr CharT ToLowerASCII(CharT c) {
 // ASCII-specific toupper.  The standard library's toupper is locale sensitive,
 // so we don't want to use it here.
 template <typename CharT,
-          typename = std::enable_if_t<std::is_integral<CharT>::value>>
+          typename = std::enable_if_t<std::is_integral_v<CharT>>>
 CharT ToUpperASCII(CharT c) {
   return (c >= 'a' && c <= 'z') ? static_cast<CharT>(c + 'A' - 'a') : c;
 }
@@ -182,9 +181,6 @@ BASE_EXPORT constexpr int CompareCaseInsensitiveASCII(StringPiece16 a,
 // To compare all Unicode code points case-insensitively, use
 // base::i18n::ToLower or base::i18n::FoldCase and then compare with either ==
 // or !=.
-#ifdef STARBOARD
-BASE_EXPORT bool EqualsCaseInsensitiveASCII(const char* a_begin, const char* a_end, const char* b);
-#endif
 inline bool EqualsCaseInsensitiveASCII(StringPiece a, StringPiece b) {
   return internal::EqualsCaseInsensitiveASCIIT(a, b);
 }
@@ -424,6 +420,28 @@ inline bool IsAsciiPrintable(Char c) {
 }
 
 template <typename Char>
+inline bool IsAsciiControl(Char c) {
+  if constexpr (std::is_signed_v<Char>) {
+    if (c < 0) {
+      return false;
+    }
+  }
+  return c <= 0x1f || c == 0x7f;
+}
+
+template <typename Char>
+inline bool IsUnicodeControl(Char c) {
+  return IsAsciiControl(c) ||
+         // C1 control characters: http://unicode.org/charts/PDF/U0080.pdf
+         (c >= 0x80 && c <= 0x9F);
+}
+
+template <typename Char>
+inline bool IsAsciiPunctuation(Char c) {
+  return c > 0x20 && c < 0x7f && !IsAsciiAlphaNumeric(c);
+}
+
+template <typename Char>
 inline bool IsHexDigit(Char c) {
   return (c >= '0' && c <= '9') ||
          (c >= 'A' && c <= 'F') ||
@@ -574,9 +592,7 @@ BASE_EXPORT std::u16string ReplaceStringPlaceholders(
 
 }  // namespace base
 
-#if defined(STARBOARD)
-#include "base/strings/string_util_starboard.h"
-#elif BUILDFLAG(IS_WIN)
+#if BUILDFLAG(IS_WIN)
 #include "base/strings/string_util_win.h"
 #elif BUILDFLAG(IS_POSIX) || BUILDFLAG(IS_FUCHSIA)
 #include "base/strings/string_util_posix.h"

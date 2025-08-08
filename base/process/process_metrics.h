@@ -45,8 +45,6 @@
 #include "base/threading/platform_thread.h"
 #endif
 
-#if !defined(STARBOARD)
-
 namespace base {
 
 // Full declaration is in process_metrics_iocounters.h.
@@ -198,10 +196,6 @@ class BASE_EXPORT ProcessMetrics {
   // measures such as placing DRAM in to self-refresh (also referred to as
   // auto-refresh), place interconnects into lower-power states etc"
   int GetPackageIdleWakeupsPerSecond();
-
-  // Returns "Energy Impact", a synthetic power estimation metric displayed by
-  // macOS in Activity Monitor and the battery menu.
-  int GetEnergyImpact();
 #endif
 
   // Retrieves accounting information for all I/O operations performed by the
@@ -254,6 +248,9 @@ class BASE_EXPORT ProcessMetrics {
   // See |GetPackageIdleWakeupsForSecond| comment for more info.
   int CalculatePackageIdleWakeupsPerSecond(
       uint64_t absolute_package_idle_wakeups);
+
+  // Queries the port provider if it's set.
+  mach_port_t TaskForPid(ProcessHandle process) const;
 #endif
 
 #if BUILDFLAG(IS_WIN)
@@ -285,15 +282,13 @@ class BASE_EXPORT ProcessMetrics {
   // And same thing for package idle exit wakeups.
   TimeTicks last_package_idle_wakeups_time_;
   uint64_t last_absolute_package_idle_wakeups_;
-  double last_energy_impact_;
-  // In mach_absolute_time units.
-  uint64_t last_energy_impact_time_;
+
+  // Works around a race condition when combining two task_info() calls to
+  // measure CPU time.
+  TimeDelta last_measured_cpu_;
 #endif
 
 #if BUILDFLAG(IS_MAC)
-  // Queries the port provider if it's set.
-  mach_port_t TaskForPid(ProcessHandle process) const;
-
   raw_ptr<PortProvider> port_provider_;
 #endif  // BUILDFLAG(IS_MAC)
 };
@@ -630,9 +625,7 @@ BASE_EXPORT MachVMRegionResult GetBasicInfo(mach_port_t task,
                                             mach_vm_size_t* size,
                                             mach_vm_address_t* address,
                                             vm_region_basic_info_64* info);
-#endif  // BUILDFLAG(IS_APPLE)
 
-#if BUILDFLAG(IS_MAC)
 // Returns info on the first memory region at or after |address|, including
 // resident memory and share mode. On Success, |size| reflects the size of the
 // memory region.
@@ -643,9 +636,8 @@ BASE_EXPORT MachVMRegionResult GetTopInfo(mach_port_t task,
                                           mach_vm_size_t* size,
                                           mach_vm_address_t* address,
                                           vm_region_top_info_data_t* info);
-#endif  // BUILDFLAG(IS_MAC)
+#endif  // BUILDFLAG(IS_APPLE)
 
 }  // namespace base
 
-#endif  // !defined(STARBOARD)
 #endif  // BASE_PROCESS_PROCESS_METRICS_H_

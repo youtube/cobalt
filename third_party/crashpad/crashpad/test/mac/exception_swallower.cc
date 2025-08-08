@@ -1,4 +1,4 @@
-// Copyright 2017 The Crashpad Authors. All rights reserved.
+// Copyright 2017 The Crashpad Authors
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -18,10 +18,11 @@
 #include <stdlib.h>
 #include <unistd.h>
 
+#include <ostream>
 #include <string>
 
-#include "base/logging.h"
-#include "base/mac/scoped_mach_port.h"
+#include "base/apple/scoped_mach_port.h"
+#include "base/check_op.h"
 #include "base/strings/stringprintf.h"
 #include "handler/mac/exception_handler_server.h"
 #include "util/mach/bootstrap.h"
@@ -58,13 +59,16 @@ class ExceptionSwallower::ExceptionSwallowerThread
       public UniversalMachExcServer::Interface {
  public:
   explicit ExceptionSwallowerThread(
-      base::mac::ScopedMachReceiveRight receive_right)
+      base::apple::ScopedMachReceiveRight receive_right)
       : Thread(),
         UniversalMachExcServer::Interface(),
         exception_handler_server_(std::move(receive_right), true),
         pid_(getpid()) {
     Start();
   }
+
+  ExceptionSwallowerThread(const ExceptionSwallowerThread&) = delete;
+  ExceptionSwallowerThread& operator=(const ExceptionSwallowerThread&) = delete;
 
   ~ExceptionSwallowerThread() override {}
 
@@ -107,8 +111,6 @@ class ExceptionSwallower::ExceptionSwallowerThread
 
   ExceptionHandlerServer exception_handler_server_;
   pid_t pid_;
-
-  DISALLOW_COPY_AND_ASSIGN(ExceptionSwallowerThread);
 };
 
 ExceptionSwallower::ExceptionSwallower() : exception_swallower_thread_() {
@@ -128,7 +130,7 @@ ExceptionSwallower::ExceptionSwallower() : exception_swallower_thread_() {
       base::StringPrintf("org.chromium.crashpad.test.exception_swallower.%d.%s",
                          getpid(),
                          RandomString().c_str());
-  base::mac::ScopedMachReceiveRight receive_right(
+  base::apple::ScopedMachReceiveRight receive_right(
       BootstrapCheckIn(service_name));
   CHECK(receive_right.is_valid());
 
@@ -163,7 +165,7 @@ void ExceptionSwallower::SwallowExceptions() {
   const char* service_name = CheckedGetenv(kServiceEnvironmentVariable);
   CHECK(service_name);
 
-  base::mac::ScopedMachSendRight exception_swallower_port(
+  base::apple::ScopedMachSendRight exception_swallower_port(
       BootstrapLookUp(service_name));
   CHECK(exception_swallower_port.is_valid());
 

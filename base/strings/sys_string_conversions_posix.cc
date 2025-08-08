@@ -27,7 +27,7 @@ std::wstring SysUTF8ToWide(StringPiece utf8) {
   return out;
 }
 
-#if defined(SYSTEM_NATIVE_UTF8) || BUILDFLAG(IS_ANDROID) || defined(STARBOARD)
+#if defined(SYSTEM_NATIVE_UTF8) || BUILDFLAG(IS_ANDROID)
 // TODO(port): Consider reverting the OS_ANDROID when we have wcrtomb()
 // support and a better understanding of what calls these routines.
 
@@ -154,7 +154,6 @@ std::wstring SysNativeMBToWide(StringPiece native_mb) {
   return out;
 }
 
-#endif  // defined(SYSTEM_NATIVE_UTF8) || BUILDFLAG(IS_ANDROID) ||
-        // defined(STARBOARD)
+#endif  // defined(SYSTEM_NATIVE_UTF8) || BUILDFLAG(IS_ANDROID)
 
 }  // namespace base

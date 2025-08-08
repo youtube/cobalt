@@ -1,0 +1,110 @@
+# Copyright 2016 The Chromium Authors
+# Use of this source code is governed by a BSD-style license that can be
+# found in the LICENSE file.
+
+import("//build/buildflag_header.gni")
+import("//ios/chrome/features.gni")
+import("//ios/public/provider/chrome/browser/build_config.gni")
+
+# Target for sources that don't depend on //ios/chrome/browser:browser
+source_set("startup_basic") {
+  sources = [
+    "app_launch_metrics.h",
+    "chrome_main_starter.h",
+    "chrome_main_starter.mm",
+    "ios_chrome_main.h",
+    "ios_chrome_main.mm",
+    "ios_chrome_main_delegate.h",
+    "ios_chrome_main_delegate.mm",
+    "register_experimental_settings.h",
+    "register_experimental_settings.mm",
+    "setup_debugging.h",
+    "setup_debugging.mm",
+  ]
+
+  deps = [
+    "//base",
+    "//components/component_updater",
+    "//components/crash/core/common",
+    "//ios/chrome/browser/shared/model/paths",
+    "//ios/web/public/init",
+    "//skia",
+  ]
+  if (ios_enable_sandbox_dump) {
+    deps += [ ":sandbox_dump" ]
+  }
+
+  assert_no_deps = [
+    "//ios/chrome/browser/shared/model/browser_state",
+    "//ios/chrome/browser/web",
+  ]
+}
+
+buildflag_header("ios_enable_sandbox_dump_buildflags") {
+  header = "ios_enable_sandbox_dump_buildflags.h"
+  flags = [ "IOS_ENABLE_SANDBOX_DUMP=$ios_enable_sandbox_dump" ]
+}
+
+if (ios_enable_sandbox_dump) {
+  source_set("sandbox_dump") {
+    sources = [
+      "sandbox_dump.h",
+      "sandbox_dump.mm",
+    ]
+    deps = [
+      ":ios_enable_sandbox_dump_buildflags",
+      "//base",
+      "//ios/chrome/common/app_group",
+      "//third_party/zlib/google:zip",
+    ]
+  }
+}
+
+source_set("startup") {
+  sources = [
+    "chrome_app_startup_parameters.h",
+    "chrome_app_startup_parameters.mm",
+    "client_registration.h",
+    "client_registration.mm",
+    "provider_registration.h",
+    "provider_registration.mm",
+  ]
+
+  deps = [
+    ":startup_basic",
+    "//base",
+    "//components/password_manager/core/browser",
+    "//components/search_engines:search_engines",
+    "//ios/chrome/app",
+    "//ios/chrome/browser/default_browser/model:utils",
+    "//ios/chrome/browser/first_run",
+    "//ios/chrome/browser/net:net",
+    "//ios/chrome/browser/shared/model/browser_state",
+    "//ios/chrome/browser/shared/model/url:constants",
+    "//ios/chrome/browser/web:web_internal",
+    "//ios/chrome/common",
+    "//ios/chrome/common/app_group",
+    "//ios/components/webui:url_constants",
+    "//ios/net",
+    "//ios/public/provider/chrome/browser/app_utils:app_utils_api",
+    "//ios/web",
+    "//ios/web/public/init",
+  ]
+}
+
+source_set("unit_tests") {
+  testonly = true
+  sources = [ "chrome_app_startup_parameters_unittest.mm" ]
+  deps = [
+    ":startup",
+    "//base",
+    "//base/test:test_support",
+    "//components/password_manager/core/browser",
+    "//ios/chrome/app",
+    "//ios/chrome/browser/shared/model/url:constants",
+    "//ios/chrome/common/app_group",
+    "//ios/components/webui:url_constants",
+    "//testing/gtest",
+    "//url",
+  ]
+}

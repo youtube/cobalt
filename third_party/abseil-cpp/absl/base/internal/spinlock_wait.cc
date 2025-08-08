@@ -21,9 +21,7 @@
 
 #include "absl/base/internal/spinlock_wait.h"
 
-#if defined(STARBOARD)
-#include "absl/base/internal/spinlock_starboard.inc"
-#elif defined(_WIN32)
+#if defined(_WIN32)
 #include "absl/base/internal/spinlock_win32.inc"
 #elif defined(__linux__)
 #include "absl/base/internal/spinlock_linux.inc"

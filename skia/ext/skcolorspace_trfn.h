@@ -7,6 +7,20 @@
 
 #include "third_party/skia/include/core/SkColorSpace.h"
 
+namespace skia {
+
+// Returns a transfer function that is equal to `alpha` * `x`.
+skcms_TransferFunction SK_API
+ScaleTransferFunction(const skcms_TransferFunction& f, float alpha);
+
+// Returns true if `y` = `alpha` * `x`, and computes and stores alpha if `alpha`
+// is non-nullptr. Returns false is `x` is the zero function or `alpha` is zero.
+bool SK_API IsScaledTransferFunction(const skcms_TransferFunction& x,
+                                     const skcms_TransferFunction& y,
+                                     float* alpha);
+
+}  // namespace skia
+
 namespace SkNamedTransferFnExt {
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -47,14 +61,8 @@ static constexpr skcms_TransferFunction kIEC61966_2_4 = kRec709;
 // IEC 61966-2-1 sRGB, value 13. This is almost equal to
 // SkNamedTransferFnExt::kSRGB. The differences are rounding errors that
 // cause test failures (and should be unified).
-#if defined(STARBOARD)
-// Not all platforms can implicitly convert a double to a float.
-static constexpr skcms_TransferFunction kIEC61966_2_1 = {
-    2.4f, 0.947867345704f, 0.052132654296f, 0.077399380805f, 0.040449937172f};
-#else  // defined(STARBOARD)
 static constexpr skcms_TransferFunction kIEC61966_2_1 = {
     2.4, 0.947867345704f, 0.052132654296f, 0.077399380805f, 0.040449937172f};
-#endif  // defined(STARBOARD)
 
 // Rec. ITU-R BT.2020-2 (10-bit system), value 14.
 static constexpr skcms_TransferFunction kRec2020_10bit = kRec709;

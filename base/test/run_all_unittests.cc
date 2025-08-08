@@ -9,20 +9,6 @@
 #include "base/time/time.h"
 #include "build/build_config.h"
 
-
-#if defined(STARBOARD)
-#include "base/test/allow_check_is_test_for_testing.h"
-#include "starboard/client_porting/wrap_main/wrap_main.h"
-
-
-int TestSuiteRun(int argc, char** argv) {
-  base::AtExitManager exit_manager;
-  base::test::AllowCheckIsTestForTesting();
-  return base::TestSuite(argc, argv).Run();
-}
-
-STARBOARD_WRAP_SIMPLE_MAIN(TestSuiteRun);
-#else
 #if BUILDFLAG(IS_WIN)
 #include "base/win/com_init_util.h"
 #endif  // BUILDFLAG(IS_WIN)
@@ -85,4 +71,3 @@ int main(int argc, char** argv) {
       argc, argv,
       base::BindOnce(&base::TestSuite::Run, base::Unretained(&test_suite)));
 }
-#endif

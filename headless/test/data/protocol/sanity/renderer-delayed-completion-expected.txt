@@ -1,0 +1,3 @@
+Tests renderer: delayed completion.
+requested url: http://example.com/foobar
+<p>delayed text</p>

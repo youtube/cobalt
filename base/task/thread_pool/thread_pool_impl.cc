@@ -19,6 +19,7 @@
 #include "base/message_loop/message_pump_type.h"
 #include "base/metrics/field_trial_params.h"
 #include "base/strings/string_util.h"
+#include "base/system/sys_info.h"
 #include "base/task/scoped_set_task_priority_for_current_thread.h"
 #include "base/task/task_features.h"
 #include "base/task/thread_pool/pooled_parallel_task_runner.h"
@@ -122,7 +123,7 @@ void ThreadPoolImpl::Start(const ThreadPoolInstance::InitParams& init_params,
 
   // The max number of concurrent BEST_EFFORT tasks is |kMaxBestEffortTasks|,
   // unless the max number of foreground threads is lower.
-  const size_t max_best_effort_tasks =
+  size_t max_best_effort_tasks =
       std::min(kMaxBestEffortTasks, init_params.max_num_foreground_threads);
 
   // Start the service thread. On platforms that support it (POSIX except NaCL
@@ -135,7 +136,6 @@ void ThreadPoolImpl::Start(const ThreadPoolInstance::InitParams& init_params,
 #else
       MessagePumpType::DEFAULT;
 #endif
-  service_thread_options.timer_slack = TIMER_SLACK_MAXIMUM;
   CHECK(service_thread_.StartWithOptions(std::move(service_thread_options)));
   if (g_synchronous_thread_start_for_testing)
     service_thread_.WaitUntilThreadStarted();
@@ -150,8 +150,7 @@ void ThreadPoolImpl::Start(const ThreadPoolInstance::InitParams& init_params,
                   "."),
         kUtilityPoolEnvironmentParams.name_suffix,
         kUtilityPoolEnvironmentParams.thread_type_hint,
-        task_tracker_->GetTrackedRef(), tracked_ref_factory_.GetTrackedRef(),
-        foreground_thread_group_.get());
+        task_tracker_->GetTrackedRef(), tracked_ref_factory_.GetTrackedRef());
     foreground_thread_group_
         ->HandoffNonUserBlockingTaskSourcesToOtherThreadGroup(
             utility_thread_group_.get());
@@ -179,20 +178,23 @@ void ThreadPoolImpl::Start(const ThreadPoolInstance::InitParams& init_params,
 #endif
   }
 
+  size_t foreground_threads = init_params.max_num_foreground_threads;
+  size_t utility_threads = init_params.max_num_utility_threads;
+
   // On platforms that can't use the background thread priority, best-effort
   // tasks run in foreground pools. A cap is set on the number of best-effort
   // tasks that can run in foreground pools to ensure that there is always
   // room for incoming foreground tasks and to minimize the performance impact
   // of best-effort tasks.
   static_cast<ThreadGroupImpl*>(foreground_thread_group_.get())
-      ->Start(init_params.max_num_foreground_threads, max_best_effort_tasks,
+      ->Start(foreground_threads, max_best_effort_tasks,
               init_params.suggested_reclaim_time, service_thread_task_runner,
               worker_thread_observer, worker_environment,
               g_synchronous_thread_start_for_testing);
 
   if (utility_thread_group_) {
     static_cast<ThreadGroupImpl*>(utility_thread_group_.get())
-        ->Start(init_params.max_num_utility_threads, max_best_effort_tasks,
+        ->Start(utility_threads, max_best_effort_tasks,
                 init_params.suggested_reclaim_time, service_thread_task_runner,
                 worker_thread_observer, worker_environment,
                 g_synchronous_thread_start_for_testing);

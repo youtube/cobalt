@@ -1,12 +1,18 @@
-// Copyright 2013 The Chromium Authors. All rights reserved.
+// Copyright 2013 The Chromium Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
 #include "components/prefs/scoped_user_pref_update.h"
 
-#include "base/logging.h"
+#include "base/check_op.h"
 #include "components/prefs/pref_notifier.h"
 #include "components/prefs/pref_service.h"
+
+// TODO(crbug.com/1419591): The following two can be removed after resolving
+// the problem.
+#include "base/debug/crash_logging.h"
+#include "base/debug/dump_without_crashing.h"
+#include "base/types/cxx23_to_underlying.h"
 
 namespace subtle {
 
@@ -25,12 +31,18 @@ base::Value* ScopedUserPrefUpdateBase::GetValueOfType(base::Value::Type type) {
   DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
   if (!value_)
     value_ = service_->GetMutableUserPref(path_, type);
-
-  // |value_| might be downcast to base::DictionaryValue or base::ListValue,
-  // side-stepping CHECKs built into base::Value. Thus we need to be certain
-  // that the type matches.
-  if (value_)
-    CHECK_EQ(value_->type(), type);
+  if (!value_) {
+    // TODO(crbug.com/1419591) This is unexpected, so let's collect some data.
+    const PrefService::Preference* pref = service_->FindPreference(path_);
+    SCOPED_CRASH_KEY_NUMBER(
+        "ScopedUserPrefUpdate", "PrevServiceStatus",
+        base::to_underlying(service_->GetInitializationStatus()));
+    SCOPED_CRASH_KEY_STRING32("ScopedUserPrefUpdate", "FindPreference",
+                              pref ? "Yes" : "No");
+    SCOPED_CRASH_KEY_NUMBER("ScopedUserPrefUpdate", "Type",
+                            pref ? base::to_underlying(pref->GetType()) : -1);
+    base::debug::DumpWithoutCrashing();
+  }
   return value_;
 }
 

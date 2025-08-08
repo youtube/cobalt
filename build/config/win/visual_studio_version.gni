@@ -2,47 +2,6 @@
 # Use of this source code is governed by a BSD-style license that can be
 # found in the LICENSE file.
 
-if (is_starboard) {
-  declare_args() {
-    visual_studio_version = "14.34.31933"
-
-    # Full path to the Windows SDK, not including a backslash at the end.
-    # This value is the default location, override if you have a different
-    # installation location.
-    windows_sdk_path = "C:/Program Files (x86)/Windows Kits/10"
-
-    # Version of Windows SDK. XB1 requires >=10.0.22000.0.
-    if (current_os == "winuwp") {
-      wdk_version = "10.0.22000.0"
-    } else {
-      wdk_version = "10.0.18362.0"
-    }
-  }
-
-  if (is_docker_build) {
-    _default_visual_studio_path = "C:/BuildTools"
-  } else {
-    _default_visual_studio_path = getenv("VSINSTALLDIR")
-    if (_default_visual_studio_path == "") {
-      _default_visual_studio_path = "C:/Program Files (x86)/Microsoft Visual Studio/2022/Professional"
-    }
-  }
-
-  declare_args() {
-    # Path to Visual Studio.
-    visual_studio_path = _default_visual_studio_path
-
-    wdk_include_path = "$windows_sdk_path/include/$wdk_version"
-
-    wdk_lib_path = "$windows_sdk_path/lib/$wdk_version"
-  }
-
-  declare_args() {
-    msvc_path = "$visual_studio_path/VC/Tools/MSVC/$visual_studio_version"
-
-    llvm_clang_path = "$visual_studio_path/VC/Tools/Llvm/x64/bin"
-  }
-} else {
 declare_args() {
   # Path to Visual Studio. If empty, the default is used which is to use the
   # automatic toolchain in depot_tools. If set, you must also set the
@@ -64,7 +23,6 @@ declare_args() {
   # Version of the Windows SDK pointed to by the windows_sdk_path.
   windows_sdk_version = ""
 }
-}
 
 if (visual_studio_path == "") {
   toolchain_data =
@@ -75,7 +33,7 @@ if (visual_studio_path == "") {
   visual_studio_version = toolchain_data.vs_version
   wdk_path = toolchain_data.wdk_dir
   visual_studio_runtime_dirs = toolchain_data.runtime_dirs
-} else if (!is_starboard) {
+} else {
   assert(visual_studio_version != "",
          "You must set the visual_studio_version if you set the path")
   assert(windows_sdk_version != "",

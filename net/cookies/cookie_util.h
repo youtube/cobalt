@@ -17,6 +17,7 @@
 #include "net/cookies/cookie_options.h"
 #include "net/cookies/site_for_cookies.h"
 #include "net/first_party_sets/first_party_set_metadata.h"
+#include "net/first_party_sets/first_party_sets_cache_filter.h"
 #include "third_party/abseil-cpp/absl/types/optional.h"
 #include "url/origin.h"
 
@@ -43,13 +44,44 @@ enum class StorageAccessResult {
   ACCESS_BLOCKED = 0,
   ACCESS_ALLOWED = 1,
   ACCESS_ALLOWED_STORAGE_ACCESS_GRANT = 2,
-  ACCESS_ALLOWED_FORCED = 3,
+  OBSOLETE_ACCESS_ALLOWED_FORCED = 3 /*(DEPRECATED)*/,
   ACCESS_ALLOWED_TOP_LEVEL_STORAGE_ACCESS_GRANT = 4,
-  kMaxValue = ACCESS_ALLOWED_TOP_LEVEL_STORAGE_ACCESS_GRANT,
+  ACCESS_ALLOWED_3PCD = 5,
+  ACCESS_ALLOWED_3PCD_METADATA_GRANT = 6,
+  ACCESS_ALLOWED_3PCD_HEURISTICS_GRANT = 7,
+  kMaxValue = ACCESS_ALLOWED_3PCD_HEURISTICS_GRANT,
+};
+// This enum must match the numbering for BreakageIndicatorType in
+// histograms/enums.xml. Do not reorder or remove items, only add new items
+// at the end.
+enum class BreakageIndicatorType {
+  USER_RELOAD = 0,
+  HTTP_ERROR = 1,
+  UNCAUGHT_JS_ERROR = 2,
+  kMaxValue = UNCAUGHT_JS_ERROR,
 };
 // Helper to fire telemetry indicating if a given request for storage was
 // allowed or not by the provided |result|.
 NET_EXPORT void FireStorageAccessHistogram(StorageAccessResult result);
+
+// This enum must match the numbering for StorageAccessInputState in
+// histograms/enums.xml. Do not reorder or remove items, only add new items at
+// the end.
+enum class StorageAccessInputState {
+  // The frame-level opt-in was provided, and a permission grant exists.
+  kOptInWithGrant = 0,
+  // The frame-level opt-in was provided, but no permission grant exists.
+  kOptInWithoutGrant = 1,
+  // No frame-level opt-in was provided, but a permission grant exists.
+  kGrantWithoutOptIn = 2,
+  // No frame-level opt-in was provided, and no permission grant exists.
+  kNoOptInNoGrant = 3,
+  kMaxValue = kNoOptInNoGrant,
+};
+// Helper to record a histogram sample for relevant Storage Access API state
+// when cookie settings queries consult the Storage Access API grants.
+NET_EXPORT void FireStorageAccessInputHistogram(bool has_opt_in,
+                                                bool has_grant);
 
 // Returns the effective TLD+1 for a given host. This only makes sense for http
 // and https schemes. For other schemes, the host will be returned unchanged
@@ -248,39 +280,33 @@ ComputeSameSiteContextForSubresource(const GURL& url,
                                      const SiteForCookies& site_for_cookies,
                                      bool force_ignore_site_for_cookies);
 
+NET_EXPORT bool IsPortBoundCookiesEnabled();
+
+NET_EXPORT bool IsSchemeBoundCookiesEnabled();
+
 // Returns whether the respective feature is enabled.
 NET_EXPORT bool IsSchemefulSameSiteEnabled();
 
-// Computes the First-Party Sets metadata, determining which of the cookies for
-// `request_site` can be accessed. `isolation_info` must be fully populated.  If
-// `force_ignore_top_frame_party` is true, the top frame from `isolation_info`
-// will be assumed to be same-party with `request_site`, regardless of what it
-// is.
+// Computes the First-Party Sets metadata and cache match information.
+// `isolation_info` must be fully populated.
 //
 // The result may be returned synchronously, or `callback` may be invoked
 // asynchronously with the result. The callback will be invoked iff the return
 // value is nullopt; i.e. a result will be provided via return value or
 // callback, but not both, and not neither.
-[[nodiscard]] NET_EXPORT absl::optional<FirstPartySetMetadata>
+[[nodiscard]] NET_EXPORT absl::optional<
+    std::pair<FirstPartySetMetadata, FirstPartySetsCacheFilter::MatchInfo>>
 ComputeFirstPartySetMetadataMaybeAsync(
     const SchemefulSite& request_site,
     const IsolationInfo& isolation_info,
     const CookieAccessDelegate* cookie_access_delegate,
-    bool force_ignore_top_frame_party,
-    base::OnceCallback<void(FirstPartySetMetadata)> callback);
+    base::OnceCallback<void(FirstPartySetMetadata,
+                            FirstPartySetsCacheFilter::MatchInfo)> callback);
 
 // Converts a string representing the http request method to its enum
 // representation.
 NET_EXPORT CookieOptions::SameSiteCookieContext::ContextMetadata::HttpMethod
 HttpMethodStringToEnum(const std::string& in);
-
-// Get the SameParty inclusion status. If the cookie is not SameParty, returns
-// kNoSamePartyEnforcement; if the cookie is SameParty but does not have a
-// valid context, returns kEnforceSamePartyExclude.
-NET_EXPORT CookieSamePartyStatus
-GetSamePartyStatus(const CanonicalCookie& cookie,
-                   const CookieOptions& options,
-                   bool same_party_attribute_enabled);
 
 // Takes a CookieAccessResult and returns a bool, returning true if the
 // CookieInclusionStatus in CookieAccessResult was set to "include", else
@@ -307,6 +333,11 @@ NET_EXPORT void RecordCookiePortOmniboxHistograms(const GURL& url);
 NET_EXPORT void DCheckIncludedAndExcludedCookieLists(
     const CookieAccessResultList& included_cookies,
     const CookieAccessResultList& excluded_cookies);
+
+// Returns the default third-party cookie blocking setting, which is false
+// unless you enable ForceThirdPartyCookieBlocking with the command line switch
+// --test-third-party-cookie-phaseout.
+NET_EXPORT bool IsForceThirdPartyCookieBlockingEnabled();
 
 }  // namespace cookie_util
 

@@ -1,0 +1,17 @@
+include_rules = [
+  "+chromeos/ash/components/login/login_state",
+  "+chromeos/ash/components/multidevice",
+  "+chromeos/ash/components/network",
+  "+chromeos/ash/services/device_sync/public/cpp",
+  "+chromeos/ash/services/multidevice_setup/public",
+  "+chromeos/ash/services/secure_channel/public",
+  "+device/bluetooth",
+  "+components/session_manager/core",
+]
+
+specific_include_rules = {
+  ".*unittest\.cc": [
+    "+chromeos/ash/services/device_sync",
+    "+components/sync_preferences/testing_pref_service_syncable.h",
+  ]
+}

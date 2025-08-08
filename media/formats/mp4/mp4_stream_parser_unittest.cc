@@ -29,7 +29,6 @@
 #include "media/base/stream_parser_buffer.h"
 #include "media/base/test_data_util.h"
 #include "media/base/test_helpers.h"
-#include "media/base/text_track_config.h"
 #include "media/base/video_decoder_config.h"
 #include "media/formats/mp4/es_descriptor.h"
 #include "media/formats/mp4/fourccs.h"
@@ -80,8 +79,7 @@ class MP4StreamParserTest : public testing::Test {
         verifying_keyframeness_sequence_(false) {
     std::set<int> audio_object_types;
     audio_object_types.insert(kISO_14496_3);
-    parser_.reset(
-        new MP4StreamParser(audio_object_types, false, false, false));
+    parser_.reset(new MP4StreamParser(audio_object_types, false, false));
   }
 
  protected:
@@ -140,12 +138,9 @@ class MP4StreamParserTest : public testing::Test {
               params.detected_audio_track_count);
     EXPECT_EQ(expected_params.detected_video_track_count,
               params.detected_video_track_count);
-    EXPECT_EQ(expected_params.detected_text_track_count,
-              params.detected_text_track_count);
   }
 
-  bool NewConfigF(std::unique_ptr<MediaTracks> tracks,
-                  const StreamParser::TextTrackConfigMap& tc) {
+  bool NewConfigF(std::unique_ptr<MediaTracks> tracks) {
     size_t audio_config_count = 0;
     size_t video_config_count = 0;
     configs_received_ = true;
@@ -153,7 +148,7 @@ class MP4StreamParserTest : public testing::Test {
     DVLOG(1) << "NewConfigF: got " << tracks->tracks().size() << " tracks";
     for (const auto& track : tracks->tracks()) {
       const auto& track_id = track->bytestream_track_id();
-      if (track->type() == MediaTrack::Audio) {
+      if (track->type() == MediaTrack::Type::kAudio) {
         audio_track_id_ = track_id;
         audio_decoder_config_ = tracks->getAudioConfig(track_id);
         DVLOG(1) << "track_id=" << track_id << " audio config="
@@ -161,7 +156,7 @@ class MP4StreamParserTest : public testing::Test {
                          ? audio_decoder_config_.AsHumanReadableString()
                          : "INVALID");
         audio_config_count++;
-      } else if (track->type() == MediaTrack::Video) {
+      } else if (track->type() == MediaTrack::Type::kVideo) {
         video_track_id_ = track_id;
         video_decoder_config_ = tracks->getVideoConfig(track_id);
         DVLOG(1) << "track_id=" << track_id << " video config="
@@ -239,7 +234,6 @@ class MP4StreamParserTest : public testing::Test {
                                       base::Unretained(this)),
                   base::BindRepeating(&MP4StreamParserTest::NewBuffersF,
                                       base::Unretained(this)),
-                  true,
                   base::BindRepeating(&MP4StreamParserTest::KeyNeededF,
                                       base::Unretained(this)),
                   base::BindRepeating(&MP4StreamParserTest::NewSegmentF,
@@ -256,7 +250,6 @@ class MP4StreamParserTest : public testing::Test {
     params.liveness = StreamLiveness::kLive;
     params.detected_audio_track_count = 1;
     params.detected_video_track_count = 1;
-    params.detected_text_track_count = 0;
     return params;
   }
 
@@ -405,8 +398,7 @@ TEST_F(MP4StreamParserTest, MPEG2_AAC_LC) {
   InSequence s;
   std::set<int> audio_object_types;
   audio_object_types.insert(kISO_13818_7_AAC_LC);
-  parser_.reset(
-      new MP4StreamParser(audio_object_types, false, false, false));
+  parser_.reset(new MP4StreamParser(audio_object_types, false, false));
   auto params = GetDefaultInitParametersExpectations();
   params.detected_video_track_count = 0;
   InitializeParserWithInitParametersExpectations(params);
@@ -418,8 +410,7 @@ TEST_F(MP4StreamParserTest, MPEG4_XHE_AAC) {
   InSequence s;  // The keyframeness sequence matters for this test.
   std::set<int> audio_object_types;
   audio_object_types.insert(kISO_14496_3);
-  parser_.reset(
-      new MP4StreamParser(audio_object_types, false, false, false));
+  parser_.reset(new MP4StreamParser(audio_object_types, false, false));
   auto params = GetDefaultInitParametersExpectations();
   params.detected_video_track_count = 0;
 
@@ -628,7 +619,7 @@ TEST_F(MP4StreamParserTest, NaturalSizeWithPASP) {
 TEST_F(MP4StreamParserTest, DemuxingAC3) {
   std::set<int> audio_object_types;
   audio_object_types.insert(kAC3);
-  parser_.reset(new MP4StreamParser(audio_object_types, false, false, false));
+  parser_.reset(new MP4StreamParser(audio_object_types, false, false));
 
 #if BUILDFLAG(ENABLE_PLATFORM_AC3_EAC3_AUDIO)
   bool expect_success = true;
@@ -652,7 +643,7 @@ TEST_F(MP4StreamParserTest, DemuxingAC3) {
 TEST_F(MP4StreamParserTest, DemuxingEAC3) {
   std::set<int> audio_object_types;
   audio_object_types.insert(kEAC3);
-  parser_.reset(new MP4StreamParser(audio_object_types, false, false, false));
+  parser_.reset(new MP4StreamParser(audio_object_types, false, false));
 
 #if BUILDFLAG(ENABLE_PLATFORM_AC3_EAC3_AUDIO)
   bool expect_success = true;
@@ -743,7 +734,7 @@ TEST_F(MP4StreamParserTest, DemuxingDTSX) {
 }
 
 TEST_F(MP4StreamParserTest, Flac) {
-  parser_.reset(new MP4StreamParser(std::set<int>(), false, true, false));
+  parser_.reset(new MP4StreamParser(std::set<int>(), false, true));
 
   auto params = GetDefaultInitParametersExpectations();
   params.detected_video_track_count = 0;
@@ -755,7 +746,7 @@ TEST_F(MP4StreamParserTest, Flac) {
 }
 
 TEST_F(MP4StreamParserTest, Flac192kHz) {
-  parser_.reset(new MP4StreamParser(std::set<int>(), false, true, false));
+  parser_.reset(new MP4StreamParser(std::set<int>(), false, true));
 
   auto params = GetDefaultInitParametersExpectations();
   params.detected_video_track_count = 0;
@@ -802,11 +793,11 @@ TEST_F(MP4StreamParserTest, Vp9) {
   ASSERT_TRUE(video_decoder_config_.hdr_metadata().has_value());
 
   const auto& hdr_metadata = *video_decoder_config_.hdr_metadata();
-  EXPECT_EQ(hdr_metadata.max_content_light_level, 1000u);
-  EXPECT_EQ(hdr_metadata.max_frame_average_light_level, 640u);
+  EXPECT_EQ(hdr_metadata.cta_861_3->max_content_light_level, 1000u);
+  EXPECT_EQ(hdr_metadata.cta_861_3->max_frame_average_light_level, 640u);
 
-  const auto& color_volume_metadata = hdr_metadata.color_volume_metadata;
-  const auto& primaries = color_volume_metadata.primaries;
+  const auto& smpte_st_2086 = hdr_metadata.smpte_st_2086.value();
+  const auto& primaries = smpte_st_2086.primaries;
 
   constexpr float kColorCoordinateUnit = 1 / 16.0f;
   EXPECT_NEAR(primaries.fRX, 0.68, kColorCoordinateUnit);
@@ -819,10 +810,10 @@ TEST_F(MP4StreamParserTest, Vp9) {
   EXPECT_NEAR(primaries.fWY, 0.351, kColorCoordinateUnit);
 
   constexpr float kLuminanceMaxUnit = 1 / 8.0f;
-  EXPECT_NEAR(color_volume_metadata.luminance_max, 1000.0f, kLuminanceMaxUnit);
+  EXPECT_NEAR(smpte_st_2086.luminance_max, 1000.0f, kLuminanceMaxUnit);
 
   constexpr float kLuminanceMinUnit = 1 / 14.0;
-  EXPECT_NEAR(color_volume_metadata.luminance_min, 0.01f, kLuminanceMinUnit);
+  EXPECT_NEAR(smpte_st_2086.luminance_min, 0.01f, kLuminanceMinUnit);
 }
 
 TEST_F(MP4StreamParserTest, FourCCToString) {
@@ -842,30 +833,18 @@ TEST_F(MP4StreamParserTest, MediaTrackInfoSourcing) {
 
   EXPECT_EQ(media_tracks_->tracks().size(), 2u);
   const MediaTrack& video_track = *(media_tracks_->tracks()[0]);
-  EXPECT_EQ(video_track.type(), MediaTrack::Video);
+  EXPECT_EQ(video_track.type(), MediaTrack::Type::kVideo);
   EXPECT_EQ(video_track.bytestream_track_id(), 1);
   EXPECT_EQ(video_track.kind().value(), "main");
   EXPECT_EQ(video_track.label().value(), "VideoHandler");
   EXPECT_EQ(video_track.language().value(), "und");
 
   const MediaTrack& audio_track = *(media_tracks_->tracks()[1]);
-  EXPECT_EQ(audio_track.type(), MediaTrack::Audio);
+  EXPECT_EQ(audio_track.type(), MediaTrack::Type::kAudio);
   EXPECT_EQ(audio_track.bytestream_track_id(), 2);
   EXPECT_EQ(audio_track.kind().value(), "main");
   EXPECT_EQ(audio_track.label().value(), "SoundHandler");
   EXPECT_EQ(audio_track.language().value(), "und");
-}
-
-TEST_F(MP4StreamParserTest, TextTrackDetection) {
-  auto params = GetDefaultInitParametersExpectations();
-  params.detected_text_track_count = 1;
-  InitializeParserWithInitParametersExpectations(params);
-
-  scoped_refptr<DecoderBuffer> buffer =
-      ReadTestDataFile("bear-1280x720-avt_subt_frag.mp4");
-
-  EXPECT_TRUE(
-      AppendAllDataThenParseInPieces(buffer->data(), buffer->data_size(), 512));
 }
 
 TEST_F(MP4StreamParserTest, MultiTrackFile) {
@@ -880,28 +859,28 @@ TEST_F(MP4StreamParserTest, MultiTrackFile) {
   EXPECT_EQ(media_tracks_->tracks().size(), 4u);
 
   const MediaTrack& video_track1 = *(media_tracks_->tracks()[0]);
-  EXPECT_EQ(video_track1.type(), MediaTrack::Video);
+  EXPECT_EQ(video_track1.type(), MediaTrack::Type::kVideo);
   EXPECT_EQ(video_track1.bytestream_track_id(), 1);
   EXPECT_EQ(video_track1.kind().value(), "main");
   EXPECT_EQ(video_track1.label().value(), "VideoHandler");
   EXPECT_EQ(video_track1.language().value(), "und");
 
   const MediaTrack& audio_track1 = *(media_tracks_->tracks()[1]);
-  EXPECT_EQ(audio_track1.type(), MediaTrack::Audio);
+  EXPECT_EQ(audio_track1.type(), MediaTrack::Type::kAudio);
   EXPECT_EQ(audio_track1.bytestream_track_id(), 2);
   EXPECT_EQ(audio_track1.kind().value(), "main");
   EXPECT_EQ(audio_track1.label().value(), "SoundHandler");
   EXPECT_EQ(audio_track1.language().value(), "und");
 
   const MediaTrack& video_track2 = *(media_tracks_->tracks()[2]);
-  EXPECT_EQ(video_track2.type(), MediaTrack::Video);
+  EXPECT_EQ(video_track2.type(), MediaTrack::Type::kVideo);
   EXPECT_EQ(video_track2.bytestream_track_id(), 3);
   EXPECT_EQ(video_track2.kind().value(), "");
   EXPECT_EQ(video_track2.label().value(), "VideoHandler");
   EXPECT_EQ(video_track2.language().value(), "und");
 
   const MediaTrack& audio_track2 = *(media_tracks_->tracks()[3]);
-  EXPECT_EQ(audio_track2.type(), MediaTrack::Audio);
+  EXPECT_EQ(audio_track2.type(), MediaTrack::Type::kAudio);
   EXPECT_EQ(audio_track2.bytestream_track_id(), 4);
   EXPECT_EQ(audio_track2.kind().value(), "");
   EXPECT_EQ(audio_track2.label().value(), "SoundHandler");
@@ -918,7 +897,7 @@ class MP4StreamParserRotationMatrixEvaluatorTest
   MP4StreamParserRotationMatrixEvaluatorTest() {
     std::set<int> audio_object_types;
     audio_object_types.insert(kISO_14496_3);
-    parser_.reset(new MP4StreamParser(audio_object_types, false, false, false));
+    parser_.reset(new MP4StreamParser(audio_object_types, false, false));
   }
 
  protected:

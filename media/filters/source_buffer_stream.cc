@@ -13,9 +13,6 @@
 #include "base/functional/bind.h"
 #include "base/logging.h"
 #include "base/trace_event/trace_event.h"
-#if defined(STARBOARD)
-#include "media/base/decoder_buffer.h"
-#endif  // defined(STARBOARD)
 #include "media/base/demuxer_memory_limit.h"
 #include "media/base/media_switches.h"
 #include "media/base/stream_parser_buffer.h"
@@ -83,8 +80,7 @@ std::string StatusToString(const SourceBufferStreamStatus& status) {
     case SourceBufferStreamStatus::kEndOfStream:
       return "kEndOfStream";
   }
-  NOTREACHED();
-  return "";
+  NOTREACHED_NORETURN();
 }
 
 // Helper method for logging, converts a range into a readable string.
@@ -144,32 +140,11 @@ std::string BufferQueueMetadataToLogString(
   return result.str();
 }
 
-SourceBufferRange::GapPolicy TypeToGapPolicy(SourceBufferStreamType type) {
-  switch (type) {
-    case SourceBufferStreamType::kAudio:
-    case SourceBufferStreamType::kVideo:
-      return SourceBufferRange::NO_GAPS_ALLOWED;
-    case SourceBufferStreamType::kText:
-      return SourceBufferRange::ALLOW_GAPS;
-  }
-
-  NOTREACHED();
-  return SourceBufferRange::NO_GAPS_ALLOWED;
-}
-
 }  // namespace
 
-#if defined(STARBOARD)
-SourceBufferStream::SourceBufferStream(const std::string& mime_type,
-                                       const AudioDecoderConfig& audio_config,
-                                       MediaLog* media_log)
-    : mime_type_(mime_type),
-      media_log_(media_log),
-#else  // defined(STARBOARD)
 SourceBufferStream::SourceBufferStream(const AudioDecoderConfig& audio_config,
                                        MediaLog* media_log)
     : media_log_(media_log),
-#endif  // defined(STARBOARD)
       seek_buffer_timestamp_(kNoTimestamp),
       coded_frame_group_start_pts_(kNoTimestamp),
       range_for_next_append_(ranges_.end()),
@@ -182,17 +157,9 @@ SourceBufferStream::SourceBufferStream(const AudioDecoderConfig& audio_config,
   DVLOG(2) << __func__ << ": audio_buffer_size= " << memory_limit_;
 }
 
-#if defined(STARBOARD)
-SourceBufferStream::SourceBufferStream(const std::string& mime_type,
-                                       const VideoDecoderConfig& video_config,
-                                       MediaLog* media_log)
-    : mime_type_(mime_type),
-      media_log_(media_log),
-#else  // defined(STARBOARD)
 SourceBufferStream::SourceBufferStream(const VideoDecoderConfig& video_config,
                                        MediaLog* media_log)
     : media_log_(media_log),
-#endif  // defined(STARBOARD)
       seek_buffer_timestamp_(kNoTimestamp),
       coded_frame_group_start_pts_(kNoTimestamp),
       range_for_next_append_(ranges_.end()),
@@ -201,29 +168,11 @@ SourceBufferStream::SourceBufferStream(const VideoDecoderConfig& video_config,
           base::Milliseconds(kMinimumInterbufferDistanceInMs)),
       memory_limit_(
           GetDemuxerStreamVideoMemoryLimit(Demuxer::DemuxerTypes::kChunkDemuxer,
-#if !defined(STARBOARD)
                                            &video_config)) {
-#else // !defined(STARBOARD)
-                                           &video_config,
-                                           mime_type_)) {
-#endif  // !defined(STARBOARD)
   DCHECK(video_config.IsValidConfig());
   video_configs_.push_back(video_config);
   DVLOG(2) << __func__ << ": video_buffer_size= " << memory_limit_;
 }
-
-SourceBufferStream::SourceBufferStream(const TextTrackConfig& text_config,
-                                       MediaLog* media_log)
-    : media_log_(media_log),
-      text_track_config_(text_config),
-      seek_buffer_timestamp_(kNoTimestamp),
-      coded_frame_group_start_pts_(kNoTimestamp),
-      range_for_next_append_(ranges_.end()),
-      highest_output_buffer_timestamp_(kNoTimestamp),
-      max_interbuffer_distance_(
-          base::Milliseconds(kMinimumInterbufferDistanceInMs)),
-      memory_limit_(
-          GetDemuxerStreamAudioMemoryLimit(nullptr /*audio_config*/)) {}
 
 SourceBufferStream::~SourceBufferStream() = default;
 
@@ -398,7 +347,7 @@ void SourceBufferStream::Append(const BufferQueue& buffers) {
     }
 
     range_for_next_append_ = AddToRanges(std::make_unique<SourceBufferRange>(
-        TypeToGapPolicy(GetType()), *buffers_for_new_range,
+        SourceBufferRange::NO_GAPS_ALLOWED, *buffers_for_new_range,
         new_range_start_time,
         base::BindRepeating(&SourceBufferStream::GetMaxInterbufferDistance,
                             base::Unretained(this))));
@@ -806,16 +755,8 @@ bool SourceBufferStream::GarbageCollectIfNeeded(base::TimeDelta media_time,
   // which should not happen in end-of-stream state. Unless we also allow GC to
   // happen on memory pressure notifications, which might happen even in EOS
   // state.
-#if defined(STARBOARD)
-  // TODO: Check if we should enable `kEnableMemoryPressureBasedSourceBufferGC`.
-  constexpr bool kEnableMemoryPressureBasedSourceBufferGC = true;
-  if (!kEnableMemoryPressureBasedSourceBufferGC) {
-    DCHECK(!end_of_stream_);
-  }
-#else // defined(STARBOARD)
   if (!base::FeatureList::IsEnabled(kMemoryPressureBasedSourceBufferGC))
     DCHECK(!end_of_stream_);
-#endif // defined(STARBOARD)
   // Compute size of |ranges_|.
   size_t ranges_size = GetBufferedSize();
 
@@ -832,11 +773,7 @@ bool SourceBufferStream::GarbageCollectIfNeeded(base::TimeDelta media_time,
   }
 
   size_t effective_memory_limit = memory_limit_;
-#if defined(STARBOARD)
-  if (kEnableMemoryPressureBasedSourceBufferGC) {
-#else // defined(STARBOARD)
   if (base::FeatureList::IsEnabled(kMemoryPressureBasedSourceBufferGC)) {
-#endif // defined(STARBOARD)
     switch (memory_pressure_level_) {
       case base::MemoryPressureListener::MEMORY_PRESSURE_LEVEL_MODERATE:
         effective_memory_limit = memory_limit_ / 2;
@@ -848,18 +785,6 @@ bool SourceBufferStream::GarbageCollectIfNeeded(base::TimeDelta media_time,
         break;
     }
   }
-
-#if defined(STARBOARD)
-  // Address duration based GC.
-  base::TimeDelta duration = GetBufferedDurationForGarbageCollection();
-  base::TimeDelta duration_gc_threadold =
-      DecoderBuffer::Allocator::GetInstance()
-          ->GetBufferGarbageCollectionDurationThreshold();
-  if (duration > duration_gc_threadold) {
-    effective_memory_limit = ranges_size * duration_gc_threadold.InMicroseconds() /
-                             duration.InMicroseconds();
-  }
-#endif  // defined(STARBOARD)
 
   // Return if we're under or at the memory limit.
   if (ranges_size + newDataSize <= effective_memory_limit)
@@ -1121,7 +1046,7 @@ size_t SourceBufferStream::FreeBuffers(size_t total_bytes_to_free,
 
       // Create a new range containing these buffers.
       new_range_for_append = std::make_unique<SourceBufferRange>(
-          TypeToGapPolicy(GetType()), buffers, kNoTimestamp,
+          SourceBufferRange::NO_GAPS_ALLOWED, buffers, kNoTimestamp,
           base::BindRepeating(&SourceBufferStream::GetMaxInterbufferDistance,
                               base::Unretained(this)));
 
@@ -1379,9 +1304,7 @@ void SourceBufferStream::PrepareRangesForNextAppend(
   //      with incorrect timestamps. Removing a frame may break decode
   //      dependencies and there are no downsides to just keeping it (other than
   //      some throw-away decoder work).
-  //   B. Type is text. TODO(chcunningham): Implement text splicing. See
-  //      http://crbug.com/661408
-  //   C. Type is audio and overlapped duration is 0. We've encountered Vorbis
+  //   B. Type is audio and overlapped duration is 0. We've encountered Vorbis
   //      streams containing zero-duration buffers (i.e. no real overlap). For
   //      non-zero duration removing overlapped frames is important to preserve
   //      A/V sync (see AudioClock).
@@ -1389,7 +1312,6 @@ void SourceBufferStream::PrepareRangesForNextAppend(
       highest_timestamp_in_append_sequence_ ==
           new_buffers.front()->timestamp() &&
       (GetType() == SourceBufferStreamType::kVideo ||
-       GetType() == SourceBufferStreamType::kText ||
        last_appended_buffer_duration_ == base::TimeDelta());
 
   // Finally do the deletion of overlap.
@@ -1847,10 +1769,6 @@ const VideoDecoderConfig& SourceBufferStream::GetCurrentVideoDecoderConfig() {
   return video_configs_[current_config_index_];
 }
 
-const TextTrackConfig& SourceBufferStream::GetCurrentTextTrackConfig() {
-  return text_track_config_;
-}
-
 base::TimeDelta SourceBufferStream::GetMaxInterbufferDistance() const {
   return max_interbuffer_distance_;
 }
@@ -1920,17 +1838,6 @@ bool SourceBufferStream::UpdateVideoConfig(const VideoDecoderConfig& config,
   DVLOG(2) << "New video config - index: " << append_config_index_;
   video_configs_.resize(video_configs_.size() + 1);
   video_configs_[append_config_index_] = config;
-
-#if defined(STARBOARD)
-  // Dynamically increase |memory_limit_| when video resolution goes up as long
-  // as we haven't set a manual override.
-  if (!memory_override_) {
-    memory_limit_ = std::max(
-        memory_limit_,
-        GetDemuxerStreamVideoMemoryLimit(Demuxer::DemuxerTypes::kChunkDemuxer,
-                                         &config, mime_type_));
-  }
-#endif  // defined(STARBOARD)
   return true;
 }
 
@@ -2048,20 +1955,15 @@ std::string SourceBufferStream::GetStreamTypeName() const {
       return "AUDIO";
     case SourceBufferStreamType::kVideo:
       return "VIDEO";
-    case SourceBufferStreamType::kText:
-      return "TEXT";
   }
-  NOTREACHED();
-  return "";
+  NOTREACHED_NORETURN();
 }
 
 SourceBufferStreamType SourceBufferStream::GetType() const {
   if (!audio_configs_.empty())
     return SourceBufferStreamType::kAudio;
-  if (!video_configs_.empty())
-    return SourceBufferStreamType::kVideo;
-  DCHECK_NE(text_track_config_.kind(), kTextNone);
-  return SourceBufferStreamType::kText;
+  DCHECK(!video_configs_.empty());
+  return SourceBufferStreamType::kVideo;
 }
 
 void SourceBufferStream::DeleteAndRemoveRange(RangeList::iterator* itr) {
@@ -2096,18 +1998,5 @@ bool SourceBufferStream::SetPendingBuffer(
   pending_buffers_complete_ = false;
   return true;
 }
-
-#if defined(STARBOARD)
-
-base::TimeDelta SourceBufferStream::GetBufferedDurationForGarbageCollection()
-    const {
-  base::TimeDelta duration;
-  for (auto&& range : ranges_) {
-    duration += range->GetEndTimestamp() - range->GetStartTimestamp();
-  }
-  return duration;
-}
-
-#endif  // defined(STARBOARD)
 
 }  // namespace media

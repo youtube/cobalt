@@ -1,4 +1,4 @@
-// Copyright 2017 The Chromium Authors. All rights reserved.
+// Copyright 2017 The Chromium Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -11,7 +11,7 @@ namespace prefs {
 const char kUkmClientId[] = "ukm.client_id";
 
 // Preference which stores serialized UKM logs to be uploaded.
-const char kUkmPersistedLogs[] = "ukm.persisted_logs";
+const char kUkmUnsentLogStore[] = "ukm.persisted_logs";
 
 // Preference which stores the UKM session id.
 const char kUkmSessionId[] = "ukm.session_id";

@@ -42,9 +42,7 @@
 # define TRIO_COMPILER_BCB
 #endif
 
-#if defined(STARBOARD)
-# define TRIO_PLATFORM_STARBOARD
-#elif defined(VMS) || defined(__VMS)
+#if defined(VMS) || defined(__VMS)
 /*
  * VMS is placed first to avoid identifying the platform as Unix
  * based on the DECC compiler later on.

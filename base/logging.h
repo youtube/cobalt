@@ -11,6 +11,7 @@
 #include <cstdint>
 #include <sstream>
 #include <string>
+#include <string_view>
 
 #include "base/base_export.h"
 #include "base/compiler_specific.h"
@@ -19,18 +20,9 @@
 #include "base/logging_buildflags.h"
 #include "base/scoped_clear_last_error.h"
 #include "base/strings/string_piece_forward.h"
+#include "base/strings/utf_ostream_operators.h"
 #include "build/build_config.h"
 #include "build/chromeos_buildflags.h"
-
-#if defined(STARBOARD)
-#include "starboard/common/log.h"
-#include "starboard/system.h"
-#include "starboard/types.h"
-#ifdef COBALT_PENDING_CLEAN_UP
-#include "base/check_op.h"
-#include "base/notreached.h"
-#endif
-#endif
 
 #if BUILDFLAG(IS_CHROMEOS)
 #include <cstdio>
@@ -195,7 +187,7 @@ namespace logging {
 // TODO(avi): do we want to do a unification of character types here?
 #if BUILDFLAG(IS_WIN)
 typedef wchar_t PathChar;
-#elif BUILDFLAG(IS_POSIX) || BUILDFLAG(IS_FUCHSIA) || defined(STARBOARD)
+#elif BUILDFLAG(IS_POSIX) || BUILDFLAG(IS_FUCHSIA)
 typedef char PathChar;
 #endif
 
@@ -217,7 +209,7 @@ enum : uint32_t {
 // On POSIX platforms, where it may not even be possible to locate the
 // executable on disk, use stderr.
 // On Fuchsia, use the Fuchsia logging service.
-#if BUILDFLAG(IS_FUCHSIA) || BUILDFLAG(IS_NACL) || defined(STARBOARD)
+#if BUILDFLAG(IS_FUCHSIA) || BUILDFLAG(IS_NACL)
   LOG_DEFAULT = LOG_TO_SYSTEM_DEBUG_LOG,
 #elif BUILDFLAG(IS_WIN)
   LOG_DEFAULT = LOG_TO_FILE,
@@ -431,7 +423,7 @@ constexpr LogSeverity LOG_DFATAL = LOGGING_DFATAL;
 #define COMPACT_GOOGLE_LOG_DFATAL COMPACT_GOOGLE_LOG_EX_DFATAL(LogMessage)
 #define COMPACT_GOOGLE_LOG_DCHECK COMPACT_GOOGLE_LOG_EX_DCHECK(LogMessage)
 
-#if BUILDFLAG(IS_WIN) || defined(COMPILER_MSVC)
+#if BUILDFLAG(IS_WIN)
 // wingdi.h defines ERROR to be 0. When we call LOG(ERROR), it gets
 // substituted with 0, and it expands to COMPACT_GOOGLE_LOG_0. To allow us
 // to keep using this syntax, we define this macro to do the same thing
@@ -530,11 +522,7 @@ BASE_EXPORT int GetDisableAllVLogLevel();
   LAZY_STREAM(VLOG_STREAM(verbose_level), \
       VLOG_IS_ON(verbose_level) && (condition))
 
-#if defined (STARBOARD)
-#define VPLOG_STREAM(verbose_level) \
-  ::logging::StarboardErrorLogMessage(__FILE__, __LINE__, -verbose_level, \
-    ::logging::GetLastSystemErrorCode()).stream()
-#elif BUILDFLAG(IS_WIN)
+#if BUILDFLAG(IS_WIN)
 #define VPLOG_STREAM(verbose_level) \
   ::logging::Win32ErrorLogMessage(__FILE__, __LINE__, -(verbose_level), \
     ::logging::GetLastSystemErrorCode()).stream()
@@ -557,11 +545,7 @@ BASE_EXPORT int GetDisableAllVLogLevel();
   LOG_IF(FATAL, !(ANALYZER_ASSUME_TRUE(condition))) \
       << "Assert failed: " #condition ". "
 
-#if defined(STARBOARD)
-#define PLOG_STREAM(severity) \
-  COMPACT_GOOGLE_LOG_EX_ ## severity(StarboardErrorLogMessage, \
-      ::logging::GetLastSystemErrorCode()).stream()
-#elif BUILDFLAG(IS_WIN)
+#if BUILDFLAG(IS_WIN)
 #define PLOG_STREAM(severity) \
   COMPACT_GOOGLE_LOG_EX_ ## severity(Win32ErrorLogMessage, \
       ::logging::GetLastSystemErrorCode()).stream()
@@ -712,9 +696,7 @@ class LogMessageVoidify {
   void operator&(std::ostream&) { }
 };
 
-#if defined(STARBOARD)
-typedef SbSystemError SystemErrorCode;
-#elif BUILDFLAG(IS_WIN)
+#if BUILDFLAG(IS_WIN)
 typedef unsigned long SystemErrorCode;
 #elif BUILDFLAG(IS_POSIX) || BUILDFLAG(IS_FUCHSIA)
 typedef int SystemErrorCode;
@@ -725,29 +707,7 @@ typedef int SystemErrorCode;
 BASE_EXPORT SystemErrorCode GetLastSystemErrorCode();
 BASE_EXPORT std::string SystemErrorCodeToString(SystemErrorCode error_code);
 
-#if defined(STARBOARD)
-// Appends a formatted system message of the GetLastError() type.
-class BASE_EXPORT StarboardErrorLogMessage : public LogMessage {
- public:
-  StarboardErrorLogMessage(const char* file,
-                           int line,
-                           LogSeverity severity,
-                           SystemErrorCode err);
-
-  StarboardErrorLogMessage(const StarboardErrorLogMessage&) = delete;
-  StarboardErrorLogMessage& operator=(const StarboardErrorLogMessage&) = delete;
-  // Appends the error message before destructing the encapsulated class.
-  ~StarboardErrorLogMessage() override;
-
-  // std::ostream& stream() { return log_message_.stream(); }
-
- private:
-  SystemErrorCode err_;
-  // StarboardErrorLogMessage log_message_;
-
-  // DISALLOW_COPY_AND_ASSIGN(StarboardErrorLogMessage);
-};
-#elif BUILDFLAG(IS_WIN)
+#if BUILDFLAG(IS_WIN)
 // Appends a formatted system message of the GetLastError() type.
 class BASE_EXPORT Win32ErrorLogMessage : public LogMessage {
  public:
@@ -810,29 +770,5 @@ BASE_EXPORT std::wstring GetLogFileFullPath();
 #endif
 
 }  // namespace logging
-
-// Note that "The behavior of a C++ program is undefined if it adds declarations
-// or definitions to namespace std or to a namespace within namespace std unless
-// otherwise specified." --C++11[namespace.std]
-//
-// We've checked that this particular definition has the intended behavior on
-// our implementations, but it's prone to breaking in the future, and please
-// don't imitate this in your own definitions without checking with some
-// standard library experts.
-namespace std {
-// These functions are provided as a convenience for logging, which is where we
-// use streams (it is against Google style to use streams in other places). It
-// is designed to allow you to emit non-ASCII Unicode strings to the log file,
-// which is normally ASCII. It is relatively slow, so try not to use it for
-// common cases. Non-ASCII characters will be converted to UTF-8 by these
-// operators.
-BASE_EXPORT std::ostream& operator<<(std::ostream& out, const wchar_t* wstr);
-BASE_EXPORT std::ostream& operator<<(std::ostream& out,
-                                     const std::wstring& wstr);
-
-BASE_EXPORT std::ostream& operator<<(std::ostream& out, const char16_t* str16);
-BASE_EXPORT std::ostream& operator<<(std::ostream& out,
-                                     const std::u16string& str16);
-}  // namespace std
 
 #endif  // BASE_LOGGING_H_

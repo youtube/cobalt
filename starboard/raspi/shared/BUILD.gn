@@ -274,9 +274,9 @@ static_library("starboard_platform_sources") {
       "//starboard/elf_loader:evergreen_config",
       "//starboard/loader_app:pending_restart",
     ]
-    deps += [ "//third_party/crashpad/crashpad/wrapper" ]
+    deps += [ "//starboard/crashpad_wrapper" ]
   } else {
-    deps += [ "//third_party/crashpad/crashpad/wrapper:wrapper_stub" ]
+    deps += [ "//starboard/crashpad_wrapper:wrapper_stub" ]
   }
 }
 

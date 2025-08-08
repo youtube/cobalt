@@ -1,13 +1,21 @@
-// Copyright 2017 The Chromium Authors. All rights reserved.
+// Copyright 2017 The Chromium Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
 #include "components/crash/core/common/crash_key_base_support.h"
 
 #include <memory>
+#include <ostream>
 
+#include "base/check_op.h"
 #include "base/debug/crash_logging.h"
 #include "components/crash/core/common/crash_key.h"
+
+#if (BUILDFLAG(USE_CRASHPAD_ANNOTATION) ||   \
+     BUILDFLAG(USE_COMBINED_ANNOTATIONS)) && \
+    !BUILDFLAG(USE_CRASH_KEY_STUBS)
+#include "third_party/crashpad/crashpad/client/annotation_list.h"  // nogncheck
+#endif
 
 namespace crash_reporter {
 
@@ -36,12 +44,15 @@ struct BaseCrashKeyString : public base::debug::CrashKeyString {
       break;                                                                 \
     case base::debug::CrashKeySize::Size1024:                                \
       operation_prefix BaseCrashKeyString<1024> operation_suffix;            \
-      break;                                                                       \
+      break;                                                                 \
   }
 
 class CrashKeyBaseSupport : public base::debug::CrashKeyImplementation {
  public:
   CrashKeyBaseSupport() = default;
+
+  CrashKeyBaseSupport(const CrashKeyBaseSupport&) = delete;
+  CrashKeyBaseSupport& operator=(const CrashKeyBaseSupport&) = delete;
 
   ~CrashKeyBaseSupport() override = default;
 
@@ -64,7 +75,9 @@ class CrashKeyBaseSupport : public base::debug::CrashKeyImplementation {
   }
 
   void OutputCrashKeysToStream(std::ostream& out) override {
-#if !defined(STARBOARD)
+#if (BUILDFLAG(USE_CRASHPAD_ANNOTATION) ||   \
+     BUILDFLAG(USE_COMBINED_ANNOTATIONS)) && \
+    !BUILDFLAG(USE_CRASH_KEY_STUBS)
     // TODO(lukasza): If phasing out breakpad takes a long time, then consider
     // a better way to abstract away difference between crashpad and breakpad.
     // For example, maybe the code below should be moved into
@@ -90,9 +103,6 @@ class CrashKeyBaseSupport : public base::debug::CrashKeyImplementation {
     }
 #endif
   }
-
- private:
-  DISALLOW_COPY_AND_ASSIGN(CrashKeyBaseSupport);
 };
 
 #undef SIZE_CLASS_OPERATION

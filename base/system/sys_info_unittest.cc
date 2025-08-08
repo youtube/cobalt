@@ -61,28 +61,27 @@ TEST_F(SysInfoTest, NumProcs) {
   EXPECT_GE(SysInfo::NumberOfProcessors(), 1);
 
   EXPECT_GE(SysInfo::NumberOfEfficientProcessors(), 0);
-#if defined(STARBOARD)
-  EXPECT_EQ(SysInfo::NumberOfEfficientProcessors(),
-            SysInfo::NumberOfProcessors());
-#else
   EXPECT_LT(SysInfo::NumberOfEfficientProcessors(),
             SysInfo::NumberOfProcessors());
-#endif
 }
 
 #if BUILDFLAG(IS_MAC)
 TEST_F(SysInfoTest, NumProcsWithSecurityMitigationEnabled) {
+  // Reset state so that the call to SetCpuSecurityMitigationsEnabled() below
+  // succeeds even if SysInfo::NumberOfProcessors() was previously called.
+  SysInfo::ResetCpuSecurityMitigationsEnabledForTesting();
+
   // Verify that the number of number of available processors available when CPU
   // security mitigation is enabled is the number of available "physical"
   // processors.
   test::ScopedFeatureList feature_list_;
   feature_list_.InitAndEnableFeature(kNumberOfCoresWithCpuSecurityMitigation);
-  SysInfo::SetIsCpuSecurityMitigationsEnabled(true);
-  EXPECT_EQ(internal::NumberOfProcessors(),
+  SysInfo::SetCpuSecurityMitigationsEnabled();
+  EXPECT_EQ(SysInfo::NumberOfProcessors(),
             internal::NumberOfPhysicalProcessors());
 
-  // Reset to default value
-  SysInfo::SetIsCpuSecurityMitigationsEnabled(false);
+  // Reset state set by this test.
+  SysInfo::ResetCpuSecurityMitigationsEnabledForTesting();
 }
 #endif  // BUILDFLAG(IS_MAC)
 
@@ -94,7 +93,6 @@ TEST_F(SysInfoTest, AmountOfMem) {
   EXPECT_GE(SysInfo::AmountOfVirtualMemory(), 0u);
 }
 
-#if !defined(STARBOARD)
 #if BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_CHROMEOS) || BUILDFLAG(IS_ANDROID)
 #if BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_CHROMEOS)
 #define MAYBE_AmountOfAvailablePhysicalMemory \
@@ -134,7 +132,6 @@ TEST_F(SysInfoTest, MAYBE_AmountOfAvailablePhysicalMemory) {
 }
 #endif  // BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_CHROMEOS) ||
         // BUILDFLAG(IS_ANDROID)
-#endif
 
 TEST_F(SysInfoTest, AmountOfFreeDiskSpace) {
   // We aren't actually testing that it's correct, just that it's sane.
@@ -182,7 +179,6 @@ TEST_F(SysInfoTest, OperatingSystemVersion) {
   EXPECT_FALSE(version.empty());
 }
 
-#if !defined(STARBOARD)
 TEST_F(SysInfoTest, OperatingSystemVersionNumbers) {
   int32_t os_major_version = -1;
   int32_t os_minor_version = -1;
@@ -193,7 +189,6 @@ TEST_F(SysInfoTest, OperatingSystemVersionNumbers) {
   EXPECT_GT(os_minor_version, -1);
   EXPECT_GT(os_bugfix_version, -1);
 }
-#endif // !defined(STARBOARD)
 #endif
 
 #if BUILDFLAG(IS_IOS)
@@ -267,9 +262,7 @@ TEST_F(SysInfoTest, GetHardwareInfo) {
   EXPECT_TRUE(IsStringUTF8(hardware_info->manufacturer));
   EXPECT_TRUE(IsStringUTF8(hardware_info->model));
   bool empty_result_expected =
-#if defined(STARBOARD)
-      true;
-#elif BUILDFLAG(IS_ANDROID) || BUILDFLAG(IS_APPLE) || BUILDFLAG(IS_WIN) || \
+#if BUILDFLAG(IS_ANDROID) || BUILDFLAG(IS_APPLE) || BUILDFLAG(IS_WIN) || \
     BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_CHROMEOS) || BUILDFLAG(IS_FUCHSIA)
       false;
 #else
@@ -383,11 +376,11 @@ TEST_F(SysInfoTest, GoogleChromeOSNoVersionNumbers) {
 TEST_F(SysInfoTest, GoogleChromeOSLsbReleaseTime) {
   const char kLsbRelease[] = "CHROMEOS_RELEASE_VERSION=1.2.3.4";
   // Use a fake time that can be safely displayed as a string.
-  const Time lsb_release_time(Time::FromDoubleT(12345.6));
+  const Time lsb_release_time(Time::FromSecondsSinceUnixEpoch(12345.6));
   test::ScopedChromeOSVersionInfo version(kLsbRelease, lsb_release_time);
   Time parsed_lsb_release_time = SysInfo::GetLsbReleaseTime();
-  EXPECT_DOUBLE_EQ(lsb_release_time.ToDoubleT(),
-                   parsed_lsb_release_time.ToDoubleT());
+  EXPECT_DOUBLE_EQ(lsb_release_time.InSecondsFSinceUnixEpoch(),
+                   parsed_lsb_release_time.InSecondsFSinceUnixEpoch());
 }
 
 TEST_F(SysInfoTest, IsRunningOnChromeOS) {

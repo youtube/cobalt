@@ -42,7 +42,6 @@ std::string SkColorSpacePrimariesToString(
   return ss.str();
 }
 
-#if !defined(STARBOARD)
 SkColorSpacePrimaries GetD65PrimariesFromToXYZD50Matrix(
     const skcms_Matrix3x3& m_d50) {
   constexpr float kD65_X = 0.3127f;
@@ -68,6 +67,5 @@ SkColorSpacePrimaries GetD65PrimariesFromToXYZD50Matrix(
   primaries.fWY = kD65_Y;
   return primaries;
 }
-#endif  // !defined(STARBOARD)
 
 }  // namespace skia

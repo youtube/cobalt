@@ -1,0 +1,19 @@
+include_rules = [
+  "+components/webrtc",
+  "+extensions/browser/api/messaging",
+  "+google_apis",
+  "+mojo/core/embedder",
+  "+net",
+  "+remoting/client",
+  "+remoting/codec",
+  "+remoting/host",
+  "+remoting/protocol",
+  "+remoting/signaling",
+  "+ui/gfx",
+  "+ui/events/keycodes/dom",
+  "+ui/events/platform/x11",
+  "+services/network",
+  # absl::string_view is used only to interface with third-party WebRTC code.
+  "+third_party/abseil-cpp/absl/strings/string_view.h",
+  "+third_party/skia",
+]

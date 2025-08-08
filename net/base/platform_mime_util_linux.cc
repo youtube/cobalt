@@ -11,8 +11,6 @@
 
 #if BUILDFLAG(IS_ANDROID)
 #include "net/android/network_library.h"
-#elif BUILDFLAG(IS_CHROMEOS)
-#include "third_party/xdg_shared_mime_info/mime_cache.h"
 #else
 #include "base/nix/mime_util_xdg.h"
 #endif
@@ -25,18 +23,10 @@ bool PlatformMimeUtil::GetPlatformMimeTypeFromExtension(
     std::string* result) const {
   return android::GetMimeTypeFromExtension(ext, result);
 }
-#elif BUILDFLAG(IS_CHROMEOS)
-bool PlatformMimeUtil::GetPlatformMimeTypeFromExtension(
-    const base::FilePath::StringType& ext,
-    std::string* result) const {
-  return xdg_shared_mime_info::GetMimeCacheTypeFromExtension(ext, result);
-}
 #else
 bool PlatformMimeUtil::GetPlatformMimeTypeFromExtension(
     const base::FilePath::StringType& ext,
     std::string* result) const {
-  return false;
-/* Cobalt
   base::FilePath dummy_path("foo." + ext);
   std::string out = base::nix::GetFileMimeType(dummy_path);
 
@@ -55,7 +45,6 @@ bool PlatformMimeUtil::GetPlatformMimeTypeFromExtension(
 
   *result = out;
   return true;
-Cobalt */
 }
 
 #endif  // BUILDFLAG(IS_ANDROID)

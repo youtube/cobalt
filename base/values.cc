@@ -14,7 +14,7 @@
 #include "base/check_op.h"
 #include "base/containers/checked_iterators.h"
 #include "base/containers/cxx20_erase_vector.h"
-#include "base/cxx17_backports.h"
+#include "base/containers/map_util.h"
 #include "base/cxx20_to_address.h"
 #include "base/json/json_writer.h"
 #include "base/logging.h"
@@ -421,14 +421,11 @@ void Value::Dict::Merge(Dict dict) {
 
 const Value* Value::Dict::Find(StringPiece key) const {
   DCHECK(IsStringUTF8AllowingNoncharacters(key));
-
-  auto it = storage_.find(key);
-  return it != storage_.end() ? it->second.get() : nullptr;
+  return FindPtrOrNull(storage_, key);
 }
 
 Value* Value::Dict::Find(StringPiece key) {
-  auto it = storage_.find(key);
-  return it != storage_.end() ? it->second.get() : nullptr;
+  return FindPtrOrNull(storage_, key);
 }
 
 absl::optional<bool> Value::Dict::FindBool(StringPiece key) const {
@@ -696,7 +693,7 @@ Value::List* Value::Dict::FindListByDottedPath(StringPiece path) {
   return v ? v->GetIfList() : nullptr;
 }
 
-Value* Value::Dict::SetByDottedPath(StringPiece path, Value&& value) {
+Value* Value::Dict::SetByDottedPath(StringPiece path, Value&& value) & {
   DCHECK(!path.empty());
   DCHECK(IsStringUTF8AllowingNoncharacters(path));
 
@@ -724,52 +721,118 @@ Value* Value::Dict::SetByDottedPath(StringPiece path, Value&& value) {
   }
 }
 
-Value* Value::Dict::SetByDottedPath(StringPiece path, bool value) {
+Value* Value::Dict::SetByDottedPath(StringPiece path, bool value) & {
   return SetByDottedPath(path, Value(value));
 }
 
-Value* Value::Dict::SetByDottedPath(StringPiece path, int value) {
+Value* Value::Dict::SetByDottedPath(StringPiece path, int value) & {
   return SetByDottedPath(path, Value(value));
 }
 
-Value* Value::Dict::SetByDottedPath(StringPiece path, double value) {
+Value* Value::Dict::SetByDottedPath(StringPiece path, double value) & {
   return SetByDottedPath(path, Value(value));
 }
 
-Value* Value::Dict::SetByDottedPath(StringPiece path, StringPiece value) {
+Value* Value::Dict::SetByDottedPath(StringPiece path, StringPiece value) & {
   return SetByDottedPath(path, Value(value));
 }
 
-Value* Value::Dict::SetByDottedPath(StringPiece path, StringPiece16 value) {
+Value* Value::Dict::SetByDottedPath(StringPiece path, StringPiece16 value) & {
   return SetByDottedPath(path, Value(value));
 }
 
-Value* Value::Dict::SetByDottedPath(StringPiece path, const char* value) {
+Value* Value::Dict::SetByDottedPath(StringPiece path, const char* value) & {
   return SetByDottedPath(path, Value(value));
 }
 
-Value* Value::Dict::SetByDottedPath(StringPiece path, const char16_t* value) {
+Value* Value::Dict::SetByDottedPath(StringPiece path, const char16_t* value) & {
   return SetByDottedPath(path, Value(value));
 }
 
-Value* Value::Dict::SetByDottedPath(StringPiece path, std::string&& value) {
+Value* Value::Dict::SetByDottedPath(StringPiece path, std::string&& value) & {
   return SetByDottedPath(path, Value(std::move(value)));
 }
 
-Value* Value::Dict::SetByDottedPath(StringPiece path, BlobStorage&& value) {
+Value* Value::Dict::SetByDottedPath(StringPiece path, BlobStorage&& value) & {
   return SetByDottedPath(path, Value(std::move(value)));
 }
 
-Value* Value::Dict::SetByDottedPath(StringPiece path, Dict&& value) {
+Value* Value::Dict::SetByDottedPath(StringPiece path, Dict&& value) & {
   return SetByDottedPath(path, Value(std::move(value)));
 }
 
-Value* Value::Dict::SetByDottedPath(StringPiece path, List&& value) {
+Value* Value::Dict::SetByDottedPath(StringPiece path, List&& value) & {
   return SetByDottedPath(path, Value(std::move(value)));
 }
 
 bool Value::Dict::RemoveByDottedPath(StringPiece path) {
   return ExtractByDottedPath(path).has_value();
+}
+
+Value::Dict&& Value::Dict::SetByDottedPath(StringPiece path, Value&& value) && {
+  SetByDottedPath(path, std::move(value));
+  return std::move(*this);
+}
+
+Value::Dict&& Value::Dict::SetByDottedPath(StringPiece path, bool value) && {
+  SetByDottedPath(path, Value(value));
+  return std::move(*this);
+}
+
+Value::Dict&& Value::Dict::SetByDottedPath(StringPiece path, int value) && {
+  SetByDottedPath(path, Value(value));
+  return std::move(*this);
+}
+
+Value::Dict&& Value::Dict::SetByDottedPath(StringPiece path, double value) && {
+  SetByDottedPath(path, Value(value));
+  return std::move(*this);
+}
+
+Value::Dict&& Value::Dict::SetByDottedPath(StringPiece path,
+                                           StringPiece value) && {
+  SetByDottedPath(path, Value(value));
+  return std::move(*this);
+}
+
+Value::Dict&& Value::Dict::SetByDottedPath(StringPiece path,
+                                           StringPiece16 value) && {
+  SetByDottedPath(path, Value(value));
+  return std::move(*this);
+}
+
+Value::Dict&& Value::Dict::SetByDottedPath(StringPiece path,
+                                           const char* value) && {
+  SetByDottedPath(path, Value(value));
+  return std::move(*this);
+}
+
+Value::Dict&& Value::Dict::SetByDottedPath(StringPiece path,
+                                           const char16_t* value) && {
+  SetByDottedPath(path, Value(value));
+  return std::move(*this);
+}
+
+Value::Dict&& Value::Dict::SetByDottedPath(StringPiece path,
+                                           std::string&& value) && {
+  SetByDottedPath(path, Value(std::move(value)));
+  return std::move(*this);
+}
+
+Value::Dict&& Value::Dict::SetByDottedPath(StringPiece path,
+                                           BlobStorage&& value) && {
+  SetByDottedPath(path, Value(std::move(value)));
+  return std::move(*this);
+}
+
+Value::Dict&& Value::Dict::SetByDottedPath(StringPiece path, Dict&& value) && {
+  SetByDottedPath(path, Value(std::move(value)));
+  return std::move(*this);
+}
+
+Value::Dict&& Value::Dict::SetByDottedPath(StringPiece path, List&& value) && {
+  SetByDottedPath(path, Value(std::move(value)));
+  return std::move(*this);
 }
 
 absl::optional<Value> Value::Dict::ExtractByDottedPath(StringPiece path) {
@@ -876,38 +939,7 @@ bool Value::List::empty() const {
 size_t Value::List::size() const {
   return storage_.size();
 }
-// TODO: b/326979654 -- Remove this when we have -stdlib=libc++ defined in
-// all Cobalt toolchains.
-#if defined(COBALT_PENDING_CLEAN_UP)
-Value::List::iterator Value::List::begin() {
-  return iterator(storage_.data(), storage_.data() + storage_.size());
-}
 
-Value::List::const_iterator Value::List::begin() const {
-  return const_iterator(storage_.data(), storage_.data() + storage_.size());
-}
-
-Value::List::const_iterator Value::List::cbegin() const {
-  return const_iterator(storage_.data(), storage_.data() + storage_.size());
-}
-
-Value::List::iterator Value::List::end() {
-    return iterator(storage_.data(), storage_.data() + storage_.size(), storage_.data() + storage_.size());
-
-}
-
-Value::List::const_iterator Value::List::end() const {
-  return const_iterator(storage_.data(),
-                        storage_.data() + storage_.size(),
-                        storage_.data() + storage_.size());
-}
-
-Value::List::const_iterator Value::List::cend() const {
-  return const_iterator(storage_.data(),
-                        storage_.data() + storage_.size(),
-                        storage_.data() + storage_.size());
-}
-#else
 Value::List::iterator Value::List::begin() {
   return iterator(base::to_address(storage_.begin()),
                   base::to_address(storage_.end()));
@@ -940,7 +972,22 @@ Value::List::const_iterator Value::List::cend() const {
                         base::to_address(storage_.cend()),
                         base::to_address(storage_.cend()));
 }
-#endif
+
+Value::List::reverse_iterator Value::List::rend() {
+  return reverse_iterator(begin());
+}
+
+Value::List::const_reverse_iterator Value::List::rend() const {
+  return const_reverse_iterator(begin());
+}
+
+Value::List::reverse_iterator Value::List::rbegin() {
+  return reverse_iterator(end());
+}
+
+Value::List::const_reverse_iterator Value::List::rbegin() const {
+  return const_reverse_iterator(end());
+}
 
 const Value& Value::List::front() const {
   CHECK(!storage_.empty());
@@ -966,6 +1013,10 @@ void Value::List::reserve(size_t capacity) {
   storage_.reserve(capacity);
 }
 
+void Value::List::resize(size_t new_size) {
+  storage_.resize(new_size);
+}
+
 const Value& Value::List::operator[](size_t index) const {
   CHECK_LT(index, storage_.size());
   return storage_[index];
@@ -980,40 +1031,6 @@ void Value::List::clear() {
   storage_.clear();
 }
 
-// TODO: b/326979654 -- Remove this when we have -stdlib=libc++ defined in
-// all Cobalt toolchains.
-#if defined(COBALT_PENDING_CLEAN_UP)
-Value::List::iterator Value::List::erase(iterator pos) {
-  auto next_it = storage_.erase(storage_.begin() + (pos - begin()));
-  return iterator(storage_.data(),
-                  storage_.data() + (next_it - storage_.begin()),
-                  storage_.data() + storage_.size());
-}
-
-Value::List::const_iterator Value::List::erase(const_iterator pos) {
-  auto next_it = storage_.erase(storage_.begin() + (pos - begin()));
-  return const_iterator(storage_.data(),
-                  storage_.data() + (next_it - storage_.begin()),
-                  storage_.data() + storage_.size());
-}
-
-Value::List::iterator Value::List::erase(iterator first, iterator last) {
-  auto next_it = storage_.erase(storage_.begin() + (first - begin()),
-                                storage_.begin() + (last - begin()));
-  return iterator(storage_.data(),
-                  storage_.data() + (next_it - storage_.begin()),
-                  storage_.data() + storage_.size());
-}
-
-Value::List::const_iterator Value::List::erase(const_iterator first,
-                                               const_iterator last) {
-  auto next_it = storage_.erase(storage_.begin() + (first - begin()),
-                                storage_.begin() + (last - begin()));
-  return const_iterator(storage_.data(),
-                  storage_.data() + (next_it - storage_.begin()),
-                  storage_.data() + storage_.size());
-}
-#else
 Value::List::iterator Value::List::erase(iterator pos) {
   auto next_it = storage_.erase(storage_.begin() + (pos - begin()));
   return iterator(base::to_address(storage_.begin()), base::to_address(next_it),
@@ -1042,7 +1059,6 @@ Value::List::const_iterator Value::List::erase(const_iterator first,
                         base::to_address(next_it),
                         base::to_address(storage_.end()));
 }
-#endif
 
 Value::List Value::List::Clone() const {
   return List(storage_);
@@ -1156,17 +1172,6 @@ Value::List&& Value::List::Append(List&& value) && {
   return std::move(*this);
 }
 
-// TODO: b/326979654 -- Remove this when we have -stdlib=libc++ defined in
-// all Cobalt toolchains.
-#if defined(COBALT_PENDING_CLEAN_UP)
-Value::List::iterator Value::List::Insert(const_iterator pos, Value&& value) {
-  auto inserted_it =
-      storage_.insert(storage_.begin() + (pos - begin()), std::move(value));
-  return iterator(storage_.data(),
-                  storage_.data() + (inserted_it - storage_.begin()),
-                  storage_.data() + storage_.size());
-}
-#else
 Value::List::iterator Value::List::Insert(const_iterator pos, Value&& value) {
   auto inserted_it =
       storage_.insert(storage_.begin() + (pos - begin()), std::move(value));
@@ -1174,7 +1179,6 @@ Value::List::iterator Value::List::Insert(const_iterator pos, Value&& value) {
                   base::to_address(inserted_it),
                   base::to_address(storage_.end()));
 }
-#endif
 
 size_t Value::List::EraseValue(const Value& value) {
   return Erase(storage_, value);
@@ -1230,126 +1234,6 @@ bool operator<=(const Value::List& lhs, const Value::List& rhs) {
 
 bool operator>=(const Value::List& lhs, const Value::List& rhs) {
   return !(lhs < rhs);
-}
-
-absl::optional<bool> Value::FindBoolKey(StringPiece key) const {
-  return GetDict().FindBool(key);
-}
-
-absl::optional<int> Value::FindIntKey(StringPiece key) const {
-  return GetDict().FindInt(key);
-}
-
-const std::string* Value::FindStringKey(StringPiece key) const {
-  return GetDict().FindString(key);
-}
-
-std::string* Value::FindStringKey(StringPiece key) {
-  return GetDict().FindString(key);
-}
-
-const Value* Value::FindListKey(StringPiece key) const {
-  const Value* result = GetDict().Find(key);
-  if (!result || result->type() != Type::LIST) {
-    return nullptr;
-  }
-  return result;
-}
-
-Value* Value::FindListKey(StringPiece key) {
-  return const_cast<Value*>(std::as_const(*this).FindListKey(key));
-}
-
-Value* Value::SetKey(StringPiece key, Value&& value) {
-  return GetDict().Set(key, std::move(value));
-}
-
-Value* Value::SetBoolKey(StringPiece key, bool value) {
-  return GetDict().Set(key, value);
-}
-
-Value* Value::SetIntKey(StringPiece key, int value) {
-  return GetDict().Set(key, value);
-}
-
-Value* Value::SetDoubleKey(StringPiece key, double value) {
-  return GetDict().Set(key, value);
-}
-
-Value* Value::SetStringKey(StringPiece key, StringPiece value) {
-  return GetDict().Set(key, value);
-}
-
-Value* Value::SetStringKey(StringPiece key, StringPiece16 value) {
-  return GetDict().Set(key, value);
-}
-
-Value* Value::SetStringKey(StringPiece key, const char* value) {
-  return GetDict().Set(key, value);
-}
-
-Value* Value::SetStringKey(StringPiece key, std::string&& value) {
-  return GetDict().Set(key, std::move(value));
-}
-
-bool Value::RemoveKey(StringPiece key) {
-  return GetDict().Remove(key);
-}
-
-Value* Value::FindPath(StringPiece path) {
-  return GetDict().FindByDottedPath(path);
-}
-
-const Value* Value::FindPath(StringPiece path) const {
-  return GetDict().FindByDottedPath(path);
-}
-
-absl::optional<bool> Value::FindBoolPath(StringPiece path) const {
-  return GetDict().FindBoolByDottedPath(path);
-}
-
-absl::optional<int> Value::FindIntPath(StringPiece path) const {
-  return GetDict().FindIntByDottedPath(path);
-}
-
-absl::optional<double> Value::FindDoublePath(StringPiece path) const {
-  return GetDict().FindDoubleByDottedPath(path);
-}
-
-const std::string* Value::FindStringPath(StringPiece path) const {
-  return GetDict().FindStringByDottedPath(path);
-}
-
-std::string* Value::FindStringPath(StringPiece path) {
-  return GetDict().FindStringByDottedPath(path);
-}
-
-const Value* Value::FindDictPath(StringPiece path) const {
-  const Value* cur = GetDict().FindByDottedPath(path);
-  if (!cur || cur->type() != Type::DICT) {
-    return nullptr;
-  }
-  return cur;
-}
-
-Value* Value::FindDictPath(StringPiece path) {
-  return const_cast<Value*>(std::as_const(*this).FindDictPath(path));
-}
-
-const Value* Value::FindListPath(StringPiece path) const {
-  const Value* cur = GetDict().FindByDottedPath(path);
-  if (!cur || cur->type() != Type::LIST) {
-    return nullptr;
-  }
-  return cur;
-}
-
-Value* Value::FindListPath(StringPiece path) {
-  return const_cast<Value*>(std::as_const(*this).FindListPath(path));
-}
-
-size_t Value::DictSize() const {
-  return GetDict().size();
 }
 
 bool operator==(const Value& lhs, const Value& rhs) {

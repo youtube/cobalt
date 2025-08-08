@@ -80,12 +80,10 @@ source_set("libpng_sources") {
       "arm/filter_neon_intrinsics.c",
       "arm/palette_neon_intrinsics.c",
     ]
-if (!is_starboard) {
     defines += [
       "PNG_ARM_NEON_OPT=2",
       "PNG_ARM_NEON_IMPLEMENTATION=1",
     ]
-}
     configs -= [ "//build/config/compiler:default_optimization" ]
     configs += [ "//build/config/compiler:optimize_speed" ]
   } else if (current_cpu == "mips64el" && mips_use_msa) {

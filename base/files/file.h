@@ -22,11 +22,7 @@ struct stat;
 
 namespace base {
 
-#if defined(STARBOARD)
-using stat_wrapper_t = struct ::stat;
-#else
 using stat_wrapper_t = struct stat;
-#endif
 
 // Thin wrapper around an OS-level file.
 // Note that this class does not provide any support for asynchronous IO, other
@@ -38,6 +34,9 @@ using stat_wrapper_t = struct stat;
 // obvious non-modifying way are marked as const. Any method that forward calls
 // to the OS is not considered const, even if there is no apparent change to
 // member variables.
+//
+// On POSIX, if the given file is a symbolic link, most of the methods apply to
+// the file that the symbolic link resolves to.
 class BASE_EXPORT File {
  public:
   // FLAG_(OPEN|CREATE).* are mutually exclusive. You should specify exactly one
@@ -122,7 +121,7 @@ class BASE_EXPORT File {
   struct BASE_EXPORT Info {
     Info();
     ~Info();
-#if BUILDFLAG(IS_POSIX) || BUILDFLAG(IS_FUCHSIA) || defined(STARBOARD)
+#if BUILDFLAG(IS_POSIX) || BUILDFLAG(IS_FUCHSIA)
     // Fills this struct with values from |stat_info|.
     void FromStat(const stat_wrapper_t& stat_info);
 #endif
@@ -357,9 +356,7 @@ class BASE_EXPORT File {
   bool DeleteOnClose(bool delete_on_close);
 #endif
 
-#if defined(STARBOARD)
-  static Error OSErrorToFileError(SbSystemError sb_system_error);
-#elif BUILDFLAG(IS_WIN)
+#if BUILDFLAG(IS_WIN)
   static Error OSErrorToFileError(DWORD last_error);
 #elif BUILDFLAG(IS_POSIX) || BUILDFLAG(IS_FUCHSIA)
   static Error OSErrorToFileError(int saved_errno);
@@ -374,14 +371,13 @@ class BASE_EXPORT File {
   // Converts an error value to a human-readable form. Used for logging.
   static std::string ErrorToString(Error error);
 
-#if BUILDFLAG(IS_POSIX) || BUILDFLAG(IS_FUCHSIA) || defined(STARBOARD)
-  // Wrapper for stat() or stat64().
+#if BUILDFLAG(IS_POSIX) || BUILDFLAG(IS_FUCHSIA)
+  // Wrapper for stat().
   static int Stat(const char* path, stat_wrapper_t* sb);
+  // Wrapper for fstat().
   static int Fstat(int fd, stat_wrapper_t* sb);
-# if !defined(STARBOARD)
-  // Starboard does not support lstat yet.
+  // Wrapper for lstat().
   static int Lstat(const char* path, stat_wrapper_t* sb);
-#endif
 #endif
 
   // This function can be used to augment `flags` with the correct flags
@@ -397,12 +393,6 @@ class BASE_EXPORT File {
     }
     return flags;
   }
-
-#if defined(STARBOARD)
-  std::string GetFileName() {
-    return file_name_;
-  }
-#endif
 
  private:
   friend class FileTracing::ScopedTrace;
@@ -425,12 +415,6 @@ class BASE_EXPORT File {
   Error error_details_ = FILE_ERROR_FAILED;
   bool created_ = false;
   bool async_ = false;
-
-#if defined(STARBOARD)
-  bool delete_on_close_;
-  std::string file_name_;
-  bool append_ = false;
-#endif
 };
 
 }  // namespace base

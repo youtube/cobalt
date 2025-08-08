@@ -1,4 +1,4 @@
-// Copyright 2014 The Chromium Authors. All rights reserved.
+// Copyright 2014 The Chromium Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -11,9 +11,8 @@
 #include <string>
 #include <vector>
 
-#include "base/callback.h"
 #include "base/containers/flat_map.h"
-#include "base/macros.h"
+#include "base/functional/callback.h"
 #include "base/memory/ref_counted.h"
 #include "base/sequence_checker.h"
 #include "url/gurl.h"
@@ -43,6 +42,10 @@ class RequestSender {
       void(int error, const std::string& response, int retry_after_sec)>;
 
   explicit RequestSender(scoped_refptr<Configurator> config);
+
+  RequestSender(const RequestSender&) = delete;
+  RequestSender& operator=(const RequestSender&) = delete;
+
   ~RequestSender();
 
   // |use_signing| enables CUP signing of protocol messages exchanged using
@@ -58,10 +61,6 @@ class RequestSender {
       bool use_signing,
       RequestSenderCallback request_sender_callback);
 
-#if defined(STARBOARD)
-  void Cancel();
-#endif
-
  private:
   // Combines the |url| and |query_params| parameters.
   static GURL BuildUpdateUrl(const GURL& url, const std::string& query_params);
@@ -69,14 +68,13 @@ class RequestSender {
   // Decodes and returns the public key used by CUP.
   static std::string GetKey(const char* key_bytes_base64);
 
-  void OnResponseStarted(const GURL& final_url,
-                         int response_code,
-                         int64_t content_length);
+  void OnResponseStarted(int response_code, int64_t content_length);
 
   void OnNetworkFetcherComplete(const GURL& original_url,
                                 std::unique_ptr<std::string> response_body,
                                 int net_error,
                                 const std::string& header_etag,
+                                const std::string& xheader_cup_server_proof,
                                 int64_t xheader_retry_after_sec);
 
   // Implements the error handling and url fallback mechanism.
@@ -87,6 +85,7 @@ class RequestSender {
   void SendInternalComplete(int error,
                             const std::string& response_body,
                             const std::string& response_etag,
+                            const std::string& response_cup_server_proof,
                             int retry_after_sec);
 
   // Helper function to handle a non-continuable error in Send.
@@ -108,8 +107,6 @@ class RequestSender {
   std::unique_ptr<client_update_protocol::Ecdsa> signer_;
 
   int response_code_ = -1;
-
-  DISALLOW_COPY_AND_ASSIGN(RequestSender);
 };
 
 }  // namespace update_client

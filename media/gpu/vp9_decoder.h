@@ -91,6 +91,9 @@ class MEDIA_GPU_EXPORT VP9Decoder : public AcceleratedVideoDecoder {
 
     // Schedule output (display) of |pic|.
     //
+    // If `show_existing_hdr` is not nullptr, then it contains the header of
+    // a show_existing_frame frame that requests the output of `pic`.
+    //
     // Note that returning from this method does not mean that |pic| has already
     // been outputted (displayed), but guarantees that all pictures will be
     // outputted in the same order as this method was called for them, and that
@@ -136,6 +139,7 @@ class MEDIA_GPU_EXPORT VP9Decoder : public AcceleratedVideoDecoder {
   VideoCodecProfile GetProfile() const override;
   uint8_t GetBitDepth() const override;
   VideoChromaSampling GetChromaSampling() const override;
+  VideoColorSpace GetVideoColorSpace() const override;
   absl::optional<gfx::HDRMetadata> GetHDRMetadata() const override;
   size_t GetRequiredNumOfPictures() const override;
   size_t GetNumReferenceFrames() const override;
@@ -202,6 +206,8 @@ class MEDIA_GPU_EXPORT VP9Decoder : public AcceleratedVideoDecoder {
   uint8_t bit_depth_ = 0;
   // Chroma subsampling format of input bitstream.
   VideoChromaSampling chroma_sampling_ = VideoChromaSampling::kUnknown;
+  // Video color space of input bitstream.
+  VideoColorSpace picture_color_space_;
 
   // Pending picture for decode when accelerator returns kTryAgain.
   scoped_refptr<VP9Picture> pending_pic_;

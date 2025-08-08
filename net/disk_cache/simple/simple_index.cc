@@ -203,14 +203,21 @@ void SimpleIndex::Initialize(base::Time cache_mtime) {
   DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
 
 #if BUILDFLAG(IS_ANDROID)
-  if (app_status_listener_) {
-    app_status_listener_->SetCallback(base::BindRepeating(
-        &SimpleIndex::OnApplicationStateChange, AsWeakPtr()));
+  if (app_status_listener_getter_) {
+    base::android::ApplicationStatusListener* listener =
+        app_status_listener_getter_.Run();
+    if (listener) {
+      listener->SetCallback(base::BindRepeating(
+          &SimpleIndex::OnApplicationStateChange, AsWeakPtr()));
+    }
+    // Not using the fallback on purpose here --- if the getter is set, we may
+    // be in a process where the base::android::ApplicationStatusListener::New
+    // impl is unavailable.
+    // (See https://crbug.com/881572)
   } else if (base::android::IsVMInitialized()) {
     owned_app_status_listener_ =
         base::android::ApplicationStatusListener::New(base::BindRepeating(
             &SimpleIndex::OnApplicationStateChange, AsWeakPtr()));
-    app_status_listener_ = owned_app_status_listener_.get();
   }
 #endif
 
@@ -620,10 +627,7 @@ void SimpleIndex::WriteToDisk(IndexWriteToDiskReason reason) {
   if (cleanup_tracker_) {
     // Make anyone synchronizing with our cleanup wait for the index to be
     // written back.
-/* Cobalt
     after_write = base::DoNothingWithBoundArgs(cleanup_tracker_);
-Cobalt */
-    after_write = base::DoNothingWithBoundArgs(std::move(cleanup_tracker_));
   }
 
   index_file_->WriteToDisk(cache_type_, reason, entries_set_, cache_size_,

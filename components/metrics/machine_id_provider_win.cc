@@ -1,4 +1,4 @@
-// Copyright 2014 The Chromium Authors. All rights reserved.
+// Copyright 2014 The Chromium Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -10,6 +10,7 @@
 
 #include "base/base_paths.h"
 #include "base/files/file_path.h"
+#include "base/notreached.h"
 #include "base/path_service.h"
 #include "base/threading/scoped_blocking_call.h"
 #include "base/win/scoped_handle.h"
@@ -25,7 +26,8 @@ bool MachineIdProvider::HasId() {
 // is running from.
 // static
 std::string MachineIdProvider::GetMachineId() {
-  base::ScopedBlockingCall scoped_blocking_call(base::BlockingType::MAY_BLOCK);
+  base::ScopedBlockingCall scoped_blocking_call(FROM_HERE,
+                                                base::BlockingType::MAY_BLOCK);
 
   // Use the program's path to get the drive used for the machine id. This means
   // that whenever the underlying drive changes, it's considered a new machine.
@@ -37,8 +39,8 @@ std::string MachineIdProvider::GetMachineId() {
     return std::string();
   }
 
-  std::vector<base::FilePath::StringType> path_components;
-  executable_path.GetComponents(&path_components);
+  std::vector<base::FilePath::StringType> path_components =
+      executable_path.GetComponents();
   if (path_components.empty()) {
     NOTREACHED();
     return std::string();

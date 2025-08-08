@@ -16,6 +16,7 @@ import("//build/config/ios/ios_sdk_overrides.gni")
 import("//build/config/mac/mac_sdk_overrides.gni")
 
 import("//build/config/pch.gni")
+import("//build/config/rust.gni")
 import("//build/config/sanitizers/sanitizers.gni")
 import("//build/config/ui.gni")
 import("//build/toolchain/goma.gni")
@@ -210,14 +211,9 @@ config("default_libs") {
     # linking can have run-time side effects, nothing should be listed here.
     libs = []
   } else if (is_ios) {
-    # The libraries listed here will be specified for both the target and the
-    # host. Only the common ones should be listed here.
-    frameworks = [
-      "CoreFoundation.framework",
-      "CoreGraphics.framework",
-      "CoreText.framework",
-      "Foundation.framework",
-    ]
+    # Targets should choose to explicitly link frameworks they require. Since
+    # linking can have run-time side effects, nothing should be listed here.
+    libs = []
   } else if (is_linux || is_chromeos) {
     libs = [
       "dl",
@@ -231,9 +227,6 @@ group("common_deps") {
   visibility = [
     ":executable_deps",
     ":loadable_module_deps",
-    ":rust_bin_deps",
-    ":rust_cdylib_deps",
-    ":rust_dylib_deps",
     ":shared_library_deps",
   ]
 
@@ -245,7 +238,7 @@ group("common_deps") {
     public_deps += [ "//build/config/sanitizers:deps" ]
   }
 
-  if (!is_starboard && use_custom_libcxx) {
+  if (use_custom_libcxx) {
     public_deps += [ "//buildtools/third_party/libc++" ]
   }
 
@@ -259,57 +252,47 @@ group("common_deps") {
 
   if (is_fuchsia) {
     public_deps +=
-        [ "//third_party/fuchsia-sdk/sdk/build/config:runtime_library_group" ]
+        [ "//third_party/fuchsia-gn-sdk/src/config:runtime_library_group" ]
     if (is_asan) {
       public_deps += [ "//build/config/fuchsia:asan_runtime_library" ]
     }
+  }
+
+  if (is_win) {
+    # The CRT runtime is dynamically linked in component builds and needs to
+    # be present on bots that run exes or load DLLs. This also includes
+    # debugging DLLs in all builds.
+    data_deps = [ "//build/win:runtime_libs" ]
   }
 }
 
 # Only the executable template in BUILDCONFIG.gn should reference this.
 group("executable_deps") {
-  public_deps = [ ":common_deps" ]
-  if (export_libcxxabi_from_executables) {
-    public_deps += [ "//buildtools/third_party/libc++abi" ]
+  if (!toolchain_for_rust_host_build_tools) {
+    public_deps = [ ":common_deps" ]
+    if (export_libcxxabi_from_executables) {
+      public_deps += [ "//buildtools/third_party/libc++abi" ]
+    }
+    public_configs = [ "//build/config/sanitizers:link_executable" ]
   }
-  public_configs = [ "//build/config/sanitizers:link_executable" ]
-}
-
-# Only the rust_bin template in BUILDCONFIG.gn should reference this.
-group("rust_bin_deps") {
-  public_deps = [ ":common_deps" ]
-  if (export_libcxxabi_from_executables) {
-    public_deps += [ "//buildtools/third_party/libc++abi" ]
-  }
-  public_configs = [ "//build/config/sanitizers:link_executable" ]
 }
 
 # Only the loadable_module template in BUILDCONFIG.gn should reference this.
 group("loadable_module_deps") {
-  public_deps = [ ":common_deps" ]
+  if (!toolchain_for_rust_host_build_tools) {
+    public_deps = [ ":common_deps" ]
 
-  public_configs = [ "//build/config/sanitizers:link_shared_library" ]
+    public_configs = [ "//build/config/sanitizers:link_shared_library" ]
+  }
 }
 
 # Only the shared_library template in BUILDCONFIG.gn should reference this.
 group("shared_library_deps") {
-  public_deps = [ ":common_deps" ]
+  if (!toolchain_for_rust_host_build_tools) {
+    public_deps = [ ":common_deps" ]
 
-  public_configs = [ "//build/config/sanitizers:link_shared_library" ]
-}
-
-# Only the rust_dylib template in BUILDCONFIG.gn should reference this.
-group("rust_dylib_deps") {
-  public_deps = [ ":common_deps" ]
-
-  public_configs = [ "//build/config/sanitizers:link_shared_library" ]
-}
-
-# Only the rust_cdylib template in BUILDCONFIG.gn should reference this.
-group("rust_cdylib_deps") {
-  public_deps = [ ":common_deps" ]
-
-  public_configs = [ "//build/config/sanitizers:link_shared_library" ]
+    public_configs = [ "//build/config/sanitizers:link_shared_library" ]
+  }
 }
 
 # Executable configs -----------------------------------------------------------
@@ -328,7 +311,6 @@ config("executable_config") {
 
   if (is_win) {
     configs += _windows_linker_configs
-    configs += [ "//build/config/win:exe_flags" ]
   } else if (is_mac) {
     configs += [ "//build/config/mac:mac_dynamic_flags" ]
   } else if (is_ios) {

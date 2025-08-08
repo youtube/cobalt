@@ -553,11 +553,7 @@ TEST_F(SetICULocaleTest, OverlongLocaleId) {
   lid.append("zzz");
   SetICUDefaultLocale(id);
   // ICU-21639 fix the long locale issue now.
-  // Todo (b/316198056): Out ICU library is outdated. Enable this
-  // after ICU is updated.
-#if !defined(STARBOARD)
   EXPECT_STREQ(lid.c_str(), icu::Locale::getDefault().getName());
-#endif
 }
 
 }  // namespace i18n

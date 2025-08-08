@@ -1,4 +1,4 @@
-// Copyright 2014 The Chromium Authors. All rights reserved.
+// Copyright 2014 The Chromium Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -8,7 +8,6 @@
 #include <string>
 
 #include "base/functional/callback_forward.h"
-#include "base/macros.h"
 #include "base/memory/ref_counted.h"
 #include "base/sequence_checker.h"
 
@@ -16,10 +15,7 @@ namespace update_client {
 
 class Configurator;
 class Component;
-
-#if defined(STARBOARD)
-class PingSender;
-#endif
+class PersistedData;
 
 class PingManager : public base::RefCountedThreadSafe<PingManager> {
  public:
@@ -30,14 +26,16 @@ class PingManager : public base::RefCountedThreadSafe<PingManager> {
 
   explicit PingManager(scoped_refptr<Configurator> config);
 
+  PingManager(const PingManager&) = delete;
+  PingManager& operator=(const PingManager&) = delete;
+
   // Sends a ping for the |item|. |callback| is invoked after the ping is sent
   // or an error has occured. The ping itself is not persisted and it will
   // be discarded if it has not been sent for any reason.
-  virtual void SendPing(const Component& component, Callback callback);
+  virtual void SendPing(const Component& component,
+                        const PersistedData& metadata,
+                        Callback callback);
 
-#if defined(STARBOARD)
-  virtual void Cancel();
-#endif
  protected:
   virtual ~PingManager();
 
@@ -46,12 +44,6 @@ class PingManager : public base::RefCountedThreadSafe<PingManager> {
 
   SEQUENCE_CHECKER(sequence_checker_);
   const scoped_refptr<Configurator> config_;
-
-#if defined(STARBOARD)
-  scoped_refptr<PingSender> ping_sender_;
-#endif
-
-  DISALLOW_COPY_AND_ASSIGN(PingManager);
 };
 
 }  // namespace update_client

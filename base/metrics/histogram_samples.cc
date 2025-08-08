@@ -5,7 +5,6 @@
 #include "base/metrics/histogram_samples.h"
 
 #include <limits>
-#include <cstring>
 
 #include "base/compiler_specific.h"
 #include "base/memory/raw_ptr.h"
@@ -292,6 +291,10 @@ void HistogramSamples::Extract(HistogramSamples& other) {
   std::unique_ptr<SampleCountIterator> it = other.ExtractingIterator();
   bool success = AddSubtractImpl(it.get(), ADD);
   DCHECK(success);
+}
+
+bool HistogramSamples::IsDefinitelyEmpty() const {
+  return sum() == 0 && redundant_count() == 0;
 }
 
 void HistogramSamples::Serialize(Pickle* pickle) const {

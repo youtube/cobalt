@@ -13,7 +13,6 @@
 #include <utility>
 
 #include "base/functional/callback_helpers.h"
-#include "base/guid.h"
 #include "base/metrics/histogram_functions.h"
 #include "base/numerics/clamped_math.h"
 #include "base/numerics/safe_conversions.h"
@@ -311,7 +310,7 @@ HRESULT MediaFoundationRenderer::CreateMediaEngine(
                                                  &mf_media_engine_));
 
   auto media_resource_type_ = media_resource->GetType();
-  if (media_resource_type_ != MediaResource::Type::STREAM) {
+  if (media_resource_type_ != MediaResource::Type::kStream) {
     DLOG(ERROR) << "MediaResource is not of STREAM";
     return E_INVALIDARG;
   }
@@ -1058,6 +1057,12 @@ void MediaFoundationRenderer::RequestNextFrame() {
   if (dxgi_device_manager_ == nullptr ||
       mf_media_engine_->OnVideoStreamTick(&presentation_timestamp_in_hns) !=
           S_OK) {
+    return;
+  }
+
+  if (native_video_size_.IsEmpty()) {
+    MEDIA_LOG(WARNING, media_log_)
+        << "RequestNextFrame ignores empty native_video_size_";
     return;
   }
 

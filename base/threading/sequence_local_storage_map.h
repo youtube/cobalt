@@ -100,10 +100,8 @@ class BASE_EXPORT
 
   ~ScopedSetSequenceLocalStorageMapForCurrentThread();
 
-#if !defined(STARBOARD)
  private:
   const base::AutoReset<SequenceLocalStorageMap*> resetter_;
-#endif
 };
 }  // namespace internal
 }  // namespace base

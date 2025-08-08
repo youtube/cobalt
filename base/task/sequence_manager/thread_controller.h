@@ -109,10 +109,6 @@ class BASE_EXPORT ThreadController {
   // Must be called before the first call to Schedule*Work().
   virtual void SetSequencedTaskSource(SequencedTaskSource*) = 0;
 
-  // Requests desired timer precision from the OS.
-  // Has no effect on some platforms.
-  virtual void SetTimerSlack(TimerSlack timer_slack) = 0;
-
   // Completes delayed initialization of unbound ThreadControllers.
   // BindToCurrentThread(MessageLoopBase*) or BindToCurrentThread(MessagePump*)
   // may only be called once.
@@ -132,7 +128,7 @@ class BASE_EXPORT ThreadController {
   // Returns true if the current run loop should quit when idle.
   virtual bool ShouldQuitRunLoopWhenIdle() = 0;
 
-#if BUILDFLAG(IS_IOS) || BUILDFLAG(IS_ANDROID) || defined(STARBOARD)
+#if BUILDFLAG(IS_IOS) || BUILDFLAG(IS_ANDROID)
   // On iOS, the main message loop cannot be Run().  Instead call
   // AttachToMessagePump(), which connects this ThreadController to the
   // UI thread's CFRunLoop and allows PostTask() to work.
@@ -144,6 +140,10 @@ class BASE_EXPORT ThreadController {
   // controller to be shut down cleanly.
   virtual void DetachFromMessagePump() = 0;
 #endif
+
+  // Initializes the state of all the thread controller features. Must be
+  // invoked after FeatureList initialization.
+  static void InitializeFeatures();
 
   // Enables TimeKeeper metrics. `thread_name` will be used as a suffix.
   void EnableMessagePumpTimeKeeperMetrics(const char* thread_name);
@@ -400,6 +400,8 @@ class BASE_EXPORT ThreadController {
       State state_ = kIdle;
       bool is_nested_;
 
+      bool ShouldRecordSampleMetadata();
+
       const raw_ref<TimeKeeper> time_keeper_;
       // Must be set shortly before ~RunLevel.
       raw_ptr<LazyNow> exit_lazy_now_ = nullptr;
@@ -430,13 +432,8 @@ class BASE_EXPORT ThreadController {
     [[maybe_unused]] const raw_ref<const ThreadController> outer_;
 
 #if BUILDFLAG(ENABLE_BASE_TRACING)
-#if defined(STARBOARD)
-    TerminatingFlowLambda terminating_wakeup_lambda_{
-        perfetto::TerminatingFlow::FromPointer(const_cast<RunLevelTracker*>(this))};
-#else
     TerminatingFlowLambda terminating_wakeup_lambda_{
         perfetto::TerminatingFlow::FromPointer(this)};
-#endif
 #endif
 
     std::stack<RunLevel, std::vector<RunLevel>> run_levels_

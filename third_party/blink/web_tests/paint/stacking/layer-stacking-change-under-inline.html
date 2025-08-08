@@ -1,0 +1,20 @@
+<!doctype HTML>
+<style>
+.posabs { position: absolute; }
+</style>
+<span style="opacity: 0.5">
+  <div id=target class=posabs></div>
+</span>
+<script>
+if (window.testRunner) {
+  window.testRunner.waitUntilDone();
+  window.testRunner.dumpAsText();
+}
+
+requestAnimationFrame(() =>
+  requestAnimationFrame(() => {
+    target.className = '';
+    if (window.testRunner)
+        window.testRunner.notifyDone();
+  }));
+</script>

@@ -57,7 +57,7 @@ bool GetAppOutputInternal(CommandLine::StringPieceType cl,
 
   // Create the pipe for the child process's STDOUT.
   if (!CreatePipe(&out_read, &out_write, &sa_attr, 0)) {
-    NOTREACHED() << "Failed to create pipe";
+    DPLOG(ERROR) << "Failed to create pipe";
     return false;
   }
 
@@ -67,7 +67,7 @@ bool GetAppOutputInternal(CommandLine::StringPieceType cl,
 
   // Ensure the read handles to the pipes are not inherited.
   if (!SetHandleInformation(out_read, HANDLE_FLAG_INHERIT, 0)) {
-    NOTREACHED() << "Failed to disabled pipe inheritance";
+    DPLOG(ERROR) << "Failed to disabled pipe inheritance";
     return false;
   }
 
@@ -92,7 +92,7 @@ bool GetAppOutputInternal(CommandLine::StringPieceType cl,
                      nullptr,
                      TRUE,  // Handles are inherited.
                      0, nullptr, nullptr, &start_info, &temp_process_info)) {
-    NOTREACHED() << "Failed to start process";
+    DPLOG(ERROR) << "Failed to start process";
     return false;
   }
 
@@ -336,9 +336,13 @@ Process LaunchProcess(const CommandLine::StringType& cmdline,
 
   if (options.stdin_handle || options.stdout_handle || options.stderr_handle) {
     DCHECK(inherit_handles);
-    DCHECK(options.stdin_handle);
-    DCHECK(options.stdout_handle);
-    DCHECK(options.stderr_handle);
+    // If an explicit handle inheritance list is not set, require that all
+    // stdio handle values be explicitly specified.
+    if (options.handles_to_inherit.empty()) {
+      CHECK(options.stdin_handle);
+      CHECK(options.stdout_handle);
+      CHECK(options.stderr_handle);
+    }
     startup_info->dwFlags |= STARTF_USESTDHANDLES;
     startup_info->hStdInput = options.stdin_handle;
     startup_info->hStdOutput = options.stdout_handle;

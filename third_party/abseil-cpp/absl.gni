@@ -22,9 +22,7 @@ import("//build_overrides/build.gni")
 template("absl_source_set") {
   source_set(target_name) {
     forward_variables_from(invoker, "*")
-    if (!use_cobalt_customizations) {
     configs -= [ "//build/config/compiler:chromium_code" ]
-    }
     configs += [
       "//build/config/compiler:no_chromium_code",
       "//build/config/compiler:prevent_unsafe_narrowing",
@@ -60,6 +58,9 @@ template("absl_source_set") {
           # for absl types is enabled.
           "//third_party/googletest/*",
 
+          # Centipede, a fuzz test runner
+          "//third_party/fuzztest/*",
+
           # WebRTC binary to run PSNR and SSIM video quality analysis. It
           # statically links absl and it is used by "browser_tests" when
           # is_component_build=false but it cannot depend on the absl
@@ -75,6 +76,9 @@ template("absl_source_set") {
           # Not used by Chromium directly.
           "//chromecast/internal/*",
           "//libassistant/*",
+
+          # Not built into Chrome.
+          "//third_party/ml/*",
         ]
       } else {
         visibility = [ "*" ]
@@ -87,9 +91,7 @@ template("absl_test") {
   source_set(target_name) {
     forward_variables_from(invoker, "*")
     testonly = true
-    if (!use_cobalt_customizations) {
     configs -= [ "//build/config/compiler:chromium_code" ]
-    }
     configs += [
       "//build/config/compiler:no_chromium_code",
       "//third_party/abseil-cpp:absl_default_cflags_cc",

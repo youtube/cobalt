@@ -65,9 +65,6 @@ TEST(NetLogUtil, GetNetInfo) {
   EXPECT_EQ(net_info_without_cache.size(), net_info_with_cache.size());
 }
 
-// TODO: b/327008491 - Reenable unittests with unused functionality.
-// Field Trials are not used by Cobalt.
-#if !defined(STARBOARD)
 // Verify that active Field Trials are reflected.
 TEST(NetLogUtil, GetNetInfoIncludesFieldTrials) {
   base::test::TaskEnvironment task_environment;
@@ -93,7 +90,6 @@ TEST(NetLogUtil, GetNetInfoIncludesFieldTrials) {
   EXPECT_TRUE((*trials)[0].is_string());
   EXPECT_EQ("NewFieldTrial:Active", (*trials)[0].GetString());
 }
-#endif
 
 // Demonstrate that disabling a provider causes it to be added to the list of
 // disabled DoH providers.

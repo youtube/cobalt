@@ -30,8 +30,7 @@ constexpr size_t kAllocSize = 1 << 20;  // 1 MiB
 void* AllocateLocalMemory(size_t size) {
   void* address;
 
-#if defined(COBALT_PENDING_CLEAN_UP)
-#elif BUILDFLAG(IS_WIN)
+#if BUILDFLAG(IS_WIN)
   address =
       ::VirtualAlloc(nullptr, size, MEM_RESERVE | MEM_COMMIT, PAGE_READWRITE);
   if (address)
@@ -131,6 +130,9 @@ PersistentHistogramStorage::~PersistentHistogramStorage() {
   // Save data using the current time as the filename. The actual filename
   // doesn't matter (so long as it ends with the correct extension) but this
   // works as well as anything.
+  //
+  // NOTE: Cannot use `UnlocalizedTimeFormatWithPattern()` here since `//base`
+  // cannot depend on `//base:i18n`.
   Time::Exploded exploded;
   Time::Now().LocalExplode(&exploded);
   const FilePath file_path =

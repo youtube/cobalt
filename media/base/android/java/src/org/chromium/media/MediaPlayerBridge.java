@@ -13,13 +13,14 @@ import android.util.Base64;
 import android.util.Base64InputStream;
 import android.view.Surface;
 
+import org.jni_zero.CalledByNative;
+import org.jni_zero.JNINamespace;
+import org.jni_zero.NativeMethods;
+
 import org.chromium.base.ApiCompatibilityUtils;
 import org.chromium.base.ContextUtils;
 import org.chromium.base.Log;
 import org.chromium.base.StreamUtil;
-import org.chromium.base.annotations.CalledByNative;
-import org.chromium.base.annotations.JNINamespace;
-import org.chromium.base.annotations.NativeMethods;
 import org.chromium.base.task.AsyncTask;
 
 import java.io.ByteArrayInputStream;
@@ -67,6 +68,10 @@ public class MediaPlayerBridge {
         if (mPlayer == null) {
             mPlayer = new MediaPlayer();
         }
+        return mPlayer;
+    }
+
+    protected MediaPlayer getLocalPlayerWithoutCreation() {
         return mPlayer;
     }
 
@@ -121,7 +126,10 @@ public class MediaPlayerBridge {
     @CalledByNative
     protected void release() {
         cancelLoadDataUriTask();
-        getLocalPlayer().release();
+        MediaPlayer localPlayer = getLocalPlayerWithoutCreation();
+        if (localPlayer != null) {
+            localPlayer.release();
+        }
     }
 
     @CalledByNative

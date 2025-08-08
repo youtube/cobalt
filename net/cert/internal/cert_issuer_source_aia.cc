@@ -115,8 +115,9 @@ void AiaRequest::GetNext(ParsedCertificateList* out_certs) {
     auto req = std::move(cert_fetcher_requests_[current_request_++]);
     req->WaitForResult(&error, &bytes);
 
-    if (AddCompletedFetchToResults(error, std::move(bytes), out_certs))
+    if (AddCompletedFetchToResults(error, std::move(bytes), out_certs)) {
       return;
+    }
   }
 }
 

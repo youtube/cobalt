@@ -10,7 +10,6 @@
 #include "base/base_export.h"
 #include "base/compiler_specific.h"
 #include "base/dcheck_is_on.h"
-#include "base/debug/debugging_buildflags.h"
 #include "base/immediate_crash.h"
 #include "base/location.h"
 
@@ -63,25 +62,49 @@ class LogMessage;
 // Class used for raising a check error upon destruction.
 class BASE_EXPORT CheckError {
  public:
-  // Used by CheckOp. Takes ownership of `log_message`.
-  explicit CheckError(LogMessage* log_message) : log_message_(log_message) {}
-
-  static CheckError Check(const char* file, int line, const char* condition);
+  static CheckError Check(
+      const char* condition,
+      const base::Location& location = base::Location::Current());
+  // Takes ownership over (free()s after using) `log_message_str`, for use with
+  // CHECK_op macros.
+  static CheckError CheckOp(
+      char* log_message_str,
+      const base::Location& location = base::Location::Current());
 
   static CheckError DCheck(
       const char* condition,
       const base::Location& location = base::Location::Current());
+  // Takes ownership over (free()s after using) `log_message_str`, for use with
+  // DCHECK_op macros.
+  static CheckError DCheckOp(
+      char* log_message_str,
+      const base::Location& location = base::Location::Current());
 
-  static CheckError PCheck(const char* file, int line, const char* condition);
-  static CheckError PCheck(const char* file, int line);
+  static CheckError DumpWillBeCheck(
+      const char* condition,
+      const base::Location& location = base::Location::Current());
+  // Takes ownership over (free()s after using) `log_message_str`, for use with
+  // DUMP_WILL_BE_CHECK_op macros.
+  static CheckError DumpWillBeCheckOp(
+      char* log_message_str,
+      const base::Location& location = base::Location::Current());
+
+  static CheckError PCheck(
+      const char* condition,
+      const base::Location& location = base::Location::Current());
+  static CheckError PCheck(
+      const base::Location& location = base::Location::Current());
 
   static CheckError DPCheck(
       const char* condition,
       const base::Location& location = base::Location::Current());
 
-  static CheckError NotImplemented(const char* file,
-                                   int line,
-                                   const char* function);
+  static CheckError DumpWillBeNotReachedNoreturn(
+      const base::Location& location = base::Location::Current());
+
+  static CheckError NotImplemented(
+      const char* function,
+      const base::Location& location = base::Location::Current());
 
   // Stream for adding optional details to the error message.
   std::ostream& stream();
@@ -99,6 +122,9 @@ class BASE_EXPORT CheckError {
   }
 
  protected:
+  // Takes ownership of `log_message`.
+  explicit CheckError(LogMessage* log_message) : log_message_(log_message) {}
+
   LogMessage* const log_message_;
 };
 
@@ -123,11 +149,18 @@ class BASE_EXPORT NotReachedError : public CheckError {
 // callers of NOTREACHED() have migrated to the CHECK-fatal version.
 class BASE_EXPORT NotReachedNoreturnError : public CheckError {
  public:
-  NotReachedNoreturnError(const char* file, int line);
+  explicit NotReachedNoreturnError(
+      const base::Location& location = base::Location::Current());
 
   [[noreturn]] NOMERGE NOINLINE NOT_TAIL_CALLED ~NotReachedNoreturnError();
 };
 
+// A helper macro for checks that log to streams that makes it easier for the
+// compiler to identify and warn about dead code, e.g.:
+//
+//   return 2;
+//   NOTREACHED();
+//
 // The 'switch' is used to prevent the 'else' from being ambiguous when the
 // macro is used in an 'if' clause such as:
 // if (a == 1)
@@ -135,15 +168,18 @@ class BASE_EXPORT NotReachedNoreturnError : public CheckError {
 //
 // TODO(crbug.com/1380930): Remove the const bool when the blink-gc plugin has
 // been updated to accept `if (LIKELY(!field_))` as well as `if (!field_)`.
-#define CHECK_FUNCTION_IMPL(check_failure_invocation, condition)   \
-  switch (0)                                                       \
-  case 0:                                                          \
-  default:                                                         \
-    if (const bool checky_bool_lol = static_cast<bool>(condition); \
-        LIKELY(ANALYZER_ASSUME_TRUE(checky_bool_lol)))             \
-      ;                                                            \
-    else                                                           \
-      check_failure_invocation
+#define LOGGING_CHECK_FUNCTION_IMPL(check_stream, condition)              \
+  switch (0)                                                              \
+  case 0:                                                                 \
+  default:                                                                \
+    /* Hint to the optimizer that `condition` is unlikely to be false. */ \
+    /* The optimizer can use this as a hint to place the failure path */  \
+    /* out-of-line, e.g. at the tail of the function. */                  \
+    if (const bool probably_true = static_cast<bool>(condition);          \
+        LIKELY(ANALYZER_ASSUME_TRUE(probably_true)))                      \
+      ;                                                                   \
+    else                                                                  \
+      (check_stream)
 
 #if defined(OFFICIAL_BUILD) && !defined(NDEBUG)
 #error "Debug builds are not expected to be optimized as official builds."
@@ -160,54 +196,81 @@ class BASE_EXPORT NotReachedNoreturnError : public CheckError {
 //
 // This is not calling BreakDebugger since this is called frequently, and
 // calling an out-of-line function instead of a noreturn inline macro prevents
-// compiler optimizations.
+// compiler optimizations. Unlike the other check macros, this one does not use
+// LOGGING_CHECK_FUNCTION_IMPL(), since it is incompatible with
+// EAT_CHECK_STREAM_PARAMETERS().
 #define CHECK(condition) \
   UNLIKELY(!(condition)) ? logging::CheckFailure() : EAT_CHECK_STREAM_PARAMS()
 
 #define CHECK_WILL_STREAM() false
 
 // Strip the conditional string from official builds.
-#define PCHECK(condition)                                                \
-  CHECK_FUNCTION_IMPL(::logging::CheckError::PCheck(__FILE__, __LINE__), \
-                      condition)
+#define PCHECK(condition) \
+  LOGGING_CHECK_FUNCTION_IMPL(::logging::CheckError::PCheck(), condition)
 
 #else
 
 #define CHECK_WILL_STREAM() true
 
-#define CHECK(condition) \
-  CHECK_FUNCTION_IMPL(   \
-      ::logging::CheckError::Check(__FILE__, __LINE__, #condition), condition)
+#define CHECK(condition)                                                \
+  LOGGING_CHECK_FUNCTION_IMPL(::logging::CheckError::Check(#condition), \
+                              condition)
 
-#define PCHECK(condition)                                            \
-  CHECK_FUNCTION_IMPL(                                               \
-      ::logging::CheckError::PCheck(__FILE__, __LINE__, #condition), \
-      condition)
+#define PCHECK(condition)                                                \
+  LOGGING_CHECK_FUNCTION_IMPL(::logging::CheckError::PCheck(#condition), \
+                              condition)
 
 #endif
 
 #if DCHECK_IS_ON()
 
-#define DCHECK(condition) \
-  CHECK_FUNCTION_IMPL(::logging::CheckError::DCheck(#condition), condition)
-#define DPCHECK(condition) \
-  CHECK_FUNCTION_IMPL(::logging::CheckError::DPCheck(#condition), condition)
+#define DCHECK(condition)                                                \
+  LOGGING_CHECK_FUNCTION_IMPL(::logging::CheckError::DCheck(#condition), \
+                              condition)
+#define DPCHECK(condition)                                                \
+  LOGGING_CHECK_FUNCTION_IMPL(::logging::CheckError::DPCheck(#condition), \
+                              condition)
 
 #else
 
 #define DCHECK(condition) EAT_CHECK_STREAM_PARAMS(!(condition))
 #define DPCHECK(condition) EAT_CHECK_STREAM_PARAMS(!(condition))
 
-#endif
+#endif  // DCHECK_IS_ON()
+
+// The DUMP_WILL_BE_CHECK() macro provides a convenient way to non-fatally dump
+// in official builds if a condition is false. This is used to more cautiously
+// roll out a new CHECK() (or upgrade a DCHECK) where the caller isn't entirely
+// sure that something holds true in practice (but asserts that it should). This
+// is especially useful for platforms that have a low pre-stable population and
+// code areas that are rarely exercised.
+//
+// On DCHECK builds this macro matches DCHECK behavior.
+//
+// This macro isn't optimized (preserves filename, line number and log messages
+// in official builds), as they are expected to be in product temporarily. When
+// using this macro, leave a TODO(crbug.com/nnnn) entry referring to a bug
+// related to its rollout. Then put a NextAction on the bug to come back and
+// clean this up (replace with a CHECK). A DUMP_WILL_BE_CHECK() that's been left
+// untouched for a long time without bug updates suggests that issues that
+// would've prevented enabling this CHECK have either not been discovered or
+// have been resolved.
+//
+// Using this macro is preferred over direct base::debug::DumpWithoutCrashing()
+// invocations as it communicates intent to eventually end up as a CHECK. It
+// also preserves the log message so setting crash keys to get additional debug
+// info isn't required as often.
+#define DUMP_WILL_BE_CHECK(condition) \
+  LOGGING_CHECK_FUNCTION_IMPL(        \
+      ::logging::CheckError::DumpWillBeCheck(#condition), condition)
 
 // Async signal safe checking mechanism.
-BASE_EXPORT void RawCheck(const char* message);
-BASE_EXPORT void RawError(const char* message);
-#define RAW_CHECK(condition)                                 \
-  do {                                                       \
-    if (UNLIKELY(!(condition))) {                            \
-      ::logging::RawCheck("Check failed: " #condition "\n"); \
-    }                                                        \
+[[noreturn]] BASE_EXPORT void RawCheckFailure(const char* message);
+#define RAW_CHECK(condition)                                        \
+  do {                                                              \
+    if (UNLIKELY(!(condition))) {                                   \
+      ::logging::RawCheckFailure("Check failed: " #condition "\n"); \
+    }                                                               \
   } while (0)
 
 }  // namespace logging

@@ -1,0 +1,13 @@
+include_rules = [
+  "+content/public/test",
+]
+
+specific_include_rules = {
+  "views_test_base\.cc": [
+    "+mojo/core/embedder",
+    "+ui/gl",
+  ],
+  "view_skia_gold_pixel_diff.cc" : [
+    "+ui/snapshot",
+  ],
+}

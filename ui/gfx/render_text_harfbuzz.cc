@@ -55,7 +55,7 @@
 #include "ui/gfx/utf16_indexing.h"
 
 #if BUILDFLAG(IS_APPLE)
-#include "base/mac/foundation_util.h"
+#include "base/apple/foundation_util.h"
 #include "base/mac/mac_util.h"
 #include "third_party/skia/include/ports/SkTypeface_mac.h"
 #endif
@@ -899,23 +899,23 @@ void TextRunHarfBuzz::FontParams::
   if (font_size == 0)
     font_size = font.GetFontSize();
   baseline_offset = 0;
-  if (baseline_type != NORMAL_BASELINE) {
+  if (baseline_type != BaselineStyle::kNormalBaseline) {
     // Calculate a slightly smaller font. The ratio here is somewhat arbitrary.
     // Proportions from 5/9 to 5/7 all look pretty good.
     const float ratio = 5.0f / 9.0f;
     font_size = base::ClampRound(font.GetFontSize() * ratio);
     switch (baseline_type) {
-      case SUPERSCRIPT:
+      case BaselineStyle::kSuperscript:
         baseline_offset = font.GetCapHeight() - font.GetHeight();
         break;
-      case SUPERIOR:
+      case BaselineStyle::kSuperior:
         baseline_offset =
             base::ClampRound(font.GetCapHeight() * ratio) - font.GetCapHeight();
         break;
-      case SUBSCRIPT:
+      case BaselineStyle::kSubscript:
         baseline_offset = font.GetHeight() - font.GetBaseline();
         break;
-      case INFERIOR:  // Fall through.
+      case BaselineStyle::kInferior:  // Fall through.
       default:
         break;
     }
@@ -1273,7 +1273,7 @@ struct ShapeRunWithFontInput {
     hash = base::HashInts(hash, skia_face->uniqueID());
     hash = base::HashInts(hash, script);
     hash = base::HashInts(hash, font_size);
-    hash = base::Hash(text);
+    hash = base::FastHash(base::as_bytes(base::make_span(text)));
     hash = base::HashInts(hash, range.start());
     hash = base::HashInts(hash, range.length());
   }
@@ -1807,6 +1807,15 @@ void RenderTextHarfBuzz::DrawVisualText(internal::SkiaTextRenderer* renderer,
       if (IsNewlineSegment(display_text, segment))
         continue;
 
+      const size_t crash_report_size = 256;
+      DEBUG_ALIAS_FOR_U16CSTR(alias_display_text, display_text.c_str(),
+                              crash_report_size);
+      DEBUG_ALIAS_FOR_U16CSTR(alias_text, text().c_str(), crash_report_size);
+      const size_t run_list_size = run_list->runs().size();
+      base::debug::Alias(&run_list_size);
+      const size_t segment_run_size = segment.run;
+      base::debug::Alias(&segment_run_size);
+
       const internal::TextRunHarfBuzz& run = *run_list->runs()[segment.run];
       renderer->SetTypeface(run.font_params.skia_face);
       renderer->SetTextSize(SkIntToScalar(run.font_params.font_size));
@@ -1844,10 +1853,6 @@ void RenderTextHarfBuzz::DrawVisualText(internal::SkiaTextRenderer* renderer,
         const int pos_size = positions.size();
         base::debug::Alias(&colored_pos);
         base::debug::Alias(&pos_size);
-        const size_t crash_report_size = 256;
-        DEBUG_ALIAS_FOR_U16CSTR(alias_display_text, display_text.c_str(),
-                                crash_report_size);
-        DEBUG_ALIAS_FOR_U16CSTR(alias_text, text().c_str(), crash_report_size);
 
         renderer->SetForegroundColor(it->second);
         renderer->DrawPosText(
@@ -2365,6 +2370,9 @@ bool RenderTextHarfBuzz::GetDecoratedTextForRange(
         style |= Font::ITALIC;
       if (run.font_params.underline || run.font_params.heavy_underline)
         style |= Font::UNDERLINE;
+      if (run.font_params.strike) {
+        style |= Font::STRIKE_THROUGH;
+      }
 
       // Get range relative to the decorated text.
       DecoratedText::RangedAttribute attribute(

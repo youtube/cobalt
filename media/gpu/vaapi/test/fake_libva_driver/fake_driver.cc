@@ -6,7 +6,8 @@
 
 namespace media::internal {
 
-FakeDriver::FakeDriver() = default;
+FakeDriver::FakeDriver(int drm_fd) : scoped_bo_mapping_factory_(drm_fd) {}
+
 FakeDriver::~FakeDriver() = default;
 
 FakeConfig::IdType FakeDriver::CreateConfig(
@@ -33,7 +34,8 @@ FakeSurface::IdType FakeDriver::CreateSurface(
     unsigned int width,
     unsigned int height,
     std::vector<VASurfaceAttrib> attrib_list) {
-  return surface_.CreateObject(format, width, height, std::move(attrib_list));
+  return surface_.CreateObject(format, width, height, std::move(attrib_list),
+                               scoped_bo_mapping_factory_);
 }
 
 bool FakeDriver::SurfaceExists(FakeSurface::IdType id) {
@@ -68,6 +70,27 @@ const FakeContext& FakeDriver::GetContext(FakeContext::IdType id) {
 
 void FakeDriver::DestroyContext(FakeContext::IdType id) {
   context_.DestroyObject(id);
+}
+
+FakeBuffer::IdType FakeDriver::CreateBuffer(VAContextID context,
+                                            VABufferType type,
+                                            unsigned int size_per_element,
+                                            unsigned int num_elements,
+                                            const void* data) {
+  return buffers_.CreateObject(context, type, size_per_element, num_elements,
+                               data);
+}
+
+bool FakeDriver::BufferExists(FakeBuffer::IdType id) {
+  return buffers_.ObjectExists(id);
+}
+
+const FakeBuffer& FakeDriver::GetBuffer(FakeBuffer::IdType id) {
+  return buffers_.GetObject(id);
+}
+
+void FakeDriver::DestroyBuffer(FakeBuffer::IdType id) {
+  buffers_.DestroyObject(id);
 }
 
 }  // namespace media::internal

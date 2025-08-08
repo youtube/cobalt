@@ -10,12 +10,12 @@
 
 #include "base/allocator/allocator_extension.h"
 #include "base/allocator/buildflags.h"
-#include "base/allocator/partition_allocator/partition_alloc_buildflags.h"
-#include "base/allocator/partition_allocator/partition_alloc_config.h"
-#include "base/allocator/partition_allocator/partition_bucket_lookup.h"
+#include "base/allocator/partition_allocator/src/partition_alloc/partition_alloc_buildflags.h"
+#include "base/allocator/partition_allocator/src/partition_alloc/partition_alloc_config.h"
+#include "base/allocator/partition_allocator/src/partition_alloc/partition_bucket_lookup.h"
+#include "base/allocator/partition_allocator/src/partition_alloc/shim/nonscannable_allocator.h"
 #include "base/debug/profiler.h"
 #include "base/format_macros.h"
-#include "base/memory/nonscannable_memory.h"
 #include "base/metrics/histogram_functions.h"
 #include "base/numerics/safe_conversions.h"
 #include "base/strings/stringprintf.h"
@@ -23,9 +23,7 @@
 #include "base/trace_event/traced_value.h"
 #include "build/build_config.h"
 
-#if defined(STARBOARD)
-#include <stdlib.h>
-#elif BUILDFLAG(IS_APPLE)
+#if BUILDFLAG(IS_APPLE)
 #include <malloc/malloc.h>
 #else
 #include <malloc.h>
@@ -39,11 +37,11 @@
 #endif
 
 #if BUILDFLAG(USE_PARTITION_ALLOC_AS_MALLOC)
-#include "base/allocator/partition_allocator/shim/allocator_shim_default_dispatch_to_partition_alloc.h"
+#include "base/allocator/partition_allocator/src/partition_alloc/shim/allocator_shim_default_dispatch_to_partition_alloc.h"
 #endif
 
 #if PA_CONFIG(THREAD_CACHE_ALLOC_STATS)
-#include "base/allocator/partition_allocator/partition_alloc_constants.h"
+#include "base/allocator/partition_allocator/src/partition_alloc/partition_alloc_constants.h"
 #endif
 
 namespace base {
@@ -88,7 +86,7 @@ void ReportWinHeapStats(MemoryDumpLevelOfDetail level_of_detail,
                         size_t* allocated_objects_size,
                         size_t* allocated_objects_count) {
   // This is too expensive on Windows, crbug.com/780735.
-  if (level_of_detail == MemoryDumpLevelOfDetail::DETAILED) {
+  if (level_of_detail == MemoryDumpLevelOfDetail::kDetailed) {
     WinHeapInfo main_heap_info = {};
     WinHeapMemoryDumpImpl(&main_heap_info);
     *total_virtual_size +=
@@ -124,7 +122,7 @@ void ReportPartitionAllocStats(ProcessMemoryDump* pmd,
                                size_t* cumulative_brp_quarantined_count) {
   MemoryDumpPartitionStatsDumper partition_stats_dumper("malloc", pmd,
                                                         level_of_detail);
-  bool is_light_dump = level_of_detail == MemoryDumpLevelOfDetail::BACKGROUND;
+  bool is_light_dump = level_of_detail == MemoryDumpLevelOfDetail::kBackground;
 
   auto* allocator = allocator_shim::internal::PartitionAllocMalloc::Allocator();
   allocator->DumpStats("allocator", is_light_dump, &partition_stats_dumper);
@@ -141,11 +139,12 @@ void ReportPartitionAllocStats(ProcessMemoryDump* pmd,
     aligned_allocator->DumpStats("aligned", is_light_dump,
                                  &partition_stats_dumper);
   }
-  auto& nonscannable_allocator = internal::NonScannableAllocator::Instance();
+  auto& nonscannable_allocator =
+      allocator_shim::NonScannableAllocator::Instance();
   if (auto* root = nonscannable_allocator.root())
     root->DumpStats("nonscannable", is_light_dump, &partition_stats_dumper);
   auto& nonquarantinable_allocator =
-      internal::NonQuarantinableAllocator::Instance();
+      allocator_shim::NonQuarantinableAllocator::Instance();
   if (auto* root = nonquarantinable_allocator.root())
     root->DumpStats("nonquarantinable", is_light_dump, &partition_stats_dumper);
 
@@ -189,7 +188,7 @@ void ReportAppleAllocStats(size_t* total_virtual_size,
 
 #if (BUILDFLAG(USE_PARTITION_ALLOC_AS_MALLOC) && BUILDFLAG(IS_ANDROID)) || \
     (!BUILDFLAG(USE_PARTITION_ALLOC_AS_MALLOC) && !BUILDFLAG(IS_WIN) &&    \
-     !BUILDFLAG(IS_APPLE) && !BUILDFLAG(IS_FUCHSIA) && !defined(STARBOARD))
+     !BUILDFLAG(IS_APPLE) && !BUILDFLAG(IS_FUCHSIA))
 void ReportMallinfoStats(ProcessMemoryDump* pmd,
                          size_t* total_virtual_size,
                          size_t* resident_size,
@@ -358,7 +357,7 @@ bool MallocDumpProvider::OnMemoryDump(const MemoryDumpArgs& args,
   ReportWinHeapStats(args.level_of_detail, nullptr, &total_virtual_size,
                      &resident_size, &allocated_objects_size,
                      &allocated_objects_count);
-#elif BUILDFLAG(IS_FUCHSIA) || defined(STARBOARD)
+#elif BUILDFLAG(IS_FUCHSIA)
 // TODO(fuchsia): Port, see https://crbug.com/706592.
 #else
   ReportMallinfoStats(/*pmd=*/nullptr, &total_virtual_size, &resident_size,
@@ -462,9 +461,6 @@ void MallocDumpProvider::ReportPerMinuteStats(
 }
 
 #if BUILDFLAG(USE_PARTITION_ALLOC)
-// static
-const char* MemoryDumpPartitionStatsDumper::kPartitionsDumpName = "partitions";
-
 std::string GetPartitionDumpName(const char* root_name,
                                  const char* partition_name) {
   return base::StringPrintf("%s/%s/%s", root_name,
@@ -478,7 +474,7 @@ MemoryDumpPartitionStatsDumper::MemoryDumpPartitionStatsDumper(
     MemoryDumpLevelOfDetail level_of_detail)
     : root_name_(root_name),
       memory_dump_(memory_dump),
-      detailed_(level_of_detail != MemoryDumpLevelOfDetail::BACKGROUND) {}
+      detailed_(level_of_detail != MemoryDumpLevelOfDetail::kBackground) {}
 
 void MemoryDumpPartitionStatsDumper::PartitionDumpTotals(
     const char* partition_name,

@@ -1,0 +1,13 @@
+<!DOCTYPE html>
+<script src="../../../resources/testdriver.js"></script>
+<script src="../../../resources/testdriver-vendor.js"></script>
+<script src='../../../fast/forms/resources/picker-common.js'></script>
+
+<input type='color' id='color' value='#FFFFFF'>
+
+<script>
+  const element = document.querySelector('input');
+  openPicker(element)
+  .then(eventSender.keyDown('Enter'))
+  .then(openPickerAppearanceOnly(element));
+</script>

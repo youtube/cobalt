@@ -217,12 +217,10 @@ BASE_EXPORT bool DirectoryExists(const FilePath& path);
 BASE_EXPORT bool ContentsEqual(const FilePath& filename1,
                                const FilePath& filename2);
 
-#if defined(COBALT_PENDING_CLEAN_UP)
 // Returns true if the contents of the two text files given are equal, false
 // otherwise.  This routine treats "\r\n" and "\n" as equivalent.
 BASE_EXPORT bool TextContentsEqual(const FilePath& filename1,
                                    const FilePath& filename2);
-#endif  // !defined(COBALT_PENDING_CLEAN_UP)
 
 // Reads the file at |path| and returns a vector of bytes on success, and
 // nullopt on error. For security reasons, a |path| containing path traversal
@@ -252,7 +250,6 @@ BASE_EXPORT bool ReadFileToStringWithMaxSize(const FilePath& path,
                                              std::string* contents,
                                              size_t max_size);
 
-#if !defined(STARBOARD)
 // As ReadFileToString, but reading from an open stream after seeking to its
 // start (if supported by the stream). This can also be used to read the whole
 // file from a file descriptor by converting the file descriptor into a stream
@@ -264,7 +261,6 @@ BASE_EXPORT bool ReadStreamToString(FILE* stream, std::string* contents);
 BASE_EXPORT bool ReadStreamToStringWithMaxSize(FILE* stream,
                                                size_t max_size,
                                                std::string* contents);
-#endif
 
 #if BUILDFLAG(IS_POSIX) || BUILDFLAG(IS_FUCHSIA)
 
@@ -424,6 +420,12 @@ BASE_EXPORT ScopedFILE CreateAndOpenTemporaryStreamInDir(const FilePath& dir,
 // Both paths are only accessible to admin and system processes, and are
 // therefore secure.
 BASE_EXPORT bool GetSecureSystemTemp(FilePath* temp);
+
+// Set whether or not the use of %systemroot%\SystemTemp or %programfiles% is
+// permitted for testing. This is so tests that run as admin will still continue
+// to use %TMP% so their files will be correctly cleaned up by the test
+// launcher.
+BASE_EXPORT void SetDisableSecureSystemTempForTesting(bool disabled);
 #endif  // BUILDFLAG(IS_WIN)
 
 // Do NOT USE in new code. Use ScopedTempDir instead.
@@ -498,7 +500,7 @@ BASE_EXPORT bool CreateWinHardLink(const FilePath& to_file,
 // This function will return if the given file is a symlink or not.
 BASE_EXPORT bool IsLink(const FilePath& file_path);
 
-// Returns information about the given file path.
+// Returns information about the given file path. Also see |File::GetInfo|.
 BASE_EXPORT bool GetFileInfo(const FilePath& file_path, File::Info* info);
 
 // Sets the time of the last access and the time of the last modification.
@@ -511,10 +513,8 @@ BASE_EXPORT bool TouchFile(const FilePath& path,
 // configured to not be propagated to child processes.
 BASE_EXPORT FILE* OpenFile(const FilePath& filename, const char* mode);
 
-#if !defined(COBALT_PENDING_CLEAN_UP)
 // Closes file opened by OpenFile. Returns true on success.
 BASE_EXPORT bool CloseFile(FILE* file);
-#endif
 
 // Associates a standard FILE stream with an existing File. Note that this
 // functions take ownership of the existing File.
@@ -523,11 +523,9 @@ BASE_EXPORT FILE* FileToFILE(File file, const char* mode);
 // Returns a new handle to the file underlying |file_stream|.
 BASE_EXPORT File FILEToFile(FILE* file_stream);
 
-#if !defined(COBALT_PENDING_CLEAN_UP)
 // Truncates an open file to end at the location of the current file pointer.
 // This is a cross-platform analog to Windows' SetEndOfFile() function.
 BASE_EXPORT bool TruncateFile(FILE* file);
-#endif  // !defined(COBALT_PENDING_CLEAN_UP)
 
 // Reads at most the given number of bytes from the file into the buffer.
 // Returns the number of read bytes, or -1 on error.
@@ -708,8 +706,7 @@ BASE_EXPORT bool CopyAndDeleteDirectory(const FilePath& from_path,
                                         const FilePath& to_path);
 #endif  // BUILDFLAG(IS_WIN)
 
-#if defined(COBALT_PENDING_CLEAN_UP)
-#elif BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_CHROMEOS) || BUILDFLAG(IS_ANDROID)
+#if BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_CHROMEOS) || BUILDFLAG(IS_ANDROID)
 // CopyFileContentsWithSendfile will use the sendfile(2) syscall to perform a
 // file copy without moving the data between kernel and userspace. This is much
 // more efficient than sequences of read(2)/write(2) calls. The |retry_slow|

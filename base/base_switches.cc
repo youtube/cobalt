@@ -8,14 +8,6 @@
 
 namespace switches {
 
-#ifdef COBALT_PENDING_CLEAN_UP
-// Setting this switch defines which font format(s) Cobalt will load locally.
-// Values include 'ttf', 'ttf-preferred', 'woff2', and 'woff2-preferred'.
-// Values with 'preferred' can load all types of fonts but prioritize the
-// format specified. 'woff2-preferred' is the default value.
-const char kFontFormat[] = "font-format";
-#endif
-
 // Delays execution of TaskPriority::BEST_EFFORT tasks until shutdown.
 const char kDisableBestEffortTasks[] = "disable-best-effort-tasks";
 
@@ -101,11 +93,6 @@ const char kProfilingFlush[] = "profiling-flush";
 // to the test framework that the current process is a child process.
 const char kTestChildProcess[] = "test-child-process";
 
-// When running certain tests that spawn child processes, this switch indicates
-// to the test framework that the current process should not initialize ICU to
-// avoid creating any scoped handles too early in startup.
-const char kTestDoNotInitializeIcu[] = "test-do-not-initialize-icu";
-
 // Sends trace events from these categories to a file.
 // --trace-to-file on its own sends to default categories.
 const char kTraceToFile[] = "trace-to-file";
@@ -173,6 +160,24 @@ const char kEnableIdleTracing[] = "enable-idle-tracing";
 // The field trial parameters and their values when testing changes locally.
 const char kForceFieldTrialParams[] = "force-fieldtrial-params";
 
+// When we retrieve the package name within the SDK Runtime, we need to use
+// a bit of a hack to do this by taking advantage of the fact that the pid
+// is the same pid as the application's pid + 10000.
+// see:
+// https://cs.android.com/android/platform/superproject/main/+/main:frameworks/base/core/java/android/os/Process.java;l=292;drc=47fffdd53115a9af1820e3f89d8108745be4b55d
+// When the render process is created however, it is just a regular isolated
+// process with no particular association so we can't perform the same hack.
+// When creating minidumps, the package name is retrieved from the process
+// meaning the render process minidumps would end up reporting a generic
+// process name not associated with the app.
+// We work around this by feeding through the host package information to the
+// render process when launching it.
+const char kHostPackageName[] = "host-package-name";
+const char kHostPackageLabel[] = "host-package-label";
+const char kHostVersionCode[] = "host-version-code";
+const char kPackageName[] = "package-name";
+const char kPackageVersionName[] = "package-version-name";
+const char kPackageVersionCode[] = "package-version-code";
 #endif
 
 #if BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_CHROMEOS)

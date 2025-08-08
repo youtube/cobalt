@@ -17,13 +17,19 @@ declare_args() {
   # `gclient runhooks` is run as well.
   llvm_force_head_revision = false
 
+  # Cronet is shipped in AOSP, where it is built using the Android Mainline
+  # Clang. Please refer to go/cronet-builders-with-mainline-clang-design for
+  # more information.
+  # If this arg is set to true, we use the Android Mainline LLVM.
+  llvm_android_mainline = false
+
   # Used for binary size analysis.
   generate_linker_map = is_android && is_official_build
 
-  # Whether this toolchain should avoid building any sanitizer support
-  # because it's a host toolchain where we aim to make shared objects that may
-  # be loaded by prebuilt binaries without sanitizer support.
-  toolchain_disables_sanitizers = false
+  # Whether this toolchain is to be used for building host tools that are
+  # consumed during the build process. That includes proc macros and Cargo build
+  # scripts.
+  toolchain_for_rust_host_build_tools = false
 }
 
 if (generate_linker_map) {
@@ -38,7 +44,11 @@ if (generate_linker_map) {
 }
 
 declare_args() {
-  clang_version = "17"
+  if (llvm_android_mainline) {  # https://crbug.com/1481060
+    clang_version = "17"
+  } else {
+    clang_version = "18"
+  }
 }
 
 # Extension for shared library files (including leading dot).
@@ -54,6 +64,18 @@ if (is_apple) {
   shlib_extension = ".dll"
 } else {
   assert(false, "Platform not supported")
+}
+
+# Same extension but for the host platform. We have significantly fewer host
+# platforms.
+if (host_os == "mac") {
+  host_shlib_extension = ".dylib"
+} else if (host_os == "win") {
+  host_shlib_extension = ".dll"
+} else if (host_os == "linux" || host_os == "aix") {
+  host_shlib_extension = ".so"
+} else {
+  assert(false, "Host platform not supported")
 }
 
 # Prefix for shared library files.
@@ -83,15 +105,10 @@ if (host_os == "win") {
       rebase_path("//build/toolchain/win/tool_wrapper.py", root_build_dir)
 
   stamp_command = "cmd /c type nul > \"{{output}}\""
-  copy_command =
-      "\"$python_path\" $_tool_wrapper_path recursive-mirror {{source}} {{output}}"
+  copy_command = "\"$python_path\" $_tool_wrapper_path recursive-mirror {{source}} {{output}}"
 } else {
   stamp_command = "touch {{output}}"
   copy_command = "ln -f {{source}} {{output}} 2>/dev/null || (rm -rf {{output}} && cp -af {{source}} {{output}})"
-}
-
-if (!defined(toolchain_disables_sanitizers)) {
-  toolchain_disables_sanitizers = false
 }
 
 # This variable is true if the current toolchain is one of the target

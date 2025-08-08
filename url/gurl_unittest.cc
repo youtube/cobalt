@@ -564,87 +564,6 @@ TEST(GURLTest, Replacements) {
     ApplyReplacementsFunc* apply_replacements;
     const char* expected;
   } replace_cases[] = {
-// TODO: Use upstream code when Cobalt win32 can use designated initializers.
-#if defined(COBALT_PENDING_CLEAN_UP)
-      {"http://www.google.com/foo/bar.html?foo#bar",
-       
-           +[](const GURL& url) {
-             GURL::Replacements replacements;
-             replacements.SetPathStr("/");
-             replacements.ClearQuery();
-             replacements.ClearRef();
-             return url.ReplaceComponents(replacements);
-           },
-        "http://www.google.com/"},
-      {"http://www.google.com/foo/bar.html?foo#bar",
-       
-           +[](const GURL& url) {
-             GURL::Replacements replacements;
-             replacements.SetSchemeStr("javascript");
-             replacements.ClearUsername();
-             replacements.ClearPassword();
-             replacements.ClearHost();
-             replacements.ClearPort();
-             replacements.SetPathStr("window.open('foo');");
-             replacements.ClearQuery();
-             replacements.ClearRef();
-             return url.ReplaceComponents(replacements);
-           },
-       "javascript:window.open('foo');"},
-      {"file:///C:/foo/bar.txt",
-       
-           +[](const GURL& url) {
-             GURL::Replacements replacements;
-             replacements.SetSchemeStr("http");
-             replacements.SetHostStr("www.google.com");
-             replacements.SetPortStr("99");
-             replacements.SetPathStr("/foo");
-             replacements.SetQueryStr("search");
-             replacements.SetRefStr("ref");
-             return url.ReplaceComponents(replacements);
-           },
-       "http://www.google.com:99/foo?search#ref"},
-#ifdef WIN32
-      {"http://www.google.com/foo/bar.html?foo#bar",
-       
-           +[](const GURL& url) {
-             GURL::Replacements replacements;
-             replacements.SetSchemeStr("file");
-             replacements.ClearUsername();
-             replacements.ClearPassword();
-             replacements.ClearHost();
-             replacements.ClearPort();
-             replacements.SetPathStr("c:\\");
-             replacements.ClearQuery();
-             replacements.ClearRef();
-             return url.ReplaceComponents(replacements);
-           },
-       "file:///C:/"},
-#endif
-      {"filesystem:http://www.google.com/foo/bar.html?foo#bar",
-       
-           +[](const GURL& url) {
-             GURL::Replacements replacements;
-             replacements.SetPathStr("/");
-             replacements.ClearQuery();
-             replacements.ClearRef();
-             return url.ReplaceComponents(replacements);
-           },
-       "filesystem:http://www.google.com/foo/"},
-      // Lengthen the URL instead of shortening it, to test creation of
-      // inner_url.
-      {"filesystem:http://www.google.com/foo/",
-       
-           +[](const GURL& url) {
-             GURL::Replacements replacements;
-             replacements.SetPathStr("bar.html");
-             replacements.SetQueryStr("foo");
-             replacements.SetRefStr("bar");
-             return url.ReplaceComponents(replacements);
-           },
-       "filesystem:http://www.google.com/foo/bar.html?foo#bar"},
-  };
-#else
       {.base = "http://www.google.com/foo/bar.html?foo#bar",
        .apply_replacements =
            +[](const GURL& url) {
@@ -723,7 +642,6 @@ TEST(GURLTest, Replacements) {
            },
        .expected = "filesystem:http://www.google.com/foo/bar.html?foo#bar"},
   };
-#endif
 
   for (const ReplaceCase& c : replace_cases) {
     GURL output = c.apply_replacements(GURL(c.base));
@@ -920,8 +838,8 @@ TEST(GURLTest, DomainIs) {
 
   GURL url_with_escape_chars("https://www.,.test");
   EXPECT_TRUE(url_with_escape_chars.is_valid());
-  EXPECT_EQ(url_with_escape_chars.host(), "www.%2C.test");
-  EXPECT_TRUE(url_with_escape_chars.DomainIs("%2C.test"));
+  EXPECT_EQ(url_with_escape_chars.host(), "www.,.test");
+  EXPECT_TRUE(url_with_escape_chars.DomainIs(",.test"));
 }
 
 TEST(GURLTest, DomainIsTerminatingDotBehavior) {
@@ -1249,7 +1167,7 @@ class GURLTestTraits {
  public:
   using UrlType = GURL;
 
-  static UrlType CreateUrlFromString(base::StringPiece s) { return GURL(s); }
+  static UrlType CreateUrlFromString(std::string_view s) { return GURL(s); }
   static bool IsAboutBlank(const UrlType& url) { return url.IsAboutBlank(); }
   static bool IsAboutSrcdoc(const UrlType& url) { return url.IsAboutSrcdoc(); }
 

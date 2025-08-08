@@ -111,7 +111,7 @@ void MakeSomeErrors(char *ptr, size_t size) {
 // We had problems with __asan_default_options not being used, so this test
 // verifies that _sanitizer_options_link_helper actually makes it into our
 // binaries.
-#if BUILDFLAG(IS_ANDROID) || BUILDFLAG(IS_WIN) || defined(COBALT_PENDING_CLEAN_UP)
+#if BUILDFLAG(IS_ANDROID) || BUILDFLAG(IS_WIN)
 // TODO(https://crbug.com/1322143): Sanitizer options are currently broken
 // on Android.
 // TODO(https://crbug.com/1321584): __asan_default_options should be used

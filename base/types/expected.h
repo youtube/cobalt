@@ -9,6 +9,8 @@
 #include <utility>
 
 #include "base/check.h"
+#include "base/strings/strcat.h"
+#include "base/strings/to_string.h"
 #include "base/types/expected_internal.h"  // IWYU pragma: export
 #include "third_party/abseil-cpp/absl/utility/utility.h"
 
@@ -55,6 +57,21 @@
 //   } else {
 //     // process `parsed.error()`
 //   }
+//
+// For even less boilerplate, see expected_macros.h.
+//
+// Note that there are various transformation member functions. To avoid having
+// to puzzle through the standard-ese on their documentation, here's a quick
+// reference table, assuming a source `expected<T, E> ex;` and types U and G
+// convertible from T and E, respectively:
+//
+//                        Return type     Val when ex = t  Val when ex = e
+//                        -----------     ---------------  ---------------
+// ex.value_or(t2)        T               t                t2
+// ex.and_then(f)         expected<U, E>  f(t)             unexpected(e)
+// ex.transform(f)        expected<U, E>  expected(f(t))   unexpected(e)
+// ex.or_else(f)          expected<T, G>  expected(t)      f(e)
+// ex.transform_error(f)  expected<T, G>  expected(t)      unexpected(f(e))
 //
 // References:
 // * https://wg21.link/P0323
@@ -116,7 +133,7 @@ namespace base {
 //     return base::ok(std::move(result));
 //   }
 template <typename T>
-class ok<T, /* is_void_v<T> = */ false> {
+class ok<T, /* is_void_v<T> = */ false> final {
  public:
   template <typename U = T, internal::EnableIfOkValueConstruction<T, U> = 0>
   constexpr explicit ok(U&& val) noexcept : value_(std::forward<U>(val)) {}
@@ -148,7 +165,7 @@ class ok<T, /* is_void_v<T> = */ false> {
 };
 
 template <typename T>
-class ok<T, /* is_void_v<T> = */ true> {
+class ok<T, /* is_void_v<T> = */ true> final {
  public:
   constexpr explicit ok() noexcept = default;
 };
@@ -171,7 +188,7 @@ ok()->ok<void>;
 // [expected.un.object], class template unexpected
 // https://eel.is/c++draft/expected#un.object
 template <typename E>
-class unexpected {
+class unexpected final {
  public:
   // [expected.un.ctor] Constructors
   template <typename Err = E,
@@ -228,7 +245,7 @@ unexpected(E) -> unexpected<E>;
 // [expected.expected], class template expected
 // https://eel.is/c++draft/expected#expected
 template <typename T, typename E>
-class [[nodiscard]] expected<T, E, /* is_void_v<T> = */ false> {
+class [[nodiscard]] expected<T, E, /* is_void_v<T> = */ false> final {
   // Note: A partial specialization for void value types follows below.
   static_assert(!std::is_void_v<T>, "Error: T must not be void");
 
@@ -627,6 +644,16 @@ class [[nodiscard]] expected<T, E, /* is_void_v<T> = */ false> {
     return internal::TransformError(std::move(*this), std::forward<F>(f));
   }
 
+  // Deviation from the Standard: stringification support.
+  //
+  // If we move to `std::expected` someday, we would need to either forego nice
+  // formatted output or move to `std::format` or similar, which can have
+  // customized output for STL types.
+  std::string ToString() const {
+    return has_value() ? StrCat({"Expected(", base::ToString(value()), ")"})
+                       : StrCat({"Unexpected(", base::ToString(error()), ")"});
+  }
+
  private:
   using Impl = internal::ExpectedImpl<T, E>;
   static constexpr auto kValTag = Impl::kValTag;
@@ -637,7 +664,7 @@ class [[nodiscard]] expected<T, E, /* is_void_v<T> = */ false> {
 
 // [expected.void], partial specialization of expected for void types
 template <typename T, typename E>
-class [[nodiscard]] expected<T, E, /* is_void_v<T> = */ true> {
+class [[nodiscard]] expected<T, E, /* is_void_v<T> = */ true> final {
   // Note: A partial specialization for non-void value types can be found above.
   static_assert(std::is_void_v<T>, "Error: T must be void");
 
@@ -921,6 +948,16 @@ class [[nodiscard]] expected<T, E, /* is_void_v<T> = */ true> {
   template <typename F>
   constexpr auto transform_error(F&& f) const&& noexcept {
     return internal::TransformError(std::move(*this), std::forward<F>(f));
+  }
+
+  // Deviation from the Standard: stringification support.
+  //
+  // If we move to `std::expected` someday, we would need to either forego nice
+  // formatted output or move to `std::format` or similar, which can have
+  // customized output for STL types.
+  std::string ToString() const {
+    return has_value() ? "Expected()"
+                       : StrCat({"Unexpected(", base::ToString(error()), ")"});
   }
 
  private:

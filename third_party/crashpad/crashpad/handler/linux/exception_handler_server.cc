@@ -1,4 +1,4 @@
-// Copyright 2017 The Crashpad Authors. All rights reserved.
+// Copyright 2017 The Crashpad Authors
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -25,20 +25,17 @@
 
 #include <utility>
 
+#include "base/check_op.h"
 #include "base/compiler_specific.h"
 #include "base/logging.h"
 #include "base/posix/eintr_wrapper.h"
 #include "base/strings/string_number_conversions.h"
+#include "base/types/cxx23_to_underlying.h"
 #include "build/build_config.h"
 #include "util/file/file_io.h"
 #include "util/file/filesystem.h"
 #include "util/linux/proc_task_reader.h"
 #include "util/linux/socket.h"
-#include "util/misc/as_underlying_type.h"
-
-#if defined(STARBOARD) || defined(NATIVE_TARGET_BUILD)
-#include "starboard/elf_loader/evergreen_info.h"
-#endif
 
 namespace crashpad {
 
@@ -202,7 +199,7 @@ class PtraceStrategyDeciderImpl : public PtraceStrategyDecider {
         if (HaveCapSysPtrace()) {
           return Strategy::kDirectPtrace;
         }
-        FALLTHROUGH;
+        [[fallthrough]];
       case PtraceScope::kNoAttach:
         LOG(WARNING) << "no ptrace";
         return Strategy::kNoPtrace;
@@ -328,8 +325,8 @@ void ExceptionHandlerServer::Stop() {
 }
 
 void ExceptionHandlerServer::HandleEvent(Event* event, uint32_t event_type) {
-  DCHECK_NE(AsUnderlyingType(event->type),
-            AsUnderlyingType(Event::Type::kShutdown));
+  DCHECK_NE(base::to_underlying(event->type),
+            base::to_underlying(Event::Type::kShutdown));
 
   if (event_type & EPOLLERR) {
     LogSocketError(event->fd.get());
@@ -434,33 +431,12 @@ bool ExceptionHandlerServer::ReceiveClientMessage(Event* event) {
           message.requesting_thread_stack_address,
           event->fd.get(),
           event->type == Event::Type::kSharedSocketMessage);
-
-#if defined(STARBOARD) || defined(NATIVE_TARGET_BUILD)
-    case ExceptionHandlerProtocol::ClientToServerMessage::kTypeAddEvergreenInfo:
-      return HandleAddEvergreenInfoRequest(creds, message.client_info);
-    case ExceptionHandlerProtocol::ClientToServerMessage::kTypeAddAnnotations:
-      return HandleAddAnnotationsRequest(creds, message.client_info);
-#endif
   }
 
   DCHECK(false);
   LOG(ERROR) << "Unknown message type";
   return false;
 }
-
-#if defined(STARBOARD) || defined(NATIVE_TARGET_BUILD)
-bool ExceptionHandlerServer::HandleAddEvergreenInfoRequest(
-    const ucred& creds,
-    const ExceptionHandlerProtocol::ClientInformation& client_info) {
-  return delegate_->AddEvergreenInfo(client_info);
-}
-
-bool ExceptionHandlerServer::HandleAddAnnotationsRequest(
-    const ucred& creds,
-    const ExceptionHandlerProtocol::ClientInformation& client_info) {
-  return delegate_->AddAnnotations(client_info);
-}
-#endif
 
 bool ExceptionHandlerServer::HandleCrashDumpRequest(
     const ucred& creds,

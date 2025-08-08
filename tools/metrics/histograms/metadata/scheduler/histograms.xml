@@ -22,36 +22,6 @@ chromium-metrics-reviews@google.com.
 
 <histograms>
 
-<histogram name="Scheduler.TaskQueueImpl.DelayedIncomingQueueSize"
-    units="tasks" expires_after="2023-09-24">
-  <owner>yafroze@google.com</owner>
-  <owner>pmonette@chromium.org</owner>
-  <owner>catan-team@chromium.org</owner>
-  <summary>
-    The size of the |delayed_incoming_queue|.
-
-    This is emitted pseudorandomly when a delayed task is enqueued on the
-    SequenceManager's main thread.
-
-    Note: This metric merges from all named threads.
-  </summary>
-</histogram>
-
-<histogram name="Scheduler.TaskQueueImpl.PostDelayedTaskDelay" units="ms"
-    expires_after="2023-09-24">
-  <owner>yafroze@google.com</owner>
-  <owner>pmonette@chromium.org</owner>
-  <owner>catan-team@chromium.org</owner>
-  <summary>
-    The delay time for the delayed tasks posted to the sequence manager.
-
-    This is emitted pseudorandomly when a delayed task is enqueued on the
-    SequenceManager's main thread.
-
-    Note: This metric merges from all named threads.
-  </summary>
-</histogram>
-
 <histogram name="Scheduling.BeginImplFrameLatency2" units="microseconds"
     expires_after="M85">
   <owner>stanisc@chromium.org</owner>
@@ -68,9 +38,10 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Scheduling.MessagePumpTimeKeeper.{NamedThread}"
-    enum="MessagePumpPhases" expires_after="2023-05-31">
+    enum="MessagePumpPhases" expires_after="2024-05-31">
   <owner>gab@chromium.org</owner>
   <owner>fdoray@chromium.org</owner>
+  <owner>spvw@chromium.org</owner>
   <summary>
     Records the number of milliseconds spent in each phase of pumping tasks on
     {NamedThread}. Each enum value can be analyzed for its total time or as a
@@ -83,7 +54,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Scheduling.Renderer.DeadlineMode"
-    enum="RendererSchedulerDeadlineMode" expires_after="2023-09-24">
+    enum="RendererSchedulerDeadlineMode" expires_after="2024-02-04">
   <owner>weiliangc@chromium.org</owner>
   <owner>chrome-gpu-metrics@chromium.org</owner>
   <summary>
@@ -114,55 +85,6 @@ chromium-metrics-reviews@google.com.
     will cause this metric to have an abnormal distribution. When considering
     revising this histogram, see UMA_HISTOGRAM_CUSTOM_HIGH_RESOLUTION_TIMES for
     the solution.
-  </summary>
-</histogram>
-
-<histogram name="Scheduling.Renderer.DrawIntervalWithCustomPropertyAnimations2"
-    units="microseconds" expires_after="2022-07-03">
-  <owner>xidachen@chromium.org</owner>
-  <owner>animations-dev@chromium.org</owner>
-  <summary>
-    The time delta between the draw times of back-to-back BeginImplFrames,
-    regardless of whether or not they result in a swap, when there is at least
-    one custom property animation.
-
-    The interval is only recorded when every BeginImplFrame wants to draw.
-
-    Warning: This metric may include reports from clients with low-resolution
-    clocks (i.e. on Windows, ref. |TimeTicks::IsHighResolution()|). Such reports
-    will cause this metric to have an abnormal distribution. When considering
-    revising this histogram, see UMA_HISTOGRAM_CUSTOM_MICROSECONDS_TIMES for the
-    solution.
-  </summary>
-</histogram>
-
-<histogram name="Scheduling.Renderer.FrameProduction.TimeOverused"
-    units="microseconds" expires_after="2023-04-23">
-  <owner>jonross@chromium.org</owner>
-  <owner>chrome-gpu-metrics@chromium.org</owner>
-  <summary>
-    Measures the difference in time allotted to the Renderer, by the Scheduler,
-    for frame production, from the time elapsed when the compositor frame is
-    submitted. This value would show the time used after the anticipated
-    deadline.
-
-    This metric uses UMA_HISTOGRAM_CUSTOM_MICROSECONDS_TIMES so only users with
-    high resolution clocks will report this metric.
-  </summary>
-</histogram>
-
-<histogram name="Scheduling.Renderer.FrameProduction.TimeUnused"
-    units="microseconds" expires_after="2023-04-23">
-  <owner>jonross@chromium.org</owner>
-  <owner>chrome-gpu-metrics@chromium.org</owner>
-  <summary>
-    Measures the difference in time allotted to the Renderer, by the Scheduler,
-    for frame production, from the time elapsed when the compositor frame is
-    submitted. This value would show the time remaining after submit before the
-    anticipated deadline.
-
-    This metric uses UMA_HISTOGRAM_CUSTOM_MICROSECONDS_TIMES so only users with
-    high resolution clocks will report this metric.
   </summary>
 </histogram>
 
