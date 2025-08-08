@@ -1426,8 +1426,9 @@ deps = {
   'src/third_party/hunspell_dictionaries':
     Var('chromium_git') + '/chromium/deps/hunspell_dictionaries.git' + '@' + '41cdffd71c9948f63c7ad36e1fb0ff519aa7a37e',
 
-  'src/third_party/icu':
-    Var('chromium_git') + '/chromium/deps/icu.git' + '@' + 'c55d9ff63ee485e171ba4f24965aa6ffd589f9ee',
+# Cobalt: imported
+#  'src/third_party/icu':
+#    Var('chromium_git') + '/chromium/deps/icu.git' + '@' + 'c55d9ff63ee485e171ba4f24965aa6ffd589f9ee',
 
   'src/third_party/icu4j': {
       'packages': [
