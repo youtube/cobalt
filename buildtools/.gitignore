@@ -9,7 +9,7 @@ mac/.versions
 mac/clang-format
 mac/gn
 reclient
-third_party/libc++/trunk
+# third_party/libc++/trunk Note: Has been imported as a subtree, and is not ignored in Cobalt.
 third_party/libc++abi/trunk
 third_party/libunwind/trunk
 win/.versions
