@@ -32,8 +32,9 @@ class PosixFcntlTest : public ::testing::Test {
   void SetUp() override { errno = 0; }
 };
 
-// Tests F_DUPFD.
-TEST_F(PosixFcntlTest, DuplicateFileDescriptor) {
+// Tests that F_DUPFD copies the same status flags on the duplicate file
+// descriptor.
+TEST_F(PosixFcntlTest, DuplicateFileDescriptorCopiesStatusFlags) {
   ScopedRandomFile random_file(64);
   const std::string& filename = random_file.filename();
 
@@ -52,15 +53,13 @@ TEST_F(PosixFcntlTest, DuplicateFileDescriptor) {
   ASSERT_NE(new_flags, -1) << "fcntl failed: " << strerror(errno);
   ASSERT_EQ(original_flags, new_flags);
 
-  // Avoiding unused variable compilation error.
-  (void)original_flags;
-
   close(fd);
   close(new_fd);
 }
 
-// Tests F_GETFD.
-TEST_F(PosixFcntlTest, GetFileDescriptorFlags) {
+// Tests that F_GETFD returns empty flags on a file decriptor that never had
+// flags set with F_SETFD.
+TEST_F(PosixFcntlTest, GetFdFlagsDoesntDetectNonExistentFlags) {
   ScopedRandomFile random_file;
   const std::string& filename = random_file.filename();
 
@@ -70,12 +69,13 @@ TEST_F(PosixFcntlTest, GetFileDescriptorFlags) {
   // Get the file descriptor flags.
   int flags = fcntl(fd, F_GETFD);
   ASSERT_NE(flags, -1) << "fcntl failed: " << strerror(errno);
-  ASSERT_FALSE((flags & FD_CLOEXEC) == FD_CLOEXEC);
+  // Check that flags that were never set are not present.
+  ASSERT_NE(flags & FD_CLOEXEC, FD_CLOEXEC);
 
   close(fd);
 }
 
-// Tests F_SETFD.
+// Tests that F_SETFD sets the FD_CLOEXEC flag on a file descriptor.
 TEST_F(PosixFcntlTest, SetFileDescriptorFlags) {
   ScopedRandomFile random_file;
   const std::string& filename = random_file.filename();
@@ -83,21 +83,19 @@ TEST_F(PosixFcntlTest, SetFileDescriptorFlags) {
   int fd = open(filename.c_str(), O_RDWR);
   ASSERT_NE(fd, -1) << "Failed to open test file: " << strerror(errno);
 
-  int original_flags = fcntl(fd, F_GETFD);
+  int result = fcntl(fd, F_GETFD);
+  ASSERT_NE(result, -1) << "fcntl failed: " << strerror(errno);
 
   // Set the FD_CLOEXEC flag.
-  int result = fcntl(fd, F_SETFD, FD_CLOEXEC);
+  result = fcntl(fd, F_SETFD, FD_CLOEXEC);
   ASSERT_NE(result, -1) << "fcntl failed: " << strerror(errno);
 
   // Verify that the FD_CLOEXEC flag is set.
   int updated_flags = fcntl(fd, F_GETFD);
   ASSERT_NE(updated_flags, -1) << "fcntl failed: " << strerror(errno);
-  ASSERT_TRUE((updated_flags & FD_CLOEXEC) == FD_CLOEXEC)
-      << "Updated flags " << std::bitset<32>(updated_flags) << " FC_CLOEXEC "
-      << std::bitset<32>(FD_CLOEXEC);
-
-  // Avoiding unused variable compilation error.
-  (void)original_flags;
+  ASSERT_EQ(updated_flags & FD_CLOEXEC, FD_CLOEXEC)
+      << "Updated flags " << std::bitset<32>(updated_flags)
+      << " doesn't match FC_CLOEXEC ()" << std::bitset<32>(FD_CLOEXEC) << ")";
 
   close(fd);
 }
@@ -111,9 +109,11 @@ TEST_F(PosixFcntlTest, GetAndSetFileStatusFlags) {
   int fd = open(filename.c_str(), O_RDWR);
   ASSERT_NE(fd, -1) << "Failed to open test file: " << strerror(errno);
 
+  // Verify that the O_RDWR flag specified in open() is set in the file status
+  // flags.
   int initial_flags = fcntl(fd, F_GETFL);
   ASSERT_NE(initial_flags, -1) << "fcntl failed: " << strerror(errno);
-  ASSERT_TRUE((initial_flags & O_ACCMODE) == O_RDWR)
+  ASSERT_EQ(initial_flags & O_ACCMODE, O_RDWR)
       << "Status flag " << (initial_flags & O_ACCMODE) << " is not O_RDWR ("
       << O_RDWR << ")";
 
@@ -124,13 +124,21 @@ TEST_F(PosixFcntlTest, GetAndSetFileStatusFlags) {
   // Verify that the O_APPEND flag is set.
   int updated_flags = fcntl(fd, F_GETFL);
   ASSERT_NE(updated_flags, -1) << "fcntl failed: " << strerror(errno);
-  ASSERT_TRUE((updated_flags & O_APPEND) == O_APPEND);
+  ASSERT_EQ(updated_flags & O_APPEND, O_APPEND)
+      << "Status flag O_APPEND (" << std::bitset<32>(O_APPEND)
+      << ") is not present in file status flags: "
+      << std::bitset<32>(updated_flags);
+  ASSERT_EQ(initial_flags & O_ACCMODE, O_RDWR)
+      << "Status flag O_RDWR (" << std::bitset<32>(O_RDWR)
+      << ") is not present in file status flags: "
+      << std::bitset<32>(updated_flags);
 
   close(fd);
 }
 
-// Tests F_SETLK.
-TEST_F(PosixFcntlTest, SetLock) {
+// TODO: Properly test file locking behavior with F_GETLK and F_SETLK.
+// Tests that F_SETLK executes without error.
+TEST_F(PosixFcntlTest, SetLockWithoutError) {
   ScopedRandomFile random_file;
   const std::string& filename = random_file.filename();
 
@@ -157,7 +165,7 @@ TEST_F(PosixFcntlTest, SetLock) {
 }
 
 // Tests that fcntl() with an invalid command fails and sets EINVAL.
-TEST_F(PosixFcntlTest, InvalidCommand) {
+TEST_F(PosixFcntlTest, RejectInvalidCommand) {
   ScopedRandomFile random_file;
   const std::string& filename = random_file.filename();
 
@@ -165,14 +173,15 @@ TEST_F(PosixFcntlTest, InvalidCommand) {
   ASSERT_NE(fd, -1) << "Failed to open test file: " << strerror(errno);
 
   int result = fcntl(fd, -1, 0);
-  EXPECT_EQ(result, -1);
-  EXPECT_EQ(EINVAL, errno) << "Expected EINVAL, got " << strerror(errno);
+  ASSERT_EQ(result, -1) << "Expected fcntl to fail, instead got return value: "
+                        << result;
+  ASSERT_EQ(EINVAL, errno) << "Expected EINVAL, got " << strerror(errno);
 
   close(fd);
 }
 
 // Tests that fcntl() with F_DUPFD with an arg of INT_MAX fails and sets EINVAL.
-TEST_F(PosixFcntlTest, SetFileDescriptorTooHigh) {
+TEST_F(PosixFcntlTest, RejectInvalidFileDescriptorTooHigh) {
   ScopedRandomFile random_file;
   const std::string& filename = random_file.filename();
 
@@ -180,8 +189,9 @@ TEST_F(PosixFcntlTest, SetFileDescriptorTooHigh) {
   ASSERT_NE(fd, -1) << "Failed to open test file: " << strerror(errno);
 
   int result = fcntl(fd, F_DUPFD, INT_MAX);
-  EXPECT_EQ(result, -1);
-  EXPECT_EQ(EINVAL, errno) << "Expected EINVAL, got " << strerror(errno);
+  ASSERT_EQ(result, -1) << "Expected fcntl to fail, instead got return value: "
+                        << result;
+  ASSERT_EQ(EINVAL, errno) << "Expected EINVAL, got " << strerror(errno);
 
   close(fd);
 }
