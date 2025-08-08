@@ -127,6 +127,9 @@ android {
             externalNativeBuild {
                 cmake.arguments "-DCOBALT_CONFIG=qa"
             }
+            packagingOptions {
+                doNotStrip '**/*.so'
+            }
             signingConfig signingConfigs.debugConfig
             enableUnitTestCoverage true
         }
