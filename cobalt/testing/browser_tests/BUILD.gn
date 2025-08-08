@@ -192,6 +192,7 @@ test("cobalt_browsertests") {
     "frame_tree_browsertest.cc",
     "media_browsertest.cc",
     "media_browsertest.h",
+    "media_session_browsertest.cc",
     "media_source_browsertest.cc",
     "navigation_browsertest.cc",
     "session_history_browsertest.cc",
