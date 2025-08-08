@@ -35,7 +35,6 @@ runs:
 
         out_dir="${GITHUB_WORKSPACE}/unit_test/out/${{ matrix.platform}}_${{ matrix.config }}"
         # TODO: LD_LIBRARY_PATH should not include the starboard subdirectory.
-        LD_LIBRARY_PATH="${out_dir}/starboard"
         LD_LIBRARY_PATH="${LD_LIBRARY_PATH}:${out_dir}"
         export LD_LIBRARY_PATH
 
@@ -57,10 +56,34 @@ runs:
           test_binary="${filename%%.*}"
           echo "Running tests for suite: ${test_binary}"
 
-          test_filter="*"
+          ENTRYPOINT=./"${test_binary_path}"
+
+          # Combine the shard filter with the exclusion filter from the JSON file.
+          # First, get the exclusion filter.
+          test_filter_from_file="*"
           test_filter_json_dir="${GITHUB_WORKSPACE}/cobalt/testing/filters/${{ matrix.platform }}/${test_binary}_filter.json"
           if [ -f ${test_filter_json_dir} ]; then
-            test_filter=`jq -r '"-" + (.failing_tests | join(":"))' ${test_filter_json_dir}`
+            test_filter_from_file=`jq -r '"-" + (.failing_tests | join(":"))' ${test_filter_json_dir}`
+          fi
+
+          # Second, get the inclusion filter for this specific shard.
+          # Get the full list of tests from the binary.
+          all_tests=$($ENTRYPOINT --gtest_list_tests)
+          # Use the helper script to get the specific filter for this shard.
+          shard_filter=$(echo "${all_tests}" | python3 ${GITHUB_WORKSPACE}/.github/scripts/shard_tests.py ${{ inputs.num_gtest_shards }} ${{ matrix.shard }})
+
+          # Third, combine them.
+          if [ "${test_filter_from_file}" == "-*" ]; then
+            # If all tests are excluded by the file, that takes precedence.
+            test_filter="${test_filter_from_file}"
+          elif [ -z "${shard_filter}" ]; then
+            # If the shard filter is empty, it means this shard has no tests to run.
+            # We can use a filter that matches nothing.
+            test_filter="-"
+          else
+            # Prepend the shard's tests to the exclusion list.
+            # e.g. "Test.A:Test.B:-Failing.Test:Failing.Test2"
+            test_filter="${shard_filter}${test_filter_from_file}"
           fi
 
           echo "Test filter evaluated to: ${test_filter}"
@@ -68,15 +91,12 @@ runs:
           log_path="${test_output}/${test_binary}_log.txt"
           # TODO: Investigate test_runner.py
 
-          ENTRYPOINT=./"${test_binary_path}"
-
-          if [ "${test_filter}" == "-*" ]; then
+          if [ "${test_filter}" == "-*" ] || [ "${test_filter}" == "-" ]; then
             echo "Skipped due to test filter." >  ${log_path}
           else
             /usr/bin/xvfb-run -a --server-args="${XVFB_SERVER_ARGS}" \
                 stdbuf -i0 -o0 -e0 $ENTRYPOINT \
-                --test-launcher-shard-index=${{ matrix.shard }} \
-                --test-launcher-total-shards=${{ inputs.num_gtest_shards }} \
+                --single-process-tests \
                 --gtest_output="xml:${xml_path}" \
                 --gtest_filter="${test_filter}" 2>&1 | tee ${log_path} || {
               failed_suites="${failed_suites} ${test_binary}"
