@@ -33,15 +33,15 @@ import java.util.Set;
  */
 public class VideoSurfaceView extends SurfaceView {
 
-  private static Surface currentSurface = null;
+  private static Surface sCurrentSurface = null;
 
-  private static final Set<String> needResetSurfaceList = new HashSet<>();
+  private static final Set<String> sNeedResetSurfaceList = new HashSet<>();
 
   static {
-    needResetSurfaceList.add("Nexus Player");
+    sNeedResetSurfaceList.add("Nexus Player");
 
     // Reset video surface on nexus player to avoid b/159073388.
-    if (needResetSurfaceList.contains(Build.MODEL)) {
+    if (sNeedResetSurfaceList.contains(Build.MODEL)) {
       // nativeSetNeedResetSurface();
     }
   }
@@ -81,31 +81,31 @@ public class VideoSurfaceView extends SurfaceView {
 
   private class SurfaceHolderCallback implements SurfaceHolder.Callback {
 
-    boolean sawInitialChange = false;
+    boolean mSawInitialChange = false;
 
     @Override
     public void surfaceCreated(SurfaceHolder holder) {
-      currentSurface = holder.getSurface();
-      nativeOnVideoSurfaceChanged(currentSurface);
+      sCurrentSurface = holder.getSurface();
+      nativeOnVideoSurfaceChanged(sCurrentSurface);
     }
 
     @Override
     public void surfaceChanged(SurfaceHolder holder, int format, int width, int height) {
       // We should only ever see the initial change after creation.
-      if (sawInitialChange) {
+      if (mSawInitialChange) {
         Log.e(TAG, "Video surface changed; decoding may break");
       }
-      sawInitialChange = true;
+      mSawInitialChange = true;
     }
 
     @Override
     public void surfaceDestroyed(SurfaceHolder holder) {
-      currentSurface = null;
-      nativeOnVideoSurfaceChanged(currentSurface);
+      sCurrentSurface = null;
+      nativeOnVideoSurfaceChanged(sCurrentSurface);
     }
   }
 
   public static Surface getCurrentSurface() {
-    return currentSurface;
+    return sCurrentSurface;
   }
 }
