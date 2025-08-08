@@ -193,6 +193,7 @@ test("cobalt_browsertests") {
     "session_history_browsertest.cc",
     "site_per_process_browsertest.cc",
     "site_per_process_browsertest.h",
+    "web_contents_impl_browsertest.cc",
   ]
 
   if (is_android) {
