@@ -1,0 +1,27 @@
+name: nightly_trigger_main
+
+on:
+  schedule:
+    # GMT timezone.
+    - cron: '0 10 * * *'
+  workflow_dispatch:
+
+jobs:
+  trigger_main:
+    permissions:
+      actions: write
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: kaidokert/checkout@v3.5.999
+        with:
+          fetch-depth: 1
+          ref: main
+          persist-credentials: false
+      - name: Trigger Nightly
+        run: |
+          set -x
+          gh workflow run android --ref main -f nightly=true
+          gh workflow run linux --ref main -f nightly=true
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

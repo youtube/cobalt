@@ -205,6 +205,7 @@ test("nplb") {
       "posix_compliance/posix_string_format_wide_test.cc",
       "posix_compliance/posix_string_scan_test.cc",
       "posix_compliance/posix_symlink_test.cc",
+      "posix_compliance/posix_sys_chmod_test.cc",
       "posix_compliance/posix_sys_mincore_test.cc",
       "posix_compliance/posix_sys_statvfs_test.cc",
       "posix_compliance/posix_syslog_test.cc",
