@@ -111,7 +111,7 @@ bool UncheckedMalloc(size_t size, void** result) {
 #elif defined(MEMORY_TOOL_REPLACES_ALLOCATOR) || !defined(LIBC_GLIBC)
   *result = malloc(size);
 #elif defined(LIBC_GLIBC)
-  *result = __libc_malloc(size);
+  *result = malloc(size);
 #endif
   return *result != nullptr;
 }
@@ -122,7 +122,7 @@ void UncheckedFree(void* ptr) {
 #elif defined(MEMORY_TOOL_REPLACES_ALLOCATOR) || !defined(LIBC_GLIBC)
   free(ptr);
 #elif defined(LIBC_GLIBC)
-  __libc_free(ptr);
+  free(ptr);
 #endif
 }
 
