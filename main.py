@@ -539,6 +539,7 @@ def main():
         modules_to_update = {}
         print('Checking out rebase_branch branch: %s...' % args.rebase_branch)
         repo.git.checkout(args.rebase_branch)
+
         if args.deps_file:
             deps_file = os.path.join(repo.working_dir, args.deps_file)
             for module in COBALT_IMPORTED_MODULES:
@@ -552,12 +553,13 @@ def main():
                         % (module, deps_file))
                     continue
                 except RuntimeError as e:
-                    print('Error while locating modules %s in %s: %s' %
+                    print('Error while locating module %s in %s: %s' %
                           (module, deps_file, e))
                     continue
             for module in modules_to_update.keys():
                 git_source, git_rev = modules_to_update[module]
                 import_subtree(repo, deps_file, module, git_source, git_rev)
+            return
 
         with open(args.commits_file, 'r', encoding='utf-8') as f:
             commits = json.load(f)

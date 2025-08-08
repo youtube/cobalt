@@ -35,9 +35,13 @@ python3 main.py commits --repo-path=/usr/local/google/home/brianting/chromium/sr
 To rebase...
 
 Start with a rebase branch (in a separate repository clone / directory) such as
-`feature/rebase_m120`.
+`feature/rebase_m120` and run `gclient sync` in that repository:
 
-python3 main.py rebase --repo-path=/usr/local/google/home/brianting/chromium/src --rebase-branch=feature/rebase_m120 --deps-file=/usr/local/google/home/brianting/chromium/src/DEPS --conflicts-dir=m114_to_m120_conflicts
+gclient sync --no-history -r $(git rev-parse @)
+
+And then run:
+
+python3 main.py rebase --repo-path=/usr/local/google/home/brianting/chromium/src --rebase-branch=feature/rebase_m120 --conflicts-dir=m114_to_m120_conflicts
 
 Conflict records including patch files are stored in the `m114_to_m120_conflicts`
 directory. Rebasing can also be restarted non-inclusively using the
