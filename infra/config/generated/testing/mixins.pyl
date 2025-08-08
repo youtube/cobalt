@@ -108,32 +108,12 @@
       ],
     },
   },
-  'chromeos-generic-vm': {
-    'args': [
-      '--magic-vm-cache=magic_cros_vm_cache',
-    ],
-    'swarming': {
-      'dimensions': {
-        'cpu': 'x86-64',
-        'kvm': '1',
-        'os': 'Ubuntu-22.04',
-        'pool': 'chromium.tests',
-      },
-      'optional_dimensions': {
-        '60': {
-          'caches': 'cros_vm',
-        },
-      },
-      'named_caches': [
-        {
-          'name': 'cros_vm',
-          'path': 'magic_cros_vm_cache',
-        },
-      ],
-    },
-  },
   'chromeos-tast-public-builder': {
-    'args': ["tast.setup.FieldTrialConfig=enable", "maybemissingvars=ui\\.(gaiaPoolDefault|signinProfileTestExtensionManifestKey)|uidetection\\.(key|key_type|server)", "shard_method=hash"],
+    'args': [
+      'tast.setup.FieldTrialConfig=enable',
+      'maybemissingvars=ui\.(gaiaPoolDefault|signinProfileTestExtensionManifestKey)|uidetection\.(key|key_type|server)',
+      'shard_method=hash',
+    ],
   },
   'chromium-tester-service-account': {
     'fail_if_unused': False,
@@ -164,9 +144,6 @@
         'pool': 'chromium.tests',
       },
     },
-  },
-  'cros-cbx-dut': {
-    'cros_cbx': True,
   },
   'crosier-no-arc': {
     'args': [
@@ -337,9 +314,6 @@
       ],
     },
   },
-  'isolate_profile_data': {
-    'isolate_profile_data': True,
-  },
   'limited_capacity_bot': {
     'fail_if_unused': False,
     'swarming': {
@@ -423,7 +397,9 @@
     ],
   },
   'long_skylab_timeout': {
-    'timeout_sec': 10800,
+    'skylab': {
+      'timeout_sec': 10800,
+    },
   },
   'mac_14_x64': {
     'swarming': {
@@ -621,15 +597,6 @@
       '${ISOLATED_OUTDIR}',
     ],
   },
-  'shards-20': {
-    'shards': 20,
-  },
-  'shards-30': {
-    'shards': 30,
-  },
-  'shards-50': {
-    'shards': 50,
-  },
   'skia_gold_test': {
     'args': [
       '--git-revision=${got_revision}',
@@ -639,6 +606,21 @@
       '--gerrit-patchset=${patch_set}',
       '--buildbucket-id=${buildbucket_build_id}',
     ],
+  },
+  'skylab-shards-20': {
+    'skylab': {
+      'shards': 20,
+    },
+  },
+  'skylab-shards-30': {
+    'skylab': {
+      'shards': 30,
+    },
+  },
+  'skylab-shards-50': {
+    'skylab': {
+      'shards': 50,
+    },
   },
   'swarming_containment_auto': {
     'fail_if_unused': False,

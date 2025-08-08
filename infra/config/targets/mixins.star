@@ -399,22 +399,29 @@ targets.mixin(
 )
 
 targets.mixin(
-    name = "shards-20",
-    shards = 20,
+    name = "skylab-shards-20",
+    skylab = targets.skylab(
+        shards = 20,
+    ),
 )
 
 targets.mixin(
-    name = "shards-30",
-    shards = 30,
+    name = "skylab-shards-30",
+    skylab = targets.skylab(
+        shards = 30,
+    ),
 )
 
 targets.mixin(
-    name = "shards-50",
-    shards = 50,
+    name = "skylab-shards-50",
+    skylab = targets.skylab(
+        shards = 50,
+    ),
 )
 
 targets.mixin(
     name = "chromeos-generic-vm",
+    generate_pyl_entry = False,
     args = [
         "--magic-vm-cache=magic_cros_vm_cache",
     ],
@@ -476,21 +483,19 @@ targets.mixin(
 
 targets.mixin(
     name = "chromeos-tast-public-builder",
-    skylab = targets.skylab(
-        args = [
-            # FieldTrial is disabled on ChromeOS builders but not in this builder.
-            # Notify Tast to handle the different UI by that.
-            "tast.setup.FieldTrialConfig=enable",
+    args = [
+        # FieldTrial is disabled on ChromeOS builders but not in this builder.
+        # Notify Tast to handle the different UI by that.
+        "tast.setup.FieldTrialConfig=enable",
 
-            # Tests using the default gaia pool cannot be run by public builders.
-            # These variables are fed by private bundles, thus not for public builders.
-            "maybemissingvars=ui\\.(gaiaPoolDefault|signinProfileTestExtensionManifestKey)|uidetection\\.(key|key_type|server)",
+        # Tests using the default gaia pool cannot be run by public builders.
+        # These variables are fed by private bundles, thus not for public builders.
+        "maybemissingvars=ui\\.(gaiaPoolDefault|signinProfileTestExtensionManifestKey)|uidetection\\.(key|key_type|server)",
 
-            # Use "hash" method to shrding of test tests. This should balance the
-            # execution time among shards in a better way.
-            "shard_method=hash",
-        ],
-    ),
+        # Use "hash" method to shrding of test tests. This should balance the
+        # execution time among shards in a better way.
+        "shard_method=hash",
+    ],
 )
 
 targets.mixin(
@@ -1016,6 +1021,7 @@ targets.mixin(
 
 targets.mixin(
     name = "isolate_profile_data",
+    generate_pyl_entry = False,
     isolate_profile_data = True,
 )
 
@@ -1215,7 +1221,9 @@ targets.mixin(
 
 targets.mixin(
     name = "long_skylab_timeout",
-    timeout_sec = 10800,
+    skylab = targets.skylab(
+        timeout_sec = 10800,
+    ),
 )
 
 targets.mixin(
@@ -1845,13 +1853,6 @@ targets.mixin(
     generate_pyl_entry = targets.IGNORE_UNUSED,
     swarming = targets.swarming(
         containment_type = "AUTO",
-    ),
-)
-
-targets.mixin(
-    name = "cros-cbx-dut",
-    skylab = targets.skylab(
-        cros_cbx = True,
     ),
 )
 
