@@ -40,8 +40,9 @@ void CobaltRenderFrameObserver::DidClearWindowObject() {
     // to JavaScript at initial load of the web app, when the frame navigates
     // from the initial empty document to the actual document. This approach is
     // borrowed from content shell.
-    blink::WebTestingSupport::InjectInternalsObject(
-        render_frame()->GetWebFrame());
+
+    // TODO:(b/428999732) This requires a test-only build dependency and cannot
+    // be called from a production target.
   }
 }
 

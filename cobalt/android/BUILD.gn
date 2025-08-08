@@ -34,7 +34,6 @@ generate_jni("jni_headers") {
 }
 
 android_library("cobalt_main_java") {
-  testonly = true
   resources_package = "dev.cobalt.coat"
   deps = [
     ":jni_headers",
@@ -141,7 +140,6 @@ android_library("cobalt_main_java") {
 }
 
 android_library("cobalt_apk_java") {
-  testonly = true
   resources_package = "dev.cobalt.coat"
 
   deps = [
@@ -168,8 +166,6 @@ android_assets("coat_assets") {
 # Copied from target: libcontent_shell_content_view
 # TODO(b/376867565) rename this library, NO shell
 shared_library("libchrobalt") {
-  # TODO(b/375655377): remove testonly
-  testonly = true
   deps = [
     "//cobalt/browser",
     "//cobalt/gpu",
@@ -210,7 +206,6 @@ shared_library("libchrobalt") {
 }
 
 android_apk("cobalt_apk") {
-  testonly = true
   apk_name = "Cobalt"
   android_manifest = cobalt_manifest
   android_manifest_dep = ":cobalt_manifest"
