@@ -13,36 +13,33 @@
 // limitations under the License.
 
 #include "starboard/common/semaphore.h"
-
-#include <chrono>
-
 #include "starboard/common/time.h"
 
 namespace starboard {
 
-Semaphore::Semaphore() : Semaphore(0) {}
+Semaphore::Semaphore() : mutex_(), condition_(mutex_), permits_(0) {}
 
 Semaphore::Semaphore(int initial_thread_permits)
-    : permits_(initial_thread_permits) {}
+    : mutex_(), condition_(mutex_), permits_(initial_thread_permits) {}
 
 Semaphore::~Semaphore() {}
 
 void Semaphore::Put() {
-  {
-    std::lock_guard lock(mutex_);
-    ++permits_;
-  }
-  condition_.notify_one();
+  ScopedLock lock(mutex_);
+  ++permits_;
+  condition_.Signal();
 }
 
 void Semaphore::Take() {
-  std::unique_lock lock(mutex_);
-  condition_.wait(lock, [this] { return this->permits_ > 0; });
+  ScopedLock lock(mutex_);
+  while (permits_ <= 0) {
+    condition_.Wait();
+  }
   --permits_;
 }
 
 bool Semaphore::TakeTry() {
-  std::lock_guard lock(mutex_);
+  ScopedLock lock(mutex_);
   if (permits_ <= 0) {
     return false;
   }
@@ -54,10 +51,17 @@ bool Semaphore::TakeWait(int64_t wait_us) {
   if (wait_us <= 0) {
     return TakeTry();
   }
-  std::unique_lock lock(mutex_);
-  if (!condition_.wait_for(lock, std::chrono::microseconds(wait_us),
-                           [this] { return this->permits_ > 0; })) {
-    return false;  // Timed out.
+  int64_t expire_time = CurrentMonotonicTime() + wait_us;
+  ScopedLock lock(mutex_);
+  while (permits_ <= 0) {
+    int64_t remaining_wait_time = expire_time - CurrentMonotonicTime();
+    if (remaining_wait_time <= 0) {
+      return false;  // Timed out.
+    }
+    bool was_signaled = condition_.WaitTimed(remaining_wait_time);
+    if (!was_signaled) {
+      return false;  // Timed out.
+    }
   }
   --permits_;
   return true;
