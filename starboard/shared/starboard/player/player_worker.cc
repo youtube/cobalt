@@ -197,8 +197,8 @@ void* PlayerWorker::ThreadEntryPoint(void* context) {
   {
     std::lock_guard lock(param->mutex);
     player_worker->job_queue_ = std::make_unique<JobQueue>();
-    param->condition_variable.notify_one();
   }
+  param->condition_variable.notify_one();
   player_worker->RunLoop();
   return NULL;
 }
