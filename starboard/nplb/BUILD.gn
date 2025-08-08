@@ -163,6 +163,7 @@ test("nplb") {
       "posix_compliance/posix_memory_allocate_test.cc",
       "posix_compliance/posix_memory_deallocate_aligned_test.cc",
       "posix_compliance/posix_memory_map_test.cc",
+      "posix_compliance/posix_memory_unmap_test.cc",
       "posix_compliance/posix_mkdir_test.cc",
       "posix_compliance/posix_msync_test.cc",
       "posix_compliance/posix_mutex_acquire_test.cc",
