@@ -1,0 +1,55 @@
+# Copyright (C) 2023 The Android Open Source Project
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#      http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+import("../../../../gn/test.gni")
+
+source_set("storage") {
+  sources = [
+    "dummy_storage.cc",
+    "dummy_storage.h",
+    "id_storage.cc",
+    "id_storage.h",
+    "numeric_storage.cc",
+    "numeric_storage.h",
+    "storage.cc",
+    "storage.h",
+    "string_storage.cc",
+    "string_storage.h",
+    "types.h",
+    "utils.h",
+  ]
+  deps = [
+    "../..:metatrace",
+    "../../../../gn:default_deps",
+    "../../../../include/perfetto/trace_processor:basic_types",
+    "../../../base",
+    "../../containers",
+    "../../util:glob",
+    "../../util:regex",
+  ]
+}
+
+perfetto_unittest_source_set("unittests") {
+  testonly = true
+  sources = [
+    "id_storage_unittest.cc",
+    "numeric_storage_unittest.cc",
+    "string_storage_unittest.cc",
+  ]
+  deps = [
+    ":storage",
+    "../../../../gn:default_deps",
+    "../../../../gn:gtest_and_gmock",
+  ]
+}
