@@ -26,11 +26,11 @@ import java.util.Locale;
 public final class Log {
   public static final String TAG = "starboard";
 
-  private static Method logV;
-  private static Method logD;
-  private static Method logI;
-  private static Method logW;
-  private static Method logE;
+  private static Method sLogV;
+  private static Method sLogD;
+  private static Method sLogI;
+  private static Method sLogW;
+  private static Method sLogE;
 
   static {
     initLogging();
@@ -40,19 +40,19 @@ public final class Log {
 
   private static void initLogging() {
     try {
-      logV =
+      sLogV =
           android.util.Log.class.getDeclaredMethod(
               "v", String.class, String.class, Throwable.class);
-      logD =
+      sLogD =
           android.util.Log.class.getDeclaredMethod(
               "d", String.class, String.class, Throwable.class);
-      logI =
+      sLogI =
           android.util.Log.class.getDeclaredMethod(
               "i", String.class, String.class, Throwable.class);
-      logW =
+      sLogW =
           android.util.Log.class.getDeclaredMethod(
               "w", String.class, String.class, Throwable.class);
-      logE =
+      sLogE =
           android.util.Log.class.getDeclaredMethod(
               "e", String.class, String.class, Throwable.class);
     } catch (Throwable e) {
@@ -95,34 +95,34 @@ public final class Log {
 
   public static int v(String tag, String messageTemplate, Object... args) {
     if (android.util.Log.isLoggable(TAG, android.util.Log.VERBOSE)) {
-      return logWithMethod(logV, tag, messageTemplate, args);
+      return logWithMethod(sLogV, tag, messageTemplate, args);
     }
     return 0;
   }
 
   public static int d(String tag, String messageTemplate, Object... args) {
     if (android.util.Log.isLoggable(TAG, android.util.Log.DEBUG)) {
-      return logWithMethod(logD, tag, messageTemplate, args);
+      return logWithMethod(sLogD, tag, messageTemplate, args);
     }
     return 0;
   }
 
   public static int i(String tag, String messageTemplate, Object... args) {
     if (android.util.Log.isLoggable(TAG, android.util.Log.INFO)) {
-      return logWithMethod(logI, tag, messageTemplate, args);
+      return logWithMethod(sLogI, tag, messageTemplate, args);
     }
     return 0;
   }
 
   public static int w(String tag, String messageTemplate, Object... args) {
-    return logWithMethod(logW, tag, messageTemplate, args);
+    return logWithMethod(sLogW, tag, messageTemplate, args);
   }
 
   public static int w(String tag, Throwable tr) {
-    return logWithMethod(logW, tag, "", tr);
+    return logWithMethod(sLogW, tag, "", tr);
   }
 
   public static int e(String tag, String messageTemplate, Object... args) {
-    return logWithMethod(logE, tag, messageTemplate, args);
+    return logWithMethod(sLogE, tag, messageTemplate, args);
   }
 }
