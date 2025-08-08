@@ -303,6 +303,7 @@ vs-chromium-project.txt
 /ui/gl/resources/angle-metal
 /ui/surface/surface.xml
 /ui/surface/surface_gpu_tests.xml
+# /v8 Note: Has been imported as a subtree, and is not ignored in Cobalt.
 /webkit/data
 /webpagereplay_logs/
 /x86-generic_out/
