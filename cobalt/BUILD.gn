@@ -94,7 +94,7 @@ if (!is_android) {
     ]
   }
 
-  if (!is_cobalt_hermetic_build) {
+  if (false && !is_cobalt_hermetic_build) {
     strip_binary("strip_cobalt_binary") {
       binary_input = "$root_out_dir/cobalt"
       deps = [ ":cobalt" ]
