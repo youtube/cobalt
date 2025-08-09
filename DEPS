@@ -1446,8 +1446,9 @@ deps = {
   'src/third_party/cpu_features/src':
     Var('chromium_git') + '/external/github.com/google/cpu_features.git' + '@' + '936b9ab5515dead115606559502e3864958f7f6e',
 
-  'src/third_party/cpuinfo/src':
-    Var('chromium_git') + '/external/github.com/pytorch/cpuinfo.git' + '@' + '3c8b1533ac03dd6531ab6e7b9245d488f13a82a5',
+# Cobalt: imported
+#  'src/third_party/cpuinfo/src':
+#    Var('chromium_git') + '/external/github.com/pytorch/cpuinfo.git' + '@' + '3c8b1533ac03dd6531ab6e7b9245d488f13a82a5',
 
   'src/third_party/crc32c/src':
     Var('chromium_git') + '/external/github.com/google/crc32c.git' + '@' + 'fa5ade41ee480003d9c5af6f43567ba22e4e17e6',

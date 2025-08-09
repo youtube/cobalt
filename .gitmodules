@@ -181,9 +181,6 @@
 [submodule "third_party/cpu_features/src"]
 	path = third_party/cpu_features/src
 	url = https://chromium.googlesource.com/external/github.com/google/cpu_features
-[submodule "third_party/cpuinfo/src"]
-	path = third_party/cpuinfo/src
-	url = https://chromium.googlesource.com/external/github.com/pytorch/cpuinfo
 [submodule "third_party/crc32c/src"]
 	path = third_party/crc32c/src
 	url = https://chromium.googlesource.com/external/github.com/google/crc32c
