@@ -179,6 +179,7 @@ if (is_android) {
 
 test("cobalt_browsertests") {
   use_xvfb = use_xvfb_in_this_config
+  run_browser_tests = true
 
   # See comment at the top of //content/BUILD.gn for why this is disabled in
   # component builds.
