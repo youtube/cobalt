@@ -109,9 +109,6 @@ android {
             externalNativeBuild {
                 cmake.arguments "-DCOBALT_CONFIG=debug"
             }
-            packagingOptions {
-                doNotStrip '**/*.so'
-            }
             signingConfig signingConfigs.debugConfig
             enableUnitTestCoverage true
         }
@@ -121,9 +118,6 @@ android {
             externalNativeBuild {
                 cmake.arguments "-DCOBALT_CONFIG=devel"
             }
-            packagingOptions {
-                doNotStrip '**/*.so'
-            }
             signingConfig signingConfigs.debugConfig
             enableUnitTestCoverage true
         }
@@ -132,9 +126,6 @@ android {
             jniDebuggable true
             externalNativeBuild {
                 cmake.arguments "-DCOBALT_CONFIG=qa"
-            }
-            packagingOptions {
-                doNotStrip '**/*.so'
             }
             signingConfig signingConfigs.debugConfig
             enableUnitTestCoverage true
