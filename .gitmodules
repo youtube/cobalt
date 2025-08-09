@@ -552,9 +552,6 @@
 [submodule "third_party/webgpu-cts/src"]
 	path = third_party/webgpu-cts/src
 	url = https://chromium.googlesource.com/external/github.com/gpuweb/cts
-[submodule "third_party/webrtc"]
-	path = third_party/webrtc
-	url = https://webrtc.googlesource.com/src
 [submodule "third_party/wuffs/src"]
 	path = third_party/wuffs/src
 	url = https://skia.googlesource.com/external/github.com/google/wuffs-mirror-release-c
