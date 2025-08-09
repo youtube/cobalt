@@ -160,23 +160,6 @@ TEST(SbMediaBufferTest, MediaTypes) {
   }
 }
 
-TEST(SbMediaBufferTest, Alignment) {
-  for (int i = 0; i < SB_ARRAY_SIZE_INT(kMediaTypes); ++i) {
-    // The test will be run more than once, it's redundant but allows us to keep
-    // the test logic in one place.
-    int alignment = SbMediaGetBufferAlignment();
-
-    // SbMediaGetBufferAlignment() was deprecated in Starboard 16, its return
-    // value is no longer used when allocating media buffers.  This is verified
-    // explicitly here by ensuring its return value is sizeof(void*).
-    // The app MAY take best effort to allocate media buffers aligned to an
-    // optimal alignment for the platform, but not guaranteed.
-    // An implementation that has specific alignment requirement should check
-    // the alignment of the incoming buffer, and make a copy when necessary.
-    EXPECT_EQ(static_cast<size_t>(alignment), sizeof(void*));
-  }
-}
-
 TEST(SbMediaBufferTest, AllocationUnit) {
   EXPECT_GE(SbMediaGetBufferAllocationUnit(), 0);
 
@@ -231,15 +214,6 @@ TEST(SbMediaBufferTest, MaxCapacity) {
   }
 }
 
-TEST(SbMediaBufferTest, Padding) {
-  // SbMediaGetBufferPadding() was deprecated in Starboard 16, its return value
-  // is no longer used when allocating media buffers.  This is verified
-  // explicitly here by ensuring its return value is 0.
-  // An implementation that has specific padding requirement should make a
-  // copy of the incoming buffer when necessary.
-  EXPECT_EQ(SbMediaGetBufferPadding(), 0);
-}
-
 TEST(SbMediaBufferTest, PoolAllocateOnDemand) {
   // Just don't crash.
   SbMediaIsBufferPoolAllocateOnDemand();
@@ -264,12 +238,6 @@ TEST(SbMediaBufferTest, ProgressiveBudget) {
   }
 }
 
-TEST(SbMediaBufferTest, UsingMemoryPool) {
-  EXPECT_TRUE(SbMediaIsBufferUsingMemoryPool())
-      << "This function is deprecated. Media buffer pools are always "
-      << "used in Starboard 16 and newer. Please see starboard/CHANGELOG.md";
-}
-
 TEST(SbMediaBufferTest, VideoBudget) {
   for (auto codec : kVideoCodecs) {
     for (auto resolution : kVideoResolutions) {
@@ -291,7 +259,6 @@ TEST(SbMediaBufferTest, ValidatePerformance) {
       SbMediaGetBufferGarbageCollectionDurationThreshold);
   TEST_PERF_FUNCNOARGS_DEFAULT(SbMediaGetInitialBufferCapacity);
   TEST_PERF_FUNCNOARGS_DEFAULT(SbMediaIsBufferPoolAllocateOnDemand);
-  TEST_PERF_FUNCNOARGS_DEFAULT(SbMediaIsBufferUsingMemoryPool);
 
   for (auto resolution : kVideoResolutions) {
     for (auto bits_per_pixel : kBitsPerPixelValues) {
