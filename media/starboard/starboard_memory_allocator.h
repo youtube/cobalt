@@ -19,7 +19,9 @@
 
 #include <algorithm>
 
+#include "base/posix/safe_strerror.h"
 #include "starboard/common/allocator.h"
+#include "starboard/common/log.h"
 #include "starboard/configuration.h"
 
 namespace media {
@@ -32,7 +34,12 @@ class StarboardMemoryAllocator : public starboard::common::Allocator {
 
   void* Allocate(std::size_t size, std::size_t alignment) override {
     void* p = nullptr;
-    std::ignore = posix_memalign(&p, std::max(alignment, sizeof(void*)), size);
+    int err = posix_memalign(&p, std::max(alignment, sizeof(void*)), size);
+    if (err != 0) {
+      SB_LOG(FATAL) << __func__ << " failed: size=" << size
+                    << ", err=" << base::safe_strerror(err);
+    }
+    SB_LOG(INFO) << __func__ << " > size=" << size;
     return p;
   }
 

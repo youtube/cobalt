@@ -496,7 +496,8 @@ void MediaCodecBridge::OnMediaCodecFrameRendered(
     JNIEnv* env,
     jlong presentation_time_us,
     jlong render_at_system_time_ns) {
-  handler_->OnMediaCodecFrameRendered(presentation_time_us);
+  handler_->OnMediaCodecFrameRendered(presentation_time_us,
+                                      render_at_system_time_ns / 1000);
 }
 
 void MediaCodecBridge::OnMediaCodecFirstTunnelFrameReady(JNIEnv* env) {
