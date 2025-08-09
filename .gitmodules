@@ -277,9 +277,6 @@
 	path = third_party/google-truth/src
 	url = https://chromium.googlesource.com/external/github.com/google/truth
 	gclient-condition = checkout_android
-[submodule "third_party/googletest/src"]
-	path = third_party/googletest/src
-	url = https://chromium.googlesource.com/external/github.com/google/googletest
 [submodule "third_party/gperf"]
 	path = third_party/gperf
 	url = https://chromium.googlesource.com/chromium/deps/gperf
