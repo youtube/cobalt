@@ -1,0 +1,17 @@
+{
+  "channels": [
+    {
+      "name": "stable",
+      "rev": "b88536ad5a5569af9559fe0a3f295f12cff37751"
+    },
+    {
+      "name": "canary",
+      "rev": "9945c86178de704ff44bef7f64c020ff79aedd28"
+    },
+    {
+      "name": "autopush",
+      "rev": "HEAD"
+    }
+  ]
+}
+
