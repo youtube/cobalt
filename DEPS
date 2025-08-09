@@ -1570,8 +1570,14 @@ deps = {
       'dep_type': 'cipd',
   },
 
-  'src/third_party/angle':
-    Var('chromium_git') + '/angle/angle.git' + '@' +  Var('angle_revision'),
+# Cobalt: imported
+#  'src/third_party/angle':
+#    Var('chromium_git') + '/angle/angle.git' + '@' +  Var('angle_revision'),
+# Cobalt: Dependencies from angle's DEPS file.
+  'src/third_party/angle/third_party/rapidjson/src':
+    Var('chromium_git') + '/external/github.com/Tencent/rapidjson.git' + '@' + '781a4e667d84aeedbeb8184b7b62425ea66ec59f',
+  'src/third_party/angle/third_party/glmark2/src':
+    Var('chromium_git') + '/external/github.com/glmark2/glmark2.git' + '@' + 'ca8de51fedb70bace5351c6b002eb952c747e889',
 
   'src/third_party/anonymous_tokens/src':
     Var('chromium_git') + '/external/github.com/google/anonymous-tokens.git' + '@' + '6ea6ec78f9e4998d0a7a5677b2aec08f0ac858f8',

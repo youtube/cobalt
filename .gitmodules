@@ -122,9 +122,6 @@
 	path = third_party/androidx_javascriptengine/src
 	url = https://chromium.googlesource.com/aosp/platform/frameworks/support/javascriptengine/javascriptengine/src
 	gclient-condition = checkout_android
-[submodule "third_party/angle"]
-	path = third_party/angle
-	url = https://chromium.googlesource.com/angle/angle
 [submodule "third_party/anonymous_tokens/src"]
 	path = third_party/anonymous_tokens/src
 	url = https://chromium.googlesource.com/external/github.com/google/anonymous-tokens
