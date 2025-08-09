@@ -9,9 +9,6 @@
 	path = chrome/installer/mac/third_party/xz/xz
 	url = https://chromium.googlesource.com/chromium/deps/xz
 	gclient-condition = checkout_mac
-[submodule "third_party/libc++/src"]
-	path = third_party/libc++/src
-	url = https://chromium.googlesource.com/external/github.com/llvm/llvm-project/libcxx
 [submodule "third_party/libc++abi/src"]
 	path = third_party/libc++abi/src
 	url = https://chromium.googlesource.com/external/github.com/llvm/llvm-project/libcxxabi
