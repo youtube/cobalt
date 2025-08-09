@@ -847,10 +847,11 @@ deps = {
       'condition': 'checkout_mac',
   },
 
-  'src/third_party/libc++/src':
-    Var('chromium_git') +
-    '/external/github.com/llvm/llvm-project/libcxx.git' + '@' +
-    Var('libcxx_revision'),
+# Cobalt: imported
+#  'src/third_party/libc++/src':
+#    Var('chromium_git') +
+#    '/external/github.com/llvm/llvm-project/libcxx.git' + '@' +
+#    Var('libcxx_revision'),
   'src/third_party/libc++abi/src':
     Var('chromium_git') +
     '/external/github.com/llvm/llvm-project/libcxxabi.git' + '@' +
