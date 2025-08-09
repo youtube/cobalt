@@ -1,0 +1,92 @@
+# Copyright (c) 2019 The WebRTC project authors. All Rights Reserved.
+#
+# Use of this source code is governed by a BSD-style license
+# that can be found in the LICENSE file in the root of the source
+# tree. An additional intellectual property rights grant can be found
+# in the file PATENTS.  All contributing project authors may
+# be found in the AUTHORS file in the root of the source tree.
+
+import("../../webrtc.gni")
+
+if (rtc_include_tests) {
+  rtc_library("peer_scenario") {
+    testonly = true
+    sources = [
+      "peer_scenario.cc",
+      "peer_scenario.h",
+      "peer_scenario_client.cc",
+      "peer_scenario_client.h",
+      "scenario_connection.cc",
+      "scenario_connection.h",
+      "signaling_route.cc",
+      "signaling_route.h",
+    ]
+    deps = [
+      "..:create_frame_generator_capturer",
+      "..:fake_video_codecs",
+      "..:fileutils",
+      "..:frame_generator_capturer",
+      "..:test_support",
+      "../../api:array_view",
+      "../../api:candidate",
+      "../../api:create_time_controller",
+      "../../api:libjingle_peerconnection_api",
+      "../../api:network_emulation_manager_api",
+      "../../api:rtc_stats_api",
+      "../../api:scoped_refptr",
+      "../../api:sequence_checker",
+      "../../api:time_controller",
+      "../../api/audio_codecs:builtin_audio_decoder_factory",
+      "../../api/audio_codecs:builtin_audio_encoder_factory",
+      "../../api/environment",
+      "../../api/rtc_event_log:rtc_event_log_factory",
+      "../../api/task_queue:default_task_queue_factory",
+      "../../api/test/network_emulation",
+      "../../api/transport:datagram_transport_interface",
+      "../../api/transport:enums",
+      "../../api/transport:field_trial_based_config",
+      "../../api/video_codecs:video_decoder_factory_template",
+      "../../api/video_codecs:video_decoder_factory_template_dav1d_adapter",
+      "../../api/video_codecs:video_decoder_factory_template_libvpx_vp8_adapter",
+      "../../api/video_codecs:video_decoder_factory_template_libvpx_vp9_adapter",
+      "../../api/video_codecs:video_decoder_factory_template_open_h264_adapter",
+      "../../api/video_codecs:video_encoder_factory_template",
+      "../../api/video_codecs:video_encoder_factory_template_libaom_av1_adapter",
+      "../../api/video_codecs:video_encoder_factory_template_libvpx_vp8_adapter",
+      "../../api/video_codecs:video_encoder_factory_template_libvpx_vp9_adapter",
+      "../../api/video_codecs:video_encoder_factory_template_open_h264_adapter",
+      "../../call:payload_type_picker",
+      "../../call:rtp_interfaces",
+      "../../call:rtp_receiver",
+      "../../media:rtc_audio_video",
+      "../../media:rtp_utils",
+      "../../modules/audio_device:test_audio_device_module",
+      "../../modules/rtp_rtcp:rtp_rtcp_format",
+      "../../p2p:basic_port_allocator",
+      "../../p2p:rtc_p2p",
+      "../../p2p:transport_description",
+      "../../pc:channel",
+      "../../pc:dtls_transport",
+      "../../pc:jsep_transport_controller",
+      "../../pc:pc_test_utils",
+      "../../pc:rtp_transport_internal",
+      "../../pc:session_description",
+      "../../rtc_base:checks",
+      "../../rtc_base:crypto_random",
+      "../../rtc_base:macromagic",
+      "../../rtc_base:null_socket_server",
+      "../../rtc_base:ssl",
+      "../../rtc_base:stringutils",
+      "../../rtc_base:task_queue_for_test",
+      "../../rtc_base/third_party/sigslot",
+      "../../test:explicit_key_value_config",
+      "../../test:scoped_key_value_config",
+      "../logging:log_writer",
+      "../network:emulated_network",
+      "../scenario",
+      "../time_controller",
+      "//third_party/abseil-cpp/absl/flags:flag",
+      "//third_party/abseil-cpp/absl/memory",
+    ]
+  }
+}
