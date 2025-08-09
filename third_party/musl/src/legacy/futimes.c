@@ -1,4 +1,9 @@
+// This seems to be defined somewhere else, so we disable this definition for 
+// starboard builds to avoid compile errors.
+// TODO: (b/437179183) Investigate to see if we can reduce/simplify this code.
+#if !defined(STARBOARD)
 #define _GNU_SOURCE
+#endif 
 #include <sys/stat.h>
 #include <sys/time.h>
 
