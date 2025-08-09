@@ -576,9 +576,6 @@
 [submodule "third_party/zstd/src"]
 	path = third_party/zstd/src
 	url = https://chromium.googlesource.com/external/github.com/facebook/zstd
-[submodule "v8"]
-	path = v8
-	url = https://chromium.googlesource.com/v8/v8
 [submodule "internal"]
 	path = internal
 	url = https://chrome-internal.googlesource.com/chrome/src-internal
