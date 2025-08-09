@@ -12,9 +12,6 @@
 [submodule "third_party/compiler-rt/src"]
 	path = third_party/compiler-rt/src
 	url = https://chromium.googlesource.com/external/github.com/llvm/llvm-project/compiler-rt
-[submodule "third_party/libc++/src"]
-	path = third_party/libc++/src
-	url = https://chromium.googlesource.com/external/github.com/llvm/llvm-project/libcxx
 [submodule "third_party/libc++abi/src"]
 	path = third_party/libc++abi/src
 	url = https://chromium.googlesource.com/external/github.com/llvm/llvm-project/libcxxabi
