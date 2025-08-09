@@ -115,9 +115,6 @@
 	path = native_client
 	url = https://chromium.googlesource.com/native_client/src/native_client
 	gclient-condition = checkout_nacl
-[submodule "net/third_party/quiche/src"]
-	path = net/third_party/quiche/src
-	url = https://quiche.googlesource.com/quiche
 [submodule "testing/libfuzzer/fuzzers/wasm_corpus"]
 	path = testing/libfuzzer/fuzzers/wasm_corpus
 	url = https://chromium.googlesource.com/v8/fuzzer_wasm_corpus
